@@ -103,11 +103,11 @@ static void htc_tx_comp_update(struct htc_target *target,
 	endpoint->cred_dist.txq_depth = get_queue_depth(&endpoint->txq);
 
 	ath6kl_dbg(ATH6KL_DBG_HTC, "htc tx ctxt 0x%p dist 0x%p\n",
-		   target->cred_dist_cntxt, &target->cred_dist_list);
+		   target->credit_info, &target->cred_dist_list);
 
-	ath6kl_credit_distribute(target->cred_dist_cntxt,
-				&target->cred_dist_list,
-				HTC_CREDIT_DIST_SEND_COMPLETE);
+	ath6kl_credit_distribute(target->credit_info,
+				 &target->cred_dist_list,
+				 HTC_CREDIT_DIST_SEND_COMPLETE);
 
 	spin_unlock_bh(&target->tx_lock);
 }
@@ -235,9 +235,9 @@ static int htc_check_credits(struct htc_target *target,
 		ep->cred_dist.seek_cred = *req_cred - ep->cred_dist.credits;
 
 		ath6kl_dbg(ATH6KL_DBG_HTC, "htc creds ctxt 0x%p dist 0x%p\n",
-			   target->cred_dist_cntxt, &ep->cred_dist);
+			   target->credit_info, &ep->cred_dist);
 
-		ath6kl_seek_credits(target->cred_dist_cntxt, &ep->cred_dist);
+		ath6kl_seek_credits(target->credit_info, &ep->cred_dist);
 
 		ep->cred_dist.seek_cred = 0;
 
@@ -258,9 +258,9 @@ static int htc_check_credits(struct htc_target *target,
 		ep->cred_dist.cred_per_msg - ep->cred_dist.credits;
 
 		ath6kl_dbg(ATH6KL_DBG_HTC, "htc creds ctxt 0x%p dist 0x%p\n",
-			   target->cred_dist_cntxt, &ep->cred_dist);
+			   target->credit_info, &ep->cred_dist);
 
-		ath6kl_seek_credits(target->cred_dist_cntxt, &ep->cred_dist);
+		ath6kl_seek_credits(target->credit_info, &ep->cred_dist);
 
 		/* see if we were successful in getting more */
 		if (ep->cred_dist.credits < ep->cred_dist.cred_per_msg) {
@@ -698,13 +698,13 @@ static int htc_setup_tx_complete(struct htc_target *target)
 }
 
 void ath6kl_htc_set_credit_dist(struct htc_target *target,
-				struct htc_credit_state_info *cred_dist_cntxt,
+				struct ath6kl_htc_credit_info *credit_info,
 				u16 srvc_pri_order[], int list_len)
 {
 	struct htc_endpoint *endpoint;
 	int i, ep;
 
-	target->cred_dist_cntxt = cred_dist_cntxt;
+	target->credit_info = credit_info;
 
 	list_add_tail(&target->endpoint[ENDPOINT_0].cred_dist.list,
 		      &target->cred_dist_list);
@@ -840,9 +840,9 @@ void ath6kl_htc_indicate_activity_change(struct htc_target *target,
 
 		ath6kl_dbg(ATH6KL_DBG_HTC,
 			   "htc tx activity ctxt 0x%p dist 0x%p\n",
-			   target->cred_dist_cntxt, &target->cred_dist_list);
+			   target->credit_info, &target->cred_dist_list);
 
-		ath6kl_credit_distribute(target->cred_dist_cntxt,
+		ath6kl_credit_distribute(target->credit_info,
 					 &target->cred_dist_list,
 					 HTC_CREDIT_DIST_ACTIVITY_CHANGE);
 	}
@@ -1270,9 +1270,9 @@ static void htc_proc_cred_rpt(struct htc_target *target,
 		 * operations note, this is done with the lock held
 		 */
 		ath6kl_dbg(ATH6KL_DBG_HTC, "htc creds ctxt 0x%p dist 0x%p\n",
-			   target->cred_dist_cntxt, &target->cred_dist_list);
+			   target->credit_info, &target->cred_dist_list);
 
-		ath6kl_credit_distribute(target->cred_dist_cntxt,
+		ath6kl_credit_distribute(target->credit_info,
 					 &target->cred_dist_list,
 					 HTC_CREDIT_DIST_SEND_COMPLETE);
 	}
@@ -2176,6 +2176,7 @@ static void reset_ep_state(struct htc_target *target)
 	}
 
 	/* reset distribution list */
+	/* FIXME: free existing entries */
 	INIT_LIST_HEAD(&target->cred_dist_list);
 }
 
@@ -2338,7 +2339,7 @@ int ath6kl_htc_start(struct htc_target *target)
 	}
 
 	/* NOTE: the first entry in the distribution list is ENDPOINT_0 */
-	ath6kl_credit_init(target->cred_dist_cntxt, &target->cred_dist_list,
+	ath6kl_credit_init(target->credit_info, &target->cred_dist_list,
 			   target->tgt_creds);
 
 	dump_cred_dist_stats(target);

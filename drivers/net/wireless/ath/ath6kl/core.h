@@ -484,7 +484,7 @@ struct ath6kl {
 	u8 hiac_stream_active_pri;
 	u8 ep2ac_map[ENDPOINT_MAX];
 	enum htc_endpoint_id ctrl_ep;
-	struct htc_credit_state_info credit_state_info;
+	struct ath6kl_htc_credit_info credit_state_info;
 	u32 connect_ctrl_flags;
 	u32 user_key_ctrl;
 	u8 usr_bss_filter;
@@ -570,7 +570,7 @@ static inline void *ath6kl_priv(struct net_device *dev)
 	return ((struct ath6kl_vif *) netdev_priv(dev))->ar;
 }
 
-static inline void ath6kl_deposit_credit_to_ep(struct htc_credit_state_info
+static inline void ath6kl_deposit_credit_to_ep(struct ath6kl_htc_credit_info
 					       *cred_info,
 					       struct htc_endpoint_credit_dist
 					       *ep_dist, int credits)

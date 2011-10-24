@@ -180,11 +180,11 @@ void dump_cred_dist_stats(struct htc_target *target)
 		dump_cred_dist(ep_list);
 
 	ath6kl_dbg(ATH6KL_DBG_HTC, "ctxt:%p dist:%p\n",
-		   target->cred_dist_cntxt, NULL);
+		   target->credit_info, NULL);
 	ath6kl_dbg(ATH6KL_DBG_HTC,
 		   "credit distribution, total : %d, free : %d\n",
-		   target->cred_dist_cntxt->total_avail_credits,
-		   target->cred_dist_cntxt->cur_free_credits);
+		   target->credit_info->total_avail_credits,
+		   target->credit_info->cur_free_credits);
 }
 
 static int ath6kl_debugfs_open(struct inode *inode, struct file *file)
@@ -561,10 +561,10 @@ static ssize_t read_file_credit_dist_stats(struct file *file,
 
 	len += scnprintf(buf + len, buf_len - len, "%25s%5d\n",
 			 "Total Avail Credits: ",
-			 target->cred_dist_cntxt->total_avail_credits);
+			 target->credit_info->total_avail_credits);
 	len += scnprintf(buf + len, buf_len - len, "%25s%5d\n",
 			 "Free credits :",
-			 target->cred_dist_cntxt->cur_free_credits);
+			 target->credit_info->cur_free_credits);
 
 	len += scnprintf(buf + len, buf_len - len,
 			 " Epid  Flags    Cred_norm  Cred_min  Credits  Cred_assngd"
