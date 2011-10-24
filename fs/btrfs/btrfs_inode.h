@@ -103,20 +103,12 @@ struct btrfs_inode {
 	 */
 	u64 delalloc_bytes;
 
-	/* total number of bytes that may be used for this inode for
-	 * delalloc
-	 */
-	u64 reserved_bytes;
-
 	/*
 	 * the size of the file stored in the metadata on disk.  data=ordered
 	 * means the in-memory i_size might be larger than the size on disk
 	 * because not all the blocks are written yet.
 	 */
 	u64 disk_i_size;
-
-	/* flags field from the on disk inode */
-	u32 flags;
 
 	/*
 	 * if this is a directory then index_cnt is the counter for the index
@@ -130,6 +122,15 @@ struct btrfs_inode {
 	 * details
 	 */
 	u64 last_unlink_trans;
+
+	/*
+	 * Number of bytes outstanding that are going to need csums.  This is
+	 * used in ENOSPC accounting.
+	 */
+	u64 csum_bytes;
+
+	/* flags field from the on disk inode */
+	u32 flags;
 
 	/*
 	 * Counters to keep track of the number of extent item's we may use due

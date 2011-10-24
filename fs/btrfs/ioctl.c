@@ -117,7 +117,7 @@ void btrfs_update_iflags(struct inode *inode)
 /*
  * Inherit flags from the parent inode.
  *
- * Unlike extN we don't have any flags we don't want to inherit currently.
+ * Currently only the compression flags and the cow flags are inherited.
  */
 void btrfs_inherit_iflags(struct inode *inode, struct inode *dir)
 {
@@ -128,12 +128,17 @@ void btrfs_inherit_iflags(struct inode *inode, struct inode *dir)
 
 	flags = BTRFS_I(dir)->flags;
 
-	if (S_ISREG(inode->i_mode))
-		flags &= ~BTRFS_INODE_DIRSYNC;
-	else if (!S_ISDIR(inode->i_mode))
-		flags &= (BTRFS_INODE_NODUMP | BTRFS_INODE_NOATIME);
+	if (flags & BTRFS_INODE_NOCOMPRESS) {
+		BTRFS_I(inode)->flags &= ~BTRFS_INODE_COMPRESS;
+		BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
+	} else if (flags & BTRFS_INODE_COMPRESS) {
+		BTRFS_I(inode)->flags &= ~BTRFS_INODE_NOCOMPRESS;
+		BTRFS_I(inode)->flags |= BTRFS_INODE_COMPRESS;
+	}
 
-	BTRFS_I(inode)->flags = flags;
+	if (flags & BTRFS_INODE_NODATACOW)
+		BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW;
+
 	btrfs_update_iflags(inode);
 }
 
@@ -843,6 +848,7 @@ static int cluster_pages_for_defrag(struct inode *inode,
 	int i_done;
 	struct btrfs_ordered_extent *ordered;
 	struct extent_state *cached_state = NULL;
+	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 
 	if (isize == 0)
 		return 0;
@@ -860,7 +866,7 @@ again:
 	for (i = 0; i < num_pages; i++) {
 		struct page *page;
 		page = find_or_create_page(inode->i_mapping,
-					    start_index + i, GFP_NOFS);
+					    start_index + i, mask);
 		if (!page)
 			break;
 

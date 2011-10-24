@@ -1013,8 +1013,13 @@ static int btrfs_free_dev_extent(struct btrfs_trans_handle *trans,
 	}
 	BUG_ON(ret);
 
-	if (device->bytes_used > 0)
-		device->bytes_used -= btrfs_dev_extent_length(leaf, extent);
+	if (device->bytes_used > 0) {
+		u64 len = btrfs_dev_extent_length(leaf, extent);
+		device->bytes_used -= len;
+		spin_lock(&root->fs_info->free_chunk_lock);
+		root->fs_info->free_chunk_space += len;
+		spin_unlock(&root->fs_info->free_chunk_lock);
+	}
 	ret = btrfs_del_item(trans, root, path);
 
 out:
@@ -1356,6 +1361,11 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	if (ret)
 		goto error_undo;
 
+	spin_lock(&root->fs_info->free_chunk_lock);
+	root->fs_info->free_chunk_space = device->total_bytes -
+		device->bytes_used;
+	spin_unlock(&root->fs_info->free_chunk_lock);
+
 	device->in_fs_metadata = 0;
 	btrfs_scrub_cancel_dev(root, device);
 
@@ -1690,6 +1700,10 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	if (device->can_discard)
 		root->fs_info->fs_devices->num_can_discard++;
 	root->fs_info->fs_devices->total_rw_bytes += device->total_bytes;
+
+	spin_lock(&root->fs_info->free_chunk_lock);
+	root->fs_info->free_chunk_space += device->total_bytes;
+	spin_unlock(&root->fs_info->free_chunk_lock);
 
 	if (!blk_queue_nonrot(bdev_get_queue(bdev)))
 		root->fs_info->fs_devices->rotating = 1;
@@ -2192,8 +2206,12 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	lock_chunks(root);
 
 	device->total_bytes = new_size;
-	if (device->writeable)
+	if (device->writeable) {
 		device->fs_devices->total_rw_bytes -= diff;
+		spin_lock(&root->fs_info->free_chunk_lock);
+		root->fs_info->free_chunk_space -= diff;
+		spin_unlock(&root->fs_info->free_chunk_lock);
+	}
 	unlock_chunks(root);
 
 again:
@@ -2257,6 +2275,9 @@ again:
 		device->total_bytes = old_size;
 		if (device->writeable)
 			device->fs_devices->total_rw_bytes += diff;
+		spin_lock(&root->fs_info->free_chunk_lock);
+		root->fs_info->free_chunk_space += diff;
+		spin_unlock(&root->fs_info->free_chunk_lock);
 		unlock_chunks(root);
 		goto done;
 	}
@@ -2614,6 +2635,11 @@ static int __finish_chunk_alloc(struct btrfs_trans_handle *trans,
 		BUG_ON(ret);
 		index++;
 	}
+
+	spin_lock(&extent_root->fs_info->free_chunk_lock);
+	extent_root->fs_info->free_chunk_space -= (stripe_size *
+						   map->num_stripes);
+	spin_unlock(&extent_root->fs_info->free_chunk_lock);
 
 	index = 0;
 	stripe = &chunk->stripe;
@@ -3616,8 +3642,13 @@ static int read_one_dev(struct btrfs_root *root,
 	fill_device_from_item(leaf, dev_item, device);
 	device->dev_root = root->fs_info->dev_root;
 	device->in_fs_metadata = 1;
-	if (device->writeable)
+	if (device->writeable) {
 		device->fs_devices->total_rw_bytes += device->total_bytes;
+		spin_lock(&root->fs_info->free_chunk_lock);
+		root->fs_info->free_chunk_space += device->total_bytes -
+			device->bytes_used;
+		spin_unlock(&root->fs_info->free_chunk_lock);
+	}
 	ret = 0;
 	return ret;
 }

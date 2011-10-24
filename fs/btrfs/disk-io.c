@@ -1648,6 +1648,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->fs_roots_radix_lock);
 	spin_lock_init(&fs_info->delayed_iput_lock);
 	spin_lock_init(&fs_info->defrag_inodes_lock);
+	spin_lock_init(&fs_info->free_chunk_lock);
 	mutex_init(&fs_info->reloc_mutex);
 
 	init_completion(&fs_info->kobj_unregister);
@@ -1665,8 +1666,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_init_block_rsv(&fs_info->trans_block_rsv);
 	btrfs_init_block_rsv(&fs_info->chunk_block_rsv);
 	btrfs_init_block_rsv(&fs_info->empty_block_rsv);
-	INIT_LIST_HEAD(&fs_info->durable_block_rsv_list);
-	mutex_init(&fs_info->durable_block_rsv_mutex);
 	atomic_set(&fs_info->nr_async_submits, 0);
 	atomic_set(&fs_info->async_delalloc_pages, 0);
 	atomic_set(&fs_info->async_submit_draining, 0);
@@ -1677,6 +1676,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->metadata_ratio = 0;
 	fs_info->defrag_inodes = RB_ROOT;
 	fs_info->trans_no_join = 0;
+	fs_info->free_chunk_space = 0;
 
 	fs_info->thread_pool_size = min_t(unsigned long,
 					  num_online_cpus() + 2, 8);
@@ -2545,8 +2545,6 @@ int close_ctree(struct btrfs_root *root)
 	/* clear out the rbtree of defraggable inodes */
 	btrfs_run_defrag_inodes(root->fs_info);
 
-	btrfs_put_block_group_cache(fs_info);
-
 	/*
 	 * Here come 2 situations when btrfs is broken to flip readonly:
 	 *
@@ -2571,6 +2569,8 @@ int close_ctree(struct btrfs_root *root)
 		if (ret)
 			printk(KERN_ERR "btrfs: commit super ret %d\n", ret);
 	}
+
+	btrfs_put_block_group_cache(fs_info);
 
 	kthread_stop(root->fs_info->transaction_kthread);
 	kthread_stop(root->fs_info->cleaner_kthread);

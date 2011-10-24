@@ -894,6 +894,194 @@ search_again:
 	goto again;
 }
 
+/**
+ * convert_extent - convert all bits in a given range from one bit to another
+ * @tree:	the io tree to search
+ * @start:	the start offset in bytes
+ * @end:	the end offset in bytes (inclusive)
+ * @bits:	the bits to set in this range
+ * @clear_bits:	the bits to clear in this range
+ * @mask:	the allocation mask
+ *
+ * This will go through and set bits for the given range.  If any states exist
+ * already in this range they are set with the given bit and cleared of the
+ * clear_bits.  This is only meant to be used by things that are mergeable, ie
+ * converting from say DELALLOC to DIRTY.  This is not meant to be used with
+ * boundary bits like LOCK.
+ */
+int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
+		       int bits, int clear_bits, gfp_t mask)
+{
+	struct extent_state *state;
+	struct extent_state *prealloc = NULL;
+	struct rb_node *node;
+	int err = 0;
+	u64 last_start;
+	u64 last_end;
+
+again:
+	if (!prealloc && (mask & __GFP_WAIT)) {
+		prealloc = alloc_extent_state(mask);
+		if (!prealloc)
+			return -ENOMEM;
+	}
+
+	spin_lock(&tree->lock);
+	/*
+	 * this search will find all the extents that end after
+	 * our range starts.
+	 */
+	node = tree_search(tree, start);
+	if (!node) {
+		prealloc = alloc_extent_state_atomic(prealloc);
+		if (!prealloc)
+			return -ENOMEM;
+		err = insert_state(tree, prealloc, start, end, &bits);
+		prealloc = NULL;
+		BUG_ON(err == -EEXIST);
+		goto out;
+	}
+	state = rb_entry(node, struct extent_state, rb_node);
+hit_next:
+	last_start = state->start;
+	last_end = state->end;
+
+	/*
+	 * | ---- desired range ---- |
+	 * | state |
+	 *
+	 * Just lock what we found and keep going
+	 */
+	if (state->start == start && state->end <= end) {
+		struct rb_node *next_node;
+
+		set_state_bits(tree, state, &bits);
+		clear_state_bit(tree, state, &clear_bits, 0);
+
+		merge_state(tree, state);
+		if (last_end == (u64)-1)
+			goto out;
+
+		start = last_end + 1;
+		next_node = rb_next(&state->rb_node);
+		if (next_node && start < end && prealloc && !need_resched()) {
+			state = rb_entry(next_node, struct extent_state,
+					 rb_node);
+			if (state->start == start)
+				goto hit_next;
+		}
+		goto search_again;
+	}
+
+	/*
+	 *     | ---- desired range ---- |
+	 * | state |
+	 *   or
+	 * | ------------- state -------------- |
+	 *
+	 * We need to split the extent we found, and may flip bits on
+	 * second half.
+	 *
+	 * If the extent we found extends past our
+	 * range, we just split and search again.  It'll get split
+	 * again the next time though.
+	 *
+	 * If the extent we found is inside our range, we set the
+	 * desired bit on it.
+	 */
+	if (state->start < start) {
+		prealloc = alloc_extent_state_atomic(prealloc);
+		if (!prealloc)
+			return -ENOMEM;
+		err = split_state(tree, state, prealloc, start);
+		BUG_ON(err == -EEXIST);
+		prealloc = NULL;
+		if (err)
+			goto out;
+		if (state->end <= end) {
+			set_state_bits(tree, state, &bits);
+			clear_state_bit(tree, state, &clear_bits, 0);
+			merge_state(tree, state);
+			if (last_end == (u64)-1)
+				goto out;
+			start = last_end + 1;
+		}
+		goto search_again;
+	}
+	/*
+	 * | ---- desired range ---- |
+	 *     | state | or               | state |
+	 *
+	 * There's a hole, we need to insert something in it and
+	 * ignore the extent we found.
+	 */
+	if (state->start > start) {
+		u64 this_end;
+		if (end < last_start)
+			this_end = end;
+		else
+			this_end = last_start - 1;
+
+		prealloc = alloc_extent_state_atomic(prealloc);
+		if (!prealloc)
+			return -ENOMEM;
+
+		/*
+		 * Avoid to free 'prealloc' if it can be merged with
+		 * the later extent.
+		 */
+		err = insert_state(tree, prealloc, start, this_end,
+				   &bits);
+		BUG_ON(err == -EEXIST);
+		if (err) {
+			free_extent_state(prealloc);
+			prealloc = NULL;
+			goto out;
+		}
+		prealloc = NULL;
+		start = this_end + 1;
+		goto search_again;
+	}
+	/*
+	 * | ---- desired range ---- |
+	 *                        | state |
+	 * We need to split the extent, and set the bit
+	 * on the first half
+	 */
+	if (state->start <= end && state->end > end) {
+		prealloc = alloc_extent_state_atomic(prealloc);
+		if (!prealloc)
+			return -ENOMEM;
+
+		err = split_state(tree, state, prealloc, end + 1);
+		BUG_ON(err == -EEXIST);
+
+		set_state_bits(tree, prealloc, &bits);
+		clear_state_bit(tree, prealloc, &clear_bits, 0);
+
+		merge_state(tree, prealloc);
+		prealloc = NULL;
+		goto out;
+	}
+
+	goto search_again;
+
+out:
+	spin_unlock(&tree->lock);
+	if (prealloc)
+		free_extent_state(prealloc);
+
+	return err;
+
+search_again:
+	if (start > end)
+		goto out;
+	spin_unlock(&tree->lock);
+	if (mask & __GFP_WAIT)
+		cond_resched();
+	goto again;
+}
+
 /* wrappers around set/clear extent bit */
 int set_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
 		     gfp_t mask)
@@ -2136,6 +2324,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	int compressed;
 	int write_flags;
 	unsigned long nr_written = 0;
+	bool fill_delalloc = true;
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		write_flags = WRITE_SYNC;
@@ -2166,10 +2355,13 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 
 	set_page_extent_mapped(page);
 
+	if (!tree->ops || !tree->ops->fill_delalloc)
+		fill_delalloc = false;
+
 	delalloc_start = start;
 	delalloc_end = 0;
 	page_started = 0;
-	if (!epd->extent_locked) {
+	if (!epd->extent_locked && fill_delalloc) {
 		u64 delalloc_to_write = 0;
 		/*
 		 * make sure the wbc mapping index is at least updated
