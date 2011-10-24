@@ -424,11 +424,11 @@ int tipc_bclink_send_msg(struct sk_buff *buf)
 	}
 
 	res = tipc_link_send_buf(bcl, buf);
-	if (likely(res > 0))
+	if (likely(res >= 0)) {
 		bclink_set_last_sent();
-
-	bcl->stats.queue_sz_counts++;
-	bcl->stats.accu_queue_sz += bcl->out_queue_size;
+		bcl->stats.queue_sz_counts++;
+		bcl->stats.accu_queue_sz += bcl->out_queue_size;
+	}
 exit:
 	spin_unlock_bh(&bc_lock);
 	return res;
