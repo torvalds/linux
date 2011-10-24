@@ -427,12 +427,6 @@ static struct clk init_clocks[] = {
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_DMA5,
 	}, {
-		.name		= "hsmmc",
-		.devname	= "s3c-sdhci.1",
-		.parent		= &clk_h,
-		.enable		= s3c2443_clkcon_enable_h,
-		.ctrlbit	= S3C2443_HCLKCON_HSMMC,
-	}, {
 		.name		= "gpio",
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
@@ -514,6 +508,14 @@ static struct clk init_clocks[] = {
 	}
 };
 
+static struct clk hsmmc1_clk = {
+	.name		= "hsmmc",
+	.devname	= "s3c-sdhci.1",
+	.parent		= &clk_h,
+	.enable		= s3c2443_clkcon_enable_h,
+	.ctrlbit	= S3C2443_HCLKCON_HSMMC,
+};
+
 static inline unsigned long s3c2443_get_hdiv(unsigned long clkcon0)
 {
 	clkcon0 &= S3C2443_CLKDIV0_HCLKDIV_MASK;
@@ -579,6 +581,7 @@ static struct clk *clks[] __initdata = {
 	&clk_epll,
 	&clk_usb_bus,
 	&clk_armdiv,
+	&hsmmc1_clk,
 };
 
 static struct clksrc_clk *clksrcs[] __initdata = {
@@ -595,6 +598,7 @@ static struct clk_lookup s3c2443_clk_lookup[] = {
 	CLKDEV_INIT(NULL, "clk_uart_baud1", &s3c24xx_uclk),
 	CLKDEV_INIT(NULL, "clk_uart_baud2", &clk_p),
 	CLKDEV_INIT(NULL, "clk_uart_baud3", &clk_esys_uart.clk),
+	CLKDEV_INIT("s3c-sdhci.1", "mmc_busclk.0", &hsmmc1_clk),
 };
 
 void __init s3c2443_common_init_clocks(int xtal, pll_fn get_mpll,
