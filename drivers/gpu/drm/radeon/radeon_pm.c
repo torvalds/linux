@@ -799,9 +799,9 @@ static void radeon_dynpm_idle_work_handler(struct work_struct *work)
 		int not_processed = 0;
 
 		read_lock_irqsave(&rdev->fence_drv.lock, irq_flags);
-		if (!list_empty(&rdev->fence_drv.emited)) {
+		if (!list_empty(&rdev->fence_drv.emitted)) {
 			struct list_head *ptr;
-			list_for_each(ptr, &rdev->fence_drv.emited) {
+			list_for_each(ptr, &rdev->fence_drv.emitted) {
 				/* count up to 3, that's enought info */
 				if (++not_processed >= 3)
 					break;

@@ -199,7 +199,7 @@ struct radeon_fence_driver {
 	wait_queue_head_t		queue;
 	rwlock_t			lock;
 	struct list_head		created;
-	struct list_head		emited;
+	struct list_head		emitted;
 	struct list_head		signaled;
 	bool				initialized;
 };
@@ -210,7 +210,7 @@ struct radeon_fence {
 	struct list_head		list;
 	/* protected by radeon_fence.lock */
 	uint32_t			seq;
-	bool				emited;
+	bool				emitted;
 	bool				signaled;
 };
 

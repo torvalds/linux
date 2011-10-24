@@ -74,7 +74,7 @@ int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence *fence)
 	unsigned long irq_flags;
 
 	write_lock_irqsave(&rdev->fence_drv.lock, irq_flags);
-	if (fence->emited) {
+	if (fence->emitted) {
 		write_unlock_irqrestore(&rdev->fence_drv.lock, irq_flags);
 		return 0;
 	}
@@ -88,8 +88,8 @@ int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence *fence)
 		radeon_fence_ring_emit(rdev, fence);
 
 	trace_radeon_fence_emit(rdev->ddev, fence->seq);
-	fence->emited = true;
-	list_move_tail(&fence->list, &rdev->fence_drv.emited);
+	fence->emitted = true;
+	list_move_tail(&fence->list, &rdev->fence_drv.emitted);
 	write_unlock_irqrestore(&rdev->fence_drv.lock, irq_flags);
 	return 0;
 }
@@ -129,7 +129,7 @@ static bool radeon_fence_poll_locked(struct radeon_device *rdev)
 		return false;
 	}
 	n = NULL;
-	list_for_each(i, &rdev->fence_drv.emited) {
+	list_for_each(i, &rdev->fence_drv.emitted) {
 		fence = list_entry(i, struct radeon_fence, list);
 		if (fence->seq == seq) {
 			n = i;
@@ -145,7 +145,7 @@ static bool radeon_fence_poll_locked(struct radeon_device *rdev)
 			fence = list_entry(i, struct radeon_fence, list);
 			fence->signaled = true;
 			i = n;
-		} while (i != &rdev->fence_drv.emited);
+		} while (i != &rdev->fence_drv.emitted);
 		wake = true;
 	}
 	return wake;
@@ -159,7 +159,7 @@ static void radeon_fence_destroy(struct kref *kref)
 	fence = container_of(kref, struct radeon_fence, kref);
 	write_lock_irqsave(&fence->rdev->fence_drv.lock, irq_flags);
 	list_del(&fence->list);
-	fence->emited = false;
+	fence->emitted = false;
 	write_unlock_irqrestore(&fence->rdev->fence_drv.lock, irq_flags);
 	kfree(fence);
 }
@@ -174,7 +174,7 @@ int radeon_fence_create(struct radeon_device *rdev, struct radeon_fence **fence)
 	}
 	kref_init(&((*fence)->kref));
 	(*fence)->rdev = rdev;
-	(*fence)->emited = false;
+	(*fence)->emitted = false;
 	(*fence)->signaled = false;
 	(*fence)->seq = 0;
 	INIT_LIST_HEAD(&(*fence)->list);
@@ -203,8 +203,8 @@ bool radeon_fence_signaled(struct radeon_fence *fence)
 	if (fence->rdev->shutdown) {
 		signaled = true;
 	}
-	if (!fence->emited) {
-		WARN(1, "Querying an unemited fence : %p !\n", fence);
+	if (!fence->emitted) {
+		WARN(1, "Querying an unemitted fence : %p !\n", fence);
 		signaled = true;
 	}
 	if (!signaled) {
@@ -295,11 +295,11 @@ int radeon_fence_wait_next(struct radeon_device *rdev)
 		return 0;
 	}
 	write_lock_irqsave(&rdev->fence_drv.lock, irq_flags);
-	if (list_empty(&rdev->fence_drv.emited)) {
+	if (list_empty(&rdev->fence_drv.emitted)) {
 		write_unlock_irqrestore(&rdev->fence_drv.lock, irq_flags);
 		return 0;
 	}
-	fence = list_entry(rdev->fence_drv.emited.next,
+	fence = list_entry(rdev->fence_drv.emitted.next,
 			   struct radeon_fence, list);
 	radeon_fence_ref(fence);
 	write_unlock_irqrestore(&rdev->fence_drv.lock, irq_flags);
@@ -318,11 +318,11 @@ int radeon_fence_wait_last(struct radeon_device *rdev)
 		return 0;
 	}
 	write_lock_irqsave(&rdev->fence_drv.lock, irq_flags);
-	if (list_empty(&rdev->fence_drv.emited)) {
+	if (list_empty(&rdev->fence_drv.emitted)) {
 		write_unlock_irqrestore(&rdev->fence_drv.lock, irq_flags);
 		return 0;
 	}
-	fence = list_entry(rdev->fence_drv.emited.prev,
+	fence = list_entry(rdev->fence_drv.emitted.prev,
 			   struct radeon_fence, list);
 	radeon_fence_ref(fence);
 	write_unlock_irqrestore(&rdev->fence_drv.lock, irq_flags);
@@ -375,7 +375,7 @@ int radeon_fence_driver_init(struct radeon_device *rdev)
 	radeon_fence_write(rdev, 0);
 	atomic_set(&rdev->fence_drv.seq, 0);
 	INIT_LIST_HEAD(&rdev->fence_drv.created);
-	INIT_LIST_HEAD(&rdev->fence_drv.emited);
+	INIT_LIST_HEAD(&rdev->fence_drv.emitted);
 	INIT_LIST_HEAD(&rdev->fence_drv.signaled);
 	init_waitqueue_head(&rdev->fence_drv.queue);
 	rdev->fence_drv.initialized = true;
@@ -413,10 +413,10 @@ static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "Last signaled fence 0x%08X\n",
 		   radeon_fence_read(rdev));
-	if (!list_empty(&rdev->fence_drv.emited)) {
-		   fence = list_entry(rdev->fence_drv.emited.prev,
+	if (!list_empty(&rdev->fence_drv.emitted)) {
+		   fence = list_entry(rdev->fence_drv.emitted.prev,
 				      struct radeon_fence, list);
-		   seq_printf(m, "Last emited fence %p with 0x%08X\n",
+		   seq_printf(m, "Last emitted fence %p with 0x%08X\n",
 			      fence,  fence->seq);
 	}
 	return 0;
