@@ -2468,7 +2468,7 @@ S:	Supported
 F:	drivers/infiniband/hw/ehca/
 
 EHEA (IBM pSeries eHEA 10Gb ethernet adapter) DRIVER
-M:	Breno Leitao <leitao@linux.vnet.ibm.com>
+M:	Thadeu Lima de Souza Cascardo <cascardo@linux.vnet.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/ibm/ehea/
@@ -6374,10 +6374,10 @@ F:	net/ipv4/tcp_lp.c
 
 TEGRA SUPPORT
 M:	Colin Cross <ccross@android.com>
-M:	Erik Gilling <konkers@android.com>
 M:	Olof Johansson <olof@lixom.net>
+M:	Stephen Warren <swarren@nvidia.com>
 L:	linux-tegra@vger.kernel.org
-T:	git git://android.git.kernel.org/kernel/tegra.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/olof/tegra.git
 S:	Supported
 F:	arch/arm/mach-tegra
 

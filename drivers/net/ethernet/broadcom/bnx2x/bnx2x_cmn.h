@@ -1297,7 +1297,7 @@ static inline void bnx2x_init_txdata(struct bnx2x *bp,
 static inline u8 bnx2x_cnic_eth_cl_id(struct bnx2x *bp, u8 cl_idx)
 {
 	return bp->cnic_base_cl_id + cl_idx +
-		(bp->pf_num >> 1) * NON_ETH_CONTEXT_USE;
+		(bp->pf_num >> 1) * BNX2X_MAX_CNIC_ETH_CL_ID_IDX;
 }
 
 static inline u8 bnx2x_cnic_fw_sb_id(struct bnx2x *bp)

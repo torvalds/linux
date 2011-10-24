@@ -1652,24 +1652,13 @@ xfs_init_workqueues(void)
 	 */
 	xfs_syncd_wq = alloc_workqueue("xfssyncd", WQ_CPU_INTENSIVE, 8);
 	if (!xfs_syncd_wq)
-		goto out;
-
-	xfs_ail_wq = alloc_workqueue("xfsail", WQ_CPU_INTENSIVE, 8);
-	if (!xfs_ail_wq)
-		goto out_destroy_syncd;
-
+		return -ENOMEM;
 	return 0;
-
-out_destroy_syncd:
-	destroy_workqueue(xfs_syncd_wq);
-out:
-	return -ENOMEM;
 }
 
 STATIC void
 xfs_destroy_workqueues(void)
 {
-	destroy_workqueue(xfs_ail_wq);
 	destroy_workqueue(xfs_syncd_wq);
 }
 
