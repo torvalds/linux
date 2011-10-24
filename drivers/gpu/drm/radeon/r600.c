@@ -3513,31 +3513,6 @@ restart_ih:
  */
 #if defined(CONFIG_DEBUG_FS)
 
-static int r600_debugfs_cp_ring_info(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
-	unsigned count, i, j;
-
-	radeon_ring_free_size(rdev, ring);
-	count = (ring->ring_size / 4) - ring->ring_free_dw;
-	seq_printf(m, "CP_STAT 0x%08x\n", RREG32(CP_STAT));
-	seq_printf(m, "CP_RB_WPTR 0x%08x\n", RREG32(CP_RB_WPTR));
-	seq_printf(m, "CP_RB_RPTR 0x%08x\n", RREG32(CP_RB_RPTR));
-	seq_printf(m, "driver's copy of the CP_RB_WPTR 0x%08x\n", ring->wptr);
-	seq_printf(m, "driver's copy of the CP_RB_RPTR 0x%08x\n", ring->rptr);
-	seq_printf(m, "%u free dwords in ring\n", ring->ring_free_dw);
-	seq_printf(m, "%u dwords in ring\n", count);
-	i = ring->rptr;
-	for (j = 0; j <= count; j++) {
-		seq_printf(m, "r[%04d]=0x%08x\n", i, ring->ring[i]);
-		i = (i + 1) & ring->ptr_mask;
-	}
-	return 0;
-}
-
 static int r600_debugfs_mc_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -3551,7 +3526,6 @@ static int r600_debugfs_mc_info(struct seq_file *m, void *data)
 
 static struct drm_info_list r600_mc_info_list[] = {
 	{"r600_mc_info", r600_debugfs_mc_info, 0, NULL},
-	{"r600_ring_info", r600_debugfs_cp_ring_info, 0, NULL},
 };
 #endif
 

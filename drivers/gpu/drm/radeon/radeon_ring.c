@@ -34,6 +34,7 @@
 #include "atom.h"
 
 int radeon_debugfs_ib_init(struct radeon_device *rdev);
+int radeon_debugfs_ring_init(struct radeon_device *rdev);
 
 u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx)
 {
@@ -252,6 +253,9 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	if (radeon_debugfs_ib_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for IB !\n");
 	}
+	if (radeon_debugfs_ring_init(rdev)) {
+		DRM_ERROR("Failed to register debugfs file for rings !\n");
+	}
 	return r;
 }
 
@@ -444,6 +448,42 @@ void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *ring)
  * Debugfs info
  */
 #if defined(CONFIG_DEBUG_FS)
+
+static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	int ridx = *(int*)node->info_ent->data;
+	struct radeon_ring *ring = &rdev->ring[ridx];
+	unsigned count, i, j;
+
+	radeon_ring_free_size(rdev, ring);
+	count = (ring->ring_size / 4) - ring->ring_free_dw;
+	seq_printf(m, "wptr(0x%04x): 0x%08x\n", ring->wptr_reg, RREG32(ring->wptr_reg));
+	seq_printf(m, "rptr(0x%04x): 0x%08x\n", ring->rptr_reg, RREG32(ring->rptr_reg));
+	seq_printf(m, "driver's copy of the wptr: 0x%08x\n", ring->wptr);
+	seq_printf(m, "driver's copy of the rptr: 0x%08x\n", ring->rptr);
+	seq_printf(m, "%u free dwords in ring\n", ring->ring_free_dw);
+	seq_printf(m, "%u dwords in ring\n", count);
+	i = ring->rptr;
+	for (j = 0; j <= count; j++) {
+		seq_printf(m, "r[%04d]=0x%08x\n", i, ring->ring[i]);
+		i = (i + 1) & ring->ptr_mask;
+	}
+	return 0;
+}
+
+static int radeon_ring_type_gfx_index = RADEON_RING_TYPE_GFX_INDEX;
+static int cayman_ring_type_cp1_index = CAYMAN_RING_TYPE_CP1_INDEX;
+static int cayman_ring_type_cp2_index = CAYMAN_RING_TYPE_CP2_INDEX;
+
+static struct drm_info_list radeon_debugfs_ring_info_list[] = {
+	{"radeon_ring_gfx", radeon_debugfs_ring_info, 0, &radeon_ring_type_gfx_index},
+	{"radeon_ring_cp1", radeon_debugfs_ring_info, 0, &cayman_ring_type_cp1_index},
+	{"radeon_ring_cp2", radeon_debugfs_ring_info, 0, &cayman_ring_type_cp2_index},
+};
+
 static int radeon_debugfs_ib_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -494,6 +534,16 @@ static struct drm_info_list radeon_debugfs_ib_bogus_info_list[] = {
 	{"radeon_ib_bogus", radeon_debugfs_ib_bogus_info, 0, NULL},
 };
 #endif
+
+int radeon_debugfs_ring_init(struct radeon_device *rdev)
+{
+#if defined(CONFIG_DEBUG_FS)
+	return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list,
+					ARRAY_SIZE(radeon_debugfs_ring_info_list));
+#else
+	return 0;
+#endif
+}
 
 int radeon_debugfs_ib_init(struct radeon_device *rdev)
 {
