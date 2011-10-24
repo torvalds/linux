@@ -48,6 +48,9 @@ struct s3c24xx_uart_port {
 	struct clk			*baudclk;
 	struct uart_port		port;
 
+	/* reference to platform data */
+	struct s3c2410_uartcfg		*cfg;
+
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block		freq_transition;
 #endif
@@ -56,7 +59,6 @@ struct s3c24xx_uart_port {
 /* conversion functions */
 
 #define s3c24xx_dev_to_port(__dev) (struct uart_port *)dev_get_drvdata(__dev)
-#define s3c24xx_dev_to_cfg(__dev) (struct s3c2410_uartcfg *)((__dev)->platform_data)
 
 /* register access controls */
 

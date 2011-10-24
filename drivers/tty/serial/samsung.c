@@ -190,10 +190,13 @@ static inline struct s3c24xx_uart_info *s3c24xx_port_to_info(struct uart_port *p
 
 static inline struct s3c2410_uartcfg *s3c24xx_port_to_cfg(struct uart_port *port)
 {
+	struct s3c24xx_uart_port *ourport;
+
 	if (port->dev == NULL)
 		return NULL;
 
-	return (struct s3c2410_uartcfg *)port->dev->platform_data;
+	ourport = container_of(port, struct s3c24xx_uart_port, port);
+	return ourport->cfg;
 }
 
 static int s3c24xx_serial_rx_fifocnt(struct s3c24xx_uart_port *ourport,
@@ -1125,7 +1128,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 				    struct platform_device *platdev)
 {
 	struct uart_port *port = &ourport->port;
-	struct s3c2410_uartcfg *cfg;
+	struct s3c2410_uartcfg *cfg = platdev->dev.platform_data;
 	struct resource *res;
 	int ret;
 
@@ -1134,10 +1137,15 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	if (platdev == NULL)
 		return -ENODEV;
 
-	cfg = s3c24xx_dev_to_cfg(&platdev->dev);
-
 	if (port->mapbase != 0)
 		return 0;
+
+	/*
+	 * If platform data is supplied, keep a copy of the location of
+	 * platform data in the driver's private data.
+	 */
+	if (cfg)
+		ourport->cfg = cfg;
 
 	if (cfg->hwport > CONFIG_SERIAL_SAMSUNG_UARTS) {
 		printk(KERN_ERR "%s: port %d bigger than %d\n", __func__,
