@@ -23,8 +23,6 @@
 
 extern int ath6kl_printk(const char *level, const char *fmt, ...);
 
-#define A_CACHE_LINE_PAD            128
-
 /*
  * Reflects the version of binary interface exposed by ATH6KL target
  * firmware. Needs to be incremented by 1 for any change in the firmware
