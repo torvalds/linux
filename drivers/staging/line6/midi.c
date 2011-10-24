@@ -391,12 +391,17 @@ int line6_init_midi(struct usb_line6 *line6)
 		return -ENOMEM;
 
 	err = line6_midibuf_init(&line6midi->midibuf_in, MIDI_BUFFER_SIZE, 0);
-	if (err < 0)
+	if (err < 0) {
+		kfree(line6midi);
 		return err;
+	}
 
 	err = line6_midibuf_init(&line6midi->midibuf_out, MIDI_BUFFER_SIZE, 1);
-	if (err < 0)
+	if (err < 0) {
+		kfree(line6midi->midibuf_in.buf);
+		kfree(line6midi);
 		return err;
+	}
 
 	line6midi->line6 = line6;
 	line6midi->midi_mask_transmit = 1;
