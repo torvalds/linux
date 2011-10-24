@@ -291,17 +291,24 @@ static u32 usbhsc_default_pipe_type[] = {
  */
 static void usbhsc_power_ctrl(struct usbhs_priv *priv, int enable)
 {
+	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 	struct device *dev = usbhs_priv_to_dev(priv);
 
 	if (enable) {
 		/* enable PM */
 		pm_runtime_get_sync(dev);
 
+		/* enable platform power */
+		usbhs_platform_call(priv, power_ctrl, pdev, priv->base, enable);
+
 		/* USB on */
 		usbhs_sys_clock_ctrl(priv, enable);
 	} else {
 		/* USB off */
 		usbhs_sys_clock_ctrl(priv, enable);
+
+		/* disable platform power */
+		usbhs_platform_call(priv, power_ctrl, pdev, priv->base, enable);
 
 		/* disable PM */
 		pm_runtime_put_sync(dev);
