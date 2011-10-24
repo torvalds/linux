@@ -45,6 +45,12 @@
 #define PUSH_FINISHED 2
 
 /*
+ * Out-of-range value for link sequence numbers
+ */
+
+#define INVALID_LINK_SEQ 0x10000
+
+/*
  * Link states
  */
 

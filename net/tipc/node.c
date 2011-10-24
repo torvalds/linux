@@ -351,8 +351,7 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		}
 
 		tipc_bclink_remove_node(n_ptr->addr);
-		tipc_bclink_acknowledge(n_ptr,
-					mod(n_ptr->bclink.acked + 10000));
+		tipc_bclink_acknowledge(n_ptr, INVALID_LINK_SEQ);
 		if (n_ptr->addr < tipc_own_addr)
 			tipc_own_tag--;
 

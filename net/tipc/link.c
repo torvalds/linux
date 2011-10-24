@@ -1733,10 +1733,8 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 
 		/* Release acked messages */
 
-		if (less(n_ptr->bclink.acked, msg_bcast_ack(msg))) {
-			if (tipc_node_is_up(n_ptr) && n_ptr->bclink.supported)
-				tipc_bclink_acknowledge(n_ptr, msg_bcast_ack(msg));
-		}
+		if (tipc_node_is_up(n_ptr) && n_ptr->bclink.supported)
+			tipc_bclink_acknowledge(n_ptr, msg_bcast_ack(msg));
 
 		crs = l_ptr->first_out;
 		while ((crs != l_ptr->next_out) &&

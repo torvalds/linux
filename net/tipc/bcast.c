@@ -237,14 +237,36 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 	struct sk_buff *next;
 	unsigned int released = 0;
 
-	if (less_eq(acked, n_ptr->bclink.acked))
-		return;
-
 	spin_lock_bh(&bc_lock);
 
-	/* Skip over packets that node has previously acknowledged */
-
+	/* Bail out if tx queue is empty (no clean up is required) */
 	crs = bcl->first_out;
+	if (!crs)
+		goto exit;
+
+	/* Determine which messages need to be acknowledged */
+	if (acked == INVALID_LINK_SEQ) {
+		/*
+		 * Contact with specified node has been lost, so need to
+		 * acknowledge sent messages only (if other nodes still exist)
+		 * or both sent and unsent messages (otherwise)
+		 */
+		if (bclink->bcast_nodes.count)
+			acked = bcl->fsm_msg_cnt;
+		else
+			acked = bcl->next_out_no;
+	} else {
+		/*
+		 * Bail out if specified sequence number does not correspond
+		 * to a message that has been sent and not yet acknowledged
+		 */
+		if (less(acked, buf_seqno(crs)) ||
+		    less(bcl->fsm_msg_cnt, acked) ||
+		    less_eq(acked, n_ptr->bclink.acked))
+			goto exit;
+	}
+
+	/* Skip over packets that node has previously acknowledged */
 	while (crs && less_eq(buf_seqno(crs), n_ptr->bclink.acked))
 		crs = crs->next;
 
@@ -255,8 +277,6 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 
 		if (crs != bcl->next_out)
 			bcbuf_decr_acks(crs);
-		else if (bclink->bcast_nodes.count)
-			break;
 		else {
 			bcbuf_set_acks(crs, 0);
 			bcl->next_out = next;
@@ -281,6 +301,7 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 	}
 	if (unlikely(released && !list_empty(&bcl->waiting_ports)))
 		tipc_link_wakeup_ports(bcl, 0);
+exit:
 	spin_unlock_bh(&bc_lock);
 }
 
