@@ -52,16 +52,6 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_CLOCKEVENTS
 	def_bool y
 
-config SCHED_NO_NO_OMIT_FRAME_POINTER
-	def_bool y
-
-config GENERIC_SYSCALL_TABLE
-	def_bool y
-
-config SCORE_L1_CACHE_SHIFT
-	int
-	default "4"
-
 menu "Kernel type"
 
 config 32BIT
@@ -95,15 +85,6 @@ config STACKTRACE_SUPPORT
 	def_bool y
 
 source "init/Kconfig"
-
-config PROBE_INITRD_HEADER
-	bool "Probe initrd header created by addinitrd"
-	depends on BLK_DEV_INITRD
-	help
-	  Probe initrd header at the last page of kernel image.
-	  Say Y here if you are using arch/score/boot/addinitrd.c to
-	  add initrd or initramfs image to the kernel image.
-	  Otherwise, say N.
 
 config MMU
 	def_bool y
