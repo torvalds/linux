@@ -118,7 +118,7 @@ struct renesas_usbhs_driver_param {
 	 *
 	 * delay time from notify_hotplug callback
 	 */
-	int detection_delay;
+	int detection_delay; /* msec */
 
 	/*
 	 * option:
