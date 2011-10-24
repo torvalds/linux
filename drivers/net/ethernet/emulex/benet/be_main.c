@@ -114,6 +114,13 @@ static const char * const ue_status_hi_desc[] = {
 	"Unknown"
 };
 
+/* Is BE in a multi-channel mode */
+static inline bool be_is_mc(struct be_adapter *adapter) {
+	return (adapter->function_mode & FLEX10_MODE ||
+		adapter->function_mode & VNIC_MODE ||
+		adapter->function_mode & UMC_ENABLED);
+}
+
 static void be_queue_free(struct be_adapter *adapter, struct be_queue_info *q)
 {
 	struct be_dma_mem *mem = &q->dma_mem;
@@ -1289,7 +1296,7 @@ static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
 	if (rxcp->vlanf) {
 		/* vlanf could be wrongly set in some cards.
 		 * ignore if vtm is not set */
-		if ((adapter->function_mode & 0x400) && !rxcp->vtm)
+		if ((adapter->function_mode & FLEX10_MODE) && !rxcp->vtm)
 			rxcp->vlanf = 0;
 
 		if (!lancer_chip(adapter))
@@ -1636,7 +1643,7 @@ static void be_tx_queues_destroy(struct be_adapter *adapter)
 static int be_num_txqs_want(struct be_adapter *adapter)
 {
 	if ((num_vfs && adapter->sriov_enabled) ||
-		(adapter->function_mode & 0x400) ||
+		be_is_mc(adapter) ||
 		lancer_chip(adapter) || !be_physfn(adapter) ||
 		adapter->generation == BE_GEN2)
 		return 1;
@@ -1718,7 +1725,8 @@ static void be_rx_queues_destroy(struct be_adapter *adapter)
 static u32 be_num_rxqs_want(struct be_adapter *adapter)
 {
 	if ((adapter->function_caps & BE_FUNCTION_CAPS_RSS) &&
-		!adapter->sriov_enabled && !(adapter->function_mode & 0x400)) {
+		!adapter->sriov_enabled && be_physfn(adapter) &&
+		!be_is_mc(adapter)) {
 		return 1 + MAX_RSS_QS; /* one default non-RSS queue */
 	} else {
 		dev_warn(&adapter->pdev->dev,
@@ -3187,7 +3195,7 @@ static int be_get_config(struct be_adapter *adapter)
 	if (status)
 		return status;
 
-	if (adapter->function_mode & 0x400)
+	if (adapter->function_mode & FLEX10_MODE)
 		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED/4;
 	else
 		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED;

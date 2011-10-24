@@ -1046,6 +1046,12 @@ struct be_cmd_resp_modify_eq_delay {
 
 /******************** Get FW Config *******************/
 #define BE_FUNCTION_CAPS_RSS			0x2
+/* The HW can come up in either of the following multi-channel modes
+ * based on the skew/IPL.
+ */
+#define FLEX10_MODE				0x400
+#define VNIC_MODE				0x20000
+#define UMC_ENABLED				0x1000000
 struct be_cmd_req_query_fw_cfg {
 	struct be_cmd_req_hdr hdr;
 	u32 rsvd[31];
