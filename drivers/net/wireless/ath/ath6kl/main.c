@@ -691,7 +691,7 @@ void ath6kl_scan_complete_evt(struct ath6kl_vif *vif, int status)
 					 NONE_BSS_FILTER, 0);
 	}
 
-	ath6kl_dbg(ATH6KL_DBG_WLAN_SCAN, "scan complete: %d\n", status);
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "scan complete: %d\n", status);
 }
 
 void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel, u8 *bssid,
@@ -1051,8 +1051,7 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 
 	del_timer(&vif->disconnect_timer);
 
-	ath6kl_dbg(ATH6KL_DBG_WLAN_CONNECT,
-		   "disconnect reason is %d\n", reason);
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "disconnect reason is %d\n", reason);
 
 	/*
 	 * If the event is due to disconnect cmd from the host, only they
