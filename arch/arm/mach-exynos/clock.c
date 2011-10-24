@@ -553,16 +553,6 @@ static struct clk init_clocks_off[] = {
 		.enable		= exynos4_clk_dac_ctrl,
 		.ctrlbit	= (1 << 0),
 	}, {
-		.name		= "dma",
-		.devname	= "dma-pl330.0",
-		.enable		= exynos4_clk_ip_fsys_ctrl,
-		.ctrlbit	= (1 << 0),
-	}, {
-		.name		= "dma",
-		.devname	= "dma-pl330.1",
-		.enable		= exynos4_clk_ip_fsys_ctrl,
-		.ctrlbit	= (1 << 1),
-	}, {
 		.name		= "adc",
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 15),
@@ -776,6 +766,20 @@ static struct clk init_clocks[] = {
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 5),
 	}
+};
+
+static struct clk clk_pdma0 = {
+	.name		= "dma",
+	.devname	= "dma-pl330.0",
+	.enable		= exynos4_clk_ip_fsys_ctrl,
+	.ctrlbit	= (1 << 0),
+};
+
+static struct clk clk_pdma1 = {
+	.name		= "dma",
+	.devname	= "dma-pl330.1",
+	.enable		= exynos4_clk_ip_fsys_ctrl,
+	.ctrlbit	= (1 << 1),
 };
 
 struct clk *clkset_group_list[] = {
@@ -1279,6 +1283,11 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_mout_mfc1,
 };
 
+static struct clk *clk_cdev[] = {
+	&clk_pdma0,
+	&clk_pdma1,
+};
+
 static struct clksrc_clk *clksrc_cdev[] = {
 	&clk_sclk_uart0,
 	&clk_sclk_uart1,
@@ -1291,6 +1300,8 @@ static struct clk_lookup exynos4_clk_lookup[] = {
 	CLKDEV_INIT("exynos4210-uart.1", "clk_uart_baud0", &clk_sclk_uart1.clk),
 	CLKDEV_INIT("exynos4210-uart.2", "clk_uart_baud0", &clk_sclk_uart2.clk),
 	CLKDEV_INIT("exynos4210-uart.3", "clk_uart_baud0", &clk_sclk_uart3.clk),
+	CLKDEV_INIT("dma-pl330.0", "apb_pclk", &clk_pdma0),
+	CLKDEV_INIT("dma-pl330.1", "apb_pclk", &clk_pdma1),
 };
 
 static int xtal_rate;
@@ -1505,6 +1516,10 @@ void __init exynos4_register_clocks(void)
 
 	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));
 	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
+
+	s3c24xx_register_clocks(clk_cdev, ARRAY_SIZE(clk_cdev));
+	for (ptr = 0; ptr < ARRAY_SIZE(clk_cdev); ptr++)
+		s3c_disable_clocks(clk_cdev[ptr], 1);
 
 	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
