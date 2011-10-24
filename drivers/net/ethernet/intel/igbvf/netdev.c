@@ -45,13 +45,13 @@
 
 #include "igbvf.h"
 
-#define DRV_VERSION "2.0.0-k"
+#define DRV_VERSION "2.0.1-k"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
 static const char igbvf_driver_string[] =
-				"Intel(R) Virtual Function Network Driver";
+		  "Intel(R) Gigabit Virtual Function Network Driver";
 static const char igbvf_copyright[] =
-				"Copyright (c) 2009 - 2010 Intel Corporation.";
+		  "Copyright (c) 2009 - 2011 Intel Corporation.";
 
 static int igbvf_poll(struct napi_struct *napi, int budget);
 static void igbvf_reset(struct igbvf_adapter *);
@@ -2525,9 +2525,11 @@ static void igbvf_print_device_info(struct igbvf_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 
-	dev_info(&pdev->dev, "Intel(R) 82576 Virtual Function\n");
+	if (hw->mac.type == e1000_vfadapt_i350)
+		dev_info(&pdev->dev, "Intel(R) I350 Virtual Function\n");
+	else
+		dev_info(&pdev->dev, "Intel(R) 82576 Virtual Function\n");
 	dev_info(&pdev->dev, "Address: %pM\n", netdev->dev_addr);
-	dev_info(&pdev->dev, "MAC: %d\n", hw->mac.type);
 }
 
 static int igbvf_set_features(struct net_device *netdev, u32 features)
@@ -2864,7 +2866,7 @@ module_exit(igbvf_exit_module);
 
 
 MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
-MODULE_DESCRIPTION("Intel(R) 82576 Virtual Function Network Driver");
+MODULE_DESCRIPTION("Intel(R) Gigabit Virtual Function Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 

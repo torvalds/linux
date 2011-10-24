@@ -363,6 +363,7 @@ struct igb_adapter {
 	u32 rss_queues;
 	u32 wvbr;
 	int node;
+	u32 *shadow_vfta;
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)

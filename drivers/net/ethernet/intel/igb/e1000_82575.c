@@ -1051,7 +1051,10 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 
 	/* Disabling VLAN filtering */
 	hw_dbg("Initializing the IEEE VLAN\n");
-	igb_clear_vfta(hw);
+	if (hw->mac.type == e1000_i350)
+		igb_clear_vfta_i350(hw);
+	else
+		igb_clear_vfta(hw);
 
 	/* Setup the receive address */
 	igb_init_rx_addrs(hw, rar_count);
