@@ -1185,8 +1185,9 @@ struct tcp_md5sig_pool {
 
 /* - functions */
 extern int tcp_v4_md5_hash_skb(char *md5_hash, struct tcp_md5sig_key *key,
-			       struct sock *sk, struct request_sock *req,
-			       struct sk_buff *skb);
+			       const struct sock *sk,
+			       const struct request_sock *req,
+			       const struct sk_buff *skb);
 extern struct tcp_md5sig_key * tcp_v4_md5_lookup(struct sock *sk,
 						 struct sock *addr_sk);
 extern int tcp_v4_md5_do_add(struct sock *sk, __be32 addr, u8 *newkey,
@@ -1448,9 +1449,9 @@ struct tcp_sock_af_ops {
 						struct sock *addr_sk);
 	int			(*calc_md5_hash) (char *location,
 						  struct tcp_md5sig_key *md5,
-						  struct sock *sk,
-						  struct request_sock *req,
-						  struct sk_buff *skb);
+						  const struct sock *sk,
+						  const struct request_sock *req,
+						  const struct sk_buff *skb);
 	int			(*md5_add) (struct sock *sk,
 					    struct sock *addr_sk,
 					    u8 *newkey,
@@ -1467,9 +1468,9 @@ struct tcp_request_sock_ops {
 						struct request_sock *req);
 	int			(*calc_md5_hash) (char *location,
 						  struct tcp_md5sig_key *md5,
-						  struct sock *sk,
-						  struct request_sock *req,
-						  struct sk_buff *skb);
+						  const struct sock *sk,
+						  const struct request_sock *req,
+						  const struct sk_buff *skb);
 #endif
 };
 
