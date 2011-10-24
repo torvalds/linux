@@ -435,6 +435,7 @@ usbhsh_endpoint_alloc_find_pipe:
 	 * see
 	 *  DCPMAXP/PIPEMAXP
 	 */
+	usbhs_pipe_sequence_data0(uep->pipe);
 	usbhs_pipe_config_update(uep->pipe,
 				 usbhsh_device_number(hpriv, udev),
 				 usb_endpoint_num(desc),
