@@ -601,6 +601,7 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
+	struct ath_mci_profile *mci = &sc->btcoex.mci;
 	u32 max_4ms_framelen, frmlen;
 	u16 aggr_limit, legacy = 0;
 	int i;
@@ -645,7 +646,9 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	if (tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE || legacy)
 		return 0;
 
-	if (sc->sc_flags & SC_OP_BT_PRIORITY_DETECTED)
+	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI) && mci->aggr_limit)
+		aggr_limit = (max_4ms_framelen * mci->aggr_limit) >> 4;
+	else if (sc->sc_flags & SC_OP_BT_PRIORITY_DETECTED)
 		aggr_limit = min((max_4ms_framelen * 3) / 8,
 				 (u32)ATH_AMPDU_LIMIT_MAX);
 	else

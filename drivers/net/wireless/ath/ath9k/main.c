@@ -1133,8 +1133,9 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	if ((ah->btcoex_hw.scheme != ATH_BTCOEX_CFG_NONE) &&
 	    !ah->btcoex_hw.enabled) {
-		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
-					   AR_STOMP_LOW_WLAN_WGHT);
+		if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
+			ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+						   AR_STOMP_LOW_WLAN_WGHT);
 		ath9k_hw_btcoex_enable(ah);
 
 		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
@@ -1237,6 +1238,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 		ath9k_hw_btcoex_disable(ah);
 		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
 			ath9k_btcoex_timer_pause(sc);
+		ath_mci_flush_profile(&sc->btcoex.mci);
 	}
 
 	spin_lock_bh(&sc->sc_pcu_lock);

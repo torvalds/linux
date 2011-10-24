@@ -25,6 +25,7 @@
 
 #include "debug.h"
 #include "common.h"
+#include "mci.h"
 
 /*
  * Header for the ath9k.ko driver core *only* -- hw code nor any other driver
@@ -443,7 +444,9 @@ struct ath_btcoex {
 	u32 btcoex_no_stomp; /* in usec */
 	u32 btcoex_period; /* in usec */
 	u32 btscan_no_stomp; /* in usec */
+	u32 duty_cycle;
 	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
+	struct ath_mci_profile mci;
 };
 
 int ath_init_btcoex_timer(struct ath_softc *sc);

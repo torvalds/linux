@@ -2331,7 +2331,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			ah->enabled_cals |= TX_IQ_ON_AGC_CAL;
 	}
 	if (AR_SREV_9462(ah))
-		pCap->hw_caps |= ATH9K_HW_CAP_RTT;
+		pCap->hw_caps |= ATH9K_HW_CAP_RTT | ATH9K_HW_CAP_MCI;
 
 	return 0;
 }
