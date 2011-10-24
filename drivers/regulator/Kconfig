@@ -93,6 +93,7 @@ config REGULATOR_MAX1586
 config REGULATOR_MAX8649
 	tristate "Maxim 8649 voltage regulator"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  This driver controls a Maxim 8649 voltage output regulator via
 	  I2C bus.
