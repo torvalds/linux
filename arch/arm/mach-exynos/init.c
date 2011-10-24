@@ -14,15 +14,6 @@
 #include <plat/devs.h>
 #include <plat/regs-serial.h>
 
-static struct s3c24xx_uart_clksrc exynos4_serial_clocks[] = {
-	[0] = {
-		.name		= "uclk1",
-		.divisor	= 1,
-		.min_baud	= 0,
-		.max_baud	= 0,
-	},
-};
-
 /* uart registration process */
 void __init exynos4_common_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 {
@@ -30,11 +21,7 @@ void __init exynos4_common_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	u32 ucnt;
 
 	for (ucnt = 0; ucnt < no; ucnt++, tcfg++) {
-		if (!tcfg->clocks) {
-			tcfg->has_fracval = 1;
-			tcfg->clocks = exynos4_serial_clocks;
-			tcfg->clocks_size = ARRAY_SIZE(exynos4_serial_clocks);
-		}
+		tcfg->has_fracval = 1;
 		tcfg->flags |= NO_NEED_CHECK_CLKSRC;
 	}
 

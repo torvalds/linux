@@ -67,16 +67,6 @@ static struct map_desc rx3715_iodesc[] __initdata = {
 	},
 };
 
-
-static struct s3c24xx_uart_clksrc rx3715_serial_clocks[] = {
-	[0] = {
-		.name		= "fclk_n",
-		.divisor	= 1,
-		.min_baud	= 0,
-		.max_baud	= 0,
-	}
-};
-
 static struct s3c2410_uartcfg rx3715_uartcfgs[] = {
 	[0] = {
 		.hwport	     = 0,
@@ -84,8 +74,7 @@ static struct s3c2410_uartcfg rx3715_uartcfgs[] = {
 		.ucon	     = 0x3c5,
 		.ulcon	     = 0x03,
 		.ufcon	     = 0x51,
-		.clocks	     = rx3715_serial_clocks,
-		.clocks_size = ARRAY_SIZE(rx3715_serial_clocks),
+		.clk_sel	= S3C2410_UCON_CLKSEL3,
 	},
 	[1] = {
 		.hwport	     = 1,
@@ -93,8 +82,7 @@ static struct s3c2410_uartcfg rx3715_uartcfgs[] = {
 		.ucon	     = 0x3c5,
 		.ulcon	     = 0x03,
 		.ufcon	     = 0x00,
-		.clocks	     = rx3715_serial_clocks,
-		.clocks_size = ARRAY_SIZE(rx3715_serial_clocks),
+		.clk_sel	= S3C2410_UCON_CLKSEL3,
 	},
 	/* IR port */
 	[2] = {
@@ -103,8 +91,7 @@ static struct s3c2410_uartcfg rx3715_uartcfgs[] = {
 		.ucon	     = 0x3c5,
 		.ulcon	     = 0x43,
 		.ufcon	     = 0x51,
-		.clocks	     = rx3715_serial_clocks,
-		.clocks_size = ARRAY_SIZE(rx3715_serial_clocks),
+		.clk_sel	= S3C2410_UCON_CLKSEL3,
 	}
 };
 

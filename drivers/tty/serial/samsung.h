@@ -47,7 +47,6 @@ struct s3c24xx_uart_port {
 	unsigned int			tx_irq;
 
 	struct s3c24xx_uart_info	*info;
-	struct s3c24xx_uart_clksrc	*clksrc;
 	struct clk			*clk;
 	struct clk			*baudclk;
 	struct uart_port		port;

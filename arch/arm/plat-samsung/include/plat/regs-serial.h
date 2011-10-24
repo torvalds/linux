@@ -229,26 +229,6 @@
 
 #ifndef __ASSEMBLY__
 
-/* struct s3c24xx_uart_clksrc
- *
- * this structure defines a named clock source that can be used for the
- * uart, so that the best clock can be selected for the requested baud
- * rate.
- *
- * min_baud and max_baud define the range of baud-rates this clock is
- * acceptable for, if they are both zero, it is assumed any baud rate that
- * can be generated from this clock will be used.
- *
- * divisor gives the divisor from the clock to the one seen by the uart
-*/
-
-struct s3c24xx_uart_clksrc {
-	const char	*name;
-	unsigned int	 divisor;
-	unsigned int	 min_baud;
-	unsigned int	 max_baud;
-};
-
 /* configuration structure for per-machine configurations for the
  * serial port
  *
@@ -268,9 +248,6 @@ struct s3c2410_uartcfg {
 	unsigned long	   ucon;	 /* value of ucon for port */
 	unsigned long	   ulcon;	 /* value of ulcon for port */
 	unsigned long	   ufcon;	 /* value of ufcon for port */
-
-	struct s3c24xx_uart_clksrc *clocks;
-	unsigned int		    clocks_size;
 };
 
 /* s3c24xx_uart_devs
