@@ -3712,6 +3712,9 @@ static int __devinit init_one(struct pci_dev *pdev,
 		setup_debugfs(adapter);
 	}
 
+	/* PCIe EEH recovery on powerpc platforms needs fundamental reset */
+	pdev->needs_freset = 1;
+
 	if (is_offload(adapter))
 		attach_ulds(adapter);
 

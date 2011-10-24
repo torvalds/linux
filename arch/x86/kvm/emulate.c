@@ -3603,7 +3603,7 @@ done_prefixes:
 		break;
 	case Src2CL:
 		ctxt->src2.bytes = 1;
-		ctxt->src2.val = ctxt->regs[VCPU_REGS_RCX] & 0x8;
+		ctxt->src2.val = ctxt->regs[VCPU_REGS_RCX] & 0xff;
 		break;
 	case Src2ImmByte:
 		rc = decode_imm(ctxt, &ctxt->src2, 1, true);

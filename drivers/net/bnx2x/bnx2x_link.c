@@ -778,9 +778,9 @@ static int bnx2x_ets_e3b0_set_cos_bw(struct bnx2x *bp,
 {
 	u32 nig_reg_adress_crd_weight = 0;
 	u32 pbf_reg_adress_crd_weight = 0;
-	/* Calculate and set BW for this COS*/
-	const u32 cos_bw_nig = (bw * min_w_val_nig) / total_bw;
-	const u32 cos_bw_pbf = (bw * min_w_val_pbf) / total_bw;
+	/* Calculate and set BW for this COS - use 1 instead of 0 for BW */
+	const u32 cos_bw_nig = ((bw ? bw : 1) * min_w_val_nig) / total_bw;
+	const u32 cos_bw_pbf = ((bw ? bw : 1) * min_w_val_pbf) / total_bw;
 
 	switch (cos_entry) {
 	case 0:
@@ -852,18 +852,12 @@ static int bnx2x_ets_e3b0_get_total_bw(
 	/* Calculate total BW requested */
 	for (cos_idx = 0; cos_idx < ets_params->num_of_cos; cos_idx++) {
 		if (bnx2x_cos_state_bw == ets_params->cos[cos_idx].state) {
-
-			if (0 == ets_params->cos[cos_idx].params.bw_params.bw) {
-				DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config BW"
-						   "was set to 0\n");
-			return -EINVAL;
+			*total_bw +=
+				ets_params->cos[cos_idx].params.bw_params.bw;
 		}
-		*total_bw +=
-		    ets_params->cos[cos_idx].params.bw_params.bw;
-	    }
 	}
 
-	/*Check taotl BW is valid */
+	/* Check total BW is valid */
 	if ((100 != *total_bw) || (0 == *total_bw)) {
 		if (0 == *total_bw) {
 			DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config toatl BW"
@@ -1726,7 +1720,7 @@ static int bnx2x_xmac_enable(struct link_params *params,
 
 	/* Check loopback mode */
 	if (lb)
-		val |= XMAC_CTRL_REG_CORE_LOCAL_LPBK;
+		val |= XMAC_CTRL_REG_LINE_LOCAL_LPBK;
 	REG_WR(bp, xmac_base + XMAC_REG_CTRL, val);
 	bnx2x_set_xumac_nig(params,
 			    ((vars->flow_ctrl & BNX2X_FLOW_CTRL_TX) != 0), 1);
@@ -3629,6 +3623,12 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	/* Advertised speeds */
 	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
 			 MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT1, val16);
+
+	/* Advertised and set FEC (Forward Error Correction) */
+	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+			 MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT2,
+			 (MDIO_WC_REG_AN_IEEE1BLK_AN_ADV2_FEC_ABILITY |
+			  MDIO_WC_REG_AN_IEEE1BLK_AN_ADV2_FEC_REQ));
 
 	/* Enable CL37 BAM */
 	if (REG_RD(bp, params->shmem_base +
@@ -5924,7 +5924,7 @@ int bnx2x_set_led(struct link_params *params,
 					(tmp | EMAC_LED_OVERRIDE));
 				/*
 				 * return here without enabling traffic
-				 * LED blink andsetting rate in ON mode.
+				 * LED blink and setting rate in ON mode.
 				 * In oper mode, enabling LED blink
 				 * and setting rate is needed.
 				 */
@@ -5936,7 +5936,11 @@ int bnx2x_set_led(struct link_params *params,
 			 * This is a work-around for HW issue found when link
 			 * is up in CL73
 			 */
-			REG_WR(bp, NIG_REG_LED_10G_P0 + port*4, 1);
+			if ((!CHIP_IS_E3(bp)) ||
+			    (CHIP_IS_E3(bp) &&
+			     mode == LED_MODE_ON))
+				REG_WR(bp, NIG_REG_LED_10G_P0 + port*4, 1);
+
 			if (CHIP_IS_E1x(bp) ||
 			    CHIP_IS_E2(bp) ||
 			    (mode == LED_MODE_ON))
@@ -10638,8 +10642,7 @@ static struct bnx2x_phy phy_warpcore = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT,
 	.addr		= 0xff,
 	.def_md_devad	= 0,
-	.flags		= (FLAGS_HW_LOCK_REQUIRED |
-			   FLAGS_TX_ERROR_CHECK),
+	.flags		= FLAGS_HW_LOCK_REQUIRED,
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
@@ -10765,8 +10768,7 @@ static struct bnx2x_phy phy_8706 = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706,
 	.addr		= 0xff,
 	.def_md_devad	= 0,
-	.flags		= (FLAGS_INIT_XGXS_FIRST |
-			   FLAGS_TX_ERROR_CHECK),
+	.flags		= FLAGS_INIT_XGXS_FIRST,
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
@@ -10797,8 +10799,7 @@ static struct bnx2x_phy phy_8726 = {
 	.addr		= 0xff,
 	.def_md_devad	= 0,
 	.flags		= (FLAGS_HW_LOCK_REQUIRED |
-			   FLAGS_INIT_XGXS_FIRST |
-			   FLAGS_TX_ERROR_CHECK),
+			   FLAGS_INIT_XGXS_FIRST),
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
@@ -10829,8 +10830,7 @@ static struct bnx2x_phy phy_8727 = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
 	.addr		= 0xff,
 	.def_md_devad	= 0,
-	.flags		= (FLAGS_FAN_FAILURE_DET_REQ |
-			   FLAGS_TX_ERROR_CHECK),
+	.flags		= FLAGS_FAN_FAILURE_DET_REQ,
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,

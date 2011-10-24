@@ -64,23 +64,17 @@ struct xfs_ail_cursor {
  */
 struct xfs_ail {
 	struct xfs_mount	*xa_mount;
+	struct task_struct	*xa_task;
 	struct list_head	xa_ail;
 	xfs_lsn_t		xa_target;
 	struct list_head	xa_cursors;
 	spinlock_t		xa_lock;
-	struct delayed_work	xa_work;
 	xfs_lsn_t		xa_last_pushed_lsn;
-	unsigned long		xa_flags;
 };
-
-#define XFS_AIL_PUSHING_BIT	0
 
 /*
  * From xfs_trans_ail.c
  */
-
-extern struct workqueue_struct	*xfs_ail_wq;	/* AIL workqueue */
-
 void	xfs_trans_ail_update_bulk(struct xfs_ail *ailp,
 				struct xfs_ail_cursor *cur,
 				struct xfs_log_item **log_items, int nr_items,

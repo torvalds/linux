@@ -259,7 +259,6 @@ static void __init vic_disable(void __iomem *base)
 	writel(0, base + VIC_INT_SELECT);
 	writel(0, base + VIC_INT_ENABLE);
 	writel(~0, base + VIC_INT_ENABLE_CLEAR);
-	writel(0, base + VIC_IRQ_STATUS);
 	writel(0, base + VIC_ITCR);
 	writel(~0, base + VIC_INT_SOFT_CLEAR);
 }

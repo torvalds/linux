@@ -659,7 +659,7 @@ static int find_variable(Dwarf_Die *sc_die, struct probe_finder *pf)
 		if (!die_find_variable_at(&pf->cu_die, pf->pvar->var, 0, &vr_die))
 			ret = -ENOENT;
 	}
-	if (ret == 0)
+	if (ret >= 0)
 		ret = convert_variable(&vr_die, pf);
 
 	if (ret < 0)

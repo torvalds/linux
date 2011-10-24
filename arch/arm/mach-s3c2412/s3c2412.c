@@ -245,7 +245,9 @@ int __init s3c2412_init(void)
 {
 	printk("S3C2412: Initialising architecture\n");
 
+#ifdef CONFIG_PM
 	register_syscore_ops(&s3c2412_pm_syscore_ops);
+#endif
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
 	return sysdev_register(&s3c2412_sysdev);

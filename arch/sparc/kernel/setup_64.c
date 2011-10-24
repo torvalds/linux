@@ -106,7 +106,7 @@ static void __init process_switch(char c)
 		prom_halt();
 		break;
 	case 'p':
-		/* Just ignore, this behavior is now the default.  */
+		prom_early_console.flags &= ~CON_BOOT;
 		break;
 	case 'P':
 		/* Force UltraSPARC-III P-Cache on. */
@@ -425,10 +425,14 @@ static void __init init_sparc64_elf_hwcap(void)
 	else if (tlb_type == hypervisor) {
 		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA1 ||
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
-		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3)
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA5)
 			cap |= HWCAP_SPARC_BLKINIT;
 		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
-		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3)
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA5)
 			cap |= HWCAP_SPARC_N2;
 	}
 
@@ -452,11 +456,15 @@ static void __init init_sparc64_elf_hwcap(void)
 			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA1)
 				cap |= AV_SPARC_ASI_BLK_INIT;
 			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
-			    sun4v_chip_type == SUN4V_CHIP_NIAGARA3)
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA5)
 				cap |= (AV_SPARC_VIS | AV_SPARC_VIS2 |
 					AV_SPARC_ASI_BLK_INIT |
 					AV_SPARC_POPC);
-			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA3)
+			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA5)
 				cap |= (AV_SPARC_VIS3 | AV_SPARC_HPC |
 					AV_SPARC_FMAF);
 		}
