@@ -19,7 +19,7 @@
 #define BOARD_HAVE_NAND_16BIT	(1 << 31)
 static inline int board_have_nand_16bit(void)
 {
-	return system_rev & BOARD_HAVE_NAND_16BIT;
+	return (system_rev & BOARD_HAVE_NAND_16BIT) ? 1 : 0;
 }
 
 #endif /* __ARCH_SYSTEM_REV_H__ */
