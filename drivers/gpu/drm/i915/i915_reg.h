@@ -242,16 +242,22 @@
 #define   ASYNC_FLIP                (1<<22)
 #define   DISPLAY_PLANE_A           (0<<20)
 #define   DISPLAY_PLANE_B           (1<<20)
-#define GFX_OP_PIPE_CONTROL	((0x3<<29)|(0x3<<27)|(0x2<<24)|2)
-#define   PIPE_CONTROL_QW_WRITE	(1<<14)
-#define   PIPE_CONTROL_DEPTH_STALL (1<<13)
-#define   PIPE_CONTROL_WC_FLUSH	(1<<12)
-#define   PIPE_CONTROL_IS_FLUSH	(1<<11) /* MBZ on Ironlake */
-#define   PIPE_CONTROL_TC_FLUSH (1<<10) /* GM45+ only */
-#define   PIPE_CONTROL_ISP_DIS	(1<<9)
-#define   PIPE_CONTROL_NOTIFY	(1<<8)
+#define GFX_OP_PIPE_CONTROL(len)	((0x3<<29)|(0x3<<27)|(0x2<<24)|(len-2))
+#define   PIPE_CONTROL_CS_STALL				(1<<20)
+#define   PIPE_CONTROL_QW_WRITE				(1<<14)
+#define   PIPE_CONTROL_DEPTH_STALL			(1<<13)
+#define   PIPE_CONTROL_WRITE_FLUSH			(1<<12)
+#define   PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH	(1<<12) /* gen6+ */
+#define   PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE	(1<<11) /* MBZ on Ironlake */
+#define   PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE		(1<<10) /* GM45+ only */
+#define   PIPE_CONTROL_INDIRECT_STATE_DISABLE		(1<<9)
+#define   PIPE_CONTROL_NOTIFY				(1<<8)
+#define   PIPE_CONTROL_VF_CACHE_INVALIDATE		(1<<4)
+#define   PIPE_CONTROL_CONST_CACHE_INVALIDATE		(1<<3)
+#define   PIPE_CONTROL_STATE_CACHE_INVALIDATE		(1<<2)
+#define   PIPE_CONTROL_STALL_AT_SCOREBOARD		(1<<1)
+#define   PIPE_CONTROL_DEPTH_CACHE_FLUSH		(1<<0)
 #define   PIPE_CONTROL_GLOBAL_GTT (1<<2) /* in addr dword */
-#define   PIPE_CONTROL_STALL_EN	(1<<1) /* in addr word, Ironlake+ only */
 
 
 /*
@@ -2429,6 +2435,7 @@
 #define  WM0_PIPE_CURSOR_MASK	(0x1f)
 
 #define WM0_PIPEB_ILK		0x45104
+#define WM0_PIPEC_IVB		0x45200
 #define WM1_LP_ILK		0x45108
 #define  WM1_LP_SR_EN		(1<<31)
 #define  WM1_LP_LATENCY_SHIFT	24
@@ -2567,9 +2574,17 @@
 #define _CURBBASE		0x700c4
 #define _CURBPOS			0x700c8
 
+#define _CURBCNTR_IVB		0x71080
+#define _CURBBASE_IVB		0x71084
+#define _CURBPOS_IVB		0x71088
+
 #define CURCNTR(pipe) _PIPE(pipe, _CURACNTR, _CURBCNTR)
 #define CURBASE(pipe) _PIPE(pipe, _CURABASE, _CURBBASE)
 #define CURPOS(pipe) _PIPE(pipe, _CURAPOS, _CURBPOS)
+
+#define CURCNTR_IVB(pipe) _PIPE(pipe, _CURACNTR, _CURBCNTR_IVB)
+#define CURBASE_IVB(pipe) _PIPE(pipe, _CURABASE, _CURBBASE_IVB)
+#define CURPOS_IVB(pipe) _PIPE(pipe, _CURAPOS, _CURBPOS_IVB)
 
 /* Display A control */
 #define _DSPACNTR                0x70180
@@ -2916,12 +2931,13 @@
 #define SDEIER  0xc400c
 
 /* digital port hotplug */
-#define PCH_PORT_HOTPLUG        0xc4030
+#define PCH_PORT_HOTPLUG        0xc4030		/* SHOTPLUG_CTL */
 #define PORTD_HOTPLUG_ENABLE            (1 << 20)
 #define PORTD_PULSE_DURATION_2ms        (0)
 #define PORTD_PULSE_DURATION_4_5ms      (1 << 18)
 #define PORTD_PULSE_DURATION_6ms        (2 << 18)
 #define PORTD_PULSE_DURATION_100ms      (3 << 18)
+#define PORTD_PULSE_DURATION_MASK	(3 << 18)
 #define PORTD_HOTPLUG_NO_DETECT         (0)
 #define PORTD_HOTPLUG_SHORT_DETECT      (1 << 16)
 #define PORTD_HOTPLUG_LONG_DETECT       (1 << 17)
@@ -2930,6 +2946,7 @@
 #define PORTC_PULSE_DURATION_4_5ms      (1 << 10)
 #define PORTC_PULSE_DURATION_6ms        (2 << 10)
 #define PORTC_PULSE_DURATION_100ms      (3 << 10)
+#define PORTC_PULSE_DURATION_MASK	(3 << 10)
 #define PORTC_HOTPLUG_NO_DETECT         (0)
 #define PORTC_HOTPLUG_SHORT_DETECT      (1 << 8)
 #define PORTC_HOTPLUG_LONG_DETECT       (1 << 9)
@@ -2938,6 +2955,7 @@
 #define PORTB_PULSE_DURATION_4_5ms      (1 << 2)
 #define PORTB_PULSE_DURATION_6ms        (2 << 2)
 #define PORTB_PULSE_DURATION_100ms      (3 << 2)
+#define PORTB_PULSE_DURATION_MASK	(3 << 2)
 #define PORTB_HOTPLUG_NO_DETECT         (0)
 #define PORTB_HOTPLUG_SHORT_DETECT      (1 << 0)
 #define PORTB_HOTPLUG_LONG_DETECT       (1 << 1)
@@ -2958,15 +2976,15 @@
 
 #define _PCH_DPLL_A              0xc6014
 #define _PCH_DPLL_B              0xc6018
-#define PCH_DPLL(pipe) _PIPE(pipe, _PCH_DPLL_A, _PCH_DPLL_B)
+#define PCH_DPLL(pipe) (pipe == 0 ?  _PCH_DPLL_A : _PCH_DPLL_B)
 
 #define _PCH_FPA0                0xc6040
 #define  FP_CB_TUNE		(0x3<<22)
 #define _PCH_FPA1                0xc6044
 #define _PCH_FPB0                0xc6048
 #define _PCH_FPB1                0xc604c
-#define PCH_FP0(pipe) _PIPE(pipe, _PCH_FPA0, _PCH_FPB0)
-#define PCH_FP1(pipe) _PIPE(pipe, _PCH_FPA1, _PCH_FPB1)
+#define PCH_FP0(pipe) (pipe == 0 ? _PCH_FPA0 : _PCH_FPB0)
+#define PCH_FP1(pipe) (pipe == 0 ? _PCH_FPA1 : _PCH_FPB1)
 
 #define PCH_DPLL_TEST           0xc606c
 
@@ -3180,6 +3198,7 @@
 #define  FDI_LINK_TRAIN_NONE_IVB            (3<<8)
 
 /* both Tx and Rx */
+#define  FDI_COMPOSITE_SYNC		(1<<11)
 #define  FDI_LINK_TRAIN_AUTO		(1<<10)
 #define  FDI_SCRAMBLING_ENABLE          (0<<7)
 #define  FDI_SCRAMBLING_DISABLE         (1<<7)
@@ -3321,15 +3340,35 @@
 #define PCH_PP_STATUS		0xc7200
 #define PCH_PP_CONTROL		0xc7204
 #define  PANEL_UNLOCK_REGS	(0xabcd << 16)
+#define  PANEL_UNLOCK_MASK	(0xffff << 16)
 #define  EDP_FORCE_VDD		(1 << 3)
 #define  EDP_BLC_ENABLE		(1 << 2)
 #define  PANEL_POWER_RESET	(1 << 1)
 #define  PANEL_POWER_OFF	(0 << 0)
 #define  PANEL_POWER_ON		(1 << 0)
 #define PCH_PP_ON_DELAYS	0xc7208
+#define  PANEL_PORT_SELECT_MASK	(3 << 30)
+#define  PANEL_PORT_SELECT_LVDS	(0 << 30)
+#define  PANEL_PORT_SELECT_DPA	(1 << 30)
 #define  EDP_PANEL		(1 << 30)
+#define  PANEL_PORT_SELECT_DPC	(2 << 30)
+#define  PANEL_PORT_SELECT_DPD	(3 << 30)
+#define  PANEL_POWER_UP_DELAY_MASK	(0x1fff0000)
+#define  PANEL_POWER_UP_DELAY_SHIFT	16
+#define  PANEL_LIGHT_ON_DELAY_MASK	(0x1fff)
+#define  PANEL_LIGHT_ON_DELAY_SHIFT	0
+
 #define PCH_PP_OFF_DELAYS	0xc720c
+#define  PANEL_POWER_DOWN_DELAY_MASK	(0x1fff0000)
+#define  PANEL_POWER_DOWN_DELAY_SHIFT	16
+#define  PANEL_LIGHT_OFF_DELAY_MASK	(0x1fff)
+#define  PANEL_LIGHT_OFF_DELAY_SHIFT	0
+
 #define PCH_PP_DIVISOR		0xc7210
+#define  PP_REFERENCE_DIVIDER_MASK	(0xffffff00)
+#define  PP_REFERENCE_DIVIDER_SHIFT	8
+#define  PANEL_POWER_CYCLE_DELAY_MASK	(0x1f)
+#define  PANEL_POWER_CYCLE_DELAY_SHIFT	0
 
 #define PCH_DP_B		0xe4100
 #define PCH_DPB_AUX_CH_CTL	0xe4110

@@ -139,7 +139,6 @@ struct sdvo_device_mapping {
 	u8 slave_addr;
 	u8 dvo_wiring;
 	u8 i2c_pin;
-	u8 i2c_speed;
 	u8 ddc_pin;
 };
 
@@ -349,7 +348,6 @@ typedef struct drm_i915_private {
 	/* LVDS info */
 	int backlight_level;  /* restore backlight to this value */
 	bool backlight_enabled;
-	struct drm_display_mode *panel_fixed_mode;
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
 
@@ -359,6 +357,7 @@ typedef struct drm_i915_private {
 	unsigned int lvds_vbt:1;
 	unsigned int int_crt_support:1;
 	unsigned int lvds_use_ssc:1;
+	unsigned int display_clock_mode:1;
 	int lvds_ssc_freq;
 	struct {
 		int rate;
@@ -674,10 +673,9 @@ typedef struct drm_i915_private {
 	unsigned int lvds_border_bits;
 	/* Panel fitter placement and size for Ironlake+ */
 	u32 pch_pf_pos, pch_pf_size;
-	int panel_t3, panel_t12;
 
-	struct drm_crtc *plane_to_crtc_mapping[2];
-	struct drm_crtc *pipe_to_crtc_mapping[2];
+	struct drm_crtc *plane_to_crtc_mapping[3];
+	struct drm_crtc *pipe_to_crtc_mapping[3];
 	wait_queue_head_t pending_flip_queue;
 	bool flip_pending_is_done;
 
@@ -1303,6 +1301,7 @@ extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
 extern bool intel_fbc_enabled(struct drm_device *dev);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
+extern void ironlake_init_pch_refclk(struct drm_device *dev);
 extern void ironlake_enable_rc6(struct drm_device *dev);
 extern void gen6_set_rps(struct drm_device *dev, u8 val);
 extern void intel_detect_pch(struct drm_device *dev);
@@ -1356,18 +1355,7 @@ void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
 	((reg) != FORCEWAKE))
 
 #define __i915_read(x, y) \
-static inline u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
-	u##x val = 0; \
-	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
-		gen6_gt_force_wake_get(dev_priv); \
-		val = read##y(dev_priv->regs + reg); \
-		gen6_gt_force_wake_put(dev_priv); \
-	} else { \
-		val = read##y(dev_priv->regs + reg); \
-	} \
-	trace_i915_reg_rw(false, reg, val, sizeof(val)); \
-	return val; \
-}
+	u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg);
 
 __i915_read(8, b)
 __i915_read(16, w)
@@ -1376,13 +1364,8 @@ __i915_read(64, q)
 #undef __i915_read
 
 #define __i915_write(x, y) \
-static inline void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
-	trace_i915_reg_rw(true, reg, val, sizeof(val)); \
-	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
-		__gen6_gt_wait_for_fifo(dev_priv); \
-	} \
-	write##y(val, dev_priv->regs + reg); \
-}
+	void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val);
+
 __i915_write(8, b)
 __i915_write(16, w)
 __i915_write(32, l)

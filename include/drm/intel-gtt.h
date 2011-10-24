@@ -13,6 +13,8 @@ const struct intel_gtt {
 	unsigned int gtt_mappable_entries;
 	/* Whether i915 needs to use the dmar apis or not. */
 	unsigned int needs_dmar : 1;
+	/* Whether we idle the gpu before mapping/unmapping */
+	unsigned int do_idle_maps : 1;
 } *intel_gtt_get(void);
 
 void intel_gtt_chipset_flush(void);

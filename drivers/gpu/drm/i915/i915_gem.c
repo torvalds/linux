@@ -195,6 +195,8 @@ i915_gem_create(struct drm_file *file,
 	u32 handle;
 
 	size = roundup(size, PAGE_SIZE);
+	if (size == 0)
+		return -EINVAL;
 
 	/* Allocate the new object */
 	obj = i915_gem_alloc_object(dev, size);
@@ -800,11 +802,11 @@ i915_gem_shmem_pwrite_fast(struct drm_device *dev,
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
-		vaddr = kmap_atomic(page, KM_USER0);
+		vaddr = kmap_atomic(page);
 		ret = __copy_from_user_inatomic(vaddr + page_offset,
 						user_data,
 						page_length);
-		kunmap_atomic(vaddr, KM_USER0);
+		kunmap_atomic(vaddr);
 
 		set_page_dirty(page);
 		mark_page_accessed(page);
@@ -1476,7 +1478,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,
 		obj->pages[i] = page;
 	}
 
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj);
 
 	return 0;
@@ -1498,7 +1500,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 
 	BUG_ON(obj->madv == __I915_MADV_PURGED);
 
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_save_bit_17_swizzle(obj);
 
 	if (obj->madv == I915_MADV_DONTNEED)
@@ -2191,13 +2193,7 @@ int
 i915_gpu_idle(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	bool lists_empty;
 	int ret, i;
-
-	lists_empty = (list_empty(&dev_priv->mm.flushing_list) &&
-		       list_empty(&dev_priv->mm.active_list));
-	if (lists_empty)
-		return 0;
 
 	/* Flush everything onto the inactive list. */
 	for (i = 0; i < I915_NUM_RINGS; i++) {

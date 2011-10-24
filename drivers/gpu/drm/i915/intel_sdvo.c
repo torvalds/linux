@@ -1232,8 +1232,7 @@ static bool
 intel_sdvo_multifunc_encoder(struct intel_sdvo *intel_sdvo)
 {
 	/* Is there more than one type of output? */
-	int caps = intel_sdvo->caps.output_flags & 0xf;
-	return caps & -caps;
+	return hweight16(intel_sdvo->caps.output_flags) > 1;
 }
 
 static struct edid *
@@ -1254,7 +1253,7 @@ intel_sdvo_get_analog_edid(struct drm_connector *connector)
 }
 
 enum drm_connector_status
-intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
+intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 	enum drm_connector_status status;
@@ -1349,7 +1348,7 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	if ((intel_sdvo_connector->output_flag & response) == 0)
 		ret = connector_status_disconnected;
 	else if (IS_TMDS(intel_sdvo_connector))
-		ret = intel_sdvo_hdmi_sink_detect(connector);
+		ret = intel_sdvo_tmds_sink_detect(connector);
 	else {
 		struct edid *edid;
 
@@ -1896,7 +1895,7 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 			  struct intel_sdvo *sdvo, u32 reg)
 {
 	struct sdvo_device_mapping *mapping;
-	u8 pin, speed;
+	u8 pin;
 
 	if (IS_SDVOB(reg))
 		mapping = &dev_priv->sdvo_mappings[0];
@@ -1904,18 +1903,16 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 		mapping = &dev_priv->sdvo_mappings[1];
 
 	pin = GMBUS_PORT_DPB;
-	speed = GMBUS_RATE_1MHZ >> 8;
-	if (mapping->initialized) {
+	if (mapping->initialized)
 		pin = mapping->i2c_pin;
-		speed = mapping->i2c_speed;
-	}
 
 	if (pin < GMBUS_NUM_PORTS) {
 		sdvo->i2c = &dev_priv->gmbus[pin].adapter;
-		intel_gmbus_set_speed(sdvo->i2c, speed);
+		intel_gmbus_set_speed(sdvo->i2c, GMBUS_RATE_1MHZ);
 		intel_gmbus_force_bit(sdvo->i2c, true);
-	} else
+	} else {
 		sdvo->i2c = &dev_priv->gmbus[GMBUS_PORT_DPB].adapter;
+	}
 }
 
 static bool
@@ -2206,7 +2203,7 @@ intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo, uint16_t flags)
 			      bytes[0], bytes[1]);
 		return false;
 	}
-	intel_sdvo->base.crtc_mask = (1 << 0) | (1 << 1);
+	intel_sdvo->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 
 	return true;
 }

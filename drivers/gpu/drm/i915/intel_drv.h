@@ -171,6 +171,9 @@ struct intel_crtc {
 	int16_t cursor_width, cursor_height;
 	bool cursor_visible;
 	unsigned int bpp;
+
+	bool no_pll; /* tertiary pipe for IVB */
+	bool use_pll_a;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -184,7 +187,7 @@ struct intel_crtc {
 #define DIP_VERSION_AVI 0x2
 #define DIP_LEN_AVI     13
 
-#define DIP_TYPE_SPD	0x3
+#define DIP_TYPE_SPD	0x83
 #define DIP_VERSION_SPD	0x1
 #define DIP_LEN_SPD	25
 #define DIP_SPD_UNKNOWN	0
@@ -379,4 +382,6 @@ extern void intel_fb_restore_mode(struct drm_device *dev);
 extern void intel_init_clock_gating(struct drm_device *dev);
 extern void intel_write_eld(struct drm_encoder *encoder,
 			    struct drm_display_mode *mode);
+extern void intel_cpt_verify_modeset(struct drm_device *dev, int pipe);
+
 #endif /* __INTEL_DRV_H__ */

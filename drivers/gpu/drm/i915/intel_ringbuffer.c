@@ -34,6 +34,16 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+/*
+ * 965+ support PIPE_CONTROL commands, which provide finer grained control
+ * over cache flushing.
+ */
+struct pipe_control {
+	struct drm_i915_gem_object *obj;
+	volatile u32 *cpu_page;
+	u32 gtt_offset;
+};
+
 static inline int ring_space(struct intel_ring_buffer *ring)
 {
 	int space = (ring->head & HEAD_ADDR) - (ring->tail + 8);
@@ -123,6 +133,118 @@ render_ring_flush(struct intel_ring_buffer *ring,
 	return 0;
 }
 
+/**
+ * Emits a PIPE_CONTROL with a non-zero post-sync operation, for
+ * implementing two workarounds on gen6.  From section 1.4.7.1
+ * "PIPE_CONTROL" of the Sandy Bridge PRM volume 2 part 1:
+ *
+ * [DevSNB-C+{W/A}] Before any depth stall flush (including those
+ * produced by non-pipelined state commands), software needs to first
+ * send a PIPE_CONTROL with no bits set except Post-Sync Operation !=
+ * 0.
+ *
+ * [Dev-SNB{W/A}]: Before a PIPE_CONTROL with Write Cache Flush Enable
+ * =1, a PIPE_CONTROL with any non-zero post-sync-op is required.
+ *
+ * And the workaround for these two requires this workaround first:
+ *
+ * [Dev-SNB{W/A}]: Pipe-control with CS-stall bit set must be sent
+ * BEFORE the pipe-control with a post-sync op and no write-cache
+ * flushes.
+ *
+ * And this last workaround is tricky because of the requirements on
+ * that bit.  From section 1.4.7.2.3 "Stall" of the Sandy Bridge PRM
+ * volume 2 part 1:
+ *
+ *     "1 of the following must also be set:
+ *      - Render Target Cache Flush Enable ([12] of DW1)
+ *      - Depth Cache Flush Enable ([0] of DW1)
+ *      - Stall at Pixel Scoreboard ([1] of DW1)
+ *      - Depth Stall ([13] of DW1)
+ *      - Post-Sync Operation ([13] of DW1)
+ *      - Notify Enable ([8] of DW1)"
+ *
+ * The cache flushes require the workaround flush that triggered this
+ * one, so we can't use it.  Depth stall would trigger the same.
+ * Post-sync nonzero is what triggered this second workaround, so we
+ * can't use that one either.  Notify enable is IRQs, which aren't
+ * really our business.  That leaves only stall at scoreboard.
+ */
+static int
+intel_emit_post_sync_nonzero_flush(struct intel_ring_buffer *ring)
+{
+	struct pipe_control *pc = ring->private;
+	u32 scratch_addr = pc->gtt_offset + 128;
+	int ret;
+
+
+	ret = intel_ring_begin(ring, 6);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(5));
+	intel_ring_emit(ring, PIPE_CONTROL_CS_STALL |
+			PIPE_CONTROL_STALL_AT_SCOREBOARD);
+	intel_ring_emit(ring, scratch_addr | PIPE_CONTROL_GLOBAL_GTT); /* address */
+	intel_ring_emit(ring, 0); /* low dword */
+	intel_ring_emit(ring, 0); /* high dword */
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
+
+	ret = intel_ring_begin(ring, 6);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(5));
+	intel_ring_emit(ring, PIPE_CONTROL_QW_WRITE);
+	intel_ring_emit(ring, scratch_addr | PIPE_CONTROL_GLOBAL_GTT); /* address */
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+static int
+gen6_render_ring_flush(struct intel_ring_buffer *ring,
+                         u32 invalidate_domains, u32 flush_domains)
+{
+	u32 flags = 0;
+	struct pipe_control *pc = ring->private;
+	u32 scratch_addr = pc->gtt_offset + 128;
+	int ret;
+
+	/* Force SNB workarounds for PIPE_CONTROL flushes */
+	intel_emit_post_sync_nonzero_flush(ring);
+
+	/* Just flush everything.  Experiments have shown that reducing the
+	 * number of bits based on the write domains has little performance
+	 * impact.
+	 */
+	flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
+	flags |= PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE;
+	flags |= PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE;
+	flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
+	flags |= PIPE_CONTROL_VF_CACHE_INVALIDATE;
+	flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
+	flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
+
+	ret = intel_ring_begin(ring, 6);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(5));
+	intel_ring_emit(ring, flags);
+	intel_ring_emit(ring, scratch_addr | PIPE_CONTROL_GLOBAL_GTT);
+	intel_ring_emit(ring, 0); /* lower dword */
+	intel_ring_emit(ring, 0); /* uppwer dword */
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
 static void ring_write_tail(struct intel_ring_buffer *ring,
 			    u32 value)
 {
@@ -206,16 +328,6 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	return 0;
 }
 
-/*
- * 965+ support PIPE_CONTROL commands, which provide finer grained control
- * over cache flushing.
- */
-struct pipe_control {
-	struct drm_i915_gem_object *obj;
-	volatile u32 *cpu_page;
-	u32 gtt_offset;
-};
-
 static int
 init_pipe_control(struct intel_ring_buffer *ring)
 {
@@ -296,8 +408,7 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 				   GFX_MODE_ENABLE(GFX_REPLAY_MODE));
 	}
 
-	if (INTEL_INFO(dev)->gen >= 6) {
-	} else if (IS_GEN5(dev)) {
+	if (INTEL_INFO(dev)->gen >= 5) {
 		ret = init_pipe_control(ring);
 		if (ret)
 			return ret;
@@ -438,8 +549,8 @@ gen6_blt_ring_sync_to(struct intel_ring_buffer *waiter,
 
 #define PIPE_CONTROL_FLUSH(ring__, addr__)					\
 do {									\
-	intel_ring_emit(ring__, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |		\
-		 PIPE_CONTROL_DEPTH_STALL | 2);				\
+	intel_ring_emit(ring__, GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE |		\
+		 PIPE_CONTROL_DEPTH_STALL);				\
 	intel_ring_emit(ring__, (addr__) | PIPE_CONTROL_GLOBAL_GTT);			\
 	intel_ring_emit(ring__, 0);							\
 	intel_ring_emit(ring__, 0);							\
@@ -467,8 +578,9 @@ pc_render_add_request(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
-			PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH);
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE |
+			PIPE_CONTROL_WRITE_FLUSH |
+			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE);
 	intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
 	intel_ring_emit(ring, seqno);
 	intel_ring_emit(ring, 0);
@@ -483,8 +595,9 @@ pc_render_add_request(struct intel_ring_buffer *ring,
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
 	scratch_addr += 128;
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
-	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
-			PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH |
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE |
+			PIPE_CONTROL_WRITE_FLUSH |
+			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE |
 			PIPE_CONTROL_NOTIFY);
 	intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
 	intel_ring_emit(ring, seqno);
@@ -1358,6 +1471,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	*ring = render_ring;
 	if (INTEL_INFO(dev)->gen >= 6) {
 		ring->add_request = gen6_add_request;
+		ring->flush = gen6_render_ring_flush;
 		ring->irq_get = gen6_render_ring_get_irq;
 		ring->irq_put = gen6_render_ring_put_irq;
 	} else if (IS_GEN5(dev)) {

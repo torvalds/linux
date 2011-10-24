@@ -79,11 +79,11 @@ MODULE_PARM_DESC(lvds_downclock,
 		"Use panel (LVDS/eDP) downclocking for power savings "
 		"(default: false)");
 
-unsigned int i915_panel_use_ssc __read_mostly = 1;
+unsigned int i915_panel_use_ssc __read_mostly = -1;
 module_param_named(lvds_use_ssc, i915_panel_use_ssc, int, 0600);
 MODULE_PARM_DESC(lvds_use_ssc,
 		"Use Spread Spectrum Clock with panels [LVDS/eDP] "
-		"(default: true)");
+		"(default: auto from VBT)");
 
 int i915_vbt_sdvo_panel_type __read_mostly = -1;
 module_param_named(vbt_sdvo_panel_type, i915_vbt_sdvo_panel_type, int, 0600);
@@ -470,6 +470,9 @@ static int i915_drm_thaw(struct drm_device *dev)
 
 		error = i915_gem_init_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
+
+		if (HAS_PCH_SPLIT(dev))
+			ironlake_init_pch_refclk(dev);
 
 		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
@@ -895,3 +898,43 @@ module_exit(i915_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");
+
+/* We give fast paths for the really cool registers */
+#define NEEDS_FORCE_WAKE(dev_priv, reg) \
+	(((dev_priv)->info->gen >= 6) && \
+	((reg) < 0x40000) && \
+	((reg) != FORCEWAKE))
+
+#define __i915_read(x, y) \
+u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
+	u##x val = 0; \
+	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
+		gen6_gt_force_wake_get(dev_priv); \
+		val = read##y(dev_priv->regs + reg); \
+		gen6_gt_force_wake_put(dev_priv); \
+	} else { \
+		val = read##y(dev_priv->regs + reg); \
+	} \
+	trace_i915_reg_rw(false, reg, val, sizeof(val)); \
+	return val; \
+}
+
+__i915_read(8, b)
+__i915_read(16, w)
+__i915_read(32, l)
+__i915_read(64, q)
+#undef __i915_read
+
+#define __i915_write(x, y) \
+void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
+	trace_i915_reg_rw(true, reg, val, sizeof(val)); \
+	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
+		__gen6_gt_wait_for_fifo(dev_priv); \
+	} \
+	write##y(val, dev_priv->regs + reg); \
+}
+__i915_write(8, b)
+__i915_write(16, w)
+__i915_write(32, l)
+__i915_write(64, q)
+#undef __i915_write
