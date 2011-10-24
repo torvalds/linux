@@ -1333,8 +1333,8 @@ static int udf_load_logicalvol(struct super_block *sb, sector_t block,
 					le32_to_cpu(mdm->allocUnitSize);
 				mdata->s_align_unit_size =
 					le16_to_cpu(mdm->alignUnitSize);
-				mdata->s_dup_md_flag 	 =
-					mdm->flags & 0x01;
+				if (mdm->flags & 0x01)
+					mdata->s_flags |= MF_DUPLICATE_MD;
 
 				udf_debug("Metadata Ident suffix=0x%x\n",
 					  le16_to_cpu(*(__le16 *)
@@ -1349,8 +1349,8 @@ static int udf_load_logicalvol(struct super_block *sb, sector_t block,
 					  le32_to_cpu(mdm->metadataMirrorFileLoc));
 				udf_debug("Bitmap file loc=%d\n",
 					  le32_to_cpu(mdm->metadataBitmapFileLoc));
-				udf_debug("Duplicate Flag: %d %d\n",
-					  mdata->s_dup_md_flag, mdm->flags);
+				udf_debug("Flags: %d %d\n",
+					  mdata->s_flags, mdm->flags);
 			} else {
 				udf_debug("Unknown ident: %s\n",
 					  upm2->partIdent.ident);

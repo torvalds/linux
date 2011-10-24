@@ -323,10 +323,10 @@ uint32_t udf_get_pblock_meta25(struct super_block *sb, uint32_t block,
 	retblk = udf_try_read_meta(inode, block, partition, offset);
 	if (retblk == 0xFFFFFFFF && mdata->s_metadata_fe) {
 		udf_warn(sb, "error reading from METADATA, trying to read from MIRROR\n");
-		if (!mdata->s_mirror_loaded_flag) {
+		if (!(mdata->s_flags & MF_MIRROR_FE_LOADED)) {
 			mdata->s_mirror_fe = udf_find_metadata_inode_efe(sb,
 				mdata->s_mirror_file_loc, map->s_partition_num);
-			mdata->s_mirror_loaded_flag = 1;
+			mdata->s_flags |= MF_MIRROR_FE_LOADED;
 		}
 
 		inode = mdata->s_mirror_fe;
