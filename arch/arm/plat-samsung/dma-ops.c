@@ -18,12 +18,6 @@
 
 #include <mach/dma.h>
 
-static inline bool pl330_filter(struct dma_chan *chan, void *param)
-{
-	struct dma_pl330_peri *peri = chan->private;
-	return peri->peri_id == (unsigned)param;
-}
-
 static unsigned samsung_dmadev_request(enum dma_ch dma_ch,
 				struct samsung_dma_info *info)
 {

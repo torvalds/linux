@@ -12,6 +12,7 @@
 #ifndef	__AMBA_PL330_H_
 #define	__AMBA_PL330_H_
 
+#include <linux/dmaengine.h>
 #include <asm/hardware/pl330.h>
 
 struct dma_pl330_peri {
@@ -38,4 +39,5 @@ struct dma_pl330_platdata {
 	unsigned mcbuf_sz;
 };
 
+extern bool pl330_filter(struct dma_chan *chan, void *param);
 #endif	/* __AMBA_PL330_H_ */

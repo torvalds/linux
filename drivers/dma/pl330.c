@@ -116,6 +116,9 @@ struct dma_pl330_desc {
 	struct dma_pl330_chan *pchan;
 };
 
+/* forward declaration */
+static struct amba_driver pl330_driver;
+
 static inline struct dma_pl330_chan *
 to_pchan(struct dma_chan *ch)
 {
@@ -266,6 +269,18 @@ static void dma_pl330_rqcb(void *token, enum pl330_op_err err)
 
 	tasklet_schedule(&pch->task);
 }
+
+bool pl330_filter(struct dma_chan *chan, void *param)
+{
+	struct dma_pl330_peri *peri;
+
+	if (chan->device->dev->driver != &pl330_driver.drv)
+		return false;
+
+	peri = chan->private;
+	return peri->peri_id == (unsigned)param;
+}
+EXPORT_SYMBOL(pl330_filter);
 
 static int pl330_alloc_chan_resources(struct dma_chan *chan)
 {
