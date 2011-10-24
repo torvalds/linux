@@ -764,7 +764,7 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 		if (radeon_connector->dac_load_detect && encoder) {
 			encoder_funcs = encoder->helper_private;
 			ret = encoder_funcs->detect(encoder, connector);
-			if (ret == connector_status_connected)
+			if (ret != connector_status_disconnected)
 				radeon_connector->detected_by_load = true;
 		}
 	}
@@ -1005,8 +1005,9 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 					ret = encoder_funcs->detect(encoder, connector);
 					if (ret == connector_status_connected) {
 						radeon_connector->use_digital = false;
-						radeon_connector->detected_by_load = true;
 					}
+					if (ret != connector_status_disconnected)
+						radeon_connector->detected_by_load = true;
 				}
 				break;
 			}
