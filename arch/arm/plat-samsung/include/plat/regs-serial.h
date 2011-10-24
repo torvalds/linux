@@ -222,6 +222,10 @@
 #define S5PV210_UFSTAT_RXSHIFT	(0)
 
 #define NO_NEED_CHECK_CLKSRC	1
+#define S3C2410_UCON_CLKSEL0	(1 << 0)
+#define S3C2410_UCON_CLKSEL1	(1 << 1)
+#define S3C2410_UCON_CLKSEL2	(1 << 2)
+#define S3C2410_UCON_CLKSEL3	(1 << 3)
 
 #ifndef __ASSEMBLY__
 
@@ -257,6 +261,7 @@ struct s3c2410_uartcfg {
 	unsigned char	   unused;
 	unsigned short	   flags;
 	upf_t		   uart_flags;	 /* default uart flags */
+	unsigned int	   clk_sel;
 
 	unsigned int	   has_fracval;
 

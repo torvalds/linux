@@ -19,6 +19,10 @@ struct s3c24xx_uart_info {
 	unsigned long		tx_fifomask;
 	unsigned long		tx_fifoshift;
 	unsigned long		tx_fifofull;
+	unsigned int		def_clk_sel;
+	unsigned long		num_clks;
+	unsigned long		clksel_mask;
+	unsigned long		clksel_shift;
 
 	/* uart port features */
 
