@@ -94,6 +94,15 @@ cp_set_surface_sync(struct radeon_device *rdev,
 	else
 		cp_coher_size = ((size + 255) >> 8);
 
+	if (rdev->family >= CHIP_CAYMAN) {
+		/* CP_COHER_CNTL2 has to be set manually when submitting a surface_sync
+		 * to the RB directly. For IBs, the CP programs this as part of the
+		 * surface_sync packet.
+		 */
+		radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(rdev, (0x85e8 - PACKET3_SET_CONFIG_REG_START) >> 2);
+		radeon_ring_write(rdev, 0); /* CP_COHER_CNTL2 */
+	}
 	radeon_ring_write(rdev, PACKET3(PACKET3_SURFACE_SYNC, 3));
 	radeon_ring_write(rdev, sync_type);
 	radeon_ring_write(rdev, cp_coher_size);
@@ -621,6 +630,8 @@ int evergreen_blit_init(struct radeon_device *rdev)
 	rdev->r600_blit.ring_size_common += 10; /* fence emit for done copy */
 
 	rdev->r600_blit.ring_size_per_loop = 74;
+	if (rdev->family >= CHIP_CAYMAN)
+		rdev->r600_blit.ring_size_per_loop += 9; /* additional DWs for surface sync */
 
 	rdev->r600_blit.max_dim = 16384;
 
