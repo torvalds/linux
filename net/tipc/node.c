@@ -306,8 +306,9 @@ static void node_established_contact(struct tipc_node *n_ptr)
 	/* Syncronize broadcast acks */
 	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
 
-	if (n_ptr->bclink.supported) {
+	if (n_ptr->bclink.supportable) {
 		tipc_bclink_add_node(n_ptr->addr);
+		n_ptr->bclink.supported = 1;
 		if (n_ptr->addr < tipc_own_addr)
 			tipc_own_tag++;
 	}

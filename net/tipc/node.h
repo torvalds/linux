@@ -62,6 +62,7 @@
  * @link_cnt: number of links to node
  * @permit_changeover: non-zero if node has redundant links to this system
  * @bclink: broadcast-related info
+ *    @supportable: non-zero if node supports TIPC b'cast link capability
  *    @supported: non-zero if node supports TIPC b'cast capability
  *    @acked: sequence # of last outbound b'cast message acknowledged by node
  *    @last_in: sequence # of last in-sequence b'cast message received from node
@@ -86,7 +87,8 @@ struct tipc_node {
 	int block_setup;
 	int permit_changeover;
 	struct {
-		int supported;
+		u8 supportable;
+		u8 supported;
 		u32 acked;
 		u32 last_in;
 		u32 gap_after;
