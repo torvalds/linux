@@ -175,8 +175,10 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 					       "pcifront-msi-x" :
 					       "pcifront-msi",
 						DOMID_SELF);
-		if (irq < 0)
+		if (irq < 0) {
+			ret = irq;
 			goto free;
+		}
 		i++;
 	}
 	kfree(v);
@@ -221,8 +223,10 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		if (msg.data != XEN_PIRQ_MSI_DATA ||
 		    xen_irq_from_pirq(pirq) < 0) {
 			pirq = xen_allocate_pirq_msi(dev, msidesc);
-			if (pirq < 0)
+			if (pirq < 0) {
+				irq = -ENODEV;
 				goto error;
+			}
 			xen_msi_compose_msg(dev, pirq, &msg);
 			__write_msi_msg(msidesc, &msg);
 			dev_dbg(&dev->dev, "xen: msi bound to pirq=%d\n", pirq);
@@ -244,7 +248,7 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 error:
 	dev_err(&dev->dev,
 		"Xen PCI frontend has not registered MSI/MSI-X support!\n");
-	return -ENODEV;
+	return irq;
 }
 
 #ifdef CONFIG_XEN_DOM0
