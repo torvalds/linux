@@ -1221,6 +1221,8 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 				disconnect = 1;
 				c4iw_get_ep(&qhp->ep->com);
 			}
+			if (qhp->ibqp.uobject)
+				t4_set_wq_in_error(&qhp->wq);
 			ret = rdma_fini(rhp, qhp, ep);
 			if (ret)
 				goto err;
@@ -1237,6 +1239,8 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			break;
 		case C4IW_QP_STATE_ERROR:
 			set_state(qhp, C4IW_QP_STATE_ERROR);
+			if (qhp->ibqp.uobject)
+				t4_set_wq_in_error(&qhp->wq);
 			if (!internal) {
 				abort = 1;
 				disconnect = 1;
