@@ -47,7 +47,6 @@ struct drm_owner_item {
 
 void drm_sman_takedown(struct drm_sman * sman)
 {
-	drm_ht_remove(&sman->user_hash_tab);
 	kfree(sman->mm);
 }
 
@@ -62,16 +61,11 @@ drm_sman_init(struct drm_sman * sman, unsigned int num_managers,
 	sman->mm = kcalloc(num_managers, sizeof(*sman->mm), GFP_KERNEL);
 	if (!sman->mm) {
 		ret = -ENOMEM;
-		goto out;
+		return ret;
 	}
 	sman->num_managers = num_managers;
-	ret = drm_ht_create(&sman->user_hash_tab, user_order);
-	if (!ret)
-		goto out;
 
-	kfree(sman->mm);
-out:
-	return ret;
+	return 0;
 }
 
 EXPORT_SYMBOL(drm_sman_init);
@@ -180,15 +174,8 @@ struct drm_memblock_item *drm_sman_alloc(struct drm_sman *sman, unsigned int man
 	memblock->mm = sman_mm;
 	memblock->sman = sman;
 
-	if (drm_ht_just_insert_please
-	    (&sman->user_hash_tab, &memblock->user_hash,
-	     (unsigned long)memblock, 32, 0, 0))
-		goto out1;
-
 	return memblock;
 
-out1:
-	kfree(memblock);
 out:
 	sman_mm->free(sman_mm->private, tmp);
 
@@ -199,30 +186,11 @@ EXPORT_SYMBOL(drm_sman_alloc);
 
 void drm_sman_free(struct drm_memblock_item *item)
 {
-	struct drm_sman *sman = item->sman;
-
 	list_del(&item->owner_list);
-	drm_ht_remove_item(&sman->user_hash_tab, &item->user_hash);
 	item->mm->free(item->mm->private, item->mm_info);
 	kfree(item);
 }
 EXPORT_SYMBOL(drm_sman_free);
-
-int drm_sman_free_key(struct drm_sman *sman, unsigned int key)
-{
-	struct drm_hash_item *hash_item;
-	struct drm_memblock_item *memblock_item;
-
-	if (drm_ht_find_item(&sman->user_hash_tab, key, &hash_item))
-		return -EINVAL;
-
-	memblock_item = drm_hash_entry(hash_item, struct drm_memblock_item,
-				       user_hash);
-	drm_sman_free(memblock_item);
-	return 0;
-}
-
-EXPORT_SYMBOL(drm_sman_free_key);
 
 void drm_sman_cleanup(struct drm_sman *sman)
 {

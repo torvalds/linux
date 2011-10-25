@@ -87,7 +87,6 @@ struct drm_memblock_item {
 struct drm_sman {
 	struct drm_sman_mm *mm;
 	int num_managers;
-	struct drm_open_hash user_hash_tab;
 };
 
 /*
@@ -139,11 +138,7 @@ extern struct drm_memblock_item *drm_sman_alloc(struct drm_sman * sman,
 						unsigned long size,
 						unsigned alignment,
 						unsigned long owner);
-/*
- * Free a memory block identified by its user hash key.
- */
 
-extern int drm_sman_free_key(struct drm_sman * sman, unsigned int key);
 extern void drm_sman_free(struct drm_memblock_item *item);
 
 /*
