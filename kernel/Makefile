@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-obj-y     = sched.o fork.o exec_domain.o panic.o printk.o \
+obj-y     = fork.o exec_domain.o panic.o printk.o \
 	    cpu.o exit.o itimer.o time.o softirq.o resource.o \
 	    sysctl.o sysctl_binary.o capability.o ptrace.o timer.o user.o \
 	    signal.o sys.o kmod.o workqueue.o pid.o \
@@ -10,8 +10,12 @@ obj-y     = sched.o fork.o exec_domain.o panic.o printk.o \
 	    kthread.o wait.o kfifo.o sys_ni.o posix-cpu-timers.o mutex.o \
 	    hrtimer.o rwsem.o nsproxy.o srcu.o semaphore.o \
 	    notifier.o ksysfs.o sched_clock.o cred.o \
-	    async.o range.o
-obj-y += groups.o
+	    async.o range.o groups.o
+
+obj-y += sched.o sched_idletask.o sched_fair.o sched_rt.o sched_stoptask.o
+obj-$(CONFIG_SCHED_AUTOGROUP) += sched_autogroup.o
+obj-$(CONFIG_SCHEDSTATS) += sched_stats.o
+obj-$(CONFIG_SCHED_DEBUG) += sched_debug.o
 
 ifdef CONFIG_FUNCTION_TRACER
 # Do not trace debug files and internal ftrace files
