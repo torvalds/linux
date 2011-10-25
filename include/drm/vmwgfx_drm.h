@@ -54,7 +54,7 @@
 #define DRM_VMW_FENCE_EVENT          17
 #define DRM_VMW_PRESENT              18
 #define DRM_VMW_PRESENT_READBACK     19
-
+#define DRM_VMW_UPDATE_LAYOUT        20
 
 /*************************************************************************/
 /**
@@ -552,31 +552,6 @@ struct drm_vmw_get_3d_cap_arg {
 
 /*************************************************************************/
 /**
- * DRM_VMW_UPDATE_LAYOUT - Update layout
- *
- * Updates the preferred modes and connection status for connectors. The
- * command conisits of one drm_vmw_update_layout_arg pointing out a array
- * of num_outputs drm_vmw_rect's.
- */
-
-/**
- * struct drm_vmw_update_layout_arg
- *
- * @num_outputs: number of active
- * @rects: pointer to array of drm_vmw_rect
- *
- * Input argument to the DRM_VMW_UPDATE_LAYOUT Ioctl.
- */
-
-struct drm_vmw_update_layout_arg {
-	uint32_t num_outputs;
-	uint32_t pad64;
-	uint64_t rects;
-};
-
-
-/*************************************************************************/
-/**
  * DRM_VMW_FENCE_WAIT
  *
  * Waits for a fence object to signal. The wait is interruptible, so that
@@ -788,4 +763,28 @@ struct drm_vmw_present_readback_arg {
 	 uint64_t clips_ptr;
 	 uint64_t fence_rep;
 };
+
+/*************************************************************************/
+/**
+ * DRM_VMW_UPDATE_LAYOUT - Update layout
+ *
+ * Updates the preferred modes and connection status for connectors. The
+ * command consists of one drm_vmw_update_layout_arg pointing to an array
+ * of num_outputs drm_vmw_rect's.
+ */
+
+/**
+ * struct drm_vmw_update_layout_arg
+ *
+ * @num_outputs: number of active connectors
+ * @rects: pointer to array of drm_vmw_rect cast to an uint64_t
+ *
+ * Input argument to the DRM_VMW_UPDATE_LAYOUT Ioctl.
+ */
+struct drm_vmw_update_layout_arg {
+	uint32_t num_outputs;
+	uint32_t pad64;
+	uint64_t rects;
+};
+
 #endif
