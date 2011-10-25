@@ -2143,14 +2143,6 @@ err:
 
 void ath6kl_deinit_ieee80211_hw(struct ath6kl *ar)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
-
-	if (vif->scan_req) {
-		cfg80211_scan_done(vif->scan_req, true);
-		vif->scan_req = NULL;
-	}
-
 	wiphy_unregister(ar->wiphy);
 	wiphy_free(ar->wiphy);
 }

@@ -92,6 +92,6 @@ void ath6k_seek_credits(struct htc_credit_state_info *cred_inf,
 			struct htc_endpoint_credit_dist *ep_dist);
 struct ath6kl *ath6kl_core_alloc(struct device *sdev);
 int ath6kl_core_init(struct ath6kl *ar);
-int ath6kl_unavail_ev(struct ath6kl *ar);
+void ath6kl_core_cleanup(struct ath6kl *ar);
 struct sk_buff *ath6kl_buf_alloc(int size);
 #endif /* COMMON_H */

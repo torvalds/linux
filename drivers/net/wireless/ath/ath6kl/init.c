@@ -513,11 +513,27 @@ void ath6kl_core_free(struct ath6kl *ar)
 	wiphy_free(ar->wiphy);
 }
 
-int ath6kl_unavail_ev(struct ath6kl *ar)
+void ath6kl_core_cleanup(struct ath6kl *ar)
 {
-	ath6kl_destroy(ar->vif->ndev, 1);
+	destroy_workqueue(ar->ath6kl_wq);
 
-	return 0;
+	if (ar->htc_target)
+		ath6kl_htc_cleanup(ar->htc_target);
+
+	ath6kl_cookie_cleanup(ar);
+
+	ath6kl_cleanup_amsdu_rxbufs(ar);
+
+	ath6kl_bmi_cleanup(ar);
+
+	ath6kl_debug_cleanup(ar);
+
+	kfree(ar->fw_board);
+	kfree(ar->fw_otp);
+	kfree(ar->fw);
+	kfree(ar->fw_patch);
+
+	ath6kl_deinit_ieee80211_hw(ar);
 }
 
 /* firmware upload */
@@ -1572,6 +1588,36 @@ err_wq:
 	return ret;
 }
 
+static void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready)
+{
+	static u8 bcast_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	bool discon_issued;
+
+	netif_stop_queue(vif->ndev);
+
+	clear_bit(WLAN_ENABLED, &vif->flags);
+
+	if (wmi_ready) {
+		discon_issued = test_bit(CONNECTED, &vif->flags) ||
+				test_bit(CONNECT_PEND, &vif->flags);
+		ath6kl_disconnect(vif);
+		del_timer(&vif->disconnect_timer);
+
+		if (discon_issued)
+			ath6kl_disconnect_event(vif, DISCONNECT_CMD,
+						(vif->nw_type & AP_NETWORK) ?
+						bcast_mac : vif->bssid,
+						0, NULL, 0);
+	}
+
+	if (vif->scan_req) {
+		cfg80211_scan_done(vif->scan_req, true);
+		vif->scan_req = NULL;
+	}
+
+	ath6kl_deinit_if_data(vif);
+}
+
 void ath6kl_stop_txrx(struct ath6kl *ar)
 {
 	struct ath6kl_vif *vif = ar->vif;
@@ -1587,58 +1633,34 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 		return;
 	}
 
-	if (ar->wlan_pwr_state != WLAN_POWER_STATE_CUT_PWR)
-		ath6kl_stop_endpoint(ndev, false, true);
+	ath6kl_cleanup_vif(ar->vif, test_bit(WMI_READY, &ar->flag));
 
-	clear_bit(WLAN_ENABLED, &vif->flags);
-}
+	clear_bit(WMI_READY, &ar->flag);
 
-/*
- * We need to differentiate between the surprise and planned removal of the
- * device because of the following consideration:
- *
- * - In case of surprise removal, the hcd already frees up the pending
- *   for the device and hence there is no need to unregister the function
- *   driver inorder to get these requests. For planned removal, the function
- *   driver has to explicitly unregister itself to have the hcd return all the
- *   pending requests before the data structures for the devices are freed up.
- *   Note that as per the current implementation, the function driver will
- *   end up releasing all the devices since there is no API to selectively
- *   release a particular device.
- *
- * - Certain commands issued to the target can be skipped for surprise
- *   removal since they will anyway not go through.
- */
-void ath6kl_destroy(struct net_device *dev, unsigned int unregister)
-{
-	struct ath6kl *ar;
+	/*
+	 * After wmi_shudown all WMI events will be dropped. We
+	 * need to cleanup the buffers allocated in AP mode and
+	 * give disconnect notification to stack, which usually
+	 * happens in the disconnect_event. Simulate the disconnect
+	 * event by calling the function directly. Sometimes
+	 * disconnect_event will be received when the debug logs
+	 * are collected.
+	 */
+	ath6kl_wmi_shutdown(ar->wmi);
 
-	if (!dev || !ath6kl_priv(dev)) {
-		ath6kl_err("failed to get device structure\n");
-		return;
+	clear_bit(WMI_ENABLED, &ar->flag);
+	if (ar->htc_target) {
+		ath6kl_dbg(ATH6KL_DBG_TRC, "%s: shut down htc\n", __func__);
+		ath6kl_htc_stop(ar->htc_target);
 	}
 
-	ar = ath6kl_priv(dev);
+	/*
+	 * Try to reset the device if we can. The driver may have been
+	 * configure NOT to reset the target during a debug session.
+	 */
+	ath6kl_dbg(ATH6KL_DBG_TRC,
+			"attempting to reset target on instance destroy\n");
+	ath6kl_reset_device(ar, ar->target_type, true, true);
 
-	destroy_workqueue(ar->ath6kl_wq);
-
-	if (ar->htc_target)
-		ath6kl_htc_cleanup(ar->htc_target);
-
-	ath6kl_cookie_cleanup(ar);
-
-	ath6kl_cleanup_amsdu_rxbufs(ar);
-
-	ath6kl_bmi_cleanup(ar);
-
-	ath6kl_debug_cleanup(ar);
-
-	ath6kl_deinit_if_data(netdev_priv(dev));
-
-	kfree(ar->fw_board);
-	kfree(ar->fw_otp);
-	kfree(ar->fw);
-	kfree(ar->fw_patch);
-
-	ath6kl_deinit_ieee80211_hw(ar);
+	clear_bit(WLAN_ENABLED, &ar->flag);
 }

@@ -395,8 +395,8 @@ out:
 #define AR6003_RESET_CONTROL_ADDRESS 0x00004000
 #define AR6004_RESET_CONTROL_ADDRESS 0x00004000
 
-static void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
-				bool wait_fot_compltn, bool cold_reset)
+void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
+			 bool wait_fot_compltn, bool cold_reset)
 {
 	int status = 0;
 	u32 address;
@@ -425,77 +425,6 @@ static void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
 
 	if (status)
 		ath6kl_err("failed to reset target\n");
-}
-
-void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
-			  bool get_dbglogs)
-{
-	struct ath6kl *ar = ath6kl_priv(dev);
-	struct ath6kl_vif *vif = netdev_priv(dev);
-	static u8 bcast_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	bool discon_issued;
-
-	netif_stop_queue(dev);
-
-	/* disable the target and the interrupts associated with it */
-	if (test_bit(WMI_READY, &ar->flag)) {
-		discon_issued = (test_bit(CONNECTED, &vif->flags) ||
-				 test_bit(CONNECT_PEND, &vif->flags));
-		ath6kl_disconnect(vif);
-		if (!keep_profile)
-			ath6kl_init_profile_info(vif);
-
-		del_timer(&vif->disconnect_timer);
-
-		clear_bit(WMI_READY, &ar->flag);
-		ath6kl_wmi_shutdown(ar->wmi);
-		clear_bit(WMI_ENABLED, &ar->flag);
-		ar->wmi = NULL;
-
-		/*
-		 * After wmi_shudown all WMI events will be dropped. We
-		 * need to cleanup the buffers allocated in AP mode and
-		 * give disconnect notification to stack, which usually
-		 * happens in the disconnect_event. Simulate the disconnect
-		 * event by calling the function directly. Sometimes
-		 * disconnect_event will be received when the debug logs
-		 * are collected.
-		 */
-		if (discon_issued)
-			ath6kl_disconnect_event(vif, DISCONNECT_CMD,
-						(vif->nw_type & AP_NETWORK) ?
-						bcast_mac : vif->bssid,
-						0, NULL, 0);
-
-		ar->user_key_ctrl = 0;
-
-	} else {
-		ath6kl_dbg(ATH6KL_DBG_TRC,
-			   "%s: wmi is not ready 0x%p 0x%p\n",
-			   __func__, ar, ar->wmi);
-
-		/* Shut down WMI if we have started it */
-		if (test_bit(WMI_ENABLED, &ar->flag)) {
-			ath6kl_dbg(ATH6KL_DBG_TRC,
-				   "%s: shut down wmi\n", __func__);
-			ath6kl_wmi_shutdown(ar->wmi);
-			clear_bit(WMI_ENABLED, &ar->flag);
-			ar->wmi = NULL;
-		}
-	}
-
-	if (ar->htc_target) {
-		ath6kl_dbg(ATH6KL_DBG_TRC, "%s: shut down htc\n", __func__);
-		ath6kl_htc_stop(ar->htc_target);
-	}
-
-	/*
-	 * Try to reset the device if we can. The driver may have been
-	 * configure NOT to reset the target during a debug session.
-	 */
-	ath6kl_dbg(ATH6KL_DBG_TRC,
-		   "attempting to reset target on instance destroy\n");
-	ath6kl_reset_device(ar, ar->target_type, true, true);
 }
 
 static void ath6kl_install_static_wep_keys(struct ath6kl_vif *vif)

@@ -897,7 +897,7 @@ static void ath6kl_sdio_remove(struct sdio_func *func)
 	ath6kl_stop_txrx(ar_sdio->ar);
 	cancel_work_sync(&ar_sdio->wr_async_work);
 
-	ath6kl_unavail_ev(ar_sdio->ar);
+	ath6kl_core_cleanup(ar_sdio->ar);
 
 	ath6kl_sdio_power_off(ar_sdio);
 

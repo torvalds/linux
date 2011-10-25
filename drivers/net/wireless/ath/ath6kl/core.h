@@ -584,7 +584,6 @@ static inline u32 ath6kl_get_hi_item_addr(struct ath6kl *ar,
 	return addr;
 }
 
-void ath6kl_destroy(struct net_device *dev, unsigned int unregister);
 int ath6kl_configure_target(struct ath6kl *ar);
 void ath6kl_detect_error(unsigned long ptr);
 void disconnect_timer_handler(unsigned long ptr);
@@ -604,8 +603,6 @@ int ath6kl_diag_read(struct ath6kl *ar, u32 address, void *data, u32 length);
 int ath6kl_read_fwlogs(struct ath6kl *ar);
 void ath6kl_init_profile_info(struct ath6kl_vif *vif);
 void ath6kl_tx_data_cleanup(struct ath6kl *ar);
-void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
-			  bool get_dbglogs);
 
 struct ath6kl_cookie *ath6kl_alloc_cookie(struct ath6kl *ar);
 void ath6kl_free_cookie(struct ath6kl *ar, struct ath6kl_cookie *cookie);
@@ -657,6 +654,8 @@ void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid, u16 seq_no,
 void ath6kl_wakeup_event(void *dev);
 void ath6kl_target_failure(struct ath6kl *ar);
 
+void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
+			 bool wait_fot_compltn, bool cold_reset);
 void ath6kl_init_control_info(struct ath6kl_vif *vif);
 void ath6kl_deinit_if_data(struct ath6kl_vif *vif);
 void ath6kl_core_free(struct ath6kl *ar);
