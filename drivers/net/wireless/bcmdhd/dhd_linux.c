@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 287541 2011-10-03 23:48:17Z $
+ * $Id: dhd_linux.c 291449 2011-10-22 12:16:26Z $
  */
 
 #include <typedefs.h>
@@ -171,7 +171,7 @@ typedef struct dhd_if {
 	struct net_device *net;
 	struct net_device_stats stats;
 	int 			idx;			/* iface idx in dongle */
-	int 			state;			/* interface state */
+	dhd_if_state_t	state;			/* interface state */
 	uint 			subunit;		/* subunit */
 	uint8			mac_addr[ETHER_ADDR_LEN];	/* assigned MAC address */
 	bool			attached;		/* Delayed attachment when unset */
@@ -306,7 +306,7 @@ module_param(dhd_watchdog_ms, uint, 0);
 #if defined(DHD_DEBUG)
 /* Console poll interval */
 uint dhd_console_ms = 0;
-module_param(dhd_console_ms, uint, 0);
+module_param(dhd_console_ms, uint, 0644);
 #endif /* defined(DHD_DEBUG) */
 
 /* ARP offload agent mode : Enable ARP Host Auto-Reply and ARP Peer Auto-Reply */
@@ -327,7 +327,7 @@ module_param(dhd_pkt_filter_init, uint, 0);
 
 /* Pkt filter mode control */
 uint dhd_master_mode = TRUE;
-module_param(dhd_master_mode, uint, 1);
+module_param(dhd_master_mode, uint, 0);
 
 #ifdef DHDTHREAD
 /* Watchdog thread priority, -1 to use kernel timer */
@@ -349,7 +349,7 @@ uint dhd_roam_disable = 0;
 uint dhd_radio_up = 1;
 
 /* Network inteface name */
-char iface_name[IFNAMSIZ];
+char iface_name[IFNAMSIZ] = {'\0'};
 module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
@@ -591,7 +591,7 @@ static void dhd_suspend_resume_helper(struct dhd_info *dhd, int val)
 	DHD_OS_WAKE_LOCK(dhdp);
 	/* Set flag when early suspend was called */
 	dhdp->in_suspend = val;
-	if (!dhdp->suspend_disable_flag)
+	if ((!dhdp->suspend_disable_flag) && (dhd_check_ap_wfd_mode_set(dhdp) == FALSE))
 		dhd_set_suspend(val, dhdp);
 	DHD_OS_WAKE_UNLOCK(dhdp);
 }
@@ -951,7 +951,7 @@ dhd_op_if(dhd_if_t *ifp)
 
 #endif
 	switch (ifp->state) {
-	case WLC_E_IF_ADD:
+	case DHD_IF_ADD:
 		/*
 		 * Delete the existing interface before overwriting it
 		 * in case we missed the WLC_E_IF_DEL event.
@@ -976,7 +976,7 @@ dhd_op_if(dhd_if_t *ifp)
 			if (dhd->dhd_state & DHD_ATTACH_STATE_CFG80211)
 				if (!wl_cfg80211_notify_ifadd(ifp->net, ifp->idx, ifp->bssidx,
 					dhd_net_attach)) {
-					ifp->state = 0;
+					ifp->state = DHD_IF_NONE;
 					return;
 				}
 #endif
@@ -999,20 +999,27 @@ dhd_op_if(dhd_if_t *ifp)
 #endif
 				DHD_TRACE(("\n ==== pid:%x, net_device for if:%s created ===\n\n",
 					current->pid, ifp->net->name));
-				ifp->state = 0;
+				ifp->state = DHD_IF_NONE;
 			}
 		}
 		break;
-	case WLC_E_IF_DEL:
+	case DHD_IF_DEL:
+		/* Make sure that we don't enter again here if .. */
+		/* dhd_op_if is called again from some other context */
+		ifp->state = DHD_IF_DELETING;
 		if (ifp->net != NULL) {
-			DHD_TRACE(("\n%s: got 'WLC_E_IF_DEL' state\n", __FUNCTION__));
+			DHD_TRACE(("\n%s: got 'DHD_IF_DEL' state\n", __FUNCTION__));
 #ifdef WL_CFG80211
-			wl_cfg80211_ifdel_ops(ifp->net);
+			if (dhd->dhd_state & DHD_ATTACH_STATE_CFG80211) {
+				wl_cfg80211_notify_ifdel(ifp->net);
+			}
 #endif
 			netif_stop_queue(ifp->net);
 			unregister_netdev(ifp->net);
 			ret = DHD_DEL_IF;	/* Make sure the free_netdev() is called */
 		}
+		break;
+	case DHD_IF_DELETING:
 		break;
 	default:
 		DHD_ERROR(("%s: bad op %d\n", __FUNCTION__, ifp->state));
@@ -1026,11 +1033,6 @@ dhd_op_if(dhd_if_t *ifp)
 			free_netdev(ifp->net);
 		}
 		dhd->iflist[ifp->idx] = NULL;
-#ifdef WL_CFG80211
-		if (dhd->dhd_state & DHD_ATTACH_STATE_CFG80211) {
-			wl_cfg80211_notify_ifdel(ifp->net);
-		}
-#endif
 #ifdef SOFTAP
 		flags = dhd_os_spin_lock(&dhd->pub);
 		if (ifp->net == ap_net_dev)
@@ -1076,7 +1078,6 @@ _dhd_sysioc_thread(void *data)
 				in_ap = (ap_net_dev != NULL);
 				dhd_os_spin_unlock(&dhd->pub, flags);
 #endif /* SOFTAP */
-
 				if (dhd->iflist[i] && dhd->iflist[i]->state)
 					dhd_op_if(dhd->iflist[i]);
 
@@ -1085,7 +1086,6 @@ _dhd_sysioc_thread(void *data)
 						"!\n\n", __FUNCTION__, i));
 					continue;
 				}
-
 #ifdef SOFTAP
 				if (in_ap && dhd->set_macaddress)  {
 					DHD_TRACE(("attempt to set MAC for %s in AP Mode,"
@@ -2234,8 +2234,9 @@ dhd_cleanup_virt_ifaces(dhd_info_t *dhd)
 	for (i = 1; i < DHD_MAX_IFS; i++) {
 		if (dhd->iflist[i]) {
 			DHD_TRACE(("Deleting IF: %d \n", i));
-			if (dhd->iflist[i]->state != WLC_E_IF_DEL) {
-				dhd->iflist[i]->state = WLC_E_IF_DEL;
+			if ((dhd->iflist[i]->state != DHD_IF_DEL) &&
+				(dhd->iflist[i]->state != DHD_IF_DELETING)) {
+				dhd->iflist[i]->state = DHD_IF_DEL;
 				dhd->iflist[i]->idx = i;
 				dhd_op_if(dhd->iflist[i]);
 			}
@@ -2267,7 +2268,8 @@ dhd_stop(struct net_device *net)
 	if (ifidx == 0) {
 		wl_cfg80211_down();
 
-		/** For CFG80211: Clean up all the left over virtual interfaces
+		/*
+		 * For CFG80211: Clean up all the left over virtual interfaces
 		 * when the primary Interface is brought down. [ifconfig wlan0 down]
 		 */
 		if ((dhd->dhd_state & DHD_ATTACH_STATE_ADD_IF) &&
@@ -2320,9 +2322,10 @@ dhd_open(struct net_device *net)
 	}
 
 #if !defined(WL_CFG80211)
-	/** Force start if ifconfig_up gets called before START command
-	 *  We keep WEXT's wl_control_wl_start to provide backward compatibility
-	 *  This should be removed in the future
+	/*
+	 * Force start if ifconfig_up gets called before START command
+	 * We keep WEXT's wl_control_wl_start to provide backward compatibility
+	 * This should be removed in the future
 	 */
 	wl_control_wl_start(net);
 #endif
@@ -2336,7 +2339,7 @@ dhd_open(struct net_device *net)
 		goto exit;
 	}
 
-	if (!dhd->iflist[ifidx] || dhd->iflist[ifidx]->state == WLC_E_IF_DEL) {
+	if (!dhd->iflist[ifidx] || dhd->iflist[ifidx]->state == DHD_IF_DEL) {
 		DHD_ERROR(("%s: Error: called when IF already deleted\n", __FUNCTION__));
 		ret = -1;
 		goto exit;
@@ -2446,7 +2449,7 @@ dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
 		memcpy(&ifp->mac_addr, mac_addr, ETHER_ADDR_LEN);
 
 	if (handle == NULL) {
-		ifp->state = WLC_E_IF_ADD;
+		ifp->state = DHD_IF_ADD;
 		ifp->idx = ifidx;
 		ifp->bssidx = bssidx;
 		ASSERT(&dhd->thr_sysioc_ctl.thr_pid >= 0);
@@ -2471,7 +2474,7 @@ dhd_del_if(dhd_info_t *dhd, int ifidx)
 		return;
 	}
 
-	ifp->state = WLC_E_IF_DEL;
+	ifp->state = DHD_IF_DEL;
 	ifp->idx = ifidx;
 	ASSERT(&dhd->thr_sysioc_ctl.thr_pid >= 0);
 	up(&dhd->thr_sysioc_ctl.sema);
@@ -3413,8 +3416,9 @@ dhd_bus_detach(dhd_pub_t *dhdp)
 		dhd = (dhd_info_t *)dhdp->info;
 		if (dhd) {
 
-			/** In case of Android cfg80211 driver, the bus is down in dhd_stop,
-			 *  calling stop again will cuase SD read/write errors.
+			/*
+			 * In case of Android cfg80211 driver, the bus is down in dhd_stop,
+			 * calling stop again will cuase SD read/write errors.
 			 */
 			if (dhd->pub.busstate != DHD_BUS_DOWN) {
 				/* Stop the protocol module */
@@ -3484,7 +3488,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 		/* Cleanup virtual interfaces */
 		for (i = 1; i < DHD_MAX_IFS; i++)
 			if (dhd->iflist[i]) {
-				dhd->iflist[i]->state = WLC_E_IF_DEL;
+				dhd->iflist[i]->state = DHD_IF_DEL;
 				dhd->iflist[i]->idx = i;
 				dhd_op_if(dhd->iflist[i]);
 			}
@@ -3800,8 +3804,6 @@ dhd_os_open_image(char *filename)
 {
 	struct file *fp;
 
-	/* wl_cfg80211_request_fw(filename); */
-
 	fp = filp_open(filename, O_RDONLY, 0);
 	/*
 	 * 2.6.11 (FC4) supports filp_open() but later revs don't?
@@ -3821,8 +3823,6 @@ dhd_os_get_image_block(char *buf, int len, void *image)
 	struct file *fp = (struct file *)image;
 	int rdlen;
 
-	/* wl_cfg80211_read_fw(buf, len); */
-
 	if (!image)
 		return 0;
 
@@ -3836,8 +3836,6 @@ dhd_os_get_image_block(char *buf, int len, void *image)
 void
 dhd_os_close_image(void *image)
 {
-	/* wl_cfg80211_release_fw(); */
-
 	if (image)
 		filp_close((struct file *)image, NULL);
 }
@@ -3890,10 +3888,12 @@ dhd_os_sdunlock_txq(dhd_pub_t *pub)
 	dhd = (dhd_info_t *)(pub->info);
 	spin_unlock_bh(&dhd->txqlock);
 }
+
 void
 dhd_os_sdlock_rxq(dhd_pub_t *pub)
 {
 }
+
 void
 dhd_os_sdunlock_rxq(dhd_pub_t *pub)
 {

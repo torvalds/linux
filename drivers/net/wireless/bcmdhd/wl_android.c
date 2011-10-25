@@ -384,8 +384,6 @@ int wl_android_wifi_off(struct net_device *dev)
 	if (g_wifi_on) {
 		dhd_dev_reset(dev, 1);
 		sdioh_stop(NULL);
-		/* clean up dtim_skip setting */
-		net_os_set_dtim_skip(dev, TRUE);
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
 		g_wifi_on = 0;
 	}

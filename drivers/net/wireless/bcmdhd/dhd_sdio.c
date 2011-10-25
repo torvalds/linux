@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 285933 2011-09-23 21:45:31Z $
+ * $Id: dhd_sdio.c 288105 2011-10-06 01:58:02Z $
  */
 
 #include <typedefs.h>
@@ -468,7 +468,7 @@ static void dhdsdio_sdtest_set(dhd_bus_t *bus, uint8 count);
 #endif
 
 #ifdef DHD_DEBUG
-static int dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size);
+static int dhdsdio_checkdied(dhd_bus_t *bus, char *data, uint size);
 static int dhd_serialconsole(dhd_bus_t *bus, bool get, bool enable, int *bcmerror);
 #endif /* DHD_DEBUG */
 
@@ -1937,7 +1937,7 @@ break2:
 }
 
 static int
-dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
+dhdsdio_checkdied(dhd_bus_t *bus, char *data, uint size)
 {
 	int bcmerror = 0;
 	uint msize = 512;

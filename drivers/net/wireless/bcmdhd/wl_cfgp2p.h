@@ -111,7 +111,7 @@ enum wl_cfgp2p_status {
 									&(wl)->p2p->status))
 #define p2p_on(wl) ((wl)->p2p->on)
 #define p2p_scan(wl) ((wl)->p2p->scan)
-
+#define p2p_is_on(wl) ((wl)->p2p && (wl)->p2p->on)
 
 /* dword align allocation */
 #define WLC_IOCTL_MAXLEN 8192

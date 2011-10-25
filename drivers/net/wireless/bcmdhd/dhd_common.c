@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c 284903 2011-09-20 02:36:51Z $
+ * $Id: dhd_common.c 290546 2011-10-19 01:55:21Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -100,8 +100,6 @@ const char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR;
 #endif
 
 void dhd_set_timer(void *bus, uint wdtick);
-
-
 
 /* IOVar table */
 enum {
@@ -961,7 +959,7 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 {
 	/* check whether packet is a BRCM event pkt */
 	bcm_event_t *pvt_data = (bcm_event_t *)pktdata;
-	char *event_data;
+	uint8 *event_data;
 	uint32 type, status, reason, datalen;
 	uint16 flags;
 	int evlen;
@@ -1529,8 +1527,6 @@ dhd_sendup_event_common(dhd_pub_t *dhdp, wl_event_msg_t *event, void *data)
 	dhd_sendup_event(dhdp, event, data);
 }
 
-
-
 #ifdef SIMPLE_ISCAN
 
 uint iscan_thread_id = 0;
@@ -1720,7 +1716,7 @@ fail:
 /*
  * returns = TRUE if associated, FALSE if not associated
  */
-bool is_associated(dhd_pub_t *dhd, void *bss_buf)
+bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf)
 {
 	char bssid[6], zbuf[6];
 	int ret = -1;
@@ -1767,7 +1763,7 @@ dhd_get_dtim_skip(dhd_pub_t *dhd)
 		bcn_li_dtim = dhd->dtim_skip;
 
 	/* Check if associated */
-	if (is_associated(dhd, NULL) == FALSE) {
+	if (dhd_is_associated(dhd, NULL) == FALSE) {
 		DHD_TRACE(("%s NOT assoc ret %d\n", __FUNCTION__, ret));
 		goto exit;
 	}
@@ -1865,7 +1861,7 @@ dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 
 	memset(iovbuf, 0, sizeof(iovbuf));
 
-	if ((pfn_enabled) && (is_associated(dhd, NULL) == TRUE)) {
+	if ((pfn_enabled) && (dhd_is_associated(dhd, NULL) == TRUE)) {
 		DHD_ERROR(("%s pno is NOT enable : called in assoc mode , ignore\n", __FUNCTION__));
 		return ret;
 	}
