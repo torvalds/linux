@@ -460,6 +460,8 @@ struct ath6kl {
 	struct list_head vif_list;
 	/* Lock to avoid race in vif_list entries among add/del/traverse */
 	spinlock_t list_lock;
+	u8 num_vif;
+	u8 avail_idx_map;
 	spinlock_t lock;
 	struct semaphore sem;
 	u16 listen_intvl_b;
@@ -470,6 +472,7 @@ struct ath6kl {
 	u8 tx_pwr;
 	struct ath6kl_node_mapping node_map[MAX_NODE_NUM];
 	u8 ibss_ps_enable;
+	bool ibss_if_active;
 	u8 node_num;
 	u8 next_ep_id;
 	struct ath6kl_cookie *cookie_list;
@@ -666,4 +669,5 @@ void ath6kl_init_control_info(struct ath6kl_vif *vif);
 void ath6kl_deinit_if_data(struct ath6kl_vif *vif);
 void ath6kl_core_free(struct ath6kl *ar);
 struct ath6kl_vif *ath6kl_vif_first(struct ath6kl *ar);
+void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready);
 #endif /* CORE_H */

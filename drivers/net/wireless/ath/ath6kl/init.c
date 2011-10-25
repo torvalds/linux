@@ -88,7 +88,6 @@ void ath6kl_init_profile_info(struct ath6kl_vif *vif)
 	memset(vif->req_bssid, 0, sizeof(vif->req_bssid));
 	memset(vif->bssid, 0, sizeof(vif->bssid));
 	vif->bss_ch = 0;
-	vif->nw_type = vif->next_mode = INFRA_NETWORK;
 }
 
 static int ath6kl_set_host_app_area(struct ath6kl *ar)
@@ -1414,6 +1413,7 @@ static int ath6kl_init(struct ath6kl *ar)
 	int status = 0;
 	s32 timeleft;
 	struct net_device *ndev;
+	int i;
 
 	if (!ar)
 		return -EIO;
@@ -1445,10 +1445,14 @@ static int ath6kl_init(struct ath6kl *ar)
 		goto err_node_cleanup;
 	}
 
+	for (i = 0; i < MAX_NUM_VIF; i++)
+		ar->avail_idx_map |= BIT(i);
+
 	rtnl_lock();
 
 	/* Add an initial station interface */
-	ndev = ath6kl_interface_add(ar, "wlan%d", NL80211_IFTYPE_STATION, 0);
+	ndev = ath6kl_interface_add(ar, "wlan%d", NL80211_IFTYPE_STATION, 0,
+				    INFRA_NETWORK);
 
 	rtnl_unlock();
 
@@ -1632,7 +1636,7 @@ err_wq:
 	return ret;
 }
 
-static void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready)
+void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready)
 {
 	static u8 bcast_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	bool discon_issued;

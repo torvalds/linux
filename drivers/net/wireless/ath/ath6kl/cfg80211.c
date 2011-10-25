@@ -293,6 +293,57 @@ static int ath6kl_set_assoc_req_ies(struct ath6kl_vif *vif, const u8 *ies,
 	return ret;
 }
 
+static int ath6kl_nliftype_to_drv_iftype(enum nl80211_iftype type, u8 *nw_type)
+{
+	switch (type) {
+	case NL80211_IFTYPE_STATION:
+		*nw_type = INFRA_NETWORK;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		*nw_type = ADHOC_NETWORK;
+		break;
+	case NL80211_IFTYPE_AP:
+		*nw_type = AP_NETWORK;
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		*nw_type = INFRA_NETWORK;
+		break;
+	case NL80211_IFTYPE_P2P_GO:
+		*nw_type = AP_NETWORK;
+		break;
+	default:
+		ath6kl_err("invalid interface type %u\n", type);
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static bool ath6kl_is_valid_iftype(struct ath6kl *ar, enum nl80211_iftype type,
+				   u8 *if_idx, u8 *nw_type)
+{
+	int i;
+
+	if (ath6kl_nliftype_to_drv_iftype(type, nw_type))
+		return false;
+
+	if (ar->ibss_if_active || ((type == NL80211_IFTYPE_ADHOC) &&
+	    ar->num_vif))
+		return false;
+
+	if (type == NL80211_IFTYPE_STATION ||
+	    type == NL80211_IFTYPE_AP || type == NL80211_IFTYPE_ADHOC) {
+		for (i = 0; i < MAX_NUM_VIF; i++) {
+			if ((ar->avail_idx_map >> i) & BIT(0)) {
+				*if_idx = i;
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 				   struct cfg80211_connect_params *sme)
 {
@@ -1206,6 +1257,52 @@ static int ath6kl_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 	return 0;
 }
 
+static struct net_device *ath6kl_cfg80211_add_iface(struct wiphy *wiphy,
+						    char *name,
+						    enum nl80211_iftype type,
+						    u32 *flags,
+						    struct vif_params *params)
+{
+	struct ath6kl *ar = wiphy_priv(wiphy);
+	struct net_device *ndev;
+	u8 if_idx, nw_type;
+
+	if (ar->num_vif == MAX_NUM_VIF) {
+		ath6kl_err("Reached maximum number of supported vif\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (!ath6kl_is_valid_iftype(ar, type, &if_idx, &nw_type)) {
+		ath6kl_err("Not a supported interface type\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	ndev = ath6kl_interface_add(ar, name, type, if_idx, nw_type);
+	if (!ndev)
+		return ERR_PTR(-ENOMEM);
+
+	ar->num_vif++;
+
+	return ndev;
+}
+
+static int ath6kl_cfg80211_del_iface(struct wiphy *wiphy,
+				     struct net_device *ndev)
+{
+	struct ath6kl *ar = wiphy_priv(wiphy);
+	struct ath6kl_vif *vif = netdev_priv(ndev);
+
+	spin_lock(&ar->list_lock);
+	list_del(&vif->list);
+	spin_unlock(&ar->list_lock);
+
+	ath6kl_cleanup_vif(vif, test_bit(WMI_READY, &ar->flag));
+
+	ath6kl_deinit_if_data(vif);
+
+	return 0;
+}
+
 static int ath6kl_cfg80211_change_iface(struct wiphy *wiphy,
 					struct net_device *ndev,
 					enum nl80211_iftype type, u32 *flags,
@@ -1947,6 +2044,8 @@ ath6kl_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 };
 
 static struct cfg80211_ops ath6kl_cfg80211_ops = {
+	.add_virtual_intf = ath6kl_cfg80211_add_iface,
+	.del_virtual_intf = ath6kl_cfg80211_del_iface,
 	.change_virtual_intf = ath6kl_cfg80211_change_iface,
 	.scan = ath6kl_cfg80211_scan,
 	.connect = ath6kl_cfg80211_connect,
@@ -2097,18 +2196,28 @@ static int ath6kl_init_if_data(struct ath6kl_vif *vif)
 
 void ath6kl_deinit_if_data(struct ath6kl_vif *vif)
 {
+	struct ath6kl *ar = vif->ar;
+
 	aggr_module_destroy(vif->aggr_cntxt);
 
+	ar->avail_idx_map |= BIT(vif->fw_vif_idx);
+
+	if (vif->nw_type == ADHOC_NETWORK)
+		ar->ibss_if_active = false;
+
 	unregister_netdevice(vif->ndev);
+
+	ar->num_vif--;
 }
 
 struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
-					enum nl80211_iftype type, u8 fw_vif_idx)
+					enum nl80211_iftype type, u8 fw_vif_idx,
+					u8 nw_type)
 {
 	struct net_device *ndev;
 	struct ath6kl_vif *vif;
 
-	ndev = alloc_netdev(sizeof(*vif), "wlan%d", ether_setup);
+	ndev = alloc_netdev(sizeof(*vif), name, ether_setup);
 	if (!ndev)
 		return NULL;
 
@@ -2121,7 +2230,13 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	vif->wdev.netdev = ndev;
 	vif->wdev.iftype = type;
 	vif->fw_vif_idx = fw_vif_idx;
+	vif->nw_type = vif->next_mode = nw_type;
 	ar->wdev = &vif->wdev;
+
+	memcpy(ndev->dev_addr, ar->mac_addr, ETH_ALEN);
+	if (fw_vif_idx != 0)
+		ndev->dev_addr[0] = (ndev->dev_addr[0] ^ (1 << fw_vif_idx)) |
+				     0x2;
 
 	init_netdev(ndev);
 
@@ -2134,10 +2249,14 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	if (register_netdevice(ndev))
 		goto err;
 
+	ar->avail_idx_map &= ~BIT(fw_vif_idx);
 	vif->sme_state = SME_DISCONNECTED;
 	set_bit(WLAN_ENABLED, &vif->flags);
 	ar->wlan_pwr_state = WLAN_POWER_STATE_ON;
 	set_bit(NETDEV_REGISTERED, &vif->flags);
+
+	if (type == NL80211_IFTYPE_ADHOC)
+		ar->ibss_if_active = true;
 
 	spin_lock(&ar->list_lock);
 	list_add_tail(&vif->list, &ar->vif_list);
