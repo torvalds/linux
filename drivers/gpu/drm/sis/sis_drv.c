@@ -76,10 +76,35 @@ static const struct file_operations sis_driver_fops = {
 	.llseek = noop_llseek,
 };
 
+static int sis_driver_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct sis_file_private *file_priv;
+
+	DRM_DEBUG_DRIVER("\n");
+	file_priv = kmalloc(sizeof(*file_priv), GFP_KERNEL);
+	if (!file_priv)
+		return -ENOMEM;
+
+	file->driver_priv = file_priv;
+
+	INIT_LIST_HEAD(&file_priv->obj_list);
+
+	return 0;
+}
+
+void sis_driver_postclose(struct drm_device *dev, struct drm_file *file)
+{
+	struct sis_file_private *file_priv = file->driver_priv;
+
+	kfree(file_priv);
+}
+
 static struct drm_driver driver = {
 	.driver_features = DRIVER_USE_AGP | DRIVER_USE_MTRR,
 	.load = sis_driver_load,
 	.unload = sis_driver_unload,
+	.open = sis_driver_open,
+	.postclose = sis_driver_postclose,
 	.dma_quiescent = sis_idle,
 	.reclaim_buffers = NULL,
 	.reclaim_buffers_idlelocked = sis_reclaim_buffers_locked,

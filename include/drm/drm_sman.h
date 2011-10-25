@@ -146,6 +146,7 @@ extern struct drm_memblock_item *drm_sman_alloc(struct drm_sman * sman,
  */
 
 extern int drm_sman_free_key(struct drm_sman * sman, unsigned int key);
+extern void drm_sman_free(struct drm_memblock_item *item);
 
 /*
  * returns 1 iff there are no stale memory blocks associated with this owner.

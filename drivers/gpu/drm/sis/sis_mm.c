@@ -120,13 +120,14 @@ static int sis_fb_init(struct drm_device *dev, void *data, struct drm_file *file
 	return 0;
 }
 
-static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file_priv,
+static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 			 void *data, int pool)
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
 	drm_sis_mem_t *mem = data;
 	int retval = 0;
 	struct drm_memblock_item *item;
+	struct sis_file_private *file_priv = file->driver_priv;
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -139,11 +140,10 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file_priv,
 	}
 
 	mem->size = (mem->size + SIS_MM_ALIGN_MASK) >> SIS_MM_ALIGN_SHIFT;
-	item = drm_sman_alloc(&dev_priv->sman, pool, mem->size, 0,
-			      (unsigned long)file_priv);
+	item = drm_sman_alloc(&dev_priv->sman, pool, mem->size, 0, 0);
 
-	mutex_unlock(&dev->struct_mutex);
 	if (item) {
+		list_move(&item->owner_list, &file_priv->obj_list);
 		mem->offset = ((pool == 0) ?
 			      dev_priv->vram_offset : dev_priv->agp_offset) +
 		    (item->mm->
@@ -156,6 +156,7 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file_priv,
 		mem->free = 0;
 		retval = -ENOMEM;
 	}
+	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG("alloc %d, size = %d, offset = %d\n", pool, mem->size,
 		  mem->offset);
@@ -301,12 +302,13 @@ void sis_lastclose(struct drm_device *dev)
 }
 
 void sis_reclaim_buffers_locked(struct drm_device *dev,
-				struct drm_file *file_priv)
+				struct drm_file *file)
 {
-	drm_sis_private_t *dev_priv = dev->dev_private;
+	struct sis_file_private *file_priv = file->driver_priv;
+	struct drm_memblock_item *entry, *next;
 
 	mutex_lock(&dev->struct_mutex);
-	if (drm_sman_owner_clean(&dev_priv->sman, (unsigned long)file_priv)) {
+	if (list_empty(&file_priv->obj_list)) {
 		mutex_unlock(&dev->struct_mutex);
 		return;
 	}
@@ -314,7 +316,11 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 	if (dev->driver->dma_quiescent)
 		dev->driver->dma_quiescent(dev);
 
-	drm_sman_owner_cleanup(&dev_priv->sman, (unsigned long)file_priv);
+
+	list_for_each_entry_safe(entry, next, &file_priv->obj_list,
+				 owner_list) {
+		drm_sman_free(entry);
+	}
 	mutex_unlock(&dev->struct_mutex);
 	return;
 }

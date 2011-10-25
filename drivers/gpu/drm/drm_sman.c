@@ -244,7 +244,7 @@ out:
 
 EXPORT_SYMBOL(drm_sman_alloc);
 
-static void drm_sman_free(struct drm_memblock_item *item)
+void drm_sman_free(struct drm_memblock_item *item)
 {
 	struct drm_sman *sman = item->sman;
 
@@ -253,6 +253,7 @@ static void drm_sman_free(struct drm_memblock_item *item)
 	item->mm->free(item->mm->private, item->mm_info);
 	kfree(item);
 }
+EXPORT_SYMBOL(drm_sman_free);
 
 int drm_sman_free_key(struct drm_sman *sman, unsigned int key)
 {
