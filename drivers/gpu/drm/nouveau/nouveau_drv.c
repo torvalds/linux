@@ -422,7 +422,6 @@ static struct drm_driver driver = {
 	.get_vblank_counter = drm_vblank_count,
 	.enable_vblank = nouveau_vblank_enable,
 	.disable_vblank = nouveau_vblank_disable,
-	.reclaim_buffers = drm_core_reclaim_buffers,
 	.ioctls = nouveau_ioctls,
 	.fops = &nouveau_driver_fops,
 

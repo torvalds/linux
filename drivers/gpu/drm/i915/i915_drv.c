@@ -940,7 +940,6 @@ static struct drm_driver driver = {
 	.resume = i915_resume,
 
 	.device_is_agp = i915_driver_device_is_agp,
-	.reclaim_buffers = drm_core_reclaim_buffers,
 	.master_create = i915_master_create,
 	.master_destroy = i915_master_destroy,
 #if defined(CONFIG_DEBUG_FS)
