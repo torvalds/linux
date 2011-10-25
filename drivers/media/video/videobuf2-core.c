@@ -265,6 +265,7 @@ static void __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 	q->num_buffers -= buffers;
 	if (!q->num_buffers)
 		q->memory = 0;
+	INIT_LIST_HEAD(&q->queued_list);
 }
 
 /**
