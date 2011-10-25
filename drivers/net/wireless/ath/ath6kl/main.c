@@ -938,7 +938,7 @@ void ath6kl_deep_sleep_enable(struct ath6kl *ar)
 
 	switch (vif->sme_state) {
 	case SME_CONNECTING:
-		cfg80211_connect_result(ar->net_dev, vif->bssid, NULL, 0,
+		cfg80211_connect_result(vif->ndev, vif->bssid, NULL, 0,
 					NULL, 0,
 					WLAN_STATUS_UNSPECIFIED_FAILURE,
 					GFP_KERNEL);
@@ -950,7 +950,7 @@ void ath6kl_deep_sleep_enable(struct ath6kl *ar)
 		 * suspend, why? Need to send disconnected event in that
 		 * state.
 		 */
-		cfg80211_disconnected(ar->net_dev, 0, NULL, 0, GFP_KERNEL);
+		cfg80211_disconnected(vif->ndev, 0, NULL, 0, GFP_KERNEL);
 		break;
 	}
 
@@ -995,7 +995,7 @@ static const char *get_hw_id_string(u32 id)
 void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 {
 	struct ath6kl *ar = devt;
-	struct net_device *dev = ar->net_dev;
+	struct net_device *dev = ar->vif->ndev;
 
 	memcpy(dev->dev_addr, datap, ETH_ALEN);
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: mac addr = %pM\n",

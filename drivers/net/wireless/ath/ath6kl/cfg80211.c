@@ -2116,7 +2116,6 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	vif->wdev.iftype = type;
 	vif->fw_vif_idx = fw_vif_idx;
 	ar->wdev = &vif->wdev;
-	ar->net_dev = ndev;
 
 	init_netdev(ndev);
 

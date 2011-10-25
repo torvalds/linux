@@ -478,7 +478,7 @@ stop_net_queues:
 	spin_lock_bh(&ar->lock);
 	set_bit(NETQ_STOPPED, &vif->flags);
 	spin_unlock_bh(&ar->lock);
-	netif_stop_queue(ar->net_dev);
+	netif_stop_queue(vif->ndev);
 
 	return HTC_SEND_FULL_KEEP;
 }
@@ -619,7 +619,7 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 
 	if (test_bit(CONNECTED, &vif->flags)) {
 		if (!flushing)
-			netif_wake_queue(ar->net_dev);
+			netif_wake_queue(vif->ndev);
 	}
 
 	if (wake_event)
@@ -1086,12 +1086,12 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, "rx ",
 			skb->data, skb->len);
 
-	skb->dev = ar->net_dev;
+	skb->dev = vif->ndev;
 
 	if (!test_bit(WMI_ENABLED, &ar->flag)) {
 		if (EPPING_ALIGNMENT_PAD > 0)
 			skb_pull(skb, EPPING_ALIGNMENT_PAD);
-		ath6kl_deliver_frames_to_nw_stack(ar->net_dev, skb);
+		ath6kl_deliver_frames_to_nw_stack(vif->ndev, skb);
 		return;
 	}
 
@@ -1174,7 +1174,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 				while ((skbuff = skb_dequeue(&conn->psq))
 				       != NULL) {
 					spin_unlock_bh(&conn->psq_lock);
-					ath6kl_data_tx(skbuff, ar->net_dev);
+					ath6kl_data_tx(skbuff, vif->ndev);
 					spin_lock_bh(&conn->psq_lock);
 				}
 				spin_unlock_bh(&conn->psq_lock);
@@ -1230,7 +1230,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		return;
 	}
 
-	if (!(ar->net_dev->flags & IFF_UP)) {
+	if (!(vif->ndev->flags & IFF_UP)) {
 		dev_kfree_skb(skb);
 		return;
 	}
@@ -1261,7 +1261,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			}
 		}
 		if (skb1)
-			ath6kl_data_tx(skb1, ar->net_dev);
+			ath6kl_data_tx(skb1, vif->ndev);
 
 		if (skb == NULL) {
 			/* nothing to deliver up the stack */
@@ -1277,7 +1277,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		/* aggregation code will handle the skb */
 		return;
 
-	ath6kl_deliver_frames_to_nw_stack(ar->net_dev, skb);
+	ath6kl_deliver_frames_to_nw_stack(vif->ndev, skb);
 }
 
 static void aggr_timeout(unsigned long arg)

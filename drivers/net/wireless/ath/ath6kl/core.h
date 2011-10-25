@@ -446,7 +446,6 @@ enum ath6kl_dev_state {
 
 struct ath6kl {
 	struct device *dev;
-	struct net_device *net_dev;
 	struct wiphy *wiphy;
 	struct ath6kl_bmi bmi;
 	const struct ath6kl_hif_ops *hif_ops;

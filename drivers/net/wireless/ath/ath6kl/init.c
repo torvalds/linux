@@ -521,7 +521,7 @@ void ath6kl_core_free(struct ath6kl *ar)
 
 int ath6kl_unavail_ev(struct ath6kl *ar)
 {
-	ath6kl_destroy(ar->net_dev, 1);
+	ath6kl_destroy(ar->vif->ndev, 1);
 
 	return 0;
 }
@@ -1417,7 +1417,7 @@ static int ath6kl_init(struct ath6kl *ar)
 
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
-			__func__, ar->net_dev->name, ar->net_dev, ar);
+			__func__, ndev->name, ndev, ar);
 
 	/*
 	 * The reason we have to wait for the target here is that the
@@ -1580,8 +1580,8 @@ err_wq:
 
 void ath6kl_stop_txrx(struct ath6kl *ar)
 {
-	struct net_device *ndev = ar->net_dev;
 	struct ath6kl_vif *vif = ar->vif;
+	struct net_device *ndev = vif->ndev;
 
 	if (!ndev)
 		return;
