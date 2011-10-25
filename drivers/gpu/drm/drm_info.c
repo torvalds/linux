@@ -110,42 +110,6 @@ int drm_vm_info(struct seq_file *m, void *data)
 }
 
 /**
- * Called when "/proc/dri/.../queues" is read.
- */
-int drm_queues_info(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	int i;
-	struct drm_queue *q;
-
-	mutex_lock(&dev->struct_mutex);
-	seq_printf(m, "  ctx/flags   use   fin"
-		   "   blk/rw/rwf  wait    flushed	   queued"
-		   "      locks\n\n");
-	for (i = 0; i < dev->queue_count; i++) {
-		q = dev->queuelist[i];
-		atomic_inc(&q->use_count);
-		seq_printf(m,   "%5d/0x%03x %5d %5d"
-			   " %5d/%c%c/%c%c%c %5Zd\n",
-			   i,
-			   q->flags,
-			   atomic_read(&q->use_count),
-			   atomic_read(&q->finalization),
-			   atomic_read(&q->block_count),
-			   atomic_read(&q->block_read) ? 'r' : '-',
-			   atomic_read(&q->block_write) ? 'w' : '-',
-			   waitqueue_active(&q->read_queue) ? 'r' : '-',
-			   waitqueue_active(&q->write_queue) ? 'w' : '-',
-			   waitqueue_active(&q->flush_queue) ? 'f' : '-',
-			   DRM_BUFCOUNT(&q->waitlist));
-		atomic_dec(&q->use_count);
-	}
-	mutex_unlock(&dev->struct_mutex);
-	return 0;
-}
-
-/**
  * Called when "/proc/dri/.../bufs" is read.
  */
 int drm_bufs_info(struct seq_file *m, void *data)

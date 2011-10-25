@@ -182,7 +182,6 @@ static struct drm_ioctl_desc drm_ioctls[] = {
 int drm_lastclose(struct drm_device * dev)
 {
 	struct drm_vma_entry *vma, *vma_temp;
-	int i;
 
 	DRM_DEBUG("\n");
 
@@ -227,16 +226,6 @@ int drm_lastclose(struct drm_device * dev)
 		list_del(&vma->head);
 		kfree(vma);
 	}
-
-	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE) && dev->queuelist) {
-		for (i = 0; i < dev->queue_count; i++) {
-			kfree(dev->queuelist[i]);
-			dev->queuelist[i] = NULL;
-		}
-		kfree(dev->queuelist);
-		dev->queuelist = NULL;
-	}
-	dev->queue_count = 0;
 
 	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA) &&
 	    !drm_core_check_feature(dev, DRIVER_MODESET))

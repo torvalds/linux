@@ -120,11 +120,6 @@ void drm_free_buffer(struct drm_device *dev, struct drm_buf * buf)
 	buf->pending = 0;
 	buf->file_priv = NULL;
 	buf->used = 0;
-
-	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE)
-	    && waitqueue_active(&buf->dma_wait)) {
-		wake_up_interruptible(&buf->dma_wait);
-	}
 }
 
 /**

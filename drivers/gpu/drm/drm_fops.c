@@ -75,10 +75,6 @@ static int drm_setup(struct drm_device * dev)
 
 	dev->sigdata.lock = NULL;
 
-	dev->queue_count = 0;
-	dev->queue_reserved = 0;
-	dev->queue_slots = 0;
-	dev->queuelist = NULL;
 	dev->context_flag = 0;
 	dev->interrupt_flag = 0;
 	dev->dma_flag = 0;
