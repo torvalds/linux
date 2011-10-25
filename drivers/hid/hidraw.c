@@ -259,7 +259,6 @@ static int hidraw_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&minors_lock);
 	if (!hidraw_table[minor]) {
-		kfree(list);
 		err = -ENODEV;
 		goto out_unlock;
 	}
@@ -287,6 +286,8 @@ static int hidraw_open(struct inode *inode, struct file *file)
 out_unlock:
 	mutex_unlock(&minors_lock);
 out:
+	if (err < 0)
+		kfree(list);
 	return err;
 
 }
