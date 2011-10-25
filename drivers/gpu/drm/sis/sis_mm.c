@@ -321,14 +321,20 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 	struct sis_file_private *file_priv = file->driver_priv;
 	struct sis_memblock *entry, *next;
 
+	if (!(file->minor->master && file->master->lock.hw_lock))
+		return;
+
+	drm_idlelock_take(&file->master->lock);
+
 	mutex_lock(&dev->struct_mutex);
 	if (list_empty(&file_priv->obj_list)) {
 		mutex_unlock(&dev->struct_mutex);
+		drm_idlelock_release(&file->master->lock);
+
 		return;
 	}
 
-	if (dev->driver->dma_quiescent)
-		dev->driver->dma_quiescent(dev);
+	sis_idle(dev);
 
 
 	list_for_each_entry_safe(entry, next, &file_priv->obj_list,
@@ -343,6 +349,9 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 		kfree(entry);
 	}
 	mutex_unlock(&dev->struct_mutex);
+
+	drm_idlelock_release(&file->master->lock);
+
 	return;
 }
 
