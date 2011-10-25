@@ -1012,7 +1012,6 @@ int __perf_session__process_events(struct perf_session *session,
 {
 	u64 head, page_offset, file_offset, file_pos, progress_next;
 	int err, mmap_prot, mmap_flags, map_idx = 0;
-	struct ui_progress *progress;
 	size_t	page_size, mmap_size;
 	char *buf, *mmaps[8];
 	union perf_event *event;
@@ -1030,9 +1029,6 @@ int __perf_session__process_events(struct perf_session *session,
 		file_size = data_offset + data_size;
 
 	progress_next = file_size / 16;
-	progress = ui_progress__new("Processing events...", file_size);
-	if (progress == NULL)
-		return -1;
 
 	mmap_size = session->mmap_window;
 	if (mmap_size > file_size)
@@ -1095,7 +1091,8 @@ more:
 
 	if (file_pos >= progress_next) {
 		progress_next += file_size / 16;
-		ui_progress__update(progress, file_pos);
+		ui_progress__update(file_pos, file_size,
+				    "Processing events...");
 	}
 
 	if (file_pos < file_size)
@@ -1106,7 +1103,6 @@ more:
 	session->ordered_samples.next_flush = ULLONG_MAX;
 	flush_sample_queue(session, ops);
 out_err:
-	ui_progress__delete(progress);
 	perf_session__warn_about_errors(session, ops);
 	perf_session_free_sample_buffers(session);
 	return err;
