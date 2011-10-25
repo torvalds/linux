@@ -348,5 +348,5 @@ void pcim_iounmap_regions(struct pci_dev *pdev, u16 mask)
 	}
 }
 EXPORT_SYMBOL(pcim_iounmap_regions);
-#endif
-#endif
+#endif /* CONFIG_PCI */
+#endif /* CONFIG_HAS_IOPORT */
