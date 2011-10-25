@@ -4,6 +4,7 @@
 #include "libslang.h"
 #include <newt.h>
 #include "ui.h"
+#include "util.h"
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -291,52 +292,9 @@ void ui_browser__update_nr_entries(struct ui_browser *browser, u32 nr_entries)
 	browser->seek(browser, browser->top_idx, SEEK_SET);
 }
 
-static int ui__getch(int delay_secs)
-{
-	struct timeval timeout, *ptimeout = delay_secs ? &timeout : NULL;
-	fd_set read_set;
-	int err, key;
-
-	FD_ZERO(&read_set);
-	FD_SET(0, &read_set);
-
-	if (delay_secs) {
-		timeout.tv_sec = delay_secs;
-		timeout.tv_usec = 0;
-	}
-
-        err = select(1, &read_set, NULL, NULL, ptimeout);
-
-	if (err == 0)
-		return K_TIMER;
-
-	if (err == -1) {
-		if (errno == EINTR)
-			return K_RESIZE;
-		return K_ERROR;
-	}
-
-	key = SLang_getkey();
-	if (key != K_ESC)
-		return key;
-
-	FD_ZERO(&read_set);
-	FD_SET(0, &read_set);
-	timeout.tv_sec = 0;
-	timeout.tv_usec = 20;
-        err = select(1, &read_set, NULL, NULL, &timeout);
-	if (err == 0)
-		return K_ESC;
-
-	SLang_ungetkey(key);
-	return SLkp_getkey();
-}
-
 int ui_browser__run(struct ui_browser *self, int delay_secs)
 {
 	int err, key;
-
-	pthread__unblock_sigwinch();
 
 	while (1) {
 		off_t offset;
@@ -351,10 +309,7 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 		key = ui__getch(delay_secs);
 
 		if (key == K_RESIZE) {
-			pthread_mutex_lock(&ui__lock);
-			SLtt_get_screen_size();
-			SLsmg_reinit_smg();
-			pthread_mutex_unlock(&ui__lock);
+			ui__refresh_dimensions(false);
 			ui_browser__refresh_dimensions(self);
 			__ui_browser__show_title(self, self->title);
 			ui_helpline__puts(self->helpline);
