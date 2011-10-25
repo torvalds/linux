@@ -1758,7 +1758,7 @@ static int do_loopback(struct path *path, char *old_name,
 		return err;
 	if (!old_name || !*old_name)
 		return -EINVAL;
-	err = kern_path(old_name, LOOKUP_FOLLOW, &old_path);
+	err = kern_path(old_name, LOOKUP_FOLLOW|LOOKUP_AUTOMOUNT, &old_path);
 	if (err)
 		return err;
 
