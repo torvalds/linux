@@ -91,7 +91,7 @@ void ath6kl_init_profile_info(struct ath6kl *ar)
 	memset(ar->req_bssid, 0, sizeof(ar->req_bssid));
 	memset(ar->bssid, 0, sizeof(ar->bssid));
 	ar->bss_ch = 0;
-	ar->nw_type = ar->next_mode = INFRA_NETWORK;
+	vif->nw_type = vif->next_mode = INFRA_NETWORK;
 }
 
 static int ath6kl_set_host_app_area(struct ath6kl *ar)

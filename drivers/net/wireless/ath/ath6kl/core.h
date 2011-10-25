@@ -407,6 +407,8 @@ struct ath6kl_vif {
 	u8 grp_crypto;
 	u8 grp_crypto_len;
 	u8 def_txkey_index;
+	u8 next_mode;
+	u8 nw_type;
 };
 
 /* Flag info */
@@ -435,8 +437,6 @@ struct ath6kl {
 	struct ath6kl_vif *vif;
 	spinlock_t lock;
 	struct semaphore sem;
-	u8 next_mode;
-	u8 nw_type;
 	struct ath6kl_wep_key wep_key_list[WMI_MAX_KEY_INDEX + 1];
 	u8 bssid[ETH_ALEN];
 	u8 req_bssid[ETH_ALEN];

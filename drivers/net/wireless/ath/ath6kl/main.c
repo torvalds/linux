@@ -22,10 +22,12 @@
 
 struct ath6kl_sta *ath6kl_find_sta(struct ath6kl *ar, u8 *node_addr)
 {
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 	struct ath6kl_sta *conn = NULL;
 	u8 i, max_conn;
 
-	max_conn = (ar->nw_type == AP_NETWORK) ? AP_MAX_NUM_STA : 0;
+	max_conn = (vif->nw_type == AP_NETWORK) ? AP_MAX_NUM_STA : 0;
 
 	for (i = 0; i < max_conn; i++) {
 		if (memcmp(node_addr, ar->sta_list[i].mac, ETH_ALEN) == 0) {
@@ -461,7 +463,7 @@ void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
 		 */
 		if (discon_issued)
 			ath6kl_disconnect_event(ar, DISCONNECT_CMD,
-						(ar->nw_type & AP_NETWORK) ?
+						(vif->nw_type & AP_NETWORK) ?
 						bcast_mac : ar->bssid,
 						0, NULL, 0);
 
@@ -1058,7 +1060,7 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 	memcpy(ar->bssid, bssid, sizeof(ar->bssid));
 	ar->bss_ch = channel;
 
-	if ((ar->nw_type == INFRA_NETWORK))
+	if ((vif->nw_type == INFRA_NETWORK))
 		ath6kl_wmi_listeninterval_cmd(ar->wmi, ar->listen_intvl_t,
 					      ar->listen_intvl_b);
 
@@ -1074,7 +1076,7 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 	aggr_reset_state(ar->aggr_cntxt);
 	ar->reconnect_flag = 0;
 
-	if ((ar->nw_type == ADHOC_NETWORK) && ar->ibss_ps_enable) {
+	if ((vif->nw_type == ADHOC_NETWORK) && ar->ibss_ps_enable) {
 		memset(ar->node_map, 0, sizeof(ar->node_map));
 		ar->node_num = 0;
 		ar->next_ep_id = ENDPOINT_2;
@@ -1089,12 +1091,14 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 void ath6kl_tkip_micerr_event(struct ath6kl *ar, u8 keyid, bool ismcast)
 {
 	struct ath6kl_sta *sta;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 	u8 tsc[6];
 	/*
 	 * For AP case, keyid will have aid of STA which sent pkt with
 	 * MIC error. Use this aid to get MAC & send it to hostapd.
 	 */
-	if (ar->nw_type == AP_NETWORK) {
+	if (vif->nw_type == AP_NETWORK) {
 		sta = ath6kl_find_sta_by_aid(ar, (keyid >> 2));
 		if (!sta)
 			return;
@@ -1227,9 +1231,11 @@ void ath6kl_tgt_stats_event(struct ath6kl *ar, u8 *ptr, u32 len)
 	struct wmi_ap_mode_stat *p = (struct wmi_ap_mode_stat *) ptr;
 	struct wmi_ap_mode_stat *ap = &ar->ap_stats;
 	struct wmi_per_sta_stat *st_ap, *st_p;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 	u8 ac;
 
-	if (ar->nw_type == AP_NETWORK) {
+	if (vif->nw_type == AP_NETWORK) {
 		if (len < sizeof(*p))
 			return;
 
@@ -1357,7 +1363,7 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 	/* TODO: Findout vif instead of taking it from ar */
 	struct ath6kl_vif *vif = ar->vif;
 
-	if (ar->nw_type == AP_NETWORK) {
+	if (vif->nw_type == AP_NETWORK) {
 		if (!ath6kl_remove_sta(ar, bssid, prot_reason_status))
 			return;
 

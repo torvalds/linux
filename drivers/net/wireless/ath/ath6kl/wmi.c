@@ -504,6 +504,8 @@ static int ath6kl_wmi_rx_probe_req_event_rx(struct wmi *wmi, u8 *datap, int len)
 	u32 freq;
 	u16 dlen;
 	struct ath6kl *ar = wmi->parent_dev;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 
 	if (len < sizeof(*ev))
 		return -EINVAL;
@@ -520,7 +522,7 @@ static int ath6kl_wmi_rx_probe_req_event_rx(struct wmi *wmi, u8 *datap, int len)
 		   "probe_req_report=%d\n",
 		   dlen, freq, ar->probe_req_report);
 
-	if (ar->probe_req_report || ar->nw_type == AP_NETWORK)
+	if (ar->probe_req_report || vif->nw_type == AP_NETWORK)
 		cfg80211_rx_mgmt(ar->net_dev, freq, ev->data, dlen, GFP_ATOMIC);
 
 	return 0;
@@ -727,13 +729,15 @@ static int ath6kl_wmi_connect_event_rx(struct wmi *wmi, u8 *datap, int len)
 	struct wmi_connect_event *ev;
 	u8 *pie, *peie;
 	struct ath6kl *ar = wmi->parent_dev;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 
 	if (len < sizeof(struct wmi_connect_event))
 		return -EINVAL;
 
 	ev = (struct wmi_connect_event *) datap;
 
-	if (ar->nw_type == AP_NETWORK) {
+	if (vif->nw_type == AP_NETWORK) {
 		/* AP mode start/STA connected event */
 		struct net_device *dev = ar->net_dev;
 		if (memcmp(dev->dev_addr, ev->u.ap_bss.bssid, ETH_ALEN) == 0) {

@@ -443,7 +443,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		}
 	}
 
-	ar->nw_type = ar->next_mode;
+	vif->nw_type = vif->next_mode;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 		   "%s: connect called with authmode %d dot11 auth %d"
@@ -455,7 +455,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		   vif->grp_crypto_len, ar->ch_hint);
 
 	ar->reconnect_flag = 0;
-	status = ath6kl_wmi_connect_cmd(ar->wmi, ar->nw_type,
+	status = ath6kl_wmi_connect_cmd(ar->wmi, vif->nw_type,
 					vif->dot11_auth_mode, vif->auth_mode,
 					vif->prwise_crypto,
 					vif->prwise_crypto_len,
@@ -665,7 +665,7 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 		ar->scan_req = NULL;
 	}
 
-	if (ar->nw_type & ADHOC_NETWORK) {
+	if (vif->nw_type & ADHOC_NETWORK) {
 		if (ar->wdev->iftype != NL80211_IFTYPE_ADHOC) {
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 				   "%s: ath6k not in ibss mode\n", __func__);
@@ -676,7 +676,7 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 		return;
 	}
 
-	if (ar->nw_type & INFRA_NETWORK) {
+	if (vif->nw_type & INFRA_NETWORK) {
 		if (ar->wdev->iftype != NL80211_IFTYPE_STATION &&
 		    ar->wdev->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
@@ -906,7 +906,7 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 
 	vif->def_txkey_index = key_index;
 
-	if (ar->nw_type == AP_NETWORK && !pairwise &&
+	if (vif->nw_type == AP_NETWORK && !pairwise &&
 	    (key_type == TKIP_CRYPT || key_type == AES_CRYPT) && params) {
 		ar->ap_mode_bkey.valid = true;
 		ar->ap_mode_bkey.key_index = key_index;
@@ -925,7 +925,7 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		}
 	}
 
-	if (ar->next_mode == AP_NETWORK && key_type == WEP_CRYPT &&
+	if (vif->next_mode == AP_NETWORK && key_type == WEP_CRYPT &&
 	    !test_bit(CONNECTED, &vif->flags)) {
 		/*
 		 * Store the key locally so that it can be re-configured after
@@ -1054,7 +1054,7 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	if (multicast)
 		key_type = vif->grp_crypto;
 
-	if (ar->next_mode == AP_NETWORK && !test_bit(CONNECTED, &vif->flags))
+	if (vif->next_mode == AP_NETWORK && !test_bit(CONNECTED, &vif->flags))
 		return 0; /* Delay until AP mode has been started */
 
 	status = ath6kl_wmi_addkey_cmd(ar->wmi, vif->def_txkey_index,
@@ -1201,6 +1201,7 @@ static int ath6kl_cfg80211_change_iface(struct wiphy *wiphy,
 {
 	struct ath6kl *ar = ath6kl_priv(ndev);
 	struct wireless_dev *wdev = ar->wdev;
+	struct ath6kl_vif *vif = netdev_priv(ndev);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: type %u\n", __func__, type);
 
@@ -1209,19 +1210,19 @@ static int ath6kl_cfg80211_change_iface(struct wiphy *wiphy,
 
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
-		ar->next_mode = INFRA_NETWORK;
+		vif->next_mode = INFRA_NETWORK;
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		ar->next_mode = ADHOC_NETWORK;
+		vif->next_mode = ADHOC_NETWORK;
 		break;
 	case NL80211_IFTYPE_AP:
-		ar->next_mode = AP_NETWORK;
+		vif->next_mode = AP_NETWORK;
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
-		ar->next_mode = INFRA_NETWORK;
+		vif->next_mode = INFRA_NETWORK;
 		break;
 	case NL80211_IFTYPE_P2P_GO:
-		ar->next_mode = AP_NETWORK;
+		vif->next_mode = AP_NETWORK;
 		break;
 	default:
 		ath6kl_err("invalid interface type %u\n", type);
@@ -1278,7 +1279,7 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 		ath6kl_set_cipher(ar, 0, false);
 	}
 
-	ar->nw_type = ar->next_mode;
+	vif->nw_type = vif->next_mode;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 		   "%s: connect called with authmode %d dot11 auth %d"
@@ -1289,7 +1290,7 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 		   vif->prwise_crypto_len, vif->grp_crypto,
 		   vif->grp_crypto_len, ar->ch_hint);
 
-	status = ath6kl_wmi_connect_cmd(ar->wmi, ar->nw_type,
+	status = ath6kl_wmi_connect_cmd(ar->wmi, vif->nw_type,
 					vif->dot11_auth_mode, vif->auth_mode,
 					vif->prwise_crypto,
 					vif->prwise_crypto_len,
@@ -1476,7 +1477,7 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	if (test_bit(CONNECTED, &vif->flags) &&
 	    test_bit(DTIM_PERIOD_AVAIL, &vif->flags) &&
-	    ar->nw_type == INFRA_NETWORK) {
+	    vif->nw_type == INFRA_NETWORK) {
 		sinfo->filled |= STATION_INFO_BSS_PARAM;
 		sinfo->bss_param.flags = 0;
 		sinfo->bss_param.dtim_period = ar->assoc_bss_dtim_period;
@@ -1604,7 +1605,7 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	if (!ath6kl_cfg80211_ready(ar))
 		return -EIO;
 
-	if (ar->next_mode != AP_NETWORK)
+	if (vif->next_mode != AP_NETWORK)
 		return -EOPNOTSUPP;
 
 	if (info->beacon_ies) {
@@ -1715,7 +1716,7 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	ath6kl_set_cipher(ar, info->crypto.cipher_group, false);
 
 	p.nw_type = AP_NETWORK;
-	ar->nw_type = ar->next_mode;
+	vif->nw_type = vif->next_mode;
 
 	p.ssid_len = vif->ssid_len;
 	memcpy(p.ssid, vif->ssid, vif->ssid_len);
@@ -1746,7 +1747,7 @@ static int ath6kl_del_beacon(struct wiphy *wiphy, struct net_device *dev)
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
 
-	if (ar->nw_type != AP_NETWORK)
+	if (vif->nw_type != AP_NETWORK)
 		return -EOPNOTSUPP;
 	if (!test_bit(CONNECTED, &vif->flags))
 		return -ENOTCONN;
@@ -1761,8 +1762,9 @@ static int ath6kl_change_station(struct wiphy *wiphy, struct net_device *dev,
 				 u8 *mac, struct station_parameters *params)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 
-	if (ar->nw_type != AP_NETWORK)
+	if (vif->nw_type != AP_NETWORK)
 		return -EOPNOTSUPP;
 
 	/* Use this only for authorizing/unauthorizing a station */
@@ -1854,7 +1856,7 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 
 	mgmt = (const struct ieee80211_mgmt *) buf;
 	if (buf + len >= mgmt->u.probe_resp.variable &&
-	    ar->nw_type == AP_NETWORK && test_bit(CONNECTED, &vif->flags) &&
+	    vif->nw_type == AP_NETWORK && test_bit(CONNECTED, &vif->flags) &&
 	    ieee80211_is_probe_resp(mgmt->frame_control)) {
 		/*
 		 * Send Probe Response frame in AP mode using a separate WMI

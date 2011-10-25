@@ -258,7 +258,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 		goto fail_tx;
 
 	/* AP mode Power saving processing */
-	if (ar->nw_type == AP_NETWORK) {
+	if (vif->nw_type == AP_NETWORK) {
 		if (ath6kl_powersave_ap(ar, skb, &more_data))
 			return 0;
 	}
@@ -280,7 +280,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 			goto fail_tx;
 		}
 
-		if ((ar->nw_type == ADHOC_NETWORK) &&
+		if ((vif->nw_type == ADHOC_NETWORK) &&
 		     ar->ibss_ps_enable && test_bit(CONNECTED, &vif->flags))
 			chk_adhoc_ps_mapping = true;
 		else {
@@ -450,7 +450,7 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 	if (packet->info.tx.tag == ATH6KL_CONTROL_PKT_TAG)
 		return HTC_SEND_FULL_KEEP;
 
-	if (ar->nw_type == ADHOC_NETWORK)
+	if (vif->nw_type == ADHOC_NETWORK)
 		/*
 		 * In adhoc mode, we cannot differentiate traffic
 		 * priorities so there is no need to continue, however we
@@ -484,9 +484,11 @@ stop_net_queues:
 static void ath6kl_tx_clear_node_map(struct ath6kl *ar,
 				     enum htc_endpoint_id eid, u32 map_no)
 {
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 	u32 i;
 
-	if (ar->nw_type != ADHOC_NETWORK)
+	if (vif->nw_type != ADHOC_NETWORK)
 		return;
 
 	if (!ar->ibss_ps_enable)
@@ -1048,6 +1050,8 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	struct ath6kl_sta *conn = NULL;
 	struct sk_buff *skb1 = NULL;
 	struct ethhdr *datap = NULL;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 	u16 seq_no, offset;
 	u8 tid;
 
@@ -1103,7 +1107,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	 * that do not have LLC hdr. They are 16 bytes in size.
 	 * Allow these frames in the AP mode.
 	 */
-	if (ar->nw_type != AP_NETWORK &&
+	if (vif->nw_type != AP_NETWORK &&
 	    ((packet->act_len < min_hdr_len) ||
 	     (packet->act_len > WMI_MAX_AMSDU_RX_DATA_FRAME_LENGTH))) {
 		ath6kl_info("frame len is too short or too long\n");
@@ -1114,7 +1118,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	}
 
 	/* Get the Power save state of the STA */
-	if (ar->nw_type == AP_NETWORK) {
+	if (vif->nw_type == AP_NETWORK) {
 		meta_type = wmi_data_hdr_get_meta(dhdr);
 
 		ps_state = !!((dhdr->info >> WMI_DATA_HDR_PS_SHIFT) &
@@ -1227,7 +1231,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		return;
 	}
 
-	if (ar->nw_type == AP_NETWORK) {
+	if (vif->nw_type == AP_NETWORK) {
 		datap = (struct ethhdr *) skb->data;
 		if (is_multicast_ether_addr(datap->h_dest))
 			/*
