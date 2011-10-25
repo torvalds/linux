@@ -1073,7 +1073,7 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 	netif_carrier_on(ar->net_dev);
 	spin_unlock_bh(&ar->lock);
 
-	aggr_reset_state(ar->aggr_cntxt);
+	aggr_reset_state(vif->aggr_cntxt);
 	ar->reconnect_flag = 0;
 
 	if ((vif->nw_type == ADHOC_NETWORK) && ar->ibss_ps_enable) {
@@ -1394,7 +1394,7 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 				       assoc_resp_len, assoc_info,
 				       prot_reason_status);
 
-	aggr_reset_state(ar->aggr_cntxt);
+	aggr_reset_state(vif->aggr_cntxt);
 
 	del_timer(&ar->disconnect_timer);
 

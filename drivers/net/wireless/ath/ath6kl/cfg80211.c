@@ -2064,8 +2064,8 @@ static int ath6kl_init_if_data(struct ath6kl_vif *vif)
 {
 	struct ath6kl *ar = vif->ar;
 
-	ar->aggr_cntxt = aggr_init(vif->ndev);
-	if (!ar->aggr_cntxt) {
+	vif->aggr_cntxt = aggr_init(vif->ndev);
+	if (!vif->aggr_cntxt) {
 		ath6kl_err("failed to initialize aggr\n");
 		return -ENOMEM;
 	}
@@ -2078,11 +2078,9 @@ static int ath6kl_init_if_data(struct ath6kl_vif *vif)
 
 void ath6kl_deinit_if_data(struct ath6kl_vif *vif)
 {
-	struct ath6kl *ar = vif->ar;
+	aggr_module_destroy(vif->aggr_cntxt);
 
-	aggr_module_destroy(ar->aggr_cntxt);
-
-	ar->aggr_cntxt = NULL;
+	vif->aggr_cntxt = NULL;
 
 	if (test_bit(NETDEV_REGISTERED, &vif->flags)) {
 		unregister_netdev(vif->ndev);

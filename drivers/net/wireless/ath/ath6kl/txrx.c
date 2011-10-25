@@ -1268,7 +1268,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	datap = (struct ethhdr *) skb->data;
 
 	if (is_unicast_ether_addr(datap->h_dest) &&
-	    aggr_process_recv_frm(ar->aggr_cntxt, tid, seq_no,
+	    aggr_process_recv_frm(vif->aggr_cntxt, tid, seq_no,
 				  is_amsdu, skb))
 		/* aggregation code will handle the skb */
 		return;
@@ -1353,7 +1353,9 @@ static void aggr_delete_tid_state(struct aggr_info *p_aggr, u8 tid)
 
 void aggr_recv_addba_req_evt(struct ath6kl *ar, u8 tid, u16 seq_no, u8 win_sz)
 {
-	struct aggr_info *p_aggr = ar->aggr_cntxt;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
+	struct aggr_info *p_aggr = vif->aggr_cntxt;
 	struct rxtid *rxtid;
 	struct rxtid_stats *stats;
 	u16 hold_q_size;
@@ -1422,7 +1424,9 @@ struct aggr_info *aggr_init(struct net_device *dev)
 
 void aggr_recv_delba_req_evt(struct ath6kl *ar, u8 tid)
 {
-	struct aggr_info *p_aggr = ar->aggr_cntxt;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
+	struct aggr_info *p_aggr = vif->aggr_cntxt;
 	struct rxtid *rxtid;
 
 	if (!p_aggr)

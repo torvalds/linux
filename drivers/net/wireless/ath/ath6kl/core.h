@@ -415,6 +415,7 @@ struct ath6kl_vif {
 	u16 bss_ch;
 	struct ath6kl_wep_key wep_key_list[WMI_MAX_KEY_INDEX + 1];
 	struct ath6kl_key keys[WMI_MAX_KEY_INDEX + 1];
+	struct aggr_info *aggr_cntxt;
 };
 
 /* Flag info */
@@ -473,7 +474,6 @@ struct ath6kl {
 	struct sk_buff_head mcastpsq;
 	spinlock_t mcastpsq_lock;
 	u8 intra_bss;
-	struct aggr_info *aggr_cntxt;
 	struct wmi_ap_mode_stat ap_stats;
 	u8 ap_country_code[3];
 	struct list_head amsdu_rx_buffer_queue;
