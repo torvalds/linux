@@ -1249,6 +1249,8 @@ static ssize_t ath6kl_create_qos_write(struct file *file,
 {
 
 	struct ath6kl *ar = file->private_data;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 	char buf[100];
 	ssize_t len;
 	char *sptr, *token;
@@ -1403,7 +1405,7 @@ static ssize_t ath6kl_create_qos_write(struct file *file,
 		return -EINVAL;
 	pstream.medium_time = cpu_to_le32(val32);
 
-	ath6kl_wmi_create_pstream_cmd(ar->wmi, &pstream);
+	ath6kl_wmi_create_pstream_cmd(ar->wmi, vif->fw_vif_idx, &pstream);
 
 	return count;
 }
@@ -1421,6 +1423,8 @@ static ssize_t ath6kl_delete_qos_write(struct file *file,
 {
 
 	struct ath6kl *ar = file->private_data;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 	char buf[100];
 	ssize_t len;
 	char *sptr, *token;
@@ -1445,7 +1449,8 @@ static ssize_t ath6kl_delete_qos_write(struct file *file,
 	if (kstrtou8(token, 0, &tsid))
 		return -EINVAL;
 
-	ath6kl_wmi_delete_pstream_cmd(ar->wmi, traffic_class, tsid);
+	ath6kl_wmi_delete_pstream_cmd(ar->wmi, vif->fw_vif_idx,
+				      traffic_class, tsid);
 
 	return count;
 }

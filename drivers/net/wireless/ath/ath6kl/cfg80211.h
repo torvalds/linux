@@ -24,20 +24,20 @@ int ath6kl_register_ieee80211_hw(struct ath6kl *ar);
 struct ath6kl *ath6kl_core_alloc(struct device *dev);
 void ath6kl_deinit_ieee80211_hw(struct ath6kl *ar);
 
-void ath6kl_cfg80211_scan_complete_event(struct ath6kl *ar, int status);
+void ath6kl_cfg80211_scan_complete_event(struct ath6kl_vif *vif, int status);
 
-void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
+void ath6kl_cfg80211_connect_event(struct ath6kl_vif *vif, u16 channel,
 				   u8 *bssid, u16 listen_intvl,
 				   u16 beacon_intvl,
 				   enum network_type nw_type,
 				   u8 beacon_ie_len, u8 assoc_req_len,
 				   u8 assoc_resp_len, u8 *assoc_info);
 
-void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
+void ath6kl_cfg80211_disconnect_event(struct ath6kl_vif *vif, u8 reason,
 				      u8 *bssid, u8 assoc_resp_len,
 				      u8 *assoc_info, u16 proto_reason);
 
-void ath6kl_cfg80211_tkip_micerr_event(struct ath6kl *ar, u8 keyid,
+void ath6kl_cfg80211_tkip_micerr_event(struct ath6kl_vif *vif, u8 keyid,
 				     bool ismcast);
 
 #endif /* ATH6KL_CFG80211_H */

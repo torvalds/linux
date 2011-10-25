@@ -287,7 +287,8 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 			chk_adhoc_ps_mapping = true;
 		else {
 			/* get the stream mapping */
-			ret = ath6kl_wmi_implicit_create_pstream(ar->wmi, skb,
+			ret = ath6kl_wmi_implicit_create_pstream(ar->wmi,
+				    vif->fw_vif_idx, skb,
 				    0, test_bit(WMM_ENABLED, &vif->flags), &ac);
 			if (ret)
 				goto fail_tx;
@@ -1354,10 +1355,9 @@ static void aggr_delete_tid_state(struct aggr_info *p_aggr, u8 tid)
 	memset(stats, 0, sizeof(struct rxtid_stats));
 }
 
-void aggr_recv_addba_req_evt(struct ath6kl *ar, u8 tid, u16 seq_no, u8 win_sz)
+void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid, u16 seq_no,
+			     u8 win_sz)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
 	struct aggr_info *p_aggr = vif->aggr_cntxt;
 	struct rxtid *rxtid;
 	struct rxtid_stats *stats;
@@ -1425,10 +1425,8 @@ struct aggr_info *aggr_init(struct net_device *dev)
 	return p_aggr;
 }
 
-void aggr_recv_delba_req_evt(struct ath6kl *ar, u8 tid)
+void aggr_recv_delba_req_evt(struct ath6kl_vif *vif, u8 tid)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
 	struct aggr_info *p_aggr = vif->aggr_cntxt;
 	struct rxtid *rxtid;
 

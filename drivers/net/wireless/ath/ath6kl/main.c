@@ -441,7 +441,7 @@ void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
 	if (test_bit(WMI_READY, &ar->flag)) {
 		discon_issued = (test_bit(CONNECTED, &vif->flags) ||
 				 test_bit(CONNECT_PEND, &vif->flags));
-		ath6kl_disconnect(ar, vif->fw_vif_idx);
+		ath6kl_disconnect(vif);
 		if (!keep_profile)
 			ath6kl_init_profile_info(ar);
 
@@ -462,7 +462,7 @@ void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
 		 * are collected.
 		 */
 		if (discon_issued)
-			ath6kl_disconnect_event(ar, DISCONNECT_CMD,
+			ath6kl_disconnect_event(vif, DISCONNECT_CMD,
 						(vif->nw_type & AP_NETWORK) ?
 						bcast_mac : vif->bssid,
 						0, NULL, 0);
@@ -498,10 +498,8 @@ void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
 	ath6kl_reset_device(ar, ar->target_type, true, true);
 }
 
-static void ath6kl_install_static_wep_keys(struct ath6kl *ar)
+static void ath6kl_install_static_wep_keys(struct ath6kl_vif *vif)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
 	u8 index;
 	u8 keyusage;
 
@@ -511,7 +509,7 @@ static void ath6kl_install_static_wep_keys(struct ath6kl *ar)
 			if (index == vif->def_txkey_index)
 				keyusage |= TX_USAGE;
 
-			ath6kl_wmi_addkey_cmd(ar->wmi, vif->fw_vif_idx,
+			ath6kl_wmi_addkey_cmd(vif->ar->wmi, vif->fw_vif_idx,
 					      index,
 					      WEP_CRYPT,
 					      keyusage,
@@ -524,13 +522,12 @@ static void ath6kl_install_static_wep_keys(struct ath6kl *ar)
 	}
 }
 
-void ath6kl_connect_ap_mode_bss(struct ath6kl *ar, u16 channel)
+void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel)
 {
+	struct ath6kl *ar = vif->ar;
 	struct ath6kl_req_key *ik;
 	int res;
 	u8 key_rsc[ATH6KL_KEY_SEQ_LEN];
-	/* TODO: Pass vif instead of taking it from ar */
-	struct ath6kl_vif *vif = ar->vif;
 
 	ik = &ar->ap_mode_bkey;
 
@@ -539,7 +536,7 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl *ar, u16 channel)
 	switch (vif->auth_mode) {
 	case NONE_AUTH:
 		if (vif->prwise_crypto == WEP_CRYPT)
-			ath6kl_install_static_wep_keys(ar);
+			ath6kl_install_static_wep_keys(vif);
 		break;
 	case WPA_PSK_AUTH:
 	case WPA2_PSK_AUTH:
@@ -561,15 +558,16 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl *ar, u16 channel)
 		break;
 	}
 
-	ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
+	ath6kl_wmi_bssfilter_cmd(ar->wmi, vif->fw_vif_idx, NONE_BSS_FILTER, 0);
 	set_bit(CONNECTED, &vif->flags);
-	netif_carrier_on(ar->net_dev);
+	netif_carrier_on(vif->ndev);
 }
 
-void ath6kl_connect_ap_mode_sta(struct ath6kl *ar, u16 aid, u8 *mac_addr,
+void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 				u8 keymgmt, u8 ucipher, u8 auth,
 				u8 assoc_req_len, u8 *assoc_info)
 {
+	struct ath6kl *ar = vif->ar;
 	u8 *ies = NULL, *wpa_ie = NULL, *pos;
 	size_t ies_len = 0;
 	struct station_info sinfo;
@@ -624,9 +622,9 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl *ar, u16 aid, u8 *mac_addr,
 	sinfo.assoc_req_ies_len = ies_len;
 	sinfo.filled |= STATION_INFO_ASSOC_REQ_IES;
 
-	cfg80211_new_sta(ar->net_dev, mac_addr, &sinfo, GFP_KERNEL);
+	cfg80211_new_sta(vif->ndev, mac_addr, &sinfo, GFP_KERNEL);
 
-	netif_wake_queue(ar->net_dev);
+	netif_wake_queue(vif->ndev);
 }
 
 /* Functions for Tx credit handling */
@@ -916,17 +914,14 @@ void disconnect_timer_handler(unsigned long ptr)
 	struct ath6kl_vif *vif = netdev_priv(dev);
 
 	ath6kl_init_profile_info(vif->ar);
-	ath6kl_disconnect(vif->ar, vif->fw_vif_idx);
+	ath6kl_disconnect(vif);
 }
 
-void ath6kl_disconnect(struct ath6kl *ar, u8 if_idx)
+void ath6kl_disconnect(struct ath6kl_vif *vif)
 {
-	/* TODO: Pass vif instead of taking it from ar */
-	struct ath6kl_vif *vif = ar->vif;
-
 	if (test_bit(CONNECTED, &vif->flags) ||
 	    test_bit(CONNECT_PEND, &vif->flags)) {
-		ath6kl_wmi_disconnect_cmd(ar->wmi, if_idx);
+		ath6kl_wmi_disconnect_cmd(vif->ar->wmi, vif->fw_vif_idx);
 		/*
 		 * Disconnect command is issued, clear the connect pending
 		 * flag. The connected flag will be cleared in
@@ -971,7 +966,7 @@ void ath6kl_deep_sleep_enable(struct ath6kl *ar)
 		printk(KERN_WARNING "ath6kl: failed to disable scan "
 		       "during suspend\n");
 
-	ath6kl_cfg80211_scan_complete_event(ar, -ECANCELED);
+	ath6kl_cfg80211_scan_complete_event(vif, -ECANCELED);
 
 	/* save the current power mode before enabling power save */
 	ar->wmi->saved_pwr_mode = ar->wmi->pwr_mode;
@@ -1027,31 +1022,30 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 		    test_bit(TESTMODE, &ar->flag) ? " testmode" : "");
 }
 
-void ath6kl_scan_complete_evt(struct ath6kl *ar, int status)
+void ath6kl_scan_complete_evt(struct ath6kl_vif *vif, int status)
 {
-	/* TODO: Pass vif instead of taking it from ar */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 
-	ath6kl_cfg80211_scan_complete_event(ar, status);
+	ath6kl_cfg80211_scan_complete_event(vif, status);
 
 	if (!ar->usr_bss_filter) {
 		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &vif->flags);
-		ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
+		ath6kl_wmi_bssfilter_cmd(ar->wmi, vif->fw_vif_idx,
+					 NONE_BSS_FILTER, 0);
 	}
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_SCAN, "scan complete: %d\n", status);
 }
 
-void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
+void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel, u8 *bssid,
 			  u16 listen_int, u16 beacon_int,
 			  enum network_type net_type, u8 beacon_ie_len,
 			  u8 assoc_req_len, u8 assoc_resp_len,
 			  u8 *assoc_info)
 {
-	/* TODO: findout  vif instead of taking it from ar */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 
-	ath6kl_cfg80211_connect_event(ar, channel, bssid,
+	ath6kl_cfg80211_connect_event(vif, channel, bssid,
 				      listen_int, beacon_int,
 				      net_type, beacon_ie_len,
 				      assoc_req_len, assoc_resp_len,
@@ -1065,13 +1059,13 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 					      ar->listen_intvl_t,
 					      ar->listen_intvl_b);
 
-	netif_wake_queue(ar->net_dev);
+	netif_wake_queue(vif->ndev);
 
 	/* Update connect & link status atomically */
 	spin_lock_bh(&ar->lock);
 	set_bit(CONNECTED, &vif->flags);
 	clear_bit(CONNECT_PEND, &vif->flags);
-	netif_carrier_on(ar->net_dev);
+	netif_carrier_on(vif->ndev);
 	spin_unlock_bh(&ar->lock);
 
 	aggr_reset_state(vif->aggr_cntxt);
@@ -1085,16 +1079,17 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 
 	if (!ar->usr_bss_filter) {
 		set_bit(CLEAR_BSSFILTER_ON_BEACON, &vif->flags);
-		ath6kl_wmi_bssfilter_cmd(ar->wmi, CURRENT_BSS_FILTER, 0);
+		ath6kl_wmi_bssfilter_cmd(ar->wmi, vif->fw_vif_idx,
+					 CURRENT_BSS_FILTER, 0);
 	}
 }
 
-void ath6kl_tkip_micerr_event(struct ath6kl *ar, u8 keyid, bool ismcast)
+void ath6kl_tkip_micerr_event(struct ath6kl_vif *vif, u8 keyid, bool ismcast)
 {
 	struct ath6kl_sta *sta;
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 	u8 tsc[6];
+
 	/*
 	 * For AP case, keyid will have aid of STA which sent pkt with
 	 * MIC error. Use this aid to get MAC & send it to hostapd.
@@ -1108,20 +1103,19 @@ void ath6kl_tkip_micerr_event(struct ath6kl *ar, u8 keyid, bool ismcast)
 			   "ap tkip mic error received from aid=%d\n", keyid);
 
 		memset(tsc, 0, sizeof(tsc)); /* FIX: get correct TSC */
-		cfg80211_michael_mic_failure(ar->net_dev, sta->mac,
+		cfg80211_michael_mic_failure(vif->ndev, sta->mac,
 					     NL80211_KEYTYPE_PAIRWISE, keyid,
 					     tsc, GFP_KERNEL);
 	} else
-		ath6kl_cfg80211_tkip_micerr_event(ar, keyid, ismcast);
+		ath6kl_cfg80211_tkip_micerr_event(vif, keyid, ismcast);
 
 }
 
-static void ath6kl_update_target_stats(struct ath6kl *ar, u8 *ptr, u32 len)
+static void ath6kl_update_target_stats(struct ath6kl_vif *vif, u8 *ptr, u32 len)
 {
 	struct wmi_target_stats *tgt_stats =
 		(struct wmi_target_stats *) ptr;
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 	struct target_stats *stats = &vif->target_stats;
 	struct tkip_ccmp_stats *ccmp_stats;
 	u8 ac;
@@ -1229,13 +1223,12 @@ static void ath6kl_add_le32(__le32 *var, __le32 val)
 	*var = cpu_to_le32(le32_to_cpu(*var) + le32_to_cpu(val));
 }
 
-void ath6kl_tgt_stats_event(struct ath6kl *ar, u8 *ptr, u32 len)
+void ath6kl_tgt_stats_event(struct ath6kl_vif *vif, u8 *ptr, u32 len)
 {
 	struct wmi_ap_mode_stat *p = (struct wmi_ap_mode_stat *) ptr;
+	struct ath6kl *ar = vif->ar;
 	struct wmi_ap_mode_stat *ap = &ar->ap_stats;
 	struct wmi_per_sta_stat *st_ap, *st_p;
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
 	u8 ac;
 
 	if (vif->nw_type == AP_NETWORK) {
@@ -1257,7 +1250,7 @@ void ath6kl_tgt_stats_event(struct ath6kl *ar, u8 *ptr, u32 len)
 		}
 
 	} else {
-		ath6kl_update_target_stats(ar, ptr, len);
+		ath6kl_update_target_stats(vif, ptr, len);
 	}
 }
 
@@ -1276,13 +1269,12 @@ void ath6kl_txpwr_rx_evt(void *devt, u8 tx_pwr)
 	wake_up(&ar->event_wq);
 }
 
-void ath6kl_pspoll_event(struct ath6kl *ar, u8 aid)
+void ath6kl_pspoll_event(struct ath6kl_vif *vif, u8 aid)
 {
 	struct ath6kl_sta *conn;
 	struct sk_buff *skb;
 	bool psq_empty = false;
-	/* TODO: Pass vif instead of taking it from ar */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 
 	conn = ath6kl_find_sta_by_aid(ar, aid);
 
@@ -1305,7 +1297,7 @@ void ath6kl_pspoll_event(struct ath6kl *ar, u8 aid)
 	spin_unlock_bh(&conn->psq_lock);
 
 	conn->sta_flags |= STA_PS_POLLED;
-	ath6kl_data_tx(skb, ar->net_dev);
+	ath6kl_data_tx(skb, vif->ndev);
 	conn->sta_flags &= ~STA_PS_POLLED;
 
 	spin_lock_bh(&conn->psq_lock);
@@ -1316,12 +1308,11 @@ void ath6kl_pspoll_event(struct ath6kl *ar, u8 aid)
 		ath6kl_wmi_set_pvb_cmd(ar->wmi, vif->fw_vif_idx, conn->aid, 0);
 }
 
-void ath6kl_dtimexpiry_event(struct ath6kl *ar)
+void ath6kl_dtimexpiry_event(struct ath6kl_vif *vif)
 {
 	bool mcastq_empty = false;
 	struct sk_buff *skb;
-	/* TODO: Pass vif instead of taking it from ar */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 
 	/*
 	 * If there are no associated STAs, ignore the DTIM expiry event.
@@ -1349,7 +1340,7 @@ void ath6kl_dtimexpiry_event(struct ath6kl *ar)
 	while ((skb = skb_dequeue(&ar->mcastpsq)) != NULL) {
 		spin_unlock_bh(&ar->mcastpsq_lock);
 
-		ath6kl_data_tx(skb, ar->net_dev);
+		ath6kl_data_tx(skb, vif->ndev);
 
 		spin_lock_bh(&ar->mcastpsq_lock);
 	}
@@ -1361,12 +1352,11 @@ void ath6kl_dtimexpiry_event(struct ath6kl *ar)
 	ath6kl_wmi_set_pvb_cmd(ar->wmi, vif->fw_vif_idx, MCAST_AID, 0);
 }
 
-void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
+void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 			     u8 assoc_resp_len, u8 *assoc_info,
 			     u16 prot_reason_status)
 {
-	/* TODO: Findout vif instead of taking it from ar */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 
 	if (vif->nw_type == AP_NETWORK) {
 		if (!ath6kl_remove_sta(ar, bssid, prot_reason_status))
@@ -1386,17 +1376,17 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 
 		if (!is_broadcast_ether_addr(bssid)) {
 			/* send event to application */
-			cfg80211_del_sta(ar->net_dev, bssid, GFP_KERNEL);
+			cfg80211_del_sta(vif->ndev, bssid, GFP_KERNEL);
 		}
 
-		if (memcmp(ar->net_dev->dev_addr, bssid, ETH_ALEN) == 0) {
+		if (memcmp(vif->ndev->dev_addr, bssid, ETH_ALEN) == 0) {
 			memset(vif->wep_key_list, 0, sizeof(vif->wep_key_list));
 			clear_bit(CONNECTED, &vif->flags);
 		}
 		return;
 	}
 
-	ath6kl_cfg80211_disconnect_event(ar, reason, bssid,
+	ath6kl_cfg80211_disconnect_event(vif, reason, bssid,
 				       assoc_resp_len, assoc_info,
 				       prot_reason_status);
 
@@ -1414,7 +1404,8 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 	 */
 	if (reason == DISCONNECT_CMD) {
 		if (!ar->usr_bss_filter && test_bit(WMI_READY, &ar->flag))
-			ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
+			ath6kl_wmi_bssfilter_cmd(ar->wmi, vif->fw_vif_idx,
+						 NONE_BSS_FILTER, 0);
 	} else {
 		set_bit(CONNECT_PEND, &vif->flags);
 		if (((reason == ASSOC_FAILED) &&
@@ -1429,7 +1420,7 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 	/* update connect & link status atomically */
 	spin_lock_bh(&ar->lock);
 	clear_bit(CONNECTED, &vif->flags);
-	netif_carrier_off(ar->net_dev);
+	netif_carrier_off(vif->ndev);
 	spin_unlock_bh(&ar->lock);
 
 	if ((reason != CSERV_DISCONNECT) || (vif->reconnect_flag != 1))
@@ -1438,7 +1429,7 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 	if (reason != CSERV_DISCONNECT)
 		ar->user_key_ctrl = 0;
 
-	netif_stop_queue(ar->net_dev);
+	netif_stop_queue(vif->ndev);
 	memset(vif->bssid, 0, sizeof(vif->bssid));
 	vif->bss_ch = 0;
 
@@ -1472,7 +1463,7 @@ static int ath6kl_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	ath6kl_disconnect(ar, vif->fw_vif_idx);
+	ath6kl_disconnect(vif);
 
 	if (test_bit(WMI_READY, &ar->flag)) {
 		if (ath6kl_wmi_scanparams_cmd(ar->wmi, vif->fw_vif_idx, 0xFFFF,
@@ -1482,7 +1473,7 @@ static int ath6kl_close(struct net_device *dev)
 		clear_bit(WLAN_ENABLED, &vif->flags);
 	}
 
-	ath6kl_cfg80211_scan_complete_event(ar, -ECANCELED);
+	ath6kl_cfg80211_scan_complete_event(vif, -ECANCELED);
 
 	return 0;
 }

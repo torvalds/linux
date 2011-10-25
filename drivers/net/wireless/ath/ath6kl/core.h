@@ -628,32 +628,32 @@ struct ath6kl_sta *ath6kl_find_sta_by_aid(struct ath6kl *ar, u8 aid);
 void ath6kl_ready_event(void *devt, u8 * datap, u32 sw_ver, u32 abi_ver);
 int ath6kl_control_tx(void *devt, struct sk_buff *skb,
 		      enum htc_endpoint_id eid);
-void ath6kl_connect_event(struct ath6kl *ar, u16 channel,
+void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel,
 			  u8 *bssid, u16 listen_int,
 			  u16 beacon_int, enum network_type net_type,
 			  u8 beacon_ie_len, u8 assoc_req_len,
 			  u8 assoc_resp_len, u8 *assoc_info);
-void ath6kl_connect_ap_mode_bss(struct ath6kl *ar, u16 channel);
-void ath6kl_connect_ap_mode_sta(struct ath6kl *ar, u16 aid, u8 *mac_addr,
+void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel);
+void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 				u8 keymgmt, u8 ucipher, u8 auth,
 				u8 assoc_req_len, u8 *assoc_info);
-void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason,
+void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason,
 			     u8 *bssid, u8 assoc_resp_len,
 			     u8 *assoc_info, u16 prot_reason_status);
-void ath6kl_tkip_micerr_event(struct ath6kl *ar, u8 keyid, bool ismcast);
+void ath6kl_tkip_micerr_event(struct ath6kl_vif *vif, u8 keyid, bool ismcast);
 void ath6kl_txpwr_rx_evt(void *devt, u8 tx_pwr);
-void ath6kl_scan_complete_evt(struct ath6kl *ar, int status);
-void ath6kl_tgt_stats_event(struct ath6kl *ar, u8 *ptr, u32 len);
+void ath6kl_scan_complete_evt(struct ath6kl_vif *vif, int status);
+void ath6kl_tgt_stats_event(struct ath6kl_vif *vif, u8 *ptr, u32 len);
 void ath6kl_indicate_tx_activity(void *devt, u8 traffic_class, bool active);
 enum htc_endpoint_id ath6kl_ac2_endpoint_id(void *devt, u8 ac);
 
-void ath6kl_pspoll_event(struct ath6kl *ar, u8 aid);
+void ath6kl_pspoll_event(struct ath6kl_vif *vif, u8 aid);
 
-void ath6kl_dtimexpiry_event(struct ath6kl *ar);
-void ath6kl_disconnect(struct ath6kl *ar, u8 if_idx);
+void ath6kl_dtimexpiry_event(struct ath6kl_vif *vif);
+void ath6kl_disconnect(struct ath6kl_vif *vif);
 void ath6kl_deep_sleep_enable(struct ath6kl *ar);
-void aggr_recv_delba_req_evt(struct ath6kl *ar, u8 tid);
-void aggr_recv_addba_req_evt(struct ath6kl *ar, u8 tid, u16 seq_no,
+void aggr_recv_delba_req_evt(struct ath6kl_vif *vif, u8 tid);
+void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid, u16 seq_no,
 			     u8 win_sz);
 void ath6kl_wakeup_event(void *dev);
 void ath6kl_target_failure(struct ath6kl *ar);

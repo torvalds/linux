@@ -123,12 +123,9 @@ static struct ieee80211_supported_band ath6kl_band_5ghz = {
 
 #define CCKM_KRK_CIPHER_SUITE 0x004096ff /* use for KRK */
 
-static int ath6kl_set_wpa_version(struct ath6kl *ar,
+static int ath6kl_set_wpa_version(struct ath6kl_vif *vif,
 				  enum nl80211_wpa_versions wpa_version)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
-
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: %u\n", __func__, wpa_version);
 
 	if (!wpa_version) {
@@ -145,12 +142,9 @@ static int ath6kl_set_wpa_version(struct ath6kl *ar,
 	return 0;
 }
 
-static int ath6kl_set_auth_type(struct ath6kl *ar,
+static int ath6kl_set_auth_type(struct ath6kl_vif *vif,
 				enum nl80211_auth_type auth_type)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
-
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: 0x%x\n", __func__, auth_type);
 
 	switch (auth_type) {
@@ -176,11 +170,8 @@ static int ath6kl_set_auth_type(struct ath6kl *ar,
 	return 0;
 }
 
-static int ath6kl_set_cipher(struct ath6kl *ar, u32 cipher, bool ucast)
+static int ath6kl_set_cipher(struct ath6kl_vif *vif, u32 cipher, bool ucast)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
-
 	u8 *ar_cipher = ucast ? &vif->prwise_crypto : &vif->grp_crypto;
 	u8 *ar_cipher_len = ucast ? &vif->prwise_crypto_len :
 		&vif->grp_crypto_len;
@@ -218,11 +209,8 @@ static int ath6kl_set_cipher(struct ath6kl *ar, u32 cipher, bool ucast)
 	return 0;
 }
 
-static void ath6kl_set_key_mgmt(struct ath6kl *ar, u32 key_mgmt)
+static void ath6kl_set_key_mgmt(struct ath6kl_vif *vif, u32 key_mgmt)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
-
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: 0x%x\n", __func__, key_mgmt);
 
 	if (key_mgmt == WLAN_AKM_SUITE_PSK) {
@@ -376,7 +364,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		return 0;
 	} else if (vif->ssid_len == sme->ssid_len &&
 		   !memcmp(vif->ssid, sme->ssid, vif->ssid_len)) {
-		ath6kl_disconnect(ar, vif->fw_vif_idx);
+		ath6kl_disconnect(vif);
 	}
 
 	memset(vif->ssid, 0, sizeof(vif->ssid));
@@ -390,23 +378,23 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (sme->bssid && !is_broadcast_ether_addr(sme->bssid))
 		memcpy(vif->req_bssid, sme->bssid, sizeof(vif->req_bssid));
 
-	ath6kl_set_wpa_version(ar, sme->crypto.wpa_versions);
+	ath6kl_set_wpa_version(vif, sme->crypto.wpa_versions);
 
-	status = ath6kl_set_auth_type(ar, sme->auth_type);
+	status = ath6kl_set_auth_type(vif, sme->auth_type);
 	if (status) {
 		up(&ar->sem);
 		return status;
 	}
 
 	if (sme->crypto.n_ciphers_pairwise)
-		ath6kl_set_cipher(ar, sme->crypto.ciphers_pairwise[0], true);
+		ath6kl_set_cipher(vif, sme->crypto.ciphers_pairwise[0], true);
 	else
-		ath6kl_set_cipher(ar, 0, true);
+		ath6kl_set_cipher(vif, 0, true);
 
-	ath6kl_set_cipher(ar, sme->crypto.cipher_group, false);
+	ath6kl_set_cipher(vif, sme->crypto.cipher_group, false);
 
 	if (sme->crypto.n_akm_suites)
-		ath6kl_set_key_mgmt(ar, sme->crypto.akm_suites[0]);
+		ath6kl_set_key_mgmt(vif, sme->crypto.akm_suites[0]);
 
 	if ((sme->key_len) &&
 	    (vif->auth_mode == NONE_AUTH) &&
@@ -438,7 +426,8 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	if (!ar->usr_bss_filter) {
 		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &vif->flags);
-		if (ath6kl_wmi_bssfilter_cmd(ar->wmi, ALL_BSS_FILTER, 0) != 0) {
+		if (ath6kl_wmi_bssfilter_cmd(ar->wmi, vif->fw_vif_idx,
+		    ALL_BSS_FILTER, 0) != 0) {
 			ath6kl_err("couldn't set bss filtering\n");
 			up(&ar->sem);
 			return -EIO;
@@ -491,12 +480,11 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
-static int ath6kl_add_bss_if_needed(struct ath6kl *ar, const u8 *bssid,
+static int ath6kl_add_bss_if_needed(struct ath6kl_vif *vif, const u8 *bssid,
 				    struct ieee80211_channel *chan,
 				    const u8 *beacon_ie, size_t beacon_ie_len)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 	struct cfg80211_bss *bss;
 	u8 *ie;
 
@@ -540,7 +528,7 @@ static int ath6kl_add_bss_if_needed(struct ath6kl *ar, const u8 *bssid,
 	return 0;
 }
 
-void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
+void ath6kl_cfg80211_connect_event(struct ath6kl_vif *vif, u16 channel,
 				   u8 *bssid, u16 listen_intvl,
 				   u16 beacon_intvl,
 				   enum network_type nw_type,
@@ -548,8 +536,7 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 				   u8 assoc_resp_len, u8 *assoc_info)
 {
 	struct ieee80211_channel *chan;
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 
 	/* capinfo + listen interval */
 	u8 assoc_req_ie_offset = sizeof(u16) + sizeof(u16);
@@ -592,11 +579,11 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 
 
 	if (nw_type & ADHOC_NETWORK) {
-		cfg80211_ibss_joined(ar->net_dev, bssid, GFP_KERNEL);
+		cfg80211_ibss_joined(vif->ndev, bssid, GFP_KERNEL);
 		return;
 	}
 
-	if (ath6kl_add_bss_if_needed(ar, bssid, chan, assoc_info,
+	if (ath6kl_add_bss_if_needed(vif, bssid, chan, assoc_info,
 				     beacon_ie_len) < 0) {
 		ath6kl_err("could not add cfg80211 bss entry for "
 			   "connect/roamed notification\n");
@@ -606,13 +593,13 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 	if (vif->sme_state == SME_CONNECTING) {
 		/* inform connect result to cfg80211 */
 		vif->sme_state = SME_CONNECTED;
-		cfg80211_connect_result(ar->net_dev, bssid,
+		cfg80211_connect_result(vif->ndev, bssid,
 					assoc_req_ie, assoc_req_len,
 					assoc_resp_ie, assoc_resp_len,
 					WLAN_STATUS_SUCCESS, GFP_KERNEL);
 	} else if (vif->sme_state == SME_CONNECTED) {
 		/* inform roam event to cfg80211 */
-		cfg80211_roamed(ar->net_dev, chan, bssid,
+		cfg80211_roamed(vif->ndev, chan, bssid,
 				assoc_req_ie, assoc_req_len,
 				assoc_resp_ie, assoc_resp_len, GFP_KERNEL);
 	}
@@ -641,7 +628,7 @@ static int ath6kl_cfg80211_disconnect(struct wiphy *wiphy,
 	}
 
 	vif->reconnect_flag = 0;
-	ath6kl_disconnect(ar, vif->fw_vif_idx);
+	ath6kl_disconnect(vif);
 	memset(vif->ssid, 0, sizeof(vif->ssid));
 	vif->ssid_len = 0;
 
@@ -655,12 +642,11 @@ static int ath6kl_cfg80211_disconnect(struct wiphy *wiphy,
 	return 0;
 }
 
-void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
+void ath6kl_cfg80211_disconnect_event(struct ath6kl_vif *vif, u8 reason,
 				      u8 *bssid, u8 assoc_resp_len,
 				      u8 *assoc_info, u16 proto_reason)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 
 	if (vif->scan_req) {
 		cfg80211_scan_done(vif->scan_req, true);
@@ -674,7 +660,7 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 			return;
 		}
 		memset(bssid, 0, ETH_ALEN);
-		cfg80211_ibss_joined(ar->net_dev, bssid, GFP_KERNEL);
+		cfg80211_ibss_joined(vif->ndev, bssid, GFP_KERNEL);
 		return;
 	}
 
@@ -704,13 +690,13 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 	clear_bit(CONNECT_PEND, &vif->flags);
 
 	if (vif->sme_state == SME_CONNECTING) {
-		cfg80211_connect_result(ar->net_dev,
+		cfg80211_connect_result(vif->ndev,
 				bssid, NULL, 0,
 				NULL, 0,
 				WLAN_STATUS_UNSPECIFIED_FAILURE,
 				GFP_KERNEL);
 	} else if (vif->sme_state == SME_CONNECTED) {
-		cfg80211_disconnected(ar->net_dev, reason,
+		cfg80211_disconnected(vif->ndev, reason,
 				NULL, 0, GFP_KERNEL);
 	}
 
@@ -733,7 +719,7 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	if (!ar->usr_bss_filter) {
 		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &vif->flags);
 		ret = ath6kl_wmi_bssfilter_cmd(
-			ar->wmi,
+			ar->wmi, vif->fw_vif_idx,
 			(test_bit(CONNECTED, &vif->flags) ?
 			 ALL_BUT_BSS_FILTER : ALL_BSS_FILTER), 0);
 		if (ret) {
@@ -804,10 +790,9 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	return ret;
 }
 
-void ath6kl_cfg80211_scan_complete_event(struct ath6kl *ar, int status)
+void ath6kl_cfg80211_scan_complete_event(struct ath6kl_vif *vif, int status)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 	int i;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: status %d\n", __func__, status);
@@ -852,7 +837,8 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	if (params->cipher == CCKM_KRK_CIPHER_SUITE) {
 		if (params->key_len != WMI_KRK_LEN)
 			return -EINVAL;
-		return ath6kl_wmi_add_krk_cmd(ar->wmi, params->key);
+		return ath6kl_wmi_add_krk_cmd(ar->wmi, vif->fw_vif_idx,
+					      params->key);
 	}
 
 	if (key_index < WMI_MIN_KEY_INDEX || key_index > WMI_MAX_KEY_INDEX) {
@@ -1079,16 +1065,13 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	return 0;
 }
 
-void ath6kl_cfg80211_tkip_micerr_event(struct ath6kl *ar, u8 keyid,
+void ath6kl_cfg80211_tkip_micerr_event(struct ath6kl_vif *vif, u8 keyid,
 				       bool ismcast)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
-
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 		   "%s: keyid %d, ismcast %d\n", __func__, keyid, ismcast);
 
-	cfg80211_michael_mic_failure(ar->net_dev, vif->bssid,
+	cfg80211_michael_mic_failure(vif->ndev, vif->bssid,
 				     (ismcast ? NL80211_KEYTYPE_GROUP :
 				      NL80211_KEYTYPE_PAIRWISE), keyid, NULL,
 				     GFP_KERNEL);
@@ -1282,18 +1265,18 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 		memcpy(vif->req_bssid, ibss_param->bssid,
 		       sizeof(vif->req_bssid));
 
-	ath6kl_set_wpa_version(ar, 0);
+	ath6kl_set_wpa_version(vif, 0);
 
-	status = ath6kl_set_auth_type(ar, NL80211_AUTHTYPE_OPEN_SYSTEM);
+	status = ath6kl_set_auth_type(vif, NL80211_AUTHTYPE_OPEN_SYSTEM);
 	if (status)
 		return status;
 
 	if (ibss_param->privacy) {
-		ath6kl_set_cipher(ar, WLAN_CIPHER_SUITE_WEP40, true);
-		ath6kl_set_cipher(ar, WLAN_CIPHER_SUITE_WEP40, false);
+		ath6kl_set_cipher(vif, WLAN_CIPHER_SUITE_WEP40, true);
+		ath6kl_set_cipher(vif, WLAN_CIPHER_SUITE_WEP40, false);
 	} else {
-		ath6kl_set_cipher(ar, 0, true);
-		ath6kl_set_cipher(ar, 0, false);
+		ath6kl_set_cipher(vif, 0, true);
+		ath6kl_set_cipher(vif, 0, false);
 	}
 
 	vif->nw_type = vif->next_mode;
@@ -1329,7 +1312,7 @@ static int ath6kl_cfg80211_leave_ibss(struct wiphy *wiphy,
 	if (!ath6kl_cfg80211_ready(ar))
 		return -EIO;
 
-	ath6kl_disconnect(ar, vif->fw_vif_idx);
+	ath6kl_disconnect(vif);
 	memset(vif->ssid, 0, sizeof(vif->ssid));
 	vif->ssid_len = 0;
 
@@ -1720,9 +1703,9 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	}
 	if (p.prwise_crypto_type == 0) {
 		p.prwise_crypto_type = NONE_CRYPT;
-		ath6kl_set_cipher(ar, 0, true);
+		ath6kl_set_cipher(vif, 0, true);
 	} else if (info->crypto.n_ciphers_pairwise == 1)
-		ath6kl_set_cipher(ar, info->crypto.ciphers_pairwise[0], true);
+		ath6kl_set_cipher(vif, info->crypto.ciphers_pairwise[0], true);
 
 	switch (info->crypto.cipher_group) {
 	case WLAN_CIPHER_SUITE_WEP40:
@@ -1739,7 +1722,7 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 		p.grp_crypto_type = NONE_CRYPT;
 		break;
 	}
-	ath6kl_set_cipher(ar, info->crypto.cipher_group, false);
+	ath6kl_set_cipher(vif, info->crypto.cipher_group, false);
 
 	p.nw_type = AP_NETWORK;
 	vif->nw_type = vif->next_mode;
