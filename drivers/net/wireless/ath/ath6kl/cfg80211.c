@@ -2099,14 +2099,7 @@ void ath6kl_deinit_if_data(struct ath6kl_vif *vif)
 {
 	aggr_module_destroy(vif->aggr_cntxt);
 
-	vif->aggr_cntxt = NULL;
-
-	if (test_bit(NETDEV_REGISTERED, &vif->flags)) {
-		unregister_netdev(vif->ndev);
-		clear_bit(NETDEV_REGISTERED, &vif->flags);
-	}
-
-	free_netdev(vif->ndev);
+	unregister_netdevice(vif->ndev);
 }
 
 struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
@@ -2138,7 +2131,7 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	if (ath6kl_init_if_data(vif))
 		goto err;
 
-	if (register_netdev(ndev))
+	if (register_netdevice(ndev))
 		goto err;
 
 	vif->sme_state = SME_DISCONNECTED;
@@ -2153,8 +2146,8 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	return ndev;
 
 err:
-	ath6kl_deinit_if_data(vif);
-
+	aggr_module_destroy(vif->aggr_cntxt);
+	free_netdev(ndev);
 	return NULL;
 }
 

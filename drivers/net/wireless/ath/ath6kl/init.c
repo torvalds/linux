@@ -1416,8 +1416,13 @@ static int ath6kl_init(struct ath6kl *ar)
 		goto err_node_cleanup;
 	}
 
+	rtnl_lock();
+
 	/* Add an initial station interface */
 	ndev = ath6kl_interface_add(ar, "wlan%d", NL80211_IFTYPE_STATION, 0);
+
+	rtnl_unlock();
+
 	if (!ndev) {
 		ath6kl_err("Failed to instantiate a network device\n");
 		status = -ENOMEM;
@@ -1523,7 +1528,9 @@ err_rxbuf_cleanup:
 err_cleanup_scatter:
 	ath6kl_hif_cleanup_scatter(ar);
 err_if_deinit:
+	rtnl_lock();
 	ath6kl_deinit_if_data(netdev_priv(ndev));
+	rtnl_unlock();
 	wiphy_unregister(ar->wiphy);
 err_debug_init:
 	ath6kl_debug_cleanup(ar);
@@ -1622,8 +1629,6 @@ static void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready)
 		cfg80211_scan_done(vif->scan_req, true);
 		vif->scan_req = NULL;
 	}
-
-	ath6kl_deinit_if_data(vif);
 }
 
 void ath6kl_stop_txrx(struct ath6kl *ar)
@@ -1642,6 +1647,9 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 		list_del(&vif->list);
 		spin_unlock(&ar->list_lock);
 		ath6kl_cleanup_vif(vif, test_bit(WMI_READY, &ar->flag));
+		rtnl_lock();
+		ath6kl_deinit_if_data(vif);
+		rtnl_unlock();
 		spin_lock(&ar->list_lock);
 	}
 	spin_unlock(&ar->list_lock);

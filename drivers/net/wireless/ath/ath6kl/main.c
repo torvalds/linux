@@ -1445,6 +1445,7 @@ static struct net_device_ops ath6kl_netdev_ops = {
 void init_netdev(struct net_device *dev)
 {
 	dev->netdev_ops = &ath6kl_netdev_ops;
+	dev->destructor = free_netdev;
 	dev->watchdog_timeo = ATH6KL_TX_TIMEOUT;
 
 	dev->needed_headroom = ETH_HLEN;
