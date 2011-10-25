@@ -1499,7 +1499,7 @@ err_rxbuf_cleanup:
 err_cleanup_scatter:
 	ath6kl_hif_cleanup_scatter(ar);
 err_if_deinit:
-	ath6kl_deinit_if_data(ar, ndev);
+	ath6kl_deinit_if_data(netdev_priv(ndev));
 	wiphy_unregister(ar->wiphy);
 err_debug_init:
 	ath6kl_debug_cleanup(ar);
@@ -1632,7 +1632,7 @@ void ath6kl_destroy(struct net_device *dev, unsigned int unregister)
 
 	ath6kl_debug_cleanup(ar);
 
-	ath6kl_deinit_if_data(ar, dev);
+	ath6kl_deinit_if_data(netdev_priv(dev));
 
 	kfree(ar->fw_board);
 	kfree(ar->fw_otp);

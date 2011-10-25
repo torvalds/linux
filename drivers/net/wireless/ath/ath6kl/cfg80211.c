@@ -2015,51 +2015,58 @@ int ath6kl_register_ieee80211_hw(struct ath6kl *ar)
 	return 0;
 }
 
-static int ath6kl_init_if_data(struct ath6kl *ar, struct net_device *ndev)
+static int ath6kl_init_if_data(struct ath6kl_vif *vif)
 {
-	ar->aggr_cntxt = aggr_init(ndev);
+	struct ath6kl *ar = vif->ar;
+
+	ar->aggr_cntxt = aggr_init(vif->ndev);
 	if (!ar->aggr_cntxt) {
 		ath6kl_err("failed to initialize aggr\n");
 		return -ENOMEM;
 	}
 
 	setup_timer(&ar->disconnect_timer, disconnect_timer_handler,
-		    (unsigned long) ndev);
+		    (unsigned long) vif->ndev);
 
 	return 0;
 }
 
-void ath6kl_deinit_if_data(struct ath6kl *ar, struct net_device *ndev)
+void ath6kl_deinit_if_data(struct ath6kl_vif *vif)
 {
+	struct ath6kl *ar = vif->ar;
+
 	aggr_module_destroy(ar->aggr_cntxt);
 
 	ar->aggr_cntxt = NULL;
 
 	if (test_bit(NETDEV_REGISTERED, &ar->flag)) {
-		unregister_netdev(ndev);
+		unregister_netdev(vif->ndev);
 		clear_bit(NETDEV_REGISTERED, &ar->flag);
 	}
 
-	free_netdev(ndev);
+	free_netdev(vif->ndev);
 }
 
 struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 					enum nl80211_iftype type)
 {
 	struct net_device *ndev;
-	struct wireless_dev *wdev;
+	struct ath6kl_vif *vif;
 
-	ndev = alloc_netdev(sizeof(*wdev), "wlan%d", ether_setup);
+	ndev = alloc_netdev(sizeof(*vif), "wlan%d", ether_setup);
 	if (!ndev)
 		return NULL;
 
-	wdev = netdev_priv(ndev);
-	ndev->ieee80211_ptr = wdev;
-	wdev->wiphy = ar->wiphy;
-	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
-	wdev->netdev = ndev;
-	wdev->iftype = type;
-	ar->wdev = wdev;
+	vif = netdev_priv(ndev);
+	ndev->ieee80211_ptr = &vif->wdev;
+	vif->wdev.wiphy = ar->wiphy;
+	vif->ar = ar;
+	ar->vif = vif;
+	vif->ndev = ndev;
+	SET_NETDEV_DEV(ndev, wiphy_dev(vif->wdev.wiphy));
+	vif->wdev.netdev = ndev;
+	vif->wdev.iftype = type;
+	ar->wdev = &vif->wdev;
 	ar->net_dev = ndev;
 
 	init_netdev(ndev);
@@ -2067,7 +2074,7 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	ath6kl_init_control_info(ar);
 
 	/* TODO: Pass interface specific pointer instead of ar */
-	if (ath6kl_init_if_data(ar, ndev))
+	if (ath6kl_init_if_data(vif))
 		goto err;
 
 	if (register_netdev(ndev))
@@ -2081,7 +2088,7 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	return ndev;
 
 err:
-	ath6kl_deinit_if_data(ar, ndev);
+	ath6kl_deinit_if_data(vif);
 
 	return NULL;
 }

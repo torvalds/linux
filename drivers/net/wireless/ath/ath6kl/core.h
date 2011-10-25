@@ -380,6 +380,12 @@ struct ath6kl_req_key {
 	u8 key_len;
 };
 
+struct ath6kl_vif {
+	struct wireless_dev wdev;
+	struct net_device *ndev;
+	struct ath6kl *ar;
+};
+
 /* Flag info */
 #define WMI_ENABLED	0
 #define WMI_READY	1
@@ -410,6 +416,7 @@ struct ath6kl {
 	int total_tx_data_pend;
 	struct htc_target *htc_target;
 	void *hif_priv;
+	struct ath6kl_vif *vif;
 	spinlock_t lock;
 	struct semaphore sem;
 	int ssid_len;
@@ -543,7 +550,7 @@ struct ath6kl {
 
 static inline void *ath6kl_priv(struct net_device *dev)
 {
-	return wdev_priv(dev->ieee80211_ptr);
+	return ((struct ath6kl_vif *) netdev_priv(dev))->ar;
 }
 
 static inline void ath6kl_deposit_credit_to_ep(struct htc_credit_state_info
@@ -643,6 +650,6 @@ void ath6kl_wakeup_event(void *dev);
 void ath6kl_target_failure(struct ath6kl *ar);
 
 void ath6kl_init_control_info(struct ath6kl *ar);
-void ath6kl_deinit_if_data(struct ath6kl *ar, struct net_device *ndev);
+void ath6kl_deinit_if_data(struct ath6kl_vif *vif);
 void ath6kl_core_free(struct ath6kl *ar);
 #endif /* CORE_H */
