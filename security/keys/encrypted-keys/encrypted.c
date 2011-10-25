@@ -299,31 +299,6 @@ out:
 }
 
 /*
- * request_trusted_key - request the trusted key
- *
- * Trusted keys are sealed to PCRs and other metadata. Although userspace
- * manages both trusted/encrypted key-types, like the encrypted key type
- * data, trusted key type data is not visible decrypted from userspace.
- */
-static struct key *request_trusted_key(const char *trusted_desc,
-				       u8 **master_key, size_t *master_keylen)
-{
-	struct trusted_key_payload *tpayload;
-	struct key *tkey;
-
-	tkey = request_key(&key_type_trusted, trusted_desc, NULL);
-	if (IS_ERR(tkey))
-		goto error;
-
-	down_read(&tkey->sem);
-	tpayload = rcu_dereference(tkey->payload.data);
-	*master_key = tpayload->key;
-	*master_keylen = tpayload->key_len;
-error:
-	return tkey;
-}
-
-/*
  * request_user_key - request the user key
  *
  * Use a user provided key to encrypt/decrypt an encrypted-key.
@@ -469,8 +444,14 @@ static struct key *request_master_key(struct encrypted_key_payload *epayload,
 		goto out;
 
 	if (IS_ERR(mkey)) {
-		pr_info("encrypted_key: key %s not found",
-			epayload->master_desc);
+		int ret = PTR_ERR(epayload);
+
+		if (ret == -ENOTSUPP)
+			pr_info("encrypted_key: key %s not supported",
+				epayload->master_desc);
+		else
+			pr_info("encrypted_key: key %s not found",
+				epayload->master_desc);
 		goto out;
 	}
 
@@ -686,11 +667,19 @@ static int encrypted_key_decrypt(struct encrypted_key_payload *epayload,
 		return -EINVAL;
 
 	hex_encoded_data = hex_encoded_iv + (2 * ivsize) + 2;
-	hex2bin(epayload->iv, hex_encoded_iv, ivsize);
-	hex2bin(epayload->encrypted_data, hex_encoded_data, encrypted_datalen);
+	ret = hex2bin(epayload->iv, hex_encoded_iv, ivsize);
+	if (ret < 0)
+		return -EINVAL;
+	ret = hex2bin(epayload->encrypted_data, hex_encoded_data,
+		      encrypted_datalen);
+	if (ret < 0)
+		return -EINVAL;
 
 	hmac = epayload->format + epayload->datablob_len;
-	hex2bin(hmac, hex_encoded_data + (encrypted_datalen * 2), HASH_SIZE);
+	ret = hex2bin(hmac, hex_encoded_data + (encrypted_datalen * 2),
+		      HASH_SIZE);
+	if (ret < 0)
+		return -EINVAL;
 
 	mkey = request_master_key(epayload, &master_key, &master_keylen);
 	if (IS_ERR(mkey))
