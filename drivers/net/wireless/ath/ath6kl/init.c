@@ -584,7 +584,7 @@ struct ath6kl *ath6kl_core_alloc(struct device *sdev)
 	}
 
 	dev->ieee80211_ptr = wdev;
-	SET_NETDEV_DEV(dev, wiphy_dev(wdev->wiphy));
+	SET_NETDEV_DEV(dev, wiphy_dev(ar->wiphy));
 	wdev->netdev = dev;
 	ar->sme_state = SME_DISCONNECTED;
 
@@ -1557,8 +1557,8 @@ static int ath6kl_init(struct ath6kl *ar)
 	ar->conf_flags = ATH6KL_CONF_IGNORE_ERP_BARKER |
 			 ATH6KL_CONF_ENABLE_11N | ATH6KL_CONF_ENABLE_TX_BURST;
 
-	ar->wdev->wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM |
-				  WIPHY_FLAG_HAVE_AP_SME;
+	ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM |
+			    WIPHY_FLAG_HAVE_AP_SME;
 
 	status = ath6kl_target_config_wlan_params(ar);
 	if (!status)
@@ -1599,7 +1599,7 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	ar->version.target_ver = le32_to_cpu(targ_info.version);
 	ar->target_type = le32_to_cpu(targ_info.type);
-	ar->wdev->wiphy->hw_version = le32_to_cpu(targ_info.version);
+	ar->wiphy->hw_version = le32_to_cpu(targ_info.version);
 
 	ret = ath6kl_init_hw_params(ar);
 	if (ret)

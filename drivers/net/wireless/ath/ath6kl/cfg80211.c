@@ -481,7 +481,7 @@ static int ath6kl_add_bss_if_needed(struct ath6kl *ar, const u8 *bssid,
 	struct cfg80211_bss *bss;
 	u8 *ie;
 
-	bss = cfg80211_get_bss(ar->wdev->wiphy, chan, bssid,
+	bss = cfg80211_get_bss(ar->wiphy, chan, bssid,
 			       ar->ssid, ar->ssid_len, WLAN_CAPABILITY_ESS,
 			       WLAN_CAPABILITY_ESS);
 	if (bss == NULL) {
@@ -500,7 +500,7 @@ static int ath6kl_add_bss_if_needed(struct ath6kl *ar, const u8 *bssid,
 		ie[1] = ar->ssid_len;
 		memcpy(ie + 2, ar->ssid, ar->ssid_len);
 		memcpy(ie + 2 + ar->ssid_len, beacon_ie, beacon_ie_len);
-		bss = cfg80211_inform_bss(ar->wdev->wiphy, chan,
+		bss = cfg80211_inform_bss(ar->wiphy, chan,
 					  bssid, 0, WLAN_CAPABILITY_ESS, 100,
 					  ie, 2 + ar->ssid_len + beacon_ie_len,
 					  0, GFP_KERNEL);
@@ -567,7 +567,7 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 		}
 	}
 
-	chan = ieee80211_get_channel(ar->wdev->wiphy, (int) channel);
+	chan = ieee80211_get_channel(ar->wiphy, (int) channel);
 
 
 	if (nw_type & ADHOC_NETWORK) {
@@ -1924,6 +1924,7 @@ struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
 	int ret = 0;
 	struct wireless_dev *wdev;
 	struct ath6kl *ar;
+	struct wiphy *wiphy;
 
 	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 	if (!wdev) {
@@ -1932,43 +1933,45 @@ struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
 	}
 
 	/* create a new wiphy for use with cfg80211 */
-	wdev->wiphy = wiphy_new(&ath6kl_cfg80211_ops, sizeof(struct ath6kl));
-	if (!wdev->wiphy) {
+	wiphy = wiphy_new(&ath6kl_cfg80211_ops, sizeof(struct ath6kl));
+	if (!wiphy) {
 		ath6kl_err("couldn't allocate wiphy device\n");
 		kfree(wdev);
 		return NULL;
 	}
 
-	ar = wiphy_priv(wdev->wiphy);
+	ar = wiphy_priv(wiphy);
 	ar->p2p = !!ath6kl_p2p;
+	ar->wiphy = wiphy;
+	wdev->wiphy = wiphy;
 
-	wdev->wiphy->mgmt_stypes = ath6kl_mgmt_stypes;
+	wiphy->mgmt_stypes = ath6kl_mgmt_stypes;
 
-	wdev->wiphy->max_remain_on_channel_duration = 5000;
+	wiphy->max_remain_on_channel_duration = 5000;
 
 	/* set device pointer for wiphy */
-	set_wiphy_dev(wdev->wiphy, dev);
+	set_wiphy_dev(wiphy, dev);
 
-	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC) | BIT(NL80211_IFTYPE_AP);
 	if (ar->p2p) {
-		wdev->wiphy->interface_modes |= BIT(NL80211_IFTYPE_P2P_GO) |
+		wiphy->interface_modes |= BIT(NL80211_IFTYPE_P2P_GO) |
 			BIT(NL80211_IFTYPE_P2P_CLIENT);
 	}
 	/* max num of ssids that can be probed during scanning */
-	wdev->wiphy->max_scan_ssids = MAX_PROBED_SSID_INDEX;
-	wdev->wiphy->max_scan_ie_len = 1000; /* FIX: what is correct limit? */
-	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &ath6kl_band_2ghz;
-	wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = &ath6kl_band_5ghz;
-	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
+	wiphy->max_scan_ssids = MAX_PROBED_SSID_INDEX;
+	wiphy->max_scan_ie_len = 1000; /* FIX: what is correct limit? */
+	wiphy->bands[IEEE80211_BAND_2GHZ] = &ath6kl_band_2ghz;
+	wiphy->bands[IEEE80211_BAND_5GHZ] = &ath6kl_band_5ghz;
+	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 
-	wdev->wiphy->cipher_suites = cipher_suites;
-	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
+	wiphy->cipher_suites = cipher_suites;
+	wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
-	ret = wiphy_register(wdev->wiphy);
+	ret = wiphy_register(wiphy);
 	if (ret < 0) {
 		ath6kl_err("couldn't register wiphy device\n");
-		wiphy_free(wdev->wiphy);
+		wiphy_free(wiphy);
 		kfree(wdev);
 		return NULL;
 	}
@@ -1985,10 +1988,7 @@ void ath6kl_cfg80211_deinit(struct ath6kl *ar)
 		ar->scan_req = NULL;
 	}
 
-	if (!wdev)
-		return;
-
-	wiphy_unregister(wdev->wiphy);
-	wiphy_free(wdev->wiphy);
+	wiphy_unregister(ar->wiphy);
+	wiphy_free(ar->wiphy);
 	kfree(wdev);
 }

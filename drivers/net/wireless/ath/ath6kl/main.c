@@ -996,8 +996,8 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 	ar->version.wlan_ver = sw_ver;
 	ar->version.abi_ver = abi_ver;
 
-	snprintf(ar->wdev->wiphy->fw_version,
-		 sizeof(ar->wdev->wiphy->fw_version),
+	snprintf(ar->wiphy->fw_version,
+		 sizeof(ar->wiphy->fw_version),
 		 "%u.%u.%u.%u",
 		 (ar->version.wlan_ver & 0xf0000000) >> 28,
 		 (ar->version.wlan_ver & 0x0f000000) >> 24,
@@ -1009,8 +1009,8 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 	wake_up(&ar->event_wq);
 
 	ath6kl_info("hw %s fw %s%s\n",
-		    get_hw_id_string(ar->wdev->wiphy->hw_version),
-		    ar->wdev->wiphy->fw_version,
+		    get_hw_id_string(ar->wiphy->hw_version),
+		    ar->wiphy->fw_version,
 		    test_bit(TESTMODE, &ar->flag) ? " testmode" : "");
 }
 

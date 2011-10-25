@@ -1509,7 +1509,7 @@ int ath6kl_debug_init(struct ath6kl *ar)
 	ar->debug.fwlog_mask = 0;
 
 	ar->debugfs_phy = debugfs_create_dir("ath6kl",
-					     ar->wdev->wiphy->debugfsdir);
+					     ar->wiphy->debugfsdir);
 	if (!ar->debugfs_phy) {
 		vfree(ar->debug.fwlog_buf.buf);
 		kfree(ar->debug.fwlog_tmp);

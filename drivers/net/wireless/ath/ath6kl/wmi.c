@@ -431,7 +431,7 @@ static int ath6kl_wmi_remain_on_chnl_event_rx(struct wmi *wmi, u8 *datap,
 	dur = le32_to_cpu(ev->duration);
 	ath6kl_dbg(ATH6KL_DBG_WMI, "remain_on_chnl: freq=%u dur=%u\n",
 		   freq, dur);
-	chan = ieee80211_get_channel(ar->wdev->wiphy, freq);
+	chan = ieee80211_get_channel(ar->wiphy, freq);
 	if (!chan) {
 		ath6kl_dbg(ATH6KL_DBG_WMI, "remain_on_chnl: Unknown channel "
 			   "(freq=%u)\n", freq);
@@ -460,7 +460,7 @@ static int ath6kl_wmi_cancel_remain_on_chnl_event_rx(struct wmi *wmi,
 	dur = le32_to_cpu(ev->duration);
 	ath6kl_dbg(ATH6KL_DBG_WMI, "cancel_remain_on_chnl: freq=%u dur=%u "
 		   "status=%u\n", freq, dur, ev->status);
-	chan = ieee80211_get_channel(ar->wdev->wiphy, freq);
+	chan = ieee80211_get_channel(ar->wiphy, freq);
 	if (!chan) {
 		ath6kl_dbg(ATH6KL_DBG_WMI, "cancel_remain_on_chnl: Unknown "
 			   "channel (freq=%u)\n", freq);
@@ -878,7 +878,7 @@ static void ath6kl_wmi_regdomain_event(struct wmi *wmi, u8 *datap, int len)
 		alpha2[0] = country->isoName[0];
 		alpha2[1] = country->isoName[1];
 
-		regulatory_hint(wmi->parent_dev->wdev->wiphy, alpha2);
+		regulatory_hint(wmi->parent_dev->wiphy, alpha2);
 
 		ath6kl_dbg(ATH6KL_DBG_WMI, "Country alpha2 being used: %c%c\n",
 				alpha2[0], alpha2[1]);
@@ -974,7 +974,7 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 		ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
 	}
 
-	channel = ieee80211_get_channel(ar->wdev->wiphy, le16_to_cpu(bih->ch));
+	channel = ieee80211_get_channel(ar->wiphy, le16_to_cpu(bih->ch));
 	if (channel == NULL)
 		return -EINVAL;
 
@@ -1021,7 +1021,7 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 
 	memcpy(&mgmt->u.beacon, buf, len);
 
-	bss = cfg80211_inform_bss_frame(ar->wdev->wiphy, channel, mgmt,
+	bss = cfg80211_inform_bss_frame(ar->wiphy, channel, mgmt,
 					24 + len, (bih->snr - 95) * 100,
 					GFP_ATOMIC);
 	kfree(mgmt);
