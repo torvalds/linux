@@ -1085,9 +1085,6 @@ skip_tx_iqcal:
 		ar9003_hw_rtt_disable(ah);
 	}
 
-	ath9k_hw_loadnf(ah, chan);
-	ath9k_hw_start_nfcal(ah, true);
-
 	/* Initialize list pointers */
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
 	ah->supp_cals = IQ_MISMATCH_CAL;
