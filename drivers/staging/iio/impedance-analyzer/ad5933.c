@@ -329,7 +329,7 @@ static ssize_t ad5933_show(struct device *dev,
 	int ret = 0, len = 0;
 
 	mutex_lock(&indio_dev->mlock);
-	switch (this_attr->address) {
+	switch ((u32) this_attr->address) {
 	case AD5933_OUT_RANGE:
 		len = sprintf(buf, "%d\n",
 			      st->range_avail[(st->ctrl_hb >> 1) & 0x3]);
@@ -380,7 +380,7 @@ static ssize_t ad5933_store(struct device *dev,
 	}
 
 	mutex_lock(&indio_dev->mlock);
-	switch (this_attr->address) {
+	switch ((u32) this_attr->address) {
 	case AD5933_OUT_RANGE:
 		for (i = 0; i < 4; i++)
 			if (val == st->range_avail[i]) {

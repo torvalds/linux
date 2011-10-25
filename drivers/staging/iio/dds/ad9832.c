@@ -88,7 +88,7 @@ static ssize_t ad9832_write(struct device *dev,
 		goto error_ret;
 
 	mutex_lock(&indio_dev->mlock);
-	switch (this_attr->address) {
+	switch ((u32) this_attr->address) {
 	case AD9832_FREQ0HM:
 	case AD9832_FREQ1HM:
 		ret = ad9832_write_frequency(st, this_attr->address, val);

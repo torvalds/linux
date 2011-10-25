@@ -77,7 +77,7 @@ static ssize_t ad9834_write(struct device *dev,
 		goto error_ret;
 
 	mutex_lock(&indio_dev->mlock);
-	switch (this_attr->address) {
+	switch ((u32) this_attr->address) {
 	case AD9834_REG_FREQ0:
 	case AD9834_REG_FREQ1:
 		ret = ad9834_write_frequency(st, this_attr->address, val);
@@ -153,7 +153,7 @@ static ssize_t ad9834_store_wavetype(struct device *dev,
 
 	mutex_lock(&indio_dev->mlock);
 
-	switch (this_attr->address) {
+	switch ((u32) this_attr->address) {
 	case 0:
 		if (sysfs_streq(buf, "sine")) {
 			st->control &= ~AD9834_MODE;
