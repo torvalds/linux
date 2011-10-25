@@ -173,6 +173,8 @@ enum wmi_data_hdr_data_type {
 #define WMI_DATA_HDR_META_MASK      0x7
 #define WMI_DATA_HDR_META_SHIFT     13
 
+#define WMI_DATA_HDR_IF_IDX_MASK    0xF
+
 struct wmi_data_hdr {
 	s8 rssi;
 
@@ -197,6 +199,12 @@ struct wmi_data_hdr {
 	 * b15:b13      - META_DATA_VERSION 0 - 7
 	 */
 	__le16 info2;
+
+	/*
+	 * usage of info3, 16-bit:
+	 * b3:b0	- Interface index
+	 * b15:b4	- Reserved
+	 */
 	__le16 info3;
 } __packed;
 
@@ -237,6 +245,11 @@ static inline u8 wmi_data_hdr_get_meta(struct wmi_data_hdr *dhdr)
 {
 	return (le16_to_cpu(dhdr->info2) >> WMI_DATA_HDR_META_SHIFT) &
 			       WMI_DATA_HDR_META_MASK;
+}
+
+static inline u8 wmi_data_hdr_get_if_idx(struct wmi_data_hdr *dhdr)
+{
+	return le16_to_cpu(dhdr->info3) & WMI_DATA_HDR_IF_IDX_MASK;
 }
 
 /* Tx meta version definitions */
@@ -302,6 +315,11 @@ struct wmi_cmd_hdr {
 	/* for alignment */
 	__le16 reserved;
 } __packed;
+
+static inline u8 wmi_cmd_hdr_get_if_idx(struct wmi_cmd_hdr *chdr)
+{
+	return le16_to_cpu(chdr->info1) & WMI_CMD_HDR_IF_ID_MASK;
+}
 
 /* List of WMI commands */
 enum wmi_cmd_id {
@@ -2167,7 +2185,7 @@ int ath6kl_wmi_dix_2_dot3(struct wmi *wmi, struct sk_buff *skb);
 int ath6kl_wmi_data_hdr_add(struct wmi *wmi, struct sk_buff *skb,
 			    u8 msg_type, bool more_data,
 			    enum wmi_data_hdr_data_type data_type,
-			    u8 meta_ver, void *tx_meta_info);
+			    u8 meta_ver, void *tx_meta_info, u8 if_idx);
 
 int ath6kl_wmi_dot11_hdr_remove(struct wmi *wmi, struct sk_buff *skb);
 int ath6kl_wmi_dot3_2_dix(struct sk_buff *skb);
@@ -2292,6 +2310,7 @@ int ath6kl_wmi_cancel_remain_on_chnl_cmd(struct wmi *wmi, u8 if_idx);
 int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 if_idx, u8 mgmt_frm_type,
 			     const u8 *ie, u8 ie_len);
 
+struct ath6kl_vif *ath6kl_get_vif_by_index(struct ath6kl *ar, u8 if_idx);
 void *ath6kl_wmi_init(struct ath6kl *devt);
 void ath6kl_wmi_shutdown(struct wmi *wmi);
 

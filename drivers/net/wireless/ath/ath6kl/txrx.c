@@ -77,14 +77,13 @@ static u8 ath6kl_ibss_map_epid(struct sk_buff *skb, struct net_device *dev,
 	return ar->node_map[ep_map].ep_id;
 }
 
-static bool ath6kl_powersave_ap(struct ath6kl *ar, struct sk_buff *skb,
+static bool ath6kl_powersave_ap(struct ath6kl_vif *vif, struct sk_buff *skb,
 				bool *more_data)
 {
 	struct ethhdr *datap = (struct ethhdr *) skb->data;
 	struct ath6kl_sta *conn = NULL;
 	bool ps_queued = false, is_psq_empty = false;
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 
 	if (is_multicast_ether_addr(datap->h_dest)) {
 		u8 ctr = 0;
@@ -134,7 +133,7 @@ static bool ath6kl_powersave_ap(struct ath6kl *ar, struct sk_buff *skb,
 			}
 		}
 	} else {
-		conn = ath6kl_find_sta(ar, datap->h_dest);
+		conn = ath6kl_find_sta(vif, datap->h_dest);
 		if (!conn) {
 			dev_kfree_skb(skb);
 
@@ -261,7 +260,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 
 	/* AP mode Power saving processing */
 	if (vif->nw_type == AP_NETWORK) {
-		if (ath6kl_powersave_ap(ar, skb, &more_data))
+		if (ath6kl_powersave_ap(vif, skb, &more_data))
 			return 0;
 	}
 
@@ -277,7 +276,8 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (ath6kl_wmi_data_hdr_add(ar->wmi, skb, DATA_MSGTYPE,
-					    more_data, 0, 0, NULL)) {
+					    more_data, 0, 0, NULL,
+					    vif->fw_vif_idx)) {
 			ath6kl_err("wmi_data_hdr_add failed\n");
 			goto fail_tx;
 		}
@@ -534,6 +534,7 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 	enum htc_endpoint_id eid;
 	bool wake_event = false;
 	bool flushing = false;
+	u8 if_idx;
 	/* TODO: Findout vif */
 	struct ath6kl_vif *vif = ar->vif;
 
@@ -579,6 +580,20 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 
 			if (ar->tx_pending[eid] == 0)
 				wake_event = true;
+		}
+
+		if (eid == ar->ctrl_ep) {
+			if_idx = wmi_cmd_hdr_get_if_idx(
+				(struct wmi_cmd_hdr *) skb->data);
+		} else {
+			if_idx = wmi_data_hdr_get_if_idx(
+				(struct wmi_data_hdr *) skb->data);
+		}
+
+		vif = ath6kl_get_vif_by_index(ar, if_idx);
+		if (!vif) {
+			ath6kl_free_cookie(ar, ath6kl_cookie);
+			continue;
 		}
 
 		if (status) {
@@ -1053,10 +1068,9 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	struct ath6kl_sta *conn = NULL;
 	struct sk_buff *skb1 = NULL;
 	struct ethhdr *datap = NULL;
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl_vif *vif;
 	u16 seq_no, offset;
-	u8 tid;
+	u8 tid, if_idx;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_RX,
 		   "%s: ar=0x%p eid=%d, skb=0x%p, data=0x%p, len=0x%x status:%d",
@@ -1064,7 +1078,23 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		   packet->act_len, status);
 
 	if (status || !(skb->data + HTC_HDR_LENGTH)) {
-		vif->net_stats.rx_errors++;
+		dev_kfree_skb(skb);
+		return;
+	}
+
+	skb_put(skb, packet->act_len + HTC_HDR_LENGTH);
+	skb_pull(skb, HTC_HDR_LENGTH);
+
+	if (ept == ar->ctrl_ep) {
+		if_idx =
+		wmi_cmd_hdr_get_if_idx((struct wmi_cmd_hdr *) skb->data);
+	} else {
+		if_idx =
+		wmi_data_hdr_get_if_idx((struct wmi_data_hdr *) skb->data);
+	}
+
+	vif = ath6kl_get_vif_by_index(ar, if_idx);
+	if (!vif) {
 		dev_kfree_skb(skb);
 		return;
 	}
@@ -1080,8 +1110,6 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 
 	spin_unlock_bh(&ar->lock);
 
-	skb_put(skb, packet->act_len + HTC_HDR_LENGTH);
-	skb_pull(skb, HTC_HDR_LENGTH);
 
 	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, "rx ",
 			skb->data, skb->len);
@@ -1143,7 +1171,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		}
 
 		datap = (struct ethhdr *) (skb->data + offset);
-		conn = ath6kl_find_sta(ar, datap->h_source);
+		conn = ath6kl_find_sta(vif, datap->h_source);
 
 		if (!conn) {
 			dev_kfree_skb(skb);
@@ -1250,7 +1278,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			 * frame to it on the air else send the
 			 * frame up the stack.
 			 */
-			conn = ath6kl_find_sta(ar, datap->h_dest);
+			conn = ath6kl_find_sta(vif, datap->h_dest);
 
 			if (conn && ar->intra_bss) {
 				skb1 = skb;

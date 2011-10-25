@@ -81,7 +81,7 @@ enum htc_endpoint_id ath6kl_wmi_get_control_ep(struct wmi *wmi)
 	return wmi->ep_id;
 }
 
-static struct ath6kl_vif *ath6kl_get_vif_by_index(struct ath6kl *ar, u8 if_idx)
+struct ath6kl_vif *ath6kl_get_vif_by_index(struct ath6kl *ar, u8 if_idx)
 {
 	if (WARN_ON(if_idx > (MAX_NUM_VIF - 1)))
 		return NULL;
@@ -170,12 +170,12 @@ static int ath6kl_wmi_meta_add(struct wmi *wmi, struct sk_buff *skb,
 int ath6kl_wmi_data_hdr_add(struct wmi *wmi, struct sk_buff *skb,
 			    u8 msg_type, bool more_data,
 			    enum wmi_data_hdr_data_type data_type,
-			    u8 meta_ver, void *tx_meta_info)
+			    u8 meta_ver, void *tx_meta_info, u8 if_idx)
 {
 	struct wmi_data_hdr *data_hdr;
 	int ret;
 
-	if (WARN_ON(skb == NULL))
+	if (WARN_ON(skb == NULL || (if_idx > MAX_NUM_VIF - 1)))
 		return -EINVAL;
 
 	if (tx_meta_info) {
@@ -197,7 +197,7 @@ int ath6kl_wmi_data_hdr_add(struct wmi *wmi, struct sk_buff *skb,
 		    WMI_DATA_HDR_MORE_MASK << WMI_DATA_HDR_MORE_SHIFT;
 
 	data_hdr->info2 = cpu_to_le16(meta_ver << WMI_DATA_HDR_META_SHIFT);
-	data_hdr->info3 = 0;
+	data_hdr->info3 = cpu_to_le16(if_idx & WMI_DATA_HDR_IF_IDX_MASK);
 
 	return 0;
 }
@@ -1631,7 +1631,7 @@ int ath6kl_wmi_cmd_send(struct wmi *wmi, u8 if_idx, struct sk_buff *skb,
 	/* Only for OPT_TX_CMD, use BE endpoint. */
 	if (cmd_id == WMI_OPT_TX_FRAME_CMDID) {
 		ret = ath6kl_wmi_data_hdr_add(wmi, skb, OPT_MSGTYPE,
-					      false, false, 0, NULL);
+					      false, false, 0, NULL, if_idx);
 		if (ret) {
 			dev_kfree_skb(skb);
 			return ret;
@@ -2098,7 +2098,7 @@ int ath6kl_wmi_setpmkid_cmd(struct wmi *wmi, u8 if_idx, const u8 *bssid,
 }
 
 static int ath6kl_wmi_data_sync_send(struct wmi *wmi, struct sk_buff *skb,
-			      enum htc_endpoint_id ep_id)
+			      enum htc_endpoint_id ep_id, u8 if_idx)
 {
 	struct wmi_data_hdr *data_hdr;
 	int ret;
@@ -2110,7 +2110,7 @@ static int ath6kl_wmi_data_sync_send(struct wmi *wmi, struct sk_buff *skb,
 
 	data_hdr = (struct wmi_data_hdr *) skb->data;
 	data_hdr->info = SYNC_MSGTYPE << WMI_DATA_HDR_MSG_TYPE_SHIFT;
-	data_hdr->info3 = 0;
+	data_hdr->info3 = cpu_to_le16(if_idx & WMI_DATA_HDR_IF_IDX_MASK);
 
 	ret = ath6kl_control_tx(wmi->parent_dev, skb, ep_id);
 
@@ -2192,7 +2192,7 @@ static int ath6kl_wmi_sync_point(struct wmi *wmi, u8 if_idx)
 					       traffic_class);
 		ret =
 		    ath6kl_wmi_data_sync_send(wmi, data_sync_bufs[index].skb,
-					      ep_id);
+					      ep_id, if_idx);
 
 		if (ret)
 			break;

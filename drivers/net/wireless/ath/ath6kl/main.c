@@ -20,10 +20,9 @@
 #include "target.h"
 #include "debug.h"
 
-struct ath6kl_sta *ath6kl_find_sta(struct ath6kl *ar, u8 *node_addr)
+struct ath6kl_sta *ath6kl_find_sta(struct ath6kl_vif *vif, u8 *node_addr)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 	struct ath6kl_sta *conn = NULL;
 	u8 i, max_conn;
 
