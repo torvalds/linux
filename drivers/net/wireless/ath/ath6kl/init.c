@@ -1504,8 +1504,16 @@ static int ath6kl_init(struct ath6kl *ar)
 			    WIPHY_FLAG_HAVE_AP_SME;
 
 	status = ath6kl_target_config_wlan_params(ar);
-	if (!status)
-		goto ath6kl_init_done;
+	if (status)
+		goto err_htc_stop;
+
+	/*
+	 * Set mac address which is received in ready event
+	 * FIXME: Move to ath6kl_interface_add()
+	 */
+	memcpy(ndev->dev_addr, ar->mac_addr, ETH_ALEN);
+
+	return status;
 
 err_htc_stop:
 	ath6kl_htc_stop(ar->htc_target);

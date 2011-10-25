@@ -492,6 +492,7 @@ struct ath6kl {
 	struct wireless_dev *wdev;
 	enum wlan_low_pwr_state wlan_pwr_state;
 	struct wmi_scan_params_cmd sc_params;
+	u8 mac_addr[ETH_ALEN];
 #define AR_MCAST_FILTER_MAC_ADDR_SIZE  4
 	struct {
 		void *rx_report;

@@ -923,11 +923,10 @@ static const char *get_hw_id_string(u32 id)
 void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 {
 	struct ath6kl *ar = devt;
-	struct net_device *dev = ar->vif->ndev;
 
-	memcpy(dev->dev_addr, datap, ETH_ALEN);
+	memcpy(ar->mac_addr, datap, ETH_ALEN);
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: mac addr = %pM\n",
-		   __func__, dev->dev_addr);
+		   __func__, ar->mac_addr);
 
 	ar->version.wlan_ver = sw_ver;
 	ar->version.abi_ver = abi_ver;
