@@ -417,14 +417,6 @@ static void drm_master_release(struct drm_device *dev, struct file *filp)
 	    file_priv->master->lock.hw_lock)
 		drm_reclaim_locked_buffers(dev, filp);
 
-	if (dev->driver->reclaim_buffers_idlelocked &&
-	    file_priv->master->lock.hw_lock) {
-		drm_idlelock_take(&file_priv->master->lock);
-		dev->driver->reclaim_buffers_idlelocked(dev, file_priv);
-		drm_idlelock_release(&file_priv->master->lock);
-	}
-
-
 	if (drm_i_have_hw_lock(dev, file_priv)) {
 		DRM_DEBUG("File %p released, freeing lock for context %d\n",
 			  filp, _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));

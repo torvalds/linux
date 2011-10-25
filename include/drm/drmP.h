@@ -880,8 +880,6 @@ struct drm_driver {
 				 struct drm_file * file_priv);
 	void (*reclaim_buffers_locked) (struct drm_device *dev,
 					struct drm_file *file_priv);
-	void (*reclaim_buffers_idlelocked) (struct drm_device *dev,
-					    struct drm_file *file_priv);
 	void (*set_version) (struct drm_device *dev,
 			     struct drm_set_version *sv);
 
