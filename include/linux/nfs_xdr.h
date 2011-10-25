@@ -1133,7 +1133,6 @@ struct nfs_page;
 #define NFS_PAGEVEC_SIZE	(8U)
 
 struct nfs_read_data {
-	int			flags;
 	struct rpc_task		task;
 	struct inode		*inode;
 	struct rpc_cred		*cred;
@@ -1156,7 +1155,6 @@ struct nfs_read_data {
 };
 
 struct nfs_write_data {
-	int			flags;
 	struct rpc_task		task;
 	struct inode		*inode;
 	struct rpc_cred		*cred;
@@ -1197,9 +1195,6 @@ struct nfs_rpc_ops {
 
 	int	(*getroot) (struct nfs_server *, struct nfs_fh *,
 			    struct nfs_fsinfo *);
-	int	(*lookupfh)(struct nfs_server *, struct nfs_fh *,
-			    struct qstr *, struct nfs_fh *,
-			    struct nfs_fattr *);
 	int	(*getattr) (struct nfs_server *, struct nfs_fh *,
 			    struct nfs_fattr *);
 	int	(*setattr) (struct dentry *, struct nfs_fattr *,

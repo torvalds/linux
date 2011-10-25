@@ -850,7 +850,9 @@ rpc_restart_call_prepare(struct rpc_task *task)
 {
 	if (RPC_ASSASSINATED(task))
 		return 0;
-	task->tk_action = rpc_prepare_task;
+	task->tk_action = call_start;
+	if (task->tk_ops->rpc_call_prepare != NULL)
+		task->tk_action = rpc_prepare_task;
 	return 1;
 }
 EXPORT_SYMBOL_GPL(rpc_restart_call_prepare);
