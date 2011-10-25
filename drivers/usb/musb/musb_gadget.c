@@ -704,7 +704,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	 * most these gadgets, end of is signified either by a short packet,
 	 * or filling the last byte of the buffer.  (Sending extra data in
 	 * that last pckate should trigger an overflow fault.)  But in mode 1,
-	 * we don't get DMA completion interrrupt for short packets.
+	 * we don't get DMA completion interrupt for short packets.
 	 *
 	 * Theoretically, we could enable DMAReq irq (MUSB_RXCSR_DMAMODE = 1),
 	 * to get endpoint interrupt on every DMA req, but that didn't seem

@@ -62,7 +62,7 @@ config VT_CONSOLE
 
 config HW_CONSOLE
 	bool
-	depends on VT && !S390 && !UML
+	depends on VT && !UML
 	default y
 
 config VT_HW_CONSOLE_BINDING

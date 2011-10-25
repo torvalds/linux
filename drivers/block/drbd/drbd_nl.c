@@ -94,7 +94,7 @@ static int name ## _from_tags(struct drbd_conf *mdev, \
 		 arg->member ## _len = dlen; \
 		 memcpy(arg->member, tags, min_t(size_t, dlen, len)); \
 		 break;
-#include "linux/drbd_nl.h"
+#include <linux/drbd_nl.h>
 
 /* Generate the struct to tag_list functions */
 #define NL_PACKET(name, number, fields) \
@@ -129,7 +129,7 @@ name ## _to_tags(struct drbd_conf *mdev, \
 	put_unaligned(arg->member ## _len, tags++);	\
 	memcpy(tags, arg->member, arg->member ## _len); \
 	tags = (unsigned short *)((char *)tags + arg->member ## _len);
-#include "linux/drbd_nl.h"
+#include <linux/drbd_nl.h>
 
 void drbd_bcast_ev_helper(struct drbd_conf *mdev, char *helper_name);
 void drbd_nl_send_reply(struct cn_msg *, int);

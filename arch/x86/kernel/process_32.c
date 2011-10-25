@@ -262,7 +262,7 @@ EXPORT_SYMBOL_GPL(start_thread);
 
 
 /*
- *	switch_to(x,yn) should switch tasks from x to y.
+ *	switch_to(x,y) should switch tasks from x to y.
  *
  * We fsave/fwait so that an exception goes off at the right time
  * (as a call from the fsave or fwait in effect) rather than to

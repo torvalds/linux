@@ -858,7 +858,7 @@ static s32 atl1_init_hw(struct atl1_hw *hw)
 	atl1_init_flash_opcode(hw);
 
 	if (!hw->phy_configured) {
-		/* enable GPHY LinkChange Interrrupt */
+		/* enable GPHY LinkChange Interrupt */
 		ret_val = atl1_write_phy_reg(hw, 18, 0xC00);
 		if (ret_val)
 			return ret_val;

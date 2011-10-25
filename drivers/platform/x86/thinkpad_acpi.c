@@ -4007,7 +4007,7 @@ static void bluetooth_shutdown(void)
 		pr_notice("failed to save bluetooth state to NVRAM\n");
 	else
 		vdbg_printk(TPACPI_DBG_RFKILL,
-			"bluestooth state saved to NVRAM\n");
+			"bluetooth state saved to NVRAM\n");
 }
 
 static void bluetooth_exit(void)

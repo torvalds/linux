@@ -16,7 +16,6 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/version.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>

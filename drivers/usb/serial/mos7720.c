@@ -2006,7 +2006,6 @@ static int mos7720_ioctl(struct tty_struct *tty,
 		dbg("%s (%d) TIOCSERGETLSR", __func__,  port->number);
 		return get_lsr_info(tty, mos7720_port,
 					(unsigned int __user *)arg);
-		return 0;
 
 	/* FIXME: These should be using the mode methods */
 	case TIOCMBIS:

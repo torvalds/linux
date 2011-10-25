@@ -288,7 +288,7 @@ out_no_write:
  *  @msg: The message buffer
  *  @size: Length of buffer
  *
- *  returns SUCCESS if it successfuly read message from buffer
+ *  returns SUCCESS if it successfully read message from buffer
  **/
 static s32 e1000_read_mbx_vf(struct e1000_hw *hw, u32 *msg, u16 size)
 {

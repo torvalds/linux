@@ -77,7 +77,8 @@ SNAPSHOT_SET_SWAP_AREA - set the resume partition and the offset (in <PAGE_SIZE>
 	resume_swap_area, as defined in kernel/power/suspend_ioctls.h,
 	containing the resume device specification and the offset); for swap
 	partitions the offset is always 0, but it is different from zero for
-	swap files (see Documentation/swsusp-and-swap-files.txt for details).
+	swap files (see Documentation/power/swsusp-and-swap-files.txt for
+	details).
 
 SNAPSHOT_PLATFORM_SUPPORT - enable/disable the hibernation platform support,
 	depending on the argument value (enable, if the argument is nonzero)

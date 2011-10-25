@@ -9,8 +9,8 @@ Introduction
 ------------
 
 The media controller API is documented in DocBook format in
-Documentation/DocBook/v4l/media-controller.xml. This document will focus on
-the kernel-side implementation of the media framework.
+Documentation/DocBook/media/v4l/media-controller.xml. This document will focus
+on the kernel-side implementation of the media framework.
 
 
 Abstract media device model
