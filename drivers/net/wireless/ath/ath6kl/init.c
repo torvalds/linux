@@ -352,7 +352,7 @@ void ath6kl_target_failure(struct ath6kl *ar)
 
 }
 
-static int ath6kl_target_config_wlan_params(struct ath6kl *ar)
+static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 {
 	int status = 0;
 	int ret;
@@ -362,46 +362,50 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar)
 	 * default values. Required if checksum offload is needed. Set
 	 * RxMetaVersion to 2.
 	 */
-	if (ath6kl_wmi_set_rx_frame_format_cmd(ar->wmi,
+	if (ath6kl_wmi_set_rx_frame_format_cmd(ar->wmi, idx,
 					       ar->rx_meta_ver, 0, 0)) {
 		ath6kl_err("unable to set the rx frame format\n");
 		status = -EIO;
 	}
 
 	if (ar->conf_flags & ATH6KL_CONF_IGNORE_PS_FAIL_EVT_IN_SCAN)
-		if ((ath6kl_wmi_pmparams_cmd(ar->wmi, 0, 1, 0, 0, 1,
+		if ((ath6kl_wmi_pmparams_cmd(ar->wmi, idx, 0, 1, 0, 0, 1,
 		     IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN)) != 0) {
 			ath6kl_err("unable to set power save fail event policy\n");
 			status = -EIO;
 		}
 
 	if (!(ar->conf_flags & ATH6KL_CONF_IGNORE_ERP_BARKER))
-		if ((ath6kl_wmi_set_lpreamble_cmd(ar->wmi, 0,
+		if ((ath6kl_wmi_set_lpreamble_cmd(ar->wmi, idx, 0,
 		     WMI_DONOT_IGNORE_BARKER_IN_ERP)) != 0) {
 			ath6kl_err("unable to set barker preamble policy\n");
 			status = -EIO;
 		}
 
-	if (ath6kl_wmi_set_keepalive_cmd(ar->wmi,
+	if (ath6kl_wmi_set_keepalive_cmd(ar->wmi, idx,
 			WLAN_CONFIG_KEEP_ALIVE_INTERVAL)) {
 		ath6kl_err("unable to set keep alive interval\n");
 		status = -EIO;
 	}
 
-	if (ath6kl_wmi_disctimeout_cmd(ar->wmi,
+	if (ath6kl_wmi_disctimeout_cmd(ar->wmi, idx,
 			WLAN_CONFIG_DISCONNECT_TIMEOUT)) {
 		ath6kl_err("unable to set disconnect timeout\n");
 		status = -EIO;
 	}
 
 	if (!(ar->conf_flags & ATH6KL_CONF_ENABLE_TX_BURST))
-		if (ath6kl_wmi_set_wmm_txop(ar->wmi, WMI_TXOP_DISABLED)) {
+		if (ath6kl_wmi_set_wmm_txop(ar->wmi, idx, WMI_TXOP_DISABLED)) {
 			ath6kl_err("unable to set txop bursting\n");
 			status = -EIO;
 		}
 
+	/*
+	 * FIXME: Make sure p2p configurations are not applied to
+	 * non-p2p capable interfaces when multivif support is enabled.
+	 */
 	if (ar->p2p) {
-		ret = ath6kl_wmi_info_req_cmd(ar->wmi,
+		ret = ath6kl_wmi_info_req_cmd(ar->wmi, idx,
 					      P2P_FLAG_CAPABILITIES_REQ |
 					      P2P_FLAG_MACADDR_REQ |
 					      P2P_FLAG_HMODEL_REQ);
@@ -413,9 +417,13 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar)
 		}
 	}
 
+	/*
+	 * FIXME: Make sure p2p configurations are not applied to
+	 * non-p2p capable interfaces when multivif support is enabled.
+	 */
 	if (ar->p2p) {
 		/* Enable Probe Request reporting for P2P */
-		ret = ath6kl_wmi_probe_report_req_cmd(ar->wmi, true);
+		ret = ath6kl_wmi_probe_report_req_cmd(ar->wmi, idx, true);
 		if (ret) {
 			ath6kl_dbg(ATH6KL_DBG_TRC, "failed to enable Probe "
 				   "Request reporting (%d)\n", ret);
@@ -1543,9 +1551,11 @@ static int ath6kl_init(struct ath6kl *ar)
 	ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM |
 			    WIPHY_FLAG_HAVE_AP_SME;
 
-	status = ath6kl_target_config_wlan_params(ar);
-	if (status)
-		goto err_htc_stop;
+	for (i = 0; i < MAX_NUM_VIF; i++) {
+		status = ath6kl_target_config_wlan_params(ar, i);
+		if (status)
+			goto err_htc_stop;
+	}
 
 	/*
 	 * Set mac address which is received in ready event

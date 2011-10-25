@@ -1188,7 +1188,7 @@ static ssize_t ath6kl_keepalive_write(struct file *file,
 	if (ret)
 		return ret;
 
-	ret = ath6kl_wmi_set_keepalive_cmd(ar->wmi, val);
+	ret = ath6kl_wmi_set_keepalive_cmd(ar->wmi, 0, val);
 	if (ret)
 		return ret;
 
@@ -1233,7 +1233,7 @@ static ssize_t ath6kl_disconnect_timeout_write(struct file *file,
 	if (ret)
 		return ret;
 
-	ret = ath6kl_wmi_disctimeout_cmd(ar->wmi, val);
+	ret = ath6kl_wmi_disctimeout_cmd(ar->wmi, 0, val);
 	if (ret)
 		return ret;
 
