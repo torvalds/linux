@@ -203,6 +203,9 @@ static inline void set_freezable_with_signal(void) {}
 #define wait_event_freezable_timeout(wq, condition, timeout)		\
 		wait_event_interruptible_timeout(wq, condition, timeout)
 
+#define wait_event_freezekillable(wq, condition)		\
+		wait_event_killable(wq, condition)
+
 #endif /* !CONFIG_FREEZER */
 
 #endif	/* FREEZER_H_INCLUDED */
