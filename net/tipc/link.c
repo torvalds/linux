@@ -1954,6 +1954,13 @@ void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ,
 	u32 msg_size = sizeof(l_ptr->proto_msg);
 	int r_flag;
 
+	/* Discard any previous message that was deferred due to congestion */
+
+	if (l_ptr->proto_msg_queue) {
+		buf_discard(l_ptr->proto_msg_queue);
+		l_ptr->proto_msg_queue = NULL;
+	}
+
 	if (link_blocked(l_ptr))
 		return;
 
@@ -1961,6 +1968,8 @@ void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ,
 
 	if ((l_ptr->owner->block_setup) && (msg_typ != RESET_MSG))
 		return;
+
+	/* Create protocol message with "out-of-sequence" sequence number */
 
 	msg_set_type(msg, msg_typ);
 	msg_set_net_plane(msg, l_ptr->b_ptr->net_plane);
@@ -2018,44 +2027,36 @@ void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ,
 	r_flag = (l_ptr->owner->working_links > tipc_link_is_up(l_ptr));
 	msg_set_redundant_link(msg, r_flag);
 	msg_set_linkprio(msg, l_ptr->priority);
-
-	/* Ensure sequence number will not fit : */
+	msg_set_size(msg, msg_size);
 
 	msg_set_seqno(msg, mod(l_ptr->next_out_no + (0xffff/2)));
-
-	/* Congestion? */
-
-	if (tipc_bearer_congested(l_ptr->b_ptr, l_ptr)) {
-		if (!l_ptr->proto_msg_queue) {
-			l_ptr->proto_msg_queue =
-				tipc_buf_acquire(sizeof(l_ptr->proto_msg));
-		}
-		buf = l_ptr->proto_msg_queue;
-		if (!buf)
-			return;
-		skb_copy_to_linear_data(buf, msg, sizeof(l_ptr->proto_msg));
-		return;
-	}
-
-	/* Message can be sent */
 
 	buf = tipc_buf_acquire(msg_size);
 	if (!buf)
 		return;
 
 	skb_copy_to_linear_data(buf, msg, sizeof(l_ptr->proto_msg));
-	msg_set_size(buf_msg(buf), msg_size);
 
-	if (tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr)) {
-		l_ptr->unacked_window = 0;
-		buf_discard(buf);
+	/* Defer message if bearer is already congested */
+
+	if (tipc_bearer_congested(l_ptr->b_ptr, l_ptr)) {
+		l_ptr->proto_msg_queue = buf;
 		return;
 	}
 
-	/* New congestion */
-	tipc_bearer_schedule(l_ptr->b_ptr, l_ptr);
-	l_ptr->proto_msg_queue = buf;
-	l_ptr->stats.bearer_congs++;
+	/* Defer message if attempting to send results in bearer congestion */
+
+	if (!tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr)) {
+		tipc_bearer_schedule(l_ptr->b_ptr, l_ptr);
+		l_ptr->proto_msg_queue = buf;
+		l_ptr->stats.bearer_congs++;
+		return;
+	}
+
+	/* Discard message if it was sent successfully */
+
+	l_ptr->unacked_window = 0;
+	buf_discard(buf);
 }
 
 /*
