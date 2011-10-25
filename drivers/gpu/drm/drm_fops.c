@@ -376,9 +376,6 @@ static void drm_master_release(struct drm_device *dev, struct file *filp)
 		drm_lock_free(&file_priv->master->lock,
 			      _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
 	}
-
-	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
-		drm_core_reclaim_buffers(dev, file_priv);
 }
 
 static void drm_events_release(struct drm_file *file_priv)
@@ -447,6 +444,9 @@ int drm_release(struct inode *inode, struct file *filp)
 	/* if the master has gone away we can't do anything with the lock */
 	if (file_priv->minor->master)
 		drm_master_release(dev, filp);
+
+	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
+		drm_core_reclaim_buffers(dev, file_priv);
 
 	drm_events_release(file_priv);
 
