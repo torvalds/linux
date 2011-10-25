@@ -118,7 +118,7 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 		  struct drm_file *file)
 {
 	drm_via_mem_t *mem = data;
-	int retval = 0;
+	int retval = 0, user_key;
 	struct drm_memblock_item *item;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	struct via_file_private *file_priv = file->driver_priv;
@@ -139,22 +139,43 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 
 	tmpSize = (mem->size + VIA_MM_ALIGN_MASK) >> VIA_MM_ALIGN_SHIFT;
 	item = drm_sman_alloc(&dev_priv->sman, mem->type, tmpSize, 0, 0);
-
-	if (item) {
-		list_add(&item->owner_list, &file_priv->obj_list);
-		mem->offset = ((mem->type == VIA_MEM_VIDEO) ?
-			      dev_priv->vram_offset : dev_priv->agp_offset) +
-		    (item->mm->
-		     offset(item->mm, item->mm_info) << VIA_MM_ALIGN_SHIFT);
-		mem->index = item->user_hash.key;
-	} else {
-		mem->offset = 0;
-		mem->size = 0;
-		mem->index = 0;
-		DRM_DEBUG("Video memory allocation failed\n");
+	if (!item) {
 		retval = -ENOMEM;
+		goto fail_alloc;
 	}
+
+again:
+	if (idr_pre_get(&dev_priv->object_idr, GFP_KERNEL) == 0) {
+		retval = -ENOMEM;
+		goto fail_idr;
+	}
+
+	retval = idr_get_new_above(&dev_priv->object_idr, item, 1, &user_key);
+	if (retval == -EAGAIN)
+		goto again;
+	if (retval)
+		goto fail_idr;
+
+	list_add(&item->owner_list, &file_priv->obj_list);
 	mutex_unlock(&dev->struct_mutex);
+
+	mem->offset = ((mem->type == VIA_MEM_VIDEO) ?
+		      dev_priv->vram_offset : dev_priv->agp_offset) +
+	    (item->mm->
+	     offset(item->mm, item->mm_info) << VIA_MM_ALIGN_SHIFT);
+	mem->index = user_key;
+
+	return 0;
+
+fail_idr:
+	drm_sman_free(item);
+fail_alloc:
+	mutex_unlock(&dev->struct_mutex);
+
+	mem->offset = 0;
+	mem->size = 0;
+	mem->index = 0;
+	DRM_DEBUG("Video memory allocation failed\n");
 
 	return retval;
 }
@@ -163,11 +184,20 @@ int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
 	drm_via_mem_t *mem = data;
+	struct drm_memblock_item *obj;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = drm_sman_free_key(&dev_priv->sman, mem->index);
+	obj = idr_find(&dev_priv->object_idr, mem->index);
+	if (obj == NULL) {
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
+	}
+
+	idr_remove(&dev_priv->object_idr, mem->index);
+	drm_sman_free(obj);
 	mutex_unlock(&dev->struct_mutex);
+
 	DRM_DEBUG("free = 0x%lx\n", mem->index);
 
 	return ret;

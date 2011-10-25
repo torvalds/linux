@@ -104,6 +104,7 @@ int via_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv->chipset = chipset;
 
+	idr_init(&dev->object_name_idr);
 	ret = drm_sman_init(&dev_priv->sman, 2, 12, 8);
 	if (ret) {
 		kfree(dev_priv);

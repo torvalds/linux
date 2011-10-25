@@ -91,6 +91,8 @@ typedef struct drm_via_private {
 	struct drm_sman sman;
 	int vram_initialized;
 	int agp_initialized;
+	/** Mapping of userspace keys to mm objects */
+	struct idr object_idr;
 	unsigned long vram_offset;
 	unsigned long agp_offset;
 	drm_via_blitq_t blit_queues[VIA_NUM_BLIT_ENGINES];
