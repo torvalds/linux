@@ -419,6 +419,12 @@ struct ath6kl_vif {
 	struct timer_list disconnect_timer;
 	struct cfg80211_scan_request *scan_req;
 	enum sme_state sme_state;
+	int reconnect_flag;
+	u32 send_action_id;
+	bool probe_req_report;
+	u16 next_chan;
+	u16 assoc_bss_beacon_int;
+	u8 assoc_bss_dtim_period;
 };
 
 /* Flag info */
@@ -503,7 +509,6 @@ struct ath6kl {
 	struct ath6kl_mbox_info mbox_info;
 
 	struct ath6kl_cookie cookie_mem[MAX_COOKIE_NUM];
-	int reconnect_flag;
 	unsigned long flag;
 
 	u8 *fw_board;
@@ -524,13 +529,7 @@ struct ath6kl {
 
 	struct dentry *debugfs_phy;
 
-	u32 send_action_id;
-	bool probe_req_report;
-	u16 next_chan;
-
 	bool p2p;
-	u16 assoc_bss_beacon_int;
-	u8 assoc_bss_dtim_period;
 
 #ifdef CONFIG_ATH6KL_DEBUG
 	struct {

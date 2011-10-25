@@ -520,9 +520,9 @@ static int ath6kl_wmi_rx_probe_req_event_rx(struct wmi *wmi, u8 *datap, int len)
 	}
 	ath6kl_dbg(ATH6KL_DBG_WMI, "rx_probe_req: len=%u freq=%u "
 		   "probe_req_report=%d\n",
-		   dlen, freq, ar->probe_req_report);
+		   dlen, freq, vif->probe_req_report);
 
-	if (ar->probe_req_report || vif->nw_type == AP_NETWORK)
+	if (vif->probe_req_report || vif->nw_type == AP_NETWORK)
 		cfg80211_rx_mgmt(ar->net_dev, freq, ev->data, dlen, GFP_ATOMIC);
 
 	return 0;
@@ -993,7 +993,7 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 		tim = cfg80211_find_ie(WLAN_EID_TIM, buf + 8 + 2 + 2,
 				       len - 8 - 2 - 2);
 		if (tim && tim[1] >= 2) {
-			ar->assoc_bss_dtim_period = tim[3];
+			vif->assoc_bss_dtim_period = tim[3];
 			set_bit(DTIM_PERIOD_AVAIL, &vif->flags);
 		}
 	}

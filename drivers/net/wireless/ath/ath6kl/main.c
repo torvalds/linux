@@ -1074,7 +1074,7 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 	spin_unlock_bh(&ar->lock);
 
 	aggr_reset_state(vif->aggr_cntxt);
-	ar->reconnect_flag = 0;
+	vif->reconnect_flag = 0;
 
 	if ((vif->nw_type == ADHOC_NETWORK) && ar->ibss_ps_enable) {
 		memset(ar->node_map, 0, sizeof(ar->node_map));
@@ -1414,7 +1414,7 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 		if (((reason == ASSOC_FAILED) &&
 		    (prot_reason_status == 0x11)) ||
 		    ((reason == ASSOC_FAILED) && (prot_reason_status == 0x0)
-		     && (ar->reconnect_flag == 1))) {
+		     && (vif->reconnect_flag == 1))) {
 			set_bit(CONNECTED, &vif->flags);
 			return;
 		}
@@ -1426,8 +1426,8 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 	netif_carrier_off(ar->net_dev);
 	spin_unlock_bh(&ar->lock);
 
-	if ((reason != CSERV_DISCONNECT) || (ar->reconnect_flag != 1))
-		ar->reconnect_flag = 0;
+	if ((reason != CSERV_DISCONNECT) || (vif->reconnect_flag != 1))
+		vif->reconnect_flag = 0;
 
 	if (reason != CSERV_DISCONNECT)
 		ar->user_key_ctrl = 0;

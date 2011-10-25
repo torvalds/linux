@@ -362,7 +362,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (test_bit(CONNECTED, &vif->flags) &&
 	    vif->ssid_len == sme->ssid_len &&
 	    !memcmp(vif->ssid, sme->ssid, vif->ssid_len)) {
-		ar->reconnect_flag = true;
+		vif->reconnect_flag = true;
 		status = ath6kl_wmi_reconnect_cmd(ar->wmi, vif->req_bssid,
 						  vif->ch_hint);
 
@@ -454,7 +454,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		   vif->prwise_crypto_len, vif->grp_crypto,
 		   vif->grp_crypto_len, vif->ch_hint);
 
-	ar->reconnect_flag = 0;
+	vif->reconnect_flag = 0;
 	status = ath6kl_wmi_connect_cmd(ar->wmi, vif->nw_type,
 					vif->dot11_auth_mode, vif->auth_mode,
 					vif->prwise_crypto,
@@ -566,7 +566,7 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 	 * Store Beacon interval here; DTIM period will be available only once
 	 * a Beacon frame from the AP is seen.
 	 */
-	ar->assoc_bss_beacon_int = beacon_intvl;
+	vif->assoc_bss_beacon_int = beacon_intvl;
 	clear_bit(DTIM_PERIOD_AVAIL, &vif->flags);
 
 	if (nw_type & ADHOC_NETWORK) {
@@ -638,7 +638,7 @@ static int ath6kl_cfg80211_disconnect(struct wiphy *wiphy,
 		return -ERESTARTSYS;
 	}
 
-	ar->reconnect_flag = 0;
+	vif->reconnect_flag = 0;
 	ath6kl_disconnect(ar);
 	memset(vif->ssid, 0, sizeof(vif->ssid));
 	vif->ssid_len = 0;
@@ -1489,8 +1489,8 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 	    vif->nw_type == INFRA_NETWORK) {
 		sinfo->filled |= STATION_INFO_BSS_PARAM;
 		sinfo->bss_param.flags = 0;
-		sinfo->bss_param.dtim_period = ar->assoc_bss_dtim_period;
-		sinfo->bss_param.beacon_interval = ar->assoc_bss_beacon_int;
+		sinfo->bss_param.dtim_period = vif->assoc_bss_dtim_period;
+		sinfo->bss_param.beacon_interval = vif->assoc_bss_beacon_int;
 	}
 
 	return 0;
@@ -1545,13 +1545,14 @@ static int ath6kl_set_channel(struct wiphy *wiphy, struct net_device *dev,
 			      enum nl80211_channel_type channel_type)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 
 	if (!ath6kl_cfg80211_ready(ar))
 		return -EIO;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: center_freq=%u hw_value=%u\n",
 		   __func__, chan->center_freq, chan->hw_value);
-	ar->next_chan = chan->center_freq;
+	vif->next_chan = chan->center_freq;
 
 	return 0;
 }
@@ -1731,7 +1732,7 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	p.ssid_len = vif->ssid_len;
 	memcpy(p.ssid, vif->ssid, vif->ssid_len);
 	p.dot11_auth_mode = vif->dot11_auth_mode;
-	p.ch = cpu_to_le16(ar->next_chan);
+	p.ch = cpu_to_le16(vif->next_chan);
 
 	res = ath6kl_wmi_ap_profile_commit(ar->wmi, &p);
 	if (res < 0)
@@ -1877,13 +1878,13 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 						 chan->center_freq);
 	}
 
-	id = ar->send_action_id++;
+	id = vif->send_action_id++;
 	if (id == 0) {
 		/*
 		 * 0 is a reserved value in the WMI command and shall not be
 		 * used for the command.
 		 */
-		id = ar->send_action_id++;
+		id = vif->send_action_id++;
 	}
 
 	*cookie = id;
@@ -1895,7 +1896,7 @@ static void ath6kl_mgmt_frame_register(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       u16 frame_type, bool reg)
 {
-	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: frame_type=0x%x reg=%d\n",
 		   __func__, frame_type, reg);
@@ -1905,7 +1906,7 @@ static void ath6kl_mgmt_frame_register(struct wiphy *wiphy,
 		 * we cannot send WMI_PROBE_REQ_REPORT_CMD here. Instead, we
 		 * hardcode target to report Probe Request frames all the time.
 		 */
-		ar->probe_req_report = reg;
+		vif->probe_req_report = reg;
 	}
 }
 
