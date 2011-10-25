@@ -67,8 +67,7 @@ struct wm8994 {
 	int irq_base;
 
 	int irq;
-	u16 irq_masks_cur[WM8994_NUM_IRQ_REGS];
-	u16 irq_masks_cache[WM8994_NUM_IRQ_REGS];
+	struct regmap_irq_chip_data *irq_data;
 
 	/* Used over suspend/resume */
 	bool suspended;
