@@ -231,12 +231,14 @@ static void ath6kl_set_key_mgmt(struct ath6kl *ar, u32 key_mgmt)
 
 static bool ath6kl_cfg80211_ready(struct ath6kl *ar)
 {
+	struct ath6kl_vif *vif = ar->vif;
+
 	if (!test_bit(WMI_READY, &ar->flag)) {
 		ath6kl_err("wmi is not ready\n");
 		return false;
 	}
 
-	if (!test_bit(WLAN_ENABLED, &ar->flag)) {
+	if (!test_bit(WLAN_ENABLED, &vif->flags)) {
 		ath6kl_err("wlan disabled\n");
 		return false;
 	}
@@ -295,6 +297,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 				   struct cfg80211_connect_params *sme)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 	int status;
 
 	ar->sme_state = SME_CONNECTING;
@@ -345,7 +348,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 			return status;
 	}
 
-	if (test_bit(CONNECTED, &ar->flag) &&
+	if (test_bit(CONNECTED, &vif->flags) &&
 	    ar->ssid_len == sme->ssid_len &&
 	    !memcmp(ar->ssid, sme->ssid, ar->ssid_len)) {
 		ar->reconnect_flag = true;
@@ -420,7 +423,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (!ar->usr_bss_filter) {
-		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag);
+		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &vif->flags);
 		if (ath6kl_wmi_bssfilter_cmd(ar->wmi, ALL_BSS_FILTER, 0) != 0) {
 			ath6kl_err("couldn't set bss filtering\n");
 			up(&ar->sem);
@@ -469,7 +472,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	ar->connect_ctrl_flags &= ~CONNECT_DO_WPA_OFFLOAD;
-	set_bit(CONNECT_PEND, &ar->flag);
+	set_bit(CONNECT_PEND, &vif->flags);
 
 	return 0;
 }
@@ -529,6 +532,8 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 				   u8 assoc_resp_len, u8 *assoc_info)
 {
 	struct ieee80211_channel *chan;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 
 	/* capinfo + listen interval */
 	u8 assoc_req_ie_offset = sizeof(u16) + sizeof(u16);
@@ -548,7 +553,7 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 	 * a Beacon frame from the AP is seen.
 	 */
 	ar->assoc_bss_beacon_int = beacon_intvl;
-	clear_bit(DTIM_PERIOD_AVAIL, &ar->flag);
+	clear_bit(DTIM_PERIOD_AVAIL, &vif->flags);
 
 	if (nw_type & ADHOC_NETWORK) {
 		if (ar->wdev->iftype != NL80211_IFTYPE_ADHOC) {
@@ -637,6 +642,9 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 				      u8 *bssid, u8 assoc_resp_len,
 				      u8 *assoc_info, u16 proto_reason)
 {
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
+
 	if (ar->scan_req) {
 		cfg80211_scan_done(ar->scan_req, true);
 		ar->scan_req = NULL;
@@ -676,7 +684,7 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 		return;
 	}
 
-	clear_bit(CONNECT_PEND, &ar->flag);
+	clear_bit(CONNECT_PEND, &vif->flags);
 
 	if (ar->sme_state == SME_CONNECTING) {
 		cfg80211_connect_result(ar->net_dev,
@@ -696,6 +704,7 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 				struct cfg80211_scan_request *request)
 {
 	struct ath6kl *ar = (struct ath6kl *)ath6kl_priv(ndev);
+	struct ath6kl_vif *vif = netdev_priv(ndev);
 	s8 n_channels = 0;
 	u16 *channels = NULL;
 	int ret = 0;
@@ -705,10 +714,10 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 		return -EIO;
 
 	if (!ar->usr_bss_filter) {
-		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag);
+		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &vif->flags);
 		ret = ath6kl_wmi_bssfilter_cmd(
 			ar->wmi,
-			(test_bit(CONNECTED, &ar->flag) ?
+			(test_bit(CONNECTED, &vif->flags) ?
 			 ALL_BUT_BSS_FILTER : ALL_BSS_FILTER), 0);
 		if (ret) {
 			ath6kl_err("couldn't set bss filtering\n");
@@ -761,7 +770,7 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 			channels[i] = request->channels[i]->center_freq;
 	}
 
-	if (test_bit(CONNECTED, &ar->flag))
+	if (test_bit(CONNECTED, &vif->flags))
 		force_fg_scan = 1;
 
 	ret = ath6kl_wmi_startscan_cmd(ar->wmi, WMI_LONG_SCAN, force_fg_scan,
@@ -810,6 +819,7 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 				   struct key_params *params)
 {
 	struct ath6kl *ar = (struct ath6kl *)ath6kl_priv(ndev);
+	struct ath6kl_vif *vif = netdev_priv(ndev);
 	struct ath6kl_key *key = NULL;
 	u8 key_usage;
 	u8 key_type;
@@ -888,7 +898,7 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		ar->ap_mode_bkey.key_type = key_type;
 		ar->ap_mode_bkey.key_len = key->key_len;
 		memcpy(ar->ap_mode_bkey.key, key->key, key->key_len);
-		if (!test_bit(CONNECTED, &ar->flag)) {
+		if (!test_bit(CONNECTED, &vif->flags)) {
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delay initial group "
 				   "key configuration until AP mode has been "
 				   "started\n");
@@ -901,7 +911,7 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	if (ar->next_mode == AP_NETWORK && key_type == WEP_CRYPT &&
-	    !test_bit(CONNECTED, &ar->flag)) {
+	    !test_bit(CONNECTED, &vif->flags)) {
 		/*
 		 * Store the key locally so that it can be re-configured after
 		 * the AP mode has properly started
@@ -995,6 +1005,7 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 					   bool multicast)
 {
 	struct ath6kl *ar = (struct ath6kl *)ath6kl_priv(ndev);
+	struct ath6kl_vif *vif = netdev_priv(ndev);
 	struct ath6kl_key *key = NULL;
 	int status = 0;
 	u8 key_usage;
@@ -1028,7 +1039,7 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	if (multicast)
 		key_type = ar->grp_crypto;
 
-	if (ar->next_mode == AP_NETWORK && !test_bit(CONNECTED, &ar->flag))
+	if (ar->next_mode == AP_NETWORK && !test_bit(CONNECTED, &vif->flags))
 		return 0; /* Delay until AP mode has been started */
 
 	status = ath6kl_wmi_addkey_cmd(ar->wmi, ar->def_txkey_index,
@@ -1113,11 +1124,12 @@ static int ath6kl_cfg80211_set_txpower(struct wiphy *wiphy,
 static int ath6kl_cfg80211_get_txpower(struct wiphy *wiphy, int *dbm)
 {
 	struct ath6kl *ar = (struct ath6kl *)wiphy_priv(wiphy);
+	struct ath6kl_vif *vif = ar->vif;
 
 	if (!ath6kl_cfg80211_ready(ar))
 		return -EIO;
 
-	if (test_bit(CONNECTED, &ar->flag)) {
+	if (test_bit(CONNECTED, &vif->flags)) {
 		ar->tx_pwr = 0;
 
 		if (ath6kl_wmi_get_tx_pwr_cmd(ar->wmi) != 0) {
@@ -1211,6 +1223,7 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 				     struct cfg80211_ibss_params *ibss_param)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 	int status;
 
 	if (!ath6kl_cfg80211_ready(ar))
@@ -1269,7 +1282,7 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 					ar->ssid_len, ar->ssid,
 					ar->req_bssid, ar->ch_hint,
 					ar->connect_ctrl_flags);
-	set_bit(CONNECT_PEND, &ar->flag);
+	set_bit(CONNECT_PEND, &vif->flags);
 
 	return 0;
 }
@@ -1362,6 +1375,7 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 			      u8 *mac, struct station_info *sinfo)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 	long left;
 	bool sgi;
 	s32 rate;
@@ -1444,8 +1458,8 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	sinfo->filled |= STATION_INFO_TX_BITRATE;
 
-	if (test_bit(CONNECTED, &ar->flag) &&
-	    test_bit(DTIM_PERIOD_AVAIL, &ar->flag) &&
+	if (test_bit(CONNECTED, &vif->flags) &&
+	    test_bit(DTIM_PERIOD_AVAIL, &vif->flags) &&
 	    ar->nw_type == INFRA_NETWORK) {
 		sinfo->filled |= STATION_INFO_BSS_PARAM;
 		sinfo->bss_param.flags = 0;
@@ -1475,7 +1489,9 @@ static int ath6kl_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 static int ath6kl_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 {
 	struct ath6kl *ar = ath6kl_priv(netdev);
-	if (test_bit(CONNECTED, &ar->flag))
+	struct ath6kl_vif *vif = netdev_priv(netdev);
+
+	if (test_bit(CONNECTED, &vif->flags))
 		return ath6kl_wmi_setpmkid_cmd(ar->wmi, ar->bssid, NULL, false);
 	return 0;
 }
@@ -1711,14 +1727,15 @@ static int ath6kl_set_beacon(struct wiphy *wiphy, struct net_device *dev,
 static int ath6kl_del_beacon(struct wiphy *wiphy, struct net_device *dev)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 
 	if (ar->nw_type != AP_NETWORK)
 		return -EOPNOTSUPP;
-	if (!test_bit(CONNECTED, &ar->flag))
+	if (!test_bit(CONNECTED, &vif->flags))
 		return -ENOTCONN;
 
 	ath6kl_wmi_disconnect_cmd(ar->wmi);
-	clear_bit(CONNECTED, &ar->flag);
+	clear_bit(CONNECTED, &vif->flags);
 
 	return 0;
 }
@@ -1814,12 +1831,13 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 			  bool dont_wait_for_ack, u64 *cookie)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 	u32 id;
 	const struct ieee80211_mgmt *mgmt;
 
 	mgmt = (const struct ieee80211_mgmt *) buf;
 	if (buf + len >= mgmt->u.probe_resp.variable &&
-	    ar->nw_type == AP_NETWORK && test_bit(CONNECTED, &ar->flag) &&
+	    ar->nw_type == AP_NETWORK && test_bit(CONNECTED, &vif->flags) &&
 	    ieee80211_is_probe_resp(mgmt->frame_control)) {
 		/*
 		 * Send Probe Response frame in AP mode using a separate WMI
@@ -2039,9 +2057,9 @@ void ath6kl_deinit_if_data(struct ath6kl_vif *vif)
 
 	ar->aggr_cntxt = NULL;
 
-	if (test_bit(NETDEV_REGISTERED, &ar->flag)) {
+	if (test_bit(NETDEV_REGISTERED, &vif->flags)) {
 		unregister_netdev(vif->ndev);
-		clear_bit(NETDEV_REGISTERED, &ar->flag);
+		clear_bit(NETDEV_REGISTERED, &vif->flags);
 	}
 
 	free_netdev(vif->ndev);
@@ -2081,9 +2099,9 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 		goto err;
 
 	ar->sme_state = SME_DISCONNECTED;
-	set_bit(WLAN_ENABLED, &ar->flag);
+	set_bit(WLAN_ENABLED, &vif->flags);
 	ar->wlan_pwr_state = WLAN_POWER_STATE_ON;
-	set_bit(NETDEV_REGISTERED, &ar->flag);
+	set_bit(NETDEV_REGISTERED, &vif->flags);
 
 	return ndev;
 

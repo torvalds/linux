@@ -83,6 +83,8 @@ static bool ath6kl_powersave_ap(struct ath6kl *ar, struct sk_buff *skb,
 	struct ethhdr *datap = (struct ethhdr *) skb->data;
 	struct ath6kl_sta *conn = NULL;
 	bool ps_queued = false, is_psq_empty = false;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 
 	if (is_multicast_ether_addr(datap->h_dest)) {
 		u8 ctr = 0;
@@ -100,7 +102,7 @@ static bool ath6kl_powersave_ap(struct ath6kl *ar, struct sk_buff *skb,
 			 * If this transmit is not because of a Dtim Expiry
 			 * q it.
 			 */
-			if (!test_bit(DTIM_EXPIRED, &ar->flag)) {
+			if (!test_bit(DTIM_EXPIRED, &vif->flags)) {
 				bool is_mcastq_empty = false;
 
 				spin_lock_bh(&ar->mcastpsq_lock);
@@ -235,6 +237,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_cookie *cookie = NULL;
 	enum htc_endpoint_id eid = ENDPOINT_UNUSED;
+	struct ath6kl_vif *vif = netdev_priv(dev);
 	u32 map_no = 0;
 	u16 htc_tag = ATH6KL_DATA_PKT_TAG;
 	u8 ac = 99 ; /* initialize to unmapped ac */
@@ -246,7 +249,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 		   skb, skb->data, skb->len);
 
 	/* If target is not associated */
-	if (!test_bit(CONNECTED, &ar->flag)) {
+	if (!test_bit(CONNECTED, &vif->flags)) {
 		dev_kfree_skb(skb);
 		return 0;
 	}
@@ -278,12 +281,12 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if ((ar->nw_type == ADHOC_NETWORK) &&
-		     ar->ibss_ps_enable && test_bit(CONNECTED, &ar->flag))
+		     ar->ibss_ps_enable && test_bit(CONNECTED, &vif->flags))
 			chk_adhoc_ps_mapping = true;
 		else {
 			/* get the stream mapping */
 			ret = ath6kl_wmi_implicit_create_pstream(ar->wmi, skb,
-				    0, test_bit(WMM_ENABLED, &ar->flag), &ac);
+				    0, test_bit(WMM_ENABLED, &vif->flags), &ac);
 			if (ret)
 				goto fail_tx;
 		}
@@ -426,6 +429,8 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 					       struct htc_packet *packet)
 {
 	struct ath6kl *ar = target->dev->ar;
+	/* TODO: Findout vif properly */
+	struct ath6kl_vif *vif = ar->vif;
 	enum htc_endpoint_id endpoint = packet->endpoint;
 
 	if (endpoint == ar->ctrl_ep) {
@@ -468,7 +473,7 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 
 stop_net_queues:
 	spin_lock_bh(&ar->lock);
-	set_bit(NETQ_STOPPED, &ar->flag);
+	set_bit(NETQ_STOPPED, &vif->flags);
 	spin_unlock_bh(&ar->lock);
 	netif_stop_queue(ar->net_dev);
 
@@ -524,6 +529,8 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 	enum htc_endpoint_id eid;
 	bool wake_event = false;
 	bool flushing = false;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 
 	skb_queue_head_init(&skb_queue);
 
@@ -597,15 +604,15 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 
 		ath6kl_free_cookie(ar, ath6kl_cookie);
 
-		if (test_bit(NETQ_STOPPED, &ar->flag))
-			clear_bit(NETQ_STOPPED, &ar->flag);
+		if (test_bit(NETQ_STOPPED, &vif->flags))
+			clear_bit(NETQ_STOPPED, &vif->flags);
 	}
 
 	spin_unlock_bh(&ar->lock);
 
 	__skb_queue_purge(&skb_queue);
 
-	if (test_bit(CONNECTED, &ar->flag)) {
+	if (test_bit(CONNECTED, &vif->flags)) {
 		if (!flushing)
 			netif_wake_queue(ar->net_dev);
 	}

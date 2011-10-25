@@ -950,6 +950,8 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 	struct ath6kl *ar = wmi->parent_dev;
 	struct ieee80211_mgmt *mgmt;
 	struct cfg80211_bss *bss;
+	/*TODO: Findout vif properly */
+	struct ath6kl_vif *vif = ar->vif;
 
 	if (len <= sizeof(struct wmi_bss_info_hdr2))
 		return -EINVAL;
@@ -969,8 +971,8 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 		return 0; /* Only update BSS table for now */
 
 	if (bih->frame_type == BEACON_FTYPE &&
-	    test_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag)) {
-		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag);
+	    test_bit(CLEAR_BSSFILTER_ON_BEACON, &vif->flags)) {
+		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &vif->flags);
 		ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
 	}
 
@@ -981,14 +983,14 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 	if (len < 8 + 2 + 2)
 		return -EINVAL;
 
-	if (bih->frame_type == BEACON_FTYPE && test_bit(CONNECTED, &ar->flag) &&
-	    memcmp(bih->bssid, ar->bssid, ETH_ALEN) == 0) {
+	if (bih->frame_type == BEACON_FTYPE && test_bit(CONNECTED, &vif->flags)
+	    && memcmp(bih->bssid, ar->bssid, ETH_ALEN) == 0) {
 		const u8 *tim;
 		tim = cfg80211_find_ie(WLAN_EID_TIM, buf + 8 + 2 + 2,
 				       len - 8 - 2 - 2);
 		if (tim && tim[1] >= 2) {
 			ar->assoc_bss_dtim_period = tim[3];
-			set_bit(DTIM_PERIOD_AVAIL, &ar->flag);
+			set_bit(DTIM_PERIOD_AVAIL, &vif->flags);
 		}
 	}
 

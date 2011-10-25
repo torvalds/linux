@@ -1575,6 +1575,7 @@ err_wq:
 void ath6kl_stop_txrx(struct ath6kl *ar)
 {
 	struct net_device *ndev = ar->net_dev;
+	struct ath6kl_vif *vif = ar->vif;
 
 	if (!ndev)
 		return;
@@ -1589,7 +1590,7 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 	if (ar->wlan_pwr_state != WLAN_POWER_STATE_CUT_PWR)
 		ath6kl_stop_endpoint(ndev, false, true);
 
-	clear_bit(WLAN_ENABLED, &ar->flag);
+	clear_bit(WLAN_ENABLED, &vif->flags);
 }
 
 /*

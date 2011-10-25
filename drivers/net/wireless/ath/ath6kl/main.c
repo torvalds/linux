@@ -429,6 +429,7 @@ void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
 			  bool get_dbglogs)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 	static u8 bcast_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	bool discon_issued;
 
@@ -436,8 +437,8 @@ void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
 
 	/* disable the target and the interrupts associated with it */
 	if (test_bit(WMI_READY, &ar->flag)) {
-		discon_issued = (test_bit(CONNECTED, &ar->flag) ||
-				 test_bit(CONNECT_PEND, &ar->flag));
+		discon_issued = (test_bit(CONNECTED, &vif->flags) ||
+				 test_bit(CONNECT_PEND, &vif->flags));
 		ath6kl_disconnect(ar);
 		if (!keep_profile)
 			ath6kl_init_profile_info(ar);
@@ -524,6 +525,8 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl *ar, u16 channel)
 	struct ath6kl_req_key *ik;
 	int res;
 	u8 key_rsc[ATH6KL_KEY_SEQ_LEN];
+	/* TODO: Pass vif instead of taking it from ar */
+	struct ath6kl_vif *vif = ar->vif;
 
 	ik = &ar->ap_mode_bkey;
 
@@ -555,7 +558,7 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl *ar, u16 channel)
 	}
 
 	ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
-	set_bit(CONNECTED, &ar->flag);
+	set_bit(CONNECTED, &vif->flags);
 	netif_carrier_on(ar->net_dev);
 }
 
@@ -914,20 +917,26 @@ void disconnect_timer_handler(unsigned long ptr)
 
 void ath6kl_disconnect(struct ath6kl *ar)
 {
-	if (test_bit(CONNECTED, &ar->flag) ||
-	    test_bit(CONNECT_PEND, &ar->flag)) {
+	/* TODO: Pass vif instead of taking it from ar */
+	struct ath6kl_vif *vif = ar->vif;
+
+	if (test_bit(CONNECTED, &vif->flags) ||
+	    test_bit(CONNECT_PEND, &vif->flags)) {
 		ath6kl_wmi_disconnect_cmd(ar->wmi);
 		/*
 		 * Disconnect command is issued, clear the connect pending
 		 * flag. The connected flag will be cleared in
 		 * disconnect event notification.
 		 */
-		clear_bit(CONNECT_PEND, &ar->flag);
+		clear_bit(CONNECT_PEND, &vif->flags);
 	}
 }
 
 void ath6kl_deep_sleep_enable(struct ath6kl *ar)
 {
+	/* TODO: Pass vif instead of taking it from ar */
+	struct ath6kl_vif *vif = ar->vif;
+
 	switch (ar->sme_state) {
 	case SME_CONNECTING:
 		cfg80211_connect_result(ar->net_dev, ar->bssid, NULL, 0,
@@ -946,8 +955,8 @@ void ath6kl_deep_sleep_enable(struct ath6kl *ar)
 		break;
 	}
 
-	if (test_bit(CONNECTED, &ar->flag) ||
-	    test_bit(CONNECT_PEND, &ar->flag))
+	if (test_bit(CONNECTED, &vif->flags) ||
+	    test_bit(CONNECT_PEND, &vif->flags))
 		ath6kl_wmi_disconnect_cmd(ar->wmi);
 
 	ar->sme_state = SME_DISCONNECTED;
@@ -1016,10 +1025,13 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 
 void ath6kl_scan_complete_evt(struct ath6kl *ar, int status)
 {
+	/* TODO: Pass vif instead of taking it from ar */
+	struct ath6kl_vif *vif = ar->vif;
+
 	ath6kl_cfg80211_scan_complete_event(ar, status);
 
 	if (!ar->usr_bss_filter) {
-		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag);
+		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &vif->flags);
 		ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
 	}
 
@@ -1032,6 +1044,9 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 			  u8 assoc_req_len, u8 assoc_resp_len,
 			  u8 *assoc_info)
 {
+	/* TODO: findout  vif instead of taking it from ar */
+	struct ath6kl_vif *vif = ar->vif;
+
 	ath6kl_cfg80211_connect_event(ar, channel, bssid,
 				      listen_int, beacon_int,
 				      net_type, beacon_ie_len,
@@ -1049,8 +1064,8 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 
 	/* Update connect & link status atomically */
 	spin_lock_bh(&ar->lock);
-	set_bit(CONNECTED, &ar->flag);
-	clear_bit(CONNECT_PEND, &ar->flag);
+	set_bit(CONNECTED, &vif->flags);
+	clear_bit(CONNECT_PEND, &vif->flags);
 	netif_carrier_on(ar->net_dev);
 	spin_unlock_bh(&ar->lock);
 
@@ -1064,7 +1079,7 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 	}
 
 	if (!ar->usr_bss_filter) {
-		set_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag);
+		set_bit(CLEAR_BSSFILTER_ON_BEACON, &vif->flags);
 		ath6kl_wmi_bssfilter_cmd(ar->wmi, CURRENT_BSS_FILTER, 0);
 	}
 }
@@ -1292,6 +1307,8 @@ void ath6kl_dtimexpiry_event(struct ath6kl *ar)
 {
 	bool mcastq_empty = false;
 	struct sk_buff *skb;
+	/* TODO: Pass vif instead of taking it from ar */
+	struct ath6kl_vif *vif = ar->vif;
 
 	/*
 	 * If there are no associated STAs, ignore the DTIM expiry event.
@@ -1313,7 +1330,7 @@ void ath6kl_dtimexpiry_event(struct ath6kl *ar)
 		return;
 
 	/* set the STA flag to dtim_expired for the frame to go out */
-	set_bit(DTIM_EXPIRED, &ar->flag);
+	set_bit(DTIM_EXPIRED, &vif->flags);
 
 	spin_lock_bh(&ar->mcastpsq_lock);
 	while ((skb = skb_dequeue(&ar->mcastpsq)) != NULL) {
@@ -1325,7 +1342,7 @@ void ath6kl_dtimexpiry_event(struct ath6kl *ar)
 	}
 	spin_unlock_bh(&ar->mcastpsq_lock);
 
-	clear_bit(DTIM_EXPIRED, &ar->flag);
+	clear_bit(DTIM_EXPIRED, &vif->flags);
 
 	/* clear the LSB of the BitMapCtl field of the TIM IE */
 	ath6kl_wmi_set_pvb_cmd(ar->wmi, MCAST_AID, 0);
@@ -1335,6 +1352,9 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 			     u8 assoc_resp_len, u8 *assoc_info,
 			     u16 prot_reason_status)
 {
+	/* TODO: Findout vif instead of taking it from ar */
+	struct ath6kl_vif *vif = ar->vif;
+
 	if (ar->nw_type == AP_NETWORK) {
 		if (!ath6kl_remove_sta(ar, bssid, prot_reason_status))
 			return;
@@ -1357,7 +1377,7 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 
 		if (memcmp(ar->net_dev->dev_addr, bssid, ETH_ALEN) == 0) {
 			memset(ar->wep_key_list, 0, sizeof(ar->wep_key_list));
-			clear_bit(CONNECTED, &ar->flag);
+			clear_bit(CONNECTED, &vif->flags);
 		}
 		return;
 	}
@@ -1382,19 +1402,19 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 		if (!ar->usr_bss_filter && test_bit(WMI_READY, &ar->flag))
 			ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
 	} else {
-		set_bit(CONNECT_PEND, &ar->flag);
+		set_bit(CONNECT_PEND, &vif->flags);
 		if (((reason == ASSOC_FAILED) &&
 		    (prot_reason_status == 0x11)) ||
 		    ((reason == ASSOC_FAILED) && (prot_reason_status == 0x0)
 		     && (ar->reconnect_flag == 1))) {
-			set_bit(CONNECTED, &ar->flag);
+			set_bit(CONNECTED, &vif->flags);
 			return;
 		}
 	}
 
 	/* update connect & link status atomically */
 	spin_lock_bh(&ar->lock);
-	clear_bit(CONNECTED, &ar->flag);
+	clear_bit(CONNECTED, &vif->flags);
 	netif_carrier_off(ar->net_dev);
 	spin_unlock_bh(&ar->lock);
 
@@ -1414,12 +1434,13 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 static int ath6kl_open(struct net_device *dev)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 
 	spin_lock_bh(&ar->lock);
 
-	set_bit(WLAN_ENABLED, &ar->flag);
+	set_bit(WLAN_ENABLED, &vif->flags);
 
-	if (test_bit(CONNECTED, &ar->flag)) {
+	if (test_bit(CONNECTED, &vif->flags)) {
 		netif_carrier_on(dev);
 		netif_wake_queue(dev);
 	} else
@@ -1433,6 +1454,7 @@ static int ath6kl_open(struct net_device *dev)
 static int ath6kl_close(struct net_device *dev)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 
 	netif_stop_queue(dev);
 
@@ -1443,7 +1465,7 @@ static int ath6kl_close(struct net_device *dev)
 					      0, 0, 0))
 			return -EIO;
 
-		clear_bit(WLAN_ENABLED, &ar->flag);
+		clear_bit(WLAN_ENABLED, &vif->flags);
 	}
 
 	ath6kl_cfg80211_scan_complete_event(ar, -ECANCELED);

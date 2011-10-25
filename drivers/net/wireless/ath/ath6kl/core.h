@@ -380,30 +380,37 @@ struct ath6kl_req_key {
 	u8 key_len;
 };
 
+/* vif flags info */
+enum ath6kl_vif_state {
+	CONNECTED,
+	CONNECT_PEND,
+	WMM_ENABLED,
+	NETQ_STOPPED,
+	DTIM_EXPIRED,
+	NETDEV_REGISTERED,
+	CLEAR_BSSFILTER_ON_BEACON,
+	DTIM_PERIOD_AVAIL,
+	WLAN_ENABLED,
+};
+
 struct ath6kl_vif {
 	struct wireless_dev wdev;
 	struct net_device *ndev;
 	struct ath6kl *ar;
+	unsigned long flags;
 };
 
 /* Flag info */
-#define WMI_ENABLED	0
-#define WMI_READY	1
-#define CONNECTED	2
-#define STATS_UPDATE_PEND 3
-#define CONNECT_PEND	  4
-#define WMM_ENABLED	  5
-#define NETQ_STOPPED	  6
-#define WMI_CTRL_EP_FULL  7
-#define DTIM_EXPIRED	  8
-#define DESTROY_IN_PROGRESS  9
-#define NETDEV_REGISTERED    10
-#define SKIP_SCAN	     11
-#define WLAN_ENABLED	     12
-#define TESTMODE	     13
-#define CLEAR_BSSFILTER_ON_BEACON 14
-#define DTIM_PERIOD_AVAIL    15
-#define ROAM_TBL_PEND        16
+enum ath6kl_dev_state {
+	WMI_ENABLED,
+	WMI_READY,
+	WMI_CTRL_EP_FULL,
+	TESTMODE,
+	DESTROY_IN_PROGRESS,
+	SKIP_SCAN,
+	STATS_UPDATE_PEND,
+	ROAM_TBL_PEND,
+};
 
 struct ath6kl {
 	struct device *dev;
