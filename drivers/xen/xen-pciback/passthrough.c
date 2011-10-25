@@ -7,13 +7,13 @@
 
 #include <linux/list.h>
 #include <linux/pci.h>
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include "pciback.h"
 
 struct passthrough_dev_data {
 	/* Access to dev_list must be protected by lock */
 	struct list_head dev_list;
-	spinlock_t lock;
+	struct mutex lock;
 };
 
 static struct pci_dev *__xen_pcibk_get_pci_dev(struct xen_pcibk_device *pdev,
@@ -24,9 +24,8 @@ static struct pci_dev *__xen_pcibk_get_pci_dev(struct xen_pcibk_device *pdev,
 	struct passthrough_dev_data *dev_data = pdev->pci_dev_data;
 	struct pci_dev_entry *dev_entry;
 	struct pci_dev *dev = NULL;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev_data->lock, flags);
+	mutex_lock(&dev_data->lock);
 
 	list_for_each_entry(dev_entry, &dev_data->dev_list, list) {
 		if (domain == (unsigned int)pci_domain_nr(dev_entry->dev->bus)
@@ -37,7 +36,7 @@ static struct pci_dev *__xen_pcibk_get_pci_dev(struct xen_pcibk_device *pdev,
 		}
 	}
 
-	spin_unlock_irqrestore(&dev_data->lock, flags);
+	mutex_unlock(&dev_data->lock);
 
 	return dev;
 }
@@ -48,7 +47,6 @@ static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 {
 	struct passthrough_dev_data *dev_data = pdev->pci_dev_data;
 	struct pci_dev_entry *dev_entry;
-	unsigned long flags;
 	unsigned int domain, bus, devfn;
 	int err;
 
@@ -57,9 +55,9 @@ static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 		return -ENOMEM;
 	dev_entry->dev = dev;
 
-	spin_lock_irqsave(&dev_data->lock, flags);
+	mutex_lock(&dev_data->lock);
 	list_add_tail(&dev_entry->list, &dev_data->dev_list);
-	spin_unlock_irqrestore(&dev_data->lock, flags);
+	mutex_unlock(&dev_data->lock);
 
 	/* Publish this device. */
 	domain = (unsigned int)pci_domain_nr(dev->bus);
@@ -76,9 +74,8 @@ static void __xen_pcibk_release_pci_dev(struct xen_pcibk_device *pdev,
 	struct passthrough_dev_data *dev_data = pdev->pci_dev_data;
 	struct pci_dev_entry *dev_entry, *t;
 	struct pci_dev *found_dev = NULL;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev_data->lock, flags);
+	mutex_lock(&dev_data->lock);
 
 	list_for_each_entry_safe(dev_entry, t, &dev_data->dev_list, list) {
 		if (dev_entry->dev == dev) {
@@ -88,7 +85,7 @@ static void __xen_pcibk_release_pci_dev(struct xen_pcibk_device *pdev,
 		}
 	}
 
-	spin_unlock_irqrestore(&dev_data->lock, flags);
+	mutex_unlock(&dev_data->lock);
 
 	if (found_dev)
 		pcistub_put_pci_dev(found_dev);
@@ -102,7 +99,7 @@ static int __xen_pcibk_init_devices(struct xen_pcibk_device *pdev)
 	if (!dev_data)
 		return -ENOMEM;
 
-	spin_lock_init(&dev_data->lock);
+	mutex_init(&dev_data->lock);
 
 	INIT_LIST_HEAD(&dev_data->dev_list);
 
@@ -116,14 +113,14 @@ static int __xen_pcibk_publish_pci_roots(struct xen_pcibk_device *pdev,
 {
 	int err = 0;
 	struct passthrough_dev_data *dev_data = pdev->pci_dev_data;
-	struct pci_dev_entry *dev_entry, *e, *tmp;
+	struct pci_dev_entry *dev_entry, *e;
 	struct pci_dev *dev;
 	int found;
 	unsigned int domain, bus;
 
-	spin_lock(&dev_data->lock);
+	mutex_lock(&dev_data->lock);
 
-	list_for_each_entry_safe(dev_entry, tmp, &dev_data->dev_list, list) {
+	list_for_each_entry(dev_entry, &dev_data->dev_list, list) {
 		/* Only publish this device as a root if none of its
 		 * parent bridges are exported
 		 */
@@ -142,16 +139,13 @@ static int __xen_pcibk_publish_pci_roots(struct xen_pcibk_device *pdev,
 		bus = (unsigned int)dev_entry->dev->bus->number;
 
 		if (!found) {
-			spin_unlock(&dev_data->lock);
 			err = publish_root_cb(pdev, domain, bus);
 			if (err)
 				break;
-			spin_lock(&dev_data->lock);
 		}
 	}
 
-	if (!err)
-		spin_unlock(&dev_data->lock);
+	mutex_unlock(&dev_data->lock);
 
 	return err;
 }
@@ -182,7 +176,7 @@ static int __xen_pcibk_get_pcifront_dev(struct pci_dev *pcidev,
 	return 1;
 }
 
-struct xen_pcibk_backend xen_pcibk_passthrough_backend = {
+const struct xen_pcibk_backend xen_pcibk_passthrough_backend = {
 	.name           = "passthrough",
 	.init           = __xen_pcibk_init_devices,
 	.free		= __xen_pcibk_release_devices,
