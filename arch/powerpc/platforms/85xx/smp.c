@@ -207,7 +207,7 @@ static void mpc85xx_smp_machine_kexec(struct kimage *image)
 	if ( !timeout )
 		printk(KERN_ERR "Unable to bring down secondary cpu(s)");
 
-	for (i = 0; i < num_cpus; i++)
+	for_each_online_cpu(i)
 	{
 		if ( i == smp_processor_id() ) continue;
 		mpic_reset_core(i);
