@@ -1461,9 +1461,8 @@ static int ath6kl_init_hw_params(struct ath6kl *ar)
 	return 0;
 }
 
-static int ath6kl_init(struct net_device *dev)
+static int ath6kl_init(struct ath6kl *ar)
 {
-	struct ath6kl *ar = ath6kl_priv(dev);
 	int status = 0;
 	s32 timeleft;
 
@@ -1632,7 +1631,7 @@ int ath6kl_core_init(struct ath6kl *ar)
 	if (ret)
 		goto err_htc_cleanup;
 
-	ret = ath6kl_init(ar->net_dev);
+	ret = ath6kl_init(ar);
 	if (ret)
 		goto err_htc_cleanup;
 
