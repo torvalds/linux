@@ -47,6 +47,7 @@
 
 void harmony_pinmux_init(void);
 void seaboard_pinmux_init(void);
+void trimslice_pinmux_init(void);
 void ventana_pinmux_init(void);
 
 struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
@@ -93,6 +94,7 @@ static struct {
 	char *machine;
 	void (*init)(void);
 } pinmux_configs[] = {
+	{ "compulab,trimslice", trimslice_pinmux_init },
 	{ "nvidia,harmony", harmony_pinmux_init },
 	{ "nvidia,seaboard", seaboard_pinmux_init },
 	{ "nvidia,ventana", ventana_pinmux_init },
@@ -129,6 +131,7 @@ static void __init tegra_dt_init(void)
 }
 
 static const char * tegra_dt_board_compat[] = {
+	"compulab,trimslice",
 	"nvidia,harmony",
 	"nvidia,seaboard",
 	"nvidia,ventana",
