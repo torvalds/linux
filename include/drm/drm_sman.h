@@ -149,25 +149,6 @@ extern int drm_sman_free_key(struct drm_sman * sman, unsigned int key);
 extern void drm_sman_free(struct drm_memblock_item *item);
 
 /*
- * returns 1 iff there are no stale memory blocks associated with this owner.
- * Typically called to determine if we need to idle the hardware and call
- * drm_sman_owner_cleanup. If there are no stale memory blocks, it removes all
- * resources associated with owner.
- */
-
-extern int drm_sman_owner_clean(struct drm_sman * sman, unsigned long owner);
-
-/*
- * Frees all stale memory blocks associated with this owner. Note that this
- * requires that the hardware is finished with all blocks, so the graphics engine
- * should be idled before this call is made. This function also frees
- * any resources associated with "owner" and should be called when owner
- * is not going to be referenced anymore.
- */
-
-extern void drm_sman_owner_cleanup(struct drm_sman * sman, unsigned long owner);
-
-/*
  * Frees all stale memory blocks associated with the memory manager.
  * See idling above.
  */
