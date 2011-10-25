@@ -1832,7 +1832,7 @@ static int wimo_get_buff(struct fb_info *info)
 		struct fb_var_screeninfo *var = &inf->fb1->var;
 		struct win0_par *par = inf->fb1->par;
 		wimo_info.mode = 1;
-		printk("overlay setbuffer in\n");
+	//	printk("overlay setbuffer in\n");
 	//	mutex_lock(&wimo_info.fb_lock);
 		wimo_info.fb_lock = 1;
 		{
@@ -1924,7 +1924,7 @@ static int wimo_get_buff(struct fb_info *info)
 			err = ipp_blit_sync(&overlay_req);
 		
 		}
-		printk("overlay setbuffer exit\n");
+	//	printk("overlay setbuffer exit\n");
 		ret = 1;
 		wimo_info.fb_lock = 0;
 	}
@@ -2646,12 +2646,12 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
         {
             u32 yuv_phy[2];
 #ifdef	FB_WIMO_FLAG
-		printk("FB1_IOCTL_SET_YUV_ADDR1 \n");
-		while(wimo_info.fb_lock)
-			{
-			msleep(10);
-			}
-		printk("FB1_IOCTL_SET_YUV_ADDR 2\n");
+	//	printk("FB1_IOCTL_SET_YUV_ADDR1 \n");
+	//	while(wimo_info.fb_lock)
+	//		{
+	//		msleep(10);
+	//		}
+	//	printk("FB1_IOCTL_SET_YUV_ADDR 2\n");
 #endif
             if (copy_from_user(yuv_phy, argp, 8))
 			    return -EFAULT;
