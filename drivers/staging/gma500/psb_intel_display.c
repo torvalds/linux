@@ -1102,10 +1102,6 @@ static int psb_crtc_set_config(struct drm_mode_set *set)
 {
 	int ret;
 	struct drm_device *dev = set->crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-
-	if (!dev_priv->rpm_enabled)
-		return drm_crtc_helper_set_config(set);
 
 	pm_runtime_forbid(&dev->pdev->dev);
 	ret = drm_crtc_helper_set_config(set);

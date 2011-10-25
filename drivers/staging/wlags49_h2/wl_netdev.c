@@ -217,7 +217,7 @@ int wl_config( struct net_device *dev, struct ifmap *map )
 
     /* The only thing we care about here is a port change. Since this not needed,
        ignore the request. */
-    DBG_TRACE( DbgInfo, "%s: %s called.\n", dev->name, __FUNC__ );
+    DBG_TRACE(DbgInfo, "%s: %s called.\n", dev->name, __func__);
 
     DBG_LEAVE( DbgInfo );
     return 0;

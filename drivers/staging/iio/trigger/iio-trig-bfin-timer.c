@@ -143,6 +143,10 @@ static int iio_bfin_tmr_get_number(int irq)
 	return -ENODEV;
 }
 
+static const struct iio_trigger_ops iio_bfin_tmr_trigger_ops = {
+	.owner = THIS_MODULE,
+};
+
 static int __devinit iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 {
 	struct bfin_tmr_state *st;
@@ -175,7 +179,7 @@ static int __devinit iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 	}
 
 	st->trig->private_data = st;
-	st->trig->owner = THIS_MODULE;
+	st->trig->ops = &iio_bfin_tmr_trigger_ops;
 	st->trig->dev.groups = iio_bfin_tmr_trigger_attr_groups;
 	ret = iio_trigger_register(st->trig);
 	if (ret)

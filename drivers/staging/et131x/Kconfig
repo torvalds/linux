@@ -7,12 +7,3 @@ config ET131X
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called et131x.
-
-config ET131X_DEBUG
-	bool "Enable et131x debugging"
-	depends on ET131X
-	default n
-	---help---
-	  Say Y for detailed debug information.
-
-	  If in doubt, say N.
