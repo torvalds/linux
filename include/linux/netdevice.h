@@ -31,7 +31,7 @@
 #include <linux/if_link.h>
 
 #ifdef __KERNEL__
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
@@ -969,7 +969,7 @@ struct net_device {
 	 */
 	char			name[IFNAMSIZ];
 
-	struct pm_qos_request_list pm_qos_req;
+	struct pm_qos_request	pm_qos_req;
 
 	/* device name hash chain */
 	struct hlist_node	name_hlist;

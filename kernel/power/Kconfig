@@ -27,6 +27,7 @@ config HIBERNATION
 	select HIBERNATE_CALLBACKS
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
+	select CRC32
 	---help---
 	  Enable the suspend to disk (STD) functionality, which is usually
 	  called "hibernation" in user interfaces.  STD checkpoints the
@@ -64,6 +65,9 @@ config HIBERNATION
 	  will get corrupted in a nasty way.
 
 	  For more information take a look at <file:Documentation/power/swsusp.txt>.
+
+config ARCH_SAVE_PAGE_KEYS
+	bool
 
 config PM_STD_PARTITION
 	string "Default resume partition"

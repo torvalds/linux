@@ -2760,7 +2760,7 @@ F:	fs/freevxfs/
 FREEZER
 M:	Pavel Machek <pavel@ucw.cz>
 M:	"Rafael J. Wysocki" <rjw@sisk.pl>
-L:	linux-pm@lists.linux-foundation.org
+L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	Documentation/power/freezing-of-tasks.txt
 F:	include/linux/freezer.h
@@ -3022,7 +3022,7 @@ F:	drivers/video/hgafb.c
 HIBERNATION (aka Software Suspend, aka swsusp)
 M:	Pavel Machek <pavel@ucw.cz>
 M:	"Rafael J. Wysocki" <rjw@sisk.pl>
-L:	linux-pm@lists.linux-foundation.org
+L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	arch/x86/power/
 F:	drivers/base/power/
@@ -3217,7 +3217,7 @@ F:	drivers/ide/ide-cd*
 
 IDLE-I7300
 M:	Andy Henroid <andrew.d.henroid@intel.com>
-L:	linux-pm@lists.linux-foundation.org
+L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	drivers/idle/i7300_idle.c
 
@@ -3300,7 +3300,7 @@ F:	firmware/isci/
 
 INTEL IDLE DRIVER
 M:	Len Brown <lenb@kernel.org>
-L:	linux-pm@lists.linux-foundation.org
+L:	linux-pm@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux-idle-2.6.git
 S:	Supported
 F:	drivers/idle/intel_idle.c
@@ -3397,7 +3397,7 @@ F:	drivers/net/ethernet/intel/
 
 INTEL MRST PMU DRIVER
 M:	Len Brown <len.brown@intel.com>
-L:	linux-pm@lists.linux-foundation.org
+L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	arch/x86/platform/mrst/pmu.*
 
@@ -6338,7 +6338,7 @@ SUSPEND TO RAM
 M:	Len Brown <len.brown@intel.com>
 M:	Pavel Machek <pavel@ucw.cz>
 M:	"Rafael J. Wysocki" <rjw@sisk.pl>
-L:	linux-pm@lists.linux-foundation.org
+L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	Documentation/power/
 F:	arch/x86/kernel/acpi/
