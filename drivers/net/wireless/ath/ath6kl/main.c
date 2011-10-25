@@ -443,7 +443,7 @@ void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
 				 test_bit(CONNECT_PEND, &vif->flags));
 		ath6kl_disconnect(vif);
 		if (!keep_profile)
-			ath6kl_init_profile_info(ar);
+			ath6kl_init_profile_info(vif);
 
 		del_timer(&vif->disconnect_timer);
 
@@ -913,7 +913,7 @@ void disconnect_timer_handler(unsigned long ptr)
 	struct net_device *dev = (struct net_device *)ptr;
 	struct ath6kl_vif *vif = netdev_priv(dev);
 
-	ath6kl_init_profile_info(vif->ar);
+	ath6kl_init_profile_info(vif);
 	ath6kl_disconnect(vif);
 }
 

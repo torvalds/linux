@@ -2119,7 +2119,7 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 
 	init_netdev(ndev);
 
-	ath6kl_init_control_info(ar);
+	ath6kl_init_control_info(vif);
 
 	/* TODO: Pass interface specific pointer instead of ar */
 	if (ath6kl_init_if_data(vif))

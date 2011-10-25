@@ -73,11 +73,8 @@ struct sk_buff *ath6kl_buf_alloc(int size)
 	return skb;
 }
 
-void ath6kl_init_profile_info(struct ath6kl *ar)
+void ath6kl_init_profile_info(struct ath6kl_vif *vif)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
-
 	vif->ssid_len = 0;
 	memset(vif->ssid, 0, sizeof(vif->ssid));
 
@@ -246,12 +243,9 @@ static int ath6kl_init_service_ep(struct ath6kl *ar)
 	return 0;
 }
 
-void ath6kl_init_control_info(struct ath6kl *ar)
+void ath6kl_init_control_info(struct ath6kl_vif *vif)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
-
-	ath6kl_init_profile_info(ar);
+	ath6kl_init_profile_info(vif);
 	vif->def_txkey_index = 0;
 	memset(vif->wep_key_list, 0, sizeof(vif->wep_key_list));
 	vif->ch_hint = 0;
