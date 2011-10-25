@@ -869,60 +869,86 @@ unsigned int blkcg_get_weight(struct blkio_cgroup *blkcg,
 			      dev_t dev)
 {
 	struct blkio_policy_node *pn;
+	unsigned long flags;
+	unsigned int weight;
+
+	spin_lock_irqsave(&blkcg->lock, flags);
 
 	pn = blkio_policy_search_node(blkcg, dev, BLKIO_POLICY_PROP,
 				BLKIO_PROP_weight_device);
 	if (pn)
-		return pn->val.weight;
+		weight = pn->val.weight;
 	else
-		return blkcg->weight;
+		weight = blkcg->weight;
+
+	spin_unlock_irqrestore(&blkcg->lock, flags);
+
+	return weight;
 }
 EXPORT_SYMBOL_GPL(blkcg_get_weight);
 
 uint64_t blkcg_get_read_bps(struct blkio_cgroup *blkcg, dev_t dev)
 {
 	struct blkio_policy_node *pn;
+	unsigned long flags;
+	uint64_t bps = -1;
 
+	spin_lock_irqsave(&blkcg->lock, flags);
 	pn = blkio_policy_search_node(blkcg, dev, BLKIO_POLICY_THROTL,
 				BLKIO_THROTL_read_bps_device);
 	if (pn)
-		return pn->val.bps;
-	else
-		return -1;
+		bps = pn->val.bps;
+	spin_unlock_irqrestore(&blkcg->lock, flags);
+
+	return bps;
 }
 
 uint64_t blkcg_get_write_bps(struct blkio_cgroup *blkcg, dev_t dev)
 {
 	struct blkio_policy_node *pn;
+	unsigned long flags;
+	uint64_t bps = -1;
+
+	spin_lock_irqsave(&blkcg->lock, flags);
 	pn = blkio_policy_search_node(blkcg, dev, BLKIO_POLICY_THROTL,
 				BLKIO_THROTL_write_bps_device);
 	if (pn)
-		return pn->val.bps;
-	else
-		return -1;
+		bps = pn->val.bps;
+	spin_unlock_irqrestore(&blkcg->lock, flags);
+
+	return bps;
 }
 
 unsigned int blkcg_get_read_iops(struct blkio_cgroup *blkcg, dev_t dev)
 {
 	struct blkio_policy_node *pn;
+	unsigned long flags;
+	unsigned int iops = -1;
 
+	spin_lock_irqsave(&blkcg->lock, flags);
 	pn = blkio_policy_search_node(blkcg, dev, BLKIO_POLICY_THROTL,
 				BLKIO_THROTL_read_iops_device);
 	if (pn)
-		return pn->val.iops;
-	else
-		return -1;
+		iops = pn->val.iops;
+	spin_unlock_irqrestore(&blkcg->lock, flags);
+
+	return iops;
 }
 
 unsigned int blkcg_get_write_iops(struct blkio_cgroup *blkcg, dev_t dev)
 {
 	struct blkio_policy_node *pn;
+	unsigned long flags;
+	unsigned int iops = -1;
+
+	spin_lock_irqsave(&blkcg->lock, flags);
 	pn = blkio_policy_search_node(blkcg, dev, BLKIO_POLICY_THROTL,
 				BLKIO_THROTL_write_iops_device);
 	if (pn)
-		return pn->val.iops;
-	else
-		return -1;
+		iops = pn->val.iops;
+	spin_unlock_irqrestore(&blkcg->lock, flags);
+
+	return iops;
 }
 
 /* Checks whether user asked for deleting a policy rule */
