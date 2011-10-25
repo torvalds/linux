@@ -2128,14 +2128,15 @@ static void link_recv_proto_msg(struct tipc_link *l_ptr, struct sk_buff *buf)
 		}
 		l_ptr->owner->bclink.supported = (max_pkt_info != 0);
 
+		/* Synchronize broadcast link info, if not done previously */
+
+		if (!tipc_node_is_up(l_ptr->owner))
+			l_ptr->owner->bclink.last_in = msg_last_bcast(msg);
+
 		link_state_event(l_ptr, msg_type(msg));
 
 		l_ptr->peer_session = msg_session(msg);
 		l_ptr->peer_bearer_id = msg_bearer_id(msg);
-
-		/* Synchronize broadcast sequence numbers */
-		if (!tipc_node_redundant_links(l_ptr->owner))
-			l_ptr->owner->bclink.last_in = mod(msg_last_bcast(msg));
 		break;
 	case STATE_MSG:
 
