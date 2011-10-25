@@ -80,8 +80,8 @@ _ENTRY(_start);
 	slw	r18,r18,r17		/* r18 = page size */
 	addi	r18,r18,-1
 	and	r19,r3,r18		/* r19 = page offset */
-	andc	r31,r20,r18		/* r3 = page base */
-	or	r31,r31,r19		/* r3 = devtree phys addr */
+	andc	r31,r20,r18		/* r31 = page base */
+	or	r31,r31,r19		/* r31 = devtree phys addr */
 	mfspr	r30,SPRN_MAS7
 
 	li	r25,0			/* phys kernel start (low) */
