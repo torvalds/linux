@@ -114,6 +114,9 @@ static struct rpc_program	rpcb_program;
 static struct rpc_clnt *	rpcb_local_clnt;
 static struct rpc_clnt *	rpcb_local_clnt4;
 
+DEFINE_SPINLOCK(rpcb_clnt_lock);
+unsigned int			rpcb_users;
+
 struct rpcbind_args {
 	struct rpc_xprt *	r_xprt;
 
@@ -159,6 +162,56 @@ static void rpcb_map_release(void *data)
 	xprt_put(map->r_xprt);
 	kfree(map->r_addr);
 	kfree(map);
+}
+
+static int rpcb_get_local(void)
+{
+	int cnt;
+
+	spin_lock(&rpcb_clnt_lock);
+	if (rpcb_users)
+		rpcb_users++;
+	cnt = rpcb_users;
+	spin_unlock(&rpcb_clnt_lock);
+
+	return cnt;
+}
+
+void rpcb_put_local(void)
+{
+	struct rpc_clnt *clnt = rpcb_local_clnt;
+	struct rpc_clnt *clnt4 = rpcb_local_clnt4;
+	int shutdown;
+
+	spin_lock(&rpcb_clnt_lock);
+	if (--rpcb_users == 0) {
+		rpcb_local_clnt = NULL;
+		rpcb_local_clnt4 = NULL;
+	}
+	shutdown = !rpcb_users;
+	spin_unlock(&rpcb_clnt_lock);
+
+	if (shutdown) {
+		/*
+		 * cleanup_rpcb_clnt - remove xprtsock's sysctls, unregister
+		 */
+		if (clnt4)
+			rpc_shutdown_client(clnt4);
+		if (clnt)
+			rpc_shutdown_client(clnt);
+	}
+}
+
+static void rpcb_set_local(struct rpc_clnt *clnt, struct rpc_clnt *clnt4)
+{
+	/* Protected by rpcb_create_local_mutex */
+	rpcb_local_clnt = clnt;
+	rpcb_local_clnt4 = clnt4;
+	smp_wmb(); 
+	rpcb_users = 1;
+	dprintk("RPC:       created new rpcb local clients (rpcb_local_clnt: "
+			"%p, rpcb_local_clnt4: %p)\n", rpcb_local_clnt,
+			rpcb_local_clnt4);
 }
 
 /*
