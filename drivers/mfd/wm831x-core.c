@@ -1875,7 +1875,6 @@ err_irq:
 err_regmap:
 	mfd_remove_devices(wm831x->dev);
 	regmap_exit(wm831x->regmap);
-	kfree(wm831x);
 	return ret;
 }
 
@@ -1887,7 +1886,6 @@ void wm831x_device_exit(struct wm831x *wm831x)
 		free_irq(wm831x->irq_base + WM831X_IRQ_AUXADC_DATA, wm831x);
 	wm831x_irq_exit(wm831x);
 	regmap_exit(wm831x->regmap);
-	kfree(wm831x);
 }
 
 int wm831x_device_suspend(struct wm831x *wm831x)
