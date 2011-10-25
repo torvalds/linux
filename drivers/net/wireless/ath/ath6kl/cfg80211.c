@@ -21,8 +21,10 @@
 #include "testmode.h"
 
 static unsigned int ath6kl_p2p;
+static unsigned int multi_norm_if_support;
 
 module_param(ath6kl_p2p, uint, 0644);
+module_param(multi_norm_if_support, uint, 0644);
 
 #define RATETAB_ENT(_rate, _rateid, _flags) {   \
 	.bitrate    = (_rate),                  \
@@ -334,6 +336,16 @@ static bool ath6kl_is_valid_iftype(struct ath6kl *ar, enum nl80211_iftype type,
 	if (type == NL80211_IFTYPE_STATION ||
 	    type == NL80211_IFTYPE_AP || type == NL80211_IFTYPE_ADHOC) {
 		for (i = 0; i < MAX_NUM_VIF; i++) {
+			if ((ar->avail_idx_map >> i) & BIT(0)) {
+				*if_idx = i;
+				return true;
+			}
+		}
+	}
+
+	if (type == NL80211_IFTYPE_P2P_CLIENT ||
+	    type == NL80211_IFTYPE_P2P_GO) {
+		for (i = ar->max_norm_iface; i < MAX_NUM_VIF; i++) {
 			if ((ar->avail_idx_map >> i) & BIT(0)) {
 				*if_idx = i;
 				return true;
@@ -2095,9 +2107,18 @@ struct ath6kl *ath6kl_core_alloc(struct device *dev)
 	}
 
 	ar = wiphy_priv(wiphy);
-	ar->p2p = !!ath6kl_p2p;
+	if (!multi_norm_if_support)
+		ar->p2p = !!ath6kl_p2p;
 	ar->wiphy = wiphy;
 	ar->dev = dev;
+
+	if (multi_norm_if_support)
+		ar->max_norm_iface = 2;
+	else
+		ar->max_norm_iface = 1;
+
+	/* FIXME: Remove this once the multivif support is enabled */
+	ar->max_norm_iface = 1;
 
 	spin_lock_init(&ar->lock);
 	spin_lock_init(&ar->mcastpsq_lock);

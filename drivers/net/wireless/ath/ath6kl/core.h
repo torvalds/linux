@@ -461,6 +461,7 @@ struct ath6kl {
 	/* Lock to avoid race in vif_list entries among add/del/traverse */
 	spinlock_t list_lock;
 	u8 num_vif;
+	u8 max_norm_iface;
 	u8 avail_idx_map;
 	spinlock_t lock;
 	struct semaphore sem;

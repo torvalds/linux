@@ -428,7 +428,7 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar)
 int ath6kl_configure_target(struct ath6kl *ar)
 {
 	u32 param, ram_reserved_size;
-	u8 fw_iftype, fw_mode = 0, fw_submode;
+	u8 fw_iftype, fw_mode = 0, fw_submode = 0;
 	int i;
 
 	/*
@@ -445,15 +445,19 @@ int ath6kl_configure_target(struct ath6kl *ar)
 		fw_mode |= fw_iftype << (i * HI_OPTION_FW_MODE_BITS);
 
 	/*
-	 * submodes : vif[0] - AP/STA/IBSS
-	 *	      vif[1] - "P2P dev"/"P2P GO"/"P2P Client"
-	 *	      vif[2] - "P2P dev"/"P2P GO"/"P2P Client"
+	 * By default, submodes :
+	 *		vif[0] - AP/STA/IBSS
+	 *		vif[1] - "P2P dev"/"P2P GO"/"P2P Client"
+	 *		vif[2] - "P2P dev"/"P2P GO"/"P2P Client"
 	 */
-	fw_submode = HI_OPTION_FW_SUBMODE_NONE |
-		     (HI_OPTION_FW_SUBMODE_P2PDEV <<
-		      (1 * HI_OPTION_FW_SUBMODE_BITS)) |
-		      (HI_OPTION_FW_SUBMODE_P2PDEV <<
-		      (2 * HI_OPTION_FW_SUBMODE_BITS));
+
+	for (i = 0; i < ar->max_norm_iface; i++)
+		fw_submode |= HI_OPTION_FW_SUBMODE_NONE <<
+			      (i * HI_OPTION_FW_SUBMODE_BITS);
+
+	for (i = ar->max_norm_iface; i < MAX_NUM_VIF; i++)
+		fw_submode |= HI_OPTION_FW_SUBMODE_P2PDEV <<
+			      (i * HI_OPTION_FW_SUBMODE_BITS);
 
 	/*
 	 * FIXME: This needs to be removed once the multivif
@@ -461,8 +465,6 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	 */
 	if (ar->p2p)
 		fw_submode = HI_OPTION_FW_SUBMODE_P2PDEV;
-	else
-		fw_submode = HI_OPTION_FW_SUBMODE_NONE;
 
 	param = HTC_PROTOCOL_VERSION;
 	if (ath6kl_bmi_write(ar,
