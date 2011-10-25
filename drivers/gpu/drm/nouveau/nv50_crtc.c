@@ -195,7 +195,8 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 	struct drm_crtc *crtc = &nv_crtc->base;
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_channel *evo = nv50_display(dev)->master;
-	struct drm_display_mode *mode = &crtc->mode;
+	struct drm_display_mode *umode = &crtc->mode;
+	struct drm_display_mode *omode;
 	int scaling_mode, ret;
 	u32 ctrl = 0, oX, oY;
 
@@ -212,13 +213,15 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 	/* start off at the resolution we programmed the crtc for, this
 	 * effectively handles NONE/FULL scaling
 	 */
-	if (scaling_mode != DRM_MODE_SCALE_NONE) {
-		oX = nv_connector->native_mode->hdisplay;
-		oY = nv_connector->native_mode->vdisplay;
-	} else {
-		oX = mode->hdisplay;
-		oY = mode->vdisplay;
-	}
+	if (scaling_mode != DRM_MODE_SCALE_NONE)
+		omode = nv_connector->native_mode;
+	else
+		omode = umode;
+
+	oX = omode->hdisplay;
+	oY = omode->vdisplay;
+	if (omode->flags & DRM_MODE_FLAG_DBLSCAN)
+		oY *= 2;
 
 	/* add overscan compensation if necessary, will keep the aspect
 	 * ratio the same as the backend mode unless overridden by the
@@ -248,15 +251,15 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 	 */
 	switch (scaling_mode) {
 	case DRM_MODE_SCALE_CENTER:
-		oX = min((u32)mode->hdisplay, oX);
-		oY = min((u32)mode->vdisplay, oY);
+		oX = min((u32)umode->hdisplay, oX);
+		oY = min((u32)umode->vdisplay, oY);
 		/* fall-through */
 	case DRM_MODE_SCALE_ASPECT:
 		if (oY < oX) {
-			u32 aspect = (mode->hdisplay << 19) / mode->vdisplay;
+			u32 aspect = (umode->hdisplay << 19) / umode->vdisplay;
 			oX = ((oY * aspect) + (aspect / 2)) >> 19;
 		} else {
-			u32 aspect = (mode->vdisplay << 19) / mode->hdisplay;
+			u32 aspect = (umode->vdisplay << 19) / umode->hdisplay;
 			oY = ((oX * aspect) + (aspect / 2)) >> 19;
 		}
 		break;
@@ -264,9 +267,9 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 		break;
 	}
 
-	if (mode->hdisplay != oX || mode->vdisplay != oY ||
-	    mode->flags & DRM_MODE_FLAG_INTERLACE ||
-	    mode->flags & DRM_MODE_FLAG_DBLSCAN)
+	if (umode->hdisplay != oX || umode->vdisplay != oY ||
+	    umode->flags & DRM_MODE_FLAG_INTERLACE ||
+	    umode->flags & DRM_MODE_FLAG_DBLSCAN)
 		ctrl |= NV50_EVO_CRTC_SCALE_CTRL_ACTIVE;
 
 	ret = RING_SPACE(evo, 5);
