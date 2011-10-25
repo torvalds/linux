@@ -400,6 +400,8 @@ struct ath6kl_vif {
 	struct wireless_dev wdev;
 	struct net_device *ndev;
 	struct ath6kl *ar;
+	/* Lock to protect vif specific net_stats and flags */
+	spinlock_t if_lock;
 	u8 fw_vif_idx;
 	unsigned long flags;
 	int ssid_len;

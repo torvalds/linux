@@ -989,11 +989,11 @@ void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel, u8 *bssid,
 	netif_wake_queue(vif->ndev);
 
 	/* Update connect & link status atomically */
-	spin_lock_bh(&ar->lock);
+	spin_lock_bh(&vif->if_lock);
 	set_bit(CONNECTED, &vif->flags);
 	clear_bit(CONNECT_PEND, &vif->flags);
 	netif_carrier_on(vif->ndev);
-	spin_unlock_bh(&ar->lock);
+	spin_unlock_bh(&vif->if_lock);
 
 	aggr_reset_state(vif->aggr_cntxt);
 	vif->reconnect_flag = 0;
@@ -1345,10 +1345,10 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 	}
 
 	/* update connect & link status atomically */
-	spin_lock_bh(&ar->lock);
+	spin_lock_bh(&vif->if_lock);
 	clear_bit(CONNECTED, &vif->flags);
 	netif_carrier_off(vif->ndev);
-	spin_unlock_bh(&ar->lock);
+	spin_unlock_bh(&vif->if_lock);
 
 	if ((reason != CSERV_DISCONNECT) || (vif->reconnect_flag != 1))
 		vif->reconnect_flag = 0;
@@ -1365,10 +1365,7 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 
 static int ath6kl_open(struct net_device *dev)
 {
-	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
-
-	spin_lock_bh(&ar->lock);
 
 	set_bit(WLAN_ENABLED, &vif->flags);
 
@@ -1377,8 +1374,6 @@ static int ath6kl_open(struct net_device *dev)
 		netif_wake_queue(dev);
 	} else
 		netif_carrier_off(dev);
-
-	spin_unlock_bh(&ar->lock);
 
 	return 0;
 }

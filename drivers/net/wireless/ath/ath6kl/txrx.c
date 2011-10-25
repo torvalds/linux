@@ -475,9 +475,9 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 		return HTC_SEND_FULL_DROP;
 
 stop_net_queues:
-	spin_lock_bh(&ar->lock);
+	spin_lock_bh(&vif->if_lock);
 	set_bit(NETQ_STOPPED, &vif->flags);
-	spin_unlock_bh(&ar->lock);
+	spin_unlock_bh(&vif->if_lock);
 	netif_stop_queue(vif->ndev);
 
 	return HTC_SEND_FULL_KEEP;
@@ -1103,12 +1103,12 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	 * Take lock to protect buffer counts and adaptive power throughput
 	 * state.
 	 */
-	spin_lock_bh(&ar->lock);
+	spin_lock_bh(&vif->if_lock);
 
 	vif->net_stats.rx_packets++;
 	vif->net_stats.rx_bytes += packet->act_len;
 
-	spin_unlock_bh(&ar->lock);
+	spin_unlock_bh(&vif->if_lock);
 
 
 	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, "rx ",

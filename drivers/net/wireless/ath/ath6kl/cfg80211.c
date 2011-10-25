@@ -2077,6 +2077,7 @@ static int ath6kl_init_if_data(struct ath6kl_vif *vif)
 	setup_timer(&vif->disconnect_timer, disconnect_timer_handler,
 		    (unsigned long) vif->ndev);
 	set_bit(WMM_ENABLED, &vif->flags);
+	spin_lock_init(&vif->if_lock);
 
 	return 0;
 }
