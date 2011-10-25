@@ -90,7 +90,7 @@ void ath6kl_init_profile_info(struct ath6kl *ar)
 	memset(ar->wep_key_list, 0, sizeof(ar->wep_key_list));
 	memset(vif->req_bssid, 0, sizeof(vif->req_bssid));
 	memset(vif->bssid, 0, sizeof(vif->bssid));
-	ar->bss_ch = 0;
+	vif->bss_ch = 0;
 	vif->nw_type = vif->next_mode = INFRA_NETWORK;
 }
 
@@ -253,7 +253,7 @@ void ath6kl_init_control_info(struct ath6kl *ar)
 	ath6kl_init_profile_info(ar);
 	vif->def_txkey_index = 0;
 	memset(ar->wep_key_list, 0, sizeof(ar->wep_key_list));
-	ar->ch_hint = 0;
+	vif->ch_hint = 0;
 }
 
 /*

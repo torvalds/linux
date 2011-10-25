@@ -1058,7 +1058,7 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 				      assoc_info);
 
 	memcpy(vif->bssid, bssid, sizeof(vif->bssid));
-	ar->bss_ch = channel;
+	vif->bss_ch = channel;
 
 	if ((vif->nw_type == INFRA_NETWORK))
 		ath6kl_wmi_listeninterval_cmd(ar->wmi, ar->listen_intvl_t,
@@ -1434,7 +1434,7 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 
 	netif_stop_queue(ar->net_dev);
 	memset(vif->bssid, 0, sizeof(vif->bssid));
-	ar->bss_ch = 0;
+	vif->bss_ch = 0;
 
 	ath6kl_tx_data_cleanup(ar);
 }

@@ -364,7 +364,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	    !memcmp(vif->ssid, sme->ssid, vif->ssid_len)) {
 		ar->reconnect_flag = true;
 		status = ath6kl_wmi_reconnect_cmd(ar->wmi, vif->req_bssid,
-						  ar->ch_hint);
+						  vif->ch_hint);
 
 		up(&ar->sem);
 		if (status) {
@@ -382,7 +382,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	memcpy(vif->ssid, sme->ssid, sme->ssid_len);
 
 	if (sme->channel)
-		ar->ch_hint = sme->channel->center_freq;
+		vif->ch_hint = sme->channel->center_freq;
 
 	memset(vif->req_bssid, 0, sizeof(vif->req_bssid));
 	if (sme->bssid && !is_broadcast_ether_addr(sme->bssid))
@@ -452,7 +452,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		   __func__,
 		   vif->auth_mode, vif->dot11_auth_mode, vif->prwise_crypto,
 		   vif->prwise_crypto_len, vif->grp_crypto,
-		   vif->grp_crypto_len, ar->ch_hint);
+		   vif->grp_crypto_len, vif->ch_hint);
 
 	ar->reconnect_flag = 0;
 	status = ath6kl_wmi_connect_cmd(ar->wmi, vif->nw_type,
@@ -461,7 +461,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 					vif->prwise_crypto_len,
 					vif->grp_crypto, vif->grp_crypto_len,
 					vif->ssid_len, vif->ssid,
-					vif->req_bssid, ar->ch_hint,
+					vif->req_bssid, vif->ch_hint,
 					ar->connect_ctrl_flags);
 
 	up(&ar->sem);
@@ -1252,7 +1252,7 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 	memcpy(vif->ssid, ibss_param->ssid, vif->ssid_len);
 
 	if (ibss_param->channel)
-		ar->ch_hint = ibss_param->channel->center_freq;
+		vif->ch_hint = ibss_param->channel->center_freq;
 
 	if (ibss_param->channel_fixed) {
 		/*
@@ -1292,7 +1292,7 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 		   __func__,
 		   vif->auth_mode, vif->dot11_auth_mode, vif->prwise_crypto,
 		   vif->prwise_crypto_len, vif->grp_crypto,
-		   vif->grp_crypto_len, ar->ch_hint);
+		   vif->grp_crypto_len, vif->ch_hint);
 
 	status = ath6kl_wmi_connect_cmd(ar->wmi, vif->nw_type,
 					vif->dot11_auth_mode, vif->auth_mode,
@@ -1300,7 +1300,7 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 					vif->prwise_crypto_len,
 					vif->grp_crypto, vif->grp_crypto_len,
 					vif->ssid_len, vif->ssid,
-					vif->req_bssid, ar->ch_hint,
+					vif->req_bssid, vif->ch_hint,
 					ar->connect_ctrl_flags);
 	set_bit(CONNECT_PEND, &vif->flags);
 
