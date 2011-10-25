@@ -370,52 +370,9 @@ int drm_fasync(int fd, struct file *filp, int on)
 }
 EXPORT_SYMBOL(drm_fasync);
 
-/*
- * Reclaim locked buffers; note that this may be a bad idea if the current
- * context doesn't have the hw lock...
- */
-static void drm_reclaim_locked_buffers(struct drm_device *dev, struct file *f)
-{
-	struct drm_file *file_priv = f->private_data;
-
-	if (drm_i_have_hw_lock(dev, file_priv)) {
-		dev->driver->reclaim_buffers_locked(dev, file_priv);
-	} else {
-		unsigned long _end = jiffies + 3 * DRM_HZ;
-		int locked = 0;
-
-		drm_idlelock_take(&file_priv->master->lock);
-
-		/*
-		 * Wait for a while.
-		 */
-		do {
-			spin_lock_bh(&file_priv->master->lock.spinlock);
-			locked = file_priv->master->lock.idle_has_lock;
-			spin_unlock_bh(&file_priv->master->lock.spinlock);
-			if (locked)
-				break;
-			schedule();
-		} while (!time_after_eq(jiffies, _end));
-
-		if (!locked) {
-			DRM_ERROR("reclaim_buffers_locked() deadlock. Please rework this\n"
-				  "\tdriver to use reclaim_buffers_idlelocked() instead.\n"
-				  "\tI will go on reclaiming the buffers anyway.\n");
-		}
-
-		dev->driver->reclaim_buffers_locked(dev, file_priv);
-		drm_idlelock_release(&file_priv->master->lock);
-	}
-}
-
 static void drm_master_release(struct drm_device *dev, struct file *filp)
 {
 	struct drm_file *file_priv = filp->private_data;
-
-	if (dev->driver->reclaim_buffers_locked &&
-	    file_priv->master->lock.hw_lock)
-		drm_reclaim_locked_buffers(dev, filp);
 
 	if (drm_i_have_hw_lock(dev, file_priv)) {
 		DRM_DEBUG("File %p released, freeing lock for context %d\n",
@@ -424,8 +381,7 @@ static void drm_master_release(struct drm_device *dev, struct file *filp)
 			      _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
 	}
 
-	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA) &&
-	    !dev->driver->reclaim_buffers_locked) {
+	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA)) {
 		dev->driver->reclaim_buffers(dev, file_priv);
 	}
 }

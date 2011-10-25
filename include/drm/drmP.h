@@ -878,8 +878,6 @@ struct drm_driver {
 	void (*irq_uninstall) (struct drm_device *dev);
 	void (*reclaim_buffers) (struct drm_device *dev,
 				 struct drm_file * file_priv);
-	void (*reclaim_buffers_locked) (struct drm_device *dev,
-					struct drm_file *file_priv);
 	void (*set_version) (struct drm_device *dev,
 			     struct drm_set_version *sv);
 
