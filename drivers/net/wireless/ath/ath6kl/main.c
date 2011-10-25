@@ -941,7 +941,7 @@ void ath6kl_deep_sleep_enable(struct ath6kl *ar)
 	/* TODO: Pass vif instead of taking it from ar */
 	struct ath6kl_vif *vif = ar->vif;
 
-	switch (ar->sme_state) {
+	switch (vif->sme_state) {
 	case SME_CONNECTING:
 		cfg80211_connect_result(ar->net_dev, vif->bssid, NULL, 0,
 					NULL, 0,
@@ -963,7 +963,7 @@ void ath6kl_deep_sleep_enable(struct ath6kl *ar)
 	    test_bit(CONNECT_PEND, &vif->flags))
 		ath6kl_wmi_disconnect_cmd(ar->wmi);
 
-	ar->sme_state = SME_DISCONNECTED;
+	vif->sme_state = SME_DISCONNECTED;
 
 	/* disable scanning */
 	if (ath6kl_wmi_scanparams_cmd(ar->wmi, 0xFFFF, 0, 0, 0, 0, 0, 0, 0,

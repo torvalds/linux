@@ -417,6 +417,8 @@ struct ath6kl_vif {
 	struct ath6kl_key keys[WMI_MAX_KEY_INDEX + 1];
 	struct aggr_info *aggr_cntxt;
 	struct timer_list disconnect_timer;
+	struct cfg80211_scan_request *scan_req;
+	enum sme_state sme_state;
 };
 
 /* Flag info */
@@ -480,8 +482,6 @@ struct ath6kl {
 	struct list_head amsdu_rx_buffer_queue;
 	u8 rx_meta_ver;
 	struct wireless_dev *wdev;
-	struct cfg80211_scan_request *scan_req;
-	enum sme_state sme_state;
 	enum wlan_low_pwr_state wlan_pwr_state;
 	struct wmi_scan_params_cmd sc_params;
 #define AR_MCAST_FILTER_MAC_ADDR_SIZE  4

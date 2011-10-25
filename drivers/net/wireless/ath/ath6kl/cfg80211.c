@@ -311,7 +311,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	struct ath6kl_vif *vif = netdev_priv(dev);
 	int status;
 
-	ar->sme_state = SME_CONNECTING;
+	vif->sme_state = SME_CONNECTING;
 
 	if (!ath6kl_cfg80211_ready(ar))
 		return -EIO;
@@ -601,14 +601,14 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 		return;
 	}
 
-	if (ar->sme_state == SME_CONNECTING) {
+	if (vif->sme_state == SME_CONNECTING) {
 		/* inform connect result to cfg80211 */
-		ar->sme_state = SME_CONNECTED;
+		vif->sme_state = SME_CONNECTED;
 		cfg80211_connect_result(ar->net_dev, bssid,
 					assoc_req_ie, assoc_req_len,
 					assoc_resp_ie, assoc_resp_len,
 					WLAN_STATUS_SUCCESS, GFP_KERNEL);
-	} else if (ar->sme_state == SME_CONNECTED) {
+	} else if (vif->sme_state == SME_CONNECTED) {
 		/* inform roam event to cfg80211 */
 		cfg80211_roamed(ar->net_dev, chan, bssid,
 				assoc_req_ie, assoc_req_len,
@@ -648,7 +648,7 @@ static int ath6kl_cfg80211_disconnect(struct wiphy *wiphy,
 
 	up(&ar->sem);
 
-	ar->sme_state = SME_DISCONNECTED;
+	vif->sme_state = SME_DISCONNECTED;
 
 	return 0;
 }
@@ -660,9 +660,9 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 	/* TODO: Findout vif */
 	struct ath6kl_vif *vif = ar->vif;
 
-	if (ar->scan_req) {
-		cfg80211_scan_done(ar->scan_req, true);
-		ar->scan_req = NULL;
+	if (vif->scan_req) {
+		cfg80211_scan_done(vif->scan_req, true);
+		vif->scan_req = NULL;
 	}
 
 	if (vif->nw_type & ADHOC_NETWORK) {
@@ -701,18 +701,18 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 
 	clear_bit(CONNECT_PEND, &vif->flags);
 
-	if (ar->sme_state == SME_CONNECTING) {
+	if (vif->sme_state == SME_CONNECTING) {
 		cfg80211_connect_result(ar->net_dev,
 				bssid, NULL, 0,
 				NULL, 0,
 				WLAN_STATUS_UNSPECIFIED_FAILURE,
 				GFP_KERNEL);
-	} else if (ar->sme_state == SME_CONNECTED) {
+	} else if (vif->sme_state == SME_CONNECTED) {
 		cfg80211_disconnected(ar->net_dev, reason,
 				NULL, 0, GFP_KERNEL);
 	}
 
-	ar->sme_state = SME_DISCONNECTED;
+	vif->sme_state = SME_DISCONNECTED;
 }
 
 static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
@@ -793,7 +793,7 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	if (ret)
 		ath6kl_err("wmi_startscan_cmd failed\n");
 	else
-		ar->scan_req = request;
+		vif->scan_req = request;
 
 	kfree(channels);
 
@@ -802,22 +802,24 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 
 void ath6kl_cfg80211_scan_complete_event(struct ath6kl *ar, int status)
 {
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 	int i;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: status %d\n", __func__, status);
 
-	if (!ar->scan_req)
+	if (!vif->scan_req)
 		return;
 
 	if ((status == -ECANCELED) || (status == -EBUSY)) {
-		cfg80211_scan_done(ar->scan_req, true);
+		cfg80211_scan_done(vif->scan_req, true);
 		goto out;
 	}
 
-	cfg80211_scan_done(ar->scan_req, false);
+	cfg80211_scan_done(vif->scan_req, false);
 
-	if (ar->scan_req->n_ssids && ar->scan_req->ssids[0].ssid_len) {
-		for (i = 0; i < ar->scan_req->n_ssids; i++) {
+	if (vif->scan_req->n_ssids && vif->scan_req->ssids[0].ssid_len) {
+		for (i = 0; i < vif->scan_req->n_ssids; i++) {
 			ath6kl_wmi_probedssid_cmd(ar->wmi, i + 1,
 						  DISABLE_SSID_FLAG,
 						  0, NULL);
@@ -825,7 +827,7 @@ void ath6kl_cfg80211_scan_complete_event(struct ath6kl *ar, int status)
 	}
 
 out:
-	ar->scan_req = NULL;
+	vif->scan_req = NULL;
 }
 
 static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
@@ -2122,7 +2124,7 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	if (register_netdev(ndev))
 		goto err;
 
-	ar->sme_state = SME_DISCONNECTED;
+	vif->sme_state = SME_DISCONNECTED;
 	set_bit(WLAN_ENABLED, &vif->flags);
 	ar->wlan_pwr_state = WLAN_POWER_STATE_ON;
 	set_bit(NETDEV_REGISTERED, &vif->flags);
@@ -2137,9 +2139,12 @@ err:
 
 void ath6kl_deinit_ieee80211_hw(struct ath6kl *ar)
 {
-	if (ar->scan_req) {
-		cfg80211_scan_done(ar->scan_req, true);
-		ar->scan_req = NULL;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
+
+	if (vif->scan_req) {
+		cfg80211_scan_done(vif->scan_req, true);
+		vif->scan_req = NULL;
 	}
 
 	wiphy_unregister(ar->wiphy);
