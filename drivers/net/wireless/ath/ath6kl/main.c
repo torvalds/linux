@@ -445,7 +445,7 @@ void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
 		if (!keep_profile)
 			ath6kl_init_profile_info(ar);
 
-		del_timer(&ar->disconnect_timer);
+		del_timer(&vif->disconnect_timer);
 
 		clear_bit(WMI_READY, &ar->flag);
 		ath6kl_wmi_shutdown(ar->wmi);
@@ -1396,7 +1396,7 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 
 	aggr_reset_state(vif->aggr_cntxt);
 
-	del_timer(&ar->disconnect_timer);
+	del_timer(&vif->disconnect_timer);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CONNECT,
 		   "disconnect reason is %d\n", reason);

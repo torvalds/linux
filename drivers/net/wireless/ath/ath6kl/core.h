@@ -416,6 +416,7 @@ struct ath6kl_vif {
 	struct ath6kl_wep_key wep_key_list[WMI_MAX_KEY_INDEX + 1];
 	struct ath6kl_key keys[WMI_MAX_KEY_INDEX + 1];
 	struct aggr_info *aggr_cntxt;
+	struct timer_list disconnect_timer;
 };
 
 /* Flag info */
@@ -477,7 +478,6 @@ struct ath6kl {
 	struct wmi_ap_mode_stat ap_stats;
 	u8 ap_country_code[3];
 	struct list_head amsdu_rx_buffer_queue;
-	struct timer_list disconnect_timer;
 	u8 rx_meta_ver;
 	struct wireless_dev *wdev;
 	struct cfg80211_scan_request *scan_req;

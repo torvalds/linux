@@ -479,7 +479,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	if ((!(ar->connect_ctrl_flags & CONNECT_DO_WPA_OFFLOAD)) &&
 	    ((vif->auth_mode == WPA_PSK_AUTH)
 	     || (vif->auth_mode == WPA2_PSK_AUTH))) {
-		mod_timer(&ar->disconnect_timer,
+		mod_timer(&vif->disconnect_timer,
 			  jiffies + msecs_to_jiffies(DISCON_TIMER_INTVAL));
 	}
 
@@ -897,7 +897,7 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	if (((vif->auth_mode == WPA_PSK_AUTH)
 	     || (vif->auth_mode == WPA2_PSK_AUTH))
 	    && (key_usage & GROUP_USAGE))
-		del_timer(&ar->disconnect_timer);
+		del_timer(&vif->disconnect_timer);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 		   "%s: index %d, key_len %d, key_type 0x%x, key_usage 0x%x, seq_len %d\n",
@@ -2062,16 +2062,15 @@ int ath6kl_register_ieee80211_hw(struct ath6kl *ar)
 
 static int ath6kl_init_if_data(struct ath6kl_vif *vif)
 {
-	struct ath6kl *ar = vif->ar;
-
 	vif->aggr_cntxt = aggr_init(vif->ndev);
 	if (!vif->aggr_cntxt) {
 		ath6kl_err("failed to initialize aggr\n");
 		return -ENOMEM;
 	}
 
-	setup_timer(&ar->disconnect_timer, disconnect_timer_handler,
+	setup_timer(&vif->disconnect_timer, disconnect_timer_handler,
 		    (unsigned long) vif->ndev);
+	set_bit(WMM_ENABLED, &vif->flags);
 
 	return 0;
 }
