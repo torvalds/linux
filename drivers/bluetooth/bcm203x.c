@@ -161,7 +161,7 @@ static void bcm203x_work(struct work_struct *work)
 	if (atomic_read(&data->shutdown))
 		return;
 
-	if (usb_submit_urb(data->urb, GFP_ATOMIC) < 0)
+	if (usb_submit_urb(data->urb, GFP_KERNEL) < 0)
 		BT_ERR("Can't submit URB");
 }
 
