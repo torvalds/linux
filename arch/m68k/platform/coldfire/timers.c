@@ -88,7 +88,6 @@ static struct clocksource mcftmr_clk = {
 	.name	= "tmr",
 	.rating	= 250,
 	.read	= mcftmr_read_clk,
-	.shift	= 20,
 	.mask	= CLOCKSOURCE_MASK(32),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
@@ -109,8 +108,7 @@ void hw_timer_init(void)
 	__raw_writew(MCFTIMER_TMR_ENORI | MCFTIMER_TMR_CLK16 |
 		MCFTIMER_TMR_RESTART | MCFTIMER_TMR_ENABLE, TA(MCFTIMER_TMR));
 
-	mcftmr_clk.mult = clocksource_hz2mult(FREQ, mcftmr_clk.shift);
-	clocksource_register(&mcftmr_clk);
+	clocksource_register_hz(&mcftmr_clk, FREQ);
 
 	setup_irq(MCF_IRQ_TIMER, &mcftmr_timer_irq);
 
