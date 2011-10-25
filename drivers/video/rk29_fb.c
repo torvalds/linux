@@ -243,7 +243,31 @@ typedef enum _TRSP_MODE
     TRSP_MASK,
     TRSP_INVAL
 } TRSP_MODE;
+#ifdef	FB_WIMO_FLAG
+struct wimo_fb_info{
+	unsigned long bitperpixel;
+	unsigned long mode;
+	unsigned long xaff;
+	unsigned long yaff;
+	unsigned long xpos;
+	unsigned long ypos;
+	unsigned long xsize;
+	unsigned long ysize;
+	unsigned long src_y;
+	unsigned long src_uv;
+	unsigned long dst_width;
+	unsigned long dst_height;
+	//struct mutex fb_lock;
+	volatile unsigned long fb_lock;
 
+	
+};
+struct wimo_fb_info wimo_info;
+unsigned char* ui_buffer;
+unsigned char* ui_buffer_map;
+//unsigned char* overlay_buffer;
+//unsigned char* overlay_buffer_map;
+#endif
 
 struct platform_device *g_pdev = NULL;
 //static int win1fb_set_par(struct fb_info *info);
@@ -1731,6 +1755,184 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
     return 0;
 }
 
+#ifdef	FB_WIMO_FLAG
+unsigned long temp_vv;
+static int frame_num = 0;
+static int wimo_set_buff(struct fb_info *info,unsigned long *temp)
+{
+	struct rk29fb_inf *inf = dev_get_drvdata(info->device);
+
+	ui_buffer = temp[0];
+	ui_buffer_map = ioremap(temp[0],temp[1]);
+	if(ui_buffer_map == NULL)
+	{
+		printk("can't map a buffer for ui\n");
+		return -EFAULT;
+	}
+
+	printk("ui_buffer %x  ",ui_buffer_map);
+	memset(&wimo_info,0,sizeof(wimo_info) );
+ 
+      wimo_info.mode = inf->video_mode;
+//	wimo_info.bitperpixel = var->bits_per_pixel;		
+    
+
+	wimo_info.dst_width = (temp[2] + 15) & 0xfff0;
+	wimo_info.dst_height = (temp[3] + 15) & 0xfff0;
+}
+static int wimo_get_buff(struct fb_info *info)
+{
+	
+	struct rk29_ipp_req overlay_req;
+	struct rk29_ipp_req overlay_req_1;
+	struct rk29fb_inf *inf = dev_get_drvdata(info->device);
+	int ret;
+	memset(&overlay_req, 0 , sizeof(overlay_req));
+	memset(&overlay_req_1, 0 , sizeof(overlay_req_1));
+	
+	if(inf->video_mode == 0 )
+	{
+		struct win0_par *par = info->par;
+		wimo_info.xpos = 0;
+		wimo_info.ypos = 0;
+		wimo_info.xsize = 0;
+		wimo_info.ysize = 0;
+		wimo_info.mode = 0;
+		if(par->format == 1)
+			wimo_info.bitperpixel = 16;
+		else
+			wimo_info.bitperpixel =32;// wimo_info.bitperpixel_fb1;
+		overlay_req.src0.YrgbMst = info->fix.smem_start + par->y_offset;//info->screen_base + par->y_offset;//info_buffer[8];
+		overlay_req.src0.CbrMst = info->fix.smem_start + par->y_offset + wimo_info.dst_width * wimo_info.dst_height;//dst_width*dst_height;//+ par->y_offset + dst_width*dst_height;//info_buffer[9];
+		overlay_req.src0.w = wimo_info.dst_width ;//dst_width;//info_buffer[2];
+		overlay_req.src0.h = wimo_info.dst_height ;//dst_height;//info_buffer[3];
+		overlay_req.src0.fmt = (wimo_info.bitperpixel == 16) ? 1 : 0;//3;
+		overlay_req.dst0.YrgbMst = ui_buffer;//overlay_buffer + info_buffer[4] + info_buffer[5] * dst_width;
+		overlay_req.dst0.CbrMst = ui_buffer + wimo_info.dst_width * wimo_info.dst_height;//dst_width*dst_height;//(unsigned char*) overlay_buffer + dst_width*dst_height +info_buffer[4] + (  info_buffer[5] * dst_width) / 2;// info_buffer[6] * info_buffer[7];
+		overlay_req.dst0.w = wimo_info.dst_width ;//dst_width;//info_buffer[6];
+		overlay_req.dst0.h = wimo_info.dst_height ;//dst_height;//info_buffer[7];
+		overlay_req.dst0.fmt = (wimo_info.bitperpixel== 16) ? 1 : 0;//3;3;
+		overlay_req.deinterlace_enable = 0;
+		overlay_req.timeout = 1000000;
+		overlay_req.src_vir_w = wimo_info.dst_width ;//dst_width;//info_buffer[2];
+		overlay_req.dst_vir_w = wimo_info.dst_width ;//dst_width;
+		overlay_req.flag = IPP_ROT_0;
+		ipp_blit_sync(&overlay_req);
+		
+		ret = 0;
+	}	
+	else
+	{
+
+		int err = 0;
+		static int wimo_time = 0;
+		unsigned long *overlay_buffer_map_temp;
+		unsigned long *map_temp;
+		unsigned long sign_memset = 0;
+		struct fb_var_screeninfo *var = &inf->fb1->var;
+		struct win0_par *par = inf->fb1->par;
+		wimo_info.mode = 1;
+		printk("overlay setbuffer in\n");
+	//	mutex_lock(&wimo_info.fb_lock);
+		wimo_info.fb_lock = 1;
+		{
+			wimo_info.xaff = var->xres;
+			wimo_info.yaff = var->yres;
+			if((wimo_info.xpos != par->xpos) ||(wimo_info.ypos != par->ypos)||(wimo_info.xsize != par->xsize) ||(wimo_info.ysize != par->ysize))
+			{
+				wimo_info.xpos = par->xpos;
+				wimo_info.ypos = par->ypos;
+				wimo_info.xsize = par->xsize;
+				wimo_info.ysize = par->ysize;
+				sign_memset = 1;
+				memset(ui_buffer_map,0,wimo_info.dst_height * wimo_info.dst_width);//dst_width*dst_height);
+				memset(ui_buffer_map + wimo_info.dst_height * wimo_info.dst_width, 0x80,wimo_info.dst_height * wimo_info.dst_width / 2);//dst_width*dst_height,0x80,dst_width*dst_height/2);
+				printk("wimo_info.xpos %d wimo_info.ypos %d wimo_info.xsize %d wimo_info.ysize %d\n",wimo_info.xpos, wimo_info.ypos, wimo_info.xsize, wimo_info.ysize );
+		    	}
+		}
+		//printk("wimo_info.xpos %d wimo_info.ypos %d wimo_info.xsize %d wimo_info.ysize %d\n",wimo_info.xpos, wimo_info.ypos, wimo_info.xsize, wimo_info.ysize );
+		if(wimo_info.xaff * 3 < wimo_info.xsize || wimo_info.yaff * 3 < wimo_info.ysize)// 3time or bigger scale up
+		{
+			unsigned long mid_width, mid_height;
+			struct rk29_ipp_req overlay_req_1;
+			if(wimo_info.xaff * 3 < wimo_info.xsize)
+				mid_width = wimo_info.xaff * 3;
+			else
+				mid_width = wimo_info.xsize;
+			
+			if(wimo_info.yaff * 3 < wimo_info.ysize)
+				mid_height =  wimo_info.yaff * 3;
+			else
+				mid_height = wimo_info.ysize;
+			overlay_req.src0.YrgbMst = wimo_info.src_y;//info_buffer[8];
+			overlay_req.src0.CbrMst = wimo_info.src_uv;//info_buffer[9];
+			overlay_req.src0.w = wimo_info.xaff;// info_buffer[2];
+			overlay_req.src0.h = wimo_info.yaff;// info_buffer[3];
+			overlay_req.src0.fmt = 3;
+			overlay_req.dst0.YrgbMst = ui_buffer + 2048000 ;//info_buffer[4] + info_buffer[5] * dst_width;   //小尺寸片源需要2次放大，所以将buffer的后半段用于缓存
+			overlay_req.dst0.CbrMst = (unsigned char*) ui_buffer + mid_height * mid_width + 2048000;
+		
+			overlay_req.dst0.w = mid_width;//info_buffer[6];
+			overlay_req.dst0.h = mid_height;//info_buffer[7];
+			overlay_req.dst0.fmt = 3;
+			overlay_req.timeout = 100000;
+			overlay_req.src_vir_w = wimo_info.xaff;//info_buffer[2];
+			overlay_req.dst_vir_w = mid_width;//dst_width;
+			overlay_req.flag = IPP_ROT_0;
+
+			overlay_req_1.src0.YrgbMst = ui_buffer + 2048000;
+			overlay_req_1.src0.CbrMst = (unsigned char*) ui_buffer + mid_height * mid_width + 2048000;
+			overlay_req_1.src0.w = mid_width;
+			overlay_req_1.src0.h = mid_height;// info_buffer[3];
+			overlay_req_1.src0.fmt = 3;
+			overlay_req_1.dst0.YrgbMst = ui_buffer + ((wimo_info.xpos + 1)&0xfffe) + wimo_info.ypos * wimo_info.dst_width;//info_buffer[4] + info_buffer[5] * dst_width;
+			overlay_req_1.dst0.CbrMst =(unsigned char*) ui_buffer + wimo_info.dst_width * wimo_info.dst_height + ((wimo_info.xpos + 1)&0xfffe) + ( wimo_info.ypos  / 2)* wimo_info.dst_width ;
+			
+			overlay_req_1.dst0.w = wimo_info.xsize;//info_buffer[6];
+			overlay_req_1.dst0.h = wimo_info.ysize;//info_buffer[7];
+			overlay_req_1.dst0.fmt = 3;
+			overlay_req_1.timeout = 100000;
+			overlay_req_1.src_vir_w = mid_width;//info_buffer[2];
+			overlay_req_1.dst_vir_w = wimo_info.dst_width;//dst_width;
+			overlay_req_1.flag = IPP_ROT_0;
+			
+
+			err = ipp_blit_sync(&overlay_req);
+			dmac_flush_range(ui_buffer_map,ui_buffer_map + wimo_info.dst_height * wimo_info.dst_width * 3/2);//dst_width*dst_height*3/2);
+			err = ipp_blit_sync(&overlay_req_1);
+	
+		}
+		else
+		{
+			overlay_req.src0.YrgbMst = wimo_info.src_y;//info_buffer[8];
+			overlay_req.src0.CbrMst = wimo_info.src_uv;//info_buffer[9];
+			overlay_req.src0.w = wimo_info.xaff;// info_buffer[2];
+			overlay_req.src0.h = wimo_info.yaff;// info_buffer[3];
+			overlay_req.src0.fmt = 3;
+			overlay_req.dst0.YrgbMst = ui_buffer + ((wimo_info.xpos + 1)&0xfffe) + wimo_info.ypos * wimo_info.dst_width;//info_buffer[4] + info_buffer[5] * dst_width;
+			overlay_req.dst0.CbrMst =(unsigned char*) ui_buffer + wimo_info.dst_width * wimo_info.dst_height + ((wimo_info.xpos + 1)&0xfffe) + ( wimo_info.ypos  / 2)* wimo_info.dst_width ;
+			
+			overlay_req.dst0.w = wimo_info.xsize;//wimo_info.xsize;//wimo_info.xaff;// wimo_info.xsize;//info_buffer[6];
+			overlay_req.dst0.h = (wimo_info.ysize + 1) & 0xfffe;//(wimo_info.ysize + 1) & 0xfffe;//wimo_info.yaff;//(wimo_info.ysize + 1) & 0xfffe;//info_buffer[7];
+			overlay_req.dst0.fmt = 3;
+			overlay_req.timeout = 100000;
+			overlay_req.src_vir_w = wimo_info.xaff;//info_buffer[2];
+			overlay_req.dst_vir_w = wimo_info.dst_width;//wimo_info.dst_width;//wimo_info.yaff;//wimo_info.dst_width;//dst_width;
+			overlay_req.flag = IPP_ROT_0;
+			
+			dmac_flush_range(ui_buffer_map,ui_buffer_map + wimo_info.dst_height * wimo_info.dst_width * 3/2);//dst_width*dst_height*3/2);
+			err = ipp_blit_sync(&overlay_req);
+		
+		}
+		printk("overlay setbuffer exit\n");
+		ret = 1;
+		wimo_info.fb_lock = 0;
+	}
+	
+		
+	return ret;
+}
+#endif
 static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
     struct rk29fb_inf *inf = dev_get_drvdata(info->device);
@@ -1829,6 +2031,52 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             if(copy_to_user((void*)arg, &en, 4))  return -EFAULT;
             break;
 		}
+#ifdef	FB_WIMO_FLAG
+	case FB0_IOCTL_SET_BUF:
+		{
+    			unsigned long temp[4];
+			copy_from_user(temp, (void*)arg, 20);
+			wimo_set_buff( info,temp);
+			
+		}
+		break;
+	case FB0_IOCTL_CLOSE_BUF:
+		{
+			if(ui_buffer != NULL && ui_buffer_map !=NULL )
+			{
+				iounmap(ui_buffer_map);
+				ui_buffer_map = 0;
+				ui_buffer = 0;
+				memset(&wimo_info,0,sizeof(wimo_info));
+			}
+			else
+				printk("somethint wrong with wimo in close");
+				
+		}
+		break;
+	
+	case FB0_IOCTL_COPY_CURBUF:
+		{
+			unsigned long temp_data[3];
+			copy_from_user(&temp_vv, (void*)arg, 4);
+			if(ui_buffer != NULL && ui_buffer_map !=NULL )
+			{
+				temp_data[1] = wimo_get_buff(info);
+				temp_data[0] = wimo_info.bitperpixel;
+				
+			}
+			else
+			{
+				temp_data[1] = 1;
+				temp_data[0] = wimo_info.bitperpixel;
+				printk("somethint wrong with wimo in getbuf");
+			}
+			temp_data[2] = frame_num++;
+			//printk("FB0_IOCTL_COPY_CURBUF %d %d %d\n",temp_data[0],temp_data[1],temp_data[2]);
+			copy_to_user((void*)arg, &temp_data, 12);
+			break;
+		}
+#endif
    default:
         break;
     }
@@ -2397,6 +2645,14 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
     case FB1_IOCTL_SET_YUV_ADDR:    //set y&uv address to register direct
         {
             u32 yuv_phy[2];
+#ifdef	FB_WIMO_FLAG
+		printk("FB1_IOCTL_SET_YUV_ADDR1 \n");
+		while(wimo_info.fb_lock)
+			{
+			msleep(10);
+			}
+		printk("FB1_IOCTL_SET_YUV_ADDR 2\n");
+#endif
             if (copy_from_user(yuv_phy, argp, 8))
 			    return -EFAULT;
 #ifdef CONFIG_FB_ROTATE_VIDEO 
@@ -2411,6 +2667,11 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             fix0->mmio_start = yuv_phy[1];
             yuv_phy[0] += par->y_offset;
             yuv_phy[1] += par->c_offset;
+#ifdef	FB_WIMO_FLAG
+	      wimo_info.src_y = yuv_phy[0]; 
+	      wimo_info.src_uv = yuv_phy[1]; 
+	      	
+#endif
          
             #if 0
     		if((var->rotate == 90) ||(var->rotate == 270))
