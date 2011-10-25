@@ -2311,13 +2311,12 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 	int err = 0, correct_index = 0;
 	int depth = ext_depth(inode), credits;
 	struct ext4_extent_header *eh;
-	ext4_lblk_t a, b, block;
+	ext4_lblk_t a, b;
 	unsigned num;
 	ext4_lblk_t ex_ee_block;
 	unsigned short ex_ee_len;
 	unsigned uninitialized = 0;
 	struct ext4_extent *ex;
-	struct ext4_map_blocks map;
 
 	/* the header must be checked already in ext4_ext_remove_space() */
 	ext_debug("truncate since %u in leaf\n", start);
@@ -2360,86 +2359,18 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 			ex_ee_block = le32_to_cpu(ex->ee_block);
 			ex_ee_len = ext4_ext_get_actual_len(ex);
 			continue;
-		} else if (a != ex_ee_block &&
-			b != ex_ee_block + ex_ee_len - 1) {
-			/*
-			 * If this is a truncate, then this condition should
-			 * never happen because at least one of the end points
-			 * needs to be on the edge of the extent.
-			 */
-			if (end == EXT_MAX_BLOCKS - 1) {
-				ext_debug("  bad truncate %u:%u\n",
-						start, end);
-				block = 0;
-				num = 0;
-				err = -EIO;
-				goto out;
-			}
-			/*
-			 * else this is a hole punch, so the extent needs to
-			 * be split since neither edge of the hole is on the
-			 * extent edge
-			 */
-			else{
-				map.m_pblk = ext4_ext_pblock(ex);
-				map.m_lblk = ex_ee_block;
-				map.m_len = b - ex_ee_block;
-
-				err = ext4_split_extent(handle,
-					inode, path, &map, 0,
-					EXT4_GET_BLOCKS_PUNCH_OUT_EXT |
-					EXT4_GET_BLOCKS_PRE_IO);
-
-				if (err < 0)
-					goto out;
-
-				ex_ee_len = ext4_ext_get_actual_len(ex);
-
-				b = ex_ee_block+ex_ee_len - 1 < end ?
-					ex_ee_block+ex_ee_len - 1 : end;
-
-				/* Then remove tail of this extent */
-				block = ex_ee_block;
-				num = a - block;
-			}
+		} else if (b != ex_ee_block + ex_ee_len - 1) {
+			EXT4_ERROR_INODE(inode,"  bad truncate %u:%u\n",
+					 start, end);
+			err = -EIO;
+			goto out;
 		} else if (a != ex_ee_block) {
 			/* remove tail of the extent */
-			block = ex_ee_block;
-			num = a - block;
-		} else if (b != ex_ee_block + ex_ee_len - 1) {
-			/* remove head of the extent */
-			block = b;
-			num =  ex_ee_block + ex_ee_len - b;
-
-			/*
-			 * If this is a truncate, this condition
-			 * should never happen
-			 */
-			if (end == EXT_MAX_BLOCKS - 1) {
-				ext_debug("  bad truncate %u:%u\n",
-					start, end);
-				err = -EIO;
-				goto out;
-			}
+			num = a - ex_ee_block;
 		} else {
 			/* remove whole extent: excellent! */
-			block = ex_ee_block;
 			num = 0;
-			if (a != ex_ee_block) {
-				ext_debug("  bad truncate %u:%u\n",
-					start, end);
-				err = -EIO;
-				goto out;
-			}
-
-			if (b != ex_ee_block + ex_ee_len - 1) {
-				ext_debug("  bad truncate %u:%u\n",
-					start, end);
-				err = -EIO;
-				goto out;
-			}
 		}
-
 		/*
 		 * 3 for leaf, sb, and inode plus 2 (bmap and group
 		 * descriptor) for each block group; assume two block
@@ -2466,19 +2397,10 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 		if (err)
 			goto out;
 
-		if (num == 0) {
+		if (num == 0)
 			/* this extent is removed; mark slot entirely unused */
 			ext4_ext_store_pblock(ex, 0);
-		} else if (block != ex_ee_block) {
-			/*
-			 * If this was a head removal, then we need to update
-			 * the physical block since it is now at a different
-			 * location
-			 */
-			ext4_ext_store_pblock(ex, ext4_ext_pblock(ex) + (b-a));
-		}
 
-		ex->ee_block = cpu_to_le32(block);
 		ex->ee_len = cpu_to_le16(num);
 		/*
 		 * Do not mark uninitialized if all the blocks in the
@@ -2486,11 +2408,6 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 		 */
 		if (uninitialized && num)
 			ext4_ext_mark_uninitialized(ex);
-
-		err = ext4_ext_dirty(handle, inode, path + depth);
-		if (err)
-			goto out;
-
 		/*
 		 * If the extent was completely released,
 		 * we need to remove it from the leaf
@@ -2512,6 +2429,10 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 			le16_add_cpu(&eh->eh_entries, -1);
 		} else
 			*partial_cluster = 0;
+
+		err = ext4_ext_dirty(handle, inode, path + depth);
+		if (err)
+			goto out;
 
 		ext_debug("new extent: %u:%u:%llu\n", block, num,
 				ext4_ext_pblock(ex));
