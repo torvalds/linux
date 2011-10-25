@@ -96,7 +96,7 @@
 #define BTTV_BOARD_PV_BT878P_PLUS          0x46
 #define BTTV_BOARD_FLYVIDEO98EZ            0x47
 #define BTTV_BOARD_PV_BT878P_9B            0x48
-#define BTTV_BOARD_SENSORAY311             0x49
+#define BTTV_BOARD_SENSORAY311_611         0x49
 #define BTTV_BOARD_RV605                   0x4a
 #define BTTV_BOARD_POWERCLR_MTV878         0x4b
 #define BTTV_BOARD_WINDVR                  0x4c

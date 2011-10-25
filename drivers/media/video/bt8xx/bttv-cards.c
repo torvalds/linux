@@ -284,7 +284,8 @@ static struct CARD {
 	{ 0x10b42636, BTTV_BOARD_HAUPPAUGE878,  "STB ???" },
 	{ 0x217d6606, BTTV_BOARD_WINFAST2000,   "Leadtek WinFast TV 2000" },
 	{ 0xfff6f6ff, BTTV_BOARD_WINFAST2000,   "Leadtek WinFast TV 2000" },
-	{ 0x03116000, BTTV_BOARD_SENSORAY311,   "Sensoray 311" },
+	{ 0x03116000, BTTV_BOARD_SENSORAY311_611, "Sensoray 311" },
+	{ 0x06116000, BTTV_BOARD_SENSORAY311_611, "Sensoray 611" },
 	{ 0x00790e11, BTTV_BOARD_WINDVR,        "Canopus WinDVR PCI" },
 	{ 0xa0fca1a0, BTTV_BOARD_ZOLTRIX,       "Face to Face Tvmax" },
 	{ 0x82b2aa6a, BTTV_BOARD_SIMUS_GVC1100, "SIMUS GVC1100" },
@@ -1526,10 +1527,10 @@ struct tvcard bttv_tvcards[] = {
 			GPIO20,22,23: R30,R29,R28
 		*/
 	},
-	[BTTV_BOARD_SENSORAY311] = {
+	[BTTV_BOARD_SENSORAY311_611] = {
 		/* Clay Kunz <ckunz@mail.arc.nasa.gov> */
-		/* you must jumper JP5 for the card to work */
-		.name           = "Sensoray 311",
+		/* you must jumper JP5 for the 311 card (PC/104+) to work */
+		.name           = "Sensoray 311/611",
 		.video_inputs   = 5,
 		/* .audio_inputs= 0, */
 		.svhs           = 4,
