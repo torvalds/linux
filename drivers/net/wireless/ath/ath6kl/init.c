@@ -87,7 +87,7 @@ void ath6kl_init_profile_info(struct ath6kl *ar)
 	vif->prwise_crypto_len = 0;
 	vif->grp_crypto = NONE_CRYPT;
 	vif->grp_crypto_len = 0;
-	memset(ar->wep_key_list, 0, sizeof(ar->wep_key_list));
+	memset(vif->wep_key_list, 0, sizeof(vif->wep_key_list));
 	memset(vif->req_bssid, 0, sizeof(vif->req_bssid));
 	memset(vif->bssid, 0, sizeof(vif->bssid));
 	vif->bss_ch = 0;
@@ -248,11 +248,12 @@ static int ath6kl_init_service_ep(struct ath6kl *ar)
 
 void ath6kl_init_control_info(struct ath6kl *ar)
 {
+	/* TODO: Findout vif */
 	struct ath6kl_vif *vif = ar->vif;
 
 	ath6kl_init_profile_info(ar);
 	vif->def_txkey_index = 0;
-	memset(ar->wep_key_list, 0, sizeof(ar->wep_key_list));
+	memset(vif->wep_key_list, 0, sizeof(vif->wep_key_list));
 	vif->ch_hint = 0;
 }
 

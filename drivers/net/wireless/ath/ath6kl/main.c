@@ -506,7 +506,7 @@ static void ath6kl_install_static_wep_keys(struct ath6kl *ar)
 	u8 keyusage;
 
 	for (index = WMI_MIN_KEY_INDEX; index <= WMI_MAX_KEY_INDEX; index++) {
-		if (ar->wep_key_list[index].key_len) {
+		if (vif->wep_key_list[index].key_len) {
 			keyusage = GROUP_USAGE;
 			if (index == vif->def_txkey_index)
 				keyusage |= TX_USAGE;
@@ -515,9 +515,9 @@ static void ath6kl_install_static_wep_keys(struct ath6kl *ar)
 					      index,
 					      WEP_CRYPT,
 					      keyusage,
-					      ar->wep_key_list[index].key_len,
+					      vif->wep_key_list[index].key_len,
 					      NULL,
-					      ar->wep_key_list[index].key,
+					      vif->wep_key_list[index].key,
 					      KEY_OP_INIT_VAL, NULL,
 					      NO_SYNC_WMIFLAG);
 		}
@@ -1384,7 +1384,7 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 		}
 
 		if (memcmp(ar->net_dev->dev_addr, bssid, ETH_ALEN) == 0) {
-			memset(ar->wep_key_list, 0, sizeof(ar->wep_key_list));
+			memset(vif->wep_key_list, 0, sizeof(vif->wep_key_list));
 			clear_bit(CONNECTED, &vif->flags);
 		}
 		return;

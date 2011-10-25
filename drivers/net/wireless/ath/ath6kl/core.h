@@ -413,6 +413,8 @@ struct ath6kl_vif {
 	u8 req_bssid[ETH_ALEN];
 	u16 ch_hint;
 	u16 bss_ch;
+	struct ath6kl_wep_key wep_key_list[WMI_MAX_KEY_INDEX + 1];
+	struct ath6kl_key keys[WMI_MAX_KEY_INDEX + 1];
 };
 
 /* Flag info */
@@ -441,7 +443,6 @@ struct ath6kl {
 	struct ath6kl_vif *vif;
 	spinlock_t lock;
 	struct semaphore sem;
-	struct ath6kl_wep_key wep_key_list[WMI_MAX_KEY_INDEX + 1];
 	u16 listen_intvl_b;
 	u16 listen_intvl_t;
 	u8 lrssi_roam_threshold;
@@ -480,7 +481,6 @@ struct ath6kl {
 	u8 rx_meta_ver;
 	struct wireless_dev *wdev;
 	struct cfg80211_scan_request *scan_req;
-	struct ath6kl_key keys[WMI_MAX_KEY_INDEX + 1];
 	enum sme_state sme_state;
 	enum wlan_low_pwr_state wlan_pwr_state;
 	struct wmi_scan_params_cmd sc_params;

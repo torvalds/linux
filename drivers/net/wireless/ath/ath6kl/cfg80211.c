@@ -419,7 +419,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 			return -ENOENT;
 		}
 
-		key = &ar->keys[sme->key_idx];
+		key = &vif->keys[sme->key_idx];
 		key->key_len = sme->key_len;
 		memcpy(key->key, sme->key, key->key_len);
 		key->cipher = vif->prwise_crypto;
@@ -856,7 +856,7 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		return -ENOENT;
 	}
 
-	key = &ar->keys[key_index];
+	key = &vif->keys[key_index];
 	memset(key, 0, sizeof(struct ath6kl_key));
 
 	if (pairwise)
@@ -934,8 +934,9 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		 */
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delay WEP key configuration "
 			   "until AP mode has been started\n");
-		ar->wep_key_list[key_index].key_len = key->key_len;
-		memcpy(ar->wep_key_list[key_index].key, key->key, key->key_len);
+		vif->wep_key_list[key_index].key_len = key->key_len;
+		memcpy(vif->wep_key_list[key_index].key, key->key,
+		       key->key_len);
 		return 0;
 	}
 
@@ -955,6 +956,7 @@ static int ath6kl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 				   const u8 *mac_addr)
 {
 	struct ath6kl *ar = (struct ath6kl *)ath6kl_priv(ndev);
+	struct ath6kl_vif *vif = netdev_priv(ndev);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: index %d\n", __func__, key_index);
 
@@ -968,13 +970,13 @@ static int ath6kl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 		return -ENOENT;
 	}
 
-	if (!ar->keys[key_index].key_len) {
+	if (!vif->keys[key_index].key_len) {
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 			   "%s: index %d is empty\n", __func__, key_index);
 		return 0;
 	}
 
-	ar->keys[key_index].key_len = 0;
+	vif->keys[key_index].key_len = 0;
 
 	return ath6kl_wmi_deletekey_cmd(ar->wmi, key_index);
 }
@@ -986,6 +988,7 @@ static int ath6kl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 						     struct key_params *))
 {
 	struct ath6kl *ar = (struct ath6kl *)ath6kl_priv(ndev);
+	struct ath6kl_vif *vif = netdev_priv(ndev);
 	struct ath6kl_key *key = NULL;
 	struct key_params params;
 
@@ -1001,7 +1004,7 @@ static int ath6kl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 		return -ENOENT;
 	}
 
-	key = &ar->keys[key_index];
+	key = &vif->keys[key_index];
 	memset(&params, 0, sizeof(params));
 	params.cipher = key->cipher;
 	params.key_len = key->key_len;
@@ -1038,14 +1041,14 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 		return -ENOENT;
 	}
 
-	if (!ar->keys[key_index].key_len) {
+	if (!vif->keys[key_index].key_len) {
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: invalid key index %d\n",
 			   __func__, key_index);
 		return -EINVAL;
 	}
 
 	vif->def_txkey_index = key_index;
-	key = &ar->keys[vif->def_txkey_index];
+	key = &vif->keys[vif->def_txkey_index];
 	key_usage = GROUP_USAGE;
 	if (vif->prwise_crypto == WEP_CRYPT)
 		key_usage |= TX_USAGE;
