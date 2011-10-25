@@ -397,7 +397,8 @@ void __init ixp4xx_pci_preinit(void)
 		local_write_config(PCI_BASE_ADDRESS_0, 4, PHYS_OFFSET);
 		local_write_config(PCI_BASE_ADDRESS_1, 4, PHYS_OFFSET + SZ_16M);
 		local_write_config(PCI_BASE_ADDRESS_2, 4, PHYS_OFFSET + SZ_32M);
-		local_write_config(PCI_BASE_ADDRESS_3, 4, PHYS_OFFSET + SZ_48M);
+		local_write_config(PCI_BASE_ADDRESS_3, 4,
+					PHYS_OFFSET + SZ_32M + SZ_16M);
 
 		/*
 		 * Enable CSR window at 64 MiB to allow PCI masters

@@ -212,6 +212,10 @@ config ARM_PATCH_PHYS_VIRT
 	  you need to shrink the kernel to the minimal size.
 
 
+config GENERIC_BUG
+	def_bool y
+	depends on BUG
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"

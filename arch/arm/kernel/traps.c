@@ -21,6 +21,7 @@
 #include <linux/kdebug.h>
 #include <linux/module.h>
 #include <linux/kexec.h>
+#include <linux/bug.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -271,6 +272,8 @@ void die(const char *str, struct pt_regs *regs, int err)
 	spin_lock_irq(&die_lock);
 	console_verbose();
 	bust_spinlocks(1);
+	if (!user_mode(regs))
+		report_bug(regs->ARM_pc, regs);
 	ret = __die(str, err, thread, regs);
 
 	if (regs && kexec_should_crash(thread->task))
@@ -301,6 +304,24 @@ void arm_notify_die(const char *str, struct pt_regs *regs,
 		die(str, regs, err);
 	}
 }
+
+#ifdef CONFIG_GENERIC_BUG
+
+int is_valid_bugaddr(unsigned long pc)
+{
+#ifdef CONFIG_THUMB2_KERNEL
+	unsigned short bkpt;
+#else
+	unsigned long bkpt;
+#endif
+
+	if (probe_kernel_address((unsigned *)pc, bkpt))
+		return 0;
+
+	return bkpt == BUG_INSTR_VALUE;
+}
+
+#endif
 
 static LIST_HEAD(undef_hook);
 static DEFINE_SPINLOCK(undef_lock);
@@ -706,16 +727,6 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 
 	arm_notify_die("unknown data abort code", regs, &info, instr, 0);
 }
-
-void __attribute__((noreturn)) __bug(const char *file, int line)
-{
-	printk(KERN_CRIT"kernel BUG at %s:%d!\n", file, line);
-	*(int *)0 = 0;
-
-	/* Avoid "noreturn function does return" */
-	for (;;);
-}
-EXPORT_SYMBOL(__bug);
 
 void __readwrite_bug(const char *fn)
 {
