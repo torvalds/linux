@@ -60,6 +60,8 @@ typedef struct drm_sis_private {
 	int agp_initialized;
 	unsigned long vram_offset;
 	unsigned long agp_offset;
+	/** Mapping of userspace keys to mm objects */
+	struct idr object_idr;
 } drm_sis_private_t;
 
 extern int sis_idle(struct drm_device *dev);

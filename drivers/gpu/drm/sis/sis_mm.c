@@ -125,7 +125,7 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
 	drm_sis_mem_t *mem = data;
-	int retval = 0;
+	int retval = 0, user_key;
 	struct drm_memblock_item *item;
 	struct sis_file_private *file_priv = file->driver_priv;
 
@@ -141,22 +141,43 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 
 	mem->size = (mem->size + SIS_MM_ALIGN_MASK) >> SIS_MM_ALIGN_SHIFT;
 	item = drm_sman_alloc(&dev_priv->sman, pool, mem->size, 0, 0);
-
-	if (item) {
-		list_add(&item->owner_list, &file_priv->obj_list);
-		mem->offset = ((pool == 0) ?
-			      dev_priv->vram_offset : dev_priv->agp_offset) +
-		    (item->mm->
-		     offset(item->mm, item->mm_info) << SIS_MM_ALIGN_SHIFT);
-		mem->free = item->user_hash.key;
-		mem->size = mem->size << SIS_MM_ALIGN_SHIFT;
-	} else {
-		mem->offset = 0;
-		mem->size = 0;
-		mem->free = 0;
+	if (!item) {
 		retval = -ENOMEM;
+		goto fail_alloc;
 	}
+
+again:
+	if (idr_pre_get(&dev_priv->object_idr, GFP_KERNEL) == 0) {
+		retval = -ENOMEM;
+		goto fail_idr;
+	}
+
+	retval = idr_get_new_above(&dev_priv->object_idr, item, 1, &user_key);
+	if (retval == -EAGAIN)
+		goto again;
+	if (retval)
+		goto fail_idr;
+
+	list_add(&item->owner_list, &file_priv->obj_list);
 	mutex_unlock(&dev->struct_mutex);
+
+	mem->offset = ((pool == 0) ?
+		      dev_priv->vram_offset : dev_priv->agp_offset) +
+	    (item->mm->
+	     offset(item->mm, item->mm_info) << SIS_MM_ALIGN_SHIFT);
+	mem->free = user_key;
+	mem->size = mem->size << SIS_MM_ALIGN_SHIFT;
+
+	return 0;
+
+fail_idr:
+	drm_sman_free(item);
+fail_alloc:
+	mutex_unlock(&dev->struct_mutex);
+
+	mem->offset = 0;
+	mem->size = 0;
+	mem->free = 0;
 
 	DRM_DEBUG("alloc %d, size = %d, offset = %d\n", pool, mem->size,
 		  mem->offset);
@@ -168,10 +189,18 @@ static int sis_drm_free(struct drm_device *dev, void *data, struct drm_file *fil
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
 	drm_sis_mem_t *mem = data;
+	struct drm_memblock_item *obj;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = drm_sman_free_key(&dev_priv->sman, mem->free);
+	obj = idr_find(&dev_priv->object_idr, mem->free);
+	if (obj == NULL) {
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
+	}
+
+	idr_remove(&dev_priv->object_idr, mem->free);
+	drm_sman_free(obj);
 	mutex_unlock(&dev->struct_mutex);
 	DRM_DEBUG("free = 0x%lx\n", mem->free);
 
