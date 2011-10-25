@@ -115,12 +115,13 @@ void via_lastclose(struct drm_device *dev)
 }
 
 int via_mem_alloc(struct drm_device *dev, void *data,
-		  struct drm_file *file_priv)
+		  struct drm_file *file)
 {
 	drm_via_mem_t *mem = data;
 	int retval = 0;
 	struct drm_memblock_item *item;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
+	struct via_file_private *file_priv = file->driver_priv;
 	unsigned long tmpSize;
 
 	if (mem->type > VIA_MEM_AGP) {
@@ -137,10 +138,10 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 	}
 
 	tmpSize = (mem->size + VIA_MM_ALIGN_MASK) >> VIA_MM_ALIGN_SHIFT;
-	item = drm_sman_alloc(&dev_priv->sman, mem->type, tmpSize, 0,
-			      (unsigned long)file_priv);
-	mutex_unlock(&dev->struct_mutex);
+	item = drm_sman_alloc(&dev_priv->sman, mem->type, tmpSize, 0, 0);
+
 	if (item) {
+		list_move(&item->owner_list, &file_priv->obj_list);
 		mem->offset = ((mem->type == VIA_MEM_VIDEO) ?
 			      dev_priv->vram_offset : dev_priv->agp_offset) +
 		    (item->mm->
@@ -153,6 +154,7 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 		DRM_DEBUG("Video memory allocation failed\n");
 		retval = -ENOMEM;
 	}
+	mutex_unlock(&dev->struct_mutex);
 
 	return retval;
 }
@@ -173,12 +175,13 @@ int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 
 void via_reclaim_buffers_locked(struct drm_device *dev,
-				struct drm_file *file_priv)
+				struct drm_file *file)
 {
-	drm_via_private_t *dev_priv = dev->dev_private;
+	struct via_file_private *file_priv = file->driver_priv;
+	struct drm_memblock_item *entry, *next;
 
 	mutex_lock(&dev->struct_mutex);
-	if (drm_sman_owner_clean(&dev_priv->sman, (unsigned long)file_priv)) {
+	if (list_empty(&file_priv->obj_list)) {
 		mutex_unlock(&dev->struct_mutex);
 		return;
 	}
@@ -186,7 +189,10 @@ void via_reclaim_buffers_locked(struct drm_device *dev,
 	if (dev->driver->dma_quiescent)
 		dev->driver->dma_quiescent(dev);
 
-	drm_sman_owner_cleanup(&dev_priv->sman, (unsigned long)file_priv);
+	list_for_each_entry_safe(entry, next, &file_priv->obj_list,
+				 owner_list) {
+		drm_sman_free(entry);
+	}
 	mutex_unlock(&dev->struct_mutex);
 	return;
 }
