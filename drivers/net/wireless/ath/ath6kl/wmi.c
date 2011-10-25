@@ -988,7 +988,7 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 		return -EINVAL;
 
 	if (bih->frame_type == BEACON_FTYPE && test_bit(CONNECTED, &vif->flags)
-	    && memcmp(bih->bssid, ar->bssid, ETH_ALEN) == 0) {
+	    && memcmp(bih->bssid, vif->bssid, ETH_ALEN) == 0) {
 		const u8 *tim;
 		tim = cfg80211_find_ie(WLAN_EID_TIM, buf + 8 + 2 + 2,
 				       len - 8 - 2 - 2);

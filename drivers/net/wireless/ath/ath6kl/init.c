@@ -88,8 +88,8 @@ void ath6kl_init_profile_info(struct ath6kl *ar)
 	vif->grp_crypto = NONE_CRYPT;
 	vif->grp_crypto_len = 0;
 	memset(ar->wep_key_list, 0, sizeof(ar->wep_key_list));
-	memset(ar->req_bssid, 0, sizeof(ar->req_bssid));
-	memset(ar->bssid, 0, sizeof(ar->bssid));
+	memset(vif->req_bssid, 0, sizeof(vif->req_bssid));
+	memset(vif->bssid, 0, sizeof(vif->bssid));
 	ar->bss_ch = 0;
 	vif->nw_type = vif->next_mode = INFRA_NETWORK;
 }

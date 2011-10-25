@@ -464,7 +464,7 @@ void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
 		if (discon_issued)
 			ath6kl_disconnect_event(ar, DISCONNECT_CMD,
 						(vif->nw_type & AP_NETWORK) ?
-						bcast_mac : ar->bssid,
+						bcast_mac : vif->bssid,
 						0, NULL, 0);
 
 		ar->user_key_ctrl = 0;
@@ -943,7 +943,7 @@ void ath6kl_deep_sleep_enable(struct ath6kl *ar)
 
 	switch (ar->sme_state) {
 	case SME_CONNECTING:
-		cfg80211_connect_result(ar->net_dev, ar->bssid, NULL, 0,
+		cfg80211_connect_result(ar->net_dev, vif->bssid, NULL, 0,
 					NULL, 0,
 					WLAN_STATUS_UNSPECIFIED_FAILURE,
 					GFP_KERNEL);
@@ -1057,7 +1057,7 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 				      assoc_req_len, assoc_resp_len,
 				      assoc_info);
 
-	memcpy(ar->bssid, bssid, sizeof(ar->bssid));
+	memcpy(vif->bssid, bssid, sizeof(vif->bssid));
 	ar->bss_ch = channel;
 
 	if ((vif->nw_type == INFRA_NETWORK))
@@ -1433,7 +1433,7 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 		ar->user_key_ctrl = 0;
 
 	netif_stop_queue(ar->net_dev);
-	memset(ar->bssid, 0, sizeof(ar->bssid));
+	memset(vif->bssid, 0, sizeof(vif->bssid));
 	ar->bss_ch = 0;
 
 	ath6kl_tx_data_cleanup(ar);

@@ -363,7 +363,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	    vif->ssid_len == sme->ssid_len &&
 	    !memcmp(vif->ssid, sme->ssid, vif->ssid_len)) {
 		ar->reconnect_flag = true;
-		status = ath6kl_wmi_reconnect_cmd(ar->wmi, ar->req_bssid,
+		status = ath6kl_wmi_reconnect_cmd(ar->wmi, vif->req_bssid,
 						  ar->ch_hint);
 
 		up(&ar->sem);
@@ -384,9 +384,9 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (sme->channel)
 		ar->ch_hint = sme->channel->center_freq;
 
-	memset(ar->req_bssid, 0, sizeof(ar->req_bssid));
+	memset(vif->req_bssid, 0, sizeof(vif->req_bssid));
 	if (sme->bssid && !is_broadcast_ether_addr(sme->bssid))
-		memcpy(ar->req_bssid, sme->bssid, sizeof(ar->req_bssid));
+		memcpy(vif->req_bssid, sme->bssid, sizeof(vif->req_bssid));
 
 	ath6kl_set_wpa_version(ar, sme->crypto.wpa_versions);
 
@@ -461,7 +461,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 					vif->prwise_crypto_len,
 					vif->grp_crypto, vif->grp_crypto_len,
 					vif->ssid_len, vif->ssid,
-					ar->req_bssid, ar->ch_hint,
+					vif->req_bssid, ar->ch_hint,
 					ar->connect_ctrl_flags);
 
 	up(&ar->sem);
@@ -644,7 +644,7 @@ static int ath6kl_cfg80211_disconnect(struct wiphy *wiphy,
 	vif->ssid_len = 0;
 
 	if (!test_bit(SKIP_SCAN, &ar->flag))
-		memset(ar->req_bssid, 0, sizeof(ar->req_bssid));
+		memset(vif->req_bssid, 0, sizeof(vif->req_bssid));
 
 	up(&ar->sem);
 
@@ -1071,10 +1071,13 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 void ath6kl_cfg80211_tkip_micerr_event(struct ath6kl *ar, u8 keyid,
 				       bool ismcast)
 {
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
+
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 		   "%s: keyid %d, ismcast %d\n", __func__, keyid, ismcast);
 
-	cfg80211_michael_mic_failure(ar->net_dev, ar->bssid,
+	cfg80211_michael_mic_failure(ar->net_dev, vif->bssid,
 				     (ismcast ? NL80211_KEYTYPE_GROUP :
 				      NL80211_KEYTYPE_PAIRWISE), keyid, NULL,
 				     GFP_KERNEL);
@@ -1261,9 +1264,10 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 		return -EOPNOTSUPP;
 	}
 
-	memset(ar->req_bssid, 0, sizeof(ar->req_bssid));
+	memset(vif->req_bssid, 0, sizeof(vif->req_bssid));
 	if (ibss_param->bssid && !is_broadcast_ether_addr(ibss_param->bssid))
-		memcpy(ar->req_bssid, ibss_param->bssid, sizeof(ar->req_bssid));
+		memcpy(vif->req_bssid, ibss_param->bssid,
+		       sizeof(vif->req_bssid));
 
 	ath6kl_set_wpa_version(ar, 0);
 
@@ -1296,7 +1300,7 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 					vif->prwise_crypto_len,
 					vif->grp_crypto, vif->grp_crypto_len,
 					vif->ssid_len, vif->ssid,
-					ar->req_bssid, ar->ch_hint,
+					vif->req_bssid, ar->ch_hint,
 					ar->connect_ctrl_flags);
 	set_bit(CONNECT_PEND, &vif->flags);
 
@@ -1399,7 +1403,7 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 	int ret;
 	u8 mcs;
 
-	if (memcmp(mac, ar->bssid, ETH_ALEN) != 0)
+	if (memcmp(mac, vif->bssid, ETH_ALEN) != 0)
 		return -ENOENT;
 
 	if (down_interruptible(&ar->sem))
@@ -1509,7 +1513,8 @@ static int ath6kl_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 	struct ath6kl_vif *vif = netdev_priv(netdev);
 
 	if (test_bit(CONNECTED, &vif->flags))
-		return ath6kl_wmi_setpmkid_cmd(ar->wmi, ar->bssid, NULL, false);
+		return ath6kl_wmi_setpmkid_cmd(ar->wmi, vif->bssid,
+					       NULL, false);
 	return 0;
 }
 
