@@ -1283,6 +1283,11 @@ int uvc_video_enable(struct uvc_streaming *stream, int enable)
 		return ret;
 	}
 
-	return uvc_init_video(stream, GFP_KERNEL);
-}
+	ret = uvc_init_video(stream, GFP_KERNEL);
+	if (ret < 0) {
+		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
+		uvc_queue_enable(&stream->queue, 0);
+	}
 
+	return ret;
+}
