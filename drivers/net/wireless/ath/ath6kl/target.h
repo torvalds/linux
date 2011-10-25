@@ -320,7 +320,10 @@ struct host_interest {
 |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)
 |------------------------------------------------------------------------------|
 */
+#define HI_OPTION_FW_MODE_BITS	       0x2
 #define HI_OPTION_FW_MODE_SHIFT        0xC
+
+#define HI_OPTION_FW_SUBMODE_BITS      0x2
 #define HI_OPTION_FW_SUBMODE_SHIFT     0x14
 
 /* Convert a Target virtual address into a Target physical address */

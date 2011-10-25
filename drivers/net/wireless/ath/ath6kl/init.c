@@ -429,11 +429,42 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar)
 int ath6kl_configure_target(struct ath6kl *ar)
 {
 	u32 param, ram_reserved_size;
-	u8 fw_iftype;
+	u8 fw_iftype, fw_mode = 0, fw_submode;
+	int i;
 
+	/*
+	 * Note: Even though the firmware interface type is
+	 * chosen as BSS_STA for all three interfaces, can
+	 * be configured to IBSS/AP as long as the fw submode
+	 * remains normal mode (0 - AP, STA and IBSS). But
+	 * due to an target assert in firmware only one interface is
+	 * configured for now.
+	 */
 	fw_iftype = HI_OPTION_FW_MODE_BSS_STA;
 
-	/* Tell target which HTC version it is used*/
+	for (i = 0; i < MAX_NUM_VIF; i++)
+		fw_mode |= fw_iftype << (i * HI_OPTION_FW_MODE_BITS);
+
+	/*
+	 * submodes : vif[0] - AP/STA/IBSS
+	 *	      vif[1] - "P2P dev"/"P2P GO"/"P2P Client"
+	 *	      vif[2] - "P2P dev"/"P2P GO"/"P2P Client"
+	 */
+	fw_submode = HI_OPTION_FW_SUBMODE_NONE |
+		     (HI_OPTION_FW_SUBMODE_P2PDEV <<
+		      (1 * HI_OPTION_FW_SUBMODE_BITS)) |
+		      (HI_OPTION_FW_SUBMODE_P2PDEV <<
+		      (2 * HI_OPTION_FW_SUBMODE_BITS));
+
+	/*
+	 * FIXME: This needs to be removed once the multivif
+	 * support is enabled.
+	 */
+	if (ar->p2p)
+		fw_submode = HI_OPTION_FW_SUBMODE_P2PDEV;
+	else
+		fw_submode = HI_OPTION_FW_SUBMODE_NONE;
+
 	param = HTC_PROTOCOL_VERSION;
 	if (ath6kl_bmi_write(ar,
 			     ath6kl_get_hi_item_addr(ar,
@@ -454,12 +485,10 @@ int ath6kl_configure_target(struct ath6kl *ar)
 		return -EIO;
 	}
 
-	param |= (1 << HI_OPTION_NUM_DEV_SHIFT);
-	param |= (fw_iftype << HI_OPTION_FW_MODE_SHIFT);
-	if (ar->p2p && fw_iftype == HI_OPTION_FW_MODE_BSS_STA) {
-		param |= HI_OPTION_FW_SUBMODE_P2PDEV <<
-			HI_OPTION_FW_SUBMODE_SHIFT;
-	}
+	param |= (MAX_NUM_VIF << HI_OPTION_NUM_DEV_SHIFT);
+	param |= fw_mode << HI_OPTION_FW_MODE_SHIFT;
+	param |= fw_submode << HI_OPTION_FW_SUBMODE_SHIFT;
+
 	param |= (0 << HI_OPTION_MAC_ADDR_METHOD_SHIFT);
 	param |= (0 << HI_OPTION_FW_BRIDGE_SHIFT);
 
