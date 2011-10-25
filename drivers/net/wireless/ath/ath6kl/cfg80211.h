@@ -18,7 +18,8 @@
 #define ATH6KL_CFG80211_H
 
 struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
-					enum nl80211_iftype type);
+					enum nl80211_iftype type,
+					u8 fw_vif_idx);
 int ath6kl_register_ieee80211_hw(struct ath6kl *ar);
 struct ath6kl *ath6kl_core_alloc(struct device *dev);
 void ath6kl_deinit_ieee80211_hw(struct ath6kl *ar);

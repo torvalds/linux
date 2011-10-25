@@ -118,6 +118,7 @@ static bool ath6kl_powersave_ap(struct ath6kl *ar, struct sk_buff *skb,
 				 */
 				if (is_mcastq_empty)
 					ath6kl_wmi_set_pvb_cmd(ar->wmi,
+							       vif->fw_vif_idx,
 							       MCAST_AID, 1);
 
 				ps_queued = true;
@@ -156,6 +157,7 @@ static bool ath6kl_powersave_ap(struct ath6kl *ar, struct sk_buff *skb,
 				 */
 				if (is_psq_empty)
 					ath6kl_wmi_set_pvb_cmd(ar->wmi,
+							       vif->fw_vif_idx,
 							       conn->aid, 1);
 
 				ps_queued = true;
@@ -1176,7 +1178,8 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 				}
 				spin_unlock_bh(&conn->psq_lock);
 				/* Clear the PVB for this STA */
-				ath6kl_wmi_set_pvb_cmd(ar->wmi, conn->aid, 0);
+				ath6kl_wmi_set_pvb_cmd(ar->wmi, vif->fw_vif_idx,
+						       conn->aid, 0);
 			}
 		}
 

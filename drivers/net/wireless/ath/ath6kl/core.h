@@ -380,6 +380,8 @@ struct ath6kl_req_key {
 	u8 key_len;
 };
 
+#define MAX_NUM_VIF	1
+
 /* vif flags info */
 enum ath6kl_vif_state {
 	CONNECTED,
@@ -398,6 +400,7 @@ struct ath6kl_vif {
 	struct wireless_dev wdev;
 	struct net_device *ndev;
 	struct ath6kl *ar;
+	u8 fw_vif_idx;
 	unsigned long flags;
 	int ssid_len;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
@@ -647,7 +650,7 @@ enum htc_endpoint_id ath6kl_ac2_endpoint_id(void *devt, u8 ac);
 void ath6kl_pspoll_event(struct ath6kl *ar, u8 aid);
 
 void ath6kl_dtimexpiry_event(struct ath6kl *ar);
-void ath6kl_disconnect(struct ath6kl *ar);
+void ath6kl_disconnect(struct ath6kl *ar, u8 if_idx);
 void ath6kl_deep_sleep_enable(struct ath6kl *ar);
 void aggr_recv_delba_req_evt(struct ath6kl *ar, u8 tid);
 void aggr_recv_addba_req_evt(struct ath6kl *ar, u8 tid, u16 seq_no,

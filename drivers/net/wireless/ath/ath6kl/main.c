@@ -441,7 +441,7 @@ void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
 	if (test_bit(WMI_READY, &ar->flag)) {
 		discon_issued = (test_bit(CONNECTED, &vif->flags) ||
 				 test_bit(CONNECT_PEND, &vif->flags));
-		ath6kl_disconnect(ar);
+		ath6kl_disconnect(ar, vif->fw_vif_idx);
 		if (!keep_profile)
 			ath6kl_init_profile_info(ar);
 
@@ -511,7 +511,7 @@ static void ath6kl_install_static_wep_keys(struct ath6kl *ar)
 			if (index == vif->def_txkey_index)
 				keyusage |= TX_USAGE;
 
-			ath6kl_wmi_addkey_cmd(ar->wmi,
+			ath6kl_wmi_addkey_cmd(ar->wmi, vif->fw_vif_idx,
 					      index,
 					      WEP_CRYPT,
 					      keyusage,
@@ -551,7 +551,7 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl *ar, u16 channel)
 			   "the initial group key for AP mode\n");
 		memset(key_rsc, 0, sizeof(key_rsc));
 		res = ath6kl_wmi_addkey_cmd(
-			ar->wmi, ik->key_index, ik->key_type,
+			ar->wmi, vif->fw_vif_idx, ik->key_index, ik->key_type,
 			GROUP_USAGE, ik->key_len, key_rsc, ik->key,
 			KEY_OP_INIT_VAL, NULL, SYNC_BOTH_WMIFLAG);
 		if (res) {
@@ -913,20 +913,20 @@ void ath6k_credit_distribute(struct htc_credit_state_info *cred_info,
 void disconnect_timer_handler(unsigned long ptr)
 {
 	struct net_device *dev = (struct net_device *)ptr;
-	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 
-	ath6kl_init_profile_info(ar);
-	ath6kl_disconnect(ar);
+	ath6kl_init_profile_info(vif->ar);
+	ath6kl_disconnect(vif->ar, vif->fw_vif_idx);
 }
 
-void ath6kl_disconnect(struct ath6kl *ar)
+void ath6kl_disconnect(struct ath6kl *ar, u8 if_idx)
 {
 	/* TODO: Pass vif instead of taking it from ar */
 	struct ath6kl_vif *vif = ar->vif;
 
 	if (test_bit(CONNECTED, &vif->flags) ||
 	    test_bit(CONNECT_PEND, &vif->flags)) {
-		ath6kl_wmi_disconnect_cmd(ar->wmi);
+		ath6kl_wmi_disconnect_cmd(ar->wmi, if_idx);
 		/*
 		 * Disconnect command is issued, clear the connect pending
 		 * flag. The connected flag will be cleared in
@@ -961,13 +961,13 @@ void ath6kl_deep_sleep_enable(struct ath6kl *ar)
 
 	if (test_bit(CONNECTED, &vif->flags) ||
 	    test_bit(CONNECT_PEND, &vif->flags))
-		ath6kl_wmi_disconnect_cmd(ar->wmi);
+		ath6kl_wmi_disconnect_cmd(ar->wmi, vif->fw_vif_idx);
 
 	vif->sme_state = SME_DISCONNECTED;
 
 	/* disable scanning */
-	if (ath6kl_wmi_scanparams_cmd(ar->wmi, 0xFFFF, 0, 0, 0, 0, 0, 0, 0,
-				      0, 0) != 0)
+	if (ath6kl_wmi_scanparams_cmd(ar->wmi, vif->fw_vif_idx, 0xFFFF, 0, 0,
+				      0, 0, 0, 0, 0, 0, 0) != 0)
 		printk(KERN_WARNING "ath6kl: failed to disable scan "
 		       "during suspend\n");
 
@@ -976,7 +976,7 @@ void ath6kl_deep_sleep_enable(struct ath6kl *ar)
 	/* save the current power mode before enabling power save */
 	ar->wmi->saved_pwr_mode = ar->wmi->pwr_mode;
 
-	if (ath6kl_wmi_powermode_cmd(ar->wmi, REC_POWER) != 0)
+	if (ath6kl_wmi_powermode_cmd(ar->wmi, 0, REC_POWER) != 0)
 		ath6kl_warn("ath6kl_deep_sleep_enable: "
 			"wmi_powermode_cmd failed\n");
 }
@@ -1061,7 +1061,8 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 	vif->bss_ch = channel;
 
 	if ((vif->nw_type == INFRA_NETWORK))
-		ath6kl_wmi_listeninterval_cmd(ar->wmi, ar->listen_intvl_t,
+		ath6kl_wmi_listeninterval_cmd(ar->wmi, vif->fw_vif_idx,
+					      ar->listen_intvl_t,
 					      ar->listen_intvl_b);
 
 	netif_wake_queue(ar->net_dev);
@@ -1280,6 +1281,8 @@ void ath6kl_pspoll_event(struct ath6kl *ar, u8 aid)
 	struct ath6kl_sta *conn;
 	struct sk_buff *skb;
 	bool psq_empty = false;
+	/* TODO: Pass vif instead of taking it from ar */
+	struct ath6kl_vif *vif = ar->vif;
 
 	conn = ath6kl_find_sta_by_aid(ar, aid);
 
@@ -1310,7 +1313,7 @@ void ath6kl_pspoll_event(struct ath6kl *ar, u8 aid)
 	spin_unlock_bh(&conn->psq_lock);
 
 	if (psq_empty)
-		ath6kl_wmi_set_pvb_cmd(ar->wmi, conn->aid, 0);
+		ath6kl_wmi_set_pvb_cmd(ar->wmi, vif->fw_vif_idx, conn->aid, 0);
 }
 
 void ath6kl_dtimexpiry_event(struct ath6kl *ar)
@@ -1355,7 +1358,7 @@ void ath6kl_dtimexpiry_event(struct ath6kl *ar)
 	clear_bit(DTIM_EXPIRED, &vif->flags);
 
 	/* clear the LSB of the BitMapCtl field of the TIM IE */
-	ath6kl_wmi_set_pvb_cmd(ar->wmi, MCAST_AID, 0);
+	ath6kl_wmi_set_pvb_cmd(ar->wmi, vif->fw_vif_idx, MCAST_AID, 0);
 }
 
 void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
@@ -1377,7 +1380,8 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 
 			/* clear the LSB of the TIM IE's BitMapCtl field */
 			if (test_bit(WMI_READY, &ar->flag))
-				ath6kl_wmi_set_pvb_cmd(ar->wmi, MCAST_AID, 0);
+				ath6kl_wmi_set_pvb_cmd(ar->wmi, vif->fw_vif_idx,
+						       MCAST_AID, 0);
 		}
 
 		if (!is_broadcast_ether_addr(bssid)) {
@@ -1468,11 +1472,11 @@ static int ath6kl_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	ath6kl_disconnect(ar);
+	ath6kl_disconnect(ar, vif->fw_vif_idx);
 
 	if (test_bit(WMI_READY, &ar->flag)) {
-		if (ath6kl_wmi_scanparams_cmd(ar->wmi, 0xFFFF, 0, 0, 0, 0, 0, 0,
-					      0, 0, 0))
+		if (ath6kl_wmi_scanparams_cmd(ar->wmi, vif->fw_vif_idx, 0xFFFF,
+					      0, 0, 0, 0, 0, 0, 0, 0, 0))
 			return -EIO;
 
 		clear_bit(WLAN_ENABLED, &vif->flags);

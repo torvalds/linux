@@ -747,7 +747,7 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar)
 static int ath6kl_sdio_resume(struct ath6kl *ar)
 {
 	if (ar->wmi->pwr_mode != ar->wmi->saved_pwr_mode) {
-		if (ath6kl_wmi_powermode_cmd(ar->wmi,
+		if (ath6kl_wmi_powermode_cmd(ar->wmi, 0,
 			ar->wmi->saved_pwr_mode) != 0)
 			ath6kl_warn("ath6kl_sdio_resume: "
 				"wmi_powermode_cmd failed\n");

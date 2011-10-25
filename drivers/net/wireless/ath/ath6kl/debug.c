@@ -417,7 +417,7 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 
 	set_bit(STATS_UPDATE_PEND, &vif->flags);
 
-	if (ath6kl_wmi_get_stats_cmd(ar->wmi)) {
+	if (ath6kl_wmi_get_stats_cmd(ar->wmi, 0)) {
 		up(&ar->sem);
 		kfree(buf);
 		return -EIO;
@@ -1477,7 +1477,7 @@ static ssize_t ath6kl_bgscan_int_write(struct file *file,
 	if (bgscan_int == 0)
 		bgscan_int = 0xffff;
 
-	ath6kl_wmi_scanparams_cmd(ar->wmi, 0, 0, bgscan_int, 0, 0, 0, 3,
+	ath6kl_wmi_scanparams_cmd(ar->wmi, 0, 0, 0, bgscan_int, 0, 0, 0, 3,
 				  0, 0, 0);
 
 	return count;

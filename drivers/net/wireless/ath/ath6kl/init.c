@@ -1407,7 +1407,7 @@ static int ath6kl_init(struct ath6kl *ar)
 	}
 
 	/* Add an initial station interface */
-	ndev = ath6kl_interface_add(ar, "wlan%d", NL80211_IFTYPE_STATION);
+	ndev = ath6kl_interface_add(ar, "wlan%d", NL80211_IFTYPE_STATION, 0);
 	if (!ndev) {
 		ath6kl_err("Failed to instantiate a network device\n");
 		status = -ENOMEM;
