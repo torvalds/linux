@@ -319,8 +319,8 @@ static struct sys_timer realview_pbx_timer = {
 	.init		= realview_pbx_timer_init,
 };
 
-static void realview_pbx_fixup(struct machine_desc *mdesc, struct tag *tags,
-			       char **from, struct meminfo *meminfo)
+static void realview_pbx_fixup(struct tag *tags, char **from,
+			       struct meminfo *meminfo)
 {
 #ifdef CONFIG_SPARSEMEM
 	/*
@@ -335,7 +335,7 @@ static void realview_pbx_fixup(struct machine_desc *mdesc, struct tag *tags,
 	meminfo->bank[2].size = SZ_256M;
 	meminfo->nr_banks = 3;
 #else
-	realview_fixup(mdesc, tags, from, meminfo);
+	realview_fixup(tags, from, meminfo);
 #endif
 }
 

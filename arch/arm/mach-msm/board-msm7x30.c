@@ -24,6 +24,7 @@
 #include <linux/smsc911x.h>
 #include <linux/usb/msm_hsusb.h>
 #include <linux/clkdev.h>
+#include <linux/memblock.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -41,6 +42,21 @@
 #include "proc_comm.h"
 
 extern struct sys_timer msm_timer;
+
+static void __init msm7x30_fixup(struct machine_desc *desc, struct tag *tag,
+			 char **cmdline, struct meminfo *mi)
+{
+	for (; tag->hdr.size; tag = tag_next(tag))
+		if (tag->hdr.tag == ATAG_MEM && tag->u.mem.start == 0x200000) {
+			tag->u.mem.start = 0;
+			tag->u.mem.size += SZ_2M;
+		}
+}
+
+static void __init msm7x30_reserve(void)
+{
+	memblock_remove(0x0, SZ_2M);
+}
 
 static int hsusb_phy_init_seq[] = {
 	0x30, 0x32,	/* Enable and set Pre-Emphasis Depth to 20% */
@@ -107,6 +123,8 @@ static void __init msm7x30_map_io(void)
 
 MACHINE_START(MSM7X30_SURF, "QCT MSM7X30 SURF")
 	.boot_params = PLAT_PHYS_OFFSET + 0x100,
+	.fixup = msm7x30_fixup,
+	.reserve = msm7x30_reserve,
 	.map_io = msm7x30_map_io,
 	.init_irq = msm7x30_init_irq,
 	.init_machine = msm7x30_init,
@@ -115,6 +133,8 @@ MACHINE_END
 
 MACHINE_START(MSM7X30_FFA, "QCT MSM7X30 FFA")
 	.boot_params = PLAT_PHYS_OFFSET + 0x100,
+	.fixup = msm7x30_fixup,
+	.reserve = msm7x30_reserve,
 	.map_io = msm7x30_map_io,
 	.init_irq = msm7x30_init_irq,
 	.init_machine = msm7x30_init,
@@ -123,6 +143,8 @@ MACHINE_END
 
 MACHINE_START(MSM7X30_FLUID, "QCT MSM7X30 FLUID")
 	.boot_params = PLAT_PHYS_OFFSET + 0x100,
+	.fixup = msm7x30_fixup,
+	.reserve = msm7x30_reserve,
 	.map_io = msm7x30_map_io,
 	.init_irq = msm7x30_init_irq,
 	.init_machine = msm7x30_init,

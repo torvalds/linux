@@ -126,8 +126,8 @@ static void trimslice_usb_init(void)
 	platform_device_register(&tegra_ehci1_device);
 }
 
-static void __init tegra_trimslice_fixup(struct machine_desc *desc,
-	struct tag *tags, char **cmdline, struct meminfo *mi)
+static void __init tegra_trimslice_fixup(struct tag *tags, char **cmdline,
+	struct meminfo *mi)
 {
 	mi->nr_banks = 2;
 	mi->bank[0].start = PHYS_OFFSET;

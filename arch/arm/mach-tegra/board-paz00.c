@@ -84,8 +84,8 @@ static void paz00_usb_init(void)
 	platform_device_register(&tegra_ehci3_device);
 }
 
-static void __init tegra_paz00_fixup(struct machine_desc *desc,
-	struct tag *tags, char **cmdline, struct meminfo *mi)
+static void __init tegra_paz00_fixup(struct tag *tags, char **cmdline,
+	struct meminfo *mi)
 {
 	mi->nr_banks = 1;
 	mi->bank[0].start = PHYS_OFFSET;
