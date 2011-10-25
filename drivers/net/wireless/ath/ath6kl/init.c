@@ -91,21 +91,6 @@ void ath6kl_init_profile_info(struct ath6kl *ar)
 	ar->nw_type = ar->next_mode = INFRA_NETWORK;
 }
 
-static u8 ath6kl_get_fw_iftype(struct ath6kl *ar)
-{
-	switch (ar->nw_type) {
-	case INFRA_NETWORK:
-		return HI_OPTION_FW_MODE_BSS_STA;
-	case ADHOC_NETWORK:
-		return HI_OPTION_FW_MODE_IBSS;
-	case AP_NETWORK:
-		return HI_OPTION_FW_MODE_AP;
-	default:
-		ath6kl_err("Unsupported interface type :%d\n", ar->nw_type);
-		return 0xff;
-	}
-}
-
 static int ath6kl_set_host_app_area(struct ath6kl *ar)
 {
 	u32 address, data;
@@ -446,9 +431,7 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	u32 param, ram_reserved_size;
 	u8 fw_iftype;
 
-	fw_iftype = ath6kl_get_fw_iftype(ar);
-	if (fw_iftype == 0xff)
-		return -EINVAL;
+	fw_iftype = HI_OPTION_FW_MODE_BSS_STA;
 
 	/* Tell target which HTC version it is used*/
 	param = HTC_PROTOCOL_VERSION;
