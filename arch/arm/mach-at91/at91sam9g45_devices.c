@@ -197,7 +197,7 @@ void __init at91_add_device_usbh_ehci(struct at91_usbh_data *data) {}
  *  USB HS Device (Gadget)
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_USB_GADGET_ATMEL_USBA) || defined(CONFIG_USB_GADGET_ATMEL_USBA_MODULE)
+#if defined(CONFIG_USB_ATMEL_USBA) || defined(CONFIG_USB_ATMEL_USBA_MODULE)
 static struct resource usba_udc_resources[] = {
 	[0] = {
 		.start	= AT91SAM9G45_UDPHS_FIFO,
