@@ -482,8 +482,8 @@ static int radeon_dp_get_dp_link_clock(struct drm_connector *connector,
 	int bpp = convert_bpc_to_bpp(connector->display_info.bpc);
 	int lane_num, max_pix_clock;
 
-	if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) !=
-	    ENCODER_OBJECT_ID_NONE)
+	if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) ==
+	    ENCODER_OBJECT_ID_NUTMEG)
 		return 270000;
 
 	lane_num = radeon_dp_get_dp_lane_number(connector, dpcd, pix_clock);
