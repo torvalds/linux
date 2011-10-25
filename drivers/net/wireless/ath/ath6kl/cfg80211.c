@@ -259,6 +259,14 @@ static bool ath6kl_is_rsn_ie(const u8 *pos)
 	return pos[0] == WLAN_EID_RSN;
 }
 
+static bool ath6kl_is_wps_ie(const u8 *pos)
+{
+	return (pos[0] == WLAN_EID_VENDOR_SPECIFIC &&
+		pos[1] >= 4 &&
+		pos[2] == 0x00 && pos[3] == 0x50 && pos[4] == 0xf2 &&
+		pos[5] == 0x04);
+}
+
 static int ath6kl_set_assoc_req_ies(struct ath6kl_vif *vif, const u8 *ies,
 				    size_t ies_len)
 {
@@ -267,6 +275,12 @@ static int ath6kl_set_assoc_req_ies(struct ath6kl_vif *vif, const u8 *ies,
 	u8 *buf = NULL;
 	size_t len = 0;
 	int ret;
+
+	/*
+	 * Clear previously set flag
+	 */
+
+	ar->connect_ctrl_flags &= ~CONNECT_WPS_FLAG;
 
 	/*
 	 * Filter out RSN/WPA IE(s)
@@ -285,6 +299,10 @@ static int ath6kl_set_assoc_req_ies(struct ath6kl_vif *vif, const u8 *ies,
 				memcpy(buf + len, pos, 2 + pos[1]);
 				len += 2 + pos[1];
 			}
+
+			if (ath6kl_is_wps_ie(pos))
+				ar->connect_ctrl_flags |= CONNECT_WPS_FLAG;
+
 			pos += 2 + pos[1];
 		}
 	}

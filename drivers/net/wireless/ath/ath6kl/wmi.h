@@ -626,6 +626,7 @@ enum wmi_connect_ctrl_flags_bits {
 	CONNECT_CSA_FOLLOW_BSS = 0x0020,
 	CONNECT_DO_WPA_OFFLOAD = 0x0040,
 	CONNECT_DO_NOT_DEAUTH = 0x0080,
+	CONNECT_WPS_FLAG = 0x0100,
 };
 
 struct wmi_connect_cmd {
