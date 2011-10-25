@@ -454,8 +454,15 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 		spin_lock_init(&pool->sp_lock);
 	}
 
-	/* Remove any stale portmap registrations */
-	svc_unregister(serv);
+	if (svc_uses_rpcbind(serv)) {
+	       	if (svc_rpcb_setup(serv) < 0) {
+			kfree(serv->sv_pools);
+			kfree(serv);
+			return NULL;
+		}
+		if (!serv->sv_shutdown)
+			serv->sv_shutdown = svc_rpcb_cleanup;
+	}
 
 	return serv;
 }
