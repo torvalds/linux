@@ -590,8 +590,8 @@ struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
 #undef node
 	}
 
-	if (found && ns) {
-		while (found->s_ns && found->s_ns != ns) {
+	if (found) {
+		while (found->s_ns != ns) {
 			p = rb_next(&found->name_node);
 			if (!p)
 				return NULL;
@@ -947,7 +947,7 @@ static struct sysfs_dirent *sysfs_dir_pos(const void *ns,
 #undef node
 		}
 	}
-	while (pos && pos->s_ns && pos->s_ns != ns) {
+	while (pos && pos->s_ns != ns) {
 		struct rb_node *p = rb_next(&pos->inode_node);
 		if (!p)
 			pos = NULL;
@@ -967,7 +967,7 @@ static struct sysfs_dirent *sysfs_dir_next_pos(const void *ns,
 			pos = NULL;
 		else
 			pos = rb_entry(p, struct sysfs_dirent, inode_node);
-	} while (pos && pos->s_ns && pos->s_ns != ns);
+	} while (pos && pos->s_ns != ns);
 	return pos;
 }
 
