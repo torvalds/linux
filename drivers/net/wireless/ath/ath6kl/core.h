@@ -498,7 +498,6 @@ struct ath6kl {
 	u8 ap_country_code[3];
 	struct list_head amsdu_rx_buffer_queue;
 	u8 rx_meta_ver;
-	struct wireless_dev *wdev;
 	enum wlan_low_pwr_state wlan_pwr_state;
 	struct wmi_scan_params_cmd sc_params;
 	u8 mac_addr[ETH_ALEN];
