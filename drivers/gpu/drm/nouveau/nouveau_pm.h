@@ -60,10 +60,9 @@ int nv40_pm_pwm_get(struct drm_device *, struct dcb_gpio_entry *, u32*, u32*);
 int nv40_pm_pwm_set(struct drm_device *, struct dcb_gpio_entry *, u32, u32);
 
 /* nv50_pm.c */
-int nv50_pm_clock_get(struct drm_device *, u32 id);
-void *nv50_pm_clock_pre(struct drm_device *, struct nouveau_pm_level *,
-			u32 id, int khz);
-void nv50_pm_clock_set(struct drm_device *, void *);
+int nv50_pm_clocks_get(struct drm_device *, struct nouveau_pm_level *);
+void *nv50_pm_clocks_pre(struct drm_device *, struct nouveau_pm_level *);
+int nv50_pm_clocks_set(struct drm_device *, void *);
 int nv50_pm_pwm_get(struct drm_device *, struct dcb_gpio_entry *, u32*, u32*);
 int nv50_pm_pwm_set(struct drm_device *, struct dcb_gpio_entry *, u32, u32);
 

@@ -302,6 +302,7 @@ nouveau_perf_init(struct drm_device *dev)
 			perflvl->shader = ROM16(entry[10]) * 1000;
 			perflvl->memory = ROM16(entry[12]) * 1000;
 			perflvl->vdec = ROM16(entry[16]) * 1000;
+			perflvl->dom6 = ROM16(entry[20]) * 1000;
 			break;
 		case 0x40:
 #define subent(n) (ROM16(entry[perf[2] + ((n) * perf[3])]) & 0xfff) * 1000

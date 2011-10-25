@@ -493,6 +493,7 @@ struct nouveau_pm_level {
 	u32 copy;
 	u32 daemon;
 	u32 vdec;
+	u32 dom6;
 	u32 unka0;	/* nva3:nvc0 */
 	u32 hub01;	/* nvc0- */
 	u32 hub06;	/* nvc0- */
