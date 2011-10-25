@@ -1583,7 +1583,7 @@ int usb_autopm_get_interface_async(struct usb_interface *intf)
 	dev_vdbg(&intf->dev, "%s: cnt %d -> %d\n",
 			__func__, atomic_read(&intf->dev.power.usage_count),
 			status);
-	if (status > 0)
+	if (status > 0 || status == -EINPROGRESS)
 		status = 0;
 	return status;
 }
@@ -1698,6 +1698,20 @@ int usb_runtime_idle(struct device *dev)
 	if (autosuspend_check(udev) == 0)
 		pm_runtime_autosuspend(dev);
 	return 0;
+}
+
+int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
+{
+	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+	int ret = -EPERM;
+
+	if (hcd->driver->set_usb2_hw_lpm) {
+		ret = hcd->driver->set_usb2_hw_lpm(hcd, udev, enable);
+		if (!ret)
+			udev->usb2_hw_lpm_enabled = enable;
+	}
+
+	return ret;
 }
 
 #endif /* CONFIG_USB_SUSPEND */

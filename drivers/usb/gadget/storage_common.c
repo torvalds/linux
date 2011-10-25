@@ -9,15 +9,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 
@@ -50,6 +41,12 @@
  * When FSG_BUFFHD_STATIC_BUFFER is defined when this file is included
  * the fsg_buffhd structure's buf field will be an array of FSG_BUFLEN
  * characters rather then a pointer to void.
+ */
+
+/*
+ * When USB_GADGET_DEBUG_FILES is defined the module param num_buffers
+ * sets the number of pipeline buffers (length of the fsg_buffhd array).
+ * The valid range of num_buffers is: num >= 2 && num <= 4.
  */
 
 
@@ -247,6 +244,8 @@ struct fsg_lun {
 	u32		sense_data_info;
 	u32		unit_attention_data;
 
+	unsigned int	blkbits;	/* Bits of logical block size of bound block device */
+	unsigned int	blksize;	/* logical block size of bound block device */
 	struct device	dev;
 };
 
@@ -262,8 +261,31 @@ static struct fsg_lun *fsg_lun_from_dev(struct device *dev)
 #define EP0_BUFSIZE	256
 #define DELAYED_STATUS	(EP0_BUFSIZE + 999)	/* An impossibly large value */
 
-/* Number of buffers we will use.  2 is enough for double-buffering */
-#define FSG_NUM_BUFFERS	2
+#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+
+static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
+module_param_named(num_buffers, fsg_num_buffers, uint, S_IRUGO);
+MODULE_PARM_DESC(num_buffers, "Number of pipeline buffers");
+
+#else
+
+/*
+ * Number of buffers we will use.
+ * 2 is usually enough for good buffering pipeline
+ */
+#define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
+
+#endif /* CONFIG_USB_DEBUG */
+
+/* check if fsg_num_buffers is within a valid range */
+static inline int fsg_num_buffers_validate(void)
+{
+	if (fsg_num_buffers >= 2 && fsg_num_buffers <= 4)
+		return 0;
+	pr_err("fsg_num_buffers %u is out of range (%d to %d)\n",
+	       fsg_num_buffers, 2 ,4);
+	return -EINVAL;
+}
 
 /* Default size of buffer length. */
 #define FSG_BUFLEN	((u32)16384)
@@ -493,12 +515,128 @@ static struct usb_descriptor_header *fsg_hs_function[] = {
 	NULL,
 };
 
+static struct usb_endpoint_descriptor
+fsg_ss_bulk_in_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	/* bEndpointAddress copied from fs_bulk_in_desc during fsg_bind() */
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+};
+
+static struct usb_ss_ep_comp_descriptor fsg_ss_bulk_in_comp_desc = {
+	.bLength =		sizeof(fsg_ss_bulk_in_comp_desc),
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+
+	/*.bMaxBurst =		DYNAMIC, */
+};
+
+static struct usb_endpoint_descriptor
+fsg_ss_bulk_out_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	/* bEndpointAddress copied from fs_bulk_out_desc during fsg_bind() */
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+};
+
+static struct usb_ss_ep_comp_descriptor fsg_ss_bulk_out_comp_desc = {
+	.bLength =		sizeof(fsg_ss_bulk_in_comp_desc),
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+
+	/*.bMaxBurst =		DYNAMIC, */
+};
+
+#ifndef FSG_NO_INTR_EP
+
+static struct usb_endpoint_descriptor
+fsg_ss_intr_in_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	/* bEndpointAddress copied from fs_intr_in_desc during fsg_bind() */
+	.bmAttributes =		USB_ENDPOINT_XFER_INT,
+	.wMaxPacketSize =	cpu_to_le16(2),
+	.bInterval =		9,	/* 2**(9-1) = 256 uframes -> 32 ms */
+};
+
+static struct usb_ss_ep_comp_descriptor fsg_ss_intr_in_comp_desc = {
+	.bLength =		sizeof(fsg_ss_bulk_in_comp_desc),
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+
+	.wBytesPerInterval =	cpu_to_le16(2),
+};
+
+#ifndef FSG_NO_OTG
+#  define FSG_SS_FUNCTION_PRE_EP_ENTRIES	2
+#else
+#  define FSG_SS_FUNCTION_PRE_EP_ENTRIES	1
+#endif
+
+#endif
+
+static __maybe_unused struct usb_ext_cap_descriptor fsg_ext_cap_desc = {
+	.bLength =		USB_DT_USB_EXT_CAP_SIZE,
+	.bDescriptorType =	USB_DT_DEVICE_CAPABILITY,
+	.bDevCapabilityType =	USB_CAP_TYPE_EXT,
+
+	.bmAttributes =		cpu_to_le32(USB_LPM_SUPPORT),
+};
+
+static __maybe_unused struct usb_ss_cap_descriptor fsg_ss_cap_desc = {
+	.bLength =		USB_DT_USB_SS_CAP_SIZE,
+	.bDescriptorType =	USB_DT_DEVICE_CAPABILITY,
+	.bDevCapabilityType =	USB_SS_CAP_TYPE,
+
+	/* .bmAttributes = LTM is not supported yet */
+
+	.wSpeedSupported =	cpu_to_le16(USB_LOW_SPEED_OPERATION
+		| USB_FULL_SPEED_OPERATION
+		| USB_HIGH_SPEED_OPERATION
+		| USB_5GBPS_OPERATION),
+	.bFunctionalitySupport = USB_LOW_SPEED_OPERATION,
+	.bU1devExitLat =	USB_DEFAULT_U1_DEV_EXIT_LAT,
+	.bU2DevExitLat =	USB_DEFAULT_U2_DEV_EXIT_LAT,
+};
+
+static __maybe_unused struct usb_bos_descriptor fsg_bos_desc = {
+	.bLength =		USB_DT_BOS_SIZE,
+	.bDescriptorType =	USB_DT_BOS,
+
+	.wTotalLength =		USB_DT_BOS_SIZE
+				+ USB_DT_USB_EXT_CAP_SIZE
+				+ USB_DT_USB_SS_CAP_SIZE,
+
+	.bNumDeviceCaps =	2,
+};
+
+static struct usb_descriptor_header *fsg_ss_function[] = {
+#ifndef FSG_NO_OTG
+	(struct usb_descriptor_header *) &fsg_otg_desc,
+#endif
+	(struct usb_descriptor_header *) &fsg_intf_desc,
+	(struct usb_descriptor_header *) &fsg_ss_bulk_in_desc,
+	(struct usb_descriptor_header *) &fsg_ss_bulk_in_comp_desc,
+	(struct usb_descriptor_header *) &fsg_ss_bulk_out_desc,
+	(struct usb_descriptor_header *) &fsg_ss_bulk_out_comp_desc,
+#ifndef FSG_NO_INTR_EP
+	(struct usb_descriptor_header *) &fsg_ss_intr_in_desc,
+	(struct usb_descriptor_header *) &fsg_ss_intr_in_comp_desc,
+#endif
+	NULL,
+};
+
 /* Maxpacket and other transfer characteristics vary by speed. */
 static __maybe_unused struct usb_endpoint_descriptor *
 fsg_ep_desc(struct usb_gadget *g, struct usb_endpoint_descriptor *fs,
-		struct usb_endpoint_descriptor *hs)
+		struct usb_endpoint_descriptor *hs,
+		struct usb_endpoint_descriptor *ss)
 {
-	if (gadget_is_dualspeed(g) && g->speed == USB_SPEED_HIGH)
+	if (gadget_is_superspeed(g) && g->speed == USB_SPEED_SUPER)
+		return ss;
+	else if (gadget_is_dualspeed(g) && g->speed == USB_SPEED_HIGH)
 		return hs;
 	return fs;
 }
@@ -580,13 +718,24 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 		rc = (int) size;
 		goto out;
 	}
-	num_sectors = size >> 9;	/* File size in 512-byte blocks */
+
+	if (curlun->cdrom) {
+		curlun->blksize = 2048;
+		curlun->blkbits = 11;
+	} else if (inode->i_bdev) {
+		curlun->blksize = bdev_logical_block_size(inode->i_bdev);
+		curlun->blkbits = blksize_bits(curlun->blksize);
+	} else {
+		curlun->blksize = 512;
+		curlun->blkbits = 9;
+	}
+
+	num_sectors = size >> curlun->blkbits; /* File size in logic-block-size blocks */
 	min_sectors = 1;
 	if (curlun->cdrom) {
-		num_sectors &= ~3;	/* Reduce to a multiple of 2048 */
-		min_sectors = 300*4;	/* Smallest track is 300 frames */
-		if (num_sectors >= 256*60*75*4) {
-			num_sectors = (256*60*75 - 1) * 4;
+		min_sectors = 300;	/* Smallest track is 300 frames */
+		if (num_sectors >= 256*60*75) {
+			num_sectors = 256*60*75 - 1;
 			LINFO(curlun, "file too big: %s\n", filename);
 			LINFO(curlun, "using only first %d blocks\n",
 					(int) num_sectors);

@@ -80,7 +80,7 @@ static int usb_hcd_ppc_soc_probe(const struct hc_driver *driver,
 #endif
 	ohci_hcd_init(ohci);
 
-	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	retval = usb_add_hcd(hcd, irq, 0);
 	if (retval == 0)
 		return retval;
 
