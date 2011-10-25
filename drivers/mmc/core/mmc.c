@@ -467,29 +467,27 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		card->ext_csd.rst_n_function = ext_csd[EXT_CSD_RST_N_FUNCTION];
 	}
 
-	/* eMMC v4.5 or later */
-	if (card->ext_csd.rev >= 6)
-		card->ext_csd.feature_support |= MMC_DISCARD_FEATURE;
-
 	card->ext_csd.raw_erased_mem_count = ext_csd[EXT_CSD_ERASED_MEM_CONT];
 	if (ext_csd[EXT_CSD_ERASED_MEM_CONT])
 		card->erased_byte = 0xFF;
 	else
 		card->erased_byte = 0x0;
 
+	/* eMMC v4.5 or later */
 	if (card->ext_csd.rev >= 6) {
+		card->ext_csd.feature_support |= MMC_DISCARD_FEATURE;
+
 		card->ext_csd.generic_cmd6_time = 10 *
 			ext_csd[EXT_CSD_GENERIC_CMD6_TIME];
 		card->ext_csd.power_off_longtime = 10 *
 			ext_csd[EXT_CSD_POWER_OFF_LONG_TIME];
-	} else
-		card->ext_csd.generic_cmd6_time = 0;
 
-	card->ext_csd.cache_size =
-		ext_csd[EXT_CSD_CACHE_SIZE + 0] << 0 |
-		ext_csd[EXT_CSD_CACHE_SIZE + 1] << 8 |
-		ext_csd[EXT_CSD_CACHE_SIZE + 2] << 16 |
-		ext_csd[EXT_CSD_CACHE_SIZE + 3] << 24;
+		card->ext_csd.cache_size =
+			ext_csd[EXT_CSD_CACHE_SIZE + 0] << 0 |
+			ext_csd[EXT_CSD_CACHE_SIZE + 1] << 8 |
+			ext_csd[EXT_CSD_CACHE_SIZE + 2] << 16 |
+			ext_csd[EXT_CSD_CACHE_SIZE + 3] << 24;
+	}
 
 out:
 	return err;
