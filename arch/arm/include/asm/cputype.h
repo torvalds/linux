@@ -8,6 +8,7 @@
 #define CPUID_CACHETYPE	1
 #define CPUID_TCM	2
 #define CPUID_TLBTYPE	3
+#define CPUID_MPIDR	5
 
 #define CPUID_EXT_PFR0	"c1, 0"
 #define CPUID_EXT_PFR1	"c1, 1"
@@ -68,6 +69,11 @@ static inline unsigned int __attribute_const__ read_cpuid_cachetype(void)
 static inline unsigned int __attribute_const__ read_cpuid_tcmstatus(void)
 {
 	return read_cpuid(CPUID_TCM);
+}
+
+static inline unsigned int __attribute_const__ read_cpuid_mpidr(void)
+{
+	return read_cpuid(CPUID_MPIDR);
 }
 
 /*
