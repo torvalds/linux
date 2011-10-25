@@ -1414,7 +1414,7 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 	if (down_interruptible(&ar->sem))
 		return -EBUSY;
 
-	set_bit(STATS_UPDATE_PEND, &ar->flag);
+	set_bit(STATS_UPDATE_PEND, &vif->flags);
 
 	ret = ath6kl_wmi_get_stats_cmd(ar->wmi);
 
@@ -1425,7 +1425,7 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	left = wait_event_interruptible_timeout(ar->event_wq,
 						!test_bit(STATS_UPDATE_PEND,
-							  &ar->flag),
+							  &vif->flags),
 						WMI_TIMEOUT);
 
 	up(&ar->sem);
@@ -1435,24 +1435,24 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 	else if (left < 0)
 		return left;
 
-	if (ar->target_stats.rx_byte) {
-		sinfo->rx_bytes = ar->target_stats.rx_byte;
+	if (vif->target_stats.rx_byte) {
+		sinfo->rx_bytes = vif->target_stats.rx_byte;
 		sinfo->filled |= STATION_INFO_RX_BYTES;
-		sinfo->rx_packets = ar->target_stats.rx_pkt;
+		sinfo->rx_packets = vif->target_stats.rx_pkt;
 		sinfo->filled |= STATION_INFO_RX_PACKETS;
 	}
 
-	if (ar->target_stats.tx_byte) {
-		sinfo->tx_bytes = ar->target_stats.tx_byte;
+	if (vif->target_stats.tx_byte) {
+		sinfo->tx_bytes = vif->target_stats.tx_byte;
 		sinfo->filled |= STATION_INFO_TX_BYTES;
-		sinfo->tx_packets = ar->target_stats.tx_pkt;
+		sinfo->tx_packets = vif->target_stats.tx_pkt;
 		sinfo->filled |= STATION_INFO_TX_PACKETS;
 	}
 
-	sinfo->signal = ar->target_stats.cs_rssi;
+	sinfo->signal = vif->target_stats.cs_rssi;
 	sinfo->filled |= STATION_INFO_SIGNAL;
 
-	rate = ar->target_stats.tx_ucast_rate;
+	rate = vif->target_stats.tx_ucast_rate;
 
 	if (is_rate_legacy(rate)) {
 		sinfo->txrate.legacy = rate / 100;

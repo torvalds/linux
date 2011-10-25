@@ -397,7 +397,9 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
 	struct ath6kl *ar = file->private_data;
-	struct target_stats *tgt_stats = &ar->target_stats;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
+	struct target_stats *tgt_stats = &vif->target_stats;
 	char *buf;
 	unsigned int len = 0, buf_len = 1500;
 	int i;
@@ -413,7 +415,7 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 		return -EBUSY;
 	}
 
-	set_bit(STATS_UPDATE_PEND, &ar->flag);
+	set_bit(STATS_UPDATE_PEND, &vif->flags);
 
 	if (ath6kl_wmi_get_stats_cmd(ar->wmi)) {
 		up(&ar->sem);
@@ -423,7 +425,7 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 
 	left = wait_event_interruptible_timeout(ar->event_wq,
 						!test_bit(STATS_UPDATE_PEND,
-						&ar->flag), WMI_TIMEOUT);
+						&vif->flags), WMI_TIMEOUT);
 
 	up(&ar->sem);
 

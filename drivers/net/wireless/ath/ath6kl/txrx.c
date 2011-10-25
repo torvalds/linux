@@ -357,8 +357,8 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 fail_tx:
 	dev_kfree_skb(skb);
 
-	ar->net_stats.tx_dropped++;
-	ar->net_stats.tx_aborted_errors++;
+	vif->net_stats.tx_dropped++;
+	vif->net_stats.tx_aborted_errors++;
 
 	return 0;
 }
@@ -583,7 +583,7 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 				/* a packet was flushed  */
 				flushing = true;
 
-			ar->net_stats.tx_errors++;
+			vif->net_stats.tx_errors++;
 
 			if (status != -ENOSPC)
 				ath6kl_err("tx error, status: 0x%x\n", status);
@@ -598,8 +598,8 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 				   eid, "OK");
 
 			flushing = false;
-			ar->net_stats.tx_packets++;
-			ar->net_stats.tx_bytes += skb->len;
+			vif->net_stats.tx_packets++;
+			vif->net_stats.tx_bytes += skb->len;
 		}
 
 		ath6kl_tx_clear_node_map(ar, eid, map_no);
@@ -1061,7 +1061,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		   packet->act_len, status);
 
 	if (status || !(skb->data + HTC_HDR_LENGTH)) {
-		ar->net_stats.rx_errors++;
+		vif->net_stats.rx_errors++;
 		dev_kfree_skb(skb);
 		return;
 	}
@@ -1072,8 +1072,8 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	 */
 	spin_lock_bh(&ar->lock);
 
-	ar->net_stats.rx_packets++;
-	ar->net_stats.rx_bytes += packet->act_len;
+	vif->net_stats.rx_packets++;
+	vif->net_stats.rx_bytes += packet->act_len;
 
 	spin_unlock_bh(&ar->lock);
 
@@ -1111,8 +1111,8 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	    ((packet->act_len < min_hdr_len) ||
 	     (packet->act_len > WMI_MAX_AMSDU_RX_DATA_FRAME_LENGTH))) {
 		ath6kl_info("frame len is too short or too long\n");
-		ar->net_stats.rx_errors++;
-		ar->net_stats.rx_length_errors++;
+		vif->net_stats.rx_errors++;
+		vif->net_stats.rx_length_errors++;
 		dev_kfree_skb(skb);
 		return;
 	}

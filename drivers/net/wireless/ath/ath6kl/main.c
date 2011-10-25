@@ -1119,7 +1119,9 @@ static void ath6kl_update_target_stats(struct ath6kl *ar, u8 *ptr, u32 len)
 {
 	struct wmi_target_stats *tgt_stats =
 		(struct wmi_target_stats *) ptr;
-	struct target_stats *stats = &ar->target_stats;
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
+	struct target_stats *stats = &vif->target_stats;
 	struct tkip_ccmp_stats *ccmp_stats;
 	u8 ac;
 
@@ -1215,8 +1217,8 @@ static void ath6kl_update_target_stats(struct ath6kl *ar, u8 *ptr, u32 len)
 	stats->wow_evt_discarded +=
 		le16_to_cpu(tgt_stats->wow_stats.wow_evt_discarded);
 
-	if (test_bit(STATS_UPDATE_PEND, &ar->flag)) {
-		clear_bit(STATS_UPDATE_PEND, &ar->flag);
+	if (test_bit(STATS_UPDATE_PEND, &vif->flags)) {
+		clear_bit(STATS_UPDATE_PEND, &vif->flags);
 		wake_up(&ar->event_wq);
 	}
 }
@@ -1483,9 +1485,9 @@ static int ath6kl_close(struct net_device *dev)
 
 static struct net_device_stats *ath6kl_get_stats(struct net_device *dev)
 {
-	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
 
-	return &ar->net_stats;
+	return &vif->net_stats;
 }
 
 static struct net_device_ops ath6kl_netdev_ops = {

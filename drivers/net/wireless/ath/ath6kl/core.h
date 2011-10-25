@@ -391,6 +391,7 @@ enum ath6kl_vif_state {
 	CLEAR_BSSFILTER_ON_BEACON,
 	DTIM_PERIOD_AVAIL,
 	WLAN_ENABLED,
+	STATS_UPDATE_PEND,
 };
 
 struct ath6kl_vif {
@@ -425,6 +426,8 @@ struct ath6kl_vif {
 	u16 next_chan;
 	u16 assoc_bss_beacon_int;
 	u8 assoc_bss_dtim_period;
+	struct net_device_stats net_stats;
+	struct target_stats target_stats;
 };
 
 /* Flag info */
@@ -435,7 +438,6 @@ enum ath6kl_dev_state {
 	TESTMODE,
 	DESTROY_IN_PROGRESS,
 	SKIP_SCAN,
-	STATS_UPDATE_PEND,
 	ROAM_TBL_PEND,
 };
 
@@ -459,8 +461,6 @@ struct ath6kl {
 	struct ath6kl_version version;
 	u32 target_type;
 	u8 tx_pwr;
-	struct net_device_stats net_stats;
-	struct target_stats target_stats;
 	struct ath6kl_node_mapping node_map[MAX_NODE_NUM];
 	u8 ibss_ps_enable;
 	u8 node_num;
