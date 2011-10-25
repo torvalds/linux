@@ -837,7 +837,7 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 			ath6kl_err("Failed to enable 4-bit async irq mode %d\n",
 				   ret);
 			sdio_release_host(func);
-			goto err_cfg80211;
+			goto err_core_alloc;
 		}
 
 		ath6kl_dbg(ATH6KL_DBG_SDIO, "4-bit async irq mode enabled\n");
@@ -850,7 +850,7 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 
 	ret = ath6kl_sdio_power_on(ar_sdio);
 	if (ret)
-		goto err_cfg80211;
+		goto err_core_alloc;
 
 	sdio_claim_host(func);
 
@@ -874,8 +874,8 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 
 err_off:
 	ath6kl_sdio_power_off(ar_sdio);
-err_cfg80211:
-	ath6kl_cfg80211_deinit(ar_sdio->ar);
+err_core_alloc:
+	ath6kl_core_free(ar_sdio->ar);
 err_dma:
 	kfree(ar_sdio->dma_buffer);
 err_hif:

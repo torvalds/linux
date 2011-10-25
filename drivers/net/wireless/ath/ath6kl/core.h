@@ -642,4 +642,7 @@ void aggr_recv_addba_req_evt(struct ath6kl *ar, u8 tid, u16 seq_no,
 void ath6kl_wakeup_event(void *dev);
 void ath6kl_target_failure(struct ath6kl *ar);
 
+void ath6kl_init_control_info(struct ath6kl *ar);
+void ath6kl_deinit_if_data(struct ath6kl *ar, struct net_device *ndev);
+void ath6kl_core_free(struct ath6kl *ar);
 #endif /* CORE_H */

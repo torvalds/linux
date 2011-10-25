@@ -258,40 +258,12 @@ static int ath6kl_init_service_ep(struct ath6kl *ar)
 	return 0;
 }
 
-static void ath6kl_init_control_info(struct ath6kl *ar)
+void ath6kl_init_control_info(struct ath6kl *ar)
 {
-	u8 ctr;
-
-	clear_bit(WMI_ENABLED, &ar->flag);
 	ath6kl_init_profile_info(ar);
 	ar->def_txkey_index = 0;
 	memset(ar->wep_key_list, 0, sizeof(ar->wep_key_list));
 	ar->ch_hint = 0;
-	ar->listen_intvl_t = A_DEFAULT_LISTEN_INTERVAL;
-	ar->listen_intvl_b = 0;
-	ar->tx_pwr = 0;
-	clear_bit(SKIP_SCAN, &ar->flag);
-	set_bit(WMM_ENABLED, &ar->flag);
-	ar->intra_bss = 1;
-	memset(&ar->sc_params, 0, sizeof(ar->sc_params));
-	ar->sc_params.short_scan_ratio = WMI_SHORTSCANRATIO_DEFAULT;
-	ar->sc_params.scan_ctrl_flags = DEFAULT_SCAN_CTRL_FLAGS;
-	ar->lrssi_roam_threshold = DEF_LRSSI_ROAM_THRESHOLD;
-
-	memset((u8 *)ar->sta_list, 0,
-	       AP_MAX_NUM_STA * sizeof(struct ath6kl_sta));
-
-	spin_lock_init(&ar->mcastpsq_lock);
-
-	/* Init the PS queues */
-	for (ctr = 0; ctr < AP_MAX_NUM_STA; ctr++) {
-		spin_lock_init(&ar->sta_list[ctr].psq_lock);
-		skb_queue_head_init(&ar->sta_list[ctr].psq);
-	}
-
-	skb_queue_head_init(&ar->mcastpsq);
-
-	memcpy(ar->ap_country_code, DEF_AP_COUNTRY_CODE, 3);
 }
 
 /*
@@ -553,61 +525,9 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	return 0;
 }
 
-struct ath6kl *ath6kl_core_alloc(struct device *sdev)
+void ath6kl_core_free(struct ath6kl *ar)
 {
-	struct net_device *dev;
-	struct ath6kl *ar;
-	struct wireless_dev *wdev;
-
-	wdev = ath6kl_cfg80211_init(sdev);
-	if (!wdev) {
-		ath6kl_err("ath6kl_cfg80211_init failed\n");
-		return NULL;
-	}
-
-	ar = wdev_priv(wdev);
-	ar->dev = sdev;
-	ar->wdev = wdev;
-	wdev->iftype = NL80211_IFTYPE_STATION;
-
-	if (ath6kl_debug_init(ar)) {
-		ath6kl_err("Failed to initialize debugfs\n");
-		ath6kl_cfg80211_deinit(ar);
-		return NULL;
-	}
-
-	dev = alloc_netdev(0, "wlan%d", ether_setup);
-	if (!dev) {
-		ath6kl_err("no memory for network device instance\n");
-		ath6kl_cfg80211_deinit(ar);
-		return NULL;
-	}
-
-	dev->ieee80211_ptr = wdev;
-	SET_NETDEV_DEV(dev, wiphy_dev(ar->wiphy));
-	wdev->netdev = dev;
-	ar->sme_state = SME_DISCONNECTED;
-
-	init_netdev(dev);
-
-	ar->net_dev = dev;
-	set_bit(WLAN_ENABLED, &ar->flag);
-
-	ar->wlan_pwr_state = WLAN_POWER_STATE_ON;
-
-	spin_lock_init(&ar->lock);
-
-	ath6kl_init_control_info(ar);
-	init_waitqueue_head(&ar->event_wq);
-	sema_init(&ar->sem, 1);
-	clear_bit(DESTROY_IN_PROGRESS, &ar->flag);
-
-	INIT_LIST_HEAD(&ar->amsdu_rx_buffer_queue);
-
-	setup_timer(&ar->disconnect_timer, disconnect_timer_handler,
-		    (unsigned long) dev);
-
-	return ar;
+	wiphy_free(ar->wiphy);
 }
 
 int ath6kl_unavail_ev(struct ath6kl *ar)
@@ -1465,6 +1385,7 @@ static int ath6kl_init(struct ath6kl *ar)
 {
 	int status = 0;
 	s32 timeleft;
+	struct net_device *ndev;
 
 	if (!ar)
 		return -EIO;
@@ -1486,6 +1407,29 @@ static int ath6kl_init(struct ath6kl *ar)
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: got wmi @ 0x%p.\n", __func__, ar->wmi);
 
+	status = ath6kl_register_ieee80211_hw(ar);
+	if (status)
+		goto err_node_cleanup;
+
+	status = ath6kl_debug_init(ar);
+	if (status) {
+		wiphy_unregister(ar->wiphy);
+		goto err_node_cleanup;
+	}
+
+	/* Add an initial station interface */
+	ndev = ath6kl_interface_add(ar, "wlan%d", NL80211_IFTYPE_STATION);
+	if (!ndev) {
+		ath6kl_err("Failed to instantiate a network device\n");
+		status = -ENOMEM;
+		wiphy_unregister(ar->wiphy);
+		goto err_debug_init;
+	}
+
+
+	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
+			__func__, ar->net_dev->name, ar->net_dev, ar);
+
 	/*
 	 * The reason we have to wait for the target here is that the
 	 * driver layer has to init BMI in order to set the host block
@@ -1493,7 +1437,7 @@ static int ath6kl_init(struct ath6kl *ar)
 	 */
 	if (ath6kl_htc_wait_target(ar->htc_target)) {
 		status = -EIO;
-		goto err_node_cleanup;
+		goto err_if_deinit;
 	}
 
 	if (ath6kl_init_service_ep(ar)) {
@@ -1571,6 +1515,11 @@ err_rxbuf_cleanup:
 	ath6kl_cleanup_amsdu_rxbufs(ar);
 err_cleanup_scatter:
 	ath6kl_hif_cleanup_scatter(ar);
+err_if_deinit:
+	ath6kl_deinit_if_data(ar, ndev);
+	wiphy_unregister(ar->wiphy);
+err_debug_init:
+	ath6kl_debug_cleanup(ar);
 err_node_cleanup:
 	ath6kl_wmi_shutdown(ar->wmi);
 	clear_bit(WMI_ENABLED, &ar->flag);
@@ -1616,13 +1565,6 @@ int ath6kl_core_init(struct ath6kl *ar)
 		goto err_bmi_cleanup;
 	}
 
-	ar->aggr_cntxt = aggr_init(ar->net_dev);
-	if (!ar->aggr_cntxt) {
-		ath6kl_err("failed to initialize aggr\n");
-		ret = -ENOMEM;
-		goto err_htc_cleanup;
-	}
-
 	ret = ath6kl_fetch_firmwares(ar);
 	if (ret)
 		goto err_htc_cleanup;
@@ -1635,19 +1577,6 @@ int ath6kl_core_init(struct ath6kl *ar)
 	if (ret)
 		goto err_htc_cleanup;
 
-	/* This runs the init function if registered */
-	ret = register_netdev(ar->net_dev);
-	if (ret) {
-		ath6kl_err("register_netdev failed\n");
-		ath6kl_destroy(ar->net_dev, 0);
-		return ret;
-	}
-
-	set_bit(NETDEV_REGISTERED, &ar->flag);
-
-	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
-			__func__, ar->net_dev->name, ar->net_dev, ar);
-
 	return ret;
 
 err_htc_cleanup:
@@ -1656,6 +1585,7 @@ err_bmi_cleanup:
 	ath6kl_bmi_cleanup(ar);
 err_wq:
 	destroy_workqueue(ar->ath6kl_wq);
+
 	return ret;
 }
 
@@ -1711,8 +1641,6 @@ void ath6kl_destroy(struct net_device *dev, unsigned int unregister)
 	if (ar->htc_target)
 		ath6kl_htc_cleanup(ar->htc_target);
 
-	aggr_module_destroy(ar->aggr_cntxt);
-
 	ath6kl_cookie_cleanup(ar);
 
 	ath6kl_cleanup_amsdu_rxbufs(ar);
@@ -1721,17 +1649,12 @@ void ath6kl_destroy(struct net_device *dev, unsigned int unregister)
 
 	ath6kl_debug_cleanup(ar);
 
-	if (unregister && test_bit(NETDEV_REGISTERED, &ar->flag)) {
-		unregister_netdev(dev);
-		clear_bit(NETDEV_REGISTERED, &ar->flag);
-	}
-
-	free_netdev(dev);
+	ath6kl_deinit_if_data(ar, dev);
 
 	kfree(ar->fw_board);
 	kfree(ar->fw_otp);
 	kfree(ar->fw);
 	kfree(ar->fw_patch);
 
-	ath6kl_cfg80211_deinit(ar);
+	ath6kl_deinit_ieee80211_hw(ar);
 }

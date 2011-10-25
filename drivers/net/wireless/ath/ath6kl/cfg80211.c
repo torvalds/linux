@@ -1919,45 +1919,83 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.mgmt_frame_register = ath6kl_mgmt_frame_register,
 };
 
-struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
+struct ath6kl *ath6kl_core_alloc(struct device *dev)
 {
-	int ret = 0;
-	struct wireless_dev *wdev;
 	struct ath6kl *ar;
 	struct wiphy *wiphy;
-
-	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
-	if (!wdev) {
-		ath6kl_err("couldn't allocate wireless device\n");
-		return NULL;
-	}
+	u8 ctr;
 
 	/* create a new wiphy for use with cfg80211 */
 	wiphy = wiphy_new(&ath6kl_cfg80211_ops, sizeof(struct ath6kl));
+
 	if (!wiphy) {
 		ath6kl_err("couldn't allocate wiphy device\n");
-		kfree(wdev);
 		return NULL;
 	}
 
 	ar = wiphy_priv(wiphy);
 	ar->p2p = !!ath6kl_p2p;
 	ar->wiphy = wiphy;
-	wdev->wiphy = wiphy;
+	ar->dev = dev;
+
+	spin_lock_init(&ar->lock);
+	spin_lock_init(&ar->mcastpsq_lock);
+
+	init_waitqueue_head(&ar->event_wq);
+	sema_init(&ar->sem, 1);
+
+	INIT_LIST_HEAD(&ar->amsdu_rx_buffer_queue);
+
+	clear_bit(WMI_ENABLED, &ar->flag);
+	clear_bit(SKIP_SCAN, &ar->flag);
+	clear_bit(DESTROY_IN_PROGRESS, &ar->flag);
+
+	ar->listen_intvl_t = A_DEFAULT_LISTEN_INTERVAL;
+	ar->listen_intvl_b = 0;
+	ar->tx_pwr = 0;
+
+	ar->intra_bss = 1;
+	memset(&ar->sc_params, 0, sizeof(ar->sc_params));
+	ar->sc_params.short_scan_ratio = WMI_SHORTSCANRATIO_DEFAULT;
+	ar->sc_params.scan_ctrl_flags = DEFAULT_SCAN_CTRL_FLAGS;
+	ar->lrssi_roam_threshold = DEF_LRSSI_ROAM_THRESHOLD;
+
+	memset((u8 *)ar->sta_list, 0,
+	       AP_MAX_NUM_STA * sizeof(struct ath6kl_sta));
+
+	/* Init the PS queues */
+	for (ctr = 0; ctr < AP_MAX_NUM_STA; ctr++) {
+		spin_lock_init(&ar->sta_list[ctr].psq_lock);
+		skb_queue_head_init(&ar->sta_list[ctr].psq);
+	}
+
+	skb_queue_head_init(&ar->mcastpsq);
+
+	memcpy(ar->ap_country_code, DEF_AP_COUNTRY_CODE, 3);
+
+	return ar;
+}
+
+int ath6kl_register_ieee80211_hw(struct ath6kl *ar)
+{
+	struct wiphy *wiphy = ar->wiphy;
+	int ret;
 
 	wiphy->mgmt_stypes = ath6kl_mgmt_stypes;
 
 	wiphy->max_remain_on_channel_duration = 5000;
 
 	/* set device pointer for wiphy */
-	set_wiphy_dev(wiphy, dev);
+	set_wiphy_dev(wiphy, ar->dev);
 
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-		BIT(NL80211_IFTYPE_ADHOC) | BIT(NL80211_IFTYPE_AP);
+				 BIT(NL80211_IFTYPE_ADHOC) |
+				 BIT(NL80211_IFTYPE_AP);
 	if (ar->p2p) {
 		wiphy->interface_modes |= BIT(NL80211_IFTYPE_P2P_GO) |
-			BIT(NL80211_IFTYPE_P2P_CLIENT);
+					  BIT(NL80211_IFTYPE_P2P_CLIENT);
 	}
+
 	/* max num of ssids that can be probed during scanning */
 	wiphy->max_scan_ssids = MAX_PROBED_SSID_INDEX;
 	wiphy->max_scan_ie_len = 1000; /* FIX: what is correct limit? */
@@ -1971,18 +2009,85 @@ struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
 	ret = wiphy_register(wiphy);
 	if (ret < 0) {
 		ath6kl_err("couldn't register wiphy device\n");
-		wiphy_free(wiphy);
-		kfree(wdev);
-		return NULL;
+		return ret;
 	}
 
-	return wdev;
+	return 0;
 }
 
-void ath6kl_cfg80211_deinit(struct ath6kl *ar)
+static int ath6kl_init_if_data(struct ath6kl *ar, struct net_device *ndev)
 {
-	struct wireless_dev *wdev = ar->wdev;
+	ar->aggr_cntxt = aggr_init(ndev);
+	if (!ar->aggr_cntxt) {
+		ath6kl_err("failed to initialize aggr\n");
+		return -ENOMEM;
+	}
 
+	setup_timer(&ar->disconnect_timer, disconnect_timer_handler,
+		    (unsigned long) ndev);
+
+	return 0;
+}
+
+void ath6kl_deinit_if_data(struct ath6kl *ar, struct net_device *ndev)
+{
+	aggr_module_destroy(ar->aggr_cntxt);
+
+	ar->aggr_cntxt = NULL;
+
+	if (test_bit(NETDEV_REGISTERED, &ar->flag)) {
+		unregister_netdev(ndev);
+		clear_bit(NETDEV_REGISTERED, &ar->flag);
+	}
+
+	free_netdev(ndev);
+}
+
+struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
+					enum nl80211_iftype type)
+{
+	struct net_device *ndev;
+	struct wireless_dev *wdev;
+
+	ndev = alloc_netdev(sizeof(*wdev), "wlan%d", ether_setup);
+	if (!ndev)
+		return NULL;
+
+	wdev = netdev_priv(ndev);
+	ndev->ieee80211_ptr = wdev;
+	wdev->wiphy = ar->wiphy;
+	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
+	wdev->netdev = ndev;
+	wdev->iftype = type;
+	ar->wdev = wdev;
+	ar->net_dev = ndev;
+
+	init_netdev(ndev);
+
+	ath6kl_init_control_info(ar);
+
+	/* TODO: Pass interface specific pointer instead of ar */
+	if (ath6kl_init_if_data(ar, ndev))
+		goto err;
+
+	if (register_netdev(ndev))
+		goto err;
+
+	ar->sme_state = SME_DISCONNECTED;
+	set_bit(WLAN_ENABLED, &ar->flag);
+	ar->wlan_pwr_state = WLAN_POWER_STATE_ON;
+	set_bit(NETDEV_REGISTERED, &ar->flag);
+
+	return ndev;
+
+err:
+	ath6kl_deinit_if_data(ar, ndev);
+
+	return NULL;
+}
+
+void ath6kl_deinit_ieee80211_hw(struct ath6kl *ar)
+{
 	if (ar->scan_req) {
 		cfg80211_scan_done(ar->scan_req, true);
 		ar->scan_req = NULL;
@@ -1990,5 +2095,4 @@ void ath6kl_cfg80211_deinit(struct ath6kl *ar)
 
 	wiphy_unregister(ar->wiphy);
 	wiphy_free(ar->wiphy);
-	kfree(wdev);
 }
