@@ -498,13 +498,15 @@ void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
 
 static void ath6kl_install_static_wep_keys(struct ath6kl *ar)
 {
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 	u8 index;
 	u8 keyusage;
 
 	for (index = WMI_MIN_KEY_INDEX; index <= WMI_MAX_KEY_INDEX; index++) {
 		if (ar->wep_key_list[index].key_len) {
 			keyusage = GROUP_USAGE;
-			if (index == ar->def_txkey_index)
+			if (index == vif->def_txkey_index)
 				keyusage |= TX_USAGE;
 
 			ath6kl_wmi_addkey_cmd(ar->wmi,
@@ -532,9 +534,9 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl *ar, u16 channel)
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "AP mode started on %u MHz\n", channel);
 
-	switch (ar->auth_mode) {
+	switch (vif->auth_mode) {
 	case NONE_AUTH:
-		if (ar->prwise_crypto == WEP_CRYPT)
+		if (vif->prwise_crypto == WEP_CRYPT)
 			ath6kl_install_static_wep_keys(ar);
 		break;
 	case WPA_PSK_AUTH:

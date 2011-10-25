@@ -398,6 +398,15 @@ struct ath6kl_vif {
 	struct net_device *ndev;
 	struct ath6kl *ar;
 	unsigned long flags;
+	int ssid_len;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 dot11_auth_mode;
+	u8 auth_mode;
+	u8 prwise_crypto;
+	u8 prwise_crypto_len;
+	u8 grp_crypto;
+	u8 grp_crypto_len;
+	u8 def_txkey_index;
 };
 
 /* Flag info */
@@ -426,17 +435,8 @@ struct ath6kl {
 	struct ath6kl_vif *vif;
 	spinlock_t lock;
 	struct semaphore sem;
-	int ssid_len;
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 next_mode;
 	u8 nw_type;
-	u8 dot11_auth_mode;
-	u8 auth_mode;
-	u8 prwise_crypto;
-	u8 prwise_crypto_len;
-	u8 grp_crypto;
-	u8 grp_crypto_len;
-	u8 def_txkey_index;
 	struct ath6kl_wep_key wep_key_list[WMI_MAX_KEY_INDEX + 1];
 	u8 bssid[ETH_ALEN];
 	u8 req_bssid[ETH_ALEN];

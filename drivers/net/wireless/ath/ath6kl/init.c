@@ -75,15 +75,18 @@ struct sk_buff *ath6kl_buf_alloc(int size)
 
 void ath6kl_init_profile_info(struct ath6kl *ar)
 {
-	ar->ssid_len = 0;
-	memset(ar->ssid, 0, sizeof(ar->ssid));
+	/* TODO: Findout vif */
+	struct ath6kl_vif *vif = ar->vif;
 
-	ar->dot11_auth_mode = OPEN_AUTH;
-	ar->auth_mode = NONE_AUTH;
-	ar->prwise_crypto = NONE_CRYPT;
-	ar->prwise_crypto_len = 0;
-	ar->grp_crypto = NONE_CRYPT;
-	ar->grp_crypto_len = 0;
+	vif->ssid_len = 0;
+	memset(vif->ssid, 0, sizeof(vif->ssid));
+
+	vif->dot11_auth_mode = OPEN_AUTH;
+	vif->auth_mode = NONE_AUTH;
+	vif->prwise_crypto = NONE_CRYPT;
+	vif->prwise_crypto_len = 0;
+	vif->grp_crypto = NONE_CRYPT;
+	vif->grp_crypto_len = 0;
 	memset(ar->wep_key_list, 0, sizeof(ar->wep_key_list));
 	memset(ar->req_bssid, 0, sizeof(ar->req_bssid));
 	memset(ar->bssid, 0, sizeof(ar->bssid));
@@ -245,8 +248,10 @@ static int ath6kl_init_service_ep(struct ath6kl *ar)
 
 void ath6kl_init_control_info(struct ath6kl *ar)
 {
+	struct ath6kl_vif *vif = ar->vif;
+
 	ath6kl_init_profile_info(ar);
-	ar->def_txkey_index = 0;
+	vif->def_txkey_index = 0;
 	memset(ar->wep_key_list, 0, sizeof(ar->wep_key_list));
 	ar->ch_hint = 0;
 }
