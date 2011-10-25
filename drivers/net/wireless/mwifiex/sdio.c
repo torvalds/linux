@@ -89,7 +89,8 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		return -EIO;
 	}
 
-	if (mwifiex_add_card(card, &add_remove_card_sem, &sdio_ops)) {
+	if (mwifiex_add_card(card, &add_remove_card_sem, &sdio_ops,
+			     MWIFIEX_SDIO)) {
 		pr_err("%s: add card failed\n", __func__);
 		kfree(card);
 		sdio_claim_host(func);
@@ -830,7 +831,7 @@ done:
  * The winner interface is also determined by this function.
  */
 static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
-				   u32 poll_num, int *winner)
+				   u32 poll_num)
 {
 	int ret = 0;
 	u16 firmware_stat;
@@ -842,7 +843,7 @@ static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
 		ret = mwifiex_sdio_read_fw_status(adapter, &firmware_stat);
 		if (ret)
 			continue;
-		if (firmware_stat == FIRMWARE_READY) {
+		if (firmware_stat == FIRMWARE_READY_SDIO) {
 			ret = 0;
 			break;
 		} else {
@@ -851,15 +852,15 @@ static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
 		}
 	}
 
-	if (winner && ret) {
+	if (ret) {
 		if (mwifiex_read_reg
 		    (adapter, CARD_FW_STATUS0_REG, &winner_status))
 			winner_status = 0;
 
 		if (winner_status)
-			*winner = 0;
+			adapter->winner = 0;
 		else
-			*winner = 1;
+			adapter->winner = 1;
 	}
 	return ret;
 }
@@ -1413,7 +1414,7 @@ tx_curr_single:
  * the type. The firmware handles the packets based upon this set type.
  */
 static int mwifiex_sdio_host_to_card(struct mwifiex_adapter *adapter,
-				     u8 type, u8 *payload, u32 pkt_len,
+				     u8 type, struct sk_buff *skb,
 				     struct mwifiex_tx_param *tx_param)
 {
 	struct sdio_mmc_card *card = adapter->card;
@@ -1421,6 +1422,8 @@ static int mwifiex_sdio_host_to_card(struct mwifiex_adapter *adapter,
 	u32 buf_block_len;
 	u32 blk_size;
 	u8 port = CTRL_PORT;
+	u8 *payload = (u8 *)skb->data;
+	u32 pkt_len = skb->len;
 
 	/* Allocate buffer and copy payload */
 	blk_size = MWIFIEX_SDIO_BLOCK_SIZE;
@@ -1722,6 +1725,8 @@ static struct mwifiex_if_ops sdio_ops = {
 	/* SDIO specific */
 	.update_mp_end_port = mwifiex_update_mp_end_port,
 	.cleanup_mpa_buf = mwifiex_cleanup_mpa_buf,
+	.cmdrsp_complete = mwifiex_sdio_cmdrsp_complete,
+	.event_complete = mwifiex_sdio_event_complete,
 };
 
 /*

@@ -1088,7 +1088,7 @@ void __lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 	if (!cmd->callback || cmd->callback == lbs_cmd_async_callback)
 		__lbs_cleanup_and_insert_cmd(priv, cmd);
 	priv->cur_cmd = NULL;
-	wake_up_interruptible(&priv->waitq);
+	wake_up(&priv->waitq);
 }
 
 void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
@@ -1627,7 +1627,7 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 		lbs_deb_host("PREP_CMD: cmdnode is NULL\n");
 
 		/* Wake up main thread to execute next command */
-		wake_up_interruptible(&priv->waitq);
+		wake_up(&priv->waitq);
 		cmdnode = ERR_PTR(-ENOBUFS);
 		goto done;
 	}
@@ -1647,7 +1647,7 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 
 	cmdnode->cmdwaitqwoken = 0;
 	lbs_queue_cmd(priv, cmdnode);
-	wake_up_interruptible(&priv->waitq);
+	wake_up(&priv->waitq);
 
  done:
 	lbs_deb_leave_args(LBS_DEB_HOST, "ret %p", cmdnode);

@@ -58,7 +58,7 @@
 
 #include "57xx_hsi_bnx2fc.h"
 #include "bnx2fc_debug.h"
-#include "../../net/cnic_if.h"
+#include "../../net/ethernet/broadcom/cnic_if.h"
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
@@ -81,7 +81,7 @@
 #define BNX2FC_RQ_WQES_MAX	16
 #define BNX2FC_CQ_WQES_MAX	(BNX2FC_SQ_WQES_MAX + BNX2FC_RQ_WQES_MAX)
 
-#define BNX2FC_NUM_MAX_SESS	128
+#define BNX2FC_NUM_MAX_SESS	1024
 #define BNX2FC_NUM_MAX_SESS_LOG	(ilog2(BNX2FC_NUM_MAX_SESS))
 
 #define BNX2FC_MAX_OUTSTANDING_CMNDS	2048

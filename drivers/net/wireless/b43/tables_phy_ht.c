@@ -3,6 +3,8 @@
   Broadcom B43 wireless driver
   IEEE 802.11n HT-PHY data tables
 
+  Copyright (c) 2011 Rafał Miłecki <zajec5@gmail.com>
+
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation; either version 2 of the License, or
@@ -574,6 +576,42 @@ static const u32 b43_httab_0x24[] = {
 	0x005d0582, 0x005805d6, 0x0053062e, 0x004e068c,
 };
 
+/* Some late-init table */
+const u32 b43_httab_0x1a_0xc0_late[] = {
+	0x10f90040, 0x10e10040, 0x10e1003c, 0x10c9003d,
+	0x10b9003c, 0x10a9003d, 0x10a1003c, 0x1099003b,
+	0x1091003b, 0x1089003a, 0x1081003a, 0x10790039,
+	0x10710039, 0x1069003a, 0x1061003b, 0x1059003d,
+	0x1051003f, 0x10490042, 0x1049003e, 0x1049003b,
+	0x1041003e, 0x1041003b, 0x1039003e, 0x1039003b,
+	0x10390038, 0x10390035, 0x1031003a, 0x10310036,
+	0x10310033, 0x1029003a, 0x10290037, 0x10290034,
+	0x10290031, 0x10210039, 0x10210036, 0x10210033,
+	0x10210030, 0x1019003c, 0x10190039, 0x10190036,
+	0x10190033, 0x10190030, 0x1019002d, 0x1019002b,
+	0x10190028, 0x1011003a, 0x10110036, 0x10110033,
+	0x10110030, 0x1011002e, 0x1011002b, 0x10110029,
+	0x10110027, 0x10110024, 0x10110022, 0x10110020,
+	0x1011001f, 0x1011001d, 0x1009003a, 0x10090037,
+	0x10090034, 0x10090031, 0x1009002e, 0x1009002c,
+	0x10090029, 0x10090027, 0x10090025, 0x10090023,
+	0x10090021, 0x1009001f, 0x1009001d, 0x1009001b,
+	0x1009001a, 0x10090018, 0x10090017, 0x10090016,
+	0x10090015, 0x10090013, 0x10090012, 0x10090011,
+	0x10090010, 0x1009000f, 0x1009000f, 0x1009000e,
+	0x1009000d, 0x1009000c, 0x1009000c, 0x1009000b,
+	0x1009000a, 0x1009000a, 0x10090009, 0x10090009,
+	0x10090008, 0x10090008, 0x10090007, 0x10090007,
+	0x10090007, 0x10090006, 0x10090006, 0x10090005,
+	0x10090005, 0x10090005, 0x10090005, 0x10090004,
+	0x10090004, 0x10090004, 0x10090004, 0x10090003,
+	0x10090003, 0x10090003, 0x10090003, 0x10090003,
+	0x10090003, 0x10090002, 0x10090002, 0x10090002,
+	0x10090002, 0x10090002, 0x10090002, 0x10090002,
+	0x10090002, 0x10090002, 0x10090001, 0x10090001,
+	0x10090001, 0x10090001, 0x10090001, 0x10090001,
+};
+
 /**************************************************
  * R/W ops.
  **************************************************/
@@ -674,6 +712,51 @@ void b43_httab_write(struct b43_wldev *dev, u32 offset, u32 value)
 	return;
 }
 
+void b43_httab_write_few(struct b43_wldev *dev, u32 offset, size_t num, ...)
+{
+	va_list args;
+	u32 type, value;
+	unsigned int i;
+
+	type = offset & B43_HTTAB_TYPEMASK;
+	offset &= 0xFFFF;
+
+	va_start(args, num);
+	switch (type) {
+	case B43_HTTAB_8BIT:
+		b43_phy_write(dev, B43_PHY_HT_TABLE_ADDR, offset);
+		for (i = 0; i < num; i++) {
+			value = va_arg(args, int);
+			B43_WARN_ON(value & ~0xFF);
+			b43_phy_write(dev, B43_PHY_HT_TABLE_DATALO, value);
+		}
+		break;
+	case B43_HTTAB_16BIT:
+		b43_phy_write(dev, B43_PHY_HT_TABLE_ADDR, offset);
+		for (i = 0; i < num; i++) {
+			value = va_arg(args, int);
+			B43_WARN_ON(value & ~0xFFFF);
+			b43_phy_write(dev, B43_PHY_HT_TABLE_DATALO, value);
+		}
+		break;
+	case B43_HTTAB_32BIT:
+		b43_phy_write(dev, B43_PHY_HT_TABLE_ADDR, offset);
+		for (i = 0; i < num; i++) {
+			value = va_arg(args, int);
+			b43_phy_write(dev, B43_PHY_HT_TABLE_DATAHI,
+				      value >> 16);
+			b43_phy_write(dev, B43_PHY_HT_TABLE_DATALO,
+				      value & 0xFFFF);
+		}
+		break;
+	default:
+		B43_WARN_ON(1);
+	}
+	va_end(args);
+
+	return;
+}
+
 void b43_httab_write_bulk(struct b43_wldev *dev, u32 offset,
 			  unsigned int nr_elements, const void *_data)
 {
@@ -723,6 +806,9 @@ void b43_httab_write_bulk(struct b43_wldev *dev, u32 offset,
 	} while (0)
 void b43_phy_ht_tables_init(struct b43_wldev *dev)
 {
+	BUILD_BUG_ON(ARRAY_SIZE(b43_httab_0x1a_0xc0_late) !=
+			B43_HTTAB_1A_C0_LATE_SIZE);
+
 	httab_upload(dev, B43_HTTAB16(0x12, 0), b43_httab_0x12);
 	httab_upload(dev, B43_HTTAB16(0x27, 0), b43_httab_0x27);
 	httab_upload(dev, B43_HTTAB16(0x26, 0), b43_httab_0x26);

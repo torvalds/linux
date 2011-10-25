@@ -574,7 +574,7 @@ struct cxgbi_endpoint {
 #define MAX_PDU_FRAGS	((ULP2_MAX_PDU_PAYLOAD + 512 - 1) / 512)
 struct cxgbi_task_data {
 	unsigned short nr_frags;
-	skb_frag_t frags[MAX_PDU_FRAGS];
+	struct page_frag frags[MAX_PDU_FRAGS];
 	struct sk_buff *skb;
 	unsigned int offset;
 	unsigned int count;

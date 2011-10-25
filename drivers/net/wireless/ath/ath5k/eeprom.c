@@ -26,7 +26,6 @@
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
-#include "base.h"
 
 
 /******************\
@@ -1780,13 +1779,12 @@ ath5k_eeprom_detach(struct ath5k_hw *ah)
 int
 ath5k_eeprom_mode_from_channel(struct ieee80211_channel *channel)
 {
-	switch (channel->hw_value & CHANNEL_MODES) {
-	case CHANNEL_A:
-	case CHANNEL_XR:
+	switch (channel->hw_value) {
+	case AR5K_MODE_11A:
 		return AR5K_EEPROM_MODE_11A;
-	case CHANNEL_G:
+	case AR5K_MODE_11G:
 		return AR5K_EEPROM_MODE_11G;
-	case CHANNEL_B:
+	case AR5K_MODE_11B:
 		return AR5K_EEPROM_MODE_11B;
 	default:
 		return -1;

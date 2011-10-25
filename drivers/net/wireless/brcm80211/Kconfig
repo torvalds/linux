@@ -1,0 +1,35 @@
+config BRCMUTIL
+	tristate
+
+config BRCMSMAC
+	tristate "Broadcom IEEE802.11n PCIe SoftMAC WLAN driver"
+	depends on PCI
+	depends on MAC80211
+	depends on BCMA=n
+	select BRCMUTIL
+	select FW_LOADER
+	select CRC_CCITT
+	select CRC8
+	select CORDIC
+	---help---
+	  This module adds support for PCIe wireless adapters based on Broadcom
+	  IEEE802.11n SoftMAC chipsets.  If you choose to build a module, it'll
+	  be called brcmsmac.ko.
+
+config BRCMFMAC
+	tristate "Broadcom IEEE802.11n embedded FullMAC WLAN driver"
+	depends on MMC
+	depends on CFG80211
+	select BRCMUTIL
+	select FW_LOADER
+	---help---
+	  This module adds support for embedded wireless adapters based on
+	  Broadcom IEEE802.11n FullMAC chipsets.  This driver uses the kernel's
+	  wireless extensions subsystem.  If you choose to build a module,
+	  it'll be called brcmfmac.ko.
+
+config BRCMDBG
+	bool "Broadcom driver debug functions"
+	depends on BRCMSMAC || BRCMFMAC
+	---help---
+	  Selecting this enables additional code for debug purposes.

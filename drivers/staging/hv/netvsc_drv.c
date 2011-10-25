@@ -169,11 +169,11 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	/* Additional fragments are after SKB data */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *f = &skb_shinfo(skb)->frags[i];
 
-		packet->page_buf[i+2].pfn = page_to_pfn(f->page);
+		packet->page_buf[i+2].pfn = page_to_pfn(skb_frag_page(f));
 		packet->page_buf[i+2].offset = f->page_offset;
-		packet->page_buf[i+2].len = f->size;
+		packet->page_buf[i+2].len = skb_frag_size(f);
 	}
 
 	/* Set the completion routine */
@@ -307,7 +307,7 @@ static const struct net_device_ops device_ops = {
 	.ndo_open =			netvsc_open,
 	.ndo_stop =			netvsc_close,
 	.ndo_start_xmit =		netvsc_start_xmit,
-	.ndo_set_multicast_list =	netvsc_set_multicast_list,
+	.ndo_set_rx_mode =		netvsc_set_multicast_list,
 	.ndo_change_mtu =		eth_change_mtu,
 	.ndo_validate_addr =		eth_validate_addr,
 	.ndo_set_mac_address =		eth_mac_addr,

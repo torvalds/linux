@@ -114,22 +114,22 @@ config B43_PHY_N
 	  affect other devices support and may provide support for basic needs.
 
 config B43_PHY_LP
-	bool "Support for low-power (LP-PHY) devices (EXPERIMENTAL)"
-	depends on B43 && EXPERIMENTAL
+	bool "Support for low-power (LP-PHY) devices"
+	depends on B43
 	default y
 	---help---
 	  Support for the LP-PHY.
 	  The LP-PHY is a low-power PHY built into some notebooks
-	  and embedded devices. It supports 802.11a/g
+	  and embedded devices. It supports 802.11a/b/g
 	  (802.11a support is optional, and currently disabled).
 
 config B43_PHY_HT
-	bool "Support for HT-PHY devices (BROKEN)"
-	depends on B43 && BROKEN
+	bool "Support for HT-PHY (high throughput) devices (EXPERIMENTAL)"
+	depends on B43 && EXPERIMENTAL
 	---help---
 	  Support for the HT-PHY.
 
-	  Say N, this is BROKEN and crashes driver.
+	  Enables support for BCM4331 and possibly other chipsets with that PHY.
 
 config B43_PHY_LCN
 	bool "Support for LCN-PHY devices (BROKEN)"
@@ -169,13 +169,3 @@ config B43_DEBUG
 	  Say N, if you are a distributor or user building a release kernel
 	  for production use.
 	  Only say Y, if you are debugging a problem in the b43 driver sourcecode.
-
-config B43_FORCE_PIO
-	bool "Force usage of PIO instead of DMA"
-	depends on B43 && B43_DEBUG
-	---help---
-	  This will disable DMA and always enable PIO instead.
-
-	  Say N!
-	  This is only for debugging the PIO engine code. You do
-	  _NOT_ want to enable this.

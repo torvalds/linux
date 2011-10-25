@@ -367,6 +367,52 @@ out_putdev:
 	return rc;
 }
 
+static int nfc_genl_dev_up(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nfc_dev *dev;
+	int rc;
+	u32 idx;
+
+	nfc_dbg("entry");
+
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
+		return -EINVAL;
+
+	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
+
+	dev = nfc_get_device(idx);
+	if (!dev)
+		return -ENODEV;
+
+	rc = nfc_dev_up(dev);
+
+	nfc_put_device(dev);
+	return rc;
+}
+
+static int nfc_genl_dev_down(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nfc_dev *dev;
+	int rc;
+	u32 idx;
+
+	nfc_dbg("entry");
+
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
+		return -EINVAL;
+
+	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
+
+	dev = nfc_get_device(idx);
+	if (!dev)
+		return -ENODEV;
+
+	rc = nfc_dev_down(dev);
+
+	nfc_put_device(dev);
+	return rc;
+}
+
 static int nfc_genl_start_poll(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nfc_dev *dev;
@@ -438,6 +484,16 @@ static struct genl_ops nfc_genl_ops[] = {
 		.doit = nfc_genl_get_device,
 		.dumpit = nfc_genl_dump_devices,
 		.done = nfc_genl_dump_devices_done,
+		.policy = nfc_genl_policy,
+	},
+	{
+		.cmd = NFC_CMD_DEV_UP,
+		.doit = nfc_genl_dev_up,
+		.policy = nfc_genl_policy,
+	},
+	{
+		.cmd = NFC_CMD_DEV_DOWN,
+		.doit = nfc_genl_dev_down,
 		.policy = nfc_genl_policy,
 	},
 	{

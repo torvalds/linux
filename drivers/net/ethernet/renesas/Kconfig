@@ -1,0 +1,19 @@
+#
+# Renesas device configuration
+#
+
+config SH_ETH
+	tristate "Renesas SuperH Ethernet support"
+	depends on SUPERH && \
+		(CPU_SUBTYPE_SH7710 || CPU_SUBTYPE_SH7712 || \
+		 CPU_SUBTYPE_SH7763 || CPU_SUBTYPE_SH7619 || \
+		 CPU_SUBTYPE_SH7724 || CPU_SUBTYPE_SH7757)
+	select CRC32
+	select NET_CORE
+	select MII
+	select MDIO_BITBANG
+	select PHYLIB
+	---help---
+	  Renesas SuperH Ethernet device driver.
+	  This driver supporting CPUs are:
+		- SH7710, SH7712, SH7763, SH7619, SH7724, and SH7757.

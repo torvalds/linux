@@ -1,0 +1,57 @@
+#
+# Toshiba network device configuration
+#
+
+config NET_VENDOR_TOSHIBA
+	bool "Toshiba devices"
+	default y
+	depends on PCI && (PPC_IBM_CELL_BLADE || PPC_CELLEB) || PPC_PS3
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Toshiba cards. If you say Y, you will be asked
+	  for your specific card in the following questions.
+
+if NET_VENDOR_TOSHIBA
+
+config GELIC_NET
+	tristate "PS3 Gigabit Ethernet driver"
+	depends on PPC_PS3
+	select PS3_SYS_MANAGER
+	---help---
+	  This driver supports the network device on the PS3 game
+	  console.  This driver has built-in support for Ethernet.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ps3_gelic.
+
+config GELIC_WIRELESS
+	bool "PS3 Wireless support"
+	depends on GELIC_NET && WLAN
+	select WIRELESS_EXT
+	---help---
+	  This option adds the support for the wireless feature of PS3.
+	  If you have the wireless-less model of PS3 or have no plan to
+	  use wireless feature, disabling this option saves memory.  As
+	  the driver automatically distinguishes the models, you can
+	  safely enable this option even if you have a wireless-less model.
+
+config SPIDER_NET
+	tristate "Spider Gigabit Ethernet driver"
+	depends on PCI && (PPC_IBM_CELL_BLADE || PPC_CELLEB)
+	select FW_LOADER
+	select SUNGEM_PHY
+	---help---
+	  This driver supports the Gigabit Ethernet chips present on the
+	  Cell Processor-Based Blades from IBM.
+
+config TC35815
+	tristate "TOSHIBA TC35815 Ethernet support"
+	depends on PCI && MIPS
+	select PHYLIB
+
+endif # NET_VENDOR_TOSHIBA

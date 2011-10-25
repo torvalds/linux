@@ -44,7 +44,7 @@ source "drivers/staging/wlan-ng/Kconfig"
 
 source "drivers/staging/echo/Kconfig"
 
-source "drivers/staging/brcm80211/Kconfig"
+
 
 source "drivers/staging/comedi/Kconfig"
 
@@ -125,8 +125,6 @@ source "drivers/staging/tidspbridge/Kconfig"
 source "drivers/staging/quickstart/Kconfig"
 
 source "drivers/staging/sbe-2t3e3/Kconfig"
-
-source "drivers/staging/ath6kl/Kconfig"
 
 source "drivers/staging/keucr/Kconfig"
 

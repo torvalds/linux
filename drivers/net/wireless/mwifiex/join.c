@@ -147,13 +147,12 @@ static int mwifiex_get_common_rates(struct mwifiex_private *priv, u8 *rate1,
 	u8 *ptr = rate1, *tmp;
 	u32 i, j;
 
-	tmp = kmalloc(rate1_size, GFP_KERNEL);
+	tmp = kmemdup(rate1, rate1_size, GFP_KERNEL);
 	if (!tmp) {
 		dev_err(priv->adapter->dev, "failed to alloc tmp buf\n");
 		return -ENOMEM;
 	}
 
-	memcpy(tmp, rate1, rate1_size);
 	memset(rate1, 0, rate1_size);
 
 	for (i = 0; rate2[i] && i < rate2_size; i++) {
@@ -221,32 +220,6 @@ mwifiex_setup_rates_from_bssdesc(struct mwifiex_private *priv,
 		min_t(size_t, strlen(out_rates), MWIFIEX_SUPPORTED_RATES);
 
 	return 0;
-}
-
-/*
- * This function updates the scan entry TSF timestamps to reflect
- * a new association.
- */
-static void
-mwifiex_update_tsf_timestamps(struct mwifiex_private *priv,
-			      struct mwifiex_bssdescriptor *new_bss_desc)
-{
-	struct mwifiex_adapter *adapter = priv->adapter;
-	u32 table_idx;
-	long long new_tsf_base;
-	signed long long tsf_delta;
-
-	memcpy(&new_tsf_base, new_bss_desc->time_stamp, sizeof(new_tsf_base));
-
-	tsf_delta = new_tsf_base - new_bss_desc->network_tsf;
-
-	dev_dbg(adapter->dev, "info: TSF: update TSF timestamps, "
-		"0x%016llx -> 0x%016llx\n",
-	       new_bss_desc->network_tsf, new_tsf_base);
-
-	for (table_idx = 0; table_idx < adapter->num_in_scan_table;
-	     table_idx++)
-		adapter->scan_table[table_idx].network_tsf += tsf_delta;
 }
 
 /*
@@ -638,12 +611,6 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 		= bss_desc->phy_param_set.ds_param_set.current_chan;
 
 	priv->curr_bss_params.band = (u8) bss_desc->bss_band;
-
-	/*
-	 * Adjust the timestamps in the scan table to be relative to the newly
-	 * associated AP's TSF
-	 */
-	mwifiex_update_tsf_timestamps(priv, bss_desc);
 
 	if (bss_desc->wmm_ie.vend_hdr.element_id == WLAN_EID_VENDOR_SPECIFIC)
 		priv->curr_bss_params.wmm_enabled = true;
