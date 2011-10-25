@@ -1050,6 +1050,7 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_device_dma *dma = dev->dma;
 	drm_savage_private_t *dev_priv = dev->dev_private;
+	int release_idlelock = 0;
 	int i;
 
 	if (!dma)
@@ -1059,7 +1060,10 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 	if (!dma->buflist)
 		return;
 
-	/*i830_flush_queue(dev); */
+	if (file_priv->master && file_priv->master->lock.hw_lock) {
+		drm_idlelock_take(&file_priv->master->lock);
+		release_idlelock = 1;
+	}
 
 	for (i = 0; i < dma->buf_count; i++) {
 		struct drm_buf *buf = dma->buflist[i];
@@ -1075,7 +1079,8 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 		}
 	}
 
-	drm_core_reclaim_buffers(dev, file_priv);
+	if (release_idlelock)
+		drm_idlelock_release(&file_priv->master->lock);
 }
 
 struct drm_ioctl_desc savage_ioctls[] = {
