@@ -834,10 +834,16 @@ static void perf_session__mmap_read(struct perf_session *self)
 
 static void start_counters(struct perf_evlist *evlist)
 {
-	struct perf_evsel *counter;
+	struct perf_evsel *counter, *first;
+
+	first = list_entry(evlist->entries.next, struct perf_evsel, node);
 
 	list_for_each_entry(counter, &evlist->entries, node) {
 		struct perf_event_attr *attr = &counter->attr;
+		struct xyarray *group_fd = NULL;
+
+		if (group && counter != first)
+			group_fd = first->fd;
 
 		attr->sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 
@@ -860,7 +866,8 @@ static void start_counters(struct perf_evlist *evlist)
 		attr->inherit = inherit;
 try_again:
 		if (perf_evsel__open(counter, top.evlist->cpus,
-				     top.evlist->threads, group) < 0) {
+				     top.evlist->threads, group,
+				     group_fd) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES) {
