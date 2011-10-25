@@ -2258,8 +2258,8 @@ int ath6kl_wmi_add_krk_cmd(struct wmi *wmi, u8 if_idx, u8 *krk);
 int ath6kl_wmi_deletekey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index);
 int ath6kl_wmi_setpmkid_cmd(struct wmi *wmi, u8 if_idx, const u8 *bssid,
 			    const u8 *pmkid, bool set);
-int ath6kl_wmi_set_tx_pwr_cmd(struct wmi *wmi, u8 dbM);
-int ath6kl_wmi_get_tx_pwr_cmd(struct wmi *wmi);
+int ath6kl_wmi_set_tx_pwr_cmd(struct wmi *wmi, u8 if_idx, u8 dbM);
+int ath6kl_wmi_get_tx_pwr_cmd(struct wmi *wmi, u8 if_idx);
 int ath6kl_wmi_get_roam_tbl_cmd(struct wmi *wmi);
 
 int ath6kl_wmi_set_wmm_txop(struct wmi *wmi, enum wmi_txop_cfg cfg);

@@ -397,14 +397,19 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
 	struct ath6kl *ar = file->private_data;
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
-	struct target_stats *tgt_stats = &vif->target_stats;
+	struct ath6kl_vif *vif;
+	struct target_stats *tgt_stats;
 	char *buf;
 	unsigned int len = 0, buf_len = 1500;
 	int i;
 	long left;
 	ssize_t ret_cnt;
+
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
+
+	tgt_stats = &vif->target_stats;
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
@@ -1249,14 +1254,17 @@ static ssize_t ath6kl_create_qos_write(struct file *file,
 {
 
 	struct ath6kl *ar = file->private_data;
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl_vif *vif;
 	char buf[100];
 	ssize_t len;
 	char *sptr, *token;
 	struct wmi_create_pstream_cmd pstream;
 	u32 val32;
 	u16 val16;
+
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
@@ -1423,13 +1431,16 @@ static ssize_t ath6kl_delete_qos_write(struct file *file,
 {
 
 	struct ath6kl *ar = file->private_data;
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl_vif *vif;
 	char buf[100];
 	ssize_t len;
 	char *sptr, *token;
 	u8 traffic_class;
 	u8 tsid;
+
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))

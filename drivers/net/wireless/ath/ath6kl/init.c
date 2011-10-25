@@ -1628,11 +1628,7 @@ static void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready)
 
 void ath6kl_stop_txrx(struct ath6kl *ar)
 {
-	struct ath6kl_vif *vif = ar->vif;
-	struct net_device *ndev = vif->ndev;
-
-	if (!ndev)
-		return;
+	struct ath6kl_vif *vif, *tmp_vif;
 
 	set_bit(DESTROY_IN_PROGRESS, &ar->flag);
 
@@ -1641,7 +1637,14 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 		return;
 	}
 
-	ath6kl_cleanup_vif(ar->vif, test_bit(WMI_READY, &ar->flag));
+	spin_lock(&ar->list_lock);
+	list_for_each_entry_safe(vif, tmp_vif, &ar->vif_list, list) {
+		list_del(&vif->list);
+		spin_unlock(&ar->list_lock);
+		ath6kl_cleanup_vif(vif, test_bit(WMI_READY, &ar->flag));
+		spin_lock(&ar->list_lock);
+	}
+	spin_unlock(&ar->list_lock);
 
 	clear_bit(WMI_READY, &ar->flag);
 

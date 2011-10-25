@@ -83,10 +83,22 @@ enum htc_endpoint_id ath6kl_wmi_get_control_ep(struct wmi *wmi)
 
 struct ath6kl_vif *ath6kl_get_vif_by_index(struct ath6kl *ar, u8 if_idx)
 {
+	struct ath6kl_vif *vif, *found = NULL;
+
 	if (WARN_ON(if_idx > (MAX_NUM_VIF - 1)))
 		return NULL;
 
-	return ar->vif;
+	/* FIXME: Locking */
+	spin_lock(&ar->list_lock);
+	list_for_each_entry(vif, &ar->vif_list, list) {
+		if (vif->fw_vif_idx == if_idx) {
+			found = vif;
+			break;
+		}
+	}
+	spin_unlock(&ar->list_lock);
+
+	return found;
 }
 
 /*  Performs DIX to 802.3 encapsulation for transmit packets.
@@ -2459,7 +2471,7 @@ int ath6kl_wmi_get_stats_cmd(struct wmi *wmi, u8 if_idx)
 	return ath6kl_wmi_simple_cmd(wmi, if_idx, WMI_GET_STATISTICS_CMDID);
 }
 
-int ath6kl_wmi_set_tx_pwr_cmd(struct wmi *wmi, u8 dbM)
+int ath6kl_wmi_set_tx_pwr_cmd(struct wmi *wmi, u8 if_idx, u8 dbM)
 {
 	struct sk_buff *skb;
 	struct wmi_set_tx_pwr_cmd *cmd;
@@ -2472,15 +2484,15 @@ int ath6kl_wmi_set_tx_pwr_cmd(struct wmi *wmi, u8 dbM)
 	cmd = (struct wmi_set_tx_pwr_cmd *) skb->data;
 	cmd->dbM = dbM;
 
-	ret = ath6kl_wmi_cmd_send(wmi, 0, skb, WMI_SET_TX_PWR_CMDID,
+	ret = ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_SET_TX_PWR_CMDID,
 				  NO_SYNC_WMIFLAG);
 
 	return ret;
 }
 
-int ath6kl_wmi_get_tx_pwr_cmd(struct wmi *wmi)
+int ath6kl_wmi_get_tx_pwr_cmd(struct wmi *wmi, u8 if_idx)
 {
-	return ath6kl_wmi_simple_cmd(wmi, 0, WMI_GET_TX_PWR_CMDID);
+	return ath6kl_wmi_simple_cmd(wmi, if_idx, WMI_GET_TX_PWR_CMDID);
 }
 
 int ath6kl_wmi_get_roam_tbl_cmd(struct wmi *wmi)

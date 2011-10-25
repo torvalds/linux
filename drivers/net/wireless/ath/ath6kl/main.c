@@ -861,8 +861,19 @@ void ath6kl_disconnect(struct ath6kl_vif *vif)
 
 void ath6kl_deep_sleep_enable(struct ath6kl *ar)
 {
-	/* TODO: Pass vif instead of taking it from ar */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl_vif *vif;
+
+	/* FIXME: for multi vif */
+	vif = ath6kl_vif_first(ar);
+	if (!vif) {
+		/* save the current power mode before enabling power save */
+		ar->wmi->saved_pwr_mode = ar->wmi->pwr_mode;
+
+		if (ath6kl_wmi_powermode_cmd(ar->wmi, 0, REC_POWER) != 0)
+			ath6kl_warn("ath6kl_deep_sleep_enable: "
+				    "wmi_powermode_cmd failed\n");
+		return;
+	}
 
 	switch (vif->sme_state) {
 	case SME_CONNECTING:
@@ -1361,6 +1372,23 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 	vif->bss_ch = 0;
 
 	ath6kl_tx_data_cleanup(ar);
+}
+
+struct ath6kl_vif *ath6kl_vif_first(struct ath6kl *ar)
+{
+	struct ath6kl_vif *vif;
+
+	spin_lock(&ar->list_lock);
+	if (list_empty(&ar->vif_list)) {
+		spin_unlock(&ar->list_lock);
+		return NULL;
+	}
+
+	vif = list_first_entry(&ar->vif_list, struct ath6kl_vif, list);
+
+	spin_unlock(&ar->list_lock);
+
+	return vif;
 }
 
 static int ath6kl_open(struct net_device *dev)

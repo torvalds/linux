@@ -228,9 +228,9 @@ static void ath6kl_set_key_mgmt(struct ath6kl_vif *vif, u32 key_mgmt)
 	}
 }
 
-static bool ath6kl_cfg80211_ready(struct ath6kl *ar)
+static bool ath6kl_cfg80211_ready(struct ath6kl_vif *vif)
 {
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 
 	if (!test_bit(WMI_READY, &ar->flag)) {
 		ath6kl_err("wmi is not ready\n");
@@ -302,7 +302,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	vif->sme_state = SME_CONNECTING;
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	if (test_bit(DESTROY_IN_PROGRESS, &ar->flag)) {
@@ -614,7 +614,7 @@ static int ath6kl_cfg80211_disconnect(struct wiphy *wiphy,
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: reason=%u\n", __func__,
 		   reason_code);
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	if (test_bit(DESTROY_IN_PROGRESS, &ar->flag)) {
@@ -713,7 +713,7 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	int ret = 0;
 	u32 force_fg_scan = 0;
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	if (!ar->usr_bss_filter) {
@@ -831,7 +831,7 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	u8 key_type;
 	int status = 0;
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	if (params->cipher == CCKM_KRK_CIPHER_SUITE) {
@@ -953,7 +953,7 @@ static int ath6kl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: index %d\n", __func__, key_index);
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	if (key_index < WMI_MIN_KEY_INDEX || key_index > WMI_MAX_KEY_INDEX) {
@@ -980,14 +980,13 @@ static int ath6kl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 				   void (*callback) (void *cookie,
 						     struct key_params *))
 {
-	struct ath6kl *ar = (struct ath6kl *)ath6kl_priv(ndev);
 	struct ath6kl_vif *vif = netdev_priv(ndev);
 	struct ath6kl_key *key = NULL;
 	struct key_params params;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: index %d\n", __func__, key_index);
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	if (key_index < WMI_MIN_KEY_INDEX || key_index > WMI_MAX_KEY_INDEX) {
@@ -1024,7 +1023,7 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: index %d\n", __func__, key_index);
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	if (key_index < WMI_MIN_KEY_INDEX || key_index > WMI_MAX_KEY_INDEX) {
@@ -1080,12 +1079,17 @@ void ath6kl_cfg80211_tkip_micerr_event(struct ath6kl_vif *vif, u8 keyid,
 static int ath6kl_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
 	struct ath6kl *ar = (struct ath6kl *)wiphy_priv(wiphy);
+	struct ath6kl_vif *vif;
 	int ret;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: changed 0x%x\n", __func__,
 		   changed);
 
-	if (!ath6kl_cfg80211_ready(ar))
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
+
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
@@ -1108,12 +1112,17 @@ static int ath6kl_cfg80211_set_txpower(struct wiphy *wiphy,
 				       int dbm)
 {
 	struct ath6kl *ar = (struct ath6kl *)wiphy_priv(wiphy);
+	struct ath6kl_vif *vif;
 	u8 ath6kl_dbm;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: type 0x%x, dbm %d\n", __func__,
 		   type, dbm);
 
-	if (!ath6kl_cfg80211_ready(ar))
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
+
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	switch (type) {
@@ -1128,7 +1137,7 @@ static int ath6kl_cfg80211_set_txpower(struct wiphy *wiphy,
 		return -EOPNOTSUPP;
 	}
 
-	ath6kl_wmi_set_tx_pwr_cmd(ar->wmi, ath6kl_dbm);
+	ath6kl_wmi_set_tx_pwr_cmd(ar->wmi, vif->fw_vif_idx, ath6kl_dbm);
 
 	return 0;
 }
@@ -1136,15 +1145,19 @@ static int ath6kl_cfg80211_set_txpower(struct wiphy *wiphy,
 static int ath6kl_cfg80211_get_txpower(struct wiphy *wiphy, int *dbm)
 {
 	struct ath6kl *ar = (struct ath6kl *)wiphy_priv(wiphy);
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl_vif *vif;
 
-	if (!ath6kl_cfg80211_ready(ar))
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
+
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	if (test_bit(CONNECTED, &vif->flags)) {
 		ar->tx_pwr = 0;
 
-		if (ath6kl_wmi_get_tx_pwr_cmd(ar->wmi) != 0) {
+		if (ath6kl_wmi_get_tx_pwr_cmd(ar->wmi, vif->fw_vif_idx) != 0) {
 			ath6kl_err("ath6kl_wmi_get_tx_pwr_cmd failed\n");
 			return -EIO;
 		}
@@ -1173,7 +1186,7 @@ static int ath6kl_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: pmgmt %d, timeout %d\n",
 		   __func__, pmgmt, timeout);
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	if (pmgmt) {
@@ -1204,7 +1217,7 @@ static int ath6kl_cfg80211_change_iface(struct wiphy *wiphy,
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: type %u\n", __func__, type);
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	switch (type) {
@@ -1241,7 +1254,7 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 	struct ath6kl_vif *vif = netdev_priv(dev);
 	int status;
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	vif->ssid_len = ibss_param->ssid_len;
@@ -1306,10 +1319,9 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 static int ath6kl_cfg80211_leave_ibss(struct wiphy *wiphy,
 				      struct net_device *dev)
 {
-	struct ath6kl *ar = (struct ath6kl *)ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	ath6kl_disconnect(vif);
@@ -1539,10 +1551,9 @@ static int ath6kl_set_channel(struct wiphy *wiphy, struct net_device *dev,
 			      struct ieee80211_channel *chan,
 			      enum nl80211_channel_type channel_type)
 {
-	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: center_freq=%u hw_value=%u\n",
@@ -1609,7 +1620,7 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: add=%d\n", __func__, add);
 
-	if (!ath6kl_cfg80211_ready(ar))
+	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
 	if (vif->next_mode != AP_NETWORK)
@@ -1991,11 +2002,13 @@ struct ath6kl *ath6kl_core_alloc(struct device *dev)
 
 	spin_lock_init(&ar->lock);
 	spin_lock_init(&ar->mcastpsq_lock);
+	spin_lock_init(&ar->list_lock);
 
 	init_waitqueue_head(&ar->event_wq);
 	sema_init(&ar->sem, 1);
 
 	INIT_LIST_HEAD(&ar->amsdu_rx_buffer_queue);
+	INIT_LIST_HEAD(&ar->vif_list);
 
 	clear_bit(WMI_ENABLED, &ar->flag);
 	clear_bit(SKIP_SCAN, &ar->flag);
@@ -2110,7 +2123,6 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	ndev->ieee80211_ptr = &vif->wdev;
 	vif->wdev.wiphy = ar->wiphy;
 	vif->ar = ar;
-	ar->vif = vif;
 	vif->ndev = ndev;
 	SET_NETDEV_DEV(ndev, wiphy_dev(vif->wdev.wiphy));
 	vif->wdev.netdev = ndev;
@@ -2133,6 +2145,10 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	set_bit(WLAN_ENABLED, &vif->flags);
 	ar->wlan_pwr_state = WLAN_POWER_STATE_ON;
 	set_bit(NETDEV_REGISTERED, &vif->flags);
+
+	spin_lock(&ar->list_lock);
+	list_add_tail(&vif->list, &ar->vif_list);
+	spin_unlock(&ar->list_lock);
 
 	return ndev;
 

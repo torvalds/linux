@@ -397,6 +397,7 @@ enum ath6kl_vif_state {
 };
 
 struct ath6kl_vif {
+	struct list_head list;
 	struct wireless_dev wdev;
 	struct net_device *ndev;
 	struct ath6kl *ar;
@@ -456,7 +457,9 @@ struct ath6kl {
 	int total_tx_data_pend;
 	struct htc_target *htc_target;
 	void *hif_priv;
-	struct ath6kl_vif *vif;
+	struct list_head vif_list;
+	/* Lock to avoid race in vif_list entries among add/del/traverse */
+	spinlock_t list_lock;
 	spinlock_t lock;
 	struct semaphore sem;
 	u16 listen_intvl_b;
@@ -662,4 +665,5 @@ void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
 void ath6kl_init_control_info(struct ath6kl_vif *vif);
 void ath6kl_deinit_if_data(struct ath6kl_vif *vif);
 void ath6kl_core_free(struct ath6kl *ar);
+struct ath6kl_vif *ath6kl_vif_first(struct ath6kl *ar);
 #endif /* CORE_H */

@@ -432,9 +432,9 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 					       struct htc_packet *packet)
 {
 	struct ath6kl *ar = target->dev->ar;
-	/* TODO: Findout vif properly */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl_vif *vif;
 	enum htc_endpoint_id endpoint = packet->endpoint;
+	enum htc_send_full_action action = HTC_SEND_FULL_KEEP;
 
 	if (endpoint == ar->ctrl_ep) {
 		/*
@@ -447,19 +447,11 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 		set_bit(WMI_CTRL_EP_FULL, &ar->flag);
 		spin_unlock_bh(&ar->lock);
 		ath6kl_err("wmi ctrl ep is full\n");
-		return HTC_SEND_FULL_KEEP;
+		goto stop_adhoc_netq;
 	}
 
 	if (packet->info.tx.tag == ATH6KL_CONTROL_PKT_TAG)
-		return HTC_SEND_FULL_KEEP;
-
-	if (vif->nw_type == ADHOC_NETWORK)
-		/*
-		 * In adhoc mode, we cannot differentiate traffic
-		 * priorities so there is no need to continue, however we
-		 * should stop the network.
-		 */
-		goto stop_net_queues;
+		goto stop_adhoc_netq;
 
 	/*
 	 * The last MAX_HI_COOKIE_NUM "batch" of cookies are reserved for
@@ -467,28 +459,40 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 	 */
 	if (ar->ac_stream_pri_map[ar->ep2ac_map[endpoint]] <
 	    ar->hiac_stream_active_pri &&
-	    ar->cookie_count <= MAX_HI_COOKIE_NUM)
+	    ar->cookie_count <= MAX_HI_COOKIE_NUM) {
 		/*
 		 * Give preference to the highest priority stream by
 		 * dropping the packets which overflowed.
 		 */
-		return HTC_SEND_FULL_DROP;
+		action = HTC_SEND_FULL_DROP;
+		goto stop_adhoc_netq;
+	}
 
-stop_net_queues:
-	spin_lock_bh(&vif->if_lock);
-	set_bit(NETQ_STOPPED, &vif->flags);
-	spin_unlock_bh(&vif->if_lock);
-	netif_stop_queue(vif->ndev);
+stop_adhoc_netq:
+	/* FIXME: Locking */
+	spin_lock(&ar->list_lock);
+	list_for_each_entry(vif, &ar->vif_list, list) {
+		if (vif->nw_type == ADHOC_NETWORK) {
+			spin_unlock(&ar->list_lock);
 
-	return HTC_SEND_FULL_KEEP;
+			spin_lock_bh(&vif->if_lock);
+			set_bit(NETQ_STOPPED, &vif->flags);
+			spin_unlock_bh(&vif->if_lock);
+			netif_stop_queue(vif->ndev);
+
+			return action;
+		}
+	}
+	spin_unlock(&ar->list_lock);
+
+	return action;
 }
 
 /* TODO this needs to be looked at */
-static void ath6kl_tx_clear_node_map(struct ath6kl *ar,
+static void ath6kl_tx_clear_node_map(struct ath6kl_vif *vif,
 				     enum htc_endpoint_id eid, u32 map_no)
 {
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl *ar = vif->ar;
 	u32 i;
 
 	if (vif->nw_type != ADHOC_NETWORK)
@@ -533,10 +537,9 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 	int status;
 	enum htc_endpoint_id eid;
 	bool wake_event = false;
-	bool flushing = false;
+	bool flushing[MAX_NUM_VIF] = {false};
 	u8 if_idx;
-	/* TODO: Findout vif */
-	struct ath6kl_vif *vif = ar->vif;
+	struct ath6kl_vif *vif;
 
 	skb_queue_head_init(&skb_queue);
 
@@ -599,7 +602,7 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 		if (status) {
 			if (status == -ECANCELED)
 				/* a packet was flushed  */
-				flushing = true;
+				flushing[if_idx] = true;
 
 			vif->net_stats.tx_errors++;
 
@@ -615,12 +618,12 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 				   __func__, skb, packet->buf, packet->act_len,
 				   eid, "OK");
 
-			flushing = false;
+			flushing[if_idx] = false;
 			vif->net_stats.tx_packets++;
 			vif->net_stats.tx_bytes += skb->len;
 		}
 
-		ath6kl_tx_clear_node_map(ar, eid, map_no);
+		ath6kl_tx_clear_node_map(vif, eid, map_no);
 
 		ath6kl_free_cookie(ar, ath6kl_cookie);
 
@@ -632,10 +635,17 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 
 	__skb_queue_purge(&skb_queue);
 
-	if (test_bit(CONNECTED, &vif->flags)) {
-		if (!flushing)
+	/* FIXME: Locking */
+	spin_lock(&ar->list_lock);
+	list_for_each_entry(vif, &ar->vif_list, list) {
+		if (test_bit(CONNECTED, &vif->flags) &&
+		    !flushing[vif->fw_vif_idx]) {
+			spin_unlock(&ar->list_lock);
 			netif_wake_queue(vif->ndev);
+			spin_lock(&ar->list_lock);
+		}
 	}
+	spin_unlock(&ar->list_lock);
 
 	if (wake_event)
 		wake_up(&ar->event_wq);
