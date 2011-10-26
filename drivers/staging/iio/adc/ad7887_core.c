@@ -55,7 +55,7 @@ static int ad7887_read_raw(struct iio_dev *indio_dev,
 		*val = (ret >> st->chip_info->channel[0].scan_type.shift) &
 			RES_MASK(st->chip_info->channel[0].scan_type.realbits);
 		return IIO_VAL_INT;
-	case IIO_CHAN_INFO_SCALE_SHARED:
+	case IIO_CHAN_INFO_SCALE:
 		scale_uv = (st->int_vref_mv * 1000)
 			>> st->chip_info->channel[0].scan_type.realbits;
 		*val =  scale_uv/1000;
@@ -75,7 +75,7 @@ static const struct ad7887_chip_info ad7887_chip_info_tbl[] = {
 			.type = IIO_VOLTAGE,
 			.indexed = 1,
 			.channel = 1,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),
+			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.address = 1,
 			.scan_index = 1,
 			.scan_type = IIO_ST('u', 12, 16, 0),
@@ -84,7 +84,7 @@ static const struct ad7887_chip_info ad7887_chip_info_tbl[] = {
 			.type = IIO_VOLTAGE,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),
+			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.address = 0,
 			.scan_index = 0,
 			.scan_type = IIO_ST('u', 12, 16, 0),

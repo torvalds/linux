@@ -227,14 +227,14 @@ static int lis3l02dq_write_raw(struct iio_dev *indio_dev,
 	u8 uval;
 	s8 sval;
 	switch (mask) {
-	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
+	case IIO_CHAN_INFO_CALIBBIAS:
 		if (val > 255 || val < -256)
 			return -EINVAL;
 		sval = val;
 		reg = lis3l02dq_axis_map[LIS3L02DQ_BIAS][chan->address];
 		ret = lis3l02dq_spi_write_reg_8(indio_dev, reg, sval);
 		break;
-	case IIO_CHAN_INFO_CALIBSCALE_SEPARATE:
+	case IIO_CHAN_INFO_CALIBSCALE:
 		if (val & ~0xFF)
 			return -EINVAL;
 		uval = val;
@@ -272,11 +272,11 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 		}
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
-	case IIO_CHAN_INFO_SCALE_SHARED:
+	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		*val2 = 9580;
 		return IIO_VAL_INT_PLUS_MICRO;
-	case IIO_CHAN_INFO_CALIBSCALE_SEPARATE:
+	case IIO_CHAN_INFO_CALIBSCALE:
 		reg = lis3l02dq_axis_map[LIS3L02DQ_GAIN][chan->address];
 		ret = lis3l02dq_spi_read_reg_8(indio_dev, reg, &utemp);
 		if (ret)
@@ -285,7 +285,7 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 		*val = utemp;
 		return IIO_VAL_INT;
 
-	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
+	case IIO_CHAN_INFO_CALIBBIAS:
 		reg = lis3l02dq_axis_map[LIS3L02DQ_BIAS][chan->address];
 		ret = lis3l02dq_spi_read_reg_8(indio_dev, reg, (u8 *)&stemp);
 		/* to match with what previous code does */
@@ -516,9 +516,9 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 }
 
 #define LIS3L02DQ_INFO_MASK				\
-	((1 << IIO_CHAN_INFO_SCALE_SHARED) |		\
-	 (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE) |	\
-	 (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE))
+	(IIO_CHAN_INFO_SCALE_SHARED_BIT |		\
+	 IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |	\
+	 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT)
 
 #define LIS3L02DQ_EVENT_MASK					\
 	(IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) |	\

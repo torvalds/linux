@@ -113,10 +113,10 @@ static struct iio_chan_spec ad5933_channels[] = {
 		 0, AD5933_REG_TEMP_DATA, IIO_ST('s', 14, 16, 0), 0),
 	/* Ring Channels */
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "real_raw", 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		 AD5933_REG_REAL_DATA, 0, IIO_ST('s', 16, 16, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "imag_raw", 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		 AD5933_REG_IMAG_DATA, 1, IIO_ST('s', 16, 16, 0), 0),
 };
 

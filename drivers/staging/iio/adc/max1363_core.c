@@ -261,7 +261,7 @@ static int max1363_read_raw(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 		return IIO_VAL_INT;
-	case IIO_CHAN_INFO_SCALE_SHARED:
+	case IIO_CHAN_INFO_SCALE:
 		if ((1 << (st->chip_info->bits + 1)) >
 		    st->chip_info->int_vref_mv) {
 			*val = 0;
@@ -289,7 +289,7 @@ static const enum max1363_modes max1363_mode_list[] = {
 #define MAX1363_EV_M						\
 	(IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING)	\
 	 | IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
-#define MAX1363_INFO_MASK (1 << IIO_CHAN_INFO_SCALE_SHARED)
+#define MAX1363_INFO_MASK IIO_CHAN_INFO_SCALE_SHARED_BIT
 #define MAX1363_CHAN_U(num, addr, si, bits, evmask)			\
 	{								\
 		.type = IIO_VOLTAGE,					\

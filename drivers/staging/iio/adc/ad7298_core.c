@@ -24,31 +24,31 @@
 
 static struct iio_chan_spec ad7298_channels[] = {
 	IIO_CHAN(IIO_TEMP, 0, 1, 0, NULL, 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		 9, AD7298_CH_TEMP, IIO_ST('s', 32, 32, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		 0, 0, IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		 1, 1, IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 2, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		 2, 2, IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 3, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		 3, 3, IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 4, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		 4, 4, IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 5, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		 5, 5, IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 6, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		 6, 6, IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 7, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		 7, 7, IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN_SOFT_TIMESTAMP(8),
 };
@@ -143,15 +143,20 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 			*val = ret & RES_MASK(AD7298_BITS);
 
 		return IIO_VAL_INT;
-	case IIO_CHAN_INFO_SCALE_SHARED:
-		scale_uv = (st->int_vref_mv * 1000) >> AD7298_BITS;
-		*val =  scale_uv / 1000;
-		*val2 = (scale_uv % 1000) * 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
-	case IIO_CHAN_INFO_SCALE_SEPARATE:
-		*val =  1;
-		*val2 = 0;
-		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_SCALE:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			scale_uv = (st->int_vref_mv * 1000) >> AD7298_BITS;
+			*val =  scale_uv / 1000;
+			*val2 = (scale_uv % 1000) * 1000;
+			return IIO_VAL_INT_PLUS_MICRO;
+		case IIO_TEMP:
+			*val =  1;
+			*val2 = 0;
+			return IIO_VAL_INT_PLUS_MICRO;
+		default:
+			return -EINVAL;
+		}
 	}
 	return -EINVAL;
 }

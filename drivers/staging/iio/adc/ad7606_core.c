@@ -100,7 +100,7 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		*val = (short) ret;
 		return IIO_VAL_INT;
-	case IIO_CHAN_INFO_SCALE_SHARED:
+	case IIO_CHAN_INFO_SCALE:
 		scale_uv = (st->range * 1000 * 2)
 			>> st->chip_info->channels[0].scan_type.realbits;
 		*val =  scale_uv / 1000;

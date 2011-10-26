@@ -77,15 +77,14 @@ static const char * const iio_modifier_names[] = {
 
 /* relies on pairs of these shared then separate */
 static const char * const iio_chan_info_postfix[] = {
-	[IIO_CHAN_INFO_SCALE_SHARED/2] = "scale",
-	[IIO_CHAN_INFO_OFFSET_SHARED/2] = "offset",
-	[IIO_CHAN_INFO_CALIBSCALE_SHARED/2] = "calibscale",
-	[IIO_CHAN_INFO_CALIBBIAS_SHARED/2] = "calibbias",
-	[IIO_CHAN_INFO_PEAK_SHARED/2] = "peak_raw",
-	[IIO_CHAN_INFO_PEAK_SCALE_SHARED/2] = "peak_scale",
-	[IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SHARED/2]
-	= "quadrature_correction_raw",
-	[IIO_CHAN_INFO_AVERAGE_RAW_SHARED/2] = "mean_raw",
+	[IIO_CHAN_INFO_SCALE] = "scale",
+	[IIO_CHAN_INFO_OFFSET] = "offset",
+	[IIO_CHAN_INFO_CALIBSCALE] = "calibscale",
+	[IIO_CHAN_INFO_CALIBBIAS] = "calibbias",
+	[IIO_CHAN_INFO_PEAK] = "peak_raw",
+	[IIO_CHAN_INFO_PEAK_SCALE] = "peak_scale",
+	[IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW] = "quadrature_correction_raw",
+	[IIO_CHAN_INFO_AVERAGE_RAW] = "mean_raw",
 };
 
 /**
@@ -603,7 +602,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 					     chan,
 					     &iio_read_channel_info,
 					     &iio_write_channel_info,
-					     i,
+					     i/2,
 					     !(i%2),
 					     &indio_dev->dev,
 					     &indio_dev->channel_attr_list);

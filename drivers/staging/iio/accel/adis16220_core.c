@@ -510,17 +510,17 @@ static int adis16220_read_raw(struct iio_dev *indio_dev,
 	case 0:
 		addrind = 0;
 		break;
-	case IIO_CHAN_INFO_OFFSET_SEPARATE:
+	case IIO_CHAN_INFO_OFFSET:
 		if (chan->type == IIO_TEMP) {
 			*val = 25;
 			return IIO_VAL_INT;
 		}
 		addrind = 1;
 		break;
-	case IIO_CHAN_INFO_PEAK_SEPARATE:
+	case IIO_CHAN_INFO_PEAK:
 		addrind = 2;
 		break;
-	case IIO_CHAN_INFO_SCALE_SEPARATE:
+	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		switch (chan->type) {
 		case IIO_TEMP:
@@ -575,27 +575,27 @@ static const struct iio_chan_spec adis16220_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.extend_name = "supply",
-		.info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = in_supply,
 	}, {
 		.type = IIO_ACCEL,
-		.info_mask = (1 << IIO_CHAN_INFO_OFFSET_SEPARATE) |
-			     (1 << IIO_CHAN_INFO_SCALE_SEPARATE) |
-			     (1 << IIO_CHAN_INFO_PEAK_SEPARATE),
+		.info_mask = IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+			     IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
 		.address = accel,
 	}, {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask = (1 << IIO_CHAN_INFO_OFFSET_SEPARATE) |
-			     (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		.info_mask = IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = temp,
 	}, {
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 1,
-		.info_mask = (1 << IIO_CHAN_INFO_OFFSET_SEPARATE) |
-			     (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		.info_mask = IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = in_1,
 	}, {
 		.type = IIO_VOLTAGE,

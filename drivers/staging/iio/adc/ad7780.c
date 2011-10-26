@@ -114,7 +114,7 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 			*val *= 128;
 
 		return IIO_VAL_INT;
-	case IIO_CHAN_INFO_SCALE_SHARED:
+	case IIO_CHAN_INFO_SCALE:
 		scale_uv = (st->int_vref_mv * 100000)
 			>> (channel.scan_type.realbits - 1);
 		*val =  scale_uv / 100000;
@@ -127,12 +127,12 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 	[ID_AD7780] = {
 		.channel = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				    IIO_CHAN_INFO_SCALE_SHARED_BIT,
 				    0, 0, IIO_ST('s', 24, 32, 8), 0),
 	},
 	[ID_AD7781] = {
 		.channel = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				    IIO_CHAN_INFO_SCALE_SHARED_BIT,
 				    0, 0, IIO_ST('s', 20, 32, 12), 0),
 	},
 };

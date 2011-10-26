@@ -901,18 +901,20 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 		}
 		return IIO_VAL_INT;
 
-	case IIO_CHAN_INFO_SCALE_SHARED:
-		mutex_lock(&indio_dev->mlock);
-		*val = st->scale_avail[AD7192_CONF_GAIN(st->conf)][0];
-		*val2 = st->scale_avail[AD7192_CONF_GAIN(st->conf)][1];
-		mutex_unlock(&indio_dev->mlock);
-
-		return IIO_VAL_INT_PLUS_NANO;
-
-	case IIO_CHAN_INFO_SCALE_SEPARATE:
-		*val =  1000;
-
-		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SCALE:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			mutex_lock(&indio_dev->mlock);
+			*val = st->scale_avail[AD7192_CONF_GAIN(st->conf)][0];
+			*val2 = st->scale_avail[AD7192_CONF_GAIN(st->conf)][1];
+			mutex_unlock(&indio_dev->mlock);
+			return IIO_VAL_INT_PLUS_NANO;
+		case IIO_TEMP:
+			*val =  1000;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	return -EINVAL;
@@ -935,7 +937,7 @@ static int ad7192_write_raw(struct iio_dev *indio_dev,
 	}
 
 	switch (mask) {
-	case IIO_CHAN_INFO_SCALE_SHARED:
+	case IIO_CHAN_INFO_SCALE:
 		ret = -EINVAL;
 		for (i = 0; i < ARRAY_SIZE(st->scale_avail); i++)
 			if (val2 == st->scale_avail[i][1]) {
@@ -992,7 +994,7 @@ static const struct iio_info ad7192_info = {
 	  .extend_name = _name,						\
 	  .channel = _chan,						\
 	  .channel2 = _chan2,						\
-	  .info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),		\
+	  .info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,		\
 	  .address = _address,						\
 	  .scan_index = _si,						\
 	  .scan_type =  IIO_ST('s', 24, 32, 0)}
@@ -1001,7 +1003,7 @@ static const struct iio_info ad7192_info = {
 	{ .type = IIO_VOLTAGE,						\
 	  .indexed = 1,							\
 	  .channel = _chan,						\
-	  .info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),		\
+	  .info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,		\
 	  .address = _address,						\
 	  .scan_index = _si,						\
 	  .scan_type =  IIO_ST('s', 24, 32, 0)}
@@ -1010,7 +1012,7 @@ static const struct iio_info ad7192_info = {
 	{ .type = IIO_TEMP,						\
 	  .indexed = 1,							\
 	  .channel = _chan,						\
-	  .info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
+	  .info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
 	  .address = _address,						\
 	  .scan_index = _si,						\
 	  .scan_type =  IIO_ST('s', 24, 32, 0)}

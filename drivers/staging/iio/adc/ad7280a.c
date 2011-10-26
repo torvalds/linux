@@ -508,7 +508,7 @@ static int ad7280_channel_init(struct ad7280_state *st)
 			}
 			st->channels[cnt].indexed = 1;
 			st->channels[cnt].info_mask =
-				(1 << IIO_CHAN_INFO_SCALE_SHARED);
+				IIO_CHAN_INFO_SCALE_SHARED_BIT;
 			st->channels[cnt].address =
 				AD7280A_DEVADDR(dev) << 8 | ch;
 			st->channels[cnt].scan_index = cnt;
@@ -524,7 +524,7 @@ static int ad7280_channel_init(struct ad7280_state *st)
 	st->channels[cnt].channel2 = dev * 6;
 	st->channels[cnt].address = AD7280A_ALL_CELLS;
 	st->channels[cnt].indexed = 1;
-	st->channels[cnt].info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED);
+	st->channels[cnt].info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT;
 	st->channels[cnt].scan_index = cnt;
 	st->channels[cnt].scan_type.sign = 'u';
 	st->channels[cnt].scan_type.realbits = 32;
@@ -803,7 +803,7 @@ static int ad7280_read_raw(struct iio_dev *indio_dev,
 		*val = ret;
 
 		return IIO_VAL_INT;
-	case IIO_CHAN_INFO_SCALE_SHARED:
+	case IIO_CHAN_INFO_SCALE:
 		if ((chan->address & 0xFF) <= AD7280A_CELL_VOLTAGE_6)
 			scale_uv = (4000 * 1000) >> AD7280A_BITS;
 		else

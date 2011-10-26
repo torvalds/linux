@@ -463,7 +463,7 @@ static int hmc5843_read_raw(struct iio_dev *indio_dev,
 		return hmc5843_read_measurement(indio_dev,
 						chan->address,
 						val);
-	case IIO_CHAN_INFO_SCALE_SHARED:
+	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		*val2 = hmc5843_regval_to_nanoscale[data->range];
 		return IIO_VAL_INT_PLUS_NANO;
@@ -476,7 +476,7 @@ static int hmc5843_read_raw(struct iio_dev *indio_dev,
 		.type = IIO_MAGN,					\
 		.modified = 1,						\
 		.channel2 = IIO_MOD_##axis,				\
-		.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),		\
+		.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,		\
 		.address = add						\
 	}
 
