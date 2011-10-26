@@ -778,7 +778,6 @@ try_again:
 		else {
 			mutex_lock(&cinode->lock_mutex);
 			list_del_init(&lock->blist);
-			mutex_unlock(&cinode->lock_mutex);
 		}
 	}
 
