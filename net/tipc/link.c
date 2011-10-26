@@ -2105,6 +2105,8 @@ static void link_recv_proto_msg(struct tipc_link *l_ptr, struct sk_buff *buf)
 			l_ptr->owner->block_setup = WAIT_NODE_DOWN;
 		}
 
+		link_state_event(l_ptr, RESET_MSG);
+
 		/* fall thru' */
 	case ACTIVATE_MSG:
 		/* Update link settings according other endpoint's values */
@@ -2134,10 +2136,11 @@ static void link_recv_proto_msg(struct tipc_link *l_ptr, struct sk_buff *buf)
 		if (!tipc_node_is_up(l_ptr->owner))
 			l_ptr->owner->bclink.last_in = msg_last_bcast(msg);
 
-		link_state_event(l_ptr, msg_type(msg));
-
 		l_ptr->peer_session = msg_session(msg);
 		l_ptr->peer_bearer_id = msg_bearer_id(msg);
+
+		if (msg_type(msg) == ACTIVATE_MSG)
+			link_state_event(l_ptr, ACTIVATE_MSG);
 		break;
 	case STATE_MSG:
 
