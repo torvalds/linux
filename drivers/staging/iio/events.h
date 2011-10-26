@@ -10,6 +10,7 @@
 #define _IIO_EVENTS_H_
 
 #include <linux/ioctl.h>
+#include <linux/types.h>
 #include "types.h"
 
 /**
@@ -19,8 +20,8 @@
  *		the interrupt handler)
  */
 struct iio_event_data {
-	u64	id;
-	s64	timestamp;
+	__u64	id;
+	__s64	timestamp;
 };
 
 #define IIO_GET_EVENT_FD_IOCTL _IOR('i', 0x90, int)
