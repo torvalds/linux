@@ -80,10 +80,14 @@ static inline void mesh_plink_fsm_restart(struct sta_info *sta)
  *       on it in the lifecycle management section!
  */
 static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
-					 u8 *hw_addr, u32 rates)
+					 u8 *hw_addr, u32 rates,
+					 struct ieee802_11_elems *elems)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
 	struct sta_info *sta;
+
+	sband = local->hw.wiphy->bands[local->oper_channel->band];
 
 	if (local->num_sta >= MESH_MAX_PLINKS)
 		return NULL;
@@ -96,6 +100,9 @@ static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
 	set_sta_flag(sta, WLAN_STA_AUTHORIZED);
 	set_sta_flag(sta, WLAN_STA_WME);
 	sta->sta.supp_rates[local->hw.conf.channel->band] = rates;
+	if (elems->ht_cap_elem)
+		ieee80211_ht_cap_ie_to_sta_ht_cap(sband, elems->ht_cap_elem,
+						  &sta->sta.ht_cap);
 	rate_control_rate_init(sta);
 
 	return sta;
@@ -276,7 +283,7 @@ void mesh_neighbour_update(u8 *hw_addr, u32 rates,
 					elems->ie_start, elems->total_len,
 					GFP_KERNEL);
 		else
-			sta = mesh_plink_alloc(sdata, hw_addr, rates);
+			sta = mesh_plink_alloc(sdata, hw_addr, rates, elems);
 		if (!sta)
 			return;
 		if (sta_info_insert_rcu(sta)) {
@@ -567,7 +574,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		}
 
 		rates = ieee80211_sta_get_rates(local, &elems, rx_status->band);
-		sta = mesh_plink_alloc(sdata, mgmt->sa, rates);
+		sta = mesh_plink_alloc(sdata, mgmt->sa, rates, &elems);
 		if (!sta) {
 			mpl_dbg("Mesh plink error: plink table full\n");
 			return;

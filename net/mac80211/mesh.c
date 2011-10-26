@@ -76,6 +76,7 @@ static void ieee80211_mesh_housekeeping_timer(unsigned long data)
 bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct ieee80211_local *local = sdata->local;
 
 	/*
 	 * As support for each feature is added, check for matching
@@ -87,15 +88,23 @@ bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_dat
 	 *   - MDA enabled
 	 * - Power management control on fc
 	 */
-	if (ifmsh->mesh_id_len == ie->mesh_id_len &&
-		memcmp(ifmsh->mesh_id, ie->mesh_id, ie->mesh_id_len) == 0 &&
-		(ifmsh->mesh_pp_id == ie->mesh_config->meshconf_psel) &&
-		(ifmsh->mesh_pm_id == ie->mesh_config->meshconf_pmetric) &&
-		(ifmsh->mesh_cc_id == ie->mesh_config->meshconf_congest) &&
-		(ifmsh->mesh_sp_id == ie->mesh_config->meshconf_synch) &&
-		(ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth))
-		return true;
+	if (!(ifmsh->mesh_id_len == ie->mesh_id_len &&
+	     memcmp(ifmsh->mesh_id, ie->mesh_id, ie->mesh_id_len) == 0 &&
+	     (ifmsh->mesh_pp_id == ie->mesh_config->meshconf_psel) &&
+	     (ifmsh->mesh_pm_id == ie->mesh_config->meshconf_pmetric) &&
+	     (ifmsh->mesh_cc_id == ie->mesh_config->meshconf_congest) &&
+	     (ifmsh->mesh_sp_id == ie->mesh_config->meshconf_synch) &&
+	     (ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth)))
+		goto mismatch;
 
+	/* disallow peering with mismatched channel types for now */
+	if (ie->ht_info_elem &&
+	    (local->_oper_channel_type !=
+	     ieee80211_ht_info_to_channel_type(ie->ht_info_elem)))
+		goto mismatch;
+
+	return true;
+mismatch:
 	return false;
 }
 
