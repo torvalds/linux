@@ -197,7 +197,7 @@ enum reconstruct_states {
 struct stripe_head {
 	struct hlist_node	hash;
 	struct list_head	lru;	      /* inactive_list or handle_list */
-	struct raid5_private_data *raid_conf;
+	struct r5conf		*raid_conf;
 	short			generation;	/* increments with every
 						 * reshape */
 	sector_t		sector;		/* sector of this row */
@@ -248,7 +248,7 @@ struct stripe_head_state {
 	unsigned long ops_request;
 
 	struct bio *return_bi;
-	mdk_rdev_t *blocked_rdev;
+	struct md_rdev *blocked_rdev;
 	int handle_bad_blocks;
 };
 
@@ -344,12 +344,12 @@ enum {
 
 
 struct disk_info {
-	mdk_rdev_t	*rdev;
+	struct md_rdev	*rdev;
 };
 
-struct raid5_private_data {
+struct r5conf {
 	struct hlist_head	*stripe_hashtbl;
-	mddev_t			*mddev;
+	struct mddev		*mddev;
 	struct disk_info	*spare;
 	int			chunk_sectors;
 	int			level, algorithm;
@@ -436,10 +436,8 @@ struct raid5_private_data {
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.
 	 */
-	struct mdk_thread_s	*thread;
+	struct md_thread	*thread;
 };
-
-typedef struct raid5_private_data raid5_conf_t;
 
 /*
  * Our supported algorithms
@@ -503,7 +501,7 @@ static inline int algorithm_is_DDF(int layout)
 	return layout >= 8 && layout <= 10;
 }
 
-extern int md_raid5_congested(mddev_t *mddev, int bits);
-extern void md_raid5_kick_device(raid5_conf_t *conf);
-extern int raid5_set_cache_size(mddev_t *mddev, int size);
+extern int md_raid5_congested(struct mddev *mddev, int bits);
+extern void md_raid5_kick_device(struct r5conf *conf);
+extern int raid5_set_cache_size(struct mddev *mddev, int size);
 #endif
