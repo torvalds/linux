@@ -148,7 +148,7 @@ struct  mousevsc_prt_msg {
  */
 struct mousevsc_dev {
 	struct hv_device	*device;
-	unsigned char		init_complete;
+	bool			init_complete;
 	struct mousevsc_prt_msg	protocol_req;
 	struct mousevsc_prt_msg	protocol_resp;
 	/* Synchronize the request/response if needed */
@@ -159,7 +159,7 @@ struct mousevsc_dev {
 	unsigned char		*report_desc;
 	u32			report_desc_size;
 	struct hv_input_dev_info hid_dev_info;
-	int			connected;
+	bool			connected;
 	struct hid_device       *hid_device;
 };
 
@@ -487,7 +487,7 @@ static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 	if (!hidinput_connect(hid_dev, 0)) {
 		hid_dev->claimed |= HID_CLAIMED_INPUT;
 
-		input_device->connected = 1;
+		input_device->connected = true;
 
 	}
 
@@ -558,7 +558,7 @@ static int mousevsc_remove(struct hv_device *dev)
 
 	if (input_dev->connected) {
 		hidinput_disconnect(input_dev->hid_device);
-		input_dev->connected = 0;
+		input_dev->connected = false;
 		hid_destroy_device(input_dev->hid_device);
 	}
 
