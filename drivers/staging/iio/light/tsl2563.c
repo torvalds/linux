@@ -226,6 +226,8 @@ static int tsl2563_read_id(struct tsl2563_chip *chip, u8 *id)
 	if (ret < 0)
 		return ret;
 
+	*id = ret;
+
 	return 0;
 }
 
