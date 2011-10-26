@@ -42,7 +42,7 @@ static int debug;
  * Version information
  */
 
-#define DRIVER_VERSION "v0.6"
+#define DRIVER_VERSION "v0.7"
 #define DRIVER_AUTHOR "Bart Hartgers <bart.hartgers+ark3116@gmail.com>"
 #define DRIVER_DESC "USB ARK3116 serial/IrDA driver"
 #define DRIVER_DEV_DESC "ARK3116 RS232/IrDA"
@@ -380,10 +380,6 @@ static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto err_out;
 	}
 
-	/* setup termios */
-	if (tty)
-		ark3116_set_termios(tty, port, NULL);
-
 	/* remove any data still left: also clears error state */
 	ark3116_read_reg(serial, UART_RX, buf);
 
@@ -405,6 +401,10 @@ static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	/* enable DMA */
 	ark3116_write_reg(port->serial, UART_FCR, UART_FCR_DMA_SELECT);
+
+	/* setup termios */
+	if (tty)
+		ark3116_set_termios(tty, port, NULL);
 
 err_out:
 	kfree(buf);
