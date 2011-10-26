@@ -4694,6 +4694,27 @@ static void sort_autocfg_input_pins(struct auto_pin_cfg *cfg)
 	}
 }
 
+/* Reorder the surround channels
+ * ALSA sequence is front/surr/clfe/side
+ * HDA sequence is:
+ *    4-ch: front/surr  =>  OK as it is
+ *    6-ch: front/clfe/surr
+ *    8-ch: front/clfe/rear/side|fc
+ */
+static void reorder_outputs(unsigned int nums, hda_nid_t *pins)
+{
+	hda_nid_t nid;
+
+	switch (nums) {
+	case 3:
+	case 4:
+		nid = pins[1];
+		pins[1] = pins[2];
+		pins[2] = nid;
+		break;
+	}
+}
+
 /*
  * Parse all pin widgets and store the useful pin nids to cfg
  *
@@ -4889,21 +4910,9 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 		}
 	}
 
-	/* Reorder the surround channels
-	 * ALSA sequence is front/surr/clfe/side
-	 * HDA sequence is:
-	 *    4-ch: front/surr  =>  OK as it is
-	 *    6-ch: front/clfe/surr
-	 *    8-ch: front/clfe/rear/side|fc
-	 */
-	switch (cfg->line_outs) {
-	case 3:
-	case 4:
-		nid = cfg->line_out_pins[1];
-		cfg->line_out_pins[1] = cfg->line_out_pins[2];
-		cfg->line_out_pins[2] = nid;
-		break;
-	}
+	reorder_outputs(cfg->line_outs, cfg->line_out_pins);
+	reorder_outputs(cfg->hp_outs, cfg->hp_pins);
+	reorder_outputs(cfg->speaker_outs, cfg->speaker_pins);
 
 	sort_autocfg_input_pins(cfg);
 
