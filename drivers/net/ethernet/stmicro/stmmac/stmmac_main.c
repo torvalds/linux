@@ -813,6 +813,7 @@ static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
 static int stmmac_get_hw_features(struct stmmac_priv *priv)
 {
 	u32 hw_cap = 0;
+
 	if (priv->hw->dma->get_hw_feature) {
 		hw_cap = priv->hw->dma->get_hw_feature(priv->ioaddr);
 
@@ -938,6 +939,7 @@ static int stmmac_open(struct net_device *dev)
 
 	stmmac_get_hw_features(priv);
 
+	priv->rx_coe = priv->hw->mac->rx_coe(priv->ioaddr);
 	if (priv->rx_coe)
 		pr_info("stmmac: Rx Checksum Offload Engine supported\n");
 	if (priv->plat->tx_coe)
@@ -1275,8 +1277,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 #endif
 			skb->protocol = eth_type_trans(skb, priv->dev);
 
-			if (unlikely(status == csum_none)) {
-				/* always for the old mac 10/100 */
+			if (unlikely(!priv->rx_coe)) {
+				/* No RX COE for old mac10/100 devices */
 				skb_checksum_none_assert(skb);
 				netif_receive_skb(skb);
 			} else {
