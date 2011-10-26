@@ -231,13 +231,15 @@ static void ui_browser__scrollbar_set(struct ui_browser *browser)
 		       (browser->nr_entries - 1));
 	}
 
+	SLsmg_set_char_set(1);
+
 	while (h < height) {
 	        ui_browser__gotorc(browser, row++, col);
-		SLsmg_set_char_set(1);
-		SLsmg_write_char(h == pct ? SLSMG_DIAMOND_CHAR : SLSMG_BOARD_CHAR);
-		SLsmg_set_char_set(0);
+		SLsmg_write_char(h == pct ? SLSMG_DIAMOND_CHAR : SLSMG_CKBRD_CHAR);
 		++h;
 	}
+
+	SLsmg_set_char_set(0);
 }
 
 static int __ui_browser__refresh(struct ui_browser *browser)
