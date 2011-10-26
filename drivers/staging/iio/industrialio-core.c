@@ -603,7 +603,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 					     chan,
 					     &iio_read_channel_info,
 					     &iio_write_channel_info,
-					     (1 << i),
+					     i,
 					     !(i%2),
 					     &indio_dev->dev,
 					     &indio_dev->channel_attr_list);

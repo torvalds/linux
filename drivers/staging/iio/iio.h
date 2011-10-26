@@ -26,7 +26,8 @@ enum iio_data_type {
 
 /* Could add the raw attributes as well - allowing buffer only devices */
 enum iio_chan_info_enum {
-	IIO_CHAN_INFO_SCALE_SHARED,
+	/* 0 is reserverd for raw attributes */
+	IIO_CHAN_INFO_SCALE_SHARED = 2,
 	IIO_CHAN_INFO_SCALE_SEPARATE,
 	IIO_CHAN_INFO_OFFSET_SHARED,
 	IIO_CHAN_INFO_OFFSET_SEPARATE,

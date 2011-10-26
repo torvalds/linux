@@ -510,17 +510,17 @@ static int adis16220_read_raw(struct iio_dev *indio_dev,
 	case 0:
 		addrind = 0;
 		break;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET_SEPARATE:
 		if (chan->type == IIO_TEMP) {
 			*val = 25;
 			return IIO_VAL_INT;
 		}
 		addrind = 1;
 		break;
-	case (1 << IIO_CHAN_INFO_PEAK_SEPARATE):
+	case IIO_CHAN_INFO_PEAK_SEPARATE:
 		addrind = 2;
 		break;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		*val = 0;
 		switch (chan->type) {
 		case IIO_TEMP:

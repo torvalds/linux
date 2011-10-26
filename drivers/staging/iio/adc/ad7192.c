@@ -901,7 +901,7 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 		}
 		return IIO_VAL_INT;
 
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		mutex_lock(&indio_dev->mlock);
 		*val = st->scale_avail[AD7192_CONF_GAIN(st->conf)][0];
 		*val2 = st->scale_avail[AD7192_CONF_GAIN(st->conf)][1];
@@ -909,7 +909,7 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT_PLUS_NANO;
 
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		*val =  1000;
 
 		return IIO_VAL_INT;
@@ -935,7 +935,7 @@ static int ad7192_write_raw(struct iio_dev *indio_dev,
 	}
 
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		ret = -EINVAL;
 		for (i = 0; i < ARRAY_SIZE(st->scale_avail); i++)
 			if (val2 == st->scale_avail[i][1]) {

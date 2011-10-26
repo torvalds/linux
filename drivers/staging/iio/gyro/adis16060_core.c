@@ -98,11 +98,11 @@ static int adis16060_read_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&indio_dev->mlock);
 		*val = tval;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET_SEPARATE:
 		*val = -7;
 		*val2 = 461117;
 		return IIO_VAL_INT_PLUS_MICRO;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		*val = 0;
 		*val2 = 34000;
 		return IIO_VAL_INT_PLUS_MICRO;

@@ -140,7 +140,7 @@ static int kxsd9_write_raw(struct iio_dev *indio_dev,
 {
 	int ret = -EINVAL;
 
-	if (mask == (1 << IIO_CHAN_INFO_SCALE_SHARED)) {
+	if (mask == IIO_CHAN_INFO_SCALE_SHARED) {
 		/* Check no integer component */
 		if (val)
 			return -EINVAL;
@@ -164,7 +164,7 @@ static int kxsd9_read_raw(struct iio_dev *indio_dev,
 			goto error_ret;
 		*val = ret;
 		break;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		ret = spi_w8r8(st->us, KXSD9_READ(KXSD9_REG_CTRL_C));
 		if (ret)
 			goto error_ret;

@@ -477,7 +477,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE_SEPARATE:
 		if (val != 1) {
 			ret = -EINVAL;
 			goto out;
@@ -503,7 +503,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 
 		ret = 0;
 		break;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SHARED):
+	case IIO_CHAN_INFO_CALIBBIAS_SHARED:
 		if ((val < 0) | (val > 0xFFFF)) {
 			ret = -EINVAL;
 			goto out;
@@ -515,7 +515,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 
 		ret = 0;
 		break;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET_SEPARATE:
 		if ((val < 0) | (val > 43008000)) { /* 21pF */
 			ret = -EINVAL;
 			goto out;
@@ -612,7 +612,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 
 		ret = IIO_VAL_INT;
 		break;
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE_SEPARATE:
 		switch (chan->type) {
 		case IIO_CAPACITANCE:
 			reg = AD7746_REG_CAP_GAINH;
@@ -634,7 +634,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SHARED):
+	case IIO_CHAN_INFO_CALIBBIAS_SHARED:
 		ret = i2c_smbus_read_word_data(chip->client,
 					       AD7746_REG_CAP_OFFH);
 		if (ret < 0)
@@ -643,13 +643,13 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 
 		ret = IIO_VAL_INT;
 		break;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET_SEPARATE:
 		*val = AD7746_CAPDAC_DACP(chip->capdac[chan->channel]
 			[chan->differential]) * 338646;
 
 		ret = IIO_VAL_INT;
 		break;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		switch (chan->type) {
 		case IIO_CAPACITANCE:
 			/* 8.192pf / 2^24 */

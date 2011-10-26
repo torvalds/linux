@@ -366,7 +366,7 @@ static int adis16204_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			*val = 0;
@@ -390,12 +390,12 @@ static int adis16204_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 		break;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET_SEPARATE:
 		*val = 25;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
-	case (1 << IIO_CHAN_INFO_PEAK_SEPARATE):
-		if (mask == (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE)) {
+	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
+	case IIO_CHAN_INFO_PEAK_SEPARATE:
+		if (mask == IIO_CHAN_INFO_CALIBBIAS_SEPARATE) {
 			bits = 12;
 			addrind = 1;
 		} else { /* PEAK_SEPARATE */
@@ -428,7 +428,7 @@ static int adis16204_write_raw(struct iio_dev *indio_dev,
 	s16 val16;
 	u8 addr;
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
 		switch (chan->type) {
 		case IIO_ACCEL:
 			bits = 12;

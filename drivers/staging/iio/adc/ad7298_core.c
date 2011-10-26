@@ -143,12 +143,12 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 			*val = ret & RES_MASK(AD7298_BITS);
 
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		scale_uv = (st->int_vref_mv * 1000) >> AD7298_BITS;
 		*val =  scale_uv / 1000;
 		*val2 = (scale_uv % 1000) * 1000;
 		return IIO_VAL_INT_PLUS_MICRO;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		*val =  1;
 		*val2 = 0;
 		return IIO_VAL_INT_PLUS_MICRO;

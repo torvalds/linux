@@ -329,8 +329,8 @@ static int adis16203_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			*val = 0;
@@ -350,10 +350,10 @@ static int adis16203_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET_SEPARATE:
 		*val = 25;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
 		bits = 14;
 		mutex_lock(&indio_dev->mlock);
 		addr = adis16203_addresses[chan->address][1];

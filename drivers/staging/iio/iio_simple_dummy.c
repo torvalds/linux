@@ -229,29 +229,29 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 			break;
 		}
 		break;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET_SEPARATE:
 		/* only single ended adc -> 7 */
 		*val = 7;
 		ret = IIO_VAL_INT;
 		break;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		/* only single ended adc -> 0.001333 */
 		*val = 0;
 		*val2 = 1333;
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		/* all differential adc channels -> 0.000001344 */
 		*val = 0;
 		*val2 = 1344;
 		ret = IIO_VAL_INT_PLUS_NANO;
 		break;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
 		/* only the acceleration axis - read from cache */
 		*val = st->accel_calibbias;
 		ret = IIO_VAL_INT;
 		break;
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE_SEPARATE:
 		*val = st->accel_calibscale->val;
 		*val2 = st->accel_calibscale->val2;
 		ret = IIO_VAL_INT_PLUS_MICRO;
@@ -296,7 +296,7 @@ static int iio_dummy_write_raw(struct iio_dev *indio_dev,
 		st->dac_val = val;
 		mutex_unlock(&st->lock);
 		return 0;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
 		mutex_lock(&st->lock);
 		/* Compare against table - hard matching here */
 		for (i = 0; i < ARRAY_SIZE(dummy_scales); i++)

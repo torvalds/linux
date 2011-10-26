@@ -513,7 +513,7 @@ static int tsl2563_read_raw(struct iio_dev *indio_dev,
 		}
 		break;
 
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE_SEPARATE:
 		if (chan->channel == 0)
 			*val = calib_to_sysfs(chip->calib0);
 		else

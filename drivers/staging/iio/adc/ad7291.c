@@ -501,7 +501,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-	case (1 << IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE):
+	case IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE:
 		ret = i2c_smbus_read_word_data(chip->client,
 					       AD7291_T_AVERAGE);
 			if (ret < 0)
@@ -510,12 +510,12 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 				AD7291_VALUE_MASK) << 4) >> 4;
 			*val = signval;
 			return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		scale_uv = (chip->int_vref_mv * 1000) >> AD7291_BITS;
 		*val =  scale_uv / 1000;
 		*val2 = (scale_uv % 1000) * 1000;
 		return IIO_VAL_INT_PLUS_MICRO;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		/*
 		* One LSB of the ADC corresponds to 0.25 deg C.
 		* The temperature reading is in 12-bit twos complement format

@@ -261,7 +261,7 @@ static int max1363_read_raw(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		if ((1 << (st->chip_info->bits + 1)) >
 		    st->chip_info->int_vref_mv) {
 			*val = 0;

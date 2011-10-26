@@ -259,7 +259,7 @@ static int ad7152_write_raw(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE_SEPARATE:
 		if (val != 1) {
 			ret = -EINVAL;
 			goto out;
@@ -276,7 +276,7 @@ static int ad7152_write_raw(struct iio_dev *indio_dev,
 		ret = 0;
 		break;
 
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
 		if ((val < 0) | (val > 0xFFFF)) {
 			ret = -EINVAL;
 			goto out;
@@ -289,7 +289,7 @@ static int ad7152_write_raw(struct iio_dev *indio_dev,
 
 		ret = 0;
 		break;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		if (val != 0) {
 			ret = -EINVAL;
 			goto out;
@@ -372,7 +372,7 @@ static int ad7152_read_raw(struct iio_dev *indio_dev,
 
 		ret = IIO_VAL_INT;
 		break;
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE_SEPARATE:
 
 		ret = i2c_smbus_read_word_data(chip->client,
 				ad7152_addresses[chan->channel][AD7152_GAIN]);
@@ -384,7 +384,7 @@ static int ad7152_read_raw(struct iio_dev *indio_dev,
 
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
 		ret = i2c_smbus_read_word_data(chip->client,
 				ad7152_addresses[chan->channel][AD7152_OFFS]);
 		if (ret < 0)
@@ -393,7 +393,7 @@ static int ad7152_read_raw(struct iio_dev *indio_dev,
 
 		ret = IIO_VAL_INT;
 		break;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		ret = i2c_smbus_read_byte_data(chip->client,
 				ad7152_addresses[chan->channel][AD7152_SETUP]);
 		if (ret < 0)
@@ -416,7 +416,7 @@ static int ad7152_write_raw_get_fmt(struct iio_dev *indio_dev,
 			       long mask)
 {
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		return IIO_VAL_INT_PLUS_NANO;
 	default:
 		return IIO_VAL_INT_PLUS_MICRO;

@@ -667,13 +667,13 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		*val = st->scale_avail[(st->conf >> 8) & 0x7][0];
 		*val2 = st->scale_avail[(st->conf >> 8) & 0x7][1];
 
 		return IIO_VAL_INT_PLUS_NANO;
 
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			/* 1170mV / 2^23 * 6 */
@@ -716,7 +716,7 @@ static int ad7793_write_raw(struct iio_dev *indio_dev,
 	}
 
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		ret = -EINVAL;
 		for (i = 0; i < ARRAY_SIZE(st->scale_avail); i++)
 			if (val2 == st->scale_avail[i][1]) {

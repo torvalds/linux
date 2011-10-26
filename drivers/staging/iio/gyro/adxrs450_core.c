@@ -243,7 +243,7 @@ static int adxrs450_write_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
 		ret = adxrs450_spi_write_reg_16(indio_dev,
 						ADXRS450_DNC1,
 						val & 0x3FF);
@@ -287,7 +287,7 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 			break;
 		}
 		break;
-	case (1 << IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE):
+	case IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE:
 		ret = adxrs450_spi_read_reg_16(indio_dev, ADXRS450_QUAD1, &t);
 		if (ret)
 			break;

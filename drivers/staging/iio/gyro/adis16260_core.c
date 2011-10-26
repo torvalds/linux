@@ -464,8 +464,8 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
 			*val = 0;
@@ -489,10 +489,10 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 		break;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET_SEPARATE:
 		*val = 25;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
 			bits = 12;
@@ -512,7 +512,7 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE_SEPARATE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
 			bits = 12;
@@ -544,11 +544,11 @@ static int adis16260_write_raw(struct iio_dev *indio_dev,
 	s16 val16;
 	u8 addr;
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
 		val16 = val & ((1 << bits) - 1);
 		addr = adis16260_addresses[chan->address][1];
 		return adis16260_spi_write_reg_16(indio_dev, addr, val16);
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE_SEPARATE:
 		val16 = val & ((1 << bits) - 1);
 		addr = adis16260_addresses[chan->address][2];
 		return adis16260_spi_write_reg_16(indio_dev, addr, val16);

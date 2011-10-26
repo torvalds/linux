@@ -362,7 +362,7 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 	int ret = -EINVAL;
 
 	mutex_lock(&chip->lock);
-	if (mask == (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE) &&
+	if (mask == IIO_CHAN_INFO_CALIBSCALE_SEPARATE &&
 	    chan->type == IIO_LIGHT) {
 		chip->lux_scale = val;
 		ret = 0;
@@ -402,7 +402,7 @@ static int isl29018_read_raw(struct iio_dev *indio_dev,
 		if (!ret)
 			ret = IIO_VAL_INT;
 		break;
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE_SEPARATE:
 		if (chan->type == IIO_LIGHT) {
 			*val = chip->lux_scale;
 			ret = IIO_VAL_INT;

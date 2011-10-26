@@ -464,7 +464,7 @@ static int adis16400_write_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
 		mutex_lock(&indio_dev->mlock);
 		ret = adis16400_spi_write_reg_16(indio_dev,
 				adis16400_addresses[chan->address][1],
@@ -504,8 +504,8 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SHARED:
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
 			*val = 0;
@@ -533,7 +533,7 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS_SEPARATE:
 		mutex_lock(&indio_dev->mlock);
 		ret = adis16400_spi_read_reg_16(indio_dev,
 				adis16400_addresses[chan->address][1],
@@ -544,7 +544,7 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		val16 = ((val16 & 0xFFF) << 4) >> 4;
 		*val = val16;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET_SEPARATE:
 		/* currently only temperature */
 		*val = 198;
 		*val2 = 160000;

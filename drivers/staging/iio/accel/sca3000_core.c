@@ -475,7 +475,7 @@ static int sca3000_read_raw(struct iio_dev *indio_dev,
 			(sizeof(*val)*8 - 13);
 		mutex_unlock(&st->lock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		*val = 0;
 		if (chan->type == IIO_ACCEL)
 			*val2 = st->info->scale;

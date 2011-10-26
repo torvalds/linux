@@ -162,7 +162,7 @@ static int ad799x_read_raw(struct iio_dev *indio_dev,
 		*val = (ret >> chan->scan_type.shift) &
 			RES_MASK(chan->scan_type.realbits);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		scale_uv = (st->int_vref_mv * 1000) >> chan->scan_type.realbits;
 		*val =  scale_uv / 1000;
 		*val2 = (scale_uv % 1000) * 1000;

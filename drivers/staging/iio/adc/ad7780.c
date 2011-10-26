@@ -114,7 +114,7 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 			*val *= 128;
 
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		scale_uv = (st->int_vref_mv * 100000)
 			>> (channel.scan_type.realbits - 1);
 		*val =  scale_uv / 100000;

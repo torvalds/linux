@@ -111,7 +111,7 @@ static int ad7150_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		*val = swab16(ret);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE):
+	case IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE:
 		ret = i2c_smbus_read_word_data(chip->client,
 					ad7150_addresses[chan->channel][1]);
 		if (ret < 0)

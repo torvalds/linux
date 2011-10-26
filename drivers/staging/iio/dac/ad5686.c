@@ -306,7 +306,7 @@ static int ad5686_read_raw(struct iio_dev *indio_dev,
 		*val = ret;
 		return IIO_VAL_INT;
 		break;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		scale_uv = (st->vref_mv * 100000)
 			>> (chan->scan_type.realbits);
 		*val =  scale_uv / 100000;

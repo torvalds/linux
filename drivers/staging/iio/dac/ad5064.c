@@ -287,7 +287,7 @@ static int ad5064_read_raw(struct iio_dev *indio_dev,
 	case 0:
 		*val = st->dac_cache[chan->channel];
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		vref = st->chip_info->shared_vref ? 0 : chan->channel;
 		scale_uv = regulator_get_voltage(st->vref_reg[vref].consumer);
 		if (scale_uv < 0)

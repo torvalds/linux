@@ -803,7 +803,7 @@ static int ad7280_read_raw(struct iio_dev *indio_dev,
 		*val = ret;
 
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE_SHARED:
 		if ((chan->address & 0xFF) <= AD7280A_CELL_VOLTAGE_6)
 			scale_uv = (4000 * 1000) >> AD7280A_BITS;
 		else

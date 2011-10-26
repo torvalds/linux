@@ -431,7 +431,7 @@ static int ak8975_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case 0:
 		return ak8975_read_axis(indio_dev, chan->address, val);
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE_SEPARATE:
 		*val = data->raw_to_gauss[chan->address];
 		return IIO_VAL_INT;
 	}
