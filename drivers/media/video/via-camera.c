@@ -156,14 +156,10 @@ static struct via_format {
 		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
 		.bpp		= 2,
 	},
-	{
-		.desc		= "RGB 565",
-		.pixelformat	= V4L2_PIX_FMT_RGB565,
-		.mbus_code	= V4L2_MBUS_FMT_RGB565_2X8_LE,
-		.bpp		= 2,
-	},
 	/* RGB444 and Bayer should be doable, but have never been
-	   tested with this driver. */
+	   tested with this driver. RGB565 seems to work at the default
+	   resolution, but results in color corruption when being scaled by
+	   viacam_set_scaled(), and is disabled as a result. */
 };
 #define N_VIA_FMTS ARRAY_SIZE(via_formats)
 
