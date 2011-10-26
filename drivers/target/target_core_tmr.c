@@ -147,7 +147,7 @@ static void core_tmr_drain_tmr_list(
 		}
 		spin_unlock(&cmd->t_state_lock);
 
-		list_move_tail(&tmr->tmr_list, &drain_tmr_list);
+		list_move_tail(&tmr_p->tmr_list, &drain_tmr_list);
 	}
 	spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 
