@@ -18,6 +18,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
+#include "../events.h"
 
 /*
  * AD7816 config masks

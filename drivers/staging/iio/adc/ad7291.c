@@ -19,6 +19,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
+#include "../events.h"
 
 /*
  * Simplified handling

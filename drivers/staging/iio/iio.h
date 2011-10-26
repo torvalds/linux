@@ -7,13 +7,12 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
-
 #ifndef _INDUSTRIAL_IO_H_
 #define _INDUSTRIAL_IO_H_
 
 #include <linux/device.h>
 #include <linux/cdev.h>
-
+#include "types.h"
 /* IIO TODO LIST */
 /*
  * Provide means of adjusting timer accuracy.
@@ -23,42 +22,6 @@
 enum iio_data_type {
 	IIO_RAW,
 	IIO_PROCESSED,
-};
-
-enum iio_chan_type {
-	/* real channel types */
-	IIO_VOLTAGE,
-	IIO_CURRENT,
-	IIO_POWER,
-	IIO_ACCEL,
-	IIO_ANGL_VEL,
-	IIO_MAGN,
-	IIO_LIGHT,
-	IIO_INTENSITY,
-	IIO_PROXIMITY,
-	IIO_TEMP,
-	IIO_INCLI,
-	IIO_ROT,
-	IIO_ANGL,
-	IIO_TIMESTAMP,
-	IIO_CAPACITANCE,
-};
-
-enum iio_modifier {
-	IIO_NO_MOD,
-	IIO_MOD_X,
-	IIO_MOD_Y,
-	IIO_MOD_Z,
-	IIO_MOD_X_AND_Y,
-	IIO_MOD_X_ANX_Z,
-	IIO_MOD_Y_AND_Z,
-	IIO_MOD_X_AND_Y_AND_Z,
-	IIO_MOD_X_OR_Y,
-	IIO_MOD_X_OR_Z,
-	IIO_MOD_Y_OR_Z,
-	IIO_MOD_X_OR_Y_OR_Z,
-	IIO_MOD_LIGHT_BOTH,
-	IIO_MOD_LIGHT_IR,
 };
 
 /* Could add the raw attributes as well - allowing buffer only devices */

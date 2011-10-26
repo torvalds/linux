@@ -21,7 +21,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 #include "../ring_sw.h"
 
 #include "ad5933.h"

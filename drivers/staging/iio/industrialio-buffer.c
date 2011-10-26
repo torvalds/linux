@@ -24,7 +24,7 @@
 #include "iio.h"
 #include "iio_core.h"
 #include "sysfs.h"
-#include "buffer_generic.h"
+#include "buffer.h"
 
 static const char * const iio_endian_prefix[] = {
 	[IIO_BE] = "be",

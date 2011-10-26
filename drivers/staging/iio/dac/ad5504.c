@@ -18,6 +18,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
+#include "../events.h"
 #include "dac.h"
 #include "ad5504.h"
 

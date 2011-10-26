@@ -25,8 +25,8 @@
 #include "iio.h"
 #include "iio_core.h"
 #include "iio_core_trigger.h"
-#include "chrdev.h"
 #include "sysfs.h"
+#include "events.h"
 
 /* IDA to assign each registered device a unique id*/
 static DEFINE_IDA(iio_ida);

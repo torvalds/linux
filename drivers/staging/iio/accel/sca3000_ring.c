@@ -20,7 +20,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 #include "../ring_hw.h"
 #include "sca3000.h"
 

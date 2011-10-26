@@ -20,7 +20,8 @@
 #include <linux/module.h>
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../events.h"
+#include "../buffer.h"
 
 #include "sca3000.h"
 

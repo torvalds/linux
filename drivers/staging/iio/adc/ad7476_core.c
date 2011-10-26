@@ -17,7 +17,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 
 #include "ad7476.h"
 

@@ -15,7 +15,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-
+#include "../events.h"
 /*
  * AD7150 registers definition
  */

@@ -18,6 +18,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
+#include "../events.h"
 
 #include "ad7280a.h"
 

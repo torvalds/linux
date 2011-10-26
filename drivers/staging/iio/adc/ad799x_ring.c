@@ -17,7 +17,7 @@
 #include <linux/bitops.h>
 
 #include "../iio.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 #include "../ring_sw.h"
 #include "../trigger_consumer.h"
 

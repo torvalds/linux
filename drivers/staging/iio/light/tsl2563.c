@@ -37,6 +37,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
+#include "../events.h"
 #include "tsl2563.h"
 
 /* Use this many bits for fraction part. */
