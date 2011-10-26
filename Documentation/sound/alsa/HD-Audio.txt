@@ -494,7 +494,7 @@ Also, the codec chip name can be rewritten via `[chip_name]` line.
 The hd-audio driver reads the file via request_firmware().  Thus,
 a patch file has to be located on the appropriate firmware path,
 typically, /lib/firmware.  For example, when you pass the option
-`patch=hda-init.fw`, the file /lib/firmware/hda-init-fw must be
+`patch=hda-init.fw`, the file /lib/firmware/hda-init.fw must be
 present.
 
 The patch module option is specific to each card instance, and you
