@@ -146,10 +146,10 @@ void setup_browser(bool fallback_to_pager)
 void exit_browser(bool wait_for_ok)
 {
 	if (use_browser > 0) {
-		if (wait_for_ok) {
-			char title[] = "Fatal Error", ok[] = "Ok";
-			newtWinMessage(title, ok, ui_helpline__last_msg);
-		}
+		if (wait_for_ok)
+			ui__question_window("Fatal Error",
+					    ui_helpline__last_msg,
+					    "Press any key...", 0);
 		ui__exit();
 	}
 }
