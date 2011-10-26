@@ -1519,7 +1519,8 @@ static int fix_sync_read_error(struct r1bio *r1_bio)
 					abort = 1;
 			}
 			if (abort) {
-				mddev->recovery_disabled = 1;
+				conf->recovery_disabled =
+					mddev->recovery_disabled;
 				set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 				md_done_sync(mddev, r1_bio->sectors, 0);
 				put_buf(r1_bio);
@@ -2436,6 +2437,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 
 	bio_list_init(&conf->pending_bio_list);
 	conf->pending_count = 0;
+	conf->recovery_disabled = mddev->recovery_disabled - 1;
 
 	conf->last_used = -1;
 	for (i = 0; i < conf->raid_disks; i++) {
