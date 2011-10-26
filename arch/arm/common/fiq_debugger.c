@@ -578,7 +578,7 @@ static irqreturn_t debug_irq(int irq, void *dev)
 		int i;
 		int count = fiq_debugger_ringbuf_level(state->tty_rbuf);
 		for (i = 0; i < count; i++) {
-			int c = fiq_debugger_ringbuf_peek(state->tty_rbuf, i);
+			int c = fiq_debugger_ringbuf_peek(state->tty_rbuf, 0);
 			tty_insert_flip_char(state->tty, c, TTY_NORMAL);
 			if (!fiq_debugger_ringbuf_consume(state->tty_rbuf, 1))
 				pr_warn("fiq tty failed to consume byte\n");
