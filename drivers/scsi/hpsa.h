@@ -121,6 +121,11 @@ struct ctlr_info {
 	unsigned char reply_pool_wraparound;
 	u32 *blockFetchTable;
 	unsigned char *hba_inquiry_data;
+	u64 last_intr_timestamp;
+	u32 last_heartbeat;
+	u64 last_heartbeat_timestamp;
+	u32 lockup_detected;
+	struct list_head lockup_list;
 };
 #define HPSA_ABORT_MSG 0
 #define HPSA_DEVICE_RESET_MSG 1
