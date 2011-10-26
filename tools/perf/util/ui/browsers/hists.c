@@ -314,8 +314,7 @@ static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 		key = ui_browser__run(&self->b, delay_secs);
 
 		switch (key) {
-		case -1:
-			/* FIXME we need to check if it was es.reason == NEWT_EXIT_TIMER */
+		case K_TIMER:
 			timer(arg);
 			ui_browser__update_nr_entries(&self->b, self->hists->nr_entries);
 			hists__browser_title(self->hists, title, sizeof(title),
@@ -914,7 +913,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 					"C             Collapse all callchains\n"
 					"E             Expand all callchains\n"
 					"d             Zoom into current DSO\n"
-					"t             Zoom into current Thread\n");
+					"t             Zoom into current Thread");
 			continue;
 		case K_ENTER:
 		case K_RIGHT:
