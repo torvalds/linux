@@ -688,7 +688,7 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 
 	ret = ad7280_read_all_channels(st, st->scan_cnt, channels);
 	if (ret < 0)
-		return IRQ_HANDLED;
+		goto out;
 
 	for (i = 0; i < st->scan_cnt; i++) {
 		if (((channels[i] >> 23) & 0xF) <= AD7280A_CELL_VOLTAGE_6) {
@@ -731,6 +731,7 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 		}
 	}
 
+out:
 	kfree(channels);
 
 	return IRQ_HANDLED;
