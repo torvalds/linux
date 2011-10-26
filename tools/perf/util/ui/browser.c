@@ -488,6 +488,47 @@ static int ui_browser__color_config(const char *var, const char *value,
 	return -1;
 }
 
+void ui_browser__argv_seek(struct ui_browser *browser, off_t offset, int whence)
+{
+	switch (whence) {
+	case SEEK_SET:
+		browser->top = browser->entries;
+		break;
+	case SEEK_CUR:
+		browser->top = browser->top + browser->top_idx + offset;
+		break;
+	case SEEK_END:
+		browser->top = browser->top + browser->nr_entries + offset;
+		break;
+	default:
+		return;
+	}
+}
+
+unsigned int ui_browser__argv_refresh(struct ui_browser *browser)
+{
+	unsigned int row = 0, idx = browser->top_idx;
+	char **pos;
+
+	if (browser->top == NULL)
+		browser->top = browser->entries;
+
+	pos = (char **)browser->top;
+	while (idx < browser->nr_entries) {
+		if (!browser->filter || !browser->filter(browser, *pos)) {
+			ui_browser__gotorc(browser, row, 0);
+			browser->write(browser, pos, row);
+			if (++row == browser->height)
+				break;
+		}
+
+		++idx;
+		++pos;
+	}
+
+	return row;
+}
+
 void ui_browser__init(void)
 {
 	int i = 0;

@@ -8,9 +8,53 @@
 #include "../cache.h"
 #include "../debug.h"
 #include "browser.h"
+#include "keysyms.h"
 #include "helpline.h"
 #include "ui.h"
 #include "util.h"
+
+static void ui_browser__argv_write(struct ui_browser *browser,
+				   void *entry, int row)
+{
+	char **arg = entry;
+	bool current_entry = ui_browser__is_current_entry(browser, row);
+
+	ui_browser__set_color(browser, current_entry ? HE_COLORSET_SELECTED :
+						       HE_COLORSET_NORMAL);
+	slsmg_write_nstring(*arg, browser->width);
+}
+
+static int popup_menu__run(struct ui_browser *menu)
+{
+	int key;
+
+	if (ui_browser__show(menu, " ", "ESC: exit, ENTER|->: Select option") < 0)
+		return -1;
+
+	while (1) {
+		key = ui_browser__run(menu, 0);
+
+		switch (key) {
+		case K_RIGHT:
+		case K_ENTER:
+			key = menu->index;
+			break;
+		case K_LEFT:
+		case K_ESC:
+		case 'q':
+		case CTRL('c'):
+			key = -1;
+			break;
+		default:
+			continue;
+		}
+
+		break;
+	}
+
+	ui_browser__hide(menu);
+	return key;
+}
 
 static void newt_form__set_exit_keys(newtComponent self)
 {
@@ -31,36 +75,15 @@ static newtComponent newt_form__new(void)
 
 int ui__popup_menu(int argc, char * const argv[])
 {
-	struct newtExitStruct es;
-	int i, rc = -1, max_len = 5;
-	newtComponent listbox, form = newt_form__new();
+	struct ui_browser menu = {
+		.entries    = (void *)argv,
+		.refresh    = ui_browser__argv_refresh,
+		.seek	    = ui_browser__argv_seek,
+		.write	    = ui_browser__argv_write,
+		.nr_entries = argc,
+	};
 
-	if (form == NULL)
-		return -1;
-
-	listbox = newtListbox(0, 0, argc, NEWT_FLAG_RETURNEXIT);
-	if (listbox == NULL)
-		goto out_destroy_form;
-
-	newtFormAddComponent(form, listbox);
-
-	for (i = 0; i < argc; ++i) {
-		int len = strlen(argv[i]);
-		if (len > max_len)
-			max_len = len;
-		if (newtListboxAddEntry(listbox, argv[i], (void *)(long)i))
-			goto out_destroy_form;
-	}
-
-	newtCenteredWindow(max_len, argc, NULL);
-	newtFormRun(form, &es);
-	rc = newtListboxGetCurrent(listbox) - NULL;
-	if (es.reason == NEWT_EXIT_HOTKEY)
-		rc = -1;
-	newtPopWindow();
-out_destroy_form:
-	newtFormDestroy(form);
-	return rc;
+	return popup_menu__run(&menu);
 }
 
 int ui__help_window(const char *text)
