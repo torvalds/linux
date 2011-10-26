@@ -1392,7 +1392,8 @@ ext4_ext_next_allocated_block(struct ext4_ext_path *path)
 	while (depth >= 0) {
 		if (depth == path->p_depth) {
 			/* leaf */
-			if (path[depth].p_ext !=
+			if (path[depth].p_ext &&
+				path[depth].p_ext !=
 					EXT_LAST_EXTENT(path[depth].p_hdr))
 			  return le32_to_cpu(path[depth].p_ext[1].ee_block);
 		} else {
