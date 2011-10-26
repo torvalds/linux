@@ -271,7 +271,7 @@ struct qi_desc {
 };
 
 struct q_inval {
-	spinlock_t      q_lock;
+	raw_spinlock_t  q_lock;
 	struct qi_desc  *desc;          /* invalidation queue */
 	int             *desc_status;   /* desc status */
 	int             free_head;      /* first free entry */
@@ -311,7 +311,7 @@ struct intel_iommu {
 	u64		cap;
 	u64		ecap;
 	u32		gcmd; /* Holds TE, EAFL. Don't need SRTP, SFL, WBF */
-	spinlock_t	register_lock; /* protect register handling */
+	raw_spinlock_t	register_lock; /* protect register handling */
 	int		seq_id;	/* sequence id of the iommu */
 	int		agaw; /* agaw of this iommu */
 	int		msagaw; /* max sagaw of this iommu */

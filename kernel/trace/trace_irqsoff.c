@@ -23,7 +23,7 @@ static int				tracer_enabled __read_mostly;
 
 static DEFINE_PER_CPU(int, tracing_cpu);
 
-static DEFINE_SPINLOCK(max_trace_lock);
+static DEFINE_RAW_SPINLOCK(max_trace_lock);
 
 enum {
 	TRACER_IRQS_OFF		= (1 << 1),
@@ -321,7 +321,7 @@ check_critical_timing(struct trace_array *tr,
 	if (!report_latency(delta))
 		goto out;
 
-	spin_lock_irqsave(&max_trace_lock, flags);
+	raw_spin_lock_irqsave(&max_trace_lock, flags);
 
 	/* check if we are still the max latency */
 	if (!report_latency(delta))
@@ -344,7 +344,7 @@ check_critical_timing(struct trace_array *tr,
 	max_sequence++;
 
 out_unlock:
-	spin_unlock_irqrestore(&max_trace_lock, flags);
+	raw_spin_unlock_irqrestore(&max_trace_lock, flags);
 
 out:
 	data->critical_sequence = max_sequence;

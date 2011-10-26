@@ -652,7 +652,7 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 		(unsigned long long)iommu->cap,
 		(unsigned long long)iommu->ecap);
 
-	spin_lock_init(&iommu->register_lock);
+	raw_spin_lock_init(&iommu->register_lock);
 
 	drhd->iommu = iommu;
 	return 0;
@@ -771,11 +771,11 @@ int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu)
 restart:
 	rc = 0;
 
-	spin_lock_irqsave(&qi->q_lock, flags);
+	raw_spin_lock_irqsave(&qi->q_lock, flags);
 	while (qi->free_cnt < 3) {
-		spin_unlock_irqrestore(&qi->q_lock, flags);
+		raw_spin_unlock_irqrestore(&qi->q_lock, flags);
 		cpu_relax();
-		spin_lock_irqsave(&qi->q_lock, flags);
+		raw_spin_lock_irqsave(&qi->q_lock, flags);
 	}
 
 	index = qi->free_head;
@@ -815,15 +815,15 @@ restart:
 		if (rc)
 			break;
 
-		spin_unlock(&qi->q_lock);
+		raw_spin_unlock(&qi->q_lock);
 		cpu_relax();
-		spin_lock(&qi->q_lock);
+		raw_spin_lock(&qi->q_lock);
 	}
 
 	qi->desc_status[index] = QI_DONE;
 
 	reclaim_free_desc(qi);
-	spin_unlock_irqrestore(&qi->q_lock, flags);
+	raw_spin_unlock_irqrestore(&qi->q_lock, flags);
 
 	if (rc == -EAGAIN)
 		goto restart;
@@ -912,7 +912,7 @@ void dmar_disable_qi(struct intel_iommu *iommu)
 	if (!ecap_qis(iommu->ecap))
 		return;
 
-	spin_lock_irqsave(&iommu->register_lock, flags);
+	raw_spin_lock_irqsave(&iommu->register_lock, flags);
 
 	sts =  dmar_readq(iommu->reg + DMAR_GSTS_REG);
 	if (!(sts & DMA_GSTS_QIES))
@@ -932,7 +932,7 @@ void dmar_disable_qi(struct intel_iommu *iommu)
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG, readl,
 		      !(sts & DMA_GSTS_QIES), sts);
 end:
-	spin_unlock_irqrestore(&iommu->register_lock, flags);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flags);
 }
 
 /*
@@ -947,7 +947,7 @@ static void __dmar_enable_qi(struct intel_iommu *iommu)
 	qi->free_head = qi->free_tail = 0;
 	qi->free_cnt = QI_LENGTH;
 
-	spin_lock_irqsave(&iommu->register_lock, flags);
+	raw_spin_lock_irqsave(&iommu->register_lock, flags);
 
 	/* write zero to the tail reg */
 	writel(0, iommu->reg + DMAR_IQT_REG);
@@ -960,7 +960,7 @@ static void __dmar_enable_qi(struct intel_iommu *iommu)
 	/* Make sure hardware complete it */
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG, readl, (sts & DMA_GSTS_QIES), sts);
 
-	spin_unlock_irqrestore(&iommu->register_lock, flags);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flags);
 }
 
 /*
@@ -1009,7 +1009,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 	qi->free_head = qi->free_tail = 0;
 	qi->free_cnt = QI_LENGTH;
 
-	spin_lock_init(&qi->q_lock);
+	raw_spin_lock_init(&qi->q_lock);
 
 	__dmar_enable_qi(iommu);
 
@@ -1075,11 +1075,11 @@ void dmar_msi_unmask(struct irq_data *data)
 	unsigned long flag;
 
 	/* unmask it */
-	spin_lock_irqsave(&iommu->register_lock, flag);
+	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	writel(0, iommu->reg + DMAR_FECTL_REG);
 	/* Read a reg to force flush the post write */
 	readl(iommu->reg + DMAR_FECTL_REG);
-	spin_unlock_irqrestore(&iommu->register_lock, flag);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
 void dmar_msi_mask(struct irq_data *data)
@@ -1088,11 +1088,11 @@ void dmar_msi_mask(struct irq_data *data)
 	struct intel_iommu *iommu = irq_data_get_irq_handler_data(data);
 
 	/* mask it */
-	spin_lock_irqsave(&iommu->register_lock, flag);
+	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	writel(DMA_FECTL_IM, iommu->reg + DMAR_FECTL_REG);
 	/* Read a reg to force flush the post write */
 	readl(iommu->reg + DMAR_FECTL_REG);
-	spin_unlock_irqrestore(&iommu->register_lock, flag);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
 void dmar_msi_write(int irq, struct msi_msg *msg)
@@ -1100,11 +1100,11 @@ void dmar_msi_write(int irq, struct msi_msg *msg)
 	struct intel_iommu *iommu = irq_get_handler_data(irq);
 	unsigned long flag;
 
-	spin_lock_irqsave(&iommu->register_lock, flag);
+	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	writel(msg->data, iommu->reg + DMAR_FEDATA_REG);
 	writel(msg->address_lo, iommu->reg + DMAR_FEADDR_REG);
 	writel(msg->address_hi, iommu->reg + DMAR_FEUADDR_REG);
-	spin_unlock_irqrestore(&iommu->register_lock, flag);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
 void dmar_msi_read(int irq, struct msi_msg *msg)
@@ -1112,11 +1112,11 @@ void dmar_msi_read(int irq, struct msi_msg *msg)
 	struct intel_iommu *iommu = irq_get_handler_data(irq);
 	unsigned long flag;
 
-	spin_lock_irqsave(&iommu->register_lock, flag);
+	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	msg->data = readl(iommu->reg + DMAR_FEDATA_REG);
 	msg->address_lo = readl(iommu->reg + DMAR_FEADDR_REG);
 	msg->address_hi = readl(iommu->reg + DMAR_FEUADDR_REG);
-	spin_unlock_irqrestore(&iommu->register_lock, flag);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
 static int dmar_fault_do_one(struct intel_iommu *iommu, int type,
@@ -1153,7 +1153,7 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 	u32 fault_status;
 	unsigned long flag;
 
-	spin_lock_irqsave(&iommu->register_lock, flag);
+	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	fault_status = readl(iommu->reg + DMAR_FSTS_REG);
 	if (fault_status)
 		printk(KERN_ERR "DRHD: handling fault status reg %x\n",
@@ -1192,7 +1192,7 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 		writel(DMA_FRCD_F, iommu->reg + reg +
 			fault_index * PRIMARY_FAULT_REG_LEN + 12);
 
-		spin_unlock_irqrestore(&iommu->register_lock, flag);
+		raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 
 		dmar_fault_do_one(iommu, type, fault_reason,
 				source_id, guest_addr);
@@ -1200,14 +1200,14 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 		fault_index++;
 		if (fault_index >= cap_num_fault_regs(iommu->cap))
 			fault_index = 0;
-		spin_lock_irqsave(&iommu->register_lock, flag);
+		raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	}
 clear_rest:
 	/* clear all the other faults */
 	fault_status = readl(iommu->reg + DMAR_FSTS_REG);
 	writel(fault_status, iommu->reg + DMAR_FSTS_REG);
 
-	spin_unlock_irqrestore(&iommu->register_lock, flag);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 	return IRQ_HANDLED;
 }
 

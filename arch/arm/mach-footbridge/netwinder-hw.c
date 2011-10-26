@@ -68,7 +68,7 @@ static inline void wb977_ww(int reg, int val)
 /*
  * This is a lock for accessing ports GP1_IO_BASE and GP2_IO_BASE
  */
-DEFINE_SPINLOCK(nw_gpio_lock);
+DEFINE_RAW_SPINLOCK(nw_gpio_lock);
 EXPORT_SYMBOL(nw_gpio_lock);
 
 static unsigned int current_gpio_op;
@@ -327,9 +327,9 @@ static inline void wb977_init_gpio(void)
 	/*
 	 * Set Group1/Group2 outputs
 	 */
-	spin_lock_irqsave(&nw_gpio_lock, flags);
+	raw_spin_lock_irqsave(&nw_gpio_lock, flags);
 	nw_gpio_modify_op(-1, GPIO_RED_LED | GPIO_FAN);
-	spin_unlock_irqrestore(&nw_gpio_lock, flags);
+	raw_spin_unlock_irqrestore(&nw_gpio_lock, flags);
 }
 
 /*
@@ -390,9 +390,9 @@ static void __init cpld_init(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&nw_gpio_lock, flags);
+	raw_spin_lock_irqsave(&nw_gpio_lock, flags);
 	nw_cpld_modify(-1, CPLD_UNMUTE | CPLD_7111_DISABLE);
-	spin_unlock_irqrestore(&nw_gpio_lock, flags);
+	raw_spin_unlock_irqrestore(&nw_gpio_lock, flags);
 }
 
 static unsigned char rwa_unlock[] __initdata =
@@ -616,9 +616,9 @@ static int __init nw_hw_init(void)
 		cpld_init();
 		rwa010_init();
 
-		spin_lock_irqsave(&nw_gpio_lock, flags);
+		raw_spin_lock_irqsave(&nw_gpio_lock, flags);
 		nw_gpio_modify_op(GPIO_RED_LED|GPIO_GREEN_LED, DEFAULT_LEDS);
-		spin_unlock_irqrestore(&nw_gpio_lock, flags);
+		raw_spin_unlock_irqrestore(&nw_gpio_lock, flags);
 	}
 	return 0;
 }
