@@ -57,9 +57,9 @@ void ui__warning(const char *format, ...)
 }
 #endif
 
-void ui__warning_paranoid(void)
+void ui__error_paranoid(void)
 {
-	ui__warning("Permission error - are you root?\n"
+	ui__error("Permission error - are you root?\n"
 		    "Consider tweaking /proc/sys/kernel/perf_event_paranoid:\n"
 		    " -1 - Not paranoid at all\n"
 		    "  0 - Disallow raw tracepoint access for unpriv\n"

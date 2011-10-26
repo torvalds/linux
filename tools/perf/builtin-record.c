@@ -298,7 +298,7 @@ try_again:
 			int err = errno;
 
 			if (err == EPERM || err == EACCES) {
-				ui__warning_paranoid();
+				ui__error_paranoid();
 				exit(EXIT_FAILURE);
 			} else if (err ==  ENODEV && cpu_list) {
 				die("No such device - did you specify"

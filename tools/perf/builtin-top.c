@@ -871,7 +871,7 @@ try_again:
 			int err = errno;
 
 			if (err == EPERM || err == EACCES) {
-				ui__warning_paranoid();
+				ui__error_paranoid();
 				goto out_err;
 			}
 			/*
