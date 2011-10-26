@@ -141,7 +141,7 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 	item = drm_sman_alloc(&dev_priv->sman, mem->type, tmpSize, 0, 0);
 
 	if (item) {
-		list_move(&item->owner_list, &file_priv->obj_list);
+		list_add(&item->owner_list, &file_priv->obj_list);
 		mem->offset = ((mem->type == VIA_MEM_VIDEO) ?
 			      dev_priv->vram_offset : dev_priv->agp_offset) +
 		    (item->mm->

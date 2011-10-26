@@ -143,7 +143,7 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 	item = drm_sman_alloc(&dev_priv->sman, pool, mem->size, 0, 0);
 
 	if (item) {
-		list_move(&item->owner_list, &file_priv->obj_list);
+		list_add(&item->owner_list, &file_priv->obj_list);
 		mem->offset = ((pool == 0) ?
 			      dev_priv->vram_offset : dev_priv->agp_offset) +
 		    (item->mm->

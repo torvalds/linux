@@ -48,7 +48,6 @@ struct drm_owner_item {
 void drm_sman_takedown(struct drm_sman * sman)
 {
 	drm_ht_remove(&sman->user_hash_tab);
-	drm_ht_remove(&sman->owner_hash_tab);
 	kfree(sman->mm);
 }
 
@@ -66,16 +65,10 @@ drm_sman_init(struct drm_sman * sman, unsigned int num_managers,
 		goto out;
 	}
 	sman->num_managers = num_managers;
-	INIT_LIST_HEAD(&sman->owner_items);
-	ret = drm_ht_create(&sman->owner_hash_tab, owner_order);
-	if (ret)
-		goto out1;
 	ret = drm_ht_create(&sman->user_hash_tab, user_order);
 	if (!ret)
 		goto out;
 
-	drm_ht_remove(&sman->owner_hash_tab);
-out1:
 	kfree(sman->mm);
 out:
 	return ret;
@@ -161,44 +154,12 @@ drm_sman_set_manager(struct drm_sman * sman, unsigned int manager,
 }
 EXPORT_SYMBOL(drm_sman_set_manager);
 
-static struct drm_owner_item *drm_sman_get_owner_item(struct drm_sman * sman,
-						 unsigned long owner)
-{
-	int ret;
-	struct drm_hash_item *owner_hash_item;
-	struct drm_owner_item *owner_item;
-
-	ret = drm_ht_find_item(&sman->owner_hash_tab, owner, &owner_hash_item);
-	if (!ret) {
-		return drm_hash_entry(owner_hash_item, struct drm_owner_item,
-				      owner_hash);
-	}
-
-	owner_item = kzalloc(sizeof(*owner_item), GFP_KERNEL);
-	if (!owner_item)
-		goto out;
-
-	INIT_LIST_HEAD(&owner_item->mem_blocks);
-	owner_item->owner_hash.key = owner;
-	if (drm_ht_insert_item(&sman->owner_hash_tab, &owner_item->owner_hash))
-		goto out1;
-
-	list_add_tail(&owner_item->sman_list, &sman->owner_items);
-	return owner_item;
-
-out1:
-	kfree(owner_item);
-out:
-	return NULL;
-}
-
 struct drm_memblock_item *drm_sman_alloc(struct drm_sman *sman, unsigned int manager,
 				    unsigned long size, unsigned alignment,
 				    unsigned long owner)
 {
 	void *tmp;
 	struct drm_sman_mm *sman_mm;
-	struct drm_owner_item *owner_item;
 	struct drm_memblock_item *memblock;
 
 	BUG_ON(manager >= sman->num_managers);
@@ -224,16 +185,8 @@ struct drm_memblock_item *drm_sman_alloc(struct drm_sman *sman, unsigned int man
 	     (unsigned long)memblock, 32, 0, 0))
 		goto out1;
 
-	owner_item = drm_sman_get_owner_item(sman, owner);
-	if (!owner_item)
-		goto out2;
-
-	list_add_tail(&memblock->owner_list, &owner_item->mem_blocks);
-
 	return memblock;
 
-out2:
-	drm_ht_remove_item(&sman->user_hash_tab, &memblock->user_hash);
 out1:
 	kfree(memblock);
 out:
@@ -271,35 +224,11 @@ int drm_sman_free_key(struct drm_sman *sman, unsigned int key)
 
 EXPORT_SYMBOL(drm_sman_free_key);
 
-static void drm_sman_remove_owner(struct drm_sman *sman,
-				  struct drm_owner_item *owner_item)
-{
-	list_del(&owner_item->sman_list);
-	drm_ht_remove_item(&sman->owner_hash_tab, &owner_item->owner_hash);
-	kfree(owner_item);
-}
-
-static void drm_sman_do_owner_cleanup(struct drm_sman *sman,
-				      struct drm_owner_item *owner_item)
-{
-	struct drm_memblock_item *entry, *next;
-
-	list_for_each_entry_safe(entry, next, &owner_item->mem_blocks,
-				 owner_list) {
-		drm_sman_free(entry);
-	}
-	drm_sman_remove_owner(sman, owner_item);
-}
-
 void drm_sman_cleanup(struct drm_sman *sman)
 {
-	struct drm_owner_item *entry, *next;
 	unsigned int i;
 	struct drm_sman_mm *sman_mm;
 
-	list_for_each_entry_safe(entry, next, &sman->owner_items, sman_list) {
-		drm_sman_do_owner_cleanup(sman, entry);
-	}
 	if (sman->mm) {
 		for (i = 0; i < sman->num_managers; ++i) {
 			sman_mm = &sman->mm[i];
