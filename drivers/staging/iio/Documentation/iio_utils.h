@@ -13,6 +13,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <dirent.h>
 
 #define IIO_MAX_NAME_LENGTH 30
 
