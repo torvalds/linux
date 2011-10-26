@@ -220,8 +220,16 @@ static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 	ret = request_threaded_irq(pf->irq, pf->h, pf->thread,
 				   pf->type, pf->name,
 				   pf);
-	if (trig->ops && trig->ops->set_trigger_state && notinuse)
+	if (ret < 0) {
+		module_put(pf->indio_dev->info->driver_module);
+		return ret;
+	}
+
+	if (trig->ops && trig->ops->set_trigger_state && notinuse) {
 		ret = trig->ops->set_trigger_state(trig, true);
+		if (ret < 0)
+			module_put(pf->indio_dev->info->driver_module);
+	}
 
 	return ret;
 }
@@ -334,6 +342,8 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 	mutex_unlock(&indio_dev->mlock);
 
 	trig = iio_trigger_find_by_name(buf, len);
+	if (oldtrig == trig)
+		return len;
 
 	if (trig && indio_dev->info->validate_trigger) {
 		ret = indio_dev->info->validate_trigger(indio_dev, trig);
