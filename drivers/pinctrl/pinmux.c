@@ -108,21 +108,16 @@ static int pin_request(struct pinctrl_dev *pctldev,
 
 	dev_dbg(&pctldev->dev, "request pin %d for %s\n", pin, function);
 
-	if (!pin_is_valid(pctldev, pin)) {
-		dev_err(&pctldev->dev, "pin is invalid\n");
-		return -EINVAL;
-	}
-
-	if (!function) {
-		dev_err(&pctldev->dev, "no function name given\n");
-		return -EINVAL;
-	}
-
 	desc = pin_desc_get(pctldev, pin);
 	if (desc == NULL) {
 		dev_err(&pctldev->dev,
 			"pin is not registered so it cannot be requested\n");
 		goto out;
+	}
+
+	if (!function) {
+		dev_err(&pctldev->dev, "no function name given\n");
+		return -EINVAL;
 	}
 
 	spin_lock(&desc->lock);
