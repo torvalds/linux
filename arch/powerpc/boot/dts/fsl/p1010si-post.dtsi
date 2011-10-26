@@ -161,6 +161,7 @@
 		fsl,sdhci-auto-cmd12;
 	};
 
+/include/ "pq3-sec4.4-0.dtsi"
 /include/ "pq3-mpic.dtsi"
 /include/ "pq3-mpic-timer-B.dtsi"
 
