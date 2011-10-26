@@ -1,6 +1,6 @@
 config ET131X
 	tristate "Agere ET-1310 Gigabit Ethernet support"
-	depends on NETDEV_1000 && PCI
+	depends on PCI
 	default n
 	---help---
 	  This driver supports Agere ET-1310 ethernet adapters.
