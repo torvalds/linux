@@ -28,26 +28,22 @@
 #include "drmP.h"
 #include "via_drm.h"
 #include "via_drv.h"
-#include "drm_sman.h"
 
 #define VIA_MM_ALIGN_SHIFT 4
 #define VIA_MM_ALIGN_MASK ((1 << VIA_MM_ALIGN_SHIFT) - 1)
+
+struct via_memblock {
+	struct drm_mm_node mm_node;
+	struct list_head owner_list;
+};
 
 int via_agp_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_via_agp_t *agp = data;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
-	int ret;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = drm_sman_set_range(&dev_priv->sman, VIA_MEM_AGP, 0,
-				 agp->size >> VIA_MM_ALIGN_SHIFT);
-
-	if (ret) {
-		DRM_ERROR("AGP memory manager initialisation error\n");
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
+	drm_mm_init(&dev_priv->agp_mm, 0, agp->size >> VIA_MM_ALIGN_SHIFT);
 
 	dev_priv->agp_initialized = 1;
 	dev_priv->agp_offset = agp->offset;
@@ -61,17 +57,9 @@ int via_fb_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_via_fb_t *fb = data;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
-	int ret;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = drm_sman_set_range(&dev_priv->sman, VIA_MEM_VIDEO, 0,
-				 fb->size >> VIA_MM_ALIGN_SHIFT);
-
-	if (ret) {
-		DRM_ERROR("VRAM memory manager initialisation error\n");
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
+	drm_mm_init(&dev_priv->vram_mm, 0, fb->size >> VIA_MM_ALIGN_SHIFT);
 
 	dev_priv->vram_initialized = 1;
 	dev_priv->vram_offset = fb->offset;
@@ -108,9 +96,14 @@ void via_lastclose(struct drm_device *dev)
 		return;
 
 	mutex_lock(&dev->struct_mutex);
-	drm_sman_cleanup(&dev_priv->sman);
-	dev_priv->vram_initialized = 0;
-	dev_priv->agp_initialized = 0;
+	if (dev_priv->vram_initialized) {
+		drm_mm_takedown(&dev_priv->vram_mm);
+		dev_priv->vram_initialized = 0;
+	}
+	if (dev_priv->agp_initialized) {
+		drm_mm_takedown(&dev_priv->agp_mm);
+		dev_priv->agp_initialized = 0;
+	}
 	mutex_unlock(&dev->struct_mutex);
 }
 
@@ -119,7 +112,7 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 {
 	drm_via_mem_t *mem = data;
 	int retval = 0, user_key;
-	struct drm_memblock_item *item;
+	struct via_memblock *item;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	struct via_file_private *file_priv = file->driver_priv;
 	unsigned long tmpSize;
@@ -137,12 +130,23 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	tmpSize = (mem->size + VIA_MM_ALIGN_MASK) >> VIA_MM_ALIGN_SHIFT;
-	item = drm_sman_alloc(&dev_priv->sman, mem->type, tmpSize, 0, 0);
+	item = kzalloc(sizeof(*item), GFP_KERNEL);
 	if (!item) {
 		retval = -ENOMEM;
 		goto fail_alloc;
 	}
+
+	tmpSize = (mem->size + VIA_MM_ALIGN_MASK) >> VIA_MM_ALIGN_SHIFT;
+	if (mem->type == VIA_MEM_AGP)
+		retval = drm_mm_insert_node(&dev_priv->agp_mm,
+					    &item->mm_node,
+					    tmpSize, 0);
+	else
+		retval = drm_mm_insert_node(&dev_priv->vram_mm,
+					    &item->mm_node,
+					    tmpSize, 0);
+	if (retval)
+		goto fail_alloc;
 
 again:
 	if (idr_pre_get(&dev_priv->object_idr, GFP_KERNEL) == 0) {
@@ -161,15 +165,15 @@ again:
 
 	mem->offset = ((mem->type == VIA_MEM_VIDEO) ?
 		      dev_priv->vram_offset : dev_priv->agp_offset) +
-	    (item->mm->
-	     offset(item->mm, item->mm_info) << VIA_MM_ALIGN_SHIFT);
+	    ((item->mm_node.start) << VIA_MM_ALIGN_SHIFT);
 	mem->index = user_key;
 
 	return 0;
 
 fail_idr:
-	drm_sman_free(item);
+	drm_mm_remove_node(&item->mm_node);
 fail_alloc:
+	kfree(item);
 	mutex_unlock(&dev->struct_mutex);
 
 	mem->offset = 0;
@@ -184,7 +188,7 @@ int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
 	drm_via_mem_t *mem = data;
-	struct drm_memblock_item *obj;
+	struct via_memblock *obj;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
@@ -195,7 +199,9 @@ int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	}
 
 	idr_remove(&dev_priv->object_idr, mem->index);
-	drm_sman_free(obj);
+	list_del(&obj->owner_list);
+	drm_mm_remove_node(&obj->mm_node);
+	kfree(obj);
 	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG("free = 0x%lx\n", mem->index);
@@ -208,7 +214,7 @@ void via_reclaim_buffers_locked(struct drm_device *dev,
 				struct drm_file *file)
 {
 	struct via_file_private *file_priv = file->driver_priv;
-	struct drm_memblock_item *entry, *next;
+	struct via_memblock *entry, *next;
 
 	mutex_lock(&dev->struct_mutex);
 	if (list_empty(&file_priv->obj_list)) {
@@ -221,7 +227,9 @@ void via_reclaim_buffers_locked(struct drm_device *dev,
 
 	list_for_each_entry_safe(entry, next, &file_priv->obj_list,
 				 owner_list) {
-		drm_sman_free(entry);
+		list_del(&entry->owner_list);
+		drm_mm_remove_node(&entry->mm_node);
+		kfree(entry);
 	}
 	mutex_unlock(&dev->struct_mutex);
 	return;

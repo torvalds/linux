@@ -105,15 +105,9 @@ int via_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->chipset = chipset;
 
 	idr_init(&dev->object_name_idr);
-	ret = drm_sman_init(&dev_priv->sman, 2, 12, 8);
-	if (ret) {
-		kfree(dev_priv);
-		return ret;
-	}
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret) {
-		drm_sman_takedown(&dev_priv->sman);
 		kfree(dev_priv);
 		return ret;
 	}
@@ -125,7 +119,6 @@ int via_driver_unload(struct drm_device *dev)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
 
-	drm_sman_takedown(&dev_priv->sman);
 	idr_remove_all(&dev_priv->object_idr);
 	idr_destroy(&dev_priv->object_idr);
 
