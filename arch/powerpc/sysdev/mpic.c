@@ -1748,6 +1748,7 @@ void mpic_reset_core(int cpu)
 	struct mpic *mpic = mpic_primary;
 	u32 pir;
 	int cpuid = get_hard_smp_processor_id(cpu);
+	int i;
 
 	/* Set target bit for core reset */
 	pir = mpic_read(mpic->gregs, MPIC_INFO(GREG_PROCESSOR_INIT));
@@ -1759,6 +1760,15 @@ void mpic_reset_core(int cpu)
 	pir &= ~(1 << cpuid);
 	mpic_write(mpic->gregs, MPIC_INFO(GREG_PROCESSOR_INIT), pir);
 	mpic_read(mpic->gregs, MPIC_INFO(GREG_PROCESSOR_INIT));
+
+	/* Perform 15 EOI on each reset core to clear pending interrupts.
+	 * This is required for FSL CoreNet based devices */
+	if (mpic->flags & MPIC_FSL) {
+		for (i = 0; i < 15; i++) {
+			_mpic_write(mpic->reg_type, &mpic->cpuregs[cpuid],
+				      MPIC_CPU_EOI, 0);
+		}
+	}
 }
 #endif /* CONFIG_SMP */
 
