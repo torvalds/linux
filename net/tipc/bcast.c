@@ -340,8 +340,10 @@ static void bclink_send_nack(struct tipc_node *n_ptr)
 		msg_set_bcgap_to(msg, n_ptr->bclink.gap_to);
 		msg_set_bcast_tag(msg, tipc_own_tag);
 
+		spin_lock_bh(&bc_lock);
 		tipc_bearer_send(&bcbearer->bearer, buf, NULL);
 		bcl->stats.sent_nacks++;
+		spin_unlock_bh(&bc_lock);
 		buf_discard(buf);
 
 		/*
