@@ -1391,7 +1391,6 @@ static int mb_find_extent(struct ext4_buddy *e4b, int order, int block,
 {
 	int next = block;
 	int max;
-	int ord;
 	void *buddy;
 
 	assert_spin_locked(ext4_group_lock_ptr(e4b->bd_sb, e4b->bd_group));
@@ -1433,9 +1432,8 @@ static int mb_find_extent(struct ext4_buddy *e4b, int order, int block,
 		if (mb_test_bit(next, EXT4_MB_BITMAP(e4b)))
 			break;
 
-		ord = mb_find_order_for_block(e4b, next);
+		order = mb_find_order_for_block(e4b, next);
 
-		order = ord;
 		block = next >> order;
 		ex->fe_len += 1 << order;
 	}
