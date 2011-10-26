@@ -16,6 +16,7 @@
  */
 
 #include <linux/moduleparam.h>
+#include <linux/errno.h>
 #include <linux/of.h>
 #include <linux/mmc/sdio_func.h>
 #include "core.h"
