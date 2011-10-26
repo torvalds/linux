@@ -196,6 +196,9 @@ static inline unsigned int sdio_max_byte_size(struct sdio_func *func)
 	else
 		mval = min(mval, func->max_blksize);
 
+	if (mmc_card_broken_byte_mode_512(func->card))
+		return min(mval, 511u);
+
 	return min(mval, 512u); /* maximum size for byte mode */
 }
 
@@ -314,7 +317,7 @@ static int sdio_io_rw_ext_helper(struct sdio_func *func, int write,
 			func->card->host->max_seg_size / func->cur_blksize);
 		max_blocks = min(max_blocks, 511u);
 
-		while (remainder > func->cur_blksize) {
+		while (remainder >= func->cur_blksize) {
 			unsigned blocks;
 
 			blocks = remainder / func->cur_blksize;
@@ -339,8 +342,9 @@ static int sdio_io_rw_ext_helper(struct sdio_func *func, int write,
 	while (remainder > 0) {
 		size = min(remainder, sdio_max_byte_size(func));
 
+		/* Indicate byte mode by setting "blocks" = 0 */
 		ret = mmc_io_rw_extended(func->card, write, func->num, addr,
-			 incr_addr, buf, 1, size);
+			 incr_addr, buf, 0, size);
 		if (ret)
 			return ret;
 
