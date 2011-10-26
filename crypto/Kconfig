@@ -103,6 +103,7 @@ config CRYPTO_MANAGER2
 config CRYPTO_USER
 	tristate "Userspace cryptographic algorithm configuration"
 	select CRYPTO_MANAGER
+	select NET
 	help
 	  Userapace configuration for cryptographic instantiations such as
 	  cbc(aes).
