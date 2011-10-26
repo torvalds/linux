@@ -43,7 +43,7 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 	struct iio_dev *indio_dev = filp->private_data;
 	struct iio_buffer *rb = indio_dev->buffer;
 
-	if (!rb->access->read_first_n)
+	if (!rb || !rb->access->read_first_n)
 		return -EINVAL;
 	return rb->access->read_first_n(rb, n, buf);
 }
@@ -68,7 +68,7 @@ int iio_chrdev_buffer_open(struct iio_dev *indio_dev)
 {
 	struct iio_buffer *rb = indio_dev->buffer;
 	if (!rb)
-		return -EINVAL;
+		return 0;
 	if (rb->access->mark_in_use)
 		rb->access->mark_in_use(rb);
 	return 0;
@@ -78,6 +78,8 @@ void iio_chrdev_buffer_release(struct iio_dev *indio_dev)
 {
 	struct iio_buffer *rb = indio_dev->buffer;
 
+	if (!rb)
+		return;
 	clear_bit(IIO_BUSY_BIT_POS, &rb->flags);
 	if (rb->access->unmark_in_use)
 		rb->access->unmark_in_use(rb);
