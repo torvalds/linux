@@ -121,43 +121,48 @@ int ui__help_window(const char *text)
 	return ui__question_window("Help", text, "Press any key...", 0);
 }
 
-bool ui__dialog_yesno(const char *msg)
+int ui__dialog_yesno(const char *msg)
 {
-	int answer = ui__question_window(NULL, msg, "Enter: Yes, ESC: No", 0);
-
-	return answer == K_ENTER;
+	return ui__question_window(NULL, msg, "Enter: Yes, ESC: No", 0);
 }
 
-static void __ui__warning(const char *title, const char *format, va_list args)
+int __ui__warning(const char *title, const char *format, va_list args)
 {
 	char *s;
 
 	if (use_browser > 0 && vasprintf(&s, format, args) > 0) {
+		int key;
+
 		pthread_mutex_lock(&ui__lock);
-		ui__question_window(title, s, "Press any key...", 0);
+		key = ui__question_window(title, s, "Press any key...", 0);
 		pthread_mutex_unlock(&ui__lock);
 		free(s);
-		return;
+		return key;
 	}
 
 	fprintf(stderr, "%s:\n", title);
 	vfprintf(stderr, format, args);
+	return K_ESC;
 }
 
-void ui__warning(const char *format, ...)
+int ui__warning(const char *format, ...)
 {
+	int key;
 	va_list args;
 
 	va_start(args, format);
-	__ui__warning("Warning", format, args);
+	key = __ui__warning("Warning", format, args);
 	va_end(args);
+	return key;
 }
 
-void ui__error(const char *format, ...)
+int ui__error(const char *format, ...)
 {
+	int key;
 	va_list args;
 
 	va_start(args, format);
-	__ui__warning("Error", format, args);
+	key = __ui__warning("Error", format, args);
 	va_end(args);
+	return key;
 }

@@ -169,6 +169,46 @@ void ui_browser__refresh_dimensions(struct ui_browser *self)
 	self->x = 0;
 }
 
+void ui_browser__handle_resize(struct ui_browser *browser)
+{
+	ui__refresh_dimensions(false);
+	ui_browser__show(browser, browser->title, ui_helpline__current);
+	ui_browser__refresh(browser);
+}
+
+int ui_browser__warning(struct ui_browser *browser, const char *format, ...)
+{
+	va_list args;
+	int key;
+
+	va_start(args, format);
+	while ((key = __ui__warning("Warning!", format, args)) == K_RESIZE)
+		ui_browser__handle_resize(browser);
+	va_end(args);
+
+	return key;
+}
+
+int ui_browser__help_window(struct ui_browser *browser, const char *text)
+{
+	int key;
+
+	while ((key = ui__help_window(text)) == K_RESIZE)
+		ui_browser__handle_resize(browser);
+
+	return key;
+}
+
+bool ui_browser__dialog_yesno(struct ui_browser *browser, const char *text)
+{
+	int key;
+
+	while ((key = ui__dialog_yesno(text)) == K_RESIZE)
+		ui_browser__handle_resize(browser);
+
+	return key == K_ENTER || toupper(key) == 'Y';
+}
+
 void ui_browser__reset_index(struct ui_browser *self)
 {
 	self->index = self->top_idx = 0;

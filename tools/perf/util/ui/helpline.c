@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "../debug.h"
 #include "helpline.h"
@@ -11,12 +12,17 @@ void ui_helpline__pop(void)
 {
 }
 
+char ui_helpline__current[512];
+
 void ui_helpline__push(const char *msg)
 {
+	const size_t sz = sizeof(ui_helpline__current);
+
 	SLsmg_gotorc(SLtt_Screen_Rows - 1, 0);
 	SLsmg_set_color(0);
 	SLsmg_write_nstring((char *)msg, SLtt_Screen_Cols);
 	SLsmg_refresh();
+	strncpy(ui_helpline__current, msg, sz)[sz - 1] = '\0';
 }
 
 void ui_helpline__vpush(const char *fmt, va_list ap)

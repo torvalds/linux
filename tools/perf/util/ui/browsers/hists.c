@@ -17,6 +17,7 @@
 #include "../browser.h"
 #include "../helpline.h"
 #include "../util.h"
+#include "../ui.h"
 #include "map.h"
 
 struct hist_browser {
@@ -882,7 +883,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			goto out_free_stack;
 		case 'a':
 			if (!browser->has_symbols) {
-				ui__warning(
+				ui_browser__warning(&browser->b,
 			"Annotation is only available for symbolic views, "
 			"include \"sym\" in --sort to use it.");
 				continue;
@@ -900,7 +901,8 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		case K_F1:
 		case 'h':
 		case '?':
-			ui__help_window("h/?/F1        Show this window\n"
+			ui_browser__help_window(&browser->b,
+					"h/?/F1        Show this window\n"
 					"UP/DOWN/PGUP\n"
 					"PGDN/SPACE    Navigate\n"
 					"q/ESC/CTRL+C  Exit browser\n\n"
@@ -939,7 +941,8 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		}
 		case K_ESC:
 			if (!left_exits &&
-			    !ui__dialog_yesno("Do you really want to exit?"))
+			    !ui_browser__dialog_yesno(&browser->b,
+					       "Do you really want to exit?"))
 				continue;
 			/* Fall thru */
 		case 'q':
@@ -992,6 +995,7 @@ add_exit_option:
 
 		if (choice == annotate) {
 			struct hist_entry *he;
+			int err;
 do_annotate:
 			he = hist_browser__selected_entry(browser);
 			if (he == NULL)
@@ -1000,10 +1004,12 @@ do_annotate:
 			 * Don't let this be freed, say, by hists__decay_entry.
 			 */
 			he->used = true;
-			hist_entry__tui_annotate(he, evsel->idx, nr_events,
-						 timer, arg, delay_secs);
+			err = hist_entry__tui_annotate(he, evsel->idx, nr_events,
+						       timer, arg, delay_secs);
 			he->used = false;
 			ui_browser__update_nr_entries(&browser->b, browser->hists->nr_entries);
+			if (err)
+				ui_browser__handle_resize(&browser->b);
 		} else if (choice == browse_map)
 			map__browse(browser->selection->map);
 		else if (choice == zoom_dso) {
@@ -1132,7 +1138,8 @@ browse_hists:
 					pos = list_entry(pos->node.prev, struct perf_evsel, node);
 				goto browse_hists;
 			case K_ESC:
-				if (!ui__dialog_yesno("Do you really want to exit?"))
+				if (!ui_browser__dialog_yesno(&menu->b,
+						"Do you really want to exit?"))
 					continue;
 				/* Fall thru */
 			case 'q':
@@ -1144,7 +1151,8 @@ browse_hists:
 		case K_LEFT:
 			continue;
 		case K_ESC:
-			if (!ui__dialog_yesno("Do you really want to exit?"))
+			if (!ui_browser__dialog_yesno(&menu->b,
+					       "Do you really want to exit?"))
 				continue;
 			/* Fall thru */
 		case 'q':

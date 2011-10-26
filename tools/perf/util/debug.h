@@ -27,10 +27,10 @@ static inline void ui_progress__update(u64 curr __used, u64 total __used,
 extern char ui_helpline__last_msg[];
 int ui_helpline__show_help(const char *format, va_list ap);
 #include "ui/progress.h"
-void ui__error(const char *format, ...) __attribute__((format(printf, 1, 2)));
+int ui__error(const char *format, ...) __attribute__((format(printf, 1, 2)));
 #endif
 
-void ui__warning(const char *format, ...) __attribute__((format(printf, 1, 2)));
-void ui__error_paranoid(void);
+int ui__warning(const char *format, ...) __attribute__((format(printf, 1, 2)));
+int ui__error_paranoid(void);
 
 #endif	/* __PERF_DEBUG_H */
