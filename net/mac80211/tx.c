@@ -2278,22 +2278,29 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		struct ieee80211_mgmt *mgmt;
 		u8 *pos;
+		int hdr_len = offsetof(struct ieee80211_mgmt, u.beacon) +
+			      sizeof(mgmt->u.beacon);
 
 #ifdef CONFIG_MAC80211_MESH
 		if (!sdata->u.mesh.mesh_id_len)
 			goto out;
 #endif
 
-		/* headroom, head length, tail length and maximum TIM length */
-		skb = dev_alloc_skb(local->tx_headroom + 400 +
-				sdata->u.mesh.ie_len);
+		skb = dev_alloc_skb(local->tx_headroom +
+				    hdr_len +
+				    2 + /* NULL SSID */
+				    2 + 8 + /* supported rates */
+				    2 + 3 + /* DS params */
+				    2 + (IEEE80211_MAX_SUPP_RATES - 8) +
+				    2 + sdata->u.mesh.mesh_id_len +
+				    2 + sizeof(struct ieee80211_meshconf_ie) +
+				    sdata->u.mesh.ie_len);
 		if (!skb)
 			goto out;
 
 		skb_reserve(skb, local->hw.extra_tx_headroom);
-		mgmt = (struct ieee80211_mgmt *)
-			skb_put(skb, 24 + sizeof(mgmt->u.beacon));
-		memset(mgmt, 0, 24 + sizeof(mgmt->u.beacon));
+		mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
+		memset(mgmt, 0, hdr_len);
 		mgmt->frame_control =
 		    cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
 		memset(mgmt->da, 0xff, ETH_ALEN);
