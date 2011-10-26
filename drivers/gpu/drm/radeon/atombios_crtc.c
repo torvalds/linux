@@ -638,7 +638,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				if (ss_enabled && ss->percentage)
 					args.v3.sInput.ucDispPllConfig |=
 						DISPPLL_CONFIG_SS_ENABLE;
-				if (encoder_mode == ATOM_ENCODER_MODE_DP) {
+				if (ENCODER_MODE_IS_DP(encoder_mode)) {
 					args.v3.sInput.ucDispPllConfig |=
 						DISPPLL_CONFIG_COHERENT_MODE;
 					/* 16200 or 27000 */
@@ -930,6 +930,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 		bpc = connector->display_info.bpc;
 
 		switch (encoder_mode) {
+		case ATOM_ENCODER_MODE_DP_MST:
 		case ATOM_ENCODER_MODE_DP:
 			/* DP/eDP */
 			dp_clock = dig_connector->dp_clock / 10;
@@ -1435,7 +1436,7 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 				 * PPLL/DCPLL programming and only program the DP DTO for the
 				 * crtc virtual pixel clock.
 				 */
-				if (atombios_get_encoder_mode(test_encoder) == ATOM_ENCODER_MODE_DP) {
+				if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_encoder))) {
 					if (ASIC_IS_DCE5(rdev) || rdev->clock.dp_extclk)
 						return ATOM_PPLL_INVALID;
 				}

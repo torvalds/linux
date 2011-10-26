@@ -834,8 +834,7 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 	else
 		args.v1.ucEncoderMode = atombios_get_encoder_mode(encoder);
 
-	if ((args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP) ||
-	    (args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP_MST))
+	if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode))
 		args.v1.ucLaneNum = dp_lane_count;
 	else if (radeon_encoder->pixel_clock > 165000)
 		args.v1.ucLaneNum = 8;
@@ -843,8 +842,7 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 		args.v1.ucLaneNum = 4;
 
 	if (ASIC_IS_DCE5(rdev)) {
-		if ((args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP) ||
-		    (args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP_MST)) {
+		if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode)) {
 			if (dp_clock == 270000)
 				args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_2_70GHZ;
 			else if (dp_clock == 540000)
@@ -877,7 +875,7 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 		else
 			args.v4.ucHPD_ID = hpd_id + 1;
 	} else if (ASIC_IS_DCE4(rdev)) {
-		if ((args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP) && (dp_clock == 270000))
+		if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode) && (dp_clock == 270000))
 			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V3_DPLINKRATE_2_70GHZ;
 		args.v3.acConfig.ucDigSel = dig->dig_encoder;
 		switch (bpc) {
@@ -902,7 +900,7 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 			break;
 		}
 	} else {
-		if ((args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP) && (dp_clock == 270000))
+		if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode) && (dp_clock == 270000))
 			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_DPLINKRATE_2_70GHZ;
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
@@ -977,7 +975,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	if (dig_encoder == -1)
 		return;
 
-	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_DP)
+	if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(encoder)))
 		is_dp = true;
 
 	memset(&args, 0, sizeof(args));
@@ -1246,7 +1244,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 			args.v1.sDigEncoder.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 			args.v1.sDigEncoder.ucEncoderMode = atombios_get_encoder_mode(encoder);
 
-			if (args.v1.sDigEncoder.ucEncoderMode == ATOM_ENCODER_MODE_DP) {
+			if (ENCODER_MODE_IS_DP(args.v1.sDigEncoder.ucEncoderMode)) {
 				if (dp_clock == 270000)
 					args.v1.sDigEncoder.ucConfig |= ATOM_ENCODER_CONFIG_DPLINKRATE_2_70GHZ;
 				args.v1.sDigEncoder.ucLaneNum = dp_lane_count;
@@ -1263,7 +1261,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 				args.v3.sExtEncoder.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 			args.v3.sExtEncoder.ucEncoderMode = atombios_get_encoder_mode(encoder);
 
-			if (args.v3.sExtEncoder.ucEncoderMode == ATOM_ENCODER_MODE_DP) {
+			if (ENCODER_MODE_IS_DP(args.v3.sExtEncoder.ucEncoderMode)) {
 				if (dp_clock == 270000)
 					args.v3.sExtEncoder.ucConfig |= EXTERNAL_ENCODER_CONFIG_V3_DPLINKRATE_2_70GHZ;
 				else if (dp_clock == 540000)
@@ -1458,7 +1456,7 @@ radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE, 0, 0);
 		else
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT, 0, 0);
-		if ((atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_DP) && connector) {
+		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(encoder)) && connector) {
 			if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
 				atombios_set_edp_panel_power(connector,
 							     ATOM_TRANSMITTER_ACTION_POWER_ON);
@@ -1477,7 +1475,7 @@ radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
 		atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE_OUTPUT, 0, 0);
-		if ((atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_DP) && connector) {
+		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(encoder)) && connector) {
 			if (ASIC_IS_DCE4(rdev))
 				atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_OFF, 0);
 			if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {

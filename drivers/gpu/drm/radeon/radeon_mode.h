@@ -459,6 +459,8 @@ struct radeon_framebuffer {
 	struct drm_gem_object *obj;
 };
 
+#define ENCODER_MODE_IS_DP(em) (((em) == ATOM_ENCODER_MODE_DP) || \
+				((em) == ATOM_ENCODER_MODE_DP_MST))
 
 extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
