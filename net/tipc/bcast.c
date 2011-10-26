@@ -474,7 +474,7 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 	struct tipc_node *node;
 	u32 next_in;
 	u32 seqno;
-	struct sk_buff *deferred;
+	int deferred;
 
 	/* Screen out unwanted broadcast messages */
 
@@ -488,6 +488,8 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 	tipc_node_lock(node);
 	if (unlikely(!node->bclink.supported))
 		goto unlock;
+
+	/* Handle broadcast protocol message */
 
 	if (unlikely(msg_user(msg) == BCAST_PROTOCOL)) {
 		if (msg_type(msg) != STATE_MSG)
@@ -513,11 +515,11 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 
 	/* Handle in-sequence broadcast message */
 
-receive:
-	next_in = mod(node->bclink.last_in + 1);
 	seqno = msg_seqno(msg);
+	next_in = mod(node->bclink.last_in + 1);
 
 	if (likely(seqno == next_in)) {
+receive:
 		bcl->stats.recv_info++;
 		node->bclink.last_in++;
 		bclink_set_gap(node);
@@ -551,23 +553,40 @@ receive:
 			buf_discard(buf);
 		}
 		buf = NULL;
+
+		/* Determine new synchronization state */
+
 		tipc_node_lock(node);
-		deferred = node->bclink.deferred_head;
-		if (deferred && (buf_seqno(deferred) == mod(next_in + 1))) {
-			buf = deferred;
-			msg = buf_msg(buf);
-			node->bclink.deferred_head = deferred->next;
-			goto receive;
-		}
-	} else if (less(next_in, seqno)) {
+		if (unlikely(!tipc_node_is_up(node)))
+			goto unlock;
+
+		if (!node->bclink.deferred_head)
+			goto unlock;
+
+		msg = buf_msg(node->bclink.deferred_head);
+		seqno = msg_seqno(msg);
+		next_in = mod(next_in + 1);
+		if (seqno != next_in)
+			goto unlock;
+
+		/* Take in-sequence message from deferred queue & deliver it */
+
+		buf = node->bclink.deferred_head;
+		node->bclink.deferred_head = buf->next;
+		goto receive;
+	}
+
+	/* Handle out-of-sequence broadcast message */
+
+	if (less(next_in, seqno)) {
 		u32 gap_after = node->bclink.gap_after;
 		u32 gap_to = node->bclink.gap_to;
 
-		if (tipc_link_defer_pkt(&node->bclink.deferred_head,
-					&node->bclink.deferred_tail,
-					buf)) {
+		deferred = tipc_link_defer_pkt(&node->bclink.deferred_head,
+					       &node->bclink.deferred_tail,
+					       buf);
+		if (deferred) {
 			node->bclink.nack_sync++;
-			bcl->stats.deferred_recv++;
 			if (seqno == mod(gap_after + 1))
 				node->bclink.gap_after = seqno;
 			else if (less(gap_after, seqno) && less(seqno, gap_to))
@@ -579,9 +598,12 @@ receive:
 				bclink_send_nack(node);
 			bclink_set_gap(node);
 		}
-	} else {
-		bcl->stats.duplicates++;
-	}
+	} else
+		deferred = 0;
+
+	if (deferred)
+		bcl->stats.deferred_recv++;
+
 unlock:
 	tipc_node_unlock(node);
 exit:
