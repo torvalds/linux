@@ -4868,6 +4868,14 @@ S:	Maintained
 T:	git git://openrisc.net/~jonas/linux
 F:	arch/openrisc
 
+OPENVSWITCH
+M:	Jesse Gross <jesse@nicira.com>
+L:	dev@openvswitch.org
+W:	http://openvswitch.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jesse/openvswitch.git
+S:	Maintained
+F:	net/openvswitch/
+
 OPL4 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
