@@ -503,9 +503,9 @@ int r600_blit_init(struct radeon_device *rdev)
 	rdev->r600_blit.primitives.set_default_state = set_default_state;
 
 	rdev->r600_blit.ring_size_common = 40; /* shaders + def state */
-	rdev->r600_blit.ring_size_common += 10; /* fence emit for VB IB */
+	rdev->r600_blit.ring_size_common += 16; /* fence emit for VB IB */
 	rdev->r600_blit.ring_size_common += 5; /* done copy */
-	rdev->r600_blit.ring_size_common += 10; /* fence emit for done copy */
+	rdev->r600_blit.ring_size_common += 16; /* fence emit for done copy */
 
 	rdev->r600_blit.ring_size_per_loop = 76;
 	/* set_render_target emits 2 extra dwords on rv6xx */

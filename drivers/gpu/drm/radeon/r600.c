@@ -2331,6 +2331,14 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 	if (rdev->wb.use_event) {
 		u64 addr = rdev->wb.gpu_addr + R600_WB_EVENT_OFFSET +
 			(u64)(rdev->fence_drv.scratch_reg - rdev->scratch.reg_base);
+		/* flush read cache over gart */
+		radeon_ring_write(rdev, PACKET3(PACKET3_SURFACE_SYNC, 3));
+		radeon_ring_write(rdev, PACKET3_TC_ACTION_ENA |
+					PACKET3_VC_ACTION_ENA |
+					PACKET3_SH_ACTION_ENA);
+		radeon_ring_write(rdev, 0xFFFFFFFF);
+		radeon_ring_write(rdev, 0);
+		radeon_ring_write(rdev, 10); /* poll interval */
 		/* EVENT_WRITE_EOP - flush caches, send int */
 		radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
 		radeon_ring_write(rdev, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT_TS) | EVENT_INDEX(5));
@@ -2339,6 +2347,14 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 		radeon_ring_write(rdev, fence->seq);
 		radeon_ring_write(rdev, 0);
 	} else {
+		/* flush read cache over gart */
+		radeon_ring_write(rdev, PACKET3(PACKET3_SURFACE_SYNC, 3));
+		radeon_ring_write(rdev, PACKET3_TC_ACTION_ENA |
+					PACKET3_VC_ACTION_ENA |
+					PACKET3_SH_ACTION_ENA);
+		radeon_ring_write(rdev, 0xFFFFFFFF);
+		radeon_ring_write(rdev, 0);
+		radeon_ring_write(rdev, 10); /* poll interval */
 		radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE, 0));
 		radeon_ring_write(rdev, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT) | EVENT_INDEX(0));
 		/* wait for 3D idle clean */

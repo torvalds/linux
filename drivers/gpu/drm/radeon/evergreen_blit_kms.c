@@ -625,9 +625,9 @@ int evergreen_blit_init(struct radeon_device *rdev)
 	rdev->r600_blit.primitives.set_default_state = set_default_state;
 
 	rdev->r600_blit.ring_size_common = 55; /* shaders + def state */
-	rdev->r600_blit.ring_size_common += 10; /* fence emit for VB IB */
+	rdev->r600_blit.ring_size_common += 16; /* fence emit for VB IB */
 	rdev->r600_blit.ring_size_common += 5; /* done copy */
-	rdev->r600_blit.ring_size_common += 10; /* fence emit for done copy */
+	rdev->r600_blit.ring_size_common += 16; /* fence emit for done copy */
 
 	rdev->r600_blit.ring_size_per_loop = 74;
 	if (rdev->family >= CHIP_CAYMAN)
