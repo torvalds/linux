@@ -46,7 +46,7 @@
  */
 LIST_HEAD(dmar_drhd_units);
 
-static struct acpi_table_header * __initdata dmar_tbl;
+struct acpi_table_header * __initdata dmar_tbl;
 static acpi_size dmar_tbl_size;
 
 static void __init dmar_register_drhd_unit(struct dmar_drhd_unit *drhd)
@@ -118,8 +118,8 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 	return 0;
 }
 
-static int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
-				       struct pci_dev ***devices, u16 segment)
+int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
+				struct pci_dev ***devices, u16 segment)
 {
 	struct acpi_dmar_device_scope *scope;
 	void * tmp = start;
@@ -216,133 +216,6 @@ static int __init dmar_parse_dev(struct dmar_drhd_unit *dmaru)
 	}
 	return ret;
 }
-
-#ifdef CONFIG_DMAR
-LIST_HEAD(dmar_rmrr_units);
-
-static void __init dmar_register_rmrr_unit(struct dmar_rmrr_unit *rmrr)
-{
-	list_add(&rmrr->list, &dmar_rmrr_units);
-}
-
-
-static int __init
-dmar_parse_one_rmrr(struct acpi_dmar_header *header)
-{
-	struct acpi_dmar_reserved_memory *rmrr;
-	struct dmar_rmrr_unit *rmrru;
-
-	rmrru = kzalloc(sizeof(*rmrru), GFP_KERNEL);
-	if (!rmrru)
-		return -ENOMEM;
-
-	rmrru->hdr = header;
-	rmrr = (struct acpi_dmar_reserved_memory *)header;
-	rmrru->base_address = rmrr->base_address;
-	rmrru->end_address = rmrr->end_address;
-
-	dmar_register_rmrr_unit(rmrru);
-	return 0;
-}
-
-static int __init
-rmrr_parse_dev(struct dmar_rmrr_unit *rmrru)
-{
-	struct acpi_dmar_reserved_memory *rmrr;
-	int ret;
-
-	rmrr = (struct acpi_dmar_reserved_memory *) rmrru->hdr;
-	ret = dmar_parse_dev_scope((void *)(rmrr + 1),
-		((void *)rmrr) + rmrr->header.length,
-		&rmrru->devices_cnt, &rmrru->devices, rmrr->segment);
-
-	if (ret || (rmrru->devices_cnt == 0)) {
-		list_del(&rmrru->list);
-		kfree(rmrru);
-	}
-	return ret;
-}
-
-static LIST_HEAD(dmar_atsr_units);
-
-static int __init dmar_parse_one_atsr(struct acpi_dmar_header *hdr)
-{
-	struct acpi_dmar_atsr *atsr;
-	struct dmar_atsr_unit *atsru;
-
-	atsr = container_of(hdr, struct acpi_dmar_atsr, header);
-	atsru = kzalloc(sizeof(*atsru), GFP_KERNEL);
-	if (!atsru)
-		return -ENOMEM;
-
-	atsru->hdr = hdr;
-	atsru->include_all = atsr->flags & 0x1;
-
-	list_add(&atsru->list, &dmar_atsr_units);
-
-	return 0;
-}
-
-static int __init atsr_parse_dev(struct dmar_atsr_unit *atsru)
-{
-	int rc;
-	struct acpi_dmar_atsr *atsr;
-
-	if (atsru->include_all)
-		return 0;
-
-	atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
-	rc = dmar_parse_dev_scope((void *)(atsr + 1),
-				(void *)atsr + atsr->header.length,
-				&atsru->devices_cnt, &atsru->devices,
-				atsr->segment);
-	if (rc || !atsru->devices_cnt) {
-		list_del(&atsru->list);
-		kfree(atsru);
-	}
-
-	return rc;
-}
-
-int dmar_find_matched_atsr_unit(struct pci_dev *dev)
-{
-	int i;
-	struct pci_bus *bus;
-	struct acpi_dmar_atsr *atsr;
-	struct dmar_atsr_unit *atsru;
-
-	dev = pci_physfn(dev);
-
-	list_for_each_entry(atsru, &dmar_atsr_units, list) {
-		atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
-		if (atsr->segment == pci_domain_nr(dev->bus))
-			goto found;
-	}
-
-	return 0;
-
-found:
-	for (bus = dev->bus; bus; bus = bus->parent) {
-		struct pci_dev *bridge = bus->self;
-
-		if (!bridge || !pci_is_pcie(bridge) ||
-		    bridge->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE)
-			return 0;
-
-		if (bridge->pcie_type == PCI_EXP_TYPE_ROOT_PORT) {
-			for (i = 0; i < atsru->devices_cnt; i++)
-				if (atsru->devices[i] == bridge)
-					return 1;
-			break;
-		}
-	}
-
-	if (atsru->include_all)
-		return 1;
-
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_ACPI_NUMA
 static int __init
@@ -484,14 +357,10 @@ parse_dmar_table(void)
 			ret = dmar_parse_one_drhd(entry_header);
 			break;
 		case ACPI_DMAR_TYPE_RESERVED_MEMORY:
-#ifdef CONFIG_DMAR
 			ret = dmar_parse_one_rmrr(entry_header);
-#endif
 			break;
 		case ACPI_DMAR_TYPE_ATSR:
-#ifdef CONFIG_DMAR
 			ret = dmar_parse_one_atsr(entry_header);
-#endif
 			break;
 		case ACPI_DMAR_HARDWARE_AFFINITY:
 #ifdef CONFIG_ACPI_NUMA
@@ -557,34 +426,31 @@ dmar_find_matched_drhd_unit(struct pci_dev *dev)
 
 int __init dmar_dev_scope_init(void)
 {
+	static int dmar_dev_scope_initialized;
 	struct dmar_drhd_unit *drhd, *drhd_n;
 	int ret = -ENODEV;
+
+	if (dmar_dev_scope_initialized)
+		return dmar_dev_scope_initialized;
+
+	if (list_empty(&dmar_drhd_units))
+		goto fail;
 
 	list_for_each_entry_safe(drhd, drhd_n, &dmar_drhd_units, list) {
 		ret = dmar_parse_dev(drhd);
 		if (ret)
-			return ret;
+			goto fail;
 	}
 
-#ifdef CONFIG_DMAR
-	{
-		struct dmar_rmrr_unit *rmrr, *rmrr_n;
-		struct dmar_atsr_unit *atsr, *atsr_n;
+	ret = dmar_parse_rmrr_atsr_dev();
+	if (ret)
+		goto fail;
 
-		list_for_each_entry_safe(rmrr, rmrr_n, &dmar_rmrr_units, list) {
-			ret = rmrr_parse_dev(rmrr);
-			if (ret)
-				return ret;
-		}
+	dmar_dev_scope_initialized = 1;
+	return 0;
 
-		list_for_each_entry_safe(atsr, atsr_n, &dmar_atsr_units, list) {
-			ret = atsr_parse_dev(atsr);
-			if (ret)
-				return ret;
-		}
-	}
-#endif
-
+fail:
+	dmar_dev_scope_initialized = ret;
 	return ret;
 }
 
@@ -610,14 +476,6 @@ int __init dmar_table_init(void)
 		printk(KERN_INFO PREFIX "No DMAR devices found\n");
 		return -ENODEV;
 	}
-
-#ifdef CONFIG_DMAR
-	if (list_empty(&dmar_rmrr_units))
-		printk(KERN_INFO PREFIX "No RMRR found\n");
-
-	if (list_empty(&dmar_atsr_units))
-		printk(KERN_INFO PREFIX "No ATSR found\n");
-#endif
 
 	return 0;
 }
@@ -682,9 +540,6 @@ int __init check_zero_address(void)
 	return 1;
 
 failed:
-#ifdef CONFIG_DMAR
-	dmar_disabled = 1;
-#endif
 	return 0;
 }
 
@@ -696,22 +551,21 @@ int __init detect_intel_iommu(void)
 	if (ret)
 		ret = check_zero_address();
 	{
-#ifdef CONFIG_INTR_REMAP
 		struct acpi_table_dmar *dmar;
 
 		dmar = (struct acpi_table_dmar *) dmar_tbl;
-		if (ret && cpu_has_x2apic && dmar->flags & 0x1)
+
+		if (ret && intr_remapping_enabled && cpu_has_x2apic &&
+		    dmar->flags & 0x1)
 			printk(KERN_INFO
-			       "Queued invalidation will be enabled to support "
-			       "x2apic and Intr-remapping.\n");
-#endif
-#ifdef CONFIG_DMAR
+			       "Queued invalidation will be enabled to support x2apic and Intr-remapping.\n");
+
 		if (ret && !no_iommu && !iommu_detected && !dmar_disabled) {
 			iommu_detected = 1;
 			/* Make sure ACS will be enabled */
 			pci_request_acs();
 		}
-#endif
+
 #ifdef CONFIG_X86
 		if (ret)
 			x86_init.iommu.iommu_init = intel_iommu_init;
@@ -758,7 +612,6 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 		goto err_unmap;
 	}
 
-#ifdef CONFIG_DMAR
 	agaw = iommu_calculate_agaw(iommu);
 	if (agaw < 0) {
 		printk(KERN_ERR
@@ -773,7 +626,6 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 			iommu->seq_id);
 		goto err_unmap;
 	}
-#endif
 	iommu->agaw = agaw;
 	iommu->msagaw = msagaw;
 
@@ -817,9 +669,7 @@ void free_iommu(struct intel_iommu *iommu)
 	if (!iommu)
 		return;
 
-#ifdef CONFIG_DMAR
 	free_dmar_iommu(iommu);
-#endif
 
 	if (iommu->reg)
 		iounmap(iommu->reg);

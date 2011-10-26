@@ -130,7 +130,7 @@ config SBUS
 	bool
 
 config NEED_DMA_MAP_STATE
-       def_bool (X86_64 || DMAR || DMA_API_DEBUG)
+       def_bool (X86_64 || INTEL_IOMMU || DMA_API_DEBUG)
 
 config NEED_SG_DMA_LENGTH
 	def_bool y
@@ -220,7 +220,7 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 
 config HAVE_INTEL_TXT
 	def_bool y
-	depends on EXPERIMENTAL && DMAR && ACPI
+	depends on EXPERIMENTAL && INTEL_IOMMU && ACPI
 
 config X86_32_SMP
 	def_bool y
@@ -287,7 +287,7 @@ config SMP
 
 config X86_X2APIC
 	bool "Support x2apic"
-	depends on X86_LOCAL_APIC && X86_64 && INTR_REMAP
+	depends on X86_LOCAL_APIC && X86_64 && IRQ_REMAP
 	---help---
 	  This enables x2apic support on CPUs that have this feature.
 

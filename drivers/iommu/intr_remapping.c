@@ -21,6 +21,7 @@ int intr_remapping_enabled;
 
 static int disable_intremap;
 static int disable_sourceid_checking;
+static int no_x2apic_optout;
 
 static __init int setup_nointremap(char *str)
 {
@@ -34,12 +35,20 @@ static __init int setup_intremap(char *str)
 	if (!str)
 		return -EINVAL;
 
-	if (!strncmp(str, "on", 2))
-		disable_intremap = 0;
-	else if (!strncmp(str, "off", 3))
-		disable_intremap = 1;
-	else if (!strncmp(str, "nosid", 5))
-		disable_sourceid_checking = 1;
+	while (*str) {
+		if (!strncmp(str, "on", 2))
+			disable_intremap = 0;
+		else if (!strncmp(str, "off", 3))
+			disable_intremap = 1;
+		else if (!strncmp(str, "nosid", 5))
+			disable_sourceid_checking = 1;
+		else if (!strncmp(str, "no_x2apic_optout", 16))
+			no_x2apic_optout = 1;
+
+		str += strcspn(str, ",");
+		while (*str == ',')
+			str++;
+	}
 
 	return 0;
 }
@@ -501,6 +510,15 @@ end:
 	spin_unlock_irqrestore(&iommu->register_lock, flags);
 }
 
+static int __init dmar_x2apic_optout(void)
+{
+	struct acpi_table_dmar *dmar;
+	dmar = (struct acpi_table_dmar *)dmar_tbl;
+	if (!dmar || no_x2apic_optout)
+		return 0;
+	return dmar->flags & DMAR_X2APIC_OPT_OUT;
+}
+
 int __init intr_remapping_supported(void)
 {
 	struct dmar_drhd_unit *drhd;
@@ -521,14 +539,23 @@ int __init intr_remapping_supported(void)
 	return 1;
 }
 
-int __init enable_intr_remapping(int eim)
+int __init enable_intr_remapping(void)
 {
 	struct dmar_drhd_unit *drhd;
 	int setup = 0;
+	int eim = 0;
 
 	if (parse_ioapics_under_ir() != 1) {
 		printk(KERN_INFO "Not enable interrupt remapping\n");
 		return -1;
+	}
+
+	if (x2apic_supported()) {
+		eim = !dmar_x2apic_optout();
+		WARN(!eim, KERN_WARNING
+			   "Your BIOS is broken and requested that x2apic be disabled\n"
+			   "This will leave your machine vulnerable to irq-injection attacks\n"
+			   "Use 'intremap=no_x2apic_optout' to override BIOS request\n");
 	}
 
 	for_each_drhd_unit(drhd) {
@@ -606,8 +633,9 @@ int __init enable_intr_remapping(int eim)
 		goto error;
 
 	intr_remapping_enabled = 1;
+	pr_info("Enabled IRQ remapping in %s mode\n", eim ? "x2apic" : "xapic");
 
-	return 0;
+	return eim ? IRQ_REMAP_X2APIC_MODE : IRQ_REMAP_XAPIC_MODE;
 
 error:
 	/*
@@ -744,6 +772,15 @@ int __init parse_ioapics_under_ir(void)
 
 	return ir_supported;
 }
+
+int ir_dev_scope_init(void)
+{
+	if (!intr_remapping_enabled)
+		return 0;
+
+	return dmar_dev_scope_init();
+}
+rootfs_initcall(ir_dev_scope_init);
 
 void disable_intr_remapping(void)
 {
