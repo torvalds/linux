@@ -603,6 +603,8 @@ receive:
 
 	if (deferred)
 		bcl->stats.deferred_recv++;
+	else
+		bcl->stats.duplicates++;
 
 unlock:
 	tipc_node_unlock(node);
