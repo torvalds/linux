@@ -169,8 +169,11 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 {
 	struct iio_event_interface *ev_int = filep->private_data;
 	struct iio_detected_event_list *el;
+	size_t len = sizeof(el->ev);
 	int ret;
-	size_t len;
+
+	if (count < len)
+		return -EINVAL;
 
 	mutex_lock(&ev_int->event_list_lock);
 	if (list_empty(&ev_int->det_events)) {
@@ -192,7 +195,6 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 	el = list_first_entry(&ev_int->det_events,
 			      struct iio_detected_event_list,
 			      list);
-	len = sizeof el->ev;
 	if (copy_to_user(buf, &(el->ev), len)) {
 		ret = -EFAULT;
 		goto error_mutex_unlock;
