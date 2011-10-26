@@ -325,7 +325,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	    (interface == PHY_INTERFACE_MODE_RMII))) {
 		phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
 				      SUPPORTED_Asym_Pause);
-		priv->phydev->advertising = priv->phydev->supported;
+		phydev->advertising = phydev->supported;
 	}
 
 	/*
