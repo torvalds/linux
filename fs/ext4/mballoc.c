@@ -4006,6 +4006,11 @@ static void ext4_mb_group_or_file(struct ext4_allocation_context *ac)
 		return;
 	}
 
+	if (sbi->s_mb_group_prealloc <= 0) {
+		ac->ac_flags |= EXT4_MB_STREAM_ALLOC;
+		return;
+	}
+
 	/* don't use group allocation for large files */
 	size = max(size, isize);
 	if (size > sbi->s_mb_stream_request) {
