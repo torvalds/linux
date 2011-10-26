@@ -48,9 +48,10 @@ static struct utp_user_data *utp_user_data_alloc(size_t size)
 {
 	struct utp_user_data *uud;
 
-	uud = kzalloc(size + sizeof(*uud), GFP_KERNEL);
+	uud = vmalloc(size + sizeof(*uud));
 	if (!uud)
 		return uud;
+	memset(uud, 0, size + sizeof(*uud));
 	uud->data.size = size + sizeof(uud->data);
 	INIT_LIST_HEAD(&uud->link);
 	return uud;
@@ -61,7 +62,7 @@ static void utp_user_data_free(struct utp_user_data *uud)
 	mutex_lock(&utp_context.lock);
 	list_del(&uud->link);
 	mutex_unlock(&utp_context.lock);
-	kfree(uud);
+	vfree(uud);
 }
 
 /* Get the number of element for list */
@@ -101,8 +102,10 @@ static ssize_t utp_file_read(struct file *file,
 
 	if (size >= size_to_put)
 		free = !0;
-	if (copy_to_user(buf, &uud->data, size_to_put))
+	if (copy_to_user(buf, &uud->data, size_to_put)) {
+		printk(KERN_INFO "[ %s ] copy error\n", __func__);
 		return -EACCES;
+	}
 	if (free)
 		utp_user_data_free(uud);
 	else {
@@ -131,8 +134,13 @@ static ssize_t utp_file_write(struct file *file, const char __user *buf,
 	if (size < sizeof(uud->data))
 		return -EINVAL;
 	uud = utp_user_data_alloc(size);
-	if (copy_from_user(&uud->data, buf, size))
+	if (uud == NULL)
+		return -ENOMEM;
+	if (copy_from_user(&uud->data, buf, size)) {
+		printk(KERN_INFO "[ %s ] copy error!\n", __func__);
+		vfree(uud);
 		return -EACCES;
+	}
 	mutex_lock(&utp_context.lock);
 	list_add_tail(&uud->link, &utp_context.write);
 	/* Go on EXEC routine process */
@@ -389,6 +397,8 @@ static int utp_exec(struct fsg_dev *fsg,
 
 	ctx->counter = 0xFFFF;
 	uud2r = utp_user_data_alloc(cmdsize + 1);
+	if (!uud2r)
+		return -ENOMEM;
 	uud2r->data.flags = UTP_FLAG_COMMAND;
 	uud2r->data.payload = payload;
 	strncpy(uud2r->data.command, command, cmdsize);
@@ -511,11 +521,12 @@ static int utp_handle_message(struct fsg_dev *fsg,
 		break;
 	case UTP_EXEC:
 		pr_debug("%s: EXEC\n", __func__);
-		data = kzalloc(fsg->common->data_size, GFP_KERNEL);
+		data = vmalloc(fsg->common->data_size);
+		memset(data, 0, fsg->common->data_size);
 		/* copy data from usb buffer to utp buffer */
 		utp_do_write(fsg, data, fsg->common->data_size);
 		utp_exec(fsg, data, fsg->common->data_size, param);
-		kfree(data);
+		vfree(data);
 		break;
 	case UTP_GET: /* data from device to host */
 		pr_debug("%s: GET, %d bytes\n", __func__,
