@@ -9,18 +9,21 @@ void get_term_dimensions(struct winsize *ws);
 #include "../../arch/x86/include/asm/unistd.h"
 #define rmb()		asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
+#define CPUINFO_PROC	"model name"
 #endif
 
 #if defined(__x86_64__)
 #include "../../arch/x86/include/asm/unistd.h"
 #define rmb()		asm volatile("lfence" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
+#define CPUINFO_PROC	"model name"
 #endif
 
 #ifdef __powerpc__
 #include "../../arch/powerpc/include/asm/unistd.h"
 #define rmb()		asm volatile ("sync" ::: "memory")
 #define cpu_relax()	asm volatile ("" ::: "memory");
+#define CPUINFO_PROC	"cpu"
 #endif
 
 #ifdef __s390__
@@ -37,30 +40,35 @@ void get_term_dimensions(struct winsize *ws);
 # define rmb()		asm volatile("" ::: "memory")
 #endif
 #define cpu_relax()	asm volatile("" ::: "memory")
+#define CPUINFO_PROC	"cpu type"
 #endif
 
 #ifdef __hppa__
 #include "../../arch/parisc/include/asm/unistd.h"
 #define rmb()		asm volatile("" ::: "memory")
 #define cpu_relax()	asm volatile("" ::: "memory");
+#define CPUINFO_PROC	"cpu"
 #endif
 
 #ifdef __sparc__
 #include "../../arch/sparc/include/asm/unistd.h"
 #define rmb()		asm volatile("":::"memory")
 #define cpu_relax()	asm volatile("":::"memory")
+#define CPUINFO_PROC	"cpu"
 #endif
 
 #ifdef __alpha__
 #include "../../arch/alpha/include/asm/unistd.h"
 #define rmb()		asm volatile("mb" ::: "memory")
 #define cpu_relax()	asm volatile("" ::: "memory")
+#define CPUINFO_PROC	"cpu model"
 #endif
 
 #ifdef __ia64__
 #include "../../arch/ia64/include/asm/unistd.h"
 #define rmb()		asm volatile ("mf" ::: "memory")
 #define cpu_relax()	asm volatile ("hint @pause" ::: "memory")
+#define CPUINFO_PROC	"model name"
 #endif
 
 #ifdef __arm__
@@ -71,6 +79,7 @@ void get_term_dimensions(struct winsize *ws);
  */
 #define rmb()		((void(*)(void))0xffff0fa0)()
 #define cpu_relax()	asm volatile("":::"memory")
+#define CPUINFO_PROC	"Processor"
 #endif
 
 #ifdef __mips__
@@ -83,6 +92,7 @@ void get_term_dimensions(struct winsize *ws);
 				: /* no input */			\
 				: "memory")
 #define cpu_relax()	asm volatile("" ::: "memory")
+#define CPUINFO_PROC	"cpu model"
 #endif
 
 #include <time.h>
@@ -171,5 +181,8 @@ struct ip_callchain {
 };
 
 extern bool perf_host, perf_guest;
+extern const char perf_version_string[];
+
+void pthread__unblock_sigwinch(void);
 
 #endif

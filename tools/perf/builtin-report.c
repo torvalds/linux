@@ -40,6 +40,7 @@ static char		const *input_name = "perf.data";
 static bool		force, use_tui, use_stdio;
 static bool		hide_unresolved;
 static bool		dont_use_callchains;
+static bool		show_full_info;
 
 static bool		show_threads;
 static struct perf_read_values	show_threads_values;
@@ -229,13 +230,10 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		struct hists *hists = &pos->hists;
-		const char *evname = NULL;
-
-		if (rb_first(&hists->entries) != rb_last(&hists->entries))
-			evname = event_name(pos);
+		const char *evname = event_name(pos);
 
 		hists__fprintf_nr_sample_events(hists, evname, stdout);
-		hists__fprintf(hists, NULL, false, stdout);
+		hists__fprintf(hists, NULL, false, true, 0, 0, stdout);
 		fprintf(stdout, "\n\n");
 	}
 
@@ -275,6 +273,9 @@ static int __cmd_report(void)
 		if (ret)
 			goto out_delete;
 	}
+
+	if (use_browser <= 0)
+		perf_session__fprintf_info(session, stdout, show_full_info);
 
 	if (show_threads)
 		perf_read_values_init(&show_threads_values);
@@ -330,9 +331,10 @@ static int __cmd_report(void)
 		goto out_delete;
 	}
 
-	if (use_browser > 0)
-		perf_evlist__tui_browse_hists(session->evlist, help);
-	else
+	if (use_browser > 0) {
+		perf_evlist__tui_browse_hists(session->evlist, help,
+					      NULL, NULL, 0);
+	} else
 		perf_evlist__tty_browse_hists(session->evlist, help);
 
 out_delete:
@@ -487,6 +489,16 @@ static const struct option options[] = {
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
 	OPT_STRING('c', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
+	OPT_BOOLEAN('I', "show-info", &show_full_info,
+		    "Display extended information about perf.data file"),
+	OPT_BOOLEAN(0, "source", &symbol_conf.annotate_src,
+		    "Interleave source code with assembly code (default)"),
+	OPT_BOOLEAN(0, "asm-raw", &symbol_conf.annotate_asm_raw,
+		    "Display raw encoding of assembly instructions (default)"),
+	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
+		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
+	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
+		    "Show a column with the sum of periods"),
 	OPT_END()
 };
 
