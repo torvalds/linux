@@ -411,7 +411,7 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 	response = &input_dev->protocol_resp;
 
 	if (!response->response.approved) {
-		pr_err("synthhid protocol request failed (version %d)",
+		pr_err("synthhid protocol request failed (version %d)\n",
 		       SYNTHHID_INPUT_VERSION);
 		ret = -ENODEV;
 		goto cleanup;
