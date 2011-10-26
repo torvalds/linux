@@ -520,6 +520,7 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 
 	if (likely(seqno == next_in)) {
 receive:
+		spin_lock_bh(&bc_lock);
 		bcl->stats.recv_info++;
 		node->bclink.last_in++;
 		bclink_set_gap(node);
@@ -527,7 +528,9 @@ receive:
 			bclink_send_ack(node);
 			bcl->stats.sent_acks++;
 		}
+
 		if (likely(msg_isdata(msg))) {
+			spin_unlock_bh(&bc_lock);
 			tipc_node_unlock(node);
 			if (likely(msg_mcast(msg)))
 				tipc_port_recv_mcast(buf, NULL);
@@ -536,6 +539,7 @@ receive:
 		} else if (msg_user(msg) == MSG_BUNDLER) {
 			bcl->stats.recv_bundles++;
 			bcl->stats.recv_bundled += msg_msgcnt(msg);
+			spin_unlock_bh(&bc_lock);
 			tipc_node_unlock(node);
 			tipc_link_recv_bundle(buf);
 		} else if (msg_user(msg) == MSG_FRAGMENTER) {
@@ -543,12 +547,15 @@ receive:
 			if (tipc_link_recv_fragment(&node->bclink.defragm,
 						    &buf, &msg))
 				bcl->stats.recv_fragmented++;
+			spin_unlock_bh(&bc_lock);
 			tipc_node_unlock(node);
 			tipc_net_route_msg(buf);
 		} else if (msg_user(msg) == NAME_DISTRIBUTOR) {
+			spin_unlock_bh(&bc_lock);
 			tipc_node_unlock(node);
 			tipc_named_recv(buf);
 		} else {
+			spin_unlock_bh(&bc_lock);
 			tipc_node_unlock(node);
 			buf_discard(buf);
 		}
@@ -601,10 +608,14 @@ receive:
 	} else
 		deferred = 0;
 
+	spin_lock_bh(&bc_lock);
+
 	if (deferred)
 		bcl->stats.deferred_recv++;
 	else
 		bcl->stats.duplicates++;
+
+	spin_unlock_bh(&bc_lock);
 
 unlock:
 	tipc_node_unlock(node);
