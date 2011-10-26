@@ -76,11 +76,8 @@ do {  \
 	} \
 } while (0)
 
-#define P9_DUMP_PKT(way, pdu) p9pdu_dump(way, pdu)
-
 #else
 #define P9_DPRINTK(level, format, arg...)  do { } while (0)
-#define P9_DUMP_PKT(way, pdu) do { } while (0)
 #endif
 
 
@@ -359,6 +356,9 @@ enum p9_qid_t {
 /* Room for readdir header */
 #define P9_READDIRHDRSZ	24
 
+/* size of header for zero copy read/write */
+#define P9_ZC_HDR_SZ 4096
+
 /**
  * struct p9_qid - file system entity information
  * @type: 8-bit type &p9_qid_t
@@ -555,10 +555,6 @@ struct p9_rstatfs {
  * @tag: transaction id of the request
  * @offset: used by marshalling routines to track current position in buffer
  * @capacity: used by marshalling routines to track total malloc'd capacity
- * @pubuf: Payload user buffer given by the caller
- * @pkbuf: Payload kernel buffer given by the caller
- * @pbuf_size: pubuf/pkbuf(only one will be !NULL) size to be read/write.
- * @private: For transport layer's use.
  * @sdata: payload
  *
  * &p9_fcall represents the structure for all 9P RPC
@@ -575,10 +571,6 @@ struct p9_fcall {
 
 	size_t offset;
 	size_t capacity;
-	char __user *pubuf;
-	char *pkbuf;
-	size_t pbuf_size;
-	void *private;
 
 	u8 *sdata;
 };
