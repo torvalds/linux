@@ -451,54 +451,34 @@ static int mousevsc_hid_open(struct hid_device *hid)
 	return 0;
 }
 
+static int mousevsc_hid_start(struct hid_device *hid)
+{
+	return 0;
+}
+
 static void mousevsc_hid_close(struct hid_device *hid)
+{
+}
+
+static void mousevsc_hid_stop(struct hid_device *hid)
 {
 }
 
 static struct hid_ll_driver mousevsc_ll_driver = {
 	.open = mousevsc_hid_open,
 	.close = mousevsc_hid_close,
+	.start = mousevsc_hid_start,
+	.stop = mousevsc_hid_stop,
 };
 
 static struct hid_driver mousevsc_hid_driver;
-
-static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
-{
-	struct hid_device *hid_dev;
-	struct mousevsc_dev *input_device = hv_get_drvdata(dev);
-
-	hid_dev = hid_allocate_device();
-	if (IS_ERR(hid_dev))
-		return;
-
-	hid_dev->ll_driver = &mousevsc_ll_driver;
-	hid_dev->driver = &mousevsc_hid_driver;
-
-	if (hid_parse_report(hid_dev, packet, len))
-		return;
-
-	hid_dev->bus = BUS_VIRTUAL;
-	hid_dev->vendor = input_device->hid_dev_info.vendor;
-	hid_dev->product = input_device->hid_dev_info.product;
-	hid_dev->version = input_device->hid_dev_info.version;
-
-	sprintf(hid_dev->name, "%s", "Microsoft Vmbus HID-compliant Mouse");
-
-	if (!hidinput_connect(hid_dev, 0)) {
-		hid_dev->claimed |= HID_CLAIMED_INPUT;
-
-		input_device->connected = true;
-
-	}
-
-	input_device->hid_device = hid_dev;
-}
 
 static int mousevsc_probe(struct hv_device *device,
 			const struct hv_vmbus_device_id *dev_id)
 {
 	int ret = 0;
 	struct mousevsc_dev *input_dev;
+	struct hid_device *hid_dev;
 
 	input_dev = alloc_input_device(device);
 
@@ -524,22 +504,55 @@ static int mousevsc_probe(struct hv_device *device,
 
 	ret = mousevsc_connect_to_vsp(device);
 
-	if (ret != 0) {
-		vmbus_close(device->channel);
-		free_input_device(input_dev);
-		return ret;
-	}
-
+	if (ret != 0)
+		goto probe_err0;
 
 	/* workaround SA-167 */
 	if (input_dev->report_desc[14] == 0x25)
 		input_dev->report_desc[14] = 0x29;
 
-	reportdesc_callback(device, input_dev->report_desc,
-			    input_dev->report_desc_size);
+	hid_dev = hid_allocate_device();
+	if (IS_ERR(hid_dev)) {
+		ret = PTR_ERR(hid_dev);
+		goto probe_err0;
+	}
 
+	hid_dev->ll_driver = &mousevsc_ll_driver;
+	hid_dev->driver = &mousevsc_hid_driver;
+	hid_dev->bus = BUS_VIRTUAL;
+	hid_dev->vendor = input_dev->hid_dev_info.vendor;
+	hid_dev->product = input_dev->hid_dev_info.product;
+	hid_dev->version = input_dev->hid_dev_info.version;
+	input_dev->hid_device = hid_dev;
+
+	sprintf(hid_dev->name, "%s", "Microsoft Vmbus HID-compliant Mouse");
+
+	ret = hid_parse_report(hid_dev, input_dev->report_desc,
+				input_dev->report_desc_size);
+
+	if (ret) {
+		hid_err(hid_dev, "parse failed\n");
+		goto probe_err1;
+	}
+
+	ret = hid_hw_start(hid_dev, HID_CONNECT_HIDINPUT | HID_CONNECT_HIDDEV);
+
+	if (ret) {
+		hid_err(hid_dev, "hw start failed\n");
+		goto probe_err1;
+	}
+
+	input_dev->connected = true;
 	input_dev->init_complete = true;
 
+	return ret;
+
+probe_err1:
+	hid_destroy_device(hid_dev);
+
+probe_err0:
+	vmbus_close(device->channel);
+	free_input_device(input_dev);
 	return ret;
 }
 
