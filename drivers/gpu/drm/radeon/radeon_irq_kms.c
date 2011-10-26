@@ -67,10 +67,10 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 	/* Disable *all* interrupts */
 	rdev->irq.sw_int = false;
 	rdev->irq.gui_idle = false;
-	for (i = 0; i < rdev->num_crtc; i++)
-		rdev->irq.crtc_vblank_int[i] = false;
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < RADEON_MAX_HPD_PINS; i++)
 		rdev->irq.hpd[i] = false;
+	for (i = 0; i < RADEON_MAX_CRTCS; i++) {
+		rdev->irq.crtc_vblank_int[i] = false;
 		rdev->irq.pflip[i] = false;
 	}
 	radeon_irq_set(rdev);
@@ -99,10 +99,10 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 	/* Disable *all* interrupts */
 	rdev->irq.sw_int = false;
 	rdev->irq.gui_idle = false;
-	for (i = 0; i < rdev->num_crtc; i++)
-		rdev->irq.crtc_vblank_int[i] = false;
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < RADEON_MAX_HPD_PINS; i++)
 		rdev->irq.hpd[i] = false;
+	for (i = 0; i < RADEON_MAX_CRTCS; i++) {
+		rdev->irq.crtc_vblank_int[i] = false;
 		rdev->irq.pflip[i] = false;
 	}
 	radeon_irq_set(rdev);

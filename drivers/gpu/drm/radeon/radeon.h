@@ -437,25 +437,26 @@ union radeon_irq_stat_regs {
 	struct evergreen_irq_stat_regs evergreen;
 };
 
+#define RADEON_MAX_HPD_PINS 6
+#define RADEON_MAX_CRTCS 6
+#define RADEON_MAX_HDMI_BLOCKS 2
+
 struct radeon_irq {
 	bool		installed;
 	bool		sw_int;
-	/* FIXME: use a define max crtc rather than hardcode it */
-	bool		crtc_vblank_int[6];
-	bool		pflip[6];
+	bool		crtc_vblank_int[RADEON_MAX_CRTCS];
+	bool		pflip[RADEON_MAX_CRTCS];
 	wait_queue_head_t	vblank_queue;
-	/* FIXME: use defines for max hpd/dacs */
-	bool            hpd[6];
+	bool            hpd[RADEON_MAX_HPD_PINS];
 	bool            gui_idle;
 	bool            gui_idle_acked;
 	wait_queue_head_t	idle_queue;
-	/* FIXME: use defines for max HDMI blocks */
-	bool		hdmi[2];
+	bool		hdmi[RADEON_MAX_HDMI_BLOCKS];
 	spinlock_t sw_lock;
 	int sw_refcount;
 	union radeon_irq_stat_regs stat_regs;
-	spinlock_t pflip_lock[6];
-	int pflip_refcount[6];
+	spinlock_t pflip_lock[RADEON_MAX_CRTCS];
+	int pflip_refcount[RADEON_MAX_CRTCS];
 };
 
 int radeon_irq_kms_init(struct radeon_device *rdev);
