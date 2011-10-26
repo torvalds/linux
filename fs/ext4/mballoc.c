@@ -581,7 +581,7 @@ static int __mb_check_buddy(struct ext4_buddy *e4b, char *file,
 				continue;
 			}
 
-			/* both bits in buddy2 must be 0 */
+			/* both bits in buddy2 must be 1 */
 			MB_CHECK_ASSERT(mb_test_bit(i << 1, buddy2));
 			MB_CHECK_ASSERT(mb_test_bit((i << 1) + 1, buddy2));
 
