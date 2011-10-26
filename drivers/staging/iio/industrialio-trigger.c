@@ -473,12 +473,10 @@ void iio_free_trigger(struct iio_trigger *trig)
 }
 EXPORT_SYMBOL(iio_free_trigger);
 
-int iio_device_register_trigger_consumer(struct iio_dev *indio_dev)
+void iio_device_register_trigger_consumer(struct iio_dev *indio_dev)
 {
 	indio_dev->groups[indio_dev->groupcounter++] =
 		&iio_trigger_consumer_attr_group;
-
-	return 0;
 }
 
 void iio_device_unregister_trigger_consumer(struct iio_dev *indio_dev)
@@ -490,18 +488,14 @@ void iio_device_unregister_trigger_consumer(struct iio_dev *indio_dev)
 
 int iio_triggered_buffer_postenable(struct iio_dev *indio_dev)
 {
-	return indio_dev->trig
-		? iio_trigger_attach_poll_func(indio_dev->trig,
-					       indio_dev->pollfunc)
-		: 0;
+	return iio_trigger_attach_poll_func(indio_dev->trig,
+					    indio_dev->pollfunc);
 }
 EXPORT_SYMBOL(iio_triggered_buffer_postenable);
 
 int iio_triggered_buffer_predisable(struct iio_dev *indio_dev)
 {
-	return indio_dev->trig
-		? iio_trigger_dettach_poll_func(indio_dev->trig,
-						indio_dev->pollfunc)
-		: 0;
+	return iio_trigger_dettach_poll_func(indio_dev->trig,
+					     indio_dev->pollfunc);
 }
 EXPORT_SYMBOL(iio_triggered_buffer_predisable);
