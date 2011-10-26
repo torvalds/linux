@@ -125,6 +125,13 @@
 };
 
 &board_soc {
+	i2c@3000 {
+		rtc@68 {
+			compatible = "pericom,pt7c4338";
+			reg = <0x68>;
+		};
+	};
+
 	spi@7000 {
 		flash@0 {
 			#address-cells = <1>;
