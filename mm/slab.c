@@ -1851,15 +1851,15 @@ static void dump_line(char *data, int offset, int limit)
 	unsigned char error = 0;
 	int bad_count = 0;
 
-	printk(KERN_ERR "%03x:", offset);
+	printk(KERN_ERR "%03x: ", offset);
 	for (i = 0; i < limit; i++) {
 		if (data[offset + i] != POISON_FREE) {
 			error = data[offset + i];
 			bad_count++;
 		}
-		printk(" %02x", (unsigned char)data[offset + i]);
 	}
-	printk("\n");
+	print_hex_dump(KERN_CONT, "", 0, 16, 1,
+			&data[offset], limit, 1);
 
 	if (bad_count == 1) {
 		error ^= POISON_FREE;
@@ -3039,14 +3039,9 @@ bad:
 		printk(KERN_ERR "slab: Internal list corruption detected in "
 				"cache '%s'(%d), slabp %p(%d). Hexdump:\n",
 			cachep->name, cachep->num, slabp, slabp->inuse);
-		for (i = 0;
-		     i < sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t);
-		     i++) {
-			if (i % 16 == 0)
-				printk("\n%03x:", i);
-			printk(" %02x", ((unsigned char *)slabp)[i]);
-		}
-		printk("\n");
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 16, 1, slabp,
+			sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t),
+			1);
 		BUG();
 	}
 }
@@ -4584,7 +4579,7 @@ static const struct file_operations proc_slabstats_operations = {
 
 static int __init slab_proc_init(void)
 {
-	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
+	proc_create("slabinfo",S_IWUSR|S_IRUSR,NULL,&proc_slabinfo_operations);
 #ifdef CONFIG_DEBUG_SLAB_LEAK
 	proc_create("slab_allocators", 0, NULL, &proc_slabstats_operations);
 #endif
