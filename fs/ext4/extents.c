@@ -2928,7 +2928,8 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	struct ext4_extent zero_ex;
 	struct ext4_extent *ex;
 	ext4_lblk_t ee_block, eof_block;
-	unsigned int allocated, ee_len, depth;
+	unsigned int ee_len, depth;
+	int allocated;
 	int err = 0;
 	int split_flag = 0;
 
