@@ -81,7 +81,7 @@ void *snd_usb_find_csint_desc(void *buffer, int buflen, void *after, u8 dsubtype
  */
 int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 		    __u8 requesttype, __u16 value, __u16 index, void *data,
-		    __u16 size, int timeout)
+		    __u16 size)
 {
 	int err;
 	void *buf = NULL;
@@ -92,7 +92,7 @@ int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 			return -ENOMEM;
 	}
 	err = usb_control_msg(dev, pipe, request, requesttype,
-			      value, index, buf, size, timeout);
+			      value, index, buf, size, 1000);
 	if (size > 0) {
 		memcpy(data, buf, size);
 		kfree(buf);

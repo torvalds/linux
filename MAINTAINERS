@@ -5990,7 +5990,7 @@ M:	Jaroslav Kysela <perex@perex.cz>
 M:	Takashi Iwai <tiwai@suse.de>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://www.alsa-project.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 T:	git git://git.alsa-project.org/alsa-kernel.git
 S:	Maintained
 F:	Documentation/sound/

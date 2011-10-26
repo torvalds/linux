@@ -707,8 +707,9 @@ static int __devinit snd_opl3sa2_probe(struct snd_card *card, int dev)
 	}
 	if (midi_port[dev] >= 0x300 && midi_port[dev] < 0x340) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_OPL3SA2,
-					       midi_port[dev], 0,
-					       xirq, 0, &chip->rmidi)) < 0)
+					       midi_port[dev],
+					       MPU401_INFO_IRQ_HOOK, -1,
+					       &chip->rmidi)) < 0)
 			return err;
 	}
 	sprintf(card->longname, "%s at 0x%lx, irq %d, dma %d",

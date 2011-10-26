@@ -825,6 +825,8 @@ int snd_pcm_hw_constraint_step(struct snd_pcm_runtime *runtime,
 int snd_pcm_hw_constraint_pow2(struct snd_pcm_runtime *runtime,
 			       unsigned int cond,
 			       snd_pcm_hw_param_t var);
+int snd_pcm_hw_rule_noresample(struct snd_pcm_runtime *runtime,
+			       unsigned int base_rate);
 int snd_pcm_hw_rule_add(struct snd_pcm_runtime *runtime,
 			unsigned int cond,
 			int var,

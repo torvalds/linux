@@ -2160,8 +2160,8 @@ static int __devinit snd_audiodrive_probe(struct snd_card *card, int dev)
 
 	if (mpu_port[dev] > 0 && mpu_port[dev] != SNDRV_AUTO_PORT) {
 		err = snd_mpu401_uart_new(card, 0, MPU401_HW_ES18XX,
-					  mpu_port[dev], 0,
-					  irq[dev], 0, &chip->rmidi);
+					  mpu_port[dev], MPU401_INFO_IRQ_HOOK,
+					  -1, &chip->rmidi);
 		if (err < 0)
 			return err;
 	}
