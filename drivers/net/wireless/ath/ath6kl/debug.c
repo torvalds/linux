@@ -1503,6 +1503,70 @@ static const struct file_operations fops_bgscan_int = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath6kl_listen_int_write(struct file *file,
+						const char __user *user_buf,
+						size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	u16 listen_int_t, listen_int_b;
+	char buf[32];
+	char *sptr, *token;
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	sptr = buf;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+
+	if (kstrtou16(token, 0, &listen_int_t))
+		return -EINVAL;
+
+	if (kstrtou16(sptr, 0, &listen_int_b))
+		return -EINVAL;
+
+	if ((listen_int_t < 15) || (listen_int_t > 5000))
+		return -EINVAL;
+
+	if ((listen_int_b < 1) || (listen_int_b > 50))
+		return -EINVAL;
+
+	ar->listen_intvl_t = listen_int_t;
+	ar->listen_intvl_b = listen_int_b;
+
+	ath6kl_wmi_listeninterval_cmd(ar->wmi, 0, ar->listen_intvl_t,
+				      ar->listen_intvl_b);
+
+	return count;
+}
+
+static ssize_t ath6kl_listen_int_read(struct file *file,
+						char __user *user_buf,
+						size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	char buf[16];
+	int len;
+
+	len = snprintf(buf, sizeof(buf), "%u %u\n", ar->listen_intvl_t,
+					ar->listen_intvl_b);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_listen_int = {
+	.read = ath6kl_listen_int_read,
+	.write = ath6kl_listen_int_write,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath6kl_debug_init(struct ath6kl *ar)
 {
 	ar->debug.fwlog_buf.buf = vmalloc(ATH6KL_FWLOG_SIZE);
