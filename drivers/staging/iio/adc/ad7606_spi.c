@@ -59,7 +59,7 @@ static int __devexit ad7606_spi_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&spi->dev);
 
-	return ad7606_remove(indio_dev);
+	return ad7606_remove(indio_dev, spi->irq);
 }
 
 #ifdef CONFIG_PM

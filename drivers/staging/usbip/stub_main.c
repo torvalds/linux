@@ -18,6 +18,7 @@
  */
 
 #include <linux/string.h>
+#include <linux/module.h>
 
 #include "usbip_common.h"
 #include "stub.h"

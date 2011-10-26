@@ -229,6 +229,9 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
         return ret;
     }
 
+	if (param->u.wpa_key.key && param->u.wpa_key.key_len > sizeof(abyKey))
+		return -EINVAL;
+
     spin_unlock_irq(&pDevice->lock);
     if(param->u.wpa_key.key && fcpfkernel) {
        memcpy(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len);
@@ -268,6 +271,10 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
         pDevice->bEncryptionEnable = TRUE;
         return ret;
 	}
+
+
+	if (param->u.wpa_key.seq && param->u.wpa_key.seq_len > sizeof(abySeq))
+		return -EINVAL;
 
     spin_unlock_irq(&pDevice->lock);
         if(param->u.wpa_key.seq && fcpfkernel) {
@@ -772,9 +779,14 @@ static int wpa_set_associate(PSDevice pDevice,
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wpa_ie_len = %d\n", param->u.wpa_associate.wpa_ie_len);
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Roaming dBm = %d\n", param->u.wpa_associate.roam_dbm);  //Davidwang
 
-	if (param->u.wpa_associate.wpa_ie &&
-	    copy_from_user(&abyWPAIE[0], param->u.wpa_associate.wpa_ie, param->u.wpa_associate.wpa_ie_len))
-	    return -EINVAL;
+	if (param->u.wpa_associate.wpa_ie) {
+		if (param->u.wpa_associate.wpa_ie_len > sizeof(abyWPAIE))
+			return -EINVAL;
+
+		if (copy_from_user(&abyWPAIE[0], param->u.wpa_associate.wpa_ie,
+					param->u.wpa_associate.wpa_ie_len))
+			return -EFAULT;
+	}
 
 	if (param->u.wpa_associate.mode == 1)
 	    pMgmt->eConfigMode = WMAC_CONFIG_IBSS_STA;

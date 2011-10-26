@@ -132,6 +132,8 @@ source "drivers/iommu/Kconfig"
 
 source "drivers/virt/Kconfig"
 
+source "drivers/hv/Kconfig"
+
 source "drivers/devfreq/Kconfig"
 
 endmenu

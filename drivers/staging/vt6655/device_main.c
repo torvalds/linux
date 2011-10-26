@@ -815,14 +815,8 @@ else  CARDbRadioPowerOn(pDevice);
             pMgmt->eScanType = WMAC_SCAN_PASSIVE;
     // get Permanent network address
     SROMvReadEtherAddress(pDevice->PortOffset, pDevice->abyCurrentNetAddr);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Network address = %02x-%02x-%02x=%02x-%02x-%02x\n",
-        pDevice->abyCurrentNetAddr[0],
-        pDevice->abyCurrentNetAddr[1],
-        pDevice->abyCurrentNetAddr[2],
-        pDevice->abyCurrentNetAddr[3],
-        pDevice->abyCurrentNetAddr[4],
-        pDevice->abyCurrentNetAddr[5]);
-
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Network address = %pM\n",
+		pDevice->abyCurrentNetAddr);
 
     // reset Tx pointer
     CARDvSafeResetRx(pDevice);

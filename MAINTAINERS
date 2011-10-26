@@ -6171,7 +6171,7 @@ S:	Maintained
 
 STAGING SUBSYSTEM
 M:	Greg Kroah-Hartman <gregkh@suse.de>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging.git
 L:	devel@driverdev.osuosl.org
 S:	Maintained
 F:	drivers/staging/
@@ -6212,6 +6212,11 @@ M:	David Rowe <david@rowetel.com>
 S:	Odd Fixes
 F:	drivers/staging/echo/
 
+STAGING - ET131X NETWORK DRIVER
+M:	Mark Einon <mark.einon@gmail.com>
+S:	Odd Fixes
+F:	drivers/staging/et131x/
+
 STAGING - FLARION FT1000 DRIVERS
 M:	Marek Belisko <marek.belisko@gmail.com>
 S:	Odd Fixes
@@ -6239,6 +6244,13 @@ M:	Jarod Wilson <jarod@wilsonet.com>
 W:	http://www.lirc.org/
 S:	Odd Fixes
 F:	drivers/staging/lirc/
+
+STAGING - NVIDIA COMPLIANT EMBEDDED CONTROLLER INTERFACE (nvec)
+M:	Julian Andres Klode <jak@jak-linux.org>
+M:	Marc Dietrich <marvin24@gmx.de>
+L:	ac100@lists.launchpad.net (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/staging/nvec/
 
 STAGING - OLPC SECONDARY DISPLAY CONTROLLER (DCON)
 M:	Andres Salomon <dilinger@queued.net>
