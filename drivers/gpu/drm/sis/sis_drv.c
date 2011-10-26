@@ -49,9 +49,6 @@ static int sis_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->chipset = chipset;
 	idr_init(&dev->object_name_idr);
-	ret = drm_sman_init(&dev_priv->sman, 2, 12, 8);
-	if (ret)
-		kfree(dev_priv);
 
 	return ret;
 }
@@ -60,7 +57,6 @@ static int sis_driver_unload(struct drm_device *dev)
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
 
-	drm_sman_takedown(&dev_priv->sman);
 	idr_remove_all(&dev_priv->object_idr);
 	idr_destroy(&dev_priv->object_idr);
 

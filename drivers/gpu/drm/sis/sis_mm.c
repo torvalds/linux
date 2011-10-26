@@ -41,39 +41,17 @@
 #define AGP_TYPE 1
 
 
+struct sis_memblock {
+	struct drm_mm_node mm_node;
+	struct sis_memreq req;
+	struct list_head owner_list;
+};
+
 #if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
 /* fb management via fb device */
 
 #define SIS_MM_ALIGN_SHIFT 0
 #define SIS_MM_ALIGN_MASK 0
-
-static void *sis_sman_mm_allocate(void *private, unsigned long size,
-				  unsigned alignment)
-{
-	struct sis_memreq req;
-
-	req.size = size;
-	sis_malloc(&req);
-	if (req.size == 0)
-		return NULL;
-	else
-		return (void *)(unsigned long)~req.offset;
-}
-
-static void sis_sman_mm_free(void *private, void *ref)
-{
-	sis_free(~((unsigned long)ref));
-}
-
-static void sis_sman_mm_destroy(void *private)
-{
-	;
-}
-
-static unsigned long sis_sman_mm_offset(void *private, void *ref)
-{
-	return ~((unsigned long)ref);
-}
 
 #else /* CONFIG_FB_SIS[_MODULE] */
 
@@ -86,30 +64,11 @@ static int sis_fb_init(struct drm_device *dev, void *data, struct drm_file *file
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
 	drm_sis_fb_t *fb = data;
-	int ret;
 
 	mutex_lock(&dev->struct_mutex);
-#if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
-	{
-		struct drm_sman_mm sman_mm;
-		sman_mm.private = (void *)0xFFFFFFFF;
-		sman_mm.allocate = sis_sman_mm_allocate;
-		sman_mm.free = sis_sman_mm_free;
-		sman_mm.destroy = sis_sman_mm_destroy;
-		sman_mm.offset = sis_sman_mm_offset;
-		ret =
-		    drm_sman_set_manager(&dev_priv->sman, VIDEO_TYPE, &sman_mm);
-	}
-#else
-	ret = drm_sman_set_range(&dev_priv->sman, VIDEO_TYPE, 0,
-				 fb->size >> SIS_MM_ALIGN_SHIFT);
-#endif
-
-	if (ret) {
-		DRM_ERROR("VRAM memory manager initialisation error\n");
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
+	/* Unconditionally init the drm_mm, even though we don't use it when the
+	 * fb sis driver is available - make cleanup easier. */
+	drm_mm_init(&dev_priv->vram_mm, 0, fb->size >> SIS_MM_ALIGN_SHIFT);
 
 	dev_priv->vram_initialized = 1;
 	dev_priv->vram_offset = fb->offset;
@@ -126,8 +85,9 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 	drm_sis_private_t *dev_priv = dev->dev_private;
 	drm_sis_mem_t *mem = data;
 	int retval = 0, user_key;
-	struct drm_memblock_item *item;
+	struct sis_memblock *item;
 	struct sis_file_private *file_priv = file->driver_priv;
+	unsigned long offset;
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -139,12 +99,34 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 		return -EINVAL;
 	}
 
-	mem->size = (mem->size + SIS_MM_ALIGN_MASK) >> SIS_MM_ALIGN_SHIFT;
-	item = drm_sman_alloc(&dev_priv->sman, pool, mem->size, 0, 0);
+	item = kzalloc(sizeof(*item), GFP_KERNEL);
 	if (!item) {
 		retval = -ENOMEM;
 		goto fail_alloc;
 	}
+
+	mem->size = (mem->size + SIS_MM_ALIGN_MASK) >> SIS_MM_ALIGN_SHIFT;
+	if (pool == AGP_TYPE) {
+		retval = drm_mm_insert_node(&dev_priv->agp_mm,
+					    &item->mm_node,
+					    mem->size, 0);
+		offset = item->mm_node.start;
+	} else {
+#if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
+		item->req.size = mem->size;
+		sis_malloc(&item->req);
+		if (item->req.size == 0)
+			retval = -ENOMEM;
+		offset = item->req.offset;
+#else
+		retval = drm_mm_insert_node(&dev_priv->vram_mm,
+					    &item->mm_node,
+					    mem->size, 0);
+		offset = item->mm_node.start;
+#endif
+	}
+	if (retval)
+		goto fail_alloc;
 
 again:
 	if (idr_pre_get(&dev_priv->object_idr, GFP_KERNEL) == 0) {
@@ -163,16 +145,16 @@ again:
 
 	mem->offset = ((pool == 0) ?
 		      dev_priv->vram_offset : dev_priv->agp_offset) +
-	    (item->mm->
-	     offset(item->mm, item->mm_info) << SIS_MM_ALIGN_SHIFT);
+	    (offset << SIS_MM_ALIGN_SHIFT);
 	mem->free = user_key;
 	mem->size = mem->size << SIS_MM_ALIGN_SHIFT;
 
 	return 0;
 
 fail_idr:
-	drm_sman_free(item);
+	drm_mm_remove_node(&item->mm_node);
 fail_alloc:
+	kfree(item);
 	mutex_unlock(&dev->struct_mutex);
 
 	mem->offset = 0;
@@ -189,7 +171,7 @@ static int sis_drm_free(struct drm_device *dev, void *data, struct drm_file *fil
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
 	drm_sis_mem_t *mem = data;
-	struct drm_memblock_item *obj;
+	struct sis_memblock *obj;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
@@ -200,7 +182,14 @@ static int sis_drm_free(struct drm_device *dev, void *data, struct drm_file *fil
 	}
 
 	idr_remove(&dev_priv->object_idr, mem->free);
-	drm_sman_free(obj);
+	list_del(&obj->owner_list);
+	if (drm_mm_node_allocated(&obj->mm_node))
+		drm_mm_remove_node(&obj->mm_node);
+#if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
+	else
+		sis_free(obj->req.offset);
+#endif
+	kfree(obj);
 	mutex_unlock(&dev->struct_mutex);
 	DRM_DEBUG("free = 0x%lx\n", mem->free);
 
@@ -218,18 +207,10 @@ static int sis_ioctl_agp_init(struct drm_device *dev, void *data,
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
 	drm_sis_agp_t *agp = data;
-	int ret;
 	dev_priv = dev->dev_private;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = drm_sman_set_range(&dev_priv->sman, AGP_TYPE, 0,
-				 agp->size >> SIS_MM_ALIGN_SHIFT);
-
-	if (ret) {
-		DRM_ERROR("AGP memory manager initialisation error\n");
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
+	drm_mm_init(&dev_priv->agp_mm, 0, agp->size >> SIS_MM_ALIGN_SHIFT);
 
 	dev_priv->agp_initialized = 1;
 	dev_priv->agp_offset = agp->offset;
@@ -323,9 +304,14 @@ void sis_lastclose(struct drm_device *dev)
 		return;
 
 	mutex_lock(&dev->struct_mutex);
-	drm_sman_cleanup(&dev_priv->sman);
-	dev_priv->vram_initialized = 0;
-	dev_priv->agp_initialized = 0;
+	if (dev_priv->vram_initialized) {
+		drm_mm_takedown(&dev_priv->vram_mm);
+		dev_priv->vram_initialized = 0;
+	}
+	if (dev_priv->agp_initialized) {
+		drm_mm_takedown(&dev_priv->agp_mm);
+		dev_priv->agp_initialized = 0;
+	}
 	dev_priv->mmio = NULL;
 	mutex_unlock(&dev->struct_mutex);
 }
@@ -334,7 +320,7 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 				struct drm_file *file)
 {
 	struct sis_file_private *file_priv = file->driver_priv;
-	struct drm_memblock_item *entry, *next;
+	struct sis_memblock *entry, *next;
 
 	mutex_lock(&dev->struct_mutex);
 	if (list_empty(&file_priv->obj_list)) {
@@ -348,7 +334,14 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 
 	list_for_each_entry_safe(entry, next, &file_priv->obj_list,
 				 owner_list) {
-		drm_sman_free(entry);
+		list_del(&entry->owner_list);
+		if (drm_mm_node_allocated(&entry->mm_node))
+			drm_mm_remove_node(&entry->mm_node);
+#if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
+		else
+			sis_free(entry->req.offset);
+#endif
+		kfree(entry);
 	}
 	mutex_unlock(&dev->struct_mutex);
 	return;
