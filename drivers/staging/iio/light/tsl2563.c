@@ -544,7 +544,7 @@ static const struct iio_chan_spec tsl2563_channels[] = {
 	}, {
 		.type = IIO_INTENSITY,
 		.modified = 1,
-		.channel2 = IIO_MOD_LIGHT_BOTH,
+		.channel2 = IIO_MOD_LIGHT_IR,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE),
 	}
 };
