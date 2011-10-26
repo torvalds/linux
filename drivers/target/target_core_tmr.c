@@ -154,7 +154,7 @@ static void core_tmr_drain_tmr_list(
 	while (!list_empty(&drain_tmr_list)) {
 		tmr = list_entry(drain_tmr_list.next, struct se_tmr_req, tmr_list);
 		list_del(&tmr->tmr_list);
-		cmd = tmr_p->task_cmd;
+		cmd = tmr->task_cmd;
 
 		pr_debug("LUN_RESET: %s releasing TMR %p Function: 0x%02x,"
 			" Response: 0x%02x, t_state: %d\n",
