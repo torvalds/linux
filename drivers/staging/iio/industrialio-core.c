@@ -416,7 +416,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	sysfs_attr_init(&dev_attr->attr);
 
 	/* Build up postfix of <extend_name>_<modifier>_postfix */
-	if (chan->modified) {
+	if (chan->modified && !generic) {
 		if (chan->extend_name)
 			full_postfix = kasprintf(GFP_KERNEL, "%s_%s_%s",
 						 iio_modifier_names[chan
