@@ -4112,6 +4112,7 @@ enum {
 	PINFIX_LENOVO_Y530,
 	PINFIX_PB_M5210,
 	PINFIX_ACER_ASPIRE_7736,
+	PINFIX_ASUS_W90V,
 };
 
 static const struct alc_fixup alc882_fixups[] = {
@@ -4143,10 +4144,18 @@ static const struct alc_fixup alc882_fixups[] = {
 		.type = ALC_FIXUP_SKU,
 		.v.sku = ALC_FIXUP_SKU_IGNORE,
 	},
+	[PINFIX_ASUS_W90V] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x16, 0x99130110 }, /* fix sequence for CLFE */
+			{ }
+		}
+	},
 };
 
 static const struct snd_pci_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0155, "Packard-Bell M5120", PINFIX_PB_M5210),
+	SND_PCI_QUIRK(0x1043, 0x1873, "ASUS W90V", PINFIX_ASUS_W90V),
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Y530", PINFIX_LENOVO_Y530),
 	SND_PCI_QUIRK(0x147b, 0x107a, "Abit AW9D-MAX", PINFIX_ABIT_AW9D_MAX),
 	SND_PCI_QUIRK(0x1025, 0x0296, "Acer Aspire 7736z", PINFIX_ACER_ASPIRE_7736),
