@@ -313,73 +313,62 @@ static void mousevsc_on_receive(struct hv_device *device,
 
 static void mousevsc_on_channel_callback(void *context)
 {
-	const int packetSize = 0x100;
-	int ret = 0;
-	struct hv_device *device = (struct hv_device *)context;
-
+	const int packet_size = 0x100;
+	int ret;
+	struct hv_device *device = context;
 	u32 bytes_recvd;
 	u64 req_id;
-	unsigned char packet[0x100];
 	struct vmpacket_descriptor *desc;
-	unsigned char	*buffer = packet;
-	int	bufferlen = packetSize;
+	unsigned char	*buffer;
+	int	bufferlen = packet_size;
 
+	buffer = kmalloc(bufferlen, GFP_ATOMIC);
+	if (!buffer)
+		return;
 
 	do {
 		ret = vmbus_recvpacket_raw(device->channel, buffer,
 					bufferlen, &bytes_recvd, &req_id);
 
-		if (ret == 0) {
-			if (bytes_recvd > 0) {
-				desc = (struct vmpacket_descriptor *)buffer;
+		switch (ret) {
+		case 0:
+			if (bytes_recvd <= 0) {
+				kfree(buffer);
+				return;
+			}
+			desc = (struct vmpacket_descriptor *)buffer;
 
-				switch (desc->type) {
-				case VM_PKT_COMP:
-					break;
+			switch (desc->type) {
+			case VM_PKT_COMP:
+				break;
 
-				case VM_PKT_DATA_INBAND:
-					mousevsc_on_receive(
-						device, desc);
-					break;
+			case VM_PKT_DATA_INBAND:
+				mousevsc_on_receive(device, desc);
+				break;
 
-				default:
-					pr_err("unhandled packet type %d, tid %llx len %d\n",
-						   desc->type,
-						   req_id,
-						   bytes_recvd);
-					break;
-				}
-
-				/* reset */
-				if (bufferlen > packetSize) {
-					kfree(buffer);
-
-					buffer = packet;
-					bufferlen = packetSize;
-				}
-			} else {
-				if (bufferlen > packetSize) {
-					kfree(buffer);
-
-					buffer = packet;
-					bufferlen = packetSize;
-				}
+			default:
+				pr_err("unhandled packet type %d, tid %llx len %d\n",
+				   desc->type,
+				   req_id,
+				   bytes_recvd);
 				break;
 			}
-		} else if (ret == -ENOBUFS) {
+
+			break;
+
+		case -ENOBUFS:
+			kfree(buffer);
 			/* Handle large packet */
 			bufferlen = bytes_recvd;
-			buffer = kzalloc(bytes_recvd, GFP_ATOMIC);
+			buffer = kmalloc(bytes_recvd, GFP_ATOMIC);
 
 			if (buffer == NULL) {
-				buffer = packet;
-				bufferlen = packetSize;
-				break;
+				return;
 			}
+			break;
 		}
 	} while (1);
 
-	return;
 }
 
 static int mousevsc_connect_to_vsp(struct hv_device *device)
