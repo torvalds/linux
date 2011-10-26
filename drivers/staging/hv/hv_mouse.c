@@ -494,7 +494,8 @@ static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 	input_device->hid_device = hid_dev;
 }
 
-static int mousevsc_on_device_add(struct hv_device *device)
+static int mousevsc_probe(struct hv_device *device,
+			const struct hv_vmbus_device_id *dev_id)
 {
 	int ret = 0;
 	struct mousevsc_dev *input_dev;
@@ -542,13 +543,6 @@ static int mousevsc_on_device_add(struct hv_device *device)
 	return ret;
 }
 
-static int mousevsc_probe(struct hv_device *dev,
-			const struct hv_vmbus_device_id *dev_id)
-{
-
-	return mousevsc_on_device_add(dev);
-
-}
 
 static int mousevsc_remove(struct hv_device *dev)
 {
