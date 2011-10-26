@@ -234,8 +234,8 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 	status = UART_GET_LSR(uart);
 	UART_CLEAR_LSR(uart);
 
- 	ch = UART_GET_CHAR(uart);
- 	uart->port.icount.rx++;
+	ch = UART_GET_CHAR(uart);
+	uart->port.icount.rx++;
 
 #if defined(CONFIG_KGDB_SERIAL_CONSOLE) || \
 	defined(CONFIG_KGDB_SERIAL_CONSOLE_MODULE)
@@ -667,17 +667,17 @@ static int bfin_serial_startup(struct uart_port *port)
 		kgdboc_break_enabled = 0;
 	else {
 # endif
-	if (request_irq(uart->port.irq, bfin_serial_rx_int, IRQF_DISABLED,
+	if (request_irq(uart->rx_irq, bfin_serial_rx_int, 0,
 	     "BFIN_UART_RX", uart)) {
 		printk(KERN_NOTICE "Unable to attach BlackFin UART RX interrupt\n");
 		return -EBUSY;
 	}
 
 	if (request_irq
-	    (uart->port.irq+1, bfin_serial_tx_int, IRQF_DISABLED,
+	    (uart->tx_irq, bfin_serial_tx_int, 0,
 	     "BFIN_UART_TX", uart)) {
 		printk(KERN_NOTICE "Unable to attach BlackFin UART TX interrupt\n");
-		free_irq(uart->port.irq, uart);
+		free_irq(uart->rx_irq, uart);
 		return -EBUSY;
 	}
 
@@ -692,7 +692,7 @@ static int bfin_serial_startup(struct uart_port *port)
 		 */
 		unsigned uart_dma_ch_rx, uart_dma_ch_tx;
 
-		switch (uart->port.irq) {
+		switch (uart->rx_irq) {
 		case IRQ_UART3_RX:
 			uart_dma_ch_rx = CH_UART3_RX;
 			uart_dma_ch_tx = CH_UART3_TX;
@@ -709,16 +709,16 @@ static int bfin_serial_startup(struct uart_port *port)
 		if (uart_dma_ch_rx &&
 			request_dma(uart_dma_ch_rx, "BFIN_UART_RX") < 0) {
 			printk(KERN_NOTICE"Fail to attach UART interrupt\n");
-			free_irq(uart->port.irq, uart);
-			free_irq(uart->port.irq + 1, uart);
+			free_irq(uart->rx_irq, uart);
+			free_irq(uart->tx_irq, uart);
 			return -EBUSY;
 		}
 		if (uart_dma_ch_tx &&
 			request_dma(uart_dma_ch_tx, "BFIN_UART_TX") < 0) {
 			printk(KERN_NOTICE "Fail to attach UART interrupt\n");
 			free_dma(uart_dma_ch_rx);
-			free_irq(uart->port.irq, uart);
-			free_irq(uart->port.irq + 1, uart);
+			free_irq(uart->rx_irq, uart);
+			free_irq(uart->tx_irq, uart);
 			return -EBUSY;
 		}
 	}
@@ -734,19 +734,18 @@ static int bfin_serial_startup(struct uart_port *port)
 		if (request_irq(gpio_to_irq(uart->cts_pin),
 			bfin_serial_mctrl_cts_int,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
-			IRQF_DISABLED, "BFIN_UART_CTS", uart)) {
+			0, "BFIN_UART_CTS", uart)) {
 			uart->cts_pin = -1;
 			pr_info("Unable to attach BlackFin UART CTS interrupt. So, disable it.\n");
 		}
 	}
-	if (uart->rts_pin >= 0) {
+	if (uart->rts_pin >= 0)
 		gpio_direction_output(uart->rts_pin, 0);
-	}
 #endif
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
 	if (uart->cts_pin >= 0 && request_irq(uart->status_irq,
 		bfin_serial_mctrl_cts_int,
-		IRQF_DISABLED, "BFIN_UART_MODEM_STATUS", uart)) {
+		0, "BFIN_UART_MODEM_STATUS", uart)) {
 		uart->cts_pin = -1;
 		pr_info("Unable to attach BlackFin UART Modem Status interrupt.\n");
 	}
@@ -786,8 +785,8 @@ static void bfin_serial_shutdown(struct uart_port *port)
 		break;
 	};
 #endif
-	free_irq(uart->port.irq, uart);
-	free_irq(uart->port.irq+1, uart);
+	free_irq(uart->rx_irq, uart);
+	free_irq(uart->tx_irq, uart);
 #endif
 
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
@@ -1091,10 +1090,18 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 				*parity = 'o';
 		}
 		switch (lcr & 0x03) {
-			case 0:	*bits = 5; break;
-			case 1:	*bits = 6; break;
-			case 2:	*bits = 7; break;
-			case 3:	*bits = 8; break;
+		case 0:
+			*bits = 5;
+			break;
+		case 1:
+			*bits = 6;
+			break;
+		case 2:
+			*bits = 7;
+			break;
+		case 3:
+			*bits = 8;
+			break;
 		}
 		/* Set DLAB in LCR to Access DLL and DLH */
 		UART_SET_DLAB(uart);
@@ -1183,7 +1190,7 @@ static struct console bfin_serial_console = {
 	.index		= -1,
 	.data		= &bfin_serial_reg,
 };
-#define BFIN_SERIAL_CONSOLE	&bfin_serial_console
+#define BFIN_SERIAL_CONSOLE	(&bfin_serial_console)
 #else
 #define BFIN_SERIAL_CONSOLE	NULL
 #endif /* CONFIG_SERIAL_BFIN_CONSOLE */
@@ -1312,14 +1319,22 @@ static int bfin_serial_probe(struct platform_device *pdev)
 		}
 		uart->port.mapbase = res->start;
 
-		uart->port.irq = platform_get_irq(pdev, 0);
-		if (uart->port.irq < 0) {
-			dev_err(&pdev->dev, "No uart RX/TX IRQ specified\n");
+		uart->tx_irq = platform_get_irq(pdev, 0);
+		if (uart->tx_irq < 0) {
+			dev_err(&pdev->dev, "No uart TX IRQ specified\n");
 			ret = -ENOENT;
 			goto out_error_unmap;
 		}
 
-		uart->status_irq = platform_get_irq(pdev, 1);
+		uart->rx_irq = platform_get_irq(pdev, 1);
+		if (uart->rx_irq < 0) {
+			dev_err(&pdev->dev, "No uart RX IRQ specified\n");
+			ret = -ENOENT;
+			goto out_error_unmap;
+		}
+		uart->port.irq = uart->rx_irq;
+
+		uart->status_irq = platform_get_irq(pdev, 2);
 		if (uart->status_irq < 0) {
 			dev_err(&pdev->dev, "No uart status IRQ specified\n");
 			ret = -ENOENT;

@@ -34,6 +34,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/sysrq.h>
 #include <linux/console.h>
@@ -273,7 +274,7 @@ static unsigned int mpc5200b_psc_set_baudrate(struct uart_port *port,
 
 static void mpc52xx_psc_get_irq(struct uart_port *port, struct device_node *np)
 {
-	port->irqflags = IRQF_DISABLED;
+	port->irqflags = 0;
 	port->irq = irq_of_parse_and_map(np, 0);
 }
 

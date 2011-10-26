@@ -21,6 +21,8 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/serial.h>
+#include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/console.h>
 #include <linux/delay.h> /* for udelay */
 #include <linux/device.h>
