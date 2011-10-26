@@ -624,7 +624,8 @@ static int fsg_setup(struct usb_function *f,
 		if (ctrl->bRequestType !=
 		    (USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE))
 			break;
-		if (w_index != fsg->interface_number || w_value != 0)
+		if (w_index != fsg->interface_number || w_value != 0 ||
+				w_length != 0)
 			return -EDOM;
 
 		/*
