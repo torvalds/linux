@@ -2256,15 +2256,13 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	memcpy(&ext_join_params->ssid.SSID, sme->ssid, ext_join_params->ssid.SSID_len);
 	ext_join_params->ssid.SSID_len = htod32(ext_join_params->ssid.SSID_len);
 	/* Set up join scan parameters */
-	ext_join_params->scan.scan_type = DOT11_SCANTYPE_ACTIVE;
+	ext_join_params->scan.scan_type = -1;
 	ext_join_params->scan.nprobes = 2;
 	/* increate dwell time to receive probe response
 	* from target AP at a noisy air
 	*/
-	if (chan_cnt)
-		ext_join_params->scan.active_time = 150;
-	else
-		ext_join_params->scan.active_time = -1;
+	ext_join_params->scan.active_time = 150;
+	ext_join_params->scan.passive_time = 300;
 	ext_join_params->scan.home_time = -1;
 	if (sme->bssid)
 		memcpy(&ext_join_params->assoc.bssid, sme->bssid, ETH_ALEN);
