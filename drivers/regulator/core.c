@@ -1552,6 +1552,63 @@ int regulator_force_disable(struct regulator *regulator)
 }
 EXPORT_SYMBOL_GPL(regulator_force_disable);
 
+static void regulator_disable_work(struct work_struct *work)
+{
+	struct regulator_dev *rdev = container_of(work, struct regulator_dev,
+						  disable_work.work);
+	int count, i, ret;
+
+	mutex_lock(&rdev->mutex);
+
+	BUG_ON(!rdev->deferred_disables);
+
+	count = rdev->deferred_disables;
+	rdev->deferred_disables = 0;
+
+	for (i = 0; i < count; i++) {
+		ret = _regulator_disable(rdev);
+		if (ret != 0)
+			rdev_err(rdev, "Deferred disable failed: %d\n", ret);
+	}
+
+	mutex_unlock(&rdev->mutex);
+
+	if (rdev->supply) {
+		for (i = 0; i < count; i++) {
+			ret = regulator_disable(rdev->supply);
+			if (ret != 0) {
+				rdev_err(rdev,
+					 "Supply disable failed: %d\n", ret);
+			}
+		}
+	}
+}
+
+/**
+ * regulator_disable_deferred - disable regulator output with delay
+ * @regulator: regulator source
+ * @ms: miliseconds until the regulator is disabled
+ *
+ * Execute regulator_disable() on the regulator after a delay.  This
+ * is intended for use with devices that require some time to quiesce.
+ *
+ * NOTE: this will only disable the regulator output if no other consumer
+ * devices have it enabled, the regulator device supports disabling and
+ * machine constraints permit this operation.
+ */
+int regulator_disable_deferred(struct regulator *regulator, int ms)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+
+	mutex_lock(&rdev->mutex);
+	rdev->deferred_disables++;
+	mutex_unlock(&rdev->mutex);
+
+	return schedule_delayed_work(&rdev->disable_work,
+				     msecs_to_jiffies(ms));
+}
+EXPORT_SYMBOL_GPL(regulator_disable_deferred);
+
 static int _regulator_is_enabled(struct regulator_dev *rdev)
 {
 	/* If we don't know then assume that the regulator is always on */
@@ -2622,6 +2679,7 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	INIT_LIST_HEAD(&rdev->consumer_list);
 	INIT_LIST_HEAD(&rdev->list);
 	BLOCKING_INIT_NOTIFIER_HEAD(&rdev->notifier);
+	INIT_DELAYED_WORK(&rdev->disable_work, regulator_disable_work);
 
 	/* preform any regulator specific init */
 	if (init_data->regulator_init) {
@@ -2729,6 +2787,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(rdev->debugfs);
 #endif
+	flush_work_sync(&rdev->disable_work.work);
 	WARN_ON(rdev->open_count);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);

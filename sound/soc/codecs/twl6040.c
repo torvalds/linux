@@ -118,8 +118,8 @@ static const u8 twl6040_reg[TWL6040_CACHEREGNUM] = {
 	0x4A, /* TWL6040_LPPLLDIV	0x09	*/
 	0x00, /* TWL6040_AMICBCTL	0x0A	*/
 	0x00, /* TWL6040_DMICBCTL	0x0B	*/
-	0x18, /* TWL6040_MICLCTL	0x0C	- No input selected on Left Mic */
-	0x18, /* TWL6040_MICRCTL	0x0D	- No input selected on Right Mic */
+	0x00, /* TWL6040_MICLCTL	0x0C	*/
+	0x00, /* TWL6040_MICRCTL	0x0D	*/
 	0x00, /* TWL6040_MICGAIN	0x0E	*/
 	0x1B, /* TWL6040_LINEGAIN	0x0F	*/
 	0x00, /* TWL6040_HSLCTL		0x10	*/
@@ -155,41 +155,8 @@ static const u8 twl6040_reg[TWL6040_CACHEREGNUM] = {
 	0x00, /* TWL6040_STATUS (ro)	0x2E	*/
 };
 
-/*
- * twl6040 vio/gnd registers:
- * registers under vio/gnd supply can be accessed
- * before the power-up sequence, after NRESPWRON goes high
- */
-static const int twl6040_vio_reg[TWL6040_VIOREGNUM] = {
-	TWL6040_REG_ASICID,
-	TWL6040_REG_ASICREV,
-	TWL6040_REG_INTID,
-	TWL6040_REG_INTMR,
-	TWL6040_REG_NCPCTL,
-	TWL6040_REG_LDOCTL,
-	TWL6040_REG_AMICBCTL,
-	TWL6040_REG_DMICBCTL,
-	TWL6040_REG_HKCTL1,
-	TWL6040_REG_HKCTL2,
-	TWL6040_REG_GPOCTL,
-	TWL6040_REG_TRIM1,
-	TWL6040_REG_TRIM2,
-	TWL6040_REG_TRIM3,
-	TWL6040_REG_HSOTRIM,
-	TWL6040_REG_HFOTRIM,
-	TWL6040_REG_ACCCTL,
-	TWL6040_REG_STATUS,
-};
-
-/*
- * twl6040 vdd/vss registers:
- * registers under vdd/vss supplies can only be accessed
- * after the power-up sequence
- */
-static const int twl6040_vdd_reg[TWL6040_VDDREGNUM] = {
-	TWL6040_REG_HPPLLCTL,
-	TWL6040_REG_LPPLLCTL,
-	TWL6040_REG_LPPLLDIV,
+/* List of registers to be restored after power up */
+static const int twl6040_restore_list[] = {
 	TWL6040_REG_MICLCTL,
 	TWL6040_REG_MICRCTL,
 	TWL6040_REG_MICGAIN,
@@ -202,12 +169,6 @@ static const int twl6040_vdd_reg[TWL6040_VDDREGNUM] = {
 	TWL6040_REG_HFLGAIN,
 	TWL6040_REG_HFRCTL,
 	TWL6040_REG_HFRGAIN,
-	TWL6040_REG_VIBCTLL,
-	TWL6040_REG_VIBDATL,
-	TWL6040_REG_VIBCTLR,
-	TWL6040_REG_VIBDATR,
-	TWL6040_REG_ALB,
-	TWL6040_REG_DLB,
 };
 
 /* set of rates for each pll: low-power and high-performance */
@@ -296,56 +257,27 @@ static int twl6040_write(struct snd_soc_codec *codec,
 	return twl6040_reg_write(twl6040, reg, value);
 }
 
-static void twl6040_init_vio_regs(struct snd_soc_codec *codec)
+static void twl6040_init_chip(struct snd_soc_codec *codec)
 {
-	u8 *cache = codec->reg_cache;
-	int reg, i;
+	struct twl6040 *twl6040 = codec->control_data;
+	u8 val;
 
-	for (i = 0; i < TWL6040_VIOREGNUM; i++) {
-		reg = twl6040_vio_reg[i];
-		/*
-		 * skip read-only registers (ASICID, ASICREV, STATUS)
-		 * and registers shared among MFD children
-		 */
-		switch (reg) {
-		case TWL6040_REG_ASICID:
-		case TWL6040_REG_ASICREV:
-		case TWL6040_REG_INTID:
-		case TWL6040_REG_INTMR:
-		case TWL6040_REG_NCPCTL:
-		case TWL6040_REG_LDOCTL:
-		case TWL6040_REG_GPOCTL:
-		case TWL6040_REG_ACCCTL:
-		case TWL6040_REG_STATUS:
-			continue;
-		default:
-			break;
-		}
-		twl6040_write(codec, reg, cache[reg]);
-	}
+	val = twl6040_get_revid(twl6040);
+	twl6040_write_reg_cache(codec, TWL6040_REG_ASICREV, val);
+
+	/* Change chip defaults */
+	/* No imput selected for microphone amplifiers */
+	twl6040_write_reg_cache(codec, TWL6040_REG_MICLCTL, 0x18);
+	twl6040_write_reg_cache(codec, TWL6040_REG_MICRCTL, 0x18);
 }
 
-static void twl6040_init_vdd_regs(struct snd_soc_codec *codec)
+static void twl6040_restore_regs(struct snd_soc_codec *codec)
 {
 	u8 *cache = codec->reg_cache;
 	int reg, i;
 
-	for (i = 0; i < TWL6040_VDDREGNUM; i++) {
-		reg = twl6040_vdd_reg[i];
-		/* skip vibra and PLL registers */
-		switch (reg) {
-		case TWL6040_REG_VIBCTLL:
-		case TWL6040_REG_VIBDATL:
-		case TWL6040_REG_VIBCTLR:
-		case TWL6040_REG_VIBDATR:
-		case TWL6040_REG_HPPLLCTL:
-		case TWL6040_REG_LPPLLCTL:
-		case TWL6040_REG_LPPLLDIV:
-			continue;
-		default:
-			break;
-		}
-
+	for (i = 0; i < ARRAY_SIZE(twl6040_restore_list); i++) {
+		reg = twl6040_restore_list[i];
 		twl6040_write(codec, reg, cache[reg]);
 	}
 }
@@ -1325,8 +1257,7 @@ static int twl6040_set_bias_level(struct snd_soc_codec *codec,
 
 		priv->codec_powered = 1;
 
-		/* initialize vdd/vss registers with reg_cache */
-		twl6040_init_vdd_regs(codec);
+		twl6040_restore_regs(codec);
 
 		/* Set external boost GPO */
 		twl6040_write(codec, TWL6040_REG_GPOCTL, 0x02);
@@ -1468,7 +1399,7 @@ static struct snd_soc_dai_driver twl6040_dai[] = {
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
-		.channels_max = 2,
+		.channels_max = 5,
 		.rates = TWL6040_RATES,
 		.formats = TWL6040_FORMATS,
 	},
@@ -1518,8 +1449,8 @@ static struct snd_soc_dai_driver twl6040_dai[] = {
 	.name = "twl6040-vib",
 	.playback = {
 		.stream_name = "Vibra Playback",
-		.channels_min = 2,
-		.channels_max = 2,
+		.channels_min = 1,
+		.channels_max = 1,
 		.rates = SNDRV_PCM_RATE_CONTINUOUS,
 		.formats = TWL6040_FORMATS,
 	},
@@ -1620,8 +1551,7 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 		goto plugirq_err;
 	}
 
-	/* init vio registers */
-	twl6040_init_vio_regs(codec);
+	twl6040_init_chip(codec);
 
 	/* power on device */
 	ret = twl6040_set_bias_level(codec, SND_SOC_BIAS_STANDBY);

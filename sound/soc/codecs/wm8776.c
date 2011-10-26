@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
@@ -215,8 +216,6 @@ static int wm8776_hw_params(struct snd_pcm_substream *substream,
 	int ratio_shift, master;
 	int i;
 
-	iface = 0;
-
 	switch (dai->driver->id) {
 	case WM8776_DAI_DAC:
 		iface_reg = WM8776_DACIFCTRL;
@@ -232,20 +231,23 @@ static int wm8776_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-
 	/* Set word length */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (snd_pcm_format_width(params_format(params))) {
+	case 16:
+		iface = 0;
+	case 20:
+		iface = 0x10;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-		iface |= 0x10;
+	case 24:
+		iface = 0x20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-		iface |= 0x20;
+	case 32:
+		iface = 0x30;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
-		iface |= 0x30;
-		break;
+	default:
+		dev_err(codec->dev, "Unsupported sample size: %i\n",
+			snd_pcm_format_width(params_format(params)));
+		return -EINVAL;
 	}
 
 	/* Only need to set MCLK/LRCLK ratio if we're master */
@@ -320,11 +322,6 @@ static int wm8776_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-#define WM8776_RATES (SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
-		      SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |\
-		      SNDRV_PCM_RATE_96000)
-
-
 #define WM8776_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
@@ -349,7 +346,9 @@ static struct snd_soc_dai_driver wm8776_dai[] = {
 			.stream_name = "Playback",
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = WM8776_RATES,
+			.rates = SNDRV_PCM_RATE_CONTINUOUS,
+			.rate_min = 32000,
+			.rate_max = 192000,
 			.formats = WM8776_FORMATS,
 		},
 		.ops = &wm8776_dac_ops,
@@ -361,7 +360,9 @@ static struct snd_soc_dai_driver wm8776_dai[] = {
 			.stream_name = "Capture",
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = WM8776_RATES,
+			.rates = SNDRV_PCM_RATE_CONTINUOUS,
+			.rate_min = 32000,
+			.rate_max = 96000,
 			.formats = WM8776_FORMATS,
 		},
 		.ops = &wm8776_adc_ops,
@@ -452,6 +453,12 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8776 = {
 	.reg_cache_default = wm8776_reg,
 };
 
+static const struct of_device_id wm8776_of_match[] = {
+	{ .compatible = "wlf,wm8776", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8776_of_match);
+
 #if defined(CONFIG_SPI_MASTER)
 static int __devinit wm8776_spi_probe(struct spi_device *spi)
 {
@@ -481,8 +488,9 @@ static int __devexit wm8776_spi_remove(struct spi_device *spi)
 
 static struct spi_driver wm8776_spi_driver = {
 	.driver = {
-		.name	= "wm8776-codec",
+		.name	= "wm8776",
 		.owner	= THIS_MODULE,
+		.of_match_table = wm8776_of_match,
 	},
 	.probe		= wm8776_spi_probe,
 	.remove		= __devexit_p(wm8776_spi_remove),
@@ -525,8 +533,9 @@ MODULE_DEVICE_TABLE(i2c, wm8776_i2c_id);
 
 static struct i2c_driver wm8776_i2c_driver = {
 	.driver = {
-		.name = "wm8776-codec",
+		.name = "wm8776",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8776_of_match,
 	},
 	.probe =    wm8776_i2c_probe,
 	.remove =   __devexit_p(wm8776_i2c_remove),

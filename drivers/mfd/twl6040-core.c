@@ -34,8 +34,6 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/twl6040.h>
 
-static struct platform_device *twl6040_dev;
-
 int twl6040_reg_read(struct twl6040 *twl6040, unsigned int reg)
 {
 	int ret;
@@ -203,11 +201,11 @@ static irqreturn_t twl6040_naudint_handler(int irq, void *data)
 	if (intid & TWL6040_THINT) {
 		status = twl6040_reg_read(twl6040, TWL6040_REG_STATUS);
 		if (status & TWL6040_TSHUTDET) {
-			dev_warn(&twl6040_dev->dev,
+			dev_warn(twl6040->dev,
 				 "Thermal shutdown, powering-off");
 			twl6040_power(twl6040, 0);
 		} else {
-			dev_warn(&twl6040_dev->dev,
+			dev_warn(twl6040->dev,
 				 "Leaving thermal shutdown, powering-on");
 			twl6040_power(twl6040, 1);
 		}
@@ -227,7 +225,7 @@ static int twl6040_power_up_completion(struct twl6040 *twl6040,
 	if (!time_left) {
 		intid = twl6040_reg_read(twl6040, TWL6040_REG_INTID);
 		if (!(intid & TWL6040_READYINT)) {
-			dev_err(&twl6040_dev->dev,
+			dev_err(twl6040->dev,
 				"timeout waiting for READYINT\n");
 			return -ETIMEDOUT;
 		}
@@ -255,7 +253,7 @@ int twl6040_power(struct twl6040 *twl6040, int on)
 			/* wait for power-up completion */
 			ret = twl6040_power_up_completion(twl6040, naudint);
 			if (ret) {
-				dev_err(&twl6040_dev->dev,
+				dev_err(twl6040->dev,
 					"automatic power-down failed\n");
 				twl6040->power_count = 0;
 				goto out;
@@ -264,7 +262,7 @@ int twl6040_power(struct twl6040 *twl6040, int on)
 			/* use manual power-up sequence */
 			ret = twl6040_power_up(twl6040);
 			if (ret) {
-				dev_err(&twl6040_dev->dev,
+				dev_err(twl6040->dev,
 					"manual power-up failed\n");
 				twl6040->power_count = 0;
 				goto out;
@@ -276,7 +274,7 @@ int twl6040_power(struct twl6040 *twl6040, int on)
 	} else {
 		/* already powered-down */
 		if (!twl6040->power_count) {
-			dev_err(&twl6040_dev->dev,
+			dev_err(twl6040->dev,
 				"device is already powered-off\n");
 			ret = -EPERM;
 			goto out;
@@ -326,7 +324,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 			lppllctl &= ~TWL6040_LPLLFIN;
 			break;
 		default:
-			dev_err(&twl6040_dev->dev,
+			dev_err(twl6040->dev,
 				"freq_out %d not supported\n", freq_out);
 			ret = -EINVAL;
 			goto pll_out;
@@ -347,7 +345,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 					  hppllctl);
 			break;
 		default:
-			dev_err(&twl6040_dev->dev,
+			dev_err(twl6040->dev,
 				"freq_in %d not supported\n", freq_in);
 			ret = -EINVAL;
 			goto pll_out;
@@ -356,7 +354,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 	case TWL6040_SYSCLK_SEL_HPPLL:
 		/* high-performance PLL can provide only 19.2 MHz */
 		if (freq_out != 19200000) {
-			dev_err(&twl6040_dev->dev,
+			dev_err(twl6040->dev,
 				"freq_out %d not supported\n", freq_out);
 			ret = -EINVAL;
 			goto pll_out;
@@ -389,7 +387,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 				    TWL6040_HPLLENA;
 			break;
 		default:
-			dev_err(&twl6040_dev->dev,
+			dev_err(twl6040->dev,
 				"freq_in %d not supported\n", freq_in);
 			ret = -EINVAL;
 			goto pll_out;
@@ -406,7 +404,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 		twl6040_reg_write(twl6040, TWL6040_REG_LPPLLCTL, lppllctl);
 		break;
 	default:
-		dev_err(&twl6040_dev->dev, "unknown pll id %d\n", pll_id);
+		dev_err(twl6040->dev, "unknown pll id %d\n", pll_id);
 		ret = -EINVAL;
 		goto pll_out;
 	}
@@ -471,9 +469,7 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, twl6040);
 
-	twl6040_dev = pdev;
 	twl6040->dev = &pdev->dev;
-	twl6040->audpwron = pdata->audpwron_gpio;
 	twl6040->irq = pdata->naudint_irq;
 	twl6040->irq_base = pdata->irq_base;
 
@@ -482,6 +478,12 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 	init_completion(&twl6040->ready);
 
 	twl6040->rev = twl6040_reg_read(twl6040, TWL6040_REG_ASICREV);
+
+	/* ERRATA: Automatic power-up is not possible in ES1.0 */
+	if (twl6040_get_revid(twl6040) > TWL6040_REV_ES1_0)
+		twl6040->audpwron = pdata->audpwron_gpio;
+	else
+		twl6040->audpwron = -EINVAL;
 
 	if (gpio_is_valid(twl6040->audpwron)) {
 		ret = gpio_request(twl6040->audpwron, "audpwron");
@@ -492,10 +494,6 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 		if (ret)
 			goto gpio2_err;
 	}
-
-	/* ERRATA: Automatic power-up is not possible in ES1.0 */
-	if (twl6040->rev == TWL6040_REV_ES1_0)
-		twl6040->audpwron = -EINVAL;
 
 	/* codec interrupt */
 	ret = twl6040_irq_init(twl6040);
@@ -566,7 +564,6 @@ gpio2_err:
 gpio1_err:
 	platform_set_drvdata(pdev, NULL);
 	kfree(twl6040);
-	twl6040_dev = NULL;
 	return ret;
 }
 
@@ -586,7 +583,6 @@ static int __devexit twl6040_remove(struct platform_device *pdev)
 	mfd_remove_devices(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);
 	kfree(twl6040);
-	twl6040_dev = NULL;
 
 	return 0;
 }

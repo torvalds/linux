@@ -1120,8 +1120,8 @@ static int wm9081_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
-static int wm9081_set_sysclk(struct snd_soc_codec *codec,
-			     int clk_id, unsigned int freq, int dir)
+static int wm9081_set_sysclk(struct snd_soc_codec *codec, int clk_id,
+			     int source, unsigned int freq, int dir)
 {
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 

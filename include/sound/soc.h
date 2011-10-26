@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/regmap.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/control.h>
@@ -260,6 +261,7 @@ extern struct snd_ac97_bus_ops soc_ac97_ops;
 enum snd_soc_control_type {
 	SND_SOC_I2C = 1,
 	SND_SOC_SPI,
+	SND_SOC_REGMAP,
 };
 
 enum snd_soc_compress_type {
@@ -274,7 +276,7 @@ enum snd_soc_pcm_subclass {
 };
 
 int snd_soc_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
-			     unsigned int freq, int dir);
+			     int source, unsigned int freq, int dir);
 int snd_soc_codec_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
 			  unsigned int freq_in, unsigned int freq_out);
 
@@ -576,6 +578,7 @@ struct snd_soc_codec {
 	const void *reg_def_copy;
 	const struct snd_soc_cache_ops *cache_ops;
 	struct mutex cache_rw_mutex;
+	int val_bytes;
 
 	/* dapm */
 	struct snd_soc_dapm_context dapm;
@@ -607,7 +610,7 @@ struct snd_soc_codec_driver {
 
 	/* codec wide operations */
 	int (*set_sysclk)(struct snd_soc_codec *codec,
-			  int clk_id, unsigned int freq, int dir);
+			  int clk_id, int source, unsigned int freq, int dir);
 	int (*set_pll)(struct snd_soc_codec *codec, int pll_id, int source,
 		unsigned int freq_in, unsigned int freq_out);
 
@@ -619,7 +622,7 @@ struct snd_soc_codec_driver {
 	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
 	int (*readable_register)(struct snd_soc_codec *, unsigned int);
 	int (*writable_register)(struct snd_soc_codec *, unsigned int);
-	short reg_cache_size;
+	unsigned int reg_cache_size;
 	short reg_cache_step;
 	short reg_word_size;
 	const void *reg_cache_default;
@@ -630,9 +633,13 @@ struct snd_soc_codec_driver {
 	/* codec bias level */
 	int (*set_bias_level)(struct snd_soc_codec *,
 			      enum snd_soc_bias_level level);
+	bool idle_bias_off;
 
 	void (*seq_notifier)(struct snd_soc_dapm_context *,
 			     enum snd_soc_dapm_type, int);
+
+	/* codec stream completion event */
+	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
 
 	/* probe ordering - for components with runtime dependencies */
 	int probe_order;
@@ -668,6 +675,9 @@ struct snd_soc_platform_driver {
 
 	/* platform stream ops */
 	struct snd_pcm_ops *ops;
+
+	/* platform stream completion event */
+	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
 
 	/* probe ordering - for components with runtime dependencies */
 	int probe_order;

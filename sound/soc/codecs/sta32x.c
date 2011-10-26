@@ -524,13 +524,17 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 	rate = params_rate(params);
 	pr_debug("rate: %u\n", rate);
 	for (i = 0; i < ARRAY_SIZE(interpolation_ratios); i++)
-		if (interpolation_ratios[i].fs == rate)
+		if (interpolation_ratios[i].fs == rate) {
 			ir = interpolation_ratios[i].ir;
+			break;
+		}
 	if (ir < 0)
 		return -EINVAL;
 	for (i = 0; mclk_ratios[ir][i].ratio; i++)
-		if (mclk_ratios[ir][i].ratio * rate == sta32x->mclk)
+		if (mclk_ratios[ir][i].ratio * rate == sta32x->mclk) {
 			mcs = mclk_ratios[ir][i].mcs;
+			break;
+		}
 	if (mcs < 0)
 		return -EINVAL;
 
@@ -808,6 +812,7 @@ static int sta32x_remove(struct snd_soc_codec *codec)
 {
 	struct sta32x_priv *sta32x = snd_soc_codec_get_drvdata(codec);
 
+	sta32x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 	regulator_bulk_free(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 
@@ -867,18 +872,8 @@ static __devinit int sta32x_i2c_probe(struct i2c_client *i2c,
 static __devexit int sta32x_i2c_remove(struct i2c_client *client)
 {
 	struct sta32x_priv *sta32x = i2c_get_clientdata(client);
-	struct snd_soc_codec *codec = sta32x->codec;
 
-	if (codec)
-		sta32x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	regulator_bulk_free(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
-
-	if (codec) {
-		snd_soc_unregister_codec(&client->dev);
-		snd_soc_codec_set_drvdata(codec, NULL);
-	}
-
+	snd_soc_unregister_codec(&client->dev);
 	kfree(sta32x);
 	return 0;
 }

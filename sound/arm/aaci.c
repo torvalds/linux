@@ -443,7 +443,7 @@ static int aaci_pcm_open(struct snd_pcm_substream *substream)
 	mutex_lock(&aaci->irq_lock);
 	if (!aaci->users++) {
 		ret = request_irq(aaci->dev->irq[0], aaci_irq,
-			   IRQF_SHARED | IRQF_DISABLED, DRIVER_NAME, aaci);
+			   IRQF_SHARED, DRIVER_NAME, aaci);
 		if (ret != 0)
 			aaci->users--;
 	}

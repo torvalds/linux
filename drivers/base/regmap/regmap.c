@@ -37,6 +37,11 @@ struct regmap {
 	void *work_buf;     /* Scratch buffer used to format I/O */
 	struct regmap_format format;  /* Buffer format */
 	const struct regmap_bus *bus;
+
+	unsigned int max_register;
+	bool (*writeable_reg)(struct device *dev, unsigned int reg);
+	bool (*readable_reg)(struct device *dev, unsigned int reg);
+	bool (*volatile_reg)(struct device *dev, unsigned int reg);
 };
 
 static void regmap_format_4_12_write(struct regmap *map,
@@ -116,6 +121,10 @@ struct regmap *regmap_init(struct device *dev,
 	map->format.val_bytes = config->val_bits / 8;
 	map->dev = dev;
 	map->bus = bus;
+	map->max_register = config->max_register;
+	map->writeable_reg = config->writeable_reg;
+	map->readable_reg = config->readable_reg;
+	map->volatile_reg = config->volatile_reg;
 
 	switch (config->reg_bits) {
 	case 4:
