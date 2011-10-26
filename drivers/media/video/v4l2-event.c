@@ -302,7 +302,6 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 			fh->navailable--;
 		}
 		list_del(&sev->list);
-		sev->fh = NULL;
 	}
 
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
