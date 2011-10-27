@@ -6253,7 +6253,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 			status.card_specific.madi.madi_input =
 				(statusregister & HDSPM_AB_int) ? 1 : 0;
 			status.card_specific.madi.channel_format =
-				(statusregister & HDSPM_TX_64ch) ? 1 : 0;
+				(statusregister & HDSPM_RX_64ch) ? 1 : 0;
 			/* TODO: Mac driver sets it when f_s>48kHz */
 			status.card_specific.madi.frame_format = 0;
 
