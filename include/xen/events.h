@@ -37,6 +37,13 @@ int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
  */
 void unbind_from_irqhandler(unsigned int irq, void *dev_id);
 
+/*
+ * Allow extra references to event channels exposed to userspace by evtchn
+ */
+int evtchn_make_refcounted(unsigned int evtchn);
+int evtchn_get(unsigned int evtchn);
+void evtchn_put(unsigned int evtchn);
+
 void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector);
 int resend_irq_on_evtchn(unsigned int irq);
 void rebind_evtchn_irq(int evtchn, int irq);
