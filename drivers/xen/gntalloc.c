@@ -178,8 +178,10 @@ static void __del_gref(struct gntalloc_gref *gref)
 		tmp[gref->notify.pgoff] = 0;
 		kunmap(gref->page);
 	}
-	if (gref->notify.flags & UNMAP_NOTIFY_SEND_EVENT)
+	if (gref->notify.flags & UNMAP_NOTIFY_SEND_EVENT) {
 		notify_remote_via_evtchn(gref->notify.event);
+		evtchn_put(gref->notify.event);
+	}
 
 	gref->notify.flags = 0;
 
@@ -395,6 +397,23 @@ static long gntalloc_ioctl_unmap_notify(struct gntalloc_file_private_data *priv,
 		rc = -EINVAL;
 		goto unlock_out;
 	}
+
+	/* We need to grab a reference to the event channel we are going to use
+	 * to send the notify before releasing the reference we may already have
+	 * (if someone has called this ioctl twice). This is required so that
+	 * it is possible to change the clear_byte part of the notification
+	 * without disturbing the event channel part, which may now be the last
+	 * reference to that event channel.
+	 */
+	if (op.action & UNMAP_NOTIFY_SEND_EVENT) {
+		if (evtchn_get(op.event_channel_port)) {
+			rc = -EINVAL;
+			goto unlock_out;
+		}
+	}
+
+	if (gref->notify.flags & UNMAP_NOTIFY_SEND_EVENT)
+		evtchn_put(gref->notify.event);
 
 	gref->notify.flags = op.action;
 	gref->notify.pgoff = pgoff;
