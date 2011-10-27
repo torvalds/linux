@@ -874,6 +874,7 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 void ath6kl_cfg80211_scan_complete_event(struct ath6kl_vif *vif, int status)
 {
 	struct ath6kl *ar = vif->ar;
+	bool aborted;
 	int i;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: status %d\n", __func__, status);
@@ -882,11 +883,11 @@ void ath6kl_cfg80211_scan_complete_event(struct ath6kl_vif *vif, int status)
 		return;
 
 	if ((status == -ECANCELED) || (status == -EBUSY)) {
-		cfg80211_scan_done(vif->scan_req, true);
+		aborted = true;
 		goto out;
 	}
 
-	cfg80211_scan_done(vif->scan_req, false);
+	aborted = false;
 
 	if (vif->scan_req->n_ssids && vif->scan_req->ssids[0].ssid_len) {
 		for (i = 0; i < vif->scan_req->n_ssids; i++) {
@@ -897,6 +898,7 @@ void ath6kl_cfg80211_scan_complete_event(struct ath6kl_vif *vif, int status)
 	}
 
 out:
+	cfg80211_scan_done(vif->scan_req, aborted);
 	vif->scan_req = NULL;
 }
 
