@@ -14,14 +14,9 @@
 #include <asm/head.h>
 #include <asm/io.h>
 
+#include "kernel.h"
+
 static int hv_supports_soft_state;
-
-static unsigned long kimage_addr_to_ra(const char *p)
-{
-	unsigned long val = (unsigned long) p;
-
-	return kern_base + (val - KERNBASE);
-}
 
 static void do_set_sstate(unsigned long state, const char *msg)
 {

@@ -1956,7 +1956,7 @@ _scsih_slave_configure(struct scsi_device *sdev)
 		case MPI2_RAID_VOL_TYPE_RAID1E:
 			qdepth = MPT2SAS_RAID_QUEUE_DEPTH;
 			if (ioc->manu_pg10.OEMIdentifier &&
-			    (ioc->manu_pg10.GenericFlags0 &
+			    (le32_to_cpu(ioc->manu_pg10.GenericFlags0) &
 			    MFG10_GF0_R10_DISPLAY) &&
 			    !(raid_device->num_pds % 2))
 				r_level = "RAID10";
@@ -3698,7 +3698,7 @@ _scsih_qcmd_lck(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 		return 0;
 	}
 
-	if (ioc->pci_error_recovery) {
+	if (ioc->pci_error_recovery || ioc->remove_host) {
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		return 0;
@@ -4598,7 +4598,7 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	Mpi2SasEnclosurePage0_t enclosure_pg0;
 	u32 ioc_status;
 	u16 parent_handle;
-	__le64 sas_address, sas_address_parent = 0;
+	u64 sas_address, sas_address_parent = 0;
 	int i;
 	unsigned long flags;
 	struct _sas_port *mpt2sas_port = NULL;
@@ -5404,7 +5404,7 @@ _scsih_sas_device_status_change_event(struct MPT2SAS_ADAPTER *ioc,
 {
 	struct MPT2SAS_TARGET *target_priv_data;
 	struct _sas_device *sas_device;
-	__le64 sas_address;
+	u64 sas_address;
 	unsigned long flags;
 	Mpi2EventDataSasDeviceStatusChange_t *event_data =
 	    fw_event->event_data;
@@ -6566,7 +6566,7 @@ _scsih_search_responding_expanders(struct MPT2SAS_ADAPTER *ioc)
 	Mpi2ExpanderPage0_t expander_pg0;
 	Mpi2ConfigReply_t mpi_reply;
 	u16 ioc_status;
-	__le64 sas_address;
+	u64 sas_address;
 	u16 handle;
 
 	printk(MPT2SAS_INFO_FMT "%s\n", ioc->name, __func__);
@@ -7211,7 +7211,6 @@ _scsih_remove(struct pci_dev *pdev)
 	}
 
 	sas_remove_host(shost);
-	_scsih_shutdown(pdev);
 	list_del(&ioc->list);
 	scsi_remove_host(shost);
 	scsi_host_put(shost);
@@ -7505,7 +7504,7 @@ _scsih_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
-	u32 device_state;
+	pci_power_t device_state;
 
 	mpt2sas_base_stop_watchdog(ioc);
 	scsi_block_requests(shost);
@@ -7532,7 +7531,7 @@ _scsih_resume(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
-	u32 device_state = pdev->current_state;
+	pci_power_t device_state = pdev->current_state;
 	int r;
 
 	printk(MPT2SAS_INFO_FMT "pdev=0x%p, slot=%s, previous "

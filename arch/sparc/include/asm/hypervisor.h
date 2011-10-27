@@ -2927,6 +2927,13 @@ extern unsigned long sun4v_ncs_request(unsigned long request,
 #define HV_FAST_FIRE_GET_PERFREG	0x120
 #define HV_FAST_FIRE_SET_PERFREG	0x121
 
+#define HV_FAST_REBOOT_DATA_SET		0x172
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_reboot_data_set(unsigned long ra,
+					   unsigned long len);
+#endif
+
 /* Function numbers for HV_CORE_TRAP.  */
 #define HV_CORE_SET_VER			0x00
 #define HV_CORE_PUTCHAR			0x01
@@ -2940,16 +2947,23 @@ extern unsigned long sun4v_ncs_request(unsigned long request,
 #define HV_GRP_CORE			0x0001
 #define HV_GRP_INTR			0x0002
 #define HV_GRP_SOFT_STATE		0x0003
+#define HV_GRP_TM			0x0080
 #define HV_GRP_PCI			0x0100
 #define HV_GRP_LDOM			0x0101
 #define HV_GRP_SVC_CHAN			0x0102
 #define HV_GRP_NCS			0x0103
 #define HV_GRP_RNG			0x0104
+#define HV_GRP_PBOOT			0x0105
+#define HV_GRP_TPM			0x0107
+#define HV_GRP_SDIO			0x0108
+#define HV_GRP_SDIO_ERR			0x0109
+#define HV_GRP_REBOOT_DATA		0x0110
 #define HV_GRP_NIAG_PERF		0x0200
 #define HV_GRP_FIRE_PERF		0x0201
 #define HV_GRP_N2_CPU			0x0202
 #define HV_GRP_NIU			0x0204
 #define HV_GRP_VF_CPU			0x0205
+#define HV_GRP_KT_CPU			0x0209
 #define HV_GRP_DIAG			0x0300
 
 #ifndef __ASSEMBLY__

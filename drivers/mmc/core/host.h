@@ -16,16 +16,16 @@ int mmc_register_host_class(void);
 void mmc_unregister_host_class(void);
 
 #ifdef CONFIG_MMC_CLKGATE
-void mmc_host_clk_ungate(struct mmc_host *host);
-void mmc_host_clk_gate(struct mmc_host *host);
+void mmc_host_clk_hold(struct mmc_host *host);
+void mmc_host_clk_release(struct mmc_host *host);
 unsigned int mmc_host_clk_rate(struct mmc_host *host);
 
 #else
-static inline void mmc_host_clk_ungate(struct mmc_host *host)
+static inline void mmc_host_clk_hold(struct mmc_host *host)
 {
 }
 
-static inline void mmc_host_clk_gate(struct mmc_host *host)
+static inline void mmc_host_clk_release(struct mmc_host *host)
 {
 }
 

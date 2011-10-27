@@ -38,6 +38,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
 
 #include "rt2x00.h"
 #include "rt2800lib.h"
@@ -607,6 +608,15 @@ static bool rt2800_txdone_entry_check(struct queue_entry *entry, u32 reg)
 	int wcid, ack, pid;
 	int tx_wcid, tx_ack, tx_pid;
 
+	if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
+	    !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags)) {
+		WARNING(entry->queue->rt2x00dev,
+			"Data pending for entry %u in queue %u\n",
+			entry->entry_idx, entry->queue->qid);
+		cond_resched();
+		return false;
+	}
+
 	wcid	= rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
 	ack	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
 	pid	= rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
@@ -754,12 +764,11 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 			if (rt2800_txdone_entry_check(entry, reg))
 				break;
+			entry = NULL;
 		}
 
-		if (!entry || rt2x00queue_empty(queue))
-			break;
-
-		rt2800_txdone_entry(entry, reg);
+		if (entry)
+			rt2800_txdone_entry(entry, reg);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2800_txdone);
@@ -784,8 +793,7 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 	/*
 	 * Add space for the TXWI in front of the skb.
 	 */
-	skb_push(entry->skb, TXWI_DESC_SIZE);
-	memset(entry->skb, 0, TXWI_DESC_SIZE);
+	memset(skb_push(entry->skb, TXWI_DESC_SIZE), 0, TXWI_DESC_SIZE);
 
 	/*
 	 * Register descriptor details in skb frame descriptor.
@@ -3504,14 +3512,15 @@ static void rt2800_efuse_read(struct rt2x00_dev *rt2x00dev, unsigned int i)
 	rt2800_regbusy_read(rt2x00dev, EFUSE_CTRL, EFUSE_CTRL_KICK, &reg);
 
 	/* Apparently the data is read from end to start */
-	rt2800_register_read_lock(rt2x00dev, EFUSE_DATA3,
-					(u32 *)&rt2x00dev->eeprom[i]);
-	rt2800_register_read_lock(rt2x00dev, EFUSE_DATA2,
-					(u32 *)&rt2x00dev->eeprom[i + 2]);
-	rt2800_register_read_lock(rt2x00dev, EFUSE_DATA1,
-					(u32 *)&rt2x00dev->eeprom[i + 4]);
-	rt2800_register_read_lock(rt2x00dev, EFUSE_DATA0,
-					(u32 *)&rt2x00dev->eeprom[i + 6]);
+	rt2800_register_read_lock(rt2x00dev, EFUSE_DATA3, &reg);
+	/* The returned value is in CPU order, but eeprom is le */
+	rt2x00dev->eeprom[i] = cpu_to_le32(reg);
+	rt2800_register_read_lock(rt2x00dev, EFUSE_DATA2, &reg);
+	*(u32 *)&rt2x00dev->eeprom[i + 2] = cpu_to_le32(reg);
+	rt2800_register_read_lock(rt2x00dev, EFUSE_DATA1, &reg);
+	*(u32 *)&rt2x00dev->eeprom[i + 4] = cpu_to_le32(reg);
+	rt2800_register_read_lock(rt2x00dev, EFUSE_DATA0, &reg);
+	*(u32 *)&rt2x00dev->eeprom[i + 6] = cpu_to_le32(reg);
 
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
@@ -3677,19 +3686,23 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 		return -ENODEV;
 	}
 
-	if (!rt2x00_rf(rt2x00dev, RF2820) &&
-	    !rt2x00_rf(rt2x00dev, RF2850) &&
-	    !rt2x00_rf(rt2x00dev, RF2720) &&
-	    !rt2x00_rf(rt2x00dev, RF2750) &&
-	    !rt2x00_rf(rt2x00dev, RF3020) &&
-	    !rt2x00_rf(rt2x00dev, RF2020) &&
-	    !rt2x00_rf(rt2x00dev, RF3021) &&
-	    !rt2x00_rf(rt2x00dev, RF3022) &&
-	    !rt2x00_rf(rt2x00dev, RF3052) &&
-	    !rt2x00_rf(rt2x00dev, RF3320) &&
-	    !rt2x00_rf(rt2x00dev, RF5370) &&
-	    !rt2x00_rf(rt2x00dev, RF5390)) {
-		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
+	switch (rt2x00dev->chip.rf) {
+	case RF2820:
+	case RF2850:
+	case RF2720:
+	case RF2750:
+	case RF3020:
+	case RF2020:
+	case RF3021:
+	case RF3022:
+	case RF3052:
+	case RF3320:
+	case RF5370:
+	case RF5390:
+		break;
+	default:
+		ERROR(rt2x00dev, "Invalid RF chipset 0x%x detected.\n",
+		      rt2x00dev->chip.rf);
 		return -ENODEV;
 	}
 

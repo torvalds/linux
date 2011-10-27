@@ -56,6 +56,7 @@
 #define GPIO_HP_MUTE    BIT(1)
 #define GPIO_INT_MIC_EN BIT(2)
 #define GPIO_EXT_MIC_EN BIT(3)
+#define GPIO_HP_DET     BIT(4)
 
 struct tegra_wm8903 {
 	struct tegra_asoc_utils_data util_data;
@@ -304,6 +305,7 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 		snd_soc_jack_add_gpios(&tegra_wm8903_hp_jack,
 					1,
 					&tegra_wm8903_hp_jack_gpio);
+		machine->gpio_requested |= GPIO_HP_DET;
 	}
 
 	snd_soc_jack_new(codec, "Mic Jack", SND_JACK_MICROPHONE,
@@ -429,10 +431,10 @@ static int __devexit tegra_wm8903_driver_remove(struct platform_device *pdev)
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 	struct tegra_wm8903_platform_data *pdata = machine->pdata;
 
-	snd_soc_unregister_card(card);
-
-	tegra_asoc_utils_fini(&machine->util_data);
-
+	if (machine->gpio_requested & GPIO_HP_DET)
+		snd_soc_jack_free_gpios(&tegra_wm8903_hp_jack,
+					1,
+					&tegra_wm8903_hp_jack_gpio);
 	if (machine->gpio_requested & GPIO_EXT_MIC_EN)
 		gpio_free(pdata->gpio_ext_mic_en);
 	if (machine->gpio_requested & GPIO_INT_MIC_EN)
@@ -441,6 +443,11 @@ static int __devexit tegra_wm8903_driver_remove(struct platform_device *pdev)
 		gpio_free(pdata->gpio_hp_mute);
 	if (machine->gpio_requested & GPIO_SPKR_EN)
 		gpio_free(pdata->gpio_spkr_en);
+	machine->gpio_requested = 0;
+
+	snd_soc_unregister_card(card);
+
+	tegra_asoc_utils_fini(&machine->util_data);
 
 	kfree(machine);
 

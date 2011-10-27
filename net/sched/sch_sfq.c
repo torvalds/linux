@@ -410,7 +410,12 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	/* Return Congestion Notification only if we dropped a packet
 	 * from this flow.
 	 */
-	return (qlen != slot->qlen) ? NET_XMIT_CN : NET_XMIT_SUCCESS;
+	if (qlen != slot->qlen)
+		return NET_XMIT_CN;
+
+	/* As we dropped a packet, better let upper stack know this */
+	qdisc_tree_decrease_qlen(sch, 1);
+	return NET_XMIT_SUCCESS;
 }
 
 static struct sk_buff *

@@ -31,25 +31,67 @@ static void hfsplus_end_io_sync(struct bio *bio, int err)
 	complete(bio->bi_private);
 }
 
-int hfsplus_submit_bio(struct block_device *bdev, sector_t sector,
-		void *data, int rw)
+/*
+ * hfsplus_submit_bio - Perfrom block I/O
+ * @sb: super block of volume for I/O
+ * @sector: block to read or write, for blocks of HFSPLUS_SECTOR_SIZE bytes
+ * @buf: buffer for I/O
+ * @data: output pointer for location of requested data
+ * @rw: direction of I/O
+ *
+ * The unit of I/O is hfsplus_min_io_size(sb), which may be bigger than
+ * HFSPLUS_SECTOR_SIZE, and @buf must be sized accordingly. On reads
+ * @data will return a pointer to the start of the requested sector,
+ * which may not be the same location as @buf.
+ *
+ * If @sector is not aligned to the bdev logical block size it will
+ * be rounded down. For writes this means that @buf should contain data
+ * that starts at the rounded-down address. As long as the data was
+ * read using hfsplus_submit_bio() and the same buffer is used things
+ * will work correctly.
+ */
+int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
+		void *buf, void **data, int rw)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct bio *bio;
 	int ret = 0;
+	unsigned int io_size;
+	loff_t start;
+	int offset;
+
+	/*
+	 * Align sector to hardware sector size and find offset. We
+	 * assume that io_size is a power of two, which _should_
+	 * be true.
+	 */
+	io_size = hfsplus_min_io_size(sb);
+	start = (loff_t)sector << HFSPLUS_SECTOR_SHIFT;
+	offset = start & (io_size - 1);
+	sector &= ~((io_size >> HFSPLUS_SECTOR_SHIFT) - 1);
 
 	bio = bio_alloc(GFP_NOIO, 1);
 	bio->bi_sector = sector;
-	bio->bi_bdev = bdev;
+	bio->bi_bdev = sb->s_bdev;
 	bio->bi_end_io = hfsplus_end_io_sync;
 	bio->bi_private = &wait;
 
-	/*
-	 * We always submit one sector at a time, so bio_add_page must not fail.
-	 */
-	if (bio_add_page(bio, virt_to_page(data), HFSPLUS_SECTOR_SIZE,
-			 offset_in_page(data)) != HFSPLUS_SECTOR_SIZE)
-		BUG();
+	if (!(rw & WRITE) && data)
+		*data = (u8 *)buf + offset;
+
+	while (io_size > 0) {
+		unsigned int page_offset = offset_in_page(buf);
+		unsigned int len = min_t(unsigned int, PAGE_SIZE - page_offset,
+					 io_size);
+
+		ret = bio_add_page(bio, virt_to_page(buf), len, page_offset);
+		if (ret != len) {
+			ret = -EIO;
+			goto out;
+		}
+		io_size -= len;
+		buf = (u8 *)buf + len;
+	}
 
 	submit_bio(rw, bio);
 	wait_for_completion(&wait);
@@ -57,8 +99,9 @@ int hfsplus_submit_bio(struct block_device *bdev, sector_t sector,
 	if (!bio_flagged(bio, BIO_UPTODATE))
 		ret = -EIO;
 
+out:
 	bio_put(bio);
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static int hfsplus_read_mdb(void *bufptr, struct hfsplus_wd *wd)
@@ -147,17 +190,17 @@ int hfsplus_read_wrapper(struct super_block *sb)
 	}
 
 	error = -ENOMEM;
-	sbi->s_vhdr = kmalloc(HFSPLUS_SECTOR_SIZE, GFP_KERNEL);
-	if (!sbi->s_vhdr)
+	sbi->s_vhdr_buf = kmalloc(hfsplus_min_io_size(sb), GFP_KERNEL);
+	if (!sbi->s_vhdr_buf)
 		goto out;
-	sbi->s_backup_vhdr = kmalloc(HFSPLUS_SECTOR_SIZE, GFP_KERNEL);
-	if (!sbi->s_backup_vhdr)
+	sbi->s_backup_vhdr_buf = kmalloc(hfsplus_min_io_size(sb), GFP_KERNEL);
+	if (!sbi->s_backup_vhdr_buf)
 		goto out_free_vhdr;
 
 reread:
-	error = hfsplus_submit_bio(sb->s_bdev,
-				   part_start + HFSPLUS_VOLHEAD_SECTOR,
-				   sbi->s_vhdr, READ);
+	error = hfsplus_submit_bio(sb, part_start + HFSPLUS_VOLHEAD_SECTOR,
+				   sbi->s_vhdr_buf, (void **)&sbi->s_vhdr,
+				   READ);
 	if (error)
 		goto out_free_backup_vhdr;
 
@@ -186,9 +229,9 @@ reread:
 		goto reread;
 	}
 
-	error = hfsplus_submit_bio(sb->s_bdev,
-				   part_start + part_size - 2,
-				   sbi->s_backup_vhdr, READ);
+	error = hfsplus_submit_bio(sb, part_start + part_size - 2,
+				   sbi->s_backup_vhdr_buf,
+				   (void **)&sbi->s_backup_vhdr, READ);
 	if (error)
 		goto out_free_backup_vhdr;
 
@@ -232,9 +275,9 @@ reread:
 	return 0;
 
 out_free_backup_vhdr:
-	kfree(sbi->s_backup_vhdr);
+	kfree(sbi->s_backup_vhdr_buf);
 out_free_vhdr:
-	kfree(sbi->s_vhdr);
+	kfree(sbi->s_vhdr_buf);
 out:
 	return error;
 }

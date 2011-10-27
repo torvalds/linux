@@ -473,6 +473,13 @@ static void __init free_unused_memmap(struct meminfo *mi)
 		 */
 		bank_start = min(bank_start,
 				 ALIGN(prev_bank_end, PAGES_PER_SECTION));
+#else
+		/*
+		 * Align down here since the VM subsystem insists that the
+		 * memmap entries are valid from the bank start aligned to
+		 * MAX_ORDER_NR_PAGES.
+		 */
+		bank_start = round_down(bank_start, MAX_ORDER_NR_PAGES);
 #endif
 		/*
 		 * If we had a previous bank, and there is a space

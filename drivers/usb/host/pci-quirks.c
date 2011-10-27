@@ -535,20 +535,34 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	iounmap(base);
 }
 
+static const struct dmi_system_id __devinitconst ehci_dmi_nohandoff_table[] = {
+	{
+		/*  Pegatron Lucid (ExoPC) */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "EXOPG06411"),
+			DMI_MATCH(DMI_BIOS_VERSION, "Lucid-CE-133"),
+		},
+	},
+	{
+		/*  Pegatron Lucid (Ordissimo AIRIS) */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "M11JB"),
+			DMI_MATCH(DMI_BIOS_VERSION, "Lucid-GE-133"),
+		},
+	},
+	{ }
+};
+
 static void __devinit ehci_bios_handoff(struct pci_dev *pdev,
 					void __iomem *op_reg_base,
 					u32 cap, u8 offset)
 {
 	int try_handoff = 1, tried_handoff = 0;
 
-	/* The Pegatron Lucid (ExoPC) tablet sporadically waits for 90
-	 * seconds trying the handoff on its unused controller.  Skip
-	 * it. */
+	/* The Pegatron Lucid tablet sporadically waits for 98 seconds trying
+	 * the handoff on its unused controller.  Skip it. */
 	if (pdev->vendor == 0x8086 && pdev->device == 0x283a) {
-		const char *dmi_bn = dmi_get_system_info(DMI_BOARD_NAME);
-		const char *dmi_bv = dmi_get_system_info(DMI_BIOS_VERSION);
-		if (dmi_bn && !strcmp(dmi_bn, "EXOPG06411") &&
-		    dmi_bv && !strcmp(dmi_bv, "Lucid-CE-133"))
+		if (dmi_check_system(ehci_dmi_nohandoff_table))
 			try_handoff = 0;
 	}
 
@@ -803,7 +817,7 @@ static void __devinit quirk_usb_handoff_xhci(struct pci_dev *pdev)
 
 	/* If the BIOS owns the HC, signal that the OS wants it, and wait */
 	if (val & XHCI_HC_BIOS_OWNED) {
-		writel(val & XHCI_HC_OS_OWNED, base + ext_cap_offset);
+		writel(val | XHCI_HC_OS_OWNED, base + ext_cap_offset);
 
 		/* Wait for 5 seconds with 10 microsecond polling interval */
 		timeout = handshake(base + ext_cap_offset, XHCI_HC_BIOS_OWNED,

@@ -309,9 +309,14 @@ static int tegra_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 
 static void tegra_pcm_deallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 {
-	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
-	struct snd_dma_buffer *buf = &substream->dma_buffer;
+	struct snd_pcm_substream *substream;
+	struct snd_dma_buffer *buf;
 
+	substream = pcm->streams[stream].substream;
+	if (!substream)
+		return;
+
+	buf = &substream->dma_buffer;
 	if (!buf->area)
 		return;
 

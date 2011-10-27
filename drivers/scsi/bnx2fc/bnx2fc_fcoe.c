@@ -1225,6 +1225,7 @@ static int bnx2fc_interface_setup(struct bnx2fc_hba *hba,
 	hba->ctlr.get_src_addr = bnx2fc_get_src_mac;
 	set_bit(BNX2FC_CTLR_INIT_DONE, &hba->init_done);
 
+	INIT_LIST_HEAD(&hba->vports);
 	rc = bnx2fc_netdev_setup(hba);
 	if (rc)
 		goto setup_err;
@@ -1261,7 +1262,14 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 	struct fcoe_port	*port;
 	struct Scsi_Host	*shost;
 	struct fc_vport		*vport = dev_to_vport(parent);
+	struct bnx2fc_lport	*blport;
 	int			rc = 0;
+
+	blport = kzalloc(sizeof(struct bnx2fc_lport), GFP_KERNEL);
+	if (!blport) {
+		BNX2FC_HBA_DBG(hba->ctlr.lp, "Unable to alloc bnx2fc_lport\n");
+		return NULL;
+	}
 
 	/* Allocate Scsi_Host structure */
 	if (!npiv)
@@ -1271,7 +1279,7 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 
 	if (!lport) {
 		printk(KERN_ERR PFX "could not allocate scsi host structure\n");
-		return NULL;
+		goto free_blport;
 	}
 	shost = lport->host;
 	port = lport_priv(lport);
@@ -1327,12 +1335,20 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 	}
 
 	bnx2fc_interface_get(hba);
+
+	spin_lock_bh(&hba->hba_lock);
+	blport->lport = lport;
+	list_add_tail(&blport->list, &hba->vports);
+	spin_unlock_bh(&hba->hba_lock);
+
 	return lport;
 
 shost_err:
 	scsi_remove_host(shost);
 lp_config_err:
 	scsi_host_put(lport->host);
+free_blport:
+	kfree(blport);
 	return NULL;
 }
 
@@ -1348,6 +1364,7 @@ static void bnx2fc_if_destroy(struct fc_lport *lport)
 {
 	struct fcoe_port *port = lport_priv(lport);
 	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_lport *blport, *tmp;
 
 	BNX2FC_HBA_DBG(hba->ctlr.lp, "ENTERED bnx2fc_if_destroy\n");
 	/* Stop the transmit retry timer */
@@ -1371,6 +1388,15 @@ static void bnx2fc_if_destroy(struct fc_lport *lport)
 
 	/* Free memory used by statistical counters */
 	fc_lport_free_stats(lport);
+
+	spin_lock_bh(&hba->hba_lock);
+	list_for_each_entry_safe(blport, tmp, &hba->vports, list) {
+		if (blport->lport == lport) {
+			list_del(&blport->list);
+			kfree(blport);
+		}
+	}
+	spin_unlock_bh(&hba->hba_lock);
 
 	/* Release Scsi_Host */
 	scsi_host_put(lport->host);

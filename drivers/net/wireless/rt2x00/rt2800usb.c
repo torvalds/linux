@@ -477,8 +477,10 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 		while (!rt2x00queue_empty(queue)) {
 			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 
-			if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+			if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
+			    !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
 				break;
+
 			if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
 				rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
 			else if (rt2x00queue_status_timeout(entry))

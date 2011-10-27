@@ -61,6 +61,11 @@
 static void autostart_arrays(int part);
 #endif
 
+/* pers_list is a list of registered personalities protected
+ * by pers_lock.
+ * pers_lock does extra service to protect accesses to
+ * mddev->thread when the mutex cannot be held.
+ */
 static LIST_HEAD(pers_list);
 static DEFINE_SPINLOCK(pers_lock);
 
@@ -690,7 +695,12 @@ static void mddev_unlock(mddev_t * mddev)
 	} else
 		mutex_unlock(&mddev->reconfig_mutex);
 
+	/* was we've dropped the mutex we need a spinlock to
+	 * make sur the thread doesn't disappear
+	 */
+	spin_lock(&pers_lock);
 	md_wakeup_thread(mddev->thread);
+	spin_unlock(&pers_lock);
 }
 
 static mdk_rdev_t * find_rdev_nr(mddev_t *mddev, int nr)
@@ -1084,8 +1094,11 @@ static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version
 			ret = 0;
 	}
 	rdev->sectors = rdev->sb_start;
+	/* Limit to 4TB as metadata cannot record more than that */
+	if (rdev->sectors >= (2ULL << 32))
+		rdev->sectors = (2ULL << 32) - 2;
 
-	if (rdev->sectors < sb->size * 2 && sb->level > 1)
+	if (rdev->sectors < ((sector_t)sb->size) * 2 && sb->level >= 1)
 		/* "this cannot possibly happen" ... */
 		ret = -EINVAL;
 
@@ -1119,7 +1132,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->clevel[0] = 0;
 		mddev->layout = sb->layout;
 		mddev->raid_disks = sb->raid_disks;
-		mddev->dev_sectors = sb->size * 2;
+		mddev->dev_sectors = ((sector_t)sb->size) * 2;
 		mddev->events = ev1;
 		mddev->bitmap_info.offset = 0;
 		mddev->bitmap_info.default_offset = MD_SB_BYTES >> 9;
@@ -1361,6 +1374,11 @@ super_90_rdev_size_change(mdk_rdev_t *rdev, sector_t num_sectors)
 	rdev->sb_start = calc_dev_sboffset(rdev);
 	if (!num_sectors || num_sectors > rdev->sb_start)
 		num_sectors = rdev->sb_start;
+	/* Limit to 4TB as metadata cannot record more than that.
+	 * 4TB == 2^32 KB, or 2*2^32 sectors.
+	 */
+	if (num_sectors >= (2ULL << 32))
+		num_sectors = (2ULL << 32) - 2;
 	md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
 		       rdev->sb_page);
 	md_super_wait(rdev->mddev);
@@ -6178,11 +6196,18 @@ mdk_thread_t *md_register_thread(void (*run) (mddev_t *), mddev_t *mddev,
 	return thread;
 }
 
-void md_unregister_thread(mdk_thread_t *thread)
+void md_unregister_thread(mdk_thread_t **threadp)
 {
+	mdk_thread_t *thread = *threadp;
 	if (!thread)
 		return;
 	dprintk("interrupting MD-thread pid %d\n", task_pid_nr(thread->tsk));
+	/* Locking ensures that mddev_unlock does not wake_up a
+	 * non-existent thread
+	 */
+	spin_lock(&pers_lock);
+	*threadp = NULL;
+	spin_unlock(&pers_lock);
 
 	kthread_stop(thread->tsk);
 	kfree(thread);
@@ -7117,8 +7142,7 @@ static void reap_sync_thread(mddev_t *mddev)
 	mdk_rdev_t *rdev;
 
 	/* resync has finished, collect result */
-	md_unregister_thread(mddev->sync_thread);
-	mddev->sync_thread = NULL;
+	md_unregister_thread(&mddev->sync_thread);
 	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery) &&
 	    !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery)) {
 		/* success...*/

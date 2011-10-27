@@ -277,7 +277,12 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 	case ATOM_ARG_FB:
 		idx = U8(*ptr);
 		(*ptr)++;
-		val = gctx->scratch[((gctx->fb_base + idx) / 4)];
+		if ((gctx->fb_base + (idx * 4)) > gctx->scratch_size_bytes) {
+			DRM_ERROR("ATOM: fb read beyond scratch region: %d vs. %d\n",
+				  gctx->fb_base + (idx * 4), gctx->scratch_size_bytes);
+			val = 0;
+		} else
+			val = gctx->scratch[(gctx->fb_base / 4) + idx];
 		if (print)
 			DEBUG("FB[0x%02X]", idx);
 		break;
@@ -531,7 +536,11 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 	case ATOM_ARG_FB:
 		idx = U8(*ptr);
 		(*ptr)++;
-		gctx->scratch[((gctx->fb_base + idx) / 4)] = val;
+		if ((gctx->fb_base + (idx * 4)) > gctx->scratch_size_bytes) {
+			DRM_ERROR("ATOM: fb write beyond scratch region: %d vs. %d\n",
+				  gctx->fb_base + (idx * 4), gctx->scratch_size_bytes);
+		} else
+			gctx->scratch[(gctx->fb_base / 4) + idx] = val;
 		DEBUG("FB[0x%02X]", idx);
 		break;
 	case ATOM_ARG_PLL:
@@ -1367,11 +1376,13 @@ int atom_allocate_fb_scratch(struct atom_context *ctx)
 
 		usage_bytes = firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb * 1024;
 	}
+	ctx->scratch_size_bytes = 0;
 	if (usage_bytes == 0)
 		usage_bytes = 20 * 1024;
 	/* allocate some scratch memory */
 	ctx->scratch = kzalloc(usage_bytes, GFP_KERNEL);
 	if (!ctx->scratch)
 		return -ENOMEM;
+	ctx->scratch_size_bytes = usage_bytes;
 	return 0;
 }

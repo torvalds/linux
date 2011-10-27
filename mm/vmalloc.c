@@ -732,9 +732,10 @@ static void free_unmap_vmap_area_addr(unsigned long addr)
 #define VMAP_BBMAP_BITS_MIN	(VMAP_MAX_ALLOC*2)
 #define VMAP_MIN(x, y)		((x) < (y) ? (x) : (y)) /* can't use min() */
 #define VMAP_MAX(x, y)		((x) > (y) ? (x) : (y)) /* can't use max() */
-#define VMAP_BBMAP_BITS		VMAP_MIN(VMAP_BBMAP_BITS_MAX,		\
-					VMAP_MAX(VMAP_BBMAP_BITS_MIN,	\
-						VMALLOC_PAGES / NR_CPUS / 16))
+#define VMAP_BBMAP_BITS		\
+		VMAP_MIN(VMAP_BBMAP_BITS_MAX,	\
+		VMAP_MAX(VMAP_BBMAP_BITS_MIN,	\
+			VMALLOC_PAGES / roundup_pow_of_two(NR_CPUS) / 16))
 
 #define VMAP_BLOCK_SIZE		(VMAP_BBMAP_BITS * PAGE_SIZE)
 
@@ -2152,6 +2153,14 @@ struct vm_struct *alloc_vm_area(size_t size)
 		free_vm_area(area);
 		return NULL;
 	}
+
+	/*
+	 * If the allocated address space is passed to a hypercall
+	 * before being used then we cannot rely on a page fault to
+	 * trigger an update of the page tables.  So sync all the page
+	 * tables here.
+	 */
+	vmalloc_sync_all();
 
 	return area;
 }

@@ -801,6 +801,20 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 
 	switch (rdata->rp_state) {
 	case RPORT_ST_INIT:
+		/*
+		 * If received the FLOGI request on RPORT which is INIT state
+		 * (means not transition to FLOGI either fc_rport timeout
+		 * function didn;t trigger or this end hasn;t received
+		 * beacon yet from other end. In that case only, allow RPORT
+		 * state machine to continue, otherwise fall through which
+		 * causes the code to send reject response.
+		 * NOTE; Not checking for FIP->state such as VNMP_UP or
+		 * VNMP_CLAIM because if FIP state is not one of those,
+		 * RPORT wouldn;t have created and 'rport_lookup' would have
+		 * failed anyway in that case.
+		 */
+		if (lport->point_to_multipoint)
+			break;
 	case RPORT_ST_DELETE:
 		mutex_unlock(&rdata->rp_mutex);
 		rjt_data.reason = ELS_RJT_FIP;

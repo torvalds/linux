@@ -208,6 +208,13 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 	int xorigin = 0, yorigin = 0;
 	int w = radeon_crtc->cursor_width;
 
+	if (ASIC_IS_AVIVO(rdev)) {
+		/* avivo cursor are offset into the total surface */
+		x += crtc->x;
+		y += crtc->y;
+	}
+	DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
+
 	if (x < 0)
 		xorigin = -x + 1;
 	if (y < 0)
@@ -220,11 +227,6 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 	if (ASIC_IS_AVIVO(rdev)) {
 		int i = 0;
 		struct drm_crtc *crtc_p;
-
-		/* avivo cursor are offset into the total surface */
-		x += crtc->x;
-		y += crtc->y;
-		DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
 
 		/* avivo cursor image can't end on 128 pixel boundary or
 		 * go past the end of the frame if both crtcs are enabled
