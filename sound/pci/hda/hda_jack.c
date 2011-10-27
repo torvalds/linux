@@ -51,6 +51,24 @@ snd_hda_jack_tbl_get(struct hda_codec *codec, hda_nid_t nid)
 EXPORT_SYMBOL_HDA(snd_hda_jack_tbl_get);
 
 /**
+ * snd_hda_jack_tbl_get_from_tag - query the jack-table entry for the given tag
+ */
+struct hda_jack_tbl *
+snd_hda_jack_tbl_get_from_tag(struct hda_codec *codec, unsigned char tag)
+{
+	struct hda_jack_tbl *jack = codec->jacktbl.list;
+	int i;
+
+	if (!tag || !jack)
+		return NULL;
+	for (i = 0; i < codec->jacktbl.used; i++, jack++)
+		if (jack->tag == tag)
+			return jack;
+	return NULL;
+}
+EXPORT_SYMBOL_HDA(snd_hda_jack_tbl_get_from_tag);
+
+/**
  * snd_hda_jack_tbl_new - create a jack-table entry for the given NID
  */
 struct hda_jack_tbl *
@@ -65,6 +83,7 @@ snd_hda_jack_tbl_new(struct hda_codec *codec, hda_nid_t nid)
 		return NULL;
 	jack->nid = nid;
 	jack->jack_dirty = 1;
+	jack->tag = codec->jacktbl.used;
 	return jack;
 }
 
@@ -77,7 +96,7 @@ void snd_hda_jack_tbl_clear(struct hda_codec *codec)
 static void jack_detect_update(struct hda_codec *codec,
 			       struct hda_jack_tbl *jack)
 {
-	if (jack->jack_dirty || !jack->jack_cachable) {
+	if (jack->jack_dirty || !jack->jack_detect) {
 		unsigned int val = read_pin_sense(codec, jack->nid);
 		jack->jack_dirty = 0;
 		if (val != jack->pin_sense) {
@@ -141,17 +160,19 @@ EXPORT_SYMBOL_HDA(snd_hda_jack_detect);
  * snd_hda_jack_detect_enable - enable the jack-detection
  */
 int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid,
-			       unsigned int tag)
+			       unsigned char action)
 {
 	struct hda_jack_tbl *jack = snd_hda_jack_tbl_new(codec, nid);
 	if (!jack)
 		return -ENOMEM;
-	if (jack->jack_cachable)
+	if (jack->jack_detect)
 		return 0; /* already registered */
-	jack->jack_cachable = 1;
+	jack->jack_detect = 1;
+	if (action)
+		jack->action = action;
 	return snd_hda_codec_write_cache(codec, nid, 0,
 					 AC_VERB_SET_UNSOLICITED_ENABLE,
-					 AC_USRSP_EN | tag);
+					 AC_USRSP_EN | jack->tag);
 }
 EXPORT_SYMBOL_HDA(snd_hda_jack_detect_enable);
 
@@ -166,18 +187,6 @@ static void jack_detect_report(struct hda_codec *codec,
 		jack->need_notify = 0;
 	}
 }
-
-/**
- * snd_hda_jack_report - notify kctl when the jack state was changed
- */
-void snd_hda_jack_report(struct hda_codec *codec, hda_nid_t nid)
-{
-	struct hda_jack_tbl *jack = snd_hda_jack_tbl_get(codec, nid);
-
-	if (jack)
-		jack_detect_report(codec, jack);
-}
-EXPORT_SYMBOL_HDA(snd_hda_jack_report);
 
 /**
  * snd_hda_jack_report_sync - sync the states of all jacks and report if changed
@@ -231,7 +240,7 @@ int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 	struct hda_jack_tbl *jack;
 	struct snd_kcontrol *kctl;
 
-	jack = snd_hda_jack_tbl_get(codec, nid);
+	jack = snd_hda_jack_tbl_new(codec, nid);
 	if (!jack)
 		return 0;
 	if (jack->kctl)
@@ -251,20 +260,28 @@ int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid, int idx,
 			 const struct auto_pin_cfg *cfg)
 {
+	unsigned int def_conf, conn;
+	int err;
+
 	if (!nid)
 		return 0;
 	if (!is_jack_detectable(codec, nid))
 		return 0;
-	return snd_hda_jack_add_kctl(codec, nid,
+	def_conf = snd_hda_codec_get_pincfg(codec, nid);
+	conn = get_defcfg_connect(def_conf);
+	if (conn != AC_JACK_PORT_COMPLEX)
+		return 0;
+
+	err = snd_hda_jack_add_kctl(codec, nid,
 				     snd_hda_get_pin_label(codec, nid, cfg),
 				     idx);
+	if (err < 0)
+		return err;
+	return snd_hda_jack_detect_enable(codec, nid, 0);
 }
 
 /**
  * snd_hda_jack_add_kctls - Add kctls for all pins included in the given pincfg
- *
- * As of now, it assigns only to the pins that enabled the detection.
- * Usually this is called at the end of build_controls callback.
  */
 int snd_hda_jack_add_kctls(struct hda_codec *codec,
 			   const struct auto_pin_cfg *cfg)

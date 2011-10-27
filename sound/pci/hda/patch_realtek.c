@@ -185,6 +185,7 @@ struct alc_spec {
 	unsigned int vol_in_capsrc:1; /* use capsrc volume (ADC has no vol) */
 	unsigned int parse_flags; /* passed to snd_hda_parse_pin_defcfg() */
 	unsigned int shared_mic_hp:1; /* HP/Mic-in sharing */
+	unsigned int use_jack_tbl:1; /* 1 for model=auto */
 
 	/* auto-mute control */
 	int automute_mode;
@@ -661,11 +662,13 @@ static void alc_mic_automute(struct hda_codec *codec)
 /* unsolicited event for HP jack sensing */
 static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
 {
+	struct alc_spec *spec = codec->spec;
 	if (codec->vendor_id == 0x10ec0880)
 		res >>= 28;
 	else
 		res >>= 26;
-	snd_hda_jack_set_dirty_all(codec); /* FIXME: to be more fine-grained */
+	if (spec->use_jack_tbl)
+		res = snd_hda_jack_get_action(codec, res);
 	switch (res) {
 	case ALC_HP_EVENT:
 		alc_hp_automute(codec);
@@ -3896,6 +3899,7 @@ static void set_capture_mixer(struct hda_codec *codec)
 static void alc_auto_init_std(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	spec->use_jack_tbl = 1;
 	alc_auto_init_multi_out(codec);
 	alc_auto_init_extra_out(codec);
 	alc_auto_init_analog_input(codec);

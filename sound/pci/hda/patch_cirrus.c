@@ -1235,9 +1235,7 @@ static void cs_free(struct hda_codec *codec)
 
 static void cs_unsol_event(struct hda_codec *codec, unsigned int res)
 {
-	snd_hda_jack_set_dirty_all(codec); /* FIXME: to be more fine-grained */
-
-	switch ((res >> 26) & 0x7f) {
+	switch (snd_hda_jack_get_action(codec, res >> 26)) {
 	case HP_EVENT:
 		cs_automute(codec);
 		break;
@@ -1824,9 +1822,7 @@ static int cs421x_build_controls(struct hda_codec *codec)
 
 static void cs421x_unsol_event(struct hda_codec *codec, unsigned int res)
 {
-	snd_hda_jack_set_dirty_all(codec); /* FIXME: to be more fine-grained */
-
-	switch ((res >> 26) & 0x3f) {
+	switch (snd_hda_jack_get_action(codec, res >> 26)) {
 	case HP_EVENT:
 	case SPDIF_EVENT:
 		cs_automute(codec);

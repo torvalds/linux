@@ -177,13 +177,6 @@ enum {
 	STAC_9872_MODELS
 };
 
-struct sigmatel_event {
-	hda_nid_t nid;
-	unsigned char type;
-	unsigned char tag;
-	int data;
-};
-
 struct sigmatel_mic_route {
 	hda_nid_t pin;
 	signed char mux_idx;
@@ -230,9 +223,6 @@ struct sigmatel_spec {
 	unsigned int num_pwrs;
 	const hda_nid_t *pwr_nids;
 	const hda_nid_t *dac_list;
-
-	/* events */
-	struct snd_array events;
 
 	/* playback */
 	struct hda_input_mux *mono_mux;
@@ -4182,49 +4172,18 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 #endif /* CONFIG_SND_HDA_INPUT_JACK */
 }
 
-static int stac_add_event(struct sigmatel_spec *spec, hda_nid_t nid,
+static int stac_add_event(struct hda_codec *codec, hda_nid_t nid,
 			  unsigned char type, int data)
 {
-	struct sigmatel_event *event;
+	struct hda_jack_tbl *event;
 
-	snd_array_init(&spec->events, sizeof(*event), 32);
-	event = snd_array_new(&spec->events);
+	event = snd_hda_jack_tbl_new(codec, nid);
 	if (!event)
 		return -ENOMEM;
-	event->nid = nid;
-	event->type = type;
-	event->tag = spec->events.used;
-	event->data = data;
+	event->action = type;
+	event->private_data = data;
 
-	return event->tag;
-}
-
-static struct sigmatel_event *stac_get_event(struct hda_codec *codec,
-					     hda_nid_t nid)
-{
-	struct sigmatel_spec *spec = codec->spec;
-	struct sigmatel_event *event = spec->events.list;
-	int i;
-
-	for (i = 0; i < spec->events.used; i++, event++) {
-		if (event->nid == nid)
-			return event;
-	}
-	return NULL;
-}
-
-static struct sigmatel_event *stac_get_event_from_tag(struct hda_codec *codec,
-						      unsigned char tag)
-{
-	struct sigmatel_spec *spec = codec->spec;
-	struct sigmatel_event *event = spec->events.list;
-	int i;
-
-	for (i = 0; i < spec->events.used; i++, event++) {
-		if (event->tag == tag)
-			return event;
-	}
-	return NULL;
+	return 0;
 }
 
 /* check if given nid is a valid pin and no other events are assigned
@@ -4234,22 +4193,17 @@ static struct sigmatel_event *stac_get_event_from_tag(struct hda_codec *codec,
 static int enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
 			     unsigned int type)
 {
-	struct sigmatel_event *event;
-	int tag;
+	struct hda_jack_tbl *event;
 
 	if (!is_jack_detectable(codec, nid))
 		return 0;
-	event = stac_get_event(codec, nid);
-	if (event) {
-		if (event->type != type)
-			return 0;
-		tag = event->tag;
-	} else {
-		tag = stac_add_event(codec->spec, nid, type, 0);
-		if (tag < 0)
-			return 0;
-	}
-	snd_hda_jack_detect_enable(codec, nid, tag);
+	event = snd_hda_jack_tbl_new(codec, nid);
+	if (!event)
+		return -ENOMEM;
+	if (event->action && event->action != type)
+		return 0;
+	event->action = type;
+	snd_hda_jack_detect_enable(codec, nid, 0);
 	return 1;
 }
 
@@ -4536,7 +4490,6 @@ static void stac92xx_free(struct hda_codec *codec)
 
 	stac92xx_shutup(codec);
 	snd_hda_input_jack_free(codec);
-	snd_array_free(&spec->events);
 
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
@@ -4801,12 +4754,12 @@ static void stac92xx_mic_detect(struct hda_codec *codec)
 }
 
 static void handle_unsol_event(struct hda_codec *codec,
-			       struct sigmatel_event *event)
+			       struct hda_jack_tbl *event)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	int data;
 
-	switch (event->type) {
+	switch (event->action) {
 	case STAC_HP_EVENT:
 	case STAC_LO_EVENT:
 		stac92xx_hp_detect(codec);
@@ -4816,7 +4769,7 @@ static void handle_unsol_event(struct hda_codec *codec,
 		break;
 	}
 
-	switch (event->type) {
+	switch (event->action) {
 	case STAC_HP_EVENT:
 	case STAC_LO_EVENT:
 	case STAC_MIC_EVENT:
@@ -4849,14 +4802,14 @@ static void handle_unsol_event(struct hda_codec *codec,
 					  AC_VERB_GET_GPIO_DATA, 0);
 		/* toggle VREF state based on GPIOx status */
 		snd_hda_codec_write(codec, codec->afg, 0, 0x7e0,
-				    !!(data & (1 << event->data)));
+				    !!(data & (1 << event->private_data)));
 		break;
 	}
 }
 
 static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid)
 {
-	struct sigmatel_event *event = stac_get_event(codec, nid);
+	struct hda_jack_tbl *event = snd_hda_jack_tbl_get(codec, nid);
 	if (!event)
 		return;
 	handle_unsol_event(codec, event);
@@ -4864,15 +4817,14 @@ static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid)
 
 static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 {
-	struct sigmatel_spec *spec = codec->spec;
-	struct sigmatel_event *event;
+	struct hda_jack_tbl *event;
 	int tag;
 
 	tag = (res >> 26) & 0x7f;
-	event = stac_get_event_from_tag(codec, tag);
+	event = snd_hda_jack_tbl_get_from_tag(codec, tag);
 	if (!event)
 		return;
-	snd_hda_jack_set_dirty(codec, event->nid);
+	event->jack_dirty = 1;
 	handle_unsol_event(codec, event);
 	snd_hda_jack_report_sync(codec);
 }
@@ -5857,15 +5809,13 @@ again:
 		switch (spec->board_config) {
 		case STAC_HP_M4:
 			/* Enable VREF power saving on GPIO1 detect */
-			err = stac_add_event(spec, codec->afg,
+			err = stac_add_event(codec, codec->afg,
 					     STAC_VREF_EVENT, 0x02);
 			if (err < 0)
 				return err;
 			snd_hda_codec_write_cache(codec, codec->afg, 0,
 				AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x02);
-			snd_hda_codec_write_cache(codec, codec->afg, 0,
-				AC_VERB_SET_UNSOLICITED_ENABLE,
-				AC_USRSP_EN | err);
+			snd_hda_jack_detect_enable(codec, codec->afg, 0);
 			spec->gpio_mask |= 0x02;
 			break;
 		}
@@ -6338,14 +6288,12 @@ static int patch_stac9205(struct hda_codec *codec)
 		snd_hda_codec_set_pincfg(codec, 0x20, 0x1c410030);
 
 		/* Enable unsol response for GPIO4/Dock HP connection */
-		err = stac_add_event(spec, codec->afg, STAC_VREF_EVENT, 0x01);
+		err = stac_add_event(codec, codec->afg, STAC_VREF_EVENT, 0x01);
 		if (err < 0)
 			return err;
 		snd_hda_codec_write_cache(codec, codec->afg, 0,
 			AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x10);
-		snd_hda_codec_write_cache(codec, codec->afg, 0,
-					  AC_VERB_SET_UNSOLICITED_ENABLE,
-					  AC_USRSP_EN | err);
+		snd_hda_jack_detect_enable(codec, codec->afg, 0);
 
 		spec->gpio_dir = 0x0b;
 		spec->eapd_mask = 0x01;

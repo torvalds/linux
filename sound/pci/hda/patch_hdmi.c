@@ -754,10 +754,18 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, bool retry);
 static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 {
 	struct hdmi_spec *spec = codec->spec;
-	int pin_nid = res >> AC_UNSOL_RES_TAG_SHIFT;
+	int tag = res >> AC_UNSOL_RES_TAG_SHIFT;
+	int pin_nid;
 	int pd = !!(res & AC_UNSOL_RES_PD);
 	int eldv = !!(res & AC_UNSOL_RES_ELDV);
 	int pin_idx;
+	struct hda_jack_tbl *jack;
+
+	jack = snd_hda_jack_tbl_get_from_tag(codec, tag);
+	if (!jack)
+		return;
+	pin_nid = jack->nid;
+	jack->jack_dirty = 1;
 
 	printk(KERN_INFO
 		"HDMI hot plug event: Codec=%d Pin=%d Presence_Detect=%d ELD_Valid=%d\n",
@@ -767,7 +775,6 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	if (pin_idx < 0)
 		return;
 
-	snd_hda_jack_set_dirty(codec, pin_nid);
 	hdmi_present_sense(&spec->pins[pin_idx], true);
 	snd_hda_jack_report_sync(codec);
 }
@@ -801,7 +808,7 @@ static void hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
 	int tag = res >> AC_UNSOL_RES_TAG_SHIFT;
 	int subtag = (res & AC_UNSOL_RES_SUBTAG) >> AC_UNSOL_RES_SUBTAG_SHIFT;
 
-	if (pin_nid_to_pin_index(spec, tag) < 0) {
+	if (!snd_hda_jack_tbl_get_from_tag(codec, tag)) {
 		snd_printd(KERN_INFO "Unexpected HDMI event tag 0x%x\n", tag);
 		return;
 	}

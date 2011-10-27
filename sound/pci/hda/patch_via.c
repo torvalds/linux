@@ -1714,9 +1714,8 @@ static void via_gpio_control(struct hda_codec *codec)
 static void via_unsol_event(struct hda_codec *codec,
 				  unsigned int res)
 {
-	snd_hda_jack_set_dirty_all(codec); /* FIXME: to be more fine-grained */
-
 	res >>= 26;
+	res = snd_hda_jack_get_action(codec, res);
 
 	if (res & VIA_JACK_EVENT)
 		set_widgets_power_state(codec);

@@ -3757,8 +3757,8 @@ static void cx_auto_automic(struct hda_codec *codec)
 static void cx_auto_unsol_event(struct hda_codec *codec, unsigned int res)
 {
 	int nid = (res & AC_UNSOL_RES_SUBTAG) >> 20;
-	snd_hda_jack_set_dirty(codec, nid);
-	switch (res >> 26) {
+
+	switch (snd_hda_jack_get_action(codec, res >> 26)) {
 	case CONEXANT_HP_EVENT:
 		cx_auto_hp_automute(codec);
 		break;
@@ -3982,11 +3982,11 @@ static void mute_outputs(struct hda_codec *codec, int num_nids,
 }
 
 static void enable_unsol_pins(struct hda_codec *codec, int num_pins,
-			      hda_nid_t *pins, unsigned int tag)
+			      hda_nid_t *pins, unsigned int action)
 {
 	int i;
 	for (i = 0; i < num_pins; i++)
-		snd_hda_jack_detect_enable(codec, pins[i], tag);
+		snd_hda_jack_detect_enable(codec, pins[i], action);
 }
 
 static void cx_auto_init_output(struct hda_codec *codec)
