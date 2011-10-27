@@ -48,7 +48,7 @@
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 #include <net/slhc_vj.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>

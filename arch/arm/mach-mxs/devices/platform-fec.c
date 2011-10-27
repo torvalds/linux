@@ -6,6 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
+#include <linux/dma-mapping.h>
 #include <asm/sizes.h>
 #include <mach/mx28.h>
 #include <mach/devices-common.h>

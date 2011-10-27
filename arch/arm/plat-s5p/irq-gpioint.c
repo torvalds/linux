@@ -152,7 +152,7 @@ static __init int s5p_gpioint_add(struct s3c_gpio_chip *chip)
 	if (!gc)
 		return -ENOMEM;
 	ct = gc->chip_types;
-	ct->chip.irq_ack = irq_gc_ack;
+	ct->chip.irq_ack = irq_gc_ack_set_bit;
 	ct->chip.irq_mask = irq_gc_mask_set_bit;
 	ct->chip.irq_unmask = irq_gc_mask_clr_bit;
 	ct->chip.irq_set_type = s5p_gpioint_set_type,

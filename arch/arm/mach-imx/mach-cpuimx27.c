@@ -250,6 +250,8 @@ __setup("otg_mode=", eukrea_cpuimx27_otg_mode);
 
 static void __init eukrea_cpuimx27_init(void)
 {
+	imx27_soc_init();
+
 	mxc_gpio_setup_multiple_pins(eukrea_cpuimx27_pins,
 		ARRAY_SIZE(eukrea_cpuimx27_pins), "CPUIMX27");
 

@@ -1524,17 +1524,11 @@ static int happy_meal_init(struct happy_meal *hp)
 	} else if ((hp->dev->flags & IFF_PROMISC) == 0) {
 		u16 hash_table[4];
 		struct netdev_hw_addr *ha;
-		char *addrs;
 		u32 crc;
 
 		memset(hash_table, 0, sizeof(hash_table));
 		netdev_for_each_mc_addr(ha, hp->dev) {
-			addrs = ha->addr;
-
-			if (!(*addrs & 1))
-				continue;
-
-			crc = ether_crc_le(6, addrs);
+			crc = ether_crc_le(6, ha->addr);
 			crc >>= 26;
 			hash_table[crc >> 4] |= 1 << (crc & 0xf);
 		}
@@ -2361,7 +2355,6 @@ static void happy_meal_set_multicast(struct net_device *dev)
 	struct happy_meal *hp = netdev_priv(dev);
 	void __iomem *bregs = hp->bigmacregs;
 	struct netdev_hw_addr *ha;
-	char *addrs;
 	u32 crc;
 
 	spin_lock_irq(&hp->happy_lock);
@@ -2379,12 +2372,7 @@ static void happy_meal_set_multicast(struct net_device *dev)
 
 		memset(hash_table, 0, sizeof(hash_table));
 		netdev_for_each_mc_addr(ha, dev) {
-			addrs = ha->addr;
-
-			if (!(*addrs & 1))
-				continue;
-
-			crc = ether_crc_le(6, addrs);
+			crc = ether_crc_le(6, ha->addr);
 			crc >>= 26;
 			hash_table[crc >> 4] |= 1 << (crc & 0xf);
 		}

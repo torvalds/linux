@@ -1947,7 +1947,6 @@ static int __devinit lanai_pci_start(struct lanai_dev *lanai)
 {
 	struct pci_dev *pci = lanai->pci;
 	int result;
-	u16 w;
 
 	if (pci_enable_device(pci) != 0) {
 		printk(KERN_ERR DEV_LABEL "(itf %d): can't enable "
@@ -1965,13 +1964,7 @@ static int __devinit lanai_pci_start(struct lanai_dev *lanai)
 		    "(itf %d): No suitable DMA available.\n", lanai->number);
 		return -EBUSY;
 	}
-	result = pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &w);
-	if (result != PCIBIOS_SUCCESSFUL) {
-		printk(KERN_ERR DEV_LABEL "(itf %d): can't read "
-		    "PCI_SUBSYSTEM_ID: %d\n", lanai->number, result);
-		return -EINVAL;
-	}
-	result = check_board_id_and_rev("PCI", w, NULL);
+	result = check_board_id_and_rev("PCI", pci->subsystem_device, NULL);
 	if (result != 0)
 		return result;
 	/* Set latency timer to zero as per lanai docs */

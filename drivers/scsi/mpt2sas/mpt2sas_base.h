@@ -69,11 +69,11 @@
 #define MPT2SAS_DRIVER_NAME		"mpt2sas"
 #define MPT2SAS_AUTHOR	"LSI Corporation <DL-MPTFusionLinux@lsi.com>"
 #define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
-#define MPT2SAS_DRIVER_VERSION		"08.100.00.02"
-#define MPT2SAS_MAJOR_VERSION		08
+#define MPT2SAS_DRIVER_VERSION		"09.100.00.00"
+#define MPT2SAS_MAJOR_VERSION		09
 #define MPT2SAS_MINOR_VERSION		100
 #define MPT2SAS_BUILD_VERSION		00
-#define MPT2SAS_RELEASE_VERSION		02
+#define MPT2SAS_RELEASE_VERSION		00
 
 /*
  * Set MPT2SAS_SG_DEPTH value based on user input.
@@ -161,12 +161,15 @@
 				"Intel Integrated RAID Module RMS2LL080"
 #define MPT2SAS_INTEL_RMS2LL040_BRANDING	\
 				"Intel Integrated RAID Module RMS2LL040"
+#define MPT2SAS_INTEL_RS25GB008_BRANDING       \
+				"Intel(R) RAID Controller RS25GB008"
 
 /*
  * Intel HBA SSDIDs
  */
 #define MPT2SAS_INTEL_RMS2LL080_SSDID          0x350E
 #define MPT2SAS_INTEL_RMS2LL040_SSDID          0x350F
+#define MPT2SAS_INTEL_RS25GB008_SSDID          0x3000
 
 
 /*
@@ -541,6 +544,63 @@ struct _tr_list {
 
 typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
 
+/* IOC Facts and Port Facts converted from little endian to cpu */
+union mpi2_version_union {
+	MPI2_VERSION_STRUCT		Struct;
+	u32				Word;
+};
+
+struct mpt2sas_facts {
+	u16			MsgVersion;
+	u16			HeaderVersion;
+	u8			IOCNumber;
+	u8			VP_ID;
+	u8			VF_ID;
+	u16			IOCExceptions;
+	u16			IOCStatus;
+	u32			IOCLogInfo;
+	u8			MaxChainDepth;
+	u8			WhoInit;
+	u8			NumberOfPorts;
+	u8			MaxMSIxVectors;
+	u16			RequestCredit;
+	u16			ProductID;
+	u32			IOCCapabilities;
+	union mpi2_version_union	FWVersion;
+	u16			IOCRequestFrameSize;
+	u16			Reserved3;
+	u16			MaxInitiators;
+	u16			MaxTargets;
+	u16			MaxSasExpanders;
+	u16			MaxEnclosures;
+	u16			ProtocolFlags;
+	u16			HighPriorityCredit;
+	u16			MaxReplyDescriptorPostQueueDepth;
+	u8			ReplyFrameSize;
+	u8			MaxVolumes;
+	u16			MaxDevHandle;
+	u16			MaxPersistentEntries;
+	u16			MinDevHandle;
+};
+
+struct mpt2sas_port_facts {
+	u8			PortNumber;
+	u8			VP_ID;
+	u8			VF_ID;
+	u8			PortType;
+	u16			MaxPostedCmdBuffers;
+};
+
+/**
+ * enum mutex_type - task management mutex type
+ * @TM_MUTEX_OFF: mutex is not required becuase calling function is acquiring it
+ * @TM_MUTEX_ON: mutex is required
+ */
+enum mutex_type {
+	TM_MUTEX_OFF = 0,
+	TM_MUTEX_ON = 1,
+};
+
 /**
  * struct MPT2SAS_ADAPTER - per adapter struct
  * @list: ioc_list
@@ -703,6 +763,7 @@ struct MPT2SAS_ADAPTER {
 	 /* misc flags */
 	int		aen_event_read_flag;
 	u8		broadcast_aen_busy;
+	u16		broadcast_aen_pending;
 	u8		shost_recovery;
 
 	struct mutex	reset_in_progress_mutex;
@@ -749,8 +810,8 @@ struct MPT2SAS_ADAPTER {
 	u32		event_masks[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];
 
 	/* static config pages */
-	Mpi2IOCFactsReply_t facts;
-	Mpi2PortFactsReply_t *pfacts;
+	struct mpt2sas_facts facts;
+	struct mpt2sas_port_facts *pfacts;
 	Mpi2ManufacturingPage0_t manu_pg0;
 	Mpi2BiosPage2_t	bios_pg2;
 	Mpi2BiosPage3_t	bios_pg3;
@@ -840,7 +901,7 @@ struct MPT2SAS_ADAPTER {
 
 	/* reply free queue */
 	u16 		reply_free_queue_depth;
-	u32		*reply_free;
+	__le32		*reply_free;
 	dma_addr_t	reply_free_dma;
 	struct dma_pool *reply_free_dma_pool;
 	u32		reply_free_host_index;
@@ -932,8 +993,8 @@ void mpt2sas_halt_firmware(struct MPT2SAS_ADAPTER *ioc);
 u8 mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
     u32 reply);
 int mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle,
-    uint channel, uint id, uint lun, u8 type, u16 smid_task,
-    ulong timeout, struct scsi_cmnd *scmd);
+	uint channel, uint id, uint lun, u8 type, u16 smid_task,
+	ulong timeout, unsigned long serial_number, enum mutex_type m_type);
 void mpt2sas_scsih_set_tm_flag(struct MPT2SAS_ADAPTER *ioc, u16 handle);
 void mpt2sas_scsih_clear_tm_flag(struct MPT2SAS_ADAPTER *ioc, u16 handle);
 void mpt2sas_expander_remove(struct MPT2SAS_ADAPTER *ioc, u64 sas_address);

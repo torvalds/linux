@@ -86,18 +86,63 @@ static struct dentry *v9fs_dentry_from_dir_inode(struct inode *inode)
 	return dentry;
 }
 
+static int v9fs_test_inode_dotl(struct inode *inode, void *data)
+{
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct p9_stat_dotl *st = (struct p9_stat_dotl *)data;
+
+	/* don't match inode of different type */
+	if ((inode->i_mode & S_IFMT) != (st->st_mode & S_IFMT))
+		return 0;
+
+	if (inode->i_generation != st->st_gen)
+		return 0;
+
+	/* compare qid details */
+	if (memcmp(&v9inode->qid.version,
+		   &st->qid.version, sizeof(v9inode->qid.version)))
+		return 0;
+
+	if (v9inode->qid.type != st->qid.type)
+		return 0;
+	return 1;
+}
+
+/* Always get a new inode */
+static int v9fs_test_new_inode_dotl(struct inode *inode, void *data)
+{
+	return 0;
+}
+
+static int v9fs_set_inode_dotl(struct inode *inode,  void *data)
+{
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct p9_stat_dotl *st = (struct p9_stat_dotl *)data;
+
+	memcpy(&v9inode->qid, &st->qid, sizeof(st->qid));
+	inode->i_generation = st->st_gen;
+	return 0;
+}
+
 static struct inode *v9fs_qid_iget_dotl(struct super_block *sb,
 					struct p9_qid *qid,
 					struct p9_fid *fid,
-					struct p9_stat_dotl *st)
+					struct p9_stat_dotl *st,
+					int new)
 {
 	int retval;
 	unsigned long i_ino;
 	struct inode *inode;
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
+	int (*test)(struct inode *, void *);
+
+	if (new)
+		test = v9fs_test_new_inode_dotl;
+	else
+		test = v9fs_test_inode_dotl;
 
 	i_ino = v9fs_qid2ino(qid);
-	inode = iget_locked(sb, i_ino);
+	inode = iget5_locked(sb, i_ino, test, v9fs_set_inode_dotl, st);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	if (!(inode->i_state & I_NEW))
@@ -107,13 +152,13 @@ static struct inode *v9fs_qid_iget_dotl(struct super_block *sb,
 	 * FIXME!! we may need support for stale inodes
 	 * later.
 	 */
+	inode->i_ino = i_ino;
 	retval = v9fs_init_inode(v9ses, inode, st->st_mode);
 	if (retval)
 		goto error;
 
 	v9fs_stat2inode_dotl(st, inode);
 #ifdef CONFIG_9P_FSCACHE
-	v9fs_fscache_set_key(inode, &st->qid);
 	v9fs_cache_inode_get_cookie(inode);
 #endif
 	retval = v9fs_get_acl(inode, fid);
@@ -131,16 +176,16 @@ error:
 
 struct inode *
 v9fs_inode_from_fid_dotl(struct v9fs_session_info *v9ses, struct p9_fid *fid,
-			 struct super_block *sb)
+			 struct super_block *sb, int new)
 {
 	struct p9_stat_dotl *st;
 	struct inode *inode = NULL;
 
-	st = p9_client_getattr_dotl(fid, P9_STATS_BASIC);
+	st = p9_client_getattr_dotl(fid, P9_STATS_BASIC | P9_STATS_GEN);
 	if (IS_ERR(st))
 		return ERR_CAST(st);
 
-	inode = v9fs_qid_iget_dotl(sb, &st->qid, fid, st);
+	inode = v9fs_qid_iget_dotl(sb, &st->qid, fid, st, new);
 	kfree(st);
 	return inode;
 }
@@ -161,7 +206,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	int err = 0;
 	gid_t gid;
 	int flags;
-	mode_t mode;
+	umode_t mode;
 	char *name = NULL;
 	struct file *filp;
 	struct p9_qid qid;
@@ -173,8 +218,8 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	struct posix_acl *pacl = NULL, *dacl = NULL;
 
 	v9ses = v9fs_inode2v9ses(dir);
-	if (nd && nd->flags & LOOKUP_OPEN)
-		flags = nd->intent.open.flags - 1;
+	if (nd)
+		flags = nd->intent.open.flags;
 	else {
 		/*
 		 * create call without LOOKUP_OPEN is due
@@ -230,7 +275,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 		fid = NULL;
 		goto error;
 	}
-	inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+	inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n", err);
@@ -242,7 +287,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 		goto error;
 
 	/* Now set the ACL based on the default value */
-	v9fs_set_create_acl(dentry, dacl, pacl);
+	v9fs_set_create_acl(dentry, &dacl, &pacl);
 
 	v9inode = V9FS_I(inode);
 	mutex_lock(&v9inode->v_mutex);
@@ -283,6 +328,7 @@ error:
 err_clunk_old_fid:
 	if (ofid)
 		p9_client_clunk(ofid);
+	v9fs_set_create_acl(NULL, &dacl, &pacl);
 	return err;
 }
 
@@ -302,7 +348,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 	struct p9_fid *fid = NULL, *dfid = NULL;
 	gid_t gid;
 	char *name;
-	mode_t mode;
+	umode_t mode;
 	struct inode *inode;
 	struct p9_qid qid;
 	struct dentry *dir_dentry;
@@ -350,7 +396,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 			goto error;
 		}
 
-		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n",
@@ -376,12 +422,13 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 		d_instantiate(dentry, inode);
 	}
 	/* Now set the ACL based on the default value */
-	v9fs_set_create_acl(dentry, dacl, pacl);
+	v9fs_set_create_acl(dentry, &dacl, &pacl);
 	inc_nlink(dir);
 	v9fs_invalidate_inode_attr(dir);
 error:
 	if (fid)
 		p9_client_clunk(fid);
+	v9fs_set_create_acl(NULL, &dacl, &pacl);
 	return err;
 }
 
@@ -547,7 +594,7 @@ v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode)
 			inode->i_blocks = stat->st_blocks;
 	}
 	if (stat->st_result_mask & P9_STATS_GEN)
-			inode->i_generation = stat->st_gen;
+		inode->i_generation = stat->st_gen;
 
 	/* Currently we don't support P9_STATS_BTIME and P9_STATS_DATA_VERSION
 	 * because the inode structure does not have fields for them.
@@ -603,7 +650,7 @@ v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
 		}
 
 		/* instantiate inode and assign the unopened fid to dentry */
-		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n",
@@ -704,7 +751,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	int err;
 	gid_t gid;
 	char *name;
-	mode_t mode;
+	umode_t mode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid = NULL, *dfid = NULL;
 	struct inode *inode;
@@ -756,7 +803,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
 			goto error;
 		}
 
-		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n",
@@ -781,10 +828,11 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
 		d_instantiate(dentry, inode);
 	}
 	/* Now set the ACL based on the default value */
-	v9fs_set_create_acl(dentry, dacl, pacl);
+	v9fs_set_create_acl(dentry, &dacl, &pacl);
 error:
 	if (fid)
 		p9_client_clunk(fid);
+	v9fs_set_create_acl(NULL, &dacl, &pacl);
 	return err;
 }
 
@@ -869,7 +917,7 @@ const struct inode_operations v9fs_dir_inode_operations_dotl = {
 	.getxattr = generic_getxattr,
 	.removexattr = generic_removexattr,
 	.listxattr = v9fs_listxattr,
-	.check_acl = v9fs_check_acl,
+	.get_acl = v9fs_iop_get_acl,
 };
 
 const struct inode_operations v9fs_file_inode_operations_dotl = {
@@ -879,7 +927,7 @@ const struct inode_operations v9fs_file_inode_operations_dotl = {
 	.getxattr = generic_getxattr,
 	.removexattr = generic_removexattr,
 	.listxattr = v9fs_listxattr,
-	.check_acl = v9fs_check_acl,
+	.get_acl = v9fs_iop_get_acl,
 };
 
 const struct inode_operations v9fs_symlink_inode_operations_dotl = {

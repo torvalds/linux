@@ -136,22 +136,12 @@ static int viper_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 	return 0;
 }
 
-static void viper_pcmcia_socket_init(struct soc_pcmcia_socket *skt)
-{
-}
-
-static void viper_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
-{
-}
-
 static struct pcmcia_low_level viper_pcmcia_ops = {
 	.owner          	= THIS_MODULE,
 	.hw_init        	= viper_pcmcia_hw_init,
 	.hw_shutdown		= viper_pcmcia_hw_shutdown,
 	.socket_state		= viper_pcmcia_socket_state,
 	.configure_socket	= viper_pcmcia_configure_socket,
-	.socket_init		= viper_pcmcia_socket_init,
-	.socket_suspend		= viper_pcmcia_socket_suspend,
 	.nr         		= 1,
 };
 

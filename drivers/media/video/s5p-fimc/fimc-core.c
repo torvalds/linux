@@ -1,9 +1,8 @@
 /*
- * S5P camera interface (video postprocessor) driver
+ * Samsung S5P/EXYNOS4 SoC series camera interface (video postprocessor) driver
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd
- *
- * Sylwester Nawrocki, <s.nawrocki@samsung.com>
+ * Copyright (C) 2010-2011 Samsung Electronics Co., Ltd.
+ * Contact: Sylwester Nawrocki, <s.nawrocki@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published
@@ -13,7 +12,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/bug.h>
@@ -42,7 +40,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.color		= S5P_FIMC_RGB565,
 		.memplanes	= 1,
 		.colplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_RGB565_2X8_BE,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
 		.name		= "BGR666",
@@ -232,11 +229,7 @@ static int fimc_get_scaler_factor(u32 src, u32 tar, u32 *ratio, u32 *shift)
 			return 0;
 		}
 	}
-
 	*shift = 0, *ratio = 1;
-
-	dbg("s: %d, t: %d, shift: %d, ratio: %d",
-	    src, tar, *shift, *ratio);
 	return 0;
 }
 
@@ -268,10 +261,8 @@ int fimc_set_scaler_info(struct fimc_ctx *ctx)
 		err("invalid source size: %d x %d", sx, sy);
 		return -EINVAL;
 	}
-
 	sc->real_width = sx;
 	sc->real_height = sy;
-	dbg("sx= %d, sy= %d, tx= %d, ty= %d", sx, sy, tx, ty);
 
 	ret = fimc_get_scaler_factor(sx, tx, &sc->pre_hratio, &sc->hfactor);
 	if (ret)
@@ -711,22 +702,18 @@ static int fimc_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 	f = ctx_get_frame(ctx, vq->type);
 	if (IS_ERR(f))
 		return PTR_ERR(f);
-
 	/*
 	 * Return number of non-contigous planes (plane buffers)
 	 * depending on the configured color format.
 	 */
-	if (f->fmt)
-		*num_planes = f->fmt->memplanes;
+	if (!f->fmt)
+		return -EINVAL;
 
+	*num_planes = f->fmt->memplanes;
 	for (i = 0; i < f->fmt->memplanes; i++) {
-		sizes[i] = (f->width * f->height * f->fmt->depth[i]) >> 3;
+		sizes[i] = (f->f_width * f->f_height * f->fmt->depth[i]) / 8;
 		allocators[i] = ctx->fimc_dev->alloc_ctx;
 	}
-
-	if (*num_buffers == 0)
-		*num_buffers = 1;
-
 	return 0;
 }
 
@@ -786,7 +773,6 @@ static int fimc_m2m_querycap(struct file *file, void *priv,
 	strncpy(cap->driver, fimc->pdev->name, sizeof(cap->driver) - 1);
 	strncpy(cap->card, fimc->pdev->name, sizeof(cap->card) - 1);
 	cap->bus_info[0] = 0;
-	cap->version = KERNEL_VERSION(1, 0, 0);
 	cap->capabilities = V4L2_CAP_STREAMING |
 		V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT |
 		V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_VIDEO_OUTPUT_MPLANE;
@@ -852,7 +838,7 @@ struct fimc_fmt *find_format(struct v4l2_format *f, unsigned int mask)
 
 	for (i = 0; i < ARRAY_SIZE(fimc_formats); ++i) {
 		fmt = &fimc_formats[i];
-		if (fmt->fourcc == f->fmt.pix.pixelformat &&
+		if (fmt->fourcc == f->fmt.pix_mp.pixelformat &&
 		   (fmt->flags & mask))
 			break;
 	}
@@ -1949,3 +1935,4 @@ module_exit(fimc_exit);
 MODULE_AUTHOR("Sylwester Nawrocki <s.nawrocki@samsung.com>");
 MODULE_DESCRIPTION("S5P FIMC camera host interface/video postprocessor driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("1.0.1");

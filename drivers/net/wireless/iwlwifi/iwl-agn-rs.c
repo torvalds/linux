@@ -336,6 +336,12 @@ static u8 rs_tl_add_packet(struct iwl_lq_sta *lq_data,
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
+/**
+ * Program the device to use fixed rate for frame transmit
+ * This is for debugging/testing only
+ * once the device start use fixed rate, we need to reload the module
+ * to being back the normal operation.
+ */
 static void rs_program_fix_rate(struct iwl_priv *priv,
 				struct iwl_lq_sta *lq_sta)
 {
@@ -348,13 +354,17 @@ static void rs_program_fix_rate(struct iwl_priv *priv,
 	lq_sta->active_mimo2_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
 	lq_sta->active_mimo3_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
 
-	lq_sta->dbg_fixed_rate = priv->dbg_fixed_rate;
+#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+	/* testmode has higher priority to overwirte the fixed rate */
+	if (priv->tm_fixed_rate)
+		lq_sta->dbg_fixed_rate = priv->tm_fixed_rate;
+#endif
 
 	IWL_DEBUG_RATE(priv, "sta_id %d rate 0x%X\n",
-		lq_sta->lq.sta_id, priv->dbg_fixed_rate);
+		lq_sta->lq.sta_id, lq_sta->dbg_fixed_rate);
 
-	if (priv->dbg_fixed_rate) {
-		rs_fill_link_cmd(NULL, lq_sta, priv->dbg_fixed_rate);
+	if (lq_sta->dbg_fixed_rate) {
+		rs_fill_link_cmd(NULL, lq_sta, lq_sta->dbg_fixed_rate);
 		iwl_send_lq_cmd(lq_sta->drv, ctx, &lq_sta->lq, CMD_ASYNC,
 				false);
 	}
@@ -426,7 +436,7 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 			ieee80211_stop_tx_ba_session(sta, tid);
 		}
 	} else {
-		IWL_ERR(priv, "Aggregation not enabled for tid %d "
+		IWL_DEBUG_HT(priv, "Aggregation not enabled for tid %d "
 			"because load = %u\n", tid, load);
 	}
 	return ret;
@@ -1072,8 +1082,10 @@ done:
 	/* See if there's a better rate or modulation mode to try. */
 	if (sta && sta->supp_rates[sband->band])
 		rs_rate_scale_perform(priv, skb, sta, lq_sta);
-#ifdef CONFIG_MAC80211_DEBUGFS
-	if (priv->dbg_fixed_rate != lq_sta->dbg_fixed_rate)
+
+#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_IWLWIFI_DEVICE_SVTOOL)
+	if ((priv->tm_fixed_rate) &&
+	    (priv->tm_fixed_rate != lq_sta->dbg_fixed_rate))
 		rs_program_fix_rate(priv, lq_sta);
 #endif
 	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist)
@@ -2895,8 +2907,9 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	if (sband->band == IEEE80211_BAND_5GHZ)
 		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 	lq_sta->is_agg = 0;
-
-	priv->dbg_fixed_rate = 0;
+#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+	priv->tm_fixed_rate = 0;
+#endif
 #ifdef CONFIG_MAC80211_DEBUGFS
 	lq_sta->dbg_fixed_rate = 0;
 #endif
@@ -3095,7 +3108,6 @@ static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
 			IWL_DEBUG_RATE(priv, "Fixed rate ON\n");
 		} else {
 			lq_sta->dbg_fixed_rate = 0;
-			priv->dbg_fixed_rate = 0;
 			IWL_ERR(priv,
 			    "Invalid antenna selection 0x%X, Valid is 0x%X\n",
 			    ant_sel_tx, valid_tx_ant);
@@ -3123,9 +3135,9 @@ static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
 		return -EFAULT;
 
 	if (sscanf(buf, "%x", &parsed_rate) == 1)
-		priv->dbg_fixed_rate = lq_sta->dbg_fixed_rate = parsed_rate;
+		lq_sta->dbg_fixed_rate = parsed_rate;
 	else
-		priv->dbg_fixed_rate = lq_sta->dbg_fixed_rate = 0;
+		lq_sta->dbg_fixed_rate = 0;
 
 	rs_program_fix_rate(priv, lq_sta);
 
@@ -3155,7 +3167,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			lq_sta->total_failed, lq_sta->total_success,
 			lq_sta->active_legacy_rate);
 	desc += sprintf(buff+desc, "fixed rate 0x%X\n",
-			priv->dbg_fixed_rate);
+			lq_sta->dbg_fixed_rate);
 	desc += sprintf(buff+desc, "valid_tx_ant %s%s%s\n",
 	    (priv->hw_params.valid_tx_ant & ANT_A) ? "ANT_A," : "",
 	    (priv->hw_params.valid_tx_ant & ANT_B) ? "ANT_B," : "",

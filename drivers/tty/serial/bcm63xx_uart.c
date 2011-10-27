@@ -250,6 +250,20 @@ static void bcm_uart_do_rx(struct uart_port *port)
 		/* get overrun/fifo empty information from ier
 		 * register */
 		iestat = bcm_uart_readl(port, UART_IR_REG);
+
+		if (unlikely(iestat & UART_IR_STAT(UART_IR_RXOVER))) {
+			unsigned int val;
+
+			/* fifo reset is required to clear
+			 * interrupt */
+			val = bcm_uart_readl(port, UART_CTL_REG);
+			val |= UART_CTL_RSTRXFIFO_MASK;
+			bcm_uart_writel(port, val, UART_CTL_REG);
+
+			port->icount.overrun++;
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		}
+
 		if (!(iestat & UART_IR_STAT(UART_IR_RXNOTEMPTY)))
 			break;
 
@@ -284,10 +298,6 @@ static void bcm_uart_do_rx(struct uart_port *port)
 		if (uart_handle_sysrq_char(port, c))
 			continue;
 
-		if (unlikely(iestat & UART_IR_STAT(UART_IR_RXOVER))) {
-			port->icount.overrun++;
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		}
 
 		if ((cstat & port->ignore_status_mask) == 0)
 			tty_insert_flip_char(tty, c, flag);

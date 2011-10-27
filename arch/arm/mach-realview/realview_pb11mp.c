@@ -367,4 +367,7 @@ MACHINE_START(REALVIEW_PB11MP, "ARM-RealView PB11MPCore")
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pb11mp_timer,
 	.init_machine	= realview_pb11mp_init,
+#ifdef CONFIG_ZONE_DMA
+	.dma_zone_size	= SZ_256M,
+#endif
 MACHINE_END

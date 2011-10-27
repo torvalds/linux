@@ -15,7 +15,7 @@
 
 #include <linux/kref.h>
 #include <linux/slab.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/proc_fs.h>
 
 /*
@@ -255,14 +255,5 @@ static inline time_t get_expiry(char **bpp)
 	getboottime(&boot);
 	return rv - boot.tv_sec;
 }
-
-#ifdef CONFIG_NFSD_DEPRECATED
-static inline void sunrpc_invalidate(struct cache_head *h,
-				     struct cache_detail *detail)
-{
-	h->expiry_time = seconds_since_boot() - 1;
-	detail->nextcheck = seconds_since_boot();
-}
-#endif /* CONFIG_NFSD_DEPRECATED */
 
 #endif /*  _LINUX_SUNRPC_CACHE_H_ */

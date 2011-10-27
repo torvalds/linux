@@ -12,6 +12,7 @@
 #define __ASM_SH7372_H__
 
 #include <linux/sh_clk.h>
+#include <linux/pm_domain.h>
 
 /*
  * Pin Function Controller:
@@ -469,5 +470,33 @@ extern struct clk sh7372_fsiack_clk;
 extern struct clk sh7372_fsibck_clk;
 extern struct clk sh7372_fsidiva_clk;
 extern struct clk sh7372_fsidivb_clk;
+
+struct platform_device;
+
+struct sh7372_pm_domain {
+	struct generic_pm_domain genpd;
+	unsigned int bit_shift;
+};
+
+static inline struct sh7372_pm_domain *to_sh7372_pd(struct generic_pm_domain *d)
+{
+	return container_of(d, struct sh7372_pm_domain, genpd);
+}
+
+#ifdef CONFIG_PM
+extern struct sh7372_pm_domain sh7372_a4lc;
+extern struct sh7372_pm_domain sh7372_a4mp;
+extern struct sh7372_pm_domain sh7372_d4;
+extern struct sh7372_pm_domain sh7372_a3rv;
+extern struct sh7372_pm_domain sh7372_a3ri;
+extern struct sh7372_pm_domain sh7372_a3sg;
+
+extern void sh7372_init_pm_domain(struct sh7372_pm_domain *sh7372_pd);
+extern void sh7372_add_device_to_domain(struct sh7372_pm_domain *sh7372_pd,
+					struct platform_device *pdev);
+#else
+#define sh7372_init_pm_domain(pd) do { } while(0)
+#define sh7372_add_device_to_domain(pd, pdev) do { } while(0)
+#endif /* CONFIG_PM */
 
 #endif /* __ASM_SH7372_H__ */

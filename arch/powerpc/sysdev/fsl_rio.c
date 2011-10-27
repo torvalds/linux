@@ -54,6 +54,7 @@
 #define ODSR_CLEAR		0x1c00
 #define LTLEECSR_ENABLE_ALL	0xFFC000FC
 #define ESCSR_CLEAR		0x07120204
+#define IECSR_CLEAR		0x80000000
 
 #define RIO_PORT1_EDCSR		0x0640
 #define RIO_PORT2_EDCSR		0x0680
@@ -283,23 +284,24 @@ static void __iomem *rio_regs_win;
 #ifdef CONFIG_E500
 int fsl_rio_mcheck_exception(struct pt_regs *regs)
 {
-	const struct exception_table_entry *entry = NULL;
-	unsigned long reason = mfspr(SPRN_MCSR);
+	const struct exception_table_entry *entry;
+	unsigned long reason;
 
-	if (reason & MCSR_BUS_RBERR) {
-		reason = in_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR));
-		if (reason & (RIO_LTLEDCSR_IER | RIO_LTLEDCSR_PRT)) {
-			/* Check if we are prepared to handle this fault */
-			entry = search_exception_tables(regs->nip);
-			if (entry) {
-				pr_debug("RIO: %s - MC Exception handled\n",
-					 __func__);
-				out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR),
-					 0);
-				regs->msr |= MSR_RI;
-				regs->nip = entry->fixup;
-				return 1;
-			}
+	if (!rio_regs_win)
+		return 0;
+
+	reason = in_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR));
+	if (reason & (RIO_LTLEDCSR_IER | RIO_LTLEDCSR_PRT)) {
+		/* Check if we are prepared to handle this fault */
+		entry = search_exception_tables(regs->nip);
+		if (entry) {
+			pr_debug("RIO: %s - MC Exception handled\n",
+				 __func__);
+			out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR),
+				 0);
+			regs->msr |= MSR_RI;
+			regs->nip = entry->fixup;
+			return 1;
 		}
 	}
 
@@ -1088,11 +1090,11 @@ static void port_error_handler(struct rio_mport *port, int offset)
 
 	if (offset == 0) {
 		out_be32((u32 *)(rio_regs_win + RIO_PORT1_EDCSR), 0);
-		out_be32((u32 *)(rio_regs_win + RIO_PORT1_IECSR), 0);
+		out_be32((u32 *)(rio_regs_win + RIO_PORT1_IECSR), IECSR_CLEAR);
 		out_be32((u32 *)(rio_regs_win + RIO_ESCSR), ESCSR_CLEAR);
 	} else {
 		out_be32((u32 *)(rio_regs_win + RIO_PORT2_EDCSR), 0);
-		out_be32((u32 *)(rio_regs_win + RIO_PORT2_IECSR), 0);
+		out_be32((u32 *)(rio_regs_win + RIO_PORT2_IECSR), IECSR_CLEAR);
 		out_be32((u32 *)(rio_regs_win + RIO_PORT2_ESCSR), ESCSR_CLEAR);
 	}
 }
@@ -1523,7 +1525,7 @@ int fsl_rio_setup(struct platform_device *dev)
 	port->priv = priv;
 	port->phys_efptr = 0x100;
 
-	priv->regs_win = ioremap(regs.start, regs.end - regs.start + 1);
+	priv->regs_win = ioremap(regs.start, resource_size(&regs));
 	rio_regs_win = priv->regs_win;
 
 	/* Probe the master port phy type */

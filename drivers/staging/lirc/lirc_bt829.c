@@ -122,10 +122,10 @@ int init_module(void)
 
 	pdev = do_pci_probe();
 	if (pdev == NULL)
-		return 1;
+		return -ENODEV;
 
 	if (!atir_init_start())
-		return 1;
+		return -ENODEV;
 
 	strcpy(atir_driver.name, "ATIR");
 	atir_driver.minor       = -1;

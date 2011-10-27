@@ -52,6 +52,7 @@
 #define SIO_F71858_ID		0x0507  /* Chipset ID */
 #define SIO_F71862_ID		0x0601	/* Chipset ID */
 #define SIO_F71869_ID		0x0814	/* Chipset ID */
+#define SIO_F71869A_ID		0x1007	/* Chipset ID */
 #define SIO_F71882_ID		0x0541	/* Chipset ID */
 #define SIO_F71889_ID		0x0723	/* Chipset ID */
 #define SIO_F71889E_ID		0x0909	/* Chipset ID */
@@ -108,8 +109,8 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
-enum chips { f71808e, f71808a, f71858fg, f71862fg, f71869, f71882fg, f71889fg,
-	     f71889ed, f71889a, f8000, f81865f };
+enum chips { f71808e, f71808a, f71858fg, f71862fg, f71869, f71869a, f71882fg,
+	     f71889fg, f71889ed, f71889a, f8000, f81865f };
 
 static const char *f71882fg_names[] = {
 	"f71808e",
@@ -117,6 +118,7 @@ static const char *f71882fg_names[] = {
 	"f71858fg",
 	"f71862fg",
 	"f71869", /* Both f71869f and f71869e, reg. compatible and same id */
+	"f71869a",
 	"f71882fg",
 	"f71889fg", /* f81801u too, same id */
 	"f71889ed",
@@ -131,6 +133,7 @@ static const char f71882fg_has_in[][F71882FG_MAX_INS] = {
 	[f71858fg]	= { 1, 1, 1, 0, 0, 0, 0, 0, 0 },
 	[f71862fg]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 	[f71869]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+	[f71869a]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 	[f71882fg]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 	[f71889fg]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 	[f71889ed]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
@@ -145,6 +148,7 @@ static const char f71882fg_has_in1_alarm[] = {
 	[f71858fg]	= 0,
 	[f71862fg]	= 0,
 	[f71869]	= 0,
+	[f71869a]	= 0,
 	[f71882fg]	= 1,
 	[f71889fg]	= 1,
 	[f71889ed]	= 1,
@@ -159,6 +163,7 @@ static const char f71882fg_fan_has_beep[] = {
 	[f71858fg]	= 0,
 	[f71862fg]	= 1,
 	[f71869]	= 1,
+	[f71869a]	= 1,
 	[f71882fg]	= 1,
 	[f71889fg]	= 1,
 	[f71889ed]	= 1,
@@ -173,6 +178,7 @@ static const char f71882fg_nr_fans[] = {
 	[f71858fg]	= 3,
 	[f71862fg]	= 3,
 	[f71869]	= 3,
+	[f71869a]	= 3,
 	[f71882fg]	= 4,
 	[f71889fg]	= 3,
 	[f71889ed]	= 3,
@@ -187,6 +193,7 @@ static const char f71882fg_temp_has_beep[] = {
 	[f71858fg]	= 0,
 	[f71862fg]	= 1,
 	[f71869]	= 1,
+	[f71869a]	= 1,
 	[f71882fg]	= 1,
 	[f71889fg]	= 1,
 	[f71889ed]	= 1,
@@ -201,6 +208,7 @@ static const char f71882fg_nr_temps[] = {
 	[f71858fg]	= 3,
 	[f71862fg]	= 3,
 	[f71869]	= 3,
+	[f71869a]	= 3,
 	[f71882fg]	= 3,
 	[f71889fg]	= 3,
 	[f71889ed]	= 3,
@@ -2243,6 +2251,7 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 		case f71808e:
 		case f71808a:
 		case f71869:
+		case f71869a:
 			/* These always have signed auto point temps */
 			data->auto_point_temp_signed = 1;
 			/* Fall through to select correct fan/pwm reg bank! */
@@ -2305,6 +2314,7 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 		case f71808e:
 		case f71808a:
 		case f71869:
+		case f71869a:
 		case f71889fg:
 		case f71889ed:
 		case f71889a:
@@ -2528,6 +2538,9 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 	case SIO_F71869_ID:
 		sio_data->type = f71869;
 		break;
+	case SIO_F71869A_ID:
+		sio_data->type = f71869a;
+		break;
 	case SIO_F71882_ID:
 		sio_data->type = f71882fg;
 		break;
@@ -2662,7 +2675,7 @@ static void __exit f71882fg_exit(void)
 }
 
 MODULE_DESCRIPTION("F71882FG Hardware Monitoring Driver");
-MODULE_AUTHOR("Hans Edgington, Hans de Goede (hdegoede@redhat.com)");
+MODULE_AUTHOR("Hans Edgington, Hans de Goede <hdegoede@redhat.com>");
 MODULE_LICENSE("GPL");
 
 module_init(f71882fg_init);

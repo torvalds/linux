@@ -12,7 +12,7 @@
 
 #ifdef __KERNEL__
 #	include <linux/xz.h>
-#	include <asm/byteorder.h>
+#	include <linux/kernel.h>
 #	include <asm/unaligned.h>
 	/* XZ_PREBOOT may be defined only via decompress_unxz.c. */
 #	ifndef XZ_PREBOOT

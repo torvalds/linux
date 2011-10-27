@@ -12,7 +12,7 @@
 #ifndef _LINUX_EDAC_H_
 #define _LINUX_EDAC_H_
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/sysdev.h>
 
 #define EDAC_OPSTATE_INVAL	-1

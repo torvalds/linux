@@ -76,10 +76,10 @@ static int vpac270_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 static void vpac270_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 {
 	if (skt->nr == 0)
-		gpio_request_array(vpac270_pcmcia_gpios,
+		gpio_free_array(vpac270_pcmcia_gpios,
 					ARRAY_SIZE(vpac270_pcmcia_gpios));
 	else
-		gpio_request_array(vpac270_cf_gpios,
+		gpio_free_array(vpac270_cf_gpios,
 					ARRAY_SIZE(vpac270_cf_gpios));
 }
 

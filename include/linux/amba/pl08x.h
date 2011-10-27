@@ -172,8 +172,11 @@ struct pl08x_dma_chan {
 	int phychan_hold;
 	struct tasklet_struct tasklet;
 	char *name;
-	struct pl08x_channel_data *cd;
-	dma_addr_t runtime_addr;
+	const struct pl08x_channel_data *cd;
+	dma_addr_t src_addr;
+	dma_addr_t dst_addr;
+	u32 src_cctl;
+	u32 dst_cctl;
 	enum dma_data_direction	runtime_direction;
 	dma_cookie_t lc;
 	struct list_head pend_list;
@@ -202,7 +205,7 @@ struct pl08x_dma_chan {
  * @mem_buses: buses which memory can be accessed from: PL08X_AHB1 | PL08X_AHB2
  */
 struct pl08x_platform_data {
-	struct pl08x_channel_data *slave_channels;
+	const struct pl08x_channel_data *slave_channels;
 	unsigned int num_slave_channels;
 	struct pl08x_channel_data memcpy_channel;
 	int (*get_signal)(struct pl08x_dma_chan *);

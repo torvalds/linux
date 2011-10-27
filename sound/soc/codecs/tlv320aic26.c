@@ -161,10 +161,18 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 		dev_dbg(&aic26->spi->dev, "bad format\n"); return -EINVAL;
 	}
 
-	/* Configure PLL */
+	/**
+	 * Configure PLL
+	 * fsref = (mclk * PLLM) / 2048
+	 * where PLLM = J.DDDD (DDDD register ranges from 0 to 9999, decimal)
+	 */
 	pval = 1;
-	jval = (fsref == 44100) ? 7 : 8;
-	dval = (fsref == 44100) ? 5264 : 1920;
+	/* compute J portion of multiplier */
+	jval = fsref / (aic26->mclk / 2048);
+	/* compute fractional DDDD component of multiplier */
+	dval = fsref - (jval * (aic26->mclk / 2048));
+	dval = (10000 * dval) / (aic26->mclk / 2048);
+	dev_dbg(&aic26->spi->dev, "Setting PLLM to %d.%04d\n", jval, dval);
 	qval = 0;
 	reg = 0x8000 | qval << 11 | pval << 8 | jval << 2;
 	aic26_reg_write(codec, AIC26_REG_PLL_PROG1, reg);

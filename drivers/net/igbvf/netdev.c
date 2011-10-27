@@ -45,7 +45,7 @@
 
 #include "igbvf.h"
 
-#define DRV_VERSION "1.0.8-k0"
+#define DRV_VERSION "2.0.0-k"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
 static const char igbvf_driver_string[] =
@@ -100,12 +100,12 @@ static void igbvf_receive_skb(struct igbvf_adapter *adapter,
                               struct sk_buff *skb,
                               u32 status, u16 vlan)
 {
-	if (adapter->vlgrp && (status & E1000_RXD_STAT_VP))
-		vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
-		                         le16_to_cpu(vlan) &
-		                         E1000_RXD_SPC_VLAN_MASK);
-	else
-		netif_receive_skb(skb);
+	if (status & E1000_RXD_STAT_VP) {
+		u16 vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
+
+		__vlan_hwaccel_put_tag(skb, vid);
+	}
+	netif_receive_skb(skb);
 }
 
 static inline void igbvf_rx_checksum_adv(struct igbvf_adapter *adapter,
@@ -1167,12 +1167,10 @@ static int igbvf_poll(struct napi_struct *napi, int budget)
  */
 static void igbvf_set_rlpml(struct igbvf_adapter *adapter)
 {
-	int max_frame_size = adapter->max_frame_size;
+	int max_frame_size;
 	struct e1000_hw *hw = &adapter->hw;
 
-	if (adapter->vlgrp)
-		max_frame_size += VLAN_TAG_SIZE;
-
+	max_frame_size = adapter->max_frame_size + VLAN_TAG_SIZE;
 	e1000_rlpml_set_vf(hw, max_frame_size);
 }
 
@@ -1183,6 +1181,8 @@ static void igbvf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 
 	if (hw->mac.ops.set_vfta(hw, vid, true))
 		dev_err(&adapter->pdev->dev, "Failed to add vlan id %d\n", vid);
+	else
+		set_bit(vid, adapter->active_vlans);
 }
 
 static void igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
@@ -1191,7 +1191,6 @@ static void igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	struct e1000_hw *hw = &adapter->hw;
 
 	igbvf_irq_disable(adapter);
-	vlan_group_set_device(adapter->vlgrp, vid, NULL);
 
 	if (!test_bit(__IGBVF_DOWN, &adapter->state))
 		igbvf_irq_enable(adapter);
@@ -1199,30 +1198,16 @@ static void igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	if (hw->mac.ops.set_vfta(hw, vid, false))
 		dev_err(&adapter->pdev->dev,
 		        "Failed to remove vlan id %d\n", vid);
-}
-
-static void igbvf_vlan_rx_register(struct net_device *netdev,
-                                   struct vlan_group *grp)
-{
-	struct igbvf_adapter *adapter = netdev_priv(netdev);
-
-	adapter->vlgrp = grp;
+	else
+		clear_bit(vid, adapter->active_vlans);
 }
 
 static void igbvf_restore_vlan(struct igbvf_adapter *adapter)
 {
 	u16 vid;
 
-	if (!adapter->vlgrp)
-		return;
-
-	for (vid = 0; vid < VLAN_N_VID; vid++) {
-		if (!vlan_group_get_device(adapter->vlgrp, vid))
-			continue;
+	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
 		igbvf_vlan_rx_add_vid(adapter->netdev, vid);
-	}
-
-	igbvf_set_rlpml(adapter);
 }
 
 /**
@@ -1241,6 +1226,7 @@ static void igbvf_configure_tx(struct igbvf_adapter *adapter)
 	/* disable transmits */
 	txdctl = er32(TXDCTL(0));
 	ew32(TXDCTL(0), txdctl & ~E1000_TXDCTL_QUEUE_ENABLE);
+	e1e_flush();
 	msleep(10);
 
 	/* Setup the HW Tx Head and Tail descriptor pointers */
@@ -1321,6 +1307,7 @@ static void igbvf_configure_rx(struct igbvf_adapter *adapter)
 	/* disable receives */
 	rxdctl = er32(RXDCTL(0));
 	ew32(RXDCTL(0), rxdctl & ~E1000_RXDCTL_QUEUE_ENABLE);
+	e1e_flush();
 	msleep(10);
 
 	rdlen = rx_ring->count * sizeof(union e1000_adv_rx_desc);
@@ -2203,7 +2190,7 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= IGBVF_TX_FLAGS_VLAN;
 		tx_flags |= (vlan_tx_tag_get(skb) << IGBVF_TX_FLAGS_VLAN_SHIFT);
 	}
@@ -2556,7 +2543,6 @@ static const struct net_device_ops igbvf_netdev_ops = {
 	.ndo_change_mtu                 = igbvf_change_mtu,
 	.ndo_do_ioctl                   = igbvf_ioctl,
 	.ndo_tx_timeout                 = igbvf_tx_timeout,
-	.ndo_vlan_rx_register           = igbvf_vlan_rx_register,
 	.ndo_vlan_rx_add_vid            = igbvf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid           = igbvf_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER

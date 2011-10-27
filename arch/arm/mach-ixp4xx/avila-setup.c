@@ -169,6 +169,9 @@ MACHINE_START(AVILA, "Gateworks Avila Network Platform")
 	.timer		= &ixp4xx_timer,
 	.boot_params	= 0x0100,
 	.init_machine	= avila_init,
+#if defined(CONFIG_PCI)
+	.dma_zone_size	= SZ_64M,
+#endif
 MACHINE_END
 
  /*
@@ -184,6 +187,9 @@ MACHINE_START(LOFT, "Giant Shoulder Inc Loft board")
 	.timer		= &ixp4xx_timer,
 	.boot_params	= 0x0100,
 	.init_machine	= avila_init,
+#if defined(CONFIG_PCI)
+	.dma_zone_size	= SZ_64M,
+#endif
 MACHINE_END
 #endif
 

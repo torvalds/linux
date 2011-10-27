@@ -49,7 +49,6 @@ static inline int plat_dma_supported(struct device *dev, u64 mask)
 
 static inline void plat_extra_sync_for_device(struct device *dev)
 {
-	return;
 }
 
 static inline int plat_dma_mapping_error(struct device *dev,

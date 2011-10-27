@@ -1625,8 +1625,8 @@ static void __vub300_command_response(struct vub300_mmc_host *vub300,
 		cmd->error = respretval;
 	} else if (cmd->error) {
 		/*
-		 * the error occured sending the command
-		 * or recieving the response
+		 * the error occurred sending the command
+		 * or receiving the response
 		 */
 	} else if (vub300->command_out_urb->status) {
 		vub300->usb_transport_fail = vub300->command_out_urb->status;
@@ -2096,7 +2096,7 @@ static struct mmc_host_ops vub300_mmc_ops = {
 static int vub300_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {				/* NOT irq */
-	struct vub300_mmc_host *vub300 = NULL;
+	struct vub300_mmc_host *vub300;
 	struct usb_host_interface *iface_desc;
 	struct usb_device *udev = usb_get_dev(interface_to_usbdev(interface));
 	int i;
@@ -2118,23 +2118,20 @@ static int vub300_probe(struct usb_interface *interface,
 	command_out_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!command_out_urb) {
 		retval = -ENOMEM;
-		dev_err(&vub300->udev->dev,
-			"not enough memory for the command_out_urb\n");
+		dev_err(&udev->dev, "not enough memory for command_out_urb\n");
 		goto error0;
 	}
 	command_res_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!command_res_urb) {
 		retval = -ENOMEM;
-		dev_err(&vub300->udev->dev,
-			"not enough memory for the command_res_urb\n");
+		dev_err(&udev->dev, "not enough memory for command_res_urb\n");
 		goto error1;
 	}
 	/* this also allocates memory for our VUB300 mmc host device */
 	mmc = mmc_alloc_host(sizeof(struct vub300_mmc_host), &udev->dev);
 	if (!mmc) {
 		retval = -ENOMEM;
-		dev_err(&vub300->udev->dev,
-			"not enough memory for the mmc_host\n");
+		dev_err(&udev->dev, "not enough memory for the mmc_host\n");
 		goto error4;
 	}
 	/* MMC core transfer sizes tunable parameters */

@@ -149,12 +149,12 @@ static int param_get_debug_level(char *buffer, const struct kernel_param *kp)
 	return result;
 }
 
-static struct kernel_param_ops param_ops_debug_layer = {
+static const struct kernel_param_ops param_ops_debug_layer = {
 	.set = param_set_uint,
 	.get = param_get_debug_layer,
 };
 
-static struct kernel_param_ops param_ops_debug_level = {
+static const struct kernel_param_ops param_ops_debug_level = {
 	.set = param_set_uint,
 	.get = param_get_debug_level,
 };

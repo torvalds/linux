@@ -9,6 +9,7 @@
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
+#include <linux/hardirq.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/kthread.h>
@@ -511,7 +512,7 @@ static int lbs_thread(void *data)
 				if (priv->connect_status == LBS_CONNECTED)
 					netif_wake_queue(priv->dev);
 				if (priv->mesh_dev &&
-				    lbs_mesh_connected(priv))
+				    netif_running(priv->mesh_dev))
 					netif_wake_queue(priv->mesh_dev);
 			}
 		}
@@ -638,6 +639,14 @@ static void lbs_cmd_timeout_handler(unsigned long data)
 		    le16_to_cpu(priv->cur_cmd->cmdbuf->command));
 
 	priv->cmd_timed_out = 1;
+
+	/*
+	 * If the device didn't even acknowledge the command, reset the state
+	 * so that we don't block all future commands due to this one timeout.
+	 */
+	if (priv->dnld_sent == DNLD_CMD_SENT)
+		priv->dnld_sent = DNLD_RES_RECEIVED;
+
 	wake_up_interruptible(&priv->waitq);
 out:
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
@@ -994,7 +1003,7 @@ void lbs_stop_card(struct lbs_private *priv)
 	list_for_each_entry(cmdnode, &priv->cmdpendingq, list) {
 		cmdnode->result = -ENOENT;
 		cmdnode->cmdwaitqwoken = 1;
-		wake_up_interruptible(&cmdnode->cmdwait_q);
+		wake_up(&cmdnode->cmdwait_q);
 	}
 
 	/* Flush the command the card is currently processing */
@@ -1002,7 +1011,7 @@ void lbs_stop_card(struct lbs_private *priv)
 		lbs_deb_main("clearing current command\n");
 		priv->cur_cmd->result = -ENOENT;
 		priv->cur_cmd->cmdwaitqwoken = 1;
-		wake_up_interruptible(&priv->cur_cmd->cmdwait_q);
+		wake_up(&priv->cur_cmd->cmdwait_q);
 	}
 	lbs_deb_main("done clearing commands\n");
 	spin_unlock_irqrestore(&priv->driver_lock, flags);

@@ -22,7 +22,6 @@ extern e_vector vectors[];
 asmlinkage void auto_inthandler(void);
 asmlinkage void user_inthandler(void);
 asmlinkage void bad_inthandler(void);
-extern void init_vectors(void);
 
 #endif
 

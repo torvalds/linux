@@ -7368,6 +7368,21 @@ struct bnx2_rv2p_fw_file {
 #define BNX2_RPHY_SERDES_LINK			0x374
 #define BNX2_RPHY_COPPER_LINK			0x378
 
+#define BNX2_ISCSI_INITIATOR			0x3dc
+#define BNX2_ISCSI_INITIATOR_EN			 0x00080000
+
+#define BNX2_ISCSI_MAX_CONN			0x3e4
+#define BNX2_ISCSI_MAX_CONN_MASK		 0xffff0000
+#define BNX2_ISCSI_MAX_CONN_SHIFT		 16
+
 #define HOST_VIEW_SHMEM_BASE			0x167c00
+
+#define DP_SHMEM_LINE(bp, offset)					\
+	netdev_err(bp->dev, "DEBUG: %08x: %08x %08x %08x %08x\n",	\
+		   offset,						\
+		   bnx2_shmem_rd(bp, offset),				\
+		   bnx2_shmem_rd(bp, offset + 4),			\
+		   bnx2_shmem_rd(bp, offset + 8),			\
+		   bnx2_shmem_rd(bp, offset + 12))
 
 #endif

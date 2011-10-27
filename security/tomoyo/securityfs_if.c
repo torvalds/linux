@@ -1,9 +1,7 @@
 /*
- * security/tomoyo/common.c
+ * security/tomoyo/securityfs_if.c
  *
- * Securityfs interface for TOMOYO.
- *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #include <linux/security.h>
@@ -34,11 +32,11 @@ static int tomoyo_open(struct inode *inode, struct file *file)
  */
 static int tomoyo_release(struct inode *inode, struct file *file)
 {
-	return tomoyo_close_control(file);
+	return tomoyo_close_control(file->private_data);
 }
 
 /**
- * tomoyo_poll - poll() for /proc/ccs/ interface.
+ * tomoyo_poll - poll() for /sys/kernel/security/tomoyo/ interface.
  *
  * @file: Pointer to "struct file".
  * @wait: Pointer to "poll_table".
@@ -63,7 +61,7 @@ static unsigned int tomoyo_poll(struct file *file, poll_table *wait)
 static ssize_t tomoyo_read(struct file *file, char __user *buf, size_t count,
 			   loff_t *ppos)
 {
-	return tomoyo_read_control(file, buf, count);
+	return tomoyo_read_control(file->private_data, buf, count);
 }
 
 /**
@@ -79,7 +77,7 @@ static ssize_t tomoyo_read(struct file *file, char __user *buf, size_t count,
 static ssize_t tomoyo_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *ppos)
 {
-	return tomoyo_write_control(file, buf, count);
+	return tomoyo_write_control(file->private_data, buf, count);
 }
 
 /*
@@ -135,14 +133,14 @@ static int __init tomoyo_initerface_init(void)
 			    TOMOYO_DOMAINPOLICY);
 	tomoyo_create_entry("exception_policy", 0600, tomoyo_dir,
 			    TOMOYO_EXCEPTIONPOLICY);
+	tomoyo_create_entry("audit",            0400, tomoyo_dir,
+			    TOMOYO_AUDIT);
 	tomoyo_create_entry("self_domain",      0400, tomoyo_dir,
 			    TOMOYO_SELFDOMAIN);
-	tomoyo_create_entry(".domain_status",   0600, tomoyo_dir,
-			    TOMOYO_DOMAIN_STATUS);
 	tomoyo_create_entry(".process_status",  0600, tomoyo_dir,
 			    TOMOYO_PROCESS_STATUS);
-	tomoyo_create_entry("meminfo",          0600, tomoyo_dir,
-			    TOMOYO_MEMINFO);
+	tomoyo_create_entry("stat",             0644, tomoyo_dir,
+			    TOMOYO_STAT);
 	tomoyo_create_entry("profile",          0600, tomoyo_dir,
 			    TOMOYO_PROFILE);
 	tomoyo_create_entry("manager",          0600, tomoyo_dir,

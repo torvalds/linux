@@ -19,6 +19,8 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 
+#include <asm/mach/irq.h>
+
 #include <mach/map.h>
 #include <plat/irq-uart.h>
 #include <plat/regs-serial.h>
@@ -30,8 +32,11 @@
 static void s3c_irq_demux_uart(unsigned int irq, struct irq_desc *desc)
 {
 	struct s3c_uart_irq *uirq = desc->irq_data.handler_data;
+	struct irq_chip *chip = irq_get_chip(irq);
 	u32 pend = __raw_readl(uirq->regs + S3C64XX_UINTP);
 	int base = uirq->base_irq;
+
+	chained_irq_enter(chip, desc);
 
 	if (pend & (1 << 0))
 		generic_handle_irq(base);
@@ -41,6 +46,8 @@ static void s3c_irq_demux_uart(unsigned int irq, struct irq_desc *desc)
 		generic_handle_irq(base + 2);
 	if (pend & (1 << 3))
 		generic_handle_irq(base + 3);
+
+	chained_irq_exit(chip, desc);
 }
 
 static void __init s3c_init_uart_irq(struct s3c_uart_irq *uirq)
@@ -54,8 +61,15 @@ static void __init s3c_init_uart_irq(struct s3c_uart_irq *uirq)
 
 	gc = irq_alloc_generic_chip("s3c-uart", 1, uirq->base_irq, reg_base,
 				    handle_level_irq);
+
+	if (!gc) {
+		pr_err("%s: irq_alloc_generic_chip for IRQ %u failed\n",
+		       __func__, uirq->base_irq);
+		return;
+	}
+
 	ct = gc->chip_types;
-	ct->chip.irq_ack = irq_gc_ack;
+	ct->chip.irq_ack = irq_gc_ack_set_bit;
 	ct->chip.irq_mask = irq_gc_mask_set_bit;
 	ct->chip.irq_unmask = irq_gc_mask_clr_bit;
 	ct->regs.ack = S3C64XX_UINTP;

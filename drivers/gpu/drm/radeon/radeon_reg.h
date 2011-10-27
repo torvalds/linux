@@ -300,6 +300,8 @@
 #       define RADEON_BUS_READ_BURST         (1 << 30)
 #define RADEON_BUS_CNTL1                    0x0034
 #       define RADEON_BUS_WAIT_ON_LOCK_EN    (1 << 4)
+#define RV370_BUS_CNTL                      0x004c
+#       define RV370_BUS_BIOS_DIS_ROM        (1 << 2)
 /* rv370/rv380, rv410, r423/r430/r480, r5xx */
 #define RADEON_MSI_REARM_EN		    0x0160
 #	define RV370_MSI_REARM_EN	     (1 << 0)
@@ -3293,7 +3295,7 @@
 #	define RADEON_RB_BUFSZ_MASK		(0x3f << 0)
 #	define RADEON_RB_BLKSZ_SHIFT		8
 #	define RADEON_RB_BLKSZ_MASK		(0x3f << 8)
-#	define RADEON_BUF_SWAP_32BIT		(1 << 17)
+#	define RADEON_BUF_SWAP_32BIT		(2 << 16)
 #	define RADEON_MAX_FETCH_SHIFT		18
 #	define RADEON_MAX_FETCH_MASK		(0x3 << 18)
 #	define RADEON_RB_NO_UPDATE		(1 << 27)

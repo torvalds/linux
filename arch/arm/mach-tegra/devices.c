@@ -22,10 +22,14 @@
 #include <linux/dma-mapping.h>
 #include <linux/fsl_devices.h>
 #include <linux/serial_8250.h>
+#include <linux/i2c-tegra.h>
+#include <linux/platform_data/tegra_usb.h>
 #include <asm/pmu.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
 #include <mach/dma.h>
+#include <mach/usb_phy.h>
+#include "gpio-names.h"
 
 static struct resource i2c_resource1[] = {
 	[0] = {
@@ -79,13 +83,29 @@ static struct resource i2c_resource4[] = {
 	},
 };
 
+static struct tegra_i2c_platform_data tegra_i2c1_platform_data = {
+	.bus_clk_rate   = 400000,
+};
+
+static struct tegra_i2c_platform_data tegra_i2c2_platform_data = {
+	.bus_clk_rate   = 400000,
+};
+
+static struct tegra_i2c_platform_data tegra_i2c3_platform_data = {
+	.bus_clk_rate   = 400000,
+};
+
+static struct tegra_i2c_platform_data tegra_dvc_platform_data = {
+	.bus_clk_rate   = 400000,
+};
+
 struct platform_device tegra_i2c_device1 = {
 	.name		= "tegra-i2c",
 	.id		= 0,
 	.resource	= i2c_resource1,
 	.num_resources	= ARRAY_SIZE(i2c_resource1),
 	.dev = {
-		.platform_data = 0,
+		.platform_data = &tegra_i2c1_platform_data,
 	},
 };
 
@@ -95,7 +115,7 @@ struct platform_device tegra_i2c_device2 = {
 	.resource	= i2c_resource2,
 	.num_resources	= ARRAY_SIZE(i2c_resource2),
 	.dev = {
-		.platform_data = 0,
+		.platform_data = &tegra_i2c2_platform_data,
 	},
 };
 
@@ -105,7 +125,7 @@ struct platform_device tegra_i2c_device3 = {
 	.resource	= i2c_resource3,
 	.num_resources	= ARRAY_SIZE(i2c_resource3),
 	.dev = {
-		.platform_data = 0,
+		.platform_data = &tegra_i2c3_platform_data,
 	},
 };
 
@@ -115,7 +135,7 @@ struct platform_device tegra_i2c_device4 = {
 	.resource	= i2c_resource4,
 	.num_resources	= ARRAY_SIZE(i2c_resource4),
 	.dev = {
-		.platform_data = 0,
+		.platform_data = &tegra_dvc_platform_data,
 	},
 };
 
@@ -334,6 +354,28 @@ static struct resource tegra_usb3_resources[] = {
 	},
 };
 
+static struct tegra_ulpi_config tegra_ehci2_ulpi_phy_config = {
+	/* All existing boards use GPIO PV0 for phy reset */
+	.reset_gpio = TEGRA_GPIO_PV0,
+	.clk = "cdev2",
+};
+
+static struct tegra_ehci_platform_data tegra_ehci1_pdata = {
+	.operating_mode = TEGRA_USB_OTG,
+	.power_down_on_bus_suspend = 1,
+};
+
+static struct tegra_ehci_platform_data tegra_ehci2_pdata = {
+	.phy_config = &tegra_ehci2_ulpi_phy_config,
+	.operating_mode = TEGRA_USB_HOST,
+	.power_down_on_bus_suspend = 1,
+};
+
+static struct tegra_ehci_platform_data tegra_ehci3_pdata = {
+	.operating_mode = TEGRA_USB_HOST,
+	.power_down_on_bus_suspend = 1,
+};
+
 static u64 tegra_ehci_dmamask = DMA_BIT_MASK(32);
 
 struct platform_device tegra_ehci1_device = {
@@ -342,6 +384,7 @@ struct platform_device tegra_ehci1_device = {
 	.dev	= {
 		.dma_mask	= &tegra_ehci_dmamask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &tegra_ehci1_pdata,
 	},
 	.resource = tegra_usb1_resources,
 	.num_resources = ARRAY_SIZE(tegra_usb1_resources),
@@ -353,6 +396,7 @@ struct platform_device tegra_ehci2_device = {
 	.dev	= {
 		.dma_mask	= &tegra_ehci_dmamask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &tegra_ehci2_pdata,
 	},
 	.resource = tegra_usb2_resources,
 	.num_resources = ARRAY_SIZE(tegra_usb2_resources),
@@ -364,6 +408,7 @@ struct platform_device tegra_ehci3_device = {
 	.dev	= {
 		.dma_mask	= &tegra_ehci_dmamask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &tegra_ehci3_pdata,
 	},
 	.resource = tegra_usb3_resources,
 	.num_resources = ARRAY_SIZE(tegra_usb3_resources),

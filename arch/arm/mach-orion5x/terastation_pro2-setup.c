@@ -100,7 +100,7 @@ void __init tsp2_pci_preinit(void)
 	}
 }
 
-static int __init tsp2_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init tsp2_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 

@@ -25,7 +25,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/wait.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "ctree.h"
 
@@ -119,6 +119,7 @@ void btrfs_kill_delayed_inode_items(struct inode *inode);
 
 int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root, struct inode *inode);
+int btrfs_fill_inode(struct inode *inode, u32 *rdev);
 
 /* Used for drop dead root */
 void btrfs_kill_all_delayed_nodes(struct btrfs_root *root);

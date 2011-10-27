@@ -953,13 +953,13 @@ static void ene_set_idle(struct rc_dev *rdev, bool idle)
 }
 
 /* outside interface: transmit */
-static int ene_transmit(struct rc_dev *rdev, int *buf, u32 n)
+static int ene_transmit(struct rc_dev *rdev, unsigned *buf, unsigned n)
 {
 	struct ene_device *dev = rdev->priv;
 	unsigned long flags;
 
 	dev->tx_buffer = buf;
-	dev->tx_len = n / sizeof(int);
+	dev->tx_len = n;
 	dev->tx_pos = 0;
 	dev->tx_reg = 0;
 	dev->tx_done = 0;

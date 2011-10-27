@@ -29,13 +29,20 @@
 #include <linux/list.h>
 
 struct video_device;
-struct v4l2_events;
+struct v4l2_ctrl_handler;
 
 struct v4l2_fh {
 	struct list_head	list;
 	struct video_device	*vdev;
-	struct v4l2_events      *events; /* events, pending and subscribed */
+	struct v4l2_ctrl_handler *ctrl_handler;
 	enum v4l2_priority	prio;
+
+	/* Events */
+	wait_queue_head_t	wait;
+	struct list_head	subscribed; /* Subscribed events */
+	struct list_head	available; /* Dequeueable event */
+	unsigned int		navailable;
+	u32			sequence;
 };
 
 /*
@@ -44,7 +51,7 @@ struct v4l2_fh {
  * from driver's v4l2_file_operations->open() handler if the driver
  * uses v4l2_fh.
  */
-int v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev);
+void v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev);
 /*
  * Add the fh to the list of file handles on a video_device. The file
  * handle must be initialised first.

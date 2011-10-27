@@ -18,6 +18,9 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/max8952.h>
 #include <linux/mmc/host.h>
+#include <linux/i2c-gpio.h>
+#include <linux/i2c/mcs.h>
+#include <linux/i2c/atmel_mxt_ts.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -27,7 +30,10 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/iic.h>
+#include <plat/gpio-cfg.h>
+#include <plat/mfc.h>
 #include <plat/sdhci.h>
+#include <plat/pd.h>
 
 #include <mach/map.h>
 
@@ -477,6 +483,96 @@ static struct i2c_board_info i2c5_devs[] __initdata = {
 	},
 };
 
+/* I2C3 (TSP) */
+static struct mxt_platform_data qt602240_platform_data = {
+	.x_line		= 19,
+	.y_line		= 11,
+	.x_size		= 800,
+	.y_size		= 480,
+	.blen		= 0x11,
+	.threshold	= 0x28,
+	.voltage	= 2800000,		/* 2.8V */
+	.orient		= MXT_DIAGONAL,
+};
+
+static struct i2c_board_info i2c3_devs[] __initdata = {
+	{
+		I2C_BOARD_INFO("qt602240_ts", 0x4a),
+		.platform_data = &qt602240_platform_data,
+	},
+};
+
+static void __init universal_tsp_init(void)
+{
+	int gpio;
+
+	/* TSP_LDO_ON: XMDMADDR_11 */
+	gpio = EXYNOS4_GPE2(3);
+	gpio_request(gpio, "TSP_LDO_ON");
+	gpio_direction_output(gpio, 1);
+	gpio_export(gpio, 0);
+
+	/* TSP_INT: XMDMADDR_7 */
+	gpio = EXYNOS4_GPE1(7);
+	gpio_request(gpio, "TSP_INT");
+
+	s5p_register_gpio_interrupt(gpio);
+	s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(0xf));
+	s3c_gpio_setpull(gpio, S3C_GPIO_PULL_UP);
+	i2c3_devs[0].irq = gpio_to_irq(gpio);
+}
+
+
+/* GPIO I2C 12 (3 Touchkey) */
+static uint32_t touchkey_keymap[] = {
+	/* MCS_KEY_MAP(value, keycode) */
+	MCS_KEY_MAP(0, KEY_MENU),		/* KEY_SEND */
+	MCS_KEY_MAP(1, KEY_BACK),		/* KEY_END */
+};
+
+static struct mcs_platform_data touchkey_data = {
+	.keymap		= touchkey_keymap,
+	.keymap_size	= ARRAY_SIZE(touchkey_keymap),
+	.key_maxval	= 2,
+};
+
+/* GPIO I2C 3_TOUCH 2.8V */
+#define I2C_GPIO_BUS_12		12
+static struct i2c_gpio_platform_data i2c_gpio12_data = {
+	.sda_pin	= EXYNOS4_GPE4(0),	/* XMDMDATA_8 */
+	.scl_pin	= EXYNOS4_GPE4(1),	/* XMDMDATA_9 */
+};
+
+static struct platform_device i2c_gpio12 = {
+	.name		= "i2c-gpio",
+	.id		= I2C_GPIO_BUS_12,
+	.dev		= {
+		.platform_data	= &i2c_gpio12_data,
+	},
+};
+
+static struct i2c_board_info i2c_gpio12_devs[] __initdata = {
+	{
+		I2C_BOARD_INFO("mcs5080_touchkey", 0x20),
+		.platform_data = &touchkey_data,
+	},
+};
+
+static void __init universal_touchkey_init(void)
+{
+	int gpio;
+
+	gpio = EXYNOS4_GPE3(7);			/* XMDMDATA_7 */
+	gpio_request(gpio, "3_TOUCH_INT");
+	s5p_register_gpio_interrupt(gpio);
+	s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(0xf));
+	i2c_gpio12_devs[0].irq = gpio_to_irq(gpio);
+
+	gpio = EXYNOS4_GPE3(3);			/* XMDMDATA_3 */
+	gpio_request(gpio, "3_TOUCH_EN");
+	gpio_direction_output(gpio, 1);
+}
+
 /* GPIO KEYS */
 static struct gpio_keys_button universal_gpio_keys_tables[] = {
 	{
@@ -608,15 +704,25 @@ static struct i2c_board_info i2c1_devs[] __initdata = {
 
 static struct platform_device *universal_devices[] __initdata = {
 	/* Samsung Platform Devices */
+	&s5p_device_fimc0,
+	&s5p_device_fimc1,
+	&s5p_device_fimc2,
+	&s5p_device_fimc3,
 	&mmc0_fixed_voltage,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc3,
+	&s3c_device_i2c3,
 	&s3c_device_i2c5,
 
 	/* Universal Devices */
+	&i2c_gpio12,
 	&universal_gpio_keys,
 	&s5p_device_onenand,
+	&s5p_device_mfc,
+	&s5p_device_mfc_l,
+	&s5p_device_mfc_r,
+	&exynos4_device_pd[PD_MFC],
 };
 
 static void __init universal_map_io(void)
@@ -626,6 +732,11 @@ static void __init universal_map_io(void)
 	s3c24xx_init_uarts(universal_uartcfgs, ARRAY_SIZE(universal_uartcfgs));
 }
 
+static void __init universal_reserve(void)
+{
+	s5p_mfc_reserve_mem(0x43000000, 8 << 20, 0x51000000, 8 << 20);
+}
+
 static void __init universal_machine_init(void)
 {
 	universal_sdhci_init();
@@ -633,11 +744,20 @@ static void __init universal_machine_init(void)
 	i2c_register_board_info(0, i2c0_devs, ARRAY_SIZE(i2c0_devs));
 	i2c_register_board_info(1, i2c1_devs, ARRAY_SIZE(i2c1_devs));
 
+	universal_tsp_init();
+	s3c_i2c3_set_platdata(NULL);
+	i2c_register_board_info(3, i2c3_devs, ARRAY_SIZE(i2c3_devs));
+
 	s3c_i2c5_set_platdata(NULL);
 	i2c_register_board_info(5, i2c5_devs, ARRAY_SIZE(i2c5_devs));
 
+	universal_touchkey_init();
+	i2c_register_board_info(I2C_GPIO_BUS_12, i2c_gpio12_devs,
+			ARRAY_SIZE(i2c_gpio12_devs));
+
 	/* Last */
 	platform_add_devices(universal_devices, ARRAY_SIZE(universal_devices));
+	s5p_device_mfc.dev.parent = &exynos4_device_pd[PD_MFC].dev;
 }
 
 MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
@@ -647,4 +767,5 @@ MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
 	.map_io		= universal_map_io,
 	.init_machine	= universal_machine_init,
 	.timer		= &exynos4_timer,
+	.reserve        = &universal_reserve,
 MACHINE_END

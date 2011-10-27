@@ -519,32 +519,50 @@ out:
 }
 
 
-static int v9fs_file_fsync(struct file *filp, int datasync)
+static int v9fs_file_fsync(struct file *filp, loff_t start, loff_t end,
+			   int datasync)
 {
 	struct p9_fid *fid;
+	struct inode *inode = filp->f_mapping->host;
 	struct p9_wstat wstat;
 	int retval;
 
+	retval = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (retval)
+		return retval;
+
+	mutex_lock(&inode->i_mutex);
 	P9_DPRINTK(P9_DEBUG_VFS, "filp %p datasync %x\n", filp, datasync);
 
 	fid = filp->private_data;
 	v9fs_blank_wstat(&wstat);
 
 	retval = p9_client_wstat(fid, &wstat);
+	mutex_unlock(&inode->i_mutex);
+
 	return retval;
 }
 
-int v9fs_file_fsync_dotl(struct file *filp, int datasync)
+int v9fs_file_fsync_dotl(struct file *filp, loff_t start, loff_t end,
+			 int datasync)
 {
 	struct p9_fid *fid;
+	struct inode *inode = filp->f_mapping->host;
 	int retval;
 
+	retval = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (retval)
+		return retval;
+
+	mutex_lock(&inode->i_mutex);
 	P9_DPRINTK(P9_DEBUG_VFS, "v9fs_file_fsync_dotl: filp %p datasync %x\n",
 			filp, datasync);
 
 	fid = filp->private_data;
 
 	retval = p9_client_fsync(fid, datasync);
+	mutex_unlock(&inode->i_mutex);
+
 	return retval;
 }
 

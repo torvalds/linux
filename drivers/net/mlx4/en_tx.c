@@ -238,8 +238,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 	} else {
 		if (!tx_info->inl) {
 			if ((void *) data >= end) {
-				data = (struct mlx4_wqe_data_seg *)
-						(ring->buf + ((void *) data - end));
+				data = ring->buf + ((void *)data - end);
 			}
 
 			if (tx_info->linear) {
@@ -253,7 +252,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			for (i = 0; i < frags; i++) {
 				/* Check for wraparound before unmapping */
 				if ((void *) data >= end)
-					data = (struct mlx4_wqe_data_seg *) ring->buf;
+					data = ring->buf;
 				frag = &skb_shinfo(skb)->frags[i];
 				pci_unmap_page(mdev->pdev,
 					(dma_addr_t) be64_to_cpu(data->addr),

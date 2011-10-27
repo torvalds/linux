@@ -605,7 +605,7 @@ static int __devinit of_fhci_probe(struct platform_device *ofdev)
 		goto err_regs;
 	}
 
-	hcd->regs = ioremap(usb_regs.start, usb_regs.end - usb_regs.start + 1);
+	hcd->regs = ioremap(usb_regs.start, resource_size(&usb_regs));
 	if (!hcd->regs) {
 		dev_err(dev, "could not ioremap regs\n");
 		ret = -ENOMEM;

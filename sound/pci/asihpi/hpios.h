@@ -38,6 +38,7 @@ HPI Operating System Specific macros for Linux Kernel driver
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/mutex.h>
 
 #define HPI_NO_OS_FILE_OPS
 

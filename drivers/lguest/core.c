@@ -117,7 +117,7 @@ static __init int map_switcher(void)
 
 	/*
 	 * Now the Switcher is mapped at the right address, we can't fail!
-	 * Copy in the compiled-in Switcher code (from <arch>_switcher.S).
+	 * Copy in the compiled-in Switcher code (from x86/switcher_32.S).
 	 */
 	memcpy(switcher_vma->addr, start_switcher_text,
 	       end_switcher_text - start_switcher_text);

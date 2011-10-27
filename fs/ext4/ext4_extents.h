@@ -125,7 +125,7 @@ struct ext4_ext_path {
  * positive retcode - signal for ext4_ext_walk_space(), see below
  * callback must return valid extent (passed or newly created)
  */
-typedef int (*ext_prepare_callback)(struct inode *, struct ext4_ext_path *,
+typedef int (*ext_prepare_callback)(struct inode *, ext4_lblk_t,
 					struct ext4_ext_cache *,
 					struct ext4_extent *, void *);
 
@@ -133,8 +133,11 @@ typedef int (*ext_prepare_callback)(struct inode *, struct ext4_ext_path *,
 #define EXT_BREAK      1
 #define EXT_REPEAT     2
 
-/* Maximum logical block in a file; ext4_extent's ee_block is __le32 */
-#define EXT_MAX_BLOCK	0xffffffff
+/*
+ * Maximum number of logical blocks in a file; ext4_extent's ee_block is
+ * __le32.
+ */
+#define EXT_MAX_BLOCKS	0xffffffff
 
 /*
  * EXT_INIT_MAX_LEN is the maximum number of blocks we can have in an

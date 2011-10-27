@@ -31,7 +31,7 @@
  */
 
 #include <rdma/ib_umem.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "iw_cxgb4.h"
 
@@ -625,7 +625,7 @@ pbl_done:
 	mhp->attr.perms = c4iw_ib_to_tpt_access(acc);
 	mhp->attr.va_fbo = virt;
 	mhp->attr.page_size = shift - 12;
-	mhp->attr.len = (u32) length;
+	mhp->attr.len = length;
 
 	err = register_mem(rhp, php, mhp, shift);
 	if (err)

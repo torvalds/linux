@@ -57,6 +57,7 @@
 
 #include <media/saa6588.h>
 
+#define BTTV_VERSION "0.9.19"
 
 unsigned int bttv_num;			/* number of Bt848s in use */
 struct bttv *bttvs[BTTV_MAX];
@@ -163,6 +164,7 @@ MODULE_PARM_DESC(radio_nr, "radio device numbers");
 MODULE_DESCRIPTION("bttv - v4l/v4l2 driver module for bt848/878 based cards");
 MODULE_AUTHOR("Ralph Metzler & Marcus Metzler & Gerd Knorr");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(BTTV_VERSION);
 
 /* ----------------------------------------------------------------------- */
 /* sysfs                                                                   */
@@ -2616,7 +2618,6 @@ static int bttv_querycap(struct file *file, void  *priv,
 	strlcpy(cap->card, btv->video_dev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "PCI:%s", pci_name(btv->c.pci));
-	cap->version = BTTV_VERSION_CODE;
 	cap->capabilities =
 		V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_VBI_CAPTURE |
@@ -3416,7 +3417,6 @@ static int radio_querycap(struct file *file, void *priv,
 	strcpy(cap->driver, "bttv");
 	strlcpy(cap->card, btv->radio_dev->name, sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(btv->c.pci));
-	cap->version = BTTV_VERSION_CODE;
 	cap->capabilities = V4L2_CAP_TUNER;
 
 	return 0;
@@ -3474,7 +3474,7 @@ static int radio_s_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
-	bttv_call_all(btv, tuner, g_tuner, t);
+	bttv_call_all(btv, tuner, s_tuner, t);
 	return 0;
 }
 
@@ -4585,14 +4585,8 @@ static int __init bttv_init_module(void)
 
 	bttv_num = 0;
 
-	printk(KERN_INFO "bttv: driver version %d.%d.%d loaded\n",
-	       (BTTV_VERSION_CODE >> 16) & 0xff,
-	       (BTTV_VERSION_CODE >> 8) & 0xff,
-	       BTTV_VERSION_CODE & 0xff);
-#ifdef SNAPSHOT
-	printk(KERN_INFO "bttv: snapshot date %04d-%02d-%02d\n",
-	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
-#endif
+	printk(KERN_INFO "bttv: driver version %s loaded\n",
+	       BTTV_VERSION);
 	if (gbuffers < 2 || gbuffers > VIDEO_MAX_FRAME)
 		gbuffers = 2;
 	if (gbufsize > BTTV_MAX_FBUF)

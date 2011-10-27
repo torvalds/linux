@@ -11,7 +11,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu.h>
 #include <asm/tlbflush.h>

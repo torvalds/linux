@@ -47,8 +47,6 @@ extern int get_fpregs(struct user_i387_struct __user *buf,
 extern int set_fpregs(struct user_i387_struct __user *buf,
 		      struct task_struct *child);
 
-extern void show_regs(struct pt_regs *regs);
-
 extern int arch_copy_tls(struct task_struct *new);
 extern void clear_flushed_tls(struct task_struct *task);
 

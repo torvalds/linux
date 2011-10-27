@@ -1,0 +1,20 @@
+ARM Versatile Application and Platform Baseboards
+-------------------------------------------------
+ARM's development hardware platform with connectors for customizable
+core tiles.  The hardware configuration of the Versatile boards is
+highly customizable.
+
+Required properties (in root node):
+	compatible = "arm,versatile-ab";  /* Application baseboard */
+	compatible = "arm,versatile-pb";  /* Platform baseboard */
+
+Interrupt controllers:
+- VIC required properties:
+	compatible = "arm,versatile-vic";
+	interrupt-controller;
+	#interrupt-cells = <1>;
+
+- SIC required properties:
+	compatible = "arm,versatile-sic";
+	interrupt-controller;
+	#interrupt-cells = <1>;

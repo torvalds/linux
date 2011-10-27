@@ -96,6 +96,7 @@ MACHINE_START(NEC_MP900, "MobilePro900/C")
 	.timer		= &pxa_timer,
 	.map_io		= pxa25x_map_io,
 	.init_irq	= pxa25x_init_irq,
+	.handle_irq	= pxa25x_handle_irq,
 	.init_machine	= mp900c_init,
 MACHINE_END
 

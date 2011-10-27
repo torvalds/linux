@@ -486,13 +486,10 @@ static void prepare_write_message(struct ceph_connection *con)
 	m = list_first_entry(&con->out_queue,
 		       struct ceph_msg, list_head);
 	con->out_msg = m;
-	if (test_bit(LOSSYTX, &con->state)) {
-		list_del_init(&m->list_head);
-	} else {
-		/* put message on sent list */
-		ceph_msg_get(m);
-		list_move_tail(&m->list_head, &con->out_sent);
-	}
+
+	/* put message on sent list */
+	ceph_msg_get(m);
+	list_move_tail(&m->list_head, &con->out_sent);
 
 	/*
 	 * only assign outgoing seq # if we haven't sent this message
@@ -1399,6 +1396,7 @@ static void process_ack(struct ceph_connection *con)
 			break;
 		dout("got ack for seq %llu type %d at %p\n", seq,
 		     le16_to_cpu(m->hdr.type), m);
+		m->ack_stamp = jiffies;
 		ceph_msg_remove(m);
 	}
 	prepare_read_tag(con);

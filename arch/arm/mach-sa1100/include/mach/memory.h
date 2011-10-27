@@ -14,10 +14,6 @@
  */
 #define PLAT_PHYS_OFFSET	UL(0xc0000000)
 
-#ifdef CONFIG_SA1111
-#define ARM_DMA_ZONE_SIZE	SZ_1M
-#endif
-
 /*
  * Because of the wide memory address space between physical RAM banks on the
  * SA1100, it's much convenient to use Linux's SparseMEM support to implement

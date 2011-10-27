@@ -173,16 +173,20 @@ struct v4l2_subdev_core_ops {
 				 struct v4l2_event_subscription *sub);
 };
 
-/* s_mode: switch the tuner to a specific tuner mode. Replacement of s_radio.
+/* s_radio: v4l device was opened in radio mode.
 
-   s_radio: v4l device was opened in Radio mode, to be replaced by s_mode.
+   g_frequency: freq->type must be filled in. Normally done by video_ioctl2
+	or the bridge driver.
+
+   g_tuner:
+   s_tuner: vt->type must be filled in. Normally done by video_ioctl2 or the
+	bridge driver.
 
    s_type_addr: sets tuner type and its I2C addr.
 
    s_config: sets tda9887 specific stuff, like port1, port2 and qss
  */
 struct v4l2_subdev_tuner_ops {
-	int (*s_mode)(struct v4l2_subdev *sd, enum v4l2_tuner_type);
 	int (*s_radio)(struct v4l2_subdev *sd);
 	int (*s_frequency)(struct v4l2_subdev *sd, struct v4l2_frequency *freq);
 	int (*g_frequency)(struct v4l2_subdev *sd, struct v4l2_frequency *freq);
@@ -225,6 +229,12 @@ struct v4l2_subdev_audio_ops {
    s_std_output: set v4l2_std_id for video OUTPUT devices. This is ignored by
 	video input devices.
 
+   g_std_output: get current standard for video OUTPUT devices. This is ignored
+	by video input devices.
+
+   g_tvnorms_output: get v4l2_std_id with all standards supported by video
+	OUTPUT device. This is ignored by video input devices.
+
    s_crystal_freq: sets the frequency of the crystal used to generate the
 	clocks in Hz. An extra flags field allows device specific configuration
 	regarding clock frequency dividers, etc. If not used, then set flags
@@ -238,6 +248,8 @@ struct v4l2_subdev_audio_ops {
 
    s_dv_preset: set dv (Digital Video) preset in the sub device. Similar to
 	s_std()
+
+   g_dv_preset: get current dv (Digital Video) preset in the sub device.
 
    query_dv_preset: query dv preset in the sub device. This is similar to
 	querystd()
@@ -255,12 +267,20 @@ struct v4l2_subdev_audio_ops {
    try_mbus_fmt: try to set a pixel format on a video data source
 
    s_mbus_fmt: set a pixel format on a video data source
+
+   g_mbus_config: get supported mediabus configurations
+
+   s_mbus_config: set a certain mediabus configuration. This operation is added
+	for compatibility with soc-camera drivers and should not be used by new
+	software.
  */
 struct v4l2_subdev_video_ops {
 	int (*s_routing)(struct v4l2_subdev *sd, u32 input, u32 output, u32 config);
 	int (*s_crystal_freq)(struct v4l2_subdev *sd, u32 freq, u32 flags);
 	int (*s_std_output)(struct v4l2_subdev *sd, v4l2_std_id std);
+	int (*g_std_output)(struct v4l2_subdev *sd, v4l2_std_id *std);
 	int (*querystd)(struct v4l2_subdev *sd, v4l2_std_id *std);
+	int (*g_tvnorms_output)(struct v4l2_subdev *sd, v4l2_std_id *std);
 	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
 	int (*cropcap)(struct v4l2_subdev *sd, struct v4l2_cropcap *cc);
@@ -278,6 +298,8 @@ struct v4l2_subdev_video_ops {
 			struct v4l2_dv_enum_preset *preset);
 	int (*s_dv_preset)(struct v4l2_subdev *sd,
 			struct v4l2_dv_preset *preset);
+	int (*g_dv_preset)(struct v4l2_subdev *sd,
+			struct v4l2_dv_preset *preset);
 	int (*query_dv_preset)(struct v4l2_subdev *sd,
 			struct v4l2_dv_preset *preset);
 	int (*s_dv_timings)(struct v4l2_subdev *sd,
@@ -294,6 +316,10 @@ struct v4l2_subdev_video_ops {
 			    struct v4l2_mbus_framefmt *fmt);
 	int (*s_mbus_fmt)(struct v4l2_subdev *sd,
 			  struct v4l2_mbus_framefmt *fmt);
+	int (*g_mbus_config)(struct v4l2_subdev *sd,
+			     struct v4l2_mbus_config *cfg);
+	int (*s_mbus_config)(struct v4l2_subdev *sd,
+			     const struct v4l2_mbus_config *cfg);
 };
 
 /*
@@ -509,8 +535,6 @@ struct v4l2_subdev {
 	void *host_priv;
 	/* subdev device node */
 	struct video_device devnode;
-	/* number of events to be allocated on open */
-	unsigned int nevents;
 };
 
 #define media_entity_to_v4l2_subdev(ent) \

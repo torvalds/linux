@@ -613,13 +613,13 @@ to use the dma_sync_*() interfaces.
 				pass_to_upper_layers(cp->rx_buf);
 				make_and_setup_new_rx_buf(cp);
 			} else {
-				/* Just sync the buffer and give it back
-				 * to the card.
+				/* CPU should not write to
+				 * DMA_FROM_DEVICE-mapped area,
+				 * so dma_sync_single_for_device() is
+				 * not needed here. It would be required
+				 * for DMA_BIDIRECTIONAL mapping if
+				 * the memory was modified.
 				 */
-				dma_sync_single_for_device(&cp->dev,
-							   cp->rx_dma,
-							   cp->rx_len,
-							   DMA_FROM_DEVICE);
 				give_rx_buf_to_card(cp);
 			}
 		}

@@ -2,10 +2,10 @@
  * Header for M-5MOLS 8M Pixel camera sensor with ISP
  *
  * Copyright (C) 2011 Samsung Electronics Co., Ltd.
- * Author: HeungJun Kim, riverful.kim@samsung.com
+ * Author: HeungJun Kim <riverful.kim@samsung.com>
  *
  * Copyright (C) 2009 Samsung Electronics Co., Ltd.
- * Author: Dongsoo Nathaniel Kim, dongsoo45.kim@samsung.com
+ * Author: Dongsoo Nathaniel Kim <dongsoo45.kim@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -106,23 +106,23 @@ struct m5mols_capture {
  * The each value according to each scenemode is recommended in the documents.
  */
 struct m5mols_scenemode {
-	u32 metering;
-	u32 ev_bias;
-	u32 wb_mode;
-	u32 wb_preset;
-	u32 chroma_en;
-	u32 chroma_lvl;
-	u32 edge_en;
-	u32 edge_lvl;
-	u32 af_range;
-	u32 fd_mode;
-	u32 mcc;
-	u32 light;
-	u32 flash;
-	u32 tone;
-	u32 iso;
-	u32 capt_mode;
-	u32 wdr;
+	u8 metering;
+	u8 ev_bias;
+	u8 wb_mode;
+	u8 wb_preset;
+	u8 chroma_en;
+	u8 chroma_lvl;
+	u8 edge_en;
+	u8 edge_lvl;
+	u8 af_range;
+	u8 fd_mode;
+	u8 mcc;
+	u8 light;
+	u8 flash;
+	u8 tone;
+	u8 iso;
+	u8 capt_mode;
+	u8 wdr;
 };
 
 /**
@@ -154,7 +154,6 @@ struct m5mols_version {
 	u8	str[VERSION_STRING_SIZE];
 	u8	af;
 };
-#define VERSION_SIZE sizeof(struct m5mols_version)
 
 /**
  * struct m5mols_info - M-5MOLS driver data structure
@@ -216,9 +215,9 @@ struct m5mols_info {
 	bool lock_ae;
 	bool lock_awb;
 	u8 resolution;
-	u32 interrupt;
-	u32 mode;
-	u32 mode_save;
+	u8 interrupt;
+	u8 mode;
+	u8 mode_save;
 	int (*set_power)(struct device *dev, int on);
 };
 
@@ -256,9 +255,11 @@ struct m5mols_info {
  *   +-------+---+----------+-----+------+------+------+------+
  *   - d[0..3]: according to size1
  */
-int m5mols_read(struct v4l2_subdev *sd, u32 reg_comb, u32 *val);
+int m5mols_read_u8(struct v4l2_subdev *sd, u32 reg_comb, u8 *val);
+int m5mols_read_u16(struct v4l2_subdev *sd, u32 reg_comb, u16 *val);
+int m5mols_read_u32(struct v4l2_subdev *sd, u32 reg_comb, u32 *val);
 int m5mols_write(struct v4l2_subdev *sd, u32 reg_comb, u32 val);
-int m5mols_busy(struct v4l2_subdev *sd, u8 category, u8 cmd, u32 value);
+int m5mols_busy(struct v4l2_subdev *sd, u8 category, u8 cmd, u8 value);
 
 /*
  * Mode operation of the M-5MOLS
@@ -280,12 +281,12 @@ int m5mols_busy(struct v4l2_subdev *sd, u8 category, u8 cmd, u32 value);
  * The available executing order between each modes are as follows:
  *   PARAMETER <---> MONITOR <---> CAPTURE
  */
-int m5mols_mode(struct m5mols_info *info, u32 mode);
+int m5mols_mode(struct m5mols_info *info, u8 mode);
 
-int m5mols_enable_interrupt(struct v4l2_subdev *sd, u32 reg);
+int m5mols_enable_interrupt(struct v4l2_subdev *sd, u8 reg);
 int m5mols_sync_controls(struct m5mols_info *info);
 int m5mols_start_capture(struct m5mols_info *info);
-int m5mols_do_scenemode(struct m5mols_info *info, u32 mode);
+int m5mols_do_scenemode(struct m5mols_info *info, u8 mode);
 int m5mols_lock_3a(struct m5mols_info *info, bool lock);
 int m5mols_set_ctrl(struct v4l2_ctrl *ctrl);
 

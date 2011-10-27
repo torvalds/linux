@@ -1,0 +1,48 @@
+/include/ "versatile-ab.dts"
+
+/ {
+	model = "ARM Versatile PB";
+	compatible = "arm,versatile-pb";
+
+	amba {
+		gpio2: gpio@101e6000 {
+			compatible = "arm,pl061", "arm,primecell";
+			reg = <0x101e6000 0x1000>;
+			interrupts = <8>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio3: gpio@101e7000 {
+			compatible = "arm,pl061", "arm,primecell";
+			reg = <0x101e7000 0x1000>;
+			interrupts = <9>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		fpga {
+			uart@9000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x9000 0x1000>;
+				interrupt-parent = <&sic>;
+				interrupts = <6>;
+			};
+			sci@a000 {
+				compatible = "arm,primecell";
+				reg = <0xa000 0x1000>;
+				interrupt-parent = <&sic>;
+				interrupts = <5>;
+			};
+			mmc@b000 {
+				compatible = "arm,primecell";
+				reg = <0xb000 0x1000>;
+				interrupts = <23>;
+			};
+		};
+	};
+};

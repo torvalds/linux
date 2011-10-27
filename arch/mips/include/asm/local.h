@@ -3,7 +3,7 @@
 
 #include <linux/percpu.h>
 #include <linux/bitops.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/cmpxchg.h>
 #include <asm/war.h>
 

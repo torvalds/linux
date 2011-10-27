@@ -201,6 +201,9 @@ struct amba_pl011_data {
 	bool (*dma_filter)(struct dma_chan *chan, void *filter_param);
 	void *dma_rx_param;
 	void *dma_tx_param;
+        void (*init) (void);
+	void (*exit) (void);
+	void (*reset) (void);
 };
 #endif
 

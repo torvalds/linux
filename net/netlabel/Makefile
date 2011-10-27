@@ -1,8 +1,6 @@
 #
 # Makefile for the NetLabel subsystem.
 #
-# Feb 9, 2006, Paul Moore <paul.moore@hp.com>
-#
 
 # base objects
 obj-y	:= netlabel_user.o netlabel_kapi.o

@@ -916,27 +916,5 @@ void pwc_dec23_decompress(const struct pwc_device *pwc,
 			pout_planar_v += pwc->view.x;
 
 		}
-
 	}
-
 }
-
-void pwc_dec23_exit(void)
-{
-	/* Do nothing */
-
-}
-
-/**
- * Allocate a private structure used by lookup table.
- * You must call kfree() to free the memory allocated.
- */
-int pwc_dec23_alloc(struct pwc_device *pwc)
-{
-	pwc->decompress_data = kmalloc(sizeof(struct pwc_dec23_private), GFP_KERNEL);
-	if (pwc->decompress_data == NULL)
-		return -ENOMEM;
-	return 0;
-}
-
-/* vim: set cino= formatoptions=croql cindent shiftwidth=8 tabstop=8: */

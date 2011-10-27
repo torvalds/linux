@@ -27,7 +27,7 @@
 #include <linux/of_device.h>
 
 #include <asm/system.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/time.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
@@ -68,7 +68,7 @@ static void __init mpc832x_sys_setup_arch(void)
 		struct resource res;
 
 		of_address_to_resource(np, 0, &res);
-		bcsr_regs = ioremap(res.start, res.end - res.start +1);
+		bcsr_regs = ioremap(res.start, resource_size(&res));
 		of_node_put(np);
 	}
 

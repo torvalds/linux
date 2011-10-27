@@ -402,7 +402,6 @@ void tipc_bearer_lock_push(struct tipc_bearer *b_ptr)
 void tipc_continue(struct tipc_bearer *b_ptr)
 {
 	spin_lock_bh(&b_ptr->lock);
-	b_ptr->continue_count++;
 	if (!list_empty(&b_ptr->cong_links))
 		tipc_k_signal((Handler)tipc_bearer_lock_push, (unsigned long)b_ptr);
 	b_ptr->blocked = 0;

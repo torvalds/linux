@@ -44,7 +44,7 @@
 #include <asm/dma.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #ifdef CONFIG_SBUS
 #include <linux/of.h>

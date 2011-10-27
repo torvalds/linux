@@ -125,7 +125,7 @@ static DEVICE_ATTR(comp2_threshold, S_IRUGO, comp_threshold_show, NULL);
 static __devinit int tps65911_comparator_probe(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910 = dev_get_drvdata(pdev->dev.parent);
-	struct tps65910_platform_data *pdata = dev_get_platdata(tps65910->dev);
+	struct tps65910_board *pdata = dev_get_platdata(tps65910->dev);
 	int ret;
 
 	ret = comp_threshold_set(tps65910, COMP1,  pdata->vmbch_threshold);
@@ -157,6 +157,8 @@ static __devexit int tps65911_comparator_remove(struct platform_device *pdev)
 	struct tps65910 *tps65910;
 
 	tps65910 = dev_get_drvdata(pdev->dev.parent);
+	device_remove_file(&pdev->dev, &dev_attr_comp2_threshold);
+	device_remove_file(&pdev->dev, &dev_attr_comp1_threshold);
 
 	return 0;
 }

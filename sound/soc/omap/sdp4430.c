@@ -21,6 +21,8 @@
 
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/twl6040.h>
+
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -34,8 +36,6 @@
 #include "omap-pcm.h"
 #include "../codecs/twl6040.h"
 
-static int twl6040_power_mode;
-
 static int sdp4430_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
@@ -44,13 +44,13 @@ static int sdp4430_hw_params(struct snd_pcm_substream *substream,
 	int clk_id, freq;
 	int ret;
 
-	if (twl6040_power_mode) {
-		clk_id = TWL6040_SYSCLK_SEL_HPPLL;
+	clk_id = twl6040_get_clk_id(rtd->codec);
+	if (clk_id == TWL6040_SYSCLK_SEL_HPPLL)
 		freq = 38400000;
-	} else {
-		clk_id = TWL6040_SYSCLK_SEL_LPPLL;
+	else if (clk_id == TWL6040_SYSCLK_SEL_LPPLL)
 		freq = 32768;
-	}
+	else
+		return -EINVAL;
 
 	/* set the codec mclk */
 	ret = snd_soc_dai_set_sysclk(codec_dai, clk_id, freq,
@@ -79,35 +79,6 @@ static struct snd_soc_jack_pin hs_jack_pins[] = {
 		.pin = "Headset Stereophone",
 		.mask = SND_JACK_HEADPHONE,
 	},
-};
-
-static int sdp4430_get_power_mode(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.integer.value[0] = twl6040_power_mode;
-	return 0;
-}
-
-static int sdp4430_set_power_mode(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	if (twl6040_power_mode == ucontrol->value.integer.value[0])
-		return 0;
-
-	twl6040_power_mode = ucontrol->value.integer.value[0];
-
-	return 1;
-}
-
-static const char *power_texts[] = {"Low-Power", "High-Performance"};
-
-static const struct soc_enum sdp4430_enum[] = {
-	SOC_ENUM_SINGLE_EXT(2, power_texts),
-};
-
-static const struct snd_kcontrol_new sdp4430_controls[] = {
-	SOC_ENUM_EXT("TWL6040 Power Mode", sdp4430_enum[0],
-		sdp4430_get_power_mode, sdp4430_set_power_mode),
 };
 
 /* SDP4430 machine DAPM */
@@ -151,12 +122,6 @@ static int sdp4430_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
-
-	/* Add SDP4430 specific controls */
-	ret = snd_soc_add_controls(codec, sdp4430_controls,
-				ARRAY_SIZE(sdp4430_controls));
-	if (ret)
-		return ret;
 
 	/* Add SDP4430 specific widgets */
 	ret = snd_soc_dapm_new_controls(dapm, sdp4430_twl6040_dapm_widgets,
@@ -236,9 +201,6 @@ static int __init sdp4430_soc_init(void)
 	ret = platform_device_add(sdp4430_snd_device);
 	if (ret)
 		goto err;
-
-	/* Codec starts in HP mode */
-	twl6040_power_mode = 1;
 
 	return 0;
 

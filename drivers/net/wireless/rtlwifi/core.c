@@ -335,8 +335,8 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 		 * before going offchannel, or dis-association or delete BA will
 		 * happen by AP
 		 */
-		if (rtlpriv->mac80211.offchan_deley) {
-			rtlpriv->mac80211.offchan_deley = false;
+		if (rtlpriv->mac80211.offchan_delay) {
+			rtlpriv->mac80211.offchan_delay = false;
 			mdelay(50);
 		}
 		rtlphy->current_channel = wide_chan;
@@ -443,11 +443,11 @@ static int rtl_op_sta_add(struct ieee80211_hw *hw,
 			sta_entry->wireless_mode = WIRELESS_MODE_G;
 			if (sta->supp_rates[0] <= 0xf)
 				sta_entry->wireless_mode = WIRELESS_MODE_B;
-			if (sta->ht_cap.ht_supported == true)
+			if (sta->ht_cap.ht_supported)
 				sta_entry->wireless_mode = WIRELESS_MODE_N_24G;
 		} else if (rtlhal->current_bandtype == BAND_ON_5G) {
 			sta_entry->wireless_mode = WIRELESS_MODE_A;
-			if (sta->ht_cap.ht_supported == true)
+			if (sta->ht_cap.ht_supported)
 				sta_entry->wireless_mode = WIRELESS_MODE_N_24G;
 		}
 
@@ -456,7 +456,7 @@ static int rtl_op_sta_add(struct ieee80211_hw *hw,
 			sta_entry->wireless_mode = WIRELESS_MODE_G;
 
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
-			("Add sta addr is "MAC_FMT"\n", MAC_ARG(sta->addr)));
+			("Add sta addr is %pM\n", sta->addr));
 		rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
 	}
 	return 0;
@@ -469,7 +469,7 @@ static int rtl_op_sta_remove(struct ieee80211_hw *hw,
 	struct rtl_sta_info *sta_entry;
 	if (sta) {
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
-			("Remove sta addr is "MAC_FMT"\n", MAC_ARG(sta->addr)));
+			("Remove sta addr is %pM\n", sta->addr));
 		sta_entry = (struct rtl_sta_info *) sta->drv_priv;
 		sta_entry->wireless_mode = 0;
 		sta_entry->ratr_index = 0;
@@ -650,7 +650,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_TRACE,
 			 ("BSS_CHANGED_HT\n"));
 		rcu_read_lock();
-		sta = get_sta(hw, vif, (u8 *)bss_conf->bssid);
+		sta = get_sta(hw, vif, bss_conf->bssid);
 		if (sta) {
 			if (sta->ht_cap.ampdu_density >
 			    mac->current_ampdu_density)
@@ -678,14 +678,14 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 					      (u8 *) bss_conf->bssid);
 
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
-			 (MAC_FMT "\n", MAC_ARG(bss_conf->bssid)));
+			 ("%pM\n", bss_conf->bssid));
 
 		mac->vendor = PEER_UNKNOWN;
 		memcpy(mac->bssid, bss_conf->bssid, 6);
 		rtlpriv->cfg->ops->set_network_type(hw, vif->type);
 
 		rcu_read_lock();
-		sta = get_sta(hw, vif, (u8 *)bss_conf->bssid);
+		sta = get_sta(hw, vif, bss_conf->bssid);
 		if (!sta) {
 			rcu_read_unlock();
 			goto out;

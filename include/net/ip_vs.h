@@ -13,7 +13,7 @@
 #include <linux/sysctl.h>               /* for ctl_path */
 #include <linux/list.h>                 /* for struct list_head */
 #include <linux/spinlock.h>             /* for struct rwlock_t */
-#include <asm/atomic.h>                 /* for struct atomic_t */
+#include <linux/atomic.h>                 /* for struct atomic_t */
 #include <linux/compiler.h>
 #include <linux/timer.h>
 
@@ -836,8 +836,6 @@ struct netns_ipvs {
 	int			num_services;    /* no of virtual services */
 
 	rwlock_t		rs_lock;         /* real services table */
-	/* semaphore for IPVS sockopts. And, [gs]etsockopt may sleep. */
-	struct lock_class_key	ctl_key;	/* ctl_mutex debuging */
 	/* Trash for destinations */
 	struct list_head	dest_trash;
 	/* Service counters */
@@ -1089,19 +1087,19 @@ ip_vs_control_add(struct ip_vs_conn *cp, struct ip_vs_conn *ctl_cp)
 /*
  * IPVS netns init & cleanup functions
  */
-extern int __ip_vs_estimator_init(struct net *net);
-extern int __ip_vs_control_init(struct net *net);
-extern int __ip_vs_protocol_init(struct net *net);
-extern int __ip_vs_app_init(struct net *net);
-extern int __ip_vs_conn_init(struct net *net);
-extern int __ip_vs_sync_init(struct net *net);
-extern void __ip_vs_conn_cleanup(struct net *net);
-extern void __ip_vs_app_cleanup(struct net *net);
-extern void __ip_vs_protocol_cleanup(struct net *net);
-extern void __ip_vs_control_cleanup(struct net *net);
-extern void __ip_vs_estimator_cleanup(struct net *net);
-extern void __ip_vs_sync_cleanup(struct net *net);
-extern void __ip_vs_service_cleanup(struct net *net);
+extern int ip_vs_estimator_net_init(struct net *net);
+extern int ip_vs_control_net_init(struct net *net);
+extern int ip_vs_protocol_net_init(struct net *net);
+extern int ip_vs_app_net_init(struct net *net);
+extern int ip_vs_conn_net_init(struct net *net);
+extern int ip_vs_sync_net_init(struct net *net);
+extern void ip_vs_conn_net_cleanup(struct net *net);
+extern void ip_vs_app_net_cleanup(struct net *net);
+extern void ip_vs_protocol_net_cleanup(struct net *net);
+extern void ip_vs_control_net_cleanup(struct net *net);
+extern void ip_vs_estimator_net_cleanup(struct net *net);
+extern void ip_vs_sync_net_cleanup(struct net *net);
+extern void ip_vs_service_net_cleanup(struct net *net);
 
 /*
  *      IPVS application functions
@@ -1119,8 +1117,6 @@ extern void ip_vs_app_inc_put(struct ip_vs_app *inc);
 
 extern int ip_vs_app_pkt_out(struct ip_vs_conn *, struct sk_buff *skb);
 extern int ip_vs_app_pkt_in(struct ip_vs_conn *, struct sk_buff *skb);
-extern int ip_vs_app_init(void);
-extern void ip_vs_app_cleanup(void);
 
 void ip_vs_bind_pe(struct ip_vs_service *svc, struct ip_vs_pe *pe);
 void ip_vs_unbind_pe(struct ip_vs_service *svc);
@@ -1223,15 +1219,11 @@ extern int start_sync_thread(struct net *net, int state, char *mcast_ifn,
 			     __u8 syncid);
 extern int stop_sync_thread(struct net *net, int state);
 extern void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp);
-extern int ip_vs_sync_init(void);
-extern void ip_vs_sync_cleanup(void);
 
 
 /*
  *      IPVS rate estimator prototypes (from ip_vs_est.c)
  */
-extern int ip_vs_estimator_init(void);
-extern void ip_vs_estimator_cleanup(void);
 extern void ip_vs_start_estimator(struct net *net, struct ip_vs_stats *stats);
 extern void ip_vs_stop_estimator(struct net *net, struct ip_vs_stats *stats);
 extern void ip_vs_zero_estimator(struct ip_vs_stats *stats);

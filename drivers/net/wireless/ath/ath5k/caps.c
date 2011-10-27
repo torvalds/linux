@@ -52,8 +52,8 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 		__set_bit(AR5K_MODE_11A, caps->cap_mode);
 	} else {
 		/*
-		 * XXX The tranceiver supports frequencies from 4920 to 6100GHz
-		 * XXX and from 2312 to 2732GHz. There are problems with the
+		 * XXX The transceiver supports frequencies from 4920 to 6100MHz
+		 * XXX and from 2312 to 2732MHz. There are problems with the
 		 * XXX current ieee80211 implementation because the IEEE
 		 * XXX channel mapping does not support negative channel
 		 * XXX numbers (2312MHz is channel -19). Of course, this
@@ -109,51 +109,6 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 	else
 		caps->cap_has_phyerr_counters = false;
 
-	return 0;
-}
-
-/* Main function used by the driver part to check caps */
-int ath5k_hw_get_capability(struct ath5k_hw *ah,
-		enum ath5k_capability_type cap_type,
-		u32 capability, u32 *result)
-{
-	switch (cap_type) {
-	case AR5K_CAP_NUM_TXQUEUES:
-		if (result) {
-			if (ah->ah_version == AR5K_AR5210)
-				*result = AR5K_NUM_TX_QUEUES_NOQCU;
-			else
-				*result = AR5K_NUM_TX_QUEUES;
-			goto yes;
-		}
-	case AR5K_CAP_VEOL:
-		goto yes;
-	case AR5K_CAP_COMPRESSION:
-		if (ah->ah_version == AR5K_AR5212)
-			goto yes;
-		else
-			goto no;
-	case AR5K_CAP_BURST:
-		goto yes;
-	case AR5K_CAP_TPC:
-		goto yes;
-	case AR5K_CAP_BSSIDMASK:
-		if (ah->ah_version == AR5K_AR5212)
-			goto yes;
-		else
-			goto no;
-	case AR5K_CAP_XR:
-		if (ah->ah_version == AR5K_AR5212)
-			goto yes;
-		else
-			goto no;
-	default:
-		goto no;
-	}
-
-no:
-	return -EINVAL;
-yes:
 	return 0;
 }
 

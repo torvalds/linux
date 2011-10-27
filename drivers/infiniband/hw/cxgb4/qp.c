@@ -1207,11 +1207,8 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 				c4iw_get_ep(&qhp->ep->com);
 			}
 			ret = rdma_fini(rhp, qhp, ep);
-			if (ret) {
-				if (internal)
-					c4iw_get_ep(&qhp->ep->com);
+			if (ret)
 				goto err;
-			}
 			break;
 		case C4IW_QP_STATE_TERMINATE:
 			set_state(qhp, C4IW_QP_STATE_TERMINATE);

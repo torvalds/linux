@@ -394,20 +394,15 @@ void omap3_sram_restore_context(void)
 }
 #endif /* CONFIG_PM */
 
-static int __init omap34xx_sram_init(void)
-{
-	_omap3_sram_configure_core_dpll =
-		omap_sram_push(omap3_sram_configure_core_dpll,
-			       omap3_sram_configure_core_dpll_sz);
-	omap_push_sram_idle();
-	return 0;
-}
-#else
+#endif /* CONFIG_ARCH_OMAP3 */
+
 static inline int omap34xx_sram_init(void)
 {
+#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
+	omap3_sram_restore_context();
+#endif
 	return 0;
 }
-#endif
 
 int __init omap_sram_init(void)
 {

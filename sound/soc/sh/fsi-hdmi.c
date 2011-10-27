@@ -83,13 +83,13 @@ static int fsi_hdmi_remove(struct platform_device *pdev)
 
 static struct fsi_hdmi_data fsi2_a_hdmi = {
 	.cpu_dai	= "fsia-dai",
-	.card		= "FSI2A (SH MOBILE HDMI)",
+	.card		= "FSI2A-HDMI",
 	.id		= FSI_PORT_A,
 };
 
 static struct fsi_hdmi_data fsi2_b_hdmi = {
 	.cpu_dai	= "fsib-dai",
-	.card		= "FSI2B (SH MOBILE HDMI)",
+	.card		= "FSI2B-HDMI",
 	.id		= FSI_PORT_B,
 };
 

@@ -20,14 +20,21 @@
  */
 
 #include "main.h"
+#include "bat_sysfs.h"
 #include "gateway_client.h"
 #include "gateway_common.h"
 #include "hard-interface.h"
 #include "originator.h"
+#include "routing.h"
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
+
+/* This is the offset of the options field in a dhcp packet starting at
+ * the beginning of the dhcp header */
+#define DHCP_OPTIONS_OFFSET 240
+#define DHCP_REQUEST 3
 
 static void gw_node_free_ref(struct gw_node *gw_node)
 {
@@ -86,7 +93,7 @@ static void gw_select(struct bat_priv *bat_priv, struct gw_node *new_gw_node)
 	if (new_gw_node && !atomic_inc_not_zero(&new_gw_node->refcount))
 		new_gw_node = NULL;
 
-	curr_gw_node = bat_priv->curr_gw;
+	curr_gw_node = rcu_dereference_protected(bat_priv->curr_gw, 1);
 	rcu_assign_pointer(bat_priv->curr_gw, new_gw_node);
 
 	if (curr_gw_node)
@@ -97,40 +104,19 @@ static void gw_select(struct bat_priv *bat_priv, struct gw_node *new_gw_node)
 
 void gw_deselect(struct bat_priv *bat_priv)
 {
-	gw_select(bat_priv, NULL);
+	atomic_set(&bat_priv->gw_reselect, 1);
 }
 
-void gw_election(struct bat_priv *bat_priv)
+static struct gw_node *gw_get_best_gw_node(struct bat_priv *bat_priv)
 {
-	struct hlist_node *node;
-	struct gw_node *gw_node, *curr_gw = NULL, *curr_gw_tmp = NULL;
 	struct neigh_node *router;
-	uint8_t max_tq = 0;
+	struct hlist_node *node;
+	struct gw_node *gw_node, *curr_gw = NULL;
 	uint32_t max_gw_factor = 0, tmp_gw_factor = 0;
+	uint8_t max_tq = 0;
 	int down, up;
 
-	/**
-	 * The batman daemon checks here if we already passed a full originator
-	 * cycle in order to make sure we don't choose the first gateway we
-	 * hear about. This check is based on the daemon's uptime which we
-	 * don't have.
-	 **/
-	if (atomic_read(&bat_priv->gw_mode) != GW_MODE_CLIENT)
-		return;
-
-	curr_gw = gw_get_selected_gw_node(bat_priv);
-	if (curr_gw)
-		goto out;
-
 	rcu_read_lock();
-	if (hlist_empty(&bat_priv->gw_list)) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Removing selected gateway - "
-			"no gateway in range\n");
-		gw_deselect(bat_priv);
-		goto unlock;
-	}
-
 	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
 		if (gw_node->deleted)
 			continue;
@@ -138,6 +124,9 @@ void gw_election(struct bat_priv *bat_priv)
 		router = orig_node_get_router(gw_node->orig_node);
 		if (!router)
 			continue;
+
+		if (!atomic_inc_not_zero(&gw_node->refcount))
+			goto next;
 
 		switch (atomic_read(&bat_priv->gw_sel_class)) {
 		case 1: /* fast connection */
@@ -151,8 +140,12 @@ void gw_election(struct bat_priv *bat_priv)
 
 			if ((tmp_gw_factor > max_gw_factor) ||
 			    ((tmp_gw_factor == max_gw_factor) &&
-			     (router->tq_avg > max_tq)))
-				curr_gw_tmp = gw_node;
+			     (router->tq_avg > max_tq))) {
+				if (curr_gw)
+					gw_node_free_ref(curr_gw);
+				curr_gw = gw_node;
+				atomic_inc(&curr_gw->refcount);
+			}
 			break;
 
 		default: /**
@@ -163,8 +156,12 @@ void gw_election(struct bat_priv *bat_priv)
 			  *     soon as a better gateway appears which has
 			  *     $routing_class more tq points)
 			  **/
-			if (router->tq_avg > max_tq)
-				curr_gw_tmp = gw_node;
+			if (router->tq_avg > max_tq) {
+				if (curr_gw)
+					gw_node_free_ref(curr_gw);
+				curr_gw = gw_node;
+				atomic_inc(&curr_gw->refcount);
+			}
 			break;
 		}
 
@@ -174,42 +171,81 @@ void gw_election(struct bat_priv *bat_priv)
 		if (tmp_gw_factor > max_gw_factor)
 			max_gw_factor = tmp_gw_factor;
 
+		gw_node_free_ref(gw_node);
+
+next:
 		neigh_node_free_ref(router);
 	}
-
-	if (curr_gw != curr_gw_tmp) {
-		router = orig_node_get_router(curr_gw_tmp->orig_node);
-		if (!router)
-			goto unlock;
-
-		if ((curr_gw) && (!curr_gw_tmp))
-			bat_dbg(DBG_BATMAN, bat_priv,
-				"Removing selected gateway - "
-				"no gateway in range\n");
-		else if ((!curr_gw) && (curr_gw_tmp))
-			bat_dbg(DBG_BATMAN, bat_priv,
-				"Adding route to gateway %pM "
-				"(gw_flags: %i, tq: %i)\n",
-				curr_gw_tmp->orig_node->orig,
-				curr_gw_tmp->orig_node->gw_flags,
-				router->tq_avg);
-		else
-			bat_dbg(DBG_BATMAN, bat_priv,
-				"Changing route to gateway %pM "
-				"(gw_flags: %i, tq: %i)\n",
-				curr_gw_tmp->orig_node->orig,
-				curr_gw_tmp->orig_node->gw_flags,
-				router->tq_avg);
-
-		neigh_node_free_ref(router);
-		gw_select(bat_priv, curr_gw_tmp);
-	}
-
-unlock:
 	rcu_read_unlock();
+
+	return curr_gw;
+}
+
+void gw_election(struct bat_priv *bat_priv)
+{
+	struct gw_node *curr_gw = NULL, *next_gw = NULL;
+	struct neigh_node *router = NULL;
+	char gw_addr[18] = { '\0' };
+
+	/**
+	 * The batman daemon checks here if we already passed a full originator
+	 * cycle in order to make sure we don't choose the first gateway we
+	 * hear about. This check is based on the daemon's uptime which we
+	 * don't have.
+	 **/
+	if (atomic_read(&bat_priv->gw_mode) != GW_MODE_CLIENT)
+		goto out;
+
+	if (!atomic_dec_not_zero(&bat_priv->gw_reselect))
+		goto out;
+
+	curr_gw = gw_get_selected_gw_node(bat_priv);
+
+	next_gw = gw_get_best_gw_node(bat_priv);
+
+	if (curr_gw == next_gw)
+		goto out;
+
+	if (next_gw) {
+		sprintf(gw_addr, "%pM", next_gw->orig_node->orig);
+
+		router = orig_node_get_router(next_gw->orig_node);
+		if (!router) {
+			gw_deselect(bat_priv);
+			goto out;
+		}
+	}
+
+	if ((curr_gw) && (!next_gw)) {
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"Removing selected gateway - no gateway in range\n");
+		throw_uevent(bat_priv, UEV_GW, UEV_DEL, NULL);
+	} else if ((!curr_gw) && (next_gw)) {
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"Adding route to gateway %pM (gw_flags: %i, tq: %i)\n",
+			next_gw->orig_node->orig,
+			next_gw->orig_node->gw_flags,
+			router->tq_avg);
+		throw_uevent(bat_priv, UEV_GW, UEV_ADD, gw_addr);
+	} else {
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"Changing route to gateway %pM "
+			"(gw_flags: %i, tq: %i)\n",
+			next_gw->orig_node->orig,
+			next_gw->orig_node->gw_flags,
+			router->tq_avg);
+		throw_uevent(bat_priv, UEV_GW, UEV_CHANGE, gw_addr);
+	}
+
+	gw_select(bat_priv, next_gw);
+
 out:
 	if (curr_gw)
 		gw_node_free_ref(curr_gw);
+	if (next_gw)
+		gw_node_free_ref(next_gw);
+	if (router)
+		neigh_node_free_ref(router);
 }
 
 void gw_check_election(struct bat_priv *bat_priv, struct orig_node *orig_node)
@@ -273,11 +309,10 @@ static void gw_node_add(struct bat_priv *bat_priv,
 	struct gw_node *gw_node;
 	int down, up;
 
-	gw_node = kmalloc(sizeof(struct gw_node), GFP_ATOMIC);
+	gw_node = kzalloc(sizeof(*gw_node), GFP_ATOMIC);
 	if (!gw_node)
 		return;
 
-	memset(gw_node, 0, sizeof(struct gw_node));
 	INIT_HLIST_NODE(&gw_node->list);
 	gw_node->orig_node = orig_node;
 	atomic_set(&gw_node->refcount, 1);
@@ -323,7 +358,7 @@ void gw_node_update(struct bat_priv *bat_priv,
 
 		gw_node->deleted = 0;
 
-		if (new_gwflags == 0) {
+		if (new_gwflags == NO_FLAGS) {
 			gw_node->deleted = jiffies;
 			bat_dbg(DBG_BATMAN, bat_priv,
 				"Gateway %pM removed from gateway list\n",
@@ -336,7 +371,7 @@ void gw_node_update(struct bat_priv *bat_priv,
 		goto unlock;
 	}
 
-	if (new_gwflags == 0)
+	if (new_gwflags == NO_FLAGS)
 		goto unlock;
 
 	gw_node_add(bat_priv, orig_node, new_gwflags);
@@ -353,7 +388,7 @@ unlock:
 
 void gw_node_delete(struct bat_priv *bat_priv, struct orig_node *orig_node)
 {
-	return gw_node_update(bat_priv, orig_node, 0);
+	gw_node_update(bat_priv, orig_node, 0);
 }
 
 void gw_node_purge(struct bat_priv *bat_priv)
@@ -361,7 +396,7 @@ void gw_node_purge(struct bat_priv *bat_priv)
 	struct gw_node *gw_node, *curr_gw;
 	struct hlist_node *node, *node_tmp;
 	unsigned long timeout = 2 * PURGE_TIMEOUT * HZ;
-	char do_deselect = 0;
+	int do_deselect = 0;
 
 	curr_gw = gw_get_selected_gw_node(bat_priv);
 
@@ -394,8 +429,8 @@ void gw_node_purge(struct bat_priv *bat_priv)
 /**
  * fails if orig_node has no router
  */
-static int _write_buffer_text(struct bat_priv *bat_priv,
-			      struct seq_file *seq, struct gw_node *gw_node)
+static int _write_buffer_text(struct bat_priv *bat_priv, struct seq_file *seq,
+			      const struct gw_node *gw_node)
 {
 	struct gw_node *curr_gw;
 	struct neigh_node *router;
@@ -452,10 +487,9 @@ int gw_client_seq_print_text(struct seq_file *seq, void *offset)
 	}
 
 	seq_printf(seq, "      %-12s (%s/%i) %17s [%10s]: gw_class ... "
-		   "[B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%pM (%s)]\n",
+		   "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s)]\n",
 		   "Gateway", "#", TQ_MAX_VALUE, "Nexthop",
-		   "outgoingIF", SOURCE_VERSION, REVISION_VERSION_STR,
-		   primary_if->net_dev->name,
+		   "outgoingIF", SOURCE_VERSION, primary_if->net_dev->name,
 		   primary_if->net_dev->dev_addr, net_dev->name);
 
 	rcu_read_lock();
@@ -480,14 +514,75 @@ out:
 	return ret;
 }
 
-int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
+static bool is_type_dhcprequest(struct sk_buff *skb, int header_len)
+{
+	int ret = false;
+	unsigned char *p;
+	int pkt_len;
+
+	if (skb_linearize(skb) < 0)
+		goto out;
+
+	pkt_len = skb_headlen(skb);
+
+	if (pkt_len < header_len + DHCP_OPTIONS_OFFSET + 1)
+		goto out;
+
+	p = skb->data + header_len + DHCP_OPTIONS_OFFSET;
+	pkt_len -= header_len + DHCP_OPTIONS_OFFSET + 1;
+
+	/* Access the dhcp option lists. Each entry is made up by:
+	 * - octect 1: option type
+	 * - octect 2: option data len (only if type != 255 and 0)
+	 * - octect 3: option data */
+	while (*p != 255 && !ret) {
+		/* p now points to the first octect: option type */
+		if (*p == 53) {
+			/* type 53 is the message type option.
+			 * Jump the len octect and go to the data octect */
+			if (pkt_len < 2)
+				goto out;
+			p += 2;
+
+			/* check if the message type is what we need */
+			if (*p == DHCP_REQUEST)
+				ret = true;
+			break;
+		} else if (*p == 0) {
+			/* option type 0 (padding), just go forward */
+			if (pkt_len < 1)
+				goto out;
+			pkt_len--;
+			p++;
+		} else {
+			/* This is any other option. So we get the length... */
+			if (pkt_len < 1)
+				goto out;
+			pkt_len--;
+			p++;
+
+			/* ...and then we jump over the data */
+			if (pkt_len < *p)
+				goto out;
+			pkt_len -= *p;
+			p += (*p);
+		}
+	}
+out:
+	return ret;
+}
+
+int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb,
+		 struct orig_node *old_gw)
 {
 	struct ethhdr *ethhdr;
 	struct iphdr *iphdr;
 	struct ipv6hdr *ipv6hdr;
 	struct udphdr *udphdr;
 	struct gw_node *curr_gw;
+	struct neigh_node *neigh_curr = NULL, *neigh_old = NULL;
 	unsigned int header_len = 0;
+	int ret = 1;
 
 	if (atomic_read(&bat_priv->gw_mode) == GW_MODE_OFF)
 		return 0;
@@ -509,7 +604,7 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 	/* check for ip header */
 	switch (ntohs(ethhdr->h_proto)) {
 	case ETH_P_IP:
-		if (!pskb_may_pull(skb, header_len + sizeof(struct iphdr)))
+		if (!pskb_may_pull(skb, header_len + sizeof(*iphdr)))
 			return 0;
 		iphdr = (struct iphdr *)(skb->data + header_len);
 		header_len += iphdr->ihl * 4;
@@ -520,10 +615,10 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 
 		break;
 	case ETH_P_IPV6:
-		if (!pskb_may_pull(skb, header_len + sizeof(struct ipv6hdr)))
+		if (!pskb_may_pull(skb, header_len + sizeof(*ipv6hdr)))
 			return 0;
 		ipv6hdr = (struct ipv6hdr *)(skb->data + header_len);
-		header_len += sizeof(struct ipv6hdr);
+		header_len += sizeof(*ipv6hdr);
 
 		/* check for udp header */
 		if (ipv6hdr->nexthdr != IPPROTO_UDP)
@@ -534,10 +629,10 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 		return 0;
 	}
 
-	if (!pskb_may_pull(skb, header_len + sizeof(struct udphdr)))
+	if (!pskb_may_pull(skb, header_len + sizeof(*udphdr)))
 		return 0;
 	udphdr = (struct udphdr *)(skb->data + header_len);
-	header_len += sizeof(struct udphdr);
+	header_len += sizeof(*udphdr);
 
 	/* check for bootp port */
 	if ((ntohs(ethhdr->h_proto) == ETH_P_IP) &&
@@ -555,7 +650,30 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 	if (!curr_gw)
 		return 0;
 
+	/* If old_gw != NULL then this packet is unicast.
+	 * So, at this point we have to check the message type: if it is a
+	 * DHCPREQUEST we have to decide whether to drop it or not */
+	if (old_gw && curr_gw->orig_node != old_gw) {
+		if (is_type_dhcprequest(skb, header_len)) {
+			/* If the dhcp packet has been sent to a different gw,
+			 * we have to evaluate whether the old gw is still
+			 * reliable enough */
+			neigh_curr = find_router(bat_priv, curr_gw->orig_node,
+						 NULL);
+			neigh_old = find_router(bat_priv, old_gw, NULL);
+			if (!neigh_curr || !neigh_old)
+				goto free_neigh;
+			if (neigh_curr->tq_avg - neigh_old->tq_avg <
+								GW_THRESHOLD)
+				ret = -1;
+		}
+	}
+free_neigh:
+	if (neigh_old)
+		neigh_node_free_ref(neigh_old);
+	if (neigh_curr)
+		neigh_node_free_ref(neigh_curr);
 	if (curr_gw)
 		gw_node_free_ref(curr_gw);
-	return 1;
+	return ret;
 }

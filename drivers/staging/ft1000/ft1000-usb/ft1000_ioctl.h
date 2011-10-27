@@ -26,38 +26,6 @@
 #ifndef _FT1000IOCTLH_
 #define _FT1000IOCTLH_
 
-#define DSPVERSZ                4
-#define HWSERNUMSZ              16
-#define SKUSZ                   20
-#define EUISZ                   8
-#define CALVERSZ                2
-#define CALDATESZ               6
-
-#define MAX_DNLD_BLKSZ          1024
-
-// Standard Flarion Pseudo header
-struct pseudo_hdr {
-   unsigned short    length;           //length of msg body
-   unsigned char     source;           //source address (0x10=Host 0x20=DSP)
-   unsigned char     destination;      //destination address (refer to source address)
-   unsigned char     portdest;         //destination port id
-                                       //    0x00=Driver
-                                       //    0x10=Application Broadcast
-                                       //    0x20=Network Stack
-                                       //    0x80=Dsp OAM
-                                       //    0x90=Dsp Airlink
-                                       //    0xa0=Dsp Loader
-                                       //    0xb0=Dsp MIP
-   unsigned char     portsrc;          //source port id (refer to portdest)
-   unsigned short    sh_str_id;        //stream id (Not applicable on Mobile)
-   unsigned char     control;          //stream id (Not applicable on Mobile)
-   unsigned char     rsvd1;            //reserved
-   unsigned char     seq_num;          //sequence number
-   unsigned char     rsvd2;            //reserved
-   unsigned short    qos_class;        //Quality of Service class (Not applicable on Mobile)
-   unsigned short    checksum;         //Pseudo header checksum
-} __attribute__ ((packed));
-
 typedef struct _IOCTL_GET_VER
 {
     unsigned long drv_ver;

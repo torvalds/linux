@@ -2,10 +2,10 @@
  * The Capture code for Fujitsu M-5MOLS ISP
  *
  * Copyright (C) 2011 Samsung Electronics Co., Ltd.
- * Author: HeungJun Kim, riverful.kim@samsung.com
+ * Author: HeungJun Kim <riverful.kim@samsung.com>
  *
  * Copyright (C) 2009 Samsung Electronics Co., Ltd.
- * Author: Dongsoo Nathaniel Kim, dongsoo45.kim@samsung.com
+ * Author: Dongsoo Nathaniel Kim <dongsoo45.kim@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,11 +18,9 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/version.h>
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/videodev2.h>
-#include <linux/version.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
@@ -58,9 +56,9 @@ static int m5mols_read_rational(struct v4l2_subdev *sd, u32 addr_num,
 {
 	u32 num, den;
 
-	int ret = m5mols_read(sd, addr_num, &num);
+	int ret = m5mols_read_u32(sd, addr_num, &num);
 	if (!ret)
-		ret = m5mols_read(sd, addr_den, &den);
+		ret = m5mols_read_u32(sd, addr_den, &den);
 	if (ret)
 		return ret;
 	*val = den == 0 ? 0 : num / den;
@@ -99,20 +97,20 @@ static int m5mols_capture_info(struct m5mols_info *info)
 	if (ret)
 		return ret;
 
-	ret = m5mols_read(sd, EXIF_INFO_ISO, (u32 *)&exif->iso_speed);
+	ret = m5mols_read_u16(sd, EXIF_INFO_ISO, &exif->iso_speed);
 	if (!ret)
-		ret = m5mols_read(sd, EXIF_INFO_FLASH, (u32 *)&exif->flash);
+		ret = m5mols_read_u16(sd, EXIF_INFO_FLASH, &exif->flash);
 	if (!ret)
-		ret = m5mols_read(sd, EXIF_INFO_SDR, (u32 *)&exif->sdr);
+		ret = m5mols_read_u16(sd, EXIF_INFO_SDR, &exif->sdr);
 	if (!ret)
-		ret = m5mols_read(sd, EXIF_INFO_QVAL, (u32 *)&exif->qval);
+		ret = m5mols_read_u16(sd, EXIF_INFO_QVAL, &exif->qval);
 	if (ret)
 		return ret;
 
 	if (!ret)
-		ret = m5mols_read(sd, CAPC_IMAGE_SIZE, &info->cap.main);
+		ret = m5mols_read_u32(sd, CAPC_IMAGE_SIZE, &info->cap.main);
 	if (!ret)
-		ret = m5mols_read(sd, CAPC_THUMB_SIZE, &info->cap.thumb);
+		ret = m5mols_read_u32(sd, CAPC_THUMB_SIZE, &info->cap.thumb);
 	if (!ret)
 		info->cap.total = info->cap.main + info->cap.thumb;
 
@@ -122,7 +120,7 @@ static int m5mols_capture_info(struct m5mols_info *info)
 int m5mols_start_capture(struct m5mols_info *info)
 {
 	struct v4l2_subdev *sd = &info->sd;
-	u32 resolution = info->resolution;
+	u8 resolution = info->resolution;
 	int timeout;
 	int ret;
 

@@ -32,7 +32,7 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 {
 	struct dog_data data;
 	int in_fds[2], out_fds[2], pid, n, err;
-	char pid_buf[sizeof("nnnnn\0")], c;
+	char pid_buf[sizeof("nnnnnnn\0")], c;
 	char *pid_args[] = { "/usr/bin/uml_watchdog", "-pid", pid_buf, NULL };
 	char *mconsole_args[] = { "/usr/bin/uml_watchdog", "-mconsole", NULL,
 				  NULL };

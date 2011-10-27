@@ -226,7 +226,7 @@ void leon3_getCacheRegs(struct leon3_cacheregs *regs)
  * Leon2 and Leon3 differ in their way of telling cache information
  *
  */
-int leon_flush_needed(void)
+int __init leon_flush_needed(void)
 {
 	int flush_needed = -1;
 	unsigned int ssize, sets;

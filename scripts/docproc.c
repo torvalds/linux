@@ -205,8 +205,7 @@ static void find_export_symbols(char * filename)
 				PATH_MAX - strlen(real_filename));
 		sym = add_new_file(filename);
 		fp = fopen(real_filename, "r");
-		if (fp == NULL)
-		{
+		if (fp == NULL)	{
 			fprintf(stderr, "docproc: ");
 			perror(real_filename);
 			exit(1);
@@ -487,8 +486,7 @@ static void parse_file(FILE *infile)
 				default:
 					defaultline(line);
 			}
-		}
-		else {
+		} else {
 			defaultline(line);
 		}
 	}
@@ -519,8 +517,7 @@ int main(int argc, char *argv[])
                 exit(2);
         }
 
-	if (strcmp("doc", argv[1]) == 0)
-	{
+	if (strcmp("doc", argv[1]) == 0) {
 		/* Need to do this in two passes.
 		 * First pass is used to collect all symbols exported
 		 * in the various files;
@@ -556,9 +553,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Warning: didn't use docs for %s\n",
 				all_list[i]);
 		}
-	}
-	else if (strcmp("depend", argv[1]) == 0)
-	{
+	} else if (strcmp("depend", argv[1]) == 0) {
 		/* Create first part of dependency chain
 		 * file.tmpl */
 		printf("%s\t", argv[2]);
@@ -571,9 +566,7 @@ int main(int argc, char *argv[])
 		findall           = adddep;
 		parse_file(infile);
 		printf("\n");
-	}
-	else
-	{
+	} else {
 		fprintf(stderr, "Unknown option: %s\n", argv[1]);
 		exit(1);
 	}

@@ -739,23 +739,16 @@ static void send_space(unsigned long len)
 static void send_pulse(unsigned long len)
 {
 	long bytes_out = len / TIME_CONST;
-	long time_left;
 
-	time_left = (long)len - (long)bytes_out * (long)TIME_CONST;
-	if (bytes_out == 0) {
+	if (bytes_out == 0)
 		bytes_out++;
-		time_left = 0;
-	}
+
 	while (bytes_out--) {
 		outb(PULSE, io + UART_TX);
 		/* FIXME treba seriozne cakanie z char/serial.c */
 		while (!(inb(io + UART_LSR) & UART_LSR_THRE))
 			;
 	}
-#if 0
-	if (time_left > 0)
-		safe_udelay(time_left);
-#endif
 }
 #endif
 

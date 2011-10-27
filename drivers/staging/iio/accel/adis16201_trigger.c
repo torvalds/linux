@@ -17,17 +17,16 @@
 static int adis16201_data_rdy_trigger_set_state(struct iio_trigger *trig,
 						bool state)
 {
-	struct adis16201_state *st = trig->private_data;
-	struct iio_dev *indio_dev = st->indio_dev;
+	struct iio_dev *indio_dev = trig->private_data;
 
 	dev_dbg(&indio_dev->dev, "%s (%d)\n", __func__, state);
-	return adis16201_set_irq(st->indio_dev, state);
+	return adis16201_set_irq(indio_dev, state);
 }
 
 int adis16201_probe_trigger(struct iio_dev *indio_dev)
 {
 	int ret;
-	struct adis16201_state *st = indio_dev->dev_data;
+	struct adis16201_state *st = iio_priv(indio_dev);
 
 	st->trig = iio_allocate_trigger("adis16201-dev%d", indio_dev->id);
 	if (st->trig == NULL) {
@@ -43,7 +42,7 @@ int adis16201_probe_trigger(struct iio_dev *indio_dev)
 		goto error_free_trig;
 	st->trig->dev.parent = &st->us->dev;
 	st->trig->owner = THIS_MODULE;
-	st->trig->private_data = st;
+	st->trig->private_data = indio_dev;
 	st->trig->set_trigger_state = &adis16201_data_rdy_trigger_set_state;
 	ret = iio_trigger_register(st->trig);
 
@@ -64,7 +63,7 @@ error_ret:
 
 void adis16201_remove_trigger(struct iio_dev *indio_dev)
 {
-	struct adis16201_state *state = indio_dev->dev_data;
+	struct adis16201_state *state = iio_priv(indio_dev);
 
 	iio_trigger_unregister(state->trig);
 	free_irq(state->us->irq, state->trig);

@@ -291,7 +291,7 @@ struct TCP_Server_Info {
 	struct fscache_cookie   *fscache; /* client index cache cookie */
 #endif
 #ifdef CONFIG_CIFS_STATS2
-	atomic_t inSend; /* requests trying to send */
+	atomic_t in_send; /* requests trying to send */
 	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
 #endif
 };
@@ -501,7 +501,7 @@ struct cifs_search_info {
 	char *ntwrk_buf_start;
 	char *srch_entries_start;
 	char *last_entry;
-	char *presume_name;
+	const char *presume_name;
 	unsigned int resume_name_len;
 	bool endOfSearch:1;
 	bool emptyDir:1;
@@ -672,12 +672,54 @@ struct mid_q_entry {
 	bool multiEnd:1;	/* both received */
 };
 
-struct oplock_q_entry {
-	struct list_head qhead;
-	struct inode *pinode;
-	struct cifs_tcon *tcon;
-	__u16 netfid;
-};
+/*	Make code in transport.c a little cleaner by moving
+	update of optional stats into function below */
+#ifdef CONFIG_CIFS_STATS2
+
+static inline void cifs_in_send_inc(struct TCP_Server_Info *server)
+{
+	atomic_inc(&server->in_send);
+}
+
+static inline void cifs_in_send_dec(struct TCP_Server_Info *server)
+{
+	atomic_dec(&server->in_send);
+}
+
+static inline void cifs_num_waiters_inc(struct TCP_Server_Info *server)
+{
+	atomic_inc(&server->num_waiters);
+}
+
+static inline void cifs_num_waiters_dec(struct TCP_Server_Info *server)
+{
+	atomic_dec(&server->num_waiters);
+}
+
+static inline void cifs_save_when_sent(struct mid_q_entry *mid)
+{
+	mid->when_sent = jiffies;
+}
+#else
+static inline void cifs_in_send_inc(struct TCP_Server_Info *server)
+{
+}
+static inline void cifs_in_send_dec(struct TCP_Server_Info *server)
+{
+}
+
+static inline void cifs_num_waiters_inc(struct TCP_Server_Info *server)
+{
+}
+
+static inline void cifs_num_waiters_dec(struct TCP_Server_Info *server)
+{
+}
+
+static inline void cifs_save_when_sent(struct mid_q_entry *mid)
+{
+}
+#endif
 
 /* for pending dnotify requests */
 struct dir_notify_req {
@@ -942,8 +984,6 @@ GLOBAL_EXTERN spinlock_t siduidlock;
 GLOBAL_EXTERN spinlock_t sidgidlock;
 
 void cifs_oplock_break(struct work_struct *work);
-void cifs_oplock_break_get(struct cifsFileInfo *cfile);
-void cifs_oplock_break_put(struct cifsFileInfo *cfile);
 
 extern const struct slow_work_ops cifs_oplock_break_ops;
 

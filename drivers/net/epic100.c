@@ -391,13 +391,13 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 	ring_space = pci_alloc_consistent(pdev, TX_TOTAL_SIZE, &ring_dma);
 	if (!ring_space)
 		goto err_out_iounmap;
-	ep->tx_ring = (struct epic_tx_desc *)ring_space;
+	ep->tx_ring = ring_space;
 	ep->tx_ring_dma = ring_dma;
 
 	ring_space = pci_alloc_consistent(pdev, RX_TOTAL_SIZE, &ring_dma);
 	if (!ring_space)
 		goto err_out_unmap_tx;
-	ep->rx_ring = (struct epic_rx_desc *)ring_space;
+	ep->rx_ring = ring_space;
 	ep->rx_ring_dma = ring_dma;
 
 	if (dev->mem_start) {

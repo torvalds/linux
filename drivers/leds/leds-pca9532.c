@@ -88,7 +88,7 @@ static const struct pca9532_chip_info pca9532_chip_info_tbl[] = {
 
 static struct i2c_driver pca9532_driver = {
 	.driver = {
-		.name = "pca953x",
+		.name = "leds-pca953x",
 	},
 	.probe = pca9532_probe,
 	.remove = pca9532_remove,

@@ -28,7 +28,7 @@
 #include <net/tcp_states.h>
 #include <net/timewait_sock.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct inet_hashinfo;
 

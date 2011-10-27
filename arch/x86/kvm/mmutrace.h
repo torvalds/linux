@@ -196,6 +196,54 @@ DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_prepare_zap_page,
 	TP_ARGS(sp)
 );
 
+DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_delay_free_pages,
+	TP_PROTO(struct kvm_mmu_page *sp),
+
+	TP_ARGS(sp)
+);
+
+TRACE_EVENT(
+	mark_mmio_spte,
+	TP_PROTO(u64 *sptep, gfn_t gfn, unsigned access),
+	TP_ARGS(sptep, gfn, access),
+
+	TP_STRUCT__entry(
+		__field(void *, sptep)
+		__field(gfn_t, gfn)
+		__field(unsigned, access)
+	),
+
+	TP_fast_assign(
+		__entry->sptep = sptep;
+		__entry->gfn = gfn;
+		__entry->access = access;
+	),
+
+	TP_printk("sptep:%p gfn %llx access %x", __entry->sptep, __entry->gfn,
+		  __entry->access)
+);
+
+TRACE_EVENT(
+	handle_mmio_page_fault,
+	TP_PROTO(u64 addr, gfn_t gfn, unsigned access),
+	TP_ARGS(addr, gfn, access),
+
+	TP_STRUCT__entry(
+		__field(u64, addr)
+		__field(gfn_t, gfn)
+		__field(unsigned, access)
+	),
+
+	TP_fast_assign(
+		__entry->addr = addr;
+		__entry->gfn = gfn;
+		__entry->access = access;
+	),
+
+	TP_printk("addr:%llx gfn %llx access %x", __entry->addr, __entry->gfn,
+		  __entry->access)
+);
+
 TRACE_EVENT(
 	kvm_mmu_audit,
 	TP_PROTO(struct kvm_vcpu *vcpu, int audit_point),

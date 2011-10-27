@@ -104,13 +104,11 @@ mwifiex_clean_cmd_node(struct mwifiex_adapter *adapter,
  * main thread.
  */
 static int mwifiex_cmd_host_cmd(struct mwifiex_private *priv,
-				struct host_cmd_ds_command *cmd, void *data_buf)
+				struct host_cmd_ds_command *cmd,
+				struct mwifiex_ds_misc_cmd *pcmd_ptr)
 {
-	struct mwifiex_ds_misc_cmd *pcmd_ptr =
-		(struct mwifiex_ds_misc_cmd *) data_buf;
-
 	/* Copy the HOST command to command buffer */
-	memcpy((void *) cmd, pcmd_ptr->cmd, pcmd_ptr->len);
+	memcpy(cmd, pcmd_ptr->cmd, pcmd_ptr->len);
 	dev_dbg(priv->adapter->dev, "cmd: host cmd size = %d\n", pcmd_ptr->len);
 	return 0;
 }
@@ -707,15 +705,14 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 
 	if (adapter->curr_cmd->cmd_flag & CMD_F_HOSTCMD) {
 		/* Copy original response back to response buffer */
-		struct mwifiex_ds_misc_cmd *hostcmd = NULL;
+		struct mwifiex_ds_misc_cmd *hostcmd;
 		uint16_t size = le16_to_cpu(resp->size);
 		dev_dbg(adapter->dev, "info: host cmd resp size = %d\n", size);
 		size = min_t(u16, size, MWIFIEX_SIZE_OF_CMD_BUFFER);
 		if (adapter->curr_cmd->data_buf) {
-			hostcmd = (struct mwifiex_ds_misc_cmd *)
-						adapter->curr_cmd->data_buf;
+			hostcmd = adapter->curr_cmd->data_buf;
 			hostcmd->len = size;
-			memcpy(hostcmd->cmd, (void *) resp, size);
+			memcpy(hostcmd->cmd, resp, size);
 		}
 	}
 	orig_cmdresp_no = le16_to_cpu(resp->command);
@@ -1155,7 +1152,7 @@ EXPORT_SYMBOL_GPL(mwifiex_process_sleep_confirm_resp);
 int mwifiex_cmd_enh_power_mode(struct mwifiex_private *priv,
 			       struct host_cmd_ds_command *cmd,
 			       u16 cmd_action, uint16_t ps_bitmap,
-			       void *data_buf)
+			       struct mwifiex_ds_auto_ds *auto_ds)
 {
 	struct host_cmd_ds_802_11_ps_mode_enh *psmode_enh =
 		&cmd->params.psmode_enh;
@@ -1218,9 +1215,8 @@ int mwifiex_cmd_enh_power_mode(struct mwifiex_private *priv,
 					sizeof(struct mwifiex_ie_types_header));
 			cmd_size += sizeof(*auto_ds_tlv);
 			tlv += sizeof(*auto_ds_tlv);
-			if (data_buf)
-				idletime = ((struct mwifiex_ds_auto_ds *)
-					     data_buf)->idle_time;
+			if (auto_ds)
+				idletime = auto_ds->idle_time;
 			dev_dbg(priv->adapter->dev,
 					"cmd: PS Command: Enter Auto Deep Sleep\n");
 			auto_ds_tlv->deep_sleep_timeout = cpu_to_le16(idletime);
@@ -1239,7 +1235,7 @@ int mwifiex_cmd_enh_power_mode(struct mwifiex_private *priv,
  */
 int mwifiex_ret_enh_power_mode(struct mwifiex_private *priv,
 			       struct host_cmd_ds_command *resp,
-			       void *data_buf)
+			       struct mwifiex_ds_pm_cfg *pm_cfg)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct host_cmd_ds_802_11_ps_mode_enh *ps_mode =
@@ -1282,10 +1278,8 @@ int mwifiex_ret_enh_power_mode(struct mwifiex_private *priv,
 
 		dev_dbg(adapter->dev, "cmd: ps_bitmap=%#x\n", ps_bitmap);
 
-		if (data_buf) {
+		if (pm_cfg) {
 			/* This section is for get power save mode */
-			struct mwifiex_ds_pm_cfg *pm_cfg =
-					(struct mwifiex_ds_pm_cfg *)data_buf;
 			if (ps_bitmap & BITMAP_STA_PS)
 				pm_cfg->param.ps_mode = 1;
 			else

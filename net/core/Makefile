@@ -3,7 +3,7 @@
 #
 
 obj-y := sock.o request_sock.o skbuff.o iovec.o datagram.o stream.o scm.o \
-	 gen_stats.o gen_estimator.o net_namespace.o
+	 gen_stats.o gen_estimator.o net_namespace.o secure_seq.o
 
 obj-$(CONFIG_SYSCTL) += sysctl_net_core.o
 

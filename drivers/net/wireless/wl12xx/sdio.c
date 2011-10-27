@@ -23,7 +23,6 @@
 
 #include <linux/irq.h>
 #include <linux/module.h>
-#include <linux/crc7.h>
 #include <linux/vmalloc.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
@@ -45,7 +44,7 @@
 #define SDIO_DEVICE_ID_TI_WL1271	0x4076
 #endif
 
-static const struct sdio_device_id wl1271_devices[] = {
+static const struct sdio_device_id wl1271_devices[] __devinitconst = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_TI, SDIO_DEVICE_ID_TI_WL1271) },
 	{}
 };
@@ -107,14 +106,6 @@ static void wl1271_sdio_enable_interrupts(struct wl1271 *wl)
 	enable_irq(wl->irq);
 }
 
-static void wl1271_sdio_reset(struct wl1271 *wl)
-{
-}
-
-static void wl1271_sdio_init(struct wl1271 *wl)
-{
-}
-
 static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
 				 size_t len, bool fixed)
 {
@@ -170,15 +161,17 @@ static int wl1271_sdio_power_on(struct wl1271 *wl)
 	struct sdio_func *func = wl_to_func(wl);
 	int ret;
 
-	/* Make sure the card will not be powered off by runtime PM */
-	ret = pm_runtime_get_sync(&func->dev);
-	if (ret < 0)
-		goto out;
-
-	/* Runtime PM might be disabled, so power up the card manually */
-	ret = mmc_power_restore_host(func->card->host);
-	if (ret < 0)
-		goto out;
+	/* If enabled, tell runtime PM not to power off the card */
+	if (pm_runtime_enabled(&func->dev)) {
+		ret = pm_runtime_get_sync(&func->dev);
+		if (ret)
+			goto out;
+	} else {
+		/* Runtime PM is disabled: power up the card manually */
+		ret = mmc_power_restore_host(func->card->host);
+		if (ret < 0)
+			goto out;
+	}
 
 	sdio_claim_host(func);
 	sdio_enable_func(func);
@@ -195,13 +188,16 @@ static int wl1271_sdio_power_off(struct wl1271 *wl)
 	sdio_disable_func(func);
 	sdio_release_host(func);
 
-	/* Runtime PM might be disabled, so power off the card manually */
+	/* Power off the card manually, even if runtime PM is enabled. */
 	ret = mmc_power_save_host(func->card->host);
 	if (ret < 0)
 		return ret;
 
-	/* Let runtime PM know the card is powered off */
-	return pm_runtime_put_sync(&func->dev);
+	/* If enabled, let runtime PM know the card is powered off */
+	if (pm_runtime_enabled(&func->dev))
+		ret = pm_runtime_put_sync(&func->dev);
+
+	return ret;
 }
 
 static int wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
@@ -215,8 +211,6 @@ static int wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
 static struct wl1271_if_operations sdio_ops = {
 	.read		= wl1271_sdio_raw_read,
 	.write		= wl1271_sdio_raw_write,
-	.reset		= wl1271_sdio_reset,
-	.init		= wl1271_sdio_init,
 	.power		= wl1271_sdio_set_power,
 	.dev		= wl1271_sdio_wl_to_dev,
 	.enable_irq	= wl1271_sdio_enable_interrupts,
@@ -278,17 +272,19 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 		goto out_free;
 	}
 
-	enable_irq_wake(wl->irq);
-	device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 1);
+	ret = enable_irq_wake(wl->irq);
+	if (!ret) {
+		wl->irq_wake_enabled = true;
+		device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 1);
 
+		/* if sdio can keep power while host is suspended, enable wow */
+		mmcflags = sdio_get_host_pm_caps(func);
+		wl1271_debug(DEBUG_SDIO, "sdio PM caps = 0x%x", mmcflags);
+
+		if (mmcflags & MMC_PM_KEEP_POWER)
+			hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY;
+	}
 	disable_irq(wl->irq);
-
-	/* if sdio can keep power while host is suspended, enable wow */
-	mmcflags = sdio_get_host_pm_caps(func);
-	wl1271_debug(DEBUG_SDIO, "sdio PM caps = 0x%x", mmcflags);
-
-	if (mmcflags & MMC_PM_KEEP_POWER)
-		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY;
 
 	ret = wl1271_init_ieee80211(wl);
 	if (ret)
@@ -302,8 +298,6 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 
 	/* Tell PM core that we don't need the card to be powered now */
 	pm_runtime_put_noidle(&func->dev);
-
-	wl1271_notice("initialized");
 
 	return 0;
 
@@ -324,8 +318,10 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 	pm_runtime_get_noresume(&func->dev);
 
 	wl1271_unregister_hw(wl);
-	device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 0);
-	disable_irq_wake(wl->irq);
+	if (wl->irq_wake_enabled) {
+		device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 0);
+		disable_irq_wake(wl->irq);
+	}
 	free_irq(wl->irq, wl);
 	wl1271_free_hw(wl);
 }
@@ -402,23 +398,12 @@ static struct sdio_driver wl1271_sdio_driver = {
 
 static int __init wl1271_init(void)
 {
-	int ret;
-
-	ret = sdio_register_driver(&wl1271_sdio_driver);
-	if (ret < 0) {
-		wl1271_error("failed to register sdio driver: %d", ret);
-		goto out;
-	}
-
-out:
-	return ret;
+	return sdio_register_driver(&wl1271_sdio_driver);
 }
 
 static void __exit wl1271_exit(void)
 {
 	sdio_unregister_driver(&wl1271_sdio_driver);
-
-	wl1271_notice("unloaded");
 }
 
 module_init(wl1271_init);

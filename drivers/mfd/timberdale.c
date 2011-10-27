@@ -287,12 +287,8 @@ static __devinitdata struct i2c_board_info timberdale_saa7706_i2c_board_info = {
 static __devinitdata struct timb_radio_platform_data
 	timberdale_radio_platform_data = {
 	.i2c_adapter = 0,
-	.tuner = {
-		.info = &timberdale_tef6868_i2c_board_info
-	},
-	.dsp = {
-		.info = &timberdale_saa7706_i2c_board_info
-	}
+	.tuner = &timberdale_tef6868_i2c_board_info,
+	.dsp = &timberdale_saa7706_i2c_board_info
 };
 
 static const __devinitconst struct resource timberdale_video_resources[] = {

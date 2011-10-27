@@ -29,7 +29,6 @@ struct	qos_priv	{
 
 #include "rtl871x_ht.h"
 #include "rtl871x_cmd.h"
-#include "wlan_bssdef.h"
 #include "rtl871x_xmit.h"
 #include "rtl871x_recv.h"
 #include "rtl871x_security.h"

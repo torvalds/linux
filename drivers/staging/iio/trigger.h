@@ -29,6 +29,8 @@ struct iio_subirq {
  * @set_trigger_state:	[DRIVER] switch on/off the trigger on demand
  * @try_reenable:	function to reenable the trigger when the
  *			use count is zero (may be NULL)
+ * @validate_device:	function to validate the device when the
+ *			current trigger gets changed.
  * @subirq_chip:	[INTERN] associate 'virtual' irq chip.
  * @subirq_base:	[INTERN] base number for irqs provided by trigger.
  * @subirqs:		[INTERN] information about the 'child' irqs.
@@ -48,6 +50,8 @@ struct iio_trigger {
 
 	int (*set_trigger_state)(struct iio_trigger *trig, bool state);
 	int (*try_reenable)(struct iio_trigger *trig);
+	int (*validate_device)(struct iio_trigger *trig,
+			       struct iio_dev *indio_dev);
 
 	struct irq_chip			subirq_chip;
 	int				subirq_base;
@@ -55,6 +59,30 @@ struct iio_trigger {
 	struct iio_subirq subirqs[CONFIG_IIO_CONSUMERS_PER_TRIGGER];
 	unsigned long pool[BITS_TO_LONGS(CONFIG_IIO_CONSUMERS_PER_TRIGGER)];
 	struct mutex			pool_lock;
+};
+
+/**
+ * struct iio_poll_func - poll function pair
+ *
+ * @private_data:		data specific to device (passed into poll func)
+ * @h:				the function that is actually run on trigger
+ * @thread:			threaded interrupt part
+ * @type:			the type of interrupt (basically if oneshot)
+ * @name:			name used to identify the trigger consumer.
+ * @irq:			the corresponding irq as allocated from the
+ *				trigger pool
+ * @timestamp:			some devices need a timestamp grabbed as soon
+ *				as possible after the trigger - hence handler
+ *				passes it via here.
+ **/
+struct iio_poll_func {
+	void				*private_data;
+	irqreturn_t (*h)(int irq, void *p);
+	irqreturn_t (*thread)(int irq, void *p);
+	int type;
+	char *name;
+	int irq;
+	s64 timestamp;
 };
 
 static inline struct iio_trigger *to_iio_trigger(struct device *d)
@@ -134,30 +162,6 @@ static inline void iio_trigger_put_irq(struct iio_trigger *trig, int irq)
 	mutex_lock(&trig->pool_lock);
 	clear_bit(irq - trig->subirq_base, trig->pool);
 	mutex_unlock(&trig->pool_lock);
-};
-
-/**
- * struct iio_poll_func - poll function pair
- *
- * @private_data:		data specific to device (passed into poll func)
- * @h:				the function that is actually run on trigger
- * @thread:			threaded interrupt part
- * @type:			the type of interrupt (basically if oneshot)
- * @name:			name used to identify the trigger consumer.
- * @irq:			the corresponding irq as allocated from the
- *				trigger pool
- * @timestamp:			some devices need a timestamp grabbed as soon
- *				as possible after the trigger - hence handler
- *				passes it via here.
- **/
-struct iio_poll_func {
-	void				*private_data;
-	irqreturn_t (*h)(int irq, void *p);
-	irqreturn_t (*thread)(int irq, void *p);
-	int type;
-	char *name;
-	int irq;
-	s64 timestamp;
 };
 
 struct iio_poll_func

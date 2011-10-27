@@ -111,7 +111,7 @@ struct ttm_object_device;
  *
  * @ref_obj_release: A function to be called when a reference object
  * with another ttm_ref_type than TTM_REF_USAGE is deleted.
- * this function may, for example, release a lock held by a user-space
+ * This function may, for example, release a lock held by a user-space
  * process.
  *
  * This struct is intended to be used as a base struct for objects that
@@ -172,7 +172,7 @@ extern struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file
 /**
  * ttm_base_object_unref
  *
- * @p_base: Pointer to a pointer referncing a struct ttm_base_object.
+ * @p_base: Pointer to a pointer referencing a struct ttm_base_object.
  *
  * Decrements the base object refcount and clears the pointer pointed to by
  * p_base.

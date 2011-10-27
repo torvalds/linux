@@ -1170,7 +1170,6 @@ static void lance_load_multicast(struct net_device *dev)
 {
 	struct lance_private *lp = netdev_priv(dev);
 	struct netdev_hw_addr *ha;
-	char *addrs;
 	u32 crc;
 	u32 val;
 
@@ -1195,12 +1194,7 @@ static void lance_load_multicast(struct net_device *dev)
 
 	/* Add addresses */
 	netdev_for_each_mc_addr(ha, dev) {
-		addrs = ha->addr;
-
-		/* multicast address? */
-		if (!(*addrs & 1))
-			continue;
-		crc = ether_crc_le(6, addrs);
+		crc = ether_crc_le(6, ha->addr);
 		crc = crc >> 26;
 		if (lp->pio_buffer) {
 			struct lance_init_block __iomem *ib = lp->init_block_iomem;

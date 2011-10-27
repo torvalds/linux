@@ -338,6 +338,9 @@ static ssize_t lkfirst_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	rv = sscanf(buf, "%u", &first);
 	if (rv != 1 || first > 1)
 		return -EINVAL;
+	rv = wait_for_completion_killable(&sdp->sd_locking_init);
+	if (rv)
+		return rv;
 	spin_lock(&sdp->sd_jindex_spin);
 	rv = -EBUSY;
 	if (test_bit(SDF_NOJOURNALID, &sdp->sd_flags) == 0)
@@ -414,7 +417,9 @@ static ssize_t jid_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	rv = sscanf(buf, "%d", &jid);
 	if (rv != 1)
 		return -EINVAL;
-
+	rv = wait_for_completion_killable(&sdp->sd_locking_init);
+	if (rv)
+		return rv;
 	spin_lock(&sdp->sd_jindex_spin);
 	rv = -EINVAL;
 	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)

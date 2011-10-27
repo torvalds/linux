@@ -168,7 +168,7 @@ ENTRY(sys_call_table)
 	.long sys_tas			/* vm86 syscall holder */
 	.long sys_ni_syscall		/* query_module syscall holder */
 	.long sys_poll
-	.long sys_nfsservctl
+	.long sys_ni_syscall		/* was nfsservctl */
 	.long sys_setresgid		/* 170 */
 	.long sys_getresgid
 	.long sys_prctl

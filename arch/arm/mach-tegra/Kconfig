@@ -27,14 +27,14 @@ comment "Tegra board type"
 
 config MACH_HARMONY
        bool "Harmony board"
-       select MACH_HAS_SND_SOC_TEGRA_WM8903
+       select MACH_HAS_SND_SOC_TEGRA_WM8903 if SND_SOC
        help
          Support for nVidia Harmony development platform
 
 config MACH_KAEN
        bool "Kaen board"
        select MACH_SEABOARD
-       select MACH_HAS_SND_SOC_TEGRA_WM8903
+       select MACH_HAS_SND_SOC_TEGRA_WM8903 if SND_SOC
        help
          Support for the Kaen version of Seaboard
 
@@ -45,11 +45,17 @@ config MACH_PAZ00
 
 config MACH_SEABOARD
        bool "Seaboard board"
-       select MACH_HAS_SND_SOC_TEGRA_WM8903
+       select MACH_HAS_SND_SOC_TEGRA_WM8903 if SND_SOC
        help
          Support for nVidia Seaboard development platform. It will
 	 also be included for some of the derivative boards that
 	 have large similarities with the seaboard design.
+
+config MACH_TEGRA_DT
+	bool "Generic Tegra board (FDT support)"
+	select USE_OF
+	help
+	  Support for generic nVidia Tegra boards using Flattened Device Tree
 
 config MACH_TRIMSLICE
        bool "TrimSlice board"

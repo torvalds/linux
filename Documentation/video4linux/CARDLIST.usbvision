@@ -63,3 +63,5 @@
  62 -> Pinnacle PCTV Bungee USB (PAL) FM                        [2304:0419]
  63 -> Hauppauge WinTv-USB                                      [2400:4200]
  64 -> Pinnacle Studio PCTV USB (NTSC) FM V3                    [2304:0113]
+ 65 -> Nogatech USB MicroCam NTSC (NV3000N)                     [0573:3000]
+ 66 -> Nogatech USB MicroCam PAL (NV3001P)                      [0573:3001]

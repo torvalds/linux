@@ -187,7 +187,7 @@ int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
 			break;
 		case AR5K_TX_QUEUE_XR_DATA:
 			if (ah->ah_version != AR5K_AR5212)
-				ATH5K_ERR(ah->ah_sc,
+				ATH5K_ERR(ah,
 					"XR data queues only supported in"
 					" 5212!\n");
 			queue = AR5K_TX_QUEUE_ID_XR_DATA;
@@ -510,7 +510,6 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 int ath5k_hw_set_ifs_intervals(struct ath5k_hw *ah, unsigned int slot_time)
 {
 	struct ieee80211_channel *channel = ah->ah_current_channel;
-	struct ath5k_softc *sc = ah->ah_sc;
 	struct ieee80211_rate *rate;
 	u32 ack_tx_time, eifs, eifs_clock, sifs, sifs_clock;
 	u32 slot_time_clock = ath5k_hw_htoclock(ah, slot_time);
@@ -546,9 +545,9 @@ int ath5k_hw_set_ifs_intervals(struct ath5k_hw *ah, unsigned int slot_time)
 	 * Also we have different lowest rate for 802.11a
 	 */
 	if (channel->hw_value & CHANNEL_5GHZ)
-		rate = &sc->sbands[IEEE80211_BAND_5GHZ].bitrates[0];
+		rate = &ah->sbands[IEEE80211_BAND_5GHZ].bitrates[0];
 	else
-		rate = &sc->sbands[IEEE80211_BAND_2GHZ].bitrates[0];
+		rate = &ah->sbands[IEEE80211_BAND_2GHZ].bitrates[0];
 
 	ack_tx_time = ath5k_hw_get_frame_duration(ah, 10, rate, false);
 
@@ -622,7 +621,7 @@ int ath5k_hw_init_queues(struct ath5k_hw *ah)
 		for (i = 0; i < ah->ah_capabilities.cap_queues.q_tx_num; i++) {
 			ret = ath5k_hw_reset_tx_queue(ah, i);
 			if (ret) {
-				ATH5K_ERR(ah->ah_sc,
+				ATH5K_ERR(ah,
 					"failed to reset TX queue #%d\n", i);
 				return ret;
 			}

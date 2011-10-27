@@ -801,6 +801,10 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	if (ucontext) {
 		memsize = roundup(memsize, PAGE_SIZE);
 		hwentries = memsize / sizeof *chp->cq.queue;
+		while (hwentries > T4_MAX_IQ_SIZE) {
+			memsize -= PAGE_SIZE;
+			hwentries = memsize / sizeof *chp->cq.queue;
+		}
 	}
 	chp->cq.size = hwentries;
 	chp->cq.memsize = memsize;

@@ -33,7 +33,7 @@
 #include <linux/topology.h>
 
 #include <asm/ptrace.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -202,14 +202,6 @@ void smp_muxed_ipi_message_pass(int cpu, int msg)
 	smp_ops->cause_ipi(cpu, info->data);
 }
 
-void smp_muxed_ipi_resend(void)
-{
-	struct cpu_messages *info = &__get_cpu_var(ipi_message);
-
-	if (info->messages)
-		smp_ops->cause_ipi(smp_processor_id(), info->data);
-}
-
 irqreturn_t smp_ipi_demux(void)
 {
 	struct cpu_messages *info = &__get_cpu_var(ipi_message);
@@ -238,15 +230,26 @@ irqreturn_t smp_ipi_demux(void)
 }
 #endif /* CONFIG_PPC_SMP_MUXED_IPI */
 
+static inline void do_message_pass(int cpu, int msg)
+{
+	if (smp_ops->message_pass)
+		smp_ops->message_pass(cpu, msg);
+#ifdef CONFIG_PPC_SMP_MUXED_IPI
+	else
+		smp_muxed_ipi_message_pass(cpu, msg);
+#endif
+}
+
 void smp_send_reschedule(int cpu)
 {
 	if (likely(smp_ops))
-		smp_ops->message_pass(cpu, PPC_MSG_RESCHEDULE);
+		do_message_pass(cpu, PPC_MSG_RESCHEDULE);
 }
+EXPORT_SYMBOL_GPL(smp_send_reschedule);
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	smp_ops->message_pass(cpu, PPC_MSG_CALL_FUNC_SINGLE);
+	do_message_pass(cpu, PPC_MSG_CALL_FUNC_SINGLE);
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
@@ -254,7 +257,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 	unsigned int cpu;
 
 	for_each_cpu(cpu, mask)
-		smp_ops->message_pass(cpu, PPC_MSG_CALL_FUNCTION);
+		do_message_pass(cpu, PPC_MSG_CALL_FUNCTION);
 }
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
@@ -268,7 +271,7 @@ void smp_send_debugger_break(void)
 
 	for_each_online_cpu(cpu)
 		if (cpu != me)
-			smp_ops->message_pass(cpu, PPC_MSG_DEBUGGER_BREAK);
+			do_message_pass(cpu, PPC_MSG_DEBUGGER_BREAK);
 }
 #endif
 
@@ -303,6 +306,10 @@ struct thread_info *current_set[NR_CPUS];
 static void __devinit smp_store_cpu_info(int id)
 {
 	per_cpu(cpu_pvr, id) = mfspr(SPRN_PVR);
+#ifdef CONFIG_PPC_FSL_BOOK3E
+	per_cpu(next_tlbcam_idx, id)
+		= (mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY) - 1;
+#endif
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)

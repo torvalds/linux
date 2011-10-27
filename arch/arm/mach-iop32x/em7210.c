@@ -81,7 +81,7 @@ void __init em7210_map_io(void)
 #define INTD	IRQ_IOP32X_XINT3
 
 static int __init
-em7210_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+em7210_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static int pci_irq_table[][4] = {
 		/*

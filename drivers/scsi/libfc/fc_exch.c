@@ -802,10 +802,8 @@ static struct fc_exch *fc_exch_find(struct fc_exch_mgr *mp, u16 xid)
 		pool = per_cpu_ptr(mp->pool, xid & fc_cpu_mask);
 		spin_lock_bh(&pool->lock);
 		ep = fc_exch_ptr_get(pool, (xid - mp->min_xid) >> fc_cpu_order);
-		if (ep) {
+		if (ep && ep->xid == xid)
 			fc_exch_hold(ep);
-			WARN_ON(ep->xid != xid);
-		}
 		spin_unlock_bh(&pool->lock);
 	}
 	return ep;
@@ -965,8 +963,30 @@ static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_lport *lport,
 		sp = &ep->seq;
 		if (sp->id != fh->fh_seq_id) {
 			atomic_inc(&mp->stats.seq_not_found);
-			reject = FC_RJT_SEQ_ID;	/* sequence/exch should exist */
-			goto rel;
+			if (f_ctl & FC_FC_END_SEQ) {
+				/*
+				 * Update sequence_id based on incoming last
+				 * frame of sequence exchange. This is needed
+				 * for FCoE target where DDP has been used
+				 * on target where, stack is indicated only
+				 * about last frame's (payload _header) header.
+				 * Whereas "seq_id" which is part of
+				 * frame_header is allocated by initiator
+				 * which is totally different from "seq_id"
+				 * allocated when XFER_RDY was sent by target.
+				 * To avoid false -ve which results into not
+				 * sending RSP, hence write request on other
+				 * end never finishes.
+				 */
+				spin_lock_bh(&ep->ex_lock);
+				sp->ssb_stat |= SSB_ST_RESP;
+				sp->id = fh->fh_seq_id;
+				spin_unlock_bh(&ep->ex_lock);
+			} else {
+				/* sequence/exch should exist */
+				reject = FC_RJT_SEQ_ID;
+				goto rel;
+			}
 		}
 	}
 	WARN_ON(ep != fc_seq_exch(sp));
@@ -2443,8 +2463,11 @@ int fc_setup_exch_mgr(void)
 
 	fc_exch_workqueue = create_singlethread_workqueue("fc_exch_workqueue");
 	if (!fc_exch_workqueue)
-		return -ENOMEM;
+		goto err;
 	return 0;
+err:
+	kmem_cache_destroy(fc_em_cachep);
+	return -ENOMEM;
 }
 
 /**

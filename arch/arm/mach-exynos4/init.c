@@ -35,6 +35,7 @@ void __init exynos4_common_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 			tcfg->clocks = exynos4_serial_clocks;
 			tcfg->clocks_size = ARRAY_SIZE(exynos4_serial_clocks);
 		}
+		tcfg->flags |= NO_NEED_CHECK_CLKSRC;
 	}
 
 	s3c24xx_init_uartdevs("s5pv210-uart", s5p_uart_resources, cfg, no);

@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/uaccess.h>
 #include <asm/string.h>
 #include <asm/byteorder.h>

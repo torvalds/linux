@@ -389,7 +389,7 @@ static void sata_dwc_tf_dump(struct ata_taskfile *tf)
 /*
  * Function: get_burst_length_encode
  * arguments: datalength: length in bytes of data
- * returns value to be programmed in register corrresponding to data length
+ * returns value to be programmed in register corresponding to data length
  * This value is effectively the log(base 2) of the length
  */
 static  int get_burst_length_encode(int datalength)
@@ -766,11 +766,15 @@ static int dma_dwc_xfer_setup(struct scatterlist *sg, int num_elems,
 static void dma_dwc_exit(struct sata_dwc_device *hsdev)
 {
 	dev_dbg(host_pvt.dwc_dev, "%s:\n", __func__);
-	if (host_pvt.sata_dma_regs)
+	if (host_pvt.sata_dma_regs) {
 		iounmap(host_pvt.sata_dma_regs);
+		host_pvt.sata_dma_regs = NULL;
+	}
 
-	if (hsdev->irq_dma)
+	if (hsdev->irq_dma) {
 		free_irq(hsdev->irq_dma, hsdev);
+		hsdev->irq_dma = 0;
+	}
 }
 
 /*
@@ -1325,7 +1329,7 @@ static int sata_dwc_port_start(struct ata_port *ap)
 			dev_err(ap->dev, "%s: dma_alloc_coherent failed\n",
 				 __func__);
 			err = -ENOMEM;
-			goto CLEANUP;
+			goto CLEANUP_ALLOC;
 		}
 	}
 
@@ -1345,15 +1349,13 @@ static int sata_dwc_port_start(struct ata_port *ap)
 	/* Clear any error bits before libata starts issuing commands */
 	clear_serror();
 	ap->private_data = hsdevp;
+	dev_dbg(ap->dev, "%s: done\n", __func__);
+	return 0;
 
+CLEANUP_ALLOC:
+	kfree(hsdevp);
 CLEANUP:
-	if (err) {
-		sata_dwc_port_stop(ap);
-		dev_dbg(ap->dev, "%s: fail\n", __func__);
-	} else {
-		dev_dbg(ap->dev, "%s: done\n", __func__);
-	}
-
+	dev_dbg(ap->dev, "%s: fail. ap->id = %d\n", __func__, ap->print_id);
 	return err;
 }
 
@@ -1638,13 +1640,12 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	const struct ata_port_info *ppi[] = { &pi, NULL };
 
 	/* Allocate DWC SATA device */
-	hsdev = kmalloc(sizeof(*hsdev), GFP_KERNEL);
+	hsdev = kzalloc(sizeof(*hsdev), GFP_KERNEL);
 	if (hsdev == NULL) {
 		dev_err(&ofdev->dev, "kmalloc failed for hsdev\n");
 		err = -ENOMEM;
-		goto error_out;
+		goto error;
 	}
-	memset(hsdev, 0, sizeof(*hsdev));
 
 	/* Ioremap SATA registers */
 	base = of_iomap(ofdev->dev.of_node, 0);
@@ -1652,7 +1653,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 		dev_err(&ofdev->dev, "ioremap failed for SATA register"
 			" address\n");
 		err = -ENODEV;
-		goto error_out;
+		goto error_kmalloc;
 	}
 	hsdev->reg_base = base;
 	dev_dbg(&ofdev->dev, "ioremap done for SATA register address\n");
@@ -1665,7 +1666,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	if (!host) {
 		dev_err(&ofdev->dev, "ata_host_alloc_pinfo failed\n");
 		err = -ENOMEM;
-		goto error_out;
+		goto error_iomap;
 	}
 
 	host->private_data = hsdev;
@@ -1733,8 +1734,11 @@ error_out:
 	/* Free SATA DMA resources */
 	dma_dwc_exit(hsdev);
 
-	if (base)
-		iounmap(base);
+error_iomap:
+	iounmap(base);
+error_kmalloc:
+	kfree(hsdev);
+error:
 	return err;
 }
 

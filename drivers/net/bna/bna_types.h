@@ -50,12 +50,12 @@ enum bna_status {
 };
 
 enum bna_cleanup_type {
-	BNA_HARD_CLEANUP 	= 0,
-	BNA_SOFT_CLEANUP 	= 1
+	BNA_HARD_CLEANUP	= 0,
+	BNA_SOFT_CLEANUP	= 1
 };
 
 enum bna_cb_status {
-	BNA_CB_SUCCESS 		= 0,
+	BNA_CB_SUCCESS		= 0,
 	BNA_CB_FAIL		= 1,
 	BNA_CB_INTERRUPT	= 2,
 	BNA_CB_BUSY		= 3,
@@ -72,8 +72,8 @@ enum bna_res_type {
 };
 
 enum bna_mem_type {
-	BNA_MEM_T_KVA 		= 1,
-	BNA_MEM_T_DMA 		= 2
+	BNA_MEM_T_KVA		= 1,
+	BNA_MEM_T_DMA		= 2
 };
 
 enum bna_intr_type {
@@ -82,10 +82,10 @@ enum bna_intr_type {
 };
 
 enum bna_res_req_type {
-	BNA_RES_MEM_T_COM 		= 0,
-	BNA_RES_MEM_T_ATTR 		= 1,
-	BNA_RES_MEM_T_FWTRC 		= 2,
-	BNA_RES_MEM_T_STATS 		= 3,
+	BNA_RES_MEM_T_COM		= 0,
+	BNA_RES_MEM_T_ATTR		= 1,
+	BNA_RES_MEM_T_FWTRC		= 2,
+	BNA_RES_MEM_T_STATS		= 3,
 	BNA_RES_MEM_T_SWSTATS		= 4,
 	BNA_RES_MEM_T_IBIDX		= 5,
 	BNA_RES_MEM_T_IB_ARRAY		= 6,
@@ -107,9 +107,9 @@ enum bna_res_req_type {
 enum bna_tx_res_req_type {
 	BNA_TX_RES_MEM_T_TCB	= 0,
 	BNA_TX_RES_MEM_T_UNMAPQ	= 1,
-	BNA_TX_RES_MEM_T_QPT 	= 2,
+	BNA_TX_RES_MEM_T_QPT	= 2,
 	BNA_TX_RES_MEM_T_SWQPT	= 3,
-	BNA_TX_RES_MEM_T_PAGE 	= 4,
+	BNA_TX_RES_MEM_T_PAGE	= 4,
 	BNA_TX_RES_INTR_T_TXCMPL = 5,
 	BNA_TX_RES_T_MAX,
 };
@@ -158,14 +158,14 @@ enum bna_rx_type {
 };
 
 enum bna_rxp_type {
-	BNA_RXP_SINGLE 		= 1,
-	BNA_RXP_SLR 		= 2,
-	BNA_RXP_HDS 		= 3
+	BNA_RXP_SINGLE		= 1,
+	BNA_RXP_SLR		= 2,
+	BNA_RXP_HDS		= 3
 };
 
 enum bna_rxmode {
-	BNA_RXMODE_PROMISC 	= 1,
-	BNA_RXMODE_ALLMULTI 	= 2
+	BNA_RXMODE_PROMISC	= 1,
+	BNA_RXMODE_ALLMULTI	= 2
 };
 
 enum bna_rx_event {
@@ -202,7 +202,7 @@ enum bna_rxf_oper_state {
 };
 
 enum bna_rxf_flags {
-	BNA_RXF_FL_STOP_PENDING 	= 0x01,
+	BNA_RXF_FL_STOP_PENDING		= 0x01,
 	BNA_RXF_FL_FAILED		= 0x02,
 	BNA_RXF_FL_RSS_CONFIG_PENDING	= 0x04,
 	BNA_RXF_FL_OPERSTATE_CHANGED	= 0x08,
@@ -244,11 +244,11 @@ enum bna_port_type {
 enum bna_link_status {
 	BNA_LINK_DOWN		= 0,
 	BNA_LINK_UP		= 1,
-	BNA_CEE_UP 		= 2
+	BNA_CEE_UP		= 2
 };
 
 enum bna_llport_flags {
-	BNA_LLPORT_F_ADMIN_UP	 	= 1,
+	BNA_LLPORT_F_ADMIN_UP		= 1,
 	BNA_LLPORT_F_PORT_ENABLED	= 2,
 	BNA_LLPORT_F_RX_STARTED		= 4
 };
@@ -304,7 +304,7 @@ struct bna_mem_descr {
 struct bna_mem_info {
 	enum bna_mem_type mem_type;
 	u32		len;
-	u32 		num;
+	u32		num;
 	u32		align_sz; /* 0/1 = no alignment */
 	struct bna_mem_descr *mdl;
 	void			*cookie; /* For bnad to unmap dma later */
@@ -371,10 +371,10 @@ struct bna_mbox_qe {
 	struct list_head			qe;
 
 	struct bfa_mbox_cmd cmd;
-	u32 		cmd_len;
+	u32		cmd_len;
 	/* Callback for port, tx, rx, rxf */
 	void (*cbfn)(void *arg, int status);
-	void 			*cbarg;
+	void			*cbarg;
 };
 
 struct bna_mbox_mod {
@@ -480,7 +480,7 @@ struct bna_ib_dbell {
 
 /* Interrupt timer configuration */
 struct bna_ib_config {
-	u8 		coalescing_timeo;    /* Unit is 5usec. */
+	u8		coalescing_timeo;    /* Unit is 5usec. */
 
 	int			interpkt_count;
 	int			interpkt_timeo;
@@ -576,8 +576,8 @@ struct bna_txq {
 
 	struct bna_tx *tx;
 
-	u64 		tx_packets;
-	u64 		tx_bytes;
+	u64		tx_packets;
+	u64		tx_bytes;
 };
 
 /* TxF structure (hardware Tx Function) */
@@ -739,10 +739,10 @@ struct bna_rxq {
 	struct bna_rxp *rxp;
 	struct bna_rx *rx;
 
-	u64 		rx_packets;
+	u64		rx_packets;
 	u64		rx_bytes;
-	u64 		rx_packets_with_error;
-	u64 		rxbuf_alloc_failed;
+	u64		rx_packets_with_error;
+	u64		rxbuf_alloc_failed;
 };
 
 /* RxQ pair */
@@ -902,7 +902,7 @@ struct bna_rxf {
 	 * callback for:
 	 *	bna_rxf_ucast_set()
 	 *	bna_rxf_{ucast/mcast}_add(),
-	 * 	bna_rxf_{ucast/mcast}_del(),
+	 *	bna_rxf_{ucast/mcast}_del(),
 	 *	bna_rxf_mode_set()
 	 */
 	void (*cam_fltr_cbfn)(struct bnad *bnad, struct bna_rx *rx,

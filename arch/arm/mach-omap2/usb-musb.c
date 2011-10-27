@@ -33,8 +33,6 @@
 #include <plat/omap_device.h>
 #include "mux.h"
 
-#if defined(CONFIG_USB_MUSB_OMAP2PLUS) || defined (CONFIG_USB_MUSB_AM35X)
-
 static struct musb_hdrc_config musb_config = {
 	.multipoint	= 1,
 	.dyn_fifo	= 1,
@@ -175,11 +173,3 @@ void __init usb_musb_init(struct omap_musb_board_data *musb_board_data)
 	if (cpu_is_omap44xx())
 		omap4430_phy_init(dev);
 }
-
-#else
-void __init usb_musb_init(struct omap_musb_board_data *board_data)
-{
-	if (cpu_is_omap44xx())
-		omap4430_phy_init(NULL);
-}
-#endif /* CONFIG_USB_MUSB_SOC */

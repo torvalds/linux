@@ -36,6 +36,8 @@
 #include "iwl-sta.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
+#include "iwl-agn.h"
+#include "iwl-trans.h"
 
 /* For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
  * sending probe req.  This should be set long enough to hear probe responses
@@ -60,7 +62,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	struct iwl_rx_packet *pkt;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_ABORT_CMD,
-		.flags = CMD_WANT_SKB,
+		.flags = CMD_SYNC | CMD_WANT_SKB,
 	};
 
 	/* Exit instantly with error when device is not ready
@@ -73,7 +75,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	    test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EIO;
 
-	ret = iwl_send_cmd_sync(priv, &cmd);
+	ret = trans_send_cmd(&priv->trans, &cmd);
 	if (ret)
 		return ret;
 
@@ -348,9 +350,6 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 
 	lockdep_assert_held(&priv->mutex);
 
-	if (WARN_ON(!priv->cfg->ops->utils->request_scan))
-		return -EOPNOTSUPP;
-
 	cancel_delayed_work(&priv->scan_check);
 
 	if (!iwl_is_ready_rf(priv)) {
@@ -379,7 +378,7 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 	priv->scan_start = jiffies;
 	priv->scan_band = band;
 
-	ret = priv->cfg->ops->utils->request_scan(priv, vif);
+	ret = iwlagn_request_scan(priv, vif);
 	if (ret) {
 		clear_bit(STATUS_SCANNING, &priv->status);
 		priv->scan_type = IWL_SCAN_NORMAL;
@@ -566,10 +565,10 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 		goto out_settings;
 	}
 
-	if (priv->scan_type == IWL_SCAN_OFFCH_TX && priv->_agn.offchan_tx_skb) {
+	if (priv->scan_type == IWL_SCAN_OFFCH_TX && priv->offchan_tx_skb) {
 		ieee80211_tx_status_irqsafe(priv->hw,
-					    priv->_agn.offchan_tx_skb);
-		priv->_agn.offchan_tx_skb = NULL;
+					    priv->offchan_tx_skb);
+		priv->offchan_tx_skb = NULL;
 	}
 
 	if (priv->scan_type != IWL_SCAN_NORMAL && !aborted) {
@@ -600,14 +599,7 @@ out_settings:
 	if (!iwl_is_ready_rf(priv))
 		goto out;
 
-	/*
-	 * We do not commit power settings while scan is pending,
-	 * do it now if the settings changed.
-	 */
-	iwl_power_set_mode(priv, &priv->power_data.sleep_cmd_next, false);
-	iwl_set_tx_power(priv, priv->tx_power_next, false);
-
-	priv->cfg->ops->utils->post_scan(priv);
+	iwlagn_post_scan(priv);
 
 out:
 	mutex_unlock(&priv->mutex);

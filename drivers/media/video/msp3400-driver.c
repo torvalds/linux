@@ -480,12 +480,14 @@ static int msp_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	struct msp_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (state->radio)
+	if (vt->type != V4L2_TUNER_ANALOG_TV)
 		return 0;
-	if (state->opmode == OPMODE_AUTOSELECT)
-		msp_detect_stereo(client);
-	vt->audmode    = state->audmode;
-	vt->rxsubchans = state->rxsubchans;
+	if (!state->radio) {
+		if (state->opmode == OPMODE_AUTOSELECT)
+			msp_detect_stereo(client);
+		vt->rxsubchans = state->rxsubchans;
+	}
+	vt->audmode = state->audmode;
 	vt->capability |= V4L2_TUNER_CAP_STEREO |
 		V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2;
 	return 0;

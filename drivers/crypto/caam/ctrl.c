@@ -52,9 +52,11 @@ static int caam_probe(struct platform_device *pdev)
 	struct caam_ctrl __iomem *ctrl;
 	struct caam_full __iomem *topregs;
 	struct caam_drv_private *ctrlpriv;
-	struct caam_perfmon *perfmon;
 	struct caam_deco **deco;
 	u32 deconum;
+#ifdef CONFIG_DEBUG_FS
+	struct caam_perfmon *perfmon;
+#endif
 
 	ctrlpriv = kzalloc(sizeof(struct caam_drv_private), GFP_KERNEL);
 	if (!ctrlpriv)
@@ -164,52 +166,52 @@ static int caam_probe(struct platform_device *pdev)
 	/* Controller-level - performance monitor counters */
 	ctrlpriv->ctl_rq_dequeued =
 		debugfs_create_u64("rq_dequeued",
-				   S_IFCHR | S_IRUSR | S_IRGRP | S_IROTH,
+				   S_IRUSR | S_IRGRP | S_IROTH,
 				   ctrlpriv->ctl, &perfmon->req_dequeued);
 	ctrlpriv->ctl_ob_enc_req =
 		debugfs_create_u64("ob_rq_encrypted",
-				   S_IFCHR | S_IRUSR | S_IRGRP | S_IROTH,
+				   S_IRUSR | S_IRGRP | S_IROTH,
 				   ctrlpriv->ctl, &perfmon->ob_enc_req);
 	ctrlpriv->ctl_ib_dec_req =
 		debugfs_create_u64("ib_rq_decrypted",
-				   S_IFCHR | S_IRUSR | S_IRGRP | S_IROTH,
+				   S_IRUSR | S_IRGRP | S_IROTH,
 				   ctrlpriv->ctl, &perfmon->ib_dec_req);
 	ctrlpriv->ctl_ob_enc_bytes =
 		debugfs_create_u64("ob_bytes_encrypted",
-				   S_IFCHR | S_IRUSR | S_IRGRP | S_IROTH,
+				   S_IRUSR | S_IRGRP | S_IROTH,
 				   ctrlpriv->ctl, &perfmon->ob_enc_bytes);
 	ctrlpriv->ctl_ob_prot_bytes =
 		debugfs_create_u64("ob_bytes_protected",
-				   S_IFCHR | S_IRUSR | S_IRGRP | S_IROTH,
+				   S_IRUSR | S_IRGRP | S_IROTH,
 				   ctrlpriv->ctl, &perfmon->ob_prot_bytes);
 	ctrlpriv->ctl_ib_dec_bytes =
 		debugfs_create_u64("ib_bytes_decrypted",
-				   S_IFCHR | S_IRUSR | S_IRGRP | S_IROTH,
+				   S_IRUSR | S_IRGRP | S_IROTH,
 				   ctrlpriv->ctl, &perfmon->ib_dec_bytes);
 	ctrlpriv->ctl_ib_valid_bytes =
 		debugfs_create_u64("ib_bytes_validated",
-				   S_IFCHR | S_IRUSR | S_IRGRP | S_IROTH,
+				   S_IRUSR | S_IRGRP | S_IROTH,
 				   ctrlpriv->ctl, &perfmon->ib_valid_bytes);
 
 	/* Controller level - global status values */
 	ctrlpriv->ctl_faultaddr =
 		debugfs_create_u64("fault_addr",
-				   S_IFCHR | S_IRUSR | S_IRGRP | S_IROTH,
+				   S_IRUSR | S_IRGRP | S_IROTH,
 				   ctrlpriv->ctl, &perfmon->faultaddr);
 	ctrlpriv->ctl_faultdetail =
 		debugfs_create_u32("fault_detail",
-				   S_IFCHR | S_IRUSR | S_IRGRP | S_IROTH,
+				   S_IRUSR | S_IRGRP | S_IROTH,
 				   ctrlpriv->ctl, &perfmon->faultdetail);
 	ctrlpriv->ctl_faultstatus =
 		debugfs_create_u32("fault_status",
-				   S_IFCHR | S_IRUSR | S_IRGRP | S_IROTH,
+				   S_IRUSR | S_IRGRP | S_IROTH,
 				   ctrlpriv->ctl, &perfmon->status);
 
 	/* Internal covering keys (useful in non-secure mode only) */
 	ctrlpriv->ctl_kek_wrap.data = &ctrlpriv->ctrl->kek[0];
 	ctrlpriv->ctl_kek_wrap.size = KEK_KEY_SIZE * sizeof(u32);
 	ctrlpriv->ctl_kek = debugfs_create_blob("kek",
-						S_IFCHR | S_IRUSR |
+						S_IRUSR |
 						S_IRGRP | S_IROTH,
 						ctrlpriv->ctl,
 						&ctrlpriv->ctl_kek_wrap);
@@ -217,7 +219,7 @@ static int caam_probe(struct platform_device *pdev)
 	ctrlpriv->ctl_tkek_wrap.data = &ctrlpriv->ctrl->tkek[0];
 	ctrlpriv->ctl_tkek_wrap.size = KEK_KEY_SIZE * sizeof(u32);
 	ctrlpriv->ctl_tkek = debugfs_create_blob("tkek",
-						 S_IFCHR | S_IRUSR |
+						 S_IRUSR |
 						 S_IRGRP | S_IROTH,
 						 ctrlpriv->ctl,
 						 &ctrlpriv->ctl_tkek_wrap);
@@ -225,7 +227,7 @@ static int caam_probe(struct platform_device *pdev)
 	ctrlpriv->ctl_tdsk_wrap.data = &ctrlpriv->ctrl->tdsk[0];
 	ctrlpriv->ctl_tdsk_wrap.size = KEK_KEY_SIZE * sizeof(u32);
 	ctrlpriv->ctl_tdsk = debugfs_create_blob("tdsk",
-						 S_IFCHR | S_IRUSR |
+						 S_IRUSR |
 						 S_IRGRP | S_IROTH,
 						 ctrlpriv->ctl,
 						 &ctrlpriv->ctl_tdsk_wrap);

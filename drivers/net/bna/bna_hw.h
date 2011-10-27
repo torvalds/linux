@@ -67,7 +67,7 @@ static struct bna_ibidx_pool name[BFI_IBIDX_TOTAL_POOLS] =		\
 
 /**
  * There are 2 free RIT segment pools:
- * 	Pool1: 192 segments of 1 RIT entry each
+ *	Pool1: 192 segments of 1 RIT entry each
  *	Pool2: 1 segment of 64 RIT entry
  */
 #define BFI_RIT_SEG_POOL1_SIZE		192
@@ -357,14 +357,14 @@ static struct bna_ritseg_pool_cfg name[BFI_RIT_SEG_TOTAL_POOLS] =	\
  * To clear set the value to 0.
  * Range : 0x20 to 0x5c
  */
-#define PSS_SEM_LOCK_REG(_num) 		\
+#define PSS_SEM_LOCK_REG(_num)		\
 	(PSS_BLK_REG_ADDR + 0x020 + ((_num) << 2))
 
 /**
  * PSS Semaphore Status Registers,
  * corresponding to the lock registers above
  */
-#define PSS_SEM_STATUS_REG(_num) 		\
+#define PSS_SEM_STATUS_REG(_num)		\
 	(PSS_BLK_REG_ADDR + 0x060 + ((_num) << 2))
 
 /**
@@ -1044,7 +1044,7 @@ static struct bna_ritseg_pool_cfg name[BFI_RIT_SEG_TOTAL_POOLS] =	\
 		__LPU12HOST_MBOX1_STATUS_BITS))
 
 #define BNA_IS_MBOX_INTR(_intr_status)		\
-	((_intr_status) &  			\
+	((_intr_status) &			\
 	(__LPU02HOST_MBOX0_STATUS_BITS |	\
 	 __LPU02HOST_MBOX1_STATUS_BITS |	\
 	 __LPU12HOST_MBOX0_STATUS_BITS |	\
@@ -1070,11 +1070,11 @@ static struct bna_ritseg_pool_cfg name[BFI_RIT_SEG_TOTAL_POOLS] =	\
 	  __HALT_MASK_BITS)
 
 #define BNA_IS_ERR_INTR(_intr_status)	\
-	((_intr_status) &  		\
-	(__EMC_ERROR_STATUS_BITS |  	\
-	 __LPU0_ERROR_STATUS_BITS | 	\
-	 __LPU1_ERROR_STATUS_BITS | 	\
-	 __PSS_ERROR_STATUS_BITS  | 	\
+	((_intr_status) &		\
+	(__EMC_ERROR_STATUS_BITS |	\
+	 __LPU0_ERROR_STATUS_BITS |	\
+	 __LPU1_ERROR_STATUS_BITS |	\
+	 __PSS_ERROR_STATUS_BITS  |	\
 	 __HALT_STATUS_BITS))
 
 #define BNA_IS_MBOX_ERR_INTR(_intr_status)	\
@@ -1087,9 +1087,9 @@ static struct bna_ritseg_pool_cfg name[BFI_RIT_SEG_TOTAL_POOLS] =	\
 #define BNA_INTR_STATUS_MBOX_CLR(_intr_status)			\
 do {								\
 	(_intr_status) &= ~(__LPU02HOST_MBOX0_STATUS_BITS |	\
-			__LPU02HOST_MBOX1_STATUS_BITS | 	\
-			__LPU12HOST_MBOX0_STATUS_BITS | 	\
-			__LPU12HOST_MBOX1_STATUS_BITS); 	\
+			__LPU02HOST_MBOX1_STATUS_BITS |		\
+			__LPU12HOST_MBOX0_STATUS_BITS |		\
+			__LPU12HOST_MBOX1_STATUS_BITS);		\
 } while (0)
 
 #define BNA_INTR_STATUS_ERR_CLR(_intr_status)		\
@@ -1107,7 +1107,7 @@ do {							\
 	writel(0xffffffff, (_bna)->regs.fn_int_mask);\
 }
 
-#define bna_intx_enable(bna, new_mask) 			\
+#define bna_intx_enable(bna, new_mask)			\
 	writel((new_mask), (bna)->regs.fn_int_mask)
 
 #define bna_mbox_intr_disable(bna)		\
@@ -1179,18 +1179,18 @@ do {\
 #define BNA_DOORBELL_IB_INT_DISABLE		(0x40000000)
 
 /* TxQ Entry Opcodes */
-#define BNA_TXQ_WI_SEND 		(0x402)	/* Single Frame Transmission */
-#define BNA_TXQ_WI_SEND_LSO 		(0x403)	/* Multi-Frame Transmission */
+#define BNA_TXQ_WI_SEND			(0x402)	/* Single Frame Transmission */
+#define BNA_TXQ_WI_SEND_LSO		(0x403)	/* Multi-Frame Transmission */
 #define BNA_TXQ_WI_EXTENSION		(0x104)	/* Extension WI */
 
 /* TxQ Entry Control Flags */
-#define BNA_TXQ_WI_CF_FCOE_CRC  	(1 << 8)
-#define BNA_TXQ_WI_CF_IPID_MODE 	(1 << 5)
-#define BNA_TXQ_WI_CF_INS_PRIO  	(1 << 4)
-#define BNA_TXQ_WI_CF_INS_VLAN  	(1 << 3)
-#define BNA_TXQ_WI_CF_UDP_CKSUM 	(1 << 2)
-#define BNA_TXQ_WI_CF_TCP_CKSUM 	(1 << 1)
-#define BNA_TXQ_WI_CF_IP_CKSUM  	(1 << 0)
+#define BNA_TXQ_WI_CF_FCOE_CRC		(1 << 8)
+#define BNA_TXQ_WI_CF_IPID_MODE		(1 << 5)
+#define BNA_TXQ_WI_CF_INS_PRIO		(1 << 4)
+#define BNA_TXQ_WI_CF_INS_VLAN		(1 << 3)
+#define BNA_TXQ_WI_CF_UDP_CKSUM		(1 << 2)
+#define BNA_TXQ_WI_CF_TCP_CKSUM		(1 << 1)
+#define BNA_TXQ_WI_CF_IP_CKSUM		(1 << 0)
 
 #define BNA_TXQ_WI_L4_HDR_N_OFFSET(_hdr_size, _offset) \
 		(((_hdr_size) << 10) | ((_offset) & 0x3FF))
@@ -1199,30 +1199,30 @@ do {\
  * Completion Q defines
  */
 /* CQ Entry Flags */
-#define	BNA_CQ_EF_MAC_ERROR 	(1 <<  0)
-#define	BNA_CQ_EF_FCS_ERROR 	(1 <<  1)
-#define	BNA_CQ_EF_TOO_LONG  	(1 <<  2)
-#define	BNA_CQ_EF_FC_CRC_OK 	(1 <<  3)
+#define	BNA_CQ_EF_MAC_ERROR	(1 <<  0)
+#define	BNA_CQ_EF_FCS_ERROR	(1 <<  1)
+#define	BNA_CQ_EF_TOO_LONG	(1 <<  2)
+#define	BNA_CQ_EF_FC_CRC_OK	(1 <<  3)
 
-#define	BNA_CQ_EF_RSVD1 	(1 <<  4)
+#define	BNA_CQ_EF_RSVD1		(1 <<  4)
 #define	BNA_CQ_EF_L4_CKSUM_OK	(1 <<  5)
 #define	BNA_CQ_EF_L3_CKSUM_OK	(1 <<  6)
 #define	BNA_CQ_EF_HDS_HEADER	(1 <<  7)
 
-#define	BNA_CQ_EF_UDP   	(1 <<  8)
-#define	BNA_CQ_EF_TCP   	(1 <<  9)
+#define	BNA_CQ_EF_UDP		(1 <<  8)
+#define	BNA_CQ_EF_TCP		(1 <<  9)
 #define	BNA_CQ_EF_IP_OPTIONS	(1 << 10)
-#define	BNA_CQ_EF_IPV6  	(1 << 11)
+#define	BNA_CQ_EF_IPV6		(1 << 11)
 
-#define	BNA_CQ_EF_IPV4  	(1 << 12)
-#define	BNA_CQ_EF_VLAN  	(1 << 13)
-#define	BNA_CQ_EF_RSS   	(1 << 14)
-#define	BNA_CQ_EF_RSVD2 	(1 << 15)
+#define	BNA_CQ_EF_IPV4		(1 << 12)
+#define	BNA_CQ_EF_VLAN		(1 << 13)
+#define	BNA_CQ_EF_RSS		(1 << 14)
+#define	BNA_CQ_EF_RSVD2		(1 << 15)
 
 #define	BNA_CQ_EF_MCAST_MATCH   (1 << 16)
-#define	BNA_CQ_EF_MCAST 	(1 << 17)
-#define BNA_CQ_EF_BCAST 	(1 << 18)
-#define	BNA_CQ_EF_REMOTE 	(1 << 19)
+#define	BNA_CQ_EF_MCAST		(1 << 17)
+#define BNA_CQ_EF_BCAST		(1 << 18)
+#define	BNA_CQ_EF_REMOTE	(1 << 19)
 
 #define	BNA_CQ_EF_LOCAL		(1 << 20)
 
@@ -1257,10 +1257,10 @@ enum ib_flags {
 };
 
 enum rss_hash_type {
-	BFI_RSS_T_V4_TCP    		= (1 << 11),
-	BFI_RSS_T_V4_IP     		= (1 << 10),
-	BFI_RSS_T_V6_TCP    		= (1 <<  9),
-	BFI_RSS_T_V6_IP     		= (1 <<  8)
+	BFI_RSS_T_V4_TCP		= (1 << 11),
+	BFI_RSS_T_V4_IP			= (1 << 10),
+	BFI_RSS_T_V6_TCP		= (1 <<  9),
+	BFI_RSS_T_V6_IP			= (1 <<  8)
 };
 enum hds_header_type {
 	BNA_HDS_T_V4_TCP	= (1 << 11),
@@ -1298,7 +1298,7 @@ struct bna_txq_mem {
 	u32 reserved2;
 	u32 pg_cnt_n_prd_ptr;	/* 31:16->total page count */
 					/* 15:0 ->producer pointer (index?) */
-	u32 entry_n_pg_size; 	/* 31:16->entry size */
+	u32 entry_n_pg_size;	/* 31:16->entry size */
 					/* 15:0 ->page size */
 	u32 int_blk_n_cns_ptr;	/* 31:24->Int Blk Id;  */
 					/* 23:16->Int Blk Offset */
@@ -1326,7 +1326,7 @@ struct bna_rxq_mem {
 	u32 sg_n_cq_n_cns_ptr;	/* 31:28->reserved; 27:24->sg count */
 					/* 23:16->CQ; */
 					/* 15:0->consumer pointer(index?) */
-	u32 buf_sz_n_q_state; 	/* 31:16->buffer size; 15:0-> Q state */
+	u32 buf_sz_n_q_state;	/* 31:16->buffer size; 15:0-> Q state */
 	u32 next_qid;		/* 17:10->next QId */
 	u32 reserved3;
 	u32 reserved4[4];
@@ -1426,8 +1426,8 @@ struct bna_dma_addr {
 };
 
 struct bna_txq_wi_vector {
-	u16 		reserved;
-	u16 		length;		/* Only 14 LSB are valid */
+	u16		reserved;
+	u16		length;		/* Only 14 LSB are valid */
 	struct bna_dma_addr host_addr; /* Tx-Buf DMA addr */
 };
 
@@ -1465,7 +1465,7 @@ struct bna_txq_entry {
 	} hdr;
 	struct bna_txq_wi_vector vector[4];
 };
-#define wi_hdr  	hdr.wi
+#define wi_hdr		hdr.wi
 #define wi_ext_hdr  hdr.wi_ext
 
 /* RxQ Entry Structure */

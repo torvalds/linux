@@ -150,7 +150,8 @@ qla24xx_configure_prot_mode(srb_t *sp, uint16_t *fw_prot_opts)
 
 	/* We only support T10 DIF right now */
 	if (guard != SHOST_DIX_GUARD_CRC) {
-		DEBUG2(printk(KERN_ERR "Unsupported guard: %d\n", guard));
+		ql_dbg(ql_dbg_io, sp->fcport->vha, 0x3007,
+		    "Unsupported guard: %d for cmd=%p.\n", guard, sp->cmd);
 		return 0;
 	}
 
@@ -343,9 +344,10 @@ qla2x00_start_scsi(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL)
-							!= QLA_SUCCESS)
+		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		    QLA_SUCCESS) {
 			return (QLA_FUNCTION_FAILED);
+		}
 		vha->marker_needed = 0;
 	}
 
@@ -490,8 +492,8 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 	mrk24 = NULL;
 	mrk = (mrk_entry_t *)qla2x00_alloc_iocbs(vha, 0);
 	if (mrk == NULL) {
-		DEBUG2_3(printk("%s(%ld): failed to allocate Marker IOCB.\n",
-		    __func__, base_vha->host_no));
+		ql_log(ql_log_warn, base_vha, 0x3026,
+		    "Failed to allocate Marker IOCB.\n");
 
 		return (QLA_FUNCTION_FAILED);
 	}
@@ -547,9 +549,10 @@ qla2x00_isp_cmd(struct scsi_qla_host *vha, struct req_que *req)
 	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
 	struct device_reg_2xxx __iomem *ioreg = &ha->iobase->isp;
 
-	DEBUG5(printk("%s(): IOCB data:\n", __func__));
-	DEBUG5(qla2x00_dump_buffer(
-	    (uint8_t *)req->ring_ptr, REQUEST_ENTRY_SIZE));
+	ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x302d,
+	    "IOCB data:\n");
+	ql_dump_buffer(ql_dbg_io + ql_dbg_buffer, vha, 0x302e,
+	    (uint8_t *)req->ring_ptr, REQUEST_ENTRY_SIZE);
 
 	/* Adjust ring index. */
 	req->ring_index++;
@@ -604,7 +607,7 @@ qla2x00_isp_cmd(struct scsi_qla_host *vha, struct req_que *req)
  * Returns the number of IOCB entries needed to store @dsds.
  */
 inline uint16_t
-qla24xx_calc_iocbs(uint16_t dsds)
+qla24xx_calc_iocbs(scsi_qla_host_t *vha, uint16_t dsds)
 {
 	uint16_t iocbs;
 
@@ -614,8 +617,6 @@ qla24xx_calc_iocbs(uint16_t dsds)
 		if ((dsds - 1) % 5)
 			iocbs++;
 	}
-	DEBUG3(printk(KERN_DEBUG "%s(): Required PKT(s) = %d\n",
-	    __func__, iocbs));
 	return iocbs;
 }
 
@@ -712,6 +713,7 @@ qla24xx_set_t10dif_tags(struct scsi_cmnd *cmd, struct fw_dif_context *pkt,
     unsigned int protcnt)
 {
 	struct sd_dif_tuple *spt;
+	scsi_qla_host_t *vha = shost_priv(cmd->device->host);
 	unsigned char op = scsi_get_prot_op(cmd);
 
 	switch (scsi_get_prot_type(cmd)) {
@@ -768,9 +770,9 @@ qla24xx_set_t10dif_tags(struct scsi_cmnd *cmd, struct fw_dif_context *pkt,
 		    op == SCSI_PROT_WRITE_PASS)) {
 			spt = page_address(sg_page(scsi_prot_sglist(cmd))) +
 			    scsi_prot_sglist(cmd)[0].offset;
-			DEBUG18(printk(KERN_DEBUG
-			    "%s(): LBA from user %p, lba = 0x%x\n",
-			    __func__, spt, (int)spt->ref_tag));
+			ql_dbg(ql_dbg_io, vha, 0x3008,
+			    "LBA from user %p, lba = 0x%x for cmd=%p.\n",
+			    spt, (int)spt->ref_tag, cmd);
 			pkt->ref_tag = swab32(spt->ref_tag);
 			pkt->app_tag_mask[0] = 0x0;
 			pkt->app_tag_mask[1] = 0x0;
@@ -789,11 +791,11 @@ qla24xx_set_t10dif_tags(struct scsi_cmnd *cmd, struct fw_dif_context *pkt,
 		break;
 	}
 
-	DEBUG18(printk(KERN_DEBUG
-	    "%s(): Setting protection Tags: (BIG) ref tag = 0x%x,"
-	    " app tag = 0x%x, prot SG count %d , cmd lba 0x%x,"
-	    " prot_type=%u\n", __func__, pkt->ref_tag, pkt->app_tag, protcnt,
-	    (int)scsi_get_lba(cmd), scsi_get_prot_type(cmd)));
+	ql_dbg(ql_dbg_io, vha, 0x3009,
+	    "Setting protection Tags: (BIG) ref tag = 0x%x, app tag = 0x%x, "
+	    "prot SG count %d, cmd lba 0x%x, prot_type=%u cmd=%p.\n",
+	    pkt->ref_tag, pkt->app_tag, protcnt, (int)scsi_get_lba(cmd),
+	    scsi_get_prot_type(cmd), cmd);
 }
 
 
@@ -809,6 +811,7 @@ qla24xx_walk_and_build_sglist(struct qla_hw_data *ha, srb_t *sp, uint32_t *dsd,
 	uint32_t *cur_dsd = dsd;
 	int	i;
 	uint16_t	used_dsds = tot_dsds;
+	scsi_qla_host_t *vha = shost_priv(sp->cmd->device->host);
 
 	uint8_t		*cp;
 
@@ -853,9 +856,10 @@ qla24xx_walk_and_build_sglist(struct qla_hw_data *ha, srb_t *sp, uint32_t *dsd,
 			cur_dsd = (uint32_t *)next_dsd;
 		}
 		sle_dma = sg_dma_address(sg);
-		DEBUG18(printk("%s(): %p, sg entry %d - addr =0x%x 0x%x,"
-		    " len =%d\n", __func__ , cur_dsd, i, LSD(sle_dma),
-		    MSD(sle_dma), sg_dma_len(sg)));
+		ql_dbg(ql_dbg_io, vha, 0x300a,
+		    "sg entry %d - addr=0x%x 0x%x, " "len=%d for cmd=%p.\n",
+		    cur_dsd, i, LSD(sle_dma), MSD(sle_dma), sg_dma_len(sg),
+		    sp->cmd);
 		*cur_dsd++ = cpu_to_le32(LSD(sle_dma));
 		*cur_dsd++ = cpu_to_le32(MSD(sle_dma));
 		*cur_dsd++ = cpu_to_le32(sg_dma_len(sg));
@@ -863,8 +867,8 @@ qla24xx_walk_and_build_sglist(struct qla_hw_data *ha, srb_t *sp, uint32_t *dsd,
 
 		if (scsi_get_prot_op(sp->cmd) == SCSI_PROT_WRITE_PASS) {
 			cp = page_address(sg_page(sg)) + sg->offset;
-			DEBUG18(printk("%s(): User Data buffer= %p:\n",
-			    __func__ , cp));
+			ql_dbg(ql_dbg_io, vha, 0x300b,
+			    "User data buffer=%p for cmd=%p.\n", cp, sp->cmd);
 		}
 	}
 	/* Null termination */
@@ -888,7 +892,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 	struct scsi_cmnd *cmd;
 	uint32_t *cur_dsd = dsd;
 	uint16_t	used_dsds = tot_dsds;
-
+	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 	uint8_t		*cp;
 
 
@@ -935,10 +939,11 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 		}
 		sle_dma = sg_dma_address(sg);
 		if (scsi_get_prot_op(sp->cmd) == SCSI_PROT_WRITE_PASS) {
-			DEBUG18(printk(KERN_DEBUG
-			    "%s(): %p, sg entry %d - addr =0x%x"
-			    "0x%x, len =%d\n", __func__ , cur_dsd, i,
-			    LSD(sle_dma), MSD(sle_dma), sg_dma_len(sg)));
+			ql_dbg(ql_dbg_io, vha, 0x3027,
+			    "%s(): %p, sg_entry %d - "
+			    "addr=0x%x0x%x, len=%d.\n",
+			    __func__, cur_dsd, i,
+			    LSD(sle_dma), MSD(sle_dma), sg_dma_len(sg));
 		}
 		*cur_dsd++ = cpu_to_le32(LSD(sle_dma));
 		*cur_dsd++ = cpu_to_le32(MSD(sle_dma));
@@ -946,8 +951,9 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 
 		if (scsi_get_prot_op(sp->cmd) == SCSI_PROT_WRITE_PASS) {
 			cp = page_address(sg_page(sg)) + sg->offset;
-			DEBUG18(printk("%s(): Protection Data buffer = %p:\n",
-			    __func__ , cp));
+			ql_dbg(ql_dbg_io, vha, 0x3028,
+			    "%s(): Protection Data buffer = %p.\n", __func__,
+			    cp);
 		}
 		avail_dsds--;
 	}
@@ -996,21 +1002,15 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	*((uint32_t *)(&cmd_pkt->entry_type)) =
 	    __constant_cpu_to_le32(COMMAND_TYPE_CRC_2);
 
-	/* No data transfer */
-	data_bytes = scsi_bufflen(cmd);
-	if (!data_bytes || cmd->sc_data_direction == DMA_NONE) {
-		DEBUG18(printk(KERN_INFO "%s: Zero data bytes or DMA-NONE %d\n",
-		    __func__, data_bytes));
-		cmd_pkt->byte_count = __constant_cpu_to_le32(0);
-		return QLA_SUCCESS;
-	}
-
 	vha = sp->fcport->vha;
 	ha = vha->hw;
 
-	DEBUG18(printk(KERN_DEBUG
-	    "%s(%ld): Executing cmd sp %p, prot_op=%u.\n", __func__,
-	    vha->host_no, sp, scsi_get_prot_op(sp->cmd)));
+	/* No data transfer */
+	data_bytes = scsi_bufflen(cmd);
+	if (!data_bytes || cmd->sc_data_direction == DMA_NONE) {
+		cmd_pkt->byte_count = __constant_cpu_to_le32(0);
+		return QLA_SUCCESS;
+	}
 
 	cmd_pkt->vp_index = sp->fcport->vp_idx;
 
@@ -1056,8 +1056,6 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 
 	/* Determine SCSI command length -- align to 4 byte boundary */
 	if (cmd->cmd_len > 16) {
-		DEBUG18(printk(KERN_INFO "%s(): **** SCSI CMD > 16\n",
-		    __func__));
 		additional_fcpcdb_len = cmd->cmd_len - 16;
 		if ((cmd->cmd_len % 4) != 0) {
 			/* SCSI cmd > 16 bytes must be multiple of 4 */
@@ -1108,11 +1106,6 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 
 	cmd_pkt->fcp_rsp_dseg_len = 0; /* Let response come in status iocb */
 
-	DEBUG18(printk(KERN_INFO "%s(%ld): Total SG(s) Entries %d, Data"
-	    "entries %d, data bytes %d, Protection entries %d\n",
-	    __func__, vha->host_no, tot_dsds, (tot_dsds-tot_prot_dsds),
-	    data_bytes, tot_prot_dsds));
-
 	/* Compute dif len and adjust data len to incude protection */
 	total_bytes = data_bytes;
 	dif_bytes = 0;
@@ -1150,14 +1143,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	    additional_fcpcdb_len);
 	*fcp_dl = htonl(total_bytes);
 
-	DEBUG18(printk(KERN_INFO "%s(%ld): dif bytes = 0x%x (%d), total bytes"
-	    " = 0x%x (%d), dat block size =0x%x (%d)\n", __func__,
-	    vha->host_no, dif_bytes, dif_bytes, total_bytes, total_bytes,
-	    crc_ctx_pkt->blk_size, crc_ctx_pkt->blk_size));
-
 	if (!data_bytes || cmd->sc_data_direction == DMA_NONE) {
-		DEBUG18(printk(KERN_INFO "%s: Zero data bytes or DMA-NONE %d\n",
-		    __func__, data_bytes));
 		cmd_pkt->byte_count = __constant_cpu_to_le32(0);
 		return QLA_SUCCESS;
 	}
@@ -1182,8 +1168,6 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	return QLA_SUCCESS;
 
 crc_queuing_error:
-	DEBUG18(qla_printk(KERN_INFO, ha,
-	    "CMD sent FAILED crc_q error:sp = %p\n", sp));
 	/* Cleanup will be performed by the caller */
 
 	return QLA_FUNCTION_FAILED;
@@ -1225,8 +1209,8 @@ qla24xx_start_scsi(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL)
-							!= QLA_SUCCESS)
+		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		    QLA_SUCCESS)
 			return QLA_FUNCTION_FAILED;
 		vha->marker_needed = 0;
 	}
@@ -1243,8 +1227,9 @@ qla24xx_start_scsi(srb_t *sp)
 		if (!req->outstanding_cmds[handle])
 			break;
 	}
-	if (index == MAX_OUTSTANDING_COMMANDS)
+	if (index == MAX_OUTSTANDING_COMMANDS) {
 		goto queuing_error;
+	}
 
 	/* Map the sg table so we have an accurate count of sg entries needed */
 	if (scsi_sg_count(cmd)) {
@@ -1256,8 +1241,7 @@ qla24xx_start_scsi(srb_t *sp)
 		nseg = 0;
 
 	tot_dsds = nseg;
-
-	req_cnt = qla24xx_calc_iocbs(tot_dsds);
+	req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
 	if (req->cnt < (req_cnt + 2)) {
 		cnt = RD_REG_DWORD_RELAXED(req->req_q_out);
 
@@ -1322,7 +1306,6 @@ qla24xx_start_scsi(srb_t *sp)
 	/* Specify response queue number where completion should happen */
 	cmd_pkt->entry_status = (uint8_t) rsp->id;
 	wmb();
-
 	/* Adjust ring index. */
 	req->ring_index++;
 	if (req->ring_index == req->length) {
@@ -1534,9 +1517,6 @@ queuing_error:
 	/* Cleanup will be performed by the caller (queuecommand) */
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
-	DEBUG18(qla_printk(KERN_INFO, ha,
-	    "CMD sent FAILED SCSI prot_op:%02x\n", scsi_get_prot_op(cmd)));
 	return QLA_FUNCTION_FAILED;
 }
 
@@ -1581,8 +1561,11 @@ qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 		if (!req->outstanding_cmds[handle])
 			break;
 	}
-	if (index == MAX_OUTSTANDING_COMMANDS)
+	if (index == MAX_OUTSTANDING_COMMANDS) {
+		ql_log(ql_log_warn, vha, 0x700b,
+		    "No room on oustanding cmd array.\n");
 		goto queuing_error;
+	}
 
 	/* Prep command array. */
 	req->current_outstanding_cmd = handle;
@@ -1999,8 +1982,11 @@ qla2x00_start_sp(srb_t *sp)
 	rval = QLA_FUNCTION_FAILED;
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	pkt = qla2x00_alloc_iocbs(sp->fcport->vha, sp);
-	if (!pkt)
+	if (!pkt) {
+		ql_log(ql_log_warn, sp->fcport->vha, 0x700c,
+		    "qla2x00_alloc_iocbs failed.\n");
 		goto done;
+	}
 
 	rval = QLA_SUCCESS;
 	switch (ctx->type) {

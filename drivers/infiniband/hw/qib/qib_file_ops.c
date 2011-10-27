@@ -1527,6 +1527,7 @@ done_chk_sdma:
 		struct qib_filedata *fd = fp->private_data;
 		const struct qib_ctxtdata *rcd = fd->rcd;
 		const struct qib_devdata *dd = rcd->dd;
+		unsigned int weight;
 
 		if (dd->flags & QIB_HAS_SEND_DMA) {
 			fd->pq = qib_user_sdma_queue_create(&dd->pcidev->dev,
@@ -1545,8 +1546,8 @@ done_chk_sdma:
 		 * it just means that sooner or later we don't recommend
 		 * a cpu, and let the scheduler do it's best.
 		 */
-		if (!ret && cpus_weight(current->cpus_allowed) >=
-		    qib_cpulist_count) {
+		weight = cpumask_weight(tsk_cpus_allowed(current));
+		if (!ret && weight >= qib_cpulist_count) {
 			int cpu;
 			cpu = find_first_zero_bit(qib_cpulist,
 						  qib_cpulist_count);
@@ -1554,13 +1555,13 @@ done_chk_sdma:
 				__set_bit(cpu, qib_cpulist);
 				fd->rec_cpu_num = cpu;
 			}
-		} else if (cpus_weight(current->cpus_allowed) == 1 &&
-			test_bit(first_cpu(current->cpus_allowed),
+		} else if (weight == 1 &&
+			test_bit(cpumask_first(tsk_cpus_allowed(current)),
 				 qib_cpulist))
 			qib_devinfo(dd->pcidev, "%s PID %u affinity "
 				    "set to cpu %d; already allocated\n",
 				    current->comm, current->pid,
-				    first_cpu(current->cpus_allowed));
+				    cpumask_first(tsk_cpus_allowed(current)));
 	}
 
 	mutex_unlock(&qib_mutex);
@@ -1904,8 +1905,9 @@ int qib_set_uevent_bits(struct qib_pportdata *ppd, const int evtbit)
 	struct qib_ctxtdata *rcd;
 	unsigned ctxt;
 	int ret = 0;
+	unsigned long flags;
 
-	spin_lock(&ppd->dd->uctxt_lock);
+	spin_lock_irqsave(&ppd->dd->uctxt_lock, flags);
 	for (ctxt = ppd->dd->first_user_ctxt; ctxt < ppd->dd->cfgctxts;
 	     ctxt++) {
 		rcd = ppd->dd->rcd[ctxt];
@@ -1924,7 +1926,7 @@ int qib_set_uevent_bits(struct qib_pportdata *ppd, const int evtbit)
 		ret = 1;
 		break;
 	}
-	spin_unlock(&ppd->dd->uctxt_lock);
+	spin_unlock_irqrestore(&ppd->dd->uctxt_lock, flags);
 
 	return ret;
 }

@@ -6,7 +6,7 @@
 
   Copyright (C) 2005 Martin Langer <martin-langer@gmx.de>
   Copyright (C) 2005 Stefano Brivio <stefano.brivio@polimi.it>
-  Copyright (C) 2005, 2006 Michael Buesch <mb@bu3sch.de>
+  Copyright (C) 2005, 2006 Michael Buesch <m@bues.ch>
   Copyright (C) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (C) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
   Copyright (C) 2007 Larry Finger <Larry.Finger@lwfinger.net>
@@ -321,11 +321,9 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 		struct ieee80211_hdr *hdr;
 		int rts_rate;
 		int rts_rate_fb;
-		int rts_rate_ofdm;
 		int rts_rate_fb_ofdm;
 
 		rts_rate = ieee80211_get_rts_cts_rate(dev->wl->hw, info)->hw_value;
-		rts_rate_ofdm = b43legacy_is_ofdm_rate(rts_rate);
 		rts_rate_fb = b43legacy_calc_fallback_rate(rts_rate);
 		rts_rate_fb_ofdm = b43legacy_is_ofdm_rate(rts_rate_fb);
 		if (rts_rate_fb_ofdm)

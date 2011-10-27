@@ -129,15 +129,30 @@ static int ext4_sync_parent(struct inode *inode)
 {
 	struct writeback_control wbc;
 	struct dentry *dentry = NULL;
+	struct inode *next;
 	int ret = 0;
 
-	while (inode && ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY)) {
+	if (!ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY))
+		return 0;
+	inode = igrab(inode);
+	while (ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY)) {
 		ext4_clear_inode_state(inode, EXT4_STATE_NEWENTRY);
-		dentry = list_entry(inode->i_dentry.next,
-				    struct dentry, d_alias);
-		if (!dentry || !dentry->d_parent || !dentry->d_parent->d_inode)
+		dentry = NULL;
+		spin_lock(&inode->i_lock);
+		if (!list_empty(&inode->i_dentry)) {
+			dentry = list_first_entry(&inode->i_dentry,
+						  struct dentry, d_alias);
+			dget(dentry);
+		}
+		spin_unlock(&inode->i_lock);
+		if (!dentry)
 			break;
-		inode = dentry->d_parent->d_inode;
+		next = igrab(dentry->d_parent->d_inode);
+		dput(dentry);
+		if (!next)
+			break;
+		iput(inode);
+		inode = next;
 		ret = sync_mapping_buffers(inode->i_mapping);
 		if (ret)
 			break;
@@ -148,6 +163,33 @@ static int ext4_sync_parent(struct inode *inode)
 		if (ret)
 			break;
 	}
+	iput(inode);
+	return ret;
+}
+
+/**
+ * __sync_file - generic_file_fsync without the locking and filemap_write
+ * @inode:	inode to sync
+ * @datasync:	only sync essential metadata if true
+ *
+ * This is just generic_file_fsync without the locking.  This is needed for
+ * nojournal mode to make sure this inodes data/metadata makes it to disk
+ * properly.  The i_mutex should be held already.
+ */
+static int __sync_inode(struct inode *inode, int datasync)
+{
+	int err;
+	int ret;
+
+	ret = sync_mapping_buffers(inode->i_mapping);
+	if (!(inode->i_state & I_DIRTY))
+		return ret;
+	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
+		return ret;
+
+	err = sync_inode_metadata(inode, 1);
+	if (ret == 0)
+		ret = err;
 	return ret;
 }
 
@@ -165,7 +207,7 @@ static int ext4_sync_parent(struct inode *inode)
  * i_mutex lock is held when entering and exiting this function
  */
 
-int ext4_sync_file(struct file *file, int datasync)
+int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	struct ext4_inode_info *ei = EXT4_I(inode);
@@ -178,15 +220,20 @@ int ext4_sync_file(struct file *file, int datasync)
 
 	trace_ext4_sync_file_enter(file, datasync);
 
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (ret)
+		return ret;
+	mutex_lock(&inode->i_mutex);
+
 	if (inode->i_sb->s_flags & MS_RDONLY)
-		return 0;
+		goto out;
 
 	ret = ext4_flush_completed_IO(inode);
 	if (ret < 0)
 		goto out;
 
 	if (!journal) {
-		ret = generic_file_fsync(file, datasync);
+		ret = __sync_inode(inode, datasync);
 		if (!ret && !list_empty(&inode->i_dentry))
 			ret = ext4_sync_parent(inode);
 		goto out;
@@ -220,6 +267,7 @@ int ext4_sync_file(struct file *file, int datasync)
 	if (needs_barrier)
 		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
  out:
+	mutex_unlock(&inode->i_mutex);
 	trace_ext4_sync_file_exit(inode, ret);
 	return ret;
 }

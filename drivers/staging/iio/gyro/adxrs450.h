@@ -42,17 +42,16 @@
 /**
  * struct adxrs450_state - device instance specific data
  * @us:			actual spi_device
- * @indio_dev:		industrial I/O device structure
+ * @buf_lock:		mutex to protect tx and rx
  * @tx:			transmit buffer
  * @rx:			recieve buffer
- * @buf_lock:		mutex to protect tx and rx
  **/
 struct adxrs450_state {
-	struct spi_device		*us;
-	struct iio_dev			*indio_dev;
-	u8				*tx;
-	u8				*rx;
-	struct mutex			buf_lock;
+	struct spi_device	*us;
+	struct mutex		buf_lock;
+	u8			tx[ADXRS450_MAX_RX] ____cacheline_aligned;
+	u8			rx[ADXRS450_MAX_TX];
+
 };
 
 #endif /* SPI_ADXRS450_H_ */

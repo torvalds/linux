@@ -144,7 +144,7 @@ eiger_init_irq(void)
 }
 
 static int __init
-eiger_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+eiger_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	u8 irq_orig;
 

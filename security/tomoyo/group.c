@@ -1,21 +1,37 @@
 /*
  * security/tomoyo/group.c
  *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #include <linux/slab.h>
 #include "common.h"
 
+/**
+ * tomoyo_same_path_group - Check for duplicated "struct tomoyo_path_group" entry.
+ *
+ * @a: Pointer to "struct tomoyo_acl_head".
+ * @b: Pointer to "struct tomoyo_acl_head".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
 static bool tomoyo_same_path_group(const struct tomoyo_acl_head *a,
-				const struct tomoyo_acl_head *b)
+				   const struct tomoyo_acl_head *b)
 {
 	return container_of(a, struct tomoyo_path_group, head)->member_name ==
 		container_of(b, struct tomoyo_path_group, head)->member_name;
 }
 
+/**
+ * tomoyo_same_number_group - Check for duplicated "struct tomoyo_number_group" entry.
+ *
+ * @a: Pointer to "struct tomoyo_acl_head".
+ * @b: Pointer to "struct tomoyo_acl_head".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
 static bool tomoyo_same_number_group(const struct tomoyo_acl_head *a,
-				  const struct tomoyo_acl_head *b)
+				     const struct tomoyo_acl_head *b)
 {
 	return !memcmp(&container_of(a, struct tomoyo_number_group, head)
 		       ->number,
@@ -28,48 +44,41 @@ static bool tomoyo_same_number_group(const struct tomoyo_acl_head *a,
 /**
  * tomoyo_write_group - Write "struct tomoyo_path_group"/"struct tomoyo_number_group" list.
  *
- * @data:      String to parse.
- * @is_delete: True if it is a delete request.
- * @type:      Type of this group.
+ * @param: Pointer to "struct tomoyo_acl_param".
+ * @type:  Type of this group.
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_write_group(char *data, const bool is_delete, const u8 type)
+int tomoyo_write_group(struct tomoyo_acl_param *param, const u8 type)
 {
-	struct tomoyo_group *group;
-	struct list_head *member;
-	char *w[2];
+	struct tomoyo_group *group = tomoyo_get_group(param, type);
 	int error = -EINVAL;
-	if (!tomoyo_tokenize(data, w, sizeof(w)) || !w[1][0])
-		return -EINVAL;
-	group = tomoyo_get_group(w[0], type);
 	if (!group)
 		return -ENOMEM;
-	member = &group->member_list;
+	param->list = &group->member_list;
 	if (type == TOMOYO_PATH_GROUP) {
 		struct tomoyo_path_group e = { };
-		e.member_name = tomoyo_get_name(w[1]);
+		e.member_name = tomoyo_get_name(tomoyo_read_token(param));
 		if (!e.member_name) {
 			error = -ENOMEM;
 			goto out;
 		}
-		error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-					     member, tomoyo_same_path_group);
+		error = tomoyo_update_policy(&e.head, sizeof(e), param,
+					  tomoyo_same_path_group);
 		tomoyo_put_name(e.member_name);
 	} else if (type == TOMOYO_NUMBER_GROUP) {
 		struct tomoyo_number_group e = { };
-		if (w[1][0] == '@'
-		    || !tomoyo_parse_number_union(w[1], &e.number)
-		    || e.number.values[0] > e.number.values[1])
+		if (param->data[0] == '@' ||
+		    !tomoyo_parse_number_union(param, &e.number))
 			goto out;
-		error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-					     member, tomoyo_same_number_group);
+		error = tomoyo_update_policy(&e.head, sizeof(e), param,
+					  tomoyo_same_number_group);
 		/*
 		 * tomoyo_put_number_union() is not needed because
-		 * w[1][0] != '@'.
+		 * param->data[0] != '@'.
 		 */
 	}
- out:
+out:
 	tomoyo_put_group(group);
 	return error;
 }
@@ -77,8 +86,8 @@ int tomoyo_write_group(char *data, const bool is_delete, const u8 type)
 /**
  * tomoyo_path_matches_group - Check whether the given pathname matches members of the given pathname group.
  *
- * @pathname:        The name of pathname.
- * @group:           Pointer to "struct tomoyo_path_group".
+ * @pathname: The name of pathname.
+ * @group:    Pointer to "struct tomoyo_path_group".
  *
  * Returns matched member's pathname if @pathname matches pathnames in @group,
  * NULL otherwise.

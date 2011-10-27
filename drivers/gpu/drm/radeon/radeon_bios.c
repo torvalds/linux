@@ -104,7 +104,7 @@ static bool radeon_read_bios(struct radeon_device *rdev)
 static bool radeon_atrm_get_bios(struct radeon_device *rdev)
 {
 	int ret;
-	int size = 64 * 1024;
+	int size = 256 * 1024;
 	int i;
 
 	if (!radeon_atrm_supported(rdev->pdev))
@@ -331,7 +331,7 @@ static bool avivo_read_disabled_bios(struct radeon_device *rdev)
 
 	seprom_cntl1 = RREG32(RADEON_SEPROM_CNTL1);
 	viph_control = RREG32(RADEON_VIPH_CONTROL);
-	bus_cntl = RREG32(RADEON_BUS_CNTL);
+	bus_cntl = RREG32(RV370_BUS_CNTL);
 	d1vga_control = RREG32(AVIVO_D1VGA_CONTROL);
 	d2vga_control = RREG32(AVIVO_D2VGA_CONTROL);
 	vga_render_control = RREG32(AVIVO_VGA_RENDER_CONTROL);
@@ -350,7 +350,7 @@ static bool avivo_read_disabled_bios(struct radeon_device *rdev)
 	WREG32(RADEON_VIPH_CONTROL, (viph_control & ~RADEON_VIPH_EN));
 
 	/* enable the rom */
-	WREG32(RADEON_BUS_CNTL, (bus_cntl & ~RADEON_BUS_BIOS_DIS_ROM));
+	WREG32(RV370_BUS_CNTL, (bus_cntl & ~RV370_BUS_BIOS_DIS_ROM));
 
 	/* Disable VGA mode */
 	WREG32(AVIVO_D1VGA_CONTROL,
@@ -367,7 +367,7 @@ static bool avivo_read_disabled_bios(struct radeon_device *rdev)
 	/* restore regs */
 	WREG32(RADEON_SEPROM_CNTL1, seprom_cntl1);
 	WREG32(RADEON_VIPH_CONTROL, viph_control);
-	WREG32(RADEON_BUS_CNTL, bus_cntl);
+	WREG32(RV370_BUS_CNTL, bus_cntl);
 	WREG32(AVIVO_D1VGA_CONTROL, d1vga_control);
 	WREG32(AVIVO_D2VGA_CONTROL, d2vga_control);
 	WREG32(AVIVO_VGA_RENDER_CONTROL, vga_render_control);
@@ -390,7 +390,10 @@ static bool legacy_read_disabled_bios(struct radeon_device *rdev)
 
 	seprom_cntl1 = RREG32(RADEON_SEPROM_CNTL1);
 	viph_control = RREG32(RADEON_VIPH_CONTROL);
-	bus_cntl = RREG32(RADEON_BUS_CNTL);
+	if (rdev->flags & RADEON_IS_PCIE)
+		bus_cntl = RREG32(RV370_BUS_CNTL);
+	else
+		bus_cntl = RREG32(RADEON_BUS_CNTL);
 	crtc_gen_cntl = RREG32(RADEON_CRTC_GEN_CNTL);
 	crtc2_gen_cntl = 0;
 	crtc_ext_cntl = RREG32(RADEON_CRTC_EXT_CNTL);
@@ -412,7 +415,10 @@ static bool legacy_read_disabled_bios(struct radeon_device *rdev)
 	WREG32(RADEON_VIPH_CONTROL, (viph_control & ~RADEON_VIPH_EN));
 
 	/* enable the rom */
-	WREG32(RADEON_BUS_CNTL, (bus_cntl & ~RADEON_BUS_BIOS_DIS_ROM));
+	if (rdev->flags & RADEON_IS_PCIE)
+		WREG32(RV370_BUS_CNTL, (bus_cntl & ~RV370_BUS_BIOS_DIS_ROM));
+	else
+		WREG32(RADEON_BUS_CNTL, (bus_cntl & ~RADEON_BUS_BIOS_DIS_ROM));
 
 	/* Turn off mem requests and CRTC for both controllers */
 	WREG32(RADEON_CRTC_GEN_CNTL,
@@ -439,7 +445,10 @@ static bool legacy_read_disabled_bios(struct radeon_device *rdev)
 	/* restore regs */
 	WREG32(RADEON_SEPROM_CNTL1, seprom_cntl1);
 	WREG32(RADEON_VIPH_CONTROL, viph_control);
-	WREG32(RADEON_BUS_CNTL, bus_cntl);
+	if (rdev->flags & RADEON_IS_PCIE)
+		WREG32(RV370_BUS_CNTL, bus_cntl);
+	else
+		WREG32(RADEON_BUS_CNTL, bus_cntl);
 	WREG32(RADEON_CRTC_GEN_CNTL, crtc_gen_cntl);
 	if (!(rdev->flags & RADEON_SINGLE_CRTC)) {
 		WREG32(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);

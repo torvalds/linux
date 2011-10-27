@@ -1128,6 +1128,9 @@ static int mv_udc_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
+static int mv_udc_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int mv_udc_stop(struct usb_gadget_driver *driver);
 /* device controller usb_gadget_ops structure */
 static const struct usb_gadget_ops mv_ops = {
 
@@ -1139,6 +1142,8 @@ static const struct usb_gadget_ops mv_ops = {
 
 	/* D+ pullup, software-controlled connect/disconnect to USB host */
 	.pullup		= mv_udc_pullup,
+	.start		= mv_udc_start,
+	.stop		= mv_udc_stop,
 };
 
 static void mv_udc_testmode(struct mv_udc *udc, u16 index, bool enter)
@@ -1230,7 +1235,7 @@ static void stop_activity(struct mv_udc *udc, struct usb_gadget_driver *driver)
 	}
 }
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int mv_udc_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct mv_udc *udc = the_controller;
@@ -1270,9 +1275,8 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int mv_udc_stop(struct usb_gadget_driver *driver)
 {
 	struct mv_udc *udc = the_controller;
 	unsigned long flags;
@@ -1296,7 +1300,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 static int
 udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
@@ -1880,8 +1883,9 @@ static void gadget_release(struct device *_dev)
 static int mv_udc_remove(struct platform_device *dev)
 {
 	struct mv_udc *udc = the_controller;
-
 	DECLARE_COMPLETION(done);
+
+	usb_del_gadget_udc(&udc->gadget);
 
 	udc->done = &done;
 
@@ -2074,11 +2078,12 @@ int mv_udc_probe(struct platform_device *dev)
 
 	the_controller = udc;
 
-	goto out;
+	retval = usb_add_gadget_udc(&dev->dev, &udc->gadget);
+	if (!retval)
+		return retval;
 error:
 	if (udc)
 		mv_udc_remove(udc->dev);
-out:
 	return retval;
 }
 
@@ -2126,7 +2131,7 @@ static struct platform_driver udc_driver = {
 #endif
 	},
 };
-
+MODULE_ALIAS("platform:pxa-u2o");
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Chao Xie <chao.xie@marvell.com>");

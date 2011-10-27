@@ -171,6 +171,37 @@ config MFD_TPS6586X
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps6586x.
 
+config MFD_TPS65910
+	bool "TPS65910 Power Management chip"
+	depends on I2C=y && GPIOLIB
+	select MFD_CORE
+	select GPIO_TPS65910
+	help
+	  if you say yes here you get support for the TPS65910 series of
+	  Power Management chips.
+
+config MFD_TPS65912
+	bool
+	depends on GPIOLIB
+
+config MFD_TPS65912_I2C
+	bool "TPS95612 Power Management chip with I2C"
+	select MFD_CORE
+	select MFD_TPS65912
+	depends on I2C=y && GPIOLIB
+	help
+	  If you say yes here you get support for the TPS65912 series of
+	  PM chips with I2C interface.
+
+config MFD_TPS65912_SPI
+	bool "TPS65912 Power Management chip with SPI"
+	select MFD_CORE
+	select MFD_TPS65912
+	depends on SPI_MASTER && GPIOLIB
+	help
+	  If you say yes here you get support for the TPS65912 series of
+	  PM chips with SPI interface.
+
 config MENELAUS
 	bool "Texas Instruments TWL92330/Menelaus PM chip"
 	depends on I2C=y && ARCH_OMAP2
@@ -218,7 +249,7 @@ config TWL4030_POWER
 	  and load scripts controlling which resources are switched off/on
 	  or reset when a sleep, wakeup or warm reset event occurs.
 
-config TWL4030_CODEC
+config MFD_TWL4030_AUDIO
 	bool
 	depends on TWL4030_CORE
 	select MFD_CORE
@@ -232,6 +263,12 @@ config TWL6030_PWM
 	help
 	  Say yes here if you want support for TWL6030 PWM.
 	  This is used to control charging LED brightness.
+
+config TWL6040_CORE
+	bool
+	depends on TWL4030_CORE && GENERIC_HARDIRQS
+	select MFD_CORE
+	default n
 
 config MFD_STMPE
 	bool "Support STMicroelectronics STMPE"
@@ -656,8 +693,9 @@ config MFD_JANZ_CMODIO
 	  CAN and GPIO controllers.
 
 config MFD_JZ4740_ADC
-	tristate "Support for the JZ4740 SoC ADC core"
+	bool "Support for the JZ4740 SoC ADC core"
 	select MFD_CORE
+	select GENERIC_IRQ_CHIP
 	depends on MACH_JZ4740
 	help
 	  Say yes here if you want support for the ADC unit in the JZ4740 SoC.
@@ -719,14 +757,18 @@ config MFD_PM8XXX_IRQ
 	  This is required to use certain other PM 8xxx features, such as GPIO
 	  and MPP.
 
-config MFD_TPS65910
-	bool "TPS65910 Power Management chip"
-	depends on I2C=y && GPIOLIB
+config TPS65911_COMPARATOR
+	tristate
+
+config MFD_AAT2870_CORE
+	bool "Support for the AnalogicTech AAT2870"
 	select MFD_CORE
-	select GPIO_TPS65910
+	depends on I2C=y && GPIOLIB
 	help
-	  if you say yes here you get support for the TPS65910 series of
-	  Power Management chips.
+	  If you say yes here you get support for the AAT2870.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
 
 endif # MFD_SUPPORT
 

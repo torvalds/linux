@@ -266,7 +266,7 @@ static struct regulator_ops db8500_regulator_switch_ops = {
  * Regulator information
  */
 static struct db8500_regulator_info
-		db8500_regulator_info[DB8500_NUM_REGULATORS] = {
+db8500_regulator_info[DB8500_NUM_REGULATORS] = {
 	[DB8500_REGULATOR_VAPE] = {
 		.desc = {
 			.name	= "db8500-vape",
@@ -492,11 +492,9 @@ static int __devinit db8500_regulator_probe(struct platform_device *pdev)
 				info->desc.name, err);
 
 			/* if failing, unregister all earlier regulators */
-			i--;
-			while (i >= 0) {
+			while (--i >= 0) {
 				info = &db8500_regulator_info[i];
 				regulator_unregister(info->rdev);
-				i--;
 			}
 			return err;
 		}
@@ -536,13 +534,7 @@ static struct platform_driver db8500_regulator_driver = {
 
 static int __init db8500_regulator_init(void)
 {
-	int ret;
-
-	ret = platform_driver_register(&db8500_regulator_driver);
-	if (ret < 0)
-		return -ENODEV;
-
-	return 0;
+	return platform_driver_register(&db8500_regulator_driver);
 }
 
 static void __exit db8500_regulator_exit(void)

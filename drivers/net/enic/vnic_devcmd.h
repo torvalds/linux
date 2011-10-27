@@ -318,6 +318,25 @@ enum vnic_devcmd_cmd {
 	 *             ERR_EINPROGRESS - command in a0 is still in progress
 	 */
 	CMD_STATUS = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 49),
+
+	/*
+	 * Returns interrupt coalescing timer conversion factors.
+	 * After calling this devcmd, ENIC driver can convert
+	 * interrupt coalescing timer in usec into CPU cycles as follows:
+	 *
+	 *   intr_timer_cycles = intr_timer_usec * multiplier / divisor
+	 *
+	 * Interrupt coalescing timer in usecs can be obtained from
+	 * CPU cycles as follows:
+	 *
+	 *   intr_timer_usec = intr_timer_cycles * divisor / multiplier
+	 *
+	 * in: none
+	 * out: (u32)a0 = multiplier
+	 *      (u32)a1 = divisor
+	 *      (u32)a2 = maximum timer value in usec
+	 */
+	CMD_INTR_COAL_CONVERT = _CMDC(_CMD_DIR_READ, _CMD_VTYPE_ALL, 50),
 };
 
 /* CMD_ENABLE2 flags */

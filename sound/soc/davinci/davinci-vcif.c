@@ -62,9 +62,9 @@ static void davinci_vcif_start(struct snd_pcm_substream *substream)
 	w = readl(davinci_vc->base + DAVINCI_VC_CTRL);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		MOD_REG_BIT(w, DAVINCI_VC_CTRL_RSTDAC, 1);
+		MOD_REG_BIT(w, DAVINCI_VC_CTRL_RSTDAC, 0);
 	else
-		MOD_REG_BIT(w, DAVINCI_VC_CTRL_RSTADC, 1);
+		MOD_REG_BIT(w, DAVINCI_VC_CTRL_RSTADC, 0);
 
 	writel(w, davinci_vc->base + DAVINCI_VC_CTRL);
 }
@@ -80,9 +80,9 @@ static void davinci_vcif_stop(struct snd_pcm_substream *substream)
 	/* Reset transmitter/receiver and sample rate/frame sync generators */
 	w = readl(davinci_vc->base + DAVINCI_VC_CTRL);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		MOD_REG_BIT(w, DAVINCI_VC_CTRL_RSTDAC, 0);
+		MOD_REG_BIT(w, DAVINCI_VC_CTRL_RSTDAC, 1);
 	else
-		MOD_REG_BIT(w, DAVINCI_VC_CTRL_RSTADC, 0);
+		MOD_REG_BIT(w, DAVINCI_VC_CTRL_RSTADC, 1);
 
 	writel(w, davinci_vc->base + DAVINCI_VC_CTRL);
 }
@@ -159,6 +159,7 @@ static int davinci_vcif_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		davinci_vcif_start(substream);
+		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:

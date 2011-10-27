@@ -26,7 +26,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <pcmcia/ss.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 
 /*

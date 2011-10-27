@@ -77,6 +77,12 @@ int acpi_suspend_lowlevel(void)
 
 	header->pmode_cr0 = read_cr0();
 	header->pmode_cr4 = read_cr4_safe();
+	header->pmode_behavior = 0;
+	if (!rdmsr_safe(MSR_IA32_MISC_ENABLE,
+			&header->pmode_misc_en_low,
+			&header->pmode_misc_en_high))
+		header->pmode_behavior |=
+			(1 << WAKEUP_BEHAVIOR_RESTORE_MISC_ENABLE);
 	header->realmode_flags = acpi_realmode_flags;
 	header->real_magic = 0x12345678;
 

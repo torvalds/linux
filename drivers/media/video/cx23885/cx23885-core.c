@@ -42,6 +42,7 @@
 MODULE_DESCRIPTION("Driver for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(CX23885_VERSION);
 
 static unsigned int debug;
 module_param(debug, int, 0644);
@@ -2060,12 +2061,8 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 		goto fail_irq;
 	}
 
-	if (!pci_enable_msi(pci_dev))
-		err = request_irq(pci_dev->irq, cx23885_irq,
-				  IRQF_DISABLED, dev->name, dev);
-	else
-		err = request_irq(pci_dev->irq, cx23885_irq,
-				  IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
+	err = request_irq(pci_dev->irq, cx23885_irq,
+			  IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
 	if (err < 0) {
 		printk(KERN_ERR "%s: can't get IRQ %d\n",
 		       dev->name, pci_dev->irq);
@@ -2114,7 +2111,6 @@ static void __devexit cx23885_finidev(struct pci_dev *pci_dev)
 
 	/* unregister stuff */
 	free_irq(pci_dev->irq, dev);
-	pci_disable_msi(pci_dev);
 
 	cx23885_dev_unregister(dev);
 	v4l2_device_unregister(v4l2_dev);
@@ -2152,14 +2148,8 @@ static struct pci_driver cx23885_pci_driver = {
 
 static int __init cx23885_init(void)
 {
-	printk(KERN_INFO "cx23885 driver version %d.%d.%d loaded\n",
-	       (CX23885_VERSION_CODE >> 16) & 0xff,
-	       (CX23885_VERSION_CODE >>  8) & 0xff,
-	       CX23885_VERSION_CODE & 0xff);
-#ifdef SNAPSHOT
-	printk(KERN_INFO "cx23885: snapshot date %04d-%02d-%02d\n",
-	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
-#endif
+	printk(KERN_INFO "cx23885 driver version %s loaded\n",
+		CX23885_VERSION);
 	return pci_register_driver(&cx23885_pci_driver);
 }
 
@@ -2170,5 +2160,3 @@ static void __exit cx23885_fini(void)
 
 module_init(cx23885_init);
 module_exit(cx23885_fini);
-
-/* ----------------------------------------------------------- */

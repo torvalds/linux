@@ -995,6 +995,7 @@ MACHINE_START(VIPER, "Arcom/Eurotech VIPER SBC")
 	.boot_params	= 0xa0000100,
 	.map_io		= viper_map_io,
 	.init_irq	= viper_init_irq,
+	.handle_irq	= pxa25x_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine	= viper_init,
 MACHINE_END

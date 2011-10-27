@@ -552,7 +552,7 @@ struct mini2440_features_t {
 	struct platform_device *optional[8];
 };
 
-static void mini2440_parse_features(
+static void __init mini2440_parse_features(
 		struct mini2440_features_t * features,
 		const char * features_str )
 {

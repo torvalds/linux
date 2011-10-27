@@ -24,13 +24,12 @@
 #include <linux/stat.h>
 #include <linux/slab.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/uaccess.h>
 
 static DEFINE_MUTEX(mem_sysfs_mutex);
 
 #define MEMORY_CLASS_NAME	"memory"
-#define MIN_MEMORY_BLOCK_SIZE	(1 << SECTION_SIZE_BITS)
 
 static int sections_per_block;
 

@@ -1,7 +1,5 @@
 /*
- * Copyright (c) 2010 Samsung Electronics
- *
- * Sylwester Nawrocki, <s.nawrocki@samsung.com>
+ * Copyright (C) 2010 - 2011 Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -135,9 +133,10 @@ enum fimc_color_fmt {
  * @name: format description
  * @fourcc: the fourcc code for this format, 0 if not applicable
  * @color: the corresponding fimc_color_fmt
- * @depth: per plane driver's private 'number of bits per pixel'
  * @memplanes: number of physically non-contiguous data planes
  * @colplanes: number of physically contiguous data planes
+ * @depth: per plane driver's private 'number of bits per pixel'
+ * @flags: flags indicating which operation mode format applies to
  */
 struct fimc_fmt {
 	enum v4l2_mbus_pixelcode mbus_code;
@@ -171,7 +170,7 @@ struct fimc_dma_offset {
 };
 
 /**
- * struct fimc_effect - the configuration data for the "Arbitrary" image effect
+ * struct fimc_effect - color effect information
  * @type:	effect type
  * @pat_cb:	cr value when type is "arbitrary"
  * @pat_cr:	cr value when type is "arbitrary"
@@ -184,7 +183,6 @@ struct fimc_effect {
 
 /**
  * struct fimc_scaler - the configuration data for FIMC inetrnal scaler
- *
  * @scaleup_h:		flag indicating scaling up horizontally
  * @scaleup_v:		flag indicating scaling up vertically
  * @copy_mode:		flag indicating transparent DMA transfer (no scaling
@@ -220,7 +218,6 @@ struct fimc_scaler {
 
 /**
  * struct fimc_addr - the FIMC physical address set for DMA
- *
  * @y:	 luminance plane physical address
  * @cb:	 Cb plane physical address
  * @cr:	 Cr plane physical address
@@ -234,6 +231,7 @@ struct fimc_addr {
 /**
  * struct fimc_vid_buffer - the driver's video buffer
  * @vb:    v4l videobuf buffer
+ * @list:  linked list structure for buffer queue
  * @paddr: precalculated physical address set
  * @index: buffer index for the output DMA engine
  */
@@ -254,11 +252,10 @@ struct fimc_vid_buffer {
  * @offs_v:	image vertical pixel offset
  * @width:	image pixel width
  * @height:	image pixel weight
- * @paddr:	image frame buffer physical addresses
- * @buf_cnt:	number of buffers depending on a color format
  * @payload:	image size in bytes (w x h x bpp)
- * @color:	color format
+ * @paddr:	image frame buffer physical addresses
  * @dma_offset:	DMA offset in bytes
+ * @fmt:	fimc color format pointer
  */
 struct fimc_frame {
 	u32	f_width;
@@ -390,21 +387,22 @@ struct fimc_ctx;
 
 /**
  * struct fimc_dev - abstraction for FIMC entity
- *
  * @slock:	the spinlock protecting this data structure
  * @lock:	the mutex protecting this data structure
  * @pdev:	pointer to the FIMC platform device
  * @pdata:	pointer to the device platform data
+ * @variant:	the IP variant information
  * @id:		FIMC device index (0..FIMC_MAX_DEVS)
  * @num_clocks: the number of clocks managed by this device instance
- * @clock[]:	the clocks required for FIMC operation
+ * @clock:	clocks required for FIMC operation
  * @regs:	the mapped hardware registers
  * @regs_res:	the resource claimed for IO registers
- * @irq:	interrupt number of the FIMC subdevice
- * @irq_queue:
+ * @irq:	FIMC interrupt number
+ * @irq_queue:	interrupt handler waitqueue
  * @m2m:	memory-to-memory V4L2 device information
  * @vid_cap:	camera capture device information
  * @state:	flags used to synchronize m2m and capture mode operation
+ * @alloc_ctx:	videobuf2 memory allocator context
  */
 struct fimc_dev {
 	spinlock_t			slock;
@@ -427,8 +425,7 @@ struct fimc_dev {
 
 /**
  * fimc_ctx - the device context data
- *
- * @lock:		mutex protecting this data structure
+ * @slock:		spinlock protecting this data structure
  * @s_frame:		source frame properties
  * @d_frame:		destination frame properties
  * @out_order_1p:	output 1-plane YCBCR order

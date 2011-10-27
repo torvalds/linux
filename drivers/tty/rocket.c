@@ -83,7 +83,7 @@
 #include <linux/wait.h>
 #include <linux/pci.h>
 #include <linux/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/unaligned.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>

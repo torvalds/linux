@@ -90,7 +90,8 @@ static int __devinit pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	unsigned int delay;
 	u8 pon_cntl;
 	struct pmic8xxx_pwrkey *pwrkey;
-	const struct pm8xxx_pwrkey_platform_data *pdata = mfd_get_data(pdev);
+	const struct pm8xxx_pwrkey_platform_data *pdata =
+					dev_get_platdata(&pdev->dev);
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "power key platform data not supplied\n");

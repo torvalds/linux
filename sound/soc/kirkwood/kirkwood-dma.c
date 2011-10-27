@@ -312,9 +312,11 @@ static int kirkwood_dma_preallocate_dma_buffer(struct snd_pcm *pcm,
 	return 0;
 }
 
-static int kirkwood_dma_new(struct snd_card *card,
-		struct snd_soc_dai *dai, struct snd_pcm *pcm)
+static int kirkwood_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_pcm *pcm = rtd->pcm;
 	int ret;
 
 	if (!card->dev->dma_mask)

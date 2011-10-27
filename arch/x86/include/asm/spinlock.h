@@ -1,8 +1,7 @@
 #ifndef _ASM_X86_SPINLOCK_H
 #define _ASM_X86_SPINLOCK_H
 
-#include <asm/atomic.h>
-#include <asm/rwlock.h>
+#include <linux/atomic.h>
 #include <asm/page.h>
 #include <asm/processor.h>
 #include <linux/compiler.h>
@@ -234,7 +233,7 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
  */
 static inline int arch_read_can_lock(arch_rwlock_t *lock)
 {
-	return (int)(lock)->lock > 0;
+	return lock->lock > 0;
 }
 
 /**
@@ -243,12 +242,12 @@ static inline int arch_read_can_lock(arch_rwlock_t *lock)
  */
 static inline int arch_write_can_lock(arch_rwlock_t *lock)
 {
-	return (lock)->lock == RW_LOCK_BIAS;
+	return lock->write == WRITE_LOCK_CMP;
 }
 
 static inline void arch_read_lock(arch_rwlock_t *rw)
 {
-	asm volatile(LOCK_PREFIX " subl $1,(%0)\n\t"
+	asm volatile(LOCK_PREFIX READ_LOCK_SIZE(dec) " (%0)\n\t"
 		     "jns 1f\n"
 		     "call __read_lock_failed\n\t"
 		     "1:\n"
@@ -257,46 +256,54 @@ static inline void arch_read_lock(arch_rwlock_t *rw)
 
 static inline void arch_write_lock(arch_rwlock_t *rw)
 {
-	asm volatile(LOCK_PREFIX " subl %1,(%0)\n\t"
+	asm volatile(LOCK_PREFIX WRITE_LOCK_SUB(%1) "(%0)\n\t"
 		     "jz 1f\n"
 		     "call __write_lock_failed\n\t"
 		     "1:\n"
-		     ::LOCK_PTR_REG (rw), "i" (RW_LOCK_BIAS) : "memory");
+		     ::LOCK_PTR_REG (&rw->write), "i" (RW_LOCK_BIAS)
+		     : "memory");
 }
 
 static inline int arch_read_trylock(arch_rwlock_t *lock)
 {
-	atomic_t *count = (atomic_t *)lock;
+	READ_LOCK_ATOMIC(t) *count = (READ_LOCK_ATOMIC(t) *)lock;
 
-	if (atomic_dec_return(count) >= 0)
+	if (READ_LOCK_ATOMIC(dec_return)(count) >= 0)
 		return 1;
-	atomic_inc(count);
+	READ_LOCK_ATOMIC(inc)(count);
 	return 0;
 }
 
 static inline int arch_write_trylock(arch_rwlock_t *lock)
 {
-	atomic_t *count = (atomic_t *)lock;
+	atomic_t *count = (atomic_t *)&lock->write;
 
-	if (atomic_sub_and_test(RW_LOCK_BIAS, count))
+	if (atomic_sub_and_test(WRITE_LOCK_CMP, count))
 		return 1;
-	atomic_add(RW_LOCK_BIAS, count);
+	atomic_add(WRITE_LOCK_CMP, count);
 	return 0;
 }
 
 static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
-	asm volatile(LOCK_PREFIX "incl %0" :"+m" (rw->lock) : : "memory");
+	asm volatile(LOCK_PREFIX READ_LOCK_SIZE(inc) " %0"
+		     :"+m" (rw->lock) : : "memory");
 }
 
 static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
-	asm volatile(LOCK_PREFIX "addl %1, %0"
-		     : "+m" (rw->lock) : "i" (RW_LOCK_BIAS) : "memory");
+	asm volatile(LOCK_PREFIX WRITE_LOCK_ADD(%1) "%0"
+		     : "+m" (rw->write) : "i" (RW_LOCK_BIAS) : "memory");
 }
 
 #define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
 #define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
+
+#undef READ_LOCK_SIZE
+#undef READ_LOCK_ATOMIC
+#undef WRITE_LOCK_ADD
+#undef WRITE_LOCK_SUB
+#undef WRITE_LOCK_CMP
 
 #define arch_spin_relax(lock)	cpu_relax()
 #define arch_read_relax(lock)	cpu_relax()

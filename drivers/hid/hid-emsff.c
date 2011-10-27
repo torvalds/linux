@@ -126,7 +126,12 @@ static int ems_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto err;
 	}
 
-	emsff_init(hdev);
+	ret = emsff_init(hdev);
+	if (ret) {
+		dev_err(&hdev->dev, "force feedback init failed\n");
+		hid_hw_stop(hdev);
+		goto err;
+	}
 
 	return 0;
 err:

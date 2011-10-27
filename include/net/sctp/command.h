@@ -63,6 +63,7 @@ typedef enum {
 	SCTP_CMD_ECN_ECNE,	/* Do delayed ECNE processing. */
 	SCTP_CMD_ECN_CWR,	/* Do delayed CWR processing.  */
 	SCTP_CMD_TIMER_START,	/* Start a timer.  */
+	SCTP_CMD_TIMER_START_ONCE, /* Start a timer once */
 	SCTP_CMD_TIMER_RESTART,	/* Restart a timer. */
 	SCTP_CMD_TIMER_STOP,	/* Stop a timer. */
 	SCTP_CMD_INIT_CHOOSE_TRANSPORT, /* Choose transport for an INIT. */

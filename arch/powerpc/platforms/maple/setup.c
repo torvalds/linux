@@ -338,35 +338,16 @@ define_machine(maple) {
 #ifdef CONFIG_EDAC
 /*
  * Register a platform device for CPC925 memory controller on
- * Motorola ATCA-6101 blade.
+ * all boards with U3H (CPC925) bridge.
  */
-#define MAPLE_CPC925_MODEL	"Motorola,ATCA-6101"
 static int __init maple_cpc925_edac_setup(void)
 {
 	struct platform_device *pdev;
 	struct device_node *np = NULL;
 	struct resource r;
-	const unsigned char *model;
 	int ret;
-
-	np = of_find_node_by_path("/");
-	if (!np) {
-		printk(KERN_ERR "%s: Unable to get root node\n", __func__);
-		return -ENODEV;
-	}
-
-	model = (const unsigned char *)of_get_property(np, "model", NULL);
-	if (!model) {
-		printk(KERN_ERR "%s: Unabel to get model info\n", __func__);
-		of_node_put(np);
-		return -ENODEV;
-	}
-
-	ret = strcmp(model, MAPLE_CPC925_MODEL);
-	of_node_put(np);
-
-	if (ret != 0)
-		return 0;
+	volatile void __iomem *mem;
+	u32 rev;
 
 	np = of_find_node_by_type(NULL, "memory-controller");
 	if (!np) {
@@ -382,6 +363,22 @@ static int __init maple_cpc925_edac_setup(void)
 		printk(KERN_ERR "%s: Unable to get memory-controller reg\n",
 			__func__);
 		return -ENODEV;
+	}
+
+	mem = ioremap(r.start, resource_size(&r));
+	if (!mem) {
+		printk(KERN_ERR "%s: Unable to map memory-controller memory\n",
+				__func__);
+		return -ENOMEM;
+	}
+
+	rev = __raw_readl(mem);
+	iounmap(mem);
+
+	if (rev < 0x34 || rev > 0x3f) { /* U3H */
+		printk(KERN_ERR "%s: Non-CPC925(U3H) bridge revision: %02x\n",
+			__func__, rev);
+		return 0;
 	}
 
 	pdev = platform_device_register_simple("cpc925_edac", 0, &r, 1);
