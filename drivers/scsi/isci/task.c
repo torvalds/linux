@@ -552,8 +552,24 @@ static void isci_request_cleanup_completed_loiterer(
 
 	if (isci_request != NULL) {
 		spin_lock_irqsave(&isci_host->scic_lock, flags);
+		isci_free_tag(isci_host, isci_request->io_tag);
+		isci_request_change_state(isci_request, unallocated);
 		list_del_init(&isci_request->dev_node);
 		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	}
+}
+
+static int isci_request_is_dealloc_managed(enum isci_request_status stat)
+{
+	switch (stat) {
+	case aborted:
+	case aborting:
+	case terminating:
+	case completed:
+	case dead:
+		return true;
+	default:
+		return false;
 	}
 }
 
@@ -574,7 +590,6 @@ static void isci_terminate_request_core(struct isci_host *ihost,
 	enum sci_status status      = SCI_SUCCESS;
 	bool was_terminated         = false;
 	bool needs_cleanup_handling = false;
-	enum isci_request_status request_status;
 	unsigned long     flags;
 	unsigned long     termination_completed = 1;
 	struct completion *io_request_completion;
@@ -702,23 +717,11 @@ static void isci_terminate_request_core(struct isci_host *ihost,
 			 * needs to be detached and freed here.
 			 */
 			spin_lock_irqsave(&isci_request->state_lock, flags);
-			request_status = isci_request->status;
 
-			if ((isci_request->ttype == io_task) /* TMFs are in their own thread */
-			    && ((request_status == aborted)
-				|| (request_status == aborting)
-				|| (request_status == terminating)
-				|| (request_status == completed)
-				|| (request_status == dead)
-				)
-			    ) {
+			needs_cleanup_handling
+				= isci_request_is_dealloc_managed(
+					isci_request->status);
 
-				/* The completion routine won't free a request in
-				 * the aborted/aborting/etc. states, so we do
-				 * it here.
-				 */
-				needs_cleanup_handling = true;
-			}
 			spin_unlock_irqrestore(&isci_request->state_lock, flags);
 
 		}
@@ -1329,8 +1332,16 @@ isci_task_request_complete(struct isci_host *ihost,
 	 */
 	set_bit(IREQ_TERMINATED, &ireq->flags);
 
-	isci_request_change_state(ireq, unallocated);
-	list_del_init(&ireq->dev_node);
+	/* As soon as something is in the terminate path, deallocation is
+	 * managed there.  Note that the final non-managed state of a task
+	 * request is "completed".
+	 */
+	if ((ireq->status == completed) ||
+	    !isci_request_is_dealloc_managed(ireq->status)) {
+		isci_request_change_state(ireq, unallocated);
+		isci_free_tag(ihost, ireq->io_tag);
+		list_del_init(&ireq->dev_node);
+	}
 
 	/* The task management part completes last. */
 	complete(tmf_complete);
