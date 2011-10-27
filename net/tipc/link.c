@@ -1774,6 +1774,7 @@ protocol_check:
 					head = link_insert_deferred_queue(l_ptr,
 									  head);
 				if (likely(msg_is_dest(msg, tipc_own_addr))) {
+					int ret;
 deliver:
 					if (likely(msg_isdata(msg))) {
 						tipc_node_unlock(n_ptr);
@@ -1798,11 +1799,15 @@ deliver:
 						continue;
 					case MSG_FRAGMENTER:
 						l_ptr->stats.recv_fragments++;
-						if (tipc_link_recv_fragment(&l_ptr->defragm_buf,
-									    &buf, &msg)) {
+						ret = tipc_link_recv_fragment(
+							&l_ptr->defragm_buf,
+							&buf, &msg);
+						if (ret == 1) {
 							l_ptr->stats.recv_fragmented++;
 							goto deliver;
 						}
+						if (ret == -1)
+							l_ptr->next_in_no--;
 						break;
 					case CHANGEOVER_PROTOCOL:
 						type = msg_type(msg);
@@ -2632,7 +2637,9 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 			set_fragm_size(pbuf, fragm_sz);
 			set_expected_frags(pbuf, exp_fragm_cnt - 1);
 		} else {
-			warn("Link unable to reassemble fragmented message\n");
+			dbg("Link unable to reassemble fragmented message\n");
+			buf_discard(fbuf);
+			return -1;
 		}
 		buf_discard(fbuf);
 		return 0;
