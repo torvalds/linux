@@ -243,7 +243,31 @@ typedef enum _TRSP_MODE
     TRSP_MASK,
     TRSP_INVAL
 } TRSP_MODE;
+#ifdef	FB_WIMO_FLAG
+struct wimo_fb_info{
+	unsigned long bitperpixel;
+	unsigned long mode;
+	unsigned long xaff;
+	unsigned long yaff;
+	unsigned long xpos;
+	unsigned long ypos;
+	unsigned long xsize;
+	unsigned long ysize;
+	unsigned long src_y;
+	unsigned long src_uv;
+	unsigned long dst_width;
+	unsigned long dst_height;
+	//struct mutex fb_lock;
+	volatile unsigned long fb_lock;
 
+	
+};
+struct wimo_fb_info wimo_info;
+unsigned char* ui_buffer;
+unsigned char* ui_buffer_map;
+//unsigned char* overlay_buffer;
+//unsigned char* overlay_buffer_map;
+#endif
 
 struct platform_device *g_pdev = NULL;
 //static int win1fb_set_par(struct fb_info *info);
@@ -257,10 +281,13 @@ struct platform_device *g_pdev = NULL;
 #else
 #define CHK_SUSPEND(inf)
 #endif
+static DECLARE_WAIT_QUEUE_HEAD(fb0_wait_queue);     
+static volatile int idle_condition = 1;              //1:idel, 0:busy
 
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static int wq_condition = 0;
 static int wq_condition2 = 0;
+static int fb1_open_init = 0;
 #if ANDROID_USE_THREE_BUFS
 static int new_frame_seted = 1;
 #endif
@@ -1055,7 +1082,7 @@ static int win0_set_par(struct fb_info *info)
 
 	CHK_SUSPEND(inf);
 
-    if(((var->rotate == 270)||(var->rotate == 90) || (var->rotate == 180)) && (inf->video_mode))
+    if((var->rotate%360!=0)&& (inf->video_mode))
     {
       #ifdef CONFIG_FB_ROTATE_VIDEO  
         if(xact > screen->x_res)
@@ -1236,7 +1263,7 @@ static void win1_check_work_func(struct work_struct *work)
             }
             break;
     }
-    p = (int*)fb0_inf->screen_base + offset; 
+    p = (u32)fb0_inf->screen_base + offset; 
     blank_data = (inf->fb0_color_deepth==32) ? 0xff000000 : 0;
     total_data = fb0_inf->var.xres * fb0_inf->var.yres / (format+1);
     
@@ -1270,14 +1297,20 @@ static int win1_set_par(struct fb_info *info)
     cancel_delayed_work_sync(&rk29_win1_check_work);
  #endif   
     if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
-        && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
+	    #ifndef	CONFIG_FB_SCALING_OSD_1080P
+            && !((screen->x_res>1280) && (var->bits_per_pixel == 32))
+		#endif
+		)
     {
         hdmi_set_fbscale(info);
-    }else  if(((screen->x_res==1920) ))
+    }
+		#ifndef	CONFIG_FB_SCALING_OSD_1080P
+		else  if(((screen->x_res==1920) ))
     {
     	if(hdmi_get_fbscale() < 100)
 			par->ypos -=screen->y_res * (100-hdmi_get_fbscale()) / 200;
 	}
+		#endif
     //u32 offset=0, addr=0, map_size=0, smem_len=0;
     addr=0;
     xres_virtual = 0;      //virtual screen size
@@ -1295,7 +1328,10 @@ static int win1_set_par(struct fb_info *info)
 
    #ifdef CONFIG_FB_SCALING_OSD
     if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
-            && (screen->x_res<=1280))
+        #ifndef	CONFIG_FB_SCALING_OSD_1080P
+            && (screen->x_res<=1280)
+		#endif
+		)
     {
         addr = fix->mmio_start + par->y_offset* hdmi_get_fbscale()/100;
         xres_virtual = screen->x_res* hdmi_get_fbscale()/100;      //virtual screen size
@@ -1306,7 +1342,7 @@ static int win1_set_par(struct fb_info *info)
         addr = fix->smem_start + par->y_offset;
         xres_virtual = var->xres_virtual;      //virtual screen size
     }
-    LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE|m_W1_FORMAT, v_W1_ENABLE(1)|v_W1_FORMAT(par->format));
+    LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE|m_W1_FORMAT, v_W1_ENABLE(fb1_open_init?0:1)|v_W1_FORMAT(par->format));
 
     xpos += (screen->left_margin + screen->hsync_len);
     ypos += (screen->upper_margin + screen->vsync_len);
@@ -1357,7 +1393,10 @@ static int win1_pan( struct fb_info *info )
     struct rk29fb_screen *screen = inf->cur_screen;
     struct fb_var_screeninfo *var = &info->var;
     if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
-            && (screen->x_res<=1280))
+        #ifndef	CONFIG_FB_SCALING_OSD_1080P
+            && (screen->x_res<=1280)
+		#endif
+		)
     {
         addr = fix1->mmio_start + par->y_offset* hdmi_get_fbscale()/100;
     }
@@ -1458,9 +1497,12 @@ static int fb0_set_par(struct fb_info *info)
 #ifdef CONFIG_FB_SCALING_OSD
     struct rk29_ipp_req ipp_req;
     u32 dstoffset=0;
+	memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
 #endif
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
+	wait_event_interruptible(fb0_wait_queue, idle_condition);
+	idle_condition = 0;
 
     inf->setFlag = 0;
 	CHK_SUSPEND(inf);
@@ -1511,7 +1553,7 @@ static int fb0_set_par(struct fb_info *info)
         {
             par->format = 1;
             #ifdef CONFIG_FB_SCALING_OSD
-            dstoffset = ((ypos_virtual*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*2;
+            dstoffset = (((ypos_virtual-2*var->yres)*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*4;
             ipp_req.src0.fmt = IPP_RGB_565;
             ipp_req.dst0.fmt = IPP_RGB_565;
             #endif
@@ -1547,7 +1589,10 @@ static int fb0_set_par(struct fb_info *info)
     {
         #ifdef CONFIG_FB_SCALING_OSD
         if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
-            && (screen->x_res<=1280))
+		#ifndef	CONFIG_FB_SCALING_OSD_1080P
+            && (screen->x_res<=1280)
+		#endif
+		)
         {
             par->xpos = 0;
             par->ypos = 0;
@@ -1590,6 +1635,8 @@ static int fb0_set_par(struct fb_info *info)
         win0_set_par(info);
     }
     inf->setFlag = 1;
+	idle_condition = 1;
+	wake_up_interruptible_sync(&fb0_wait_queue);
     return 0;
 }
 
@@ -1608,6 +1655,7 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
     struct fb_fix_screeninfo *fix = &info->fix;
     struct rk29_ipp_req ipp_req;
     u32 dstoffset = 0;
+	memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
    #endif
 	//fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
@@ -1642,7 +1690,7 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
         {
             par->format = 1;
             #ifdef CONFIG_FB_SCALING_OSD
-            dstoffset = ((ypos_virtual*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*2;
+           	dstoffset = (((ypos_virtual-2*var->yres)*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*4;
             ipp_req.src0.fmt = IPP_RGB_565;
             ipp_req.dst0.fmt = IPP_RGB_565;
             #endif
@@ -1660,7 +1708,10 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
     {
         #ifdef CONFIG_FB_SCALING_OSD
         if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
-            && (screen->x_res<=1280))
+        #ifndef	CONFIG_FB_SCALING_OSD_1080P
+            && (screen->x_res<=1280)
+		#endif
+		)
         {
             par->y_offset = dstoffset;
 
@@ -1704,6 +1755,184 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
     return 0;
 }
 
+#ifdef	FB_WIMO_FLAG
+unsigned long temp_vv;
+static int frame_num = 0;
+static int wimo_set_buff(struct fb_info *info,unsigned long *temp)
+{
+	struct rk29fb_inf *inf = dev_get_drvdata(info->device);
+
+	ui_buffer = temp[0];
+	ui_buffer_map = ioremap(temp[0],temp[1]);
+	if(ui_buffer_map == NULL)
+	{
+		printk("can't map a buffer for ui\n");
+		return -EFAULT;
+	}
+
+	printk("ui_buffer %x  ",ui_buffer_map);
+	memset(&wimo_info,0,sizeof(wimo_info) );
+ 
+      wimo_info.mode = inf->video_mode;
+//	wimo_info.bitperpixel = var->bits_per_pixel;		
+    
+
+	wimo_info.dst_width = (temp[2] + 15) & 0xfff0;
+	wimo_info.dst_height = (temp[3] + 15) & 0xfff0;
+}
+static int wimo_get_buff(struct fb_info *info)
+{
+	
+	struct rk29_ipp_req overlay_req;
+	struct rk29_ipp_req overlay_req_1;
+	struct rk29fb_inf *inf = dev_get_drvdata(info->device);
+	int ret;
+	memset(&overlay_req, 0 , sizeof(overlay_req));
+	memset(&overlay_req_1, 0 , sizeof(overlay_req_1));
+	
+	if(inf->video_mode == 0 )
+	{
+		struct win0_par *par = info->par;
+		wimo_info.xpos = 0;
+		wimo_info.ypos = 0;
+		wimo_info.xsize = 0;
+		wimo_info.ysize = 0;
+		wimo_info.mode = 0;
+		if(par->format == 1)
+			wimo_info.bitperpixel = 16;
+		else
+			wimo_info.bitperpixel =32;// wimo_info.bitperpixel_fb1;
+		overlay_req.src0.YrgbMst = info->fix.smem_start + par->y_offset;//info->screen_base + par->y_offset;//info_buffer[8];
+		overlay_req.src0.CbrMst = info->fix.smem_start + par->y_offset + wimo_info.dst_width * wimo_info.dst_height;//dst_width*dst_height;//+ par->y_offset + dst_width*dst_height;//info_buffer[9];
+		overlay_req.src0.w = wimo_info.dst_width ;//dst_width;//info_buffer[2];
+		overlay_req.src0.h = wimo_info.dst_height ;//dst_height;//info_buffer[3];
+		overlay_req.src0.fmt = (wimo_info.bitperpixel == 16) ? 1 : 0;//3;
+		overlay_req.dst0.YrgbMst = ui_buffer;//overlay_buffer + info_buffer[4] + info_buffer[5] * dst_width;
+		overlay_req.dst0.CbrMst = ui_buffer + wimo_info.dst_width * wimo_info.dst_height;//dst_width*dst_height;//(unsigned char*) overlay_buffer + dst_width*dst_height +info_buffer[4] + (  info_buffer[5] * dst_width) / 2;// info_buffer[6] * info_buffer[7];
+		overlay_req.dst0.w = wimo_info.dst_width ;//dst_width;//info_buffer[6];
+		overlay_req.dst0.h = wimo_info.dst_height ;//dst_height;//info_buffer[7];
+		overlay_req.dst0.fmt = (wimo_info.bitperpixel== 16) ? 1 : 0;//3;3;
+		overlay_req.deinterlace_enable = 0;
+		overlay_req.timeout = 1000000;
+		overlay_req.src_vir_w = wimo_info.dst_width ;//dst_width;//info_buffer[2];
+		overlay_req.dst_vir_w = wimo_info.dst_width ;//dst_width;
+		overlay_req.flag = IPP_ROT_0;
+		ipp_blit_sync(&overlay_req);
+		
+		ret = 0;
+	}	
+	else
+	{
+
+		int err = 0;
+		static int wimo_time = 0;
+		unsigned long *overlay_buffer_map_temp;
+		unsigned long *map_temp;
+		unsigned long sign_memset = 0;
+		struct fb_var_screeninfo *var = &inf->fb1->var;
+		struct win0_par *par = inf->fb1->par;
+		wimo_info.mode = 1;
+	//	printk("overlay setbuffer in\n");
+	//	mutex_lock(&wimo_info.fb_lock);
+		wimo_info.fb_lock = 1;
+		{
+			wimo_info.xaff = var->xres;
+			wimo_info.yaff = var->yres;
+			if((wimo_info.xpos != par->xpos) ||(wimo_info.ypos != par->ypos)||(wimo_info.xsize != par->xsize) ||(wimo_info.ysize != par->ysize))
+			{
+				wimo_info.xpos = par->xpos;
+				wimo_info.ypos = par->ypos;
+				wimo_info.xsize = par->xsize;
+				wimo_info.ysize = par->ysize;
+				sign_memset = 1;
+				memset(ui_buffer_map,0,wimo_info.dst_height * wimo_info.dst_width);//dst_width*dst_height);
+				memset(ui_buffer_map + wimo_info.dst_height * wimo_info.dst_width, 0x80,wimo_info.dst_height * wimo_info.dst_width / 2);//dst_width*dst_height,0x80,dst_width*dst_height/2);
+				printk("wimo_info.xpos %d wimo_info.ypos %d wimo_info.xsize %d wimo_info.ysize %d\n",wimo_info.xpos, wimo_info.ypos, wimo_info.xsize, wimo_info.ysize );
+		    	}
+		}
+		//printk("wimo_info.xpos %d wimo_info.ypos %d wimo_info.xsize %d wimo_info.ysize %d\n",wimo_info.xpos, wimo_info.ypos, wimo_info.xsize, wimo_info.ysize );
+		if(wimo_info.xaff * 3 < wimo_info.xsize || wimo_info.yaff * 3 < wimo_info.ysize)// 3time or bigger scale up
+		{
+			unsigned long mid_width, mid_height;
+			struct rk29_ipp_req overlay_req_1;
+			if(wimo_info.xaff * 3 < wimo_info.xsize)
+				mid_width = wimo_info.xaff * 3;
+			else
+				mid_width = wimo_info.xsize;
+			
+			if(wimo_info.yaff * 3 < wimo_info.ysize)
+				mid_height =  wimo_info.yaff * 3;
+			else
+				mid_height = wimo_info.ysize;
+			overlay_req.src0.YrgbMst = wimo_info.src_y;//info_buffer[8];
+			overlay_req.src0.CbrMst = wimo_info.src_uv;//info_buffer[9];
+			overlay_req.src0.w = wimo_info.xaff;// info_buffer[2];
+			overlay_req.src0.h = wimo_info.yaff;// info_buffer[3];
+			overlay_req.src0.fmt = 3;
+			overlay_req.dst0.YrgbMst = ui_buffer + 2048000 ;//info_buffer[4] + info_buffer[5] * dst_width;   //小尺寸片源需要2次放大，所以将buffer的后半段用于缓存
+			overlay_req.dst0.CbrMst = (unsigned char*) ui_buffer + mid_height * mid_width + 2048000;
+		
+			overlay_req.dst0.w = mid_width;//info_buffer[6];
+			overlay_req.dst0.h = mid_height;//info_buffer[7];
+			overlay_req.dst0.fmt = 3;
+			overlay_req.timeout = 100000;
+			overlay_req.src_vir_w = wimo_info.xaff;//info_buffer[2];
+			overlay_req.dst_vir_w = mid_width;//dst_width;
+			overlay_req.flag = IPP_ROT_0;
+
+			overlay_req_1.src0.YrgbMst = ui_buffer + 2048000;
+			overlay_req_1.src0.CbrMst = (unsigned char*) ui_buffer + mid_height * mid_width + 2048000;
+			overlay_req_1.src0.w = mid_width;
+			overlay_req_1.src0.h = mid_height;// info_buffer[3];
+			overlay_req_1.src0.fmt = 3;
+			overlay_req_1.dst0.YrgbMst = ui_buffer + ((wimo_info.xpos + 1)&0xfffe) + wimo_info.ypos * wimo_info.dst_width;//info_buffer[4] + info_buffer[5] * dst_width;
+			overlay_req_1.dst0.CbrMst =(unsigned char*) ui_buffer + wimo_info.dst_width * wimo_info.dst_height + ((wimo_info.xpos + 1)&0xfffe) + ( wimo_info.ypos  / 2)* wimo_info.dst_width ;
+			
+			overlay_req_1.dst0.w = wimo_info.xsize;//info_buffer[6];
+			overlay_req_1.dst0.h = wimo_info.ysize;//info_buffer[7];
+			overlay_req_1.dst0.fmt = 3;
+			overlay_req_1.timeout = 100000;
+			overlay_req_1.src_vir_w = mid_width;//info_buffer[2];
+			overlay_req_1.dst_vir_w = wimo_info.dst_width;//dst_width;
+			overlay_req_1.flag = IPP_ROT_0;
+			
+
+			err = ipp_blit_sync(&overlay_req);
+			dmac_flush_range(ui_buffer_map,ui_buffer_map + wimo_info.dst_height * wimo_info.dst_width * 3/2);//dst_width*dst_height*3/2);
+			err = ipp_blit_sync(&overlay_req_1);
+	
+		}
+		else
+		{
+			overlay_req.src0.YrgbMst = wimo_info.src_y;//info_buffer[8];
+			overlay_req.src0.CbrMst = wimo_info.src_uv;//info_buffer[9];
+			overlay_req.src0.w = wimo_info.xaff;// info_buffer[2];
+			overlay_req.src0.h = wimo_info.yaff;// info_buffer[3];
+			overlay_req.src0.fmt = 3;
+			overlay_req.dst0.YrgbMst = ui_buffer + ((wimo_info.xpos + 1)&0xfffe) + wimo_info.ypos * wimo_info.dst_width;//info_buffer[4] + info_buffer[5] * dst_width;
+			overlay_req.dst0.CbrMst =(unsigned char*) ui_buffer + wimo_info.dst_width * wimo_info.dst_height + ((wimo_info.xpos + 1)&0xfffe) + ( wimo_info.ypos  / 2)* wimo_info.dst_width ;
+			
+			overlay_req.dst0.w = wimo_info.xsize;//wimo_info.xsize;//wimo_info.xaff;// wimo_info.xsize;//info_buffer[6];
+			overlay_req.dst0.h = (wimo_info.ysize + 1) & 0xfffe;//(wimo_info.ysize + 1) & 0xfffe;//wimo_info.yaff;//(wimo_info.ysize + 1) & 0xfffe;//info_buffer[7];
+			overlay_req.dst0.fmt = 3;
+			overlay_req.timeout = 100000;
+			overlay_req.src_vir_w = wimo_info.xaff;//info_buffer[2];
+			overlay_req.dst_vir_w = wimo_info.dst_width;//wimo_info.dst_width;//wimo_info.yaff;//wimo_info.dst_width;//dst_width;
+			overlay_req.flag = IPP_ROT_0;
+			
+			dmac_flush_range(ui_buffer_map,ui_buffer_map + wimo_info.dst_height * wimo_info.dst_width * 3/2);//dst_width*dst_height*3/2);
+			err = ipp_blit_sync(&overlay_req);
+		
+		}
+	//	printk("overlay setbuffer exit\n");
+		ret = 1;
+		wimo_info.fb_lock = 0;
+	}
+	
+		
+	return ret;
+}
+#endif
 static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
     struct rk29fb_inf *inf = dev_get_drvdata(info->device);
@@ -1786,7 +2015,7 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		{
             u32 panel_size[2];
 			//struct rk29fb_inf *inf = dev_get_drvdata(info->device);
-             if(inf->fb1->var.rotate == 270) {
+             if((inf->fb1->var.rotate &0x1ff ) == 270) {
                 panel_size[0] = inf->cur_screen->y_res; //inf->cur_screen->y_res; change for hdmi video size
                 panel_size[1] = inf->cur_screen->x_res;
             } else {
@@ -1802,6 +2031,52 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             if(copy_to_user((void*)arg, &en, 4))  return -EFAULT;
             break;
 		}
+#ifdef	FB_WIMO_FLAG
+	case FB0_IOCTL_SET_BUF:
+		{
+    			unsigned long temp[4];
+			copy_from_user(temp, (void*)arg, 20);
+			wimo_set_buff( info,temp);
+			
+		}
+		break;
+	case FB0_IOCTL_CLOSE_BUF:
+		{
+			if(ui_buffer != NULL && ui_buffer_map !=NULL )
+			{
+				iounmap(ui_buffer_map);
+				ui_buffer_map = 0;
+				ui_buffer = 0;
+				memset(&wimo_info,0,sizeof(wimo_info));
+			}
+			else
+				printk("somethint wrong with wimo in close");
+				
+		}
+		break;
+	
+	case FB0_IOCTL_COPY_CURBUF:
+		{
+			unsigned long temp_data[3];
+			copy_from_user(&temp_vv, (void*)arg, 4);
+			if(ui_buffer != NULL && ui_buffer_map !=NULL )
+			{
+				temp_data[1] = wimo_get_buff(info);
+				temp_data[0] = wimo_info.bitperpixel;
+				
+			}
+			else
+			{
+				temp_data[1] = 1;
+				temp_data[0] = wimo_info.bitperpixel;
+				printk("somethint wrong with wimo in getbuf");
+			}
+			temp_data[2] = frame_num++;
+			//printk("FB0_IOCTL_COPY_CURBUF %d %d %d\n",temp_data[0],temp_data[1],temp_data[2]);
+			copy_to_user((void*)arg, &temp_data, 12);
+			break;
+		}
+#endif
    default:
         break;
     }
@@ -1831,7 +2106,7 @@ static int fb1_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct hdmi *hdmi = get_hdmi_struct(0);
 #endif
 
-    if((var->rotate == 270)||(var->rotate == 90)) {
+    if((var->rotate & 0x1ff) == 90 ||(var->rotate &0x1ff)== 270) {
       #ifdef CONFIG_FB_ROTATE_VIDEO
         xlcd = screen->y_res;
         ylcd = screen->x_res;
@@ -1923,7 +2198,7 @@ static int fb1_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
         return -EINVAL;
     }
 
-    if((var->rotate == 270)||(var->rotate == 90))
+    if((var->rotate & 0x1ff ) == 90 ||(var->rotate & 0x1ff ) == 270)
      {
          yres = var->xres;
      }
@@ -1986,9 +2261,8 @@ static int fb1_set_par(struct fb_info *info)
    // u32 uv_addr = var->reserved[4];
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
-
-	CHK_SUSPEND(inf);
-    if((var->rotate == 270)||(var->rotate == 90))
+   	CHK_SUSPEND(inf);
+    if((var->rotate & 0x1ff ) == 90 || (var->rotate & 0x1ff ) == 270)
     {
         #ifdef CONFIG_FB_ROTATE_VIDEO
         xpos = (var->nonstd>>20) & 0xfff;      //visiable pos in panel
@@ -2090,7 +2364,7 @@ static int fb1_set_par(struct fb_info *info)
 		struct rk29_ipp_req ipp_req;
 		static u32 dstoffset = 0;
 		static int fb_index = 0;
-		
+		memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
 		yuv_phy[0] = last_yuv_phy[0];
 		yuv_phy[1] = last_yuv_phy[1];
 		yuv_phy[0] += par->y_offset;
@@ -2101,6 +2375,7 @@ static int fb1_set_par(struct fb_info *info)
         if(var->rotate%360 != 0)
         #endif
 			{
+                #ifdef CONFIG_FB_ROTATE_VIDEO 
 				dstoffset = (dstoffset+1)%2;
 				ipp_req.src0.fmt = 3;
 				ipp_req.src0.YrgbMst = yuv_phy[0];
@@ -2111,10 +2386,20 @@ static int fb1_set_par(struct fb_info *info)
 				ipp_req.src_vir_w= (var->xres + 15) & (~15);
 				ipp_req.dst_vir_w=screen->x_res;
 
-				ipp_req.dst0.fmt = 3;
-				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
-				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
-				   if(var->xres > screen->x_res)
+                ipp_req.dst0.fmt = 3;
+				#ifdef CONFIG_FB_MIRROR_X_Y
+				if((var->rotate & 0x1ff)!=0 &&(var->rotate&(X_MIRROR|Y_MIRROR))!= 0 )
+				{
+				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*4;
+				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*5;
+				 }
+				else
+				{
+					ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+					ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
+
+				}
+				if(var->xres > screen->x_res)
 				   {
 					ipp_req.dst0.w = screen->x_res;
 					ipp_req.dst0.h = screen->y_res;
@@ -2123,23 +2408,93 @@ static int fb1_set_par(struct fb_info *info)
 				 	  ipp_req.dst0.h = var->yres;
 				   }
 				 ipp_req.dst_vir_w = (ipp_req.dst0.w + 15) & (~15);
-
 				ipp_req.timeout = 100;
-				if(var->rotate == 90)
+				if((var->rotate & 0x1ff) == 90)
 					ipp_req.flag = IPP_ROT_90;
-                else if (var->rotate == 180)
+                else if ((var->rotate & 0x1ff) == 180)
 					ipp_req.flag = IPP_ROT_180;
-				else if(var->rotate == 270)
+				else if((var->rotate & 0x1ff) == 270)
 					ipp_req.flag = IPP_ROT_270;
+				else if((var->rotate & X_MIRROR) == X_MIRROR )
+					ipp_req.flag = IPP_ROT_X_FLIP;
+				else if((var->rotate & Y_MIRROR) == Y_MIRROR)
+					ipp_req.flag = IPP_ROT_Y_FLIP;
 				//ipp_do_blit(&ipp_req);
 				ipp_blit_sync(&ipp_req);
-				fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
 				yuv_phy[0] = ipp_req.dst0.YrgbMst;
-				yuv_phy[1] = ipp_req.dst0.CbrMst;	 
-				fix->smem_start = yuv_phy[0];
-				fix->mmio_start = yuv_phy[1];
-			}
-		else
+				yuv_phy[1] = ipp_req.dst0.CbrMst;
+				if((var->rotate & 0x1ff)!=0 &&(var->rotate&(X_MIRROR|Y_MIRROR))!= 0 )
+				{
+					memset(&ipp_req,0,sizeof(struct rk29_ipp_req));
+					
+					if((var->rotate & X_MIRROR) == X_MIRROR)
+						ipp_req.flag = IPP_ROT_X_FLIP;
+					else if((var->rotate & Y_MIRROR) == Y_MIRROR)
+						ipp_req.flag = IPP_ROT_Y_FLIP;
+					else 
+						printk(">>>>>> %d rotate is not support!\n",var->rotate);
+					
+				  if(var->xres > screen->x_res)
+				   {
+					ipp_req.dst0.w = screen->x_res;
+					ipp_req.dst0.h = screen->y_res;
+				  }   else	{
+					  ipp_req.dst0.w = var->xres;
+				 	  ipp_req.dst0.h = var->yres;
+				   }
+					ipp_req.src0.fmt = 3;
+					ipp_req.src0.YrgbMst = yuv_phy[0];
+					ipp_req.src0.CbrMst = yuv_phy[1];
+					ipp_req.src0.w = ipp_req.dst0.w;
+					ipp_req.src0.h = ipp_req.dst0.h;
+				
+					ipp_req.src_vir_w= (ipp_req.dst0.w + 15) & (~15);
+					ipp_req.dst_vir_w= (ipp_req.dst0.w + 15) & (~15);
+
+					ipp_req.dst0.fmt = 3;
+					ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+					ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
+
+					ipp_req.timeout = 100;
+					ipp_blit_sync(&ipp_req);
+					yuv_phy[0] = ipp_req.dst0.YrgbMst;
+					yuv_phy[1] = ipp_req.dst0.CbrMst;
+        		}
+                fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
+				#else
+				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+                ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
+                if(var->xres > screen->x_res)
+                {
+                    ipp_req.dst0.w = screen->x_res;
+                    ipp_req.dst0.h = screen->y_res;
+                }   else  {
+					ipp_req.dst0.w = var->xres;
+					ipp_req.dst0.h = var->yres;
+
+                }
+                ipp_req.dst_vir_w = (ipp_req.dst0.w + 15) & (~15);
+                ipp_req.timeout = 100;
+                if(var->rotate == 90)
+                    ipp_req.flag = IPP_ROT_90;
+                else if(var->rotate == 180)
+                    ipp_req.flag = IPP_ROT_180;
+                else if(var->rotate == 270)
+                    ipp_req.flag = IPP_ROT_270;
+                //ipp_do_blit(&ipp_req);
+                ipp_blit_sync(&ipp_req);
+				
+                fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
+                yuv_phy[0] = ipp_req.dst0.YrgbMst;
+                yuv_phy[1] = ipp_req.dst0.CbrMst; 
+				#endif
+                fix->smem_start = yuv_phy[0];
+                fix->mmio_start = yuv_phy[1];
+                #else //CONFIG_FB_ROTATE_VIDEO
+                printk("LCDC not support rotate!\n");
+                #endif
+            }
+            else
 			{
 			
 				fix->smem_start = yuv_phy[0];
@@ -2185,6 +2540,7 @@ int fb1_open(struct fb_info *info, int user)
 {
     struct rk29fb_inf *inf = dev_get_drvdata(info->device);
     struct win0_par *par = info->par;
+	struct rk29fb_screen *screen = inf->cur_screen;
 
     fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
@@ -2204,8 +2560,10 @@ int fb1_open(struct fb_info *info, int user)
     } else {
         par->refcount++;
         win0_blank(FB_BLANK_NORMAL, info);
+		if(screen->x_res>1280)
+		fb1_open_init=1;
         fb0_set_par(inf->fb0);
-        
+        fb1_open_init=0;
 	    rk29fb_notify(inf, RK29FB_EVENT_FB1_ON);
         return 0;
     }
@@ -2228,7 +2586,8 @@ int fb1_release(struct fb_info *info, int user)
         par->par_seted = 0;
         par->addr_seted = 0;
         win1_blank(FB_BLANK_NORMAL, info);
-        if(inf->cur_screen->type != SCREEN_HDMI)
+
+        //if(inf->cur_screen->type != SCREEN_HDMI)
             fb0_set_par(inf->fb0);
 
         // unmap memory
@@ -2258,7 +2617,7 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
      struct rk29fb_screen *screen = inf->cur_screen;
      struct rk29_ipp_req ipp_req;
      static u32 dstoffset = 0;
-     
+    memset(&ipp_req, 0, sizeof(struct rk29_ipp_req)); 
 #endif
 
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
@@ -2271,7 +2630,7 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
     case FB1_IOCTL_GET_PANEL_SIZE:    //get panel size
         {
             u32 panel_size[2];
-             if((var->rotate == 270)||(var->rotate == 90)) {
+             if((var->rotate & 0x1ff) == 270 ||(var->rotate & 0x1ff) == 90) {
                 panel_size[0] = inf->panel1_info.y_res; //inf->cur_screen->y_res; change for hdmi video size
                 panel_size[1] = inf->panel1_info.x_res;
             } else {
@@ -2286,6 +2645,14 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
     case FB1_IOCTL_SET_YUV_ADDR:    //set y&uv address to register direct
         {
             u32 yuv_phy[2];
+#ifdef	FB_WIMO_FLAG
+	//	printk("FB1_IOCTL_SET_YUV_ADDR1 \n");
+	//	while(wimo_info.fb_lock)
+	//		{
+	//		msleep(10);
+	//		}
+	//	printk("FB1_IOCTL_SET_YUV_ADDR 2\n");
+#endif
             if (copy_from_user(yuv_phy, argp, 8))
 			    return -EFAULT;
 #ifdef CONFIG_FB_ROTATE_VIDEO 
@@ -2300,6 +2667,11 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             fix0->mmio_start = yuv_phy[1];
             yuv_phy[0] += par->y_offset;
             yuv_phy[1] += par->c_offset;
+#ifdef	FB_WIMO_FLAG
+	      wimo_info.src_y = yuv_phy[0]; 
+	      wimo_info.src_uv = yuv_phy[1]; 
+	      	
+#endif
          
             #if 0
     		if((var->rotate == 90) ||(var->rotate == 270))
@@ -2318,7 +2690,82 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		        ipp_req.dst_vir_w=screen->x_res;
 
                 ipp_req.dst0.fmt = 3;
-                ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+				#ifdef CONFIG_FB_MIRROR_X_Y
+				if((var->rotate & 0x1ff)!=0 &&(var->rotate&(X_MIRROR|Y_MIRROR))!= 0 )
+				{
+				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*4;
+				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*5;
+				 }
+				else
+				{
+					ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+					ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
+
+				}
+				if(var->xres > screen->x_res)
+				   {
+					ipp_req.dst0.w = screen->x_res;
+					ipp_req.dst0.h = screen->y_res;
+				  }   else	{
+					  ipp_req.dst0.w = var->xres;
+				 	  ipp_req.dst0.h = var->yres;
+				   }
+				 ipp_req.dst_vir_w = (ipp_req.dst0.w + 15) & (~15);
+				ipp_req.timeout = 100;
+				if((var->rotate & 0x1ff) == 90)
+					ipp_req.flag = IPP_ROT_90;
+                else if ((var->rotate & 0x1ff) == 180)
+					ipp_req.flag = IPP_ROT_180;
+				else if((var->rotate & 0x1ff) == 270)
+					ipp_req.flag = IPP_ROT_270;
+				else if((var->rotate & X_MIRROR) == X_MIRROR )
+					ipp_req.flag = IPP_ROT_X_FLIP;
+				else if((var->rotate & Y_MIRROR) == Y_MIRROR)
+					ipp_req.flag = IPP_ROT_Y_FLIP;
+				//ipp_do_blit(&ipp_req);
+				ipp_blit_sync(&ipp_req);
+				yuv_phy[0] = ipp_req.dst0.YrgbMst;
+				yuv_phy[1] = ipp_req.dst0.CbrMst;
+				if((var->rotate & 0x1ff)!=0 &&(var->rotate&(X_MIRROR|Y_MIRROR))!= 0 )
+				{
+					memset(&ipp_req,0,sizeof(struct rk29_ipp_req));
+					
+					if((var->rotate & X_MIRROR) == X_MIRROR)
+						ipp_req.flag = IPP_ROT_X_FLIP;
+					else if((var->rotate & Y_MIRROR) == Y_MIRROR)
+						ipp_req.flag = IPP_ROT_Y_FLIP;
+					else 
+						printk(">>>>>> %d rotate is not support!\n",var->rotate);
+					
+				  if(var->xres > screen->x_res)
+				   {
+					ipp_req.dst0.w = screen->x_res;
+					ipp_req.dst0.h = screen->y_res;
+				  }   else	{
+					  ipp_req.dst0.w = var->xres;
+				 	  ipp_req.dst0.h = var->yres;
+				   }
+					ipp_req.src0.fmt = 3;
+					ipp_req.src0.YrgbMst = yuv_phy[0];
+					ipp_req.src0.CbrMst = yuv_phy[1];
+					ipp_req.src0.w = ipp_req.dst0.w;
+					ipp_req.src0.h = ipp_req.dst0.h;
+				
+					ipp_req.src_vir_w= (ipp_req.dst0.w + 15) & (~15);
+					ipp_req.dst_vir_w= (ipp_req.dst0.w + 15) & (~15);
+
+					ipp_req.dst0.fmt = 3;
+					ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+					ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
+
+					ipp_req.timeout = 100;
+					ipp_blit_sync(&ipp_req);
+					yuv_phy[0] = ipp_req.dst0.YrgbMst;
+					yuv_phy[1] = ipp_req.dst0.CbrMst;
+        		}
+                fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
+				#else
+				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
                 ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
                 if(var->xres > screen->x_res)
                 {
@@ -2342,7 +2789,8 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 				
                 fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
                 yuv_phy[0] = ipp_req.dst0.YrgbMst;
-                yuv_phy[1] = ipp_req.dst0.CbrMst;    
+                yuv_phy[1] = ipp_req.dst0.CbrMst; 
+				#endif
                 fix0->smem_start = yuv_phy[0];
                 fix0->mmio_start = yuv_phy[1];
                 #else //CONFIG_FB_ROTATE_VIDEO
@@ -2375,10 +2823,27 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
       #ifdef CONFIG_FB_ROTATE_VIDEO 
 	  	//zyc add
     	has_set_rotate = true;
-        if(arg == 0 || arg==180)
-            var->rotate = arg;    
-        else if (arg == 90 || arg==270)
-            var->rotate = arg;  
+		#ifdef CONFIG_FB_MIRROR_X_Y
+        if( ((arg&0x1ff)%90) == 0 && ( arg&(~0xfff))==0 )
+			{
+			if( (arg&(  X_MIRROR | Y_MIRROR ) )== (X_MIRROR | Y_MIRROR) )
+				var->rotate = ROTATE_180;
+			else if((arg&( ROTATE_90 | X_MIRROR | Y_MIRROR ) )== ( ROTATE_90 | X_MIRROR | Y_MIRROR))
+				var->rotate = ROTATE_270;
+			else if((arg&( ROTATE_180 | X_MIRROR | Y_MIRROR ) )== ( ROTATE_180 | X_MIRROR | Y_MIRROR))
+				var->rotate = ROTATE_90;
+			else if((arg&( ROTATE_270 | X_MIRROR | Y_MIRROR ) )== ( ROTATE_270 | X_MIRROR | Y_MIRROR))
+				var->rotate = ROTATE_0;
+			else
+		#else 
+		if(arg == ROTATE_0 || arg==ROTATE_90 || arg == ROTATE_180 || arg==ROTATE_270)
+		{
+		#endif
+				var->rotate = arg;
+		}
+		else
+			printk(">>>>>> %d rotate is not support!\n",(int)arg);
+    	
       #else //CONFIG_FB_ROTATE_VIDEO
         printk("LCDC not support rotate!\n");
       #endif
@@ -2614,6 +3079,7 @@ static void rk29fb_early_suspend(struct early_suspend *h)
 		fbprintk(">>>>>> power down the screen! \n");
 		inf->cur_screen->standby(1);
 	}
+	LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE | m_W1_ENABLE, v_W0_ENABLE(0) | v_W1_ENABLE(0));
 
     LcdMskReg(inf, DSP_CTRL0, m_HSYNC_POLARITY | m_VSYNC_POLARITY | m_DEN_POLARITY ,
        v_HSYNC_POLARITY(1) | v_VSYNC_POLARITY(1) | v_DEN_POLARITY(1) );

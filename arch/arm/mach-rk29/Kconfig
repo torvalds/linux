@@ -228,11 +228,18 @@ config RK29_GPIO_SUSPEND
 	bool "Support gpio suspend"
 	default n
 
+config RK29_NEON_POWERDOMAIN_SET
+	bool "Support neon powerdomain on and off"
+	default n
+
 config RK29_SPI_INSRAM
 	tristate "Support spi control interface"
 	depends on REGULATOR_WM831X
 	default ns
-
+config RK29_I2C_INSRAM
+	tristate "Support i2c control interface"
+	depends on REGULATOR_ACT8891
+	default ns
 config RK29_PWM_INSRAM
 	tristate "Support pwm control interface"
 	depends on RK29_PWM_REGULATOR

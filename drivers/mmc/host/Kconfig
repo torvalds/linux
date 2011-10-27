@@ -27,16 +27,21 @@ if SDMMC_RK29
 			
 	config SDMMC0_RK29_WRITE_PROTECT
 		bool "Write-protect for SDMMC0"
+		default n
 		depends on SDMMC0_RK29
 		help
 			 You will add the feature of write-protect for sdmmc-card if you say Yes.
 			 Please note that this feature requires hardware support.
-#	config EMMC_RK29
-#		tristate "RK29 EMMC controller support(sdmmc)"
-#		default y
-#		depends on SDMMC0_RK29
+	
+#	config USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD
+#	    depends on SDMMC0_RK29
+#		bool "Switch the driver SDMMC0 for the debug of wifi_develop_board."
+#		default n
 #		help
-#			This supports the use of the EMMC controller on Rk29 processors.
+#			In order to debug the Wifi development board using SD interface,
+#			we can switch the driver SDMMC0.
+
+
 	config SDMMC1_RK29
 		tristate "RK29 SDMMC1 controller support(sdio)"
 		default y
@@ -45,10 +50,20 @@ if SDMMC_RK29
 			This supports the use of the SDMMC1 controller on Rk29 processors.
 	config SDMMC1_RK29_WRITE_PROTECT
 		bool "Write-protect for SDMMC1"
+		default n
 		depends on SDMMC1_RK29
 		help
 			 You will add the feature of write-protect for sdio-card if you say Yes.
 			 Please note that this feature requires hardware support.
+			
+#	config USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD
+#	  depends on SDMMC1_RK29
+#		bool "Switch the driver SDMMC1 for the debug of wifi_develop_board."
+#		default n
+#		help
+#			In order to debug the Wifi development board using SD interface,
+#			we can switch the driver SDMMC1.
+
 endif
 
 config MMC_ARMMMCI

@@ -87,6 +87,7 @@ struct ipp_drvdata {
 	bool issync;         						//sync or async
 	bool enable;        						//clk enable or disable
 	int ipp_result;      						//0:success
+	int ipp_async_result;						//ipp_blit_async result 0:success
 	void (*ipp_irq_callback)(int ipp_retval);   //callback function used by aync call
 };
 
@@ -233,14 +234,14 @@ static int ipp_get_result(unsigned long arg)
 	//printk("ipp_get_result %d\n",drvdata->ipp_result);
 	int ret =0;
 	
-	if (unlikely(copy_to_user((void __user *)arg, &drvdata->ipp_result, sizeof(int)))) {
+	if (unlikely(copy_to_user((void __user *)arg, &drvdata->ipp_async_result, sizeof(int)))) {
 			printk("copy_to_user failed\n");
 			ERR("copy_to_user failed\n");
 			ret =  -EFAULT;	
 		}
-	idle_condition = 1;
+	//idle_condition = 1;
 	//dmac_clean_range((const void*)&idle_condition,(const void*)&idle_condition+4);
-	wake_up_interruptible_sync(&blit_wait_queue);
+	//wake_up_interruptible_sync(&blit_wait_queue);
 	return ret;
 }
 
@@ -259,6 +260,14 @@ int ipp_check_param(const struct rk29_ipp_req *req)
 		return	-EINVAL;
 	}
 
+	if(req->src0.fmt == IPP_Y_CBCR_H2V2)
+	{
+		if (unlikely(((req->src0.w&0x1) != 0) || ((req->src0.h&0x1) != 0) || ((req->dst0.w&0x1) != 0)) || ((req->dst0.h&0x1) != 0)) {
+				printk("YUV420 src or dst resolution is invalid! \n");
+				return	-EINVAL;
+			}
+	}
+	
 	//check src_vir_w
 	if(unlikely(req->src_vir_w < req->src0.w)){
 		printk("ipp invalid src_vir_w\n");
@@ -308,6 +317,8 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	uint32_t dst0_YrgbMst=0,dst0_CbrMst=0;
 	uint32_t ret = 0;
 	uint32_t deinterlace_config = 0;
+	uint32_t src0_w = req->src0.w;
+	uint32_t src0_h = req->src0.h;
 	
 	//printk("ipp_blit\n");
 	if (drvdata == NULL) {			/* ddl@rock-chips.com : check driver is normal or not */
@@ -545,7 +556,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	{
 		ipp_write(req->src0.CbrMst, IPP_SRC0_CBR_MST);
 	}
-	ipp_write(req->src0.h<<16|req->src0.w, IPP_SRC_IMG_INFO);
+	//ipp_write(req->src0.h<<16|req->src0.w, IPP_SRC_IMG_INFO);
 	ipp_write((ipp_read(IPP_CONFIG)&(~0x7))|req->src0.fmt, IPP_CONFIG);
 
 	/* Configure destination image */
@@ -575,7 +586,6 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	{
 		if(((IPP_ROT_90 == rotate) || (IPP_ROT_270 == rotate)))
 		{
-
 			if((req->src0.w>req->dst0.h))
 			{
 				pre_scale_w = (uint32_t)( req->src0.w/req->dst0.h);//floor
@@ -597,7 +607,6 @@ int ipp_blit(const struct rk29_ipp_req *req)
 		}
 		else//0 180 x ,y
 		{
-
 			if((req->src0.w>req->dst0.w))
 			{
 				pre_scale_w = (uint32_t)( req->src0.w/req->dst0.w);//floor
@@ -661,6 +670,21 @@ int ipp_blit(const struct rk29_ipp_req *req)
 		{
 			pre_scale_output_h = req->src0.h/pre_scale_h;
 		}
+
+		//when fmt is YUV,make sure pre_scale_output_w and pre_scale_output_h are even
+		if(IS_YCRCB(req->src0.fmt))
+		{
+			if((pre_scale_output_w & 0x1) != 0)
+			{
+				pre_scale_output_w -=1;
+				src0_w = pre_scale_output_w * pre_scale_w;
+			}
+			if((pre_scale_output_h & 0x1) != 0)
+			{
+				pre_scale_output_h -=1;
+				src0_h = pre_scale_output_h * pre_scale_h;
+			}
+		}
 			
 		ipp_write((ipp_read(IPP_CONFIG)&0xffffffef)|PRE_SCALE, IPP_CONFIG); 		//enable pre_scale
 		ipp_write((pre_scale_h-1)<<3|(pre_scale_w-1),IPP_PRE_SCL_PARA);
@@ -674,6 +698,8 @@ int ipp_blit(const struct rk29_ipp_req *req)
 		ipp_write((req->src0.h<<16)|req->src0.w, IPP_PRE_IMG_INFO);
 	}
 
+	ipp_write(src0_h<<16|src0_w, IPP_SRC_IMG_INFO);
+	
 	/*Configure Post_scale*/
 	if((IPP_ROT_90 == rotate) || (IPP_ROT_270 == rotate))
 	{
@@ -969,7 +995,7 @@ int ipp_blit_sync(const struct rk29_ipp_req *req)
 #endif				
 		if (wait_ret <= 0)
 		{
-			printk("%s wait_ret=%d,wq_condition =%d,wait_event_timeout! \n",__FUNCTION__,wait_ret,wq_condition);
+			printk("%s wait_ret=%d,wq_condition =%d,wait_event_timeout:%dms! \n",__FUNCTION__,wait_ret,wq_condition,req->timeout);
 
 			if(wq_condition==0)
 			{
@@ -1125,7 +1151,6 @@ static int ipp_release(struct inode *inode, struct file *file)
 
 static irqreturn_t rk29_ipp_irq(int irq,  void *dev_id)
 {
-	//static int temp =0;
 	DBG("rk29_ipp_irq %d \n",irq);
 	//printk("rk29_ipp_irq %d \n",irq);
 
@@ -1160,17 +1185,11 @@ static irqreturn_t rk29_ipp_irq(int irq,  void *dev_id)
 		schedule_delayed_work(&drvdata->power_off_work, msecs_to_jiffies(1000));
 			
 		drvdata->ipp_irq_callback(drvdata->ipp_result);
-		//drvdata->ipp_irq_callback(temp);
 		
-
-		//In the case of async call in kernel space,we wake up the wait queue here
-		//In the case of async call in user space, we will wake up the wait queue until app get the result
-		if(drvdata->ipp_irq_callback != ipp_blit_complete)
-		{
-			idle_condition = 1;
-			wake_up_interruptible_sync(&blit_wait_queue);
-		}
-		//temp++;
+		//In the case of async call ,we wake up the wait queue here
+		drvdata->ipp_async_result = drvdata->ipp_result;
+		idle_condition = 1;
+		wake_up_interruptible_sync(&blit_wait_queue);
 	}
 	
 	

@@ -540,10 +540,19 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 	if(i2c->suspended ==1)
 		return -EIO;
 	*/
-	if(msgs[0].scl_rate <= 400000 && msgs[0].scl_rate > 0)
+	// 400k > scl_rate > 10k
+	if(msgs[0].scl_rate <= 400000 && msgs[0].scl_rate >= 10000)
 		i2c->scl_rate = msgs[0].scl_rate;
-	else
+	else if(msgs[0].scl_rate > 400000){
+		dev_info(i2c->dev, "Warning: msg[0].scl_rate( = %dKhz) is too high!",
+			msgs[0].scl_rate/1000);
 		i2c->scl_rate = 400000;	
+	}
+	else{
+		dev_info(i2c->dev, "Warning: msg[0].scl_rate( = %dKhz) is too low!",
+			msgs[0].scl_rate/1000);
+		i2c->scl_rate = 10000;
+	}
 	rk29_i2c_clockrate(i2c);
 
 	i2c->udelay_time = RK29_UDELAY_TIME(i2c->scl_rate);

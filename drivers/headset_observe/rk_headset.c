@@ -190,9 +190,11 @@ static void headsetobserve_work(struct work_struct *work)
 		//	enable_irq(headset_info->irq[HOOK]);
 			headset_info->cur_headset_status = BIT_HEADSET;
 			headset_change_irqtype(HEADSET,IRQF_TRIGGER_FALLING);//
-			del_timer(&headset_info->headset_timer);//Start the timer, wait for switch to the headphone channel
-			headset_info->headset_timer.expires = jiffies + 500;
-			add_timer(&headset_info->headset_timer);
+			if (pdata->Headset_gpio != NULL) {
+				del_timer(&headset_info->headset_timer);//Start the timer, wait for switch to the headphone channel
+				headset_info->headset_timer.expires = jiffies + 500;
+				add_timer(&headset_info->headset_timer);
+			}
 		}
 		else if(level == 0)
 		{//out--Low level
@@ -213,10 +215,11 @@ static void headsetobserve_work(struct work_struct *work)
 		//	DBG("---HEADSET_IN_LOW headset in LOW ---\n");
 			headset_info->cur_headset_status = BIT_HEADSET;
 			headset_change_irqtype(HEADSET,IRQF_TRIGGER_RISING);//
-			enable_irq(headset_info->irq[HOOK]);
-			del_timer(&headset_info->headset_timer);//Start the timer, wait for switch to the headphone channel
-			headset_info->headset_timer.expires = jiffies + 500;
-			add_timer(&headset_info->headset_timer);			
+			if (pdata->Headset_gpio != NULL) {			
+				del_timer(&headset_info->headset_timer);//Start the timer, wait for switch to the headphone channel
+				headset_info->headset_timer.expires = jiffies + 500;
+				add_timer(&headset_info->headset_timer);
+			}	
 		}
 		else if(level > 0)
 		{//out--High level
@@ -430,34 +433,38 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 //	headset->headset_timer.expires = jiffies + 1000;
 //	add_timer(&headset->headset_timer);	
 //------------------------------------------------------------------
-	ret = gpio_request(pdata->Headset_gpio, NULL);
-	if (ret) 
-		goto failed_free;
-	gpio_pull_updown(pdata->Headset_gpio, PullDisable);
-	gpio_direction_input(pdata->Headset_gpio);
-	headset->irq[HEADSET] = gpio_to_irq(pdata->Headset_gpio);
+	if (pdata->Headset_gpio != NULL) {
+		ret = gpio_request(pdata->Headset_gpio, NULL);
+		if (ret) 
+			goto failed_free;
+		gpio_pull_updown(pdata->Headset_gpio, PullDisable);
+		gpio_direction_input(pdata->Headset_gpio);
+		headset->irq[HEADSET] = gpio_to_irq(pdata->Headset_gpio);
 
-	if(pdata->headset_in_type == HEADSET_IN_HIGH)
-		headset->irq_type[HEADSET] = IRQF_TRIGGER_RISING;
-	else
-		headset->irq_type[HEADSET] = IRQF_TRIGGER_FALLING;
-	ret = request_irq(headset->irq[HEADSET], headset_interrupt, headset->irq_type[HEADSET], NULL, NULL);
-	if (ret) 
-		goto failed_free;
-	enable_irq_wake(headset->irq[HEADSET]);
+		if(pdata->headset_in_type == HEADSET_IN_HIGH)
+			headset->irq_type[HEADSET] = IRQF_TRIGGER_RISING;
+		else
+			headset->irq_type[HEADSET] = IRQF_TRIGGER_FALLING;
+		ret = request_irq(headset->irq[HEADSET], headset_interrupt, headset->irq_type[HEADSET], "headset_input", NULL);
+		if (ret) 
+			goto failed_free;
+		enable_irq_wake(headset->irq[HEADSET]);
+	}
 //------------------------------------------------------------------
-	ret = gpio_request(pdata->Hook_gpio , NULL);
-	if (ret) 
-		goto failed_free;
-	gpio_pull_updown(pdata->Hook_gpio, PullDisable);
-	gpio_direction_input(pdata->Hook_gpio);
-	headset->irq[HOOK] = gpio_to_irq(pdata->Hook_gpio);
-	headset->irq_type[HOOK] = IRQF_TRIGGER_FALLING;
+	if (pdata->Hook_gpio != NULL) {
+		ret = gpio_request(pdata->Hook_gpio , NULL);
+		if (ret) 
+			goto failed_free;
+		gpio_pull_updown(pdata->Hook_gpio, PullDisable);
+		gpio_direction_input(pdata->Hook_gpio);
+		headset->irq[HOOK] = gpio_to_irq(pdata->Hook_gpio);
+		headset->irq_type[HOOK] = IRQF_TRIGGER_FALLING;
 	
-	ret = request_irq(headset->irq[HOOK], Hook_interrupt, headset->irq_type[HOOK] , NULL, NULL);
-	if (ret) 
-		goto failed_free;
-	disable_irq(headset->irq[HOOK]);
+		ret = request_irq(headset->irq[HOOK], Hook_interrupt, headset->irq_type[HOOK] , "headset_hook", NULL);
+		if (ret) 
+			goto failed_free;
+		disable_irq(headset->irq[HOOK]);
+	}
 //------------------------------------------------------------------		
 	// Create and register the input driver. 
 	headset->input_dev = input_allocate_device();
@@ -497,12 +504,11 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 	headset_info = headset;
 	schedule_delayed_work(&headset->h_delayed_work[HEADSET], msecs_to_jiffies(500));	
 
-
 #ifdef CONFIG_HAS_EARLYSUSPEND
-    hs_early_suspend.suspend = NULL;
-    hs_early_suspend.resume = headset_early_resume;
-    hs_early_suspend.level = ~0x0;
-    register_early_suspend(&hs_early_suspend);
+	hs_early_suspend.suspend = NULL;
+	hs_early_suspend.resume = headset_early_resume;
+	hs_early_suspend.level = ~0x0;
+	register_early_suspend(&hs_early_suspend);
 #endif
 
 	return 0;	

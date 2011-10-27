@@ -303,6 +303,10 @@
 #endif
 
 #ifdef CONFIG_ARCH_RK29
+/* flush after every 4 meg of writes to avoid excessive block level caching */
+#define MAX_UNFLUSHED_BYTES  (64 * 1024)// (4 * 1024 * 1024) //original value is 4MB,Modifyed by xbw at 2011-08-18
+#define MAX_UNFLUSHED_PACKETS 4//16
+
 #include <linux/power_supply.h>
 #include <linux/reboot.h>
 #include <linux/syscalls.h>
@@ -1061,6 +1065,15 @@ static int do_write(struct fsg_common *common)
 			amount_left_to_write -= nwritten;
 			common->residue -= nwritten;
 
+#ifdef MAX_UNFLUSHED_PACKETS
+			curlun->unflushed_packet ++;
+			curlun->unflushed_bytes += nwritten;
+			if( (curlun->unflushed_packet >= MAX_UNFLUSHED_PACKETS) || (curlun->unflushed_bytes >= MAX_UNFLUSHED_BYTES)) {
+				fsg_lun_fsync_sub(curlun);
+				curlun->unflushed_packet = 0;
+				curlun->unflushed_bytes = 0;
+			}
+#endif
 			/* If an error occurred, report it and its position */
 			if (nwritten < amount) {
 				curlun->sense_data = SS_WRITE_ERROR;

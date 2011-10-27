@@ -170,10 +170,13 @@
 #define RK29_PWM_PHYS               0x20050000
 #define RK29_PWM_SIZE               SZ_16K
 #define RK29_I2C1_PHYS              0x20054000
+#define RK29_I2C1_BASE              (RK29_ADDR_BASE1+0x54000)
 #define RK29_I2C1_SIZE              SZ_16K
 #define RK29_I2C2_PHYS              0x20058000
+#define RK29_I2C2_BASE              (RK29_ADDR_BASE1+0x58000)
 #define RK29_I2C2_SIZE              SZ_16K
 #define RK29_I2C3_PHYS              0x2005C000
+#define RK29_I2C3_BASE              (RK29_ADDR_BASE1+0x5c000)
 #define RK29_I2C3_SIZE              SZ_16K
 #define RK29_UART1_PHYS             0x20060000
 #define RK29_UART1_BASE             (RK29_ADDR_BASE1+0x60000)

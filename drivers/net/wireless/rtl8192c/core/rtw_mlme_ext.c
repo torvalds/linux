@@ -6824,6 +6824,8 @@ void site_survey(_adapter *padapter)
 	static unsigned char  prev_survey_channel = 0;
 	static unsigned int p2p_scan_count = 0;
 #endif //CONFIG_P2P
+	u32 initialgain = 0;
+
 
 #ifdef CONFIG_TDLS
 	u32 v, bit_6=1<<6;
@@ -6852,6 +6854,9 @@ void site_survey(_adapter *padapter)
 		//config MSR
 		Set_NETYPE0_MSR(padapter, (pmlmeinfo->state & 0x3));
 
+		initialgain = 0xff; //restore RX GAIN
+		padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));	
+		
 		//turn on dynamic functions
 		Restore_DM_Func_Flag(padapter);
 
@@ -7020,6 +7025,9 @@ void site_survey(_adapter *padapter)
 
 			//config MSR
 			Set_NETYPE0_MSR(padapter, (pmlmeinfo->state & 0x3));
+
+			initialgain = 0xff; //restore RX GAIN
+			padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));	
 
 			//turn on dynamic functions
 			Restore_DM_Func_Flag(padapter);
@@ -8350,8 +8358,11 @@ u8 createbss_hdl(_adapter *padapter, u8 *pbuf)
 		Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, _FALSE);
 
 		//config the initial gain under linking, need to write the BB registers
-		initialgain = 0x30;
+		//initialgain = 0x30;
 		//padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
+
+		initialgain = 0x1E;
+		padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
 
 		//cancel link timer 
 		_cancel_timer_ex(&pmlmeext->link_timer);
@@ -8526,8 +8537,11 @@ u8 join_cmd_hdl(_adapter *padapter, u8 *pbuf)
 	//Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, _FALSE);
 
 	//config the initial gain under linking, need to write the BB registers
-	initialgain = 0x32;
+	//initialgain = 0x32;
 	//padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
+
+	initialgain = 0x1E;
+	padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
 
 	padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_BSSID, pmlmeinfo->network.MacAddress);
 	join_type = 0;
@@ -8660,9 +8674,11 @@ u8 sitesurvey_cmd_hdl(_adapter *padapter, u8 *pbuf)
 		Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, _FALSE);
 
 		//config the initial gain under scaning, need to write the BB registers
-		initialgain = 0x20;
+		//initialgain = 0x20;
 		//padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));		
-		
+		initialgain = 0x17;
+		padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));		
+
 		//set MSR to no link state
 		Set_NETYPE0_MSR(padapter, _HW_STATE_NOLINK_);
 

@@ -183,6 +183,7 @@ static int bu92747_irda_do_tx(struct bu92747_port *s)
 	//int i;
 	struct circ_buf *xmit = &s->port.state->xmit;
 	int len = uart_circ_chars_pending(xmit);
+	int len1, len2;
 	IRDA_DBG_SENT("line %d, enter %s, sending %d data\n", __LINE__, __FUNCTION__, len);
 	
 	if (IS_FIR(s)) {
@@ -196,7 +197,17 @@ static int bu92747_irda_do_tx(struct bu92747_port *s)
 		s->tx_empty = 0;
 	}
 	
-	BU92725GUW_send_data(xmit->buf+xmit->tail, len, NULL, 0);
+	/* [Modify] AIC 2011/09/27
+	 * BU92725GUW_send_data(xmit->buf+xmit->tail, len, NULL, 0);
+	 */
+	if ( (xmit->tail + len) > UART_XMIT_SIZE ) {
+		len1 = UART_XMIT_SIZE - xmit->tail;
+		len2 = len - len1;
+		BU92725GUW_send_data(xmit->buf+xmit->tail, len1, xmit->buf, len2);
+	} else {
+		BU92725GUW_send_data(xmit->buf+xmit->tail, len, NULL, 0);
+	}
+	/* [Modify-end] AIC 2011/09/27 */
 	s->port.icount.tx += len;
 	xmit->tail = (xmit->tail + len) & (UART_XMIT_SIZE - 1);
 
@@ -254,6 +265,26 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 	}
 	
 	if (irq_src & (REG_INT_DRX | FRM_EVT_RX_EOFRX | FRM_EVT_RX_RDE)) {
+		//fixing CA001 (IrSimple mode sending) failing issue
+		/* modified to process a frame ending processing first, when RDE_EI and EOF_EI are happen at the same time.
+		 * Before the modification, disconnect packet was processed as the previous packet,
+		 * not as a disconnect packet. The packets were combined.
+		 */
+		if ((irq_src & REG_INT_EOF) && (s->port.state->port.tty != NULL)) {
+			tty_flip_buffer_push(s->port.state->port.tty);
+			if (IS_FIR(s)) {
+				spin_lock(&s->data_lock);
+				if (add_frame_length(f, s->cur_frame_length) == 0) {
+					s->cur_frame_length = 0;
+				}
+				else {
+					printk("func %s,line %d: FIR frame length buf full......\n", __FUNCTION__, __LINE__);				
+				}
+				spin_unlock(&s->data_lock);
+			}
+	    	}
+		//~ 
+
 		len = bu92747_irda_do_rx(s);
 		if (!IS_FIR(s))
 			tty_flip_buffer_push(s->port.state->port.tty);
@@ -265,24 +296,49 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 	}
 	
 	if ((irq_src & REG_INT_EOF) && (s->port.state->port.tty != NULL)) {
+		spin_lock(&s->data_lock);	// [Modify] AIC 2011/09/30 
 		tty_flip_buffer_push(s->port.state->port.tty);
 		if (IS_FIR(s)) {
-			spin_lock(&s->data_lock);
+			/* [Modify] AIC 2011/09/30
+			 * spin_lock(&s->data_lock);
+			 */
 			if (add_frame_length(f, s->cur_frame_length) == 0) {
 				s->cur_frame_length = 0;
 			}
 			else {
 				printk("func %s,line %d: FIR frame length buf full......\n", __FUNCTION__, __LINE__);				
 			}
-			spin_unlock(&s->data_lock);
+			/* [Modify] AIC 2011/09/30 
+			 * spin_unlock(&s->data_lock);
+			 */
 		}
+		spin_unlock(&s->data_lock);	// [Modify] AIC 2011/09/30
 	}
 	
-	if (irq_src & (FRM_EVT_TX_TXE | FRM_EVT_TX_WRE)) {
+	/* [Modify] AIC 2011/09/27
+	 *
+	 * if (irq_src & (FRM_EVT_TX_TXE | FRM_EVT_TX_WRE)) {
+	 *	s->tx_empty = 1;
+	 *	irda_hw_set_moderx();
+	 * }
+	 */
+	/* [Modify] AIC 2011/09/29
+	 *    
+	 * if (irq_src & (FRM_EVT_TX_TXE | FRM_EVT_TX_WRE)) {
+	 *	s->tx_empty = 1;
+	 *	if ( irq_src & FRM_EVT_TX_TXE ) {
+	 *		irda_hw_set_moderx();
+	 *	}
+	 */
+	if ( (irq_src & (FRM_EVT_TX_TXE | FRM_EVT_TX_WRE)) &&
+				(BU92725GUW_get_length_in_fifo_buffer() == 0) ) {
 		s->tx_empty = 1;
-		irda_hw_set_moderx();
-	}
 
+		if ( irq_src & FRM_EVT_TX_TXE ) {
+			irda_hw_set_moderx();
+		}
+	}
+	/* [Modify-end] AIC 2011/09/29 */
 #if 0
 	/* error */
 	if (irq_src & REG_INT_TO) {

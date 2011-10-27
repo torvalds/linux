@@ -143,6 +143,7 @@ typedef struct vpu_request
 	unsigned long   size;
 } vpu_request;
 
+static struct clk *clk_vpu; /* for power on notify */
 static struct clk *aclk_vepu;
 static struct clk *hclk_vepu;
 static struct clk *aclk_ddr_vepu;
@@ -156,6 +157,7 @@ static vpu_device 	enc_dev;
 
 static void vpu_get_clk(void)
 {
+	clk_vpu		= clk_get(NULL, "vpu");
 	aclk_vepu 	= clk_get(NULL, "aclk_vepu");
 	hclk_vepu 	= clk_get(NULL, "hclk_vepu");
 	aclk_ddr_vepu 	= clk_get(NULL, "aclk_ddr_vepu");
@@ -164,6 +166,7 @@ static void vpu_get_clk(void)
 
 static void vpu_put_clk(void)
 {
+	clk_put(clk_vpu);
 	clk_put(aclk_vepu);
 	clk_put(hclk_vepu);
 	clk_put(aclk_ddr_vepu);
@@ -255,6 +258,7 @@ static void vpu_service_power_off(void)
 	clk_disable(aclk_ddr_vepu);
 	clk_disable(hclk_vepu);
 	clk_disable(aclk_vepu);
+	clk_disable(clk_vpu);
 	printk("done\n");
 }
 
@@ -275,10 +279,14 @@ static void vpu_service_power_maintain(void)
 
 static void vpu_service_power_on(void)
 {
+	clk_enable(clk_vpu); /* notify vpu on without lock. */
+
+	spin_lock_bh(&service.lock);
 	if (!service.enabled) {
 		service.enabled = true;
 		printk("vpu: power on\n");
 
+		clk_enable(clk_vpu);
 		clk_enable(aclk_vepu);
 		clk_enable(hclk_vepu);
 		clk_enable(hclk_cpu_vcodec);
@@ -290,9 +298,13 @@ static void vpu_service_power_on(void)
 		service.timer.expires = jiffies + POWER_OFF_DELAY;
 		service.timer.function = vpu_service_power_off_work_func;
 		add_timer(&service.timer);
+		spin_unlock_bh(&service.lock);
 	} else {
+		spin_unlock_bh(&service.lock);
 		vpu_service_power_maintain();
 	}
+
+	clk_disable(clk_vpu);
 }
 
 static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long size)

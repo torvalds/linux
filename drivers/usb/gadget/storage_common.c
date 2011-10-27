@@ -276,6 +276,10 @@ struct fsg_lun {
 	struct file	*filp;
 	loff_t		file_length;
 	loff_t		num_sectors;
+#ifdef MAX_UNFLUSHED_PACKETS
+	unsigned int	unflushed_packet;
+	unsigned int	unflushed_bytes;
+#endif
 
 	unsigned int	initially_ro:1;
 	unsigned int	ro:1;

@@ -30,6 +30,8 @@
 #include <linux/i2c.h>
 #include "mpu.h"
 
+#define MPU_I2C_RATE 100*1000
+
 int sensor_i2c_write(struct i2c_adapter *i2c_adap,
 		     unsigned char address,
 		     unsigned int len, unsigned char const *data)
@@ -44,12 +46,15 @@ int sensor_i2c_write(struct i2c_adapter *i2c_adap,
 	msgs[0].flags = 0;	/* write */
 	msgs[0].buf = (unsigned char *) data;
 	msgs[0].len = len;
+	msgs[0].scl_rate = MPU_I2C_RATE;
 
 	res = i2c_transfer(i2c_adap, msgs, 1);
-	if (res < 1)
-		return res;
-	else
+	if (res == 1)
 		return 0;
+	else if(res == 0)
+		return -EBUSY;
+	else
+		return res;
 }
 
 int sensor_i2c_write_register(struct i2c_adapter *i2c_adap,
@@ -78,17 +83,21 @@ int sensor_i2c_read(struct i2c_adapter *i2c_adap,
 	msgs[0].flags = 0;	/* write */
 	msgs[0].buf = &reg;
 	msgs[0].len = 1;
+	msgs[0].scl_rate = MPU_I2C_RATE;
 
 	msgs[1].addr = address;
 	msgs[1].flags = I2C_M_RD;
 	msgs[1].buf = data;
 	msgs[1].len = len;
+	msgs[1].scl_rate = MPU_I2C_RATE;
 
 	res = i2c_transfer(i2c_adap, msgs, 2);
-	if (res < 2)
-		return res;
-	else
+	if (res == 2)
 		return 0;
+	else if(res == 0)
+		return -EBUSY;
+	else
+		return res;
 }
 
 int mpu_memory_read(struct i2c_adapter *i2c_adap,
@@ -119,27 +128,33 @@ int mpu_memory_read(struct i2c_adapter *i2c_adap,
 	msgs[0].flags = 0;
 	msgs[0].buf = bank;
 	msgs[0].len = sizeof(bank);
+	msgs[0].scl_rate = MPU_I2C_RATE;
 
 	msgs[1].addr = mpu_addr;
 	msgs[1].flags = 0;
 	msgs[1].buf = addr;
 	msgs[1].len = sizeof(addr);
+	msgs[1].scl_rate = MPU_I2C_RATE;
 
 	msgs[2].addr = mpu_addr;
 	msgs[2].flags = 0;
 	msgs[2].buf = &buf;
 	msgs[2].len = 1;
+	msgs[2].scl_rate = MPU_I2C_RATE;
 
 	msgs[3].addr = mpu_addr;
 	msgs[3].flags = I2C_M_RD;
 	msgs[3].buf = data;
 	msgs[3].len = len;
+	msgs[3].scl_rate = MPU_I2C_RATE;
 
 	ret = i2c_transfer(i2c_adap, msgs, 4);
-	if (ret != 4)
-		return ret;
-	else
+	if (ret == 4)
 		return 0;
+	else if(ret == 0)
+		return -EBUSY;
+	else
+		return ret;
 }
 
 int mpu_memory_write(struct i2c_adapter *i2c_adap,
@@ -173,22 +188,27 @@ int mpu_memory_write(struct i2c_adapter *i2c_adap,
 	msgs[0].flags = 0;
 	msgs[0].buf = bank;
 	msgs[0].len = sizeof(bank);
+	msgs[0].scl_rate = MPU_I2C_RATE;
 
 	msgs[1].addr = mpu_addr;
 	msgs[1].flags = 0;
 	msgs[1].buf = addr;
 	msgs[1].len = sizeof(addr);
+	msgs[1].scl_rate = MPU_I2C_RATE;
 
 	msgs[2].addr = mpu_addr;
 	msgs[2].flags = 0;
 	msgs[2].buf = (unsigned char *) buf;
 	msgs[2].len = len + 1;
+	msgs[2].scl_rate = MPU_I2C_RATE;
 
 	ret = i2c_transfer(i2c_adap, msgs, 3);
-	if (ret != 3)
-		return ret;
-	else
+	if (ret == 3)
 		return 0;
+	else if(ret == 0)
+		return -EBUSY;
+	else
+		return ret;
 }
 
 /**

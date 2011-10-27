@@ -87,6 +87,10 @@ void dwc_otg_hcd_qh_free (dwc_otg_qh_t *_qh)
 	dwc_otg_qtd_t *qtd;
 	struct list_head *pos;
 
+	unsigned long flags;
+
+	local_irq_save(flags);
+	
 	/* Free each QTD in the QTD list */
 	for (pos = _qh->qtd_list.next;
 	     pos != &_qh->qtd_list;
@@ -94,10 +98,18 @@ void dwc_otg_hcd_qh_free (dwc_otg_qh_t *_qh)
 	{
 		list_del (pos);
 		qtd = dwc_list_to_qtd (pos);
+		if(qtd->urb)
+		{
+		    qtd->urb->hcpriv =NULL;
+	        qtd->urb->ep->hcpriv = NULL;
+	    }
 		dwc_otg_hcd_qtd_free (qtd);
+		qtd=NULL;
 	}
-
+    
 	kfree (_qh);
+	_qh = NULL;
+	local_irq_restore(flags);
 	return;
 }
 
@@ -557,10 +569,10 @@ void dwc_otg_hcd_qh_deactivate(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, int sched
 			 * appropriate queue.
 			 */
 			if (_qh->sched_frame == frame_number) {
-				list_move(&_qh->qh_list_entry,
+				list_move_tail(&_qh->qh_list_entry,
 					  &_hcd->periodic_sched_ready);
 			} else {
-				list_move(&_qh->qh_list_entry,
+				list_move_tail(&_qh->qh_list_entry,
 					  &_hcd->periodic_sched_inactive);
 			}
 		}

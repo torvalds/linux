@@ -33,7 +33,7 @@
 //	So, this driver tried to extend the dwell time for each scanning channel.
 //	This will increase the chance to receive the probe response from SoftAP.
 
-#define SURVEY_TO		(100)
+#define SURVEY_TO		(120)
 #define REAUTH_TO		(300) //(50)
 #define REASSOC_TO		(300) //(50)
 //#define DISCONNECT_TO	(3000)

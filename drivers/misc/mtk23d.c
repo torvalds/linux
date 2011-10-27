@@ -266,7 +266,7 @@ int modem_poweron_off(int on_off)
 		}
 		else
 		{
-			error = request_irq(irq, BBwakeup_isr,IRQF_TRIGGER_FALLING, NULL, pdata);
+			error = request_irq(irq, BBwakeup_isr,IRQF_TRIGGER_FALLING, "mtk23d", pdata);
 			if (error) {
 				printk("mtk23d_probe bp_statue request_irq error!!! \n");
 			}

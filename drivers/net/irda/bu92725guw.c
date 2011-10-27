@@ -83,7 +83,7 @@ void irda_hw_deinit(struct rk29_irda *si)
 int irda_hw_startup(void)
 {
     volatile u16 val;
-    int i=0;
+    //int i=0;
 	RK29IR_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
 
     //IER (disable all)
@@ -306,7 +306,7 @@ void irda_hw_set_moderx(void)
    // frData.ucFlags &= ~(FRMF_TX_ACTIVE);
    // frData.ucFlags |= FRMF_RX_ACTIVE;
 
-    int i=0;
+    //int i=0;
     /* hardware-specific code
 	*/
 	RK29IR_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
@@ -351,7 +351,12 @@ void BU92725GUW_set_trans_way(u32 way)
 	curTrans_way = way;
 
 	/* set bu92725guw registers */
-	internal_set(1);
+	/* [Modify] AIC 2011/09/27
+	 *
+	 * internal_set(1);
+	 */
+	internal_set(0);
+	/* [Modify] AIC 2011/09/27 */
 }
 
 /*
@@ -713,7 +718,7 @@ static void internal_set(u8 modeChg)
 		break;
 		
 	case BU92725GUW_MULTI_REV: /* not used */
-		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE\ 
+		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE \
 			 | REG_INT_RDOE | REG_INT_DEX | REG_INT_RDUE; //IER1,2, 4, 5, 6, 7, 8, 9, 10
 		break;
 	
@@ -748,4 +753,9 @@ void BU92725GUW_dump_register(void)
 	printk("IER: 0x%x\n", BU92725GUW_READ_REG(REG_IER_ADDR));
 }
 
-
+/* [Add] AIC 2011/09/29 */
+int BU92725GUW_get_length_in_fifo_buffer(void)
+{
+	return( (int)BU92725GUW_READ_REG(REG_FLV_ADDR) );
+}
+/* [Add-end] AIC 2011/09/29 */

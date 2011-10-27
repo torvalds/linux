@@ -1684,6 +1684,11 @@ static struct clk hclk_lcdc = {
 	.clksel_maxdiv	= 4,
 };
 
+/* for vpu power on notify */
+static struct clk clk_vpu = {
+	.name		= "vpu",
+};
+
 static struct clk *xpu_parents[4] = { &general_pll_clk, &ddr_pll_clk, &codec_pll_clk, &arm_pll_clk };
 
 static struct clk aclk_vepu = {
@@ -2127,6 +2132,7 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "aclk_lcdc", &aclk_lcdc),
 	CLK(NULL, "hclk_lcdc", &hclk_lcdc),
 
+	CLK1(vpu),
 	CLK(NULL, "aclk_vepu", &aclk_vepu),
 	CLK(NULL, "hclk_vepu", &hclk_vepu),
 	CLK(NULL, "aclk_vdpu", &aclk_vdpu),
@@ -2986,7 +2992,7 @@ int clk_notifier_register(struct clk *clk, struct notifier_block *nb)
 	int r;
 	struct clk *clkp;
 
-	if (!clk || !nb)
+	if (!clk || IS_ERR(clk) || !nb)
 		return -EINVAL;
 
 	mutex_lock(&clocks_mutex);
@@ -3042,7 +3048,7 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
 	struct clk *clkp;
 	int r = -EINVAL;
 
-	if (!clk || !nb)
+	if (!clk || IS_ERR(clk) || !nb)
 		return -EINVAL;
 
 	mutex_lock(&clocks_mutex);

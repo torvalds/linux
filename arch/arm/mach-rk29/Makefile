@@ -10,6 +10,7 @@ obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_CPU_FREQ) += cpufreq.o
 obj-$(CONFIG_DDR_FREQ) += ddrfreq.o
 obj-$(CONFIG_RK29_VPU) += vpu_mem.o
+obj-$(CONFIG_RK29_I2C_INSRAM) += i2c_sram.o
 obj-y += spi_sram.o
 obj-$(CONFIG_RK29_VPU_SERVICE) += vpu_service.o
 obj-$(CONFIG_RK29_VPU_OLD) += vpu.o

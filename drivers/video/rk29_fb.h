@@ -370,7 +370,13 @@
 
 #define FB0_IOCTL_STOP_TIMER_FLUSH		0x6001
 #define FB0_IOCTL_SET_PANEL				0x6002
+#define FB_WIMO_FLAG  
+#ifdef	FB_WIMO_FLAG
 
+#define FB0_IOCTL_SET_BUF					0x6017
+#define FB0_IOCTL_COPY_CURBUF				0x6018
+#define FB0_IOCTL_CLOSE_BUF				0x6019
+#endif
 #define FB1_IOCTL_GET_PANEL_SIZE		0x5001
 #define FB1_IOCTL_SET_YUV_ADDR			0x5002
 //#define FB1_TOCTL_SET_MCU_DIR			0x5003
@@ -434,6 +440,14 @@ typedef volatile struct tagLCDC_REG
     unsigned int reserved2[(0x200-0x104)/4];
     unsigned int MCU_BYPASS_RPORT;         //0x200 MCU BYPASS MODE, DATA Read Only Port
 } LCDC_REG, *pLCDC_REG;
+
+//roate
+#define 	ROTATE_0		0
+#define 	ROTATE_90		90
+#define 	ROTATE_180		180
+#define 	ROTATE_270		270
+#define 	X_MIRROR		(1<<10)
+#define		Y_MIRROR		(1<<11)
 
 
 extern void __init rk29_add_device_lcdc(void);

@@ -157,6 +157,7 @@
 #define WM8900_WORK_POWERDOWN_PLAYBACK	1
 #define WM8900_WORK_POWERDOWN_CAPTURE	2
 #define WM8900_WORK_POWERDOWN_PLAYBACK_CAPTURE	3
+#define WM8900_WORK_HW_SET 4
 
 static void wm8900_work(struct work_struct *work);
 
@@ -268,26 +269,6 @@ static void wm8900_powerdown(void)
 	}
 }
 
-static void wm8900_work(struct work_struct *work)
-{
-	WM8900_DBG("Enter::wm8900_work : wm8900_work_type = %d\n", wm8900_work_type);
-
-	switch (wm8900_work_type) {
-	case WM8900_WORK_POWERDOWN_PLAYBACK :
-		break;
-	case WM8900_WORK_POWERDOWN_CAPTURE:
-		snd_soc_write(wm8900_codec, WM8900_REG_POWER1, 0x210D);
-		break;
-	case WM8900_WORK_POWERDOWN_PLAYBACK_CAPTURE:
-		wm8900_powerdown();
-		break;
-	default:
-		break;
-	}
-
-	wm8900_work_type = WM8900_WORK_NULL;
-}
-
 static void wm8900_set_hw(struct snd_soc_codec *codec)
 {
 	u16 reg;
@@ -360,6 +341,29 @@ static void wm8900_set_hw(struct snd_soc_codec *codec)
 	gpio_set_value(RK29_PIN1_PD6, GPIO_HIGH);
 #endif
 	wm8900_current_status |= WM8900_IS_STARTUP;
+}
+
+static void wm8900_work(struct work_struct *work)
+{
+        WM8900_DBG("Enter::wm8900_work : wm8900_work_type = %d\n", wm8900_work_type);
+
+        switch (wm8900_work_type) {
+        case WM8900_WORK_POWERDOWN_PLAYBACK :
+                break;
+        case WM8900_WORK_POWERDOWN_CAPTURE:
+                snd_soc_write(wm8900_codec, WM8900_REG_POWER1, 0x210D);
+                break;
+        case WM8900_WORK_POWERDOWN_PLAYBACK_CAPTURE:
+                wm8900_powerdown();
+                break;
+        case WM8900_WORK_HW_SET:
+                wm8900_set_hw(wm8900_codec);
+                break;
+        default:
+                break;
+        }
+
+        wm8900_work_type = WM8900_WORK_NULL;
 }
 
 static int wm8900_hw_params(struct snd_pcm_substream *substream,
@@ -1019,7 +1023,13 @@ static int wm8900_resume(struct platform_device *pdev)
 	}
 
 #ifdef WM8900_NO_POWEROFF
-	wm8900_set_hw(codec);
+	if (wm8900_current_status == WM8900_IS_SHUTDOWN) {
+
+		cancel_delayed_work_sync(&delayed_work);
+		wm8900_work_type = WM8900_WORK_HW_SET;
+		queue_delayed_work(wm8900_workq, &delayed_work,
+		                   msecs_to_jiffies(1000));
+	}
 #endif
 
 	return 0;

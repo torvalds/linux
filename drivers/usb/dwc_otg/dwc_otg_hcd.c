@@ -2878,7 +2878,7 @@ dwc_otg_transaction_type_e dwc_otg_hcd_select_transactions(dwc_otg_hcd_t *_hcd)
 		 * periodic assigned schedule.
 		 */
 		qh_ptr = qh_ptr->next;
-		list_move(&qh->qh_list_entry, &_hcd->periodic_sched_assigned);
+		list_move_tail(&qh->qh_list_entry, &_hcd->periodic_sched_assigned);
 
 		ret_val = DWC_OTG_TRANSACTION_PERIODIC;
 	}
@@ -2905,7 +2905,7 @@ dwc_otg_transaction_type_e dwc_otg_hcd_select_transactions(dwc_otg_hcd_t *_hcd)
 		 * non-periodic active schedule.
 		 */
 		qh_ptr = qh_ptr->next;
-		list_move(&qh->qh_list_entry, &_hcd->non_periodic_sched_active);
+		list_move_tail(&qh->qh_list_entry, &_hcd->non_periodic_sched_active);
 
 		if (ret_val == DWC_OTG_TRANSACTION_NONE) {
 			ret_val = DWC_OTG_TRANSACTION_NON_PERIODIC;
@@ -3152,7 +3152,7 @@ static void process_periodic_channels(dwc_otg_hcd_t *_hcd)
 			 * Move the QH from the periodic assigned schedule to
 			 * the periodic queued schedule.
 			 */
-			list_move(&qh->qh_list_entry, &_hcd->periodic_sched_queued);
+			list_move_tail(&qh->qh_list_entry, &_hcd->periodic_sched_queued);
 
 			/* done queuing high bandwidth */
 			_hcd->core_if->queuing_high_bandwidth = 0;

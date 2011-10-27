@@ -100,6 +100,10 @@ static void __sramfunc __noreturn rk29_rb_with_softreset(void)
 	dsb();
 	LOOP(10 * LOOPS_PER_USEC);
 
+	/* reset GRF_MEM_CON, else bootloader usb function may not work properly */
+	writel(0, RK29_GRF_PHYS + 0xac);
+	dsb();
+
 	if (reason) {
 		__raw_writel(0, RK29_TIMER0_PHYS + 0x8);
 		__raw_writel(reason, RK29_TIMER0_PHYS + 0x0);

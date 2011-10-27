@@ -2013,12 +2013,22 @@ config FB_SCALING_OSD
 	---help---
 	   this function be used scale-up UI when video, it only support RGB565 UI;
 
+config FB_SCALING_OSD_1080P
+	bool "fb scale OSD support when video playing in 1080P "
+	depends on FB_WORK_IPP && FB_SCALING_OSD
+	---help---
+	   this function be used scale-up UI when video, it only support RGB565 UI;
+	   should set SCALE_UI_1080P_VIDEO to 1 in android
 config FB_ROTATE_VIDEO
 	bool "fb video rotate support"
 	depends on FB_WORK_IPP
 	---help---
 		this function  can use to rotate video .
-
+config FB_MIRROR_X_Y
+	bool "fb video rotate support x y mirror"
+	depends on FB_ROTATE_VIDEO
+	---help---
+		this function  can use to x y mirror video .
 config CLOSE_WIN1_DYNAMIC
 	bool "close win1 dynamically when video"
 	depends on FB_RK29

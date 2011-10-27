@@ -25,7 +25,7 @@
 
 
 #define DRIVER_NAME	"rk29xxnand"
-const char rknand_base_version[] = "rknand_base.c version: 4.26 20110610";
+const char rknand_base_version[] = "rknand_base.c version: 4.30 20111009";
 #define NAND_DEBUG_LEVEL0 0
 #define NAND_DEBUG_LEVEL1 1
 #define NAND_DEBUG_LEVEL2 2
@@ -58,8 +58,12 @@ static const int s_debug = 0;
 #define NANDPROC_ROOT  NULL
 #endif
 
+#define     DATA_LEN            (1024*8*2/4)              //数据块单位word
+#define     SPARE_LEN           (32*8*2/4)               //校验数据长度
+#define     PAGE_LEN            (DATA_LEN+SPARE_LEN)    //每个数据单位的长度
 #define MAX_BUFFER_SIZE     (long)(2048 * 8) //sector
 long grknand_buf[MAX_BUFFER_SIZE * 512/4] __attribute__((aligned(4096)));
+long grknand_dma_buf[PAGE_LEN*4*5] __attribute__((aligned(4096)));
 
 static struct proc_dir_entry *my_proc_entry;
 extern int rkNand_proc_ftlread(char *page);
@@ -113,7 +117,8 @@ static int rk28xxnand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	int ret = 0;
 	int sector = len>>9;
 	int LBA = (int)(from>>9);
-    //printk("rk28xxnand_read: from=%x,len=%x,\n",(int)from,len);
+	//if(rknand_debug)
+    //   printk("rk28xxnand_read: from=%x,sector=%x,\n",(int)LBA,sector);
     if(sector && gpNandInfo->ftl_read)
     {
 		ret = gpNandInfo->ftl_read(LBA, sector, buf);
@@ -129,7 +134,8 @@ static int rk28xxnand_write(struct mtd_info *mtd, loff_t from, size_t len,
 	int sector = len>>9;
 	int LBA = (int)(from>>9);
 	//printk("*");
-    //printk(KERN_NOTICE "write: from=%lx,len=%x\n",(int)LBA,sector);
+	//if(rknand_debug)
+    //    printk(KERN_NOTICE "write: from=%lx,sector=%x\n",(int)LBA,sector);
     //printk_write_log(LBA,sector,buf);
 	if(sector && gpNandInfo->ftl_write)// cmy
 	{
@@ -203,9 +209,21 @@ char GetChipSectorInfo(char * pbuf)
 
 int  GetParamterInfo(char * pbuf , int len)
 {
-    	int ret = -1;
+    int ret = -1;
 	int sector = (len)>>9;
 	int LBA = 0;
+	if(sector && gpNandInfo->ftl_read)
+	{
+		ret = gpNandInfo->ftl_read(LBA, sector, pbuf);
+	}
+	return ret?-1:(sector<<9);
+}
+
+int  GetflashDataByLba(int lba,char * pbuf , int len)
+{
+    int ret = -1;
+	int sector = (len)>>9;
+	int LBA = lba;
 	if(sector && gpNandInfo->ftl_read)
 	{
 		ret = gpNandInfo->ftl_read(LBA, sector, pbuf);
@@ -263,7 +281,7 @@ static int rk28xxnand_init(struct rknand_info *nand_info)
     return 0;
 }
 
-  
+
 /*
  * CMY: 增加了对命令行分区信息的支持
  *		若cmdline有提供分区信息，则使用cmdline的分区信息进行分区
@@ -346,8 +364,9 @@ static int rknand_probe(struct platform_device *pdev)
     memset(gpNandInfo,0,sizeof(struct rknand_info));
 
     gpNandInfo->bufSize = MAX_BUFFER_SIZE * 512;
-    gpNandInfo->pbuf = grknand_buf;
-
+    gpNandInfo->pbuf = (char *)grknand_buf;
+    gpNandInfo->pdmaBuf = (char *)grknand_dma_buf;
+    //printk(" gpNandInfo->pdmaBuf=0x%x\n",  gpNandInfo->pdmaBuf); 
 #ifdef CONFIG_MTD_EMMC_CLK_POWER_SAVE
     gpNandInfo->emmc_clk_power_save_en = 1;
 #endif

@@ -54,8 +54,8 @@
 
 #define RK29_SDMMC_TMO_COUNT		10000
 
-#define RK29_SDCARD_CLK				48  //48Mhz
-#define RK29_SDIO_CLK				36	//36Mhz
+#define RK29_SDCARD_CLK				50  //48Mhz
+#define RK29_SDIO_CLK				50	//36Mhz
 
 enum {
 	EVENT_CMD_COMPLETE = 0,
@@ -533,20 +533,40 @@ static int sdmmc_send_cmd(struct rk29_sdmmc *host, unsigned int cmd, int arg)
 	else
 		return -1;
 }
+static int rk29_sdmmc_get_div(unsigned int bus_hz, unsigned int ios_clock)
+{
+     unsigned int div, real_clock;
+
+	 if(ios_clock >= bus_hz)
+		 return 0;
+	for(div = 1; div < 255; div++)
+	{
+		real_clock = bus_hz/(2*div);
+		if(real_clock <= ios_clock)
+			break;
+	}
+	if(div > 255)
+		div = 255;
+	return div;
+}
 
 int rk29_sdmmc_set_clock(struct rk29_sdmmc *host)
 {
 	unsigned int div;
 	if(!host->ios_clock)
 		return 0;
-	div  = (((host->bus_hz + (host->bus_hz / 5)) / host->ios_clock)) >> 1;
+	//div  = (((host->bus_hz + (host->bus_hz / 5)) / host->ios_clock)) >> 1;
+	//if(host->mrq && host->mrq->cmd->opcode == 25)
+		//host->ios_clock = 500000;
+	div = rk29_sdmmc_get_div(host->bus_hz, host->ios_clock);
 /*
 	if(div == 0)
 		div = 1;
 */
 	if(host->div == div)
 		return 0;
-	
+	dev_info(host->dev, "div = %u, bus_hz = %u, ios_clock = %u\n",
+		div, host->bus_hz, host->ios_clock);
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 0);
 	rk29_sdmmc_write(host->regs, SDMMC_CLKSRC,0);
 	if(sdmmc_send_cmd(host, SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0))
@@ -834,7 +854,6 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		rk29_sdmmc_show_info(host);
 		return;
 	}
-		
 	if(rk29_sdmmc_start_request(host,mrq)) {
 		dev_info(host->dev, "rk29_sdmmc_start_request timeout\n");
 		mrq->cmd->error = -EINPROGRESS;
@@ -1307,7 +1326,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		goto err_mmc_free_host;
 	}
 	
-	host->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	host->regs = ioremap(regs->start, regs->end - regs->start);
 	if (!host->regs){
 		dev_err(&pdev->dev, "ioremap error\n");
 		ret = ENXIO;
@@ -1378,9 +1397,8 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		mmc->ops = &rk29_sdmmc_ops[1];
 	else
 		mmc->ops = &rk29_sdmmc_ops[0];
-  
-        if (host->is_sdio) 
-           mmc->pm_flags = MMC_PM_IGNORE_PM_NOTIFY;   //ignore pm notify    
+	if (host->is_sdio) 
+		mmc->pm_flags = MMC_PM_IGNORE_PM_NOTIFY;   //ignore pm notify   
 	
 	mmc->f_min = DIV_ROUND_UP(host->bus_hz, 510);
 	mmc->f_max = host->bus_hz; 
@@ -1388,7 +1406,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	mmc->caps = pdata->host_caps;
 	mmc->max_phys_segs = 64;
 	mmc->max_hw_segs = 64;
-	mmc->max_blk_size = 4095; 
+	mmc->max_blk_size = 4096; 
 	mmc->max_blk_count = 65535; 
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;	
