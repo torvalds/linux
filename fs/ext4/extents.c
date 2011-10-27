@@ -2919,12 +2919,23 @@ out:
  *   a> There is no split required: Entire extent should be initialized
  *   b> Splits in two extents: Write is happening at either end of the extent
  *   c> Splits in three extents: Somone is writing in middle of the extent
+ *
+ * Pre-conditions:
+ *  - The extent pointed to by 'path' is uninitialized.
+ *  - The extent pointed to by 'path' contains a superset
+ *    of the logical span [map->m_lblk, map->m_lblk + map->m_len).
+ *
+ * Post-conditions on success:
+ *  - the returned value is the number of blocks beyond map->l_lblk
+ *    that are allocated and initialized.
+ *    It is guaranteed to be >= map->m_len.
  */
 static int ext4_ext_convert_to_initialized(handle_t *handle,
 					   struct inode *inode,
 					   struct ext4_map_blocks *map,
 					   struct ext4_ext_path *path)
 {
+	struct ext4_extent_header *eh;
 	struct ext4_map_blocks split_map;
 	struct ext4_extent zero_ex;
 	struct ext4_extent *ex;
@@ -2944,10 +2955,92 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		eof_block = map->m_lblk + map->m_len;
 
 	depth = ext_depth(inode);
+	eh = path[depth].p_hdr;
 	ex = path[depth].p_ext;
 	ee_block = le32_to_cpu(ex->ee_block);
 	ee_len = ext4_ext_get_actual_len(ex);
 	allocated = ee_len - (map->m_lblk - ee_block);
+
+	trace_ext4_ext_convert_to_initialized_enter(inode, map, ex);
+
+	/* Pre-conditions */
+	BUG_ON(!ext4_ext_is_uninitialized(ex));
+	BUG_ON(!in_range(map->m_lblk, ee_block, ee_len));
+	BUG_ON(map->m_lblk + map->m_len > ee_block + ee_len);
+
+	/*
+	 * Attempt to transfer newly initialized blocks from the currently
+	 * uninitialized extent to its left neighbor. This is much cheaper
+	 * than an insertion followed by a merge as those involve costly
+	 * memmove() calls. This is the common case in steady state for
+	 * workloads doing fallocate(FALLOC_FL_KEEP_SIZE) followed by append
+	 * writes.
+	 *
+	 * Limitations of the current logic:
+	 *  - L1: we only deal with writes at the start of the extent.
+	 *    The approach could be extended to writes at the end
+	 *    of the extent but this scenario was deemed less common.
+	 *  - L2: we do not deal with writes covering the whole extent.
+	 *    This would require removing the extent if the transfer
+	 *    is possible.
+	 *  - L3: we only attempt to merge with an extent stored in the
+	 *    same extent tree node.
+	 */
+	if ((map->m_lblk == ee_block) &&	/*L1*/
+		(map->m_len < ee_len) &&	/*L2*/
+		(ex > EXT_FIRST_EXTENT(eh))) {	/*L3*/
+		struct ext4_extent *prev_ex;
+		ext4_lblk_t prev_lblk;
+		ext4_fsblk_t prev_pblk, ee_pblk;
+		unsigned int prev_len, write_len;
+
+		prev_ex = ex - 1;
+		prev_lblk = le32_to_cpu(prev_ex->ee_block);
+		prev_len = ext4_ext_get_actual_len(prev_ex);
+		prev_pblk = ext4_ext_pblock(prev_ex);
+		ee_pblk = ext4_ext_pblock(ex);
+		write_len = map->m_len;
+
+		/*
+		 * A transfer of blocks from 'ex' to 'prev_ex' is allowed
+		 * upon those conditions:
+		 * - C1: prev_ex is initialized,
+		 * - C2: prev_ex is logically abutting ex,
+		 * - C3: prev_ex is physically abutting ex,
+		 * - C4: prev_ex can receive the additional blocks without
+		 *   overflowing the (initialized) length limit.
+		 */
+		if ((!ext4_ext_is_uninitialized(prev_ex)) &&		/*C1*/
+			((prev_lblk + prev_len) == ee_block) &&		/*C2*/
+			((prev_pblk + prev_len) == ee_pblk) &&		/*C3*/
+			(prev_len < (EXT_INIT_MAX_LEN - write_len))) {	/*C4*/
+			err = ext4_ext_get_access(handle, inode, path + depth);
+			if (err)
+				goto out;
+
+			trace_ext4_ext_convert_to_initialized_fastpath(inode,
+				map, ex, prev_ex);
+
+			/* Shift the start of ex by 'write_len' blocks */
+			ex->ee_block = cpu_to_le32(ee_block + write_len);
+			ext4_ext_store_pblock(ex, ee_pblk + write_len);
+			ex->ee_len = cpu_to_le16(ee_len - write_len);
+			ext4_ext_mark_uninitialized(ex); /* Restore the flag */
+
+			/* Extend prev_ex by 'write_len' blocks */
+			prev_ex->ee_len = cpu_to_le16(prev_len + write_len);
+
+			/* Mark the block containing both extents as dirty */
+			ext4_ext_dirty(handle, inode, path + depth);
+
+			/* Update path to point to the right extent */
+			path[depth].p_ext = prev_ex;
+
+			/* Result: number of initialized blocks past m_lblk */
+			allocated = write_len;
+			goto out;
+		}
+	}
 
 	WARN_ON(map->m_lblk < ee_block);
 	/*
