@@ -112,7 +112,7 @@ struct sci_user_parameters {
 	 * This field specifies the maximum number of direct attached devices
 	 * that can have power supplied to them simultaneously.
 	 */
-	u8 max_number_concurrent_device_spin_up;
+	u8 max_concurr_spinup;
 
 	/**
 	 * This field specifies the number of seconds to allow a phy to consume
@@ -219,7 +219,7 @@ struct sci_bios_oem_param_block_hdr {
 struct sci_oem_params {
 	struct {
 		uint8_t mode_type;
-		uint8_t max_concurrent_dev_spin_up;
+		uint8_t max_concurr_spin_up;
 		uint8_t do_enable_ssc;
 		uint8_t reserved;
 	} controller;

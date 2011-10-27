@@ -1350,7 +1350,7 @@ static void isci_user_parameters_get(struct sci_user_parameters *u)
 	u->stp_max_occupancy_timeout = stp_max_occ_to;
 	u->ssp_max_occupancy_timeout = ssp_max_occ_to;
 	u->no_outbound_task_timeout = no_outbound_task_to;
-	u->max_number_concurrent_device_spin_up = max_concurr_spinup;
+	u->max_concurr_spinup = max_concurr_spinup;
 }
 
 static void sci_controller_initial_state_enter(struct sci_base_state_machine *sm)
@@ -1661,7 +1661,7 @@ static void sci_controller_set_default_config_parameters(struct isci_host *ihost
 	ihost->oem_parameters.controller.mode_type = SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE;
 
 	/* Default to APC mode. */
-	ihost->oem_parameters.controller.max_concurrent_dev_spin_up = 1;
+	ihost->oem_parameters.controller.max_concurr_spin_up = 1;
 
 	/* Default to no SSC operation. */
 	ihost->oem_parameters.controller.do_enable_ssc = false;
@@ -1787,7 +1787,8 @@ int sci_oem_parameters_validate(struct sci_oem_params *oem)
 	} else
 		return -EINVAL;
 
-	if (oem->controller.max_concurrent_dev_spin_up > MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT)
+	if (oem->controller.max_concurr_spin_up > MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT ||
+	    oem->controller.max_concurr_spin_up < 1)
 		return -EINVAL;
 
 	return 0;
@@ -1808,6 +1809,16 @@ static enum sci_status sci_oem_parameters_set(struct isci_host *ihost)
 	}
 
 	return SCI_FAILURE_INVALID_STATE;
+}
+
+static u8 max_spin_up(struct isci_host *ihost)
+{
+	if (ihost->user_parameters.max_concurr_spinup)
+		return min_t(u8, ihost->user_parameters.max_concurr_spinup,
+			     MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT);
+	else
+		return min_t(u8, ihost->oem_parameters.controller.max_concurr_spin_up,
+			     MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT);
 }
 
 static void power_control_timeout(unsigned long data)
@@ -1839,8 +1850,7 @@ static void power_control_timeout(unsigned long data)
 		if (iphy == NULL)
 			continue;
 
-		if (ihost->power_control.phys_granted_power >=
-		    ihost->oem_parameters.controller.max_concurrent_dev_spin_up)
+		if (ihost->power_control.phys_granted_power >= max_spin_up(ihost))
 			break;
 
 		ihost->power_control.requesters[i] = NULL;
@@ -1865,8 +1875,7 @@ void sci_controller_power_control_queue_insert(struct isci_host *ihost,
 {
 	BUG_ON(iphy == NULL);
 
-	if (ihost->power_control.phys_granted_power <
-	    ihost->oem_parameters.controller.max_concurrent_dev_spin_up) {
+	if (ihost->power_control.phys_granted_power < max_spin_up(ihost)) {
 		ihost->power_control.phys_granted_power++;
 		sci_phy_consume_power_handler(iphy);
 
