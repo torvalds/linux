@@ -116,6 +116,8 @@ struct alc_spec {
 	const hda_nid_t *capsrc_nids;
 	hda_nid_t dig_in_nid;		/* digital-in NID; optional */
 	hda_nid_t mixer_nid;		/* analog-mixer NID */
+	DECLARE_BITMAP(vol_ctls, 0x20 << 1);
+	DECLARE_BITMAP(sw_ctls, 0x20 << 1);
 
 	/* capture setup for dynamic dual-adc switch */
 	hda_nid_t cur_adc;
@@ -3006,14 +3008,32 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 	return 0;
 }
 
+static inline unsigned int get_ctl_pos(unsigned int data)
+{
+	hda_nid_t nid = get_amp_nid_(data);
+	unsigned int dir = get_amp_direction_(data);
+	return (nid << 1) | dir;
+}
+
+#define is_ctl_used(bits, data) \
+	test_bit(get_ctl_pos(data), bits)
+#define mark_ctl_usage(bits, data) \
+	set_bit(get_ctl_pos(data), bits)
+
 static int alc_auto_add_vol_ctl(struct hda_codec *codec,
 			      const char *pfx, int cidx,
 			      hda_nid_t nid, unsigned int chs)
 {
+	struct alc_spec *spec = codec->spec;
+	unsigned int val;
 	if (!nid)
 		return 0;
+	val = HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT);
+	if (is_ctl_used(spec->vol_ctls, val) && chs != 2) /* exclude LFE */
+		return 0;
+	mark_ctl_usage(spec->vol_ctls, val);
 	return __add_pb_vol_ctrl(codec->spec, ALC_CTL_WIDGET_VOL, pfx, cidx,
-				 HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT));
+				 val);
 }
 
 #define alc_auto_add_stereo_vol(codec, pfx, cidx, nid)	\
@@ -3026,6 +3046,7 @@ static int alc_auto_add_sw_ctl(struct hda_codec *codec,
 			     const char *pfx, int cidx,
 			     hda_nid_t nid, unsigned int chs)
 {
+	struct alc_spec *spec = codec->spec;
 	int wid_type;
 	int type;
 	unsigned long val;
@@ -3042,6 +3063,9 @@ static int alc_auto_add_sw_ctl(struct hda_codec *codec,
 		type = ALC_CTL_BIND_MUTE;
 		val = HDA_COMPOSE_AMP_VAL(nid, chs, 2, HDA_INPUT);
 	}
+	if (is_ctl_used(spec->sw_ctls, val) && chs != 2) /* exclude LFE */
+		return 0;
+	mark_ctl_usage(spec->sw_ctls, val);
 	return __add_pb_sw_ctrl(codec->spec, type, pfx, cidx, val);
 }
 
@@ -3136,12 +3160,16 @@ static int alc_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 	int err;
 
 	if (!dac) {
+		unsigned int val;
 		/* the corresponding DAC is already occupied */
 		if (!(get_wcaps(codec, pin) & AC_WCAP_OUT_AMP))
 			return 0; /* no way */
 		/* create a switch only */
-		return add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx,
-				   HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
+		val = HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT);
+		if (is_ctl_used(spec->sw_ctls, val))
+			return 0; /* already created */
+		mark_ctl_usage(spec->sw_ctls, val);
+		return add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx, val);
 	}
 
 	sw = alc_look_for_out_mute_nid(codec, pin, dac);
@@ -3186,8 +3214,12 @@ static int alc_auto_create_extra_outs(struct hda_codec *codec, int num_pins,
 	if (!num_pins || !pins[0])
 		return 0;
 
-	if (num_pins == 1)
-		return alc_auto_create_extra_out(codec, *pins, *dacs, pfx);
+	if (num_pins == 1) {
+		hda_nid_t dac = *dacs;
+		if (!dac)
+			dac = spec->multiout.dac_nids[0];
+		return alc_auto_create_extra_out(codec, *pins, dac, pfx);
+	}
 
 	if (dacs[num_pins - 1]) {
 		/* OK, we have a multi-output system with individual volumes */
