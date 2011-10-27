@@ -1227,7 +1227,7 @@ static int usbhsh_stop(struct usbhs_priv *priv)
 	return 0;
 }
 
-int __devinit usbhs_mod_host_probe(struct usbhs_priv *priv)
+int usbhs_mod_host_probe(struct usbhs_priv *priv)
 {
 	struct usbhsh_hpriv *hpriv;
 	struct usb_hcd *hcd;
@@ -1290,7 +1290,7 @@ usbhs_mod_host_probe_err:
 	return -ENOMEM;
 }
 
-int __devexit usbhs_mod_host_remove(struct usbhs_priv *priv)
+int usbhs_mod_host_remove(struct usbhs_priv *priv)
 {
 	struct usbhsh_hpriv *hpriv = usbhsh_priv_to_hpriv(priv);
 	struct usb_hcd *hcd = usbhsh_hpriv_to_hcd(hpriv);
