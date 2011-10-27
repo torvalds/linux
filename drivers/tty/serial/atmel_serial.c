@@ -48,7 +48,7 @@
 
 #ifdef CONFIG_ARM
 #include <mach/cpu.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 #endif
 
 #define PDC_BUFFER_SIZE		512

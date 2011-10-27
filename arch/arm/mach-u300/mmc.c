@@ -13,12 +13,12 @@
 #include <linux/device.h>
 #include <linux/amba/bus.h>
 #include <linux/mmc/host.h>
-#include <linux/gpio.h>
 #include <linux/dmaengine.h>
 #include <linux/amba/mmci.h>
 #include <linux/slab.h>
 #include <mach/coh901318.h>
 #include <mach/dma_channels.h>
+#include <mach/gpio-u300.h>
 
 #include "mmc.h"
 

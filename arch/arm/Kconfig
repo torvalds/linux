@@ -836,6 +836,7 @@ config ARCH_U300
 	select CLKDEV_LOOKUP
 	select HAVE_MACH_CLKDEV
 	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
 
