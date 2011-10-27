@@ -109,6 +109,7 @@ struct isci_port {
 	u8 logical_port_index;
 	u8 physical_port_index;
 	u8 active_phy_mask;
+	u8 last_active_phy;
 	u16 reserved_rni;
 	u16 reserved_tag;
 	u32 started_request_count;

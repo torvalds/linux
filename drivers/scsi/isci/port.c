@@ -350,6 +350,34 @@ static void isci_port_stop_complete(struct isci_host *ihost,
 	dev_dbg(&ihost->pdev->dev, "Port stop complete\n");
 }
 
+
+static bool is_port_ready_state(enum sci_port_states state)
+{
+	switch (state) {
+	case SCI_PORT_READY:
+	case SCI_PORT_SUB_WAITING:
+	case SCI_PORT_SUB_OPERATIONAL:
+	case SCI_PORT_SUB_CONFIGURING:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/* flag dummy rnc hanling when exiting a ready state */
+static void port_state_machine_change(struct isci_port *iport,
+				      enum sci_port_states state)
+{
+	struct sci_base_state_machine *sm = &iport->sm;
+	enum sci_port_states old_state = sm->current_state_id;
+
+	if (is_port_ready_state(old_state) && !is_port_ready_state(state))
+		iport->ready_exit = true;
+
+	sci_change_state(sm, state);
+	iport->ready_exit = false;
+}
+
 /**
  * isci_port_hard_reset_complete() - This function is called by the sci core
  *    when the hard reset complete notification has been received.
@@ -368,6 +396,26 @@ static void isci_port_hard_reset_complete(struct isci_port *isci_port,
 	/* Save the status of the hard reset from the port. */
 	isci_port->hard_reset_status = completion_status;
 
+	if (completion_status != SCI_SUCCESS) {
+
+		/* The reset failed.  The port state is now SCI_PORT_FAILED. */
+		if (isci_port->active_phy_mask == 0) {
+
+			/* Generate the link down now to the host, since it
+			 * was intercepted by the hard reset state machine when
+			 * it really happened.
+			 */
+			isci_port_link_down(isci_port->isci_host,
+					    &isci_port->isci_host->phys[
+						   isci_port->last_active_phy],
+					    isci_port);
+		}
+		/* Advance the port state so that link state changes will be
+		* noticed.
+		*/
+		port_state_machine_change(isci_port, SCI_PORT_SUB_WAITING);
+
+	}
 	complete_all(&isci_port->hard_reset_complete);
 }
 
@@ -657,6 +705,8 @@ void sci_port_deactivate_phy(struct isci_port *iport, struct isci_phy *iphy,
 	struct isci_host *ihost = iport->owning_controller;
 
 	iport->active_phy_mask &= ~(1 << iphy->phy_index);
+	if (!iport->active_phy_mask)
+		iport->last_active_phy = iphy->phy_index;
 
 	iphy->max_negotiated_speed = SAS_LINK_RATE_UNKNOWN;
 
@@ -681,33 +731,6 @@ static void sci_port_invalid_link_up(struct isci_port *iport, struct isci_phy *i
 		ihost->invalid_phy_mask |= 1 << iphy->phy_index;
 		dev_warn(&ihost->pdev->dev, "Invalid link up!\n");
 	}
-}
-
-static bool is_port_ready_state(enum sci_port_states state)
-{
-	switch (state) {
-	case SCI_PORT_READY:
-	case SCI_PORT_SUB_WAITING:
-	case SCI_PORT_SUB_OPERATIONAL:
-	case SCI_PORT_SUB_CONFIGURING:
-		return true;
-	default:
-		return false;
-	}
-}
-
-/* flag dummy rnc hanling when exiting a ready state */
-static void port_state_machine_change(struct isci_port *iport,
-				      enum sci_port_states state)
-{
-	struct sci_base_state_machine *sm = &iport->sm;
-	enum sci_port_states old_state = sm->current_state_id;
-
-	if (is_port_ready_state(old_state) && !is_port_ready_state(state))
-		iport->ready_exit = true;
-
-	sci_change_state(sm, state);
-	iport->ready_exit = false;
 }
 
 /**
@@ -1622,7 +1645,8 @@ void sci_port_construct(struct isci_port *iport, u8 index,
 	iport->logical_port_index  = SCIC_SDS_DUMMY_PORT;
 	iport->physical_port_index = index;
 	iport->active_phy_mask     = 0;
-	iport->ready_exit	      = false;
+	iport->last_active_phy     = 0;
+	iport->ready_exit	   = false;
 
 	iport->owning_controller = ihost;
 
@@ -1676,7 +1700,7 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 {
 	unsigned long flags;
 	enum sci_status status;
-	int idx, ret = TMF_RESP_FUNC_COMPLETE;
+	int ret = TMF_RESP_FUNC_COMPLETE;
 
 	dev_dbg(&ihost->pdev->dev, "%s: iport = %p\n",
 		__func__, iport);
@@ -1697,8 +1721,13 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 			"%s: iport = %p; hard reset completion\n",
 			__func__, iport);
 
-		if (iport->hard_reset_status != SCI_SUCCESS)
+		if (iport->hard_reset_status != SCI_SUCCESS) {
 			ret = TMF_RESP_FUNC_FAILED;
+
+			dev_err(&ihost->pdev->dev,
+				"%s: iport = %p; hard reset failed (0x%x)\n",
+				__func__, iport, iport->hard_reset_status);
+		}
 	} else {
 		ret = TMF_RESP_FUNC_FAILED;
 
@@ -1718,18 +1747,6 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 			"%s: iport = %p; hard reset failed "
 			"(0x%x) - driving explicit link fail for all phys\n",
 			__func__, iport, iport->hard_reset_status);
-
-		/* Down all phys in the port. */
-		spin_lock_irqsave(&ihost->scic_lock, flags);
-		for (idx = 0; idx < SCI_MAX_PHYS; ++idx) {
-			struct isci_phy *iphy = iport->phy_table[idx];
-
-			if (!iphy)
-				continue;
-			sci_phy_stop(iphy);
-			sci_phy_start(iphy);
-		}
-		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 	}
 	return ret;
 }
