@@ -97,30 +97,11 @@ nouveau_pwmfan_set(struct drm_device *dev, int percent)
 }
 
 static int
-nouveau_pm_clock_set(struct drm_device *dev, struct nouveau_pm_level *perflvl,
-		     u8 id, u32 khz)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	void *pre_state;
-
-	if (khz == 0)
-		return 0;
-
-	pre_state = pm->clock_pre(dev, perflvl, id, khz);
-	if (IS_ERR(pre_state))
-		return PTR_ERR(pre_state);
-
-	if (pre_state)
-		pm->clock_set(dev, pre_state);
-	return 0;
-}
-
-static int
 nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	void *state;
 	int ret;
 
 	if (perflvl == pm->cur)
@@ -144,18 +125,10 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		}
 	}
 
-	if (pm->clocks_pre) {
-		void *state = pm->clocks_pre(dev, perflvl);
-		if (IS_ERR(state))
-			return PTR_ERR(state);
-		pm->clocks_set(dev, state);
-	} else
-	if (pm->clock_set) {
-		nouveau_pm_clock_set(dev, perflvl, PLL_CORE, perflvl->core);
-		nouveau_pm_clock_set(dev, perflvl, PLL_SHADER, perflvl->shader);
-		nouveau_pm_clock_set(dev, perflvl, PLL_MEMORY, perflvl->memory);
-		nouveau_pm_clock_set(dev, perflvl, PLL_VDEC, perflvl->vdec);
-	}
+	state = pm->clocks_pre(dev, perflvl);
+	if (IS_ERR(state))
+		return PTR_ERR(state);
+	pm->clocks_set(dev, state);
 
 	pm->cur = perflvl;
 	return 0;
@@ -202,28 +175,9 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 
 	memset(perflvl, 0, sizeof(*perflvl));
 
-	if (pm->clocks_get) {
-		ret = pm->clocks_get(dev, perflvl);
-		if (ret)
-			return ret;
-	} else
-	if (pm->clock_get) {
-		ret = pm->clock_get(dev, PLL_CORE);
-		if (ret > 0)
-			perflvl->core = ret;
-
-		ret = pm->clock_get(dev, PLL_MEMORY);
-		if (ret > 0)
-			perflvl->memory = ret;
-
-		ret = pm->clock_get(dev, PLL_SHADER);
-		if (ret > 0)
-			perflvl->shader = ret;
-
-		ret = pm->clock_get(dev, PLL_VDEC);
-		if (ret > 0)
-			perflvl->vdec = ret;
-	}
+	ret = pm->clocks_get(dev, perflvl);
+	if (ret)
+		return ret;
 
 	if (pm->voltage.supported && pm->voltage_get) {
 		ret = pm->voltage_get(dev);
