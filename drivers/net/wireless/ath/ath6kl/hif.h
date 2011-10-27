@@ -69,6 +69,8 @@
 #define ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER      (16 * 1024)
 #define ATH6KL_SCATTER_REQS                       4
 
+#define ATH6KL_HIF_COMMUNICATION_TIMEOUT	1000
+
 struct bus_request {
 	struct list_head list;
 

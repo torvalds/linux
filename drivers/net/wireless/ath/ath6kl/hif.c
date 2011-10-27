@@ -485,6 +485,7 @@ out:
 int ath6kl_hif_intr_bh_handler(struct ath6kl *ar)
 {
 	struct ath6kl_device *dev = ar->htc_target->dev;
+	unsigned long timeout;
 	int status = 0;
 	bool done = false;
 
@@ -498,7 +499,8 @@ int ath6kl_hif_intr_bh_handler(struct ath6kl *ar)
 	 * IRQ processing is synchronous, interrupt status registers can be
 	 * re-read.
 	 */
-	while (!done) {
+	timeout = jiffies + msecs_to_jiffies(ATH6KL_HIF_COMMUNICATION_TIMEOUT);
+	while (time_before(jiffies, timeout) && !done) {
 		status = proc_pending_irqs(dev, &done);
 		if (status)
 			break;
