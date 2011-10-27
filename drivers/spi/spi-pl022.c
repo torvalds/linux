@@ -2187,6 +2187,13 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_err(&adev->dev, "could not retrieve SSP/SPI bus clock\n");
 		goto err_no_clk;
 	}
+
+	status = clk_prepare(pl022->clk);
+	if (status) {
+		dev_err(&adev->dev, "could not prepare SSP/SPI bus clock\n");
+		goto  err_clk_prep;
+	}
+
 	/* Disable SSP */
 	writew((readw(SSP_CR1(pl022->virtbase)) & (~SSP_CR1_MASK_SSE)),
 	       SSP_CR1(pl022->virtbase));
@@ -2238,6 +2245,8 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022_dma_remove(pl022);
 	free_irq(adev->irq[0], pl022);
  err_no_irq:
+	clk_unprepare(pl022->clk);
+ err_clk_prep:
 	clk_put(pl022->clk);
  err_no_clk:
 	iounmap(pl022->virtbase);
@@ -2271,6 +2280,7 @@ pl022_remove(struct amba_device *adev)
 	pl022_dma_remove(pl022);
 	free_irq(adev->irq[0], pl022);
 	clk_disable(pl022->clk);
+	clk_unprepare(pl022->clk);
 	clk_put(pl022->clk);
 	iounmap(pl022->virtbase);
 	amba_release_regions(adev);

@@ -460,9 +460,17 @@ static int amba_get_enable_pclk(struct amba_device *pcdev)
 	if (IS_ERR(pclk))
 		return PTR_ERR(pclk);
 
-	ret = clk_enable(pclk);
-	if (ret)
+	ret = clk_prepare(pclk);
+	if (ret) {
 		clk_put(pclk);
+		return ret;
+	}
+
+	ret = clk_enable(pclk);
+	if (ret) {
+		clk_unprepare(pclk);
+		clk_put(pclk);
+	}
 
 	return ret;
 }
@@ -472,6 +480,7 @@ static void amba_put_disable_pclk(struct amba_device *pcdev)
 	struct clk *pclk = pcdev->pclk;
 
 	clk_disable(pclk);
+	clk_unprepare(pclk);
 	clk_put(pclk);
 }
 
