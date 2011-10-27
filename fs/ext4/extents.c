@@ -754,29 +754,23 @@ static int ext4_ext_insert_index(handle_t *handle, struct inode *inode,
 		return -EIO;
 	}
 
-	len = EXT_MAX_INDEX(curp->p_hdr) - curp->p_idx;
 	if (logical > le32_to_cpu(curp->p_idx->ei_block)) {
 		/* insert after */
-		if (curp->p_idx != EXT_LAST_INDEX(curp->p_hdr)) {
-			len = (len - 1) * sizeof(struct ext4_extent_idx);
-			len = len < 0 ? 0 : len;
-			ext_debug("insert new index %d after: %llu. "
-					"move %d from 0x%p to 0x%p\n",
-					logical, ptr, len,
-					(curp->p_idx + 1), (curp->p_idx + 2));
-			memmove(curp->p_idx + 2, curp->p_idx + 1, len);
-		}
+		ext_debug("insert new index %d after: %llu\n", logical, ptr);
 		ix = curp->p_idx + 1;
 	} else {
 		/* insert before */
-		len = len * sizeof(struct ext4_extent_idx);
-		len = len < 0 ? 0 : len;
-		ext_debug("insert new index %d before: %llu. "
-				"move %d from 0x%p to 0x%p\n",
-				logical, ptr, len,
-				curp->p_idx, (curp->p_idx + 1));
-		memmove(curp->p_idx + 1, curp->p_idx, len);
+		ext_debug("insert new index %d before: %llu\n", logical, ptr);
 		ix = curp->p_idx;
+	}
+
+	len = EXT_LAST_INDEX(curp->p_hdr) - ix + 1;
+	BUG_ON(len < 0);
+	if (len > 0) {
+		ext_debug("insert new index %d: "
+				"move %d indices from 0x%p to 0x%p\n",
+				logical, len, ix, ix + 1);
+		memmove(ix + 1, ix, len * sizeof(struct ext4_extent_idx));
 	}
 
 	if (unlikely(ix > EXT_MAX_INDEX(curp->p_hdr))) {
@@ -1779,41 +1773,46 @@ has_space:
 				ext4_ext_pblock(newext),
 				ext4_ext_is_uninitialized(newext),
 				ext4_ext_get_actual_len(newext));
-		path[depth].p_ext = EXT_FIRST_EXTENT(eh);
-	} else if (le32_to_cpu(newext->ee_block)
+		nearex = EXT_FIRST_EXTENT(eh);
+	} else {
+		if (le32_to_cpu(newext->ee_block)
 			   > le32_to_cpu(nearex->ee_block)) {
-/*		BUG_ON(newext->ee_block == nearex->ee_block); */
-		if (nearex != EXT_LAST_EXTENT(eh)) {
-			len = EXT_MAX_EXTENT(eh) - nearex;
-			len = (len - 1) * sizeof(struct ext4_extent);
-			len = len < 0 ? 0 : len;
-			ext_debug("insert %d:%llu:[%d]%d after: nearest 0x%p, "
-					"move %d from 0x%p to 0x%p\n",
+			/* Insert after */
+			ext_debug("insert %d:%llu:[%d]%d %s before: "
+					"nearest 0x%p\n"
 					le32_to_cpu(newext->ee_block),
 					ext4_ext_pblock(newext),
 					ext4_ext_is_uninitialized(newext),
 					ext4_ext_get_actual_len(newext),
-					nearex, len, nearex + 1, nearex + 2);
-			memmove(nearex + 2, nearex + 1, len);
+					nearex);
+			nearex++;
+		} else {
+			/* Insert before */
+			BUG_ON(newext->ee_block == nearex->ee_block);
+			ext_debug("insert %d:%llu:[%d]%d %s after: "
+					"nearest 0x%p\n"
+					le32_to_cpu(newext->ee_block),
+					ext4_ext_pblock(newext),
+					ext4_ext_is_uninitialized(newext),
+					ext4_ext_get_actual_len(newext),
+					nearex);
 		}
-		path[depth].p_ext = nearex + 1;
-	} else {
-		BUG_ON(newext->ee_block == nearex->ee_block);
-		len = (EXT_MAX_EXTENT(eh) - nearex) * sizeof(struct ext4_extent);
-		len = len < 0 ? 0 : len;
-		ext_debug("insert %d:%llu:[%d]%d before: nearest 0x%p, "
-				"move %d from 0x%p to 0x%p\n",
-				le32_to_cpu(newext->ee_block),
-				ext4_ext_pblock(newext),
-				ext4_ext_is_uninitialized(newext),
-				ext4_ext_get_actual_len(newext),
-				nearex, len, nearex, nearex + 1);
-		memmove(nearex + 1, nearex, len);
-		path[depth].p_ext = nearex;
+		len = EXT_LAST_EXTENT(eh) - nearex + 1;
+		if (len > 0) {
+			ext_debug("insert %d:%llu:[%d]%d: "
+					"move %d extents from 0x%p to 0x%p\n",
+					le32_to_cpu(newext->ee_block),
+					ext4_ext_pblock(newext),
+					ext4_ext_is_uninitialized(newext),
+					ext4_ext_get_actual_len(newext),
+					len, nearex, nearex + 1);
+			memmove(nearex + 1, nearex,
+				len * sizeof(struct ext4_extent));
+		}
 	}
 
 	le16_add_cpu(&eh->eh_entries, 1);
-	nearex = path[depth].p_ext;
+	path[depth].p_ext = nearex;
 	nearex->ee_block = newext->ee_block;
 	ext4_ext_store_pblock(nearex, ext4_ext_pblock(newext));
 	nearex->ee_len = newext->ee_len;
