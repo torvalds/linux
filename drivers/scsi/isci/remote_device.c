@@ -1438,53 +1438,6 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 
 	return status == SCI_SUCCESS ? 0 : -ENODEV;
 }
-/**
- * isci_device_is_reset_pending() - This function will check if there is any
- *    pending reset condition on the device.
- * @request: This parameter is the isci_device object.
- *
- * true if there is a reset pending for the device.
- */
-bool isci_device_is_reset_pending(
-	struct isci_host *isci_host,
-	struct isci_remote_device *isci_device)
-{
-	struct isci_request *isci_request;
-	struct isci_request *tmp_req;
-	bool reset_is_pending = false;
-	unsigned long flags;
-
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_device = %p\n", __func__, isci_device);
-
-	spin_lock_irqsave(&isci_host->scic_lock, flags);
-
-	/* Check for reset on all pending requests. */
-	list_for_each_entry_safe(isci_request, tmp_req,
-				 &isci_device->reqs_in_process, dev_node) {
-		dev_dbg(&isci_host->pdev->dev,
-			"%s: isci_device = %p request = %p\n",
-			__func__, isci_device, isci_request);
-
-		if (isci_request->ttype == io_task) {
-			struct sas_task *task = isci_request_access_task(
-				isci_request);
-
-			spin_lock(&task->task_state_lock);
-			if (task->task_state_flags & SAS_TASK_NEED_DEV_RESET)
-				reset_is_pending = true;
-			spin_unlock(&task->task_state_lock);
-		}
-	}
-
-	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
-
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_device = %p reset_is_pending = %d\n",
-		__func__, isci_device, reset_is_pending);
-
-	return reset_is_pending;
-}
 
 /**
  * isci_device_clear_reset_pending() - This function will clear if any pending

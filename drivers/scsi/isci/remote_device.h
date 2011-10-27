@@ -132,8 +132,6 @@ void isci_remote_device_nuke_requests(struct isci_host *ihost,
 				      struct isci_remote_device *idev);
 void isci_remote_device_gone(struct domain_device *domain_dev);
 int isci_remote_device_found(struct domain_device *domain_dev);
-bool isci_device_is_reset_pending(struct isci_host *ihost,
-				  struct isci_remote_device *idev);
 void isci_device_clear_reset_pending(struct isci_host *ihost,
 				     struct isci_remote_device *idev);
 /**
