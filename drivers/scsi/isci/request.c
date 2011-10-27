@@ -2728,9 +2728,9 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	struct sas_task *task = isci_request_access_task(request);
 	struct ssp_response_iu *resp_iu;
 	unsigned long task_flags;
-	struct isci_remote_device *idev = isci_lookup_device(task->dev);
-	enum service_response response       = SAS_TASK_UNDELIVERED;
-	enum exec_status status         = SAS_ABORTED_TASK;
+	struct isci_remote_device *idev = request->target_device;
+	enum service_response response = SAS_TASK_UNDELIVERED;
+	enum exec_status status = SAS_ABORTED_TASK;
 	enum isci_request_status request_status;
 	enum isci_completion_selection complete_to_host
 		= isci_perform_normal_io_completion;
@@ -3061,7 +3061,6 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 
 	/* complete the io request to the core. */
 	sci_controller_complete_io(ihost, request->target_device, request);
-	isci_put_device(idev);
 
 	/* set terminated handle so it cannot be completed or
 	 * terminated again, and to cause any calls into abort
