@@ -47,10 +47,9 @@ void nouveau_mem_timing_init(struct drm_device *);
 void nouveau_mem_timing_fini(struct drm_device *);
 
 /* nv04_pm.c */
-int nv04_pm_clock_get(struct drm_device *, u32 id);
-void *nv04_pm_clock_pre(struct drm_device *, struct nouveau_pm_level *,
-			u32 id, int khz);
-void nv04_pm_clock_set(struct drm_device *, void *);
+int nv04_pm_clocks_get(struct drm_device *, struct nouveau_pm_level *);
+void *nv04_pm_clocks_pre(struct drm_device *, struct nouveau_pm_level *);
+int nv04_pm_clocks_set(struct drm_device *, void *);
 
 /* nv40_pm.c */
 int nv40_pm_clocks_get(struct drm_device *, struct nouveau_pm_level *);
