@@ -554,6 +554,8 @@ void ath6kl_core_free(struct ath6kl *ar)
 
 void ath6kl_core_cleanup(struct ath6kl *ar)
 {
+	ath6kl_hif_power_off(ar);
+
 	destroy_workqueue(ar->ath6kl_wq);
 
 	if (ar->htc_target)
@@ -1602,9 +1604,13 @@ int ath6kl_core_init(struct ath6kl *ar)
 	if (ret)
 		goto err_wq;
 
-	ret = ath6kl_bmi_get_target_info(ar, &targ_info);
+	ret = ath6kl_hif_power_on(ar);
 	if (ret)
 		goto err_bmi_cleanup;
+
+	ret = ath6kl_bmi_get_target_info(ar, &targ_info);
+	if (ret)
+		goto err_power_off;
 
 	ar->version.target_ver = le32_to_cpu(targ_info.version);
 	ar->target_type = le32_to_cpu(targ_info.type);
@@ -1612,17 +1618,17 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	ret = ath6kl_init_hw_params(ar);
 	if (ret)
-		goto err_bmi_cleanup;
+		goto err_power_off;
 
 	ret = ath6kl_configure_target(ar);
 	if (ret)
-		goto err_bmi_cleanup;
+		goto err_power_off;
 
 	ar->htc_target = ath6kl_htc_create(ar);
 
 	if (!ar->htc_target) {
 		ret = -ENOMEM;
-		goto err_bmi_cleanup;
+		goto err_power_off;
 	}
 
 	ret = ath6kl_fetch_firmwares(ar);
@@ -1641,6 +1647,8 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 err_htc_cleanup:
 	ath6kl_htc_cleanup(ar->htc_target);
+err_power_off:
+	ath6kl_hif_power_off(ar);
 err_bmi_cleanup:
 	ath6kl_bmi_cleanup(ar);
 err_wq:

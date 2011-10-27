@@ -96,4 +96,19 @@ static inline int ath6kl_hif_resume(struct ath6kl *ar)
 
 	return ar->hif_ops->resume(ar);
 }
+
+static inline int ath6kl_hif_power_on(struct ath6kl *ar)
+{
+	ath6kl_dbg(ATH6KL_DBG_HIF, "hif power on\n");
+
+	return ar->hif_ops->power_on(ar);
+}
+
+static inline int ath6kl_hif_power_off(struct ath6kl *ar)
+{
+	ath6kl_dbg(ATH6KL_DBG_HIF, "hif power off\n");
+
+	return ar->hif_ops->power_off(ar);
+}
+
 #endif

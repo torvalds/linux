@@ -463,8 +463,9 @@ static void ath6kl_sdio_irq_handler(struct sdio_func *func)
 	WARN_ON(status && status != -ECANCELED);
 }
 
-static int ath6kl_sdio_power_on(struct ath6kl_sdio *ar_sdio)
+static int ath6kl_sdio_power_on(struct ath6kl *ar)
 {
+	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
 	struct sdio_func *func = ar_sdio->func;
 	int ret = 0;
 
@@ -495,8 +496,9 @@ static int ath6kl_sdio_power_on(struct ath6kl_sdio *ar_sdio)
 	return ret;
 }
 
-static int ath6kl_sdio_power_off(struct ath6kl_sdio *ar_sdio)
+static int ath6kl_sdio_power_off(struct ath6kl *ar)
 {
+	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
 	int ret;
 
 	if (ar_sdio->is_disabled)
@@ -772,6 +774,8 @@ static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.cleanup_scatter = ath6kl_sdio_cleanup_scatter,
 	.suspend = ath6kl_sdio_suspend,
 	.resume = ath6kl_sdio_resume,
+	.power_on = ath6kl_sdio_power_on,
+	.power_off = ath6kl_sdio_power_off,
 };
 
 static int ath6kl_sdio_probe(struct sdio_func *func,
@@ -852,10 +856,6 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 
 	sdio_release_host(func);
 
-	ret = ath6kl_sdio_power_on(ar_sdio);
-	if (ret)
-		goto err_core_alloc;
-
 	sdio_claim_host(func);
 
 	ret = sdio_set_block_size(func, HIF_MBOX_BLOCK_SIZE);
@@ -863,7 +863,7 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 		ath6kl_err("Set sdio block size %d failed: %d)\n",
 			   HIF_MBOX_BLOCK_SIZE, ret);
 		sdio_release_host(func);
-		goto err_off;
+		goto err_hif;
 	}
 
 	sdio_release_host(func);
@@ -871,13 +871,11 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 	ret = ath6kl_core_init(ar);
 	if (ret) {
 		ath6kl_err("Failed to init ath6kl core\n");
-		goto err_off;
+		goto err_hif;
 	}
 
 	return ret;
 
-err_off:
-	ath6kl_sdio_power_off(ar_sdio);
 err_core_alloc:
 	ath6kl_core_free(ar_sdio->ar);
 err_dma:
@@ -902,8 +900,6 @@ static void ath6kl_sdio_remove(struct sdio_func *func)
 	cancel_work_sync(&ar_sdio->wr_async_work);
 
 	ath6kl_core_cleanup(ar_sdio->ar);
-
-	ath6kl_sdio_power_off(ar_sdio);
 
 	kfree(ar_sdio->dma_buffer);
 	kfree(ar_sdio);

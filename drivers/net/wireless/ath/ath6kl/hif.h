@@ -242,6 +242,8 @@ struct ath6kl_hif_ops {
 	void (*cleanup_scatter)(struct ath6kl *ar);
 	int (*suspend)(struct ath6kl *ar);
 	int (*resume)(struct ath6kl *ar);
+	int (*power_on)(struct ath6kl *ar);
+	int (*power_off)(struct ath6kl *ar);
 };
 
 int ath6kl_hif_setup(struct ath6kl_device *dev);
