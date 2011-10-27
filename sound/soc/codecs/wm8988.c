@@ -267,7 +267,7 @@ static const struct snd_kcontrol_new wm8988_monomux_controls =
 	SOC_DAPM_ENUM("Route", monomux);
 
 static const struct snd_soc_dapm_widget wm8988_dapm_widgets[] = {
-	SND_SOC_DAPM_MICBIAS("Mic Bias", WM8988_PWR1, 1, 0),
+	SND_SOC_DAPM_SUPPLY("Mic Bias", WM8988_PWR1, 1, 0, NULL, 0),
 
 	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_NOPM, 0, 0,
 		&wm8988_diffmux_controls),
