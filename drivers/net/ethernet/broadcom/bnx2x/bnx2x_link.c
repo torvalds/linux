@@ -45,6 +45,9 @@
 #define MCPR_IMC_COMMAND_READ_OP	1
 #define MCPR_IMC_COMMAND_WRITE_OP	2
 
+/* LED Blink rate that will achieve ~15.9Hz */
+#define LED_BLINK_RATE_VAL_E3		354
+#define LED_BLINK_RATE_VAL_E1X_E2	480
 /***********************************************************/
 /*			Shortcut definitions		   */
 /***********************************************************/
@@ -5954,8 +5957,12 @@ int bnx2x_set_led(struct link_params *params,
 
 		REG_WR(bp, NIG_REG_LED_CONTROL_OVERRIDE_TRAFFIC_P0 + port*4, 0);
 		/* Set blinking rate to ~15.9Hz */
-		REG_WR(bp, NIG_REG_LED_CONTROL_BLINK_RATE_P0 + port*4,
-		       LED_BLINK_RATE_VAL);
+		if (CHIP_IS_E3(bp))
+			REG_WR(bp, NIG_REG_LED_CONTROL_BLINK_RATE_P0 + port*4,
+			       LED_BLINK_RATE_VAL_E3);
+		else
+			REG_WR(bp, NIG_REG_LED_CONTROL_BLINK_RATE_P0 + port*4,
+			       LED_BLINK_RATE_VAL_E1X_E2);
 		REG_WR(bp, NIG_REG_LED_CONTROL_BLINK_RATE_ENA_P0 +
 		       port*4, 1);
 		tmp = EMAC_RD(bp, EMAC_REG_EMAC_LED);
