@@ -1438,38 +1438,3 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 
 	return status == SCI_SUCCESS ? 0 : -ENODEV;
 }
-
-/**
- * isci_device_clear_reset_pending() - This function will clear if any pending
- *    reset condition flags on the device.
- * @request: This parameter is the isci_device object.
- *
- * true if there is a reset pending for the device.
- */
-void isci_device_clear_reset_pending(struct isci_host *ihost, struct isci_remote_device *idev)
-{
-	struct isci_request *isci_request;
-	struct isci_request *tmp_req;
-	unsigned long flags = 0;
-
-	dev_dbg(&ihost->pdev->dev, "%s: idev=%p, ihost=%p\n",
-		 __func__, idev, ihost);
-
-	spin_lock_irqsave(&ihost->scic_lock, flags);
-
-	/* Clear reset pending on all pending requests. */
-	list_for_each_entry_safe(isci_request, tmp_req,
-				 &idev->reqs_in_process, dev_node) {
-		dev_dbg(&ihost->pdev->dev, "%s: idev = %p request = %p\n",
-			 __func__, idev, isci_request);
-
-		if (!test_bit(IREQ_TMF, &isci_request->flags)) {
-			struct sas_task *task = isci_request_access_task(isci_request);
-
-			spin_lock(&task->task_state_lock);
-			task->task_state_flags &= ~SAS_TASK_NEED_DEV_RESET;
-			spin_unlock(&task->task_state_lock);
-		}
-	}
-	spin_unlock_irqrestore(&ihost->scic_lock, flags);
-}

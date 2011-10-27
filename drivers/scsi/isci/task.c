@@ -1570,9 +1570,6 @@ static int isci_reset_device(struct isci_host *ihost,
 	}
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
-	/* Make sure all pending requests are able to be fully terminated. */
-	isci_device_clear_reset_pending(ihost, idev);
-
 	/* If this is a device on an expander, disable BCN processing. */
 	if (!scsi_is_sas_phy_local(phy))
 		set_bit(IPORT_BCN_BLOCKED, &iport->flags);
