@@ -325,7 +325,6 @@ void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent)
 		msg_set_bcgap_to(msg, n_ptr->bclink.deferred_head
 				 ? buf_seqno(n_ptr->bclink.deferred_head) - 1
 				 : n_ptr->bclink.last_sent);
-		msg_set_bcast_tag(msg, tipc_own_tag);
 
 		spin_lock_bh(&bc_lock);
 		tipc_bearer_send(&bcbearer->bearer, buf, NULL);

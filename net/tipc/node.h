@@ -114,8 +114,6 @@ static inline unsigned int tipc_hashfn(u32 addr)
 	return addr & (NODE_HTABLE_SIZE - 1);
 }
 
-extern u32 tipc_own_tag;
-
 struct tipc_node *tipc_node_find(u32 addr);
 struct tipc_node *tipc_node_create(u32 addr);
 void tipc_node_delete(struct tipc_node *n_ptr);

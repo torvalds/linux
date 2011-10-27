@@ -49,9 +49,8 @@ LIST_HEAD(tipc_node_list);
 static u32 tipc_num_nodes;
 
 static atomic_t tipc_num_links = ATOMIC_INIT(0);
-u32 tipc_own_tag;
 
-/**
+/*
  * tipc_node_find - locate specified node object, if it exists
  */
 
@@ -309,8 +308,6 @@ static void node_established_contact(struct tipc_node *n_ptr)
 	if (n_ptr->bclink.supportable) {
 		tipc_bclink_add_node(n_ptr->addr);
 		n_ptr->bclink.supported = 1;
-		if (n_ptr->addr < tipc_own_addr)
-			tipc_own_tag++;
 	}
 }
 
@@ -353,8 +350,6 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 
 		tipc_bclink_remove_node(n_ptr->addr);
 		tipc_bclink_acknowledge(n_ptr, INVALID_LINK_SEQ);
-		if (n_ptr->addr < tipc_own_addr)
-			tipc_own_tag--;
 
 		n_ptr->bclink.supported = 0;
 	}
