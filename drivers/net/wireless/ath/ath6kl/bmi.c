@@ -196,8 +196,6 @@ int ath6kl_bmi_done(struct ath6kl *ar)
 		return ret;
 	}
 
-	ath6kl_bmi_cleanup(ar);
-
 	return 0;
 }
 
