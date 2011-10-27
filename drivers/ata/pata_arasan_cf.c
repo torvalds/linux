@@ -922,8 +922,7 @@ static int __devexit arasan_cf_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int arasan_cf_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = dev_get_drvdata(dev);
 	struct arasan_cf_dev *acdev = host->ports[0]->private_data;
 
 	if (acdev->dma_chan) {
@@ -937,8 +936,7 @@ static int arasan_cf_suspend(struct device *dev)
 
 static int arasan_cf_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = dev_get_drvdata(dev);
 	struct arasan_cf_dev *acdev = host->ports[0]->private_data;
 
 	cf_init(acdev);

@@ -2,7 +2,7 @@
  *    pata_artop.c - ARTOP ATA controller driver
  *
  *	(C) 2006 Red Hat
- *	(C) 2007 Bartlomiej Zolnierkiewicz
+ *	(C) 2007,2011 Bartlomiej Zolnierkiewicz
  *
  *    Based in part on drivers/ide/pci/aec62xx.c
  *	Copyright (C) 1999-2002	Andre Hedrick <andre@linux-ide.org>
@@ -28,7 +28,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_artop"
-#define DRV_VERSION	"0.4.5"
+#define DRV_VERSION	"0.4.6"
 
 /*
  *	The ARTOP has 33 Mhz and "over clocked" timing tables. Until we
@@ -39,31 +39,15 @@
 
 static int clock = 0;
 
-static int artop6210_pre_reset(struct ata_link *link, unsigned long deadline)
-{
-	struct ata_port *ap = link->ap;
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	const struct pci_bits artop_enable_bits[] = {
-		{ 0x4AU, 1U, 0x02UL, 0x02UL },	/* port 0 */
-		{ 0x4AU, 1U, 0x04UL, 0x04UL },	/* port 1 */
-	};
-
-	if (!pci_test_config_bits(pdev, &artop_enable_bits[ap->port_no]))
-		return -ENOENT;
-
-	return ata_sff_prereset(link, deadline);
-}
-
 /**
- *	artop6260_pre_reset	-	check for 40/80 pin
+ *	artop62x0_pre_reset	-	probe begin
  *	@link: link
  *	@deadline: deadline jiffies for the operation
  *
- *	The ARTOP hardware reports the cable detect bits in register 0x49.
  *	Nothing complicated needed here.
  */
 
-static int artop6260_pre_reset(struct ata_link *link, unsigned long deadline)
+static int artop62x0_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	static const struct pci_bits artop_enable_bits[] = {
 		{ 0x4AU, 1U, 0x02UL, 0x02UL },	/* port 0 */
@@ -73,7 +57,7 @@ static int artop6260_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	/* Odd numbered device ids are the units with enable bits (the -R cards) */
+	/* Odd numbered device ids are the units with enable bits. */
 	if ((pdev->device & 1) &&
 	    !pci_test_config_bits(pdev, &artop_enable_bits[ap->port_no]))
 		return -ENOENT;
@@ -317,7 +301,7 @@ static struct ata_port_operations artop6210_ops = {
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= artop6210_set_piomode,
 	.set_dmamode		= artop6210_set_dmamode,
-	.prereset		= artop6210_pre_reset,
+	.prereset		= artop62x0_pre_reset,
 	.qc_defer		= artop6210_qc_defer,
 };
 
@@ -326,9 +310,36 @@ static struct ata_port_operations artop6260_ops = {
 	.cable_detect		= artop6260_cable_detect,
 	.set_piomode		= artop6260_set_piomode,
 	.set_dmamode		= artop6260_set_dmamode,
-	.prereset		= artop6260_pre_reset,
+	.prereset		= artop62x0_pre_reset,
 };
 
+static void atp8xx_fixup(struct pci_dev *pdev)
+{
+	if (pdev->device == 0x0005)
+		/* BIOS may have left us in UDMA, clear it before libata probe */
+		pci_write_config_byte(pdev, 0x54, 0);
+	else if (pdev->device == 0x0008 || pdev->device == 0x0009) {
+		u8 reg;
+
+		/* Mac systems come up with some registers not set as we
+		   will need them */
+
+		/* Clear reset & test bits */
+		pci_read_config_byte(pdev, 0x49, &reg);
+		pci_write_config_byte(pdev, 0x49, reg & ~0x30);
+
+		/* PCI latency must be > 0x80 for burst mode, tweak it
+		 * if required.
+		 */
+		pci_read_config_byte(pdev, PCI_LATENCY_TIMER, &reg);
+		if (reg <= 0x80)
+			pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x90);
+
+		/* Enable IRQ output and burst mode */
+		pci_read_config_byte(pdev, 0x4a, &reg);
+		pci_write_config_byte(pdev, 0x4a, (reg & ~0x01) | 0x80);
+	}
+}
 
 /**
  *	artop_init_one - Register ARTOP ATA PCI device with kernel services
@@ -383,41 +394,21 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	if (id->driver_data == 0) {	/* 6210 variant */
+	if (id->driver_data == 0)	/* 6210 variant */
 		ppi[0] = &info_6210;
-		/* BIOS may have left us in UDMA, clear it before libata probe */
-		pci_write_config_byte(pdev, 0x54, 0);
-	}
 	else if (id->driver_data == 1)	/* 6260 */
 		ppi[0] = &info_626x;
 	else if (id->driver_data == 2)	{ /* 6280 or 6280 + fast */
 		unsigned long io = pci_resource_start(pdev, 4);
-		u8 reg;
 
 		ppi[0] = &info_628x;
 		if (inb(io) & 0x10)
 			ppi[0] = &info_628x_fast;
-		/* Mac systems come up with some registers not set as we
-		   will need them */
-
-		/* Clear reset & test bits */
-		pci_read_config_byte(pdev, 0x49, &reg);
-		pci_write_config_byte(pdev, 0x49, reg & ~ 0x30);
-
-		/* PCI latency must be > 0x80 for burst mode, tweak it
-		 * if required.
-		 */
-		pci_read_config_byte(pdev, PCI_LATENCY_TIMER, &reg);
-		if (reg <= 0x80)
-			pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x90);
-
-		/* Enable IRQ output and burst mode */
-		pci_read_config_byte(pdev, 0x4a, &reg);
-		pci_write_config_byte(pdev, 0x4a, (reg & ~0x01) | 0x80);
-
 	}
 
 	BUG_ON(ppi[0] == NULL);
+
+	atp8xx_fixup(pdev);
 
 	return ata_pci_bmdma_init_one(pdev, ppi, &artop_sht, NULL, 0);
 }
@@ -432,11 +423,32 @@ static const struct pci_device_id artop_pci_tbl[] = {
 	{ }	/* terminate list */
 };
 
+#ifdef CONFIG_PM
+static int atp8xx_reinit_one(struct pci_dev *pdev)
+{
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
+	atp8xx_fixup(pdev);
+
+	ata_host_resume(host);
+	return 0;
+}
+#endif
+
 static struct pci_driver artop_pci_driver = {
 	.name			= DRV_NAME,
 	.id_table		= artop_pci_tbl,
 	.probe			= artop_init_one,
 	.remove			= ata_pci_remove_one,
+#ifdef CONFIG_PM
+	.suspend		= ata_pci_device_suspend,
+	.resume			= atp8xx_reinit_one,
+#endif
 };
 
 static int __init artop_init(void)
@@ -452,9 +464,8 @@ static void __exit artop_exit(void)
 module_init(artop_init);
 module_exit(artop_exit);
 
-MODULE_AUTHOR("Alan Cox");
+MODULE_AUTHOR("Alan Cox, Bartlomiej Zolnierkiewicz");
 MODULE_DESCRIPTION("SCSI low-level driver for ARTOP PATA");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, artop_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
-

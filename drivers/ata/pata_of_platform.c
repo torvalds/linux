@@ -11,6 +11,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/ata_platform.h>
 
@@ -57,11 +59,11 @@ static int __devinit pata_of_platform_probe(struct platform_device *ofdev)
 
 	prop = of_get_property(dn, "reg-shift", NULL);
 	if (prop)
-		reg_shift = *prop;
+		reg_shift = be32_to_cpup(prop);
 
 	prop = of_get_property(dn, "pio-mode", NULL);
 	if (prop) {
-		pio_mode = *prop;
+		pio_mode = be32_to_cpup(prop);
 		if (pio_mode > 6) {
 			dev_err(&ofdev->dev, "invalid pio-mode\n");
 			return -EINVAL;
