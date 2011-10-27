@@ -1932,10 +1932,16 @@ static int ath6kl_remain_on_channel(struct wiphy *wiphy,
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
+	u32 id;
 
 	/* TODO: if already pending or ongoing remain-on-channel,
 	 * return -EBUSY */
-	*cookie = 1; /* only a single pending request is supported */
+	id = ++vif->last_roc_id;
+	if (id == 0) {
+		/* Do not use 0 as the cookie value */
+		id = ++vif->last_roc_id;
+	}
+	*cookie = id;
 
 	return ath6kl_wmi_remain_on_chnl_cmd(ar->wmi, vif->fw_vif_idx,
 					     chan->center_freq, duration);
@@ -1948,8 +1954,9 @@ static int ath6kl_cancel_remain_on_channel(struct wiphy *wiphy,
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
 
-	if (cookie != 1)
+	if (cookie != vif->last_roc_id)
 		return -ENOENT;
+	vif->last_cancel_roc_id = cookie;
 
 	return ath6kl_wmi_cancel_remain_on_chnl_cmd(ar->wmi, vif->fw_vif_idx);
 }

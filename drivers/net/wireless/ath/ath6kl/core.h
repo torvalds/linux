@@ -427,6 +427,8 @@ struct ath6kl_vif {
 	struct cfg80211_scan_request *scan_req;
 	enum sme_state sme_state;
 	int reconnect_flag;
+	u32 last_roc_id;
+	u32 last_cancel_roc_id;
 	u32 send_action_id;
 	bool probe_req_report;
 	u16 next_chan;

@@ -443,6 +443,7 @@ static int ath6kl_wmi_remain_on_chnl_event_rx(struct wmi *wmi, u8 *datap,
 	u32 dur;
 	struct ieee80211_channel *chan;
 	struct ath6kl *ar = wmi->parent_dev;
+	u32 id;
 
 	if (len < sizeof(*ev))
 		return -EINVAL;
@@ -458,7 +459,8 @@ static int ath6kl_wmi_remain_on_chnl_event_rx(struct wmi *wmi, u8 *datap,
 			   "(freq=%u)\n", freq);
 		return -EINVAL;
 	}
-	cfg80211_ready_on_channel(vif->ndev, 1, chan, NL80211_CHAN_NO_HT,
+	id = vif->last_roc_id;
+	cfg80211_ready_on_channel(vif->ndev, id, chan, NL80211_CHAN_NO_HT,
 				  dur, GFP_ATOMIC);
 
 	return 0;
@@ -473,6 +475,7 @@ static int ath6kl_wmi_cancel_remain_on_chnl_event_rx(struct wmi *wmi,
 	u32 dur;
 	struct ieee80211_channel *chan;
 	struct ath6kl *ar = wmi->parent_dev;
+	u32 id;
 
 	if (len < sizeof(*ev))
 		return -EINVAL;
@@ -488,7 +491,13 @@ static int ath6kl_wmi_cancel_remain_on_chnl_event_rx(struct wmi *wmi,
 			   "channel (freq=%u)\n", freq);
 		return -EINVAL;
 	}
-	cfg80211_remain_on_channel_expired(vif->ndev, 1, chan,
+	if (vif->last_cancel_roc_id &&
+	    vif->last_cancel_roc_id + 1 == vif->last_roc_id)
+		id = vif->last_cancel_roc_id; /* event for cancel command */
+	else
+		id = vif->last_roc_id; /* timeout on uncanceled r-o-c */
+	vif->last_cancel_roc_id = 0;
+	cfg80211_remain_on_channel_expired(vif->ndev, id, chan,
 					   NL80211_CHAN_NO_HT, GFP_ATOMIC);
 
 	return 0;
