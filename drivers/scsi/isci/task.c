@@ -254,7 +254,7 @@ static enum sci_status isci_sata_management_task_request_build(struct isci_reque
 	struct isci_tmf *isci_tmf;
 	enum sci_status status;
 
-	if (tmf_task != ireq->ttype)
+	if (!test_bit(IREQ_TMF, &ireq->flags))
 		return SCI_FAILURE;
 
 	isci_tmf = isci_request_access_tmf(ireq);
@@ -352,18 +352,7 @@ static void isci_request_mark_zombie(struct isci_host *ihost, struct isci_reques
 	req_completion = ireq->io_request_completion;
 	ireq->io_request_completion = NULL;
 
-	if (ireq->ttype == io_task) {
-
-		/* Break links with the sas_task - the callback is done
-		 * elsewhere.
-		 */
-		struct sas_task *task = isci_request_access_task(ireq);
-
-		if (task)
-			task->lldd_task = NULL;
-
-		ireq->ttype_ptr.io_task_ptr = NULL;
-	} else {
+	if (test_bit(IREQ_TMF, &ireq->flags)) {
 		/* Break links with the TMF request. */
 		struct isci_tmf *tmf = isci_request_access_tmf(ireq);
 
@@ -380,6 +369,16 @@ static void isci_request_mark_zombie(struct isci_host *ihost, struct isci_reques
 		ireq->ttype_ptr.tmf_task_ptr = NULL;
 		dev_dbg(&ihost->pdev->dev, "%s: tmf_code %d, managed tag %#x\n",
 			__func__, tmf->tmf_code, tmf->io_tag);
+	} else {
+		/* Break links with the sas_task - the callback is done
+		 * elsewhere.
+		 */
+		struct sas_task *task = isci_request_access_task(ireq);
+
+		if (task)
+			task->lldd_task = NULL;
+
+		ireq->ttype_ptr.io_task_ptr = NULL;
 	}
 
 	dev_warn(&ihost->pdev->dev, "task context unrecoverable (tag: %#x)\n",
@@ -803,7 +802,9 @@ void isci_terminate_pending_requests(struct isci_host *ihost,
 		dev_dbg(&ihost->pdev->dev,
 			 "%s: idev=%p request=%p; task=%p old_state=%d\n",
 			 __func__, idev, ireq,
-			ireq->ttype == io_task ? isci_request_access_task(ireq) : NULL,
+			(!test_bit(IREQ_TMF, &ireq->flags)
+				? isci_request_access_task(ireq)
+				: NULL),
 			old_state);
 
 		/* If the old_state is started:

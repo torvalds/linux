@@ -1463,15 +1463,12 @@ void isci_device_clear_reset_pending(struct isci_host *ihost, struct isci_remote
 		dev_dbg(&ihost->pdev->dev, "%s: idev = %p request = %p\n",
 			 __func__, idev, isci_request);
 
-		if (isci_request->ttype == io_task) {
+		if (!test_bit(IREQ_TMF, &isci_request->flags)) {
+			struct sas_task *task = isci_request_access_task(isci_request);
 
-			unsigned long flags2;
-			struct sas_task *task = isci_request_access_task(
-				isci_request);
-
-			spin_lock_irqsave(&task->task_state_lock, flags2);
+			spin_lock(&task->task_state_lock);
 			task->task_state_flags &= ~SAS_TASK_NEED_DEV_RESET;
-			spin_unlock_irqrestore(&task->task_state_lock, flags2);
+			spin_unlock(&task->task_state_lock);
 		}
 	}
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
