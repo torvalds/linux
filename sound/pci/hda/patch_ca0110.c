@@ -476,7 +476,7 @@ static void parse_input(struct hda_codec *codec)
 		if (j >= cfg->num_inputs)
 			continue;
 		spec->input_pins[n] = pin;
-		spec->input_labels[n] = hda_get_input_pin_label(codec, pin, 1);
+		spec->input_labels[n] = snd_hda_get_pin_label(codec, pin, NULL);
 		spec->adcs[n] = nid;
 		n++;
 	}

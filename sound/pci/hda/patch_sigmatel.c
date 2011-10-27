@@ -2872,7 +2872,7 @@ static inline int stac92xx_add_jack_mode_control(struct hda_codec *codec,
 	}
 
 	if (control) {
-		strcpy(name, hda_get_input_pin_label(codec, nid, 1));
+		strcpy(name, snd_hda_get_pin_label(codec, nid, NULL));
 		return stac92xx_add_control(codec->spec, control,
 					strcat(name, " Jack Mode"), nid);
 	}
@@ -3563,7 +3563,7 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 		if (index < 0)
 			continue;
 
-		label = hda_get_input_pin_label(codec, nid, 1);
+		label = snd_hda_get_pin_label(codec, nid, NULL);
 		snd_hda_add_imux_item(dimux, label, index, &type_idx);
 		if (snd_hda_get_bool_hint(codec, "separate_dmux") != 1)
 			snd_hda_add_imux_item(imux, label, index, &type_idx);

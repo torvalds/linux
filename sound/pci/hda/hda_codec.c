@@ -5004,8 +5004,8 @@ EXPORT_SYMBOL_HDA(snd_hda_get_input_pin_attr);
  * "Rear", "Internal".
  */
 
-const char *hda_get_input_pin_label(struct hda_codec *codec, hda_nid_t pin,
-					int check_location)
+static const char *hda_get_input_pin_label(struct hda_codec *codec,
+					   hda_nid_t pin, bool check_location)
 {
 	unsigned int def_conf;
 	static const char * const mic_names[] = {
@@ -5044,7 +5044,6 @@ const char *hda_get_input_pin_label(struct hda_codec *codec, hda_nid_t pin,
 		return "Misc";
 	}
 }
-EXPORT_SYMBOL_HDA(hda_get_input_pin_label);
 
 /* Check whether the location prefix needs to be added to the label.
  * If all mic-jacks are in the same location (e.g. rear panel), we don't
@@ -5100,6 +5099,64 @@ const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 				       has_multiple_pins);
 }
 EXPORT_SYMBOL_HDA(hda_get_autocfg_input_label);
+
+/**
+ * snd_hda_get_pin_label - Get a label for the given I/O pin
+ *
+ * Get a label for the given pin.  This function works for both input and
+ * output pins.  When @cfg is given as non-NULL, the function tries to get
+ * an optimized label using hda_get_autocfg_input_label().
+ */
+const char *snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
+				  const struct auto_pin_cfg *cfg)
+{
+	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, nid);
+	int attr;
+	int i;
+
+	if (get_defcfg_connect(def_conf) == AC_JACK_PORT_NONE)
+		return NULL;
+
+	attr = snd_hda_get_input_pin_attr(def_conf);
+	switch (get_defcfg_device(def_conf)) {
+	case AC_JACK_LINE_OUT:
+		switch (attr) {
+		case INPUT_PIN_ATTR_INT:
+			return "Speaker";
+		case INPUT_PIN_ATTR_DOCK:
+			return "Dock Line-Out";
+		case INPUT_PIN_ATTR_FRONT:
+			return "Front Line-Out";
+		default:
+			return "Line-Out";
+		}
+	case AC_JACK_SPEAKER:
+		return "Speaker";
+	case AC_JACK_HP_OUT:
+		switch (attr) {
+		case INPUT_PIN_ATTR_DOCK:
+			return "Dock Headphone";
+		case INPUT_PIN_ATTR_FRONT:
+			return "Front Headphone";
+		default:
+			return "Headphone";
+		}
+	case AC_JACK_SPDIF_OUT:
+	case AC_JACK_DIG_OTHER_OUT:
+		if (get_defcfg_location(def_conf) == AC_JACK_LOC_HDMI)
+			return "HDMI";
+		else
+			return "SPDIF";
+	}
+
+	if (cfg) {
+		for (i = 0; i < cfg->num_inputs; i++)
+			if (cfg->inputs[i].pin == nid)
+				return hda_get_autocfg_input_label(codec, cfg, i);
+	}
+	return hda_get_input_pin_label(codec, nid, true);
+}
+EXPORT_SYMBOL_HDA(snd_hda_get_pin_label);
 
 /**
  * snd_hda_add_imux_item - Add an item to input_mux
