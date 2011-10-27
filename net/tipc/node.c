@@ -339,12 +339,12 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 	/* Flush broadcast link info associated with lost node */
 
 	if (n_ptr->bclink.supported) {
-		n_ptr->bclink.gap_after = n_ptr->bclink.gap_to = 0;
 		while (n_ptr->bclink.deferred_head) {
 			struct sk_buff *buf = n_ptr->bclink.deferred_head;
 			n_ptr->bclink.deferred_head = buf->next;
 			buf_discard(buf);
 		}
+		n_ptr->bclink.deferred_size = 0;
 
 		if (n_ptr->bclink.defragm) {
 			buf_discard(n_ptr->bclink.defragm);
@@ -450,7 +450,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 
 	read_lock_bh(&tipc_net_lock);
 
-	/* Get space for all unicast links + multicast link */
+	/* Get space for all unicast links + broadcast link */
 
 	payload_size = TLV_SPACE(sizeof(link_info)) *
 		(atomic_read(&tipc_num_links) + 1);

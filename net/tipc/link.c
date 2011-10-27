@@ -1501,14 +1501,13 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 		tipc_node_lock(n_ptr);
 
 		tipc_addr_string_fill(addr_string, n_ptr->addr);
-		info("Multicast link info for %s\n", addr_string);
+		info("Broadcast link info for %s\n", addr_string);
 		info("Supportable: %d,  ", n_ptr->bclink.supportable);
 		info("Supported: %d,  ", n_ptr->bclink.supported);
 		info("Acked: %u\n", n_ptr->bclink.acked);
 		info("Last in: %u,  ", n_ptr->bclink.last_in);
-		info("Gap after: %u,  ", n_ptr->bclink.gap_after);
-		info("Gap to: %u\n", n_ptr->bclink.gap_to);
-		info("Nack sync: %u\n\n", n_ptr->bclink.nack_sync);
+		info("Oos state: %u,  ", n_ptr->bclink.oos_state);
+		info("Last sent: %u\n", n_ptr->bclink.last_sent);
 
 		tipc_k_signal((Handler)link_reset_all, (unsigned long)n_ptr->addr);
 
@@ -1974,7 +1973,7 @@ void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ,
 
 	msg_set_type(msg, msg_typ);
 	msg_set_net_plane(msg, l_ptr->b_ptr->net_plane);
-	msg_set_bcast_ack(msg, mod(l_ptr->owner->bclink.last_in));
+	msg_set_bcast_ack(msg, l_ptr->owner->bclink.last_in);
 	msg_set_last_bcast(msg, tipc_bclink_get_last_sent());
 
 	if (msg_typ == STATE_MSG) {
@@ -2133,8 +2132,12 @@ static void link_recv_proto_msg(struct tipc_link *l_ptr, struct sk_buff *buf)
 
 		/* Synchronize broadcast link info, if not done previously */
 
-		if (!tipc_node_is_up(l_ptr->owner))
-			l_ptr->owner->bclink.last_in = msg_last_bcast(msg);
+		if (!tipc_node_is_up(l_ptr->owner)) {
+			l_ptr->owner->bclink.last_sent =
+				l_ptr->owner->bclink.last_in =
+				msg_last_bcast(msg);
+			l_ptr->owner->bclink.oos_state = 0;
+		}
 
 		l_ptr->peer_session = msg_session(msg);
 		l_ptr->peer_bearer_id = msg_bearer_id(msg);
@@ -2181,7 +2184,9 @@ static void link_recv_proto_msg(struct tipc_link *l_ptr, struct sk_buff *buf)
 
 		/* Protocol message before retransmits, reduce loss risk */
 
-		tipc_bclink_check_gap(l_ptr->owner, msg_last_bcast(msg));
+		if (l_ptr->owner->bclink.supported)
+			tipc_bclink_update_link_state(l_ptr->owner,
+						      msg_last_bcast(msg));
 
 		if (rec_gap || (msg_probe(msg))) {
 			tipc_link_send_proto_msg(l_ptr, STATE_MSG,
