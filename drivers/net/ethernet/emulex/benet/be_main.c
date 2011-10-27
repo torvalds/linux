@@ -229,27 +229,29 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct sockaddr *addr = p;
 	int status = 0;
+	u8 current_mac[ETH_ALEN];
+	u32 pmac_id = adapter->pmac_id;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	/* MAC addr configuration will be done in hardware for VFs
-	 * by their corresponding PFs. Just copy to netdev addr here
-	 */
-	if (!be_physfn(adapter))
-		goto netdev_addr;
-
-	status = be_cmd_pmac_del(adapter, adapter->if_handle,
-				adapter->pmac_id, 0);
+	status = be_cmd_mac_addr_query(adapter, current_mac,
+			MAC_ADDRESS_TYPE_NETWORK, false, adapter->if_handle);
 	if (status)
-		return status;
+		goto err;
 
-	status = be_cmd_pmac_add(adapter, (u8 *)addr->sa_data,
+	if (memcmp(addr->sa_data, current_mac, ETH_ALEN)) {
+		status = be_cmd_pmac_add(adapter, (u8 *)addr->sa_data,
 				adapter->if_handle, &adapter->pmac_id, 0);
-netdev_addr:
-	if (!status)
-		memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+		if (status)
+			goto err;
 
+		be_cmd_pmac_del(adapter, adapter->if_handle, pmac_id, 0);
+	}
+	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	return 0;
+err:
+	dev_err(&adapter->pdev->dev, "MAC %pM set Failed\n", addr->sa_data);
 	return status;
 }
 
