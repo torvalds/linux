@@ -899,7 +899,7 @@ retry:
 	drbd_send_sync_param(mdev, &mdev->sync_conf);
 	drbd_send_sizes(mdev, 0, 0);
 	drbd_send_uuids(mdev);
-	drbd_send_state(mdev);
+	drbd_send_current_state(mdev);
 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
 	clear_bit(RESIZE_PENDING, &mdev->flags);
 
@@ -3294,7 +3294,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 			/* Nowadays only used when forcing a node into primary role and
 			   setting its disk to UpToDate with that */
 			drbd_send_uuids(mdev);
-			drbd_send_state(mdev);
+			drbd_send_current_state(mdev);
 		}
 	}
 

@@ -432,7 +432,7 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 		/* if this was forced, we should consider sync */
 		if (forced)
 			drbd_send_uuids(mdev);
-		drbd_send_state(mdev);
+		drbd_send_current_state(mdev);
 	}
 
 	drbd_md_sync(mdev);
