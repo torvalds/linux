@@ -97,6 +97,39 @@ nouveau_pwmfan_set(struct drm_device *dev, int percent)
 }
 
 static int
+nouveau_pm_perflvl_aux(struct drm_device *dev, struct nouveau_pm_level *perflvl,
+		       struct nouveau_pm_level *a, struct nouveau_pm_level *b)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	int ret;
+
+	/*XXX: not on all boards, we should control based on temperature
+	 *     on recent boards..  or maybe on some other factor we don't
+	 *     know about?
+	 */
+	if (a->fanspeed && b->fanspeed && b->fanspeed > a->fanspeed) {
+		ret = nouveau_pwmfan_set(dev, perflvl->fanspeed);
+		if (ret && ret != -ENODEV) {
+			NV_ERROR(dev, "fanspeed set failed: %d\n", ret);
+			return ret;
+		}
+	}
+
+	if (pm->voltage.supported && pm->voltage_set) {
+		if (a->volt_min && b->volt_min && b->volt_min > a->volt_min) {
+			ret = pm->voltage_set(dev, perflvl->volt_min);
+			if (ret) {
+				NV_ERROR(dev, "voltage set failed: %d\n", ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int
 nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -107,28 +140,18 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	if (perflvl == pm->cur)
 		return 0;
 
-	/*XXX: not on all boards, we should control based on temperature
-	 *     on recent boards..  or maybe on some other factor we don't
-	 *     know about?
-	 */
-	if (perflvl->fanspeed) {
-		ret = nouveau_pwmfan_set(dev, perflvl->fanspeed);
-		if (ret && ret != -ENODEV)
-			NV_ERROR(dev, "set fanspeed failed: %d\n", ret);
-	}
-
-	if (pm->voltage.supported && pm->voltage_set && perflvl->volt_min) {
-		ret = pm->voltage_set(dev, perflvl->volt_min);
-		if (ret) {
-			NV_ERROR(dev, "voltage_set %d failed: %d\n",
-				 perflvl->volt_min, ret);
-		}
-	}
+	ret = nouveau_pm_perflvl_aux(dev, perflvl, pm->cur, perflvl);
+	if (ret)
+		return ret;
 
 	state = pm->clocks_pre(dev, perflvl);
 	if (IS_ERR(state))
 		return PTR_ERR(state);
 	pm->clocks_set(dev, state);
+
+	ret = nouveau_pm_perflvl_aux(dev, perflvl, perflvl, pm->cur);
+	if (ret)
+		return ret;
 
 	pm->cur = perflvl;
 	return 0;
