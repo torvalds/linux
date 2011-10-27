@@ -3211,11 +3211,8 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 	return ret;
 }
 
-static void ath6kl_wmi_qos_state_init(struct wmi *wmi)
+void ath6kl_wmi_reset(struct wmi *wmi)
 {
-	if (!wmi)
-		return;
-
 	spin_lock_bh(&wmi->lock);
 
 	wmi->fat_pipe_exist = 0;
@@ -3238,7 +3235,7 @@ void *ath6kl_wmi_init(struct ath6kl *dev)
 
 	wmi->pwr_mode = REC_POWER;
 
-	ath6kl_wmi_qos_state_init(wmi);
+	ath6kl_wmi_reset(wmi);
 
 	return wmi;
 }
