@@ -1313,8 +1313,6 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	struct manager_cache_data *mc;
 	int i;
 	struct omap_overlay *ovl;
-	int num_planes_enabled = 0;
-	bool use_fifomerge;
 	unsigned long flags;
 	int r;
 
@@ -1347,11 +1345,8 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 			continue;
 		}
 
-		if (!ovl->info_dirty) {
-			if (oc->enabled)
-				++num_planes_enabled;
+		if (!ovl->info_dirty)
 			continue;
-		}
 
 		dssdev = ovl->manager->device;
 
@@ -1375,8 +1370,6 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 		oc->channel = ovl->manager->id;
 
 		oc->enabled = true;
-
-		++num_planes_enabled;
 	}
 
 	/* Configure managers */
@@ -1406,21 +1399,6 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 			dssdev->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
 	}
 
-	/* XXX TODO: Try to get fifomerge working. The problem is that it
-	 * affects both managers, not individually but at the same time. This
-	 * means the change has to be well synchronized. I guess the proper way
-	 * is to have a two step process for fifo merge:
-	 *        fifomerge enable:
-	 *             1. disable other planes, leaving one plane enabled
-	 *             2. wait until the planes are disabled on HW
-	 *             3. config merged fifo thresholds, enable fifomerge
-	 *        fifomerge disable:
-	 *             1. config unmerged fifo thresholds, disable fifomerge
-	 *             2. wait until fifo changes are in HW
-	 *             3. enable planes
-	 */
-	use_fifomerge = false;
-
 	/* Configure overlay fifos */
 	for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
 		struct omap_dss_device *dssdev;
@@ -1436,8 +1414,6 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 		dssdev = ovl->manager->device;
 
 		size = dispc_ovl_get_fifo_size(ovl->id);
-		if (use_fifomerge)
-			size *= 3;
 
 		burst_size = dispc_ovl_get_burst_size(ovl->id);
 
