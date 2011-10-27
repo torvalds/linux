@@ -28,7 +28,9 @@
 #define HID_USAGE_Y_TILT		0x3e
 #define HID_USAGE_FINGER		0x22
 #define HID_USAGE_STYLUS		0x20
-#define HID_COLLECTION			0xc0
+#define HID_COLLECTION			0xa1
+#define HID_COLLECTION_LOGICAL		0x02
+#define HID_COLLECTION_END		0xc0
 
 enum {
 	WCM_UNDEFINED = 0,
@@ -165,6 +167,35 @@ static void wacom_close(struct input_dev *dev)
 		usb_autopm_put_interface(wacom->intf);
 }
 
+static int wacom_parse_logical_collection(unsigned char *report,
+					  struct wacom_features *features)
+{
+	int length = 0;
+
+	if (features->type == BAMBOO_PT) {
+
+		/* Logical collection is only used by 3rd gen Bamboo Touch */
+		features->pktlen = WACOM_PKGLEN_BBTOUCH3;
+		features->device_type = BTN_TOOL_DOUBLETAP;
+
+		/*
+		 * Stylus and Touch have same active area
+		 * so compute physical size based on stylus
+		 * data before its overwritten.
+		 */
+		features->x_phy =
+			(features->x_max * features->x_resolution) / 100;
+		features->y_phy =
+			(features->y_max * features->y_resolution) / 100;
+
+		features->x_max = features->y_max =
+			get_unaligned_le16(&report[10]);
+
+		length = 11;
+	}
+	return length;
+}
+
 /*
  * Interface Descriptor of wacom devices can be incomplete and
  * inconsistent so wacom_features table is used to store stylus
@@ -193,6 +224,10 @@ static void wacom_close(struct input_dev *dev)
  * X/Y maximum as well as the physical size of tablet. Since touch
  * interfaces haven't supported pressure or distance, this is enough
  * information to override invalid values in the wacom_features table.
+ *
+ * 3rd gen Bamboo Touch no longer define a Digitizer-Finger Pysical
+ * Collection. Instead they define a Logical Collection with a single
+ * Logical Maximum for both X and Y.
  */
 static int wacom_parse_hid(struct usb_interface *intf,
 			   struct hid_descriptor *hid_desc,
@@ -355,9 +390,19 @@ static int wacom_parse_hid(struct usb_interface *intf,
 			}
 			break;
 
-		case HID_COLLECTION:
+		case HID_COLLECTION_END:
 			/* reset UsagePage and Finger */
 			finger = usage = 0;
+			break;
+
+		case HID_COLLECTION:
+			i++;
+			switch (report[i]) {
+			case HID_COLLECTION_LOGICAL:
+				i += wacom_parse_logical_collection(&report[i],
+								    features);
+				break;
+			}
 			break;
 		}
 	}
