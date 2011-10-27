@@ -55,7 +55,7 @@ static unsigned int hw_read(struct snd_soc_codec *codec, unsigned int reg)
 		if (ret == 0)
 			return val;
 		else
-			return ret;
+			return -1;
 	}
 
 	ret = snd_soc_cache_read(codec, reg, &val);

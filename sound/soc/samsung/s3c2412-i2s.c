@@ -176,7 +176,7 @@ static __devexit int s3c2412_iis_dev_remove(struct platform_device *pdev)
 
 static struct platform_driver s3c2412_iis_driver = {
 	.probe  = s3c2412_iis_dev_probe,
-	.remove = s3c2412_iis_dev_remove,
+	.remove = __devexit_p(s3c2412_iis_dev_remove),
 	.driver = {
 		.name = "s3c2412-iis",
 		.owner = THIS_MODULE,

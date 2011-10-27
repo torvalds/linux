@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/88pm860x.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -772,11 +773,12 @@ static const struct snd_soc_dapm_widget pm860x_dapm_widgets[] = {
 
 
 	SND_SOC_DAPM_AIF_IN("I2S DIN", "I2S Playback", 0,
-			    PM860X_DAC_EN_2, 0, 0),
+			    SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("I2S DIN1", "I2S Playback", 0,
-			    PM860X_DAC_EN_2, 0, 0),
+			    SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("I2S DOUT", "I2S Capture", 0,
 			     PM860X_I2S_IFACE_3, 5, 1),
+	SND_SOC_DAPM_SUPPLY("I2S CLK", PM860X_DAC_EN_2, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MUX("I2S Mic Mux", SND_SOC_NOPM, 0, 0, &i2s_mic_mux),
 	SND_SOC_DAPM_MUX("ADC Left Mux", SND_SOC_NOPM, 0, 0, &adcl_mux),
 	SND_SOC_DAPM_MUX("ADC Right Mux", SND_SOC_NOPM, 0, 0, &adcr_mux),
@@ -867,6 +869,11 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Right ADC", NULL, "VCODEC"},
 	{"Left ADC", NULL, "Left ADC MOD"},
 	{"Right ADC", NULL, "Right ADC MOD"},
+
+	/* I2S Clock */
+	{"I2S DIN", NULL, "I2S CLK"},
+	{"I2S DIN1", NULL, "I2S CLK"},
+	{"I2S DOUT", NULL, "I2S CLK"},
 
 	/* PCM/AIF1 Inputs */
 	{"PCM SDO", NULL, "ADC Left Mux"},
@@ -1173,6 +1180,9 @@ static int pm860x_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* Enable Audio PLL & Audio section */
+			data = AUDIO_PLL | AUDIO_SECTION_ON;
+			pm860x_reg_write(codec->control_data, REG_MISC2, data);
+			udelay(300);
 			data = AUDIO_PLL | AUDIO_SECTION_RESET
 				| AUDIO_SECTION_ON;
 			pm860x_reg_write(codec->control_data, REG_MISC2, data);

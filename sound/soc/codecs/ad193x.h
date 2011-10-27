@@ -11,7 +11,7 @@
 
 #define AD193X_PLL_CLK_CTRL0    0x00
 #define AD193X_PLL_POWERDOWN           0x01
-#define AD193X_PLL_INPUT_MASK   (~0x6)
+#define AD193X_PLL_INPUT_MASK   0x6
 #define AD193X_PLL_INPUT_256    (0 << 1)
 #define AD193X_PLL_INPUT_384    (1 << 1)
 #define AD193X_PLL_INPUT_512    (2 << 1)

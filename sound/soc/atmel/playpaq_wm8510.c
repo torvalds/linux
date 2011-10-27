@@ -338,7 +338,6 @@ static int playpaq_wm8510_init(struct snd_soc_pcm_runtime *rtd)
 	/* always connected pins */
 	snd_soc_dapm_enable_pin(dapm, "Int Mic");
 	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
-	snd_soc_dapm_sync(dapm);
 
 
 

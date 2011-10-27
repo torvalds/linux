@@ -63,7 +63,7 @@ static struct snd_pcm_hardware sst_platform_pcm_hw = {
 };
 
 /* MFLD - MSIC */
-struct snd_soc_dai_driver sst_platform_dai[] = {
+static struct snd_soc_dai_driver sst_platform_dai[] = {
 {
 	.name = "Headset-cpu-dai",
 	.id = 0,

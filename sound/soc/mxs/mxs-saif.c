@@ -617,7 +617,7 @@ static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 
 static int mxs_saif_probe(struct platform_device *pdev)
 {
-	struct resource *res;
+	struct resource *iores, *dmares;
 	struct mxs_saif *saif;
 	struct mxs_saif_platform_data *pdata;
 	int ret = 0;
@@ -655,35 +655,36 @@ static int mxs_saif_probe(struct platform_device *pdev)
 		goto failed_clk;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
+	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!iores) {
 		ret = -ENODEV;
 		dev_err(&pdev->dev, "failed to get io resource: %d\n",
 			ret);
 		goto failed_get_resource;
 	}
 
-	if (!request_mem_region(res->start, resource_size(res), "mxs-saif")) {
+	if (!request_mem_region(iores->start, resource_size(iores),
+				"mxs-saif")) {
 		dev_err(&pdev->dev, "request_mem_region failed\n");
 		ret = -EBUSY;
 		goto failed_get_resource;
 	}
 
-	saif->base = ioremap(res->start, resource_size(res));
+	saif->base = ioremap(iores->start, resource_size(iores));
 	if (!saif->base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENODEV;
 		goto failed_ioremap;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!res) {
+	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (!dmares) {
 		ret = -ENODEV;
 		dev_err(&pdev->dev, "failed to get dma resource: %d\n",
 			ret);
 		goto failed_ioremap;
 	}
-	saif->dma_param.chan_num = res->start;
+	saif->dma_param.chan_num = dmares->start;
 
 	saif->irq = platform_get_irq(pdev, 0);
 	if (saif->irq < 0) {
@@ -742,7 +743,7 @@ failed_get_irq2:
 failed_get_irq1:
 	iounmap(saif->base);
 failed_ioremap:
-	release_mem_region(res->start, resource_size(res));
+	release_mem_region(iores->start, resource_size(iores));
 failed_get_resource:
 	clk_put(saif->clk);
 failed_clk:

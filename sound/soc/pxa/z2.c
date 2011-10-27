@@ -161,10 +161,6 @@ static int z2_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 	/* Set up z2 specific audio paths */
 	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	ret = snd_soc_dapm_sync(dapm);
-	if (ret)
-		goto err;
-
 	/* Jack detection API stuff */
 	ret = snd_soc_jack_new(codec, "Headset Jack", SND_JACK_HEADSET,
 				&hs_jack);

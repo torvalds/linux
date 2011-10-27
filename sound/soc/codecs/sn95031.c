@@ -102,7 +102,7 @@ static int sn95031_initialize_adc(struct snd_soc_codec *sn95031_codec)
 {
 	int base_addr, chnl_addr;
 	int value;
-	static int channel_index;
+	int channel_index;
 
 	/* Index of the first channel in which the stop bit is set */
 	channel_index = find_free_channel(sn95031_codec);
@@ -161,7 +161,6 @@ static unsigned int sn95031_get_mic_bias(struct snd_soc_codec *codec)
 	pr_debug("mic bias = %dmV\n", mic_bias);
 	return mic_bias;
 }
-EXPORT_SYMBOL_GPL(sn95031_get_mic_bias);
 /*end - adc helper functions */
 
 static inline unsigned int sn95031_read(struct snd_soc_codec *codec,
@@ -716,7 +715,7 @@ static struct snd_soc_dai_ops sn95031_vib2_dai_ops = {
 	.hw_params	= sn95031_pcm_hw_params,
 };
 
-struct snd_soc_dai_driver sn95031_dais[] = {
+static struct snd_soc_dai_driver sn95031_dais[] = {
 {
 	.name = "SN95031 Headset",
 	.playback = {
@@ -827,7 +826,6 @@ static int sn95031_codec_probe(struct snd_soc_codec *codec)
 {
 	pr_debug("codec_probe called\n");
 
-	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 	codec->dapm.idle_bias_off = 1;
 
 	/* PCM interface config

@@ -62,7 +62,7 @@ static int __exit txx9aclc_generic_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver txx9aclc_generic_driver = {
-	.remove = txx9aclc_generic_remove,
+	.remove = __exit_p(txx9aclc_generic_remove),
 	.driver = {
 		.name = "txx9aclc-generic",
 		.owner = THIS_MODULE,
