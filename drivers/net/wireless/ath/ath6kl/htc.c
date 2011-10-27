@@ -2598,6 +2598,10 @@ int ath6kl_htc_wait_target(struct htc_target *target)
 	status = ath6kl_htc_conn_service((void *)target, &connect, &resp);
 
 	if (status)
+		/*
+		 * FIXME: this call doesn't make sense, the caller should
+		 * call ath6kl_htc_cleanup() when it wants remove htc
+		 */
 		ath6kl_hif_cleanup_scatter(target->dev->ar);
 
 fail_wait_target:
