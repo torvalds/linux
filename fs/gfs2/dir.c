@@ -76,6 +76,8 @@
 #define IS_LEAF     1 /* Hashed (leaf) directory */
 #define IS_DINODE   2 /* Linear (stuffed dinode block) directory */
 
+#define MAX_RA_BLOCKS 32 /* max read-ahead blocks */
+
 #define gfs2_disk_hash2offset(h) (((u64)(h)) >> 1)
 #define gfs2_dir_offset2hash(p) ((u32)(((u64)(p)) << 1))
 
@@ -1376,6 +1378,50 @@ out:
 	return error;
 }
 
+/* gfs2_dir_readahead - Issue read-ahead requests for leaf blocks.
+ *
+ * Note: we can't calculate each index like dir_e_read can because we don't
+ * have the leaf, and therefore we don't have the depth, and therefore we
+ * don't have the length. So we have to just read enough ahead to make up
+ * for the loss of information. */
+static void gfs2_dir_readahead(struct inode *inode, unsigned hsize, u32 index,
+			       struct file_ra_state *f_ra)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_glock *gl = ip->i_gl;
+	struct buffer_head *bh;
+	u64 blocknr = 0, last;
+	unsigned count;
+
+	/* First check if we've already read-ahead for the whole range. */
+	if (!f_ra || index + MAX_RA_BLOCKS < f_ra->start)
+		return;
+
+	f_ra->start = max((pgoff_t)index, f_ra->start);
+	for (count = 0; count < MAX_RA_BLOCKS; count++) {
+		if (f_ra->start >= hsize) /* if exceeded the hash table */
+			break;
+
+		last = blocknr;
+		blocknr = be64_to_cpu(ip->i_hash_cache[f_ra->start]);
+		f_ra->start++;
+		if (blocknr == last)
+			continue;
+
+		bh = gfs2_getbuf(gl, blocknr, 1);
+		if (trylock_buffer(bh)) {
+			if (buffer_uptodate(bh)) {
+				unlock_buffer(bh);
+				brelse(bh);
+				continue;
+			}
+			bh->b_end_io = end_buffer_read_sync;
+			submit_bh(READA | REQ_META, bh);
+			continue;
+		}
+		brelse(bh);
+	}
+}
 
 /**
  * dir_e_read - Reads the entries from a directory into a filldir buffer
@@ -1388,7 +1434,7 @@ out:
  */
 
 static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
-		      filldir_t filldir)
+		      filldir_t filldir, struct file_ra_state *f_ra)
 {
 	struct gfs2_inode *dip = GFS2_I(inode);
 	u32 hsize, len = 0;
@@ -1402,9 +1448,13 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 	hash = gfs2_dir_offset2hash(*offset);
 	index = hash >> (32 - dip->i_depth);
 
+	if (f_ra && dip->i_hash_cache == NULL)
+		f_ra->start = 0;
 	lp = gfs2_dir_get_hash_table(dip);
 	if (IS_ERR(lp))
 		return PTR_ERR(lp);
+
+	gfs2_dir_readahead(inode, hsize, index, f_ra);
 
 	while (index < hsize) {
 		error = gfs2_dir_read_leaf(inode, offset, opaque, filldir,
@@ -1423,7 +1473,7 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 }
 
 int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
-		  filldir_t filldir)
+		  filldir_t filldir, struct file_ra_state *f_ra)
 {
 	struct gfs2_inode *dip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -1437,7 +1487,7 @@ int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 		return 0;
 
 	if (dip->i_diskflags & GFS2_DIF_EXHASH)
-		return dir_e_read(inode, offset, opaque, filldir);
+		return dir_e_read(inode, offset, opaque, filldir, f_ra);
 
 	if (!gfs2_is_stuffed(dip)) {
 		gfs2_consist_inode(dip);

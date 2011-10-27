@@ -105,7 +105,7 @@ static int gfs2_readdir(struct file *file, void *dirent, filldir_t filldir)
 		return error;
 	}
 
-	error = gfs2_dir_read(dir, &offset, dirent, filldir);
+	error = gfs2_dir_read(dir, &offset, dirent, filldir, &file->f_ra);
 
 	gfs2_glock_dq_uninit(&d_gh);
 
