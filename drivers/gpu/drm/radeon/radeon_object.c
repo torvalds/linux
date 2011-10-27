@@ -516,8 +516,7 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	return 0;
 }
 
-int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait,
-		   enum ttm_buffer_usage usage)
+int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 {
 	int r;
 
@@ -528,7 +527,7 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait,
 	if (mem_type)
 		*mem_type = bo->tbo.mem.mem_type;
 	if (bo->tbo.sync_obj)
-		r = ttm_bo_wait(&bo->tbo, true, true, no_wait, usage);
+		r = ttm_bo_wait(&bo->tbo, true, true, no_wait, false);
 	spin_unlock(&bo->tbo.bdev->fence_lock);
 	ttm_bo_unreserve(&bo->tbo);
 	return r;

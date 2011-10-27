@@ -98,7 +98,7 @@ static inline u64 radeon_bo_mmap_offset(struct radeon_bo *bo)
 }
 
 extern int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type,
-			  bool no_wait, enum ttm_buffer_usage usage);
+			  bool no_wait);
 
 extern int radeon_bo_create(struct radeon_device *rdev,
 				unsigned long size, int byte_align,
