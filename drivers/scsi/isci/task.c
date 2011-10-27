@@ -212,16 +212,27 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 					task->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 					spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-					/* Indicate QUEUE_FULL so that the scsi
-					* midlayer retries. if the request
-					* failed for remote device reasons,
-					* it gets returned as
-					* SAS_TASK_UNDELIVERED next time
-					* through.
-					*/
-					isci_task_refuse(ihost, task,
-							 SAS_TASK_COMPLETE,
-							 SAS_QUEUE_FULL);
+					if (test_bit(IDEV_GONE, &idev->flags)) {
+
+						/* Indicate that the device
+						 * is gone.
+						 */
+						isci_task_refuse(ihost, task,
+							SAS_TASK_UNDELIVERED,
+							SAS_DEVICE_UNKNOWN);
+					} else {
+						/* Indicate QUEUE_FULL so that
+						 * the scsi midlayer retries.
+						 * If the request failed for
+						 * remote device reasons, it
+						 * gets returned as
+						 * SAS_TASK_UNDELIVERED next
+						 * time through.
+						 */
+						isci_task_refuse(ihost, task,
+							SAS_TASK_COMPLETE,
+							SAS_QUEUE_FULL);
+					}
 				}
 			}
 		}
