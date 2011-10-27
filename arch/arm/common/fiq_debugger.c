@@ -1045,7 +1045,7 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 		pdata->fiq_enable(pdev, state->fiq, 1);
 	} else {
 		ret = request_irq(state->uart_irq, debug_uart_irq,
-				  0, "debug", state);
+				  IRQF_NO_SUSPEND, "debug", state);
 		if (ret) {
 			pr_err("%s: could not install irq handler\n", __func__);
 			goto err_register_irq;
