@@ -74,7 +74,7 @@ MODULE_PARM_DESC(limit, "Maximum number of grants that may be allocated by "
 		"the gntalloc device");
 
 static LIST_HEAD(gref_list);
-static DEFINE_SPINLOCK(gref_lock);
+static DEFINE_MUTEX(gref_mutex);
 static int gref_size;
 
 struct notify_info {
@@ -143,15 +143,15 @@ static int add_grefs(struct ioctl_gntalloc_alloc_gref *op,
 	}
 
 	/* Add to gref lists. */
-	spin_lock(&gref_lock);
+	mutex_lock(&gref_mutex);
 	list_splice_tail(&queue_gref, &gref_list);
 	list_splice_tail(&queue_file, &priv->list);
-	spin_unlock(&gref_lock);
+	mutex_unlock(&gref_mutex);
 
 	return 0;
 
 undo:
-	spin_lock(&gref_lock);
+	mutex_lock(&gref_mutex);
 	gref_size -= (op->count - i);
 
 	list_for_each_entry(gref, &queue_file, next_file) {
@@ -167,7 +167,7 @@ undo:
 	 */
 	if (unlikely(!list_empty(&queue_gref)))
 		list_splice_tail(&queue_gref, &gref_list);
-	spin_unlock(&gref_lock);
+	mutex_unlock(&gref_mutex);
 	return rc;
 }
 
@@ -251,7 +251,7 @@ static int gntalloc_release(struct inode *inode, struct file *filp)
 
 	pr_debug("%s: priv %p\n", __func__, priv);
 
-	spin_lock(&gref_lock);
+	mutex_lock(&gref_mutex);
 	while (!list_empty(&priv->list)) {
 		gref = list_entry(priv->list.next,
 			struct gntalloc_gref, next_file);
@@ -261,7 +261,7 @@ static int gntalloc_release(struct inode *inode, struct file *filp)
 			__del_gref(gref);
 	}
 	kfree(priv);
-	spin_unlock(&gref_lock);
+	mutex_unlock(&gref_mutex);
 
 	return 0;
 }
@@ -286,21 +286,21 @@ static long gntalloc_ioctl_alloc(struct gntalloc_file_private_data *priv,
 		goto out;
 	}
 
-	spin_lock(&gref_lock);
+	mutex_lock(&gref_mutex);
 	/* Clean up pages that were at zero (local) users but were still mapped
 	 * by remote domains. Since those pages count towards the limit that we
 	 * are about to enforce, removing them here is a good idea.
 	 */
 	do_cleanup();
 	if (gref_size + op.count > limit) {
-		spin_unlock(&gref_lock);
+		mutex_unlock(&gref_mutex);
 		rc = -ENOSPC;
 		goto out_free;
 	}
 	gref_size += op.count;
 	op.index = priv->index;
 	priv->index += op.count * PAGE_SIZE;
-	spin_unlock(&gref_lock);
+	mutex_unlock(&gref_mutex);
 
 	rc = add_grefs(&op, gref_ids, priv);
 	if (rc < 0)
@@ -343,7 +343,7 @@ static long gntalloc_ioctl_dealloc(struct gntalloc_file_private_data *priv,
 		goto dealloc_grant_out;
 	}
 
-	spin_lock(&gref_lock);
+	mutex_lock(&gref_mutex);
 	gref = find_grefs(priv, op.index, op.count);
 	if (gref) {
 		/* Remove from the file list only, and decrease reference count.
@@ -363,7 +363,7 @@ static long gntalloc_ioctl_dealloc(struct gntalloc_file_private_data *priv,
 
 	do_cleanup();
 
-	spin_unlock(&gref_lock);
+	mutex_unlock(&gref_mutex);
 dealloc_grant_out:
 	return rc;
 }
@@ -383,7 +383,7 @@ static long gntalloc_ioctl_unmap_notify(struct gntalloc_file_private_data *priv,
 	index = op.index & ~(PAGE_SIZE - 1);
 	pgoff = op.index & (PAGE_SIZE - 1);
 
-	spin_lock(&gref_lock);
+	mutex_lock(&gref_mutex);
 
 	gref = find_grefs(priv, index, 1);
 	if (!gref) {
@@ -400,8 +400,9 @@ static long gntalloc_ioctl_unmap_notify(struct gntalloc_file_private_data *priv,
 	gref->notify.pgoff = pgoff;
 	gref->notify.event = op.event_channel_port;
 	rc = 0;
+
  unlock_out:
-	spin_unlock(&gref_lock);
+	mutex_unlock(&gref_mutex);
 	return rc;
 }
 
@@ -433,9 +434,9 @@ static void gntalloc_vma_open(struct vm_area_struct *vma)
 	if (!gref)
 		return;
 
-	spin_lock(&gref_lock);
+	mutex_lock(&gref_mutex);
 	gref->users++;
-	spin_unlock(&gref_lock);
+	mutex_unlock(&gref_mutex);
 }
 
 static void gntalloc_vma_close(struct vm_area_struct *vma)
@@ -444,11 +445,11 @@ static void gntalloc_vma_close(struct vm_area_struct *vma)
 	if (!gref)
 		return;
 
-	spin_lock(&gref_lock);
+	mutex_lock(&gref_mutex);
 	gref->users--;
 	if (gref->users == 0)
 		__del_gref(gref);
-	spin_unlock(&gref_lock);
+	mutex_unlock(&gref_mutex);
 }
 
 static struct vm_operations_struct gntalloc_vmops = {
@@ -471,7 +472,7 @@ static int gntalloc_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	spin_lock(&gref_lock);
+	mutex_lock(&gref_mutex);
 	gref = find_grefs(priv, vma->vm_pgoff << PAGE_SHIFT, count);
 	if (gref == NULL) {
 		rv = -ENOENT;
@@ -499,7 +500,7 @@ static int gntalloc_mmap(struct file *filp, struct vm_area_struct *vma)
 	rv = 0;
 
 out_unlock:
-	spin_unlock(&gref_lock);
+	mutex_unlock(&gref_mutex);
 	return rv;
 }
 
