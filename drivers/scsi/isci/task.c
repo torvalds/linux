@@ -338,6 +338,61 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 	return ireq;
 }
 
+/**
+* isci_request_mark_zombie() - This function must be called with scic_lock held.
+*/
+static void isci_request_mark_zombie(struct isci_host *ihost, struct isci_request *ireq)
+{
+	struct completion *tmf_completion = NULL;
+	struct completion *req_completion;
+
+	/* Set the request state to "dead". */
+	ireq->status = dead;
+
+	req_completion = ireq->io_request_completion;
+	ireq->io_request_completion = NULL;
+
+	if (ireq->ttype == io_task) {
+
+		/* Break links with the sas_task - the callback is done
+		 * elsewhere.
+		 */
+		struct sas_task *task = isci_request_access_task(ireq);
+
+		if (task)
+			task->lldd_task = NULL;
+
+		ireq->ttype_ptr.io_task_ptr = NULL;
+	} else {
+		/* Break links with the TMF request. */
+		struct isci_tmf *tmf = isci_request_access_tmf(ireq);
+
+		/* In the case where a task request is dying,
+		 * the thread waiting on the complete will sit and
+		 * timeout unless we wake it now.  Since the TMF
+		 * has a default error status, complete it here
+		 * to wake the waiting thread.
+		 */
+		if (tmf) {
+			tmf_completion = tmf->complete;
+			tmf->complete = NULL;
+		}
+		ireq->ttype_ptr.tmf_task_ptr = NULL;
+		dev_dbg(&ihost->pdev->dev, "%s: tmf_code %d, managed tag %#x\n",
+			__func__, tmf->tmf_code, tmf->io_tag);
+	}
+
+	dev_warn(&ihost->pdev->dev, "task context unrecoverable (tag: %#x)\n",
+		 ireq->io_tag);
+
+	/* Don't force waiting threads to timeout. */
+	if (req_completion)
+		complete(req_completion);
+
+	if (tmf_completion != NULL)
+		complete(tmf_completion);
+}
+
 static int isci_task_execute_tmf(struct isci_host *ihost,
 				 struct isci_remote_device *idev,
 				 struct isci_tmf *tmf, unsigned long timeout_ms)
@@ -375,6 +430,7 @@ static int isci_task_execute_tmf(struct isci_host *ihost,
 
 	/* Assign the pointer to the TMF's completion kernel wait structure. */
 	tmf->complete = &completion;
+	tmf->status = SCI_FAILURE_TIMEOUT;
 
 	ireq = isci_task_request_build(ihost, idev, tag, tmf);
 	if (!ireq)
@@ -410,18 +466,35 @@ static int isci_task_execute_tmf(struct isci_host *ihost,
 					       msecs_to_jiffies(timeout_ms));
 
 	if (timeleft == 0) {
+		/* The TMF did not complete - this could be because
+		 * of an unplug.  Terminate the TMF request now.
+		 */
 		spin_lock_irqsave(&ihost->scic_lock, flags);
 
 		if (tmf->cb_state_func != NULL)
-			tmf->cb_state_func(isci_tmf_timed_out, tmf, tmf->cb_data);
+			tmf->cb_state_func(isci_tmf_timed_out, tmf,
+					   tmf->cb_data);
 
-		sci_controller_terminate_request(ihost,
-						  idev,
-						  ireq);
+		sci_controller_terminate_request(ihost, idev, ireq);
 
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
-		wait_for_completion(tmf->complete);
+		timeleft = wait_for_completion_timeout(
+			&completion,
+			msecs_to_jiffies(ISCI_TERMINATION_TIMEOUT_MSEC));
+
+		if (!timeleft) {
+			/* Strange condition - the termination of the TMF
+			 * request timed-out.
+			 */
+			spin_lock_irqsave(&ihost->scic_lock, flags);
+
+			/* If the TMF status has not changed, kill it. */
+			if (tmf->status == SCI_FAILURE_TIMEOUT)
+				isci_request_mark_zombie(ihost, ireq);
+
+			spin_unlock_irqrestore(&ihost->scic_lock, flags);
+		}
 	}
 
 	isci_print_tmf(tmf);
@@ -645,42 +718,27 @@ static void isci_terminate_request_core(struct isci_host *ihost,
 				__func__, isci_request, io_request_completion);
 
 			/* Wait here for the request to complete. */
-			#define TERMINATION_TIMEOUT_MSEC 500
 			termination_completed
 				= wait_for_completion_timeout(
 				   io_request_completion,
-				   msecs_to_jiffies(TERMINATION_TIMEOUT_MSEC));
+				   msecs_to_jiffies(ISCI_TERMINATION_TIMEOUT_MSEC));
 
 			if (!termination_completed) {
 
 				/* The request to terminate has timed out.  */
-				spin_lock_irqsave(&ihost->scic_lock,
-						  flags);
+				spin_lock_irqsave(&ihost->scic_lock, flags);
 
 				/* Check for state changes. */
-				if (!test_bit(IREQ_TERMINATED, &isci_request->flags)) {
+				if (!test_bit(IREQ_TERMINATED,
+					      &isci_request->flags)) {
 
 					/* The best we can do is to have the
 					 * request die a silent death if it
 					 * ever really completes.
-					 *
-					 * Set the request state to "dead",
-					 * and clear the task pointer so that
-					 * an actual completion event callback
-					 * doesn't do anything.
 					 */
-					isci_request->status = dead;
-					isci_request->io_request_completion
-						= NULL;
-
-					if (isci_request->ttype == io_task) {
-
-						/* Break links with the
-						* sas_task.
-						*/
-						isci_request->ttype_ptr.io_task_ptr
-							= NULL;
-					}
+					isci_request_mark_zombie(ihost,
+								 isci_request);
+					needs_cleanup_handling = true;
 				} else
 					termination_completed = 1;
 
@@ -1302,7 +1360,8 @@ isci_task_request_complete(struct isci_host *ihost,
 			   enum sci_task_status completion_status)
 {
 	struct isci_tmf *tmf = isci_request_access_tmf(ireq);
-	struct completion *tmf_complete;
+	struct completion *tmf_complete = NULL;
+	struct completion *request_complete = ireq->io_request_completion;
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: request = %p, status=%d\n",
@@ -1310,22 +1369,23 @@ isci_task_request_complete(struct isci_host *ihost,
 
 	isci_request_change_state(ireq, completed);
 
-	tmf->status = completion_status;
 	set_bit(IREQ_COMPLETE_IN_TARGET, &ireq->flags);
 
-	if (tmf->proto == SAS_PROTOCOL_SSP) {
-		memcpy(&tmf->resp.resp_iu,
-		       &ireq->ssp.rsp,
-		       SSP_RESP_IU_MAX_SIZE);
-	} else if (tmf->proto == SAS_PROTOCOL_SATA) {
-		memcpy(&tmf->resp.d2h_fis,
-		       &ireq->stp.rsp,
-		       sizeof(struct dev_to_host_fis));
+	if (tmf) {
+		tmf->status = completion_status;
+
+		if (tmf->proto == SAS_PROTOCOL_SSP) {
+			memcpy(&tmf->resp.resp_iu,
+			       &ireq->ssp.rsp,
+			       SSP_RESP_IU_MAX_SIZE);
+		} else if (tmf->proto == SAS_PROTOCOL_SATA) {
+			memcpy(&tmf->resp.d2h_fis,
+			       &ireq->stp.rsp,
+			       sizeof(struct dev_to_host_fis));
+		}
+		/* PRINT_TMF( ((struct isci_tmf *)request->task)); */
+		tmf_complete = tmf->complete;
 	}
-
-	/* PRINT_TMF( ((struct isci_tmf *)request->task)); */
-	tmf_complete = tmf->complete;
-
 	sci_controller_complete_io(ihost, ireq->target_device, ireq);
 	/* set the 'terminated' flag handle to make sure it cannot be terminated
 	 *  or completed again.
@@ -1343,8 +1403,13 @@ isci_task_request_complete(struct isci_host *ihost,
 		list_del_init(&ireq->dev_node);
 	}
 
+	/* "request_complete" is set if the task was being terminated. */
+	if (request_complete)
+		complete(request_complete);
+
 	/* The task management part completes last. */
-	complete(tmf_complete);
+	if (tmf_complete)
+		complete(tmf_complete);
 }
 
 static void isci_smp_task_timedout(unsigned long _task)

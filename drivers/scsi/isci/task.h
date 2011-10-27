@@ -58,6 +58,8 @@
 #include <scsi/sas_ata.h>
 #include "host.h"
 
+#define ISCI_TERMINATION_TIMEOUT_MSEC 500
+
 struct isci_request;
 
 /**
