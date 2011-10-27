@@ -505,21 +505,6 @@ int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid);
 int snd_hda_override_pin_caps(struct hda_codec *codec, hda_nid_t nid,
 			      unsigned int caps);
-u32 snd_hda_pin_sense(struct hda_codec *codec, hda_nid_t nid);
-int snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid);
-
-static inline bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid)
-{
-	if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_PRES_DETECT))
-		return false;
-	if (!codec->ignore_misc_bit &&
-	    (get_defcfg_misc(snd_hda_codec_get_pincfg(codec, nid)) &
-	     AC_DEFCFG_MISC_NO_PRESENCE))
-		return false;
-	if (!(get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP))
-		return false;
-	return true;
-}
 
 /* flags for hda_nid_item */
 #define HDA_NID_ITEM_AMP	(1<<0)

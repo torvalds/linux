@@ -37,6 +37,7 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 #include "hda_beep.h"
+#include "hda_jack.h"
 
 enum {
 	STAC_VREF_EVENT	= 1,
@@ -4244,9 +4245,7 @@ static int enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
 		if (tag < 0)
 			return 0;
 	}
-	snd_hda_codec_write_cache(codec, nid, 0,
-				  AC_VERB_SET_UNSOLICITED_ENABLE,
-				  AC_USRSP_EN | tag);
+	snd_hda_jack_detect_enable(codec, nid, tag);
 	return 1;
 }
 
@@ -4795,24 +4794,11 @@ static void stac92xx_mic_detect(struct hda_codec *codec)
 					  mic->mux_idx);
 }
 
-static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid)
-{
-	struct sigmatel_event *event = stac_get_event(codec, nid);
-	if (!event)
-		return;
-	codec->patch_ops.unsol_event(codec, (unsigned)event->tag << 26);
-}
-
-static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
+static void handle_unsol_event(struct hda_codec *codec,
+			       struct sigmatel_event *event)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	struct sigmatel_event *event;
-	int tag, data;
-
-	tag = (res >> 26) & 0x7f;
-	event = stac_get_event_from_tag(codec, tag);
-	if (!event)
-		return;
+	int data;
 
 	switch (event->type) {
 	case STAC_HP_EVENT:
@@ -4860,6 +4846,28 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 				    !!(data & (1 << event->data)));
 		break;
 	}
+}
+
+static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct sigmatel_event *event = stac_get_event(codec, nid);
+	if (!event)
+		return;
+	handle_unsol_event(codec, event);
+}
+
+static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	struct sigmatel_event *event;
+	int tag;
+
+	tag = (res >> 26) & 0x7f;
+	event = stac_get_event_from_tag(codec, tag);
+	if (!event)
+		return;
+	snd_hda_jack_set_dirty(codec, event->nid);
+	handle_unsol_event(codec, event);
 }
 
 static int hp_blike_system(u32 subsystem_id);

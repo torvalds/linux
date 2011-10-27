@@ -31,6 +31,7 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 #include "hda_beep.h"
+#include "hda_jack.h"
 
 #define CXT_PIN_DIR_IN              0x00
 #define CXT_PIN_DIR_OUT             0x01
@@ -3756,6 +3757,7 @@ static void cx_auto_automic(struct hda_codec *codec)
 static void cx_auto_unsol_event(struct hda_codec *codec, unsigned int res)
 {
 	int nid = (res & AC_UNSOL_RES_SUBTAG) >> 20;
+	snd_hda_jack_set_dirty(codec, nid);
 	switch (res >> 26) {
 	case CONEXANT_HP_EVENT:
 		cx_auto_hp_automute(codec);
@@ -3983,9 +3985,7 @@ static void enable_unsol_pins(struct hda_codec *codec, int num_pins,
 {
 	int i;
 	for (i = 0; i < num_pins; i++)
-		snd_hda_codec_write(codec, pins[i], 0,
-				    AC_VERB_SET_UNSOLICITED_ENABLE,
-				    AC_USRSP_EN | tag);
+		snd_hda_jack_detect_enable(codec, pins[i], tag);
 }
 
 static void cx_auto_init_output(struct hda_codec *codec)
@@ -4060,16 +4060,14 @@ static void cx_auto_init_input(struct hda_codec *codec)
 
 	if (spec->auto_mic) {
 		if (spec->auto_mic_ext >= 0) {
-			snd_hda_codec_write(codec,
-				cfg->inputs[spec->auto_mic_ext].pin, 0,
-				AC_VERB_SET_UNSOLICITED_ENABLE,
-				AC_USRSP_EN | CONEXANT_MIC_EVENT);
+			snd_hda_jack_detect_enable(codec,
+				cfg->inputs[spec->auto_mic_ext].pin,
+				CONEXANT_MIC_EVENT);
 		}
 		if (spec->auto_mic_dock >= 0) {
-			snd_hda_codec_write(codec,
-				cfg->inputs[spec->auto_mic_dock].pin, 0,
-				AC_VERB_SET_UNSOLICITED_ENABLE,
-				AC_USRSP_EN | CONEXANT_MIC_EVENT);
+			snd_hda_jack_detect_enable(codec,
+				cfg->inputs[spec->auto_mic_dock].pin,
+				CONEXANT_MIC_EVENT);
 		}
 		cx_auto_automic(codec);
 	} else {

@@ -36,6 +36,7 @@
 #include <sound/jack.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_jack.h"
 
 static bool static_hdmi_pcm;
 module_param(static_hdmi_pcm, bool, 0644);
@@ -766,6 +767,7 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	if (pin_idx < 0)
 		return;
 
+	snd_hda_jack_set_dirty(codec, pin_nid);
 	hdmi_present_sense(&spec->pins[pin_idx], true);
 }
 
@@ -1282,9 +1284,7 @@ static int generic_hdmi_init(struct hda_codec *codec)
 		struct hdmi_eld *eld = &per_pin->sink_eld;
 
 		hdmi_init_pin(codec, pin_nid);
-		snd_hda_codec_write(codec, pin_nid, 0,
-				    AC_VERB_SET_UNSOLICITED_ENABLE,
-				    AC_USRSP_EN | pin_nid);
+		snd_hda_jack_detect_enable(codec, pin_nid, pin_nid);
 
 		per_pin->codec = codec;
 		INIT_DELAYED_WORK(&per_pin->work, hdmi_repoll_eld);

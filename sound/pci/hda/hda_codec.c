@@ -33,6 +33,7 @@
 #include <sound/jack.h>
 #include "hda_local.h"
 #include "hda_beep.h"
+#include "hda_jack.h"
 #include <sound/hda_hwdep.h>
 
 #define CREATE_TRACE_POINTS
@@ -1723,43 +1724,6 @@ int snd_hda_override_pin_caps(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_HDA(snd_hda_override_pin_caps);
 
-/**
- * snd_hda_pin_sense - execute pin sense measurement
- * @codec: the CODEC to sense
- * @nid: the pin NID to sense
- *
- * Execute necessary pin sense measurement and return its Presence Detect,
- * Impedance, ELD Valid etc. status bits.
- */
-u32 snd_hda_pin_sense(struct hda_codec *codec, hda_nid_t nid)
-{
-	u32 pincap;
-
-	if (!codec->no_trigger_sense) {
-		pincap = snd_hda_query_pin_caps(codec, nid);
-		if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
-			snd_hda_codec_read(codec, nid, 0,
-					AC_VERB_SET_PIN_SENSE, 0);
-	}
-	return snd_hda_codec_read(codec, nid, 0,
-				  AC_VERB_GET_PIN_SENSE, 0);
-}
-EXPORT_SYMBOL_HDA(snd_hda_pin_sense);
-
-/**
- * snd_hda_jack_detect - query pin Presence Detect status
- * @codec: the CODEC to sense
- * @nid: the pin NID to sense
- *
- * Query and return the pin's Presence Detect status.
- */
-int snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid)
-{
-	u32 sense = snd_hda_pin_sense(codec, nid);
-	return !!(sense & AC_PINSENSE_PRESENCE);
-}
-EXPORT_SYMBOL_HDA(snd_hda_jack_detect);
-
 /*
  * read the current volume to info
  * if the cache exists, read the cache value.
@@ -2308,6 +2272,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	}
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
+	snd_hda_jack_tbl_clear(codec);
 	codec->proc_widget_hook = NULL;
 	codec->spec = NULL;
 	free_hda_cache(&codec->amp_cache);
@@ -3364,6 +3329,7 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 	restore_pincfgs(codec); /* restore all current pin configs */
 	restore_shutup_pins(codec);
 	hda_exec_init_verbs(codec);
+	snd_hda_jack_set_dirty_all(codec);
 	if (codec->patch_ops.resume)
 		codec->patch_ops.resume(codec);
 	else {

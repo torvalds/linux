@@ -29,6 +29,7 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 #include "hda_beep.h"
+#include "hda_jack.h"
 
 struct ad198x_spec {
 	const struct snd_kcontrol_new *mixers[6];
