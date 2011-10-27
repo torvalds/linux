@@ -313,7 +313,7 @@ static int __init init(void)
 	int err;
 
 	/* Lguest can't run under Xen, VMI or itself.  It does Tricky Stuff. */
-	if (paravirt_enabled()) {
+	if (get_kernel_rpl() != 0) {
 		printk("lguest is afraid of being a guest\n");
 		return -EPERM;
 	}
