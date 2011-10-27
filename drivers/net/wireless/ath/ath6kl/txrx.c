@@ -606,8 +606,9 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 
 			vif->net_stats.tx_errors++;
 
-			if (status != -ENOSPC)
-				ath6kl_err("tx error, status: 0x%x\n", status);
+			if (status != -ENOSPC && status != -ECANCELED)
+				ath6kl_warn("tx complete error: %d\n", status);
+
 			ath6kl_dbg(ATH6KL_DBG_WLAN_TX,
 				   "%s: skb=0x%p data=0x%p len=0x%x eid=%d %s\n",
 				   __func__, skb, packet->buf, packet->act_len,
