@@ -89,7 +89,6 @@ static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 	if (unlikely(val_node == sw_context->cur_val_buf)) {
 		val_buf->new_sync_obj_arg = NULL;
 		val_buf->bo = ttm_bo_reference(bo);
-		val_buf->usage = TTM_USAGE_READWRITE;
 		list_add_tail(&val_buf->head, &sw_context->validate_nodes);
 		++sw_context->cur_val_buf;
 	}

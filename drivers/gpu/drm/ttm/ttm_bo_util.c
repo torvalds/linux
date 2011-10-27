@@ -436,8 +436,6 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	atomic_set(&fbo->cpu_writers, 0);
 
 	fbo->sync_obj = driver->sync_obj_ref(bo->sync_obj);
-	fbo->sync_obj_read = driver->sync_obj_ref(bo->sync_obj_read);
-	fbo->sync_obj_write = driver->sync_obj_ref(bo->sync_obj_write);
 	kref_init(&fbo->list_kref);
 	kref_init(&fbo->kref);
 	fbo->destroy = &ttm_transfered_destroy;
@@ -620,30 +618,20 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;
 	struct ttm_buffer_object *ghost_obj;
-	void *tmp_obj = NULL, *tmp_obj_read = NULL, *tmp_obj_write = NULL;
+	void *tmp_obj = NULL;
 
 	spin_lock(&bdev->fence_lock);
-	if (bo->sync_obj)
+	if (bo->sync_obj) {
 		tmp_obj = bo->sync_obj;
-	if (bo->sync_obj_read)
-		tmp_obj_read = bo->sync_obj_read;
-	if (bo->sync_obj_write)
-		tmp_obj_write = bo->sync_obj_write;
-
+		bo->sync_obj = NULL;
+	}
 	bo->sync_obj = driver->sync_obj_ref(sync_obj);
-	bo->sync_obj_read = driver->sync_obj_ref(sync_obj);
-	bo->sync_obj_write = driver->sync_obj_ref(sync_obj);
 	bo->sync_obj_arg = sync_obj_arg;
 	if (evict) {
-		ret = ttm_bo_wait(bo, false, false, false,
-				  TTM_USAGE_READWRITE);
+		ret = ttm_bo_wait(bo, false, false, false);
 		spin_unlock(&bdev->fence_lock);
 		if (tmp_obj)
 			driver->sync_obj_unref(&tmp_obj);
-		if (tmp_obj_read)
-			driver->sync_obj_unref(&tmp_obj_read);
-		if (tmp_obj_write)
-			driver->sync_obj_unref(&tmp_obj_write);
 		if (ret)
 			return ret;
 
@@ -667,10 +655,6 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		spin_unlock(&bdev->fence_lock);
 		if (tmp_obj)
 			driver->sync_obj_unref(&tmp_obj);
-		if (tmp_obj_read)
-			driver->sync_obj_unref(&tmp_obj_read);
-		if (tmp_obj_write)
-			driver->sync_obj_unref(&tmp_obj_write);
 
 		ret = ttm_buffer_object_transfer(bo, &ghost_obj);
 		if (ret)

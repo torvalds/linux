@@ -244,7 +244,7 @@ static void vmw_dummy_query_bo_prepare(struct vmw_private *dev_priv)
 
 	ttm_bo_reserve(bo, false, false, false, 0);
 	spin_lock(&bdev->fence_lock);
-	ret = ttm_bo_wait(bo, false, false, false, TTM_USAGE_READWRITE);
+	ret = ttm_bo_wait(bo, false, false, false);
 	spin_unlock(&bdev->fence_lock);
 	if (unlikely(ret != 0))
 		(void) vmw_fallback_wait(dev_priv, false, true, 0, false,
