@@ -152,7 +152,7 @@ static void core_tmr_drain_tmr_list(
 	spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 
 	list_for_each_entry_safe(tmr_p, tmr_pp, &drain_tmr_list, tmr_list) {
-		list_del(&tmr_p->tmr_list);
+		list_del_init(&tmr_p->tmr_list);
 		cmd = tmr_p->task_cmd;
 
 		pr_debug("LUN_RESET: %s releasing TMR %p Function: 0x%02x,"
