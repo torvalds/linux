@@ -626,7 +626,7 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 	void __iomem *base, *op_reg_base;
 	u32	hcc_params, cap, val;
 	u8	offset, cap_length;
-	int	wait_time, delta, count = 256/4;
+	int	wait_time, count = 256/4;
 
 	if (!mmio_resource_enabled(pdev, 0))
 		return;
@@ -672,11 +672,10 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 		writel(val, op_reg_base + EHCI_USBCMD);
 
 		wait_time = 2000;
-		delta = 100;
 		do {
 			writel(0x3f, op_reg_base + EHCI_USBSTS);
-			udelay(delta);
-			wait_time -= delta;
+			udelay(100);
+			wait_time -= 100;
 			val = readl(op_reg_base + EHCI_USBSTS);
 			if ((val == ~(u32)0) || (val & EHCI_USBSTS_HALTED)) {
 				break;
