@@ -3770,6 +3770,7 @@ static void cx_auto_unsol_event(struct hda_codec *codec, unsigned int res)
 		snd_hda_input_jack_report(codec, nid);
 		break;
 	}
+	snd_hda_jack_report_sync(codec);
 }
 
 /* check whether the pin config is suitable for auto-mic switching;
@@ -4095,6 +4096,7 @@ static int cx_auto_init(struct hda_codec *codec)
 	cx_auto_init_output(codec);
 	cx_auto_init_input(codec);
 	cx_auto_init_digital(codec);
+	snd_hda_jack_report_sync(codec);
 	return 0;
 }
 

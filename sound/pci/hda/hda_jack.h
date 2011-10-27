@@ -15,7 +15,10 @@
 struct hda_jack_tbl {
 	hda_nid_t nid;
 	unsigned int pin_sense;		/* cached pin-sense value */
+	unsigned int jack_cachable:1;	/* can be updated via unsol events */
 	unsigned int jack_dirty:1;	/* needs to update? */
+	unsigned int need_notify:1;	/* to be notified? */
+	struct snd_kcontrol *kctl;	/* assigned kctl for jack-detection */
 };
 
 struct hda_jack_tbl *
@@ -59,5 +62,14 @@ static inline bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid)
 		return false;
 	return true;
 }
+
+int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
+			  const char *name, int idx);
+int snd_hda_jack_add_kctls(struct hda_codec *codec,
+			   const struct auto_pin_cfg *cfg);
+
+void snd_hda_jack_report(struct hda_codec *codec, hda_nid_t nid);
+void snd_hda_jack_report_sync(struct hda_codec *codec);
+
 
 #endif /* __SOUND_HDA_JACK_H */

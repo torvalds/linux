@@ -677,6 +677,7 @@ static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
 		alc_mic_automute(codec);
 		break;
 	}
+	snd_hda_jack_report_sync(codec);
 }
 
 /* call init functions of standard auto-mute helpers */
@@ -2054,6 +2055,10 @@ static int alc_build_controls(struct hda_codec *codec)
 
 	alc_free_kctls(codec); /* no longer needed */
 
+	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
+	if (err < 0)
+		return err;
+
 	return 0;
 }
 
@@ -2080,6 +2085,8 @@ static int alc_init(struct hda_codec *codec)
 		spec->init_hook(codec);
 
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_INIT);
+
+	snd_hda_jack_report_sync(codec);
 
 	hda_call_check_power_status(codec, 0x01);
 	return 0;

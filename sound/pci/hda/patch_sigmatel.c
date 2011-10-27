@@ -1212,6 +1212,10 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 			return err;
 	}
 
+	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
+	if (err < 0)
+		return err;
+
 	return 0;	
 }
 
@@ -4473,6 +4477,8 @@ static int stac92xx_init(struct hda_codec *codec)
 		stac_toggle_power_map(codec, nid, 0);
 	}
 
+	snd_hda_jack_report_sync(codec);
+
 	/* sync mute LED */
 	if (spec->gpio_led)
 		hda_call_check_power_status(codec, 0x01);
@@ -4868,6 +4874,7 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 		return;
 	snd_hda_jack_set_dirty(codec, event->nid);
 	handle_unsol_event(codec, event);
+	snd_hda_jack_report_sync(codec);
 }
 
 static int hp_blike_system(u32 subsystem_id);
