@@ -2656,6 +2656,44 @@ int ath6kl_htc_start(struct htc_target *target)
 	return status;
 }
 
+static int ath6kl_htc_reset(struct htc_target *target)
+{
+	u32 block_size, ctrl_bufsz;
+	struct htc_packet *packet;
+	int i;
+
+	reset_ep_state(target);
+
+	block_size = target->dev->ar->mbox_info.block_size;
+
+	ctrl_bufsz = (block_size > HTC_MAX_CTRL_MSG_LEN) ?
+		      (block_size + HTC_HDR_LENGTH) :
+		      (HTC_MAX_CTRL_MSG_LEN + HTC_HDR_LENGTH);
+
+	for (i = 0; i < NUM_CONTROL_BUFFERS; i++) {
+		packet = kzalloc(sizeof(*packet), GFP_KERNEL);
+		if (!packet)
+			return -ENOMEM;
+
+		packet->buf_start = kzalloc(ctrl_bufsz, GFP_KERNEL);
+		if (!packet->buf_start) {
+			kfree(packet);
+			return -ENOMEM;
+		}
+
+		packet->buf_len = ctrl_bufsz;
+		if (i < NUM_CONTROL_RX_BUFFERS) {
+			packet->act_len = 0;
+			packet->buf = packet->buf_start;
+			packet->endpoint = ENDPOINT_0;
+			list_add_tail(&packet->list, &target->free_ctrl_rxbuf);
+		} else
+			list_add_tail(&packet->list, &target->free_ctrl_txbuf);
+	}
+
+	return 0;
+}
+
 /* htc_stop: stop interrupt reception, and flush all queued buffers */
 void ath6kl_htc_stop(struct htc_target *target)
 {
@@ -2674,15 +2712,13 @@ void ath6kl_htc_stop(struct htc_target *target)
 
 	ath6kl_htc_flush_rx_buf(target);
 
-	reset_ep_state(target);
+	ath6kl_htc_reset(target);
 }
 
 void *ath6kl_htc_create(struct ath6kl *ar)
 {
 	struct htc_target *target = NULL;
-	struct htc_packet *packet;
-	int status = 0, i = 0;
-	u32 block_size, ctrl_bufsz;
+	int status = 0;
 
 	target = kzalloc(sizeof(*target), GFP_KERNEL);
 	if (!target) {
@@ -2694,7 +2730,7 @@ void *ath6kl_htc_create(struct ath6kl *ar)
 	if (!target->dev) {
 		ath6kl_err("unable to allocate memory\n");
 		status = -ENOMEM;
-		goto fail_create_htc;
+		goto err_htc_cleanup;
 	}
 
 	spin_lock_init(&target->htc_lock);
@@ -2709,49 +2745,20 @@ void *ath6kl_htc_create(struct ath6kl *ar)
 	target->dev->htc_cnxt = target;
 	target->ep_waiting = ENDPOINT_MAX;
 
-	reset_ep_state(target);
-
 	status = ath6kl_hif_setup(target->dev);
-
 	if (status)
-		goto fail_create_htc;
+		goto err_htc_cleanup;
 
-	block_size = ar->mbox_info.block_size;
-
-	ctrl_bufsz = (block_size > HTC_MAX_CTRL_MSG_LEN) ?
-		      (block_size + HTC_HDR_LENGTH) :
-		      (HTC_MAX_CTRL_MSG_LEN + HTC_HDR_LENGTH);
-
-	for (i = 0; i < NUM_CONTROL_BUFFERS; i++) {
-		packet = kzalloc(sizeof(*packet), GFP_KERNEL);
-		if (!packet)
-			break;
-
-		packet->buf_start = kzalloc(ctrl_bufsz, GFP_KERNEL);
-		if (!packet->buf_start) {
-			kfree(packet);
-			break;
-		}
-
-		packet->buf_len = ctrl_bufsz;
-		if (i < NUM_CONTROL_RX_BUFFERS) {
-			packet->act_len = 0;
-			packet->buf = packet->buf_start;
-			packet->endpoint = ENDPOINT_0;
-			list_add_tail(&packet->list, &target->free_ctrl_rxbuf);
-		} else
-			list_add_tail(&packet->list, &target->free_ctrl_txbuf);
-	}
-
-fail_create_htc:
-	if (i != NUM_CONTROL_BUFFERS || status) {
-		if (target) {
-			ath6kl_htc_cleanup(target);
-			target = NULL;
-		}
-	}
+	status = ath6kl_htc_reset(target);
+	if (status)
+		goto err_htc_cleanup;
 
 	return target;
+
+err_htc_cleanup:
+	ath6kl_htc_cleanup(target);
+
+	return NULL;
 }
 
 /* cleanup the HTC instance */
