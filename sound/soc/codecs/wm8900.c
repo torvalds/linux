@@ -513,7 +513,7 @@ SND_SOC_DAPM_MIXER("Right Input Mixer", WM8900_REG_POWER2, 4, 0,
 		   wm8900_rinmix_controls,
 		   ARRAY_SIZE(wm8900_rinmix_controls)),
 
-SND_SOC_DAPM_MICBIAS("Mic Bias", WM8900_REG_POWER1, 4, 0),
+SND_SOC_DAPM_SUPPLY("Mic Bias", WM8900_REG_POWER1, 4, 0, NULL, 0),
 
 SND_SOC_DAPM_ADC("ADCL", "Left HiFi Capture", WM8900_REG_POWER2, 1, 0),
 SND_SOC_DAPM_ADC("ADCR", "Right HiFi Capture", WM8900_REG_POWER2, 0, 0),
