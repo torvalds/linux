@@ -27,6 +27,7 @@
 #include <linux/highmem.h>
 #include <linux/hrtimer.h>
 #include <linux/backing-dev.h>
+#include <linux/bug.h>
 #include <linux/module.h>
 
 static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh);
@@ -1171,8 +1172,7 @@ out_unlock_bh:
 	jbd_unlock_bh_state(bh);
 out:
 	JBUFFER_TRACE(jh, "exit");
-	if (ret)
-		__WARN();	/* All errors are bugs, so dump the stack */
+	WARN_ON(ret);	/* All errors are bugs, so dump the stack */
 	return ret;
 }
 
