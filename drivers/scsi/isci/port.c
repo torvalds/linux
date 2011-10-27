@@ -145,48 +145,15 @@ static void sci_port_bcn_enable(struct isci_port *iport)
 	}
 }
 
-/* called under sci_lock to stabilize phy:port associations */
-void isci_port_bcn_enable(struct isci_host *ihost, struct isci_port *iport)
-{
-	int i;
-
-	clear_bit(IPORT_BCN_BLOCKED, &iport->flags);
-	wake_up(&ihost->eventq);
-
-	if (!test_and_clear_bit(IPORT_BCN_PENDING, &iport->flags))
-		return;
-
-	for (i = 0; i < ARRAY_SIZE(iport->phy_table); i++) {
-		struct isci_phy *iphy = iport->phy_table[i];
-
-		if (!iphy)
-			continue;
-
-		ihost->sas_ha.notify_port_event(&iphy->sas_phy,
-						PORTE_BROADCAST_RCVD);
-		break;
-	}
-}
-
 static void isci_port_bc_change_received(struct isci_host *ihost,
 					 struct isci_port *iport,
 					 struct isci_phy *iphy)
 {
-	if (iport && test_bit(IPORT_BCN_BLOCKED, &iport->flags)) {
-		dev_dbg(&ihost->pdev->dev,
-			"%s: disabled BCN; isci_phy = %p, sas_phy = %p\n",
-			__func__, iphy, &iphy->sas_phy);
-		set_bit(IPORT_BCN_PENDING, &iport->flags);
-		atomic_inc(&iport->event);
-		wake_up(&ihost->eventq);
-	} else {
-		dev_dbg(&ihost->pdev->dev,
-			"%s: isci_phy = %p, sas_phy = %p\n",
-			__func__, iphy, &iphy->sas_phy);
+	dev_dbg(&ihost->pdev->dev,
+		"%s: isci_phy = %p, sas_phy = %p\n",
+		__func__, iphy, &iphy->sas_phy);
 
-		ihost->sas_ha.notify_port_event(&iphy->sas_phy,
-						PORTE_BROADCAST_RCVD);
-	}
+	ihost->sas_ha.notify_port_event(&iphy->sas_phy, PORTE_BROADCAST_RCVD);
 	sci_port_bcn_enable(iport);
 }
 
@@ -278,9 +245,6 @@ static void isci_port_link_down(struct isci_host *isci_host,
 		/* check to see if this is the last phy on this port. */
 		if (isci_phy->sas_phy.port &&
 		    isci_phy->sas_phy.port->num_phys == 1) {
-			atomic_inc(&isci_port->event);
-			isci_port_bcn_enable(isci_host, isci_port);
-
 			/* change the state for all devices on this port.  The
 			 * next task sent to this device will be returned as
 			 * SAS_TASK_UNDELIVERED, and the scsi mid layer will
@@ -1672,7 +1636,6 @@ void isci_port_init(struct isci_port *iport, struct isci_host *ihost, int index)
 	init_completion(&iport->start_complete);
 	iport->isci_host = ihost;
 	isci_port_change_state(iport, isci_freed);
-	atomic_set(&iport->event, 0);
 }
 
 /**
