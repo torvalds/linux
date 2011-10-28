@@ -1082,7 +1082,7 @@ static int sdio_uart_probe(struct sdio_func *func,
 		return -ENOMEM;
 
 	if (func->class == SDIO_CLASS_UART) {
-		printk(KERN_WARNING "%s: need info on UART class basic setup\n",
+		pr_warning("%s: need info on UART class basic setup\n",
 		       sdio_func_id(func));
 		kfree(port);
 		return -ENOSYS;
@@ -1101,23 +1101,23 @@ static int sdio_uart_probe(struct sdio_func *func,
 				break;
 		}
 		if (!tpl) {
-			printk(KERN_WARNING
+			pr_warning(
        "%s: can't find tuple 0x91 subtuple 0 (SUBTPL_SIOREG) for GPS class\n",
 			       sdio_func_id(func));
 			kfree(port);
 			return -EINVAL;
 		}
-		printk(KERN_DEBUG "%s: Register ID = 0x%02x, Exp ID = 0x%02x\n",
+		pr_debug("%s: Register ID = 0x%02x, Exp ID = 0x%02x\n",
 		       sdio_func_id(func), tpl->data[2], tpl->data[3]);
 		port->regs_offset = (tpl->data[4] << 0) |
 				    (tpl->data[5] << 8) |
 				    (tpl->data[6] << 16);
-		printk(KERN_DEBUG "%s: regs offset = 0x%x\n",
+		pr_debug("%s: regs offset = 0x%x\n",
 		       sdio_func_id(func), port->regs_offset);
 		port->uartclk = tpl->data[7] * 115200;
 		if (port->uartclk == 0)
 			port->uartclk = 115200;
-		printk(KERN_DEBUG "%s: clk %d baudcode %u 4800-div %u\n",
+		pr_debug("%s: clk %d baudcode %u 4800-div %u\n",
 		       sdio_func_id(func), port->uartclk,
 		       tpl->data[7], tpl->data[8] | (tpl->data[9] << 8));
 	} else {

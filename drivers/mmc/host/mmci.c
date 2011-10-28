@@ -466,7 +466,7 @@ static void mmci_get_next_data(struct mmci_host *host, struct mmc_data *data)
 	struct mmci_host_next *next = &host->next_data;
 
 	if (data->host_cookie && data->host_cookie != next->cookie) {
-		printk(KERN_WARNING "[%s] invalid cookie: data->host_cookie %d"
+		pr_warning("[%s] invalid cookie: data->host_cookie %d"
 		       " host->next_data.cookie %d\n",
 		       __func__, data->host_cookie, host->next_data.cookie);
 		data->host_cookie = 0;
@@ -531,7 +531,7 @@ static void mmci_post_request(struct mmc_host *mmc, struct mmc_request *mrq,
 	if (chan) {
 		if (err)
 			dmaengine_terminate_all(chan);
-		if (err || data->host_cookie)
+		if (data->host_cookie)
 			dma_unmap_sg(mmc_dev(host->mmc), data->sg,
 				     data->sg_len, dir);
 		mrq->data->host_cookie = 0;
