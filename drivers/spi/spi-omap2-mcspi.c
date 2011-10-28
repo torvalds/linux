@@ -121,6 +121,7 @@ struct omap2_mcspi {
 	/* SPI1 has 4 channels, while SPI2 has 2 */
 	struct omap2_mcspi_dma	*dma_channels;
 	struct  device		*dev;
+	struct workqueue_struct *wq;
 };
 
 struct omap2_mcspi_cs {
@@ -142,8 +143,6 @@ struct omap2_mcspi_regs {
 };
 
 static struct omap2_mcspi_regs omap2_mcspi_ctx[OMAP2_MCSPI_MAX_CTRL];
-
-static struct workqueue_struct *omap2_mcspi_wq;
 
 #define MOD_REG_BIT(val, mask, set) do { \
 	if (set) \
@@ -1043,7 +1042,7 @@ static int omap2_mcspi_transfer(struct spi_device *spi, struct spi_message *m)
 
 	spin_lock_irqsave(&mcspi->lock, flags);
 	list_add_tail(&m->queue, &mcspi->msg_queue);
-	queue_work(omap2_mcspi_wq, &mcspi->work);
+	queue_work(mcspi->wq, &mcspi->work);
 	spin_unlock_irqrestore(&mcspi->lock, flags);
 
 	return 0;
@@ -1088,6 +1087,7 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 	struct omap2_mcspi	*mcspi;
 	struct resource		*r;
 	int			status = 0, i;
+	char			wq_name[20];
 
 	master = spi_alloc_master(&pdev->dev, sizeof *mcspi);
 	if (master == NULL) {
@@ -1110,6 +1110,13 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 
 	mcspi = spi_master_get_devdata(master);
 	mcspi->master = master;
+
+	sprintf(wq_name, "omap2_mcspi/%d", master->bus_num);
+	mcspi->wq = alloc_workqueue(wq_name, WQ_MEM_RECLAIM, 1);
+	if (mcspi->wq == NULL) {
+		status = -ENOMEM;
+		goto err1;
+	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
@@ -1217,6 +1224,7 @@ static int __exit omap2_mcspi_remove(struct platform_device *pdev)
 	spi_unregister_master(master);
 	iounmap(base);
 	kfree(dma_channels);
+	destroy_workqueue(mcspi->wq);
 
 	return 0;
 }
@@ -1275,10 +1283,6 @@ static struct platform_driver omap2_mcspi_driver = {
 
 static int __init omap2_mcspi_init(void)
 {
-	omap2_mcspi_wq = create_singlethread_workqueue(
-				omap2_mcspi_driver.driver.name);
-	if (omap2_mcspi_wq == NULL)
-		return -1;
 	return platform_driver_probe(&omap2_mcspi_driver, omap2_mcspi_probe);
 }
 subsys_initcall(omap2_mcspi_init);
@@ -1287,7 +1291,6 @@ static void __exit omap2_mcspi_exit(void)
 {
 	platform_driver_unregister(&omap2_mcspi_driver);
 
-	destroy_workqueue(omap2_mcspi_wq);
 }
 module_exit(omap2_mcspi_exit);
 
