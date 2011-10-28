@@ -1079,7 +1079,9 @@ attach_cmd:
 	 */
 	if (!cmd->immediate_data) {
 		cmdsn_ret = iscsit_sequence_cmd(conn, cmd, hdr->cmdsn);
-		if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
+		if (cmdsn_ret == CMDSN_LOWER_THAN_EXP)
+			return 0;
+		else if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
 			return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_PROTOCOL_ERROR,
 				1, 0, buf, cmd);
