@@ -115,15 +115,15 @@ nv50_pm_clock_set(struct drm_device *dev, void *pre_state)
 	    BIT_M.version == 1 && BIT_M.length >= 0x0b) {
 		script = ROM16(BIT_M.data[0x05]);
 		if (script)
-			nouveau_bios_run_init_table(dev, script, NULL);
+			nouveau_bios_run_init_table(dev, script, NULL, -1);
 		script = ROM16(BIT_M.data[0x07]);
 		if (script)
-			nouveau_bios_run_init_table(dev, script, NULL);
+			nouveau_bios_run_init_table(dev, script, NULL, -1);
 		script = ROM16(BIT_M.data[0x09]);
 		if (script)
-			nouveau_bios_run_init_table(dev, script, NULL);
+			nouveau_bios_run_init_table(dev, script, NULL, -1);
 
-		nouveau_bios_run_init_table(dev, perflvl->memscript, NULL);
+		nouveau_bios_run_init_table(dev, perflvl->memscript, NULL, -1);
 	}
 
 	if (state->type == PLL_MEMORY) {

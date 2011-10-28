@@ -107,11 +107,8 @@ int drm_debugfs_create_files(struct drm_info_list *files, int count,
 		ent = debugfs_create_file(files[i].name, S_IFREG | S_IRUGO,
 					  root, tmp, &drm_debugfs_fops);
 		if (!ent) {
-			char name[64];
-			strncpy(name, root->d_name.name,
-						min(root->d_name.len, 64U));
 			DRM_ERROR("Cannot create /sys/kernel/debug/dri/%s/%s\n",
-				  name, files[i].name);
+				  root->d_name.name, files[i].name);
 			kfree(tmp);
 			ret = -1;
 			goto fail;

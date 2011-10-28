@@ -117,6 +117,8 @@ io_mapping_unmap(void __iomem *vaddr)
 
 #else
 
+#include <linux/uaccess.h>
+
 /* this struct isn't actually defined anywhere */
 struct io_mapping;
 
@@ -138,12 +140,14 @@ static inline void __iomem *
 io_mapping_map_atomic_wc(struct io_mapping *mapping,
 			 unsigned long offset)
 {
+	pagefault_disable();
 	return ((char __force __iomem *) mapping) + offset;
 }
 
 static inline void
 io_mapping_unmap_atomic(void __iomem *vaddr)
 {
+	pagefault_enable();
 }
 
 /* Non-atomic map/unmap */
