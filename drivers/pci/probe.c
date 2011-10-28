@@ -1649,6 +1649,25 @@ struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent,
 }
 EXPORT_SYMBOL(pci_scan_bus_parented);
 
+struct pci_bus * __devinit pci_scan_bus(int bus, struct pci_ops *ops,
+					void *sysdata)
+{
+	LIST_HEAD(resources);
+	struct pci_bus *b;
+
+	pci_add_resource(&resources, &ioport_resource);
+	pci_add_resource(&resources, &iomem_resource);
+	b = pci_create_root_bus(NULL, bus, ops, sysdata, &resources);
+	if (b) {
+		b->subordinate = pci_scan_child_bus(b);
+		pci_bus_add_devices(b);
+	} else {
+		pci_free_resource_list(&resources);
+	}
+	return b;
+}
+EXPORT_SYMBOL(pci_scan_bus);
+
 #ifdef CONFIG_HOTPLUG
 /**
  * pci_rescan_bus - scan a PCI bus for devices.

@@ -661,15 +661,7 @@ extern struct pci_bus *pci_find_bus(int domain, int busnr);
 void pci_bus_add_devices(const struct pci_bus *bus);
 struct pci_bus *pci_scan_bus_parented(struct device *parent, int bus,
 				      struct pci_ops *ops, void *sysdata);
-static inline struct pci_bus * __devinit pci_scan_bus(int bus, struct pci_ops *ops,
-					   void *sysdata)
-{
-	struct pci_bus *root_bus;
-	root_bus = pci_scan_bus_parented(NULL, bus, ops, sysdata);
-	if (root_bus)
-		pci_bus_add_devices(root_bus);
-	return root_bus;
-}
+struct pci_bus *pci_scan_bus(int bus, struct pci_ops *ops, void *sysdata);
 struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 				    struct pci_ops *ops, void *sysdata,
 				    struct list_head *resources);
