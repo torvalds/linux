@@ -299,8 +299,8 @@ int __init it8152_pci_setup(int nr, struct pci_sys_data *sys)
 		goto err1;
 	}
 
-	sys->resource[0] = &it8152_io;
-	sys->resource[1] = &it8152_mem;
+	pci_add_resource(&sys->resources, &it8152_io);
+	pci_add_resource(&sys->resources, &it8152_mem);
 
 	if (platform_notify || platform_notify_remove) {
 		printk(KERN_ERR "PCI: Can't use platform_notify\n");
@@ -355,7 +355,7 @@ void pcibios_set_master(struct pci_dev *dev)
 
 struct pci_bus * __init it8152_pci_scan_bus(int nr, struct pci_sys_data *sys)
 {
-	return pci_scan_bus(nr, &it8152_ops, sys);
+	return pci_scan_root_bus(NULL, nr, &it8152_ops, sys, &sys->resources);
 }
 
 EXPORT_SYMBOL(dma_set_coherent_mask);
