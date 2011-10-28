@@ -132,21 +132,19 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 	options = tmp_options;
 
 	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
+		int token, r;
 		if (!*p)
 			continue;
 		token = match_token(p, tokens, args);
-		if (token < Opt_uname) {
-			int r = match_int(&args[0], &option);
+		switch (token) {
+		case Opt_debug:
+			r = match_int(&args[0], &option);
 			if (r < 0) {
 				P9_DPRINTK(P9_DEBUG_ERROR,
-					"integer field, but no integer?\n");
+					   "integer field, but no integer?\n");
 				ret = r;
 				continue;
 			}
-		}
-		switch (token) {
-		case Opt_debug:
 			v9ses->debug = option;
 #ifdef CONFIG_NET_9P_DEBUG
 			p9_debug_level = option;
@@ -154,12 +152,33 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			break;
 
 		case Opt_dfltuid:
+			r = match_int(&args[0], &option);
+			if (r < 0) {
+				P9_DPRINTK(P9_DEBUG_ERROR,
+					   "integer field, but no integer?\n");
+				ret = r;
+				continue;
+			}
 			v9ses->dfltuid = option;
 			break;
 		case Opt_dfltgid:
+			r = match_int(&args[0], &option);
+			if (r < 0) {
+				P9_DPRINTK(P9_DEBUG_ERROR,
+					   "integer field, but no integer?\n");
+				ret = r;
+				continue;
+			}
 			v9ses->dfltgid = option;
 			break;
 		case Opt_afid:
+			r = match_int(&args[0], &option);
+			if (r < 0) {
+				P9_DPRINTK(P9_DEBUG_ERROR,
+					   "integer field, but no integer?\n");
+				ret = r;
+				continue;
+			}
 			v9ses->afid = option;
 			break;
 		case Opt_uname:

@@ -115,7 +115,7 @@ static __u32 check_tcp_syn_cookie(__u32 cookie, const struct in6_addr *saddr,
 		& COOKIEMASK;
 }
 
-__u32 cookie_v6_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
+__u32 cookie_v6_init_sequence(struct sock *sk, const struct sk_buff *skb, __u16 *mssp)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	const struct tcphdr *th = tcp_hdr(skb);
@@ -137,7 +137,7 @@ __u32 cookie_v6_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
 				     jiffies / (HZ * 60), mssind);
 }
 
-static inline int cookie_check(struct sk_buff *skb, __u32 cookie)
+static inline int cookie_check(const struct sk_buff *skb, __u32 cookie)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	const struct tcphdr *th = tcp_hdr(skb);
@@ -152,7 +152,7 @@ static inline int cookie_check(struct sk_buff *skb, __u32 cookie)
 struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_options_received tcp_opt;
-	u8 *hash_location;
+	const u8 *hash_location;
 	struct inet_request_sock *ireq;
 	struct inet6_request_sock *ireq6;
 	struct tcp_request_sock *treq;

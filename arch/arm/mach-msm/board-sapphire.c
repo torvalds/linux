@@ -11,7 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
 */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -22,7 +22,6 @@
 
 #include <linux/delay.h>
 
-#include <asm/gpio.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -77,8 +76,8 @@ static struct map_desc sapphire_io_desc[] __initdata = {
 	}
 };
 
-static void __init sapphire_fixup(struct machine_desc *desc, struct tag *tags,
-				  char **cmdline, struct meminfo *mi)
+static void __init sapphire_fixup(struct tag *tags, char **cmdline,
+				  struct meminfo *mi)
 {
 	int smi_sz = parse_tag_smi((const struct tag *)tags);
 

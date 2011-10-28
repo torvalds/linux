@@ -58,7 +58,7 @@ MODULE_PARM_DESC(gain, "Audio gain: 0,...,16(default),...31");
 
 static bool easycap_ntsc;
 module_param_named(ntsc, easycap_ntsc, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(ntsc, "NTCS default encoding (default PAL)");
+MODULE_PARM_DESC(ntsc, "NTSC default encoding (default PAL)");
 
 
 
@@ -270,7 +270,6 @@ static int reset(struct easycap *peasycap)
 
 	peasycap->video_eof = 0;
 	peasycap->audio_eof = 0;
-	do_gettimeofday(&peasycap->timeval7);
 /*---------------------------------------------------------------------------*/
 /*
  * RESTORE INPUT AND FORCE REFRESH OF STANDARD, FORMAT, ETC.
@@ -953,8 +952,10 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 	 *  peasycap, IN WHICH CASE A REPEAT CALL TO isdongle() WILL FAIL.
 	 *  IF NECESSARY, BAIL OUT.
 	 */
-		if (kd != isdongle(peasycap))
+		if (kd != isdongle(peasycap)) {
+			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
+		}
 		if (!file) {
 			SAY("ERROR:  file is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
@@ -1213,10 +1214,6 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
 int
 field2frame(struct easycap *peasycap)
 {
-	struct timeval timeval;
-	long long int above, below;
-	u32 remainder;
-	struct signed_div_result sdr;
 
 	void *pex, *pad;
 	int kex, kad, mex, mad, rex, rad, rad2;
@@ -1574,52 +1571,11 @@ field2frame(struct easycap *peasycap)
 	if (peasycap->field_read == peasycap->field_fill)
 		SAM("WARNING: on exit, filling field buffer %i\n",
 						peasycap->field_read);
-/*---------------------------------------------------------------------------*/
-/*
- *  CALCULATE VIDEO STREAMING RATE
- */
-/*---------------------------------------------------------------------------*/
-	do_gettimeofday(&timeval);
-	if (peasycap->timeval6.tv_sec) {
-		below = ((long long int)(1000000)) *
-			((long long int)(timeval.tv_sec -
-						peasycap->timeval6.tv_sec)) +
-			 (long long int)(timeval.tv_usec - peasycap->timeval6.tv_usec);
-		above = (long long int)1000000;
-
-		sdr = signed_div(above, below);
-		above = sdr.quotient;
-		remainder = (u32)sdr.remainder;
-
-		JOM(8, "video streaming at %3lli.%03i fields per second\n",
-				above, (remainder/1000));
-	}
-	peasycap->timeval6 = timeval;
 
 	if (caches)
 		JOM(8, "%i=caches\n", caches);
 	return 0;
 }
-/*****************************************************************************/
-struct signed_div_result
-signed_div(long long int above, long long int below)
-{
-	struct signed_div_result sdr;
-
-	if (((0 <= above) && (0 <= below)) || ((0  > above) && (0  > below))) {
-		sdr.remainder = (unsigned long long int) do_div(above, below);
-		sdr.quotient  = (long long int) above;
-	} else {
-		if (0 > above)
-			above = -above;
-		if (0 > below)
-			below = -below;
-		sdr.remainder = (unsigned long long int) do_div(above, below);
-		sdr.quotient  = -((long long int) above);
-	}
-	return sdr;
-}
-/*****************************************************************************/
 /*---------------------------------------------------------------------------*/
 /*
  *  DECIMATION AND COLOURSPACE CONVERSION.
@@ -2753,8 +2709,6 @@ static void easycap_complete(struct urb *purb)
 							wake_up_interruptible
 								(&(peasycap->
 									 wq_video));
-							do_gettimeofday
-								(&peasycap->timeval7);
 						} else {
 						peasycap->video_junk++;
 						if (bad & 0x0010)

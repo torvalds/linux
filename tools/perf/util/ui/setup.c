@@ -7,6 +7,7 @@
 #include "browser.h"
 #include "helpline.h"
 #include "ui.h"
+#include "libslang.h"
 
 pthread_mutex_t ui__lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -15,6 +16,33 @@ static void newt_suspend(void *d __used)
 	newtSuspend();
 	raise(SIGTSTP);
 	newtResume();
+}
+
+static int ui__init(void)
+{
+	int err = SLkp_init();
+
+	if (err < 0)
+		goto out;
+
+	SLkp_define_keysym((char *)"^(kB)", SL_KEY_UNTAB);
+out:
+	return err;
+}
+
+static void ui__exit(void)
+{
+	SLtt_set_cursor_visibility(1);
+	SLsmg_refresh();
+	SLsmg_reset_smg();
+	SLang_reset_tty();
+}
+
+static void ui__signal(int sig)
+{
+	ui__exit();
+	psignal(sig, "perf");
+	exit(0);
 }
 
 void setup_browser(bool fallback_to_pager)
@@ -28,10 +56,16 @@ void setup_browser(bool fallback_to_pager)
 
 	use_browser = 1;
 	newtInit();
-	newtCls();
+	ui__init();
 	newtSetSuspendCallback(newt_suspend, NULL);
 	ui_helpline__init();
 	ui_browser__init();
+
+	signal(SIGSEGV, ui__signal);
+	signal(SIGFPE, ui__signal);
+	signal(SIGINT, ui__signal);
+	signal(SIGQUIT, ui__signal);
+	signal(SIGTERM, ui__signal);
 }
 
 void exit_browser(bool wait_for_ok)
@@ -41,6 +75,6 @@ void exit_browser(bool wait_for_ok)
 			char title[] = "Fatal Error", ok[] = "Ok";
 			newtWinMessage(title, ok, ui_helpline__last_msg);
 		}
-		newtFinished();
+		ui__exit();
 	}
 }

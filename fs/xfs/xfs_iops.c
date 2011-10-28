@@ -70,9 +70,8 @@ xfs_synchronize_times(
 }
 
 /*
- * If the linux inode is valid, mark it dirty.
- * Used when committing a dirty inode into a transaction so that
- * the inode will get written back by the linux code
+ * If the linux inode is valid, mark it dirty, else mark the dirty state
+ * in the XFS inode to make sure we pick it up when reclaiming the inode.
  */
 void
 xfs_mark_inode_dirty_sync(
@@ -82,6 +81,10 @@ xfs_mark_inode_dirty_sync(
 
 	if (!(inode->i_state & (I_WILL_FREE|I_FREEING)))
 		mark_inode_dirty_sync(inode);
+	else {
+		barrier();
+		ip->i_update_core = 1;
+	}
 }
 
 void
@@ -92,6 +95,28 @@ xfs_mark_inode_dirty(
 
 	if (!(inode->i_state & (I_WILL_FREE|I_FREEING)))
 		mark_inode_dirty(inode);
+	else {
+		barrier();
+		ip->i_update_core = 1;
+	}
+
+}
+
+
+int xfs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+		   void *fs_info)
+{
+	const struct xattr *xattr;
+	struct xfs_inode *ip = XFS_I(inode);
+	int error = 0;
+
+	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
+		error = xfs_attr_set(ip, xattr->name, xattr->value,
+				     xattr->value_len, ATTR_SECURE);
+		if (error < 0)
+			break;
+	}
+	return error;
 }
 
 /*
@@ -100,31 +125,15 @@ xfs_mark_inode_dirty(
  * these attrs can be journalled at inode creation time (along with the
  * inode, of course, such that log replay can't cause these to be lost).
  */
+
 STATIC int
 xfs_init_security(
 	struct inode	*inode,
 	struct inode	*dir,
 	const struct qstr *qstr)
 {
-	struct xfs_inode *ip = XFS_I(inode);
-	size_t		length;
-	void		*value;
-	unsigned char	*name;
-	int		error;
-
-	error = security_inode_init_security(inode, dir, qstr, (char **)&name,
-					     &value, &length);
-	if (error) {
-		if (error == -EOPNOTSUPP)
-			return 0;
-		return -error;
-	}
-
-	error = xfs_attr_set(ip, name, value, length, ATTR_SECURE);
-
-	kfree(name);
-	kfree(value);
-	return error;
+	return security_inode_init_security(inode, dir, qstr,
+					    &xfs_initxattrs, NULL);
 }
 
 static void

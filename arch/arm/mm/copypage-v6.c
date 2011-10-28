@@ -27,7 +27,7 @@
 #define from_address	(0xffff8000)
 #define to_address	(0xffffc000)
 
-static DEFINE_SPINLOCK(v6_lock);
+static DEFINE_RAW_SPINLOCK(v6_lock);
 
 /*
  * Copy the user page.  No aliasing to deal with so we can just
@@ -88,7 +88,7 @@ static void v6_copy_user_highpage_aliasing(struct page *to,
 	 * Now copy the page using the same cache colour as the
 	 * pages ultimate destination.
 	 */
-	spin_lock(&v6_lock);
+	raw_spin_lock(&v6_lock);
 
 	set_pte_ext(TOP_PTE(from_address) + offset, pfn_pte(page_to_pfn(from), PAGE_KERNEL), 0);
 	set_pte_ext(TOP_PTE(to_address) + offset, pfn_pte(page_to_pfn(to), PAGE_KERNEL), 0);
@@ -101,7 +101,7 @@ static void v6_copy_user_highpage_aliasing(struct page *to,
 
 	copy_page((void *)kto, (void *)kfrom);
 
-	spin_unlock(&v6_lock);
+	raw_spin_unlock(&v6_lock);
 }
 
 /*
@@ -121,13 +121,13 @@ static void v6_clear_user_highpage_aliasing(struct page *page, unsigned long vad
 	 * Now clear the page using the same cache colour as
 	 * the pages ultimate destination.
 	 */
-	spin_lock(&v6_lock);
+	raw_spin_lock(&v6_lock);
 
 	set_pte_ext(TOP_PTE(to_address) + offset, pfn_pte(page_to_pfn(page), PAGE_KERNEL), 0);
 	flush_tlb_kernel_page(to);
 	clear_page((void *)to);
 
-	spin_unlock(&v6_lock);
+	raw_spin_unlock(&v6_lock);
 }
 
 struct cpu_user_fns v6_user_fns __initdata = {

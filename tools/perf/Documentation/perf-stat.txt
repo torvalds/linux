@@ -94,6 +94,22 @@ an empty cgroup (monitor all the time) using, e.g., -G foo,,bar. Cgroups must ha
 corresponding events, i.e., they always refer to events defined earlier on the command
 line.
 
+-o file::
+--output file::
+Print the output into the designated file.
+
+--append::
+Append to the output file designated with the -o option. Ignored if -o is not specified.
+
+--log-fd::
+
+Log output to fd, instead of stderr.  Complementary to --output, and mutually exclusive
+with it.  --append may be used here.  Examples:
+     3>results  perf stat --log-fd 3          -- $cmd
+     3>>results perf stat --log-fd 3 --append -- $cmd
+
+
+
 EXAMPLES
 --------
 

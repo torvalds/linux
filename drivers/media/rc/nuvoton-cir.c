@@ -618,7 +618,6 @@ static void nvt_dump_rx_buf(struct nvt_dev *nvt)
 static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 {
 	DEFINE_IR_RAW_EVENT(rawir);
-	unsigned int count;
 	u32 carrier;
 	u8 sample;
 	int i;
@@ -631,64 +630,37 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 	if (nvt->carrier_detect_enabled)
 		carrier = nvt_rx_carrier_detect(nvt);
 
-	count = nvt->pkts;
-	nvt_dbg_verbose("Processing buffer of len %d", count);
+	nvt_dbg_verbose("Processing buffer of len %d", nvt->pkts);
 
 	init_ir_raw_event(&rawir);
 
-	for (i = 0; i < count; i++) {
-		nvt->pkts--;
+	for (i = 0; i < nvt->pkts; i++) {
 		sample = nvt->buf[i];
 
 		rawir.pulse = ((sample & BUF_PULSE_BIT) != 0);
 		rawir.duration = US_TO_NS((sample & BUF_LEN_MASK)
 					  * SAMPLE_PERIOD);
 
-		if ((sample & BUF_LEN_MASK) == BUF_LEN_MASK) {
-			if (nvt->rawir.pulse == rawir.pulse)
-				nvt->rawir.duration += rawir.duration;
-			else {
-				nvt->rawir.duration = rawir.duration;
-				nvt->rawir.pulse = rawir.pulse;
-			}
-			continue;
-		}
+		nvt_dbg("Storing %s with duration %d",
+			rawir.pulse ? "pulse" : "space", rawir.duration);
 
-		rawir.duration += nvt->rawir.duration;
-
-		init_ir_raw_event(&nvt->rawir);
-		nvt->rawir.duration = 0;
-		nvt->rawir.pulse = rawir.pulse;
-
-		if (sample == BUF_PULSE_BIT)
-			rawir.pulse = false;
-
-		if (rawir.duration) {
-			nvt_dbg("Storing %s with duration %d",
-				rawir.pulse ? "pulse" : "space",
-				rawir.duration);
-
-			ir_raw_event_store_with_filter(nvt->rdev, &rawir);
-		}
+		ir_raw_event_store_with_filter(nvt->rdev, &rawir);
 
 		/*
 		 * BUF_PULSE_BIT indicates end of IR data, BUF_REPEAT_BYTE
 		 * indicates end of IR signal, but new data incoming. In both
 		 * cases, it means we're ready to call ir_raw_event_handle
 		 */
-		if ((sample == BUF_PULSE_BIT) && nvt->pkts) {
+		if ((sample == BUF_PULSE_BIT) && (i + 1 < nvt->pkts)) {
 			nvt_dbg("Calling ir_raw_event_handle (signal end)\n");
 			ir_raw_event_handle(nvt->rdev);
 		}
 	}
 
+	nvt->pkts = 0;
+
 	nvt_dbg("Calling ir_raw_event_handle (buffer empty)\n");
 	ir_raw_event_handle(nvt->rdev);
-
-	if (nvt->pkts) {
-		nvt_dbg("Odd, pkts should be 0 now... (its %u)", nvt->pkts);
-		nvt->pkts = 0;
-	}
 
 	nvt_dbg_verbose("%s done", __func__);
 }
@@ -1048,7 +1020,6 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	spin_lock_init(&nvt->nvt_lock);
 	spin_lock_init(&nvt->tx.lock);
-	init_ir_raw_event(&nvt->rawir);
 
 	ret = -EBUSY;
 	/* now claim resources */

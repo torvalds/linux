@@ -19,7 +19,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
@@ -28,7 +28,6 @@
 
 #include <media/soc_camera.h>
 
-#include <asm/gpio.h>
 #include <mach/camera.h>
 #include <asm/mach/map.h>
 #include <mach/pxa27x.h>

@@ -50,7 +50,7 @@ static int netfs_trans_send_pages(struct netfs_trans *t, struct netfs_state *st)
 	int err = 0;
 	unsigned int i, attached_pages = t->attached_pages, ci;
 	struct msghdr msg;
-	struct page **pages = (t->eng)?t->eng->pages:t->pages;
+	struct page **pages = (t->eng) ? t->eng->pages : t->pages;
 	struct page *p;
 	unsigned int size;
 
@@ -61,7 +61,7 @@ static int netfs_trans_send_pages(struct netfs_trans *t, struct netfs_state *st)
 	msg.msg_flags = MSG_WAITALL | MSG_MORE;
 
 	ci = 0;
-	for (i=0; i<t->page_num; ++i) {
+	for (i = 0; i < t->page_num; ++i) {
 		struct page *page = pages[ci];
 		struct netfs_cmd cmd;
 		struct iovec io;
@@ -169,7 +169,7 @@ int netfs_trans_send(struct netfs_trans *t, struct netfs_state *st)
 	}
 
 	dprintk("%s: sent %s transaction: t: %p, gen: %u, size: %zu, page_num: %u.\n",
-			__func__, (t->page_num)?"partial":"full",
+			__func__, (t->page_num) ? "partial" : "full",
 			t, t->gen, t->iovec.iov_len, t->page_num);
 
 	err = 0;

@@ -23,7 +23,6 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/version.h>
 #include <generated/utsrelease.h>
 #include <linux/utsname.h>
 #include <linux/init.h>
@@ -32,6 +31,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/configfs.h>
+#include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
@@ -71,10 +71,10 @@ static ssize_t ft_parse_wwn(const char *name, u64 *wwn, int strict)
 {
 	const char *cp;
 	char c;
-	u32 nibble;
 	u32 byte = 0;
 	u32 pos = 0;
 	u32 err;
+	int val;
 
 	*wwn = 0;
 	for (cp = name; cp < &name[FT_NAMELEN - 1]; cp++) {
@@ -95,13 +95,10 @@ static ssize_t ft_parse_wwn(const char *name, u64 *wwn, int strict)
 			return cp - name;
 		}
 		err = 3;
-		if (isdigit(c))
-			nibble = c - '0';
-		else if (isxdigit(c) && (islower(c) || !strict))
-			nibble = tolower(c) - 'a' + 10;
-		else
+		val = hex_to_bin(c);
+		if (val < 0 || (strict && isupper(c)))
 			goto fail;
-		*wwn = (*wwn << 4) | nibble;
+		*wwn = (*wwn << 4) | val;
 	}
 	err = 4;
 fail:
@@ -327,7 +324,6 @@ static struct se_portal_group *ft_add_tpg(
 	tpg->index = index;
 	tpg->lport_acl = lacl;
 	INIT_LIST_HEAD(&tpg->lun_list);
-	transport_init_queue_obj(&tpg->qobj);
 
 	ret = core_tpg_register(&ft_configfs->tf_ops, wwn, &tpg->se_tpg,
 				tpg, TRANSPORT_TPG_TYPE_NORMAL);
@@ -336,8 +332,8 @@ static struct se_portal_group *ft_add_tpg(
 		return NULL;
 	}
 
-	tpg->thread = kthread_run(ft_thread, tpg, "ft_tpg%lu", index);
-	if (IS_ERR(tpg->thread)) {
+	tpg->workqueue = alloc_workqueue("tcm_fc", 0, 1);
+	if (!tpg->workqueue) {
 		kfree(tpg);
 		return NULL;
 	}
@@ -356,7 +352,7 @@ static void ft_del_tpg(struct se_portal_group *se_tpg)
 	pr_debug("del tpg %s\n",
 		    config_item_name(&tpg->se_tpg.tpg_group.cg_item));
 
-	kthread_stop(tpg->thread);
+	destroy_workqueue(tpg->workqueue);
 
 	/* Wait for sessions to be freed thru RCU, for BUG_ON below */
 	synchronize_rcu();

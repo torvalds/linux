@@ -1891,7 +1891,7 @@ static int imx21_probe(struct platform_device *pdev)
 	dev_info(imx21->dev, "Hardware HC revision: 0x%02X\n",
 		(readl(imx21->regs + USBOTG_HWMODE) >> 16) & 0xFF);
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	ret = usb_add_hcd(hcd, irq, 0);
 	if (ret != 0) {
 		dev_err(imx21->dev, "usb_add_hcd() returned %d\n", ret);
 		goto failed_add_hcd;

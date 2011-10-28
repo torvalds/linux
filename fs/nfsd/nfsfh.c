@@ -59,28 +59,25 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
  * the write call).
  */
 static inline __be32
-nfsd_mode_check(struct svc_rqst *rqstp, umode_t mode, int type)
+nfsd_mode_check(struct svc_rqst *rqstp, umode_t mode, int requested)
 {
-	/* Type can be negative when creating hardlinks - not to a dir */
-	if (type > 0 && (mode & S_IFMT) != type) {
-		if (rqstp->rq_vers == 4 && (mode & S_IFMT) == S_IFLNK)
-			return nfserr_symlink;
-		else if (type == S_IFDIR)
-			return nfserr_notdir;
-		else if ((mode & S_IFMT) == S_IFDIR)
-			return nfserr_isdir;
-		else
-			return nfserr_inval;
-	}
-	if (type < 0 && (mode & S_IFMT) == -type) {
-		if (rqstp->rq_vers == 4 && (mode & S_IFMT) == S_IFLNK)
-			return nfserr_symlink;
-		else if (type == -S_IFDIR)
-			return nfserr_isdir;
-		else
-			return nfserr_notdir;
-	}
-	return 0;
+	mode &= S_IFMT;
+
+	if (requested == 0) /* the caller doesn't care */
+		return nfs_ok;
+	if (mode == requested)
+		return nfs_ok;
+	/*
+	 * v4 has an error more specific than err_notdir which we should
+	 * return in preference to err_notdir:
+	 */
+	if (rqstp->rq_vers == 4 && mode == S_IFLNK)
+		return nfserr_symlink;
+	if (requested == S_IFDIR)
+		return nfserr_notdir;
+	if (mode == S_IFDIR)
+		return nfserr_isdir;
+	return nfserr_inval;
 }
 
 static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,

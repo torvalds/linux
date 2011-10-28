@@ -76,8 +76,7 @@ __initcall(cats_hw_init);
  * hard reboots fail on early boards.
  */
 static void __init
-fixup_cats(struct machine_desc *desc, struct tag *tags,
-	   char **cmdline, struct meminfo *mi)
+fixup_cats(struct tag *tags, char **cmdline, struct meminfo *mi)
 {
 	screen_info.orig_video_lines  = 25;
 	screen_info.orig_video_points = 16;

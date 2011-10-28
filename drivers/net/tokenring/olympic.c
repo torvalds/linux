@@ -201,7 +201,7 @@ static const struct net_device_ops olympic_netdev_ops = {
 	.ndo_stop		= olympic_close,
 	.ndo_start_xmit		= olympic_xmit,
 	.ndo_change_mtu		= olympic_change_mtu,
-	.ndo_set_multicast_list	= olympic_set_rx_mode,
+	.ndo_set_rx_mode	= olympic_set_rx_mode,
 	.ndo_set_mac_address	= olympic_set_mac_address,
 };
 

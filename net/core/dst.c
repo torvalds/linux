@@ -171,7 +171,7 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 	dst_init_metrics(dst, dst_default_metrics, true);
 	dst->expires = 0UL;
 	dst->path = dst;
-	dst->_neighbour = NULL;
+	RCU_INIT_POINTER(dst->_neighbour, NULL);
 #ifdef CONFIG_XFRM
 	dst->xfrm = NULL;
 #endif
@@ -229,11 +229,11 @@ struct dst_entry *dst_destroy(struct dst_entry * dst)
 	smp_rmb();
 
 again:
-	neigh = dst->_neighbour;
+	neigh = rcu_dereference_protected(dst->_neighbour, 1);
 	child = dst->child;
 
 	if (neigh) {
-		dst->_neighbour = NULL;
+		RCU_INIT_POINTER(dst->_neighbour, NULL);
 		neigh_release(neigh);
 	}
 
@@ -360,14 +360,19 @@ static void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 	if (!unregister) {
 		dst->input = dst->output = dst_discard;
 	} else {
+		struct neighbour *neigh;
+
 		dst->dev = dev_net(dst->dev)->loopback_dev;
 		dev_hold(dst->dev);
 		dev_put(dev);
-		if (dst->_neighbour && dst->_neighbour->dev == dev) {
-			dst->_neighbour->dev = dst->dev;
+		rcu_read_lock();
+		neigh = dst_get_neighbour(dst);
+		if (neigh && neigh->dev == dev) {
+			neigh->dev = dst->dev;
 			dev_hold(dst->dev);
 			dev_put(dev);
 		}
+		rcu_read_unlock();
 	}
 }
 

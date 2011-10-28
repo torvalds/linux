@@ -27,7 +27,6 @@
 #ifndef __XEN_BLKIF__BACKEND__COMMON_H__
 #define __XEN_BLKIF__BACKEND__COMMON_H__
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -46,7 +45,7 @@
 
 #define DRV_PFX "xen-blkback:"
 #define DPRINTK(fmt, args...)				\
-	pr_debug(DRV_PFX "(%s:%d) " fmt ".\n",	\
+	pr_debug(DRV_PFX "(%s:%d) " fmt ".\n",		\
 		 __func__, __LINE__, ##args)
 
 

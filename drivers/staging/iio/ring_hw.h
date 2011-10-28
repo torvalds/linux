@@ -14,9 +14,9 @@
  * @buf:	generic ring buffer elements
  * @private:	device specific data
  */
-struct iio_hw_ring_buffer {
-	struct iio_ring_buffer buf;
+struct iio_hw_buffer {
+	struct iio_buffer buf;
 	void *private;
 };
 
-#define iio_to_hw_ring_buf(r) container_of(r, struct iio_hw_ring_buffer, buf)
+#define iio_to_hw_buf(r) container_of(r, struct iio_hw_buffer, buf)

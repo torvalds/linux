@@ -88,7 +88,7 @@ acpi_get_sysname(void)
 	struct acpi_table_rsdp *rsdp;
 	struct acpi_table_xsdt *xsdt;
 	struct acpi_table_header *hdr;
-#ifdef CONFIG_DMAR
+#ifdef CONFIG_INTEL_IOMMU
 	u64 i, nentries;
 #endif
 
@@ -125,7 +125,7 @@ acpi_get_sysname(void)
 		return "xen";
 	}
 
-#ifdef CONFIG_DMAR
+#ifdef CONFIG_INTEL_IOMMU
 	/* Look for Intel IOMMU */
 	nentries = (hdr->length - sizeof(*hdr)) /
 			 sizeof(xsdt->table_offset_entry[0]);

@@ -1787,7 +1787,7 @@ static int sgl_seek_offset(struct scatterlist *sgl, unsigned int sgcnt,
 }
 
 static int sgl_read_to_frags(struct scatterlist *sg, unsigned int sgoffset,
-				unsigned int dlen, skb_frag_t *frags,
+				unsigned int dlen, struct page_frag *frags,
 				int frag_max)
 {
 	unsigned int datalen = dlen;
@@ -1814,7 +1814,7 @@ static int sgl_read_to_frags(struct scatterlist *sg, unsigned int sgoffset,
 		copy = min(datalen, sglen);
 		if (i && page == frags[i - 1].page &&
 		    sgoffset + sg->offset ==
-			frags[i - 1].page_offset + frags[i - 1].size) {
+			frags[i - 1].offset + frags[i - 1].size) {
 			frags[i - 1].size += copy;
 		} else {
 			if (i >= frag_max) {
@@ -1824,7 +1824,7 @@ static int sgl_read_to_frags(struct scatterlist *sg, unsigned int sgoffset,
 			}
 
 			frags[i].page = page;
-			frags[i].page_offset = sg->offset + sgoffset;
+			frags[i].offset = sg->offset + sgoffset;
 			frags[i].size = copy;
 			i++;
 		}
@@ -1944,14 +1944,14 @@ int cxgbi_conn_init_pdu(struct iscsi_task *task, unsigned int offset,
 		if (tdata->nr_frags > MAX_SKB_FRAGS ||
 		    (padlen && tdata->nr_frags == MAX_SKB_FRAGS)) {
 			char *dst = skb->data + task->hdr_len;
-			skb_frag_t *frag = tdata->frags;
+			struct page_frag *frag = tdata->frags;
 
 			/* data fits in the skb's headroom */
 			for (i = 0; i < tdata->nr_frags; i++, frag++) {
 				char *src = kmap_atomic(frag->page,
 							KM_SOFTIRQ0);
 
-				memcpy(dst, src+frag->page_offset, frag->size);
+				memcpy(dst, src+frag->offset, frag->size);
 				dst += frag->size;
 				kunmap_atomic(src, KM_SOFTIRQ0);
 			}
@@ -1962,11 +1962,13 @@ int cxgbi_conn_init_pdu(struct iscsi_task *task, unsigned int offset,
 			skb_put(skb, count + padlen);
 		} else {
 			/* data fit into frag_list */
-			for (i = 0; i < tdata->nr_frags; i++)
-				get_page(tdata->frags[i].page);
-
-			memcpy(skb_shinfo(skb)->frags, tdata->frags,
-				sizeof(skb_frag_t) * tdata->nr_frags);
+			for (i = 0; i < tdata->nr_frags; i++) {
+				__skb_fill_page_desc(skb, i,
+						tdata->frags[i].page,
+						tdata->frags[i].offset,
+						tdata->frags[i].size);
+				skb_frag_ref(skb, i);
+			}
 			skb_shinfo(skb)->nr_frags = tdata->nr_frags;
 			skb->len += count;
 			skb->data_len += count;

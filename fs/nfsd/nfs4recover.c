@@ -45,6 +45,7 @@
 
 /* Globals */
 static struct file *rec_file;
+static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
 
 static int
 nfs4_save_creds(const struct cred **original_creds)
@@ -88,7 +89,7 @@ nfs4_make_rec_clidname(char *dname, struct xdr_netobj *clname)
 	struct xdr_netobj cksum;
 	struct hash_desc desc;
 	struct scatterlist sg;
-	__be32 status = nfserr_resource;
+	__be32 status = nfserr_jukebox;
 
 	dprintk("NFSD: nfs4_make_rec_clidname for %.*s\n",
 			clname->len, clname->data);
@@ -129,6 +130,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 	if (!rec_file || clp->cl_firststate)
 		return 0;
 
+	clp->cl_firststate = 1;
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
 		return status;
@@ -143,10 +145,8 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 		goto out_unlock;
 	}
 	status = -EEXIST;
-	if (dentry->d_inode) {
-		dprintk("NFSD: nfsd4_create_clid_dir: DIRECTORY EXISTS\n");
+	if (dentry->d_inode)
 		goto out_put;
-	}
 	status = mnt_want_write(rec_file->f_path.mnt);
 	if (status)
 		goto out_put;
@@ -156,12 +156,14 @@ out_put:
 	dput(dentry);
 out_unlock:
 	mutex_unlock(&dir->d_inode->i_mutex);
-	if (status == 0) {
-		clp->cl_firststate = 1;
+	if (status == 0)
 		vfs_fsync(rec_file, 0);
-	}
+	else
+		printk(KERN_ERR "NFSD: failed to write recovery record"
+				" (err %d); please check that %s exists"
+				" and is writeable", status,
+				user_recovery_dirname);
 	nfs4_reset_creds(original_cred);
-	dprintk("NFSD: nfsd4_create_clid_dir returns %d\n", status);
 	return status;
 }
 
@@ -354,13 +356,13 @@ nfsd4_recdir_load(void) {
  */
 
 void
-nfsd4_init_recdir(char *rec_dirname)
+nfsd4_init_recdir()
 {
 	const struct cred *original_cred;
 	int status;
 
 	printk("NFSD: Using %s as the NFSv4 state recovery directory\n",
-			rec_dirname);
+			user_recovery_dirname);
 
 	BUG_ON(rec_file);
 
@@ -372,10 +374,10 @@ nfsd4_init_recdir(char *rec_dirname)
 		return;
 	}
 
-	rec_file = filp_open(rec_dirname, O_RDONLY | O_DIRECTORY, 0);
+	rec_file = filp_open(user_recovery_dirname, O_RDONLY | O_DIRECTORY, 0);
 	if (IS_ERR(rec_file)) {
 		printk("NFSD: unable to find recovery directory %s\n",
-				rec_dirname);
+				user_recovery_dirname);
 		rec_file = NULL;
 	}
 
@@ -389,4 +391,31 @@ nfsd4_shutdown_recdir(void)
 		return;
 	fput(rec_file);
 	rec_file = NULL;
+}
+
+/*
+ * Change the NFSv4 recovery directory to recdir.
+ */
+int
+nfs4_reset_recoverydir(char *recdir)
+{
+	int status;
+	struct path path;
+
+	status = kern_path(recdir, LOOKUP_FOLLOW, &path);
+	if (status)
+		return status;
+	status = -ENOTDIR;
+	if (S_ISDIR(path.dentry->d_inode->i_mode)) {
+		strcpy(user_recovery_dirname, recdir);
+		status = 0;
+	}
+	path_put(&path);
+	return status;
+}
+
+char *
+nfs4_recoverydir(void)
+{
+	return user_recovery_dirname;
 }

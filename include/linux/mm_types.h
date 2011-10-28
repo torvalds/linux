@@ -79,9 +79,21 @@ struct page {
 	};
 
 	/* Third double word block */
-	struct list_head lru;		/* Pageout list, eg. active_list
+	union {
+		struct list_head lru;	/* Pageout list, eg. active_list
 					 * protected by zone->lru_lock !
 					 */
+		struct {		/* slub per cpu partial pages */
+			struct page *next;	/* Next partial slab */
+#ifdef CONFIG_64BIT
+			int pages;	/* Nr of partial slabs left */
+			int pobjects;	/* Approximate # of objects */
+#else
+			short int pages;
+			short int pobjects;
+#endif
+		};
+	};
 
 	/* Remainder is not double word aligned */
 	union {
@@ -134,6 +146,17 @@ struct page {
 	__attribute__((__aligned__(2*sizeof(unsigned long))))
 #endif
 ;
+
+struct page_frag {
+	struct page *page;
+#if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
+	__u32 offset;
+	__u32 size;
+#else
+	__u16 offset;
+	__u16 size;
+#endif
+};
 
 typedef unsigned long __nocast vm_flags_t;
 

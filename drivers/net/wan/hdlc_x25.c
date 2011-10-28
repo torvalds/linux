@@ -134,15 +134,15 @@ static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static int x25_open(struct net_device *dev)
 {
-	struct lapb_register_struct cb;
 	int result;
-
-	cb.connect_confirmation = x25_connected;
-	cb.connect_indication = x25_connected;
-	cb.disconnect_confirmation = x25_disconnected;
-	cb.disconnect_indication = x25_disconnected;
-	cb.data_indication = x25_data_indication;
-	cb.data_transmit = x25_data_transmit;
+	static const struct lapb_register_struct cb = {
+		.connect_confirmation = x25_connected,
+		.connect_indication = x25_connected,
+		.disconnect_confirmation = x25_disconnected,
+		.disconnect_indication = x25_disconnected,
+		.data_indication = x25_data_indication,
+		.data_transmit = x25_data_transmit,
+	};
 
 	result = lapb_register(dev, &cb);
 	if (result != LAPB_OK)

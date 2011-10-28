@@ -14,8 +14,6 @@
 #include <mach/coh901318.h>
 #include <mach/dma_channels.h>
 
-#include "padmux.h"
-
 /*
  * The following is for the actual devices on the SSP/SPI bus
  */
@@ -95,25 +93,7 @@ static struct pl022_ssp_controller ssp_platform_data = {
 
 void __init u300_spi_init(struct amba_device *adev)
 {
-	struct pmx *pmx;
-
 	adev->dev.platform_data = &ssp_platform_data;
-	/*
-	 * Setup padmuxing for SPI. Since this must always be
-	 * compiled into the kernel, pmx is never released.
-	 */
-	pmx = pmx_get(&adev->dev, U300_APP_PMX_SPI_SETTING);
-
-	if (IS_ERR(pmx))
-		dev_warn(&adev->dev, "Could not get padmux handle\n");
-	else {
-		int ret;
-
-		ret = pmx_activate(&adev->dev, pmx);
-		if (IS_ERR_VALUE(ret))
-			dev_warn(&adev->dev, "Could not activate padmuxing\n");
-	}
-
 }
 
 void __init u300_spi_register_board_devices(void)

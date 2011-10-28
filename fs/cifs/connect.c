@@ -1298,7 +1298,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			/* ignore */
 		} else if (strnicmp(data, "guest", 5) == 0) {
 			/* ignore */
-		} else if (strnicmp(data, "rw", 2) == 0) {
+		} else if (strnicmp(data, "rw", 2) == 0 && strlen(data) == 2) {
 			/* ignore */
 		} else if (strnicmp(data, "ro", 2) == 0) {
 			/* ignore */
@@ -1401,7 +1401,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->server_ino = 1;
 		} else if (strnicmp(data, "noserverino", 9) == 0) {
 			vol->server_ino = 0;
-		} else if (strnicmp(data, "rwpidforward", 4) == 0) {
+		} else if (strnicmp(data, "rwpidforward", 12) == 0) {
 			vol->rwpidforward = 1;
 		} else if (strnicmp(data, "cifsacl", 7) == 0) {
 			vol->cifs_acl = 1;
@@ -2018,7 +2018,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 		warned_on_ntlm = true;
 		cERROR(1, "default security mechanism requested.  The default "
 			"security mechanism will be upgraded from ntlm to "
-			"ntlmv2 in kernel release 3.1");
+			"ntlmv2 in kernel release 3.2");
 	}
 	ses->overrideSecFlg = volume_info->secFlg;
 
@@ -2877,9 +2877,9 @@ cleanup_volume_info_contents(struct smb_vol *volume_info)
 {
 	kfree(volume_info->username);
 	kzfree(volume_info->password);
-	kfree(volume_info->UNC);
 	if (volume_info->UNCip != volume_info->UNC + 2)
 		kfree(volume_info->UNCip);
+	kfree(volume_info->UNC);
 	kfree(volume_info->domainname);
 	kfree(volume_info->iocharset);
 	kfree(volume_info->prepath);

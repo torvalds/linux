@@ -205,6 +205,8 @@ static void kvm_free_assigned_device(struct kvm *kvm,
 	else
 		pci_restore_state(assigned_dev->dev);
 
+	assigned_dev->dev->dev_flags &= ~PCI_DEV_FLAGS_ASSIGNED;
+
 	pci_release_regions(assigned_dev->dev);
 	pci_disable_device(assigned_dev->dev);
 	pci_dev_put(assigned_dev->dev);

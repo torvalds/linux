@@ -359,7 +359,7 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
-	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	retval = usb_add_hcd(hcd, irq, 0);
 	if (retval == 0)
 		return retval;
 

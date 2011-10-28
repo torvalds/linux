@@ -136,8 +136,8 @@ static void __init bcmring_init_machine(void)
 *
 *****************************************************************************/
 
-static void __init bcmring_fixup(struct machine_desc *desc,
-     struct tag *t, char **cmdline, struct meminfo *mi) {
+static void __init bcmring_fixup(struct tag *t, char **cmdline,
+	struct meminfo *mi) {
 #ifdef CONFIG_BLK_DEV_INITRD
 	printk(KERN_NOTICE "bcmring_fixup\n");
 	t->hdr.tag = ATAG_CORE;

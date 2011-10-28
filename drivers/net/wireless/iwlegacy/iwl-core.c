@@ -937,7 +937,7 @@ void iwl_legacy_irq_handle_error(struct iwl_priv *priv)
 					&priv->contexts[IWL_RXON_CTX_BSS]);
 #endif
 
-	wake_up_interruptible(&priv->wait_command_queue);
+	wake_up(&priv->wait_command_queue);
 
 	/* Keep the restart process from trying to send host
 	 * commands by clearing the INIT status bit */
@@ -1250,7 +1250,8 @@ void iwl_legacy_clear_isr_stats(struct iwl_priv *priv)
 	memset(&priv->isr_stats, 0, sizeof(priv->isr_stats));
 }
 
-int iwl_legacy_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
+int iwl_legacy_mac_conf_tx(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif, u16 queue,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct iwl_priv *priv = hw->priv;
@@ -1746,7 +1747,7 @@ int iwl_legacy_force_reset(struct iwl_priv *priv, bool external)
 
 	/* Set the FW error flag -- cleared on iwl_down */
 	set_bit(STATUS_FW_ERROR, &priv->status);
-	wake_up_interruptible(&priv->wait_command_queue);
+	wake_up(&priv->wait_command_queue);
 	/*
 	 * Keep the restart process from trying to send host
 	 * commands by clearing the INIT status bit
@@ -2220,7 +2221,8 @@ out:
 }
 EXPORT_SYMBOL(iwl_legacy_mac_config);
 
-void iwl_legacy_mac_reset_tsf(struct ieee80211_hw *hw)
+void iwl_legacy_mac_reset_tsf(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
 	unsigned long flags;

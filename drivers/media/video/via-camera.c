@@ -21,7 +21,7 @@
 #include <media/videobuf-dma-sg.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <linux/via-core.h>
 #include <linux/via-gpio.h>
 #include <linux/via_i2c.h>
@@ -69,7 +69,7 @@ struct via_camera {
 	struct mutex lock;
 	enum viacam_opstate opstate;
 	unsigned long flags;
-	struct pm_qos_request_list qos_request;
+	struct pm_qos_request qos_request;
 	/*
 	 * GPIO info for power/reset management
 	 */
@@ -1332,6 +1332,8 @@ static __devinit bool viacam_serial_is_enabled(void)
 	struct pci_bus *pbus = pci_find_bus(0, 0);
 	u8 cbyte;
 
+	if (!pbus)
+		return false;
 	pci_bus_read_config_byte(pbus, VIACAM_SERIAL_DEVFN,
 			VIACAM_SERIAL_CREG, &cbyte);
 	if ((cbyte & VIACAM_SERIAL_BIT) == 0)

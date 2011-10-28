@@ -44,7 +44,7 @@
 int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 		struct x25_dte_facilities *dte_facs, unsigned long *vc_fac_mask)
 {
-	unsigned char *p = skb->data;
+	unsigned char *p;
 	unsigned int len;
 
 	*vc_fac_mask = 0;
@@ -60,13 +60,15 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 	memset(dte_facs->called_ae, '\0', sizeof(dte_facs->called_ae));
 	memset(dte_facs->calling_ae, '\0', sizeof(dte_facs->calling_ae));
 
-	if (skb->len < 1)
+	if (!pskb_may_pull(skb, 1))
 		return 0;
 
-	len = *p++;
+	len = skb->data[0];
 
-	if (len >= skb->len)
+	if (!pskb_may_pull(skb, 1 + len))
 		return -1;
+
+	p = skb->data + 1;
 
 	while (len > 0) {
 		switch (*p & X25_FAC_CLASS_MASK) {

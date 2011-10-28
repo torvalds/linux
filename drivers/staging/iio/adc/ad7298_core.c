@@ -14,11 +14,11 @@
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../ring_generic.h"
-#include "adc.h"
+#include "../buffer_generic.h"
 
 #include "ad7298.h"
 
@@ -26,28 +26,28 @@ static struct iio_chan_spec ad7298_channels[] = {
 	IIO_CHAN(IIO_TEMP, 0, 1, 0, NULL, 0, 0,
 		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
 		 9, AD7298_CH_TEMP, IIO_ST('s', 32, 32, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
 		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
 		 0, 0, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
 		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
 		 1, 1, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 2, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 2, 0,
 		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
 		 2, 2, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 3, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 3, 0,
 		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
 		 3, 3, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 4, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 4, 0,
 		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
 		 4, 4, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 5, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 5, 0,
 		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
 		 5, 5, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 6, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 6, 0,
 		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
 		 6, 6, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 7, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 7, 0,
 		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
 		 7, 7, IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN_SOFT_TIMESTAMP(8),
@@ -109,24 +109,24 @@ static int ad7298_scan_temp(struct ad7298_state *st, int *val)
 	return 0;
 }
 
-static int ad7298_read_raw(struct iio_dev *dev_info,
+static int ad7298_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val,
 			   int *val2,
 			   long m)
 {
 	int ret;
-	struct ad7298_state *st = iio_priv(dev_info);
+	struct ad7298_state *st = iio_priv(indio_dev);
 	unsigned int scale_uv;
 
 	switch (m) {
 	case 0:
-		mutex_lock(&dev_info->mlock);
-		if (iio_ring_enabled(dev_info)) {
+		mutex_lock(&indio_dev->mlock);
+		if (iio_buffer_enabled(indio_dev)) {
 			if (chan->address == AD7298_CH_TEMP)
 				ret = -ENODEV;
 			else
-				ret = ad7298_scan_from_ring(dev_info,
+				ret = ad7298_scan_from_ring(indio_dev,
 							    chan->address);
 		} else {
 			if (chan->address == AD7298_CH_TEMP)
@@ -134,7 +134,7 @@ static int ad7298_read_raw(struct iio_dev *dev_info,
 			else
 				ret = ad7298_scan_direct(st, chan->address);
 		}
-		mutex_unlock(&dev_info->mlock);
+		mutex_unlock(&indio_dev->mlock);
 
 		if (ret < 0)
 			return ret;
@@ -165,7 +165,7 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 {
 	struct ad7298_platform_data *pdata = spi->dev.platform_data;
 	struct ad7298_state *st;
-	int ret, regdone = 0;
+	int ret;
 	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
 
 	if (indio_dev == NULL)
@@ -218,19 +218,19 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_disable_reg;
-	regdone = 1;
-
-	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
-					  &ad7298_channels[1], /* skip temp0 */
-					  ARRAY_SIZE(ad7298_channels) - 1);
+	ret = iio_buffer_register(indio_dev,
+				  &ad7298_channels[1], /* skip temp0 */
+				  ARRAY_SIZE(ad7298_channels) - 1);
 	if (ret)
 		goto error_cleanup_ring;
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_unregister_ring;
 
 	return 0;
 
+error_unregister_ring:
+	iio_buffer_unregister(indio_dev);
 error_cleanup_ring:
 	ad7298_ring_cleanup(indio_dev);
 error_disable_reg:
@@ -239,11 +239,7 @@ error_disable_reg:
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 
 	return ret;
 }
@@ -253,14 +249,14 @@ static int __devexit ad7298_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7298_state *st = iio_priv(indio_dev);
 
-	iio_ring_buffer_unregister(indio_dev->ring);
-	ad7298_ring_cleanup(indio_dev);
 	iio_device_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
+	ad7298_ring_cleanup(indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

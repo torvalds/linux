@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "ade7854.h"

@@ -337,12 +337,19 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 			memcpy(txhdr->iv, ((u8 *) wlhdr) + wlhdr_len, iv_len);
 		}
 	}
-	if (b43_is_old_txhdr_format(dev)) {
-		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->old_format.plcp),
+	switch (dev->fw.hdr_format) {
+	case B43_FW_HDR_598:
+		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->format_598.plcp),
 				      plcp_fragment_len, rate);
-	} else {
-		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->new_format.plcp),
+		break;
+	case B43_FW_HDR_351:
+		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->format_351.plcp),
 				      plcp_fragment_len, rate);
+		break;
+	case B43_FW_HDR_410:
+		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->format_410.plcp),
+				      plcp_fragment_len, rate);
+		break;
 	}
 	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->plcp_fb),
 			      plcp_fragment_len, rate_fb);
@@ -415,10 +422,10 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	if ((rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) ||
 	    (rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)) {
 		unsigned int len;
-		struct ieee80211_hdr *hdr;
+		struct ieee80211_hdr *uninitialized_var(hdr);
 		int rts_rate, rts_rate_fb;
 		int rts_rate_ofdm, rts_rate_fb_ofdm;
-		struct b43_plcp_hdr6 *plcp;
+		struct b43_plcp_hdr6 *uninitialized_var(plcp);
 		struct ieee80211_rate *rts_cts_rate;
 
 		rts_cts_rate = ieee80211_get_rts_cts_rate(dev->wl->hw, info);
@@ -429,14 +436,21 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		rts_rate_fb_ofdm = b43_is_ofdm_rate(rts_rate_fb);
 
 		if (rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
-			struct ieee80211_cts *cts;
+			struct ieee80211_cts *uninitialized_var(cts);
 
-			if (b43_is_old_txhdr_format(dev)) {
+			switch (dev->fw.hdr_format) {
+			case B43_FW_HDR_598:
 				cts = (struct ieee80211_cts *)
-					(txhdr->old_format.rts_frame);
-			} else {
+					(txhdr->format_598.rts_frame);
+				break;
+			case B43_FW_HDR_351:
 				cts = (struct ieee80211_cts *)
-					(txhdr->new_format.rts_frame);
+					(txhdr->format_351.rts_frame);
+				break;
+			case B43_FW_HDR_410:
+				cts = (struct ieee80211_cts *)
+					(txhdr->format_410.rts_frame);
+				break;
 			}
 			ieee80211_ctstoself_get(dev->wl->hw, info->control.vif,
 						fragment_data, fragment_len,
@@ -444,14 +458,21 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 			mac_ctl |= B43_TXH_MAC_SENDCTS;
 			len = sizeof(struct ieee80211_cts);
 		} else {
-			struct ieee80211_rts *rts;
+			struct ieee80211_rts *uninitialized_var(rts);
 
-			if (b43_is_old_txhdr_format(dev)) {
+			switch (dev->fw.hdr_format) {
+			case B43_FW_HDR_598:
 				rts = (struct ieee80211_rts *)
-					(txhdr->old_format.rts_frame);
-			} else {
+					(txhdr->format_598.rts_frame);
+				break;
+			case B43_FW_HDR_351:
 				rts = (struct ieee80211_rts *)
-					(txhdr->new_format.rts_frame);
+					(txhdr->format_351.rts_frame);
+				break;
+			case B43_FW_HDR_410:
+				rts = (struct ieee80211_rts *)
+					(txhdr->format_410.rts_frame);
+				break;
 			}
 			ieee80211_rts_get(dev->wl->hw, info->control.vif,
 					  fragment_data, fragment_len,
@@ -462,22 +483,36 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		len += FCS_LEN;
 
 		/* Generate the PLCP headers for the RTS/CTS frame */
-		if (b43_is_old_txhdr_format(dev))
-			plcp = &txhdr->old_format.rts_plcp;
-		else
-			plcp = &txhdr->new_format.rts_plcp;
+		switch (dev->fw.hdr_format) {
+		case B43_FW_HDR_598:
+			plcp = &txhdr->format_598.rts_plcp;
+			break;
+		case B43_FW_HDR_351:
+			plcp = &txhdr->format_351.rts_plcp;
+			break;
+		case B43_FW_HDR_410:
+			plcp = &txhdr->format_410.rts_plcp;
+			break;
+		}
 		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)plcp,
 				      len, rts_rate);
 		plcp = &txhdr->rts_plcp_fb;
 		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)plcp,
 				      len, rts_rate_fb);
 
-		if (b43_is_old_txhdr_format(dev)) {
+		switch (dev->fw.hdr_format) {
+		case B43_FW_HDR_598:
 			hdr = (struct ieee80211_hdr *)
-				(&txhdr->old_format.rts_frame);
-		} else {
+				(&txhdr->format_598.rts_frame);
+			break;
+		case B43_FW_HDR_351:
 			hdr = (struct ieee80211_hdr *)
-				(&txhdr->new_format.rts_frame);
+				(&txhdr->format_351.rts_frame);
+			break;
+		case B43_FW_HDR_410:
+			hdr = (struct ieee80211_hdr *)
+				(&txhdr->format_410.rts_frame);
+			break;
 		}
 		txhdr->rts_dur_fb = hdr->duration_id;
 
@@ -505,10 +540,17 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	}
 
 	/* Magic cookie */
-	if (b43_is_old_txhdr_format(dev))
-		txhdr->old_format.cookie = cpu_to_le16(cookie);
-	else
-		txhdr->new_format.cookie = cpu_to_le16(cookie);
+	switch (dev->fw.hdr_format) {
+	case B43_FW_HDR_598:
+		txhdr->format_598.cookie = cpu_to_le16(cookie);
+		break;
+	case B43_FW_HDR_351:
+		txhdr->format_351.cookie = cpu_to_le16(cookie);
+		break;
+	case B43_FW_HDR_410:
+		txhdr->format_410.cookie = cpu_to_le16(cookie);
+		break;
+	}
 
 	if (phy->type == B43_PHYTYPE_N) {
 		txhdr->phy_ctl1 =
@@ -611,8 +653,9 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	struct ieee80211_hdr *wlhdr;
 	const struct b43_rxhdr_fw4 *rxhdr = _rxhdr;
 	__le16 fctl;
-	u16 phystat0, phystat3, chanstat, mactime;
-	u32 macstat;
+	u16 phystat0, phystat3;
+	u16 uninitialized_var(chanstat), uninitialized_var(mactime);
+	u32 uninitialized_var(macstat);
 	u16 chanid;
 	u16 phytype;
 	int padding;
@@ -622,9 +665,19 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	/* Get metadata about the frame from the header. */
 	phystat0 = le16_to_cpu(rxhdr->phy_status0);
 	phystat3 = le16_to_cpu(rxhdr->phy_status3);
-	macstat = le32_to_cpu(rxhdr->mac_status);
-	mactime = le16_to_cpu(rxhdr->mac_time);
-	chanstat = le16_to_cpu(rxhdr->channel);
+	switch (dev->fw.hdr_format) {
+	case B43_FW_HDR_598:
+		macstat = le32_to_cpu(rxhdr->format_598.mac_status);
+		mactime = le16_to_cpu(rxhdr->format_598.mac_time);
+		chanstat = le16_to_cpu(rxhdr->format_598.channel);
+		break;
+	case B43_FW_HDR_410:
+	case B43_FW_HDR_351:
+		macstat = le32_to_cpu(rxhdr->format_351.mac_status);
+		mactime = le16_to_cpu(rxhdr->format_351.mac_time);
+		chanstat = le16_to_cpu(rxhdr->format_351.channel);
+		break;
+	}
 	phytype = chanstat & B43_RX_CHAN_PHYTYPE;
 
 	if (unlikely(macstat & B43_RX_MAC_FCSERR)) {
@@ -682,16 +735,22 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	}
 
 	/* Link quality statistics */
-	if ((chanstat & B43_RX_CHAN_PHYTYPE) == B43_PHYTYPE_N) {
-//		s8 rssi = max(rxhdr->power0, rxhdr->power1);
-		//TODO: Find out what the rssi value is (dBm or percentage?)
-		//      and also find out what the maximum possible value is.
-		//      Fill status.ssi and status.signal fields.
-	} else {
+	switch (chanstat & B43_RX_CHAN_PHYTYPE) {
+	case B43_PHYTYPE_N:
+		if (rxhdr->power0 == 16 || rxhdr->power0 == 32)
+			status.signal = max(rxhdr->power1, rxhdr->power2);
+		else
+			status.signal = max(rxhdr->power0, rxhdr->power1);
+		break;
+	case B43_PHYTYPE_A:
+	case B43_PHYTYPE_B:
+	case B43_PHYTYPE_G:
+	case B43_PHYTYPE_LP:
 		status.signal = b43_rssi_postprocess(dev, rxhdr->jssi,
 						  (phystat0 & B43_RX_PHYST0_OFDM),
 						  (phystat0 & B43_RX_PHYST0_GAINCTL),
 						  (phystat3 & B43_RX_PHYST3_TRSTATE));
+		break;
 	}
 
 	if (phystat0 & B43_RX_PHYST0_OFDM)
@@ -744,6 +803,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		break;
 	case B43_PHYTYPE_N:
 	case B43_PHYTYPE_LP:
+	case B43_PHYTYPE_HT:
 		/* chanid is the SHM channel cookie. Which is the plain
 		 * channel number in b43. */
 		if (chanstat & B43_RX_CHAN_5GHZ) {

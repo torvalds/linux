@@ -1193,6 +1193,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 	struct sk_buff *skb;
 	unsigned int maxfraglen, fragheaderlen;
 	int exthdrlen;
+	int dst_exthdrlen;
 	int hh_len;
 	int mtu;
 	int copy;
@@ -1248,7 +1249,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 		np->cork.hop_limit = hlimit;
 		np->cork.tclass = tclass;
 		mtu = np->pmtudisc == IPV6_PMTUDISC_PROBE ?
-		      rt->dst.dev->mtu : dst_mtu(rt->dst.path);
+		      rt->dst.dev->mtu : dst_mtu(&rt->dst);
 		if (np->frag_size < mtu) {
 			if (np->frag_size)
 				mtu = np->frag_size;
@@ -1259,16 +1260,17 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 		cork->length = 0;
 		sk->sk_sndmsg_page = NULL;
 		sk->sk_sndmsg_off = 0;
-		exthdrlen = rt->dst.header_len + (opt ? opt->opt_flen : 0) -
-			    rt->rt6i_nfheader_len;
+		exthdrlen = (opt ? opt->opt_flen : 0) - rt->rt6i_nfheader_len;
 		length += exthdrlen;
 		transhdrlen += exthdrlen;
+		dst_exthdrlen = rt->dst.header_len;
 	} else {
 		rt = (struct rt6_info *)cork->dst;
 		fl6 = &inet->cork.fl.u.ip6;
 		opt = np->cork.opt;
 		transhdrlen = 0;
 		exthdrlen = 0;
+		dst_exthdrlen = 0;
 		mtu = cork->fragsize;
 	}
 
@@ -1368,6 +1370,8 @@ alloc_new_skb:
 			else
 				alloclen = datalen + fragheaderlen;
 
+			alloclen += dst_exthdrlen;
+
 			/*
 			 * The last fragment gets additional space at tail.
 			 * Note: we overallocate on fragments with MSG_MODE
@@ -1419,9 +1423,9 @@ alloc_new_skb:
 			/*
 			 *	Find where to start putting bytes
 			 */
-			data = skb_put(skb, fraglen);
-			skb_set_network_header(skb, exthdrlen);
-			data += fragheaderlen;
+			data = skb_put(skb, fraglen + dst_exthdrlen);
+			skb_set_network_header(skb, exthdrlen + dst_exthdrlen);
+			data += fragheaderlen + dst_exthdrlen;
 			skb->transport_header = (skb->network_header +
 						 fragheaderlen);
 			if (fraggap) {
@@ -1434,6 +1438,7 @@ alloc_new_skb:
 				pskb_trim_unique(skb_prev, maxfraglen);
 			}
 			copy = datalen - transhdrlen - fraggap;
+
 			if (copy < 0) {
 				err = -EINVAL;
 				kfree_skb(skb);
@@ -1448,6 +1453,7 @@ alloc_new_skb:
 			length -= datalen - fraggap;
 			transhdrlen = 0;
 			exthdrlen = 0;
+			dst_exthdrlen = 0;
 			csummode = CHECKSUM_NONE;
 
 			/*
@@ -1480,13 +1486,13 @@ alloc_new_skb:
 			if (page && (left = PAGE_SIZE - off) > 0) {
 				if (copy >= left)
 					copy = left;
-				if (page != frag->page) {
+				if (page != skb_frag_page(frag)) {
 					if (i == MAX_SKB_FRAGS) {
 						err = -EMSGSIZE;
 						goto error;
 					}
-					get_page(page);
 					skb_fill_page_desc(skb, i, page, sk->sk_sndmsg_off, 0);
+					skb_frag_ref(skb, i);
 					frag = &skb_shinfo(skb)->frags[i];
 				}
 			} else if(i < MAX_SKB_FRAGS) {
@@ -1506,12 +1512,14 @@ alloc_new_skb:
 				err = -EMSGSIZE;
 				goto error;
 			}
-			if (getfrag(from, page_address(frag->page)+frag->page_offset+frag->size, offset, copy, skb->len, skb) < 0) {
+			if (getfrag(from,
+				    skb_frag_address(frag) + skb_frag_size(frag),
+				    offset, copy, skb->len, skb) < 0) {
 				err = -EFAULT;
 				goto error;
 			}
 			sk->sk_sndmsg_off += copy;
-			frag->size += copy;
+			skb_frag_size_add(frag, copy);
 			skb->len += copy;
 			skb->data_len += copy;
 			skb->truesize += copy;

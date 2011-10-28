@@ -188,6 +188,13 @@ OPTIONS
 	CPUs are specified with -: 0-2. Default is to report samples on all
 	CPUs.
 
+-I::
+--show-info::
+	Display extended information about the perf.data file. This adds
+	information which may be very large and thus may clutter the display.
+	It currently includes: cpu and numa topology of the host system.
+	It can only be used with the perf script report mode.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script-perl[1],

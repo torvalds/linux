@@ -1172,7 +1172,7 @@ DECLARE_RWSEM(uts_sem);
 static int override_release(char __user *release, int len)
 {
 	int ret = 0;
-	char buf[len];
+	char buf[65];
 
 	if (current->personality & UNAME26) {
 		char *rest = UTS_RELEASE;
@@ -1759,6 +1759,7 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 					      sizeof(me->comm) - 1) < 0)
 				return -EFAULT;
 			set_task_comm(me, comm);
+			proc_comm_connector(me);
 			return 0;
 		case PR_GET_NAME:
 			get_task_comm(comm, me);

@@ -49,7 +49,7 @@ void free_thread_xstate(struct task_struct *tsk)
 void free_thread_info(struct thread_info *ti)
 {
 	free_thread_xstate(ti->task);
-	free_pages((unsigned long)ti, get_order(THREAD_SIZE));
+	free_pages((unsigned long)ti, THREAD_ORDER);
 }
 
 void arch_task_cache_init(void)

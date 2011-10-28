@@ -86,16 +86,6 @@ core_param(alignment, ai_usermode, int, 0600);
 #define UM_FIXUP	(1 << 1)
 #define UM_SIGNAL	(1 << 2)
 
-#ifdef CONFIG_PROC_FS
-static const char *usermode_action[] = {
-	"ignored",
-	"warn",
-	"fixup",
-	"fixup+warn",
-	"signal",
-	"signal+warn"
-};
-
 /* Return true if and only if the ARMv6 unaligned access model is in use. */
 static bool cpu_is_v6_unaligned(void)
 {
@@ -122,6 +112,16 @@ static int safe_usermode(int new_usermode, bool warn)
 
 	return new_usermode;
 }
+
+#ifdef CONFIG_PROC_FS
+static const char *usermode_action[] = {
+	"ignored",
+	"warn",
+	"fixup",
+	"fixup+warn",
+	"signal",
+	"signal+warn"
+};
 
 static int alignment_proc_show(struct seq_file *m, void *v)
 {

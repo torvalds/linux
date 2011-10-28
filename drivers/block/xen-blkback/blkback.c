@@ -396,7 +396,7 @@ static int xen_blkbk_map(struct blkif_request *req,
 			continue;
 
 		ret = m2p_add_override(PFN_DOWN(map[i].dev_bus_addr),
-			blkbk->pending_page(pending_req, i), false);
+			blkbk->pending_page(pending_req, i), NULL);
 		if (ret) {
 			pr_alert(DRV_PFX "Failed to install M2P override for %lx (ret: %d)\n",
 				 (unsigned long)map[i].dev_bus_addr, ret);

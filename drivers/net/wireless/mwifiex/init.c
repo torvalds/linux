@@ -76,7 +76,7 @@ static int mwifiex_init_priv(struct mwifiex_private *priv)
 	memset(priv->curr_addr, 0xff, ETH_ALEN);
 
 	priv->pkt_tx_ctrl = 0;
-	priv->bss_mode = NL80211_IFTYPE_STATION;
+	priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
 	priv->data_rate = 0;	/* Initially indicate the rate as auto */
 	priv->is_data_rate_auto = true;
 	priv->bcn_avg_factor = DEFAULT_BCN_AVG_FACTOR;
@@ -152,19 +152,6 @@ static int mwifiex_init_priv(struct mwifiex_private *priv)
 static int mwifiex_allocate_adapter(struct mwifiex_adapter *adapter)
 {
 	int ret;
-	u32 buf_size;
-	struct mwifiex_bssdescriptor *temp_scan_table;
-
-	/* Allocate buffer to store the BSSID list */
-	buf_size = sizeof(struct mwifiex_bssdescriptor) * IW_MAX_AP;
-	temp_scan_table = kzalloc(buf_size, GFP_KERNEL);
-	if (!temp_scan_table) {
-		dev_err(adapter->dev, "%s: failed to alloc temp_scan_table\n",
-		       __func__);
-		return -ENOMEM;
-	}
-
-	adapter->scan_table = temp_scan_table;
 
 	/* Allocate command buffer */
 	ret = mwifiex_alloc_cmd_buffer(adapter);
@@ -204,7 +191,12 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 						(adapter->sleep_cfm->data);
 
 	adapter->cmd_sent = false;
-	adapter->data_sent = true;
+
+	if (adapter->iface_type == MWIFIEX_PCIE)
+		adapter->data_sent = false;
+	else
+		adapter->data_sent = true;
+
 	adapter->cmd_resp_received = false;
 	adapter->event_received = false;
 	adapter->data_received = false;
@@ -222,13 +214,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->active_scan_time = MWIFIEX_ACTIVE_SCAN_CHAN_TIME;
 	adapter->passive_scan_time = MWIFIEX_PASSIVE_SCAN_CHAN_TIME;
 
-	adapter->num_in_scan_table = 0;
-	memset(adapter->scan_table, 0,
-	       (sizeof(struct mwifiex_bssdescriptor) * IW_MAX_AP));
 	adapter->scan_probes = 1;
-
-	memset(adapter->bcn_buf, 0, sizeof(adapter->bcn_buf));
-	adapter->bcn_buf_end = adapter->bcn_buf;
 
 	adapter->multiple_dtim = 1;
 
@@ -297,6 +283,34 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 }
 
 /*
+ *  This function releases the lock variables and frees the locks and
+ *  associated locks.
+ */
+static void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
+{
+	struct mwifiex_private *priv;
+	s32 i, j;
+
+	/* Free lists */
+	list_del(&adapter->cmd_free_q);
+	list_del(&adapter->cmd_pending_q);
+	list_del(&adapter->scan_pending_q);
+
+	for (i = 0; i < adapter->priv_num; i++)
+		list_del(&adapter->bss_prio_tbl[i].bss_prio_head);
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		if (adapter->priv[i]) {
+			priv = adapter->priv[i];
+			for (j = 0; j < MAX_NUM_TID; ++j)
+				list_del(&priv->wmm.tid_tbl_ptr[j].ra_list);
+			list_del(&priv->tx_ba_stream_tbl_ptr);
+			list_del(&priv->rx_reorder_tbl_ptr);
+		}
+	}
+}
+
+/*
  * This function frees the adapter structure.
  *
  * The freeing operation is done recursively, by canceling all
@@ -326,8 +340,6 @@ mwifiex_free_adapter(struct mwifiex_adapter *adapter)
 	del_timer(&adapter->cmd_timer);
 
 	dev_dbg(adapter->dev, "info: free scan table\n");
-	kfree(adapter->scan_table);
-	adapter->scan_table = NULL;
 
 	adapter->if_ops.cleanup_if(adapter);
 
@@ -389,34 +401,6 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 	}
 
 	return 0;
-}
-
-/*
- *  This function releases the lock variables and frees the locks and
- *  associated locks.
- */
-void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
-{
-	struct mwifiex_private *priv;
-	s32 i, j;
-
-	/* Free lists */
-	list_del(&adapter->cmd_free_q);
-	list_del(&adapter->cmd_pending_q);
-	list_del(&adapter->scan_pending_q);
-
-	for (i = 0; i < adapter->priv_num; i++)
-		list_del(&adapter->bss_prio_tbl[i].bss_prio_head);
-
-	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			priv = adapter->priv[i];
-			for (j = 0; j < MAX_NUM_TID; ++j)
-				list_del(&priv->wmm.tid_tbl_ptr[j].ra_list);
-			list_del(&priv->tx_ba_stream_tbl_ptr);
-			list_del(&priv->rx_reorder_tbl_ptr);
-		}
-	}
 }
 
 /*
@@ -602,11 +586,13 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 		    struct mwifiex_fw_image *pmfw)
 {
-	int ret, winner;
+	int ret;
 	u32 poll_num = 1;
 
+	adapter->winner = 0;
+
 	/* Check if firmware is already running */
-	ret = adapter->if_ops.check_fw_status(adapter, poll_num, &winner);
+	ret = adapter->if_ops.check_fw_status(adapter, poll_num);
 	if (!ret) {
 		dev_notice(adapter->dev,
 				"WLAN FW already running! Skip FW download\n");
@@ -615,7 +601,7 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 	poll_num = MAX_FIRMWARE_POLL_TRIES;
 
 	/* Check if we are the winner for downloading FW */
-	if (!winner) {
+	if (!adapter->winner) {
 		dev_notice(adapter->dev,
 				"Other interface already running!"
 				" Skip FW download\n");
@@ -633,7 +619,7 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 
 poll_fw:
 	/* Check if the firmware is downloaded successfully or not */
-	ret = adapter->if_ops.check_fw_status(adapter, poll_num, NULL);
+	ret = adapter->if_ops.check_fw_status(adapter, poll_num);
 	if (ret) {
 		dev_err(adapter->dev, "FW failed to be active in time\n");
 		return -1;

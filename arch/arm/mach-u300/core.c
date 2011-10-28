@@ -25,6 +25,8 @@
 #include <linux/err.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/fsmc.h>
+#include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinmux.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -37,6 +39,7 @@
 #include <mach/hardware.h>
 #include <mach/syscon.h>
 #include <mach/dma_channels.h>
+#include <mach/gpio-u300.h>
 
 #include "clock.h"
 #include "mmc.h"
@@ -239,7 +242,7 @@ static struct resource gpio_resources[] = {
 		.end   = IRQ_U300_GPIO_PORT2,
 		.flags = IORESOURCE_IRQ,
 	},
-#ifdef U300_COH901571_3
+#if defined(CONFIG_MACH_U300_BS365) || defined(CONFIG_MACH_U300_BS335)
 	{
 		.name  = "gpio3",
 		.start = IRQ_U300_GPIO_PORT3,
@@ -252,6 +255,7 @@ static struct resource gpio_resources[] = {
 		.end   = IRQ_U300_GPIO_PORT4,
 		.flags = IORESOURCE_IRQ,
 	},
+#endif
 #ifdef CONFIG_MACH_U300_BS335
 	{
 		.name  = "gpio5",
@@ -266,7 +270,6 @@ static struct resource gpio_resources[] = {
 		.flags = IORESOURCE_IRQ,
 	},
 #endif /* CONFIG_MACH_U300_BS335 */
-#endif /* U300_COH901571_3 */
 };
 
 static struct resource keypad_resources[] = {
@@ -1535,6 +1538,14 @@ static struct coh901318_platform coh901318_platform = {
 	.max_channels = U300_DMA_CHANNELS,
 };
 
+static struct resource pinmux_resources[] = {
+	{
+		.start = U300_SYSCON_BASE,
+		.end   = U300_SYSCON_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
 static struct platform_device wdog_device = {
 	.name = "coh901327_wdog",
 	.id = -1,
@@ -1556,11 +1567,35 @@ static struct platform_device i2c1_device = {
 	.resource = i2c1_resources,
 };
 
+/*
+ * The different variants have a few different versions of the
+ * GPIO block, with different number of ports.
+ */
+static struct u300_gpio_platform u300_gpio_plat = {
+#if defined(CONFIG_MACH_U300_BS2X) || defined(CONFIG_MACH_U300_BS330)
+	.variant = U300_GPIO_COH901335,
+	.ports = 3,
+#endif
+#ifdef CONFIG_MACH_U300_BS335
+	.variant = U300_GPIO_COH901571_3_BS335,
+	.ports = 7,
+#endif
+#ifdef CONFIG_MACH_U300_BS365
+	.variant = U300_GPIO_COH901571_3_BS365,
+	.ports = 5,
+#endif
+	.gpio_base = 0,
+	.gpio_irq_base = IRQ_U300_GPIO_BASE,
+};
+
 static struct platform_device gpio_device = {
 	.name = "u300-gpio",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(gpio_resources),
 	.resource = gpio_resources,
+	.dev = {
+		.platform_data = &u300_gpio_plat,
+	},
 };
 
 static struct platform_device keypad_device = {
@@ -1630,6 +1665,72 @@ static struct platform_device dma_device = {
 	},
 };
 
+static struct platform_device pinmux_device = {
+	.name = "pinmux-u300",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(pinmux_resources),
+	.resource = pinmux_resources,
+};
+
+/* Pinmux settings */
+static struct pinmux_map u300_pinmux_map[] = {
+	/* anonymous maps for chip power and EMIFs */
+	PINMUX_MAP_PRIMARY_SYS_HOG("POWER", "power"),
+	PINMUX_MAP_PRIMARY_SYS_HOG("EMIF0", "emif0"),
+	PINMUX_MAP_PRIMARY_SYS_HOG("EMIF1", "emif1"),
+	/* per-device maps for MMC/SD, SPI and UART */
+	PINMUX_MAP_PRIMARY("MMCSD", "mmc0", "mmci"),
+	PINMUX_MAP_PRIMARY("SPI", "spi0", "pl022"),
+	PINMUX_MAP_PRIMARY("UART0", "uart0", "uart0"),
+};
+
+struct u300_mux_hog {
+	const char *name;
+	struct device *dev;
+	struct pinmux *pmx;
+};
+
+static struct u300_mux_hog u300_mux_hogs[] = {
+	{
+		.name = "uart0",
+		.dev = &uart0_device.dev,
+	},
+	{
+		.name = "spi0",
+		.dev = &pl022_device.dev,
+	},
+	{
+		.name = "mmc0",
+		.dev = &mmcsd_device.dev,
+	},
+};
+
+static int __init u300_pinmux_fetch(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(u300_mux_hogs); i++) {
+		struct pinmux *pmx;
+		int ret;
+
+		pmx = pinmux_get(u300_mux_hogs[i].dev, NULL);
+		if (IS_ERR(pmx)) {
+			pr_err("u300: could not get pinmux hog %s\n",
+			       u300_mux_hogs[i].name);
+			continue;
+		}
+		ret = pinmux_enable(pmx);
+		if (ret) {
+			pr_err("u300: could enable pinmux hog %s\n",
+			       u300_mux_hogs[i].name);
+			continue;
+		}
+		u300_mux_hogs[i].pmx = pmx;
+	}
+	return 0;
+}
+subsys_initcall(u300_pinmux_fetch);
+
 /*
  * Notice that AMBA devices are initialized before platform devices.
  *
@@ -1643,9 +1744,9 @@ static struct platform_device *platform_devs[] __initdata = {
 	&gpio_device,
 	&nand_device,
 	&wdog_device,
-	&ave_device
+	&ave_device,
+	&pinmux_device,
 };
-
 
 /*
  * Interrupts: the U300 platforms have two pl190 ARM PrimeCells connected
@@ -1666,7 +1767,7 @@ void __init u300_init_irq(void)
 	BUG_ON(IS_ERR(clk));
 	clk_enable(clk);
 
-	for (i = 0; i < NR_IRQS; i++)
+	for (i = 0; i < U300_VIC_IRQS_END; i++)
 		set_bit(i, (unsigned long *) &mask[0]);
 	vic_init((void __iomem *) U300_INTCON0_VBASE, 0, mask[0], mask[0]);
 	vic_init((void __iomem *) U300_INTCON1_VBASE, 32, mask[1], mask[1]);
@@ -1827,6 +1928,10 @@ void __init u300_init_devices(void)
 	}
 
 	u300_assign_physmem();
+
+	/* Initialize pinmuxing */
+	pinmux_register_mappings(u300_pinmux_map,
+				 ARRAY_SIZE(u300_pinmux_map));
 
 	/* Register subdevices on the I2C buses */
 	u300_i2c_register_board_devices();

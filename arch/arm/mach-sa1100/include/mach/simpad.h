@@ -48,32 +48,80 @@
 #define GPIO_SMART_CARD		GPIO_GPIO10
 #define IRQ_GPIO_SMARD_CARD	IRQ_GPIO10
 
-// CS3 Latch is write only, a shadow is necessary
+/*--- ucb1x00 GPIO ---*/
+#define SIMPAD_UCB1X00_GPIO_BASE	(GPIO_MAX + 1)
+#define SIMPAD_UCB1X00_GPIO_PROG1	(SIMPAD_UCB1X00_GPIO_BASE)
+#define SIMPAD_UCB1X00_GPIO_PROG2	(SIMPAD_UCB1X00_GPIO_BASE + 1)
+#define SIMPAD_UCB1X00_GPIO_UP		(SIMPAD_UCB1X00_GPIO_BASE + 2)
+#define SIMPAD_UCB1X00_GPIO_DOWN	(SIMPAD_UCB1X00_GPIO_BASE + 3)
+#define SIMPAD_UCB1X00_GPIO_LEFT	(SIMPAD_UCB1X00_GPIO_BASE + 4)
+#define SIMPAD_UCB1X00_GPIO_RIGHT	(SIMPAD_UCB1X00_GPIO_BASE + 5)
+#define SIMPAD_UCB1X00_GPIO_6		(SIMPAD_UCB1X00_GPIO_BASE + 6)
+#define SIMPAD_UCB1X00_GPIO_7		(SIMPAD_UCB1X00_GPIO_BASE + 7)
+#define SIMPAD_UCB1X00_GPIO_HEADSET	(SIMPAD_UCB1X00_GPIO_BASE + 8)
+#define SIMPAD_UCB1X00_GPIO_SPEAKER	(SIMPAD_UCB1X00_GPIO_BASE + 9)
 
-#define CS3BUSTYPE unsigned volatile long
+/*--- CS3 Latch ---*/
+#define SIMPAD_CS3_GPIO_BASE		(GPIO_MAX + 11)
+#define SIMPAD_CS3_VCC_5V_EN		(SIMPAD_CS3_GPIO_BASE)
+#define SIMPAD_CS3_VCC_3V_EN		(SIMPAD_CS3_GPIO_BASE + 1)
+#define SIMPAD_CS3_EN1			(SIMPAD_CS3_GPIO_BASE + 2)
+#define SIMPAD_CS3_EN0			(SIMPAD_CS3_GPIO_BASE + 3)
+#define SIMPAD_CS3_DISPLAY_ON		(SIMPAD_CS3_GPIO_BASE + 4)
+#define SIMPAD_CS3_PCMCIA_BUFF_DIS	(SIMPAD_CS3_GPIO_BASE + 5)
+#define SIMPAD_CS3_MQ_RESET		(SIMPAD_CS3_GPIO_BASE + 6)
+#define SIMPAD_CS3_PCMCIA_RESET		(SIMPAD_CS3_GPIO_BASE + 7)
+#define SIMPAD_CS3_DECT_POWER_ON	(SIMPAD_CS3_GPIO_BASE + 8)
+#define SIMPAD_CS3_IRDA_SD		(SIMPAD_CS3_GPIO_BASE + 9)
+#define SIMPAD_CS3_RS232_ON		(SIMPAD_CS3_GPIO_BASE + 10)
+#define SIMPAD_CS3_SD_MEDIAQ		(SIMPAD_CS3_GPIO_BASE + 11)
+#define SIMPAD_CS3_LED2_ON		(SIMPAD_CS3_GPIO_BASE + 12)
+#define SIMPAD_CS3_IRDA_MODE		(SIMPAD_CS3_GPIO_BASE + 13)
+#define SIMPAD_CS3_ENABLE_5V		(SIMPAD_CS3_GPIO_BASE + 14)
+#define SIMPAD_CS3_RESET_SIMCARD	(SIMPAD_CS3_GPIO_BASE + 15)
+
+#define SIMPAD_CS3_PCMCIA_BVD1		(SIMPAD_CS3_GPIO_BASE + 16)
+#define SIMPAD_CS3_PCMCIA_BVD2		(SIMPAD_CS3_GPIO_BASE + 17)
+#define SIMPAD_CS3_PCMCIA_VS1		(SIMPAD_CS3_GPIO_BASE + 18)
+#define SIMPAD_CS3_PCMCIA_VS2		(SIMPAD_CS3_GPIO_BASE + 19)
+#define SIMPAD_CS3_LOCK_IND		(SIMPAD_CS3_GPIO_BASE + 20)
+#define SIMPAD_CS3_CHARGING_STATE	(SIMPAD_CS3_GPIO_BASE + 21)
+#define SIMPAD_CS3_PCMCIA_SHORT		(SIMPAD_CS3_GPIO_BASE + 22)
+#define SIMPAD_CS3_GPIO_23		(SIMPAD_CS3_GPIO_BASE + 23)
+
 #define CS3_BASE        0xf1000000
 
-#define VCC_5V_EN       0x0001 // For 5V PCMCIA
-#define VCC_3V_EN       0x0002 // FOR 3.3V PCMCIA
-#define EN1             0x0004 // This is only for EPROM's
-#define EN0             0x0008 // Both should be enable for 3.3V or 5V
-#define DISPLAY_ON      0x0010
-#define PCMCIA_BUFF_DIS 0x0020
-#define MQ_RESET        0x0040
-#define PCMCIA_RESET    0x0080
-#define DECT_POWER_ON   0x0100
-#define IRDA_SD         0x0200 // Shutdown for powersave
-#define RS232_ON        0x0400
-#define SD_MEDIAQ       0x0800 // Shutdown for powersave
-#define LED2_ON         0x1000
-#define IRDA_MODE       0x2000 // Fast/Slow IrDA mode
-#define ENABLE_5V       0x4000 // Enable 5V circuit
-#define RESET_SIMCARD   0x8000
+long simpad_get_cs3_ro(void);
+long simpad_get_cs3_shadow(void);
+void simpad_set_cs3_bit(int value);
+void simpad_clear_cs3_bit(int value);
 
-#define RS232_ENABLE    0x0440
-#define PCMCIAMASK      0x402f
+#define VCC_5V_EN	0x0001 /* For 5V PCMCIA */
+#define VCC_3V_EN	0x0002 /* FOR 3.3V PCMCIA */
+#define EN1		0x0004 /* This is only for EPROM's */
+#define EN0		0x0008 /* Both should be enable for 3.3V or 5V */
+#define DISPLAY_ON	0x0010
+#define PCMCIA_BUFF_DIS	0x0020
+#define MQ_RESET	0x0040
+#define PCMCIA_RESET	0x0080
+#define DECT_POWER_ON	0x0100
+#define IRDA_SD		0x0200 /* Shutdown for powersave */
+#define RS232_ON	0x0400
+#define SD_MEDIAQ	0x0800 /* Shutdown for powersave */
+#define LED2_ON		0x1000
+#define IRDA_MODE	0x2000 /* Fast/Slow IrDA mode */
+#define ENABLE_5V	0x4000 /* Enable 5V circuit */
+#define RESET_SIMCARD	0x8000
 
+#define PCMCIA_BVD1	0x01
+#define PCMCIA_BVD2	0x02
+#define PCMCIA_VS1	0x04
+#define PCMCIA_VS2	0x08
+#define LOCK_IND	0x10
+#define CHARGING_STATE	0x20
+#define PCMCIA_SHORT	0x40
 
+/*--- Battery ---*/
 struct simpad_battery {
 	unsigned char ac_status;	/* line connected yes/no */
 	unsigned char status;		/* battery loading yes/no */

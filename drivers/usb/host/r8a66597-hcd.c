@@ -959,7 +959,7 @@ static void init_pipe_info(struct r8a66597 *r8a66597, struct urb *urb,
 	info.pipenum = get_empty_pipenum(r8a66597, ep);
 	info.address = get_urb_to_r8a66597_addr(r8a66597, urb);
 	info.epnum = usb_endpoint_num(ep);
-	info.maxpacket = le16_to_cpu(ep->wMaxPacketSize);
+	info.maxpacket = usb_endpoint_maxp(ep);
 	info.type = get_r8a66597_type(usb_endpoint_type(ep));
 	info.bufnum = get_bufnum(info.pipenum);
 	info.buf_bsize = get_buf_bsize(info.pipenum);
@@ -2519,7 +2519,7 @@ static int __devinit r8a66597_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->has_tt = 1;
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | irq_trigger);
+	ret = usb_add_hcd(hcd, irq, irq_trigger);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to add hcd\n");
 		goto clean_up3;

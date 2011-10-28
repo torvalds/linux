@@ -121,7 +121,6 @@ mwifiex_wmm_allocate_ralist_node(struct mwifiex_adapter *adapter, u8 *ra)
 	memcpy(ra_list->ra, ra, ETH_ALEN);
 
 	ra_list->total_pkts_size = 0;
-	ra_list->total_pkts = 0;
 
 	dev_dbg(adapter->dev, "info: allocated ra_list %p\n", ra_list);
 
@@ -648,7 +647,6 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_adapter *adapter,
 	skb_queue_tail(&ra_list->skb_head, skb);
 
 	ra_list->total_pkts_size += skb->len;
-	ra_list->total_pkts++;
 
 	atomic_inc(&priv->wmm.tx_pkts_queued);
 
@@ -975,6 +973,28 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 }
 
 /*
+ * This function checks if 11n aggregation is possible.
+ */
+static int
+mwifiex_is_11n_aggragation_possible(struct mwifiex_private *priv,
+				    struct mwifiex_ra_list_tbl *ptr,
+				    int max_buf_size)
+{
+	int count = 0, total_size = 0;
+	struct sk_buff *skb, *tmp;
+
+	skb_queue_walk_safe(&ptr->skb_head, skb, tmp) {
+		total_size += skb->len;
+		if (total_size >= max_buf_size)
+			break;
+		if (++count >= MIN_NUM_AMSDU)
+			return true;
+	}
+
+	return false;
+}
+
+/*
  * This function sends a single packet to firmware for transmission.
  */
 static void
@@ -1001,7 +1021,6 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 	dev_dbg(adapter->dev, "data: dequeuing the packet %p %p\n", ptr, skb);
 
 	ptr->total_pkts_size -= skb->len;
-	ptr->total_pkts--;
 
 	if (!skb_queue_empty(&ptr->skb_head))
 		skb_next = skb_peek(&ptr->skb_head);
@@ -1027,7 +1046,6 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 		skb_queue_tail(&ptr->skb_head, skb);
 
 		ptr->total_pkts_size += skb->len;
-		ptr->total_pkts++;
 		tx_info->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
@@ -1107,8 +1125,8 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	tx_param.next_pkt_len =
 		((skb_next) ? skb_next->len +
 		 sizeof(struct txpd) : 0);
-	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
-					   skb->data, skb->len, &tx_param);
+	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA, skb,
+					   &tx_param);
 	switch (ret) {
 	case -EBUSY:
 		dev_dbg(adapter->dev, "data: -EBUSY is returned\n");
@@ -1213,11 +1231,9 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 				mwifiex_send_delba(priv, tid_del, ra, 1);
 			}
 		}
-/* Minimum number of AMSDU */
-#define MIN_NUM_AMSDU 2
-
 		if (mwifiex_is_amsdu_allowed(priv, tid) &&
-				(ptr->total_pkts >= MIN_NUM_AMSDU))
+		    mwifiex_is_11n_aggragation_possible(priv, ptr,
+							adapter->tx_buf_size))
 			mwifiex_11n_aggregate_pkt(priv, ptr, INTF_HEADER_LEN,
 						  ptr_index, flags);
 			/* ra_list_spinlock has been freed in

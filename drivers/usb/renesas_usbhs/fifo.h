@@ -51,6 +51,8 @@ struct usbhs_pkt {
 	struct list_head node;
 	struct usbhs_pipe *pipe;
 	struct usbhs_pkt_handle *handler;
+	void (*done)(struct usbhs_priv *priv,
+		     struct usbhs_pkt *pkt);
 	dma_addr_t dma;
 	void *buf;
 	int length;
@@ -76,12 +78,6 @@ void usbhs_fifo_quit(struct usbhs_priv *priv);
 /*
  * packet info
  */
-enum {
-	USBHSF_PKT_PREPARE,
-	USBHSF_PKT_TRY_RUN,
-	USBHSF_PKT_DMA_DONE,
-};
-
 extern struct usbhs_pkt_handle usbhs_fifo_pio_push_handler;
 extern struct usbhs_pkt_handle usbhs_fifo_pio_pop_handler;
 extern struct usbhs_pkt_handle usbhs_ctrl_stage_end_handler;
@@ -89,16 +85,18 @@ extern struct usbhs_pkt_handle usbhs_ctrl_stage_end_handler;
 extern struct usbhs_pkt_handle usbhs_fifo_dma_push_handler;
 extern struct usbhs_pkt_handle usbhs_fifo_dma_pop_handler;
 
+extern struct usbhs_pkt_handle usbhs_dcp_status_stage_in_handler;
+extern struct usbhs_pkt_handle usbhs_dcp_status_stage_out_handler;
+
+extern struct usbhs_pkt_handle usbhs_dcp_data_stage_in_handler;
+extern struct usbhs_pkt_handle usbhs_dcp_data_stage_out_handler;
 
 void usbhs_pkt_init(struct usbhs_pkt *pkt);
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
-		    struct usbhs_pkt_handle *handler,
+		    void (*done)(struct usbhs_priv *priv,
+				 struct usbhs_pkt *pkt),
 		    void *buf, int len, int zero);
 struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt);
-int __usbhs_pkt_handler(struct usbhs_pipe *pipe, int type);
-
-#define usbhs_pkt_start(p)	__usbhs_pkt_handler(p, USBHSF_PKT_PREPARE)
-#define usbhs_pkt_run(p)	__usbhs_pkt_handler(p, USBHSF_PKT_TRY_RUN)
-#define usbhs_pkt_dmadone(p)	__usbhs_pkt_handler(p, USBHSF_PKT_DMA_DONE)
+void usbhs_pkt_start(struct usbhs_pipe *pipe);
 
 #endif /* RENESAS_USB_FIFO_H */

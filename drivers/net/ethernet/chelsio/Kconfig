@@ -1,0 +1,107 @@
+#
+# Chelsio device configuration
+#
+
+config NET_VENDOR_CHELSIO
+	bool "Chelsio devices"
+	default y
+	depends on PCI || INET
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Chelsio devices. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if NET_VENDOR_CHELSIO
+
+config CHELSIO_T1
+	tristate "Chelsio 10Gb Ethernet support"
+	depends on PCI
+	select CRC32
+	select MDIO
+	---help---
+	  This driver supports Chelsio gigabit and 10-gigabit
+	  Ethernet cards. More information about adapter features and
+	  performance tuning is in <file:Documentation/networking/cxgb.txt>.
+
+	  For general information about Chelsio and our products, visit
+	  our website at <http://www.chelsio.com>.
+
+	  For customer support, please visit our customer support page at
+	  <http://www.chelsio.com/support.html>.
+
+	  Please send feedback to <linux-bugs@chelsio.com>.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called cxgb.
+
+config CHELSIO_T1_1G
+	bool "Chelsio gigabit Ethernet support"
+	depends on CHELSIO_T1
+	---help---
+	  Enables support for Chelsio's gigabit Ethernet PCI cards.  If you
+	  are using only 10G cards say 'N' here.
+
+config CHELSIO_T3
+	tristate "Chelsio Communications T3 10Gb Ethernet support"
+	depends on PCI && INET
+	select FW_LOADER
+	select MDIO
+	---help---
+	  This driver supports Chelsio T3-based gigabit and 10Gb Ethernet
+	  adapters.
+
+	  For general information about Chelsio and our products, visit
+	  our website at <http://www.chelsio.com>.
+
+	  For customer support, please visit our customer support page at
+	  <http://www.chelsio.com/support.html>.
+
+	  Please send feedback to <linux-bugs@chelsio.com>.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called cxgb3.
+
+config CHELSIO_T4
+	tristate "Chelsio Communications T4 Ethernet support"
+	depends on PCI
+	select FW_LOADER
+	select MDIO
+	---help---
+	  This driver supports Chelsio T4-based gigabit and 10Gb Ethernet
+	  adapters.
+
+	  For general information about Chelsio and our products, visit
+	  our website at <http://www.chelsio.com>.
+
+	  For customer support, please visit our customer support page at
+	  <http://www.chelsio.com/support.html>.
+
+	  Please send feedback to <linux-bugs@chelsio.com>.
+
+	  To compile this driver as a module choose M here; the module
+	  will be called cxgb4.
+
+config CHELSIO_T4VF
+	tristate "Chelsio Communications T4 Virtual Function Ethernet support"
+	depends on PCI
+	---help---
+	  This driver supports Chelsio T4-based gigabit and 10Gb Ethernet
+	  adapters with PCI-E SR-IOV Virtual Functions.
+
+	  For general information about Chelsio and our products, visit
+	  our website at <http://www.chelsio.com>.
+
+	  For customer support, please visit our customer support page at
+	  <http://www.chelsio.com/support.html>.
+
+	  Please send feedback to <linux-bugs@chelsio.com>.
+
+	  To compile this driver as a module choose M here; the module
+	  will be called cxgb4vf.
+
+endif # NET_VENDOR_CHELSIO

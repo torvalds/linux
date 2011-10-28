@@ -52,8 +52,6 @@ static void psb_lid_timer_func(unsigned long data)
 			pp_status = REG_READ(PP_STATUS);
 		} while ((pp_status & PP_ON) == 0);
 	}
-		/* printk(KERN_INFO"%s: lid: closed\n", __FUNCTION__); */
-
 	dev_priv->lid_last_state =  readl(lid_state);
 
 lid_timer_schedule:

@@ -515,9 +515,6 @@ static void giveback(struct pl022 *pl022)
 	if (msg->complete)
 		msg->complete(msg->context);
 	/* This message is completed, so let's turn off the clocks & power */
-	clk_disable(pl022->clk);
-	amba_pclk_disable(pl022->adev);
-	amba_vcore_disable(pl022->adev);
 	pm_runtime_put(&pl022->adev->dev);
 }
 
@@ -1545,9 +1542,6 @@ static void pump_messages(struct work_struct *work)
 	 * (poll/interrupt/DMA)
 	 */
 	pm_runtime_get_sync(&pl022->adev->dev);
-	amba_vcore_enable(pl022->adev);
-	amba_pclk_enable(pl022->adev);
-	clk_enable(pl022->clk);
 	restore_state(pl022);
 	flush(pl022);
 
@@ -2186,14 +2180,18 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 	printk(KERN_INFO "pl022: mapped registers from 0x%08x to %p\n",
 	       adev->res.start, pl022->virtbase);
-	pm_runtime_enable(dev);
-	pm_runtime_resume(dev);
 
 	pl022->clk = clk_get(&adev->dev, NULL);
 	if (IS_ERR(pl022->clk)) {
 		status = PTR_ERR(pl022->clk);
 		dev_err(&adev->dev, "could not retrieve SSP/SPI bus clock\n");
 		goto err_no_clk;
+	}
+
+	status = clk_prepare(pl022->clk);
+	if (status) {
+		dev_err(&adev->dev, "could not prepare SSP/SPI bus clock\n");
+		goto  err_clk_prep;
 	}
 
 	/* Disable SSP */
@@ -2235,12 +2233,9 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_spi_register;
 	}
 	dev_dbg(dev, "probe succeeded\n");
-	/*
-	 * Disable the silicon block pclk and any voltage domain and just
-	 * power it up and clock it when it's needed
-	 */
-	amba_pclk_disable(adev);
-	amba_vcore_disable(adev);
+
+	/* let runtime pm put suspend */
+	pm_runtime_put(dev);
 	return 0;
 
  err_spi_register:
@@ -2249,8 +2244,9 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	destroy_queue(pl022);
 	pl022_dma_remove(pl022);
 	free_irq(adev->irq[0], pl022);
-	pm_runtime_disable(&adev->dev);
  err_no_irq:
+	clk_unprepare(pl022->clk);
+ err_clk_prep:
 	clk_put(pl022->clk);
  err_no_clk:
 	iounmap(pl022->virtbase);
@@ -2271,6 +2267,12 @@ pl022_remove(struct amba_device *adev)
 	if (!pl022)
 		return 0;
 
+	/*
+	 * undo pm_runtime_put() in probe.  I assume that we're not
+	 * accessing the primecell here.
+	 */
+	pm_runtime_get_noresume(&adev->dev);
+
 	/* Remove the queue */
 	if (destroy_queue(pl022) != 0)
 		dev_err(&adev->dev, "queue remove failed\n");
@@ -2278,6 +2280,7 @@ pl022_remove(struct amba_device *adev)
 	pl022_dma_remove(pl022);
 	free_irq(adev->irq[0], pl022);
 	clk_disable(pl022->clk);
+	clk_unprepare(pl022->clk);
 	clk_put(pl022->clk);
 	iounmap(pl022->virtbase);
 	amba_release_regions(adev);
@@ -2288,45 +2291,69 @@ pl022_remove(struct amba_device *adev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int pl022_suspend(struct amba_device *adev, pm_message_t state)
+#ifdef CONFIG_SUSPEND
+static int pl022_suspend(struct device *dev)
 {
-	struct pl022 *pl022 = amba_get_drvdata(adev);
+	struct pl022 *pl022 = dev_get_drvdata(dev);
 	int status = 0;
 
 	status = stop_queue(pl022);
 	if (status) {
-		dev_warn(&adev->dev, "suspend cannot stop queue\n");
+		dev_warn(dev, "suspend cannot stop queue\n");
 		return status;
 	}
 
-	amba_vcore_enable(adev);
-	amba_pclk_enable(adev);
+	amba_vcore_enable(pl022->adev);
+	amba_pclk_enable(pl022->adev);
 	load_ssp_default_config(pl022);
-	amba_pclk_disable(adev);
-	amba_vcore_disable(adev);
-	dev_dbg(&adev->dev, "suspended\n");
+	amba_pclk_disable(pl022->adev);
+	amba_vcore_disable(pl022->adev);
+	dev_dbg(dev, "suspended\n");
 	return 0;
 }
 
-static int pl022_resume(struct amba_device *adev)
+static int pl022_resume(struct device *dev)
 {
-	struct pl022 *pl022 = amba_get_drvdata(adev);
+	struct pl022 *pl022 = dev_get_drvdata(dev);
 	int status = 0;
 
 	/* Start the queue running */
 	status = start_queue(pl022);
 	if (status)
-		dev_err(&adev->dev, "problem starting queue (%d)\n", status);
+		dev_err(dev, "problem starting queue (%d)\n", status);
 	else
-		dev_dbg(&adev->dev, "resumed\n");
+		dev_dbg(dev, "resumed\n");
 
 	return status;
 }
-#else
-#define pl022_suspend NULL
-#define pl022_resume NULL
 #endif	/* CONFIG_PM */
+
+#ifdef CONFIG_PM_RUNTIME
+static int pl022_runtime_suspend(struct device *dev)
+{
+	struct pl022 *pl022 = dev_get_drvdata(dev);
+
+	clk_disable(pl022->clk);
+	amba_vcore_disable(pl022->adev);
+
+	return 0;
+}
+
+static int pl022_runtime_resume(struct device *dev)
+{
+	struct pl022 *pl022 = dev_get_drvdata(dev);
+
+	amba_vcore_enable(pl022->adev);
+	clk_enable(pl022->clk);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops pl022_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pl022_suspend, pl022_resume)
+	SET_RUNTIME_PM_OPS(pl022_runtime_suspend, pl022_runtime_resume, NULL)
+};
 
 static struct vendor_data vendor_arm = {
 	.fifodepth = 8,
@@ -2407,12 +2434,11 @@ static struct amba_id pl022_ids[] = {
 static struct amba_driver pl022_driver = {
 	.drv = {
 		.name	= "ssp-pl022",
+		.pm	= &pl022_dev_pm_ops,
 	},
 	.id_table	= pl022_ids,
 	.probe		= pl022_probe,
 	.remove		= __devexit_p(pl022_remove),
-	.suspend        = pl022_suspend,
-	.resume         = pl022_resume,
 };
 
 

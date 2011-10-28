@@ -50,6 +50,7 @@ void cx25821_set_gpiopin_direction(struct cx25821_dev *dev,
 
 	cx_write(gpio_oe_reg, value);
 }
+EXPORT_SYMBOL(cx25821_set_gpiopin_direction);
 
 static void cx25821_set_gpiopin_logicvalue(struct cx25821_dev *dev,
 					   int pin_number, int pin_logic_value)

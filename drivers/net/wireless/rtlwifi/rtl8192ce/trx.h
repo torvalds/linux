@@ -537,12 +537,6 @@ do {							\
 		memset(__pdesc, 0, _size);	\
 } while (0);
 
-#define RX_HAL_IS_CCK_RATE(_pdesc)\
-	(_pdesc->rxmcs == DESC92C_RATE1M ||		\
-	 _pdesc->rxmcs == DESC92C_RATE2M ||		\
-	 _pdesc->rxmcs == DESC92C_RATE5_5M ||		\
-	 _pdesc->rxmcs == DESC92C_RATE11M)
-
 struct rx_fwinfo_92c {
 	u8 gain_trsw[4];
 	u8 pwdb_all;

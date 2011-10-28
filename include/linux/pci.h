@@ -174,6 +174,8 @@ enum pci_dev_flags {
 	PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG = (__force pci_dev_flags_t) 1,
 	/* Device configuration is irrevocably lost if disabled into D3 */
 	PCI_DEV_FLAGS_NO_D3 = (__force pci_dev_flags_t) 2,
+	/* Provide indication device is assigned by a Virtual Machine Manager */
+	PCI_DEV_FLAGS_ASSIGNED = (__force pci_dev_flags_t) 4,
 };
 
 enum pci_irq_reroute_variant {
@@ -621,8 +623,9 @@ struct pci_driver {
 extern void pcie_bus_configure_settings(struct pci_bus *bus, u8 smpss);
 
 enum pcie_bus_config_types {
-	PCIE_BUS_PERFORMANCE,
+	PCIE_BUS_TUNE_OFF,
 	PCIE_BUS_SAFE,
+	PCIE_BUS_PERFORMANCE,
 	PCIE_BUS_PEER2PEER,
 };
 

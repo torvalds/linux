@@ -18,7 +18,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/spinlock.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -432,6 +431,8 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	u8 flogi_maddr[ETH_ALEN];
 	const struct net_device_ops *ops;
 
+	rtnl_lock();
+
 	/*
 	 * Don't listen for Ethernet packets anymore.
 	 * synchronize_net() ensures that the packet handlers are not running
@@ -460,6 +461,8 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 			FCOE_NETDEV_DBG(netdev, "Failed to disable FCoE"
 					" specific feature for LLD.\n");
 	}
+
+	rtnl_unlock();
 
 	/* Release the self-reference taken during fcoe_interface_create() */
 	fcoe_interface_put(fcoe);
@@ -1514,7 +1517,7 @@ int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 			return -ENOMEM;
 		}
 		frag = &skb_shinfo(skb)->frags[skb_shinfo(skb)->nr_frags - 1];
-		cp = kmap_atomic(frag->page, KM_SKB_DATA_SOFTIRQ)
+		cp = kmap_atomic(skb_frag_page(frag), KM_SKB_DATA_SOFTIRQ)
 			+ frag->page_offset;
 	} else {
 		cp = (struct fcoe_crc_eof *)skb_put(skb, tlen);
@@ -1951,11 +1954,8 @@ static void fcoe_destroy_work(struct work_struct *work)
 	fcoe_if_destroy(port->lport);
 
 	/* Do not tear down the fcoe interface for NPIV port */
-	if (!npiv) {
-		rtnl_lock();
+	if (!npiv)
 		fcoe_interface_cleanup(fcoe);
-		rtnl_unlock();
-	}
 
 	mutex_unlock(&fcoe_config_mutex);
 }
@@ -2009,8 +2009,9 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 		printk(KERN_ERR "fcoe: Failed to create interface (%s)\n",
 		       netdev->name);
 		rc = -EIO;
+		rtnl_unlock();
 		fcoe_interface_cleanup(fcoe);
-		goto out_nodev;
+		goto out_nortnl;
 	}
 
 	/* Make this the "master" N_Port */
@@ -2027,6 +2028,7 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 
 out_nodev:
 	rtnl_unlock();
+out_nortnl:
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }
@@ -2043,7 +2045,7 @@ int fcoe_link_speed_update(struct fc_lport *lport)
 	struct net_device *netdev = fcoe_netdev(lport);
 	struct ethtool_cmd ecmd;
 
-	if (!dev_ethtool_get_settings(netdev, &ecmd)) {
+	if (!__ethtool_get_settings(netdev, &ecmd)) {
 		lport->link_supported_speeds &=
 			~(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
 		if (ecmd.supported & (SUPPORTED_1000baseT_Half |
@@ -2452,7 +2454,9 @@ static int fcoe_vport_create(struct fc_vport *vport, bool disabled)
 	}
 
 	mutex_lock(&fcoe_config_mutex);
+	rtnl_lock();
 	vn_port = fcoe_if_create(fcoe, &vport->dev, 1);
+	rtnl_unlock();
 	mutex_unlock(&fcoe_config_mutex);
 
 	if (IS_ERR(vn_port)) {

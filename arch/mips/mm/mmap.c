@@ -6,6 +6,7 @@
  * Copyright (C) 2011 Wind River Systems,
  *   written by Ralf Baechle <ralf@linux-mips.org>
  */
+#include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
@@ -15,12 +16,11 @@
 #include <linux/sched.h>
 
 unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
-
 EXPORT_SYMBOL(shm_align_mask);
 
 /* gap between mmap and stack */
 #define MIN_GAP (128*1024*1024UL)
-#define MAX_GAP        ((TASK_SIZE)/6*5)
+#define MAX_GAP ((TASK_SIZE)/6*5)
 
 static int mmap_is_legacy(void)
 {
@@ -57,13 +57,13 @@ static inline unsigned long COLOUR_ALIGN_DOWN(unsigned long addr,
 	return base - off;
 }
 
-#define COLOUR_ALIGN(addr,pgoff)				\
+#define COLOUR_ALIGN(addr, pgoff)				\
 	((((addr) + shm_align_mask) & ~shm_align_mask) +	\
 	 (((pgoff) << PAGE_SHIFT) & shm_align_mask))
 
 enum mmap_allocation_direction {UP, DOWN};
 
-static unsigned long arch_get_unmapped_area_foo(struct file *filp,
+static unsigned long arch_get_unmapped_area_common(struct file *filp,
 	unsigned long addr0, unsigned long len, unsigned long pgoff,
 	unsigned long flags, enum mmap_allocation_direction dir)
 {
@@ -103,16 +103,16 @@ static unsigned long arch_get_unmapped_area_foo(struct file *filp,
 
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr &&
-		   (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vma->vm_start))
 			return addr;
 	}
 
 	if (dir == UP) {
 		addr = mm->mmap_base;
-			if (do_color_align)
-				addr = COLOUR_ALIGN(addr, pgoff);
-			else
-				addr = PAGE_ALIGN(addr);
+		if (do_color_align)
+			addr = COLOUR_ALIGN(addr, pgoff);
+		else
+			addr = PAGE_ALIGN(addr);
 
 		for (vma = find_vma(current->mm, addr); ; vma = vma->vm_next) {
 			/* At this point:  (!vma || addr < vma->vm_end). */
@@ -131,28 +131,30 @@ static unsigned long arch_get_unmapped_area_foo(struct file *filp,
 			mm->free_area_cache = mm->mmap_base;
 		}
 
-		/* either no address requested or can't fit in requested address hole */
+		/*
+		 * either no address requested, or the mapping can't fit into
+		 * the requested address hole
+		 */
 		addr = mm->free_area_cache;
-			if (do_color_align) {
-				unsigned long base =
-					COLOUR_ALIGN_DOWN(addr - len, pgoff);
-
+		if (do_color_align) {
+			unsigned long base =
+				COLOUR_ALIGN_DOWN(addr - len, pgoff);
 			addr = base + len;
-		 }
+		}
 
 		/* make sure it can fit in the remaining address space */
 		if (likely(addr > len)) {
 			vma = find_vma(mm, addr - len);
 			if (!vma || addr <= vma->vm_start) {
-				/* remember the address as a hint for next time */
-				return mm->free_area_cache = addr-len;
+				/* cache the address as a hint for next time */
+				return mm->free_area_cache = addr - len;
 			}
 		}
 
 		if (unlikely(mm->mmap_base < len))
 			goto bottomup;
 
-		addr = mm->mmap_base-len;
+		addr = mm->mmap_base - len;
 		if (do_color_align)
 			addr = COLOUR_ALIGN_DOWN(addr, pgoff);
 
@@ -163,8 +165,8 @@ static unsigned long arch_get_unmapped_area_foo(struct file *filp,
 			 * return with success:
 			 */
 			vma = find_vma(mm, addr);
-			if (likely(!vma || addr+len <= vma->vm_start)) {
-				/* remember the address as a hint for next time */
+			if (likely(!vma || addr + len <= vma->vm_start)) {
+				/* cache the address as a hint for next time */
 				return mm->free_area_cache = addr;
 			}
 
@@ -173,7 +175,7 @@ static unsigned long arch_get_unmapped_area_foo(struct file *filp,
 				mm->cached_hole_size = vma->vm_start - addr;
 
 			/* try just below the current vma->vm_start */
-			addr = vma->vm_start-len;
+			addr = vma->vm_start - len;
 			if (do_color_align)
 				addr = COLOUR_ALIGN_DOWN(addr, pgoff);
 		} while (likely(len < vma->vm_start));
@@ -201,7 +203,7 @@ bottomup:
 unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr0,
 	unsigned long len, unsigned long pgoff, unsigned long flags)
 {
-	return arch_get_unmapped_area_foo(filp,
+	return arch_get_unmapped_area_common(filp,
 			addr0, len, pgoff, flags, UP);
 }
 
@@ -213,7 +215,7 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp,
 	unsigned long addr0, unsigned long len, unsigned long pgoff,
 	unsigned long flags)
 {
-	return arch_get_unmapped_area_foo(filp,
+	return arch_get_unmapped_area_common(filp,
 			addr0, len, pgoff, flags, DOWN);
 }
 
