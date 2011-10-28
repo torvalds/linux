@@ -1779,6 +1779,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	} else
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
+	radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 
 	connector->display_info.subpixel_order = subpixel_order;
 	drm_sysfs_connector_add(connector);
