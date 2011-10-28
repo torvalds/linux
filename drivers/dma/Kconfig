@@ -187,6 +187,13 @@ config TIMB_DMA
 	help
 	  Enable support for the Timberdale FPGA DMA engine.
 
+config SIRF_DMA
+	tristate "CSR SiRFprimaII DMA support"
+	depends on ARCH_PRIMA2
+	select DMA_ENGINE
+	help
+	  Enable support for the CSR SiRFprimaII DMA engine.
+
 config ARCH_HAS_ASYNC_TX_FIND_CHANNEL
 	bool
 
