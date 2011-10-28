@@ -76,13 +76,6 @@ static inline int pcibios_assign_all_busses(void)
 	return 1;
 }
 
-/*
- * No special bus mastering setup handling.
- */
-static inline void pcibios_set_master(struct pci_dev *dev)
-{
-}
-
 #define PCIBIOS_MIN_MEM		0
 #define PCIBIOS_MIN_IO		0
 
