@@ -387,8 +387,11 @@ pci_acpi_scan_root(struct acpi_pci_root *root)
 	 * should handle the case here, but it appears that IA64 hasn't
 	 * such quirk. So we just ignore the case now.
 	 */
-	pbus = pci_scan_bus_parented(NULL, bus, &pci_root_ops, controller);
+	pbus = pci_create_bus(NULL, bus, &pci_root_ops, controller);
+	if (!pbus)
+		return NULL;
 
+	pbus->subordinate = pci_scan_child_bus(pbus);
 	return pbus;
 
 out3:
