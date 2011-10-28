@@ -1746,15 +1746,16 @@ static __devinit int vpbe_display_probe(struct platform_device *pdev)
 	for (i = 0; i < VPBE_DISPLAY_MAX_DEVICES; i++) {
 		if (register_device(disp_dev->dev[i], disp_dev, pdev)) {
 			err = -ENODEV;
-			goto probe_out;
+			goto probe_out_irq;
 		}
 	}
 
 	printk(KERN_DEBUG "Successfully completed the probing of vpbe v4l2 device\n");
 	return 0;
 
-probe_out:
+probe_out_irq:
 	free_irq(res->start, disp_dev);
+probe_out:
 	for (k = 0; k < VPBE_DISPLAY_MAX_DEVICES; k++) {
 		/* Get the pointer to the layer object */
 		vpbe_display_layer = disp_dev->dev[k];
