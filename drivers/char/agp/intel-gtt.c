@@ -1236,7 +1236,7 @@ static int i9xx_setup(void)
 		intel_private.gtt_bus_addr = reg_addr + gtt_offset;
 	}
 
-	if (needs_idle_maps());
+	if (needs_idle_maps())
 		intel_private.base.do_idle_maps = 1;
 
 	intel_i9xx_setup_flush();
