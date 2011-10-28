@@ -392,7 +392,7 @@ arch_initcall(simpad_init);
 
 MACHINE_START(SIMPAD, "Simpad")
 	/* Maintainer: Holger Freyther */
-	.boot_params	= 0xc0000100,
+	.atag_offset	= 0x100,
 	.map_io		= simpad_map_io,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,

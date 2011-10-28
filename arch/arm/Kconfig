@@ -29,6 +29,7 @@ config ARM
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_SPARSE_IRQ
 	select GENERIC_IRQ_SHOW
+	select CPU_PM if (SUSPEND || CPU_IDLE)
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -211,6 +212,19 @@ config ARM_PATCH_PHYS_VIRT
 	  this feature (eg, building a kernel for a single machine) and
 	  you need to shrink the kernel to the minimal size.
 
+config NEED_MACH_MEMORY_H
+	bool
+	help
+	  Select this when mach/memory.h is required to provide special
+	  definitions for this platform.  The need for mach/memory.h should
+	  be avoided when possible.
+
+config PHYS_OFFSET
+	hex "Physical address of main memory"
+	depends on !ARM_PATCH_PHYS_VIRT && !NEED_MACH_MEMORY_H
+	help
+	  Please provide the physical address corresponding to the
+	  location of main memory in your system.
 
 config GENERIC_BUG
 	def_bool y
@@ -247,6 +261,7 @@ config ARCH_INTEGRATOR
 	select GENERIC_CLOCKEVENTS
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_FPGA_IRQ
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for ARM's Integrator platform.
 
@@ -262,6 +277,7 @@ config ARCH_REALVIEW
 	select PLAT_VERSATILE_CLCD
 	select ARM_TIMER_SP804
 	select GPIO_PL061 if GPIOLIB
+	select NEED_MACH_MEMORY_H
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -322,6 +338,7 @@ config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x-based"
 	select CPU_ARM720T
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Cirrus Logic 711x/721x based boards.
 
@@ -361,6 +378,7 @@ config ARCH_EBSA110
 	select ISA
 	select NO_IOPORT
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  This is an evaluation board for the StrongARM processor available
 	  from Digital. It has limited hardware on-board, including an
@@ -376,6 +394,7 @@ config ARCH_EP93XX
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MEMORY_H
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -385,6 +404,7 @@ config ARCH_FOOTBRIDGE
 	select FOOTBRIDGE
 	select GENERIC_CLOCKEVENTS
 	select HAVE_IDE
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
@@ -434,6 +454,7 @@ config ARCH_IOP13XX
 	select PCI
 	select ARCH_SUPPORTS_MSI
 	select VMSPLIT_1G
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
 
@@ -464,6 +485,7 @@ config ARCH_IXP23XX
 	select CPU_XSC3
  	select PCI
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Intel's IXP23xx (XScale) family of processors.
 
@@ -473,6 +495,7 @@ config ARCH_IXP2000
 	select CPU_XSCALE
 	select PCI
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Intel's IXP2400/2800 (XScale) family of processors.
 
@@ -565,6 +588,7 @@ config ARCH_KS8695
 	select CPU_ARM922T
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
 	  System-on-Chip devices.
@@ -657,6 +681,7 @@ config ARCH_SHMOBILE
 	select SPARSE_IRQ
 	select MULTI_IRQ_HANDLER
 	select PM_GENERIC_DOMAINS if PM
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Renesas's SH-Mobile and R-Mobile ARM platforms.
 
@@ -672,6 +697,7 @@ config ARCH_RPC
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_USES_GETTIMEOFFSET
 	select HAVE_IDE
+	select NEED_MACH_MEMORY_H
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
@@ -691,6 +717,7 @@ config ARCH_SA1100
 	select TICK_ONESHOT
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_IDE
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for StrongARM 11x0 based boards.
 
@@ -782,6 +809,7 @@ config ARCH_S5PV210
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C_RTC if RTC_CLASS
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select NEED_MACH_MEMORY_H
 	help
 	  Samsung S5PV210/S5PC110 series based systems
 
@@ -798,6 +826,7 @@ config ARCH_EXYNOS4
 	select HAVE_S3C_RTC if RTC_CLASS
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select NEED_MACH_MEMORY_H
 	help
 	  Samsung EXYNOS4 series based systems
 
@@ -809,6 +838,7 @@ config ARCH_SHARK
 	select ZONE_DMA
 	select PCI
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for the StrongARM based Digital DNARD machine, also known
 	  as "Shark" (<http://www.shark-linux.de/shark.html>).
@@ -837,6 +867,7 @@ config ARCH_U300
 	select HAVE_MACH_CLKDEV
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
 
@@ -1834,6 +1865,38 @@ config ZBOOT_ROM_SH_MOBILE_SDHI
 	  Load image from SDHI hardware block
 
 endchoice
+
+config ARM_APPENDED_DTB
+	bool "Use appended device tree blob to zImage (EXPERIMENTAL)"
+	depends on OF && !ZBOOT_ROM && EXPERIMENTAL
+	help
+	  With this option, the boot code will look for a device tree binary
+	  (DTB) appended to zImage
+	  (e.g. cat zImage <filename>.dtb > zImage_w_dtb).
+
+	  This is meant as a backward compatibility convenience for those
+	  systems with a bootloader that can't be upgraded to accommodate
+	  the documented boot protocol using a device tree.
+
+	  Beware that there is very little in terms of protection against
+	  this option being confused by leftover garbage in memory that might
+	  look like a DTB header after a reboot if no actual DTB is appended
+	  to zImage.  Do not leave this option active in a production kernel
+	  if you don't intend to always append a DTB.  Proper passing of the
+	  location into r2 of a bootloader provided DTB is always preferable
+	  to this option.
+
+config ARM_ATAG_DTB_COMPAT
+	bool "Supplement the appended DTB with traditional ATAG information"
+	depends on ARM_APPENDED_DTB
+	help
+	  Some old bootloaders can't be updated to a DTB capable one, yet
+	  they provide ATAGs with memory configuration, the ramdisk address,
+	  the kernel cmdline string, etc.  Such information is dynamically
+	  provided by the bootloader and can't always be stored in a static
+	  DTB.  To allow a device tree enabled kernel to be used with such
+	  bootloaders, this option allows zImage to extract the information
+	  from the ATAG list and store it at run time into the appended DTB.
 
 config CMDLINE
 	string "Default kernel command string"

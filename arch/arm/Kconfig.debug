@@ -158,4 +158,10 @@ config DEBUG_S3C_UART
 	  The uncompressor code port configuration is now handled
 	  by CONFIG_S3C_LOWLEVEL_UART_PORT.
 
+config ARM_KPROBES_TEST
+	tristate "Kprobes test module"
+	depends on KPROBES && MODULES
+	help
+	  Perform tests of kprobes API and instruction set simulation.
+
 endmenu

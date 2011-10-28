@@ -299,7 +299,7 @@ static void __init nslu2_init(void)
 
 MACHINE_START(NSLU2, "Linksys NSLU2")
 	/* Maintainer: www.nslu2-linux.org */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer          = &nslu2_timer,

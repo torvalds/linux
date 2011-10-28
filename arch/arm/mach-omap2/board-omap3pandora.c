@@ -606,7 +606,7 @@ static void __init omap3pandora_init(void)
 }
 
 MACHINE_START(OMAP3_PANDORA, "Pandora Handheld Console")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap3pandora_init_early,

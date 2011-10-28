@@ -494,7 +494,7 @@ static void __init omap3_stalker_init(void)
 
 MACHINE_START(SBC3530, "OMAP3 STALKER")
 	/* Maintainer: Jason Lam -lzg@ema-tech.com */
-	.boot_params		= 0x80000100,
+	.atag_offset		= 0x100,
 	.map_io			= omap3_map_io,
 	.init_early		= omap3_stalker_init_early,
 	.init_irq		= omap3_stalker_init_irq,

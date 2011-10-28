@@ -13,7 +13,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <mach/memory.h>
 
 #define L2X0_ADDR_FILTERING_START       0xC00
 #define L2X0_ADDR_FILTERING_END         0xC04
@@ -41,9 +40,9 @@ static int __init sirfsoc_of_l2x_init(void)
 		/*
 		 * set the physical memory windows L2 cache will cover
 		 */
-		writel_relaxed(PLAT_PHYS_OFFSET + 1024 * 1024 * 1024,
+		writel_relaxed(PHYS_OFFSET + 1024 * 1024 * 1024,
 			sirfsoc_l2x_base + L2X0_ADDR_FILTERING_END);
-		writel_relaxed(PLAT_PHYS_OFFSET | 0x1,
+		writel_relaxed(PHYS_OFFSET | 0x1,
 			sirfsoc_l2x_base + L2X0_ADDR_FILTERING_START);
 
 		writel_relaxed(0,

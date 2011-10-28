@@ -51,7 +51,4 @@
 	.macro  test_for_ipi, irqnr, irqstat, base, tmp
 	.endm
 
-	.macro  test_for_ltirq, irqnr, irqstat, base, tmp
-	.endm
-
 	arch_irq_handler shmobile_handle_irq_intc

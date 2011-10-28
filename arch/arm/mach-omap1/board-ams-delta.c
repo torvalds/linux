@@ -385,7 +385,7 @@ static void __init ams_delta_map_io(void)
 
 MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	/* Maintainer: Jonathan McDowell <noodles@earth.li> */
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= ams_delta_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= ams_delta_init_irq,

@@ -104,7 +104,7 @@ static void __init sapphire_map_io(void)
 
 MACHINE_START(SAPPHIRE, "sapphire")
 /* Maintainer: Brian Swetland <swetland@google.com> */
-	.boot_params    = PLAT_PHYS_OFFSET + 0x100,
+	.atag_offset    = 0x100,
 	.fixup          = sapphire_fixup,
 	.map_io         = sapphire_map_io,
 	.init_irq       = sapphire_init_irq,

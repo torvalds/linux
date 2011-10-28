@@ -460,10 +460,6 @@ u64 smp_irq_stat_cpu(unsigned int cpu)
 	for (i = 0; i < NR_IPI; i++)
 		sum += __get_irq_stat(cpu, ipi_irqs[i]);
 
-#ifdef CONFIG_LOCAL_TIMERS
-	sum += __get_irq_stat(cpu, local_timer_irqs);
-#endif
-
 	return sum;
 }
 
@@ -479,38 +475,6 @@ static void ipi_timer(void)
 	evt->event_handler(evt);
 	irq_exit();
 }
-
-#ifdef CONFIG_LOCAL_TIMERS
-asmlinkage void __exception_irq_entry do_local_timer(struct pt_regs *regs)
-{
-	handle_local_timer(regs);
-}
-
-void handle_local_timer(struct pt_regs *regs)
-{
-	struct pt_regs *old_regs = set_irq_regs(regs);
-	int cpu = smp_processor_id();
-
-	if (local_timer_ack()) {
-		__inc_irq_stat(cpu, local_timer_irqs);
-		ipi_timer();
-	}
-
-	set_irq_regs(old_regs);
-}
-
-void show_local_irqs(struct seq_file *p, int prec)
-{
-	unsigned int cpu;
-
-	seq_printf(p, "%*s: ", prec, "LOC");
-
-	for_each_present_cpu(cpu)
-		seq_printf(p, "%10u ", __get_irq_stat(cpu, local_timer_irqs));
-
-	seq_printf(p, " Local timer interrupts\n");
-}
-#endif
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 static void smp_timer_broadcast(const struct cpumask *mask)
@@ -562,7 +526,7 @@ static void percpu_timer_stop(void)
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(percpu_clockevent, cpu);
 
-	evt->set_mode(CLOCK_EVT_MODE_UNUSED, evt);
+	local_timer_stop(evt);
 }
 #endif
 

@@ -852,7 +852,7 @@ static void __init cm_x300_fixup(struct tag *tags, char **cmdline,
 }
 
 MACHINE_START(CM_X300, "CM-X300 module")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa3xx_map_io,
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,

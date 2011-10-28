@@ -15,6 +15,7 @@ config ARCH_OMAP1
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
 	select HAVE_IDE
+	select NEED_MACH_MEMORY_H
 	help
 	  "Systems based on omap7xx, omap15xx or omap16xx"
 

@@ -139,7 +139,7 @@ static void __init smdk2443_machine_init(void)
 
 MACHINE_START(SMDK2443, "SMDK2443")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
-	.boot_params	= S3C2410_SDRAM_PA + 0x100,
+	.atag_offset	= 0x100,
 
 	.init_irq	= s3c24xx_init_irq,
 	.map_io		= smdk2443_map_io,
