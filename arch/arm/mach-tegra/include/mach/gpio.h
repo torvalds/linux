@@ -22,7 +22,7 @@
 
 #include <mach/irqs.h>
 
-#define TEGRA_NR_GPIOS		INT_GPIO_NR
+#define ARCH_NR_GPIOS		INT_GPIO_NR
 
 #include <asm-generic/gpio.h>
 
@@ -35,7 +35,7 @@
 
 static inline int gpio_to_irq(unsigned int gpio)
 {
-	if (gpio < TEGRA_NR_GPIOS)
+	if (gpio < ARCH_NR_GPIOS)
 		return INT_GPIO_BASE + gpio;
 	return -EINVAL;
 }

@@ -578,16 +578,14 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 		return NULL;
 	}
 
-	del_mc_from_global_list(mci);
-	mutex_unlock(&mem_ctls_mutex);
-
-	/* flush workq processes */
-	edac_mc_workq_teardown(mci);
-
 	/* marking MCI offline */
 	mci->op_state = OP_OFFLINE;
 
-	/* remove from sysfs */
+	del_mc_from_global_list(mci);
+	mutex_unlock(&mem_ctls_mutex);
+
+	/* flush workq processes and remove sysfs */
+	edac_mc_workq_teardown(mci);
 	edac_remove_sysfs_mci_device(mci);
 
 	edac_printk(KERN_INFO, EDAC_MC,

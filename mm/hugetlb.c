@@ -2380,11 +2380,8 @@ retry_avoidcopy:
 	 * When the original hugepage is shared one, it does not have
 	 * anon_vma prepared.
 	 */
-	if (unlikely(anon_vma_prepare(vma))) {
-		/* Caller expects lock to be held */
-		spin_lock(&mm->page_table_lock);
+	if (unlikely(anon_vma_prepare(vma)))
 		return VM_FAULT_OOM;
-	}
 
 	copy_huge_page(new_page, old_page, address, vma);
 	__SetPageUptodate(new_page);
@@ -2668,8 +2665,7 @@ out_page_table_lock:
 		unlock_page(pagecache_page);
 		put_page(pagecache_page);
 	}
-	if (page != pagecache_page)
-		unlock_page(page);
+	unlock_page(page);
 
 out_mutex:
 	mutex_unlock(&hugetlb_instantiation_mutex);

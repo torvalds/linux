@@ -1675,7 +1675,7 @@ rpc_verify_header(struct rpc_task *task)
 			rpcauth_invalcred(task);
 			/* Ensure we obtain a new XID! */
 			xprt_release(task);
-			task->tk_action = call_reserve;
+			task->tk_action = call_refresh;
 			goto out_retry;
 		case RPC_AUTH_BADCRED:
 		case RPC_AUTH_BADVERF:

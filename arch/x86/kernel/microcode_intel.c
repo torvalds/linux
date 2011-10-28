@@ -364,7 +364,8 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 
 		/* For performance reasons, reuse mc area when possible */
 		if (!mc || mc_size > curr_mc_size) {
-			vfree(mc);
+			if (mc)
+				vfree(mc);
 			mc = vmalloc(mc_size);
 			if (!mc)
 				break;
@@ -373,11 +374,13 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 
 		if (get_ucode_data(mc, ucode_ptr, mc_size) ||
 		    microcode_sanity_check(mc) < 0) {
+			vfree(mc);
 			break;
 		}
 
 		if (get_matching_microcode(&uci->cpu_sig, mc, new_rev)) {
-			vfree(new_mc);
+			if (new_mc)
+				vfree(new_mc);
 			new_rev = mc_header.rev;
 			new_mc  = mc;
 			mc = NULL;	/* trigger new vmalloc */
@@ -387,10 +390,12 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 		leftover  -= mc_size;
 	}
 
-	vfree(mc);
+	if (mc)
+		vfree(mc);
 
 	if (leftover) {
-		vfree(new_mc);
+		if (new_mc)
+			vfree(new_mc);
 		state = UCODE_ERROR;
 		goto out;
 	}
@@ -400,7 +405,8 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 		goto out;
 	}
 
-	vfree(uci->mc);
+	if (uci->mc)
+		vfree(uci->mc);
 	uci->mc = (struct microcode_intel *)new_mc;
 
 	pr_debug("CPU%d found a matching microcode update with version 0x%x (current=0x%x)\n",

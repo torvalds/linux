@@ -31,7 +31,6 @@
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/usbnet.h>
-#include <linux/usb/oob_wake.h>
 
 
 #if defined(CONFIG_USB_NET_RNDIS_HOST) || defined(CONFIG_USB_NET_RNDIS_HOST_MODULE)
@@ -470,35 +469,6 @@ static const struct driver_info mbm_info = {
 	.manage_power =	cdc_manage_power,
 };
 
-#ifdef CONFIG_USB_OOBWAKE
-/* out of band wake devices */
-static void oob_wake_cdc_unbind(struct usbnet *dev, struct usb_interface *intf)
-{
-	pr_info("%s: unregister interface for out of band wakeups\n", __func__);
-	oob_wake_unregister(intf);
-	usbnet_cdc_unbind(dev, intf);
-}
-
-static int oob_wake_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
-{
-	int status;
-
-	pr_info("%s: register interface for out of band wakeups\n", __func__);
-	status = cdc_bind(dev, intf);
-	oob_wake_register(intf);
-	return status;
-}
-
-static const struct driver_info	oob_wake_cdc_info = {
-	.description =	"CDC Wakeable Ethernet Device",
-	.flags =	FLAG_ETHER,
-	.bind =		oob_wake_cdc_bind,
-	.unbind =	oob_wake_cdc_unbind,
-	.status =	cdc_status,
-	.manage_power =	cdc_manage_power,
-};
-#endif /* CONFIG_USB_OOBWAKE */
-
 /*-------------------------------------------------------------------------*/
 
 
@@ -603,14 +573,6 @@ static const struct usb_device_id	products [] = {
  * NOTE:  this match must come AFTER entries blacklisting devices
  * because of bugs/quirks in a given product (like Zaurus, above).
  */
-#ifdef CONFIG_USB_OOBWAKE
-{
-	/* Motorola Wrigley LTE Modem */
-	USB_DEVICE_AND_INTERFACE_INFO(0x22b8, 0x4267, USB_CLASS_COMM,
-		USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &oob_wake_cdc_info,
-},
-#endif /* CONFIG_USB_OOBWAKE */
 {
 	USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ETHERNET,
 			USB_CDC_PROTO_NONE),

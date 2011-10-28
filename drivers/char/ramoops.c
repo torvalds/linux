@@ -27,6 +27,7 @@
 #include <linux/ioport.h>
 
 #define RAMOOPS_KERNMSG_HDR "===="
+#define RAMOOPS_HEADER_SIZE   (5 + sizeof(struct timeval))
 
 #define RECORD_SIZE 4096
 
@@ -62,8 +63,8 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 			struct ramoops_context, dump);
 	unsigned long s1_start, s2_start;
 	unsigned long l1_cpy, l2_cpy;
-	int res, hdr_size;
-	char *buf, *buf_orig;
+	int res;
+	char *buf;
 	struct timeval timestamp;
 
 	/* Only dump oopses if dump_oops is set */
@@ -71,8 +72,6 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 		return;
 
 	buf = (char *)(cxt->virt_addr + (cxt->count * RECORD_SIZE));
-	buf_orig = buf;
-
 	memset(buf, '\0', RECORD_SIZE);
 	res = sprintf(buf, "%s", RAMOOPS_KERNMSG_HDR);
 	buf += res;
@@ -80,9 +79,8 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 	res = sprintf(buf, "%lu.%lu\n", (long)timestamp.tv_sec, (long)timestamp.tv_usec);
 	buf += res;
 
-	hdr_size = buf - buf_orig;
-	l2_cpy = min(l2, (unsigned long)(RECORD_SIZE - hdr_size));
-	l1_cpy = min(l1, (unsigned long)(RECORD_SIZE - hdr_size) - l2_cpy);
+	l2_cpy = min(l2, (unsigned long)(RECORD_SIZE - RAMOOPS_HEADER_SIZE));
+	l1_cpy = min(l1, (unsigned long)(RECORD_SIZE - RAMOOPS_HEADER_SIZE) - l2_cpy);
 
 	s2_start = l2 - l2_cpy;
 	s1_start = l1 - l1_cpy;

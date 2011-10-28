@@ -19,12 +19,9 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/clk.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/partitions.h>
 #include <linux/dma-mapping.h>
 #include <linux/pda_power.h>
 #include <linux/io.h>
-#include <linux/delay.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -33,14 +30,10 @@
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
-#include <mach/nand.h>
-#include <mach/clk.h>
 
-#include "clock.h"
 #include "board.h"
 #include "board-harmony.h"
 #include "clock.h"
-#include "devices.h"
 
 /* NVidia bootloader tags */
 #define ATAG_NVIDIA		0x41000801
@@ -67,69 +60,6 @@ static int __init parse_tag_nvidia(const struct tag *tag)
 }
 __tagtable(ATAG_NVIDIA, parse_tag_nvidia);
 
-static struct tegra_nand_chip_parms nand_chip_parms[] = {
-	/* Samsung K5E2G1GACM */
-	[0] = {
-		.vendor_id   = 0xEC,
-		.device_id   = 0xAA,
-		.capacity    = 256,
-		.timing      = {
-			.trp		= 21,
-			.trh		= 15,
-			.twp		= 21,
-			.twh		= 15,
-			.tcs		= 31,
-			.twhr		= 60,
-			.tcr_tar_trr	= 20,
-			.twb		= 100,
-			.trp_resp	= 30,
-			.tadl		= 100,
-		},
-	},
-	/* Hynix H5PS1GB3EFR */
-	[1] = {
-		.vendor_id   = 0xAD,
-		.device_id   = 0xDC,
-		.capacity    = 512,
-		.timing      = {
-			.trp		= 12,
-			.trh		= 10,
-			.twp		= 12,
-			.twh		= 10,
-			.tcs		= 20,
-			.twhr		= 80,
-			.tcr_tar_trr	= 20,
-			.twb		= 100,
-			.trp_resp	= 20,
-			.tadl		= 70,
-		},
-	},
-};
-
-struct tegra_nand_platform harmony_nand_data = {
-	.max_chips	= 8,
-	.chip_parms	= nand_chip_parms,
-	.nr_chip_parms  = ARRAY_SIZE(nand_chip_parms),
-};
-
-static struct resource resources_nand[] = {
-	[0] = {
-		.start  = INT_NANDFLASH,
-		.end    = INT_NANDFLASH,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device tegra_nand_device = {
-	.name           = "tegra_nand",
-	.id             = -1,
-	.num_resources  = ARRAY_SIZE(resources_nand),
-	.resource       = resources_nand,
-	.dev            = {
-		.platform_data = &harmony_nand_data,
-	},
-};
-
 static struct plat_serial8250_port debug_uart_platform_data[] = {
 	{
 		.membase	= IO_ADDRESS(TEGRA_UARTD_BASE),
@@ -152,33 +82,8 @@ static struct platform_device debug_uart = {
 	},
 };
 
-/* PDA power */
-static struct pda_power_pdata pda_power_pdata = {
-};
-
-static struct platform_device pda_power_device = {
-	.name   = "pda_power",
-	.id     = -1,
-	.dev    = {
-		.platform_data  = &pda_power_pdata,
-	},
-};
-
 static struct platform_device *harmony_devices[] __initdata = {
 	&debug_uart,
-	&pmu_device,
-	&tegra_nand_device,
-	&tegra_udc_device,
-	&pda_power_device,
-	&tegra_i2c_device1,
-	&tegra_i2c_device2,
-	&tegra_i2c_device3,
-	&tegra_i2c_device4,
-	&tegra_spi_device1,
-	&tegra_spi_device2,
-	&tegra_spi_device3,
-	&tegra_spi_device4,
-	&tegra_gart_device,
 };
 
 static void __init tegra_harmony_fixup(struct machine_desc *desc,
@@ -206,9 +111,6 @@ static void __init tegra_harmony_init(void)
 	harmony_pinmux_init();
 
 	platform_add_devices(harmony_devices, ARRAY_SIZE(harmony_devices));
-
-	harmony_panel_init();
-	harmony_sdhci_init();
 }
 
 MACHINE_START(HARMONY, "harmony")

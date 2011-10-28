@@ -1921,6 +1921,10 @@ static void musb_free(struct musb *musb)
 		dma_controller_destroy(c);
 	}
 
+#ifdef CONFIG_USB_MUSB_OTG
+	put_device(musb->xceiv->dev);
+#endif
+
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	usb_put_hcd(musb_to_hcd(musb));
 #else
@@ -2243,6 +2247,7 @@ static int __exit musb_remove(struct platform_device *pdev)
 #endif
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	musb_platform_exit(musb);
+	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 
 	musb_free(musb);
 	iounmap(ctrl_base);

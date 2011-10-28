@@ -553,9 +553,6 @@ void __tty_hangup(struct tty_struct *tty)
 
 	tty_lock();
 
-	/* some functions below drop BTM, so we need this bit */
-	set_bit(TTY_HUPPING, &tty->flags);
-
 	/* inuse_filps is protected by the single tty lock,
 	   this really needs to change if we want to flush the
 	   workqueue with the lock held */
@@ -575,10 +572,6 @@ void __tty_hangup(struct tty_struct *tty)
 	}
 	spin_unlock(&tty_files_lock);
 
-	/*
-	 * it drops BTM and thus races with reopen
-	 * we protect the race by TTY_HUPPING
-	 */
 	tty_ldisc_hangup(tty);
 
 	read_lock(&tasklist_lock);
@@ -616,6 +609,7 @@ void __tty_hangup(struct tty_struct *tty)
 	tty->session = NULL;
 	tty->pgrp = NULL;
 	tty->ctrl_status = 0;
+	set_bit(TTY_HUPPED, &tty->flags);
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 
 	/* Account for the p->signal references we killed */
@@ -641,7 +635,6 @@ void __tty_hangup(struct tty_struct *tty)
 	 * can't yet guarantee all that.
 	 */
 	set_bit(TTY_HUPPED, &tty->flags);
-	clear_bit(TTY_HUPPING, &tty->flags);
 	tty_ldisc_enable(tty);
 
 	tty_unlock();
@@ -1311,9 +1304,7 @@ static int tty_reopen(struct tty_struct *tty)
 {
 	struct tty_driver *driver = tty->driver;
 
-	if (test_bit(TTY_CLOSING, &tty->flags) ||
-			test_bit(TTY_HUPPING, &tty->flags) ||
-			test_bit(TTY_LDISC_CHANGING, &tty->flags))
+	if (test_bit(TTY_CLOSING, &tty->flags))
 		return -EIO;
 
 	if (driver->type == TTY_DRIVER_TYPE_PTY &&

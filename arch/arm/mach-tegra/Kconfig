@@ -10,10 +10,6 @@ config ARCH_TEGRA_2x_SOC
 	select CPU_V7
 	select ARM_GIC
 	select ARCH_REQUIRE_GPIOLIB
-	select ARM_ERRATA_742230
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
-	select USB_ULPI if USB_SUPPORT
-	select USB_ULPI_VIEWPORT if USB_SUPPORT
 	help
 	  Support for NVIDIA Tegra AP20 and T20 processors, based on the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
@@ -24,26 +20,8 @@ comment "Tegra board type"
 
 config MACH_HARMONY
        bool "Harmony board"
-       select TEGRA_DEBUG_UARTD
        help
-         Support for NVIDIA Harmony development platform
-
-config MACH_VENTANA
-       bool "Ventana board"
-       help
-         Support for NVIDIA Ventana development platform
-
-config MACH_OLYMPUS
-       bool "Olympus board"
-       select TEGRA_DEBUG_UARTB
-       help
-	 Support for Olympus development platform
-
-config MACH_STINGRAY
-       bool "Stingray board"
-       select TEGRA_DEBUG_UARTB
-       help
-	 Support for Stingray development platform
+         Support for nVidia Harmony development platform
 
 choice
         prompt "Low-level debug console UART"
@@ -69,65 +47,4 @@ config TEGRA_DEBUG_UARTE
 
 endchoice
 
-config TEGRA_SYSTEM_DMA
-	bool "Enable system DMA driver for NVIDIA Tegra SoCs"
-	default y
-	help
-	  Adds system DMA functionality for NVIDIA Tegra SoCs, used by
-	  several Tegra device drivers
-
-config TEGRA_PWM
-	tristate "Enable PWM driver"
-	select HAVE_PWM
-	help
-	  Enable support for the Tegra PWM controller(s).
-
-config TEGRA_FIQ_DEBUGGER
-	bool "Enable the FIQ serial debugger on Tegra"
-	default y
-	select FIQ_DEBUGGER
-	help
-	  Enables the FIQ serial debugger on Tegra"
-
-config WIFI_CONTROL_FUNC
-	bool "Enable WiFi control function abstraction"
-	help
-	  Enables Power/Reset/Carddetect function abstraction
-
 endif
-
-config TEGRA_EMC_SCALING_ENABLE
-	bool "Enable scaling the memory frequency"
-	default n
-
-config TEGRA_CPU_DVFS
-	bool "Enable voltage scaling on Tegra CPU"
-	default y
-
-config TEGRA_CORE_DVFS
-	bool "Enable voltage scaling on Tegra core"
-	depends on TEGRA_CPU_DVFS
-	default y
-
-config TEGRA_IOVMM_GART
-	bool "Enable I/O virtual memory manager for GART"
-	depends on ARCH_TEGRA_2x_SOC
-	default y
-	select TEGRA_IOVMM
-	help
-	  Enables support for remapping discontiguous physical memory
-	  shared with the operating system into contiguous I/O virtual
-	  space through the GART hardware included on Tegra SoCs
-
-config TEGRA_IOVMM
-	bool
-
-config TEGRA_ARB_SEMAPHORE
-	bool
-
-config TEGRA_THERMAL_THROTTLE
-       bool "Enable throttling of CPU speed on overtemp"
-       depends on CPU_FREQ
-       default y
-       help
-         Also requires enabling a temperature sensor such as NCT1008.

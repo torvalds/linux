@@ -551,14 +551,8 @@ cannot_handle:
 int handle_vm86_trap(struct kernel_vm86_regs *regs, long error_code, int trapno)
 {
 	if (VMPI.is_vm86pus) {
-		if ((trapno == 3) || (trapno == 1)) {
-			KVM86->regs32->ax = VM86_TRAP + (trapno << 8);
-			/* setting this flag forces the code in entry_32.S to
-			   call save_v86_state() and change the stack pointer
-			   to KVM86->regs32 */
-			set_thread_flag(TIF_IRET);
-			return 0;
-		}
+		if ((trapno == 3) || (trapno == 1))
+			return_to_32bit(regs, VM86_TRAP + (trapno << 8));
 		do_int(regs, trapno, (unsigned char __user *) (regs->pt.ss << 4), SP(regs));
 		return 0;
 	}

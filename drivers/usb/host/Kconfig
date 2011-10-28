@@ -126,14 +126,6 @@ config USB_EHCI_MXC
 	---help---
 	  Variation of ARC USB block used in some Freescale chips.
 
-config USB_EHCI_TEGRA
-       boolean "NVIDIA Tegra HCD support"
-       depends on USB_EHCI_HCD && ARCH_TEGRA
-       select USB_EHCI_ROOT_HUB_TT
-       help
-         This driver enables support for the internal USB Host Controller
-         found in NVIDIA Tegra SoCs. The Tegra controller is EHCI compliant.
-
 config USB_EHCI_HCD_PPC_OF
 	bool "EHCI support for PPC USB controller on OF platform bus"
 	depends on USB_EHCI_HCD && PPC_OF

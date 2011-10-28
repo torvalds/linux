@@ -138,30 +138,6 @@ config LEDS_PCA9532
 	  LED controller. It is generally only useful
 	  as a platform driver
 
-config LEDS_AUO_PANEL
-	tristate "Support for AUO display backlight driver"
-	depends on LEDS_CLASS
-	help
-	  This option enables support for AUO display backlight driver
-
-config LEDS_CPCAP
-	tristate "LED Support for Display LEDS connected to CPCAP"
-	depends on LEDS_CLASS && MFD_CPCAP
-	help
-	  This option enables support for display LEDs connected to CPCAP
-
-config LEDS_LP8550
-	tristate "LED support for the LP8550"
-	depends on LEDS_CLASS && I2C
-	help
-	  This option enables support for the LP8550 LED driver
-
-config LEDS_LM3559
-	tristate "LED support for the LM3559"
-	depends on LEDS_CLASS && I2C
-	help
-	  This option enables support for the LM3559 LED driver
-
 config LEDS_GPIO
 	tristate "LED Support for GPIO connected LEDs"
 	depends on GENERIC_GPIO
@@ -411,12 +387,6 @@ config LEDS_TRIGGER_DEFAULT_ON
 	help
 	  This allows LEDs to be initialised in the ON state.
 	  If unsure, say Y.
-
-config LEDS_TRIGGER_SLEEP
-	tristate "LED Sleep Mode Trigger"
-	depends on LEDS_TRIGGERS && HAS_EARLYSUSPEND
-	help
-	  This turns LEDs on when the screen is off but the cpu still running.
 
 comment "iptables trigger is under Netfilter config (LED target)"
 	depends on LEDS_TRIGGERS

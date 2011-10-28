@@ -171,8 +171,11 @@ struct kfifo_rec_ptr_2 __STRUCT_KFIFO_PTR(unsigned char, 2, void);
 	}
 
 
-/* __kfifo_must_check_helper() is temporarily disabled because it was faulty */
-#define __kfifo_must_check_helper(x) (x)
+static inline unsigned int __must_check
+__kfifo_must_check_helper(unsigned int val)
+{
+	return val;
+}
 
 /**
  * kfifo_initialized - Check if the fifo is initialized

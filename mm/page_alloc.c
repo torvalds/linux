@@ -103,24 +103,19 @@ gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
  * only be modified with pm_mutex held, unless the suspend/hibernate code is
  * guaranteed not to run in parallel with that modification).
  */
-
-static gfp_t saved_gfp_mask;
-
-void pm_restore_gfp_mask(void)
+void set_gfp_allowed_mask(gfp_t mask)
 {
 	WARN_ON(!mutex_is_locked(&pm_mutex));
-	if (saved_gfp_mask) {
-		gfp_allowed_mask = saved_gfp_mask;
-		saved_gfp_mask = 0;
-	}
+	gfp_allowed_mask = mask;
 }
 
-void pm_restrict_gfp_mask(void)
+gfp_t clear_gfp_allowed_mask(gfp_t mask)
 {
+	gfp_t ret = gfp_allowed_mask;
+
 	WARN_ON(!mutex_is_locked(&pm_mutex));
-	WARN_ON(saved_gfp_mask);
-	saved_gfp_mask = gfp_allowed_mask;
-	gfp_allowed_mask &= ~GFP_IOFS;
+	gfp_allowed_mask &= ~mask;
+	return ret;
 }
 #endif /* CONFIG_PM_SLEEP */
 
@@ -171,7 +166,6 @@ static char * const zone_names[MAX_NR_ZONES] = {
 };
 
 int min_free_kbytes = 1024;
-int min_free_order_shift = 1;
 
 static unsigned long __meminitdata nr_kernel_pages;
 static unsigned long __meminitdata nr_all_pages;
@@ -536,7 +530,7 @@ static inline void __free_one_page(struct page *page,
 	 * so it's less likely to be used soon and more likely to be merged
 	 * as a higher order page
 	 */
-	if ((order < MAX_ORDER-2) && pfn_valid_within(page_to_pfn(buddy))) {
+	if ((order < MAX_ORDER-1) && pfn_valid_within(page_to_pfn(buddy))) {
 		struct page *higher_page, *higher_buddy;
 		combined_idx = __find_combined_index(page_idx, order);
 		higher_page = page + combined_idx - page_idx;
@@ -1483,7 +1477,7 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 		free_pages -= z->free_area[o].nr_free << o;
 
 		/* Require fewer higher order pages to be free */
-		min >>= min_free_order_shift;
+		min >>= 1;
 
 		if (free_pages <= min)
 			return 0;
@@ -3165,20 +3159,6 @@ static inline unsigned long wait_table_bits(unsigned long size)
 #define LONG_ALIGN(x) (((x)+(sizeof(long))-1)&~((sizeof(long))-1))
 
 /*
- * Check if a pageblock contains reserved pages
- */
-static int pageblock_is_reserved(unsigned long start_pfn)
-{
-	unsigned long end_pfn = start_pfn + pageblock_nr_pages;
-	unsigned long pfn;
-
-	for (pfn = start_pfn; pfn < end_pfn; pfn++)
-		if (PageReserved(pfn_to_page(pfn)))
-			return 1;
-	return 0;
-}
-
-/*
  * Mark a number of pageblocks as MIGRATE_RESERVE. The number
  * of blocks reserved is based on min_wmark_pages(zone). The memory within
  * the reserve will tend to store contiguous free pages. Setting min_free_kbytes
@@ -3217,7 +3197,7 @@ static void setup_zone_migrate_reserve(struct zone *zone)
 			continue;
 
 		/* Blocks with reserved pages will never free, skip them. */
-		if (pageblock_is_reserved(pfn))
+		if (PageReserved(page))
 			continue;
 
 		block_migratetype = get_pageblock_migratetype(page);

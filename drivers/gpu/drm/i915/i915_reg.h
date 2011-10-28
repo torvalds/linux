@@ -2551,10 +2551,6 @@
 #define SDE_PORTD_HOTPLUG_CPT	(1 << 23)
 #define SDE_PORTC_HOTPLUG_CPT	(1 << 22)
 #define SDE_PORTB_HOTPLUG_CPT	(1 << 21)
-#define SDE_HOTPLUG_MASK_CPT	(SDE_CRT_HOTPLUG_CPT |		\
-				 SDE_PORTD_HOTPLUG_CPT |	\
-				 SDE_PORTC_HOTPLUG_CPT |	\
-				 SDE_PORTB_HOTPLUG_CPT)
 
 #define SDEISR  0xc4000
 #define SDEIMR  0xc4004
@@ -2725,9 +2721,6 @@
 #define FDI_RXA_CHICKEN         0xc200c
 #define FDI_RXB_CHICKEN         0xc2010
 #define  FDI_RX_PHASE_SYNC_POINTER_ENABLE       (1)
-
-#define SOUTH_DSPCLK_GATE_D	0xc2020
-#define  PCH_DPLSUNIT_CLOCK_GATE_DISABLE (1<<29)
 
 /* CPU: FDI_TX */
 #define FDI_TXA_CTL             0x60100
@@ -2953,7 +2946,6 @@
 #define  TRANS_DP_10BPC		(1<<9)
 #define  TRANS_DP_6BPC		(2<<9)
 #define  TRANS_DP_12BPC		(3<<9)
-#define  TRANS_DP_BPC_MASK	(3<<9)
 #define  TRANS_DP_VSYNC_ACTIVE_HIGH	(1<<4)
 #define  TRANS_DP_VSYNC_ACTIVE_LOW	0
 #define  TRANS_DP_HSYNC_ACTIVE_HIGH	(1<<3)

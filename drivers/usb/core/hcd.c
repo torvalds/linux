@@ -1265,14 +1265,6 @@ static void hcd_free_coherent(struct usb_bus *bus, dma_addr_t *dma_handle,
 
 static void unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
 {
-	if (hcd->driver->unmap_urb_for_dma)
-		hcd->driver->unmap_urb_for_dma(hcd, urb);
-	else
-		usb_hcd_unmap_urb_for_dma(hcd, urb);
-}
-
-void usb_hcd_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
-{
 	enum dma_data_direction dir;
 
 	if (urb->transfer_flags & URB_SETUP_MAP_SINGLE)
@@ -1315,19 +1307,9 @@ void usb_hcd_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
 			URB_DMA_MAP_SG | URB_DMA_MAP_PAGE |
 			URB_DMA_MAP_SINGLE | URB_MAP_LOCAL);
 }
-EXPORT_SYMBOL_GPL(usb_hcd_unmap_urb_for_dma);
 
 static int map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 			   gfp_t mem_flags)
-{
-	if (hcd->driver->map_urb_for_dma)
-		return hcd->driver->map_urb_for_dma(hcd, urb, mem_flags);
-	else
-		return usb_hcd_map_urb_for_dma(hcd, urb, mem_flags);
-}
-
-int usb_hcd_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
-			    gfp_t mem_flags)
 {
 	enum dma_data_direction dir;
 	int ret = 0;
@@ -1418,11 +1400,10 @@ int usb_hcd_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 		}
 		if (ret && (urb->transfer_flags & (URB_SETUP_MAP_SINGLE |
 				URB_SETUP_MAP_LOCAL)))
-			usb_hcd_unmap_urb_for_dma(hcd, urb);
+			unmap_urb_for_dma(hcd, urb);
 	}
 	return ret;
 }
-EXPORT_SYMBOL_GPL(usb_hcd_map_urb_for_dma);
 
 /*-------------------------------------------------------------------------*/
 

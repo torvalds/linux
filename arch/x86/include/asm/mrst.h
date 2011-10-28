@@ -26,7 +26,7 @@ enum mrst_cpu_type {
 };
 
 extern enum mrst_cpu_type __mrst_cpu_chip;
-static inline enum mrst_cpu_type mrst_identify_cpu(void)
+static enum mrst_cpu_type mrst_identify_cpu(void)
 {
 	return __mrst_cpu_chip;
 }

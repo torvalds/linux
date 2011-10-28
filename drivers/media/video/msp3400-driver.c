@@ -382,12 +382,7 @@ static int msp_s_ctrl(struct v4l2_ctrl *ctrl)
 
 void msp_update_volume(struct msp_state *state)
 {
-	/* Force an update of the volume/mute cluster */
-	v4l2_ctrl_lock(state->volume);
-	state->volume->val = state->volume->cur.val;
-	state->muted->val = state->muted->cur.val;
-	msp_s_ctrl(state->volume);
-	v4l2_ctrl_unlock(state->volume);
+	v4l2_ctrl_s_ctrl(state->volume, v4l2_ctrl_g_ctrl(state->volume));
 }
 
 /* --- v4l2 ioctls --- */

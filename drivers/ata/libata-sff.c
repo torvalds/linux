@@ -1532,10 +1532,11 @@ static unsigned int __ata_sff_port_intr(struct ata_port *ap,
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
 			return ata_sff_idle_irq(ap);
 		break;
-	case HSM_ST_IDLE:
-		return ata_sff_idle_irq(ap);
-	default:
+	case HSM_ST:
+	case HSM_ST_LAST:
 		break;
+	default:
+		return ata_sff_idle_irq(ap);
 	}
 
 	/* check main status, clearing INTRQ if needed */

@@ -935,12 +935,6 @@ static int __init acpi_bus_init(void)
 		goto error1;
 	}
 
-	/*
-	 * _PDC control method may load dynamic SSDT tables,
-	 * and we need to install the table handler before that.
-	 */
-	acpi_sysfs_init();
-
 	acpi_early_processor_set_pdc();
 
 	/*
@@ -1032,6 +1026,7 @@ static int __init acpi_init(void)
 	acpi_scan_init();
 	acpi_ec_init();
 	acpi_power_init();
+	acpi_sysfs_init();
 	acpi_debugfs_init();
 	acpi_sleep_proc_init();
 	acpi_wakeup_device_init();

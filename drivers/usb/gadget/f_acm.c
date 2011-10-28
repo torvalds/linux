@@ -17,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/usb/android_composite.h>
 
 #include "u_serial.h"
 #include "gadget_chips.h"
@@ -112,7 +111,7 @@ acm_iad_descriptor = {
 	.bInterfaceCount = 	2,	// control + data
 	.bFunctionClass =	USB_CLASS_COMM,
 	.bFunctionSubClass =	USB_CDC_SUBCLASS_ACM,
-	.bFunctionProtocol =	USB_CDC_ACM_PROTO_AT_V25TER,
+	.bFunctionProtocol =	USB_CDC_PROTO_NONE,
 	/* .iFunction =		DYNAMIC */
 };
 
@@ -406,10 +405,10 @@ static int acm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			usb_ep_disable(acm->notify);
 		} else {
 			VDBG(cdev, "init acm ctrl interface %d\n", intf);
+			acm->notify_desc = ep_choose(cdev->gadget,
+					acm->hs.notify,
+					acm->fs.notify);
 		}
-		acm->notify_desc = ep_choose(cdev->gadget,
-				acm->hs.notify,
-				acm->fs.notify);
 		usb_ep_enable(acm->notify, acm->notify_desc);
 		acm->notify->driver_data = acm;
 
@@ -419,11 +418,11 @@ static int acm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			gserial_disconnect(&acm->port);
 		} else {
 			DBG(cdev, "activate acm ttyGS%d\n", acm->port_num);
+			acm->port.in_desc = ep_choose(cdev->gadget,
+					acm->hs.in, acm->fs.in);
+			acm->port.out_desc = ep_choose(cdev->gadget,
+					acm->hs.out, acm->fs.out);
 		}
-		acm->port.in_desc = ep_choose(cdev->gadget,
-				acm->hs.in, acm->fs.in);
-		acm->port.out_desc = ep_choose(cdev->gadget,
-				acm->hs.out, acm->fs.out);
 		gserial_connect(&acm->port, acm->port_num);
 
 	} else
@@ -698,7 +697,6 @@ acm_unbind(struct usb_configuration *c, struct usb_function *f)
 		usb_free_descriptors(f->hs_descriptors);
 	usb_free_descriptors(f->descriptors);
 	gs_free_req(acm->notify, acm->notify_req);
-	kfree(acm->port.func.name);
 	kfree(acm);
 }
 
@@ -770,11 +768,7 @@ int acm_bind_config(struct usb_configuration *c, u8 port_num)
 	acm->port.disconnect = acm_disconnect;
 	acm->port.send_break = acm_send_break;
 
-	acm->port.func.name = kasprintf(GFP_KERNEL, "acm%u", port_num);
-	if (!acm->port.func.name) {
-		kfree(acm);
-		return -ENOMEM;
-	}
+	acm->port.func.name = "acm";
 	acm->port.func.strings = acm_strings;
 	/* descriptors are per-instance copies */
 	acm->port.func.bind = acm_bind;
@@ -788,55 +782,3 @@ int acm_bind_config(struct usb_configuration *c, u8 port_num)
 		kfree(acm);
 	return status;
 }
-
-#ifdef CONFIG_USB_ANDROID_ACM
-#include <linux/platform_device.h>
-
-static struct acm_platform_data *acm_pdata;
-
-static int acm_probe(struct platform_device *pdev)
-{
-	acm_pdata = pdev->dev.platform_data;
-	return 0;
-}
-
-static struct platform_driver acm_platform_driver = {
-	.driver = { .name = "acm", },
-	.probe = acm_probe,
-};
-
-int acm_function_bind_config(struct usb_configuration *c)
-{
-	int i;
-	u8 num_inst = acm_pdata ? acm_pdata->num_inst : 1;
-	int ret = gserial_setup(c->cdev->gadget, num_inst);
-
-	if (ret)
-		return ret;
-
-	for (i = 0; i < num_inst; i++) {
-		ret = acm_bind_config(c, i);
-		if (ret) {
-			pr_err("Could not bind acm%u config\n", i);
-			break;
-		}
-	}
-
-	return ret;
-}
-
-static struct android_usb_function acm_function = {
-	.name = "acm",
-	.bind_config = acm_function_bind_config,
-};
-
-static int __init init(void)
-{
-	printk(KERN_INFO "f_acm init\n");
-	platform_driver_register(&acm_platform_driver);
-	android_register_function(&acm_function);
-	return 0;
-}
-module_init(init);
-
-#endif /* CONFIG_USB_ANDROID_ACM */

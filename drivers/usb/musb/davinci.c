@@ -446,7 +446,6 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 fail:
 	clk_disable(musb->clock);
 
-	otg_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister();
 	return -ENODEV;
 }
@@ -497,7 +496,6 @@ int musb_platform_exit(struct musb *musb)
 
 	clk_disable(musb->clock);
 
-	otg_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister();
 
 	return 0;

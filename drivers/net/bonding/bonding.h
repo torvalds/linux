@@ -240,11 +240,11 @@ static inline struct slave *bond_get_slave_by_dev(struct bonding *bond, struct n
 
 	bond_for_each_slave(bond, slave, i) {
 		if (slave->dev == slave_dev) {
-			return slave;
+			break;
 		}
 	}
 
-	return 0;
+	return slave;
 }
 
 static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)

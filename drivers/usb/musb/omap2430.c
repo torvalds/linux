@@ -320,6 +320,5 @@ int musb_platform_exit(struct musb *musb)
 
 	musb_platform_suspend(musb);
 
-	otg_put_transceiver(musb->xceiv);
 	return 0;
 }

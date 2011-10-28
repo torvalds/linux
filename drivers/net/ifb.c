@@ -104,8 +104,6 @@ static void ri_tasklet(unsigned long dev)
 			rcu_read_unlock();
 			dev_kfree_skb(skb);
 			stats->tx_dropped++;
-			if (skb_queue_len(&dp->tq) != 0)
-				goto resched;
 			break;
 		}
 		rcu_read_unlock();

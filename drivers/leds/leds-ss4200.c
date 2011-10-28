@@ -102,7 +102,6 @@ static struct dmi_system_id __initdata nas_led_whitelist[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "1.00.00")
 		}
 	},
-	{}
 };
 
 /*

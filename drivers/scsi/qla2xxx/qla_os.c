@@ -160,11 +160,6 @@ MODULE_PARM_DESC(ql2xtargetreset,
 		 "Enable target reset."
 		 "Default is 1 - use hw defaults.");
 
-int ql2xgffidenable;
-module_param(ql2xgffidenable, int, S_IRUGO|S_IRUSR);
-MODULE_PARM_DESC(ql2xgffidenable,
-		"Enables GFF_ID checks of port type. "
-		"Default is 0 - Do not use GFF_ID information.");
 
 int ql2xasynctmfenable;
 module_param(ql2xasynctmfenable, int, S_IRUGO|S_IRUSR);
@@ -2095,7 +2090,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->init_cb_size = sizeof(struct mid_init_cb_81xx);
 		ha->gid_list_info_size = 8;
 		ha->optrom_size = OPTROM_SIZE_82XX;
-		ha->nvram_npiv_size = QLA_MAX_VPORTS_QLA25XX;
 		ha->isp_ops = &qla82xx_isp_ops;
 		ha->flash_conf_off = FARX_ACCESS_FLASH_CONF;
 		ha->flash_data_off = FARX_ACCESS_FLASH_DATA;

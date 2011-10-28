@@ -135,14 +135,6 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
-config ARCH_HAS_CPU_IDLE_WAIT
-	bool
-	default y
-
-config ARCH_HAS_DEFAULT_IDLE
-	bool
-	default y
-
 config ARCH_HAS_ILOG2_U32
 	bool
 
@@ -189,9 +181,6 @@ config ARM_L1_CACHE_SHIFT_6
 	bool
 	help
 	  Setting ARM L1 cache line size to 64 Bytes.
-
-config ARCH_PROVIDES_UDELAY
-  bool
 
 config VECTORS_BASE
 	hex
@@ -579,9 +568,6 @@ config ARCH_TEGRA
 	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ARCH_HAS_BARRIERS if CACHE_L2X0
-	select ARCH_HAS_CPUFREQ
-	select ARCH_PROVIDES_UDELAY
-	select FIQ
 	help
 	  This enables support for NVIDIA Tegra based systems (Tegra APX,
 	  Tegra 6xx and Tegra 2 series).

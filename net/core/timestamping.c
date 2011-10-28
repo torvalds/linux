@@ -96,13 +96,11 @@ bool skb_defer_rx_timestamp(struct sk_buff *skb)
 	struct phy_device *phydev;
 	unsigned int type;
 
-	if (skb_headroom(skb) < ETH_HLEN)
-		return false;
-	__skb_push(skb, ETH_HLEN);
+	skb_push(skb, ETH_HLEN);
 
 	type = classify(skb);
 
-	__skb_pull(skb, ETH_HLEN);
+	skb_pull(skb, ETH_HLEN);
 
 	switch (type) {
 	case PTP_CLASS_V1_IPV4:

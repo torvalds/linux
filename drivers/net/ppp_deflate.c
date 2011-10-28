@@ -306,7 +306,7 @@ static void z_decomp_free(void *arg)
 
 	if (state) {
 		zlib_inflateEnd(&state->strm);
-		vfree(state->strm.workspace);
+		kfree(state->strm.workspace);
 		kfree(state);
 	}
 }
@@ -346,7 +346,8 @@ static void *z_decomp_alloc(unsigned char *options, int opt_len)
 
 	state->w_size         = w_size;
 	state->strm.next_out  = NULL;
-	state->strm.workspace = vmalloc(zlib_inflate_workspacesize());
+	state->strm.workspace = kmalloc(zlib_inflate_workspacesize(),
+					GFP_KERNEL|__GFP_REPEAT);
 	if (state->strm.workspace == NULL)
 		goto out_free;
 

@@ -269,14 +269,13 @@ enum move_type {
 
 /* "mc" and its members are protected by cgroup_mutex */
 static struct move_charge_struct {
-	spinlock_t	  lock; /* for from, to */
+	spinlock_t	  lock; /* for from, to, moving_task */
 	struct mem_cgroup *from;
 	struct mem_cgroup *to;
 	unsigned long precharge;
 	unsigned long moved_charge;
 	unsigned long moved_swap;
 	struct task_struct *moving_task;	/* a task moving charges */
-	struct mm_struct *mm;
 	wait_queue_head_t waitq;		/* a waitq for other context */
 } mc = {
 	.lock = __SPIN_LOCK_UNLOCKED(mc.lock),
@@ -1730,18 +1729,19 @@ again:
 
 		rcu_read_lock();
 		p = rcu_dereference(mm->owner);
+		VM_BUG_ON(!p);
 		/*
-		 * Because we don't have task_lock(), "p" can exit.
-		 * In that case, "mem" can point to root or p can be NULL with
-		 * race with swapoff. Then, we have small risk of mis-accouning.
-		 * But such kind of mis-account by race always happens because
-		 * we don't have cgroup_mutex(). It's overkill and we allo that
-		 * small race, here.
-		 * (*) swapoff at el will charge against mm-struct not against
-		 * task-struct. So, mm->owner can be NULL.
+		 * because we don't have task_lock(), "p" can exit while
+		 * we're here. In that case, "mem" can point to root
+		 * cgroup but never be NULL. (and task_struct itself is freed
+		 * by RCU, cgroup itself is RCU safe.) Then, we have small
+		 * risk here to get wrong cgroup. But such kind of mis-account
+		 * by race always happens because we don't have cgroup_mutex().
+		 * It's overkill and we allow that small race, here.
 		 */
 		mem = mem_cgroup_from_task(p);
-		if (!mem || mem_cgroup_is_root(mem)) {
+		VM_BUG_ON(!mem);
+		if (mem_cgroup_is_root(mem)) {
 			rcu_read_unlock();
 			goto done;
 		}
@@ -4445,7 +4445,7 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
 	unsigned long precharge;
 	struct vm_area_struct *vma;
 
-	/* We've already held the mmap_sem */
+	down_read(&mm->mmap_sem);
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		struct mm_walk mem_cgroup_count_precharge_walk = {
 			.pmd_entry = mem_cgroup_count_precharge_pte_range,
@@ -4457,6 +4457,7 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
 		walk_page_range(vma->vm_start, vma->vm_end,
 					&mem_cgroup_count_precharge_walk);
 	}
+	up_read(&mm->mmap_sem);
 
 	precharge = mc.precharge;
 	mc.precharge = 0;
@@ -4507,16 +4508,11 @@ static void mem_cgroup_clear_mc(void)
 
 		mc.moved_swap = 0;
 	}
-	if (mc.mm) {
-		up_read(&mc.mm->mmap_sem);
-		mmput(mc.mm);
-	}
 	spin_lock(&mc.lock);
 	mc.from = NULL;
 	mc.to = NULL;
-	spin_unlock(&mc.lock);
 	mc.moving_task = NULL;
-	mc.mm = NULL;
+	spin_unlock(&mc.lock);
 	memcg_oom_recover(from);
 	memcg_oom_recover(to);
 	wake_up_all(&mc.waitq);
@@ -4541,37 +4537,26 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
 			return 0;
 		/* We move charges only when we move a owner of the mm */
 		if (mm->owner == p) {
-			/*
-			 * We do all the move charge works under one mmap_sem to
-			 * avoid deadlock with down_write(&mmap_sem)
-			 * -> try_charge() -> if (mc.moving_task) -> sleep.
-			 */
-			down_read(&mm->mmap_sem);
-
 			VM_BUG_ON(mc.from);
 			VM_BUG_ON(mc.to);
 			VM_BUG_ON(mc.precharge);
 			VM_BUG_ON(mc.moved_charge);
 			VM_BUG_ON(mc.moved_swap);
 			VM_BUG_ON(mc.moving_task);
-			VM_BUG_ON(mc.mm);
-
 			spin_lock(&mc.lock);
 			mc.from = from;
 			mc.to = mem;
 			mc.precharge = 0;
 			mc.moved_charge = 0;
 			mc.moved_swap = 0;
-			spin_unlock(&mc.lock);
 			mc.moving_task = current;
-			mc.mm = mm;
+			spin_unlock(&mc.lock);
 
 			ret = mem_cgroup_precharge_mc(mm);
 			if (ret)
 				mem_cgroup_clear_mc();
-			/* We call up_read() and mmput() in clear_mc(). */
-		} else
-			mmput(mm);
+		}
+		mmput(mm);
 	}
 	return ret;
 }
@@ -4659,7 +4644,7 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
 	struct vm_area_struct *vma;
 
 	lru_add_drain_all();
-	/* We've already held the mmap_sem */
+	down_read(&mm->mmap_sem);
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		int ret;
 		struct mm_walk mem_cgroup_move_charge_walk = {
@@ -4678,6 +4663,7 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
 			 */
 			break;
 	}
+	up_read(&mm->mmap_sem);
 }
 
 static void mem_cgroup_move_task(struct cgroup_subsys *ss,
@@ -4686,11 +4672,17 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 				struct task_struct *p,
 				bool threadgroup)
 {
-	if (!mc.mm)
+	struct mm_struct *mm;
+
+	if (!mc.to)
 		/* no need to move charge */
 		return;
 
-	mem_cgroup_move_charge(mc.mm);
+	mm = get_task_mm(p);
+	if (mm) {
+		mem_cgroup_move_charge(mm);
+		mmput(mm);
+	}
 	mem_cgroup_clear_mc();
 }
 #else	/* !CONFIG_MMU */

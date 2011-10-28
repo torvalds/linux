@@ -72,7 +72,6 @@
 #include <linux/ctype.h>
 #include <linux/ftrace.h>
 #include <linux/slab.h>
-#include <linux/cpuacct.h>
 
 #include <asm/tlb.h>
 #include <asm/irq_regs.h>
@@ -567,7 +566,7 @@ void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
 	 * A queue event has occurred, and we're going to schedule.  In
 	 * this case, we can save a useless back to back clock update.
 	 */
-	if (rq->curr->se.on_rq && test_tsk_need_resched(rq->curr))
+	if (test_tsk_need_resched(p))
 		rq->skip_clock_update = 1;
 }
 
@@ -724,7 +723,7 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 		size_t cnt, loff_t *ppos)
 {
 	char buf[64];
-	char *cmp;
+	char *cmp = buf;
 	int neg = 0;
 	int i;
 
@@ -735,7 +734,6 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 		return -EFAULT;
 
 	buf[cnt] = 0;
-	cmp = strstrip(buf);
 
 	if (strncmp(buf, "NO_", 3) == 0) {
 		neg = 1;
@@ -743,7 +741,9 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 	}
 
 	for (i = 0; sched_feat_names[i]; i++) {
-		if (strcmp(cmp, sched_feat_names[i]) == 0) {
+		int len = strlen(sched_feat_names[i]);
+
+		if (strncmp(cmp, sched_feat_names[i], len) == 0) {
 			if (neg)
 				sysctl_sched_features &= ~(1UL << i);
 			else
@@ -1858,6 +1858,12 @@ static void dec_nr_running(struct rq *rq)
 
 static void set_load_weight(struct task_struct *p)
 {
+	if (task_has_rt_policy(p)) {
+		p->se.load.weight = 0;
+		p->se.load.inv_weight = WMULT_CONST;
+		return;
+	}
+
 	/*
 	 * SCHED_IDLE tasks get minimal weight:
 	 */
@@ -2968,15 +2974,6 @@ static long calc_load_fold_active(struct rq *this_rq)
 	return delta;
 }
 
-static unsigned long
-calc_load(unsigned long load, unsigned long exp, unsigned long active)
-{
-	load *= exp;
-	load += active * (FIXED_1 - exp);
-	load += 1UL << (FSHIFT - 1);
-	return load >> FSHIFT;
-}
-
 #ifdef CONFIG_NO_HZ
 /*
  * For NO_HZ we delay the active fold to the next LOAD_FREQ update.
@@ -3006,128 +3003,6 @@ static long calc_load_fold_idle(void)
 
 	return delta;
 }
-
-/**
- * fixed_power_int - compute: x^n, in O(log n) time
- *
- * @x:         base of the power
- * @frac_bits: fractional bits of @x
- * @n:         power to raise @x to.
- *
- * By exploiting the relation between the definition of the natural power
- * function: x^n := x*x*...*x (x multiplied by itself for n times), and
- * the binary encoding of numbers used by computers: n := \Sum n_i * 2^i,
- * (where: n_i \elem {0, 1}, the binary vector representing n),
- * we find: x^n := x^(\Sum n_i * 2^i) := \Prod x^(n_i * 2^i), which is
- * of course trivially computable in O(log_2 n), the length of our binary
- * vector.
- */
-static unsigned long
-fixed_power_int(unsigned long x, unsigned int frac_bits, unsigned int n)
-{
-	unsigned long result = 1UL << frac_bits;
-
-	if (n) for (;;) {
-		if (n & 1) {
-			result *= x;
-			result += 1UL << (frac_bits - 1);
-			result >>= frac_bits;
-		}
-		n >>= 1;
-		if (!n)
-			break;
-		x *= x;
-		x += 1UL << (frac_bits - 1);
-		x >>= frac_bits;
-	}
-
-	return result;
-}
-
-/*
- * a1 = a0 * e + a * (1 - e)
- *
- * a2 = a1 * e + a * (1 - e)
- *    = (a0 * e + a * (1 - e)) * e + a * (1 - e)
- *    = a0 * e^2 + a * (1 - e) * (1 + e)
- *
- * a3 = a2 * e + a * (1 - e)
- *    = (a0 * e^2 + a * (1 - e) * (1 + e)) * e + a * (1 - e)
- *    = a0 * e^3 + a * (1 - e) * (1 + e + e^2)
- *
- *  ...
- *
- * an = a0 * e^n + a * (1 - e) * (1 + e + ... + e^n-1) [1]
- *    = a0 * e^n + a * (1 - e) * (1 - e^n)/(1 - e)
- *    = a0 * e^n + a * (1 - e^n)
- *
- * [1] application of the geometric series:
- *
- *              n         1 - x^(n+1)
- *     S_n := \Sum x^i = -------------
- *             i=0          1 - x
- */
-static unsigned long
-calc_load_n(unsigned long load, unsigned long exp,
-	    unsigned long active, unsigned int n)
-{
-
-	return calc_load(load, fixed_power_int(exp, FSHIFT, n), active);
-}
-
-/*
- * NO_HZ can leave us missing all per-cpu ticks calling
- * calc_load_account_active(), but since an idle CPU folds its delta into
- * calc_load_tasks_idle per calc_load_account_idle(), all we need to do is fold
- * in the pending idle delta if our idle period crossed a load cycle boundary.
- *
- * Once we've updated the global active value, we need to apply the exponential
- * weights adjusted to the number of cycles missed.
- */
-static void calc_global_nohz(unsigned long ticks)
-{
-	long delta, active, n;
-
-	if (time_before(jiffies, calc_load_update))
-		return;
-
-	/*
-	 * If we crossed a calc_load_update boundary, make sure to fold
-	 * any pending idle changes, the respective CPUs might have
-	 * missed the tick driven calc_load_account_active() update
-	 * due to NO_HZ.
-	 */
-	delta = calc_load_fold_idle();
-	if (delta)
-		atomic_long_add(delta, &calc_load_tasks);
-
-	/*
-	 * If we were idle for multiple load cycles, apply them.
-	 */
-	if (ticks >= LOAD_FREQ) {
-		n = ticks / LOAD_FREQ;
-
-		active = atomic_long_read(&calc_load_tasks);
-		active = active > 0 ? active * FIXED_1 : 0;
-
-		avenrun[0] = calc_load_n(avenrun[0], EXP_1, active, n);
-		avenrun[1] = calc_load_n(avenrun[1], EXP_5, active, n);
-		avenrun[2] = calc_load_n(avenrun[2], EXP_15, active, n);
-
-		calc_load_update += n * LOAD_FREQ;
-	}
-
-	/*
-	 * Its possible the remainder of the above division also crosses
-	 * a LOAD_FREQ period, the regular check in calc_global_load()
-	 * which comes after this will take care of that.
-	 *
-	 * Consider us being 11 ticks before a cycle completion, and us
-	 * sleeping for 4*LOAD_FREQ + 22 ticks, then the above code will
-	 * age us 4 cycles, and the test in calc_global_load() will
-	 * pick up the final one.
-	 */
-}
 #else
 static void calc_load_account_idle(struct rq *this_rq)
 {
@@ -3136,10 +3011,6 @@ static void calc_load_account_idle(struct rq *this_rq)
 static inline long calc_load_fold_idle(void)
 {
 	return 0;
-}
-
-static void calc_global_nohz(unsigned long ticks)
-{
 }
 #endif
 
@@ -3158,17 +3029,24 @@ void get_avenrun(unsigned long *loads, unsigned long offset, int shift)
 	loads[2] = (avenrun[2] + offset) << shift;
 }
 
+static unsigned long
+calc_load(unsigned long load, unsigned long exp, unsigned long active)
+{
+	load *= exp;
+	load += active * (FIXED_1 - exp);
+	return load >> FSHIFT;
+}
+
 /*
  * calc_load - update the avenrun load estimates 10 ticks after the
  * CPUs have updated calc_load_tasks.
  */
-void calc_global_load(unsigned long ticks)
+void calc_global_load(void)
 {
+	unsigned long upd = calc_load_update + 10;
 	long active;
 
-	calc_global_nohz(ticks);
-
-	if (time_before(jiffies, calc_load_update + 10))
+	if (time_before(jiffies, upd))
 		return;
 
 	active = atomic_long_read(&calc_load_tasks);
@@ -3822,6 +3700,7 @@ static void put_prev_task(struct rq *rq, struct task_struct *prev)
 {
 	if (prev->se.on_rq)
 		update_rq_clock(rq);
+	rq->skip_clock_update = 0;
 	prev->sched_class->put_prev_task(rq, prev);
 }
 
@@ -3883,6 +3762,7 @@ need_resched_nonpreemptible:
 		hrtick_clear(rq);
 
 	raw_spin_lock_irq(&rq->lock);
+	clear_tsk_need_resched(prev);
 
 	switch_count = &prev->nivcsw;
 	if (prev->state && !(preempt_count() & PREEMPT_ACTIVE)) {
@@ -3914,8 +3794,6 @@ need_resched_nonpreemptible:
 
 	put_prev_task(rq, prev);
 	next = pick_next_task(rq);
-	clear_tsk_need_resched(prev);
-	rq->skip_clock_update = 0;
 
 	if (likely(prev != next)) {
 		sched_info_switch(prev, next);
@@ -5376,7 +5254,7 @@ void sched_show_task(struct task_struct *p)
 	unsigned state;
 
 	state = p->state ? __ffs(p->state) + 1 : 0;
-	printk(KERN_INFO "%-15.15s %c", p->comm,
+	printk(KERN_INFO "%-13.13s %c", p->comm,
 		state < sizeof(stat_nam) - 1 ? stat_nam[state] : '?');
 #if BITS_PER_LONG == 32
 	if (state == TASK_RUNNING)
@@ -5459,19 +5337,7 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 	idle->se.exec_start = sched_clock();
 
 	cpumask_copy(&idle->cpus_allowed, cpumask_of(cpu));
-	/*
-	 * We're having a chicken and egg problem, even though we are
-	 * holding rq->lock, the cpu isn't yet set to this cpu so the
-	 * lockdep check in task_group() will fail.
-	 *
-	 * Similar case to sched_fork(). / Alternatively we could
-	 * use task_rq_lock() here and obtain the other rq->lock.
-	 *
-	 * Silence PROVE_RCU
-	 */
-	rcu_read_lock();
 	__set_task_cpu(idle, cpu);
-	rcu_read_unlock();
 
 	rq->curr = rq->idle = idle;
 #if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
@@ -8025,24 +7891,13 @@ static inline int preempt_count_equals(int preempt_offset)
 	return (nested == PREEMPT_INATOMIC_BASE + preempt_offset);
 }
 
-static int __might_sleep_init_called;
-int __init __might_sleep_init(void)
-{
-	__might_sleep_init_called = 1;
-	return 0;
-}
-early_initcall(__might_sleep_init);
-
 void __might_sleep(const char *file, int line, int preempt_offset)
 {
 #ifdef in_atomic
 	static unsigned long prev_jiffy;	/* ratelimiting */
 
 	if ((preempt_count_equals(preempt_offset) && !irqs_disabled()) ||
-	    oops_in_progress)
-		return;
-	if (system_state != SYSTEM_RUNNING &&
-	    (!__might_sleep_init_called || system_state != SYSTEM_BOOTING))
+	    system_state != SYSTEM_RUNNING || oops_in_progress)
 		return;
 	if (time_before(jiffies, prev_jiffy + HZ) && prev_jiffy)
 		return;
@@ -8441,11 +8296,6 @@ void sched_move_task(struct task_struct *tsk)
 		dequeue_task(rq, tsk, 0);
 	if (unlikely(running))
 		tsk->sched_class->put_prev_task(rq, tsk);
-
-#ifdef CONFIG_FAIR_GROUP_SCHED
-	if (tsk->sched_class->prep_move_group)
-		tsk->sched_class->prep_move_group(tsk, on_rq);
-#endif
 
 	set_task_rq(tsk, task_cpu(tsk));
 
@@ -8864,15 +8714,6 @@ cpu_cgroup_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
 static int
 cpu_cgroup_can_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 {
-	if ((current != tsk) && (!capable(CAP_SYS_NICE))) {
-		const struct cred *cred = current_cred(), *tcred;
-
-		tcred = __task_cred(tsk);
-
-		if (cred->euid != tcred->uid && cred->euid != tcred->suid)
-			return -EPERM;
-	}
-
 #ifdef CONFIG_RT_GROUP_SCHED
 	if (!sched_rt_can_attach(cgroup_tg(cgrp), tsk))
 		return -EINVAL;
@@ -9017,29 +8858,7 @@ struct cpuacct {
 	u64 __percpu *cpuusage;
 	struct percpu_counter cpustat[CPUACCT_STAT_NSTATS];
 	struct cpuacct *parent;
-	struct cpuacct_charge_calls *cpufreq_fn;
-	void *cpuacct_data;
 };
-
-static struct cpuacct *cpuacct_root;
-
-/* Default calls for cpufreq accounting */
-static struct cpuacct_charge_calls *cpuacct_cpufreq;
-int cpuacct_register_cpufreq(struct cpuacct_charge_calls *fn)
-{
-	cpuacct_cpufreq = fn;
-
-	/*
-	 * Root node is created before platform can register callbacks,
-	 * initalize here.
-	 */
-	if (cpuacct_root && fn) {
-		cpuacct_root->cpufreq_fn = fn;
-		if (fn->init)
-			fn->init(&cpuacct_root->cpuacct_data);
-	}
-	return 0;
-}
 
 struct cgroup_subsys cpuacct_subsys;
 
@@ -9075,16 +8894,8 @@ static struct cgroup_subsys_state *cpuacct_create(
 		if (percpu_counter_init(&ca->cpustat[i], 0))
 			goto out_free_counters;
 
-	ca->cpufreq_fn = cpuacct_cpufreq;
-
-	/* If available, have platform code initalize cpu frequency table */
-	if (ca->cpufreq_fn && ca->cpufreq_fn->init)
-		ca->cpufreq_fn->init(&ca->cpuacct_data);
-
 	if (cgrp->parent)
 		ca->parent = cgroup_ca(cgrp->parent);
-	else
-		cpuacct_root = ca;
 
 	return &ca->css;
 
@@ -9212,32 +9023,6 @@ static int cpuacct_stats_show(struct cgroup *cgrp, struct cftype *cft,
 	return 0;
 }
 
-static int cpuacct_cpufreq_show(struct cgroup *cgrp, struct cftype *cft,
-		struct cgroup_map_cb *cb)
-{
-	struct cpuacct *ca = cgroup_ca(cgrp);
-	if (ca->cpufreq_fn && ca->cpufreq_fn->cpufreq_show)
-		ca->cpufreq_fn->cpufreq_show(ca->cpuacct_data, cb);
-
-	return 0;
-}
-
-/* return total cpu power usage (milliWatt second) of a group */
-static u64 cpuacct_powerusage_read(struct cgroup *cgrp, struct cftype *cft)
-{
-	int i;
-	struct cpuacct *ca = cgroup_ca(cgrp);
-	u64 totalpower = 0;
-
-	if (ca->cpufreq_fn && ca->cpufreq_fn->power_usage)
-		for_each_present_cpu(i) {
-			totalpower += ca->cpufreq_fn->power_usage(
-					ca->cpuacct_data);
-		}
-
-	return totalpower;
-}
-
 static struct cftype files[] = {
 	{
 		.name = "usage",
@@ -9251,14 +9036,6 @@ static struct cftype files[] = {
 	{
 		.name = "stat",
 		.read_map = cpuacct_stats_show,
-	},
-	{
-		.name =  "cpufreq",
-		.read_map = cpuacct_cpufreq_show,
-	},
-	{
-		.name = "power",
-		.read_u64 = cpuacct_powerusage_read
 	},
 };
 
@@ -9289,10 +9066,6 @@ static void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 	for (; ca; ca = ca->parent) {
 		u64 *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
 		*cpuusage += cputime;
-
-		/* Call back into platform code to account for CPU speeds */
-		if (ca->cpufreq_fn && ca->cpufreq_fn->charge)
-			ca->cpufreq_fn->charge(ca->cpuacct_data, cputime, cpu);
 	}
 
 	rcu_read_unlock();

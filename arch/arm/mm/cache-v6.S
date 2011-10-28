@@ -196,10 +196,6 @@ ENTRY(v6_flush_kern_dcache_area)
  *	- end     - virtual end address of region
  */
 v6_dma_inv_range:
-#ifdef CONFIG_DMA_CACHE_RWFO
-	ldrb	r2, [r0]			@ read for ownership
-	strb	r2, [r0]			@ write for ownership
-#endif
 	tst	r0, #D_CACHE_LINE_SIZE - 1
 	bic	r0, r0, #D_CACHE_LINE_SIZE - 1
 #ifdef HARVARD_CACHE
@@ -208,10 +204,6 @@ v6_dma_inv_range:
 	mcrne	p15, 0, r0, c7, c11, 1		@ clean unified line
 #endif
 	tst	r1, #D_CACHE_LINE_SIZE - 1
-#ifdef CONFIG_DMA_CACHE_RWFO
-	ldrneb	r2, [r1, #-1]			@ read for ownership
-	strneb	r2, [r1, #-1]			@ write for ownership
-#endif
 	bic	r1, r1, #D_CACHE_LINE_SIZE - 1
 #ifdef HARVARD_CACHE
 	mcrne	p15, 0, r1, c7, c14, 1		@ clean & invalidate D line
@@ -219,6 +211,10 @@ v6_dma_inv_range:
 	mcrne	p15, 0, r1, c7, c15, 1		@ clean & invalidate unified line
 #endif
 1:
+#ifdef CONFIG_DMA_CACHE_RWFO
+	ldr	r2, [r0]			@ read for ownership
+	str	r2, [r0]			@ write for ownership
+#endif
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r0, c7, c6, 1		@ invalidate D line
 #else
@@ -226,10 +222,6 @@ v6_dma_inv_range:
 #endif
 	add	r0, r0, #D_CACHE_LINE_SIZE
 	cmp	r0, r1
-#ifdef CONFIG_DMA_CACHE_RWFO
-	ldrlo	r2, [r0]			@ read for ownership
-	strlo	r2, [r0]			@ write for ownership
-#endif
 	blo	1b
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
@@ -264,18 +256,12 @@ v6_dma_clean_range:
  *	- end     - virtual end address of region
  */
 ENTRY(v6_dma_flush_range)
-#ifdef CONFIG_CACHE_FLUSH_RANGE_LIMIT
-	sub	r2, r1, r0
-	cmp	r2, #CONFIG_CACHE_FLUSH_RANGE_LIMIT
-	bhi	v6_dma_flush_dcache_all
-#endif
-
-#ifdef CONFIG_DMA_CACHE_RWFO
-	ldrb	r2, [r0]		@ read for ownership
-	strb	r2, [r0]		@ write for ownership
-#endif
 	bic	r0, r0, #D_CACHE_LINE_SIZE - 1
 1:
+#ifdef CONFIG_DMA_CACHE_RWFO
+	ldr	r2, [r0]			@ read for ownership
+	str	r2, [r0]			@ write for ownership
+#endif
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r0, c7, c14, 1		@ clean & invalidate D line
 #else
@@ -283,26 +269,10 @@ ENTRY(v6_dma_flush_range)
 #endif
 	add	r0, r0, #D_CACHE_LINE_SIZE
 	cmp	r0, r1
-#ifdef CONFIG_DMA_CACHE_RWFO
-	ldrlob	r2, [r0]			@ read for ownership
-	strlob	r2, [r0]			@ write for ownership
-#endif
 	blo	1b
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
 	mov	pc, lr
-
-#ifdef CONFIG_CACHE_FLUSH_RANGE_LIMIT
-v6_dma_flush_dcache_all:
-	mov	r0, #0
-#ifdef HARVARD_CACHE
-	mcr	p15, 0, r0, c7, c14, 0		@ D cache clean+invalidate
-#else
-	mcr	p15, 0, r0, c7, c15, 0		@ Cache clean+invalidate
-#endif
-	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
-	mov	pc, lr
-#endif
 
 /*
  *	dma_map_area(start, size, dir)

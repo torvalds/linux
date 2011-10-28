@@ -66,7 +66,6 @@
 #define SDHCI_HOST_CONTROL 	0x28
 #define  SDHCI_CTRL_LED		0x01
 #define  SDHCI_CTRL_4BITBUS	0x02
-#define  SDHCI_CTRL_8BITBUS	0x20
 #define  SDHCI_CTRL_HISPD	0x04
 #define  SDHCI_CTRL_DMA_MASK	0x18
 #define   SDHCI_CTRL_SDMA	0x00
@@ -186,86 +185,68 @@ struct sdhci_host {
 	/* Data set by hardware interface driver */
 	const char		*hw_name;	/* Hardware bus name */
 
-	u64			quirks;		/* Deviations from spec. */
+	unsigned int		quirks;		/* Deviations from spec. */
 
 /* Controller doesn't honor resets unless we touch the clock register */
-#define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1LL<<0)
+#define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
 /* Controller has bad caps bits, but really supports DMA */
-#define SDHCI_QUIRK_FORCE_DMA				(1LL<<1)
+#define SDHCI_QUIRK_FORCE_DMA				(1<<1)
 /* Controller doesn't like to be reset when there is no card inserted. */
-#define SDHCI_QUIRK_NO_CARD_NO_RESET			(1LL<<2)
+#define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
 /* Controller doesn't like clearing the power reg before a change */
-#define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1LL<<3)
+#define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
 /* Controller has flaky internal state so reset it on each ios change */
-#define SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS		(1LL<<4)
+#define SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS		(1<<4)
 /* Controller has an unusable DMA engine */
-#define SDHCI_QUIRK_BROKEN_DMA				(1LL<<5)
+#define SDHCI_QUIRK_BROKEN_DMA				(1<<5)
 /* Controller has an unusable ADMA engine */
-#define SDHCI_QUIRK_BROKEN_ADMA				(1LL<<6)
+#define SDHCI_QUIRK_BROKEN_ADMA				(1<<6)
 /* Controller can only DMA from 32-bit aligned addresses */
-#define SDHCI_QUIRK_32BIT_DMA_ADDR			(1LL<<7)
+#define SDHCI_QUIRK_32BIT_DMA_ADDR			(1<<7)
 /* Controller can only DMA chunk sizes that are a multiple of 32 bits */
-#define SDHCI_QUIRK_32BIT_DMA_SIZE			(1LL<<8)
+#define SDHCI_QUIRK_32BIT_DMA_SIZE			(1<<8)
 /* Controller can only ADMA chunks that are a multiple of 32 bits */
-#define SDHCI_QUIRK_32BIT_ADMA_SIZE			(1LL<<9)
+#define SDHCI_QUIRK_32BIT_ADMA_SIZE			(1<<9)
 /* Controller needs to be reset after each request to stay stable */
-#define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1LL<<10)
+#define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1<<10)
 /* Controller needs voltage and power writes to happen separately */
-#define SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER		(1LL<<11)
+#define SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER		(1<<11)
 /* Controller provides an incorrect timeout value for transfers */
-#define SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1LL<<12)
+#define SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<12)
 /* Controller has an issue with buffer bits for small transfers */
-#define SDHCI_QUIRK_BROKEN_SMALL_PIO			(1LL<<13)
+#define SDHCI_QUIRK_BROKEN_SMALL_PIO			(1<<13)
 /* Controller does not provide transfer-complete interrupt when not busy */
-#define SDHCI_QUIRK_NO_BUSY_IRQ				(1LL<<14)
+#define SDHCI_QUIRK_NO_BUSY_IRQ				(1<<14)
 /* Controller has unreliable card detection */
-#define SDHCI_QUIRK_BROKEN_CARD_DETECTION		(1LL<<15)
+#define SDHCI_QUIRK_BROKEN_CARD_DETECTION		(1<<15)
 /* Controller reports inverted write-protect state */
-#define SDHCI_QUIRK_INVERTED_WRITE_PROTECT		(1LL<<16)
+#define SDHCI_QUIRK_INVERTED_WRITE_PROTECT		(1<<16)
 /* Controller has nonstandard clock management */
-#define SDHCI_QUIRK_NONSTANDARD_CLOCK			(1LL<<17)
+#define SDHCI_QUIRK_NONSTANDARD_CLOCK			(1<<17)
 /* Controller does not like fast PIO transfers */
-#define SDHCI_QUIRK_PIO_NEEDS_DELAY			(1LL<<18)
+#define SDHCI_QUIRK_PIO_NEEDS_DELAY			(1<<18)
 /* Controller losing signal/interrupt enable states after reset */
-#define SDHCI_QUIRK_RESTORE_IRQS_AFTER_RESET		(1LL<<19)
+#define SDHCI_QUIRK_RESTORE_IRQS_AFTER_RESET		(1<<19)
 /* Controller has to be forced to use block size of 2048 bytes */
-#define SDHCI_QUIRK_FORCE_BLK_SZ_2048			(1LL<<20)
+#define SDHCI_QUIRK_FORCE_BLK_SZ_2048			(1<<20)
 /* Controller cannot do multi-block transfers */
-#define SDHCI_QUIRK_NO_MULTIBLOCK			(1LL<<21)
+#define SDHCI_QUIRK_NO_MULTIBLOCK			(1<<21)
 /* Controller can only handle 1-bit data transfers */
-#define SDHCI_QUIRK_FORCE_1_BIT_DATA			(1LL<<22)
+#define SDHCI_QUIRK_FORCE_1_BIT_DATA			(1<<22)
 /* Controller needs 10ms delay between applying power and clock */
-#define SDHCI_QUIRK_DELAY_AFTER_POWER			(1LL<<23)
+#define SDHCI_QUIRK_DELAY_AFTER_POWER			(1<<23)
 /* Controller uses SDCLK instead of TMCLK for data timeouts */
-#define SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK		(1LL<<24)
+#define SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK		(1<<24)
 /* Controller reports wrong base clock capability */
-#define SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN		(1LL<<25)
+#define SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN		(1<<25)
 /* Controller cannot support End Attribute in NOP ADMA descriptor */
-#define SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC		(1LL<<26)
+#define SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC		(1<<26)
 /* Controller is missing device caps. Use caps provided by host */
-#define SDHCI_QUIRK_MISSING_CAPS			(1LL<<27)
+#define SDHCI_QUIRK_MISSING_CAPS			(1<<27)
 /* Controller uses Auto CMD12 command to stop the transfer */
-#define SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12		(1LL<<28)
+#define SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12		(1<<28)
 /* Controller doesn't have HISPD bit field in HI-SPEED SD card */
-#define SDHCI_QUIRK_NO_HISPD_BIT			(1LL<<29)
-/* Controller write protect bit is broken. Assume no write protection */
-#define SDHCI_QUIRK_BROKEN_WRITE_PROTECT		(1LL<<30)
-/* Controller needs INTERRUPT_AT_BLOCK_GAP enabled to detect card interrupts */
-#define SDHCI_QUIRK_ENABLE_INTERRUPT_AT_BLOCK_GAP	(1LL<<31)
-/* Controller should not program HIGH_SPEED_EN after switching to high speed */
-#define SDHCI_QUIRK_BROKEN_CTRL_HISPD			(1LL<<32)
-/* Controller supports 8-bit data width */
-#define SDHCI_QUIRK_8_BIT_DATA				(1LL<<33)
-/* Controller has no version register */
-#define SDHCI_QUIRK_NO_VERSION_REG			(1LL<<34)
-/* Controller treats ADMA descriptors with length 0000h incorrectly */
-#define SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC		(1LL<<35)
-/* Controller should not use SDIO IRQ */
-#define SDHCI_QUIRK_NO_SDIO_IRQ				(1LL<<36)
-/* Controller should only use high-speed mode */
-#define SDHCI_QUIRK_FORCE_HIGH_SPEED_MODE		(1LL<<37)
-/* Controller allows runtime enable / disable */
-#define SDHCI_QUIRK_RUNTIME_DISABLE			(1LL<<38)
+#define SDHCI_QUIRK_NO_HISPD_BIT			(1<<29)
 
 	int			irq;		/* Device IRQ */
 	void __iomem *		ioaddr;		/* Mapped address */
@@ -321,7 +302,6 @@ struct sdhci_host {
 	struct timer_list	timer;		/* Timer for timeouts */
 
 	unsigned int		caps;		/* Alternative capabilities */
-	unsigned int		card_present;	/* Previous card detect */
 
 	unsigned long		private[0] ____cacheline_aligned;
 };
@@ -340,7 +320,6 @@ struct sdhci_ops {
 	void	(*set_clock)(struct sdhci_host *host, unsigned int clock);
 
 	int		(*enable_dma)(struct sdhci_host *host);
-	int		(*get_ro)(struct sdhci_host *host);
 	unsigned int	(*get_max_clock)(struct sdhci_host *host);
 	unsigned int	(*get_min_clock)(struct sdhci_host *host);
 	unsigned int	(*get_timeout_clock)(struct sdhci_host *host);
@@ -433,7 +412,6 @@ static inline u8 sdhci_readb(struct sdhci_host *host, int reg)
 extern struct sdhci_host *sdhci_alloc_host(struct device *dev,
 	size_t priv_size);
 extern void sdhci_free_host(struct sdhci_host *host);
-extern void sdhci_card_detect_callback(struct sdhci_host *host);
 
 static inline void *sdhci_priv(struct sdhci_host *host)
 {

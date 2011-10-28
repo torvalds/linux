@@ -50,7 +50,7 @@ struct smp_ops {
 	void (*smp_prepare_cpus)(unsigned max_cpus);
 	void (*smp_cpus_done)(unsigned max_cpus);
 
-	void (*stop_other_cpus)(int wait);
+	void (*smp_send_stop)(void);
 	void (*smp_send_reschedule)(int cpu);
 
 	int (*cpu_up)(unsigned cpu);
@@ -73,12 +73,7 @@ extern struct smp_ops smp_ops;
 
 static inline void smp_send_stop(void)
 {
-	smp_ops.stop_other_cpus(0);
-}
-
-static inline void stop_other_cpus(void)
-{
-	smp_ops.stop_other_cpus(1);
+	smp_ops.smp_send_stop();
 }
 
 static inline void smp_prepare_boot_cpu(void)

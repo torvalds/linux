@@ -1284,15 +1284,6 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 		cmd_completion = command->completion;
 		cmd_status = &command->status;
 		command->command_trb = xhci->cmd_ring->enqueue;
-
-		/* Enqueue pointer can be left pointing to the link TRB,
-		 * we must handle that
-		 */
-		if ((command->command_trb->link.control & TRB_TYPE_BITMASK)
-				== TRB_TYPE(TRB_LINK))
-			command->command_trb =
-				xhci->cmd_ring->enq_seg->next->trbs;
-
 		list_add_tail(&command->cmd_list, &virt_dev->cmd_list);
 	} else {
 		in_ctx = virt_dev->in_ctx;
@@ -2002,15 +1993,6 @@ int xhci_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	/* Attempt to submit the Reset Device command to the command ring */
 	spin_lock_irqsave(&xhci->lock, flags);
 	reset_device_cmd->command_trb = xhci->cmd_ring->enqueue;
-
-	/* Enqueue pointer can be left pointing to the link TRB,
-	 * we must handle that
-	 */
-	if ((reset_device_cmd->command_trb->link.control & TRB_TYPE_BITMASK)
-			== TRB_TYPE(TRB_LINK))
-		reset_device_cmd->command_trb =
-			xhci->cmd_ring->enq_seg->next->trbs;
-
 	list_add_tail(&reset_device_cmd->cmd_list, &virt_dev->cmd_list);
 	ret = xhci_queue_reset_device(xhci, slot_id);
 	if (ret) {

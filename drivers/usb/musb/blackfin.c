@@ -342,10 +342,8 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 
 	usb_nop_xceiv_register();
 	musb->xceiv = otg_get_transceiver();
-	if (!musb->xceiv) {
-		gpio_free(musb->config->gpio_vrsel);
+	if (!musb->xceiv)
 		return -ENODEV;
-	}
 
 	if (ANOMALY_05000346) {
 		bfin_write_USB_APHY_CALIB(ANOMALY_05000346_value);
@@ -396,9 +394,8 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 
 int musb_platform_exit(struct musb *musb)
 {
+
 	gpio_free(musb->config->gpio_vrsel);
 
-	otg_put_transceiver(musb->xceiv);
-	usb_nop_xceiv_unregister();
 	return 0;
 }

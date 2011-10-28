@@ -1048,11 +1048,10 @@ rescan:
 				tmp && tmp != qh;
 				tmp = tmp->qh_next.qh)
 			continue;
-		/* periodic qh self-unlinks on empty, and a COMPLETING qh
-		 * may already be unlinked.
-		 */
-		if (tmp)
-			unlink_async(ehci, qh);
+		/* periodic qh self-unlinks on empty */
+		if (!tmp)
+			goto nogood;
+		unlink_async (ehci, qh);
 		/* FALL THROUGH */
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 	case QH_STATE_UNLINK_WAIT:
@@ -1069,6 +1068,7 @@ idle_timeout:
 		}
 		/* else FALL THROUGH */
 	default:
+nogood:
 		/* caller was supposed to have unlinked any requests;
 		 * that's not our job.  just leak this memory.
 		 */
@@ -1195,11 +1195,6 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_ARCH_AT91
 #include "ehci-atmel.c"
 #define	PLATFORM_DRIVER		ehci_atmel_driver
-#endif
-
-#ifdef CONFIG_USB_EHCI_TEGRA
-#include "ehci-tegra.c"
-#define PLATFORM_DRIVER		tegra_ehci_driver
 #endif
 
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \

@@ -1700,27 +1700,6 @@ void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int
 }
 EXPORT_SYMBOL(input_set_capability);
 
-static void input_set_default_events_per_packet(struct input_dev *dev)
-{
-	int slots;
-
-	if (dev->hint_events_per_packet)
-		return;
-
-	if (dev->mtsize)
-		slots = dev->mtsize;
-	else if (test_bit(ABS_MT_TRACKING_ID, dev->absbit))
-		slots = min(20, dev->absinfo[ABS_MT_TRACKING_ID].maximum -
-			dev->absinfo[ABS_MT_TRACKING_ID].minimum + 1);
-	else if (test_bit(ABS_MT_POSITION_X, dev->absbit))
-		slots = 2;
-	else
-		slots = 0;
-
-	if (slots)
-		input_set_events_per_packet(dev, slots * 10);
-}
-
 #define INPUT_CLEANSE_BITMASK(dev, type, bits)				\
 	do {								\
 		if (!test_bit(EV_##type, dev->evbit))			\
@@ -1758,9 +1737,6 @@ int input_register_device(struct input_dev *dev)
 	struct input_handler *handler;
 	const char *path;
 	int error;
-
-	/* Use a larger default input buffer for MT devices */
-	input_set_default_events_per_packet(dev);
 
 	/* Every input device generates EV_SYN/SYN_REPORT events. */
 	__set_bit(EV_SYN, dev->evbit);

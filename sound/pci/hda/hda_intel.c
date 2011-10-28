@@ -458,7 +458,6 @@ enum {
 	AZX_DRIVER_ULI,
 	AZX_DRIVER_NVIDIA,
 	AZX_DRIVER_TERA,
-	AZX_DRIVER_CTX,
 	AZX_DRIVER_GENERIC,
 	AZX_NUM_DRIVERS, /* keep this as last entry */
 };
@@ -474,7 +473,6 @@ static char *driver_short_names[] __devinitdata = {
 	[AZX_DRIVER_ULI] = "HDA ULI M5461",
 	[AZX_DRIVER_NVIDIA] = "HDA NVidia",
 	[AZX_DRIVER_TERA] = "HDA Teradici", 
-	[AZX_DRIVER_CTX] = "HDA Creative",
 	[AZX_DRIVER_GENERIC] = "HD-Audio Generic",
 };
 
@@ -565,10 +563,7 @@ static void azx_init_cmd_io(struct azx *chip)
 	/* reset the rirb hw write pointer */
 	azx_writew(chip, RIRBWP, ICH6_RIRBWP_RST);
 	/* set N=1, get RIRB response interrupt for new entry */
-	if (chip->driver_type == AZX_DRIVER_CTX)
-		azx_writew(chip, RINTCNT, 0xc0);
-	else
-		azx_writew(chip, RINTCNT, 1);
+	azx_writew(chip, RINTCNT, 1);
 	/* enable rirb dma and response irq */
 	azx_writeb(chip, RIRBCTL, ICH6_RBCTL_DMA_EN | ICH6_RBCTL_IRQ_EN);
 	spin_unlock_irq(&chip->reg_lock);
@@ -1141,11 +1136,8 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 	/* clear rirb int */
 	status = azx_readb(chip, RIRBSTS);
 	if (status & RIRB_INT_MASK) {
-		if (status & RIRB_INT_RESPONSE) {
-			if (chip->driver_type == AZX_DRIVER_CTX)
-				udelay(80);
+		if (status & RIRB_INT_RESPONSE)
 			azx_update_rirb(chip);
-		}
 		azx_writeb(chip, RIRBSTS, RIRB_INT_MASK);
 	}
 
@@ -1655,7 +1647,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned int bufsize, period_bytes, format_val, stream_tag;
+	unsigned int bufsize, period_bytes, format_val;
 	int err;
 
 	azx_stream_reset(chip, azx_dev);
@@ -1697,12 +1689,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	else
 		azx_dev->fifo_size = 0;
 
-	stream_tag = azx_dev->stream_tag;
-	/* CA-IBG chips need the playback stream starting from 1 */
-	if (chip->driver_type == AZX_DRIVER_CTX &&
-	    stream_tag > chip->capture_streams)
-		stream_tag -= chip->capture_streams;
-	return snd_hda_codec_prepare(apcm->codec, hinfo, stream_tag,
+	return snd_hda_codec_prepare(apcm->codec, hinfo, azx_dev->stream_tag,
 				     azx_dev->format_val, substream);
 }
 
@@ -2298,11 +2285,9 @@ static int azx_dev_free(struct snd_device *device)
  */
 static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1025, 0x009f, "Acer Aspire 5110", POS_FIX_LPIB),
-	SND_PCI_QUIRK(0x1025, 0x026f, "Acer Aspire 5538", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1028, 0x01de, "Dell Precision 390", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1028, 0x01f6, "Dell Latitude 131L", POS_FIX_LPIB),
-	SND_PCI_QUIRK(0x1028, 0x0470, "Dell Inspiron 1120", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x103c, 0x306d, "HP dv3", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1043, 0x81b3, "ASUS", POS_FIX_LPIB),
@@ -2809,10 +2794,10 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CREATIVE, PCI_ANY_ID),
 	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,
 	  .class_mask = 0xffffff,
-	  .driver_data = AZX_DRIVER_CTX },
+	  .driver_data = AZX_DRIVER_GENERIC },
 #else
 	/* this entry seems still valid -- i.e. without emu20kx chip */
-	{ PCI_DEVICE(0x1102, 0x0009), .driver_data = AZX_DRIVER_CTX },
+	{ PCI_DEVICE(0x1102, 0x0009), .driver_data = AZX_DRIVER_GENERIC },
 #endif
 	/* AMD/ATI Generic, PCI class code and Vendor ID for HD Audio */
 	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_ANY_ID),

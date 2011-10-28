@@ -1464,11 +1464,7 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		dev_err(wm831x->dev, "Failed to read parent ID: %d\n", ret);
 		goto err;
 	}
-	switch (ret) {
-	case 0x6204:
-	case 0x6246:
-		break;
-	default:
+	if (ret != 0x6204) {
 		dev_err(wm831x->dev, "Device is not a WM831x: ID %x\n", ret);
 		ret = -EINVAL;
 		goto err;
@@ -1621,7 +1617,7 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8321:
 		ret = mfd_add_devices(wm831x->dev, -1,
 				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
-				      NULL, wm831x->irq_base);
+				      NULL, 0);
 		break;
 
 	default:

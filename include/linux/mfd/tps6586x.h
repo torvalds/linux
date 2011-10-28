@@ -18,44 +18,10 @@ enum {
 	TPS6586X_ID_LDO_RTC,
 };
 
-enum {
-	TPS6586X_INT_PLDO_0,
-	TPS6586X_INT_PLDO_1,
-	TPS6586X_INT_PLDO_2,
-	TPS6586X_INT_PLDO_3,
-	TPS6586X_INT_PLDO_4,
-	TPS6586X_INT_PLDO_5,
-	TPS6586X_INT_PLDO_6,
-	TPS6586X_INT_PLDO_7,
-	TPS6586X_INT_COMP_DET,
-	TPS6586X_INT_ADC,
-	TPS6586X_INT_PLDO_8,
-	TPS6586X_INT_PLDO_9,
-	TPS6586X_INT_PSM_0,
-	TPS6586X_INT_PSM_1,
-	TPS6586X_INT_PSM_2,
-	TPS6586X_INT_PSM_3,
-	TPS6586X_INT_RTC_ALM1,
-	TPS6586X_INT_ACUSB_OVP,
-	TPS6586X_INT_USB_DET,
-	TPS6586X_INT_AC_DET,
-	TPS6586X_INT_BAT_DET,
-	TPS6586X_INT_CHG_STAT,
-	TPS6586X_INT_CHG_TEMP,
-	TPS6586X_INT_PP,
-	TPS6586X_INT_RESUME,
-	TPS6586X_INT_LOW_SYS,
-	TPS6586X_INT_RTC_ALM2,
-};
-
 struct tps6586x_subdev_info {
 	int		id;
 	const char	*name;
 	void		*platform_data;
-};
-
-struct tps6586x_rtc_platform_data {
-	int irq;
 };
 
 struct tps6586x_platform_data {
@@ -63,7 +29,6 @@ struct tps6586x_platform_data {
 	struct tps6586x_subdev_info *subdevs;
 
 	int gpio_base;
-	int irq_base;
 };
 
 /*

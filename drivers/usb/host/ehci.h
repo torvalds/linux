@@ -117,7 +117,6 @@ struct ehci_hcd {			/* one per controller */
 	struct timer_list	watchdog;
 	unsigned long		actions;
 	unsigned		stamp;
-	unsigned		periodic_stamp;
 	unsigned		random_frame;
 	unsigned long		next_statechange;
 	ktime_t			last_periodic_enable;
@@ -132,7 +131,6 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		need_io_watchdog:1;
 	unsigned		broken_periodic:1;
 	unsigned		fs_i_thresh:1;	/* Intel iso scheduling */
-	unsigned		port_reset_no_wait:1;
 
 	/* required for usb32 quirk */
 	#define OHCI_CTRL_HCFS          (3 << 6)

@@ -101,7 +101,7 @@ static int secmark_tg_check(const struct xt_tgchk_param *par)
 	switch (info->mode) {
 	case SECMARK_MODE_SEL:
 		err = checkentry_selinux(info);
-		if (err)
+		if (err <= 0)
 			return err;
 		break;
 

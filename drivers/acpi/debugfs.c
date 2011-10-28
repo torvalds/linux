@@ -79,7 +79,7 @@ int __init acpi_debugfs_init(void)
 	if (!acpi_dir)
 		goto err;
 
-	cm_dentry = debugfs_create_file("custom_method", S_IWUSR,
+	cm_dentry = debugfs_create_file("custom_method", S_IWUGO,
 					acpi_dir, NULL, &cm_fops);
 	if (!cm_dentry)
 		goto err;

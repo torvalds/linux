@@ -641,7 +641,7 @@ void native_machine_shutdown(void)
 	/* O.K Now that I'm on the appropriate processor,
 	 * stop all of the others.
 	 */
-	stop_other_cpus();
+	smp_send_stop();
 #endif
 
 	lapic_shutdown();

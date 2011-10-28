@@ -1,4 +1,3 @@
-
 /*
  * arch/arm/mach-tegra/include/mach/vmalloc.h
  *
@@ -24,6 +23,6 @@
 
 #include <asm/sizes.h>
 
-#define VMALLOC_END        0xF8000000UL
+#define VMALLOC_END        0xFE000000UL
 
 #endif

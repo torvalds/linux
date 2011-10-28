@@ -5,7 +5,6 @@
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
 #include <linux/delay.h>
-#include <linux/io.h>
 #include <linux/pci.h>
 #include "ql4_def.h"
 #include "ql4_glbl.h"

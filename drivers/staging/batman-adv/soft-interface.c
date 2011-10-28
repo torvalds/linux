@@ -246,10 +246,6 @@ void interface_rx(struct sk_buff *skb, int hdr_size)
 	skb_pull_rcsum(skb, hdr_size);
 /*	skb_set_mac_header(skb, -sizeof(struct ethhdr));*/
 
-	if (unlikely(!pskb_may_pull(skb, ETH_HLEN))) {
-		kfree_skb(skb);
-		return;
-	}
 	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
 

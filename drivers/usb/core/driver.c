@@ -1324,20 +1324,6 @@ int usb_resume(struct device *dev, pm_message_t msg)
 	 * Unbind the interfaces that will need rebinding later.
 	 */
 	} else {
-		/* If a device aborts suspend, usb_resume may be called on a
-		 * device whose parent has been auto-suspended. Recursively
-		 * resume its parents and change their runtime pm state.
-		 */
-		if (udev->parent && msg.event == PM_EVENT_RESUME
-			    && udev->parent->state == USB_STATE_SUSPENDED) {
-			status = usb_resume(&udev->parent->dev, msg);
-			if (status) {
-				dev_err(dev, "%s: failed to resume parent\n",
-						__func__);
-				return status;
-			}
-		}
-
 		status = usb_resume_both(udev, msg);
 		if (status == 0) {
 			pm_runtime_disable(dev);
