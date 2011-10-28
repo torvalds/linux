@@ -579,6 +579,14 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_display_early;
 
+	/* workaround an odd issue on nvc1 by disabling the device's
+	 * nosnoop capability.  hopefully won't cause issues until a
+	 * better fix is found - assuming there is one...
+	 */
+	if (dev_priv->chipset == 0xc1) {
+		nv_mask(dev, 0x00088080, 0x00000800, 0x00000000);
+	}
+
 	nouveau_pm_init(dev);
 
 	ret = engine->vram.init(dev);
