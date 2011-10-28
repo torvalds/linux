@@ -875,8 +875,7 @@ static void dispc_ovl_set_color_mode(enum omap_plane plane,
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), m, 4, 1);
 }
 
-static void dispc_ovl_set_channel_out(enum omap_plane plane,
-		enum omap_channel channel)
+void dispc_ovl_set_channel_out(enum omap_plane plane, enum omap_channel channel)
 {
 	int shift;
 	u32 val;

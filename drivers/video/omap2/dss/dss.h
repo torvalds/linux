@@ -402,6 +402,8 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 		bool ilace, enum omap_channel channel, bool replication,
 		u32 fifo_low, u32 fifo_high);
 int dispc_ovl_enable(enum omap_plane plane, bool enable);
+void dispc_ovl_set_channel_out(enum omap_plane plane,
+		enum omap_channel channel);
 
 
 void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable);
