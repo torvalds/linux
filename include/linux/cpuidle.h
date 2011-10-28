@@ -42,7 +42,7 @@ struct cpuidle_state {
 	unsigned long long	time; /* in US */
 
 	int (*enter)	(struct cpuidle_device *dev,
-			 struct cpuidle_state *state);
+			int index);
 };
 
 /* Idle State Flags */
@@ -87,13 +87,12 @@ struct cpuidle_device {
 	int			state_count;
 	struct cpuidle_state	states[CPUIDLE_STATE_MAX];
 	struct cpuidle_state_kobj *kobjs[CPUIDLE_STATE_MAX];
-	struct cpuidle_state	*last_state;
 
 	struct list_head 	device_list;
 	struct kobject		kobj;
 	struct completion	kobj_unregister;
 	void			*governor_data;
-	struct cpuidle_state	*safe_state;
+	int			safe_state_index;
 
 	int (*prepare)		(struct cpuidle_device *dev);
 };
@@ -169,7 +168,7 @@ struct cpuidle_governor {
 	void (*disable)		(struct cpuidle_device *dev);
 
 	int  (*select)		(struct cpuidle_device *dev);
-	void (*reflect)		(struct cpuidle_device *dev);
+	void (*reflect)		(struct cpuidle_device *dev, int index);
 
 	struct module 		*owner;
 };

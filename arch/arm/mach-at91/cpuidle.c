@@ -33,7 +33,7 @@ static struct cpuidle_driver at91_idle_driver = {
 
 /* Actual code that puts the SoC in different idle states */
 static int at91_enter_idle(struct cpuidle_device *dev,
-			       struct cpuidle_state *state)
+			       int index)
 {
 	struct timeval before, after;
 	int idle_time;
@@ -41,10 +41,10 @@ static int at91_enter_idle(struct cpuidle_device *dev,
 
 	local_irq_disable();
 	do_gettimeofday(&before);
-	if (state == &dev->states[0])
+	if (index == 0)
 		/* Wait for interrupt state */
 		cpu_do_idle();
-	else if (state == &dev->states[1]) {
+	else if (index == 1) {
 		asm("b 1f; .align 5; 1:");
 		asm("mcr p15, 0, r0, c7, c10, 4");	/* drain write buffer */
 		saved_lpr = sdram_selfrefresh_enable();
@@ -55,7 +55,9 @@ static int at91_enter_idle(struct cpuidle_device *dev,
 	local_irq_enable();
 	idle_time = (after.tv_sec - before.tv_sec) * USEC_PER_SEC +
 			(after.tv_usec - before.tv_usec);
-	return idle_time;
+
+	dev->last_residency = idle_time;
+	return index;
 }
 
 /* Initialize CPU idle by registering the idle states */

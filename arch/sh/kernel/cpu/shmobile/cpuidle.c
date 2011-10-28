@@ -25,11 +25,11 @@ static unsigned long cpuidle_mode[] = {
 };
 
 static int cpuidle_sleep_enter(struct cpuidle_device *dev,
-			       struct cpuidle_state *state)
+				int index)
 {
 	unsigned long allowed_mode = arch_hwblk_sleep_mode();
 	ktime_t before, after;
-	int requested_state = state - &dev->states[0];
+	int requested_state = index;
 	int allowed_state;
 	int k;
 
@@ -46,11 +46,13 @@ static int cpuidle_sleep_enter(struct cpuidle_device *dev,
 	 */
 	k = min_t(int, allowed_state, requested_state);
 
-	dev->last_state = &dev->states[k];
 	before = ktime_get();
 	sh_mobile_call_standby(cpuidle_mode[k]);
 	after = ktime_get();
-	return ktime_to_ns(ktime_sub(after, before)) >> 10;
+
+	dev->last_residency = (int)ktime_to_ns(ktime_sub(after, before)) >> 10;
+
+	return k;
 }
 
 static struct cpuidle_device cpuidle_dev;
@@ -84,7 +86,7 @@ void sh_mobile_setup_cpuidle(void)
 	state->flags |= CPUIDLE_FLAG_TIME_VALID;
 	state->enter = cpuidle_sleep_enter;
 
-	dev->safe_state = state;
+	dev->safe_state_index = i-1;
 
 	if (sh_mobile_sleep_supported & SUSP_SH_SF) {
 		state = &dev->states[i++];

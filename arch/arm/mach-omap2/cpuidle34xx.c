@@ -88,17 +88,19 @@ static int _cpuidle_deny_idle(struct powerdomain *pwrdm,
 /**
  * omap3_enter_idle - Programs OMAP3 to enter the specified state
  * @dev: cpuidle device
- * @state: The target state to be programmed
+ * @index: the index of state to be entered
  *
  * Called from the CPUidle framework to program the device to the
  * specified target state selected by the governor.
  */
 static int omap3_enter_idle(struct cpuidle_device *dev,
-			struct cpuidle_state *state)
+				int index)
 {
-	struct omap3_idle_statedata *cx = cpuidle_get_statedata(state);
+	struct omap3_idle_statedata *cx =
+			cpuidle_get_statedata(&dev->states[index]);
 	struct timespec ts_preidle, ts_postidle, ts_idle;
 	u32 mpu_state = cx->mpu_state, core_state = cx->core_state;
+	int idle_time;
 
 	/* Used to keep track of the total time in idle */
 	getnstimeofday(&ts_preidle);
@@ -113,7 +115,7 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 		goto return_sleep_time;
 
 	/* Deny idle for C1 */
-	if (state == &dev->states[0]) {
+	if (index == 0) {
 		pwrdm_for_each_clkdm(mpu_pd, _cpuidle_deny_idle);
 		pwrdm_for_each_clkdm(core_pd, _cpuidle_deny_idle);
 	}
@@ -122,7 +124,7 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 	omap_sram_idle();
 
 	/* Re-allow idle for C1 */
-	if (state == &dev->states[0]) {
+	if (index == 0) {
 		pwrdm_for_each_clkdm(mpu_pd, _cpuidle_allow_idle);
 		pwrdm_for_each_clkdm(core_pd, _cpuidle_allow_idle);
 	}
@@ -134,28 +136,35 @@ return_sleep_time:
 	local_irq_enable();
 	local_fiq_enable();
 
-	return ts_idle.tv_nsec / NSEC_PER_USEC + ts_idle.tv_sec * USEC_PER_SEC;
+	idle_time = ts_idle.tv_nsec / NSEC_PER_USEC + ts_idle.tv_sec * \
+								USEC_PER_SEC;
+
+	/* Update cpuidle counters */
+	dev->last_residency = idle_time;
+
+	return index;
 }
 
 /**
  * next_valid_state - Find next valid C-state
  * @dev: cpuidle device
- * @state: Currently selected C-state
+ * @index: Index of currently selected c-state
  *
- * If the current state is valid, it is returned back to the caller.
- * Else, this function searches for a lower c-state which is still
- * valid.
+ * If the state corresponding to index is valid, index is returned back
+ * to the caller. Else, this function searches for a lower c-state which is
+ * still valid (as defined in omap3_power_states[]) and returns its index.
  *
  * A state is valid if the 'valid' field is enabled and
  * if it satisfies the enable_off_mode condition.
  */
-static struct cpuidle_state *next_valid_state(struct cpuidle_device *dev,
-					      struct cpuidle_state *curr)
+static int next_valid_state(struct cpuidle_device *dev,
+				int index)
 {
-	struct cpuidle_state *next = NULL;
+	struct cpuidle_state *curr = &dev->states[index];
 	struct omap3_idle_statedata *cx = cpuidle_get_statedata(curr);
 	u32 mpu_deepest_state = PWRDM_POWER_RET;
 	u32 core_deepest_state = PWRDM_POWER_RET;
+	int next_index = -1;
 
 	if (enable_off_mode) {
 		mpu_deepest_state = PWRDM_POWER_OFF;
@@ -172,20 +181,20 @@ static struct cpuidle_state *next_valid_state(struct cpuidle_device *dev,
 	if ((cx->valid) &&
 	    (cx->mpu_state >= mpu_deepest_state) &&
 	    (cx->core_state >= core_deepest_state)) {
-		return curr;
+		return index;
 	} else {
 		int idx = OMAP3_NUM_STATES - 1;
 
 		/* Reach the current state starting at highest C-state */
 		for (; idx >= 0; idx--) {
 			if (&dev->states[idx] == curr) {
-				next = &dev->states[idx];
+				next_index = idx;
 				break;
 			}
 		}
 
 		/* Should never hit this condition */
-		WARN_ON(next == NULL);
+		WARN_ON(next_index == -1);
 
 		/*
 		 * Drop to next valid state.
@@ -197,37 +206,39 @@ static struct cpuidle_state *next_valid_state(struct cpuidle_device *dev,
 			if ((cx->valid) &&
 			    (cx->mpu_state >= mpu_deepest_state) &&
 			    (cx->core_state >= core_deepest_state)) {
-				next = &dev->states[idx];
+				next_index = idx;
 				break;
 			}
 		}
 		/*
 		 * C1 is always valid.
-		 * So, no need to check for 'next==NULL' outside this loop.
+		 * So, no need to check for 'next_index == -1' outside
+		 * this loop.
 		 */
 	}
 
-	return next;
+	return next_index;
 }
 
 /**
  * omap3_enter_idle_bm - Checks for any bus activity
  * @dev: cpuidle device
- * @state: The target state to be programmed
+ * @index: array index of target state to be programmed
  *
  * This function checks for any pending activity and then programs
  * the device to the specified or a safer state.
  */
 static int omap3_enter_idle_bm(struct cpuidle_device *dev,
-			       struct cpuidle_state *state)
+			       int index)
 {
-	struct cpuidle_state *new_state;
+	struct cpuidle_state *state = &dev->states[index];
+	int new_state_idx;
 	u32 core_next_state, per_next_state = 0, per_saved_state = 0, cam_state;
 	struct omap3_idle_statedata *cx;
 	int ret;
 
 	if (!omap3_can_sleep()) {
-		new_state = dev->safe_state;
+		new_state_idx = dev->safe_state_index;
 		goto select_state;
 	}
 
@@ -237,7 +248,7 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 	 */
 	cam_state = pwrdm_read_pwrst(cam_pd);
 	if (cam_state == PWRDM_POWER_ON) {
-		new_state = dev->safe_state;
+		new_state_idx = dev->safe_state_index;
 		goto select_state;
 	}
 
@@ -264,11 +275,10 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 	if (per_next_state != per_saved_state)
 		pwrdm_set_next_pwrst(per_pd, per_next_state);
 
-	new_state = next_valid_state(dev, state);
+	new_state_idx = next_valid_state(dev, index);
 
 select_state:
-	dev->last_state = new_state;
-	ret = omap3_enter_idle(dev, new_state);
+	ret = omap3_enter_idle(dev, new_state_idx);
 
 	/* Restore original PER state if it was modified */
 	if (per_next_state != per_saved_state)
@@ -339,11 +349,12 @@ int __init omap3_idle_init(void)
 
 	cpuidle_register_driver(&omap3_idle_driver);
 	dev = &per_cpu(omap3_idle_dev, smp_processor_id());
+	dev->safe_state_index = -1;
 
 	/* C1 . MPU WFI + Core active */
 	cx = _fill_cstate(dev, 0, "MPU ON + CORE ON");
 	(&dev->states[0])->enter = omap3_enter_idle;
-	dev->safe_state = &dev->states[0];
+	dev->safe_state_index = 0;
 	cx->valid = 1;	/* C1 is always valid */
 	cx->mpu_state = PWRDM_POWER_ON;
 	cx->core_state = PWRDM_POWER_ON;
