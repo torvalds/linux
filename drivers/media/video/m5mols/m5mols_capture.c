@@ -1,3 +1,4 @@
+
 /*
  * The Capture code for Fujitsu M-5MOLS ISP
  *
@@ -25,6 +26,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 #include <media/m5mols.h>
+#include <media/s5p_fimc.h>
 
 #include "m5mols.h"
 #include "m5mols_reg.h"
@@ -138,13 +140,20 @@ int m5mols_start_capture(struct m5mols_info *info)
 	if (!ret)
 		ret = m5mols_write(sd, CAPC_START, REG_CAP_START_MAIN);
 	if (!ret) {
+		bool captured = false;
+		unsigned int size;
+
 		/* Wait for the capture completion interrupt */
 		ret = m5mols_wait_interrupt(sd, REG_INT_CAPTURE, 2000);
 		if (!ret) {
+			captured = true;
 			ret = m5mols_capture_info(info);
-			if (!ret)
-				v4l2_subdev_notify(sd, 0, &info->cap.total);
 		}
+		size = captured ? info->cap.main : 0;
+		v4l2_dbg(1, m5mols_debug, sd, "%s: size: %d, thumb.: %d B\n",
+			 __func__, size, info->cap.thumb);
+
+		v4l2_subdev_notify(sd, S5P_FIMC_TX_END_NOTIFY, &size);
 	}
 
 	return ret;
