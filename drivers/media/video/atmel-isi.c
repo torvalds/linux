@@ -1036,7 +1036,7 @@ err_alloc_ctx:
 err_alloc_descriptors:
 	kfree(isi);
 err_alloc_isi:
-	clk_put(isi->pclk);
+	clk_put(pclk);
 
 	return ret;
 }
