@@ -1024,7 +1024,6 @@ static void __devinit pcibios_fixup_bridge(struct pci_bus *bus)
 	struct pci_dev *dev = bus->self;
 
 	pci_bus_for_each_resource(bus, res, i) {
-		res = bus->resource[i];
 		if (!res)
 			continue;
 		if (!res->flags)
@@ -1224,7 +1223,6 @@ void pcibios_allocate_bus_resources(struct pci_bus *bus)
 		 pci_domain_nr(bus), bus->number);
 
 	pci_bus_for_each_resource(bus, res, i) {
-		res = bus->resource[i];
 		if (!res || !res->flags
 		    || res->start > res->end || res->parent)
 			continue;
