@@ -32,9 +32,8 @@
 #include "cifs_unicode.h"
 #include "cifspdu.h"
 #include "cifsglob.h"
-#include "md5.h"
 #include "cifs_debug.h"
-#include "cifsencrypt.h"
+#include "cifsproto.h"
 
 #ifndef false
 #define false 0
@@ -48,36 +47,150 @@
 #define SSVALX(buf,pos,val) (CVAL(buf,pos)=(val)&0xFF,CVAL(buf,pos+1)=(val)>>8)
 #define SSVAL(buf,pos,val) SSVALX((buf),(pos),((__u16)(val)))
 
-/*The following definitions come from  libsmb/smbencrypt.c  */
+static void
+str_to_key(unsigned char *str, unsigned char *key)
+{
+	int i;
 
-void SMBencrypt(unsigned char *passwd, const unsigned char *c8,
-		unsigned char *p24);
-void E_md4hash(const unsigned char *passwd, unsigned char *p16);
-static void SMBOWFencrypt(unsigned char passwd[16], const unsigned char *c8,
-		   unsigned char p24[24]);
-void SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24);
+	key[0] = str[0] >> 1;
+	key[1] = ((str[0] & 0x01) << 6) | (str[1] >> 2);
+	key[2] = ((str[1] & 0x03) << 5) | (str[2] >> 3);
+	key[3] = ((str[2] & 0x07) << 4) | (str[3] >> 4);
+	key[4] = ((str[3] & 0x0F) << 3) | (str[4] >> 5);
+	key[5] = ((str[4] & 0x1F) << 2) | (str[5] >> 6);
+	key[6] = ((str[5] & 0x3F) << 1) | (str[6] >> 7);
+	key[7] = str[6] & 0x7F;
+	for (i = 0; i < 8; i++)
+		key[i] = (key[i] << 1);
+}
+
+static int
+smbhash(unsigned char *out, const unsigned char *in, unsigned char *key)
+{
+	int rc;
+	unsigned char key2[8];
+	struct crypto_blkcipher *tfm_des;
+	struct scatterlist sgin, sgout;
+	struct blkcipher_desc desc;
+
+	str_to_key(key, key2);
+
+	tfm_des = crypto_alloc_blkcipher("ecb(des)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm_des)) {
+		rc = PTR_ERR(tfm_des);
+		cERROR(1, "could not allocate des crypto API\n");
+		goto smbhash_err;
+	}
+
+	desc.tfm = tfm_des;
+
+	crypto_blkcipher_setkey(tfm_des, key2, 8);
+
+	sg_init_one(&sgin, in, 8);
+	sg_init_one(&sgout, out, 8);
+
+	rc = crypto_blkcipher_encrypt(&desc, &sgout, &sgin, 8);
+	if (rc)
+		cERROR(1, "could not encrypt crypt key rc: %d\n", rc);
+
+	crypto_free_blkcipher(tfm_des);
+smbhash_err:
+	return rc;
+}
+
+static int
+E_P16(unsigned char *p14, unsigned char *p16)
+{
+	int rc;
+	unsigned char sp8[8] =
+	    { 0x4b, 0x47, 0x53, 0x21, 0x40, 0x23, 0x24, 0x25 };
+
+	rc = smbhash(p16, sp8, p14);
+	if (rc)
+		return rc;
+	rc = smbhash(p16 + 8, sp8, p14 + 7);
+	return rc;
+}
+
+static int
+E_P24(unsigned char *p21, const unsigned char *c8, unsigned char *p24)
+{
+	int rc;
+
+	rc = smbhash(p24, c8, p21);
+	if (rc)
+		return rc;
+	rc = smbhash(p24 + 8, c8, p21 + 7);
+	if (rc)
+		return rc;
+	rc = smbhash(p24 + 16, c8, p21 + 14);
+	return rc;
+}
+
+/* produce a md4 message digest from data of length n bytes */
+int
+mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
+{
+	int rc;
+	unsigned int size;
+	struct crypto_shash *md4;
+	struct sdesc *sdescmd4;
+
+	md4 = crypto_alloc_shash("md4", 0, 0);
+	if (IS_ERR(md4)) {
+		rc = PTR_ERR(md4);
+		cERROR(1, "%s: Crypto md4 allocation error %d\n", __func__, rc);
+		return rc;
+	}
+	size = sizeof(struct shash_desc) + crypto_shash_descsize(md4);
+	sdescmd4 = kmalloc(size, GFP_KERNEL);
+	if (!sdescmd4) {
+		rc = -ENOMEM;
+		cERROR(1, "%s: Memory allocation failure\n", __func__);
+		goto mdfour_err;
+	}
+	sdescmd4->shash.tfm = md4;
+	sdescmd4->shash.flags = 0x0;
+
+	rc = crypto_shash_init(&sdescmd4->shash);
+	if (rc) {
+		cERROR(1, "%s: Could not init md4 shash\n", __func__);
+		goto mdfour_err;
+	}
+	crypto_shash_update(&sdescmd4->shash, link_str, link_len);
+	rc = crypto_shash_final(&sdescmd4->shash, md4_hash);
+
+mdfour_err:
+	crypto_free_shash(md4);
+	kfree(sdescmd4);
+
+	return rc;
+}
 
 /*
    This implements the X/Open SMB password encryption
    It takes a password, a 8 byte "crypt key" and puts 24 bytes of
    encrypted password into p24 */
 /* Note that password must be uppercased and null terminated */
-void
+int
 SMBencrypt(unsigned char *passwd, const unsigned char *c8, unsigned char *p24)
 {
-	unsigned char p14[15], p21[21];
+	int rc;
+	unsigned char p14[14], p16[16], p21[21];
 
-	memset(p21, '\0', 21);
 	memset(p14, '\0', 14);
-	strncpy((char *) p14, (char *) passwd, 14);
+	memset(p16, '\0', 16);
+	memset(p21, '\0', 21);
 
-/*	strupper((char *)p14); *//* BB at least uppercase the easy range */
-	E_P16(p14, p21);
+	memcpy(p14, passwd, 14);
+	rc = E_P16(p14, p16);
+	if (rc)
+		return rc;
 
-	SMBOWFencrypt(p21, c8, p24);
+	memcpy(p21, p16, 16);
+	rc = E_P24(p21, c8, p24);
 
-	memset(p14, 0, 15);
-	memset(p21, 0, 21);
+	return rc;
 }
 
 /* Routines for Windows NT MD4 Hash functions. */
@@ -118,9 +231,10 @@ _my_mbstowcs(__u16 *dst, const unsigned char *src, int len)
  * Creates the MD4 Hash of the users password in NT UNICODE.
  */
 
-void
+int
 E_md4hash(const unsigned char *passwd, unsigned char *p16)
 {
+	int rc;
 	int len;
 	__u16 wpwd[129];
 
@@ -139,8 +253,10 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16)
 	/* Calculate length in bytes */
 	len = _my_wcslen(wpwd) * sizeof(__u16);
 
-	mdfour(p16, (unsigned char *) wpwd, len);
+	rc = mdfour(p16, (unsigned char *) wpwd, len);
 	memset(wpwd, 0, 129 * 2);
+
+	return rc;
 }
 
 #if 0 /* currently unused */
@@ -212,19 +328,6 @@ ntv2_owf_gen(const unsigned char owf[16], const char *user_n,
 }
 #endif
 
-/* Does the des encryption from the NT or LM MD4 hash. */
-static void
-SMBOWFencrypt(unsigned char passwd[16], const unsigned char *c8,
-	      unsigned char p24[24])
-{
-	unsigned char p21[21];
-
-	memset(p21, '\0', 21);
-
-	memcpy(p21, passwd, 16);
-	E_P24(p21, c8, p24);
-}
-
 /* Does the des encryption from the FIRST 8 BYTES of the NT or LM MD4 hash. */
 #if 0 /* currently unused */
 static void
@@ -242,16 +345,23 @@ NTLMSSPOWFencrypt(unsigned char passwd[8],
 #endif
 
 /* Does the NT MD4 hash then des encryption. */
-
-void
+int
 SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24)
 {
-	unsigned char p21[21];
+	int rc;
+	unsigned char p16[16], p21[21];
 
+	memset(p16, '\0', 16);
 	memset(p21, '\0', 21);
 
-	E_md4hash(passwd, p21);
-	SMBOWFencrypt(p21, c8, p24);
+	rc = E_md4hash(passwd, p16);
+	if (rc) {
+		cFYI(1, "%s Can't generate NT hash, error: %d", __func__, rc);
+		return rc;
+	}
+	memcpy(p21, p16, 16);
+	rc = E_P24(p21, c8, p24);
+	return rc;
 }
 
 

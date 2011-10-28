@@ -11,6 +11,7 @@
 #include <linux/kallsyms.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <asm/irq_handler.h>
 #include <asm/trace.h>
 #include <asm/pda.h>
 
@@ -39,21 +40,23 @@ int show_interrupts(struct seq_file *p, void *v)
 	unsigned long flags;
 
 	if (i < NR_IRQS) {
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
+		struct irq_desc *desc = irq_to_desc(i);
+
+		raw_spin_lock_irqsave(&desc->lock, flags);
+		action = desc->action;
 		if (!action)
 			goto skip;
 		seq_printf(p, "%3d: ", i);
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-		seq_printf(p, " %8s", irq_desc[i].chip->name);
+		seq_printf(p, " %8s", irq_desc_get_chip(desc)->name);
 		seq_printf(p, "  %s", action->name);
 		for (action = action->next; action; action = action->next)
 			seq_printf(p, "  %s", action->name);
 
 		seq_putc(p, '\n');
  skip:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	} else if (i == NR_IRQS) {
 		seq_printf(p, "NMI: ");
 		for_each_online_cpu(j)

@@ -186,7 +186,7 @@ config UML_NET_SLIRP
         other transports, SLiRP works without the need of root level
         privleges, setuid binaries, or SLIP devices on the host.  This
         also means not every type of connection is possible, but most
-        situations can be accomodated with carefully crafted slirp
+        situations can be accommodated with carefully crafted slirp
         commands that can be passed along as part of the network device's
         setup string.  The effect of this transport on the UML is similar
         that of a host behind a firewall that masquerades all network

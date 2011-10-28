@@ -132,7 +132,8 @@ static inline int ubifs_leb_unmap(const struct ubifs_info *c, int lnum)
 {
 	int err;
 
-	if (c->ro_media)
+	ubifs_assert(!c->ro_media && !c->ro_mount);
+	if (c->ro_error)
 		return -EROFS;
 	err = ubi_leb_unmap(c->ubi, lnum);
 	if (err) {
@@ -159,7 +160,8 @@ static inline int ubifs_leb_write(const struct ubifs_info *c, int lnum,
 {
 	int err;
 
-	if (c->ro_media)
+	ubifs_assert(!c->ro_media && !c->ro_mount);
+	if (c->ro_error)
 		return -EROFS;
 	err = ubi_leb_write(c->ubi, lnum, buf, offs, len, dtype);
 	if (err) {
@@ -186,7 +188,8 @@ static inline int ubifs_leb_change(const struct ubifs_info *c, int lnum,
 {
 	int err;
 
-	if (c->ro_media)
+	ubifs_assert(!c->ro_media && !c->ro_mount);
+	if (c->ro_error)
 		return -EROFS;
 	err = ubi_leb_change(c->ubi, lnum, buf, len, dtype);
 	if (err) {
@@ -335,6 +338,23 @@ static inline void ubifs_release_lprops(struct ubifs_info *c)
 	ubifs_assert(c->lst.empty_lebs >= 0 &&
 		     c->lst.empty_lebs <= c->main_lebs);
 	mutex_unlock(&c->lp_mutex);
+}
+
+/**
+ * ubifs_next_log_lnum - switch to the next log LEB.
+ * @c: UBIFS file-system description object
+ * @lnum: current log LEB
+ *
+ * This helper function returns the log LEB number which goes next after LEB
+ * 'lnum'.
+ */
+static inline int ubifs_next_log_lnum(const struct ubifs_info *c, int lnum)
+{
+	lnum += 1;
+	if (lnum > c->log_last)
+		lnum = UBIFS_LOG_LNUM;
+
+	return lnum;
 }
 
 #endif /* __UBIFS_MISC_H__ */

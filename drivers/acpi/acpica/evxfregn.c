@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,6 +64,12 @@ ACPI_MODULE_NAME("evxfregn")
  *
  * DESCRIPTION: Install a handler for all op_regions of a given space_id.
  *
+ * NOTE: This function should only be called after acpi_enable_subsystem has
+ * been called. This is because any _REG methods associated with the Space ID
+ * are executed here, and these methods can only be safely executed after
+ * the default handlers have been installed and the hardware has been
+ * initialized (via acpi_enable_subsystem.)
+ *
  ******************************************************************************/
 acpi_status
 acpi_install_address_space_handler(acpi_handle device,
@@ -102,6 +108,37 @@ acpi_install_address_space_handler(acpi_handle device,
 					  context);
 	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
+	}
+
+	/*
+	 * For the default space_iDs, (the IDs for which there are default region handlers
+	 * installed) Only execute the _REG methods if the global initialization _REG
+	 * methods have already been run (via acpi_initialize_objects). In other words,
+	 * we will defer the execution of the _REG methods for these space_iDs until
+	 * execution of acpi_initialize_objects. This is done because we need the handlers
+	 * for the default spaces (mem/io/pci/table) to be installed before we can run
+	 * any control methods (or _REG methods). There is known BIOS code that depends
+	 * on this.
+	 *
+	 * For all other space_iDs, we can safely execute the _REG methods immediately.
+	 * This means that for IDs like embedded_controller, this function should be called
+	 * only after acpi_enable_subsystem has been called.
+	 */
+	switch (space_id) {
+	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+	case ACPI_ADR_SPACE_SYSTEM_IO:
+	case ACPI_ADR_SPACE_PCI_CONFIG:
+	case ACPI_ADR_SPACE_DATA_TABLE:
+
+		if (!acpi_gbl_reg_methods_executed) {
+
+			/* We will defer execution of the _REG methods for this space */
+			goto unlock_and_exit;
+		}
+		break;
+
+	default:
+		break;
 	}
 
 	/* Run all _REG methods for this address space */

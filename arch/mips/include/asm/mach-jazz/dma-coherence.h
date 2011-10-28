@@ -12,23 +12,24 @@
 
 struct device;
 
-static dma_addr_t plat_map_dma_mem(struct device *dev, void *addr, size_t size)
+static inline dma_addr_t plat_map_dma_mem(struct device *dev, void *addr, size_t size)
 {
 	return vdma_alloc(virt_to_phys(addr), size);
 }
 
-static dma_addr_t plat_map_dma_mem_page(struct device *dev, struct page *page)
+static inline dma_addr_t plat_map_dma_mem_page(struct device *dev,
+	struct page *page)
 {
 	return vdma_alloc(page_to_phys(page), PAGE_SIZE);
 }
 
-static unsigned long plat_dma_addr_to_phys(struct device *dev,
+static inline unsigned long plat_dma_addr_to_phys(struct device *dev,
 	dma_addr_t dma_addr)
 {
 	return vdma_log2phys(dma_addr);
 }
 
-static void plat_unmap_dma_mem(struct device *dev, dma_addr_t dma_addr,
+static inline void plat_unmap_dma_mem(struct device *dev, dma_addr_t dma_addr,
 	size_t size, enum dma_data_direction direction)
 {
 	vdma_free(dma_addr);

@@ -119,7 +119,7 @@ can affect your ability to get trees pulled in the future.  Quoting Linus:
 	to trust things *without* then having to go and check every
 	individual change by hand.
 
-(http://lwn.net/Articles/224135/).  
+(http://lwn.net/Articles/224135/).
 
 To avoid this kind of situation, ensure that all patches within a given
 branch stick closely to the associated topic; a "driver fixes" branch
@@ -138,7 +138,7 @@ When requesting a pull, be sure to give all the relevant information: where
 your tree is, what branch to pull, and what changes will result from the
 pull.  The git request-pull command can be helpful in this regard; it will
 format the request as other developers expect, and will also check to be
-sure that you have remembered to push those changes to the public server. 
+sure that you have remembered to push those changes to the public server.
 
 
 7.2: REVIEWING PATCHES

@@ -27,7 +27,6 @@
 #include <asm/irq.h>
 
 #include <pcmcia/ss.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>

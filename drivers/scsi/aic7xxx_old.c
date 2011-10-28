@@ -905,7 +905,7 @@ struct aic_dev_data {
  * problems with architectures I can't test on (because I don't have one,
  * such as the Alpha based systems) which happen to give faults for
  * non-aligned memory accesses, care was taken to align this structure
- * in a way that gauranteed all accesses larger than 8 bits were aligned
+ * in a way that guaranteed all accesses larger than 8 bits were aligned
  * on the appropriate boundary.  It's also organized to try and be more
  * cache line efficient.  Be careful when changing this lest you might hurt
  * overall performance and bring down the wrath of the masses.
@@ -1180,7 +1180,7 @@ static int aic7xxx_pci_parity = 0;
  * the card's registers in a hex dump format tailored to each model of
  * controller.
  * 
- * NOTE: THE CONTROLLER IS LEFT IN AN UNUSEABLE STATE BY THIS OPTION.
+ * NOTE: THE CONTROLLER IS LEFT IN AN UNUSABLE STATE BY THIS OPTION.
  *       YOU CANNOT BOOT UP WITH THIS OPTION, IT IS FOR DEBUGGING PURPOSES
  *       ONLY
  */
@@ -2850,12 +2850,6 @@ aic7xxx_done(struct aic7xxx_host *p, struct aic7xxx_scb *scb)
       aic_dev->r_total++;
       ptr = aic_dev->r_bins;
     }
-    if(cmd->device->simple_tags && cmd->request->cmd_flags & REQ_HARDBARRIER)
-    {
-      aic_dev->barrier_total++;
-      if(scb->tag_action == MSG_ORDERED_Q_TAG)
-        aic_dev->ordered_total++;
-    }
     x = scb->sg_length;
     x >>= 10;
     for(i=0; i<6; i++)
@@ -3473,7 +3467,7 @@ aic7xxx_reset_current_bus(struct aic7xxx_host *p)
   /* Turn off the bus' current operations, after all, we shouldn't have any
    * valid commands left to cause a RSELI and SELO once we've tossed the
    * bus away with this reset, so we might as well shut down the sequencer
-   * until the bus is restarted as oppossed to saving the current settings
+   * until the bus is restarted as opposed to saving the current settings
    * and restoring them (which makes no sense to me). */
 
   /* Turn on the bus reset. */
@@ -4076,7 +4070,7 @@ aic7xxx_handle_seqint(struct aic7xxx_host *p, unsigned char intstat)
             aic_dev->max_q_depth = aic_dev->temp_q_depth = 1;
             /*
              * We set this command up as a bus device reset.  However, we have
-             * to clear the tag type as it's causing us problems.  We shouldnt
+             * to clear the tag type as it's causing us problems.  We shouldn't
              * have to worry about any other commands being active, since if
              * the device is refusing tagged commands, this should be the
              * first tagged command sent to the device, however, we do have
@@ -9754,7 +9748,7 @@ skip_pci_controller:
     }
 
     /*
-     * We are commited now, everything has been checked and this card
+     * We are committed now, everything has been checked and this card
      * has been found, now we just set it up
      */
 
@@ -9912,7 +9906,7 @@ skip_pci_controller:
    *  2: All PCI controllers with BIOS_ENABLED next, according to BIOS
    *     address, going from lowest to highest.
    *  3: Remaining VLB/EISA controllers going in slot order.
-   *  4: Remaining PCI controllers, going in PCI device order (reversable)
+   *  4: Remaining PCI controllers, going in PCI device order (reversible)
    */
 
   {
@@ -10125,7 +10119,6 @@ static void aic7xxx_buildscb(struct aic7xxx_host *p, struct scsi_cmnd *cmd,
   struct aic_dev_data *aic_dev = cmd->device->hostdata;
   struct scsi_device *sdptr = cmd->device;
   unsigned char tindex = TARGET_INDEX(cmd);
-  struct request *req = cmd->request;
   int use_sg;
 
   mask = (0x01 << tindex);
@@ -10144,19 +10137,8 @@ static void aic7xxx_buildscb(struct aic7xxx_host *p, struct scsi_cmnd *cmd,
     /* We always force TEST_UNIT_READY to untagged */
     if (cmd->cmnd[0] != TEST_UNIT_READY && sdptr->simple_tags)
     {
-      if (req->cmd_flags & REQ_HARDBARRIER)
-      {
-	if(sdptr->ordered_tags)
-	{
-          hscb->control |= MSG_ORDERED_Q_TAG;
-          scb->tag_action = MSG_ORDERED_Q_TAG;
-	}
-      }
-      else
-      {
-        hscb->control |= MSG_SIMPLE_Q_TAG;
-        scb->tag_action = MSG_SIMPLE_Q_TAG;
-      }
+      hscb->control |= MSG_SIMPLE_Q_TAG;
+      scb->tag_action = MSG_SIMPLE_Q_TAG;
     }
   }
   if ( !(aic_dev->dtr_pending) &&
@@ -10252,7 +10234,7 @@ static void aic7xxx_buildscb(struct aic7xxx_host *p, struct scsi_cmnd *cmd,
  * Description:
  *   Queue a SCB to the controller.
  *-F*************************************************************************/
-static int aic7xxx_queue(struct scsi_cmnd *cmd, void (*fn)(struct scsi_cmnd *))
+static int aic7xxx_queue_lck(struct scsi_cmnd *cmd, void (*fn)(struct scsi_cmnd *))
 {
   struct aic7xxx_host *p;
   struct aic7xxx_scb *scb;
@@ -10309,6 +10291,8 @@ static int aic7xxx_queue(struct scsi_cmnd *cmd, void (*fn)(struct scsi_cmnd *))
   aic7xxx_run_waiting_queues(p);
   return (0);
 }
+
+static DEF_SCSI_QCMD(aic7xxx_queue)
 
 /*+F*************************************************************************
  * Function:

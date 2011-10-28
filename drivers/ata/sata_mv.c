@@ -160,8 +160,7 @@ enum {
 	/* Host Flags */
 	MV_FLAG_DUAL_HC		= (1 << 30),  /* two SATA Host Controllers */
 
-	MV_COMMON_FLAGS		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO | ATA_FLAG_PIO_POLLING,
+	MV_COMMON_FLAGS		= ATA_FLAG_SATA | ATA_FLAG_PIO_POLLING,
 
 	MV_GEN_I_FLAGS		= MV_COMMON_FLAGS | ATA_FLAG_NO_ATAPI,
 
@@ -1353,7 +1352,7 @@ static int mv_scr_write(struct ata_link *link, unsigned int sc_reg_in, u32 val)
 			/*
 			 * Workaround for 88SX60x1 FEr SATA#26:
 			 *
-			 * COMRESETs have to take care not to accidently
+			 * COMRESETs have to take care not to accidentally
 			 * put the drive to sleep when writing SCR_CONTROL.
 			 * Setting bits 12..15 prevents this problem.
 			 *
@@ -2045,7 +2044,7 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 
 	cw = &pp->crqb[in_index].ata_cmd[0];
 
-	/* Sadly, the CRQB cannot accomodate all registers--there are
+	/* Sadly, the CRQB cannot accommodate all registers--there are
 	 * only 11 bytes...so we must pick and choose required
 	 * registers based on the command.  So, we drop feature and
 	 * hob_feature for [RW] DMA commands, but they are needed for
@@ -2743,18 +2742,11 @@ static void mv_err_intr(struct ata_port *ap)
 	}
 }
 
-static void mv_process_crpb_response(struct ata_port *ap,
+static bool mv_process_crpb_response(struct ata_port *ap,
 		struct mv_crpb *response, unsigned int tag, int ncq_enabled)
 {
 	u8 ata_status;
 	u16 edma_status = le16_to_cpu(response->flags);
-	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, tag);
-
-	if (unlikely(!qc)) {
-		ata_port_printk(ap, KERN_ERR, "%s: no qc for tag=%d\n",
-				__func__, tag);
-		return;
-	}
 
 	/*
 	 * edma_status from a response queue entry:
@@ -2768,13 +2760,14 @@ static void mv_process_crpb_response(struct ata_port *ap,
 			 * Error will be seen/handled by
 			 * mv_err_intr().  So do nothing at all here.
 			 */
-			return;
+			return false;
 		}
 	}
 	ata_status = edma_status >> CRPB_FLAG_STATUS_SHIFT;
 	if (!ac_err_mask(ata_status))
-		ata_qc_complete(qc);
+		return true;
 	/* else: leave it for mv_err_intr() */
+	return false;
 }
 
 static void mv_process_crpb_entries(struct ata_port *ap, struct mv_port_priv *pp)
@@ -2783,6 +2776,7 @@ static void mv_process_crpb_entries(struct ata_port *ap, struct mv_port_priv *pp
 	struct mv_host_priv *hpriv = ap->host->private_data;
 	u32 in_index;
 	bool work_done = false;
+	u32 done_mask = 0;
 	int ncq_enabled = (pp->pp_flags & MV_PP_FLAG_NCQ_EN);
 
 	/* Get the hardware queue position index */
@@ -2803,15 +2797,19 @@ static void mv_process_crpb_entries(struct ata_port *ap, struct mv_port_priv *pp
 			/* Gen II/IIE: get command tag from CRPB entry */
 			tag = le16_to_cpu(response->id) & 0x1f;
 		}
-		mv_process_crpb_response(ap, response, tag, ncq_enabled);
+		if (mv_process_crpb_response(ap, response, tag, ncq_enabled))
+			done_mask |= 1 << tag;
 		work_done = true;
 	}
 
-	/* Update the software queue position index in hardware */
-	if (work_done)
+	if (work_done) {
+		ata_qc_complete_multiple(ap, ap->qc_active ^ done_mask);
+
+		/* Update the software queue position index in hardware */
 		writelfl((pp->crpb_dma & EDMA_RSP_Q_BASE_LO_MASK) |
 			 (pp->resp_idx << EDMA_RSP_Q_PTR_SHIFT),
 			 port_mmio + EDMA_RSP_Q_OUT_PTR);
+	}
 }
 
 static void mv_port_intr(struct ata_port *ap, u32 port_cause)

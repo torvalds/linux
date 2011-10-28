@@ -28,7 +28,6 @@
 #include <linux/serial_8250.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
-#include <linux/fsl_devices.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,14 +38,11 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
-#include <mach/mxc_nand.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
-static int eukrea_cpuimx27_pins[] = {
+static const int eukrea_cpuimx27_pins[] __initconst = {
 	/* UART1 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,
@@ -157,9 +153,6 @@ cpuimx27_nand_board_info __initconst = {
 
 static struct platform_device *platform_devices[] __initdata = {
 	&eukrea_cpuimx27_nor_mtd_device,
-	&mxc_fec_device,
-	&mxc_wdt,
-	&mxc_w1_master_device,
 };
 
 static const struct imxi2c_platform_data cpuimx27_i2c1_data __initconst = {
@@ -215,19 +208,27 @@ static struct platform_device serial_device = {
 };
 #endif
 
-#if defined(CONFIG_USB_ULPI)
-static struct mxc_usbh_platform_data otg_pdata = {
+static int eukrea_cpuimx27_otg_init(struct platform_device *pdev)
+{
+	return mx27_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_DIFF_UNI);
+}
+
+static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.init	= eukrea_cpuimx27_otg_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh2_pdata = {
-	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
-};
-#endif
+static int eukrea_cpuimx27_usbh2_init(struct platform_device *pdev)
+{
+	return mx27_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_DIFF_UNI);
+}
 
-static struct fsl_usb2_platform_data otg_device_pdata = {
+static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
+	.init	= eukrea_cpuimx27_usbh2_init,
+	.portsc	= MXC_EHCI_MODE_ULPI,
+};
+
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
 	.phy_mode       = FSL_USB2_PHY_ULPI,
 };
@@ -259,13 +260,16 @@ static void __init eukrea_cpuimx27_init(void)
 	i2c_register_board_info(0, eukrea_cpuimx27_i2c_devices,
 				ARRAY_SIZE(eukrea_cpuimx27_i2c_devices));
 
-	imx27_add_i2c_imx0(&cpuimx27_i2c1_data);
+	imx27_add_imx_i2c(0, &cpuimx27_i2c1_data);
 
+	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx27_add_imx2_wdt(NULL);
+	imx27_add_mxc_w1(NULL);
 
 #if defined(CONFIG_MACH_EUKREA_CPUIMX27_USESDHC2)
 	/* SDHC2 can be used for Wifi */
-	mxc_register_device(&mxc_sdhc_device1, NULL);
+	imx27_add_mxc_mmc(1, NULL);
 #endif
 #if defined(MACH_EUKREA_CPUIMX27_USEUART4)
 	/* in which case UART4 is also used for Bluetooth */
@@ -276,21 +280,19 @@ static void __init eukrea_cpuimx27_init(void)
 	platform_device_register(&serial_device);
 #endif
 
-#if defined(CONFIG_USB_ULPI)
 	if (otg_mode_host) {
-		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
-		mxc_register_device(&mxc_otg_host, &otg_pdata);
+		otg_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+				ULPI_OTG_DRVVBUS_EXT);
+		if (otg_pdata.otg)
+			imx27_add_mxc_ehci_otg(&otg_pdata);
+	} else {
+		imx27_add_fsl_usb2_udc(&otg_device_pdata);
 	}
 
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
-#endif
-	if (!otg_mode_host)
-		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
+	usbh2_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT);
+	if (usbh2_pdata.otg)
+		imx27_add_mxc_ehci_hs(2, &usbh2_pdata);
 
 #ifdef CONFIG_MACH_EUKREA_MBIMX27_BASEBOARD
 	eukrea_mbimx27_baseboard_init();
@@ -307,11 +309,10 @@ static struct sys_timer eukrea_cpuimx27_timer = {
 };
 
 MACHINE_START(CPUIMX27, "EUKREA CPUIMX27")
-	.phys_io        = MX27_AIPI_BASE_ADDR,
-	.io_pg_offst    = ((MX27_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
-	.boot_params    = MX27_PHYS_OFFSET + 0x100,
-	.map_io         = mx27_map_io,
-	.init_irq       = mx27_init_irq,
-	.init_machine   = eukrea_cpuimx27_init,
-	.timer          = &eukrea_cpuimx27_timer,
+	.boot_params = MX27_PHYS_OFFSET + 0x100,
+	.map_io = mx27_map_io,
+	.init_early = imx27_init_early,
+	.init_irq = mx27_init_irq,
+	.timer = &eukrea_cpuimx27_timer,
+	.init_machine = eukrea_cpuimx27_init,
 MACHINE_END

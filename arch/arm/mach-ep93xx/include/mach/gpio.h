@@ -99,8 +99,6 @@
 /* maximum value for irq capable line identifiers */
 #define EP93XX_GPIO_LINE_MAX_IRQ	EP93XX_GPIO_LINE_F(7)
 
-extern void ep93xx_gpio_int_debounce(unsigned int irq, int enable);
-
 /* new generic GPIO API - see Documentation/gpio.txt */
 
 #include <asm-generic/gpio.h>

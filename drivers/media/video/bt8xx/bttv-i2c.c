@@ -121,9 +121,8 @@ bttv_i2c_wait_done(struct bttv *btv)
 
 	/* timeout */
 	if (wait_event_interruptible_timeout(btv->i2c_queue,
-		btv->i2c_done, msecs_to_jiffies(85)) == -ERESTARTSYS)
-
-	rc = -EIO;
+	    btv->i2c_done, msecs_to_jiffies(85)) == -ERESTARTSYS)
+		rc = -EIO;
 
 	if (btv->i2c_done & BT848_INT_RACK)
 		rc = 1;
@@ -390,41 +389,3 @@ int __devinit init_bttv_i2c(struct bttv *btv)
 
 	return btv->i2c_rc;
 }
-
-/* Instantiate the I2C IR receiver device, if present */
-void __devinit init_bttv_i2c_ir(struct bttv *btv)
-{
-	if (0 == btv->i2c_rc) {
-		struct i2c_board_info info;
-		/* The external IR receiver is at i2c address 0x34 (0x35 for
-		   reads).  Future Hauppauge cards will have an internal
-		   receiver at 0x30 (0x31 for reads).  In theory, both can be
-		   fitted, and Hauppauge suggest an external overrides an
-		   internal.
-
-		   That's why we probe 0x1a (~0x34) first. CB
-		*/
-		const unsigned short addr_list[] = {
-			0x1a, 0x18, 0x4b, 0x64, 0x30, 0x71,
-			I2C_CLIENT_END
-		};
-
-		memset(&info, 0, sizeof(struct i2c_board_info));
-		strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
-		i2c_new_probed_device(&btv->c.i2c_adap, &info, addr_list, NULL);
-	}
-}
-
-int __devexit fini_bttv_i2c(struct bttv *btv)
-{
-	if (0 != btv->i2c_rc)
-		return 0;
-
-	return i2c_del_adapter(&btv->c.i2c_adap);
-}
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

@@ -391,6 +391,21 @@ static int __init parse_tag_clock(struct tag *tag)
 __tagtable(ATAG_CLOCK, parse_tag_clock);
 
 /*
+ * The board_number correspond to the bd->bi_board_number in U-Boot. This
+ * parameter is only available during initialisation and can be used in some
+ * kind of board identification.
+ */
+u32 __initdata board_number;
+
+static int __init parse_tag_boardinfo(struct tag *tag)
+{
+	board_number = tag->u.boardinfo.board_number;
+
+	return 0;
+}
+__tagtable(ATAG_BOARDINFO, parse_tag_boardinfo);
+
+/*
  * Scan the tag table for this tag, and call its parse function. The
  * tag table is built by the linker from all the __tagtable
  * declarations.

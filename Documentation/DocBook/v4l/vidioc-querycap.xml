@@ -142,14 +142,28 @@ this array to zero.</entry>
 	  <row>
 	    <entry><constant>V4L2_CAP_VIDEO_CAPTURE</constant></entry>
 	    <entry>0x00000001</entry>
-	    <entry>The device supports the <link
+	    <entry>The device supports the single-planar API through the <link
 linkend="capture">Video Capture</link> interface.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_VIDEO_CAPTURE_MPLANE</constant></entry>
+	    <entry>0x00001000</entry>
+	    <entry>The device supports the
+	    <link linkend="planar-apis">multi-planar API</link> through the
+	    <link linkend="capture">Video Capture</link> interface.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CAP_VIDEO_OUTPUT</constant></entry>
 	    <entry>0x00000002</entry>
-	    <entry>The device supports the <link
+	    <entry>The device supports the single-planar API through the <link
 linkend="output">Video Output</link> interface.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_VIDEO_OUTPUT_MPLANE</constant></entry>
+	    <entry>0x00002000</entry>
+	    <entry>The device supports the
+	    <link linkend="planar-apis">multi-planar API</link> through the
+	    <link linkend="output">Video Output</link> interface.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CAP_VIDEO_OVERLAY</constant></entry>
@@ -184,7 +198,7 @@ data.</entry>
 	  <row>
 	    <entry><constant>V4L2_CAP_RDS_CAPTURE</constant></entry>
 	    <entry>0x00000100</entry>
-	    <entry>The device supports the <link linkend="rds">RDS</link> interface.</entry>
+	    <entry>The device supports the <link linkend="rds">RDS</link> capture interface.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CAP_VIDEO_OUTPUT_OVERLAY</constant></entry>
@@ -204,6 +218,11 @@ driver capabilities.</para></footnote></entry>
 	    <entry>0x00000400</entry>
 	    <entry>The device supports the &VIDIOC-S-HW-FREQ-SEEK; ioctl for
 hardware frequency seeking.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_RDS_OUTPUT</constant></entry>
+	    <entry>0x00000800</entry>
+	    <entry>The device supports the <link linkend="rds">RDS</link> output interface.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CAP_TUNER</constant></entry>

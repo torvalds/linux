@@ -43,7 +43,7 @@
 #include <mach/mmc.h>
 #include <mach/pxafb.h>
 #include <mach/irda.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/udc.h>
 #include <mach/palmasoc.h>
 #include <mach/palm27x.h>
@@ -241,7 +241,8 @@ static inline void palmtx_keys_init(void) {}
 /******************************************************************************
  * NAND Flash
  ******************************************************************************/
-#if defined(CONFIG_MTD_NAND_GPIO) || defined(CONFIG_MTD_NAND_GPIO_MODULE)
+#if defined(CONFIG_MTD_NAND_PLATFORM) || \
+	defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
 static void palmtx_nand_cmd_ctl(struct mtd_info *mtd, int cmd,
 				 unsigned int ctrl)
 {
@@ -333,7 +334,7 @@ static struct map_desc palmtx_io_desc[] __initdata = {
 
 static void __init palmtx_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 	iotable_init(palmtx_io_desc, ARRAY_SIZE(palmtx_io_desc));
 }
 
@@ -363,8 +364,6 @@ static void __init palmtx_init(void)
 }
 
 MACHINE_START(PALMTX, "Palm T|X")
-	.phys_io	= PALMTX_PHYS_IO_START,
-	.io_pg_offst	= io_p2v(0x40000000),
 	.boot_params	= 0xa0000100,
 	.map_io		= palmtx_map_io,
 	.init_irq	= pxa27x_init_irq,

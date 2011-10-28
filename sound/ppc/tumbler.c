@@ -785,7 +785,7 @@ static int snapper_set_capture_source(struct pmac_tumbler *mix)
 	if (! mix->i2c.client)
 		return -ENODEV;
 	if (mix->capture_source)
-		mix->acs = mix->acs |= 2;
+		mix->acs |= 2;
 	else
 		mix->acs &= ~2;
 	return i2c_smbus_write_byte_data(mix->i2c.client, TAS_REG_ACS, mix->acs);
@@ -1000,7 +1000,7 @@ static void device_change_handler(struct work_struct *work)
 				   chip->lineout_sw_ctl);
 		if (mix->anded_reset)
 			msleep(10);
-		check_mute(chip, &mix->amp_mute, 1, mix->auto_mute_notify,
+		check_mute(chip, &mix->amp_mute, !IS_G4DA, mix->auto_mute_notify,
 			   chip->speaker_sw_ctl);
 	} else {
 		/* unmute speaker, mute others */

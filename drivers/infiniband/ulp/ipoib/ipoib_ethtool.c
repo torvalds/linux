@@ -42,32 +42,6 @@ static void ipoib_get_drvinfo(struct net_device *netdev,
 	strncpy(drvinfo->driver, "ipoib", sizeof(drvinfo->driver) - 1);
 }
 
-static u32 ipoib_get_rx_csum(struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	return test_bit(IPOIB_FLAG_CSUM, &priv->flags) &&
-		!test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
-}
-
-static int ipoib_set_tso(struct net_device *dev, u32 data)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-
-	if (data) {
-		if (!test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags) &&
-		    (dev->features & NETIF_F_SG) &&
-		    (priv->hca_caps & IB_DEVICE_UD_TSO)) {
-			dev->features |= NETIF_F_TSO;
-		} else {
-			ipoib_warn(priv, "can't set TSO on\n");
-			return -EOPNOTSUPP;
-		}
-	} else
-		dev->features &= ~NETIF_F_TSO;
-
-	return 0;
-}
-
 static int ipoib_get_coalesce(struct net_device *dev,
 			      struct ethtool_coalesce *coal)
 {
@@ -106,63 +80,10 @@ static int ipoib_set_coalesce(struct net_device *dev,
 	return 0;
 }
 
-static const char ipoib_stats_keys[][ETH_GSTRING_LEN] = {
-	"LRO aggregated", "LRO flushed",
-	"LRO avg aggr", "LRO no desc"
-};
-
-static void ipoib_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
-{
-	switch (stringset) {
-	case ETH_SS_STATS:
-		memcpy(data, *ipoib_stats_keys,	sizeof(ipoib_stats_keys));
-		break;
-	}
-}
-
-static int ipoib_get_sset_count(struct net_device *dev, int sset)
-{
-	switch (sset) {
-	case ETH_SS_STATS:
-		return ARRAY_SIZE(ipoib_stats_keys);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static void ipoib_get_ethtool_stats(struct net_device *dev,
-				struct ethtool_stats *stats, uint64_t *data)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	int index = 0;
-
-	/* Get LRO statistics */
-	data[index++] = priv->lro.lro_mgr.stats.aggregated;
-	data[index++] = priv->lro.lro_mgr.stats.flushed;
-	if (priv->lro.lro_mgr.stats.flushed)
-		data[index++] = priv->lro.lro_mgr.stats.aggregated /
-				priv->lro.lro_mgr.stats.flushed;
-	else
-		data[index++] = 0;
-	data[index++] = priv->lro.lro_mgr.stats.no_desc;
-}
-
-static int ipoib_set_flags(struct net_device *dev, u32 flags)
-{
-	return ethtool_op_set_flags(dev, flags, ETH_FLAG_LRO);
-}
-
 static const struct ethtool_ops ipoib_ethtool_ops = {
 	.get_drvinfo		= ipoib_get_drvinfo,
-	.get_rx_csum		= ipoib_get_rx_csum,
-	.set_tso		= ipoib_set_tso,
 	.get_coalesce		= ipoib_get_coalesce,
 	.set_coalesce		= ipoib_set_coalesce,
-	.get_flags		= ethtool_op_get_flags,
-	.set_flags		= ipoib_set_flags,
-	.get_strings		= ipoib_get_strings,
-	.get_sset_count		= ipoib_get_sset_count,
-	.get_ethtool_stats	= ipoib_get_ethtool_stats,
 };
 
 void ipoib_set_ethtool_ops(struct net_device *dev)

@@ -290,7 +290,6 @@ static int inotify_fasync(int fd, struct file *file, int on)
 static int inotify_release(struct inode *ignored, struct file *file)
 {
 	struct fsnotify_group *group = file->private_data;
-	struct user_struct *user = group->inotify_data.user;
 
 	pr_debug("%s: group=%p\n", __func__, group);
 
@@ -298,8 +297,6 @@ static int inotify_release(struct inode *ignored, struct file *file)
 
 	/* free this group, matching get was inotify_init->fsnotify_obtain_group */
 	fsnotify_put_group(group);
-
-	atomic_dec(&user->inotify_devs);
 
 	return 0;
 }
@@ -344,6 +341,7 @@ static const struct file_operations inotify_fops = {
 	.release	= inotify_release,
 	.unlocked_ioctl	= inotify_ioctl,
 	.compat_ioctl	= inotify_ioctl,
+	.llseek		= noop_llseek,
 };
 
 
@@ -696,7 +694,7 @@ retry:
 	return ret;
 }
 
-static struct fsnotify_group *inotify_new_group(struct user_struct *user, unsigned int max_events)
+static struct fsnotify_group *inotify_new_group(unsigned int max_events)
 {
 	struct fsnotify_group *group;
 
@@ -709,8 +707,14 @@ static struct fsnotify_group *inotify_new_group(struct user_struct *user, unsign
 	spin_lock_init(&group->inotify_data.idr_lock);
 	idr_init(&group->inotify_data.idr);
 	group->inotify_data.last_wd = 0;
-	group->inotify_data.user = user;
 	group->inotify_data.fa = NULL;
+	group->inotify_data.user = get_current_user();
+
+	if (atomic_inc_return(&group->inotify_data.user->inotify_devs) >
+	    inotify_max_user_instances) {
+		fsnotify_put_group(group);
+		return ERR_PTR(-EMFILE);
+	}
 
 	return group;
 }
@@ -720,7 +724,6 @@ static struct fsnotify_group *inotify_new_group(struct user_struct *user, unsign
 SYSCALL_DEFINE1(inotify_init1, int, flags)
 {
 	struct fsnotify_group *group;
-	struct user_struct *user;
 	int ret;
 
 	/* Check the IN_* constants for consistency.  */
@@ -730,30 +733,16 @@ SYSCALL_DEFINE1(inotify_init1, int, flags)
 	if (flags & ~(IN_CLOEXEC | IN_NONBLOCK))
 		return -EINVAL;
 
-	user = get_current_user();
-	if (unlikely(atomic_read(&user->inotify_devs) >=
-			inotify_max_user_instances)) {
-		ret = -EMFILE;
-		goto out_free_uid;
-	}
-
 	/* fsnotify_obtain_group took a reference to group, we put this when we kill the file in the end */
-	group = inotify_new_group(user, inotify_max_queued_events);
-	if (IS_ERR(group)) {
-		ret = PTR_ERR(group);
-		goto out_free_uid;
-	}
-
-	atomic_inc(&user->inotify_devs);
+	group = inotify_new_group(inotify_max_queued_events);
+	if (IS_ERR(group))
+		return PTR_ERR(group);
 
 	ret = anon_inode_getfd("inotify", &inotify_fops, group,
 				  O_RDONLY | flags);
-	if (ret >= 0)
-		return ret;
+	if (ret < 0)
+		fsnotify_put_group(group);
 
-	atomic_dec(&user->inotify_devs);
-out_free_uid:
-	free_uid(user);
 	return ret;
 }
 
@@ -839,7 +828,7 @@ out:
 }
 
 /*
- * inotify_user_setup - Our initialization function.  Note that we cannnot return
+ * inotify_user_setup - Our initialization function.  Note that we cannot return
  * error because we have compiled-in VFS hooks.  So an (unlikely) failure here
  * must result in panic().
  */
@@ -861,7 +850,7 @@ static int __init inotify_user_setup(void)
 	BUILD_BUG_ON(IN_Q_OVERFLOW != FS_Q_OVERFLOW);
 	BUILD_BUG_ON(IN_IGNORED != FS_IN_IGNORED);
 	BUILD_BUG_ON(IN_EXCL_UNLINK != FS_EXCL_UNLINK);
-	BUILD_BUG_ON(IN_ISDIR != FS_IN_ISDIR);
+	BUILD_BUG_ON(IN_ISDIR != FS_ISDIR);
 	BUILD_BUG_ON(IN_ONESHOT != FS_IN_ONESHOT);
 
 	BUG_ON(hweight32(ALL_INOTIFY_BITS) != 21);

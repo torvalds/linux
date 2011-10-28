@@ -673,7 +673,8 @@ static int kill_orphans(struct ubifs_info *c)
 		sleb = ubifs_scan(c, lnum, 0, c->sbuf, 1);
 		if (IS_ERR(sleb)) {
 			if (PTR_ERR(sleb) == -EUCLEAN)
-				sleb = ubifs_recover_leb(c, lnum, 0, c->sbuf, 0);
+				sleb = ubifs_recover_leb(c, lnum, 0,
+							 c->sbuf, -1);
 			if (IS_ERR(sleb)) {
 				err = PTR_ERR(sleb);
 				break;
@@ -892,15 +893,22 @@ static int dbg_read_orphans(struct check_info *ci, struct ubifs_scan_leb *sleb)
 static int dbg_scan_orphans(struct ubifs_info *c, struct check_info *ci)
 {
 	int lnum, err = 0;
+	void *buf;
 
 	/* Check no-orphans flag and skip this if no orphans */
 	if (c->no_orphs)
 		return 0;
 
+	buf = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
+	if (!buf) {
+		ubifs_err("cannot allocate memory to check orphans");
+		return 0;
+	}
+
 	for (lnum = c->orph_first; lnum <= c->orph_last; lnum++) {
 		struct ubifs_scan_leb *sleb;
 
-		sleb = ubifs_scan(c, lnum, 0, c->dbg->buf, 0);
+		sleb = ubifs_scan(c, lnum, 0, buf, 0);
 		if (IS_ERR(sleb)) {
 			err = PTR_ERR(sleb);
 			break;
@@ -912,6 +920,7 @@ static int dbg_scan_orphans(struct ubifs_info *c, struct check_info *ci)
 			break;
 	}
 
+	vfree(buf);
 	return err;
 }
 

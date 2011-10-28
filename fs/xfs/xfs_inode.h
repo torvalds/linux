@@ -67,7 +67,6 @@ typedef struct xfs_ifork {
 	short			if_broot_bytes;	/* bytes allocated for root */
 	unsigned char		if_flags;	/* per-fork flags */
 	unsigned char		if_ext_max;	/* max # of extent records */
-	xfs_extnum_t		if_lastex;	/* last if_extents used */
 	union {
 		xfs_bmbt_rec_host_t *if_extents;/* linear map file exts */
 		xfs_ext_irec_t	*if_ext_irec;	/* irec map file exts */
@@ -111,7 +110,7 @@ struct xfs_imap {
  * Generally, we do not want to hold the i_rlock while holding the
  * i_ilock. Hierarchy is i_iolock followed by i_rlock.
  *
- * xfs_iptr_t contains all the inode fields upto and including the
+ * xfs_iptr_t contains all the inode fields up to and including the
  * i_mnext and i_mprev fields, it is used as a marker in the inode
  * chain off the mount structure by xfs_sync calls.
  */
@@ -134,8 +133,9 @@ typedef struct xfs_icdinode {
 	__uint32_t	di_uid;		/* owner's user id */
 	__uint32_t	di_gid;		/* owner's group id */
 	__uint32_t	di_nlink;	/* number of links to file */
-	__uint16_t	di_projid;	/* owner's project id */
-	__uint8_t	di_pad[8];	/* unused, zeroed space */
+	__uint16_t	di_projid_lo;	/* lower part of owner's project id */
+	__uint16_t	di_projid_hi;	/* higher part of owner's project id */
+	__uint8_t	di_pad[6];	/* unused, zeroed space */
 	__uint16_t	di_flushiter;	/* incremented on flush */
 	xfs_ictimestamp_t di_atime;	/* time last accessed */
 	xfs_ictimestamp_t di_mtime;	/* time last modified */
@@ -212,7 +212,6 @@ typedef struct xfs_icdinode {
 #ifdef __KERNEL__
 
 struct bhv_desc;
-struct cred;
 struct xfs_buf;
 struct xfs_bmap_free;
 struct xfs_bmbt_irec;
@@ -335,6 +334,25 @@ xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
 }
 
 /*
+ * Project quota id helpers (previously projid was 16bit only
+ * and using two 16bit values to hold new 32bit projid was chosen
+ * to retain compatibility with "old" filesystems).
+ */
+static inline prid_t
+xfs_get_projid(struct xfs_inode *ip)
+{
+	return (prid_t)ip->i_d.di_projid_hi << 16 | ip->i_d.di_projid_lo;
+}
+
+static inline void
+xfs_set_projid(struct xfs_inode *ip,
+		prid_t projid)
+{
+	ip->i_d.di_projid_hi = (__uint16_t) (projid >> 16);
+	ip->i_d.di_projid_lo = (__uint16_t) (projid & 0xffff);
+}
+
+/*
  * Manage the i_flush queue embedded in the inode.  This completion
  * queue synchronizes processes attempting to flush the in-core
  * inode back to disk.
@@ -357,12 +375,23 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 /*
  * In-core inode flags.
  */
-#define XFS_IRECLAIM    0x0001  /* we have started reclaiming this inode    */
-#define XFS_ISTALE	0x0002	/* inode has been staled */
-#define XFS_IRECLAIMABLE 0x0004 /* inode can be reclaimed */
-#define XFS_INEW	0x0008	/* inode has just been allocated */
-#define XFS_IFILESTREAM	0x0010	/* inode is in a filestream directory */
-#define XFS_ITRUNCATED	0x0020	/* truncated down so flush-on-close */
+#define XFS_IRECLAIM		0x0001  /* started reclaiming this inode */
+#define XFS_ISTALE		0x0002	/* inode has been staled */
+#define XFS_IRECLAIMABLE	0x0004	/* inode can be reclaimed */
+#define XFS_INEW		0x0008	/* inode has just been allocated */
+#define XFS_IFILESTREAM		0x0010	/* inode is in a filestream directory */
+#define XFS_ITRUNCATED		0x0020	/* truncated down so flush-on-close */
+#define XFS_IDIRTY_RELEASE	0x0040	/* dirty release already seen */
+
+/*
+ * Per-lifetime flags need to be reset when re-using a reclaimable inode during
+ * inode lookup. Thi prevents unintended behaviour on the new inode from
+ * ocurring.
+ */
+#define XFS_IRECLAIM_RESET_FLAGS	\
+	(XFS_IRECLAIMABLE | XFS_IRECLAIM | \
+	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED | \
+	 XFS_IFILESTREAM);
 
 /*
  * Flags for inode locking.
@@ -389,28 +418,35 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 /*
  * Flags for lockdep annotations.
  *
- * XFS_I[O]LOCK_PARENT - for operations that require locking two inodes
- * (ie directory operations that require locking a directory inode and
- * an entry inode).  The first inode gets locked with this flag so it
- * gets a lockdep subclass of 1 and the second lock will have a lockdep
- * subclass of 0.
+ * XFS_LOCK_PARENT - for directory operations that require locking a
+ * parent directory inode and a child entry inode.  The parent gets locked
+ * with this flag so it gets a lockdep subclass of 1 and the child entry
+ * lock will have a lockdep subclass of 0.
+ *
+ * XFS_LOCK_RTBITMAP/XFS_LOCK_RTSUM - the realtime device bitmap and summary
+ * inodes do not participate in the normal lock order, and thus have their
+ * own subclasses.
  *
  * XFS_LOCK_INUMORDER - for locking several inodes at the some time
  * with xfs_lock_inodes().  This flag is used as the starting subclass
  * and each subsequent lock acquired will increment the subclass by one.
- * So the first lock acquired will have a lockdep subclass of 2, the
- * second lock will have a lockdep subclass of 3, and so on. It is
+ * So the first lock acquired will have a lockdep subclass of 4, the
+ * second lock will have a lockdep subclass of 5, and so on. It is
  * the responsibility of the class builder to shift this to the correct
  * portion of the lock_mode lockdep mask.
  */
 #define XFS_LOCK_PARENT		1
-#define XFS_LOCK_INUMORDER	2
+#define XFS_LOCK_RTBITMAP	2
+#define XFS_LOCK_RTSUM		3
+#define XFS_LOCK_INUMORDER	4
 
 #define XFS_IOLOCK_SHIFT	16
 #define	XFS_IOLOCK_PARENT	(XFS_LOCK_PARENT << XFS_IOLOCK_SHIFT)
 
 #define XFS_ILOCK_SHIFT		24
 #define	XFS_ILOCK_PARENT	(XFS_LOCK_PARENT << XFS_ILOCK_SHIFT)
+#define	XFS_ILOCK_RTBITMAP	(XFS_LOCK_RTBITMAP << XFS_ILOCK_SHIFT)
+#define	XFS_ILOCK_RTSUM		(XFS_LOCK_RTSUM << XFS_ILOCK_SHIFT)
 
 #define XFS_IOLOCK_DEP_MASK	0x00ff0000
 #define XFS_ILOCK_DEP_MASK	0xff000000
@@ -418,6 +454,8 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 
 #define XFS_IOLOCK_DEP(flags)	(((flags) & XFS_IOLOCK_DEP_MASK) >> XFS_IOLOCK_SHIFT)
 #define XFS_ILOCK_DEP(flags)	(((flags) & XFS_ILOCK_DEP_MASK) >> XFS_ILOCK_SHIFT)
+
+extern struct lock_class_key xfs_iolock_reclaimable;
 
 /*
  * Flags for xfs_itruncate_start().
@@ -456,8 +494,8 @@ void		xfs_inode_free(struct xfs_inode *ip);
  * xfs_inode.c prototypes.
  */
 int		xfs_ialloc(struct xfs_trans *, xfs_inode_t *, mode_t,
-			   xfs_nlink_t, xfs_dev_t, cred_t *, xfs_prid_t,
-			   int, struct xfs_buf **, boolean_t *, xfs_inode_t **);
+			   xfs_nlink_t, xfs_dev_t, prid_t, int,
+			   struct xfs_buf **, boolean_t *, xfs_inode_t **);
 
 uint		xfs_ip2xflags(struct xfs_inode *);
 uint		xfs_dic2xflags(struct xfs_dinode *);
@@ -471,7 +509,6 @@ int		xfs_iunlink(struct xfs_trans *, xfs_inode_t *);
 void		xfs_iext_realloc(xfs_inode_t *, int, int);
 void		xfs_iunpin_wait(xfs_inode_t *);
 int		xfs_iflush(xfs_inode_t *, uint);
-void		xfs_ichgtime(xfs_inode_t *, int);
 void		xfs_lock_inodes(xfs_inode_t **, int, uint);
 void		xfs_lock_two_inodes(xfs_inode_t *, xfs_inode_t *, uint);
 
@@ -482,7 +519,7 @@ void		xfs_mark_inode_dirty_sync(xfs_inode_t *);
 #define IHOLD(ip) \
 do { \
 	ASSERT(atomic_read(&VFS_I(ip)->i_count) > 0) ; \
-	atomic_inc(&(VFS_I(ip)->i_count)); \
+	ihold(VFS_I(ip)); \
 	trace_xfs_ihold(ip, _THIS_IP_); \
 } while (0)
 

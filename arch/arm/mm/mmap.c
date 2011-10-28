@@ -7,6 +7,7 @@
 #include <linux/shm.h>
 #include <linux/sched.h>
 #include <linux/io.h>
+#include <linux/personality.h>
 #include <linux/random.h>
 #include <asm/cputype.h>
 #include <asm/system.h>
@@ -31,7 +32,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long start_addr;
-#ifdef CONFIG_CPU_V6
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K)
 	unsigned int cache_type;
 	int do_align = 0, aliasing = 0;
 
@@ -82,7 +83,8 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	        mm->cached_hole_size = 0;
 	}
 	/* 8 bits of randomness in 20 address space bits */
-	if (current->flags & PF_RANDOMIZE)
+	if ((current->flags & PF_RANDOMIZE) &&
+	    !(current->personality & ADDR_NO_RANDOMIZE))
 		addr += (get_random_int() % (1 << 8)) << PAGE_SHIFT;
 
 full_search:
@@ -144,3 +146,25 @@ int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
 {
 	return !(pfn + (size >> PAGE_SHIFT) > 0x00100000);
 }
+
+#ifdef CONFIG_STRICT_DEVMEM
+
+#include <linux/ioport.h>
+
+/*
+ * devmem_is_allowed() checks to see if /dev/mem access to a certain
+ * address is valid. The argument is a physical page number.
+ * We mimic x86 here by disallowing access to system RAM as well as
+ * device-exclusive MMIO regions. This effectively disable read()/write()
+ * on /dev/mem.
+ */
+int devmem_is_allowed(unsigned long pfn)
+{
+	if (iomem_is_exclusive(pfn << PAGE_SHIFT))
+		return 0;
+	if (!page_is_ram(pfn))
+		return 1;
+	return 0;
+}
+
+#endif

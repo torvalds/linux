@@ -184,7 +184,7 @@ static void ctcmpc_chx_resend(fsm_instance *, int, void *);
 static void ctcmpc_chx_send_sweep(fsm_instance *fsm, int event, void *arg);
 
 /**
- * Check return code of a preceeding ccw_device call, halt_IO etc...
+ * Check return code of a preceding ccw_device call, halt_IO etc...
  *
  * ch	:	The channel, the error belongs to.
  * Returns the error code (!= 0) to inspect.

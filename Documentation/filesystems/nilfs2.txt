@@ -40,7 +40,6 @@ Features which NILFS2 does not support yet:
 	- POSIX ACLs
 	- quotas
 	- fsck
-	- resize
 	- defragmentation
 
 Mount options

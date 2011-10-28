@@ -16,12 +16,24 @@ struct trace_print_flags {
 	const char		*name;
 };
 
+struct trace_print_flags_u64 {
+	unsigned long long	mask;
+	const char		*name;
+};
+
 const char *ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
 				   unsigned long flags,
 				   const struct trace_print_flags *flag_array);
 
 const char *ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
 				     const struct trace_print_flags *symbol_array);
+
+#if BITS_PER_LONG == 32
+const char *ftrace_print_symbols_seq_u64(struct trace_seq *p,
+					 unsigned long long val,
+					 const struct trace_print_flags_u64
+								 *symbol_array);
+#endif
 
 const char *ftrace_print_hex_seq(struct trace_seq *p,
 				 const unsigned char *buf, int len);
@@ -37,7 +49,7 @@ struct trace_entry {
 	unsigned char		flags;
 	unsigned char		preempt_count;
 	int			pid;
-	int			lock_depth;
+	int			padding;
 };
 
 #define FTRACE_MAX_EVENT						\
@@ -154,12 +166,14 @@ enum {
 	TRACE_EVENT_FL_ENABLED_BIT,
 	TRACE_EVENT_FL_FILTERED_BIT,
 	TRACE_EVENT_FL_RECORDED_CMD_BIT,
+	TRACE_EVENT_FL_CAP_ANY_BIT,
 };
 
 enum {
 	TRACE_EVENT_FL_ENABLED		= (1 << TRACE_EVENT_FL_ENABLED_BIT),
 	TRACE_EVENT_FL_FILTERED		= (1 << TRACE_EVENT_FL_FILTERED_BIT),
 	TRACE_EVENT_FL_RECORDED_CMD	= (1 << TRACE_EVENT_FL_RECORDED_CMD_BIT),
+	TRACE_EVENT_FL_CAP_ANY		= (1 << TRACE_EVENT_FL_CAP_ANY_BIT),
 };
 
 struct ftrace_event_call {
@@ -191,14 +205,21 @@ struct ftrace_event_call {
 	unsigned int		flags;
 
 #ifdef CONFIG_PERF_EVENTS
-	int			perf_refcount;
-	struct hlist_head	*perf_events;
+	int				perf_refcount;
+	struct hlist_head __percpu	*perf_events;
 #endif
 };
 
+#define __TRACE_EVENT_FLAGS(name, value)				\
+	static int __init trace_init_flags_##name(void)			\
+	{								\
+		event_##name.flags = value;				\
+		return 0;						\
+	}								\
+	early_initcall(trace_init_flags_##name);
+
 #define PERF_MAX_TRACE_SIZE	2048
 
-#define MAX_FILTER_PRED		32
 #define MAX_FILTER_STR_VAL	256	/* Should handle KSYM_SYMBOL_LEN */
 
 extern void destroy_preds(struct ftrace_event_call *call);
@@ -214,6 +235,10 @@ enum {
 	FILTER_DYN_STRING,
 	FILTER_PTR_STRING,
 };
+
+#define EVENT_STORAGE_SIZE 128
+extern struct mutex event_storage_mutex;
+extern char event_storage[EVENT_STORAGE_SIZE];
 
 extern int trace_event_raw_init(struct ftrace_event_call *call);
 extern int trace_define_field(struct ftrace_event_call *call, const char *type,
@@ -252,8 +277,8 @@ DECLARE_PER_CPU(struct pt_regs, perf_trace_regs);
 
 extern int  perf_trace_init(struct perf_event *event);
 extern void perf_trace_destroy(struct perf_event *event);
-extern int  perf_trace_enable(struct perf_event *event);
-extern void perf_trace_disable(struct perf_event *event);
+extern int  perf_trace_add(struct perf_event *event, int flags);
+extern void perf_trace_del(struct perf_event *event, int flags);
 extern int  ftrace_profile_set_filter(struct perf_event *event, int event_id,
 				     char *filter_str);
 extern void ftrace_profile_free_filter(struct perf_event *event);

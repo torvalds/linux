@@ -30,7 +30,8 @@
 #include <linux/io.h>
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
-#include <linux/mfd/sh_mobile_sdhi.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/gpio.h>
 #include <mach/sh7377.h>
 #include <mach/common.h>
@@ -196,11 +197,15 @@ static struct platform_device keysc_device = {
 };
 
 /* SDHI */
+static struct sh_mobile_sdhi_info sdhi0_info = {
+	.tmio_caps	= MMC_CAP_SDIO_IRQ,
+};
+
 static struct resource sdhi0_resources[] = {
 	[0] = {
 		.name	= "SDHI0",
 		.start  = 0xe6d50000,
-		.end    = 0xe6d501ff,
+		.end    = 0xe6d500ff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -214,13 +219,20 @@ static struct platform_device sdhi0_device = {
 	.num_resources  = ARRAY_SIZE(sdhi0_resources),
 	.resource       = sdhi0_resources,
 	.id             = 0,
+	.dev	= {
+		.platform_data	= &sdhi0_info,
+	},
+};
+
+static struct sh_mobile_sdhi_info sdhi1_info = {
+	.tmio_caps	= MMC_CAP_NONREMOVABLE | MMC_CAP_SDIO_IRQ,
 };
 
 static struct resource sdhi1_resources[] = {
 	[0] = {
 		.name	= "SDHI1",
 		.start  = 0xe6d60000,
-		.end    = 0xe6d601ff,
+		.end    = 0xe6d600ff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -234,6 +246,9 @@ static struct platform_device sdhi1_device = {
 	.num_resources  = ARRAY_SIZE(sdhi1_resources),
 	.resource       = sdhi1_resources,
 	.id             = 1,
+	.dev	= {
+		.platform_data	= &sdhi1_info,
+	},
 };
 
 static struct platform_device *g4evm_devices[] __initdata = {
@@ -392,10 +407,9 @@ static struct sys_timer g4evm_timer = {
 };
 
 MACHINE_START(G4EVM, "g4evm")
-	.phys_io	= 0xe6000000,
-	.io_pg_offst	= ((0xe6000000) >> 18) & 0xfffc,
 	.map_io		= g4evm_map_io,
 	.init_irq	= sh7377_init_irq,
+	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= g4evm_init,
 	.timer		= &g4evm_timer,
 MACHINE_END

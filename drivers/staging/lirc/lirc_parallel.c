@@ -24,10 +24,6 @@
 
 /*** Includes ***/
 
-#ifdef CONFIG_SMP
-#error "--- Sorry, this driver is not SMP safe. ---"
-#endif
-
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
@@ -40,13 +36,13 @@
 #include <linux/delay.h>
 
 #include <linux/io.h>
-#include <linux/signal.h>
 #include <linux/irq.h>
 #include <linux/uaccess.h>
 #include <asm/div64.h>
 
 #include <linux/poll.h>
 #include <linux/parport.h>
+#include <linux/platform_device.h>
 
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
@@ -300,10 +296,10 @@ static void irq_handler(void *blah)
 	} while (lirc_get_signal());
 
 	if (signal != 0) {
-		/* ajust value to usecs */
-		unsigned long long helper;
+		/* adjust value to usecs */
+		__u64 helper;
 
-		helper = ((unsigned long long) signal)*1000000;
+		helper = ((__u64) signal)*1000000;
 		do_div(helper, timer);
 		signal = (long) helper;
 
@@ -381,6 +377,7 @@ static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
 	unsigned long flags;
 	int counttimer;
 	int *wbuf;
+	ssize_t ret;
 
 	if (!is_claimed)
 		return -EBUSY;
@@ -398,15 +395,17 @@ static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
 	if (timer == 0) {
 		/* try again if device is ready */
 		timer = init_lirc_timer();
-		if (timer == 0)
-			return -EIO;
+		if (timer == 0) {
+			ret = -EIO;
+			goto out;
+		}
 	}
 
 	/* adjust values from usecs */
 	for (i = 0; i < count; i++) {
-		unsigned long long helper;
+		__u64 helper;
 
-		helper = ((unsigned long long) wbuf[i])*timer;
+		helper = ((__u64) wbuf[i])*timer;
 		do_div(helper, 1000000);
 		wbuf[i] = (int) helper;
 	}
@@ -425,7 +424,8 @@ static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
 			if (check_pselecd && (in(1) & LP_PSELECD)) {
 				lirc_off();
 				local_irq_restore(flags);
-				return -EIO;
+				ret = -EIO;
+				goto out;
 			}
 		} while (counttimer < wbuf[i]);
 		i++;
@@ -441,7 +441,8 @@ static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
 			level = newlevel;
 			if (check_pselecd && (in(1) & LP_PSELECD)) {
 				local_irq_restore(flags);
-				return -EIO;
+				ret = -EIO;
+				goto out;
 			}
 		} while (counttimer < wbuf[i]);
 		i++;
@@ -450,7 +451,11 @@ static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
 #else
 	/* place code that handles write without external timer here */
 #endif
-	return n;
+	ret = n;
+out:
+	kfree(wbuf);
+
+	return ret;
 }
 
 static unsigned int lirc_poll(struct file *file, poll_table *wait)
@@ -464,48 +469,48 @@ static unsigned int lirc_poll(struct file *file, poll_table *wait)
 static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	int result;
-	unsigned long features = LIRC_CAN_SET_TRANSMITTER_MASK |
-				 LIRC_CAN_SEND_PULSE | LIRC_CAN_REC_MODE2;
-	unsigned long mode;
-	unsigned int ivalue;
+	__u32 features = LIRC_CAN_SET_TRANSMITTER_MASK |
+			 LIRC_CAN_SEND_PULSE | LIRC_CAN_REC_MODE2;
+	__u32 mode;
+	__u32 value;
 
 	switch (cmd) {
 	case LIRC_GET_FEATURES:
-		result = put_user(features, (unsigned long *) arg);
+		result = put_user(features, (__u32 *) arg);
 		if (result)
 			return result;
 		break;
 	case LIRC_GET_SEND_MODE:
-		result = put_user(LIRC_MODE_PULSE, (unsigned long *) arg);
+		result = put_user(LIRC_MODE_PULSE, (__u32 *) arg);
 		if (result)
 			return result;
 		break;
 	case LIRC_GET_REC_MODE:
-		result = put_user(LIRC_MODE_MODE2, (unsigned long *) arg);
+		result = put_user(LIRC_MODE_MODE2, (__u32 *) arg);
 		if (result)
 			return result;
 		break;
 	case LIRC_SET_SEND_MODE:
-		result = get_user(mode, (unsigned long *) arg);
+		result = get_user(mode, (__u32 *) arg);
 		if (result)
 			return result;
 		if (mode != LIRC_MODE_PULSE)
 			return -EINVAL;
 		break;
 	case LIRC_SET_REC_MODE:
-		result = get_user(mode, (unsigned long *) arg);
+		result = get_user(mode, (__u32 *) arg);
 		if (result)
 			return result;
 		if (mode != LIRC_MODE_MODE2)
 			return -ENOSYS;
 		break;
 	case LIRC_SET_TRANSMITTER_MASK:
-		result = get_user(ivalue, (unsigned int *) arg);
+		result = get_user(value, (__u32 *) arg);
 		if (result)
 			return result;
-		if ((ivalue & LIRC_PARALLEL_TRANSMITTER_MASK) != ivalue)
+		if ((value & LIRC_PARALLEL_TRANSMITTER_MASK) != value)
 			return LIRC_PARALLEL_MAX_TRANSMITTERS;
-		tx_mask = ivalue;
+		tx_mask = value;
 		break;
 	default:
 		return -ENOIOCTLCMD;
@@ -546,6 +551,9 @@ static const struct file_operations lirc_fops = {
 	.write		= lirc_write,
 	.poll		= lirc_poll,
 	.unlocked_ioctl	= lirc_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= lirc_ioctl,
+#endif
 	.open		= lirc_open,
 	.release	= lirc_close
 };
@@ -560,43 +568,55 @@ static void set_use_dec(void *data)
 }
 
 static struct lirc_driver driver = {
-       .name		= LIRC_DRIVER_NAME,
-       .minor		= -1,
-       .code_length	= 1,
-       .sample_rate	= 0,
-       .data		= NULL,
-       .add_to_buf	= NULL,
-       .set_use_inc	= set_use_inc,
-       .set_use_dec	= set_use_dec,
-       .fops		= &lirc_fops,
-       .dev		= NULL,
-       .owner		= THIS_MODULE,
+	.name		= LIRC_DRIVER_NAME,
+	.minor		= -1,
+	.code_length	= 1,
+	.sample_rate	= 0,
+	.data		= NULL,
+	.add_to_buf	= NULL,
+	.set_use_inc	= set_use_inc,
+	.set_use_dec	= set_use_dec,
+	.fops		= &lirc_fops,
+	.dev		= NULL,
+	.owner		= THIS_MODULE,
+};
+
+static struct platform_device *lirc_parallel_dev;
+
+static int __devinit lirc_parallel_probe(struct platform_device *dev)
+{
+	return 0;
+}
+
+static int __devexit lirc_parallel_remove(struct platform_device *dev)
+{
+	return 0;
+}
+
+static int lirc_parallel_suspend(struct platform_device *dev,
+					pm_message_t state)
+{
+	return 0;
+}
+
+static int lirc_parallel_resume(struct platform_device *dev)
+{
+	return 0;
+}
+
+static struct platform_driver lirc_parallel_driver = {
+	.probe	= lirc_parallel_probe,
+	.remove	= __devexit_p(lirc_parallel_remove),
+	.suspend	= lirc_parallel_suspend,
+	.resume	= lirc_parallel_resume,
+	.driver	= {
+		.name	= LIRC_DRIVER_NAME,
+		.owner	= THIS_MODULE,
+	},
 };
 
 static int pf(void *handle);
 static void kf(void *handle);
-
-static struct timer_list poll_timer;
-static void poll_state(unsigned long ignored);
-
-static void poll_state(unsigned long ignored)
-{
-	printk(KERN_NOTICE "%s: time\n",
-	       LIRC_DRIVER_NAME);
-	del_timer(&poll_timer);
-	if (is_claimed)
-		return;
-	kf(NULL);
-	if (!is_claimed) {
-		printk(KERN_NOTICE "%s: could not claim port, giving up\n",
-		       LIRC_DRIVER_NAME);
-		init_timer(&poll_timer);
-		poll_timer.expires = jiffies + HZ;
-		poll_timer.data = (unsigned long)current;
-		poll_timer.function = poll_state;
-		add_timer(&poll_timer);
-	}
-}
 
 static int pf(void *handle)
 {
@@ -623,11 +643,31 @@ static void kf(void *handle)
 
 static int __init lirc_parallel_init(void)
 {
+	int result;
+
+	result = platform_driver_register(&lirc_parallel_driver);
+	if (result) {
+		printk(KERN_NOTICE "platform_driver_register"
+					" returned %d\n", result);
+		return result;
+	}
+
+	lirc_parallel_dev = platform_device_alloc(LIRC_DRIVER_NAME, 0);
+	if (!lirc_parallel_dev) {
+		result = -ENOMEM;
+		goto exit_driver_unregister;
+	}
+
+	result = platform_device_add(lirc_parallel_dev);
+	if (result)
+		goto exit_device_put;
+
 	pport = parport_find_base(io);
 	if (pport == NULL) {
 		printk(KERN_NOTICE "%s: no port at %x found\n",
 		       LIRC_DRIVER_NAME, io);
-		return -ENXIO;
+		result = -ENXIO;
+		goto exit_device_put;
 	}
 	ppdevice = parport_register_device(pport, LIRC_DRIVER_NAME,
 					   pf, kf, irq_handler, 0, NULL);
@@ -635,7 +675,8 @@ static int __init lirc_parallel_init(void)
 	if (ppdevice == NULL) {
 		printk(KERN_NOTICE "%s: parport_register_device() failed\n",
 		       LIRC_DRIVER_NAME);
-		return -ENXIO;
+		result = -ENXIO;
+		goto exit_device_put;
 	}
 	if (parport_claim(ppdevice) != 0)
 		goto skip_init;
@@ -653,7 +694,8 @@ static int __init lirc_parallel_init(void)
 		is_claimed = 0;
 		parport_release(pport);
 		parport_unregister_device(ppdevice);
-		return -EIO;
+		result = -EIO;
+		goto exit_device_put;
 	}
 
 #endif
@@ -664,16 +706,24 @@ static int __init lirc_parallel_init(void)
 	is_claimed = 0;
 	parport_release(ppdevice);
  skip_init:
+	driver.dev = &lirc_parallel_dev->dev;
 	driver.minor = lirc_register_driver(&driver);
 	if (driver.minor < 0) {
 		printk(KERN_NOTICE "%s: register_chrdev() failed\n",
 		       LIRC_DRIVER_NAME);
 		parport_unregister_device(ppdevice);
-		return -EIO;
+		result = -EIO;
+		goto exit_device_put;
 	}
 	printk(KERN_INFO "%s: installed using port 0x%04x irq %d\n",
 	       LIRC_DRIVER_NAME, io, irq);
 	return 0;
+
+exit_device_put:
+	platform_device_put(lirc_parallel_dev);
+exit_driver_unregister:
+	platform_driver_unregister(&lirc_parallel_driver);
+	return result;
 }
 
 static void __exit lirc_parallel_exit(void)

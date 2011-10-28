@@ -68,9 +68,16 @@ static struct inode *minix_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void minix_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(minix_inode_cachep, minix_i(inode));
+}
+
 static void minix_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(minix_inode_cachep, minix_i(inode));
+	call_rcu(&inode->i_rcu, minix_i_callback);
 }
 
 static void init_once(void *foo)
@@ -392,7 +399,6 @@ static sector_t minix_bmap(struct address_space *mapping, sector_t block)
 static const struct address_space_operations minix_aops = {
 	.readpage = minix_readpage,
 	.writepage = minix_writepage,
-	.sync_page = block_sync_page,
 	.write_begin = minix_write_begin,
 	.write_end = generic_write_end,
 	.bmap = minix_bmap
@@ -614,17 +620,16 @@ void minix_truncate(struct inode * inode)
 		V2_minix_truncate(inode);
 }
 
-static int minix_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *minix_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, minix_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, minix_fill_super);
 }
 
 static struct file_system_type minix_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "minix",
-	.get_sb		= minix_get_sb,
+	.mount		= minix_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

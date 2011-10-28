@@ -1,7 +1,7 @@
 /*
  * Analog Devices ADP5588 I/O Expander and QWERTY Keypad Controller
  *
- * Copyright 2009 Analog Devices Inc.
+ * Copyright 2009-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -74,6 +74,33 @@
 
 #define ADP5588_DEVICE_ID_MASK	0xF
 
+ /* Configuration Register1 */
+#define ADP5588_AUTO_INC	(1 << 7)
+#define ADP5588_GPIEM_CFG	(1 << 6)
+#define ADP5588_OVR_FLOW_M	(1 << 5)
+#define ADP5588_INT_CFG		(1 << 4)
+#define ADP5588_OVR_FLOW_IEN	(1 << 3)
+#define ADP5588_K_LCK_IM	(1 << 2)
+#define ADP5588_GPI_IEN		(1 << 1)
+#define ADP5588_KE_IEN		(1 << 0)
+
+/* Interrupt Status Register */
+#define ADP5588_CMP2_INT	(1 << 5)
+#define ADP5588_CMP1_INT	(1 << 4)
+#define ADP5588_OVR_FLOW_INT	(1 << 3)
+#define ADP5588_K_LCK_INT	(1 << 2)
+#define ADP5588_GPI_INT		(1 << 1)
+#define ADP5588_KE_INT		(1 << 0)
+
+/* Key Lock and Event Counter Register */
+#define ADP5588_K_LCK_EN	(1 << 6)
+#define ADP5588_LCK21		0x30
+#define ADP5588_KEC		0xF
+
+#define ADP5588_MAXGPIO		18
+#define ADP5588_BANK(offs)	((offs) >> 3)
+#define ADP5588_BIT(offs)	(1u << ((offs) & 0x7))
+
 /* Put one of these structures in i2c_board_info platform_data */
 
 #define ADP5588_KEYMAPSIZE	80
@@ -126,9 +153,12 @@ struct adp5588_kpad_platform_data {
 	const struct adp5588_gpio_platform_data *gpio_data;
 };
 
+struct i2c_client; /* forward declaration */
+
 struct adp5588_gpio_platform_data {
-	unsigned gpio_start;		/* GPIO Chip base # */
-	unsigned pullup_dis_mask;	/* Pull-Up Disable Mask */
+	int gpio_start;		/* GPIO Chip base # */
+	unsigned irq_base;	/* interrupt base # */
+	unsigned pullup_dis_mask; /* Pull-Up Disable Mask */
 	int	(*setup)(struct i2c_client *client,
 				int gpio, unsigned ngpio,
 				void *context);

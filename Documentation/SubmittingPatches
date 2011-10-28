@@ -714,10 +714,11 @@ Jeff Garzik, "Linux kernel patch submission format".
   <http://linux.yyz.us/patch-format.html>
 
 Greg Kroah-Hartman, "How to piss off a kernel subsystem maintainer".
-  <http://www.kroah.com/log/2005/03/31/>
-  <http://www.kroah.com/log/2005/07/08/>
-  <http://www.kroah.com/log/2005/10/19/>
-  <http://www.kroah.com/log/2006/01/11/>
+  <http://www.kroah.com/log/linux/maintainer.html>
+  <http://www.kroah.com/log/linux/maintainer-02.html>
+  <http://www.kroah.com/log/linux/maintainer-03.html>
+  <http://www.kroah.com/log/linux/maintainer-04.html>
+  <http://www.kroah.com/log/linux/maintainer-05.html>
 
 NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
   <http://marc.theaimsgroup.com/?l=linux-kernel&m=112112749912944&w=2>
@@ -729,7 +730,7 @@ Linus Torvalds's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>
 
 Andi Kleen, "On submitting kernel patches"
-  Some strategies to get difficult or controversal changes in.
+  Some strategies to get difficult or controversial changes in.
   http://halobates.de/on-submitting-patches.pdf
 
 --

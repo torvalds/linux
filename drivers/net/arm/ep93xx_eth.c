@@ -175,8 +175,6 @@ struct ep93xx_priv
 	struct net_device	*dev;
 	struct napi_struct	napi;
 
-	struct net_device_stats	stats;
-
 	struct mii_if_info	mii;
 	u8			mdc_divisor;
 };
@@ -230,12 +228,6 @@ static void ep93xx_mdio_write(struct net_device *dev, int phy_id, int reg, int d
 		pr_info("mdio write timed out\n");
 }
 
-static struct net_device_stats *ep93xx_get_stats(struct net_device *dev)
-{
-	struct ep93xx_priv *ep = netdev_priv(dev);
-	return &(ep->stats);
-}
-
 static int ep93xx_rx(struct net_device *dev, int processed, int budget)
 {
 	struct ep93xx_priv *ep = netdev_priv(dev);
@@ -267,15 +259,15 @@ static int ep93xx_rx(struct net_device *dev, int processed, int budget)
 			pr_crit("entry mismatch %.8x %.8x\n", rstat0, rstat1);
 
 		if (!(rstat0 & RSTAT0_RWE)) {
-			ep->stats.rx_errors++;
+			dev->stats.rx_errors++;
 			if (rstat0 & RSTAT0_OE)
-				ep->stats.rx_fifo_errors++;
+				dev->stats.rx_fifo_errors++;
 			if (rstat0 & RSTAT0_FE)
-				ep->stats.rx_frame_errors++;
+				dev->stats.rx_frame_errors++;
 			if (rstat0 & (RSTAT0_RUNT | RSTAT0_EDATA))
-				ep->stats.rx_length_errors++;
+				dev->stats.rx_length_errors++;
 			if (rstat0 & RSTAT0_CRCE)
-				ep->stats.rx_crc_errors++;
+				dev->stats.rx_crc_errors++;
 			goto err;
 		}
 
@@ -291,19 +283,23 @@ static int ep93xx_rx(struct net_device *dev, int processed, int budget)
 
 		skb = dev_alloc_skb(length + 2);
 		if (likely(skb != NULL)) {
+			struct ep93xx_rdesc *rxd = &ep->descs->rdesc[entry];
 			skb_reserve(skb, 2);
-			dma_sync_single_for_cpu(NULL, ep->descs->rdesc[entry].buf_addr,
+			dma_sync_single_for_cpu(dev->dev.parent, rxd->buf_addr,
 						length, DMA_FROM_DEVICE);
 			skb_copy_to_linear_data(skb, ep->rx_buf[entry], length);
+			dma_sync_single_for_device(dev->dev.parent,
+						   rxd->buf_addr, length,
+						   DMA_FROM_DEVICE);
 			skb_put(skb, length);
 			skb->protocol = eth_type_trans(skb, dev);
 
 			netif_receive_skb(skb);
 
-			ep->stats.rx_packets++;
-			ep->stats.rx_bytes += length;
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += length;
 		} else {
-			ep->stats.rx_dropped++;
+			dev->stats.rx_dropped++;
 		}
 
 err:
@@ -356,10 +352,11 @@ poll_some_more:
 static int ep93xx_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ep93xx_priv *ep = netdev_priv(dev);
+	struct ep93xx_tdesc *txd;
 	int entry;
 
 	if (unlikely(skb->len > MAX_PKT_SIZE)) {
-		ep->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -367,11 +364,14 @@ static int ep93xx_xmit(struct sk_buff *skb, struct net_device *dev)
 	entry = ep->tx_pointer;
 	ep->tx_pointer = (ep->tx_pointer + 1) & (TX_QUEUE_ENTRIES - 1);
 
-	ep->descs->tdesc[entry].tdesc1 =
-		TDESC1_EOF | (entry << 16) | (skb->len & 0xfff);
+	txd = &ep->descs->tdesc[entry];
+
+	txd->tdesc1 = TDESC1_EOF | (entry << 16) | (skb->len & 0xfff);
+	dma_sync_single_for_cpu(dev->dev.parent, txd->buf_addr, skb->len,
+				DMA_TO_DEVICE);
 	skb_copy_and_csum_dev(skb, ep->tx_buf[entry]);
-	dma_sync_single_for_cpu(NULL, ep->descs->tdesc[entry].buf_addr,
-				skb->len, DMA_TO_DEVICE);
+	dma_sync_single_for_device(dev->dev.parent, txd->buf_addr, skb->len,
+				   DMA_TO_DEVICE);
 	dev_kfree_skb(skb);
 
 	spin_lock_irq(&ep->tx_pending_lock);
@@ -415,17 +415,17 @@ static void ep93xx_tx_complete(struct net_device *dev)
 		if (tstat0 & TSTAT0_TXWE) {
 			int length = ep->descs->tdesc[entry].tdesc1 & 0xfff;
 
-			ep->stats.tx_packets++;
-			ep->stats.tx_bytes += length;
+			dev->stats.tx_packets++;
+			dev->stats.tx_bytes += length;
 		} else {
-			ep->stats.tx_errors++;
+			dev->stats.tx_errors++;
 		}
 
 		if (tstat0 & TSTAT0_OW)
-			ep->stats.tx_window_errors++;
+			dev->stats.tx_window_errors++;
 		if (tstat0 & TSTAT0_TXU)
-			ep->stats.tx_fifo_errors++;
-		ep->stats.collisions += (tstat0 >> 16) & 0x1f;
+			dev->stats.tx_fifo_errors++;
+		dev->stats.collisions += (tstat0 >> 16) & 0x1f;
 
 		ep->tx_clean_pointer = (entry + 1) & (TX_QUEUE_ENTRIES - 1);
 		if (ep->tx_pending == TX_QUEUE_ENTRIES)
@@ -465,89 +465,80 @@ static irqreturn_t ep93xx_irq(int irq, void *dev_id)
 
 static void ep93xx_free_buffers(struct ep93xx_priv *ep)
 {
+	struct device *dev = ep->dev->dev.parent;
 	int i;
 
-	for (i = 0; i < RX_QUEUE_ENTRIES; i += 2) {
+	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
 		dma_addr_t d;
 
 		d = ep->descs->rdesc[i].buf_addr;
 		if (d)
-			dma_unmap_single(NULL, d, PAGE_SIZE, DMA_FROM_DEVICE);
+			dma_unmap_single(dev, d, PKT_BUF_SIZE, DMA_FROM_DEVICE);
 
 		if (ep->rx_buf[i] != NULL)
-			free_page((unsigned long)ep->rx_buf[i]);
+			kfree(ep->rx_buf[i]);
 	}
 
-	for (i = 0; i < TX_QUEUE_ENTRIES; i += 2) {
+	for (i = 0; i < TX_QUEUE_ENTRIES; i++) {
 		dma_addr_t d;
 
 		d = ep->descs->tdesc[i].buf_addr;
 		if (d)
-			dma_unmap_single(NULL, d, PAGE_SIZE, DMA_TO_DEVICE);
+			dma_unmap_single(dev, d, PKT_BUF_SIZE, DMA_TO_DEVICE);
 
 		if (ep->tx_buf[i] != NULL)
-			free_page((unsigned long)ep->tx_buf[i]);
+			kfree(ep->tx_buf[i]);
 	}
 
-	dma_free_coherent(NULL, sizeof(struct ep93xx_descs), ep->descs,
+	dma_free_coherent(dev, sizeof(struct ep93xx_descs), ep->descs,
 							ep->descs_dma_addr);
 }
 
-/*
- * The hardware enforces a sub-2K maximum packet size, so we put
- * two buffers on every hardware page.
- */
 static int ep93xx_alloc_buffers(struct ep93xx_priv *ep)
 {
+	struct device *dev = ep->dev->dev.parent;
 	int i;
 
-	ep->descs = dma_alloc_coherent(NULL, sizeof(struct ep93xx_descs),
-				&ep->descs_dma_addr, GFP_KERNEL | GFP_DMA);
+	ep->descs = dma_alloc_coherent(dev, sizeof(struct ep93xx_descs),
+				&ep->descs_dma_addr, GFP_KERNEL);
 	if (ep->descs == NULL)
 		return 1;
 
-	for (i = 0; i < RX_QUEUE_ENTRIES; i += 2) {
-		void *page;
+	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
+		void *buf;
 		dma_addr_t d;
 
-		page = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
-		if (page == NULL)
+		buf = kmalloc(PKT_BUF_SIZE, GFP_KERNEL);
+		if (buf == NULL)
 			goto err;
 
-		d = dma_map_single(NULL, page, PAGE_SIZE, DMA_FROM_DEVICE);
-		if (dma_mapping_error(NULL, d)) {
-			free_page((unsigned long)page);
+		d = dma_map_single(dev, buf, PKT_BUF_SIZE, DMA_FROM_DEVICE);
+		if (dma_mapping_error(dev, d)) {
+			kfree(buf);
 			goto err;
 		}
 
-		ep->rx_buf[i] = page;
+		ep->rx_buf[i] = buf;
 		ep->descs->rdesc[i].buf_addr = d;
 		ep->descs->rdesc[i].rdesc1 = (i << 16) | PKT_BUF_SIZE;
-
-		ep->rx_buf[i + 1] = page + PKT_BUF_SIZE;
-		ep->descs->rdesc[i + 1].buf_addr = d + PKT_BUF_SIZE;
-		ep->descs->rdesc[i + 1].rdesc1 = ((i + 1) << 16) | PKT_BUF_SIZE;
 	}
 
-	for (i = 0; i < TX_QUEUE_ENTRIES; i += 2) {
-		void *page;
+	for (i = 0; i < TX_QUEUE_ENTRIES; i++) {
+		void *buf;
 		dma_addr_t d;
 
-		page = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
-		if (page == NULL)
+		buf = kmalloc(PKT_BUF_SIZE, GFP_KERNEL);
+		if (buf == NULL)
 			goto err;
 
-		d = dma_map_single(NULL, page, PAGE_SIZE, DMA_TO_DEVICE);
-		if (dma_mapping_error(NULL, d)) {
-			free_page((unsigned long)page);
+		d = dma_map_single(dev, buf, PKT_BUF_SIZE, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, d)) {
+			kfree(buf);
 			goto err;
 		}
 
-		ep->tx_buf[i] = page;
+		ep->tx_buf[i] = buf;
 		ep->descs->tdesc[i].buf_addr = d;
-
-		ep->tx_buf[i + 1] = page + PKT_BUF_SIZE;
-		ep->descs->tdesc[i + 1].buf_addr = d + PKT_BUF_SIZE;
 	}
 
 	return 0;
@@ -758,7 +749,6 @@ static const struct net_device_ops ep93xx_netdev_ops = {
 	.ndo_open		= ep93xx_open,
 	.ndo_stop		= ep93xx_close,
 	.ndo_start_xmit		= ep93xx_xmit,
-	.ndo_get_stats		= ep93xx_get_stats,
 	.ndo_do_ioctl		= ep93xx_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
@@ -838,6 +828,7 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 	}
 	ep = netdev_priv(dev);
 	ep->dev = dev;
+	SET_NETDEV_DEV(dev, &pdev->dev);
 	netif_napi_add(dev, &ep->napi, ep93xx_poll, 64);
 
 	platform_set_drvdata(pdev, dev);

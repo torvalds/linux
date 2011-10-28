@@ -33,11 +33,7 @@
 
 #define sas_printk(fmt, ...) printk(KERN_NOTICE "sas: " fmt, ## __VA_ARGS__)
 
-#ifdef SAS_DEBUG
-#define SAS_DPRINTK(fmt, ...) printk(KERN_NOTICE "sas: " fmt, ## __VA_ARGS__)
-#else
-#define SAS_DPRINTK(fmt, ...)
-#endif
+#define SAS_DPRINTK(fmt, ...) printk(KERN_DEBUG "sas: " fmt, ## __VA_ARGS__)
 
 #define TO_SAS_TASK(_scsi_cmd)  ((void *)(_scsi_cmd)->host_scribble)
 #define ASSIGN_SAS_TASK(_sc, _t) do { (_sc)->host_scribble = (void *) _t; } while (0)
@@ -61,7 +57,7 @@ int  sas_init_queue(struct sas_ha_struct *sas_ha);
 int  sas_init_events(struct sas_ha_struct *sas_ha);
 void sas_shutdown_queue(struct sas_ha_struct *sas_ha);
 
-void sas_deform_port(struct asd_sas_phy *phy);
+void sas_deform_port(struct asd_sas_phy *phy, int gone);
 
 void sas_porte_bytes_dmaed(struct work_struct *work);
 void sas_porte_broadcast_rcvd(struct work_struct *work);

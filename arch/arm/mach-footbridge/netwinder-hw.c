@@ -648,8 +648,6 @@ fixup_netwinder(struct machine_desc *desc, struct tag *tags,
 
 MACHINE_START(NETWINDER, "Rebel-NetWinder")
 	/* Maintainer: Russell King/Rebel.com */
-	.phys_io	= DC21285_ARMCSR_BASE,
-	.io_pg_offst	= ((0xfe000000) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.video_start	= 0x000a0000,
 	.video_end	= 0x000bffff,

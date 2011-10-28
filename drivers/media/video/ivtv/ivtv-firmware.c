@@ -179,7 +179,7 @@ static volatile struct ivtv_mailbox __iomem *ivtv_search_mailbox(const volatile 
 {
 	int i;
 
-	/* mailbox is preceeded by a 16 byte 'magic cookie' starting at a 256-byte
+	/* mailbox is preceded by a 16 byte 'magic cookie' starting at a 256-byte
 	   address boundary */
 	for (i = 0; i < size; i += 0x100) {
 		if (readl(mem + i)      == 0x12345678 &&
@@ -280,8 +280,6 @@ int ivtv_firmware_restart(struct ivtv *itv)
 {
 	int rc = 0;
 	v4l2_std_id std;
-	struct ivtv_open_id fh;
-	fh.itv = itv;
 
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)
 		/* Display test image during restart */
@@ -301,13 +299,18 @@ int ivtv_firmware_restart(struct ivtv *itv)
 	/* Allow settings to reload */
 	ivtv_mailbox_cache_invalidate(itv);
 
-	/* Restore video standard */
+	/* Restore encoder video standard */
 	std = itv->std;
 	itv->std = 0;
-	ivtv_s_std(NULL, &fh, &std);
+	ivtv_s_std_enc(itv, &std);
 
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
 		ivtv_init_mpeg_decoder(itv);
+
+		/* Restore decoder video standard */
+		std = itv->std_out;
+		itv->std_out = 0;
+		ivtv_s_std_dec(itv, &std);
 
 		/* Restore framebuffer if active */
 		if (itv->ivtvfb_restore)
@@ -377,7 +380,7 @@ int ivtv_firmware_check(struct ivtv *itv, char *where)
 			  "Reloading\n", where);
 		res = ivtv_firmware_restart(itv);
 		/*
-		 * Even if restarted ok, still signal a problem had occured.
+		 * Even if restarted ok, still signal a problem had occurred.
 		 * The caller can come through this function again to check
 		 * if things are really ok after the restart.
 		 */

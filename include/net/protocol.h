@@ -38,7 +38,7 @@ struct net_protocol {
 	void			(*err_handler)(struct sk_buff *skb, u32 info);
 	int			(*gso_send_check)(struct sk_buff *skb);
 	struct sk_buff	       *(*gso_segment)(struct sk_buff *skb,
-					       int features);
+					       u32 features);
 	struct sk_buff	      **(*gro_receive)(struct sk_buff **head,
 					       struct sk_buff *skb);
 	int			(*gro_complete)(struct sk_buff *skb);
@@ -57,7 +57,7 @@ struct inet6_protocol {
 
 	int	(*gso_send_check)(struct sk_buff *skb);
 	struct sk_buff *(*gso_segment)(struct sk_buff *skb,
-				       int features);
+				       u32 features);
 	struct sk_buff **(*gro_receive)(struct sk_buff **head,
 					struct sk_buff *skb);
 	int	(*gro_complete)(struct sk_buff *skb);
@@ -89,10 +89,10 @@ struct inet_protosw {
 #define INET_PROTOSW_PERMANENT 0x02  /* Permanent protocols are unremovable. */
 #define INET_PROTOSW_ICSK      0x04  /* Is this an inet_connection_sock? */
 
-extern const struct net_protocol *inet_protos[MAX_INET_PROTOS];
+extern const struct net_protocol __rcu *inet_protos[MAX_INET_PROTOS];
 
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-extern const struct inet6_protocol *inet6_protos[MAX_INET_PROTOS];
+extern const struct inet6_protocol __rcu *inet6_protos[MAX_INET_PROTOS];
 #endif
 
 extern int	inet_add_protocol(const struct net_protocol *prot, unsigned char num);

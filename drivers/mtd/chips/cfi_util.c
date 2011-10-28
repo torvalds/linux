@@ -1,6 +1,6 @@
 /*
  * Common Flash Interface support:
- *   Generic utility functions not dependant on command set
+ *   Generic utility functions not dependent on command set
  *
  * Copyright (C) 2002 Red Hat
  * Copyright (C) 2003 STMicroelectronics Limited
@@ -77,6 +77,13 @@ int __xipram cfi_qry_mode_on(uint32_t base, struct map_info *map,
 	cfi_send_gen_cmd(0x98, 0x5555, base, map, cfi, cfi->device_type, NULL);
 	if (cfi_qry_present(map, base, cfi))
 		return 1;
+	/* SST 39VF640xB */
+	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0xAA, 0x555, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x55, 0x2AA, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x98, 0x555, base, map, cfi, cfi->device_type, NULL);
+	if (cfi_qry_present(map, base, cfi))
+		return 1;
 	/* QRY not found */
 	return 0;
 }
@@ -149,7 +156,7 @@ void cfi_fixup(struct mtd_info *mtd, struct cfi_fixup *fixups)
 	for (f=fixups; f->fixup; f++) {
 		if (((f->mfr == CFI_MFR_ANY) || (f->mfr == cfi->mfr)) &&
 		    ((f->id  == CFI_ID_ANY)  || (f->id  == cfi->id))) {
-			f->fixup(mtd, f->param);
+			f->fixup(mtd);
 		}
 	}
 }

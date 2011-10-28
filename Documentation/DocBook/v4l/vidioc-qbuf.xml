@@ -64,7 +64,8 @@ zero to the number of buffers allocated with &VIDIOC-REQBUFS;
 contents of the struct <structname>v4l2_buffer</structname> returned
 by a &VIDIOC-QUERYBUF; ioctl will do as well. When the buffer is
 intended for output (<structfield>type</structfield> is
-<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant> or
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant>,
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant>, or
 <constant>V4L2_BUF_TYPE_VBI_OUTPUT</constant>) applications must also
 initialize the <structfield>bytesused</structfield>,
 <structfield>field</structfield> and
@@ -75,7 +76,11 @@ supports capturing from specific video inputs and you want to specify a video
 input, then <structfield>flags</structfield> should be set to
 <constant>V4L2_BUF_FLAG_INPUT</constant> and the field
 <structfield>input</structfield> must be initialized to the desired input.
-The <structfield>reserved</structfield> field must be set to 0.
+The <structfield>reserved</structfield> field must be set to 0. When using
+the <link linkend="planar-apis">multi-planar API</link>, the
+<structfield>m.planes</structfield> field must contain a userspace pointer
+to a filled-in array of &v4l2-plane; and the <structfield>length</structfield>
+field must be set to the number of elements in that array.
 </para>
 
     <para>To enqueue a <link linkend="mmap">memory mapped</link>
@@ -93,10 +98,13 @@ structure the driver sets the
 buffer applications set the <structfield>memory</structfield>
 field to <constant>V4L2_MEMORY_USERPTR</constant>, the
 <structfield>m.userptr</structfield> field to the address of the
-buffer and <structfield>length</structfield> to its size.
-When <constant>VIDIOC_QBUF</constant> is called with a pointer to this
-structure the driver sets the <constant>V4L2_BUF_FLAG_QUEUED</constant>
-flag and clears the <constant>V4L2_BUF_FLAG_MAPPED</constant> and
+buffer and <structfield>length</structfield> to its size. When the multi-planar
+API is used, <structfield>m.userptr</structfield> and
+<structfield>length</structfield> members of the passed array of &v4l2-plane;
+have to be used instead. When <constant>VIDIOC_QBUF</constant> is called with
+a pointer to this structure the driver sets the
+<constant>V4L2_BUF_FLAG_QUEUED</constant> flag and clears the
+<constant>V4L2_BUF_FLAG_MAPPED</constant> and
 <constant>V4L2_BUF_FLAG_DONE</constant> flags in the
 <structfield>flags</structfield> field, or it returns an error code.
 This ioctl locks the memory pages of the buffer in physical memory,
@@ -115,7 +123,9 @@ remaining fields or returns an error code. The driver may also set
 <constant>V4L2_BUF_FLAG_ERROR</constant> in the <structfield>flags</structfield>
 field. It indicates a non-critical (recoverable) streaming error. In such case
 the application may continue as normal, but should be aware that data in the
-dequeued buffer might be corrupted.</para>
+dequeued buffer might be corrupted. When using the multi-planar API, the
+planes array does not have to be passed; the <structfield>m.planes</structfield>
+member must be set to NULL in that case.</para>
 
     <para>By default <constant>VIDIOC_DQBUF</constant> blocks when no
 buffer is in the outgoing queue. When the

@@ -1103,7 +1103,7 @@ static int __init eexp_hw_probe(struct net_device *dev, unsigned short ioaddr)
 		dev->dev_addr[i] = ((unsigned char *)hw_addr)[5-i];
 
 	{
-		static char irqmap[]={0, 9, 3, 4, 5, 10, 11, 0};
+		static const char irqmap[] = { 0, 9, 3, 4, 5, 10, 11, 0 };
 		unsigned short setupval = eexp_hw_readeeprom(ioaddr,0);
 
 		/* Use the IRQ from EEPROM if none was given */

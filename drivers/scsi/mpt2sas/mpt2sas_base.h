@@ -69,11 +69,11 @@
 #define MPT2SAS_DRIVER_NAME		"mpt2sas"
 #define MPT2SAS_AUTHOR	"LSI Corporation <DL-MPTFusionLinux@lsi.com>"
 #define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
-#define MPT2SAS_DRIVER_VERSION		"06.100.00.00"
-#define MPT2SAS_MAJOR_VERSION		06
+#define MPT2SAS_DRIVER_VERSION		"08.100.00.02"
+#define MPT2SAS_MAJOR_VERSION		08
 #define MPT2SAS_MINOR_VERSION		100
 #define MPT2SAS_BUILD_VERSION		00
-#define MPT2SAS_RELEASE_VERSION		00
+#define MPT2SAS_RELEASE_VERSION		02
 
 /*
  * Set MPT2SAS_SG_DEPTH value based on user input.
@@ -101,7 +101,8 @@
 #define MPT_NAME_LENGTH			32	/* generic length of strings */
 #define MPT_STRING_LENGTH		64
 
-#define	MPT_MAX_CALLBACKS		16
+#define MPT_MAX_CALLBACKS		16
+
 
 #define	 CAN_SLEEP			1
 #define  NO_SLEEP			0
@@ -154,6 +155,50 @@
 #define MPT2SAS_DELL_6GBPS_SAS_SSDID               0x1F22
 
 /*
+ * Intel HBA branding
+ */
+#define MPT2SAS_INTEL_RMS2LL080_BRANDING	\
+				"Intel Integrated RAID Module RMS2LL080"
+#define MPT2SAS_INTEL_RMS2LL040_BRANDING	\
+				"Intel Integrated RAID Module RMS2LL040"
+
+/*
+ * Intel HBA SSDIDs
+ */
+#define MPT2SAS_INTEL_RMS2LL080_SSDID          0x350E
+#define MPT2SAS_INTEL_RMS2LL040_SSDID          0x350F
+
+
+/*
+ * HP HBA branding
+ */
+#define MPT2SAS_HP_3PAR_SSVID                0x1590
+#define MPT2SAS_HP_2_4_INTERNAL_BRANDING        "HP H220 Host Bus Adapter"
+#define MPT2SAS_HP_2_4_EXTERNAL_BRANDING        "HP H221 Host Bus Adapter"
+#define MPT2SAS_HP_1_4_INTERNAL_1_4_EXTERNAL_BRANDING "HP H222 Host Bus Adapter"
+#define MPT2SAS_HP_EMBEDDED_2_4_INTERNAL_BRANDING    "HP H220i Host Bus Adapter"
+#define MPT2SAS_HP_DAUGHTER_2_4_INTERNAL_BRANDING    "HP H210i Host Bus Adapter"
+
+/*
+ * HO HBA SSDIDs
+ */
+#define MPT2SAS_HP_2_4_INTERNAL_SSDID            0x0041
+#define MPT2SAS_HP_2_4_EXTERNAL_SSDID            0x0042
+#define MPT2SAS_HP_1_4_INTERNAL_1_4_EXTERNAL_SSDID    0x0043
+#define MPT2SAS_HP_EMBEDDED_2_4_INTERNAL_SSDID        0x0044
+#define MPT2SAS_HP_DAUGHTER_2_4_INTERNAL_SSDID        0x0046
+
+/*
+ *  WarpDrive Specific Log codes
+ */
+
+#define MPT2_WARPDRIVE_LOGENTRY		(0x8002)
+#define MPT2_WARPDRIVE_LC_SSDT		(0x41)
+#define MPT2_WARPDRIVE_LC_SSDLW		(0x43)
+#define MPT2_WARPDRIVE_LC_SSDLF		(0x44)
+#define MPT2_WARPDRIVE_LC_BRMF		(0x4D)
+
+/*
  * per target private data
  */
 #define MPT_TARGET_FLAGS_RAID_COMPONENT	0x01
@@ -164,6 +209,7 @@
  * struct MPT2SAS_TARGET - starget private hostdata
  * @starget: starget object
  * @sas_address: target sas address
+ * @raid_device: raid_device pointer to access volume data
  * @handle: device handle
  * @num_luns: number luns
  * @flags: MPT_TARGET_FLAGS_XXX flags
@@ -173,12 +219,14 @@
 struct MPT2SAS_TARGET {
 	struct scsi_target *starget;
 	u64	sas_address;
+	struct _raid_device *raid_device;
 	u16	handle;
 	int	num_luns;
 	u32	flags;
 	u8	deleted;
 	u8	tm_busy;
 };
+
 
 /*
  * per device private data
@@ -226,6 +274,12 @@ typedef struct _MPI2_CONFIG_PAGE_MAN_10 {
 } MPI2_CONFIG_PAGE_MAN_10,
   MPI2_POINTER PTR_MPI2_CONFIG_PAGE_MAN_10,
   Mpi2ManufacturingPage10_t, MPI2_POINTER pMpi2ManufacturingPage10_t;
+
+#define MFG_PAGE10_HIDE_SSDS_MASK	(0x00000003)
+#define MFG_PAGE10_HIDE_ALL_DISKS	(0x00)
+#define MFG_PAGE10_EXPOSE_ALL_DISKS	(0x01)
+#define MFG_PAGE10_HIDE_IF_VOL_PRESENT	(0x02)
+
 
 struct MPT2SAS_DEVICE {
 	struct MPT2SAS_TARGET *sas_target;
@@ -306,6 +360,7 @@ struct _sas_device {
  * @sdev: scsi device struct (volumes are single lun)
  * @wwid: unique identifier for the volume
  * @handle: device handle
+ * @block_size: Block size of the volume
  * @id: target id
  * @channel: target channel
  * @volume_type: the raid level
@@ -313,20 +368,33 @@ struct _sas_device {
  * @num_pds: number of hidden raid components
  * @responding: used in _scsih_raid_device_mark_responding
  * @percent_complete: resync percent complete
+ * @direct_io_enabled: Whether direct io to PDs are allowed or not
+ * @stripe_exponent: X where 2powX is the stripe sz in blocks
+ * @max_lba: Maximum number of LBA in the volume
+ * @stripe_sz: Stripe Size of the volume
+ * @device_info: Device info of the volume member disk
+ * @pd_handle: Array of handles of the physical drives for direct I/O in le16
  */
+#define MPT_MAX_WARPDRIVE_PDS		8
 struct _raid_device {
 	struct list_head list;
 	struct scsi_target *starget;
 	struct scsi_device *sdev;
 	u64	wwid;
 	u16	handle;
+	u16	block_sz;
 	int	id;
 	int	channel;
 	u8	volume_type;
-	u32	device_info;
 	u8	num_pds;
 	u8	responding;
 	u8	percent_complete;
+	u8	direct_io_enabled;
+	u8	stripe_exponent;
+	u64	max_lba;
+	u32	stripe_sz;
+	u32	device_info;
+	u16	pd_handle[MPT_MAX_WARPDRIVE_PDS];
 };
 
 /**
@@ -419,16 +487,43 @@ enum reset_type {
 };
 
 /**
- * struct request_tracker - firmware request tracker
+ * struct chain_tracker - firmware chain tracker
+ * @chain_buffer: chain buffer
+ * @chain_buffer_dma: physical address
+ * @tracker_list: list of free request (ioc->free_chain_list)
+ */
+struct chain_tracker {
+	void *chain_buffer;
+	dma_addr_t chain_buffer_dma;
+	struct list_head tracker_list;
+};
+
+/**
+ * struct scsiio_tracker - scsi mf request tracker
  * @smid: system message id
  * @scmd: scsi request pointer
  * @cb_idx: callback index
+ * @direct_io: To indicate whether I/O is direct (WARPDRIVE)
  * @chain_list: list of chains associated to this IO
+ * @tracker_list: list of free request (ioc->free_list)
+ */
+struct scsiio_tracker {
+	u16	smid;
+	struct scsi_cmnd *scmd;
+	u8	cb_idx;
+	u8	direct_io;
+	struct list_head chain_list;
+	struct list_head tracker_list;
+};
+
+/**
+ * struct request_tracker - firmware request tracker
+ * @smid: system message id
+ * @cb_idx: callback index
  * @tracker_list: list of free request (ioc->free_list)
  */
 struct request_tracker {
 	u16	smid;
-	struct scsi_cmnd *scmd;
 	u8	cb_idx;
 	struct list_head tracker_list;
 };
@@ -696,7 +791,7 @@ struct MPT2SAS_ADAPTER {
 	u8		*request;
 	dma_addr_t	request_dma;
 	u32		request_dma_sz;
-	struct request_tracker *scsi_lookup;
+	struct scsiio_tracker *scsi_lookup;
 	ulong		scsi_lookup_pages;
 	spinlock_t 	scsi_lookup_lock;
 	struct list_head free_list;
@@ -704,8 +799,10 @@ struct MPT2SAS_ADAPTER {
 	wait_queue_head_t reset_wq;
 
 	/* chain */
-	u8		*chain;
-	dma_addr_t	chain_dma;
+	struct chain_tracker *chain_lookup;
+	struct list_head free_chain_list;
+	struct dma_pool *chain_dma_pool;
+	ulong		chain_pages;
 	u16 		max_sges_in_main_message;
 	u16		max_sges_in_chain_message;
 	u16		chains_needed_per_io;
@@ -737,6 +834,8 @@ struct MPT2SAS_ADAPTER {
 	u16		reply_sz;
 	u8		*reply;
 	dma_addr_t	reply_dma;
+	u32		reply_dma_max_address;
+	u32		reply_dma_min_address;
 	struct dma_pool *reply_dma_pool;
 
 	/* reply free queue */
@@ -767,6 +866,11 @@ struct MPT2SAS_ADAPTER {
 	u32		diagnostic_flags[MPI2_DIAG_BUF_TYPE_COUNT];
 	u32		ring_buffer_offset;
 	u32		ring_buffer_sz;
+	u8		is_warpdrive;
+	u8		hide_ir_msg;
+	u8		mfg_pg10_hide_flag;
+	u8		hide_drives;
+
 };
 
 typedef u8 (*MPT_CALLBACK)(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
@@ -832,6 +936,8 @@ int mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle,
     ulong timeout, struct scsi_cmnd *scmd);
 void mpt2sas_scsih_set_tm_flag(struct MPT2SAS_ADAPTER *ioc, u16 handle);
 void mpt2sas_scsih_clear_tm_flag(struct MPT2SAS_ADAPTER *ioc, u16 handle);
+void mpt2sas_expander_remove(struct MPT2SAS_ADAPTER *ioc, u64 sas_address);
+void mpt2sas_device_remove(struct MPT2SAS_ADAPTER *ioc, u64 sas_address);
 struct _sas_node *mpt2sas_scsih_expander_find_by_handle(struct MPT2SAS_ADAPTER *ioc,
     u16 handle);
 struct _sas_node *mpt2sas_scsih_expander_find_by_sas_address(struct MPT2SAS_ADAPTER

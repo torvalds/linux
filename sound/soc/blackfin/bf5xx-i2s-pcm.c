@@ -40,7 +40,6 @@
 #include <asm/dma.h>
 
 #include "bf5xx-i2s-pcm.h"
-#include "bf5xx-i2s.h"
 #include "bf5xx-sport.h"
 
 static void bf5xx_dma_irq(void *data)
@@ -139,20 +138,34 @@ static snd_pcm_uframes_t bf5xx_pcm_pointer(struct snd_pcm_substream *substream)
 	pr_debug("%s enter\n", __func__);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		diff = sport_curr_offset_tx(sport);
-		frames = bytes_to_frames(substream->runtime, diff);
 	} else {
 		diff = sport_curr_offset_rx(sport);
-		frames = bytes_to_frames(substream->runtime, diff);
 	}
+
+	/*
+	 * TX at least can report one frame beyond the end of the
+	 * buffer if we hit the wraparound case - clamp to within the
+	 * buffer as the ALSA APIs require.
+	 */
+	if (diff == snd_pcm_lib_buffer_bytes(substream))
+		diff = 0;
+
+	frames = bytes_to_frames(substream->runtime, diff);
+
 	return frames;
 }
 
 static int bf5xx_pcm_open(struct snd_pcm_substream *substream)
 {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct sport_device *sport_handle = snd_soc_dai_get_drvdata(cpu_dai);
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_dma_buffer *buf = &substream->dma_buffer;
 	int ret;
 
 	pr_debug("%s enter\n", __func__);
+
 	snd_soc_set_runtime_hwparams(substream, &bf5xx_pcm_hardware);
 
 	ret = snd_pcm_hw_constraint_integer(runtime, \
@@ -160,9 +173,14 @@ static int bf5xx_pcm_open(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		goto out;
 
-	if (sport_handle != NULL)
+	if (sport_handle != NULL) {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			sport_handle->tx_buf = buf->area;
+		else
+			sport_handle->rx_buf = buf->area;
+
 		runtime->private_data = sport_handle;
-	else {
+	} else {
 		pr_err("sport_handle is NULL\n");
 		return -1;
 	}
@@ -215,11 +233,6 @@ static int bf5xx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	pr_debug("%s, area:%p, size:0x%08lx\n", __func__,
 		buf->area, buf->bytes);
 
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		sport_handle->tx_buf = buf->area;
-	else
-		sport_handle->rx_buf = buf->area;
-
 	return 0;
 }
 
@@ -240,8 +253,6 @@ static void bf5xx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 		dma_free_coherent(NULL, buf->bytes, buf->area, 0);
 		buf->area = NULL;
 	}
-	if (sport_handle)
-		sport_done(sport_handle);
 }
 
 static u64 bf5xx_pcm_dmamask = DMA_BIT_MASK(32);
@@ -257,14 +268,14 @@ int bf5xx_pcm_i2s_new(struct snd_card *card, struct snd_soc_dai *dai,
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
-	if (dai->playback.channels_min) {
+	if (dai->driver->playback.channels_min) {
 		ret = bf5xx_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			goto out;
 	}
 
-	if (dai->capture.channels_min) {
+	if (dai->driver->capture.channels_min) {
 		ret = bf5xx_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -274,25 +285,44 @@ int bf5xx_pcm_i2s_new(struct snd_card *card, struct snd_soc_dai *dai,
 	return ret;
 }
 
-struct snd_soc_platform bf5xx_i2s_soc_platform = {
-	.name		= "bf5xx-audio",
-	.pcm_ops 	= &bf5xx_pcm_i2s_ops,
+static struct snd_soc_platform_driver bf5xx_i2s_soc_platform = {
+	.ops		= &bf5xx_pcm_i2s_ops,
 	.pcm_new	= bf5xx_pcm_i2s_new,
 	.pcm_free	= bf5xx_pcm_free_dma_buffers,
 };
-EXPORT_SYMBOL_GPL(bf5xx_i2s_soc_platform);
 
-static int __init bfin_i2s_init(void)
+static int __devinit bfin_i2s_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&bf5xx_i2s_soc_platform);
+	return snd_soc_register_platform(&pdev->dev, &bf5xx_i2s_soc_platform);
 }
-module_init(bfin_i2s_init);
 
-static void __exit bfin_i2s_exit(void)
+static int __devexit bfin_i2s_soc_platform_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&bf5xx_i2s_soc_platform);
+	snd_soc_unregister_platform(&pdev->dev);
+	return 0;
 }
-module_exit(bfin_i2s_exit);
+
+static struct platform_driver bfin_i2s_pcm_driver = {
+	.driver = {
+			.name = "bfin-i2s-pcm-audio",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = bfin_i2s_soc_platform_probe,
+	.remove = __devexit_p(bfin_i2s_soc_platform_remove),
+};
+
+static int __init snd_bfin_i2s_pcm_init(void)
+{
+	return platform_driver_register(&bfin_i2s_pcm_driver);
+}
+module_init(snd_bfin_i2s_pcm_init);
+
+static void __exit snd_bfin_i2s_pcm_exit(void)
+{
+	platform_driver_unregister(&bfin_i2s_pcm_driver);
+}
+module_exit(snd_bfin_i2s_pcm_exit);
 
 MODULE_AUTHOR("Cliff Cai");
 MODULE_DESCRIPTION("ADI Blackfin I2S PCM DMA module");

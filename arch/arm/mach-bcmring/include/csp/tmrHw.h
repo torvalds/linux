@@ -76,7 +76,7 @@ tmrHw_RATE_t tmrHw_setPeriodicTimerRate(tmrHw_ID_t timerId,	/*  [ IN ] Timer Id 
 *           certain time interval
 *
 *  This function initializes a periodic timer to generate timer interrupt
-*  after every time interval in milisecond
+*  after every time interval in millisecond
 *
 *  @return   On success: Effective interval set in mili-second
 *            On failure: 0
@@ -93,7 +93,7 @@ tmrHw_INTERVAL_t tmrHw_setPeriodicTimerInterval(tmrHw_ID_t timerId,	/*  [ IN ] T
 *           after certain time interval
 *
 *  This function initializes a periodic timer to generate a single ticks after
-*  certain time interval in milisecond
+*  certain time interval in millisecond
 *
 *  @return   On success: Effective interval set in mili-second
 *            On failure: 0

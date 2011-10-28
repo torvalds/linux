@@ -14,11 +14,12 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/mm.h>
-
 #include <asm/mach-types.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/vram.h>
 #include <plat/mcspi.h>
+
+#include <mach/board-rx51.h>
 
 #include "mux.h"
 
@@ -47,26 +48,22 @@ static struct omap_dss_device rx51_lcd_device = {
 	.platform_disable	= rx51_lcd_disable,
 };
 
+static struct omap_dss_device  rx51_tv_device = {
+	.name			= "tv",
+	.type			= OMAP_DISPLAY_TYPE_VENC,
+	.driver_name		= "venc",
+	.phy.venc.type	        = OMAP_DSS_VENC_TYPE_COMPOSITE,
+};
+
 static struct omap_dss_device *rx51_dss_devices[] = {
 	&rx51_lcd_device,
+	&rx51_tv_device,
 };
 
 static struct omap_dss_board_info rx51_dss_board_info = {
 	.num_devices	= ARRAY_SIZE(rx51_dss_devices),
 	.devices	= rx51_dss_devices,
 	.default_device	= &rx51_lcd_device,
-};
-
-struct platform_device rx51_display_device = {
-	.name	= "omapdss",
-	.id	= -1,
-	.dev	= {
-		.platform_data = &rx51_dss_board_info,
-	},
-};
-
-static struct platform_device *rx51_video_devices[] __initdata = {
-	&rx51_display_device,
 };
 
 static int __init rx51_video_init(void)
@@ -79,15 +76,13 @@ static int __init rx51_video_init(void)
 		return 0;
 	}
 
-	if (gpio_request(RX51_LCD_RESET_GPIO, "LCD ACX565AKM reset")) {
+	if (gpio_request_one(RX51_LCD_RESET_GPIO, GPIOF_OUT_INIT_HIGH,
+			     "LCD ACX565AKM reset")) {
 		pr_err("%s failed to get LCD Reset GPIO\n", __func__);
 		return 0;
 	}
 
-	gpio_direction_output(RX51_LCD_RESET_GPIO, 1);
-
-	platform_add_devices(rx51_video_devices,
-				ARRAY_SIZE(rx51_video_devices));
+	omap_display_init(&rx51_dss_board_info);
 	return 0;
 }
 

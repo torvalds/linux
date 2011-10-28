@@ -1900,6 +1900,7 @@ static void do_disconnect_req(struct gigaset_capi_ctr *iif,
 		if (b3skb == NULL) {
 			dev_err(cs->dev, "%s: out of memory\n", __func__);
 			send_conf(iif, ap, skb, CAPI_MSGOSRESOURCEERR);
+			kfree(b3cmsg);
 			return;
 		}
 		capi_cmsg2message(b3cmsg,

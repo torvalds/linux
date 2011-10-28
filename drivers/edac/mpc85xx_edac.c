@@ -200,8 +200,7 @@ static irqreturn_t mpc85xx_pci_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mpc85xx_pci_err_probe(struct platform_device *op,
-					   const struct of_device_id *match)
+static int __devinit mpc85xx_pci_err_probe(struct platform_device *op)
 {
 	struct edac_pci_ctl_info *pci;
 	struct mpc85xx_pci_pdata *pdata;
@@ -338,7 +337,7 @@ static struct of_device_id mpc85xx_pci_err_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mpc85xx_pci_err_of_match);
 
-static struct of_platform_driver mpc85xx_pci_err_driver = {
+static struct platform_driver mpc85xx_pci_err_driver = {
 	.probe = mpc85xx_pci_err_probe,
 	.remove = __devexit_p(mpc85xx_pci_err_remove),
 	.driver = {
@@ -503,8 +502,7 @@ static irqreturn_t mpc85xx_l2_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mpc85xx_l2_err_probe(struct platform_device *op,
-					  const struct of_device_id *match)
+static int __devinit mpc85xx_l2_err_probe(struct platform_device *op)
 {
 	struct edac_device_ctl_info *edac_dev;
 	struct mpc85xx_l2_pdata *pdata;
@@ -656,7 +654,7 @@ static struct of_device_id mpc85xx_l2_err_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mpc85xx_l2_err_of_match);
 
-static struct of_platform_driver mpc85xx_l2_err_driver = {
+static struct platform_driver mpc85xx_l2_err_driver = {
 	.probe = mpc85xx_l2_err_probe,
 	.remove = mpc85xx_l2_err_remove,
 	.driver = {
@@ -956,8 +954,7 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 	}
 }
 
-static int __devinit mpc85xx_mc_err_probe(struct platform_device *op,
-					  const struct of_device_id *match)
+static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
 {
 	struct mem_ctl_info *mci;
 	struct mpc85xx_mc_pdata *pdata;
@@ -1136,7 +1133,7 @@ static struct of_device_id mpc85xx_mc_err_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mpc85xx_mc_err_of_match);
 
-static struct of_platform_driver mpc85xx_mc_err_driver = {
+static struct platform_driver mpc85xx_mc_err_driver = {
 	.probe = mpc85xx_mc_err_probe,
 	.remove = mpc85xx_mc_err_remove,
 	.driver = {
@@ -1150,13 +1147,14 @@ static struct of_platform_driver mpc85xx_mc_err_driver = {
 static void __init mpc85xx_mc_clear_rfxe(void *data)
 {
 	orig_hid1[smp_processor_id()] = mfspr(SPRN_HID1);
-	mtspr(SPRN_HID1, (orig_hid1[smp_processor_id()] & ~0x20000));
+	mtspr(SPRN_HID1, (orig_hid1[smp_processor_id()] & ~HID1_RFXE));
 }
 #endif
 
 static int __init mpc85xx_mc_init(void)
 {
 	int res = 0;
+	u32 pvr = 0;
 
 	printk(KERN_INFO "Freescale(R) MPC85xx EDAC driver, "
 	       "(C) 2006 Montavista Software\n");
@@ -1171,27 +1169,32 @@ static int __init mpc85xx_mc_init(void)
 		break;
 	}
 
-	res = of_register_platform_driver(&mpc85xx_mc_err_driver);
+	res = platform_driver_register(&mpc85xx_mc_err_driver);
 	if (res)
 		printk(KERN_WARNING EDAC_MOD_STR "MC fails to register\n");
 
-	res = of_register_platform_driver(&mpc85xx_l2_err_driver);
+	res = platform_driver_register(&mpc85xx_l2_err_driver);
 	if (res)
 		printk(KERN_WARNING EDAC_MOD_STR "L2 fails to register\n");
 
 #ifdef CONFIG_PCI
-	res = of_register_platform_driver(&mpc85xx_pci_err_driver);
+	res = platform_driver_register(&mpc85xx_pci_err_driver);
 	if (res)
 		printk(KERN_WARNING EDAC_MOD_STR "PCI fails to register\n");
 #endif
 
 #ifdef CONFIG_FSL_SOC_BOOKE
-	/*
-	 * need to clear HID1[RFXE] to disable machine check int
-	 * so we can catch it
-	 */
-	if (edac_op_state == EDAC_OPSTATE_INT)
-		on_each_cpu(mpc85xx_mc_clear_rfxe, NULL, 0);
+	pvr = mfspr(SPRN_PVR);
+
+	if ((PVR_VER(pvr) == PVR_VER_E500V1) ||
+	    (PVR_VER(pvr) == PVR_VER_E500V2)) {
+		/*
+		 * need to clear HID1[RFXE] to disable machine check int
+		 * so we can catch it
+		 */
+		if (edac_op_state == EDAC_OPSTATE_INT)
+			on_each_cpu(mpc85xx_mc_clear_rfxe, NULL, 0);
+	}
 #endif
 
 	return 0;
@@ -1209,13 +1212,18 @@ static void __exit mpc85xx_mc_restore_hid1(void *data)
 static void __exit mpc85xx_mc_exit(void)
 {
 #ifdef CONFIG_FSL_SOC_BOOKE
-	on_each_cpu(mpc85xx_mc_restore_hid1, NULL, 0);
+	u32 pvr = mfspr(SPRN_PVR);
+
+	if ((PVR_VER(pvr) == PVR_VER_E500V1) ||
+	    (PVR_VER(pvr) == PVR_VER_E500V2)) {
+		on_each_cpu(mpc85xx_mc_restore_hid1, NULL, 0);
+	}
 #endif
 #ifdef CONFIG_PCI
-	of_unregister_platform_driver(&mpc85xx_pci_err_driver);
+	platform_driver_unregister(&mpc85xx_pci_err_driver);
 #endif
-	of_unregister_platform_driver(&mpc85xx_l2_err_driver);
-	of_unregister_platform_driver(&mpc85xx_mc_err_driver);
+	platform_driver_unregister(&mpc85xx_l2_err_driver);
+	platform_driver_unregister(&mpc85xx_mc_err_driver);
 }
 
 module_exit(mpc85xx_mc_exit);

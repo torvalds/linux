@@ -213,7 +213,7 @@ void __init db88f5281_pci_preinit(void)
 	pin = DB88F5281_PCI_SLOT0_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int1") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "db88f5281_pci_preinit faield to "
 					"set_irq_type pin %d\n", pin);
@@ -226,7 +226,7 @@ void __init db88f5281_pci_preinit(void)
 	pin = DB88F5281_PCI_SLOT1_SLOT2_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int2") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "db88f5281_pci_preinit faield "
 					"to set_irq_type pin %d\n", pin);
@@ -298,28 +298,28 @@ static struct i2c_board_info __initdata db88f5281_i2c_rtc = {
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
-static struct orion5x_mpp_mode db88f5281_mpp_modes[] __initdata = {
-	{  0, MPP_GPIO },		/* USB Over Current */
-	{  1, MPP_GPIO },		/* USB Vbat input */
-	{  2, MPP_PCI_ARB },		/* PCI_REQn[2] */
-	{  3, MPP_PCI_ARB },		/* PCI_GNTn[2] */
-	{  4, MPP_PCI_ARB },		/* PCI_REQn[3] */
-	{  5, MPP_PCI_ARB },		/* PCI_GNTn[3] */
-	{  6, MPP_GPIO },		/* JP0, CON17.2 */
-	{  7, MPP_GPIO },		/* JP1, CON17.1 */
-	{  8, MPP_GPIO },		/* JP2, CON11.2 */
-	{  9, MPP_GPIO },		/* JP3, CON11.3 */
-	{ 10, MPP_GPIO },		/* RTC int */
-	{ 11, MPP_GPIO },		/* Baud Rate Generator */
-	{ 12, MPP_GPIO },		/* PCI int 1 */
-	{ 13, MPP_GPIO },		/* PCI int 2 */
-	{ 14, MPP_NAND },		/* NAND_REn[2] */
-	{ 15, MPP_NAND },		/* NAND_WEn[2] */
-	{ 16, MPP_UART },		/* UART1_RX */
-	{ 17, MPP_UART },		/* UART1_TX */
-	{ 18, MPP_UART },		/* UART1_CTSn */
-	{ 19, MPP_UART },		/* UART1_RTSn */
-	{ -1 },
+static unsigned int db88f5281_mpp_modes[] __initdata = {
+	MPP0_GPIO,		/* USB Over Current */
+	MPP1_GPIO,		/* USB Vbat input */
+	MPP2_PCI_ARB,		/* PCI_REQn[2] */
+	MPP3_PCI_ARB,		/* PCI_GNTn[2] */
+	MPP4_PCI_ARB,		/* PCI_REQn[3] */
+	MPP5_PCI_ARB,		/* PCI_GNTn[3] */
+	MPP6_GPIO,		/* JP0, CON17.2 */
+	MPP7_GPIO,		/* JP1, CON17.1 */
+	MPP8_GPIO,		/* JP2, CON11.2 */
+	MPP9_GPIO,		/* JP3, CON11.3 */
+	MPP10_GPIO,		/* RTC int */
+	MPP11_GPIO,		/* Baud Rate Generator */
+	MPP12_GPIO,		/* PCI int 1 */
+	MPP13_GPIO,		/* PCI int 2 */
+	MPP14_NAND,		/* NAND_REn[2] */
+	MPP15_NAND,		/* NAND_WEn[2] */
+	MPP16_UART,		/* UART1_RX */
+	MPP17_UART,		/* UART1_TX */
+	MPP18_UART,		/* UART1_CTSn */
+	MPP19_UART,		/* UART1_RTSn */
+	0,
 };
 
 static void __init db88f5281_init(void)
@@ -358,11 +358,10 @@ static void __init db88f5281_init(void)
 
 MACHINE_START(DB88F5281, "Marvell Orion-2 Development Board")
 	/* Maintainer: Tzachi Perelstein <tzachi@marvell.com> */
-	.phys_io	= ORION5X_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= db88f5281_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 MACHINE_END

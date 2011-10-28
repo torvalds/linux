@@ -347,7 +347,7 @@ static int msm_fb_suspend(struct platform_device *pdev, pm_message_t state)
 	if ((!mfd) || (mfd->key != MFD_KEY))
 		return 0;
 
-	acquire_console_sem();
+	console_lock();
 	fb_set_suspend(mfd->fbi, 1);
 
 	ret = msm_fb_suspend_sub(mfd);
@@ -358,7 +358,7 @@ static int msm_fb_suspend(struct platform_device *pdev, pm_message_t state)
 		pdev->dev.power.power_state = state;
 	}
 
-	release_console_sem();
+	console_unlock();
 	return ret;
 }
 #else
@@ -431,11 +431,11 @@ static int msm_fb_resume(struct platform_device *pdev)
 	if ((!mfd) || (mfd->key != MFD_KEY))
 		return 0;
 
-	acquire_console_sem();
+	console_lock();
 	ret = msm_fb_resume_sub(mfd);
 	pdev->dev.power.power_state = PMSG_ON;
 	fb_set_suspend(mfd->fbi, 1);
-	release_console_sem();
+	console_unlock();
 
 	return ret;
 }
@@ -859,7 +859,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 		break;
 
 	default:
-		MSM_FB_ERR("msm_fb_init: fb %d unkown image type!\n",
+		MSM_FB_ERR("msm_fb_init: fb %d unknown image type!\n",
 			   mfd->index);
 		return ret;
 	}
@@ -915,7 +915,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	mfd->pan_waiting = FALSE;
 	init_completion(&mfd->pan_comp);
 	init_completion(&mfd->refresher_comp);
-	init_MUTEX(&mfd->sem);
+	sema_init(&mfd->sem, 1);
 
 	fbram_offset = PAGE_ALIGN((int)fbram)-(int)fbram;
 	fbram += fbram_offset;
@@ -1158,7 +1158,7 @@ static int msm_fb_release(struct fb_info *info, int user)
 	return ret;
 }
 
-DECLARE_MUTEX(msm_fb_pan_sem);
+DEFINE_SEMAPHORE(msm_fb_pan_sem);
 
 static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info)
@@ -1793,9 +1793,9 @@ static int msmfb_async_blit(struct fb_info *info, void __user *p)
 /*
  * NOTE: The userspace issues blit operations in a sequence, the sequence
  * start with a operation marked START and ends in an operation marked
- * END. It is guranteed by the userspace that all the blit operations
+ * END. It is guaranteed by the userspace that all the blit operations
  * between START and END are only within the regions of areas designated
- * by the START and END operations and that the userspace doesnt modify
+ * by the START and END operations and that the userspace doesn't modify
  * those areas. Hence it would be enough to perform barrier/cache operations
  * only on the START and END operations.
  */
@@ -1962,7 +1962,7 @@ static int msmfb_overlay_play(struct fb_info *info, unsigned long *argp)
 
 #endif
 
-DECLARE_MUTEX(msm_fb_ioctl_ppp_sem);
+DEFINE_SEMAPHORE(msm_fb_ioctl_ppp_sem);
 DEFINE_MUTEX(msm_fb_ioctl_lut_sem);
 DEFINE_MUTEX(msm_fb_ioctl_hist_sem);
 

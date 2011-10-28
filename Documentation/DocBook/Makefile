@@ -12,7 +12,7 @@ DOCBOOKS := z8530book.xml mcabook.xml device-drivers.xml \
 	    kernel-api.xml filesystems.xml lsm.xml usb.xml kgdb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
-	    mac80211.xml debugobjects.xml sh.xml regulator.xml \
+	    80211.xml debugobjects.xml sh.xml regulator.xml \
 	    alsa-driver-api.xml writing-an-alsa-driver.xml \
 	    tracepoint.xml media.xml drm.xml
 
@@ -53,7 +53,9 @@ MAN := $(patsubst %.xml, %.9, $(BOOKS))
 mandocs: $(MAN)
 
 build_images = mkdir -p $(objtree)/Documentation/DocBook/media/ && \
-	       cp $(srctree)/Documentation/DocBook/dvb/*.png $(srctree)/Documentation/DocBook/v4l/*.gif $(objtree)/Documentation/DocBook/media/
+	       cp $(srctree)/Documentation/DocBook/dvb/*.png \
+	          $(srctree)/Documentation/DocBook/v4l/*.gif \
+		  $(objtree)/Documentation/DocBook/media/
 
 xmldoclinks:
 ifneq ($(objtree),$(srctree))
@@ -71,7 +73,7 @@ installmandocs: mandocs
 ###
 #External programs used
 KERNELDOC = $(srctree)/scripts/kernel-doc
-DOCPROC   = $(objtree)/scripts/basic/docproc
+DOCPROC   = $(objtree)/scripts/docproc
 
 XMLTOFLAGS = -m $(srctree)/Documentation/DocBook/stylesheet.xsl
 XMLTOFLAGS += --skip-validation

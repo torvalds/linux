@@ -249,7 +249,7 @@ static int choose_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
 }
 
 static int pm8607_set_voltage(struct regulator_dev *rdev,
-			      int min_uV, int max_uV)
+			      int min_uV, int max_uV, unsigned *selector)
 {
 	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
 	uint8_t val, mask;
@@ -263,6 +263,7 @@ static int pm8607_set_voltage(struct regulator_dev *rdev,
 	ret = choose_voltage(rdev, min_uV, max_uV);
 	if (ret < 0)
 		return -EINVAL;
+	*selector = ret;
 	val = (uint8_t)(ret << info->vol_shift);
 	mask = ((1 << info->vol_nbits) - 1)  << info->vol_shift;
 
@@ -393,46 +394,44 @@ static struct pm8607_regulator_info pm8607_regulator_info[] = {
 	PM8607_LDO(14,        LDO14, 0, 4, SUPPLIES_EN12, 6),
 };
 
-static inline struct pm8607_regulator_info *find_regulator_info(int id)
-{
-	struct pm8607_regulator_info *info;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pm8607_regulator_info); i++) {
-		info = &pm8607_regulator_info[i];
-		if (info->desc.id == id)
-			return info;
-	}
-	return NULL;
-}
-
 static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm860x_platform_data *pdata = chip->dev->platform_data;
 	struct pm8607_regulator_info *info = NULL;
+	struct regulator_init_data *pdata = pdev->dev.platform_data;
+	struct resource *res;
+	int i;
 
-	info = find_regulator_info(pdev->id);
-	if (info == NULL) {
-		dev_err(&pdev->dev, "invalid regulator ID specified\n");
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (res == NULL) {
+		dev_err(&pdev->dev, "No I/O resource!\n");
 		return -EINVAL;
 	}
-
+	for (i = 0; i < ARRAY_SIZE(pm8607_regulator_info); i++) {
+		info = &pm8607_regulator_info[i];
+		if (info->desc.id == res->start)
+			break;
+	}
+	if ((i < 0) || (i > PM8607_ID_RG_MAX)) {
+		dev_err(&pdev->dev, "Failed to find regulator %llu\n",
+			(unsigned long long)res->start);
+		return -EINVAL;
+	}
 	info->i2c = (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
 	info->chip = chip;
 
+	/* check DVC ramp slope double */
+	if ((i == PM8607_ID_BUCK3) && info->chip->buck3_double)
+		info->slope_double = 1;
+
+	/* replace driver_data with info */
 	info->regulator = regulator_register(&info->desc, &pdev->dev,
-					     pdata->regulator[pdev->id], info);
+					     pdata, info);
 	if (IS_ERR(info->regulator)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			info->desc.name);
 		return PTR_ERR(info->regulator);
 	}
-
-	/* check DVC ramp slope double */
-	if (info->desc.id == PM8607_ID_BUCK3)
-		if (info->chip->buck3_double)
-			info->slope_double = 1;
 
 	platform_set_drvdata(pdev, info);
 	return 0;

@@ -188,7 +188,7 @@ static void __init set_hw_addr(struct platform_device *pdev)
 	 */
 	regs = (void __iomem __force *)res->start;
 	pclk = clk_get(&pdev->dev, "pclk");
-	if (!pclk)
+	if (IS_ERR(pclk))
 		return;
 
 	clk_enable(pclk);
@@ -322,6 +322,6 @@ static int __init atngw100_arch_init(void)
 	/* set_irq_type() after the arch_initcall for EIC has run, and
 	 * before the I2C subsystem could try using this IRQ.
 	 */
-	return set_irq_type(AT32_EXTINT(3), IRQ_TYPE_EDGE_FALLING);
+	return irq_set_irq_type(AT32_EXTINT(3), IRQ_TYPE_EDGE_FALLING);
 }
 arch_initcall(atngw100_arch_init);

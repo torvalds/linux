@@ -15,16 +15,6 @@
 #define QETH_DEVICE_ATTR(_id, _name, _mode, _show, _store) \
 struct device_attribute dev_attr_##_id = __ATTR(_name, _mode, _show, _store)
 
-static const char *qeth_l3_get_checksum_str(struct qeth_card *card)
-{
-	if (card->options.checksum_type == SW_CHECKSUMMING)
-		return "sw";
-	else if (card->options.checksum_type == HW_CHECKSUMMING)
-		return "hw";
-	else
-		return "no";
-}
-
 static ssize_t qeth_l3_dev_route_show(struct qeth_card *card,
 			struct qeth_routing_info *route, char *buf)
 {
@@ -295,51 +285,6 @@ out:
 static DEVICE_ATTR(canonical_macaddr, 0644, qeth_l3_dev_canonical_macaddr_show,
 		   qeth_l3_dev_canonical_macaddr_store);
 
-static ssize_t qeth_l3_dev_checksum_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-
-	if (!card)
-		return -EINVAL;
-
-	return sprintf(buf, "%s checksumming\n",
-			qeth_l3_get_checksum_str(card));
-}
-
-static ssize_t qeth_l3_dev_checksum_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-	enum qeth_checksum_types csum_type;
-	char *tmp;
-	int rc = 0;
-
-	if (!card)
-		return -EINVAL;
-
-	mutex_lock(&card->conf_mutex);
-	tmp = strsep((char **) &buf, "\n");
-	if (!strcmp(tmp, "sw_checksumming"))
-		csum_type = SW_CHECKSUMMING;
-	else if (!strcmp(tmp, "hw_checksumming"))
-		csum_type = HW_CHECKSUMMING;
-	else if (!strcmp(tmp, "no_checksumming"))
-		csum_type = NO_CHECKSUMMING;
-	else {
-		rc = -EINVAL;
-		goto out;
-	}
-
-	rc = qeth_l3_set_rx_csum(card, csum_type);
-out:
-	mutex_unlock(&card->conf_mutex);
-	return rc ? rc : count;
-}
-
-static DEVICE_ATTR(checksumming, 0644, qeth_l3_dev_checksum_show,
-		qeth_l3_dev_checksum_store);
-
 static ssize_t qeth_l3_dev_sniffer_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -402,61 +347,13 @@ out:
 static DEVICE_ATTR(sniffer, 0644, qeth_l3_dev_sniffer_show,
 		qeth_l3_dev_sniffer_store);
 
-static ssize_t qeth_l3_dev_large_send_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-
-	if (!card)
-		return -EINVAL;
-
-	switch (card->options.large_send) {
-	case QETH_LARGE_SEND_NO:
-		return sprintf(buf, "%s\n", "no");
-	case QETH_LARGE_SEND_TSO:
-		return sprintf(buf, "%s\n", "TSO");
-	default:
-		return sprintf(buf, "%s\n", "N/A");
-	}
-}
-
-static ssize_t qeth_l3_dev_large_send_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-	enum qeth_large_send_types type;
-	int rc = 0;
-	char *tmp;
-
-	if (!card)
-		return -EINVAL;
-	tmp = strsep((char **) &buf, "\n");
-	if (!strcmp(tmp, "no"))
-		type = QETH_LARGE_SEND_NO;
-	else if (!strcmp(tmp, "TSO"))
-		type = QETH_LARGE_SEND_TSO;
-	else
-		return -EINVAL;
-
-	mutex_lock(&card->conf_mutex);
-	if (card->options.large_send != type)
-		rc = qeth_l3_set_large_send(card, type);
-	mutex_unlock(&card->conf_mutex);
-	return rc ? rc : count;
-}
-
-static DEVICE_ATTR(large_send, 0644, qeth_l3_dev_large_send_show,
-		   qeth_l3_dev_large_send_store);
-
 static struct attribute *qeth_l3_device_attrs[] = {
 	&dev_attr_route4.attr,
 	&dev_attr_route6.attr,
 	&dev_attr_fake_broadcast.attr,
 	&dev_attr_broadcast_mode.attr,
 	&dev_attr_canonical_macaddr.attr,
-	&dev_attr_checksumming.attr,
 	&dev_attr_sniffer.attr,
-	&dev_attr_large_send.attr,
 	NULL,
 };
 

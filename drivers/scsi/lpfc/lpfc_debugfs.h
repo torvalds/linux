@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2007 Emulex.  All rights reserved.                *
+ * Copyright (C) 2007-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -22,6 +22,73 @@
 #define _H_LPFC_DEBUG_FS
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+
+/* size of output line, for discovery_trace and slow_ring_trace */
+#define LPFC_DEBUG_TRC_ENTRY_SIZE 100
+
+/* nodelist output buffer size */
+#define LPFC_NODELIST_SIZE 8192
+#define LPFC_NODELIST_ENTRY_SIZE 120
+
+/* dumpHBASlim output buffer size */
+#define LPFC_DUMPHBASLIM_SIZE 4096
+
+/* dumpHostSlim output buffer size */
+#define LPFC_DUMPHOSTSLIM_SIZE 4096
+
+/* hbqinfo output buffer size */
+#define LPFC_HBQINFO_SIZE 8192
+
+/* pciConf */
+#define LPFC_PCI_CFG_BROWSE 0xffff
+#define LPFC_PCI_CFG_RD_CMD_ARG 2
+#define LPFC_PCI_CFG_WR_CMD_ARG 3
+#define LPFC_PCI_CFG_SIZE 4096
+#define LPFC_PCI_CFG_RD_BUF_SIZE (LPFC_PCI_CFG_SIZE/2)
+#define LPFC_PCI_CFG_RD_SIZE (LPFC_PCI_CFG_SIZE/4)
+
+/* queue info */
+#define LPFC_QUE_INFO_GET_BUF_SIZE 4096
+
+/* queue acc */
+#define LPFC_QUE_ACC_BROWSE 0xffff
+#define LPFC_QUE_ACC_RD_CMD_ARG 4
+#define LPFC_QUE_ACC_WR_CMD_ARG 6
+#define LPFC_QUE_ACC_BUF_SIZE 4096
+#define LPFC_QUE_ACC_SIZE (LPFC_QUE_ACC_BUF_SIZE/2)
+
+#define LPFC_IDIAG_EQ 1
+#define LPFC_IDIAG_CQ 2
+#define LPFC_IDIAG_MQ 3
+#define LPFC_IDIAG_WQ 4
+#define LPFC_IDIAG_RQ 5
+
+/* doorbell acc */
+#define LPFC_DRB_ACC_ALL 0xffff
+#define LPFC_DRB_ACC_RD_CMD_ARG 1
+#define LPFC_DRB_ACC_WR_CMD_ARG 2
+#define LPFC_DRB_ACC_BUF_SIZE 256
+
+#define LPFC_DRB_EQCQ 1
+#define LPFC_DRB_MQ   2
+#define LPFC_DRB_WQ   3
+#define LPFC_DRB_RQ   4
+
+#define LPFC_DRB_MAX  4
+
+#define SIZE_U8  sizeof(uint8_t)
+#define SIZE_U16 sizeof(uint16_t)
+#define SIZE_U32 sizeof(uint32_t)
+
+struct lpfc_debug {
+	char *i_private;
+	char op;
+#define LPFC_IDIAG_OP_RD 1
+#define LPFC_IDIAG_OP_WR 2
+	char *buffer;
+	int  len;
+};
+
 struct lpfc_debugfs_trc {
 	char *fmt;
 	uint32_t data1;
@@ -29,6 +96,37 @@ struct lpfc_debugfs_trc {
 	uint32_t data3;
 	uint32_t seq_cnt;
 	unsigned long jif;
+};
+
+struct lpfc_idiag_offset {
+	uint32_t last_rd;
+};
+
+#define LPFC_IDIAG_CMD_DATA_SIZE 8
+struct lpfc_idiag_cmd {
+	uint32_t opcode;
+#define LPFC_IDIAG_CMD_PCICFG_RD 0x00000001
+#define LPFC_IDIAG_CMD_PCICFG_WR 0x00000002
+#define LPFC_IDIAG_CMD_PCICFG_ST 0x00000003
+#define LPFC_IDIAG_CMD_PCICFG_CL 0x00000004
+
+#define LPFC_IDIAG_CMD_QUEACC_RD 0x00000011
+#define LPFC_IDIAG_CMD_QUEACC_WR 0x00000012
+#define LPFC_IDIAG_CMD_QUEACC_ST 0x00000013
+#define LPFC_IDIAG_CMD_QUEACC_CL 0x00000014
+
+#define LPFC_IDIAG_CMD_DRBACC_RD 0x00000021
+#define LPFC_IDIAG_CMD_DRBACC_WR 0x00000022
+#define LPFC_IDIAG_CMD_DRBACC_ST 0x00000023
+#define LPFC_IDIAG_CMD_DRBACC_CL 0x00000024
+	uint32_t data[LPFC_IDIAG_CMD_DATA_SIZE];
+};
+
+struct lpfc_idiag {
+	uint32_t active;
+	struct lpfc_idiag_cmd cmd;
+	struct lpfc_idiag_offset offset;
+	void *ptr_private;
 };
 #endif
 

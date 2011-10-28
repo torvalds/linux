@@ -13,30 +13,10 @@ extern struct pglist_data *node_data[];
 #define NODE_DATA(nid)	(node_data[nid])
 
 #include <asm/numaq.h>
-/* summit or generic arch */
-#include <asm/srat.h>
-
-extern int get_memcfg_numa_flat(void);
-/*
- * This allows any one NUMA architecture to be compiled
- * for, and still fall back to the flat function if it
- * fails.
- */
-static inline void get_memcfg_numa(void)
-{
-
-	if (get_memcfg_numaq())
-		return;
-	if (get_memcfg_from_srat())
-		return;
-	get_memcfg_numa_flat();
-}
 
 extern void resume_map_numa_kva(pgd_t *pgd);
 
 #else /* !CONFIG_NUMA */
-
-#define get_memcfg_numa get_memcfg_numa_flat
 
 static inline void resume_map_numa_kva(pgd_t *pgd) {}
 
@@ -68,17 +48,6 @@ static inline int pfn_to_nid(unsigned long pfn)
 #endif
 }
 
-/*
- * Following are macros that each numa implmentation must define.
- */
-
-#define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
-#define node_end_pfn(nid)						\
-({									\
-	pg_data_t *__pgdat = NODE_DATA(nid);				\
-	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;		\
-})
-
 static inline int pfn_valid(int pfn)
 {
 	int nid = pfn_to_nid(pfn);
@@ -87,6 +56,8 @@ static inline int pfn_valid(int pfn)
 		return (pfn < node_end_pfn(nid));
 	return 0;
 }
+
+#define early_pfn_valid(pfn)	pfn_valid((pfn))
 
 #endif /* CONFIG_DISCONTIGMEM */
 

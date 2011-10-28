@@ -30,7 +30,7 @@
   changelog for the 1.x series, David?
 
 2.00  Dec  2, 1997 -- Erik Andersen <andersee@debian.org>
-  -- New maintainer! As David A. van Leeuwen has been too busy to activly
+  -- New maintainer! As David A. van Leeuwen has been too busy to actively
   maintain and improve this driver, I am now carrying on the torch. If
   you have a problem with this driver, please feel free to contact me.
 
@@ -409,7 +409,8 @@ int register_cdrom(struct cdrom_device_info *cdi)
 	}
 
 	ENSURE(drive_status, CDC_DRIVE_STATUS );
-	ENSURE(media_changed, CDC_MEDIA_CHANGED);
+	if (cdo->check_events == NULL && cdo->media_changed == NULL)
+		*change_capability = ~(CDC_MEDIA_CHANGED | CDC_SELECT_DISC);
 	ENSURE(tray_move, CDC_CLOSE_TRAY | CDC_OPEN_TRAY);
 	ENSURE(lock_door, CDC_LOCK);
 	ENSURE(select_speed, CDC_SELECT_SPEED);
@@ -985,6 +986,9 @@ int cdrom_open(struct cdrom_device_info *cdi, struct block_device *bdev, fmode_t
 
 	cdinfo(CD_OPEN, "entering cdrom_open\n"); 
 
+	/* open is event synchronization point, check events first */
+	check_disk_change(bdev);
+
 	/* if this was a O_NONBLOCK open and we should honor the flags,
 	 * do a quick open without drive/disc integrity checks. */
 	cdi->use_count++;
@@ -1011,9 +1015,6 @@ int cdrom_open(struct cdrom_device_info *cdi, struct block_device *bdev, fmode_t
 
 	cdinfo(CD_OPEN, "Use count for \"/dev/%s\" now %d\n",
 			cdi->name, cdi->use_count);
-	/* Do this on open.  Don't wait for mount, because they might
-	    not be mounting, but opening with O_NONBLOCK */
-	check_disk_change(bdev);
 	return 0;
 err_release:
 	if (CDROM_CAN(CDC_LOCK) && cdi->options & CDO_LOCK) {
@@ -1348,7 +1349,10 @@ static int cdrom_select_disc(struct cdrom_device_info *cdi, int slot)
 	if (!CDROM_CAN(CDC_SELECT_DISC))
 		return -EDRIVE_CANT_DO_THIS;
 
-	(void) cdi->ops->media_changed(cdi, slot);
+	if (cdi->ops->check_events)
+		cdi->ops->check_events(cdi, 0, slot);
+	else
+		cdi->ops->media_changed(cdi, slot);
 
 	if (slot == CDSL_NONE) {
 		/* set media changed bits, on both queues */
@@ -1392,6 +1396,42 @@ static int cdrom_select_disc(struct cdrom_device_info *cdi, int slot)
 	return slot;
 }
 
+/*
+ * As cdrom implements an extra ioctl consumer for media changed
+ * event, it needs to buffer ->check_events() output, such that event
+ * is not lost for both the usual VFS and ioctl paths.
+ * cdi->{vfs|ioctl}_events are used to buffer pending events for each
+ * path.
+ *
+ * XXX: Locking is non-existent.  cdi->ops->check_events() can be
+ * called in parallel and buffering fields are accessed without any
+ * exclusion.  The original media_changed code had the same problem.
+ * It might be better to simply deprecate CDROM_MEDIA_CHANGED ioctl
+ * and remove this cruft altogether.  It doesn't have much usefulness
+ * at this point.
+ */
+static void cdrom_update_events(struct cdrom_device_info *cdi,
+				unsigned int clearing)
+{
+	unsigned int events;
+
+	events = cdi->ops->check_events(cdi, clearing, CDSL_CURRENT);
+	cdi->vfs_events |= events;
+	cdi->ioctl_events |= events;
+}
+
+unsigned int cdrom_check_events(struct cdrom_device_info *cdi,
+				unsigned int clearing)
+{
+	unsigned int events;
+
+	cdrom_update_events(cdi, clearing);
+	events = cdi->vfs_events;
+	cdi->vfs_events = 0;
+	return events;
+}
+EXPORT_SYMBOL(cdrom_check_events);
+
 /* We want to make media_changed accessible to the user through an
  * ioctl. The main problem now is that we must double-buffer the
  * low-level implementation, to assure that the VFS and the user both
@@ -1403,15 +1443,26 @@ int media_changed(struct cdrom_device_info *cdi, int queue)
 {
 	unsigned int mask = (1 << (queue & 1));
 	int ret = !!(cdi->mc_flags & mask);
+	bool changed;
 
 	if (!CDROM_CAN(CDC_MEDIA_CHANGED))
-	    return ret;
+		return ret;
+
 	/* changed since last call? */
-	if (cdi->ops->media_changed(cdi, CDSL_CURRENT)) {
+	if (cdi->ops->check_events) {
+		BUG_ON(!queue);	/* shouldn't be called from VFS path */
+		cdrom_update_events(cdi, DISK_EVENT_MEDIA_CHANGE);
+		changed = cdi->ioctl_events & DISK_EVENT_MEDIA_CHANGE;
+		cdi->ioctl_events = 0;
+	} else
+		changed = cdi->ops->media_changed(cdi, CDSL_CURRENT);
+
+	if (changed) {
 		cdi->mc_flags = 0x3;    /* set bit on both queues */
 		ret |= 1;
 		cdi->media_written = 0;
 	}
+
 	cdi->mc_flags &= ~mask;         /* clear bit */
 	return ret;
 }
@@ -2469,7 +2520,7 @@ static int cdrom_ioctl_drive_status(struct cdrom_device_info *cdi,
 /*
  * Ok, this is where problems start.  The current interface for the
  * CDROM_DISC_STATUS ioctl is flawed.  It makes the false assumption that
- * CDs are all CDS_DATA_1 or all CDS_AUDIO, etc.  Unfortunatly, while this
+ * CDs are all CDS_DATA_1 or all CDS_AUDIO, etc.  Unfortunately, while this
  * is often the case, it is also very common for CDs to have some tracks
  * with data, and some tracks with audio.  Just because I feel like it,
  * I declare the following to be the best way to cope.  If the CD has ANY

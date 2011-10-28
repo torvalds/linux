@@ -10,6 +10,8 @@
  * more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -99,8 +101,7 @@ static void *lib80211_tkip_init(int key_idx)
 	priv->tx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
 						CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tx_tfm_arc4)) {
-		printk(KERN_DEBUG "lib80211_crypt_tkip: could not allocate "
-		       "crypto API arc4\n");
+		printk(KERN_DEBUG pr_fmt("could not allocate crypto API arc4\n"));
 		priv->tx_tfm_arc4 = NULL;
 		goto fail;
 	}
@@ -108,8 +109,7 @@ static void *lib80211_tkip_init(int key_idx)
 	priv->tx_tfm_michael = crypto_alloc_hash("michael_mic", 0,
 						 CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tx_tfm_michael)) {
-		printk(KERN_DEBUG "lib80211_crypt_tkip: could not allocate "
-		       "crypto API michael_mic\n");
+		printk(KERN_DEBUG pr_fmt("could not allocate crypto API michael_mic\n"));
 		priv->tx_tfm_michael = NULL;
 		goto fail;
 	}
@@ -117,8 +117,7 @@ static void *lib80211_tkip_init(int key_idx)
 	priv->rx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
 						CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->rx_tfm_arc4)) {
-		printk(KERN_DEBUG "lib80211_crypt_tkip: could not allocate "
-		       "crypto API arc4\n");
+		printk(KERN_DEBUG pr_fmt("could not allocate crypto API arc4\n"));
 		priv->rx_tfm_arc4 = NULL;
 		goto fail;
 	}
@@ -126,8 +125,7 @@ static void *lib80211_tkip_init(int key_idx)
 	priv->rx_tfm_michael = crypto_alloc_hash("michael_mic", 0,
 						 CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->rx_tfm_michael)) {
-		printk(KERN_DEBUG "lib80211_crypt_tkip: could not allocate "
-		       "crypto API michael_mic\n");
+		printk(KERN_DEBUG pr_fmt("could not allocate crypto API michael_mic\n"));
 		priv->rx_tfm_michael = NULL;
 		goto fail;
 	}
@@ -536,7 +534,7 @@ static int michael_mic(struct crypto_hash *tfm_michael, u8 * key, u8 * hdr,
 	struct scatterlist sg[2];
 
 	if (tfm_michael == NULL) {
-		printk(KERN_WARNING "michael_mic: tfm_michael == NULL\n");
+		pr_warn("%s(): tfm_michael == NULL\n", __func__);
 		return -1;
 	}
 	sg_init_table(sg, 2);

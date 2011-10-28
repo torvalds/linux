@@ -1,0 +1,9 @@
+#
+# West Bridge configuration
+#
+source "drivers/staging/westbridge/astoria/device/Kconfig"
+
+source "drivers/staging/westbridge/astoria/block/Kconfig"
+
+source "drivers/staging/westbridge/astoria/gadget/Kconfig"
+

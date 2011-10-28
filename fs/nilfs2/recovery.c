@@ -387,9 +387,9 @@ static int nilfs_scan_dsync_log(struct the_nilfs *nilfs, sector_t start_blocknr,
 static void dispose_recovery_list(struct list_head *head)
 {
 	while (!list_empty(head)) {
-		struct nilfs_recovery_block *rb
-			= list_entry(head->next,
-				     struct nilfs_recovery_block, list);
+		struct nilfs_recovery_block *rb;
+
+		rb = list_first_entry(head, struct nilfs_recovery_block, list);
 		list_del(&rb->list);
 		kfree(rb);
 	}
@@ -416,16 +416,16 @@ static int nilfs_segment_list_add(struct list_head *head, __u64 segnum)
 void nilfs_dispose_segment_list(struct list_head *head)
 {
 	while (!list_empty(head)) {
-		struct nilfs_segment_entry *ent
-			= list_entry(head->next,
-				     struct nilfs_segment_entry, list);
+		struct nilfs_segment_entry *ent;
+
+		ent = list_first_entry(head, struct nilfs_segment_entry, list);
 		list_del(&ent->list);
 		kfree(ent);
 	}
 }
 
 static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
-					      struct nilfs_sb_info *sbi,
+					      struct super_block *sb,
 					      struct nilfs_recovery_info *ri)
 {
 	struct list_head *head = &ri->ri_used_segments;
@@ -440,7 +440,6 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 	segnum[2] = ri->ri_segnum;
 	segnum[3] = ri->ri_nextnum;
 
-	nilfs_attach_writer(nilfs, sbi);
 	/*
 	 * Releasing the next segment of the latest super root.
 	 * The next segment is invalidated by this recovery.
@@ -480,7 +479,6 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 
  failed:
 	/* No need to recover sufile because it will be destroyed on error */
-	nilfs_detach_writer(nilfs, sbi);
 	return err;
 }
 
@@ -503,7 +501,8 @@ static int nilfs_recovery_copy_block(struct the_nilfs *nilfs,
 }
 
 static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
-				      struct nilfs_sb_info *sbi,
+				      struct super_block *sb,
+				      struct nilfs_root *root,
 				      struct list_head *head,
 				      unsigned long *nr_salvaged_blocks)
 {
@@ -515,7 +514,7 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 	int err = 0, err2 = 0;
 
 	list_for_each_entry_safe(rb, n, head, list) {
-		inode = nilfs_iget(sbi->s_super, rb->ino);
+		inode = nilfs_iget(sb, root, rb->ino);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			inode = NULL;
@@ -536,7 +535,7 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 		if (unlikely(err))
 			goto failed_page;
 
-		err = nilfs_set_file_dirty(sbi, inode, 1);
+		err = nilfs_set_file_dirty(inode, 1);
 		if (unlikely(err))
 			goto failed_page;
 
@@ -573,11 +572,12 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
  * nilfs_do_roll_forward - salvage logical segments newer than the latest
  * checkpoint
  * @nilfs: nilfs object
- * @sbi: nilfs_sb_info
+ * @sb: super block instance
  * @ri: pointer to a nilfs_recovery_info
  */
 static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
-				 struct nilfs_sb_info *sbi,
+				 struct super_block *sb,
+				 struct nilfs_root *root,
 				 struct nilfs_recovery_info *ri)
 {
 	struct buffer_head *bh_sum = NULL;
@@ -597,7 +597,6 @@ static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
 	};
 	int state = RF_INIT_ST;
 
-	nilfs_attach_writer(nilfs, sbi);
 	pseg_start = ri->ri_lsegs_start;
 	seg_seq = ri->ri_lsegs_start_seq;
 	segnum = nilfs_get_segnum_of_block(nilfs, pseg_start);
@@ -649,7 +648,7 @@ static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
 				goto failed;
 			if (flags & NILFS_SS_LOGEND) {
 				err = nilfs_recover_dsync_blocks(
-					nilfs, sbi, &dsync_blocks,
+					nilfs, sb, root, &dsync_blocks,
 					&nsalvaged_blocks);
 				if (unlikely(err))
 					goto failed;
@@ -682,13 +681,12 @@ static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
 
 	if (nsalvaged_blocks) {
 		printk(KERN_INFO "NILFS (device %s): salvaged %lu blocks\n",
-		       sbi->s_super->s_id, nsalvaged_blocks);
+		       sb->s_id, nsalvaged_blocks);
 		ri->ri_need_recovery = NILFS_RECOVERY_ROLLFORWARD_DONE;
 	}
  out:
 	brelse(bh_sum);
 	dispose_recovery_list(&dsync_blocks);
-	nilfs_detach_writer(nilfs, sbi);
 	return err;
 
  confused:
@@ -697,7 +695,7 @@ static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
 	printk(KERN_ERR
 	       "NILFS (device %s): Error roll-forwarding "
 	       "(err=%d, pseg block=%llu). ",
-	       sbi->s_super->s_id, err, (unsigned long long)pseg_start);
+	       sb->s_id, err, (unsigned long long)pseg_start);
 	goto out;
 }
 
@@ -726,7 +724,7 @@ static void nilfs_finish_roll_forward(struct the_nilfs *nilfs,
 /**
  * nilfs_salvage_orphan_logs - salvage logs written after the latest checkpoint
  * @nilfs: nilfs object
- * @sbi: nilfs_sb_info
+ * @sb: super block instance
  * @ri: pointer to a nilfs_recovery_info struct to store search results.
  *
  * Return Value: On success, 0 is returned.  On error, one of the following
@@ -743,40 +741,41 @@ static void nilfs_finish_roll_forward(struct the_nilfs *nilfs,
  * %-ENOMEM - Insufficient memory available.
  */
 int nilfs_salvage_orphan_logs(struct the_nilfs *nilfs,
-			      struct nilfs_sb_info *sbi,
+			      struct super_block *sb,
 			      struct nilfs_recovery_info *ri)
 {
+	struct nilfs_root *root;
 	int err;
 
 	if (ri->ri_lsegs_start == 0 || ri->ri_lsegs_end == 0)
 		return 0;
 
-	err = nilfs_attach_checkpoint(sbi, ri->ri_cno);
+	err = nilfs_attach_checkpoint(sb, ri->ri_cno, true, &root);
 	if (unlikely(err)) {
 		printk(KERN_ERR
 		       "NILFS: error loading the latest checkpoint.\n");
 		return err;
 	}
 
-	err = nilfs_do_roll_forward(nilfs, sbi, ri);
+	err = nilfs_do_roll_forward(nilfs, sb, root, ri);
 	if (unlikely(err))
 		goto failed;
 
 	if (ri->ri_need_recovery == NILFS_RECOVERY_ROLLFORWARD_DONE) {
-		err = nilfs_prepare_segment_for_recovery(nilfs, sbi, ri);
+		err = nilfs_prepare_segment_for_recovery(nilfs, sb, ri);
 		if (unlikely(err)) {
 			printk(KERN_ERR "NILFS: Error preparing segments for "
 			       "recovery.\n");
 			goto failed;
 		}
 
-		err = nilfs_attach_segment_constructor(sbi);
+		err = nilfs_attach_log_writer(sb, root);
 		if (unlikely(err))
 			goto failed;
 
 		set_nilfs_discontinued(nilfs);
-		err = nilfs_construct_segment(sbi->s_super);
-		nilfs_detach_segment_constructor(sbi);
+		err = nilfs_construct_segment(sb);
+		nilfs_detach_log_writer(sb);
 
 		if (unlikely(err)) {
 			printk(KERN_ERR "NILFS: Oops! recovery failed. "
@@ -788,7 +787,7 @@ int nilfs_salvage_orphan_logs(struct the_nilfs *nilfs,
 	}
 
  failed:
-	nilfs_detach_checkpoint(sbi);
+	nilfs_put_root(root);
 	return err;
 }
 

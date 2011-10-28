@@ -51,11 +51,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	count = seq_printf(m,
 			"CPU-Family:	MicroBlaze\n"
 			"FPGA-Arch:	%s\n"
-			"CPU-Ver:	%s\n"
+			"CPU-Ver:	%s, %s endian\n"
 			"CPU-MHz:	%d.%02d\n"
 			"BogoMips:	%lu.%02lu\n",
 			fpga_family,
 			cpu_ver,
+			cpuinfo.endian ? "little" : "big",
 			cpuinfo.cpu_clock_freq /
 			1000000,
 			cpuinfo.cpu_clock_freq %

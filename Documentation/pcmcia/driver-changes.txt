@@ -1,4 +1,29 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
+* pcmcia_loop_config() and autoconfiguration (as of 2.6.36)
+   If struct pcmcia_device *p_dev->config_flags is set accordingly,
+   pcmcia_loop_config() now sets up certain configuration values
+   automatically, though the driver may still override the settings
+   in the callback function. The following autoconfiguration options
+   are provided at the moment:
+	CONF_AUTO_CHECK_VCC : check for matching Vcc
+	CONF_AUTO_SET_VPP   : set Vpp
+	CONF_AUTO_AUDIO     : auto-enable audio line, if required
+	CONF_AUTO_SET_IO    : set ioport resources (->resource[0,1])
+	CONF_AUTO_SET_IOMEM : set first iomem resource (->resource[2])
+
+* pcmcia_request_configuration -> pcmcia_enable_device (as of 2.6.36)
+   pcmcia_request_configuration() got renamed to pcmcia_enable_device(),
+   as it mirrors pcmcia_disable_device(). Configuration settings are now
+   stored in struct pcmcia_device, e.g. in the fields config_flags,
+   config_index, config_base, vpp.
+
+* pcmcia_request_window changes (as of 2.6.36)
+   Instead of win_req_t, drivers are now requested to fill out
+   struct pcmcia_device *p_dev->resource[2,3,4,5] for up to four ioport
+   ranges. After a call to pcmcia_request_window(), the regions found there
+   are reserved and may be used immediately -- until pcmcia_release_window()
+   is called.
+
 * pcmcia_request_io changes (as of 2.6.36)
    Instead of io_req_t, drivers are now requested to fill out
    struct pcmcia_device *p_dev->resource[0,1] for up to two ioport

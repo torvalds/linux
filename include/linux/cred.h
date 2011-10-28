@@ -1,4 +1,4 @@
-/* Credentials management - see Documentation/credentials.txt
+/* Credentials management - see Documentation/security/credentials.txt
  *
  * Copyright (C) 2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -84,7 +84,7 @@ struct thread_group_cred {
 	atomic_t	usage;
 	pid_t		tgid;			/* thread group process ID */
 	spinlock_t	lock;
-	struct key	*session_keyring;	/* keyring inherited over fork */
+	struct key __rcu *session_keyring;	/* keyring inherited over fork */
 	struct key	*process_keyring;	/* keyring private to this process */
 	struct rcu_head	rcu;			/* RCU deletion hook */
 };
@@ -146,6 +146,7 @@ struct cred {
 	void		*security;	/* subjective LSM security */
 #endif
 	struct user_struct *user;	/* real user ID subscription */
+	struct user_namespace *user_ns; /* cached user->user_ns */
 	struct group_info *group_info;	/* supplementary groups for euid/fsgid */
 	struct rcu_head	rcu;		/* RCU deletion hook */
 };
@@ -354,8 +355,15 @@ static inline void put_cred(const struct cred *_cred)
 #define current_fsgid() 	(current_cred_xxx(fsgid))
 #define current_cap()		(current_cred_xxx(cap_effective))
 #define current_user()		(current_cred_xxx(user))
-#define current_user_ns()	(current_cred_xxx(user)->user_ns)
 #define current_security()	(current_cred_xxx(security))
+
+#ifdef CONFIG_USER_NS
+#define current_user_ns() (current_cred_xxx(user_ns))
+#else
+extern struct user_namespace init_user_ns;
+#define current_user_ns() (&init_user_ns)
+#endif
+
 
 #define current_uid_gid(_uid, _gid)		\
 do {						\

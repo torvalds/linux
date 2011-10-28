@@ -17,6 +17,9 @@
 static int __init
 omap_leds_init(void)
 {
+	if (!cpu_class_is_omap1())
+		return -ENODEV;
+
 	if (machine_is_omap_innovator())
 		leds_event = innovator_leds_event;
 

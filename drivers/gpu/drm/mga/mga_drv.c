@@ -60,8 +60,6 @@ static struct drm_driver driver = {
 	.irq_uninstall = mga_driver_irq_uninstall,
 	.irq_handler = mga_driver_irq_handler,
 	.reclaim_buffers = drm_core_reclaim_buffers,
-	.get_map_ofs = drm_core_get_map_ofs,
-	.get_reg_ofs = drm_core_get_reg_ofs,
 	.ioctls = mga_ioctls,
 	.dma_ioctl = mga_dma_buffers,
 	.fops = {
@@ -75,10 +73,7 @@ static struct drm_driver driver = {
 #ifdef CONFIG_COMPAT
 		.compat_ioctl = mga_compat_ioctl,
 #endif
-	},
-	.pci_driver = {
-		.name = DRIVER_NAME,
-		.id_table = pciidlist,
+		.llseek = noop_llseek,
 	},
 
 	.name = DRIVER_NAME,
@@ -89,15 +84,20 @@ static struct drm_driver driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
+static struct pci_driver mga_pci_driver = {
+	.name = DRIVER_NAME,
+	.id_table = pciidlist,
+};
+
 static int __init mga_init(void)
 {
 	driver.num_ioctls = mga_max_ioctl;
-	return drm_init(&driver);
+	return drm_pci_init(&driver, &mga_pci_driver);
 }
 
 static void __exit mga_exit(void)
 {
-	drm_exit(&driver);
+	drm_pci_exit(&driver, &mga_pci_driver);
 }
 
 module_init(mga_init);

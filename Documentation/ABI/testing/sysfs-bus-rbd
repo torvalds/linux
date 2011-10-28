@@ -1,0 +1,83 @@
+What:		/sys/bus/rbd/
+Date:		November 2010
+Contact:	Yehuda Sadeh <yehuda@newdream.net>,
+		Sage Weil <sage@newdream.net>
+Description:
+
+Being used for adding and removing rbd block devices.
+
+Usage: <mon ip addr> <options> <pool name> <rbd image name> [snap name]
+
+ $ echo "192.168.0.1 name=admin rbd foo" > /sys/bus/rbd/add
+
+The snapshot name can be "-" or omitted to map the image read/write. A <dev-id>
+will be assigned for any registered block device. If snapshot is used, it will
+be mapped read-only.
+
+Removal of a device:
+
+  $ echo <dev-id> > /sys/bus/rbd/remove
+
+Entries under /sys/bus/rbd/devices/<dev-id>/
+--------------------------------------------
+
+client_id
+
+	The ceph unique client id that was assigned for this specific session.
+
+major
+
+	The block device major number.
+
+name
+
+	The name of the rbd image.
+
+pool
+
+	The pool where this rbd image resides. The pool-name pair is unique
+	per rados system.
+
+size
+
+	The size (in bytes) of the mapped block device.
+
+refresh
+
+	Writing to this file will reread the image header data and set
+	all relevant datastructures accordingly.
+
+current_snap
+
+	The current snapshot for which the device is mapped.
+
+create_snap
+
+	Create a snapshot:
+
+	 $ echo <snap-name> > /sys/bus/rbd/devices/<dev-id>/snap_create
+
+rollback_snap
+
+	Rolls back data to the specified snapshot. This goes over the entire
+	list of rados blocks and sends a rollback command to each.
+
+	 $ echo <snap-name> > /sys/bus/rbd/devices/<dev-id>/snap_rollback
+
+snap_*
+
+	A directory per each snapshot
+
+
+Entries under /sys/bus/rbd/devices/<dev-id>/snap_<snap-name>
+-------------------------------------------------------------
+
+id
+
+	The rados internal snapshot id assigned for this snapshot
+
+size
+
+	The size of the image when this snapshot was taken.
+
+

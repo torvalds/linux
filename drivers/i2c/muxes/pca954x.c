@@ -181,8 +181,8 @@ static int pca954x_deselect_mux(struct i2c_adapter *adap,
 /*
  * I2C init/probing/exit functions
  */
-static int __devinit pca954x_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int pca954x_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
 	struct pca954x_platform_data *pdata = client->dev.platform_data;
@@ -201,10 +201,11 @@ static int __devinit pca954x_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, data);
 
-	/* Read the mux register at addr to verify
-	 * that the mux is in fact present.
+	/* Write the mux register at addr to verify
+	 * that the mux is in fact present. This also
+	 * initializes the mux to disconnected state.
 	 */
-	if (i2c_smbus_read_byte(client) < 0) {
+	if (i2c_smbus_write_byte(client, 0) < 0) {
 		dev_warn(&client->dev, "probe failed\n");
 		goto exit_free;
 	}
@@ -255,7 +256,7 @@ err:
 	return ret;
 }
 
-static int __devexit pca954x_remove(struct i2c_client *client)
+static int pca954x_remove(struct i2c_client *client)
 {
 	struct pca954x *data = i2c_get_clientdata(client);
 	const struct chip_desc *chip = &chips[data->type];
@@ -279,7 +280,7 @@ static struct i2c_driver pca954x_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pca954x_probe,
-	.remove		= __devexit_p(pca954x_remove),
+	.remove		= pca954x_remove,
 	.id_table	= pca954x_id,
 };
 

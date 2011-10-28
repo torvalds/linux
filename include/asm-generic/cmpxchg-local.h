@@ -2,6 +2,7 @@
 #define __ASM_GENERIC_CMPXCHG_LOCAL_H
 
 #include <linux/types.h>
+#include <linux/irqflags.h>
 
 extern unsigned long wrong_size_cmpxchg(volatile void *ptr);
 

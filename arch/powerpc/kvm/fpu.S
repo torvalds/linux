@@ -273,19 +273,11 @@ FPD_THREE_IN(fnmsub)
 FPD_THREE_IN(fnmadd)
 
 _GLOBAL(kvm_cvt_fd)
-	lfd	0,0(r5)			/* load up fpscr value */
-	MTFSF_L(0)
 	lfs	0,0(r3)
 	stfd	0,0(r4)
-	mffs	0
-	stfd	0,0(r5)			/* save new fpscr value */
 	blr
 
 _GLOBAL(kvm_cvt_df)
-	lfd	0,0(r5)			/* load up fpscr value */
-	MTFSF_L(0)
 	lfd	0,0(r3)
 	stfs	0,0(r4)
-	mffs	0
-	stfd	0,0(r5)			/* save new fpscr value */
 	blr

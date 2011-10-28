@@ -24,53 +24,21 @@
 #include "r8192E.h"
 #include "r8192E_hw.h"
 #include "r819xE_cmdpkt.h"
-/*---------------------------Define Local Constant---------------------------*/
-/* Debug constant*/
-#define		CMPK_DEBOUNCE_CNT			1
-/* 2007/10/24 MH Add for printing a range of data. */
-#define		CMPK_PRINT(Address)\
-{\
-	unsigned char	i;\
-	u32	temp[10];\
-	\
-	memcpy(temp, Address, 40);\
-	for (i = 0; i <40; i+=4)\
-		printk("\r\n %08x", temp[i]);\
-}\
 
-/*---------------------------Define functions---------------------------------*/
-/*-----------------------------------------------------------------------------
- * Function:	cmpk_message_handle_tx()
- *
- * Overview:	Driver internal module can call the API to send message to
- *				firmware side. For example, you can send a debug command packet.
- *				Or you can send a request for FW to modify RLX4181 LBUS HW bank.
- *				Otherwise, you can change MAC/PHT/RF register by firmware at
- *				run time. We do not support message more than one segment now.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/06/2008	amy		porting from windows code.
- *
- *---------------------------------------------------------------------------*/
+/*
+ * Driver internal module can call the API to send message to
+ * firmware side. For example, you can send a debug command packet.
+ * Or you can send a request for FW to modify RLX4181 LBUS HW bank.
+ * Otherwise, you can change MAC/PHT/RF register by firmware at
+ * run time. We do not support message more than one segment now.
+ */
 RT_STATUS cmpk_message_handle_tx(
-	struct net_device *dev,
+	struct r8192_priv *priv,
 	u8*	code_virtual_address,
 	u32	packettype,
 	u32	buffer_len)
 {
-
 	RT_STATUS 	    rt_status = RT_STATUS_SUCCESS;
-#ifdef RTL8192U
-	return rt_status;
-#else
-	struct r8192_priv   *priv = ieee80211_priv(dev);
 	u16		    frag_threshold;
 	u16		    frag_length = 0, frag_offset = 0;
 	rt_firmware	    *pfirmware = priv->pFirmware;
@@ -82,9 +50,8 @@ RT_STATUS cmpk_message_handle_tx(
 	PTX_FWINFO_8190PCI      pTxFwInfo = NULL;
         int i;
 
-	//spin_lock_irqsave(&priv->tx_lock,flags);
 	RT_TRACE(COMP_CMDPKT,"%s(),buffer_len is %d\n",__FUNCTION__,buffer_len);
-	firmware_init_param(dev);
+	firmware_init_param(priv);
 	//Fragmentation might be required
 	frag_threshold = pfirmware->cmdpacket_frag_thresold;
         do {
@@ -101,26 +68,17 @@ RT_STATUS cmpk_message_handle_tx(
             /* Allocate skb buffer to contain firmware info and tx descriptor info
              * add 4 to avoid packet appending overflow.
              * */
-#ifdef RTL8192U
-            skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + frag_length + 4);
-#else
             skb  = dev_alloc_skb(frag_length + priv->ieee80211->tx_headroom + 4);
-#endif
             if(skb == NULL) {
                 rt_status = RT_STATUS_FAILURE;
                 goto Failed;
             }
 
-            memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
             tcb_desc = (cb_desc*)(skb->cb + MAX_DEV_ADDR_SIZE);
             tcb_desc->queue_index = TXCMD_QUEUE;
             tcb_desc->bCmdOrInit = packettype;
             tcb_desc->bLastIniPkt = bLastIniPkt;
             tcb_desc->pkt_size = frag_length;
-
-#ifdef RTL8192U
-            skb_reserve(skb, USB_HWDESC_HEADER_LEN);
-#endif
 
             //seg_ptr = skb_put(skb, frag_length + priv->ieee80211->tx_headroom);
             seg_ptr = skb_put(skb, priv->ieee80211->tx_headroom);
@@ -143,7 +101,7 @@ RT_STATUS cmpk_message_handle_tx(
                 *seg_ptr++ = ((i+3)<frag_length)?code_virtual_address[i+0]:0;
             }
             skb_put(skb, i);
-            priv->ieee80211->softmac_hard_start_xmit(skb,dev);
+            priv->ieee80211->softmac_hard_start_xmit(skb, priv->ieee80211);
 
             code_virtual_address += frag_length;
             frag_offset += frag_length;
@@ -151,36 +109,11 @@ RT_STATUS cmpk_message_handle_tx(
         }while(frag_offset < buffer_len);
 
 Failed:
-	//spin_unlock_irqrestore(&priv->tx_lock,flags);
 	return rt_status;
+}
 
-
-#endif
-}	/* CMPK_Message_Handle_Tx */
-
-/*-----------------------------------------------------------------------------
- * Function:    cmpk_counttxstatistic()
- *
- * Overview:
- *
- * Input:       PADAPTER 	pAdapter		-	.
- *				CMPK_TXFB_T *psTx_FB	-	.
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When		Who		Remark
- *  05/12/2008	amy 	Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-static	void
-cmpk_count_txstatistic(
-	struct net_device *dev,
-	cmpk_txfb_t	*pstx_fb)
+static void cmpk_count_txstatistic(struct r8192_priv *priv, cmpk_txfb_t *pstx_fb)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 #ifdef ENABLE_PS
 	RT_RF_POWER_STATE	rtState;
 
@@ -204,200 +137,48 @@ cmpk_count_txstatistic(
 	   feedback info. */
 	if (pstx_fb->tok)
 	{
-		priv->stats.txfeedbackok++;
 		priv->stats.txoktotal++;
-		priv->stats.txokbytestotal += pstx_fb->pkt_length;
-		priv->stats.txokinperiod++;
 
 		/* We can not make sure broadcast/multicast or unicast mode. */
-		if (pstx_fb->pkt_type == PACKET_MULTICAST)
-		{
-			priv->stats.txmulticast++;
-			priv->stats.txbytesmulticast += pstx_fb->pkt_length;
-		}
-		else if (pstx_fb->pkt_type == PACKET_BROADCAST)
-		{
-			priv->stats.txbroadcast++;
-			priv->stats.txbytesbroadcast += pstx_fb->pkt_length;
-		}
-		else
-		{
-			priv->stats.txunicast++;
+		if (pstx_fb->pkt_type != PACKET_MULTICAST &&
+		    pstx_fb->pkt_type != PACKET_BROADCAST) {
 			priv->stats.txbytesunicast += pstx_fb->pkt_length;
 		}
 	}
-	else
-	{
-		priv->stats.txfeedbackfail++;
-		priv->stats.txerrtotal++;
-		priv->stats.txerrbytestotal += pstx_fb->pkt_length;
-
-		/* We can not make sure broadcast/multicast or unicast mode. */
-		if (pstx_fb->pkt_type == PACKET_MULTICAST)
-		{
-			priv->stats.txerrmulticast++;
-		}
-		else if (pstx_fb->pkt_type == PACKET_BROADCAST)
-		{
-			priv->stats.txerrbroadcast++;
-		}
-		else
-		{
-			priv->stats.txerrunicast++;
-		}
-	}
-
-	priv->stats.txretrycount += pstx_fb->retry_cnt;
-	priv->stats.txfeedbackretry += pstx_fb->retry_cnt;
-
-}	/* cmpk_CountTxStatistic */
-
-
-
-/*-----------------------------------------------------------------------------
- * Function:    cmpk_handle_tx_feedback()
- *
- * Overview:	The function is responsible for extract the message inside TX
- *				feedbck message from firmware. It will contain dedicated info in
- *				ws-06-0063-rtl8190-command-packet-specification. Please
- *				refer to chapter "TX Feedback Element". We have to read 20 bytes
- *				in the command packet.
- *
- * Input:       struct net_device *    dev
- *				u8 	*	pmsg		-	Msg Ptr of the command packet.
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When		Who		Remark
- *  05/08/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-static	void
-cmpk_handle_tx_feedback(
-	struct net_device *dev,
-	u8	*	pmsg)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	cmpk_txfb_t		rx_tx_fb;	/* */
-
-	priv->stats.txfeedback++;
-
-	/* 0. Display received message. */
-	//cmpk_Display_Message(CMPK_RX_TX_FB_SIZE, pMsg);
-
-	/* 1. Extract TX feedback info from RFD to temp structure buffer. */
-	/* It seems that FW use big endian(MIPS) and DRV use little endian in
-	   windows OS. So we have to read the content byte by byte or transfer
-	   endian type before copy the message copy. */
-#if 0		// The TX FEEDBACK packet element address
-	//rx_tx_fb.Element_ID 	= pMsg[0];
-	//rx_tx_fb.Length 		= pMsg[1];
-	rx_tx_fb.TOK 			= pMsg[2]>>7;
-	rx_tx_fb.Fail_Reason 	= (pMsg[2] & 0x70) >> 4;
-	rx_tx_fb.TID 			= (pMsg[2] & 0x0F);
-	rx_tx_fb.Qos_Pkt 		= pMsg[3] >> 7;
-	rx_tx_fb.Bandwidth 		= (pMsg[3] & 0x40) >> 6;
-	rx_tx_fb.Retry_Cnt 		= pMsg[5];
-	rx_tx_fb.Pkt_ID 		= (pMsg[6] << 8) | pMsg[7];
-	rx_tx_fb.Seq_Num 		= (pMsg[8] << 8) | pMsg[9];
-	rx_tx_fb.S_Rate 		= pMsg[10];
-	rx_tx_fb.F_Rate 		= pMsg[11];
-	rx_tx_fb.S_RTS_Rate 	= pMsg[12];
-	rx_tx_fb.F_RTS_Rate 	= pMsg[13];
-	rx_tx_fb.pkt_length	= (pMsg[14] << 8) | pMsg[15];
-#endif
-	/* 2007/07/05 MH Use pointer to transfer structure memory. */
-	//memcpy((UINT8 *)&rx_tx_fb, pMsg, sizeof(CMPK_TXFB_T));
-	memcpy((u8*)&rx_tx_fb, pmsg, sizeof(cmpk_txfb_t));
-	/* 2. Use tx feedback info to count TX statistics. */
-	cmpk_count_txstatistic(dev, &rx_tx_fb);
-#if 0
-	/* 2007/07/11 MH Assign current operate rate.  */
-	if (pAdapter->RegWirelessMode == WIRELESS_MODE_A ||
-		pAdapter->RegWirelessMode == WIRELESS_MODE_B ||
-		pAdapter->RegWirelessMode == WIRELESS_MODE_G)
-	{
-		pMgntInfo->CurrentOperaRate = (rx_tx_fb.F_Rate & 0x7F);
-	}
-	else if (pAdapter->RegWirelessMode == WIRELESS_MODE_N_24G ||
-		 	 pAdapter->RegWirelessMode == WIRELESS_MODE_N_5G)
-	{
-		pMgntInfo->HTCurrentOperaRate = (rx_tx_fb.F_Rate & 0x8F);
-	}
-#endif
-	/* 2007/01/17 MH Comment previous method for TX statistic function. */
-	/* Collect info TX feedback packet to fill TCB. */
-	/* We can not know the packet length and transmit type: broadcast or uni
-	   or multicast. */
-	//CountTxStatistics( pAdapter, &tcb );
-
-}	/* cmpk_Handle_Tx_Feedback */
-
-static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u16 tx_rate;
-	{
-		//
-		// 070117, rcnjko: 87B have to S/W beacon for DTM encryption_cmn.
-		//
-		if((priv->ieee80211->current_network.mode == IEEE_A)  ||
-			(priv->ieee80211->current_network.mode == IEEE_N_5G) ||
-			((priv->ieee80211->current_network.mode == IEEE_N_24G)  && (!priv->ieee80211->pHTInfo->bCurSuppCCK)))
-		{
-			tx_rate = 60;
-			DMESG("send beacon frame  tx rate is 6Mbpm\n");
-		}
-		else
-		{
-			tx_rate =10;
-			DMESG("send beacon frame  tx rate is 1Mbpm\n");
-		}
-
-		//rtl819xusb_beacon_tx(dev,tx_rate); // HW Beacon
-
-	}
-
 }
 
 
 
+/*
+ * The function is responsible for extract the message inside TX
+ * feedbck message from firmware. It will contain dedicated info in
+ * ws-06-0063-rtl8190-command-packet-specification. Please
+ * refer to chapter "TX Feedback Element". We have to read 20 bytes
+ * in the command packet.
+ */
+static void cmpk_handle_tx_feedback(struct r8192_priv *priv, u8 *pmsg)
+{
+	cmpk_txfb_t		rx_tx_fb;	/* */
 
-/*-----------------------------------------------------------------------------
- * Function:    cmpk_handle_interrupt_status()
- *
- * Overview:    The function is responsible for extract the message from
- *				firmware. It will contain dedicated info in
- *				ws-07-0063-v06-rtl819x-command-packet-specification-070315.doc.
- * 				Please refer to chapter "Interrupt Status Element".
- *
- * Input:       struct net_device *dev,
- *			u8*	pmsg		-	Message Pointer of the command packet.
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When			Who			Remark
- *  05/12/2008	amy		Add this for rtl8192 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-static	void
-cmpk_handle_interrupt_status(
-	struct net_device *dev,
-	u8*	pmsg)
+	priv->stats.txfeedback++;
+
+	memcpy((u8*)&rx_tx_fb, pmsg, sizeof(cmpk_txfb_t));
+	/* Use tx feedback info to count TX statistics. */
+	cmpk_count_txstatistic(priv, &rx_tx_fb);
+}
+
+
+/*
+ * The function is responsible for extract the message from
+ * firmware. It will contain dedicated info in
+ * ws-07-0063-v06-rtl819x-command-packet-specification-070315.doc.
+ * Please refer to chapter "Interrupt Status Element".
+ */
+static void cmpk_handle_interrupt_status(struct r8192_priv *priv, u8 *pmsg)
 {
 	cmpk_intr_sta_t		rx_intr_status;	/* */
-	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	DMESG("---> cmpk_Handle_Interrupt_Status()\n");
-
-	/* 0. Display received message. */
-	//cmpk_Display_Message(CMPK_RX_BEACON_STATE_SIZE, pMsg);
 
 	/* 1. Extract TX feedback info from RFD to temp structure buffer. */
 	/* It seems that FW use big endian(MIPS) and DRV use little endian in
@@ -432,12 +213,6 @@ cmpk_handle_interrupt_status(
 			priv->ieee80211->bibsscoordinator = false;
 			priv->stats.txbeaconerr++;
 		}
-
-		if (rx_intr_status.interrupt_status & ISR_BcnTimerIntr)
-		{
-			cmdpkt_beacontimerinterrupt_819xusb(dev);
-		}
-
 	}
 
 	 // Other informations in interrupt status we need?
@@ -445,32 +220,16 @@ cmpk_handle_interrupt_status(
 
 	DMESG("<---- cmpk_handle_interrupt_status()\n");
 
-}	/* cmpk_handle_interrupt_status */
+}
 
 
-/*-----------------------------------------------------------------------------
- * Function:    cmpk_handle_query_config_rx()
- *
- * Overview:    The function is responsible for extract the message from
- *				firmware. It will contain dedicated info in
- *				ws-06-0063-rtl8190-command-packet-specification. Please
- *				refer to chapter "Beacon State Element".
- *
- * Input:       u8 *  pmsg	-	Message Pointer of the command packet.
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When		Who		Remark
- *  05/12/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-static	void
-cmpk_handle_query_config_rx(
-	struct net_device *dev,
-	u8*	   pmsg)
+/*
+ * The function is responsible for extract the message from
+ * firmware. It will contain dedicated info in
+ * ws-06-0063-rtl8190-command-packet-specification. Please
+ * refer to chapter "Beacon State Element".
+ */
+static void cmpk_handle_query_config_rx(struct r8192_priv *priv, u8 *pmsg)
 {
 	cmpk_query_cfg_t	rx_query_cfg;	/* */
 
@@ -493,30 +252,15 @@ cmpk_handle_query_config_rx(
 	rx_query_cfg.mask 			= (pmsg[12] << 24) | (pmsg[13] << 16) |
 								  (pmsg[14] << 8) | (pmsg[15] << 0);
 
-}	/* cmpk_Handle_Query_Config_Rx */
+}
 
 
-/*-----------------------------------------------------------------------------
- * Function:	cmpk_count_tx_status()
- *
- * Overview:	Count aggregated tx status from firmwar of one type rx command
- *				packet element id = RX_TX_STATUS.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/12/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-static	void	cmpk_count_tx_status(	struct net_device *dev,
-									cmpk_tx_status_t 	*pstx_status)
+/*
+ * Count aggregated tx status from firmwar of one type rx command
+ * packet element id = RX_TX_STATUS.
+ */
+static void cmpk_count_tx_status(struct r8192_priv *priv, cmpk_tx_status_t *pstx_status)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 
 #ifdef ENABLE_PS
 
@@ -536,92 +280,32 @@ static	void	cmpk_count_tx_status(	struct net_device *dev,
 	priv->stats.txfeedbackok	+= pstx_status->txok;
 	priv->stats.txoktotal		+= pstx_status->txok;
 
-	priv->stats.txfeedbackfail	+= pstx_status->txfail;
-	priv->stats.txerrtotal		+= pstx_status->txfail;
-
-	priv->stats.txretrycount		+= pstx_status->txretry;
-	priv->stats.txfeedbackretry	+= pstx_status->txretry;
-
-	//pAdapter->TxStats.NumTxOkBytesTotal += psTx_FB->pkt_length;
-	//pAdapter->TxStats.NumTxErrBytesTotal += psTx_FB->pkt_length;
-	//pAdapter->MgntInfo.LinkDetectInfo.NumTxOkInPeriod++;
-
-	priv->stats.txmulticast	+= pstx_status->txmcok;
-	priv->stats.txbroadcast	+= pstx_status->txbcok;
-	priv->stats.txunicast		+= pstx_status->txucok;
-
-	priv->stats.txerrmulticast	+= pstx_status->txmcfail;
-	priv->stats.txerrbroadcast	+= pstx_status->txbcfail;
-	priv->stats.txerrunicast	+= pstx_status->txucfail;
-
-	priv->stats.txbytesmulticast	+= pstx_status->txmclength;
-	priv->stats.txbytesbroadcast	+= pstx_status->txbclength;
 	priv->stats.txbytesunicast		+= pstx_status->txuclength;
-
-	priv->stats.last_packet_rate		= pstx_status->rate;
-}	/* cmpk_CountTxStatus */
+}
 
 
 
-/*-----------------------------------------------------------------------------
- * Function:	cmpk_handle_tx_status()
- *
- * Overview:	Firmware add a new tx feedback status to reduce rx command
- *				packet buffer operation load.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/12/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-static	void
-cmpk_handle_tx_status(
-	struct net_device *dev,
-	u8*	   pmsg)
+/*
+ * Firmware add a new tx feedback status to reduce rx command
+ * packet buffer operation load.
+ */
+static void cmpk_handle_tx_status(struct r8192_priv *priv, u8 *pmsg)
 {
 	cmpk_tx_status_t	rx_tx_sts;	/* */
 
 	memcpy((void*)&rx_tx_sts, (void*)pmsg, sizeof(cmpk_tx_status_t));
 	/* 2. Use tx feedback info to count TX statistics. */
-	cmpk_count_tx_status(dev, &rx_tx_sts);
+	cmpk_count_tx_status(priv, &rx_tx_sts);
 
-}	/* cmpk_Handle_Tx_Status */
+}
 
 
-/*-----------------------------------------------------------------------------
- * Function:	cmpk_handle_tx_rate_history()
- *
- * Overview:	Firmware add a new tx rate history
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/12/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-static	void
-cmpk_handle_tx_rate_history(
-	struct net_device *dev,
-	u8*	   pmsg)
+/* Firmware add a new tx rate history */
+static void cmpk_handle_tx_rate_history(struct r8192_priv *priv, u8 *pmsg)
 {
-	cmpk_tx_rahis_t	*ptxrate;
-//	RT_RF_POWER_STATE	rtState;
-	u8				i, j;
+	u8				i;
 	u16				length = sizeof(cmpk_tx_rahis_t);
 	u32				*ptemp;
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
 
 #ifdef ENABLE_PS
 	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE, (pu1Byte)(&rtState));
@@ -649,55 +333,19 @@ cmpk_handle_tx_rate_history(
 		temp2 = ptemp[i]>>16;
 		ptemp[i] = (temp1<<16)|temp2;
 	}
-
-	ptxrate = (cmpk_tx_rahis_t *)pmsg;
-
-	if (ptxrate == NULL )
-	{
-		return;
-	}
-
-	for (i = 0; i < 16; i++)
-	{
-		// Collect CCK rate packet num
-		if (i < 4)
-			priv->stats.txrate.cck[i] += ptxrate->cck[i];
-
-		// Collect OFDM rate packet num
-		if (i< 8)
-			priv->stats.txrate.ofdm[i] += ptxrate->ofdm[i];
-
-		for (j = 0; j < 4; j++)
-			priv->stats.txrate.ht_mcs[j][i] += ptxrate->ht_mcs[j][i];
-	}
-
-}	/* cmpk_Handle_Tx_Rate_History */
+}
 
 
-/*-----------------------------------------------------------------------------
- * Function:    cmpk_message_handle_rx()
- *
- * Overview:    In the function, we will capture different RX command packet
- *				info. Every RX command packet element has different message
- *				length and meaning in content. We only support three type of RX
- *				command packet now. Please refer to document
- *				ws-06-0063-rtl8190-command-packet-specification.
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When		Who		Remark
- *  05/06/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *pstats)
+/*
+ * In the function, we will capture different RX command packet
+ * info. Every RX command packet element has different message
+ * length and meaning in content. We only support three type of RX
+ * command packet now. Please refer to document
+ * ws-06-0063-rtl8190-command-packet-specification.
+ */
+u32 cmpk_message_handle_rx(struct r8192_priv *priv, struct ieee80211_rx_stats *pstats)
 {
 //	u32			debug_level = DBG_LOUD;
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	int			total_length;
 	u8			cmd_length, exe_cnt = 0;
 	u8			element_id;
@@ -740,28 +388,28 @@ u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *ps
 			case RX_TX_FEEDBACK:
 
         			RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():RX_TX_FEEDBACK\n");
-				cmpk_handle_tx_feedback (dev, pcmd_buff);
+				cmpk_handle_tx_feedback(priv, pcmd_buff);
 				cmd_length = CMPK_RX_TX_FB_SIZE;
 				break;
 
 			case RX_INTERRUPT_STATUS:
 
 			        RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():RX_INTERRUPT_STATUS\n");
-				cmpk_handle_interrupt_status(dev, pcmd_buff);
+				cmpk_handle_interrupt_status(priv, pcmd_buff);
 				cmd_length = sizeof(cmpk_intr_sta_t);
 				break;
 
 			case BOTH_QUERY_CONFIG:
 
 			        RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():BOTH_QUERY_CONFIG\n");
-				cmpk_handle_query_config_rx(dev, pcmd_buff);
+				cmpk_handle_query_config_rx(priv, pcmd_buff);
 				cmd_length = CMPK_BOTH_QUERY_CONFIG_SIZE;
 				break;
 
 			case RX_TX_STATUS:
 
 			        RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():RX_TX_STATUS\n");
-				cmpk_handle_tx_status(dev, pcmd_buff);
+				cmpk_handle_tx_status(priv, pcmd_buff);
 				cmd_length = CMPK_RX_TX_STS_SIZE;
 				break;
 
@@ -777,7 +425,7 @@ u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *ps
 				//DbgPrint(" rx tx rate history\r\n");
 
 			        RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():RX_TX_HISTORY\n");
-				cmpk_handle_tx_rate_history(dev, pcmd_buff);
+				cmpk_handle_tx_rate_history(priv, pcmd_buff);
 				cmd_length = CMPK_TX_RAHIS_SIZE;
 				break;
 
@@ -786,14 +434,6 @@ u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *ps
 			        RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():unknown CMD Element\n");
 				return 1;	/* This is a command packet. */
 		}
-		// 2007/01/22 MH Display received rx command packet info.
-		//cmpk_Display_Message(cmd_length, pcmd_buff);
-
-		// 2007/01/22 MH Add to display tx statistic.
-		//cmpk_DisplayTxStatistic(pAdapter);
-
-		/* 2007/03/09 MH Collect sidderent cmd element pkt num. */
-		priv->stats.rxcmdpkt[element_id]++;
 
 		total_length -= cmd_length;
 		pcmd_buff    += cmd_length;
@@ -801,4 +441,4 @@ u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *ps
 	return	1;	/* This is a command packet. */
 
 	RT_TRACE(COMP_EVENTS, "<----cmpk_message_handle_rx()\n");
-}	/* CMPK_Message_Handle_Rx */
+}

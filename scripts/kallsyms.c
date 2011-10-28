@@ -107,12 +107,8 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 
 	rc = fscanf(in, "%llx %c %499s\n", &s->addr, &stype, str);
 	if (rc != 3) {
-		if (rc != EOF) {
-			/* skip line. sym is used as dummy to
-			 * shut of "warn_unused_result" warning.
-			 */
-			sym = fgets(str, 500, in);
-		}
+		if (rc != EOF && fgets(str, 500, in) == NULL)
+			fprintf(stderr, "Read error or end of file.\n");
 		return -1;
 	}
 
@@ -504,6 +500,8 @@ static void optimize_result(void)
 
 			/* find the token with the breates profit value */
 			best = find_best_token();
+			if (token_profit[best] == 0)
+				break;
 
 			/* place it in the "best" table */
 			best_table_len[i] = 2;

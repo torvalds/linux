@@ -6,10 +6,12 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 
 #include <asm/bios_ebda.h>
 #include <asm/paravirt.h>
 #include <asm/pci_x86.h>
+#include <asm/pci.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
 #include <asm/apic.h>
@@ -33,7 +35,7 @@ void iommu_shutdown_noop(void) { }
 struct x86_init_ops x86_init __initdata = {
 
 	.resources = {
-		.probe_roms		= x86_init_noop,
+		.probe_roms		= probe_roms,
 		.reserve_resources	= reserve_standard_io_resources,
 		.memory_setup		= default_machine_specific_memory_setup,
 	},
@@ -59,6 +61,10 @@ struct x86_init_ops x86_init __initdata = {
 		.banner			= default_banner,
 	},
 
+	.mapping = {
+		.pagetable_reserve		= native_pagetable_reserve,
+	},
+
 	.paging = {
 		.pagetable_setup_start	= native_pagetable_setup_start,
 		.pagetable_setup_done	= native_pagetable_setup_done,
@@ -68,6 +74,7 @@ struct x86_init_ops x86_init __initdata = {
 		.setup_percpu_clockev	= setup_boot_APIC_clock,
 		.tsc_pre_init		= x86_init_noop,
 		.timer_init		= hpet_time_init,
+		.wallclock_init		= x86_init_noop,
 	},
 
 	.iommu = {
@@ -99,3 +106,8 @@ struct x86_platform_ops x86_platform = {
 };
 
 EXPORT_SYMBOL_GPL(x86_platform);
+struct x86_msi_ops x86_msi = {
+	.setup_msi_irqs = native_setup_msi_irqs,
+	.teardown_msi_irq = native_teardown_msi_irq,
+	.teardown_msi_irqs = default_teardown_msi_irqs,
+};

@@ -134,7 +134,7 @@ ENTRY(cpu_fa526_set_pte_ext)
 #endif
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__fa526_setup, #function
 __fa526_setup:
@@ -195,6 +195,9 @@ fa526_processor_functions:
 	.word	cpu_fa526_dcache_clean_area
 	.word	cpu_fa526_switch_mm
 	.word	cpu_fa526_set_pte_ext
+	.word	0
+	.word	0
+	.word	0
 	.size	fa526_processor_functions, . - fa526_processor_functions
 
 	.section ".rodata"

@@ -61,6 +61,7 @@
 #define IRQ_DB5500_SDMMC0		(IRQ_SHPI_START + 60)
 #define IRQ_DB5500_HSEM			(IRQ_SHPI_START + 61)
 #define IRQ_DB5500_SBAG			(IRQ_SHPI_START + 63)
+#define IRQ_DB5500_MODEM		(IRQ_SHPI_START + 65)
 #define IRQ_DB5500_SPI1			(IRQ_SHPI_START + 96)
 #define IRQ_DB5500_MSP2			(IRQ_SHPI_START + 98)
 #define IRQ_DB5500_SRPTIMER		(IRQ_SHPI_START + 101)
@@ -81,5 +82,32 @@
 #define IRQ_DB5500_GPIO5		(IRQ_SHPI_START + 124)
 #define IRQ_DB5500_GPIO6		(IRQ_SHPI_START + 125)
 #define IRQ_DB5500_GPIO7		(IRQ_SHPI_START + 126)
+
+#ifdef CONFIG_UX500_SOC_DB5500
+
+/*
+ * After the GPIO ones we reserve a range of IRQ:s in which virtual
+ * IRQ:s representing modem IRQ:s can be allocated
+ */
+#define IRQ_MODEM_EVENTS_BASE	IRQ_SOC_START
+#define IRQ_MODEM_EVENTS_NBR	72
+#define IRQ_MODEM_EVENTS_END	(IRQ_MODEM_EVENTS_BASE + IRQ_MODEM_EVENTS_NBR)
+
+/* List of virtual IRQ:s that are allocated from the range above */
+#define MBOX_PAIR0_VIRT_IRQ	(IRQ_MODEM_EVENTS_BASE + 43)
+#define MBOX_PAIR1_VIRT_IRQ	(IRQ_MODEM_EVENTS_BASE + 45)
+#define MBOX_PAIR2_VIRT_IRQ	(IRQ_MODEM_EVENTS_BASE + 41)
+
+/*
+ * We may have several SoCs, but only one will run at a
+ * time, so the one with most IRQs will bump this ahead,
+ * but the IRQ_SOC_START remains the same for either SoC.
+ */
+#if IRQ_SOC_END < IRQ_MODEM_EVENTS_END
+#undef IRQ_SOC_END
+#define IRQ_SOC_END		IRQ_MODEM_EVENTS_END
+#endif
+
+#endif /* CONFIG_UX500_SOC_DB5500 */
 
 #endif

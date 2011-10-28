@@ -146,7 +146,7 @@ static int nilfs_direct_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
 		if (NILFS_BMAP_USE_VBN(bmap))
 			nilfs_bmap_set_target_v(bmap, key, req.bpr_ptr);
 
-		nilfs_bmap_add_blocks(bmap, 1);
+		nilfs_inode_add_blocks(bmap->b_inode, 1);
 	}
 	return ret;
 }
@@ -168,7 +168,7 @@ static int nilfs_direct_delete(struct nilfs_bmap *bmap, __u64 key)
 	if (!ret) {
 		nilfs_bmap_commit_end_ptr(bmap, &req, dat);
 		nilfs_direct_set_ptr(bmap, key, NILFS_BMAP_INVALID_PTR);
-		nilfs_bmap_sub_blocks(bmap, 1);
+		nilfs_inode_sub_blocks(bmap->b_inode, 1);
 	}
 	return ret;
 }

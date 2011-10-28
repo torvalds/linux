@@ -34,6 +34,7 @@
 #include "drbd_int.h"
 
 static int drbd_proc_open(struct inode *inode, struct file *file);
+static int drbd_proc_release(struct inode *inode, struct file *file);
 
 
 struct proc_dir_entry *drbd_proc;
@@ -42,9 +43,22 @@ const struct file_operations drbd_proc_fops = {
 	.open		= drbd_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= single_release,
+	.release	= drbd_proc_release,
 };
 
+void seq_printf_with_thousands_grouping(struct seq_file *seq, long v)
+{
+	/* v is in kB/sec. We don't expect TiByte/sec yet. */
+	if (unlikely(v >= 1000000)) {
+		/* cool: > GiByte/s */
+		seq_printf(seq, "%ld,", v / 1000000);
+		v /= 1000000;
+		seq_printf(seq, "%03ld,%03ld", v/1000, v % 1000);
+	} else if (likely(v >= 1000))
+		seq_printf(seq, "%ld,%03ld", v/1000, v % 1000);
+	else
+		seq_printf(seq, "%ld", v);
+}
 
 /*lge
  * progress bars shamelessly adapted from driver/md/md.c
@@ -57,6 +71,7 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	unsigned long db, dt, dbdt, rt, rs_left;
 	unsigned int res;
 	int i, x, y;
+	int stalled = 0;
 
 	drbd_get_syncer_progress(mdev, &rs_left, &res);
 
@@ -70,10 +85,15 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 		seq_printf(seq, ".");
 	seq_printf(seq, "] ");
 
-	seq_printf(seq, "sync'ed:%3u.%u%% ", res / 10, res % 10);
-	/* if more than 1 GB display in MB */
-	if (mdev->rs_total > 0x100000L)
-		seq_printf(seq, "(%lu/%lu)M\n\t",
+	if (mdev->state.conn == C_VERIFY_S || mdev->state.conn == C_VERIFY_T)
+		seq_printf(seq, "verified:");
+	else
+		seq_printf(seq, "sync'ed:");
+	seq_printf(seq, "%3u.%u%% ", res / 10, res % 10);
+
+	/* if more than a few GB, display in MB */
+	if (mdev->rs_total > (4UL << (30 - BM_BLOCK_SHIFT)))
+		seq_printf(seq, "(%lu/%lu)M",
 			    (unsigned long) Bit2KB(rs_left >> 10),
 			    (unsigned long) Bit2KB(mdev->rs_total >> 10));
 	else
@@ -90,45 +110,76 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	 * db: blocks written from mark until now
 	 * rt: remaining time
 	 */
-	dt = (jiffies - mdev->rs_mark_time) / HZ;
-
-	if (dt > 20) {
-		/* if we made no update to rs_mark_time for too long,
-		 * we are stalled. show that. */
-		seq_printf(seq, "stalled\n");
-		return;
-	}
+	/* Rolling marks. last_mark+1 may just now be modified.  last_mark+2 is
+	 * at least (DRBD_SYNC_MARKS-2)*DRBD_SYNC_MARK_STEP old, and has at
+	 * least DRBD_SYNC_MARK_STEP time before it will be modified. */
+	/* ------------------------ ~18s average ------------------------ */
+	i = (mdev->rs_last_mark + 2) % DRBD_SYNC_MARKS;
+	dt = (jiffies - mdev->rs_mark_time[i]) / HZ;
+	if (dt > (DRBD_SYNC_MARK_STEP * DRBD_SYNC_MARKS))
+		stalled = 1;
 
 	if (!dt)
 		dt++;
-	db = mdev->rs_mark_left - rs_left;
+	db = mdev->rs_mark_left[i] - rs_left;
 	rt = (dt * (rs_left / (db/100+1)))/100; /* seconds */
 
 	seq_printf(seq, "finish: %lu:%02lu:%02lu",
 		rt / 3600, (rt % 3600) / 60, rt % 60);
 
-	/* current speed average over (SYNC_MARKS * SYNC_MARK_STEP) jiffies */
 	dbdt = Bit2KB(db/dt);
-	if (dbdt > 1000)
-		seq_printf(seq, " speed: %ld,%03ld",
-			dbdt/1000, dbdt % 1000);
-	else
-		seq_printf(seq, " speed: %ld", dbdt);
+	seq_printf(seq, " speed: ");
+	seq_printf_with_thousands_grouping(seq, dbdt);
+	seq_printf(seq, " (");
+	/* ------------------------- ~3s average ------------------------ */
+	if (proc_details >= 1) {
+		/* this is what drbd_rs_should_slow_down() uses */
+		i = (mdev->rs_last_mark + DRBD_SYNC_MARKS-1) % DRBD_SYNC_MARKS;
+		dt = (jiffies - mdev->rs_mark_time[i]) / HZ;
+		if (!dt)
+			dt++;
+		db = mdev->rs_mark_left[i] - rs_left;
+		dbdt = Bit2KB(db/dt);
+		seq_printf_with_thousands_grouping(seq, dbdt);
+		seq_printf(seq, " -- ");
+	}
 
+	/* --------------------- long term average ---------------------- */
 	/* mean speed since syncer started
 	 * we do account for PausedSync periods */
 	dt = (jiffies - mdev->rs_start - mdev->rs_paused) / HZ;
-	if (dt <= 0)
+	if (dt == 0)
 		dt = 1;
 	db = mdev->rs_total - rs_left;
 	dbdt = Bit2KB(db/dt);
-	if (dbdt > 1000)
-		seq_printf(seq, " (%ld,%03ld)",
-			dbdt/1000, dbdt % 1000);
-	else
-		seq_printf(seq, " (%ld)", dbdt);
+	seq_printf_with_thousands_grouping(seq, dbdt);
+	seq_printf(seq, ")");
 
-	seq_printf(seq, " K/sec\n");
+	if (mdev->state.conn == C_SYNC_TARGET ||
+	    mdev->state.conn == C_VERIFY_S) {
+		seq_printf(seq, " want: ");
+		seq_printf_with_thousands_grouping(seq, mdev->c_sync_rate);
+	}
+	seq_printf(seq, " K/sec%s\n", stalled ? " (stalled)" : "");
+
+	if (proc_details >= 1) {
+		/* 64 bit:
+		 * we convert to sectors in the display below. */
+		unsigned long bm_bits = drbd_bm_bits(mdev);
+		unsigned long bit_pos;
+		if (mdev->state.conn == C_VERIFY_S ||
+		    mdev->state.conn == C_VERIFY_T)
+			bit_pos = bm_bits - mdev->ov_left;
+		else
+			bit_pos = mdev->bm_resync_fo;
+		/* Total sectors may be slightly off for oddly
+		 * sized devices. So what. */
+		seq_printf(seq,
+			"\t%3d%% sector pos: %llu/%llu\n",
+			(int)(bit_pos / (bm_bits/100+1)),
+			(unsigned long long)bit_pos * BM_SECT_PER_BIT,
+			(unsigned long long)bm_bits * BM_SECT_PER_BIT);
+	}
 }
 
 static void resync_dump_detail(struct seq_file *seq, struct lc_element *e)
@@ -151,7 +202,6 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 		[WO_none] = 'n',
 		[WO_drain_io] = 'd',
 		[WO_bdev_flush] = 'f',
-		[WO_bio_barrier] = 'b',
 	};
 
 	seq_printf(seq, "version: " REL_VERSION " (api:%d/proto:%d-%d)\n%s\n",
@@ -196,7 +246,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			seq_printf(seq, "%2d: cs:Unconfigured\n", i);
 		} else {
 			seq_printf(seq,
-			   "%2d: cs:%s ro:%s/%s ds:%s/%s %c %c%c%c%c%c\n"
+			   "%2d: cs:%s ro:%s/%s ds:%s/%s %c %c%c%c%c%c%c\n"
 			   "    ns:%u nr:%u dw:%u dr:%u al:%u bm:%u "
 			   "lo:%d pe:%d ua:%d ap:%d ep:%d wo:%c",
 			   i, sn,
@@ -206,11 +256,12 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			   drbd_disk_str(mdev->state.pdsk),
 			   (mdev->net_conf == NULL ? ' ' :
 			    (mdev->net_conf->wire_protocol - DRBD_PROT_A+'A')),
-			   mdev->state.susp ? 's' : 'r',
+			   is_susp(mdev->state) ? 's' : 'r',
 			   mdev->state.aftr_isp ? 'a' : '-',
 			   mdev->state.peer_isp ? 'p' : '-',
 			   mdev->state.user_isp ? 'u' : '-',
 			   mdev->congestion_reason ?: '-',
+			   test_bit(AL_SUSPENDED, &mdev->flags) ? 's' : '-',
 			   mdev->send_cnt/2,
 			   mdev->recv_cnt/2,
 			   mdev->writ_cnt/2,
@@ -225,19 +276,15 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			   mdev->epochs,
 			   write_ordering_chars[mdev->write_ordering]
 			);
-			seq_printf(seq, " oos:%lu\n",
-				   Bit2KB(drbd_bm_total_weight(mdev)));
+			seq_printf(seq, " oos:%llu\n",
+				   Bit2KB((unsigned long long)
+					   drbd_bm_total_weight(mdev)));
 		}
 		if (mdev->state.conn == C_SYNC_SOURCE ||
-		    mdev->state.conn == C_SYNC_TARGET)
+		    mdev->state.conn == C_SYNC_TARGET ||
+		    mdev->state.conn == C_VERIFY_S ||
+		    mdev->state.conn == C_VERIFY_T)
 			drbd_syncer_progress(mdev, seq);
-
-		if (mdev->state.conn == C_VERIFY_S || mdev->state.conn == C_VERIFY_T)
-			seq_printf(seq, "\t%3d%%      %lu/%lu\n",
-				   (int)((mdev->rs_total-mdev->ov_left) /
-					 (mdev->rs_total/100+1)),
-				   mdev->rs_total - mdev->ov_left,
-				   mdev->rs_total);
 
 		if (proc_details >= 1 && get_ldev_if_state(mdev, D_FAILED)) {
 			lc_seq_printf_stats(seq, mdev->resync);
@@ -258,7 +305,15 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 
 static int drbd_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, drbd_seq_show, PDE(inode)->data);
+	if (try_module_get(THIS_MODULE))
+		return single_open(file, drbd_seq_show, PDE(inode)->data);
+	return -ENODEV;
+}
+
+static int drbd_proc_release(struct inode *inode, struct file *file)
+{
+	module_put(THIS_MODULE);
+	return single_release(inode, file);
 }
 
 /* PROC FS stuff end */

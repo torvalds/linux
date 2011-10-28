@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/namei.h>
 
-#define MLOG_MASK_PREFIX ML_DCACHE
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"
@@ -39,23 +38,48 @@
 #include "file.h"
 #include "inode.h"
 #include "super.h"
+#include "ocfs2_trace.h"
+
+void ocfs2_dentry_attach_gen(struct dentry *dentry)
+{
+	unsigned long gen =
+		OCFS2_I(dentry->d_parent->d_inode)->ip_dir_lock_gen;
+	BUG_ON(dentry->d_inode);
+	dentry->d_fsdata = (void *)gen;
+}
 
 
 static int ocfs2_dentry_revalidate(struct dentry *dentry,
 				   struct nameidata *nd)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode;
 	int ret = 0;    /* if all else fails, just return false */
-	struct ocfs2_super *osb = OCFS2_SB(dentry->d_sb);
+	struct ocfs2_super *osb;
 
-	mlog_entry("(0x%p, '%.*s')\n", dentry,
-		   dentry->d_name.len, dentry->d_name.name);
+	if (nd && nd->flags & LOOKUP_RCU)
+		return -ECHILD;
 
-	/* Never trust a negative dentry - force a new lookup. */
+	inode = dentry->d_inode;
+	osb = OCFS2_SB(dentry->d_sb);
+
+	trace_ocfs2_dentry_revalidate(dentry, dentry->d_name.len,
+				      dentry->d_name.name);
+
+	/* For a negative dentry -
+	 * check the generation number of the parent and compare with the
+	 * one stored in the inode.
+	 */
 	if (inode == NULL) {
-		mlog(0, "negative dentry: %.*s\n", dentry->d_name.len,
-		     dentry->d_name.name);
-		goto bail;
+		unsigned long gen = (unsigned long) dentry->d_fsdata;
+		unsigned long pgen =
+			OCFS2_I(dentry->d_parent->d_inode)->ip_dir_lock_gen;
+
+		trace_ocfs2_dentry_revalidate_negative(dentry->d_name.len,
+						       dentry->d_name.name,
+						       pgen, gen);
+		if (gen != pgen)
+			goto bail;
+		goto valid;
 	}
 
 	BUG_ON(!osb);
@@ -67,8 +91,8 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry,
 	/* did we or someone else delete this inode? */
 	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_DELETED) {
 		spin_unlock(&OCFS2_I(inode)->ip_lock);
-		mlog(0, "inode (%llu) deleted, returning false\n",
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+		trace_ocfs2_dentry_revalidate_delete(
+				(unsigned long long)OCFS2_I(inode)->ip_blkno);
 		goto bail;
 	}
 	spin_unlock(&OCFS2_I(inode)->ip_lock);
@@ -78,10 +102,9 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry,
 	 * inode nlink hits zero, it never goes back.
 	 */
 	if (inode->i_nlink == 0) {
-		mlog(0, "Inode %llu orphaned, returning false "
-		     "dir = %d\n",
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
-		     S_ISDIR(inode->i_mode));
+		trace_ocfs2_dentry_revalidate_orphaned(
+			(unsigned long long)OCFS2_I(inode)->ip_blkno,
+			S_ISDIR(inode->i_mode));
 		goto bail;
 	}
 
@@ -90,17 +113,16 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry,
 	 * redo it.
 	 */
 	if (!dentry->d_fsdata) {
-		mlog(0, "Inode %llu doesn't have dentry lock, "
-		     "returning false\n",
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+		trace_ocfs2_dentry_revalidate_nofsdata(
+				(unsigned long long)OCFS2_I(inode)->ip_blkno);
 		goto bail;
 	}
 
+valid:
 	ret = 1;
 
 bail:
-	mlog_exit(ret);
-
+	trace_ocfs2_dentry_revalidate_ret(ret);
 	return ret;
 }
 
@@ -151,23 +173,25 @@ struct dentry *ocfs2_find_local_alias(struct inode *inode,
 	struct list_head *p;
 	struct dentry *dentry = NULL;
 
-	spin_lock(&dcache_lock);
-
+	spin_lock(&inode->i_lock);
 	list_for_each(p, &inode->i_dentry) {
 		dentry = list_entry(p, struct dentry, d_alias);
 
+		spin_lock(&dentry->d_lock);
 		if (ocfs2_match_dentry(dentry, parent_blkno, skip_unhashed)) {
-			mlog(0, "dentry found: %.*s\n",
-			     dentry->d_name.len, dentry->d_name.name);
+			trace_ocfs2_find_local_alias(dentry->d_name.len,
+						     dentry->d_name.name);
 
-			dget_locked(dentry);
+			dget_dlock(dentry);
+			spin_unlock(&dentry->d_lock);
 			break;
 		}
+		spin_unlock(&dentry->d_lock);
 
 		dentry = NULL;
 	}
 
-	spin_unlock(&dcache_lock);
+	spin_unlock(&inode->i_lock);
 
 	return dentry;
 }
@@ -214,9 +238,8 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 	struct dentry *alias;
 	struct ocfs2_dentry_lock *dl = dentry->d_fsdata;
 
-	mlog(0, "Attach \"%.*s\", parent %llu, fsdata: %p\n",
-	     dentry->d_name.len, dentry->d_name.name,
-	     (unsigned long long)parent_blkno, dl);
+	trace_ocfs2_dentry_attach_lock(dentry->d_name.len, dentry->d_name.name,
+				       (unsigned long long)parent_blkno, dl);
 
 	/*
 	 * Negative dentry. We ignore these for now.
@@ -226,6 +249,12 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 	 */
 	if (!inode)
 		return 0;
+
+	if (!dentry->d_inode && dentry->d_fsdata) {
+		/* Converting a negative dentry to positive
+		   Clear dentry->d_fsdata */
+		dentry->d_fsdata = dl = NULL;
+	}
 
 	if (dl) {
 		mlog_bug_on_msg(dl->dl_parent_blkno != parent_blkno,
@@ -260,7 +289,9 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 				(unsigned long long)parent_blkno,
 				(unsigned long long)dl->dl_parent_blkno);
 
-		mlog(0, "Found: %s\n", dl->dl_lockres.l_name);
+		trace_ocfs2_dentry_attach_lock_found(dl->dl_lockres.l_name,
+				(unsigned long long)parent_blkno,
+				(unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 		goto out_attach;
 	}

@@ -36,7 +36,7 @@
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/reboot.h>
@@ -54,6 +54,7 @@
 #define DAC960_GAM_MINOR	252
 
 
+static DEFINE_MUTEX(DAC960_mutex);
 static DAC960_Controller_T *DAC960_Controllers[DAC960_MaxControllers];
 static int DAC960_ControllerCount;
 static struct proc_dir_entry *DAC960_ProcDirectoryEntry;
@@ -81,7 +82,7 @@ static int DAC960_open(struct block_device *bdev, fmode_t mode)
 	int drive_nr = (long)disk->private_data;
 	int ret = -ENXIO;
 
-	lock_kernel();
+	mutex_lock(&DAC960_mutex);
 	if (p->FirmwareType == DAC960_V1_Controller) {
 		if (p->V1.LogicalDriveInformation[drive_nr].
 		    LogicalDriveState == DAC960_V1_LogicalDrive_Offline)
@@ -99,7 +100,7 @@ static int DAC960_open(struct block_device *bdev, fmode_t mode)
 		goto out;
 	ret = 0;
 out:
-	unlock_kernel();
+	mutex_unlock(&DAC960_mutex);
 	return ret;
 }
 
@@ -139,13 +140,14 @@ static int DAC960_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int DAC960_media_changed(struct gendisk *disk)
+static unsigned int DAC960_check_events(struct gendisk *disk,
+					unsigned int clearing)
 {
 	DAC960_Controller_T *p = disk->queue->queuedata;
 	int drive_nr = (long)disk->private_data;
 
 	if (!p->LogicalDriveInitiallyAccessible[drive_nr])
-		return 1;
+		return DISK_EVENT_MEDIA_CHANGE;
 	return 0;
 }
 
@@ -162,7 +164,7 @@ static const struct block_device_operations DAC960_BlockDeviceOperations = {
 	.owner			= THIS_MODULE,
 	.open			= DAC960_open,
 	.getgeo			= DAC960_getgeo,
-	.media_changed		= DAC960_media_changed,
+	.check_events		= DAC960_check_events,
 	.revalidate_disk	= DAC960_revalidate_disk,
 };
 
@@ -1788,7 +1790,7 @@ static bool DAC960_V2_ReadControllerConfiguration(DAC960_Controller_T
   unsigned short LogicalDeviceNumber = 0;
   int ModelNameLength;
 
-  /* Get data into dma-able area, then copy into permanant location */
+  /* Get data into dma-able area, then copy into permanent location */
   if (!DAC960_V2_NewControllerInfo(Controller))
     return DAC960_Failure(Controller, "GET CONTROLLER INFO");
   memcpy(ControllerInfo, Controller->V2.NewControllerInformation,
@@ -6625,7 +6627,7 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
   long ErrorCode = 0;
   if (!capable(CAP_SYS_ADMIN)) return -EACCES;
 
-  lock_kernel();
+  mutex_lock(&DAC960_mutex);
   switch (Request)
     {
     case DAC960_IOCTL_GET_CONTROLLER_COUNT:
@@ -7056,13 +7058,14 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
       default:
 	ErrorCode = -ENOTTY;
     }
-  unlock_kernel();
+  mutex_unlock(&DAC960_mutex);
   return ErrorCode;
 }
 
 static const struct file_operations DAC960_gam_fops = {
 	.owner		= THIS_MODULE,
-	.unlocked_ioctl	= DAC960_gam_ioctl
+	.unlocked_ioctl	= DAC960_gam_ioctl,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice DAC960_gam_dev = {

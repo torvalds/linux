@@ -1,14 +1,8 @@
 #ifndef __ASM_SPARC_PERF_EVENT_H
 #define __ASM_SPARC_PERF_EVENT_H
 
-extern void set_perf_event_pending(void);
-
-#define	PERF_EVENT_INDEX_OFFSET	0
-
 #ifdef CONFIG_PERF_EVENTS
 #include <asm/ptrace.h>
-
-extern void init_hw_perf_events(void);
 
 #define perf_arch_fetch_caller_regs(regs, ip)		\
 do {							\
@@ -30,8 +24,6 @@ do {							\
 	(regs)->u_regs[UREG_I6] = _fp;			\
 	(regs)->u_regs[UREG_I7] = _i7;			\
 } while (0)
-#else
-static inline void init_hw_perf_events(void)	{ }
 #endif
 
 #endif

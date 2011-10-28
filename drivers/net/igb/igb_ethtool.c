@@ -86,12 +86,16 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	IGB_STAT("tx_smbus", stats.mgptc),
 	IGB_STAT("rx_smbus", stats.mgprc),
 	IGB_STAT("dropped_smbus", stats.mgpdc),
+	IGB_STAT("os2bmc_rx_by_bmc", stats.o2bgptc),
+	IGB_STAT("os2bmc_tx_by_bmc", stats.b2ospc),
+	IGB_STAT("os2bmc_tx_by_host", stats.o2bspc),
+	IGB_STAT("os2bmc_rx_by_host", stats.b2ogprc),
 };
 
 #define IGB_NETDEV_STAT(_net_stat) { \
 	.stat_string = __stringify(_net_stat), \
-	.sizeof_stat = FIELD_SIZEOF(struct net_device_stats, _net_stat), \
-	.stat_offset = offsetof(struct net_device_stats, _net_stat) \
+	.sizeof_stat = FIELD_SIZEOF(struct rtnl_link_stats64, _net_stat), \
+	.stat_offset = offsetof(struct rtnl_link_stats64, _net_stat) \
 }
 static const struct igb_stats igb_gstrings_net_stats[] = {
 	IGB_NETDEV_STAT(rx_errors),
@@ -111,8 +115,9 @@ static const struct igb_stats igb_gstrings_net_stats[] = {
 	(sizeof(igb_gstrings_net_stats) / sizeof(struct igb_stats))
 #define IGB_RX_QUEUE_STATS_LEN \
 	(sizeof(struct igb_rx_queue_stats) / sizeof(u64))
-#define IGB_TX_QUEUE_STATS_LEN \
-	(sizeof(struct igb_tx_queue_stats) / sizeof(u64))
+
+#define IGB_TX_QUEUE_STATS_LEN 3 /* packets, bytes, restart_queue */
+
 #define IGB_QUEUE_STATS_LEN \
 	((((struct igb_adapter *)netdev_priv(netdev))->num_rx_queues * \
 	  IGB_RX_QUEUE_STATS_LEN) + \
@@ -173,11 +178,11 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 		if ((status & E1000_STATUS_SPEED_1000) ||
 		    hw->phy.media_type != e1000_media_type_copper)
-			ecmd->speed = SPEED_1000;
+			ethtool_cmd_speed_set(ecmd, SPEED_1000);
 		else if (status & E1000_STATUS_SPEED_100)
-			ecmd->speed = SPEED_100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 		else
-			ecmd->speed = SPEED_10;
+			ethtool_cmd_speed_set(ecmd, SPEED_10);
 
 		if ((status & E1000_STATUS_FD) ||
 		    hw->phy.media_type != e1000_media_type_copper)
@@ -185,7 +190,7 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 
@@ -218,7 +223,8 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		if (adapter->fc_autoneg)
 			hw->fc.requested_mode = e1000_fc_default;
 	} else {
-		if (igb_set_spd_dplx(adapter, ecmd->speed + ecmd->duplex)) {
+		u32 speed = ethtool_cmd_speed(ecmd);
+		if (igb_set_spd_dplx(adapter, speed, ecmd->duplex)) {
 			clear_bit(__IGB_RESETTING, &adapter->state);
 			return -EINVAL;
 		}
@@ -602,7 +608,10 @@ static void igb_get_regs(struct net_device *netdev,
 	regs_buff[548] = rd32(E1000_TDFT);
 	regs_buff[549] = rd32(E1000_TDFHS);
 	regs_buff[550] = rd32(E1000_TDFPC);
-
+	regs_buff[551] = adapter->stats.o2bgptc;
+	regs_buff[552] = adapter->stats.b2ospc;
+	regs_buff[553] = adapter->stats.o2bspc;
+	regs_buff[554] = adapter->stats.b2ogprc;
 }
 
 static int igb_get_eeprom_len(struct net_device *netdev)
@@ -713,7 +722,7 @@ static int igb_set_eeprom(struct net_device *netdev,
 	/* Update the checksum over the first part of the EEPROM if needed
 	 * and flush shadow RAM for 82573 controllers */
 	if ((ret_val == 0) && ((first_word <= NVM_CHECKSUM_REG)))
-		igb_update_nvm_checksum(hw);
+		hw->nvm.ops.update(hw);
 
 	kfree(eeprom_buff);
 	return ret_val;
@@ -726,8 +735,9 @@ static void igb_get_drvinfo(struct net_device *netdev,
 	char firmware_version[32];
 	u16 eeprom_data;
 
-	strncpy(drvinfo->driver,  igb_driver_name, 32);
-	strncpy(drvinfo->version, igb_driver_version, 32);
+	strncpy(drvinfo->driver,  igb_driver_name, sizeof(drvinfo->driver) - 1);
+	strncpy(drvinfo->version, igb_driver_version,
+		sizeof(drvinfo->version) - 1);
 
 	/* EEPROM image version # is reported as firmware version # for
 	 * 82575 controllers */
@@ -737,8 +747,10 @@ static void igb_get_drvinfo(struct net_device *netdev,
 		(eeprom_data & 0x0FF0) >> 4,
 		eeprom_data & 0x000F);
 
-	strncpy(drvinfo->fw_version, firmware_version, 32);
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	strncpy(drvinfo->fw_version, firmware_version,
+		sizeof(drvinfo->fw_version) - 1);
+	strncpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info) - 1);
 	drvinfo->n_stats = IGB_STATS_LEN;
 	drvinfo->testinfo_len = IGB_TEST_LEN;
 	drvinfo->regdump_len = igb_get_regs_len(netdev);
@@ -1069,7 +1081,7 @@ static bool reg_pattern_test(struct igb_adapter *adapter, u64 *data,
 		{0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
 	for (pat = 0; pat < ARRAY_SIZE(_test); pat++) {
 		wr32(reg, (_test[pat] & write));
-		val = rd32(reg);
+		val = rd32(reg) & mask;
 		if (val != (_test[pat] & write & mask)) {
 			dev_err(&adapter->pdev->dev, "pattern test reg %04X "
 				"failed: got 0x%08X expected 0x%08X\n",
@@ -1952,27 +1964,28 @@ static int igb_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 /* bit defines for adapter->led_status */
 #define IGB_LED_ON		0
 
-static int igb_phys_id(struct net_device *netdev, u32 data)
+static int igb_set_phys_id(struct net_device *netdev,
+			   enum ethtool_phys_id_state state)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	unsigned long timeout;
 
-	timeout = data * 1000;
-
-	/*
-	 *  msleep_interruptable only accepts unsigned int so we are limited
-	 * in how long a duration we can wait
-	 */
-	if (!timeout || timeout > UINT_MAX)
-		timeout = UINT_MAX;
-
-	igb_blink_led(hw);
-	msleep_interruptible(timeout);
-
-	igb_led_off(hw);
-	clear_bit(IGB_LED_ON, &adapter->led_status);
-	igb_cleanup_led(hw);
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		igb_blink_led(hw);
+		return 2;
+	case ETHTOOL_ID_ON:
+		igb_blink_led(hw);
+		break;
+	case ETHTOOL_ID_OFF:
+		igb_led_off(hw);
+		break;
+	case ETHTOOL_ID_INACTIVE:
+		igb_led_off(hw);
+		clear_bit(IGB_LED_ON, &adapter->led_status);
+		igb_cleanup_led(hw);
+		break;
+	}
 
 	return 0;
 }
@@ -1997,6 +2010,12 @@ static int igb_set_coalesce(struct net_device *netdev,
 
 	if ((adapter->flags & IGB_FLAG_QUEUE_PAIRS) && ec->tx_coalesce_usecs)
 		return -EINVAL;
+
+	/* If ITR is disabled, disable DMAC */
+	if (ec->rx_coalesce_usecs == 0) {
+		if (adapter->flags & IGB_FLAG_DMAC)
+			adapter->flags &= ~IGB_FLAG_DMAC;
+	}
 
 	/* convert to rate of irq's per second */
 	if (ec->rx_coalesce_usecs && ec->rx_coalesce_usecs <= 3)
@@ -2070,12 +2089,14 @@ static void igb_get_ethtool_stats(struct net_device *netdev,
 				  struct ethtool_stats *stats, u64 *data)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct net_device_stats *net_stats = &netdev->stats;
-	u64 *queue_stat;
-	int i, j, k;
+	struct rtnl_link_stats64 *net_stats = &adapter->stats64;
+	unsigned int start;
+	struct igb_ring *ring;
+	int i, j;
 	char *p;
 
-	igb_update_stats(adapter);
+	spin_lock(&adapter->stats64_lock);
+	igb_update_stats(adapter, net_stats);
 
 	for (i = 0; i < IGB_GLOBAL_STATS_LEN; i++) {
 		p = (char *)adapter + igb_gstrings_stats[i].stat_offset;
@@ -2088,15 +2109,36 @@ static void igb_get_ethtool_stats(struct net_device *netdev,
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 	for (j = 0; j < adapter->num_tx_queues; j++) {
-		queue_stat = (u64 *)&adapter->tx_ring[j]->tx_stats;
-		for (k = 0; k < IGB_TX_QUEUE_STATS_LEN; k++, i++)
-			data[i] = queue_stat[k];
+		u64	restart2;
+
+		ring = adapter->tx_ring[j];
+		do {
+			start = u64_stats_fetch_begin_bh(&ring->tx_syncp);
+			data[i]   = ring->tx_stats.packets;
+			data[i+1] = ring->tx_stats.bytes;
+			data[i+2] = ring->tx_stats.restart_queue;
+		} while (u64_stats_fetch_retry_bh(&ring->tx_syncp, start));
+		do {
+			start = u64_stats_fetch_begin_bh(&ring->tx_syncp2);
+			restart2  = ring->tx_stats.restart_queue2;
+		} while (u64_stats_fetch_retry_bh(&ring->tx_syncp2, start));
+		data[i+2] += restart2;
+
+		i += IGB_TX_QUEUE_STATS_LEN;
 	}
 	for (j = 0; j < adapter->num_rx_queues; j++) {
-		queue_stat = (u64 *)&adapter->rx_ring[j]->rx_stats;
-		for (k = 0; k < IGB_RX_QUEUE_STATS_LEN; k++, i++)
-			data[i] = queue_stat[k];
+		ring = adapter->rx_ring[j];
+		do {
+			start = u64_stats_fetch_begin_bh(&ring->rx_syncp);
+			data[i]   = ring->rx_stats.packets;
+			data[i+1] = ring->rx_stats.bytes;
+			data[i+2] = ring->rx_stats.drops;
+			data[i+3] = ring->rx_stats.csum_err;
+			data[i+4] = ring->rx_stats.alloc_failed;
+		} while (u64_stats_fetch_retry_bh(&ring->rx_syncp, start));
+		i += IGB_RX_QUEUE_STATS_LEN;
 	}
+	spin_unlock(&adapter->stats64_lock);
 }
 
 static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
@@ -2175,7 +2217,7 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.set_tso                = igb_set_tso,
 	.self_test              = igb_diag_test,
 	.get_strings            = igb_get_strings,
-	.phys_id                = igb_phys_id,
+	.set_phys_id            = igb_set_phys_id,
 	.get_sset_count         = igb_get_sset_count,
 	.get_ethtool_stats      = igb_get_ethtool_stats,
 	.get_coalesce           = igb_get_coalesce,

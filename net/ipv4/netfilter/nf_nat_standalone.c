@@ -31,6 +31,7 @@
 #ifdef CONFIG_XFRM
 static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 {
+	struct flowi4 *fl4 = &fl->u.ip4;
 	const struct nf_conn *ct;
 	const struct nf_conntrack_tuple *t;
 	enum ip_conntrack_info ctinfo;
@@ -49,25 +50,25 @@ static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 		statusbit = IPS_SRC_NAT;
 
 	if (ct->status & statusbit) {
-		fl->fl4_dst = t->dst.u3.ip;
+		fl4->daddr = t->dst.u3.ip;
 		if (t->dst.protonum == IPPROTO_TCP ||
 		    t->dst.protonum == IPPROTO_UDP ||
 		    t->dst.protonum == IPPROTO_UDPLITE ||
 		    t->dst.protonum == IPPROTO_DCCP ||
 		    t->dst.protonum == IPPROTO_SCTP)
-			fl->fl_ip_dport = t->dst.u.tcp.port;
+			fl4->fl4_dport = t->dst.u.tcp.port;
 	}
 
 	statusbit ^= IPS_NAT_MASK;
 
 	if (ct->status & statusbit) {
-		fl->fl4_src = t->src.u3.ip;
+		fl4->saddr = t->src.u3.ip;
 		if (t->dst.protonum == IPPROTO_TCP ||
 		    t->dst.protonum == IPPROTO_UDP ||
 		    t->dst.protonum == IPPROTO_UDPLITE ||
 		    t->dst.protonum == IPPROTO_DCCP ||
 		    t->dst.protonum == IPPROTO_SCTP)
-			fl->fl_ip_sport = t->src.u.tcp.port;
+			fl4->fl4_sport = t->src.u.tcp.port;
 	}
 }
 #endif
@@ -115,7 +116,7 @@ nf_nat_fn(unsigned int hooknum,
 
 	switch (ctinfo) {
 	case IP_CT_RELATED:
-	case IP_CT_RELATED+IP_CT_IS_REPLY:
+	case IP_CT_RELATED_REPLY:
 		if (ip_hdr(skb)->protocol == IPPROTO_ICMP) {
 			if (!nf_nat_icmp_reply_translation(ct, ctinfo,
 							   hooknum, skb))
@@ -143,7 +144,7 @@ nf_nat_fn(unsigned int hooknum,
 	default:
 		/* ESTABLISHED */
 		NF_CT_ASSERT(ctinfo == IP_CT_ESTABLISHED ||
-			     ctinfo == (IP_CT_ESTABLISHED+IP_CT_IS_REPLY));
+			     ctinfo == IP_CT_ESTABLISHED_REPLY);
 	}
 
 	return nf_nat_packet(ct, ctinfo, hooknum, skb);

@@ -89,6 +89,27 @@
 #define get_cycles_low() __insn_mfspr(SPR_CYCLE)   /* just get all 64 bits */
 #endif
 
+#if !CHIP_HAS_MF_WAITS_FOR_VICTIMS()
+#include <hv/syscall_public.h>
+/*
+ * Issue an uncacheable load to each memory controller, then
+ * wait until those loads have completed.
+ */
+static inline void __mb_incoherent(void)
+{
+	long clobber_r10;
+	asm volatile("swint2"
+		     : "=R10" (clobber_r10)
+		     : "R10" (HV_SYS_fence_incoherent)
+		     : "r0", "r1", "r2", "r3", "r4",
+		       "r5", "r6", "r7", "r8", "r9",
+		       "r11", "r12", "r13", "r14",
+		       "r15", "r16", "r17", "r18", "r19",
+		       "r20", "r21", "r22", "r23", "r24",
+		       "r25", "r26", "r27", "r28", "r29");
+}
+#endif
+
 /* Fence to guarantee visibility of stores to incoherent memory. */
 static inline void
 mb_incoherent(void)
@@ -97,7 +118,6 @@ mb_incoherent(void)
 
 #if !CHIP_HAS_MF_WAITS_FOR_VICTIMS()
 	{
-		int __mb_incoherent(void);
 #if CHIP_HAS_TILE_WRITE_PENDING()
 		const unsigned long WRITE_TIMEOUT_CYCLES = 400;
 		unsigned long start = get_cycles_low();
@@ -161,7 +181,7 @@ extern struct task_struct *_switch_to(struct task_struct *prev,
 /* Helper function for _switch_to(). */
 extern struct task_struct *__switch_to(struct task_struct *prev,
 				       struct task_struct *next,
-				       unsigned long new_system_save_1_0);
+				       unsigned long new_system_save_k_0);
 
 /* Address that switched-away from tasks are at. */
 extern unsigned long get_switch_to_pc(void);
@@ -213,13 +233,6 @@ int hardwall_deactivate(struct task_struct *task);
 		hardwall_deactivate(p); \
 } while (0)
 #endif
-
-/* Invoke the simulator "syscall" mechanism (see arch/tile/kernel/entry.S). */
-extern int _sim_syscall(int syscall_num, ...);
-#define sim_syscall(syscall_num, ...) \
-	_sim_syscall(SIM_CONTROL_SYSCALL + \
-		((syscall_num) << _SIM_CONTROL_OPERATOR_BITS), \
-		## __VA_ARGS__)
 
 /*
  * Kernel threads can check to see if they need to migrate their

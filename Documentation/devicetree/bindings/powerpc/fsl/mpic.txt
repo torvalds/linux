@@ -1,0 +1,211 @@
+=====================================================================
+Freescale MPIC Interrupt Controller Node
+Copyright (C) 2010,2011 Freescale Semiconductor Inc.
+=====================================================================
+
+The Freescale MPIC interrupt controller is found on all PowerQUICC
+and QorIQ processors and is compatible with the Open PIC.  The
+notable difference from Open PIC binding is the addition of 2
+additional cells in the interrupt specifier defining interrupt type
+information.
+
+PROPERTIES
+
+  - compatible
+      Usage: required
+      Value type: <string>
+      Definition: Shall include "fsl,mpic".  Freescale MPIC
+          controllers compatible with this binding have Block
+          Revision Registers BRR1 and BRR2 at offset 0x0 and
+          0x10 in the MPIC.
+
+  - reg
+      Usage: required
+      Value type: <prop-encoded-array>
+      Definition: A standard property.  Specifies the physical
+          offset and length of the device's registers within the
+          CCSR address space.
+
+  - interrupt-controller
+      Usage: required
+      Value type: <empty>
+      Definition: Specifies that this node is an interrupt
+          controller
+
+  - #interrupt-cells
+      Usage: required
+      Value type: <u32>
+      Definition: Shall be 2 or 4.  A value of 2 means that interrupt
+          specifiers do not contain the interrupt-type or type-specific
+          information cells.
+
+  - #address-cells
+      Usage: required
+      Value type: <u32>
+      Definition: Shall be 0.
+
+  - pic-no-reset
+      Usage: optional
+      Value type: <empty>
+      Definition: The presence of this property specifies that the
+          MPIC must not be reset by the client program, and that
+          the boot program has initialized all interrupt source
+          configuration registers to a sane state-- masked or
+          directed at other cores.  This ensures that the client
+          program will not receive interrupts for sources not belonging
+          to the client.  The presence of this property also mandates
+          that any initialization related to interrupt sources shall
+          be limited to sources explicitly referenced in the device tree.
+       
+INTERRUPT SPECIFIER DEFINITION
+
+  Interrupt specifiers consists of 4 cells encoded as
+  follows:
+
+   <1st-cell>   interrupt-number
+
+                Identifies the interrupt source.  The meaning
+                depends on the type of interrupt.
+
+                Note: If the interrupt-type cell is undefined
+                (i.e. #interrupt-cells = 2), this cell
+                should be interpreted the same as for
+                interrupt-type 0-- i.e. an external or
+                normal SoC device interrupt.
+
+   <2nd-cell>   level-sense information, encoded as follows:
+                    0 = low-to-high edge triggered
+                    1 = active low level-sensitive
+                    2 = active high level-sensitive
+                    3 = high-to-low edge triggered
+
+   <3rd-cell>   interrupt-type
+
+                The following types are supported:
+
+                  0 = external or normal SoC device interrupt
+
+                      The interrupt-number cell contains
+                      the SoC device interrupt number.  The
+                      type-specific cell is undefined.  The
+                      interrupt-number is derived from the
+                      MPIC a block of registers referred to as
+                      the "Interrupt Source Configuration Registers".
+                      Each source has 32-bytes of registers
+                      (vector/priority and destination) in this
+                      region.   So interrupt 0 is at offset 0x0,
+                      interrupt 1 is at offset 0x20, and so on.
+
+                  1 = error interrupt
+
+                      The interrupt-number cell contains
+                      the SoC device interrupt number for
+                      the error interrupt.  The type-specific
+                      cell identifies the specific error
+                      interrupt number.
+
+                  2 = MPIC inter-processor interrupt (IPI)
+
+                      The interrupt-number cell identifies
+                      the MPIC IPI number.  The type-specific
+                      cell is undefined.
+
+                  3 = MPIC timer interrupt
+
+                      The interrupt-number cell identifies
+                      the MPIC timer number.  The type-specific
+                      cell is undefined.
+
+   <4th-cell>   type-specific information
+
+                The type-specific cell is encoded as follows:
+
+                 - For interrupt-type 1 (error interrupt),
+                   the type-specific cell contains the
+                   bit number of the error interrupt in the
+                   Error Interrupt Summary Register.
+
+EXAMPLE 1
+	/*
+	 * mpic interrupt controller with 4 cells per specifier
+	 */
+	mpic: pic@40000 {
+		compatible = "fsl,mpic";
+		interrupt-controller;
+		#interrupt-cells = <4>;
+		#address-cells = <0>;
+		reg = <0x40000 0x40000>;
+	};
+
+EXAMPLE 2
+	/*
+	 * The MPC8544 I2C controller node has an internal
+	 * interrupt number of 27.  As per the reference manual
+	 * this corresponds to interrupt source configuration
+	 * registers at 0x5_0560.
+	 *
+	 * The interrupt source configuration registers begin
+	 * at 0x5_0000.
+	 *
+	 * To compute the interrupt specifier interrupt number
+         *
+	 *       0x560 >> 5 = 43
+	 *
+	 * The interrupt source configuration registers begin
+	 * at 0x5_0000, and so the i2c vector/priority registers
+	 * are at 0x5_0560.
+	 */
+	i2c@3000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cell-index = <0>;
+		compatible = "fsl-i2c";
+		reg = <0x3000 0x100>;
+		interrupts = <43 2>;
+		interrupt-parent = <&mpic>;
+		dfsrr;
+	};
+
+
+EXAMPLE 3
+	/*
+	 *  Definition of a node defining the 4
+	 *  MPIC IPI interrupts.  Note the interrupt
+	 *  type of 2.
+	 */
+	ipi@410a0 {
+		compatible = "fsl,mpic-ipi";
+		reg = <0x40040 0x10>;
+		interrupts = <0 0 2 0
+		              1 0 2 0
+		              2 0 2 0
+		              3 0 2 0>;
+	};
+
+EXAMPLE 4
+	/*
+	 *  Definition of a node defining the MPIC
+	 *  global timers.  Note the interrupt
+	 *  type of 3.
+	 */
+	timer0: timer@41100 {
+		compatible = "fsl,mpic-global-timer";
+		reg = <0x41100 0x100 0x41300 4>;
+		interrupts = <0 0 3 0
+		              1 0 3 0
+		              2 0 3 0
+		              3 0 3 0>;
+	};
+
+EXAMPLE 5
+	/*
+	 * Definition of an error interrupt (interrupt type 1).
+	 * SoC interrupt number is 16 and the specific error
+         * interrupt bit in the error interrupt summary register
+	 * is 23.
+	 */
+	memory-controller@8000 {
+		compatible = "fsl,p4080-memory-controller";
+		reg = <0x8000 0x1000>;
+		interrupts = <16 2 1 23>;
+	};

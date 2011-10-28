@@ -149,20 +149,6 @@ static void rfkill_led_trigger_activate(struct led_classdev *led)
 	rfkill_led_trigger_event(rfkill);
 }
 
-const char *rfkill_get_led_trigger_name(struct rfkill *rfkill)
-{
-	return rfkill->led_trigger.name;
-}
-EXPORT_SYMBOL(rfkill_get_led_trigger_name);
-
-void rfkill_set_led_trigger_name(struct rfkill *rfkill, const char *name)
-{
-	BUG_ON(!rfkill);
-
-	rfkill->ledtrigname = name;
-}
-EXPORT_SYMBOL(rfkill_set_led_trigger_name);
-
 static int rfkill_led_trigger_register(struct rfkill *rfkill)
 {
 	rfkill->led_trigger.name = rfkill->ledtrigname
@@ -783,6 +769,7 @@ void rfkill_pause_polling(struct rfkill *rfkill)
 }
 EXPORT_SYMBOL(rfkill_pause_polling);
 
+#ifdef CONFIG_RFKILL_PM
 void rfkill_resume_polling(struct rfkill *rfkill)
 {
 	BUG_ON(!rfkill);
@@ -817,14 +804,17 @@ static int rfkill_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static struct class rfkill_class = {
 	.name		= "rfkill",
 	.dev_release	= rfkill_release,
 	.dev_attrs	= rfkill_dev_attrs,
 	.dev_uevent	= rfkill_dev_uevent,
+#ifdef CONFIG_RFKILL_PM
 	.suspend	= rfkill_suspend,
 	.resume		= rfkill_resume,
+#endif
 };
 
 bool rfkill_blocked(struct rfkill *rfkill)
@@ -1038,7 +1028,6 @@ static int rfkill_fop_open(struct inode *inode, struct file *file)
 	 * start getting events from elsewhere but hold mtx to get
 	 * startup events added first
 	 */
-	list_add(&data->list, &rfkill_fds);
 
 	list_for_each_entry(rfkill, &rfkill_list, node) {
 		ev = kzalloc(sizeof(*ev), GFP_KERNEL);
@@ -1047,6 +1036,7 @@ static int rfkill_fop_open(struct inode *inode, struct file *file)
 		rfkill_fill_event(&ev->ev, rfkill, RFKILL_OP_ADD);
 		list_add_tail(&ev->list, &data->events);
 	}
+	list_add(&data->list, &rfkill_fds);
 	mutex_unlock(&data->mtx);
 	mutex_unlock(&rfkill_global_mutex);
 
@@ -1241,6 +1231,7 @@ static const struct file_operations rfkill_fops = {
 	.unlocked_ioctl	= rfkill_fop_ioctl,
 	.compat_ioctl	= rfkill_fop_ioctl,
 #endif
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice rfkill_miscdev = {

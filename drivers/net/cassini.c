@@ -51,7 +51,7 @@
  * TX has 4 queues. currently these queues are used in a round-robin
  * fashion for load balancing. They can also be used for QoS. for that
  * to work, however, QoS information needs to be exposed down to the driver
- * level so that subqueues get targetted to particular transmit rings.
+ * level so that subqueues get targeted to particular transmit rings.
  * alternatively, the queues can be configured via use of the all-purpose
  * ioctl.
  *
@@ -419,7 +419,7 @@ static u16 cas_phy_read(struct cas *cp, int reg)
 		udelay(10);
 		cmd = readl(cp->regs + REG_MIF_FRAME);
 		if (cmd & MIF_FRAME_TURN_AROUND_LSB)
-			return (cmd & MIF_FRAME_DATA_MASK);
+			return cmd & MIF_FRAME_DATA_MASK;
 	}
 	return 0xFFFF; /* -1 */
 }
@@ -709,10 +709,11 @@ static void cas_begin_auto_negotiation(struct cas *cp, struct ethtool_cmd *ep)
 	if (ep->autoneg == AUTONEG_ENABLE)
 		cp->link_cntl = BMCR_ANENABLE;
 	else {
+		u32 speed = ethtool_cmd_speed(ep);
 		cp->link_cntl = 0;
-		if (ep->speed == SPEED_100)
+		if (speed == SPEED_100)
 			cp->link_cntl |= BMCR_SPEED100;
-		else if (ep->speed == SPEED_1000)
+		else if (speed == SPEED_1000)
 			cp->link_cntl |= CAS_BMCR_SPEED1000;
 		if (ep->duplex == DUPLEX_FULL)
 			cp->link_cntl |= BMCR_FULLDPLX;
@@ -804,7 +805,7 @@ static int cas_reset_mii_phy(struct cas *cp)
 			break;
 		udelay(10);
 	}
-	return (limit <= 0);
+	return limit <= 0;
 }
 
 static int cas_saturn_firmware_init(struct cas *cp)
@@ -2149,7 +2150,7 @@ end_copy_pkt:
 		skb->csum = csum_unfold(~csum);
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 	return len;
 }
 
@@ -2788,7 +2789,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 
 	ctrl = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		const u64 csum_start_off = skb_transport_offset(skb);
+		const u64 csum_start_off = skb_checksum_start_offset(skb);
 		const u64 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		ctrl =  TX_DESC_CSUM_EN |
@@ -3203,6 +3204,10 @@ static int cas_get_vpd_info(struct cas *cp, unsigned char *dev_addr,
 	int phy_type = CAS_PHY_MII_MDIO0; /* default phy type */
 	int mac_off  = 0;
 
+#if defined(CONFIG_SPARC)
+	const unsigned char *addr;
+#endif
+
 	/* give us access to the PROM */
 	writel(BIM_LOCAL_DEV_PROM | BIM_LOCAL_DEV_PAD,
 	       cp->regs + REG_BIM_LOCAL_DEV_EN);
@@ -3349,6 +3354,14 @@ next:
 use_random_mac_addr:
 	if (found & VPD_FOUND_MAC)
 		goto done;
+
+#if defined(CONFIG_SPARC)
+	addr = of_get_property(cp->of_node, "local-mac-address", NULL);
+	if (addr != NULL) {
+		memcpy(dev_addr, addr, 6);
+		goto done;
+	}
+#endif
 
 	/* Sun MAC prefix then 3 random bytes. */
 	pr_info("MAC address not found in ROM VPD\n");
@@ -3880,7 +3893,7 @@ static int cas_change_mtu(struct net_device *dev, int new_mtu)
 	schedule_work(&cp->reset_task);
 #endif
 
-	flush_scheduled_work();
+	flush_work_sync(&cp->reset_task);
 	return 0;
 }
 
@@ -4593,18 +4606,17 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (bmcr & BMCR_ANENABLE) {
 		cmd->advertising |= ADVERTISED_Autoneg;
 		cmd->autoneg = AUTONEG_ENABLE;
-		cmd->speed = ((speed == 10) ?
-			      SPEED_10 :
-			      ((speed == 1000) ?
-			       SPEED_1000 : SPEED_100));
+		ethtool_cmd_speed_set(cmd, ((speed == 10) ?
+					    SPEED_10 :
+					    ((speed == 1000) ?
+					     SPEED_1000 : SPEED_100)));
 		cmd->duplex = full_duplex ? DUPLEX_FULL : DUPLEX_HALF;
 	} else {
 		cmd->autoneg = AUTONEG_DISABLE;
-		cmd->speed =
-			(bmcr & CAS_BMCR_SPEED1000) ?
-			SPEED_1000 :
-			((bmcr & BMCR_SPEED100) ? SPEED_100:
-			 SPEED_10);
+		ethtool_cmd_speed_set(cmd, ((bmcr & CAS_BMCR_SPEED1000) ?
+					    SPEED_1000 :
+					    ((bmcr & BMCR_SPEED100) ?
+					     SPEED_100 : SPEED_10)));
 		cmd->duplex =
 			(bmcr & BMCR_FULLDPLX) ?
 			DUPLEX_FULL : DUPLEX_HALF;
@@ -4621,14 +4633,14 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		 * settings that we configured.
 		 */
 		if (cp->link_cntl & BMCR_ANENABLE) {
-			cmd->speed = 0;
+			ethtool_cmd_speed_set(cmd, 0);
 			cmd->duplex = 0xff;
 		} else {
-			cmd->speed = SPEED_10;
+			ethtool_cmd_speed_set(cmd, SPEED_10);
 			if (cp->link_cntl & BMCR_SPEED100) {
-				cmd->speed = SPEED_100;
+				ethtool_cmd_speed_set(cmd, SPEED_100);
 			} else if (cp->link_cntl & CAS_BMCR_SPEED1000) {
-				cmd->speed = SPEED_1000;
+				ethtool_cmd_speed_set(cmd, SPEED_1000);
 			}
 			cmd->duplex = (cp->link_cntl & BMCR_FULLDPLX)?
 				DUPLEX_FULL : DUPLEX_HALF;
@@ -4641,6 +4653,7 @@ static int cas_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct cas *cp = netdev_priv(dev);
 	unsigned long flags;
+	u32 speed = ethtool_cmd_speed(cmd);
 
 	/* Verify the settings we care about. */
 	if (cmd->autoneg != AUTONEG_ENABLE &&
@@ -4648,9 +4661,9 @@ static int cas_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return -EINVAL;
 
 	if (cmd->autoneg == AUTONEG_DISABLE &&
-	    ((cmd->speed != SPEED_1000 &&
-	      cmd->speed != SPEED_100 &&
-	      cmd->speed != SPEED_10) ||
+	    ((speed != SPEED_1000 &&
+	      speed != SPEED_100 &&
+	      speed != SPEED_10) ||
 	     (cmd->duplex != DUPLEX_HALF &&
 	      cmd->duplex != DUPLEX_FULL)))
 		return -EINVAL;
@@ -5019,6 +5032,10 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	cp->msg_enable = (cassini_debug < 0) ? CAS_DEF_MSG_ENABLE :
 	  cassini_debug;
 
+#if defined(CONFIG_SPARC)
+	cp->of_node = pci_device_to_OF_node(pdev);
+#endif
+
 	cp->link_transition = LINK_TRANSITION_UNKNOWN;
 	cp->link_transition_jiffies_valid = 0;
 
@@ -5149,7 +5166,7 @@ err_out_free_res:
 	pci_release_regions(pdev);
 
 err_write_cacheline:
-	/* Try to restore it in case the error occured after we
+	/* Try to restore it in case the error occurred after we
 	 * set it.
 	 */
 	pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, orig_cacheline_size);
@@ -5177,7 +5194,7 @@ static void __devexit cas_remove_one(struct pci_dev *pdev)
 		vfree(cp->fw_data);
 
 	mutex_lock(&cp->pm_mutex);
-	flush_scheduled_work();
+	cancel_work_sync(&cp->reset_task);
 	if (cp->hw_running)
 		cas_shutdown(cp);
 	mutex_unlock(&cp->pm_mutex);

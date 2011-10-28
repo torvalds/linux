@@ -49,12 +49,6 @@ config PPC_ADDER875
 	  This enables support for the Analogue & Micro Adder 875
 	  board.
 
-config PPC_MGSUVD
-	bool "MGSUVD"
-	select CPM1
-	help
-	  This enables support for the Keymile MGSUVD board.
-
 config TQM8XX
 	bool "TQM8XX"
 	select CPM1

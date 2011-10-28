@@ -23,7 +23,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/threads.h>
-#include <asm/kmap_types.h>
 #include <asm/tlbflush.h>
 #include <asm/homecache.h>
 
@@ -60,12 +59,12 @@ void *kmap_fix_kpte(struct page *page, int finished);
 /* This macro is used only in map_new_virtual() to map "page". */
 #define kmap_prot page_to_kpgprot(page)
 
-void kunmap_atomic_notypecheck(void *kvaddr, enum km_type type);
-void *kmap_atomic_pfn(unsigned long pfn, enum km_type type);
-void *kmap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot);
+void *__kmap_atomic(struct page *page);
+void __kunmap_atomic(void *kvaddr);
+void *kmap_atomic_pfn(unsigned long pfn);
+void *kmap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot);
 struct page *kmap_atomic_to_page(void *ptr);
-void *kmap_atomic_prot(struct page *page, enum km_type type, pgprot_t prot);
-void *kmap_atomic(struct page *page, enum km_type type);
+void *kmap_atomic_prot(struct page *page, pgprot_t prot);
 void kmap_atomic_fix_kpte(struct page *page, int finished);
 
 #define flush_cache_kmaps()	do { } while (0)

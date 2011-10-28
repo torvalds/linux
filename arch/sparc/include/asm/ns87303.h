@@ -37,7 +37,7 @@
 /* Power and Test Register (PTR) bits */
 #define PTR_LPTB_IRQ7	0x08
 #define PTR_LEVEL_IRQ	0x80	/* When not ECP/EPP: Use level IRQ           */
-#define PTR_LPT_REG_DIR	0x80	/* When ECP/EPP: LPT CTR controlls direction */
+#define PTR_LPT_REG_DIR	0x80	/* When ECP/EPP: LPT CTR controls direction */
 				/*               of the parallel port	     */
 
 /* Function Control Register (FCR) bits */

@@ -1,0 +1,11 @@
+config CS5535_GPIO
+	tristate "AMD CS5535/CS5536 GPIO (Geode Companion Device)"
+	depends on X86_32
+	help
+	  Note: this driver is DEPRECATED.  Please use the cs5535-gpio module
+	  in the GPIO section instead (CONFIG_GPIO_CS5535).
+
+	  Give userspace access to the GPIO pins on the AMD CS5535 and
+	  CS5536 Geode companion devices.
+
+	  If compiled as a module, it will be called cs5535_gpio.

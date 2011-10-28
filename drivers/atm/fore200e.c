@@ -92,7 +92,7 @@
 
 #define FORE200E_INDEX(virt_addr, type, index)     (&((type *)(virt_addr))[ index ])
 
-#define FORE200E_NEXT_ENTRY(index, modulo)         (index = ++(index) % (modulo))
+#define FORE200E_NEXT_ENTRY(index, modulo)         (index = ((index) + 1) % (modulo))
 
 #if 1
 #define ASSERT(expr)     if (!(expr)) { \
@@ -2567,14 +2567,14 @@ release:
 
 
 static int __devinit
-fore200e_register(struct fore200e* fore200e)
+fore200e_register(struct fore200e* fore200e, struct device *parent)
 {
     struct atm_dev* atm_dev;
 
     DPRINTK(2, "device %s being registered\n", fore200e->name);
 
-    atm_dev = atm_dev_register(fore200e->bus->proc_name, &fore200e_ops, -1,
-      NULL); 
+    atm_dev = atm_dev_register(fore200e->bus->proc_name, parent, &fore200e_ops,
+                               -1, NULL);
     if (atm_dev == NULL) {
 	printk(FORE200E "unable to register device %s\n", fore200e->name);
 	return -ENODEV;
@@ -2594,9 +2594,9 @@ fore200e_register(struct fore200e* fore200e)
 
 
 static int __devinit
-fore200e_init(struct fore200e* fore200e)
+fore200e_init(struct fore200e* fore200e, struct device *parent)
 {
-    if (fore200e_register(fore200e) < 0)
+    if (fore200e_register(fore200e, parent) < 0)
 	return -ENODEV;
     
     if (fore200e->bus->configure(fore200e) < 0)
@@ -2643,13 +2643,19 @@ fore200e_init(struct fore200e* fore200e)
 }
 
 #ifdef CONFIG_SBUS
-static int __devinit fore200e_sba_probe(struct platform_device *op,
-					const struct of_device_id *match)
+static const struct of_device_id fore200e_sba_match[];
+static int __devinit fore200e_sba_probe(struct platform_device *op)
 {
-	const struct fore200e_bus *bus = match->data;
+	const struct of_device_id *match;
+	const struct fore200e_bus *bus;
 	struct fore200e *fore200e;
 	static int index = 0;
 	int err;
+
+	match = of_match_device(fore200e_sba_match, &op->dev);
+	if (!match)
+		return -EINVAL;
+	bus = match->data;
 
 	fore200e = kzalloc(sizeof(struct fore200e), GFP_KERNEL);
 	if (!fore200e)
@@ -2662,7 +2668,7 @@ static int __devinit fore200e_sba_probe(struct platform_device *op,
 
 	sprintf(fore200e->name, "%s-%d", bus->model_name, index);
 
-	err = fore200e_init(fore200e);
+	err = fore200e_init(fore200e, &op->dev);
 	if (err < 0) {
 		fore200e_shutdown(fore200e);
 		kfree(fore200e);
@@ -2694,7 +2700,7 @@ static const struct of_device_id fore200e_sba_match[] = {
 };
 MODULE_DEVICE_TABLE(of, fore200e_sba_match);
 
-static struct of_platform_driver fore200e_sba_driver = {
+static struct platform_driver fore200e_sba_driver = {
 	.driver = {
 		.name = "fore_200e",
 		.owner = THIS_MODULE,
@@ -2740,7 +2746,7 @@ fore200e_pca_detect(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent
 
     sprintf(fore200e->name, "%s-%d", bus->model_name, index);
 
-    err = fore200e_init(fore200e);
+    err = fore200e_init(fore200e, &pci_dev->dev);
     if (err < 0) {
 	fore200e_shutdown(fore200e);
 	goto out_free;
@@ -2795,7 +2801,7 @@ static int __init fore200e_module_init(void)
 	printk(FORE200E "FORE Systems 200E-series ATM driver - version " FORE200E_VERSION "\n");
 
 #ifdef CONFIG_SBUS
-	err = of_register_platform_driver(&fore200e_sba_driver);
+	err = platform_driver_register(&fore200e_sba_driver);
 	if (err)
 		return err;
 #endif
@@ -2806,7 +2812,7 @@ static int __init fore200e_module_init(void)
 
 #ifdef CONFIG_SBUS
 	if (err)
-		of_unregister_platform_driver(&fore200e_sba_driver);
+		platform_driver_unregister(&fore200e_sba_driver);
 #endif
 
 	return err;
@@ -2818,7 +2824,7 @@ static void __exit fore200e_module_cleanup(void)
 	pci_unregister_driver(&fore200e_pca_driver);
 #endif
 #ifdef CONFIG_SBUS
-	of_unregister_platform_driver(&fore200e_sba_driver);
+	platform_driver_unregister(&fore200e_sba_driver);
 #endif
 }
 

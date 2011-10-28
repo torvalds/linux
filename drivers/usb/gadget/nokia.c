@@ -135,7 +135,6 @@ static int __init nokia_bind_config(struct usb_configuration *c)
 
 static struct usb_configuration nokia_config_500ma_driver = {
 	.label		= "Bus Powered",
-	.bind		= nokia_bind_config,
 	.bConfigurationValue = 1,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes	= USB_CONFIG_ATT_ONE,
@@ -144,7 +143,6 @@ static struct usb_configuration nokia_config_500ma_driver = {
 
 static struct usb_configuration nokia_config_100ma_driver = {
 	.label		= "Self Powered",
-	.bind		= nokia_bind_config,
 	.bConfigurationValue = 2,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes	= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
@@ -205,12 +203,14 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 		goto err_usb;
 	}
 
-	/* finaly register the configuration */
-	status = usb_add_config(cdev, &nokia_config_500ma_driver);
+	/* finally register the configuration */
+	status = usb_add_config(cdev, &nokia_config_500ma_driver,
+			nokia_bind_config);
 	if (status < 0)
 		goto err_usb;
 
-	status = usb_add_config(cdev, &nokia_config_100ma_driver);
+	status = usb_add_config(cdev, &nokia_config_100ma_driver,
+			nokia_bind_config);
 	if (status < 0)
 		goto err_usb;
 
@@ -241,13 +241,12 @@ static struct usb_composite_driver nokia_driver = {
 	.name		= "g_nokia",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
-	.bind		= nokia_bind,
 	.unbind		= __exit_p(nokia_unbind),
 };
 
 static int __init nokia_init(void)
 {
-	return usb_composite_register(&nokia_driver);
+	return usb_composite_probe(&nokia_driver, nokia_bind);
 }
 module_init(nokia_init);
 

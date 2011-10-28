@@ -1,6 +1,6 @@
 config HYPERV
 	tristate "Microsoft Hyper-V client drivers"
-	depends on X86 && m
+	depends on X86 && ACPI && PCI && m
 	default n
 	help
 	  Select this option to run Linux as a Hyper-V client operating
@@ -31,8 +31,16 @@ config HYPERV_NET
 
 config HYPERV_UTILS
 	tristate "Microsoft Hyper-V Utilities driver"
+	depends on CONNECTOR && NLS
 	default HYPERV
 	help
 	  Select this option to enable the Hyper-V Utilities.
+
+config HYPERV_MOUSE
+	tristate "Microsoft Hyper-V mouse driver"
+	depends on HID
+	default HYPERV
+	help
+	  Select this option to enable the Hyper-V mouse driver.
 
 endif

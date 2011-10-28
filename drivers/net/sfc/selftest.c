@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2009 Solarflare Communications Inc.
+ * Copyright 2006-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -47,6 +47,16 @@ static const unsigned char payload_source[ETH_ALEN] = {
 
 static const char payload_msg[] =
 	"Hello world! This is an Efx loopback test in progress!";
+
+/* Interrupt mode names */
+static const unsigned int efx_interrupt_mode_max = EFX_INT_MODE_MAX;
+static const char *efx_interrupt_mode_names[] = {
+	[EFX_INT_MODE_MSIX]   = "MSI-X",
+	[EFX_INT_MODE_MSI]    = "MSI",
+	[EFX_INT_MODE_LEGACY] = "legacy",
+};
+#define INT_MODE(efx) \
+	STRING_TABLE_LOOKUP(efx->interrupt_mode, efx_interrupt_mode)
 
 /**
  * efx_loopback_state - persistent state during a loopback selftest
@@ -121,23 +131,12 @@ static int efx_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 static int efx_test_interrupts(struct efx_nic *efx,
 			       struct efx_self_tests *tests)
 {
-	struct efx_channel *channel;
-
 	netif_dbg(efx, drv, efx->net_dev, "testing interrupts\n");
 	tests->interrupt = -1;
 
 	/* Reset interrupt flag */
 	efx->last_irq_cpu = -1;
 	smp_wmb();
-
-	/* ACK each interrupting event queue. Receiving an interrupt due to
-	 * traffic before a test event is raised is considered a pass */
-	efx_for_each_channel(channel, efx) {
-		if (channel->work_pending)
-			efx_process_channel_now(channel);
-		if (efx->last_irq_cpu >= 0)
-			goto success;
-	}
 
 	efx_nic_generate_interrupt(efx);
 
@@ -163,13 +162,13 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 			       struct efx_self_tests *tests)
 {
 	struct efx_nic *efx = channel->efx;
-	unsigned int magic_count, count;
+	unsigned int read_ptr, count;
 
 	tests->eventq_dma[channel->channel] = -1;
 	tests->eventq_int[channel->channel] = -1;
 	tests->eventq_poll[channel->channel] = -1;
 
-	magic_count = channel->magic_count;
+	read_ptr = channel->eventq_read_ptr;
 	channel->efx->last_irq_cpu = -1;
 	smp_wmb();
 
@@ -180,10 +179,7 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 	do {
 		schedule_timeout_uninterruptible(HZ / 100);
 
-		if (channel->work_pending)
-			efx_process_channel_now(channel);
-
-		if (channel->magic_count != magic_count)
+		if (ACCESS_ONCE(channel->eventq_read_ptr) != read_ptr)
 			goto eventq_ok;
 	} while (++count < 2);
 
@@ -201,8 +197,7 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 	}
 
 	/* Check to see if event was received even if interrupt wasn't */
-	efx_process_channel_now(channel);
-	if (channel->magic_count != magic_count) {
+	if (efx_nic_event_present(channel)) {
 		netif_err(efx, drv, efx->net_dev,
 			  "channel %d event was generated, but "
 			  "failed to trigger an interrupt\n", channel->channel);
@@ -506,7 +501,7 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 
 	for (i = 0; i < 3; i++) {
 		/* Determine how many packets to send */
-		state->packet_count = EFX_TXQ_SIZE / 3;
+		state->packet_count = efx->txq_entries / 3;
 		state->packet_count = min(1 << (i << 2), state->packet_count);
 		state->skbs = kzalloc(sizeof(state->skbs[0]) *
 				      state->packet_count, GFP_KERNEL);
@@ -567,7 +562,7 @@ static int efx_wait_for_link(struct efx_nic *efx)
 			efx->type->monitor(efx);
 			mutex_unlock(&efx->mac_lock);
 		} else {
-			struct efx_channel *channel = &efx->channel[0];
+			struct efx_channel *channel = efx_get_channel(efx, 0);
 			if (channel->work_pending)
 				efx_process_channel_now(channel);
 		}
@@ -594,6 +589,7 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 {
 	enum efx_loopback_mode mode;
 	struct efx_loopback_state *state;
+	struct efx_channel *channel = efx_get_channel(efx, 0);
 	struct efx_tx_queue *tx_queue;
 	int rc = 0;
 
@@ -633,8 +629,8 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 			goto out;
 		}
 
-		/* Test both types of TX queue */
-		efx_for_each_channel_tx_queue(tx_queue, &efx->channel[0]) {
+		/* Test all enabled types of TX queue */
+		efx_for_each_channel_tx_queue(tx_queue, channel) {
 			state->offload_csum = (tx_queue->queue &
 					       EFX_TXQ_TYPE_OFFLOAD);
 			rc = efx_test_loopback(tx_queue,
@@ -699,12 +695,12 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	/* Offline (i.e. disruptive) testing
 	 * This checks MAC and PHY loopback on the specified port. */
 
-	/* force the carrier state off so the kernel doesn't transmit during
-	 * the loopback test, and the watchdog timeout doesn't fire. Also put
-	 * falcon into loopback for the register test.
+	/* Detach the device so the kernel doesn't transmit during the
+	 * loopback test and the watchdog timeout doesn't fire.
 	 */
+	netif_device_detach(efx->net_dev);
+
 	mutex_lock(&efx->mac_lock);
-	efx->port_inhibited = true;
 	if (efx->loopback_modes) {
 		/* We need the 312 clock from the PHY to test the XMAC
 		 * registers, so move into XGMII loopback if available */
@@ -754,10 +750,11 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	/* restore the PHY to the previous state */
 	mutex_lock(&efx->mac_lock);
 	efx->phy_mode = phy_mode;
-	efx->port_inhibited = false;
 	efx->loopback_mode = loopback_mode;
 	__efx_reconfigure_port(efx);
 	mutex_unlock(&efx->mac_lock);
+
+	netif_device_attach(efx->net_dev);
 
 	return rc_test;
 }

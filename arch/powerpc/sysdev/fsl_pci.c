@@ -1,7 +1,7 @@
 /*
  * MPC83xx/85xx/86xx PCI/PCIE support routing.
  *
- * Copyright 2007-2009 Freescale Semiconductor, Inc.
+ * Copyright 2007-2011 Freescale Semiconductor, Inc.
  * Copyright 2008-2009 MontaVista Software, Inc.
  *
  * Initial author: Xianghua Xiao <x.xiao@freescale.com>
@@ -34,7 +34,7 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
-static int fsl_pcie_bus_fixup;
+static int fsl_pcie_bus_fixup, is_mpc83xx_pci;
 
 static void __init quirk_fsl_pcie_header(struct pci_dev *dev)
 {
@@ -99,7 +99,7 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 				  struct resource *rsrc)
 {
 	struct ccsr_pci __iomem *pci;
-	int i, j, n, mem_log, win_idx = 2;
+	int i, j, n, mem_log, win_idx = 3, start_idx = 1, end_idx = 4;
 	u64 mem, sz, paddr_hi = 0;
 	u64 paddr_lo = ULLONG_MAX;
 	u32 pcicsrbar = 0, pcicsrbar_sz;
@@ -109,6 +109,13 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 
 	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
 		    (u64)rsrc->start, (u64)rsrc->end - (u64)rsrc->start + 1);
+
+	if (of_device_is_compatible(hose->dn, "fsl,qoriq-pcie-v2.2")) {
+		win_idx = 2;
+		start_idx = 0;
+		end_idx = 3;
+	}
+
 	pci = ioremap(rsrc->start, rsrc->end - rsrc->start + 1);
 	if (!pci) {
 	    dev_err(hose->parent, "Unable to map ATMU registers\n");
@@ -118,7 +125,7 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 	/* Disable all windows (except powar0 since it's ignored) */
 	for(i = 1; i < 5; i++)
 		out_be32(&pci->pow[i].powar, 0);
-	for(i = 0; i < 3; i++)
+	for (i = start_idx; i < end_idx; i++)
 		out_be32(&pci->piw[i].piwar, 0);
 
 	/* Setup outbound MEM window */
@@ -204,7 +211,7 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 			mem_log++;
 		}
 
-		piwar |= (mem_log - 1);
+		piwar |= ((mem_log - 1) & PIWAR_SZ_MASK);
 
 		/* Setup inbound memory window */
 		out_be32(&pci->piw[win_idx].pitar,  0x00000000);
@@ -317,6 +324,11 @@ int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 	struct resource rsrc;
 	const int *bus_range;
 
+	if (!of_device_is_available(dev)) {
+		pr_warning("%s: disabled\n", dev->full_name);
+		return -ENODEV;
+	}
+
 	pr_debug("Adding PCI host bridge %s\n", dev->full_name);
 
 	/* Fetch host bridge registers address */
@@ -407,10 +419,18 @@ DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P2010E, quirk_fsl_pcie_header);
 DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P2010, quirk_fsl_pcie_header);
 DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P2020E, quirk_fsl_pcie_header);
 DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P2020, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P2040E, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P2040, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P3041E, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P3041, quirk_fsl_pcie_header);
 DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P4040E, quirk_fsl_pcie_header);
 DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P4040, quirk_fsl_pcie_header);
 DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P4080E, quirk_fsl_pcie_header);
 DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P4080, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P5010E, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P5010, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P5020E, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_P5020, quirk_fsl_pcie_header);
 #endif /* CONFIG_FSL_SOC_BOOKE || CONFIG_PPC_86xx */
 
 #if defined(CONFIG_PPC_83xx) || defined(CONFIG_PPC_MPC512x)
@@ -430,6 +450,13 @@ struct mpc83xx_pcie_priv {
 	u32 dev_base;
 };
 
+struct pex_inbound_window {
+	u32 ar;
+	u32 tar;
+	u32 barl;
+	u32 barh;
+};
+
 /*
  * With the convention of u-boot, the PCIE outbound window 0 serves
  * as configuration transactions outbound.
@@ -437,6 +464,8 @@ struct mpc83xx_pcie_priv {
 #define PEX_OUTWIN0_BAR		0xCA4
 #define PEX_OUTWIN0_TAL		0xCA8
 #define PEX_OUTWIN0_TAH		0xCAC
+#define PEX_RC_INWIN_BASE	0xE60
+#define PEX_RCIWARn_EN		0x1
 
 static int mpc83xx_pcie_exclude_device(struct pci_bus *bus, unsigned int devfn)
 {
@@ -604,6 +633,8 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 	const int *bus_range;
 	int primary;
 
+	is_mpc83xx_pci = 1;
+
 	if (!of_device_is_available(dev)) {
 		pr_warning("%s: disabled by the firmware.\n",
 			   dev->full_name);
@@ -683,3 +714,40 @@ err0:
 	return ret;
 }
 #endif /* CONFIG_PPC_83xx */
+
+u64 fsl_pci_immrbar_base(struct pci_controller *hose)
+{
+#ifdef CONFIG_PPC_83xx
+	if (is_mpc83xx_pci) {
+		struct mpc83xx_pcie_priv *pcie = hose->dn->data;
+		struct pex_inbound_window *in;
+		int i;
+
+		/* Walk the Root Complex Inbound windows to match IMMR base */
+		in = pcie->cfg_type0 + PEX_RC_INWIN_BASE;
+		for (i = 0; i < 4; i++) {
+			/* not enabled, skip */
+			if (!in_le32(&in[i].ar) & PEX_RCIWARn_EN)
+				 continue;
+
+			if (get_immrbase() == in_le32(&in[i].tar))
+				return (u64)in_le32(&in[i].barh) << 32 |
+					    in_le32(&in[i].barl);
+		}
+
+		printk(KERN_WARNING "could not find PCI BAR matching IMMR\n");
+	}
+#endif
+
+#if defined(CONFIG_FSL_SOC_BOOKE) || defined(CONFIG_PPC_86xx)
+	if (!is_mpc83xx_pci) {
+		u32 base;
+
+		pci_bus_read_config_dword(hose->bus,
+			PCI_DEVFN(0, 0), PCI_BASE_ADDRESS_0, &base);
+		return base;
+	}
+#endif
+
+	return 0;
+}

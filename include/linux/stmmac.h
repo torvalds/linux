@@ -26,19 +26,25 @@
 #ifndef __STMMAC_PLATFORM_DATA
 #define __STMMAC_PLATFORM_DATA
 
-/* platfrom data for platfrom device structure's platfrom_data field */
+#include <linux/platform_device.h>
+
+/* platform data for platform device structure's platform_data field */
 
 /* Private data for the STM on-board ethernet driver */
 struct plat_stmmacenet_data {
 	int bus_id;
 	int pbl;
+	int clk_csr;
 	int has_gmac;
 	int enh_desc;
+	int tx_coe;
+	int bugged_jumbo;
+	int pmt;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
-	void (*bus_setup)(unsigned long ioaddr);
-#ifdef CONFIG_STM_DRIVERS
-	struct stm_pad_config *pad_config;
-#endif
+	void (*bus_setup)(void __iomem *ioaddr);
+	int (*init)(struct platform_device *pdev);
+	void (*exit)(struct platform_device *pdev);
+	void *custom_cfg;
 	void *bsp_priv;
 };
 

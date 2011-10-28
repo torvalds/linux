@@ -90,7 +90,7 @@ static int rfbi_get_clocks(void)
 		return PTR_ERR(rfbi.dss_ick);
 	}
 
-	rfbi.dss1_fck = clk_get(&rfbi.fbdev->dssdev->dev, "dss1_fck");
+	rfbi.dss1_fck = clk_get(&rfbi.fbdev->dssdev->dev, "fck");
 	if (IS_ERR(rfbi.dss1_fck)) {
 		dev_err(rfbi.fbdev->dev, "can't get dss1_fck\n");
 		clk_put(rfbi.dss_ick);

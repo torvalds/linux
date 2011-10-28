@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/i2c.h>
+#include <linux/sysdev.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -28,6 +29,8 @@
 #include <plat/cpu.h>
 #include <plat/ata.h>
 #include <plat/iic.h>
+#include <plat/pm.h>
+#include <plat/s5p-time.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDKC110_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -79,8 +82,10 @@ static struct s3c_ide_platdata smdkc110_ide_pdata __initdata = {
 };
 
 static struct platform_device *smdkc110_devices[] __initdata = {
+	&samsung_asoc_dma,
 	&s5pv210_device_iis0,
 	&s5pv210_device_ac97,
+	&s5pv210_device_spdif,
 	&s3c_device_cfcon,
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
@@ -91,6 +96,7 @@ static struct platform_device *smdkc110_devices[] __initdata = {
 
 static struct i2c_board_info smdkc110_i2c_devs0[] __initdata = {
 	{ I2C_BOARD_INFO("24c08", 0x50), },     /* Samsung S524AD0XD1 */
+	{ I2C_BOARD_INFO("wm8580", 0x1b), },
 };
 
 static struct i2c_board_info smdkc110_i2c_devs1[] __initdata = {
@@ -106,10 +112,13 @@ static void __init smdkc110_map_io(void)
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(smdkv210_uartcfgs, ARRAY_SIZE(smdkv210_uartcfgs));
+	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
 }
 
 static void __init smdkc110_machine_init(void)
 {
+	s3c_pm_init();
+
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
 	s3c_i2c2_set_platdata(NULL);
@@ -127,11 +136,9 @@ static void __init smdkc110_machine_init(void)
 
 MACHINE_START(SMDKC110, "SMDKC110")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
-	.phys_io	= S3C_PA_UART & 0xfff00000,
-	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S5P_PA_SDRAM + 0x100,
 	.init_irq	= s5pv210_init_irq,
 	.map_io		= smdkc110_map_io,
 	.init_machine	= smdkc110_machine_init,
-	.timer		= &s3c24xx_timer,
+	.timer		= &s5p_timer,
 MACHINE_END

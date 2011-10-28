@@ -32,7 +32,7 @@
 /*
  * This is the size at which it becomes more efficient to
  * clean the whole cache, rather than using the individual
- * cache line maintainence instructions.
+ * cache line maintenance instructions.
  *
  *  Size  Clean (ticks) Dirty (ticks)
  *   4096   21  20  21    53  55  54
@@ -49,6 +49,17 @@
 flush_base:
 	.long	FLUSH_BASE
 	.text
+
+/*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(v4wb_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(v4wb_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
@@ -244,6 +255,7 @@ ENDPROC(v4wb_dma_unmap_area)
 
 	.type	v4wb_cache_fns, #object
 ENTRY(v4wb_cache_fns)
+	.long	v4wb_flush_icache_all
 	.long	v4wb_flush_kern_cache_all
 	.long	v4wb_flush_user_cache_all
 	.long	v4wb_flush_user_cache_range

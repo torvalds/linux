@@ -73,7 +73,7 @@ struct ib_mad_notice_attr {
 
 		struct {
 			__be16	reserved;
-			__be16	lid;		/* LID where change occured */
+			__be16	lid;		/* LID where change occurred */
 			u8	reserved2;
 			u8	local_changes;	/* low bit - local changes */
 			__be32	new_cap_mask;	/* new capability mask */

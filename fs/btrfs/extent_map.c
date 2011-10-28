@@ -3,6 +3,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
+#include "ctree.h"
 #include "extent_map.h"
 
 
@@ -27,12 +28,11 @@ void extent_map_exit(void)
 /**
  * extent_map_tree_init - initialize extent map tree
  * @tree:		tree to initialize
- * @mask:		flags for memory allocations during tree operations
  *
  * Initialize the extent tree @tree.  Should be called for each new inode
  * or other user of the extent_map interface.
  */
-void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
+void extent_map_tree_init(struct extent_map_tree *tree)
 {
 	tree->map = RB_ROOT;
 	rwlock_init(&tree->lock);
@@ -40,20 +40,20 @@ void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
 
 /**
  * alloc_extent_map - allocate new extent map structure
- * @mask:	memory allocation flags
  *
  * Allocate a new extent_map structure.  The new structure is
  * returned with a reference count of one and needs to be
  * freed using free_extent_map()
  */
-struct extent_map *alloc_extent_map(gfp_t mask)
+struct extent_map *alloc_extent_map(void)
 {
 	struct extent_map *em;
-	em = kmem_cache_alloc(extent_map_cache, mask);
-	if (!em || IS_ERR(em))
-		return em;
+	em = kmem_cache_alloc(extent_map_cache, GFP_NOFS);
+	if (!em)
+		return NULL;
 	em->in_tree = 0;
 	em->flags = 0;
+	em->compress_type = BTRFS_COMPRESS_NONE;
 	atomic_set(&em->refs, 1);
 	return em;
 }
@@ -241,7 +241,7 @@ out:
  * Insert @em into @tree or perform a simple forward/backward merge with
  * existing mappings.  The extent_map struct passed in will be inserted
  * into the tree directly, with an additional reference taken, or a
- * reference dropped if the merge attempt was successfull.
+ * reference dropped if the merge attempt was successful.
  */
 int add_extent_mapping(struct extent_map_tree *tree,
 		       struct extent_map *em)
@@ -335,7 +335,7 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 		goto out;
 	}
 	if (IS_ERR(rb_node)) {
-		em = ERR_PTR(PTR_ERR(rb_node));
+		em = ERR_CAST(rb_node);
 		goto out;
 	}
 	em = rb_entry(rb_node, struct extent_map, rb_node);
@@ -384,7 +384,7 @@ struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
 		goto out;
 	}
 	if (IS_ERR(rb_node)) {
-		em = ERR_PTR(PTR_ERR(rb_node));
+		em = ERR_CAST(rb_node);
 		goto out;
 	}
 	em = rb_entry(rb_node, struct extent_map, rb_node);

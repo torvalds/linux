@@ -36,10 +36,9 @@ static int spu_alloc_lscsa_std(struct spu_state *csa)
 	struct spu_lscsa *lscsa;
 	unsigned char *p;
 
-	lscsa = vmalloc(sizeof(struct spu_lscsa));
+	lscsa = vzalloc(sizeof(struct spu_lscsa));
 	if (!lscsa)
 		return -ENOMEM;
-	memset(lscsa, 0, sizeof(struct spu_lscsa));
 	csa->lscsa = lscsa;
 
 	/* Set LS pages reserved to allow for user-space mapping. */
@@ -91,7 +90,7 @@ int spu_alloc_lscsa(struct spu_state *csa)
 	 */
 	for (i = 0; i < SPU_LSCSA_NUM_BIG_PAGES; i++) {
 		/* XXX This is likely to fail, we should use a special pool
-		 *     similiar to what hugetlbfs does.
+		 *     similar to what hugetlbfs does.
 		 */
 		csa->lscsa_pages[i] = alloc_pages(GFP_KERNEL,
 						  SPU_64K_PAGE_ORDER);

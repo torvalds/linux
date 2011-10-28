@@ -15,14 +15,6 @@
 #define	LFLUSH_I_AND_D	0x00000808
 #define	LSIGTRAP	5
 
-/* process bits for task_struct.flags */
-#define	PF_TRACESYS_OFF	3
-#define	PF_TRACESYS_BIT	5
-#define	PF_PTRACED_OFF	3
-#define	PF_PTRACED_BIT	4
-#define	PF_DTRACE_OFF	1
-#define	PF_DTRACE_BIT	5
-
 /*
  * NOTE!  The single-stepping code assumes that all interrupt handlers
  * start by saving SYSCFG on the stack with their first instruction.

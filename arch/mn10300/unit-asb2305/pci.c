@@ -503,7 +503,7 @@ asmlinkage void __init unit_pci_init(void)
 	struct pci_ops *o = &pci_direct_ampci;
 	u32 x;
 
-	set_intr_level(XIRQ1, GxICR_LEVEL_3);
+	set_intr_level(XIRQ1, NUM2GxICR_LEVEL(CONFIG_PCI_IRQ_LEVEL));
 
 	memset(&bus, 0, sizeof(bus));
 

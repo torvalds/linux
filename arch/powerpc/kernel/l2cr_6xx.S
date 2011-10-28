@@ -151,7 +151,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	 /**** Might be a good idea to set L2DO here - to prevent instructions
 	       from getting into the cache.  But since we invalidate
 	       the next time we enable the cache it doesn't really matter.
-	       Don't do this unless you accomodate all processor variations.
+	       Don't do this unless you accommodate all processor variations.
 	       The bit moved on the 7450.....
 	  ****/
 

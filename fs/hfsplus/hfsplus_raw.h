@@ -36,7 +36,8 @@
 #define HFSP_WRAPOFF_EMBEDSIG     0x7C
 #define HFSP_WRAPOFF_EMBEDEXT     0x7E
 
-#define HFSP_HIDDENDIR_NAME	"\xe2\x90\x80\xe2\x90\x80\xe2\x90\x80\xe2\x90\x80HFS+ Private Data"
+#define HFSP_HIDDENDIR_NAME \
+	"\xe2\x90\x80\xe2\x90\x80\xe2\x90\x80\xe2\x90\x80HFS+ Private Data"
 
 #define HFSP_HARDLINK_TYPE	0x686c6e6b	/* 'hlnk' */
 #define HFSP_HFSPLUS_CREATOR	0x6866732b	/* 'hfs+' */
@@ -200,6 +201,7 @@ struct hfsplus_cat_key {
 	struct hfsplus_unistr name;
 } __packed;
 
+#define HFSPLUS_CAT_KEYLEN	(sizeof(struct hfsplus_cat_key))
 
 /* Structs from hfs.h */
 struct hfsp_point {
@@ -323,7 +325,7 @@ struct hfsplus_ext_key {
 	__be32 start_block;
 } __packed;
 
-#define HFSPLUS_EXT_KEYLEN 12
+#define HFSPLUS_EXT_KEYLEN	sizeof(struct hfsplus_ext_key)
 
 /* HFS+ generic BTree key */
 typedef union {

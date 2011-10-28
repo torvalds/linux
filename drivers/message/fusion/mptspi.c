@@ -780,7 +780,7 @@ static int mptspi_slave_configure(struct scsi_device *sdev)
 }
 
 static int
-mptspi_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+mptspi_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
 	struct _MPT_SCSI_HOST *hd = shost_priv(SCpnt->device->host);
 	VirtDevice	*vdevice = SCpnt->device->hostdata;
@@ -804,6 +804,8 @@ mptspi_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	return mptscsih_qcmd(SCpnt,done);
 }
+
+static DEF_SCSI_QCMD(mptspi_qcmd)
 
 static void mptspi_slave_destroy(struct scsi_device *sdev)
 {
@@ -865,6 +867,10 @@ static int mptspi_write_spi_device_pg1(struct scsi_target *starget,
 	struct _x_config_parms cfg;
 	struct _CONFIG_PAGE_HEADER hdr;
 	int err = -EBUSY;
+	u32 nego_parms;
+	u32 period;
+	struct scsi_device *sdev;
+	int i;
 
 	/* don't allow updating nego parameters on RAID devices */
 	if (starget->channel == 0 &&
@@ -901,6 +907,24 @@ static int mptspi_write_spi_device_pg1(struct scsi_target *starget,
 	pg1->Header.PageLength = hdr.PageLength;
 	pg1->Header.PageNumber = hdr.PageNumber;
 	pg1->Header.PageType = hdr.PageType;
+
+	nego_parms = le32_to_cpu(pg1->RequestedParameters);
+	period = (nego_parms & MPI_SCSIDEVPAGE1_RP_MIN_SYNC_PERIOD_MASK) >>
+		MPI_SCSIDEVPAGE1_RP_SHIFT_MIN_SYNC_PERIOD;
+	if (period == 8) {
+		/* Turn on inline data padding for TAPE when running U320 */
+		for (i = 0 ; i < 16; i++) {
+			sdev = scsi_device_lookup_by_target(starget, i);
+			if (sdev && sdev->type == TYPE_TAPE) {
+				sdev_printk(KERN_DEBUG, sdev, MYIOC_s_FMT
+					    "IDP:ON\n", ioc->name);
+				nego_parms |= MPI_SCSIDEVPAGE1_RP_IDP;
+				pg1->RequestedParameters =
+				    cpu_to_le32(nego_parms);
+				break;
+			}
+		}
+	}
 
 	mptspi_print_write_nego(hd, starget, le32_to_cpu(pg1->RequestedParameters));
 

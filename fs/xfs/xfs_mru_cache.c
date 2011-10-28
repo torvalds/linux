@@ -309,7 +309,7 @@ xfs_mru_cache_init(void)
 	if (!xfs_mru_elem_zone)
 		goto out;
 
-	xfs_mru_reap_wq = create_singlethread_workqueue("xfs_mru_cache");
+	xfs_mru_reap_wq = alloc_workqueue("xfs_mru_cache", WQ_MEM_RECLAIM, 1);
 	if (!xfs_mru_reap_wq)
 		goto out_destroy_mru_elem_zone;
 
@@ -408,7 +408,7 @@ xfs_mru_cache_flush(
 	spin_lock(&mru->lock);
 	if (mru->queued) {
 		spin_unlock(&mru->lock);
-		cancel_rearming_delayed_workqueue(xfs_mru_reap_wq, &mru->work);
+		cancel_delayed_work_sync(&mru->work);
 		spin_lock(&mru->lock);
 	}
 

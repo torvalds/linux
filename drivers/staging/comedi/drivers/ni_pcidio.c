@@ -821,7 +821,7 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 			cmd->scan_begin_arg = MAX_SPEED;
 			err++;
 		}
-		/* no minumum speed */
+		/* no minimum speed */
 	} else {
 		/* TRIG_EXT */
 		/* should be level/edge, hi/lo specification here */
@@ -1354,3 +1354,7 @@ static void __exit driver_pcidio_cleanup_module(void)
 
 module_init(driver_pcidio_init_module);
 module_exit(driver_pcidio_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

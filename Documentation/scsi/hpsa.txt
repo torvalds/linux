@@ -28,6 +28,12 @@ boot parameter "hpsa_allow_any=1" is specified, however these are not tested
 nor supported by HP with this driver.  For older Smart Arrays, the cciss
 driver should still be used.
 
+The "hpsa_simple_mode=1" boot parameter may be used to prevent the driver from
+putting the controller into "performant" mode.  The difference is that with simple
+mode, each command completion requires an interrupt, while with "performant mode"
+(the default, and ordinarily better performing) it is possible to have multiple
+command completions indicated by a single interrupt.
+
 HPSA specific entries in /sys
 -----------------------------
 
@@ -39,6 +45,8 @@ HPSA specific entries in /sys
 
   /sys/class/scsi_host/host*/rescan
   /sys/class/scsi_host/host*/firmware_revision
+  /sys/class/scsi_host/host*/resettable
+  /sys/class/scsi_host/host*/transport_mode
 
   the host "rescan" attribute is a write only attribute.  Writing to this
   attribute will cause the driver to scan for new, changed, or removed devices
@@ -54,6 +62,21 @@ HPSA specific entries in /sys
 
 	root@host:/sys/class/scsi_host/host4# cat firmware_revision
 	7.14
+
+  The transport_mode indicates whether the controller is in "performant"
+  or "simple" mode.  This is controlled by the "hpsa_simple_mode" module
+  parameter.
+
+  The "resettable" read-only attribute indicates whether a particular
+  controller is able to honor the "reset_devices" kernel parameter.  If the
+  device is resettable, this file will contain a "1", otherwise, a "0".  This
+  parameter is used by kdump, for example, to reset the controller at driver
+  load time to eliminate any outstanding commands on the controller and get the
+  controller into a known state so that the kdump initiated i/o will work right
+  and not be disrupted in any way by stale commands or other stale state
+  remaining on the controller from the previous kernel.  This attribute enables
+  kexec tools to warn the user if they attempt to designate a device which is
+  unable to honor the reset_devices kernel parameter as a dump device.
 
   HPSA specific disk attributes:
   ------------------------------

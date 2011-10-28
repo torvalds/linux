@@ -1247,7 +1247,7 @@ static void cxacru_unbind(struct usbatm_data *usbatm_instance,
 	mutex_unlock(&instance->poll_state_serialize);
 
 	if (is_polling)
-		cancel_rearming_delayed_work(&instance->poll_work);
+		cancel_delayed_work_sync(&instance->poll_work);
 
 	usb_kill_urb(instance->snd_urb);
 	usb_kill_urb(instance->rcv_urb);
@@ -1344,8 +1344,24 @@ static struct usbatm_driver cxacru_driver = {
 	.tx_padding	= 11,
 };
 
-static int cxacru_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int cxacru_usb_probe(struct usb_interface *intf,
+		const struct usb_device_id *id)
 {
+	struct usb_device *usb_dev = interface_to_usbdev(intf);
+	char buf[15];
+
+	/* Avoid ADSL routers (cx82310_eth).
+	 * Abort if bDeviceClass is 0xff and iProduct is "USB NET CARD".
+	 */
+	if (usb_dev->descriptor.bDeviceClass == USB_CLASS_VENDOR_SPEC
+			&& usb_string(usb_dev, usb_dev->descriptor.iProduct,
+				buf, sizeof(buf)) > 0) {
+		if (!strcmp(buf, "USB NET CARD")) {
+			dev_info(&intf->dev, "ignoring cx82310_eth device\n");
+			return -ENODEV;
+		}
+	}
+
 	return usbatm_usb_probe(intf, id, &cxacru_driver);
 }
 

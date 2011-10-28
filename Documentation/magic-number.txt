@@ -150,7 +150,7 @@ NBD_REPLY_MAGIC       0x96744668  nbd_reply         include/linux/nbd.h
 STL_BOARDMAGIC        0xa2267f52  stlbrd            include/linux/stallion.h
 ENI155_MAGIC          0xa54b872d  midway_eprom	    drivers/atm/eni.h
 SCI_MAGIC             0xbabeface  gs_port           drivers/char/sh-sci.h
-CODA_MAGIC            0xC0DAC0DA  coda_file_info    include/linux/coda_fs_i.h
+CODA_MAGIC            0xC0DAC0DA  coda_file_info    fs/coda/coda_fs_i.h
 DPMEM_MAGIC           0xc0ffee11  gdt_pci_sram      drivers/scsi/gdth.h
 STLI_PORTMAGIC        0xe671c7a1  stliport          include/linux/istallion.h
 YAM_MAGIC             0xF10A7654  yam_port          drivers/net/hamradio/yam.c

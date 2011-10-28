@@ -34,7 +34,8 @@
  * Board-specific wiring options include using split power mode with
  * RTC_OFF_NOFF used as the reset signal (so the RTC won't be reset),
  * and wiring RTC_WAKE_INT (so the RTC alarm can wake the system from
- * low power modes).  See the BOARD-SPECIFIC CUSTOMIZATION comment.
+ * low power modes) for OMAP1 boards (OMAP-L138 has this built into
+ * the SoC). See the BOARD-SPECIFIC CUSTOMIZATION comment.
  */
 
 #define OMAP_RTC_BASE			0xfffb4800
@@ -134,52 +135,23 @@ static irqreturn_t rtc_irq(int irq, void *rtc)
 	return IRQ_HANDLED;
 }
 
-#ifdef	CONFIG_RTC_INTF_DEV
-
-static int
-omap_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
+static int omap_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	u8 reg;
-
-	switch (cmd) {
-	case RTC_AIE_OFF:
-	case RTC_AIE_ON:
-	case RTC_UIE_OFF:
-	case RTC_UIE_ON:
-		break;
-	default:
-		return -ENOIOCTLCMD;
-	}
 
 	local_irq_disable();
 	rtc_wait_not_busy();
 	reg = rtc_read(OMAP_RTC_INTERRUPTS_REG);
-	switch (cmd) {
-	/* AIE = Alarm Interrupt Enable */
-	case RTC_AIE_OFF:
-		reg &= ~OMAP_RTC_INTERRUPTS_IT_ALARM;
-		break;
-	case RTC_AIE_ON:
+	if (enabled)
 		reg |= OMAP_RTC_INTERRUPTS_IT_ALARM;
-		break;
-	/* UIE = Update Interrupt Enable (1/second) */
-	case RTC_UIE_OFF:
-		reg &= ~OMAP_RTC_INTERRUPTS_IT_TIMER;
-		break;
-	case RTC_UIE_ON:
-		reg |= OMAP_RTC_INTERRUPTS_IT_TIMER;
-		break;
-	}
+	else
+		reg &= ~OMAP_RTC_INTERRUPTS_IT_ALARM;
 	rtc_wait_not_busy();
 	rtc_write(reg, OMAP_RTC_INTERRUPTS_REG);
 	local_irq_enable();
 
 	return 0;
 }
-
-#else
-#define	omap_rtc_ioctl	NULL
-#endif
 
 /* this hardware doesn't support "don't care" alarm fields */
 static int tm2bcd(struct rtc_time *tm)
@@ -303,11 +275,11 @@ static int omap_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 }
 
 static struct rtc_class_ops omap_rtc_ops = {
-	.ioctl		= omap_rtc_ioctl,
 	.read_time	= omap_rtc_read_time,
 	.set_time	= omap_rtc_set_time,
 	.read_alarm	= omap_rtc_read_alarm,
 	.set_alarm	= omap_rtc_set_alarm,
+	.alarm_irq_enable = omap_rtc_alarm_irq_enable,
 };
 
 static int omap_rtc_alarm;
@@ -401,16 +373,17 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 
 	/* BOARD-SPECIFIC CUSTOMIZATION CAN GO HERE:
 	 *
-	 *  - Boards wired so that RTC_WAKE_INT does something, and muxed
-	 *    right (W13_1610_RTC_WAKE_INT is the default after chip reset),
-	 *    should initialize the device wakeup flag appropriately.
+	 *  - Device wake-up capability setting should come through chip
+	 *    init logic. OMAP1 boards should initialize the "wakeup capable"
+	 *    flag in the platform device if the board is wired right for
+	 *    being woken up by RTC alarm. For OMAP-L138, this capability
+	 *    is built into the SoC by the "Deep Sleep" capability.
 	 *
 	 *  - Boards wired so RTC_ON_nOFF is used as the reset signal,
 	 *    rather than nPWRON_RESET, should forcibly enable split
 	 *    power mode.  (Some chip errata report that RTC_CTRL_SPLIT
 	 *    is write-only, and always reads as zero...)
 	 */
-	device_init_wakeup(&pdev->dev, 0);
 
 	if (new_ctrl & (u8) OMAP_RTC_CTRL_SPLIT)
 		pr_info("%s: split power mode\n", pdev->name);
@@ -421,19 +394,20 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 fail2:
-	free_irq(omap_rtc_timer, NULL);
+	free_irq(omap_rtc_timer, rtc);
 fail1:
 	rtc_device_unregister(rtc);
 fail0:
 	iounmap(rtc_base);
 fail:
-	release_resource(mem);
+	release_mem_region(mem->start, resource_size(mem));
 	return -EIO;
 }
 
 static int __exit omap_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device	*rtc = platform_get_drvdata(pdev);
+	struct resource		*mem = dev_get_drvdata(&rtc->dev);
 
 	device_init_wakeup(&pdev->dev, 0);
 
@@ -445,8 +419,9 @@ static int __exit omap_rtc_remove(struct platform_device *pdev)
 	if (omap_rtc_timer != omap_rtc_alarm)
 		free_irq(omap_rtc_alarm, rtc);
 
-	release_resource(dev_get_drvdata(&rtc->dev));
 	rtc_device_unregister(rtc);
+	iounmap(rtc_base);
+	release_mem_region(mem->start, resource_size(mem));
 	return 0;
 }
 

@@ -24,7 +24,6 @@
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/tty.h>
@@ -44,8 +43,11 @@
 
 #include <arch/interrupts.h>
 
-static noinline void force_sig_info_fault(int si_signo, int si_code,
-	unsigned long address, int fault_num, struct task_struct *tsk)
+static noinline void force_sig_info_fault(const char *type, int si_signo,
+					  int si_code, unsigned long address,
+					  int fault_num,
+					  struct task_struct *tsk,
+					  struct pt_regs *regs)
 {
 	siginfo_t info;
 
@@ -60,23 +62,25 @@ static noinline void force_sig_info_fault(int si_signo, int si_code,
 	info.si_code = si_code;
 	info.si_addr = (void __user *)address;
 	info.si_trapno = fault_num;
+	trace_unhandled_signal(type, regs, address, si_signo);
 	force_sig_info(si_signo, &info, tsk);
 }
 
 #ifndef __tilegx__
 /*
  * Synthesize the fault a PL0 process would get by doing a word-load of
- * an unaligned address or a high kernel address.  Called indirectly
- * from sys_cmpxchg() in kernel/intvec.S.
+ * an unaligned address or a high kernel address.
  */
-int _sys_cmpxchg_badaddr(unsigned long address, struct pt_regs *regs)
+SYSCALL_DEFINE2(cmpxchg_badaddr, unsigned long, address,
+		struct pt_regs *, regs)
 {
 	if (address >= PAGE_OFFSET)
-		force_sig_info_fault(SIGSEGV, SEGV_MAPERR, address,
-				     INT_DTLB_MISS, current);
+		force_sig_info_fault("atomic segfault", SIGSEGV, SEGV_MAPERR,
+				     address, INT_DTLB_MISS, current, regs);
 	else
-		force_sig_info_fault(SIGBUS, BUS_ADRALN, address,
-				     INT_UNALIGN_DATA, current);
+		force_sig_info_fault("atomic alignment fault", SIGBUS,
+				     BUS_ADRALN, address,
+				     INT_UNALIGN_DATA, current, regs);
 
 	/*
 	 * Adjust pc to point at the actual instruction, which is unusual
@@ -291,7 +295,7 @@ static int handle_page_fault(struct pt_regs *regs,
 	/*
 	 * Early on, we need to check for migrating PTE entries;
 	 * see homecache.c.  If we find a migrating PTE, we wait until
-	 * the backing page claims to be done migrating, then we procede.
+	 * the backing page claims to be done migrating, then we proceed.
 	 * For kernel PTEs, we rewrite the PTE and return and retry.
 	 * Otherwise, we treat the fault like a normal "no PTE" fault,
 	 * rather than trying to patch up the existing PTE.
@@ -472,8 +476,8 @@ bad_area_nosemaphore:
 		 */
 		local_irq_enable();
 
-		force_sig_info_fault(SIGSEGV, si_code, address,
-				     fault_num, tsk);
+		force_sig_info_fault("segfault", SIGSEGV, si_code, address,
+				     fault_num, tsk, regs);
 		return 0;
 	}
 
@@ -548,7 +552,8 @@ do_sigbus:
 	if (is_kernel_mode)
 		goto no_context;
 
-	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, fault_num, tsk);
+	force_sig_info_fault("bus error", SIGBUS, BUS_ADRERR, address,
+			     fault_num, tsk, regs);
 	return 0;
 }
 
@@ -563,10 +568,10 @@ do_sigbus:
 /*
  * When we take an ITLB or DTLB fault or access violation in the
  * supervisor while the critical section bit is set, the hypervisor is
- * reluctant to write new values into the EX_CONTEXT_1_x registers,
+ * reluctant to write new values into the EX_CONTEXT_K_x registers,
  * since that might indicate we have not yet squirreled the SPR
  * contents away and can thus safely take a recursive interrupt.
- * Accordingly, the hypervisor passes us the PC via SYSTEM_SAVE_1_2.
+ * Accordingly, the hypervisor passes us the PC via SYSTEM_SAVE_K_2.
  *
  * Note that this routine is called before homecache_tlb_defer_enter(),
  * which means that we can properly unlock any atomics that might
@@ -610,7 +615,7 @@ struct intvec_state do_page_fault_ics(struct pt_regs *regs, int fault_num,
 	 * fault.  We didn't set up a kernel stack on initial entry to
 	 * sys_cmpxchg, but instead had one set up by the fault, which
 	 * (because sys_cmpxchg never releases ICS) came to us via the
-	 * SYSTEM_SAVE_1_2 mechanism, and thus EX_CONTEXT_1_[01] are
+	 * SYSTEM_SAVE_K_2 mechanism, and thus EX_CONTEXT_K_[01] are
 	 * still referencing the original user code.  We release the
 	 * atomic lock and rewrite pt_regs so that it appears that we
 	 * came from user-space directly, and after we finish the
@@ -654,14 +659,6 @@ struct intvec_state do_page_fault_ics(struct pt_regs *regs, int fault_num,
 		regs->pc = fixup->fixup;
 		regs->ex1 = PL_ICS_EX1(KERNEL_PL, 0);
 	}
-
-	/*
-	 * NOTE: the one other type of access that might bring us here
-	 * are the memory ops in __tns_atomic_acquire/__tns_atomic_release,
-	 * but we don't have to check specially for them since we can
-	 * always safely return to the address of the fault and retry,
-	 * since no separate atomic locks are involved.
-	 */
 
 	/*
 	 * Now that we have released the atomic lock (if necessary),
@@ -741,6 +738,7 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 		panic("Bad fault number %d in do_page_fault", fault_num);
 	}
 
+#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
 	if (EX1_PL(regs->ex1) != USER_PL) {
 		struct async_tlb *async;
 		switch (fault_num) {
@@ -784,6 +782,7 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 			return;
 		}
 	}
+#endif
 
 	handle_page_fault(regs, fault_num, is_page_fault, address, write);
 }
@@ -810,8 +809,6 @@ static void handle_async_page_fault(struct pt_regs *regs,
 				  async->address, async->is_write);
 	}
 }
-#endif /* CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC() */
-
 
 /*
  * This routine effectively re-issues asynchronous page faults
@@ -833,6 +830,8 @@ void do_async_page_fault(struct pt_regs *regs)
 	handle_async_page_fault(regs, &current->thread.sn_async_tlb);
 #endif
 }
+#endif /* CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC() */
+
 
 void vmalloc_sync_all(void)
 {

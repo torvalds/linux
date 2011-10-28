@@ -623,19 +623,21 @@ static int __devinit pxa168fb_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "no IO memory defined\n");
-		return -ENOENT;
+		ret = -ENOENT;
+		goto failed_put_clk;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "no IRQ defined\n");
-		return -ENOENT;
+		ret = -ENOENT;
+		goto failed_put_clk;
 	}
 
 	info = framebuffer_alloc(sizeof(struct pxa168fb_info), &pdev->dev);
 	if (info == NULL) {
-		clk_put(clk);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto failed_put_clk;
 	}
 
 	/* Initialize private data */
@@ -671,7 +673,7 @@ static int __devinit pxa168fb_probe(struct platform_device *pdev)
 	fbi->reg_base = ioremap_nocache(res->start, resource_size(res));
 	if (fbi->reg_base == NULL) {
 		ret = -ENOMEM;
-		goto failed;
+		goto failed_free_info;
 	}
 
 	/*
@@ -683,7 +685,7 @@ static int __devinit pxa168fb_probe(struct platform_device *pdev)
 						&fbi->fb_start_dma, GFP_KERNEL);
 	if (info->screen_base == NULL) {
 		ret = -ENOMEM;
-		goto failed;
+		goto failed_free_info;
 	}
 
 	info->fix.smem_start = (unsigned long)fbi->fb_start_dma;
@@ -701,16 +703,12 @@ static int __devinit pxa168fb_probe(struct platform_device *pdev)
 	 */
 	pxa168fb_init_mode(info, mi);
 
-	ret = pxa168fb_check_var(&info->var, info);
-	if (ret)
-		goto failed_free_fbmem;
-
 	/*
 	 * Fill in sane defaults.
 	 */
 	ret = pxa168fb_check_var(&info->var, info);
 	if (ret)
-		goto failed;
+		goto failed_free_fbmem;
 
 	/*
 	 * enable controller clock
@@ -776,12 +774,53 @@ failed_free_clk:
 failed_free_fbmem:
 	dma_free_coherent(fbi->dev, info->fix.smem_len,
 			info->screen_base, fbi->fb_start_dma);
-failed:
+failed_free_info:
 	kfree(info);
+failed_put_clk:
 	clk_put(clk);
 
 	dev_err(&pdev->dev, "frame buffer device init failed with %d\n", ret);
 	return ret;
+}
+
+static int __devexit pxa168fb_remove(struct platform_device *pdev)
+{
+	struct pxa168fb_info *fbi = platform_get_drvdata(pdev);
+	struct fb_info *info;
+	int irq;
+	unsigned int data;
+
+	if (!fbi)
+		return 0;
+
+	/* disable DMA transfer */
+	data = readl(fbi->reg_base + LCD_SPU_DMA_CTRL0);
+	data &= ~CFG_GRA_ENA_MASK;
+	writel(data, fbi->reg_base + LCD_SPU_DMA_CTRL0);
+
+	info = fbi->info;
+
+	unregister_framebuffer(info);
+
+	writel(GRA_FRAME_IRQ0_ENA(0x0), fbi->reg_base + SPU_IRQ_ENA);
+
+	if (info->cmap.len)
+		fb_dealloc_cmap(&info->cmap);
+
+	irq = platform_get_irq(pdev, 0);
+	free_irq(irq, fbi);
+
+	dma_free_writecombine(fbi->dev, PAGE_ALIGN(info->fix.smem_len),
+				info->screen_base, info->fix.smem_start);
+
+	iounmap(fbi->reg_base);
+
+	clk_disable(fbi->clk);
+	clk_put(fbi->clk);
+
+	framebuffer_release(info);
+
+	return 0;
 }
 
 static struct platform_driver pxa168fb_driver = {
@@ -790,6 +829,7 @@ static struct platform_driver pxa168fb_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pxa168fb_probe,
+	.remove		= __devexit_p(pxa168fb_remove),
 };
 
 static int __init pxa168fb_init(void)
@@ -797,6 +837,12 @@ static int __init pxa168fb_init(void)
 	return platform_driver_register(&pxa168fb_driver);
 }
 module_init(pxa168fb_init);
+
+static void __exit pxa168fb_exit(void)
+{
+	platform_driver_unregister(&pxa168fb_driver);
+}
+module_exit(pxa168fb_exit);
 
 MODULE_AUTHOR("Lennert Buytenhek <buytenh@marvell.com> "
 	      "Green Wan <gwan@marvell.com>");

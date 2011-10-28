@@ -47,7 +47,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/saa7115.h>
 #include <asm/div64.h>
 
@@ -1349,8 +1348,17 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	int reg1e;
 
 	*std = V4L2_STD_ALL;
-	if (state->ident != V4L2_IDENT_SAA7115)
+	if (state->ident != V4L2_IDENT_SAA7115) {
+		int reg1f = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
+
+		if (reg1f & 0x20)
+			*std = V4L2_STD_525_60;
+		else
+			*std = V4L2_STD_625_50;
+
 		return 0;
+	}
+
 	reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
 
 	switch (reg1e & 0x03) {
@@ -1557,7 +1565,7 @@ static int saa711x_probe(struct i2c_client *client,
 	chip_id = name[5];
 
 	/* Check whether this chip is part of the saa711x series */
-	if (memcmp(name, "1f711", 5)) {
+	if (memcmp(name + 1, "f711", 4)) {
 		v4l_dbg(1, debug, client, "chip found @ 0x%x (ID %s) does not match a known saa711x chip.\n",
 			client->addr << 1, name);
 		return -ENODEV;
@@ -1676,7 +1684,7 @@ static int saa711x_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct i2c_device_id saa7115_id[] = {
+static const struct i2c_device_id saa711x_id[] = {
 	{ "saa7115_auto", 1 }, /* autodetect */
 	{ "saa7111", 0 },
 	{ "saa7113", 0 },
@@ -1685,11 +1693,27 @@ static const struct i2c_device_id saa7115_id[] = {
 	{ "saa7118", 0 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, saa7115_id);
+MODULE_DEVICE_TABLE(i2c, saa711x_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "saa7115",
-	.probe = saa711x_probe,
-	.remove = saa711x_remove,
-	.id_table = saa7115_id,
+static struct i2c_driver saa711x_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "saa7115",
+	},
+	.probe		= saa711x_probe,
+	.remove		= saa711x_remove,
+	.id_table	= saa711x_id,
 };
+
+static __init int init_saa711x(void)
+{
+	return i2c_add_driver(&saa711x_driver);
+}
+
+static __exit void exit_saa711x(void)
+{
+	i2c_del_driver(&saa711x_driver);
+}
+
+module_init(init_saa711x);
+module_exit(exit_saa711x);

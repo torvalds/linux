@@ -25,6 +25,8 @@
 #include <asm/system.h>
 #include <asm/watch.h>
 #include <asm/spram.h>
+#include <asm/uaccess.h>
+
 /*
  * Not all of the MIPS CPUs have the "wait" instruction available. Moreover,
  * the implementation of the "wait" feature differs between CPU families. This
@@ -181,12 +183,13 @@ void __init check_wait(void)
 	case CPU_5KC:
 	case CPU_25KF:
 	case CPU_PR4450:
-	case CPU_BCM3302:
-	case CPU_BCM6338:
-	case CPU_BCM6348:
-	case CPU_BCM6358:
+	case CPU_BMIPS3300:
+	case CPU_BMIPS4350:
+	case CPU_BMIPS4380:
+	case CPU_BMIPS5000:
 	case CPU_CAVIUM_OCTEON:
 	case CPU_CAVIUM_OCTEON_PLUS:
+	case CPU_CAVIUM_OCTEON2:
 	case CPU_JZRISC:
 		cpu_wait = r4k_wait;
 		break;
@@ -286,6 +289,12 @@ static inline int cpu_has_confreg(void)
 #else
 	return 0;
 #endif
+}
+
+static inline void set_elf_platform(int cpu, const char *plat)
+{
+	if (cpu == 0)
+		__elf_platform = plat;
 }
 
 /*
@@ -611,6 +620,16 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_LOONGSON2:
 		c->cputype = CPU_LOONGSON2;
 		__cpu_name[cpu] = "ICT Loongson-2";
+
+		switch (c->processor_id & PRID_REV_MASK) {
+		case PRID_REV_LOONGSON2E:
+			set_elf_platform(cpu, "loongson2e");
+			break;
+		case PRID_REV_LOONGSON2F:
+			set_elf_platform(cpu, "loongson2f");
+			break;
+		}
+
 		c->isa_level = MIPS_CPU_ISA_III;
 		c->options = R4K_OPTS |
 			     MIPS_CPU_FPU | MIPS_CPU_LLSC |
@@ -735,6 +754,8 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 	if ((config4 & MIPS_CONF4_MMUEXTDEF) == MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT
 	    && cpu_has_tlb)
 		c->tlbsize += (config4 & MIPS_CONF4_MMUSIZEEXT) * 0x40;
+
+	c->kscratch_mask = (config4 >> 16) & 0xff;
 
 	return config4 & MIPS_CONF_M;
 }
@@ -902,33 +923,39 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	decode_configs(c);
 	switch (c->processor_id & 0xff00) {
-	case PRID_IMP_BCM3302:
-	 /* same as PRID_IMP_BCM6338 */
-		c->cputype = CPU_BCM3302;
-		__cpu_name[cpu] = "Broadcom BCM3302";
+	case PRID_IMP_BMIPS32_REV4:
+	case PRID_IMP_BMIPS32_REV8:
+		c->cputype = CPU_BMIPS32;
+		__cpu_name[cpu] = "Broadcom BMIPS32";
+		set_elf_platform(cpu, "bmips32");
 		break;
-	case PRID_IMP_BCM4710:
-		c->cputype = CPU_BCM4710;
-		__cpu_name[cpu] = "Broadcom BCM4710";
+	case PRID_IMP_BMIPS3300:
+	case PRID_IMP_BMIPS3300_ALT:
+	case PRID_IMP_BMIPS3300_BUG:
+		c->cputype = CPU_BMIPS3300;
+		__cpu_name[cpu] = "Broadcom BMIPS3300";
+		set_elf_platform(cpu, "bmips3300");
 		break;
-	case PRID_IMP_BCM6345:
-		c->cputype = CPU_BCM6345;
-		__cpu_name[cpu] = "Broadcom BCM6345";
-		break;
-	case PRID_IMP_BCM6348:
-		c->cputype = CPU_BCM6348;
-		__cpu_name[cpu] = "Broadcom BCM6348";
-		break;
-	case PRID_IMP_BCM4350:
-		switch (c->processor_id & 0xf0) {
-		case PRID_REV_BCM6358:
-			c->cputype = CPU_BCM6358;
-			__cpu_name[cpu] = "Broadcom BCM6358";
-			break;
-		default:
-			c->cputype = CPU_UNKNOWN;
-			break;
+	case PRID_IMP_BMIPS43XX: {
+		int rev = c->processor_id & 0xff;
+
+		if (rev >= PRID_REV_BMIPS4380_LO &&
+				rev <= PRID_REV_BMIPS4380_HI) {
+			c->cputype = CPU_BMIPS4380;
+			__cpu_name[cpu] = "Broadcom BMIPS4380";
+			set_elf_platform(cpu, "bmips4380");
+		} else {
+			c->cputype = CPU_BMIPS4350;
+			__cpu_name[cpu] = "Broadcom BMIPS4350";
+			set_elf_platform(cpu, "bmips4350");
 		}
+		break;
+	}
+	case PRID_IMP_BMIPS5000:
+		c->cputype = CPU_BMIPS5000;
+		__cpu_name[cpu] = "Broadcom BMIPS5000";
+		set_elf_platform(cpu, "bmips5000");
+		c->options |= MIPS_CPU_ULRI;
 		break;
 	}
 }
@@ -950,8 +977,12 @@ static inline void cpu_probe_cavium(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_CAVIUM_OCTEON_PLUS;
 		__cpu_name[cpu] = "Cavium Octeon+";
 platform:
-		if (cpu == 0)
-			__elf_platform = "octeon";
+		set_elf_platform(cpu, "octeon");
+		break;
+	case PRID_IMP_CAVIUM_CN63XX:
+		c->cputype = CPU_CAVIUM_OCTEON2;
+		__cpu_name[cpu] = "Cavium Octeon II";
+		set_elf_platform(cpu, "octeon2");
 		break;
 	default:
 		printk(KERN_INFO "Unknown Octeon chip!\n");
@@ -975,6 +1006,65 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		break;
 	}
 }
+
+static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
+{
+	decode_configs(c);
+
+	c->options = (MIPS_CPU_TLB       |
+			MIPS_CPU_4KEX    |
+			MIPS_CPU_COUNTER |
+			MIPS_CPU_DIVEC   |
+			MIPS_CPU_WATCH   |
+			MIPS_CPU_EJTAG   |
+			MIPS_CPU_LLSC);
+
+	switch (c->processor_id & 0xff00) {
+	case PRID_IMP_NETLOGIC_XLR732:
+	case PRID_IMP_NETLOGIC_XLR716:
+	case PRID_IMP_NETLOGIC_XLR532:
+	case PRID_IMP_NETLOGIC_XLR308:
+	case PRID_IMP_NETLOGIC_XLR532C:
+	case PRID_IMP_NETLOGIC_XLR516C:
+	case PRID_IMP_NETLOGIC_XLR508C:
+	case PRID_IMP_NETLOGIC_XLR308C:
+		c->cputype = CPU_XLR;
+		__cpu_name[cpu] = "Netlogic XLR";
+		break;
+
+	case PRID_IMP_NETLOGIC_XLS608:
+	case PRID_IMP_NETLOGIC_XLS408:
+	case PRID_IMP_NETLOGIC_XLS404:
+	case PRID_IMP_NETLOGIC_XLS208:
+	case PRID_IMP_NETLOGIC_XLS204:
+	case PRID_IMP_NETLOGIC_XLS108:
+	case PRID_IMP_NETLOGIC_XLS104:
+	case PRID_IMP_NETLOGIC_XLS616B:
+	case PRID_IMP_NETLOGIC_XLS608B:
+	case PRID_IMP_NETLOGIC_XLS416B:
+	case PRID_IMP_NETLOGIC_XLS412B:
+	case PRID_IMP_NETLOGIC_XLS408B:
+	case PRID_IMP_NETLOGIC_XLS404B:
+		c->cputype = CPU_XLR;
+		__cpu_name[cpu] = "Netlogic XLS";
+		break;
+
+	default:
+		printk(KERN_INFO "Unknown Netlogic chip id [%02x]!\n",
+		       c->processor_id);
+		c->cputype = CPU_XLR;
+		break;
+	}
+
+	c->isa_level = MIPS_CPU_ISA_M64R1;
+	c->tlbsize = ((read_c0_config1() >> 25) & 0x3f) + 1;
+}
+
+#ifdef CONFIG_64BIT
+/* For use by uaccess.h */
+u64 __ua_limit;
+EXPORT_SYMBOL(__ua_limit);
+#endif
 
 const char *__cpu_name[NR_CPUS];
 const char *__elf_platform;
@@ -1017,6 +1107,9 @@ __cpuinit void cpu_probe(void)
 	case PRID_COMP_INGENIC:
 		cpu_probe_ingenic(c, cpu);
 		break;
+	case PRID_COMP_NETLOGIC:
+		cpu_probe_netlogic(c, cpu);
+		break;
 	}
 
 	BUG_ON(!__cpu_name[cpu]);
@@ -1053,6 +1146,11 @@ __cpuinit void cpu_probe(void)
 		c->srsets = 1;
 
 	cpu_probe_vmbits(c);
+
+#ifdef CONFIG_64BIT
+	if (cpu == 0)
+		__ua_limit = ~((1ull << cpu_vmbits) - 1);
+#endif
 }
 
 __cpuinit void cpu_report(void)

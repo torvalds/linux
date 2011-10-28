@@ -230,7 +230,7 @@ static s32 detect_btsc(struct cx88_core *core, s16 x[], u32 N)
 
 static s16 *read_rds_samples(struct cx88_core *core, u32 *N)
 {
-	struct sram_channel *srch = &cx88_sram_channels[SRAM_CH27];
+	const struct sram_channel *srch = &cx88_sram_channels[SRAM_CH27];
 	s16 *samples;
 
 	unsigned int i;
@@ -292,10 +292,19 @@ s32 cx88_dsp_detect_stereo_sap(struct cx88_core *core)
 	switch (core->tvaudio) {
 	case WW_BG:
 	case WW_DK:
+	case WW_EIAJ:
+	case WW_M:
 		ret = detect_a2_a2m_eiaj(core, samples, N);
 		break;
 	case WW_BTSC:
 		ret = detect_btsc(core, samples, N);
+		break;
+	case WW_NONE:
+	case WW_I:
+	case WW_L:
+	case WW_I2SPT:
+	case WW_FM:
+	case WW_I2SADC:
 		break;
 	}
 

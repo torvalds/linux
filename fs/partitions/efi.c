@@ -94,6 +94,7 @@
  *
  ************************************************************/
 #include <linux/crc32.h>
+#include <linux/ctype.h>
 #include <linux/math64.h>
 #include <linux/slab.h>
 #include "check.h"
@@ -309,6 +310,15 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
 		goto fail;
 	}
 
+	/* Check the GUID Partition Table header size */
+	if (le32_to_cpu((*gpt)->header_size) >
+			bdev_logical_block_size(state->bdev)) {
+		pr_debug("GUID Partition Table Header size is wrong: %u > %u\n",
+			le32_to_cpu((*gpt)->header_size),
+			bdev_logical_block_size(state->bdev));
+		goto fail;
+	}
+
 	/* Check the GUID Partition Table CRC */
 	origcrc = le32_to_cpu((*gpt)->header_crc32);
 	(*gpt)->header_crc32 = 0;
@@ -344,6 +354,12 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
 		pr_debug("GPT: last_usable_lba incorrect: %lld > %lld\n",
 			 (unsigned long long)le64_to_cpu((*gpt)->last_usable_lba),
 			 (unsigned long long)lastlba);
+		goto fail;
+	}
+
+	/* Check that sizeof_partition_entry has the correct value */
+	if (le32_to_cpu((*gpt)->sizeof_partition_entry) != sizeof(gpt_entry)) {
+		pr_debug("GUID Partitition Entry Size check failed.\n");
 		goto fail;
 	}
 
@@ -604,6 +620,7 @@ int efi_partition(struct parsed_partitions *state)
 	gpt_entry *ptes = NULL;
 	u32 i;
 	unsigned ssz = bdev_logical_block_size(state->bdev) / 512;
+	u8 unparsed_guid[37];
 
 	if (!find_valid_gpt(state, &gpt, &ptes) || !gpt || !ptes) {
 		kfree(gpt);
@@ -614,6 +631,9 @@ int efi_partition(struct parsed_partitions *state)
 	pr_debug("GUID Partition Table is valid!  Yea!\n");
 
 	for (i = 0; i < le32_to_cpu(gpt->num_partition_entries) && i < state->limit-1; i++) {
+		struct partition_meta_info *info;
+		unsigned label_count = 0;
+		unsigned label_max;
 		u64 start = le64_to_cpu(ptes[i].starting_lba);
 		u64 size = le64_to_cpu(ptes[i].ending_lba) -
 			   le64_to_cpu(ptes[i].starting_lba) + 1ULL;
@@ -627,6 +647,26 @@ int efi_partition(struct parsed_partitions *state)
 		if (!efi_guidcmp(ptes[i].partition_type_guid,
 				 PARTITION_LINUX_RAID_GUID))
 			state->parts[i + 1].flags = ADDPART_FLAG_RAID;
+
+		info = &state->parts[i + 1].info;
+		/* Instead of doing a manual swap to big endian, reuse the
+		 * common ASCII hex format as the interim.
+		 */
+		efi_guid_unparse(&ptes[i].unique_partition_guid, unparsed_guid);
+		part_pack_uuid(unparsed_guid, info->uuid);
+
+		/* Naively convert UTF16-LE to 7 bits. */
+		label_max = min(sizeof(info->volname) - 1,
+				sizeof(ptes[i].partition_name));
+		info->volname[label_max] = 0;
+		while (label_count < label_max) {
+			u8 c = ptes[i].partition_name[label_count] & 0xff;
+			if (c && !isprint(c))
+				c = '!';
+			info->volname[label_count] = c;
+			label_count++;
+		}
+		state->parts[i + 1].has_info = true;
 	}
 	kfree(ptes);
 	kfree(gpt);

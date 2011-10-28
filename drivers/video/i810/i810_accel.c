@@ -112,7 +112,7 @@ static inline int wait_for_engine_idle(struct fb_info *info)
  * @par: pointer to i810fb_par structure
  *
  * DESCRIPTION:
- * Checks/waits for sufficent space in ringbuffer of size
+ * Checks/waits for sufficient space in ringbuffer of size
  * space.  Returns the tail of the buffer
  */ 
 static inline u32 begin_iring(struct fb_info *info, u32 space)

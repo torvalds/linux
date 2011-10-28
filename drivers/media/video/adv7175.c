@@ -30,11 +30,9 @@
 #include <linux/ioctl.h>
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("Analog Devices ADV7175 video encoder driver");
 MODULE_AUTHOR("Dave Perks");
@@ -305,11 +303,22 @@ static int adv7175_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ide
 	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_ADV7175, 0);
 }
 
+static int adv7175_s_power(struct v4l2_subdev *sd, int on)
+{
+	if (on)
+		adv7175_write(sd, 0x01, 0x00);
+	else
+		adv7175_write(sd, 0x01, 0x78);
+
+	return 0;
+}
+
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops adv7175_core_ops = {
 	.g_chip_ident = adv7175_g_chip_ident,
 	.init = adv7175_init,
+	.s_power = adv7175_s_power,
 };
 
 static const struct v4l2_subdev_video_ops adv7175_video_ops = {
@@ -376,9 +385,25 @@ static const struct i2c_device_id adv7175_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adv7175_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "adv7175",
-	.probe = adv7175_probe,
-	.remove = adv7175_remove,
-	.id_table = adv7175_id,
+static struct i2c_driver adv7175_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "adv7175",
+	},
+	.probe		= adv7175_probe,
+	.remove		= adv7175_remove,
+	.id_table	= adv7175_id,
 };
+
+static __init int init_adv7175(void)
+{
+	return i2c_add_driver(&adv7175_driver);
+}
+
+static __exit void exit_adv7175(void)
+{
+	i2c_del_driver(&adv7175_driver);
+}
+
+module_init(init_adv7175);
+module_exit(exit_adv7175);

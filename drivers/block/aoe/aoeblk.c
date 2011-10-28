@@ -4,17 +4,20 @@
  * block device routines
  */
 
+#include <linux/kernel.h>
 #include <linux/hdreg.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
 #include <linux/slab.h>
+#include <linux/ratelimit.h>
 #include <linux/genhd.h>
 #include <linux/netdevice.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include "aoe.h"
 
+static DEFINE_MUTEX(aoeblk_mutex);
 static struct kmem_cache *buf_pool_cache;
 
 static ssize_t aoedisk_show_state(struct device *dev,
@@ -125,16 +128,16 @@ aoeblk_open(struct block_device *bdev, fmode_t mode)
 	struct aoedev *d = bdev->bd_disk->private_data;
 	ulong flags;
 
-	lock_kernel();
+	mutex_lock(&aoeblk_mutex);
 	spin_lock_irqsave(&d->lock, flags);
 	if (d->flags & DEVFL_UP) {
 		d->nopen++;
 		spin_unlock_irqrestore(&d->lock, flags);
-		unlock_kernel();
+		mutex_unlock(&aoeblk_mutex);
 		return 0;
 	}
 	spin_unlock_irqrestore(&d->lock, flags);
-	unlock_kernel();
+	mutex_unlock(&aoeblk_mutex);
 	return -ENODEV;
 }
 
@@ -177,9 +180,6 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 		BUG();
 		bio_endio(bio, -ENXIO);
 		return 0;
-	} else if (bio->bi_rw & REQ_HARDBARRIER) {
-		bio_endio(bio, -EOPNOTSUPP);
-		return 0;
 	} else if (bio->bi_io_vec == NULL) {
 		printk(KERN_ERR "aoe: bi_io_vec is NULL\n");
 		BUG();
@@ -206,7 +206,7 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 	spin_lock_irqsave(&d->lock, flags);
 
 	if ((d->flags & DEVFL_UP) == 0) {
-		printk(KERN_INFO "aoe: device %ld.%d is not up\n",
+		pr_info_ratelimited("aoe: device %ld.%d is not up\n",
 			d->aoemajor, d->aoeminor);
 		spin_unlock_irqrestore(&d->lock, flags);
 		mempool_free(buf, d->bufpool);

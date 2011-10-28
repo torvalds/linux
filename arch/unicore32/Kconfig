@@ -1,0 +1,271 @@
+config UNICORE32
+	def_bool y
+	select HAVE_MEMBLOCK
+	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_GENERIC_HARDIRQS
+	select HAVE_DMA_ATTRS
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_LZMA
+	select GENERIC_FIND_FIRST_BIT
+	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_SHOW
+	select ARCH_WANT_FRAME_POINTERS
+	help
+	  UniCore-32 is 32-bit Instruction Set Architecture,
+	  including a series of low-power-consumption RISC chip
+	  designs licensed by PKUnity Ltd.
+	  Please see web page at <http://www.pkunity.com/>.
+
+config HAVE_PWM
+	bool
+
+config GENERIC_GPIO
+	def_bool y
+
+config GENERIC_CLOCKEVENTS
+	bool
+
+config GENERIC_CSUM
+	def_bool y
+
+config GENERIC_IOMAP
+	def_bool y
+
+config NO_IOPORT
+	bool
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config HAVE_LATENCYTOP_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+
+config ARCH_HAS_ILOG2_U32
+	bool
+
+config ARCH_HAS_ILOG2_U64
+	bool
+
+config ARCH_HAS_CPUFREQ
+	bool
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+
+config NEED_DMA_MAP_STATE
+       def_bool y
+
+source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
+
+menu "System Type"
+
+config MMU
+	def_bool y
+
+config ARCH_FPGA
+	bool
+
+config ARCH_PUV3
+	def_bool y
+	select CPU_UCV2
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_CPUFREQ
+
+# CONFIGs for ARCH_PUV3
+
+if ARCH_PUV3
+
+choice
+	prompt "Board Selection"
+	default PUV3_DB0913
+
+config PUV3_FPGA_DLX200
+	select ARCH_FPGA
+	bool "FPGA board"
+
+config PUV3_DB0913
+	bool "DEBUG board (0913)"
+
+config PUV3_NB0916
+	bool "NetBook board (0916)"
+	select HAVE_PWM
+
+config PUV3_SMW0919
+	bool "Security Mini-Workstation board (0919)"
+
+endchoice
+
+config PUV3_PM
+	def_bool y if !ARCH_FPGA
+
+endif
+
+source "arch/unicore32/mm/Kconfig"
+
+comment "Floating poing support"
+
+config UNICORE_FPU_F64
+	def_bool y if !ARCH_FPGA
+
+endmenu
+
+menu "Bus support"
+
+config PCI
+	bool "PCI Support"
+	help
+	  Find out whether you have a PCI motherboard. PCI is the name of a
+	  bus system, i.e. the way the CPU talks to the other stuff inside
+	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
+	  VESA. If you have PCI, say Y, otherwise N.
+
+source "drivers/pci/Kconfig"
+
+source "drivers/pcmcia/Kconfig"
+
+endmenu
+
+menu "Kernel Features"
+
+source "kernel/time/Kconfig"
+
+source "kernel/Kconfig.preempt"
+
+source "kernel/Kconfig.hz"
+
+source "mm/Kconfig"
+
+config LEDS
+	def_bool y
+	depends on GENERIC_GPIO
+
+config ALIGNMENT_TRAP
+	def_bool y
+	help
+	  Unicore processors can not fetch/store information which is not
+	  naturally aligned on the bus, i.e., a 4 byte fetch must start at an
+	  address divisible by 4. On 32-bit Unicore processors, these non-aligned
+	  fetch/store instructions will be emulated in software if you say
+	  here, which has a severe performance impact. This is necessary for
+	  correct operation of some network protocols. With an IP-only
+	  configuration it is safe to say N, otherwise say Y.
+
+endmenu
+
+menu "Boot options"
+
+config CMDLINE
+	string "Default kernel command string"
+	default ""
+
+config CMDLINE_FORCE
+	bool "Always use the default kernel command string"
+	depends on CMDLINE != ""
+	help
+	  Always use the default kernel command string, even if the boot
+	  loader passes other arguments to the kernel.
+	  This is useful if you cannot or don't want to change the
+	  command-line options your boot loader passes to the kernel.
+
+	  If unsure, say N.
+
+endmenu
+
+menu "Userspace binary formats"
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+menu "Power management options"
+
+source "kernel/power/Kconfig"
+
+if ARCH_HAS_CPUFREQ
+source "drivers/cpufreq/Kconfig"
+endif
+
+config ARCH_SUSPEND_POSSIBLE
+	def_bool y if !ARCH_FPGA
+
+config ARCH_HIBERNATION_POSSIBLE
+	def_bool y if !ARCH_FPGA
+
+endmenu
+
+source "net/Kconfig"
+
+if ARCH_PUV3
+
+config PUV3_GPIO
+	bool
+	depends on !ARCH_FPGA
+	select GENERIC_GPIO
+	select GPIO_SYSFS if EXPERIMENTAL
+	default y
+
+config PUV3_PWM
+	tristate
+	default BACKLIGHT_PWM
+	help
+	  Enable support for NB0916 PWM controllers
+
+if PUV3_NB0916
+
+menu "PKUnity NetBook-0916 Features"
+
+config I2C_BATTERY_BQ27200
+	tristate "I2C Battery BQ27200 Support"
+	select PUV3_I2C
+	select POWER_SUPPLY
+	select BATTERY_BQ27x00
+
+config I2C_EEPROM_AT24
+	tristate "I2C EEPROMs AT24 support"
+	select PUV3_I2C
+	select MISC_DEVICES
+	select EEPROM_AT24
+
+config LCD_BACKLIGHT
+	tristate "LCD Backlight support"
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_PWM
+
+endmenu
+
+endif
+
+endif
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/unicore32/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

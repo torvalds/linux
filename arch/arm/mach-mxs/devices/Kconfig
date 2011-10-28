@@ -1,0 +1,25 @@
+config MXS_HAVE_AMBA_DUART
+	bool
+	select ARM_AMBA
+
+config MXS_HAVE_PLATFORM_AUART
+	bool
+
+config MXS_HAVE_PLATFORM_FEC
+	bool
+
+config MXS_HAVE_PLATFORM_FLEXCAN
+	select HAVE_CAN_FLEXCAN if CAN
+	bool
+
+config MXS_HAVE_PLATFORM_MXS_I2C
+	bool
+
+config MXS_HAVE_PLATFORM_MXS_MMC
+	bool
+
+config MXS_HAVE_PLATFORM_MXS_PWM
+	bool
+
+config MXS_HAVE_PLATFORM_MXSFB
+	bool

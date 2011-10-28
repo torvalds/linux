@@ -317,7 +317,7 @@ err_unmap_regs:
 err_release_mem:
 	release_mem_region(res->start, resource_size(res));
 err_free_dev:
-	input_free_device(ts_dev->input);
+	input_free_device(input_dev);
 err_free_mem:
 	kfree(ts_dev);
 	return err;

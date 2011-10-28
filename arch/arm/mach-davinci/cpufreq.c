@@ -34,6 +34,8 @@
 struct davinci_cpufreq {
 	struct device *dev;
 	struct clk *armclk;
+	struct clk *asyncclk;
+	unsigned long asyncrate;
 };
 static struct davinci_cpufreq cpufreq;
 
@@ -92,9 +94,7 @@ static int davinci_target(struct cpufreq_policy *policy,
 	if (freqs.old == freqs.new)
 		return ret;
 
-	cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER,
-			dev_driver_string(cpufreq.dev),
-			"transition: %u --> %u\n", freqs.old, freqs.new);
+	dev_dbg(&cpufreq.dev, "transition: %u --> %u\n", freqs.old, freqs.new);
 
 	ret = cpufreq_frequency_table_target(policy, pdata->freq_table,
 						freqs.new, relation, &idx);
@@ -104,21 +104,33 @@ static int davinci_target(struct cpufreq_policy *policy,
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
 	/* if moving to higher frequency, up the voltage beforehand */
-	if (pdata->set_voltage && freqs.new > freqs.old)
-		pdata->set_voltage(idx);
+	if (pdata->set_voltage && freqs.new > freqs.old) {
+		ret = pdata->set_voltage(idx);
+		if (ret)
+			goto out;
+	}
 
 	ret = clk_set_rate(armclk, idx);
+	if (ret)
+		goto out;
+
+	if (cpufreq.asyncclk) {
+		ret = clk_set_rate(cpufreq.asyncclk, cpufreq.asyncrate);
+		if (ret)
+			goto out;
+	}
 
 	/* if moving to lower freq, lower the voltage after lowering freq */
 	if (pdata->set_voltage && freqs.new < freqs.old)
 		pdata->set_voltage(idx);
 
+out:
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 	return ret;
 }
 
-static int __init davinci_cpu_init(struct cpufreq_policy *policy)
+static int davinci_cpu_init(struct cpufreq_policy *policy)
 {
 	int result = 0;
 	struct davinci_cpufreq_config *pdata = cpufreq.dev->platform_data;
@@ -153,7 +165,7 @@ static int __init davinci_cpu_init(struct cpufreq_policy *policy)
 	/*
 	 * Time measurement across the target() function yields ~1500-1800us
 	 * time taken with no drivers on notification list.
-	 * Setting the latency to 2000 us to accomodate addition of drivers
+	 * Setting the latency to 2000 us to accommodate addition of drivers
 	 * to pre/post change notification list.
 	 */
 	policy->cpuinfo.transition_latency = 2000 * 1000;
@@ -185,6 +197,7 @@ static struct cpufreq_driver davinci_driver = {
 static int __init davinci_cpufreq_probe(struct platform_device *pdev)
 {
 	struct davinci_cpufreq_config *pdata = pdev->dev.platform_data;
+	struct clk *asyncclk;
 
 	if (!pdata)
 		return -EINVAL;
@@ -199,12 +212,21 @@ static int __init davinci_cpufreq_probe(struct platform_device *pdev)
 		return PTR_ERR(cpufreq.armclk);
 	}
 
+	asyncclk = clk_get(cpufreq.dev, "async");
+	if (!IS_ERR(asyncclk)) {
+		cpufreq.asyncclk = asyncclk;
+		cpufreq.asyncrate = clk_get_rate(asyncclk);
+	}
+
 	return cpufreq_register_driver(&davinci_driver);
 }
 
 static int __exit davinci_cpufreq_remove(struct platform_device *pdev)
 {
 	clk_put(cpufreq.armclk);
+
+	if (cpufreq.asyncclk)
+		clk_put(cpufreq.asyncclk);
 
 	return cpufreq_unregister_driver(&davinci_driver);
 }

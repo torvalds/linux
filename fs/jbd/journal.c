@@ -36,6 +36,7 @@
 #include <linux/poison.h>
 #include <linux/proc_fs.h>
 #include <linux/debugfs.h>
+#include <linux/ratelimit.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -84,6 +85,7 @@ EXPORT_SYMBOL(journal_force_commit);
 
 static int journal_convert_superblock_v1(journal_t *, journal_superblock_t *);
 static void __journal_abort_soft (journal_t *journal, int errno);
+static const char *journal_dev_name(journal_t *journal, char *buffer);
 
 /*
  * Helper function used to manage commit timeouts
@@ -435,11 +437,14 @@ int __log_space_left(journal_t *journal)
 int __log_start_commit(journal_t *journal, tid_t target)
 {
 	/*
-	 * Are we already doing a recent enough commit?
+	 * The only transaction we can possibly wait upon is the
+	 * currently running transaction (if it exists).  Otherwise,
+	 * the target tid must be an old one.
 	 */
-	if (!tid_geq(journal->j_commit_request, target)) {
+	if (journal->j_running_transaction &&
+	    journal->j_running_transaction->t_tid == target) {
 		/*
-		 * We want a new commit: OK, mark the request and wakup the
+		 * We want a new commit: OK, mark the request and wakeup the
 		 * commit thread.  We do _not_ do the commit ourselves.
 		 */
 
@@ -449,7 +454,14 @@ int __log_start_commit(journal_t *journal, tid_t target)
 			  journal->j_commit_sequence);
 		wake_up(&journal->j_wait_commit);
 		return 1;
-	}
+	} else if (!tid_geq(journal->j_commit_request, target))
+		/* This should never happen, but if it does, preserve
+		   the evidence before kjournald goes into a loop and
+		   increments j_commit_sequence beyond all recognition. */
+		WARN_ONCE(1, "jbd: bad log_start_commit: %u %u %u %u\n",
+		    journal->j_commit_request, journal->j_commit_sequence,
+		    target, journal->j_running_transaction ?
+		    journal->j_running_transaction->t_tid : 0);
 	return 0;
 }
 
@@ -768,7 +780,7 @@ journal_t * journal_init_dev(struct block_device *bdev,
 	journal->j_wbufsize = n;
 	journal->j_wbuf = kmalloc(n * sizeof(struct buffer_head*), GFP_KERNEL);
 	if (!journal->j_wbuf) {
-		printk(KERN_ERR "%s: Cant allocate bhs for commit thread\n",
+		printk(KERN_ERR "%s: Can't allocate bhs for commit thread\n",
 			__func__);
 		goto out_err;
 	}
@@ -829,7 +841,7 @@ journal_t * journal_init_inode (struct inode *inode)
 	journal->j_wbufsize = n;
 	journal->j_wbuf = kmalloc(n * sizeof(struct buffer_head*), GFP_KERNEL);
 	if (!journal->j_wbuf) {
-		printk(KERN_ERR "%s: Cant allocate bhs for commit thread\n",
+		printk(KERN_ERR "%s: Can't allocate bhs for commit thread\n",
 			__func__);
 		goto out_err;
 	}
@@ -837,7 +849,7 @@ journal_t * journal_init_inode (struct inode *inode)
 	err = journal_bmap(journal, 0, &blocknr);
 	/* If that failed, give up */
 	if (err) {
-		printk(KERN_ERR "%s: Cannnot locate journal superblock\n",
+		printk(KERN_ERR "%s: Cannot locate journal superblock\n",
 		       __func__);
 		goto out_err;
 	}
@@ -950,6 +962,8 @@ int journal_create(journal_t *journal)
 		if (err)
 			return err;
 		bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
+		if (unlikely(!bh))
+			return -ENOMEM;
 		lock_buffer(bh);
 		memset (bh->b_data, 0, journal->j_blocksize);
 		BUFFER_TRACE(bh, "marking dirty");
@@ -1010,6 +1024,23 @@ void journal_update_superblock(journal_t *journal, int wait)
 		goto out;
 	}
 
+	if (buffer_write_io_error(bh)) {
+		char b[BDEVNAME_SIZE];
+		/*
+		 * Oh, dear.  A previous attempt to write the journal
+		 * superblock failed.  This could happen because the
+		 * USB device was yanked out.  Or it could happen to
+		 * be a transient write error and maybe the block will
+		 * be remapped.  Nothing we can do but to retry the
+		 * write and hope for the best.
+		 */
+		printk(KERN_ERR "JBD: previous I/O error detected "
+		       "for journal superblock update for %s.\n",
+		       journal_dev_name(journal, b));
+		clear_buffer_write_io_error(bh);
+		set_buffer_uptodate(bh);
+	}
+
 	spin_lock(&journal->j_state_lock);
 	jbd_debug(1,"JBD: updating superblock (start %u, seq %d, errno %d)\n",
 		  journal->j_tail, journal->j_tail_sequence, journal->j_errno);
@@ -1021,9 +1052,17 @@ void journal_update_superblock(journal_t *journal, int wait)
 
 	BUFFER_TRACE(bh, "marking dirty");
 	mark_buffer_dirty(bh);
-	if (wait)
+	if (wait) {
 		sync_dirty_buffer(bh);
-	else
+		if (buffer_write_io_error(bh)) {
+			char b[BDEVNAME_SIZE];
+			printk(KERN_ERR "JBD: I/O error detected "
+			       "when updating journal superblock for %s.\n",
+			       journal_dev_name(journal, b));
+			clear_buffer_write_io_error(bh);
+			set_buffer_uptodate(bh);
+		}
+	} else
 		write_dirty_buffer(bh, WRITE);
 
 out:
@@ -1719,7 +1758,6 @@ static void journal_destroy_journal_head_cache(void)
 static struct journal_head *journal_alloc_journal_head(void)
 {
 	struct journal_head *ret;
-	static unsigned long last_warning;
 
 #ifdef CONFIG_JBD_DEBUG
 	atomic_inc(&nr_journal_heads);
@@ -1727,11 +1765,9 @@ static struct journal_head *journal_alloc_journal_head(void)
 	ret = kmem_cache_alloc(journal_head_cache, GFP_NOFS);
 	if (ret == NULL) {
 		jbd_debug(1, "out of memory for journal_head\n");
-		if (time_after(jiffies, last_warning + 5*HZ)) {
-			printk(KERN_NOTICE "ENOMEM in %s, retrying.\n",
-			       __func__);
-			last_warning = jiffies;
-		}
+		printk_ratelimited(KERN_NOTICE "ENOMEM in %s, retrying.\n",
+				   __func__);
+
 		while (ret == NULL) {
 			yield();
 			ret = kmem_cache_alloc(journal_head_cache, GFP_NOFS);

@@ -126,36 +126,36 @@ static struct printer_dev usb_printer_gadget;
 #define PRINTER_VENDOR_NUM	0x0525		/* NetChip */
 #define PRINTER_PRODUCT_NUM	0xa4a8		/* Linux-USB Printer Gadget */
 
-/* Some systems will want different product identifers published in the
+/* Some systems will want different product identifiers published in the
  * device descriptor, either numbers or strings or both.  These string
  * parameters are in UTF-8 (superset of ASCII's 7 bit characters).
  */
 
-static ushort __initdata idVendor;
+static ushort idVendor;
 module_param(idVendor, ushort, S_IRUGO);
 MODULE_PARM_DESC(idVendor, "USB Vendor ID");
 
-static ushort __initdata idProduct;
+static ushort idProduct;
 module_param(idProduct, ushort, S_IRUGO);
 MODULE_PARM_DESC(idProduct, "USB Product ID");
 
-static ushort __initdata bcdDevice;
+static ushort bcdDevice;
 module_param(bcdDevice, ushort, S_IRUGO);
 MODULE_PARM_DESC(bcdDevice, "USB Device version (BCD)");
 
-static char *__initdata iManufacturer;
+static char *iManufacturer;
 module_param(iManufacturer, charp, S_IRUGO);
 MODULE_PARM_DESC(iManufacturer, "USB Manufacturer string");
 
-static char *__initdata iProduct;
+static char *iProduct;
 module_param(iProduct, charp, S_IRUGO);
 MODULE_PARM_DESC(iProduct, "USB Product string");
 
-static char *__initdata iSerialNum;
+static char *iSerialNum;
 module_param(iSerialNum, charp, S_IRUGO);
 MODULE_PARM_DESC(iSerialNum, "1");
 
-static char *__initdata iPNPstring;
+static char *iPNPstring;
 module_param(iPNPstring, charp, S_IRUGO);
 MODULE_PARM_DESC(iPNPstring, "MFG:linux;MDL:g_printer;CLS:PRINTER;SN:1;");
 
@@ -884,7 +884,8 @@ static const struct file_operations printer_io_operations = {
 	.fsync =	printer_fsync,
 	.poll =		printer_poll,
 	.unlocked_ioctl = printer_ioctl,
-	.release =	printer_close
+	.release =	printer_close,
+	.llseek =	noop_llseek,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1188,6 +1189,8 @@ printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			else if (gadget->a_alt_hnp_support)
 				DBG(dev, "HNP needs a different root port\n");
 			value = printer_set_config(dev, wValue);
+			if (!value)
+				value = set_interface(dev, PRINTER_INTERFACE);
 			break;
 		case USB_REQ_GET_CONFIGURATION:
 			if (ctrl->bRequestType != USB_DIR_IN)
@@ -1347,7 +1350,7 @@ printer_unbind(struct usb_gadget *gadget)
 	set_gadget_data(gadget, NULL);
 }
 
-static int __ref
+static int __init
 printer_bind(struct usb_gadget *gadget)
 {
 	struct printer_dev	*dev;
@@ -1543,7 +1546,6 @@ static struct usb_gadget_driver printer_driver = {
 	.speed		= DEVSPEED,
 
 	.function	= (char *) driver_desc,
-	.bind		= printer_bind,
 	.unbind		= printer_unbind,
 
 	.setup		= printer_setup,
@@ -1579,11 +1581,11 @@ init(void)
 		return status;
 	}
 
-	status = usb_gadget_register_driver(&printer_driver);
+	status = usb_gadget_probe_driver(&printer_driver, printer_bind);
 	if (status) {
 		class_destroy(usb_gadget_class);
 		unregister_chrdev_region(g_printer_devno, 1);
-		DBG(dev, "usb_gadget_register_driver %x\n", status);
+		DBG(dev, "usb_gadget_probe_driver %x\n", status);
 	}
 
 	return status;
@@ -1596,13 +1598,12 @@ cleanup(void)
 	int status;
 
 	mutex_lock(&usb_printer_gadget.lock_printer_io);
-	class_destroy(usb_gadget_class);
-	unregister_chrdev_region(g_printer_devno, 2);
-
 	status = usb_gadget_unregister_driver(&printer_driver);
 	if (status)
 		ERROR(dev, "usb_gadget_unregister_driver %x\n", status);
 
+	unregister_chrdev_region(g_printer_devno, 2);
+	class_destroy(usb_gadget_class);
 	mutex_unlock(&usb_printer_gadget.lock_printer_io);
 }
 module_exit(cleanup);

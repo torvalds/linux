@@ -72,6 +72,7 @@
 #define ETH_P_MPLS_UC	0x8847		/* MPLS Unicast traffic		*/
 #define ETH_P_MPLS_MC	0x8848		/* MPLS Multicast traffic	*/
 #define ETH_P_ATMMPOA	0x884c		/* MultiProtocol Over ATM	*/
+#define ETH_P_LINK_CTL	0x886c		/* HPNA, wlan link local tunnel */
 #define ETH_P_ATMFATE	0x8884		/* Frame-based ATM Transport
 					 * over Ethernet
 					 */
@@ -131,13 +132,8 @@ static inline struct ethhdr *eth_hdr(const struct sk_buff *skb)
 
 int eth_header_parse(const struct sk_buff *skb, unsigned char *haddr);
 
-#ifdef CONFIG_SYSCTL
-extern struct ctl_table ether_table[];
-#endif
-
+int mac_pton(const char *s, u8 *mac);
 extern ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len);
-
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
 
 #endif
 

@@ -1,0 +1,33 @@
+config BCMA_POSSIBLE
+	bool
+	depends on HAS_IOMEM && HAS_DMA
+	default y
+
+menu "Broadcom specific AMBA"
+	depends on BCMA_POSSIBLE
+
+config BCMA
+	tristate "BCMA support"
+	depends on BCMA_POSSIBLE
+	help
+	  Bus driver for Broadcom specific Advanced Microcontroller Bus
+	  Architecture.
+
+config BCMA_HOST_PCI_POSSIBLE
+	bool
+	depends on BCMA && PCI = y
+	default y
+
+config BCMA_HOST_PCI
+	bool "Support for BCMA on PCI-host bus"
+	depends on BCMA_HOST_PCI_POSSIBLE
+
+config BCMA_DEBUG
+	bool "BCMA debugging"
+	depends on BCMA
+	help
+	  This turns on additional debugging messages.
+
+	  If unsure, say N
+
+endmenu

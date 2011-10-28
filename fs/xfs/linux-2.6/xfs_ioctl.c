@@ -39,6 +39,7 @@
 #include "xfs_dfrag.h"
 #include "xfs_fsops.h"
 #include "xfs_vnodeops.h"
+#include "xfs_discard.h"
 #include "xfs_quota.h"
 #include "xfs_inode_item.h"
 #include "xfs_export.h"
@@ -416,7 +417,7 @@ xfs_attrlist_by_handle(
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	kbuf = kmalloc(al_hreq.buflen, GFP_KERNEL);
+	kbuf = kzalloc(al_hreq.buflen, GFP_KERNEL);
 	if (!kbuf)
 		goto out_dput;
 
@@ -623,6 +624,10 @@ xfs_ioc_space(
 
 	if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
 		attr_flags |= XFS_ATTR_NONBLOCK;
+
+	if (filp->f_flags & O_DSYNC)
+		attr_flags |= XFS_ATTR_SYNC;
+
 	if (ioflags & IO_INVIS)
 		attr_flags |= XFS_ATTR_DMI;
 
@@ -694,14 +699,19 @@ xfs_ioc_fsgeometry_v1(
 	xfs_mount_t		*mp,
 	void			__user *arg)
 {
-	xfs_fsop_geom_v1_t	fsgeo;
+	xfs_fsop_geom_t         fsgeo;
 	int			error;
 
-	error = xfs_fs_geometry(mp, (xfs_fsop_geom_t *)&fsgeo, 3);
+	error = xfs_fs_geometry(mp, &fsgeo, 3);
 	if (error)
 		return -error;
 
-	if (copy_to_user(arg, &fsgeo, sizeof(fsgeo)))
+	/*
+	 * Caller should have passed an argument of type
+	 * xfs_fsop_geom_v1_t.  This is a proper subset of the
+	 * xfs_fsop_geom_t that xfs_fs_geometry() fills in.
+	 */
+	if (copy_to_user(arg, &fsgeo, sizeof(xfs_fsop_geom_v1_t)))
 		return -XFS_ERROR(EFAULT);
 	return 0;
 }
@@ -790,7 +800,7 @@ xfs_ioc_fsgetxattr(
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	fa.fsx_xflags = xfs_ip2xflags(ip);
 	fa.fsx_extsize = ip->i_d.di_extsize << ip->i_mount->m_sb.sb_blocklog;
-	fa.fsx_projid = ip->i_d.di_projid;
+	fa.fsx_projid = xfs_get_projid(ip);
 
 	if (attr) {
 		if (ip->i_afp) {
@@ -909,10 +919,10 @@ xfs_ioctl_setattr(
 		return XFS_ERROR(EIO);
 
 	/*
-	 * Disallow 32bit project ids because on-disk structure
-	 * is 16bit only.
+	 * Disallow 32bit project ids when projid32bit feature is not enabled.
 	 */
-	if ((mask & FSX_PROJID) && (fa->fsx_projid > (__uint16_t)-1))
+	if ((mask & FSX_PROJID) && (fa->fsx_projid > (__uint16_t)-1) &&
+			!xfs_sb_version_hasprojid32bit(&ip->i_mount->m_sb))
 		return XFS_ERROR(EINVAL);
 
 	/*
@@ -961,7 +971,7 @@ xfs_ioctl_setattr(
 	if (mask & FSX_PROJID) {
 		if (XFS_IS_QUOTA_RUNNING(mp) &&
 		    XFS_IS_PQUOTA_ON(mp) &&
-		    ip->i_d.di_projid != fa->fsx_projid) {
+		    xfs_get_projid(ip) != fa->fsx_projid) {
 			ASSERT(tp);
 			code = xfs_qm_vop_chown_reserve(tp, ip, udqp, gdqp,
 						capable(CAP_FOWNER) ?
@@ -984,10 +994,22 @@ xfs_ioctl_setattr(
 
 		/*
 		 * Extent size must be a multiple of the appropriate block
-		 * size, if set at all.
+		 * size, if set at all. It must also be smaller than the
+		 * maximum extent size supported by the filesystem.
+		 *
+		 * Also, for non-realtime files, limit the extent size hint to
+		 * half the size of the AGs in the filesystem so alignment
+		 * doesn't result in extents larger than an AG.
 		 */
 		if (fa->fsx_extsize != 0) {
-			xfs_extlen_t	size;
+			xfs_extlen_t    size;
+			xfs_fsblock_t   extsize_fsb;
+
+			extsize_fsb = XFS_B_TO_FSB(mp, fa->fsx_extsize);
+			if (extsize_fsb > MAXEXTLEN) {
+				code = XFS_ERROR(EINVAL);
+				goto error_return;
+			}
 
 			if (XFS_IS_REALTIME_INODE(ip) ||
 			    ((mask & FSX_XFLAGS) &&
@@ -996,6 +1018,10 @@ xfs_ioctl_setattr(
 				       mp->m_sb.sb_blocklog;
 			} else {
 				size = mp->m_sb.sb_blocksize;
+				if (extsize_fsb > mp->m_sb.sb_agblocks / 2) {
+					code = XFS_ERROR(EINVAL);
+					goto error_return;
+				}
 			}
 
 			if (fa->fsx_extsize % size) {
@@ -1063,12 +1089,12 @@ xfs_ioctl_setattr(
 		 * Change the ownerships and register quota modifications
 		 * in the transaction.
 		 */
-		if (ip->i_d.di_projid != fa->fsx_projid) {
+		if (xfs_get_projid(ip) != fa->fsx_projid) {
 			if (XFS_IS_QUOTA_RUNNING(mp) && XFS_IS_PQUOTA_ON(mp)) {
 				olddquot = xfs_qm_vop_chown(tp, ip,
 							&ip->i_gdquot, gdqp);
 			}
-			ip->i_d.di_projid = fa->fsx_projid;
+			xfs_set_projid(ip, fa->fsx_projid);
 
 			/*
 			 * We may have to rev the inode as well as
@@ -1088,8 +1114,8 @@ xfs_ioctl_setattr(
 		xfs_diflags_to_linux(ip);
 	}
 
+	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	xfs_ichgtime(ip, XFS_ICHGTIME_CHG);
 
 	XFS_STATS_INC(xs_ig_attrchg);
 
@@ -1294,6 +1320,8 @@ xfs_file_ioctl(
 	trace_xfs_file_ioctl(ip);
 
 	switch (cmd) {
+	case FITRIM:
+		return xfs_ioc_trim(mp, arg);
 	case XFS_IOC_ALLOCSP:
 	case XFS_IOC_FREESP:
 	case XFS_IOC_RESVSP:
@@ -1301,7 +1329,8 @@ xfs_file_ioctl(
 	case XFS_IOC_ALLOCSP64:
 	case XFS_IOC_FREESP64:
 	case XFS_IOC_RESVSP64:
-	case XFS_IOC_UNRESVSP64: {
+	case XFS_IOC_UNRESVSP64:
+	case XFS_IOC_ZERO_RANGE: {
 		xfs_flock64_t		bf;
 
 		if (copy_from_user(&bf, arg, sizeof(bf)))

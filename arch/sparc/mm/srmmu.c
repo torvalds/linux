@@ -650,7 +650,7 @@ static void srmmu_unmapiorange(unsigned long virt_addr, unsigned int len)
  * mappings on the kernel stack without any special code as we did
  * need on the sun4c.
  */
-static struct thread_info *srmmu_alloc_thread_info(void)
+static struct thread_info *srmmu_alloc_thread_info_node(int node)
 {
 	struct thread_info *ret;
 
@@ -1262,7 +1262,8 @@ extern unsigned long bootmem_init(unsigned long *pages_avail);
 
 void __init srmmu_paging_init(void)
 {
-	int i, cpunode;
+	int i;
+	phandle cpunode;
 	char node_str[128];
 	pgd_t *pgd;
 	pmd_t *pmd;
@@ -1398,7 +1399,8 @@ static void __init srmmu_is_bad(void)
 
 static void __init init_vac_layout(void)
 {
-	int nd, cache_lines;
+	phandle nd;
+	int cache_lines;
 	char node_str[128];
 #ifdef CONFIG_SMP
 	int cpu = 0;
@@ -1663,7 +1665,7 @@ static void __init init_swift(void)
 	default:
 		srmmu_modtype = Swift_ok;
 		break;
-	};
+	}
 
 	BTFIXUPSET_CALL(flush_cache_all, swift_flush_cache_all, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_cache_mm, swift_flush_cache_mm, BTFIXUPCALL_NORM);
@@ -2067,7 +2069,7 @@ static void __init get_srmmu_type(void)
 			/* Some other Cypress revision, assume a 605. */
 			init_cypress_605(mod_rev);
 			break;
-		};
+		}
 		return;
 	}
 	
@@ -2082,7 +2084,7 @@ static void __init get_srmmu_type(void)
 
 	/* Next check for Fujitsu Swift. */
 	if(psr_typ == 0 && psr_vers == 4) {
-		int cpunode;
+		phandle cpunode;
 		char node_str[128];
 
 		/* Look if it is not a TurboSparc emulating Swift... */
@@ -2269,7 +2271,7 @@ void __init ld_mmu_srmmu(void)
 
 	BTFIXUPSET_CALL(mmu_info, srmmu_mmu_info, BTFIXUPCALL_NORM);
 
-	BTFIXUPSET_CALL(alloc_thread_info, srmmu_alloc_thread_info, BTFIXUPCALL_NORM);
+	BTFIXUPSET_CALL(alloc_thread_info_node, srmmu_alloc_thread_info_node, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(free_thread_info, srmmu_free_thread_info, BTFIXUPCALL_NORM);
 
 	BTFIXUPSET_CALL(pte_to_pgoff, srmmu_pte_to_pgoff, BTFIXUPCALL_NORM);

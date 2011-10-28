@@ -1038,7 +1038,7 @@ enum {
 
 	PHY_ST_PRE_SUP	= 1<<6, /* Bit  6:	Preamble Suppression */
 	PHY_ST_AN_OVER	= 1<<5, /* Bit  5:	Auto-Negotiation Over */
-	PHY_ST_REM_FLT	= 1<<4, /* Bit  4:	Remote Fault Condition Occured */
+	PHY_ST_REM_FLT	= 1<<4, /* Bit  4:	Remote Fault Condition Occurred */
 	PHY_ST_AN_CAP	= 1<<3, /* Bit  3:	Auto-Negotiation Capability */
 	PHY_ST_LSYNC	= 1<<2, /* Bit  2:	Link Synchronized */
 	PHY_ST_JAB_DET	= 1<<1, /* Bit  1:	Jabber Detected */
@@ -1721,8 +1721,8 @@ enum {
 	GM_GPSR_LINK_UP		= 1<<12, /* Bit 12:	Link Up Status */
 	GM_GPSR_PAUSE		= 1<<11, /* Bit 11:	Pause State */
 	GM_GPSR_TX_ACTIVE	= 1<<10, /* Bit 10:	Tx in Progress */
-	GM_GPSR_EXC_COL		= 1<<9,	/* Bit  9:	Excessive Collisions Occured */
-	GM_GPSR_LAT_COL		= 1<<8,	/* Bit  8:	Late Collisions Occured */
+	GM_GPSR_EXC_COL		= 1<<9,	/* Bit  9:	Excessive Collisions Occurred */
+	GM_GPSR_LAT_COL		= 1<<8,	/* Bit  8:	Late Collisions Occurred */
 
 	GM_GPSR_PHY_ST_CH	= 1<<5,	/* Bit  5:	PHY Status Change */
 	GM_GPSR_GIG_SPEED	= 1<<4,	/* Bit  4:	Gigabit Speed (1 = 1000 Mbps) */
@@ -2227,7 +2227,7 @@ enum {
 	XM_ST_BC	= 1<<7,		/* Bit  7:	Broadcast packet */
 	XM_ST_MC	= 1<<6,		/* Bit  6:	Multicast packet */
 	XM_ST_UC	= 1<<5,		/* Bit  5:	Unicast packet */
-	XM_ST_TX_UR	= 1<<4,		/* Bit  4:	FIFO Underrun occured */
+	XM_ST_TX_UR	= 1<<4,		/* Bit  4:	FIFO Underrun occurred */
 	XM_ST_CS_ERR	= 1<<3,		/* Bit  3:	Carrier Sense Error */
 	XM_ST_LAT_COL	= 1<<2,		/* Bit  2:	Late Collision Error */
 	XM_ST_MUL_COL	= 1<<1,		/* Bit  1:	Multiple Collisions */
@@ -2460,7 +2460,6 @@ struct skge_port {
 	struct timer_list    link_timer;
 	enum pause_control   flow_control;
 	enum pause_status    flow_status;
-	u8		     rx_csum;
 	u8		     blink_on;
 	u8		     wol;
 	u8		     autoneg;	/* AUTONEG_ENABLE, AUTONEG_DISABLE */

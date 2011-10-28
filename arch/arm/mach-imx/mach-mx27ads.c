@@ -29,12 +29,8 @@
 #include <asm/mach/map.h>
 #include <mach/gpio.h>
 #include <mach/iomux-mx27.h>
-#include <mach/mxc_nand.h>
-#include <mach/imxfb.h>
-#include <mach/mmc.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 /*
  * Base address of PBC controller, CS4
@@ -66,7 +62,7 @@
 /* to determine the correct external crystal reference */
 #define CKIH_27MHZ_BIT_SET      (1 << 3)
 
-static unsigned int mx27ads_pins[] = {
+static const int mx27ads_pins[] __initconst = {
 	/* UART0 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,
@@ -228,7 +224,7 @@ static struct imx_fb_videomode mx27ads_modes[] = {
 	},
 };
 
-static struct imx_fb_platform_data mx27ads_fb_data = {
+static const struct imx_fb_platform_data mx27ads_fb_data __initconst = {
 	.mode = mx27ads_modes,
 	.num_modes = ARRAY_SIZE(mx27ads_modes),
 
@@ -272,20 +268,18 @@ static void mx27ads_sdhc2_exit(struct device *dev, void *data)
 	free_irq(IRQ_GPIOB(7), data);
 }
 
-static struct imxmmc_platform_data sdhc1_pdata = {
+static const struct imxmmc_platform_data sdhc1_pdata __initconst = {
 	.init = mx27ads_sdhc1_init,
 	.exit = mx27ads_sdhc1_exit,
 };
 
-static struct imxmmc_platform_data sdhc2_pdata = {
+static const struct imxmmc_platform_data sdhc2_pdata __initconst = {
 	.init = mx27ads_sdhc2_init,
 	.exit = mx27ads_sdhc2_exit,
 };
 
 static struct platform_device *platform_devices[] __initdata = {
 	&mx27ads_nor_mtd_device,
-	&mxc_fec_device,
-	&mxc_w1_master_device,
 };
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
@@ -308,12 +302,14 @@ static void __init mx27ads_board_init(void)
 	/* only the i2c master 1 is used on this CPU card */
 	i2c_register_board_info(1, mx27ads_i2c_devices,
 				ARRAY_SIZE(mx27ads_i2c_devices));
-	imx27_add_i2c_imx1(&mx27ads_i2c1_data);
-	mxc_register_device(&mxc_fb_device, &mx27ads_fb_data);
-	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
-	mxc_register_device(&mxc_sdhc_device1, &sdhc2_pdata);
+	imx27_add_imx_i2c(1, &mx27ads_i2c1_data);
+	imx27_add_imx_fb(&mx27ads_fb_data);
+	imx27_add_mxc_mmc(0, &sdhc1_pdata);
+	imx27_add_mxc_mmc(1, &sdhc2_pdata);
 
+	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx27_add_mxc_w1(NULL);
 }
 
 static void __init mx27ads_timer_init(void)
@@ -347,11 +343,10 @@ static void __init mx27ads_map_io(void)
 
 MACHINE_START(MX27ADS, "Freescale i.MX27ADS")
 	/* maintainer: Freescale Semiconductor, Inc. */
-	.phys_io        = MX27_AIPI_BASE_ADDR,
-	.io_pg_offst    = ((MX27_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
-	.boot_params    = MX27_PHYS_OFFSET + 0x100,
-	.map_io         = mx27ads_map_io,
-	.init_irq       = mx27_init_irq,
-	.init_machine   = mx27ads_board_init,
-	.timer          = &mx27ads_timer,
+	.boot_params = MX27_PHYS_OFFSET + 0x100,
+	.map_io = mx27ads_map_io,
+	.init_early = imx27_init_early,
+	.init_irq = mx27_init_irq,
+	.timer = &mx27ads_timer,
+	.init_machine = mx27ads_board_init,
 MACHINE_END

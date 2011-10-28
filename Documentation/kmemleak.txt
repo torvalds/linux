@@ -12,6 +12,9 @@ reported via /sys/kernel/debug/kmemleak. A similar method is used by the
 Valgrind tool (memcheck --leak-check) to detect the memory leaks in
 user-space applications.
 
+Please check DEBUG_KMEMLEAK dependencies in lib/Kconfig.debug for supported
+architectures.
+
 Usage
 -----
 
@@ -178,5 +181,4 @@ block doesn't need to be freed (some cases in the init_call functions),
 the pointer is calculated by other methods than the usual container_of
 macro or the pointer is stored in a location not scanned by kmemleak.
 
-Page allocations and ioremap are not tracked. Only the ARM and x86
-architectures are currently supported.
+Page allocations and ioremap are not tracked.

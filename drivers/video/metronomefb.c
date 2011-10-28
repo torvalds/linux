@@ -10,7 +10,7 @@
  * Layout is based on skeletonfb.c by James Simmons and Geert Uytterhoeven.
  *
  * This work was made possible by help and equipment support from E-Ink
- * Corporation. http://support.eink.com/community
+ * Corporation. http://www.eink.com/
  *
  * This driver is written to be used with the Metronome display controller.
  * It is intended to be architecture independent. A board specific driver
@@ -628,11 +628,9 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 	/* we need to add a spare page because our csum caching scheme walks
 	 * to the end of the page */
 	videomemorysize = PAGE_SIZE + (fw * fh);
-	videomemory = vmalloc(videomemorysize);
+	videomemory = vzalloc(videomemorysize);
 	if (!videomemory)
 		goto err_fb_rel;
-
-	memset(videomemory, 0, videomemorysize);
 
 	info->screen_base = (char __force __iomem *)videomemory;
 	info->fbops = &metronomefb_ops;
@@ -765,7 +763,7 @@ static int __devexit metronomefb_remove(struct platform_device *dev)
 
 static struct platform_driver metronomefb_driver = {
 	.probe	= metronomefb_probe,
-	.remove = metronomefb_remove,
+	.remove = __devexit_p(metronomefb_remove),
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= "metronomefb",

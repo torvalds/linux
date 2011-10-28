@@ -18,7 +18,6 @@
 #include <linux/notifier.h>
 #include <linux/smp.h>
 #include <linux/sysdev.h>
-#include <linux/tick.h>
 
 #include "tick-internal.h"
 
@@ -183,7 +182,10 @@ void clockevents_register_device(struct clock_event_device *dev)
 	unsigned long flags;
 
 	BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
-	BUG_ON(!dev->cpumask);
+	if (!dev->cpumask) {
+		WARN_ON(num_possible_cpus() > 1);
+		dev->cpumask = cpumask_of(smp_processor_id());
+	}
 
 	raw_spin_lock_irqsave(&clockevents_lock, flags);
 
@@ -194,6 +196,70 @@ void clockevents_register_device(struct clock_event_device *dev)
 	raw_spin_unlock_irqrestore(&clockevents_lock, flags);
 }
 EXPORT_SYMBOL_GPL(clockevents_register_device);
+
+static void clockevents_config(struct clock_event_device *dev,
+			       u32 freq)
+{
+	u64 sec;
+
+	if (!(dev->features & CLOCK_EVT_FEAT_ONESHOT))
+		return;
+
+	/*
+	 * Calculate the maximum number of seconds we can sleep. Limit
+	 * to 10 minutes for hardware which can program more than
+	 * 32bit ticks so we still get reasonable conversion values.
+	 */
+	sec = dev->max_delta_ticks;
+	do_div(sec, freq);
+	if (!sec)
+		sec = 1;
+	else if (sec > 600 && dev->max_delta_ticks > UINT_MAX)
+		sec = 600;
+
+	clockevents_calc_mult_shift(dev, freq, sec);
+	dev->min_delta_ns = clockevent_delta2ns(dev->min_delta_ticks, dev);
+	dev->max_delta_ns = clockevent_delta2ns(dev->max_delta_ticks, dev);
+}
+
+/**
+ * clockevents_config_and_register - Configure and register a clock event device
+ * @dev:	device to register
+ * @freq:	The clock frequency
+ * @min_delta:	The minimum clock ticks to program in oneshot mode
+ * @max_delta:	The maximum clock ticks to program in oneshot mode
+ *
+ * min/max_delta can be 0 for devices which do not support oneshot mode.
+ */
+void clockevents_config_and_register(struct clock_event_device *dev,
+				     u32 freq, unsigned long min_delta,
+				     unsigned long max_delta)
+{
+	dev->min_delta_ticks = min_delta;
+	dev->max_delta_ticks = max_delta;
+	clockevents_config(dev, freq);
+	clockevents_register_device(dev);
+}
+
+/**
+ * clockevents_update_freq - Update frequency and reprogram a clock event device.
+ * @dev:	device to modify
+ * @freq:	new device frequency
+ *
+ * Reconfigure and reprogram a clock event device in oneshot
+ * mode. Must be called on the cpu for which the device delivers per
+ * cpu timer events with interrupts disabled!  Returns 0 on success,
+ * -ETIME when the event is in the past.
+ */
+int clockevents_update_freq(struct clock_event_device *dev, u32 freq)
+{
+	clockevents_config(dev, freq);
+
+	if (dev->mode != CLOCK_EVT_MODE_ONESHOT)
+		return 0;
+
+	return clockevents_program_event(dev, dev->next_event, ktime_get());
+}
 
 /*
  * Noop handler when we shut down an event device

@@ -39,7 +39,7 @@
 #include <mach/mmc.h>
 #include <mach/pxafb.h>
 #include <mach/irda.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/udc.h>
 #include <mach/palmasoc.h>
 #include <mach/palm27x.h>
@@ -202,10 +202,8 @@ static void __init palmt5_init(void)
 }
 
 MACHINE_START(PALMT5, "Palm Tungsten|T5")
-	.phys_io	= PALMT5_PHYS_IO_START,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa27x_map_io,
 	.reserve	= palmt5_reserve,
 	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,

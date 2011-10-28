@@ -95,8 +95,8 @@ DEFINE_MUTEX(ubi_devices_mutex);
 static DEFINE_SPINLOCK(ubi_devices_lock);
 
 /* "Show" method for files in '/<sysfs>/class/ubi/' */
-static ssize_t ubi_version_show(struct class *class, struct class_attribute *attr,
-				char *buf)
+static ssize_t ubi_version_show(struct class *class,
+				struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", UBI_VERSION);
 }
@@ -591,6 +591,7 @@ static int attach_by_scanning(struct ubi_device *ubi)
 
 	ubi->bad_peb_count = si->bad_peb_count;
 	ubi->good_peb_count = ubi->peb_count - ubi->bad_peb_count;
+	ubi->corr_peb_count = si->corr_peb_count;
 	ubi->max_ec = si->max_ec;
 	ubi->mean_ec = si->mean_ec;
 	ubi_msg("max. sequence number:       %llu", si->max_sqnum);
@@ -689,11 +690,25 @@ static int io_init(struct ubi_device *ubi)
 	ubi_assert(ubi->hdrs_min_io_size <= ubi->min_io_size);
 	ubi_assert(ubi->min_io_size % ubi->hdrs_min_io_size == 0);
 
+	ubi->max_write_size = ubi->mtd->writebufsize;
+	/*
+	 * Maximum write size has to be greater or equivalent to min. I/O
+	 * size, and be multiple of min. I/O size.
+	 */
+	if (ubi->max_write_size < ubi->min_io_size ||
+	    ubi->max_write_size % ubi->min_io_size ||
+	    !is_power_of_2(ubi->max_write_size)) {
+		ubi_err("bad write buffer size %d for %d min. I/O unit",
+			ubi->max_write_size, ubi->min_io_size);
+		return -EINVAL;
+	}
+
 	/* Calculate default aligned sizes of EC and VID headers */
 	ubi->ec_hdr_alsize = ALIGN(UBI_EC_HDR_SIZE, ubi->hdrs_min_io_size);
 	ubi->vid_hdr_alsize = ALIGN(UBI_VID_HDR_SIZE, ubi->hdrs_min_io_size);
 
 	dbg_msg("min_io_size      %d", ubi->min_io_size);
+	dbg_msg("max_write_size   %d", ubi->max_write_size);
 	dbg_msg("hdrs_min_io_size %d", ubi->hdrs_min_io_size);
 	dbg_msg("ec_hdr_alsize    %d", ubi->ec_hdr_alsize);
 	dbg_msg("vid_hdr_alsize   %d", ubi->vid_hdr_alsize);
@@ -710,7 +725,7 @@ static int io_init(struct ubi_device *ubi)
 	}
 
 	/* Similar for the data offset */
-	ubi->leb_start = ubi->vid_hdr_offset + UBI_EC_HDR_SIZE;
+	ubi->leb_start = ubi->vid_hdr_offset + UBI_VID_HDR_SIZE;
 	ubi->leb_start = ALIGN(ubi->leb_start, ubi->min_io_size);
 
 	dbg_msg("vid_hdr_offset   %d", ubi->vid_hdr_offset);
@@ -922,6 +937,8 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	spin_lock_init(&ubi->volumes_lock);
 
 	ubi_msg("attaching mtd%d to ubi%d", mtd->index, ubi_num);
+	dbg_msg("sizeof(struct ubi_scan_leb) %zu", sizeof(struct ubi_scan_leb));
+	dbg_msg("sizeof(struct ubi_wl_entry) %zu", sizeof(struct ubi_wl_entry));
 
 	err = io_init(ubi);
 	if (err)
@@ -935,13 +952,6 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	ubi->peb_buf2 = vmalloc(ubi->peb_size);
 	if (!ubi->peb_buf2)
 		goto out_free;
-
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
-	mutex_init(&ubi->dbg_buf_mutex);
-	ubi->dbg_peb_buf = vmalloc(ubi->peb_size);
-	if (!ubi->dbg_peb_buf)
-		goto out_free;
-#endif
 
 	err = attach_by_scanning(ubi);
 	if (err) {
@@ -972,6 +982,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	ubi_msg("MTD device size:            %llu MiB", ubi->flash_size >> 20);
 	ubi_msg("number of good PEBs:        %d", ubi->good_peb_count);
 	ubi_msg("number of bad PEBs:         %d", ubi->bad_peb_count);
+	ubi_msg("number of corrupted PEBs:   %d", ubi->corr_peb_count);
 	ubi_msg("max. allowed volumes:       %d", ubi->vtbl_slots);
 	ubi_msg("wear-leveling threshold:    %d", CONFIG_MTD_UBI_WL_THRESHOLD);
 	ubi_msg("number of internal volumes: %d", UBI_INT_VOL_COUNT);
@@ -989,8 +1000,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	 * checks @ubi->thread_enabled. Otherwise we may fail to wake it up.
 	 */
 	spin_lock(&ubi->wl_lock);
-	if (!DBG_DISABLE_BGT)
-		ubi->thread_enabled = 1;
+	ubi->thread_enabled = 1;
 	wake_up_process(ubi->bgt_thread);
 	spin_unlock(&ubi->wl_lock);
 
@@ -1007,9 +1017,6 @@ out_detach:
 out_free:
 	vfree(ubi->peb_buf1);
 	vfree(ubi->peb_buf2);
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
-	vfree(ubi->dbg_peb_buf);
-#endif
 	if (ref)
 		put_device(&ubi->dev);
 	else
@@ -1080,9 +1087,6 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	put_mtd_device(ubi->mtd);
 	vfree(ubi->peb_buf1);
 	vfree(ubi->peb_buf2);
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
-	vfree(ubi->dbg_peb_buf);
-#endif
 	ubi_msg("mtd%d is detached from ubi%d", ubi->mtd->index, ubi->ubi_num);
 	put_device(&ubi->dev);
 	return 0;

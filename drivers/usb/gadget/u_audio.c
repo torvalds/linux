@@ -255,6 +255,7 @@ static int gaudio_open_snd_dev(struct gaudio *card)
 		ERROR(card, "No such PCM capture device: %s\n", fn_cap);
 		snd->substream = NULL;
 		snd->card = NULL;
+		snd->filp = NULL;
 	} else {
 		pcm_file = snd->filp->private_data;
 		snd->substream = pcm_file->substream;
@@ -273,17 +274,17 @@ static int gaudio_close_snd_dev(struct gaudio *gau)
 
 	/* Close control device */
 	snd = &gau->control;
-	if (!IS_ERR(snd->filp))
+	if (snd->filp)
 		filp_close(snd->filp, current->files);
 
 	/* Close PCM playback device and setup substream */
 	snd = &gau->playback;
-	if (!IS_ERR(snd->filp))
+	if (snd->filp)
 		filp_close(snd->filp, current->files);
 
 	/* Close PCM capture device and setup substream */
 	snd = &gau->capture;
-	if (!IS_ERR(snd->filp))
+	if (snd->filp)
 		filp_close(snd->filp, current->files);
 
 	return 0;
@@ -304,8 +305,7 @@ int __init gaudio_setup(struct gaudio *card)
 	ret = gaudio_open_snd_dev(card);
 	if (ret)
 		ERROR(card, "we need at least one control device\n");
-
-	if (!the_card)
+	else if (!the_card)
 		the_card = card;
 
 	return ret;

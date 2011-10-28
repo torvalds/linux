@@ -409,7 +409,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
-	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output);
+	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.low);
 
 	sg_init_table(sg, nfrags);
 	skb_to_sgvec(skb, sg, 0, skb->len);
@@ -538,13 +538,15 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (!pskb_may_pull(skb, ah_hlen))
 		goto out;
 
-	ip6h = ipv6_hdr(skb);
-
-	skb_push(skb, hdr_len);
 
 	if ((err = skb_cow_data(skb, 0, &trailer)) < 0)
 		goto out;
 	nfrags = err;
+
+	ah = (struct ip_auth_hdr *)skb->data;
+	ip6h = ipv6_hdr(skb);
+
+	skb_push(skb, hdr_len);
 
 	work_iph = ah_alloc_tmp(ahash, nfrags, hdr_len + ahp->icv_trunc_len);
 	if (!work_iph)

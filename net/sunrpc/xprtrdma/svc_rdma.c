@@ -43,6 +43,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/sysctl.h>
+#include <linux/workqueue.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/svc_rdma.h>
@@ -73,6 +74,8 @@ atomic_t rdma_stat_sq_prod;
 /* Temporary NFS request map and context caches */
 struct kmem_cache *svc_rdma_map_cachep;
 struct kmem_cache *svc_rdma_ctxt_cachep;
+
+struct workqueue_struct *svc_rdma_wq;
 
 /*
  * This function implements reading and resetting an atomic_t stat
@@ -231,7 +234,7 @@ static ctl_table svcrdma_root_table[] = {
 void svc_rdma_cleanup(void)
 {
 	dprintk("SVCRDMA Module Removed, deregister RPC RDMA transport\n");
-	flush_scheduled_work();
+	destroy_workqueue(svc_rdma_wq);
 	if (svcrdma_table_header) {
 		unregister_sysctl_table(svcrdma_table_header);
 		svcrdma_table_header = NULL;
@@ -249,6 +252,11 @@ int svc_rdma_init(void)
 	dprintk("\tsq_depth         : %d\n",
 		svcrdma_max_requests * RPCRDMA_SQ_DEPTH_MULT);
 	dprintk("\tmax_inline       : %d\n", svcrdma_max_req_size);
+
+	svc_rdma_wq = alloc_workqueue("svc_rdma", 0, 0);
+	if (!svc_rdma_wq)
+		return -ENOMEM;
+
 	if (!svcrdma_table_header)
 		svcrdma_table_header =
 			register_sysctl_table(svcrdma_root_table);
@@ -283,6 +291,7 @@ int svc_rdma_init(void)
 	kmem_cache_destroy(svc_rdma_map_cachep);
  err0:
 	unregister_sysctl_table(svcrdma_table_header);
+	destroy_workqueue(svc_rdma_wq);
 	return -ENOMEM;
 }
 MODULE_AUTHOR("Tom Tucker <tom@opengridcomputing.com>");

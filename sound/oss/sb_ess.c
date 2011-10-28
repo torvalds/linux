@@ -168,7 +168,7 @@
  * corresponding playback levels, unless recmask says they aren't recorded. In
  * the latter case the recording volumes are 0.
  * Now recording levels of inputs can be controlled, by changing the playback
- * levels. Futhermore several devices can be recorded together (which is not
+ * levels. Furthermore several devices can be recorded together (which is not
  * possible with the ES1688).
  * Besides the separate recording level control for each input, the common
  * recording level can also be controlled by RECLEV as described above.
@@ -1721,7 +1721,6 @@ printk (KERN_INFO "FKS: es_rec_set_recmask mask = %x\n", mask);
 				left  = value & 0x000000ff;
 				right = (value & 0x0000ff00) >> 8;
 			} else {				/* Turn it off (3)  */
-				left  = 0;
 				left  = 0;
 				right = 0;
 			}

@@ -519,22 +519,16 @@ int cpia2_do_command(struct camera_data *cam,
  *  cpia2_send_command
  *
  *****************************************************************************/
+
+#define DIR(cmd) ((cmd->direction == TRANSFER_WRITE) ? "Write" : "Read")
+#define BINDEX(cmd) (cmd->req_mode & 0x03)
+
 int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd)
 {
 	u8 count;
 	u8 start;
-	u8 block_index;
 	u8 *buffer;
 	int retval;
-	const char* dir;
-
-	if (cmd->direction == TRANSFER_WRITE) {
-		dir = "Write";
-	} else {
-		dir = "Read";
-	}
-
-	block_index = cmd->req_mode & 0x03;
 
 	switch (cmd->req_mode & 0x0c) {
 	case CAMERAACCESS_TYPE_RANDOM:
@@ -542,32 +536,32 @@ int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd)
 		start = 0;
 		buffer = (u8 *) & cmd->buffer;
 		if (debugs_on & DEBUG_REG)
-			DBG("%s Random: Register block %s\n", dir,
-			    block_name[block_index]);
+			DBG("%s Random: Register block %s\n", DIR(cmd),
+			    block_name[BINDEX(cmd)]);
 		break;
 	case CAMERAACCESS_TYPE_BLOCK:
 		count = cmd->reg_count;
 		start = cmd->start;
 		buffer = cmd->buffer.block_data;
 		if (debugs_on & DEBUG_REG)
-			DBG("%s Block: Register block %s\n", dir,
-			    block_name[block_index]);
+			DBG("%s Block: Register block %s\n", DIR(cmd),
+			    block_name[BINDEX(cmd)]);
 		break;
 	case CAMERAACCESS_TYPE_MASK:
 		count = cmd->reg_count * sizeof(struct cpia2_reg_mask);
 		start = 0;
 		buffer = (u8 *) & cmd->buffer;
 		if (debugs_on & DEBUG_REG)
-			DBG("%s Mask: Register block %s\n", dir,
-			    block_name[block_index]);
+			DBG("%s Mask: Register block %s\n", DIR(cmd),
+			    block_name[BINDEX(cmd)]);
 		break;
 	case CAMERAACCESS_TYPE_REPEAT:	/* For patch blocks only */
 		count = cmd->reg_count;
 		start = cmd->start;
 		buffer = cmd->buffer.block_data;
 		if (debugs_on & DEBUG_REG)
-			DBG("%s Repeat: Register block %s\n", dir,
-			    block_name[block_index]);
+			DBG("%s Repeat: Register block %s\n", DIR(cmd),
+			    block_name[BINDEX(cmd)]);
 		break;
 	default:
 		LOG("%s: invalid request mode\n",__func__);
@@ -584,10 +578,10 @@ int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd)
 		for (i = 0; i < cmd->reg_count; i++) {
 			if((cmd->req_mode & 0x0c) == CAMERAACCESS_TYPE_BLOCK)
 				KINFO("%s Block: [0x%02X] = 0x%02X\n",
-				    dir, start + i, buffer[i]);
+				    DIR(cmd), start + i, buffer[i]);
 			if((cmd->req_mode & 0x0c) == CAMERAACCESS_TYPE_RANDOM)
 				KINFO("%s Random: [0x%02X] = 0x%02X\n",
-				    dir, cmd->buffer.registers[i].index,
+				    DIR(cmd), cmd->buffer.registers[i].index,
 				    cmd->buffer.registers[i].value);
 		}
 	}
@@ -1058,44 +1052,44 @@ static int set_vw_size(struct camera_data *cam, int size)
 		DBG("Setting size to VGA\n");
 		cam->params.roi.width = STV_IMAGE_VGA_COLS;
 		cam->params.roi.height = STV_IMAGE_VGA_ROWS;
-		cam->vw.width = STV_IMAGE_VGA_COLS;
-		cam->vw.height = STV_IMAGE_VGA_ROWS;
+		cam->width = STV_IMAGE_VGA_COLS;
+		cam->height = STV_IMAGE_VGA_ROWS;
 		break;
 	case VIDEOSIZE_CIF:
 		DBG("Setting size to CIF\n");
 		cam->params.roi.width = STV_IMAGE_CIF_COLS;
 		cam->params.roi.height = STV_IMAGE_CIF_ROWS;
-		cam->vw.width = STV_IMAGE_CIF_COLS;
-		cam->vw.height = STV_IMAGE_CIF_ROWS;
+		cam->width = STV_IMAGE_CIF_COLS;
+		cam->height = STV_IMAGE_CIF_ROWS;
 		break;
 	case VIDEOSIZE_QVGA:
 		DBG("Setting size to QVGA\n");
 		cam->params.roi.width = STV_IMAGE_QVGA_COLS;
 		cam->params.roi.height = STV_IMAGE_QVGA_ROWS;
-		cam->vw.width = STV_IMAGE_QVGA_COLS;
-		cam->vw.height = STV_IMAGE_QVGA_ROWS;
+		cam->width = STV_IMAGE_QVGA_COLS;
+		cam->height = STV_IMAGE_QVGA_ROWS;
 		break;
 	case VIDEOSIZE_288_216:
 		cam->params.roi.width = 288;
 		cam->params.roi.height = 216;
-		cam->vw.width = 288;
-		cam->vw.height = 216;
+		cam->width = 288;
+		cam->height = 216;
 		break;
 	case VIDEOSIZE_256_192:
-		cam->vw.width = 256;
-		cam->vw.height = 192;
+		cam->width = 256;
+		cam->height = 192;
 		cam->params.roi.width = 256;
 		cam->params.roi.height = 192;
 		break;
 	case VIDEOSIZE_224_168:
-		cam->vw.width = 224;
-		cam->vw.height = 168;
+		cam->width = 224;
+		cam->height = 168;
 		cam->params.roi.width = 224;
 		cam->params.roi.height = 168;
 		break;
 	case VIDEOSIZE_192_144:
-		cam->vw.width = 192;
-		cam->vw.height = 144;
+		cam->width = 192;
+		cam->height = 144;
 		cam->params.roi.width = 192;
 		cam->params.roi.height = 144;
 		break;
@@ -1103,8 +1097,8 @@ static int set_vw_size(struct camera_data *cam, int size)
 		DBG("Setting size to QCIF\n");
 		cam->params.roi.width = STV_IMAGE_QCIF_COLS;
 		cam->params.roi.height = STV_IMAGE_QCIF_ROWS;
-		cam->vw.width = STV_IMAGE_QCIF_COLS;
-		cam->vw.height = STV_IMAGE_QCIF_ROWS;
+		cam->width = STV_IMAGE_QCIF_COLS;
+		cam->height = STV_IMAGE_QCIF_ROWS;
 		break;
 	default:
 		retval = -EINVAL;
@@ -2224,23 +2218,8 @@ static void reset_camera_struct(struct camera_data *cam)
 		cam->params.roi.height = STV_IMAGE_CIF_ROWS;
 	}
 
-	/***
-	 * Fill in the v4l structures.  video_cap is filled in inside the VIDIOCCAP
-	 * Ioctl.  Here, just do the window and picture stucts.
-	 ***/
-	cam->vp.palette = (u16) VIDEO_PALETTE_RGB24;	/* Is this right? */
-	cam->vp.brightness = (u16) cam->params.color_params.brightness * 256;
-	cam->vp.colour = (u16) cam->params.color_params.saturation * 256;
-	cam->vp.contrast = (u16) cam->params.color_params.contrast * 256;
-
-	cam->vw.x = 0;
-	cam->vw.y = 0;
-	cam->vw.width = cam->params.roi.width;
-	cam->vw.height = cam->params.roi.height;
-	cam->vw.flags = 0;
-	cam->vw.clipcount = 0;
-
-	return;
+	cam->width = cam->params.roi.width;
+	cam->height = cam->params.roi.height;
 }
 
 /******************************************************************************
@@ -2262,7 +2241,7 @@ struct camera_data *cpia2_init_camera_struct(void)
 
 
 	cam->present = 1;
-	mutex_init(&cam->busy_lock);
+	mutex_init(&cam->v4l2_lock);
 	init_waitqueue_head(&cam->wq_stream);
 
 	return cam;
@@ -2380,9 +2359,9 @@ long cpia2_read(struct camera_data *cam,
 		char __user *buf, unsigned long count, int noblock)
 {
 	struct framebuf *frame;
-	if (!count) {
+
+	if (!count)
 		return 0;
-	}
 
 	if (!buf) {
 		ERR("%s: buffer NULL\n",__func__);
@@ -2394,17 +2373,12 @@ long cpia2_read(struct camera_data *cam,
 		return -EINVAL;
 	}
 
-	/* make this _really_ smp and multithread-safe */
-	if (mutex_lock_interruptible(&cam->busy_lock))
-		return -ERESTARTSYS;
-
 	if (!cam->present) {
 		LOG("%s: camera removed\n",__func__);
-		mutex_unlock(&cam->busy_lock);
 		return 0;	/* EOF */
 	}
 
-	if(!cam->streaming) {
+	if (!cam->streaming) {
 		/* Start streaming */
 		cpia2_usb_stream_start(cam,
 				       cam->params.camera_state.stream_mode);
@@ -2413,42 +2387,31 @@ long cpia2_read(struct camera_data *cam,
 	/* Copy cam->curbuff in case it changes while we're processing */
 	frame = cam->curbuff;
 	if (noblock && frame->status != FRAME_READY) {
-		mutex_unlock(&cam->busy_lock);
 		return -EAGAIN;
 	}
 
-	if(frame->status != FRAME_READY) {
-		mutex_unlock(&cam->busy_lock);
+	if (frame->status != FRAME_READY) {
+		mutex_unlock(&cam->v4l2_lock);
 		wait_event_interruptible(cam->wq_stream,
 			       !cam->present ||
 			       (frame = cam->curbuff)->status == FRAME_READY);
+		mutex_lock(&cam->v4l2_lock);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
-		/* make this _really_ smp and multithread-safe */
-		if (mutex_lock_interruptible(&cam->busy_lock)) {
-			return -ERESTARTSYS;
-		}
-		if(!cam->present) {
-			mutex_unlock(&cam->busy_lock);
+		if (!cam->present)
 			return 0;
-		}
 	}
 
 	/* copy data to user space */
-	if (frame->length > count) {
-		mutex_unlock(&cam->busy_lock);
+	if (frame->length > count)
 		return -EFAULT;
-	}
-	if (copy_to_user(buf, frame->data, frame->length)) {
-		mutex_unlock(&cam->busy_lock);
+	if (copy_to_user(buf, frame->data, frame->length))
 		return -EFAULT;
-	}
 
 	count = frame->length;
 
 	frame->status = FRAME_EMPTY;
 
-	mutex_unlock(&cam->busy_lock);
 	return count;
 }
 
@@ -2462,17 +2425,13 @@ unsigned int cpia2_poll(struct camera_data *cam, struct file *filp,
 {
 	unsigned int status=0;
 
-	if(!cam) {
+	if (!cam) {
 		ERR("%s: Internal error, camera_data not found!\n",__func__);
 		return POLLERR;
 	}
 
-	mutex_lock(&cam->busy_lock);
-
-	if(!cam->present) {
-		mutex_unlock(&cam->busy_lock);
+	if (!cam->present)
 		return POLLHUP;
-	}
 
 	if(!cam->streaming) {
 		/* Start streaming */
@@ -2480,16 +2439,13 @@ unsigned int cpia2_poll(struct camera_data *cam, struct file *filp,
 				       cam->params.camera_state.stream_mode);
 	}
 
-	mutex_unlock(&cam->busy_lock);
 	poll_wait(filp, &cam->wq_stream, wait);
-	mutex_lock(&cam->busy_lock);
 
 	if(!cam->present)
 		status = POLLHUP;
 	else if(cam->curbuff->status == FRAME_READY)
 		status = POLLIN | POLLRDNORM;
 
-	mutex_unlock(&cam->busy_lock);
 	return status;
 }
 
@@ -2511,29 +2467,19 @@ int cpia2_remap_buffer(struct camera_data *cam, struct vm_area_struct *vma)
 
 	DBG("mmap offset:%ld size:%ld\n", start_offset, size);
 
-	/* make this _really_ smp-safe */
-	if (mutex_lock_interruptible(&cam->busy_lock))
-		return -ERESTARTSYS;
-
-	if (!cam->present) {
-		mutex_unlock(&cam->busy_lock);
+	if (!cam->present)
 		return -ENODEV;
-	}
 
 	if (size > cam->frame_size*cam->num_frames  ||
 	    (start_offset % cam->frame_size) != 0 ||
-	    (start_offset+size > cam->frame_size*cam->num_frames)) {
-		mutex_unlock(&cam->busy_lock);
+	    (start_offset+size > cam->frame_size*cam->num_frames))
 		return -EINVAL;
-	}
 
 	pos = ((unsigned long) (cam->frame_buffer)) + start_offset;
 	while (size > 0) {
 		page = kvirt_to_pa(pos);
-		if (remap_pfn_range(vma, start, page >> PAGE_SHIFT, PAGE_SIZE, PAGE_SHARED)) {
-			mutex_unlock(&cam->busy_lock);
+		if (remap_pfn_range(vma, start, page >> PAGE_SHIFT, PAGE_SIZE, PAGE_SHARED))
 			return -EAGAIN;
-		}
 		start += PAGE_SIZE;
 		pos += PAGE_SIZE;
 		if (size > PAGE_SIZE)
@@ -2543,7 +2489,5 @@ int cpia2_remap_buffer(struct camera_data *cam, struct vm_area_struct *vma)
 	}
 
 	cam->mmapped = true;
-	mutex_unlock(&cam->busy_lock);
 	return 0;
 }
-

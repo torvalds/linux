@@ -228,10 +228,6 @@ struct ocfs2_truncate_context {
 
 int ocfs2_zero_range_for_truncate(struct inode *inode, handle_t *handle,
 				  u64 range_start, u64 range_end);
-int ocfs2_prepare_truncate(struct ocfs2_super *osb,
-			   struct inode *inode,
-			   struct buffer_head *fe_bh,
-			   struct ocfs2_truncate_context **tc);
 int ocfs2_commit_truncate(struct ocfs2_super *osb,
 			  struct inode *inode,
 			  struct buffer_head *di_bh);
@@ -243,6 +239,7 @@ int ocfs2_find_leaf(struct ocfs2_caching_info *ci,
 		    struct buffer_head **leaf_bh);
 int ocfs2_search_extent_list(struct ocfs2_extent_list *el, u32 v_cluster);
 
+int ocfs2_trim_fs(struct super_block *sb, struct fstrim_range *range);
 /*
  * Helper function to look at the # of clusters in an extent record.
  */

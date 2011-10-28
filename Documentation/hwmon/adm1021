@@ -14,10 +14,6 @@ Supported chips:
     Prefix: 'gl523sm'
     Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
     Datasheet:
-  * Intel Xeon Processor
-    Prefix: - any other - may require 'force_adm1021' parameter
-    Addresses scanned: none
-    Datasheet: Publicly available at Intel website
   * Maxim MAX1617
     Prefix: 'max1617'
     Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
@@ -91,21 +87,27 @@ will do no harm, but will return 'old' values. It is possible to make
 ADM1021-clones do faster measurements, but there is really no good reason
 for that.
 
-Xeon support
-------------
 
-Some Xeon processors have real max1617, adm1021, or compatible chips
-within them, with two temperature sensors.
+Netburst-based Xeon support
+---------------------------
 
-Other Xeons have chips with only one sensor.
+Some Xeon processors based on the Netburst (early Pentium 4, from 2001 to
+2003) microarchitecture had real MAX1617, ADM1021, or compatible chips
+within them, with two temperature sensors. Other Xeon processors of this
+era (with 400 MHz FSB) had chips with only one temperature sensor.
 
-If you have a Xeon, and the adm1021 module loads, and both temperatures
-appear valid, then things are good.
+If you have such an old Xeon, and you get two valid temperatures when
+loading the adm1021 module, then things are good.
 
-If the adm1021 module doesn't load, you should try this:
-	modprobe adm1021 force_adm1021=BUS,ADDRESS
-	ADDRESS can only be 0x18, 0x1a, 0x29, 0x2b, 0x4c, or 0x4e.
+If nothing happens when loading the adm1021 module, and you are certain
+that your specific Xeon processor model includes compatible sensors, you
+will have to explicitly instantiate the sensor chips from user-space. See
+method 4 in Documentation/i2c/instantiating-devices. Possible slave
+addresses are 0x18, 0x1a, 0x29, 0x2b, 0x4c, or 0x4e. It is likely that
+only temp2 will be correct and temp1 will have to be ignored.
 
-If you have dual Xeons you may have appear to have two separate
-adm1021-compatible chips, or two single-temperature sensors, at distinct
-addresses.
+Previous generations of the Xeon processor (based on Pentium II/III)
+didn't have these sensors. Next generations of Xeon processors (533 MHz
+FSB and faster) lost them, until the Core-based generation which
+introduced integrated digital thermal sensors. These are supported by
+the coretemp driver.

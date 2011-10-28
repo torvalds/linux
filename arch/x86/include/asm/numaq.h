@@ -29,7 +29,7 @@
 #ifdef CONFIG_X86_NUMAQ
 
 extern int found_numaq;
-extern int get_memcfg_numaq(void);
+extern int numaq_numa_init(void);
 extern int pci_numaq_init(void);
 
 extern void *xquad_portio;
@@ -166,11 +166,6 @@ struct sys_cfg_data {
 
 void numaq_tsc_disable(void);
 
-#else
-static inline int get_memcfg_numaq(void)
-{
-	return 0;
-}
 #endif /* CONFIG_X86_NUMAQ */
 #endif /* _ASM_X86_NUMAQ_H */
 

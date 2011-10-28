@@ -45,7 +45,7 @@ struct usb_functionfs_descs_head {
  * | off | name      | type         | description                          |
  * |-----+-----------+--------------+--------------------------------------|
  * |   0 | magic     | LE32         | FUNCTIONFS_{FS,HS}_DESCRIPTORS_MAGIC |
- * |   4 | lenght    | LE32         | length of the whole data chunk       |
+ * |   4 | length    | LE32         | length of the whole data chunk       |
  * |   8 | fs_count  | LE32         | number of full-speed descriptors     |
  * |  12 | hs_count  | LE32         | number of high-speed descriptors     |
  * |  16 | fs_descrs | Descriptor[] | list of full-speed descriptors       |
@@ -86,7 +86,7 @@ struct usb_functionfs_strings_head {
  * |   0 | lang    | LE16              | language code                      |
  * |   2 | strings | String[str_count] | array of strings in given language |
  *
- * For each string ther is one strings entry (ie. there are str_count
+ * For each string there is one strings entry (ie. there are str_count
  * string entries).  Each String is a NUL terminated string encoded in
  * UTF-8.
  */

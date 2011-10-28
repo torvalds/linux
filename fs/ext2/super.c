@@ -43,9 +43,10 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data);
 static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf);
 static int ext2_sync_fs(struct super_block *sb, int wait);
 
-void ext2_error (struct super_block * sb, const char * function,
-		 const char * fmt, ...)
+void ext2_error(struct super_block *sb, const char *function,
+		const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 	struct ext2_super_block *es = sbi->s_es;
@@ -59,9 +60,13 @@ void ext2_error (struct super_block * sb, const char * function,
 	}
 
 	va_start(args, fmt);
-	printk(KERN_CRIT "EXT2-fs (%s): error: %s: ", sb->s_id, function);
-	vprintk(fmt, args);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_CRIT "EXT2-fs (%s): error: %s: %pV\n",
+	       sb->s_id, function, &vaf);
+
 	va_end(args);
 
 	if (test_opt(sb, ERRORS_PANIC))
@@ -76,12 +81,16 @@ void ext2_error (struct super_block * sb, const char * function,
 void ext2_msg(struct super_block *sb, const char *prefix,
 		const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	printk("%sEXT2-fs (%s): ", prefix, sb->s_id);
-	vprintk(fmt, args);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk("%sEXT2-fs (%s): %pV\n", prefix, sb->s_id, &vaf);
+
 	va_end(args);
 }
 
@@ -161,9 +170,16 @@ static struct inode *ext2_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void ext2_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(ext2_inode_cachep, EXT2_I(inode));
+}
+
 static void ext2_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(ext2_inode_cachep, EXT2_I(inode));
+	call_rcu(&inode->i_rcu, ext2_i_callback);
 }
 
 static void init_once(void *foo)
@@ -747,15 +763,16 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	__le32 features;
 	int err;
 
+	err = -ENOMEM;
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		goto failed_unlock;
 
 	sbi->s_blockgroup_lock =
 		kzalloc(sizeof(struct blockgroup_lock), GFP_KERNEL);
 	if (!sbi->s_blockgroup_lock) {
 		kfree(sbi);
-		return -ENOMEM;
+		goto failed_unlock;
 	}
 	sb->s_fs_info = sbi;
 	sbi->s_sb_block = sb_block;
@@ -881,7 +898,8 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 		brelse(bh);
 
 		if (!sb_set_blocksize(sb, blocksize)) {
-			ext2_msg(sb, KERN_ERR, "error: blocksize is too small");
+			ext2_msg(sb, KERN_ERR,
+				"error: bad blocksize %d", blocksize);
 			goto failed_sbi;
 		}
 
@@ -1107,6 +1125,7 @@ failed_sbi:
 	sb->s_fs_info = NULL;
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
+failed_unlock:
 	return ret;
 }
 
@@ -1219,9 +1238,7 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 	}
 
 	es = sbi->s_es;
-	if (((sbi->s_mount_opt & EXT2_MOUNT_XIP) !=
-	    (old_mount_opt & EXT2_MOUNT_XIP)) &&
-	    invalidate_inodes(sb)) {
+	if ((sbi->s_mount_opt ^ old_mount_opt) & EXT2_MOUNT_XIP) {
 		ext2_msg(sb, KERN_WARNING, "warning: refusing change of "
 			 "xip flag with busy inodes while remounting");
 		sbi->s_mount_opt &= ~EXT2_MOUNT_XIP;
@@ -1356,17 +1373,17 @@ static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 	return 0;
 }
 
-static int ext2_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *ext2_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, ext2_fill_super, mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, ext2_fill_super);
 }
 
 #ifdef CONFIG_QUOTA
 
 /* Read data from quotafile - avoid pagecache and such because we cannot afford
  * acquiring the locks... As quota files are never truncated and quota code
- * itself serializes the operations (and noone else should touch the files)
+ * itself serializes the operations (and no one else should touch the files)
  * we don't have to be afraid of races */
 static ssize_t ext2_quota_read(struct super_block *sb, int type, char *data,
 			       size_t len, loff_t off)
@@ -1473,7 +1490,7 @@ out:
 static struct file_system_type ext2_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ext2",
-	.get_sb		= ext2_get_sb,
+	.mount		= ext2_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

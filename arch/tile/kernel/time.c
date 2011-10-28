@@ -22,6 +22,7 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <asm/irq_regs.h>
 #include <asm/traps.h>
 #include <hv/hypervisor.h>
@@ -56,6 +57,7 @@ cycles_t get_cycles(void)
 
 	return (((cycles_t)high) << 32) | low;
 }
+EXPORT_SYMBOL(get_cycles);
 #endif
 
 /*
@@ -132,7 +134,7 @@ static int tile_timer_set_next_event(unsigned long ticks,
 {
 	BUG_ON(ticks > MAX_TICK);
 	__insn_mtspr(SPR_TILE_TIMER_CONTROL, ticks);
-	raw_local_irq_unmask_now(INT_TILE_TIMER);
+	arch_local_irq_unmask_now(INT_TILE_TIMER);
 	return 0;
 }
 
@@ -143,7 +145,7 @@ static int tile_timer_set_next_event(unsigned long ticks,
 static void tile_timer_set_mode(enum clock_event_mode mode,
 				struct clock_event_device *evt)
 {
-	raw_local_irq_mask_now(INT_TILE_TIMER);
+	arch_local_irq_mask_now(INT_TILE_TIMER);
 }
 
 /*
@@ -172,7 +174,7 @@ void __cpuinit setup_tile_timer(void)
 	evt->cpumask = cpumask_of(smp_processor_id());
 
 	/* Start out with timer not firing. */
-	raw_local_irq_mask_now(INT_TILE_TIMER);
+	arch_local_irq_mask_now(INT_TILE_TIMER);
 
 	/* Register tile timer. */
 	clockevents_register_device(evt);
@@ -188,7 +190,7 @@ void do_timer_interrupt(struct pt_regs *regs, int fault_num)
 	 * Mask the timer interrupt here, since we are a oneshot timer
 	 * and there are now by definition no events pending.
 	 */
-	raw_local_irq_mask(INT_TILE_TIMER);
+	arch_local_irq_mask(INT_TILE_TIMER);
 
 	/* Track time spent here in an interrupt context */
 	irq_enter();
@@ -223,4 +225,14 @@ unsigned long long sched_clock(void)
 int setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;
+}
+
+/*
+ * Use the tile timer to convert nsecs to core clock cycles, relying
+ * on it having the same frequency as SPR_CYCLE.
+ */
+cycles_t ns2cycles(unsigned long nsecs)
+{
+	struct clock_event_device *dev = &__get_cpu_var(tile_timer);
+	return ((u64)nsecs * dev->mult) >> dev->shift;
 }

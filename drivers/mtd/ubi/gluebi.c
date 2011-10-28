@@ -365,7 +365,7 @@ static int gluebi_create(struct ubi_device_info *di,
 			vi->vol_id);
 	mutex_unlock(&devices_mutex);
 
-	if (add_mtd_device(mtd)) {
+	if (mtd_device_register(mtd, NULL, 0)) {
 		err_msg("cannot add MTD device");
 		kfree(mtd->name);
 		kfree(gluebi);
@@ -407,7 +407,7 @@ static int gluebi_remove(struct ubi_volume_info *vi)
 		return err;
 
 	mtd = &gluebi->mtd;
-	err = del_mtd_device(mtd);
+	err = mtd_device_unregister(mtd);
 	if (err) {
 		err_msg("cannot remove fake MTD device %d, UBI device %d, "
 			"volume %d, error %d", mtd->index, gluebi->ubi_num,
@@ -524,7 +524,7 @@ static void __exit ubi_gluebi_exit(void)
 		int err;
 		struct mtd_info *mtd = &gluebi->mtd;
 
-		err = del_mtd_device(mtd);
+		err = mtd_device_unregister(mtd);
 		if (err)
 			err_msg("error %d while removing gluebi MTD device %d, "
 				"UBI device %d, volume %d - ignoring", err,

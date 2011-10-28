@@ -612,6 +612,7 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd)
 			/* IRQ's are off, we do no DMA,
 			   perfectly ready to die ... */
 			hcd->state = HC_STATE_HALT;
+			usb_hc_died(hcd);
 			ret = IRQ_HANDLED;
 			goto done;
 		}
@@ -951,9 +952,9 @@ static void isp116x_hub_descriptor(struct isp116x *isp116x,
 	/* Power switching, device type, overcurrent. */
 	desc->wHubCharacteristics = cpu_to_le16((u16) ((reg >> 8) & 0x1f));
 	desc->bPwrOn2PwrGood = (u8) ((reg >> 24) & 0xff);
-	/* two bitmaps:  ports removable, and legacy PortPwrCtrlMask */
-	desc->bitmap[0] = 0;
-	desc->bitmap[1] = ~0;
+	/* ports removable, and legacy PortPwrCtrlMask */
+	desc->u.hs.DeviceRemovable[0] = 0;
+	desc->u.hs.DeviceRemovable[1] = ~0;
 }
 
 /* Perform reset of a given port.
@@ -1557,8 +1558,6 @@ static int isp116x_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#define resource_len(r) (((r)->end - (r)->start) + 1)
-
 static int __devinit isp116x_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
@@ -1597,7 +1596,7 @@ static int __devinit isp116x_probe(struct platform_device *pdev)
 		ret = -EBUSY;
 		goto err1;
 	}
-	addr_reg = ioremap(addr->start, resource_len(addr));
+	addr_reg = ioremap(addr->start, resource_size(addr));
 	if (addr_reg == NULL) {
 		ret = -ENOMEM;
 		goto err2;
@@ -1606,7 +1605,7 @@ static int __devinit isp116x_probe(struct platform_device *pdev)
 		ret = -EBUSY;
 		goto err3;
 	}
-	data_reg = ioremap(data->start, resource_len(data));
+	data_reg = ioremap(data->start, resource_size(data));
 	if (data_reg == NULL) {
 		ret = -ENOMEM;
 		goto err4;

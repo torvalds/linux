@@ -3,6 +3,7 @@
 
 #include <linux/mm.h>
 #include <linux/uaccess.h>
+#include <asm/tlbflush.h>
 
 /* The usual comment is "Caches aren't brain-dead on the <architecture>".
  * Unfortunately, that doesn't apply to PA-RISC. */
@@ -26,8 +27,6 @@ void flush_user_dcache_range_asm(unsigned long, unsigned long);
 void flush_kernel_dcache_range_asm(unsigned long, unsigned long);
 void flush_kernel_dcache_page_asm(void *);
 void flush_kernel_icache_page(void *);
-void flush_user_dcache_page(unsigned long);
-void flush_user_icache_page(unsigned long);
 void flush_user_dcache_range(unsigned long, unsigned long);
 void flush_user_icache_range(unsigned long, unsigned long);
 
@@ -36,6 +35,13 @@ void flush_user_icache_range(unsigned long, unsigned long);
 void flush_cache_all_local(void);
 void flush_cache_all(void);
 void flush_cache_mm(struct mm_struct *mm);
+
+#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
+void flush_kernel_dcache_page_addr(void *addr);
+static inline void flush_kernel_dcache_page(struct page *page)
+{
+	flush_kernel_dcache_page_addr(page_address(page));
+}
 
 #define flush_kernel_dcache_range(start,size) \
 	flush_kernel_dcache_range_asm((start), (start)+(size));
@@ -50,6 +56,16 @@ static inline void flush_kernel_vmap_range(void *vaddr, int size)
 }
 static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
 {
+	unsigned long start = (unsigned long)vaddr;
+	void *cursor = vaddr;
+
+	for ( ; cursor < vaddr + size; cursor += PAGE_SIZE) {
+		struct page *page = vmalloc_to_page(cursor);
+
+		if (test_and_clear_bit(PG_dcache_dirty, &page->flags))
+			flush_kernel_dcache_page(page);
+	}
+	flush_kernel_dcache_range_asm(start, start + size);
 }
 
 #define flush_cache_vmap(start, end)		flush_cache_all()
@@ -90,19 +106,17 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned
 void flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end);
 
+/* defined in pacache.S exported in cache.c used by flush_anon_page */
+void flush_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
+
 #define ARCH_HAS_FLUSH_ANON_PAGE
 static inline void
 flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
 {
-	if (PageAnon(page))
-		flush_user_dcache_page(vmaddr);
-}
-
-#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
-void flush_kernel_dcache_page_addr(void *addr);
-static inline void flush_kernel_dcache_page(struct page *page)
-{
-	flush_kernel_dcache_page_addr(page_address(page));
+	if (PageAnon(page)) {
+		flush_tlb_page(vma, vmaddr);
+		flush_dcache_page_asm(page_to_phys(page), vmaddr);
+	}
 }
 
 #ifdef CONFIG_DEBUG_RODATA
@@ -126,20 +140,20 @@ static inline void *kmap(struct page *page)
 
 #define kunmap(page)			kunmap_parisc(page_address(page))
 
-static inline void *kmap_atomic(struct page *page, enum km_type idx)
+static inline void *__kmap_atomic(struct page *page)
 {
 	pagefault_disable();
 	return page_address(page);
 }
 
-static inline void kunmap_atomic_notypecheck(void *addr, enum km_type idx)
+static inline void __kunmap_atomic(void *addr)
 {
 	kunmap_parisc(addr);
 	pagefault_enable();
 }
 
-#define kmap_atomic_prot(page, idx, prot)	kmap_atomic(page, idx)
-#define kmap_atomic_pfn(pfn, idx)	kmap_atomic(pfn_to_page(pfn), (idx))
+#define kmap_atomic_prot(page, prot)	kmap_atomic(page)
+#define kmap_atomic_pfn(pfn)	kmap_atomic(pfn_to_page(pfn))
 #define kmap_atomic_to_page(ptr)	virt_to_page(ptr)
 #endif
 

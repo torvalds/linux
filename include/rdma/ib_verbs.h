@@ -47,9 +47,12 @@
 #include <linux/list.h>
 #include <linux/rwsem.h>
 #include <linux/scatterlist.h>
+#include <linux/workqueue.h>
 
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
+
+extern struct workqueue_struct *ib_wq;
 
 union ib_gid {
 	u8	raw[16];
@@ -74,6 +77,12 @@ enum rdma_transport_type {
 
 enum rdma_transport_type
 rdma_node_get_transport(enum rdma_node_type node_type) __attribute_const__;
+
+enum rdma_link_layer {
+	IB_LINK_LAYER_UNSPECIFIED,
+	IB_LINK_LAYER_INFINIBAND,
+	IB_LINK_LAYER_ETHERNET,
+};
 
 enum ib_device_cap_flags {
 	IB_DEVICE_RESIZE_MAX_WR		= 1,
@@ -1010,6 +1019,8 @@ struct ib_device {
 	int		           (*query_port)(struct ib_device *device,
 						 u8 port_num,
 						 struct ib_port_attr *port_attr);
+	enum rdma_link_layer	   (*get_link_layer)(struct ib_device *device,
+						     u8 port_num);
 	int		           (*query_gid)(struct ib_device *device,
 						u8 port_num, int index,
 						union ib_gid *gid);
@@ -1221,6 +1232,9 @@ int ib_query_device(struct ib_device *device,
 
 int ib_query_port(struct ib_device *device,
 		  u8 port_num, struct ib_port_attr *port_attr);
+
+enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device,
+					       u8 port_num);
 
 int ib_query_gid(struct ib_device *device,
 		 u8 port_num, int index, union ib_gid *gid);

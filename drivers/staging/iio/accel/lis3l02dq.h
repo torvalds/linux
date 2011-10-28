@@ -57,7 +57,7 @@
 /* Reboot memory content */
 #define LIS3L02DQ_REG_CTRL_2_REBOOT_MEMORY	0x10
 
-/* Interupt Enable - applies data ready to the RDY pad */
+/* Interrupt Enable - applies data ready to the RDY pad */
 #define LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT	0x08
 
 /* Enable Data Ready Generation - relationship with previous unclear in docs */
@@ -70,34 +70,34 @@
  * - option for 16 bit left justified */
 #define LIS3L02DQ_REG_CTRL_2_DATA_ALIGNMENT_16_BIT_LEFT_JUSTIFIED	0x01
 
-/* Interupt related stuff */
+/* Interrupt related stuff */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_ADDR			0x23
 
 /* Switch from or combination fo conditions to and */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_BOOLEAN_AND		0x80
 
-/* Latch interupt request,
+/* Latch interrupt request,
  * if on ack must be given by reading the ack register */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_LATCH_SRC		0x40
 
-/* Z Interupt on High (above threshold)*/
+/* Z Interrupt on High (above threshold)*/
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Z_HIGH	0x20
-/* Z Interupt on Low */
+/* Z Interrupt on Low */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Z_LOW	0x10
-/* Y Interupt on High */
+/* Y Interrupt on High */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Y_HIGH	0x08
-/* Y Interupt on Low */
+/* Y Interrupt on Low */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Y_LOW	0x04
-/* X Interupt on High */
+/* X Interrupt on High */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_HIGH	0x02
-/* X Interupt on Low */
+/* X Interrupt on Low */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_LOW 0x01
 
-/* Register that gives description of what caused interupt
+/* Register that gives description of what caused interrupt
  * - latched if set in CFG_ADDRES */
 #define LIS3L02DQ_REG_WAKE_UP_SRC_ADDR			0x24
 /* top bit ignored */
-/* Interupt Active */
+/* Interrupt Active */
 #define LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_ACTIVATED	0x40
 /* Interupts that have been triggered */
 #define LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_HIGH	0x20
@@ -123,7 +123,7 @@
 #define LIS3L02DQ_REG_STATUS_X_NEW_DATA			0x01
 
 /* The accelerometer readings - low and high bytes.
-Form of high byte dependant on justification set in ctrl reg */
+Form of high byte dependent on justification set in ctrl reg */
 #define LIS3L02DQ_REG_OUT_X_L_ADDR			0x28
 #define LIS3L02DQ_REG_OUT_X_H_ADDR			0x29
 #define LIS3L02DQ_REG_OUT_Y_L_ADDR			0x2A
@@ -148,38 +148,31 @@ Form of high byte dependant on justification set in ctrl reg */
 #define LIS3L02DQ_MAX_RX 12
 /**
  * struct lis3l02dq_state - device instance specific data
- * @helper:		data and func pointer allowing generic functions
  * @us:			actual spi_device
- * @work_thresh:	bh for threshold events
- * @thresh_timestamp:	timestamp for threshold interrupts.
- * @inter:		used to check if new interrupt has been triggered
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
- * @rx:			recieve buffer
+ * @rx:			receive buffer
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct lis3l02dq_state {
-	struct iio_sw_ring_helper_state	help;
 	struct spi_device		*us;
-	struct work_struct		work_thresh;
-	s64				thresh_timestamp;
-	bool				inter;
 	struct iio_trigger		*trig;
-	u8				*tx;
-	u8				*rx;
 	struct mutex			buf_lock;
+	bool				trigger_on;
+
+	u8	tx[LIS3L02DQ_MAX_RX] ____cacheline_aligned;
+	u8	rx[LIS3L02DQ_MAX_RX] ____cacheline_aligned;
 };
 
-#define lis3l02dq_h_to_s(_h)				\
-	container_of(_h, struct lis3l02dq_state, help)
-
-int lis3l02dq_spi_read_reg_8(struct device *dev,
+int lis3l02dq_spi_read_reg_8(struct iio_dev *indio_dev,
 			     u8 reg_address,
 			     u8 *val);
 
-int lis3l02dq_spi_write_reg_8(struct device *dev,
+int lis3l02dq_spi_write_reg_8(struct iio_dev *indio_dev,
 			      u8 reg_address,
-			      u8 *val);
+			      u8 val);
+
+int lis3l02dq_disable_all_events(struct iio_dev *indio_dev);
 
 #ifdef CONFIG_IIO_RING_BUFFER
 /* At the moment triggers are only used for ring buffer
@@ -188,15 +181,29 @@ int lis3l02dq_spi_write_reg_8(struct device *dev,
 void lis3l02dq_remove_trigger(struct iio_dev *indio_dev);
 int lis3l02dq_probe_trigger(struct iio_dev *indio_dev);
 
-ssize_t lis3l02dq_read_accel_from_ring(struct device *dev,
-				       struct device_attribute *attr,
-				       char *buf);
+ssize_t lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
+				       int index,
+				       int *val);
 
 
 int lis3l02dq_configure_ring(struct iio_dev *indio_dev);
 void lis3l02dq_unconfigure_ring(struct iio_dev *indio_dev);
 
+#ifdef CONFIG_LIS3L02DQ_BUF_RING_SW
+#define lis3l02dq_free_buf iio_sw_rb_free
+#define lis3l02dq_alloc_buf iio_sw_rb_allocate
+#define lis3l02dq_access_funcs ring_sw_access_funcs
+#endif
+#ifdef CONFIG_LIS3L02DQ_BUF_KFIFO
+#define lis3l02dq_free_buf iio_kfifo_free
+#define lis3l02dq_alloc_buf iio_kfifo_allocate
+#define lis3l02dq_access_funcs kfifo_access_funcs
+#endif
+irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private);
+#define lis3l02dq_th lis3l02dq_data_rdy_trig_poll
+
 #else /* CONFIG_IIO_RING_BUFFER */
+#define lis3l02dq_th lis3l02dq_noring
 
 static inline void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 {
@@ -205,11 +212,10 @@ static inline int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 {
 	return 0;
 }
-
 static inline ssize_t
-lis3l02dq_read_accel_from_ring(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
+			       int index,
+			       int *val)
 {
 	return 0;
 }

@@ -38,12 +38,9 @@
 #include <linux/sysfs.h>
 #include <linux/aer.h>
 
-MODULE_DESCRIPTION("QLogic/NetXen (1/10) GbE Converged Ethernet Driver");
+MODULE_DESCRIPTION("QLogic/NetXen (1/10) GbE Intelligent Ethernet Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(NETXEN_NIC_LINUX_VERSIONID);
-MODULE_FIRMWARE(NX_P2_MN_ROMIMAGE_NAME);
-MODULE_FIRMWARE(NX_P3_CT_ROMIMAGE_NAME);
-MODULE_FIRMWARE(NX_P3_MN_ROMIMAGE_NAME);
 MODULE_FIRMWARE(NX_UNIFIED_ROMIMAGE_NAME);
 
 char netxen_nic_driver_name[] = "netxen_nic";
@@ -95,6 +92,8 @@ static irqreturn_t netxen_msi_intr(int irq, void *data);
 static irqreturn_t netxen_msix_intr(int irq, void *data);
 
 static void netxen_config_indev_addr(struct net_device *dev, unsigned long);
+static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
+static int netxen_nic_set_mac(struct net_device *netdev, void *p);
 
 /*  PCI Device ID Table  */
 #define ENTRY(device) \
@@ -125,11 +124,6 @@ netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 		struct nx_host_tx_ring *tx_ring)
 {
 	NXWRIO(adapter, tx_ring->crb_cmd_producer, tx_ring->producer);
-
-	if (netxen_tx_avail(tx_ring) <= TX_STOP_THRESH) {
-		netif_stop_queue(adapter->netdev);
-		smp_mb();
-	}
 }
 
 static uint32_t crb_cmd_consumer[4] = {
@@ -177,7 +171,7 @@ netxen_alloc_sds_rings(struct netxen_recv_context *recv_ctx, int count)
 
 	recv_ctx->sds_rings = kzalloc(size, GFP_KERNEL);
 
-	return (recv_ctx->sds_rings == NULL);
+	return recv_ctx->sds_rings == NULL;
 }
 
 static void
@@ -460,7 +454,7 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 	return 0;
 }
 
-int netxen_nic_set_mac(struct net_device *netdev, void *p)
+static int netxen_nic_set_mac(struct net_device *netdev, void *p)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct sockaddr *addr = p;
@@ -491,6 +485,37 @@ static void netxen_set_multicast_list(struct net_device *dev)
 	adapter->set_multi(dev);
 }
 
+static u32 netxen_fix_features(struct net_device *dev, u32 features)
+{
+	if (!(features & NETIF_F_RXCSUM)) {
+		netdev_info(dev, "disabling LRO as RXCSUM is off\n");
+
+		features &= ~NETIF_F_LRO;
+	}
+
+	return features;
+}
+
+static int netxen_set_features(struct net_device *dev, u32 features)
+{
+	struct netxen_adapter *adapter = netdev_priv(dev);
+	int hw_lro;
+
+	if (!((dev->features ^ features) & NETIF_F_LRO))
+		return 0;
+
+	hw_lro = (features & NETIF_F_LRO) ? NETXEN_NIC_LRO_ENABLED
+	         : NETXEN_NIC_LRO_DISABLED;
+
+	if (netxen_config_hw_lro(adapter, hw_lro))
+		return -EIO;
+
+	if (!(features & NETIF_F_LRO) && netxen_send_lro_cleanup(adapter))
+		return -EIO;
+
+	return 0;
+}
+
 static const struct net_device_ops netxen_netdev_ops = {
 	.ndo_open	   = netxen_nic_open,
 	.ndo_stop	   = netxen_nic_close,
@@ -501,6 +526,8 @@ static const struct net_device_ops netxen_netdev_ops = {
 	.ndo_set_mac_address    = netxen_nic_set_mac,
 	.ndo_change_mtu	   = netxen_nic_change_mtu,
 	.ndo_tx_timeout	   = netxen_tx_timeout,
+	.ndo_fix_features = netxen_fix_features,
+	.ndo_set_features = netxen_set_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = netxen_nic_poll_controller,
 #endif
@@ -768,8 +795,6 @@ netxen_check_options(struct netxen_adapter *adapter)
 	if (adapter->fw_version >= NETXEN_VERSION_CODE(4, 0, 222))
 		adapter->capabilities = NXRD32(adapter, CRB_FW_CAPABILITIES_1);
 
-	adapter->flags &= ~NETXEN_NIC_LRO_ENABLED;
-
 	if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
 		adapter->num_rxd = DEFAULT_RCV_DESCRIPTORS_10G;
 		adapter->num_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_10G;
@@ -913,7 +938,7 @@ netxen_nic_request_irq(struct netxen_adapter *adapter)
 	struct nx_host_sds_ring *sds_ring;
 	int err, ring;
 
-	unsigned long flags = IRQF_SAMPLE_RANDOM;
+	unsigned long flags = 0;
 	struct net_device *netdev = adapter->netdev;
 	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
 
@@ -996,7 +1021,7 @@ __netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		netxen_config_intr_coalesce(adapter);
 
-	if (adapter->capabilities & NX_FW_CAPABILITY_HW_LRO)
+	if (netdev->features & NETIF_F_LRO)
 		netxen_config_hw_lro(adapter, NETXEN_NIC_LRO_ENABLED);
 
 	netxen_napi_enable(adapter);
@@ -1039,6 +1064,9 @@ __netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 	spin_lock(&adapter->tx_clean_lock);
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
+
+	if (adapter->capabilities & NX_FW_CAPABILITY_LINK_NOTIFICATION)
+		netxen_linkevent_request(adapter, 0);
 
 	if (adapter->stop_port)
 		adapter->stop_port(adapter);
@@ -1201,7 +1229,6 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 	int err = 0;
 	struct pci_dev *pdev = adapter->pdev;
 
-	adapter->rx_csum = 1;
 	adapter->mc_enabled = 0;
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		adapter->max_mc_count = 38;
@@ -1209,20 +1236,19 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 		adapter->max_mc_count = 16;
 
 	netdev->netdev_ops	   = &netxen_netdev_ops;
-	netdev->watchdog_timeo     = 2*HZ;
+	netdev->watchdog_timeo     = 5*HZ;
 
 	netxen_nic_change_mtu(netdev, netdev->mtu);
 
 	SET_ETHTOOL_OPS(netdev, &netxen_nic_ethtool_ops);
 
-	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO);
-	netdev->features |= (NETIF_F_GRO);
-	netdev->vlan_features |= (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO);
+	netdev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
+	                      NETIF_F_RXCSUM;
 
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
-		netdev->features |= (NETIF_F_IPV6_CSUM | NETIF_F_TSO6);
-		netdev->vlan_features |= (NETIF_F_IPV6_CSUM | NETIF_F_TSO6);
-	}
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		netdev->hw_features |= NETIF_F_IPV6_CSUM | NETIF_F_TSO6;
+
+	netdev->vlan_features |= netdev->hw_features;
 
 	if (adapter->pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
@@ -1230,10 +1256,12 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 	}
 
 	if (adapter->capabilities & NX_FW_CAPABILITY_FVLANTX)
-		netdev->features |= (NETIF_F_HW_VLAN_TX);
+		netdev->hw_features |= NETIF_F_HW_VLAN_TX;
 
 	if (adapter->capabilities & NX_FW_CAPABILITY_HW_LRO)
-		netdev->features |= NETIF_F_LRO;
+		netdev->hw_features |= NETIF_F_LRO;
+
+	netdev->features |= netdev->hw_features;
 
 	netdev->irq = adapter->msix_entries[0].vector;
 
@@ -1243,7 +1271,6 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 		dev_warn(&pdev->dev, "failed to read mac addr\n");
 
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
 
 	err = register_netdev(netdev);
 	if (err) {
@@ -1254,6 +1281,28 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 	return 0;
 }
 
+#ifdef CONFIG_PCIEAER
+static void netxen_mask_aer_correctable(struct netxen_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct pci_dev *root = pdev->bus->self;
+	u32 aer_pos;
+
+	if (adapter->ahw.board_type != NETXEN_BRDTYPE_P3_4_GB_MM &&
+		adapter->ahw.board_type != NETXEN_BRDTYPE_P3_10G_TP)
+		return;
+
+	if (root->pcie_type != PCI_EXP_TYPE_ROOT_PORT)
+		return;
+
+	aer_pos = pci_find_ext_capability(root, PCI_EXT_CAP_ID_ERR);
+	if (!aer_pos)
+		return;
+
+	pci_write_config_dword(root, aer_pos + PCI_ERR_COR_MASK, 0xffff);
+}
+#endif
+
 static int __devinit
 netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -1262,6 +1311,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int i = 0, err;
 	int pci_func_id = PCI_FUNC(pdev->devfn);
 	uint8_t revision_id;
+	u32 val;
 
 	if (pdev->revision >= NX_P3_A0 && pdev->revision <= NX_P3_B1) {
 		pr_warning("%s: chip revisions between 0x%x-0x%x "
@@ -1322,6 +1372,10 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_iounmap;
 	}
 
+#ifdef CONFIG_PCIEAER
+	netxen_mask_aer_correctable(adapter);
+#endif
+
 	/* Mezz cards have PCI function 0,2,3 enabled */
 	switch (adapter->ahw.board_type) {
 	case NETXEN_BRDTYPE_P2_SB31_10G_IMEZ:
@@ -1331,6 +1385,14 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	default:
 		break;
+	}
+
+	if (adapter->portnum == 0) {
+		val = NXRD32(adapter, NX_CRB_DEV_REF_COUNT);
+		if (val != 0xffffffff && val != 0) {
+			NXWR32(adapter, NX_CRB_DEV_REF_COUNT, 0);
+			adapter->need_fw_reset = 1;
+		}
 	}
 
 	err = netxen_start_firmware(adapter);
@@ -1815,6 +1877,8 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct cmd_desc_type0 *hwdesc, *first_desc;
 	struct pci_dev *pdev;
 	int i, k;
+	int delta = 0;
+	struct skb_frag_struct *frag;
 
 	u32 producer;
 	int frag_count, no_of_desc;
@@ -1822,12 +1886,31 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
 
+	/* 14 frags supported for normal packet and
+	 * 32 frags supported for TSO packet
+	 */
+	if (!skb_is_gso(skb) && frag_count > NETXEN_MAX_FRAGS_PER_TX) {
+
+		for (i = 0; i < (frag_count - NETXEN_MAX_FRAGS_PER_TX); i++) {
+			frag = &skb_shinfo(skb)->frags[i];
+			delta += frag->size;
+		}
+
+		if (!__pskb_pull_tail(skb, delta))
+			goto drop_packet;
+
+		frag_count = 1 + skb_shinfo(skb)->nr_frags;
+	}
 	/* 4 fragments per cmd des */
 	no_of_desc = (frag_count + 3) >> 2;
 
-	if (unlikely(no_of_desc + 2 > netxen_tx_avail(tx_ring))) {
+	if (unlikely(netxen_tx_avail(tx_ring) <= TX_STOP_THRESH)) {
 		netif_stop_queue(netdev);
-		return NETDEV_TX_BUSY;
+		smp_mb();
+		if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH)
+			netif_start_queue(netdev);
+		else
+			return NETDEV_TX_BUSY;
 	}
 
 	producer = tx_ring->producer;
@@ -1882,10 +1965,10 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	netxen_tso_check(netdev, tx_ring, first_desc, skb);
 
-	netxen_nic_update_cmd_producer(adapter, tx_ring);
-
 	adapter->stats.txbytes += skb->len;
 	adapter->stats.xmitcalled++;
+
+	netxen_nic_update_cmd_producer(adapter, tx_ring);
 
 	return NETDEV_TX_OK;
 
@@ -2027,7 +2110,7 @@ request_reset:
 	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
-struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
+static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct net_device_stats *stats = &netdev->stats;

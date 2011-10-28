@@ -99,8 +99,37 @@ Description:
 
 		dmesg -s 1000000 | grep 'hash matches'
 
+		If you do not get any matches (or they appear to be false
+		positives), it is possible that the last PM event point
+		referred to a device created by a loadable kernel module.  In
+		this case cat /sys/power/pm_trace_dev_match (see below) after
+		your system is started up and the kernel modules are loaded.
+
 		CAUTION: Using it will cause your machine's real-time (CMOS)
 		clock to be set to a random invalid time after a resume.
+
+What;		/sys/power/pm_trace_dev_match
+Date:		October 2010
+Contact:	James Hogan <james@albanarts.com>
+Description:
+		The /sys/power/pm_trace_dev_match file contains the name of the
+		device associated with the last PM event point saved in the RTC
+		across reboots when pm_trace has been used.  More precisely it
+		contains the list of current devices (including those
+		registered by loadable kernel modules since boot) which match
+		the device hash in the RTC at boot, with a newline after each
+		one.
+
+		The advantage of this file over the hash matches printed to the
+		kernel log (see /sys/power/pm_trace), is that it includes
+		devices created after boot by loadable kernel modules.
+
+		Due to the small hash size necessary to fit in the RTC, it is
+		possible that more than one device matches the hash, in which
+		case further investigation is required to determine which
+		device is causing the problem.  Note that genuine RTC clock
+		values (such as when pm_trace has not been used), can still
+		match a device and output it's name here.
 
 What:		/sys/power/pm_async
 Date:		January 2009
@@ -129,3 +158,17 @@ Description:
 		successful, will make the kernel abort a subsequent transition
 		to a sleep state if any wakeup events are reported after the
 		write has returned.
+
+What:		/sys/power/reserved_size
+Date:		May 2011
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/reserved_size file allows user space to control
+		the amount of memory reserved for allocations made by device
+		drivers during the "device freeze" stage of hibernation.  It can
+		be written a string representing a non-negative integer that
+		will be used as the amount of memory to reserve for allocations
+		made by device drivers' "freeze" callbacks, in bytes.
+
+		Reading from this file will display the current value, which is
+		set to 1 MB by default.

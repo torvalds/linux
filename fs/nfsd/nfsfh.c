@@ -344,7 +344,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 	 * which clients virtually always use auth_sys for,
 	 * even while using RPCSEC_GSS for NFS.
 	 */
-	if (access & NFSD_MAY_LOCK)
+	if (access & NFSD_MAY_LOCK || access & NFSD_MAY_BYPASS_GSS)
 		goto skip_pseudoflavor_check;
 	/*
 	 * Clients may expect to be able to use auth_sys during mount,

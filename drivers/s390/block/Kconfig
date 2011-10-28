@@ -2,7 +2,8 @@ comment "S/390 block device drivers"
 	depends on S390 && BLOCK
 
 config BLK_DEV_XPRAM
-	tristate "XPRAM disk support"
+	def_tristate m
+	prompt "XPRAM disk support"
 	depends on S390 && BLOCK
 	help
 	  Select this option if you want to use your expanded storage on S/390
@@ -12,13 +13,15 @@ config BLK_DEV_XPRAM
 	  xpram.  If unsure, say "N".
 
 config DCSSBLK
-	tristate "DCSSBLK support"
+	def_tristate m
+	prompt "DCSSBLK support"
 	depends on S390 && BLOCK
 	help
 	  Support for dcss block device
 
 config DASD
-	tristate "Support for DASD devices"
+	def_tristate y
+	prompt "Support for DASD devices"
 	depends on CCW && BLOCK
 	select IOSCHED_DEADLINE
 	help
@@ -27,28 +30,32 @@ config DASD
 	  natively on a single image or an LPAR.
 
 config DASD_PROFILE
-	bool "Profiling support for dasd devices"
+	def_bool y
+	prompt "Profiling support for dasd devices"
 	depends on DASD
 	help
 	  Enable this option if you want to see profiling information
           in /proc/dasd/statistics.
 
 config DASD_ECKD
-	tristate "Support for ECKD Disks"
+	def_tristate y
+	prompt "Support for ECKD Disks"
 	depends on DASD
 	help
 	  ECKD devices are the most commonly used devices. You should enable
 	  this option unless you are very sure to have no ECKD device.
 
 config DASD_FBA
-	tristate "Support for FBA  Disks"
+	def_tristate y
+	prompt "Support for FBA  Disks"
 	depends on DASD
 	help
 	  Select this option to be able to access FBA devices. It is safe to
 	  say "Y".
 
 config DASD_DIAG
-	tristate "Support for DIAG access to Disks"
+	def_tristate y
+	prompt "Support for DIAG access to Disks"
 	depends on DASD
 	help
 	  Select this option if you want to use Diagnose250 command to access
@@ -56,7 +63,8 @@ config DASD_DIAG
 	  say "N".
 
 config DASD_EER
-	bool "Extended error reporting (EER)"
+	def_bool y
+	prompt "Extended error reporting (EER)"
 	depends on DASD
 	help
 	  This driver provides a character device interface to the

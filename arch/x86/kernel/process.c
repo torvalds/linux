@@ -14,6 +14,7 @@
 #include <linux/utsname.h>
 #include <trace/events/power.h>
 #include <linux/hw_breakpoint.h>
+#include <asm/cpu.h>
 #include <asm/system.h>
 #include <asm/apic.h>
 #include <asm/syscalls.h>
@@ -21,11 +22,6 @@
 #include <asm/uaccess.h>
 #include <asm/i387.h>
 #include <asm/debugreg.h>
-
-unsigned long idle_halt;
-EXPORT_SYMBOL(idle_halt);
-unsigned long idle_nomwait;
-EXPORT_SYMBOL(idle_nomwait);
 
 struct kmem_cache *task_xstate_cachep;
 EXPORT_SYMBOL_GPL(task_xstate_cachep);
@@ -91,27 +87,33 @@ void exit_thread(void)
 void show_regs(struct pt_regs *regs)
 {
 	show_registers(regs);
-	show_trace(NULL, regs, (unsigned long *)kernel_stack_pointer(regs),
-		   regs->bp);
+	show_trace(NULL, regs, (unsigned long *)kernel_stack_pointer(regs), 0);
 }
 
 void show_regs_common(void)
 {
-	const char *board, *product;
+	const char *vendor, *product, *board;
 
-	board = dmi_get_system_info(DMI_BOARD_NAME);
-	if (!board)
-		board = "";
+	vendor = dmi_get_system_info(DMI_SYS_VENDOR);
+	if (!vendor)
+		vendor = "";
 	product = dmi_get_system_info(DMI_PRODUCT_NAME);
 	if (!product)
 		product = "";
 
+	/* Board Name is optional */
+	board = dmi_get_system_info(DMI_BOARD_NAME);
+
 	printk(KERN_CONT "\n");
-	printk(KERN_DEFAULT "Pid: %d, comm: %.20s %s %s %.*s %s/%s\n",
+	printk(KERN_DEFAULT "Pid: %d, comm: %.20s %s %s %.*s",
 		current->pid, current->comm, print_tainted(),
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
-		init_utsname()->version, board, product);
+		init_utsname()->version);
+	printk(KERN_CONT " %s %s", vendor, product);
+	if (board)
+		printk(KERN_CONT "/%s", board);
+	printk(KERN_CONT "\n");
 }
 
 void flush_thread(void)
@@ -328,14 +330,16 @@ long sys_execve(const char __user *name,
 /*
  * Idle related variables and functions
  */
-unsigned long boot_option_idle_override = 0;
+unsigned long boot_option_idle_override = IDLE_NO_OVERRIDE;
 EXPORT_SYMBOL(boot_option_idle_override);
 
 /*
  * Powermanagement idle function, if any..
  */
 void (*pm_idle)(void);
+#ifdef CONFIG_APM_MODULE
 EXPORT_SYMBOL(pm_idle);
+#endif
 
 #ifdef CONFIG_X86_32
 /*
@@ -374,6 +378,7 @@ void default_idle(void)
 {
 	if (hlt_use_halt()) {
 		trace_power_start(POWER_CSTATE, 1, smp_processor_id());
+		trace_cpu_idle(1, smp_processor_id());
 		current_thread_info()->status &= ~TS_POLLING;
 		/*
 		 * TS_POLLING-cleared state must be visible before we
@@ -386,6 +391,8 @@ void default_idle(void)
 		else
 			local_irq_enable();
 		current_thread_info()->status |= TS_POLLING;
+		trace_power_end(smp_processor_id());
+		trace_cpu_idle(PWR_EVENT_EXIT, smp_processor_id());
 	} else {
 		local_irq_enable();
 		/* loop is done by the caller */
@@ -443,9 +450,8 @@ EXPORT_SYMBOL_GPL(cpu_idle_wait);
  */
 void mwait_idle_with_hints(unsigned long ax, unsigned long cx)
 {
-	trace_power_start(POWER_CSTATE, (ax>>4)+1, smp_processor_id());
 	if (!need_resched()) {
-		if (cpu_has(&current_cpu_data, X86_FEATURE_CLFLUSH_MONITOR))
+		if (this_cpu_has(X86_FEATURE_CLFLUSH_MONITOR))
 			clflush((void *)&current_thread_info()->flags);
 
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
@@ -460,7 +466,8 @@ static void mwait_idle(void)
 {
 	if (!need_resched()) {
 		trace_power_start(POWER_CSTATE, 1, smp_processor_id());
-		if (cpu_has(&current_cpu_data, X86_FEATURE_CLFLUSH_MONITOR))
+		trace_cpu_idle(1, smp_processor_id());
+		if (this_cpu_has(X86_FEATURE_CLFLUSH_MONITOR))
 			clflush((void *)&current_thread_info()->flags);
 
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
@@ -469,6 +476,8 @@ static void mwait_idle(void)
 			__sti_mwait(0, 0);
 		else
 			local_irq_enable();
+		trace_power_end(smp_processor_id());
+		trace_cpu_idle(PWR_EVENT_EXIT, smp_processor_id());
 	} else
 		local_irq_enable();
 }
@@ -481,10 +490,12 @@ static void mwait_idle(void)
 static void poll_idle(void)
 {
 	trace_power_start(POWER_CSTATE, 0, smp_processor_id());
+	trace_cpu_idle(0, smp_processor_id());
 	local_irq_enable();
 	while (!need_resched())
 		cpu_relax();
-	trace_power_end(0);
+	trace_power_end(smp_processor_id());
+	trace_cpu_idle(PWR_EVENT_EXIT, smp_processor_id());
 }
 
 /*
@@ -499,17 +510,16 @@ static void poll_idle(void)
  *
  * idle=mwait overrides this decision and forces the usage of mwait.
  */
-static int __cpuinitdata force_mwait;
 
 #define MWAIT_INFO			0x05
 #define MWAIT_ECX_EXTENDED_INFO		0x01
 #define MWAIT_EDX_C1			0xf0
 
-static int __cpuinit mwait_usable(const struct cpuinfo_x86 *c)
+int mwait_usable(const struct cpuinfo_x86 *c)
 {
 	u32 eax, ebx, ecx, edx;
 
-	if (force_mwait)
+	if (boot_option_idle_override == IDLE_FORCE_MWAIT)
 		return 1;
 
 	if (c->cpuid_level < MWAIT_INFO)
@@ -527,45 +537,45 @@ static int __cpuinit mwait_usable(const struct cpuinfo_x86 *c)
 	return (edx & MWAIT_EDX_C1);
 }
 
-bool c1e_detected;
-EXPORT_SYMBOL(c1e_detected);
+bool amd_e400_c1e_detected;
+EXPORT_SYMBOL(amd_e400_c1e_detected);
 
-static cpumask_var_t c1e_mask;
+static cpumask_var_t amd_e400_c1e_mask;
 
-void c1e_remove_cpu(int cpu)
+void amd_e400_remove_cpu(int cpu)
 {
-	if (c1e_mask != NULL)
-		cpumask_clear_cpu(cpu, c1e_mask);
+	if (amd_e400_c1e_mask != NULL)
+		cpumask_clear_cpu(cpu, amd_e400_c1e_mask);
 }
 
 /*
- * C1E aware idle routine. We check for C1E active in the interrupt
+ * AMD Erratum 400 aware idle routine. We check for C1E active in the interrupt
  * pending message MSR. If we detect C1E, then we handle it the same
  * way as C3 power states (local apic timer and TSC stop)
  */
-static void c1e_idle(void)
+static void amd_e400_idle(void)
 {
 	if (need_resched())
 		return;
 
-	if (!c1e_detected) {
+	if (!amd_e400_c1e_detected) {
 		u32 lo, hi;
 
 		rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
 
 		if (lo & K8_INTP_C1E_ACTIVE_MASK) {
-			c1e_detected = true;
+			amd_e400_c1e_detected = true;
 			if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
 				mark_tsc_unstable("TSC halt in AMD C1E");
 			printk(KERN_INFO "System has AMD C1E enabled\n");
 		}
 	}
 
-	if (c1e_detected) {
+	if (amd_e400_c1e_detected) {
 		int cpu = smp_processor_id();
 
-		if (!cpumask_test_cpu(cpu, c1e_mask)) {
-			cpumask_set_cpu(cpu, c1e_mask);
+		if (!cpumask_test_cpu(cpu, amd_e400_c1e_mask)) {
+			cpumask_set_cpu(cpu, amd_e400_c1e_mask);
 			/*
 			 * Force broadcast so ACPI can not interfere.
 			 */
@@ -608,17 +618,17 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 		pm_idle = mwait_idle;
 	} else if (cpu_has_amd_erratum(amd_erratum_400)) {
 		/* E400: APIC timer interrupt does not wake up CPU from C1e */
-		printk(KERN_INFO "using C1E aware idle routine\n");
-		pm_idle = c1e_idle;
+		printk(KERN_INFO "using AMD E400 aware idle routine\n");
+		pm_idle = amd_e400_idle;
 	} else
 		pm_idle = default_idle;
 }
 
-void __init init_c1e_mask(void)
+void __init init_amd_e400_c1e_mask(void)
 {
-	/* If we're using c1e_idle, we need to allocate c1e_mask. */
-	if (pm_idle == c1e_idle)
-		zalloc_cpumask_var(&c1e_mask, GFP_KERNEL);
+	/* If we're using amd_e400_idle, we need to allocate amd_e400_c1e_mask. */
+	if (pm_idle == amd_e400_idle)
+		zalloc_cpumask_var(&amd_e400_c1e_mask, GFP_KERNEL);
 }
 
 static int __init idle_setup(char *str)
@@ -629,9 +639,11 @@ static int __init idle_setup(char *str)
 	if (!strcmp(str, "poll")) {
 		printk("using polling idle threads.\n");
 		pm_idle = poll_idle;
-	} else if (!strcmp(str, "mwait"))
-		force_mwait = 1;
-	else if (!strcmp(str, "halt")) {
+		boot_option_idle_override = IDLE_POLL;
+	} else if (!strcmp(str, "mwait")) {
+		boot_option_idle_override = IDLE_FORCE_MWAIT;
+		WARN_ONCE(1, "\"idle=mwait\" will be removed in 2012\n");
+	} else if (!strcmp(str, "halt")) {
 		/*
 		 * When the boot option of idle=halt is added, halt is
 		 * forced to be used for CPU idle. In such case CPU C2/C3
@@ -640,8 +652,7 @@ static int __init idle_setup(char *str)
 		 * the boot_option_idle_override.
 		 */
 		pm_idle = default_idle;
-		idle_halt = 1;
-		return 0;
+		boot_option_idle_override = IDLE_HALT;
 	} else if (!strcmp(str, "nomwait")) {
 		/*
 		 * If the boot option of "idle=nomwait" is added,
@@ -649,12 +660,10 @@ static int __init idle_setup(char *str)
 		 * states. In such case it won't touch the variable
 		 * of boot_option_idle_override.
 		 */
-		idle_nomwait = 1;
-		return 0;
+		boot_option_idle_override = IDLE_NOMWAIT;
 	} else
 		return -1;
 
-	boot_option_idle_override = 1;
 	return 0;
 }
 early_param("idle", idle_setup);

@@ -171,7 +171,7 @@ struct ib_mr *ehca_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 		}
 
 		ret = ehca_reg_maxmr(shca, e_maxmr,
-				     (void *)ehca_map_vaddr((void *)KERNELBASE),
+				     (void *)ehca_map_vaddr((void *)(KERNELBASE + PHYSICAL_START)),
 				     mr_access_flags, e_pd,
 				     &e_maxmr->ib.ib_mr.lkey,
 				     &e_maxmr->ib.ib_mr.rkey);
@@ -1636,7 +1636,7 @@ int ehca_reg_internal_maxmr(
 
 	/* register internal max-MR on HCA */
 	size_maxmr = ehca_mr_len;
-	iova_start = (u64 *)ehca_map_vaddr((void *)KERNELBASE);
+	iova_start = (u64 *)ehca_map_vaddr((void *)(KERNELBASE + PHYSICAL_START));
 	ib_pbuf.addr = 0;
 	ib_pbuf.size = size_maxmr;
 	num_kpages = NUM_CHUNKS(((u64)iova_start % PAGE_SIZE) + size_maxmr,
@@ -2209,7 +2209,7 @@ int ehca_mr_is_maxmr(u64 size,
 {
 	/* a MR is treated as max-MR only if it fits following: */
 	if ((size == ehca_mr_len) &&
-	    (iova_start == (void *)ehca_map_vaddr((void *)KERNELBASE))) {
+	    (iova_start == (void *)ehca_map_vaddr((void *)(KERNELBASE + PHYSICAL_START)))) {
 		ehca_gen_dbg("this is a max-MR");
 		return 1;
 	} else

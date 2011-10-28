@@ -927,7 +927,7 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 				 struct path *path, const int flag)
 {
 	const u8 acc_mode = ACC_MODE(flag);
-	int error = -ENOMEM;
+	int error = 0;
 	struct tomoyo_path_info buf;
 	struct tomoyo_request_info r;
 	int idx;
@@ -938,9 +938,6 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 	buf.name = NULL;
 	r.mode = TOMOYO_CONFIG_DISABLED;
 	idx = tomoyo_read_lock();
-	if (!tomoyo_get_realpath(&buf, path))
-		goto out;
-	error = 0;
 	/*
 	 * If the filename is specified by "deny_rewrite" keyword,
 	 * we need to check "allow_rewrite" permission when the filename is not
@@ -1014,7 +1011,6 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
 		break;
 	case TOMOYO_TYPE_RMDIR:
 	case TOMOYO_TYPE_CHROOT:
-	case TOMOYO_TYPE_UMOUNT:
 		tomoyo_add_slash(&buf);
 		break;
 	}

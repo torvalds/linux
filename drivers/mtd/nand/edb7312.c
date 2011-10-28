@@ -55,7 +55,6 @@ static unsigned long ep7312_fio_pbase = EP7312_FIO_PBASE;
 static void __iomem *ep7312_pxdr = (void __iomem *)EP7312_PXDR;
 static void __iomem *ep7312_pxddr = (void __iomem *)EP7312_PXDDR;
 
-#ifdef CONFIG_MTD_PARTITIONS
 /*
  * Define static partitions for flash device
  */
@@ -66,8 +65,6 @@ static struct mtd_partition partition_info[] = {
 };
 
 #define NUM_PARTITIONS 1
-
-#endif
 
 /*
  *	hardware specific access to control-lines
@@ -101,9 +98,7 @@ static int ep7312_device_ready(struct mtd_info *mtd)
 	return 1;
 }
 
-#ifdef CONFIG_MTD_PARTITIONS
 const char *part_probes[] = { "cmdlinepart", NULL };
-#endif
 
 /*
  * Main initialization routine
@@ -162,14 +157,12 @@ static int __init ep7312_init(void)
 		kfree(ep7312_mtd);
 		return -ENXIO;
 	}
-#ifdef CONFIG_MTD_PARTITIONS
 	ep7312_mtd->name = "edb7312-nand";
 	mtd_parts_nb = parse_mtd_partitions(ep7312_mtd, part_probes, &mtd_parts, 0);
 	if (mtd_parts_nb > 0)
 		part_type = "command line";
 	else
 		mtd_parts_nb = 0;
-#endif
 	if (mtd_parts_nb == 0) {
 		mtd_parts = partition_info;
 		mtd_parts_nb = NUM_PARTITIONS;
@@ -178,7 +171,7 @@ static int __init ep7312_init(void)
 
 	/* Register the partitions */
 	printk(KERN_NOTICE "Using %s partition definition\n", part_type);
-	add_mtd_partitions(ep7312_mtd, mtd_parts, mtd_parts_nb);
+	mtd_device_register(ep7312_mtd, mtd_parts, mtd_parts_nb);
 
 	/* Return happy */
 	return 0;

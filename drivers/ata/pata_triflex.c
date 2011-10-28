@@ -30,7 +30,7 @@
  * Loosely based on the piix & svwks drivers.
  *
  * Documentation:
- *	Not publically available.
+ *	Not publicly available.
  */
 
 #include <linux/kernel.h>
@@ -210,13 +210,34 @@ static const struct pci_device_id triflex[] = {
 	{ },
 };
 
+#ifdef CONFIG_PM
+static int triflex_ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
+{
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc = 0;
+
+	rc = ata_host_suspend(host, mesg);
+	if (rc)
+		return rc;
+
+	/*
+	 * We must not disable or powerdown the device.
+	 * APM bios refuses to suspend if IDE is not accessible.
+	 */
+	pci_save_state(pdev);
+
+	return 0;
+}
+
+#endif
+
 static struct pci_driver triflex_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= triflex,
 	.probe 		= triflex_init_one,
 	.remove		= ata_pci_remove_one,
 #ifdef CONFIG_PM
-	.suspend	= ata_pci_device_suspend,
+	.suspend	= triflex_ata_pci_device_suspend,
 	.resume		= ata_pci_device_resume,
 #endif
 };

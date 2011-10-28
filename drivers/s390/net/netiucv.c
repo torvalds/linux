@@ -565,7 +565,7 @@ static int netiucv_callback_connreq(struct iucv_path *path,
 	struct iucv_event ev;
 	int rc;
 
-	if (memcmp(iucvMagic, ipuser, sizeof(ipuser)))
+	if (memcmp(iucvMagic, ipuser, 16))
 		/* ipuser must match iucvMagic. */
 		return -EINVAL;
 	rc = -EINVAL;
@@ -1994,8 +1994,6 @@ static struct net_device *netiucv_init_netdevice(char *username)
 			   netiucv_setup_netdevice);
 	if (!dev)
 		return NULL;
-	if (dev_alloc_name(dev, dev->name) < 0)
-		goto out_netdev;
 
 	privptr = netdev_priv(dev);
 	privptr->fsm = init_fsm("netiucvdev", dev_state_names,

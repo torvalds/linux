@@ -42,6 +42,7 @@ extern void __dma_free_coherent(size_t size, void *vaddr);
 extern void __dma_sync(void *vaddr, size_t size, int direction);
 extern void __dma_sync_page(struct page *page, unsigned long offset,
 				 size_t size, int direction);
+extern unsigned long __dma_get_coherent_pfn(unsigned long cpu_addr);
 
 #else /* ! CONFIG_NOT_COHERENT_CACHE */
 /*
@@ -127,19 +128,7 @@ static inline int dma_supported(struct device *dev, u64 mask)
 	return dma_ops->dma_supported(dev, mask);
 }
 
-static inline int dma_set_mask(struct device *dev, u64 dma_mask)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-
-	if (unlikely(dma_ops == NULL))
-		return -EIO;
-	if (dma_ops->set_dma_mask != NULL)
-		return dma_ops->set_dma_mask(dev, dma_mask);
-	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
-		return -EIO;
-	*dev->dma_mask = dma_mask;
-	return 0;
-}
+extern int dma_set_mask(struct device *dev, u64 dma_mask);
 
 static inline void *dma_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t *dma_handle, gfp_t flag)
@@ -209,6 +198,11 @@ static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
+
+extern int dma_mmap_coherent(struct device *, struct vm_area_struct *,
+			     void *, dma_addr_t, size_t);
+#define ARCH_HAS_DMA_MMAP_COHERENT
+
 
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		enum dma_data_direction direction)

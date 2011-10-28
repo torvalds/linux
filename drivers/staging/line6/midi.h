@@ -1,7 +1,7 @@
 /*
- * Line6 Linux USB driver - 0.8.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
- * Copyright (C) 2004-2009 Markus Grabner (grabner@icg.tugraz.at)
+ * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -12,14 +12,11 @@
 #ifndef MIDI_H
 #define MIDI_H
 
-
 #include <sound/rawmidi.h>
 
 #include "midibuf.h"
 
-
 #define MIDI_BUFFER_SIZE 1024
-
 
 struct snd_line6_midi {
 	/**
@@ -78,10 +75,8 @@ struct snd_line6_midi {
 	struct MidiBuffer midibuf_out;
 };
 
-
 extern int line6_init_midi(struct usb_line6 *line6);
 extern void line6_midi_receive(struct usb_line6 *line6, unsigned char *data,
 			       int length);
-
 
 #endif

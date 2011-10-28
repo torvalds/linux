@@ -144,7 +144,6 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 	nf_reset(skb);
 
 	if (dev_forward_skb(dev, skb) == NET_RX_SUCCESS) {
-		dev->last_rx = jiffies;
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += data_len;
 	} else
@@ -284,7 +283,7 @@ static __net_init int l2tp_eth_init_net(struct net *net)
 	return 0;
 }
 
-static __net_initdata struct pernet_operations l2tp_eth_net_ops = {
+static struct pernet_operations l2tp_eth_net_ops = {
 	.init = l2tp_eth_init_net,
 	.id   = &l2tp_eth_net_id,
 	.size = sizeof(struct l2tp_eth_net),

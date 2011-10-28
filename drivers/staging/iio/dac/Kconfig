@@ -1,0 +1,53 @@
+#
+# DAC drivers
+#
+comment "Digital to analog convertors"
+
+config AD5624R_SPI
+	tristate "Analog Devices AD5624/44/64R DAC spi driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD5624R, AD5644R and
+	  AD5664R convertors (DAC). This driver uses the common SPI interface.
+
+config AD5446
+	tristate "Analog Devices AD5444/6, AD5620/40/60 and AD5542A/12A DAC SPI driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD5444, AD5446,
+	  AD5512A, AD5542A, AD5543, AD5553, AD5601, AD5611, AD5620, AD5621,
+	  AD5640, AD5660 DACs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5446.
+
+config AD5504
+	tristate "Analog Devices AD5504/AD5501 DAC SPI driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD5504, AD5501,
+	  High Voltage Digital to Analog Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5504.
+
+config AD5791
+	tristate "Analog Devices AD5760/AD5780/AD5781/AD5791 DAC SPI driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD5760, AD5780,
+	  AD5781, AD5791 High Resolution Voltage Output Digital to
+	  Analog Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5791.
+
+config MAX517
+	tristate "Maxim MAX517/518/519 DAC driver"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Maxim chips MAX517,
+	  MAX518 and MAX519 (I2C 8-Bit DACs with rail-to-rail outputs).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max517.

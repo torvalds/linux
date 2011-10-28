@@ -429,12 +429,6 @@ struct spider_net_descr_chain {
  * 701b8000 would be correct, but every packets gets that flag */
 #define SPIDER_NET_DESTROY_RX_FLAGS	0x700b8000
 
-/* this will be bigger some time */
-struct spider_net_options {
-	int rx_csum; /* for rx: if 0 ip_summed=NONE,
-			if 1 and hw has verified, ip_summed=UNNECESSARY */
-};
-
 #define SPIDER_NET_DEFAULT_MSG		( NETIF_MSG_DRV | \
 					  NETIF_MSG_PROBE | \
 					  NETIF_MSG_LINK | \
@@ -487,7 +481,6 @@ struct spider_net_card {
 	/* for ethtool */
 	int msg_enable;
 	struct spider_net_extra_stats spider_stats;
-	struct spider_net_options options;
 
 	/* Must be last item in struct */
 	struct spider_net_descr darray[0];

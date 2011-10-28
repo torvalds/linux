@@ -1,5 +1,4 @@
 obj-$(CONFIG_UWB)		+= uwb.o
-obj-$(CONFIG_UWB_WLP)		+= wlp/
 obj-$(CONFIG_UWB_WHCI)		+= umc.o whci.o whc-rc.o
 obj-$(CONFIG_UWB_HWA)		+= hwa-rc.o
 obj-$(CONFIG_UWB_I1480U)	+= i1480/

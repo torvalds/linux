@@ -200,6 +200,23 @@ extern struct { char _entry[32]; } hypercall_page[];
 	(type)__res;							\
 })
 
+static inline long
+privcmd_call(unsigned call,
+	     unsigned long a1, unsigned long a2,
+	     unsigned long a3, unsigned long a4,
+	     unsigned long a5)
+{
+	__HYPERCALL_DECLS;
+	__HYPERCALL_5ARG(a1, a2, a3, a4, a5);
+
+	asm volatile("call *%[call]"
+		     : __HYPERCALL_5PARAM
+		     : [call] "a" (&hypercall_page[call])
+		     : __HYPERCALL_CLOBBER5);
+
+	return (long)__res;
+}
+
 static inline int
 HYPERVISOR_set_trap_table(struct trap_info *table)
 {
@@ -270,7 +287,7 @@ HYPERVISOR_fpu_taskswitch(int set)
 static inline int
 HYPERVISOR_sched_op(int cmd, void *arg)
 {
-	return _hypercall2(int, sched_op_new, cmd, arg);
+	return _hypercall2(int, sched_op, cmd, arg);
 }
 
 static inline long
@@ -405,10 +422,17 @@ HYPERVISOR_set_segment_base(int reg, unsigned long value)
 #endif
 
 static inline int
-HYPERVISOR_suspend(unsigned long srec)
+HYPERVISOR_suspend(unsigned long start_info_mfn)
 {
-	return _hypercall3(int, sched_op, SCHEDOP_shutdown,
-			   SHUTDOWN_suspend, srec);
+	struct sched_shutdown r = { .reason = SHUTDOWN_suspend };
+
+	/*
+	 * For a PV guest the tools require that the start_info mfn be
+	 * present in rdx/edx when the hypercall is made. Per the
+	 * hypercall calling convention this is the third hypercall
+	 * argument, which is start_info_mfn here.
+	 */
+	return _hypercall3(int, sched_op, SCHEDOP_shutdown, &r, start_info_mfn);
 }
 
 static inline int
@@ -421,6 +445,13 @@ static inline unsigned long __must_check
 HYPERVISOR_hvm_op(int op, void *arg)
 {
        return _hypercall2(unsigned long, hvm_op, op, arg);
+}
+
+static inline int
+HYPERVISOR_tmem_op(
+	struct tmem_op *op)
+{
+	return _hypercall1(int, tmem_op, op);
 }
 
 static inline void

@@ -25,11 +25,12 @@
 #include <linux/time.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/platform_device.h>
+#include <linux/ramoops.h>
 
 #define RAMOOPS_KERNMSG_HDR "===="
-#define RAMOOPS_HEADER_SIZE   (5 + sizeof(struct timeval))
 
-#define RECORD_SIZE 4096
+#define RECORD_SIZE 4096UL
 
 static ulong mem_address;
 module_param(mem_address, ulong, 0400);
@@ -63,15 +64,22 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 			struct ramoops_context, dump);
 	unsigned long s1_start, s2_start;
 	unsigned long l1_cpy, l2_cpy;
-	int res;
-	char *buf;
+	int res, hdr_size;
+	char *buf, *buf_orig;
 	struct timeval timestamp;
+
+	if (reason != KMSG_DUMP_OOPS &&
+	    reason != KMSG_DUMP_PANIC &&
+	    reason != KMSG_DUMP_KEXEC)
+		return;
 
 	/* Only dump oopses if dump_oops is set */
 	if (reason == KMSG_DUMP_OOPS && !dump_oops)
 		return;
 
-	buf = (char *)(cxt->virt_addr + (cxt->count * RECORD_SIZE));
+	buf = cxt->virt_addr + (cxt->count * RECORD_SIZE);
+	buf_orig = buf;
+
 	memset(buf, '\0', RECORD_SIZE);
 	res = sprintf(buf, "%s", RAMOOPS_KERNMSG_HDR);
 	buf += res;
@@ -79,8 +87,9 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 	res = sprintf(buf, "%lu.%lu\n", (long)timestamp.tv_sec, (long)timestamp.tv_usec);
 	buf += res;
 
-	l2_cpy = min(l2, (unsigned long)(RECORD_SIZE - RAMOOPS_HEADER_SIZE));
-	l1_cpy = min(l1, (unsigned long)(RECORD_SIZE - RAMOOPS_HEADER_SIZE) - l2_cpy);
+	hdr_size = buf - buf_orig;
+	l2_cpy = min(l2, RECORD_SIZE - hdr_size);
+	l1_cpy = min(l1, RECORD_SIZE - hdr_size - l2_cpy);
 
 	s2_start = l2 - l2_cpy;
 	s1_start = l1 - l1_cpy;
@@ -91,10 +100,16 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 	cxt->count = (cxt->count + 1) % cxt->max_count;
 }
 
-static int __init ramoops_init(void)
+static int __init ramoops_probe(struct platform_device *pdev)
 {
+	struct ramoops_platform_data *pdata = pdev->dev.platform_data;
 	struct ramoops_context *cxt = &oops_cxt;
 	int err = -EINVAL;
+
+	if (pdata) {
+		mem_size = pdata->mem_size;
+		mem_address = pdata->mem_address;
+	}
 
 	if (!mem_size) {
 		printk(KERN_ERR "ramoops: invalid size specification");
@@ -142,7 +157,7 @@ fail3:
 	return err;
 }
 
-static void __exit ramoops_exit(void)
+static int __exit ramoops_remove(struct platform_device *pdev)
 {
 	struct ramoops_context *cxt = &oops_cxt;
 
@@ -151,8 +166,26 @@ static void __exit ramoops_exit(void)
 
 	iounmap(cxt->virt_addr);
 	release_mem_region(cxt->phys_addr, cxt->size);
+	return 0;
 }
 
+static struct platform_driver ramoops_driver = {
+	.remove		= __exit_p(ramoops_remove),
+	.driver		= {
+		.name	= "ramoops",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init ramoops_init(void)
+{
+	return platform_driver_probe(&ramoops_driver, ramoops_probe);
+}
+
+static void __exit ramoops_exit(void)
+{
+	platform_driver_unregister(&ramoops_driver);
+}
 
 module_init(ramoops_init);
 module_exit(ramoops_exit);

@@ -12,8 +12,8 @@ config SND_OMAP_SOC_MCPDM
 config SND_OMAP_SOC_N810
 	tristate "SoC Audio support for Nokia N810"
 	depends on SND_OMAP_SOC && MACH_NOKIA_N810 && I2C
+	depends on OMAP_MUX
 	select SND_OMAP_SOC_MCBSP
-	select OMAP_MUX
 	select SND_SOC_TLV320AIC3X
 	help
 	  Say Y if you want to add support for SoC audio on Nokia N810.
@@ -24,6 +24,7 @@ config SND_OMAP_SOC_RX51
 	select OMAP_MCBSP
 	select SND_OMAP_SOC_MCBSP
 	select SND_SOC_TLV320AIC3X
+	select SND_SOC_TPA6130A2
 	help
 	  Say Y if you want to add support for SoC audio on Nokia RX-51
 	  hardware. This is also known as Nokia N900 product.
@@ -63,14 +64,6 @@ config SND_OMAP_SOC_OVERO
 	help
 	  Say Y if you want to add support for SoC audio on the
 	  Gumstix Overo or CompuLab CM-T35
-
-config SND_OMAP_SOC_OMAP2EVM
-	tristate "SoC Audio support for OMAP2EVM board"
-	depends on TWL4030_CORE && SND_OMAP_SOC && MACH_OMAP2EVM
-	select SND_OMAP_SOC_MCBSP
-	select SND_SOC_TWL4030
-	help
-	  Say Y if you want to add support for SoC audio on the omap2evm board.
 
 config SND_OMAP_SOC_OMAP3EVM
 	tristate "SoC Audio support for OMAP3EVM board"

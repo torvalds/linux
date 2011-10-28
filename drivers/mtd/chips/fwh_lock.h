@@ -98,7 +98,7 @@ static int fwh_unlock_varsize(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	return ret;
 }
 
-static void fixup_use_fwh_lock(struct mtd_info *mtd, void *param)
+static void fixup_use_fwh_lock(struct mtd_info *mtd)
 {
 	printk(KERN_NOTICE "using fwh lock/unlock method\n");
 	/* Setup for the chips with the fwh lock method */

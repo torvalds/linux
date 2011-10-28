@@ -332,9 +332,7 @@ static inline void pmd_set(pmd_t * pmdp, pte_t * ptep)
 	((pte_t *)pmd_page_vaddr(*(dir)) + pte_index(address))
 #define pte_offset_map(dir, address)	\
 	((pte_t *)page_address(pmd_page(*(dir))) + pte_index(address))
-#define pte_offset_map_nested(dir, address)	pte_offset_map(dir, address)
 #define pte_unmap(pte)		do { } while (0)
-#define pte_unmap_nested(pte)	do { } while (0)
 
 /* Encode and de-code a swap entry */
 #define __swp_type(x)			(((x).val >> 2) & 0x1f)

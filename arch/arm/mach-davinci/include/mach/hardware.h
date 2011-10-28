@@ -21,9 +21,6 @@
  */
 #define DAVINCI_SYSTEM_MODULE_BASE        0x01C40000
 
-/* System control register offsets */
-#define DM64XX_VDD3P3V_PWDN	0x48
-
 /*
  * I/O mapping
  */

@@ -42,10 +42,24 @@ Synopsis of kprobe_events
   +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(**)
   NAME=FETCHARG : Set NAME as the argument name of FETCHARG.
   FETCHARG:TYPE : Set TYPE as the type of FETCHARG. Currently, basic types
-		  (u8/u16/u32/u64/s8/s16/s32/s64) and string are supported.
+		  (u8/u16/u32/u64/s8/s16/s32/s64), "string" and bitfield
+		  are supported.
 
   (*) only for return probe.
   (**) this is useful for fetching a field of data structures.
+
+Types
+-----
+Several types are supported for fetch-args. Kprobe tracer will access memory
+by given type. Prefix 's' and 'u' means those types are signed and unsigned
+respectively. Traced arguments are shown in decimal (signed) or hex (unsigned).
+String type is a special type, which fetches a "null-terminated" string from
+kernel space. This means it will fail and store NULL if the string container
+has been paged out.
+Bitfield is another special type, which takes 3 parameters, bit-width, bit-
+offset, and container-size (usually 32). The syntax is;
+
+ b<bit-width>@<bit-offset>/<container-size>
 
 
 Per-Probe Event Filtering
@@ -106,7 +120,6 @@ format:
         field:unsigned char common_flags;       offset:2;       size:1; signed:0;
         field:unsigned char common_preempt_count;       offset:3; size:1;signed:0;
         field:int common_pid;   offset:4;       size:4; signed:1;
-        field:int common_lock_depth;    offset:8;       size:4; signed:1;
 
         field:unsigned long __probe_ip; offset:12;      size:4; signed:0;
         field:int __probe_nargs;        offset:16;      size:4; signed:1;

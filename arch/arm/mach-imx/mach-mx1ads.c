@@ -25,14 +25,12 @@
 
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/i2c.h>
 #include <mach/iomux-mx1.h>
 #include <mach/irqs.h>
 
 #include "devices-imx1.h"
-#include "devices.h"
 
-static int mx1ads_pins[] = {
+static const int mx1ads_pins[] __initconst = {
 	/* UART1 */
 	PC9_PF_UART1_CTS,
 	PC10_PF_UART1_RTS,
@@ -131,7 +129,7 @@ static void __init mx1ads_init(void)
 	i2c_register_board_info(0, mx1ads_i2c_devices,
 				ARRAY_SIZE(mx1ads_i2c_devices));
 
-	imx1_add_i2c_imx(&mx1ads_i2c_data);
+	imx1_add_imx_i2c(&mx1ads_i2c_data);
 }
 
 static void __init mx1ads_timer_init(void)
@@ -145,21 +143,19 @@ struct sys_timer mx1ads_timer = {
 
 MACHINE_START(MX1ADS, "Freescale MX1ADS")
 	/* Maintainer: Sascha Hauer, Pengutronix */
-	.phys_io	= MX1_IO_BASE_ADDR,
-	.io_pg_offst	= (MX1_IO_BASE_ADDR_VIRT >> 18) & 0xfffc,
-	.boot_params	= MX1_PHYS_OFFSET + 0x100,
-	.map_io		= mx1_map_io,
-	.init_irq	= mx1_init_irq,
-	.timer		= &mx1ads_timer,
-	.init_machine	= mx1ads_init,
+	.boot_params = MX1_PHYS_OFFSET + 0x100,
+	.map_io = mx1_map_io,
+	.init_early = imx1_init_early,
+	.init_irq = mx1_init_irq,
+	.timer = &mx1ads_timer,
+	.init_machine = mx1ads_init,
 MACHINE_END
 
 MACHINE_START(MXLADS, "Freescale MXLADS")
-	.phys_io	= MX1_IO_BASE_ADDR,
-	.io_pg_offst	= (MX1_IO_BASE_ADDR_VIRT >> 18) & 0xfffc,
-	.boot_params	= MX1_PHYS_OFFSET + 0x100,
-	.map_io		= mx1_map_io,
-	.init_irq	= mx1_init_irq,
-	.timer		= &mx1ads_timer,
-	.init_machine	= mx1ads_init,
+	.boot_params = MX1_PHYS_OFFSET + 0x100,
+	.map_io = mx1_map_io,
+	.init_early = imx1_init_early,
+	.init_irq = mx1_init_irq,
+	.timer = &mx1ads_timer,
+	.init_machine = mx1ads_init,
 MACHINE_END

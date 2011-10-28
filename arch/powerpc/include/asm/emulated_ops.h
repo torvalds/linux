@@ -52,6 +52,10 @@ extern struct ppc_emulated {
 #ifdef CONFIG_VSX
 	struct ppc_emulated_entry vsx;
 #endif
+#ifdef CONFIG_PPC64
+	struct ppc_emulated_entry mfdscr;
+	struct ppc_emulated_entry mtdscr;
+#endif
 } ppc_emulated;
 
 extern u32 ppc_warn_emulated;

@@ -24,18 +24,13 @@
  * Physical DRAM offset.
  */
 #ifdef CONFIG_REALVIEW_HIGH_PHYS_OFFSET
-#define PHYS_OFFSET		UL(0x70000000)
+#define PLAT_PHYS_OFFSET		UL(0x70000000)
 #else
-#define PHYS_OFFSET		UL(0x00000000)
+#define PLAT_PHYS_OFFSET		UL(0x00000000)
 #endif
 
-#if !defined(__ASSEMBLY__) && defined(CONFIG_ZONE_DMA)
-extern void realview_adjust_zones(unsigned long *size, unsigned long *hole);
-#define arch_adjust_zones(size, hole) \
-	realview_adjust_zones(size, hole)
-
-#define ISA_DMA_THRESHOLD	(PHYS_OFFSET + SZ_256M - 1)
-#define MAX_DMA_ADDRESS		(PAGE_OFFSET + SZ_256M)
+#ifdef CONFIG_ZONE_DMA
+#define ARM_DMA_ZONE_SIZE	SZ_256M
 #endif
 
 #ifdef CONFIG_SPARSEMEM

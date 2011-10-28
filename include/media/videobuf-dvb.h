@@ -4,6 +4,9 @@
 #include <dvb_net.h>
 #include <dvb_frontend.h>
 
+#ifndef _VIDEOBUF_DVB_H_
+#define	_VIDEOBUF_DVB_H_
+
 struct videobuf_dvb {
 	/* filling that the job of the driver */
 	char                       *name;
@@ -54,6 +57,7 @@ void videobuf_dvb_dealloc_frontends(struct videobuf_dvb_frontends *f);
 struct videobuf_dvb_frontend * videobuf_dvb_get_frontend(struct videobuf_dvb_frontends *f, int id);
 int videobuf_dvb_find_frontend(struct videobuf_dvb_frontends *f, struct dvb_frontend *p);
 
+#endif			/* _VIDEOBUF_DVB_H_ */
 
 /*
  * Local variables:

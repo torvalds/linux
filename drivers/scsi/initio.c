@@ -242,7 +242,7 @@ static u8 i91udftNvRam[64] =
 
 static u8 initio_rate_tbl[8] =	/* fast 20      */
 {
-				/* nanosecond devide by 4 */
+				/* nanosecond divide by 4 */
 	12,			/* 50ns,  20M   */
 	18,			/* 75ns,  13.3M */
 	25,			/* 100ns, 10M   */
@@ -1917,7 +1917,7 @@ static int int_initio_scsi_rst(struct initio_host * host)
 }
 
 /**
- *	int_initio_scsi_resel	-	Reselection occured
+ *	int_initio_scsi_resel	-	Reselection occurred
  *	@host: InitIO host adapter
  *
  *	A SCSI reselection event has been signalled and the interrupt
@@ -2639,7 +2639,7 @@ static void initio_build_scb(struct initio_host * host, struct scsi_ctrl_blk * c
  *	will cause the mid layer to call us again later with the command)
  */
 
-static int i91u_queuecommand(struct scsi_cmnd *cmd,
+static int i91u_queuecommand_lck(struct scsi_cmnd *cmd,
 		void (*done)(struct scsi_cmnd *))
 {
 	struct initio_host *host = (struct initio_host *) cmd->device->host->hostdata;
@@ -2655,6 +2655,8 @@ static int i91u_queuecommand(struct scsi_cmnd *cmd,
 	initio_exec_scb(host, cmnd);
 	return 0;
 }
+
+static DEF_SCSI_QCMD(i91u_queuecommand)
 
 /**
  *	i91u_bus_reset		-	reset the SCSI bus

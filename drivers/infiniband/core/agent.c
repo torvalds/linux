@@ -59,8 +59,8 @@ __ib_get_agent_port(struct ib_device *device, int port_num)
 	struct ib_agent_port_private *entry;
 
 	list_for_each_entry(entry, &ib_agent_port_list, port_list) {
-		if (entry->agent[0]->device == device &&
-		    entry->agent[0]->port_num == port_num)
+		if (entry->agent[1]->device == device &&
+		    entry->agent[1]->port_num == port_num)
 			return entry;
 	}
 	return NULL;
@@ -101,7 +101,8 @@ void agent_send_response(struct ib_mad *mad, struct ib_grh *grh,
 	agent = port_priv->agent[qpn];
 	ah = ib_create_ah_from_wc(agent->qp->pd, wc, grh, port_num);
 	if (IS_ERR(ah)) {
-		printk(KERN_ERR SPFX "ib_create_ah_from_wc error\n");
+		printk(KERN_ERR SPFX "ib_create_ah_from_wc error %ld\n",
+			PTR_ERR(ah));
 		return;
 	}
 
@@ -155,14 +156,16 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 		goto error1;
 	}
 
-	/* Obtain send only MAD agent for SMI QP */
-	port_priv->agent[0] = ib_register_mad_agent(device, port_num,
-						    IB_QPT_SMI, NULL, 0,
-						    &agent_send_handler,
-						    NULL, NULL);
-	if (IS_ERR(port_priv->agent[0])) {
-		ret = PTR_ERR(port_priv->agent[0]);
-		goto error2;
+	if (rdma_port_get_link_layer(device, port_num) == IB_LINK_LAYER_INFINIBAND) {
+		/* Obtain send only MAD agent for SMI QP */
+		port_priv->agent[0] = ib_register_mad_agent(device, port_num,
+							    IB_QPT_SMI, NULL, 0,
+							    &agent_send_handler,
+							    NULL, NULL);
+		if (IS_ERR(port_priv->agent[0])) {
+			ret = PTR_ERR(port_priv->agent[0]);
+			goto error2;
+		}
 	}
 
 	/* Obtain send only MAD agent for GSI QP */
@@ -182,7 +185,8 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 	return 0;
 
 error3:
-	ib_unregister_mad_agent(port_priv->agent[0]);
+	if (port_priv->agent[0])
+		ib_unregister_mad_agent(port_priv->agent[0]);
 error2:
 	kfree(port_priv);
 error1:
@@ -205,7 +209,9 @@ int ib_agent_port_close(struct ib_device *device, int port_num)
 	spin_unlock_irqrestore(&ib_agent_port_list_lock, flags);
 
 	ib_unregister_mad_agent(port_priv->agent[1]);
-	ib_unregister_mad_agent(port_priv->agent[0]);
+	if (port_priv->agent[0])
+		ib_unregister_mad_agent(port_priv->agent[0]);
+
 	kfree(port_priv);
 	return 0;
 }

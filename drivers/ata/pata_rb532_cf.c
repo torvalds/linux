@@ -60,10 +60,10 @@ static irqreturn_t rb532_pata_irq_handler(int irq, void *dev_instance)
 	struct rb532_cf_info *info = ah->private_data;
 
 	if (gpio_get_value(info->gpio_line)) {
-		set_irq_type(info->irq, IRQ_TYPE_LEVEL_LOW);
+		irq_set_irq_type(info->irq, IRQ_TYPE_LEVEL_LOW);
 		ata_sff_interrupt(info->irq, dev_instance);
 	} else {
-		set_irq_type(info->irq, IRQ_TYPE_LEVEL_HIGH);
+		irq_set_irq_type(info->irq, IRQ_TYPE_LEVEL_HIGH);
 	}
 
 	return IRQ_HANDLED;
@@ -91,7 +91,6 @@ static void rb532_pata_setup_ports(struct ata_host *ah)
 
 	ap->ops		= &rb532_pata_port_ops;
 	ap->pio_mask	= ATA_PIO4;
-	ap->flags	= ATA_FLAG_NO_LEGACY | ATA_FLAG_MMIO;
 
 	ap->ioaddr.cmd_addr	= info->iobase + RB500_CF_REG_BASE;
 	ap->ioaddr.ctl_addr	= info->iobase + RB500_CF_REG_CTRL;

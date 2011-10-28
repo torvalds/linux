@@ -81,6 +81,13 @@ static const char radeon_family_name[][16] = {
 	"JUNIPER",
 	"CYPRESS",
 	"HEMLOCK",
+	"PALM",
+	"SUMO",
+	"SUMO2",
+	"BARTS",
+	"TURKS",
+	"CAICOS",
+	"CAYMAN",
 	"LAST",
 };
 
@@ -117,9 +124,10 @@ void radeon_scratch_init(struct radeon_device *rdev)
 	} else {
 		rdev->scratch.num_reg = 7;
 	}
+	rdev->scratch.reg_base = RADEON_SCRATCH_REG0;
 	for (i = 0; i < rdev->scratch.num_reg; i++) {
 		rdev->scratch.free[i] = true;
-		rdev->scratch.reg[i] = RADEON_SCRATCH_REG0 + (i * 4);
+		rdev->scratch.reg[i] = rdev->scratch.reg_base + (i * 4);
 	}
 }
 
@@ -149,6 +157,93 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
 	}
 }
 
+void radeon_wb_disable(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->wb.wb_obj) {
+		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
+		if (unlikely(r != 0))
+			return;
+		radeon_bo_kunmap(rdev->wb.wb_obj);
+		radeon_bo_unpin(rdev->wb.wb_obj);
+		radeon_bo_unreserve(rdev->wb.wb_obj);
+	}
+	rdev->wb.enabled = false;
+}
+
+void radeon_wb_fini(struct radeon_device *rdev)
+{
+	radeon_wb_disable(rdev);
+	if (rdev->wb.wb_obj) {
+		radeon_bo_unref(&rdev->wb.wb_obj);
+		rdev->wb.wb = NULL;
+		rdev->wb.wb_obj = NULL;
+	}
+}
+
+int radeon_wb_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->wb.wb_obj == NULL) {
+		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE, PAGE_SIZE, true,
+				RADEON_GEM_DOMAIN_GTT, &rdev->wb.wb_obj);
+		if (r) {
+			dev_warn(rdev->dev, "(%d) create WB bo failed\n", r);
+			return r;
+		}
+	}
+	r = radeon_bo_reserve(rdev->wb.wb_obj, false);
+	if (unlikely(r != 0)) {
+		radeon_wb_fini(rdev);
+		return r;
+	}
+	r = radeon_bo_pin(rdev->wb.wb_obj, RADEON_GEM_DOMAIN_GTT,
+			  &rdev->wb.gpu_addr);
+	if (r) {
+		radeon_bo_unreserve(rdev->wb.wb_obj);
+		dev_warn(rdev->dev, "(%d) pin WB bo failed\n", r);
+		radeon_wb_fini(rdev);
+		return r;
+	}
+	r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
+	radeon_bo_unreserve(rdev->wb.wb_obj);
+	if (r) {
+		dev_warn(rdev->dev, "(%d) map WB bo failed\n", r);
+		radeon_wb_fini(rdev);
+		return r;
+	}
+
+	/* clear wb memory */
+	memset((char *)rdev->wb.wb, 0, RADEON_GPU_PAGE_SIZE);
+	/* disable event_write fences */
+	rdev->wb.use_event = false;
+	/* disabled via module param */
+	if (radeon_no_wb == 1)
+		rdev->wb.enabled = false;
+	else {
+		/* often unreliable on AGP */
+		if (rdev->flags & RADEON_IS_AGP) {
+			rdev->wb.enabled = false;
+		} else {
+			rdev->wb.enabled = true;
+			/* event_write fences are only available on r600+ */
+			if (rdev->family >= CHIP_R600)
+				rdev->wb.use_event = true;
+		}
+	}
+	/* always use writeback/events on NI */
+	if (ASIC_IS_DCE5(rdev)) {
+		rdev->wb.enabled = true;
+		rdev->wb.use_event = true;
+	}
+
+	dev_info(rdev->dev, "WB %sabled\n", rdev->wb.enabled ? "en" : "dis");
+
+	return 0;
+}
+
 /**
  * radeon_vram_location - try to find VRAM location
  * @rdev: radeon device structure holding all necessary informations
@@ -171,7 +266,7 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
  * Note: GTT start, end, size should be initialized before calling this
  * function on AGP platform.
  *
- * Note: We don't explictly enforce VRAM start to be aligned on VRAM size,
+ * Note: We don't explicitly enforce VRAM start to be aligned on VRAM size,
  * this shouldn't be a problem as we are using the PCI aperture as a reference.
  * Otherwise this would be needed for rv280, all r3xx, and all r4xx, but
  * not IGP.
@@ -205,7 +300,7 @@ void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 
 		mc->mc_vram_size = mc->aper_size;
 	}
 	mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
-	dev_info(rdev->dev, "VRAM: %lluM 0x%08llX - 0x%08llX (%lluM used)\n",
+	dev_info(rdev->dev, "VRAM: %lluM 0x%016llX - 0x%016llX (%lluM used)\n",
 			mc->mc_vram_size >> 20, mc->vram_start,
 			mc->vram_end, mc->real_vram_size >> 20);
 }
@@ -242,7 +337,7 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 		mc->gtt_start = (mc->vram_end + 1 + mc->gtt_base_align) & ~mc->gtt_base_align;
 	}
 	mc->gtt_end = mc->gtt_start + mc->gtt_size - 1;
-	dev_info(rdev->dev, "GTT: %lluM 0x%08llX - 0x%08llX\n",
+	dev_info(rdev->dev, "GTT: %lluM 0x%016llX - 0x%016llX\n",
 			mc->gtt_size >> 20, mc->gtt_start, mc->gtt_end);
 }
 
@@ -254,7 +349,12 @@ bool radeon_card_posted(struct radeon_device *rdev)
 	uint32_t reg;
 
 	/* first check CRTCs */
-	if (ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE41(rdev)) {
+		reg = RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET) |
+			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET);
+		if (reg & EVERGREEN_CRTC_MASTER_EN)
+			return true;
+	} else if (ASIC_IS_DCE4(rdev)) {
 		reg = RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET) |
 			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET) |
 			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET) |
@@ -555,20 +655,20 @@ void radeon_check_arguments(struct radeon_device *rdev)
 static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct radeon_device *rdev = dev->dev_private;
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 	if (state == VGA_SWITCHEROO_ON) {
 		printk(KERN_INFO "radeon: switched on\n");
 		/* don't suspend or resume card normally */
-		rdev->powered_down = false;
+		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		radeon_resume_kms(dev);
+		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 		drm_kms_helper_poll_enable(dev);
 	} else {
 		printk(KERN_INFO "radeon: switched off\n");
 		drm_kms_helper_poll_disable(dev);
+		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		radeon_suspend_kms(dev, pmm);
-		/* don't suspend or resume card normally */
-		rdev->powered_down = true;
+		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
 
@@ -623,11 +723,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	init_waitqueue_head(&rdev->irq.idle_queue);
 
-	/* setup workqueue */
-	rdev->wq = create_workqueue("radeon");
-	if (rdev->wq == NULL)
-		return -ENOMEM;
-
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
 	if (r)
@@ -661,6 +756,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	dma_bits = rdev->need_dma32 ? 32 : 40;
 	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
 	if (r) {
+		rdev->need_dma32 = true;
 		printk(KERN_WARNING "radeon: No suitable DMA available.\n");
 	}
 
@@ -692,6 +788,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
 	vga_switcheroo_register_client(rdev->pdev,
 				       radeon_switcheroo_set_state,
+				       NULL,
 				       radeon_switcheroo_can_switch);
 
 	r = radeon_init(rdev);
@@ -725,7 +822,6 @@ void radeon_device_fini(struct radeon_device *rdev)
 	/* evict vram memory */
 	radeon_bo_evict_vram(rdev);
 	radeon_fini(rdev);
-	destroy_workqueue(rdev->wq);
 	vga_switcheroo_unregister_client(rdev->pdev);
 	vga_client_register(rdev->pdev, NULL, NULL, NULL);
 	if (rdev->rio_mem)
@@ -754,7 +850,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	}
 	rdev = dev->dev_private;
 
-	if (rdev->powered_down)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
 	/* turn off display hw */
@@ -770,7 +866,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 		if (rfb == NULL || rfb->obj == NULL) {
 			continue;
 		}
-		robj = rfb->obj->driver_private;
+		robj = gem_to_radeon_bo(rfb->obj);
 		/* don't unpin kernel fb objects */
 		if (!radeon_fbdev_robj_is_fb(rdev, robj)) {
 			r = radeon_bo_reserve(robj, false);
@@ -801,9 +897,9 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 		pci_disable_device(dev->pdev);
 		pci_set_power_state(dev->pdev, PCI_D3hot);
 	}
-	acquire_console_sem();
+	console_lock();
 	radeon_fbdev_set_suspend(rdev, 1);
-	release_console_sem();
+	console_unlock();
 	return 0;
 }
 
@@ -812,14 +908,14 @@ int radeon_resume_kms(struct drm_device *dev)
 	struct drm_connector *connector;
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (rdev->powered_down)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	acquire_console_sem();
+	console_lock();
 	pci_set_power_state(dev->pdev, PCI_D0);
 	pci_restore_state(dev->pdev);
 	if (pci_enable_device(dev->pdev)) {
-		release_console_sem();
+		console_unlock();
 		return -1;
 	}
 	pci_set_master(dev->pdev);
@@ -829,26 +925,31 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_pm_resume(rdev);
 	radeon_restore_bios_scratch_regs(rdev);
 
-	/* turn on display hw */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
-	}
-
 	radeon_fbdev_set_suspend(rdev, 0);
-	release_console_sem();
+	console_unlock();
 
+	/* init dig PHYs */
+	if (rdev->is_atom_bios)
+		radeon_atom_encoder_init(rdev);
 	/* reset hpd state */
 	radeon_hpd_init(rdev);
 	/* blat the mode back in */
 	drm_helper_resume_force_mode(dev);
+	/* turn on display hw */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+	}
 	return 0;
 }
 
 int radeon_gpu_reset(struct radeon_device *rdev)
 {
 	int r;
+	int resched;
 
 	radeon_save_bios_scratch_regs(rdev);
+	/* block TTM */
+	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
 	radeon_suspend(rdev);
 
 	r = radeon_asic_reset(rdev);
@@ -857,6 +958,7 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 		radeon_resume(rdev);
 		radeon_restore_bios_scratch_regs(rdev);
 		drm_helper_resume_force_mode(rdev->ddev);
+		ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 		return 0;
 	}
 	/* bad news, how to tell it to userspace ? */

@@ -96,7 +96,7 @@ void r420_pipes_init(struct radeon_device *rdev)
 		       "programming pipes. Bad things might happen.\n");
 	}
 	/* get max number of pipes */
-	gb_pipe_select = RREG32(0x402C);
+	gb_pipe_select = RREG32(R400_GB_PIPE_SELECT);
 	num_pipes = ((gb_pipe_select >> 12) & 3) + 1;
 
 	/* SE chips have 1 pipe */
@@ -248,23 +248,25 @@ static int r420_startup(struct radeon_device *rdev)
 			return r;
 	}
 	r420_pipes_init(rdev);
+
+	/* allocate wb buffer */
+	r = radeon_wb_init(rdev);
+	if (r)
+		return r;
+
 	/* Enable IRQ */
 	r100_irq_set(rdev);
 	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
-		dev_err(rdev->dev, "failled initializing CP (%d).\n", r);
+		dev_err(rdev->dev, "failed initializing CP (%d).\n", r);
 		return r;
 	}
 	r420_cp_errata_init(rdev);
-	r = r100_wb_init(rdev);
-	if (r) {
-		dev_err(rdev->dev, "failled initializing WB (%d).\n", r);
-	}
 	r = r100_ib_init(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failled initializing IB (%d).\n", r);
+		dev_err(rdev->dev, "failed initializing IB (%d).\n", r);
 		return r;
 	}
 	return 0;
@@ -302,7 +304,7 @@ int r420_suspend(struct radeon_device *rdev)
 {
 	r420_cp_errata_fini(rdev);
 	r100_cp_disable(rdev);
-	r100_wb_disable(rdev);
+	radeon_wb_disable(rdev);
 	r100_irq_disable(rdev);
 	if (rdev->flags & RADEON_IS_PCIE)
 		rv370_pcie_gart_disable(rdev);
@@ -314,7 +316,7 @@ int r420_suspend(struct radeon_device *rdev)
 void r420_fini(struct radeon_device *rdev)
 {
 	r100_cp_fini(rdev);
-	r100_wb_fini(rdev);
+	radeon_wb_fini(rdev);
 	r100_ib_fini(rdev);
 	radeon_gem_fini(rdev);
 	if (rdev->flags & RADEON_IS_PCIE)
@@ -418,7 +420,7 @@ int r420_init(struct radeon_device *rdev)
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
 		r100_cp_fini(rdev);
-		r100_wb_fini(rdev);
+		radeon_wb_fini(rdev);
 		r100_ib_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		if (rdev->flags & RADEON_IS_PCIE)

@@ -154,7 +154,7 @@ struct p80211_hdr_a3 {
 	u8 a2[ETH_ALEN];
 	u8 a3[ETH_ALEN];
 	u16 seq;
-} __attribute__ ((packed));
+} __packed;
 
 struct p80211_hdr_a4 {
 	u16 fc;
@@ -164,12 +164,12 @@ struct p80211_hdr_a4 {
 	u8 a3[ETH_ALEN];
 	u16 seq;
 	u8 a4[ETH_ALEN];
-} __attribute__ ((packed));
+} __packed;
 
 union p80211_hdr {
 	struct p80211_hdr_a3 a3;
 	struct p80211_hdr_a4 a4;
-} __attribute__ ((packed));
+} __packed;
 
 /* Frame and header length macros */
 

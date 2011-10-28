@@ -46,7 +46,7 @@ struct snd_pcm_plugin_channel {
 };
 
 struct snd_pcm_plugin_format {
-	int format;
+	snd_pcm_format_t format;
 	unsigned int rate;
 	unsigned int channels;
 };
@@ -58,7 +58,7 @@ struct snd_pcm_plugin {
 	struct snd_pcm_plugin_format dst_format;	/* destination format */
 	int src_width;			/* sample width in bits */
 	int dst_width;			/* sample width in bits */
-	int access;
+	snd_pcm_access_t access;
 	snd_pcm_sframes_t (*src_frames)(struct snd_pcm_plugin *plugin, snd_pcm_uframes_t dst_frames);
 	snd_pcm_sframes_t (*dst_frames)(struct snd_pcm_plugin *plugin, snd_pcm_uframes_t src_frames);
 	snd_pcm_sframes_t (*client_channels)(struct snd_pcm_plugin *plugin,
@@ -125,7 +125,8 @@ int snd_pcm_plug_format_plugins(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_pcm_hw_params *slave_params);
 
-int snd_pcm_plug_slave_format(int format, struct snd_mask *format_mask);
+snd_pcm_format_t snd_pcm_plug_slave_format(snd_pcm_format_t format,
+					   struct snd_mask *format_mask);
 
 int snd_pcm_plugin_append(struct snd_pcm_plugin *plugin);
 
@@ -146,12 +147,12 @@ snd_pcm_sframes_t snd_pcm_plugin_client_channels(struct snd_pcm_plugin *plugin,
 
 int snd_pcm_area_silence(const struct snd_pcm_channel_area *dst_channel,
 			 size_t dst_offset,
-			 size_t samples, int format);
+			 size_t samples, snd_pcm_format_t format);
 int snd_pcm_area_copy(const struct snd_pcm_channel_area *src_channel,
 		      size_t src_offset,
 		      const struct snd_pcm_channel_area *dst_channel,
 		      size_t dst_offset,
-		      size_t samples, int format);
+		      size_t samples, snd_pcm_format_t format);
 
 void *snd_pcm_plug_buf_alloc(struct snd_pcm_substream *plug, snd_pcm_uframes_t size);
 void snd_pcm_plug_buf_unlock(struct snd_pcm_substream *plug, void *ptr);

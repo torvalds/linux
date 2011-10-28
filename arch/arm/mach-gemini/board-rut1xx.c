@@ -82,11 +82,10 @@ static void __init rut1xx_init(void)
 	platform_register_pflash(SZ_8M, NULL, 0);
 	platform_device_register(&rut1xx_leds);
 	platform_device_register(&rut1xx_keys_device);
+	platform_register_rtc();
 }
 
 MACHINE_START(RUT100, "Teltonika RUT100")
-	.phys_io	= 0x7fffc000,
-	.io_pg_offst	= ((0xffffc000) >> 18) & 0xfffc,
 	.boot_params	= 0x100,
 	.map_io		= gemini_map_io,
 	.init_irq	= gemini_init_irq,

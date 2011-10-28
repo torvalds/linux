@@ -696,7 +696,7 @@ void mdp4_mixer_stage_down(struct mdp4_overlay_pipe *pipe)
 	stage = pipe->mixer_stage;
 	mixer = pipe->mixer_num;
 
-	if (pipe != ctrl->stage[mixer][stage])	/* not runing */
+	if (pipe != ctrl->stage[mixer][stage])	/* not running */
 		return;
 
 	/* MDP_LAYERMIXER_IN_CFG, shard by both mixer 0 and 1  */

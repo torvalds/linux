@@ -51,7 +51,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/compat.h>
 #include <linux/poll.h>
 
@@ -61,6 +61,7 @@
 #include "mpt2sas_base.h"
 #include "mpt2sas_ctl.h"
 
+static DEFINE_MUTEX(_ctl_mutex);
 static struct fasync_struct *async_queue;
 static DECLARE_WAIT_QUEUE_HEAD(ctl_poll_wait);
 
@@ -80,6 +81,7 @@ enum block_state {
 	BLOCKING,
 };
 
+#ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 /**
  * _ctl_sas_device_find_by_handle - sas device search
  * @ioc: per adapter object
@@ -106,7 +108,6 @@ _ctl_sas_device_find_by_handle(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	return r;
 }
 
-#ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 /**
  * _ctl_display_some_debug - debug routine
  * @ioc: per adapter object
@@ -115,7 +116,7 @@ _ctl_sas_device_find_by_handle(struct MPT2SAS_ADAPTER *ioc, u16 handle)
  * @mpi_reply: reply message frame
  * Context: none.
  *
- * Function for displaying debug info helpfull when debugging issues
+ * Function for displaying debug info helpful when debugging issues
  * in this module.
  */
 static void
@@ -687,6 +688,13 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 		goto out;
 	}
 
+	/* Check for overflow and wraparound */
+	if (karg.data_sge_offset * 4 > ioc->request_sz ||
+	    karg.data_sge_offset > (UINT_MAX / 4)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	/* copy in request message frame from user */
 	if (copy_from_user(mpi_request, mf, karg.data_sge_offset*4)) {
 		printk(KERN_ERR "failure at %s:%d/%s()!\n", __FILE__, __LINE__,
@@ -1033,7 +1041,10 @@ _ctl_getiocinfo(void __user *arg)
 	    __func__));
 
 	memset(&karg, 0 , sizeof(karg));
-	karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2;
+	if (ioc->is_warpdrive)
+		karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2_SSS6200;
+	else
+		karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2;
 	if (ioc->pfacts)
 		karg.port_number = ioc->pfacts[0].PortNumber;
 	pci_read_config_byte(ioc->pdev, PCI_CLASS_REVISION, &revision);
@@ -1962,7 +1973,7 @@ _ctl_diag_read_buffer(void __user *arg, enum block_state state)
 	Mpi2DiagBufferPostReply_t *mpi_reply;
 	int rc, i;
 	u8 buffer_type;
-	unsigned long timeleft;
+	unsigned long timeleft, request_size, copy_size;
 	u16 smid;
 	u16 ioc_status;
 	u8 issue_reset = 0;
@@ -1998,6 +2009,8 @@ _ctl_diag_read_buffer(void __user *arg, enum block_state state)
 		return -ENOMEM;
 	}
 
+	request_size = ioc->diag_buffer_sz[buffer_type];
+
 	if ((karg.starting_offset % 4) || (karg.bytes_to_read % 4)) {
 		printk(MPT2SAS_ERR_FMT "%s: either the starting_offset "
 		    "or bytes_to_read are not 4 byte aligned\n", ioc->name,
@@ -2005,13 +2018,23 @@ _ctl_diag_read_buffer(void __user *arg, enum block_state state)
 		return -EINVAL;
 	}
 
+	if (karg.starting_offset > request_size)
+		return -EINVAL;
+
 	diag_data = (void *)(request_data + karg.starting_offset);
 	dctlprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: diag_buffer(%p), "
 	    "offset(%d), sz(%d)\n", ioc->name, __func__,
 	    diag_data, karg.starting_offset, karg.bytes_to_read));
 
+	/* Truncate data on requests that are too large */
+	if ((diag_data + karg.bytes_to_read < diag_data) ||
+	    (diag_data + karg.bytes_to_read > request_data + request_size))
+		copy_size = request_size - karg.starting_offset;
+	else
+		copy_size = karg.bytes_to_read;
+
 	if (copy_to_user((void __user *)uarg->diagnostic_data,
-	    diag_data, karg.bytes_to_read)) {
+	    diag_data, copy_size)) {
 		printk(MPT2SAS_ERR_FMT "%s: Unable to write "
 		    "mpt_diag_read_buffer_t data @ %p\n", ioc->name,
 		    __func__, diag_data);
@@ -2238,9 +2261,9 @@ _ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret;
 
-	lock_kernel();
+	mutex_lock(&_ctl_mutex);
 	ret = _ctl_ioctl_main(file, cmd, (void __user *)arg);
-	unlock_kernel();
+	mutex_unlock(&_ctl_mutex);
 	return ret;
 }
 
@@ -2309,12 +2332,12 @@ _ctl_ioctl_compat(struct file *file, unsigned cmd, unsigned long arg)
 {
 	long ret;
 
-	lock_kernel();
+	mutex_lock(&_ctl_mutex);
 	if (cmd == MPT2COMMAND32)
 		ret = _ctl_compat_mpt_command(file, cmd, arg);
 	else
 		ret = _ctl_ioctl_main(file, cmd, (void __user *)arg);
-	unlock_kernel();
+	mutex_unlock(&_ctl_mutex);
 	return ret;
 }
 #endif
@@ -2952,6 +2975,7 @@ static const struct file_operations ctl_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = _ctl_ioctl_compat,
 #endif
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice ctl_dev = {

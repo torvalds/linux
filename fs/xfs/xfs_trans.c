@@ -608,10 +608,8 @@ STATIC void
 xfs_trans_free(
 	struct xfs_trans	*tp)
 {
-	struct xfs_busy_extent	*busyp, *n;
-
-	list_for_each_entry_safe(busyp, n, &tp->t_busy, list)
-		xfs_alloc_busy_clear(tp->t_mountp, busyp);
+	xfs_alloc_busy_sort(&tp->t_busy);
+	xfs_alloc_busy_clear(tp->t_mountp, &tp->t_busy, false);
 
 	atomic_dec(&tp->t_mountp->m_active_trans);
 	xfs_trans_free_dqinfo(tp);
@@ -696,7 +694,7 @@ xfs_trans_reserve(
 	 * fail if the count would go below zero.
 	 */
 	if (blocks > 0) {
-		error = xfs_mod_incore_sb(tp->t_mountp, XFS_SBS_FDBLOCKS,
+		error = xfs_icsb_modify_counters(tp->t_mountp, XFS_SBS_FDBLOCKS,
 					  -((int64_t)blocks), rsvd);
 		if (error != 0) {
 			current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
@@ -767,7 +765,7 @@ undo_log:
 
 undo_blocks:
 	if (blocks > 0) {
-		(void) xfs_mod_incore_sb(tp->t_mountp, XFS_SBS_FDBLOCKS,
+		xfs_icsb_modify_counters(tp->t_mountp, XFS_SBS_FDBLOCKS,
 					 (int64_t)blocks, rsvd);
 		tp->t_blk_res = 0;
 	}
@@ -1009,7 +1007,7 @@ void
 xfs_trans_unreserve_and_mod_sb(
 	xfs_trans_t	*tp)
 {
-	xfs_mod_sb_t	msb[14];	/* If you add cases, add entries */
+	xfs_mod_sb_t	msb[9];	/* If you add cases, add entries */
 	xfs_mod_sb_t	*msbp;
 	xfs_mount_t	*mp = tp->t_mountp;
 	/* REFERENCED */
@@ -1017,53 +1015,59 @@ xfs_trans_unreserve_and_mod_sb(
 	int		rsvd;
 	int64_t		blkdelta = 0;
 	int64_t		rtxdelta = 0;
+	int64_t		idelta = 0;
+	int64_t		ifreedelta = 0;
 
 	msbp = msb;
 	rsvd = (tp->t_flags & XFS_TRANS_RESERVE) != 0;
 
-	/* calculate free blocks delta */
+	/* calculate deltas */
 	if (tp->t_blk_res > 0)
 		blkdelta = tp->t_blk_res;
-
 	if ((tp->t_fdblocks_delta != 0) &&
 	    (xfs_sb_version_haslazysbcount(&mp->m_sb) ||
 	     (tp->t_flags & XFS_TRANS_SB_DIRTY)))
 	        blkdelta += tp->t_fdblocks_delta;
 
-	if (blkdelta != 0) {
-		msbp->msb_field = XFS_SBS_FDBLOCKS;
-		msbp->msb_delta = blkdelta;
-		msbp++;
-	}
-
-	/* calculate free realtime extents delta */
 	if (tp->t_rtx_res > 0)
 		rtxdelta = tp->t_rtx_res;
-
 	if ((tp->t_frextents_delta != 0) &&
 	    (tp->t_flags & XFS_TRANS_SB_DIRTY))
 		rtxdelta += tp->t_frextents_delta;
 
+	if (xfs_sb_version_haslazysbcount(&mp->m_sb) ||
+	     (tp->t_flags & XFS_TRANS_SB_DIRTY)) {
+		idelta = tp->t_icount_delta;
+		ifreedelta = tp->t_ifree_delta;
+	}
+
+	/* apply the per-cpu counters */
+	if (blkdelta) {
+		error = xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS,
+						 blkdelta, rsvd);
+		if (error)
+			goto out;
+	}
+
+	if (idelta) {
+		error = xfs_icsb_modify_counters(mp, XFS_SBS_ICOUNT,
+						 idelta, rsvd);
+		if (error)
+			goto out_undo_fdblocks;
+	}
+
+	if (ifreedelta) {
+		error = xfs_icsb_modify_counters(mp, XFS_SBS_IFREE,
+						 ifreedelta, rsvd);
+		if (error)
+			goto out_undo_icount;
+	}
+
+	/* apply remaining deltas */
 	if (rtxdelta != 0) {
 		msbp->msb_field = XFS_SBS_FREXTENTS;
 		msbp->msb_delta = rtxdelta;
 		msbp++;
-	}
-
-	/* apply remaining deltas */
-
-	if (xfs_sb_version_haslazysbcount(&mp->m_sb) ||
-	     (tp->t_flags & XFS_TRANS_SB_DIRTY)) {
-		if (tp->t_icount_delta != 0) {
-			msbp->msb_field = XFS_SBS_ICOUNT;
-			msbp->msb_delta = tp->t_icount_delta;
-			msbp++;
-		}
-		if (tp->t_ifree_delta != 0) {
-			msbp->msb_field = XFS_SBS_IFREE;
-			msbp->msb_delta = tp->t_ifree_delta;
-			msbp++;
-		}
 	}
 
 	if (tp->t_flags & XFS_TRANS_SB_DIRTY) {
@@ -1115,8 +1119,24 @@ xfs_trans_unreserve_and_mod_sb(
 	if (msbp > msb) {
 		error = xfs_mod_incore_sb_batch(tp->t_mountp, msb,
 			(uint)(msbp - msb), rsvd);
-		ASSERT(error == 0);
+		if (error)
+			goto out_undo_ifreecount;
 	}
+
+	return;
+
+out_undo_ifreecount:
+	if (ifreedelta)
+		xfs_icsb_modify_counters(mp, XFS_SBS_IFREE, -ifreedelta, rsvd);
+out_undo_icount:
+	if (idelta)
+		xfs_icsb_modify_counters(mp, XFS_SBS_ICOUNT, -idelta, rsvd);
+out_undo_fdblocks:
+	if (blkdelta)
+		xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS, -blkdelta, rsvd);
+out:
+	ASSERT(error == 0);
+	return;
 }
 
 /*
@@ -1328,7 +1348,7 @@ xfs_trans_fill_vecs(
  * they could be immediately flushed and we'd have to race with the flusher
  * trying to pull the item from the AIL as we add it.
  */
-void
+static void
 xfs_trans_item_committed(
 	struct xfs_log_item	*lip,
 	xfs_lsn_t		commit_lsn,
@@ -1341,7 +1361,7 @@ xfs_trans_item_committed(
 		lip->li_flags |= XFS_LI_ABORTED;
 	item_lsn = IOP_COMMITTED(lip, commit_lsn);
 
-	/* If the committed routine returns -1, item has been freed. */
+	/* item_lsn of -1 means the item needs no further processing */
 	if (XFS_LSN_CMP(item_lsn, (xfs_lsn_t)-1) == 0)
 		return;
 
@@ -1389,14 +1409,11 @@ xfs_trans_item_committed(
  */
 STATIC void
 xfs_trans_committed(
-	struct xfs_trans	*tp,
+	void			*arg,
 	int			abortflag)
 {
+	struct xfs_trans	*tp = arg;
 	struct xfs_log_item_desc *lidp, *next;
-
-	/* Call the transaction's completion callback if there is one. */
-	if (tp->t_callback != NULL)
-		tp->t_callback(tp, tp->t_callarg);
 
 	list_for_each_entry_safe(lidp, next, &tp->t_items, lid_trans) {
 		xfs_trans_item_committed(lidp->lid_item, tp->t_lsn, abortflag);
@@ -1406,21 +1423,120 @@ xfs_trans_committed(
 	xfs_trans_free(tp);
 }
 
+static inline void
+xfs_log_item_batch_insert(
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	**log_items,
+	int			nr_items,
+	xfs_lsn_t		commit_lsn)
+{
+	int	i;
+
+	spin_lock(&ailp->xa_lock);
+	/* xfs_trans_ail_update_bulk drops ailp->xa_lock */
+	xfs_trans_ail_update_bulk(ailp, log_items, nr_items, commit_lsn);
+
+	for (i = 0; i < nr_items; i++)
+		IOP_UNPIN(log_items[i], 0);
+}
+
 /*
- * Called from the trans_commit code when we notice that
- * the filesystem is in the middle of a forced shutdown.
+ * Bulk operation version of xfs_trans_committed that takes a log vector of
+ * items to insert into the AIL. This uses bulk AIL insertion techniques to
+ * minimise lock traffic.
+ *
+ * If we are called with the aborted flag set, it is because a log write during
+ * a CIL checkpoint commit has failed. In this case, all the items in the
+ * checkpoint have already gone through IOP_COMMITED and IOP_UNLOCK, which
+ * means that checkpoint commit abort handling is treated exactly the same
+ * as an iclog write error even though we haven't started any IO yet. Hence in
+ * this case all we need to do is IOP_COMMITTED processing, followed by an
+ * IOP_UNPIN(aborted) call.
+ */
+void
+xfs_trans_committed_bulk(
+	struct xfs_ail		*ailp,
+	struct xfs_log_vec	*log_vector,
+	xfs_lsn_t		commit_lsn,
+	int			aborted)
+{
+#define LOG_ITEM_BATCH_SIZE	32
+	struct xfs_log_item	*log_items[LOG_ITEM_BATCH_SIZE];
+	struct xfs_log_vec	*lv;
+	int			i = 0;
+
+	/* unpin all the log items */
+	for (lv = log_vector; lv; lv = lv->lv_next ) {
+		struct xfs_log_item	*lip = lv->lv_item;
+		xfs_lsn_t		item_lsn;
+
+		if (aborted)
+			lip->li_flags |= XFS_LI_ABORTED;
+		item_lsn = IOP_COMMITTED(lip, commit_lsn);
+
+		/* item_lsn of -1 means the item needs no further processing */
+		if (XFS_LSN_CMP(item_lsn, (xfs_lsn_t)-1) == 0)
+			continue;
+
+		/*
+		 * if we are aborting the operation, no point in inserting the
+		 * object into the AIL as we are in a shutdown situation.
+		 */
+		if (aborted) {
+			ASSERT(XFS_FORCED_SHUTDOWN(ailp->xa_mount));
+			IOP_UNPIN(lip, 1);
+			continue;
+		}
+
+		if (item_lsn != commit_lsn) {
+
+			/*
+			 * Not a bulk update option due to unusual item_lsn.
+			 * Push into AIL immediately, rechecking the lsn once
+			 * we have the ail lock. Then unpin the item.
+			 */
+			spin_lock(&ailp->xa_lock);
+			if (XFS_LSN_CMP(item_lsn, lip->li_lsn) > 0)
+				xfs_trans_ail_update(ailp, lip, item_lsn);
+			else
+				spin_unlock(&ailp->xa_lock);
+			IOP_UNPIN(lip, 0);
+			continue;
+		}
+
+		/* Item is a candidate for bulk AIL insert.  */
+		log_items[i++] = lv->lv_item;
+		if (i >= LOG_ITEM_BATCH_SIZE) {
+			xfs_log_item_batch_insert(ailp, log_items,
+					LOG_ITEM_BATCH_SIZE, commit_lsn);
+			i = 0;
+		}
+	}
+
+	/* make sure we insert the remainder! */
+	if (i)
+		xfs_log_item_batch_insert(ailp, log_items, i, commit_lsn);
+}
+
+/*
+ * Called from the trans_commit code when we notice that the filesystem is in
+ * the middle of a forced shutdown.
+ *
+ * When we are called here, we have already pinned all the items in the
+ * transaction. However, neither IOP_COMMITTING or IOP_UNLOCK has been called
+ * so we can simply walk the items in the transaction, unpin them with an abort
+ * flag and then free the items. Note that unpinning the items can result in
+ * them being freed immediately, so we need to use a safe list traversal method
+ * here.
  */
 STATIC void
 xfs_trans_uncommit(
 	struct xfs_trans	*tp,
 	uint			flags)
 {
-	struct xfs_log_item_desc *lidp;
+	struct xfs_log_item_desc *lidp, *n;
 
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		/*
-		 * Unpin all but those that aren't dirty.
-		 */
+	list_for_each_entry_safe(lidp, n, &tp->t_items, lid_trans) {
 		if (lidp->lid_flags & XFS_LID_DIRTY)
 			IOP_UNPIN(lidp->lid_item, 1);
 	}
@@ -1525,7 +1641,7 @@ xfs_trans_commit_iclog(
 	 * running in simulation mode (the log is explicitly turned
 	 * off).
 	 */
-	tp->t_logcb.cb_func = (void(*)(void*, int))xfs_trans_committed;
+	tp->t_logcb.cb_func = xfs_trans_committed;
 	tp->t_logcb.cb_arg = tp;
 
 	/*
@@ -1637,7 +1753,6 @@ xfs_trans_commit_cil(
 	int			flags)
 {
 	struct xfs_log_vec	*log_vector;
-	int			error;
 
 	/*
 	 * Get each log item to allocate a vector structure for
@@ -1648,9 +1763,7 @@ xfs_trans_commit_cil(
 	if (!log_vector)
 		return ENOMEM;
 
-	error = xfs_log_commit_cil(mp, tp, log_vector, commit_lsn, flags);
-	if (error)
-		return error;
+	xfs_log_commit_cil(mp, tp, log_vector, commit_lsn, flags);
 
 	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 	xfs_trans_free(tp);

@@ -532,6 +532,29 @@ iscsi_iser_conn_get_stats(struct iscsi_cls_conn *cls_conn, struct iscsi_stats *s
 	stats->custom[3].value = conn->fmr_unalign_cnt;
 }
 
+static int iscsi_iser_get_ep_param(struct iscsi_endpoint *ep,
+				   enum iscsi_param param, char *buf)
+{
+	struct iser_conn *ib_conn = ep->dd_data;
+	int len;
+
+	switch (param) {
+	case ISCSI_PARAM_CONN_PORT:
+	case ISCSI_PARAM_CONN_ADDRESS:
+		if (!ib_conn || !ib_conn->cma_id)
+			return -ENOTCONN;
+
+		return iscsi_conn_get_addr_param((struct sockaddr_storage *)
+					&ib_conn->cma_id->route.addr.dst_addr,
+					param, buf);
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	return len;
+}
+
 static struct iscsi_endpoint *
 iscsi_iser_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 		      int non_blocking)
@@ -637,6 +660,8 @@ static struct iscsi_transport iscsi_iser_transport = {
 				  ISCSI_MAX_BURST |
 				  ISCSI_PDU_INORDER_EN |
 				  ISCSI_DATASEQ_INORDER_EN |
+				  ISCSI_CONN_PORT |
+				  ISCSI_CONN_ADDRESS |
 				  ISCSI_EXP_STATSN |
 				  ISCSI_PERSISTENT_PORT |
 				  ISCSI_PERSISTENT_ADDRESS |
@@ -659,6 +684,7 @@ static struct iscsi_transport iscsi_iser_transport = {
 	.destroy_conn           = iscsi_iser_conn_destroy,
 	.set_param              = iscsi_iser_set_param,
 	.get_conn_param		= iscsi_conn_get_param,
+	.get_ep_param		= iscsi_iser_get_ep_param,
 	.get_session_param	= iscsi_session_get_param,
 	.start_conn             = iscsi_iser_conn_start,
 	.stop_conn              = iscsi_iser_conn_stop,

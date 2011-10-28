@@ -32,6 +32,8 @@ typedef struct xfs_sync_work {
 #define SYNC_WAIT		0x0001	/* wait for i/o to complete */
 #define SYNC_TRYLOCK		0x0002  /* only try to lock inodes */
 
+extern struct workqueue_struct	*xfs_syncd_wq;	/* sync workqueue */
+
 int xfs_syncd_init(struct xfs_mount *mp);
 void xfs_syncd_stop(struct xfs_mount *mp);
 
@@ -47,10 +49,10 @@ void __xfs_inode_set_reclaim_tag(struct xfs_perag *pag, struct xfs_inode *ip);
 void __xfs_inode_clear_reclaim_tag(struct xfs_mount *mp, struct xfs_perag *pag,
 				struct xfs_inode *ip);
 
-int xfs_sync_inode_valid(struct xfs_inode *ip, struct xfs_perag *pag);
+int xfs_sync_inode_grab(struct xfs_inode *ip);
 int xfs_inode_ag_iterator(struct xfs_mount *mp,
 	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag, int flags),
-	int flags, int tag, int write_lock, int *nr_to_scan);
+	int flags);
 
 void xfs_inode_shrinker_register(struct xfs_mount *mp);
 void xfs_inode_shrinker_unregister(struct xfs_mount *mp);

@@ -33,29 +33,8 @@ config MTD_TESTS
 	  should normally be compiled as kernel modules. The modules perform
 	  various checks and verifications when loaded.
 
-config MTD_CONCAT
-	tristate "MTD concatenating support"
-	help
-	  Support for concatenating several MTD devices into a single
-	  (virtual) one. This allows you to have -for example- a JFFS(2)
-	  file system spanning multiple physical flash chips. If unsure,
-	  say 'Y'.
-
-config MTD_PARTITIONS
-	bool "MTD partitioning support"
-	help
-	  If you have a device which needs to divide its flash chip(s) up
-	  into multiple 'partitions', each of which appears to the user as
-	  a separate MTD device, you require this option to be enabled. If
-	  unsure, say 'Y'.
-
-	  Note, however, that you don't need this option for the DiskOnChip
-	  devices. Partitioning on NFTL 'devices' is a different - that's the
-	  'normal' form of partitioning used on a block device.
-
 config MTD_REDBOOT_PARTS
 	tristate "RedBoot partition table parsing"
-	depends on MTD_PARTITIONS
 	---help---
 	  RedBoot is a ROM monitor and bootloader which deals with multiple
 	  'images' in flash devices by putting a table one of the erase
@@ -72,9 +51,10 @@ config MTD_REDBOOT_PARTS
 	  SA1100 map driver (CONFIG_MTD_SA1100) has an option for this, for
 	  example.
 
+if MTD_REDBOOT_PARTS
+
 config MTD_REDBOOT_DIRECTORY_BLOCK
 	int "Location of RedBoot partition table"
-	depends on MTD_REDBOOT_PARTS
 	default "-1"
 	---help---
 	  This option is the Linux counterpart to the
@@ -91,21 +71,21 @@ config MTD_REDBOOT_DIRECTORY_BLOCK
 
 config MTD_REDBOOT_PARTS_UNALLOCATED
 	bool "Include unallocated flash regions"
-	depends on MTD_REDBOOT_PARTS
 	help
 	  If you need to register each unallocated flash region as a MTD
 	  'partition', enable this option.
 
 config MTD_REDBOOT_PARTS_READONLY
 	bool "Force read-only for RedBoot system images"
-	depends on MTD_REDBOOT_PARTS
 	help
 	  If you need to force read-only for 'RedBoot', 'RedBoot Config' and
 	  'FIS directory' images, enable this option.
 
+endif # MTD_REDBOOT_PARTS
+
 config MTD_CMDLINE_PARTS
 	bool "Command line partition table parsing"
-	depends on MTD_PARTITIONS = "y" && MTD = "y"
+	depends on MTD = "y"
 	---help---
 	  Allow generic configuration of the MTD partition tables via the kernel
 	  command line. Multiple flash resources are supported for hardware where
@@ -142,7 +122,7 @@ config MTD_CMDLINE_PARTS
 
 config MTD_AFS_PARTS
 	tristate "ARM Firmware Suite partition parsing"
-	depends on ARM && MTD_PARTITIONS
+	depends on ARM
 	---help---
 	  The ARM Firmware Suite allows the user to divide flash devices into
 	  multiple 'images'. Each such image has a header containing its name
@@ -154,12 +134,11 @@ config MTD_AFS_PARTS
 
 	  You will still need the parsing functions to be called by the driver
 	  for your particular device. It won't happen automatically. The
-	  'armflash' map driver (CONFIG_MTD_ARM_INTEGRATOR) does this, for
-	  example.
+	  'physmap' map driver (CONFIG_MTD_PHYSMAP) does this, for example.
 
 config MTD_OF_PARTS
-	tristate "Flash partition map based on OF description"
-	depends on (MICROBLAZE || PPC_OF) && MTD_PARTITIONS
+	def_bool y
+	depends on OF
 	help
 	  This provides a partition parsing function which derives
 	  the partition map from the children of the flash node,
@@ -167,7 +146,6 @@ config MTD_OF_PARTS
 
 config MTD_AR7_PARTS
 	tristate "TI AR7 partitioning support"
-	depends on MTD_PARTITIONS
 	---help---
 	  TI AR7 partitioning support
 
@@ -329,6 +307,16 @@ config MTD_OOPS
 
 	  To use, add console=ttyMTDx to the kernel command line,
 	  where x is the MTD device number to use.
+
+config MTD_SWAP
+	tristate "Swap on MTD device support"
+	depends on MTD && SWAP
+	select MTD_BLKDEVS
+	help
+	  Provides volatile block device driver on top of mtd partition
+          suitable for swapping.  The mapping of written blocks is not saved.
+	  The driver provides wear leveling by storing erase counter into the
+	  OOB.
 
 source "drivers/mtd/chips/Kconfig"
 

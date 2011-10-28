@@ -67,7 +67,7 @@ typedef enum {
 	IRLAN_WATCHDOG_TIMEOUT,
 } IRLAN_EVENT;
 
-extern char *irlan_state[];
+extern const char * const irlan_state[];
 
 void irlan_do_client_event(struct irlan_cb *self, IRLAN_EVENT event, 
 			   struct sk_buff *skb);

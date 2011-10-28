@@ -1,0 +1,241 @@
+[state: 17-04-2011]
+
+BATMAN-ADV
+----------
+
+Batman  advanced  is  a new approach to wireless networking which
+does no longer operate on the IP basis. Unlike the batman daemon,
+which  exchanges  information  using UDP packets and sets routing
+tables, batman-advanced operates on ISO/OSI Layer 2 only and uses
+and  routes  (or  better: bridges) Ethernet Frames. It emulates a
+virtual network switch of all nodes participating.  Therefore all
+nodes  appear  to be link local, thus all higher operating proto-
+cols won't be affected by any changes within the network. You can
+run almost any protocol above batman advanced, prominent examples
+are: IPv4, IPv6, DHCP, IPX.
+
+Batman advanced was implemented as a Linux kernel driver  to  re-
+duce the overhead to a minimum. It does not depend on any (other)
+network driver, and can be used on wifi as well as ethernet  lan,
+vpn,  etc ... (anything with ethernet-style layer 2).
+
+
+CONFIGURATION
+-------------
+
+Load the batman-adv module into your kernel:
+
+# insmod batman-adv.ko
+
+The  module  is now waiting for activation. You must add some in-
+terfaces on which batman can operate. After  loading  the  module
+batman  advanced  will scan your systems interfaces to search for
+compatible interfaces. Once found, it will create  subfolders  in
+the /sys directories of each supported interface, e.g.
+
+# ls /sys/class/net/eth0/batman_adv/
+# iface_status  mesh_iface
+
+If an interface does not have the "batman_adv" subfolder it prob-
+ably is not supported. Not supported  interfaces  are:  loopback,
+non-ethernet and batman's own interfaces.
+
+Note:  After the module was loaded it will continuously watch for
+new interfaces to verify the compatibility. There is no  need  to
+reload the module if you plug your USB wifi adapter into your ma-
+chine after batman advanced was initially loaded.
+
+To activate a  given  interface  simply  write  "bat0"  into  its
+"mesh_iface" file inside the batman_adv subfolder:
+
+# echo bat0 > /sys/class/net/eth0/batman_adv/mesh_iface
+
+Repeat  this step for all interfaces you wish to add.  Now batman
+starts using/broadcasting on this/these interface(s).
+
+By reading the "iface_status" file you can check its status:
+
+# cat /sys/class/net/eth0/batman_adv/iface_status
+# active
+
+To deactivate an interface you have  to  write  "none"  into  its
+"mesh_iface" file:
+
+# echo none > /sys/class/net/eth0/batman_adv/mesh_iface
+
+
+All  mesh  wide  settings  can be found in batman's own interface
+folder:
+
+#  ls  /sys/class/net/bat0/mesh/
+#  aggregated_ogms  gw_bandwidth  hop_penalty
+#  bonding          gw_mode       orig_interval
+#  fragmentation    gw_sel_class  vis_mode
+
+
+There is a special folder for debugging information:
+
+#  ls /sys/kernel/debug/batman_adv/bat0/
+#  gateways     socket        transtable_global  vis_data
+#  originators  softif_neigh  transtable_local
+
+
+Some of the files contain all sort of status information  regard-
+ing  the  mesh  network.  For  example, you can view the table of
+originators (mesh participants) with:
+
+# cat /sys/kernel/debug/batman_adv/bat0/originators
+
+Other files allow to change batman's behaviour to better fit your
+requirements.  For instance, you can check the current originator
+interval (value in milliseconds which determines how often batman
+sends its broadcast packets):
+
+# cat /sys/class/net/bat0/mesh/orig_interval
+# 1000
+
+and also change its value:
+
+# echo 3000 > /sys/class/net/bat0/mesh/orig_interval
+
+In very mobile scenarios, you might want to adjust the originator
+interval to a lower value. This will make the mesh  more  respon-
+sive to topology changes, but will also increase the overhead.
+
+
+USAGE
+-----
+
+To  make use of your newly created mesh, batman advanced provides
+a new interface "bat0" which you should use from this  point  on.
+All  interfaces  added  to  batman  advanced are not relevant any
+longer because batman handles them for you. Basically, one "hands
+over" the data by using the batman interface and batman will make
+sure it reaches its destination.
+
+The "bat0" interface can be used like any  other  regular  inter-
+face.  It needs an IP address which can be either statically con-
+figured or dynamically (by using DHCP or similar services):
+
+# NodeA: ifconfig bat0 192.168.0.1
+# NodeB: ifconfig bat0 192.168.0.2
+# NodeB: ping 192.168.0.1
+
+Note:  In  order to avoid problems remove all IP addresses previ-
+ously assigned to interfaces now used by batman advanced, e.g.
+
+# ifconfig eth0 0.0.0.0
+
+
+VISUALIZATION
+-------------
+
+If you want topology visualization, at least one mesh  node  must
+be configured as VIS-server:
+
+# echo "server" > /sys/class/net/bat0/mesh/vis_mode
+
+Each  node  is  either configured as "server" or as "client" (de-
+fault: "client").  Clients send their topology data to the server
+next to them, and server synchronize with other servers. If there
+is no server configured (default) within the  mesh,  no  topology
+information   will  be  transmitted.  With  these  "synchronizing
+servers", there can be 1 or more vis servers sharing the same (or
+at least very similar) data.
+
+When  configured  as  server,  you can get a topology snapshot of
+your mesh:
+
+# cat /sys/kernel/debug/batman_adv/bat0/vis_data
+
+This raw output is intended to be easily parsable and convertable
+with  other tools. Have a look at the batctl README if you want a
+vis output in dot or json format for instance and how those  out-
+puts could then be visualised in an image.
+
+The raw format consists of comma separated values per entry where
+each entry is giving information about a  certain  source  inter-
+face.  Each  entry can/has to have the following values:
+-> "mac" - mac address of an originator's source interface
+           (each line begins with it)
+-> "TQ mac  value"  -  src mac's link quality towards mac address
+                       of a neighbor originator's interface which
+                       is being used for routing
+-> "TT mac" - TT announced by source mac
+-> "PRIMARY" - this  is a primary interface
+-> "SEC mac" - secondary mac address of source
+               (requires preceding PRIMARY)
+
+The TQ value has a range from 4 to 255 with 255 being  the  best.
+The TT entries are showing which hosts are connected to the mesh
+via bat0 or being bridged into the mesh network.  The PRIMARY/SEC
+values are only applied on primary interfaces
+
+
+LOGGING/DEBUGGING
+-----------------
+
+All error messages, warnings and information messages are sent to
+the kernel log. Depending on your operating  system  distribution
+this  can  be read in one of a number of ways. Try using the com-
+mands: dmesg, logread, or looking in the files  /var/log/kern.log
+or  /var/log/syslog.  All  batman-adv  messages are prefixed with
+"batman-adv:" So to see just these messages try
+
+# dmesg | grep batman-adv
+
+When investigating problems with your mesh network  it  is  some-
+times  necessary  to see more detail debug messages. This must be
+enabled when compiling the batman-adv module. When building  bat-
+man-adv  as  part of kernel, use "make menuconfig" and enable the
+option "B.A.T.M.A.N. debugging".
+
+Those additional  debug messages can be accessed  using a special
+file in debugfs
+
+# cat /sys/kernel/debug/batman_adv/bat0/log
+
+The additional debug output is by default disabled. It can be en-
+abled  during run time. Following log_levels are defined:
+
+0 - All  debug  output  disabled
+1 - Enable messages related to routing / flooding / broadcasting
+2 - Enable route or tt entry added / changed / deleted
+3 - Enable all messages
+
+The debug output can be changed at runtime  using  the  file
+/sys/class/net/bat0/mesh/log_level. e.g.
+
+# echo 2 > /sys/class/net/bat0/mesh/log_level
+
+will enable debug messages for when routes or TTs change.
+
+
+BATCTL
+------
+
+As batman advanced operates on layer 2 all hosts participating in
+the  virtual switch are completely transparent for all  protocols
+above layer 2. Therefore the common diagnosis tools do  not  work
+as  expected.  To  overcome these problems batctl was created. At
+the  moment the  batctl contains ping,  traceroute,  tcpdump  and
+interfaces to the kernel module settings.
+
+For more information, please see the manpage (man batctl).
+
+batctl is available on http://www.open-mesh.org/
+
+
+CONTACT
+-------
+
+Please send us comments, experiences, questions, anything :)
+
+IRC:            #batman   on   irc.freenode.org
+Mailing-list:   b.a.t.m.a.n@open-mesh.org (optional  subscription
+          at https://lists.open-mesh.org/mm/listinfo/b.a.t.m.a.n)
+
+You can also contact the Authors:
+
+Marek  Lindner  <lindner_marek@yahoo.de>
+Simon  Wunderlich  <siwu@hrz.tu-chemnitz.de>

@@ -38,7 +38,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
-#include <linux/workqueue.h>
+#include <rdma/rdma_netlink.h>
 
 #include "core_priv.h"
 
@@ -51,6 +51,9 @@ struct ib_client_data {
 	struct ib_client *client;
 	void *            data;
 };
+
+struct workqueue_struct *ib_wq;
+EXPORT_SYMBOL_GPL(ib_wq);
 
 static LIST_HEAD(device_list);
 static LIST_HEAD(client_list);
@@ -718,25 +721,48 @@ static int __init ib_core_init(void)
 {
 	int ret;
 
+	ib_wq = alloc_workqueue("infiniband", 0, 0);
+	if (!ib_wq)
+		return -ENOMEM;
+
 	ret = ib_sysfs_setup();
-	if (ret)
+	if (ret) {
 		printk(KERN_WARNING "Couldn't create InfiniBand device class\n");
+		goto err;
+	}
+
+	ret = ibnl_init();
+	if (ret) {
+		printk(KERN_WARNING "Couldn't init IB netlink interface\n");
+		goto err_sysfs;
+	}
 
 	ret = ib_cache_setup();
 	if (ret) {
 		printk(KERN_WARNING "Couldn't set up InfiniBand P_Key/GID cache\n");
-		ib_sysfs_cleanup();
+		goto err_nl;
 	}
 
+	return 0;
+
+err_nl:
+	ibnl_cleanup();
+
+err_sysfs:
+	ib_sysfs_cleanup();
+
+err:
+	destroy_workqueue(ib_wq);
 	return ret;
 }
 
 static void __exit ib_core_cleanup(void)
 {
 	ib_cache_cleanup();
+	ibnl_cleanup();
 	ib_sysfs_cleanup();
 	/* Make sure that any pending umem accounting work is done. */
-	flush_scheduled_work();
+	destroy_workqueue(ib_wq);
 }
 
 module_init(ib_core_init);

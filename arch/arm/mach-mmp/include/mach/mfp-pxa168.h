@@ -8,6 +8,15 @@
 #define MFP_DRIVE_MEDIUM	(0x2 << 13)
 #define MFP_DRIVE_FAST		(0x3 << 13)
 
+#undef MFP_CFG
+#undef MFP_CFG_DRV
+
+#define MFP_CFG(pin, af)		\
+	(MFP_LPM_INPUT | MFP_PIN(MFP_PIN_##pin) | MFP_##af | MFP_DRIVE_MEDIUM)
+
+#define MFP_CFG_DRV(pin, af, drv)	\
+	(MFP_LPM_INPUT | MFP_PIN(MFP_PIN_##pin) | MFP_##af | MFP_DRIVE_##drv)
+
 /* GPIO */
 #define GPIO0_GPIO		MFP_CFG(GPIO0, AF5)
 #define GPIO1_GPIO		MFP_CFG(GPIO1, AF5)
@@ -288,5 +297,12 @@
 #define GPIO126_PWM4_OUT	MFP_CFG(GPIO126, AF1)
 #define GPIO86_PWM1_OUT		MFP_CFG(GPIO86, AF2)
 #define GPIO86_PWM2_OUT		MFP_CFG(GPIO86, AF3)
+
+/* Keypad */
+#define GPIO109_KP_MKIN1        MFP_CFG(GPIO109, AF7)
+#define GPIO110_KP_MKIN0        MFP_CFG(GPIO110, AF7)
+#define GPIO111_KP_MKOUT7       MFP_CFG(GPIO111, AF7)
+#define GPIO112_KP_MKOUT6       MFP_CFG(GPIO112, AF7)
+#define GPIO121_KP_MKIN4        MFP_CFG(GPIO121, AF7)
 
 #endif /* __ASM_MACH_MFP_PXA168_H */

@@ -37,7 +37,7 @@ void oprofile_create_files(struct super_block *sb, struct dentry *root);
 int oprofile_timer_init(struct oprofile_operations *ops);
 void oprofile_timer_exit(void);
 
-int oprofile_set_backtrace(unsigned long depth);
+int oprofile_set_ulong(unsigned long *addr, unsigned long val);
 int oprofile_set_timeout(unsigned long time);
 
 #endif /* OPROF_H */

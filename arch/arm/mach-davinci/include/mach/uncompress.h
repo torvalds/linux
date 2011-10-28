@@ -25,8 +25,7 @@
 
 #include <mach/serial.h>
 
-static u32 *uart;
-static u32 *uart_info = (u32 *)(DAVINCI_UART_INFO);
+u32 *uart;
 
 /* PORT_16C550A, in polled non-fifo mode */
 static void putc(char c)
@@ -44,6 +43,8 @@ static inline void flush(void)
 
 static inline void set_uart_info(u32 phys, void * __iomem virt)
 {
+	u32 *uart_info = (u32 *)(DAVINCI_UART_INFO);
+
 	uart = (u32 *)phys;
 	uart_info[0] = phys;
 	uart_info[1] = (u32)virt;
@@ -88,6 +89,8 @@ static inline void __arch_decomp_setup(unsigned long arch_id)
 		/* DA8xx boards */
 		DEBUG_LL_DA8XX(davinci_da830_evm,	2);
 		DEBUG_LL_DA8XX(davinci_da850_evm,	2);
+		DEBUG_LL_DA8XX(mityomapl138,		1);
+		DEBUG_LL_DA8XX(omapl138_hawkboard,	2);
 
 		/* TNETV107x boards */
 		DEBUG_LL_TNETV107X(tnetv107x,		1);

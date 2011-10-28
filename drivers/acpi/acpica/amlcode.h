@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -394,21 +394,6 @@
 #define AML_CLASS_METHOD_CALL       0x09
 #define AML_CLASS_UNKNOWN           0x0A
 
-/* Predefined Operation Region space_iDs */
-
-typedef enum {
-	REGION_MEMORY = 0,
-	REGION_IO,
-	REGION_PCI_CONFIG,
-	REGION_EC,
-	REGION_SMBUS,
-	REGION_CMOS,
-	REGION_PCI_BAR,
-	REGION_IPMI,
-	REGION_DATA_TABLE,	/* Internal use only */
-	REGION_FIXED_HW = 0x7F
-} AML_REGION_TYPES;
-
 /* Comparison operation codes for match_op operator */
 
 typedef enum {
@@ -480,16 +465,10 @@ typedef enum {
 	AML_FIELD_ATTRIB_SMB_BLOCK_CALL = 0x0D
 } AML_ACCESS_ATTRIBUTE;
 
-/* Bit fields in method_flags byte */
+/* Bit fields in the AML method_flags byte */
 
 #define AML_METHOD_ARG_COUNT        0x07
 #define AML_METHOD_SERIALIZED       0x08
 #define AML_METHOD_SYNC_LEVEL       0xF0
-
-/* METHOD_FLAGS_ARG_COUNT is not used internally, define additional flags */
-
-#define AML_METHOD_INTERNAL_ONLY    0x01
-#define AML_METHOD_RESERVED1        0x02
-#define AML_METHOD_RESERVED2        0x04
 
 #endif				/* __AMLCODE_H__ */

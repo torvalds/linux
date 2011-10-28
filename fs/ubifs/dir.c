@@ -522,24 +522,6 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 	ubifs_assert(mutex_is_locked(&dir->i_mutex));
 	ubifs_assert(mutex_is_locked(&inode->i_mutex));
 
-	/*
-	 * Return -ENOENT if we've raced with unlink and i_nlink is 0.  Doing
-	 * otherwise has the potential to corrupt the orphan inode list.
-	 *
-	 * Indeed, consider a scenario when 'vfs_link(dirA/fileA)' and
-	 * 'vfs_unlink(dirA/fileA, dirB/fileB)' race. 'vfs_link()' does not
-	 * lock 'dirA->i_mutex', so this is possible. Both of the functions
-	 * lock 'fileA->i_mutex' though. Suppose 'vfs_unlink()' wins, and takes
-	 * 'fileA->i_mutex' mutex first. Suppose 'fileA->i_nlink' is 1. In this
-	 * case 'ubifs_unlink()' will drop the last reference, and put 'inodeA'
-	 * to the list of orphans. After this, 'vfs_link()' will link
-	 * 'dirB/fileB' to 'inodeA'. This is a problem because, for example,
-	 * the subsequent 'vfs_unlink(dirB/fileB)' will add the same inode
-	 * to the list of orphans.
-	 */
-	 if (inode->i_nlink == 0)
-		 return -ENOENT;
-
 	err = dbg_check_synced_i_size(inode);
 	if (err)
 		return err;
@@ -550,7 +532,7 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 
 	lock_2_inodes(dir, inode);
 	inc_nlink(inode);
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 	inode->i_ctime = ubifs_current_time(inode);
 	dir->i_size += sz_change;
 	dir_ui->ui_size = dir->i_size;
@@ -621,7 +603,7 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 		ubifs_release_budget(c, &req);
 	else {
 		/* We've deleted something - clean the "no space" flags */
-		c->nospace = c->nospace_rp = 0;
+		c->bi.nospace = c->bi.nospace_rp = 0;
 		smp_wmb();
 	}
 	return 0;
@@ -711,7 +693,7 @@ static int ubifs_rmdir(struct inode *dir, struct dentry *dentry)
 		ubifs_release_budget(c, &req);
 	else {
 		/* We've deleted something - clean the "no space" flags */
-		c->nospace = c->nospace_rp = 0;
+		c->bi.nospace = c->bi.nospace_rp = 0;
 		smp_wmb();
 	}
 	return 0;

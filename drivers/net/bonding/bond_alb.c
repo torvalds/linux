@@ -44,42 +44,6 @@
 #include "bond_alb.h"
 
 
-#define ALB_TIMER_TICKS_PER_SEC	    10	/* should be a divisor of HZ */
-#define BOND_TLB_REBALANCE_INTERVAL 10	/* In seconds, periodic re-balancing.
-					 * Used for division - never set
-					 * to zero !!!
-					 */
-#define BOND_ALB_LP_INTERVAL	    1	/* In seconds, periodic send of
-					 * learning packets to the switch
-					 */
-
-#define BOND_TLB_REBALANCE_TICKS (BOND_TLB_REBALANCE_INTERVAL \
-				  * ALB_TIMER_TICKS_PER_SEC)
-
-#define BOND_ALB_LP_TICKS (BOND_ALB_LP_INTERVAL \
-			   * ALB_TIMER_TICKS_PER_SEC)
-
-#define TLB_HASH_TABLE_SIZE 256	/* The size of the clients hash table.
-				 * Note that this value MUST NOT be smaller
-				 * because the key hash table is BYTE wide !
-				 */
-
-
-#define TLB_NULL_INDEX		0xffffffff
-#define MAX_LP_BURST		3
-
-/* rlb defs */
-#define RLB_HASH_TABLE_SIZE	256
-#define RLB_NULL_INDEX		0xffffffff
-#define RLB_UPDATE_DELAY	2*ALB_TIMER_TICKS_PER_SEC /* 2 seconds */
-#define RLB_ARP_BURST_SIZE	2
-#define RLB_UPDATE_RETRY	3	/* 3-ticks - must be smaller than the rlb
-					 * rebalance interval (5 min).
-					 */
-/* RLB_PROMISC_TIMEOUT = 10 sec equals the time that the current slave is
- * promiscuous after failover
- */
-#define RLB_PROMISC_TIMEOUT	10*ALB_TIMER_TICKS_PER_SEC
 
 #ifndef __long_aligned
 #define __long_aligned __attribute__((aligned((sizeof(long)))))
@@ -199,8 +163,6 @@ static int tlb_initialize(struct bonding *bond)
 	struct tlb_client_info *new_hashtbl;
 	int i;
 
-	spin_lock_init(&(bond_info->tx_hashtbl_lock));
-
 	new_hashtbl = kzalloc(size, GFP_KERNEL);
 	if (!new_hashtbl) {
 		pr_err("%s: Error: Failed to allocate TLB hash table\n",
@@ -212,7 +174,7 @@ static int tlb_initialize(struct bonding *bond)
 	bond_info->tx_hashtbl = new_hashtbl;
 
 	for (i = 0; i < TLB_HASH_TABLE_SIZE; i++) {
-		tlb_init_table_entry(&bond_info->tx_hashtbl[i], 1);
+		tlb_init_table_entry(&bond_info->tx_hashtbl[i], 0);
 	}
 
 	_unlock_tx_hashtbl(bond);
@@ -344,45 +306,33 @@ static void rlb_update_entry_from_arp(struct bonding *bond, struct arp_pkt *arp)
 	_unlock_rx_hashtbl(bond);
 }
 
-static int rlb_arp_recv(struct sk_buff *skb, struct net_device *bond_dev, struct packet_type *ptype, struct net_device *orig_dev)
+static void rlb_arp_recv(struct sk_buff *skb, struct bonding *bond,
+			 struct slave *slave)
 {
-	struct bonding *bond;
-	struct arp_pkt *arp = (struct arp_pkt *)skb->data;
-	int res = NET_RX_DROP;
+	struct arp_pkt *arp;
 
-	while (bond_dev->priv_flags & IFF_802_1Q_VLAN)
-		bond_dev = vlan_dev_real_dev(bond_dev);
+	if (skb->protocol != cpu_to_be16(ETH_P_ARP))
+		return;
 
-	if (!(bond_dev->priv_flags & IFF_BONDING) ||
-	    !(bond_dev->flags & IFF_MASTER))
-		goto out;
-
+	arp = (struct arp_pkt *) skb->data;
 	if (!arp) {
 		pr_debug("Packet has no ARP data\n");
-		goto out;
+		return;
 	}
 
-	if (!pskb_may_pull(skb, arp_hdr_len(bond_dev)))
-		goto out;
+	if (!pskb_may_pull(skb, arp_hdr_len(bond->dev)))
+		return;
 
 	if (skb->len < sizeof(struct arp_pkt)) {
 		pr_debug("Packet is too small to be an ARP\n");
-		goto out;
+		return;
 	}
 
 	if (arp->op_code == htons(ARPOP_REPLY)) {
 		/* update rx hash table for this ARP */
-		bond = netdev_priv(bond_dev);
 		rlb_update_entry_from_arp(bond, arp);
 		pr_debug("Server received an ARP Reply from client\n");
 	}
-
-	res = NET_RX_SUCCESS;
-
-out:
-	dev_kfree_skb(skb);
-
-	return res;
 }
 
 /* Caller must hold bond lock for read */
@@ -636,7 +586,7 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 
 	_lock_rx_hashtbl(bond);
 
-	hash_index = _simple_hash((u8 *)&arp->ip_dst, sizeof(arp->ip_src));
+	hash_index = _simple_hash((u8 *)&arp->ip_dst, sizeof(arp->ip_dst));
 	client_info = &(bond_info->rx_hashtbl[hash_index]);
 
 	if (client_info->assigned) {
@@ -733,7 +683,7 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 		 */
 		rlb_choose_channel(skb, bond);
 
-		/* The ARP relpy packets must be delayed so that
+		/* The ARP reply packets must be delayed so that
 		 * they can cancel out the influence of the ARP request.
 		 */
 		bond->alb_info.rlb_update_delay_counter = RLB_UPDATE_DELAY;
@@ -791,12 +741,9 @@ static void rlb_init_table_entry(struct rlb_client_info *entry)
 static int rlb_initialize(struct bonding *bond)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
-	struct packet_type *pk_type = &(BOND_ALB_INFO(bond).rlb_pkt_type);
 	struct rlb_client_info	*new_hashtbl;
 	int size = RLB_HASH_TABLE_SIZE * sizeof(struct rlb_client_info);
 	int i;
-
-	spin_lock_init(&(bond_info->rx_hashtbl_lock));
 
 	new_hashtbl = kmalloc(size, GFP_KERNEL);
 	if (!new_hashtbl) {
@@ -816,13 +763,8 @@ static int rlb_initialize(struct bonding *bond)
 
 	_unlock_rx_hashtbl(bond);
 
-	/*initialize packet type*/
-	pk_type->type = cpu_to_be16(ETH_P_ARP);
-	pk_type->dev = bond->dev;
-	pk_type->func = rlb_arp_recv;
-
 	/* register to receive ARPs */
-	dev_add_pack(pk_type);
+	bond->recv_probe = rlb_arp_recv;
 
 	return 0;
 }
@@ -830,8 +772,6 @@ static int rlb_initialize(struct bonding *bond)
 static void rlb_deinitialize(struct bonding *bond)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
-
-	dev_remove_pack(&(bond_info->rlb_pkt_type));
 
 	_lock_rx_hashtbl(bond);
 
@@ -1074,7 +1014,7 @@ static void alb_change_hw_addr_on_detach(struct bonding *bond, struct slave *sla
  *
  * If the permanent hw address of @slave is @bond's hw address, we need to
  * find a different hw address to give @slave, that isn't in use by any other
- * slave in the bond. This address must be, of course, one of the premanent
+ * slave in the bond. This address must be, of course, one of the permanent
  * addresses of the other slaves.
  *
  * We go over the slave list, and for each slave there we compare its
@@ -1281,15 +1221,9 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	skb_reset_mac_header(skb);
 	eth_data = eth_hdr(skb);
 
-	/* make sure that the curr_active_slave and the slaves list do
-	 * not change during tx
+	/* make sure that the curr_active_slave do not change during tx
 	 */
-	read_lock(&bond->lock);
 	read_lock(&bond->curr_slave_lock);
-
-	if (!BOND_IS_OK(bond)) {
-		goto out;
-	}
 
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP: {
@@ -1390,13 +1324,12 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		}
 	}
 
-out:
 	if (res) {
 		/* no suitable interface, frame not sent */
 		dev_kfree_skb(skb);
 	}
 	read_unlock(&bond->curr_slave_lock);
-	read_unlock(&bond->lock);
+
 	return NETDEV_TX_OK;
 }
 

@@ -810,7 +810,6 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 			  const struct pci_device_id *pci_id)
 {
 	u16 cmd;
-	u8 card_rev;
 	unsigned char pci_latency;
 
 	IVTV_DEBUG_INFO("Enabling pci device\n");
@@ -857,7 +856,6 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 	}
 	IVTV_DEBUG_INFO("Bus Mastering Enabled.\n");
 
-	pci_read_config_byte(pdev, PCI_CLASS_REVISION, &card_rev);
 	pci_read_config_byte(pdev, PCI_LATENCY_TIMER, &pci_latency);
 
 	if (pci_latency < 64 && ivtv_pci_latency) {
@@ -874,7 +872,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 
 	IVTV_DEBUG_INFO("%d (rev %d) at %02x:%02x.%x, "
 		   "irq: %d, latency: %d, memory: 0x%lx\n",
-		   pdev->device, card_rev, pdev->bus->number,
+		   pdev->device, pdev->revision, pdev->bus->number,
 		   PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
 		   pdev->irq, pci_latency, (unsigned long)itv->base_addr);
 
@@ -1029,8 +1027,13 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 	itv->enc_mem = ioremap_nocache(itv->base_addr + IVTV_ENCODER_OFFSET,
 				       IVTV_ENCODER_SIZE);
 	if (!itv->enc_mem) {
-		IVTV_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-		IVTV_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
+		IVTV_ERR("ioremap failed. Can't get a window into CX23415/6 "
+			 "encoder memory\n");
+		IVTV_ERR("Each capture card with a CX23415/6 needs 8 MB of "
+			 "vmalloc address space for this window\n");
+		IVTV_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
+		IVTV_ERR("Use the vmalloc= kernel command line option to set "
+			 "VmallocTotal to a larger value\n");
 		retval = -ENOMEM;
 		goto free_mem;
 	}
@@ -1041,8 +1044,14 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 		itv->dec_mem = ioremap_nocache(itv->base_addr + IVTV_DECODER_OFFSET,
 				IVTV_DECODER_SIZE);
 		if (!itv->dec_mem) {
-			IVTV_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-			IVTV_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
+			IVTV_ERR("ioremap failed. Can't get a window into "
+				 "CX23415 decoder memory\n");
+			IVTV_ERR("Each capture card with a CX23415 needs 8 MB "
+				 "of vmalloc address space for this window\n");
+			IVTV_ERR("Check the output of 'grep Vmalloc "
+				 "/proc/meminfo'\n");
+			IVTV_ERR("Use the vmalloc= kernel command line option "
+				 "to set VmallocTotal to a larger value\n");
 			retval = -ENOMEM;
 			goto free_mem;
 		}
@@ -1057,8 +1066,13 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 	itv->reg_mem =
 	    ioremap_nocache(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (!itv->reg_mem) {
-		IVTV_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-		IVTV_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
+		IVTV_ERR("ioremap failed. Can't get a window into CX23415/6 "
+			 "register space\n");
+		IVTV_ERR("Each capture card with a CX23415/6 needs 64 kB of "
+			 "vmalloc address space for this window\n");
+		IVTV_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
+		IVTV_ERR("Use the vmalloc= kernel command line option to set "
+			 "VmallocTotal to a larger value\n");
 		retval = -ENOMEM;
 		goto free_io;
 	}
@@ -1314,6 +1328,8 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	if (!itv->has_cx23415)
 		write_reg_sync(0x03, IVTV_REG_DMACONTROL);
 
+	ivtv_s_std_enc(itv, &itv->tuner_std);
+
 	/* Default interrupts enabled. For the PVR350 this includes the
 	   decoder VSYNC interrupt, which is always on. It is not only used
 	   during decoding but also by the OSD.
@@ -1322,12 +1338,10 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
 		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT | IVTV_IRQ_DEC_VSYNC);
 		ivtv_set_osd_alpha(itv);
-	}
-	else
+		ivtv_s_std_dec(itv, &itv->tuner_std);
+	} else {
 		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT);
-
-	/* For cards with video out, this call needs interrupts enabled */
-	ivtv_s_std(NULL, &fh, &itv->tuner_std);
+	}
 
 	/* Setup initial controls */
 	cx2341x_handler_setup(&itv->cxhdl);

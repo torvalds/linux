@@ -26,11 +26,6 @@
 #include <net/act_api.h>
 #include <net/netlink.h>
 
-static void tcf_common_free_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct tcf_common, tcfc_rcu));
-}
-
 void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo)
 {
 	unsigned int h = tcf_hash(p->tcfc_index, hinfo->hmask);
@@ -47,7 +42,7 @@ void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo)
 			 * gen_estimator est_timer() might access p->tcfc_lock
 			 * or bstats, wait a RCU grace period before freeing p
 			 */
-			call_rcu(&p->tcfc_rcu, tcf_common_free_rcu);
+			kfree_rcu(p, tcfc_rcu);
 			return;
 		}
 	}
@@ -78,7 +73,7 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 			   struct tc_action *a, struct tcf_hashinfo *hinfo)
 {
 	struct tcf_common *p;
-	int err = 0, index = -1,i = 0, s_i = 0, n_i = 0;
+	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
 	struct nlattr *nest;
 
 	read_lock_bh(hinfo->lock);
@@ -126,7 +121,7 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
 {
 	struct tcf_common *p, *s_p;
 	struct nlattr *nest;
-	int i= 0, n_i = 0;
+	int i = 0, n_i = 0;
 
 	nest = nla_nest_start(skb, a->order);
 	if (nest == NULL)
@@ -138,7 +133,7 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
 		while (p != NULL) {
 			s_p = p->tcfc_next;
 			if (ACT_P_DELETED == tcf_hash_release(p, 0, hinfo))
-				 module_put(a->ops->owner);
+				module_put(a->ops->owner);
 			n_i++;
 			p = s_p;
 		}
@@ -447,7 +442,8 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	nest = nla_nest_start(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
-	if ((err = tcf_action_dump_old(skb, a, bind, ref)) > 0) {
+	err = tcf_action_dump_old(skb, a, bind, ref);
+	if (err > 0) {
 		nla_nest_end(skb, nest);
 		return err;
 	}
@@ -491,7 +487,7 @@ struct tc_action *tcf_action_init_1(struct nlattr *nla, struct nlattr *est,
 	struct tc_action *a;
 	struct tc_action_ops *a_o;
 	char act_name[IFNAMSIZ];
-	struct nlattr *tb[TCA_ACT_MAX+1];
+	struct nlattr *tb[TCA_ACT_MAX + 1];
 	struct nlattr *kind;
 	int err;
 
@@ -549,9 +545,9 @@ struct tc_action *tcf_action_init_1(struct nlattr *nla, struct nlattr *est,
 		goto err_free;
 
 	/* module count goes up only when brand new policy is created
-	   if it exists and is only bound to in a_o->init() then
-	   ACT_P_CREATED is not returned (a zero is).
-	*/
+	 * if it exists and is only bound to in a_o->init() then
+	 * ACT_P_CREATED is not returned (a zero is).
+	 */
 	if (err != ACT_P_CREATED)
 		module_put(a_o->owner);
 	a->ops = a_o;
@@ -569,7 +565,7 @@ err_out:
 struct tc_action *tcf_action_init(struct nlattr *nla, struct nlattr *est,
 				  char *name, int ovr, int bind)
 {
-	struct nlattr *tb[TCA_ACT_MAX_PRIO+1];
+	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *head = NULL, *act, *act_prev = NULL;
 	int err;
 	int i;
@@ -697,7 +693,7 @@ act_get_notify(struct net *net, u32 pid, struct nlmsghdr *n,
 static struct tc_action *
 tcf_action_get_1(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 {
-	struct nlattr *tb[TCA_ACT_MAX+1];
+	struct nlattr *tb[TCA_ACT_MAX + 1];
 	struct tc_action *a;
 	int index;
 	int err;
@@ -770,7 +766,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	struct tcamsg *t;
 	struct netlink_callback dcb;
 	struct nlattr *nest;
-	struct nlattr *tb[TCA_ACT_MAX+1];
+	struct nlattr *tb[TCA_ACT_MAX + 1];
 	struct nlattr *kind;
 	struct tc_action *a = create_a(0);
 	int err = -ENOMEM;
@@ -821,7 +817,8 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	nlh->nlmsg_flags |= NLM_F_ROOT;
 	module_put(a->ops->owner);
 	kfree(a);
-	err = rtnetlink_send(skb, net, pid, RTNLGRP_TC, n->nlmsg_flags&NLM_F_ECHO);
+	err = rtnetlink_send(skb, net, pid, RTNLGRP_TC,
+			     n->nlmsg_flags & NLM_F_ECHO);
 	if (err > 0)
 		return 0;
 
@@ -842,14 +839,14 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	      u32 pid, int event)
 {
 	int i, ret;
-	struct nlattr *tb[TCA_ACT_MAX_PRIO+1];
+	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *head = NULL, *act, *act_prev = NULL;
 
 	ret = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL);
 	if (ret < 0)
 		return ret;
 
-	if (event == RTM_DELACTION && n->nlmsg_flags&NLM_F_ROOT) {
+	if (event == RTM_DELACTION && n->nlmsg_flags & NLM_F_ROOT) {
 		if (tb[1] != NULL)
 			return tca_action_flush(net, tb[1], n, pid);
 		else
@@ -892,7 +889,7 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 		/* now do the delete */
 		tcf_action_destroy(head, 0);
 		ret = rtnetlink_send(skb, net, pid, RTNLGRP_TC,
-				     n->nlmsg_flags&NLM_F_ECHO);
+				     n->nlmsg_flags & NLM_F_ECHO);
 		if (ret > 0)
 			return 0;
 		return ret;
@@ -936,7 +933,7 @@ static int tcf_add_notify(struct net *net, struct tc_action *a,
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	NETLINK_CB(skb).dst_group = RTNLGRP_TC;
 
-	err = rtnetlink_send(skb, net, pid, RTNLGRP_TC, flags&NLM_F_ECHO);
+	err = rtnetlink_send(skb, net, pid, RTNLGRP_TC, flags & NLM_F_ECHO);
 	if (err > 0)
 		err = 0;
 	return err;
@@ -967,7 +964,7 @@ tcf_action_add(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 
 	/* dump then free all the actions after update; inserted policy
 	 * stays intact
-	 * */
+	 */
 	ret = tcf_add_notify(net, act, pid, seq, RTM_NEWACTION, n->nlmsg_flags);
 	for (a = act; a; a = act) {
 		act = a->next;
@@ -993,17 +990,16 @@ static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 		return -EINVAL;
 	}
 
-	/* n->nlmsg_flags&NLM_F_CREATE
-	 * */
+	/* n->nlmsg_flags & NLM_F_CREATE */
 	switch (n->nlmsg_type) {
 	case RTM_NEWACTION:
 		/* we are going to assume all other flags
-		 * imply create only if it doesnt exist
+		 * imply create only if it doesn't exist
 		 * Note that CREATE | EXCL implies that
 		 * but since we want avoid ambiguity (eg when flags
 		 * is zero) then just set this
 		 */
-		if (n->nlmsg_flags&NLM_F_REPLACE)
+		if (n->nlmsg_flags & NLM_F_REPLACE)
 			ovr = 1;
 replay:
 		ret = tcf_action_add(net, tca[TCA_ACT_TAB], n, pid, ovr);
@@ -1028,7 +1024,7 @@ replay:
 static struct nlattr *
 find_dump_kind(const struct nlmsghdr *n)
 {
-	struct nlattr *tb1, *tb2[TCA_ACT_MAX+1];
+	struct nlattr *tb1, *tb2[TCA_ACT_MAX + 1];
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct nlattr *nla[TCAA_MAX + 1];
 	struct nlattr *kind;
@@ -1071,9 +1067,8 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 
 	a_o = tc_lookup_action(kind);
-	if (a_o == NULL) {
+	if (a_o == NULL)
 		return 0;
-	}
 
 	memset(&a, 0, sizeof(struct tc_action));
 	a.ops = a_o;

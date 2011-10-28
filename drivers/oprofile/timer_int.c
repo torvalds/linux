@@ -21,6 +21,7 @@
 #include "oprof.h"
 
 static DEFINE_PER_CPU(struct hrtimer, oprofile_hrtimer);
+static int ctr_running;
 
 static enum hrtimer_restart oprofile_hrtimer_notify(struct hrtimer *hrtimer)
 {
@@ -33,6 +34,9 @@ static void __oprofile_hrtimer_start(void *unused)
 {
 	struct hrtimer *hrtimer = &__get_cpu_var(oprofile_hrtimer);
 
+	if (!ctr_running)
+		return;
+
 	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hrtimer->function = oprofile_hrtimer_notify;
 
@@ -42,13 +46,19 @@ static void __oprofile_hrtimer_start(void *unused)
 
 static int oprofile_hrtimer_start(void)
 {
+	get_online_cpus();
+	ctr_running = 1;
 	on_each_cpu(__oprofile_hrtimer_start, NULL, 1);
+	put_online_cpus();
 	return 0;
 }
 
 static void __oprofile_hrtimer_stop(int cpu)
 {
 	struct hrtimer *hrtimer = &per_cpu(oprofile_hrtimer, cpu);
+
+	if (!ctr_running)
+		return;
 
 	hrtimer_cancel(hrtimer);
 }
@@ -57,8 +67,11 @@ static void oprofile_hrtimer_stop(void)
 {
 	int cpu;
 
+	get_online_cpus();
 	for_each_online_cpu(cpu)
 		__oprofile_hrtimer_stop(cpu);
+	ctr_running = 0;
+	put_online_cpus();
 }
 
 static int __cpuinit oprofile_cpu_notify(struct notifier_block *self,
@@ -84,7 +97,7 @@ static struct notifier_block __refdata oprofile_cpu_notifier = {
 	.notifier_call = oprofile_cpu_notify,
 };
 
-int __init oprofile_timer_init(struct oprofile_operations *ops)
+int oprofile_timer_init(struct oprofile_operations *ops)
 {
 	int rc;
 
@@ -100,7 +113,7 @@ int __init oprofile_timer_init(struct oprofile_operations *ops)
 	return 0;
 }
 
-void __exit oprofile_timer_exit(void)
+void oprofile_timer_exit(void)
 {
 	unregister_hotcpu_notifier(&oprofile_cpu_notifier);
 }

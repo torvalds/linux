@@ -399,3 +399,23 @@ void __dma_sync_page(struct page *page, unsigned long offset,
 #endif
 }
 EXPORT_SYMBOL(__dma_sync_page);
+
+/*
+ * Return the PFN for a given cpu virtual address returned by
+ * __dma_alloc_coherent. This is used by dma_mmap_coherent()
+ */
+unsigned long __dma_get_coherent_pfn(unsigned long cpu_addr)
+{
+	/* This should always be populated, so we don't test every
+	 * level. If that fails, we'll have a nice crash which
+	 * will be as good as a BUG_ON()
+	 */
+	pgd_t *pgd = pgd_offset_k(cpu_addr);
+	pud_t *pud = pud_offset(pgd, cpu_addr);
+	pmd_t *pmd = pmd_offset(pud, cpu_addr);
+	pte_t *ptep = pte_offset_kernel(pmd, cpu_addr);
+
+	if (pte_none(*ptep) || !pte_present(*ptep))
+		return 0;
+	return pte_pfn(*ptep);
+}

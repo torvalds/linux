@@ -9,4 +9,4 @@ coda-objs := psdev.o cache.o cnode.o inode.o dir.o file.o upcall.o \
 
 # If you want debugging output, please uncomment the following line.
 
-# EXTRA_CFLAGS += -DDEBUG -DDEBUG_SMB_MALLOC=1
+# ccflags-y := -DDEBUG -DDEBUG_SMB_MALLOC=1

@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 
 #include <mach/map.h>
 #include <plat/regs-fb-v4.h>
@@ -47,7 +48,7 @@
 #undef writel
 #define writel(v, r) do { \
 	printk(KERN_DEBUG "%s: %08x => %p\n", __func__, (unsigned int)v, r); \
-	__raw_writel(v, r); } while(0)
+	__raw_writel(v, r); } while (0)
 #endif /* FB_S3C_DEBUG_REGWRITE */
 
 /* irq_flags bits */
@@ -181,6 +182,7 @@ struct s3c_fb_vsync {
 
 /**
  * struct s3c_fb - overall hardware state of the hardware
+ * @slock: The spinlock protection for this data sturcture.
  * @dev: The device that we bound to, for printing, etc.
  * @regs_res: The resource we claimed for the IO registers.
  * @bus_clk: The clk (hclk) feeding our interface and possibly pixclk.
@@ -194,6 +196,7 @@ struct s3c_fb_vsync {
  * @vsync_info: VSYNC-related information (count, queues...)
  */
 struct s3c_fb {
+	spinlock_t		slock;
 	struct device		*dev;
 	struct resource		*regs_res;
 	struct clk		*bus_clk;
@@ -232,13 +235,12 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 			    struct fb_info *info)
 {
 	struct s3c_fb_win *win = info->par;
-	struct s3c_fb_pd_win *windata = win->windata;
 	struct s3c_fb *sfb = win->parent;
 
 	dev_dbg(sfb->dev, "checking parameters\n");
 
-	var->xres_virtual = max((unsigned int)windata->virtual_x, var->xres);
-	var->yres_virtual = max((unsigned int)windata->virtual_y, var->yres);
+	var->xres_virtual = max(var->xres_virtual, var->xres);
+	var->yres_virtual = max(var->yres_virtual, var->yres);
 
 	if (!s3c_fb_validate_win_bpp(win, var->bits_per_pixel)) {
 		dev_dbg(sfb->dev, "win %d: unsupported bpp %d\n",
@@ -299,6 +301,7 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length	= 5;
 		break;
 
+	case 32:
 	case 28:
 	case 25:
 		var->transp.length	= var->bits_per_pixel - 24;
@@ -307,7 +310,6 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 	case 24:
 		/* our 24bpp is unpacked, so 32bpp */
 		var->bits_per_pixel	= 32;
-	case 32:
 		var->red.offset		= 16;
 		var->red.length		= 8;
 		var->green.offset	= 8;
@@ -517,7 +519,7 @@ static int s3c_fb_set_par(struct fb_info *info)
 
 		data = VIDTCON2_LINEVAL(var->yres - 1) |
 		       VIDTCON2_HOZVAL(var->xres - 1);
-		writel(data, regs +sfb->variant.vidtcon + 8 );
+		writel(data, regs + sfb->variant.vidtcon + 8);
 	}
 
 	/* write the buffer address */
@@ -554,6 +556,13 @@ static int s3c_fb_set_par(struct fb_info *info)
 
 	vidosd_set_alpha(win, alpha);
 	vidosd_set_size(win, data);
+
+	/* Enable DMA channel for this window */
+	if (sfb->variant.has_shadowcon) {
+		data = readl(sfb->regs + SHADOWCON);
+		data |= SHADOWCON_CHx_ENABLE(win_no);
+		writel(data, sfb->regs + SHADOWCON);
+	}
 
 	data = WINCONx_ENWIN;
 
@@ -633,13 +642,6 @@ static int s3c_fb_set_par(struct fb_info *info)
 
 	writel(data, regs + sfb->variant.wincon + (win_no * 4));
 	writel(0x0, regs + sfb->variant.winmap + (win_no * 4));
-
-	/* Enable DMA channel for this window */
-	if (sfb->variant.has_shadowcon) {
-		data = readl(sfb->regs + SHADOWCON);
-		data |= SHADOWCON_CHx_ENABLE(win_no);
-		writel(data, sfb->regs + SHADOWCON);
-	}
 
 	shadow_protect_win(win, 0);
 
@@ -946,6 +948,8 @@ static irqreturn_t s3c_fb_irq(int irq, void *dev_id)
 	void __iomem  *regs = sfb->regs;
 	u32 irq_sts_reg;
 
+	spin_lock(&sfb->slock);
+
 	irq_sts_reg = readl(regs + VIDINTCON1);
 
 	if (irq_sts_reg & VIDINTCON1_INT_FRAME) {
@@ -962,6 +966,7 @@ static irqreturn_t s3c_fb_irq(int irq, void *dev_id)
 	 */
 	s3c_fb_disable_irq(sfb);
 
+	spin_unlock(&sfb->slock);
 	return IRQ_HANDLED;
 }
 
@@ -1013,8 +1018,30 @@ static int s3c_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	return ret;
 }
 
+static int s3c_fb_open(struct fb_info *info, int user)
+{
+	struct s3c_fb_win *win = info->par;
+	struct s3c_fb *sfb = win->parent;
+
+	pm_runtime_get_sync(sfb->dev);
+
+	return 0;
+}
+
+static int s3c_fb_release(struct fb_info *info, int user)
+{
+	struct s3c_fb_win *win = info->par;
+	struct s3c_fb *sfb = win->parent;
+
+	pm_runtime_put_sync(sfb->dev);
+
+	return 0;
+}
+
 static struct fb_ops s3c_fb_ops = {
 	.owner		= THIS_MODULE,
+	.fb_open	= s3c_fb_open,
+	.fb_release	= s3c_fb_release,
 	.fb_check_var	= s3c_fb_check_var,
 	.fb_set_par	= s3c_fb_set_par,
 	.fb_blank	= s3c_fb_blank,
@@ -1281,6 +1308,7 @@ static void s3c_fb_clear_win(struct s3c_fb *sfb, int win)
 
 static int __devinit s3c_fb_probe(struct platform_device *pdev)
 {
+	const struct platform_device_id *platid;
 	struct s3c_fb_driverdata *fbdrv;
 	struct device *dev = &pdev->dev;
 	struct s3c_fb_platdata *pd;
@@ -1289,7 +1317,8 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 	int win;
 	int ret = 0;
 
-	fbdrv = (struct s3c_fb_driverdata *)platform_get_device_id(pdev)->driver_data;
+	platid = platform_get_device_id(pdev);
+	fbdrv = (struct s3c_fb_driverdata *)platid->driver_data;
 
 	if (fbdrv->variant.nr_windows > S3C_FB_MAX_WIN) {
 		dev_err(dev, "too many windows, cannot attach\n");
@@ -1314,13 +1343,18 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 	sfb->pdata = pd;
 	sfb->variant = fbdrv->variant;
 
+	spin_lock_init(&sfb->slock);
+
 	sfb->bus_clk = clk_get(dev, "lcd");
 	if (IS_ERR(sfb->bus_clk)) {
 		dev_err(dev, "failed to get bus clock\n");
+		ret = PTR_ERR(sfb->bus_clk);
 		goto err_sfb;
 	}
 
 	clk_enable(sfb->bus_clk);
+
+	pm_runtime_enable(sfb->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -1359,6 +1393,9 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 	}
 
 	dev_dbg(dev, "got resources (regs %p), probing windows\n", sfb->regs);
+
+	platform_set_drvdata(pdev, sfb);
+	pm_runtime_get_sync(sfb->dev);
 
 	/* setup gpio and output polarity controls */
 
@@ -1400,6 +1437,7 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, sfb);
+	pm_runtime_put_sync(sfb->dev);
 
 	return 0;
 
@@ -1410,8 +1448,7 @@ err_ioremap:
 	iounmap(sfb->regs);
 
 err_req_region:
-	release_resource(sfb->regs_res);
-	kfree(sfb->regs_res);
+	release_mem_region(sfb->regs_res->start, resource_size(sfb->regs_res));
 
 err_clk:
 	clk_disable(sfb->bus_clk);
@@ -1434,6 +1471,8 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 	struct s3c_fb *sfb = platform_get_drvdata(pdev);
 	int win;
 
+	pm_runtime_get_sync(sfb->dev);
+
 	for (win = 0; win < S3C_FB_MAX_WIN; win++)
 		if (sfb->windows[win])
 			s3c_fb_release_win(sfb, sfb->windows[win]);
@@ -1445,17 +1484,19 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 	clk_disable(sfb->bus_clk);
 	clk_put(sfb->bus_clk);
 
-	release_resource(sfb->regs_res);
-	kfree(sfb->regs_res);
+	release_mem_region(sfb->regs_res->start, resource_size(sfb->regs_res));
+
+	pm_runtime_put_sync(sfb->dev);
+	pm_runtime_disable(sfb->dev);
 
 	kfree(sfb);
-
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int s3c_fb_suspend(struct platform_device *pdev, pm_message_t state)
+static int s3c_fb_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct s3c_fb *sfb = platform_get_drvdata(pdev);
 	struct s3c_fb_win *win;
 	int win_no;
@@ -1473,8 +1514,9 @@ static int s3c_fb_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int s3c_fb_resume(struct platform_device *pdev)
+static int s3c_fb_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct s3c_fb *sfb = platform_get_drvdata(pdev);
 	struct s3c_fb_platdata *pd = sfb->pdata;
 	struct s3c_fb_win *win;
@@ -1482,7 +1524,8 @@ static int s3c_fb_resume(struct platform_device *pdev)
 
 	clk_enable(sfb->bus_clk);
 
-	/* setup registers */
+	/* setup gpio and output polarity controls */
+	pd->setup_gpio();
 	writel(pd->vidcon1, sfb->regs + VIDCON1);
 
 	/* zero all windows before we do anything */
@@ -1509,9 +1552,71 @@ static int s3c_fb_resume(struct platform_device *pdev)
 
 	return 0;
 }
+
+static int s3c_fb_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s3c_fb *sfb = platform_get_drvdata(pdev);
+	struct s3c_fb_win *win;
+	int win_no;
+
+	for (win_no = S3C_FB_MAX_WIN - 1; win_no >= 0; win_no--) {
+		win = sfb->windows[win_no];
+		if (!win)
+			continue;
+
+		/* use the blank function to push into power-down */
+		s3c_fb_blank(FB_BLANK_POWERDOWN, win->fbinfo);
+	}
+
+	clk_disable(sfb->bus_clk);
+	return 0;
+}
+
+static int s3c_fb_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s3c_fb *sfb = platform_get_drvdata(pdev);
+	struct s3c_fb_platdata *pd = sfb->pdata;
+	struct s3c_fb_win *win;
+	int win_no;
+
+	clk_enable(sfb->bus_clk);
+
+	/* setup gpio and output polarity controls */
+	pd->setup_gpio();
+	writel(pd->vidcon1, sfb->regs + VIDCON1);
+
+	/* zero all windows before we do anything */
+	for (win_no = 0; win_no < sfb->variant.nr_windows; win_no++)
+		s3c_fb_clear_win(sfb, win_no);
+
+	for (win_no = 0; win_no < sfb->variant.nr_windows - 1; win_no++) {
+		void __iomem *regs = sfb->regs + sfb->variant.keycon;
+
+		regs += (win_no * 8);
+		writel(0xffffff, regs + WKEYCON0);
+		writel(0xffffff, regs + WKEYCON1);
+	}
+
+	/* restore framebuffers */
+	for (win_no = 0; win_no < S3C_FB_MAX_WIN; win_no++) {
+		win = sfb->windows[win_no];
+		if (!win)
+			continue;
+
+		dev_dbg(&pdev->dev, "resuming window %d\n", win_no);
+		s3c_fb_set_par(win->fbinfo);
+	}
+
+	return 0;
+}
+
 #else
 #define s3c_fb_suspend NULL
 #define s3c_fb_resume  NULL
+#define s3c_fb_runtime_suspend NULL
+#define s3c_fb_runtime_resume NULL
 #endif
 
 
@@ -1523,28 +1628,31 @@ static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] = {
 		.has_osd_c	= 1,
 		.osd_size_off	= 0x8,
 		.palette_sz	= 256,
-		.valid_bpp	= VALID_BPP1248 | VALID_BPP(16) | VALID_BPP(24),
+		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(16) |
+				   VALID_BPP(18) | VALID_BPP(24)),
 	},
 	[1] = {
 		.has_osd_c	= 1,
 		.has_osd_d	= 1,
-		.osd_size_off	= 0x12,
+		.osd_size_off	= 0xc,
 		.has_osd_alpha	= 1,
 		.palette_sz	= 256,
 		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(16) |
 				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25)),
+				   VALID_BPP(24) | VALID_BPP(25) |
+				   VALID_BPP(28)),
 	},
 	[2] = {
 		.has_osd_c	= 1,
 		.has_osd_d	= 1,
-		.osd_size_off	= 0x12,
+		.osd_size_off	= 0xc,
 		.has_osd_alpha	= 1,
 		.palette_sz	= 16,
 		.palette_16bpp	= 1,
 		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(16) |
 				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25)),
+				   VALID_BPP(24) | VALID_BPP(25) |
+				   VALID_BPP(28)),
 	},
 	[3] = {
 		.has_osd_c	= 1,
@@ -1553,7 +1661,8 @@ static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] = {
 		.palette_16bpp	= 1,
 		.valid_bpp	= (VALID_BPP124  | VALID_BPP(16) |
 				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25)),
+				   VALID_BPP(24) | VALID_BPP(25) |
+				   VALID_BPP(28)),
 	},
 	[4] = {
 		.has_osd_c	= 1,
@@ -1562,7 +1671,65 @@ static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] = {
 		.palette_16bpp	= 1,
 		.valid_bpp	= (VALID_BPP(1) | VALID_BPP(2) |
 				   VALID_BPP(16) | VALID_BPP(18) |
-				   VALID_BPP(24) | VALID_BPP(25)),
+				   VALID_BPP(19) | VALID_BPP(24) |
+				   VALID_BPP(25) | VALID_BPP(28)),
+	},
+};
+
+static struct s3c_fb_win_variant s3c_fb_data_s5p_wins[] = {
+	[0] = {
+		.has_osd_c	= 1,
+		.osd_size_off	= 0x8,
+		.palette_sz	= 256,
+		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
+				   VALID_BPP(15) | VALID_BPP(16) |
+				   VALID_BPP(18) | VALID_BPP(19) |
+				   VALID_BPP(24) | VALID_BPP(25) |
+				   VALID_BPP(32)),
+	},
+	[1] = {
+		.has_osd_c	= 1,
+		.has_osd_d	= 1,
+		.osd_size_off	= 0xc,
+		.has_osd_alpha	= 1,
+		.palette_sz	= 256,
+		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
+				   VALID_BPP(15) | VALID_BPP(16) |
+				   VALID_BPP(18) | VALID_BPP(19) |
+				   VALID_BPP(24) | VALID_BPP(25) |
+				   VALID_BPP(32)),
+	},
+	[2] = {
+		.has_osd_c	= 1,
+		.has_osd_d	= 1,
+		.osd_size_off	= 0xc,
+		.has_osd_alpha	= 1,
+		.palette_sz	= 256,
+		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
+				   VALID_BPP(15) | VALID_BPP(16) |
+				   VALID_BPP(18) | VALID_BPP(19) |
+				   VALID_BPP(24) | VALID_BPP(25) |
+				   VALID_BPP(32)),
+	},
+	[3] = {
+		.has_osd_c	= 1,
+		.has_osd_alpha	= 1,
+		.palette_sz	= 256,
+		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
+				   VALID_BPP(15) | VALID_BPP(16) |
+				   VALID_BPP(18) | VALID_BPP(19) |
+				   VALID_BPP(24) | VALID_BPP(25) |
+				   VALID_BPP(32)),
+	},
+	[4] = {
+		.has_osd_c	= 1,
+		.has_osd_alpha	= 1,
+		.palette_sz	= 256,
+		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
+				   VALID_BPP(15) | VALID_BPP(16) |
+				   VALID_BPP(18) | VALID_BPP(19) |
+				   VALID_BPP(24) | VALID_BPP(25) |
+				   VALID_BPP(32)),
 	},
 };
 
@@ -1619,11 +1786,11 @@ static struct s3c_fb_driverdata s3c_fb_data_s5pc100 = {
 
 		.has_prtcon	= 1,
 	},
-	.win[0]	= &s3c_fb_data_64xx_wins[0],
-	.win[1]	= &s3c_fb_data_64xx_wins[1],
-	.win[2]	= &s3c_fb_data_64xx_wins[2],
-	.win[3]	= &s3c_fb_data_64xx_wins[3],
-	.win[4]	= &s3c_fb_data_64xx_wins[4],
+	.win[0]	= &s3c_fb_data_s5p_wins[0],
+	.win[1]	= &s3c_fb_data_s5p_wins[1],
+	.win[2]	= &s3c_fb_data_s5p_wins[2],
+	.win[3]	= &s3c_fb_data_s5p_wins[3],
+	.win[4]	= &s3c_fb_data_s5p_wins[4],
 };
 
 static struct s3c_fb_driverdata s3c_fb_data_s5pv210 = {
@@ -1649,11 +1816,11 @@ static struct s3c_fb_driverdata s3c_fb_data_s5pv210 = {
 
 		.has_shadowcon	= 1,
 	},
-	.win[0]	= &s3c_fb_data_64xx_wins[0],
-	.win[1]	= &s3c_fb_data_64xx_wins[1],
-	.win[2]	= &s3c_fb_data_64xx_wins[2],
-	.win[3]	= &s3c_fb_data_64xx_wins[3],
-	.win[4]	= &s3c_fb_data_64xx_wins[4],
+	.win[0]	= &s3c_fb_data_s5p_wins[0],
+	.win[1]	= &s3c_fb_data_s5p_wins[1],
+	.win[2]	= &s3c_fb_data_s5p_wins[2],
+	.win[3]	= &s3c_fb_data_s5p_wins[3],
+	.win[4]	= &s3c_fb_data_s5p_wins[4],
 };
 
 /* S3C2443/S3C2416 style hardware */
@@ -1710,15 +1877,21 @@ static struct platform_device_id s3c_fb_driver_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, s3c_fb_driver_ids);
 
+static const struct dev_pm_ops s3cfb_pm_ops = {
+	.suspend	= s3c_fb_suspend,
+	.resume		= s3c_fb_resume,
+	.runtime_suspend	= s3c_fb_runtime_suspend,
+	.runtime_resume		= s3c_fb_runtime_resume,
+};
+
 static struct platform_driver s3c_fb_driver = {
 	.probe		= s3c_fb_probe,
 	.remove		= __devexit_p(s3c_fb_remove),
-	.suspend	= s3c_fb_suspend,
-	.resume		= s3c_fb_resume,
 	.id_table	= s3c_fb_driver_ids,
 	.driver		= {
 		.name	= "s3c-fb",
 		.owner	= THIS_MODULE,
+		.pm	= &s3cfb_pm_ops,
 	},
 };
 

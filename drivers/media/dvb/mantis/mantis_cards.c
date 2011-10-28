@@ -52,7 +52,7 @@
 
 static unsigned int verbose;
 module_param(verbose, int, 0644);
-MODULE_PARM_DESC(verbose, "verbose startup messages, default is 1 (yes)");
+MODULE_PARM_DESC(verbose, "verbose startup messages, default is 0 (no)");
 
 static int devs;
 
@@ -280,6 +280,8 @@ static struct pci_device_id mantis_pci_table[] = {
 	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_3030_DVB_T, &vp3030_config),
 	{ }
 };
+
+MODULE_DEVICE_TABLE(pci, mantis_pci_table);
 
 static struct pci_driver mantis_pci_driver = {
 	.name		= DRIVER_NAME,

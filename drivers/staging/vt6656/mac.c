@@ -471,10 +471,10 @@ BYTE            pbyData[2];
     pbyData[1] = (BYTE) (wInterval >> 8);
 
     CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_WRITE,
-                        MAC_REG_BI,
-                        MESSAGE_REQUEST_MACREG,
-                        2,
-                        pbyData
-                        );
+			MESSAGE_TYPE_WRITE,
+			MAC_REG_BI,
+			MESSAGE_REQUEST_MACREG,
+			2,
+			pbyData
+			);
 }

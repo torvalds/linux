@@ -12,10 +12,66 @@
 #include <linux/of.h>
 #include <linux/memblock.h>
 #include <linux/vmalloc.h>
+#include <linux/memory.h>
+
 #include <asm/firmware.h>
 #include <asm/machdep.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/sparsemem.h>
+
+static unsigned long get_memblock_size(void)
+{
+	struct device_node *np;
+	unsigned int memblock_size = MIN_MEMORY_BLOCK_SIZE;
+	struct resource r;
+
+	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	if (np) {
+		const __be64 *size;
+
+		size = of_get_property(np, "ibm,lmb-size", NULL);
+		if (size)
+			memblock_size = be64_to_cpup(size);
+		of_node_put(np);
+	} else  if (machine_is(pseries)) {
+		/* This fallback really only applies to pseries */
+		unsigned int memzero_size = 0;
+
+		np = of_find_node_by_path("/memory@0");
+		if (np) {
+			if (!of_address_to_resource(np, 0, &r))
+				memzero_size = resource_size(&r);
+			of_node_put(np);
+		}
+
+		if (memzero_size) {
+			/* We now know the size of memory@0, use this to find
+			 * the first memoryblock and get its size.
+			 */
+			char buf[64];
+
+			sprintf(buf, "/memory@%x", memzero_size);
+			np = of_find_node_by_path(buf);
+			if (np) {
+				if (!of_address_to_resource(np, 0, &r))
+					memblock_size = resource_size(&r);
+				of_node_put(np);
+			}
+		}
+	}
+	return memblock_size;
+}
+
+/* WARNING: This is going to override the generic definition whenever
+ * pseries is built-in regardless of what platform is active at boot
+ * time. This is fine for now as this is the only "option" and it
+ * should work everywhere. If not, we'll have to turn this into a
+ * ppc_md. callback
+ */
+unsigned long memory_block_size_bytes(void)
+{
+	return get_memblock_size();
+}
 
 static int pseries_remove_memblock(unsigned long base, unsigned int memblock_size)
 {
@@ -127,30 +183,22 @@ static int pseries_add_memory(struct device_node *np)
 
 static int pseries_drconf_memory(unsigned long *base, unsigned int action)
 {
-	struct device_node *np;
-	const unsigned long *lmb_size;
+	unsigned long memblock_size;
 	int rc;
 
-	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
-	if (!np)
+	memblock_size = get_memblock_size();
+	if (!memblock_size)
 		return -EINVAL;
-
-	lmb_size = of_get_property(np, "ibm,lmb-size", NULL);
-	if (!lmb_size) {
-		of_node_put(np);
-		return -EINVAL;
-	}
 
 	if (action == PSERIES_DRCONF_MEM_ADD) {
-		rc = memblock_add(*base, *lmb_size);
+		rc = memblock_add(*base, memblock_size);
 		rc = (rc < 0) ? -EINVAL : 0;
 	} else if (action == PSERIES_DRCONF_MEM_REMOVE) {
-		rc = pseries_remove_memblock(*base, *lmb_size);
+		rc = pseries_remove_memblock(*base, memblock_size);
 	} else {
 		rc = -EINVAL;
 	}
 
-	of_node_put(np);
 	return rc;
 }
 

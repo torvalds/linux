@@ -25,6 +25,7 @@
 #include <asm/setup.h>
 #include <asm/i8259.h>
 #include <asm/traps.h>
+#include <asm/prom.h>
 
 /*
  * ISA PIC or low IO-APIC triggered (INTA-cycle or APIC) interrupts:
@@ -71,6 +72,7 @@ static irqreturn_t math_error_irq(int cpl, void *dev_id)
 static struct irqaction fpu_irq = {
 	.handler = math_error_irq,
 	.name = "fpu",
+	.flags = IRQF_NO_THREAD,
 };
 #endif
 
@@ -80,6 +82,7 @@ static struct irqaction fpu_irq = {
 static struct irqaction irq2 = {
 	.handler = no_action,
 	.name = "cascade",
+	.flags = IRQF_NO_THREAD,
 };
 
 DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
@@ -100,6 +103,8 @@ int vector_used_by_percpu_irq(unsigned int vector)
 
 void __init init_ISA_irqs(void)
 {
+	struct irq_chip *chip = legacy_pic->chip;
+	const char *name = chip->name;
 	int i;
 
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_LOCAL_APIC)
@@ -107,24 +112,19 @@ void __init init_ISA_irqs(void)
 #endif
 	legacy_pic->init(0);
 
-	/*
-	 * 16 old-style INTA-cycle interrupts:
-	 */
-	for (i = 0; i < legacy_pic->nr_legacy_irqs; i++) {
-		struct irq_desc *desc = irq_to_desc(i);
-
-		desc->status = IRQ_DISABLED;
-		desc->action = NULL;
-		desc->depth = 1;
-
-		set_irq_chip_and_handler_name(i, &i8259A_chip,
-					      handle_level_irq, "XT");
-	}
+	for (i = 0; i < legacy_pic->nr_legacy_irqs; i++)
+		irq_set_chip_and_handler_name(i, chip, handle_level_irq, name);
 }
 
 void __init init_IRQ(void)
 {
 	int i;
+
+	/*
+	 * We probably need a better place for this, but it works for
+	 * now ...
+	 */
+	x86_add_irq_domains();
 
 	/*
 	 * On cpu 0, Assign IRQ0_VECTOR..IRQ15_VECTOR's to IRQ 0..15.
@@ -173,14 +173,77 @@ static void __init smp_intr_init(void)
 	alloc_intr_gate(RESCHEDULE_VECTOR, reschedule_interrupt);
 
 	/* IPIs for invalidation */
-	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+0, invalidate_interrupt0);
-	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+1, invalidate_interrupt1);
-	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+2, invalidate_interrupt2);
-	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+3, invalidate_interrupt3);
-	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+4, invalidate_interrupt4);
-	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+5, invalidate_interrupt5);
-	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+6, invalidate_interrupt6);
-	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+7, invalidate_interrupt7);
+#define ALLOC_INVTLB_VEC(NR) \
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+NR, \
+		invalidate_interrupt##NR)
+
+	switch (NUM_INVALIDATE_TLB_VECTORS) {
+	default:
+		ALLOC_INVTLB_VEC(31);
+	case 31:
+		ALLOC_INVTLB_VEC(30);
+	case 30:
+		ALLOC_INVTLB_VEC(29);
+	case 29:
+		ALLOC_INVTLB_VEC(28);
+	case 28:
+		ALLOC_INVTLB_VEC(27);
+	case 27:
+		ALLOC_INVTLB_VEC(26);
+	case 26:
+		ALLOC_INVTLB_VEC(25);
+	case 25:
+		ALLOC_INVTLB_VEC(24);
+	case 24:
+		ALLOC_INVTLB_VEC(23);
+	case 23:
+		ALLOC_INVTLB_VEC(22);
+	case 22:
+		ALLOC_INVTLB_VEC(21);
+	case 21:
+		ALLOC_INVTLB_VEC(20);
+	case 20:
+		ALLOC_INVTLB_VEC(19);
+	case 19:
+		ALLOC_INVTLB_VEC(18);
+	case 18:
+		ALLOC_INVTLB_VEC(17);
+	case 17:
+		ALLOC_INVTLB_VEC(16);
+	case 16:
+		ALLOC_INVTLB_VEC(15);
+	case 15:
+		ALLOC_INVTLB_VEC(14);
+	case 14:
+		ALLOC_INVTLB_VEC(13);
+	case 13:
+		ALLOC_INVTLB_VEC(12);
+	case 12:
+		ALLOC_INVTLB_VEC(11);
+	case 11:
+		ALLOC_INVTLB_VEC(10);
+	case 10:
+		ALLOC_INVTLB_VEC(9);
+	case 9:
+		ALLOC_INVTLB_VEC(8);
+	case 8:
+		ALLOC_INVTLB_VEC(7);
+	case 7:
+		ALLOC_INVTLB_VEC(6);
+	case 6:
+		ALLOC_INVTLB_VEC(5);
+	case 5:
+		ALLOC_INVTLB_VEC(4);
+	case 4:
+		ALLOC_INVTLB_VEC(3);
+	case 3:
+		ALLOC_INVTLB_VEC(2);
+	case 2:
+		ALLOC_INVTLB_VEC(1);
+	case 1:
+		ALLOC_INVTLB_VEC(0);
+		break;
+	}
 
 	/* IPI for generic function call */
 	alloc_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
@@ -224,9 +287,9 @@ static void __init apic_intr_init(void)
 	alloc_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);
 	alloc_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
 
-	/* Performance monitoring interrupts: */
-# ifdef CONFIG_PERF_EVENTS
-	alloc_intr_gate(LOCAL_PENDING_VECTOR, perf_pending_interrupt);
+	/* IRQ work interrupts: */
+# ifdef CONFIG_IRQ_WORK
+	alloc_intr_gate(IRQ_WORK_VECTOR, irq_work_interrupt);
 # endif
 
 #endif
@@ -252,7 +315,7 @@ void __init native_init_IRQ(void)
 			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
 	}
 
-	if (!acpi_ioapic)
+	if (!acpi_ioapic && !of_ioapic)
 		setup_irq(2, &irq2);
 
 #ifdef CONFIG_X86_32

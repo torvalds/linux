@@ -169,7 +169,7 @@ retry:
  *
  * Command can be a raw command, which requires no preparation (and
  * which might not even be following the command format). Checks that
- * the right amount of data was transfered.
+ * the right amount of data was transferred.
  *
  * To satisfy USB requirements (no onstack, vmalloc or in data segment
  * buffers), we copy the command to i2400m->bm_cmd_buf and send it from

@@ -643,6 +643,17 @@ static struct ssb_sprom bcm63xx_sprom = {
 	.boardflags_lo		= 0x2848,
 	.boardflags_hi		= 0x0000,
 };
+
+int bcm63xx_get_fallback_sprom(struct ssb_bus *bus, struct ssb_sprom *out)
+{
+	if (bus->bustype == SSB_BUSTYPE_PCI) {
+		memcpy(out, &bcm63xx_sprom, sizeof(struct ssb_sprom));
+		return 0;
+	} else {
+		printk(KERN_ERR PFX "unable to fill SPROM for given bustype.\n");
+		return -EINVAL;
+	}
+}
 #endif
 
 /*
@@ -793,8 +804,9 @@ void __init board_prom_init(void)
 	if (!board_get_mac_address(bcm63xx_sprom.il0mac)) {
 		memcpy(bcm63xx_sprom.et0mac, bcm63xx_sprom.il0mac, ETH_ALEN);
 		memcpy(bcm63xx_sprom.et1mac, bcm63xx_sprom.il0mac, ETH_ALEN);
-		if (ssb_arch_set_fallback_sprom(&bcm63xx_sprom) < 0)
-			printk(KERN_ERR "failed to register fallback SPROM\n");
+		if (ssb_arch_register_fallback_sprom(
+				&bcm63xx_get_fallback_sprom) < 0)
+			printk(KERN_ERR PFX "failed to register fallback SPROM\n");
 	}
 #endif
 }

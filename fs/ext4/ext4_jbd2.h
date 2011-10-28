@@ -86,8 +86,8 @@
 
 #ifdef CONFIG_QUOTA
 /* Amount of blocks needed for quota update - we know that the structure was
- * allocated so we need to update only inode+data */
-#define EXT4_QUOTA_TRANS_BLOCKS(sb) (test_opt(sb, QUOTA) ? 2 : 0)
+ * allocated so we need to update only data block */
+#define EXT4_QUOTA_TRANS_BLOCKS(sb) (test_opt(sb, QUOTA) ? 1 : 0)
 /* Amount of blocks needed for quota insert/delete - we do some block writes
  * but inode, sb and group updates are done only once */
 #define EXT4_QUOTA_INIT_BLOCKS(sb) (test_opt(sb, QUOTA) ? (DQUOT_INIT_ALLOC*\
@@ -126,9 +126,6 @@ void ext4_journal_abort_handle(const char *caller, unsigned int line,
 			       const char *err_fn,
 		struct buffer_head *bh, handle_t *handle, int err);
 
-int __ext4_journal_get_undo_access(const char *where, unsigned int line,
-				   handle_t *handle, struct buffer_head *bh);
-
 int __ext4_journal_get_write_access(const char *where, unsigned int line,
 				    handle_t *handle, struct buffer_head *bh);
 
@@ -146,8 +143,6 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 int __ext4_handle_dirty_super(const char *where, unsigned int line,
 			      handle_t *handle, struct super_block *sb);
 
-#define ext4_journal_get_undo_access(handle, bh) \
-	__ext4_journal_get_undo_access(__func__, __LINE__, (handle), (bh))
 #define ext4_journal_get_write_access(handle, bh) \
 	__ext4_journal_get_write_access(__func__, __LINE__, (handle), (bh))
 #define ext4_forget(handle, is_metadata, inode, bh, block_nr) \
@@ -202,13 +197,6 @@ static inline int ext4_handle_has_enough_credits(handle_t *handle, int needed)
 	return 1;
 }
 
-static inline void ext4_journal_release_buffer(handle_t *handle,
-						struct buffer_head *bh)
-{
-	if (ext4_handle_valid(handle))
-		jbd2_journal_release_buffer(handle, bh);
-}
-
 static inline handle_t *ext4_journal_start(struct inode *inode, int nblocks)
 {
 	return ext4_journal_start_sb(inode->i_sb, nblocks);
@@ -253,7 +241,7 @@ static inline int ext4_journal_force_commit(journal_t *journal)
 static inline int ext4_jbd2_file_inode(handle_t *handle, struct inode *inode)
 {
 	if (ext4_handle_valid(handle))
-		return jbd2_journal_file_inode(handle, &EXT4_I(inode)->jinode);
+		return jbd2_journal_file_inode(handle, EXT4_I(inode)->jinode);
 	return 0;
 }
 

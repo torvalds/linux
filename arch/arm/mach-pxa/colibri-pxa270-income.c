@@ -21,7 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/pwm_backlight.h>
-#include <linux/sysdev.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
@@ -33,8 +33,6 @@
 #include <mach/pxa27x-udc.h>
 #include <mach/pxafb.h>
 
-#include <plat/i2c.h>
-
 #include "devices.h"
 #include "generic.h"
 
@@ -44,52 +42,6 @@
 #define GPIO54_INCOME_LED_A     (54)
 #define GPIO55_INCOME_LED_B     (55)
 #define GPIO113_INCOME_TS_IRQ   (113)
-
-/******************************************************************************
- * Pin configuration
- ******************************************************************************/
-static mfp_cfg_t income_pin_config[] __initdata = {
-	/* MMC */
-	GPIO32_MMC_CLK,
-	GPIO92_MMC_DAT_0,
-	GPIO109_MMC_DAT_1,
-	GPIO110_MMC_DAT_2,
-	GPIO111_MMC_DAT_3,
-	GPIO112_MMC_CMD,
-	GPIO0_GPIO,	/* SD detect */
-	GPIO1_GPIO,	/* SD read-only */
-
-	/* FFUART */
-	GPIO39_FFUART_TXD,
-	GPIO34_FFUART_RXD,
-
-	/* BFUART */
-	GPIO42_BTUART_RXD,
-	GPIO43_BTUART_TXD,
-	GPIO45_BTUART_RTS,
-
-	/* STUART */
-	GPIO46_STUART_RXD,
-	GPIO47_STUART_TXD,
-
-	/* UHC */
-	GPIO88_USBH1_PWR,
-	GPIO89_USBH1_PEN,
-
-	/* LCD */
-	GPIOxx_LCD_TFT_16BPP,
-
-	/* PWM */
-	GPIO16_PWM0_OUT,
-
-	/* I2C */
-	GPIO117_I2C_SCL,
-	GPIO118_I2C_SDA,
-
-	/* LED */
-	GPIO54_GPIO,	/* LED A */
-	GPIO55_GPIO,	/* LED B */
-};
 
 /******************************************************************************
  * SD/MMC card controller
@@ -222,7 +174,7 @@ static struct pxafb_mach_info income_lcd_screen = {
 
 static void __init income_lcd_init(void)
 {
-	set_pxa_fb_info(&income_lcd_screen);
+	pxa_set_fb_info(NULL, &income_lcd_screen);
 }
 #else
 static inline void income_lcd_init(void) {}
@@ -257,7 +209,6 @@ static inline void income_pwm_init(void) {}
 
 void __init colibri_pxa270_income_boardinit(void)
 {
-	pxa2xx_mfp_config(ARRAY_AND_SIZE(income_pin_config));
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);

@@ -102,6 +102,9 @@ static void em28xx_audio_isocirq(struct urb *urb)
 		break;
 	}
 
+	if (atomic_read(&dev->stream_started) == 0)
+		return;
+
 	if (dev->adev.capture_pcm_substream) {
 		substream = dev->adev.capture_pcm_substream;
 		runtime = substream->runtime;
@@ -217,31 +220,6 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 	return 0;
 }
 
-static int em28xx_cmd(struct em28xx *dev, int cmd, int arg)
-{
-	dprintk("%s transfer\n", (dev->adev.capture_stream == STREAM_ON) ?
-				 "stop" : "start");
-
-	switch (cmd) {
-	case EM28XX_CAPTURE_STREAM_EN:
-		if (dev->adev.capture_stream == STREAM_OFF &&
-		    arg == EM28XX_START_AUDIO) {
-			dev->adev.capture_stream = STREAM_ON;
-			em28xx_init_audio_isoc(dev);
-		} else if (dev->adev.capture_stream == STREAM_ON &&
-			   arg == EM28XX_STOP_AUDIO) {
-			dev->adev.capture_stream = STREAM_OFF;
-			em28xx_deinit_isoc_audio(dev);
-		} else {
-			em28xx_errdev("An underrun very likely occurred. "
-					"Ignoring it.\n");
-		}
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
 static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs,
 					size_t size)
 {
@@ -303,7 +281,6 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	dev->mute = 0;
 	mutex_lock(&dev->lock);
 	ret = em28xx_audio_analog_set(dev);
-	mutex_unlock(&dev->lock);
 	if (ret < 0)
 		goto err;
 
@@ -311,11 +288,10 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	if (dev->alt == 0 && dev->adev.users == 0) {
 		int errCode;
 		dev->alt = 7;
-		errCode = usb_set_interface(dev->udev, 0, 7);
 		dprintk("changing alternate number to 7\n");
+		errCode = usb_set_interface(dev->udev, 0, 7);
 	}
 
-	mutex_lock(&dev->lock);
 	dev->adev.users++;
 	mutex_unlock(&dev->lock);
 
@@ -325,6 +301,8 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 
 	return 0;
 err:
+	mutex_unlock(&dev->lock);
+
 	em28xx_err("Error while configuring em28xx mixer\n");
 	return ret;
 }
@@ -338,6 +316,11 @@ static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 	dev->mute = 1;
 	mutex_lock(&dev->lock);
 	dev->adev.users--;
+	if (atomic_read(&dev->stream_started) > 0) {
+		atomic_set(&dev->stream_started, 0);
+		schedule_work(&dev->wq_trigger);
+	}
+
 	em28xx_audio_analog_set(dev);
 	if (substream->runtime->dma_area) {
 		dprintk("freeing\n");
@@ -375,8 +358,10 @@ static int snd_em28xx_hw_capture_free(struct snd_pcm_substream *substream)
 
 	dprintk("Stop capture, if needed\n");
 
-	if (dev->adev.capture_stream == STREAM_ON)
-		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, EM28XX_STOP_AUDIO);
+	if (atomic_read(&dev->stream_started) > 0) {
+		atomic_set(&dev->stream_started, 0);
+		schedule_work(&dev->wq_trigger);
+	}
 
 	return 0;
 }
@@ -391,31 +376,37 @@ static int snd_em28xx_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static void audio_trigger(struct work_struct *work)
+{
+	struct em28xx *dev = container_of(work, struct em28xx, wq_trigger);
+
+	if (atomic_read(&dev->stream_started)) {
+		dprintk("starting capture");
+		em28xx_init_audio_isoc(dev);
+	} else {
+		dprintk("stopping capture");
+		em28xx_deinit_isoc_audio(dev);
+	}
+}
+
 static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 				      int cmd)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
 	int retval;
 
-	dprintk("Should %s capture\n", (cmd == SNDRV_PCM_TRIGGER_START) ?
-				       "start" : "stop");
-
-	spin_lock(&dev->adev.slock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, EM28XX_START_AUDIO);
-		retval = 0;
+		atomic_set(&dev->stream_started, 1);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, EM28XX_STOP_AUDIO);
-		retval = 0;
+		atomic_set(&dev->stream_started, 1);
 		break;
 	default:
 		retval = -EINVAL;
 	}
-
-	spin_unlock(&dev->adev.slock);
-	return retval;
+	schedule_work(&dev->wq_trigger);
+	return 0;
 }
 
 static snd_pcm_uframes_t snd_em28xx_capture_pointer(struct snd_pcm_substream
@@ -494,6 +485,8 @@ static int em28xx_audio_init(struct em28xx *dev)
 	strcpy(card->driver, "Em28xx-Audio");
 	strcpy(card->shortname, "Em28xx Audio");
 	strcpy(card->longname, "Empia Em28xx Audio");
+
+	INIT_WORK(&dev->wq_trigger, audio_trigger);
 
 	err = snd_card_register(card);
 	if (err < 0) {

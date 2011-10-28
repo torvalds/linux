@@ -38,7 +38,7 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		unsigned int oldflags;
 		unsigned int jflag;
 
-		if (!is_owner_or_cap(inode))
+		if (!inode_owner_or_capable(inode))
 			return -EACCES;
 
 		if (get_user(flags, (int __user *) arg))
@@ -146,7 +146,7 @@ flags_out:
 		__u32 generation;
 		int err;
 
-		if (!is_owner_or_cap(inode))
+		if (!inode_owner_or_capable(inode))
 			return -EPERM;
 
 		err = mnt_want_write(filp->f_path.mnt);
@@ -298,7 +298,7 @@ mext_out:
 	case EXT4_IOC_MIGRATE:
 	{
 		int err;
-		if (!is_owner_or_cap(inode))
+		if (!inode_owner_or_capable(inode))
 			return -EACCES;
 
 		err = mnt_want_write(filp->f_path.mnt);
@@ -320,7 +320,7 @@ mext_out:
 	case EXT4_IOC_ALLOC_DA_BLKS:
 	{
 		int err;
-		if (!is_owner_or_cap(inode))
+		if (!inode_owner_or_capable(inode))
 			return -EACCES;
 
 		err = mnt_want_write(filp->f_path.mnt);
@@ -329,6 +329,36 @@ mext_out:
 		err = ext4_alloc_da_blocks(inode);
 		mnt_drop_write(filp->f_path.mnt);
 		return err;
+	}
+
+	case FITRIM:
+	{
+		struct super_block *sb = inode->i_sb;
+		struct request_queue *q = bdev_get_queue(sb->s_bdev);
+		struct fstrim_range range;
+		int ret = 0;
+
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		if (!blk_queue_discard(q))
+			return -EOPNOTSUPP;
+
+		if (copy_from_user(&range, (struct fstrim_range *)arg,
+		    sizeof(range)))
+			return -EFAULT;
+
+		range.minlen = max((unsigned int)range.minlen,
+				   q->limits.discard_granularity);
+		ret = ext4_trim_fs(sb, &range);
+		if (ret < 0)
+			return ret;
+
+		if (copy_to_user((struct fstrim_range *)arg, &range,
+		    sizeof(range)))
+			return -EFAULT;
+
+		return 0;
 	}
 
 	default:
@@ -397,6 +427,7 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return err;
 	}
 	case EXT4_IOC_MOVE_EXT:
+	case FITRIM:
 		break;
 	default:
 		return -ENOIOCTLCMD;

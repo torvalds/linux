@@ -92,8 +92,7 @@ static const struct v4l2_pix_format sif_mode[] = {
  * Initialization data: this is the first set-up data written to the
  * device (before the open data).
  */
-static const u16 spca508_init_data[][2] =
-{
+static const u16 spca508_init_data[][2] = {
 	{0x0000, 0x870b},
 
 	{0x0020, 0x8112},	/* Video drop enable, ISO streaming disable */
@@ -593,7 +592,7 @@ static const u16 spca508_sightcam_init_data[][2] = {
 /* This line seems to setup the frame/canvas */
 	{0x000f, 0x8402},
 
-/* Theese 6 lines are needed to startup the webcam */
+/* These 6 lines are needed to startup the webcam */
 	{0x0090, 0x8110},
 	{0x0001, 0x8114},
 	{0x0001, 0x8114},
@@ -1276,7 +1275,7 @@ static int reg_write(struct usb_device *dev,
 	PDEBUG(D_USBO, "reg write i:0x%04x = 0x%02x",
 		index, value);
 	if (ret < 0)
-		PDEBUG(D_ERR|D_USBO, "reg write: error %d", ret);
+		err("reg write: error %d", ret);
 	return ret;
 }
 
@@ -1298,7 +1297,7 @@ static int reg_read(struct gspca_dev *gspca_dev,
 	PDEBUG(D_USBI, "reg read i:%04x --> %02x",
 		index, gspca_dev->usb_buf[0]);
 	if (ret < 0) {
-		PDEBUG(D_ERR|D_USBI, "reg_read err %d", ret);
+		err("reg_read err %d", ret);
 		return ret;
 	}
 	return gspca_dev->usb_buf[0];
@@ -1376,7 +1375,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	int data1, data2;
 	const u16 (*init_data)[2];
 	static const u16 (*(init_data_tb[]))[2] = {
 		spca508_vista_init_data,	/* CreativeVista 0 */
@@ -1386,6 +1384,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		spca508cs110_init_data,		/* MicroInnovationIC200 4 */
 		spca508_init_data,		/* ViewQuestVQ110 5 */
 	};
+
+#ifdef GSPCA_DEBUG
+	int data1, data2;
 
 	/* Read from global register the USB product and vendor IDs, just to
 	 * prove that we can communicate with the device.  This works, which
@@ -1401,6 +1402,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	data1 = reg_read(gspca_dev, 0x8621);
 	PDEBUG(D_PROBE, "Window 1 average luminance: %d", data1);
+#endif
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = sif_mode;
@@ -1510,7 +1512,7 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0130, 0x0130), .driver_info = HamaUSBSightcam},
 	{USB_DEVICE(0x041e, 0x4018), .driver_info = CreativeVista},
 	{USB_DEVICE(0x0733, 0x0110), .driver_info = ViewQuestVQ110},
@@ -1543,18 +1545,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

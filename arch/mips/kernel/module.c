@@ -30,6 +30,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/jump_label.h>
+
 #include <asm/pgtable.h>	/* MODULE_START */
 
 struct mips_hi16 {
@@ -46,17 +48,9 @@ static DEFINE_SPINLOCK(dbe_lock);
 void *module_alloc(unsigned long size)
 {
 #ifdef MODULE_START
-	struct vm_struct *area;
-
-	size = PAGE_ALIGN(size);
-	if (!size)
-		return NULL;
-
-	area = __get_vm_area(size, VM_ALLOC, MODULE_START, MODULE_END);
-	if (!area)
-		return NULL;
-
-	return __vmalloc_area(area, GFP_KERNEL, PAGE_KERNEL);
+	return __vmalloc_node_range(size, 1, MODULE_START, MODULE_END,
+				GFP_KERNEL, PAGE_KERNEL, -1,
+				__builtin_return_address(0));
 #else
 	if (size == 0)
 		return NULL;
@@ -389,6 +383,9 @@ int module_finalize(const Elf_Ehdr *hdr,
 {
 	const Elf_Shdr *s;
 	char *secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+
+	/* Make jump label nops. */
+	jump_label_apply_nops(me);
 
 	INIT_LIST_HEAD(&me->arch.dbe_list);
 	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {

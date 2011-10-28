@@ -178,7 +178,7 @@ int MIDIbuf_open(int dev, struct file *file)
 		return err;
 
 	parms[dev].prech_timeout = MAX_SCHEDULE_TIMEOUT;
-	midi_in_buf[dev] = (struct midi_buf *) vmalloc(sizeof(struct midi_buf));
+	midi_in_buf[dev] = vmalloc(sizeof(struct midi_buf));
 
 	if (midi_in_buf[dev] == NULL)
 	{
@@ -188,7 +188,7 @@ int MIDIbuf_open(int dev, struct file *file)
 	}
 	midi_in_buf[dev]->len = midi_in_buf[dev]->head = midi_in_buf[dev]->tail = 0;
 
-	midi_out_buf[dev] = (struct midi_buf *) vmalloc(sizeof(struct midi_buf));
+	midi_out_buf[dev] = vmalloc(sizeof(struct midi_buf));
 
 	if (midi_out_buf[dev] == NULL)
 	{
@@ -295,7 +295,7 @@ int MIDIbuf_write(int dev, struct file *file, const char __user *buf, int count)
 
 		for (i = 0; i < n; i++)
 		{
-			/* BROKE BROKE BROKE - CANT DO THIS WITH CLI !! */
+			/* BROKE BROKE BROKE - CAN'T DO THIS WITH CLI !! */
 			/* yes, think the same, so I removed the cli() brackets 
 				QUEUE_BYTE is protected against interrupts */
 			if (copy_from_user((char *) &tmp_data, &(buf)[c], 1)) {

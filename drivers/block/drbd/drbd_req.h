@@ -82,14 +82,16 @@ enum drbd_req_event {
 	to_be_submitted,
 
 	/* XXX yes, now I am inconsistent...
-	 * these two are not "events" but "actions"
+	 * these are not "events" but "actions"
 	 * oh, well... */
 	queue_for_net_write,
 	queue_for_net_read,
+	queue_for_send_oos,
 
 	send_canceled,
 	send_failed,
 	handed_over_to_network,
+	oos_handed_to_network,
 	connection_lost_while_pending,
 	read_retry_remote_canceled,
 	recv_acked_by_peer,
@@ -104,6 +106,9 @@ enum drbd_req_event {
 	read_ahead_completed_with_error,
 	write_completed_with_error,
 	completed_ok,
+	resend,
+	fail_frozen_disk_io,
+	restart_frozen_disk_io,
 	nothing, /* for tracing only */
 };
 
@@ -183,6 +188,12 @@ enum drbd_req_state_bits {
 
 	/* keep this last, its for the RQ_NET_MASK */
 	__RQ_NET_MAX,
+
+	/* Set when this is a write, clear for a read */
+	__RQ_WRITE,
+
+	/* Should call drbd_al_complete_io() for this request... */
+	__RQ_IN_ACT_LOG,
 };
 
 #define RQ_LOCAL_PENDING   (1UL << __RQ_LOCAL_PENDING)
@@ -200,6 +211,16 @@ enum drbd_req_state_bits {
 
 /* 0x1f8 */
 #define RQ_NET_MASK        (((1UL << __RQ_NET_MAX)-1) & ~RQ_LOCAL_MASK)
+
+#define RQ_WRITE           (1UL << __RQ_WRITE)
+#define RQ_IN_ACT_LOG      (1UL << __RQ_IN_ACT_LOG)
+
+/* For waking up the frozen transfer log mod_req() has to return if the request
+   should be counted in the epoch object*/
+#define MR_WRITE_SHIFT 0
+#define MR_WRITE       (1 << MR_WRITE_SHIFT)
+#define MR_READ_SHIFT  1
+#define MR_READ        (1 << MR_READ_SHIFT)
 
 /* epoch entries */
 static inline
@@ -235,7 +256,7 @@ static inline struct drbd_request *_ar_id_to_req(struct drbd_conf *mdev,
 	struct hlist_node *n;
 	struct drbd_request *req;
 
-	hlist_for_each_entry(req, n, slot, colision) {
+	hlist_for_each_entry(req, n, slot, collision) {
 		if ((unsigned long)req == (unsigned long)id) {
 			D_ASSERT(req->sector == sector);
 			return req;
@@ -244,30 +265,35 @@ static inline struct drbd_request *_ar_id_to_req(struct drbd_conf *mdev,
 	return NULL;
 }
 
+static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
+{
+	struct bio *bio;
+	bio = bio_clone(bio_src, GFP_NOIO); /* XXX cannot fail?? */
+
+	req->private_bio = bio;
+
+	bio->bi_private  = req;
+	bio->bi_end_io   = drbd_endio_pri;
+	bio->bi_next     = NULL;
+}
+
 static inline struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 	struct bio *bio_src)
 {
-	struct bio *bio;
 	struct drbd_request *req =
 		mempool_alloc(drbd_request_mempool, GFP_NOIO);
 	if (likely(req)) {
-		bio = bio_clone(bio_src, GFP_NOIO); /* XXX cannot fail?? */
+		drbd_req_make_private_bio(req, bio_src);
 
-		req->rq_state    = 0;
+		req->rq_state    = bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0;
 		req->mdev        = mdev;
 		req->master_bio  = bio_src;
-		req->private_bio = bio;
 		req->epoch       = 0;
-		req->sector      = bio->bi_sector;
-		req->size        = bio->bi_size;
-		req->start_time  = jiffies;
-		INIT_HLIST_NODE(&req->colision);
+		req->sector      = bio_src->bi_sector;
+		req->size        = bio_src->bi_size;
+		INIT_HLIST_NODE(&req->collision);
 		INIT_LIST_HEAD(&req->tl_requests);
 		INIT_LIST_HEAD(&req->w.list);
-
-		bio->bi_private  = req;
-		bio->bi_end_io   = drbd_endio_pri;
-		bio->bi_next     = NULL;
 	}
 	return req;
 }
@@ -292,36 +318,66 @@ struct bio_and_error {
 
 extern void _req_may_be_done(struct drbd_request *req,
 		struct bio_and_error *m);
-extern void __req_mod(struct drbd_request *req, enum drbd_req_event what,
+extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		struct bio_and_error *m);
 extern void complete_master_bio(struct drbd_conf *mdev,
 		struct bio_and_error *m);
+extern void request_timer_fn(unsigned long data);
+extern void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
 
 /* use this if you don't want to deal with calling complete_master_bio()
  * outside the spinlock, e.g. when walking some list on cleanup. */
-static inline void _req_mod(struct drbd_request *req, enum drbd_req_event what)
+static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what)
 {
 	struct drbd_conf *mdev = req->mdev;
 	struct bio_and_error m;
+	int rv;
 
 	/* __req_mod possibly frees req, do not touch req after that! */
-	__req_mod(req, what, &m);
+	rv = __req_mod(req, what, &m);
 	if (m.bio)
 		complete_master_bio(mdev, &m);
+
+	return rv;
 }
 
-/* completion of master bio is outside of spinlock.
- * If you need it irqsave, do it your self! */
-static inline void req_mod(struct drbd_request *req,
+/* completion of master bio is outside of our spinlock.
+ * We still may or may not be inside some irqs disabled section
+ * of the lower level driver completion callback, so we need to
+ * spin_lock_irqsave here. */
+static inline int req_mod(struct drbd_request *req,
 		enum drbd_req_event what)
 {
+	unsigned long flags;
 	struct drbd_conf *mdev = req->mdev;
 	struct bio_and_error m;
-	spin_lock_irq(&mdev->req_lock);
-	__req_mod(req, what, &m);
-	spin_unlock_irq(&mdev->req_lock);
+	int rv;
+
+	spin_lock_irqsave(&mdev->req_lock, flags);
+	rv = __req_mod(req, what, &m);
+	spin_unlock_irqrestore(&mdev->req_lock, flags);
 
 	if (m.bio)
 		complete_master_bio(mdev, &m);
+
+	return rv;
 }
+
+static inline bool drbd_should_do_remote(union drbd_state s)
+{
+	return s.pdsk == D_UP_TO_DATE ||
+		(s.pdsk >= D_INCONSISTENT &&
+		 s.conn >= C_WF_BITMAP_T &&
+		 s.conn < C_AHEAD);
+	/* Before proto 96 that was >= CONNECTED instead of >= C_WF_BITMAP_T.
+	   That is equivalent since before 96 IO was frozen in the C_WF_BITMAP*
+	   states. */
+}
+static inline bool drbd_should_send_oos(union drbd_state s)
+{
+	return s.conn == C_AHEAD || s.conn == C_WF_BITMAP_S;
+	/* pdsk = D_INCONSISTENT as a consequence. Protocol 96 check not necessary
+	   since we enter state C_AHEAD only if proto >= 96 */
+}
+
 #endif

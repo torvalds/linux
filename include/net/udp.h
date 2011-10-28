@@ -105,10 +105,10 @@ static inline struct udp_hslot *udp_hashslot2(struct udp_table *table,
 
 extern struct proto udp_prot;
 
-extern atomic_t udp_memory_allocated;
+extern atomic_long_t udp_memory_allocated;
 
 /* sysctl variables for udp */
-extern int sysctl_udp_mem[3];
+extern long sysctl_udp_mem[3];
 extern int sysctl_udp_rmem_min;
 extern int sysctl_udp_wmem_min;
 
@@ -139,6 +139,17 @@ static inline __wsum udp_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 	__wsum csum = csum_partial(skb_transport_header(skb),
 				   sizeof(struct udphdr), 0);
 	skb_queue_walk(&sk->sk_write_queue, skb) {
+		csum = csum_add(csum, skb->csum);
+	}
+	return csum;
+}
+
+static inline __wsum udp_csum(struct sk_buff *skb)
+{
+	__wsum csum = csum_partial(skb_transport_header(skb),
+				   sizeof(struct udphdr), skb->csum);
+
+	for (skb = skb_shinfo(skb)->frag_list; skb; skb = skb->next) {
 		csum = csum_add(csum, skb->csum);
 	}
 	return csum;
@@ -182,6 +193,9 @@ extern int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 			      int (*push_pending_frames)(struct sock *));
 extern struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 				    __be32 daddr, __be16 dport,
+				    int dif);
+extern struct sock *udp6_lib_lookup(struct net *net, const struct in6_addr *saddr, __be16 sport,
+				    const struct in6_addr *daddr, __be16 dport,
 				    int dif);
 
 /*
@@ -242,5 +256,5 @@ extern void udp4_proc_exit(void);
 extern void udp_init(void);
 
 extern int udp4_ufo_send_check(struct sk_buff *skb);
-extern struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb, int features);
+extern struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb, u32 features);
 #endif	/* _UDP_H */

@@ -26,6 +26,7 @@
 #ifndef _IPR_H
 #define _IPR_H
 
+#include <asm/unaligned.h>
 #include <linux/types.h>
 #include <linux/completion.h>
 #include <linux/libata.h>
@@ -37,8 +38,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.5.0"
-#define IPR_DRIVER_DATE "(February 11, 2010)"
+#define IPR_DRIVER_VERSION "2.5.2"
+#define IPR_DRIVER_DATE "(April 27, 2011)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -81,6 +82,7 @@
 
 #define IPR_SUBS_DEV_ID_57B4    0x033B
 #define IPR_SUBS_DEV_ID_57B2    0x035F
+#define IPR_SUBS_DEV_ID_57C4    0x0354
 #define IPR_SUBS_DEV_ID_57C6    0x0357
 #define IPR_SUBS_DEV_ID_57CC    0x035C
 
@@ -215,7 +217,10 @@
 #define IPR_CHECK_FOR_RESET_TIMEOUT		(HZ / 10)
 #define IPR_WAIT_FOR_BIST_TIMEOUT		(2 * HZ)
 #define IPR_PCI_RESET_TIMEOUT			(HZ / 2)
-#define IPR_DUMP_TIMEOUT			(15 * HZ)
+#define IPR_SIS32_DUMP_TIMEOUT			(15 * HZ)
+#define IPR_SIS64_DUMP_TIMEOUT			(40 * HZ)
+#define IPR_DUMP_DELAY_SECONDS			4
+#define IPR_DUMP_DELAY_TIMEOUT			(IPR_DUMP_DELAY_SECONDS * HZ)
 
 /*
  * SCSI Literals
@@ -281,9 +286,12 @@ IPR_PCII_NO_HOST_RRQ | IPR_PCII_IOARRIN_LOST | IPR_PCII_MMIO_ERROR)
 /*
  * Dump literals
  */
-#define IPR_MAX_IOA_DUMP_SIZE				(4 * 1024 * 1024)
-#define IPR_NUM_SDT_ENTRIES				511
-#define IPR_MAX_NUM_DUMP_PAGES	((IPR_MAX_IOA_DUMP_SIZE / PAGE_SIZE) + 1)
+#define IPR_FMT2_MAX_IOA_DUMP_SIZE			(4 * 1024 * 1024)
+#define IPR_FMT3_MAX_IOA_DUMP_SIZE			(32 * 1024 * 1024)
+#define IPR_FMT2_NUM_SDT_ENTRIES			511
+#define IPR_FMT3_NUM_SDT_ENTRIES			0xFFF
+#define IPR_FMT2_MAX_NUM_DUMP_PAGES	((IPR_FMT2_MAX_IOA_DUMP_SIZE / PAGE_SIZE) + 1)
+#define IPR_FMT3_MAX_NUM_DUMP_PAGES	((IPR_FMT3_MAX_IOA_DUMP_SIZE / PAGE_SIZE) + 1)
 
 /*
  * Misc literals
@@ -316,6 +324,11 @@ struct ipr_vpd {
 struct ipr_ext_vpd {
 	struct ipr_vpd vpd;
 	__be32 wwid[2];
+}__attribute__((packed));
+
+struct ipr_ext_vpd64 {
+	struct ipr_vpd vpd;
+	__be32 wwid[4];
 }__attribute__((packed));
 
 struct ipr_std_inq_data {
@@ -372,7 +385,7 @@ struct ipr_config_table_entry {
 
 	struct ipr_res_addr res_addr;
 	__be32 res_handle;
-	__be32 reserved4[2];
+	__be32 lun_wwn[2];
 	struct ipr_std_inq_data std_inq_data;
 }__attribute__ ((packed, aligned (4)));
 
@@ -394,7 +407,7 @@ struct ipr_config_table_entry64 {
 	__be64 res_path;
 	struct ipr_std_inq_data std_inq_data;
 	u8 reserved2[4];
-	__be64 reserved3[2]; // description text
+	__be64 reserved3[2];
 	u8 reserved4[8];
 }__attribute__ ((packed, aligned (8)));
 
@@ -465,7 +478,7 @@ struct ipr_cmd_pkt {
 
 	u8 flags_lo;
 #define IPR_FLAGS_LO_ALIGNED_BFR		0x20
-#define IPR_FLAGS_LO_DELAY_AFTER_RST	0x10
+#define IPR_FLAGS_LO_DELAY_AFTER_RST		0x10
 #define IPR_FLAGS_LO_UNTAGGED_TASK		0x00
 #define IPR_FLAGS_LO_SIMPLE_TASK		0x02
 #define IPR_FLAGS_LO_ORDERED_TASK		0x04
@@ -913,7 +926,7 @@ struct ipr_hostrcb_type_24_error {
 	u8 array_id;
 	u8 last_res_path[8];
 	u8 protection_level[8];
-	struct ipr_ext_vpd array_vpd;
+	struct ipr_ext_vpd64 array_vpd;
 	u8 description[16];
 	u8 reserved2[3];
 	u8 num_entries;
@@ -1155,7 +1168,7 @@ struct ipr_sdt_header {
 
 struct ipr_sdt {
 	struct ipr_sdt_header hdr;
-	struct ipr_sdt_entry entry[IPR_NUM_SDT_ENTRIES];
+	struct ipr_sdt_entry entry[IPR_FMT3_NUM_SDT_ENTRIES];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_uc_sdt {
@@ -1210,6 +1223,7 @@ struct ipr_resource_entry {
 
 	__be32 res_handle;
 	__be64 dev_id;
+	__be64 lun_wwn;
 	struct scsi_lun dev_lun;
 	u8 res_path[8];
 
@@ -1598,7 +1612,7 @@ struct ipr_driver_dump {
 struct ipr_ioa_dump {
 	struct ipr_dump_entry_header hdr;
 	struct ipr_sdt sdt;
-	__be32 *ioa_data[IPR_MAX_NUM_DUMP_PAGES];
+	__be32 **ioa_data;
 	u32 reserved;
 	u32 next_page_index;
 	u32 page_offset;

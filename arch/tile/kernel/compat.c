@@ -21,7 +21,6 @@
 #include <linux/kdev_t.h>
 #include <linux/fs.h>
 #include <linux/fcntl.h>
-#include <linux/smp_lock.h>
 #include <linux/uaccess.h>
 #include <linux/signal.h>
 #include <asm/syscalls.h>
@@ -136,26 +135,21 @@ long tile_compat_sys_msgrcv(int msqid,
 
 /* Provide the compat syscall number to call mapping. */
 #undef __SYSCALL
-#define __SYSCALL(nr, call) [nr] = (compat_##call),
+#define __SYSCALL(nr, call) [nr] = (call),
 
 /* The generic versions of these don't work for Tile. */
 #define compat_sys_msgrcv tile_compat_sys_msgrcv
 #define compat_sys_msgsnd tile_compat_sys_msgsnd
 
 /* See comments in sys.c */
-#define compat_sys_fadvise64 sys32_fadvise64
 #define compat_sys_fadvise64_64 sys32_fadvise64_64
 #define compat_sys_readahead sys32_readahead
-#define compat_sys_sync_file_range compat_sys_sync_file_range2
 
-/* The native 64-bit "struct stat" matches the 32-bit "struct stat64". */
-#define compat_sys_stat64 sys_newstat
-#define compat_sys_lstat64 sys_newlstat
-#define compat_sys_fstat64 sys_newfstat
-#define compat_sys_fstatat64 sys_newfstatat
-
-/* Pass full 64-bit values through ptrace. */
-#define compat_sys_ptrace tile_compat_sys_ptrace
+/* Call the trampolines to manage pt_regs where necessary. */
+#define compat_sys_execve _compat_sys_execve
+#define compat_sys_sigaltstack _compat_sys_sigaltstack
+#define compat_sys_rt_sigreturn _compat_sys_rt_sigreturn
+#define sys_clone _sys_clone
 
 /*
  * Note that we can't include <linux/unistd.h> here since the header

@@ -258,7 +258,7 @@ static int __init rts7751r2d_devices_setup(void)
 	return platform_add_devices(rts7751r2d_devices,
 				    ARRAY_SIZE(rts7751r2d_devices));
 }
-__initcall(rts7751r2d_devices_setup);
+device_initcall(rts7751r2d_devices_setup);
 
 static void rts7751r2d_power_off(void)
 {

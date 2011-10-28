@@ -26,7 +26,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
 #include <linux/wait.h>
@@ -60,6 +60,7 @@
 #define PCI_DEVICE_ID_APPLICOM_PCI2000PFB     0x0003
 #endif
 
+static DEFINE_MUTEX(ac_mutex);
 static char *applicom_pci_devnames[] = {
 	"PCI board",
 	"PCI2000IBS / PCI2000CAN",
@@ -565,6 +566,7 @@ static ssize_t ac_read (struct file *filp, char __user *buf, size_t count, loff_
 				struct mailbox mailbox;
 
 				/* Got a packet for us */
+				memset(&st_loc, 0, sizeof(st_loc));
 				ret = do_ac_read(i, buf, &st_loc, &mailbox);
 				spin_unlock_irqrestore(&apbs[i].mutex, flags);
 				set_current_state(TASK_RUNNING);
@@ -707,7 +709,7 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (IS_ERR(adgl))
 		return PTR_ERR(adgl);
 
-	lock_kernel();	
+	mutex_lock(&ac_mutex);	
 	IndexCard = adgl->num_card-1;
 	 
 	if(cmd != 6 && ((IndexCard >= MAX_BOARD) || !apbs[IndexCard].RamIO)) {
@@ -717,7 +719,7 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			warncount--;
 		}
 		kfree(adgl);
-		unlock_kernel();
+		mutex_unlock(&ac_mutex);
 		return -EINVAL;
 	}
 
@@ -835,7 +837,7 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	Dummy = readb(apbs[IndexCard].RamIO + VERS);
 	kfree(adgl);
-	unlock_kernel();
+	mutex_unlock(&ac_mutex);
 	return 0;
 }
 

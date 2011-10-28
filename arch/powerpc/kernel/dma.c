@@ -12,6 +12,7 @@
 #include <linux/memblock.h>
 #include <asm/bug.h>
 #include <asm/abs_addr.h>
+#include <asm/machdep.h>
 
 /*
  * Generic direct DMA implementation
@@ -89,7 +90,7 @@ static int dma_direct_dma_supported(struct device *dev, u64 mask)
 	/* Could be improved so platforms can set the limit in case
 	 * they have limited DMA windows
 	 */
-	return mask >= (memblock_end_of_DRAM() - 1);
+	return mask >= get_dma_offset(dev) + (memblock_end_of_DRAM() - 1);
 #else
 	return 1;
 #endif
@@ -154,6 +155,23 @@ EXPORT_SYMBOL(dma_direct_ops);
 
 #define PREALLOC_DMA_DEBUG_ENTRIES (1 << 16)
 
+int dma_set_mask(struct device *dev, u64 dma_mask)
+{
+	struct dma_map_ops *dma_ops = get_dma_ops(dev);
+
+	if (ppc_md.dma_set_mask)
+		return ppc_md.dma_set_mask(dev, dma_mask);
+	if (unlikely(dma_ops == NULL))
+		return -EIO;
+	if (dma_ops->set_dma_mask != NULL)
+		return dma_ops->set_dma_mask(dev, dma_mask);
+	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
+		return -EIO;
+	*dev->dma_mask = dma_mask;
+	return 0;
+}
+EXPORT_SYMBOL(dma_set_mask);
+
 static int __init dma_init(void)
 {
        dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
@@ -161,3 +179,21 @@ static int __init dma_init(void)
        return 0;
 }
 fs_initcall(dma_init);
+
+int dma_mmap_coherent(struct device *dev, struct vm_area_struct *vma,
+		      void *cpu_addr, dma_addr_t handle, size_t size)
+{
+	unsigned long pfn;
+
+#ifdef CONFIG_NOT_COHERENT_CACHE
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	pfn = __dma_get_coherent_pfn((unsigned long)cpu_addr);
+#else
+	pfn = page_to_pfn(virt_to_page(cpu_addr));
+#endif
+	return remap_pfn_range(vma, vma->vm_start,
+			       pfn + vma->vm_pgoff,
+			       vma->vm_end - vma->vm_start,
+			       vma->vm_page_prot);
+}
+EXPORT_SYMBOL_GPL(dma_mmap_coherent);

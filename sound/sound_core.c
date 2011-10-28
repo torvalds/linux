@@ -104,7 +104,6 @@ module_exit(cleanup_soundcore);
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sound.h>
@@ -165,6 +164,7 @@ static const struct file_operations soundcore_fops =
 	/* We must have an owner or the module locking fails */
 	.owner	= THIS_MODULE,
 	.open	= soundcore_open,
+	.llseek = noop_llseek,
 };
 
 /*
@@ -383,6 +383,9 @@ int register_sound_special_device(const struct file_operations *fops, int unit,
 		break;
 	    case 4:
 		name = "audio";
+		break;
+	    case 5:
+		name = "dspW";
 		break;
 	    case 8:
 		name = "sequencer2";

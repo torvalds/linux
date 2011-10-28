@@ -16,7 +16,6 @@
 
 #include <mach/dma.h>
 #include <mach/map.h>
-#include <mach/gpio-bank-c.h>
 #include <mach/spi-clocks.h>
 #include <mach/irqs.h>
 
@@ -40,29 +39,24 @@ static char *spi_src_clks[] = {
  */
 static int s3c64xx_spi_cfg_gpio(struct platform_device *pdev)
 {
+	unsigned int base;
+
 	switch (pdev->id) {
 	case 0:
-		s3c_gpio_cfgpin(S3C64XX_GPC(0), S3C64XX_GPC0_SPI_MISO0);
-		s3c_gpio_cfgpin(S3C64XX_GPC(1), S3C64XX_GPC1_SPI_CLKO);
-		s3c_gpio_cfgpin(S3C64XX_GPC(2), S3C64XX_GPC2_SPI_MOSIO);
-		s3c_gpio_setpull(S3C64XX_GPC(0), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S3C64XX_GPC(1), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S3C64XX_GPC(2), S3C_GPIO_PULL_UP);
+		base = S3C64XX_GPC(0);
 		break;
 
 	case 1:
-		s3c_gpio_cfgpin(S3C64XX_GPC(4), S3C64XX_GPC4_SPI_MISO1);
-		s3c_gpio_cfgpin(S3C64XX_GPC(5), S3C64XX_GPC5_SPI_CLK1);
-		s3c_gpio_cfgpin(S3C64XX_GPC(6), S3C64XX_GPC6_SPI_MOSI1);
-		s3c_gpio_setpull(S3C64XX_GPC(4), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S3C64XX_GPC(5), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S3C64XX_GPC(6), S3C_GPIO_PULL_UP);
+		base = S3C64XX_GPC(4);
 		break;
 
 	default:
 		dev_err(&pdev->dev, "Invalid SPI Controller number!");
 		return -EINVAL;
 	}
+
+	s3c_gpio_cfgall_range(base, 3,
+			      S3C_GPIO_SFN(2), S3C_GPIO_PULL_UP);
 
 	return 0;
 }
@@ -94,6 +88,7 @@ static struct s3c64xx_spi_info s3c64xx_spi0_pdata = {
 	.cfg_gpio = s3c64xx_spi_cfg_gpio,
 	.fifo_lvl_mask = 0x7f,
 	.rx_lvl_offset = 13,
+	.tx_st_done = 21,
 };
 
 static u64 spi_dmamask = DMA_BIT_MASK(32);
@@ -138,6 +133,7 @@ static struct s3c64xx_spi_info s3c64xx_spi1_pdata = {
 	.cfg_gpio = s3c64xx_spi_cfg_gpio,
 	.fifo_lvl_mask = 0x7f,
 	.rx_lvl_offset = 13,
+	.tx_st_done = 21,
 };
 
 struct platform_device s3c64xx_device_spi1 = {

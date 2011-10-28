@@ -14,6 +14,34 @@
 #include <asm/desc_defs.h>
 
 struct x86_emulate_ctxt;
+enum x86_intercept;
+enum x86_intercept_stage;
+
+struct x86_exception {
+	u8 vector;
+	bool error_code_valid;
+	u16 error_code;
+	bool nested_page_fault;
+	u64 address; /* cr2 or nested page fault gpa */
+};
+
+/*
+ * This struct is used to carry enough information from the instruction
+ * decoder to main KVM so that a decision can be made whether the
+ * instruction needs to be intercepted or not.
+ */
+struct x86_instruction_info {
+	u8  intercept;          /* which intercept                      */
+	u8  rep_prefix;         /* rep prefix?                          */
+	u8  modrm_mod;		/* mod part of modrm			*/
+	u8  modrm_reg;          /* index of register used               */
+	u8  modrm_rm;		/* rm part of modrm			*/
+	u64 src_val;            /* value of source operand              */
+	u8  src_bytes;          /* size of source operand               */
+	u8  dst_bytes;          /* size of destination operand          */
+	u8  ad_bytes;           /* size of src/dst address              */
+	u64 next_rip;           /* rip following the instruction        */
+};
 
 /*
  * x86_emulate_ops:
@@ -54,6 +82,7 @@ struct x86_emulate_ctxt;
 #define X86EMUL_RETRY_INSTR     3 /* retry the instruction for some reason */
 #define X86EMUL_CMPXCHG_FAILED  4 /* cmpxchg did not see expected value */
 #define X86EMUL_IO_NEEDED       5 /* IO is needed to complete emulation */
+#define X86EMUL_INTERCEPTED     6 /* Intercepted by nested VMCB/VMCS */
 
 struct x86_emulate_ops {
 	/*
@@ -63,8 +92,10 @@ struct x86_emulate_ops {
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
 	 *  @bytes: [IN ] Number of bytes to read from memory.
 	 */
-	int (*read_std)(unsigned long addr, void *val,
-			unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
+	int (*read_std)(struct x86_emulate_ctxt *ctxt,
+			unsigned long addr, void *val,
+			unsigned int bytes,
+			struct x86_exception *fault);
 
 	/*
 	 * write_std: Write bytes of standard (non-emulated/special) memory.
@@ -73,8 +104,9 @@ struct x86_emulate_ops {
 	 *  @val:   [OUT] Value write to memory, zero-extended to 'u_long'.
 	 *  @bytes: [IN ] Number of bytes to write to memory.
 	 */
-	int (*write_std)(unsigned long addr, void *val,
-			 unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
+	int (*write_std)(struct x86_emulate_ctxt *ctxt,
+			 unsigned long addr, void *val, unsigned int bytes,
+			 struct x86_exception *fault);
 	/*
 	 * fetch: Read bytes of standard (non-emulated/special) memory.
 	 *        Used for instruction fetch.
@@ -82,8 +114,9 @@ struct x86_emulate_ops {
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
 	 *  @bytes: [IN ] Number of bytes to read from memory.
 	 */
-	int (*fetch)(unsigned long addr, void *val,
-			unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
+	int (*fetch)(struct x86_emulate_ctxt *ctxt,
+		     unsigned long addr, void *val, unsigned int bytes,
+		     struct x86_exception *fault);
 
 	/*
 	 * read_emulated: Read bytes from emulated/special memory area.
@@ -91,11 +124,9 @@ struct x86_emulate_ops {
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
 	 *  @bytes: [IN ] Number of bytes to read from memory.
 	 */
-	int (*read_emulated)(unsigned long addr,
-			     void *val,
-			     unsigned int bytes,
-			     unsigned int *error,
-			     struct kvm_vcpu *vcpu);
+	int (*read_emulated)(struct x86_emulate_ctxt *ctxt,
+			     unsigned long addr, void *val, unsigned int bytes,
+			     struct x86_exception *fault);
 
 	/*
 	 * write_emulated: Write bytes to emulated/special memory area.
@@ -104,11 +135,10 @@ struct x86_emulate_ops {
 	 *                required).
 	 *  @bytes: [IN ] Number of bytes to write to memory.
 	 */
-	int (*write_emulated)(unsigned long addr,
-			      const void *val,
+	int (*write_emulated)(struct x86_emulate_ctxt *ctxt,
+			      unsigned long addr, const void *val,
 			      unsigned int bytes,
-			      unsigned int *error,
-			      struct kvm_vcpu *vcpu);
+			      struct x86_exception *fault);
 
 	/*
 	 * cmpxchg_emulated: Emulate an atomic (LOCKed) CMPXCHG operation on an
@@ -118,49 +148,72 @@ struct x86_emulate_ops {
 	 *  @new:   [IN ] Value to write to @addr.
 	 *  @bytes: [IN ] Number of bytes to access using CMPXCHG.
 	 */
-	int (*cmpxchg_emulated)(unsigned long addr,
+	int (*cmpxchg_emulated)(struct x86_emulate_ctxt *ctxt,
+				unsigned long addr,
 				const void *old,
 				const void *new,
 				unsigned int bytes,
-				unsigned int *error,
-				struct kvm_vcpu *vcpu);
+				struct x86_exception *fault);
+	void (*invlpg)(struct x86_emulate_ctxt *ctxt, ulong addr);
 
-	int (*pio_in_emulated)(int size, unsigned short port, void *val,
-			       unsigned int count, struct kvm_vcpu *vcpu);
+	int (*pio_in_emulated)(struct x86_emulate_ctxt *ctxt,
+			       int size, unsigned short port, void *val,
+			       unsigned int count);
 
-	int (*pio_out_emulated)(int size, unsigned short port, const void *val,
-				unsigned int count, struct kvm_vcpu *vcpu);
+	int (*pio_out_emulated)(struct x86_emulate_ctxt *ctxt,
+				int size, unsigned short port, const void *val,
+				unsigned int count);
 
-	bool (*get_cached_descriptor)(struct desc_struct *desc,
-				      int seg, struct kvm_vcpu *vcpu);
-	void (*set_cached_descriptor)(struct desc_struct *desc,
-				      int seg, struct kvm_vcpu *vcpu);
-	u16 (*get_segment_selector)(int seg, struct kvm_vcpu *vcpu);
-	void (*set_segment_selector)(u16 sel, int seg, struct kvm_vcpu *vcpu);
-	unsigned long (*get_cached_segment_base)(int seg, struct kvm_vcpu *vcpu);
-	void (*get_gdt)(struct desc_ptr *dt, struct kvm_vcpu *vcpu);
-	ulong (*get_cr)(int cr, struct kvm_vcpu *vcpu);
-	int (*set_cr)(int cr, ulong val, struct kvm_vcpu *vcpu);
-	int (*cpl)(struct kvm_vcpu *vcpu);
-	int (*get_dr)(int dr, unsigned long *dest, struct kvm_vcpu *vcpu);
-	int (*set_dr)(int dr, unsigned long value, struct kvm_vcpu *vcpu);
-	int (*set_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
-	int (*get_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
+	bool (*get_segment)(struct x86_emulate_ctxt *ctxt, u16 *selector,
+			    struct desc_struct *desc, u32 *base3, int seg);
+	void (*set_segment)(struct x86_emulate_ctxt *ctxt, u16 selector,
+			    struct desc_struct *desc, u32 base3, int seg);
+	unsigned long (*get_cached_segment_base)(struct x86_emulate_ctxt *ctxt,
+						 int seg);
+	void (*get_gdt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
+	void (*get_idt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
+	void (*set_gdt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
+	void (*set_idt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
+	ulong (*get_cr)(struct x86_emulate_ctxt *ctxt, int cr);
+	int (*set_cr)(struct x86_emulate_ctxt *ctxt, int cr, ulong val);
+	int (*cpl)(struct x86_emulate_ctxt *ctxt);
+	int (*get_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong *dest);
+	int (*set_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong value);
+	int (*set_msr)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 data);
+	int (*get_msr)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 *pdata);
+	void (*halt)(struct x86_emulate_ctxt *ctxt);
+	void (*wbinvd)(struct x86_emulate_ctxt *ctxt);
+	int (*fix_hypercall)(struct x86_emulate_ctxt *ctxt);
+	void (*get_fpu)(struct x86_emulate_ctxt *ctxt); /* disables preempt */
+	void (*put_fpu)(struct x86_emulate_ctxt *ctxt); /* reenables preempt */
+	int (*intercept)(struct x86_emulate_ctxt *ctxt,
+			 struct x86_instruction_info *info,
+			 enum x86_intercept_stage stage);
 };
+
+typedef u32 __attribute__((vector_size(16))) sse128_t;
 
 /* Type, address-of, and value of an instruction's operand. */
 struct operand {
-	enum { OP_REG, OP_MEM, OP_IMM, OP_NONE } type;
+	enum { OP_REG, OP_MEM, OP_IMM, OP_XMM, OP_NONE } type;
 	unsigned int bytes;
 	union {
 		unsigned long orig_val;
 		u64 orig_val64;
 	};
-	unsigned long *ptr;
+	union {
+		unsigned long *reg;
+		struct segmented_address {
+			ulong ea;
+			unsigned seg;
+		} mem;
+		unsigned xmm;
+	} addr;
 	union {
 		unsigned long val;
 		u64 val64;
 		char valptr[sizeof(unsigned long) + 2];
+		sse128_t vec_val;
 	};
 };
 
@@ -179,6 +232,7 @@ struct read_cache {
 struct decode_cache {
 	u8 twobyte;
 	u8 b;
+	u8 intercept;
 	u8 lock_prefix;
 	u8 rep_prefix;
 	u8 op_bytes;
@@ -190,6 +244,8 @@ struct decode_cache {
 	bool has_seg_override;
 	u8 seg_override;
 	unsigned int d;
+	int (*execute)(struct x86_emulate_ctxt *ctxt);
+	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
 	unsigned long regs[NR_VCPU_REGS];
 	unsigned long eip;
 	/* modrm */
@@ -197,43 +253,39 @@ struct decode_cache {
 	u8 modrm_mod;
 	u8 modrm_reg;
 	u8 modrm_rm;
-	u8 use_modrm_ea;
+	u8 modrm_seg;
 	bool rip_relative;
-	unsigned long modrm_ea;
-	void *modrm_ptr;
-	unsigned long modrm_val;
 	struct fetch_cache fetch;
 	struct read_cache io_read;
 	struct read_cache mem_read;
 };
 
 struct x86_emulate_ctxt {
-	/* Register state before/after emulation. */
-	struct kvm_vcpu *vcpu;
+	struct x86_emulate_ops *ops;
 
+	/* Register state before/after emulation. */
 	unsigned long eflags;
 	unsigned long eip; /* eip before instruction emulation */
 	/* Emulated execution mode, represented by an X86EMUL_MODE value. */
 	int mode;
-	u32 cs_base;
 
 	/* interruptibility state, as a result of execution of STI or MOV SS */
 	int interruptibility;
 
-	bool restart; /* restart string instruction after writeback */
+	bool guest_mode; /* guest running a nested guest */
+	bool perm_ok; /* do not check permissions if true */
+	bool only_vendor_specific_insn;
 
-	int exception; /* exception that happens during emulation or -1 */
-	u32 error_code; /* error code for exception */
-	bool error_code_valid;
-	unsigned long cr2; /* faulted address in case of #PF */
+	bool have_exception;
+	struct x86_exception exception;
 
 	/* decode cache */
 	struct decode_cache decode;
 };
 
 /* Repeat String Operation Prefix */
-#define REPE_PREFIX	1
-#define REPNE_PREFIX	2
+#define REPE_PREFIX	0xf3
+#define REPNE_PREFIX	0xf2
 
 /* Execution mode, passed to the emulator. */
 #define X86EMUL_MODE_REAL     0	/* Real mode.             */
@@ -242,6 +294,69 @@ struct x86_emulate_ctxt {
 #define X86EMUL_MODE_PROT32   4	/* 32-bit protected mode. */
 #define X86EMUL_MODE_PROT64   8	/* 64-bit (long) mode.    */
 
+/* any protected mode   */
+#define X86EMUL_MODE_PROT     (X86EMUL_MODE_PROT16|X86EMUL_MODE_PROT32| \
+			       X86EMUL_MODE_PROT64)
+
+enum x86_intercept_stage {
+	X86_ICTP_NONE = 0,   /* Allow zero-init to not match anything */
+	X86_ICPT_PRE_EXCEPT,
+	X86_ICPT_POST_EXCEPT,
+	X86_ICPT_POST_MEMACCESS,
+};
+
+enum x86_intercept {
+	x86_intercept_none,
+	x86_intercept_cr_read,
+	x86_intercept_cr_write,
+	x86_intercept_clts,
+	x86_intercept_lmsw,
+	x86_intercept_smsw,
+	x86_intercept_dr_read,
+	x86_intercept_dr_write,
+	x86_intercept_lidt,
+	x86_intercept_sidt,
+	x86_intercept_lgdt,
+	x86_intercept_sgdt,
+	x86_intercept_lldt,
+	x86_intercept_sldt,
+	x86_intercept_ltr,
+	x86_intercept_str,
+	x86_intercept_rdtsc,
+	x86_intercept_rdpmc,
+	x86_intercept_pushf,
+	x86_intercept_popf,
+	x86_intercept_cpuid,
+	x86_intercept_rsm,
+	x86_intercept_iret,
+	x86_intercept_intn,
+	x86_intercept_invd,
+	x86_intercept_pause,
+	x86_intercept_hlt,
+	x86_intercept_invlpg,
+	x86_intercept_invlpga,
+	x86_intercept_vmrun,
+	x86_intercept_vmload,
+	x86_intercept_vmsave,
+	x86_intercept_vmmcall,
+	x86_intercept_stgi,
+	x86_intercept_clgi,
+	x86_intercept_skinit,
+	x86_intercept_rdtscp,
+	x86_intercept_icebp,
+	x86_intercept_wbinvd,
+	x86_intercept_monitor,
+	x86_intercept_mwait,
+	x86_intercept_rdmsr,
+	x86_intercept_wrmsr,
+	x86_intercept_in,
+	x86_intercept_ins,
+	x86_intercept_out,
+	x86_intercept_outs,
+
+	nr_x86_intercepts
+};
+
 /* Host execution mode. */
 #if defined(CONFIG_X86_32)
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT32
@@ -249,13 +364,15 @@ struct x86_emulate_ctxt {
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT64
 #endif
 
-int x86_decode_insn(struct x86_emulate_ctxt *ctxt,
-		    struct x86_emulate_ops *ops);
-int x86_emulate_insn(struct x86_emulate_ctxt *ctxt,
-		     struct x86_emulate_ops *ops);
+int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len);
+#define EMULATION_FAILED -1
+#define EMULATION_OK 0
+#define EMULATION_RESTART 1
+#define EMULATION_INTERCEPTED 2
+int x86_emulate_insn(struct x86_emulate_ctxt *ctxt);
 int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
-			 struct x86_emulate_ops *ops,
 			 u16 tss_selector, int reason,
 			 bool has_error_code, u32 error_code);
-
+int emulate_int_real(struct x86_emulate_ctxt *ctxt,
+		     struct x86_emulate_ops *ops, int irq);
 #endif /* _ASM_X86_KVM_X86_EMULATE_H */

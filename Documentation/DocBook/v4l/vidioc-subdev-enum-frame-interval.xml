@@ -1,0 +1,152 @@
+<refentry id="vidioc-subdev-enum-frame-interval">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL</refname>
+    <refpurpose>Enumerate frame intervals</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_subdev_frame_interval_enum *
+	<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <note>
+      <title>Experimental</title>
+      <para>This is an <link linkend="experimental">experimental</link>
+      interface and may change in the future.</para>
+    </note>
+
+    <para>This ioctl lets applications enumerate available frame intervals on a
+    given sub-device pad. Frame intervals only makes sense for sub-devices that
+    can control the frame period on their own. This includes, for instance,
+    image sensors and TV tuners.</para>
+
+    <para>For the common use case of image sensors, the frame intervals
+    available on the sub-device output pad depend on the frame format and size
+    on the same pad. Applications must thus specify the desired format and size
+    when enumerating frame intervals.</para>
+
+    <para>To enumerate frame intervals applications initialize the
+    <structfield>index</structfield>, <structfield>pad</structfield>,
+    <structfield>code</structfield>, <structfield>width</structfield> and
+    <structfield>height</structfield> fields of
+    &v4l2-subdev-frame-interval-enum; and call the
+    <constant>VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL</constant> ioctl with a pointer
+    to this structure. Drivers fill the rest of the structure or return
+    an &EINVAL; if one of the input fields is invalid. All frame intervals are
+    enumerable by beginning at index zero and incrementing by one until
+    <errorcode>EINVAL</errorcode> is returned.</para>
+
+    <para>Available frame intervals may depend on the current 'try' formats
+    at other pads of the sub-device, as well as on the current active links. See
+    &VIDIOC-SUBDEV-G-FMT; for more information about the try formats.</para>
+
+    <para>Sub-devices that support the frame interval enumeration ioctl should
+    implemented it on a single pad only. Its behaviour when supported on
+    multiple pads of the same sub-device is not defined.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-subdev-frame-interval-enum">
+      <title>struct <structname>v4l2_subdev_frame_interval_enum</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>index</structfield></entry>
+	    <entry>Number of the format in the enumeration, set by the
+	    application.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>pad</structfield></entry>
+	    <entry>Pad number as reported by the media controller API.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>code</structfield></entry>
+	    <entry>The media bus format code, as defined in
+	    <xref linkend="v4l2-mbus-format" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>width</structfield></entry>
+	    <entry>Frame width, in pixels.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>height</structfield></entry>
+	    <entry>Frame height, in pixels.</entry>
+	  </row>
+	  <row>
+	    <entry>&v4l2-fract;</entry>
+	    <entry><structfield>interval</structfield></entry>
+	    <entry>Period, in seconds, between consecutive video frames.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[9]</entry>
+	    <entry>Reserved for future extensions. Applications and drivers must
+	    set the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The &v4l2-subdev-frame-interval-enum;
+	  <structfield>pad</structfield> references a non-existing pad, one of
+	  the <structfield>code</structfield>, <structfield>width</structfield>
+	  or <structfield>height</structfield> fields are invalid for the given
+	  pad or the <structfield>index</structfield> field is out of bounds.
+	  </para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

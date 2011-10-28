@@ -19,7 +19,9 @@
 #include <asm-generic/iomap.h>
 #endif
 
+#ifndef mmiowb
 #define mmiowb() do {} while (0)
+#endif
 
 /*****************************************************************************/
 /*
@@ -28,39 +30,51 @@
  * differently. On the simple architectures, we just read/write the
  * memory location directly.
  */
+#ifndef __raw_readb
 static inline u8 __raw_readb(const volatile void __iomem *addr)
 {
 	return *(const volatile u8 __force *) addr;
 }
+#endif
 
+#ifndef __raw_readw
 static inline u16 __raw_readw(const volatile void __iomem *addr)
 {
 	return *(const volatile u16 __force *) addr;
 }
+#endif
 
+#ifndef __raw_readl
 static inline u32 __raw_readl(const volatile void __iomem *addr)
 {
 	return *(const volatile u32 __force *) addr;
 }
+#endif
 
 #define readb __raw_readb
 #define readw(addr) __le16_to_cpu(__raw_readw(addr))
 #define readl(addr) __le32_to_cpu(__raw_readl(addr))
 
+#ifndef __raw_writeb
 static inline void __raw_writeb(u8 b, volatile void __iomem *addr)
 {
 	*(volatile u8 __force *) addr = b;
 }
+#endif
 
+#ifndef __raw_writew
 static inline void __raw_writew(u16 b, volatile void __iomem *addr)
 {
 	*(volatile u16 __force *) addr = b;
 }
+#endif
 
+#ifndef __raw_writel
 static inline void __raw_writel(u32 b, volatile void __iomem *addr)
 {
 	*(volatile u32 __force *) addr = b;
 }
+#endif
 
 #define writeb __raw_writeb
 #define writew(b,addr) __raw_writew(__cpu_to_le16(b),addr)
@@ -80,6 +94,10 @@ static inline void __raw_writeq(u64 b, volatile void __iomem *addr)
 #define writeq(b,addr) __raw_writeq(__cpu_to_le64(b),addr)
 #endif
 
+#ifndef PCI_IOBASE
+#define PCI_IOBASE ((void __iomem *) 0)
+#endif
+
 /*****************************************************************************/
 /*
  * traditional input/output functions
@@ -87,32 +105,32 @@ static inline void __raw_writeq(u64 b, volatile void __iomem *addr)
 
 static inline u8 inb(unsigned long addr)
 {
-	return readb((volatile void __iomem *) addr);
+	return readb(addr + PCI_IOBASE);
 }
 
 static inline u16 inw(unsigned long addr)
 {
-	return readw((volatile void __iomem *) addr);
+	return readw(addr + PCI_IOBASE);
 }
 
 static inline u32 inl(unsigned long addr)
 {
-	return readl((volatile void __iomem *) addr);
+	return readl(addr + PCI_IOBASE);
 }
 
 static inline void outb(u8 b, unsigned long addr)
 {
-	writeb(b, (volatile void __iomem *) addr);
+	writeb(b, addr + PCI_IOBASE);
 }
 
 static inline void outw(u16 b, unsigned long addr)
 {
-	writew(b, (volatile void __iomem *) addr);
+	writew(b, addr + PCI_IOBASE);
 }
 
 static inline void outl(u32 b, unsigned long addr)
 {
-	writel(b, (volatile void __iomem *) addr);
+	writel(b, addr + PCI_IOBASE);
 }
 
 #define inb_p(addr)	inb(addr)
@@ -122,6 +140,7 @@ static inline void outl(u32 b, unsigned long addr)
 #define outw_p(x, addr)	outw((x), (addr))
 #define outl_p(x, addr)	outl((x), (addr))
 
+#ifndef insb
 static inline void insb(unsigned long addr, void *buffer, int count)
 {
 	if (count) {
@@ -132,7 +151,9 @@ static inline void insb(unsigned long addr, void *buffer, int count)
 		} while (--count);
 	}
 }
+#endif
 
+#ifndef insw
 static inline void insw(unsigned long addr, void *buffer, int count)
 {
 	if (count) {
@@ -143,7 +164,9 @@ static inline void insw(unsigned long addr, void *buffer, int count)
 		} while (--count);
 	}
 }
+#endif
 
+#ifndef insl
 static inline void insl(unsigned long addr, void *buffer, int count)
 {
 	if (count) {
@@ -154,7 +177,9 @@ static inline void insl(unsigned long addr, void *buffer, int count)
 		} while (--count);
 	}
 }
+#endif
 
+#ifndef outsb
 static inline void outsb(unsigned long addr, const void *buffer, int count)
 {
 	if (count) {
@@ -164,7 +189,9 @@ static inline void outsb(unsigned long addr, const void *buffer, int count)
 		} while (--count);
 	}
 }
+#endif
 
+#ifndef outsw
 static inline void outsw(unsigned long addr, const void *buffer, int count)
 {
 	if (count) {
@@ -174,7 +201,9 @@ static inline void outsw(unsigned long addr, const void *buffer, int count)
 		} while (--count);
 	}
 }
+#endif
 
+#ifndef outsl
 static inline void outsl(unsigned long addr, const void *buffer, int count)
 {
 	if (count) {
@@ -183,6 +212,37 @@ static inline void outsl(unsigned long addr, const void *buffer, int count)
 			outl(*buf++, addr);
 		} while (--count);
 	}
+}
+#endif
+
+static inline void readsl(const void __iomem *addr, void *buf, int len)
+{
+	insl(addr - PCI_IOBASE, buf, len);
+}
+
+static inline void readsw(const void __iomem *addr, void *buf, int len)
+{
+	insw(addr - PCI_IOBASE, buf, len);
+}
+
+static inline void readsb(const void __iomem *addr, void *buf, int len)
+{
+	insb(addr - PCI_IOBASE, buf, len);
+}
+
+static inline void writesl(const void __iomem *addr, const void *buf, int len)
+{
+	outsl(addr - PCI_IOBASE, buf, len);
+}
+
+static inline void writesw(const void __iomem *addr, const void *buf, int len)
+{
+	outsw(addr - PCI_IOBASE, buf, len);
+}
+
+static inline void writesb(const void __iomem *addr, const void *buf, int len)
+{
+	outsb(addr - PCI_IOBASE, buf, len);
 }
 
 #ifndef CONFIG_GENERIC_IOMAP
@@ -213,8 +273,9 @@ static inline void outsl(unsigned long addr, const void *buffer, int count)
 	outsl((unsigned long) (p), (src), (count))
 #endif /* CONFIG_GENERIC_IOMAP */
 
-
-#define IO_SPACE_LIMIT 0xffffffff
+#ifndef IO_SPACE_LIMIT
+#define IO_SPACE_LIMIT 0xffff
+#endif
 
 #ifdef __KERNEL__
 

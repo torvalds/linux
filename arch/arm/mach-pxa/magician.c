@@ -28,6 +28,7 @@
 #include <linux/regulator/bq24022.h>
 #include <linux/regulator/machine.h>
 #include <linux/usb/gpio_vbus.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -36,7 +37,6 @@
 #include <mach/pxa27x.h>
 #include <mach/magician.h>
 #include <mach/pxafb.h>
-#include <plat/i2c.h>
 #include <mach/mmc.h>
 #include <mach/irda.h>
 #include <mach/ohci.h>
@@ -599,7 +599,7 @@ static struct regulator_consumer_supply bq24022_consumers[] = {
 static struct regulator_init_data bq24022_init_data = {
 	.constraints = {
 		.max_uA         = 500000,
-		.valid_ops_mask = REGULATOR_CHANGE_CURRENT,
+		.valid_ops_mask = REGULATOR_CHANGE_CURRENT | REGULATOR_CHANGE_STATUS,
 	},
 	.num_consumer_supplies  = ARRAY_SIZE(bq24022_consumers),
 	.consumer_supplies      = bq24022_consumers,
@@ -662,7 +662,7 @@ static struct pxaohci_platform_data magician_ohci_info = {
  * StrataFlash
  */
 
-static void magician_set_vpp(struct map_info *map, int vpp)
+static void magician_set_vpp(struct platform_device *pdev, int vpp)
 {
 	gpio_set_value(EGPIO_MAGICIAN_FLASH_VPP, vpp);
 }
@@ -757,17 +757,16 @@ static void __init magician_init(void)
 		gpio_direction_output(GPIO104_MAGICIAN_LCD_POWER_1, 0);
 		gpio_direction_output(GPIO105_MAGICIAN_LCD_POWER_2, 0);
 		gpio_direction_output(GPIO106_MAGICIAN_LCD_POWER_3, 0);
-		set_pxa_fb_info(lcd_select ? &samsung_info : &toppoly_info);
+		pxa_set_fb_info(NULL, lcd_select ? &samsung_info : &toppoly_info);
 	} else
 		pr_err("LCD detection: CPLD mapping failed\n");
 }
 
 
 MACHINE_START(MAGICIAN, "HTC Magician")
-	.phys_io = 0x40000000,
-	.io_pg_offst = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params = 0xa0000100,
-	.map_io = pxa_map_io,
+	.map_io = pxa27x_map_io,
+	.nr_irqs = MAGICIAN_NR_IRQS,
 	.init_irq = pxa27x_init_irq,
 	.init_machine = magician_init,
 	.timer = &pxa_timer,

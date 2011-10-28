@@ -12,8 +12,6 @@
 #ifndef _NET_RXRPC_H
 #define _NET_RXRPC_H
 
-#ifdef __KERNEL__
-
 #include <linux/rxrpc.h>
 
 struct rxrpc_call;
@@ -53,5 +51,4 @@ extern struct rxrpc_call *rxrpc_kernel_accept_call(struct socket *,
 						   unsigned long);
 extern int rxrpc_kernel_reject_call(struct socket *);
 
-#endif /* __KERNEL__ */
 #endif /* _NET_RXRPC_H */

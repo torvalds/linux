@@ -185,8 +185,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 	static u8 eeprom[256];
 	struct tuner_setup tun_setup;
 	struct v4l2_subdev *sd;
-	unsigned int mode_mask = T_ANALOG_TV |
-				 T_DIGITAL_TV;
+	unsigned int mode_mask = T_ANALOG_TV;
 
 	dprintk(1, "%s()\n", __func__);
 
@@ -212,7 +211,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 		   be abstracted out if we ever need to support a different
 		   demod) */
 		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-				"au8522", "au8522", 0x8e >> 1, NULL);
+				"au8522", 0x8e >> 1, NULL);
 		if (sd == NULL)
 			printk(KERN_ERR "analog subdev registration failed\n");
 	}
@@ -221,7 +220,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 	if (dev->board.tuner_type != TUNER_ABSENT) {
 		/* Load the tuner module, which does the attach */
 		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-				"tuner", "tuner", dev->board.tuner_addr, NULL);
+				"tuner", dev->board.tuner_addr, NULL);
 		if (sd == NULL)
 			printk(KERN_ERR "tuner subdev registration fail\n");
 

@@ -67,6 +67,46 @@ static u32 smack_next_secid = 10;
 int log_policy = SMACK_AUDIT_DENIED;
 
 /**
+ * smk_access_entry - look up matching access rule
+ * @subject_label: a pointer to the subject's Smack label
+ * @object_label: a pointer to the object's Smack label
+ * @rule_list: the list of rules to search
+ *
+ * This function looks up the subject/object pair in the
+ * access rule list and returns the access mode. If no
+ * entry is found returns -ENOENT.
+ *
+ * NOTE:
+ * Even though Smack labels are usually shared on smack_list
+ * labels that come in off the network can't be imported
+ * and added to the list for locking reasons.
+ *
+ * Therefore, it is necessary to check the contents of the labels,
+ * not just the pointer values. Of course, in most cases the labels
+ * will be on the list, so checking the pointers may be a worthwhile
+ * optimization.
+ */
+int smk_access_entry(char *subject_label, char *object_label,
+			struct list_head *rule_list)
+{
+	int may = -ENOENT;
+	struct smack_rule *srp;
+
+	list_for_each_entry_rcu(srp, rule_list, list) {
+		if (srp->smk_subject == subject_label ||
+		    strcmp(srp->smk_subject, subject_label) == 0) {
+			if (srp->smk_object == object_label ||
+			    strcmp(srp->smk_object, object_label) == 0) {
+				may = srp->smk_access;
+				break;
+			}
+		}
+	}
+
+	return may;
+}
+
+/**
  * smk_access - determine if a subject has a specific access to an object
  * @subject_label: a pointer to the subject's Smack label
  * @object_label: a pointer to the object's Smack label
@@ -89,8 +129,7 @@ int log_policy = SMACK_AUDIT_DENIED;
 int smk_access(char *subject_label, char *object_label, int request,
 	       struct smk_audit_info *a)
 {
-	u32 may = MAY_NOT;
-	struct smack_rule *srp;
+	int may = MAY_NOT;
 	int rc = 0;
 
 	/*
@@ -142,24 +181,14 @@ int smk_access(char *subject_label, char *object_label, int request,
 	 * Beyond here an explicit relationship is required.
 	 * If the requested access is contained in the available
 	 * access (e.g. read is included in readwrite) it's
-	 * good.
+	 * good. A negative response from smk_access_entry()
+	 * indicates there is no entry for this pair.
 	 */
 	rcu_read_lock();
-	list_for_each_entry_rcu(srp, &smack_rule_list, list) {
-		if (srp->smk_subject == subject_label ||
-		    strcmp(srp->smk_subject, subject_label) == 0) {
-			if (srp->smk_object == object_label ||
-			    strcmp(srp->smk_object, object_label) == 0) {
-				may = srp->smk_access;
-				break;
-			}
-		}
-	}
+	may = smk_access_entry(subject_label, object_label, &smack_rule_list);
 	rcu_read_unlock();
-	/*
-	 * This is a bit map operation.
-	 */
-	if ((request & may) == request)
+
+	if (may > 0 && (request & may) == request)
 		goto out_audit;
 
 	rc = -EACCES;
@@ -184,23 +213,38 @@ out_audit:
  */
 int smk_curacc(char *obj_label, u32 mode, struct smk_audit_info *a)
 {
+	struct task_smack *tsp = current_security();
+	char *sp = smk_of_task(tsp);
+	int may;
 	int rc;
-	char *sp = current_security();
 
+	/*
+	 * Check the global rule list
+	 */
 	rc = smk_access(sp, obj_label, mode, NULL);
-	if (rc == 0)
-		goto out_audit;
+	if (rc == 0) {
+		/*
+		 * If there is an entry in the task's rule list
+		 * it can further restrict access.
+		 */
+		may = smk_access_entry(sp, obj_label, &tsp->smk_rules);
+		if (may < 0)
+			goto out_audit;
+		if ((mode & may) == mode)
+			goto out_audit;
+		rc = -EACCES;
+	}
 
 	/*
 	 * Return if a specific label has been designated as the
 	 * only one that gets privilege and current does not
 	 * have that label.
 	 */
-	if (smack_onlycap != NULL && smack_onlycap != current->cred->security)
+	if (smack_onlycap != NULL && smack_onlycap != sp)
 		goto out_audit;
 
 	if (capable(CAP_MAC_OVERRIDE))
-		return 0;
+		rc = 0;
 
 out_audit:
 #ifdef CONFIG_AUDIT
@@ -387,7 +431,7 @@ char *smk_import(const char *string, int len)
  * smack_from_secid - find the Smack label associated with a secid
  * @secid: an integer that might be associated with a Smack label
  *
- * Returns a pointer to the appropraite Smack label if there is one,
+ * Returns a pointer to the appropriate Smack label if there is one,
  * otherwise a pointer to the invalid Smack label.
  */
 char *smack_from_secid(const u32 secid)

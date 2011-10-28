@@ -647,9 +647,6 @@ int savage_driver_firstopen(struct drm_device *dev)
 	ret = drm_addmap(dev, aperture_base, SAVAGE_APERTURE_SIZE,
 			 _DRM_FRAME_BUFFER, _DRM_WRITE_COMBINING,
 			 &dev_priv->aperture);
-	if (ret)
-		return ret;
-
 	return ret;
 }
 

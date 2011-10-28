@@ -111,8 +111,7 @@ static struct mdiobb_ctrl ep8248e_mdio_ctrl = {
 	.ops = &ep8248e_mdio_ops,
 };
 
-static int __devinit ep8248e_mdio_probe(struct platform_device *ofdev,
-                                        const struct of_device_id *match)
+static int __devinit ep8248e_mdio_probe(struct platform_device *ofdev)
 {
 	struct mii_bus *bus;
 	struct resource res;
@@ -167,7 +166,7 @@ static const struct of_device_id ep8248e_mdio_match[] = {
 	{},
 };
 
-static struct of_platform_driver ep8248e_mdio_driver = {
+static struct platform_driver ep8248e_mdio_driver = {
 	.driver = {
 		.name = "ep8248e-mdio-bitbang",
 		.owner = THIS_MODULE,
@@ -308,7 +307,7 @@ static  __initdata struct of_device_id of_bus_ids[] = {
 static int __init declare_of_platform_devices(void)
 {
 	of_platform_bus_probe(NULL, of_bus_ids, NULL);
-	of_register_platform_driver(&ep8248e_mdio_driver);
+	platform_driver_register(&ep8248e_mdio_driver);
 
 	return 0;
 }

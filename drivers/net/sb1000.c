@@ -961,9 +961,9 @@ sb1000_open(struct net_device *dev)
 	lp->rx_error_count = 0;
 	lp->rx_error_dpc_count = 0;
 	lp->rx_session_id[0] = 0x50;
-	lp->rx_session_id[0] = 0x48;
-	lp->rx_session_id[0] = 0x44;
-	lp->rx_session_id[0] = 0x42;
+	lp->rx_session_id[1] = 0x48;
+	lp->rx_session_id[2] = 0x44;
+	lp->rx_session_id[3] = 0x42;
 	lp->rx_frame_id[0] = 0;
 	lp->rx_frame_id[1] = 0;
 	lp->rx_frame_id[2] = 0;

@@ -27,8 +27,9 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
+#include "nouveau_ramht.h"
 
-#define NV40_RAMFC(c) (dev_priv->ramfc_offset + ((c) * NV40_RAMFC__SIZE))
+#define NV40_RAMFC(c) (dev_priv->ramfc->pinst + ((c) * NV40_RAMFC__SIZE))
 #define NV40_RAMFC__SIZE 128
 
 int
@@ -42,15 +43,20 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 
 	ret = nouveau_gpuobj_new_fake(dev, NV40_RAMFC(chan->id), ~0,
 				      NV40_RAMFC__SIZE, NVOBJ_FLAG_ZERO_ALLOC |
-				      NVOBJ_FLAG_ZERO_FREE, NULL, &chan->ramfc);
+				      NVOBJ_FLAG_ZERO_FREE, &chan->ramfc);
 	if (ret)
 		return ret;
+
+	chan->user = ioremap(pci_resource_start(dev->pdev, 0) +
+			     NV40_USER(chan->id), PAGE_SIZE);
+	if (!chan->user)
+		return -ENOMEM;
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	nv_wi32(dev, fc +  0, chan->pushbuf_base);
 	nv_wi32(dev, fc +  4, chan->pushbuf_base);
-	nv_wi32(dev, fc + 12, chan->pushbuf->instance >> 4);
+	nv_wi32(dev, fc + 12, chan->pushbuf->pinst >> 4);
 	nv_wi32(dev, fc + 24, NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			      NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 			      NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8 |
@@ -58,7 +64,6 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 			      NV_PFIFO_CACHE1_BIG_ENDIAN |
 #endif
 			      0x30000000 /* no idea.. */);
-	nv_wi32(dev, fc + 56, chan->ramin_grctx->instance >> 4);
 	nv_wi32(dev, fc + 60, 0x0001FFFF);
 
 	/* enable the fifo dma operation */
@@ -67,18 +72,6 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 	return 0;
-}
-
-void
-nv40_fifo_destroy_context(struct nouveau_channel *chan)
-{
-	struct drm_device *dev = chan->dev;
-
-	nv_wr32(dev, NV04_PFIFO_MODE,
-		nv_rd32(dev, NV04_PFIFO_MODE) & ~(1 << chan->id));
-
-	if (chan->ramfc)
-		nouveau_gpuobj_ref_del(dev, &chan->ramfc);
 }
 
 static void
@@ -122,6 +115,7 @@ nv40_fifo_do_load_context(struct drm_device *dev, int chid)
 	nv_wr32(dev, 0x32e8, nv_ri32(dev, fc + 68));
 	nv_wr32(dev, 0x2088, nv_ri32(dev, fc + 76));
 	nv_wr32(dev, 0x3300, nv_ri32(dev, fc + 80));
+	nv_wr32(dev, 0x330c, nv_ri32(dev, fc + 84));
 
 	nv_wr32(dev, NV03_PFIFO_CACHE1_GET, 0);
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUT, 0);
@@ -193,6 +187,7 @@ nv40_fifo_unload_context(struct drm_device *dev)
 	tmp |= (nv_rd32(dev, NV04_PFIFO_CACHE1_PUT) << 16);
 	nv_wi32(dev, fc + 72, tmp);
 #endif
+	nv_wi32(dev, fc + 84, nv_rd32(dev, 0x330c));
 
 	nv40_fifo_do_load_context(dev, pfifo->channels - 1);
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH1,
@@ -241,9 +236,9 @@ nv40_fifo_init_ramxx(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	nv_wr32(dev, NV03_PFIFO_RAMHT, (0x03 << 24) /* search 128 */ |
-				       ((dev_priv->ramht_bits - 9) << 16) |
-				       (dev_priv->ramht_offset >> 8));
-	nv_wr32(dev, NV03_PFIFO_RAMRO, dev_priv->ramro_offset>>8);
+				       ((dev_priv->ramht->bits - 9) << 16) |
+				       (dev_priv->ramht->gpuobj->pinst >> 8));
+	nv_wr32(dev, NV03_PFIFO_RAMRO, dev_priv->ramro->pinst >> 8);
 
 	switch (dev_priv->chipset) {
 	case 0x47:
@@ -271,7 +266,7 @@ nv40_fifo_init_ramxx(struct drm_device *dev)
 		nv_wr32(dev, 0x2230, 0);
 		nv_wr32(dev, NV40_PFIFO_RAMFC,
 			((dev_priv->vram_size - 512 * 1024 +
-			  dev_priv->ramfc_offset) >> 16) | (3 << 16));
+			  dev_priv->ramfc->pinst) >> 16) | (3 << 16));
 		break;
 	}
 }
@@ -279,6 +274,7 @@ nv40_fifo_init_ramxx(struct drm_device *dev)
 static void
 nv40_fifo_init_intr(struct drm_device *dev)
 {
+	nouveau_irq_register(dev, 8, nv04_fifo_isr);
 	nv_wr32(dev, 0x002100, 0xffffffff);
 	nv_wr32(dev, 0x002140, 0xffffffff);
 }
@@ -301,7 +297,7 @@ nv40_fifo_init(struct drm_device *dev)
 	pfifo->reassign(dev, true);
 
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-		if (dev_priv->fifos[i]) {
+		if (dev_priv->channels.ptr[i]) {
 			uint32_t mode = nv_rd32(dev, NV04_PFIFO_MODE);
 			nv_wr32(dev, NV04_PFIFO_MODE, mode | (1 << i));
 		}

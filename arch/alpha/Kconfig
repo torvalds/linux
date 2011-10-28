@@ -1,7 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
 config ALPHA
 	bool
 	default y
@@ -9,8 +5,14 @@ config ALPHA
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_SYSCALL_WRAPPERS
+	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
 	select HAVE_DMA_ATTRS
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_PROBE
+	select AUTO_IRQ_AFFINITY if SMP
+	select GENERIC_IRQ_SHOW
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
 	  marketed by the Digital Equipment Corporation of blessed memory,
@@ -39,10 +41,6 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default n
 
-config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
-
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
@@ -50,9 +48,15 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_CMOS_UPDATE
         def_bool y
 
+config GENERIC_GPIO
+	def_bool y
+
 config ZONE_DMA
 	bool
 	default y
+
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool y
 
 config NEED_DMA_MAP_STATE
        def_bool y
@@ -67,19 +71,6 @@ config GENERIC_ISA_DMA
 config GENERIC_IOMAP
 	bool
 	default n
-
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_IRQ_PROBE
-	bool
-	default y
-
-config AUTO_IRQ_AFFINITY
-	bool
-	depends on SMP
-	default y
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"

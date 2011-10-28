@@ -435,6 +435,7 @@ enum {
 
 /* DMA slave IDs */
 enum {
+	SHDMA_SLAVE_INVALID,
 	SHDMA_SLAVE_SCIF0_TX,
 	SHDMA_SLAVE_SCIF0_RX,
 	SHDMA_SLAVE_SCIF1_TX,
@@ -455,10 +456,18 @@ enum {
 	SHDMA_SLAVE_SDHI1_TX,
 	SHDMA_SLAVE_SDHI2_RX,
 	SHDMA_SLAVE_SDHI2_TX,
+	SHDMA_SLAVE_MMCIF_RX,
+	SHDMA_SLAVE_MMCIF_TX,
 };
 
-extern struct clk dv_clki_clk;
-extern struct clk dv_clki_div2_clk;
-extern struct clk pllc2_clk;
+extern struct clk sh7372_extal1_clk;
+extern struct clk sh7372_extal2_clk;
+extern struct clk sh7372_dv_clki_clk;
+extern struct clk sh7372_dv_clki_div2_clk;
+extern struct clk sh7372_pllc2_clk;
+extern struct clk sh7372_fsiack_clk;
+extern struct clk sh7372_fsibck_clk;
+extern struct clk sh7372_fsidiva_clk;
+extern struct clk sh7372_fsidivb_clk;
 
 #endif /* __ASM_SH7372_H__ */

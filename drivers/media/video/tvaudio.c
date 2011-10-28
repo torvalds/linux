@@ -35,7 +35,6 @@
 #include <media/tvaudio.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 #include <media/i2c-addr.h>
 
@@ -1059,11 +1058,11 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 #define TDA9875_MVR         0x1b  /* Main volume droite */
 #define TDA9875_MBA         0x1d  /* Main Basse */
 #define TDA9875_MTR         0x1e  /* Main treble */
-#define TDA9875_ACS         0x1f  /* Auxilary channel select (FM) 0b0000000*/
-#define TDA9875_AVL         0x20  /* Auxilary volume gauche */
-#define TDA9875_AVR         0x21  /* Auxilary volume droite */
-#define TDA9875_ABA         0x22  /* Auxilary Basse */
-#define TDA9875_ATR         0x23  /* Auxilary treble */
+#define TDA9875_ACS         0x1f  /* Auxiliary channel select (FM) 0b0000000*/
+#define TDA9875_AVL         0x20  /* Auxiliary volume gauche */
+#define TDA9875_AVR         0x21  /* Auxiliary volume droite */
+#define TDA9875_ABA         0x22  /* Auxiliary Basse */
+#define TDA9875_ATR         0x23  /* Auxiliary treble */
 
 #define TDA9875_MSR         0x02  /* Monitor select register */
 #define TDA9875_C1MSB       0x03  /* Carrier 1 (FM) frequency register MSB */
@@ -1226,18 +1225,6 @@ static int tea6320_initialize(struct CHIPSTATE * chip)
 
 static int tda8425_shift10(int val) { return (val >> 10) | 0xc0; }
 static int tda8425_shift12(int val) { return (val >> 12) | 0xf0; }
-
-static int tda8425_initialize(struct CHIPSTATE *chip)
-{
-	struct CHIPDESC *desc = chip->desc;
-	struct i2c_client *c = v4l2_get_subdevdata(&chip->sd);
-	int inputmap[4] = { /* tuner	*/ TDA8425_S1_CH2, /* radio  */ TDA8425_S1_CH1,
-			    /* extern	*/ TDA8425_S1_CH1, /* intern */ TDA8425_S1_OFF};
-
-	if (c->adapter->id == I2C_HW_B_RIVA)
-		memcpy(desc->inputmap, inputmap, sizeof(inputmap));
-	return 0;
-}
 
 static void tda8425_setmode(struct CHIPSTATE *chip, int mode)
 {
@@ -1574,7 +1561,6 @@ static struct CHIPDESC chiplist[] = {
 		.treblereg  = TDA8425_TR,
 
 		/* callbacks */
-		.initialize = tda8425_initialize,
 		.volfunc    = tda8425_shift10,
 		.bassfunc   = tda8425_shift12,
 		.treblefunc = tda8425_shift12,
@@ -2079,9 +2065,25 @@ static const struct i2c_device_id tvaudio_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tvaudio_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "tvaudio",
-	.probe = tvaudio_probe,
-	.remove = tvaudio_remove,
-	.id_table = tvaudio_id,
+static struct i2c_driver tvaudio_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tvaudio",
+	},
+	.probe		= tvaudio_probe,
+	.remove		= tvaudio_remove,
+	.id_table	= tvaudio_id,
 };
+
+static __init int init_tvaudio(void)
+{
+	return i2c_add_driver(&tvaudio_driver);
+}
+
+static __exit void exit_tvaudio(void)
+{
+	i2c_del_driver(&tvaudio_driver);
+}
+
+module_init(init_tvaudio);
+module_exit(exit_tvaudio);

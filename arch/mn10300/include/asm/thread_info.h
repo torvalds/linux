@@ -16,10 +16,6 @@
 
 #include <asm/page.h>
 
-#ifndef __ASSEMBLY__
-#include <asm/processor.h>
-#endif
-
 #define PREEMPT_ACTIVE		0x10000000
 
 #ifdef CONFIG_4KSTACKS
@@ -38,10 +34,14 @@
  *   must also be changed
  */
 #ifndef __ASSEMBLY__
+typedef struct {
+	unsigned long	seg;
+} mm_segment_t;
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
 	struct exec_domain	*exec_domain;	/* execution domain */
+	struct pt_regs		*frame;		/* current exception frame */
 	unsigned long		flags;		/* low level flags */
 	__u32			cpu;		/* current CPU */
 	__s32			preempt_count;	/* 0 => preemptable, <0 => BUG */
@@ -54,6 +54,10 @@ struct thread_info {
 
 	__u8			supervisor_stack[0];
 };
+
+#define thread_info_to_uregs(ti)					\
+	((struct pt_regs *)						\
+	 ((unsigned long)ti + THREAD_SIZE - sizeof(struct pt_regs)))
 
 #else /* !__ASSEMBLY__ */
 
@@ -102,6 +106,12 @@ struct thread_info *current_thread_info(void)
 	return ti;
 }
 
+static inline __attribute__((const))
+struct pt_regs *current_frame(void)
+{
+	return current_thread_info()->frame;
+}
+
 /* how to get the current stack pointer from C */
 static inline unsigned long current_stack_pointer(void)
 {
@@ -114,12 +124,18 @@ static inline unsigned long current_stack_pointer(void)
 
 /* thread information allocation */
 #ifdef CONFIG_DEBUG_STACK_USAGE
-#define alloc_thread_info(tsk) kzalloc(THREAD_SIZE, GFP_KERNEL)
+#define alloc_thread_info_node(tsk, node)			\
+		kzalloc_node(THREAD_SIZE, GFP_KERNEL, node)
 #else
-#define alloc_thread_info(tsk) kmalloc(THREAD_SIZE, GFP_KERNEL)
+#define alloc_thread_info_node(tsk, node)			\
+		kmalloc_node(THREAD_SIZE, GFP_KERNEL, node)
 #endif
 
+#ifndef CONFIG_KGDB
 #define free_thread_info(ti)	kfree((ti))
+#else
+extern void free_thread_info(struct thread_info *);
+#endif
 #define get_thread_info(ti)	get_task_struct((ti)->task)
 #define put_thread_info(ti)	put_task_struct((ti)->task)
 

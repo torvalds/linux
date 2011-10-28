@@ -96,7 +96,7 @@ static DECLARE_WAIT_QUEUE_HEAD(unix_gc_wait);
 unsigned int unix_tot_inflight;
 
 
-static struct sock *unix_get_socket(struct file *filp)
+struct sock *unix_get_socket(struct file *filp)
 {
 	struct sock *u_sock = NULL;
 	struct inode *inode = filp->f_path.dentry->d_inode;
@@ -104,7 +104,7 @@ static struct sock *unix_get_socket(struct file *filp)
 	/*
 	 *	Socket ?
 	 */
-	if (S_ISSOCK(inode->i_mode)) {
+	if (S_ISSOCK(inode->i_mode) && !(filp->f_mode & FMODE_PATH)) {
 		struct socket *sock = SOCKET_I(inode);
 		struct sock *s = sock->sk;
 
@@ -259,9 +259,16 @@ static void inc_inflight_move_tail(struct unix_sock *u)
 }
 
 static bool gc_in_progress = false;
+#define UNIX_INFLIGHT_TRIGGER_GC 16000
 
 void wait_for_unix_gc(void)
 {
+	/*
+	 * If number of inflight sockets is insane,
+	 * force a garbage collect right now.
+	 */
+	if (unix_tot_inflight > UNIX_INFLIGHT_TRIGGER_GC && !gc_in_progress)
+		unix_gc();
 	wait_event(unix_gc_wait, gc_in_progress == false);
 }
 

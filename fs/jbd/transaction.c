@@ -207,7 +207,7 @@ repeat_locked:
 	 * the committing transaction.  Really, we only need to give it
 	 * committing_transaction->t_outstanding_credits plus "enough" for
 	 * the log control blocks.
-	 * Also, this test is inconsitent with the matching one in
+	 * Also, this test is inconsistent with the matching one in
 	 * journal_extend().
 	 */
 	if (__log_space_left(journal) < jbd_space_needed(journal)) {
@@ -266,7 +266,8 @@ static handle_t *new_handle(int nblocks)
  * This function is visible to journal users (like ext3fs), so is not
  * called with the journal already locked.
  *
- * Return a pointer to a newly allocated handle, or NULL on failure
+ * Return a pointer to a newly allocated handle, or an ERR_PTR() value
+ * on failure.
  */
 handle_t *journal_start(journal_t *journal, int nblocks)
 {
@@ -293,9 +294,7 @@ handle_t *journal_start(journal_t *journal, int nblocks)
 		jbd_free_handle(handle);
 		current->journal_info = NULL;
 		handle = ERR_PTR(err);
-		goto out;
 	}
-out:
 	return handle;
 }
 
@@ -528,7 +527,7 @@ do_get_write_access(handle_t *handle, struct journal_head *jh,
 	transaction = handle->h_transaction;
 	journal = transaction->t_journal;
 
-	jbd_debug(5, "buffer_head %p, force_copy %d\n", jh, force_copy);
+	jbd_debug(5, "journal_head %p, force_copy %d\n", jh, force_copy);
 
 	JBUFFER_TRACE(jh, "entry");
 repeat:
@@ -713,7 +712,7 @@ done:
 		J_EXPECT_JH(jh, buffer_uptodate(jh2bh(jh)),
 			    "Possible IO failure.\n");
 		page = jh2bh(jh)->b_page;
-		offset = ((unsigned long) jh2bh(jh)->b_data) & ~PAGE_MASK;
+		offset = offset_in_page(jh2bh(jh)->b_data);
 		source = kmap_atomic(page, KM_USER0);
 		memcpy(jh->b_frozen_data, source+offset, jh2bh(jh)->b_size);
 		kunmap_atomic(source, KM_USER0);
@@ -1394,7 +1393,7 @@ int journal_stop(handle_t *handle)
 	 * by 30x or more...
 	 *
 	 * We try and optimize the sleep time against what the underlying disk
-	 * can do, instead of having a static sleep time.  This is usefull for
+	 * can do, instead of having a static sleep time.  This is useful for
 	 * the case where our storage is so fast that it is more optimal to go
 	 * ahead and force a flush and wait for the transaction to be committed
 	 * than it is to wait for an arbitrary amount of time for new writers to

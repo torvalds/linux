@@ -10,7 +10,7 @@ config INFINIBAND_CXGB4
 	  our website at <http://www.chelsio.com>.
 
 	  For customer support, please visit our customer support page at
-	  <http://www.chelsio.com/support.htm>.
+	  <http://www.chelsio.com/support.html>.
 
 	  Please send feedback to <linux-bugs@chelsio.com>.
 

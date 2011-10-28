@@ -78,6 +78,7 @@ struct msdos_sb_info {
 	const void *dir_ops;		     /* Opaque; default directory operations */
 	int dir_per_block;	     /* dir entries per block */
 	int dir_per_block_bits;	     /* log2(dir_per_block) */
+	unsigned long vol_id;        /* volume ID */
 
 	int fatent_shift;
 	struct fatent_operations *fatent_ops;
@@ -319,18 +320,20 @@ extern struct inode *fat_build_inode(struct super_block *sb,
 			struct msdos_dir_entry *de, loff_t i_pos);
 extern int fat_sync_inode(struct inode *inode);
 extern int fat_fill_super(struct super_block *sb, void *data, int silent,
-			const struct inode_operations *fs_dir_inode_ops, int isvfat);
+			  int isvfat, void (*setup)(struct super_block *));
 
 extern int fat_flush_inodes(struct super_block *sb, struct inode *i1,
 		            struct inode *i2);
 /* fat/misc.c */
 extern void
-__fat_fs_error(struct super_block *s, int report, const char *fmt, ...)
+__fat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 	__attribute__ ((format (printf, 3, 4))) __cold;
-#define fat_fs_error(s, fmt, args...)		\
-	__fat_fs_error(s, 1, fmt , ## args)
-#define fat_fs_error_ratelimit(s, fmt, args...) \
-	__fat_fs_error(s, __ratelimit(&MSDOS_SB(s)->ratelimit), fmt , ## args)
+#define fat_fs_error(sb, fmt, args...)		\
+	__fat_fs_error(sb, 1, fmt , ## args)
+#define fat_fs_error_ratelimit(sb, fmt, args...) \
+	__fat_fs_error(sb, __ratelimit(&MSDOS_SB(sb)->ratelimit), fmt , ## args)
+void fat_msg(struct super_block *sb, const char *level, const char *fmt, ...)
+	__attribute__ ((format (printf, 3, 4))) __cold;
 extern int fat_clusters_flush(struct super_block *sb);
 extern int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster);
 extern void fat_time_fat2unix(struct msdos_sb_info *sbi, struct timespec *ts,

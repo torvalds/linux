@@ -8,6 +8,7 @@ config PLAT_SAMSUNG
 	bool
 	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P
 	select NO_IOPORT
+	select GENERIC_IRQ_CHIP
 	default y
 	help
 	  Base platform code for all Samsung SoC based systems
@@ -95,6 +96,12 @@ config S3C_GPIO_PULL_UPDOWN
 	help
 	  Internal configuration to enable the correct GPIO pull helper
 
+config S3C_GPIO_PULL_S3C2443
+	bool
+	select S3C_GPIO_PULL_UPDOWN
+	help
+	  Internal configuration to enable the correct GPIO pull helper for S3C2443-style GPIO
+
 config S3C_GPIO_PULL_DOWN
 	bool
 	help
@@ -180,6 +187,31 @@ config S3C_DEV_I2C2
 	help
 	  Compile in platform device definitions for I2C channel 2
 
+config S3C_DEV_I2C3
+	bool
+	help
+	  Compile in platform device definition for I2C controller 3
+
+config S3C_DEV_I2C4
+	bool
+	help
+	  Compile in platform device definition for I2C controller 4
+
+config S3C_DEV_I2C5
+	bool
+	help
+	  Compile in platform device definition for I2C controller 5
+
+config S3C_DEV_I2C6
+	bool
+	help
+	  Compile in platform device definition for I2C controller 6
+
+config S3C_DEV_I2C7
+	bool
+	help
+	  Compile in platform device definition for I2C controller 7
+
 config S3C_DEV_FB
 	bool
 	help
@@ -241,6 +273,19 @@ config SAMSUNG_DEV_KEYPAD
 	bool
 	help
 	  Compile in platform device definitions for keypad
+
+config SAMSUNG_DEV_PWM
+	bool
+	default y if ARCH_S3C2410
+	help
+	  Compile in platform device definition for PWM Timer
+
+config S3C24XX_PWM
+	bool "PWM device support"
+	select HAVE_PWM
+	help
+	  Support for exporting the PWM timer blocks via the pwm device
+	  system
 
 # DMA
 
@@ -307,5 +352,13 @@ config SAMSUNG_WAKEMASK
 	  Compile support for wakeup-mask controls found on the S3C6400
 	  and above. This code allows a set of interrupt to wakeup-mask
 	  mappings. See <plat/wakeup-mask.h>
+
+comment "Power Domain"
+
+config SAMSUNG_PD
+	bool "Samsung Power Domain"
+	depends on PM_RUNTIME
+	help
+	  Say Y here if you want to control Power Domain by Runtime PM.
 
 endif

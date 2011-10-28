@@ -25,8 +25,8 @@
 #include <linux/timer.h>
 #include <linux/io.h>
 #include <linux/seq_file.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <mach/hardware.h>
 #include <mach/syscon.h>
 
@@ -66,7 +66,7 @@ static DEFINE_SPINLOCK(syscon_resetreg_lock);
  *  AMBA bus
  *  |
  *  +- CPU
- *  +- NANDIF NAND Flash interface
+ *  +- FSMC NANDIF NAND Flash interface
  *  +- SEMI Shared Memory interface
  *  +- ISP Image Signal Processor (U335 only)
  *  +- CDS (U335 only)
@@ -263,7 +263,7 @@ static void disable_i2s0_vcxo(void)
 	val = readw(U300_SYSCON_VBASE + U300_SYSCON_CCR);
 	val &= ~U300_SYSCON_CCR_I2S0_USE_VCXO;
 	writew(val, U300_SYSCON_VBASE + U300_SYSCON_CCR);
-	/* Deactivate VCXO if noone else is using VCXO */
+	/* Deactivate VCXO if no one else is using VCXO */
 	if (!(val & U300_SYSCON_CCR_I2S1_USE_VCXO))
 		val &= ~U300_SYSCON_CCR_TURN_VCXO_ON;
 	writew(val, U300_SYSCON_VBASE + U300_SYSCON_CCR);
@@ -283,7 +283,7 @@ static void disable_i2s1_vcxo(void)
 	val = readw(U300_SYSCON_VBASE + U300_SYSCON_CCR);
 	val &= ~U300_SYSCON_CCR_I2S1_USE_VCXO;
 	writew(val, U300_SYSCON_VBASE + U300_SYSCON_CCR);
-	/* Deactivate VCXO if noone else is using VCXO */
+	/* Deactivate VCXO if no one else is using VCXO */
 	if (!(val & U300_SYSCON_CCR_I2S0_USE_VCXO))
 		val &= ~U300_SYSCON_CCR_TURN_VCXO_ON;
 	writew(val, U300_SYSCON_VBASE + U300_SYSCON_CCR);
@@ -649,7 +649,7 @@ static unsigned long clk_round_rate_cpuclk(struct clk *clk, unsigned long rate)
  */
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	/* TODO: get apropriate switches for EMIFCLK, AHBCLK and MCLK */
+	/* TODO: get appropriate switches for EMIFCLK, AHBCLK and MCLK */
 	/* Else default to fixed value */
 
 	if (clk->round_rate) {
@@ -726,7 +726,7 @@ static struct clk cpu_clk = {
 };
 
 static struct clk nandif_clk = {
-	.name       = "NANDIF",
+	.name       = "FSMC",
 	.parent	    = &amba_clk,
 	.hw_ctrld   = false,
 	.reset	    = true,
@@ -1259,7 +1259,7 @@ static struct clk_lookup lookups[] = {
 	/* Connected directly to the AMBA bus */
 	DEF_LOOKUP("amba",      &amba_clk),
 	DEF_LOOKUP("cpu",       &cpu_clk),
-	DEF_LOOKUP("fsmc",      &nandif_clk),
+	DEF_LOOKUP("fsmc-nand", &nandif_clk),
 	DEF_LOOKUP("semi",      &semi_clk),
 #ifdef CONFIG_MACH_U300_BS335
 	DEF_LOOKUP("isp",       &isp_clk),

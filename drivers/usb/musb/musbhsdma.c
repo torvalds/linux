@@ -91,7 +91,7 @@ static struct dma_channel *dma_channel_allocate(struct dma_controller *c,
 			channel = &(musb_channel->channel);
 			channel->private_data = musb_channel;
 			channel->status = MUSB_DMA_STATUS_FREE;
-			channel->max_len = 0x10000;
+			channel->max_len = 0x100000;
 			/* Tx => mode 1; Rx => mode 0 */
 			channel->desired_mode = transmit;
 			channel->actual_len = 0;
@@ -122,11 +122,12 @@ static void configure_channel(struct dma_channel *channel,
 {
 	struct musb_dma_channel *musb_channel = channel->private_data;
 	struct musb_dma_controller *controller = musb_channel->controller;
+	struct musb *musb = controller->private_data;
 	void __iomem *mbase = controller->base;
 	u8 bchannel = musb_channel->idx;
 	u16 csr = 0;
 
-	DBG(4, "%p, pkt_sz %d, addr 0x%x, len %d, mode %d\n",
+	dev_dbg(musb->controller, "%p, pkt_sz %d, addr 0x%x, len %d, mode %d\n",
 			channel, packet_sz, dma_addr, len, mode);
 
 	if (mode) {
@@ -158,14 +159,36 @@ static int dma_channel_program(struct dma_channel *channel,
 				dma_addr_t dma_addr, u32 len)
 {
 	struct musb_dma_channel *musb_channel = channel->private_data;
+	struct musb_dma_controller *controller = musb_channel->controller;
+	struct musb *musb = controller->private_data;
 
-	DBG(2, "ep%d-%s pkt_sz %d, dma_addr 0x%x length %d, mode %d\n",
+	dev_dbg(musb->controller, "ep%d-%s pkt_sz %d, dma_addr 0x%x length %d, mode %d\n",
 		musb_channel->epnum,
 		musb_channel->transmit ? "Tx" : "Rx",
 		packet_sz, dma_addr, len, mode);
 
 	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);
+
+	/* Let targets check/tweak the arguments */
+	if (musb->ops->adjust_channel_params) {
+		int ret = musb->ops->adjust_channel_params(channel,
+			packet_sz, &mode, &dma_addr, &len);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * The DMA engine in RTL1.8 and above cannot handle
+	 * DMA addresses that are not aligned to a 4 byte boundary.
+	 * It ends up masking the last two bits of the address
+	 * programmed in DMA_ADDR.
+	 *
+	 * Fail such DMA transfers, so that the backup PIO mode
+	 * can carry out the transfer
+	 */
+	if ((musb->hwvers >= MUSB_HWVERS_1800) && (dma_addr % 4))
+		return false;
 
 	channel->actual_len = 0;
 	musb_channel->start_addr = dma_addr;
@@ -252,7 +275,7 @@ static irqreturn_t dma_controller_irq(int irq, void *private_data)
 #endif
 
 	if (!int_hsdma) {
-		DBG(2, "spurious DMA irq\n");
+		dev_dbg(musb->controller, "spurious DMA irq\n");
 
 		for (bchannel = 0; bchannel < MUSB_HSDMA_CHANNELS; bchannel++) {
 			musb_channel = (struct musb_dma_channel *)
@@ -266,7 +289,7 @@ static irqreturn_t dma_controller_irq(int irq, void *private_data)
 			}
 		}
 
-		DBG(2, "int_hsdma = 0x%x\n", int_hsdma);
+		dev_dbg(musb->controller, "int_hsdma = 0x%x\n", int_hsdma);
 
 		if (!int_hsdma)
 			goto done;
@@ -293,7 +316,7 @@ static irqreturn_t dma_controller_irq(int irq, void *private_data)
 				channel->actual_len = addr
 					- musb_channel->start_addr;
 
-				DBG(2, "ch %p, 0x%x -> 0x%x (%zu / %d) %s\n",
+				dev_dbg(musb->controller, "ch %p, 0x%x -> 0x%x (%zu / %d) %s\n",
 					channel, musb_channel->start_addr,
 					addr, channel->actual_len,
 					musb_channel->len,
@@ -363,7 +386,7 @@ dma_controller_create(struct musb *musb, void __iomem *base)
 	struct musb_dma_controller *controller;
 	struct device *dev = musb->controller;
 	struct platform_device *pdev = to_platform_device(dev);
-	int irq = platform_get_irq(pdev, 1);
+	int irq = platform_get_irq_byname(pdev, "dma");
 
 	if (irq == 0) {
 		dev_err(dev, "No DMA interrupt line!\n");

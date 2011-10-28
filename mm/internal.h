@@ -62,9 +62,13 @@ extern bool is_free_buddy_page(struct page *page);
  */
 static inline unsigned long page_order(struct page *page)
 {
-	VM_BUG_ON(!PageBuddy(page));
+	/* PageBuddy() must be checked by the caller */
 	return page_private(page);
 }
+
+/* mm/util.c */
+void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+		struct vm_area_struct *prev, struct rb_node *rb_parent);
 
 #ifdef CONFIG_MMU
 extern long mlock_vma_pages_range(struct vm_area_struct *vma,
@@ -134,6 +138,10 @@ static inline void mlock_migrate_page(struct page *newpage, struct page *page)
 	}
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+extern unsigned long vma_address(struct page *page,
+				 struct vm_area_struct *vma);
+#endif
 #else /* !CONFIG_MMU */
 static inline int is_mlocked_vma(struct vm_area_struct *v, struct page *p)
 {
@@ -158,7 +166,7 @@ static inline struct page *mem_map_offset(struct page *base, int offset)
 }
 
 /*
- * Iterator over all subpages withing the maximally aligned gigantic
+ * Iterator over all subpages within the maximally aligned gigantic
  * page 'base'.  Handle any discontiguity in the mem_map.
  */
 static inline struct page *mem_map_next(struct page *iter,
@@ -240,10 +248,6 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
 {
 }
 #endif /* CONFIG_SPARSEMEM */
-
-int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-		     unsigned long start, int len, unsigned int foll_flags,
-		     struct page **pages, struct vm_area_struct **vmas);
 
 #define ZONE_RECLAIM_NOSCAN	-2
 #define ZONE_RECLAIM_FULL	-1

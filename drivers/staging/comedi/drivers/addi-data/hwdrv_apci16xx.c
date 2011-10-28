@@ -8,7 +8,7 @@ Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 	D-77833 Ottersweier
 	Tel: +19(0)7223/9493-0
 	Fax: +49(0)7223/9493-92
-	http://www.addi-data-com
+	http://www.addi-data.com
 	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
@@ -97,7 +97,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device *dev,
 	unsigned char b_Command = 0;
 	unsigned char b_Cpt = 0;
 	unsigned char b_NumberOfPort =
-		(unsigned char) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
+		(unsigned char) (this_board->i_NbrTTLChannel / 8);
 
 	/************************/
 	/* Test the buffer size */
@@ -289,7 +289,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device *dev,
 	int i_ReturnValue = insn->n;
 	unsigned char b_Command = 0;
 	unsigned char b_NumberOfPort =
-		(unsigned char) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
+		(unsigned char) (this_board->i_NbrTTLChannel / 8);
 	unsigned char b_SelectedPort = CR_RANGE(insn->chanspec);
 	unsigned char b_InputChannel = CR_CHAN(insn->chanspec);
 	unsigned char *pb_Status;
@@ -450,9 +450,9 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device *dev,
 	   /**********************************/
 
 		b_NumberOfPort =
-			(unsigned char) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 32);
+			(unsigned char) (this_board->i_NbrTTLChannel / 32);
 		if ((b_NumberOfPort * 32) <
-			devpriv->ps_BoardInfo->i_NbrTTLChannel) {
+			this_board->i_NbrTTLChannel) {
 			b_NumberOfPort = b_NumberOfPort + 1;
 		}
 
@@ -576,7 +576,7 @@ int i_APCI16XX_InsnBitsWriteTTLIO(struct comedi_device *dev,
 	int i_ReturnValue = insn->n;
 	unsigned char b_Command = 0;
 	unsigned char b_NumberOfPort =
-		(unsigned char) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
+		(unsigned char) (this_board->i_NbrTTLChannel / 8);
 	unsigned char b_SelectedPort = CR_RANGE(insn->chanspec);
 	unsigned char b_OutputChannel = CR_CHAN(insn->chanspec);
 	unsigned int dw_Status = 0;

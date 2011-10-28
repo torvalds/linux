@@ -1,0 +1,417 @@
+config GENERIC_IOMAP
+	bool
+	default y
+
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+	depends on BROKEN && (Q40 || SUN3X)
+	default y
+
+config ARCH_USES_GETTIMEOFFSET
+	def_bool y
+
+config EISA
+	bool
+	---help---
+	  The Extended Industry Standard Architecture (EISA) bus was
+	  developed as an open alternative to the IBM MicroChannel bus.
+
+	  The EISA bus provided some of the features of the IBM MicroChannel
+	  bus while maintaining backward compatibility with cards made for
+	  the older ISA bus.  The EISA bus saw limited use between 1988 and
+	  1995 when it was made obsolete by the PCI bus.
+
+	  Say Y here if you are building a kernel for an EISA-based machine.
+
+	  Otherwise, say N.
+
+config MCA
+	bool
+	help
+	  MicroChannel Architecture is found in some IBM PS/2 machines and
+	  laptops.  It is a bus system similar to PCI or ISA. See
+	  <file:Documentation/mca.txt> (and especially the web page given
+	  there) before attempting to build an MCA bus kernel.
+
+config PCMCIA
+	tristate
+	---help---
+	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
+	  computer.  These are credit-card size devices such as network cards,
+	  modems or hard drives often used with laptops computers.  There are
+	  actually two varieties of these cards: the older 16 bit PCMCIA cards
+	  and the newer 32 bit CardBus cards.  If you want to use CardBus
+	  cards, you need to say Y here and also to "CardBus support" below.
+
+	  To use your PC-cards, you will need supporting software from David
+	  Hinds' pcmcia-cs package (see the file <file:Documentation/Changes>
+	  for location).  Please also read the PCMCIA-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  To compile this driver as modules, choose M here: the
+	  modules will be called pcmcia_core and ds.
+
+config AMIGA
+	bool "Amiga support"
+	select MMU_MOTOROLA if MMU
+	help
+	  This option enables support for the Amiga series of computers. If
+	  you plan to use this kernel on an Amiga, say Y here and browse the
+	  material available in <file:Documentation/m68k>; otherwise say N.
+
+config ATARI
+	bool "Atari support"
+	select MMU_MOTOROLA if MMU
+	help
+	  This option enables support for the 68000-based Atari series of
+	  computers (including the TT, Falcon and Medusa). If you plan to use
+	  this kernel on an Atari, say Y here and browse the material
+	  available in <file:Documentation/m68k>; otherwise say N.
+
+config MAC
+	bool "Macintosh support"
+	select MMU_MOTOROLA if MMU
+	help
+	  This option enables support for the Apple Macintosh series of
+	  computers (yes, there is experimental support now, at least for part
+	  of the series).
+
+	  Say N unless you're willing to code the remaining necessary support.
+	  ;)
+
+config NUBUS
+	bool
+	depends on MAC
+	default y
+
+config M68K_L2_CACHE
+	bool
+	depends on MAC
+	default y
+
+config APOLLO
+	bool "Apollo support"
+	select MMU_MOTOROLA if MMU
+	help
+	  Say Y here if you want to run Linux on an MC680x0-based Apollo
+	  Domain workstation such as the DN3500.
+
+config VME
+	bool "VME (Motorola and BVM) support"
+	select MMU_MOTOROLA if MMU
+	help
+	  Say Y here if you want to build a kernel for a 680x0 based VME
+	  board.  Boards currently supported include Motorola boards MVME147,
+	  MVME162, MVME166, MVME167, MVME172, and MVME177.  BVME4000 and
+	  BVME6000 boards from BVM Ltd are also supported.
+
+config MVME147
+	bool "MVME147 support"
+	depends on VME
+	help
+	  Say Y to include support for early Motorola VME boards.  This will
+	  build a kernel which can run on MVME147 single-board computers.  If
+	  you select this option you will have to select the appropriate
+	  drivers for SCSI, Ethernet and serial ports later on.
+
+config MVME16x
+	bool "MVME162, 166 and 167 support"
+	depends on VME
+	help
+	  Say Y to include support for Motorola VME boards.  This will build a
+	  kernel which can run on MVME162, MVME166, MVME167, MVME172, and
+	  MVME177 boards.  If you select this option you will have to select
+	  the appropriate drivers for SCSI, Ethernet and serial ports later
+	  on.
+
+config BVME6000
+	bool "BVME4000 and BVME6000 support"
+	depends on VME
+	help
+	  Say Y to include support for VME boards from BVM Ltd.  This will
+	  build a kernel which can run on BVME4000 and BVME6000 boards.  If
+	  you select this option you will have to select the appropriate
+	  drivers for SCSI, Ethernet and serial ports later on.
+
+config HP300
+	bool "HP9000/300 and HP9000/400 support"
+	select MMU_MOTOROLA if MMU
+	help
+	  This option enables support for the HP9000/300 and HP9000/400 series
+	  of workstations. Support for these machines is still somewhat
+	  experimental. If you plan to try to use the kernel on such a machine
+	  say Y here.
+	  Everybody else says N.
+
+config DIO
+	bool "DIO bus support"
+	depends on HP300
+	default y
+	help
+	  Say Y here to enable support for the "DIO" expansion bus used in
+	  HP300 machines. If you are using such a system you almost certainly
+	  want this.
+
+config SUN3X
+	bool "Sun3x support"
+	select MMU_MOTOROLA if MMU
+	select M68030
+	help
+	  This option enables support for the Sun 3x series of workstations.
+	  Be warned that this support is very experimental.
+	  Note that Sun 3x kernels are not compatible with Sun 3 hardware.
+	  General Linux information on the Sun 3x series (now discontinued)
+	  is at <http://www.angelfire.com/ca2/tech68k/sun3.html>.
+
+	  If you don't want to compile a kernel for a Sun 3x, say N.
+
+config Q40
+	bool "Q40/Q60 support"
+	select MMU_MOTOROLA if MMU
+	help
+	  The Q40 is a Motorola 68040-based successor to the Sinclair QL
+	  manufactured in Germany.  There is an official Q40 home page at
+	  <http://www.q40.de/>.  This option enables support for the Q40 and
+	  Q60. Select your CPU below.  For 68LC060 don't forget to enable FPU
+	  emulation.
+
+config SUN3
+	bool "Sun3 support"
+	depends on !MMU_MOTOROLA
+	select MMU_SUN3 if MMU
+	select M68020
+	help
+	  This option enables support for the Sun 3 series of workstations
+	  (3/50, 3/60, 3/1xx, 3/2xx systems). Enabling this option requires
+	  that all other hardware types must be disabled, as Sun 3 kernels
+	  are incompatible with all other m68k targets (including Sun 3x!).
+
+	  If you don't want to compile a kernel exclusively for a Sun 3, say N.
+
+config NATFEAT
+	bool "ARAnyM emulator support"
+	depends on ATARI
+	help
+	  This option enables support for ARAnyM native features, such as
+	  access to a disk image as /dev/hda.
+
+config NFBLOCK
+	tristate "NatFeat block device support"
+	depends on BLOCK && NATFEAT
+	help
+	  Say Y to include support for the ARAnyM NatFeat block device
+	  which allows direct access to the hard drives without using
+	  the hardware emulation.
+
+config NFCON
+	tristate "NatFeat console driver"
+	depends on NATFEAT
+	help
+	  Say Y to include support for the ARAnyM NatFeat console driver
+	  which allows the console output to be redirected to the stderr
+	  output of ARAnyM.
+
+config NFETH
+	tristate "NatFeat Ethernet support"
+	depends on NET_ETHERNET && NATFEAT
+	help
+	  Say Y to include support for the ARAnyM NatFeat network device
+	  which will emulate a regular ethernet device while presenting an
+	  ethertap device to the host system.
+
+comment "Processor type"
+
+config M68020
+	bool "68020 support"
+	help
+	  If you anticipate running this kernel on a computer with a MC68020
+	  processor, say Y. Otherwise, say N. Note that the 68020 requires a
+	  68851 MMU (Memory Management Unit) to run Linux/m68k, except on the
+	  Sun 3, which provides its own version.
+
+config M68030
+	bool "68030 support"
+	depends on !MMU_SUN3
+	help
+	  If you anticipate running this kernel on a computer with a MC68030
+	  processor, say Y. Otherwise, say N. Note that a MC68EC030 will not
+	  work, as it does not include an MMU (Memory Management Unit).
+
+config M68040
+	bool "68040 support"
+	depends on !MMU_SUN3
+	help
+	  If you anticipate running this kernel on a computer with a MC68LC040
+	  or MC68040 processor, say Y. Otherwise, say N. Note that an
+	  MC68EC040 will not work, as it does not include an MMU (Memory
+	  Management Unit).
+
+config M68060
+	bool "68060 support"
+	depends on !MMU_SUN3
+	help
+	  If you anticipate running this kernel on a computer with a MC68060
+	  processor, say Y. Otherwise, say N.
+
+config MMU_MOTOROLA
+	bool
+
+config MMU_SUN3
+	bool
+	depends on MMU && !MMU_MOTOROLA
+
+config M68KFPU_EMU
+	bool "Math emulation support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  At some point in the future, this will cause floating-point math
+	  instructions to be emulated by the kernel on machines that lack a
+	  floating-point math coprocessor.  Thrill-seekers and chronically
+	  sleep-deprived psychotic hacker types can say Y now, everyone else
+	  should probably wait a while.
+
+config M68KFPU_EMU_EXTRAPREC
+	bool "Math emulation extra precision"
+	depends on M68KFPU_EMU
+	help
+	  The fpu uses normally a few bit more during calculations for
+	  correct rounding, the emulator can (often) do the same but this
+	  extra calculation can cost quite some time, so you can disable
+	  it here. The emulator will then "only" calculate with a 64 bit
+	  mantissa and round slightly incorrect, what is more than enough
+	  for normal usage.
+
+config M68KFPU_EMU_ONLY
+	bool "Math emulation only kernel"
+	depends on M68KFPU_EMU
+	help
+	  This option prevents any floating-point instructions from being
+	  compiled into the kernel, thereby the kernel doesn't save any
+	  floating point context anymore during task switches, so this
+	  kernel will only be usable on machines without a floating-point
+	  math coprocessor. This makes the kernel a bit faster as no tests
+	  needs to be executed whether a floating-point instruction in the
+	  kernel should be executed or not.
+
+config ADVANCED
+	bool "Advanced configuration options"
+	---help---
+	  This gives you access to some advanced options for the CPU. The
+	  defaults should be fine for most users, but these options may make
+	  it possible for you to improve performance somewhat if you know what
+	  you are doing.
+
+	  Note that the answer to this question won't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about these options.
+
+	  Most users should say N to this question.
+
+config RMW_INSNS
+	bool "Use read-modify-write instructions"
+	depends on ADVANCED
+	---help---
+	  This allows to use certain instructions that work with indivisible
+	  read-modify-write bus cycles. While this is faster than the
+	  workaround of disabling interrupts, it can conflict with DMA
+	  ( = direct memory access) on many Amiga systems, and it is also said
+	  to destabilize other machines. It is very likely that this will
+	  cause serious problems on any Amiga or Atari Medusa if set. The only
+	  configuration where it should work are 68030-based Ataris, where it
+	  apparently improves performance. But you've been warned! Unless you
+	  really know what you are doing, say N. Try Y only if you're quite
+	  adventurous.
+
+config SINGLE_MEMORY_CHUNK
+	bool "Use one physical chunk of memory only" if ADVANCED && !SUN3
+	default y if SUN3
+	select NEED_MULTIPLE_NODES
+	help
+	  Ignore all but the first contiguous chunk of physical memory for VM
+	  purposes.  This will save a few bytes kernel size and may speed up
+	  some operations.  Say N if not sure.
+
+config 060_WRITETHROUGH
+	bool "Use write-through caching for 68060 supervisor accesses"
+	depends on ADVANCED && M68060
+	---help---
+	  The 68060 generally uses copyback caching of recently accessed data.
+	  Copyback caching means that memory writes will be held in an on-chip
+	  cache and only written back to memory some time later.  Saying Y
+	  here will force supervisor (kernel) accesses to use writethrough
+	  caching.  Writethrough caching means that data is written to memory
+	  straight away, so that cache and memory data always agree.
+	  Writethrough caching is less efficient, but is needed for some
+	  drivers on 68060 based systems where the 68060 bus snooping signal
+	  is hardwired on.  The 53c710 SCSI driver is known to suffer from
+	  this problem.
+
+config ARCH_DISCONTIGMEM_ENABLE
+	def_bool !SINGLE_MEMORY_CHUNK
+
+config NODES_SHIFT
+	int
+	default "3"
+	depends on !SINGLE_MEMORY_CHUNK
+
+config ZORRO
+	bool "Amiga Zorro (AutoConfig) bus support"
+	depends on AMIGA
+	help
+	  This enables support for the Zorro bus in the Amiga. If you have
+	  expansion cards in your Amiga that conform to the Amiga
+	  AutoConfig(tm) specification, say Y, otherwise N. Note that even
+	  expansion cards that do not fit in the Zorro slots but fit in e.g.
+	  the CPU slot may fall in this category, so you have to say Y to let
+	  Linux use these.
+
+config AMIGA_PCMCIA
+	bool "Amiga 1200/600 PCMCIA support (EXPERIMENTAL)"
+	depends on AMIGA && EXPERIMENTAL
+	help
+	  Include support in the kernel for pcmcia on Amiga 1200 and Amiga
+	  600. If you intend to use pcmcia cards say Y; otherwise say N.
+
+config STRAM_PROC
+	bool "ST-RAM statistics in /proc"
+	depends on ATARI
+	help
+	  Say Y here to report ST-RAM usage statistics in /proc/stram.
+
+config HEARTBEAT
+	bool "Use power LED as a heartbeat" if AMIGA || APOLLO || ATARI || MAC ||Q40
+	default y if !AMIGA && !APOLLO && !ATARI && !MAC && !Q40 && HP300
+	help
+	  Use the power-on LED on your machine as a load meter.  The exact
+	  behavior is platform-dependent, but normally the flash frequency is
+	  a hyperbolic function of the 5-minute load average.
+
+# We have a dedicated heartbeat LED. :-)
+config PROC_HARDWARE
+	bool "/proc/hardware support"
+	help
+	  Say Y here to support the /proc/hardware file, which gives you
+	  access to information about the machine you're running on,
+	  including the model, CPU, MMU, clock speed, BogoMIPS rating,
+	  and memory size.
+
+config ISA
+	bool
+	depends on Q40 || AMIGA_PCMCIA
+	default y
+	help
+	  Find out whether you have ISA slots on your motherboard.  ISA is the
+	  name of a bus system, i.e. the way the CPU talks to the other stuff
+	  inside your box.  Other bus systems are PCI, EISA, MicroChannel
+	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
+	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
+
+config GENERIC_ISA_DMA
+	bool
+	depends on Q40 || AMIGA_PCMCIA
+	default y
+
+source "drivers/pci/Kconfig"
+
+source "drivers/zorro/Kconfig"
+

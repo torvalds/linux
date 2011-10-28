@@ -53,7 +53,7 @@ CVMX_SHARED cvmx_fpa_pool_info_t cvmx_fpa_pool_info[CVMX_FPA_NUM_POOLS];
  * @name:       Constant character string to name this pool.
  *                   String is not copied.
  * @buffer:     Pointer to the block of memory to use. This must be
- *                   accessable by all processors and external hardware.
+ *                   accessible by all processors and external hardware.
  * @block_size: Size for each block controlled by the FPA
  * @num_blocks: Number of blocks
  *

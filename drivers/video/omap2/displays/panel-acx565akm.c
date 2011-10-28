@@ -30,7 +30,7 @@
 #include <linux/backlight.h>
 #include <linux/fb.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 #define MIPID_CMD_READ_DISP_ID		0x04
 #define MIPID_CMD_READ_RED		0x06
@@ -534,6 +534,7 @@ static int acx_panel_probe(struct omap_dss_device *dssdev)
 
 	props.fb_blank = FB_BLANK_UNBLANK;
 	props.power = FB_BLANK_UNBLANK;
+	props.type = BACKLIGHT_RAW;
 
 	bldev = backlight_device_register("acx565akm", &md->spi->dev,
 			md, &acx565akm_bl_ops, &props);
@@ -586,6 +587,9 @@ static int acx_panel_power_on(struct omap_dss_device *dssdev)
 	int r;
 
 	dev_dbg(&dssdev->dev, "%s\n", __func__);
+
+	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
+		return 0;
 
 	mutex_lock(&md->mutex);
 
@@ -643,6 +647,9 @@ static void acx_panel_power_off(struct omap_dss_device *dssdev)
 	struct acx565akm_device *md = &acx_dev;
 
 	dev_dbg(&dssdev->dev, "%s\n", __func__);
+
+	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
+		return;
 
 	mutex_lock(&md->mutex);
 

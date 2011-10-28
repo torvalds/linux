@@ -429,7 +429,6 @@ static sector_t _affs_bmap(struct address_space *mapping, sector_t block)
 const struct address_space_operations affs_aops = {
 	.readpage = affs_readpage,
 	.writepage = affs_writepage,
-	.sync_page = block_sync_page,
 	.write_begin = affs_write_begin,
 	.write_end = generic_write_end,
 	.bmap = _affs_bmap
@@ -786,7 +785,6 @@ out:
 const struct address_space_operations affs_aops_ofs = {
 	.readpage = affs_readpage_ofs,
 	//.writepage = affs_writepage_ofs,
-	//.sync_page = affs_sync_page_ofs,
 	.write_begin = affs_write_begin_ofs,
 	.write_end = affs_write_end_ofs
 };
@@ -894,9 +892,9 @@ affs_truncate(struct inode *inode)
 		if (AFFS_SB(sb)->s_flags & SF_OFS) {
 			struct buffer_head *bh = affs_bread_ino(inode, last_blk, 0);
 			u32 tmp;
-			if (IS_ERR(ext_bh)) {
+			if (IS_ERR(bh)) {
 				affs_warning(sb, "truncate", "unexpected read error for last block %u (%d)",
-					     ext, PTR_ERR(ext_bh));
+					     ext, PTR_ERR(bh));
 				return;
 			}
 			tmp = be32_to_cpu(AFFS_DATA_HEAD(bh)->next);

@@ -175,7 +175,6 @@ nouveau_dp_link_train_adjust(struct drm_encoder *encoder, uint8_t *config)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
-	struct bit_displayport_encoder_table_entry *dpse;
 	struct bit_displayport_encoder_table *dpe;
 	int ret, i, dpe_headerlen, vs = 0, pre = 0;
 	uint8_t request[2];
@@ -183,7 +182,6 @@ nouveau_dp_link_train_adjust(struct drm_encoder *encoder, uint8_t *config)
 	dpe = nouveau_bios_dp_table(dev, nv_encoder->dcb, &dpe_headerlen);
 	if (!dpe)
 		return false;
-	dpse = (void *)((char *)dpe + dpe_headerlen);
 
 	ret = auxch_rd(encoder, DP_ADJUST_REQUEST_LANE0_1, request, 2);
 	if (ret)
@@ -279,7 +277,7 @@ nouveau_dp_link_train(struct drm_encoder *encoder)
 	struct bit_displayport_encoder_table *dpe;
 	int dpe_headerlen;
 	uint8_t config[4], status[3];
-	bool cr_done, cr_max_vs, eq_done;
+	bool cr_done, cr_max_vs, eq_done, hpd_state;
 	int ret = 0, i, tries, voltage;
 
 	NV_DEBUG_KMS(dev, "link training!!\n");
@@ -297,7 +295,7 @@ nouveau_dp_link_train(struct drm_encoder *encoder)
 	/* disable hotplug detect, this flips around on some panels during
 	 * link training.
 	 */
-	pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, false);
+	hpd_state = pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, false);
 
 	if (dpe->script0) {
 		NV_DEBUG_KMS(dev, "SOR-%d: running DP script 0\n", nv_encoder->or);
@@ -317,7 +315,8 @@ train:
 		return false;
 
 	config[0] = nv_encoder->dp.link_nr;
-	if (nv_encoder->dp.dpcd_version >= 0x11)
+	if (nv_encoder->dp.dpcd_version >= 0x11 &&
+	    nv_encoder->dp.enhanced_frame)
 		config[0] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 
 	ret = nouveau_dp_lane_count_set(encoder, config[0]);
@@ -438,7 +437,7 @@ stop:
 	}
 
 	/* re-enable hotplug detect */
-	pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, true);
+	pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, hpd_state);
 
 	return eq_done;
 }
@@ -468,9 +467,11 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 	    !nv_encoder->dcb->dpconf.link_bw)
 		nv_encoder->dp.link_bw = DP_LINK_BW_1_62;
 
-	nv_encoder->dp.link_nr = dpcd[2] & 0xf;
+	nv_encoder->dp.link_nr = dpcd[2] & DP_MAX_LANE_COUNT_MASK;
 	if (nv_encoder->dp.link_nr > nv_encoder->dcb->dpconf.link_nr)
 		nv_encoder->dp.link_nr = nv_encoder->dcb->dpconf.link_nr;
+
+	nv_encoder->dp.enhanced_frame = (dpcd[2] & DP_ENHANCED_FRAME_CAP);
 
 	return true;
 }
@@ -524,7 +525,8 @@ nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 		nv_wr32(dev, NV50_AUXCH_CTRL(index), ctrl | 0x80000000);
 		nv_wr32(dev, NV50_AUXCH_CTRL(index), ctrl);
 		nv_wr32(dev, NV50_AUXCH_CTRL(index), ctrl | 0x00010000);
-		if (!nv_wait(NV50_AUXCH_CTRL(index), 0x00010000, 0x00000000)) {
+		if (!nv_wait(dev, NV50_AUXCH_CTRL(index),
+			     0x00010000, 0x00000000)) {
 			NV_ERROR(dev, "expected bit 16 == 0, got 0x%08x\n",
 				 nv_rd32(dev, NV50_AUXCH_CTRL(index)));
 			ret = -EBUSY;

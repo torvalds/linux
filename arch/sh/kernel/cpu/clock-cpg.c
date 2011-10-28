@@ -2,7 +2,7 @@
 #include <linux/compiler.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 #include <asm/clock.h>
 
 static struct clk master_clk = {
@@ -67,7 +67,7 @@ int __init __deprecated cpg_clk_init(void)
 }
 
 /*
- * Placeholder for compatability, until the lazy CPUs do this
+ * Placeholder for compatibility, until the lazy CPUs do this
  * on their own.
  */
 int __init __weak arch_clk_init(void)

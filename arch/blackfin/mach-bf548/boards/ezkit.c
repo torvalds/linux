@@ -22,6 +22,7 @@
 #include <asm/gpio.h>
 #include <asm/nand.h>
 #include <asm/dpmc.h>
+#include <asm/bfin_sport.h>
 #include <asm/portmux.h>
 #include <asm/bfin_sdh.h>
 #include <mach/bf54x_keys.h>
@@ -261,7 +262,7 @@ static struct resource bfin_uart0_resources[] = {
 	},
 };
 
-unsigned short bfin_uart0_peripherals[] = {
+static unsigned short bfin_uart0_peripherals[] = {
 	P_UART0_TX, P_UART0_RX, 0
 };
 
@@ -316,7 +317,7 @@ static struct resource bfin_uart1_resources[] = {
 #endif
 };
 
-unsigned short bfin_uart1_peripherals[] = {
+static unsigned short bfin_uart1_peripherals[] = {
 	P_UART1_TX, P_UART1_RX,
 #ifdef CONFIG_BFIN_UART1_CTSRTS
 	P_UART1_RTS, P_UART1_CTS,
@@ -363,7 +364,7 @@ static struct resource bfin_uart2_resources[] = {
 	},
 };
 
-unsigned short bfin_uart2_peripherals[] = {
+static unsigned short bfin_uart2_peripherals[] = {
 	P_UART2_TX, P_UART2_RX, 0
 };
 
@@ -418,7 +419,7 @@ static struct resource bfin_uart3_resources[] = {
 #endif
 };
 
-unsigned short bfin_uart3_peripherals[] = {
+static unsigned short bfin_uart3_peripherals[] = {
 	P_UART3_TX, P_UART3_RX,
 #ifdef CONFIG_BFIN_UART3_CTSRTS
 	P_UART3_RTS, P_UART3_CTS,
@@ -587,11 +588,13 @@ static struct resource musb_resources[] = {
 		.start	= IRQ_USB_INT0,
 		.end	= IRQ_USB_INT0,
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		.name	= "mc"
 	},
 	[2] = {	/* DMA IRQ */
 		.start	= IRQ_USB_DMA,
 		.end	= IRQ_USB_DMA,
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		.name	= "dma"
 	},
 };
 
@@ -607,6 +610,7 @@ static struct musb_hdrc_config musb_config = {
 	 * if it is the case.
 	 */
 	.gpio_vrsel_active	= 1,
+	.clkin          = 24,           /* musb CLKIN in MHZ */
 };
 
 static struct musb_hdrc_platform_data musb_plat = {
@@ -623,7 +627,7 @@ static struct musb_hdrc_platform_data musb_plat = {
 static u64 musb_dmamask = ~(u32)0;
 
 static struct platform_device musb_device = {
-	.name		= "musb_hdrc",
+	.name		= "musb-blackfin",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &musb_dmamask,
@@ -655,9 +659,9 @@ static struct resource bfin_sport0_uart_resources[] = {
 	},
 };
 
-unsigned short bfin_sport0_peripherals[] = {
+static unsigned short bfin_sport0_peripherals[] = {
 	P_SPORT0_TFS, P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
-	P_SPORT0_DRPRI, P_SPORT0_RSCLK, P_SPORT0_DRSEC, P_SPORT0_DTSEC, 0
+	P_SPORT0_DRPRI, P_SPORT0_RSCLK, 0
 };
 
 static struct platform_device bfin_sport0_uart_device = {
@@ -689,9 +693,9 @@ static struct resource bfin_sport1_uart_resources[] = {
 	},
 };
 
-unsigned short bfin_sport1_peripherals[] = {
+static unsigned short bfin_sport1_peripherals[] = {
 	P_SPORT1_TFS, P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS,
-	P_SPORT1_DRPRI, P_SPORT1_RSCLK, P_SPORT1_DRSEC, P_SPORT1_DTSEC, 0
+	P_SPORT1_DRPRI, P_SPORT1_RSCLK, 0
 };
 
 static struct platform_device bfin_sport1_uart_device = {
@@ -723,7 +727,7 @@ static struct resource bfin_sport2_uart_resources[] = {
 	},
 };
 
-unsigned short bfin_sport2_peripherals[] = {
+static unsigned short bfin_sport2_peripherals[] = {
 	P_SPORT2_TFS, P_SPORT2_DTPRI, P_SPORT2_TSCLK, P_SPORT2_RFS,
 	P_SPORT2_DRPRI, P_SPORT2_RSCLK, P_SPORT2_DRSEC, P_SPORT2_DTSEC, 0
 };
@@ -757,7 +761,7 @@ static struct resource bfin_sport3_uart_resources[] = {
 	},
 };
 
-unsigned short bfin_sport3_peripherals[] = {
+static unsigned short bfin_sport3_peripherals[] = {
 	P_SPORT3_TFS, P_SPORT3_DTPRI, P_SPORT3_TSCLK, P_SPORT3_RFS,
 	P_SPORT3_DRPRI, P_SPORT3_RSCLK, P_SPORT3_DRSEC, P_SPORT3_DTSEC, 0
 };
@@ -775,11 +779,12 @@ static struct platform_device bfin_sport3_uart_device = {
 #endif
 
 #if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
-unsigned short bfin_can_peripherals[] = {
+
+static unsigned short bfin_can0_peripherals[] = {
 	P_CAN0_RX, P_CAN0_TX, 0
 };
 
-static struct resource bfin_can_resources[] = {
+static struct resource bfin_can0_resources[] = {
 	{
 		.start = 0xFFC02A00,
 		.end = 0xFFC02FFF,
@@ -802,14 +807,53 @@ static struct resource bfin_can_resources[] = {
 	},
 };
 
-static struct platform_device bfin_can_device = {
+static struct platform_device bfin_can0_device = {
 	.name = "bfin_can",
-	.num_resources = ARRAY_SIZE(bfin_can_resources),
-	.resource = bfin_can_resources,
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_can0_resources),
+	.resource = bfin_can0_resources,
 	.dev = {
-		.platform_data = &bfin_can_peripherals, /* Passed to driver */
+		.platform_data = &bfin_can0_peripherals, /* Passed to driver */
 	},
 };
+
+static unsigned short bfin_can1_peripherals[] = {
+	P_CAN1_RX, P_CAN1_TX, 0
+};
+
+static struct resource bfin_can1_resources[] = {
+	{
+		.start = 0xFFC03200,
+		.end = 0xFFC037FF,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_CAN1_RX,
+		.end = IRQ_CAN1_RX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_CAN1_TX,
+		.end = IRQ_CAN1_TX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_CAN1_ERROR,
+		.end = IRQ_CAN1_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bfin_can1_device = {
+	.name = "bfin_can",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_can1_resources),
+	.resource = bfin_can1_resources,
+	.dev = {
+		.platform_data = &bfin_can1_peripherals, /* Passed to driver */
+	},
+};
+
 #endif
 
 #if defined(CONFIG_PATA_BF54X) || defined(CONFIG_PATA_BF54X_MODULE)
@@ -837,8 +881,12 @@ static struct platform_device bfin_atapi_device = {
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 static struct mtd_partition partition_info[] = {
 	{
-		.name = "linux kernel(nand)",
+		.name = "bootloader(nand)",
 		.offset = 0,
+		.size = 0x80000,
+	}, {
+		.name = "linux kernel(nand)",
+		.offset = MTDPART_OFS_APPEND,
 		.size = 4 * 1024 * 1024,
 	},
 	{
@@ -901,7 +949,7 @@ static struct platform_device bf54x_sdh_device = {
 static struct mtd_partition ezkit_partitions[] = {
 	{
 		.name       = "bootloader(nor)",
-		.size       = 0x40000,
+		.size       = 0x80000,
 		.offset     = 0,
 	}, {
 		.name       = "linux kernel(nor)",
@@ -909,7 +957,15 @@ static struct mtd_partition ezkit_partitions[] = {
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
 		.name       = "file system(nor)",
-		.size       = MTDPART_SIZ_FULL,
+		.size       = 0x1000000 - 0x80000 - 0x400000 - 0x8000 * 4,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "config(nor)",
+		.size       = 0x8000 * 3,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "u-boot env(nor)",
+		.size       = 0x8000,
 		.offset     = MTDPART_OFS_APPEND,
 	}
 };
@@ -943,7 +999,7 @@ static struct platform_device ezkit_flash_device = {
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
 		.name = "bootloader(spi)",
-		.size = 0x00040000,
+		.size = 0x00080000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
@@ -966,8 +1022,8 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SND_BLACKFIN_AD183X) \
-	|| defined(CONFIG_SND_BLACKFIN_AD183X_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) \
+	|| defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 	.enable_dma = 0,
 	.bits_per_word = 16,
@@ -1023,13 +1079,13 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.mode = SPI_MODE_3,
 	},
 #endif
-#if defined(CONFIG_SND_BLACKFIN_AD183X) \
-	|| defined(CONFIG_SND_BLACKFIN_AD183X_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) \
+	|| defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 	{
-		.modalias = "ad1836",
+		.modalias = "ad183x",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 1,
-		.chip_select = CONFIG_SND_BLACKFIN_SPI_PFBIT,
+		.chip_select = 4,
 		.controller_data = &ad1836_spi_chip_info,
 	},
 #endif
@@ -1107,7 +1163,7 @@ static struct resource bfin_spi1_resource[] = {
 
 /* SPI controller data */
 static struct bfin5xx_spi_master bf54x_spi_master_info0 = {
-	.num_chipselect = 3,
+	.num_chipselect = 4,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
@@ -1123,7 +1179,7 @@ static struct platform_device bf54x_spi_master0 = {
 };
 
 static struct bfin5xx_spi_master bf54x_spi_master_info1 = {
-	.num_chipselect = 3,
+	.num_chipselect = 4,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
 };
@@ -1206,6 +1262,11 @@ static struct i2c_board_info __initdata bfin_i2c_board_info1[] = {
 		.platform_data = (void *)&adxl34x_info,
 	},
 #endif
+#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_BFIN_TWI_LCD_MODULE)
+	{
+		I2C_BOARD_INFO("ad5252", 0x2f),
+	},
+#endif
 };
 #endif
 
@@ -1260,27 +1321,110 @@ static struct platform_device bfin_dpmc = {
 	},
 };
 
-#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE) || \
+	defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE) || \
+	defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
+
+#define SPORT_REQ(x) \
+	[x] = {P_SPORT##x##_TFS, P_SPORT##x##_DTPRI, P_SPORT##x##_TSCLK, \
+		P_SPORT##x##_RFS, P_SPORT##x##_DRPRI, P_SPORT##x##_RSCLK, 0}
+
+static const u16 bfin_snd_pin[][7] = {
+	SPORT_REQ(0),
+	SPORT_REQ(1),
+};
+
+static struct bfin_snd_platform_data bfin_snd_data[] = {
+	{
+		.pin_req = &bfin_snd_pin[0][0],
+	},
+	{
+		.pin_req = &bfin_snd_pin[1][0],
+	},
+};
+
+#define BFIN_SND_RES(x) \
+	[x] = { \
+		{ \
+			.start = SPORT##x##_TCR1, \
+			.end = SPORT##x##_TCR1, \
+			.flags = IORESOURCE_MEM \
+		}, \
+		{ \
+			.start = CH_SPORT##x##_RX, \
+			.end = CH_SPORT##x##_RX, \
+			.flags = IORESOURCE_DMA, \
+		}, \
+		{ \
+			.start = CH_SPORT##x##_TX, \
+			.end = CH_SPORT##x##_TX, \
+			.flags = IORESOURCE_DMA, \
+		}, \
+		{ \
+			.start = IRQ_SPORT##x##_ERROR, \
+			.end = IRQ_SPORT##x##_ERROR, \
+			.flags = IORESOURCE_IRQ, \
+		} \
+	}
+
+static struct resource bfin_snd_resources[][4] = {
+	BFIN_SND_RES(0),
+	BFIN_SND_RES(1),
+};
+
+static struct platform_device bfin_pcm = {
+	.name = "bfin-pcm-audio",
+	.id = -1,
+};
+#endif
+
+#if defined(CONFIG_SND_BF5XX_SOC_AD73311) || defined(CONFIG_SND_BF5XX_SOC_AD73311_MODULE)
+static struct platform_device bfin_ad73311_codec_device = {
+	.name = "ad73311",
+	.id = -1,
+};
+#endif
+
+#if defined(CONFIG_SND_BF5XX_SOC_AD1980) || defined(CONFIG_SND_BF5XX_SOC_AD1980_MODULE)
+static struct platform_device bfin_ad1980_codec_device = {
+	.name = "ad1980",
+	.id = -1,
+};
+#endif
+
+#if defined(CONFIG_SND_BF5XX_SOC_I2S) || defined(CONFIG_SND_BF5XX_SOC_I2S_MODULE)
 static struct platform_device bfin_i2s = {
 	.name = "bfin-i2s",
 	.id = CONFIG_SND_BF5XX_SPORT_NUM,
-	/* TODO: add platform data here */
+	.num_resources = ARRAY_SIZE(bfin_snd_resources[CONFIG_SND_BF5XX_SPORT_NUM]),
+	.resource = bfin_snd_resources[CONFIG_SND_BF5XX_SPORT_NUM],
+	.dev = {
+		.platform_data = &bfin_snd_data[CONFIG_SND_BF5XX_SPORT_NUM],
+	},
 };
 #endif
 
-#if defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_TDM) || defined(CONFIG_SND_BF5XX_SOC_TDM_MODULE)
 static struct platform_device bfin_tdm = {
 	.name = "bfin-tdm",
 	.id = CONFIG_SND_BF5XX_SPORT_NUM,
-	/* TODO: add platform data here */
+	.num_resources = ARRAY_SIZE(bfin_snd_resources[CONFIG_SND_BF5XX_SPORT_NUM]),
+	.resource = bfin_snd_resources[CONFIG_SND_BF5XX_SPORT_NUM],
+	.dev = {
+		.platform_data = &bfin_snd_data[CONFIG_SND_BF5XX_SPORT_NUM],
+	},
 };
 #endif
 
-#if defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AC97) || defined(CONFIG_SND_BF5XX_SOC_AC97_MODULE)
 static struct platform_device bfin_ac97 = {
 	.name = "bfin-ac97",
 	.id = CONFIG_SND_BF5XX_SPORT_NUM,
-	/* TODO: add platform data here */
+	.num_resources = ARRAY_SIZE(bfin_snd_resources[CONFIG_SND_BF5XX_SPORT_NUM]),
+	.resource = bfin_snd_resources[CONFIG_SND_BF5XX_SPORT_NUM],
+	.dev = {
+		.platform_data = &bfin_snd_data[CONFIG_SND_BF5XX_SPORT_NUM],
+	},
 };
 #endif
 
@@ -1354,7 +1498,8 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
-	&bfin_can_device,
+	&bfin_can0_device,
+	&bfin_can1_device,
 #endif
 
 #if defined(CONFIG_PATA_BF54X) || defined(CONFIG_PATA_BF54X_MODULE)
@@ -1395,6 +1540,16 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&ezkit_flash_device,
+#endif
+
+#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE) || \
+	defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE) || \
+	defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
+	&bfin_pcm,
+#endif
+
+#if defined(CONFIG_SND_BF5XX_SOC_AD1980) || defined(CONFIG_SND_BF5XX_SOC_AD1980_MODULE)
+	&bfin_ad1980_codec_device,
 #endif
 
 #if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)

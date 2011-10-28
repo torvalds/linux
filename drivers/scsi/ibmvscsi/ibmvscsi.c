@@ -713,7 +713,7 @@ static inline u16 lun_from_dev(struct scsi_device *dev)
  * @cmd:	struct scsi_cmnd to be executed
  * @done:	Callback function to be called when cmd is completed
 */
-static int ibmvscsi_queuecommand(struct scsi_cmnd *cmnd,
+static int ibmvscsi_queuecommand_lck(struct scsi_cmnd *cmnd,
 				 void (*done) (struct scsi_cmnd *))
 {
 	struct srp_cmd *srp_cmd;
@@ -765,6 +765,8 @@ static int ibmvscsi_queuecommand(struct scsi_cmnd *cmnd,
 
 	return ibmvscsi_send_srp_event(evt_struct, hostdata, 0);
 }
+
+static DEF_SCSI_QCMD(ibmvscsi_queuecommand)
 
 /* ------------------------------------------------------------
  * Routines for driver initialization
@@ -1847,8 +1849,7 @@ static void ibmvscsi_do_work(struct ibmvscsi_host_data *hostdata)
 		rc = ibmvscsi_ops->reset_crq_queue(&hostdata->queue, hostdata);
 		if (!rc)
 			rc = ibmvscsi_ops->send_crq(hostdata, 0xC001000000000000LL, 0);
-		if (!rc)
-			rc = vio_enable_interrupts(to_vio_dev(hostdata->dev));
+		vio_enable_interrupts(to_vio_dev(hostdata->dev));
 	} else if (hostdata->reenable_crq) {
 		smp_rmb();
 		action = "enable";

@@ -25,7 +25,7 @@
 #include <linux/ioctl.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <asm/io.h>
@@ -36,6 +36,7 @@
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 
+static DEFINE_MUTEX(swim3_mutex);
 static struct request_queue *swim3_queue;
 static struct gendisk *disks[2];
 static struct request *fd_req;
@@ -249,7 +250,8 @@ static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long param);
 static int floppy_open(struct block_device *bdev, fmode_t mode);
 static int floppy_release(struct gendisk *disk, fmode_t mode);
-static int floppy_check_change(struct gendisk *disk);
+static unsigned int floppy_check_events(struct gendisk *disk,
+					unsigned int clearing);
 static int floppy_revalidate(struct gendisk *disk);
 
 static bool swim3_end_request(int err, unsigned int nr_bytes)
@@ -873,9 +875,9 @@ static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&swim3_mutex);
 	ret = floppy_locked_ioctl(bdev, mode, cmd, param);
-	unlock_kernel();
+	mutex_unlock(&swim3_mutex);
 
 	return ret;
 }
@@ -953,9 +955,9 @@ static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&swim3_mutex);
 	ret = floppy_open(bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&swim3_mutex);
 
 	return ret;
 }
@@ -964,20 +966,21 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	struct floppy_state *fs = disk->private_data;
 	struct swim3 __iomem *sw = fs->swim3;
-	lock_kernel();
+	mutex_lock(&swim3_mutex);
 	if (fs->ref_count > 0 && --fs->ref_count == 0) {
 		swim3_action(fs, MOTOR_OFF);
 		out_8(&sw->control_bic, 0xff);
 		swim3_select(fs, RELAX);
 	}
-	unlock_kernel();
+	mutex_unlock(&swim3_mutex);
 	return 0;
 }
 
-static int floppy_check_change(struct gendisk *disk)
+static unsigned int floppy_check_events(struct gendisk *disk,
+					unsigned int clearing)
 {
 	struct floppy_state *fs = disk->private_data;
-	return fs->ejected;
+	return fs->ejected ? DISK_EVENT_MEDIA_CHANGE : 0;
 }
 
 static int floppy_revalidate(struct gendisk *disk)
@@ -1024,7 +1027,7 @@ static const struct block_device_operations floppy_fops = {
 	.open		= floppy_unlocked_open,
 	.release	= floppy_release,
 	.ioctl		= floppy_ioctl,
-	.media_changed	= floppy_check_change,
+	.check_events	= floppy_check_events,
 	.revalidate_disk= floppy_revalidate,
 };
 

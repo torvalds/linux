@@ -240,36 +240,15 @@ static int mpc5121_rtc_alarm_irq_enable(struct device *dev,
 	return 0;
 }
 
-static int mpc5121_rtc_update_irq_enable(struct device *dev,
-					 unsigned int enabled)
-{
-	struct mpc5121_rtc_data *rtc = dev_get_drvdata(dev);
-	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
-	int val;
-
-	val = in_8(&regs->int_enable);
-
-	if (enabled)
-		val = (val & ~0x8) | 0x1;
-	else
-		val &= ~0x1;
-
-	out_8(&regs->int_enable, val);
-
-	return 0;
-}
-
 static const struct rtc_class_ops mpc5121_rtc_ops = {
 	.read_time = mpc5121_rtc_read_time,
 	.set_time = mpc5121_rtc_set_time,
 	.read_alarm = mpc5121_rtc_read_alarm,
 	.set_alarm = mpc5121_rtc_set_alarm,
 	.alarm_irq_enable = mpc5121_rtc_alarm_irq_enable,
-	.update_irq_enable = mpc5121_rtc_update_irq_enable,
 };
 
-static int __devinit mpc5121_rtc_probe(struct platform_device *op,
-					const struct of_device_id *match)
+static int __devinit mpc5121_rtc_probe(struct platform_device *op)
 {
 	struct mpc5121_rtc_data *rtc;
 	int err = 0;
@@ -364,7 +343,7 @@ static struct of_device_id mpc5121_rtc_match[] __devinitdata = {
 	{},
 };
 
-static struct of_platform_driver mpc5121_rtc_driver = {
+static struct platform_driver mpc5121_rtc_driver = {
 	.driver = {
 		.name = "mpc5121-rtc",
 		.owner = THIS_MODULE,
@@ -376,13 +355,13 @@ static struct of_platform_driver mpc5121_rtc_driver = {
 
 static int __init mpc5121_rtc_init(void)
 {
-	return of_register_platform_driver(&mpc5121_rtc_driver);
+	return platform_driver_register(&mpc5121_rtc_driver);
 }
 module_init(mpc5121_rtc_init);
 
 static void __exit mpc5121_rtc_exit(void)
 {
-	of_unregister_platform_driver(&mpc5121_rtc_driver);
+	platform_driver_unregister(&mpc5121_rtc_driver);
 }
 module_exit(mpc5121_rtc_exit);
 

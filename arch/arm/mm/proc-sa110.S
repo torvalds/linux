@@ -156,7 +156,7 @@ ENTRY(cpu_sa110_set_pte_ext)
 #endif
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__sa110_setup, #function
 __sa110_setup:
@@ -203,6 +203,9 @@ ENTRY(sa110_processor_functions)
 	.word	cpu_sa110_dcache_clean_area
 	.word	cpu_sa110_switch_mm
 	.word	cpu_sa110_set_pte_ext
+	.word	0
+	.word	0
+	.word	0
 	.size	sa110_processor_functions, . - sa110_processor_functions
 
 	.section ".rodata"

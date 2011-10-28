@@ -34,7 +34,6 @@
  *   timer interrupt which may be pending.
  */
 struct sys_timer {
-	struct sys_device	dev;
 	void			(*init)(void);
 	void			(*suspend)(void);
 	void			(*resume)(void);
@@ -43,7 +42,6 @@ struct sys_timer {
 #endif
 };
 
-extern struct sys_timer *system_timer;
 extern void timer_tick(void);
 
 #endif

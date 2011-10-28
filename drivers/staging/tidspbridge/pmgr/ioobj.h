@@ -29,10 +29,10 @@
  */
 struct io_mgr_ {
 	/* These must be the first fields in a io_mgr struct: */
-	struct bridge_dev_context *hbridge_context;	/* Bridge context. */
+	struct bridge_dev_context *bridge_context;	/* Bridge context. */
 	/* Function interface to Bridge driver. */
 	struct bridge_drv_interface *intf_fxns;
-	struct dev_object *hdev_obj;	/* Device this board represents. */
+	struct dev_object *dev_obj;	/* Device this board represents. */
 };
 
 #endif /* IOOBJ_ */

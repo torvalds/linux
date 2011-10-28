@@ -31,7 +31,6 @@
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
 
-#define  __ARCH_WANT_KPROBES_INSN_SLOT
 struct pt_regs;
 struct kprobe;
 
@@ -58,23 +57,12 @@ typedef u16 kprobe_opcode_t;
 /* Architecture specific copy of original instruction */
 struct arch_specific_insn {
 	/* copy of original instruction */
-	kprobe_opcode_t *insn;
-	int fixup;
-	int ilen;
-	int reg;
+	kprobe_opcode_t insn[MAX_INSN_SIZE];
 };
 
-struct ins_replace_args {
-	kprobe_opcode_t *ptr;
-	kprobe_opcode_t old;
-	kprobe_opcode_t new;
-};
 struct prev_kprobe {
 	struct kprobe *kp;
 	unsigned long status;
-	unsigned long saved_psw;
-	unsigned long kprobe_saved_imask;
-	unsigned long kprobe_saved_ctl[3];
 };
 
 /* per-cpu kprobe control block */
@@ -82,17 +70,13 @@ struct kprobe_ctlblk {
 	unsigned long kprobe_status;
 	unsigned long kprobe_saved_imask;
 	unsigned long kprobe_saved_ctl[3];
-	struct pt_regs jprobe_saved_regs;
-	unsigned long jprobe_saved_r14;
-	unsigned long jprobe_saved_r15;
 	struct prev_kprobe prev_kprobe;
+	struct pt_regs jprobe_saved_regs;
 	kprobe_opcode_t jprobes_stack[MAX_STACK_SIZE];
 };
 
 void arch_remove_kprobe(struct kprobe *p);
 void kretprobe_trampoline(void);
-int  is_prohibited_opcode(kprobe_opcode_t *instruction);
-void get_instruction_type(struct arch_specific_insn *ainsn);
 
 int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 int kprobe_exceptions_notify(struct notifier_block *self,

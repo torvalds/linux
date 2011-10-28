@@ -22,6 +22,7 @@
 #include <linux/ctype.h>
 #include <linux/sysctl.h>
 #include <linux/audit.h>
+#include <linux/user_namespace.h>
 #include <net/sock.h>
 
 #include "include/apparmor.h"
@@ -126,7 +127,7 @@ static int apparmor_capget(struct task_struct *target, kernel_cap_t *effective,
 	*inheritable = cred->cap_inheritable;
 	*permitted = cred->cap_permitted;
 
-	if (!unconfined(profile)) {
+	if (!unconfined(profile) && !COMPLAIN_MODE(profile)) {
 		*effective = cap_intersect(*effective, profile->caps.allow);
 		*permitted = cap_intersect(*permitted, profile->caps.allow);
 	}
@@ -136,11 +137,11 @@ static int apparmor_capget(struct task_struct *target, kernel_cap_t *effective,
 }
 
 static int apparmor_capable(struct task_struct *task, const struct cred *cred,
-			    int cap, int audit)
+			    struct user_namespace *ns, int cap, int audit)
 {
 	struct aa_profile *profile;
 	/* cap_capable returns 0 on success, else -EPERM */
-	int error = cap_capable(task, cred, cap, audit);
+	int error = cap_capable(task, cred, ns, cap, audit);
 	if (!error) {
 		profile = aa_cred_profile(cred);
 		if (!unconfined(profile))
@@ -592,7 +593,8 @@ static int apparmor_setprocattr(struct task_struct *task, char *name,
 			sa.aad.op = OP_SETPROCATTR;
 			sa.aad.info = name;
 			sa.aad.error = -EINVAL;
-			return aa_audit(AUDIT_APPARMOR_DENIED, NULL, GFP_KERNEL,
+			return aa_audit(AUDIT_APPARMOR_DENIED,
+					__aa_current_profile(), GFP_KERNEL,
 					&sa, NULL);
 		}
 	} else if (strcmp(name, "exec") == 0) {
@@ -610,7 +612,7 @@ static int apparmor_setprocattr(struct task_struct *task, char *name,
 static int apparmor_task_setrlimit(struct task_struct *task,
 		unsigned int resource, struct rlimit *new_rlim)
 {
-	struct aa_profile *profile = aa_current_profile();
+	struct aa_profile *profile = __aa_current_profile();
 	int error = 0;
 
 	if (!unconfined(profile))
@@ -693,11 +695,9 @@ static struct kernel_param_ops param_ops_aalockpolicy = {
 
 static int param_set_audit(const char *val, struct kernel_param *kp);
 static int param_get_audit(char *buffer, struct kernel_param *kp);
-#define param_check_audit(name, p) __param_check(name, p, int)
 
 static int param_set_mode(const char *val, struct kernel_param *kp);
 static int param_get_mode(char *buffer, struct kernel_param *kp);
-#define param_check_mode(name, p) __param_check(name, p, int)
 
 /* Flag values, also controllable via /sys/module/apparmor/parameters
  * We define special types as we want to do additional mediation.
@@ -922,7 +922,7 @@ static int __init apparmor_init(void)
 	error = register_security(&apparmor_ops);
 	if (error) {
 		AA_ERROR("Unable to register AppArmor\n");
-		goto register_security_out;
+		goto set_init_cxt_out;
 	}
 
 	/* Report that AppArmor successfully initialized */
@@ -936,6 +936,9 @@ static int __init apparmor_init(void)
 
 	return error;
 
+set_init_cxt_out:
+	aa_free_task_context(current->real_cred->security);
+
 register_security_out:
 	aa_free_root_ns();
 
@@ -944,7 +947,6 @@ alloc_out:
 
 	apparmor_enabled = 0;
 	return error;
-
 }
 
 security_initcall(apparmor_init);

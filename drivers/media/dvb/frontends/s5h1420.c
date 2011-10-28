@@ -225,7 +225,7 @@ static int s5h1420_recv_slave_reply (struct dvb_frontend* fe,
 	unsigned long timeout;
 	int result = 0;
 
-	/* setup for DISEQC recieve */
+	/* setup for DISEQC receive */
 	val = s5h1420_readreg(state, 0x3b);
 	s5h1420_writereg(state, 0x3b, 0x82); /* FIXME: guess - do we need to set DIS_RDY(0x08) in receive mode? */
 	msleep(15);
@@ -920,7 +920,6 @@ struct dvb_frontend *s5h1420_attach(const struct s5h1420_config *config,
 	/* create tuner i2c adapter */
 	strlcpy(state->tuner_i2c_adapter.name, "S5H1420-PN1010 tuner I2C bus",
 		sizeof(state->tuner_i2c_adapter.name));
-	state->tuner_i2c_adapter.class     = I2C_CLASS_TV_DIGITAL,
 	state->tuner_i2c_adapter.algo      = &s5h1420_tuner_i2c_algo;
 	state->tuner_i2c_adapter.algo_data = NULL;
 	i2c_set_adapdata(&state->tuner_i2c_adapter, state);

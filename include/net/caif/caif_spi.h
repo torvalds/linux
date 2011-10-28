@@ -121,6 +121,8 @@ struct cfspi {
 	wait_queue_head_t wait;
 	spinlock_t lock;
 	bool flow_stop;
+	bool slave;
+	bool slave_talked;
 #ifdef CONFIG_DEBUG_FS
 	enum cfspi_state dbg_state;
 	u16 pcmd;

@@ -21,9 +21,9 @@ static inline int nf_nat_initialized(struct nf_conn *ct,
 				     enum nf_nat_manip_type manip)
 {
 	if (manip == IP_NAT_MANIP_SRC)
-		return test_bit(IPS_SRC_NAT_DONE_BIT, &ct->status);
+		return ct->status & IPS_SRC_NAT_DONE;
 	else
-		return test_bit(IPS_DST_NAT_DONE_BIT, &ct->status);
+		return ct->status & IPS_DST_NAT_DONE;
 }
 
 struct nlattr;

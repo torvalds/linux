@@ -1,14 +1,16 @@
 #ifndef _ASM_X86_SEGMENT_H
 #define _ASM_X86_SEGMENT_H
 
+#include <linux/const.h>
+
 /* Constructor for a conventional segment GDT (or LDT) entry */
 /* This is a macro so it can be used in initializers */
 #define GDT_ENTRY(flags, base, limit)			\
-	((((base)  & 0xff000000ULL) << (56-24)) |	\
-	 (((flags) & 0x0000f0ffULL) << 40) |		\
-	 (((limit) & 0x000f0000ULL) << (48-16)) |	\
-	 (((base)  & 0x00ffffffULL) << 16) |		\
-	 (((limit) & 0x0000ffffULL)))
+	((((base)  & _AC(0xff000000,ULL)) << (56-24)) |	\
+	 (((flags) & _AC(0x0000f0ff,ULL)) << 40) |	\
+	 (((limit) & _AC(0x000f0000,ULL)) << (48-16)) |	\
+	 (((base)  & _AC(0x00ffffff,ULL)) << 16) |	\
+	 (((limit) & _AC(0x0000ffff,ULL))))
 
 /* Simple and small GDT entries for booting only */
 
@@ -73,31 +75,31 @@
 
 #define GDT_ENTRY_DEFAULT_USER_DS	15
 
-#define GDT_ENTRY_KERNEL_BASE	12
+#define GDT_ENTRY_KERNEL_BASE		(12)
 
-#define GDT_ENTRY_KERNEL_CS		(GDT_ENTRY_KERNEL_BASE + 0)
+#define GDT_ENTRY_KERNEL_CS		(GDT_ENTRY_KERNEL_BASE+0)
 
-#define GDT_ENTRY_KERNEL_DS		(GDT_ENTRY_KERNEL_BASE + 1)
+#define GDT_ENTRY_KERNEL_DS		(GDT_ENTRY_KERNEL_BASE+1)
 
-#define GDT_ENTRY_TSS			(GDT_ENTRY_KERNEL_BASE + 4)
-#define GDT_ENTRY_LDT			(GDT_ENTRY_KERNEL_BASE + 5)
+#define GDT_ENTRY_TSS			(GDT_ENTRY_KERNEL_BASE+4)
+#define GDT_ENTRY_LDT			(GDT_ENTRY_KERNEL_BASE+5)
 
-#define GDT_ENTRY_PNPBIOS_BASE		(GDT_ENTRY_KERNEL_BASE + 6)
-#define GDT_ENTRY_APMBIOS_BASE		(GDT_ENTRY_KERNEL_BASE + 11)
+#define GDT_ENTRY_PNPBIOS_BASE		(GDT_ENTRY_KERNEL_BASE+6)
+#define GDT_ENTRY_APMBIOS_BASE		(GDT_ENTRY_KERNEL_BASE+11)
 
-#define GDT_ENTRY_ESPFIX_SS		(GDT_ENTRY_KERNEL_BASE + 14)
-#define __ESPFIX_SS (GDT_ENTRY_ESPFIX_SS * 8)
+#define GDT_ENTRY_ESPFIX_SS		(GDT_ENTRY_KERNEL_BASE+14)
+#define __ESPFIX_SS			(GDT_ENTRY_ESPFIX_SS*8)
 
-#define GDT_ENTRY_PERCPU			(GDT_ENTRY_KERNEL_BASE + 15)
+#define GDT_ENTRY_PERCPU		(GDT_ENTRY_KERNEL_BASE+15)
 #ifdef CONFIG_SMP
 #define __KERNEL_PERCPU (GDT_ENTRY_PERCPU * 8)
 #else
 #define __KERNEL_PERCPU 0
 #endif
 
-#define GDT_ENTRY_STACK_CANARY		(GDT_ENTRY_KERNEL_BASE + 16)
+#define GDT_ENTRY_STACK_CANARY		(GDT_ENTRY_KERNEL_BASE+16)
 #ifdef CONFIG_CC_STACKPROTECTOR
-#define __KERNEL_STACK_CANARY		(GDT_ENTRY_STACK_CANARY * 8)
+#define __KERNEL_STACK_CANARY		(GDT_ENTRY_STACK_CANARY*8)
 #else
 #define __KERNEL_STACK_CANARY		0
 #endif
@@ -182,10 +184,10 @@
 
 #endif
 
-#define __KERNEL_CS	(GDT_ENTRY_KERNEL_CS * 8)
-#define __KERNEL_DS	(GDT_ENTRY_KERNEL_DS * 8)
-#define __USER_DS     (GDT_ENTRY_DEFAULT_USER_DS* 8 + 3)
-#define __USER_CS     (GDT_ENTRY_DEFAULT_USER_CS* 8 + 3)
+#define __KERNEL_CS	(GDT_ENTRY_KERNEL_CS*8)
+#define __KERNEL_DS	(GDT_ENTRY_KERNEL_DS*8)
+#define __USER_DS	(GDT_ENTRY_DEFAULT_USER_DS*8+3)
+#define __USER_CS	(GDT_ENTRY_DEFAULT_USER_CS*8+3)
 #ifndef CONFIG_PARAVIRT
 #define get_kernel_rpl()  0
 #endif

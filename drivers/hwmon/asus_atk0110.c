@@ -5,12 +5,15 @@
  * See COPYING in the top level directory of the kernel tree.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/hwmon.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/dmi.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acpixf.h>
@@ -19,6 +22,21 @@
 
 
 #define ATK_HID "ATK0110"
+
+static bool new_if;
+module_param(new_if, bool, 0);
+MODULE_PARM_DESC(new_if, "Override detection heuristic and force the use of the new ATK0110 interface");
+
+static const struct dmi_system_id __initconst atk_force_new_if[] = {
+	{
+		/* Old interface has broken MCH temp monitoring */
+		.ident = "Asus Sabertooth X58",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "SABERTOOTH X58")
+		}
+	},
+	{ }
+};
 
 /* Minimum time between readings, enforced in order to avoid
  * hogging the CPU.
@@ -250,6 +268,7 @@ static struct device_attribute atk_name_attr =
 static void atk_init_attribute(struct device_attribute *attr, char *name,
 		sysfs_show_func show)
 {
+	sysfs_attr_init(&attr->attr);
 	attr->attr.name = name;
 	attr->attr.mode = 0444;
 	attr->show = show;
@@ -655,6 +674,7 @@ static int atk_debugfs_gitm_get(void *p, u64 *val)
 	else
 		err = -EIO;
 
+	ACPI_FREE(ret);
 	return err;
 }
 
@@ -762,6 +782,7 @@ static const struct file_operations atk_debugfs_ggrp_fops = {
 	.read		= atk_debugfs_ggrp_read,
 	.open		= atk_debugfs_ggrp_open,
 	.release	= atk_debugfs_ggrp_release,
+	.llseek		= no_llseek,
 };
 
 static void atk_debugfs_init(struct atk_data *data)
@@ -1169,19 +1190,15 @@ static int atk_create_files(struct atk_data *data)
 	int err;
 
 	list_for_each_entry(s, &data->sensor_list, list) {
-		sysfs_attr_init(&s->input_attr.attr);
 		err = device_create_file(data->hwmon_dev, &s->input_attr);
 		if (err)
 			return err;
-		sysfs_attr_init(&s->label_attr.attr);
 		err = device_create_file(data->hwmon_dev, &s->label_attr);
 		if (err)
 			return err;
-		sysfs_attr_init(&s->limit1_attr.attr);
 		err = device_create_file(data->hwmon_dev, &s->limit1_attr);
 		if (err)
 			return err;
-		sysfs_attr_init(&s->limit2_attr.attr);
 		err = device_create_file(data->hwmon_dev, &s->limit2_attr);
 		if (err)
 			return err;
@@ -1299,7 +1316,9 @@ static int atk_probe_if(struct atk_data *data)
 	 * analysis of multiple DSDTs indicates that when both interfaces
 	 * are present the new one (GGRP/GITM) is not functional.
 	 */
-	if (data->rtmp_handle && data->rvlt_handle && data->rfan_handle)
+	if (new_if)
+		dev_info(dev, "Overriding interface detection\n");
+	if (data->rtmp_handle && data->rvlt_handle && data->rfan_handle && !new_if)
 		data->old_interface = true;
 	else if (data->enumerate_handle && data->read_handle &&
 			data->write_handle)
@@ -1413,14 +1432,16 @@ static int __init atk0110_init(void)
 
 	/* Make sure it's safe to access the device through ACPI */
 	if (!acpi_resources_are_enforced()) {
-		pr_err("atk: Resources not safely usable due to "
-		       "acpi_enforce_resources kernel parameter\n");
+		pr_err("Resources not safely usable due to acpi_enforce_resources kernel parameter\n");
 		return -EBUSY;
 	}
 
+	if (dmi_check_system(atk_force_new_if))
+		new_if = true;
+
 	ret = acpi_bus_register_driver(&atk_driver);
 	if (ret)
-		pr_info("atk: acpi_bus_register_driver failed: %d\n", ret);
+		pr_info("acpi_bus_register_driver failed: %d\n", ret);
 
 	return ret;
 }

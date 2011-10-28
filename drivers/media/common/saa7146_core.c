@@ -378,12 +378,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 	dev->pci = pci;
 
 	/* get chip-revision; this is needed to enable bug-fixes */
-	err = pci_read_config_dword(pci, PCI_CLASS_REVISION, &dev->revision);
-	if (err < 0) {
-		ERR(("pci_read_config_dword() failed.\n"));
-		goto err_disable;
-	}
-	dev->revision &= 0xf;
+	dev->revision = pci->revision;
 
 	/* remap the memory from virtual to physical address */
 
@@ -452,7 +447,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 	INFO(("found saa7146 @ mem %p (revision %d, irq %d) (0x%04x,0x%04x).\n", dev->mem, dev->revision, pci->irq, pci->subsystem_vendor, pci->subsystem_device));
 	dev->ext = ext;
 
-	mutex_init(&dev->lock);
+	mutex_init(&dev->v4l2_lock);
 	spin_lock_init(&dev->int_slock);
 	spin_lock_init(&dev->slock);
 

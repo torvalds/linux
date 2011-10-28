@@ -82,7 +82,7 @@ static inline unsigned int msm6242_read(struct msm6242_priv *priv,
 static inline void msm6242_write(struct msm6242_priv *priv, unsigned int val,
 				unsigned int reg)
 {
-	return __raw_writel(val, &priv->regs[reg]);
+	__raw_writel(val, &priv->regs[reg]);
 }
 
 static inline void msm6242_set(struct msm6242_priv *priv, unsigned int val,
@@ -214,6 +214,7 @@ static int __init msm6242_rtc_probe(struct platform_device *dev)
 		error = -ENOMEM;
 		goto out_free_priv;
 	}
+	platform_set_drvdata(dev, priv);
 
 	rtc = rtc_device_register("rtc-msm6242", &dev->dev, &msm6242_rtc_ops,
 				  THIS_MODULE);
@@ -223,10 +224,10 @@ static int __init msm6242_rtc_probe(struct platform_device *dev)
 	}
 
 	priv->rtc = rtc;
-	platform_set_drvdata(dev, priv);
 	return 0;
 
 out_unmap:
+	platform_set_drvdata(dev, NULL);
 	iounmap(priv->regs);
 out_free_priv:
 	kfree(priv);

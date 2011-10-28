@@ -50,7 +50,7 @@ typedef	int (write_proc_t)(struct file *file, const char __user *buffer,
 
 struct proc_dir_entry {
 	unsigned int low_ino;
-	unsigned short namelen;
+	unsigned int namelen;
 	const char *name;
 	mode_t mode;
 	nlink_t nlink;
@@ -173,11 +173,7 @@ extern void proc_net_remove(struct net *net, const char *name);
 extern struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
 	struct proc_dir_entry *parent);
 
-/* While the {get|set|dup}_mm_exe_file functions are for mm_structs, they are
- * only needed to implement /proc/<pid>|self/exe so we define them here. */
-extern void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file);
-extern struct file *get_mm_exe_file(struct mm_struct *mm);
-extern void dup_mm_exe_file(struct mm_struct *oldmm, struct mm_struct *newmm);
+extern struct file *proc_ns_fget(int fd);
 
 #else
 
@@ -208,6 +204,8 @@ static inline struct proc_dir_entry *proc_symlink(const char *name,
 		struct proc_dir_entry *parent,const char *dest) {return NULL;}
 static inline struct proc_dir_entry *proc_mkdir(const char *name,
 	struct proc_dir_entry *parent) {return NULL;}
+static inline struct proc_dir_entry *proc_mkdir_mode(const char *name,
+	mode_t mode, struct proc_dir_entry *parent) { return NULL; }
 
 static inline struct proc_dir_entry *create_proc_read_entry(const char *name,
 	mode_t mode, struct proc_dir_entry *base, 
@@ -226,18 +224,10 @@ static inline void pid_ns_release_proc(struct pid_namespace *ns)
 {
 }
 
-static inline void set_mm_exe_file(struct mm_struct *mm,
-				   struct file *new_exe_file)
-{}
-
-static inline struct file *get_mm_exe_file(struct mm_struct *mm)
+static inline struct file *proc_ns_fget(int fd)
 {
-	return NULL;
+	return ERR_PTR(-EINVAL);
 }
-
-static inline void dup_mm_exe_file(struct mm_struct *oldmm,
-	       			   struct mm_struct *newmm)
-{}
 
 #endif /* CONFIG_PROC_FS */
 
@@ -249,6 +239,18 @@ kclist_add(struct kcore_list *new, void *addr, size_t size, int type)
 #else
 extern void kclist_add(struct kcore_list *, void *, size_t, int type);
 #endif
+
+struct nsproxy;
+struct proc_ns_operations {
+	const char *name;
+	int type;
+	void *(*get)(struct task_struct *task);
+	void (*put)(void *ns);
+	int (*install)(struct nsproxy *nsproxy, void *ns);
+};
+extern const struct proc_ns_operations netns_operations;
+extern const struct proc_ns_operations utsns_operations;
+extern const struct proc_ns_operations ipcns_operations;
 
 union proc_op {
 	int (*proc_get_link)(struct inode *, struct path *);
@@ -268,6 +270,8 @@ struct proc_inode {
 	struct proc_dir_entry *pde;
 	struct ctl_table_header *sysctl;
 	struct ctl_table *sysctl_entry;
+	void *ns;
+	const struct proc_ns_operations *ns_ops;
 	struct inode vfs_inode;
 };
 
@@ -285,13 +289,5 @@ static inline struct net *PDE_NET(struct proc_dir_entry *pde)
 {
 	return pde->parent->data;
 }
-
-struct proc_maps_private {
-	struct pid *pid;
-	struct task_struct *task;
-#ifdef CONFIG_MMU
-	struct vm_area_struct *tail_vma;
-#endif
-};
 
 #endif /* _LINUX_PROC_FS_H */

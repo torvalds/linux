@@ -16,22 +16,26 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+/*  ----------------------------------- Host OS */
+#include <dspbridge/host_os.h>
+
+#include <plat/dsp.h>
+
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
-#include <dspbridge/cfg.h>
 #include <dspbridge/drv.h>
 #include <dspbridge/io_sm.h>
 
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/brddefs.h>
 #include <dspbridge/dev.h>
-#include <dspbridge/iodefs.h>
+#include <dspbridge/io.h>
 
 /* ------------------------------------ Hardware Abstraction Layer */
 #include <hw_defs.h>
 #include <hw_mmu.h>
 
-#include <dspbridge/pwr_sh.h>
+#include <dspbridge/pwr.h>
 
 /*  ----------------------------------- Bridge Driver */
 #include <dspbridge/dspdeh.h>
@@ -54,8 +58,8 @@ int handle_constraints_set(struct bridge_dev_context *dev_context,
 {
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 	u32 *constraint_val;
-	struct dspbridge_platform_data *pdata =
-	    omap_dspbridge_dev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata =
+		omap_dspbridge_dev->dev.platform_data;
 
 	constraint_val = (u32 *) (pargs);
 	/* Read the target value requested by DSP */
@@ -83,8 +87,8 @@ int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context)
 	u32 opplevel;
 	struct io_mgr *hio_mgr;
 #endif
-	struct dspbridge_platform_data *pdata =
-	    omap_dspbridge_dev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata =
+		omap_dspbridge_dev->dev.platform_data;
 
 	pwr_state = (*pdata->dsp_prm_read)(OMAP3430_IVA2_MOD, OMAP2_PM_PWSTST) &
 						OMAP_POWERSTATEST_MASK;
@@ -114,10 +118,10 @@ int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context)
 
 		if (!status) {
 			/* Update the Bridger Driver state */
-			dev_context->dw_brd_state = BRD_DSP_HIBERNATION;
+			dev_context->brd_state = BRD_DSP_HIBERNATION;
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 			status =
-			    dev_get_io_mgr(dev_context->hdev_obj, &hio_mgr);
+			    dev_get_io_mgr(dev_context->dev_obj, &hio_mgr);
 			if (!hio_mgr) {
 				status = DSP_EHANDLE;
 				return status;
@@ -152,14 +156,14 @@ int sleep_dsp(struct bridge_dev_context *dev_context, u32 dw_cmd,
 #endif /* CONFIG_TIDSPBRIDGE_NTFY_PWRERR */
 	u16 timeout = PWRSTST_TIMEOUT / 10;
 	u32 pwr_state, target_pwr_state;
-	struct dspbridge_platform_data *pdata =
-				omap_dspbridge_dev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata =
+		omap_dspbridge_dev->dev.platform_data;
 
 	/* Check if sleep code is valid */
 	if ((dw_cmd != PWR_DEEPSLEEP) && (dw_cmd != PWR_EMERGENCYDEEPSLEEP))
 		return -EINVAL;
 
-	switch (dev_context->dw_brd_state) {
+	switch (dev_context->brd_state) {
 	case BRD_RUNNING:
 		omap_mbox_save_ctx(dev_context->mbox);
 		if (dsp_test_sleepstate == PWRDM_POWER_OFF) {
@@ -212,16 +216,16 @@ int sleep_dsp(struct bridge_dev_context *dev_context, u32 dw_cmd,
 		pr_err("%s: Timed out waiting for DSP off mode, state %x\n",
 		       __func__, pwr_state);
 #ifdef CONFIG_TIDSPBRIDGE_NTFY_PWRERR
-		dev_get_deh_mgr(dev_context->hdev_obj, &hdeh_mgr);
+		dev_get_deh_mgr(dev_context->dev_obj, &hdeh_mgr);
 		bridge_deh_notify(hdeh_mgr, DSP_PWRERROR, 0);
 #endif /* CONFIG_TIDSPBRIDGE_NTFY_PWRERR */
 		return -ETIMEDOUT;
 	} else {
 		/* Update the Bridger Driver state */
 		if (dsp_test_sleepstate == PWRDM_POWER_OFF)
-			dev_context->dw_brd_state = BRD_HIBERNATION;
+			dev_context->brd_state = BRD_HIBERNATION;
 		else
-			dev_context->dw_brd_state = BRD_RETENTION;
+			dev_context->brd_state = BRD_RETENTION;
 
 		/* Disable wdt on hibernation. */
 		dsp_wdt_enable(false);
@@ -254,8 +258,8 @@ int wake_dsp(struct bridge_dev_context *dev_context, void *pargs)
 #ifdef CONFIG_PM
 
 	/* Check the board state, if it is not 'SLEEP' then return */
-	if (dev_context->dw_brd_state == BRD_RUNNING ||
-	    dev_context->dw_brd_state == BRD_STOPPED) {
+	if (dev_context->brd_state == BRD_RUNNING ||
+	    dev_context->brd_state == BRD_STOPPED) {
 		/* The Device is in 'RET' or 'OFF' state and Bridge state is not
 		 * 'SLEEP', this means state inconsistency, so return */
 		return 0;
@@ -265,7 +269,7 @@ int wake_dsp(struct bridge_dev_context *dev_context, void *pargs)
 	sm_interrupt_dsp(dev_context, MBX_PM_DSPWAKEUP);
 
 	/* Set the device state to RUNNIG */
-	dev_context->dw_brd_state = BRD_RUNNING;
+	dev_context->brd_state = BRD_RUNNING;
 #endif /* CONFIG_PM */
 	return status;
 }
@@ -347,12 +351,12 @@ int pre_scale_dsp(struct bridge_dev_context *dev_context, void *pargs)
 
 	dev_dbg(bridge, "OPP: %s voltage_domain = %x, level = 0x%x\n",
 		__func__, voltage_domain, level);
-	if ((dev_context->dw_brd_state == BRD_HIBERNATION) ||
-	    (dev_context->dw_brd_state == BRD_RETENTION) ||
-	    (dev_context->dw_brd_state == BRD_DSP_HIBERNATION)) {
+	if ((dev_context->brd_state == BRD_HIBERNATION) ||
+	    (dev_context->brd_state == BRD_RETENTION) ||
+	    (dev_context->brd_state == BRD_DSP_HIBERNATION)) {
 		dev_dbg(bridge, "OPP: %s IVA in sleep. No message to DSP\n");
 		return 0;
-	} else if ((dev_context->dw_brd_state == BRD_RUNNING)) {
+	} else if ((dev_context->brd_state == BRD_RUNNING)) {
 		/* Send a prenotificatio to DSP */
 		dev_dbg(bridge, "OPP: %s sent notification to DSP\n", __func__);
 		sm_interrupt_dsp(dev_context, MBX_PM_SETPOINT_PRENOTIFY);
@@ -378,7 +382,7 @@ int post_scale_dsp(struct bridge_dev_context *dev_context,
 	u32 voltage_domain;
 	struct io_mgr *hio_mgr;
 
-	status = dev_get_io_mgr(dev_context->hdev_obj, &hio_mgr);
+	status = dev_get_io_mgr(dev_context->dev_obj, &hio_mgr);
 	if (!hio_mgr)
 		return -EFAULT;
 
@@ -386,14 +390,14 @@ int post_scale_dsp(struct bridge_dev_context *dev_context,
 	level = *((u32 *) pargs + 1);
 	dev_dbg(bridge, "OPP: %s voltage_domain = %x, level = 0x%x\n",
 		__func__, voltage_domain, level);
-	if ((dev_context->dw_brd_state == BRD_HIBERNATION) ||
-	    (dev_context->dw_brd_state == BRD_RETENTION) ||
-	    (dev_context->dw_brd_state == BRD_DSP_HIBERNATION)) {
+	if ((dev_context->brd_state == BRD_HIBERNATION) ||
+	    (dev_context->brd_state == BRD_RETENTION) ||
+	    (dev_context->brd_state == BRD_DSP_HIBERNATION)) {
 		/* Update the OPP value in shared memory */
 		io_sh_msetting(hio_mgr, SHM_CURROPP, &level);
 		dev_dbg(bridge, "OPP: %s IVA in sleep. Wrote to shm\n",
 			__func__);
-	} else if ((dev_context->dw_brd_state == BRD_RUNNING)) {
+	} else if ((dev_context->brd_state == BRD_RUNNING)) {
 		/* Update the OPP value in shared memory */
 		io_sh_msetting(hio_mgr, SHM_CURROPP, &level);
 		/* Send a post notification to DSP */
@@ -430,8 +434,8 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 
 	switch (clock_id) {
 	case BPWR_GP_TIMER5:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_GPT5_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_GPT5_MASK;
@@ -439,12 +443,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_GPT5_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_GPT5_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_GP_TIMER6:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_GPT6_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_GPT6_MASK;
@@ -452,12 +456,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_GPT6_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_GPT6_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_GP_TIMER7:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_GPT7_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_GPT7_MASK;
@@ -465,12 +469,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_GPT7_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_GPT7_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_GP_TIMER8:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_GPT8_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_GPT8_MASK;
@@ -478,12 +482,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_GPT8_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_GPT8_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_MCBSP1:
-		iva2_grpsel = readl(resources->dw_core_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_core_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->core_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->core_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_MCBSP1_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_MCBSP1_MASK;
@@ -491,12 +495,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_MCBSP1_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_MCBSP1_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_core_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_core_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->core_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->core_pm_base + 0xA4);
 		break;
 	case BPWR_MCBSP2:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_MCBSP2_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_MCBSP2_MASK;
@@ -504,12 +508,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_MCBSP2_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_MCBSP2_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_MCBSP3:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_MCBSP3_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_MCBSP3_MASK;
@@ -517,12 +521,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_MCBSP3_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_MCBSP3_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_MCBSP4:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_MCBSP4_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_MCBSP4_MASK;
@@ -530,12 +534,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_MCBSP4_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_MCBSP4_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_MCBSP5:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_MCBSP5_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_MCBSP5_MASK;
@@ -543,8 +547,8 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_MCBSP5_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_MCBSP5_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	}
 }

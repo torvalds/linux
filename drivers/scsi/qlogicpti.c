@@ -1003,7 +1003,7 @@ static int qlogicpti_slave_configure(struct scsi_device *sdev)
  *
  * "This code must fly." -davem
  */
-static int qlogicpti_queuecommand(struct scsi_cmnd *Cmnd, void (*done)(struct scsi_cmnd *))
+static int qlogicpti_queuecommand_lck(struct scsi_cmnd *Cmnd, void (*done)(struct scsi_cmnd *))
 {
 	struct Scsi_Host *host = Cmnd->device->host;
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
@@ -1051,6 +1051,8 @@ toss_command:
 	done(Cmnd);
 	return 1;
 }
+
+static DEF_SCSI_QCMD(qlogicpti_queuecommand)
 
 static int qlogicpti_return_status(struct Status_Entry *sts, int id)
 {
@@ -1290,14 +1292,21 @@ static struct scsi_host_template qpti_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 };
 
-static int __devinit qpti_sbus_probe(struct platform_device *op, const struct of_device_id *match)
+static const struct of_device_id qpti_match[];
+static int __devinit qpti_sbus_probe(struct platform_device *op)
 {
-	struct scsi_host_template *tpnt = match->data;
+	const struct of_device_id *match;
+	struct scsi_host_template *tpnt;
 	struct device_node *dp = op->dev.of_node;
 	struct Scsi_Host *host;
 	struct qlogicpti *qpti;
 	static int nqptis;
 	const char *fcode;
+
+	match = of_match_device(qpti_match, &op->dev);
+	if (!match)
+		return -EINVAL;
+	tpnt = match->data;
 
 	/* Sometimes Antares cards come up not completely
 	 * setup, and we get a report of a zero IRQ.
@@ -1455,7 +1464,7 @@ static const struct of_device_id qpti_match[] = {
 };
 MODULE_DEVICE_TABLE(of, qpti_match);
 
-static struct of_platform_driver qpti_sbus_driver = {
+static struct platform_driver qpti_sbus_driver = {
 	.driver = {
 		.name = "qpti",
 		.owner = THIS_MODULE,
@@ -1467,12 +1476,12 @@ static struct of_platform_driver qpti_sbus_driver = {
 
 static int __init qpti_init(void)
 {
-	return of_register_platform_driver(&qpti_sbus_driver);
+	return platform_driver_register(&qpti_sbus_driver);
 }
 
 static void __exit qpti_exit(void)
 {
-	of_unregister_platform_driver(&qpti_sbus_driver);
+	platform_driver_unregister(&qpti_sbus_driver);
 }
 
 MODULE_DESCRIPTION("QlogicISP SBUS driver");

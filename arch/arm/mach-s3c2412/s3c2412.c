@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -51,6 +52,7 @@
 #include <plat/clock.h>
 #include <plat/pm.h>
 #include <plat/pll.h>
+#include <plat/nand-core.h>
 
 #ifndef CONFIG_CPU_S3C2412_ONLY
 void __iomem *s3c24xx_va_gpio2 = S3C24XX_VA_GPIO;
@@ -92,7 +94,7 @@ void __init s3c2412_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	/* rename devices that are s3c2412/s3c2413 specific */
 	s3c_device_sdi.name  = "s3c2412-sdi";
 	s3c_device_lcd.name  = "s3c2412-lcd";
-	s3c_device_nand.name = "s3c2412-nand";
+	s3c_nand_setname("s3c2412-nand");
 
 	/* alter IRQ of SDI controller */
 
@@ -242,6 +244,9 @@ static struct sys_device s3c2412_sysdev = {
 int __init s3c2412_init(void)
 {
 	printk("S3C2412: Initialising architecture\n");
+
+	register_syscore_ops(&s3c2412_pm_syscore_ops);
+	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
 	return sysdev_register(&s3c2412_sysdev);
 }

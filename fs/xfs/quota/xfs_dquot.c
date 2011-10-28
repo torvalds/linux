@@ -149,7 +149,6 @@ xfs_qm_dqdestroy(
 	ASSERT(list_empty(&dqp->q_freelist));
 
 	mutex_destroy(&dqp->q_qlock);
-	sv_destroy(&dqp->q_pinwait);
 	kmem_zone_free(xfs_Gqm->qm_dqzone, dqp);
 
 	atomic_dec(&xfs_Gqm->qm_totaldquots);
@@ -463,87 +462,68 @@ xfs_qm_dqtobp(
 	uint			flags)
 {
 	xfs_bmbt_irec_t map;
-	int		nmaps, error;
+	int		nmaps = 1, error;
 	xfs_buf_t	*bp;
-	xfs_inode_t	*quotip;
-	xfs_mount_t	*mp;
+	xfs_inode_t	*quotip = XFS_DQ_TO_QIP(dqp);
+	xfs_mount_t	*mp = dqp->q_mount;
 	xfs_disk_dquot_t *ddq;
-	xfs_dqid_t	id;
-	boolean_t	newdquot;
+	xfs_dqid_t	id = be32_to_cpu(dqp->q_core.d_id);
 	xfs_trans_t	*tp = (tpp ? *tpp : NULL);
 
-	mp = dqp->q_mount;
-	id = be32_to_cpu(dqp->q_core.d_id);
-	nmaps = 1;
-	newdquot = B_FALSE;
+	dqp->q_fileoffset = (xfs_fileoff_t)id / mp->m_quotainfo->qi_dqperchunk;
 
-	/*
-	 * If we don't know where the dquot lives, find out.
-	 */
-	if (dqp->q_blkno == (xfs_daddr_t) 0) {
-		/* We use the id as an index */
-		dqp->q_fileoffset = (xfs_fileoff_t)id /
-					mp->m_quotainfo->qi_dqperchunk;
-		nmaps = 1;
-		quotip = XFS_DQ_TO_QIP(dqp);
-		xfs_ilock(quotip, XFS_ILOCK_SHARED);
+	xfs_ilock(quotip, XFS_ILOCK_SHARED);
+	if (XFS_IS_THIS_QUOTA_OFF(dqp)) {
 		/*
-		 * Return if this type of quotas is turned off while we didn't
-		 * have an inode lock
+		 * Return if this type of quotas is turned off while we
+		 * didn't have the quota inode lock.
 		 */
-		if (XFS_IS_THIS_QUOTA_OFF(dqp)) {
-			xfs_iunlock(quotip, XFS_ILOCK_SHARED);
-			return (ESRCH);
-		}
-		/*
-		 * Find the block map; no allocations yet
-		 */
-		error = xfs_bmapi(NULL, quotip, dqp->q_fileoffset,
-				  XFS_DQUOT_CLUSTER_SIZE_FSB,
-				  XFS_BMAPI_METADATA,
-				  NULL, 0, &map, &nmaps, NULL);
-
 		xfs_iunlock(quotip, XFS_ILOCK_SHARED);
-		if (error)
-			return (error);
-		ASSERT(nmaps == 1);
-		ASSERT(map.br_blockcount == 1);
-
-		/*
-		 * offset of dquot in the (fixed sized) dquot chunk.
-		 */
-		dqp->q_bufoffset = (id % mp->m_quotainfo->qi_dqperchunk) *
-			sizeof(xfs_dqblk_t);
-		if (map.br_startblock == HOLESTARTBLOCK) {
-			/*
-			 * We don't allocate unless we're asked to
-			 */
-			if (!(flags & XFS_QMOPT_DQALLOC))
-				return (ENOENT);
-
-			ASSERT(tp);
-			if ((error = xfs_qm_dqalloc(tpp, mp, dqp, quotip,
-						dqp->q_fileoffset, &bp)))
-				return (error);
-			tp = *tpp;
-			newdquot = B_TRUE;
-		} else {
-			/*
-			 * store the blkno etc so that we don't have to do the
-			 * mapping all the time
-			 */
-			dqp->q_blkno = XFS_FSB_TO_DADDR(mp, map.br_startblock);
-		}
+		return ESRCH;
 	}
-	ASSERT(dqp->q_blkno != DELAYSTARTBLOCK);
-	ASSERT(dqp->q_blkno != HOLESTARTBLOCK);
 
 	/*
-	 * Read in the buffer, unless we've just done the allocation
-	 * (in which case we already have the buf).
+	 * Find the block map; no allocations yet
 	 */
-	if (!newdquot) {
+	error = xfs_bmapi(NULL, quotip, dqp->q_fileoffset,
+			  XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA,
+			  NULL, 0, &map, &nmaps, NULL);
+
+	xfs_iunlock(quotip, XFS_ILOCK_SHARED);
+	if (error)
+		return error;
+
+	ASSERT(nmaps == 1);
+	ASSERT(map.br_blockcount == 1);
+
+	/*
+	 * Offset of dquot in the (fixed sized) dquot chunk.
+	 */
+	dqp->q_bufoffset = (id % mp->m_quotainfo->qi_dqperchunk) *
+		sizeof(xfs_dqblk_t);
+
+	ASSERT(map.br_startblock != DELAYSTARTBLOCK);
+	if (map.br_startblock == HOLESTARTBLOCK) {
+		/*
+		 * We don't allocate unless we're asked to
+		 */
+		if (!(flags & XFS_QMOPT_DQALLOC))
+			return ENOENT;
+
+		ASSERT(tp);
+		error = xfs_qm_dqalloc(tpp, mp, dqp, quotip,
+					dqp->q_fileoffset, &bp);
+		if (error)
+			return error;
+		tp = *tpp;
+	} else {
 		trace_xfs_dqtobp_read(dqp);
+
+		/*
+		 * store the blkno etc so that we don't have to do the
+		 * mapping all the time
+		 */
+		dqp->q_blkno = XFS_FSB_TO_DADDR(mp, map.br_startblock);
 
 		error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 					   dqp->q_blkno,
@@ -552,20 +532,22 @@ xfs_qm_dqtobp(
 		if (error || !bp)
 			return XFS_ERROR(error);
 	}
+
 	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
 
 	/*
 	 * calculate the location of the dquot inside the buffer.
 	 */
-	ddq = (xfs_disk_dquot_t *)((char *)XFS_BUF_PTR(bp) + dqp->q_bufoffset);
+	ddq = (struct xfs_disk_dquot *)(XFS_BUF_PTR(bp) + dqp->q_bufoffset);
 
 	/*
 	 * A simple sanity check in case we got a corrupted dquot...
 	 */
-	if (xfs_qm_dqcheck(ddq, id, dqp->dq_flags & XFS_DQ_ALLTYPES,
+	error = xfs_qm_dqcheck(mp, ddq, id, dqp->dq_flags & XFS_DQ_ALLTYPES,
 			   flags & (XFS_QMOPT_DQREPAIR|XFS_QMOPT_DOWARN),
-			   "dqtobp")) {
+			   "dqtobp");
+	if (error) {
 		if (!(flags & XFS_QMOPT_DQREPAIR)) {
 			xfs_trans_brelse(tp, bp);
 			return XFS_ERROR(EIO);
@@ -618,7 +600,7 @@ xfs_qm_dqread(
 
 	/*
 	 * Reservation counters are defined as reservation plus current usage
-	 * to avoid having to add everytime.
+	 * to avoid having to add every time.
 	 */
 	dqp->q_res_bcount = be64_to_cpu(ddqp->d_bcount);
 	dqp->q_res_icount = be64_to_cpu(ddqp->d_icount);
@@ -846,7 +828,7 @@ xfs_qm_dqget(
 	if (xfs_do_dqerror) {
 		if ((xfs_dqerror_target == mp->m_ddev_targp) &&
 		    (xfs_dqreq_num++ % xfs_dqerror_mod) == 0) {
-			cmn_err(CE_DEBUG, "Returning error in dqget");
+			xfs_debug(mp, "Returning error in dqget");
 			return (EIO);
 		}
 	}
@@ -1176,18 +1158,18 @@ xfs_qm_dqflush(
 	xfs_dquot_t		*dqp,
 	uint			flags)
 {
-	xfs_mount_t		*mp;
-	xfs_buf_t		*bp;
-	xfs_disk_dquot_t	*ddqp;
+	struct xfs_mount	*mp = dqp->q_mount;
+	struct xfs_buf		*bp;
+	struct xfs_disk_dquot	*ddqp;
 	int			error;
 
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 	ASSERT(!completion_done(&dqp->q_flush));
+
 	trace_xfs_dqflush(dqp);
 
 	/*
-	 * If not dirty, or it's pinned and we are not supposed to
-	 * block, nada.
+	 * If not dirty, or it's pinned and we are not supposed to block, nada.
 	 */
 	if (!XFS_DQ_IS_DIRTY(dqp) ||
 	    (!(flags & SYNC_WAIT) && atomic_read(&dqp->q_pincount) > 0)) {
@@ -1201,40 +1183,47 @@ xfs_qm_dqflush(
 	 * down forcibly. If that's the case we must not write this dquot
 	 * to disk, because the log record didn't make it to disk!
 	 */
-	if (XFS_FORCED_SHUTDOWN(dqp->q_mount)) {
-		dqp->dq_flags &= ~(XFS_DQ_DIRTY);
+	if (XFS_FORCED_SHUTDOWN(mp)) {
+		dqp->dq_flags &= ~XFS_DQ_DIRTY;
 		xfs_dqfunlock(dqp);
 		return XFS_ERROR(EIO);
 	}
 
 	/*
 	 * Get the buffer containing the on-disk dquot
-	 * We don't need a transaction envelope because we know that the
-	 * the ondisk-dquot has already been allocated for.
 	 */
-	if ((error = xfs_qm_dqtobp(NULL, dqp, &ddqp, &bp, XFS_QMOPT_DOWARN))) {
+	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dqp->q_blkno,
+				   mp->m_quotainfo->qi_dqchunklen, 0, &bp);
+	if (error) {
 		ASSERT(error != ENOENT);
-		/*
-		 * Quotas could have gotten turned off (ESRCH)
-		 */
 		xfs_dqfunlock(dqp);
-		return (error);
+		return error;
 	}
 
-	if (xfs_qm_dqcheck(&dqp->q_core, be32_to_cpu(ddqp->d_id),
-			   0, XFS_QMOPT_DOWARN, "dqflush (incore copy)")) {
-		xfs_force_shutdown(dqp->q_mount, SHUTDOWN_CORRUPT_INCORE);
+	/*
+	 * Calculate the location of the dquot inside the buffer.
+	 */
+	ddqp = (struct xfs_disk_dquot *)(XFS_BUF_PTR(bp) + dqp->q_bufoffset);
+
+	/*
+	 * A simple sanity check in case we got a corrupted dquot..
+	 */
+	error = xfs_qm_dqcheck(mp, &dqp->q_core, be32_to_cpu(ddqp->d_id), 0,
+			   XFS_QMOPT_DOWARN, "dqflush (incore copy)");
+	if (error) {
+		xfs_buf_relse(bp);
+		xfs_dqfunlock(dqp);
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		return XFS_ERROR(EIO);
 	}
 
 	/* This is the only portion of data that needs to persist */
-	memcpy(ddqp, &(dqp->q_core), sizeof(xfs_disk_dquot_t));
+	memcpy(ddqp, &dqp->q_core, sizeof(xfs_disk_dquot_t));
 
 	/*
 	 * Clear the dirty field and remember the flush lsn for later use.
 	 */
-	dqp->dq_flags &= ~(XFS_DQ_DIRTY);
-	mp = dqp->q_mount;
+	dqp->dq_flags &= ~XFS_DQ_DIRTY;
 
 	xfs_trans_ail_copy_lsn(mp->m_ail, &dqp->q_logitem.qli_flush_lsn,
 					&dqp->q_logitem.qli_item.li_lsn);
@@ -1404,8 +1393,8 @@ xfs_qm_dqpurge(
 		 */
 		error = xfs_qm_dqflush(dqp, SYNC_WAIT);
 		if (error)
-			xfs_fs_cmn_err(CE_WARN, mp,
-				"xfs_qm_dqpurge: dquot %p flush failed", dqp);
+			xfs_warn(mp, "%s: dquot %p flush failed",
+				__func__, dqp);
 		xfs_dqflock(dqp);
 	}
 	ASSERT(atomic_read(&dqp->q_pincount) == 0);
@@ -1438,36 +1427,38 @@ xfs_qm_dqpurge(
 void
 xfs_qm_dqprint(xfs_dquot_t *dqp)
 {
-	cmn_err(CE_DEBUG, "-----------KERNEL DQUOT----------------");
-	cmn_err(CE_DEBUG, "---- dquotID =  %d",
+	struct xfs_mount	*mp = dqp->q_mount;
+
+	xfs_debug(mp, "-----------KERNEL DQUOT----------------");
+	xfs_debug(mp, "---- dquotID =  %d",
 		(int)be32_to_cpu(dqp->q_core.d_id));
-	cmn_err(CE_DEBUG, "---- type    =  %s", DQFLAGTO_TYPESTR(dqp));
-	cmn_err(CE_DEBUG, "---- fs      =  0x%p", dqp->q_mount);
-	cmn_err(CE_DEBUG, "---- blkno   =  0x%x", (int) dqp->q_blkno);
-	cmn_err(CE_DEBUG, "---- boffset =  0x%x", (int) dqp->q_bufoffset);
-	cmn_err(CE_DEBUG, "---- blkhlimit =  %Lu (0x%x)",
+	xfs_debug(mp, "---- type    =  %s", DQFLAGTO_TYPESTR(dqp));
+	xfs_debug(mp, "---- fs      =  0x%p", dqp->q_mount);
+	xfs_debug(mp, "---- blkno   =  0x%x", (int) dqp->q_blkno);
+	xfs_debug(mp, "---- boffset =  0x%x", (int) dqp->q_bufoffset);
+	xfs_debug(mp, "---- blkhlimit =  %Lu (0x%x)",
 		be64_to_cpu(dqp->q_core.d_blk_hardlimit),
 		(int)be64_to_cpu(dqp->q_core.d_blk_hardlimit));
-	cmn_err(CE_DEBUG, "---- blkslimit =  %Lu (0x%x)",
+	xfs_debug(mp, "---- blkslimit =  %Lu (0x%x)",
 		be64_to_cpu(dqp->q_core.d_blk_softlimit),
 		(int)be64_to_cpu(dqp->q_core.d_blk_softlimit));
-	cmn_err(CE_DEBUG, "---- inohlimit =  %Lu (0x%x)",
+	xfs_debug(mp, "---- inohlimit =  %Lu (0x%x)",
 		be64_to_cpu(dqp->q_core.d_ino_hardlimit),
 		(int)be64_to_cpu(dqp->q_core.d_ino_hardlimit));
-	cmn_err(CE_DEBUG, "---- inoslimit =  %Lu (0x%x)",
+	xfs_debug(mp, "---- inoslimit =  %Lu (0x%x)",
 		be64_to_cpu(dqp->q_core.d_ino_softlimit),
 		(int)be64_to_cpu(dqp->q_core.d_ino_softlimit));
-	cmn_err(CE_DEBUG, "---- bcount  =  %Lu (0x%x)",
+	xfs_debug(mp, "---- bcount  =  %Lu (0x%x)",
 		be64_to_cpu(dqp->q_core.d_bcount),
 		(int)be64_to_cpu(dqp->q_core.d_bcount));
-	cmn_err(CE_DEBUG, "---- icount  =  %Lu (0x%x)",
+	xfs_debug(mp, "---- icount  =  %Lu (0x%x)",
 		be64_to_cpu(dqp->q_core.d_icount),
 		(int)be64_to_cpu(dqp->q_core.d_icount));
-	cmn_err(CE_DEBUG, "---- btimer  =  %d",
+	xfs_debug(mp, "---- btimer  =  %d",
 		(int)be32_to_cpu(dqp->q_core.d_btimer));
-	cmn_err(CE_DEBUG, "---- itimer  =  %d",
+	xfs_debug(mp, "---- itimer  =  %d",
 		(int)be32_to_cpu(dqp->q_core.d_itimer));
-	cmn_err(CE_DEBUG, "---------------------------");
+	xfs_debug(mp, "---------------------------");
 }
 #endif
 

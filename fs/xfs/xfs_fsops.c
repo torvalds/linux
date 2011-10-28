@@ -53,6 +53,9 @@ xfs_fs_geometry(
 	xfs_fsop_geom_t		*geo,
 	int			new_version)
 {
+
+	memset(geo, 0, sizeof(*geo));
+
 	geo->blocksize = mp->m_sb.sb_blocksize;
 	geo->rtextsize = mp->m_sb.sb_rextsize;
 	geo->agblocks = mp->m_sb.sb_agblocks;
@@ -144,12 +147,11 @@ xfs_growfs_data_private(
 	if ((error = xfs_sb_validate_fsb_count(&mp->m_sb, nb)))
 		return error;
 	dpct = pct - mp->m_sb.sb_imax_pct;
-	error = xfs_read_buf(mp, mp->m_ddev_targp,
-			XFS_FSB_TO_BB(mp, nb) - XFS_FSS_TO_BB(mp, 1),
-			XFS_FSS_TO_BB(mp, 1), 0, &bp);
-	if (error)
-		return error;
-	ASSERT(bp);
+	bp = xfs_buf_read_uncached(mp, mp->m_ddev_targp,
+				XFS_FSB_TO_BB(mp, nb) - XFS_FSS_TO_BB(mp, 1),
+				BBTOB(XFS_FSS_TO_BB(mp, 1)), 0);
+	if (!bp)
+		return EIO;
 	xfs_buf_relse(bp);
 
 	new = nb;	/* use new as a temporary here */
@@ -375,6 +377,7 @@ xfs_growfs_data_private(
 		mp->m_maxicount = icount << mp->m_sb.sb_inopblog;
 	} else
 		mp->m_maxicount = 0;
+	xfs_set_low_space_thresholds(mp);
 
 	/* update secondary superblocks. */
 	for (agno = 1; agno < nagcount; agno++) {
@@ -382,8 +385,8 @@ xfs_growfs_data_private(
 				  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
 				  XFS_FSS_TO_BB(mp, 1), 0, &bp);
 		if (error) {
-			xfs_fs_cmn_err(CE_WARN, mp,
-			"error %d reading secondary superblock for ag %d",
+			xfs_warn(mp,
+		"error %d reading secondary superblock for ag %d",
 				error, agno);
 			break;
 		}
@@ -396,7 +399,7 @@ xfs_growfs_data_private(
 		if (!(error = xfs_bwrite(mp, bp))) {
 			continue;
 		} else {
-			xfs_fs_cmn_err(CE_WARN, mp,
+			xfs_warn(mp,
 		"write error %d updating secondary superblock for ag %d",
 				error, agno);
 			break; /* no point in continuing */
@@ -597,7 +600,8 @@ out:
 		 * the extra reserve blocks from the reserve.....
 		 */
 		int error;
-		error = xfs_mod_incore_sb(mp, XFS_SBS_FDBLOCKS, fdblks_delta, 0);
+		error = xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS,
+						 fdblks_delta, 0);
 		if (error == ENOSPC)
 			goto retry;
 	}
@@ -611,12 +615,13 @@ out:
  *
  * We cannot use an inode here for this - that will push dirty state back up
  * into the VFS and then periodic inode flushing will prevent log covering from
- * making progress. Hence we log a field in the superblock instead.
+ * making progress. Hence we log a field in the superblock instead and use a
+ * synchronous transaction to ensure the superblock is immediately unpinned
+ * and can be written back.
  */
 int
 xfs_fs_log_dummy(
-	xfs_mount_t	*mp,
-	int		flags)
+	xfs_mount_t	*mp)
 {
 	xfs_trans_t	*tp;
 	int		error;
@@ -631,8 +636,7 @@ xfs_fs_log_dummy(
 
 	/* log the UUID because it is an unchanging field */
 	xfs_mod_sb(tp, XFS_SB_UUID);
-	if (flags & SYNC_WAIT)
-		xfs_trans_set_sync(tp);
+	xfs_trans_set_sync(tp);
 	return xfs_trans_commit(tp, 0);
 }
 

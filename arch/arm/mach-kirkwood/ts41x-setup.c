@@ -27,6 +27,10 @@
 #include "mpp.h"
 #include "tsx1x-common.h"
 
+/* for the PCIe reset workaround */
+#include <plat/pcie.h>
+
+
 #define QNAP_TS41X_JUMPER_JP1	45
 
 static struct i2c_board_info __initdata qnap_ts41x_i2c_rtc = {
@@ -115,6 +119,8 @@ static unsigned int qnap_ts41x_mpp_config[] __initdata = {
 
 static void __init qnap_ts41x_init(void)
 {
+	u32 dev, rev;
+
 	/*
 	 * Basic setup. Needs to be called early.
 	 */
@@ -126,8 +132,15 @@ static void __init qnap_ts41x_init(void)
 	qnap_tsx1x_register_flash();
 	kirkwood_i2c_init();
 	i2c_register_board_info(0, &qnap_ts41x_i2c_rtc, 1);
+
+	kirkwood_pcie_id(&dev, &rev);
+	if (dev == MV88F6282_DEV_ID) {
+		qnap_ts41x_ge00_data.phy_addr = MV643XX_ETH_PHY_ADDR(0);
+		qnap_ts41x_ge01_data.phy_addr = MV643XX_ETH_PHY_ADDR(1);
+	}
 	kirkwood_ge00_init(&qnap_ts41x_ge00_data);
 	kirkwood_ge01_init(&qnap_ts41x_ge01_data);
+
 	kirkwood_sata_init(&qnap_ts41x_sata_data);
 	kirkwood_ehci_init();
 	platform_device_register(&qnap_ts41x_button_device);
@@ -140,8 +153,22 @@ static void __init qnap_ts41x_init(void)
 
 static int __init ts41x_pci_init(void)
 {
-	if (machine_is_ts41x())
-		kirkwood_pcie_init(KW_PCIE0);
+	if (machine_is_ts41x()) {
+		u32 dev, rev;
+
+		/*
+		 * Without this explicit reset, the PCIe SATA controller
+		 * (Marvell 88sx7042/sata_mv) is known to stop working
+		 * after a few minutes.
+		 */
+		orion_pcie_reset((void __iomem *)PCIE_VIRT_BASE);
+
+		kirkwood_pcie_id(&dev, &rev);
+		if (dev == MV88F6282_DEV_ID)
+			kirkwood_pcie_init(KW_PCIE1 | KW_PCIE0);
+		else
+			kirkwood_pcie_init(KW_PCIE0);
+	}
 
    return 0;
 }
@@ -149,11 +176,10 @@ subsys_initcall(ts41x_pci_init);
 
 MACHINE_START(TS41X, "QNAP TS-41x")
 	/* Maintainer: Martin Michlmayr <tbm@cyrius.com> */
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= qnap_ts41x_init,
 	.map_io		= kirkwood_map_io,
+	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
 	.timer		= &kirkwood_timer,
 MACHINE_END

@@ -446,6 +446,20 @@ static void skb_recv_done(struct virtqueue *rvq)
 	}
 }
 
+static void virtnet_napi_enable(struct virtnet_info *vi)
+{
+	napi_enable(&vi->napi);
+
+	/* If all buffers were filled by other side before we napi_enabled, we
+	 * won't get another interrupt, so process any outstanding packets
+	 * now.  virtnet_poll wants re-enable the queue, so we disable here.
+	 * We synchronize against interrupts via NAPI_STATE_SCHED */
+	if (napi_schedule_prep(&vi->napi)) {
+		virtqueue_disable_cb(vi->rvq);
+		__napi_schedule(&vi->napi);
+	}
+}
+
 static void refill_work(struct work_struct *work)
 {
 	struct virtnet_info *vi;
@@ -454,7 +468,7 @@ static void refill_work(struct work_struct *work)
 	vi = container_of(work, struct virtnet_info, refill.work);
 	napi_disable(&vi->napi);
 	still_empty = !try_fill_recv(vi, GFP_KERNEL);
-	napi_enable(&vi->napi);
+	virtnet_napi_enable(vi);
 
 	/* In theory, this can happen: if we don't get any buffers in
 	 * we will *never* try to fill again. */
@@ -519,7 +533,7 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		hdr->hdr.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
-		hdr->hdr.csum_start = skb->csum_start - skb_headroom(skb);
+		hdr->hdr.csum_start = skb_checksum_start_offset(skb);
 		hdr->hdr.csum_offset = skb->csum_offset;
 	} else {
 		hdr->hdr.flags = 0;
@@ -595,7 +609,7 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * before it gets out of hand.  Naturally, this wastes entries. */
 	if (capacity < 2+MAX_SKB_FRAGS) {
 		netif_stop_queue(dev);
-		if (unlikely(!virtqueue_enable_cb(vi->svq))) {
+		if (unlikely(!virtqueue_enable_cb_delayed(vi->svq))) {
 			/* More just got used, free them then recheck. */
 			capacity += free_old_xmit_skbs(vi);
 			if (capacity >= 2+MAX_SKB_FRAGS) {
@@ -638,16 +652,7 @@ static int virtnet_open(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 
-	napi_enable(&vi->napi);
-
-	/* If all buffers were filled by other side before we napi_enabled, we
-	 * won't get another interrupt, so process any outstanding packets
-	 * now.  virtnet_poll wants re-enable the queue, so we disable here.
-	 * We synchronize against interrupts via NAPI_STATE_SCHED */
-	if (napi_schedule_prep(&vi->napi)) {
-		virtqueue_disable_cb(vi->rvq);
-		__napi_schedule(&vi->napi);
-	}
+	virtnet_napi_enable(vi);
 	return 0;
 }
 
@@ -703,30 +708,6 @@ static int virtnet_close(struct net_device *dev)
 	napi_disable(&vi->napi);
 
 	return 0;
-}
-
-static void virtnet_get_drvinfo(struct net_device *dev,
-				struct ethtool_drvinfo *drvinfo)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-	struct virtio_device *vdev = vi->vdev;
-
-	strncpy(drvinfo->driver, KBUILD_MODNAME, ARRAY_SIZE(drvinfo->driver));
-	strncpy(drvinfo->version, "N/A", ARRAY_SIZE(drvinfo->version));
-	strncpy(drvinfo->fw_version, "N/A", ARRAY_SIZE(drvinfo->fw_version));
-	strncpy(drvinfo->bus_info, dev_name(&vdev->dev),
-		ARRAY_SIZE(drvinfo->bus_info));
-}
-
-static int virtnet_set_tx_csum(struct net_device *dev, u32 data)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-	struct virtio_device *vdev = vi->vdev;
-
-	if (data && !virtio_has_feature(vdev, VIRTIO_NET_F_CSUM))
-		return -ENOSYS;
-
-	return ethtool_op_set_tx_hw_csum(dev, data);
 }
 
 static void virtnet_set_rx_mode(struct net_device *dev)
@@ -830,11 +811,6 @@ static void virtnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 }
 
 static const struct ethtool_ops virtnet_ethtool_ops = {
-	.get_drvinfo = virtnet_get_drvinfo,
-	.set_tx_csum = virtnet_set_tx_csum,
-	.set_sg = ethtool_op_set_sg,
-	.set_tso = ethtool_op_set_tso,
-	.set_ufo = ethtool_op_set_ufo,
 	.get_link = ethtool_op_get_link,
 };
 
@@ -921,22 +897,29 @@ static int virtnet_probe(struct virtio_device *vdev)
 	SET_NETDEV_DEV(dev, &vdev->dev);
 
 	/* Do we support "hardware" checksums? */
-	if (csum && virtio_has_feature(vdev, VIRTIO_NET_F_CSUM)) {
+	if (virtio_has_feature(vdev, VIRTIO_NET_F_CSUM)) {
 		/* This opens up the world of extra features. */
-		dev->features |= NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST;
-		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_GSO)) {
-			dev->features |= NETIF_F_TSO | NETIF_F_UFO
+		dev->hw_features |= NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST;
+		if (csum)
+			dev->features |= NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST;
+
+		if (virtio_has_feature(vdev, VIRTIO_NET_F_GSO)) {
+			dev->hw_features |= NETIF_F_TSO | NETIF_F_UFO
 				| NETIF_F_TSO_ECN | NETIF_F_TSO6;
 		}
 		/* Individual feature bits: what can host handle? */
-		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_HOST_TSO4))
-			dev->features |= NETIF_F_TSO;
-		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_HOST_TSO6))
-			dev->features |= NETIF_F_TSO6;
-		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_HOST_ECN))
-			dev->features |= NETIF_F_TSO_ECN;
-		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_HOST_UFO))
-			dev->features |= NETIF_F_UFO;
+		if (virtio_has_feature(vdev, VIRTIO_NET_F_HOST_TSO4))
+			dev->hw_features |= NETIF_F_TSO;
+		if (virtio_has_feature(vdev, VIRTIO_NET_F_HOST_TSO6))
+			dev->hw_features |= NETIF_F_TSO6;
+		if (virtio_has_feature(vdev, VIRTIO_NET_F_HOST_ECN))
+			dev->hw_features |= NETIF_F_TSO_ECN;
+		if (virtio_has_feature(vdev, VIRTIO_NET_F_HOST_UFO))
+			dev->hw_features |= NETIF_F_UFO;
+
+		if (gso)
+			dev->features |= dev->hw_features & (NETIF_F_ALL_TSO|NETIF_F_UFO);
+		/* (!csum && gso) case will be fixed by register_netdev() */
 	}
 
 	/* Configuration may specify what MAC to use.  Otherwise random. */
@@ -1000,9 +983,15 @@ static int virtnet_probe(struct virtio_device *vdev)
 		goto unregister;
 	}
 
-	vi->status = VIRTIO_NET_S_LINK_UP;
-	virtnet_update_status(vi);
-	netif_carrier_on(dev);
+	/* Assume link up if device can't report link status,
+	   otherwise get link status from config. */
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_STATUS)) {
+		netif_carrier_off(dev);
+		virtnet_update_status(vi);
+	} else {
+		vi->status = VIRTIO_NET_S_LINK_UP;
+		netif_carrier_on(dev);
+	}
 
 	pr_debug("virtnet: registered device %s\n", dev->name);
 	return 0;

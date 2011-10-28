@@ -150,6 +150,7 @@ static inline int ip_mroute_opt(int opt)
 extern int ip_mroute_setsockopt(struct sock *, int, char __user *, unsigned int);
 extern int ip_mroute_getsockopt(struct sock *, int, char __user *, int __user *);
 extern int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg);
+extern int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg);
 extern int ip_mr_init(void);
 #else
 static inline
@@ -213,6 +214,7 @@ struct mfc_cache {
 			unsigned char ttls[MAXVIFS];	/* TTL thresholds		*/
 		} res;
 	} mfc_un;
+	struct rcu_head	rcu;
 };
 
 #define MFC_STATIC		1
@@ -242,6 +244,7 @@ struct mfc_cache {
 #ifdef __KERNEL__
 struct rtmsg;
 extern int ipmr_get_route(struct net *net, struct sk_buff *skb,
+			  __be32 saddr, __be32 daddr,
 			  struct rtmsg *rtm, int nowait);
 #endif
 

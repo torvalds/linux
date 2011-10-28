@@ -7,7 +7,7 @@
  * kernel and insert a module (lg.ko) which allows us to run other Linux
  * kernels the same way we'd run processes.  We call the first kernel the Host,
  * and the others the Guests.  The program which sets up and configures Guests
- * (such as the example in Documentation/lguest/lguest.c) is called the
+ * (such as the example in Documentation/virtual/lguest/lguest.c) is called the
  * Launcher.
  *
  * Secondly, we only run specially modified Guests, not normal kernels: setting
@@ -397,7 +397,7 @@ static void lguest_load_tr_desc(void)
  * instead we just use the real "cpuid" instruction.  Then I pretty much turned
  * off feature bits until the Guest booted.  (Don't say that: you'll damage
  * lguest sales!)  Shut up, inner voice!  (Hey, just pointing out that this is
- * hardly future proof.)  Noone's listening!  They don't like you anyway,
+ * hardly future proof.)  No one's listening!  They don't like you anyway,
  * parenthetic weirdo!
  *
  * Replacing the cpuid so we can turn features off is great for the kernel, but
@@ -531,7 +531,10 @@ static void lguest_write_cr3(unsigned long cr3)
 {
 	lguest_data.pgdir = cr3;
 	lazy_hcall1(LHCALL_NEW_PGTABLE, cr3);
-	cr3_changed = true;
+
+	/* These two page tables are simple, linear, and used during boot */
+	if (cr3 != __pa(swapper_pg_dir) && cr3 != __pa(initial_page_table))
+		cr3_changed = true;
 }
 
 static unsigned long lguest_read_cr3(void)
@@ -703,9 +706,9 @@ static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
  * to forget all of them.  Fortunately, this is very rare.
  *
  * ... except in early boot when the kernel sets up the initial pagetables,
- * which makes booting astonishingly slow: 1.83 seconds!  So we don't even tell
- * the Host anything changed until we've done the first page table switch,
- * which brings boot back to 0.25 seconds.
+ * which makes booting astonishingly slow: 48 seconds!  So we don't even tell
+ * the Host anything changed until we've done the first real page table switch,
+ * which brings boot back to 4.3 seconds.
  */
 static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 {
@@ -791,22 +794,22 @@ static void lguest_flush_tlb_kernel(void)
  * simple as setting a bit.  We don't actually "ack" interrupts as such, we
  * just mask and unmask them.  I wonder if we should be cleverer?
  */
-static void disable_lguest_irq(unsigned int irq)
+static void disable_lguest_irq(struct irq_data *data)
 {
-	set_bit(irq, lguest_data.blocked_interrupts);
+	set_bit(data->irq, lguest_data.blocked_interrupts);
 }
 
-static void enable_lguest_irq(unsigned int irq)
+static void enable_lguest_irq(struct irq_data *data)
 {
-	clear_bit(irq, lguest_data.blocked_interrupts);
+	clear_bit(data->irq, lguest_data.blocked_interrupts);
 }
 
 /* This structure describes the lguest IRQ controller. */
 static struct irq_chip lguest_irq_controller = {
 	.name		= "lguest",
-	.mask		= disable_lguest_irq,
-	.mask_ack	= disable_lguest_irq,
-	.unmask		= enable_lguest_irq,
+	.irq_mask	= disable_lguest_irq,
+	.irq_mask_ack	= disable_lguest_irq,
+	.irq_unmask	= enable_lguest_irq,
 };
 
 /*
@@ -821,7 +824,7 @@ static void __init lguest_init_IRQ(void)
 
 	for (i = FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
 		/* Some systems map "vectors" to interrupts weirdly.  Not us! */
-		__get_cpu_var(vector_irq)[i] = i - FIRST_EXTERNAL_VECTOR;
+		__this_cpu_write(vector_irq[i], i - FIRST_EXTERNAL_VECTOR);
 		if (i != SYSCALL_VECTOR)
 			set_intr_gate(i, interrupt[i - FIRST_EXTERNAL_VECTOR]);
 	}
@@ -838,13 +841,13 @@ static void __init lguest_init_IRQ(void)
  * rather than set them in lguest_init_IRQ we are called here every time an
  * lguest device needs an interrupt.
  *
- * FIXME: irq_to_desc_alloc_node() can fail due to lack of memory, we should
+ * FIXME: irq_alloc_desc_at() can fail due to lack of memory, we should
  * pass that up!
  */
 void lguest_setup_irq(unsigned int irq)
 {
-	irq_to_desc_alloc_node(irq, 0);
-	set_irq_chip_and_handler_name(irq, &lguest_irq_controller,
+	irq_alloc_desc_at(irq, 0);
+	irq_set_chip_and_handler_name(irq, &lguest_irq_controller,
 				      handle_level_irq, "level");
 }
 
@@ -910,8 +913,6 @@ static struct clocksource lguest_clock = {
 	.rating		= 200,
 	.read		= lguest_clock_read,
 	.mask		= CLOCKSOURCE_MASK(64),
-	.mult		= 1 << 22,
-	.shift		= 22,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -992,9 +993,10 @@ static void lguest_time_irq(unsigned int irq, struct irq_desc *desc)
 static void lguest_time_init(void)
 {
 	/* Set up the timer interrupt (0) to go to our simple timer routine */
-	set_irq_handler(0, lguest_time_irq);
+	lguest_setup_irq(0);
+	irq_set_handler(0, lguest_time_irq);
 
-	clocksource_register(&lguest_clock);
+	clocksource_register_hz(&lguest_clock, NSEC_PER_SEC);
 
 	/* We can't set cpumask in the initializer: damn C limitations!  Set it
 	 * here and register our timer device. */
@@ -1002,7 +1004,7 @@ static void lguest_time_init(void)
 	clockevents_register_device(&lguest_clockevent);
 
 	/* Finally, we unblock the timer interrupt. */
-	enable_lguest_irq(0);
+	clear_bit(0, lguest_data.blocked_interrupts);
 }
 
 /*
@@ -1348,9 +1350,6 @@ __init void lguest_init(void)
 	 * per-cpu segment descriptor register %fs as well.
 	 */
 	switch_to_new_gdt(0);
-
-	/* We actually boot with all memory mapped, but let's say 128MB. */
-	max_pfn_mapped = (128*1024*1024) >> PAGE_SHIFT;
 
 	/*
 	 * The Host<->Guest Switcher lives at the top of our address space, and

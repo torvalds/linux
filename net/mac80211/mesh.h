@@ -92,7 +92,7 @@ struct mesh_path {
 	u8 dst[ETH_ALEN];
 	u8 mpp[ETH_ALEN];	/* used for MPP or MAP */
 	struct ieee80211_sub_if_data *sdata;
-	struct sta_info *next_hop;
+	struct sta_info __rcu *next_hop;
 	struct timer_list timer;
 	struct sk_buff_head frame_queue;
 	struct rcu_head rcu;
@@ -115,11 +115,12 @@ struct mesh_path {
  * @hash_rnd: random value used for hash computations
  * @entries: number of entries in the table
  * @free_node: function to free nodes of the table
- * @copy_node: fuction to copy nodes of the table
+ * @copy_node: function to copy nodes of the table
  * @size_order: determines size of the table, there will be 2^size_order hash
  *	buckets
  * @mean_chain_len: maximum average length for the hash buckets' list, if it is
  *	reached, the table will grow
+ * rcu_head: RCU head to free the table
  */
 struct mesh_table {
 	/* Number of buckets will be 2^N */
@@ -132,6 +133,8 @@ struct mesh_table {
 	int (*copy_node) (struct hlist_node *p, struct mesh_table *newtbl);
 	int size_order;
 	int mean_chain_len;
+
+	struct rcu_head rcu_head;
 };
 
 /* Recent multicast cache */
@@ -164,43 +167,9 @@ struct mesh_rmc {
 };
 
 
-/*
- * MESH_CFG_COMP_LEN Includes:
- * 	- Active path selection protocol ID.
- * 	- Active path selection metric ID.
- * 	- Congestion control mode identifier.
- * 	- Channel precedence.
- * Does not include mesh capabilities, which may vary across nodes in the same
- * mesh
- */
-#define MESH_CFG_CMP_LEN 	(IEEE80211_MESH_CONFIG_LEN - 2)
-
-/* Default values, timeouts in ms */
-#define MESH_TTL 		31
-#define MESH_MAX_RETR	 	3
-#define MESH_RET_T 		100
-#define MESH_CONF_T 		100
-#define MESH_HOLD_T 		100
-
-#define MESH_PATH_TIMEOUT	5000
-/* Minimum interval between two consecutive PREQs originated by the same
- * interface
- */
-#define MESH_PREQ_MIN_INT	10
-#define MESH_DIAM_TRAVERSAL_TIME 50
-/* A path will be refreshed if it is used PATH_REFRESH_TIME milliseconds before
- * timing out.  This way it will remain ACTIVE and no data frames will be
- * unnecesarily held in the pending queue.
- */
-#define MESH_PATH_REFRESH_TIME			1000
-#define MESH_MIN_DISCOVERY_TIMEOUT (2 * MESH_DIAM_TRAVERSAL_TIME)
 #define MESH_DEFAULT_BEACON_INTERVAL		1000 	/* in 1024 us units */
 
-#define MESH_MAX_PREQ_RETRIES 4
 #define MESH_PATH_EXPIRE (600 * HZ)
-
-/* Default maximum number of established plinks per interface */
-#define MESH_MAX_ESTAB_PLINKS	32
 
 /* Default maximum number of plinks per interface */
 #define MESH_MAX_PLINKS		256
@@ -221,8 +190,8 @@ struct mesh_rmc {
 int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
 				  const u8 *da, const u8 *sa);
 int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
-		struct ieee80211_sub_if_data *sdata, char *addr4,
-		char *addr5, char *addr6);
+		struct ieee80211_sub_if_data *sdata, char *addr4or5,
+		char *addr6);
 int mesh_rmc_check(u8 *addr, struct ieee80211s_hdr *mesh_hdr,
 		struct ieee80211_sub_if_data *sdata);
 bool mesh_matches_local(struct ieee802_11_elems *ie,
@@ -260,7 +229,8 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata);
 /* Mesh plinks */
 void mesh_neighbour_update(u8 *hw_addr, u32 rates,
-		struct ieee80211_sub_if_data *sdata, bool add);
+		struct ieee80211_sub_if_data *sdata,
+		struct ieee802_11_elems *ie);
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie);
 void mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata);
 void mesh_plink_broken(struct sta_info *sta);
@@ -273,12 +243,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 
 /* Private interfaces */
 /* Mesh tables */
-struct mesh_table *mesh_table_alloc(int size_order);
-void mesh_table_free(struct mesh_table *tbl, bool free_leafs);
 void mesh_mpath_table_grow(void);
 void mesh_mpp_table_grow(void);
-u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata,
-		struct mesh_table *tbl);
 /* Mesh paths */
 int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn, __le16 target_rcode,
 		       const u8 *ra, struct ieee80211_sub_if_data *sdata);
@@ -318,9 +284,10 @@ static inline void mesh_path_activate(struct mesh_path *mpath)
 	mpath->flags |= MESH_PATH_ACTIVE | MESH_PATH_RESOLVED;
 }
 
-#define for_each_mesh_entry(x, p, node, i) \
-	for (i = 0; i <= x->hash_mask; i++) \
-		hlist_for_each_entry_rcu(node, p, &x->hash_buckets[i], list)
+static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
+{
+	return sdata->u.mesh.mesh_pp_id == IEEE80211_PATH_PROTOCOL_HWMP;
+}
 
 void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local);
 
@@ -338,6 +305,8 @@ static inline void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata)
 {}
 static inline void mesh_plink_quiesce(struct sta_info *sta) {}
 static inline void mesh_plink_restart(struct sta_info *sta) {}
+static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
+{ return false; }
 #endif
 
 #endif /* IEEE80211S_H */

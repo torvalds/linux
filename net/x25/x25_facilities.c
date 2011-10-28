@@ -27,9 +27,19 @@
 #include <net/sock.h>
 #include <net/x25.h>
 
-/*
- * Parse a set of facilities into the facilities structures. Unrecognised
- *	facilities are written to the debug log file.
+/**
+ * x25_parse_facilities - Parse facilities from skb into the facilities structs
+ *
+ * @skb: sk_buff to parse
+ * @facilities: Regular facilities, updated as facilities are found
+ * @dte_facs: ITU DTE facilities, updated as DTE facilities are found
+ * @vc_fac_mask: mask is updated with all facilities found
+ *
+ * Return codes:
+ *  -1 - Parsing error, caller should drop call and clean up
+ *   0 - Parse OK, this skb has no facilities
+ *  >0 - Parse OK, returns the length of the facilities header
+ *
  */
 int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 		struct x25_dte_facilities *dte_facs, unsigned long *vc_fac_mask)
@@ -61,6 +71,8 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 	while (len > 0) {
 		switch (*p & X25_FAC_CLASS_MASK) {
 		case X25_FAC_CLASS_A:
+			if (len < 2)
+				return -1;
 			switch (*p) {
 			case X25_FAC_REVERSE:
 				if((p[1] & 0x81) == 0x81) {
@@ -104,6 +116,8 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 			len -= 2;
 			break;
 		case X25_FAC_CLASS_B:
+			if (len < 3)
+				return -1;
 			switch (*p) {
 			case X25_FAC_PACKET_SIZE:
 				facilities->pacsize_in  = p[1];
@@ -125,6 +139,8 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 			len -= 3;
 			break;
 		case X25_FAC_CLASS_C:
+			if (len < 4)
+				return -1;
 			printk(KERN_DEBUG "X.25: unknown facility %02X, "
 			       "values %02X, %02X, %02X\n",
 			       p[0], p[1], p[2], p[3]);
@@ -132,26 +148,26 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 			len -= 4;
 			break;
 		case X25_FAC_CLASS_D:
+			if (len < p[1] + 2)
+				return -1;
 			switch (*p) {
 			case X25_FAC_CALLING_AE:
-				if (p[1] > X25_MAX_DTE_FACIL_LEN)
-					break;
+				if (p[1] > X25_MAX_DTE_FACIL_LEN || p[1] <= 1)
+					return -1;
 				dte_facs->calling_len = p[2];
 				memcpy(dte_facs->calling_ae, &p[3], p[1] - 1);
 				*vc_fac_mask |= X25_MASK_CALLING_AE;
 				break;
 			case X25_FAC_CALLED_AE:
-				if (p[1] > X25_MAX_DTE_FACIL_LEN)
-					break;
+				if (p[1] > X25_MAX_DTE_FACIL_LEN || p[1] <= 1)
+					return -1;
 				dte_facs->called_len = p[2];
 				memcpy(dte_facs->called_ae, &p[3], p[1] - 1);
 				*vc_fac_mask |= X25_MASK_CALLED_AE;
 				break;
 			default:
 				printk(KERN_DEBUG "X.25: unknown facility %02X,"
-					"length %d, values %02X, %02X, "
-					"%02X, %02X\n",
-					p[0], p[1], p[2], p[3], p[4], p[5]);
+					"length %d\n", p[0], p[1]);
 				break;
 			}
 			len -= p[1] + 2;

@@ -348,29 +348,6 @@ typedef bool(*dbll_init_fxn) (void);
 typedef int(*dbll_load_fxn) (struct dbll_library_obj *lib,
 				    dbll_flags flags,
 				    struct dbll_attrs *attrs, u32 *entry);
-
-/*
- *  ======== dbll_load_sect ========
- *  Load a named section from an library (for overlay support).
- *  Parameters:
- *      lib             - Handle returned from dbll_open().
- *      sec_name        - Name of section to load.
- *      attrs           - Contains write function and handle to pass to it.
- *  Returns:
- *      0:        Success.
- *      -ENXIO:    Section not found.
- *      -ENOSYS:   Function not implemented.
- *  Requires:
- *      Valid lib.
- *      sec_name != NULL.
- *      attrs != NULL.
- *      attrs->write != NULL.
- *  Ensures:
- */
-typedef int(*dbll_load_sect_fxn) (struct dbll_library_obj *lib,
-					 char *sz_sect_name,
-					 struct dbll_attrs *attrs);
-
 /*
  *  ======== dbll_open ========
  *  dbll_open() returns a library handle that can be used to load/unload
@@ -421,23 +398,6 @@ typedef int(*dbll_open_fxn) (struct dbll_tar_obj *target, char *file,
 typedef int(*dbll_read_sect_fxn) (struct dbll_library_obj *lib,
 					 char *name, char *content,
 					 u32 cont_size);
-
-/*
- *  ======== dbll_set_attrs ========
- *  Set the attributes of the target.
- *  Parameters:
- *      target          - Handle returned from dbll_create().
- *      pattrs          - New attributes.
- *  Returns:
- *  Requires:
- *      DBL initialized.
- *      Valid target.
- *      pattrs != NULL.
- *  Ensures:
- */
-typedef void (*dbll_set_attrs_fxn) (struct dbll_tar_obj *target,
-				    struct dbll_attrs *attrs);
-
 /*
  *  ======== dbll_unload ========
  *  Unload library loaded with dbll_load().
@@ -452,28 +412,6 @@ typedef void (*dbll_set_attrs_fxn) (struct dbll_tar_obj *target,
  */
 typedef void (*dbll_unload_fxn) (struct dbll_library_obj *library,
 				 struct dbll_attrs *attrs);
-
-/*
- *  ======== dbll_unload_sect ========
- *  Unload a named section from an library (for overlay support).
- *  Parameters:
- *      lib             - Handle returned from dbll_open().
- *      sec_name        - Name of section to load.
- *      attrs           - Contains free() function and handle to pass to it.
- *  Returns:
- *      0:        Success.
- *      -ENXIO:    Named section not found.
- *      -ENOSYS
- *  Requires:
- *      DBL initialized.
- *      Valid lib.
- *      sec_name != NULL.
- *  Ensures:
- */
-typedef int(*dbll_unload_sect_fxn) (struct dbll_library_obj *lib,
-					   char *sz_sect_name,
-					   struct dbll_attrs *attrs);
-
 struct dbll_fxns {
 	dbll_close_fxn close_fxn;
 	dbll_create_fxn create_fxn;
@@ -485,12 +423,9 @@ struct dbll_fxns {
 	dbll_get_sect_fxn get_sect_fxn;
 	dbll_init_fxn init_fxn;
 	dbll_load_fxn load_fxn;
-	dbll_load_sect_fxn load_sect_fxn;
 	dbll_open_fxn open_fxn;
 	dbll_read_sect_fxn read_sect_fxn;
-	dbll_set_attrs_fxn set_attrs_fxn;
 	dbll_unload_fxn unload_fxn;
-	dbll_unload_sect_fxn unload_sect_fxn;
 };
 
 #endif /* DBLDEFS_ */

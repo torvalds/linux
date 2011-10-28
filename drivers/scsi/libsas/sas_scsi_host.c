@@ -130,17 +130,6 @@ static void sas_scsi_task_done(struct sas_task *task)
 	sc->scsi_done(sc);
 }
 
-static enum task_attribute sas_scsi_get_task_attr(struct scsi_cmnd *cmd)
-{
-	enum task_attribute ta = TASK_ATTR_SIMPLE;
-	if (cmd->request && blk_rq_tagged(cmd->request)) {
-		if (cmd->device->ordered_tags &&
-		    (cmd->request->cmd_flags & REQ_HARDBARRIER))
-			ta = TASK_ATTR_ORDERED;
-	}
-	return ta;
-}
-
 static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 					       struct domain_device *dev,
 					       gfp_t gfp_flags)
@@ -160,7 +149,7 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	task->ssp_task.retry_count = 1;
 	int_to_scsilun(cmd->device->lun, &lun);
 	memcpy(task->ssp_task.LUN, &lun.scsi_lun, 8);
-	task->ssp_task.task_attr = sas_scsi_get_task_attr(cmd);
+	task->ssp_task.task_attr = TASK_ATTR_SIMPLE;
 	memcpy(task->ssp_task.cdb, cmd->cmnd, 16);
 
 	task->scatter = scsi_sglist(cmd);
@@ -200,7 +189,7 @@ int sas_queue_up(struct sas_task *task)
  * Note: XXX: Remove the host unlock/lock pair when SCSI Core can
  * call us without holding an IRQ spinlock...
  */
-int sas_queuecommand(struct scsi_cmnd *cmd,
+static int sas_queuecommand_lck(struct scsi_cmnd *cmd,
 		     void (*scsi_done)(struct scsi_cmnd *))
 	__releases(host->host_lock)
 	__acquires(dev->sata_dev.ap->lock)
@@ -218,12 +207,18 @@ int sas_queuecommand(struct scsi_cmnd *cmd,
 		struct sas_ha_struct *sas_ha = dev->port->ha;
 		struct sas_task *task;
 
+		/* If the device fell off, no sense in issuing commands */
+		if (dev->gone) {
+			cmd->result = DID_BAD_TARGET << 16;
+			scsi_done(cmd);
+			goto out;
+		}
+
 		if (dev_is_sata(dev)) {
 			unsigned long flags;
 
 			spin_lock_irqsave(dev->sata_dev.ap->lock, flags);
-			res = ata_sas_queuecmd(cmd, scsi_done,
-					       dev->sata_dev.ap);
+			res = ata_sas_queuecmd(cmd, dev->sata_dev.ap);
 			spin_unlock_irqrestore(dev->sata_dev.ap->lock, flags);
 			goto out;
 		}
@@ -257,6 +252,8 @@ out:
 	spin_lock_irq(host->host_lock);
 	return res;
 }
+
+DEF_SCSI_QCMD(sas_queuecommand)
 
 static void sas_eh_finish_cmd(struct scsi_cmnd *cmd)
 {
@@ -649,6 +646,7 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_splice_init(&shost->eh_cmd_q, &eh_work_q);
+	shost->host_eh_scheduled = 0;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	SAS_DPRINTK("Enter %s\n", __func__);
@@ -665,11 +663,16 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 	 * scsi_unjam_host does, but we skip scsi_eh_abort_cmds because any
 	 * command we see here has no sas_task and is thus unknown to the HA.
 	 */
-	if (!scsi_eh_get_sense(&eh_work_q, &ha->eh_done_q))
-		scsi_eh_ready_devs(shost, &eh_work_q, &ha->eh_done_q);
+	if (!sas_ata_eh(shost, &eh_work_q, &ha->eh_done_q))
+		if (!scsi_eh_get_sense(&eh_work_q, &ha->eh_done_q))
+			scsi_eh_ready_devs(shost, &eh_work_q, &ha->eh_done_q);
 
 out:
+	/* now link into libata eh --- if we have any ata devices */
+	sas_ata_strategy_handler(shost);
+
 	scsi_eh_flush_done_q(&ha->eh_done_q);
+
 	SAS_DPRINTK("--- Exit %s\n", __func__);
 	return;
 }
@@ -678,6 +681,10 @@ enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 {
 	struct sas_task *task = TO_SAS_TASK(cmd);
 	unsigned long flags;
+	enum blk_eh_timer_return rtn;
+
+	if (sas_ata_timed_out(cmd, task, &rtn))
+		return rtn;
 
 	if (!task) {
 		cmd->request->timeout /= 2;

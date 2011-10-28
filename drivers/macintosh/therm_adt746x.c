@@ -3,9 +3,9 @@
  *
  * Copyright (C) 2003, 2004 Colin Leroy, Rasmus Rohde, Benjamin Herrenschmidt
  *
- * Documentation from
- * http://www.analog.com/UploadedFiles/Data_Sheets/115254175ADT7467_pra.pdf
- * http://www.analog.com/UploadedFiles/Data_Sheets/3686221171167ADT7460_b.pdf
+ * Documentation from 115254175ADT7467_pra.pdf and 3686221171167ADT7460_b.pdf
+ * http://www.onsemi.com/PowerSolutions/product.do?id=ADT7467
+ * http://www.onsemi.com/PowerSolutions/product.do?id=ADT7460
  *
  */
 
@@ -662,7 +662,7 @@ static void thermostat_create_files(void)
 		err |= device_create_file(&of_dev->dev, &dev_attr_sensor2_fan_speed);
 	if (err)
 		printk(KERN_WARNING
-			"Failed to create tempertaure attribute file(s).\n");
+			"Failed to create temperature attribute file(s).\n");
 }
 
 static void thermostat_remove_files(void)

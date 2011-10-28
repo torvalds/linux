@@ -60,7 +60,7 @@ int arch_update_cpu_topology(void);
  * (in whatever arch specific measurement units returned by node_distance())
  * then switch on zone reclaim on boot.
  */
-#define RECLAIM_DISTANCE 20
+#define RECLAIM_DISTANCE 30
 #endif
 #ifndef PENALTY_FOR_NODE_WITH_CPUS
 #define PENALTY_FOR_NODE_WITH_CPUS	(1)
@@ -200,6 +200,12 @@ int arch_update_cpu_topology(void);
 	.last_balance		= jiffies,				\
 	.balance_interval	= 64,					\
 }
+
+#ifdef CONFIG_SCHED_BOOK
+#ifndef SD_BOOK_INIT
+#error Please define an appropriate SD_BOOK_INIT in include/asm/topology.h!!!
+#endif
+#endif /* CONFIG_SCHED_BOOK */
 
 #ifdef CONFIG_NUMA
 #ifndef SD_NODE_INIT

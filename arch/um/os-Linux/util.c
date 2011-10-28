@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #include <signal.h>
 #include <string.h>
@@ -75,6 +76,26 @@ void setup_hostinfo(char *buf, int len)
 		 host.release, host.version, host.machine);
 }
 
+/*
+ * We cannot use glibc's abort(). It makes use of tgkill() which
+ * has no effect within UML's kernel threads.
+ * After that glibc would execute an invalid instruction to kill
+ * the calling process and UML crashes with SIGSEGV.
+ */
+static inline void __attribute__ ((noreturn)) uml_abort(void)
+{
+	sigset_t sig;
+
+	fflush(NULL);
+
+	if (!sigemptyset(&sig) && !sigaddset(&sig, SIGABRT))
+		sigprocmask(SIG_UNBLOCK, &sig, 0);
+
+	for (;;)
+		if (kill(getpid(), SIGABRT) < 0)
+			exit(127);
+}
+
 void os_dump_core(void)
 {
 	int pid;
@@ -116,5 +137,10 @@ void os_dump_core(void)
 	while ((pid = waitpid(-1, NULL, WNOHANG | __WALL)) > 0)
 		os_kill_ptraced_process(pid, 0);
 
-	abort();
+	uml_abort();
+}
+
+void um_early_printk(const char *s, unsigned int n)
+{
+	printf("%.*s", n, s);
 }

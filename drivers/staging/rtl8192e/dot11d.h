@@ -41,13 +41,10 @@ typedef struct _RT_DOT11D_INFO {
 	DOT11D_STATE State;
 } RT_DOT11D_INFO, *PRT_DOT11D_INFO;
 
-#define eqMacAddr(a, b) (((a)[0] == (b)[0] && (a)[1] == (b)[1] && (a)[2] == \
-			(b)[2] && (a)[3] == (b)[3] && (a)[4] == (b)[4] && \
-			(a)[5] == (b)[5]) ? 1 : 0)
-
-#define cpMacAddr(des, src) ((des)[0] = (src)[0], (des)[1] = (src)[1], \
-			(des)[2] = (src)[2], (des)[3] = (src)[3], \
-			(des)[4] = (src)[4], (des)[5] = (src)[5])
+static inline void cpMacAddr(unsigned char *des, unsigned char *src)
+{
+	memcpy(des, src, 6);
+}
 
 #define GET_DOT11D_INFO(__pIeeeDev) ((PRT_DOT11D_INFO) \
 			((__pIeeeDev)->pDot11dInfo))

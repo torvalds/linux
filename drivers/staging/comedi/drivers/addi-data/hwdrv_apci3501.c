@@ -8,7 +8,7 @@ Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 	D-77833 Ottersweier
 	Tel: +19(0)7223/9493-0
 	Fax: +49(0)7223/9493-92
-	http://www.addi-data-com
+	http://www.addi-data.com
 	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
@@ -34,7 +34,7 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-------------------------------+---------------------------------------+
   | Project manager: Eric Stolz   | Date       :  02/12/2002              |
   +-------------------------------+---------------------------------------+
-  | Description :   Hardware Layer Acces For APCI-3501                    |
+  | Description :   Hardware Layer Access For APCI-3501                   |
   +-----------------------------------------------------------------------+
   |                             UPDATES                                   |
   +----------+-----------+------------------------------------------------+
@@ -339,7 +339,7 @@ int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev, struct comedi_subde
 int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
-	unsigned int ul_Command1 = 0, ul_Channel_no, ul_Polarity, ul_DAC_Ready = 0;;
+	unsigned int ul_Command1 = 0, ul_Channel_no, ul_Polarity, ul_DAC_Ready = 0;
 
 	ul_Channel_no = CR_CHAN(insn->chanspec);
 

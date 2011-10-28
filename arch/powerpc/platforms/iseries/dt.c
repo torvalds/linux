@@ -242,7 +242,7 @@ static void __init dt_cpus(struct iseries_flat_dt *dt)
 	pft_size[0] = 0; /* NUMA CEC cookie, 0 for non NUMA  */
 	pft_size[1] = __ilog2(HvCallHpt_getHptPages() * HW_PAGE_SIZE);
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for (i = 0; i < NR_LPPACAS; i++) {
 		if (lppaca[i].dyn_proc_status >= 2)
 			continue;
 

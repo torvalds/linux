@@ -1248,7 +1248,7 @@ static void radeon_write_pll_regs(struct radeonfb_info *rinfo, struct radeon_reg
 
 	/* Workaround from XFree */
 	if (rinfo->is_mobility) {
-	        /* A temporal workaround for the occational blanking on certain laptop
+	        /* A temporal workaround for the occasional blanking on certain laptop
 		 * panels. This appears to related to the PLL divider registers
 		 * (fail to lock?). It occurs even when all dividers are the same
 		 * with their old settings. In this case we really don't need to

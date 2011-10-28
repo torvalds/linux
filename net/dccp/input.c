@@ -160,13 +160,15 @@ static void dccp_rcv_reset(struct sock *sk, struct sk_buff *skb)
 	dccp_time_wait(sk, DCCP_TIME_WAIT, 0);
 }
 
-static void dccp_event_ack_recv(struct sock *sk, struct sk_buff *skb)
+static void dccp_handle_ackvec_processing(struct sock *sk, struct sk_buff *skb)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_ackvec *av = dccp_sk(sk)->dccps_hc_rx_ackvec;
 
-	if (dp->dccps_hc_rx_ackvec != NULL)
-		dccp_ackvec_check_rcv_ackno(dp->dccps_hc_rx_ackvec, sk,
-					    DCCP_SKB_CB(skb)->dccpd_ack_seq);
+	if (av == NULL)
+		return;
+	if (DCCP_SKB_CB(skb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
+		dccp_ackvec_clear_state(av, DCCP_SKB_CB(skb)->dccpd_ack_seq);
+	dccp_ackvec_input(av, skb);
 }
 
 static void dccp_deliver_input_to_ccids(struct sock *sk, struct sk_buff *skb)
@@ -239,7 +241,8 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 		dccp_update_gsr(sk, seqno);
 
 		if (dh->dccph_type != DCCP_PKT_SYNC &&
-		    (ackno != DCCP_PKT_WITHOUT_ACK_SEQ))
+		    ackno != DCCP_PKT_WITHOUT_ACK_SEQ &&
+		    after48(ackno, dp->dccps_gar))
 			dp->dccps_gar = ackno;
 	} else {
 		unsigned long now = jiffies;
@@ -257,9 +260,9 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 		 */
 		if (time_before(now, (dp->dccps_rate_last +
 				      sysctl_dccp_sync_ratelimit)))
-			return 0;
+			return -1;
 
-		DCCP_WARN("DCCP: Step 6 failed for %s packet, "
+		DCCP_WARN("Step 6 failed for %s packet, "
 			  "(LSWL(%llu) <= P.seqno(%llu) <= S.SWH(%llu)) and "
 			  "(P.ackno %s or LAWL(%llu) <= P.ackno(%llu) <= S.AWH(%llu), "
 			  "sending SYNC...\n",  dccp_packet_name(dh->dccph_type),
@@ -365,22 +368,13 @@ discard:
 int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			 const struct dccp_hdr *dh, const unsigned len)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-
 	if (dccp_check_seqno(sk, skb))
 		goto discard;
 
 	if (dccp_parse_options(sk, NULL, skb))
 		return 1;
 
-	if (DCCP_SKB_CB(skb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
-		dccp_event_ack_recv(sk, skb);
-
-	if (dp->dccps_hc_rx_ackvec != NULL &&
-	    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
-			    DCCP_SKB_CB(skb)->dccpd_seq,
-			    DCCP_ACKVEC_STATE_RECEIVED))
-		goto discard;
+	dccp_handle_ackvec_processing(sk, skb);
 	dccp_deliver_input_to_ccids(sk, skb);
 
 	return __dccp_rcv_established(sk, skb, dh, len);
@@ -441,20 +435,14 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 		kfree_skb(sk->sk_send_head);
 		sk->sk_send_head = NULL;
 
-		dp->dccps_isr = DCCP_SKB_CB(skb)->dccpd_seq;
-		dccp_update_gsr(sk, dp->dccps_isr);
 		/*
-		 * SWL and AWL are initially adjusted so that they are not less than
-		 * the initial Sequence Numbers received and sent, respectively:
-		 *	SWL := max(GSR + 1 - floor(W/4), ISR),
-		 *	AWL := max(GSS - W' + 1, ISS).
-		 * These adjustments MUST be applied only at the beginning of the
-		 * connection.
-		 *
-		 * AWL was adjusted in dccp_v4_connect -acme
+		 * Set ISR, GSR from packet. ISS was set in dccp_v{4,6}_connect
+		 * and GSS in dccp_transmit_skb(). Setting AWL/AWH and SWL/SWH
+		 * is done as part of activating the feature values below, since
+		 * these settings depend on the local/remote Sequence Window
+		 * features, which were undefined or not confirmed until now.
 		 */
-		dccp_set_seqno(&dp->dccps_swl,
-			       max48(dp->dccps_swl, dp->dccps_isr));
+		dp->dccps_gsr = dp->dccps_isr = DCCP_SKB_CB(skb)->dccpd_seq;
 
 		dccp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 
@@ -626,6 +614,9 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		/* Caller (dccp_v4_do_rcv) will send Reset */
 		dcb->dccpd_reset_code = DCCP_RESET_CODE_NO_CONNECTION;
 		return 1;
+	} else if (sk->sk_state == DCCP_CLOSED) {
+		dcb->dccpd_reset_code = DCCP_RESET_CODE_NO_CONNECTION;
+		return 1;
 	}
 
 	if (sk->sk_state != DCCP_REQUESTING && sk->sk_state != DCCP_RESPOND) {
@@ -638,15 +629,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		if (dccp_parse_options(sk, NULL, skb))
 			return 1;
 
-		if (dcb->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
-			dccp_event_ack_recv(sk, skb);
-
-		if (dp->dccps_hc_rx_ackvec != NULL &&
-		    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
-				    DCCP_SKB_CB(skb)->dccpd_seq,
-				    DCCP_ACKVEC_STATE_RECEIVED))
-			goto discard;
-
+		dccp_handle_ackvec_processing(sk, skb);
 		dccp_deliver_input_to_ccids(sk, skb);
 	}
 
@@ -688,10 +671,6 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 	}
 
 	switch (sk->sk_state) {
-	case DCCP_CLOSED:
-		dcb->dccpd_reset_code = DCCP_RESET_CODE_NO_CONNECTION;
-		return 1;
-
 	case DCCP_REQUESTING:
 		queued = dccp_rcv_request_sent_state_process(sk, skb, dh, len);
 		if (queued >= 0)

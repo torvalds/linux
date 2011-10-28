@@ -54,7 +54,4 @@
 
 #define WM8988_SYSCLK	0
 
-extern struct snd_soc_dai wm8988_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8988;
-
 #endif

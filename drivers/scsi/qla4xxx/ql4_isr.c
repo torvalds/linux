@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2006 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -25,9 +25,14 @@ static void qla4xxx_copy_sense(struct scsi_qla_host *ha,
 
 	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 	sense_len = le16_to_cpu(sts_entry->senseDataByteCnt);
-	if (sense_len == 0)
+	if (sense_len == 0) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "scsi%ld:%d:%d:%d: %s:"
+				  " sense len 0\n", ha->host_no,
+				  cmd->device->channel, cmd->device->id,
+				  cmd->device->lun, __func__));
+		ha->status_srb = NULL;
 		return;
-
+	}
 	/* Save total available sense length,
 	 * not to exceed cmd's sense buffer size */
 	sense_len = min_t(uint16_t, sense_len, SCSI_SENSE_BUFFERSIZE);
@@ -72,7 +77,7 @@ qla4xxx_status_cont_entry(struct scsi_qla_host *ha,
 {
 	struct srb *srb = ha->status_srb;
 	struct scsi_cmnd *cmd;
-	uint8_t sense_len;
+	uint16_t sense_len;
 
 	if (srb == NULL)
 		return;
@@ -487,6 +492,8 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_SYSTEM_ERROR:
 			/* Log Mailbox registers */
 			ql4_printk(KERN_INFO, ha, "%s: System Err\n", __func__);
+			qla4xxx_dump_registers(ha);
+
 			if (ql4xdontresethba) {
 				DEBUG2(printk("scsi%ld: %s:Don't Reset HBA\n",
 				    ha->host_no, __func__));
@@ -539,6 +546,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_UNSOLICITED_PDU_RECEIVED:  /* Connection mode */
 		case MBOX_ASTS_IPSEC_SYSTEM_FATAL_ERROR:
 		case MBOX_ASTS_SUBNET_STATE_CHANGE:
+		case MBOX_ASTS_DUPLICATE_IP:
 			/* No action */
 			DEBUG2(printk("scsi%ld: AEN %04x\n", ha->host_no,
 				      mbox_status));
@@ -552,7 +560,8 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			/* mbox_sts[2] = Old ACB state
 			 * mbox_sts[3] = new ACB state */
 			if ((mbox_sts[3] == ACB_STATE_VALID) &&
-			    (mbox_sts[2] == ACB_STATE_TENTATIVE))
+			    ((mbox_sts[2] == ACB_STATE_TENTATIVE) ||
+			    (mbox_sts[2] == ACB_STATE_ACQUIRING)))
 				set_bit(DPC_GET_DHCP_IP_ADDR, &ha->dpc_flags);
 			else if ((mbox_sts[3] == ACB_STATE_ACQUIRING) &&
 			    (mbox_sts[2] == ACB_STATE_VALID))
@@ -590,11 +599,13 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 					    mbox_sts[i];
 
 				/* print debug message */
-				DEBUG2(printk("scsi%ld: AEN[%d] %04x queued"
-				    " mb1:0x%x mb2:0x%x mb3:0x%x mb4:0x%x\n",
-				    ha->host_no, ha->aen_in, mbox_sts[0],
-				    mbox_sts[1], mbox_sts[2],  mbox_sts[3],
-				    mbox_sts[4]));
+				DEBUG2(printk("scsi%ld: AEN[%d] %04x queued "
+					      "mb1:0x%x mb2:0x%x mb3:0x%x "
+					      "mb4:0x%x mb5:0x%x\n",
+					      ha->host_no, ha->aen_in,
+					      mbox_sts[0], mbox_sts[1],
+					      mbox_sts[2], mbox_sts[3],
+					      mbox_sts[4], mbox_sts[5]));
 
 				/* advance pointer */
 				ha->aen_in++;
@@ -619,6 +630,18 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 						      mbox_sts[3]));
 				}
 			}
+			break;
+
+		case MBOX_ASTS_TXSCVR_INSERTED:
+			DEBUG2(printk(KERN_WARNING
+			    "scsi%ld: AEN %04x Transceiver"
+			    " inserted\n",  ha->host_no, mbox_sts[0]));
+			break;
+
+		case MBOX_ASTS_TXSCVR_REMOVED:
+			DEBUG2(printk(KERN_WARNING
+			    "scsi%ld: AEN %04x Transceiver"
+			    " removed\n",  ha->host_no, mbox_sts[0]));
 			break;
 
 		default:
@@ -786,7 +809,7 @@ irqreturn_t qla4xxx_intr_handler(int irq, void *dev_id)
 			       &ha->reg->ctrl_status);
 			readl(&ha->reg->ctrl_status);
 
-			if (!test_bit(AF_HBA_GOING_AWAY, &ha->flags))
+			if (!test_bit(AF_HA_REMOVAL, &ha->flags))
 				set_bit(DPC_RESET_HA_INTR, &ha->dpc_flags);
 
 			break;
@@ -993,34 +1016,9 @@ void qla4xxx_process_aen(struct scsi_qla_host * ha, uint8_t process_aen)
 					      mbox_sts[0], mbox_sts[2],
 					      mbox_sts[3]));
 				break;
-			} else if (process_aen == RELOGIN_DDB_CHANGED_AENS) {
-				/* for use during init time, we only want to
-				 * relogin non-active ddbs */
-				struct ddb_entry *ddb_entry;
-
-				ddb_entry =
-					/* FIXME: name length? */
-					qla4xxx_lookup_ddb_by_fw_index(ha,
-								       mbox_sts[2]);
-				if (!ddb_entry)
-					break;
-
-				ddb_entry->dev_scan_wait_to_complete_relogin =
-					0;
-				ddb_entry->dev_scan_wait_to_start_relogin =
-					jiffies +
-					((ddb_entry->default_time2wait +
-					  4) * HZ);
-
-				DEBUG2(printk("scsi%ld: ddb [%d] initate"
-					      " RELOGIN after %d seconds\n",
-					      ha->host_no,
-					      ddb_entry->fw_ddb_index,
-					      ddb_entry->default_time2wait +
-					      4));
-				break;
 			}
-
+		case PROCESS_ALL_AENS:
+		default:
 			if (mbox_sts[1] == 0) {	/* Global DB change. */
 				qla4xxx_reinitialize_ddb_list(ha);
 			} else if (mbox_sts[1] == 1) {	/* Specific device. */
@@ -1063,7 +1061,7 @@ try_msi:
 	ret = pci_enable_msi(ha->pdev);
 	if (!ret) {
 		ret = request_irq(ha->pdev->irq, qla4_8xxx_msi_handler,
-			IRQF_DISABLED|IRQF_SHARED, DRIVER_NAME, ha);
+			0, DRIVER_NAME, ha);
 		if (!ret) {
 			DEBUG2(ql4_printk(KERN_INFO, ha, "MSI: Enabled.\n"));
 			set_bit(AF_MSI_ENABLED, &ha->flags);
@@ -1081,7 +1079,7 @@ try_msi:
 try_intx:
 	/* Trying INTx */
 	ret = request_irq(ha->pdev->irq, ha->isp_ops->intr_handler,
-	    IRQF_DISABLED|IRQF_SHARED, DRIVER_NAME, ha);
+	    IRQF_SHARED, DRIVER_NAME, ha);
 	if (!ret) {
 		DEBUG2(ql4_printk(KERN_INFO, ha, "INTx: Enabled.\n"));
 		set_bit(AF_INTx_ENABLED, &ha->flags);

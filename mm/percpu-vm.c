@@ -421,7 +421,7 @@ static struct pcpu_chunk *pcpu_create_chunk(void)
 		return NULL;
 
 	vms = pcpu_get_vm_areas(pcpu_group_offsets, pcpu_group_sizes,
-				pcpu_nr_groups, pcpu_atom_size, GFP_KERNEL);
+				pcpu_nr_groups, pcpu_atom_size);
 	if (!vms) {
 		pcpu_free_chunk(chunk);
 		return NULL;

@@ -1,6 +1,6 @@
 /* bnx2x_stats.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2010 Broadcom Corporation
+ * Copyright (c) 2007-2011 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -9,6 +9,10 @@
  * Maintained by: Eilon Greenstein <eilong@broadcom.com>
  * Written by: Eliezer Tamir
  * Based on code from Michael Chan's bnx2 driver
+ * UDP CSUM errata workaround by Arik Gendelman
+ * Slowpath and fastpath rework by Vladislav Zolotarov
+ * Statistics and Link management by Yitchak Gertner
+ *
  */
 
 #ifndef BNX2X_STATS_H
@@ -49,7 +53,6 @@ struct bnx2x_eth_q_stats {
 	u32 hw_csum_err;
 };
 
-#define BNX2X_NUM_Q_STATS		13
 #define Q_STATS_OFFSET32(stat_name) \
 			(offsetof(struct bnx2x_eth_q_stats, stat_name) / 4)
 
@@ -221,19 +224,14 @@ struct bnx2x_eth_stats {
 	u32 nig_timer_max;
 };
 
-#define BNX2X_NUM_STATS			43
 #define STATS_OFFSET32(stat_name) \
 			(offsetof(struct bnx2x_eth_stats, stat_name) / 4)
 
 /* Forward declaration */
 struct bnx2x;
 
-
 void bnx2x_stats_init(struct bnx2x *bp);
 
 extern const u32 dmae_reg_go_c[];
-extern int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
-			 u32 data_hi, u32 data_lo, int common);
-
 
 #endif /* BNX2X_STATS_H */

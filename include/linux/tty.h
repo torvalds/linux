@@ -13,7 +13,6 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_ldisc.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 
 #include <asm/system.h>
 
@@ -50,6 +49,9 @@
 #define N_V253		19	/* Codec control over voice modem */
 #define N_CAIF		20      /* CAIF protocol for talking to modems */
 #define N_GSM0710	21	/* GSM 0710 Mux */
+#define N_TI_WL		22	/* for TI's WL BT, FM, GPS combo chips */
+#define N_TRACESINK	23	/* Trace data routing for MIPI P1149.7 */
+#define N_TRACEROUTER	24	/* Trace data routing for MIPI P1149.7 */
 
 /*
  * This character is the same as _POSIX_VDISABLE: it cannot be used as
@@ -82,7 +84,7 @@ struct tty_buffer {
 
 
 struct tty_bufhead {
-	struct delayed_work work;
+	struct work_struct work;
 	spinlock_t lock;
 	struct tty_buffer *head;	/* Queue head */
 	struct tty_buffer *tail;	/* Active buffer */
@@ -256,6 +258,7 @@ struct tty_operations;
 struct tty_struct {
 	int	magic;
 	struct kref kref;
+	struct device *dev;
 	struct tty_driver *driver;
 	const struct tty_operations *ops;
 	int index;
@@ -365,6 +368,7 @@ struct tty_file_private {
 #define TTY_HUPPED 		18	/* Post driver->hangup() */
 #define TTY_FLUSHING		19	/* Flushing to ldisc in progress */
 #define TTY_FLUSHPENDING	20	/* Queued buffer flush pending */
+#define TTY_HUPPING 		21	/* ->hangup() in progress */
 
 #define TTY_WRITE_FLUSH(tty) tty_write_flush((tty))
 
@@ -446,6 +450,7 @@ extern void tty_encode_baud_rate(struct tty_struct *tty,
 						speed_t ibaud, speed_t obaud);
 extern void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old);
 extern int tty_termios_hw_change(struct ktermios *a, struct ktermios *b);
+extern int tty_set_termios(struct tty_struct *tty, struct ktermios *kt);
 
 extern struct tty_ldisc *tty_ldisc_ref(struct tty_struct *);
 extern void tty_ldisc_deref(struct tty_ldisc *);
@@ -465,10 +470,11 @@ extern void proc_clear_tty(struct task_struct *p);
 extern struct tty_struct *get_current_tty(void);
 extern void tty_default_fops(struct file_operations *fops);
 extern struct tty_struct *alloc_tty_struct(void);
-extern void tty_add_file(struct tty_struct *tty, struct file *file);
+extern int tty_add_file(struct tty_struct *tty, struct file *file);
 extern void free_tty_struct(struct tty_struct *tty);
 extern void initialize_tty_struct(struct tty_struct *tty,
 		struct tty_driver *driver, int idx);
+extern void deinitialize_tty_struct(struct tty_struct *tty);
 extern struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 								int first_ok);
 extern int tty_release(struct inode *inode, struct file *filp);
@@ -522,6 +528,7 @@ extern int tty_set_ldisc(struct tty_struct *tty, int ldisc);
 extern int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty);
 extern void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty);
 extern void tty_ldisc_init(struct tty_struct *tty);
+extern void tty_ldisc_deinit(struct tty_struct *tty);
 extern void tty_ldisc_begin(void);
 /* This last one is just for the tty layer internals and shouldn't be used elsewhere */
 extern void tty_ldisc_enable(struct tty_struct *tty);
@@ -539,8 +546,8 @@ extern void tty_audit_exit(void);
 extern void tty_audit_fork(struct signal_struct *sig);
 extern void tty_audit_tiocsti(struct tty_struct *tty, char ch);
 extern void tty_audit_push(struct tty_struct *tty);
-extern void tty_audit_push_task(struct task_struct *tsk,
-					uid_t loginuid, u32 sessionid);
+extern int tty_audit_push_task(struct task_struct *tsk,
+			       uid_t loginuid, u32 sessionid);
 #else
 static inline void tty_audit_add_data(struct tty_struct *tty,
 				      unsigned char *data, size_t size)
@@ -558,9 +565,10 @@ static inline void tty_audit_fork(struct signal_struct *sig)
 static inline void tty_audit_push(struct tty_struct *tty)
 {
 }
-static inline void tty_audit_push_task(struct task_struct *tsk,
-					uid_t loginuid, u32 sessionid)
+static inline int tty_audit_push_task(struct task_struct *tsk,
+				      uid_t loginuid, u32 sessionid)
 {
+	return 0;
 }
 #endif
 
@@ -581,10 +589,10 @@ extern int pcxe_open(struct tty_struct *tty, struct file *filp);
 
 /* vt.c */
 
-extern int vt_ioctl(struct tty_struct *tty, struct file *file,
+extern int vt_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg);
 
-extern long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
+extern long vt_compat_ioctl(struct tty_struct *tty,
 		     unsigned int cmd, unsigned long arg);
 
 /* tty_mutex.c */

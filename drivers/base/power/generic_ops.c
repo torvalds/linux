@@ -39,14 +39,14 @@ EXPORT_SYMBOL_GPL(pm_generic_runtime_idle);
  *
  * If PM operations are defined for the @dev's driver and they include
  * ->runtime_suspend(), execute it and return its error code.  Otherwise,
- * return -EINVAL.
+ * return 0.
  */
 int pm_generic_runtime_suspend(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int ret;
 
-	ret = pm && pm->runtime_suspend ? pm->runtime_suspend(dev) : -EINVAL;
+	ret = pm && pm->runtime_suspend ? pm->runtime_suspend(dev) : 0;
 
 	return ret;
 }
@@ -58,14 +58,14 @@ EXPORT_SYMBOL_GPL(pm_generic_runtime_suspend);
  *
  * If PM operations are defined for the @dev's driver and they include
  * ->runtime_resume(), execute it and return its error code.  Otherwise,
- * return -EINVAL.
+ * return 0.
  */
 int pm_generic_runtime_resume(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int ret;
 
-	ret = pm && pm->runtime_resume ? pm->runtime_resume(dev) : -EINVAL;
+	ret = pm && pm->runtime_resume ? pm->runtime_resume(dev) : 0;
 
 	return ret;
 }
@@ -73,6 +73,23 @@ EXPORT_SYMBOL_GPL(pm_generic_runtime_resume);
 #endif /* CONFIG_PM_RUNTIME */
 
 #ifdef CONFIG_PM_SLEEP
+/**
+ * pm_generic_prepare - Generic routine preparing a device for power transition.
+ * @dev: Device to prepare.
+ *
+ * Prepare a device for a system-wide power transition.
+ */
+int pm_generic_prepare(struct device *dev)
+{
+	struct device_driver *drv = dev->driver;
+	int ret = 0;
+
+	if (drv && drv->pm && drv->pm->prepare)
+		ret = drv->pm->prepare(dev);
+
+	return ret;
+}
+
 /**
  * __pm_generic_call - Generic suspend/freeze/poweroff/thaw subsystem callback.
  * @dev: Device to handle.
@@ -185,7 +202,7 @@ static int __pm_generic_resume(struct device *dev, int event)
 		return 0;
 
 	ret = callback(dev);
-	if (!ret) {
+	if (!ret && pm_runtime_enabled(dev)) {
 		pm_runtime_disable(dev);
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
@@ -213,16 +230,38 @@ int pm_generic_restore(struct device *dev)
 	return __pm_generic_resume(dev, PM_EVENT_RESTORE);
 }
 EXPORT_SYMBOL_GPL(pm_generic_restore);
+
+/**
+ * pm_generic_complete - Generic routine competing a device power transition.
+ * @dev: Device to handle.
+ *
+ * Complete a device power transition during a system-wide power transition.
+ */
+void pm_generic_complete(struct device *dev)
+{
+	struct device_driver *drv = dev->driver;
+
+	if (drv && drv->pm && drv->pm->complete)
+		drv->pm->complete(dev);
+
+	/*
+	 * Let runtime PM try to suspend devices that haven't been in use before
+	 * going into the system-wide sleep state we're resuming from.
+	 */
+	pm_runtime_idle(dev);
+}
 #endif /* CONFIG_PM_SLEEP */
 
 struct dev_pm_ops generic_subsys_pm_ops = {
 #ifdef CONFIG_PM_SLEEP
+	.prepare = pm_generic_prepare,
 	.suspend = pm_generic_suspend,
 	.resume = pm_generic_resume,
 	.freeze = pm_generic_freeze,
 	.thaw = pm_generic_thaw,
 	.poweroff = pm_generic_poweroff,
 	.restore = pm_generic_restore,
+	.complete = pm_generic_complete,
 #endif
 #ifdef CONFIG_PM_RUNTIME
 	.runtime_suspend = pm_generic_runtime_suspend,

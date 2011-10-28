@@ -56,7 +56,7 @@ static unsigned long get_purr(void)
 
 	for_each_possible_cpu(cpu) {
 		if (firmware_has_feature(FW_FEATURE_ISERIES))
-			sum_purr += lppaca[cpu].emulated_time_base;
+			sum_purr += lppaca_of(cpu).emulated_time_base;
 		else {
 			struct cpu_usage *cu;
 
@@ -132,34 +132,6 @@ static int iseries_lparcfg_data(struct seq_file *m, void *v)
 /*
  * Methods used to fetch LPAR data when running on a pSeries platform.
  */
-/**
- * h_get_mpp
- * H_GET_MPP hcall returns info in 7 parms
- */
-int h_get_mpp(struct hvcall_mpp_data *mpp_data)
-{
-	int rc;
-	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE];
-
-	rc = plpar_hcall9(H_GET_MPP, retbuf);
-
-	mpp_data->entitled_mem = retbuf[0];
-	mpp_data->mapped_mem = retbuf[1];
-
-	mpp_data->group_num = (retbuf[2] >> 2 * 8) & 0xffff;
-	mpp_data->pool_num = retbuf[2] & 0xffff;
-
-	mpp_data->mem_weight = (retbuf[3] >> 7 * 8) & 0xff;
-	mpp_data->unallocated_mem_weight = (retbuf[3] >> 6 * 8) & 0xff;
-	mpp_data->unallocated_entitlement = retbuf[3] & 0xffffffffffff;
-
-	mpp_data->pool_size = retbuf[4];
-	mpp_data->loan_request = retbuf[5];
-	mpp_data->backing_mem = retbuf[6];
-
-	return rc;
-}
-EXPORT_SYMBOL(h_get_mpp);
 
 struct hvcall_ppp_data {
 	u64	entitlement;
@@ -262,8 +234,8 @@ static void parse_ppp_data(struct seq_file *m)
 	seq_printf(m, "system_active_processors=%d\n",
 	           ppp_data.active_system_procs);
 
-	/* pool related entries are apropriate for shared configs */
-	if (lppaca[0].shared_proc) {
+	/* pool related entries are appropriate for shared configs */
+	if (lppaca_of(0).shared_proc) {
 		unsigned long pool_idle_time, pool_procs;
 
 		seq_printf(m, "pool=%d\n", ppp_data.pool_num);
@@ -343,6 +315,30 @@ static void parse_mpp_data(struct seq_file *m)
 	           mpp_data.loan_request);
 
 	seq_printf(m, "backing_memory=%ld bytes\n", mpp_data.backing_mem);
+}
+
+/**
+ * parse_mpp_x_data
+ * Parse out data returned from h_get_mpp_x
+ */
+static void parse_mpp_x_data(struct seq_file *m)
+{
+	struct hvcall_mpp_x_data mpp_x_data;
+
+	if (!firmware_has_feature(FW_FEATURE_XCMO))
+		return;
+	if (h_get_mpp_x(&mpp_x_data))
+		return;
+
+	seq_printf(m, "coalesced_bytes=%ld\n", mpp_x_data.coalesced_bytes);
+
+	if (mpp_x_data.pool_coalesced_bytes)
+		seq_printf(m, "pool_coalesced_bytes=%ld\n",
+			   mpp_x_data.pool_coalesced_bytes);
+	if (mpp_x_data.pool_purr_cycles)
+		seq_printf(m, "coalesce_pool_purr=%ld\n", mpp_x_data.pool_purr_cycles);
+	if (mpp_x_data.pool_spurr_cycles)
+		seq_printf(m, "coalesce_pool_spurr=%ld\n", mpp_x_data.pool_spurr_cycles);
 }
 
 #define SPLPAR_CHARACTERISTICS_TOKEN 20
@@ -460,8 +456,8 @@ static void pseries_cmo_data(struct seq_file *m)
 		return;
 
 	for_each_possible_cpu(cpu) {
-		cmo_faults += lppaca[cpu].cmo_faults;
-		cmo_fault_time += lppaca[cpu].cmo_fault_time;
+		cmo_faults += lppaca_of(cpu).cmo_faults;
+		cmo_fault_time += lppaca_of(cpu).cmo_fault_time;
 	}
 
 	seq_printf(m, "cmo_faults=%lu\n", cmo_faults);
@@ -479,8 +475,8 @@ static void splpar_dispatch_data(struct seq_file *m)
 	unsigned long dispatch_dispersions = 0;
 
 	for_each_possible_cpu(cpu) {
-		dispatches += lppaca[cpu].yield_count;
-		dispatch_dispersions += lppaca[cpu].dispersion_count;
+		dispatches += lppaca_of(cpu).yield_count;
+		dispatch_dispersions += lppaca_of(cpu).dispersion_count;
 	}
 
 	seq_printf(m, "dispatches=%lu\n", dispatches);
@@ -520,6 +516,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 		parse_system_parameter_string(m);
 		parse_ppp_data(m);
 		parse_mpp_data(m);
+		parse_mpp_x_data(m);
 		pseries_cmo_data(m);
 		splpar_dispatch_data(m);
 
@@ -545,7 +542,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	seq_printf(m, "partition_potential_processors=%d\n",
 		   partition_potential_processors);
 
-	seq_printf(m, "shared_processor_mode=%d\n", lppaca[0].shared_proc);
+	seq_printf(m, "shared_processor_mode=%d\n", lppaca_of(0).shared_proc);
 
 	seq_printf(m, "slb_size=%d\n", mmu_slb_size);
 
@@ -780,6 +777,7 @@ static const struct file_operations lparcfg_fops = {
 	.write		= lparcfg_write,
 	.open		= lparcfg_open,
 	.release	= single_release,
+	.llseek		= seq_lseek,
 };
 
 static int __init lparcfg_init(void)

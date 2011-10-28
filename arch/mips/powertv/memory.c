@@ -57,7 +57,7 @@
 unsigned long ptv_memsize;
 
 /*
- * struct low_mem_reserved - Items in low memmory that are reserved
+ * struct low_mem_reserved - Items in low memory that are reserved
  * @start:	Physical address of item
  * @size:	Size, in bytes, of this item
  * @is_aliased:	True if this is RAM aliased from another location. If false,

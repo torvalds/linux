@@ -299,6 +299,7 @@ extern void efi_initialize_iomem_resources(struct resource *code_resource,
 		struct resource *data_resource, struct resource *bss_resource);
 extern unsigned long efi_get_time(void);
 extern int efi_set_rtc_mmss(unsigned long nowtime);
+extern void efi_reserve_boot_services(void);
 extern struct efi_memory_map memmap;
 
 /**
@@ -396,5 +397,42 @@ static inline void memrange_efi_to_native(u64 *addr, u64 *npages)
 	*npages = PFN_UP(*addr + (*npages<<EFI_PAGE_SHIFT)) - PFN_DOWN(*addr);
 	*addr &= PAGE_MASK;
 }
+
+#if defined(CONFIG_EFI_VARS) || defined(CONFIG_EFI_VARS_MODULE)
+/*
+ * EFI Variable support.
+ *
+ * Different firmware drivers can expose their EFI-like variables using
+ * the following.
+ */
+
+struct efivar_operations {
+	efi_get_variable_t *get_variable;
+	efi_get_next_variable_t *get_next_variable;
+	efi_set_variable_t *set_variable;
+};
+
+struct efivars {
+	/*
+	 * ->lock protects two things:
+	 * 1) ->list - adds, removals, reads, writes
+	 * 2) ops.[gs]et_variable() calls.
+	 * It must not be held when creating sysfs entries or calling kmalloc.
+	 * ops.get_next_variable() is only called from register_efivars(),
+	 * which is protected by the BKL, so that path is safe.
+	 */
+	spinlock_t lock;
+	struct list_head list;
+	struct kset *kset;
+	struct bin_attribute *new_var, *del_var;
+	const struct efivar_operations *ops;
+};
+
+int register_efivars(struct efivars *efivars,
+		     const struct efivar_operations *ops,
+		     struct kobject *parent_kobj);
+void unregister_efivars(struct efivars *efivars);
+
+#endif /* CONFIG_EFI_VARS */
 
 #endif /* _LINUX_EFI_H */

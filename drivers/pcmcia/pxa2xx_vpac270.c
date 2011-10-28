@@ -3,8 +3,7 @@
  *
  * Driver for Voipac PXA270 PCMCIA and CF sockets
  *
- * Copyright (C) 2010
- * Marek Vasut <marek.vasut@gmail.com>
+ * Copyright (C) 2010-2011 Marek Vasut <marek.vasut@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,6 +11,7 @@
  *
  */
 
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -21,6 +21,19 @@
 #include <mach/vpac270.h>
 
 #include "soc_common.h"
+
+static struct gpio vpac270_pcmcia_gpios[] = {
+	{ GPIO84_VPAC270_PCMCIA_CD,	GPIOF_IN,	"PCMCIA Card Detect" },
+	{ GPIO35_VPAC270_PCMCIA_RDY,	GPIOF_IN,	"PCMCIA Ready" },
+	{ GPIO107_VPAC270_PCMCIA_PPEN,	GPIOF_INIT_LOW,	"PCMCIA PPEN" },
+	{ GPIO11_VPAC270_PCMCIA_RESET,	GPIOF_INIT_LOW,	"PCMCIA Reset" },
+};
+
+static struct gpio vpac270_cf_gpios[] = {
+	{ GPIO17_VPAC270_CF_CD,		GPIOF_IN,	"CF Card Detect" },
+	{ GPIO12_VPAC270_CF_RDY,	GPIOF_IN,	"CF Ready" },
+	{ GPIO16_VPAC270_CF_RESET,	GPIOF_INIT_LOW,	"CF Reset" },
+};
 
 static struct pcmcia_irqs cd_irqs[] = {
 	{
@@ -40,96 +53,34 @@ static int vpac270_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	int ret;
 
 	if (skt->nr == 0) {
-		ret = gpio_request(GPIO84_VPAC270_PCMCIA_CD, "PCMCIA CD");
-		if (ret)
-			goto err1;
-		ret = gpio_direction_input(GPIO84_VPAC270_PCMCIA_CD);
-		if (ret)
-			goto err2;
-
-		ret = gpio_request(GPIO35_VPAC270_PCMCIA_RDY, "PCMCIA RDY");
-		if (ret)
-			goto err2;
-		ret = gpio_direction_input(GPIO35_VPAC270_PCMCIA_RDY);
-		if (ret)
-			goto err3;
-
-		ret = gpio_request(GPIO107_VPAC270_PCMCIA_PPEN, "PCMCIA PPEN");
-		if (ret)
-			goto err3;
-		ret = gpio_direction_output(GPIO107_VPAC270_PCMCIA_PPEN, 0);
-		if (ret)
-			goto err4;
-
-		ret = gpio_request(GPIO11_VPAC270_PCMCIA_RESET, "PCMCIA RESET");
-		if (ret)
-			goto err4;
-		ret = gpio_direction_output(GPIO11_VPAC270_PCMCIA_RESET, 0);
-		if (ret)
-			goto err5;
+		ret = gpio_request_array(vpac270_pcmcia_gpios,
+				ARRAY_SIZE(vpac270_pcmcia_gpios));
 
 		skt->socket.pci_irq = gpio_to_irq(GPIO35_VPAC270_PCMCIA_RDY);
 
-		return soc_pcmcia_request_irqs(skt, &cd_irqs[0], 1);
-
-err5:
-		gpio_free(GPIO11_VPAC270_PCMCIA_RESET);
-err4:
-		gpio_free(GPIO107_VPAC270_PCMCIA_PPEN);
-err3:
-		gpio_free(GPIO35_VPAC270_PCMCIA_RDY);
-err2:
-		gpio_free(GPIO84_VPAC270_PCMCIA_CD);
-err1:
-		return ret;
-
+		if (!ret)
+			ret = soc_pcmcia_request_irqs(skt, &cd_irqs[0], 1);
 	} else {
-		ret = gpio_request(GPIO17_VPAC270_CF_CD, "CF CD");
-		if (ret)
-			goto err6;
-		ret = gpio_direction_input(GPIO17_VPAC270_CF_CD);
-		if (ret)
-			goto err7;
-
-		ret = gpio_request(GPIO12_VPAC270_CF_RDY, "CF RDY");
-		if (ret)
-			goto err7;
-		ret = gpio_direction_input(GPIO12_VPAC270_CF_RDY);
-		if (ret)
-			goto err8;
-
-		ret = gpio_request(GPIO16_VPAC270_CF_RESET, "CF RESET");
-		if (ret)
-			goto err8;
-		ret = gpio_direction_output(GPIO16_VPAC270_CF_RESET, 0);
-		if (ret)
-			goto err9;
+		ret = gpio_request_array(vpac270_cf_gpios,
+				ARRAY_SIZE(vpac270_cf_gpios));
 
 		skt->socket.pci_irq = gpio_to_irq(GPIO12_VPAC270_CF_RDY);
 
-		return soc_pcmcia_request_irqs(skt, &cd_irqs[1], 1);
-
-err9:
-		gpio_free(GPIO16_VPAC270_CF_RESET);
-err8:
-		gpio_free(GPIO12_VPAC270_CF_RDY);
-err7:
-		gpio_free(GPIO17_VPAC270_CF_CD);
-err6:
-		return ret;
-
+		if (!ret)
+			ret = soc_pcmcia_request_irqs(skt, &cd_irqs[1], 1);
 	}
+
+	return ret;
 }
 
 static void vpac270_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 {
-	gpio_free(GPIO11_VPAC270_PCMCIA_RESET);
-	gpio_free(GPIO107_VPAC270_PCMCIA_PPEN);
-	gpio_free(GPIO35_VPAC270_PCMCIA_RDY);
-	gpio_free(GPIO84_VPAC270_PCMCIA_CD);
-	gpio_free(GPIO16_VPAC270_CF_RESET);
-	gpio_free(GPIO12_VPAC270_CF_RDY);
-	gpio_free(GPIO17_VPAC270_CF_CD);
+	if (skt->nr == 0)
+		gpio_free_array(vpac270_pcmcia_gpios,
+					ARRAY_SIZE(vpac270_pcmcia_gpios));
+	else
+		gpio_free_array(vpac270_cf_gpios,
+					ARRAY_SIZE(vpac270_cf_gpios));
 }
 
 static void vpac270_pcmcia_socket_state(struct soc_pcmcia_socket *skt,

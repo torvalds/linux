@@ -22,11 +22,13 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/smc91x.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
 #include <linux/mfd/da903x.h>
 #include <linux/i2c/max732x.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -42,10 +44,8 @@
 #include <mach/pxa300.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
-#include <mach/pxa2xx_spi.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/littleton.h>
-#include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
 
 #include "generic.h"
@@ -185,7 +185,7 @@ static struct pxafb_mach_info littleton_lcd_info = {
 
 static void littleton_init_lcd(void)
 {
-	set_pxa_fb_info(&littleton_lcd_info);
+	pxa_set_fb_info(NULL, &littleton_lcd_info);
 }
 #else
 static inline void littleton_init_lcd(void) {};
@@ -437,10 +437,9 @@ static void __init littleton_init(void)
 }
 
 MACHINE_START(LITTLETON, "Marvell Form Factor Development Platform (aka Littleton)")
-	.phys_io	= 0x40000000,
 	.boot_params	= 0xa0000100,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa3xx_map_io,
+	.nr_irqs	= LITTLETON_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= littleton_init,

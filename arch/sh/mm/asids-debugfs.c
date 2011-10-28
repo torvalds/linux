@@ -63,7 +63,7 @@ static int __init asids_debugfs_init(void)
 {
 	struct dentry *asids_dentry;
 
-	asids_dentry = debugfs_create_file("asids", S_IRUSR, sh_debugfs_root,
+	asids_dentry = debugfs_create_file("asids", S_IRUSR, arch_debugfs_dir,
 					   NULL, &asids_debugfs_fops);
 	if (!asids_dentry)
 		return -ENOMEM;

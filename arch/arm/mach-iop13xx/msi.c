@@ -118,7 +118,7 @@ static void iop13xx_msi_handler(unsigned int irq, struct irq_desc *desc)
 
 void __init iop13xx_msi_init(void)
 {
-	set_irq_chained_handler(IRQ_IOP13XX_INBD_MSI, iop13xx_msi_handler);
+	irq_set_chained_handler(IRQ_IOP13XX_INBD_MSI, iop13xx_msi_handler);
 }
 
 /*
@@ -156,18 +156,18 @@ void arch_teardown_msi_irq(unsigned int irq)
 	destroy_irq(irq);
 }
 
-static void iop13xx_msi_nop(unsigned int irq)
+static void iop13xx_msi_nop(struct irq_data *d)
 {
 	return;
 }
 
 static struct irq_chip iop13xx_msi_chip = {
 	.name = "PCI-MSI",
-	.ack = iop13xx_msi_nop,
-	.enable = unmask_msi_irq,
-	.disable = mask_msi_irq,
-	.mask = mask_msi_irq,
-	.unmask = unmask_msi_irq,
+	.irq_ack = iop13xx_msi_nop,
+	.irq_enable = unmask_msi_irq,
+	.irq_disable = mask_msi_irq,
+	.irq_mask = mask_msi_irq,
+	.irq_unmask = unmask_msi_irq,
 };
 
 int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
@@ -178,7 +178,7 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	if (irq < 0)
 		return irq;
 
-	set_irq_msi(irq, desc);
+	irq_set_msi_desc(irq, desc);
 
 	msg.address_hi = 0x0;
 	msg.address_lo = IOP13XX_MU_MIMR_PCI;
@@ -187,7 +187,7 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	msg.data = (id << IOP13XX_MU_MIMR_CORE_SELECT) | (irq & 0x7f);
 
 	write_msi_msg(irq, &msg);
-	set_irq_chip_and_handler(irq, &iop13xx_msi_chip, handle_simple_irq);
+	irq_set_chip_and_handler(irq, &iop13xx_msi_chip, handle_simple_irq);
 
 	return 0;
 }

@@ -51,6 +51,12 @@
 #define PTE_READABLE				(1 << 5)
 #define PTE_WRITEABLE				(1 << 6)
 
+/* tiling bits */
+#define     ARRAY_LINEAR_GENERAL              0x00000000
+#define     ARRAY_LINEAR_ALIGNED              0x00000001
+#define     ARRAY_1D_TILED_THIN1              0x00000002
+#define     ARRAY_2D_TILED_THIN1              0x00000004
+
 /* Registers */
 #define	ARB_POP						0x2418
 #define 	ENABLE_TC128					(1 << 30)
@@ -148,13 +154,14 @@
 #define		ROQ_IB2_START(x)				((x) << 8)
 #define	CP_RB_BASE					0xC100
 #define	CP_RB_CNTL					0xC104
-#define		RB_BUFSZ(x)					((x)<<0)
-#define		RB_BLKSZ(x)					((x)<<8)
-#define		RB_NO_UPDATE					(1<<27)
-#define		RB_RPTR_WR_ENA					(1<<31)
+#define		RB_BUFSZ(x)					((x) << 0)
+#define		RB_BLKSZ(x)					((x) << 8)
+#define		RB_NO_UPDATE					(1 << 27)
+#define		RB_RPTR_WR_ENA					(1 << 31)
 #define		BUF_SWAP_32BIT					(2 << 16)
 #define	CP_RB_RPTR					0x8700
 #define	CP_RB_RPTR_ADDR					0xC10C
+#define		RB_RPTR_SWAP(x)					((x) << 0)
 #define	CP_RB_RPTR_ADDR_HI				0xC110
 #define	CP_RB_RPTR_WR					0xC108
 #define	CP_RB_WPTR					0xC114
@@ -474,6 +481,7 @@
 #define	VGT_VERTEX_REUSE_BLOCK_CNTL			0x28C58
 #define		VTX_REUSE_DEPTH_MASK				0x000000FF
 #define VGT_EVENT_INITIATOR                             0x28a90
+#       define CACHE_FLUSH_AND_INV_EVENT_TS                     (0x14 << 0)
 #       define CACHE_FLUSH_AND_INV_EVENT                        (0x16 << 0)
 
 #define VM_CONTEXT0_CNTL				0x1410
@@ -528,7 +536,7 @@
 #define IH_RB_WPTR_ADDR_LO                                0x3e14
 #define IH_CNTL                                           0x3e18
 #       define ENABLE_INTR                                (1 << 0)
-#       define IH_MC_SWAP(x)                              ((x) << 2)
+#       define IH_MC_SWAP(x)                              ((x) << 1)
 #       define IH_MC_SWAP_NONE                            0
 #       define IH_MC_SWAP_16BIT                           1
 #       define IH_MC_SWAP_32BIT                           2
@@ -721,6 +729,54 @@
 /* DCE 3.2 */
 #       define DC_HPDx_EN                                 (1 << 28)
 
+#define D1GRPH_INTERRUPT_STATUS                           0x6158
+#define D2GRPH_INTERRUPT_STATUS                           0x6958
+#       define DxGRPH_PFLIP_INT_OCCURRED                  (1 << 0)
+#       define DxGRPH_PFLIP_INT_CLEAR                     (1 << 8)
+#define D1GRPH_INTERRUPT_CONTROL                          0x615c
+#define D2GRPH_INTERRUPT_CONTROL                          0x695c
+#       define DxGRPH_PFLIP_INT_MASK                      (1 << 0)
+#       define DxGRPH_PFLIP_INT_TYPE                      (1 << 8)
+
+/* PCIE link stuff */
+#define PCIE_LC_TRAINING_CNTL                             0xa1 /* PCIE_P */
+#       define LC_POINT_7_PLUS_EN                         (1 << 6)
+#define PCIE_LC_LINK_WIDTH_CNTL                           0xa2 /* PCIE_P */
+#       define LC_LINK_WIDTH_SHIFT                        0
+#       define LC_LINK_WIDTH_MASK                         0x7
+#       define LC_LINK_WIDTH_X0                           0
+#       define LC_LINK_WIDTH_X1                           1
+#       define LC_LINK_WIDTH_X2                           2
+#       define LC_LINK_WIDTH_X4                           3
+#       define LC_LINK_WIDTH_X8                           4
+#       define LC_LINK_WIDTH_X16                          6
+#       define LC_LINK_WIDTH_RD_SHIFT                     4
+#       define LC_LINK_WIDTH_RD_MASK                      0x70
+#       define LC_RECONFIG_ARC_MISSING_ESCAPE             (1 << 7)
+#       define LC_RECONFIG_NOW                            (1 << 8)
+#       define LC_RENEGOTIATION_SUPPORT                   (1 << 9)
+#       define LC_RENEGOTIATE_EN                          (1 << 10)
+#       define LC_SHORT_RECONFIG_EN                       (1 << 11)
+#       define LC_UPCONFIGURE_SUPPORT                     (1 << 12)
+#       define LC_UPCONFIGURE_DIS                         (1 << 13)
+#define PCIE_LC_SPEED_CNTL                                0xa4 /* PCIE_P */
+#       define LC_GEN2_EN_STRAP                           (1 << 0)
+#       define LC_TARGET_LINK_SPEED_OVERRIDE_EN           (1 << 1)
+#       define LC_FORCE_EN_HW_SPEED_CHANGE                (1 << 5)
+#       define LC_FORCE_DIS_HW_SPEED_CHANGE               (1 << 6)
+#       define LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_MASK      (0x3 << 8)
+#       define LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_SHIFT     3
+#       define LC_CURRENT_DATA_RATE                       (1 << 11)
+#       define LC_VOLTAGE_TIMER_SEL_MASK                  (0xf << 14)
+#       define LC_CLR_FAILED_SPD_CHANGE_CNT               (1 << 21)
+#       define LC_OTHER_SIDE_EVER_SENT_GEN2               (1 << 23)
+#       define LC_OTHER_SIDE_SUPPORTS_GEN2                (1 << 24)
+#define MM_CFGREGS_CNTL                                   0x544c
+#       define MM_WR_TO_CFG_EN                            (1 << 3)
+#define LINK_CNTL2                                        0x88 /* F0 */
+#       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
+#       define SELECTABLE_DEEMPHASIS                      (1 << 6)
+
 /*
  * PM4
  */
@@ -775,7 +831,27 @@
 #define		PACKET3_ME_INITIALIZE_DEVICE_ID(x) ((x) << 16)
 #define	PACKET3_COND_WRITE				0x45
 #define	PACKET3_EVENT_WRITE				0x46
+#define		EVENT_TYPE(x)                           ((x) << 0)
+#define		EVENT_INDEX(x)                          ((x) << 8)
+                /* 0 - any non-TS event
+		 * 1 - ZPASS_DONE
+		 * 2 - SAMPLE_PIPELINESTAT
+		 * 3 - SAMPLE_STREAMOUTSTAT*
+		 * 4 - *S_PARTIAL_FLUSH
+		 * 5 - TS events
+		 */
 #define	PACKET3_EVENT_WRITE_EOP				0x47
+#define		DATA_SEL(x)                             ((x) << 29)
+                /* 0 - discard
+		 * 1 - send low 32bit data
+		 * 2 - send 64bit data
+		 * 3 - send 64bit counter value
+		 */
+#define		INT_SEL(x)                              ((x) << 24)
+                /* 0 - none
+		 * 1 - interrupt only (DATA_SEL = 0)
+		 * 2 - interrupt when data write is confirmed
+		 */
 #define	PACKET3_ONE_REG_WRITE				0x57
 #define	PACKET3_SET_CONFIG_REG				0x68
 #define		PACKET3_SET_CONFIG_REG_OFFSET			0x00008000
@@ -1228,6 +1304,14 @@
 #define     V_038004_FMT_16_16_16_FLOAT                0x0000002E
 #define     V_038004_FMT_32_32_32                      0x0000002F
 #define     V_038004_FMT_32_32_32_FLOAT                0x00000030
+#define     V_038004_FMT_BC1                           0x00000031
+#define     V_038004_FMT_BC2                           0x00000032
+#define     V_038004_FMT_BC3                           0x00000033
+#define     V_038004_FMT_BC4                           0x00000034
+#define     V_038004_FMT_BC5                           0x00000035
+#define     V_038004_FMT_BC6                           0x00000036
+#define     V_038004_FMT_BC7                           0x00000037
+#define     V_038004_FMT_32_AS_32_32_32_32             0x00000038
 #define R_038010_SQ_TEX_RESOURCE_WORD4_0             0x038010
 #define   S_038010_FORMAT_COMP_X(x)                    (((x) & 0x3) << 0)
 #define   G_038010_FORMAT_COMP_X(x)                    (((x) >> 0) & 0x3)

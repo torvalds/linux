@@ -4,7 +4,7 @@
  * Driver for Palm LifeDrive PCMCIA
  *
  * Copyright (C) 2006 Alex Osborne <ato@meshy.org>
- * Copyright (C) 2007-2008 Marek Vasut <marek.vasut@gmail.com>
+ * Copyright (C) 2007-2011 Marek Vasut <marek.vasut@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,49 +20,27 @@
 #include <mach/palmld.h>
 #include "soc_common.h"
 
+static struct gpio palmld_pcmcia_gpios[] = {
+	{ GPIO_NR_PALMLD_PCMCIA_POWER,	GPIOF_INIT_LOW,	"PCMCIA Power" },
+	{ GPIO_NR_PALMLD_PCMCIA_RESET,	GPIOF_INIT_HIGH,"PCMCIA Reset" },
+	{ GPIO_NR_PALMLD_PCMCIA_READY,	GPIOF_IN,	"PCMCIA Ready" },
+};
+
 static int palmld_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	int ret;
 
-	ret = gpio_request(GPIO_NR_PALMLD_PCMCIA_POWER, "PCMCIA PWR");
-	if (ret)
-		goto err1;
-	ret = gpio_direction_output(GPIO_NR_PALMLD_PCMCIA_POWER, 0);
-	if (ret)
-		goto err2;
-
-	ret = gpio_request(GPIO_NR_PALMLD_PCMCIA_RESET, "PCMCIA RST");
-	if (ret)
-		goto err2;
-	ret = gpio_direction_output(GPIO_NR_PALMLD_PCMCIA_RESET, 1);
-	if (ret)
-		goto err3;
-
-	ret = gpio_request(GPIO_NR_PALMLD_PCMCIA_READY, "PCMCIA RDY");
-	if (ret)
-		goto err3;
-	ret = gpio_direction_input(GPIO_NR_PALMLD_PCMCIA_READY);
-	if (ret)
-		goto err4;
+	ret = gpio_request_array(palmld_pcmcia_gpios,
+				ARRAY_SIZE(palmld_pcmcia_gpios));
 
 	skt->socket.pci_irq = IRQ_GPIO(GPIO_NR_PALMLD_PCMCIA_READY);
-	return 0;
 
-err4:
-	gpio_free(GPIO_NR_PALMLD_PCMCIA_READY);
-err3:
-	gpio_free(GPIO_NR_PALMLD_PCMCIA_RESET);
-err2:
-	gpio_free(GPIO_NR_PALMLD_PCMCIA_POWER);
-err1:
 	return ret;
 }
 
 static void palmld_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 {
-	gpio_free(GPIO_NR_PALMLD_PCMCIA_READY);
-	gpio_free(GPIO_NR_PALMLD_PCMCIA_RESET);
-	gpio_free(GPIO_NR_PALMLD_PCMCIA_POWER);
+	gpio_free_array(palmld_pcmcia_gpios, ARRAY_SIZE(palmld_pcmcia_gpios));
 }
 
 static void palmld_pcmcia_socket_state(struct soc_pcmcia_socket *skt,

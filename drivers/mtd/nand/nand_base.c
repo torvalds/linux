@@ -42,14 +42,12 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
+#include <linux/mtd/nand_bch.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
 #include <linux/leds.h>
-#include <asm/io.h>
-
-#ifdef CONFIG_MTD_PARTITIONS
+#include <linux/io.h>
 #include <linux/mtd/partitions.h>
-#endif
 
 /* Define default oob placement schemes for large and small page devices */
 static struct nand_ecclayout nand_oob_8 = {
@@ -59,7 +57,7 @@ static struct nand_ecclayout nand_oob_8 = {
 		{.offset = 3,
 		 .length = 2},
 		{.offset = 6,
-		 .length = 2}}
+		 .length = 2} }
 };
 
 static struct nand_ecclayout nand_oob_16 = {
@@ -67,7 +65,7 @@ static struct nand_ecclayout nand_oob_16 = {
 	.eccpos = {0, 1, 2, 3, 6, 7},
 	.oobfree = {
 		{.offset = 8,
-		 . length = 8}}
+		 . length = 8} }
 };
 
 static struct nand_ecclayout nand_oob_64 = {
@@ -78,7 +76,7 @@ static struct nand_ecclayout nand_oob_64 = {
 		   56, 57, 58, 59, 60, 61, 62, 63},
 	.oobfree = {
 		{.offset = 2,
-		 .length = 38}}
+		 .length = 38} }
 };
 
 static struct nand_ecclayout nand_oob_128 = {
@@ -92,7 +90,7 @@ static struct nand_ecclayout nand_oob_128 = {
 		   120, 121, 122, 123, 124, 125, 126, 127},
 	.oobfree = {
 		{.offset = 2,
-		 .length = 78}}
+		 .length = 78} }
 };
 
 static int nand_get_device(struct nand_chip *chip, struct mtd_info *mtd,
@@ -612,7 +610,8 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
 			       NAND_CTRL_CLE | NAND_CTRL_CHANGE);
 		chip->cmd_ctrl(mtd,
 			       NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
-		while (!(chip->read_byte(mtd) & NAND_STATUS_READY)) ;
+		while (!(chip->read_byte(mtd) & NAND_STATUS_READY))
+				;
 		return;
 
 		/* This applies to read commands */
@@ -718,7 +717,8 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 			       NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
 		chip->cmd_ctrl(mtd, NAND_CMD_NONE,
 			       NAND_NCE | NAND_CTRL_CHANGE);
-		while (!(chip->read_byte(mtd) & NAND_STATUS_READY)) ;
+		while (!(chip->read_byte(mtd) & NAND_STATUS_READY))
+				;
 		return;
 
 	case NAND_CMD_RNDOUT:
@@ -784,7 +784,7 @@ nand_get_device(struct nand_chip *chip, struct mtd_info *mtd, int new_state)
 	spinlock_t *lock = &chip->controller->lock;
 	wait_queue_head_t *wq = &chip->controller->wq;
 	DECLARE_WAITQUEUE(wait, current);
- retry:
+retry:
 	spin_lock(lock);
 
 	/* Hardware controller shared among independent devices */
@@ -819,7 +819,7 @@ nand_get_device(struct nand_chip *chip, struct mtd_info *mtd, int new_state)
  *
  * Wait for command done. This is a helper function for nand_wait used when
  * we are in interrupt context. May happen when in panic and trying to write
- * an oops trough mtdoops.
+ * an oops through mtdoops.
  */
 static void panic_nand_wait(struct mtd_info *mtd, struct nand_chip *chip,
 			    unsigned long timeo)
@@ -834,7 +834,7 @@ static void panic_nand_wait(struct mtd_info *mtd, struct nand_chip *chip,
 				break;
 		}
 		mdelay(1);
-        }
+	}
 }
 
 /**
@@ -973,13 +973,11 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	ret = __nand_unlock(mtd, ofs, len, 0);
 
 out:
-	/* de-select the NAND device */
-	chip->select_chip(mtd, -1);
-
 	nand_release_device(mtd);
 
 	return ret;
 }
+EXPORT_SYMBOL(nand_unlock);
 
 /**
  * nand_lock - [REPLACEABLE] locks all blocks present in the device
@@ -1042,13 +1040,11 @@ int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	ret = __nand_unlock(mtd, ofs, len, 0x1);
 
 out:
-	/* de-select the NAND device */
-	chip->select_chip(mtd, -1);
-
 	nand_release_device(mtd);
 
 	return ret;
 }
+EXPORT_SYMBOL(nand_lock);
 
 /**
  * nand_read_page_raw - [Intern] read raw page data without ecc
@@ -1076,8 +1072,9 @@ static int nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
  *
  * We need a special oob layout and handling even when OOB isn't used.
  */
-static int nand_read_page_raw_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
-			      uint8_t *buf, int page)
+static int nand_read_page_raw_syndrome(struct mtd_info *mtd,
+					struct nand_chip *chip,
+					uint8_t *buf, int page)
 {
 	int eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
@@ -1158,7 +1155,8 @@ static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
  * @readlen:	data length
  * @bufpoi:	buffer to store read data
  */
-static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip, uint32_t data_offs, uint32_t readlen, uint8_t *bufpoi)
+static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
+			uint32_t data_offs, uint32_t readlen, uint8_t *bufpoi)
 {
 	int start_step, end_step, num_steps;
 	uint32_t *eccpos = chip->ecc.layout->eccpos;
@@ -1166,6 +1164,7 @@ static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip, uint3
 	int data_col_addr, i, gaps = 0;
 	int datafrag_len, eccfrag_len, aligned_len, aligned_pos;
 	int busw = (chip->options & NAND_BUSWIDTH_16) ? 2 : 1;
+	int index = 0;
 
 	/* Column address wihin the page aligned to ECC size (256bytes). */
 	start_step = data_offs / chip->ecc.size;
@@ -1204,26 +1203,30 @@ static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip, uint3
 	} else {
 		/* send the command to read the particular ecc bytes */
 		/* take care about buswidth alignment in read_buf */
-		aligned_pos = eccpos[start_step * chip->ecc.bytes] & ~(busw - 1);
+		index = start_step * chip->ecc.bytes;
+
+		aligned_pos = eccpos[index] & ~(busw - 1);
 		aligned_len = eccfrag_len;
-		if (eccpos[start_step * chip->ecc.bytes] & (busw - 1))
+		if (eccpos[index] & (busw - 1))
 			aligned_len++;
-		if (eccpos[(start_step + num_steps) * chip->ecc.bytes] & (busw - 1))
+		if (eccpos[index + (num_steps * chip->ecc.bytes)] & (busw - 1))
 			aligned_len++;
 
-		chip->cmdfunc(mtd, NAND_CMD_RNDOUT, mtd->writesize + aligned_pos, -1);
+		chip->cmdfunc(mtd, NAND_CMD_RNDOUT,
+					mtd->writesize + aligned_pos, -1);
 		chip->read_buf(mtd, &chip->oob_poi[aligned_pos], aligned_len);
 	}
 
 	for (i = 0; i < eccfrag_len; i++)
-		chip->buffers->ecccode[i] = chip->oob_poi[eccpos[i + start_step * chip->ecc.bytes]];
+		chip->buffers->ecccode[i] = chip->oob_poi[eccpos[i + index]];
 
 	p = bufpoi + data_col_addr;
 	for (i = 0; i < eccfrag_len ; i += chip->ecc.bytes, p += chip->ecc.size) {
 		int stat;
 
-		stat = chip->ecc.correct(mtd, p, &chip->buffers->ecccode[i], &chip->buffers->ecccalc[i]);
-		if (stat == -1)
+		stat = chip->ecc.correct(mtd, p,
+			&chip->buffers->ecccode[i], &chip->buffers->ecccalc[i]);
+		if (stat < 0)
 			mtd->ecc_stats.failed++;
 		else
 			mtd->ecc_stats.corrected += stat;
@@ -1390,7 +1393,7 @@ static int nand_read_page_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 static uint8_t *nand_transfer_oob(struct nand_chip *chip, uint8_t *oob,
 				  struct mtd_oob_ops *ops, size_t len)
 {
-	switch(ops->mode) {
+	switch (ops->mode) {
 
 	case MTD_OOB_PLACE:
 	case MTD_OOB_RAW:
@@ -1402,7 +1405,7 @@ static uint8_t *nand_transfer_oob(struct nand_chip *chip, uint8_t *oob,
 		uint32_t boffs = 0, roffs = ops->ooboffs;
 		size_t bytes = 0;
 
-		for(; free->length && len; free++, len -= bytes) {
+		for (; free->length && len; free++, len -= bytes) {
 			/* Read request not from offset 0 ? */
 			if (unlikely(roffs)) {
 				if (roffs >= free->length) {
@@ -1466,7 +1469,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	buf = ops->datbuf;
 	oob = ops->oobbuf;
 
-	while(1) {
+	while (1) {
 		bytes = min(mtd->writesize - col, readlen);
 		aligned = (bytes == mtd->writesize);
 
@@ -1484,7 +1487,8 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 				ret = chip->ecc.read_page_raw(mtd, chip,
 							      bufpoi, page);
 			else if (!aligned && NAND_SUBPAGE_READ(chip) && !oob)
-				ret = chip->ecc.read_subpage(mtd, chip, col, bytes, bufpoi);
+				ret = chip->ecc.read_subpage(mtd, chip,
+							col, bytes, bufpoi);
 			else
 				ret = chip->ecc.read_page(mtd, chip, bufpoi,
 							  page);
@@ -1500,7 +1504,8 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 
 			/* Transfer not aligned data */
 			if (!aligned) {
-				if (!NAND_SUBPAGE_READ(chip) && !oob)
+				if (!NAND_SUBPAGE_READ(chip) && !oob &&
+				    !(mtd->ecc_stats.failed - stats.failed))
 					chip->pagebuf = realpage;
 				memcpy(buf, chip->buffers->databuf + col, bytes);
 			}
@@ -1575,7 +1580,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 }
 
 /**
- * nand_read - [MTD Interface] MTD compability function for nand_do_read_ecc
+ * nand_read - [MTD Interface] MTD compatibility function for nand_do_read_ecc
  * @mtd:	MTD device structure
  * @from:	offset to read from
  * @len:	number of bytes to read
@@ -1798,7 +1803,7 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	realpage = (int)(from >> chip->page_shift);
 	page = realpage & chip->pagemask;
 
-	while(1) {
+	while (1) {
 		sndcmd = chip->ecc.read_oob(mtd, chip, page, sndcmd);
 
 		len = min(len, readlen);
@@ -1868,7 +1873,7 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 
 	nand_get_device(chip, mtd, FL_READING);
 
-	switch(ops->mode) {
+	switch (ops->mode) {
 	case MTD_OOB_PLACE:
 	case MTD_OOB_AUTO:
 	case MTD_OOB_RAW:
@@ -1883,7 +1888,7 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 	else
 		ret = nand_do_read_ops(mtd, from, ops);
 
- out:
+out:
 	nand_release_device(mtd);
 	return ret;
 }
@@ -1912,8 +1917,9 @@ static void nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
  *
  * We need a special oob layout and handling even when ECC isn't checked.
  */
-static void nand_write_page_raw_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
-				const uint8_t *buf)
+static void nand_write_page_raw_syndrome(struct mtd_info *mtd,
+					struct nand_chip *chip,
+					const uint8_t *buf)
 {
 	int eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
@@ -2106,7 +2112,7 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob, size_t len,
 						struct mtd_oob_ops *ops)
 {
-	switch(ops->mode) {
+	switch (ops->mode) {
 
 	case MTD_OOB_PLACE:
 	case MTD_OOB_RAW:
@@ -2118,7 +2124,7 @@ static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob, size_t len,
 		uint32_t boffs = 0, woffs = ops->ooboffs;
 		size_t bytes = 0;
 
-		for(; free->length && len; free++, len -= bytes) {
+		for (; free->length && len; free++, len -= bytes) {
 			/* Write request not from offset 0 ? */
 			if (unlikely(woffs)) {
 				if (woffs >= free->length) {
@@ -2144,7 +2150,7 @@ static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob, size_t len,
 	return NULL;
 }
 
-#define NOTALIGNED(x)	(x & (chip->subpagesize - 1)) != 0
+#define NOTALIGNED(x)	((x & (chip->subpagesize - 1)) != 0)
 
 /**
  * nand_do_write_ops - [Internal] NAND write with ECC
@@ -2207,10 +2213,10 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		memset(chip->oob_poi, 0xff, mtd->oobsize);
 
 	/* Don't allow multipage oob writes with offset */
-	if (ops->ooboffs && (ops->ooboffs + ops->ooblen > oobmaxlen))
+	if (oob && ops->ooboffs && (ops->ooboffs + ops->ooblen > oobmaxlen))
 		return -EINVAL;
 
-	while(1) {
+	while (1) {
 		int bytes = mtd->writesize;
 		int cached = writelen > bytes && page != blockmask;
 		uint8_t *wbuf = buf;
@@ -2370,7 +2376,7 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 		return -EINVAL;
 	}
 
-	/* Do not allow reads past end of device */
+	/* Do not allow write past end of device */
 	if (unlikely(to >= mtd->size ||
 		     ops->ooboffs + ops->ooblen >
 			((mtd->size >> chip->page_shift) -
@@ -2438,7 +2444,7 @@ static int nand_write_oob(struct mtd_info *mtd, loff_t to,
 
 	nand_get_device(chip, mtd, FL_WRITING);
 
-	switch(ops->mode) {
+	switch (ops->mode) {
 	case MTD_OOB_PLACE:
 	case MTD_OOB_AUTO:
 	case MTD_OOB_RAW:
@@ -2453,7 +2459,7 @@ static int nand_write_oob(struct mtd_info *mtd, loff_t to,
 	else
 		ret = nand_do_write_ops(mtd, to, ops);
 
- out:
+out:
 	nand_release_device(mtd);
 	return ret;
 }
@@ -2518,7 +2524,7 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 {
 	int page, status, pages_per_block, ret, chipnr;
 	struct nand_chip *chip = mtd->priv;
-	loff_t rewrite_bbt[NAND_MAX_CHIPS]={0};
+	loff_t rewrite_bbt[NAND_MAX_CHIPS] = {0};
 	unsigned int bbt_masked_page = 0xffffffff;
 	loff_t len;
 
@@ -2639,7 +2645,7 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 	}
 	instr->state = MTD_ERASE_DONE;
 
- erase_exit:
+erase_exit:
 
 	ret = instr->state == MTD_ERASE_DONE ? 0 : -EIO;
 
@@ -2713,7 +2719,8 @@ static int nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	struct nand_chip *chip = mtd->priv;
 	int ret;
 
-	if ((ret = nand_block_isbad(mtd, ofs))) {
+	ret = nand_block_isbad(mtd, ofs);
+	if (ret) {
 		/* If it was bad already, return success and do nothing. */
 		if (ret > 0)
 			return 0;
@@ -2794,15 +2801,119 @@ static void nand_set_defaults(struct nand_chip *chip, int busw)
 }
 
 /*
+ * sanitize ONFI strings so we can safely print them
+ */
+static void sanitize_string(uint8_t *s, size_t len)
+{
+	ssize_t i;
+
+	/* null terminate */
+	s[len - 1] = 0;
+
+	/* remove non printable chars */
+	for (i = 0; i < len - 1; i++) {
+		if (s[i] < ' ' || s[i] > 127)
+			s[i] = '?';
+	}
+
+	/* remove trailing spaces */
+	strim(s);
+}
+
+static u16 onfi_crc16(u16 crc, u8 const *p, size_t len)
+{
+	int i;
+	while (len--) {
+		crc ^= *p++ << 8;
+		for (i = 0; i < 8; i++)
+			crc = (crc << 1) ^ ((crc & 0x8000) ? 0x8005 : 0);
+	}
+
+	return crc;
+}
+
+/*
+ * Check if the NAND chip is ONFI compliant, returns 1 if it is, 0 otherwise
+ */
+static int nand_flash_detect_onfi(struct mtd_info *mtd, struct nand_chip *chip,
+					int busw)
+{
+	struct nand_onfi_params *p = &chip->onfi_params;
+	int i;
+	int val;
+
+	/* try ONFI for unknow chip or LP */
+	chip->cmdfunc(mtd, NAND_CMD_READID, 0x20, -1);
+	if (chip->read_byte(mtd) != 'O' || chip->read_byte(mtd) != 'N' ||
+		chip->read_byte(mtd) != 'F' || chip->read_byte(mtd) != 'I')
+		return 0;
+
+	printk(KERN_INFO "ONFI flash detected\n");
+	chip->cmdfunc(mtd, NAND_CMD_PARAM, 0, -1);
+	for (i = 0; i < 3; i++) {
+		chip->read_buf(mtd, (uint8_t *)p, sizeof(*p));
+		if (onfi_crc16(ONFI_CRC_BASE, (uint8_t *)p, 254) ==
+				le16_to_cpu(p->crc)) {
+			printk(KERN_INFO "ONFI param page %d valid\n", i);
+			break;
+		}
+	}
+
+	if (i == 3)
+		return 0;
+
+	/* check version */
+	val = le16_to_cpu(p->revision);
+	if (val & (1 << 5))
+		chip->onfi_version = 23;
+	else if (val & (1 << 4))
+		chip->onfi_version = 22;
+	else if (val & (1 << 3))
+		chip->onfi_version = 21;
+	else if (val & (1 << 2))
+		chip->onfi_version = 20;
+	else if (val & (1 << 1))
+		chip->onfi_version = 10;
+	else
+		chip->onfi_version = 0;
+
+	if (!chip->onfi_version) {
+		printk(KERN_INFO "%s: unsupported ONFI version: %d\n",
+								__func__, val);
+		return 0;
+	}
+
+	sanitize_string(p->manufacturer, sizeof(p->manufacturer));
+	sanitize_string(p->model, sizeof(p->model));
+	if (!mtd->name)
+		mtd->name = p->model;
+	mtd->writesize = le32_to_cpu(p->byte_per_page);
+	mtd->erasesize = le32_to_cpu(p->pages_per_block) * mtd->writesize;
+	mtd->oobsize = le16_to_cpu(p->spare_bytes_per_page);
+	chip->chipsize = (uint64_t)le32_to_cpu(p->blocks_per_lun) * mtd->erasesize;
+	busw = 0;
+	if (le16_to_cpu(p->features) & 1)
+		busw = NAND_BUSWIDTH_16;
+
+	chip->options &= ~NAND_CHIPOPTIONS_MSK;
+	chip->options |= (NAND_NO_READRDY |
+			NAND_NO_AUTOINCR) & NAND_CHIPOPTIONS_MSK;
+
+	return 1;
+}
+
+/*
  * Get the flash and manufacturer id and lookup if the type is supported
  */
 static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 						  struct nand_chip *chip,
-						  int busw, int *maf_id,
+						  int busw,
+						  int *maf_id, int *dev_id,
 						  struct nand_flash_dev *type)
 {
-	int i, dev_id, maf_idx;
+	int i, maf_idx;
 	u8 id_data[8];
+	int ret;
 
 	/* Select the device */
 	chip->select_chip(mtd, 0);
@@ -2818,7 +2929,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 
 	/* Read manufacturer and device IDs */
 	*maf_id = chip->read_byte(mtd);
-	dev_id = chip->read_byte(mtd);
+	*dev_id = chip->read_byte(mtd);
 
 	/* Try again to make sure, as some systems the bus-hold or other
 	 * interface concerns can cause random data which looks like a
@@ -2828,15 +2939,13 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 
 	chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
 
-	/* Read entire ID string */
-
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < 2; i++)
 		id_data[i] = chip->read_byte(mtd);
 
-	if (id_data[0] != *maf_id || id_data[1] != dev_id) {
+	if (id_data[0] != *maf_id || id_data[1] != *dev_id) {
 		printk(KERN_INFO "%s: second ID read did not match "
 		       "%02x,%02x against %02x,%02x\n", __func__,
-		       *maf_id, dev_id, id_data[0], id_data[1]);
+		       *maf_id, *dev_id, id_data[0], id_data[1]);
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -2844,8 +2953,23 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		type = nand_flash_ids;
 
 	for (; type->name != NULL; type++)
-		if (dev_id == type->id)
-                        break;
+		if (*dev_id == type->id)
+			break;
+
+	chip->onfi_version = 0;
+	if (!type->name || !type->pagesize) {
+		/* Check is chip is ONFI compliant */
+		ret = nand_flash_detect_onfi(mtd, chip, busw);
+		if (ret)
+			goto ident_done;
+	}
+
+	chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
+
+	/* Read entire ID string */
+
+	for (i = 0; i < 8; i++)
+		id_data[i] = chip->read_byte(mtd);
 
 	if (!type->name)
 		return ERR_PTR(-ENODEV);
@@ -2855,8 +2979,10 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 
 	chip->chipsize = (uint64_t)type->chipsize << 20;
 
-	/* Newer devices have all the information in additional id bytes */
-	if (!type->pagesize) {
+	if (!type->pagesize && chip->init_size) {
+		/* set the pagesize, oobsize, erasesize by the driver*/
+		busw = chip->init_size(mtd, chip, id_data);
+	} else if (!type->pagesize) {
 		int extid;
 		/* The 3rd id byte holds MLC / multichip data */
 		chip->cellinfo = id_data[2];
@@ -2866,7 +2992,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		/*
 		 * Field definitions are in the following datasheets:
 		 * Old style (4,5 byte ID): Samsung K9GAG08U0M (p.32)
-		 * New style   (6 byte ID): Samsung K9GAG08U0D (p.40)
+		 * New style   (6 byte ID): Samsung K9GBG08U0M (p.40)
 		 *
 		 * Check for wraparound + Samsung ID + nonzero 6th byte
 		 * to decide what to do.
@@ -2879,7 +3005,20 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 			mtd->writesize = 2048 << (extid & 0x03);
 			extid >>= 2;
 			/* Calc oobsize */
-			mtd->oobsize = (extid & 0x03) == 0x01 ? 128 : 218;
+			switch (extid & 0x03) {
+			case 1:
+				mtd->oobsize = 128;
+				break;
+			case 2:
+				mtd->oobsize = 218;
+				break;
+			case 3:
+				mtd->oobsize = 400;
+				break;
+			default:
+				mtd->oobsize = 436;
+				break;
+			}
 			extid >>= 2;
 			/* Calc blocksize */
 			mtd->erasesize = (128 * 1024) <<
@@ -2907,7 +3046,35 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		mtd->writesize = type->pagesize;
 		mtd->oobsize = mtd->writesize / 32;
 		busw = type->options & NAND_BUSWIDTH_16;
+
+		/*
+		 * Check for Spansion/AMD ID + repeating 5th, 6th byte since
+		 * some Spansion chips have erasesize that conflicts with size
+		 * listed in nand_ids table
+		 * Data sheet (5 byte ID): Spansion S30ML-P ORNAND (p.39)
+		 */
+		if (*maf_id == NAND_MFR_AMD && id_data[4] != 0x00 &&
+				id_data[5] == 0x00 && id_data[6] == 0x00 &&
+				id_data[7] == 0x00 && mtd->writesize == 512) {
+			mtd->erasesize = 128 * 1024;
+			mtd->erasesize <<= ((id_data[3] & 0x03) << 1);
+		}
 	}
+	/* Get chip options, preserve non chip based options */
+	chip->options &= ~NAND_CHIPOPTIONS_MSK;
+	chip->options |= type->options & NAND_CHIPOPTIONS_MSK;
+
+	/* Check if chip is a not a samsung device. Do not clear the
+	 * options for chips which are not having an extended id.
+	 */
+	if (*maf_id != NAND_MFR_SAMSUNG && !type->pagesize)
+		chip->options &= ~NAND_SAMSUNG_LP_OPTIONS;
+ident_done:
+
+	/*
+	 * Set chip as a default. Board drivers can override it, if necessary
+	 */
+	chip->options |= NAND_NO_AUTOINCR;
 
 	/* Try to identify manufacturer */
 	for (maf_idx = 0; nand_manuf_ids[maf_idx].id != 0x0; maf_idx++) {
@@ -2924,7 +3091,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	if (busw != (chip->options & NAND_BUSWIDTH_16)) {
 		printk(KERN_INFO "NAND device: Manufacturer ID:"
 		       " 0x%02x, Chip ID: 0x%02x (%s %s)\n", *maf_id,
-		       dev_id, nand_manuf_ids[maf_idx].name, mtd->name);
+		       *dev_id, nand_manuf_ids[maf_idx].name, mtd->name);
 		printk(KERN_WARNING "NAND bus width %d instead %d bit\n",
 		       (chip->options & NAND_BUSWIDTH_16) ? 16 : 8,
 		       busw ? 16 : 8);
@@ -2940,8 +3107,12 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		ffs(mtd->erasesize) - 1;
 	if (chip->chipsize & 0xffffffff)
 		chip->chip_shift = ffs((unsigned)chip->chipsize) - 1;
-	else
-		chip->chip_shift = ffs((unsigned)(chip->chipsize >> 32)) + 32 - 1;
+	else {
+		chip->chip_shift = ffs((unsigned)(chip->chipsize >> 32));
+		chip->chip_shift += 32 - 1;
+	}
+
+	chip->badblockbits = 8;
 
 	/* Set the bad block position */
 	if (mtd->writesize > 512 || (busw & NAND_BUSWIDTH_16))
@@ -2949,27 +3120,12 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	else
 		chip->badblockpos = NAND_SMALL_BADBLOCK_POS;
 
-	/* Get chip options, preserve non chip based options */
-	chip->options &= ~NAND_CHIPOPTIONS_MSK;
-	chip->options |= type->options & NAND_CHIPOPTIONS_MSK;
-
-	/*
-	 * Set chip as a default. Board drivers can override it, if necessary
-	 */
-	chip->options |= NAND_NO_AUTOINCR;
-
-	/* Check if chip is a not a samsung device. Do not clear the
-	 * options for chips which are not having an extended id.
-	 */
-	if (*maf_id != NAND_MFR_SAMSUNG && !type->pagesize)
-		chip->options &= ~NAND_SAMSUNG_LP_OPTIONS;
-
 	/*
 	 * Bad block marker is stored in the last page of each block
 	 * on Samsung and Hynix MLC devices; stored in first two pages
 	 * of each block on Micron devices with 2KiB pages and on
-	 * SLC Samsung, Hynix, and AMD/Spansion. All others scan only
-	 * the first page.
+	 * SLC Samsung, Hynix, Toshiba and AMD/Spansion. All others scan
+	 * only the first page.
 	 */
 	if ((chip->cellinfo & NAND_CI_CELLTYPE_MSK) &&
 			(*maf_id == NAND_MFR_SAMSUNG ||
@@ -2978,6 +3134,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	else if ((!(chip->cellinfo & NAND_CI_CELLTYPE_MSK) &&
 				(*maf_id == NAND_MFR_SAMSUNG ||
 				 *maf_id == NAND_MFR_HYNIX ||
+				 *maf_id == NAND_MFR_TOSHIBA ||
 				 *maf_id == NAND_MFR_AMD)) ||
 			(mtd->writesize == 2048 &&
 			 *maf_id == NAND_MFR_MICRON))
@@ -3003,9 +3160,11 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	if (mtd->writesize > 512 && chip->cmdfunc == nand_command)
 		chip->cmdfunc = nand_command_lp;
 
+	/* TODO onfi flash name */
 	printk(KERN_INFO "NAND device: Manufacturer ID:"
-	       " 0x%02x, Chip ID: 0x%02x (%s %s)\n", *maf_id, dev_id,
-	       nand_manuf_ids[maf_idx].name, type->name);
+		" 0x%02x, Chip ID: 0x%02x (%s %s)\n", *maf_id, *dev_id,
+		nand_manuf_ids[maf_idx].name,
+		chip->onfi_version ? chip->onfi_params.model : type->name);
 
 	return type;
 }
@@ -3024,7 +3183,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 		    struct nand_flash_dev *table)
 {
-	int i, busw, nand_maf_id;
+	int i, busw, nand_maf_id, nand_dev_id;
 	struct nand_chip *chip = mtd->priv;
 	struct nand_flash_dev *type;
 
@@ -3034,7 +3193,8 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	nand_set_defaults(chip, busw);
 
 	/* Read the flash type */
-	type = nand_get_flash_type(mtd, chip, busw, &nand_maf_id, table);
+	type = nand_get_flash_type(mtd, chip, busw,
+				&nand_maf_id, &nand_dev_id, table);
 
 	if (IS_ERR(type)) {
 		if (!(chip->options & NAND_SCAN_SILENT_NODEV))
@@ -3052,7 +3212,7 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 		chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
 		/* Read manufacturer and device IDs */
 		if (nand_maf_id != chip->read_byte(mtd) ||
-		    type->id != chip->read_byte(mtd))
+		    nand_dev_id != chip->read_byte(mtd))
 			break;
 	}
 	if (i > 1)
@@ -3063,6 +3223,45 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	mtd->size = i * chip->chipsize;
 
 	return 0;
+}
+EXPORT_SYMBOL(nand_scan_ident);
+
+static void nand_panic_wait(struct mtd_info *mtd)
+{
+	struct nand_chip *chip = mtd->priv;
+	int i;
+
+	if (chip->state != FL_READY)
+		for (i = 0; i < 40; i++) {
+			if (chip->dev_ready(mtd))
+				break;
+			mdelay(10);
+		}
+	chip->state = FL_READY;
+}
+
+static int nand_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
+			    size_t *retlen, const u_char *buf)
+{
+	struct nand_chip *chip = mtd->priv;
+	int ret;
+
+	/* Do not allow reads past end of device */
+	if ((to + len) > mtd->size)
+		return -EINVAL;
+	if (!len)
+		return 0;
+
+	nand_panic_wait(mtd);
+
+	chip->ops.len = len;
+	chip->ops.datbuf = (uint8_t *)buf;
+	chip->ops.oobbuf = NULL;
+
+	ret = nand_do_write_ops(mtd, to, &chip->ops);
+
+	*retlen = chip->ops.retlen;
+	return ret;
 }
 
 
@@ -3090,7 +3289,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 	/*
 	 * If no default placement scheme is given, select an appropriate one
 	 */
-	if (!chip->ecc.layout) {
+	if (!chip->ecc.layout && (chip->ecc.mode != NAND_ECC_SOFT_BCH)) {
 		switch (mtd->oobsize) {
 		case 8:
 			chip->ecc.layout = &nand_oob_8;
@@ -3193,6 +3392,40 @@ int nand_scan_tail(struct mtd_info *mtd)
 		chip->ecc.bytes = 3;
 		break;
 
+	case NAND_ECC_SOFT_BCH:
+		if (!mtd_nand_has_bch()) {
+			printk(KERN_WARNING "CONFIG_MTD_ECC_BCH not enabled\n");
+			BUG();
+		}
+		chip->ecc.calculate = nand_bch_calculate_ecc;
+		chip->ecc.correct = nand_bch_correct_data;
+		chip->ecc.read_page = nand_read_page_swecc;
+		chip->ecc.read_subpage = nand_read_subpage;
+		chip->ecc.write_page = nand_write_page_swecc;
+		chip->ecc.read_page_raw = nand_read_page_raw;
+		chip->ecc.write_page_raw = nand_write_page_raw;
+		chip->ecc.read_oob = nand_read_oob_std;
+		chip->ecc.write_oob = nand_write_oob_std;
+		/*
+		 * Board driver should supply ecc.size and ecc.bytes values to
+		 * select how many bits are correctable; see nand_bch_init()
+		 * for details.
+		 * Otherwise, default to 4 bits for large page devices
+		 */
+		if (!chip->ecc.size && (mtd->oobsize >= 64)) {
+			chip->ecc.size = 512;
+			chip->ecc.bytes = 7;
+		}
+		chip->ecc.priv = nand_bch_init(mtd,
+					       chip->ecc.size,
+					       chip->ecc.bytes,
+					       &chip->ecc.layout);
+		if (!chip->ecc.priv) {
+			printk(KERN_WARNING "BCH ECC initialization failed!\n");
+			BUG();
+		}
+		break;
+
 	case NAND_ECC_NONE:
 		printk(KERN_WARNING "NAND_ECC_NONE selected by board driver. "
 		       "This is not recommended !!\n");
@@ -3228,7 +3461,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 	 * mode
 	 */
 	chip->ecc.steps = mtd->writesize / chip->ecc.size;
-	if(chip->ecc.steps * chip->ecc.size != mtd->writesize) {
+	if (chip->ecc.steps * chip->ecc.size != mtd->writesize) {
 		printk(KERN_WARNING "Invalid ecc parameters\n");
 		BUG();
 	}
@@ -3240,7 +3473,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 	 */
 	if (!(chip->options & NAND_NO_SUBPAGE_WRITE) &&
 	    !(chip->cellinfo & NAND_CI_CELLTYPE_MSK)) {
-		switch(chip->ecc.steps) {
+		switch (chip->ecc.steps) {
 		case 2:
 			mtd->subpage_sft = 1;
 			break;
@@ -3274,6 +3507,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 	mtd->panic_write = panic_nand_write;
 	mtd->read_oob = nand_read_oob;
 	mtd->write_oob = nand_write_oob;
+	mtd->panic_write = nand_panic_write;
 	mtd->sync = nand_sync;
 	mtd->lock = NULL;
 	mtd->unlock = NULL;
@@ -3281,6 +3515,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 	mtd->resume = nand_resume;
 	mtd->block_isbad = nand_block_isbad;
 	mtd->block_markbad = nand_block_markbad;
+	mtd->writebufsize = mtd->writesize;
 
 	/* propagate ecc.layout to mtd_info */
 	mtd->ecclayout = chip->ecc.layout;
@@ -3292,10 +3527,11 @@ int nand_scan_tail(struct mtd_info *mtd)
 	/* Build bad block table */
 	return chip->scan_bbt(mtd);
 }
+EXPORT_SYMBOL(nand_scan_tail);
 
 /* is_module_text_address() isn't exported, and it's mostly a pointless
-   test if this is a module _anyway_ -- they'd have to try _really_ hard
-   to call us from in-kernel code if the core NAND support is modular. */
+ * test if this is a module _anyway_ -- they'd have to try _really_ hard
+ * to call us from in-kernel code if the core NAND support is modular. */
 #ifdef MODULE
 #define caller_is_module() (1)
 #else
@@ -3331,6 +3567,7 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 		ret = nand_scan_tail(mtd);
 	return ret;
 }
+EXPORT_SYMBOL(nand_scan);
 
 /**
  * nand_release - [NAND Interface] Free resources held by the NAND device
@@ -3340,12 +3577,10 @@ void nand_release(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd->priv;
 
-#ifdef CONFIG_MTD_PARTITIONS
-	/* Deregister partitions */
-	del_mtd_partitions(mtd);
-#endif
-	/* Deregister the device */
-	del_mtd_device(mtd);
+	if (chip->ecc.mode == NAND_ECC_SOFT_BCH)
+		nand_bch_free((struct nand_bch_control *)chip->ecc.priv);
+
+	mtd_device_unregister(mtd);
 
 	/* Free bad block table memory */
 	kfree(chip->bbt);
@@ -3357,12 +3592,6 @@ void nand_release(struct mtd_info *mtd)
 			& NAND_BBT_DYNAMICSTRUCT)
 		kfree(chip->badblock_pattern);
 }
-
-EXPORT_SYMBOL_GPL(nand_lock);
-EXPORT_SYMBOL_GPL(nand_unlock);
-EXPORT_SYMBOL_GPL(nand_scan);
-EXPORT_SYMBOL_GPL(nand_scan_ident);
-EXPORT_SYMBOL_GPL(nand_scan_tail);
 EXPORT_SYMBOL_GPL(nand_release);
 
 static int __init nand_base_init(void)
@@ -3380,5 +3609,6 @@ module_init(nand_base_init);
 module_exit(nand_base_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Steven J. Hill <sjhill@realitydiluted.com>, Thomas Gleixner <tglx@linutronix.de>");
+MODULE_AUTHOR("Steven J. Hill <sjhill@realitydiluted.com>");
+MODULE_AUTHOR("Thomas Gleixner <tglx@linutronix.de>");
 MODULE_DESCRIPTION("Generic NAND flash driver code");

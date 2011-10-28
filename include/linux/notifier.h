@@ -49,28 +49,28 @@
 
 struct notifier_block {
 	int (*notifier_call)(struct notifier_block *, unsigned long, void *);
-	struct notifier_block *next;
+	struct notifier_block __rcu *next;
 	int priority;
 };
 
 struct atomic_notifier_head {
 	spinlock_t lock;
-	struct notifier_block *head;
+	struct notifier_block __rcu *head;
 };
 
 struct blocking_notifier_head {
 	struct rw_semaphore rwsem;
-	struct notifier_block *head;
+	struct notifier_block __rcu *head;
 };
 
 struct raw_notifier_head {
-	struct notifier_block *head;
+	struct notifier_block __rcu *head;
 };
 
 struct srcu_notifier_head {
 	struct mutex mutex;
 	struct srcu_struct srcu;
-	struct notifier_block *head;
+	struct notifier_block __rcu *head;
 };
 
 #define ATOMIC_INIT_NOTIFIER_HEAD(name) do {	\
@@ -209,8 +209,9 @@ static inline int notifier_to_errno(int ret)
 #define NETDEV_POST_TYPE_CHANGE	0x000F
 #define NETDEV_POST_INIT	0x0010
 #define NETDEV_UNREGISTER_BATCH 0x0011
-#define NETDEV_BONDING_DESLAVE  0x0012
+#define NETDEV_RELEASE		0x0012
 #define NETDEV_NOTIFY_PEERS	0x0013
+#define NETDEV_JOIN		0x0014
 
 #define SYS_DOWN	0x0001	/* Notify of system down */
 #define SYS_RESTART	SYS_DOWN
@@ -237,7 +238,7 @@ static inline int notifier_to_errno(int ret)
 					* enabling interrupts. Must not sleep,
 					* must not fail */
 
-/* Used for CPU hotplug events occuring while tasks are frozen due to a suspend
+/* Used for CPU hotplug events occurring while tasks are frozen due to a suspend
  * operation in progress
  */
 #define CPU_TASKS_FROZEN	0x0010

@@ -343,7 +343,7 @@ MUX_CFG("Y14_1610_CCP_DATAM",	 9,   21,    6,   2,   3,   1,    2,     0,  0)
 #define OMAP1XXX_PINS_SZ	0
 #endif	/* CONFIG_ARCH_OMAP15XX || CONFIG_ARCH_OMAP16XX */
 
-int __init_or_module omap1_cfg_reg(const struct pin_config *cfg)
+static int __init_or_module omap1_cfg_reg(const struct pin_config *cfg)
 {
 	static DEFINE_SPINLOCK(mux_spin_lock);
 	unsigned long flags;

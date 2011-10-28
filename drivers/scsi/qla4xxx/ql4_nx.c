@@ -1,10 +1,11 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2009 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/pci.h>
 #include "ql4_def.h"
 #include "ql4_glbl.h"
@@ -654,6 +655,27 @@ static int qla4_8xxx_pci_is_same_window(struct scsi_qla_host *ha,
 	return 0;
 }
 
+#ifndef readq
+static inline __u64 readq(const volatile void __iomem *addr)
+{
+	const volatile u32 __iomem *p = addr;
+	u32 low, high;
+
+	low = readl(p);
+	high = readl(p + 1);
+
+	return low + ((u64)high << 32);
+}
+#endif
+
+#ifndef writeq
+static inline void writeq(__u64 val, volatile void __iomem *addr)
+{
+	writel(val, addr);
+	writel(val >> 32, addr+4);
+}
+#endif
+
 static int qla4_8xxx_pci_mem_read_direct(struct scsi_qla_host *ha,
 		u64 off, void *data, int size)
 {
@@ -838,8 +860,11 @@ qla4_8xxx_rom_lock(struct scsi_qla_host *ha)
 		done = qla4_8xxx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_LOCK));
 		if (done == 1)
 			break;
-		if (timeout >= qla4_8xxx_rom_lock_timeout)
+		if (timeout >= qla4_8xxx_rom_lock_timeout) {
+			ql4_printk(KERN_WARNING, ha,
+			    "%s: Failed to acquire rom lock", __func__);
 			return -1;
+		}
 
 		timeout++;
 
@@ -938,11 +963,69 @@ qla4_8xxx_pinit_from_rom(struct scsi_qla_host *ha, int verbose)
 
 	/* Halt all the indiviual PEGs and other blocks of the ISP */
 	qla4_8xxx_rom_lock(ha);
+
+	/* disable all I2Q */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_I2Q + 0x10, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_I2Q + 0x14, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_I2Q + 0x18, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_I2Q + 0x1c, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_I2Q + 0x20, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_I2Q + 0x24, 0x0);
+
+	/* disable all niu interrupts */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0x40, 0xff);
+	/* disable xge rx/tx */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0x70000, 0x00);
+	/* disable xg1 rx/tx */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0x80000, 0x00);
+	/* disable sideband mac */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0x90000, 0x00);
+	/* disable ap0 mac */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0xa0000, 0x00);
+	/* disable ap1 mac */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0xb0000, 0x00);
+
+	/* halt sre */
+	val = qla4_8xxx_rd_32(ha, QLA82XX_CRB_SRE + 0x1000);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_SRE + 0x1000, val & (~(0x1)));
+
+	/* halt epg */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_EPG + 0x1300, 0x1);
+
+	/* halt timers */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_TIMER + 0x0, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_TIMER + 0x8, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_TIMER + 0x10, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_TIMER + 0x18, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_TIMER + 0x100, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_TIMER + 0x200, 0x0);
+
+	/* halt pegs */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_PEG_NET_0 + 0x3c, 1);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_PEG_NET_1 + 0x3c, 1);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_PEG_NET_2 + 0x3c, 1);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_PEG_NET_3 + 0x3c, 1);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_PEG_NET_4 + 0x3c, 1);
+	msleep(5);
+
+	/* big hammer */
 	if (test_bit(DPC_RESET_HA, &ha->dpc_flags))
 		/* don't reset CAM block on reset */
 		qla4_8xxx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0xfeffffff);
 	else
 		qla4_8xxx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0xffffffff);
+
+	/* reset ms */
+	val = qla4_8xxx_rd_32(ha, QLA82XX_CRB_QDR_NET + 0xe4);
+	val |= (1 << 1);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_QDR_NET + 0xe4, val);
+
+	msleep(20);
+	/* unreset ms */
+	val = qla4_8xxx_rd_32(ha, QLA82XX_CRB_QDR_NET + 0xe4);
+	val &= ~(1 << 1);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_QDR_NET + 0xe4, val);
+	msleep(20);
 
 	qla4_8xxx_rom_unlock(ha);
 
@@ -1077,32 +1160,17 @@ qla4_8xxx_pinit_from_rom(struct scsi_qla_host *ha, int verbose)
 	return 0;
 }
 
-static int qla4_8xxx_check_for_bad_spd(struct scsi_qla_host *ha)
-{
-	u32 val = 0;
-	val = qla4_8xxx_rd_32(ha, BOOT_LOADER_DIMM_STATUS) ;
-	val &= QLA82XX_BOOT_LOADER_MN_ISSUE;
-	if (val & QLA82XX_PEG_TUNE_MN_SPD_ZEROED) {
-		printk("Memory DIMM SPD not programmed.  Assumed valid.\n");
-		return 1;
-	} else if (val) {
-		printk("Memory DIMM type incorrect.  Info:%08X.\n", val);
-		return 2;
-	}
-	return 0;
-}
-
 static int
 qla4_8xxx_load_from_flash(struct scsi_qla_host *ha, uint32_t image_start)
 {
-	int  i;
+	int  i, rval = 0;
 	long size = 0;
 	long flashaddr, memaddr;
 	u64 data;
 	u32 high, low;
 
 	flashaddr = memaddr = ha->hw.flt_region_bootload;
-	size = (image_start - flashaddr)/8;
+	size = (image_start - flashaddr) / 8;
 
 	DEBUG2(printk("scsi%ld: %s: bootldr=0x%lx, fw_image=0x%x\n",
 	    ha->host_no, __func__, flashaddr, image_start));
@@ -1111,14 +1179,18 @@ qla4_8xxx_load_from_flash(struct scsi_qla_host *ha, uint32_t image_start)
 		if ((qla4_8xxx_rom_fast_read(ha, flashaddr, (int *)&low)) ||
 		    (qla4_8xxx_rom_fast_read(ha, flashaddr + 4,
 		    (int *)&high))) {
-			return -1;
+			rval = -1;
+			goto exit_load_from_flash;
 		}
 		data = ((u64)high << 32) | low ;
-		qla4_8xxx_pci_mem_write_2M(ha, memaddr, &data, 8);
+		rval = qla4_8xxx_pci_mem_write_2M(ha, memaddr, &data, 8);
+		if (rval)
+			goto exit_load_from_flash;
+
 		flashaddr += 8;
 		memaddr   += 8;
 
-		if (i%0x1000 == 0)
+		if (i % 0x1000 == 0)
 			msleep(1);
 
 	}
@@ -1130,7 +1202,8 @@ qla4_8xxx_load_from_flash(struct scsi_qla_host *ha, uint32_t image_start)
 	qla4_8xxx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0x80001e);
 	read_unlock(&ha->hw_lock);
 
-	return 0;
+exit_load_from_flash:
+	return rval;
 }
 
 static int qla4_8xxx_load_fw(struct scsi_qla_host *ha, uint32_t image_start)
@@ -1376,8 +1449,6 @@ static int qla4_8xxx_cmdpeg_ready(struct scsi_qla_host *ha, int pegtune_val)
 
 		} while (--retries);
 
-		qla4_8xxx_check_for_bad_spd(ha);
-
 		if (!retries) {
 			pegtune_val = qla4_8xxx_rd_32(ha,
 				QLA82XX_ROMUSB_GLB_PEGTUNE_DONE);
@@ -1539,12 +1610,29 @@ qla4_8xxx_try_start_fw(struct scsi_qla_host *ha)
 	ql4_printk(KERN_INFO, ha,
 	    "FW: Attempting to load firmware from flash...\n");
 	rval = qla4_8xxx_start_firmware(ha, ha->hw.flt_region_fw);
-	if (rval == QLA_SUCCESS)
-		return rval;
 
-	ql4_printk(KERN_ERR, ha, "FW: Load firmware from flash FAILED...\n");
+	if (rval != QLA_SUCCESS) {
+		ql4_printk(KERN_ERR, ha, "FW: Load firmware from flash"
+		    " FAILED...\n");
+		return rval;
+	}
 
 	return rval;
+}
+
+static void qla4_8xxx_rom_lock_recovery(struct scsi_qla_host *ha)
+{
+	if (qla4_8xxx_rom_lock(ha)) {
+		/* Someone else is holding the lock. */
+		dev_info(&ha->pdev->dev, "Resetting rom_lock\n");
+	}
+
+	/*
+	 * Either we got the lock, or someone
+	 * else died while holding it.
+	 * In either case, unlock.
+	 */
+	qla4_8xxx_rom_unlock(ha);
 }
 
 /**
@@ -1556,11 +1644,12 @@ qla4_8xxx_try_start_fw(struct scsi_qla_host *ha)
 static int
 qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha)
 {
-	int rval, i, timeout;
+	int rval = QLA_ERROR;
+	int i, timeout;
 	uint32_t old_count, count;
+	int need_reset = 0, peg_stuck = 1;
 
-	if (qla4_8xxx_need_reset(ha))
-		goto dev_initialize;
+	need_reset = qla4_8xxx_need_reset(ha);
 
 	old_count = qla4_8xxx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
 
@@ -1569,12 +1658,30 @@ qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha)
 		if (timeout) {
 			qla4_8xxx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
 			   QLA82XX_DEV_FAILED);
-			return QLA_ERROR;
+			return rval;
 		}
 
 		count = qla4_8xxx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
 		if (count != old_count)
+			peg_stuck = 0;
+	}
+
+	if (need_reset) {
+		/* We are trying to perform a recovery here. */
+		if (peg_stuck)
+			qla4_8xxx_rom_lock_recovery(ha);
+		goto dev_initialize;
+	} else  {
+		/* Start of day for this ha context. */
+		if (peg_stuck) {
+			/* Either we are the first or recovery in progress. */
+			qla4_8xxx_rom_lock_recovery(ha);
+			goto dev_initialize;
+		} else {
+			/* Firmware already running. */
+			rval = QLA_SUCCESS;
 			goto dev_ready;
+		}
 	}
 
 dev_initialize:
@@ -1600,7 +1707,7 @@ dev_ready:
 	ql4_printk(KERN_INFO, ha, "HW State: READY\n");
 	qla4_8xxx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_READY);
 
-	return QLA_SUCCESS;
+	return rval;
 }
 
 /**
@@ -1763,20 +1870,9 @@ int qla4_8xxx_load_risc(struct scsi_qla_host *ha)
 	int retval;
 	retval = qla4_8xxx_device_state_handler(ha);
 
-	if (retval == QLA_SUCCESS &&
-	    !test_bit(AF_INIT_DONE, &ha->flags)) {
+	if (retval == QLA_SUCCESS && !test_bit(AF_INIT_DONE, &ha->flags))
 		retval = qla4xxx_request_irqs(ha);
-		if (retval != QLA_SUCCESS) {
-			ql4_printk(KERN_WARNING, ha,
-			    "Failed to reserve interrupt %d already in use.\n",
-			    ha->pdev->irq);
-		} else {
-			set_bit(AF_IRQ_ATTACHED, &ha->flags);
-			ha->host->irq = ha->pdev->irq;
-			ql4_printk(KERN_INFO, ha, "%s: irq %d attached\n",
-			    __func__, ha->pdev->irq);
-		}
-	}
+
 	return retval;
 }
 
@@ -2244,14 +2340,13 @@ qla4_8xxx_enable_intrs(struct scsi_qla_host *ha)
 void
 qla4_8xxx_disable_intrs(struct scsi_qla_host *ha)
 {
-	if (test_bit(AF_INTERRUPTS_ON, &ha->flags))
+	if (test_and_clear_bit(AF_INTERRUPTS_ON, &ha->flags))
 		qla4_8xxx_mbx_intr_disable(ha);
 
 	spin_lock_irq(&ha->hardware_lock);
 	/* BIT 10 - set */
 	qla4_8xxx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg, 0x0400);
 	spin_unlock_irq(&ha->hardware_lock);
-	clear_bit(AF_INTERRUPTS_ON, &ha->flags);
 }
 
 struct ql4_init_msix_entry {

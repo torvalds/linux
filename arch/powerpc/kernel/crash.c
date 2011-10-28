@@ -48,7 +48,7 @@ int crashing_cpu = -1;
 static cpumask_t cpus_in_crash = CPU_MASK_NONE;
 cpumask_t cpus_in_sr = CPU_MASK_NONE;
 
-#define CRASH_HANDLER_MAX 2
+#define CRASH_HANDLER_MAX 3
 /* NULL terminated list of shutdown handles */
 static crash_shutdown_t crash_shutdown_handles[CRASH_HANDLER_MAX+1];
 static DEFINE_SPINLOCK(crash_handlers_lock);
@@ -64,9 +64,9 @@ void crash_ipi_callback(struct pt_regs *regs)
 		return;
 
 	hard_irq_disable();
-	if (!cpu_isset(cpu, cpus_in_crash))
+	if (!cpumask_test_cpu(cpu, &cpus_in_crash))
 		crash_save_cpu(regs, cpu);
-	cpu_set(cpu, cpus_in_crash);
+	cpumask_set_cpu(cpu, &cpus_in_crash);
 
 	/*
 	 * Entered via soft-reset - could be the kdump
@@ -77,8 +77,8 @@ void crash_ipi_callback(struct pt_regs *regs)
 	 * Tell the kexec CPU that entered via soft-reset and ready
 	 * to go down.
 	 */
-	if (cpu_isset(cpu, cpus_in_sr)) {
-		cpu_clear(cpu, cpus_in_sr);
+	if (cpumask_test_cpu(cpu, &cpus_in_sr)) {
+		cpumask_clear_cpu(cpu, &cpus_in_sr);
 		atomic_inc(&enter_on_soft_reset);
 	}
 
@@ -87,7 +87,7 @@ void crash_ipi_callback(struct pt_regs *regs)
 	 * This barrier is needed to make sure that all CPUs are stopped.
 	 * If not, soft-reset will be invoked to bring other CPUs.
 	 */
-	while (!cpu_isset(crashing_cpu, cpus_in_crash))
+	while (!cpumask_test_cpu(crashing_cpu, &cpus_in_crash))
 		cpu_relax();
 
 	if (ppc_md.kexec_cpu_down)
@@ -109,7 +109,7 @@ static void crash_soft_reset_check(int cpu)
 {
 	unsigned int ncpus = num_online_cpus() - 1;/* Excluding the panic cpu */
 
-	cpu_clear(cpu, cpus_in_sr);
+	cpumask_clear_cpu(cpu, &cpus_in_sr);
 	while (atomic_read(&enter_on_soft_reset) != ncpus)
 		cpu_relax();
 }
@@ -125,14 +125,14 @@ static void crash_kexec_prepare_cpus(int cpu)
 	smp_wmb();
 
 	/*
-	 * FIXME: Until we will have the way to stop other CPUSs reliabally,
+	 * FIXME: Until we will have the way to stop other CPUs reliably,
 	 * the crash CPU will send an IPI and wait for other CPUs to
 	 * respond.
 	 * Delay of at least 10 seconds.
 	 */
 	printk(KERN_EMERG "Sending IPI to other cpus...\n");
 	msecs = 10000;
-	while ((cpus_weight(cpus_in_crash) < ncpus) && (--msecs > 0)) {
+	while ((cpumask_weight(&cpus_in_crash) < ncpus) && (--msecs > 0)) {
 		cpu_relax();
 		mdelay(1);
 	}
@@ -144,51 +144,23 @@ static void crash_kexec_prepare_cpus(int cpu)
 	 * user to do soft reset such that we get all.
 	 * Soft-reset will be used until better mechanism is implemented.
 	 */
-	if (cpus_weight(cpus_in_crash) < ncpus) {
+	if (cpumask_weight(&cpus_in_crash) < ncpus) {
 		printk(KERN_EMERG "done waiting: %d cpu(s) not responding\n",
-			ncpus - cpus_weight(cpus_in_crash));
+			ncpus - cpumask_weight(&cpus_in_crash));
 		printk(KERN_EMERG "Activate soft-reset to stop other cpu(s)\n");
-		cpus_in_sr = CPU_MASK_NONE;
+		cpumask_clear(&cpus_in_sr);
 		atomic_set(&enter_on_soft_reset, 0);
-		while (cpus_weight(cpus_in_crash) < ncpus)
+		while (cpumask_weight(&cpus_in_crash) < ncpus)
 			cpu_relax();
 	}
 	/*
 	 * Make sure all CPUs are entered via soft-reset if the kdump is
 	 * invoked using soft-reset.
 	 */
-	if (cpu_isset(cpu, cpus_in_sr))
+	if (cpumask_test_cpu(cpu, &cpus_in_sr))
 		crash_soft_reset_check(cpu);
 	/* Leave the IPI callback set */
 }
-
-/* wait for all the CPUs to hit real mode but timeout if they don't come in */
-#ifdef CONFIG_PPC_STD_MMU_64
-static void crash_kexec_wait_realmode(int cpu)
-{
-	unsigned int msecs;
-	int i;
-
-	msecs = 10000;
-	for (i=0; i < NR_CPUS && msecs > 0; i++) {
-		if (i == cpu)
-			continue;
-
-		while (paca[i].kexec_state < KEXEC_STATE_REAL_MODE) {
-			barrier();
-			if (!cpu_possible(i)) {
-				break;
-			}
-			if (!cpu_online(i)) {
-				break;
-			}
-			msecs--;
-			mdelay(1);
-		}
-	}
-	mb();
-}
-#endif
 
 /*
  * This function will be called by secondary cpus or by kexec cpu
@@ -210,7 +182,7 @@ void crash_kexec_secondary(struct pt_regs *regs)
 			 * exited using 'x'(exit and recover) or
 			 * kexec_should_crash() failed for all running tasks.
 			 */
-			cpu_clear(cpu, cpus_in_sr);
+			cpumask_clear_cpu(cpu, &cpus_in_sr);
 			local_irq_restore(flags);
 			return;
 		}
@@ -224,7 +196,7 @@ void crash_kexec_secondary(struct pt_regs *regs)
 		 * then start kexec boot.
 		 */
 		crash_soft_reset_check(cpu);
-		cpu_set(crashing_cpu, cpus_in_crash);
+		cpumask_set_cpu(crashing_cpu, &cpus_in_crash);
 		if (ppc_md.kexec_cpu_down)
 			ppc_md.kexec_cpu_down(1, 0);
 		machine_kexec(kexec_crash_image);
@@ -233,7 +205,8 @@ void crash_kexec_secondary(struct pt_regs *regs)
 	crash_ipi_callback(regs);
 }
 
-#else
+#else	/* ! CONFIG_SMP */
+
 static void crash_kexec_prepare_cpus(int cpu)
 {
 	/*
@@ -251,75 +224,35 @@ static void crash_kexec_prepare_cpus(int cpu)
 
 void crash_kexec_secondary(struct pt_regs *regs)
 {
-	cpus_in_sr = CPU_MASK_NONE;
+	cpumask_clear(&cpus_in_sr);
 }
-#endif
-#ifdef CONFIG_SPU_BASE
+#endif	/* CONFIG_SMP */
 
-#include <asm/spu.h>
-#include <asm/spu_priv1.h>
-
-struct crash_spu_info {
-	struct spu *spu;
-	u32 saved_spu_runcntl_RW;
-	u32 saved_spu_status_R;
-	u32 saved_spu_npc_RW;
-	u64 saved_mfc_sr1_RW;
-	u64 saved_mfc_dar;
-	u64 saved_mfc_dsisr;
-};
-
-#define CRASH_NUM_SPUS	16	/* Enough for current hardware */
-static struct crash_spu_info crash_spu_info[CRASH_NUM_SPUS];
-
-static void crash_kexec_stop_spus(void)
+/* wait for all the CPUs to hit real mode but timeout if they don't come in */
+#if defined(CONFIG_SMP) && defined(CONFIG_PPC_STD_MMU_64)
+static void crash_kexec_wait_realmode(int cpu)
 {
-	struct spu *spu;
+	unsigned int msecs;
 	int i;
-	u64 tmp;
 
-	for (i = 0; i < CRASH_NUM_SPUS; i++) {
-		if (!crash_spu_info[i].spu)
+	msecs = 10000;
+	for (i=0; i < nr_cpu_ids && msecs > 0; i++) {
+		if (i == cpu)
 			continue;
 
-		spu = crash_spu_info[i].spu;
-
-		crash_spu_info[i].saved_spu_runcntl_RW =
-			in_be32(&spu->problem->spu_runcntl_RW);
-		crash_spu_info[i].saved_spu_status_R =
-			in_be32(&spu->problem->spu_status_R);
-		crash_spu_info[i].saved_spu_npc_RW =
-			in_be32(&spu->problem->spu_npc_RW);
-
-		crash_spu_info[i].saved_mfc_dar    = spu_mfc_dar_get(spu);
-		crash_spu_info[i].saved_mfc_dsisr  = spu_mfc_dsisr_get(spu);
-		tmp = spu_mfc_sr1_get(spu);
-		crash_spu_info[i].saved_mfc_sr1_RW = tmp;
-
-		tmp &= ~MFC_STATE1_MASTER_RUN_CONTROL_MASK;
-		spu_mfc_sr1_set(spu, tmp);
-
-		__delay(200);
+		while (paca[i].kexec_state < KEXEC_STATE_REAL_MODE) {
+			barrier();
+			if (!cpu_possible(i) || !cpu_online(i) || (msecs <= 0))
+				break;
+			msecs--;
+			mdelay(1);
+		}
 	}
+	mb();
 }
-
-void crash_register_spus(struct list_head *list)
-{
-	struct spu *spu;
-
-	list_for_each_entry(spu, list, full_list) {
-		if (WARN_ON(spu->number >= CRASH_NUM_SPUS))
-			continue;
-
-		crash_spu_info[spu->number].spu = spu;
-	}
-}
-
 #else
-static inline void crash_kexec_stop_spus(void)
-{
-}
-#endif /* CONFIG_SPU_BASE */
+static inline void crash_kexec_wait_realmode(int cpu) {}
+#endif	/* CONFIG_SMP && CONFIG_PPC_STD_MMU_64 */
 
 /*
  * Register a function to be called on shutdown.  Only use this if you
@@ -409,23 +342,10 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	crashing_cpu = smp_processor_id();
 	crash_save_cpu(regs, crashing_cpu);
 	crash_kexec_prepare_cpus(crashing_cpu);
-	cpu_set(crashing_cpu, cpus_in_crash);
-#if defined(CONFIG_PPC_STD_MMU_64) && defined(CONFIG_SMP)
+	cpumask_set_cpu(crashing_cpu, &cpus_in_crash);
 	crash_kexec_wait_realmode(crashing_cpu);
-#endif
 
-	for_each_irq(i) {
-		struct irq_desc *desc = irq_to_desc(i);
-
-		if (!desc || !desc->chip || !desc->chip->eoi)
-			continue;
-
-		if (desc->status & IRQ_INPROGRESS)
-			desc->chip->eoi(i);
-
-		if (!(desc->status & IRQ_DISABLED))
-			desc->chip->shutdown(i);
-	}
+	machine_kexec_mask_interrupts();
 
 	/*
 	 * Call registered shutdown routines savely.  Swap out
@@ -449,8 +369,6 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	}
 	crash_shutdown_cpu = -1;
 	__debugger_fault_handler = old_handler;
-
-	crash_kexec_stop_spus();
 
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(1, 0);

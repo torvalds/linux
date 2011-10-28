@@ -196,31 +196,5 @@ struct ccsr_ssi {
 #define CCSR_SSI_SOR_WAIT(x) (((x) & 3) << CCSR_SSI_SOR_WAIT_SHIFT)
 #define CCSR_SSI_SOR_SYNRST 		0x00000001
 
-/* Instantiation data for an SSI interface
- *
- * This structure contains all the information that the the SSI driver needs
- * to instantiate an SSI interface with ALSA.  The machine driver should
- * create this structure, fill it in, call fsl_ssi_create_dai(), and then
- * delete the structure.
- *
- * id: which SSI this is (0, 1, etc. )
- * ssi: pointer to the SSI's registers
- * ssi_phys: physical address of the SSI registers
- * irq: IRQ of this SSI
- * dev: struct device, used to create the sysfs statistics file
- * asynchronous: 0=synchronous mode, 1=asynchronous mode
-*/
-struct fsl_ssi_info {
-	unsigned int id;
-	struct ccsr_ssi __iomem *ssi;
-	dma_addr_t ssi_phys;
-	unsigned int irq;
-	struct device *dev;
-	int asynchronous;
-};
-
-struct snd_soc_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info);
-void fsl_ssi_destroy_dai(struct snd_soc_dai *fsl_ssi_dai);
-
 #endif
 

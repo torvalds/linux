@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/major.h>
 #include <linux/fb.h>
 #include <linux/interrupt.h>
@@ -25,7 +25,7 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
-#include <mach/pxa2xx_spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -50,6 +50,7 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/pm.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 #include "clock.h"
@@ -121,15 +122,15 @@ EXPORT_SYMBOL(lubbock_set_misc_wr);
 
 static unsigned long lubbock_irq_enabled;
 
-static void lubbock_mask_irq(unsigned int irq)
+static void lubbock_mask_irq(struct irq_data *d)
 {
-	int lubbock_irq = (irq - LUBBOCK_IRQ(0));
+	int lubbock_irq = (d->irq - LUBBOCK_IRQ(0));
 	LUB_IRQ_MASK_EN = (lubbock_irq_enabled &= ~(1 << lubbock_irq));
 }
 
-static void lubbock_unmask_irq(unsigned int irq)
+static void lubbock_unmask_irq(struct irq_data *d)
 {
-	int lubbock_irq = (irq - LUBBOCK_IRQ(0));
+	int lubbock_irq = (d->irq - LUBBOCK_IRQ(0));
 	/* the irq can be acknowledged only if deasserted, so it's done here */
 	LUB_IRQ_SET_CLR &= ~(1 << lubbock_irq);
 	LUB_IRQ_MASK_EN = (lubbock_irq_enabled |= (1 << lubbock_irq));
@@ -137,16 +138,17 @@ static void lubbock_unmask_irq(unsigned int irq)
 
 static struct irq_chip lubbock_irq_chip = {
 	.name		= "FPGA",
-	.ack		= lubbock_mask_irq,
-	.mask		= lubbock_mask_irq,
-	.unmask		= lubbock_unmask_irq,
+	.irq_ack	= lubbock_mask_irq,
+	.irq_mask	= lubbock_mask_irq,
+	.irq_unmask	= lubbock_unmask_irq,
 };
 
 static void lubbock_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long pending = LUB_IRQ_SET_CLR & lubbock_irq_enabled;
 	do {
-		desc->chip->ack(irq);	/* clear our parent irq */
+		/* clear our parent irq */
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 		if (likely(pending)) {
 			irq = LUBBOCK_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);
@@ -163,42 +165,33 @@ static void __init lubbock_init_irq(void)
 
 	/* setup extra lubbock irqs */
 	for (irq = LUBBOCK_IRQ(0); irq <= LUBBOCK_LAST_IRQ; irq++) {
-		set_irq_chip(irq, &lubbock_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &lubbock_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
-	set_irq_chained_handler(IRQ_GPIO(0), lubbock_irq_handler);
-	set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
+	irq_set_chained_handler(IRQ_GPIO(0), lubbock_irq_handler);
+	irq_set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
 }
 
 #ifdef CONFIG_PM
 
-static int lubbock_irq_resume(struct sys_device *dev)
+static void lubbock_irq_resume(void)
 {
 	LUB_IRQ_MASK_EN = lubbock_irq_enabled;
-	return 0;
 }
 
-static struct sysdev_class lubbock_irq_sysclass = {
-	.name = "cpld_irq",
+static struct syscore_ops lubbock_irq_syscore_ops = {
 	.resume = lubbock_irq_resume,
-};
-
-static struct sys_device lubbock_irq_device = {
-	.cls = &lubbock_irq_sysclass,
 };
 
 static int __init lubbock_irq_device_init(void)
 {
-	int ret = -ENODEV;
-
 	if (machine_is_lubbock()) {
-		ret = sysdev_class_register(&lubbock_irq_sysclass);
-		if (ret == 0)
-			ret = sysdev_register(&lubbock_irq_device);
+		register_syscore_ops(&lubbock_irq_syscore_ops);
+		return 0;
 	}
-	return ret;
+	return -ENODEV;
 }
 
 device_initcall(lubbock_irq_device_init);
@@ -229,7 +222,7 @@ static struct resource sa1111_resources[] = {
 };
 
 static struct sa1111_platform_data sa1111_info = {
-	.irq_base	= IRQ_BOARD_END,
+	.irq_base	= LUBBOCK_SA1111_IRQ_BASE,
 };
 
 static struct platform_device sa1111_device = {
@@ -519,13 +512,13 @@ static void __init lubbock_init(void)
 
 	clk_add_alias("SA1111_CLK", NULL, "GPIO11_CLK", NULL);
 	pxa_set_udc_info(&udc_info);
-	set_pxa_fb_info(&sharp_lm8v31);
+	pxa_set_fb_info(NULL, &sharp_lm8v31);
 	pxa_set_mci_info(&lubbock_mci_platform_data);
 	pxa_set_ficp_info(&lubbock_ficp_platform_data);
 	pxa_set_ac97_info(NULL);
 
 	lubbock_flash_data[0].width = lubbock_flash_data[1].width =
-		(BOOT_DEF & 1) ? 2 : 4;
+		(__raw_readl(BOOT_DEF) & 1) ? 2 : 4;
 	/* Compensate for the nROMBT switch which swaps the flash banks */
 	printk(KERN_NOTICE "Lubbock configured to boot from %s (bank %d)\n",
 	       flashboot?"Flash":"ROM", flashboot);
@@ -549,7 +542,7 @@ static struct map_desc lubbock_io_desc[] __initdata = {
 
 static void __init lubbock_map_io(void)
 {
-	pxa_map_io();
+	pxa25x_map_io();
 	iotable_init(lubbock_io_desc, ARRAY_SIZE(lubbock_io_desc));
 
 	PCFR |= PCFR_OPDE;
@@ -557,9 +550,8 @@ static void __init lubbock_map_io(void)
 
 MACHINE_START(LUBBOCK, "Intel DBPXA250 Development Platform (aka Lubbock)")
 	/* Maintainer: MontaVista Software Inc. */
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= lubbock_map_io,
+	.nr_irqs	= LUBBOCK_NR_IRQS,
 	.init_irq	= lubbock_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= lubbock_init,

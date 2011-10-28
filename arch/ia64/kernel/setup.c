@@ -479,25 +479,7 @@ static __init int setup_nomca(char *s)
 }
 early_param("nomca", setup_nomca);
 
-/*
- * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
- * is_kdump_kernel() to determine if we are booting after a panic. Hence
- * ifdef it under CONFIG_CRASH_DUMP and not CONFIG_PROC_VMCORE.
- */
 #ifdef CONFIG_CRASH_DUMP
-/* elfcorehdr= specifies the location of elf core header
- * stored by the crashed kernel.
- */
-static int __init parse_elfcorehdr(char *arg)
-{
-	if (!arg)
-		return -EINVAL;
-
-        elfcorehdr_addr = memparse(arg, &arg);
-	return 0;
-}
-early_param("elfcorehdr", parse_elfcorehdr);
-
 int __init reserve_elfcorehdr(u64 *start, u64 *end)
 {
 	u64 length;
@@ -593,10 +575,6 @@ setup_arch (char **cmdline_p)
 
 	cpu_init();	/* initialize the bootstrap CPU */
 	mmu_context_init();	/* initialize context_id bitmap */
-
-#ifdef CONFIG_ACPI
-	acpi_boot_init();
-#endif
 
 	paravirt_banner();
 	paravirt_arch_setup_console(cmdline_p);

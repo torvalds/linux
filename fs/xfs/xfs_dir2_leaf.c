@@ -961,7 +961,7 @@ xfs_dir2_leaf_getdents(
 				if (i > ra_current &&
 				    map[ra_index].br_blockcount >=
 				    mp->m_dirblkfsbs) {
-					xfs_baread(mp->m_ddev_targp,
+					xfs_buf_readahead(mp->m_ddev_targp,
 						XFS_FSB_TO_DADDR(mp,
 						   map[ra_index].br_startblock +
 						   ra_offset),

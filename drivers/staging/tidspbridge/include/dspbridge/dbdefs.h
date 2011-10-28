@@ -31,9 +31,6 @@
 /* API return value and calling convention */
 #define DBAPI                       int
 
-/* Infinite time value for the utimeout parameter to DSPStream_Select() */
-#define DSP_FOREVER                 (-1)
-
 /* Maximum length of node name, used in dsp_ndbprops */
 #define DSP_MAXNAMELEN              32
 
@@ -74,15 +71,8 @@
 #define DSP_NODE_MIN_PRIORITY       1
 #define DSP_NODE_MAX_PRIORITY       15
 
-/* Pre-Defined Message Command Codes available to user: */
-#define DSP_RMSUSERCODESTART RMS_USER	/* Start of RMS user cmd codes */
-/* end of user codes */
-#define DSP_RMSUSERCODEEND (RMS_USER + RMS_MAXUSERCODES);
 /* msg_ctrl contains SM buffer description */
 #define DSP_RMSBUFDESC RMS_BUFDESC
-
-/* Shared memory identifier for MEM segment named "SHMSEG0" */
-#define DSP_SHMSEG0     (u32)(-1)
 
 /* Processor ID numbers */
 #define DSP_UNIT    0
@@ -90,15 +80,6 @@
 
 #define DSPWORD       unsigned char
 #define DSPWORDSIZE     sizeof(DSPWORD)
-
-/* Power control enumerations */
-#define PROC_PWRCONTROL             0x8070
-
-#define PROC_PWRMGT_ENABLE          (PROC_PWRCONTROL + 0x3)
-#define PROC_PWRMGT_DISABLE         (PROC_PWRCONTROL + 0x4)
-
-/* Bridge Code Version */
-#define BRIDGE_VERSION_CODE         333
 
 #define    MAX_PROFILES     16
 
@@ -118,12 +99,12 @@ static inline bool is_valid_proc_event(u32 x)
 
 /* The Node UUID structure */
 struct dsp_uuid {
-	u32 ul_data1;
-	u16 us_data2;
-	u16 us_data3;
-	u8 uc_data4;
-	u8 uc_data5;
-	u8 uc_data6[6];
+	u32 data1;
+	u16 data2;
+	u16 data3;
+	u8 data4;
+	u8 data5;
+	u8 data6[6];
 };
 
 /* DCD types */
@@ -227,11 +208,11 @@ enum dsp_flushtype {
 
 /* Memory Segment Status Values */
 struct dsp_memstat {
-	u32 ul_size;
-	u32 ul_total_free_size;
-	u32 ul_len_max_free_block;
-	u32 ul_num_free_blocks;
-	u32 ul_num_alloc_blocks;
+	u32 size;
+	u32 total_free_size;
+	u32 len_max_free_block;
+	u32 num_free_blocks;
+	u32 num_alloc_blocks;
 };
 
 /* Processor Load information Values */
@@ -248,11 +229,11 @@ struct dsp_strmattr {
 	u32 buf_size;		/* Buffer size (DSP words) */
 	u32 num_bufs;		/* Number of buffers */
 	u32 buf_alignment;	/* Buffer alignment */
-	u32 utimeout;		/* Timeout for blocking STRM calls */
+	u32 timeout;		/* Timeout for blocking STRM calls */
 	enum dsp_strmmode strm_mode;	/* mode of stream when opened */
 	/* DMA chnl id if dsp_strmmode is LDMA or RDMA */
-	u32 udma_chnl_id;
-	u32 udma_priority;	/* DMA channel priority 0=lowest, >0=high */
+	u32 dma_chnl_id;
+	u32 dma_priority;	/* DMA channel priority 0=lowest, >0=high */
 };
 
 /* The dsp_cbdata structure */
@@ -263,9 +244,9 @@ struct dsp_cbdata {
 
 /* The dsp_msg structure */
 struct dsp_msg {
-	u32 dw_cmd;
-	u32 dw_arg1;
-	u32 dw_arg2;
+	u32 cmd;
+	u32 arg1;
+	u32 arg2;
 };
 
 /* The dsp_resourcereqmts structure for node's resource requirements */
@@ -274,9 +255,9 @@ struct dsp_resourcereqmts {
 	u32 static_data_size;
 	u32 global_data_size;
 	u32 program_mem_size;
-	u32 uwc_execution_time;
-	u32 uwc_period;
-	u32 uwc_deadline;
+	u32 wc_execution_time;
+	u32 wc_period;
+	u32 wc_deadline;
 	u32 avg_exection_time;
 	u32 minimum_period;
 };
@@ -295,7 +276,7 @@ struct dsp_streamconnect {
 };
 
 struct dsp_nodeprofs {
-	u32 ul_heap_size;
+	u32 heap_size;
 };
 
 /* The dsp_ndbprops structure reports the attributes of a node */
@@ -313,7 +294,7 @@ struct dsp_ndbprops {
 	u32 message_depth;
 	u32 num_input_streams;
 	u32 num_output_streams;
-	u32 utimeout;
+	u32 timeout;
 	u32 count_profiles;	/* Number of supported profiles */
 	/* Array of profiles */
 	struct dsp_nodeprofs node_profiles[MAX_PROFILES];
@@ -325,7 +306,7 @@ struct dsp_ndbprops {
 struct dsp_nodeattrin {
 	u32 cb_struct;
 	s32 prio;
-	u32 utimeout;
+	u32 timeout;
 	u32 profile_id;
 	/* Reserved, for Bridge Internal use only */
 	u32 heap_size;
@@ -359,14 +340,14 @@ struct dsp_nodeattr {
  *  window handle.
  */
 struct dsp_notification {
-	char *ps_name;
+	char *name;
 	void *handle;
 };
 
 /* The dsp_processorattrin structure describes the attributes of a processor */
 struct dsp_processorattrin {
 	u32 cb_struct;
-	u32 utimeout;
+	u32 timeout;
 };
 /*
  * The dsp_processorinfo structure describes basic capabilities of a
@@ -377,8 +358,8 @@ struct dsp_processorinfo {
 	int processor_family;
 	int processor_type;
 	u32 clock_rate;
-	u32 ul_internal_mem_size;
-	u32 ul_external_mem_size;
+	u32 internal_mem_size;
+	u32 external_mem_size;
 	u32 processor_id;
 	int ty_running_rtos;
 	s32 node_min_priority;
@@ -387,10 +368,10 @@ struct dsp_processorinfo {
 
 /* Error information of last DSP exception signalled to the GPP */
 struct dsp_errorinfo {
-	u32 dw_err_mask;
-	u32 dw_val1;
-	u32 dw_val2;
-	u32 dw_val3;
+	u32 err_mask;
+	u32 val1;
+	u32 val2;
+	u32 val3;
 };
 
 /* The dsp_processorstate structure describes the state of a DSP processor */
@@ -407,7 +388,7 @@ struct dsp_resourceinfo {
 	u32 cb_struct;
 	enum dsp_resourceinfotype resource_type;
 	union {
-		u32 ul_resource;
+		u32 resource;
 		struct dsp_memstat mem_stat;
 		struct dsp_procloadstat proc_load_stat;
 	} result;
@@ -420,13 +401,13 @@ struct dsp_resourceinfo {
  */
 struct dsp_streamattrin {
 	u32 cb_struct;
-	u32 utimeout;
+	u32 timeout;
 	u32 segment_id;
 	u32 buf_alignment;
 	u32 num_bufs;
 	enum dsp_strmmode strm_mode;
-	u32 udma_chnl_id;
-	u32 udma_priority;
+	u32 dma_chnl_id;
+	u32 dma_priority;
 };
 
 /* The dsp_bufferattr structure describes the attributes of a data buffer */
@@ -444,7 +425,7 @@ struct dsp_streaminfo {
 	u32 cb_struct;
 	u32 number_bufs_allowed;
 	u32 number_bufs_in_stream;
-	u32 ul_number_bytes;
+	u32 number_bytes;
 	void *sync_object_handle;
 	enum dsp_streamstate ss_stream_state;
 };
@@ -500,13 +481,6 @@ bit 15 - Output (writeable) buffer
 
 #define DSPPROCTYPE_C64		6410
 #define IVAPROCTYPE_ARM7	470
-
-#define REG_MGR_OBJECT	1
-#define REG_DRV_OBJECT	2
-
-/* registry */
-#define DRVOBJECT	"DrvObject"
-#define MGROBJECT	"MgrObject"
 
 /* Max registry path length. Also the max registry value length. */
 #define MAXREGPATHLENGTH	255

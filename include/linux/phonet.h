@@ -36,6 +36,7 @@
 /* Socket options for SOL_PNPIPE level */
 #define PNPIPE_ENCAP		1
 #define PNPIPE_IFINDEX		2
+#define PNPIPE_HANDLE		3
 
 #define PNADDR_ANY		0
 #define PNADDR_BROADCAST	0xFC
@@ -47,6 +48,8 @@
 
 /* ioctls */
 #define SIOCPNGETOBJECT		(SIOCPROTOPRIVATE + 0)
+#define SIOCPNADDRESOURCE	(SIOCPROTOPRIVATE + 14)
+#define SIOCPNDELRESOURCE	(SIOCPROTOPRIVATE + 15)
 
 /* Phonet protocol header */
 struct phonethdr {

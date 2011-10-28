@@ -27,22 +27,7 @@ The device class structure looks like:
 typedef int (*devclass_add)(struct device *);
 typedef void (*devclass_remove)(struct device *);
 
-struct device_class {
-	char			* name;
-	rwlock_t		lock;
-	u32			devnum;
-	struct list_head	node;
-
-	struct list_head	drivers;
-	struct list_head	intf_list;
-
-	struct driver_dir_entry	dir;
-	struct driver_dir_entry	device_dir;
-	struct driver_dir_entry	driver_dir;
-
-	devclass_add		add_device;
-	devclass_remove		remove_device;
-};
+See the kerneldoc for the struct class.
 
 A typical device class definition would look like: 
 

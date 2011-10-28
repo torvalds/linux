@@ -59,8 +59,6 @@
 #include <asm/uaccess.h>        /* copy_to/from_user */
 #include <linux/init.h>         /* __initfunc et al. */
 
-#define KMEM_SAFETYZONE 8
-
 #define DEV_TO_SLAVE(dev)	(*((struct net_device **)netdev_priv(dev)))
 
 /*
@@ -471,7 +469,7 @@ static int wanrouter_device_setup(struct wan_device *wandev,
 		data = vmalloc(conf->data_size);
 		if (!data) {
 			printk(KERN_INFO
-				"%s: ERROR, Faild allocate kernel memory !\n",
+				"%s: ERROR, Failed allocate kernel memory !\n",
 				wandev->name);
 			kfree(conf);
 			return -ENOBUFS;
@@ -481,7 +479,7 @@ static int wanrouter_device_setup(struct wan_device *wandev,
 			err = wandev->setup(wandev, conf);
 		} else {
 			printk(KERN_INFO
-			     "%s: ERROR, Faild to copy from user data !\n",
+			     "%s: ERROR, Failed to copy from user data !\n",
 			       wandev->name);
 			err = -EFAULT;
 		}

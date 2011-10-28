@@ -2,9 +2,16 @@
 # Misc strange devices
 #
 
+# This one has to live outside of the MISC_DEVICES conditional,
+# because it may be selected by drivers/platform/x86/hp_accel.
+config SENSORS_LIS3LV02D
+	tristate
+	depends on INPUT
+	select INPUT_POLLDEV
+	default n
+
 menuconfig MISC_DEVICES
 	bool "Misc devices"
-	default y
 	---help---
 	  Say Y here to get to see options for device drivers from various
 	  different categories. This option alone does not add any kernel code.
@@ -24,7 +31,8 @@ config AD525X_DPOT
 	  AD5260, AD5262, AD5263, AD5290, AD5291, AD5292, AD5293,
 	  AD7376, AD8400, AD8402, AD8403, ADN2850, AD5241, AD5242,
 	  AD5243, AD5245, AD5246, AD5247, AD5248, AD5280, AD5282,
-	  ADN2860, AD5273, AD5171, AD5170, AD5172, AD5173
+	  ADN2860, AD5273, AD5171, AD5170, AD5172, AD5173, AD5270,
+	  AD5271, AD5272, AD5274
 	  digital potentiometer chips.
 
 	  See Documentation/misc-devices/ad525x_dpot.txt for the
@@ -53,6 +61,10 @@ config AD525X_DPOT_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad525x_dpot-spi.
 
+config ANDROID_PMEM
+	bool "Android pmem allocator"
+	default y
+
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
 	depends on AVR32 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9
@@ -61,6 +73,15 @@ config ATMEL_PWM
 	  on certain Atmel processors.  Pulse Width Modulation is used for
 	  purposes including software controlled power-efficient backlights
 	  on LCD displays, motor control, and waveform generation.
+
+config AB8500_PWM
+	bool "AB8500 PWM support"
+	depends on AB8500_CORE && ARCH_U8500
+	select HAVE_PWM
+	help
+	  This driver exports functions to enable/disble/config/free Pulse
+	  Width Modulation in the Analog Baseband Chip AB8500.
+	  It is used by led and backlight driver to control the intensity.
 
 config ATMEL_TCLIB
 	bool "Atmel AT32/AT91 Timer/Counter Library"
@@ -112,8 +133,8 @@ config IBM_ASM
 
 	  WARNING: This software may not be supported or function
 	  correctly on your IBM server. Please consult the IBM ServerProven
-	  website <http://www.pc.ibm.com/ww/eserver/xseries/serverproven> for
-	  information on the specific driver level and support statement
+	  website <http://www-03.ibm.com/systems/info/x86servers/serverproven/compat/us/>
+	  for information on the specific driver level and support statement
 	  for your IBM server.
 
 config PHANTOM
@@ -126,6 +147,19 @@ config PHANTOM
 
 	  If you choose to build module, its name will be phantom. If unsure,
 	  say N here.
+
+config INTEL_MID_PTI
+	tristate "Parallel Trace Interface for MIPI P1149.7 cJTAG standard"
+	default n
+	help
+	  The PTI (Parallel Trace Interface) driver directs
+	  trace data routed from various parts in the system out
+	  through an Intel Penwell PTI port and out of the mobile
+	  device for analysis with a debugging tool (Lauterbach or Fido).
+
+	  You should select this driver if the target kernel is meant for
+	  an Intel Atom (non-netbook) mobile device containing a MIPI
+	  P1149.7 standard implementation.
 
 config SGI_IOC4
 	tristate "SGI IOC4 Base IO support"
@@ -199,6 +233,13 @@ config ENCLOSURE_SERVICES
 	  driver (SCSI/ATA) which supports enclosures
 	  or a SCSI enclosure device (SES) to use these services.
 
+config KERNEL_DEBUGGER_CORE
+	bool "Kernel Debugger Core"
+	default n
+	---help---
+	  Generic kernel debugging command processor used by low level
+	  (interrupt context) platform-specific debuggers.
+
 config SGI_XP
 	tristate "Support communication between SGI SSIs"
 	depends on NET
@@ -215,8 +256,7 @@ config SGI_XP
 
 config CS5535_MFGPT
 	tristate "CS5535/CS5536 Geode Multi-Function General Purpose Timer (MFGPT) support"
-	depends on PCI
-	depends on X86
+	depends on PCI && X86 && MFD_CS5535
 	default n
 	help
 	  This driver provides access to MFGPT functionality for other
@@ -248,15 +288,15 @@ config CS5535_CLOCK_EVENT_SRC
 	  generic PIT, and are suitable for use as high-res timers.
 
 config HP_ILO
-	tristate "Channel interface driver for HP iLO/iLO2 processor"
+	tristate "Channel interface driver for the HP iLO processor"
 	depends on PCI
 	default n
 	help
 	  The channel interface driver allows applications to communicate
-	  with iLO/iLO2 management processors present on HP ProLiant
-	  servers.  Upon loading, the driver creates /dev/hpilo/dXccbN files,
-	  which can be used to gather data from the management processor,
-	  via read and write system calls.
+	  with iLO management processors present on HP ProLiant servers.
+	  Upon loading, the driver creates /dev/hpilo/dXccbN files, which
+	  can be used to gather data from the management processor, via
+	  read and write system calls.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hpilo.
@@ -284,6 +324,16 @@ config SGI_GRU_DEBUG
 	This option enables addition debugging code for the SGI GRU driver. If
 	you are unsure, say N.
 
+config APDS9802ALS
+	tristate "Medfield Avago APDS9802 ALS Sensor module"
+	depends on I2C
+	help
+	  If you say yes here you get support for the ALS APDS9802 ambient
+	  light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called apds9802als.
+
 config ISL29003
 	tristate "Intersil ISL29003 ambient light sensor"
 	depends on I2C && SYSFS
@@ -293,6 +343,16 @@ config ISL29003
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called isl29003.
+
+config ISL29020
+	tristate "Intersil ISL29020 ambient light sensor"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Intersil ISL29020
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called isl29020.
 
 config SENSORS_TSL2550
 	tristate "Taos TSL2550 ambient light sensor"
@@ -314,12 +374,41 @@ config SENSORS_BH1780
 	  This driver can also be built as a module.  If so, the module
 	  will be called bh1780gli.
 
+config SENSORS_BH1770
+         tristate "BH1770GLC / SFH7770 combined ALS - Proximity sensor"
+         depends on I2C
+         ---help---
+           Say Y here if you want to build a driver for BH1770GLC (ROHM) or
+	   SFH7770 (Osram) combined ambient light and proximity sensor chip.
+
+           To compile this driver as a module, choose M here: the
+           module will be called bh1770glc. If unsure, say N here.
+
+config SENSORS_APDS990X
+	 tristate "APDS990X combined als and proximity sensors"
+	 depends on I2C
+	 default n
+	 ---help---
+	   Say Y here if you want to build a driver for Avago APDS990x
+	   combined ambient light and proximity sensor chip.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called apds990x. If unsure, say N here.
+
 config HMC6352
 	tristate "Honeywell HMC6352 compass"
 	depends on I2C
 	help
 	  This driver provides support for the Honeywell HMC6352 compass,
 	  providing configuration and heading data via sysfs.
+
+config SENSORS_AK8975
+	tristate "AK8975 compass support"
+	default n
+	depends on I2C
+	help
+	  If you say yes here you get support for Asahi Kasei's
+	  orientation sensor AK8975.
 
 config EP93XX_PWM
 	tristate "EP93xx PWM support"
@@ -344,6 +433,16 @@ config DS1682
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1682.
 
+config SPEAR13XX_PCIE_GADGET
+	bool "PCIe gadget support for SPEAr13XX platform"
+	depends on ARCH_SPEAR13XX
+	default n
+	help
+	 This option enables gadget support for PCIe controller. If
+	 board file defines any controller as PCIe endpoint then a sysfs
+	 entry will be created for that controller. User can use these
+	 sysfs node to configure PCIe EP as per his requirements.
+
 config TI_DAC7512
 	tristate "Texas Instruments DAC7512"
 	depends on SPI && SYSFS
@@ -352,7 +451,11 @@ config TI_DAC7512
 	  DAC7512 16-bit digital-to-analog converter.
 
 	  This driver can also be built as a module. If so, the module
-	  will be calles ti_dac7512.
+	  will be called ti_dac7512.
+
+config UID_STAT
+	bool "UID based statistics tracking exported to /proc/uid_stat"
+	default n
 
 config VMWARE_BALLOON
 	tristate "VMware Balloon Driver"
@@ -385,14 +488,59 @@ config BMP085
 	depends on I2C && SYSFS
 	help
 	  If you say yes here you get support for the Bosch Sensortec
-	  BMP086 digital pressure sensor.
+	  BMP085 digital pressure sensor.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bmp085.
+
+config PCH_PHUB
+	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR IOH(ML7213/ML7223) PHUB"
+	depends on PCI
+	help
+	  This driver is for PCH(Platform controller Hub) PHUB(Packet Hub) of
+	  Intel Topcliff which is an IOH(Input/Output Hub) for x86 embedded
+	  processor. The Topcliff has MAC address and Option ROM data in SROM.
+	  This driver can access MAC address and Option ROM data in SROM.
+
+	  This driver also can be used for OKI SEMICONDUCTOR IOH(Input/
+	  Output Hub), ML7213 and ML7223.
+	  ML7213 IOH is for IVI(In-Vehicle Infotainment) use and ML7223 IOH is
+	  for MP(Media Phone) use.
+	  ML7213/ML7223 is companion chip for Intel Atom E6xx series.
+	  ML7213/ML7223 is completely compatible for Intel EG20T PCH.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called pch_phub.
+
+config WL127X_RFKILL
+	tristate "Bluetooth power control driver for TI wl127x"
+	depends on RFKILL
+	default n
+	---help---
+	 Creates an rfkill entry in sysfs for power control of Bluetooth
+	 TI wl127x chips.
+
+config APANIC
+	bool "Android kernel panic diagnostics driver"
+	default n
+	---help---
+	 Driver which handles kernel panics and attempts to write
+	 critical debugging data to flash.
+
+config APANIC_PLABEL
+	string "Android panic dump flash partition label"
+	depends on APANIC
+	default "kpanic"
+	---help---
+	 If your platform uses a different flash partition label for storing
+ 	 crashdumps, enter it here.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
 source "drivers/misc/iwmc3200top/Kconfig"
+source "drivers/misc/ti-st/Kconfig"
+source "drivers/misc/lis3lv02d/Kconfig"
+source "drivers/misc/carma/Kconfig"
 
 endif # MISC_DEVICES

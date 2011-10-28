@@ -72,9 +72,6 @@ pcibios_align_resource(void *data, const struct resource *res,
 			return start;
 		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
-	} else if (res->flags & IORESOURCE_MEM) {
-		if (start < BIOS_END)
-			start = BIOS_END;
 	}
 	return start;
 }
@@ -244,7 +241,7 @@ void __init pcibios_resource_survey(void)
 	e820_reserve_resources_late();
 	/*
 	 * Insert the IO APIC resources after PCI initialization has
-	 * occured to handle IO APICS that are mapped in on a BAR in
+	 * occurred to handle IO APICS that are mapped in on a BAR in
 	 * PCI space, but before trying to assign unassigned pci res.
 	 */
 	ioapic_insert_resources();
@@ -307,9 +304,11 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		/*
 		 * ioremap() and ioremap_nocache() defaults to UC MINUS for now.
 		 * To avoid attribute conflicts, request UC MINUS here
-		 * aswell.
+		 * as well.
 		 */
 		prot |= _PAGE_CACHE_UC_MINUS;
+
+	prot |= _PAGE_IOMAP;	/* creating a mapping for IO */
 
 	vma->vm_page_prot = __pgprot(prot);
 

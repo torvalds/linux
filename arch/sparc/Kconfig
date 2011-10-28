@@ -1,9 +1,3 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux/SPARC Kernel Configuration"
-
 config 64BIT
 	bool "64-bit kernel" if ARCH = "sparc"
 	default ARCH = "sparc64"
@@ -19,6 +13,7 @@ config SPARC
 	bool
 	default y
 	select OF
+	select OF_PROMTREE
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_ARCH_KGDB if !SMP || SPARC64
@@ -26,10 +21,13 @@ config SPARC
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select RTC_CLASS
 	select RTC_DRV_M48T59
-	select HAVE_PERF_EVENTS
-	select PERF_USE_VMALLOC
+	select HAVE_IRQ_WORK
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
+	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_SHOW
+	select USE_GENERIC_SMP_HELPERS if SMP
 
 config SPARC32
 	def_bool !64BIT
@@ -48,13 +46,13 @@ config SPARC64
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_SYSCALL_TRACEPOINTS
-	select USE_GENERIC_SMP_HELPERS if SMP
 	select RTC_DRV_CMOS
 	select RTC_DRV_BQ4802
 	select RTC_DRV_SUN4V
 	select RTC_DRV_STARFIRE
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
+	select IRQ_PREFLOW_FASTEOI
 
 config ARCH_DEFCONFIG
 	string
@@ -110,10 +108,6 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
 	def_bool y if SPARC64
 
 config NEED_PER_CPU_PAGE_FIRST_CHUNK
-	def_bool y if SPARC64
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	bool
 	def_bool y if SPARC64
 
 config MMU
@@ -194,10 +188,6 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y if SPARC64
-
-config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
 
 config GENERIC_HWEIGHT
 	bool
@@ -280,10 +270,6 @@ config HOTPLUG_CPU
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
-
-config GENERIC_HARDIRQS
-	bool
-	default y if SPARC64
 
 source "kernel/time/Kconfig"
 
@@ -472,6 +458,39 @@ config SPARC_LEON
 	  from www.gaisler.com. You can download a sparc-linux cross-compilation
 	  toolchain at www.gaisler.com.
 
+if SPARC_LEON
+menu "U-Boot options"
+
+config UBOOT_LOAD_ADDR
+	hex "uImage Load Address"
+	default 0x40004000
+	---help---
+	 U-Boot kernel load address, the address in physical address space
+	 where u-boot will place the Linux kernel before booting it.
+	 This address is normally the base address of main memory + 0x4000.
+
+config UBOOT_FLASH_ADDR
+	hex "uImage.o Load Address"
+	default 0x00080000
+	---help---
+	 Optional setting only affecting the uImage.o ELF-image used to
+	 download the uImage file to the target using a ELF-loader other than
+	 U-Boot. It may for example be used to download an uImage to FLASH with
+	 the GRMON utility before even starting u-boot.
+
+config UBOOT_ENTRY_ADDR
+	hex "uImage Entry Address"
+	default 0xf0004000
+	---help---
+	 Do not change this unless you know what you're doing. This is
+	 hardcoded by the SPARC32 and LEON port.
+
+	 This is the virtual address u-boot jumps to when booting the Linux
+	 Kernel.
+
+endmenu
+endif
+
 endmenu
 
 menu "Bus options (PCI etc.)"
@@ -507,6 +526,23 @@ config PCI_DOMAINS
 
 config PCI_SYSCALL
 	def_bool PCI
+
+config PCIC_PCI
+	bool
+	depends on PCI && SPARC32 && !SPARC_LEON
+	default y
+
+config LEON_PCI
+	bool
+	depends on PCI && SPARC_LEON
+	default y
+
+config GRPCI2
+	bool "GRPCI2 Host Bridge Support"
+	depends on LEON_PCI
+	default y
+	help
+	  Say Y here to include the GRPCI2 Host Bridge Driver.
 
 source "drivers/pci/Kconfig"
 

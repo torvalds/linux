@@ -162,5 +162,5 @@ krb5_get_seq_num(struct krb5_ctx *kctx,
 	*seqnum = ((plain[0]) |
 		   (plain[1] << 8) | (plain[2] << 16) | (plain[3] << 24));
 
-	return (0);
+	return 0;
 }

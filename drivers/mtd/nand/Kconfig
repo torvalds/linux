@@ -1,3 +1,10 @@
+config MTD_NAND_IDS
+	tristate "Include chip ids for known NAND devices."
+	depends on MTD
+	help
+	  Useful for NAND drivers that do not use the NAND subsystem but
+	  still like to take advantage of the known chip information.
+
 config MTD_NAND_ECC
 	tristate
 
@@ -30,6 +37,21 @@ config MTD_NAND_VERIFY_WRITE
 	  from 1 to 0. There is a rare possibility that even though the
 	  device thinks the write was successful, a bit could have been
 	  flipped accidentally due to device wear or something else.
+
+config MTD_NAND_BCH
+	tristate
+	select BCH
+	depends on MTD_NAND_ECC_BCH
+	default MTD_NAND
+
+config MTD_NAND_ECC_BCH
+	bool "Support software BCH ECC"
+	default n
+	help
+	  This enables support for software BCH error correction. Binary BCH
+	  codes are more powerful and cpu intensive than traditional Hamming
+	  ECC codes. They are used with NAND devices requiring more than 1 bit
+	  of error correction.
 
 config MTD_SM_COMMON
 	tristate
@@ -77,7 +99,7 @@ config MTD_NAND_EDB7312
 
 config MTD_NAND_H1900
 	tristate "iPAQ H1900 flash"
-	depends on ARCH_PXA && MTD_PARTITIONS
+	depends on ARCH_PXA
 	help
 	  This enables the driver for the iPAQ h1900 flash.
 
@@ -96,6 +118,7 @@ config MTD_NAND_SPIA
 config MTD_NAND_AMS_DELTA
 	tristate "NAND Flash device on Amstrad E3"
 	depends on MACH_AMS_DELTA
+	default y
 	help
 	  Support for NAND flash on Amstrad E3 (Delta).
 
@@ -240,7 +263,7 @@ config MTD_NAND_BCM_UMI
 	help
 	  This enables the NAND flash controller on the BCM UMI block.
 
-	  No board specfic support is done by this driver, each board
+	  No board specific support is done by this driver, each board
 	  must advertise a platform_device for the driver to attach.
 
 config MTD_NAND_BCM_UMI_HWCS
@@ -406,13 +429,6 @@ config MTD_NAND_PXA3xx
 	  This enables the driver for the NAND flash device found on
 	  PXA3xx processors
 
-config MTD_NAND_PXA3xx_BUILTIN
-	bool "Use builtin definitions for some NAND chips (deprecated)"
-	depends on MTD_NAND_PXA3xx
-	help
-	  This enables builtin definitions for some NAND chips. This
-	  is deprecated in favor of platform specific data.
-
 config MTD_NAND_CM_X270
 	tristate "Support for NAND Flash on CM-X270 modules"
 	depends on MACH_ARMCORE
@@ -433,7 +449,6 @@ config MTD_NAND_TMIO
 
 config MTD_NAND_NANDSIM
 	tristate "Support for NAND Flash Simulator"
-	depends on MTD_PARTITIONS
 	help
 	  The simulator may simulate various NAND flash chips for the
 	  MTD nand layer.
@@ -464,6 +479,7 @@ config MTD_NAND_ORION
 config MTD_NAND_FSL_ELBC
 	tristate "NAND support for Freescale eLBC controllers"
 	depends on PPC_OF
+	select FSL_LBC
 	help
 	  Various Freescale chips, including the 8313, include a NAND Flash
 	  Controller Module with built-in hardware ECC capabilities.
@@ -487,7 +503,7 @@ config MTD_NAND_MPC5121_NFC
 
 config MTD_NAND_MXC
 	tristate "MXC NAND support"
-	depends on ARCH_MX2 || ARCH_MX25 || ARCH_MX3 || ARCH_MX51
+	depends on IMX_HAVE_PLATFORM_MXC_NAND
 	help
 	  This enables the driver for the NAND flash controller on the
 	  MXC processors.
@@ -526,7 +542,7 @@ config MTD_NAND_SOCRATES
 
 config MTD_NAND_NUC900
 	tristate "Support for NAND on Nuvoton NUC9xx/w90p910 evaluation boards."
-	depends on ARCH_W90X900 && MTD_PARTITIONS
+	depends on ARCH_W90X900
 	help
 	  This enables the driver for the NAND Flash on evaluation board based
 	  on w90p910 / NUC9xx.
@@ -536,5 +552,12 @@ config MTD_NAND_JZ4740
 	depends on MACH_JZ4740
 	help
 		Enables support for NAND Flash on JZ4740 SoC based boards.
+
+config MTD_NAND_FSMC
+	tristate "Support for NAND on ST Micros FSMC"
+	depends on PLAT_SPEAR || PLAT_NOMADIK || MACH_U300
+	help
+	  Enables support for NAND Flash chips on the ST Microelectronics
+	  Flexible Static Memory Controller (FSMC)
 
 endif # MTD_NAND

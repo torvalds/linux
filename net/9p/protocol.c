@@ -27,30 +27,15 @@
 
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/kernel.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/stddef.h>
 #include <linux/types.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include "protocol.h"
-
-#ifndef MIN
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-
-#ifndef MAX
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef offset_of
-#define offset_of(type, memb) \
-	((unsigned long)(&((type *)0)->memb))
-#endif
-#ifndef container_of
-#define container_of(obj, type, memb) \
-	((type *)(((char *)obj) - offset_of(type, memb)))
-#endif
 
 static int
 p9pdu_writef(struct p9_fcall *pdu, int proto_version, const char *fmt, ...);
@@ -104,7 +89,7 @@ EXPORT_SYMBOL(p9stat_free);
 
 static size_t pdu_read(struct p9_fcall *pdu, void *data, size_t size)
 {
-	size_t len = MIN(pdu->size - pdu->offset, size);
+	size_t len = min(pdu->size - pdu->offset, size);
 	memcpy(data, &pdu->sdata[pdu->offset], len);
 	pdu->offset += len;
 	return size - len;
@@ -112,7 +97,7 @@ static size_t pdu_read(struct p9_fcall *pdu, void *data, size_t size)
 
 static size_t pdu_write(struct p9_fcall *pdu, const void *data, size_t size)
 {
-	size_t len = MIN(pdu->capacity - pdu->size, size);
+	size_t len = min(pdu->capacity - pdu->size, size);
 	memcpy(&pdu->sdata[pdu->size], data, len);
 	pdu->size += len;
 	return size - len;
@@ -121,13 +106,32 @@ static size_t pdu_write(struct p9_fcall *pdu, const void *data, size_t size)
 static size_t
 pdu_write_u(struct p9_fcall *pdu, const char __user *udata, size_t size)
 {
-	size_t len = MIN(pdu->capacity - pdu->size, size);
-	int err = copy_from_user(&pdu->sdata[pdu->size], udata, len);
-	if (err)
-		printk(KERN_WARNING "pdu_write_u returning: %d\n", err);
+	size_t len = min(pdu->capacity - pdu->size, size);
+	if (copy_from_user(&pdu->sdata[pdu->size], udata, len))
+		len = 0;
 
 	pdu->size += len;
 	return size - len;
+}
+
+static size_t
+pdu_write_urw(struct p9_fcall *pdu, const char *kdata, const char __user *udata,
+		size_t size)
+{
+	BUG_ON(pdu->size > P9_IOHDRSZ);
+	pdu->pubuf = (char __user *)udata;
+	pdu->pkbuf = (char *)kdata;
+	pdu->pbuf_size = size;
+	return 0;
+}
+
+static size_t
+pdu_write_readdir(struct p9_fcall *pdu, const char *kdata, size_t size)
+{
+	BUG_ON(pdu->size > P9_READDIRHDRSZ);
+	pdu->pkbuf = (char *)kdata;
+	pdu->pbuf_size = size;
+	return 0;
 }
 
 /*
@@ -194,27 +198,24 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 			break;
 		case 's':{
 				char **sptr = va_arg(ap, char **);
-				int16_t len;
-				int size;
+				uint16_t len;
 
 				errcode = p9pdu_readf(pdu, proto_version,
 								"w", &len);
 				if (errcode)
 					break;
 
-				size = MAX(len, 0);
-
-				*sptr = kmalloc(size + 1, GFP_KERNEL);
+				*sptr = kmalloc(len + 1, GFP_NOFS);
 				if (*sptr == NULL) {
 					errcode = -EFAULT;
 					break;
 				}
-				if (pdu_read(pdu, *sptr, size)) {
+				if (pdu_read(pdu, *sptr, len)) {
 					errcode = -EFAULT;
 					kfree(*sptr);
 					*sptr = NULL;
 				} else
-					(*sptr)[size] = 0;
+					(*sptr)[len] = 0;
 			}
 			break;
 		case 'Q':{
@@ -250,21 +251,21 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 			}
 			break;
 		case 'D':{
-				int32_t *count = va_arg(ap, int32_t *);
+				uint32_t *count = va_arg(ap, uint32_t *);
 				void **data = va_arg(ap, void **);
 
 				errcode =
 				    p9pdu_readf(pdu, proto_version, "d", count);
 				if (!errcode) {
 					*count =
-					    MIN(*count,
-						pdu->size - pdu->offset);
+					    min_t(uint32_t, *count,
+						  pdu->size - pdu->offset);
 					*data = &pdu->sdata[pdu->offset];
 				}
 			}
 			break;
 		case 'T':{
-				int16_t *nwname = va_arg(ap, int16_t *);
+				uint16_t *nwname = va_arg(ap, uint16_t *);
 				char ***wnames = va_arg(ap, char ***);
 
 				errcode = p9pdu_readf(pdu, proto_version,
@@ -272,7 +273,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				if (!errcode) {
 					*wnames =
 					    kmalloc(sizeof(char *) * *nwname,
-						    GFP_KERNEL);
+						    GFP_NOFS);
 					if (!*wnames)
 						errcode = -ENOMEM;
 				}
@@ -316,7 +317,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 					*wqids =
 					    kmalloc(*nwqid *
 						    sizeof(struct p9_qid),
-						    GFP_KERNEL);
+						    GFP_NOFS);
 					if (*wqids == NULL)
 						errcode = -ENOMEM;
 				}
@@ -420,9 +421,10 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 			break;
 		case 's':{
 				const char *sptr = va_arg(ap, const char *);
-				int16_t len = 0;
+				uint16_t len = 0;
 				if (sptr)
-					len = MIN(strlen(sptr), USHRT_MAX);
+					len = min_t(uint16_t, strlen(sptr),
+								USHRT_MAX);
 
 				errcode = p9pdu_writef(pdu, proto_version,
 								"w", len);
@@ -454,7 +456,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 						 stbuf->n_gid, stbuf->n_muid);
 			} break;
 		case 'D':{
-				int32_t count = va_arg(ap, int32_t);
+				uint32_t count = va_arg(ap, uint32_t);
 				const void *data = va_arg(ap, const void *);
 
 				errcode = p9pdu_writef(pdu, proto_version, "d",
@@ -463,6 +465,26 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 					errcode = -EFAULT;
 			}
 			break;
+		case 'E':{
+				 int32_t cnt = va_arg(ap, int32_t);
+				 const char *k = va_arg(ap, const void *);
+				 const char __user *u = va_arg(ap,
+							const void __user *);
+				 errcode = p9pdu_writef(pdu, proto_version, "d",
+						 cnt);
+				 if (!errcode && pdu_write_urw(pdu, k, u, cnt))
+					errcode = -EFAULT;
+			 }
+			 break;
+		case 'F':{
+				 int32_t cnt = va_arg(ap, int32_t);
+				 const char *k = va_arg(ap, const void *);
+				 errcode = p9pdu_writef(pdu, proto_version, "d",
+						 cnt);
+				 if (!errcode && pdu_write_readdir(pdu, k, cnt))
+					errcode = -EFAULT;
+			 }
+			 break;
 		case 'U':{
 				int32_t count = va_arg(ap, int32_t);
 				const char __user *udata =
@@ -474,7 +496,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 			}
 			break;
 		case 'T':{
-				int16_t nwname = va_arg(ap, int);
+				uint16_t nwname = va_arg(ap, int);
 				const char **wnames = va_arg(ap, const char **);
 
 				errcode = p9pdu_writef(pdu, proto_version, "w",
@@ -597,6 +619,7 @@ EXPORT_SYMBOL(p9stat_read);
 
 int p9pdu_prepare(struct p9_fcall *pdu, int16_t tag, int8_t type)
 {
+	pdu->id = type;
 	return p9pdu_writef(pdu, 0, "dbw", 0, type, tag);
 }
 
@@ -624,6 +647,10 @@ void p9pdu_reset(struct p9_fcall *pdu)
 {
 	pdu->offset = 0;
 	pdu->size = 0;
+	pdu->private = NULL;
+	pdu->pubuf = NULL;
+	pdu->pkbuf = NULL;
+	pdu->pbuf_size = 0;
 }
 
 int p9dirent_read(char *buf, int len, struct p9_dirent *dirent,
@@ -647,6 +674,7 @@ int p9dirent_read(char *buf, int len, struct p9_dirent *dirent,
 	}
 
 	strcpy(dirent->d_name, nameptr);
+	kfree(nameptr);
 
 out:
 	return fake_pdu.offset;

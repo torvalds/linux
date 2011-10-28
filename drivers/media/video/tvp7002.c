@@ -32,6 +32,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ctrls.h>
 #include "tvp7002_reg.h"
 
 MODULE_DESCRIPTION("TI TVP7002 Video and Graphics Digitizer driver");
@@ -330,19 +331,6 @@ static const struct i2c_reg_value tvp7002_parms_720P50[] = {
 	{ TVP7002_EOR, 0xff, TVP7002_RESERVED }
 };
 
-/* Struct list for available formats */
-static const struct v4l2_fmtdesc tvp7002_fmt_list[] = {
-	{
-	 .index = 0,
-	 .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-	 .flags = 0,
-	 .description = "8-bit UYVY 4:2:2 Format",
-	 .pixelformat = V4L2_PIX_FMT_UYVY,
-	},
-};
-
-#define NUM_FORMATS		ARRAY_SIZE(tvp7002_fmt_list)
-
 /* Preset definition for handling device operation */
 struct tvp7002_preset_definition {
 	u32 preset;
@@ -434,14 +422,13 @@ static const struct tvp7002_preset_definition tvp7002_presets[] = {
 /* Device definition */
 struct tvp7002 {
 	struct v4l2_subdev sd;
+	struct v4l2_ctrl_handler hdl;
 	const struct tvp7002_config *pdata;
 
 	int ver;
 	int streaming;
 
-	struct v4l2_pix_format pix;
 	const struct tvp7002_preset_definition *current_preset;
-	u8 gain;
 };
 
 /*
@@ -453,6 +440,11 @@ struct tvp7002 {
 static inline struct tvp7002 *to_tvp7002(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct tvp7002, sd);
+}
+
+static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
+{
+	return &container_of(ctrl->handler, struct tvp7002, hdl)->sd;
 }
 
 /*
@@ -620,156 +612,55 @@ static int tvp7002_s_dv_preset(struct v4l2_subdev *sd,
 }
 
 /*
- * tvp7002_g_ctrl() - Get a control
- * @sd: ptr to v4l2_subdev struct
- * @ctrl: ptr to v4l2_control struct
- *
- * Get a control for a TVP7002 decoder device.
- * Returns zero when successful or -EINVAL if register access fails.
- */
-static int tvp7002_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct tvp7002 *device = to_tvp7002(sd);
-
-	switch (ctrl->id) {
-	case V4L2_CID_GAIN:
-		ctrl->value = device->gain;
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
-/*
  * tvp7002_s_ctrl() - Set a control
- * @sd: ptr to v4l2_subdev struct
- * @ctrl: ptr to v4l2_control struct
+ * @ctrl: ptr to v4l2_ctrl struct
  *
  * Set a control in TVP7002 decoder device.
  * Returns zero when successful or -EINVAL if register access fails.
  */
-static int tvp7002_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+static int tvp7002_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct tvp7002 *device = to_tvp7002(sd);
+	struct v4l2_subdev *sd = to_sd(ctrl);
 	int error = 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_GAIN:
-		tvp7002_write_err(sd, TVP7002_R_FINE_GAIN,
-						ctrl->value & 0xff, &error);
-		tvp7002_write_err(sd, TVP7002_G_FINE_GAIN,
-						ctrl->value & 0xff, &error);
-		tvp7002_write_err(sd, TVP7002_B_FINE_GAIN,
-						ctrl->value & 0xff, &error);
-
-		if (error < 0)
-			return error;
-
-		/* Set only after knowing there is no error */
-		device->gain = ctrl->value & 0xff;
-		return 0;
-	default:
-		return -EINVAL;
+		tvp7002_write_err(sd, TVP7002_R_FINE_GAIN, ctrl->val, &error);
+		tvp7002_write_err(sd, TVP7002_G_FINE_GAIN, ctrl->val, &error);
+		tvp7002_write_err(sd, TVP7002_B_FINE_GAIN, ctrl->val, &error);
+		return error;
 	}
+	return -EINVAL;
 }
 
 /*
- * tvp7002_queryctrl() - Query a control
- * @sd: ptr to v4l2_subdev struct
- * @qc: ptr to v4l2_queryctrl struct
- *
- * Query a control of a TVP7002 decoder device.
- * Returns zero when successful or -EINVAL if register read fails.
- */
-static int tvp7002_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
-{
-	switch (qc->id) {
-	case V4L2_CID_GAIN:
-		/*
-		 * Gain is supported [0-255, default=0, step=1]
-		 */
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 0);
-	default:
-		return -EINVAL;
-	}
-}
-
-/*
- * tvp7002_try_fmt_cap() - V4L2 decoder interface handler for try_fmt
+ * tvp7002_mbus_fmt() - V4L2 decoder interface handler for try/s/g_mbus_fmt
  * @sd: pointer to standard V4L2 sub-device structure
- * @f: pointer to standard V4L2 VIDIOC_TRY_FMT ioctl structure
+ * @f: pointer to mediabus format structure
  *
- * Implement the VIDIOC_TRY_FMT ioctl for the CAPTURE buffer type. This
- * ioctl is used to negotiate the image capture size and pixel format
- * without actually making it take effect.
+ * Negotiate the image capture size and mediabus format.
+ * There is only one possible format, so this single function works for
+ * get, set and try.
  */
-static int tvp7002_try_fmt_cap(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int tvp7002_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f)
 {
 	struct tvp7002 *device = to_tvp7002(sd);
 	struct v4l2_dv_enum_preset e_preset;
-	struct v4l2_pix_format *pix;
-	int error = 0;
-
-	pix = &f->fmt.pix;
+	int error;
 
 	/* Calculate height and width based on current standard */
 	error = v4l_fill_dv_preset_info(device->current_preset->preset, &e_preset);
 	if (error)
-		return -EINVAL;
+		return error;
 
-	pix->width = e_preset.width;
-	pix->height = e_preset.height;
-	pix->pixelformat = V4L2_PIX_FMT_UYVY;
-	pix->field = device->current_preset->scanmode;
-	pix->bytesperline = pix->width * 2;
-	pix->sizeimage = pix->bytesperline * pix->height;
-	pix->colorspace = device->current_preset->color_space;
-	pix->priv = 0;
+	f->width = e_preset.width;
+	f->height = e_preset.height;
+	f->code = V4L2_MBUS_FMT_YUYV10_1X20;
+	f->field = device->current_preset->scanmode;
+	f->colorspace = device->current_preset->color_space;
 
-	v4l2_dbg(1, debug, sd, "Try FMT: pixelformat - %s, bytesperline - %d"
-			"Width - %d, Height - %d", "8-bit UYVY 4:2:2 Format",
-			pix->bytesperline, pix->width, pix->height);
-	return error;
-}
-
-/*
- * tvp7002_s_fmt() - V4L2 decoder interface handler for s_fmt
- * @sd: pointer to standard V4L2 sub-device structure
- * @f: pointer to standard V4L2 VIDIOC_S_FMT ioctl structure
- *
- * If the requested format is supported, configures the HW to use that
- * format, returns error code if format not supported or HW can't be
- * correctly configured.
- */
-static int tvp7002_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
-{
-	struct tvp7002 *decoder = to_tvp7002(sd);
-	int rval;
-
-	rval = tvp7002_try_fmt_cap(sd, f);
-	if (!rval)
-		decoder->pix = f->fmt.pix;
-	return rval;
-}
-
-/*
- * tvp7002_g_fmt() - V4L2 decoder interface handler for tvp7002_g_fmt
- * @sd: pointer to standard V4L2 sub-device structure
- * @f: pointer to standard V4L2 v4l2_format structure
- *
- * Returns the decoder's current pixel format in the v4l2_format
- * parameter.
- */
-static int tvp7002_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
-{
-	struct tvp7002 *decoder = to_tvp7002(sd);
-
-	f->fmt.pix = decoder->pix;
-
-	v4l2_dbg(1, debug, sd, "Current FMT: bytesperline - %d"
-			"Width - %d, Height - %d",
-			decoder->pix.bytesperline,
-			decoder->pix.width, decoder->pix.height);
+	v4l2_dbg(1, debug, sd, "MBUS_FMT: Width - %d, Height - %d",
+			f->width, f->height);
 	return 0;
 }
 
@@ -851,7 +742,7 @@ static int tvp7002_query_dv_preset(struct v4l2_subdev *sd,
  * Get the value of a TVP7002 decoder device register.
  * Returns zero when successful, -EINVAL if register read fails or
  * access to I2C client fails, -EPERM if the call is not allowed
- * by diabled CAP_SYS_ADMIN.
+ * by disabled CAP_SYS_ADMIN.
  */
 static int tvp7002_g_register(struct v4l2_subdev *sd,
 						struct v4l2_dbg_register *reg)
@@ -894,21 +785,21 @@ static int tvp7002_s_register(struct v4l2_subdev *sd,
 #endif
 
 /*
- * tvp7002_enum_fmt() - Enum supported formats
+ * tvp7002_enum_mbus_fmt() - Enum supported mediabus formats
  * @sd: pointer to standard V4L2 sub-device structure
- * @fmtdesc: pointer to format struct
+ * @index: format index
+ * @code: pointer to mediabus format
  *
- * Enumerate supported formats.
+ * Enumerate supported mediabus formats.
  */
 
-static int tvp7002_enum_fmt(struct v4l2_subdev *sd,
-						struct v4l2_fmtdesc *fmtdesc)
+static int tvp7002_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
+					enum v4l2_mbus_pixelcode *code)
 {
 	/* Check requested format index is within range */
-	if (fmtdesc->index < 0 || fmtdesc->index >= NUM_FORMATS)
+	if (index)
 		return -EINVAL;
-	*fmtdesc = tvp7002_fmt_list[fmtdesc->index];
-
+	*code = V4L2_MBUS_FMT_YUYV10_1X20;
 	return 0;
 }
 
@@ -986,7 +877,7 @@ static int tvp7002_log_status(struct v4l2_subdev *sd)
 					device->streaming ? "yes" : "no");
 
 	/* Print the current value of the gain control */
-	v4l2_info(sd, "Gain: %u\n", device->gain);
+	v4l2_ctrl_handler_log_status(&device->hdl, sd->name);
 
 	return 0;
 }
@@ -1008,13 +899,21 @@ static int tvp7002_enum_dv_presets(struct v4l2_subdev *sd,
 	return v4l_fill_dv_preset_info(tvp7002_presets[preset->index].preset, preset);
 }
 
+static const struct v4l2_ctrl_ops tvp7002_ctrl_ops = {
+	.s_ctrl = tvp7002_s_ctrl,
+};
+
 /* V4L2 core operation handlers */
 static const struct v4l2_subdev_core_ops tvp7002_core_ops = {
 	.g_chip_ident = tvp7002_g_chip_ident,
 	.log_status = tvp7002_log_status,
-	.g_ctrl = tvp7002_g_ctrl,
-	.s_ctrl = tvp7002_s_ctrl,
-	.queryctrl = tvp7002_queryctrl,
+	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
+	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
+	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
+	.g_ctrl = v4l2_subdev_g_ctrl,
+	.s_ctrl = v4l2_subdev_s_ctrl,
+	.queryctrl = v4l2_subdev_queryctrl,
+	.querymenu = v4l2_subdev_querymenu,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = tvp7002_g_register,
 	.s_register = tvp7002_s_register,
@@ -1027,32 +926,16 @@ static const struct v4l2_subdev_video_ops tvp7002_video_ops = {
 	.s_dv_preset = tvp7002_s_dv_preset,
 	.query_dv_preset = tvp7002_query_dv_preset,
 	.s_stream = tvp7002_s_stream,
-	.g_fmt = tvp7002_g_fmt,
-	.s_fmt = tvp7002_s_fmt,
-	.enum_fmt = tvp7002_enum_fmt,
+	.g_mbus_fmt = tvp7002_mbus_fmt,
+	.try_mbus_fmt = tvp7002_mbus_fmt,
+	.s_mbus_fmt = tvp7002_mbus_fmt,
+	.enum_mbus_fmt = tvp7002_enum_mbus_fmt,
 };
 
 /* V4L2 top level operation handlers */
 static const struct v4l2_subdev_ops tvp7002_ops = {
 	.core = &tvp7002_core_ops,
 	.video = &tvp7002_video_ops,
-};
-
-static struct tvp7002 tvp7002_dev = {
-	.streaming = 0,
-
-	.pix = {
-		.width = 1280,
-		.height = 720,
-		.pixelformat = V4L2_PIX_FMT_UYVY,
-		.field = V4L2_FIELD_NONE,
-		.bytesperline = 1280 * 2,
-		.sizeimage = 1280 * 2 * 720,
-		.colorspace = V4L2_COLORSPACE_REC709,
-		},
-
-	.current_preset = tvp7002_presets,
-	.gain = 0,
 };
 
 /*
@@ -1085,14 +968,14 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 		return -ENODEV;
 	}
 
-	device = kmalloc(sizeof(struct tvp7002), GFP_KERNEL);
+	device = kzalloc(sizeof(struct tvp7002), GFP_KERNEL);
 
 	if (!device)
 		return -ENOMEM;
 
-	*device = tvp7002_dev;
 	sd = &device->sd;
 	device->pdata = c->dev.platform_data;
+	device->current_preset = tvp7002_presets;
 
 	/* Tell v4l2 the device is ready */
 	v4l2_i2c_subdev_init(sd, c, &tvp7002_ops);
@@ -1132,6 +1015,19 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 	preset.preset = device->current_preset->preset;
 	error = tvp7002_s_dv_preset(sd, &preset);
 
+	v4l2_ctrl_handler_init(&device->hdl, 1);
+	v4l2_ctrl_new_std(&device->hdl, &tvp7002_ctrl_ops,
+			V4L2_CID_GAIN, 0, 255, 1, 0);
+	sd->ctrl_handler = &device->hdl;
+	if (device->hdl.error) {
+		int err = device->hdl.error;
+
+		v4l2_ctrl_handler_free(&device->hdl);
+		kfree(device);
+		return err;
+	}
+	v4l2_ctrl_handler_setup(&device->hdl);
+
 found_error:
 	if (error < 0)
 		kfree(device);
@@ -1155,6 +1051,7 @@ static int tvp7002_remove(struct i2c_client *c)
 				"on address 0x%x\n", c->addr);
 
 	v4l2_device_unregister_subdev(sd);
+	v4l2_ctrl_handler_free(&device->hdl);
 	kfree(device);
 	return 0;
 }

@@ -470,7 +470,7 @@ void st5481_release_isocpipes(struct urb* urb[2])
 
 /*
  * Decode frames received on the B/D channel.
- * Note that this function will be called continously
+ * Note that this function will be called continuously
  * with 64Kbit/s / 16Kbit/s of data and hence it will be 
  * called 50 times per second with 20 ISOC descriptors. 
  * Called at interrupt.

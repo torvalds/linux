@@ -63,4 +63,10 @@ static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
 extern int nf_conntrack_helper_init(void);
 extern void nf_conntrack_helper_fini(void);
 
+extern int nf_conntrack_broadcast_help(struct sk_buff *skb,
+				       unsigned int protoff,
+				       struct nf_conn *ct,
+				       enum ip_conntrack_info ctinfo,
+				       unsigned int timeout);
+
 #endif /*_NF_CONNTRACK_HELPER_H*/

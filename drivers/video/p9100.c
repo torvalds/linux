@@ -249,7 +249,7 @@ static void p9100_init_fix(struct fb_info *info, int linebytes, struct device_no
 	info->fix.accel = FB_ACCEL_SUN_CGTHREE;
 }
 
-static int __devinit p9100_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit p9100_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
@@ -352,7 +352,7 @@ static const struct of_device_id p9100_match[] = {
 };
 MODULE_DEVICE_TABLE(of, p9100_match);
 
-static struct of_platform_driver p9100_driver = {
+static struct platform_driver p9100_driver = {
 	.driver = {
 		.name = "p9100",
 		.owner = THIS_MODULE,
@@ -367,12 +367,12 @@ static int __init p9100_init(void)
 	if (fb_get_options("p9100fb", NULL))
 		return -ENODEV;
 
-	return of_register_platform_driver(&p9100_driver);
+	return platform_driver_register(&p9100_driver);
 }
 
 static void __exit p9100_exit(void)
 {
-	of_unregister_platform_driver(&p9100_driver);
+	platform_driver_unregister(&p9100_driver);
 }
 
 module_init(p9100_init);

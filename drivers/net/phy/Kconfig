@@ -65,7 +65,7 @@ config BCM63XX_PHY
 config ICPLUS_PHY
 	tristate "Drivers for ICPlus PHYs"
 	---help---
-	  Currently supports the IP175C PHY.
+	  Currently supports the IP175C and IP1001 PHYs.
 
 config REALTEK_PHY
 	tristate "Drivers for Realtek PHYs"
@@ -78,7 +78,6 @@ config NATIONAL_PHY
 	  Currently supports the DP83865 PHY.
 
 config STE10XP
-	depends on PHYLIB
 	tristate "Driver for STMicroelectronics STe10Xp PHYs"
 	---help---
 	  This is the driver for the STe100p and STe101p PHYs.

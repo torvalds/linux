@@ -16,6 +16,7 @@
 #include <linux/kdev_t.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 #include "rtc-core.h"
 
@@ -40,25 +41,20 @@ static void rtc_device_release(struct device *dev)
  * system's wall clock; restore it on resume().
  */
 
-static struct timespec	delta;
 static time_t		oldtime;
+static struct timespec	oldts;
 
 static int rtc_suspend(struct device *dev, pm_message_t mesg)
 {
 	struct rtc_device	*rtc = to_rtc_device(dev);
 	struct rtc_time		tm;
-	struct timespec		ts = current_kernel_time();
 
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
 
 	rtc_read_time(rtc, &tm);
+	ktime_get_ts(&oldts);
 	rtc_tm_to_time(&tm, &oldtime);
-
-	/* RTC precision is 1 second; adjust delta for avg 1/2 sec err */
-	set_normalized_timespec(&delta,
-				ts.tv_sec - oldtime,
-				ts.tv_nsec - (NSEC_PER_SEC >> 1));
 
 	return 0;
 }
@@ -69,10 +65,12 @@ static int rtc_resume(struct device *dev)
 	struct rtc_time		tm;
 	time_t			newtime;
 	struct timespec		time;
+	struct timespec		newts;
 
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
 
+	ktime_get_ts(&newts);
 	rtc_read_time(rtc, &tm);
 	if (rtc_valid_tm(&tm) != 0) {
 		pr_debug("%s:  bogus resume time\n", dev_name(&rtc->dev));
@@ -84,15 +82,13 @@ static int rtc_resume(struct device *dev)
 			pr_debug("%s:  time travel!\n", dev_name(&rtc->dev));
 		return 0;
 	}
+	/* calculate the RTC time delta */
+	set_normalized_timespec(&time, newtime - oldtime, 0);
 
-	/* restore wall clock using delta against this RTC;
-	 * adjust again for avg 1/2 second RTC sampling error
-	 */
-	set_normalized_timespec(&time,
-				newtime + delta.tv_sec,
-				(NSEC_PER_SEC >> 1) + delta.tv_nsec);
-	do_settimeofday(&time);
+	/* subtract kernel time between rtc_suspend to rtc_resume */
+	time = timespec_sub(time, timespec_sub(newts, oldts));
 
+	timekeeping_inject_sleeptime(&time);
 	return 0;
 }
 
@@ -116,6 +112,7 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 					struct module *owner)
 {
 	struct rtc_device *rtc;
+	struct rtc_wkalrm alrm;
 	int id, err;
 
 	if (idr_pre_get(&rtc_idr, GFP_KERNEL) == 0) {
@@ -142,6 +139,7 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->id = id;
 	rtc->ops = ops;
 	rtc->owner = owner;
+	rtc->irq_freq = 1;
 	rtc->max_user_freq = 64;
 	rtc->dev.parent = dev;
 	rtc->dev.class = rtc_class;
@@ -152,14 +150,34 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	spin_lock_init(&rtc->irq_task_lock);
 	init_waitqueue_head(&rtc->irq_queue);
 
+	/* Init timerqueue */
+	timerqueue_init_head(&rtc->timerqueue);
+	INIT_WORK(&rtc->irqwork, rtc_timer_do_work);
+	/* Init aie timer */
+	rtc_timer_init(&rtc->aie_timer, rtc_aie_update_irq, (void *)rtc);
+	/* Init uie timer */
+	rtc_timer_init(&rtc->uie_rtctimer, rtc_uie_update_irq, (void *)rtc);
+	/* Init pie timer */
+	hrtimer_init(&rtc->pie_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	rtc->pie_timer.function = rtc_pie_update_irq;
+	rtc->pie_enabled = 0;
+
+	/* Check to see if there is an ALARM already set in hw */
+	err = __rtc_read_alarm(rtc, &alrm);
+
+	if (!err && !rtc_valid_tm(&alrm.time))
+		rtc_initialize_alarm(rtc, &alrm);
+
 	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
 	dev_set_name(&rtc->dev, "rtc%d", id);
 
 	rtc_dev_prepare(rtc);
 
 	err = device_register(&rtc->dev);
-	if (err)
+	if (err) {
+		put_device(&rtc->dev);
 		goto exit_kfree;
+	}
 
 	rtc_dev_add_device(rtc);
 	rtc_sysfs_add_device(rtc);

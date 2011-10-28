@@ -87,8 +87,8 @@
 #endif
 
 /* Define the friendly delay before and after opening net devices */
-#define CONF_PRE_OPEN		500	/* Before opening: 1/2 second */
-#define CONF_POST_OPEN		1	/* After opening: 1 second */
+#define CONF_POST_OPEN		10	/* After opening: 10 msecs */
+#define CONF_CARRIER_TIMEOUT	120000	/* Wait for carrier timeout */
 
 /* Define the timeout for waiting for a DHCP/BOOTP/RARP reply */
 #define CONF_OPEN_RETRIES 	2	/* (Re)open devices twice */
@@ -188,14 +188,14 @@ struct ic_device {
 static struct ic_device *ic_first_dev __initdata = NULL;/* List of open device */
 static struct net_device *ic_dev __initdata = NULL;	/* Selected device */
 
-static bool __init ic_device_match(struct net_device *dev)
+static bool __init ic_is_init_dev(struct net_device *dev)
 {
-	if (user_dev_name[0] ? !strcmp(dev->name, user_dev_name) :
+	if (dev->flags & IFF_LOOPBACK)
+		return false;
+	return user_dev_name[0] ? !strcmp(dev->name, user_dev_name) :
 	    (!(dev->flags & IFF_LOOPBACK) &&
 	     (dev->flags & (IFF_POINTOPOINT|IFF_BROADCAST)) &&
-	     strncmp(dev->name, "dummy", 5)))
-		return true;
-	return false;
+	     strncmp(dev->name, "dummy", 5));
 }
 
 static int __init ic_open_devs(void)
@@ -203,6 +203,7 @@ static int __init ic_open_devs(void)
 	struct ic_device *d, **last;
 	struct net_device *dev;
 	unsigned short oflags;
+	unsigned long start;
 
 	last = &ic_first_dev;
 	rtnl_lock();
@@ -216,9 +217,7 @@ static int __init ic_open_devs(void)
 	}
 
 	for_each_netdev(&init_net, dev) {
-		if (dev->flags & IFF_LOOPBACK)
-			continue;
-		if (ic_device_match(dev)) {
+		if (ic_is_init_dev(dev)) {
 			int able = 0;
 			if (dev->mtu >= 364)
 				able |= IC_BOOTP;
@@ -252,6 +251,17 @@ static int __init ic_open_devs(void)
 				dev->name, able, d->xid));
 		}
 	}
+
+	/* wait for a carrier on at least one device */
+	start = jiffies;
+	while (jiffies - start < msecs_to_jiffies(CONF_CARRIER_TIMEOUT)) {
+		for_each_netdev(&init_net, dev)
+			if (ic_is_init_dev(dev) && netif_carrier_ok(dev))
+				goto have_carrier;
+
+		msleep(1);
+	}
+have_carrier:
 	rtnl_unlock();
 
 	*last = NULL;
@@ -1191,13 +1201,13 @@ static int __init ic_dynamic(void)
 		    (ic_proto_enabled & IC_USE_DHCP) &&
 		    ic_dhcp_msgtype != DHCPACK) {
 			ic_got_reply = 0;
-			printk(",");
+			printk(KERN_CONT ",");
 			continue;
 		}
 #endif /* IPCONFIG_DHCP */
 
 		if (ic_got_reply) {
-			printk(" OK\n");
+			printk(KERN_CONT " OK\n");
 			break;
 		}
 
@@ -1205,7 +1215,7 @@ static int __init ic_dynamic(void)
 			continue;
 
 		if (! --retries) {
-			printk(" timed out!\n");
+			printk(KERN_CONT " timed out!\n");
 			break;
 		}
 
@@ -1215,7 +1225,7 @@ static int __init ic_dynamic(void)
 		if (timeout > CONF_TIMEOUT_MAX)
 			timeout = CONF_TIMEOUT_MAX;
 
-		printk(".");
+		printk(KERN_CONT ".");
 	}
 
 #ifdef IPCONFIG_BOOTP
@@ -1236,7 +1246,7 @@ static int __init ic_dynamic(void)
 		((ic_got_reply & IC_RARP) ? "RARP"
 		 : (ic_proto_enabled & IC_USE_DHCP) ? "DHCP" : "BOOTP"),
 		&ic_servaddr);
-	printk("my address is %pI4\n", &ic_myaddr);
+	printk(KERN_CONT "my address is %pI4\n", &ic_myaddr);
 
 	return 0;
 }
@@ -1324,14 +1334,13 @@ static int __init wait_for_devices(void)
 {
 	int i;
 
-	msleep(CONF_PRE_OPEN);
 	for (i = 0; i < DEVICE_WAIT_MAX; i++) {
 		struct net_device *dev;
 		int found = 0;
 
 		rtnl_lock();
 		for_each_netdev(&init_net, dev) {
-			if (ic_device_match(dev)) {
+			if (ic_is_init_dev(dev)) {
 				found = 1;
 				break;
 			}
@@ -1378,7 +1387,7 @@ static int __init ip_auto_config(void)
 		return err;
 
 	/* Give drivers a chance to settle */
-	ssleep(CONF_POST_OPEN);
+	msleep(CONF_POST_OPEN);
 
 	/*
 	 * If the config information is insufficient (e.g., our IP address or
@@ -1444,7 +1453,7 @@ static int __init ip_auto_config(void)
 		root_server_addr = addr;
 
 	/*
-	 * Use defaults whereever applicable.
+	 * Use defaults wherever applicable.
 	 */
 	if (ic_defaults() < 0)
 		return -1;
@@ -1468,19 +1477,19 @@ static int __init ip_auto_config(void)
 	/*
 	 * Clue in the operator.
 	 */
-	printk("IP-Config: Complete:");
-	printk("\n     device=%s", ic_dev->name);
-	printk(", addr=%pI4", &ic_myaddr);
-	printk(", mask=%pI4", &ic_netmask);
-	printk(", gw=%pI4", &ic_gateway);
-	printk(",\n     host=%s, domain=%s, nis-domain=%s",
+	printk("IP-Config: Complete:\n");
+	printk("     device=%s", ic_dev->name);
+	printk(KERN_CONT ", addr=%pI4", &ic_myaddr);
+	printk(KERN_CONT ", mask=%pI4", &ic_netmask);
+	printk(KERN_CONT ", gw=%pI4", &ic_gateway);
+	printk(KERN_CONT ",\n     host=%s, domain=%s, nis-domain=%s",
 	       utsname()->nodename, ic_domain, utsname()->domainname);
-	printk(",\n     bootserver=%pI4", &ic_servaddr);
-	printk(", rootserver=%pI4", &root_server_addr);
-	printk(", rootpath=%s", root_server_path);
+	printk(KERN_CONT ",\n     bootserver=%pI4", &ic_servaddr);
+	printk(KERN_CONT ", rootserver=%pI4", &root_server_addr);
+	printk(KERN_CONT ", rootpath=%s", root_server_path);
 	if (ic_dev_mtu)
-		printk(", mtu=%d", ic_dev_mtu);
-	printk("\n");
+		printk(KERN_CONT ", mtu=%d", ic_dev_mtu);
+	printk(KERN_CONT "\n");
 #endif /* !SILENT */
 
 	return 0;

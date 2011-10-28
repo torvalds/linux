@@ -12,6 +12,7 @@
 	Please submit bugs to http://bugzilla.kernel.org/ .
 */
 
+#define pr_fmt(fmt) "tulip: " fmt
 
 #define DRV_NAME	"tulip"
 #ifdef CONFIG_TULIP_NAPI
@@ -118,8 +119,6 @@ module_param(rx_copybreak, int, 0);
 module_param(csr0, int, 0);
 module_param_array(options, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
-
-#define PFX DRV_NAME ": "
 
 #ifdef TULIP_DEBUG
 int tulip_debug = TULIP_DEBUG;
@@ -331,8 +330,7 @@ static void tulip_up(struct net_device *dev)
 	udelay(100);
 
 	if (tulip_debug > 1)
-		printk(KERN_DEBUG "%s: tulip_up(), irq==%d\n",
-		       dev->name, dev->irq);
+		netdev_dbg(dev, "tulip_up(), irq==%d\n", dev->irq);
 
 	iowrite32(tp->rx_ring_dma, ioaddr + CSR3);
 	iowrite32(tp->tx_ring_dma, ioaddr + CSR4);
@@ -499,10 +497,10 @@ media_picked:
 	iowrite32(0, ioaddr + CSR2);		/* Rx poll demand */
 
 	if (tulip_debug > 2) {
-		printk(KERN_DEBUG "%s: Done tulip_up(), CSR0 %08x, CSR5 %08x CSR6 %08x\n",
-		       dev->name, ioread32(ioaddr + CSR0),
-		       ioread32(ioaddr + CSR5),
-		       ioread32(ioaddr + CSR6));
+		netdev_dbg(dev, "Done tulip_up(), CSR0 %08x, CSR5 %08x CSR6 %08x\n",
+			   ioread32(ioaddr + CSR0),
+			   ioread32(ioaddr + CSR5),
+			   ioread32(ioaddr + CSR6));
 	}
 
 	/* Set the timer to switch to check for link beat and perhaps switch
@@ -725,7 +723,7 @@ static void tulip_clean_tx_ring(struct tulip_private *tp)
 		int status = le32_to_cpu(tp->tx_ring[entry].status);
 
 		if (status < 0) {
-			tp->stats.tx_errors++;	/* It wasn't Txed */
+			tp->dev->stats.tx_errors++;	/* It wasn't Txed */
 			tp->tx_ring[entry].status = 0;
 		}
 
@@ -781,8 +779,8 @@ static void tulip_down (struct net_device *dev)
 	/* release any unconsumed transmit buffers */
 	tulip_clean_tx_ring(tp);
 
-	if (ioread32 (ioaddr + CSR6) != 0xffffffff)
-		tp->stats.rx_missed_errors += ioread32 (ioaddr + CSR8) & 0xffff;
+	if (ioread32(ioaddr + CSR6) != 0xffffffff)
+		dev->stats.rx_missed_errors += ioread32(ioaddr + CSR8) & 0xffff;
 
 	spin_unlock_irqrestore (&tp->lock, flags);
 
@@ -843,8 +841,7 @@ static int tulip_close (struct net_device *dev)
 	tulip_down (dev);
 
 	if (tulip_debug > 1)
-		dev_printk(KERN_DEBUG, &dev->dev,
-			   "Shutting down ethercard, status was %02x\n",
+		netdev_dbg(dev, "Shutting down ethercard, status was %02x\n",
 			   ioread32 (ioaddr + CSR5));
 
 	free_irq (dev->irq, dev);
@@ -864,12 +861,12 @@ static struct net_device_stats *tulip_get_stats(struct net_device *dev)
 
 		spin_lock_irqsave (&tp->lock, flags);
 
-		tp->stats.rx_missed_errors += ioread32(ioaddr + CSR8) & 0xffff;
+		dev->stats.rx_missed_errors += ioread32(ioaddr + CSR8) & 0xffff;
 
 		spin_unlock_irqrestore(&tp->lock, flags);
 	}
 
-	return &tp->stats;
+	return &dev->stats;
 }
 
 
@@ -1207,7 +1204,7 @@ static void __devinit tulip_mwi_config (struct pci_dev *pdev,
 	u32 csr0;
 
 	if (tulip_debug > 3)
-		printk(KERN_DEBUG "%s: tulip_mwi_config()\n", pci_name(pdev));
+		netdev_dbg(dev, "tulip_mwi_config()\n");
 
 	tp->csr0 = csr0 = 0;
 
@@ -1269,8 +1266,8 @@ static void __devinit tulip_mwi_config (struct pci_dev *pdev,
 out:
 	tp->csr0 = csr0;
 	if (tulip_debug > 2)
-		printk(KERN_DEBUG "%s: MWI config cacheline=%d, csr0=%08x\n",
-		       pci_name(pdev), cache, csr0);
+		netdev_dbg(dev, "MWI config cacheline=%d, csr0=%08x\n",
+			   cache, csr0);
 }
 #endif
 
@@ -1302,17 +1299,18 @@ static const struct net_device_ops tulip_netdev_ops = {
 #endif
 };
 
+DEFINE_PCI_DEVICE_TABLE(early_486_chipsets) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82424) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_496) },
+	{ },
+};
+
 static int __devinit tulip_init_one (struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
 	struct tulip_private *tp;
 	/* See note below on the multiport cards. */
 	static unsigned char last_phys_addr[6] = {0x00, 'L', 'i', 'n', 'u', 'x'};
-	static struct pci_device_id early_486_chipsets[] = {
-		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82424) },
-		{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_496) },
-		{ },
-	};
 	static int last_irq;
 	static int multiport_cnt;	/* For four-port boards w/one EEPROM */
 	int i, irq;
@@ -1339,13 +1337,13 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	 */
 
         if (pdev->subsystem_vendor == PCI_VENDOR_ID_LMC) {
-		pr_err(PFX "skipping LMC card\n");
+		pr_err("skipping LMC card\n");
 		return -ENODEV;
 	} else if (pdev->subsystem_vendor == PCI_VENDOR_ID_SBE &&
 		   (pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_T3E3 ||
 		    pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_2T3E3_P0 ||
 		    pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_2T3E3_P1)) {
-		pr_err(PFX "skipping SBE T3E3 port\n");
+		pr_err("skipping SBE T3E3 port\n");
 		return -ENODEV;
 	}
 
@@ -1361,13 +1359,13 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 
 		if (pdev->vendor == 0x1282 && pdev->device == 0x9100 &&
 		    pdev->revision < 0x30) {
-			pr_info(PFX "skipping early DM9100 with Crc bug (use dmfe)\n");
+			pr_info("skipping early DM9100 with Crc bug (use dmfe)\n");
 			return -ENODEV;
 		}
 
 		dp = pci_device_to_OF_node(pdev);
 		if (!(dp && of_get_property(dp, "local-mac-address", NULL))) {
-			pr_info(PFX "skipping DM910x expansion card (use dmfe)\n");
+			pr_info("skipping DM910x expansion card (use dmfe)\n");
 			return -ENODEV;
 		}
 	}
@@ -1414,16 +1412,14 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 
 	i = pci_enable_device(pdev);
 	if (i) {
-		pr_err(PFX "Cannot enable tulip board #%d, aborting\n",
-		       board_idx);
+		pr_err("Cannot enable tulip board #%d, aborting\n", board_idx);
 		return i;
 	}
 
 	/* The chip will fail to enter a low-power state later unless
 	 * first explicitly commanded into D0 */
 	if (pci_set_power_state(pdev, PCI_D0)) {
-		printk (KERN_NOTICE PFX
-			"Failed to set power state to D0\n");
+		pr_notice("Failed to set power state to D0\n");
 	}
 
 	irq = pdev->irq;
@@ -1431,13 +1427,13 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	/* alloc_etherdev ensures aligned and zeroed private structures */
 	dev = alloc_etherdev (sizeof (*tp));
 	if (!dev) {
-		pr_err(PFX "ether device alloc failed, aborting\n");
+		pr_err("ether device alloc failed, aborting\n");
 		return -ENOMEM;
 	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	if (pci_resource_len (pdev, 0) < tulip_tbl[chip_idx].io_size) {
-		pr_err(PFX "%s: I/O region (0x%llx@0x%llx) too small, aborting\n",
+		pr_err("%s: I/O region (0x%llx@0x%llx) too small, aborting\n",
 		       pci_name(pdev),
 		       (unsigned long long)pci_resource_len (pdev, 0),
 		       (unsigned long long)pci_resource_start (pdev, 0));
@@ -1482,7 +1478,8 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 		if (sig == 0x09811317) {
 			tp->flags |= COMET_PM;
 			tp->wolinfo.supported = WAKE_PHY | WAKE_MAGIC;
-			printk(KERN_INFO "tulip_init_one: Enabled WOL support for AN983B\n");
+			pr_info("%s: Enabled WOL support for AN983B\n",
+				__func__);
 		}
 	}
 	tp->pdev = pdev;
@@ -1682,7 +1679,9 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 		tp->full_duplex_lock = 1;
 
 	if (tulip_media_cap[tp->default_port] & MediaIsMII) {
-		u16 media2advert[] = { 0x20, 0x40, 0x03e0, 0x60, 0x80, 0x100, 0x200 };
+		static const u16 media2advert[] = {
+			0x20, 0x40, 0x03e0, 0x60, 0x80, 0x100, 0x200
+		};
 		tp->mii_advertise = media2advert[tp->default_port - 9];
 		tp->mii_advertise |= (tp->flags & HAS_8023X); /* Matching bits! */
 	}
@@ -1876,7 +1875,7 @@ save_state:
 		tulip_set_wolopts(pdev, tp->wolinfo.wolopts);
 		rc = pci_enable_wake(pdev, pstate, tp->wolinfo.wolopts);
 		if (rc)
-			printk("tulip: pci_enable_wake failed (%d)\n", rc);
+			pr_err("pci_enable_wake failed (%d)\n", rc);
 	}
 	pci_set_power_state(pdev, pstate);
 
@@ -1902,12 +1901,12 @@ static int tulip_resume(struct pci_dev *pdev)
 		return 0;
 
 	if ((retval = pci_enable_device(pdev))) {
-		pr_err(PFX "pci_enable_device failed in resume\n");
+		pr_err("pci_enable_device failed in resume\n");
 		return retval;
 	}
 
 	if ((retval = request_irq(dev->irq, tulip_interrupt, IRQF_SHARED, dev->name, dev))) {
-		pr_err(PFX "request_irq failed in resume\n");
+		pr_err("request_irq failed in resume\n");
 		return retval;
 	}
 

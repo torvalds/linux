@@ -498,7 +498,7 @@ static ext3_fsblk_t ext3_find_goal(struct inode *inode, long block,
 }
 
 /**
- *	ext3_blks_to_allocate: Look up the block map and count the number
+ *	ext3_blks_to_allocate - Look up the block map and count the number
  *	of direct blocks need to be allocated for the given branch.
  *
  *	@branch: chain of indirect blocks
@@ -536,14 +536,18 @@ static int ext3_blks_to_allocate(Indirect *branch, int k, unsigned long blks,
 }
 
 /**
- *	ext3_alloc_blocks: multiple allocate blocks needed for a branch
+ *	ext3_alloc_blocks - multiple allocate blocks needed for a branch
+ *	@handle: handle for this transaction
+ *	@inode: owner
+ *	@goal: preferred place for allocation
  *	@indirect_blks: the number of blocks need to allocate for indirect
  *			blocks
- *
+ *	@blks:	number of blocks need to allocated for direct blocks
  *	@new_blocks: on return it will store the new block numbers for
  *	the indirect blocks(if needed) and the first direct block,
- *	@blks:	on return it will store the total number of allocated
- *		direct blocks
+ *	@err: here we store the error value
+ *
+ *	return the number of direct blocks allocated
  */
 static int ext3_alloc_blocks(handle_t *handle, struct inode *inode,
 			ext3_fsblk_t goal, int indirect_blks, int blks,
@@ -598,9 +602,11 @@ failed_out:
 
 /**
  *	ext3_alloc_branch - allocate and set up a chain of blocks.
+ *	@handle: handle for this transaction
  *	@inode: owner
  *	@indirect_blks: number of allocated indirect blocks
  *	@blks: number of allocated direct blocks
+ *	@goal: preferred place for allocation
  *	@offsets: offsets (in the blocks) to store the pointers to next.
  *	@branch: place to store the chain in.
  *
@@ -700,10 +706,9 @@ failed:
 
 /**
  * ext3_splice_branch - splice the allocated branch onto inode.
+ * @handle: handle for this transaction
  * @inode: owner
  * @block: (logical) number of block we are adding
- * @chain: chain of indirect blocks (with a missing link - see
- *	ext3_alloc_branch)
  * @where: location of missing link
  * @num:   number of indirect blocks we are adding
  * @blks:  number of direct blocks we are adding
@@ -1696,8 +1701,8 @@ static int ext3_journalled_writepage(struct page *page,
 		 * doesn't seem much point in redirtying the page here.
 		 */
 		ClearPageChecked(page);
-		ret = block_prepare_write(page, 0, PAGE_CACHE_SIZE,
-					ext3_get_block);
+		ret = __block_write_begin(page, 0, PAGE_CACHE_SIZE,
+					  ext3_get_block);
 		if (ret != 0) {
 			ext3_journal_stop(handle);
 			goto out_unlock;
@@ -1889,7 +1894,6 @@ static const struct address_space_operations ext3_ordered_aops = {
 	.readpage		= ext3_readpage,
 	.readpages		= ext3_readpages,
 	.writepage		= ext3_ordered_writepage,
-	.sync_page		= block_sync_page,
 	.write_begin		= ext3_write_begin,
 	.write_end		= ext3_ordered_write_end,
 	.bmap			= ext3_bmap,
@@ -1905,7 +1909,6 @@ static const struct address_space_operations ext3_writeback_aops = {
 	.readpage		= ext3_readpage,
 	.readpages		= ext3_readpages,
 	.writepage		= ext3_writeback_writepage,
-	.sync_page		= block_sync_page,
 	.write_begin		= ext3_write_begin,
 	.write_end		= ext3_writeback_write_end,
 	.bmap			= ext3_bmap,
@@ -1921,7 +1924,6 @@ static const struct address_space_operations ext3_journalled_aops = {
 	.readpage		= ext3_readpage,
 	.readpages		= ext3_readpages,
 	.writepage		= ext3_journalled_writepage,
-	.sync_page		= block_sync_page,
 	.write_begin		= ext3_write_begin,
 	.write_end		= ext3_journalled_write_end,
 	.set_page_dirty		= ext3_journalled_set_page_dirty,
@@ -2053,7 +2055,7 @@ static inline int all_zeroes(__le32 *p, __le32 *q)
  *
  *	When we do truncate() we may have to clean the ends of several
  *	indirect blocks but leave the blocks themselves alive. Block is
- *	partially truncated if some data below the new i_size is refered
+ *	partially truncated if some data below the new i_size is referred
  *	from it (and it is on the path to the first completely truncated
  *	data block, indeed).  We have to free the top of that path along
  *	with everything to the right of the path. Since no allocation
@@ -2140,13 +2142,15 @@ static void ext3_clear_blocks(handle_t *handle, struct inode *inode,
 	if (try_to_extend_transaction(handle, inode)) {
 		if (bh) {
 			BUFFER_TRACE(bh, "call ext3_journal_dirty_metadata");
-			ext3_journal_dirty_metadata(handle, bh);
+			if (ext3_journal_dirty_metadata(handle, bh))
+				return;
 		}
 		ext3_mark_inode_dirty(handle, inode);
 		truncate_restart_transaction(handle, inode);
 		if (bh) {
 			BUFFER_TRACE(bh, "retaking write access");
-			ext3_journal_get_write_access(handle, bh);
+			if (ext3_journal_get_write_access(handle, bh))
+				return;
 		}
 	}
 
@@ -2180,7 +2184,7 @@ static void ext3_clear_blocks(handle_t *handle, struct inode *inode,
  * @first:	array of block numbers
  * @last:	points immediately past the end of array
  *
- * We are freeing all blocks refered from that array (numbers are stored as
+ * We are freeing all blocks referred from that array (numbers are stored as
  * little-endian 32-bit) and updating @inode->i_blocks appropriately.
  *
  * We accumulate contiguous runs of blocks to free.  Conveniently, if these
@@ -2268,7 +2272,7 @@ static void ext3_free_data(handle_t *handle, struct inode *inode,
  *	@last:	pointer immediately past the end of array
  *	@depth:	depth of the branches to free
  *
- *	We are freeing all blocks refered from these branches (numbers are
+ *	We are freeing all blocks referred from these branches (numbers are
  *	stored as little-endian 32-bit) and updating @inode->i_blocks
  *	appropriately.
  */
@@ -2530,7 +2534,6 @@ void ext3_truncate(struct inode *inode)
 			 */
 		} else {
 			/* Shared branch grows from an indirect block */
-			BUFFER_TRACE(partial->bh, "get_write_access");
 			ext3_free_branches(handle, inode, partial->bh,
 					partial->p,
 					partial->p+1, (chain+n-1) - partial);
@@ -3288,7 +3291,7 @@ static int ext3_writepage_trans_blocks(struct inode *inode)
 	if (ext3_should_journal_data(inode))
 		ret = 3 * (bpp + indirects) + 2;
 	else
-		ret = 2 * (bpp + indirects) + 2;
+		ret = 2 * (bpp + indirects) + indirects + 2;
 
 #ifdef CONFIG_QUOTA
 	/* We know that structure was already allocated during dquot_initialize so
@@ -3389,7 +3392,7 @@ int ext3_mark_inode_dirty(handle_t *handle, struct inode *inode)
  * so would cause a commit on atime updates, which we don't bother doing.
  * We handle synchronous inodes at the highest possible level.
  */
-void ext3_dirty_inode(struct inode *inode)
+void ext3_dirty_inode(struct inode *inode, int flags)
 {
 	handle_t *current_handle = ext3_journal_current_handle();
 	handle_t *handle;

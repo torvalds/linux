@@ -260,7 +260,7 @@ static int macb_mii_init(struct macb *bp)
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		bp->mii_bus->irq[i] = PHY_POLL;
 
-	platform_set_drvdata(bp->dev, bp->mii_bus);
+	dev_set_drvdata(&bp->dev->dev, bp->mii_bus);
 
 	if (mdiobus_register(bp->mii_bus))
 		goto err_out_free_mdio_irq;
@@ -407,7 +407,7 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 	}
 
 	skb_reserve(skb, RX_OFFSET);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 	skb_put(skb, len);
 
 	for (frag = first_frag; ; frag = NEXT_RX(frag)) {
@@ -515,14 +515,15 @@ static int macb_poll(struct napi_struct *napi, int budget)
 		(unsigned long)status, budget);
 
 	work_done = macb_rx(bp, budget);
-	if (work_done < budget)
+	if (work_done < budget) {
 		napi_complete(napi);
 
-	/*
-	 * We've done what we can to clean the buffers. Make sure we
-	 * get notified when new packets arrive.
-	 */
-	macb_writel(bp, IER, MACB_RX_INT_FLAGS);
+		/*
+		 * We've done what we can to clean the buffers. Make sure we
+		 * get notified when new packets arrive.
+		 */
+		macb_writel(bp, IER, MACB_RX_INT_FLAGS);
+	}
 
 	/* TODO: Handle errors */
 
@@ -550,12 +551,16 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		}
 
 		if (status & MACB_RX_INT_FLAGS) {
+			/*
+			 * There's no point taking any more interrupts
+			 * until we have processed the buffers. The
+			 * scheduling call may fail if the poll routine
+			 * is already scheduled, so disable interrupts
+			 * now.
+			 */
+			macb_writel(bp, IDR, MACB_RX_INT_FLAGS);
+
 			if (napi_schedule_prep(&bp->napi)) {
-				/*
-				 * There's no point taking any more interrupts
-				 * until we have processed the buffers
-				 */
-				macb_writel(bp, IDR, MACB_RX_INT_FLAGS);
 				dev_dbg(&bp->pdev->dev,
 					"scheduling RX softirq\n");
 				__napi_schedule(&bp->napi);
@@ -570,6 +575,11 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		 * Link change detection isn't possible with RMII, so we'll
 		 * add that if/when we get our hands on a full-blown MII PHY.
 		 */
+
+		if (status & MACB_BIT(ISR_ROVR)) {
+			/* We missed at least one packet */
+			bp->hw_stats.rx_overruns++;
+		}
 
 		if (status & MACB_BIT(HRESP)) {
 			/*
@@ -1019,7 +1029,8 @@ static struct net_device_stats *macb_get_stats(struct net_device *dev)
 				   hwstat->rx_jabbers +
 				   hwstat->rx_undersize_pkts +
 				   hwstat->rx_length_mismatch);
-	nstat->rx_over_errors = hwstat->rx_resource_errors;
+	nstat->rx_over_errors = hwstat->rx_resource_errors +
+				   hwstat->rx_overruns;
 	nstat->rx_crc_errors = hwstat->rx_fcs_errors;
 	nstat->rx_frame_errors = hwstat->rx_align_errors;
 	nstat->rx_fifo_errors = hwstat->rx_overruns;
@@ -1166,8 +1177,7 @@ static int __init macb_probe(struct platform_device *pdev)
 	}
 
 	dev->irq = platform_get_irq(pdev, 0);
-	err = request_irq(dev->irq, macb_interrupt, IRQF_SAMPLE_RANDOM,
-			  dev->name, dev);
+	err = request_irq(dev->irq, macb_interrupt, 0, dev->name, dev);
 	if (err) {
 		printk(KERN_ERR
 		       "%s: Unable to request IRQ %d (error %d)\n",
@@ -1346,5 +1356,5 @@ module_exit(macb_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Atmel MACB Ethernet driver");
-MODULE_AUTHOR("Haavard Skinnemoen <hskinnemoen@atmel.com>");
+MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");
 MODULE_ALIAS("platform:macb");

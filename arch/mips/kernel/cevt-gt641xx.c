@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
+#include <linux/irq.h>
 
 #include <asm/gt64120.h>
 #include <asm/time.h>

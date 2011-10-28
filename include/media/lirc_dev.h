@@ -9,7 +9,7 @@
 #ifndef _LINUX_LIRC_DEV_H
 #define _LINUX_LIRC_DEV_H
 
-#define MAX_IRCTL_DEVICES 4
+#define MAX_IRCTL_DEVICES 8
 #define BUFLEN            16
 
 #define mod(n, div) ((n) % (div))
@@ -125,10 +125,10 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
 struct lirc_driver {
 	char name[40];
 	int minor;
-	unsigned long code_length;
+	__u32 code_length;
 	unsigned int buffer_size; /* in chunks holding one code each */
 	int sample_rate;
-	unsigned long features;
+	__u32 features;
 
 	unsigned int chunk_size;
 
@@ -139,7 +139,7 @@ struct lirc_driver {
 	struct lirc_buffer *rbuf;
 	int (*set_use_inc) (void *data);
 	void (*set_use_dec) (void *data);
-	struct file_operations *fops;
+	const struct file_operations *fops;
 	struct device *dev;
 	struct module *owner;
 };
@@ -217,9 +217,9 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file);
 int lirc_dev_fop_close(struct inode *inode, struct file *file);
 unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait);
 long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-ssize_t lirc_dev_fop_read(struct file *file, char *buffer, size_t length,
+ssize_t lirc_dev_fop_read(struct file *file, char __user *buffer, size_t length,
 			  loff_t *ppos);
-ssize_t lirc_dev_fop_write(struct file *file, const char *buffer, size_t length,
-			   loff_t *ppos);
+ssize_t lirc_dev_fop_write(struct file *file, const char __user *buffer,
+			   size_t length, loff_t *ppos);
 
 #endif

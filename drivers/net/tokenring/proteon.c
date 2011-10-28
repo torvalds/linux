@@ -110,7 +110,7 @@ static int __init proteon_probe1(struct net_device *dev, int ioaddr)
 	}
 
 	dev->base_addr = ioaddr;
-	return (0);
+	return 0;
 nodev:
 	release_region(ioaddr, PROTEON_IO_EXTENT); 
 	return -ENODEV;

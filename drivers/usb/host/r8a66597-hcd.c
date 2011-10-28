@@ -2150,8 +2150,9 @@ static void r8a66597_hub_descriptor(struct r8a66597 *r8a66597,
 	desc->bDescLength = 9;
 	desc->bPwrOn2PwrGood = 0;
 	desc->wHubCharacteristics = cpu_to_le16(0x0011);
-	desc->bitmap[0] = ((1 << r8a66597->max_root_hub) - 1) << 1;
-	desc->bitmap[1] = ~0;
+	desc->u.hs.DeviceRemovable[0] =
+		((1 << r8a66597->max_root_hub) - 1) << 1;
+	desc->u.hs.DeviceRemovable[1] = ~0;
 }
 
 static int r8a66597_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
@@ -2397,7 +2398,7 @@ static const struct dev_pm_ops r8a66597_dev_pm_ops = {
 #define R8A66597_DEV_PM_OPS	NULL
 #endif
 
-static int __init_or_module r8a66597_remove(struct platform_device *pdev)
+static int __devexit r8a66597_remove(struct platform_device *pdev)
 {
 	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
 	struct usb_hcd		*hcd = r8a66597_to_hcd(r8a66597);
@@ -2516,6 +2517,7 @@ static int __devinit r8a66597_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&r8a66597->child_device);
 
 	hcd->rsrc_start = res->start;
+	hcd->has_tt = 1;
 
 	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | irq_trigger);
 	if (ret != 0) {
@@ -2542,7 +2544,7 @@ clean_up:
 
 static struct platform_driver r8a66597_driver = {
 	.probe =	r8a66597_probe,
-	.remove =	r8a66597_remove,
+	.remove =	__devexit_p(r8a66597_remove),
 	.driver		= {
 		.name = (char *) hcd_name,
 		.owner	= THIS_MODULE,

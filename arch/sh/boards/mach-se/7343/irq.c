@@ -18,23 +18,22 @@
 
 unsigned int se7343_fpga_irq[SE7343_FPGA_IRQ_NR] = { 0, };
 
-static void disable_se7343_irq(unsigned int irq)
+static void disable_se7343_irq(struct irq_data *data)
 {
-	unsigned int bit = (unsigned int)get_irq_chip_data(irq);
+	unsigned int bit = (unsigned int)irq_data_get_irq_chip_data(data);
 	__raw_writew(__raw_readw(PA_CPLD_IMSK) | 1 << bit, PA_CPLD_IMSK);
 }
 
-static void enable_se7343_irq(unsigned int irq)
+static void enable_se7343_irq(struct irq_data *data)
 {
-	unsigned int bit = (unsigned int)get_irq_chip_data(irq);
+	unsigned int bit = (unsigned int)irq_data_get_irq_chip_data(data);
 	__raw_writew(__raw_readw(PA_CPLD_IMSK) & ~(1 << bit), PA_CPLD_IMSK);
 }
 
 static struct irq_chip se7343_irq_chip __read_mostly = {
-	.name           = "SE7343-FPGA",
-	.mask           = disable_se7343_irq,
-	.unmask         = enable_se7343_irq,
-	.mask_ack       = disable_se7343_irq,
+	.name		= "SE7343-FPGA",
+	.irq_mask	= disable_se7343_irq,
+	.irq_unmask	= enable_se7343_irq,
 };
 
 static void se7343_irq_demux(unsigned int irq, struct irq_desc *desc)
@@ -68,19 +67,20 @@ void __init init_7343se_IRQ(void)
 			return;
 		se7343_fpga_irq[i] = irq;
 
-		set_irq_chip_and_handler_name(se7343_fpga_irq[i],
+		irq_set_chip_and_handler_name(se7343_fpga_irq[i],
 					      &se7343_irq_chip,
-					      handle_level_irq, "level");
+					      handle_level_irq,
+					      "level");
 
-		set_irq_chip_data(se7343_fpga_irq[i], (void *)i);
+		irq_set_chip_data(se7343_fpga_irq[i], (void *)i);
 	}
 
-	set_irq_chained_handler(IRQ0_IRQ, se7343_irq_demux);
-	set_irq_type(IRQ0_IRQ, IRQ_TYPE_LEVEL_LOW);
-	set_irq_chained_handler(IRQ1_IRQ, se7343_irq_demux);
-	set_irq_type(IRQ1_IRQ, IRQ_TYPE_LEVEL_LOW);
-	set_irq_chained_handler(IRQ4_IRQ, se7343_irq_demux);
-	set_irq_type(IRQ4_IRQ, IRQ_TYPE_LEVEL_LOW);
-	set_irq_chained_handler(IRQ5_IRQ, se7343_irq_demux);
-	set_irq_type(IRQ5_IRQ, IRQ_TYPE_LEVEL_LOW);
+	irq_set_chained_handler(IRQ0_IRQ, se7343_irq_demux);
+	irq_set_irq_type(IRQ0_IRQ, IRQ_TYPE_LEVEL_LOW);
+	irq_set_chained_handler(IRQ1_IRQ, se7343_irq_demux);
+	irq_set_irq_type(IRQ1_IRQ, IRQ_TYPE_LEVEL_LOW);
+	irq_set_chained_handler(IRQ4_IRQ, se7343_irq_demux);
+	irq_set_irq_type(IRQ4_IRQ, IRQ_TYPE_LEVEL_LOW);
+	irq_set_chained_handler(IRQ5_IRQ, se7343_irq_demux);
+	irq_set_irq_type(IRQ5_IRQ, IRQ_TYPE_LEVEL_LOW);
 }

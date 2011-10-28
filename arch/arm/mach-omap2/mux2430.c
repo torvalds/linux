@@ -586,7 +586,7 @@ static struct omap_mux __initdata omap2430_muxmodes[] = {
  * 447-pin s-PBGA Package, 0.00mm Ball Pitch (Bottom)
  */
 #ifdef CONFIG_DEBUG_FS
-struct omap_ball __initdata omap2430_pop_ball[] = {
+static struct omap_ball __initdata omap2430_pop_ball[] = {
 	_OMAP2430_BALLENTRY(CAM_D0, "t8", NULL),
 	_OMAP2430_BALLENTRY(CAM_D1, "t4", NULL),
 	_OMAP2430_BALLENTRY(CAM_D10, "r4", NULL),
@@ -781,11 +781,13 @@ int __init omap2430_mux_init(struct omap_board_mux *board_subset, int flags)
 		package_balls = omap2430_pop_ball;
 		break;
 	default:
-		pr_warning("mux: No ball data available for omap2420 package\n");
+		pr_warning("%s: No ball data available for omap2420 package\n",
+				__func__);
 	}
 
-	return omap_mux_init(OMAP2430_CONTROL_PADCONF_MUX_PBASE,
+	return omap_mux_init("core", OMAP_MUX_REG_8BIT | OMAP_MUX_GPIO_IN_MODE3,
+			     OMAP2430_CONTROL_PADCONF_MUX_PBASE,
 			     OMAP2430_CONTROL_PADCONF_MUX_SIZE,
-				omap2430_muxmodes, NULL, board_subset,
-				package_balls);
+			     omap2430_muxmodes, NULL, board_subset,
+			     package_balls);
 }

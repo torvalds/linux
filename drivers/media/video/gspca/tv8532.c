@@ -132,7 +132,7 @@ static const struct v4l2_pix_format sif_mode[] = {
 #define R36_PID		0x36
 #define R37_PIDH	0x37
 #define R39_Test1	0x39		/* GPIO */
-#define R3B_Test3	0x3B		/* GPIO */
+#define R3B_Test3	0x3b		/* GPIO */
 #define R83_AD_IDH	0x83
 #define R91_AD_SLOPEREG 0x91
 #define R94_AD_BITCONTROL 0x94
@@ -388,7 +388,7 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x0920)},
 	{USB_DEVICE(0x046d, 0x0921)},
 	{USB_DEVICE(0x0545, 0x808b)},
@@ -421,18 +421,12 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

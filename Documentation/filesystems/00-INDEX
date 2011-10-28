@@ -96,8 +96,6 @@ seq_file.txt
 	- how to use the seq_file API
 sharedsubtree.txt
 	- a description of shared subtrees for namespaces.
-smbfs.txt
-	- info on using filesystems with the SMB protocol (Win 3.11 and NT).
 spufs.txt
 	- info and mount options for the SPU filesystem used on Cell.
 sysfs-pci.txt

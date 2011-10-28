@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2011 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -136,7 +136,7 @@ qla2x00_mark_vp_devices_dead(scsi_qla_host_t *vha)
 		    vha->host_no, fcport->loop_id, fcport->vp_idx));
 
 		qla2x00_mark_device_lost(vha, fcport, 0, 0);
-		atomic_set(&fcport->state, FCS_UNCONFIGURED);
+		qla2x00_set_fcport_state(fcport, FCS_UNCONFIGURED);
 	}
 }
 
@@ -456,7 +456,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	else
 		host->max_cmd_len = MAX_CMDSZ;
 	host->max_channel = MAX_BUSES - 1;
-	host->max_lun = MAX_LUNS;
+	host->max_lun = ql2xmaxlun;
 	host->unique_id = host->host_no;
 	host->max_id = MAX_TARGETS_2200;
 	host->transportt = qla2xxx_transport_vport_template;

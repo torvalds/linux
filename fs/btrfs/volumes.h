@@ -20,7 +20,10 @@
 #define __BTRFS_VOLUMES_
 
 #include <linux/bio.h>
+#include <linux/sort.h>
 #include "async-thread.h"
+
+#define BTRFS_STRIPE_LEN	(64 * 1024)
 
 struct buffer_head;
 struct btrfs_pending_bios {
@@ -42,15 +45,15 @@ struct btrfs_device {
 	int running_pending;
 	u64 generation;
 
-	int barriers;
 	int writeable;
 	int in_fs_metadata;
+	int missing;
 
 	spinlock_t io_lock;
 
 	struct block_device *bdev;
 
-	/* the mode sent to open_bdev_exclusive */
+	/* the mode sent to blkdev_get */
 	fmode_t mode;
 
 	char *name;
@@ -82,7 +85,12 @@ struct btrfs_device {
 	/* physical drive uuid (or lvm uuid) */
 	u8 uuid[BTRFS_UUID_SIZE];
 
+	/* per-device scrub information */
+	struct scrub_dev *scrub_device;
+
 	struct btrfs_work work;
+	struct rcu_head rcu;
+	struct work_struct rcu_work;
 };
 
 struct btrfs_fs_devices {
@@ -94,6 +102,7 @@ struct btrfs_fs_devices {
 	u64 num_devices;
 	u64 open_devices;
 	u64 rw_devices;
+	u64 missing_devices;
 	u64 total_rw_bytes;
 	struct block_device *latest_bdev;
 
@@ -122,6 +131,7 @@ struct btrfs_fs_devices {
 struct btrfs_bio_stripe {
 	struct btrfs_device *dev;
 	u64 physical;
+	u64 length; /* only used for discard mappings */
 };
 
 struct btrfs_multi_bio {
@@ -134,6 +144,30 @@ struct btrfs_multi_bio {
 	int num_stripes;
 	struct btrfs_bio_stripe stripes[];
 };
+
+struct btrfs_device_info {
+	struct btrfs_device *dev;
+	u64 dev_offset;
+	u64 max_avail;
+	u64 total_avail;
+};
+
+struct map_lookup {
+	u64 type;
+	int io_align;
+	int io_width;
+	int stripe_len;
+	int sector_size;
+	int num_stripes;
+	int sub_stripes;
+	struct btrfs_bio_stripe stripes[];
+};
+
+#define map_lookup_size(n) (sizeof(struct map_lookup) + \
+			    (sizeof(struct btrfs_bio_stripe) * (n)))
+
+int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
+				   u64 end, u64 *length);
 
 #define btrfs_multi_bio_size(n) (sizeof(struct btrfs_multi_bio) + \
 			    (sizeof(struct btrfs_bio_stripe) * (n)))
@@ -156,7 +190,6 @@ void btrfs_mapping_init(struct btrfs_mapping_tree *tree);
 void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree);
 int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		  int mirror_num, int async_submit);
-int btrfs_read_super_device(struct btrfs_root *root, struct extent_buffer *buf);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       fmode_t flags, void *holder);
 int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
@@ -169,8 +202,6 @@ int btrfs_add_device(struct btrfs_trans_handle *trans,
 int btrfs_rm_device(struct btrfs_root *root, char *device_path);
 int btrfs_cleanup_fs_uuids(void);
 int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len);
-int btrfs_unplug_page(struct btrfs_mapping_tree *map_tree,
-		      u64 logical, struct page *page);
 int btrfs_grow_device(struct btrfs_trans_handle *trans,
 		      struct btrfs_device *device, u64 new_size);
 struct btrfs_device *btrfs_find_device(struct btrfs_root *root, u64 devid,
@@ -178,8 +209,6 @@ struct btrfs_device *btrfs_find_device(struct btrfs_root *root, u64 devid,
 int btrfs_shrink_device(struct btrfs_device *device, u64 new_size);
 int btrfs_init_new_device(struct btrfs_root *root, char *path);
 int btrfs_balance(struct btrfs_root *dev_root);
-void btrfs_unlock_volumes(void);
-void btrfs_lock_volumes(void);
 int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset);
 int find_free_dev_extent(struct btrfs_trans_handle *trans,
 			 struct btrfs_device *device, u64 num_bytes,

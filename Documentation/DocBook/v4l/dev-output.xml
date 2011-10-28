@@ -17,7 +17,8 @@ files are used for video capture devices.</para>
     <title>Querying Capabilities</title>
 
     <para>Devices supporting the video output interface set the
-<constant>V4L2_CAP_VIDEO_OUTPUT</constant> flag in the
+<constant>V4L2_CAP_VIDEO_OUTPUT</constant> or
+<constant>V4L2_CAP_VIDEO_OUTPUT_MPLANE</constant> flag in the
 <structfield>capabilities</structfield> field of &v4l2-capability;
 returned by the &VIDIOC-QUERYCAP; ioctl. As secondary device functions
 they may also support the <link linkend="raw-vbi">raw VBI
@@ -60,9 +61,11 @@ linkend="crop" />.</para>
 
     <para>To query the current image format applications set the
 <structfield>type</structfield> field of a &v4l2-format; to
-<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant> and call the
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant> or
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant> and call the
 &VIDIOC-G-FMT; ioctl with a pointer to this structure. Drivers fill
-the &v4l2-pix-format; <structfield>pix</structfield> member of the
+the &v4l2-pix-format; <structfield>pix</structfield> or the
+&v4l2-pix-format-mplane; <structfield>pix_mp</structfield> member of the
 <structfield>fmt</structfield> union.</para>
 
     <para>To request different parameters applications set the
@@ -80,8 +83,8 @@ adjust the parameters and finally return the actual parameters as
 without disabling I/O or possibly time consuming hardware
 preparations.</para>
 
-    <para>The contents of &v4l2-pix-format; are discussed in <xref
-linkend="pixfmt" />. See also the specification of the
+    <para>The contents of &v4l2-pix-format; and &v4l2-pix-format-mplane;
+are discussed in <xref linkend="pixfmt" />. See also the specification of the
 <constant>VIDIOC_G_FMT</constant>, <constant>VIDIOC_S_FMT</constant>
 and <constant>VIDIOC_TRY_FMT</constant> ioctls for details. Video
 output devices must implement both the

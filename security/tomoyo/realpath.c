@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <net/sock.h>
 #include "common.h"
+#include "../../fs/internal.h"
 
 /**
  * tomoyo_encode: Convert binary string to ascii string.
@@ -127,10 +128,8 @@ char *tomoyo_realpath_from_path(struct path *path)
 		/* If we don't have a vfsmount, we can't calculate. */
 		if (!path->mnt)
 			break;
-		spin_lock(&dcache_lock);
 		/* go to whatever namespace root we are under */
 		pos = __d_path(path, &ns_root, buf, buf_len);
-		spin_unlock(&dcache_lock);
 		/* Prepend "/proc" prefix if using internal proc vfs mount. */
 		if (!IS_ERR(pos) && (path->mnt->mnt_flags & MNT_INTERNAL) &&
 		    (path->mnt->mnt_sb->s_magic == PROC_SUPER_MAGIC)) {

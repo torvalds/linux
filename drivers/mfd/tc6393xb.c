@@ -155,7 +155,7 @@ static struct resource __devinitdata tc6393xb_nand_resources[] = {
 	},
 };
 
-static struct resource __devinitdata tc6393xb_mmc_resources[] = {
+static struct resource tc6393xb_mmc_resources[] = {
 	{
 		.start	= 0x800,
 		.end	= 0x9ff,
@@ -393,7 +393,8 @@ static struct mfd_cell __devinitdata tc6393xb_cells[] = {
 		.name = "tmio-mmc",
 		.enable = tc6393xb_mmc_enable,
 		.resume = tc6393xb_mmc_resume,
-		.driver_data = &tc6393xb_mmc_data,
+		.platform_data = &tc6393xb_mmc_data,
+		.pdata_size    = sizeof(tc6393xb_mmc_data),
 		.num_resources = ARRAY_SIZE(tc6393xb_mmc_resources),
 		.resources = tc6393xb_mmc_resources,
 	},
@@ -513,7 +514,7 @@ static int tc6393xb_register_gpio(struct tc6393xb *tc6393xb, int gpio_base)
 static void
 tc6393xb_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct tc6393xb *tc6393xb = get_irq_data(irq);
+	struct tc6393xb *tc6393xb = irq_get_handler_data(irq);
 	unsigned int isr;
 	unsigned int i, irq_base;
 
@@ -527,41 +528,41 @@ tc6393xb_irq(unsigned int irq, struct irq_desc *desc)
 		}
 }
 
-static void tc6393xb_irq_ack(unsigned int irq)
+static void tc6393xb_irq_ack(struct irq_data *data)
 {
 }
 
-static void tc6393xb_irq_mask(unsigned int irq)
+static void tc6393xb_irq_mask(struct irq_data *data)
 {
-	struct tc6393xb *tc6393xb = get_irq_chip_data(irq);
+	struct tc6393xb *tc6393xb = irq_data_get_irq_chip_data(data);
 	unsigned long flags;
 	u8 imr;
 
 	spin_lock_irqsave(&tc6393xb->lock, flags);
 	imr = tmio_ioread8(tc6393xb->scr + SCR_IMR);
-	imr |= 1 << (irq - tc6393xb->irq_base);
+	imr |= 1 << (data->irq - tc6393xb->irq_base);
 	tmio_iowrite8(imr, tc6393xb->scr + SCR_IMR);
 	spin_unlock_irqrestore(&tc6393xb->lock, flags);
 }
 
-static void tc6393xb_irq_unmask(unsigned int irq)
+static void tc6393xb_irq_unmask(struct irq_data *data)
 {
-	struct tc6393xb *tc6393xb = get_irq_chip_data(irq);
+	struct tc6393xb *tc6393xb = irq_data_get_irq_chip_data(data);
 	unsigned long flags;
 	u8 imr;
 
 	spin_lock_irqsave(&tc6393xb->lock, flags);
 	imr = tmio_ioread8(tc6393xb->scr + SCR_IMR);
-	imr &= ~(1 << (irq - tc6393xb->irq_base));
+	imr &= ~(1 << (data->irq - tc6393xb->irq_base));
 	tmio_iowrite8(imr, tc6393xb->scr + SCR_IMR);
 	spin_unlock_irqrestore(&tc6393xb->lock, flags);
 }
 
 static struct irq_chip tc6393xb_chip = {
-	.name	= "tc6393xb",
-	.ack	= tc6393xb_irq_ack,
-	.mask	= tc6393xb_irq_mask,
-	.unmask	= tc6393xb_irq_unmask,
+	.name		= "tc6393xb",
+	.irq_ack	= tc6393xb_irq_ack,
+	.irq_mask	= tc6393xb_irq_mask,
+	.irq_unmask	= tc6393xb_irq_unmask,
 };
 
 static void tc6393xb_attach_irq(struct platform_device *dev)
@@ -572,15 +573,14 @@ static void tc6393xb_attach_irq(struct platform_device *dev)
 	irq_base = tc6393xb->irq_base;
 
 	for (irq = irq_base; irq < irq_base + TC6393XB_NR_IRQS; irq++) {
-		set_irq_chip(irq, &tc6393xb_chip);
-		set_irq_chip_data(irq, tc6393xb);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &tc6393xb_chip, handle_edge_irq);
+		irq_set_chip_data(irq, tc6393xb);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
-	set_irq_type(tc6393xb->irq, IRQ_TYPE_EDGE_FALLING);
-	set_irq_data(tc6393xb->irq, tc6393xb);
-	set_irq_chained_handler(tc6393xb->irq, tc6393xb_irq);
+	irq_set_irq_type(tc6393xb->irq, IRQ_TYPE_EDGE_FALLING);
+	irq_set_handler_data(tc6393xb->irq, tc6393xb);
+	irq_set_chained_handler(tc6393xb->irq, tc6393xb_irq);
 }
 
 static void tc6393xb_detach_irq(struct platform_device *dev)
@@ -588,15 +588,15 @@ static void tc6393xb_detach_irq(struct platform_device *dev)
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
 	unsigned int irq, irq_base;
 
-	set_irq_chained_handler(tc6393xb->irq, NULL);
-	set_irq_data(tc6393xb->irq, NULL);
+	irq_set_chained_handler(tc6393xb->irq, NULL);
+	irq_set_handler_data(tc6393xb->irq, NULL);
 
 	irq_base = tc6393xb->irq_base;
 
 	for (irq = irq_base; irq < irq_base + TC6393XB_NR_IRQS; irq++) {
 		set_irq_flags(irq, 0);
-		set_irq_chip(irq, NULL);
-		set_irq_chip_data(irq, NULL);
+		irq_set_chip(irq, NULL);
+		irq_set_chip_data(irq, NULL);
 	}
 }
 
@@ -693,27 +693,11 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 			goto err_setup;
 	}
 
-	tc6393xb_cells[TC6393XB_CELL_NAND].driver_data = tcpd->nand_data;
-	tc6393xb_cells[TC6393XB_CELL_NAND].platform_data =
-		&tc6393xb_cells[TC6393XB_CELL_NAND];
-	tc6393xb_cells[TC6393XB_CELL_NAND].data_size =
-		sizeof(tc6393xb_cells[TC6393XB_CELL_NAND]);
-
-	tc6393xb_cells[TC6393XB_CELL_MMC].platform_data =
-		&tc6393xb_cells[TC6393XB_CELL_MMC];
-	tc6393xb_cells[TC6393XB_CELL_MMC].data_size =
-		sizeof(tc6393xb_cells[TC6393XB_CELL_MMC]);
-
-	tc6393xb_cells[TC6393XB_CELL_OHCI].platform_data =
-		&tc6393xb_cells[TC6393XB_CELL_OHCI];
-	tc6393xb_cells[TC6393XB_CELL_OHCI].data_size =
-		sizeof(tc6393xb_cells[TC6393XB_CELL_OHCI]);
-
-	tc6393xb_cells[TC6393XB_CELL_FB].driver_data = tcpd->fb_data;
-	tc6393xb_cells[TC6393XB_CELL_FB].platform_data =
-		&tc6393xb_cells[TC6393XB_CELL_FB];
-	tc6393xb_cells[TC6393XB_CELL_FB].data_size =
-		sizeof(tc6393xb_cells[TC6393XB_CELL_FB]);
+	tc6393xb_cells[TC6393XB_CELL_NAND].platform_data = tcpd->nand_data;
+	tc6393xb_cells[TC6393XB_CELL_NAND].pdata_size =
+						sizeof(*tcpd->nand_data);
+	tc6393xb_cells[TC6393XB_CELL_FB].platform_data = tcpd->fb_data;
+	tc6393xb_cells[TC6393XB_CELL_FB].pdata_size = sizeof(*tcpd->fb_data);
 
 	ret = mfd_add_devices(&dev->dev, dev->id,
 			tc6393xb_cells, ARRAY_SIZE(tc6393xb_cells),

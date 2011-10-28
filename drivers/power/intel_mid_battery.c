@@ -522,7 +522,7 @@ static int pmic_battery_set_charger(struct pmic_power_module_info *pbi,
 	if (retval) {
 		dev_warn(pbi->dev, "%s(): ipc pmic read failed\n",
 								__func__);
-		return retval;;
+		return retval;
 	}
 
 	return 0;
@@ -730,8 +730,7 @@ static __devinit int probe(int irq, struct device *dev)
 power_reg_failed_1:
 	power_supply_unregister(&pbi->batt);
 power_reg_failed:
-	cancel_rearming_delayed_workqueue(pbi->monitor_wqueue,
-						&pbi->monitor_battery);
+	cancel_delayed_work_sync(&pbi->monitor_battery);
 requestirq_failed:
 	destroy_workqueue(pbi->monitor_wqueue);
 wqueue_failed:
@@ -760,14 +759,13 @@ static int __devexit platform_pmic_battery_remove(struct platform_device *pdev)
 	struct pmic_power_module_info *pbi = dev_get_drvdata(&pdev->dev);
 
 	free_irq(pbi->irq, pbi);
-	cancel_rearming_delayed_workqueue(pbi->monitor_wqueue,
-					&pbi->monitor_battery);
+	cancel_delayed_work_sync(&pbi->monitor_battery);
 	destroy_workqueue(pbi->monitor_wqueue);
 
 	power_supply_unregister(&pbi->usb);
 	power_supply_unregister(&pbi->batt);
 
-	flush_scheduled_work();
+	cancel_work_sync(&pbi->handler);
 	kfree(pbi);
 	return 0;
 }

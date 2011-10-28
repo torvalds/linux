@@ -56,7 +56,7 @@
 /* do_probe module parameter Enable this code */
 /* Probe code is very useful for understanding how the hardware works */
 /* Use it with various combinations of TT_LEN, RX_LEN */
-/* Strongly recomended, disable if the probe fails on your machine */
+/* Strongly recommended, disable if the probe fails on your machine */
 /* and send me <james@fishsoup.dhs.org> the output of dmesg */
 #define USE_PROBE 1
 #undef  USE_PROBE
@@ -217,7 +217,7 @@ toshoboe_checkfcs (unsigned char *buf, int len)
   for (i = 0; i < len; ++i)
     fcs.value = irda_fcs (fcs.value, *(buf++));
 
-  return (fcs.value == GOOD_FCS);
+  return fcs.value == GOOD_FCS;
 }
 
 /***********************************************************************/
@@ -759,7 +759,7 @@ toshoboe_maketestpacket (unsigned char *buf, int badcrc, int fir)
   if (fir)
     {
       memset (buf, 0, TT_LEN);
-      return (TT_LEN);
+      return TT_LEN;
     }
 
   fcs.value = INIT_FCS;
@@ -818,9 +818,9 @@ toshoboe_probe (struct toshoboe_cb *self)
 {
   int i, j, n;
 #ifdef USE_MIR
-  int bauds[] = { 9600, 115200, 4000000, 1152000 };
+  static const int bauds[] = { 9600, 115200, 4000000, 1152000 };
 #else
-  int bauds[] = { 9600, 115200, 4000000 };
+  static const int bauds[] = { 9600, 115200, 4000000 };
 #endif
   unsigned long flags;
 

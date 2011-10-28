@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2006 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -28,7 +28,7 @@
 #define	 FM93C56A_ERASE	      0x3
 #define	 FM93C56A_ERASE_ALL   0x0
 
-/* Command Extentions */
+/* Command Extensions */
 #define	 FM93C56A_WEN_EXT	 0x3
 #define	 FM93C56A_WRITE_ALL_EXT	 0x1
 #define	 FM93C56A_WDS_EXT	 0x0

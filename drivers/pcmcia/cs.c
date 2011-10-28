@@ -33,7 +33,6 @@
 #include <asm/irq.h>
 
 #include <pcmcia/ss.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -845,7 +844,7 @@ static int pcmcia_socket_dev_resume_noirq(struct device *dev)
 	return __pcmcia_pm_op(dev, socket_early_resume);
 }
 
-static int pcmcia_socket_dev_resume(struct device *dev)
+static int __used pcmcia_socket_dev_resume(struct device *dev)
 {
 	return __pcmcia_pm_op(dev, socket_late_resume);
 }

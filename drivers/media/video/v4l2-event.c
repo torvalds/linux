@@ -134,14 +134,21 @@ int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
 	if (nonblocking)
 		return __v4l2_event_dequeue(fh, event);
 
+	/* Release the vdev lock while waiting */
+	if (fh->vdev->lock)
+		mutex_unlock(fh->vdev->lock);
+
 	do {
 		ret = wait_event_interruptible(events->wait,
 					       events->navailable != 0);
 		if (ret < 0)
-			return ret;
+			break;
 
 		ret = __v4l2_event_dequeue(fh, event);
 	} while (ret == -ENOENT);
+
+	if (fh->vdev->lock)
+		mutex_lock(fh->vdev->lock);
 
 	return ret;
 }

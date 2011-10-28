@@ -12,12 +12,17 @@
 #ifndef _LINUX_KMSG_DUMP_H
 #define _LINUX_KMSG_DUMP_H
 
+#include <linux/errno.h>
 #include <linux/list.h>
 
 enum kmsg_dump_reason {
 	KMSG_DUMP_OOPS,
 	KMSG_DUMP_PANIC,
 	KMSG_DUMP_KEXEC,
+	KMSG_DUMP_RESTART,
+	KMSG_DUMP_HALT,
+	KMSG_DUMP_POWEROFF,
+	KMSG_DUMP_EMERG,
 };
 
 /**

@@ -227,29 +227,12 @@ static int ds1553_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static int ds1553_rtc_update_irq_enable(struct device *dev,
-	unsigned int enabled)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-
-	if (pdata->irq <= 0)
-		return -EINVAL;
-	if (enabled)
-		pdata->irqen |= RTC_UF;
-	else
-		pdata->irqen &= ~RTC_UF;
-	ds1553_rtc_update_alarm(pdata);
-	return 0;
-}
-
 static const struct rtc_class_ops ds1553_rtc_ops = {
 	.read_time		= ds1553_rtc_read_time,
 	.set_time		= ds1553_rtc_set_time,
 	.read_alarm		= ds1553_rtc_read_alarm,
 	.set_alarm		= ds1553_rtc_set_alarm,
 	.alarm_irq_enable	= ds1553_rtc_alarm_irq_enable,
-	.update_irq_enable	= ds1553_rtc_update_irq_enable,
 };
 
 static ssize_t ds1553_nvram_read(struct file *filp, struct kobject *kobj,

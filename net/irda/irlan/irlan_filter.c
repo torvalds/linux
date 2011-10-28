@@ -143,11 +143,7 @@ void irlan_filter_request(struct irlan_cb *self, struct sk_buff *skb)
  */
 void irlan_check_command_param(struct irlan_cb *self, char *param, char *value)
 {
-	__u8 *bytes;
-
 	IRDA_DEBUG(4, "%s()\n", __func__ );
-
-	bytes = value;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);

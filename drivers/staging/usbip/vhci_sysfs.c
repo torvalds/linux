@@ -17,10 +17,11 @@
  * USA.
  */
 
+#include <linux/kthread.h>
+#include <linux/net.h>
+
 #include "usbip_common.h"
 #include "vhci.h"
-
-#include <linux/in.h>
 
 /* TODO: refine locking ?*/
 
@@ -52,20 +53,19 @@ static ssize_t show_status(struct device *dev, struct device_attribute *attr,
 		struct vhci_device *vdev = port_to_vdev(i);
 
 		spin_lock(&vdev->ud.lock);
-
 		out += sprintf(out, "%03u %03u ", i, vdev->ud.status);
 
 		if (vdev->ud.status == VDEV_ST_USED) {
 			out += sprintf(out, "%03u %08x ",
-					vdev->speed, vdev->devid);
+				       vdev->speed, vdev->devid);
 			out += sprintf(out, "%16p ", vdev->ud.tcp_socket);
 			out += sprintf(out, "%s", dev_name(&vdev->udev->dev));
 
-		} else
+		} else {
 			out += sprintf(out, "000 000 000 0000000000000000 0-0");
+		}
 
 		out += sprintf(out, "\n");
-
 		spin_unlock(&vdev->ud.lock);
 	}
 
@@ -89,7 +89,7 @@ static int vhci_port_disconnect(__u32 rhport)
 
 	spin_lock(&vdev->ud.lock);
 	if (vdev->ud.status == VDEV_ST_NULL) {
-		usbip_uerr("not connected %d\n", vdev->ud.status);
+		pr_err("not connected %d\n", vdev->ud.status);
 
 		/* unlock */
 		spin_unlock(&vdev->ud.lock);
@@ -117,7 +117,7 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 
 	/* check rhport */
 	if (rhport >= VHCI_NPORTS) {
-		usbip_uerr("invalid port %u\n", rhport);
+		dev_err(dev, "invalid port %u\n", rhport);
 		return -EINVAL;
 	}
 
@@ -126,6 +126,7 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	usbip_dbg_vhci_sysfs("Leave\n");
+
 	return count;
 }
 static DEVICE_ATTR(detach, S_IWUSR, NULL, store_detach);
@@ -135,7 +136,7 @@ static int valid_args(__u32 rhport, enum usb_device_speed speed)
 {
 	/* check rhport */
 	if ((rhport < 0) || (rhport >= VHCI_NPORTS)) {
-		usbip_uerr("port %u\n", rhport);
+		pr_err("port %u\n", rhport);
 		return -EINVAL;
 	}
 
@@ -147,7 +148,7 @@ static int valid_args(__u32 rhport, enum usb_device_speed speed)
 	case USB_SPEED_WIRELESS:
 		break;
 	default:
-		usbip_uerr("speed %d\n", speed);
+		pr_err("speed %d\n", speed);
 		return -EINVAL;
 	}
 
@@ -182,8 +183,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	sscanf(buf, "%u %u %u %u", &rhport, &sockfd, &devid, &speed);
 
 	usbip_dbg_vhci_sysfs("rhport(%u) sockfd(%u) devid(%u) speed(%u)\n",
-				rhport, sockfd, devid, speed);
-
+			     rhport, sockfd, devid, speed);
 
 	/* check received parameters */
 	if (valid_args(rhport, speed) < 0)
@@ -198,9 +198,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 
 	/* begin a lock */
 	spin_lock(&the_controller->lock);
-
 	vdev = port_to_vdev(rhport);
-
 	spin_lock(&vdev->ud.lock);
 
 	if (vdev->ud.status != VDEV_ST_NULL) {
@@ -208,12 +206,12 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		spin_unlock(&vdev->ud.lock);
 		spin_unlock(&the_controller->lock);
 
-		usbip_uerr("port %d already used\n", rhport);
+		dev_err(dev, "port %d already used\n", rhport);
 		return -EINVAL;
 	}
 
-	usbip_uinfo("rhport(%u) sockfd(%d) devid(%u) speed(%u)\n",
-				rhport, sockfd, devid, speed);
+	dev_info(dev, "rhport(%u) sockfd(%d) devid(%u) speed(%u)\n",
+		 rhport, sockfd, devid, speed);
 
 	vdev->devid         = devid;
 	vdev->speed         = speed;
@@ -224,11 +222,8 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	spin_unlock(&the_controller->lock);
 	/* end the lock */
 
-	/*
-	 * this function will sleep, so should be out of the lock. but, it's ok
-	 * because we already marked vdev as being used. really?
-	 */
-	usbip_start_threads(&vdev->ud);
+	vdev->ud.tcp_rx = kthread_run(vhci_rx_loop, &vdev->ud, "vhci_rx");
+	vdev->ud.tcp_tx = kthread_run(vhci_tx_loop, &vdev->ud, "vhci_tx");
 
 	rh_port_connect(rhport, speed);
 

@@ -65,15 +65,18 @@ SECTIONS
 	NOTES :text :note
 	.dummy : { *(.dummy) } :text
 
+	_sdata = .;			/* Start of data section */
 	RODATA
 
 	/* writeable */
+	_sdata = .;				/* Start of data section */
 	.data : {	/* Data */
 		. = . + DATAOFFSET;		/* for CONFIG_MAPPED_KERNEL */
 
 		INIT_TASK_DATA(PAGE_SIZE)
 		NOSAVE_DATA
 		CACHELINE_ALIGNED_DATA(1 << CONFIG_MIPS_L1_CACHE_SHIFT)
+		READ_MOSTLY_DATA(1 << CONFIG_MIPS_L1_CACHE_SHIFT)
 		DATA_DATA
 		CONSTRUCTORS
 	}
@@ -98,6 +101,13 @@ SECTIONS
 	INIT_TEXT_SECTION(PAGE_SIZE)
 	INIT_DATA_SECTION(16)
 
+	. = ALIGN(4);
+	.mips.machines.init : AT(ADDR(.mips.machines.init) - LOAD_OFFSET) {
+		__mips_machines_start = .;
+		*(.mips.machines.init)
+		__mips_machines_end = .;
+	}
+
 	/* .exit.text is discarded at runtime, not link time, to deal with
 	 * references from .rodata
 	 */
@@ -108,7 +118,7 @@ SECTIONS
 		EXIT_DATA
 	}
 
-	PERCPU(PAGE_SIZE)
+	PERCPU_SECTION(1 << CONFIG_MIPS_L1_CACHE_SHIFT)
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;
 	/* freed after init ends here */

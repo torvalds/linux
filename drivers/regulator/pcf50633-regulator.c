@@ -108,7 +108,8 @@ static unsigned int ldo_voltage_value(u8 bits)
 }
 
 static int pcf50633_regulator_set_voltage(struct regulator_dev *rdev,
-						int min_uV, int max_uV)
+					  int min_uV, int max_uV,
+					  unsigned *selector)
 {
 	struct pcf50633 *pcf;
 	int regulator_id, millivolts;
@@ -146,6 +147,8 @@ static int pcf50633_regulator_set_voltage(struct regulator_dev *rdev,
 	default:
 		return -EINVAL;
 	}
+
+	*selector = volt_bits;
 
 	return pcf50633_reg_write(pcf, regnr, volt_bits);
 }

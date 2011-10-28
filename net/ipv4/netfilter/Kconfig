@@ -64,16 +64,6 @@ config IP_NF_IPTABLES
 if IP_NF_IPTABLES
 
 # The matches.
-config IP_NF_MATCH_ADDRTYPE
-	tristate '"addrtype" address type match support'
-	depends on NETFILTER_ADVANCED
-	help
-	  This option allows you to match what routing thinks of an address,
-	  eg. UNICAST, LOCAL, BROADCAST, ...
-
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
-
 config IP_NF_MATCH_AH
 	tristate '"ah" match support'
 	depends on NETFILTER_ADVANCED
@@ -123,6 +113,18 @@ config IP_NF_TARGET_REJECT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP_NF_TARGET_REJECT_SKERR
+	bool "Force socket error when rejecting with icmp*"
+	depends on IP_NF_TARGET_REJECT
+	default n
+	help
+          This option enables turning a "--reject-with icmp*" into a matching
+          socket error also.
+	  The REJECT target normally allows sending an ICMP message. But it
+          leaves the local socket unaware of any ingress rejects.
+
+	  If unsure, say N.
+
 config IP_NF_TARGET_LOG
 	tristate "LOG target support"
 	default m if NETFILTER_ADVANCED=n
@@ -147,7 +149,7 @@ config IP_NF_TARGET_ULOG
 	  which can only be viewed through syslog.
 
 	  The appropriate userspace logging daemon (ulogd) may be obtained from
-	  <http://www.gnumonks.org/projects/ulogd/>
+	  <http://www.netfilter.org/projects/ulogd/index.html>
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -206,8 +208,9 @@ config IP_NF_TARGET_REDIRECT
 
 config NF_NAT_SNMP_BASIC
 	tristate "Basic SNMP-ALG support"
-	depends on NF_NAT
+	depends on NF_CONNTRACK_SNMP && NF_NAT
 	depends on NETFILTER_ADVANCED
+	default NF_NAT && NF_CONNTRACK_SNMP
 	---help---
 
 	  This module implements an Application Layer Gateway (ALG) for
@@ -324,10 +327,10 @@ config IP_NF_TARGET_ECN
 
 config IP_NF_TARGET_TTL
 	tristate '"TTL" target support'
-	depends on NETFILTER_ADVANCED
+	depends on NETFILTER_ADVANCED && IP_NF_MANGLE
 	select NETFILTER_XT_TARGET_HL
 	---help---
-	This is a backwards-compat option for the user's convenience
+	This is a backwards-compatible option for the user's convenience
 	(e.g. when running oldconfig). It selects
 	CONFIG_NETFILTER_XT_TARGET_HL.
 

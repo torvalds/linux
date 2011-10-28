@@ -572,23 +572,6 @@ static void falcon_get_lock(void)
 }
 
 
-/* This is the wrapper function for NCR5380_queue_command(). It just
- * tries to get the lock on the ST-DMA (see above) and then calls the
- * original function.
- */
-
-#if 0
-int atari_queue_command(Scsi_Cmnd *cmd, void (*done)(Scsi_Cmnd *))
-{
-	/* falcon_get_lock();
-	 * ++guenther: moved to NCR5380_queue_command() to prevent
-	 * race condition, see there for an explanation.
-	 */
-	return NCR5380_queue_command(cmd, done);
-}
-#endif
-
-
 int __init atari_scsi_detect(struct scsi_host_template *host)
 {
 	static int called = 0;

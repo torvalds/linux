@@ -349,7 +349,7 @@ error_no_waiter:
  *
  * For reports: We can't clone the original skb where the data is
  * because we need to send this up via netlink; netlink has to add
- * headers and we can't overwrite what's preceeding the payload...as
+ * headers and we can't overwrite what's preceding the payload...as
  * it is another message. So we just dup them.
  */
 static
@@ -425,7 +425,7 @@ error_check:
  *
  * As in i2400m_rx_ctl(), we can't clone the original skb where the
  * data is because we need to send this up via netlink; netlink has to
- * add headers and we can't overwrite what's preceeding the
+ * add headers and we can't overwrite what's preceding the
  * payload...as it is another message. So we just dup them.
  */
 static
@@ -922,7 +922,7 @@ void i2400m_roq_queue_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
  * rx_roq_refcount becomes zero. This routine gets executed when
  * rx_roq_refcount becomes zero.
  */
-void i2400m_rx_roq_destroy(struct kref *ref)
+static void i2400m_rx_roq_destroy(struct kref *ref)
 {
 	unsigned itr;
 	struct i2400m *i2400m

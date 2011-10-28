@@ -464,10 +464,32 @@ config XEN_BLKDEV_FRONTEND
 	tristate "Xen virtual block device support"
 	depends on XEN
 	default y
+	select XEN_XENBUS_FRONTEND
 	help
 	  This driver implements the front-end of the Xen virtual
 	  block device driver.  It communicates with a back-end driver
 	  in another domain which drives the actual block device.
+
+config XEN_BLKDEV_BACKEND
+	tristate "Block-device backend driver"
+	depends on XEN_BACKEND
+	help
+	  The block-device backend driver allows the kernel to export its
+	  block devices to other guests via a high-performance shared-memory
+	  interface.
+
+	  The corresponding Linux frontend driver is enabled by the
+	  CONFIG_XEN_BLKDEV_FRONTEND configuration option.
+
+	  The backend driver attaches itself to a any block device specified
+	  in the XenBus configuration. There are no limits to what the block
+	  device as long as it has a major and minor.
+
+	  If you are compiling a kernel to run in a Xen block backend driver
+	  domain (often this is domain 0) you should say Y here. To
+	  compile this driver as a module, chose M here: the module
+	  will be called xen-blkback.
+
 
 config VIRTIO_BLK
 	tristate "Virtio block driver (EXPERIMENTAL)"
@@ -485,6 +507,23 @@ config BLK_DEV_HD
 	  functionality of the newer ones.
 
 	  It is required for systems with ancient MFM/RLL/ESDI drives.
+
+	  If unsure, say N.
+
+config BLK_DEV_RBD
+	tristate "Rados block device (RBD)"
+	depends on INET && EXPERIMENTAL && BLOCK
+	select CEPH_LIB
+	select LIBCRC32C
+	select CRYPTO_AES
+	select CRYPTO
+	default n
+	help
+	  Say Y here if you want include the Rados block device, which stripes
+	  a block device over objects stored in the Ceph distributed object
+	  store.
+
+	  More information at http://ceph.newdream.net/.
 
 	  If unsure, say N.
 

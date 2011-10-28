@@ -33,10 +33,6 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
-#if !defined(DEF)
-#define DEF
-#endif
-
 // ioctl Command code
 #define MAGIC_CODE	                 0x3142
 #define IOCTL_CMD_TEST	            (SIOCDEVPRIVATE + 0)

@@ -24,6 +24,8 @@
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -104,16 +106,18 @@ static void usb_kbd_irq(struct urb *urb)
 			if (usb_kbd_keycode[kbd->old[i]])
 				input_report_key(kbd->dev, usb_kbd_keycode[kbd->old[i]], 0);
 			else
-				dev_info(&urb->dev->dev,
-						"Unknown key (scancode %#x) released.\n", kbd->old[i]);
+				hid_info(urb->dev,
+					 "Unknown key (scancode %#x) released.\n",
+					 kbd->old[i]);
 		}
 
 		if (kbd->new[i] > 3 && memscan(kbd->old + 2, kbd->new[i], 6) == kbd->old + 8) {
 			if (usb_kbd_keycode[kbd->new[i]])
 				input_report_key(kbd->dev, usb_kbd_keycode[kbd->new[i]], 1);
 			else
-				dev_info(&urb->dev->dev,
-						"Unknown key (scancode %#x) released.\n", kbd->new[i]);
+				hid_info(urb->dev,
+					 "Unknown key (scancode %#x) released.\n",
+					 kbd->new[i]);
 		}
 	}
 
@@ -124,9 +128,9 @@ static void usb_kbd_irq(struct urb *urb)
 resubmit:
 	i = usb_submit_urb (urb, GFP_ATOMIC);
 	if (i)
-		err_hid ("can't resubmit intr, %s-%s/input0, status %d",
-				kbd->usbdev->bus->bus_name,
-				kbd->usbdev->devpath, i);
+		hid_err(urb->dev, "can't resubmit intr, %s-%s/input0, status %d",
+			kbd->usbdev->bus->bus_name,
+			kbd->usbdev->devpath, i);
 }
 
 static int usb_kbd_event(struct input_dev *dev, unsigned int type,
@@ -150,7 +154,7 @@ static int usb_kbd_event(struct input_dev *dev, unsigned int type,
 	*(kbd->leds) = kbd->newleds;
 	kbd->led->dev = kbd->usbdev;
 	if (usb_submit_urb(kbd->led, GFP_ATOMIC))
-		err_hid("usb_submit_urb(leds) failed");
+		pr_err("usb_submit_urb(leds) failed\n");
 
 	return 0;
 }
@@ -160,7 +164,7 @@ static void usb_kbd_led(struct urb *urb)
 	struct usb_kbd *kbd = urb->context;
 
 	if (urb->status)
-		dev_warn(&urb->dev->dev, "led urb status %d received\n",
+		hid_warn(urb->dev, "led urb status %d received\n",
 			 urb->status);
 
 	if (*(kbd->leds) == kbd->newleds)
@@ -169,7 +173,7 @@ static void usb_kbd_led(struct urb *urb)
 	*(kbd->leds) = kbd->newleds;
 	kbd->led->dev = kbd->usbdev;
 	if (usb_submit_urb(kbd->led, GFP_ATOMIC))
-		err_hid("usb_submit_urb(leds) failed");
+		hid_err(urb->dev, "usb_submit_urb(leds) failed\n");
 }
 
 static int usb_kbd_open(struct input_dev *dev)

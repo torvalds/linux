@@ -1,0 +1,147 @@
+#
+# MN10300 CPU cache options
+#
+
+choice
+	prompt "CPU Caching mode"
+	default MN10300_CACHE_WBACK
+	help
+	  This option determines the caching mode for the kernel.
+
+	  Write-Back caching mode involves the all reads and writes causing
+	  the affected cacheline to be read into the cache first before being
+	  operated upon. Memory is not then updated by a write until the cache
+	  is filled and a cacheline needs to be displaced from the cache to
+	  make room. Only at that point is it written back.
+
+	  Write-Through caching only fetches cachelines from memory on a
+	  read. Writes always get written directly to memory. If the affected
+	  cacheline is also in cache, it will be updated too.
+
+	  The final option is to turn of caching entirely.
+
+config MN10300_CACHE_WBACK
+	bool "Write-Back"
+	help
+	  The dcache operates in delayed write-back mode.  It must be manually
+	  flushed if writes are made that subsequently need to be executed or
+	  to be DMA'd by a device.
+
+config MN10300_CACHE_WTHRU
+	bool "Write-Through"
+	help
+	  The dcache operates in immediate write-through mode.  Writes are
+	  committed to RAM immediately in addition to being stored in the
+	  cache.  This means that the written data is immediately available for
+	  execution or DMA.
+
+	  This is not available for use with an SMP kernel if cache flushing
+	  and invalidation by automatic purge register is not selected.
+
+config MN10300_CACHE_DISABLED
+	bool "Disabled"
+	help
+	  The icache and dcache are disabled.
+
+endchoice
+
+config MN10300_CACHE_ENABLED
+	def_bool y if !MN10300_CACHE_DISABLED
+
+
+choice
+	prompt "CPU cache flush/invalidate method"
+	default MN10300_CACHE_MANAGE_BY_TAG if !AM34_2
+	default MN10300_CACHE_MANAGE_BY_REG if AM34_2
+	depends on MN10300_CACHE_ENABLED
+	help
+	  This determines the method by which CPU cache flushing and
+	  invalidation is performed.
+
+config MN10300_CACHE_MANAGE_BY_TAG
+	bool "Use the cache tag registers directly"
+	depends on !(SMP && MN10300_CACHE_WTHRU)
+
+config MN10300_CACHE_MANAGE_BY_REG
+	bool "Flush areas by way of automatic purge registers (AM34 only)"
+	depends on AM34_2
+
+endchoice
+
+config MN10300_CACHE_INV_BY_TAG
+	def_bool y if MN10300_CACHE_MANAGE_BY_TAG && MN10300_CACHE_ENABLED
+
+config MN10300_CACHE_INV_BY_REG
+	def_bool y if MN10300_CACHE_MANAGE_BY_REG && MN10300_CACHE_ENABLED
+
+config MN10300_CACHE_FLUSH_BY_TAG
+	def_bool y if MN10300_CACHE_MANAGE_BY_TAG && MN10300_CACHE_WBACK
+
+config MN10300_CACHE_FLUSH_BY_REG
+	def_bool y if MN10300_CACHE_MANAGE_BY_REG && MN10300_CACHE_WBACK
+
+
+config MN10300_HAS_CACHE_SNOOP
+	def_bool n
+
+config MN10300_CACHE_SNOOP
+	bool "Use CPU Cache Snooping"
+	depends on MN10300_CACHE_ENABLED && MN10300_HAS_CACHE_SNOOP
+	default y
+
+config MN10300_CACHE_FLUSH_ICACHE
+	def_bool y if MN10300_CACHE_WBACK && !MN10300_CACHE_SNOOP
+	help
+	  Set if we need the dcache flushing before the icache is invalidated.
+
+config MN10300_CACHE_INV_ICACHE
+	def_bool y if MN10300_CACHE_WTHRU && !MN10300_CACHE_SNOOP
+	help
+	  Set if we need the icache to be invalidated, even if the dcache is in
+	  write-through mode and doesn't need flushing.
+
+#
+# The kernel debugger gets its own separate cache flushing functions
+#
+config MN10300_DEBUGGER_CACHE_FLUSH_BY_TAG
+	def_bool y if KERNEL_DEBUGGER && \
+			MN10300_CACHE_WBACK && \
+			!MN10300_CACHE_SNOOP && \
+			MN10300_CACHE_MANAGE_BY_TAG
+	help
+	  Set if the debugger needs to flush the dcache and invalidate the
+	  icache using the cache tag registers to make breakpoints work.
+
+config MN10300_DEBUGGER_CACHE_FLUSH_BY_REG
+	def_bool y if KERNEL_DEBUGGER && \
+			MN10300_CACHE_WBACK && \
+			!MN10300_CACHE_SNOOP && \
+			MN10300_CACHE_MANAGE_BY_REG
+	help
+	  Set if the debugger needs to flush the dcache and invalidate the
+	  icache using automatic purge registers to make breakpoints work.
+
+config MN10300_DEBUGGER_CACHE_INV_BY_TAG
+	def_bool y if KERNEL_DEBUGGER && \
+			MN10300_CACHE_WTHRU && \
+			!MN10300_CACHE_SNOOP && \
+			MN10300_CACHE_MANAGE_BY_TAG
+	help
+	  Set if the debugger needs to invalidate the icache using the cache
+	  tag registers to make breakpoints work.
+
+config MN10300_DEBUGGER_CACHE_INV_BY_REG
+	def_bool y if KERNEL_DEBUGGER && \
+			MN10300_CACHE_WTHRU && \
+			!MN10300_CACHE_SNOOP && \
+			MN10300_CACHE_MANAGE_BY_REG
+	help
+	  Set if the debugger needs to invalidate the icache using automatic
+	  purge registers to make breakpoints work.
+
+config MN10300_DEBUGGER_CACHE_NO_FLUSH
+	def_bool y if KERNEL_DEBUGGER && \
+			(MN10300_CACHE_DISABLED || MN10300_CACHE_SNOOP)
+	help
+	  Set if the debugger does not need to flush the dcache and/or
+	  invalidate the icache to make breakpoints work.

@@ -60,11 +60,14 @@ static LIST_HEAD(adapter_list);
 static const unsigned int MAX_ATIDS = 64 * 1024;
 static const unsigned int ATID_BASE = 0x10000;
 
+static void cxgb_neigh_update(struct neighbour *neigh);
+static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new);
+
 static inline int offload_activated(struct t3cdev *tdev)
 {
 	const struct adapter *adapter = tdev2adap(tdev);
 
-	return (test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map));
+	return test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map);
 }
 
 /**
@@ -183,9 +186,10 @@ static struct net_device *get_iff_from_mac(struct adapter *adapter,
 				dev = NULL;
 				if (grp)
 					dev = vlan_group_get_device(grp, vlan);
-			} else
+			} else if (netif_is_bond_slave(dev)) {
 				while (dev->master)
 					dev = dev->master;
+			}
 			return dev;
 		}
 	}
@@ -964,8 +968,6 @@ static int nb_callback(struct notifier_block *self, unsigned long event,
 		cxgb_neigh_update((struct neighbour *)ctx);
 		break;
 	}
-	case (NETEVENT_PMTU_UPDATE):
-		break;
 	case (NETEVENT_REDIRECT):{
 		struct netevent_redirect *nr = ctx;
 		cxgb_redirect(nr->old, nr->new);
@@ -1015,7 +1017,7 @@ EXPORT_SYMBOL(t3_register_cpl_handler);
 /*
  * T3CDEV's receive method.
  */
-int process_rx(struct t3cdev *dev, struct sk_buff **skbs, int n)
+static int process_rx(struct t3cdev *dev, struct sk_buff **skbs, int n)
 {
 	while (n--) {
 		struct sk_buff *skb = *skbs++;
@@ -1070,7 +1072,7 @@ static int is_offloading(struct net_device *dev)
 	return 0;
 }
 
-void cxgb_neigh_update(struct neighbour *neigh)
+static void cxgb_neigh_update(struct neighbour *neigh)
 {
 	struct net_device *dev = neigh->dev;
 
@@ -1104,7 +1106,7 @@ static void set_l2t_ix(struct t3cdev *tdev, u32 tid, struct l2t_entry *e)
 	tdev->send(tdev, skb);
 }
 
-void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
+static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
 {
 	struct net_device *olddev, *newdev;
 	struct tid_info *ti;
@@ -1161,12 +1163,10 @@ void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
  */
 void *cxgb_alloc_mem(unsigned long size)
 {
-	void *p = kmalloc(size, GFP_KERNEL);
+	void *p = kzalloc(size, GFP_KERNEL);
 
 	if (!p)
-		p = vmalloc(size);
-	if (p)
-		memset(p, 0, size);
+		p = vzalloc(size);
 	return p;
 }
 

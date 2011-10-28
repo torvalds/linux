@@ -169,13 +169,13 @@ static inline void __init show_version (void) {
   Real Time (cdv and max CDT given)
   
   CBR(pcr)             pcr bandwidth always available
-  rtVBR(pcr,scr,mbs)   scr bandwidth always available, upto pcr at mbs too
+  rtVBR(pcr,scr,mbs)   scr bandwidth always available, up to pcr at mbs too
   
   Non Real Time
   
-  nrtVBR(pcr,scr,mbs)  scr bandwidth always available, upto pcr at mbs too
+  nrtVBR(pcr,scr,mbs)  scr bandwidth always available, up to pcr at mbs too
   UBR()
-  ABR(mcr,pcr)         mcr bandwidth always available, upto pcr (depending) too
+  ABR(mcr,pcr)         mcr bandwidth always available, up to pcr (depending) too
   
   mbs is max burst size (bucket)
   pcr and scr have associated cdvt values
@@ -944,7 +944,7 @@ static void hrz_close_rx (hrz_dev * dev, u16 vc) {
 // to be fixed soon, so do not define TAILRECUSRIONWORKS unless you
 // are sure it does as you may otherwise overflow the kernel stack.
 
-// giving this fn a return value would help GCC, alledgedly
+// giving this fn a return value would help GCC, allegedly
 
 static void rx_schedule (hrz_dev * dev, int irq) {
   unsigned int rx_bytes;
@@ -1036,7 +1036,7 @@ static void rx_schedule (hrz_dev * dev, int irq) {
 	  // VC layer stats
 	  atomic_inc(&vcc->stats->rx);
 	  __net_timestamp(skb);
-	  // end of our responsability
+	  // end of our responsibility
 	  vcc->push (vcc, skb);
 	}
       }
@@ -1645,10 +1645,8 @@ static int hrz_send (struct atm_vcc * atm_vcc, struct sk_buff * skb) {
     unsigned short d = 0;
     char * s = skb->data;
     if (*s++ == 'D') {
-      for (i = 0; i < 4; ++i) {
-	d = (d<<4) | ((*s <= '9') ? (*s - '0') : (*s - 'a' + 10));
-	++s;
-      }
+	for (i = 0; i < 4; ++i)
+		d = (d << 4) | hex_to_bin(*s++);
       PRINTK (KERN_INFO, "debug bitmap is now %hx", debug = d);
     }
   }
@@ -2735,7 +2733,8 @@ static int __devinit hrz_probe(struct pci_dev *pci_dev, const struct pci_device_
 	PRINTD(DBG_INFO, "found Madge ATM adapter (hrz) at: IO %x, IRQ %u, MEM %p",
 	       iobase, irq, membase);
 
-	dev->atm_dev = atm_dev_register(DEV_LABEL, &hrz_ops, -1, NULL);
+	dev->atm_dev = atm_dev_register(DEV_LABEL, &pci_dev->dev, &hrz_ops, -1,
+					NULL);
 	if (!(dev->atm_dev)) {
 		PRINTD(DBG_ERR, "failed to register Madge ATM adapter");
 		err = -EINVAL;

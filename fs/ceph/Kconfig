@@ -1,9 +1,11 @@
 config CEPH_FS
         tristate "Ceph distributed file system (EXPERIMENTAL)"
 	depends on INET && EXPERIMENTAL
+	select CEPH_LIB
 	select LIBCRC32C
 	select CRYPTO_AES
 	select CRYPTO
+	default n
 	help
 	  Choose Y or M here to include support for mounting the
 	  experimental Ceph distributed file system.  Ceph is an extremely
@@ -11,18 +13,6 @@ config CEPH_FS
 	  reliable access to petabytes of storage.
 
 	  More information at http://ceph.newdream.net/.
-
-	  If unsure, say N.
-
-config CEPH_FS_PRETTYDEBUG
-	bool "Include file:line in ceph debug output"
-	depends on CEPH_FS
-	default n
-	help
-	  If you say Y here, debug output will include a filename and
-	  line to aid debugging.  This icnreases kernel size and slows
-	  execution slightly when debug call sites are enabled (e.g.,
-	  via CONFIG_DYNAMIC_DEBUG).
 
 	  If unsure, say N.
 

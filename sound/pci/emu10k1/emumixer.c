@@ -1729,8 +1729,6 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		"Master Mono Playback Volume",
 		"PCM Out Path & Mute",
 		"Mono Output Select",
-		"Front Playback Switch",
-		"Front Playback Volume",
 		"Surround Playback Switch",
 		"Surround Playback Volume",
 		"Center Playback Switch",
@@ -1879,6 +1877,8 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 				emu->rear_ac97 = 1;
 				snd_emu10k1_ptr_write(emu, AC97SLOT, 0, AC97SLOT_CNTR|AC97SLOT_LFE|AC97SLOT_REAR_LEFT|AC97SLOT_REAR_RIGHT);
 				snd_ac97_write_cache(emu->ac97, AC97_HEADPHONE, 0x0202);
+				remove_ctl(card,"Front Playback Volume");
+				remove_ctl(card,"Front Playback Switch");
 			}
 			/* remove unused AC97 controls */
 			snd_ac97_write_cache(emu->ac97, AC97_SURROUND_MASTER, 0x0202);
@@ -1913,6 +1913,12 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 	for (; *c; c += 2)
 		rename_ctl(card, c[0], c[1]);
 
+	if (emu->card_capabilities->subsystem == 0x80401102) { /* SB Live! Platinum CT4760P */
+		remove_ctl(card, "Center Playback Volume");
+		remove_ctl(card, "LFE Playback Volume");
+		remove_ctl(card, "Wave Center Playback Volume");
+		remove_ctl(card, "Wave LFE Playback Volume");
+	}
 	if (emu->card_capabilities->subsystem == 0x20071102) {  /* Audigy 4 Pro */
 		rename_ctl(card, "Line2 Capture Volume", "Line1/Mic Capture Volume");
 		rename_ctl(card, "Analog Mix Capture Volume", "Line2 Capture Volume");

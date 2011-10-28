@@ -238,7 +238,7 @@ static void WriteLPCReg(int iRegNum, unsigned char iVal)
 
 static __u8 ReadReg(unsigned int BaseAddr, int iRegNum)
 {
-	return ((__u8) inb(BaseAddr + iRegNum));
+	return (__u8) inb(BaseAddr + iRegNum);
 }
 
 static void WriteReg(unsigned int BaseAddr, int iRegNum, unsigned char iVal)

@@ -39,16 +39,16 @@
 #include <net/irda/irlap_frame.h>
 
 /*
- * Maximum values of the baud rate we negociate with the other end.
+ * Maximum values of the baud rate we negotiate with the other end.
  * Most often, you don't have to change that, because Linux-IrDA will
  * use the maximum offered by the link layer, which usually works fine.
  * In some very rare cases, you may want to limit it to lower speeds...
  */
 int sysctl_max_baud_rate = 16000000;
 /*
- * Maximum value of the lap disconnect timer we negociate with the other end.
+ * Maximum value of the lap disconnect timer we negotiate with the other end.
  * Most often, the value below represent the best compromise, but some user
- * may want to keep the LAP alive longuer or shorter in case of link failure.
+ * may want to keep the LAP alive longer or shorter in case of link failure.
  * Remember that the threshold time (early warning) is fixed to 3s...
  */
 int sysctl_max_noreply_time = 12;
@@ -411,7 +411,7 @@ static void irlap_adjust_qos_settings(struct qos_info *qos)
 	 * Fix tx data size according to user limits - Jean II
 	 */
 	if (qos->data_size.value > sysctl_max_tx_data_size)
-		/* Allow non discrete adjustement to avoid loosing capacity */
+		/* Allow non discrete adjustement to avoid losing capacity */
 		qos->data_size.value = sysctl_max_tx_data_size;
 	/*
 	 * Override Tx window if user request it. - Jean II

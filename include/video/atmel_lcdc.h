@@ -52,6 +52,7 @@ struct atmel_lcdfb_info {
 	u8			bl_power;
 #endif
 	bool			lcdcon_is_backlight;
+	bool			lcdcon_pol_negative;
 	u8			saved_lcdcon;
 
 	u8			default_bpp;

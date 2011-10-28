@@ -1,13 +1,12 @@
+easycap-objs := easycap_main.o
+easycap-objs += easycap_low.o
+easycap-objs += easycap_ioctl.o
+easycap-objs += easycap_settings.o
+easycap-objs += easycap_testcard.o
+easycap-objs += easycap_sound.o
+easycap-$(CONFIG_EASYCAP_OSS) += easycap_sound_oss.o
 
-obj-$(CONFIG_EASYCAP)	+= easycap.o
+obj-$(CONFIG_EASYCAP)       += easycap.o
 
-easycap-objs	:= easycap_main.o easycap_low.o easycap_sound.o
-easycap-objs	+= easycap_ioctl.o easycap_settings.o
-easycap-objs	+= easycap_testcard.o
-
-EXTRA_CFLAGS += -Wall
-# Impose all or none of the following:
-EXTRA_CFLAGS += -DEASYCAP_IS_VIDEODEV_CLIENT
-EXTRA_CFLAGS += -DEASYCAP_NEEDS_V4L2_DEVICE_H
-EXTRA_CFLAGS += -DEASYCAP_NEEDS_V4L2_FOPS
+ccflags-y := -Wall
 

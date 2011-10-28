@@ -17,7 +17,7 @@ config H8300H_AKI3068NET
 	help
 	  AKI-H8/3068F / AKI-H8/3069F Flashmicom LAN Board Support
 	  More Information. (Japanese Only)
-	  <http://akizukidensi.com/catalog/h8.html>
+	  <http://akizukidenshi.com/catalog/default.aspx>
 	  AE-3068/69 Evaluation Board Support
 	  More Information.
 	  <http://www.microtronique.com/ae3069lan.htm>
@@ -36,7 +36,7 @@ config H8300H_SIM
 	help
 	  GDB Simulator Support
 	  More Information.
-	  arch/h8300/Doc/simulator.txt
+	  <http://sourceware.org/sid/>
 
 config H8S_GENERIC
 	bool "H8S Generic"
@@ -50,14 +50,14 @@ config H8S_EDOSK2674
 	  Renesas EDOSK-2674 Evaluation Board Support
 	  More Information.
 	  <http://www.azpower.com/H8-uClinux/index.html>
- 	  <http://www.eu.renesas.com/tools/edk/support/edosk2674.html>
+ 	  <http://www.renesas.eu/products/tools/introductory_evaluation_tools/evaluation_development_os_kits/edosk2674r/edosk2674r_software_tools_root.jsp>
 
 config H8S_SIM
 	bool "H8S Simulator"
 	help
 	  GDB Simulator Support
 	  More Information.
-	  arch/h8300/Doc/simulator.txt
+	  <http://sourceware.org/sid/>
 
 endchoice
 

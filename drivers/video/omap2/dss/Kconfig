@@ -1,8 +1,8 @@
 menuconfig OMAP2_DSS
-        tristate "OMAP2/3 Display Subsystem support (EXPERIMENTAL)"
-        depends on ARCH_OMAP2 || ARCH_OMAP3
+        tristate "OMAP2+ Display Subsystem support (EXPERIMENTAL)"
+        depends on ARCH_OMAP2PLUS
         help
-          OMAP2/3 Display Subsystem support.
+	  OMAP2+ Display Subsystem support.
 
 if OMAP2_DSS
 
@@ -60,6 +60,14 @@ config OMAP2_DSS_VENC
 	help
 	  OMAP Video Encoder support for S-Video and composite TV-out.
 
+config OMAP4_DSS_HDMI
+	bool "HDMI support"
+	depends on ARCH_OMAP4
+        default y
+	help
+	  HDMI Interface. This adds the High Definition Multimedia Interface.
+	  See http://www.hdmi.org/ for HDMI specification.
+
 config OMAP2_DSS_SDI
 	bool "SDI support"
 	depends on ARCH_OMAP3
@@ -72,7 +80,7 @@ config OMAP2_DSS_SDI
 
 config OMAP2_DSS_DSI
 	bool "DSI support"
-	depends on ARCH_OMAP3
+	depends on ARCH_OMAP3 || ARCH_OMAP4
         default n
 	help
 	  MIPI DSI (Display Serial Interface) support.
@@ -81,14 +89,6 @@ config OMAP2_DSS_DSI
 	  processor and a peripheral, such as a display or a framebuffer chip.
 
 	  See http://www.mipi.org/ for DSI spesifications.
-
-config OMAP2_DSS_USE_DSI_PLL
-	bool "Use DSI PLL for PCLK (EXPERIMENTAL)"
-	default n
-	depends on OMAP2_DSS_DSI
-	help
-	  Use DSI PLL to generate pixel clock.  Currently only for DPI output.
-	  DSI PLL can be used to generate higher and more precise pixel clocks.
 
 config OMAP2_DSS_FAKE_VSYNC
 	bool "Fake VSYNC irq from manual update displays"
@@ -116,5 +116,28 @@ config OMAP2_DSS_MIN_FCK_PER_PCK
 
 	  Max FCK is 173MHz, so this doesn't work if your PCK
 	  is very high.
+
+config OMAP2_DSS_SLEEP_BEFORE_RESET
+	bool "Sleep 50ms before DSS reset"
+	default y
+	help
+	  For some unknown reason we may get SYNC_LOST errors from the display
+	  subsystem at initialization time if we don't sleep before resetting
+	  the DSS. See the source (dss.c) for more comments.
+
+	  However, 50ms is quite long time to sleep, and with some
+	  configurations the SYNC_LOST may never happen, so the sleep can
+	  be disabled here.
+
+config OMAP2_DSS_SLEEP_AFTER_VENC_RESET
+	bool "Sleep 20ms after VENC reset"
+	default y
+	help
+	  There is a 20ms sleep after VENC reset which seemed to fix the
+	  reset. The reason for the bug is unclear, and it's also unclear
+	  on what platforms this happens.
+
+	  This option enables the sleep, and is enabled by default. You can
+	  disable the sleep if it doesn't cause problems on your platform.
 
 endif

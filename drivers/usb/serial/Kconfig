@@ -176,7 +176,7 @@ config USB_SERIAL_VISOR
 	help
 	  Say Y here if you want to connect to your HandSpring Visor, Palm
 	  m500 or m505 through its USB docking station. See
-	  <http://usbvisor.sourceforge.net/> for more information on using this
+	  <http://usbvisor.sourceforge.net/index.php3> for more information on using this
 	  driver.
 
 	  To compile this driver as a module, choose M here: the
@@ -289,7 +289,7 @@ config USB_SERIAL_KEYSPAN
 	  and was developed with their support.  You must also include
 	  firmware to support your particular device(s).
 
-	  See <http://misc.nu/hugh/keyspan.html> for more information.
+	  See <http://blemings.org/hugh/keyspan.html> for more information.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called keyspan.

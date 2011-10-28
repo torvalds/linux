@@ -101,7 +101,7 @@ static void __iomem * __ref sfi_map_memory(u64 phys, u32 size)
 		return NULL;
 
 	if (sfi_use_ioremap)
-		return ioremap(phys, size);
+		return ioremap_cache(phys, size);
 	else
 		return early_ioremap(phys, size);
 }
@@ -515,7 +515,7 @@ void __init sfi_init_late(void)
 }
 
 /*
- * The reason we put it here becasue we need wait till the /sys/firmware
+ * The reason we put it here because we need wait till the /sys/firmware
  * is setup, then our interface can be registered in /sys/firmware/sfi
  */
 core_initcall(sfi_sysfs_init);

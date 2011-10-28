@@ -9,6 +9,7 @@
 #define MSG_SIMPLE_TAG	0x20
 #define MSG_HEAD_TAG	0x21
 #define MSG_ORDERED_TAG	0x22
+#define MSG_ACA_TAG	0x24	/* unsupported */
 
 #define SCSI_NO_TAG	(-1)    /* identify no tag in use */
 
@@ -97,13 +98,9 @@ static inline void scsi_deactivate_tcq(struct scsi_device *sdev, int depth)
 static inline int scsi_populate_tag_msg(struct scsi_cmnd *cmd, char *msg)
 {
         struct request *req = cmd->request;
-	struct scsi_device *sdev = cmd->device;
 
         if (blk_rq_tagged(req)) {
-		if (sdev->ordered_tags && req->cmd_flags & REQ_HARDBARRIER)
-        	        *msg++ = MSG_ORDERED_TAG;
-        	else
-        	        *msg++ = MSG_SIMPLE_TAG;
+		*msg++ = MSG_SIMPLE_TAG;
         	*msg++ = req->tag;
         	return 2;
 	}

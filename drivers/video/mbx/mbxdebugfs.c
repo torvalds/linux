@@ -175,36 +175,42 @@ static const struct file_operations sysconf_fops = {
 	.read = sysconf_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
+	.llseek = default_llseek,
 };
 
 static const struct file_operations clock_fops = {
 	.read = clock_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
+	.llseek = default_llseek,
 };
 
 static const struct file_operations display_fops = {
 	.read = display_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
+	.llseek = default_llseek,
 };
 
 static const struct file_operations gsctl_fops = {
 	.read = gsctl_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
+	.llseek = default_llseek,
 };
 
 static const struct file_operations sdram_fops = {
 	.read = sdram_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
+	.llseek = default_llseek,
 };
 
 static const struct file_operations misc_fops = {
 	.read = misc_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
+	.llseek = default_llseek,
 };
 
 static void __devinit mbxfb_debugfs_init(struct fb_info *fbi)

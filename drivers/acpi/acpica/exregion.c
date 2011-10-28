@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -353,7 +353,6 @@ acpi_ex_pci_config_space_handler(u32 function,
 	acpi_status status = AE_OK;
 	struct acpi_pci_id *pci_id;
 	u16 pci_register;
-	u32 value32;
 
 	ACPI_FUNCTION_TRACE(ex_pci_config_space_handler);
 
@@ -381,8 +380,7 @@ acpi_ex_pci_config_space_handler(u32 function,
 	case ACPI_READ:
 
 		status = acpi_os_read_pci_configuration(pci_id, pci_register,
-							&value32, bit_width);
-		*value = value32;
+							value, bit_width);
 		break;
 
 	case ACPI_WRITE:

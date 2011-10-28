@@ -587,7 +587,7 @@ static int rose_clear_routes(void)
 
 /*
  *	Check that the device given is a valid AX.25 interface that is "up".
- * 	called whith RTNL
+ * 	called with RTNL
  */
 static struct net_device *rose_ax25_dev_find(char *devname)
 {
@@ -674,29 +674,34 @@ struct rose_route *rose_route_free_lci(unsigned int lci, struct rose_neigh *neig
  *	Find a neighbour or a route given a ROSE address.
  */
 struct rose_neigh *rose_get_neigh(rose_address *addr, unsigned char *cause,
-	unsigned char *diagnostic, int new)
+	unsigned char *diagnostic, int route_frame)
 {
 	struct rose_neigh *res = NULL;
 	struct rose_node *node;
 	int failed = 0;
 	int i;
 
-	if (!new) spin_lock_bh(&rose_node_list_lock);
+	if (!route_frame) spin_lock_bh(&rose_node_list_lock);
 	for (node = rose_node_list; node != NULL; node = node->next) {
 		if (rosecmpm(addr, &node->address, node->mask) == 0) {
 			for (i = 0; i < node->count; i++) {
-				if (new) {
-					if (node->neighbour[i]->restarted) {
-						res = node->neighbour[i];
-						goto out;
-					}
+				if (node->neighbour[i]->restarted) {
+					res = node->neighbour[i];
+					goto out;
 				}
-				else {
+			}
+		}
+	}
+	if (!route_frame) { /* connect request */
+		for (node = rose_node_list; node != NULL; node = node->next) {
+			if (rosecmpm(addr, &node->address, node->mask) == 0) {
+				for (i = 0; i < node->count; i++) {
 					if (!rose_ftimer_running(node->neighbour[i])) {
 						res = node->neighbour[i];
+						failed = 0;
 						goto out;
-					} else
-						failed = 1;
+					}
+					failed = 1;
 				}
 			}
 		}
@@ -711,8 +716,7 @@ struct rose_neigh *rose_get_neigh(rose_address *addr, unsigned char *cause,
 	}
 
 out:
-	if (!new) spin_unlock_bh(&rose_node_list_lock);
-
+	if (!route_frame) spin_unlock_bh(&rose_node_list_lock);
 	return res;
 }
 
@@ -857,7 +861,7 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	unsigned int lci, new_lci;
 	unsigned char cause, diagnostic;
 	struct net_device *dev;
-	int len, res = 0;
+	int res = 0;
 	char buf[11];
 
 #if 0
@@ -865,10 +869,17 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 		return res;
 #endif
 
+	if (skb->len < ROSE_MIN_LEN)
+		return res;
 	frametype = skb->data[2];
 	lci = ((skb->data[0] << 8) & 0xF00) + ((skb->data[1] << 0) & 0x0FF);
-	src_addr  = (rose_address *)(skb->data + 9);
-	dest_addr = (rose_address *)(skb->data + 4);
+	if (frametype == ROSE_CALL_REQUEST &&
+	    (skb->len <= ROSE_CALL_REQ_FACILITIES_OFF ||
+	     skb->data[ROSE_CALL_REQ_ADDR_LEN_OFF] !=
+	     ROSE_CALL_REQ_ADDR_LEN_VAL))
+		return res;
+	src_addr  = (rose_address *)(skb->data + ROSE_CALL_REQ_SRC_ADDR_OFF);
+	dest_addr = (rose_address *)(skb->data + ROSE_CALL_REQ_DEST_ADDR_OFF);
 
 	spin_lock_bh(&rose_neigh_list_lock);
 	spin_lock_bh(&rose_route_list_lock);
@@ -1006,12 +1017,11 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 		goto out;
 	}
 
-	len  = (((skb->data[3] >> 4) & 0x0F) + 1) >> 1;
-	len += (((skb->data[3] >> 0) & 0x0F) + 1) >> 1;
-
 	memset(&facilities, 0x00, sizeof(struct rose_facilities_struct));
 
-	if (!rose_parse_facilities(skb->data + len + 4, &facilities)) {
+	if (!rose_parse_facilities(skb->data + ROSE_CALL_REQ_FACILITIES_OFF,
+				   skb->len - ROSE_CALL_REQ_FACILITIES_OFF,
+				   &facilities)) {
 		rose_transmit_clear_request(rose_neigh, lci, ROSE_INVALID_FACILITY, 76);
 		goto out;
 	}

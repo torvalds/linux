@@ -73,18 +73,18 @@ cputime64_to_jiffies64(cputime64_t cputime)
 }
 
 /*
- * Convert cputime to milliseconds and back.
+ * Convert cputime to microseconds and back.
  */
 static inline unsigned int
-cputime_to_msecs(const cputime_t cputime)
+cputime_to_usecs(const cputime_t cputime)
 {
-	return cputime_div(cputime, 4096000);
+	return cputime_div(cputime, 4096);
 }
 
 static inline cputime_t
-msecs_to_cputime(const unsigned int m)
+usecs_to_cputime(const unsigned int m)
 {
-	return (cputime_t) m * 4096000;
+	return (cputime_t) m * 4096;
 }
 
 /*
@@ -202,7 +202,7 @@ static inline void s390_idle_check(struct pt_regs *regs, __u64 int_clock,
 
 static inline int s390_nohz_delay(int cpu)
 {
-	return per_cpu(s390_idle, cpu).nohz_delay != 0;
+	return __get_cpu_var(s390_idle).nohz_delay != 0;
 }
 
 #define arch_needs_cpu(cpu) s390_nohz_delay(cpu)

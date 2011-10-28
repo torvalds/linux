@@ -37,6 +37,7 @@
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/ptrace.h>
 #include <asm/synch.h>
 #include "head_booke.h"
 
@@ -177,7 +178,7 @@ interrupt_base:
 	NORMAL_EXCEPTION_PROLOG
 	EXC_XFER_EE_LITE(0x0c00, DoSyscall)
 
-	/* Auxillary Processor Unavailable Interrupt */
+	/* Auxiliary Processor Unavailable Interrupt */
 	EXCEPTION(0x2020, AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_EE)
 
 	/* Decrementer Interrupt */

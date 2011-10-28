@@ -84,7 +84,7 @@ struct eisa_driver {
 
 id_table	: an array of NULL terminated EISA id strings,
 		  followed by an empty string. Each string can
-		  optionally be paired with a driver-dependant value
+		  optionally be paired with a driver-dependent value
 		  (driver_data).
 
 driver		: a generic driver, such as described in

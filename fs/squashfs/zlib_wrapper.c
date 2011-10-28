@@ -2,7 +2,7 @@
  * Squashfs - a compressed read only filesystem for Linux
  *
  * Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
- * Phillip Lougher <phillip@lougher.demon.co.uk>
+ * Phillip Lougher <phillip@squashfs.org.uk>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,20 +26,19 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 #include <linux/zlib.h>
+#include <linux/vmalloc.h>
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"
-#include "squashfs_fs_i.h"
 #include "squashfs.h"
 #include "decompressor.h"
 
-static void *zlib_init(struct squashfs_sb_info *dummy)
+static void *zlib_init(struct squashfs_sb_info *dummy, void *buff, int len)
 {
 	z_stream *stream = kmalloc(sizeof(z_stream), GFP_KERNEL);
 	if (stream == NULL)
 		goto failed;
-	stream->workspace = kmalloc(zlib_inflate_workspacesize(),
-		GFP_KERNEL);
+	stream->workspace = vmalloc(zlib_inflate_workspacesize());
 	if (stream->workspace == NULL)
 		goto failed;
 
@@ -48,7 +47,7 @@ static void *zlib_init(struct squashfs_sb_info *dummy)
 failed:
 	ERROR("Failed to allocate zlib workspace\n");
 	kfree(stream);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 
@@ -57,7 +56,7 @@ static void zlib_free(void *strm)
 	z_stream *stream = strm;
 
 	if (stream)
-		kfree(stream->workspace);
+		vfree(stream->workspace);
 	kfree(stream);
 }
 
@@ -66,8 +65,8 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 	struct buffer_head **bh, int b, int offset, int length, int srclength,
 	int pages)
 {
-	int zlib_err = 0, zlib_init = 0;
-	int avail, bytes, k = 0, page = 0;
+	int zlib_err, zlib_init = 0;
+	int k = 0, page = 0;
 	z_stream *stream = msblk->stream;
 
 	mutex_lock(&msblk->read_data_mutex);
@@ -75,20 +74,13 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 	stream->avail_out = 0;
 	stream->avail_in = 0;
 
-	bytes = length;
 	do {
 		if (stream->avail_in == 0 && k < b) {
-			avail = min(bytes, msblk->devblksize - offset);
-			bytes -= avail;
+			int avail = min(length, msblk->devblksize - offset);
+			length -= avail;
 			wait_on_buffer(bh[k]);
 			if (!buffer_uptodate(bh[k]))
 				goto release_mutex;
-
-			if (avail == 0) {
-				offset = 0;
-				put_bh(bh[k++]);
-				continue;
-			}
 
 			stream->next_in = bh[k]->b_data + offset;
 			stream->avail_in = avail;
@@ -125,6 +117,11 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 	zlib_err = zlib_inflateEnd(stream);
 	if (zlib_err != Z_OK) {
 		ERROR("zlib_inflate error, data probably corrupt\n");
+		goto release_mutex;
+	}
+
+	if (k < b) {
+		ERROR("zlib_uncompress error, data remaining\n");
 		goto release_mutex;
 	}
 

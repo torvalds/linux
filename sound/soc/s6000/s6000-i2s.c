@@ -140,7 +140,7 @@ static void s6000_i2s_stop_channel(struct s6000_i2s_dev *dev, int channel)
 static void s6000_i2s_start(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct s6000_i2s_dev *dev = rtd->dai->cpu_dai->private_data;
+	struct s6000_i2s_dev *dev = snd_soc_dai_get_drvdata(rtd->cpu_dai);
 	int channel;
 
 	channel = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
@@ -152,7 +152,7 @@ static void s6000_i2s_start(struct snd_pcm_substream *substream)
 static void s6000_i2s_stop(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct s6000_i2s_dev *dev = rtd->dai->cpu_dai->private_data;
+	struct s6000_i2s_dev *dev = snd_soc_dai_get_drvdata(rtd->cpu_dai);
 	int channel;
 
 	channel = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
@@ -194,7 +194,7 @@ static unsigned int s6000_i2s_int_sources(struct s6000_i2s_dev *dev)
 
 static unsigned int s6000_i2s_check_xrun(struct snd_soc_dai *cpu_dai)
 {
-	struct s6000_i2s_dev *dev = cpu_dai->private_data;
+	struct s6000_i2s_dev *dev = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int errors;
 	unsigned int ret;
 
@@ -232,7 +232,7 @@ static void s6000_i2s_wait_disabled(struct s6000_i2s_dev *dev)
 static int s6000_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 				   unsigned int fmt)
 {
-	struct s6000_i2s_dev *dev = cpu_dai->private_data;
+	struct s6000_i2s_dev *dev = snd_soc_dai_get_drvdata(cpu_dai);
 	u32 w;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -273,7 +273,7 @@ static int s6000_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 
 static int s6000_i2s_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div)
 {
-	struct s6000_i2s_dev *dev = dai->private_data;
+	struct s6000_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
 
 	if (!div || (div & 1) || div > (S6_I2S_DIV_MASK + 1) * 2)
 		return -EINVAL;
@@ -287,7 +287,7 @@ static int s6000_i2s_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params,
 			       struct snd_soc_dai *dai)
 {
-	struct s6000_i2s_dev *dev = dai->private_data;
+	struct s6000_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
 	int interf;
 	u32 w = 0;
 
@@ -326,14 +326,16 @@ static int s6000_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int s6000_i2s_dai_probe(struct platform_device *pdev,
-			       struct snd_soc_dai *dai)
+static int s6000_i2s_dai_probe(struct snd_soc_dai *dai)
 {
-	struct s6000_i2s_dev *dev = dai->private_data;
-	struct s6000_snd_platform_data *pdata = pdev->dev.platform_data;
+	struct s6000_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
+	struct s6000_snd_platform_data *pdata = dai->dev->platform_data;
 
 	if (!pdata)
 		return -EINVAL;
+
+	dai->capture_dma_data = &dev->dma_params;
+	dai->playback_dma_data = &dev->dma_params;
 
 	dev->wide = pdata->wide;
 	dev->channel_in = pdata->channel_in;
@@ -352,10 +354,10 @@ static int s6000_i2s_dai_probe(struct platform_device *pdev,
 
 		dev->channel_in = 0;
 		dev->channel_out = 1;
-		dai->capture.channels_min = 2 * dev->lines_in;
-		dai->capture.channels_max = dai->capture.channels_min;
-		dai->playback.channels_min = 2 * dev->lines_out;
-		dai->playback.channels_max = dai->playback.channels_min;
+		dai->driver->capture.channels_min = 2 * dev->lines_in;
+		dai->driver->capture.channels_max = dai->driver->capture.channels_min;
+		dai->driver->playback.channels_min = 2 * dev->lines_out;
+		dai->driver->playback.channels_max = dai->driver->playback.channels_min;
 
 		for (i = 0; i < dev->lines_out; i++)
 			s6_i2s_write_reg(dev, S6_I2S_DATA_CFG(i), S6_I2S_OUT);
@@ -372,10 +374,10 @@ static int s6000_i2s_dai_probe(struct platform_device *pdev,
 		if (dev->lines_in > 1 || dev->lines_out > 1)
 			return -EINVAL;
 
-		dai->capture.channels_min = 2 * dev->lines_in;
-		dai->capture.channels_max = 8 * dev->lines_in;
-		dai->playback.channels_min = 2 * dev->lines_out;
-		dai->playback.channels_max = 8 * dev->lines_out;
+		dai->driver->capture.channels_min = 2 * dev->lines_in;
+		dai->driver->capture.channels_max = 8 * dev->lines_in;
+		dai->driver->playback.channels_min = 2 * dev->lines_out;
+		dai->driver->playback.channels_max = 8 * dev->lines_out;
 
 		if (dev->lines_in)
 			cfg[dev->channel_in] = S6_I2S_IN;
@@ -413,9 +415,7 @@ static struct snd_soc_dai_ops s6000_i2s_dai_ops = {
 	.hw_params = s6000_i2s_hw_params,
 };
 
-struct snd_soc_dai s6000_i2s_dai = {
-	.name = "s6000-i2s",
-	.id = 0,
+static struct snd_soc_dai_driver s6000_i2s_dai = {
 	.probe = s6000_i2s_dai_probe,
 	.playback = {
 		.channels_min = 2,
@@ -434,8 +434,7 @@ struct snd_soc_dai s6000_i2s_dai = {
 		.rate_max = 1562500,
 	},
 	.ops = &s6000_i2s_dai_ops,
-}
-EXPORT_SYMBOL_GPL(s6000_i2s_dai);
+};
 
 static int __devinit s6000_i2s_probe(struct platform_device *pdev)
 {
@@ -513,11 +512,7 @@ static int __devinit s6000_i2s_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_release_dma2;
 	}
-
-	s6000_i2s_dai.dev = &pdev->dev;
-	s6000_i2s_dai.private_data = dev;
-	s6000_i2s_dai.capture.dma_data = &dev->dma_params;
-	s6000_i2s_dai.playback.dma_data = &dev->dma_params;
+	dev_set_drvdata(&pdev->dev, dev);
 
 	dev->sifbase = sifmem->start;
 	dev->scbbase = mmio;
@@ -548,7 +543,7 @@ static int __devinit s6000_i2s_probe(struct platform_device *pdev)
 			 S6_I2S_INT_UNDERRUN |
 			 S6_I2S_INT_OVERRUN);
 
-	ret = snd_soc_register_dai(&s6000_i2s_dai);
+	ret = snd_soc_register_dai(&pdev->dev, &s6000_i2s_dai);
 	if (ret)
 		goto err_release_dev;
 
@@ -573,17 +568,16 @@ err_release_none:
 
 static void __devexit s6000_i2s_remove(struct platform_device *pdev)
 {
-	struct s6000_i2s_dev *dev = s6000_i2s_dai.private_data;
+	struct s6000_i2s_dev *dev = dev_get_drvdata(&pdev->dev);
 	struct resource *region;
 	void __iomem *mmio = dev->scbbase;
 
-	snd_soc_unregister_dai(&s6000_i2s_dai);
+	snd_soc_unregister_dai(&pdev->dev);
 
 	s6000_i2s_stop_channel(dev, 0);
 	s6000_i2s_stop_channel(dev, 1);
 
 	s6_i2s_write_reg(dev, S6_I2S_INTERRUPT_ENABLE, 0);
-	s6000_i2s_dai.private_data = 0;
 	kfree(dev);
 
 	region = platform_get_resource(pdev, IORESOURCE_DMA, 0);

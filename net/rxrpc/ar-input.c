@@ -423,6 +423,7 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 			goto protocol_error;
 		}
 
+	case RXRPC_PACKET_TYPE_ACKALL:
 	case RXRPC_PACKET_TYPE_ACK:
 		/* ACK processing is done in process context */
 		read_lock_bh(&call->state_lock);

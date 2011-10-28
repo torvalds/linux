@@ -14,7 +14,7 @@ typedef struct {
 #endif
 	unsigned int x86_platform_ipis;	/* arch dependent */
 	unsigned int apic_perf_irqs;
-	unsigned int apic_pending_irqs;
+	unsigned int apic_irq_work_irqs;
 #ifdef CONFIG_SMP
 	unsigned int irq_resched_count;
 	unsigned int irq_call_count;

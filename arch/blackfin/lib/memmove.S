@@ -60,7 +60,7 @@ ENTRY(_memmove)
 	[P0++] = R1;
 
 	CC = P2 == 0;             /* any remaining bytes? */
-	P3 = I0;                  /* Ammend P3 to updated ptr. */
+	P3 = I0;                  /* Amend P3 to updated ptr. */
 	IF !CC JUMP .Lbytes;
 	P3 = I1;
 	RTS;

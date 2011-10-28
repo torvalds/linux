@@ -27,8 +27,7 @@
 #endif
 
 #ifdef CONFIG_PPC_OF
-static int of_isp1760_probe(struct platform_device *dev,
-		const struct of_device_id *match)
+static int of_isp1760_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd;
 	struct device_node *dp = dev->dev.of_node;
@@ -119,7 +118,7 @@ static const struct of_device_id of_isp1760_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_isp1760_match);
 
-static struct of_platform_driver isp1760_of_driver = {
+static struct platform_driver isp1760_of_driver = {
 	.driver = {
 		.name = "nxp-isp1760",
 		.owner = THIS_MODULE,
@@ -398,7 +397,7 @@ static int __init isp1760_init(void)
 	if (!ret)
 		any_ret = 0;
 #ifdef CONFIG_PPC_OF
-	ret = of_register_platform_driver(&isp1760_of_driver);
+	ret = platform_driver_register(&isp1760_of_driver);
 	if (!ret)
 		any_ret = 0;
 #endif
@@ -418,7 +417,7 @@ static void __exit isp1760_exit(void)
 {
 	platform_driver_unregister(&isp1760_plat_driver);
 #ifdef CONFIG_PPC_OF
-	of_unregister_platform_driver(&isp1760_of_driver);
+	platform_driver_unregister(&isp1760_of_driver);
 #endif
 #ifdef CONFIG_PCI
 	pci_unregister_driver(&isp1761_pci_driver);

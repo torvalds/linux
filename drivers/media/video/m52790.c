@@ -26,12 +26,10 @@
 #include <linux/ioctl.h>
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/videodev2.h>
 #include <media/m52790.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("i2c device driver for m52790 A/V switch");
 MODULE_AUTHOR("Hans Verkuil");
@@ -176,7 +174,7 @@ static int m52790_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	state = kmalloc(sizeof(struct m52790_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct m52790_state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
 
@@ -205,9 +203,25 @@ static const struct i2c_device_id m52790_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, m52790_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "m52790",
-	.probe = m52790_probe,
-	.remove = m52790_remove,
-	.id_table = m52790_id,
+static struct i2c_driver m52790_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "m52790",
+	},
+	.probe		= m52790_probe,
+	.remove		= m52790_remove,
+	.id_table	= m52790_id,
 };
+
+static __init int init_m52790(void)
+{
+	return i2c_add_driver(&m52790_driver);
+}
+
+static __exit void exit_m52790(void)
+{
+	i2c_del_driver(&m52790_driver);
+}
+
+module_init(init_m52790);
+module_exit(exit_m52790);

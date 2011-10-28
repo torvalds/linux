@@ -16,7 +16,8 @@
  */
 
 #include <asm/memory.h>
-#include <asm/glue.h>
+#include <asm/glue-df.h>
+#include <asm/glue-pf.h>
 #include <asm/vfpmacros.h>
 #include <mach/entry-macro.S>
 #include <asm/thread_notify.h>
@@ -25,40 +26,22 @@
 #include <asm/tls.h>
 
 #include "entry-header.S"
+#include <asm/entry-macro-multi.S>
 
 /*
  * Interrupt handling.  Preserves r7, r8, r9
  */
 	.macro	irq_handler
-	get_irqnr_preamble r5, lr
-1:	get_irqnr_and_base r0, r6, r5, lr
-	movne	r1, sp
-	@
-	@ routine called with r0 = irq number, r1 = struct pt_regs *
-	@
-	adrne	lr, BSYM(1b)
-	bne	asm_do_IRQ
-
-#ifdef CONFIG_SMP
-	/*
-	 * XXX
-	 *
-	 * this macro assumes that irqstat (r6) and base (r5) are
-	 * preserved from get_irqnr_and_base above
-	 */
-	test_for_ipi r0, r6, r5, lr
-	movne	r0, sp
-	adrne	lr, BSYM(1b)
-	bne	do_IPI
-
-#ifdef CONFIG_LOCAL_TIMERS
-	test_for_ltirq r0, r6, r5, lr
-	movne	r0, sp
-	adrne	lr, BSYM(1b)
-	bne	do_local_timer
+#ifdef CONFIG_MULTI_IRQ_HANDLER
+	ldr	r5, =handle_arch_irq
+	mov	r0, sp
+	ldr	r5, [r5]
+	adr	lr, BSYM(9997f)
+	teq	r5, #0
+	movne	pc, r5
 #endif
-#endif
-
+	arch_irq_handler_default
+9997:
 	.endm
 
 #ifdef CONFIG_KPROBES
@@ -196,6 +179,7 @@ __dabt_svc:
 	@
 	@ set desired IRQ state, then call main handler
 	@
+	debug_entry r1
 	msr	cpsr_c, r9
 	mov	r2, sp
 	bl	do_DataAbort
@@ -322,6 +306,7 @@ __pabt_svc:
 #else
 	bl	CPU_PABORT_HANDLER
 #endif
+	debug_entry r1
 	msr	cpsr_c, r9			@ Maybe enable interrupts
 	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
@@ -437,6 +422,7 @@ __dabt_usr:
 	@
 	@ IRQs on, then call the main handler
 	@
+	debug_entry r1
 	enable_irq
 	mov	r2, sp
 	adr	lr, BSYM(ret_from_exception)
@@ -448,6 +434,10 @@ ENDPROC(__dabt_usr)
 __irq_usr:
 	usr_entry
 	kuser_cmpxchg_check
+
+#ifdef CONFIG_IRQSOFF_TRACER
+	bl	trace_hardirqs_off
+#endif
 
 	get_thread_info tsk
 #ifdef CONFIG_PREEMPT
@@ -467,7 +457,7 @@ __irq_usr:
 #endif
 
 	mov	why, #0
-	b	ret_to_user
+	b	ret_to_user_from_irq
  UNWIND(.fnend		)
 ENDPROC(__irq_usr)
 
@@ -506,7 +496,7 @@ __und_usr:
 	blo	__und_usr_unknown
 3:	ldrht	r0, [r4]
 	add	r2, r2, #2			@ r2 is PC + 2, make it PC + 4
-	orr	r0, r0, r5, lsl #16
+	orr    	r0, r0, r5, lsl #16
 #else
 	b	__und_usr_unknown
 #endif
@@ -701,6 +691,7 @@ __pabt_usr:
 #else
 	bl	CPU_PABORT_HANDLER
 #endif
+	debug_entry r1
 	enable_irq				@ Enable interrupts
 	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
@@ -733,7 +724,7 @@ ENTRY(__switch_to)
  THUMB(	stmia	ip!, {r4 - sl, fp}	   )	@ Store most regs on stack
  THUMB(	str	sp, [ip], #4		   )
  THUMB(	str	lr, [ip], #4		   )
-#ifdef CONFIG_MMU
+#ifdef CONFIG_CPU_USE_DOMAINS
 	ldr	r6, [r2, #TI_CPU_DOMAIN]
 #endif
 	set_tls	r3, r4, r5
@@ -742,7 +733,7 @@ ENTRY(__switch_to)
 	ldr	r8, =__stack_chk_guard
 	ldr	r7, [r7, #TSK_STACK_CANARY]
 #endif
-#ifdef CONFIG_MMU
+#ifdef CONFIG_CPU_USE_DOMAINS
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
 #endif
 	mov	r5, r0
@@ -840,7 +831,7 @@ __kuser_helper_start:
  */
 
 __kuser_memory_barrier:				@ 0xffff0fa0
-	smp_dmb
+	smp_dmb	arm
 	usr_ret	lr
 
 	.align	5
@@ -909,7 +900,7 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	 * A special ghost syscall is used for that (see traps.c).
 	 */
 	stmfd	sp!, {r7, lr}
-	ldr	r7, =1f			@ it's 20 bits
+	ldr	r7, 1f			@ it's 20 bits
 	swi	__ARM_NR_cmpxchg
 	ldmfd	sp!, {r7, pc}
 1:	.word	__ARM_NR_cmpxchg
@@ -957,7 +948,7 @@ kuser_cmpxchg_fixup:
 
 #else
 
-	smp_dmb
+	smp_dmb	arm
 1:	ldrex	r3, [r2]
 	subs	r3, r3, r0
 	strexeq	r3, r1, [r2]
@@ -965,11 +956,8 @@ kuser_cmpxchg_fixup:
 	beq	1b
 	rsbs	r0, r3, #0
 	/* beware -- each __kuser slot must be 8 instructions max */
-#ifdef CONFIG_SMP
-	b	__kuser_memory_barrier
-#else
-	usr_ret	lr
-#endif
+	ALT_SMP(b	__kuser_memory_barrier)
+	ALT_UP(usr_ret	lr)
 
 #endif
 
@@ -1246,3 +1234,9 @@ cr_alignment:
 	.space	4
 cr_no_alignment:
 	.space	4
+
+#ifdef CONFIG_MULTI_IRQ_HANDLER
+	.globl	handle_arch_irq
+handle_arch_irq:
+	.space	4
+#endif

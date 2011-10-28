@@ -1789,7 +1789,8 @@ out:
 	return IRQ_HANDLED;
 }
 
-int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	struct usba_udc *udc = &the_udc;
 	unsigned long flags;
@@ -1812,7 +1813,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	clk_enable(udc->pclk);
 	clk_enable(udc->hclk);
 
-	ret = driver->bind(&udc->gadget);
+	ret = bind(&udc->gadget);
 	if (ret) {
 		DBG(DBG_ERR, "Could not bind to driver %s: error %d\n",
 			driver->driver.name, ret);
@@ -1841,7 +1842,7 @@ err_driver_bind:
 	udc->gadget.dev.driver = NULL;
 	return ret;
 }
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {
@@ -2014,6 +2015,9 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 			} else {
 				disable_irq(gpio_to_irq(udc->vbus_pin));
 			}
+		} else {
+			/* gpio_request fail so use -EINVAL for gpio_is_valid */
+			udc->vbus_pin = -EINVAL;
 		}
 	}
 
@@ -2053,8 +2057,10 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 		usba_ep_cleanup_debugfs(&usba_ep[i]);
 	usba_cleanup_debugfs(udc);
 
-	if (gpio_is_valid(udc->vbus_pin))
+	if (gpio_is_valid(udc->vbus_pin)) {
+		free_irq(gpio_to_irq(udc->vbus_pin), udc);
 		gpio_free(udc->vbus_pin);
+	}
 
 	free_irq(udc->irq, udc);
 	kfree(usba_ep);
@@ -2089,6 +2095,6 @@ static void __exit udc_exit(void)
 module_exit(udc_exit);
 
 MODULE_DESCRIPTION("Atmel USBA UDC driver");
-MODULE_AUTHOR("Haavard Skinnemoen <hskinnemoen@atmel.com>");
+MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:atmel_usba_udc");

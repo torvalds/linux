@@ -177,7 +177,7 @@ static struct uac_format_type_i_discrete_descriptor_1 as_type_i_desc = {
 };
 
 /* Standard ISO OUT Endpoint Descriptor */
-static struct usb_endpoint_descriptor as_out_ep_desc __initdata = {
+static struct usb_endpoint_descriptor as_out_ep_desc  = {
 	.bLength =		USB_DT_ENDPOINT_AUDIO_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bEndpointAddress =	USB_DIR_OUT,
@@ -317,8 +317,6 @@ static void f_audio_playback_work(struct work_struct *data)
 
 	u_audio_playback(&audio->card, play_buf->buf, play_buf->actual);
 	f_audio_buffer_free(play_buf);
-
-	return;
 }
 
 static int f_audio_out_ep_complete(struct usb_ep *ep, struct usb_request *req)
@@ -708,6 +706,7 @@ f_audio_unbind(struct usb_configuration *c, struct usb_function *f)
 	struct f_audio		*audio = func_to_audio(f);
 
 	usb_free_descriptors(f->descriptors);
+	usb_free_descriptors(f->hs_descriptors);
 	kfree(audio);
 }
 
@@ -744,7 +743,7 @@ int __init control_selector_init(struct f_audio *audio)
 }
 
 /**
- * audio_bind_config - add USB audio fucntion to a configuration
+ * audio_bind_config - add USB audio function to a configuration
  * @c: the configuration to supcard the USB audio function
  * Context: single threaded during gadget setup
  *

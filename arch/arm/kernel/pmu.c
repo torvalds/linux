@@ -97,28 +97,34 @@ set_irq_affinity(int irq,
 			   irq, cpu);
 	return err;
 #else
-	return 0;
+	return -EINVAL;
 #endif
 }
 
 static int
 init_cpu_pmu(void)
 {
-	int i, err = 0;
+	int i, irqs, err = 0;
 	struct platform_device *pdev = pmu_devices[ARM_PMU_DEVICE_CPU];
 
-	if (!pdev) {
-		err = -ENODEV;
-		goto out;
-	}
+	if (!pdev)
+		return -ENODEV;
 
-	for (i = 0; i < pdev->num_resources; ++i) {
+	irqs = pdev->num_resources;
+
+	/*
+	 * If we have a single PMU interrupt that we can't shift, assume that
+	 * we're running on a uniprocessor machine and continue.
+	 */
+	if (irqs == 1 && !irq_can_set_affinity(platform_get_irq(pdev, 0)))
+		return 0;
+
+	for (i = 0; i < irqs; ++i) {
 		err = set_irq_affinity(platform_get_irq(pdev, i), i);
 		if (err)
 			break;
 	}
 
-out:
 	return err;
 }
 

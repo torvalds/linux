@@ -3,24 +3,7 @@ Bus Types
 
 Definition
 ~~~~~~~~~~
-
-struct bus_type {
-	char			* name;
-
-	struct subsystem	subsys;
-	struct kset		drivers;
-	struct kset		devices;
-
-	struct bus_attribute	* bus_attrs;
-	struct device_attribute	* dev_attrs;
-	struct driver_attribute	* drv_attrs;
-
-	int		(*match)(struct device * dev, struct device_driver * drv);
-	int		(*hotplug) (struct device *dev, char **envp, 
-				    int num_envp, char *buffer, int buffer_size);
-	int		(*suspend)(struct device * dev, pm_message_t state);
-	int		(*resume)(struct device * dev);
-};
+See the kerneldoc for the struct bus_type.
 
 int bus_register(struct bus_type * bus);
 

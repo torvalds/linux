@@ -44,21 +44,30 @@
  */
 static int ecryptfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	struct vfsmount *lower_mnt = ecryptfs_dentry_to_lower_mnt(dentry);
-	struct dentry *dentry_save;
-	struct vfsmount *vfsmount_save;
+	struct dentry *lower_dentry;
+	struct vfsmount *lower_mnt;
+	struct dentry *dentry_save = NULL;
+	struct vfsmount *vfsmount_save = NULL;
 	int rc = 1;
 
+	if (nd && nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	lower_dentry = ecryptfs_dentry_to_lower(dentry);
+	lower_mnt = ecryptfs_dentry_to_lower_mnt(dentry);
 	if (!lower_dentry->d_op || !lower_dentry->d_op->d_revalidate)
 		goto out;
-	dentry_save = nd->path.dentry;
-	vfsmount_save = nd->path.mnt;
-	nd->path.dentry = lower_dentry;
-	nd->path.mnt = lower_mnt;
+	if (nd) {
+		dentry_save = nd->path.dentry;
+		vfsmount_save = nd->path.mnt;
+		nd->path.dentry = lower_dentry;
+		nd->path.mnt = lower_mnt;
+	}
 	rc = lower_dentry->d_op->d_revalidate(lower_dentry, nd);
-	nd->path.dentry = dentry_save;
-	nd->path.mnt = vfsmount_save;
+	if (nd) {
+		nd->path.dentry = dentry_save;
+		nd->path.mnt = vfsmount_save;
+	}
 	if (dentry->d_inode) {
 		struct inode *lower_inode =
 			ecryptfs_inode_to_lower(dentry->d_inode);

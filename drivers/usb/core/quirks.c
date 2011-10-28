@@ -48,6 +48,10 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x04b4, 0x0526), .driver_info =
 			USB_QUIRK_CONFIG_INTF_STRINGS },
 
+	/* Samsung Android phone modem - ID conflict with SPH-I500 */
+	{ USB_DEVICE(0x04e8, 0x6601), .driver_info =
+			USB_QUIRK_CONFIG_INTF_STRINGS },
+
 	/* Roland SC-8820 */
 	{ USB_DEVICE(0x0582, 0x0007), .driver_info = USB_QUIRK_RESET_RESUME },
 
@@ -67,6 +71,10 @@ static const struct usb_device_id usb_quirk_list[] = {
 
 	/* M-Systems Flash Disk Pioneers */
 	{ USB_DEVICE(0x08ec, 0x1000), .driver_info = USB_QUIRK_RESET_RESUME },
+
+	/* Keytouch QWERTY Panel keyboard */
+	{ USB_DEVICE(0x0926, 0x3333), .driver_info =
+			USB_QUIRK_CONFIG_INTF_STRINGS },
 
 	/* X-Rite/Gretag-Macbeth Eye-One Pro display colorimeter */
 	{ USB_DEVICE(0x0971, 0x2000), .driver_info = USB_QUIRK_NO_SET_INTF },
@@ -116,21 +124,6 @@ void usb_detect_quirks(struct usb_device *udev)
 	if (udev->quirks)
 		dev_dbg(&udev->dev, "USB quirks for this device: %x\n",
 				udev->quirks);
-
-#ifdef	CONFIG_USB_SUSPEND
-
-	/* By default, disable autosuspend for all devices.  The hub driver
-	 * will enable it for hubs.
-	 */
-	usb_disable_autosuspend(udev);
-
-	/* Autosuspend can also be disabled if the initial autosuspend_delay
-	 * is negative.
-	 */
-	if (udev->autosuspend_delay < 0)
-		usb_autoresume_device(udev);
-
-#endif
 
 	/* For the present, all devices default to USB-PERSIST enabled */
 #if 0		/* was: #ifdef CONFIG_PM */

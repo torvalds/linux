@@ -25,7 +25,7 @@
 
 ENTRY(_strncpy)
 	CC = R2 == 0;
-	if CC JUMP 4f;
+	if CC JUMP 6f;
 
 	P2 = R2 ;       /* size */
 	P0 = R0 ;       /* dst*/

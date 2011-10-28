@@ -31,7 +31,6 @@
 #include <mach/dma.h>
 
 #include "ep93xx-pcm.h"
-#include "ep93xx-i2s.h"
 
 #define EP93XX_I2S_TXCLKCFG		0x00
 #define EP93XX_I2S_RXCLKCFG		0x04
@@ -145,8 +144,8 @@ static int ep93xx_i2s_startup(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct ep93xx_i2s_info *info = rtd->dai->cpu_dai->private_data;
+	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 
 	snd_soc_dai_set_dma_data(cpu_dai, substream,
 				 &info->dma_params[substream->stream]);
@@ -156,8 +155,7 @@ static int ep93xx_i2s_startup(struct snd_pcm_substream *substream,
 static void ep93xx_i2s_shutdown(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct ep93xx_i2s_info *info = rtd->dai->cpu_dai->private_data;
+	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
 
 	ep93xx_i2s_disable(info, substream->stream);
 }
@@ -165,7 +163,7 @@ static void ep93xx_i2s_shutdown(struct snd_pcm_substream *substream,
 static int ep93xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 				  unsigned int fmt)
 {
-	struct ep93xx_i2s_info *info = cpu_dai->private_data;
+	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int clk_cfg, lin_ctrl;
 
 	clk_cfg  = ep93xx_i2s_read_reg(info, EP93XX_I2S_RXCLKCFG);
@@ -242,11 +240,9 @@ static int ep93xx_i2s_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct ep93xx_i2s_info *info = cpu_dai->private_data;
+	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
 	unsigned word_len, div, sdiv, lrdiv;
-	int found = 0, err;
+	int err;
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -271,21 +267,22 @@ static int ep93xx_i2s_hw_params(struct snd_pcm_substream *substream,
 		ep93xx_i2s_write_reg(info, EP93XX_I2S_RXWRDLEN, word_len);
 
 	/*
-	 * Calculate the sdiv (bit clock) and lrdiv (left/right clock) values.
-	 * If the lrclk is pulse length is larger than the word size, then the
-	 * bit clock will be gated for the unused bits.
+	 * EP93xx I2S module can be setup so SCLK / LRCLK value can be
+	 * 32, 64, 128. MCLK / SCLK value can be 2 and 4.
+	 * We set LRCLK equal to `rate' and minimum SCLK / LRCLK 
+	 * value is 64, because our sample size is 32 bit * 2 channels.
+	 * I2S standard permits us to transmit more bits than
+	 * the codec uses.
 	 */
-	div = (clk_get_rate(info->mclk) / params_rate(params)) *
-		params_channels(params);
-	for (sdiv = 2; sdiv <= 4; sdiv += 2)
-		for (lrdiv = 32; lrdiv <= 128; lrdiv <<= 1)
-			if (sdiv * lrdiv == div) {
-				found = 1;
-				goto out;
-			}
-out:
-	if (!found)
-		return -EINVAL;
+	div = clk_get_rate(info->mclk) / params_rate(params);
+	sdiv = 4;
+	if (div > (256 + 512) / 2) {
+		lrdiv = 128;
+	} else {
+		lrdiv = 64;
+		if (div < (128 + 256) / 2)
+			sdiv = 2;
+	}
 
 	err = clk_set_rate(info->sclk, clk_get_rate(info->mclk) / sdiv);
 	if (err)
@@ -302,7 +299,7 @@ out:
 static int ep93xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
 				 unsigned int freq, int dir)
 {
-	struct ep93xx_i2s_info *info = cpu_dai->private_data;
+	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(cpu_dai);
 
 	if (dir == SND_SOC_CLOCK_IN || clk_id != 0)
 		return -EINVAL;
@@ -313,24 +310,28 @@ static int ep93xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
 #ifdef CONFIG_PM
 static int ep93xx_i2s_suspend(struct snd_soc_dai *dai)
 {
-	struct ep93xx_i2s_info *info = dai->private_data;
+	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
 
 	if (!dai->active)
-		return;
+		return 0;
 
 	ep93xx_i2s_disable(info, SNDRV_PCM_STREAM_PLAYBACK);
 	ep93xx_i2s_disable(info, SNDRV_PCM_STREAM_CAPTURE);
+
+	return 0;
 }
 
 static int ep93xx_i2s_resume(struct snd_soc_dai *dai)
 {
-	struct ep93xx_i2s_info *info = dai->private_data;
+	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
 
 	if (!dai->active)
-		return;
+		return 0;
 
 	ep93xx_i2s_enable(info, SNDRV_PCM_STREAM_PLAYBACK);
 	ep93xx_i2s_enable(info, SNDRV_PCM_STREAM_CAPTURE);
+
+	return 0;
 }
 #else
 #define ep93xx_i2s_suspend	NULL
@@ -345,31 +346,26 @@ static struct snd_soc_dai_ops ep93xx_i2s_dai_ops = {
 	.set_fmt	= ep93xx_i2s_set_dai_fmt,
 };
 
-#define EP93XX_I2S_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
-			    SNDRV_PCM_FMTBIT_S24_LE | \
-			    SNDRV_PCM_FMTBIT_S32_LE)
+#define EP93XX_I2S_FORMATS (SNDRV_PCM_FMTBIT_S32_LE)
 
-struct snd_soc_dai ep93xx_i2s_dai = {
-	.name		= "ep93xx-i2s",
-	.id		= 0,
+static struct snd_soc_dai_driver ep93xx_i2s_dai = {
 	.symmetric_rates= 1,
 	.suspend	= ep93xx_i2s_suspend,
 	.resume		= ep93xx_i2s_resume,
 	.playback	= {
 		.channels_min	= 2,
 		.channels_max	= 2,
-		.rates		= SNDRV_PCM_RATE_8000_48000,
+		.rates		= SNDRV_PCM_RATE_8000_192000,
 		.formats	= EP93XX_I2S_FORMATS,
 	},
 	.capture	= {
 		 .channels_min	= 2,
 		 .channels_max	= 2,
-		 .rates		= SNDRV_PCM_RATE_8000_48000,
+		 .rates		= SNDRV_PCM_RATE_8000_192000,
 		 .formats	= EP93XX_I2S_FORMATS,
 	},
 	.ops		= &ep93xx_i2s_dai_ops,
 };
-EXPORT_SYMBOL_GPL(ep93xx_i2s_dai);
 
 static int ep93xx_i2s_probe(struct platform_device *pdev)
 {
@@ -383,8 +379,7 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	ep93xx_i2s_dai.dev = &pdev->dev;
-	ep93xx_i2s_dai.private_data = info;
+	dev_set_drvdata(&pdev->dev, info);
 	info->dma_params = ep93xx_i2s_dma_params;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -424,7 +419,7 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 		goto fail_put_sclk;
 	}
 
-	err = snd_soc_register_dai(&ep93xx_i2s_dai);
+	err = snd_soc_register_dai(&pdev->dev, &ep93xx_i2s_dai);
 	if (err)
 		goto fail_put_lrclk;
 
@@ -447,9 +442,9 @@ fail:
 
 static int __devexit ep93xx_i2s_remove(struct platform_device *pdev)
 {
-	struct ep93xx_i2s_info *info = ep93xx_i2s_dai.private_data;
+	struct ep93xx_i2s_info *info = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dai(&ep93xx_i2s_dai);
+	snd_soc_unregister_dai(&pdev->dev);
 	clk_put(info->lrclk);
 	clk_put(info->sclk);
 	clk_put(info->mclk);

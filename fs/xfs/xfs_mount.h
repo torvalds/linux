@@ -53,7 +53,6 @@ typedef struct xfs_trans_reservations {
 
 #include "xfs_sync.h"
 
-struct cred;
 struct log;
 struct xfs_mount_args;
 struct xfs_inode;
@@ -91,6 +90,8 @@ extern void	xfs_icsb_reinit_counters(struct xfs_mount *);
 extern void	xfs_icsb_destroy_counters(struct xfs_mount *);
 extern void	xfs_icsb_sync_counters(struct xfs_mount *, int);
 extern void	xfs_icsb_sync_counters_locked(struct xfs_mount *, int);
+extern int	xfs_icsb_modify_counters(struct xfs_mount *, xfs_sb_field_t,
+						int64_t, int);
 
 #else
 #define xfs_icsb_init_counters(mp)		(0)
@@ -98,7 +99,19 @@ extern void	xfs_icsb_sync_counters_locked(struct xfs_mount *, int);
 #define xfs_icsb_reinit_counters(mp)		do { } while (0)
 #define xfs_icsb_sync_counters(mp, flags)	do { } while (0)
 #define xfs_icsb_sync_counters_locked(mp, flags) do { } while (0)
+#define xfs_icsb_modify_counters(mp, field, delta, rsvd) \
+	xfs_mod_incore_sb(mp, field, delta, rsvd)
 #endif
+
+/* dynamic preallocation free space thresholds, 5% down to 1% */
+enum {
+	XFS_LOWSP_1_PCNT = 0,
+	XFS_LOWSP_2_PCNT,
+	XFS_LOWSP_3_PCNT,
+	XFS_LOWSP_4_PCNT,
+	XFS_LOWSP_5_PCNT,
+	XFS_LOWSP_MAX,
+};
 
 typedef struct xfs_mount {
 	struct super_block	*m_super;
@@ -190,15 +203,14 @@ typedef struct xfs_mount {
 	struct mutex		m_icsb_mutex;	/* balancer sync lock */
 #endif
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
-	struct task_struct	*m_sync_task;	/* generalised sync thread */
-	xfs_sync_work_t		m_sync_work;	/* work item for VFS_SYNC */
-	struct list_head	m_sync_list;	/* sync thread work item list */
-	spinlock_t		m_sync_lock;	/* work item list lock */
-	int			m_sync_seq;	/* sync thread generation no. */
-	wait_queue_head_t	m_wait_single_sync_task;
+	struct delayed_work	m_sync_work;	/* background sync work */
+	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
+	struct work_struct	m_flush_work;	/* background inode flush */
 	__int64_t		m_update_flags;	/* sb flags we need to update
 						   on the next remount,rw */
 	struct shrinker		m_inode_shrink;	/* inode reclaim shrinker */
+	int64_t			m_low_space[XFS_LOWSP_MAX];
+						/* low free space thresholds */
 } xfs_mount_t;
 
 /*
@@ -212,6 +224,7 @@ typedef struct xfs_mount {
 #define XFS_MOUNT_FS_SHUTDOWN	(1ULL << 4)	/* atomic stop of all filesystem
 						   operations, typically for
 						   disk errors in metadata */
+#define XFS_MOUNT_DISCARD	(1ULL << 5)	/* discard unused blocks */
 #define XFS_MOUNT_RETERR	(1ULL << 6)     /* return alignment errors to
 						   user */
 #define XFS_MOUNT_NOALIGN	(1ULL << 7)	/* turn off stripe alignment
@@ -232,8 +245,6 @@ typedef struct xfs_mount {
 #define XFS_MOUNT_DIRSYNC	(1ULL << 21)	/* synchronous directory ops */
 #define XFS_MOUNT_COMPAT_IOSIZE	(1ULL << 22)	/* don't report large preferred
 						 * I/O size in stat() */
-#define XFS_MOUNT_NO_PERCPU_SB	(1ULL << 23)	/* don't use per-cpu superblock
-						   counters */
 #define XFS_MOUNT_FILESTREAMS	(1ULL << 24)	/* enable the filestreams
 						   allocator */
 #define XFS_MOUNT_NOATTR2	(1ULL << 25)	/* disable use of attr2 format */
@@ -327,6 +338,8 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
  * perag get/put wrappers for ref counting
  */
 struct xfs_perag *xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno);
+struct xfs_perag *xfs_perag_get_tag(struct xfs_mount *mp, xfs_agnumber_t agno,
+					int tag);
 void	xfs_perag_put(struct xfs_perag *pag);
 
 /*
@@ -375,6 +388,8 @@ extern int	xfs_fs_writable(xfs_mount_t *);
 extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, __uint64_t);
 
 extern int	xfs_dev_is_read_only(struct xfs_mount *, char *);
+
+extern void	xfs_set_low_space_thresholds(struct xfs_mount *);
 
 #endif	/* __KERNEL__ */
 

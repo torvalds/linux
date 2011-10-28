@@ -321,7 +321,7 @@ static struct snd_rawmidi_ops snd_emu10k1_midi_input =
 
 static void snd_emu10k1_midi_free(struct snd_rawmidi *rmidi)
 {
-	struct snd_emu10k1_midi *midi = (struct snd_emu10k1_midi *)rmidi->private_data;
+	struct snd_emu10k1_midi *midi = rmidi->private_data;
 	midi->interrupt = NULL;
 	midi->rmidi = NULL;
 }

@@ -1,14 +1,11 @@
 /*
- * Copyright 2008-2009 Analog Devices Inc.
+ * Copyright 2008-2010 Analog Devices Inc.
  *
  * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _CDEF_BF514_H
 #define _CDEF_BF514_H
-
-/* include all Core registers and bit definitions */
-#include "defBF514.h"
 
 /* BF514 is BF512 + RSI */
 #include "cdefBF512.h"

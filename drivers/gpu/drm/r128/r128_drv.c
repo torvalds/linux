@@ -56,8 +56,6 @@ static struct drm_driver driver = {
 	.irq_uninstall = r128_driver_irq_uninstall,
 	.irq_handler = r128_driver_irq_handler,
 	.reclaim_buffers = drm_core_reclaim_buffers,
-	.get_map_ofs = drm_core_get_map_ofs,
-	.get_reg_ofs = drm_core_get_reg_ofs,
 	.ioctls = r128_ioctls,
 	.dma_ioctl = r128_cce_buffers,
 	.fops = {
@@ -71,11 +69,9 @@ static struct drm_driver driver = {
 #ifdef CONFIG_COMPAT
 		.compat_ioctl = r128_compat_ioctl,
 #endif
+		.llseek = noop_llseek,
 	},
-	.pci_driver = {
-		.name = DRIVER_NAME,
-		.id_table = pciidlist,
-	},
+
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
@@ -90,16 +86,21 @@ int r128_driver_load(struct drm_device *dev, unsigned long flags)
 	return drm_vblank_init(dev, 1);
 }
 
+static struct pci_driver r128_pci_driver = {
+	.name = DRIVER_NAME,
+	.id_table = pciidlist,
+};
+
 static int __init r128_init(void)
 {
 	driver.num_ioctls = r128_max_ioctl;
 
-	return drm_init(&driver);
+	return drm_pci_init(&driver, &r128_pci_driver);
 }
 
 static void __exit r128_exit(void)
 {
-	drm_exit(&driver);
+	drm_pci_exit(&driver, &r128_pci_driver);
 }
 
 module_init(r128_init);

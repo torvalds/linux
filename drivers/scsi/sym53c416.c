@@ -734,7 +734,7 @@ const char *sym53c416_info(struct Scsi_Host *SChost)
 	return info;
 }
 
-int sym53c416_queuecommand(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
+static int sym53c416_queuecommand_lck(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 {
 	int base;
 	unsigned long flags = 0;
@@ -761,6 +761,8 @@ int sym53c416_queuecommand(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 	return 0;
 }
 
+DEF_SCSI_QCMD(sym53c416_queuecommand)
+
 static int sym53c416_host_reset(Scsi_Cmnd *SCpnt)
 {
 	int base;
@@ -772,7 +774,7 @@ static int sym53c416_host_reset(Scsi_Cmnd *SCpnt)
 
 	/* printk("sym53c416_reset\n"); */
 	base = SCpnt->device->host->io_port;
-	/* search scsi_id - fixme, we shouldnt need to iterate for this! */
+	/* search scsi_id - fixme, we shouldn't need to iterate for this! */
 	for(i = 0; i < host_index && scsi_id == -1; i++)
 		if(hosts[i].base == base)
 			scsi_id = hosts[i].scsi_id;

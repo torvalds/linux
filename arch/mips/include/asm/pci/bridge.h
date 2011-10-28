@@ -262,7 +262,7 @@ typedef volatile struct bridge_s {
 } bridge_t;
 
 /*
- * Field formats for Error Command Word and Auxillary Error Command Word
+ * Field formats for Error Command Word and Auxiliary Error Command Word
  * of bridge.
  */
 typedef struct bridge_err_cmdword_s {
@@ -839,7 +839,7 @@ struct bridge_controller {
 	nasid_t			nasid;
 	unsigned int		widget_id;
 	unsigned int 		irq_cpu;
-	dma64_addr_t		baddr;
+	u64			baddr;
 	unsigned int		pci_int[8];
 };
 

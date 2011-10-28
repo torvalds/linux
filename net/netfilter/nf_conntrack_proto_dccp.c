@@ -98,7 +98,7 @@ static const char * const dccp_state_names[] = {
 #define sIV	CT_DCCP_INVALID
 
 /*
- * DCCP state transistion table
+ * DCCP state transition table
  *
  * The assumption is the same as for TCP tracking:
  *
@@ -452,6 +452,9 @@ static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	ct->proto.dccp.role[IP_CT_DIR_ORIGINAL] = CT_DCCP_ROLE_CLIENT;
 	ct->proto.dccp.role[IP_CT_DIR_REPLY] = CT_DCCP_ROLE_SERVER;
 	ct->proto.dccp.state = CT_DCCP_NONE;
+	ct->proto.dccp.last_pkt = DCCP_PKT_REQUEST;
+	ct->proto.dccp.last_dir = IP_CT_DIR_ORIGINAL;
+	ct->proto.dccp.handshake_seq = 0;
 	return true;
 
 out_invalid:

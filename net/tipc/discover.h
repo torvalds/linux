@@ -2,7 +2,7 @@
  * net/tipc/discover.h
  *
  * Copyright (c) 2003-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,22 +37,13 @@
 #ifndef _TIPC_DISCOVER_H
 #define _TIPC_DISCOVER_H
 
-#include "core.h"
-
 struct link_req;
 
-struct link_req *tipc_disc_init_link_req(struct bearer *b_ptr,
-					 const struct tipc_media_addr *dest,
-					 u32 dest_domain,
-					 u32 req_links);
-void tipc_disc_update_link_req(struct link_req *req);
-void tipc_disc_stop_link_req(struct link_req *req);
-
-void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr);
-
-void tipc_disc_link_event(u32 addr, char *name, int up);
-#if 0
-int  disc_create_link(const struct tipc_link_create *argv);
-#endif
+int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest,
+		     u32 dest_domain);
+void tipc_disc_delete(struct link_req *req);
+void tipc_disc_add_dest(struct link_req *req);
+void tipc_disc_remove_dest(struct link_req *req);
+void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr);
 
 #endif

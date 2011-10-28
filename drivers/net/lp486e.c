@@ -27,7 +27,7 @@
 
 	Credits:
 	Thanks to Murphy Software BV for letting me write this in their time.
-	Well, actually, I get payed doing this...
+	Well, actually, I get paid doing this...
 	(Also: see http://www.murphy.nl for murphy, and my homepage ~ard for
 	more information on the Professional Workstation)
 
@@ -460,7 +460,7 @@ init_rx_bufs(struct net_device *dev, int num) {
 	}
 	lp->rbd_tail->next = rfd->rbd;
 #endif
-	return (i);
+	return i;
 }
 
 static inline void

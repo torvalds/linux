@@ -30,6 +30,7 @@ struct stmpe_gpio {
 	struct mutex irq_lock;
 
 	int irq_base;
+	unsigned norequest_mask;
 
 	/* Caches of interrupt control registers for bus_lock */
 	u8 regs[CACHE_NR_REGS][CACHE_NR_BANKS];
@@ -103,6 +104,9 @@ static int stmpe_gpio_request(struct gpio_chip *chip, unsigned offset)
 	struct stmpe_gpio *stmpe_gpio = to_stmpe_gpio(chip);
 	struct stmpe *stmpe = stmpe_gpio->stmpe;
 
+	if (stmpe_gpio->norequest_mask & (1 << offset))
+		return -EINVAL;
+
 	return stmpe_set_altfunc(stmpe, 1 << offset, STMPE_BLOCK_GPIO);
 }
 
@@ -118,10 +122,10 @@ static struct gpio_chip template_chip = {
 	.can_sleep		= 1,
 };
 
-static int stmpe_gpio_irq_set_type(unsigned int irq, unsigned int type)
+static int stmpe_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
-	struct stmpe_gpio *stmpe_gpio = get_irq_chip_data(irq);
-	int offset = irq - stmpe_gpio->irq_base;
+	struct stmpe_gpio *stmpe_gpio = irq_data_get_irq_chip_data(d);
+	int offset = d->irq - stmpe_gpio->irq_base;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
@@ -141,16 +145,16 @@ static int stmpe_gpio_irq_set_type(unsigned int irq, unsigned int type)
 	return 0;
 }
 
-static void stmpe_gpio_irq_lock(unsigned int irq)
+static void stmpe_gpio_irq_lock(struct irq_data *d)
 {
-	struct stmpe_gpio *stmpe_gpio = get_irq_chip_data(irq);
+	struct stmpe_gpio *stmpe_gpio = irq_data_get_irq_chip_data(d);
 
 	mutex_lock(&stmpe_gpio->irq_lock);
 }
 
-static void stmpe_gpio_irq_sync_unlock(unsigned int irq)
+static void stmpe_gpio_irq_sync_unlock(struct irq_data *d)
 {
-	struct stmpe_gpio *stmpe_gpio = get_irq_chip_data(irq);
+	struct stmpe_gpio *stmpe_gpio = irq_data_get_irq_chip_data(d);
 	struct stmpe *stmpe = stmpe_gpio->stmpe;
 	int num_banks = DIV_ROUND_UP(stmpe->num_gpios, 8);
 	static const u8 regmap[] = {
@@ -176,20 +180,20 @@ static void stmpe_gpio_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&stmpe_gpio->irq_lock);
 }
 
-static void stmpe_gpio_irq_mask(unsigned int irq)
+static void stmpe_gpio_irq_mask(struct irq_data *d)
 {
-	struct stmpe_gpio *stmpe_gpio = get_irq_chip_data(irq);
-	int offset = irq - stmpe_gpio->irq_base;
+	struct stmpe_gpio *stmpe_gpio = irq_data_get_irq_chip_data(d);
+	int offset = d->irq - stmpe_gpio->irq_base;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
 	stmpe_gpio->regs[REG_IE][regoffset] &= ~mask;
 }
 
-static void stmpe_gpio_irq_unmask(unsigned int irq)
+static void stmpe_gpio_irq_unmask(struct irq_data *d)
 {
-	struct stmpe_gpio *stmpe_gpio = get_irq_chip_data(irq);
-	int offset = irq - stmpe_gpio->irq_base;
+	struct stmpe_gpio *stmpe_gpio = irq_data_get_irq_chip_data(d);
+	int offset = d->irq - stmpe_gpio->irq_base;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
@@ -198,11 +202,11 @@ static void stmpe_gpio_irq_unmask(unsigned int irq)
 
 static struct irq_chip stmpe_gpio_irq_chip = {
 	.name			= "stmpe-gpio",
-	.bus_lock		= stmpe_gpio_irq_lock,
-	.bus_sync_unlock	= stmpe_gpio_irq_sync_unlock,
-	.mask			= stmpe_gpio_irq_mask,
-	.unmask			= stmpe_gpio_irq_unmask,
-	.set_type		= stmpe_gpio_irq_set_type,
+	.irq_bus_lock		= stmpe_gpio_irq_lock,
+	.irq_bus_sync_unlock	= stmpe_gpio_irq_sync_unlock,
+	.irq_mask		= stmpe_gpio_irq_mask,
+	.irq_unmask		= stmpe_gpio_irq_unmask,
+	.irq_set_type		= stmpe_gpio_irq_set_type,
 };
 
 static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
@@ -250,14 +254,14 @@ static int __devinit stmpe_gpio_irq_init(struct stmpe_gpio *stmpe_gpio)
 	int irq;
 
 	for (irq = base; irq < base + stmpe_gpio->chip.ngpio; irq++) {
-		set_irq_chip_data(irq, stmpe_gpio);
-		set_irq_chip_and_handler(irq, &stmpe_gpio_irq_chip,
+		irq_set_chip_data(irq, stmpe_gpio);
+		irq_set_chip_and_handler(irq, &stmpe_gpio_irq_chip,
 					 handle_simple_irq);
-		set_irq_nested_thread(irq, 1);
+		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID);
 #else
-		set_irq_noprobe(irq);
+		irq_set_noprobe(irq);
 #endif
 	}
 
@@ -273,8 +277,8 @@ static void stmpe_gpio_irq_remove(struct stmpe_gpio *stmpe_gpio)
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, 0);
 #endif
-		set_irq_chip_and_handler(irq, NULL, NULL);
-		set_irq_chip_data(irq, NULL);
+		irq_set_chip_and_handler(irq, NULL, NULL);
+		irq_set_chip_data(irq, NULL);
 	}
 }
 
@@ -287,8 +291,6 @@ static int __devinit stmpe_gpio_probe(struct platform_device *pdev)
 	int irq;
 
 	pdata = stmpe->pdata->gpio;
-	if (!pdata)
-		return -ENODEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -302,6 +304,7 @@ static int __devinit stmpe_gpio_probe(struct platform_device *pdev)
 
 	stmpe_gpio->dev = &pdev->dev;
 	stmpe_gpio->stmpe = stmpe;
+	stmpe_gpio->norequest_mask = pdata ? pdata->norequest_mask : 0;
 
 	stmpe_gpio->chip = template_chip;
 	stmpe_gpio->chip.ngpio = stmpe->num_gpios;
@@ -312,11 +315,11 @@ static int __devinit stmpe_gpio_probe(struct platform_device *pdev)
 
 	ret = stmpe_enable(stmpe, STMPE_BLOCK_GPIO);
 	if (ret)
-		return ret;
+		goto out_free;
 
 	ret = stmpe_gpio_irq_init(stmpe_gpio);
 	if (ret)
-		goto out_free;
+		goto out_disable;
 
 	ret = request_threaded_irq(irq, NULL, stmpe_gpio_irq, IRQF_ONESHOT,
 				   "stmpe-gpio", stmpe_gpio);
@@ -342,6 +345,8 @@ out_freeirq:
 	free_irq(irq, stmpe_gpio);
 out_removeirq:
 	stmpe_gpio_irq_remove(stmpe_gpio);
+out_disable:
+	stmpe_disable(stmpe, STMPE_BLOCK_GPIO);
 out_free:
 	kfree(stmpe_gpio);
 	return ret;

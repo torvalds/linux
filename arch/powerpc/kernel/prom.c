@@ -66,7 +66,9 @@
 int __initdata iommu_is_off;
 int __initdata iommu_force_on;
 unsigned long tce_alloc_start, tce_alloc_end;
+u64 ppc64_rma_size;
 #endif
+static phys_addr_t first_memblock_size;
 
 static int __init early_parse_mem(char *p)
 {
@@ -80,11 +82,29 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
+/*
+ * overlaps_initrd - check for overlap with page aligned extension of
+ * initrd.
+ */
+static inline int overlaps_initrd(unsigned long start, unsigned long size)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	if (!initrd_start)
+		return 0;
+
+	return	(start + size) > _ALIGN_DOWN(initrd_start, PAGE_SIZE) &&
+			start <= _ALIGN_UP(initrd_end, PAGE_SIZE);
+#else
+	return 0;
+#endif
+}
+
 /**
  * move_device_tree - move tree to an unused area, if needed.
  *
  * The device tree may be allocated beyond our memory limit, or inside the
- * crash kernel region for kdump. If so, move it out of the way.
+ * crash kernel region for kdump, or within the page aligned range of initrd.
+ * If so, move it out of the way.
  */
 static void __init move_device_tree(void)
 {
@@ -96,9 +116,10 @@ static void __init move_device_tree(void)
 	start = __pa(initial_boot_params);
 	size = be32_to_cpu(initial_boot_params->totalsize);
 
-	if ((memory_limit && (start + size) > memory_limit) ||
-			overlaps_crashkernel(start, size)) {
-		p = __va(memblock_alloc_base(size, PAGE_SIZE, memblock.rmo_size));
+	if ((memory_limit && (start + size) > PHYSICAL_START + memory_limit) ||
+			overlaps_crashkernel(start, size) ||
+			overlaps_initrd(start, size)) {
+		p = __va(memblock_alloc(size, PAGE_SIZE));
 		memcpy(p, initial_boot_params, size);
 		initial_boot_params = (struct boot_param_header *)p;
 		DBG("Moved device tree to 0x%p\n", p);
@@ -122,18 +143,19 @@ static void __init move_device_tree(void)
  */
 static struct ibm_pa_feature {
 	unsigned long	cpu_features;	/* CPU_FTR_xxx bit */
+	unsigned long	mmu_features;	/* MMU_FTR_xxx bit */
 	unsigned int	cpu_user_ftrs;	/* PPC_FEATURE_xxx bit */
 	unsigned char	pabyte;		/* byte number in ibm,pa-features */
 	unsigned char	pabit;		/* bit number (big-endian) */
 	unsigned char	invert;		/* if 1, pa bit set => clear feature */
 } ibm_pa_features[] __initdata = {
-	{0, PPC_FEATURE_HAS_MMU,	0, 0, 0},
-	{0, PPC_FEATURE_HAS_FPU,	0, 1, 0},
-	{CPU_FTR_SLB, 0,		0, 2, 0},
-	{CPU_FTR_CTRL, 0,		0, 3, 0},
-	{CPU_FTR_NOEXECUTE, 0,		0, 6, 0},
-	{CPU_FTR_NODSISRALIGN, 0,	1, 1, 1},
-	{CPU_FTR_CI_LARGE_PAGE, 0,	1, 2, 0},
+	{0, 0, PPC_FEATURE_HAS_MMU,	0, 0, 0},
+	{0, 0, PPC_FEATURE_HAS_FPU,	0, 1, 0},
+	{0, MMU_FTR_SLB, 0,		0, 2, 0},
+	{CPU_FTR_CTRL, 0, 0,		0, 3, 0},
+	{CPU_FTR_NOEXECUTE, 0, 0,	0, 6, 0},
+	{CPU_FTR_NODSISRALIGN, 0, 0,	1, 1, 1},
+	{0, MMU_FTR_CI_LARGE_PAGE, 0,	1, 2, 0},
 	{CPU_FTR_REAL_LE, PPC_FEATURE_TRUE_LE, 5, 0, 0},
 };
 
@@ -165,9 +187,11 @@ static void __init scan_features(unsigned long node, unsigned char *ftrs,
 		if (bit ^ fp->invert) {
 			cur_cpu_spec->cpu_features |= fp->cpu_features;
 			cur_cpu_spec->cpu_user_features |= fp->cpu_user_ftrs;
+			cur_cpu_spec->mmu_features |= fp->mmu_features;
 		} else {
 			cur_cpu_spec->cpu_features &= ~fp->cpu_features;
 			cur_cpu_spec->cpu_user_features &= ~fp->cpu_user_ftrs;
+			cur_cpu_spec->mmu_features &= ~fp->mmu_features;
 		}
 	}
 }
@@ -267,13 +291,13 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 					  const char *uname, int depth,
 					  void *data)
 {
-	static int logical_cpuid = 0;
 	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
 	const u32 *prop;
 	const u32 *intserv;
 	int i, nthreads;
 	unsigned long len;
-	int found = 0;
+	int found = -1;
+	int found_thread = 0;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
@@ -297,11 +321,10 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 		 * version 2 of the kexec param format adds the phys cpuid of
 		 * booted proc.
 		 */
-		if (initial_boot_params && initial_boot_params->version >= 2) {
-			if (intserv[i] ==
-					initial_boot_params->boot_cpuid_phys) {
-				found = 1;
-				break;
+		if (initial_boot_params->version >= 2) {
+			if (intserv[i] == initial_boot_params->boot_cpuid_phys) {
+				found = boot_cpu_count;
+				found_thread = i;
 			}
 		} else {
 			/*
@@ -310,23 +333,20 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 			 * off secondary threads.
 			 */
 			if (of_get_flat_dt_prop(node,
-					"linux,boot-cpu", NULL) != NULL) {
-				found = 1;
-				break;
-			}
+					"linux,boot-cpu", NULL) != NULL)
+				found = boot_cpu_count;
 		}
-
 #ifdef CONFIG_SMP
 		/* logical cpu id is always 0 on UP kernels */
-		logical_cpuid++;
+		boot_cpu_count++;
 #endif
 	}
 
-	if (found) {
-		DBG("boot cpu: logical %d physical %d\n", logical_cpuid,
-			intserv[i]);
-		boot_cpuid = logical_cpuid;
-		set_hard_smp_processor_id(boot_cpuid, intserv[i]);
+	if (found >= 0) {
+		DBG("boot cpu: logical %d physical %d\n", found,
+			intserv[found_thread]);
+		boot_cpuid = found;
+		set_hard_smp_processor_id(found, intserv[found_thread]);
 
 		/*
 		 * PAPR defines "logical" PVR values for cpus that
@@ -363,9 +383,14 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	return 0;
 }
 
-void __init early_init_dt_scan_chosen_arch(unsigned long node)
+int __init early_init_dt_scan_chosen_ppc(unsigned long node, const char *uname,
+					 int depth, void *data)
 {
 	unsigned long *lprop;
+
+	/* Use common scan routine to determine if this is the chosen node */
+	if (early_init_dt_scan_chosen(node, uname, depth, data) == 0)
+		return 0;
 
 #ifdef CONFIG_PPC64
 	/* check if iommu is forced on or off */
@@ -398,6 +423,9 @@ void __init early_init_dt_scan_chosen_arch(unsigned long node)
 	if (lprop)
 		crashk_res.end = crashk_res.start + *lprop - 1;
 #endif
+
+	/* break now */
+	return 1;
 }
 
 #ifdef CONFIG_PPC_PSERIES
@@ -492,7 +520,7 @@ static int __init early_init_dt_scan_memory_ppc(unsigned long node,
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
-#if defined(CONFIG_PPC64)
+#ifdef CONFIG_PPC64
 	if (iommu_is_off) {
 		if (base >= 0x80000000ul)
 			return;
@@ -500,15 +528,22 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 			size = 0x80000000ul - base;
 	}
 #endif
+	/* Keep track of the beginning of memory -and- the size of
+	 * the very first block in the device-tree as it represents
+	 * the RMA on ppc64 server
+	 */
+	if (base < memstart_addr) {
+		memstart_addr = base;
+		first_memblock_size = size;
+	}
 
+	/* Add the chunk to the MEMBLOCK list */
 	memblock_add(base, size);
-
-	memstart_addr = min((u64)memstart_addr, base);
 }
 
-u64 __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
+void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 {
-	return memblock_alloc(size, align);
+	return __va(memblock_alloc(size, align));
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -539,7 +574,9 @@ static void __init early_reserve_mem(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 	/* then reserve the initrd, if any */
 	if (initrd_start && (initrd_end > initrd_start))
-		memblock_reserve(__pa(initrd_start), initrd_end - initrd_start);
+		memblock_reserve(_ALIGN_DOWN(__pa(initrd_start), PAGE_SIZE),
+			_ALIGN_UP(initrd_end, PAGE_SIZE) -
+			_ALIGN_DOWN(initrd_start, PAGE_SIZE));
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 #ifdef CONFIG_PPC32
@@ -655,7 +692,6 @@ static void __init phyp_dump_reserve_mem(void)
 static inline void __init phyp_dump_reserve_mem(void) {}
 #endif /* CONFIG_PHYP_DUMP  && CONFIG_PPC_RTAS */
 
-
 void __init early_init_devtree(void *params)
 {
 	phys_addr_t limit;
@@ -671,7 +707,7 @@ void __init early_init_devtree(void *params)
 #endif
 
 #ifdef CONFIG_PHYP_DUMP
-	/* scan tree to see if dump occured during last boot */
+	/* scan tree to see if dump occurred during last boot */
 	of_scan_flat_dt(early_init_dt_scan_phyp_dump, NULL);
 #endif
 
@@ -679,12 +715,14 @@ void __init early_init_devtree(void *params)
 	 * device-tree, including the platform type, initrd location and
 	 * size, TCE reserve, and more ...
 	 */
-	of_scan_flat_dt(early_init_dt_scan_chosen, NULL);
+	of_scan_flat_dt(early_init_dt_scan_chosen_ppc, cmd_line);
 
 	/* Scan memory nodes and rebuild MEMBLOCKs */
 	memblock_init();
+
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory_ppc, NULL);
+	setup_initial_memory_limit(memstart_addr, first_memblock_size);
 
 	/* Save command line for /proc/cmdline and then parse parameters */
 	strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
@@ -726,7 +764,7 @@ void __init early_init_devtree(void *params)
 
 	DBG("Scanning CPUs ...\n");
 
-	/* Retreive CPU related informations from the flat tree
+	/* Retrieve CPU related informations from the flat tree
 	 * (altivec support, boot CPU ID, ...)
 	 */
 	of_scan_flat_dt(early_init_dt_scan_cpus, NULL);

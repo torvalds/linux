@@ -70,36 +70,37 @@ static inline void ack_irqs(struct egpio_info *ei)
 			ei->ack_write, ei->ack_register << ei->bus_shift);
 }
 
-static void egpio_ack(unsigned int irq)
+static void egpio_ack(struct irq_data *data)
 {
 }
 
 /* There does not appear to be a way to proactively mask interrupts
  * on the egpio chip itself.  So, we simply ignore interrupts that
  * aren't desired. */
-static void egpio_mask(unsigned int irq)
+static void egpio_mask(struct irq_data *data)
 {
-	struct egpio_info *ei = get_irq_chip_data(irq);
-	ei->irqs_enabled &= ~(1 << (irq - ei->irq_start));
-	pr_debug("EGPIO mask %d %04x\n", irq, ei->irqs_enabled);
+	struct egpio_info *ei = irq_data_get_irq_chip_data(data);
+	ei->irqs_enabled &= ~(1 << (data->irq - ei->irq_start));
+	pr_debug("EGPIO mask %d %04x\n", data->irq, ei->irqs_enabled);
 }
-static void egpio_unmask(unsigned int irq)
+
+static void egpio_unmask(struct irq_data *data)
 {
-	struct egpio_info *ei = get_irq_chip_data(irq);
-	ei->irqs_enabled |= 1 << (irq - ei->irq_start);
-	pr_debug("EGPIO unmask %d %04x\n", irq, ei->irqs_enabled);
+	struct egpio_info *ei = irq_data_get_irq_chip_data(data);
+	ei->irqs_enabled |= 1 << (data->irq - ei->irq_start);
+	pr_debug("EGPIO unmask %d %04x\n", data->irq, ei->irqs_enabled);
 }
 
 static struct irq_chip egpio_muxed_chip = {
-	.name   = "htc-egpio",
-	.ack	= egpio_ack,
-	.mask   = egpio_mask,
-	.unmask = egpio_unmask,
+	.name		= "htc-egpio",
+	.irq_ack	= egpio_ack,
+	.irq_mask	= egpio_mask,
+	.irq_unmask	= egpio_unmask,
 };
 
 static void egpio_handler(unsigned int irq, struct irq_desc *desc)
 {
-	struct egpio_info *ei = get_irq_data(irq);
+	struct egpio_info *ei = irq_desc_get_handler_data(desc);
 	int irqpin;
 
 	/* Read current pins. */
@@ -112,9 +113,7 @@ static void egpio_handler(unsigned int irq, struct irq_desc *desc)
 	for_each_set_bit(irqpin, &readval, ei->nirqs) {
 		/* Run irq handler */
 		pr_debug("got IRQ %d\n", irqpin);
-		irq = ei->irq_start + irqpin;
-		desc = irq_to_desc(irq);
-		desc->handle_irq(irq, desc);
+		generic_handle_irq(ei->irq_start + irqpin);
 	}
 }
 
@@ -345,14 +344,14 @@ static int __init egpio_probe(struct platform_device *pdev)
 			ei->ack_write = 0;
 		irq_end = ei->irq_start + ei->nirqs;
 		for (irq = ei->irq_start; irq < irq_end; irq++) {
-			set_irq_chip(irq, &egpio_muxed_chip);
-			set_irq_chip_data(irq, ei);
-			set_irq_handler(irq, handle_simple_irq);
+			irq_set_chip_and_handler(irq, &egpio_muxed_chip,
+						 handle_simple_irq);
+			irq_set_chip_data(irq, ei);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
-		set_irq_type(ei->chained_irq, IRQ_TYPE_EDGE_RISING);
-		set_irq_data(ei->chained_irq, ei);
-		set_irq_chained_handler(ei->chained_irq, egpio_handler);
+		irq_set_irq_type(ei->chained_irq, IRQ_TYPE_EDGE_RISING);
+		irq_set_handler_data(ei->chained_irq, ei);
+		irq_set_chained_handler(ei->chained_irq, egpio_handler);
 		ack_irqs(ei);
 
 		device_init_wakeup(&pdev->dev, 1);
@@ -374,11 +373,10 @@ static int __exit egpio_remove(struct platform_device *pdev)
 	if (ei->chained_irq) {
 		irq_end = ei->irq_start + ei->nirqs;
 		for (irq = ei->irq_start; irq < irq_end; irq++) {
-			set_irq_chip(irq, NULL);
-			set_irq_handler(irq, NULL);
+			irq_set_chip_and_handler(irq, NULL, NULL);
 			set_irq_flags(irq, 0);
 		}
-		set_irq_chained_handler(ei->chained_irq, NULL);
+		irq_set_chained_handler(ei->chained_irq, NULL);
 		device_init_wakeup(&pdev->dev, 0);
 	}
 	iounmap(ei->base_addr);

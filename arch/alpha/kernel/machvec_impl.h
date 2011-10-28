@@ -25,6 +25,9 @@
 #ifdef MCPCIA_ONE_HAE_WINDOW
 #define MCPCIA_HAE_ADDRESS	(&alpha_mv.hae_cache)
 #endif
+#ifdef T2_ONE_HAE_WINDOW
+#define T2_HAE_ADDRESS		(&alpha_mv.hae_cache)
+#endif
 
 /* Only a few systems don't define IACK_SC, handling all interrupts through
    the SRM console.  But splitting out that one case from IO() below

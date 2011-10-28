@@ -72,7 +72,7 @@ static irqreturn_t snd_sb8_interrupt(int irq, void *dev_id)
 
 static void snd_sb8_free(struct snd_card *card)
 {
-	struct snd_sb8 *acard = (struct snd_sb8 *)card->private_data;
+	struct snd_sb8 *acard = card->private_data;
 
 	if (acard == NULL)
 		return;

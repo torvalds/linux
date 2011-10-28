@@ -817,7 +817,7 @@ static int semctl_nolock(struct ipc_namespace *ns, int semid,
 		}
 
 		err = -EACCES;
-		if (ipcperms (&sma->sem_perm, S_IRUGO))
+		if (ipcperms(ns, &sma->sem_perm, S_IRUGO))
 			goto out_unlock;
 
 		err = security_sem_semctl(sma, cmd);
@@ -862,7 +862,8 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 	nsems = sma->sem_nsems;
 
 	err = -EACCES;
-	if (ipcperms (&sma->sem_perm, (cmd==SETVAL||cmd==SETALL)?S_IWUGO:S_IRUGO))
+	if (ipcperms(ns, &sma->sem_perm,
+			(cmd == SETVAL || cmd == SETALL) ? S_IWUGO : S_IRUGO))
 		goto out_unlock;
 
 	err = security_sem_semctl(sma, cmd);
@@ -1047,7 +1048,8 @@ static int semctl_down(struct ipc_namespace *ns, int semid,
 			return -EFAULT;
 	}
 
-	ipcp = ipcctl_pre_down(&sem_ids(ns), semid, cmd, &semid64.sem_perm, 0);
+	ipcp = ipcctl_pre_down(ns, &sem_ids(ns), semid, cmd,
+			       &semid64.sem_perm, 0);
 	if (IS_ERR(ipcp))
 		return PTR_ERR(ipcp);
 
@@ -1360,7 +1362,7 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 	 * semid identifiers are not unique - find_alloc_undo may have
 	 * allocated an undo structure, it was invalidated by an RMID
 	 * and now a new array with received the same id. Check and fail.
-	 * This case can be detected checking un->semid. The existance of
+	 * This case can be detected checking un->semid. The existence of
 	 * "un" itself is guaranteed by rcu.
 	 */
 	error = -EIDRM;
@@ -1386,7 +1388,7 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 		goto out_unlock_free;
 
 	error = -EACCES;
-	if (ipcperms(&sma->sem_perm, alter ? S_IWUGO : S_IRUGO))
+	if (ipcperms(ns, &sma->sem_perm, alter ? S_IWUGO : S_IRUGO))
 		goto out_unlock_free;
 
 	error = security_sem_semop(sma, sops, nsops, alter);
@@ -1454,15 +1456,24 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 	}
 
 	sma = sem_lock(ns, semid);
+
+	/*
+	 * Wait until it's guaranteed that no wakeup_sem_queue_do() is ongoing.
+	 */
+	error = get_queue_result(&queue);
+
+	/*
+	 * Array removed? If yes, leave without sem_unlock().
+	 */
 	if (IS_ERR(sma)) {
 		error = -EIDRM;
 		goto out_free;
 	}
 
-	error = get_queue_result(&queue);
 
 	/*
-	 * If queue.status != -EINTR we are woken up by another process
+	 * If queue.status != -EINTR we are woken up by another process.
+	 * Leave without unlink_queue(), but with sem_unlock().
 	 */
 
 	if (error != -EINTR) {

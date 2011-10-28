@@ -54,7 +54,7 @@
 /*
  * This is the size at which it becomes more efficient to
  * clean the whole cache, rather than using the individual
- * cache line maintainence instructions.  (I think this should
+ * cache line maintenance instructions.  (I think this should
  * be 32768).
  */
 #define CACHE_DLIMIT	8192
@@ -110,6 +110,17 @@ ENTRY(cpu_arm922_do_idle)
 
 
 #ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
+
+/*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(arm922_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(arm922_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
@@ -307,6 +318,7 @@ ENTRY(arm922_dma_unmap_area)
 ENDPROC(arm922_dma_unmap_area)
 
 ENTRY(arm922_cache_fns)
+	.long	arm922_flush_icache_all
 	.long	arm922_flush_kern_cache_all
 	.long	arm922_flush_user_cache_all
 	.long	arm922_flush_user_cache_range
@@ -379,7 +391,7 @@ ENTRY(cpu_arm922_set_pte_ext)
 #endif /* CONFIG_MMU */
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__arm922_setup, #function
 __arm922_setup:
@@ -424,6 +436,9 @@ arm922_processor_functions:
 	.word	cpu_arm922_dcache_clean_area
 	.word	cpu_arm922_switch_mm
 	.word	cpu_arm922_set_pte_ext
+	.word	0
+	.word	0
+	.word	0
 	.size	arm922_processor_functions, . - arm922_processor_functions
 
 	.section ".rodata"

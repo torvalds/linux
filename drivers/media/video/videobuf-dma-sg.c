@@ -69,10 +69,9 @@ static struct scatterlist *videobuf_vmalloc_to_sg(unsigned char *virt,
 	struct page *pg;
 	int i;
 
-	sglist = vmalloc(nr_pages * sizeof(*sglist));
+	sglist = vzalloc(nr_pages * sizeof(*sglist));
 	if (NULL == sglist)
 		return NULL;
-	memset(sglist, 0, nr_pages * sizeof(*sglist));
 	sg_init_table(sglist, nr_pages);
 	for (i = 0; i < nr_pages; i++, virt += PAGE_SIZE) {
 		pg = vmalloc_to_page(virt);
@@ -116,8 +115,8 @@ static struct scatterlist *videobuf_pages_to_sg(struct page **pages,
 			goto nopage;
 		if (PageHighMem(pages[i]))
 			goto highmem;
-		sg_set_page(&sglist[i], pages[i], min(PAGE_SIZE, size), 0);
-		size -= min(PAGE_SIZE, size);
+		sg_set_page(&sglist[i], pages[i], min_t(size_t, PAGE_SIZE, size), 0);
+		size -= min_t(size_t, PAGE_SIZE, size);
 	}
 	return sglist;
 
@@ -358,7 +357,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 	map->count--;
 	if (0 == map->count) {
 		dprintk(1, "munmap %p q=%p\n", map, q);
-		mutex_lock(&q->vb_lock);
+		videobuf_queue_lock(q);
 		for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 			if (NULL == q->bufs[i])
 				continue;
@@ -374,7 +373,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 			q->bufs[i]->baddr = 0;
 			q->ops->buf_release(q, q->bufs[i]);
 		}
-		mutex_unlock(&q->vb_lock);
+		videobuf_queue_unlock(q);
 		kfree(map);
 	}
 	return;
@@ -544,14 +543,6 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 
 	retval = -EINVAL;
 
-	/* This function maintains backwards compatibility with V4L1 and will
-	 * map more than one buffer if the vma length is equal to the combined
-	 * size of multiple buffers than it will map them together.  See
-	 * VIDIOCGMBUF in the v4l spec
-	 *
-	 * TODO: Allow drivers to specify if they support this mode
-	 */
-
 	BUG_ON(!mem);
 	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
 
@@ -571,29 +562,6 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	}
 
 	last = first;
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	if (size != (vma->vm_end - vma->vm_start)) {
-		/* look for last buffer to map */
-		for (last = first + 1; last < VIDEO_MAX_FRAME; last++) {
-			if (NULL == q->bufs[last])
-				continue;
-			if (V4L2_MEMORY_MMAP != q->bufs[last]->memory)
-				continue;
-			if (q->bufs[last]->map) {
-				retval = -EBUSY;
-				goto done;
-			}
-			size += PAGE_ALIGN(q->bufs[last]->bsize);
-			if (size == (vma->vm_end - vma->vm_start))
-				break;
-		}
-		if (VIDEO_MAX_FRAME == last) {
-			dprintk(1, "mmap app bug: size invalid [size=0x%lx]\n",
-					(vma->vm_end - vma->vm_start));
-			goto done;
-		}
-	}
-#endif
 
 	/* create mapping + update buffer list */
 	retval = -ENOMEM;
@@ -654,10 +622,11 @@ void videobuf_queue_sg_init(struct videobuf_queue *q,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,
 			 unsigned int msize,
-			 void *priv)
+			 void *priv,
+			 struct mutex *ext_lock)
 {
 	videobuf_queue_core_init(q, ops, dev, irqlock, type, field, msize,
-				 priv, &sg_ops);
+				 priv, &sg_ops, ext_lock);
 }
 EXPORT_SYMBOL_GPL(videobuf_queue_sg_init);
 

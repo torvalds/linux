@@ -46,14 +46,13 @@ struct atomic_locks_on_cpu *atomic_lock_ptr[ATOMIC_HASH_L1_SIZE]
 #else /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
 /* This page is remapped on startup to be hash-for-home. */
-int atomic_locks[PAGE_SIZE / sizeof(int) /* Only ATOMIC_HASH_SIZE is used */]
-  __attribute__((aligned(PAGE_SIZE), section(".bss.page_aligned")));
+int atomic_locks[PAGE_SIZE / sizeof(int)] __page_aligned_bss;
 
 #endif /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
 static inline int *__atomic_hashed_lock(volatile void *v)
 {
-	/* NOTE: this code must match "sys_cmpxchg" in kernel/intvec.S */
+	/* NOTE: this code must match "sys_cmpxchg" in kernel/intvec_32.S */
 #if ATOMIC_LOCKS_FOUND_VIA_TABLE()
 	unsigned long i =
 		(unsigned long) v & ((PAGE_SIZE-1) & -sizeof(long long));
@@ -203,32 +202,32 @@ static inline int *__futex_setup(int __user *v)
 	return __atomic_hashed_lock((int __force *)v);
 }
 
-struct __get_user futex_set(int __user *v, int i)
+struct __get_user futex_set(u32 __user *v, int i)
 {
 	return __atomic_xchg((int __force *)v, __futex_setup(v), i);
 }
 
-struct __get_user futex_add(int __user *v, int n)
+struct __get_user futex_add(u32 __user *v, int n)
 {
 	return __atomic_xchg_add((int __force *)v, __futex_setup(v), n);
 }
 
-struct __get_user futex_or(int __user *v, int n)
+struct __get_user futex_or(u32 __user *v, int n)
 {
 	return __atomic_or((int __force *)v, __futex_setup(v), n);
 }
 
-struct __get_user futex_andn(int __user *v, int n)
+struct __get_user futex_andn(u32 __user *v, int n)
 {
 	return __atomic_andn((int __force *)v, __futex_setup(v), n);
 }
 
-struct __get_user futex_xor(int __user *v, int n)
+struct __get_user futex_xor(u32 __user *v, int n)
 {
 	return __atomic_xor((int __force *)v, __futex_setup(v), n);
 }
 
-struct __get_user futex_cmpxchg(int __user *v, int o, int n)
+struct __get_user futex_cmpxchg(u32 __user *v, int o, int n)
 {
 	return __atomic_cmpxchg((int __force *)v, __futex_setup(v), o, n);
 }
@@ -300,7 +299,7 @@ void __init __init_atomic_per_cpu(void)
 #else /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
 	/* Validate power-of-two and "bigger than cpus" assumption */
-	BUG_ON(ATOMIC_HASH_SIZE & (ATOMIC_HASH_SIZE-1));
+	BUILD_BUG_ON(ATOMIC_HASH_SIZE & (ATOMIC_HASH_SIZE-1));
 	BUG_ON(ATOMIC_HASH_SIZE < nr_cpu_ids);
 
 	/*
@@ -314,17 +313,17 @@ void __init __init_atomic_per_cpu(void)
 	BUG_ON((unsigned long)atomic_locks % PAGE_SIZE != 0);
 
 	/* The locks must all fit on one page. */
-	BUG_ON(ATOMIC_HASH_SIZE * sizeof(int) > PAGE_SIZE);
+	BUILD_BUG_ON(ATOMIC_HASH_SIZE * sizeof(int) > PAGE_SIZE);
 
 	/*
 	 * We use the page offset of the atomic value's address as
 	 * an index into atomic_locks, excluding the low 3 bits.
 	 * That should not produce more indices than ATOMIC_HASH_SIZE.
 	 */
-	BUG_ON((PAGE_SIZE >> 3) > ATOMIC_HASH_SIZE);
+	BUILD_BUG_ON((PAGE_SIZE >> 3) > ATOMIC_HASH_SIZE);
 
 #endif /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
 	/* The futex code makes this assumption, so we validate it here. */
-	BUG_ON(sizeof(atomic_t) != sizeof(int));
+	BUILD_BUG_ON(sizeof(atomic_t) != sizeof(int));
 }

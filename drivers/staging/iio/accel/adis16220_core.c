@@ -485,9 +485,9 @@ static struct bin_attribute adc2_bin = {
 	.size = ADIS16220_CAPTURE_SIZE,
 };
 
-static IIO_DEV_ATTR_IN_NAMED_RAW(supply, adis16220_read_12bit_unsigned,
+static IIO_DEV_ATTR_IN_NAMED_RAW(0, supply, adis16220_read_12bit_unsigned,
 		ADIS16220_CAPT_SUPPLY);
-static IIO_CONST_ATTR(in_supply_scale, "0.0012207");
+static IIO_CONST_ATTR_IN_NAMED_SCALE(0, supply, "0.0012207");
 static IIO_DEV_ATTR_ACCEL(adis16220_read_16bit, ADIS16220_CAPT_BUFA);
 static IIO_DEVICE_ATTR(accel_peak_raw, S_IRUGO, adis16220_read_16bit,
 		NULL, ADIS16220_CAPT_PEAKA);
@@ -495,18 +495,19 @@ static IIO_DEV_ATTR_ACCEL_OFFSET(S_IWUSR | S_IRUGO,
 		adis16220_read_16bit,
 		adis16220_write_16bit,
 		ADIS16220_ACCL_NULL);
+static IIO_CONST_ATTR_ACCEL_SCALE("0.18704223545");
 static IIO_DEV_ATTR_TEMP_RAW(adis16220_read_12bit_unsigned);
-static IIO_CONST_ATTR(temp_offset, "25");
-static IIO_CONST_ATTR(temp_scale, "-0.47");
+static IIO_CONST_ATTR_TEMP_OFFSET("25");
+static IIO_CONST_ATTR_TEMP_SCALE("-0.47");
 
-static IIO_DEV_ATTR_IN_RAW(0, adis16220_read_16bit, ADIS16220_CAPT_BUF1);
-static IIO_DEV_ATTR_IN_RAW(1, adis16220_read_16bit, ADIS16220_CAPT_BUF2);
+static IIO_DEV_ATTR_IN_RAW(1, adis16220_read_16bit, ADIS16220_CAPT_BUF1);
+static IIO_DEV_ATTR_IN_RAW(2, adis16220_read_16bit, ADIS16220_CAPT_BUF2);
 
 static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL,
 		adis16220_write_reset, 0);
 
 #define IIO_DEV_ATTR_CAPTURE(_store)				\
-	IIO_DEVICE_ATTR(capture, S_IWUGO, NULL, _store, 0)
+	IIO_DEVICE_ATTR(capture, S_IWUSR, NULL, _store, 0)
 
 static IIO_DEV_ATTR_CAPTURE(adis16220_write_capture);
 
@@ -518,26 +519,24 @@ static IIO_DEV_ATTR_CAPTURE_COUNT(S_IWUSR | S_IRUGO,
 		adis16220_write_16bit,
 		ADIS16220_CAPT_PNTR);
 
-static IIO_CONST_ATTR_AVAIL_SAMP_FREQ("100200");
-
-static IIO_CONST_ATTR(name, "adis16220");
+static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("100200");
 
 static struct attribute *adis16220_attributes[] = {
-	&iio_dev_attr_in_supply_raw.dev_attr.attr,
-	&iio_const_attr_in_supply_scale.dev_attr.attr,
+	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
+	&iio_const_attr_in0_supply_scale.dev_attr.attr,
 	&iio_dev_attr_accel_raw.dev_attr.attr,
 	&iio_dev_attr_accel_offset.dev_attr.attr,
 	&iio_dev_attr_accel_peak_raw.dev_attr.attr,
+	&iio_const_attr_accel_scale.dev_attr.attr,
 	&iio_dev_attr_temp_raw.dev_attr.attr,
-	&iio_dev_attr_in0_raw.dev_attr.attr,
 	&iio_dev_attr_in1_raw.dev_attr.attr,
+	&iio_dev_attr_in2_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
-	&iio_const_attr_available_sampling_frequency.dev_attr.attr,
+	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_capture.dev_attr.attr,
 	&iio_dev_attr_capture_count.dev_attr.attr,
-	&iio_const_attr_name.dev_attr.attr,
 	NULL
 };
 
@@ -545,6 +544,10 @@ static const struct attribute_group adis16220_attribute_group = {
 	.attrs = adis16220_attributes,
 };
 
+static const struct iio_info adis16220_info = {
+	.attrs = &adis16220_attribute_group,
+	.driver_module = THIS_MODULE,
+};
 static int __devinit adis16220_probe(struct spi_device *spi)
 {
 	int ret, regdone = 0;
@@ -570,16 +573,16 @@ static int __devinit adis16220_probe(struct spi_device *spi)
 	st->us = spi;
 	mutex_init(&st->buf_lock);
 	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_tx;
 	}
 
+	st->indio_dev->name = spi->dev.driver->name;
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &adis16220_attribute_group;
+	st->indio_dev->info = &adis16220_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->indio_dev);

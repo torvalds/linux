@@ -27,6 +27,17 @@
 #ifdef CONFIG_MTD_UBI_DEBUG
 
 #include "ubi.h"
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+
+unsigned int ubi_chk_flags;
+unsigned int ubi_tst_flags;
+
+module_param_named(debug_chks, ubi_chk_flags, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug_tsts, ubi_chk_flags, uint, S_IRUGO | S_IWUSR);
+
+MODULE_PARM_DESC(debug_chks, "Debug check flags");
+MODULE_PARM_DESC(debug_tsts, "Debug special test flags");
 
 /**
  * ubi_dbg_dump_ec_hdr - dump an erase counter header.
@@ -61,15 +72,15 @@ void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
 {
 	printk(KERN_DEBUG "Volume identifier header dump:\n");
 	printk(KERN_DEBUG "\tmagic     %08x\n", be32_to_cpu(vid_hdr->magic));
-	printk(KERN_DEBUG "\tversion   %d\n",   (int)vid_hdr->version);
-	printk(KERN_DEBUG "\tvol_type  %d\n",   (int)vid_hdr->vol_type);
-	printk(KERN_DEBUG "\tcopy_flag %d\n",   (int)vid_hdr->copy_flag);
-	printk(KERN_DEBUG "\tcompat    %d\n",   (int)vid_hdr->compat);
-	printk(KERN_DEBUG "\tvol_id    %d\n",   be32_to_cpu(vid_hdr->vol_id));
-	printk(KERN_DEBUG "\tlnum      %d\n",   be32_to_cpu(vid_hdr->lnum));
-	printk(KERN_DEBUG "\tdata_size %d\n",   be32_to_cpu(vid_hdr->data_size));
-	printk(KERN_DEBUG "\tused_ebs  %d\n",   be32_to_cpu(vid_hdr->used_ebs));
-	printk(KERN_DEBUG "\tdata_pad  %d\n",   be32_to_cpu(vid_hdr->data_pad));
+	printk(KERN_DEBUG "\tversion   %d\n",  (int)vid_hdr->version);
+	printk(KERN_DEBUG "\tvol_type  %d\n",  (int)vid_hdr->vol_type);
+	printk(KERN_DEBUG "\tcopy_flag %d\n",  (int)vid_hdr->copy_flag);
+	printk(KERN_DEBUG "\tcompat    %d\n",  (int)vid_hdr->compat);
+	printk(KERN_DEBUG "\tvol_id    %d\n",  be32_to_cpu(vid_hdr->vol_id));
+	printk(KERN_DEBUG "\tlnum      %d\n",  be32_to_cpu(vid_hdr->lnum));
+	printk(KERN_DEBUG "\tdata_size %d\n",  be32_to_cpu(vid_hdr->data_size));
+	printk(KERN_DEBUG "\tused_ebs  %d\n",  be32_to_cpu(vid_hdr->used_ebs));
+	printk(KERN_DEBUG "\tdata_pad  %d\n",  be32_to_cpu(vid_hdr->data_pad));
 	printk(KERN_DEBUG "\tsqnum     %llu\n",
 		(unsigned long long)be64_to_cpu(vid_hdr->sqnum));
 	printk(KERN_DEBUG "\thdr_crc   %08x\n", be32_to_cpu(vid_hdr->hdr_crc));

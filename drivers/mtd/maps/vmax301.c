@@ -138,7 +138,7 @@ static void __exit cleanup_vmax301(void)
 
 	for (i=0; i<2; i++) {
 		if (vmax_mtd[i]) {
-			del_mtd_device(vmax_mtd[i]);
+			mtd_device_unregister(vmax_mtd[i]);
 			map_destroy(vmax_mtd[i]);
 		}
 	}
@@ -176,7 +176,7 @@ static int __init init_vmax301(void)
 			vmax_mtd[i] = do_map_probe("map_rom", &vmax_map[i]);
 		if (vmax_mtd[i]) {
 			vmax_mtd[i]->owner = THIS_MODULE;
-			add_mtd_device(vmax_mtd[i]);
+			mtd_device_register(vmax_mtd[i], NULL, 0);
 		}
 	}
 

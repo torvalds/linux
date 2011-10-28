@@ -188,7 +188,7 @@ static int __devinit snd_card_azt2320_probe(int dev,
 				sizeof(struct snd_card_azt2320), &card);
 	if (error < 0)
 		return error;
-	acard = (struct snd_card_azt2320 *)card->private_data;
+	acard = card->private_data;
 
 	if ((error = snd_card_azt2320_pnp(dev, acard, pcard, pid))) {
 		snd_card_free(card);

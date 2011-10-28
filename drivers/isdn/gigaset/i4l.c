@@ -201,8 +201,6 @@ static int command_from_LL(isdn_ctrl *cntrl)
 	int i;
 	size_t l;
 
-	gigaset_debugdrivers();
-
 	gig_dbg(DEBUG_CMD, "driver: %d, command: %d, arg: 0x%lx",
 		cntrl->driver, cntrl->command, cntrl->arg);
 

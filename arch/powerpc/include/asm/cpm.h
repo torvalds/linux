@@ -98,7 +98,7 @@ typedef struct cpm_buf_desc {
 #define BD_SC_INTRPT	(0x1000)	/* Interrupt on change */
 #define BD_SC_LAST	(0x0800)	/* Last buffer in frame */
 #define BD_SC_TC	(0x0400)	/* Transmit CRC */
-#define BD_SC_CM	(0x0200)	/* Continous mode */
+#define BD_SC_CM	(0x0200)	/* Continuous mode */
 #define BD_SC_ID	(0x0100)	/* Rec'd too many idles */
 #define BD_SC_P		(0x0100)	/* xmt preamble */
 #define BD_SC_BR	(0x0020)	/* Break received */

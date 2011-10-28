@@ -1,0 +1,158 @@
+config ATH6K_LEGACY
+	tristate "Atheros AR6003 support (non mac80211)"
+        depends on MMC && WLAN
+	depends on CFG80211
+        select WIRELESS_EXT
+        select WEXT_PRIV
+	help
+	This module adds support for wireless adapters based on Atheros AR6003 chipset running over SDIO. If you choose to build it as a module, it will be called ath6kl. Pls note that AR6002 and AR6001 are not supported by this driver.
+
+choice
+	prompt "AR6003 Board Data Configuration"
+	depends on ATH6K_LEGACY
+	default AR600x_SD31_XXX
+	help
+	Select the appropriate board data template from the list below that matches your AR6003 based reference design.
+
+config AR600x_SD31_XXX
+	bool "SD31-xxx"
+	help
+        Board Data file for a standard SD31 reference design (File: bdata.SD31.bin)
+
+config AR600x_WB31_XXX
+	bool "WB31-xxx"
+	help
+        Board Data file for a standard WB31 (BT/WiFi) reference design (File: bdata.WB31.bin)
+
+config AR600x_SD32_XXX
+	bool "SD32-xxx"
+	help
+        Board Data file for a standard SD32 (5GHz) reference design (File: bdata.SD32.bin)
+
+config AR600x_CUSTOM_XXX
+	bool "CUSTOM-xxx"
+	help
+        Board Data file for a custom reference design (File: should be named as bdata.CUSTOM.bin)
+endchoice
+
+config ATH6KL_ENABLE_COEXISTENCE
+	bool "BT Coexistence support"
+	depends on ATH6K_LEGACY
+	help
+	Enables WLAN/BT coexistence support. Select the apprpriate configuration from below.
+
+choice
+	prompt "Front-End Antenna Configuration"
+	depends on ATH6KL_ENABLE_COEXISTENCE
+	default AR600x_DUAL_ANTENNA
+	help
+	Indicates the number of antennas being used by BT and WLAN. Select the appropriate configuration from the list below that matches your AR6003 based reference design.
+
+config AR600x_DUAL_ANTENNA
+	bool "Dual Antenna"
+	help
+        Dual Antenna Design
+
+config AR600x_SINGLE_ANTENNA
+	bool "Single Antenna"
+	help
+        Single Antenna Design
+endchoice
+
+choice
+	prompt "Collocated Bluetooth Type"
+	depends on ATH6KL_ENABLE_COEXISTENCE
+	default AR600x_BT_AR3001
+	help
+	Select the appropriate configuration from the list below that matches your AR6003 based reference design.
+
+config AR600x_BT_QCOM
+	bool "Qualcomm BTS4020X"
+	help
+        Qualcomm BT (3 Wire PTA)
+
+config AR600x_BT_CSR
+	bool "CSR BC06"
+	help
+        CSR BT (3 Wire PTA)
+
+config AR600x_BT_AR3001
+	bool "Atheros AR3001"
+	help
+        Atheros BT (3 Wire PTA)
+endchoice
+
+config ATH6KL_HCI_BRIDGE
+	bool "HCI over SDIO support"
+	depends on ATH6K_LEGACY
+	help
+	Enables BT over SDIO. Applicable only for combo designs (eg: WB31)
+
+config ATH6KL_CONFIG_GPIO_BT_RESET
+	bool "Configure BT Reset GPIO"
+	depends on ATH6KL_HCI_BRIDGE
+	help
+	Configure a WLAN GPIO for use with BT.
+
+config AR600x_BT_RESET_PIN
+	int "GPIO"
+	depends on ATH6KL_CONFIG_GPIO_BT_RESET
+	default 22
+	help
+	WLAN GPIO to be used for resetting BT
+
+config ATH6KL_HTC_RAW_INTERFACE
+	bool "RAW HTC support"
+	depends on ATH6K_LEGACY
+	help
+	Enables raw HTC interface. Allows application to directly talk to the HTC interface via the ioctl interface
+
+config ATH6KL_VIRTUAL_SCATTER_GATHER
+	bool "Virtual Scatter-Gather support"
+	depends on ATH6K_LEGACY
+	help
+	Enables virtual scatter gather support for the hardware that does not support it natively.
+
+config ATH6KL_SKIP_ABI_VERSION_CHECK
+	bool "Skip ABI version check support"
+	depends on ATH6K_LEGACY
+	help
+	Forces the driver to disable ABI version check. Caution: Incompatilbity between the host driver and target firmware may lead to unknown side effects.
+
+config ATH6KL_BT_UART_FC_POLARITY
+	int "UART Flow Control Polarity"
+	depends on ATH6KL_LEGACY
+	default 0
+	help
+	Configures the polarity of UART Flow Control. A value of 0 implies active low and is the default setting. Set it to 1 for active high.
+
+config ATH6KL_DEBUG
+	bool "Debug support"
+	depends on ATH6K_LEGACY
+	help
+	Enables debug support
+
+config ATH6KL_ENABLE_HOST_DEBUG
+	bool "Host Debug support"
+	depends on ATH6KL_DEBUG
+	help
+	Enables debug support in the driver
+
+config ATH6KL_ENABLE_TARGET_DEBUG_PRINTS
+	bool "Target Debug support - Enable UART prints"
+	depends on ATH6KL_DEBUG
+	help
+	Enables uart prints
+
+config AR600x_DEBUG_UART_TX_PIN
+	int "GPIO"
+	depends on ATH6KL_ENABLE_TARGET_DEBUG_PRINTS
+	default 8
+	help
+	WLAN GPIO to be used for Debug UART (Tx)
+
+config ATH6KL_DISABLE_TARGET_DBGLOGS
+	bool "Target Debug support - Disable Debug logs"
+	depends on ATH6KL_DEBUG
+	help
+	Enables debug logs

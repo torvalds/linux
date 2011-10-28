@@ -42,6 +42,7 @@ enum {
 	MAX_MTU        = 9600,  /* max MAC MTU, excluding header + FCS */
 	EEPROMSIZE     = 17408, /* Serial EEPROM physical size */
 	EEPROMVSIZE    = 32768, /* Serial EEPROM virtual address space size */
+	EEPROMPFSIZE   = 1024,  /* EEPROM writable area size for PFn, n>0 */
 	RSS_NENTRIES   = 2048,  /* # of entries in RSS mapping table */
 	TCB_SIZE       = 128,   /* TCB size */
 	NMTUS          = 16,    /* size of MTU table */

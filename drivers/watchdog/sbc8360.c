@@ -114,7 +114,7 @@ static char expect_close;
  *	C |	6.5s	65s	650s	1300s
  *	D |	7s	70s	700s	1400s
  *	E |	7.5s	75s	750s	1500s
- *	F |	8s	80s 	800s 	1600s
+ *	F |	8s	80s	800s	1600s
  *
  * Another way to say the same things is:
  *  For N=1, Timeout = (M+1) * 0.5s

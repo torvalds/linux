@@ -51,7 +51,7 @@
  */
 #define LEVEL(event) (((event) - HW_EVENT_IRQ_BASE) / 32)
 
-/* Return the hardware event's bit positon within the EMR/ESR */
+/* Return the hardware event's bit position within the EMR/ESR */
 #define EVENT_BIT(event) (((event) - HW_EVENT_IRQ_BASE) & 31)
 
 /*
@@ -60,8 +60,9 @@
  */
 
 /* Disable the hardware event by masking its bit in its EMR */
-static inline void disable_systemasic_irq(unsigned int irq)
+static inline void disable_systemasic_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	__u32 emr = EMR_BASE + (LEVEL(irq) << 4) + (LEVEL(irq) << 2);
 	__u32 mask;
 
@@ -71,8 +72,9 @@ static inline void disable_systemasic_irq(unsigned int irq)
 }
 
 /* Enable the hardware event by setting its bit in its EMR */
-static inline void enable_systemasic_irq(unsigned int irq)
+static inline void enable_systemasic_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	__u32 emr = EMR_BASE + (LEVEL(irq) << 4) + (LEVEL(irq) << 2);
 	__u32 mask;
 
@@ -82,18 +84,19 @@ static inline void enable_systemasic_irq(unsigned int irq)
 }
 
 /* Acknowledge a hardware event by writing its bit back to its ESR */
-static void mask_ack_systemasic_irq(unsigned int irq)
+static void mask_ack_systemasic_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	__u32 esr = ESR_BASE + (LEVEL(irq) << 2);
-	disable_systemasic_irq(irq);
+	disable_systemasic_irq(data);
 	outl((1 << EVENT_BIT(irq)), esr);
 }
 
 struct irq_chip systemasic_int = {
 	.name		= "System ASIC",
-	.mask		= disable_systemasic_irq,
-	.mask_ack	= mask_ack_systemasic_irq,
-	.unmask		= enable_systemasic_irq,
+	.irq_mask	= disable_systemasic_irq,
+	.irq_mask_ack	= mask_ack_systemasic_irq,
+	.irq_unmask	= enable_systemasic_irq,
 };
 
 /*
@@ -158,7 +161,6 @@ void systemasic_irq_init(void)
 			return;
 		}
 
-		set_irq_chip_and_handler(i, &systemasic_int,
-					 handle_level_irq);
+		irq_set_chip_and_handler(i, &systemasic_int, handle_level_irq);
 	}
 }

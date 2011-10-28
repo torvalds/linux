@@ -40,6 +40,7 @@
 #include <linux/notifier.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/ubi.h>
+#include <asm/pgtable.h>
 
 #include "ubi-media.h"
 #include "scan.h"
@@ -85,21 +86,26 @@
 /*
  * Error codes returned by the I/O sub-system.
  *
- * UBI_IO_PEB_EMPTY: the physical eraseblock is empty, i.e. it contains only
- *                   %0xFF bytes
- * UBI_IO_PEB_FREE: the physical eraseblock is free, i.e. it contains only a
- *                  valid erase counter header, and the rest are %0xFF bytes
+ * UBI_IO_FF: the read region of flash contains only 0xFFs
+ * UBI_IO_FF_BITFLIPS: the same as %UBI_IO_FF, but also also there was a data
+ *                     integrity error reported by the MTD driver
+ *                     (uncorrectable ECC error in case of NAND)
  * UBI_IO_BAD_HDR: the EC or VID header is corrupted (bad magic or CRC)
- * UBI_IO_BAD_HDR_READ: the same as %UBI_IO_BAD_HDR, but also there was a read
- * 			error reported by the flash driver
+ * UBI_IO_BAD_HDR_EBADMSG: the same as %UBI_IO_BAD_HDR, but also there was a
+ *                         data integrity error reported by the MTD driver
+ *                         (uncorrectable ECC error in case of NAND)
  * UBI_IO_BITFLIPS: bit-flips were detected and corrected
+ *
+ * Note, it is probably better to have bit-flip and ebadmsg as flags which can
+ * be or'ed with other error code. But this is a big change because there are
+ * may callers, so it does not worth the risk of introducing a bug
  */
 enum {
-	UBI_IO_PEB_EMPTY = 1,
-	UBI_IO_PEB_FREE,
+	UBI_IO_FF = 1,
+	UBI_IO_FF_BITFLIPS,
 	UBI_IO_BAD_HDR,
-	UBI_IO_BAD_HDR_READ,
-	UBI_IO_BITFLIPS
+	UBI_IO_BAD_HDR_EBADMSG,
+	UBI_IO_BITFLIPS,
 };
 
 /*
@@ -335,8 +341,8 @@ struct ubi_wl_entry;
  *      protected from the wear-leveling worker)
  * @pq_head: protection queue head
  * @wl_lock: protects the @used, @free, @pq, @pq_head, @lookuptbl, @move_from,
- * 	     @move_to, @move_to_put @erase_pending, @wl_scheduled, @works,
- * 	     @erroneous, and @erroneous_peb_count fields
+ *	     @move_to, @move_to_put @erase_pending, @wl_scheduled, @works,
+ *	     @erroneous, and @erroneous_peb_count fields
  * @move_mutex: serializes eraseblock moves
  * @work_sem: synchronizes the WL worker with use tasks
  * @wl_scheduled: non-zero if the wear-leveling was scheduled
@@ -356,6 +362,8 @@ struct ubi_wl_entry;
  * @peb_size: physical eraseblock size
  * @bad_peb_count: count of bad physical eraseblocks
  * @good_peb_count: count of good physical eraseblocks
+ * @corr_peb_count: count of corrupted physical eraseblocks (preserved and not
+ *                  used by UBI)
  * @erroneous_peb_count: count of erroneous physical eraseblocks in @erroneous
  * @max_erroneous: maximum allowed amount of erroneous physical eraseblocks
  * @min_io_size: minimal input/output unit size of the underlying MTD device
@@ -374,14 +382,14 @@ struct ubi_wl_entry;
  * @bad_allowed: whether the MTD device admits of bad physical eraseblocks or
  *               not
  * @nor_flash: non-zero if working on top of NOR flash
+ * @max_write_size: maximum amount of bytes the underlying flash can write at a
+ *                  time (MTD write buffer size)
  * @mtd: MTD device descriptor
  *
  * @peb_buf1: a buffer of PEB size used for different purposes
  * @peb_buf2: another buffer of PEB size used for different purposes
  * @buf_mutex: protects @peb_buf1 and @peb_buf2
  * @ckvol_mutex: serializes static volume checking when opening
- * @dbg_peb_buf: buffer of PEB size used for debugging
- * @dbg_buf_mutex: protects @dbg_peb_buf
  */
 struct ubi_device {
 	struct cdev cdev;
@@ -442,6 +450,7 @@ struct ubi_device {
 	int peb_size;
 	int bad_peb_count;
 	int good_peb_count;
+	int corr_peb_count;
 	int erroneous_peb_count;
 	int max_erroneous;
 	int min_io_size;
@@ -456,16 +465,13 @@ struct ubi_device {
 	int vid_hdr_shift;
 	unsigned int bad_allowed:1;
 	unsigned int nor_flash:1;
+	int max_write_size;
 	struct mtd_info *mtd;
 
 	void *peb_buf1;
 	void *peb_buf2;
 	struct mutex buf_mutex;
 	struct mutex ckvol_mutex;
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
-	void *dbg_peb_buf;
-	struct mutex dbg_buf_mutex;
-#endif
 };
 
 extern struct kmem_cache *ubi_wl_entry_slab;
@@ -506,6 +512,7 @@ int ubi_calc_data_len(const struct ubi_device *ubi, const void *buf,
 		      int length);
 int ubi_check_volume(struct ubi_device *ubi, int vol_id);
 void ubi_calculate_reserved(struct ubi_device *ubi);
+int ubi_check_pattern(const void *buf, uint8_t patt, int size);
 
 /* eba.c */
 int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,

@@ -66,12 +66,14 @@
 #define	P80211_FRMMETA_MAGIC	0x802110
 
 #define P80211SKB_FRMMETA(s) \
-	(((((struct p80211_frmmeta *)((s)->cb))->magic) == P80211_FRMMETA_MAGIC) ? \
+	(((((struct p80211_frmmeta *)((s)->cb))->magic) == \
+		P80211_FRMMETA_MAGIC) ? \
 		((struct p80211_frmmeta *)((s)->cb)) : \
 		(NULL))
 
 #define P80211SKB_RXMETA(s) \
-	(P80211SKB_FRMMETA((s)) ?  P80211SKB_FRMMETA((s))->rx : ((struct p80211_rxmeta *)(NULL)))
+	(P80211SKB_FRMMETA((s)) ?  P80211SKB_FRMMETA((s))->rx : \
+		((struct p80211_rxmeta *)(NULL)))
 
 struct p80211_rxmeta {
 	struct wlandevice *wlandev;
@@ -132,20 +134,20 @@ struct wlan_ethhdr {
 	u8 daddr[WLAN_ETHADDR_LEN];
 	u8 saddr[WLAN_ETHADDR_LEN];
 	u16 type;
-} __attribute__ ((packed));
+} __packed;
 
 /* local llc header type */
 struct wlan_llc {
 	u8 dsap;
 	u8 ssap;
 	u8 ctl;
-} __attribute__ ((packed));
+} __packed;
 
 /* local snap header type */
 struct wlan_snap {
 	u8 oui[WLAN_IEEE_OUI_LEN];
 	u16 type;
-} __attribute__ ((packed));
+} __packed;
 
 /* Circular include trick */
 struct wlandevice;

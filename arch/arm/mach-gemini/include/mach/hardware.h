@@ -33,7 +33,7 @@
 #define GEMINI_LPC_HOST_BASE	0x47000000
 #define GEMINI_LPC_IO_BASE	0x47800000
 #define GEMINI_INTERRUPT_BASE	0x48000000
-/* TODO: Different interrupt controlers when SMP
+/* TODO: Different interrupt controllers when SMP
  * #define GEMINI_INTERRUPT0_BASE	0x48000000
  * #define GEMINI_INTERRUPT1_BASE	0x49000000
  */

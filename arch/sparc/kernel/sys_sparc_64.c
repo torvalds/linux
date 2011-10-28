@@ -360,20 +360,25 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, u
 }
 EXPORT_SYMBOL(get_fb_unmapped_area);
 
-/* Essentially the same as PowerPC... */
-void arch_pick_mmap_layout(struct mm_struct *mm)
+/* Essentially the same as PowerPC.  */
+static unsigned long mmap_rnd(void)
 {
-	unsigned long random_factor = 0UL;
-	unsigned long gap;
+	unsigned long rnd = 0UL;
 
 	if (current->flags & PF_RANDOMIZE) {
-		random_factor = get_random_int();
+		unsigned long val = get_random_int();
 		if (test_thread_flag(TIF_32BIT))
-			random_factor &= ((1 * 1024 * 1024) - 1);
+			rnd = (val % (1UL << (22UL-PAGE_SHIFT)));
 		else
-			random_factor = ((random_factor << PAGE_SHIFT) &
-					 0xffffffffUL);
+			rnd = (val % (1UL << (29UL-PAGE_SHIFT)));
 	}
+	return (rnd << PAGE_SHIFT) * 2;
+}
+
+void arch_pick_mmap_layout(struct mm_struct *mm)
+{
+	unsigned long random_factor = mmap_rnd();
+	unsigned long gap;
 
 	/*
 	 * Fall back to the standard layout if the personality
@@ -455,7 +460,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 		default:
 			err = -ENOSYS;
 			goto out;
-		};
+		}
 	}
 	if (call <= MSGCTL) {
 		switch (call) {
@@ -476,7 +481,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 		default:
 			err = -ENOSYS;
 			goto out;
-		};
+		}
 	}
 	if (call <= SHMCTL) {
 		switch (call) {
@@ -502,7 +507,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 		default:
 			err = -ENOSYS;
 			goto out;
-		};
+		}
 	} else {
 		err = -ENOSYS;
 	}

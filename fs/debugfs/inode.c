@@ -13,9 +13,6 @@
  *
  */
 
-/* uncomment to get debug messages from the debug filesystem, ah the irony. */
-/* #define DEBUG */
-
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -40,6 +37,7 @@ static struct inode *debugfs_get_inode(struct super_block *sb, int mode, dev_t d
 	struct inode *inode = new_inode(sb);
 
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		switch (mode & S_IFMT) {
@@ -134,17 +132,17 @@ static int debug_fill_super(struct super_block *sb, void *data, int silent)
 	return simple_fill_super(sb, DEBUGFS_MAGIC, debug_files);
 }
 
-static int debug_get_sb(struct file_system_type *fs_type,
+static struct dentry *debug_mount(struct file_system_type *fs_type,
 			int flags, const char *dev_name,
-			void *data, struct vfsmount *mnt)
+			void *data)
 {
-	return get_sb_single(fs_type, flags, data, debug_fill_super, mnt);
+	return mount_single(fs_type, flags, data, debug_fill_super);
 }
 
 static struct file_system_type debug_fs_type = {
 	.owner =	THIS_MODULE,
 	.name =		"debugfs",
-	.get_sb =	debug_get_sb,
+	.mount =	debug_mount,
 	.kill_sb =	kill_litter_super,
 };
 
@@ -309,7 +307,7 @@ struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_symlink);
 
-static void __debugfs_remove(struct dentry *dentry, struct dentry *parent)
+static int __debugfs_remove(struct dentry *dentry, struct dentry *parent)
 {
 	int ret = 0;
 
@@ -332,6 +330,7 @@ static void __debugfs_remove(struct dentry *dentry, struct dentry *parent)
 			dput(dentry);
 		}
 	}
+	return ret;
 }
 
 /**
@@ -350,7 +349,8 @@ static void __debugfs_remove(struct dentry *dentry, struct dentry *parent)
 void debugfs_remove(struct dentry *dentry)
 {
 	struct dentry *parent;
-	
+	int ret;
+
 	if (!dentry)
 		return;
 
@@ -359,9 +359,10 @@ void debugfs_remove(struct dentry *dentry)
 		return;
 
 	mutex_lock(&parent->d_inode->i_mutex);
-	__debugfs_remove(dentry, parent);
+	ret = __debugfs_remove(dentry, parent);
 	mutex_unlock(&parent->d_inode->i_mutex);
-	simple_release_fs(&debugfs_mount, &debugfs_mount_count);
+	if (!ret)
+		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
 }
 EXPORT_SYMBOL_GPL(debugfs_remove);
 
@@ -539,17 +540,5 @@ static int __init debugfs_init(void)
 
 	return retval;
 }
-
-static void __exit debugfs_exit(void)
-{
-	debugfs_registered = false;
-
-	simple_release_fs(&debugfs_mount, &debugfs_mount_count);
-	unregister_filesystem(&debug_fs_type);
-	kobject_put(debug_kobj);
-}
-
 core_initcall(debugfs_init);
-module_exit(debugfs_exit);
-MODULE_LICENSE("GPL");
 

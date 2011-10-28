@@ -45,8 +45,8 @@ static char *init_device;
 module_param_named(device, init_device, charp, 0400);
 MODULE_PARM_DESC(device, "specify initial device");
 
-static struct kmem_cache *zfcp_cache_hw_align(const char *name,
-					      unsigned long size)
+static struct kmem_cache * __init zfcp_cache_hw_align(const char *name,
+						      unsigned long size)
 {
 	return kmem_cache_create(name, size, roundup_pow_of_two(size), 0, NULL);
 }
@@ -56,7 +56,6 @@ static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 	struct ccw_device *cdev;
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port;
-	struct zfcp_unit *unit;
 
 	cdev = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
 	if (!cdev)
@@ -72,17 +71,11 @@ static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 	port = zfcp_get_port_by_wwpn(adapter, wwpn);
 	if (!port)
 		goto out_port;
+	flush_work(&port->rport_work);
 
-	unit = zfcp_unit_enqueue(port, lun);
-	if (IS_ERR(unit))
-		goto out_unit;
-
-	zfcp_erp_unit_reopen(unit, 0, "auidc_1", NULL);
-	zfcp_erp_wait(adapter);
-	flush_work(&unit->scsi_work);
-
-out_unit:
+	zfcp_unit_add(port, lun);
 	put_device(&port->dev);
+
 out_port:
 	zfcp_ccw_adapter_put(adapter);
 out_ccw_device:
@@ -129,35 +122,23 @@ static int __init zfcp_module_init(void)
 {
 	int retval = -ENOMEM;
 
-	zfcp_data.gpn_ft_cache = zfcp_cache_hw_align("zfcp_gpn",
-					sizeof(struct zfcp_fc_gpn_ft_req));
-	if (!zfcp_data.gpn_ft_cache)
-		goto out;
-
-	zfcp_data.qtcb_cache = zfcp_cache_hw_align("zfcp_qtcb",
-					sizeof(struct fsf_qtcb));
-	if (!zfcp_data.qtcb_cache)
+	zfcp_fsf_qtcb_cache = zfcp_cache_hw_align("zfcp_fsf_qtcb",
+						  sizeof(struct fsf_qtcb));
+	if (!zfcp_fsf_qtcb_cache)
 		goto out_qtcb_cache;
 
-	zfcp_data.sr_buffer_cache = zfcp_cache_hw_align("zfcp_sr",
-					sizeof(struct fsf_status_read_buffer));
-	if (!zfcp_data.sr_buffer_cache)
-		goto out_sr_cache;
+	zfcp_fc_req_cache = zfcp_cache_hw_align("zfcp_fc_req",
+						sizeof(struct zfcp_fc_req));
+	if (!zfcp_fc_req_cache)
+		goto out_fc_cache;
 
-	zfcp_data.gid_pn_cache = zfcp_cache_hw_align("zfcp_gid",
-					sizeof(struct zfcp_fc_gid_pn));
-	if (!zfcp_data.gid_pn_cache)
-		goto out_gid_cache;
-
-	zfcp_data.adisc_cache = zfcp_cache_hw_align("zfcp_adisc",
-					sizeof(struct zfcp_fc_els_adisc));
-	if (!zfcp_data.adisc_cache)
-		goto out_adisc_cache;
-
-	zfcp_data.scsi_transport_template =
+	zfcp_scsi_transport_template =
 		fc_attach_transport(&zfcp_transport_functions);
-	if (!zfcp_data.scsi_transport_template)
+	if (!zfcp_scsi_transport_template)
 		goto out_transport;
+	scsi_transport_reserve_device(zfcp_scsi_transport_template,
+				      sizeof(struct zfcp_scsi_dev));
+
 
 	retval = misc_register(&zfcp_cfdc_misc);
 	if (retval) {
@@ -179,18 +160,12 @@ static int __init zfcp_module_init(void)
 out_ccw_register:
 	misc_deregister(&zfcp_cfdc_misc);
 out_misc:
-	fc_release_transport(zfcp_data.scsi_transport_template);
+	fc_release_transport(zfcp_scsi_transport_template);
 out_transport:
-	kmem_cache_destroy(zfcp_data.adisc_cache);
-out_adisc_cache:
-	kmem_cache_destroy(zfcp_data.gid_pn_cache);
-out_gid_cache:
-	kmem_cache_destroy(zfcp_data.sr_buffer_cache);
-out_sr_cache:
-	kmem_cache_destroy(zfcp_data.qtcb_cache);
+	kmem_cache_destroy(zfcp_fc_req_cache);
+out_fc_cache:
+	kmem_cache_destroy(zfcp_fsf_qtcb_cache);
 out_qtcb_cache:
-	kmem_cache_destroy(zfcp_data.gpn_ft_cache);
-out:
 	return retval;
 }
 
@@ -200,39 +175,12 @@ static void __exit zfcp_module_exit(void)
 {
 	ccw_driver_unregister(&zfcp_ccw_driver);
 	misc_deregister(&zfcp_cfdc_misc);
-	fc_release_transport(zfcp_data.scsi_transport_template);
-	kmem_cache_destroy(zfcp_data.adisc_cache);
-	kmem_cache_destroy(zfcp_data.gid_pn_cache);
-	kmem_cache_destroy(zfcp_data.sr_buffer_cache);
-	kmem_cache_destroy(zfcp_data.qtcb_cache);
-	kmem_cache_destroy(zfcp_data.gpn_ft_cache);
+	fc_release_transport(zfcp_scsi_transport_template);
+	kmem_cache_destroy(zfcp_fc_req_cache);
+	kmem_cache_destroy(zfcp_fsf_qtcb_cache);
 }
 
 module_exit(zfcp_module_exit);
-
-/**
- * zfcp_get_unit_by_lun - find unit in unit list of port by FCP LUN
- * @port: pointer to port to search for unit
- * @fcp_lun: FCP LUN to search for
- *
- * Returns: pointer to zfcp_unit or NULL
- */
-struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *port, u64 fcp_lun)
-{
-	unsigned long flags;
-	struct zfcp_unit *unit;
-
-	read_lock_irqsave(&port->unit_list_lock, flags);
-	list_for_each_entry(unit, &port->unit_list, list)
-		if (unit->fcp_lun == fcp_lun) {
-			if (!get_device(&unit->dev))
-				unit = NULL;
-			read_unlock_irqrestore(&port->unit_list_lock, flags);
-			return unit;
-		}
-	read_unlock_irqrestore(&port->unit_list_lock, flags);
-	return NULL;
-}
 
 /**
  * zfcp_get_port_by_wwpn - find port in port list of adapter by wwpn
@@ -257,92 +205,6 @@ struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *adapter,
 		}
 	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 	return NULL;
-}
-
-/**
- * zfcp_unit_release - dequeue unit
- * @dev: pointer to device
- *
- * waits until all work is done on unit and removes it then from the unit->list
- * of the associated port.
- */
-static void zfcp_unit_release(struct device *dev)
-{
-	struct zfcp_unit *unit = container_of(dev, struct zfcp_unit, dev);
-
-	put_device(&unit->port->dev);
-	kfree(unit);
-}
-
-/**
- * zfcp_unit_enqueue - enqueue unit to unit list of a port.
- * @port: pointer to port where unit is added
- * @fcp_lun: FCP LUN of unit to be enqueued
- * Returns: pointer to enqueued unit on success, ERR_PTR on error
- *
- * Sets up some unit internal structures and creates sysfs entry.
- */
-struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
-{
-	struct zfcp_unit *unit;
-	int retval = -ENOMEM;
-
-	get_device(&port->dev);
-
-	unit = zfcp_get_unit_by_lun(port, fcp_lun);
-	if (unit) {
-		put_device(&unit->dev);
-		retval = -EEXIST;
-		goto err_out;
-	}
-
-	unit = kzalloc(sizeof(struct zfcp_unit), GFP_KERNEL);
-	if (!unit)
-		goto err_out;
-
-	unit->port = port;
-	unit->fcp_lun = fcp_lun;
-	unit->dev.parent = &port->dev;
-	unit->dev.release = zfcp_unit_release;
-
-	if (dev_set_name(&unit->dev, "0x%016llx",
-			 (unsigned long long) fcp_lun)) {
-		kfree(unit);
-		goto err_out;
-	}
-	retval = -EINVAL;
-
-	INIT_WORK(&unit->scsi_work, zfcp_scsi_scan_work);
-
-	spin_lock_init(&unit->latencies.lock);
-	unit->latencies.write.channel.min = 0xFFFFFFFF;
-	unit->latencies.write.fabric.min = 0xFFFFFFFF;
-	unit->latencies.read.channel.min = 0xFFFFFFFF;
-	unit->latencies.read.fabric.min = 0xFFFFFFFF;
-	unit->latencies.cmd.channel.min = 0xFFFFFFFF;
-	unit->latencies.cmd.fabric.min = 0xFFFFFFFF;
-
-	if (device_register(&unit->dev)) {
-		put_device(&unit->dev);
-		goto err_out;
-	}
-
-	if (sysfs_create_group(&unit->dev.kobj, &zfcp_sysfs_unit_attrs))
-		goto err_out_put;
-
-	write_lock_irq(&port->unit_list_lock);
-	list_add_tail(&unit->list, &port->unit_list);
-	write_unlock_irq(&port->unit_list_lock);
-
-	atomic_set_mask(ZFCP_STATUS_COMMON_RUNNING, &unit->status);
-
-	return unit;
-
-err_out_put:
-	device_unregister(&unit->dev);
-err_out:
-	put_device(&port->dev);
-	return ERR_PTR(retval);
 }
 
 static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
@@ -374,18 +236,18 @@ static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 		return -ENOMEM;
 
 	adapter->pool.qtcb_pool =
-		mempool_create_slab_pool(4, zfcp_data.qtcb_cache);
+		mempool_create_slab_pool(4, zfcp_fsf_qtcb_cache);
 	if (!adapter->pool.qtcb_pool)
 		return -ENOMEM;
 
-	adapter->pool.status_read_data =
-		mempool_create_slab_pool(FSF_STATUS_READS_RECOM,
-					 zfcp_data.sr_buffer_cache);
-	if (!adapter->pool.status_read_data)
+	BUILD_BUG_ON(sizeof(struct fsf_status_read_buffer) > PAGE_SIZE);
+	adapter->pool.sr_data =
+		mempool_create_page_pool(FSF_STATUS_READS_RECOM, 0);
+	if (!adapter->pool.sr_data)
 		return -ENOMEM;
 
 	adapter->pool.gid_pn =
-		mempool_create_slab_pool(1, zfcp_data.gid_pn_cache);
+		mempool_create_slab_pool(1, zfcp_fc_req_cache);
 	if (!adapter->pool.gid_pn)
 		return -ENOMEM;
 
@@ -404,8 +266,8 @@ static void zfcp_free_low_mem_buffers(struct zfcp_adapter *adapter)
 		mempool_destroy(adapter->pool.qtcb_pool);
 	if (adapter->pool.status_read_req)
 		mempool_destroy(adapter->pool.status_read_req);
-	if (adapter->pool.status_read_data)
-		mempool_destroy(adapter->pool.status_read_data);
+	if (adapter->pool.sr_data)
+		mempool_destroy(adapter->pool.sr_data);
 	if (adapter->pool.gid_pn)
 		mempool_destroy(adapter->pool.gid_pn);
 }
@@ -425,8 +287,7 @@ int zfcp_status_read_refill(struct zfcp_adapter *adapter)
 		if (zfcp_fsf_status_read(adapter->qdio)) {
 			if (atomic_read(&adapter->stat_miss) >=
 			    adapter->stat_read_buf_num) {
-				zfcp_erp_adapter_reopen(adapter, 0, "axsref1",
-							NULL);
+				zfcp_erp_adapter_reopen(adapter, 0, "axsref1");
 				return 1;
 			}
 			break;
@@ -501,6 +362,7 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	INIT_WORK(&adapter->stat_work, _zfcp_status_read_scheduler);
 	INIT_WORK(&adapter->scan_work, zfcp_fc_scan_ports);
+	INIT_WORK(&adapter->ns_up_work, zfcp_fc_sym_name_update);
 
 	if (zfcp_qdio_setup(adapter))
 		goto failed;
@@ -552,7 +414,7 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	adapter->dma_parms.max_segment_size = ZFCP_QDIO_SBALE_LEN;
 	adapter->ccw_device->dev.dma_parms = &adapter->dma_parms;
 
-	if (!zfcp_adapter_scsi_register(adapter))
+	if (!zfcp_scsi_adapter_register(adapter))
 		return adapter;
 
 failed:
@@ -566,14 +428,15 @@ void zfcp_adapter_unregister(struct zfcp_adapter *adapter)
 
 	cancel_work_sync(&adapter->scan_work);
 	cancel_work_sync(&adapter->stat_work);
+	cancel_work_sync(&adapter->ns_up_work);
 	zfcp_destroy_adapter_work_queue(adapter);
 
 	zfcp_fc_wka_ports_force_offline(adapter->gs);
-	zfcp_adapter_scsi_unregister(adapter);
+	zfcp_scsi_adapter_unregister(adapter);
 	sysfs_remove_group(&cdev->dev.kobj, &zfcp_sysfs_adapter_attrs);
 
 	zfcp_erp_thread_kill(adapter);
-	zfcp_dbf_adapter_unregister(adapter->dbf);
+	zfcp_dbf_adapter_unregister(adapter);
 	zfcp_qdio_destroy(adapter->qdio);
 
 	zfcp_ccw_adapter_put(adapter); /* final put to release */

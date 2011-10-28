@@ -195,7 +195,7 @@ static inline void cvmx_fpa_async_alloc(uint64_t scr_addr, uint64_t pool)
 	cvmx_fpa_iobdma_data_t data;
 
 	/*
-	 * Hardware only uses 64 bit alligned locations, so convert
+	 * Hardware only uses 64 bit aligned locations, so convert
 	 * from byte address to 64-bit index
 	 */
 	data.s.scraddr = scr_addr >> 3;
@@ -264,7 +264,7 @@ static inline void cvmx_fpa_free(void *ptr, uint64_t pool,
  * @name:       Constant character string to name this pool.
  *                   String is not copied.
  * @buffer:     Pointer to the block of memory to use. This must be
- *                   accessable by all processors and external hardware.
+ *                   accessible by all processors and external hardware.
  * @block_size: Size for each block controlled by the FPA
  * @num_blocks: Number of blocks
  *

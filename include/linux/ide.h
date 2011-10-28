@@ -18,13 +18,13 @@
 #include <linux/pci.h>
 #include <linux/completion.h>
 #include <linux/pm.h>
+#include <linux/mutex.h>
 #ifdef CONFIG_BLK_DEV_IDEACPI
 #include <acpi/acpi.h>
 #endif
 #include <asm/byteorder.h>
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/mutex.h>
 
 /* for request_sense */
 #include <linux/cdrom.h>

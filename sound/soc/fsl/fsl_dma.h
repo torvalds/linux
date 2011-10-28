@@ -126,24 +126,4 @@ struct fsl_dma_link_descriptor {
 	u8 res[4];      /* Reserved */
 } __attribute__ ((aligned(32), packed));
 
-/* DMA information needed to create a snd_soc_dai object
- *
- * ssi_stx_phys: bus address of SSI STX register to use
- * ssi_srx_phys: bus address of SSI SRX register to use
- * dma[0]: points to the DMA channel to use for playback
- * dma[1]: points to the DMA channel to use for capture
- * dma_irq[0]: IRQ of the DMA channel to use for playback
- * dma_irq[1]: IRQ of the DMA channel to use for capture
- */
-struct fsl_dma_info {
-	dma_addr_t ssi_stx_phys;
-	dma_addr_t ssi_srx_phys;
-	struct ccsr_dma_channel __iomem *dma_channel[2];
-	unsigned int dma_irq[2];
-};
-
-extern struct snd_soc_platform fsl_soc_platform;
-
-int fsl_dma_configure(struct fsl_dma_info *dma_info);
-
 #endif

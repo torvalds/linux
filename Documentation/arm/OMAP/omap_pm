@@ -127,3 +127,28 @@ implementation needs:
 10. (*pdata->cpu_set_freq)(unsigned long f)
 
 11. (*pdata->cpu_get_freq)(void)
+
+Customizing OPP for platform
+============================
+Defining CONFIG_PM should enable OPP layer for the silicon
+and the registration of OPP table should take place automatically.
+However, in special cases, the default OPP table may need to be
+tweaked, for e.g.:
+ * enable default OPPs which are disabled by default, but which
+   could be enabled on a platform
+ * Disable an unsupported OPP on the platform
+ * Define and add a custom opp table entry
+in these cases, the board file needs to do additional steps as follows:
+arch/arm/mach-omapx/board-xyz.c
+	#include "pm.h"
+	....
+	static void __init omap_xyz_init_irq(void)
+	{
+		....
+		/* Initialize the default table */
+		omapx_opp_init();
+		/* Do customization to the defaults */
+		....
+	}
+NOTE: omapx_opp_init will be omap3_opp_init or as required
+based on the omap family.

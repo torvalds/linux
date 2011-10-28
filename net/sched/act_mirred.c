@@ -41,13 +41,13 @@ static struct tcf_hashinfo mirred_hash_info = {
 	.lock	=	&mirred_lock,
 };
 
-static inline int tcf_mirred_release(struct tcf_mirred *m, int bind)
+static int tcf_mirred_release(struct tcf_mirred *m, int bind)
 {
 	if (m) {
 		if (bind)
 			m->tcf_bindcnt--;
 		m->tcf_refcnt--;
-		if(!m->tcf_bindcnt && m->tcf_refcnt <= 0) {
+		if (!m->tcf_bindcnt && m->tcf_refcnt <= 0) {
 			list_del(&m->tcfm_list);
 			if (m->tcfm_dev)
 				dev_put(m->tcfm_dev);
@@ -165,8 +165,7 @@ static int tcf_mirred(struct sk_buff *skb, struct tc_action *a,
 
 	spin_lock(&m->tcf_lock);
 	m->tcf_tm.lastuse = jiffies;
-	m->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	m->tcf_bstats.packets++;
+	bstats_update(&m->tcf_bstats, skb);
 
 	dev = m->tcfm_dev;
 	if (!dev) {

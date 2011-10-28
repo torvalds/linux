@@ -43,7 +43,7 @@ struct node_strmdef {
 	u32 buf_size;		/* Size of buffers for SIO stream */
 	u32 num_bufs;		/* max # of buffers in SIO stream at once */
 	u32 seg_id;		/* Memory segment id to allocate buffers */
-	u32 utimeout;		/* Timeout for blocking SIO calls */
+	u32 timeout;		/* Timeout for blocking SIO calls */
 	u32 buf_alignment;	/* Buffer alignment */
 	char *sz_device;	/* Device name for stream */
 };
@@ -55,14 +55,14 @@ struct node_taskargs {
 	u32 stack_size;
 	u32 sys_stack_size;
 	u32 stack_seg;
-	u32 udsp_heap_res_addr;	/* DSP virtual heap address */
-	u32 udsp_heap_addr;	/* DSP virtual heap address */
+	u32 dsp_heap_res_addr;	/* DSP virtual heap address */
+	u32 dsp_heap_addr;	/* DSP virtual heap address */
 	u32 heap_size;		/* Heap size */
-	u32 ugpp_heap_addr;	/* GPP virtual heap address */
+	u32 gpp_heap_addr;	/* GPP virtual heap address */
 	u32 profile_id;		/* Profile ID */
 	u32 num_inputs;
 	u32 num_outputs;
-	u32 ul_dais_arg;	/* Address of iAlg object */
+	u32 dais_arg;	/* Address of iAlg object */
 	struct node_strmdef *strm_in_def;
 	struct node_strmdef *strm_out_def;
 };

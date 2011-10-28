@@ -23,6 +23,7 @@
 #include <asm/exceptions.h>
 #include <asm/serial-regs.h>
 #include <unit/serial.h>
+#include <asm/smp.h>
 
 /*
  * initialise the GDB stub
@@ -45,22 +46,35 @@ void gdbstub_io_init(void)
 	XIRQxICR(GDBPORT_SERIAL_IRQ) = 0;
 	tmp = XIRQxICR(GDBPORT_SERIAL_IRQ);
 
+#if   CONFIG_GDBSTUB_IRQ_LEVEL == 0
 	IVAR0 = EXCEP_IRQ_LEVEL0;
-	set_intr_stub(EXCEP_IRQ_LEVEL0, gdbstub_io_rx_handler);
+#elif CONFIG_GDBSTUB_IRQ_LEVEL == 1
+	IVAR1 = EXCEP_IRQ_LEVEL1;
+#elif CONFIG_GDBSTUB_IRQ_LEVEL == 2
+	IVAR2 = EXCEP_IRQ_LEVEL2;
+#elif CONFIG_GDBSTUB_IRQ_LEVEL == 3
+	IVAR3 = EXCEP_IRQ_LEVEL3;
+#elif CONFIG_GDBSTUB_IRQ_LEVEL == 4
+	IVAR4 = EXCEP_IRQ_LEVEL4;
+#elif CONFIG_GDBSTUB_IRQ_LEVEL == 5
+	IVAR5 = EXCEP_IRQ_LEVEL5;
+#else
+#error "Unknown irq level for gdbstub."
+#endif
+
+	set_intr_stub(NUM2EXCEP_IRQ_LEVEL(CONFIG_GDBSTUB_IRQ_LEVEL),
+		gdbstub_io_rx_handler);
 
 	XIRQxICR(GDBPORT_SERIAL_IRQ) &= ~GxICR_REQUEST;
-	XIRQxICR(GDBPORT_SERIAL_IRQ) = GxICR_ENABLE | GxICR_LEVEL_0;
+	XIRQxICR(GDBPORT_SERIAL_IRQ) =
+		GxICR_ENABLE | NUM2GxICR_LEVEL(CONFIG_GDBSTUB_IRQ_LEVEL);
 	tmp = XIRQxICR(GDBPORT_SERIAL_IRQ);
 
 	GDBPORT_SERIAL_IER = UART_IER_RDI | UART_IER_RLSI;
 
 	/* permit level 0 IRQs to take place */
-	asm volatile(
-		"	and %0,epsw	\n"
-		"	or %1,epsw	\n"
-		:
-		: "i"(~EPSW_IM), "i"(EPSW_IE | EPSW_IM_1)
-		);
+	arch_local_change_intr_mask_level(
+		NUM2EPSW_IM(CONFIG_GDBSTUB_IRQ_LEVEL + 1));
 }
 
 /*
@@ -87,6 +101,9 @@ int gdbstub_io_rx_char(unsigned char *_ch, int nonblock)
 {
 	unsigned ix;
 	u8 ch, st;
+#if defined(CONFIG_MN10300_WD_TIMER)
+	int cpu;
+#endif
 
 	*_ch = 0xff;
 
@@ -104,8 +121,9 @@ int gdbstub_io_rx_char(unsigned char *_ch, int nonblock)
 		if (nonblock)
 			return -EAGAIN;
 #ifdef CONFIG_MN10300_WD_TIMER
-		watchdog_alert_counter = 0;
-#endif /* CONFIG_MN10300_WD_TIMER */
+	for (cpu = 0; cpu < NR_CPUS; cpu++)
+		watchdog_alert_counter[cpu] = 0;
+#endif
 		goto try_again;
 	}
 

@@ -332,7 +332,7 @@ static int conf_choice(struct menu *menu)
 		}
 		if (!child)
 			continue;
-		if (line[strlen(line) - 1] == '?') {
+		if (line[0] && line[strlen(line) - 1] == '?') {
 			print_help(child);
 			continue;
 		}
@@ -425,7 +425,7 @@ static void check_conf(struct menu *menu)
 		    (sym_is_choice(sym) && sym_get_tristate_value(sym) == yes)) {
 			if (input_mode == listnewconfig) {
 				if (sym->name && !sym_is_choice_value(sym)) {
-					printf("CONFIG_%s\n", sym->name);
+					printf("%s%s\n", CONFIG_, sym->name);
 				}
 			} else if (input_mode != oldnoconfig) {
 				if (!conf_cnt++)
@@ -466,7 +466,7 @@ int main(int ac, char **av)
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	textdomain(PACKAGE);
 
-	while ((opt = getopt_long_only(ac, av, "", long_opts, NULL)) != -1) {
+	while ((opt = getopt_long(ac, av, "", long_opts, NULL)) != -1) {
 		input_mode = (enum input_mode)opt;
 		switch (opt) {
 		case silentoldconfig:
@@ -508,8 +508,7 @@ int main(int ac, char **av)
 		name = conf_get_configname();
 		if (stat(name, &tmpstat)) {
 			fprintf(stderr, _("***\n"
-				"*** You have not yet configured your kernel!\n"
-				"*** (missing kernel config file \"%s\")\n"
+				"*** Configuration file \"%s\" not found!\n"
 				"***\n"
 				"*** Please run some configurator (e.g. \"make oldconfig\" or\n"
 				"*** \"make menuconfig\" or \"make xconfig\").\n"
@@ -530,8 +529,6 @@ int main(int ac, char **av)
 		}
 		break;
 	case savedefconfig:
-		conf_read(NULL);
-		break;
 	case silentoldconfig:
 	case oldaskconfig:
 	case oldconfig:
@@ -571,7 +568,7 @@ int main(int ac, char **av)
 			name = getenv("KCONFIG_NOSILENTUPDATE");
 			if (name && *name) {
 				fprintf(stderr,
-					_("\n*** Kernel configuration requires explicit update.\n\n"));
+					_("\n*** The configuration requires explicit update.\n\n"));
 				return 1;
 			}
 		}
@@ -623,11 +620,11 @@ int main(int ac, char **av)
 		 * All other commands are only used to generate a config.
 		 */
 		if (conf_get_changed() && conf_write(NULL)) {
-			fprintf(stderr, _("\n*** Error during writing of the kernel configuration.\n\n"));
+			fprintf(stderr, _("\n*** Error during writing of the configuration.\n\n"));
 			exit(1);
 		}
 		if (conf_write_autoconf()) {
-			fprintf(stderr, _("\n*** Error during update of the kernel configuration.\n\n"));
+			fprintf(stderr, _("\n*** Error during update of the configuration.\n\n"));
 			return 1;
 		}
 	} else if (input_mode == savedefconfig) {
@@ -638,7 +635,7 @@ int main(int ac, char **av)
 		}
 	} else if (input_mode != listnewconfig) {
 		if (conf_write(NULL)) {
-			fprintf(stderr, _("\n*** Error during writing of the kernel configuration.\n\n"));
+			fprintf(stderr, _("\n*** Error during writing of the configuration.\n\n"));
 			exit(1);
 		}
 	}

@@ -84,8 +84,6 @@ static void __init h3100_mach_init(void)
 }
 
 MACHINE_START(H3100, "Compaq iPAQ H3100")
-	.phys_io	= 0x80000000,
-	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0000100,
 	.map_io		= h3100_map_io,
 	.init_irq	= sa1100_init_irq,

@@ -351,7 +351,7 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
 	 * To handle different BIOS behavior, we look for _OSC on a root
 	 * bridge preferentially (according to PCI fw spec). Later for
 	 * OSHP within the scope of the hotplug controller and its parents,
-	 * upto the host bridge under which this controller exists.
+	 * up to the host bridge under which this controller exists.
 	 */
 	handle = acpi_find_root_bridge_handle(pdev);
 	if (handle) {

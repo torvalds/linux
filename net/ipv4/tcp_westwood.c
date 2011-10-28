@@ -80,7 +80,7 @@ static void tcp_westwood_init(struct sock *sk)
  */
 static inline u32 westwood_do_filter(u32 a, u32 b)
 {
-	return (((7 * a) + b) >> 3);
+	return ((7 * a) + b) >> 3;
 }
 
 static void westwood_filter(struct westwood *w, u32 delta)
@@ -272,7 +272,7 @@ static void tcp_westwood_info(struct sock *sk, u32 ext,
 }
 
 
-static struct tcp_congestion_ops tcp_westwood = {
+static struct tcp_congestion_ops tcp_westwood __read_mostly = {
 	.init		= tcp_westwood_init,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,

@@ -32,7 +32,7 @@
  */
 static inline int atomic_read(const atomic_t *v)
 {
-       return v->counter;
+	return ACCESS_ONCE(v->counter);
 }
 
 /**
@@ -130,16 +130,51 @@ static inline int atomic_read(const atomic_t *v)
  */
 #define atomic_inc_not_zero(v)		atomic_add_unless((v), 1, 0)
 
-
-/*
- * We define xchg() and cmpxchg() in the included headers.
- * Note that we do not define __HAVE_ARCH_CMPXCHG, since that would imply
- * that cmpxchg() is an efficient operation, which is not particularly true.
- */
-
 /* Nonexistent functions intended to cause link errors. */
 extern unsigned long __xchg_called_with_bad_pointer(void);
 extern unsigned long __cmpxchg_called_with_bad_pointer(void);
+
+#define xchg(ptr, x)							\
+	({								\
+		typeof(*(ptr)) __x;					\
+		switch (sizeof(*(ptr))) {				\
+		case 4:							\
+			__x = (typeof(__x))(typeof(__x-__x))atomic_xchg( \
+				(atomic_t *)(ptr),			\
+				(u32)(typeof((x)-(x)))(x));		\
+			break;						\
+		case 8:							\
+			__x = (typeof(__x))(typeof(__x-__x))atomic64_xchg( \
+				(atomic64_t *)(ptr),			\
+				(u64)(typeof((x)-(x)))(x));		\
+			break;						\
+		default:						\
+			__xchg_called_with_bad_pointer();		\
+		}							\
+		__x;							\
+	})
+
+#define cmpxchg(ptr, o, n)						\
+	({								\
+		typeof(*(ptr)) __x;					\
+		switch (sizeof(*(ptr))) {				\
+		case 4:							\
+			__x = (typeof(__x))(typeof(__x-__x))atomic_cmpxchg( \
+				(atomic_t *)(ptr),			\
+				(u32)(typeof((o)-(o)))(o),		\
+				(u32)(typeof((n)-(n)))(n));		\
+			break;						\
+		case 8:							\
+			__x = (typeof(__x))(typeof(__x-__x))atomic64_cmpxchg( \
+				(atomic64_t *)(ptr),			\
+				(u64)(typeof((o)-(o)))(o),		\
+				(u64)(typeof((n)-(n)))(n));		\
+			break;						\
+		default:						\
+			__cmpxchg_called_with_bad_pointer();		\
+		}							\
+		__x;							\
+	})
 
 #define tas(ptr) (xchg((ptr), 1))
 

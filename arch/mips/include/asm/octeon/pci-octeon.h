@@ -36,6 +36,16 @@ extern int (*octeon_pcibios_map_irq)(const struct pci_dev *dev,
 				     u8 slot, u8 pin);
 
 /*
+ * For PCI (not PCIe) the BAR2 base address.
+ */
+#define OCTEON_BAR2_PCI_ADDRESS 0x8000000000ull
+
+/*
+ * For PCI (not PCIe) the base of the memory mapped by BAR1
+ */
+extern u64 octeon_bar1_pci_phys;
+
+/*
  * The following defines are used when octeon_dma_bar_type =
  * OCTEON_DMA_BAR_TYPE_BIG
  */

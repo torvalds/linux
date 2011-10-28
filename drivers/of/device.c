@@ -47,62 +47,9 @@ void of_dev_put(struct platform_device *dev)
 }
 EXPORT_SYMBOL(of_dev_put);
 
-static ssize_t devspec_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct platform_device *ofdev;
-
-	ofdev = to_platform_device(dev);
-	return sprintf(buf, "%s\n", ofdev->dev.of_node->full_name);
-}
-
-static ssize_t name_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct platform_device *ofdev;
-
-	ofdev = to_platform_device(dev);
-	return sprintf(buf, "%s\n", ofdev->dev.of_node->name);
-}
-
-static ssize_t modalias_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	ssize_t len = of_device_get_modalias(dev, buf, PAGE_SIZE - 2);
-	buf[len] = '\n';
-	buf[len+1] = 0;
-	return len+1;
-}
-
-struct device_attribute of_platform_device_attrs[] = {
-	__ATTR_RO(devspec),
-	__ATTR_RO(name),
-	__ATTR_RO(modalias),
-	__ATTR_NULL
-};
-
-/**
- * of_release_dev - free an of device structure when all users of it are finished.
- * @dev: device that's been disconnected
- *
- * Will be called only by the device core when all users of this of device are
- * done.
- */
-void of_release_dev(struct device *dev)
-{
-	struct platform_device *ofdev;
-
-	ofdev = to_platform_device(dev);
-	of_node_put(ofdev->dev.of_node);
-	kfree(ofdev);
-}
-EXPORT_SYMBOL(of_release_dev);
-
-int of_device_register(struct platform_device *ofdev)
+int of_device_add(struct platform_device *ofdev)
 {
 	BUG_ON(ofdev->dev.of_node == NULL);
-
-	device_initialize(&ofdev->dev);
 
 	/* name and id have to be set so that the platform bus doesn't get
 	 * confused on matching */
@@ -116,6 +63,12 @@ int of_device_register(struct platform_device *ofdev)
 		set_dev_node(&ofdev->dev, of_node_to_nid(ofdev->dev.of_node));
 
 	return device_add(&ofdev->dev);
+}
+
+int of_device_register(struct platform_device *pdev)
+{
+	device_initialize(&pdev->dev);
+	return of_device_add(pdev);
 }
 EXPORT_SYMBOL(of_device_register);
 

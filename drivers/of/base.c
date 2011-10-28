@@ -33,7 +33,7 @@ DEFINE_RWLOCK(devtree_lock);
 
 int of_n_addr_cells(struct device_node *np)
 {
-	const int *ip;
+	const __be32 *ip;
 
 	do {
 		if (np->parent)
@@ -49,7 +49,7 @@ EXPORT_SYMBOL(of_n_addr_cells);
 
 int of_n_size_cells(struct device_node *np)
 {
-	const int *ip;
+	const __be32 *ip;
 
 	do {
 		if (np->parent)
@@ -496,6 +496,9 @@ EXPORT_SYMBOL(of_find_node_with_property);
 const struct of_device_id *of_match_node(const struct of_device_id *matches,
 					 const struct device_node *node)
 {
+	if (!matches)
+		return NULL;
+
 	while (matches->name[0] || matches->type[0] || matches->compatible[0]) {
 		int match = 1;
 		if (matches->name[0])

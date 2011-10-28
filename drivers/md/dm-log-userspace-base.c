@@ -12,11 +12,21 @@
 
 #include "dm-log-userspace-transfer.h"
 
+#define DM_LOG_USERSPACE_VSN "1.1.0"
+
 struct flush_entry {
 	int type;
 	region_t region;
 	struct list_head list;
 };
+
+/*
+ * This limit on the number of mark and clear request is, to a degree,
+ * arbitrary.  However, there is some basis for the choice in the limits
+ * imposed on the size of data payload by dm-log-userspace-transfer.c:
+ * dm_consult_userspace().
+ */
+#define MAX_FLUSH_GROUP_COUNT 32
 
 struct log_c {
 	struct dm_target *ti;
@@ -37,8 +47,15 @@ struct log_c {
 	 */
 	uint64_t in_sync_hint;
 
+	/*
+	 * Mark and clear requests are held until a flush is issued
+	 * so that we can group, and thereby limit, the amount of
+	 * network traffic between kernel and userspace.  The 'flush_lock'
+	 * is used to protect these lists.
+	 */
 	spinlock_t flush_lock;
-	struct list_head flush_list;  /* only for clear and mark requests */
+	struct list_head mark_list;
+	struct list_head clear_list;
 };
 
 static mempool_t *flush_entry_pool;
@@ -169,7 +186,8 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 
 	strncpy(lc->uuid, argv[0], DM_UUID_LEN);
 	spin_lock_init(&lc->flush_lock);
-	INIT_LIST_HEAD(&lc->flush_list);
+	INIT_LIST_HEAD(&lc->mark_list);
+	INIT_LIST_HEAD(&lc->clear_list);
 
 	str_size = build_constructor_string(ti, argc - 1, argv + 1, &ctr_str);
 	if (str_size < 0) {
@@ -181,8 +199,11 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 	r = dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_CTR,
 				 ctr_str, str_size, NULL, NULL);
 
-	if (r == -ESRCH) {
-		DMERR("Userspace log server not found");
+	if (r < 0) {
+		if (r == -ESRCH)
+			DMERR("Userspace log server not found");
+		else
+			DMERR("Userspace log server failed to create log");
 		goto out;
 	}
 
@@ -214,10 +235,9 @@ out:
 
 static void userspace_dtr(struct dm_dirty_log *log)
 {
-	int r;
 	struct log_c *lc = log->context;
 
-	r = dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_DTR,
+	(void) dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_DTR,
 				 NULL, 0,
 				 NULL, NULL);
 
@@ -338,6 +358,71 @@ static int userspace_in_sync(struct dm_dirty_log *log, region_t region,
 	return (r) ? 0 : (int)in_sync;
 }
 
+static int flush_one_by_one(struct log_c *lc, struct list_head *flush_list)
+{
+	int r = 0;
+	struct flush_entry *fe;
+
+	list_for_each_entry(fe, flush_list, list) {
+		r = userspace_do_request(lc, lc->uuid, fe->type,
+					 (char *)&fe->region,
+					 sizeof(fe->region),
+					 NULL, NULL);
+		if (r)
+			break;
+	}
+
+	return r;
+}
+
+static int flush_by_group(struct log_c *lc, struct list_head *flush_list)
+{
+	int r = 0;
+	int count;
+	uint32_t type = 0;
+	struct flush_entry *fe, *tmp_fe;
+	LIST_HEAD(tmp_list);
+	uint64_t group[MAX_FLUSH_GROUP_COUNT];
+
+	/*
+	 * Group process the requests
+	 */
+	while (!list_empty(flush_list)) {
+		count = 0;
+
+		list_for_each_entry_safe(fe, tmp_fe, flush_list, list) {
+			group[count] = fe->region;
+			count++;
+
+			list_del(&fe->list);
+			list_add(&fe->list, &tmp_list);
+
+			type = fe->type;
+			if (count >= MAX_FLUSH_GROUP_COUNT)
+				break;
+		}
+
+		r = userspace_do_request(lc, lc->uuid, type,
+					 (char *)(group),
+					 count * sizeof(uint64_t),
+					 NULL, NULL);
+		if (r) {
+			/* Group send failed.  Attempt one-by-one. */
+			list_splice_init(&tmp_list, flush_list);
+			r = flush_one_by_one(lc, flush_list);
+			break;
+		}
+	}
+
+	/*
+	 * Must collect flush_entrys that were successfully processed
+	 * as a group so that they will be free'd by the caller.
+	 */
+	list_splice_init(&tmp_list, flush_list);
+
+	return r;
+}
+
 /*
  * userspace_flush
  *
@@ -360,31 +445,25 @@ static int userspace_flush(struct dm_dirty_log *log)
 	int r = 0;
 	unsigned long flags;
 	struct log_c *lc = log->context;
-	LIST_HEAD(flush_list);
+	LIST_HEAD(mark_list);
+	LIST_HEAD(clear_list);
 	struct flush_entry *fe, *tmp_fe;
 
 	spin_lock_irqsave(&lc->flush_lock, flags);
-	list_splice_init(&lc->flush_list, &flush_list);
+	list_splice_init(&lc->mark_list, &mark_list);
+	list_splice_init(&lc->clear_list, &clear_list);
 	spin_unlock_irqrestore(&lc->flush_lock, flags);
 
-	if (list_empty(&flush_list))
+	if (list_empty(&mark_list) && list_empty(&clear_list))
 		return 0;
 
-	/*
-	 * FIXME: Count up requests, group request types,
-	 * allocate memory to stick all requests in and
-	 * send to server in one go.  Failing the allocation,
-	 * do it one by one.
-	 */
+	r = flush_by_group(lc, &mark_list);
+	if (r)
+		goto fail;
 
-	list_for_each_entry(fe, &flush_list, list) {
-		r = userspace_do_request(lc, lc->uuid, fe->type,
-					 (char *)&fe->region,
-					 sizeof(fe->region),
-					 NULL, NULL);
-		if (r)
-			goto fail;
-	}
+	r = flush_by_group(lc, &clear_list);
+	if (r)
+		goto fail;
 
 	r = userspace_do_request(lc, lc->uuid, DM_ULOG_FLUSH,
 				 NULL, 0, NULL, NULL);
@@ -395,7 +474,11 @@ fail:
 	 * Calling code will receive an error and will know that
 	 * the log facility has failed.
 	 */
-	list_for_each_entry_safe(fe, tmp_fe, &flush_list, list) {
+	list_for_each_entry_safe(fe, tmp_fe, &mark_list, list) {
+		list_del(&fe->list);
+		mempool_free(fe, flush_entry_pool);
+	}
+	list_for_each_entry_safe(fe, tmp_fe, &clear_list, list) {
 		list_del(&fe->list);
 		mempool_free(fe, flush_entry_pool);
 	}
@@ -425,7 +508,7 @@ static void userspace_mark_region(struct dm_dirty_log *log, region_t region)
 	spin_lock_irqsave(&lc->flush_lock, flags);
 	fe->type = DM_ULOG_MARK_REGION;
 	fe->region = region;
-	list_add(&fe->list, &lc->flush_list);
+	list_add(&fe->list, &lc->mark_list);
 	spin_unlock_irqrestore(&lc->flush_lock, flags);
 
 	return;
@@ -462,7 +545,7 @@ static void userspace_clear_region(struct dm_dirty_log *log, region_t region)
 	spin_lock_irqsave(&lc->flush_lock, flags);
 	fe->type = DM_ULOG_CLEAR_REGION;
 	fe->region = region;
-	list_add(&fe->list, &lc->flush_list);
+	list_add(&fe->list, &lc->clear_list);
 	spin_unlock_irqrestore(&lc->flush_lock, flags);
 
 	return;
@@ -684,7 +767,7 @@ static int __init userspace_dirty_log_init(void)
 		return r;
 	}
 
-	DMINFO("version 1.0.0 loaded");
+	DMINFO("version " DM_LOG_USERSPACE_VSN " loaded");
 	return 0;
 }
 
@@ -694,7 +777,7 @@ static void __exit userspace_dirty_log_exit(void)
 	dm_ulog_tfr_exit();
 	mempool_destroy(flush_entry_pool);
 
-	DMINFO("version 1.0.0 unloaded");
+	DMINFO("version " DM_LOG_USERSPACE_VSN " unloaded");
 	return;
 }
 

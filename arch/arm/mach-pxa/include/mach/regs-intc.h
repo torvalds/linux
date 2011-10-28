@@ -27,8 +27,4 @@
 #define ICFP3		__REG(0x40D0013C)  /* Interrupt Controller FIQ Pending Register 3 */
 #define ICPR3		__REG(0x40D00140)  /* Interrupt Controller Pending Register 3 */
 
-#define IPR(x)		__REG(0x40D0001C + (x < 32 ? (x << 2)		\
-				: (x < 64 ? (0x94 + ((x - 32) << 2))	\
-				: (0x128 + ((x - 64) << 2)))))
-
 #endif /* __ASM_MACH_REGS_INTC_H */

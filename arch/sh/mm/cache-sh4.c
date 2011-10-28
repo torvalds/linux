@@ -114,7 +114,7 @@ static void sh4_flush_dcache_page(void *arg)
 	struct address_space *mapping = page_mapping(page);
 
 	if (mapping && !mapping_mapped(mapping))
-		set_bit(PG_dcache_dirty, &page->flags);
+		clear_bit(PG_dcache_clean, &page->flags);
 	else
 #endif
 		flush_cache_one(CACHE_OC_ADDRESS_ARRAY |
@@ -239,7 +239,7 @@ static void sh4_flush_cache_page(void *args)
 		 * another ASID than the current one.
 		 */
 		map_coherent = (current_cpu_data.dcache.n_aliases &&
-			!test_bit(PG_dcache_dirty, &page->flags) &&
+			test_bit(PG_dcache_clean, &page->flags) &&
 			page_mapped(page));
 		if (map_coherent)
 			vaddr = kmap_coherent(page, address);

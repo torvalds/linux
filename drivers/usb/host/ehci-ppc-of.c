@@ -105,8 +105,7 @@ ppc44x_enable_bmt(struct device_node *dn)
 }
 
 
-static int __devinit
-ehci_hcd_ppc_of_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit ehci_hcd_ppc_of_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
@@ -180,7 +179,7 @@ ehci_hcd_ppc_of_probe(struct platform_device *op, const struct of_device_id *mat
 
 	ehci->caps = hcd->regs;
 	ehci->regs = hcd->regs +
-			HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
@@ -255,14 +254,12 @@ static int ehci_hcd_ppc_of_remove(struct platform_device *op)
 }
 
 
-static int ehci_hcd_ppc_of_shutdown(struct platform_device *op)
+static void ehci_hcd_ppc_of_shutdown(struct platform_device *op)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
 
 	if (hcd->driver->shutdown)
 		hcd->driver->shutdown(hcd);
-
-	return 0;
 }
 
 
@@ -275,7 +272,7 @@ static const struct of_device_id ehci_hcd_ppc_of_match[] = {
 MODULE_DEVICE_TABLE(of, ehci_hcd_ppc_of_match);
 
 
-static struct of_platform_driver ehci_hcd_ppc_of_driver = {
+static struct platform_driver ehci_hcd_ppc_of_driver = {
 	.probe		= ehci_hcd_ppc_of_probe,
 	.remove		= ehci_hcd_ppc_of_remove,
 	.shutdown	= ehci_hcd_ppc_of_shutdown,

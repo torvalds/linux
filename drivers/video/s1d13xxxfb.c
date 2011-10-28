@@ -410,28 +410,6 @@ s1d13xxxfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
  ************************************************************/
 
 /**
- *	bltbit_wait_bitset - waits for change in register value
- *	@info : framebuffer structure
- *	@bit  : value expected in register
- *	@timeout : ...
- *
- *	waits until value changes INTO bit
- */
-static u8
-bltbit_wait_bitset(struct fb_info *info, u8 bit, int timeout)
-{
-	while (!(s1d13xxxfb_readreg(info->par, S1DREG_BBLT_CTL0) & bit)) {
-		udelay(10);
-		if (!--timeout) {
-			dbg_blit("wait_bitset timeout\n");
-			break;
-		}
-	}
-
-	return timeout;
-}
-
-/**
  *	bltbit_wait_bitclear - waits for change in register value
  *	@info : frambuffer structure
  *	@bit  : value currently in register
@@ -452,34 +430,6 @@ bltbit_wait_bitclear(struct fb_info *info, u8 bit, int timeout)
 	}
 
 	return timeout;
-}
-
-/**
- *	bltbit_fifo_status - checks the current status of the fifo
- *	@info : framebuffer structure
- *
- *	returns number of free words in buffer
- */
-static u8
-bltbit_fifo_status(struct fb_info *info)
-{
-	u8 status;
-
-	status = s1d13xxxfb_readreg(info->par, S1DREG_BBLT_CTL0);
-
-	/* its empty so room for 16 words */
-	if (status & BBLT_FIFO_EMPTY)
-		return 16;
-
-	/* its full so we dont want to add */
-	if (status & BBLT_FIFO_FULL)
-		return 0;
-
-	/* its atleast half full but we can add one atleast */
-	if (status & BBLT_FIFO_NOT_FULL)
-		return 1;
-
-	return 0;
 }
 
 /*

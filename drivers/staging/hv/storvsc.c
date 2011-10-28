@@ -17,533 +17,387 @@
  * Authors:
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
+ *   K. Y. Srinivasan <kys@microsoft.com>
+ *
  */
 #include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/completion.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
-#include "osd.h"
-#include "logging.h"
-#include "storvsc_api.h"
-#include "vmbus_packet_format.h"
-#include "vstorage.h"
+
+#include "hyperv.h"
+#include "hyperv_storage.h"
 
 
-struct storvsc_request_extension {
-	/* LIST_ENTRY ListEntry; */
-
-	struct hv_storvsc_request *Request;
-	struct hv_device *Device;
-
-	/* Synchronize the request/response if needed */
-	struct osd_waitevent *WaitEvent;
-
-	struct vstor_packet VStorPacket;
-};
-
-/* A storvsc device is a device object that contains a vmbus channel */
-struct storvsc_device {
-	struct hv_device *Device;
-
-	/* 0 indicates the device is being destroyed */
-	atomic_t RefCount;
-
-	atomic_t NumOutstandingRequests;
-
-	/*
-	 * Each unique Port/Path/Target represents 1 channel ie scsi
-	 * controller. In reality, the pathid, targetid is always 0
-	 * and the port is set by us
-	 */
-	unsigned int PortNumber;
-	unsigned char PathId;
-	unsigned char TargetId;
-
-	/* LIST_ENTRY OutstandingRequestList; */
-	/* HANDLE OutstandingRequestLock; */
-
-	/* Used for vsc/vsp channel reset process */
-	struct storvsc_request_extension InitRequest;
-	struct storvsc_request_extension ResetRequest;
-};
-
-
-static const char *gDriverName = "storvsc";
-
-/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
-static const struct hv_guid gStorVscDeviceType = {
-	.data = {
-		0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
-		0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f
-	}
-};
-
-
-static inline struct storvsc_device *AllocStorDevice(struct hv_device *Device)
+static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 {
-	struct storvsc_device *storDevice;
+	struct storvsc_device *stor_device;
 
-	storDevice = kzalloc(sizeof(struct storvsc_device), GFP_KERNEL);
-	if (!storDevice)
+	stor_device = kzalloc(sizeof(struct storvsc_device), GFP_KERNEL);
+	if (!stor_device)
 		return NULL;
 
 	/* Set to 2 to allow both inbound and outbound traffics */
-	/* (ie GetStorDevice() and MustGetStorDevice()) to proceed. */
-	atomic_cmpxchg(&storDevice->RefCount, 0, 2);
+	/* (ie get_stor_device() and must_get_stor_device()) to proceed. */
+	atomic_cmpxchg(&stor_device->ref_count, 0, 2);
 
-	storDevice->Device = Device;
-	Device->Extension = storDevice;
+	init_waitqueue_head(&stor_device->waiting_to_drain);
+	stor_device->device = device;
+	device->ext = stor_device;
 
-	return storDevice;
+	return stor_device;
 }
 
-static inline void FreeStorDevice(struct storvsc_device *Device)
+static inline void free_stor_device(struct storvsc_device *device)
 {
-	/* ASSERT(atomic_read(&Device->RefCount) == 0); */
-	kfree(Device);
-}
-
-/* Get the stordevice object iff exists and its refcount > 1 */
-static inline struct storvsc_device *GetStorDevice(struct hv_device *Device)
-{
-	struct storvsc_device *storDevice;
-
-	storDevice = (struct storvsc_device *)Device->Extension;
-	if (storDevice && atomic_read(&storDevice->RefCount) > 1)
-		atomic_inc(&storDevice->RefCount);
-	else
-		storDevice = NULL;
-
-	return storDevice;
+	kfree(device);
 }
 
 /* Get the stordevice object iff exists and its refcount > 0 */
-static inline struct storvsc_device *MustGetStorDevice(struct hv_device *Device)
+static inline struct storvsc_device *must_get_stor_device(
+					struct hv_device *device)
 {
-	struct storvsc_device *storDevice;
+	struct storvsc_device *stor_device;
 
-	storDevice = (struct storvsc_device *)Device->Extension;
-	if (storDevice && atomic_read(&storDevice->RefCount))
-		atomic_inc(&storDevice->RefCount);
+	stor_device = (struct storvsc_device *)device->ext;
+	if (stor_device && atomic_read(&stor_device->ref_count))
+		atomic_inc(&stor_device->ref_count);
 	else
-		storDevice = NULL;
+		stor_device = NULL;
 
-	return storDevice;
+	return stor_device;
 }
 
-static inline void PutStorDevice(struct hv_device *Device)
+/* Drop ref count to 1 to effectively disable get_stor_device() */
+static inline struct storvsc_device *release_stor_device(
+					struct hv_device *device)
 {
-	struct storvsc_device *storDevice;
+	struct storvsc_device *stor_device;
 
-	storDevice = (struct storvsc_device *)Device->Extension;
-	/* ASSERT(storDevice); */
-
-	atomic_dec(&storDevice->RefCount);
-	/* ASSERT(atomic_read(&storDevice->RefCount)); */
-}
-
-/* Drop ref count to 1 to effectively disable GetStorDevice() */
-static inline struct storvsc_device *ReleaseStorDevice(struct hv_device *Device)
-{
-	struct storvsc_device *storDevice;
-
-	storDevice = (struct storvsc_device *)Device->Extension;
-	/* ASSERT(storDevice); */
+	stor_device = (struct storvsc_device *)device->ext;
 
 	/* Busy wait until the ref drop to 2, then set it to 1 */
-	while (atomic_cmpxchg(&storDevice->RefCount, 2, 1) != 2)
+	while (atomic_cmpxchg(&stor_device->ref_count, 2, 1) != 2)
 		udelay(100);
 
-	return storDevice;
+	return stor_device;
 }
 
-/* Drop ref count to 0. No one can use StorDevice object. */
-static inline struct storvsc_device *FinalReleaseStorDevice(
-			struct hv_device *Device)
+/* Drop ref count to 0. No one can use stor_device object. */
+static inline struct storvsc_device *final_release_stor_device(
+			struct hv_device *device)
 {
-	struct storvsc_device *storDevice;
+	struct storvsc_device *stor_device;
 
-	storDevice = (struct storvsc_device *)Device->Extension;
-	/* ASSERT(storDevice); */
+	stor_device = (struct storvsc_device *)device->ext;
 
 	/* Busy wait until the ref drop to 1, then set it to 0 */
-	while (atomic_cmpxchg(&storDevice->RefCount, 1, 0) != 1)
+	while (atomic_cmpxchg(&stor_device->ref_count, 1, 0) != 1)
 		udelay(100);
 
-	Device->Extension = NULL;
-	return storDevice;
+	device->ext = NULL;
+	return stor_device;
 }
 
-static int StorVscChannelInit(struct hv_device *Device)
+static int storvsc_channel_init(struct hv_device *device)
 {
-	struct storvsc_device *storDevice;
-	struct storvsc_request_extension *request;
-	struct vstor_packet *vstorPacket;
-	int ret;
+	struct storvsc_device *stor_device;
+	struct hv_storvsc_request *request;
+	struct vstor_packet *vstor_packet;
+	int ret, t;
 
-	storDevice = GetStorDevice(Device);
-	if (!storDevice) {
-		DPRINT_ERR(STORVSC, "unable to get stor device..."
-			   "device being destroyed?");
+	stor_device = get_stor_device(device);
+	if (!stor_device)
 		return -1;
-	}
 
-	request = &storDevice->InitRequest;
-	vstorPacket = &request->VStorPacket;
+	request = &stor_device->init_request;
+	vstor_packet = &request->vstor_packet;
 
 	/*
 	 * Now, initiate the vsc/vsp initialization protocol on the open
 	 * channel
 	 */
-	memset(request, 0, sizeof(struct storvsc_request_extension));
-	request->WaitEvent = osd_WaitEventCreate();
-	if (!request->WaitEvent) {
-		ret = -ENOMEM;
-		goto nomem;
-	}
-
-	vstorPacket->Operation = VStorOperationBeginInitialization;
-	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
-
-	/*SpinlockAcquire(gDriverExt.packetListLock);
-	INSERT_TAIL_LIST(&gDriverExt.packetList, &packet->listEntry.entry);
-	SpinlockRelease(gDriverExt.packetListLock);*/
+	memset(request, 0, sizeof(struct hv_storvsc_request));
+	init_completion(&request->wait_event);
+	vstor_packet->operation = VSTOR_OPERATION_BEGIN_INITIALIZATION;
+	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
 	DPRINT_INFO(STORVSC, "BEGIN_INITIALIZATION_OPERATION...");
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)request,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-	if (ret != 0) {
-		DPRINT_ERR(STORVSC,
-			   "unable to send BEGIN_INITIALIZATION_OPERATION");
-		goto Cleanup;
+	ret = vmbus_sendpacket(device->channel, vstor_packet,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VM_PKT_DATA_INBAND,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	if (ret != 0)
+		goto cleanup;
+
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
 	}
 
-	osd_WaitEventWait(request->WaitEvent);
-
-	if (vstorPacket->Operation != VStorOperationCompleteIo ||
-	    vstorPacket->Status != 0) {
-		DPRINT_ERR(STORVSC, "BEGIN_INITIALIZATION_OPERATION failed "
-			   "(op %d status 0x%x)",
-			   vstorPacket->Operation, vstorPacket->Status);
-		goto Cleanup;
-	}
+	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
+	    vstor_packet->status != 0)
+		goto cleanup;
 
 	DPRINT_INFO(STORVSC, "QUERY_PROTOCOL_VERSION_OPERATION...");
 
 	/* reuse the packet for version range supported */
-	memset(vstorPacket, 0, sizeof(struct vstor_packet));
-	vstorPacket->Operation = VStorOperationQueryProtocolVersion;
-	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
+	memset(vstor_packet, 0, sizeof(struct vstor_packet));
+	vstor_packet->operation = VSTOR_OPERATION_QUERY_PROTOCOL_VERSION;
+	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
-	vstorPacket->Version.MajorMinor = VMSTOR_PROTOCOL_VERSION_CURRENT;
-	FILL_VMSTOR_REVISION(vstorPacket->Version.Revision);
+	vstor_packet->version.major_minor = VMSTOR_PROTOCOL_VERSION_CURRENT;
+	FILL_VMSTOR_REVISION(vstor_packet->version.revision);
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)request,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-	if (ret != 0) {
-		DPRINT_ERR(STORVSC,
-			   "unable to send BEGIN_INITIALIZATION_OPERATION");
-		goto Cleanup;
+	ret = vmbus_sendpacket(device->channel, vstor_packet,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VM_PKT_DATA_INBAND,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	if (ret != 0)
+		goto cleanup;
+
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
 	}
-
-	osd_WaitEventWait(request->WaitEvent);
 
 	/* TODO: Check returned version */
-	if (vstorPacket->Operation != VStorOperationCompleteIo ||
-	    vstorPacket->Status != 0) {
-		DPRINT_ERR(STORVSC, "QUERY_PROTOCOL_VERSION_OPERATION failed "
-			   "(op %d status 0x%x)",
-			   vstorPacket->Operation, vstorPacket->Status);
-		goto Cleanup;
-	}
+	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
+	    vstor_packet->status != 0)
+		goto cleanup;
 
 	/* Query channel properties */
 	DPRINT_INFO(STORVSC, "QUERY_PROPERTIES_OPERATION...");
 
-	memset(vstorPacket, 0, sizeof(struct vstor_packet));
-	vstorPacket->Operation = VStorOperationQueryProperties;
-	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
-	vstorPacket->StorageChannelProperties.PortNumber =
-					storDevice->PortNumber;
+	memset(vstor_packet, 0, sizeof(struct vstor_packet));
+	vstor_packet->operation = VSTOR_OPERATION_QUERY_PROPERTIES;
+	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
+	vstor_packet->storage_channel_properties.port_number =
+					stor_device->port_number;
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)request,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(device->channel, vstor_packet,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VM_PKT_DATA_INBAND,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
-	if (ret != 0) {
-		DPRINT_ERR(STORVSC,
-			   "unable to send QUERY_PROPERTIES_OPERATION");
-		goto Cleanup;
+	if (ret != 0)
+		goto cleanup;
+
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
 	}
-
-	osd_WaitEventWait(request->WaitEvent);
 
 	/* TODO: Check returned version */
-	if (vstorPacket->Operation != VStorOperationCompleteIo ||
-	    vstorPacket->Status != 0) {
-		DPRINT_ERR(STORVSC, "QUERY_PROPERTIES_OPERATION failed "
-			   "(op %d status 0x%x)",
-			   vstorPacket->Operation, vstorPacket->Status);
-		goto Cleanup;
-	}
+	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
+	    vstor_packet->status != 0)
+		goto cleanup;
 
-	storDevice->PathId = vstorPacket->StorageChannelProperties.PathId;
-	storDevice->TargetId = vstorPacket->StorageChannelProperties.TargetId;
-
-	DPRINT_DBG(STORVSC, "channel flag 0x%x, max xfer len 0x%x",
-		   vstorPacket->StorageChannelProperties.Flags,
-		   vstorPacket->StorageChannelProperties.MaxTransferBytes);
+	stor_device->path_id = vstor_packet->storage_channel_properties.path_id;
+	stor_device->target_id
+		= vstor_packet->storage_channel_properties.target_id;
 
 	DPRINT_INFO(STORVSC, "END_INITIALIZATION_OPERATION...");
 
-	memset(vstorPacket, 0, sizeof(struct vstor_packet));
-	vstorPacket->Operation = VStorOperationEndInitialization;
-	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
+	memset(vstor_packet, 0, sizeof(struct vstor_packet));
+	vstor_packet->operation = VSTOR_OPERATION_END_INITIALIZATION;
+	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)request,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(device->channel, vstor_packet,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VM_PKT_DATA_INBAND,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
-	if (ret != 0) {
-		DPRINT_ERR(STORVSC,
-			   "unable to send END_INITIALIZATION_OPERATION");
-		goto Cleanup;
+	if (ret != 0)
+		goto cleanup;
+
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
 	}
 
-	osd_WaitEventWait(request->WaitEvent);
-
-	if (vstorPacket->Operation != VStorOperationCompleteIo ||
-	    vstorPacket->Status != 0) {
-		DPRINT_ERR(STORVSC, "END_INITIALIZATION_OPERATION failed "
-			   "(op %d status 0x%x)",
-			   vstorPacket->Operation, vstorPacket->Status);
-		goto Cleanup;
-	}
+	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
+	    vstor_packet->status != 0)
+		goto cleanup;
 
 	DPRINT_INFO(STORVSC, "**** storage channel up and running!! ****");
 
-Cleanup:
-	kfree(request->WaitEvent);
-	request->WaitEvent = NULL;
-nomem:
-	PutStorDevice(Device);
+cleanup:
+	put_stor_device(device);
 	return ret;
 }
 
-static void StorVscOnIOCompletion(struct hv_device *Device,
-				  struct vstor_packet *VStorPacket,
-				  struct storvsc_request_extension *RequestExt)
+static void storvsc_on_io_completion(struct hv_device *device,
+				  struct vstor_packet *vstor_packet,
+				  struct hv_storvsc_request *request)
 {
-	struct hv_storvsc_request *request;
-	struct storvsc_device *storDevice;
+	struct storvsc_device *stor_device;
+	struct vstor_packet *stor_pkt;
 
-	storDevice = MustGetStorDevice(Device);
-	if (!storDevice) {
-		DPRINT_ERR(STORVSC, "unable to get stor device..."
-			   "device being destroyed?");
+	stor_device = must_get_stor_device(device);
+	if (!stor_device)
 		return;
-	}
 
-	DPRINT_DBG(STORVSC, "IO_COMPLETE_OPERATION - request extension %p "
-		   "completed bytes xfer %u", RequestExt,
-		   VStorPacket->VmSrb.DataTransferLength);
+	stor_pkt = &request->vstor_packet;
 
-	/* ASSERT(RequestExt != NULL); */
-	/* ASSERT(RequestExt->Request != NULL); */
-
-	request = RequestExt->Request;
-
-	/* ASSERT(request->OnIOCompletion != NULL); */
 
 	/* Copy over the status...etc */
-	request->Status = VStorPacket->VmSrb.ScsiStatus;
+	stor_pkt->vm_srb.scsi_status = vstor_packet->vm_srb.scsi_status;
+	stor_pkt->vm_srb.srb_status = vstor_packet->vm_srb.srb_status;
+	stor_pkt->vm_srb.sense_info_length =
+	vstor_packet->vm_srb.sense_info_length;
 
-	if (request->Status != 0 || VStorPacket->VmSrb.SrbStatus != 1) {
+	if (vstor_packet->vm_srb.scsi_status != 0 ||
+		vstor_packet->vm_srb.srb_status != 1){
 		DPRINT_WARN(STORVSC,
 			    "cmd 0x%x scsi status 0x%x srb status 0x%x\n",
-			    request->Cdb[0], VStorPacket->VmSrb.ScsiStatus,
-			    VStorPacket->VmSrb.SrbStatus);
+			    stor_pkt->vm_srb.cdb[0],
+			    vstor_packet->vm_srb.scsi_status,
+			    vstor_packet->vm_srb.srb_status);
 	}
 
-	if ((request->Status & 0xFF) == 0x02) {
+	if ((vstor_packet->vm_srb.scsi_status & 0xFF) == 0x02) {
 		/* CHECK_CONDITION */
-		if (VStorPacket->VmSrb.SrbStatus & 0x80) {
+		if (vstor_packet->vm_srb.srb_status & 0x80) {
 			/* autosense data available */
 			DPRINT_WARN(STORVSC, "storvsc pkt %p autosense data "
-				    "valid - len %d\n", RequestExt,
-				    VStorPacket->VmSrb.SenseInfoLength);
+				    "valid - len %d\n", request,
+				    vstor_packet->vm_srb.sense_info_length);
 
-			/* ASSERT(VStorPacket->VmSrb.SenseInfoLength <= */
-			/* 	request->SenseBufferSize); */
-			memcpy(request->SenseBuffer,
-			       VStorPacket->VmSrb.SenseData,
-			       VStorPacket->VmSrb.SenseInfoLength);
+			memcpy(request->sense_buffer,
+			       vstor_packet->vm_srb.sense_data,
+			       vstor_packet->vm_srb.sense_info_length);
 
-			request->SenseBufferSize =
-					VStorPacket->VmSrb.SenseInfoLength;
 		}
 	}
 
-	/* TODO: */
-	request->BytesXfer = VStorPacket->VmSrb.DataTransferLength;
+	stor_pkt->vm_srb.data_transfer_length =
+	vstor_packet->vm_srb.data_transfer_length;
 
-	request->OnIOCompletion(request);
+	request->on_io_completion(request);
 
-	atomic_dec(&storDevice->NumOutstandingRequests);
+	if (atomic_dec_and_test(&stor_device->num_outstanding_req) &&
+		stor_device->drain_notify)
+		wake_up(&stor_device->waiting_to_drain);
 
-	PutStorDevice(Device);
+
+	put_stor_device(device);
 }
 
-static void StorVscOnReceive(struct hv_device *Device,
-			     struct vstor_packet *VStorPacket,
-			     struct storvsc_request_extension *RequestExt)
+static void storvsc_on_receive(struct hv_device *device,
+			     struct vstor_packet *vstor_packet,
+			     struct hv_storvsc_request *request)
 {
-	switch (VStorPacket->Operation) {
-	case VStorOperationCompleteIo:
-		DPRINT_DBG(STORVSC, "IO_COMPLETE_OPERATION");
-		StorVscOnIOCompletion(Device, VStorPacket, RequestExt);
+	switch (vstor_packet->operation) {
+	case VSTOR_OPERATION_COMPLETE_IO:
+		storvsc_on_io_completion(device, vstor_packet, request);
 		break;
-	case VStorOperationRemoveDevice:
+	case VSTOR_OPERATION_REMOVE_DEVICE:
 		DPRINT_INFO(STORVSC, "REMOVE_DEVICE_OPERATION");
 		/* TODO: */
 		break;
 
 	default:
 		DPRINT_INFO(STORVSC, "Unknown operation received - %d",
-			    VStorPacket->Operation);
+			    vstor_packet->operation);
 		break;
 	}
 }
 
-static void StorVscOnChannelCallback(void *context)
+static void storvsc_on_channel_callback(void *context)
 {
 	struct hv_device *device = (struct hv_device *)context;
-	struct storvsc_device *storDevice;
-	u32 bytesRecvd;
-	u64 requestId;
-	unsigned char packet[ALIGN_UP(sizeof(struct vstor_packet), 8)];
-	struct storvsc_request_extension *request;
+	struct storvsc_device *stor_device;
+	u32 bytes_recvd;
+	u64 request_id;
+	unsigned char packet[ALIGN(sizeof(struct vstor_packet), 8)];
+	struct hv_storvsc_request *request;
 	int ret;
 
-	/* ASSERT(device); */
 
-	storDevice = MustGetStorDevice(device);
-	if (!storDevice) {
-		DPRINT_ERR(STORVSC, "unable to get stor device..."
-			   "device being destroyed?");
+	stor_device = must_get_stor_device(device);
+	if (!stor_device)
 		return;
-	}
 
 	do {
-		ret = device->Driver->VmbusChannelInterface.RecvPacket(device,
-				packet,
-				ALIGN_UP(sizeof(struct vstor_packet), 8),
-				&bytesRecvd, &requestId);
-		if (ret == 0 && bytesRecvd > 0) {
-			DPRINT_DBG(STORVSC, "receive %d bytes - tid %llx",
-				   bytesRecvd, requestId);
+		ret = vmbus_recvpacket(device->channel, packet,
+				       ALIGN(sizeof(struct vstor_packet), 8),
+				       &bytes_recvd, &request_id);
+		if (ret == 0 && bytes_recvd > 0) {
 
-			/* ASSERT(bytesRecvd == sizeof(struct vstor_packet)); */
+			request = (struct hv_storvsc_request *)
+					(unsigned long)request_id;
 
-			request = (struct storvsc_request_extension *)
-					(unsigned long)requestId;
-			/* ASSERT(request);c */
+			if ((request == &stor_device->init_request) ||
+			    (request == &stor_device->reset_request)) {
 
-			/* if (vstorPacket.Flags & SYNTHETIC_FLAG) */
-			if ((request == &storDevice->InitRequest) ||
-			    (request == &storDevice->ResetRequest)) {
-				/* DPRINT_INFO(STORVSC,
-				 *             "reset completion - operation "
-				 *             "%u status %u",
-				 *             vstorPacket.Operation,
-				 *             vstorPacket.Status); */
-
-				memcpy(&request->VStorPacket, packet,
+				memcpy(&request->vstor_packet, packet,
 				       sizeof(struct vstor_packet));
-
-				osd_WaitEventSet(request->WaitEvent);
+				complete(&request->wait_event);
 			} else {
-				StorVscOnReceive(device,
+				storvsc_on_receive(device,
 						(struct vstor_packet *)packet,
 						request);
 			}
 		} else {
-			/* DPRINT_DBG(STORVSC, "nothing else to read..."); */
 			break;
 		}
 	} while (1);
 
-	PutStorDevice(device);
+	put_stor_device(device);
 	return;
 }
 
-static int StorVscConnectToVsp(struct hv_device *Device)
+static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size)
 {
 	struct vmstorage_channel_properties props;
-	struct storvsc_driver_object *storDriver;
 	int ret;
 
-	storDriver = (struct storvsc_driver_object *)Device->Driver;
 	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
 
 	/* Open the channel */
-	ret = Device->Driver->VmbusChannelInterface.Open(Device,
-			storDriver->RingBufferSize,
-			storDriver->RingBufferSize,
-			(void *)&props,
-			sizeof(struct vmstorage_channel_properties),
-			StorVscOnChannelCallback,
-			Device);
+	ret = vmbus_open(device->channel,
+			 ring_size,
+			 ring_size,
+			 (void *)&props,
+			 sizeof(struct vmstorage_channel_properties),
+			 storvsc_on_channel_callback, device);
 
-	DPRINT_DBG(STORVSC, "storage props: path id %d, tgt id %d, max xfer %d",
-		   props.PathId, props.TargetId, props.MaxTransferBytes);
-
-	if (ret != 0) {
-		DPRINT_ERR(STORVSC, "unable to open channel: %d", ret);
+	if (ret != 0)
 		return -1;
-	}
 
-	ret = StorVscChannelInit(Device);
+	ret = storvsc_channel_init(device);
 
 	return ret;
 }
 
-/*
- * StorVscOnDeviceAdd - Callback when the device belonging to this driver is added
- */
-static int StorVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
+int storvsc_dev_add(struct hv_device *device,
+					void *additional_info)
 {
-	struct storvsc_device *storDevice;
-	/* struct vmstorage_channel_properties *props; */
-	struct storvsc_device_info *deviceInfo;
+	struct storvsc_device *stor_device;
+	struct storvsc_device_info *device_info;
 	int ret = 0;
 
-	deviceInfo = (struct storvsc_device_info *)AdditionalInfo;
-	storDevice = AllocStorDevice(Device);
-	if (!storDevice) {
+	device_info = (struct storvsc_device_info *)additional_info;
+	stor_device = alloc_stor_device(device);
+	if (!stor_device) {
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	/* Save the channel properties to our storvsc channel */
-	/* props = (struct vmstorage_channel_properties *)
-	 *		channel->offerMsg.Offer.u.Standard.UserDefined; */
 
 	/* FIXME: */
 	/*
@@ -552,271 +406,159 @@ static int StorVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	 * scsi channel prior to the bus scan
 	 */
 
-	/* storChannel->PortNumber = 0;
-	storChannel->PathId = props->PathId;
-	storChannel->TargetId = props->TargetId; */
-
-	storDevice->PortNumber = deviceInfo->PortNumber;
+	stor_device->port_number = device_info->port_number;
 	/* Send it back up */
-	ret = StorVscConnectToVsp(Device);
+	ret = storvsc_connect_to_vsp(device, device_info->ring_buffer_size);
 
-	/* deviceInfo->PortNumber = storDevice->PortNumber; */
-	deviceInfo->PathId = storDevice->PathId;
-	deviceInfo->TargetId = storDevice->TargetId;
+	device_info->path_id = stor_device->path_id;
+	device_info->target_id = stor_device->target_id;
 
-	DPRINT_DBG(STORVSC, "assigned port %u, path %u target %u\n",
-		   storDevice->PortNumber, storDevice->PathId,
-		   storDevice->TargetId);
-
-Cleanup:
+cleanup:
 	return ret;
 }
 
-/*
- * StorVscOnDeviceRemove - Callback when the our device is being removed
- */
-static int StorVscOnDeviceRemove(struct hv_device *Device)
+int storvsc_dev_remove(struct hv_device *device)
 {
-	struct storvsc_device *storDevice;
+	struct storvsc_device *stor_device;
 
 	DPRINT_INFO(STORVSC, "disabling storage device (%p)...",
-		    Device->Extension);
+		    device->ext);
 
-	storDevice = ReleaseStorDevice(Device);
+	stor_device = release_stor_device(device);
 
 	/*
 	 * At this point, all outbound traffic should be disable. We
 	 * only allow inbound traffic (responses) to proceed so that
 	 * outstanding requests can be completed.
 	 */
-	while (atomic_read(&storDevice->NumOutstandingRequests)) {
-		DPRINT_INFO(STORVSC, "waiting for %d requests to complete...",
-			    atomic_read(&storDevice->NumOutstandingRequests));
-		udelay(100);
-	}
 
-	DPRINT_INFO(STORVSC, "removing storage device (%p)...",
-		    Device->Extension);
+	storvsc_wait_to_drain(stor_device);
 
-	storDevice = FinalReleaseStorDevice(Device);
-
-	DPRINT_INFO(STORVSC, "storage device (%p) safe to remove", storDevice);
+	stor_device = final_release_stor_device(device);
 
 	/* Close the channel */
-	Device->Driver->VmbusChannelInterface.Close(Device);
+	vmbus_close(device->channel);
 
-	FreeStorDevice(storDevice);
+	free_stor_device(stor_device);
 	return 0;
 }
 
-int StorVscOnHostReset(struct hv_device *Device)
+int storvsc_do_io(struct hv_device *device,
+			      struct hv_storvsc_request *request)
 {
-	struct storvsc_device *storDevice;
-	struct storvsc_request_extension *request;
-	struct vstor_packet *vstorPacket;
-	int ret;
-
-	DPRINT_INFO(STORVSC, "resetting host adapter...");
-
-	storDevice = GetStorDevice(Device);
-	if (!storDevice) {
-		DPRINT_ERR(STORVSC, "unable to get stor device..."
-			   "device being destroyed?");
-		return -1;
-	}
-
-	request = &storDevice->ResetRequest;
-	vstorPacket = &request->VStorPacket;
-
-	request->WaitEvent = osd_WaitEventCreate();
-	if (!request->WaitEvent) {
-		ret = -ENOMEM;
-		goto Cleanup;
-	}
-
-	vstorPacket->Operation = VStorOperationResetBus;
-	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
-	vstorPacket->VmSrb.PathId = storDevice->PathId;
-
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)&storDevice->ResetRequest,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-	if (ret != 0) {
-		DPRINT_ERR(STORVSC, "Unable to send reset packet %p ret %d",
-			   vstorPacket, ret);
-		goto Cleanup;
-	}
-
-	/* FIXME: Add a timeout */
-	osd_WaitEventWait(request->WaitEvent);
-
-	kfree(request->WaitEvent);
-	DPRINT_INFO(STORVSC, "host adapter reset completed");
-
-	/*
-	 * At this point, all outstanding requests in the adapter
-	 * should have been flushed out and return to us
-	 */
-
-Cleanup:
-	PutStorDevice(Device);
-	return ret;
-}
-
-/*
- * StorVscOnIORequest - Callback to initiate an I/O request
- */
-static int StorVscOnIORequest(struct hv_device *Device,
-			      struct hv_storvsc_request *Request)
-{
-	struct storvsc_device *storDevice;
-	struct storvsc_request_extension *requestExtension;
-	struct vstor_packet *vstorPacket;
+	struct storvsc_device *stor_device;
+	struct vstor_packet *vstor_packet;
 	int ret = 0;
 
-	requestExtension =
-		(struct storvsc_request_extension *)Request->Extension;
-	vstorPacket = &requestExtension->VStorPacket;
-	storDevice = GetStorDevice(Device);
+	vstor_packet = &request->vstor_packet;
+	stor_device = get_stor_device(device);
 
-	DPRINT_DBG(STORVSC, "enter - Device %p, DeviceExt %p, Request %p, "
-		   "Extension %p", Device, storDevice, Request,
-		   requestExtension);
-
-	DPRINT_DBG(STORVSC, "req %p len %d bus %d, target %d, lun %d cdblen %d",
-		   Request, Request->DataBuffer.Length, Request->Bus,
-		   Request->TargetId, Request->LunId, Request->CdbLen);
-
-	if (!storDevice) {
-		DPRINT_ERR(STORVSC, "unable to get stor device..."
-			   "device being destroyed?");
+	if (!stor_device)
 		return -2;
-	}
 
-	/* print_hex_dump_bytes("", DUMP_PREFIX_NONE, Request->Cdb,
-	 *			Request->CdbLen); */
 
-	requestExtension->Request = Request;
-	requestExtension->Device  = Device;
+	request->device  = device;
 
-	memset(vstorPacket, 0 , sizeof(struct vstor_packet));
 
-	vstorPacket->Flags |= REQUEST_COMPLETION_FLAG;
+	vstor_packet->flags |= REQUEST_COMPLETION_FLAG;
 
-	vstorPacket->VmSrb.Length = sizeof(struct vmscsi_request);
+	vstor_packet->vm_srb.length = sizeof(struct vmscsi_request);
 
-	vstorPacket->VmSrb.PortNumber = Request->Host;
-	vstorPacket->VmSrb.PathId = Request->Bus;
-	vstorPacket->VmSrb.TargetId = Request->TargetId;
-	vstorPacket->VmSrb.Lun = Request->LunId;
 
-	vstorPacket->VmSrb.SenseInfoLength = SENSE_BUFFER_SIZE;
+	vstor_packet->vm_srb.sense_info_length = SENSE_BUFFER_SIZE;
 
-	/* Copy over the scsi command descriptor block */
-	vstorPacket->VmSrb.CdbLength = Request->CdbLen;
-	memcpy(&vstorPacket->VmSrb.Cdb, Request->Cdb, Request->CdbLen);
 
-	vstorPacket->VmSrb.DataIn = Request->Type;
-	vstorPacket->VmSrb.DataTransferLength = Request->DataBuffer.Length;
+	vstor_packet->vm_srb.data_transfer_length =
+	request->data_buffer.len;
 
-	vstorPacket->Operation = VStorOperationExecuteSRB;
+	vstor_packet->operation = VSTOR_OPERATION_EXECUTE_SRB;
 
-	DPRINT_DBG(STORVSC, "srb - len %d port %d, path %d, target %d, "
-		   "lun %d senselen %d cdblen %d",
-		   vstorPacket->VmSrb.Length,
-		   vstorPacket->VmSrb.PortNumber,
-		   vstorPacket->VmSrb.PathId,
-		   vstorPacket->VmSrb.TargetId,
-		   vstorPacket->VmSrb.Lun,
-		   vstorPacket->VmSrb.SenseInfoLength,
-		   vstorPacket->VmSrb.CdbLength);
-
-	if (requestExtension->Request->DataBuffer.Length) {
-		ret = Device->Driver->VmbusChannelInterface.
-			SendPacketMultiPageBuffer(Device,
-				&requestExtension->Request->DataBuffer,
-				vstorPacket,
+	if (request->data_buffer.len) {
+		ret = vmbus_sendpacket_multipagebuffer(device->channel,
+				&request->data_buffer,
+				vstor_packet,
 				sizeof(struct vstor_packet),
-				(unsigned long)requestExtension);
+				(unsigned long)request);
 	} else {
-		ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)requestExtension,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		ret = vmbus_sendpacket(device->channel, vstor_packet,
+				       sizeof(struct vstor_packet),
+				       (unsigned long)request,
+				       VM_PKT_DATA_INBAND,
+				       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	}
 
-	if (ret != 0) {
-		DPRINT_DBG(STORVSC, "Unable to send packet %p ret %d",
-			   vstorPacket, ret);
-	}
+	if (ret != 0)
+		return ret;
 
-	atomic_inc(&storDevice->NumOutstandingRequests);
+	atomic_inc(&stor_device->num_outstanding_req);
 
-	PutStorDevice(Device);
+	put_stor_device(device);
 	return ret;
 }
 
 /*
- * StorVscOnCleanup - Perform any cleanup when the driver is removed
+ * The channel properties uniquely specify how the device is to be
+ * presented to the guest. Map this information for use by the block
+ * driver. For Linux guests on Hyper-V, we emulate a scsi HBA in the guest
+ * (storvsc_drv) and so scsi devices in the guest  are handled by
+ * native upper level Linux drivers. Consequently, Hyper-V
+ * block driver, while being a generic block driver, presently does not
+ * deal with anything other than devices that would need to be presented
+ * to the guest as an IDE disk.
+ *
+ * This function maps the channel properties as embedded in the input
+ * parameter device_info onto information necessary to register the
+ * corresponding block device.
+ *
+ * Currently, there is no way to stop the emulation of the block device
+ * on the host side. And so, to prevent the native IDE drivers in Linux
+ * from taking over these devices (to be managedby Hyper-V block
+ * driver), we will take over if need be the major of the IDE controllers.
+ *
  */
-static void StorVscOnCleanup(struct hv_driver *Driver)
+
+int storvsc_get_major_info(struct storvsc_device_info *device_info,
+			    struct storvsc_major_info *major_info)
 {
-}
-
-/*
- * StorVscInitialize - Main entry point
- */
-int StorVscInitialize(struct hv_driver *Driver)
-{
-	struct storvsc_driver_object *storDriver;
-
-	storDriver = (struct storvsc_driver_object *)Driver;
-
-	DPRINT_DBG(STORVSC, "sizeof(STORVSC_REQUEST)=%zd "
-		   "sizeof(struct storvsc_request_extension)=%zd "
-		   "sizeof(struct vstor_packet)=%zd, "
-		   "sizeof(struct vmscsi_request)=%zd",
-		   sizeof(struct hv_storvsc_request),
-		   sizeof(struct storvsc_request_extension),
-		   sizeof(struct vstor_packet),
-		   sizeof(struct vmscsi_request));
-
-	/* Make sure we are at least 2 pages since 1 page is used for control */
-	/* ASSERT(storDriver->RingBufferSize >= (PAGE_SIZE << 1)); */
-
-	Driver->name = gDriverName;
-	memcpy(&Driver->deviceType, &gStorVscDeviceType,
-	       sizeof(struct hv_guid));
-
-	storDriver->RequestExtSize = sizeof(struct storvsc_request_extension);
+	static bool ide0_registered;
+	static bool ide1_registered;
 
 	/*
-	 * Divide the ring buffer data size (which is 1 page less
-	 * than the ring buffer size since that page is reserved for
-	 * the ring buffer indices) by the max request size (which is
-	 * VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER + struct vstor_packet + u64)
+	 * For now we only support IDE disks.
 	 */
-	storDriver->MaxOutstandingRequestsPerChannel =
-		((storDriver->RingBufferSize - PAGE_SIZE) /
-		  ALIGN_UP(MAX_MULTIPAGE_BUFFER_PACKET +
-			   sizeof(struct vstor_packet) + sizeof(u64),
-			   sizeof(u64)));
+	major_info->devname = "ide";
+	major_info->diskname = "hd";
 
-	DPRINT_INFO(STORVSC, "max io %u, currently %u\n",
-		    storDriver->MaxOutstandingRequestsPerChannel,
-		    STORVSC_MAX_IO_REQUESTS);
+	if (device_info->path_id) {
+		major_info->major = 22;
+		if (!ide1_registered) {
+			major_info->do_register = true;
+			ide1_registered = true;
+		} else
+			major_info->do_register = false;
 
-	/* Setup the dispatch table */
-	storDriver->Base.OnDeviceAdd	= StorVscOnDeviceAdd;
-	storDriver->Base.OnDeviceRemove	= StorVscOnDeviceRemove;
-	storDriver->Base.OnCleanup	= StorVscOnCleanup;
+		if (device_info->target_id)
+			major_info->index = 3;
+		else
+			major_info->index = 2;
 
-	storDriver->OnIORequest		= StorVscOnIORequest;
+		return 0;
+	} else {
+		major_info->major = 3;
+		if (!ide0_registered) {
+			major_info->do_register = true;
+			ide0_registered = true;
+		} else
+			major_info->do_register = false;
 
-	return 0;
+		if (device_info->target_id)
+			major_info->index = 1;
+		else
+			major_info->index = 0;
+
+		return 0;
+	}
+
+	return -ENODEV;
 }
+

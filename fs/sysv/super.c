@@ -332,6 +332,10 @@ static int complete_read_super(struct super_block *sb, int silent, int size)
 	sb->s_magic = SYSV_MAGIC_BASE + sbi->s_type;
 	/* set up enough so that it can read an inode */
 	sb->s_op = &sysv_sops;
+	if (sbi->s_forced_ro)
+		sb->s_flags |= MS_RDONLY;
+	if (sbi->s_truncate)
+		sb->s_d_op = &sysv_dentry_operations;
 	root_inode = sysv_iget(sb, SYSV_ROOT_INO);
 	if (IS_ERR(root_inode)) {
 		printk("SysV FS: get root inode failed\n");
@@ -343,10 +347,6 @@ static int complete_read_super(struct super_block *sb, int silent, int size)
 		printk("SysV FS: get root dentry failed\n");
 		return 0;
 	}
-	if (sbi->s_forced_ro)
-		sb->s_flags |= MS_RDONLY;
-	if (sbi->s_truncate)
-		sb->s_root->d_op = &sysv_dentry_operations;
 	return 1;
 }
 
@@ -526,23 +526,22 @@ failed:
 
 /* Every kernel module contains stuff like this. */
 
-static int sysv_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *sysv_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, sysv_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, sysv_fill_super);
 }
 
-static int v7_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *v7_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, v7_fill_super, mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, v7_fill_super);
 }
 
 static struct file_system_type sysv_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "sysv",
-	.get_sb		= sysv_get_sb,
+	.mount		= sysv_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
@@ -550,7 +549,7 @@ static struct file_system_type sysv_fs_type = {
 static struct file_system_type v7_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "v7",
-	.get_sb		= v7_get_sb,
+	.mount		= v7_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

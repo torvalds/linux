@@ -154,11 +154,6 @@ struct pstore {
 	struct workqueue_struct *metadata_wq;
 };
 
-static unsigned sectors_to_pages(unsigned sectors)
-{
-	return DIV_ROUND_UP(sectors, PAGE_SIZE >> 9);
-}
-
 static int alloc_area(struct pstore *ps)
 {
 	int r = -ENOMEM;
@@ -254,9 +249,9 @@ static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int rw,
 	 * Issue the synchronous I/O from a different thread
 	 * to avoid generic_make_request recursion.
 	 */
-	INIT_WORK_ON_STACK(&req.work, do_metadata);
+	INIT_WORK_ONSTACK(&req.work, do_metadata);
 	queue_work(ps->metadata_wq, &req.work);
-	flush_workqueue(ps->metadata_wq);
+	flush_work(&req.work);
 
 	return req.result;
 }
@@ -318,8 +313,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 		chunk_size_supplied = 0;
 	}
 
-	ps->io_client = dm_io_client_create(sectors_to_pages(ps->store->
-							     chunk_size));
+	ps->io_client = dm_io_client_create();
 	if (IS_ERR(ps->io_client))
 		return PTR_ERR(ps->io_client);
 
@@ -367,11 +361,6 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 		      chunk_size, chunk_err);
 		return r;
 	}
-
-	r = dm_io_client_resize(sectors_to_pages(ps->store->chunk_size),
-				ps->io_client);
-	if (r)
-		return r;
 
 	r = alloc_area(ps);
 	return r;
@@ -687,7 +676,7 @@ static void persistent_commit_exception(struct dm_exception_store *store,
 	/*
 	 * Commit exceptions to disk.
 	 */
-	if (ps->valid && area_io(ps, WRITE_BARRIER))
+	if (ps->valid && area_io(ps, WRITE_FLUSH_FUA))
 		ps->valid = 0;
 
 	/*
@@ -764,7 +753,7 @@ static int persistent_commit_merge(struct dm_exception_store *store,
 	for (i = 0; i < nr_merged; i++)
 		clear_exception(ps, ps->current_committed - 1 - i);
 
-	r = area_io(ps, WRITE);
+	r = area_io(ps, WRITE_FLUSH_FUA);
 	if (r < 0)
 		return r;
 
@@ -818,7 +807,7 @@ static int persistent_ctr(struct dm_exception_store *store,
 	atomic_set(&ps->pending_count, 0);
 	ps->callbacks = NULL;
 
-	ps->metadata_wq = create_singlethread_workqueue("ksnaphd");
+	ps->metadata_wq = alloc_workqueue("ksnaphd", WQ_MEM_RECLAIM, 0);
 	if (!ps->metadata_wq) {
 		kfree(ps);
 		DMERR("couldn't start header metadata update thread");

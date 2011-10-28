@@ -1,0 +1,6 @@
+obj-y += kernel/
+obj-y += mm/
+obj-y += crypto/
+obj-y += appldata/
+obj-y += hypfs/
+obj-y += kvm/

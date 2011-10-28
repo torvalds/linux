@@ -30,8 +30,6 @@
 #define IF_PREFIX_ONLINK	0x01
 #define IF_PREFIX_AUTOCONF	0x02
 
-#ifdef __KERNEL__
-
 enum {
 	INET6_IFADDR_STATE_DAD,
 	INET6_IFADDR_STATE_POSTDAD,
@@ -43,6 +41,7 @@ struct inet6_ifaddr {
 	struct in6_addr		addr;
 	__u32			prefix_len;
 	
+	/* In seconds, relative to tstamp. Expiry is at tstamp + HZ * lft. */
 	__u32			valid_lft;
 	__u32			prefered_lft;
 	atomic_t		refcnt;
@@ -89,10 +88,11 @@ struct ip6_sf_socklist {
 struct ipv6_mc_socklist {
 	struct in6_addr		addr;
 	int			ifindex;
-	struct ipv6_mc_socklist *next;
+	struct ipv6_mc_socklist __rcu *next;
 	rwlock_t		sflock;
 	unsigned int		sfmode;		/* MCAST_{INCLUDE,EXCLUDE} */
 	struct ip6_sf_socklist	*sflist;
+	struct rcu_head		rcu;
 };
 
 struct ip6_sf_list {
@@ -155,8 +155,8 @@ struct ifacaddr6 {
 struct ipv6_devstat {
 	struct proc_dir_entry	*proc_dir_entry;
 	DEFINE_SNMP_STAT(struct ipstats_mib, ipv6);
-	DEFINE_SNMP_STAT(struct icmpv6_mib, icmpv6);
-	DEFINE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg);
+	DEFINE_SNMP_STAT_ATOMIC(struct icmpv6_mib_device, icmpv6dev);
+	DEFINE_SNMP_STAT_ATOMIC(struct icmpv6msg_mib_device, icmpv6msgdev);
 };
 
 struct inet6_dev {
@@ -195,7 +195,7 @@ struct inet6_dev {
 	struct rcu_head		rcu;
 };
 
-static inline void ipv6_eth_mc_map(struct in6_addr *addr, char *buf)
+static inline void ipv6_eth_mc_map(const struct in6_addr *addr, char *buf)
 {
 	/*
 	 *	+-------+-------+-------+-------+-------+-------+
@@ -209,7 +209,7 @@ static inline void ipv6_eth_mc_map(struct in6_addr *addr, char *buf)
 	memcpy(buf + 2, &addr->s6_addr32[3], sizeof(__u32));
 }
 
-static inline void ipv6_tr_mc_map(struct in6_addr *addr, char *buf)
+static inline void ipv6_tr_mc_map(const struct in6_addr *addr, char *buf)
 {
 	/* All nodes FF01::1, FF02::1, FF02::1:FFxx:xxxx */
 
@@ -285,5 +285,20 @@ static inline void ipv6_ib_mc_map(const struct in6_addr *addr,
 	buf[9]  = broadcast[9];
 	memcpy(buf + 10, addr->s6_addr + 6, 10);
 }
-#endif
+
+static inline int ipv6_ipgre_mc_map(const struct in6_addr *addr,
+				    const unsigned char *broadcast, char *buf)
+{
+	if ((broadcast[0] | broadcast[1] | broadcast[2] | broadcast[3]) != 0) {
+		memcpy(buf, broadcast, 4);
+	} else {
+		/* v4mapped? */
+		if ((addr->s6_addr32[0] | addr->s6_addr32[1] |
+		     (addr->s6_addr32[2] ^ htonl(0x0000ffff))) != 0)
+			return -EINVAL;
+		memcpy(buf, &addr->s6_addr32[3], 4);
+	}
+	return 0;
+}
+
 #endif

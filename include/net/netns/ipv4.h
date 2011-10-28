@@ -43,7 +43,6 @@ struct netns_ipv4 {
 	struct xt_table		*nat_table;
 	struct hlist_head	*nat_bysource;
 	unsigned int		nat_htable_size;
-	int			nat_vmalloced;
 #endif
 
 	int sysctl_icmp_echo_ignore_all;
@@ -55,7 +54,10 @@ struct netns_ipv4 {
 	int sysctl_rt_cache_rebuild_count;
 	int current_rt_cache_rebuild_count;
 
+	unsigned int sysctl_ping_group_range[2];
+
 	atomic_t rt_genid;
+	atomic_t dev_addr_genid;
 
 #ifdef CONFIG_IP_MROUTE
 #ifndef CONFIG_IP_MROUTE_MULTIPLE_TABLES

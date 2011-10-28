@@ -325,7 +325,8 @@ void ptrace_disable(struct task_struct *child)
 }
 
 long
-arch_ptrace(struct task_struct *child, long request, long addr, long data)
+arch_ptrace(struct task_struct *child, long request,
+	    unsigned long addr, unsigned long data)
 {
 	int ret;
 	unsigned long __user *datap = (void __user *)data;
@@ -335,14 +336,14 @@ arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = copy_regset_to_user(child, &user_score_native_view,
 						REGSET_GENERAL,
 						0, sizeof(struct pt_regs),
-						(void __user *)datap);
+						datap);
 		break;
 
 	case PTRACE_SETREGS:
 		ret = copy_regset_from_user(child, &user_score_native_view,
 						REGSET_GENERAL,
 						0, sizeof(struct pt_regs),
-						(const void __user *)datap);
+						datap);
 		break;
 
 	default:

@@ -218,7 +218,7 @@ typedef enum tagWMAC_POWER_MODE {
 
 
 
-// Tx Managment Packet descriptor
+// Tx Management Packet descriptor
 typedef struct tagSTxMgmtPacket {
 
     PUWLAN_80211HDR     p80211Header;
@@ -228,7 +228,7 @@ typedef struct tagSTxMgmtPacket {
 } STxMgmtPacket, *PSTxMgmtPacket;
 
 
-// Rx Managment Packet descriptor
+// Rx Management Packet descriptor
 typedef struct tagSRxMgmtPacket {
 
     PUWLAN_80211HDR     p80211Header;
@@ -355,7 +355,7 @@ typedef struct tagSMgmtObject
 
     // link list of known bss's (scan results)
     KnownBSS                sBSSList[MAX_BSS_NUM];
-   //link list of same bss's  //DavidWang
+	/* link list of same bss's */
     KnownBSS				pSameBSS[6] ;
     BOOL          Cisco_cckm ;
     BYTE          Roam_dbm;

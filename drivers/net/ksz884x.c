@@ -1221,7 +1221,6 @@ struct ksz_port_info {
 #define LINK_INT_WORKING		(1 << 0)
 #define SMALL_PACKET_TX_BUG		(1 << 1)
 #define HALF_DUPLEX_SIGNAL_BUG		(1 << 2)
-#define IPV6_CSUM_GEN_HACK		(1 << 3)
 #define RX_HUGE_FRAME			(1 << 4)
 #define STP_SUPPORT			(1 << 8)
 
@@ -3570,7 +3569,7 @@ static void hw_cfg_wol(struct ksz_hw *hw, u16 frame, int set)
  * This routine is used to program Wake-on-LAN pattern.
  */
 static void hw_set_wol_frame(struct ksz_hw *hw, int i, uint mask_size,
-	u8 *mask, uint frame_size, u8 *pattern)
+	const u8 *mask, uint frame_size, const u8 *pattern)
 {
 	int bits;
 	int from;
@@ -3626,9 +3625,9 @@ static void hw_set_wol_frame(struct ksz_hw *hw, int i, uint mask_size,
  *
  * This routine is used to add ARP pattern for waking up the host.
  */
-static void hw_add_wol_arp(struct ksz_hw *hw, u8 *ip_addr)
+static void hw_add_wol_arp(struct ksz_hw *hw, const u8 *ip_addr)
 {
-	u8 mask[6] = { 0x3F, 0xF0, 0x3F, 0x00, 0xC0, 0x03 };
+	static const u8 mask[6] = { 0x3F, 0xF0, 0x3F, 0x00, 0xC0, 0x03 };
 	u8 pattern[42] = {
 		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -3651,8 +3650,8 @@ static void hw_add_wol_arp(struct ksz_hw *hw, u8 *ip_addr)
  */
 static void hw_add_wol_bcast(struct ksz_hw *hw)
 {
-	u8 mask[] = { 0x3F };
-	u8 pattern[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+	static const u8 mask[] = { 0x3F };
+	static const u8 pattern[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 	hw_set_wol_frame(hw, 2, 1, mask, MAC_ADDR_LEN, pattern);
 }
@@ -3669,7 +3668,7 @@ static void hw_add_wol_bcast(struct ksz_hw *hw)
  */
 static void hw_add_wol_mcast(struct ksz_hw *hw)
 {
-	u8 mask[] = { 0x3F };
+	static const u8 mask[] = { 0x3F };
 	u8 pattern[] = { 0x33, 0x33, 0xFF, 0x00, 0x00, 0x00 };
 
 	memcpy(&pattern[3], &hw->override_addr[3], 3);
@@ -3687,7 +3686,7 @@ static void hw_add_wol_mcast(struct ksz_hw *hw)
  */
 static void hw_add_wol_ucast(struct ksz_hw *hw)
 {
-	u8 mask[] = { 0x3F };
+	static const u8 mask[] = { 0x3F };
 
 	hw_set_wol_frame(hw, 0, 1, mask, MAC_ADDR_LEN, hw->override_addr);
 }
@@ -3700,7 +3699,7 @@ static void hw_add_wol_ucast(struct ksz_hw *hw)
  *
  * This routine is used to enable Wake-on-LAN depending on driver settings.
  */
-static void hw_enable_wol(struct ksz_hw *hw, u32 wol_enable, u8 *net_addr)
+static void hw_enable_wol(struct ksz_hw *hw, u32 wol_enable, const u8 *net_addr)
 {
 	hw_cfg_wol(hw, KS8841_WOL_MAGIC_ENABLE, (wol_enable & WAKE_MAGIC));
 	hw_cfg_wol(hw, KS8841_WOL_FRAME0_ENABLE, (wol_enable & WAKE_UCAST));
@@ -3748,7 +3747,6 @@ static int hw_init(struct ksz_hw *hw)
 		if (1 == rc)
 			hw->features |= HALF_DUPLEX_SIGNAL_BUG;
 	}
-	hw->features |= IPV6_CSUM_GEN_HACK;
 	return rc;
 }
 
@@ -4887,8 +4885,7 @@ static netdev_tx_t netdev_tx(struct sk_buff *skb, struct net_device *dev)
 	left = hw_alloc_pkt(hw, skb->len, num);
 	if (left) {
 		if (left < num ||
-				((hw->features & IPV6_CSUM_GEN_HACK) &&
-				(CHECKSUM_PARTIAL == skb->ip_summed) &&
+				((CHECKSUM_PARTIAL == skb->ip_summed) &&
 				(ETH_P_IPV6 == htons(skb->protocol)))) {
 			struct sk_buff *org_skb = skb;
 
@@ -4898,7 +4895,7 @@ static netdev_tx_t netdev_tx(struct sk_buff *skb, struct net_device *dev)
 				goto unlock;
 			}
 			skb_copy_and_csum_dev(org_skb, skb->data);
-			org_skb->ip_summed = 0;
+			org_skb->ip_summed = CHECKSUM_NONE;
 			skb->len = org_skb->len;
 			copy_old_skb(org_skb, skb);
 		}
@@ -6001,6 +5998,7 @@ static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
 	struct ksz_port *port = &priv->port;
+	u32 speed = ethtool_cmd_speed(cmd);
 	int rc;
 
 	/*
@@ -6009,11 +6007,11 @@ static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	 */
 	if (cmd->autoneg && priv->advertising == cmd->advertising) {
 		cmd->advertising |= ADVERTISED_ALL;
-		if (10 == cmd->speed)
+		if (10 == speed)
 			cmd->advertising &=
 				~(ADVERTISED_100baseT_Full |
 				ADVERTISED_100baseT_Half);
-		else if (100 == cmd->speed)
+		else if (100 == speed)
 			cmd->advertising &=
 				~(ADVERTISED_10baseT_Full |
 				ADVERTISED_10baseT_Half);
@@ -6035,8 +6033,8 @@ static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		port->force_link = 0;
 	} else {
 		port->duplex = cmd->duplex + 1;
-		if (cmd->speed != 1000)
-			port->speed = cmd->speed;
+		if (1000 != speed)
+			port->speed = speed;
 		if (cmd->autoneg)
 			port->force_link = 0;
 		else
@@ -6208,7 +6206,7 @@ static int netdev_set_wol(struct net_device *dev,
 	struct dev_info *hw_priv = priv->adapter;
 
 	/* Need to find a way to retrieve the device IP address. */
-	u8 net_addr[] = { 192, 168, 1, 1 };
+	static const u8 net_addr[] = { 192, 168, 1, 1 };
 
 	if (wol->wolopts & ~hw_priv->wol_support)
 		return -EINVAL;
@@ -6583,57 +6581,33 @@ static void netdev_get_ethtool_stats(struct net_device *dev,
 }
 
 /**
- * netdev_get_rx_csum - get receive checksum support
+ * netdev_set_features - set receive checksum support
  * @dev:	Network device.
- *
- * This function gets receive checksum support setting.
- *
- * Return true if receive checksum is enabled; false otherwise.
- */
-static u32 netdev_get_rx_csum(struct net_device *dev)
-{
-	struct dev_priv *priv = netdev_priv(dev);
-	struct dev_info *hw_priv = priv->adapter;
-	struct ksz_hw *hw = &hw_priv->hw;
-
-	return hw->rx_cfg &
-		(DMA_RX_CSUM_UDP |
-		DMA_RX_CSUM_TCP |
-		DMA_RX_CSUM_IP);
-}
-
-/**
- * netdev_set_rx_csum - set receive checksum support
- * @dev:	Network device.
- * @data:	Zero to disable receive checksum support.
+ * @features:	New device features (offloads).
  *
  * This function sets receive checksum support setting.
  *
  * Return 0 if successful; otherwise an error code.
  */
-static int netdev_set_rx_csum(struct net_device *dev, u32 data)
+static int netdev_set_features(struct net_device *dev, u32 features)
 {
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
 	struct ksz_hw *hw = &hw_priv->hw;
-	u32 new_setting = hw->rx_cfg;
 
-	if (data)
-		new_setting |=
-			(DMA_RX_CSUM_UDP | DMA_RX_CSUM_TCP |
-			DMA_RX_CSUM_IP);
-	else
-		new_setting &=
-			~(DMA_RX_CSUM_UDP | DMA_RX_CSUM_TCP |
-			DMA_RX_CSUM_IP);
-	new_setting &= ~DMA_RX_CSUM_UDP;
 	mutex_lock(&hw_priv->lock);
-	if (new_setting != hw->rx_cfg) {
-		hw->rx_cfg = new_setting;
-		if (hw->enabled)
-			writel(hw->rx_cfg, hw->io + KS_DMA_RX_CTRL);
-	}
+
+	/* see note in hw_setup() */
+	if (features & NETIF_F_RXCSUM)
+		hw->rx_cfg |= DMA_RX_CSUM_TCP | DMA_RX_CSUM_IP;
+	else
+		hw->rx_cfg &= ~(DMA_RX_CSUM_TCP | DMA_RX_CSUM_IP);
+
+	if (hw->enabled)
+		writel(hw->rx_cfg, hw->io + KS_DMA_RX_CTRL);
+
 	mutex_unlock(&hw_priv->lock);
+
 	return 0;
 }
 
@@ -6658,12 +6632,6 @@ static struct ethtool_ops netdev_ethtool_ops = {
 	.get_strings		= netdev_get_strings,
 	.get_sset_count		= netdev_get_sset_count,
 	.get_ethtool_stats	= netdev_get_ethtool_stats,
-	.get_rx_csum		= netdev_get_rx_csum,
-	.set_rx_csum		= netdev_set_rx_csum,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
-	.set_sg			= ethtool_op_set_sg,
 };
 
 /*
@@ -6828,14 +6796,15 @@ static int __init netdev_init(struct net_device *dev)
 	/* 500 ms timeout */
 	dev->watchdog_timeo = HZ / 2;
 
-	dev->features |= NETIF_F_IP_CSUM;
+	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_RXCSUM;
 
 	/*
 	 * Hardware does not really support IPv6 checksum generation, but
-	 * driver actually runs faster with this on.  Refer IPV6_CSUM_GEN_HACK.
+	 * driver actually runs faster with this on.
 	 */
-	dev->features |= NETIF_F_IPV6_CSUM;
-	dev->features |= NETIF_F_SG;
+	dev->hw_features |= NETIF_F_IPV6_CSUM;
+
+	dev->features |= dev->hw_features;
 
 	sema_init(&priv->proc_sem, 1);
 
@@ -6860,6 +6829,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_start_xmit		= netdev_tx,
 	.ndo_tx_timeout		= netdev_tx_timeout,
 	.ndo_change_mtu		= netdev_change_mtu,
+	.ndo_set_features	= netdev_set_features,
 	.ndo_set_mac_address	= netdev_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= netdev_ioctl,
@@ -6953,7 +6923,7 @@ static void read_other_addr(struct ksz_hw *hw)
 #define PCI_VENDOR_ID_MICREL_KS		0x16c6
 #endif
 
-static int __init pcidev_init(struct pci_dev *pdev,
+static int __devinit pcidev_init(struct pci_dev *pdev,
 	const struct pci_device_id *id)
 {
 	struct net_device *dev;
@@ -7241,7 +7211,7 @@ static int pcidev_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct ksz_hw *hw = &hw_priv->hw;
 
 	/* Need to find a way to retrieve the device IP address. */
-	u8 net_addr[] = { 192, 168, 1, 1 };
+	static const u8 net_addr[] = { 192, 168, 1, 1 };
 
 	for (i = 0; i < hw->dev_count; i++) {
 		if (info->netdev[i]) {

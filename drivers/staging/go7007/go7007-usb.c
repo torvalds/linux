@@ -394,7 +394,7 @@ static struct go7007_usb_board board_adlink_mpg24 = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
-				.type	= "wis_twTW2804",
+				.type	= "wis_tw2804",
 				.id	= I2C_DRIVERID_WIS_TW2804,
 				.addr	= 0x00, /* yes, really */
 			},
@@ -1247,15 +1247,13 @@ static void go7007_usb_disconnect(struct usb_interface *intf)
 		vurb = usb->video_urbs[i];
 		if (vurb) {
 			usb_kill_urb(vurb);
-			if (vurb->transfer_buffer)
-				kfree(vurb->transfer_buffer);
+			kfree(vurb->transfer_buffer);
 			usb_free_urb(vurb);
 		}
 		aurb = usb->audio_urbs[i];
 		if (aurb) {
 			usb_kill_urb(aurb);
-			if (aurb->transfer_buffer)
-				kfree(aurb->transfer_buffer);
+			kfree(aurb->transfer_buffer);
 			usb_free_urb(aurb);
 		}
 	}

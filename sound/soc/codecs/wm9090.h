@@ -23,8 +23,6 @@
 #ifndef __WM9090_H
 #define __WM9090_H
 
-extern struct snd_soc_codec_device soc_codec_dev_wm9090;
-
 /*
  * Register values.
  */

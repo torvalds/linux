@@ -18,4 +18,13 @@ config PPC_PMAC64
 	select PPC_970_NAP
 	default y
 
-
+config PPC_PMAC32_PSURGE
+	bool "Support for powersurge upgrade cards" if EXPERT
+	depends on SMP && PPC32 && PPC_PMAC
+	select PPC_SMP_MUXED_IPI
+	default y
+	help
+	  The powersurge cpu boards can be used in the generation
+	  of powermacs that have a socket for an upgradeable cpu card,
+	  including the 7500, 8500, 9500, 9600.  Support exists for
+	  both dual and quad socket upgrade cards.

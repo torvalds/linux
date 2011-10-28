@@ -1,8 +1,8 @@
 /*
  *      uvc_video.c  --  USB Video Class driver - Video handling
  *
- *      Copyright (C) 2005-2009
- *          Laurent Pinchart (laurent.pinchart@skynet.be)
+ *      Copyright (C) 2005-2010
+ *          Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -45,6 +45,30 @@ static int __uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 			unit << 8 | intfnum, data, size, timeout);
 }
 
+static const char *uvc_query_name(__u8 query)
+{
+	switch (query) {
+	case UVC_SET_CUR:
+		return "SET_CUR";
+	case UVC_GET_CUR:
+		return "GET_CUR";
+	case UVC_GET_MIN:
+		return "GET_MIN";
+	case UVC_GET_MAX:
+		return "GET_MAX";
+	case UVC_GET_RES:
+		return "GET_RES";
+	case UVC_GET_LEN:
+		return "GET_LEN";
+	case UVC_GET_INFO:
+		return "GET_INFO";
+	case UVC_GET_DEF:
+		return "GET_DEF";
+	default:
+		return "<invalid>";
+	}
+}
+
 int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 			__u8 intfnum, __u8 cs, void *data, __u16 size)
 {
@@ -53,9 +77,9 @@ int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 	ret = __uvc_query_ctrl(dev, query, unit, intfnum, cs, data, size,
 				UVC_CTRL_CONTROL_TIMEOUT);
 	if (ret != size) {
-		uvc_printk(KERN_ERR, "Failed to query (%u) UVC control %u "
-			"(unit %u) : %d (exp. %u).\n", query, cs, unit, ret,
-			size);
+		uvc_printk(KERN_ERR, "Failed to query (%s) UVC control %u on "
+			"unit %u: %d (exp. %u).\n", uvc_query_name(query), cs,
+			unit, ret, size);
 		return -EIO;
 	}
 
@@ -65,15 +89,19 @@ int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 	struct uvc_streaming_control *ctrl)
 {
-	struct uvc_format *format;
+	struct uvc_format *format = NULL;
 	struct uvc_frame *frame = NULL;
 	unsigned int i;
 
-	if (ctrl->bFormatIndex <= 0 ||
-	    ctrl->bFormatIndex > stream->nformats)
-		return;
+	for (i = 0; i < stream->nformats; ++i) {
+		if (stream->format[i].index == ctrl->bFormatIndex) {
+			format = &stream->format[i];
+			break;
+		}
+	}
 
-	format = &stream->format[ctrl->bFormatIndex - 1];
+	if (format == NULL)
+		return;
 
 	for (i = 0; i < format->nframes; ++i) {
 		if (format->frame[i].bFrameIndex == ctrl->bFrameIndex) {
@@ -113,6 +141,15 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 		if (stream->dev->udev->speed == USB_SPEED_HIGH)
 			bandwidth /= 8;
 		bandwidth += 12;
+
+		/* The bandwidth estimate is too low for many cameras. Don't use
+		 * maximum packet sizes lower than 1024 bytes to try and work
+		 * around the problem. According to measurements done on two
+		 * different camera models, the value is high enough to get most
+		 * resolutions working while not preventing two simultaneous
+		 * VGA streams at 15 fps.
+		 */
+		bandwidth = max_t(u32, bandwidth, 1024);
 
 		ctrl->dwMaxPayloadTransferSize = bandwidth;
 	}
@@ -260,8 +297,6 @@ int uvc_probe_video(struct uvc_streaming *stream,
 	unsigned int i;
 	int ret;
 
-	mutex_lock(&stream->mutex);
-
 	/* Perform probing. The device should adjust the requested values
 	 * according to its capabilities. However, some devices, namely the
 	 * first generation UVC Logitech webcams, don't implement the Video
@@ -313,7 +348,6 @@ int uvc_probe_video(struct uvc_streaming *stream,
 	}
 
 done:
-	mutex_unlock(&stream->mutex);
 	return ret;
 }
 
@@ -360,11 +394,11 @@ int uvc_commit_video(struct uvc_streaming *stream,
  *
  * uvc_video_decode_end is called with header data at the end of a bulk or
  * isochronous payload. It performs any additional header data processing and
- * returns 0 or a negative error code if an error occured. As header data have
+ * returns 0 or a negative error code if an error occurred. As header data have
  * already been processed by uvc_video_decode_start, this functions isn't
  * required to perform sanity checks a second time.
  *
- * For isochronous transfers where a payload is always transfered in a single
+ * For isochronous transfers where a payload is always transferred in a single
  * URB, the three functions will be called in a row.
  *
  * To let the decoder process header data and update its internal state even
@@ -393,6 +427,12 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 	}
 
 	fid = data[1] & UVC_STREAM_FID;
+
+	/* Increase the sequence number regardless of any buffer states, so
+	 * that discontinuous sequence numbers always indicate lost frames.
+	 */
+	if (stream->last_fid != fid)
+		stream->sequence++;
 
 	/* Store the payload FID bit and return immediately when the buffer is
 	 * NULL.
@@ -427,6 +467,7 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 		else
 			ktime_get_real_ts(&ts);
 
+		buf->buf.sequence = stream->sequence;
 		buf->buf.timestamp.tv_sec = ts.tv_sec;
 		buf->buf.timestamp.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
 
@@ -617,7 +658,7 @@ static void uvc_video_decode_bulk(struct urb *urb, struct uvc_streaming *stream,
 							    buf);
 		} while (ret == -EAGAIN);
 
-		/* If an error occured skip the rest of the payload. */
+		/* If an error occurred skip the rest of the payload. */
 		if (ret < 0 || buf == NULL) {
 			stream->bulk.skip_payload = 1;
 		} else {
@@ -688,6 +729,7 @@ static void uvc_video_encode_bulk(struct urb *urb, struct uvc_streaming *stream,
 		if (buf->buf.bytesused == stream->queue.buf_used) {
 			stream->queue.buf_used = 0;
 			buf->state = UVC_BUF_STATE_READY;
+			buf->buf.sequence = ++stream->sequence;
 			uvc_queue_next_buffer(&stream->queue, buf);
 			stream->last_fid ^= UVC_STREAM_FID;
 		}
@@ -817,7 +859,7 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 		return stream->urb_size / psize;
 
 	/* Compute the number of packets. Bulk endpoints might transfer UVC
-	 * payloads accross multiple URBs.
+	 * payloads across multiple URBs.
 	 */
 	npackets = DIV_ROUND_UP(size, psize);
 	if (npackets > UVC_MAX_PACKETS)
@@ -1009,6 +1051,7 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 	unsigned int i;
 	int ret;
 
+	stream->sequence = -1;
 	stream->last_fid = -1;
 	stream->bulk.header_size = 0;
 	stream->bulk.skip_payload = 0;
@@ -1275,8 +1318,10 @@ int uvc_video_enable(struct uvc_streaming *stream, int enable)
 
 	/* Commit the streaming parameters. */
 	ret = uvc_commit_video(stream, &stream->ctrl);
-	if (ret < 0)
+	if (ret < 0) {
+		uvc_queue_enable(&stream->queue, 0);
 		return ret;
+	}
 
 	return uvc_init_video(stream, GFP_KERNEL);
 }

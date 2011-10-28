@@ -1,14 +1,11 @@
 /*
- * Copyright 2008-2009 Analog Devices Inc.
+ * Copyright 2008-2010 Analog Devices Inc.
  *
  * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _CDEF_BF518_H
 #define _CDEF_BF518_H
-
-/* include all Core registers and bit definitions */
-#include "defBF518.h"
 
 /* BF518 is BF516 + IEEE-1588 */
 #include "cdefBF516.h"

@@ -486,7 +486,7 @@ static ssize_t asd_show_update_bios(struct device *dev,
 			flash_error_table[i].reason);
 }
 
-static DEVICE_ATTR(update_bios, S_IRUGO|S_IWUGO,
+static DEVICE_ATTR(update_bios, S_IRUGO|S_IWUSR,
 	asd_show_update_bios, asd_store_update_bios);
 
 static int asd_create_dev_attrs(struct asd_ha_struct *asd_ha)

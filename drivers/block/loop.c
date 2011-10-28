@@ -67,13 +67,14 @@
 #include <linux/compat.h>
 #include <linux/suspend.h>
 #include <linux/freezer.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>		/* for invalidate_bdev() */
 #include <linux/completion.h>
 #include <linux/highmem.h>
 #include <linux/kthread.h>
 #include <linux/splice.h>
+#include <linux/sysfs.h>
 
 #include <asm/uaccess.h>
 
@@ -99,8 +100,8 @@ static int transfer_none(struct loop_device *lo, int cmd,
 	else
 		memcpy(raw_buf, loop_buf, size);
 
-	kunmap_atomic(raw_buf, KM_USER0);
 	kunmap_atomic(loop_buf, KM_USER1);
+	kunmap_atomic(raw_buf, KM_USER0);
 	cond_resched();
 	return 0;
 }
@@ -128,8 +129,8 @@ static int transfer_xor(struct loop_device *lo, int cmd,
 	for (i = 0; i < size; i++)
 		*out++ = *in++ ^ key[(i & 511) % keysize];
 
-	kunmap_atomic(raw_buf, KM_USER0);
 	kunmap_atomic(loop_buf, KM_USER1);
+	kunmap_atomic(raw_buf, KM_USER0);
 	cond_resched();
 	return 0;
 }
@@ -393,11 +394,7 @@ lo_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	struct loop_device *lo = p->lo;
 	struct page *page = buf->page;
 	sector_t IV;
-	int size, ret;
-
-	ret = buf->ops->confirm(pipe, buf);
-	if (unlikely(ret))
-		return ret;
+	int size;
 
 	IV = ((sector_t) page->index << (PAGE_CACHE_SHIFT - 9)) +
 							(buf->offset >> 9);
@@ -477,17 +474,11 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 	pos = ((loff_t) bio->bi_sector << 9) + lo->lo_offset;
 
 	if (bio_rw(bio) == WRITE) {
-		bool barrier = !!(bio->bi_rw & REQ_HARDBARRIER);
 		struct file *file = lo->lo_backing_file;
 
-		if (barrier) {
-			if (unlikely(!file->f_op->fsync)) {
-				ret = -EOPNOTSUPP;
-				goto out;
-			}
-
+		if (bio->bi_rw & REQ_FLUSH) {
 			ret = vfs_fsync(file, 0);
-			if (unlikely(ret)) {
+			if (unlikely(ret && ret != -EINVAL)) {
 				ret = -EIO;
 				goto out;
 			}
@@ -495,9 +486,9 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 
 		ret = lo_send(lo, bio, pos);
 
-		if (barrier && !ret) {
+		if ((bio->bi_rw & REQ_FUA) && !ret) {
 			ret = vfs_fsync(file, 0);
-			if (unlikely(ret))
+			if (unlikely(ret && ret != -EINVAL))
 				ret = -EIO;
 		}
 	} else
@@ -547,17 +538,6 @@ out:
 	spin_unlock_irq(&lo->lo_lock);
 	bio_io_error(old_bio);
 	return 0;
-}
-
-/*
- * kick off io on the underlying address space
- */
-static void loop_unplug(struct request_queue *q)
-{
-	struct loop_device *lo = q->queuedata;
-
-	queue_flag_clear_unlocked(QUEUE_FLAG_PLUGGED, q);
-	blk_run_address_space(lo->lo_backing_file->f_mapping);
 }
 
 struct switch_request {
@@ -737,6 +717,103 @@ static inline int is_loop_device(struct file *file)
 	return i && S_ISBLK(i->i_mode) && MAJOR(i->i_rdev) == LOOP_MAJOR;
 }
 
+/* loop sysfs attributes */
+
+static ssize_t loop_attr_show(struct device *dev, char *page,
+			      ssize_t (*callback)(struct loop_device *, char *))
+{
+	struct loop_device *l, *lo = NULL;
+
+	mutex_lock(&loop_devices_mutex);
+	list_for_each_entry(l, &loop_devices, lo_list)
+		if (disk_to_dev(l->lo_disk) == dev) {
+			lo = l;
+			break;
+		}
+	mutex_unlock(&loop_devices_mutex);
+
+	return lo ? callback(lo, page) : -EIO;
+}
+
+#define LOOP_ATTR_RO(_name)						\
+static ssize_t loop_attr_##_name##_show(struct loop_device *, char *);	\
+static ssize_t loop_attr_do_show_##_name(struct device *d,		\
+				struct device_attribute *attr, char *b)	\
+{									\
+	return loop_attr_show(d, b, loop_attr_##_name##_show);		\
+}									\
+static struct device_attribute loop_attr_##_name =			\
+	__ATTR(_name, S_IRUGO, loop_attr_do_show_##_name, NULL);
+
+static ssize_t loop_attr_backing_file_show(struct loop_device *lo, char *buf)
+{
+	ssize_t ret;
+	char *p = NULL;
+
+	mutex_lock(&lo->lo_ctl_mutex);
+	if (lo->lo_backing_file)
+		p = d_path(&lo->lo_backing_file->f_path, buf, PAGE_SIZE - 1);
+	mutex_unlock(&lo->lo_ctl_mutex);
+
+	if (IS_ERR_OR_NULL(p))
+		ret = PTR_ERR(p);
+	else {
+		ret = strlen(p);
+		memmove(buf, p, ret);
+		buf[ret++] = '\n';
+		buf[ret] = 0;
+	}
+
+	return ret;
+}
+
+static ssize_t loop_attr_offset_show(struct loop_device *lo, char *buf)
+{
+	return sprintf(buf, "%llu\n", (unsigned long long)lo->lo_offset);
+}
+
+static ssize_t loop_attr_sizelimit_show(struct loop_device *lo, char *buf)
+{
+	return sprintf(buf, "%llu\n", (unsigned long long)lo->lo_sizelimit);
+}
+
+static ssize_t loop_attr_autoclear_show(struct loop_device *lo, char *buf)
+{
+	int autoclear = (lo->lo_flags & LO_FLAGS_AUTOCLEAR);
+
+	return sprintf(buf, "%s\n", autoclear ? "1" : "0");
+}
+
+LOOP_ATTR_RO(backing_file);
+LOOP_ATTR_RO(offset);
+LOOP_ATTR_RO(sizelimit);
+LOOP_ATTR_RO(autoclear);
+
+static struct attribute *loop_attrs[] = {
+	&loop_attr_backing_file.attr,
+	&loop_attr_offset.attr,
+	&loop_attr_sizelimit.attr,
+	&loop_attr_autoclear.attr,
+	NULL,
+};
+
+static struct attribute_group loop_attribute_group = {
+	.name = "loop",
+	.attrs= loop_attrs,
+};
+
+static int loop_sysfs_init(struct loop_device *lo)
+{
+	return sysfs_create_group(&disk_to_dev(lo->lo_disk)->kobj,
+				  &loop_attribute_group);
+}
+
+static void loop_sysfs_exit(struct loop_device *lo)
+{
+	sysfs_remove_group(&disk_to_dev(lo->lo_disk)->kobj,
+			   &loop_attribute_group);
+}
+
 static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 		       struct block_device *bdev, unsigned int arg)
 {
@@ -829,13 +906,13 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	 */
 	blk_queue_make_request(lo->lo_queue, loop_make_request);
 	lo->lo_queue->queuedata = lo;
-	lo->lo_queue->unplug_fn = loop_unplug;
 
 	if (!(lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
-		blk_queue_ordered(lo->lo_queue, QUEUE_ORDERED_DRAIN);
+		blk_queue_flush(lo->lo_queue, REQ_FLUSH);
 
 	set_capacity(lo->lo_disk, size);
 	bd_set_size(bdev, size << 9);
+	loop_sysfs_init(lo);
 	/* let user-space know about the new size */
 	kobject_uevent(&disk_to_dev(bdev->bd_disk)->kobj, KOBJ_CHANGE);
 
@@ -854,6 +931,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	return 0;
 
 out_clr:
+	loop_sysfs_exit(lo);
 	lo->lo_thread = NULL;
 	lo->lo_device = NULL;
 	lo->lo_backing_file = NULL;
@@ -929,7 +1007,6 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 
 	kthread_stop(lo->lo_thread);
 
-	lo->lo_queue->unplug_fn = NULL;
 	lo->lo_backing_file = NULL;
 
 	loop_release_xfer(lo);
@@ -948,6 +1025,7 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	if (bdev)
 		invalidate_bdev(bdev);
 	set_capacity(lo->lo_disk, 0);
+	loop_sysfs_exit(lo);
 	if (bdev) {
 		bd_set_size(bdev, 0);
 		/* let user-space know about this change */
@@ -1409,11 +1487,9 @@ static int lo_open(struct block_device *bdev, fmode_t mode)
 {
 	struct loop_device *lo = bdev->bd_disk->private_data;
 
-	lock_kernel();
 	mutex_lock(&lo->lo_ctl_mutex);
 	lo->lo_refcnt++;
 	mutex_unlock(&lo->lo_ctl_mutex);
-	unlock_kernel();
 
 	return 0;
 }
@@ -1423,7 +1499,6 @@ static int lo_release(struct gendisk *disk, fmode_t mode)
 	struct loop_device *lo = disk->private_data;
 	int err;
 
-	lock_kernel();
 	mutex_lock(&lo->lo_ctl_mutex);
 
 	if (--lo->lo_refcnt)
@@ -1448,7 +1523,6 @@ static int lo_release(struct gendisk *disk, fmode_t mode)
 out:
 	mutex_unlock(&lo->lo_ctl_mutex);
 out_unlocked:
-	lock_kernel();
 	return 0;
 }
 
@@ -1466,9 +1540,9 @@ static const struct block_device_operations lo_fops = {
  * And now the modules code and kernel interface.
  */
 static int max_loop;
-module_param(max_loop, int, 0);
+module_param(max_loop, int, S_IRUGO);
 MODULE_PARM_DESC(max_loop, "Maximum number of loop devices");
-module_param(max_part, int, 0);
+module_param(max_part, int, S_IRUGO);
 MODULE_PARM_DESC(max_part, "Maximum number of partitions per loop device");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_BLOCKDEV_MAJOR(LOOP_MAJOR);
@@ -1584,7 +1658,7 @@ static struct kobject *loop_probe(dev_t dev, int *part, void *data)
 	struct kobject *kobj;
 
 	mutex_lock(&loop_devices_mutex);
-	lo = loop_init_one(dev & MINORMASK);
+	lo = loop_init_one(MINOR(dev) >> part_shift);
 	kobj = lo ? get_disk(lo->lo_disk) : ERR_PTR(-ENOMEM);
 	mutex_unlock(&loop_devices_mutex);
 
@@ -1614,18 +1688,32 @@ static int __init loop_init(void)
 	 */
 
 	part_shift = 0;
-	if (max_part > 0)
+	if (max_part > 0) {
 		part_shift = fls(max_part);
+
+		/*
+		 * Adjust max_part according to part_shift as it is exported
+		 * to user space so that user can decide correct minor number
+		 * if [s]he want to create more devices.
+		 *
+		 * Note that -1 is required because partition 0 is reserved
+		 * for the whole disk.
+		 */
+		max_part = (1UL << part_shift) - 1;
+	}
+
+	if ((1UL << part_shift) > DISK_MAX_PARTS)
+		return -EINVAL;
 
 	if (max_loop > 1UL << (MINORBITS - part_shift))
 		return -EINVAL;
 
 	if (max_loop) {
 		nr = max_loop;
-		range = max_loop;
+		range = max_loop << part_shift;
 	} else {
 		nr = 8;
-		range = 1UL << (MINORBITS - part_shift);
+		range = 1UL << MINORBITS;
 	}
 
 	if (register_blkdev(LOOP_MAJOR, "loop"))
@@ -1664,7 +1752,7 @@ static void __exit loop_exit(void)
 	unsigned long range;
 	struct loop_device *lo, *next;
 
-	range = max_loop ? max_loop :  1UL << (MINORBITS - part_shift);
+	range = max_loop ? max_loop << part_shift : 1UL << MINORBITS;
 
 	list_for_each_entry_safe(lo, next, &loop_devices, lo_list)
 		loop_del_one(lo);

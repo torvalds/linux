@@ -29,6 +29,8 @@
 #define PTRACE_SETCRUNCHREGS	26
 #define PTRACE_GETVFPREGS	27
 #define PTRACE_SETVFPREGS	28
+#define PTRACE_GETHBPREGS	29
+#define PTRACE_SETHBPREGS	30
 
 /*
  * PSR bits
@@ -126,9 +128,13 @@ struct pt_regs {
 #define ARM_r0		uregs[0]
 #define ARM_ORIG_r0	uregs[17]
 
-#ifdef __KERNEL__
+/*
+ * The size of the user-visible VFP state as seen by PTRACE_GET/SETVFPREGS
+ * and core dumps.
+ */
+#define ARM_VFPREGS_SIZE ( 32 * 8 /*fpregs*/ + 4 /*fpscr*/ )
 
-#define arch_has_single_step()	(1)
+#ifdef __KERNEL__
 
 #define user_mode(regs)	\
 	(((regs)->ARM_cpsr & 0xf) == 0)

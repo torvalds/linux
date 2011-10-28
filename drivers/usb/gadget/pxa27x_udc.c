@@ -32,6 +32,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 
 #include <asm/byteorder.h>
 #include <mach/hardware.h>
@@ -602,7 +603,7 @@ static void inc_ep_stats_reqs(struct pxa_ep *ep, int is_in)
 /**
  * inc_ep_stats_bytes - Update ep stats counts
  * @ep: physical endpoint
- * @count: bytes transfered on endpoint
+ * @count: bytes transferred on endpoint
  * @is_in: ep direction (USB_DIR_IN or 0)
  */
 static void inc_ep_stats_bytes(struct pxa_ep *ep, int count, int is_in)
@@ -877,7 +878,7 @@ static void nuke(struct pxa_ep *ep, int status)
  * If there is less space in request than bytes received in OUT endpoint,
  * bytes are left in the OUT endpoint.
  *
- * Returns how many bytes were actually transfered
+ * Returns how many bytes were actually transferred
  */
 static int read_packet(struct pxa_ep *ep, struct pxa27x_request *req)
 {
@@ -914,7 +915,7 @@ static int read_packet(struct pxa_ep *ep, struct pxa27x_request *req)
  * endpoint. If there are no bytes to transfer, doesn't write anything
  * to physical endpoint.
  *
- * Returns how many bytes were actually transfered.
+ * Returns how many bytes were actually transferred.
  */
 static int write_packet(struct pxa_ep *ep, struct pxa27x_request *req,
 			unsigned int max)
@@ -991,7 +992,7 @@ static int read_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
  * caller guarantees at least one packet buffer is ready (or a zlp).
  * Doesn't complete the request, that's the caller's job
  *
- * Returns 1 if request fully transfered, 0 if partial transfer
+ * Returns 1 if request fully transferred, 0 if partial transfer
  */
 static int write_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
 {
@@ -1094,7 +1095,7 @@ static int read_ep0_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
  * Sends a request (or a part of the request) to the control endpoint (ep0 in).
  * If the request doesn't fit, the remaining part will be sent from irq.
  * The request is considered fully written only if either :
- *   - last write transfered all remaining bytes, but fifo was not fully filled
+ *   - last write transferred all remaining bytes, but fifo was not fully filled
  *   - last write was a 0 length write
  *
  * Returns 1 if request fully written, 0 if request only partially sent
@@ -1394,8 +1395,6 @@ static void pxa_ep_fifo_flush(struct usb_ep *_ep)
 	}
 
 	spin_unlock_irqrestore(&ep->lock, flags);
-
-	return;
 }
 
 /**
@@ -1550,7 +1549,7 @@ static int pxa_udc_get_frame(struct usb_gadget *_gadget)
  * pxa_udc_wakeup - Force udc device out of suspend
  * @_gadget: usb gadget
  *
- * Returns 0 if successfull, error code otherwise
+ * Returns 0 if successful, error code otherwise
  */
 static int pxa_udc_wakeup(struct usb_gadget *_gadget)
 {
@@ -1792,8 +1791,9 @@ static void udc_enable(struct pxa_udc *udc)
 }
 
 /**
- * usb_gadget_register_driver - Register gadget driver
+ * usb_gadget_probe_driver - Register gadget driver
  * @driver: gadget driver
+ * @bind: bind function
  *
  * When a driver is successfully registered, it will receive control requests
  * including set_configuration(), which enables non-control requests.  Then
@@ -1805,12 +1805,13 @@ static void udc_enable(struct pxa_udc *udc)
  *
  * Returns 0 if no error, -EINVAL, -ENODEV, -EBUSY otherwise
  */
-int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	struct pxa_udc *udc = the_controller;
 	int retval;
 
-	if (!driver || driver->speed < USB_SPEED_FULL || !driver->bind
+	if (!driver || driver->speed < USB_SPEED_FULL || !bind
 			|| !driver->disconnect || !driver->setup)
 		return -EINVAL;
 	if (!udc)
@@ -1828,7 +1829,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		dev_err(udc->dev, "device_add error %d\n", retval);
 		goto add_fail;
 	}
-	retval = driver->bind(&udc->gadget);
+	retval = bind(&udc->gadget);
 	if (retval) {
 		dev_err(udc->dev, "bind to driver %s --> error %d\n",
 			driver->driver.name, retval);
@@ -1859,7 +1860,7 @@ add_fail:
 	udc->gadget.dev.driver = NULL;
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 
 /**

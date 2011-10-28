@@ -13,6 +13,7 @@
 #ifndef _LINUX_SUNRPC_CACHE_H_
 #define _LINUX_SUNRPC_CACHE_H_
 
+#include <linux/kref.h>
 #include <linux/slab.h>
 #include <asm/atomic.h>
 #include <linux/proc_fs.h>
@@ -34,10 +35,10 @@
  * Each cache must be registered so that it can be cleaned regularly.
  * When the cache is unregistered, it is flushed completely.
  *
- * Entries have a ref count and a 'hashed' flag which counts the existance
+ * Entries have a ref count and a 'hashed' flag which counts the existence
  * in the hash table.
  * We only expire entries when refcount is zero.
- * Existance in the cache is counted  the refcount.
+ * Existence in the cache is counted  the refcount.
  */
 
 /* Every cache item has a common header that is used
@@ -125,12 +126,15 @@ struct cache_detail {
  */
 struct cache_req {
 	struct cache_deferred_req *(*defer)(struct cache_req *req);
+	int thread_wait;  /* How long (jiffies) we can block the
+			   * current thread to wait for updates.
+			   */
 };
 /* this must be embedded in a deferred_request that is being
  * delayed awaiting cache-fill
  */
 struct cache_deferred_req {
-	struct list_head	hash;	/* on hash chain */
+	struct hlist_node	hash;	/* on hash chain */
 	struct list_head	recent; /* on fifo */
 	struct cache_head	*item;  /* cache item we wait on */
 	void			*owner; /* we might need to discard all defered requests
@@ -194,7 +198,9 @@ extern void cache_purge(struct cache_detail *detail);
 #define NEVER (0x7FFFFFFF)
 extern void __init cache_initialize(void);
 extern int cache_register(struct cache_detail *cd);
+extern int cache_register_net(struct cache_detail *cd, struct net *net);
 extern void cache_unregister(struct cache_detail *cd);
+extern void cache_unregister_net(struct cache_detail *cd, struct net *net);
 
 extern int sunrpc_cache_register_pipefs(struct dentry *parent, const char *,
 					mode_t, struct cache_detail *);
@@ -218,14 +224,45 @@ static inline int get_int(char **bpp, int *anint)
 	return 0;
 }
 
+/*
+ * timestamps kept in the cache are expressed in seconds
+ * since boot.  This is the best for measuring differences in
+ * real time.
+ */
+static inline time_t seconds_since_boot(void)
+{
+	struct timespec boot;
+	getboottime(&boot);
+	return get_seconds() - boot.tv_sec;
+}
+
+static inline time_t convert_to_wallclock(time_t sinceboot)
+{
+	struct timespec boot;
+	getboottime(&boot);
+	return boot.tv_sec + sinceboot;
+}
+
 static inline time_t get_expiry(char **bpp)
 {
 	int rv;
+	struct timespec boot;
+
 	if (get_int(bpp, &rv))
 		return 0;
 	if (rv < 0)
 		return 0;
-	return rv;
+	getboottime(&boot);
+	return rv - boot.tv_sec;
 }
+
+#ifdef CONFIG_NFSD_DEPRECATED
+static inline void sunrpc_invalidate(struct cache_head *h,
+				     struct cache_detail *detail)
+{
+	h->expiry_time = seconds_since_boot() - 1;
+	detail->nextcheck = seconds_since_boot();
+}
+#endif /* CONFIG_NFSD_DEPRECATED */
 
 #endif /*  _LINUX_SUNRPC_CACHE_H_ */

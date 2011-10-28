@@ -5,6 +5,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/pfn.h>
+#include <linux/mm.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -28,23 +29,46 @@ typedef struct xpaddr {
 
 /**** MACHINE <-> PHYSICAL CONVERSION MACROS ****/
 #define INVALID_P2M_ENTRY	(~0UL)
-#define FOREIGN_FRAME_BIT	(1UL<<31)
+#define FOREIGN_FRAME_BIT	(1UL<<(BITS_PER_LONG-1))
+#define IDENTITY_FRAME_BIT	(1UL<<(BITS_PER_LONG-2))
 #define FOREIGN_FRAME(m)	((m) | FOREIGN_FRAME_BIT)
+#define IDENTITY_FRAME(m)	((m) | IDENTITY_FRAME_BIT)
 
 /* Maximum amount of memory we can handle in a domain in pages */
 #define MAX_DOMAIN_PAGES						\
     ((unsigned long)((u64)CONFIG_XEN_MAX_DOMAIN_MEMORY * 1024 * 1024 * 1024 / PAGE_SIZE))
 
+extern unsigned long *machine_to_phys_mapping;
+extern unsigned int   machine_to_phys_order;
 
 extern unsigned long get_phys_to_machine(unsigned long pfn);
-extern void set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+extern unsigned long set_phys_range_identity(unsigned long pfn_s,
+					     unsigned long pfn_e);
 
+extern int m2p_add_override(unsigned long mfn, struct page *page,
+			    bool clear_pte);
+extern int m2p_remove_override(struct page *page, bool clear_pte);
+extern struct page *m2p_find_override(unsigned long mfn);
+extern unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn);
+
+#ifdef CONFIG_XEN_DEBUG_FS
+extern int p2m_dump_show(struct seq_file *m, void *v);
+#endif
 static inline unsigned long pfn_to_mfn(unsigned long pfn)
 {
+	unsigned long mfn;
+
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return pfn;
 
-	return get_phys_to_machine(pfn) & ~FOREIGN_FRAME_BIT;
+	mfn = get_phys_to_machine(pfn);
+
+	if (mfn != INVALID_P2M_ENTRY)
+		mfn &= ~(FOREIGN_FRAME_BIT | IDENTITY_FRAME_BIT);
+
+	return mfn;
 }
 
 static inline int phys_to_machine_mapping_valid(unsigned long pfn)
@@ -58,22 +82,44 @@ static inline int phys_to_machine_mapping_valid(unsigned long pfn)
 static inline unsigned long mfn_to_pfn(unsigned long mfn)
 {
 	unsigned long pfn;
+	int ret = 0;
 
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return mfn;
 
-#if 0
-	if (unlikely((mfn >> machine_to_phys_order) != 0))
-		return max_mapnr;
-#endif
-
+	if (unlikely((mfn >> machine_to_phys_order) != 0)) {
+		pfn = ~0;
+		goto try_override;
+	}
 	pfn = 0;
 	/*
 	 * The array access can fail (e.g., device space beyond end of RAM).
 	 * In such cases it doesn't matter what we return (we return garbage),
 	 * but we must handle the fault without crashing!
 	 */
-	__get_user(pfn, &machine_to_phys_mapping[mfn]);
+	ret = __get_user(pfn, &machine_to_phys_mapping[mfn]);
+try_override:
+	/* ret might be < 0 if there are no entries in the m2p for mfn */
+	if (ret < 0)
+		pfn = ~0;
+	else if (get_phys_to_machine(pfn) != mfn)
+		/*
+		 * If this appears to be a foreign mfn (because the pfn
+		 * doesn't map back to the mfn), then check the local override
+		 * table to see if there's a better pfn to use.
+		 *
+		 * m2p_find_override_pfn returns ~0 if it doesn't find anything.
+		 */
+		pfn = m2p_find_override_pfn(mfn, ~0);
+
+	/* 
+	 * pfn is ~0 if there are no entries in the m2p for mfn or if the
+	 * entry doesn't map back to the mfn and m2p_override doesn't have a
+	 * valid entry for it.
+	 */
+	if (pfn == ~0 &&
+			get_phys_to_machine(mfn) == IDENTITY_FRAME(mfn))
+		pfn = mfn;
 
 	return pfn;
 }
@@ -159,6 +205,7 @@ static inline pte_t __pte_ma(pteval_t x)
 
 #define pgd_val_ma(x)	((x).pgd)
 
+void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid);
 
 xmaddr_t arbitrary_virt_to_machine(void *address);
 unsigned long arbitrary_virt_to_mfn(void *vaddr);

@@ -55,45 +55,9 @@ config IP_ADVANCED_ROUTER
 
 	  If unsure, say N here.
 
-choice
-	prompt "Choose IP: FIB lookup algorithm (choose FIB_HASH if unsure)"
-	depends on IP_ADVANCED_ROUTER
-	default ASK_IP_FIB_HASH
-
-config ASK_IP_FIB_HASH
-	bool "FIB_HASH"
-	---help---
-	  Current FIB is very proven and good enough for most users.
-
-config IP_FIB_TRIE
-	bool "FIB_TRIE"
-	---help---
-	  Use new experimental LC-trie as FIB lookup algorithm.
-	  This improves lookup performance if you have a large
-	  number of routes.
-
-	  LC-trie is a longest matching prefix lookup algorithm which
-	  performs better than FIB_HASH for large routing tables.
-	  But, it consumes more memory and is more complex.
-
-	  LC-trie is described in:
-
-	  IP-address lookup using LC-tries. Stefan Nilsson and Gunnar Karlsson
-	  IEEE Journal on Selected Areas in Communications, 17(6):1083-1092,
-	  June 1999
-
-	  An experimental study of compression methods for dynamic tries
-	  Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.
-	  http://www.nada.kth.se/~snilsson/public/papers/dyntrie2/
-
-endchoice
-
-config IP_FIB_HASH
-	def_bool ASK_IP_FIB_HASH || !IP_ADVANCED_ROUTER
-
 config IP_FIB_TRIE_STATS
 	bool "FIB TRIE statistics"
-	depends on IP_FIB_TRIE
+	depends on IP_ADVANCED_ROUTER
 	---help---
 	  Keep track of statistics on structure of FIB TRIE table.
 	  Useful for testing and measuring TRIE performance.
@@ -139,6 +103,9 @@ config IP_ROUTE_VERBOSE
 	  attack or a misconfigured system somewhere. The information is
 	  handled by the klogd daemon which is responsible for kernel messages
 	  ("man klogd").
+
+config IP_ROUTE_CLASSID
+	bool
 
 config IP_PNP
 	bool "IP: kernel level autoconfiguration"
@@ -215,9 +182,15 @@ config NET_IPIP
 	  be inserted in and removed from the running kernel whenever you
 	  want). Most people won't need this and can say N.
 
+config NET_IPGRE_DEMUX
+	tristate "IP: GRE demultiplexer"
+	help
+	 This is helper module to demultiplex GRE packets on GRE version field criteria.
+	 Required by ip_gre and pptp modules.
+
 config NET_IPGRE
 	tristate "IP: GRE tunnels over IP"
-	depends on IPV6 || IPV6=n
+	depends on (IPV6 || IPV6=n) && NET_IPGRE_DEMUX
 	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -426,7 +399,9 @@ config INET_DIAG
 	---help---
 	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
 	  native Linux tools such as ss. ss is included in iproute2, currently
-	  downloadable at <http://linux-net.osdl.org/index.php/Iproute2>.
+	  downloadable at:
+	  
+	    http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2
 
 	  If unsure, say Y.
 
@@ -556,7 +531,7 @@ config TCP_CONG_VENO
 	distinguishing to circumvent the difficult judgment of the packet loss
 	type. TCP Veno cuts down less congestion window in response to random
 	loss packets.
-	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
+	See <http://ieeexplore.ieee.org/xpl/freeabs_all.jsp?arnumber=1177186> 
 
 config TCP_CONG_YEAH
 	tristate "YeAH TCP"
@@ -649,4 +624,3 @@ config TCP_MD5SIG
 	  on the Internet.
 
 	  If unsure, say N.
-

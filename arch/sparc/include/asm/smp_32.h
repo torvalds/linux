@@ -29,9 +29,15 @@
  */
 
 extern unsigned char boot_cpu_id;
+extern volatile unsigned long cpu_callin_map[NR_CPUS];
+extern cpumask_t smp_commenced_mask;
+extern struct linux_prom_registers smp_penguin_ctable;
 
 typedef void (*smpfunc_t)(unsigned long, unsigned long, unsigned long,
 		       unsigned long, unsigned long);
+
+void cpu_panic(void);
+extern void smp4m_irq_rotate(int cpu);
 
 /*
  *	General functions that each host system must provide.
@@ -44,42 +50,38 @@ void smp_callin(void);
 void smp_boot_cpus(void);
 void smp_store_cpu_info(int);
 
+void smp_resched_interrupt(void);
+void smp_call_function_single_interrupt(void);
+void smp_call_function_interrupt(void);
+
 struct seq_file;
 void smp_bogo(struct seq_file *);
 void smp_info(struct seq_file *);
 
 BTFIXUPDEF_CALL(void, smp_cross_call, smpfunc_t, cpumask_t, unsigned long, unsigned long, unsigned long, unsigned long)
 BTFIXUPDEF_CALL(int, __hard_smp_processor_id, void)
+BTFIXUPDEF_CALL(void, smp_ipi_resched, int);
+BTFIXUPDEF_CALL(void, smp_ipi_single, int);
+BTFIXUPDEF_CALL(void, smp_ipi_mask_one, int);
 BTFIXUPDEF_BLACKBOX(hard_smp_processor_id)
 BTFIXUPDEF_BLACKBOX(load_current)
 
 #define smp_cross_call(func,mask,arg1,arg2,arg3,arg4) BTFIXUP_CALL(smp_cross_call)(func,mask,arg1,arg2,arg3,arg4)
 
-static inline void xc0(smpfunc_t func) { smp_cross_call(func, cpu_online_map, 0, 0, 0, 0); }
+static inline void xc0(smpfunc_t func) { smp_cross_call(func, *cpu_online_mask, 0, 0, 0, 0); }
 static inline void xc1(smpfunc_t func, unsigned long arg1)
-{ smp_cross_call(func, cpu_online_map, arg1, 0, 0, 0); }
+{ smp_cross_call(func, *cpu_online_mask, arg1, 0, 0, 0); }
 static inline void xc2(smpfunc_t func, unsigned long arg1, unsigned long arg2)
-{ smp_cross_call(func, cpu_online_map, arg1, arg2, 0, 0); }
+{ smp_cross_call(func, *cpu_online_mask, arg1, arg2, 0, 0); }
 static inline void xc3(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 			   unsigned long arg3)
-{ smp_cross_call(func, cpu_online_map, arg1, arg2, arg3, 0); }
+{ smp_cross_call(func, *cpu_online_mask, arg1, arg2, arg3, 0); }
 static inline void xc4(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 			   unsigned long arg3, unsigned long arg4)
-{ smp_cross_call(func, cpu_online_map, arg1, arg2, arg3, arg4); }
+{ smp_cross_call(func, *cpu_online_mask, arg1, arg2, arg3, arg4); }
 
-static inline int smp_call_function(void (*func)(void *info), void *info, int wait)
-{
-	xc1((smpfunc_t)func, (unsigned long)info);
-	return 0;
-}
-
-static inline int smp_call_function_single(int cpuid, void (*func) (void *info),
-					   void *info, int wait)
-{
-	smp_cross_call((smpfunc_t)func, cpumask_of_cpu(cpuid),
-		       (unsigned long) info, 0, 0, 0);
-	return 0;
-}
+extern void arch_send_call_function_single_ipi(int cpu);
+extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 static inline int cpu_logical_map(int cpu)
 {
@@ -129,6 +131,11 @@ static inline int hard_smp_processor_id(void)
 		__asm__ __volatile__("lda [%g0] ASI_M_VIKING_TMP1, %0\n\t"
 				     "nop; nop" :
 				     "=&r" (cpuid));
+		     - leon
+		__asm__ __volatile__(	"rd %asr17, %0\n\t"
+					"srl %0, 0x1c, %0\n\t"
+					"nop\n\t" :
+					"=&r" (cpuid));
 	   See btfixup.h and btfixupprep.c to understand how a blackbox works.
 	 */
 	__asm__ __volatile__("sethi %%hi(___b_hard_smp_processor_id), %0\n\t"

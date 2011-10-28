@@ -187,8 +187,8 @@
 
 	/* Register definitions for tlb miss handler macros */
 
-	va  = r8	/* virtual address for which the trap occured */
-	spc = r24	/* space for which the trap occured */
+	va  = r8	/* virtual address for which the trap occurred */
+	spc = r24	/* space for which the trap occurred */
 
 #ifndef CONFIG_64BIT
 
@@ -225,22 +225,13 @@
 #ifndef CONFIG_64BIT
 	/*
 	 * naitlb miss interruption handler (parisc 1.1 - 32 bit)
-	 *
-	 * Note: naitlb misses will be treated
-	 * as an ordinary itlb miss for now.
-	 * However, note that naitlb misses
-	 * have the faulting address in the
-	 * IOR/ISR.
 	 */
 
 	.macro	naitlb_11 code
 
 	mfctl	%isr,spc
-	b	itlb_miss_11
+	b	naitlb_miss_11
 	mfctl 	%ior,va
-	/* FIXME: If user causes a naitlb miss, the priv level may not be in
-	 * lower bits of va, where the itlb miss handler is expecting them
-	 */
 
 	.align		32
 	.endm
@@ -248,26 +239,17 @@
 	
 	/*
 	 * naitlb miss interruption handler (parisc 2.0)
-	 *
-	 * Note: naitlb misses will be treated
-	 * as an ordinary itlb miss for now.
-	 * However, note that naitlb misses
-	 * have the faulting address in the
-	 * IOR/ISR.
 	 */
 
 	.macro	naitlb_20 code
 
 	mfctl	%isr,spc
 #ifdef CONFIG_64BIT
-	b       itlb_miss_20w
+	b       naitlb_miss_20w
 #else
-	b	itlb_miss_20
+	b	naitlb_miss_20
 #endif
 	mfctl 	%ior,va
-	/* FIXME: If user causes a naitlb miss, the priv level may not be in
-	 * lower bits of va, where the itlb miss handler is expecting them
-	 */
 
 	.align		32
 	.endm
@@ -581,7 +563,24 @@
 	copy		\va,\tmp1
 	depi		0,31,23,\tmp1
 	cmpb,COND(<>),n	\tmp,\tmp1,\fault
-	ldi		(_PAGE_DIRTY|_PAGE_WRITE|_PAGE_READ),\prot
+	mfctl		%cr19,\tmp	/* iir */
+	/* get the opcode (first six bits) into \tmp */
+	extrw,u		\tmp,5,6,\tmp
+	/*
+	 * Only setting the T bit prevents data cache movein
+	 * Setting access rights to zero prevents instruction cache movein
+	 *
+	 * Note subtlety here: _PAGE_GATEWAY, _PAGE_EXEC and _PAGE_WRITE go
+	 * to type field and _PAGE_READ goes to top bit of PL1
+	 */
+	ldi		(_PAGE_REFTRAP|_PAGE_READ|_PAGE_WRITE),\prot
+	/*
+	 * so if the opcode is one (i.e. this is a memory management
+	 * instruction) nullify the next load so \prot is only T.
+	 * Otherwise this is a normal data operation
+	 */
+	cmpiclr,=	0x01,\tmp,%r0
+	ldi		(_PAGE_DIRTY|_PAGE_READ|_PAGE_WRITE),\prot
 	depd,z		\prot,8,7,\prot
 	/*
 	 * OK, it is in the temp alias region, check whether "from" or "to".
@@ -631,11 +630,7 @@ ENTRY(fault_vector_20)
 	def		13
 	def		14
 	dtlb_20		15
-#if 0
 	naitlb_20	16
-#else
-	def             16
-#endif
 	nadtlb_20	17
 	def		18
 	def		19
@@ -678,11 +673,7 @@ ENTRY(fault_vector_11)
 	def		13
 	def		14
 	dtlb_11		15
-#if 0
 	naitlb_11	16
-#else
-	def             16
-#endif
 	nadtlb_11	17
 	def		18
 	def		19
@@ -701,6 +692,9 @@ ENTRY(fault_vector_11)
 END(fault_vector_11)
 
 #endif
+	/* Fault vector is separately protected and *must* be on its own page */
+	.align		PAGE_SIZE
+ENTRY(end_fault_vector)
 
 	.import		handle_interruption,code
 	.import		do_cpu_irq_mask,code
@@ -891,7 +885,7 @@ ENTRY(syscall_exit_rfi)
 	 * (we don't store them in the sigcontext), so set them
 	 * to "proper" values now (otherwise we'll wind up restoring
 	 * whatever was last stored in the task structure, which might
-	 * be inconsistent if an interrupt occured while on the gateway
+	 * be inconsistent if an interrupt occurred while on the gateway
 	 * page). Note that we may be "trashing" values the user put in
 	 * them, but we don't support the user changing them.
 	 */
@@ -1165,11 +1159,11 @@ ENDPROC(intr_save)
 	 */
 
 	t0 = r1		/* temporary register 0 */
-	va = r8		/* virtual address for which the trap occured */
+	va = r8		/* virtual address for which the trap occurred */
 	t1 = r9		/* temporary register 1 */
 	pte  = r16	/* pte/phys page # */
 	prot = r17	/* prot bits */
-	spc  = r24	/* space for which the trap occured */
+	spc  = r24	/* space for which the trap occurred */
 	ptp = r25	/* page directory/page table pointer */
 
 #ifdef CONFIG_64BIT
@@ -1203,7 +1197,7 @@ nadtlb_miss_20w:
 	get_pgd		spc,ptp
 	space_check	spc,t0,nadtlb_fault
 
-	L3_ptep		ptp,pte,t0,va,nadtlb_check_flush_20w
+	L3_ptep		ptp,pte,t0,va,nadtlb_check_alias_20w
 
 	update_ptep	ptp,pte,t0,t1
 
@@ -1214,16 +1208,8 @@ nadtlb_miss_20w:
 	rfir
 	nop
 
-nadtlb_check_flush_20w:
-	bb,>=,n          pte,_PAGE_FLUSH_BIT,nadtlb_emulate
-
-	/* Insert a "flush only" translation */
-
-	depdi,z         7,7,3,prot
-	depdi           1,10,1,prot
-
-	/* Drop prot bits from pte and convert to page addr for idtlbt */
-	convert_for_tlb_insert20 pte
+nadtlb_check_alias_20w:
+	do_alias	spc,t0,t1,va,pte,prot,nadtlb_emulate
 
 	idtlbt          pte,prot
 
@@ -1255,25 +1241,7 @@ dtlb_miss_11:
 	nop
 
 dtlb_check_alias_11:
-
-	/* Check to see if fault is in the temporary alias region */
-
-	cmpib,<>,n      0,spc,dtlb_fault /* forward */
-	ldil            L%(TMPALIAS_MAP_START),t0
-	copy            va,t1
-	depwi           0,31,23,t1
-	cmpb,<>,n       t0,t1,dtlb_fault /* forward */
-	ldi             (_PAGE_DIRTY|_PAGE_WRITE|_PAGE_READ),prot
-	depw,z          prot,8,7,prot
-
-	/*
-	 * OK, it is in the temp alias region, check whether "from" or "to".
-	 * Check "subtle" note in pacache.S re: r23/r26.
-	 */
-
-	extrw,u,=       va,9,1,r0
-	or,tr           %r23,%r0,pte    /* If "from" use "from" page */
-	or              %r26,%r0,pte    /* else "to", use "to" page  */
+	do_alias	spc,t0,t1,va,pte,prot,dtlb_fault
 
 	idtlba          pte,(va)
 	idtlbp          prot,(va)
@@ -1286,7 +1254,7 @@ nadtlb_miss_11:
 
 	space_check	spc,t0,nadtlb_fault
 
-	L2_ptep		ptp,pte,t0,va,nadtlb_check_flush_11
+	L2_ptep		ptp,pte,t0,va,nadtlb_check_alias_11
 
 	update_ptep	ptp,pte,t0,t1
 
@@ -1304,26 +1272,11 @@ nadtlb_miss_11:
 	rfir
 	nop
 
-nadtlb_check_flush_11:
-	bb,>=,n          pte,_PAGE_FLUSH_BIT,nadtlb_emulate
+nadtlb_check_alias_11:
+	do_alias	spc,t0,t1,va,pte,prot,nadtlb_emulate
 
-	/* Insert a "flush only" translation */
-
-	zdepi           7,7,3,prot
-	depi            1,10,1,prot
-
-	/* Get rid of prot bits and convert to page addr for idtlba */
-
-	depi		0,31,ASM_PFN_PTE_SHIFT,pte
-	SHRREG		pte,(ASM_PFN_PTE_SHIFT-(31-26)),pte
-
-	mfsp		%sr1,t0  /* Save sr1 so we can use it in tlb inserts */
-	mtsp		spc,%sr1
-
-	idtlba		pte,(%sr1,va)
-	idtlbp		prot,(%sr1,va)
-
-	mtsp		t0, %sr1	/* Restore sr1 */
+	idtlba          pte,(va)
+	idtlbp          prot,(va)
 
 	rfir
 	nop
@@ -1359,7 +1312,7 @@ nadtlb_miss_20:
 
 	space_check	spc,t0,nadtlb_fault
 
-	L2_ptep		ptp,pte,t0,va,nadtlb_check_flush_20
+	L2_ptep		ptp,pte,t0,va,nadtlb_check_alias_20
 
 	update_ptep	ptp,pte,t0,t1
 
@@ -1372,21 +1325,14 @@ nadtlb_miss_20:
 	rfir
 	nop
 
-nadtlb_check_flush_20:
-	bb,>=,n          pte,_PAGE_FLUSH_BIT,nadtlb_emulate
-
-	/* Insert a "flush only" translation */
-
-	depdi,z         7,7,3,prot
-	depdi           1,10,1,prot
-
-	/* Drop prot bits from pte and convert to page addr for idtlbt */
-	convert_for_tlb_insert20 pte
+nadtlb_check_alias_20:
+	do_alias	spc,t0,t1,va,pte,prot,nadtlb_emulate
 
 	idtlbt          pte,prot
 
 	rfir
 	nop
+
 #endif
 
 nadtlb_emulate:
@@ -1484,6 +1430,36 @@ itlb_miss_20w:
 	rfir
 	nop
 
+naitlb_miss_20w:
+
+	/*
+	 * I miss is a little different, since we allow users to fault
+	 * on the gateway page which is in the kernel address space.
+	 */
+
+	space_adjust	spc,va,t0
+	get_pgd		spc,ptp
+	space_check	spc,t0,naitlb_fault
+
+	L3_ptep		ptp,pte,t0,va,naitlb_check_alias_20w
+
+	update_ptep	ptp,pte,t0,t1
+
+	make_insert_tlb	spc,pte,prot
+
+	iitlbt          pte,prot
+
+	rfir
+	nop
+
+naitlb_check_alias_20w:
+	do_alias	spc,t0,t1,va,pte,prot,naitlb_fault
+
+	iitlbt		pte,prot
+
+	rfir
+	nop
+
 #else
 
 itlb_miss_11:
@@ -1508,6 +1484,38 @@ itlb_miss_11:
 	rfir
 	nop
 
+naitlb_miss_11:
+	get_pgd		spc,ptp
+
+	space_check	spc,t0,naitlb_fault
+
+	L2_ptep		ptp,pte,t0,va,naitlb_check_alias_11
+
+	update_ptep	ptp,pte,t0,t1
+
+	make_insert_tlb_11	spc,pte,prot
+
+	mfsp		%sr1,t0  /* Save sr1 so we can use it in tlb inserts */
+	mtsp		spc,%sr1
+
+	iitlba		pte,(%sr1,va)
+	iitlbp		prot,(%sr1,va)
+
+	mtsp		t0, %sr1	/* Restore sr1 */
+
+	rfir
+	nop
+
+naitlb_check_alias_11:
+	do_alias	spc,t0,t1,va,pte,prot,itlb_fault
+
+	iitlba          pte,(%sr0, va)
+	iitlbp          prot,(%sr0, va)
+
+	rfir
+	nop
+
+
 itlb_miss_20:
 	get_pgd		spc,ptp
 
@@ -1520,6 +1528,32 @@ itlb_miss_20:
 	make_insert_tlb	spc,pte,prot
 
 	f_extend	pte,t0	
+
+	iitlbt          pte,prot
+
+	rfir
+	nop
+
+naitlb_miss_20:
+	get_pgd		spc,ptp
+
+	space_check	spc,t0,naitlb_fault
+
+	L2_ptep		ptp,pte,t0,va,naitlb_check_alias_20
+
+	update_ptep	ptp,pte,t0,t1
+
+	make_insert_tlb	spc,pte,prot
+
+	f_extend	pte,t0
+
+	iitlbt          pte,prot
+
+	rfir
+	nop
+
+naitlb_check_alias_20:
+	do_alias	spc,t0,t1,va,pte,prot,naitlb_fault
 
 	iitlbt          pte,prot
 
@@ -1661,6 +1695,10 @@ itlb_fault:
 nadtlb_fault:
 	b               intr_save
 	ldi             17,%r8
+
+naitlb_fault:
+	b               intr_save
+	ldi             16,%r8
 
 dtlb_fault:
 	b               intr_save

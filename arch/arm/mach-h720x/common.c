@@ -52,17 +52,17 @@ unsigned long h720x_gettimeoffset(void)
 /*
  * mask Global irq's
  */
-static void mask_global_irq (unsigned int irq )
+static void mask_global_irq(struct irq_data *d)
 {
-	CPU_REG (IRQC_VIRT, IRQC_IER) &= ~(1 << irq);
+	CPU_REG (IRQC_VIRT, IRQC_IER) &= ~(1 << d->irq);
 }
 
 /*
  * unmask Global irq's
  */
-static void unmask_global_irq (unsigned int irq )
+static void unmask_global_irq(struct irq_data *d)
 {
-	CPU_REG (IRQC_VIRT, IRQC_IER) |= (1 << irq);
+	CPU_REG (IRQC_VIRT, IRQC_IER) |= (1 << d->irq);
 }
 
 
@@ -70,10 +70,10 @@ static void unmask_global_irq (unsigned int irq )
  * ack GPIO irq's
  * Ack only for edge triggered int's valid
  */
-static void inline ack_gpio_irq(u32 irq)
+static void inline ack_gpio_irq(struct irq_data *d)
 {
-	u32 reg_base = GPIO_VIRT(IRQ_TO_REGNO(irq));
-	u32 bit = IRQ_TO_BIT(irq);
+	u32 reg_base = GPIO_VIRT(IRQ_TO_REGNO(d->irq));
+	u32 bit = IRQ_TO_BIT(d->irq);
 	if ( (CPU_REG (reg_base, GPIO_EDGE) & bit))
 		CPU_REG (reg_base, GPIO_CLR) = bit;
 }
@@ -81,20 +81,20 @@ static void inline ack_gpio_irq(u32 irq)
 /*
  * mask GPIO irq's
  */
-static void inline mask_gpio_irq(u32 irq)
+static void inline mask_gpio_irq(struct irq_data *d)
 {
-	u32 reg_base = GPIO_VIRT(IRQ_TO_REGNO(irq));
-	u32 bit = IRQ_TO_BIT(irq);
+	u32 reg_base = GPIO_VIRT(IRQ_TO_REGNO(d->irq));
+	u32 bit = IRQ_TO_BIT(d->irq);
 	CPU_REG (reg_base, GPIO_MASK) &= ~bit;
 }
 
 /*
  * unmask GPIO irq's
  */
-static void inline unmask_gpio_irq(u32 irq)
+static void inline unmask_gpio_irq(struct irq_data *d)
 {
-	u32 reg_base = GPIO_VIRT(IRQ_TO_REGNO(irq));
-	u32 bit = IRQ_TO_BIT(irq);
+	u32 reg_base = GPIO_VIRT(IRQ_TO_REGNO(d->irq));
+	u32 bit = IRQ_TO_BIT(d->irq);
 	CPU_REG (reg_base, GPIO_MASK) |= bit;
 }
 
@@ -170,15 +170,15 @@ h720x_gpioe_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 #endif
 
 static struct irq_chip h720x_global_chip = {
-	.ack = mask_global_irq,
-	.mask = mask_global_irq,
-	.unmask = unmask_global_irq,
+	.irq_ack = mask_global_irq,
+	.irq_mask = mask_global_irq,
+	.irq_unmask = unmask_global_irq,
 };
 
 static struct irq_chip h720x_gpio_chip = {
-	.ack = ack_gpio_irq,
-	.mask = mask_gpio_irq,
-	.unmask = unmask_gpio_irq,
+	.irq_ack = ack_gpio_irq,
+	.irq_mask = mask_gpio_irq,
+	.irq_unmask = unmask_gpio_irq,
 };
 
 /*
@@ -199,29 +199,29 @@ void __init h720x_init_irq (void)
 
 	/* Initialize global IRQ's, fast path */
 	for (irq = 0; irq < NR_GLBL_IRQS; irq++) {
-		set_irq_chip(irq, &h720x_global_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &h720x_global_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	/* Initialize multiplexed IRQ's, slow path */
 	for (irq = IRQ_CHAINED_GPIOA(0) ; irq <= IRQ_CHAINED_GPIOD(31); irq++) {
-		set_irq_chip(irq, &h720x_gpio_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &h720x_gpio_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID );
 	}
-	set_irq_chained_handler(IRQ_GPIOA, h720x_gpioa_demux_handler);
-	set_irq_chained_handler(IRQ_GPIOB, h720x_gpiob_demux_handler);
-	set_irq_chained_handler(IRQ_GPIOC, h720x_gpioc_demux_handler);
-	set_irq_chained_handler(IRQ_GPIOD, h720x_gpiod_demux_handler);
+	irq_set_chained_handler(IRQ_GPIOA, h720x_gpioa_demux_handler);
+	irq_set_chained_handler(IRQ_GPIOB, h720x_gpiob_demux_handler);
+	irq_set_chained_handler(IRQ_GPIOC, h720x_gpioc_demux_handler);
+	irq_set_chained_handler(IRQ_GPIOD, h720x_gpiod_demux_handler);
 
 #ifdef CONFIG_CPU_H7202
 	for (irq = IRQ_CHAINED_GPIOE(0) ; irq <= IRQ_CHAINED_GPIOE(31); irq++) {
-		set_irq_chip(irq, &h720x_gpio_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &h720x_gpio_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID );
 	}
-	set_irq_chained_handler(IRQ_GPIOE, h720x_gpioe_demux_handler);
+	irq_set_chained_handler(IRQ_GPIOE, h720x_gpioe_demux_handler);
 #endif
 
 	/* Enable multiplexed irq's */

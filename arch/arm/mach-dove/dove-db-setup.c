@@ -94,11 +94,10 @@ static void __init dove_db_init(void)
 }
 
 MACHINE_START(DOVE_DB, "Marvell DB-MV88AP510-BP Development Board")
-	.phys_io	= DOVE_SB_REGS_PHYS_BASE,
-	.io_pg_offst	= ((DOVE_SB_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= dove_db_init,
 	.map_io		= dove_map_io,
+	.init_early	= dove_init_early,
 	.init_irq	= dove_init_irq,
 	.timer		= &dove_timer,
 MACHINE_END

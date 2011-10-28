@@ -58,6 +58,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	info->control.vif = &sta->sdata->vif;
 	info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING |
 		       IEEE80211_TX_INTFL_RETRANSMISSION;
+	info->flags &= ~IEEE80211_TX_TEMPORARY_FLAGS;
 
 	sta->tx_filtered_count++;
 
@@ -97,6 +98,10 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	 *  (b) always process RX events before TX status events if ordering
 	 *      can be unknown, for example with different interrupt status
 	 *	bits.
+	 *  (c) if PS mode transitions are manual (i.e. the flag
+	 *      %IEEE80211_HW_AP_LINK_PS is set), always process PS state
+	 *      changes before calling TX status events if ordering can be
+	 *	unknown.
 	 */
 	if (test_sta_flags(sta, WLAN_STA_PS_STA) &&
 	    skb_queue_len(&sta->tx_filtered) < STA_MAX_TX_BUFFER) {
@@ -114,11 +119,10 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	if (net_ratelimit())
-		printk(KERN_DEBUG "%s: dropped TX filtered frame, "
-		       "queue_len=%d PS=%d @%lu\n",
-		       wiphy_name(local->hw.wiphy),
-		       skb_queue_len(&sta->tx_filtered),
-		       !!test_sta_flags(sta, WLAN_STA_PS_STA), jiffies);
+		wiphy_debug(local->hw.wiphy,
+			    "dropped TX filtered frame, queue_len=%d PS=%d @%lu\n",
+			    skb_queue_len(&sta->tx_filtered),
+			    !!test_sta_flags(sta, WLAN_STA_PS_STA), jiffies);
 #endif
 	dev_kfree_skb(skb);
 }
@@ -157,6 +161,15 @@ static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 	}
 }
 
+/*
+ * Use a static threshold for now, best value to be determined
+ * by testing ...
+ * Should it depend on:
+ *  - on # of retransmissions
+ *  - current throughput (higher value for higher tpt)?
+ */
+#define STA_LOST_PKT_THRESHOLD	50
+
 void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct sk_buff *skb2;
@@ -173,18 +186,22 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	int retry_count = -1, i;
 	int rates_idx = -1;
 	bool send_to_cooked;
+	bool acked;
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
-		/* the HW cannot have attempted that rate */
-		if (i >= hw->max_rates) {
+		if (info->status.rates[i].idx < 0) {
+			break;
+		} else if (i >= hw->max_report_rates) {
+			/* the HW cannot have attempted that rate */
 			info->status.rates[i].idx = -1;
 			info->status.rates[i].count = 0;
-		} else if (info->status.rates[i].idx >= 0) {
-			rates_idx = i;
+			break;
 		}
 
 		retry_count += info->status.rates[i].count;
 	}
+	rates_idx = i - 1;
+
 	if (retry_count < 0)
 		retry_count = 0;
 
@@ -198,8 +215,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (memcmp(hdr->addr2, sta->sdata->vif.addr, ETH_ALEN))
 			continue;
 
-		if (!(info->flags & IEEE80211_TX_STAT_ACK) &&
-		    test_sta_flags(sta, WLAN_STA_PS_STA)) {
+		acked = !!(info->flags & IEEE80211_TX_STAT_ACK);
+		if (!acked && test_sta_flags(sta, WLAN_STA_PS_STA)) {
 			/*
 			 * The STA is in power save mode, so assume
 			 * that this TX packet failed because of that.
@@ -231,7 +248,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			rcu_read_unlock();
 			return;
 		} else {
-			if (!(info->flags & IEEE80211_TX_STAT_ACK))
+			if (!acked)
 				sta->tx_retry_failed++;
 			sta->tx_retry_count += retry_count;
 		}
@@ -240,9 +257,25 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (ieee80211_vif_is_mesh(&sta->sdata->vif))
 			ieee80211s_update_metric(local, sta, skb);
 
-		if (!(info->flags & IEEE80211_TX_CTL_INJECTED) &&
-		    (info->flags & IEEE80211_TX_STAT_ACK))
+		if (!(info->flags & IEEE80211_TX_CTL_INJECTED) && acked)
 			ieee80211_frame_acked(sta, skb);
+
+		if ((sta->sdata->vif.type == NL80211_IFTYPE_STATION) &&
+		    (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS))
+			ieee80211_sta_tx_notify(sta->sdata, (void *) skb->data, acked);
+
+		if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
+			if (info->flags & IEEE80211_TX_STAT_ACK) {
+				if (sta->lost_packets)
+					sta->lost_packets = 0;
+			} else if (++sta->lost_packets >= STA_LOST_PKT_THRESHOLD) {
+				cfg80211_cqm_pktloss_notify(sta->sdata->dev,
+							    sta->sta.addr,
+							    sta->lost_packets,
+							    GFP_ATOMIC);
+				sta->lost_packets = 0;
+			}
+		}
 	}
 
 	rcu_read_unlock();
@@ -288,17 +321,37 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (info->flags & IEEE80211_TX_STAT_ACK) {
 			local->ps_sdata->u.mgd.flags |=
 					IEEE80211_STA_NULLFUNC_ACKED;
-			ieee80211_queue_work(&local->hw,
-					&local->dynamic_ps_enable_work);
 		} else
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 					msecs_to_jiffies(10));
 	}
 
-	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX)
-		cfg80211_action_tx_status(
-			skb->dev, (unsigned long) skb, skb->data, skb->len,
+	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX) {
+		struct ieee80211_work *wk;
+		u64 cookie = (unsigned long)skb;
+
+		rcu_read_lock();
+		list_for_each_entry_rcu(wk, &local->work_list, list) {
+			if (wk->type != IEEE80211_WORK_OFFCHANNEL_TX)
+				continue;
+			if (wk->offchan_tx.frame != skb)
+				continue;
+			wk->offchan_tx.frame = NULL;
+			break;
+		}
+		rcu_read_unlock();
+		if (local->hw_roc_skb_for_status == skb) {
+			cookie = local->hw_roc_cookie ^ 2;
+			local->hw_roc_skb_for_status = NULL;
+		}
+
+		if (cookie == local->hw_offchan_tx_cookie)
+			local->hw_offchan_tx_cookie = 0;
+
+		cfg80211_mgmt_tx_status(
+			skb->dev, cookie, skb->data, skb->len,
 			!!(info->flags & IEEE80211_TX_STAT_ACK), GFP_ATOMIC);
+	}
 
 	/* this was a transmitted frame, but now we want to reuse it */
 	skb_orphan(skb);
@@ -393,3 +446,11 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	dev_kfree_skb(skb);
 }
 EXPORT_SYMBOL(ieee80211_tx_status);
+
+void ieee80211_report_low_ack(struct ieee80211_sta *pubsta, u32 num_packets)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+	cfg80211_cqm_pktloss_notify(sta->sdata->dev, sta->sta.addr,
+				    num_packets, GFP_ATOMIC);
+}
+EXPORT_SYMBOL(ieee80211_report_low_ack);

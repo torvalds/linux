@@ -55,6 +55,9 @@
 #include <linux/async.h>
 #include <linux/percpu.h>
 #include <linux/kmemleak.h>
+#include <linux/jump_label.h>
+#include <linux/pfn.h>
+#include <linux/bsearch.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/module.h>
@@ -68,6 +71,26 @@
 #ifndef ARCH_SHF_SMALL
 #define ARCH_SHF_SMALL 0
 #endif
+
+/*
+ * Modules' sections will be aligned on page boundaries
+ * to ensure complete separation of code and data, but
+ * only when CONFIG_DEBUG_SET_MODULE_RONX=y
+ */
+#ifdef CONFIG_DEBUG_SET_MODULE_RONX
+# define debug_align(X) ALIGN(X, PAGE_SIZE)
+#else
+# define debug_align(X) (X)
+#endif
+
+/*
+ * Given BASE and SIZE this macro calculates the number of pages the
+ * memory regions occupies
+ */
+#define MOD_NUMBER_OF_PAGES(BASE, SIZE) (((SIZE) > 0) ?		\
+		(PFN_DOWN((unsigned long)(BASE) + (SIZE) - 1) -	\
+			 PFN_DOWN((unsigned long)BASE) + 1)	\
+		: (0UL))
 
 /* If this is set, the section belongs in the init part of the module */
 #define INIT_OFFSET_MASK (1UL << (BITS_PER_LONG-1))
@@ -218,23 +241,24 @@ static bool each_symbol_in_section(const struct symsearch *arr,
 				   struct module *owner,
 				   bool (*fn)(const struct symsearch *syms,
 					      struct module *owner,
-					      unsigned int symnum, void *data),
+					      void *data),
 				   void *data)
 {
-	unsigned int i, j;
+	unsigned int j;
 
 	for (j = 0; j < arrsize; j++) {
-		for (i = 0; i < arr[j].stop - arr[j].start; i++)
-			if (fn(&arr[j], owner, i, data))
-				return true;
+		if (fn(&arr[j], owner, data))
+			return true;
 	}
 
 	return false;
 }
 
 /* Returns true as soon as fn returns true, otherwise false. */
-bool each_symbol(bool (*fn)(const struct symsearch *arr, struct module *owner,
-			    unsigned int symnum, void *data), void *data)
+bool each_symbol_section(bool (*fn)(const struct symsearch *arr,
+				    struct module *owner,
+				    void *data),
+			 void *data)
 {
 	struct module *mod;
 	static const struct symsearch arr[] = {
@@ -287,7 +311,7 @@ bool each_symbol(bool (*fn)(const struct symsearch *arr, struct module *owner,
 	}
 	return false;
 }
-EXPORT_SYMBOL_GPL(each_symbol);
+EXPORT_SYMBOL_GPL(each_symbol_section);
 
 struct find_symbol_arg {
 	/* Input */
@@ -301,14 +325,11 @@ struct find_symbol_arg {
 	const struct kernel_symbol *sym;
 };
 
-static bool find_symbol_in_section(const struct symsearch *syms,
-				   struct module *owner,
-				   unsigned int symnum, void *data)
+static bool check_symbol(const struct symsearch *syms,
+				 struct module *owner,
+				 unsigned int symnum, void *data)
 {
 	struct find_symbol_arg *fsa = data;
-
-	if (strcmp(syms->start[symnum].name, fsa->name) != 0)
-		return false;
 
 	if (!fsa->gplok) {
 		if (syms->licence == GPL_ONLY)
@@ -343,6 +364,30 @@ static bool find_symbol_in_section(const struct symsearch *syms,
 	return true;
 }
 
+static int cmp_name(const void *va, const void *vb)
+{
+	const char *a;
+	const struct kernel_symbol *b;
+	a = va; b = vb;
+	return strcmp(a, b->name);
+}
+
+static bool find_symbol_in_section(const struct symsearch *syms,
+				   struct module *owner,
+				   void *data)
+{
+	struct find_symbol_arg *fsa = data;
+	struct kernel_symbol *sym;
+
+	sym = bsearch(fsa->name, syms->start, syms->stop - syms->start,
+			sizeof(struct kernel_symbol), cmp_name);
+
+	if (sym != NULL && check_symbol(syms, owner, sym - syms->start, data))
+		return true;
+
+	return false;
+}
+
 /* Find a symbol and return it, along with, (optional) crc and
  * (optional) module which owns it.  Needs preempt disabled or module_mutex. */
 const struct kernel_symbol *find_symbol(const char *name,
@@ -357,7 +402,7 @@ const struct kernel_symbol *find_symbol(const char *name,
 	fsa.gplok = gplok;
 	fsa.warn = warn;
 
-	if (each_symbol(find_symbol_in_section, &fsa)) {
+	if (each_symbol_section(find_symbol_in_section, &fsa)) {
 		if (owner)
 			*owner = fsa.owner;
 		if (crc)
@@ -787,7 +832,7 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 		wait_for_zero_refcount(mod);
 
 	mutex_unlock(&module_mutex);
-	/* Final destruction now noone is using it. */
+	/* Final destruction now no one is using it. */
 	if (mod->exit != NULL)
 		mod->exit();
 	blocking_notifier_call_chain(&module_notify_list,
@@ -1146,7 +1191,7 @@ static ssize_t module_sect_show(struct module_attribute *mattr,
 {
 	struct module_sect_attr *sattr =
 		container_of(mattr, struct module_sect_attr, mattr);
-	return sprintf(buf, "0x%lx\n", sattr->address);
+	return sprintf(buf, "0x%pK\n", (void *)sattr->address);
 }
 
 static void free_sect_attrs(struct module_sect_attrs *sect_attrs)
@@ -1541,6 +1586,117 @@ static int __unlink_module(void *_mod)
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_SET_MODULE_RONX
+/*
+ * LKM RO/NX protection: protect module's text/ro-data
+ * from modification and any data from execution.
+ */
+void set_page_attributes(void *start, void *end, int (*set)(unsigned long start, int num_pages))
+{
+	unsigned long begin_pfn = PFN_DOWN((unsigned long)start);
+	unsigned long end_pfn = PFN_DOWN((unsigned long)end);
+
+	if (end_pfn > begin_pfn)
+		set(begin_pfn << PAGE_SHIFT, end_pfn - begin_pfn);
+}
+
+static void set_section_ro_nx(void *base,
+			unsigned long text_size,
+			unsigned long ro_size,
+			unsigned long total_size)
+{
+	/* begin and end PFNs of the current subsection */
+	unsigned long begin_pfn;
+	unsigned long end_pfn;
+
+	/*
+	 * Set RO for module text and RO-data:
+	 * - Always protect first page.
+	 * - Do not protect last partial page.
+	 */
+	if (ro_size > 0)
+		set_page_attributes(base, base + ro_size, set_memory_ro);
+
+	/*
+	 * Set NX permissions for module data:
+	 * - Do not protect first partial page.
+	 * - Always protect last page.
+	 */
+	if (total_size > text_size) {
+		begin_pfn = PFN_UP((unsigned long)base + text_size);
+		end_pfn = PFN_UP((unsigned long)base + total_size);
+		if (end_pfn > begin_pfn)
+			set_memory_nx(begin_pfn << PAGE_SHIFT, end_pfn - begin_pfn);
+	}
+}
+
+static void unset_module_core_ro_nx(struct module *mod)
+{
+	set_page_attributes(mod->module_core + mod->core_text_size,
+		mod->module_core + mod->core_size,
+		set_memory_x);
+	set_page_attributes(mod->module_core,
+		mod->module_core + mod->core_ro_size,
+		set_memory_rw);
+}
+
+static void unset_module_init_ro_nx(struct module *mod)
+{
+	set_page_attributes(mod->module_init + mod->init_text_size,
+		mod->module_init + mod->init_size,
+		set_memory_x);
+	set_page_attributes(mod->module_init,
+		mod->module_init + mod->init_ro_size,
+		set_memory_rw);
+}
+
+/* Iterate through all modules and set each module's text as RW */
+void set_all_modules_text_rw(void)
+{
+	struct module *mod;
+
+	mutex_lock(&module_mutex);
+	list_for_each_entry_rcu(mod, &modules, list) {
+		if ((mod->module_core) && (mod->core_text_size)) {
+			set_page_attributes(mod->module_core,
+						mod->module_core + mod->core_text_size,
+						set_memory_rw);
+		}
+		if ((mod->module_init) && (mod->init_text_size)) {
+			set_page_attributes(mod->module_init,
+						mod->module_init + mod->init_text_size,
+						set_memory_rw);
+		}
+	}
+	mutex_unlock(&module_mutex);
+}
+
+/* Iterate through all modules and set each module's text as RO */
+void set_all_modules_text_ro(void)
+{
+	struct module *mod;
+
+	mutex_lock(&module_mutex);
+	list_for_each_entry_rcu(mod, &modules, list) {
+		if ((mod->module_core) && (mod->core_text_size)) {
+			set_page_attributes(mod->module_core,
+						mod->module_core + mod->core_text_size,
+						set_memory_ro);
+		}
+		if ((mod->module_init) && (mod->init_text_size)) {
+			set_page_attributes(mod->module_init,
+						mod->module_init + mod->init_text_size,
+						set_memory_ro);
+		}
+	}
+	mutex_unlock(&module_mutex);
+}
+#else
+static inline void set_section_ro_nx(void *base, unsigned long text_size, unsigned long ro_size, unsigned long total_size) { }
+static void unset_module_core_ro_nx(struct module *mod) { }
+static void unset_module_init_ro_nx(struct module *mod) { }
+#endif
+
 /* Free a module, remove from lists, etc. */
 static void free_module(struct module *mod)
 {
@@ -1565,6 +1721,7 @@ static void free_module(struct module *mod)
 	destroy_params(mod->kp, mod->num_kp);
 
 	/* This may be NULL, but that's OK */
+	unset_module_init_ro_nx(mod);
 	module_free(mod, mod->module_init);
 	kfree(mod->args);
 	percpu_modfree(mod);
@@ -1573,6 +1730,7 @@ static void free_module(struct module *mod)
 	lockdep_free_key_range(mod->module_core, mod->core_size);
 
 	/* Finally, free the core (containing the module structure) */
+	unset_module_core_ro_nx(mod);
 	module_free(mod, mod->module_core);
 
 #ifdef CONFIG_MPU
@@ -1776,8 +1934,19 @@ static void layout_sections(struct module *mod, struct load_info *info)
 			s->sh_entsize = get_offset(mod, &mod->core_size, s, i);
 			DEBUGP("\t%s\n", name);
 		}
-		if (m == 0)
+		switch (m) {
+		case 0: /* executable */
+			mod->core_size = debug_align(mod->core_size);
 			mod->core_text_size = mod->core_size;
+			break;
+		case 1: /* RO: text and ro-data */
+			mod->core_size = debug_align(mod->core_size);
+			mod->core_ro_size = mod->core_size;
+			break;
+		case 3: /* whole core */
+			mod->core_size = debug_align(mod->core_size);
+			break;
+		}
 	}
 
 	DEBUGP("Init section allocation order:\n");
@@ -1795,8 +1964,19 @@ static void layout_sections(struct module *mod, struct load_info *info)
 					 | INIT_OFFSET_MASK);
 			DEBUGP("\t%s\n", sname);
 		}
-		if (m == 0)
+		switch (m) {
+		case 0: /* executable */
+			mod->init_size = debug_align(mod->init_size);
 			mod->init_text_size = mod->init_size;
+			break;
+		case 1: /* RO: text and ro-data */
+			mod->init_size = debug_align(mod->init_size);
+			mod->init_ro_size = mod->init_size;
+			break;
+		case 3: /* whole init */
+			mod->init_size = debug_align(mod->init_size);
+			break;
+		}
 	}
 }
 
@@ -1875,11 +2055,8 @@ static const struct kernel_symbol *lookup_symbol(const char *name,
 	const struct kernel_symbol *start,
 	const struct kernel_symbol *stop)
 {
-	const struct kernel_symbol *ks = start;
-	for (; ks < stop; ks++)
-		if (strcmp(ks->name, name) == 0)
-			return ks;
-	return NULL;
+	return bsearch(name, start, stop - start,
+			sizeof(struct kernel_symbol), cmp_name);
 }
 
 static int is_exported(const char *name, unsigned long value,
@@ -2036,7 +2213,7 @@ static inline void layout_symtab(struct module *mod, struct load_info *info)
 {
 }
 
-static void add_kallsyms(struct module *mod, struct load_info *info)
+static void add_kallsyms(struct module *mod, const struct load_info *info)
 {
 }
 #endif /* CONFIG_KALLSYMS */
@@ -2305,9 +2482,14 @@ static void find_module_sections(struct module *mod, struct load_info *info)
 #endif
 
 #ifdef CONFIG_TRACEPOINTS
-	mod->tracepoints = section_objs(info, "__tracepoints",
-					sizeof(*mod->tracepoints),
-					&mod->num_tracepoints);
+	mod->tracepoints_ptrs = section_objs(info, "__tracepoints_ptrs",
+					     sizeof(*mod->tracepoints_ptrs),
+					     &mod->num_tracepoints);
+#endif
+#ifdef HAVE_JUMP_LABEL
+	mod->jump_entries = section_objs(info, "__jump_table",
+					sizeof(*mod->jump_entries),
+					&mod->num_jump_entries);
 #endif
 #ifdef CONFIG_EVENT_TRACING
 	mod->trace_events = section_objs(info, "_ftrace_events",
@@ -2319,6 +2501,18 @@ static void find_module_sections(struct module *mod, struct load_info *info)
 	 */
 	kmemleak_scan_area(mod->trace_events, sizeof(*mod->trace_events) *
 			   mod->num_trace_events, GFP_KERNEL);
+#endif
+#ifdef CONFIG_TRACING
+	mod->trace_bprintk_fmt_start = section_objs(info, "__trace_printk_fmt",
+					 sizeof(*mod->trace_bprintk_fmt_start),
+					 &mod->num_trace_bprintk_fmt);
+	/*
+	 * This section contains pointers to allocated objects in the trace
+	 * code and not scanning it leads to false positives.
+	 */
+	kmemleak_scan_area(mod->trace_bprintk_fmt_start,
+			   sizeof(*mod->trace_bprintk_fmt_start) *
+			   mod->num_trace_bprintk_fmt, GFP_KERNEL);
 #endif
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
 	/* sechdrs[0].sh_size is always zero */
@@ -2605,7 +2799,7 @@ static struct module *load_module(void __user *umod,
 	mod->state = MODULE_STATE_COMING;
 
 	/* Now sew it into the lists so we can get lockdep and oops
-	 * info during argument parsing.  Noone should access us, since
+	 * info during argument parsing.  No one should access us, since
 	 * strong_try_module_get() will fail.
 	 * lockdep/oops can run asynchronous, so use the RCU list insertion
 	 * function to insert in a way safe to concurrent readers.
@@ -2618,7 +2812,7 @@ static struct module *load_module(void __user *umod,
 	}
 
 	/* This has to be done once we're sure module name is unique. */
-	if (!mod->taints)
+	if (!mod->taints || mod->taints == (1U<<TAINT_CRAP))
 		dynamic_debug_setup(info.debug, info.num_debug);
 
 	/* Find duplicate symbols */
@@ -2655,7 +2849,7 @@ static struct module *load_module(void __user *umod,
 	module_bug_cleanup(mod);
 
  ddebug:
-	if (!mod->taints)
+	if (!mod->taints || mod->taints == (1U<<TAINT_CRAP))
 		dynamic_debug_remove(info.debug);
  unlock:
 	mutex_unlock(&module_mutex);
@@ -2704,6 +2898,18 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	blocking_notifier_call_chain(&module_notify_list,
 			MODULE_STATE_COMING, mod);
 
+	/* Set RO and NX regions for core */
+	set_section_ro_nx(mod->module_core,
+				mod->core_text_size,
+				mod->core_ro_size,
+				mod->core_size);
+
+	/* Set RO and NX regions for init */
+	set_section_ro_nx(mod->module_init,
+				mod->init_text_size,
+				mod->init_ro_size,
+				mod->init_size);
+
 	do_mod_ctors(mod);
 	/* Start the module */
 	if (mod->init != NULL)
@@ -2747,9 +2953,11 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	mod->symtab = mod->core_symtab;
 	mod->strtab = mod->core_strtab;
 #endif
+	unset_module_init_ro_nx(mod);
 	module_free(mod, mod->module_init);
 	mod->module_init = NULL;
 	mod->init_size = 0;
+	mod->init_ro_size = 0;
 	mod->init_text_size = 0;
 	mutex_unlock(&module_mutex);
 
@@ -2786,7 +2994,7 @@ static const char *get_ksymbol(struct module *mod,
 	else
 		nextval = (unsigned long)mod->module_core+mod->core_text_size;
 
-	/* Scan for closest preceeding symbol, and next symbol. (ELF
+	/* Scan for closest preceding symbol, and next symbol. (ELF
 	   starts real symbols at 1). */
 	for (i = 1; i < mod->num_symtab; i++) {
 		if (mod->symtab[i].st_shndx == SHN_UNDEF)
@@ -3039,7 +3247,7 @@ static int m_show(struct seq_file *m, void *p)
 		   mod->state == MODULE_STATE_COMING ? "Loading":
 		   "Live");
 	/* Used by oprofile and other similar tools. */
-	seq_printf(m, " 0x%p", mod->module_core);
+	seq_printf(m, " 0x%pK", mod->module_core);
 
 	/* Taints info */
 	if (mod->taints)
@@ -3210,7 +3418,7 @@ void module_layout(struct module *mod,
 		   struct modversion_info *ver,
 		   struct kernel_param *kp,
 		   struct kernel_symbol *ks,
-		   struct tracepoint *tp)
+		   struct tracepoint * const *tp)
 {
 }
 EXPORT_SYMBOL(module_layout);
@@ -3224,8 +3432,8 @@ void module_update_tracepoints(void)
 	mutex_lock(&module_mutex);
 	list_for_each_entry(mod, &modules, list)
 		if (!mod->taints)
-			tracepoint_update_probe_range(mod->tracepoints,
-				mod->tracepoints + mod->num_tracepoints);
+			tracepoint_update_probe_range(mod->tracepoints_ptrs,
+				mod->tracepoints_ptrs + mod->num_tracepoints);
 	mutex_unlock(&module_mutex);
 }
 
@@ -3249,8 +3457,8 @@ int module_get_iter_tracepoints(struct tracepoint_iter *iter)
 			else if (iter_mod > iter->module)
 				iter->tracepoint = NULL;
 			found = tracepoint_get_iter_range(&iter->tracepoint,
-				iter_mod->tracepoints,
-				iter_mod->tracepoints
+				iter_mod->tracepoints_ptrs,
+				iter_mod->tracepoints_ptrs
 					+ iter_mod->num_tracepoints);
 			if (found) {
 				iter->module = iter_mod;

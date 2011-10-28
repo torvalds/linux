@@ -630,7 +630,7 @@ static void atp_complete_geyser_3_4(struct urb *urb)
 	/* Just update the base values (i.e. touchpad in untouched state) */
 	if (dev->data[dev->info->datalen - 1] & ATP_STATUS_BASE_UPDATE) {
 
-		dprintk(KERN_DEBUG "appletouch: updated base values\n");
+		dprintk("appletouch: updated base values\n");
 
 		memcpy(dev->xy_old, dev->xy_cur, sizeof(dev->xy_old));
 		goto exit;

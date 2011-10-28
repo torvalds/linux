@@ -296,27 +296,25 @@ static struct pci_port_ops dino_port_ops = {
 	.outl	= dino_out32
 };
 
-static void dino_disable_irq(unsigned int irq)
+static void dino_mask_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct dino_device *dino_dev = desc->chip_data;
-	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
+	struct dino_device *dino_dev = irq_data_get_irq_chip_data(d);
+	int local_irq = gsc_find_local_irq(d->irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 
-	DBG(KERN_WARNING "%s(0x%p, %d)\n", __func__, dino_dev, irq);
+	DBG(KERN_WARNING "%s(0x%p, %d)\n", __func__, dino_dev, d->irq);
 
 	/* Clear the matching bit in the IMR register */
 	dino_dev->imr &= ~(DINO_MASK_IRQ(local_irq));
 	__raw_writel(dino_dev->imr, dino_dev->hba.base_addr+DINO_IMR);
 }
 
-static void dino_enable_irq(unsigned int irq)
+static void dino_unmask_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct dino_device *dino_dev = desc->chip_data;
-	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
+	struct dino_device *dino_dev = irq_data_get_irq_chip_data(d);
+	int local_irq = gsc_find_local_irq(d->irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 	u32 tmp;
 
-	DBG(KERN_WARNING "%s(0x%p, %d)\n", __func__, dino_dev, irq);
+	DBG(KERN_WARNING "%s(0x%p, %d)\n", __func__, dino_dev, d->irq);
 
 	/*
 	** clear pending IRQ bits
@@ -347,20 +345,10 @@ static void dino_enable_irq(unsigned int irq)
 	}
 }
 
-static unsigned int dino_startup_irq(unsigned int irq)
-{
-	dino_enable_irq(irq);
-	return 0;
-}
-
 static struct irq_chip dino_interrupt_type = {
 	.name		= "GSC-PCI",
-	.startup	= dino_startup_irq,
-	.shutdown	= dino_disable_irq,
-	.enable		= dino_enable_irq, 
-	.disable	= dino_disable_irq,
-	.ack		= no_ack_irq,
-	.end		= no_end_irq,
+	.irq_unmask	= dino_unmask_irq,
+	.irq_mask	= dino_mask_irq,
 };
 
 
@@ -391,7 +379,7 @@ ilr_again:
 		int irq = dino_dev->global_irq[local_irq];
 		DBG(KERN_DEBUG "%s(%d, %p) mask 0x%x\n",
 			__func__, irq, intr_dev, mask);
-		__do_IRQ(irq);
+		generic_handle_irq(irq);
 		mask &= ~(1 << local_irq);
 	} while (mask);
 

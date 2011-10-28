@@ -86,7 +86,7 @@ pci_read_32 (u_int32_t *p)
 
     FLUSH_PCI_READ ();
     v = le32_to_cpu (*p);
-    if (log_level >= LOG_DEBUG)
+    if (cxt1e1_log_level >= LOG_DEBUG)
         pr_info("pci_read : %x = %x\n", (u_int32_t) p, v);
     return v;
 #else
@@ -99,7 +99,7 @@ static inline void
 pci_write_32 (u_int32_t *p, u_int32_t v)
 {
 #ifdef FLOW_DEBUG
-    if (log_level >= LOG_DEBUG)
+    if (cxt1e1_log_level >= LOG_DEBUG)
         pr_info("pci_write: %x = %x\n", (u_int32_t) p, v);
 #endif
     *p = cpu_to_le32 (v);

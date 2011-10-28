@@ -29,17 +29,17 @@
 #include <asm/tlbflush.h>
 #include <asm/fixmap.h>
 
-void *kmap_atomic(struct page *page, enum km_type type)
+void *__kmap_atomic(struct page *page)
 {
-	unsigned long idx;
 	unsigned long vaddr;
+	long idx, type;
 
 	/* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
 	pagefault_disable();
 	if (!PageHighMem(page))
 		return page_address(page);
 
-	debug_kmap_atomic(type);
+	type = kmap_atomic_idx_push();
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 
@@ -63,44 +63,52 @@ void *kmap_atomic(struct page *page, enum km_type type)
 
 	return (void*) vaddr;
 }
-EXPORT_SYMBOL(kmap_atomic);
+EXPORT_SYMBOL(__kmap_atomic);
 
-void kunmap_atomic_notypecheck(void *kvaddr, enum km_type type)
+void __kunmap_atomic(void *kvaddr)
 {
-#ifdef CONFIG_DEBUG_HIGHMEM
 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
-	unsigned long idx = type + KM_TYPE_NR*smp_processor_id();
+	int type;
 
 	if (vaddr < FIXADDR_START) { // FIXME
 		pagefault_enable();
 		return;
 	}
 
-	BUG_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN+idx));
+	type = kmap_atomic_idx();
 
-/* XXX Fix - Anton */
+#ifdef CONFIG_DEBUG_HIGHMEM
+	{
+		unsigned long idx;
+
+		idx = type + KM_TYPE_NR * smp_processor_id();
+		BUG_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN+idx));
+
+		/* XXX Fix - Anton */
 #if 0
-	__flush_cache_one(vaddr);
+		__flush_cache_one(vaddr);
 #else
-	flush_cache_all();
+		flush_cache_all();
 #endif
 
-	/*
-	 * force other mappings to Oops if they'll try to access
-	 * this pte without first remap it
-	 */
-	pte_clear(&init_mm, vaddr, kmap_pte-idx);
-/* XXX Fix - Anton */
+		/*
+		 * force other mappings to Oops if they'll try to access
+		 * this pte without first remap it
+		 */
+		pte_clear(&init_mm, vaddr, kmap_pte-idx);
+		/* XXX Fix - Anton */
 #if 0
-	__flush_tlb_one(vaddr);
+		__flush_tlb_one(vaddr);
 #else
-	flush_tlb_all();
+		flush_tlb_all();
 #endif
+	}
 #endif
 
+	kmap_atomic_idx_pop();
 	pagefault_enable();
 }
-EXPORT_SYMBOL(kunmap_atomic_notypecheck);
+EXPORT_SYMBOL(__kunmap_atomic);
 
 /* We may be fed a pagetable here by ptep_to_xxx and others. */
 struct page *kmap_atomic_to_page(void *ptr)

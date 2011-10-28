@@ -483,7 +483,7 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 		}
 
 		done += n_characters;
-		/* Terminate if end-of-message bit recieved from device */
+		/* Terminate if end-of-message bit received from device */
 		if ((buffer[8] &  0x01) && (actual >= n_characters + 12))
 			remaining = 0;
 		else
@@ -987,6 +987,7 @@ static const struct file_operations fops = {
 	.open		= usbtmc_open,
 	.release	= usbtmc_release,
 	.unlocked_ioctl	= usbtmc_ioctl,
+	.llseek		= default_llseek,
 };
 
 static struct usb_class_driver usbtmc_class = {

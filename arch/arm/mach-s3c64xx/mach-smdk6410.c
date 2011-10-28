@@ -28,6 +28,8 @@
 #include <linux/delay.h>
 #include <linux/smsc911x.h>
 #include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
+#include <linux/pwm_backlight.h>
 
 #ifdef CONFIG_SMDK6410_WM1190_EV1
 #include <linux/mfd/wm8350/core.h>
@@ -118,7 +120,6 @@ static void smdk6410_lcd_power_set(struct plat_lcd_data *pd,
 {
 	if (power) {
 		gpio_direction_output(S3C64XX_GPF(13), 1);
-		gpio_direction_output(S3C64XX_GPF(15), 1);
 
 		/* fire nRESET on power up */
 		gpio_direction_output(S3C64XX_GPN(5), 0);
@@ -126,7 +127,6 @@ static void smdk6410_lcd_power_set(struct plat_lcd_data *pd,
 		gpio_direction_output(S3C64XX_GPN(5), 1);
 		msleep(1);
 	} else {
-		gpio_direction_output(S3C64XX_GPF(15), 0);
 		gpio_direction_output(S3C64XX_GPF(13), 0);
 	}
 }
@@ -269,6 +269,45 @@ static struct samsung_keypad_platdata smdk6410_keypad_data __initdata = {
 	.cols		= 8,
 };
 
+static int smdk6410_backlight_init(struct device *dev)
+{
+	int ret;
+
+	ret = gpio_request(S3C64XX_GPF(15), "Backlight");
+	if (ret) {
+		printk(KERN_ERR "failed to request GPF for PWM-OUT1\n");
+		return ret;
+	}
+
+	/* Configure GPIO pin with S3C64XX_GPF15_PWM_TOUT1 */
+	s3c_gpio_cfgpin(S3C64XX_GPF(15), S3C_GPIO_SFN(2));
+
+	return 0;
+}
+
+static void smdk6410_backlight_exit(struct device *dev)
+{
+	s3c_gpio_cfgpin(S3C64XX_GPF(15), S3C_GPIO_OUTPUT);
+	gpio_free(S3C64XX_GPF(15));
+}
+
+static struct platform_pwm_backlight_data smdk6410_backlight_data = {
+	.pwm_id		= 1,
+	.max_brightness	= 255,
+	.dft_brightness	= 255,
+	.pwm_period_ns	= 78770,
+	.init		= smdk6410_backlight_init,
+	.exit		= smdk6410_backlight_exit,
+};
+
+static struct platform_device smdk6410_backlight_device = {
+	.name		= "pwm-backlight",
+	.dev		= {
+		.parent		= &s3c_device_timer[1].dev,
+		.platform_data	= &smdk6410_backlight_data,
+	},
+};
+
 static struct map_desc smdk6410_iodesc[] = {};
 
 static struct platform_device *smdk6410_devices[] __initdata = {
@@ -283,6 +322,7 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_fb,
 	&s3c_device_ohci,
 	&s3c_device_usb_hsotg,
+	&samsung_asoc_dma,
 	&s3c64xx_device_iisv4,
 	&samsung_device_keypad,
 
@@ -297,6 +337,8 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_ts,
 	&s3c_device_wdt,
+	&s3c_device_timer[1],
+	&smdk6410_backlight_device,
 };
 
 #ifdef CONFIG_REGULATOR
@@ -350,7 +392,7 @@ static struct regulator_init_data smdk6410_vddpll = {
 /* VDD_UH_MMC, LDO5 on J5 */
 static struct regulator_init_data smdk6410_vdduh_mmc = {
 	.constraints = {
-		.name = "PVDD_UH/PVDD_MMC",
+		.name = "PVDD_UH+PVDD_MMC",
 		.always_on = 1,
 	},
 };
@@ -416,7 +458,7 @@ static struct regulator_init_data smdk6410_vddaudio = {
 /* S3C64xx internal logic & PLL */
 static struct regulator_init_data wm8350_dcdc1_data = {
 	.constraints = {
-		.name = "PVDD_INT/PVDD_PLL",
+		.name = "PVDD_INT+PVDD_PLL",
 		.min_uV = 1200000,
 		.max_uV = 1200000,
 		.always_on = 1,
@@ -451,7 +493,7 @@ static struct regulator_consumer_supply wm8350_dcdc4_consumers[] = {
 
 static struct regulator_init_data wm8350_dcdc4_data = {
 	.constraints = {
-		.name = "PVDD_HI/PVDD_EXT/PVDD_SYS/PVCCM2MTV",
+		.name = "PVDD_HI+PVDD_EXT+PVDD_SYS+PVCCM2MTV",
 		.min_uV = 3000000,
 		.max_uV = 3000000,
 		.always_on = 1,
@@ -463,7 +505,7 @@ static struct regulator_init_data wm8350_dcdc4_data = {
 /* OTGi/1190-EV1 HPVDD & AVDD */
 static struct regulator_init_data wm8350_ldo4_data = {
 	.constraints = {
-		.name = "PVDD_OTGI/HPVDD/AVDD",
+		.name = "PVDD_OTGI+HPVDD+AVDD",
 		.min_uV = 1200000,
 		.max_uV = 1200000,
 		.apply_uV = 1,
@@ -551,7 +593,7 @@ static struct wm831x_backlight_pdata wm1192_backlight_pdata = {
 
 static struct regulator_init_data wm1192_dcdc3 = {
 	.constraints = {
-		.name = "PVDD_MEM/PVDD_GPS",
+		.name = "PVDD_MEM+PVDD_GPS",
 		.always_on = 1,
 	},
 };
@@ -562,7 +604,7 @@ static struct regulator_consumer_supply wm1192_ldo1_consumers[] = {
 
 static struct regulator_init_data wm1192_ldo1 = {
 	.constraints = {
-		.name = "PVDD_LCD/PVDD_EXT",
+		.name = "PVDD_LCD+PVDD_EXT",
 		.always_on = 1,
 	},
 	.consumer_supplies = wm1192_ldo1_consumers,
@@ -692,7 +734,6 @@ static void __init smdk6410_machine_init(void)
 
 	gpio_request(S3C64XX_GPN(5), "LCD power");
 	gpio_request(S3C64XX_GPF(13), "LCD power");
-	gpio_request(S3C64XX_GPF(15), "LCD power");
 
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
 	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
@@ -704,8 +745,6 @@ static void __init smdk6410_machine_init(void)
 
 MACHINE_START(SMDK6410, "SMDK6410")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
-	.phys_io	= S3C_PA_UART & 0xfff00000,
-	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
 
 	.init_irq	= s3c6410_init_irq,

@@ -54,7 +54,6 @@ extern struct clock_event_device *global_clock_event;
 extern unsigned long apbt_quick_calibrate(void);
 extern int arch_setup_apbt_irqs(int irq, int trigger, int mask, int cpu);
 extern void apbt_setup_secondary_clock(void);
-extern unsigned int boot_cpu_id;
 
 extern struct sfi_timer_table_entry *sfi_get_mtmr(int hint);
 extern void sfi_free_mtmr(struct sfi_timer_table_entry *mtmr);
@@ -63,7 +62,7 @@ extern int sfi_mtimer_num;
 #else /* CONFIG_APB_TIMER */
 
 static inline unsigned long apbt_quick_calibrate(void) {return 0; }
-static inline void apbt_time_init(void) {return 0; }
+static inline void apbt_time_init(void) { }
 
 #endif
 #endif /* ASM_X86_APBT_H */

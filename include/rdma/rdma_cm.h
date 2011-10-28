@@ -111,6 +111,20 @@ struct rdma_cm_event {
 	} param;
 };
 
+enum rdma_cm_state {
+	RDMA_CM_IDLE,
+	RDMA_CM_ADDR_QUERY,
+	RDMA_CM_ADDR_RESOLVED,
+	RDMA_CM_ROUTE_QUERY,
+	RDMA_CM_ROUTE_RESOLVED,
+	RDMA_CM_CONNECT,
+	RDMA_CM_DISCONNECT,
+	RDMA_CM_ADDR_BOUND,
+	RDMA_CM_LISTEN,
+	RDMA_CM_DEVICE_REMOVAL,
+	RDMA_CM_DESTROYING
+};
+
 struct rdma_cm_id;
 
 /**
@@ -130,6 +144,7 @@ struct rdma_cm_id {
 	rdma_cm_event_handler	 event_handler;
 	struct rdma_route	 route;
 	enum rdma_port_space	 ps;
+	enum ib_qp_type		 qp_type;
 	u8			 port_num;
 };
 
@@ -140,9 +155,11 @@ struct rdma_cm_id {
  *   returned rdma_id.
  * @context: User specified context associated with the id.
  * @ps: RDMA port space.
+ * @qp_type: type of queue pair associated with the id.
  */
 struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
-				  void *context, enum rdma_port_space ps);
+				  void *context, enum rdma_port_space ps,
+				  enum ib_qp_type qp_type);
 
 /**
   * rdma_destroy_id - Destroys an RDMA identifier.
@@ -328,5 +345,15 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr);
  * requested may not be supported by the network to all destinations.
  */
 void rdma_set_service_type(struct rdma_cm_id *id, int tos);
+
+/**
+ * rdma_set_reuseaddr - Allow the reuse of local addresses when binding
+ *    the rdma_cm_id.
+ * @id: Communication identifier to configure.
+ * @reuse: Value indicating if the bound address is reusable.
+ *
+ * Reuse must be set before an address is bound to the id.
+ */
+int rdma_set_reuseaddr(struct rdma_cm_id *id, int reuse);
 
 #endif /* RDMA_CM_H */

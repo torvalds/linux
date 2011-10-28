@@ -30,6 +30,8 @@
 #include <linux/idr.h>
 #include <linux/mutex.h>
 #include <linux/backing-dev.h>
+#include <linux/rculist_bl.h>
+#include <linux/cleancache.h>
 #include "internal.h"
 
 
@@ -70,8 +72,9 @@ static struct super_block *alloc_super(struct file_system_type *type)
 #else
 		INIT_LIST_HEAD(&s->s_files);
 #endif
+		s->s_bdi = &default_backing_dev_info;
 		INIT_LIST_HEAD(&s->s_instances);
-		INIT_HLIST_HEAD(&s->s_anon);
+		INIT_HLIST_BL_HEAD(&s->s_anon);
 		INIT_LIST_HEAD(&s->s_inodes);
 		INIT_LIST_HEAD(&s->s_dentry_lru);
 		init_rwsem(&s->s_umount);
@@ -110,6 +113,7 @@ static struct super_block *alloc_super(struct file_system_type *type)
 		s->s_maxbytes = MAX_NON_LFS;
 		s->s_op = &default_op;
 		s->s_time_gran = 1000000000;
+		s->cleancache_poolid = -1;
 	}
 out:
 	return s;
@@ -175,7 +179,13 @@ void deactivate_locked_super(struct super_block *s)
 {
 	struct file_system_type *fs = s->s_type;
 	if (atomic_dec_and_test(&s->s_active)) {
+		cleancache_flush_fs(s);
 		fs->kill_sb(s);
+		/*
+		 * We need to call rcu_barrier so all the delayed rcu free
+		 * inodes are flushed before we release the fs module.
+		 */
+		rcu_barrier();
 		put_filesystem(fs);
 		put_super(s);
 	} else {
@@ -273,14 +283,14 @@ void generic_shutdown_super(struct super_block *sb)
 		get_fs_excl();
 		sb->s_flags &= ~MS_ACTIVE;
 
-		/* bad name - it should be evict_inodes() */
-		invalidate_inodes(sb);
+		fsnotify_unmount_inodes(&sb->s_inodes);
+
+		evict_inodes(sb);
 
 		if (sop->put_super)
 			sop->put_super(sb);
 
-		/* Forget any remaining inodes */
-		if (invalidate_inodes(sb)) {
+		if (!list_empty(&sb->s_inodes)) {
 			printk("VFS: Busy inodes after unmount of %s. "
 			   "Self-destruct in 5 seconds.  Have a nice day...\n",
 			   sb->s_id);
@@ -715,15 +725,14 @@ static int ns_set_super(struct super_block *sb, void *data)
 	return set_anon_super(sb, NULL);
 }
 
-int get_sb_ns(struct file_system_type *fs_type, int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
+struct dentry *mount_ns(struct file_system_type *fs_type, int flags,
+	void *data, int (*fill_super)(struct super_block *, void *, int))
 {
 	struct super_block *sb;
 
 	sb = sget(fs_type, ns_test_super, ns_set_super, data);
 	if (IS_ERR(sb))
-		return PTR_ERR(sb);
+		return ERR_CAST(sb);
 
 	if (!sb->s_root) {
 		int err;
@@ -731,17 +740,16 @@ int get_sb_ns(struct file_system_type *fs_type, int flags, void *data,
 		err = fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
 		if (err) {
 			deactivate_locked_super(sb);
-			return err;
+			return ERR_PTR(err);
 		}
 
 		sb->s_flags |= MS_ACTIVE;
 	}
 
-	simple_set_mnt(mnt, sb);
-	return 0;
+	return dget(sb->s_root);
 }
 
-EXPORT_SYMBOL(get_sb_ns);
+EXPORT_SYMBOL(mount_ns);
 
 #ifdef CONFIG_BLOCK
 static int set_bdev_super(struct super_block *s, void *data)
@@ -762,22 +770,21 @@ static int test_bdev_super(struct super_block *s, void *data)
 	return (void *)s->s_bdev == data;
 }
 
-int get_sb_bdev(struct file_system_type *fs_type,
+struct dentry *mount_bdev(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
+	int (*fill_super)(struct super_block *, void *, int))
 {
 	struct block_device *bdev;
 	struct super_block *s;
-	fmode_t mode = FMODE_READ;
+	fmode_t mode = FMODE_READ | FMODE_EXCL;
 	int error = 0;
 
 	if (!(flags & MS_RDONLY))
 		mode |= FMODE_WRITE;
 
-	bdev = open_bdev_exclusive(dev_name, mode, fs_type);
+	bdev = blkdev_get_by_path(dev_name, mode, fs_type);
 	if (IS_ERR(bdev))
-		return PTR_ERR(bdev);
+		return ERR_CAST(bdev);
 
 	/*
 	 * once the super is inserted into the list by sget, s_umount
@@ -804,18 +811,18 @@ int get_sb_bdev(struct file_system_type *fs_type,
 
 		/*
 		 * s_umount nests inside bd_mutex during
-		 * __invalidate_device().  close_bdev_exclusive()
-		 * acquires bd_mutex and can't be called under
-		 * s_umount.  Drop s_umount temporarily.  This is safe
-		 * as we're holding an active reference.
+		 * __invalidate_device().  blkdev_put() acquires
+		 * bd_mutex and can't be called under s_umount.  Drop
+		 * s_umount temporarily.  This is safe as we're
+		 * holding an active reference.
 		 */
 		up_write(&s->s_umount);
-		close_bdev_exclusive(bdev, mode);
+		blkdev_put(bdev, mode);
 		down_write(&s->s_umount);
 	} else {
 		char b[BDEVNAME_SIZE];
 
-		s->s_flags = flags;
+		s->s_flags = flags | MS_NOSEC;
 		s->s_mode = mode;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(bdev));
@@ -829,18 +836,16 @@ int get_sb_bdev(struct file_system_type *fs_type,
 		bdev->bd_super = s;
 	}
 
-	simple_set_mnt(mnt, s);
-	return 0;
+	return dget(s->s_root);
 
 error_s:
 	error = PTR_ERR(s);
 error_bdev:
-	close_bdev_exclusive(bdev, mode);
+	blkdev_put(bdev, mode);
 error:
-	return error;
+	return ERR_PTR(error);
 }
-
-EXPORT_SYMBOL(get_sb_bdev);
+EXPORT_SYMBOL(mount_bdev);
 
 void kill_block_super(struct super_block *sb)
 {
@@ -850,106 +855,95 @@ void kill_block_super(struct super_block *sb)
 	bdev->bd_super = NULL;
 	generic_shutdown_super(sb);
 	sync_blockdev(bdev);
-	close_bdev_exclusive(bdev, mode);
+	WARN_ON_ONCE(!(mode & FMODE_EXCL));
+	blkdev_put(bdev, mode | FMODE_EXCL);
 }
 
 EXPORT_SYMBOL(kill_block_super);
 #endif
 
-int get_sb_nodev(struct file_system_type *fs_type,
+struct dentry *mount_nodev(struct file_system_type *fs_type,
 	int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
+	int (*fill_super)(struct super_block *, void *, int))
 {
 	int error;
 	struct super_block *s = sget(fs_type, NULL, set_anon_super, NULL);
 
 	if (IS_ERR(s))
-		return PTR_ERR(s);
+		return ERR_CAST(s);
 
 	s->s_flags = flags;
 
 	error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 	if (error) {
 		deactivate_locked_super(s);
-		return error;
+		return ERR_PTR(error);
 	}
 	s->s_flags |= MS_ACTIVE;
-	simple_set_mnt(mnt, s);
-	return 0;
+	return dget(s->s_root);
 }
-
-EXPORT_SYMBOL(get_sb_nodev);
+EXPORT_SYMBOL(mount_nodev);
 
 static int compare_single(struct super_block *s, void *p)
 {
 	return 1;
 }
 
-int get_sb_single(struct file_system_type *fs_type,
+struct dentry *mount_single(struct file_system_type *fs_type,
 	int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
+	int (*fill_super)(struct super_block *, void *, int))
 {
 	struct super_block *s;
 	int error;
 
 	s = sget(fs_type, compare_single, set_anon_super, NULL);
 	if (IS_ERR(s))
-		return PTR_ERR(s);
+		return ERR_CAST(s);
 	if (!s->s_root) {
 		s->s_flags = flags;
 		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 		if (error) {
 			deactivate_locked_super(s);
-			return error;
+			return ERR_PTR(error);
 		}
 		s->s_flags |= MS_ACTIVE;
 	} else {
 		do_remount_sb(s, flags, data, 0);
 	}
-	simple_set_mnt(mnt, s);
-	return 0;
+	return dget(s->s_root);
 }
+EXPORT_SYMBOL(mount_single);
 
-EXPORT_SYMBOL(get_sb_single);
-
-struct vfsmount *
-vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void *data)
+struct dentry *
+mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
 {
-	struct vfsmount *mnt;
+	struct dentry *root;
+	struct super_block *sb;
 	char *secdata = NULL;
-	int error;
-
-	if (!type)
-		return ERR_PTR(-ENODEV);
-
-	error = -ENOMEM;
-	mnt = alloc_vfsmnt(name);
-	if (!mnt)
-		goto out;
-
-	if (flags & MS_KERNMOUNT)
-		mnt->mnt_flags = MNT_INTERNAL;
+	int error = -ENOMEM;
 
 	if (data && !(type->fs_flags & FS_BINARY_MOUNTDATA)) {
 		secdata = alloc_secdata();
 		if (!secdata)
-			goto out_mnt;
+			goto out;
 
 		error = security_sb_copy_data(data, secdata);
 		if (error)
 			goto out_free_secdata;
 	}
 
-	error = type->get_sb(type, flags, name, data, mnt);
-	if (error < 0)
+	root = type->mount(type, flags, name, data);
+	if (IS_ERR(root)) {
+		error = PTR_ERR(root);
 		goto out_free_secdata;
-	BUG_ON(!mnt->mnt_sb);
-	WARN_ON(!mnt->mnt_sb->s_bdi);
-	mnt->mnt_sb->s_flags |= MS_BORN;
+	}
+	sb = root->d_sb;
+	BUG_ON(!sb);
+	WARN_ON(!sb->s_bdi);
+	WARN_ON(sb->s_bdi == &default_backing_dev_info);
+	sb->s_flags |= MS_BORN;
 
-	error = security_sb_kern_mount(mnt->mnt_sb, flags, secdata);
+	error = security_sb_kern_mount(sb, flags, secdata);
 	if (error)
 		goto out_sb;
 
@@ -957,29 +951,22 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 	 * filesystems should never set s_maxbytes larger than MAX_LFS_FILESIZE
 	 * but s_maxbytes was an unsigned long long for many releases. Throw
 	 * this warning for a little while to try and catch filesystems that
-	 * violate this rule. This warning should be either removed or
-	 * converted to a BUG() in 2.6.34.
+	 * violate this rule.
 	 */
-	WARN((mnt->mnt_sb->s_maxbytes < 0), "%s set sb->s_maxbytes to "
-		"negative value (%lld)\n", type->name, mnt->mnt_sb->s_maxbytes);
+	WARN((sb->s_maxbytes < 0), "%s set sb->s_maxbytes to "
+		"negative value (%lld)\n", type->name, sb->s_maxbytes);
 
-	mnt->mnt_mountpoint = mnt->mnt_root;
-	mnt->mnt_parent = mnt;
-	up_write(&mnt->mnt_sb->s_umount);
+	up_write(&sb->s_umount);
 	free_secdata(secdata);
-	return mnt;
+	return root;
 out_sb:
-	dput(mnt->mnt_root);
-	deactivate_locked_super(mnt->mnt_sb);
+	dput(root);
+	deactivate_locked_super(sb);
 out_free_secdata:
 	free_secdata(secdata);
-out_mnt:
-	free_vfsmnt(mnt);
 out:
 	return ERR_PTR(error);
 }
-
-EXPORT_SYMBOL_GPL(vfs_kern_mount);
 
 /**
  * freeze_super - lock the filesystem and force it into a consistent state
@@ -1070,49 +1057,3 @@ out:
 	return 0;
 }
 EXPORT_SYMBOL(thaw_super);
-
-static struct vfsmount *fs_set_subtype(struct vfsmount *mnt, const char *fstype)
-{
-	int err;
-	const char *subtype = strchr(fstype, '.');
-	if (subtype) {
-		subtype++;
-		err = -EINVAL;
-		if (!subtype[0])
-			goto err;
-	} else
-		subtype = "";
-
-	mnt->mnt_sb->s_subtype = kstrdup(subtype, GFP_KERNEL);
-	err = -ENOMEM;
-	if (!mnt->mnt_sb->s_subtype)
-		goto err;
-	return mnt;
-
- err:
-	mntput(mnt);
-	return ERR_PTR(err);
-}
-
-struct vfsmount *
-do_kern_mount(const char *fstype, int flags, const char *name, void *data)
-{
-	struct file_system_type *type = get_fs_type(fstype);
-	struct vfsmount *mnt;
-	if (!type)
-		return ERR_PTR(-ENODEV);
-	mnt = vfs_kern_mount(type, flags, name, data);
-	if (!IS_ERR(mnt) && (type->fs_flags & FS_HAS_SUBTYPE) &&
-	    !mnt->mnt_sb->s_subtype)
-		mnt = fs_set_subtype(mnt, fstype);
-	put_filesystem(type);
-	return mnt;
-}
-EXPORT_SYMBOL_GPL(do_kern_mount);
-
-struct vfsmount *kern_mount_data(struct file_system_type *type, void *data)
-{
-	return vfs_kern_mount(type, MS_KERNMOUNT, type->name, data);
-}
-
-EXPORT_SYMBOL_GPL(kern_mount_data);

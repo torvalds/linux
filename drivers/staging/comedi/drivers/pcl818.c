@@ -261,7 +261,7 @@ struct pcl818_board {
 	int n_ranges;		/*  len of range list */
 	int n_aichan_se;	/*  num of A/D chans in single ended  mode */
 	int n_aichan_diff;	/*  num of A/D chans in diferencial mode */
-	unsigned int ns_min;	/*  minimal alllowed delay between samples (in ns) */
+	unsigned int ns_min;	/*  minimal allowed delay between samples (in ns) */
 	int n_aochan;		/*  num of D/A chans */
 	int n_dichan;		/*  num of DI chans */
 	int n_dochan;		/*  num of DO chans */
@@ -349,7 +349,7 @@ struct pcl818_private {
 	long dma_runs_to_end;	/*  how many we must permorm DMA transfer to end of record */
 	unsigned long last_dma_run;	/*  how many bytes we must transfer on last DMA page */
 	unsigned char neverending_ai;	/*  if=1, then we do neverending record (you must use cancel()) */
-	unsigned int ns_min;	/*  manimal alllowed delay between samples (in us) for actual card */
+	unsigned int ns_min;	/*  manimal allowed delay between samples (in us) for actual card */
 	int i8253_osc_base;	/*  1/frequency of on board oscilator in ns */
 	int irq_free;		/*  1=have allocated IRQ */
 	int irq_blocked;	/*  1=IRQ now uses any subdev */
@@ -1231,7 +1231,7 @@ static int check_channel_list(struct comedi_device *dev,
 	}
 
 	if (n_chan > 1) {
-		/*  first channel is everytime ok */
+		/*  first channel is every time ok */
 		chansegment[0] = chanlist[0];
 		/*  build part of chanlist */
 		for (i = 1, seglen = 1; i < n_chan; i++, seglen++) {
@@ -1245,9 +1245,9 @@ static int check_channel_list(struct comedi_device *dev,
 				break;
 			nowmustbechan =
 			    (CR_CHAN(chansegment[i - 1]) + 1) % s->n_chan;
-			if (nowmustbechan != CR_CHAN(chanlist[i])) {	/*  channel list isn't continous :-( */
+			if (nowmustbechan != CR_CHAN(chanlist[i])) {	/*  channel list isn't continuous :-( */
 				printk
-				    ("comedi%d: pcl818: channel list must be continous! chanlist[%i]=%d but must be %d or %d!\n",
+				    ("comedi%d: pcl818: channel list must be continuous! chanlist[%i]=%d but must be %d or %d!\n",
 				     dev->minor, i, CR_CHAN(chanlist[i]),
 				     nowmustbechan, CR_CHAN(chanlist[0]));
 				return 0;
@@ -1662,7 +1662,7 @@ static void rtc_dropped_irq(unsigned long data)
 		tmp = (CMOS_READ(RTC_INTR_FLAGS) & 0xF0);	/* restart */
 		restore_flags(flags);
 		break;
-	};
+	}
 }
 
 /*

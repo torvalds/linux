@@ -150,8 +150,8 @@ in8_crit_alarm		Channel F critical alarm
 in9_crit_alarm		AIN1 critical alarm
 in10_crit_alarm		AIN2 critical alarm
 
-temp1_input		Chip tempererature
-temp1_min		Mimimum chip tempererature
-temp1_max		Maximum chip tempererature
-temp1_crit		Critical chip tempererature
+temp1_input		Chip temperature
+temp1_min		Mimimum chip temperature
+temp1_max		Maximum chip temperature
+temp1_crit		Critical chip temperature
 temp1_crit_alarm	Temperature critical alarm

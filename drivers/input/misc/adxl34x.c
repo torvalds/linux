@@ -716,7 +716,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	pdata = dev->platform_data;
 	if (!pdata) {
 		dev_dbg(dev,
-			"No platfrom data: Using default initialization\n");
+			"No platform data: Using default initialization\n");
 		pdata = &adxl34x_default_init;
 	}
 

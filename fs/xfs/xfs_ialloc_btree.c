@@ -183,38 +183,6 @@ xfs_inobt_key_diff(
 			  cur->bc_rec.i.ir_startino;
 }
 
-STATIC int
-xfs_inobt_kill_root(
-	struct xfs_btree_cur	*cur,
-	struct xfs_buf		*bp,
-	int			level,
-	union xfs_btree_ptr	*newroot)
-{
-	int			error;
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_STATS_INC(cur, killroot);
-
-	/*
-	 * Update the root pointer, decreasing the level by 1 and then
-	 * free the old root.
-	 */
-	xfs_inobt_set_root(cur, newroot, -1);
-	error = xfs_inobt_free_block(cur, bp);
-	if (error) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
-		return error;
-	}
-
-	XFS_BTREE_STATS_INC(cur, free);
-
-	cur->bc_bufs[level] = NULL;
-	cur->bc_nlevels--;
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
-	return 0;
-}
-
 #ifdef DEBUG
 STATIC int
 xfs_inobt_keys_inorder(
@@ -309,7 +277,6 @@ static const struct xfs_btree_ops xfs_inobt_ops = {
 
 	.dup_cursor		= xfs_inobt_dup_cursor,
 	.set_root		= xfs_inobt_set_root,
-	.kill_root		= xfs_inobt_kill_root,
 	.alloc_block		= xfs_inobt_alloc_block,
 	.free_block		= xfs_inobt_free_block,
 	.get_minrecs		= xfs_inobt_get_minrecs,

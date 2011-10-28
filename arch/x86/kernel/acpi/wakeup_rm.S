@@ -2,9 +2,11 @@
  * Wrapper script for the realmode binary as a transport object
  * before copying to low memory.
  */
-	.section ".rodata","a"
-	.globl	wakeup_code_start, wakeup_code_end
-wakeup_code_start:
+#include <asm/page_types.h>
+
+	.section ".x86_trampoline","a"
+	.balign PAGE_SIZE
+	.globl	acpi_wakeup_code
+acpi_wakeup_code:
 	.incbin	"arch/x86/kernel/acpi/realmode/wakeup.bin"
-wakeup_code_end:
-	.size	wakeup_code_start, .-wakeup_code_start
+	.size	acpi_wakeup_code, .-acpi_wakeup_code

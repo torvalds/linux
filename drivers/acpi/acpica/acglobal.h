@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -132,6 +132,7 @@ struct acpi_table_fadt acpi_gbl_FADT;
 u32 acpi_current_gpe_count;
 u32 acpi_gbl_trace_flags;
 acpi_name acpi_gbl_trace_method_name;
+u8 acpi_gbl_system_awake_and_running;
 
 #endif
 
@@ -144,6 +145,9 @@ acpi_name acpi_gbl_trace_method_name;
 /* Procedure nesting level for debug output */
 
 extern u32 acpi_gbl_nesting_level;
+
+ACPI_EXTERN u32 acpi_gpe_count;
+ACPI_EXTERN u32 acpi_fixed_event_count[ACPI_NUM_FIXED_EVENTS];
 
 /* Support for dynamic control method tracing mechanism */
 
@@ -187,6 +191,10 @@ ACPI_EXTERN u8 acpi_gbl_integer_bit_width;
 ACPI_EXTERN u8 acpi_gbl_integer_byte_width;
 ACPI_EXTERN u8 acpi_gbl_integer_nybble_width;
 
+/* Mutex for _OSI support */
+
+ACPI_EXTERN acpi_mutex acpi_gbl_osi_mutex;
+
 /* Reader/Writer lock is used for namespace walk and dynamic table unload */
 
 ACPI_EXTERN struct acpi_rw_lock acpi_gbl_namespace_rw_lock;
@@ -206,22 +214,23 @@ ACPI_EXTERN struct acpi_mutex_info acpi_gbl_mutex_info[ACPI_NUM_MUTEX];
 
 /*
  * Global lock mutex is an actual AML mutex object
- * Global lock semaphore works in conjunction with the HW global lock
+ * Global lock semaphore works in conjunction with the actual global lock
+ * Global lock spinlock is used for "pending" handshake
  */
 ACPI_EXTERN union acpi_operand_object *acpi_gbl_global_lock_mutex;
 ACPI_EXTERN acpi_semaphore acpi_gbl_global_lock_semaphore;
+ACPI_EXTERN acpi_spinlock acpi_gbl_global_lock_pending_lock;
 ACPI_EXTERN u16 acpi_gbl_global_lock_handle;
 ACPI_EXTERN u8 acpi_gbl_global_lock_acquired;
 ACPI_EXTERN u8 acpi_gbl_global_lock_present;
+ACPI_EXTERN u8 acpi_gbl_global_lock_pending;
 
 /*
  * Spinlocks are used for interfaces that can be possibly called at
  * interrupt level
  */
-ACPI_EXTERN spinlock_t _acpi_gbl_gpe_lock;	/* For GPE data structs and registers */
-ACPI_EXTERN spinlock_t _acpi_gbl_hardware_lock;	/* For ACPI H/W except GPE registers */
-#define acpi_gbl_gpe_lock	&_acpi_gbl_gpe_lock
-#define acpi_gbl_hardware_lock	&_acpi_gbl_hardware_lock
+ACPI_EXTERN acpi_spinlock acpi_gbl_gpe_lock;	/* For GPE data structs and registers */
+ACPI_EXTERN acpi_spinlock acpi_gbl_hardware_lock;	/* For ACPI H/W except GPE registers */
 
 /*****************************************************************************
  *
@@ -255,12 +264,17 @@ ACPI_EXTERN acpi_init_handler acpi_gbl_init_handler;
 ACPI_EXTERN acpi_tbl_handler acpi_gbl_table_handler;
 ACPI_EXTERN void *acpi_gbl_table_handler_context;
 ACPI_EXTERN struct acpi_walk_state *acpi_gbl_breakpoint_walk;
+ACPI_EXTERN acpi_interface_handler acpi_gbl_interface_handler;
 
 /* Owner ID support */
 
 ACPI_EXTERN u32 acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS];
 ACPI_EXTERN u8 acpi_gbl_last_owner_id_index;
 ACPI_EXTERN u8 acpi_gbl_next_owner_id_offset;
+
+/* Initialization sequencing */
+
+ACPI_EXTERN u8 acpi_gbl_reg_methods_executed;
 
 /* Misc */
 
@@ -273,8 +287,8 @@ ACPI_EXTERN u8 acpi_gbl_debugger_configuration;
 ACPI_EXTERN u8 acpi_gbl_step_to_next_call;
 ACPI_EXTERN u8 acpi_gbl_acpi_hardware_present;
 ACPI_EXTERN u8 acpi_gbl_events_initialized;
-ACPI_EXTERN u8 acpi_gbl_system_awake_and_running;
 ACPI_EXTERN u8 acpi_gbl_osi_data;
+ACPI_EXTERN struct acpi_interface_info *acpi_gbl_supported_interfaces;
 
 #ifndef DEFINE_ACPI_GLOBALS
 
@@ -364,6 +378,9 @@ ACPI_EXTERN struct acpi_fixed_event_handler
 ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
 ACPI_EXTERN struct acpi_gpe_block_info
 *acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
+ACPI_EXTERN u8 acpi_gbl_all_gpes_initialized;
+ACPI_EXTERN ACPI_GBL_EVENT_HANDLER acpi_gbl_global_event_handler;
+ACPI_EXTERN void *acpi_gbl_global_event_handler_context;
 
 /*****************************************************************************
  *

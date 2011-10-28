@@ -74,8 +74,9 @@ struct atm_dev *atm_dev_lookup(int number)
 }
 EXPORT_SYMBOL(atm_dev_lookup);
 
-struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
-				 int number, unsigned long *flags)
+struct atm_dev *atm_dev_register(const char *type, struct device *parent,
+				 const struct atmdev_ops *ops, int number,
+				 unsigned long *flags)
 {
 	struct atm_dev *dev, *inuse;
 
@@ -115,7 +116,7 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 		goto out_fail;
 	}
 
-	if (atm_register_sysfs(dev) < 0) {
+	if (atm_register_sysfs(dev, parent) < 0) {
 		pr_err("atm_register_sysfs failed for dev %s\n", type);
 		atm_proc_dev_deregister(dev);
 		goto out_fail;

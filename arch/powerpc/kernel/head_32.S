@@ -805,19 +805,6 @@ _ENTRY(copy_and_flush)
 	blr
 
 #ifdef CONFIG_SMP
-#ifdef CONFIG_GEMINI
-	.globl	__secondary_start_gemini
-__secondary_start_gemini:
-        mfspr   r4,SPRN_HID0
-        ori     r4,r4,HID0_ICFI
-        li      r3,0
-        ori     r3,r3,HID0_ICE
-        andc    r4,r4,r3
-        mtspr   SPRN_HID0,r4
-        sync
-        b       __secondary_start
-#endif /* CONFIG_GEMINI */
-
 	.globl __secondary_start_mpc86xx
 __secondary_start_mpc86xx:
 	mfspr	r3, SPRN_PIR

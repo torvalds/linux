@@ -1,0 +1,12 @@
+config DRM_PSB
+	tristate "Intel GMA500 KMS Framebuffer"
+	depends on DRM && PCI && X86
+	select FB_CFB_COPYAREA
+        select FB_CFB_FILLRECT
+        select FB_CFB_IMAGEBLIT
+        select DRM_KMS_HELPER
+        select DRM_TTM
+	help
+	  Say yes for an experimental KMS framebuffer driver for the
+	  Intel GMA500 ('Poulsbo') graphics support.
+

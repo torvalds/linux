@@ -13,7 +13,7 @@
  * anybody does please mail me.
  *
  * For the pdf file see:
- * http://www.semiconductors.philips.com/pip/TEA5757H/V1
+ * http://www.nxp.com/acrobat_download2/expired_datasheets/TEA5757_5759_3.pdf 
  *
  *
  * CHANGES:
@@ -77,8 +77,8 @@ MODULE_PARM_DESC(debug, "activates debug info");
 /* TEA5757 pin mappings */
 static const int clk = 1, data = 2, wren = 4, mo_st = 8, power = 16;
 
-#define FREQ_LO		(50 * 16000)
-#define FREQ_HI		(150 * 16000)
+#define FREQ_LO		(87 * 16000)
+#define FREQ_HI		(108 * 16000)
 
 #define FREQ_IF         171200 /* 10.7*16000   */
 #define FREQ_STEP       200    /* 12.5*16      */
@@ -346,7 +346,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 static const struct v4l2_file_operations maxiradio_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl          = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops maxiradio_ioctl_ops = {
@@ -412,8 +412,7 @@ static int __devinit maxiradio_init_one(struct pci_dev *pdev, const struct pci_d
 		goto err_out_free_region;
 	}
 
-	v4l2_info(v4l2_dev, "version " DRIVER_VERSION
-			" time " __TIME__ "  " __DATE__ "\n");
+	v4l2_info(v4l2_dev, "version " DRIVER_VERSION "\n");
 
 	v4l2_info(v4l2_dev, "found Guillemot MAXI Radio device (io = 0x%x)\n",
 	       dev->io);

@@ -18,7 +18,7 @@
 
 static int reg_read(struct dsa_switch *ds, int addr, int reg)
 {
-	return mdiobus_read(ds->master_mii_bus, addr, reg);
+	return mdiobus_read(ds->master_mii_bus, ds->pd->sw_addr + addr, reg);
 }
 
 #define REG_READ(addr, reg)					\
@@ -34,7 +34,8 @@ static int reg_read(struct dsa_switch *ds, int addr, int reg)
 
 static int reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
 {
-	return mdiobus_write(ds->master_mii_bus, addr, reg, val);
+	return mdiobus_write(ds->master_mii_bus, ds->pd->sw_addr + addr,
+			     reg, val);
 }
 
 #define REG_WRITE(addr, reg, val)				\
@@ -50,7 +51,7 @@ static char *mv88e6060_probe(struct mii_bus *bus, int sw_addr)
 {
 	int ret;
 
-	ret = mdiobus_read(bus, REG_PORT(0), 0x03);
+	ret = mdiobus_read(bus, sw_addr + REG_PORT(0), 0x03);
 	if (ret >= 0) {
 		ret &= 0xfff0;
 		if (ret == 0x0600)

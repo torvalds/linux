@@ -151,19 +151,14 @@ static int nomadik_nand_probe(struct platform_device *pdev)
 	nand->options = pdata->options;
 
 	/*
-	 * Scan to find existance of the device
+	 * Scan to find existence of the device
 	 */
 	if (nand_scan(&host->mtd, 1)) {
 		ret = -ENXIO;
 		goto err_unmap;
 	}
 
-#ifdef CONFIG_MTD_PARTITIONS
-	add_mtd_partitions(&host->mtd, pdata->parts, pdata->nparts);
-#else
-	pr_info("Registering %s as whole device\n", mtd->name);
-	add_mtd_device(mtd);
-#endif
+	mtd_device_register(&host->mtd, pdata->parts, pdata->nparts);
 
 	platform_set_drvdata(pdev, host);
 	return 0;

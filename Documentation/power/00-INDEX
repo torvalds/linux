@@ -14,6 +14,8 @@ interface.txt
 	- Power management user interface in /sys/power
 notifiers.txt
 	- Registering suspend notifiers in device drivers
+opp.txt
+	- Operating Performance Point library
 pci.txt
 	- How the PCI Subsystem Does Power Management
 pm_qos_interface.txt

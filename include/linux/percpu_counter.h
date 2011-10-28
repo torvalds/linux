@@ -75,7 +75,12 @@ static inline s64 percpu_counter_read_positive(struct percpu_counter *fbc)
 	barrier();		/* Prevent reloads of fbc->count */
 	if (ret >= 0)
 		return ret;
-	return 1;
+	return 0;
+}
+
+static inline int percpu_counter_initialized(struct percpu_counter *fbc)
+{
+	return (fbc->counters != NULL);
 }
 
 #else
@@ -128,6 +133,10 @@ static inline s64 percpu_counter_read(struct percpu_counter *fbc)
 	return fbc->count;
 }
 
+/*
+ * percpu_counter is intended to track positive numbers. In the UP case the
+ * number should never be negative.
+ */
 static inline s64 percpu_counter_read_positive(struct percpu_counter *fbc)
 {
 	return fbc->count;
@@ -141,6 +150,11 @@ static inline s64 percpu_counter_sum_positive(struct percpu_counter *fbc)
 static inline s64 percpu_counter_sum(struct percpu_counter *fbc)
 {
 	return percpu_counter_read(fbc);
+}
+
+static inline int percpu_counter_initialized(struct percpu_counter *fbc)
+{
+	return 1;
 }
 
 #endif	/* CONFIG_SMP */

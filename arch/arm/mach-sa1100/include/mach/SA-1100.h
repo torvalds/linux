@@ -1794,7 +1794,7 @@
                 	(DDAR_DevRd + DDAR_Brst4 + DDAR_16BitDev + \
                 	 DDAR_Ser4SSPRc + DDAR_DevAdd (__PREG(Ser4SSDR)))
 
-#define DCSR_RUN	0x00000001	/* DMA RUNing                      */
+#define DCSR_RUN	0x00000001	/* DMA running                     */
 #define DCSR_IE 	0x00000002	/* DMA Interrupt Enable            */
 #define DCSR_ERROR	0x00000004	/* DMA ERROR                       */
 #define DCSR_DONEA	0x00000008	/* DONE DMA transfer buffer A      */

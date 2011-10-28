@@ -6,7 +6,7 @@
  *
  * timer support
  *
- * Copyright 2010 Red Hat, Inc. and/or its affilates.
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
@@ -25,7 +25,7 @@ static int __kvm_timer_fn(struct kvm_vcpu *vcpu, struct kvm_timer *ktimer)
 
 	/*
 	 * There is a race window between reading and incrementing, but we do
-	 * not care about potentially loosing timer events in the !reinject
+	 * not care about potentially losing timer events in the !reinject
 	 * case anyway. Note: KVM_REQ_PENDING_TIMER is implicitly checked
 	 * in vcpu_enter_guest.
 	 */

@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
 #include <linux/smp.h>
+#include <linux/irq.h>
 
 #include <asm/addrspace.h>
 #include <asm/io.h>

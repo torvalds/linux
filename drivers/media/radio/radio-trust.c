@@ -344,7 +344,7 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static const struct v4l2_file_operations trust_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops trust_ioctl_ops = {
@@ -396,14 +396,6 @@ static int __init trust_init(void)
 	tr->vdev.release = video_device_release_empty;
 	video_set_drvdata(&tr->vdev, tr);
 
-	if (video_register_device(&tr->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
-		v4l2_device_unregister(v4l2_dev);
-		release_region(tr->io, 2);
-		return -EINVAL;
-	}
-
-	v4l2_info(v4l2_dev, "Trust FM Radio card driver v1.0.\n");
-
 	write_i2c(tr, 2, TDA7318_ADDR, 0x80);	/* speaker att. LF = 0 dB */
 	write_i2c(tr, 2, TDA7318_ADDR, 0xa0);	/* speaker att. RF = 0 dB */
 	write_i2c(tr, 2, TDA7318_ADDR, 0xc0);	/* speaker att. LR = 0 dB */
@@ -417,6 +409,14 @@ static int __init trust_init(void)
 
 	/* mute card - prevents noisy bootups */
 	tr_setmute(tr, 1);
+
+	if (video_register_device(&tr->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
+		v4l2_device_unregister(v4l2_dev);
+		release_region(tr->io, 2);
+		return -EINVAL;
+	}
+
+	v4l2_info(v4l2_dev, "Trust FM Radio card driver v1.0.\n");
 
 	return 0;
 }

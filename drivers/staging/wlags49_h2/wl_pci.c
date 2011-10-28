@@ -458,7 +458,7 @@ void __devexit wl_pci_remove(struct pci_dev *pdev)
         return;
     }
 
-    dev = (struct net_device *)pci_get_drvdata( pdev );
+    dev = pci_get_drvdata( pdev );
     if( dev == NULL ) {
         DBG_ERROR( DbgInfo, "Could not retrieve net_device structure\n" );
         return;

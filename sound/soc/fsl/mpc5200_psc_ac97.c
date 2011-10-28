@@ -143,7 +143,7 @@ static int psc_ac97_hw_analog_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *cpu_dai)
 {
-	struct psc_dma *psc_dma = cpu_dai->private_data;
+	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(cpu_dai);
 	struct psc_dma_stream *s = to_psc_dma_stream(substream, psc_dma);
 
 	dev_dbg(psc_dma->dev, "%s(substream=%p) p_size=%i p_bytes=%i"
@@ -166,7 +166,7 @@ static int psc_ac97_hw_digital_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *cpu_dai)
 {
-	struct psc_dma *psc_dma = cpu_dai->private_data;
+	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(cpu_dai);
 
 	dev_dbg(psc_dma->dev, "%s(substream=%p)\n", __func__, substream);
 
@@ -181,8 +181,7 @@ static int psc_ac97_hw_digital_params(struct snd_pcm_substream *substream,
 static int psc_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 							struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct psc_dma *psc_dma = rtd->dai->cpu_dai->private_data;
+	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(dai);
 	struct psc_dma_stream *s = to_psc_dma_stream(substream, psc_dma);
 
 	switch (cmd) {
@@ -207,10 +206,9 @@ static int psc_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
-static int psc_ac97_probe(struct platform_device *pdev,
-					struct snd_soc_dai *cpu_dai)
+static int psc_ac97_probe(struct snd_soc_dai *cpu_dai)
 {
-	struct psc_dma *psc_dma = cpu_dai->private_data;
+	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(cpu_dai);
 	struct mpc52xx_psc __iomem *regs = psc_dma->psc_regs;
 
 	/* Go */
@@ -237,9 +235,8 @@ static struct snd_soc_dai_ops psc_ac97_digital_ops = {
 	.hw_params	= psc_ac97_hw_digital_params,
 };
 
-struct snd_soc_dai psc_ac97_dai[] = {
+static struct snd_soc_dai_driver psc_ac97_dai[] = {
 {
-	.name   = "AC97",
 	.ac97_control = 1,
 	.probe	= psc_ac97_probe,
 	.playback = {
@@ -257,7 +254,6 @@ struct snd_soc_dai psc_ac97_dai[] = {
 	.ops = &psc_ac97_analog_ops,
 },
 {
-	.name   = "SPDIF",
 	.ac97_control = 1,
 	.playback = {
 		.channels_min   = 1,
@@ -268,7 +264,6 @@ struct snd_soc_dai psc_ac97_dai[] = {
 	},
 	.ops = &psc_ac97_digital_ops,
 } };
-EXPORT_SYMBOL_GPL(psc_ac97_dai);
 
 
 
@@ -277,21 +272,13 @@ EXPORT_SYMBOL_GPL(psc_ac97_dai);
  * - Probe/remove operations
  * - OF device match table
  */
-static int __devinit psc_ac97_of_probe(struct platform_device *op,
-				      const struct of_device_id *match)
+static int __devinit psc_ac97_of_probe(struct platform_device *op)
 {
-	int rc, i;
+	int rc;
 	struct snd_ac97 ac97;
 	struct mpc52xx_psc __iomem *regs;
 
-	rc = mpc5200_audio_dma_create(op);
-	if (rc != 0)
-		return rc;
-
-	for (i = 0; i < ARRAY_SIZE(psc_ac97_dai); i++)
-		psc_ac97_dai[i].dev = &op->dev;
-
-	rc = snd_soc_register_dais(psc_ac97_dai, ARRAY_SIZE(psc_ac97_dai));
+	rc = snd_soc_register_dais(&op->dev, psc_ac97_dai, ARRAY_SIZE(psc_ac97_dai));
 	if (rc != 0) {
 		dev_err(&op->dev, "Failed to register DAI\n");
 		return rc;
@@ -300,9 +287,6 @@ static int __devinit psc_ac97_of_probe(struct platform_device *op,
 	psc_dma = dev_get_drvdata(&op->dev);
 	regs = psc_dma->psc_regs;
 	ac97.private_data = psc_dma;
-
-	for (i = 0; i < ARRAY_SIZE(psc_ac97_dai); i++)
-		psc_ac97_dai[i].private_data = psc_dma;
 
 	psc_dma->imr = 0;
 	out_be16(&psc_dma->psc_regs->isr_imr.imr, psc_dma->imr);
@@ -319,7 +303,8 @@ static int __devinit psc_ac97_of_probe(struct platform_device *op,
 
 static int __devexit psc_ac97_of_remove(struct platform_device *op)
 {
-	return mpc5200_audio_dma_destroy(op);
+	snd_soc_unregister_dais(&op->dev, ARRAY_SIZE(psc_ac97_dai));
+	return 0;
 }
 
 /* Match table for of_platform binding */
@@ -330,7 +315,7 @@ static struct of_device_id psc_ac97_match[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(of, psc_ac97_match);
 
-static struct of_platform_driver psc_ac97_driver = {
+static struct platform_driver psc_ac97_driver = {
 	.probe = psc_ac97_of_probe,
 	.remove = __devexit_p(psc_ac97_of_remove),
 	.driver = {
@@ -346,13 +331,13 @@ static struct of_platform_driver psc_ac97_driver = {
  */
 static int __init psc_ac97_init(void)
 {
-	return of_register_platform_driver(&psc_ac97_driver);
+	return platform_driver_register(&psc_ac97_driver);
 }
 module_init(psc_ac97_init);
 
 static void __exit psc_ac97_exit(void)
 {
-	of_unregister_platform_driver(&psc_ac97_driver);
+	platform_driver_unregister(&psc_ac97_driver);
 }
 module_exit(psc_ac97_exit);
 

@@ -313,3 +313,5 @@ MODULE_AUTHOR("Timo Teras <ext-timo.teras@nokia.com>");
 MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");
 MODULE_DESCRIPTION("Xtables: idle time monitor");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("ipt_IDLETIMER");
+MODULE_ALIAS("ip6t_IDLETIMER");

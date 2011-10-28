@@ -15,7 +15,7 @@
 #include <linux/types.h>
 #include <net/netlink.h>
 
-static u16 nla_attr_minlen[NLA_TYPE_MAX+1] __read_mostly = {
+static const u16 nla_attr_minlen[NLA_TYPE_MAX+1] = {
 	[NLA_U8]	= sizeof(u8),
 	[NLA_U16]	= sizeof(u16),
 	[NLA_U32]	= sizeof(u32),
@@ -23,7 +23,7 @@ static u16 nla_attr_minlen[NLA_TYPE_MAX+1] __read_mostly = {
 	[NLA_NESTED]	= NLA_HDRLEN,
 };
 
-static int validate_nla(struct nlattr *nla, int maxtype,
+static int validate_nla(const struct nlattr *nla, int maxtype,
 			const struct nla_policy *policy)
 {
 	const struct nla_policy *pt;
@@ -115,10 +115,10 @@ static int validate_nla(struct nlattr *nla, int maxtype,
  *
  * Returns 0 on success or a negative error code.
  */
-int nla_validate(struct nlattr *head, int len, int maxtype,
+int nla_validate(const struct nlattr *head, int len, int maxtype,
 		 const struct nla_policy *policy)
 {
-	struct nlattr *nla;
+	const struct nlattr *nla;
 	int rem, err;
 
 	nla_for_each_attr(nla, head, len, rem) {
@@ -148,7 +148,7 @@ nla_policy_len(const struct nla_policy *p, int n)
 {
 	int i, len = 0;
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < n; i++, p++) {
 		if (p->len)
 			len += nla_total_size(p->len);
 		else if (nla_attr_minlen[p->type])
@@ -167,16 +167,16 @@ nla_policy_len(const struct nla_policy *p, int n)
  * @policy: validation policy
  *
  * Parses a stream of attributes and stores a pointer to each attribute in
- * the tb array accessable via the attribute type. Attributes with a type
+ * the tb array accessible via the attribute type. Attributes with a type
  * exceeding maxtype will be silently ignored for backwards compatibility
  * reasons. policy may be set to NULL if no validation is required.
  *
  * Returns 0 on success or a negative error code.
  */
-int nla_parse(struct nlattr *tb[], int maxtype, struct nlattr *head, int len,
-	      const struct nla_policy *policy)
+int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
+	      int len, const struct nla_policy *policy)
 {
-	struct nlattr *nla;
+	const struct nlattr *nla;
 	int rem, err;
 
 	memset(tb, 0, sizeof(struct nlattr *) * (maxtype + 1));
@@ -191,7 +191,7 @@ int nla_parse(struct nlattr *tb[], int maxtype, struct nlattr *head, int len,
 					goto errout;
 			}
 
-			tb[type] = nla;
+			tb[type] = (struct nlattr *)nla;
 		}
 	}
 
@@ -212,14 +212,14 @@ errout:
  *
  * Returns the first attribute in the stream matching the specified type.
  */
-struct nlattr *nla_find(struct nlattr *head, int len, int attrtype)
+struct nlattr *nla_find(const struct nlattr *head, int len, int attrtype)
 {
-	struct nlattr *nla;
+	const struct nlattr *nla;
 	int rem;
 
 	nla_for_each_attr(nla, head, len, rem)
 		if (nla_type(nla) == attrtype)
-			return nla;
+			return (struct nlattr *)nla;
 
 	return NULL;
 }

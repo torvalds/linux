@@ -160,7 +160,7 @@ SECTIONS
 		INIT_RAM_FS
 	}
 
-	PERCPU(PAGE_SIZE)
+	PERCPU_SECTION(L1_CACHE_BYTES)
 
 	. = ALIGN(8);
 	.machine.desc : AT(ADDR(.machine.desc) - LOAD_OFFSET) {

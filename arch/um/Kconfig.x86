@@ -4,12 +4,17 @@ menu "UML-specific options"
 
 menu "Host processor type and features"
 
+config CMPXCHG_LOCAL
+	bool
+	default n
+
 source "arch/x86/Kconfig.cpu"
 
 endmenu
 
 config UML_X86
 	def_bool y
+	select GENERIC_FIND_FIRST_BIT
 
 config 64BIT
 	bool
@@ -19,11 +24,14 @@ config X86_32
 	def_bool !64BIT
 	select HAVE_AOUT
 
+config X86_64
+	def_bool 64BIT
+
 config RWSEM_XCHGADD_ALGORITHM
-	def_bool X86_XADD
+	def_bool X86_XADD && 64BIT
 
 config RWSEM_GENERIC_SPINLOCK
-	def_bool !X86_XADD
+	def_bool !RWSEM_XCHGADD_ALGORITHM
 
 config 3_LEVEL_PGTABLES
 	bool "Three-level pagetables (EXPERIMENTAL)" if !64BIT

@@ -63,6 +63,7 @@
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/prefetch.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -117,7 +118,7 @@ module_param (fifo_mode, ushort, 0644);
 
 /* enable_suspend -- When enabled, the driver will respond to
  * USB suspend requests by powering down the NET2280.  Otherwise,
- * USB suspend requests will be ignored.  This is acceptible for
+ * USB suspend requests will be ignored.  This is acceptable for
  * self-powered devices
  */
 static int enable_suspend = 0;
@@ -1929,7 +1930,8 @@ static void ep0_start (struct net2280 *dev)
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
-int usb_gadget_register_driver (struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	struct net2280		*dev = the_controller;
 	int			retval;
@@ -1941,8 +1943,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	 */
 	if (!driver
 			|| driver->speed != USB_SPEED_HIGH
-			|| !driver->bind
-			|| !driver->setup)
+			|| !bind || !driver->setup)
 		return -EINVAL;
 	if (!dev)
 		return -ENODEV;
@@ -1957,7 +1958,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	driver->driver.bus = NULL;
 	dev->driver = driver;
 	dev->gadget.dev.driver = &driver->driver;
-	retval = driver->bind (&dev->gadget);
+	retval = bind(&dev->gadget);
 	if (retval) {
 		DEBUG (dev, "bind to driver %s --> %d\n",
 				driver->driver.name, retval);
@@ -1993,7 +1994,7 @@ err_unbind:
 	dev->driver = NULL;
 	return retval;
 }
-EXPORT_SYMBOL (usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 static void
 stop_activity (struct net2280 *dev, struct usb_gadget_driver *driver)

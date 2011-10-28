@@ -57,7 +57,7 @@ struct poll_table_entry {
 };
 
 /*
- * Structures and helpers for sys_poll/sys_poll
+ * Structures and helpers for select/poll syscall
  */
 struct poll_wqueues {
 	poll_table pt;
@@ -73,6 +73,8 @@ extern void poll_initwait(struct poll_wqueues *pwq);
 extern void poll_freewait(struct poll_wqueues *pwq);
 extern int poll_schedule_timeout(struct poll_wqueues *pwq, int state,
 				 ktime_t *expires, unsigned long slack);
+extern long select_estimate_accuracy(struct timespec *tv);
+
 
 static inline int poll_schedule(struct poll_wqueues *pwq, int state)
 {
@@ -80,7 +82,7 @@ static inline int poll_schedule(struct poll_wqueues *pwq, int state)
 }
 
 /*
- * Scaleable version of the fd_set.
+ * Scalable version of the fd_set.
  */
 
 typedef struct {

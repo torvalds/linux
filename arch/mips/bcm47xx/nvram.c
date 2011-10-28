@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2005 Broadcom Corporation
  * Copyright (C) 2006 Felix Fietkau <nbd@openwrt.org>
+ * Copyright (C) 2010-2011 Hauke Mehrtens <hauke@hauke-m.de>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -23,7 +24,7 @@
 static char nvram_buf[NVRAM_SPACE];
 
 /* Probe for NVRAM header */
-static void __init early_nvram_init(void)
+static void early_nvram_init(void)
 {
 	struct ssb_mipscore *mcore = &ssb_bcm47xx.mipscore;
 	struct nvram_header *header;

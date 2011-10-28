@@ -51,32 +51,32 @@ struct ath_struct {
 
 static int ath_wakeup_ar3k(struct tty_struct *tty)
 {
-	struct termios settings;
-	int status = tty->driver->ops->tiocmget(tty, NULL);
+	struct ktermios ktermios;
+	int status = tty->driver->ops->tiocmget(tty);
 
 	if (status & TIOCM_CTS)
 		return status;
 
 	/* Disable Automatic RTSCTS */
-	n_tty_ioctl_helper(tty, NULL, TCGETS, (unsigned long)&settings);
-	settings.c_cflag &= ~CRTSCTS;
-	n_tty_ioctl_helper(tty, NULL, TCSETS, (unsigned long)&settings);
+	memcpy(&ktermios, tty->termios, sizeof(ktermios));
+	ktermios.c_cflag &= ~CRTSCTS;
+	tty_set_termios(tty, &ktermios);
 
 	/* Clear RTS first */
-	status = tty->driver->ops->tiocmget(tty, NULL);
-	tty->driver->ops->tiocmset(tty, NULL, 0x00, TIOCM_RTS);
+	status = tty->driver->ops->tiocmget(tty);
+	tty->driver->ops->tiocmset(tty, 0x00, TIOCM_RTS);
 	mdelay(20);
 
 	/* Set RTS, wake up board */
-	status = tty->driver->ops->tiocmget(tty, NULL);
-	tty->driver->ops->tiocmset(tty, NULL, TIOCM_RTS, 0x00);
+	status = tty->driver->ops->tiocmget(tty);
+	tty->driver->ops->tiocmset(tty, TIOCM_RTS, 0x00);
 	mdelay(20);
 
-	status = tty->driver->ops->tiocmget(tty, NULL);
+	status = tty->driver->ops->tiocmget(tty);
 
-	n_tty_ioctl_helper(tty, NULL, TCGETS, (unsigned long)&settings);
-	settings.c_cflag |= CRTSCTS;
-	n_tty_ioctl_helper(tty, NULL, TCSETS, (unsigned long)&settings);
+	/* Disable Automatic RTSCTS */
+	ktermios.c_cflag |= CRTSCTS;
+	status = tty_set_termios(tty, &ktermios);
 
 	return status;
 }
@@ -201,8 +201,13 @@ static struct sk_buff *ath_dequeue(struct hci_uart *hu)
 /* Recv data */
 static int ath_recv(struct hci_uart *hu, void *data, int count)
 {
-	if (hci_recv_stream_fragment(hu->hdev, data, count) < 0)
+	int ret;
+
+	ret = hci_recv_stream_fragment(hu->hdev, data, count);
+	if (ret < 0) {
 		BT_ERR("Frame Reassembly Failed");
+		return ret;
+	}
 
 	return count;
 }

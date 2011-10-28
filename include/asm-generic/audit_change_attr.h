@@ -1,4 +1,6 @@
+#ifdef __NR_chmod
 __NR_chmod,
+#endif
 __NR_fchmod,
 #ifdef __NR_chown
 __NR_chown,
@@ -19,4 +21,10 @@ __NR_fchmodat,
 __NR_chown32,
 __NR_fchown32,
 __NR_lchown32,
+#endif
+#ifdef __NR_link
+__NR_link,
+#endif
+#ifdef __NR_linkat
+__NR_linkat,
 #endif

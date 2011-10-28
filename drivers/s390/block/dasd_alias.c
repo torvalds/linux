@@ -253,13 +253,11 @@ int dasd_alias_make_device_known_to_lcu(struct dasd_device *device)
  */
 void dasd_alias_lcu_setup_complete(struct dasd_device *device)
 {
-	struct dasd_eckd_private *private;
 	unsigned long flags;
 	struct alias_server *server;
 	struct alias_lcu *lcu;
 	struct dasd_uid uid;
 
-	private = (struct dasd_eckd_private *) device->private;
 	device->discipline->get_uid(device, &uid);
 	lcu = NULL;
 	spin_lock_irqsave(&aliastree.lock, flags);
@@ -279,13 +277,11 @@ void dasd_alias_lcu_setup_complete(struct dasd_device *device)
 
 void dasd_alias_wait_for_lcu_setup(struct dasd_device *device)
 {
-	struct dasd_eckd_private *private;
 	unsigned long flags;
 	struct alias_server *server;
 	struct alias_lcu *lcu;
 	struct dasd_uid uid;
 
-	private = (struct dasd_eckd_private *) device->private;
 	device->discipline->get_uid(device, &uid);
 	lcu = NULL;
 	spin_lock_irqsave(&aliastree.lock, flags);
@@ -319,6 +315,9 @@ void dasd_alias_disconnect_device_from_lcu(struct dasd_device *device)
 
 	private = (struct dasd_eckd_private *) device->private;
 	lcu = private->lcu;
+	/* nothing to do if already disconnected */
+	if (!lcu)
+		return;
 	device->discipline->get_uid(device, &uid);
 	spin_lock_irqsave(&lcu->lock, flags);
 	list_del_init(&device->alias_list);
@@ -680,6 +679,9 @@ int dasd_alias_remove_device(struct dasd_device *device)
 
 	private = (struct dasd_eckd_private *) device->private;
 	lcu = private->lcu;
+	/* nothing to do if already removed */
+	if (!lcu)
+		return 0;
 	spin_lock_irqsave(&lcu->lock, flags);
 	_remove_device_from_lcu(lcu, device);
 	spin_unlock_irqrestore(&lcu->lock, flags);

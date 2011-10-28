@@ -42,13 +42,12 @@ static int tcf_simp(struct sk_buff *skb, struct tc_action *a, struct tcf_result 
 
 	spin_lock(&d->tcf_lock);
 	d->tcf_tm.lastuse = jiffies;
-	d->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	d->tcf_bstats.packets++;
+	bstats_update(&d->tcf_bstats, skb);
 
 	/* print policy string followed by _ then packet count
 	 * Example if this was the 3rd packet and the string was "hello"
 	 * then it would look like "hello_3" (without quotes)
-	 **/
+	 */
 	pr_info("simple: %s_%d\n",
 	       (char *)d->tcfd_defdata, d->tcf_bstats.packets);
 	spin_unlock(&d->tcf_lock);
@@ -126,7 +125,7 @@ static int tcf_simp_init(struct nlattr *nla, struct nlattr *est,
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*d), bind,
 				     &simp_idx_gen, &simp_hash_info);
 		if (IS_ERR(pc))
-		    return PTR_ERR(pc);
+			return PTR_ERR(pc);
 
 		d = to_defact(pc);
 		ret = alloc_defdata(d, defdata);
@@ -150,7 +149,7 @@ static int tcf_simp_init(struct nlattr *nla, struct nlattr *est,
 	return ret;
 }
 
-static inline int tcf_simp_cleanup(struct tc_action *a, int bind)
+static int tcf_simp_cleanup(struct tc_action *a, int bind)
 {
 	struct tcf_defact *d = a->priv;
 
@@ -159,8 +158,8 @@ static inline int tcf_simp_cleanup(struct tc_action *a, int bind)
 	return 0;
 }
 
-static inline int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
-				int bind, int ref)
+static int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
+			 int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_defact *d = a->priv;

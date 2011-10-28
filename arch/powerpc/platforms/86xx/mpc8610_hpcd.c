@@ -66,7 +66,7 @@ static void __init mpc8610_suspend_init(void)
 		return;
 	}
 
-	ret = request_irq(irq, mpc8610_sw9_irq, 0, "sw9/wakeup", NULL);
+	ret = request_irq(irq, mpc8610_sw9_irq, 0, "sw9:wakeup", NULL);
 	if (ret) {
 		pr_err("%s: can't request pixis event IRQ: %d\n",
 		       __func__, ret);
@@ -105,45 +105,77 @@ machine_device_initcall(mpc86xx_hpcd, mpc8610_declare_of_platform_devices);
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 
-static u32 get_busfreq(void)
-{
-	struct device_node *node;
+/*
+ * DIU Area Descriptor
+ *
+ * The MPC8610 reference manual shows the bits of the AD register in
+ * little-endian order, which causes the BLUE_C field to be split into two
+ * parts. To simplify the definition of the MAKE_AD() macro, we define the
+ * fields in big-endian order and byte-swap the result.
+ *
+ * So even though the registers don't look like they're in the
+ * same bit positions as they are on the P1022, the same value is written to
+ * the AD register on the MPC8610 and on the P1022.
+ */
+#define AD_BYTE_F		0x10000000
+#define AD_ALPHA_C_MASK		0x0E000000
+#define AD_ALPHA_C_SHIFT	25
+#define AD_BLUE_C_MASK		0x01800000
+#define AD_BLUE_C_SHIFT		23
+#define AD_GREEN_C_MASK		0x00600000
+#define AD_GREEN_C_SHIFT	21
+#define AD_RED_C_MASK		0x00180000
+#define AD_RED_C_SHIFT		19
+#define AD_PALETTE		0x00040000
+#define AD_PIXEL_S_MASK		0x00030000
+#define AD_PIXEL_S_SHIFT	16
+#define AD_COMP_3_MASK		0x0000F000
+#define AD_COMP_3_SHIFT		12
+#define AD_COMP_2_MASK		0x00000F00
+#define AD_COMP_2_SHIFT		8
+#define AD_COMP_1_MASK		0x000000F0
+#define AD_COMP_1_SHIFT		4
+#define AD_COMP_0_MASK		0x0000000F
+#define AD_COMP_0_SHIFT		0
 
-	u32 fs_busfreq = 0;
-	node = of_find_node_by_type(NULL, "cpu");
-	if (node) {
-		unsigned int size;
-		const unsigned int *prop =
-			of_get_property(node, "bus-frequency", &size);
-		if (prop)
-			fs_busfreq = *prop;
-		of_node_put(node);
-	};
-	return fs_busfreq;
-}
+#define MAKE_AD(alpha, red, blue, green, size, c0, c1, c2, c3) \
+	cpu_to_le32(AD_BYTE_F | (alpha << AD_ALPHA_C_SHIFT) | \
+	(blue << AD_BLUE_C_SHIFT) | (green << AD_GREEN_C_SHIFT) | \
+	(red << AD_RED_C_SHIFT) | (c3 << AD_COMP_3_SHIFT) | \
+	(c2 << AD_COMP_2_SHIFT) | (c1 << AD_COMP_1_SHIFT) | \
+	(c0 << AD_COMP_0_SHIFT) | (size << AD_PIXEL_S_SHIFT))
 
 unsigned int mpc8610hpcd_get_pixel_format(unsigned int bits_per_pixel,
 						int monitor_port)
 {
 	static const unsigned long pixelformat[][3] = {
-		{0x88882317, 0x88083218, 0x65052119},
-		{0x88883316, 0x88082219, 0x65053118},
+		{
+			MAKE_AD(3, 0, 2, 1, 3, 8, 8, 8, 8),
+			MAKE_AD(4, 2, 0, 1, 2, 8, 8, 8, 0),
+			MAKE_AD(4, 0, 2, 1, 1, 5, 6, 5, 0)
+		},
+		{
+			MAKE_AD(3, 2, 0, 1, 3, 8, 8, 8, 8),
+			MAKE_AD(4, 0, 2, 1, 2, 8, 8, 8, 0),
+			MAKE_AD(4, 2, 0, 1, 1, 5, 6, 5, 0)
+		},
 	};
-	unsigned int pix_fmt, arch_monitor;
+	unsigned int arch_monitor;
 
+	/* The DVI port is mis-wired on revision 1 of this board. */
 	arch_monitor = ((*pixis_arch == 0x01) && (monitor_port == 0))? 0 : 1;
-		/* DVI port for board version 0x01 */
 
-	if (bits_per_pixel == 32)
-		pix_fmt = pixelformat[arch_monitor][0];
-	else if (bits_per_pixel == 24)
-		pix_fmt = pixelformat[arch_monitor][1];
-	else if (bits_per_pixel == 16)
-		pix_fmt = pixelformat[arch_monitor][2];
-	else
-		pix_fmt = pixelformat[1][0];
-
-	return pix_fmt;
+	switch (bits_per_pixel) {
+	case 32:
+		return pixelformat[arch_monitor][0];
+	case 24:
+		return pixelformat[arch_monitor][1];
+	case 16:
+		return pixelformat[arch_monitor][2];
+	default:
+		pr_err("fsl-diu: unsupported pixel depth %u\n", bits_per_pixel);
+		return 0;
+	}
 }
 
 void mpc8610hpcd_set_gamma_table(int monitor_port, char *gamma_table_base)
@@ -190,8 +222,7 @@ void mpc8610hpcd_set_pixel_clock(unsigned int pixclock)
 	}
 
 	/* Pixel Clock configuration */
-	pr_debug("DIU: Bus Frequency = %d\n", get_busfreq());
-	speed_ccb = get_busfreq();
+	speed_ccb = fsl_get_sys_freq();
 
 	/* Calculate the pixel clock with the smallest error */
 	/* calculate the following in steps to avoid overflow */

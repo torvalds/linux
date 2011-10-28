@@ -87,11 +87,10 @@ enum {
 #define GL_ASYNC		0x00000040
 #define GL_EXACT		0x00000080
 #define GL_SKIP			0x00000100
-#define GL_ATIME		0x00000200
 #define GL_NOCACHE		0x00000400
   
 /*
- * lm_lock() and lm_async_cb return flags
+ * lm_async_cb return flags
  *
  * LM_OUT_ST_MASK
  * Masks the lower two bits of lock state in the returned value.
@@ -99,15 +98,11 @@ enum {
  * LM_OUT_CANCELED
  * The lock request was canceled.
  *
- * LM_OUT_ASYNC
- * The result of the request will be returned in an LM_CB_ASYNC callback.
- *
  */
 
 #define LM_OUT_ST_MASK		0x00000003
 #define LM_OUT_CANCELED		0x00000008
-#define LM_OUT_ASYNC		0x00000080
-#define LM_OUT_ERROR		0x00000100
+#define LM_OUT_ERROR		0x00000004
 
 /*
  * lm_recovery_done() messages
@@ -123,25 +118,12 @@ struct lm_lockops {
 	int (*lm_mount) (struct gfs2_sbd *sdp, const char *fsname);
  	void (*lm_unmount) (struct gfs2_sbd *sdp);
 	void (*lm_withdraw) (struct gfs2_sbd *sdp);
-	void (*lm_put_lock) (struct kmem_cache *cachep, struct gfs2_glock *gl);
-	unsigned int (*lm_lock) (struct gfs2_glock *gl,
-				 unsigned int req_state, unsigned int flags);
+	void (*lm_put_lock) (struct gfs2_glock *gl);
+	int (*lm_lock) (struct gfs2_glock *gl, unsigned int req_state,
+			unsigned int flags);
 	void (*lm_cancel) (struct gfs2_glock *gl);
 	const match_table_t *lm_tokens;
 };
-
-#define LM_FLAG_TRY		0x00000001
-#define LM_FLAG_TRY_1CB		0x00000002
-#define LM_FLAG_NOEXP		0x00000004
-#define LM_FLAG_ANY		0x00000008
-#define LM_FLAG_PRIORITY	0x00000010
-
-#define GL_ASYNC		0x00000040
-#define GL_EXACT		0x00000080
-#define GL_SKIP			0x00000100
-#define GL_NOCACHE		0x00000400
-
-#define GLR_TRYFAILED		13
 
 extern struct workqueue_struct *gfs2_delete_workqueue;
 static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(struct gfs2_glock *gl)
@@ -192,7 +174,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp,
 		   int create, struct gfs2_glock **glp);
 void gfs2_glock_hold(struct gfs2_glock *gl);
 void gfs2_glock_put_nolock(struct gfs2_glock *gl);
-int gfs2_glock_put(struct gfs2_glock *gl);
+void gfs2_glock_put(struct gfs2_glock *gl);
 void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 		      struct gfs2_holder *gh);
 void gfs2_holder_reinit(unsigned int state, unsigned flags,
@@ -212,10 +194,12 @@ int gfs2_glock_nq_num(struct gfs2_sbd *sdp,
 int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs);
+
+__attribute__ ((format(printf, 2, 3)))
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
 
 /**
- * gfs2_glock_nq_init - intialize a holder and enqueue it on a glock
+ * gfs2_glock_nq_init - initialize a holder and enqueue it on a glock
  * @gl: the glock
  * @state: the state we're requesting
  * @flags: the modifier flags
@@ -239,25 +223,21 @@ static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
 	return error;
 }
 
-/*  Lock Value Block functions  */
+extern void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state);
+extern void gfs2_glock_complete(struct gfs2_glock *gl, int ret);
+extern void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
+extern void gfs2_glock_finish_truncate(struct gfs2_inode *ip);
+extern void gfs2_glock_thaw(struct gfs2_sbd *sdp);
+extern void gfs2_glock_add_to_lru(struct gfs2_glock *gl);
+extern void gfs2_glock_free(struct gfs2_glock *gl);
 
-int gfs2_lvb_hold(struct gfs2_glock *gl);
-void gfs2_lvb_unhold(struct gfs2_glock *gl);
+extern int __init gfs2_glock_init(void);
+extern void gfs2_glock_exit(void);
 
-void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state);
-void gfs2_glock_complete(struct gfs2_glock *gl, int ret);
-void gfs2_reclaim_glock(struct gfs2_sbd *sdp);
-void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
-void gfs2_glock_finish_truncate(struct gfs2_inode *ip);
-void gfs2_glock_thaw(struct gfs2_sbd *sdp);
-
-int __init gfs2_glock_init(void);
-void gfs2_glock_exit(void);
-
-int gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
-void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp);
-int gfs2_register_debugfs(void);
-void gfs2_unregister_debugfs(void);
+extern int gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
+extern void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp);
+extern int gfs2_register_debugfs(void);
+extern void gfs2_unregister_debugfs(void);
 
 extern const struct lm_lockops gfs2_dlm_ops;
 

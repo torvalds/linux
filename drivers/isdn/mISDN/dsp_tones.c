@@ -394,7 +394,7 @@ void dsp_tone_copy(struct dsp *dsp, u8 *data, int len)
 	while (len) {
 		/* find sample to start with */
 		while (42) {
-			/* warp arround */
+			/* wrap around */
 			if (!pat->seq[index]) {
 				count = 0;
 				index = 0;

@@ -29,7 +29,7 @@
 struct ocfs2_alloc_reservation {
 	struct rb_node	r_node;
 
-	unsigned int	r_start;	/* Begining of current window */
+	unsigned int	r_start;	/* Beginning of current window */
 	unsigned int	r_len;		/* Length of the window */
 
 	unsigned int	r_last_len;	/* Length of most recent alloc */

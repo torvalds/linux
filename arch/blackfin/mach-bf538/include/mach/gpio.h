@@ -70,4 +70,9 @@
 #define PORT_D GPIO_PD0
 #define PORT_E GPIO_PE0
 
+#include <mach-common/ports-c.h>
+#include <mach-common/ports-d.h>
+#include <mach-common/ports-e.h>
+#include <mach-common/ports-f.h>
+
 #endif /* _MACH_GPIO_H_ */

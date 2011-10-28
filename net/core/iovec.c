@@ -35,14 +35,15 @@
  *	in any case.
  */
 
-long verify_iovec(struct msghdr *m, struct iovec *iov, struct sockaddr *address, int mode)
+int verify_iovec(struct msghdr *m, struct iovec *iov, struct sockaddr *address, int mode)
 {
-	int size, ct;
-	long err;
+	int size, ct, err;
 
 	if (m->msg_namelen) {
 		if (mode == VERIFY_READ) {
-			err = move_addr_to_kernel(m->msg_name, m->msg_namelen,
+			void __user *namep;
+			namep = (void __user __force *) m->msg_name;
+			err = move_addr_to_kernel(namep, m->msg_namelen,
 						  address);
 			if (err < 0)
 				return err;
@@ -53,21 +54,20 @@ long verify_iovec(struct msghdr *m, struct iovec *iov, struct sockaddr *address,
 	}
 
 	size = m->msg_iovlen * sizeof(struct iovec);
-	if (copy_from_user(iov, m->msg_iov, size))
+	if (copy_from_user(iov, (void __user __force *) m->msg_iov, size))
 		return -EFAULT;
 
 	m->msg_iov = iov;
 	err = 0;
 
 	for (ct = 0; ct < m->msg_iovlen; ct++) {
-		err += iov[ct].iov_len;
-		/*
-		 * Goal is not to verify user data, but to prevent returning
-		 * negative value, which is interpreted as errno.
-		 * Overflow is still possible, but it is harmless.
-		 */
-		if (err < 0)
-			return -EMSGSIZE;
+		size_t len = iov[ct].iov_len;
+
+		if (len > INT_MAX - err) {
+			len = INT_MAX - err;
+			iov[ct].iov_len = len;
+		}
+		err += len;
 	}
 
 	return err;

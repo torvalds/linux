@@ -420,7 +420,7 @@ enable_hwirq(struct inf_hw *hw)
 		break;
 	case INF_NICCY:
 		val = inl((u32)hw->cfg.start + NICCY_IRQ_CTRL_REG);
-		val |= NICCY_IRQ_ENABLE;;
+		val |= NICCY_IRQ_ENABLE;
 		outl(val, (u32)hw->cfg.start + NICCY_IRQ_CTRL_REG);
 		break;
 	case INF_SCT_1:
@@ -563,7 +563,7 @@ reset_inf(struct inf_hw *hw)
 		mdelay(10);
 		hw->ipac.isac.adf2 = 0x87;
 		hw->ipac.hscx[0].slot = 0x1f;
-		hw->ipac.hscx[0].slot = 0x23;
+		hw->ipac.hscx[1].slot = 0x23;
 		break;
 	case INF_GAZEL_R753:
 		val = inl((u32)hw->cfg.start + GAZEL_CNTRL);
@@ -924,7 +924,7 @@ setup_instance(struct inf_hw *card)
 		mISDNipac_init(&card->ipac, card);
 
 	if (card->ipac.isac.dch.dev.Bprotocols == 0)
-		goto error_setup;;
+		goto error_setup;
 
 	err = mISDN_register_device(&card->ipac.isac.dch.dev,
 		&card->pdev->dev, card->name);

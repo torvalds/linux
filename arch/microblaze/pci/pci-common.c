@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_pci.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -59,21 +60,6 @@ struct dma_map_ops *get_pci_dma_ops(void)
 	return pci_dma_ops;
 }
 EXPORT_SYMBOL(get_pci_dma_ops);
-
-int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	return dma_set_mask(&dev->dev, mask);
-}
-
-int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	int rc;
-
-	rc = dma_set_mask(&dev->dev, mask);
-	dev->dev.coherent_dma_mask = dev->dma_mask;
-
-	return rc;
-}
 
 struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 {
@@ -251,7 +237,7 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 
 		virq = irq_create_mapping(NULL, line);
 		if (virq != NO_IRQ)
-			set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
 	} else {
 		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
 			 oirq.size, oirq.specifier[0], oirq.specifier[1],
@@ -1075,8 +1061,6 @@ void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
 		 bus->number, bus->self ? pci_name(bus->self) : "PHB");
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		struct dev_archdata *sd = &dev->dev.archdata;
-
 		/* Setup OF node pointer in archdata */
 		dev->dev.of_node = pci_device_to_OF_node(dev);
 
@@ -1086,8 +1070,8 @@ void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
 		set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
 
 		/* Hook up default DMA ops */
-		sd->dma_ops = pci_dma_ops;
-		sd->dma_data = (void *)PCI_DRAM_OFFSET;
+		set_dma_ops(&dev->dev, pci_dma_ops);
+		dev->dev.archdata.dma_data = (void *)PCI_DRAM_OFFSET;
 
 		/* Read default IRQs and fixup if necessary */
 		pci_read_irq_line(dev);

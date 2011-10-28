@@ -85,7 +85,7 @@ out:
 
 /*
  * Helper function for splitting a string into an argv-like array.
- * originaly copied from lib/argv_split.c
+ * originally copied from lib/argv_split.c
  */
 static const char *skip_sep(const char *cp)
 {
@@ -259,7 +259,7 @@ static bool __match_glob(const char *str, const char *pat, bool ignore_space)
 		if (!*pat)	/* Tail wild card matches all */
 			return true;
 		while (*str)
-			if (strglobmatch(str++, pat))
+			if (__match_glob(str++, pat, ignore_space))
 				return true;
 	}
 	return !*str && !*pat;

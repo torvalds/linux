@@ -21,6 +21,8 @@
 
 #include <asm/cacheflush.h>
 #include <asm/dma.h>
+#include <asm/cachectl.h>
+#include <asm/ptrace.h>
 
 asmlinkage void *sys_sram_alloc(size_t size, unsigned long flags)
 {
@@ -69,4 +71,17 @@ asmlinkage int sys_bfin_spinlock(int *p)
 	spin_unlock(&bfin_spinlock_lock);
 
 	return ret;
+}
+
+SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, len, int, op)
+{
+	if (is_user_addr_valid(current, addr, len) != 0)
+		return -EINVAL;
+
+	if (op & DCACHE)
+		blackfin_dcache_flush_range(addr, addr + len);
+	if (op & ICACHE)
+		blackfin_icache_flush_range(addr, addr + len);
+
+	return 0;
 }

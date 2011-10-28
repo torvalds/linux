@@ -103,6 +103,7 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE(DRIVER_LICENSE);
 
 #define USB_VENDOR_ID_WACOM	0x056a
+#define USB_VENDOR_ID_LENOVO	0x17ef
 
 struct wacom {
 	dma_addr_t data_dma;
@@ -118,6 +119,7 @@ struct wacom {
 extern const struct usb_device_id wacom_ids[];
 
 void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len);
+void wacom_setup_device_quirks(struct wacom_features *features);
 void wacom_setup_input_capabilities(struct input_dev *input_dev,
 				    struct wacom_wac *wacom_wac);
 #endif

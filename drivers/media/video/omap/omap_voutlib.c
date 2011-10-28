@@ -53,7 +53,7 @@ EXPORT_SYMBOL_GPL(omap_vout_default_crop);
 /* Given a new render window in new_win, adjust the window to the
  * nearest supported configuration.  The adjusted window parameters are
  * returned in new_win.
- * Returns zero if succesful, or -EINVAL if the requested window is
+ * Returns zero if successful, or -EINVAL if the requested window is
  * impossible and cannot reasonably be adjusted.
  */
 int omap_vout_try_window(struct v4l2_framebuffer *fbuf,
@@ -101,7 +101,7 @@ EXPORT_SYMBOL_GPL(omap_vout_try_window);
  * will also be adjusted if necessary.  Preference is given to keeping the
  * the window as close to the requested configuration as possible.  If
  * successful, new_win, vout->win, and crop are updated.
- * Returns zero if succesful, or -EINVAL if the requested preview window is
+ * Returns zero if successful, or -EINVAL if the requested preview window is
  * impossible and cannot reasonably be adjusted.
  */
 int omap_vout_new_window(struct v4l2_rect *crop,
@@ -155,7 +155,7 @@ EXPORT_SYMBOL_GPL(omap_vout_new_window);
  * window would fall outside the display boundaries, the cropping rectangle
  * will also be adjusted to maintain the rescaling ratios.  If successful, crop
  * and win are updated.
- * Returns zero if succesful, or -EINVAL if the requested cropping rectangle is
+ * Returns zero if successful, or -EINVAL if the requested cropping rectangle is
  * impossible and cannot reasonably be adjusted.
  */
 int omap_vout_new_crop(struct v4l2_pix_format *pix,
@@ -193,7 +193,7 @@ int omap_vout_new_crop(struct v4l2_pix_format *pix,
 		return -EINVAL;
 
 	if (cpu_is_omap24xx()) {
-		if (crop->height != win->w.height) {
+		if (try_crop.height != win->w.height) {
 			/* If we're resizing vertically, we can't support a
 			 * crop width wider than 768 pixels.
 			 */
@@ -202,7 +202,7 @@ int omap_vout_new_crop(struct v4l2_pix_format *pix,
 		}
 	}
 	/* vertical resizing */
-	vresize = (1024 * crop->height) / win->w.height;
+	vresize = (1024 * try_crop.height) / win->w.height;
 	if (cpu_is_omap24xx() && (vresize > 2048))
 		vresize = 2048;
 	else if (cpu_is_omap34xx() && (vresize > 4096))
@@ -221,7 +221,7 @@ int omap_vout_new_crop(struct v4l2_pix_format *pix,
 			try_crop.height = 2;
 	}
 	/* horizontal resizing */
-	hresize = (1024 * crop->width) / win->w.width;
+	hresize = (1024 * try_crop.width) / win->w.width;
 	if (cpu_is_omap24xx() && (hresize > 2048))
 		hresize = 2048;
 	else if (cpu_is_omap34xx() && (hresize > 4096))

@@ -28,19 +28,9 @@
  *			M68K		  COLDFIRE
  */
 
-#define ALLOWINT 0xf8ff
+#define ALLOWINT (~0x700)
 
 #ifdef __ASSEMBLY__
-
-/* process bits for task_struct.flags */
-PF_TRACESYS_OFF = 3
-PF_TRACESYS_BIT = 5
-PF_PTRACED_OFF = 3
-PF_PTRACED_BIT = 4
-PF_DTRACE_OFF = 1
-PF_DTRACE_BIT = 5
-
-LENOSYS = 38
 
 #define SWITCH_STACK_SIZE (6*4+4)	/* Includes return address */
 
@@ -52,12 +42,16 @@ LENOSYS = 38
  */
 
 #ifdef CONFIG_COLDFIRE
+#ifdef CONFIG_COLDFIRE_SW_A7
 /*
- * This is made a little more tricky on the ColdFire. There is no
- * separate kernel and user stack pointers. Need to artificially
+ * This is made a little more tricky on older ColdFires. There is no
+ * separate supervisor and user stack pointers. Need to artificially
  * construct a usp in software... When doing this we need to disable
- * interrupts, otherwise bad things could happen.
+ * interrupts, otherwise bad things will happen.
  */
+.globl sw_usp
+.globl sw_ksp
+
 .macro SAVE_ALL
 	move	#0x2700,%sr		/* disable intrs */
 	btst	#5,%sp@(2)		/* from user? */
@@ -84,9 +78,7 @@ LENOSYS = 38
 	7:
 .endm
 
-.macro RESTORE_ALL
-	btst	#5,%sp@(PT_SR)		/* going user? */
-	bnes	8f			/* no, skip */
+.macro RESTORE_USER
 	move	#0x2700,%sr		/* disable intrs */
 	movel	sw_usp,%a0		/* get usp */
 	movel	%sp@(PT_OFF_PC),%a0@-	/* copy exception program counter */
@@ -101,19 +93,22 @@ LENOSYS = 38
 	subql	#8,sw_usp		/* set exception */
 	movel	sw_usp,%sp		/* restore usp */
 	rte
-	8:
-	moveml	%sp@,%d1-%d5/%a0-%a2
-	lea	%sp@(32),%sp		/* space for 8 regs */
-	movel	%sp@+,%d0
-	addql	#4,%sp			/* orig d0 */
-	addl	%sp@+,%sp		/* stkadj */
-	rte
 .endm
 
+.macro RDUSP
+	movel	sw_usp,%a2
+.endm
+
+.macro WRUSP
+	movel	%a0,sw_usp
+.endm
+
+#else /* !CONFIG_COLDFIRE_SW_A7 */
 /*
- * Quick exception save, use current stack only.
+ * Modern ColdFire parts have separate supervisor and user stack
+ * pointers. Simple load and restore macros for this case.
  */
-.macro SAVE_LOCAL
+.macro SAVE_ALL
 	move	#0x2700,%sr		/* disable intrs */
 	clrl	%sp@-			/* stkadj */
 	movel	%d0,%sp@-		/* orig d0 */
@@ -122,7 +117,7 @@ LENOSYS = 38
 	moveml	%d1-%d5/%a0-%a2,%sp@
 .endm
 
-.macro RESTORE_LOCAL
+.macro RESTORE_USER
 	moveml	%sp@,%d1-%d5/%a0-%a2
 	lea	%sp@(32),%sp		/* space for 8 regs */
 	movel	%sp@+,%d0
@@ -130,6 +125,18 @@ LENOSYS = 38
 	addl	%sp@+,%sp		/* stkadj */
 	rte
 .endm
+
+.macro RDUSP
+	/*move	%usp,%a2*/
+	.word	0x4e6a
+.endm
+
+.macro WRUSP
+	/*move	%a0,%usp*/
+	.word	0x4e60
+.endm
+
+#endif /* !CONFIG_COLDFIRE_SW_A7 */
 
 .macro SAVE_SWITCH_STACK
 	lea	%sp@(-24),%sp		/* 6 regs */
@@ -140,14 +147,6 @@ LENOSYS = 38
 	moveml	%sp@,%a3-%a6/%d6-%d7
 	lea	%sp@(24),%sp		/* 6 regs */
 .endm
-
-/*
- * Software copy of the user and kernel stack pointers... Ugh...
- * Need these to get around ColdFire not having separate kernel
- * and user stack pointers.
- */
-.globl sw_usp
-.globl sw_ksp
 
 #else /* !CONFIG_COLDFIRE */
 
@@ -177,6 +176,6 @@ LENOSYS = 38
 	moveml	%sp@+,%a3-%a6/%d6-%d7
 .endm
 
-#endif /* !CONFIG_COLDFIRE */
+#endif /* !COLDFIRE_SW_A7 */
 #endif /* __ASSEMBLY__ */
 #endif /* __M68KNOMMU_ENTRY_H */

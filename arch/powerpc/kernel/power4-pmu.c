@@ -613,4 +613,4 @@ static int init_power4_pmu(void)
 	return register_power_pmu(&power4_pmu);
 }
 
-arch_initcall(init_power4_pmu);
+early_initcall(init_power4_pmu);

@@ -409,7 +409,7 @@ config CYCLADES_SYNC
 	tristate "Cyclom 2X(tm) cards (EXPERIMENTAL)"
 	depends on WAN_ROUTER_DRIVERS && (PCI || ISA)
 	---help---
-	  Cyclom 2X from Cyclades Corporation <http://www.cyclades.com/> is an
+	  Cyclom 2X from Cyclades Corporation <http://www.avocent.com/> is an
 	  intelligent multiprotocol WAN adapter with data transfer rates up to
 	  512 Kbps. These cards support the X.25 and SNA related protocols.
 

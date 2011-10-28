@@ -227,6 +227,16 @@ static int sl82c105_qc_defer(struct ata_queued_cmd *qc)
 	return 0;
 }
 
+static bool sl82c105_sff_irq_check(struct ata_port *ap)
+{
+	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
+	u32 val, mask		= ap->port_no ? CTRL_IDE_IRQB : CTRL_IDE_IRQA;
+
+	pci_read_config_dword(pdev, 0x40, &val);
+
+	return val & mask;
+}
+
 static struct scsi_host_template sl82c105_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
@@ -239,6 +249,7 @@ static struct ata_port_operations sl82c105_port_ops = {
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= sl82c105_set_piomode,
 	.prereset	= sl82c105_pre_reset,
+	.sff_irq_check	= sl82c105_sff_irq_check,
 };
 
 /**

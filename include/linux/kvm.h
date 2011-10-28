@@ -414,6 +414,14 @@ struct kvm_enable_cap {
 	__u8  pad[64];
 };
 
+/* for KVM_PPC_GET_PVINFO */
+struct kvm_ppc_pvinfo {
+	/* out */
+	__u32 flags;
+	__u32 hcall[4];
+	__u8  pad[108];
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -530,6 +538,12 @@ struct kvm_enable_cap {
 #ifdef __KVM_HAVE_XCRS
 #define KVM_CAP_XCRS 56
 #endif
+#define KVM_CAP_PPC_GET_PVINFO 57
+#define KVM_CAP_PPC_IRQ_LEVEL 58
+#define KVM_CAP_ASYNC_PF 59
+#define KVM_CAP_TSC_CONTROL 60
+#define KVM_CAP_GET_TSC_KHZ 61
+#define KVM_CAP_PPC_BOOKE_SREGS 62
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -664,6 +678,11 @@ struct kvm_clock_data {
 /* Available with KVM_CAP_PIT_STATE2 */
 #define KVM_GET_PIT2              _IOR(KVMIO,  0x9f, struct kvm_pit_state2)
 #define KVM_SET_PIT2              _IOW(KVMIO,  0xa0, struct kvm_pit_state2)
+/* Available with KVM_CAP_PPC_GET_PVINFO */
+#define KVM_PPC_GET_PVINFO	  _IOW(KVMIO,  0xa1, struct kvm_ppc_pvinfo)
+/* Available with KVM_CAP_TSC_CONTROL */
+#define KVM_SET_TSC_KHZ           _IO(KVMIO,  0xa2)
+#define KVM_GET_TSC_KHZ           _IO(KVMIO,  0xa3)
 
 /*
  * ioctls for vcpu fds

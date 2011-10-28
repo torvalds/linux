@@ -489,7 +489,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 	int vid1, vid2, feat, cfg;
 	u32 vid;
 
-	if (dev->chip_id == CHIP_ID_EM2870 || dev->chip_id == CHIP_ID_EM2874) {
+	if (dev->chip_id == CHIP_ID_EM2870 || dev->chip_id == CHIP_ID_EM2874
+		|| dev->chip_id == CHIP_ID_EM28174) {
 		/* Digital only device - don't load any alsa module */
 		dev->audio_mode.has_audio = 0;
 		dev->has_audio_class = 0;
@@ -614,7 +615,7 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 {
 	int rc;
 
-	if (dev->chip_id == CHIP_ID_EM2874) {
+	if (dev->chip_id == CHIP_ID_EM2874 || dev->chip_id == CHIP_ID_EM28174) {
 		/* The Transport Stream Enable Register moved in em2874 */
 		if (!start) {
 			rc = em28xx_write_reg_bits(dev, EM2874_R5F_TS_ENABLE,
@@ -1111,6 +1112,10 @@ int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev)
 		/* FIXME - for now assume 564 like it was before, but the
 		   em2874 code should be added to return the proper value... */
 		packet_size = 564;
+	} else if (dev->chip_id == CHIP_ID_EM28174) {
+		/* FIXME same as em2874. 564 was enough for 22 Mbit DVB-T
+		   but too much for 44 Mbit DVB-C. */
+		packet_size = 752;
 	} else {
 		/* TS max packet size stored in bits 1-0 of R01 */
 		chip_cfg2 = em28xx_read_reg(dev, EM28XX_R01_CHIPCFG2);

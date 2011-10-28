@@ -2679,7 +2679,7 @@ static	struct script script0 __initdata = {
 }/*-------------------------< RESEL_TAG >-------------------*/,{
 	/*
 	**	Read IDENTIFY + SIMPLE + TAG using a single MOVE.
-	**	Agressive optimization, is'nt it?
+	**	Aggressive optimization, is'nt it?
 	**	No need to test the SIMPLE TAG message, since the 
 	**	driver only supports conformant devices for tags. ;-)
 	*/
@@ -8029,7 +8029,7 @@ static int ncr53c8xx_slave_configure(struct scsi_device *device)
 	return 0;
 }
 
-static int ncr53c8xx_queue_command (struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
+static int ncr53c8xx_queue_command_lck (struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
      struct ncb *np = ((struct host_data *) cmd->device->host->hostdata)->ncb;
      unsigned long flags;
@@ -8067,6 +8067,8 @@ printk("ncr53c8xx : command successfully queued\n");
 
      return sts;
 }
+
+static DEF_SCSI_QCMD(ncr53c8xx_queue_command)
 
 irqreturn_t ncr53c8xx_intr(int irq, void *dev_id)
 {
@@ -8145,7 +8147,7 @@ static int ncr53c8xx_abort(struct scsi_cmnd *cmd)
 	unsigned long flags;
 	struct scsi_cmnd *done_list;
 
-	printk("ncr53c8xx_abort: command pid %lu\n", cmd->serial_number);
+	printk("ncr53c8xx_abort\n");
 
 	NCR_LOCK_NCB(np, flags);
 

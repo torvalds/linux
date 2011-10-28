@@ -79,7 +79,7 @@ config 29BIT
 
 config 32BIT
 	bool
-	default y if CPU_SH5
+	default y if CPU_SH5 || !MMU
 
 config PMB
 	bool "Support 32-bit physical addressing through PMB"
@@ -167,6 +167,10 @@ config IOREMAP_FIXED
 
 config UNCACHED_MAPPING
 	bool
+
+config HAVE_SRAM_POOL
+	bool
+	select GENERIC_ALLOCATOR
 
 choice
 	prompt "Kernel page size"

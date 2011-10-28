@@ -22,6 +22,16 @@
 #include <sound/soc.h>
 #include "txx9aclc.h"
 
+static struct txx9aclc_soc_device {
+	struct txx9aclc_dmadata dmadata[2];
+} txx9aclc_soc_device;
+
+/* REVISIT: How to find txx9aclc_drvdata from snd_ac97? */
+static struct txx9aclc_plat_drvdata *txx9aclc_drvdata;
+
+static int txx9aclc_dma_init(struct txx9aclc_soc_device *dev,
+			     struct txx9aclc_dmadata *dmadata);
+
 static const struct snd_pcm_hardware txx9aclc_pcm_hardware = {
 	/*
 	 * REVISIT: SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID
@@ -46,7 +56,6 @@ static int txx9aclc_pcm_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct txx9aclc_dmadata *dmadata = runtime->private_data;
 	int ret;
@@ -55,13 +64,13 @@ static int txx9aclc_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(socdev->dev,
+	dev_dbg(rtd->platform->dev,
 		"runtime->dma_area = %#lx dma_addr = %#lx dma_bytes = %zd "
 		"runtime->min_align %ld\n",
 		(unsigned long)runtime->dma_area,
 		(unsigned long)runtime->dma_addr, runtime->dma_bytes,
 		runtime->min_align);
-	dev_dbg(socdev->dev,
+	dev_dbg(rtd->platform->dev,
 		"periods %d period_bytes %d stream %d\n",
 		params_periods(params), params_period_bytes(params),
 		substream->stream);
@@ -152,11 +161,7 @@ static void txx9aclc_dma_tasklet(unsigned long data)
 
 	spin_lock_irqsave(&dmadata->dma_lock, flags);
 	if (dmadata->frag_count < 0) {
-		struct txx9aclc_soc_device *dev =
-			container_of(dmadata, struct txx9aclc_soc_device,
-				     dmadata[substream->stream]);
-		struct txx9aclc_plat_drvdata *drvdata =
-			txx9aclc_get_plat_drvdata(dev);
+		struct txx9aclc_plat_drvdata *drvdata = txx9aclc_drvdata;
 		void __iomem *base = drvdata->base;
 
 		spin_unlock_irqrestore(&dmadata->dma_lock, flags);
@@ -202,10 +207,7 @@ static void txx9aclc_dma_tasklet(unsigned long data)
 static int txx9aclc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct txx9aclc_dmadata *dmadata = substream->runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct txx9aclc_soc_device *dev =
-		container_of(rtd->socdev, struct txx9aclc_soc_device, soc_dev);
-	struct txx9aclc_plat_drvdata *drvdata = txx9aclc_get_plat_drvdata(dev);
+	struct txx9aclc_plat_drvdata *drvdata =txx9aclc_drvdata;
 	void __iomem *base = drvdata->base;
 	unsigned long flags;
 	int ret = 0;
@@ -244,9 +246,7 @@ txx9aclc_pcm_pointer(struct snd_pcm_substream *substream)
 
 static int txx9aclc_pcm_open(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct txx9aclc_soc_device *dev =
-		container_of(rtd->socdev, struct txx9aclc_soc_device, soc_dev);
+	struct txx9aclc_soc_device *dev = &txx9aclc_soc_device;
 	struct txx9aclc_dmadata *dmadata = &dev->dmadata[substream->stream];
 	int ret;
 
@@ -291,8 +291,38 @@ static void txx9aclc_pcm_free_dma_buffers(struct snd_pcm *pcm)
 static int txx9aclc_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 			    struct snd_pcm *pcm)
 {
+	struct platform_device *pdev = to_platform_device(dai->platform->dev);
+	struct txx9aclc_soc_device *dev;
+	struct resource *r;
+	int i;
+	int ret;
+
+	/* at this point onwards the AC97 component has probed and this will be valid */
+	dev = snd_soc_dai_get_drvdata(dai);
+
+	dev->dmadata[0].stream = SNDRV_PCM_STREAM_PLAYBACK;
+	dev->dmadata[1].stream = SNDRV_PCM_STREAM_CAPTURE;
+	for (i = 0; i < 2; i++) {
+		r = platform_get_resource(pdev, IORESOURCE_DMA, i);
+		if (!r) {
+			ret = -EBUSY;
+			goto exit;
+		}
+		dev->dmadata[i].dma_res = r;
+		ret = txx9aclc_dma_init(dev, &dev->dmadata[i]);
+		if (ret)
+			goto exit;
+	}
 	return snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 		card->dev, 64 * 1024, 4 * 1024 * 1024);
+
+exit:
+	for (i = 0; i < 2; i++) {
+		if (dev->dmadata[i].dma_chan)
+			dma_release_channel(dev->dmadata[i].dma_chan);
+		dev->dmadata[i].dma_chan = NULL;
+	}
+	return ret;
 }
 
 static bool filter(struct dma_chan *chan, void *param)
@@ -314,7 +344,7 @@ static bool filter(struct dma_chan *chan, void *param)
 static int txx9aclc_dma_init(struct txx9aclc_soc_device *dev,
 			     struct txx9aclc_dmadata *dmadata)
 {
-	struct txx9aclc_plat_drvdata *drvdata = txx9aclc_get_plat_drvdata(dev);
+	struct txx9aclc_plat_drvdata *drvdata =txx9aclc_drvdata;
 	struct txx9dmac_slave *ds = &dmadata->dma_slave;
 	dma_cap_mask_t mask;
 
@@ -334,7 +364,7 @@ static int txx9aclc_dma_init(struct txx9aclc_soc_device *dev,
 	dma_cap_set(DMA_SLAVE, mask);
 	dmadata->dma_chan = dma_request_channel(mask, filter, dmadata);
 	if (!dmadata->dma_chan) {
-		dev_err(dev->soc_dev.dev,
+		printk(KERN_ERR
 			"DMA channel for %s is not available\n",
 			dmadata->stream == SNDRV_PCM_STREAM_PLAYBACK ?
 			"playback" : "capture");
@@ -345,45 +375,16 @@ static int txx9aclc_dma_init(struct txx9aclc_soc_device *dev,
 	return 0;
 }
 
-static int txx9aclc_pcm_probe(struct platform_device *pdev)
+static int txx9aclc_pcm_probe(struct snd_soc_platform *platform)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct txx9aclc_soc_device *dev =
-		container_of(socdev, struct txx9aclc_soc_device, soc_dev);
-	struct resource *r;
-	int i;
-	int ret;
-
-	dev->dmadata[0].stream = SNDRV_PCM_STREAM_PLAYBACK;
-	dev->dmadata[1].stream = SNDRV_PCM_STREAM_CAPTURE;
-	for (i = 0; i < 2; i++) {
-		r = platform_get_resource(dev->aclc_pdev, IORESOURCE_DMA, i);
-		if (!r) {
-			ret = -EBUSY;
-			goto exit;
-		}
-		dev->dmadata[i].dma_res = r;
-		ret = txx9aclc_dma_init(dev, &dev->dmadata[i]);
-		if (ret)
-			goto exit;
-	}
+	snd_soc_platform_set_drvdata(platform, &txx9aclc_soc_device);
 	return 0;
-
-exit:
-	for (i = 0; i < 2; i++) {
-		if (dev->dmadata[i].dma_chan)
-			dma_release_channel(dev->dmadata[i].dma_chan);
-		dev->dmadata[i].dma_chan = NULL;
-	}
-	return ret;
 }
 
-static int txx9aclc_pcm_remove(struct platform_device *pdev)
+static int txx9aclc_pcm_remove(struct snd_soc_platform *platform)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct txx9aclc_soc_device *dev =
-		container_of(socdev, struct txx9aclc_soc_device, soc_dev);
-	struct txx9aclc_plat_drvdata *drvdata = txx9aclc_get_plat_drvdata(dev);
+	struct txx9aclc_soc_device *dev = snd_soc_platform_get_drvdata(platform);
+	struct txx9aclc_plat_drvdata *drvdata = txx9aclc_drvdata;
 	void __iomem *base = drvdata->base;
 	int i;
 
@@ -406,28 +407,46 @@ static int txx9aclc_pcm_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct snd_soc_platform txx9aclc_soc_platform = {
-	.name		= "txx9aclc-audio",
+static struct snd_soc_platform_driver txx9aclc_soc_platform = {
 	.probe		= txx9aclc_pcm_probe,
 	.remove		= txx9aclc_pcm_remove,
-	.pcm_ops 	= &txx9aclc_pcm_ops,
+	.ops		= &txx9aclc_pcm_ops,
 	.pcm_new	= txx9aclc_pcm_new,
 	.pcm_free	= txx9aclc_pcm_free_dma_buffers,
 };
-EXPORT_SYMBOL_GPL(txx9aclc_soc_platform);
 
-static int __init txx9aclc_soc_platform_init(void)
+static int __devinit txx9aclc_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&txx9aclc_soc_platform);
+	return snd_soc_register_platform(&pdev->dev, &txx9aclc_soc_platform);
 }
 
-static void __exit txx9aclc_soc_platform_exit(void)
+static int __devexit txx9aclc_soc_platform_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&txx9aclc_soc_platform);
+	snd_soc_unregister_platform(&pdev->dev);
+	return 0;
 }
 
-module_init(txx9aclc_soc_platform_init);
-module_exit(txx9aclc_soc_platform_exit);
+static struct platform_driver txx9aclc_pcm_driver = {
+	.driver = {
+			.name = "txx9aclc-pcm-audio",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = txx9aclc_soc_platform_probe,
+	.remove = __devexit_p(txx9aclc_soc_platform_remove),
+};
+
+static int __init snd_txx9aclc_pcm_init(void)
+{
+	return platform_driver_register(&txx9aclc_pcm_driver);
+}
+module_init(snd_txx9aclc_pcm_init);
+
+static void __exit snd_txx9aclc_pcm_exit(void)
+{
+	platform_driver_unregister(&txx9aclc_pcm_driver);
+}
+module_exit(snd_txx9aclc_pcm_exit);
 
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("TXx9 ACLC Audio DMA driver");

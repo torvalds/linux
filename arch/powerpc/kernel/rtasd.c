@@ -160,7 +160,7 @@ static int log_rtas_len(char * buf)
 	/* rtas fixed header */
 	len = 8;
 	err = (struct rtas_error_log *)buf;
-	if (err->extended_log_length) {
+	if (err->extended && err->extended_log_length) {
 
 		/* extended header */
 		len += err->extended_log_length;
@@ -354,6 +354,7 @@ static const struct file_operations proc_rtas_log_operations = {
 	.poll =		rtas_log_poll,
 	.open =		rtas_log_open,
 	.release =	rtas_log_release,
+	.llseek =	noop_llseek,
 };
 
 static int enable_surveillance(int timeout)
@@ -411,7 +412,8 @@ static void rtas_event_scan(struct work_struct *w)
 
 	get_online_cpus();
 
-	cpu = cpumask_next(smp_processor_id(), cpu_online_mask);
+	/* raw_ OK because just using CPU as starting point. */
+	cpu = cpumask_next(raw_smp_processor_id(), cpu_online_mask);
         if (cpu >= nr_cpu_ids) {
 		cpu = cpumask_first(cpu_online_mask);
 
@@ -463,7 +465,7 @@ static void start_event_scan(void)
 	pr_debug("rtasd: will sleep for %d milliseconds\n",
 		 (30000 / rtas_event_scan_rate));
 
-	/* Retreive errors from nvram if any */
+	/* Retrieve errors from nvram if any */
 	retreive_nvram_error_log();
 
 	schedule_delayed_work_on(cpumask_first(cpu_online_mask),

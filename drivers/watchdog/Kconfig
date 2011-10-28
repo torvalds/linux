@@ -434,15 +434,26 @@ config ALIM7101_WDT
 	  Most people will say N.
 
 config F71808E_WDT
-	tristate "Fintek F71808E and F71882FG Watchdog"
+	tristate "Fintek F71808E, F71862FG, F71869, F71882FG and F71889FG Watchdog"
 	depends on X86 && EXPERIMENTAL
 	help
 	  This is the driver for the hardware watchdog on the Fintek
-	  F71808E and F71882FG Super I/O controllers.
+	  F71808E, F71862FG, F71869, F71882FG and F71889FG Super I/O controllers.
 
 	  You can compile this driver directly into the kernel, or use
 	  it as a module.  The module will be called f71808e_wdt.
 
+config SP5100_TCO
+	tristate "AMD/ATI SP5100 TCO Timer/Watchdog"
+	depends on X86 && PCI
+	---help---
+	  Hardware watchdog driver for the AMD/ATI SP5100 chipset. The TCO
+	  (Total Cost of Ownership) timer is a watchdog timer that will reboot
+	  the machine after its expiration. The expiration time can be
+	  configured with the "heartbeat" parameter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sp5100_tco.
 
 config GEODE_WDT
 	tristate "AMD Geode CS5535/CS5536 Watchdog"
@@ -547,6 +558,15 @@ config I6300ESB_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called i6300esb.
 
+config INTEL_SCU_WATCHDOG
+	bool "Intel SCU Watchdog for Mobile Platforms"
+	depends on X86_MRST
+	---help---
+	  Hardware driver for the watchdog time built into the Intel SCU
+	  for Intel Mobile Platforms.
+
+	  To compile this driver as a module, choose M here.
+
 config ITCO_WDT
 	tristate "Intel TCO Timer/Watchdog"
 	depends on (X86 || IA64) && PCI
@@ -583,6 +603,9 @@ config IT8712F_WDT
 	  This is the driver for the built-in watchdog timer on the IT8712F
 	  Super I/0 chipset used on many motherboards.
 
+	  If the driver does not work, then make sure that the game port in
+	  the BIOS is enabled.
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called it8712f_wdt.
 
@@ -590,27 +613,29 @@ config IT87_WDT
 	tristate "IT87 Watchdog Timer"
 	depends on X86 && EXPERIMENTAL
 	---help---
-	  This is the driver for the hardware watchdog on the ITE IT8716,
-	  IT8718, IT8726, IT8712(Version J,K) Super I/O chips. This watchdog
-	  simply watches your kernel to make sure it doesn't freeze, and if
-	  it does, it reboots your computer after a certain amount of time.
+	  This is the driver for the hardware watchdog on the ITE IT8702,
+	  IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 Super I/O chips.
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called it87_wdt.
 
 config HP_WATCHDOG
-	tristate "HP Proliant iLO2+ Hardware Watchdog Timer"
-	depends on X86
+	tristate "HP ProLiant iLO2+ Hardware Watchdog Timer"
+	depends on X86 && PCI
 	help
 	  A software monitoring watchdog and NMI sourcing driver. This driver
 	  will detect lockups and provide a stack trace. This is a driver that
-	  will only load on a HP ProLiant system with a minimum of iLO2 support.
+	  will only load on an HP ProLiant system with a minimum of iLO2 support.
 	  To compile this driver as a module, choose M here: the module will be
 	  called hpwdt.
 
 config HPWDT_NMI_DECODING
 	bool "NMI decoding support for the HP ProLiant iLO2+ Hardware Watchdog Timer"
 	depends on HP_WATCHDOG
+	default y
 	help
 	  When an NMI occurs this feature will make the necessary BIOS calls to
 	  log the cause of the NMI.
@@ -651,6 +676,24 @@ config PC87413_WDT
 	  module will be called pc87413_wdt.
 
 	  Most people will say N.
+
+config NV_TCO
+	tristate "nVidia TCO Timer/Watchdog"
+	depends on X86 && PCI
+	---help---
+	  Hardware driver for the TCO timer built into the nVidia Hub family
+	  (such as the MCP51).  The TCO (Total Cost of Ownership) timer is a
+	  watchdog timer that will reboot the machine after its second
+	  expiration. The expiration time can be configured with the
+	  "heartbeat" parameter.
+
+	  On some motherboards the driver may fail to reset the chipset's
+	  NO_REBOOT flag which prevents the watchdog from rebooting the
+	  machine. If this is the case you will get a kernel message like
+	  "failed to reset NO_REBOOT flag, reboot disabled by hardware".
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nv_tco.
 
 config RDC321X_WDT
 	tristate "RDC R-321x SoC watchdog"
@@ -743,14 +786,15 @@ config SMSC37B787_WDT
 	  Most people will say N.
 
 config W83627HF_WDT
-	tristate "W83627HF Watchdog Timer"
+	tristate "W83627HF/W83627DHG Watchdog Timer"
 	depends on X86
 	---help---
 	  This is the driver for the hardware watchdog on the W83627HF chipset
 	  as used in Advantech PC-9578 and Tyan S2721-533 motherboards
-	  (and likely others).  This watchdog simply watches your kernel to
-	  make sure it doesn't freeze, and if it does, it reboots your computer
-	  after a certain amount of time.
+	  (and likely others). The driver also supports the W83627DHG chip.
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w83627hf_wdt.
@@ -853,9 +897,21 @@ config SBC_EPX_C3_WATCHDOG
 
 # M68K Architecture
 
-# M68KNOMMU Architecture
+config M54xx_WATCHDOG
+	tristate "MCF54xx watchdog support"
+	depends on M548x
+	help
+	  To compile this driver as a module, choose M here: the
+	  module will be called m54xx_wdt.
 
 # MIPS Architecture
+
+config ATH79_WDT
+	tristate "Atheros AR71XX/AR724X/AR913X hardware watchdog"
+	depends on ATH79
+	help
+	  Hardware driver for the built-in watchdog timer on the Atheros
+	  AR71XX/AR724X/AR913X SoCs.
 
 config BCM47XX_WDT
 	tristate "Broadcom BCM47xx Watchdog Timer"
@@ -882,6 +938,12 @@ config INDYDOG
 	  timer expired and no process has written to /dev/watchdog during
 	  that time.
 
+config JZ4740_WDT
+	tristate "Ingenic jz4740 SoC hardware watchdog"
+	depends on MACH_JZ4740
+	help
+	  Hardware driver for the built-in watchdog timer on Ingenic jz4740 SoCs.
+
 config WDT_MTX1
 	tristate "MTX-1 Hardware Watchdog"
 	depends on MIPS_MTX1
@@ -894,7 +956,7 @@ config PNX833X_WDT
 	depends on SOC_PNX8335
 	help
 	  Hardware driver for the PNX833x's watchdog. This is a
-	  watchdog timer that will reboot the machine after a programable
+	  watchdog timer that will reboot the machine after a programmable
 	  timer has expired and no process has written to /dev/watchdog during
 	  that time.
 
@@ -941,6 +1003,22 @@ config OCTEON_WDT
 	  from the first interrupt, it is then only poked when the
 	  device is written.
 
+config BCM63XX_WDT
+	tristate "Broadcom BCM63xx hardware watchdog"
+	depends on BCM63XX
+	help
+	  Watchdog driver for the built in watchdog hardware in Broadcom
+	  BCM63xx SoC.
+
+	  To compile this driver as a loadable module, choose M here.
+	  The module will be called bcm63xx_wdt.
+
+config LANTIQ_WDT
+	tristate "Lantiq SoC watchdog"
+	depends on LANTIQ
+	help
+	  Hardware driver for the Lantiq SoC Watchdog Timer.
+
 # PARISC Architecture
 
 # POWERPC Architecture
@@ -982,11 +1060,31 @@ config PIKA_WDT
 	  the Warp platform.
 
 config BOOKE_WDT
-	bool "PowerPC Book-E Watchdog Timer"
+	tristate "PowerPC Book-E Watchdog Timer"
 	depends on BOOKE || 4xx
 	---help---
+	  Watchdog driver for PowerPC Book-E chips, such as the Freescale
+	  MPC85xx SOCs and the IBM PowerPC 440.
+
 	  Please see Documentation/watchdog/watchdog-api.txt for
 	  more information.
+
+config BOOKE_WDT_DEFAULT_TIMEOUT
+	int "PowerPC Book-E Watchdog Timer Default Timeout"
+	depends on BOOKE_WDT
+	default 38 if FSL_BOOKE
+	range 0 63 if FSL_BOOKE
+	default 3 if !FSL_BOOKE
+	range 0 3 if !FSL_BOOKE
+	help
+	  Select the default watchdog timer period to be used by the PowerPC
+	  Book-E watchdog driver.  A watchdog "event" occurs when the bit
+	  position represented by this number transitions from zero to one.
+
+	  For Freescale Book-E processors, this is a number between 0 and 63.
+	  For other Book-E processors, this is a number between 0 and 3.
+
+	  The value can be overidden by the wdt_period command-line parameter.
 
 # PPC64 Architecture
 
@@ -1032,14 +1130,6 @@ config SH_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called shwdt.
 
-config SH_WDT_MMAP
-	bool "Allow mmap of SH WDT"
-	default n
-	depends on SH_WDT
-	help
-	  If you say Y here, user applications will be able to mmap the
-	  WDT/CPG registers.
-
 # SPARC Architecture
 
 # SPARC64 Architecture
@@ -1067,6 +1157,16 @@ config WATCHDOG_RIO
 	  can be changed with a boot-time parameter.
 
 # XTENSA Architecture
+
+# Xen Architecture
+
+config XEN_WDT
+	tristate "Xen Watchdog support"
+	depends on XEN
+	help
+	  Say Y here to support the hypervisor watchdog capability provided
+	  by Xen 4.0 and newer.  The watchdog timeout period is normally one
+	  minute but can be changed with a boot-time parameter.
 
 #
 # ISA-based Watchdog Cards

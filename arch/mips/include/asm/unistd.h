@@ -359,16 +359,21 @@
 #define __NR_fanotify_init		(__NR_Linux + 336)
 #define __NR_fanotify_mark		(__NR_Linux + 337)
 #define __NR_prlimit64			(__NR_Linux + 338)
+#define __NR_name_to_handle_at		(__NR_Linux + 339)
+#define __NR_open_by_handle_at		(__NR_Linux + 340)
+#define __NR_clock_adjtime		(__NR_Linux + 341)
+#define __NR_syncfs			(__NR_Linux + 342)
+#define __NR_setns			(__NR_Linux + 343)
 
 /*
  * Offset of the last Linux o32 flavoured syscall
  */
-#define __NR_Linux_syscalls		338
+#define __NR_Linux_syscalls		343
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #define __NR_O32_Linux			4000
-#define __NR_O32_Linux_syscalls		338
+#define __NR_O32_Linux_syscalls		343
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64
 
@@ -674,16 +679,21 @@
 #define __NR_fanotify_init		(__NR_Linux + 295)
 #define __NR_fanotify_mark		(__NR_Linux + 296)
 #define __NR_prlimit64			(__NR_Linux + 297)
+#define __NR_name_to_handle_at		(__NR_Linux + 298)
+#define __NR_open_by_handle_at		(__NR_Linux + 299)
+#define __NR_clock_adjtime		(__NR_Linux + 300)
+#define __NR_syncfs			(__NR_Linux + 301)
+#define __NR_setns			(__NR_Linux + 302)
 
 /*
  * Offset of the last Linux 64-bit flavoured syscall
  */
-#define __NR_Linux_syscalls		297
+#define __NR_Linux_syscalls		302
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
 #define __NR_64_Linux			5000
-#define __NR_64_Linux_syscalls		297
+#define __NR_64_Linux_syscalls		302
 
 #if _MIPS_SIM == _MIPS_SIM_NABI32
 
@@ -994,16 +1004,21 @@
 #define __NR_fanotify_init		(__NR_Linux + 300)
 #define __NR_fanotify_mark		(__NR_Linux + 301)
 #define __NR_prlimit64			(__NR_Linux + 302)
+#define __NR_name_to_handle_at		(__NR_Linux + 303)
+#define __NR_open_by_handle_at		(__NR_Linux + 304)
+#define __NR_clock_adjtime		(__NR_Linux + 305)
+#define __NR_syncfs			(__NR_Linux + 306)
+#define __NR_setns			(__NR_Linux + 307)
 
 /*
  * Offset of the last N32 flavoured syscall
  */
-#define __NR_Linux_syscalls		302
+#define __NR_Linux_syscalls		307
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
 
 #define __NR_N32_Linux			6000
-#define __NR_N32_Linux_syscalls		302
+#define __NR_N32_Linux_syscalls		307
 
 #ifdef __KERNEL__
 

@@ -470,13 +470,19 @@ static int __devinit da903x_add_subdevs(struct da903x_chip *chip,
 		subdev = &pdata->subdevs[i];
 
 		pdev = platform_device_alloc(subdev->name, subdev->id);
+		if (!pdev) {
+			ret = -ENOMEM;
+			goto failed;
+		}
 
 		pdev->dev.parent = chip->dev;
 		pdev->dev.platform_data = subdev->platform_data;
 
 		ret = platform_device_add(pdev);
-		if (ret)
+		if (ret) {
+			platform_device_put(pdev);
 			goto failed;
+		}
 	}
 	return 0;
 

@@ -89,8 +89,8 @@ struct rpc_version {
  */
 struct rpc_procinfo {
 	u32			p_proc;		/* RPC procedure number */
-	kxdrproc_t		p_encode;	/* XDR encode function */
-	kxdrproc_t		p_decode;	/* XDR decode function */
+	kxdreproc_t		p_encode;	/* XDR encode function */
+	kxdrdproc_t		p_decode;	/* XDR decode function */
 	unsigned int		p_arglen;	/* argument hdr length (u32) */
 	unsigned int		p_replen;	/* reply hdr length (u32) */
 	unsigned int		p_count;	/* call count */
@@ -102,6 +102,7 @@ struct rpc_procinfo {
 #ifdef __KERNEL__
 
 struct rpc_create_args {
+	struct net		*net;
 	int			protocol;
 	struct sockaddr		*address;
 	size_t			addrsize;
@@ -128,6 +129,7 @@ struct rpc_create_args {
 struct rpc_clnt *rpc_create(struct rpc_create_args *args);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
 				struct rpc_program *, u32);
+void rpc_task_reset_client(struct rpc_task *task, struct rpc_clnt *clnt);
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 void		rpc_shutdown_client(struct rpc_clnt *);
 void		rpc_release_client(struct rpc_clnt *);
@@ -137,7 +139,6 @@ int		rpcb_register(u32, u32, int, unsigned short);
 int		rpcb_v4_register(const u32 program, const u32 version,
 				 const struct sockaddr *address,
 				 const char *netid);
-int		rpcb_getport_sync(struct sockaddr_in *, u32, u32, int);
 void		rpcb_getport_async(struct rpc_task *);
 
 void		rpc_call_start(struct rpc_task *);

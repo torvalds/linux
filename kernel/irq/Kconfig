@@ -1,0 +1,74 @@
+# Select this to activate the generic irq options below
+config HAVE_GENERIC_HARDIRQS
+	bool
+
+if HAVE_GENERIC_HARDIRQS
+menu "IRQ subsystem"
+#
+# Interrupt subsystem related configuration options
+#
+config GENERIC_HARDIRQS
+       def_bool y
+
+# Options selectable by the architecture code
+
+# Make sparse irq Kconfig switch below available
+config HAVE_SPARSE_IRQ
+       bool
+
+# Enable the generic irq autoprobe mechanism
+config GENERIC_IRQ_PROBE
+	bool
+
+# Use the generic /proc/interrupts implementation
+config GENERIC_IRQ_SHOW
+       bool
+
+# Print level/edge extra information
+config GENERIC_IRQ_SHOW_LEVEL
+       bool
+
+# Support for delayed migration from interrupt context
+config GENERIC_PENDING_IRQ
+	bool
+
+# Alpha specific irq affinity mechanism
+config AUTO_IRQ_AFFINITY
+       bool
+
+# Tasklet based software resend for pending interrupts on enable_irq()
+config HARDIRQS_SW_RESEND
+       bool
+
+# Preflow handler support for fasteoi (sparc64)
+config IRQ_PREFLOW_FASTEOI
+       bool
+
+# Edge style eoi based handler (cell)
+config IRQ_EDGE_EOI_HANDLER
+       bool
+
+# Generic configurable interrupt chip implementation
+config GENERIC_IRQ_CHIP
+       bool
+
+# Support forced irq threading
+config IRQ_FORCED_THREADING
+       bool
+
+config SPARSE_IRQ
+	bool "Support sparse irq numbering"
+	depends on HAVE_SPARSE_IRQ
+	---help---
+
+	  Sparse irq numbering is useful for distro kernels that want
+	  to define a high CONFIG_NR_CPUS value but still want to have
+	  low kernel memory footprint on smaller machines.
+
+	  ( Sparse irqs can also be beneficial on NUMA boxes, as they spread
+	    out the interrupt descriptors in a more NUMA-friendly way. )
+
+	  If you don't know what to do here, say N.
+
+endmenu
+endif

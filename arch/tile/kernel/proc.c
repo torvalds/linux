@@ -27,6 +27,7 @@
 #include <asm/processor.h>
 #include <asm/sections.h>
 #include <asm/homecache.h>
+#include <asm/hardwall.h>
 #include <arch/chip.h>
 
 
@@ -88,3 +89,75 @@ const struct seq_operations cpuinfo_op = {
 	.stop	= c_stop,
 	.show	= show_cpuinfo,
 };
+
+/*
+ * Support /proc/tile directory
+ */
+
+static int __init proc_tile_init(void)
+{
+	struct proc_dir_entry *root = proc_mkdir("tile", NULL);
+	if (root == NULL)
+		return 0;
+
+	proc_tile_hardwall_init(root);
+
+	return 0;
+}
+
+arch_initcall(proc_tile_init);
+
+/*
+ * Support /proc/sys/tile directory
+ */
+
+#ifndef __tilegx__  /* FIXME: GX: no support for unaligned access yet */
+static ctl_table unaligned_subtable[] = {
+	{
+		.procname	= "enabled",
+		.data		= &unaligned_fixup,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.procname	= "printk",
+		.data		= &unaligned_printk,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.procname	= "count",
+		.data		= &unaligned_fixup_count,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{}
+};
+
+static ctl_table unaligned_table[] = {
+	{
+		.procname	= "unaligned_fixup",
+		.mode		= 0555,
+		.child		= unaligned_subtable
+	},
+	{}
+};
+#endif
+
+static struct ctl_path tile_path[] = {
+	{ .procname = "tile" },
+	{ }
+};
+
+static int __init proc_sys_tile_init(void)
+{
+#ifndef __tilegx__  /* FIXME: GX: no support for unaligned access yet */
+	register_sysctl_paths(tile_path, unaligned_table);
+#endif
+	return 0;
+}
+
+arch_initcall(proc_sys_tile_init);

@@ -68,25 +68,26 @@ static struct fpga_irq get_fpga_irq(unsigned int irq)
 	return set;
 }
 
-static void disable_se7724_irq(unsigned int irq)
+static void disable_se7724_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	struct fpga_irq set = get_fpga_irq(fpga2irq(irq));
 	unsigned int bit = irq - set.base;
 	__raw_writew(__raw_readw(set.mraddr) | 0x0001 << bit, set.mraddr);
 }
 
-static void enable_se7724_irq(unsigned int irq)
+static void enable_se7724_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	struct fpga_irq set = get_fpga_irq(fpga2irq(irq));
 	unsigned int bit = irq - set.base;
 	__raw_writew(__raw_readw(set.mraddr) & ~(0x0001 << bit), set.mraddr);
 }
 
 static struct irq_chip se7724_irq_chip __read_mostly = {
-	.name           = "SE7724-FPGA",
-	.mask           = disable_se7724_irq,
-	.unmask         = enable_se7724_irq,
-	.mask_ack       = disable_se7724_irq,
+	.name		= "SE7724-FPGA",
+	.irq_mask	= disable_se7724_irq,
+	.irq_unmask	= enable_se7724_irq,
 };
 
 static void se7724_irq_demux(unsigned int irq, struct irq_desc *desc)
@@ -139,17 +140,16 @@ void __init init_se7724_IRQ(void)
 			return;
 		}
 
-		set_irq_chip_and_handler_name(irq,
-					      &se7724_irq_chip,
+		irq_set_chip_and_handler_name(irq, &se7724_irq_chip,
 					      handle_level_irq, "level");
 	}
 
-	set_irq_chained_handler(IRQ0_IRQ, se7724_irq_demux);
-	set_irq_type(IRQ0_IRQ, IRQ_TYPE_LEVEL_LOW);
+	irq_set_chained_handler(IRQ0_IRQ, se7724_irq_demux);
+	irq_set_irq_type(IRQ0_IRQ, IRQ_TYPE_LEVEL_LOW);
 
-	set_irq_chained_handler(IRQ1_IRQ, se7724_irq_demux);
-	set_irq_type(IRQ1_IRQ, IRQ_TYPE_LEVEL_LOW);
+	irq_set_chained_handler(IRQ1_IRQ, se7724_irq_demux);
+	irq_set_irq_type(IRQ1_IRQ, IRQ_TYPE_LEVEL_LOW);
 
-	set_irq_chained_handler(IRQ2_IRQ, se7724_irq_demux);
-	set_irq_type(IRQ2_IRQ, IRQ_TYPE_LEVEL_LOW);
+	irq_set_chained_handler(IRQ2_IRQ, se7724_irq_demux);
+	irq_set_irq_type(IRQ2_IRQ, IRQ_TYPE_LEVEL_LOW);
 }

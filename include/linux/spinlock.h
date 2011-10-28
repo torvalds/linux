@@ -50,6 +50,7 @@
 #include <linux/preempt.h>
 #include <linux/linkage.h>
 #include <linux/compiler.h>
+#include <linux/irqflags.h>
 #include <linux/thread_info.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
@@ -80,7 +81,7 @@
 #include <linux/spinlock_types.h>
 
 /*
- * Pull the arch_spin*() functions/declarations (UP-nondebug doesnt need them):
+ * Pull the arch_spin*() functions/declarations (UP-nondebug doesn't need them):
  */
 #ifdef CONFIG_SMP
 # include <asm/spinlock.h>

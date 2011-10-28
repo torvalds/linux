@@ -67,7 +67,7 @@ static void ichxrom_cleanup(struct ichxrom_window *window)
 	list_for_each_entry_safe(map, scratch, &window->maps, list) {
 		if (map->rsrc.parent)
 			release_resource(&map->rsrc);
-		del_mtd_device(map->mtd);
+		mtd_device_unregister(map->mtd);
 		map_destroy(map->mtd);
 		list_del(&map->list);
 		kfree(map);
@@ -175,12 +175,9 @@ static int __devinit ichxrom_init_one (struct pci_dev *pdev,
 	window->rsrc.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 	if (request_resource(&iomem_resource, &window->rsrc)) {
 		window->rsrc.parent = NULL;
-		printk(KERN_DEBUG MOD_NAME
-			": %s(): Unable to register resource"
-			" 0x%.16llx-0x%.16llx - kernel bug?\n",
-			__func__,
-			(unsigned long long)window->rsrc.start,
-			(unsigned long long)window->rsrc.end);
+		printk(KERN_DEBUG MOD_NAME ": "
+		       "%s(): Unable to register resource %pR - kernel bug?\n",
+		       __func__, &window->rsrc);
 	}
 
 	/* Map the firmware hub into my address space. */
@@ -290,7 +287,7 @@ static int __devinit ichxrom_init_one (struct pci_dev *pdev,
 
 		/* Now that the mtd devices is complete claim and export it */
 		map->mtd->owner = THIS_MODULE;
-		if (add_mtd_device(map->mtd)) {
+		if (mtd_device_register(map->mtd, NULL, 0)) {
 			map_destroy(map->mtd);
 			map->mtd = NULL;
 			goto out;

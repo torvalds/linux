@@ -1,14 +1,11 @@
 /*
- * Copyright 2005-2008 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
  * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _DEF_BF534_H
 #define _DEF_BF534_H
-
-/* Include all Core registers and bit definitions */
-#include <asm/def_LPBlackfin.h>
 
 /************************************************************************************
 ** System MMR Register Map
@@ -193,12 +190,8 @@
 #define EBIU_SDSTAT			0xFFC00A1C	/* SDRAM Status Register                                                */
 
 /* DMA Traffic Control Registers													*/
-#define DMA_TC_PER			0xFFC00B0C	/* Traffic Control Periods Register			*/
-#define DMA_TC_CNT			0xFFC00B10	/* Traffic Control Current Counts Register	*/
-
-/* Alternate deprecated register names (below) provided for backwards code compatibility */
-#define DMA_TCPER			0xFFC00B0C	/* Traffic Control Periods Register			*/
-#define DMA_TCCNT			0xFFC00B10	/* Traffic Control Current Counts Register	*/
+#define DMAC_TC_PER			0xFFC00B0C	/* Traffic Control Periods Register			*/
+#define DMAC_TC_CNT			0xFFC00B10	/* Traffic Control Current Counts Register	*/
 
 /* DMA Controller (0xFFC00C00 - 0xFFC00FFF)															*/
 #define DMA0_NEXT_DESC_PTR		0xFFC00C00	/* DMA Channel 0 Next Descriptor Pointer Register               */
@@ -1029,92 +1022,6 @@
 #define IWR_ENABLE(x)	(1 << ((x)&0x1F))	/* Wakeup Enable Peripheral #x          */
 #define IWR_DISABLE(x)	(0xFFFFFFFF ^ (1 << ((x)&0x1F)))	/* Wakeup Disable Peripheral #x         */
 
-/* ************** UART CONTROLLER MASKS *************************/
-/* UARTx_LCR Masks												*/
-#define WLS(x)		(((x)-5) & 0x03)	/* Word Length Select   */
-#define STB			0x04	/* Stop Bits                    */
-#define PEN			0x08	/* Parity Enable                */
-#define EPS			0x10	/* Even Parity Select   */
-#define STP			0x20	/* Stick Parity                 */
-#define SB			0x40	/* Set Break                    */
-#define DLAB		0x80	/* Divisor Latch Access */
-
-/* UARTx_MCR Mask										*/
-#define LOOP_ENA		0x10	/* Loopback Mode Enable         */
-#define LOOP_ENA_P	0x04
-/* UARTx_LSR Masks										*/
-#define DR			0x01	/* Data Ready                           */
-#define OE			0x02	/* Overrun Error                        */
-#define PE			0x04	/* Parity Error                         */
-#define FE			0x08	/* Framing Error                        */
-#define BI			0x10	/* Break Interrupt                      */
-#define THRE		0x20	/* THR Empty                            */
-#define TEMT		0x40	/* TSR and UART_THR Empty       */
-
-/* UARTx_IER Masks															*/
-#define ERBFI		0x01	/* Enable Receive Buffer Full Interrupt         */
-#define ETBEI		0x02	/* Enable Transmit Buffer Empty Interrupt       */
-#define ELSI		0x04	/* Enable RX Status Interrupt                           */
-
-/* UARTx_IIR Masks														*/
-#define NINT		0x01	/* Pending Interrupt                                    */
-#define IIR_TX_READY    0x02	/* UART_THR empty                               */
-#define IIR_RX_READY    0x04	/* Receive data ready                           */
-#define IIR_LINE_CHANGE 0x06	/* Receive line status                          */
-#define IIR_STATUS	0x06
-
-/* UARTx_GCTL Masks													*/
-#define UCEN		0x01	/* Enable UARTx Clocks                          */
-#define IREN		0x02	/* Enable IrDA Mode                                     */
-#define TPOLC		0x04	/* IrDA TX Polarity Change                      */
-#define RPOLC		0x08	/* IrDA RX Polarity Change                      */
-#define FPE			0x10	/* Force Parity Error On Transmit       */
-#define FFE			0x20	/* Force Framing Error On Transmit      */
-
-/* ***********  SERIAL PERIPHERAL INTERFACE (SPI) MASKS  ****************************/
-/* SPI_CTL Masks																	*/
-#define	TIMOD		0x0003	/* Transfer Initiate Mode                                                       */
-#define RDBR_CORE	0x0000	/*              RDBR Read Initiates, IRQ When RDBR Full         */
-#define	TDBR_CORE	0x0001	/*              TDBR Write Initiates, IRQ When TDBR Empty       */
-#define RDBR_DMA	0x0002	/*              DMA Read, DMA Until FIFO Empty                          */
-#define TDBR_DMA	0x0003	/*              DMA Write, DMA Until FIFO Full                          */
-#define SZ			0x0004	/* Send Zero (When TDBR Empty, Send Zero/Last*)         */
-#define GM			0x0008	/* Get More (When RDBR Full, Overwrite/Discard*)        */
-#define PSSE		0x0010	/* Slave-Select Input Enable                                            */
-#define EMISO		0x0020	/* Enable MISO As Output                                                        */
-#define SIZE		0x0100	/* Size of Words (16/8* Bits)                                           */
-#define LSBF		0x0200	/* LSB First                                                                            */
-#define CPHA		0x0400	/* Clock Phase                                                                          */
-#define CPOL		0x0800	/* Clock Polarity                                                                       */
-#define MSTR		0x1000	/* Master/Slave*                                                                        */
-#define WOM			0x2000	/* Write Open Drain Master                                                      */
-#define SPE			0x4000	/* SPI Enable                                                                           */
-
-/* SPI_FLG Masks																	*/
-#define FLS1		0x0002	/* Enables SPI_FLOUT1 as SPI Slave-Select Output        */
-#define FLS2		0x0004	/* Enables SPI_FLOUT2 as SPI Slave-Select Output        */
-#define FLS3		0x0008	/* Enables SPI_FLOUT3 as SPI Slave-Select Output        */
-#define FLS4		0x0010	/* Enables SPI_FLOUT4 as SPI Slave-Select Output        */
-#define FLS5		0x0020	/* Enables SPI_FLOUT5 as SPI Slave-Select Output        */
-#define FLS6		0x0040	/* Enables SPI_FLOUT6 as SPI Slave-Select Output        */
-#define FLS7		0x0080	/* Enables SPI_FLOUT7 as SPI Slave-Select Output        */
-#define FLG1		0xFDFF	/* Activates SPI_FLOUT1                                                         */
-#define FLG2		0xFBFF	/* Activates SPI_FLOUT2                                                         */
-#define FLG3		0xF7FF	/* Activates SPI_FLOUT3                                                         */
-#define FLG4		0xEFFF	/* Activates SPI_FLOUT4                                                         */
-#define FLG5		0xDFFF	/* Activates SPI_FLOUT5                                                         */
-#define FLG6		0xBFFF	/* Activates SPI_FLOUT6                                                         */
-#define FLG7		0x7FFF	/* Activates SPI_FLOUT7                                                         */
-
-/* SPI_STAT Masks																				*/
-#define SPIF		0x0001	/* SPI Finished (Single-Word Transfer Complete)                                 */
-#define MODF		0x0002	/* Mode Fault Error (Another Device Tried To Become Master)             */
-#define TXE			0x0004	/* Transmission Error (Data Sent With No New Data In TDBR)              */
-#define TXS			0x0008	/* SPI_TDBR Data Buffer Status (Full/Empty*)                                    */
-#define RBSY		0x0010	/* Receive Error (Data Received With RDBR Full)                                 */
-#define RXS			0x0020	/* SPI_RDBR Data Buffer Status (Full/Empty*)                                    */
-#define TXCOL		0x0040	/* Transmit Collision Error (Corrupt Data May Have Been Sent)   */
-
 /*  ****************  GENERAL PURPOSE TIMER MASKS  **********************/
 /* TIMER_ENABLE Masks													*/
 #define TIMEN0			0x0001	/* Enable Timer 0                                       */
@@ -1184,62 +1091,6 @@
 #define TOGGLE_HI		0x0100	/* PWM_OUT PULSE_HI Toggle Mode                 */
 #define EMU_RUN			0x0200	/* Emulation Behavior Select                    */
 #define ERR_TYP			0xC000	/* Error Type                                                   */
-
-/* ******************   GPIO PORTS F, G, H MASKS  ***********************/
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  Masks 				*/
-/* Port F Masks 														*/
-#define PF0		0x0001
-#define PF1		0x0002
-#define PF2		0x0004
-#define PF3		0x0008
-#define PF4		0x0010
-#define PF5		0x0020
-#define PF6		0x0040
-#define PF7		0x0080
-#define PF8		0x0100
-#define PF9		0x0200
-#define PF10	0x0400
-#define PF11	0x0800
-#define PF12	0x1000
-#define PF13	0x2000
-#define PF14	0x4000
-#define PF15	0x8000
-
-/* Port G Masks															*/
-#define PG0		0x0001
-#define PG1		0x0002
-#define PG2		0x0004
-#define PG3		0x0008
-#define PG4		0x0010
-#define PG5		0x0020
-#define PG6		0x0040
-#define PG7		0x0080
-#define PG8		0x0100
-#define PG9		0x0200
-#define PG10	0x0400
-#define PG11	0x0800
-#define PG12	0x1000
-#define PG13	0x2000
-#define PG14	0x4000
-#define PG15	0x8000
-
-/* Port H Masks															*/
-#define PH0		0x0001
-#define PH1		0x0002
-#define PH2		0x0004
-#define PH3		0x0008
-#define PH4		0x0010
-#define PH5		0x0020
-#define PH6		0x0040
-#define PH7		0x0080
-#define PH8		0x0100
-#define PH9		0x0200
-#define PH10	0x0400
-#define PH11	0x0800
-#define PH12	0x1000
-#define PH13	0x2000
-#define PH14	0x4000
-#define PH15	0x8000
 
 /* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  *************************/
 /* EBIU_AMGCTL Masks																	*/
@@ -1567,7 +1418,7 @@
 #define	SADD_LEN	0x0002	/* Slave Address Length                                                 */
 #define	STDVAL		0x0004	/* Slave Transmit Data Valid                                    */
 #define	NAK			0x0008	/* NAK/ACK* Generated At Conclusion Of Transfer */
-#define	GEN			0x0010	/* General Call Adrress Matching Enabled                */
+#define	GEN			0x0010	/* General Call Address Matching Enabled                */
 
 /* TWI_SLAVE_STAT Masks															*/
 #define	SDIR		0x0001	/* Slave Transfer Direction (Transmit/Receive*) */
@@ -1668,24 +1519,6 @@
 #define	PGTE			0x0800	/* Port G SPORT1 Transmit Enable        */
 #define	PGTE_PPI		0x0000	/*              Enable PPI D15:13                       */
 #define	PGTE_SPORT		0x0800	/*              Enable DT1PRI/TFS1/TSCLK1       */
-
-/*  ******************  HANDSHAKE DMA (HDMA) MASKS  *********************/
-/* HDMAx_CTL Masks														*/
-#define	HMDMAEN		0x0001	/* Enable Handshake DMA 0/1                                     */
-#define	REP			0x0002	/* HDMA Request Polarity                                        */
-#define	UTE			0x0004	/* Urgency Threshold Enable                                     */
-#define	OIE			0x0010	/* Overflow Interrupt Enable                            */
-#define	BDIE		0x0020	/* Block Done Interrupt Enable                          */
-#define	MBDI		0x0040	/* Mask Block Done IRQ If Pending ECNT          */
-#define	DRQ			0x0300	/* HDMA Request Type                                            */
-#define	DRQ_NONE	0x0000	/*              No Request                                                      */
-#define	DRQ_SINGLE	0x0100	/*              Channels Request Single                         */
-#define	DRQ_MULTI	0x0200	/*              Channels Request Multi (Default)        */
-#define	DRQ_URGENT	0x0300	/*              Channels Request Multi Urgent           */
-#define	RBC			0x1000	/* Reload BCNT With IBCNT                                       */
-#define	PS			0x2000	/* HDMA Pin Status                                                      */
-#define	OI			0x4000	/* Overflow Interrupt Generated                         */
-#define	BDI			0x8000	/* Block Done Interrupt Generated                       */
 
 /* entry addresses of the user-callable Boot ROM functions */
 

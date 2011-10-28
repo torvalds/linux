@@ -305,9 +305,9 @@
 #define TSI108_TX_CRC	(1 << 5)	/* Generate CRC for this packet */
 #define TSI108_TX_INT	(1 << 14)	/* Generate an IRQ after frag. processed */
 #define TSI108_TX_RETRY	(0xf << 16)	/* 4 bit field indicating num. of retries */
-#define TSI108_TX_COL	(1 << 20)	/* Set if a collision occured */
-#define TSI108_TX_LCOL	(1 << 24)	/* Set if a late collision occured */
-#define TSI108_TX_UNDER	(1 << 25)	/* Set if a FIFO underrun occured */
+#define TSI108_TX_COL	(1 << 20)	/* Set if a collision occurred */
+#define TSI108_TX_LCOL	(1 << 24)	/* Set if a late collision occurred */
+#define TSI108_TX_UNDER	(1 << 25)	/* Set if a FIFO underrun occurred */
 #define TSI108_TX_RLIM	(1 << 26)	/* Set if the retry limit was reached */
 #define TSI108_TX_OK	(1 << 30)	/* Set if the frame TX was successful */
 #define TSI108_TX_OWN	(1 << 31)	/* Set if the device owns the descriptor */
@@ -332,7 +332,7 @@ typedef struct {
 #define TSI108_RX_RUNT	(1 << 4)/* Packet is less than minimum size */
 #define TSI108_RX_HASH	(1 << 7)/* Hash table match */
 #define TSI108_RX_BAD	(1 << 8)	/* Bad frame */
-#define TSI108_RX_OVER	(1 << 9)	/* FIFO overrun occured */
+#define TSI108_RX_OVER	(1 << 9)	/* FIFO overrun occurred */
 #define TSI108_RX_TRUNC	(1 << 11)	/* Packet truncated due to excess length */
 #define TSI108_RX_CRC	(1 << 12)	/* Packet had a CRC error */
 #define TSI108_RX_INT	(1 << 13)	/* Generate an IRQ after frag. processed */

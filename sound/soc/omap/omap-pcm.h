@@ -4,7 +4,7 @@
  * Copyright (C) 2008 Nokia Corporation
  *
  * Contact: Jarkko Nikula <jhnikula@gmail.com>
- *          Peter Ujfalusi <peter.ujfalusi@nokia.com>
+ *          Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,7 +34,5 @@ struct omap_pcm_dma_data {
 	int		sync_mode;	/* DMA sync mode */
 	int		packet_size;	/* packet size only in PACKET mode */
 };
-
-extern struct snd_soc_platform omap_soc_platform;
 
 #endif

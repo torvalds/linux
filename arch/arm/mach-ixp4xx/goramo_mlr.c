@@ -420,8 +420,8 @@ static void __init gmlr_init(void)
 	gpio_line_config(GPIO_HSS1_RTS_N, IXP4XX_GPIO_OUT);
 	gpio_line_config(GPIO_HSS0_DCD_N, IXP4XX_GPIO_IN);
 	gpio_line_config(GPIO_HSS1_DCD_N, IXP4XX_GPIO_IN);
-	set_irq_type(IXP4XX_GPIO_IRQ(GPIO_HSS0_DCD_N), IRQ_TYPE_EDGE_BOTH);
-	set_irq_type(IXP4XX_GPIO_IRQ(GPIO_HSS1_DCD_N), IRQ_TYPE_EDGE_BOTH);
+	irq_set_irq_type(IXP4XX_GPIO_IRQ(GPIO_HSS0_DCD_N), IRQ_TYPE_EDGE_BOTH);
+	irq_set_irq_type(IXP4XX_GPIO_IRQ(GPIO_HSS1_DCD_N), IRQ_TYPE_EDGE_BOTH);
 
 	set_control(CONTROL_HSS0_DTR_N, 1);
 	set_control(CONTROL_HSS1_DTR_N, 1);
@@ -441,10 +441,10 @@ static void __init gmlr_init(void)
 #ifdef CONFIG_PCI
 static void __init gmlr_pci_preinit(void)
 {
-	set_irq_type(IXP4XX_GPIO_IRQ(GPIO_IRQ_ETHA), IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IXP4XX_GPIO_IRQ(GPIO_IRQ_ETHB), IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IXP4XX_GPIO_IRQ(GPIO_IRQ_NEC), IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IXP4XX_GPIO_IRQ(GPIO_IRQ_MPCI), IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IXP4XX_GPIO_IRQ(GPIO_IRQ_ETHA), IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IXP4XX_GPIO_IRQ(GPIO_IRQ_ETHB), IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IXP4XX_GPIO_IRQ(GPIO_IRQ_NEC), IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IXP4XX_GPIO_IRQ(GPIO_IRQ_MPCI), IRQ_TYPE_LEVEL_LOW);
 	ixp4xx_pci_preinit();
 }
 
@@ -496,8 +496,6 @@ subsys_initcall(gmlr_pci_init);
 
 MACHINE_START(GORAMO_MLR, "MultiLink")
 	/* Maintainer: Krzysztof Halasa */
-	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
-	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xFFFC,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,

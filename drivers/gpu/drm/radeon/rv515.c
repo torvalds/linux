@@ -69,13 +69,13 @@ void rv515_ring_start(struct radeon_device *rdev)
 			  ISYNC_CPSCRATCH_IDLEGUI);
 	radeon_ring_write(rdev, PACKET0(WAIT_UNTIL, 0));
 	radeon_ring_write(rdev, WAIT_2D_IDLECLEAN | WAIT_3D_IDLECLEAN);
-	radeon_ring_write(rdev, PACKET0(0x170C, 0));
-	radeon_ring_write(rdev, 1 << 31);
+	radeon_ring_write(rdev, PACKET0(R300_DST_PIPE_CONFIG, 0));
+	radeon_ring_write(rdev, R300_PIPE_AUTO_CONFIG);
 	radeon_ring_write(rdev, PACKET0(GB_SELECT, 0));
 	radeon_ring_write(rdev, 0);
 	radeon_ring_write(rdev, PACKET0(GB_ENABLE, 0));
 	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, PACKET0(0x42C8, 0));
+	radeon_ring_write(rdev, PACKET0(R500_SU_REG_DEST, 0));
 	radeon_ring_write(rdev, (1 << rdev->num_gb_pipes) - 1);
 	radeon_ring_write(rdev, PACKET0(VAP_INDEX_OFFSET, 0));
 	radeon_ring_write(rdev, 0);
@@ -153,8 +153,8 @@ void rv515_gpu_init(struct radeon_device *rdev)
 	}
 	rv515_vga_render_disable(rdev);
 	r420_pipes_init(rdev);
-	gb_pipe_select = RREG32(0x402C);
-	tmp = RREG32(0x170C);
+	gb_pipe_select = RREG32(R400_GB_PIPE_SELECT);
+	tmp = RREG32(R300_DST_PIPE_CONFIG);
 	pipe_select_current = (tmp >> 2) & 3;
 	tmp = (1 << pipe_select_current) |
 	      (((gb_pipe_select >> 8) & 0xF) << 4);
@@ -386,21 +386,24 @@ static int rv515_startup(struct radeon_device *rdev)
 		if (r)
 			return r;
 	}
+
+	/* allocate wb buffer */
+	r = radeon_wb_init(rdev);
+	if (r)
+		return r;
+
 	/* Enable IRQ */
 	rs600_irq_set(rdev);
 	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
-		dev_err(rdev->dev, "failled initializing CP (%d).\n", r);
+		dev_err(rdev->dev, "failed initializing CP (%d).\n", r);
 		return r;
 	}
-	r = r100_wb_init(rdev);
-	if (r)
-		dev_err(rdev->dev, "failled initializing WB (%d).\n", r);
 	r = r100_ib_init(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failled initializing IB (%d).\n", r);
+		dev_err(rdev->dev, "failed initializing IB (%d).\n", r);
 		return r;
 	}
 	return 0;
@@ -431,7 +434,7 @@ int rv515_resume(struct radeon_device *rdev)
 int rv515_suspend(struct radeon_device *rdev)
 {
 	r100_cp_disable(rdev);
-	r100_wb_disable(rdev);
+	radeon_wb_disable(rdev);
 	rs600_irq_disable(rdev);
 	if (rdev->flags & RADEON_IS_PCIE)
 		rv370_pcie_gart_disable(rdev);
@@ -447,7 +450,7 @@ void rv515_set_safe_registers(struct radeon_device *rdev)
 void rv515_fini(struct radeon_device *rdev)
 {
 	r100_cp_fini(rdev);
-	r100_wb_fini(rdev);
+	radeon_wb_fini(rdev);
 	r100_ib_fini(rdev);
 	radeon_gem_fini(rdev);
 	rv370_pcie_gart_fini(rdev);
@@ -527,7 +530,7 @@ int rv515_init(struct radeon_device *rdev)
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
 		r100_cp_fini(rdev);
-		r100_wb_fini(rdev);
+		radeon_wb_fini(rdev);
 		r100_ib_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		rv370_pcie_gart_fini(rdev);

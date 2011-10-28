@@ -56,7 +56,7 @@
  * IV. Notes
  * The current error (XDU, RFO) recovery code is untested.
  * So far, RDO takes his RX channel down and the right sequence to enable it
- * again is still a mistery. If RDO happens, plan a reboot. More details
+ * again is still a mystery. If RDO happens, plan a reboot. More details
  * in the code (NB: as this happens, TX still works).
  * Don't mess the cables during operation, especially on DTE ports. I don't
  * suggest it for DCE either but at least one can get some messages instead
@@ -125,7 +125,7 @@ static u32 dscc4_pci_config_store[16];
 /* Module parameters */
 
 MODULE_AUTHOR("Maintainer: Francois Romieu <romieu@cogenit.fr>");
-MODULE_DESCRIPTION("Siemens PEB20534 PCI Controler");
+MODULE_DESCRIPTION("Siemens PEB20534 PCI Controller");
 MODULE_LICENSE("GPL");
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug,"Enable/disable extra messages");
@@ -1065,7 +1065,7 @@ static int dscc4_open(struct net_device *dev)
 
 	/*
 	 * Due to various bugs, there is no way to reliably reset a
-	 * specific port (manufacturer's dependant special PCI #RST wiring
+	 * specific port (manufacturer's dependent special PCI #RST wiring
 	 * apart: it affects all ports). Thus the device goes in the best
 	 * silent mode possible at dscc4_close() time and simply claims to
 	 * be up if it's opened again. It still isn't possible to change
@@ -1230,9 +1230,9 @@ static inline int dscc4_check_clock_ability(int port)
  *   scaling. Of course some rounding may take place.
  * - no high speed mode (40Mb/s). May be trivial to do but I don't have an
  *   appropriate external clocking device for testing.
- * - no time-slot/clock mode 5: shameless lazyness.
+ * - no time-slot/clock mode 5: shameless laziness.
  *
- * The clock signals wiring can be (is ?) manufacturer dependant. Good luck.
+ * The clock signals wiring can be (is ?) manufacturer dependent. Good luck.
  *
  * BIG FAT WARNING: if the device isn't provided enough clocking signal, it
  * won't pass the init sequence. For example, straight back-to-back DTE without
@@ -1358,7 +1358,7 @@ static int dscc4_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return ret;
 }
 
-static int dscc4_match(struct thingie *p, int value)
+static int dscc4_match(const struct thingie *p, int value)
 {
 	int i;
 
@@ -1403,7 +1403,7 @@ done:
 static int dscc4_encoding_setting(struct dscc4_dev_priv *dpriv,
 				  struct net_device *dev)
 {
-	struct thingie encoding[] = {
+	static const struct thingie encoding[] = {
 		{ ENCODING_NRZ,		0x00000000 },
 		{ ENCODING_NRZI,	0x00200000 },
 		{ ENCODING_FM_MARK,	0x00400000 },
@@ -1442,7 +1442,7 @@ static int dscc4_loopback_setting(struct dscc4_dev_priv *dpriv,
 static int dscc4_crc_setting(struct dscc4_dev_priv *dpriv,
 			     struct net_device *dev)
 {
-	struct thingie crc[] = {
+	static const struct thingie crc[] = {
 		{ PARITY_CRC16_PR0_CCITT,	0x00000010 },
 		{ PARITY_CRC16_PR1_CCITT,	0x00000000 },
 		{ PARITY_CRC32_PR0_CCITT,	0x00000011 },

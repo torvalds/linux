@@ -26,12 +26,15 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ehea.h"
 #include "ehea_phyp.h"
 
 static int ehea_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct ehea_port *port = netdev_priv(dev);
+	u32 speed;
 	int ret;
 
 	ret = ehea_sense_port_attr(port);
@@ -41,27 +44,44 @@ static int ehea_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	if (netif_carrier_ok(dev)) {
 		switch (port->port_speed) {
-		case EHEA_SPEED_10M: cmd->speed = SPEED_10; break;
-		case EHEA_SPEED_100M: cmd->speed = SPEED_100; break;
-		case EHEA_SPEED_1G: cmd->speed = SPEED_1000; break;
-		case EHEA_SPEED_10G: cmd->speed = SPEED_10000; break;
+		case EHEA_SPEED_10M:
+			speed = SPEED_10;
+			break;
+		case EHEA_SPEED_100M:
+			speed = SPEED_100;
+			break;
+		case EHEA_SPEED_1G:
+			speed = SPEED_1000;
+			break;
+		case EHEA_SPEED_10G:
+			speed = SPEED_10000;
+			break;
+		default:
+			speed = -1;
+			break; /* BUG */
 		}
 		cmd->duplex = port->full_duplex == 1 ?
 						     DUPLEX_FULL : DUPLEX_HALF;
 	} else {
-		cmd->speed = -1;
+		speed = ~0;
 		cmd->duplex = -1;
 	}
+	ethtool_cmd_speed_set(cmd, speed);
 
-	cmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_1000baseT_Full
-		       | SUPPORTED_100baseT_Full |  SUPPORTED_100baseT_Half
-		       | SUPPORTED_10baseT_Full | SUPPORTED_10baseT_Half
-		       | SUPPORTED_Autoneg | SUPPORTED_FIBRE);
+	if (cmd->speed == SPEED_10000) {
+		cmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
+		cmd->advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_FIBRE);
+		cmd->port = PORT_FIBRE;
+	} else {
+		cmd->supported = (SUPPORTED_1000baseT_Full | SUPPORTED_100baseT_Full
+			       | SUPPORTED_100baseT_Half | SUPPORTED_10baseT_Full
+			       | SUPPORTED_10baseT_Half | SUPPORTED_Autoneg
+			       | SUPPORTED_TP);
+		cmd->advertising = (ADVERTISED_1000baseT_Full | ADVERTISED_Autoneg
+				 | ADVERTISED_TP);
+		cmd->port = PORT_TP;
+	}
 
-	cmd->advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_Autoneg
-			 | ADVERTISED_FIBRE);
-
-	cmd->port = PORT_FIBRE;
 	cmd->autoneg = port->autoneg == 1 ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 
 	return 0;
@@ -118,10 +138,10 @@ doit:
 	ret = ehea_set_portspeed(port, sp);
 
 	if (!ret)
-		ehea_info("%s: Port speed successfully set: %dMbps "
-			  "%s Duplex",
-			  port->netdev->name, port->port_speed,
-			  port->full_duplex == 1 ? "Full" : "Half");
+		netdev_info(dev,
+			    "Port speed successfully set: %dMbps %s Duplex\n",
+			    port->port_speed,
+			    port->full_duplex == 1 ? "Full" : "Half");
 out:
 	return ret;
 }
@@ -134,10 +154,10 @@ static int ehea_nway_reset(struct net_device *dev)
 	ret = ehea_set_portspeed(port, EHEA_SPEED_AUTONEG);
 
 	if (!ret)
-		ehea_info("%s: Port speed successfully set: %dMbps "
-			  "%s Duplex",
-			  port->netdev->name, port->port_speed,
-			  port->full_duplex == 1 ? "Full" : "Half");
+		netdev_info(port->netdev,
+			    "Port speed successfully set: %dMbps %s Duplex\n",
+			    port->port_speed,
+			    port->full_duplex == 1 ? "Full" : "Half");
 	return ret;
 }
 
@@ -158,11 +178,6 @@ static void ehea_set_msglevel(struct net_device *dev, u32 value)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	port->msg_enable = value;
-}
-
-static u32 ehea_get_rx_csum(struct net_device *dev)
-{
-	return 1;
 }
 
 static char ehea_ethtool_stats_keys[][ETH_GSTRING_LEN] = {
@@ -267,11 +282,9 @@ const struct ethtool_ops ehea_ethtool_ops = {
 	.get_msglevel = ehea_get_msglevel,
 	.set_msglevel = ehea_set_msglevel,
 	.get_link = ethtool_op_get_link,
-	.set_tso = ethtool_op_set_tso,
 	.get_strings = ehea_get_strings,
 	.get_sset_count = ehea_get_sset_count,
 	.get_ethtool_stats = ehea_get_ethtool_stats,
-	.get_rx_csum = ehea_get_rx_csum,
 	.set_settings = ehea_set_settings,
 	.nway_reset = ehea_nway_reset,		/* Restart autonegotiation */
 };

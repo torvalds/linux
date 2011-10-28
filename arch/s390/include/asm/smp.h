@@ -20,7 +20,6 @@ extern void machine_power_off_smp(void);
 
 extern int __cpu_disable (void);
 extern void __cpu_die (unsigned int cpu);
-extern void cpu_die (void) __attribute__ ((noreturn));
 extern int __cpu_up (unsigned int cpu);
 
 extern struct mutex smp_cpu_state_mutex;
@@ -71,8 +70,10 @@ static inline void smp_switch_to_ipl_cpu(void (*func)(void *), void *data)
 
 #ifdef CONFIG_HOTPLUG_CPU
 extern int smp_rescan_cpus(void);
+extern void __noreturn cpu_die(void);
 #else
 static inline int smp_rescan_cpus(void) { return 0; }
+static inline void cpu_die(void) { }
 #endif
 
 #endif /* __ASM_SMP_H */

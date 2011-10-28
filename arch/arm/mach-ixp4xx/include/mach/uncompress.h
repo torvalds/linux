@@ -19,7 +19,7 @@
 
 #define TX_DONE (UART_LSR_TEMT|UART_LSR_THRE)
 
-static volatile u32* uart_base;
+volatile u32* uart_base;
 
 static inline void putc(int c)
 {

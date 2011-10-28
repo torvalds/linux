@@ -89,30 +89,34 @@ static const char * scsi_debug_version_date = "20100324";
 /* With these defaults, this driver will make 1 host with 1 target
  * (id 0) containing 1 logical unit (lun 0). That is 1 device.
  */
+#define DEF_ATO 1
 #define DEF_DELAY   1
 #define DEF_DEV_SIZE_MB   8
+#define DEF_DIF 0
+#define DEF_DIX 0
+#define DEF_D_SENSE   0
 #define DEF_EVERY_NTH   0
+#define DEF_FAKE_RW	0
+#define DEF_GUARD 0
+#define DEF_LBPU 0
+#define DEF_LBPWS 0
+#define DEF_LBPWS10 0
+#define DEF_LOWEST_ALIGNED 0
+#define DEF_NO_LUN_0   0
 #define DEF_NUM_PARTS   0
 #define DEF_OPTS   0
-#define DEF_SCSI_LEVEL   5    /* INQUIRY, byte2 [5->SPC-3] */
-#define DEF_PTYPE   0
-#define DEF_D_SENSE   0
-#define DEF_NO_LUN_0   0
-#define DEF_VIRTUAL_GB   0
-#define DEF_FAKE_RW	0
-#define DEF_VPD_USE_HOSTNO 1
-#define DEF_SECTOR_SIZE 512
-#define DEF_DIX 0
-#define DEF_DIF 0
-#define DEF_GUARD 0
-#define DEF_ATO 1
-#define DEF_PHYSBLK_EXP 0
-#define DEF_LOWEST_ALIGNED 0
 #define DEF_OPT_BLKS 64
-#define DEF_UNMAP_MAX_BLOCKS 0
-#define DEF_UNMAP_MAX_DESC 0
-#define DEF_UNMAP_GRANULARITY 0
+#define DEF_PHYSBLK_EXP 0
+#define DEF_PTYPE   0
+#define DEF_SCSI_LEVEL   5    /* INQUIRY, byte2 [5->SPC-3] */
+#define DEF_SECTOR_SIZE 512
 #define DEF_UNMAP_ALIGNMENT 0
+#define DEF_UNMAP_GRANULARITY 1
+#define DEF_UNMAP_MAX_BLOCKS 0xFFFFFFFF
+#define DEF_UNMAP_MAX_DESC 256
+#define DEF_VIRTUAL_GB   0
+#define DEF_VPD_USE_HOSTNO 1
+#define DEF_WRITESAME_LENGTH 0xFFFF
 
 /* bit mask values for scsi_debug_opts */
 #define SCSI_DEBUG_OPT_NOISE   1
@@ -142,6 +146,7 @@ static const char * scsi_debug_version_date = "20100324";
 /* when 1==SCSI_DEBUG_OPT_MEDIUM_ERR, a medium error is simulated at this
  * sector on read commands: */
 #define OPT_MEDIUM_ERR_ADDR   0x1234 /* that's sector 4660 in decimal */
+#define OPT_MEDIUM_ERR_NUM    10     /* number of consecutive medium errs */
 
 /* If REPORT LUNS has luns >= 256 it can choose "flat space" (value 1)
  * or "peripheral device" addressing (value 0) */
@@ -153,34 +158,38 @@ static const char * scsi_debug_version_date = "20100324";
 #define SCSI_DEBUG_CANQUEUE  255
 
 static int scsi_debug_add_host = DEF_NUM_HOST;
+static int scsi_debug_ato = DEF_ATO;
 static int scsi_debug_delay = DEF_DELAY;
 static int scsi_debug_dev_size_mb = DEF_DEV_SIZE_MB;
+static int scsi_debug_dif = DEF_DIF;
+static int scsi_debug_dix = DEF_DIX;
+static int scsi_debug_dsense = DEF_D_SENSE;
 static int scsi_debug_every_nth = DEF_EVERY_NTH;
+static int scsi_debug_fake_rw = DEF_FAKE_RW;
+static int scsi_debug_guard = DEF_GUARD;
+static int scsi_debug_lowest_aligned = DEF_LOWEST_ALIGNED;
 static int scsi_debug_max_luns = DEF_MAX_LUNS;
 static int scsi_debug_max_queue = SCSI_DEBUG_CANQUEUE;
-static int scsi_debug_num_parts = DEF_NUM_PARTS;
-static int scsi_debug_no_uld = 0;
-static int scsi_debug_num_tgts = DEF_NUM_TGTS; /* targets per host */
-static int scsi_debug_opts = DEF_OPTS;
-static int scsi_debug_scsi_level = DEF_SCSI_LEVEL;
-static int scsi_debug_ptype = DEF_PTYPE; /* SCSI peripheral type (0==disk) */
-static int scsi_debug_dsense = DEF_D_SENSE;
 static int scsi_debug_no_lun_0 = DEF_NO_LUN_0;
-static int scsi_debug_virtual_gb = DEF_VIRTUAL_GB;
-static int scsi_debug_fake_rw = DEF_FAKE_RW;
-static int scsi_debug_vpd_use_hostno = DEF_VPD_USE_HOSTNO;
-static int scsi_debug_sector_size = DEF_SECTOR_SIZE;
-static int scsi_debug_dix = DEF_DIX;
-static int scsi_debug_dif = DEF_DIF;
-static int scsi_debug_guard = DEF_GUARD;
-static int scsi_debug_ato = DEF_ATO;
-static int scsi_debug_physblk_exp = DEF_PHYSBLK_EXP;
-static int scsi_debug_lowest_aligned = DEF_LOWEST_ALIGNED;
+static int scsi_debug_no_uld = 0;
+static int scsi_debug_num_parts = DEF_NUM_PARTS;
+static int scsi_debug_num_tgts = DEF_NUM_TGTS; /* targets per host */
 static int scsi_debug_opt_blks = DEF_OPT_BLKS;
-static int scsi_debug_unmap_max_desc = DEF_UNMAP_MAX_DESC;
-static int scsi_debug_unmap_max_blocks = DEF_UNMAP_MAX_BLOCKS;
-static int scsi_debug_unmap_granularity = DEF_UNMAP_GRANULARITY;
-static int scsi_debug_unmap_alignment = DEF_UNMAP_ALIGNMENT;
+static int scsi_debug_opts = DEF_OPTS;
+static int scsi_debug_physblk_exp = DEF_PHYSBLK_EXP;
+static int scsi_debug_ptype = DEF_PTYPE; /* SCSI peripheral type (0==disk) */
+static int scsi_debug_scsi_level = DEF_SCSI_LEVEL;
+static int scsi_debug_sector_size = DEF_SECTOR_SIZE;
+static int scsi_debug_virtual_gb = DEF_VIRTUAL_GB;
+static int scsi_debug_vpd_use_hostno = DEF_VPD_USE_HOSTNO;
+static unsigned int scsi_debug_lbpu = DEF_LBPU;
+static unsigned int scsi_debug_lbpws = DEF_LBPWS;
+static unsigned int scsi_debug_lbpws10 = DEF_LBPWS10;
+static unsigned int scsi_debug_unmap_alignment = DEF_UNMAP_ALIGNMENT;
+static unsigned int scsi_debug_unmap_granularity = DEF_UNMAP_GRANULARITY;
+static unsigned int scsi_debug_unmap_max_blocks = DEF_UNMAP_MAX_BLOCKS;
+static unsigned int scsi_debug_unmap_max_desc = DEF_UNMAP_MAX_DESC;
+static unsigned int scsi_debug_write_same_length = DEF_WRITESAME_LENGTH;
 
 static int scsi_debug_cmnd_count = 0;
 
@@ -201,6 +210,11 @@ static int sdebug_sectors_per;		/* sectors per cylinder */
 #define SDEBUG_SENSE_LEN 32
 
 #define SCSI_DEBUG_MAX_CMD_LEN 32
+
+static unsigned int scsi_debug_lbp(void)
+{
+	return scsi_debug_lbpu | scsi_debug_lbpws | scsi_debug_lbpws10;
+}
 
 struct sdebug_dev_info {
 	struct list_head dev_list;
@@ -723,16 +737,9 @@ static int inquiry_evpd_b0(unsigned char * arr)
 	/* Optimal Transfer Length */
 	put_unaligned_be32(scsi_debug_opt_blks, &arr[8]);
 
-	if (scsi_debug_unmap_max_desc) {
-		unsigned int blocks;
-
-		if (scsi_debug_unmap_max_blocks)
-			blocks = scsi_debug_unmap_max_blocks;
-		else
-			blocks = 0xffffffff;
-
+	if (scsi_debug_lbpu) {
 		/* Maximum Unmap LBA Count */
-		put_unaligned_be32(blocks, &arr[16]);
+		put_unaligned_be32(scsi_debug_unmap_max_blocks, &arr[16]);
 
 		/* Maximum Unmap Block Descriptor Count */
 		put_unaligned_be32(scsi_debug_unmap_max_desc, &arr[20]);
@@ -745,10 +752,12 @@ static int inquiry_evpd_b0(unsigned char * arr)
 	}
 
 	/* Optimal Unmap Granularity */
-	if (scsi_debug_unmap_granularity) {
-		put_unaligned_be32(scsi_debug_unmap_granularity, &arr[24]);
-		return 0x3c; /* Mandatory page length for thin provisioning */
-	}
+	put_unaligned_be32(scsi_debug_unmap_granularity, &arr[24]);
+
+	/* Maximum WRITE SAME Length */
+	put_unaligned_be64(scsi_debug_write_same_length, &arr[32]);
+
+	return 0x3c; /* Mandatory page length for Logical Block Provisioning */
 
 	return sizeof(vpdb0_data);
 }
@@ -763,6 +772,24 @@ static int inquiry_evpd_b1(unsigned char *arr)
 	arr[3] = 5;	/* less than 1.8" */
 
 	return 0x3c;
+}
+
+/* Thin provisioning VPD page (SBC-3) */
+static int inquiry_evpd_b2(unsigned char *arr)
+{
+	memset(arr, 0, 0x8);
+	arr[0] = 0;			/* threshold exponent */
+
+	if (scsi_debug_lbpu)
+		arr[1] = 1 << 7;
+
+	if (scsi_debug_lbpws)
+		arr[1] |= 1 << 6;
+
+	if (scsi_debug_lbpws10)
+		arr[1] |= 1 << 5;
+
+	return 0x8;
 }
 
 #define SDEBUG_LONG_INQ_SZ 96
@@ -820,6 +847,8 @@ static int resp_inquiry(struct scsi_cmnd * scp, int target,
 			arr[n++] = 0x89;  /* ATA information */
 			arr[n++] = 0xb0;  /* Block limits (SBC) */
 			arr[n++] = 0xb1;  /* Block characteristics (SBC) */
+			if (scsi_debug_lbp()) /* Logical Block Prov. (SBC) */
+				arr[n++] = 0xb2;
 			arr[3] = n - 4;	  /* number of supported VPD pages */
 		} else if (0x80 == cmd[2]) { /* unit serial number */
 			arr[1] = cmd[2];	/*sanity */
@@ -867,6 +896,9 @@ static int resp_inquiry(struct scsi_cmnd * scp, int target,
 		} else if (0xb1 == cmd[2]) { /* Block characteristics (SBC) */
 			arr[1] = cmd[2];        /*sanity */
 			arr[3] = inquiry_evpd_b1(&arr[4]);
+		} else if (0xb2 == cmd[2]) { /* Logical Block Prov. (SBC) */
+			arr[1] = cmd[2];        /*sanity */
+			arr[3] = inquiry_evpd_b2(&arr[4]);
 		} else {
 			/* Illegal request, invalid field in cdb */
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,
@@ -1038,8 +1070,8 @@ static int resp_readcap16(struct scsi_cmnd * scp,
 	arr[13] = scsi_debug_physblk_exp & 0xf;
 	arr[14] = (scsi_debug_lowest_aligned >> 8) & 0x3f;
 
-	if (scsi_debug_unmap_granularity)
-		arr[14] |= 0x80; /* TPE */
+	if (scsi_debug_lbp())
+		arr[14] |= 0x80; /* LBPME */
 
 	arr[15] = scsi_debug_lowest_aligned & 0xff;
 
@@ -1656,7 +1688,7 @@ static int do_device_access(struct scsi_cmnd *scmd,
 			    unsigned long long lba, unsigned int num, int write)
 {
 	int ret;
-	unsigned int block, rest = 0;
+	unsigned long long block, rest = 0;
 	int (*func)(struct scsi_cmnd *, unsigned char *, int);
 
 	func = write ? fetch_to_dev_buffer : fill_from_dev_buffer;
@@ -1776,20 +1808,21 @@ static int resp_read(struct scsi_cmnd *SCpnt, unsigned long long lba,
 		return ret;
 
 	if ((SCSI_DEBUG_OPT_MEDIUM_ERR & scsi_debug_opts) &&
-	    (lba <= OPT_MEDIUM_ERR_ADDR) &&
+	    (lba <= (OPT_MEDIUM_ERR_ADDR + OPT_MEDIUM_ERR_NUM - 1)) &&
 	    ((lba + num) > OPT_MEDIUM_ERR_ADDR)) {
 		/* claim unrecoverable read error */
-		mk_sense_buffer(devip, MEDIUM_ERROR, UNRECOVERED_READ_ERR,
-				0);
+		mk_sense_buffer(devip, MEDIUM_ERROR, UNRECOVERED_READ_ERR, 0);
 		/* set info field and valid bit for fixed descriptor */
 		if (0x70 == (devip->sense_buff[0] & 0x7f)) {
 			devip->sense_buff[0] |= 0x80;	/* Valid bit */
-			ret = OPT_MEDIUM_ERR_ADDR;
+			ret = (lba < OPT_MEDIUM_ERR_ADDR)
+			      ? OPT_MEDIUM_ERR_ADDR : (int)lba;
 			devip->sense_buff[3] = (ret >> 24) & 0xff;
 			devip->sense_buff[4] = (ret >> 16) & 0xff;
 			devip->sense_buff[5] = (ret >> 8) & 0xff;
 			devip->sense_buff[6] = ret & 0xff;
 		}
+	        scsi_set_resid(SCpnt, scsi_bufflen(SCpnt));
 		return check_condition_result;
 	}
 
@@ -2067,6 +2100,12 @@ static int resp_write_same(struct scsi_cmnd *scmd, unsigned long long lba,
 	ret = check_device_access_params(devip, lba, num);
 	if (ret)
 		return ret;
+
+	if (num > scsi_debug_write_same_length) {
+		mk_sense_buffer(devip, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB,
+				0);
+		return check_condition_result;
+	}
 
 	write_lock_irqsave(&atomic_rw, iflags);
 
@@ -2415,7 +2454,7 @@ static void scsi_debug_slave_destroy(struct scsi_device *sdp)
 		printk(KERN_INFO "scsi_debug: slave_destroy <%u %u %u %u>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 	if (devip) {
-		/* make this slot avaliable for re-use */
+		/* make this slot available for re-use */
 		devip->used = 0;
 		sdp->hostdata = NULL;
 	}
@@ -2679,35 +2718,40 @@ static int schedule_resp(struct scsi_cmnd * cmnd,
    /sys/bus/pseudo/drivers/scsi_debug directory is changed.
  */
 module_param_named(add_host, scsi_debug_add_host, int, S_IRUGO | S_IWUSR);
+module_param_named(ato, scsi_debug_ato, int, S_IRUGO);
 module_param_named(delay, scsi_debug_delay, int, S_IRUGO | S_IWUSR);
 module_param_named(dev_size_mb, scsi_debug_dev_size_mb, int, S_IRUGO);
+module_param_named(dif, scsi_debug_dif, int, S_IRUGO);
+module_param_named(dix, scsi_debug_dix, int, S_IRUGO);
 module_param_named(dsense, scsi_debug_dsense, int, S_IRUGO | S_IWUSR);
 module_param_named(every_nth, scsi_debug_every_nth, int, S_IRUGO | S_IWUSR);
 module_param_named(fake_rw, scsi_debug_fake_rw, int, S_IRUGO | S_IWUSR);
+module_param_named(guard, scsi_debug_guard, int, S_IRUGO);
+module_param_named(lbpu, scsi_debug_lbpu, int, S_IRUGO);
+module_param_named(lbpws, scsi_debug_lbpws, int, S_IRUGO);
+module_param_named(lbpws10, scsi_debug_lbpws10, int, S_IRUGO);
+module_param_named(lowest_aligned, scsi_debug_lowest_aligned, int, S_IRUGO);
 module_param_named(max_luns, scsi_debug_max_luns, int, S_IRUGO | S_IWUSR);
 module_param_named(max_queue, scsi_debug_max_queue, int, S_IRUGO | S_IWUSR);
 module_param_named(no_lun_0, scsi_debug_no_lun_0, int, S_IRUGO | S_IWUSR);
 module_param_named(no_uld, scsi_debug_no_uld, int, S_IRUGO);
 module_param_named(num_parts, scsi_debug_num_parts, int, S_IRUGO);
 module_param_named(num_tgts, scsi_debug_num_tgts, int, S_IRUGO | S_IWUSR);
+module_param_named(opt_blks, scsi_debug_opt_blks, int, S_IRUGO);
 module_param_named(opts, scsi_debug_opts, int, S_IRUGO | S_IWUSR);
+module_param_named(physblk_exp, scsi_debug_physblk_exp, int, S_IRUGO);
 module_param_named(ptype, scsi_debug_ptype, int, S_IRUGO | S_IWUSR);
 module_param_named(scsi_level, scsi_debug_scsi_level, int, S_IRUGO);
+module_param_named(sector_size, scsi_debug_sector_size, int, S_IRUGO);
+module_param_named(unmap_alignment, scsi_debug_unmap_alignment, int, S_IRUGO);
+module_param_named(unmap_granularity, scsi_debug_unmap_granularity, int, S_IRUGO);
+module_param_named(unmap_max_blocks, scsi_debug_unmap_max_blocks, int, S_IRUGO);
+module_param_named(unmap_max_desc, scsi_debug_unmap_max_desc, int, S_IRUGO);
 module_param_named(virtual_gb, scsi_debug_virtual_gb, int, S_IRUGO | S_IWUSR);
 module_param_named(vpd_use_hostno, scsi_debug_vpd_use_hostno, int,
 		   S_IRUGO | S_IWUSR);
-module_param_named(sector_size, scsi_debug_sector_size, int, S_IRUGO);
-module_param_named(dix, scsi_debug_dix, int, S_IRUGO);
-module_param_named(dif, scsi_debug_dif, int, S_IRUGO);
-module_param_named(guard, scsi_debug_guard, int, S_IRUGO);
-module_param_named(ato, scsi_debug_ato, int, S_IRUGO);
-module_param_named(physblk_exp, scsi_debug_physblk_exp, int, S_IRUGO);
-module_param_named(opt_blks, scsi_debug_opt_blks, int, S_IRUGO);
-module_param_named(lowest_aligned, scsi_debug_lowest_aligned, int, S_IRUGO);
-module_param_named(unmap_max_blocks, scsi_debug_unmap_max_blocks, int, S_IRUGO);
-module_param_named(unmap_max_desc, scsi_debug_unmap_max_desc, int, S_IRUGO);
-module_param_named(unmap_granularity, scsi_debug_unmap_granularity, int, S_IRUGO);
-module_param_named(unmap_alignment, scsi_debug_unmap_alignment, int, S_IRUGO);
+module_param_named(write_same_length, scsi_debug_write_same_length, int,
+		   S_IRUGO | S_IWUSR);
 
 MODULE_AUTHOR("Eric Youngdale + Douglas Gilbert");
 MODULE_DESCRIPTION("SCSI debug adapter driver");
@@ -2715,34 +2759,38 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(SCSI_DEBUG_VERSION);
 
 MODULE_PARM_DESC(add_host, "0..127 hosts allowed(def=1)");
+MODULE_PARM_DESC(ato, "application tag ownership: 0=disk 1=host (def=1)");
 MODULE_PARM_DESC(delay, "# of jiffies to delay response(def=1)");
 MODULE_PARM_DESC(dev_size_mb, "size in MB of ram shared by devs(def=8)");
+MODULE_PARM_DESC(dif, "data integrity field type: 0-3 (def=0)");
+MODULE_PARM_DESC(dix, "data integrity extensions mask (def=0)");
 MODULE_PARM_DESC(dsense, "use descriptor sense format(def=0 -> fixed)");
 MODULE_PARM_DESC(every_nth, "timeout every nth command(def=0)");
 MODULE_PARM_DESC(fake_rw, "fake reads/writes instead of copying (def=0)");
+MODULE_PARM_DESC(guard, "protection checksum: 0=crc, 1=ip (def=0)");
+MODULE_PARM_DESC(lbpu, "enable LBP, support UNMAP command (def=0)");
+MODULE_PARM_DESC(lbpws, "enable LBP, support WRITE SAME(16) with UNMAP bit (def=0)");
+MODULE_PARM_DESC(lbpws10, "enable LBP, support WRITE SAME(10) with UNMAP bit (def=0)");
+MODULE_PARM_DESC(lowest_aligned, "lowest aligned lba (def=0)");
 MODULE_PARM_DESC(max_luns, "number of LUNs per target to simulate(def=1)");
 MODULE_PARM_DESC(max_queue, "max number of queued commands (1 to 255(def))");
 MODULE_PARM_DESC(no_lun_0, "no LU number 0 (def=0 -> have lun 0)");
 MODULE_PARM_DESC(no_uld, "stop ULD (e.g. sd driver) attaching (def=0))");
 MODULE_PARM_DESC(num_parts, "number of partitions(def=0)");
 MODULE_PARM_DESC(num_tgts, "number of targets per host to simulate(def=1)");
+MODULE_PARM_DESC(opt_blks, "optimal transfer length in block (def=64)");
 MODULE_PARM_DESC(opts, "1->noise, 2->medium_err, 4->timeout, 8->recovered_err... (def=0)");
+MODULE_PARM_DESC(physblk_exp, "physical block exponent (def=0)");
 MODULE_PARM_DESC(ptype, "SCSI peripheral type(def=0[disk])");
 MODULE_PARM_DESC(scsi_level, "SCSI level to simulate(def=5[SPC-3])");
+MODULE_PARM_DESC(sector_size, "logical block size in bytes (def=512)");
+MODULE_PARM_DESC(unmap_alignment, "lowest aligned thin provisioning lba (def=0)");
+MODULE_PARM_DESC(unmap_granularity, "thin provisioning granularity in blocks (def=1)");
+MODULE_PARM_DESC(unmap_max_blocks, "max # of blocks can be unmapped in one cmd (def=0xffffffff)");
+MODULE_PARM_DESC(unmap_max_desc, "max # of ranges that can be unmapped in one cmd (def=256)");
 MODULE_PARM_DESC(virtual_gb, "virtual gigabyte size (def=0 -> use dev_size_mb)");
 MODULE_PARM_DESC(vpd_use_hostno, "0 -> dev ids ignore hostno (def=1 -> unique dev ids)");
-MODULE_PARM_DESC(sector_size, "logical block size in bytes (def=512)");
-MODULE_PARM_DESC(physblk_exp, "physical block exponent (def=0)");
-MODULE_PARM_DESC(opt_blks, "optimal transfer length in block (def=64)");
-MODULE_PARM_DESC(lowest_aligned, "lowest aligned lba (def=0)");
-MODULE_PARM_DESC(dix, "data integrity extensions mask (def=0)");
-MODULE_PARM_DESC(dif, "data integrity field type: 0-3 (def=0)");
-MODULE_PARM_DESC(guard, "protection checksum: 0=crc, 1=ip (def=0)");
-MODULE_PARM_DESC(ato, "application tag ownership: 0=disk 1=host (def=1)");
-MODULE_PARM_DESC(unmap_max_blocks, "max # of blocks can be unmapped in one cmd (def=0)");
-MODULE_PARM_DESC(unmap_max_desc, "max # of ranges that can be unmapped in one cmd (def=0)");
-MODULE_PARM_DESC(unmap_granularity, "thin provisioning granularity in blocks (def=0)");
-MODULE_PARM_DESC(unmap_alignment, "lowest aligned thin provisioning lba (def=0)");
+MODULE_PARM_DESC(write_same_length, "Maximum blocks per WRITE SAME cmd (def=0xffff)");
 
 static char sdebug_info[256];
 
@@ -3130,7 +3178,7 @@ static ssize_t sdebug_map_show(struct device_driver *ddp, char *buf)
 {
 	ssize_t count;
 
-	if (scsi_debug_unmap_granularity == 0)
+	if (!scsi_debug_lbp())
 		return scnprintf(buf, PAGE_SIZE, "0-%u\n",
 				 sdebug_store_sectors);
 
@@ -3207,16 +3255,7 @@ static void do_remove_driverfs_files(void)
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_add_host);
 }
 
-static void pseudo_0_release(struct device *dev)
-{
-	if (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts)
-		printk(KERN_INFO "scsi_debug: pseudo_0_release() called\n");
-}
-
-static struct device pseudo_primary = {
-	.init_name	= "pseudo_0",
-	.release	= pseudo_0_release,
-};
+struct device *pseudo_primary;
 
 static int __init scsi_debug_init(void)
 {
@@ -3322,10 +3361,21 @@ static int __init scsi_debug_init(void)
 		memset(dif_storep, 0xff, dif_size);
 	}
 
-	if (scsi_debug_unmap_granularity) {
+	/* Logical Block Provisioning */
+	if (scsi_debug_lbp()) {
 		unsigned int map_bytes;
 
-		if (scsi_debug_unmap_granularity < scsi_debug_unmap_alignment) {
+		scsi_debug_unmap_max_blocks =
+			clamp(scsi_debug_unmap_max_blocks, 0U, 0xffffffffU);
+
+		scsi_debug_unmap_max_desc =
+			clamp(scsi_debug_unmap_max_desc, 0U, 256U);
+
+		scsi_debug_unmap_granularity =
+			clamp(scsi_debug_unmap_granularity, 1U, 0xffffffffU);
+
+		if (scsi_debug_unmap_alignment &&
+		    scsi_debug_unmap_granularity < scsi_debug_unmap_alignment) {
 			printk(KERN_ERR
 			       "%s: ERR: unmap_granularity < unmap_alignment\n",
 			       __func__);
@@ -3352,10 +3402,10 @@ static int __init scsi_debug_init(void)
 			map_region(0, 2);
 	}
 
-	ret = device_register(&pseudo_primary);
-	if (ret < 0) {
-		printk(KERN_WARNING "scsi_debug: device_register error: %d\n",
-			ret);
+	pseudo_primary = root_device_register("pseudo_0");
+	if (IS_ERR(pseudo_primary)) {
+		printk(KERN_WARNING "scsi_debug: root_device_register() error\n");
+		ret = PTR_ERR(pseudo_primary);
 		goto free_vm;
 	}
 	ret = bus_register(&pseudo_lld_bus);
@@ -3402,7 +3452,7 @@ del_files:
 bus_unreg:
 	bus_unregister(&pseudo_lld_bus);
 dev_unreg:
-	device_unregister(&pseudo_primary);
+	root_device_unregister(pseudo_primary);
 free_vm:
 	if (map_storep)
 		vfree(map_storep);
@@ -3423,7 +3473,7 @@ static void __exit scsi_debug_exit(void)
 	do_remove_driverfs_files();
 	driver_unregister(&sdebug_driverfs_driver);
 	bus_unregister(&pseudo_lld_bus);
-	device_unregister(&pseudo_primary);
+	root_device_unregister(pseudo_primary);
 
 	if (dif_storep)
 		vfree(dif_storep);
@@ -3474,7 +3524,7 @@ static int sdebug_add_adapter(void)
         spin_unlock(&sdebug_host_list_lock);
 
         sdbg_host->dev.bus = &pseudo_lld_bus;
-        sdbg_host->dev.parent = &pseudo_primary;
+        sdbg_host->dev.parent = pseudo_primary;
         sdbg_host->dev.release = &sdebug_release_adapter;
         dev_set_name(&sdbg_host->dev, "adapter%d", scsi_debug_add_host);
 
@@ -3517,7 +3567,7 @@ static void sdebug_remove_adapter(void)
 }
 
 static
-int scsi_debug_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
+int scsi_debug_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 {
 	unsigned char *cmd = (unsigned char *) SCpnt->cmnd;
 	int len, k;
@@ -3642,7 +3692,7 @@ int scsi_debug_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 			errsts = resp_readcap16(SCpnt, devip);
 		else if (cmd[1] == SAI_GET_LBA_STATUS) {
 
-			if (scsi_debug_unmap_max_desc == 0) {
+			if (scsi_debug_lbp() == 0) {
 				mk_sense_buffer(devip, ILLEGAL_REQUEST,
 						INVALID_COMMAND_OPCODE, 0);
 				errsts = check_condition_result;
@@ -3753,10 +3803,18 @@ write:
 		}
 		break;
 	case WRITE_SAME_16:
-		if (cmd[1] & 0x8)
-			unmap = 1;
-		/* fall through */
 	case WRITE_SAME:
+		if (cmd[1] & 0x8) {
+			if ((*cmd == WRITE_SAME_16 && scsi_debug_lbpws == 0) ||
+			    (*cmd == WRITE_SAME && scsi_debug_lbpws10 == 0)) {
+				mk_sense_buffer(devip, ILLEGAL_REQUEST,
+						INVALID_FIELD_IN_CDB, 0);
+				errsts = check_condition_result;
+			} else
+				unmap = 1;
+		}
+		if (errsts)
+			break;
 		errsts = check_readiness(SCpnt, 0, devip);
 		if (errsts)
 			break;
@@ -3768,7 +3826,7 @@ write:
 		if (errsts)
 			break;
 
-		if (scsi_debug_unmap_max_desc == 0) {
+		if (scsi_debug_unmap_max_desc == 0 || scsi_debug_lbpu == 0) {
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,
 					INVALID_COMMAND_OPCODE, 0);
 			errsts = check_condition_result;
@@ -3854,6 +3912,8 @@ write:
 	return schedule_resp(SCpnt, devip, done, errsts,
 			     (delay_override ? 0 : scsi_debug_delay));
 }
+
+static DEF_SCSI_QCMD(scsi_debug_queuecommand)
 
 static struct scsi_host_template sdebug_driver_template = {
 	.proc_info =		scsi_debug_proc_info,

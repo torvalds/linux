@@ -19,6 +19,7 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/swap.h>
 #include <linux/splice.h>
+#include <linux/freezer.h>
 
 MODULE_ALIAS_MISCDEV(FUSE_MINOR);
 MODULE_ALIAS("devname:fuse");
@@ -251,6 +252,20 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 }
 
+void fuse_queue_forget(struct fuse_conn *fc, struct fuse_forget_link *forget,
+		       u64 nodeid, u64 nlookup)
+{
+	forget->forget_one.nodeid = nodeid;
+	forget->forget_one.nlookup = nlookup;
+
+	spin_lock(&fc->lock);
+	fc->forget_list_tail->next = forget;
+	fc->forget_list_tail = forget;
+	wake_up(&fc->waitq);
+	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
+	spin_unlock(&fc->lock);
+}
+
 static void flush_bg_queue(struct fuse_conn *fc)
 {
 	while (fc->active_background < fc->max_background &&
@@ -369,7 +384,10 @@ __acquires(fc->lock)
 	 * Wait it out.
 	 */
 	spin_unlock(&fc->lock);
-	wait_event(req->waitq, req->state == FUSE_REQ_FINISHED);
+
+	while (req->state != FUSE_REQ_FINISHED)
+		wait_event_freezable(req->waitq,
+				     req->state == FUSE_REQ_FINISHED);
 	spin_lock(&fc->lock);
 
 	if (!req->aborted)
@@ -436,12 +454,6 @@ static void fuse_request_send_nowait(struct fuse_conn *fc, struct fuse_req *req)
 		req->out.h.error = -ENOTCONN;
 		request_end(fc, req);
 	}
-}
-
-void fuse_request_send_noreply(struct fuse_conn *fc, struct fuse_req *req)
-{
-	req->isreply = 0;
-	fuse_request_send_nowait(fc, req);
 }
 
 void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req)
@@ -729,14 +741,12 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 	if (WARN_ON(PageMlocked(oldpage)))
 		goto out_fallback_unlock;
 
-	remove_from_page_cache(oldpage);
-	page_cache_release(oldpage);
-
-	err = add_to_page_cache_locked(newpage, mapping, index, GFP_KERNEL);
+	err = replace_page_cache_page(oldpage, newpage, GFP_KERNEL);
 	if (err) {
-		printk(KERN_WARNING "fuse_try_move_page: failed to add page");
-		goto out_fallback_unlock;
+		unlock_page(newpage);
+		return err;
 	}
+
 	page_cache_get(newpage);
 
 	if (!(buf->flags & PIPE_BUF_FLAG_LRU))
@@ -809,11 +819,9 @@ static int fuse_copy_page(struct fuse_copy_state *cs, struct page **pagep,
 	int err;
 	struct page *page = *pagep;
 
-	if (page && zeroing && count < PAGE_SIZE) {
-		void *mapaddr = kmap_atomic(page, KM_USER1);
-		memset(mapaddr, 0, PAGE_SIZE);
-		kunmap_atomic(mapaddr, KM_USER1);
-	}
+	if (page && zeroing && count < PAGE_SIZE)
+		clear_highpage(page);
+
 	while (count) {
 		if (cs->write && cs->pipebufs && page) {
 			return fuse_ref_page(cs, page, offset, count);
@@ -830,10 +838,10 @@ static int fuse_copy_page(struct fuse_copy_state *cs, struct page **pagep,
 			}
 		}
 		if (page) {
-			void *mapaddr = kmap_atomic(page, KM_USER1);
+			void *mapaddr = kmap_atomic(page, KM_USER0);
 			void *buf = mapaddr + offset;
 			offset += fuse_copy_do(cs, &buf, &count);
-			kunmap_atomic(mapaddr, KM_USER1);
+			kunmap_atomic(mapaddr, KM_USER0);
 		} else
 			offset += fuse_copy_do(cs, NULL, &count);
 	}
@@ -898,9 +906,15 @@ static int fuse_copy_args(struct fuse_copy_state *cs, unsigned numargs,
 	return err;
 }
 
+static int forget_pending(struct fuse_conn *fc)
+{
+	return fc->forget_list_head.next != NULL;
+}
+
 static int request_pending(struct fuse_conn *fc)
 {
-	return !list_empty(&fc->pending) || !list_empty(&fc->interrupts);
+	return !list_empty(&fc->pending) || !list_empty(&fc->interrupts) ||
+		forget_pending(fc);
 }
 
 /* Wait until a request is available on the pending list */
@@ -962,6 +976,120 @@ __releases(fc->lock)
 	return err ? err : reqsize;
 }
 
+static struct fuse_forget_link *dequeue_forget(struct fuse_conn *fc,
+					       unsigned max,
+					       unsigned *countp)
+{
+	struct fuse_forget_link *head = fc->forget_list_head.next;
+	struct fuse_forget_link **newhead = &head;
+	unsigned count;
+
+	for (count = 0; *newhead != NULL && count < max; count++)
+		newhead = &(*newhead)->next;
+
+	fc->forget_list_head.next = *newhead;
+	*newhead = NULL;
+	if (fc->forget_list_head.next == NULL)
+		fc->forget_list_tail = &fc->forget_list_head;
+
+	if (countp != NULL)
+		*countp = count;
+
+	return head;
+}
+
+static int fuse_read_single_forget(struct fuse_conn *fc,
+				   struct fuse_copy_state *cs,
+				   size_t nbytes)
+__releases(fc->lock)
+{
+	int err;
+	struct fuse_forget_link *forget = dequeue_forget(fc, 1, NULL);
+	struct fuse_forget_in arg = {
+		.nlookup = forget->forget_one.nlookup,
+	};
+	struct fuse_in_header ih = {
+		.opcode = FUSE_FORGET,
+		.nodeid = forget->forget_one.nodeid,
+		.unique = fuse_get_unique(fc),
+		.len = sizeof(ih) + sizeof(arg),
+	};
+
+	spin_unlock(&fc->lock);
+	kfree(forget);
+	if (nbytes < ih.len)
+		return -EINVAL;
+
+	err = fuse_copy_one(cs, &ih, sizeof(ih));
+	if (!err)
+		err = fuse_copy_one(cs, &arg, sizeof(arg));
+	fuse_copy_finish(cs);
+
+	if (err)
+		return err;
+
+	return ih.len;
+}
+
+static int fuse_read_batch_forget(struct fuse_conn *fc,
+				   struct fuse_copy_state *cs, size_t nbytes)
+__releases(fc->lock)
+{
+	int err;
+	unsigned max_forgets;
+	unsigned count;
+	struct fuse_forget_link *head;
+	struct fuse_batch_forget_in arg = { .count = 0 };
+	struct fuse_in_header ih = {
+		.opcode = FUSE_BATCH_FORGET,
+		.unique = fuse_get_unique(fc),
+		.len = sizeof(ih) + sizeof(arg),
+	};
+
+	if (nbytes < ih.len) {
+		spin_unlock(&fc->lock);
+		return -EINVAL;
+	}
+
+	max_forgets = (nbytes - ih.len) / sizeof(struct fuse_forget_one);
+	head = dequeue_forget(fc, max_forgets, &count);
+	spin_unlock(&fc->lock);
+
+	arg.count = count;
+	ih.len += count * sizeof(struct fuse_forget_one);
+	err = fuse_copy_one(cs, &ih, sizeof(ih));
+	if (!err)
+		err = fuse_copy_one(cs, &arg, sizeof(arg));
+
+	while (head) {
+		struct fuse_forget_link *forget = head;
+
+		if (!err) {
+			err = fuse_copy_one(cs, &forget->forget_one,
+					    sizeof(forget->forget_one));
+		}
+		head = forget->next;
+		kfree(forget);
+	}
+
+	fuse_copy_finish(cs);
+
+	if (err)
+		return err;
+
+	return ih.len;
+}
+
+static int fuse_read_forget(struct fuse_conn *fc, struct fuse_copy_state *cs,
+			    size_t nbytes)
+__releases(fc->lock)
+{
+	if (fc->minor < 16 || fc->forget_list_head.next->next == NULL)
+		return fuse_read_single_forget(fc, cs, nbytes);
+	else
+		return fuse_read_batch_forget(fc, cs, nbytes);
+}
+
 /*
  * Read a single request into the userspace filesystem's buffer.  This
  * function waits until a request is available, then removes it from
@@ -998,6 +1126,14 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 		req = list_entry(fc->interrupts.next, struct fuse_req,
 				 intr_entry);
 		return fuse_read_interrupt(fc, cs, nbytes, req);
+	}
+
+	if (forget_pending(fc)) {
+		if (list_empty(&fc->pending) || fc->forget_batch-- > 0)
+			return fuse_read_forget(fc, cs, nbytes);
+
+		if (fc->forget_batch <= -8)
+			fc->forget_batch = 16;
 	}
 
 	req = list_entry(fc->pending.next, struct fuse_req, list);
@@ -1092,7 +1228,7 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 	if (!fc)
 		return -EPERM;
 
-	bufs = kmalloc(pipe->buffers * sizeof (struct pipe_buffer), GFP_KERNEL);
+	bufs = kmalloc(pipe->buffers * sizeof(struct pipe_buffer), GFP_KERNEL);
 	if (!bufs)
 		return -ENOMEM;
 
@@ -1336,12 +1472,7 @@ out_finish:
 
 static void fuse_retrieve_end(struct fuse_conn *fc, struct fuse_req *req)
 {
-	int i;
-
-	for (i = 0; i < req->num_pages; i++) {
-		struct page *page = req->pages[i];
-		page_cache_release(page);
-	}
+	release_pages(req->pages, req->num_pages, 0);
 }
 
 static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
@@ -1633,7 +1764,7 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 	if (!fc)
 		return -EPERM;
 
-	bufs = kmalloc(pipe->buffers * sizeof (struct pipe_buffer), GFP_KERNEL);
+	bufs = kmalloc(pipe->buffers * sizeof(struct pipe_buffer), GFP_KERNEL);
 	if (!bufs)
 		return -ENOMEM;
 
@@ -1777,6 +1908,23 @@ __acquires(fc->lock)
 	flush_bg_queue(fc);
 	end_requests(fc, &fc->pending);
 	end_requests(fc, &fc->processing);
+	while (forget_pending(fc))
+		kfree(dequeue_forget(fc, 1, NULL));
+}
+
+static void end_polls(struct fuse_conn *fc)
+{
+	struct rb_node *p;
+
+	p = rb_first(&fc->polled_files);
+
+	while (p) {
+		struct fuse_file *ff;
+		ff = rb_entry(p, struct fuse_file, polled_node);
+		wake_up_interruptible_all(&ff->poll_wait);
+
+		p = rb_next(p);
+	}
 }
 
 /*
@@ -1806,6 +1954,7 @@ void fuse_abort_conn(struct fuse_conn *fc)
 		fc->blocked = 0;
 		end_io_requests(fc);
 		end_queued_requests(fc);
+		end_polls(fc);
 		wake_up_all(&fc->waitq);
 		wake_up_all(&fc->blocked_waitq);
 		kill_fasync(&fc->fasync, SIGIO, POLL_IN);
@@ -1822,6 +1971,7 @@ int fuse_dev_release(struct inode *inode, struct file *file)
 		fc->connected = 0;
 		fc->blocked = 0;
 		end_queued_requests(fc);
+		end_polls(fc);
 		wake_up_all(&fc->blocked_waitq);
 		spin_unlock(&fc->lock);
 		fuse_conn_put(fc);

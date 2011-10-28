@@ -33,7 +33,7 @@
  */
 
 
-#define TASKSTATS_VERSION	7
+#define TASKSTATS_VERSION	8
 #define TS_COMM_LEN		32	/* should be >= TASK_COMM_LEN
 					 * in linux/sched.h */
 
@@ -188,6 +188,7 @@ enum {
 	TASKSTATS_TYPE_STATS,		/* taskstats structure */
 	TASKSTATS_TYPE_AGGR_PID,	/* contains pid + stats */
 	TASKSTATS_TYPE_AGGR_TGID,	/* contains tgid + stats */
+	TASKSTATS_TYPE_NULL,		/* contains nothing */
 	__TASKSTATS_TYPE_MAX,
 };
 

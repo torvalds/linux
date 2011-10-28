@@ -82,10 +82,10 @@ typedef u32(*nldr_writefxn) (void *priv_ref,
  *  Attributes passed to nldr_create function.
  */
 struct nldr_attrs {
-	nldr_ovlyfxn pfn_ovly;
-	nldr_writefxn pfn_write;
-	u16 us_dsp_word_size;
-	u16 us_dsp_mau_size;
+	nldr_ovlyfxn ovly;
+	nldr_writefxn write;
+	u16 dsp_word_size;
+	u16 dsp_mau_size;
 };
 
 /*
@@ -280,14 +280,14 @@ typedef int(*nldr_unloadfxn) (struct nldr_nodeobject *nldr_node_obj,
  *  ======== node_ldr_fxns ========
  */
 struct node_ldr_fxns {
-	nldr_allocatefxn pfn_allocate;
-	nldr_createfxn pfn_create;
-	nldr_deletefxn pfn_delete;
-	nldr_exitfxn pfn_exit;
-	nldr_getfxnaddrfxn pfn_get_fxn_addr;
-	nldr_initfxn pfn_init;
-	nldr_loadfxn pfn_load;
-	nldr_unloadfxn pfn_unload;
+	nldr_allocatefxn allocate;
+	nldr_createfxn create;
+	nldr_deletefxn delete;
+	nldr_exitfxn exit;
+	nldr_getfxnaddrfxn get_fxn_addr;
+	nldr_initfxn init;
+	nldr_loadfxn load;
+	nldr_unloadfxn unload;
 };
 
 #endif /* NLDRDEFS_ */

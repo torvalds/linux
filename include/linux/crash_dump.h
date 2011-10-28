@@ -20,7 +20,14 @@ extern ssize_t copy_oldmem_page(unsigned long, char *, size_t,
 #define vmcore_elf_check_arch_cross(x) 0
 #endif
 
-#define vmcore_elf_check_arch(x) (elf_check_arch(x) || vmcore_elf_check_arch_cross(x))
+/*
+ * Architecture code can redefine this if there are any special checks
+ * needed for 64-bit ELF vmcores. In case of 32-bit only architecture,
+ * this can be set to zero.
+ */
+#ifndef vmcore_elf64_check_arch
+#define vmcore_elf64_check_arch(x) (elf_check_arch(x) || vmcore_elf_check_arch_cross(x))
+#endif
 
 /*
  * is_kdump_kernel() checks whether this kernel is booting after a panic of
@@ -59,6 +66,11 @@ static inline void vmcore_unusable(void)
 	if (is_kdump_kernel())
 		elfcorehdr_addr = ELFCORE_ADDR_ERR;
 }
+
+#define HAVE_OLDMEM_PFN_IS_RAM 1
+extern int register_oldmem_pfn_is_ram(int (*fn)(unsigned long pfn));
+extern void unregister_oldmem_pfn_is_ram(void);
+
 #else /* !CONFIG_CRASH_DUMP */
 static inline int is_kdump_kernel(void) { return 0; }
 #endif /* CONFIG_CRASH_DUMP */

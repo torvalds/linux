@@ -1352,7 +1352,7 @@ OSS-mixer.
 The PCM20 contains a radio tuner, which is also controlled by
 ACI. This radio tuner is supported by the ACI driver together with the
 miropcm20.o module. Also the 7-band equalizer is integrated
-(limited by the OSS-design). Developement has started and maybe
+(limited by the OSS-design). Development has started and maybe
 finished for the RDS decoder on this card, too. You will be able to
 read RadioText, the Programme Service name, Programme TYpe and
 others. Even the v4l radio module benefits from it with a refined

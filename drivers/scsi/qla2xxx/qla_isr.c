@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2011 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -321,6 +321,7 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	struct device_reg_24xx __iomem *reg24 = &ha->iobase->isp24;
+	struct device_reg_82xx __iomem *reg82 = &ha->iobase->isp82;
 	uint32_t	rscn_entry, host_pid;
 	uint8_t		rscn_queue_index;
 	unsigned long	flags;
@@ -412,8 +413,14 @@ skip_rio:
 				    "Unrecoverable Hardware Error: adapter "
 				    "marked OFFLINE!\n");
 				vha->flags.online = 0;
-			} else
+			} else {
+				/* Check to see if MPI timeout occurred */
+				if ((mbx & MBX_3) && (ha->flags.port0))
+					set_bit(MPI_RESET_NEEDED,
+					    &vha->dpc_flags);
+
 				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+			}
 		} else if (mb[1] == 0) {
 			qla_printk(KERN_INFO, ha,
 			    "Unrecoverable Hardware Error: adapter marked "
@@ -492,6 +499,7 @@ skip_rio:
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
 		mbx = IS_QLA81XX(ha) ? RD_REG_WORD(&reg24->mailbox4) : 0;
+		mbx = IS_QLA82XX(ha) ? RD_REG_WORD(&reg82->mailbox_out[4]) : mbx;
 		DEBUG2(printk("scsi(%ld): Asynchronous LOOP DOWN "
 		    "(%x %x %x %x).\n", vha->host_no, mb[1], mb[2], mb[3],
 		    mbx));
@@ -835,7 +843,10 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 		qla_printk(KERN_WARNING, ha,
 		    "Invalid SCSI completion handle %d.\n", index);
 
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		if (IS_QLA82XX(ha))
+			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		else
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		return;
 	}
 
@@ -853,7 +864,10 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 		qla_printk(KERN_WARNING, ha,
 		    "Invalid ISP SCSI completion handle\n");
 
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		if (IS_QLA82XX(ha))
+			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		else
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 	}
 }
 
@@ -870,7 +884,10 @@ qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
 	if (index >= MAX_OUTSTANDING_COMMANDS) {
 		qla_printk(KERN_WARNING, ha,
 		    "%s: Invalid completion handle (%x).\n", func, index);
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		if (IS_QLA82XX(ha))
+			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		else
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		goto done;
 	}
 	sp = req->outstanding_cmds[index];
@@ -1043,7 +1060,7 @@ qla2x00_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		}
 		DEBUG2(qla2x00_dump_buffer((uint8_t *)pkt, sizeof(*pkt)));
 	} else {
-		bsg_job->reply->result =  DID_OK << 16;;
+		bsg_job->reply->result =  DID_OK << 16;
 		bsg_job->reply->reply_payload_rcv_len =
 		    bsg_job->reply_payload.payload_len;
 		bsg_job->reply_len = 0;
@@ -1138,7 +1155,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		DEBUG2(qla2x00_dump_buffer((uint8_t *)pkt, sizeof(*pkt)));
 	}
 	else {
-		bsg_job->reply->result =  DID_OK << 16;;
+		bsg_job->reply->result =  DID_OK << 16;
 		bsg_job->reply->reply_payload_rcv_len = bsg_job->reply_payload.payload_len;
 		bsg_job->reply_len = 0;
 	}
@@ -1234,12 +1251,6 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	case LSC_SCODE_NPORT_USED:
 		data[0] = MBS_LOOP_ID_USED;
 		break;
-	case LSC_SCODE_CMD_FAILED:
-		if ((iop[1] & 0xff) == 0x05) {
-			data[0] = MBS_NOT_LOGGED_IN;
-			break;
-		}
-		/* Fall through. */
 	default:
 		data[0] = MBS_COMMAND_ERROR;
 		break;
@@ -1425,9 +1436,8 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 		rsp->status_srb = sp;
 
 	DEBUG5(printk("%s(): Check condition Sense data, scsi(%ld:%d:%d:%d) "
-	    "cmd=%p pid=%ld\n", __func__, sp->fcport->vha->host_no,
-	    cp->device->channel, cp->device->id, cp->device->lun, cp,
-	    cp->serial_number));
+	    "cmd=%p\n", __func__, sp->fcport->vha->host_no,
+	    cp->device->channel, cp->device->id, cp->device->lun, cp));
 	if (sense_len)
 		DEBUG5(qla2x00_dump_buffer(cp->sense_buffer, sense_len));
 }
@@ -1563,7 +1573,10 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		    "scsi(%ld): Invalid status handle (0x%x).\n", vha->host_no,
 		    sts->handle);
 
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		if (IS_QLA82XX(ha))
+			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		else
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		qla2xxx_wake_dpc(vha);
 		return;
 	}
@@ -1751,6 +1764,8 @@ check_scsi_status:
 	case CS_INCOMPLETE:
 	case CS_PORT_UNAVAILABLE:
 	case CS_TIMEOUT:
+	case CS_RESET:
+
 		/*
 		 * We are going to have the fc class block the rport
 		 * while we try to recover so instruct the mid layer
@@ -1775,10 +1790,6 @@ check_scsi_status:
 			qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
 		break;
 
-	case CS_RESET:
-		cp->result = DID_TRANSPORT_DISRUPTED << 16;
-		break;
-
 	case CS_ABORTED:
 		cp->result = DID_RESET << 16;
 		break;
@@ -1795,12 +1806,13 @@ out:
 	if (logit)
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "scsi(%ld:%d:%d) FCP command status: 0x%x-0x%x (0x%x) "
-		    "oxid=0x%x ser=0x%lx cdb=%02x%02x%02x len=0x%x "
+		    "portid=%02x%02x%02x oxid=0x%x cdb=%02x%02x%02x len=0x%x "
 		    "rsp_info=0x%x resid=0x%x fw_resid=0x%x\n", vha->host_no,
 		    cp->device->id, cp->device->lun, comp_status, scsi_status,
-		    cp->result, ox_id, cp->serial_number, cp->cmnd[0],
-		    cp->cmnd[1], cp->cmnd[2], scsi_bufflen(cp), rsp_info_len,
-		    resid_len, fw_resid_len));
+		    cp->result, fcport->d_id.b.domain, fcport->d_id.b.area,
+		    fcport->d_id.b.al_pa, ox_id, cp->cmnd[0], cp->cmnd[1],
+		    cp->cmnd[2], scsi_bufflen(cp), rsp_info_len, resid_len,
+		    fw_resid_len));
 
 	if (rsp->status_srb == NULL)
 		qla2x00_sp_compl(ha, sp);
@@ -1909,13 +1921,17 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 		qla2x00_sp_compl(ha, sp);
 
 	} else if (pkt->entry_type == COMMAND_A64_TYPE || pkt->entry_type ==
-	    COMMAND_TYPE || pkt->entry_type == COMMAND_TYPE_7) {
+		COMMAND_TYPE || pkt->entry_type == COMMAND_TYPE_7
+		|| pkt->entry_type == COMMAND_TYPE_6) {
 		DEBUG2(printk("scsi(%ld): Error entry - invalid handle\n",
-		    vha->host_no));
+			vha->host_no));
 		qla_printk(KERN_WARNING, ha,
-		    "Error entry - invalid handle\n");
+			"Error entry - invalid handle\n");
 
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		if (IS_QLA82XX(ha))
+			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		else
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		qla2xxx_wake_dpc(vha);
 	}
 }
@@ -2494,14 +2510,15 @@ skip_msix:
 skip_msi:
 
 	ret = request_irq(ha->pdev->irq, ha->isp_ops->intr_handler,
-	    IRQF_SHARED, QLA2XXX_DRIVER_NAME, rsp);
+	    ha->flags.msi_enabled ? 0 : IRQF_SHARED,
+	    QLA2XXX_DRIVER_NAME, rsp);
 	if (ret) {
 		qla_printk(KERN_WARNING, ha,
 		    "Failed to reserve interrupt %d already in use.\n",
 		    ha->pdev->irq);
 		goto fail;
 	}
-	ha->flags.inta_enabled = 1;
+
 clear_risc_ints:
 
 	/*

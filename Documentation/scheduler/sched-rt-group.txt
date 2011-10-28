@@ -129,9 +129,8 @@ priority!
 Enabling CONFIG_RT_GROUP_SCHED lets you explicitly allocate real
 CPU bandwidth to task groups.
 
-This uses the /cgroup virtual file system and
-"/cgroup/<cgroup>/cpu.rt_runtime_us" to control the CPU time reserved for each
-control group.
+This uses the cgroup virtual file system and "<cgroup>/cpu.rt_runtime_us"
+to control the CPU time reserved for each control group.
 
 For more information on working with control groups, you should read
 Documentation/cgroups/cgroups.txt as well.
@@ -150,7 +149,7 @@ For now, this can be simplified to just the following (but see Future plans):
 ===============
 
 There is work in progress to make the scheduling period for each group
-("/cgroup/<cgroup>/cpu.rt_period_us") configurable as well.
+("<cgroup>/cpu.rt_period_us") configurable as well.
 
 The constraint on the period is that a subgroup must have a smaller or
 equal period to its parent. But realistically its not very useful _yet_

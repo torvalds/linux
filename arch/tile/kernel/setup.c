@@ -30,8 +30,6 @@
 #include <linux/timex.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
-#include <asm/sections.h>
-#include <asm/cacheflush.h>
 #include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
@@ -60,6 +58,8 @@ unsigned long __cpuinitdata node_end_pfn[MAX_NUMNODES];
 unsigned long __initdata node_memmap_pfn[MAX_NUMNODES];
 unsigned long __initdata node_percpu_pfn[MAX_NUMNODES];
 unsigned long __initdata node_free_pfn[MAX_NUMNODES];
+
+static unsigned long __initdata node_percpu[MAX_NUMNODES];
 
 #ifdef CONFIG_HIGHMEM
 /* Page frame index of end of lowmem on each controller. */
@@ -187,11 +187,11 @@ early_param("vmalloc", parse_vmalloc);
 
 #ifdef CONFIG_HIGHMEM
 /*
- * Determine for each controller where its lowmem is mapped and how
- * much of it is mapped there.  On controller zero, the first few
- * megabytes are mapped at 0xfd000000 as code, so in principle we
- * could start our data mappings higher up, but for now we don't
- * bother, to avoid additional confusion.
+ * Determine for each controller where its lowmem is mapped and how much of
+ * it is mapped there.  On controller zero, the first few megabytes are
+ * already mapped in as code at MEM_SV_INTRPT, so in principle we could
+ * start our data mappings higher up, but for now we don't bother, to avoid
+ * additional confusion.
  *
  * One question is whether, on systems with more than 768 Mb and
  * controllers of different sizes, to map in a proportionate amount of
@@ -311,7 +311,7 @@ static void __init setup_memory(void)
 #endif
 
 	/* We are using a char to hold the cpu_2_node[] mapping */
-	BUG_ON(MAX_NUMNODES > 127);
+	BUILD_BUG_ON(MAX_NUMNODES > 127);
 
 	/* Discover the ranges of memory available to us */
 	for (i = 0; ; ++i) {
@@ -556,7 +556,6 @@ static void __init setup_bootmem_allocator(void)
 		reserve_bootmem(crashk_res.start,
 			crashk_res.end - crashk_res.start + 1, 0);
 #endif
-
 }
 
 void *__init alloc_remap(int nid, unsigned long size)
@@ -570,11 +569,13 @@ void *__init alloc_remap(int nid, unsigned long size)
 
 static int __init percpu_size(void)
 {
-	int size = ALIGN(__per_cpu_end - __per_cpu_start, PAGE_SIZE);
-#ifdef CONFIG_MODULES
-	if (size < PERCPU_ENOUGH_ROOM)
-		size = PERCPU_ENOUGH_ROOM;
-#endif
+	int size = __per_cpu_end - __per_cpu_start;
+	size += PERCPU_MODULE_RESERVE;
+	size += PERCPU_DYNAMIC_EARLY_SIZE;
+	if (size < PCPU_MIN_UNIT_SIZE)
+		size = PCPU_MIN_UNIT_SIZE;
+	size = roundup(size, PAGE_SIZE);
+
 	/* In several places we assume the per-cpu data fits on a huge page. */
 	BUG_ON(kdata_huge && size > HPAGE_SIZE);
 	return size;
@@ -591,7 +592,6 @@ static inline unsigned long alloc_bootmem_pfn(int size, unsigned long goal)
 static void __init zone_sizes_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES] = { 0 };
-	unsigned long node_percpu[MAX_NUMNODES] = { 0 };
 	int size = percpu_size();
 	int num_cpus = smp_height * smp_width;
 	int i;
@@ -676,7 +676,7 @@ static void __init zone_sizes_init(void)
 		NODE_DATA(i)->bdata = NODE_DATA(0)->bdata;
 
 		free_area_init_node(i, zones_size, start, NULL);
-		printk(KERN_DEBUG "  DMA zone: %ld per-cpu pages\n",
+		printk(KERN_DEBUG "  Normal zone: %ld per-cpu pages\n",
 		       PFN_UP(node_percpu[i]));
 
 		/* Track the type of memory on each node */
@@ -842,7 +842,7 @@ static int __init topology_init(void)
 	for_each_online_node(i)
 		register_one_node(i);
 
-	for_each_present_cpu(i)
+	for (i = 0; i < smp_height * smp_width; ++i)
 		register_cpu(&cpu_devices[i], i);
 
 	return 0;
@@ -870,11 +870,14 @@ void __cpuinit setup_cpu(int boot)
 
 	/* Allow asynchronous TLB interrupts. */
 #if CHIP_HAS_TILE_DMA()
-	raw_local_irq_unmask(INT_DMATLB_MISS);
-	raw_local_irq_unmask(INT_DMATLB_ACCESS);
+	arch_local_irq_unmask(INT_DMATLB_MISS);
+	arch_local_irq_unmask(INT_DMATLB_ACCESS);
 #endif
 #if CHIP_HAS_SN_PROC()
-	raw_local_irq_unmask(INT_SNITLB_MISS);
+	arch_local_irq_unmask(INT_SNITLB_MISS);
+#endif
+#ifdef __tilegx__
+	arch_local_irq_unmask(INT_SINGLE_STEP_K);
 #endif
 
 	/*
@@ -893,11 +896,12 @@ void __cpuinit setup_cpu(int boot)
 #endif
 
 	/*
-	 * Set the MPL for interrupt control 0 to user level.
-	 * This includes access to the SYSTEM_SAVE and EX_CONTEXT SPRs,
-	 * as well as the PL 0 interrupt mask.
+	 * Set the MPL for interrupt control 0 & 1 to the corresponding
+	 * values.  This includes access to the SYSTEM_SAVE and EX_CONTEXT
+	 * SPRs, as well as the interrupt mask.
 	 */
 	__insn_mtspr(SPR_MPL_INTCTRL_0_SET_0, 1);
+	__insn_mtspr(SPR_MPL_INTCTRL_1_SET_1, 1);
 
 	/* Initialize IRQ support for this cpu. */
 	setup_irq_regs();
@@ -907,6 +911,8 @@ void __cpuinit setup_cpu(int boot)
 	reset_network_state();
 #endif
 }
+
+#ifdef CONFIG_BLK_DEV_INITRD
 
 static int __initdata set_initramfs_file;
 static char __initdata initramfs_file[128] = "initramfs.cpio.gz";
@@ -964,6 +970,10 @@ void __init free_initrd_mem(unsigned long begin, unsigned long end)
 {
 	free_bootmem(__pa(begin), end - begin);
 }
+
+#else
+static inline void load_hv_initrd(void) {}
+#endif /* CONFIG_BLK_DEV_INITRD */
 
 static void __init validate_hv(void)
 {
@@ -1033,7 +1043,7 @@ static void __init validate_va(void)
 	 * In addition, make sure we CAN'T use the end of memory, since
 	 * we use the last chunk of each pgd for the pgd_list.
 	 */
-	int i, fc_fd_ok = 0;
+	int i, user_kernel_ok = 0;
 	unsigned long max_va = 0;
 	unsigned long list_va =
 		((PGD_LIST_OFFSET / sizeof(pgd_t)) << PGDIR_SHIFT);
@@ -1044,13 +1054,13 @@ static void __init validate_va(void)
 			break;
 		if (range.start <= MEM_USER_INTRPT &&
 		    range.start + range.size >= MEM_HV_INTRPT)
-			fc_fd_ok = 1;
+			user_kernel_ok = 1;
 		if (range.start == 0)
 			max_va = range.size;
 		BUG_ON(range.start + range.size > list_va);
 	}
-	if (!fc_fd_ok)
-		early_panic("Hypervisor not configured for VAs 0xfc/0xfd\n");
+	if (!user_kernel_ok)
+		early_panic("Hypervisor not configured for user/kernel VAs\n");
 	if (max_va == 0)
 		early_panic("Hypervisor not configured for low VAs\n");
 	if (max_va < KERNEL_HIGH_VADDR)
@@ -1310,6 +1320,8 @@ static void *__init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align)
 
 	BUG_ON(size % PAGE_SIZE != 0);
 	pfn_offset[nid] += size / PAGE_SIZE;
+	BUG_ON(node_percpu[nid] < size);
+	node_percpu[nid] -= size;
 	if (percpu_pfn[cpu] == 0)
 		percpu_pfn[cpu] = pfn;
 	return pfn_to_kaddr(pfn);
@@ -1334,6 +1346,10 @@ static void __init pcpu_fc_populate_pte(unsigned long addr)
 	pte_t *pte;
 
 	BUG_ON(pgd_addr_invalid(addr));
+	if (addr < VMALLOC_START || addr >= VMALLOC_END)
+		panic("PCPU addr %#lx outside vmalloc range %#lx..%#lx;"
+		      " try increasing CONFIG_VMALLOC_RESERVE\n",
+		      addr, VMALLOC_START, VMALLOC_END);
 
 	pgd = swapper_pg_dir + pgd_index(addr);
 	pud = pud_offset(pgd, addr);

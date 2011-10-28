@@ -1,0 +1,29 @@
+config CEPH_LIB
+        tristate "Ceph core library (EXPERIMENTAL)"
+	depends on INET && EXPERIMENTAL
+	select LIBCRC32C
+	select CRYPTO_AES
+	select CRYPTO
+	select KEYS
+	default n
+	help
+	  Choose Y or M here to include cephlib, which provides the
+	  common functionality to both the Ceph filesystem and
+	  to the rados block device (rbd).
+
+	  More information at http://ceph.newdream.net/.
+
+	  If unsure, say N.
+
+config CEPH_LIB_PRETTYDEBUG
+	bool "Include file:line in ceph debug output"
+	depends on CEPH_LIB
+	default n
+	help
+	  If you say Y here, debug output will include a filename and
+	  line to aid debugging.  This increases kernel size and slows
+	  execution slightly when debug call sites are enabled (e.g.,
+	  via CONFIG_DYNAMIC_DEBUG).
+
+	  If unsure, say N.
+

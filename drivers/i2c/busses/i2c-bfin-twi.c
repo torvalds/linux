@@ -20,6 +20,7 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/delay.h>
 
 #include <asm/blackfin.h>
 #include <asm/portmux.h>
@@ -159,6 +160,27 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface,
 		if (mast_stat & BUFWRERR)
 			dev_dbg(&iface->adap.dev, "Buffer Write Error\n");
 
+		/* Faulty slave devices, may drive SDA low after a transfer
+		 * finishes. To release the bus this code generates up to 9
+		 * extra clocks until SDA is released.
+		 */
+
+		if (read_MASTER_STAT(iface) & SDASEN) {
+			int cnt = 9;
+			do {
+				write_MASTER_CTL(iface, SCLOVR);
+				udelay(6);
+				write_MASTER_CTL(iface, 0);
+				udelay(6);
+			} while ((read_MASTER_STAT(iface) & SDASEN) && cnt--);
+
+			write_MASTER_CTL(iface, SDAOVR | SCLOVR);
+			udelay(6);
+			write_MASTER_CTL(iface, SDAOVR);
+			udelay(6);
+			write_MASTER_CTL(iface, 0);
+		}
+
 		/* If it is a quick transfer, only address without data,
 		 * not an err, return 1.
 		 */
@@ -171,7 +193,13 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface,
 		return;
 	}
 	if (twi_int_status & MCOMP) {
-		if (iface->cur_mode == TWI_I2C_MODE_COMBINED) {
+		if ((read_MASTER_CTL(iface) & MEN) == 0 &&
+			(iface->cur_mode == TWI_I2C_MODE_REPEAT ||
+			iface->cur_mode == TWI_I2C_MODE_COMBINED)) {
+			iface->result = -1;
+			write_INT_MASK(iface, 0);
+			write_MASTER_CTL(iface, 0);
+		} else if (iface->cur_mode == TWI_I2C_MODE_COMBINED) {
 			if (iface->readNum == 0) {
 				/* set the read number to 1 and ask for manual
 				 * stop in block combine mode
@@ -760,7 +788,7 @@ static void __exit i2c_bfin_twi_exit(void)
 	platform_driver_unregister(&i2c_bfin_twi_driver);
 }
 
-module_init(i2c_bfin_twi_init);
+subsys_initcall(i2c_bfin_twi_init);
 module_exit(i2c_bfin_twi_exit);
 
 MODULE_AUTHOR("Bryan Wu, Sonic Zhang");

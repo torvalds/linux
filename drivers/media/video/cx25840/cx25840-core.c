@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2004 Ulf Eklund
  *
- * Based on the saa7115 driver and on the first verison of Chris Kennedy's
+ * Based on the saa7115 driver and on the first version of Chris Kennedy's
  * cx25840 driver.
  *
  * Changes by Tyler Trafford <tatrafford@comcast.net>
@@ -42,7 +42,6 @@
 #include <linux/delay.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/cx25840.h>
 
 #include "cx25840-core.h"
@@ -446,7 +445,7 @@ static void cx25840_initialize(struct i2c_client *client)
 	cx25840_write(client, 0x918, 0xa0);
 	cx25840_write(client, 0x919, 0x01);
 
-	/* stereo prefered */
+	/* stereo preferred */
 	cx25840_write(client, 0x809, 0x04);
 	/* AC97 shift */
 	cx25840_write(client, 0x8cf, 0x0f);
@@ -547,7 +546,7 @@ static void cx23885_initialize(struct i2c_client *client)
 	 * Aux PLL
 	 * Initial setup for audio sample clock:
 	 * 48 ksps, 16 bits/sample, x160 multiplier = 122.88 MHz
-	 * Intial I2S output/master clock(?):
+	 * Initial I2S output/master clock(?):
 	 * 48 ksps, 16 bits/sample, x16 multiplier = 12.288 MHz
 	 */
 	switch (state->id) {
@@ -871,6 +870,11 @@ static void input_change(struct i2c_client *client)
 	}
 	cx25840_and_or(client, 0x401, ~0x60, 0);
 	cx25840_and_or(client, 0x401, ~0x60, 0x60);
+
+	/* Don't write into audio registers on cx2583x chips */
+	if (is_cx2583x(state))
+		return;
+
 	cx25840_and_or(client, 0x810, ~0x01, 1);
 
 	if (state->radio) {
@@ -899,7 +903,7 @@ static void input_change(struct i2c_client *client)
 	} else if (std & V4L2_STD_PAL) {
 		/* Autodetect audio standard and audio system */
 		cx25840_write(client, 0x808, 0xff);
-		/* Since system PAL-L is pretty much non-existant and
+		/* Since system PAL-L is pretty much non-existent and
 		   not used by any public broadcast network, force
 		   6.5 MHz carrier to be interpreted as System DK,
 		   this avoids DK audio detection instability */
@@ -1029,10 +1033,8 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 
 	state->vid_input = vid_input;
 	state->aud_input = aud_input;
-	if (!is_cx2583x(state)) {
-		cx25840_audio_set_path(client);
-		input_change(client);
-	}
+	cx25840_audio_set_path(client);
+	input_change(client);
 
 	if (is_cx2388x(state)) {
 		/* Audio channel 1 src : Parallel 1 */
@@ -1553,18 +1555,14 @@ static int cx25840_s_audio_routing(struct v4l2_subdev *sd,
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (is_cx2583x(state))
-		return -EINVAL;
 	return set_input(client, state->vid_input, input);
 }
 
 static int cx25840_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *freq)
 {
-	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!is_cx2583x(state))
-		input_change(client);
+	input_change(client);
 	return 0;
 }
 
@@ -1684,20 +1682,6 @@ static int cx25840_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int cx25840_s_config(struct v4l2_subdev *sd, int irq, void *platform_data)
-{
-	struct cx25840_state *state = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (platform_data) {
-		struct cx25840_platform_data *pdata = platform_data;
-
-		state->pvr150_workaround = pdata->pvr150_workaround;
-		set_input(client, state->vid_input, state->aud_input);
-	}
-	return 0;
-}
-
 static int cx23885_irq_handler(struct v4l2_subdev *sd, u32 status,
 			       bool *handled)
 {
@@ -1789,7 +1773,6 @@ static const struct v4l2_ctrl_ops cx25840_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops cx25840_core_ops = {
 	.log_status = cx25840_log_status,
-	.s_config = cx25840_s_config,
 	.g_chip_ident = cx25840_g_chip_ident,
 	.g_ctrl = v4l2_subdev_g_ctrl,
 	.s_ctrl = v4l2_subdev_s_ctrl,
@@ -1868,7 +1851,7 @@ static u32 get_cx2388x_ident(struct i2c_client *client)
 			ret = V4L2_IDENT_CX23885_AV;
 		} else {
 			/* CX23887 has a broken DIF, but the registers
-			 * appear valid (but unsed), good enough to detect. */
+			 * appear valid (but unused), good enough to detect. */
 			ret = V4L2_IDENT_CX23887_AV;
 		}
 	} else if (cx25840_read4(client, 0x300) & 0x0fffffff) {
@@ -1976,7 +1959,6 @@ static int cx25840_probe(struct i2c_client *client,
 	state->vid_input = CX25840_COMPOSITE7;
 	state->aud_input = CX25840_AUDIO8;
 	state->audclk_freq = 48000;
-	state->pvr150_workaround = 0;
 	state->audmode = V4L2_TUNER_MODE_LANG1;
 	state->vbi_line_offset = 8;
 	state->id = id;
@@ -1991,8 +1973,23 @@ static int cx25840_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(&state->hdl, &cx25840_ctrl_ops,
 			V4L2_CID_HUE, -128, 127, 1, 0);
 	if (!is_cx2583x(state)) {
-		default_volume = 228 - cx25840_read(client, 0x8d4);
-		default_volume = ((default_volume / 2) + 23) << 9;
+		default_volume = cx25840_read(client, 0x8d4);
+		/*
+		 * Enforce the legacy PVR-350/MSP3400 to PVR-150/CX25843 volume
+		 * scale mapping limits to avoid -ERANGE errors when
+		 * initializing the volume control
+		 */
+		if (default_volume > 228) {
+			/* Bottom out at -96 dB, v4l2 vol range 0x2e00-0x2fff */
+			default_volume = 228;
+			cx25840_write(client, 0x8d4, 228);
+		}
+		else if (default_volume < 20) {
+			/* Top out at + 8 dB, v4l2 vol range 0xfe00-0xffff */
+			default_volume = 20;
+			cx25840_write(client, 0x8d4, 20);
+		}
+		default_volume = (((228 - default_volume) >> 1) + 23) << 9;
 
 		state->volume = v4l2_ctrl_new_std(&state->hdl,
 			&cx25840_audio_ctrl_ops, V4L2_CID_AUDIO_VOLUME,
@@ -2018,8 +2015,15 @@ static int cx25840_probe(struct i2c_client *client,
 		kfree(state);
 		return err;
 	}
-	v4l2_ctrl_cluster(2, &state->volume);
+	if (!is_cx2583x(state))
+		v4l2_ctrl_cluster(2, &state->volume);
 	v4l2_ctrl_handler_setup(&state->hdl);
+
+	if (client->dev.platform_data) {
+		struct cx25840_platform_data *pdata = client->dev.platform_data;
+
+		state->pvr150_workaround = pdata->pvr150_workaround;
+	}
 
 	cx25840_ir_probe(sd);
 	return 0;
@@ -2043,9 +2047,25 @@ static const struct i2c_device_id cx25840_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cx25840_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "cx25840",
-	.probe = cx25840_probe,
-	.remove = cx25840_remove,
-	.id_table = cx25840_id,
+static struct i2c_driver cx25840_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "cx25840",
+	},
+	.probe		= cx25840_probe,
+	.remove		= cx25840_remove,
+	.id_table	= cx25840_id,
 };
+
+static __init int init_cx25840(void)
+{
+	return i2c_add_driver(&cx25840_driver);
+}
+
+static __exit void exit_cx25840(void)
+{
+	i2c_del_driver(&cx25840_driver);
+}
+
+module_init(init_cx25840);
+module_exit(exit_cx25840);

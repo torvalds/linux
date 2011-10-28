@@ -49,8 +49,8 @@
 #include <asm/processor.h>
 
 #define DRV_NAME	"r6040"
-#define DRV_VERSION	"0.26"
-#define DRV_RELDATE	"30May2010"
+#define DRV_VERSION	"0.27"
+#define DRV_RELDATE	"23Feb2011"
 
 /* PHY CHIP Address */
 #define PHY1_ADDR	1	/* For MAC1 */
@@ -69,6 +69,8 @@
 
 /* MAC registers */
 #define MCR0		0x00	/* Control register 0 */
+#define  MCR0_PROMISC	0x0020	/* Promiscuous mode */
+#define  MCR0_HASH_EN	0x0100	/* Enable multicast hash table function */
 #define MCR1		0x04	/* Control register 1 */
 #define  MAC_RST	0x0001	/* Reset the MAC */
 #define MBCR		0x08	/* Bus control */
@@ -200,7 +202,7 @@ struct r6040_private {
 	int old_duplex;
 };
 
-static char version[] __devinitdata = KERN_INFO DRV_NAME
+static char version[] __devinitdata = DRV_NAME
 	": RDC R6040 NAPI net driver,"
 	"version "DRV_VERSION " (" DRV_RELDATE ")";
 
@@ -224,7 +226,8 @@ static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 }
 
 /* Write a word data from PHY Chip */
-static void r6040_phy_write(void __iomem *ioaddr, int phy_addr, int reg, u16 val)
+static void r6040_phy_write(void __iomem *ioaddr,
+					int phy_addr, int reg, u16 val)
 {
 	int limit = 2048;
 	u16 cmd;
@@ -348,8 +351,8 @@ static int r6040_alloc_rxbufs(struct net_device *dev)
 		}
 		desc->skb_ptr = skb;
 		desc->buf = cpu_to_le32(pci_map_single(lp->pdev,
-						desc->skb_ptr->data,
-						MAX_BUF_SIZE, PCI_DMA_FROMDEVICE));
+					desc->skb_ptr->data,
+					MAX_BUF_SIZE, PCI_DMA_FROMDEVICE));
 		desc->status = DSC_OWNER_MAC;
 		desc = desc->vndescp;
 	} while (desc != lp->rx_ring);
@@ -491,12 +494,14 @@ static int r6040_close(struct net_device *dev)
 
 	/* Free Descriptor memory */
 	if (lp->rx_ring) {
-		pci_free_consistent(pdev, RX_DESC_SIZE, lp->rx_ring, lp->rx_ring_dma);
+		pci_free_consistent(pdev,
+				RX_DESC_SIZE, lp->rx_ring, lp->rx_ring_dma);
 		lp->rx_ring = NULL;
 	}
 
 	if (lp->tx_ring) {
-		pci_free_consistent(pdev, TX_DESC_SIZE, lp->tx_ring, lp->tx_ring_dma);
+		pci_free_consistent(pdev,
+				TX_DESC_SIZE, lp->tx_ring, lp->tx_ring_dma);
 		lp->tx_ring = NULL;
 	}
 
@@ -530,7 +535,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 			/* RX dribble */
 			if (err & DSC_RX_ERR_DRI)
 				dev->stats.rx_frame_errors++;
-			/* Buffer lenght exceeded */
+			/* Buffer length exceeded */
 			if (err & DSC_RX_ERR_BUF)
 				dev->stats.rx_length_errors++;
 			/* Packet too long */
@@ -547,7 +552,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 			}
 			goto next_descr;
 		}
-		
+
 		/* Packet successfully received */
 		new_skb = netdev_alloc_skb(dev, MAX_BUF_SIZE);
 		if (!new_skb) {
@@ -556,13 +561,13 @@ static int r6040_rx(struct net_device *dev, int limit)
 		}
 		skb_ptr = descptr->skb_ptr;
 		skb_ptr->dev = priv->dev;
-		
+
 		/* Do not count the CRC */
 		skb_put(skb_ptr, descptr->len - 4);
 		pci_unmap_single(priv->pdev, le32_to_cpu(descptr->buf),
 					MAX_BUF_SIZE, PCI_DMA_FROMDEVICE);
 		skb_ptr->protocol = eth_type_trans(skb_ptr, priv->dev);
-		
+
 		/* Send to upper layer */
 		netif_receive_skb(skb_ptr);
 		dev->stats.rx_packets++;
@@ -672,9 +677,11 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 		if (status & RX_FIFO_FULL)
 			dev->stats.rx_fifo_errors++;
 
-		/* Mask off RX interrupt */
-		misr &= ~RX_INTS;
-		napi_schedule(&lp->napi);
+		if (likely(napi_schedule_prep(&lp->napi))) {
+			/* Mask off RX interrupt */
+			misr &= ~RX_INTS;
+			__napi_schedule(&lp->napi);
+		}
 	}
 
 	/* TX interrupt request */
@@ -710,8 +717,10 @@ static int r6040_up(struct net_device *dev)
 		return ret;
 
 	/* improve performance (by RDC guys) */
-	r6040_phy_write(ioaddr, 30, 17, (r6040_phy_read(ioaddr, 30, 17) | 0x4000));
-	r6040_phy_write(ioaddr, 30, 17, ~((~r6040_phy_read(ioaddr, 30, 17)) | 0x2000));
+	r6040_phy_write(ioaddr, 30, 17,
+			(r6040_phy_read(ioaddr, 30, 17) | 0x4000));
+	r6040_phy_write(ioaddr, 30, 17,
+			~((~r6040_phy_read(ioaddr, 30, 17)) | 0x2000));
 	r6040_phy_write(ioaddr, 0, 19, 0x0000);
 	r6040_phy_write(ioaddr, 0, 30, 0x01F0);
 
@@ -740,6 +749,9 @@ static void r6040_mac_address(struct net_device *dev)
 	iowrite16(adrp[0], ioaddr + MID_0L);
 	iowrite16(adrp[1], ioaddr + MID_0M);
 	iowrite16(adrp[2], ioaddr + MID_0H);
+
+	/* Store MAC Address in perm_addr */
+	memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 }
 
 static int r6040_open(struct net_device *dev)
@@ -751,7 +763,7 @@ static int r6040_open(struct net_device *dev)
 	ret = request_irq(dev->irq, r6040_interrupt,
 		IRQF_SHARED, dev->name, dev);
 	if (ret)
-		return ret;
+		goto out;
 
 	/* Set MAC address */
 	r6040_mac_address(dev);
@@ -759,30 +771,37 @@ static int r6040_open(struct net_device *dev)
 	/* Allocate Descriptor memory */
 	lp->rx_ring =
 		pci_alloc_consistent(lp->pdev, RX_DESC_SIZE, &lp->rx_ring_dma);
-	if (!lp->rx_ring)
-		return -ENOMEM;
+	if (!lp->rx_ring) {
+		ret = -ENOMEM;
+		goto err_free_irq;
+	}
 
 	lp->tx_ring =
 		pci_alloc_consistent(lp->pdev, TX_DESC_SIZE, &lp->tx_ring_dma);
 	if (!lp->tx_ring) {
-		pci_free_consistent(lp->pdev, RX_DESC_SIZE, lp->rx_ring,
-				     lp->rx_ring_dma);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_free_rx_ring;
 	}
 
 	ret = r6040_up(dev);
-	if (ret) {
-		pci_free_consistent(lp->pdev, TX_DESC_SIZE, lp->tx_ring,
-							lp->tx_ring_dma);
-		pci_free_consistent(lp->pdev, RX_DESC_SIZE, lp->rx_ring,
-							lp->rx_ring_dma);
-		return ret;
-	}
+	if (ret)
+		goto err_free_tx_ring;
 
 	napi_enable(&lp->napi);
 	netif_start_queue(dev);
 
 	return 0;
+
+err_free_tx_ring:
+	pci_free_consistent(lp->pdev, TX_DESC_SIZE, lp->tx_ring,
+			lp->tx_ring_dma);
+err_free_rx_ring:
+	pci_free_consistent(lp->pdev, RX_DESC_SIZE, lp->rx_ring,
+			lp->rx_ring_dma);
+err_free_irq:
+	free_irq(dev->irq, dev);
+out:
+	return ret;
 }
 
 static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
@@ -836,75 +855,92 @@ static void r6040_multicast_list(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
-	u16 *adrp;
-	u16 reg;
 	unsigned long flags;
 	struct netdev_hw_addr *ha;
 	int i;
+	u16 *adrp;
+	u16 hash_table[4] = { 0 };
 
-	/* MAC Address */
+	spin_lock_irqsave(&lp->lock, flags);
+
+	/* Keep our MAC Address */
 	adrp = (u16 *)dev->dev_addr;
 	iowrite16(adrp[0], ioaddr + MID_0L);
 	iowrite16(adrp[1], ioaddr + MID_0M);
 	iowrite16(adrp[2], ioaddr + MID_0H);
 
-	/* Promiscous Mode */
-	spin_lock_irqsave(&lp->lock, flags);
-
 	/* Clear AMCP & PROM bits */
-	reg = ioread16(ioaddr) & ~0x0120;
-	if (dev->flags & IFF_PROMISC) {
-		reg |= 0x0020;
-		lp->mcr0 |= 0x0020;
-	}
-	/* Too many multicast addresses
-	 * accept all traffic */
-	else if ((netdev_mc_count(dev) > MCAST_MAX) ||
-		 (dev->flags & IFF_ALLMULTI))
-		reg |= 0x0020;
+	lp->mcr0 = ioread16(ioaddr + MCR0) & ~(MCR0_PROMISC | MCR0_HASH_EN);
 
-	iowrite16(reg, ioaddr);
-	spin_unlock_irqrestore(&lp->lock, flags);
+	/* Promiscuous mode */
+	if (dev->flags & IFF_PROMISC)
+		lp->mcr0 |= MCR0_PROMISC;
 
-	/* Build the hash table */
-	if (netdev_mc_count(dev) > MCAST_MAX) {
-		u16 hash_table[4];
-		u32 crc;
+	/* Enable multicast hash table function to
+	 * receive all multicast packets. */
+	else if (dev->flags & IFF_ALLMULTI) {
+		lp->mcr0 |= MCR0_HASH_EN;
+
+		for (i = 0; i < MCAST_MAX ; i++) {
+			iowrite16(0, ioaddr + MID_1L + 8 * i);
+			iowrite16(0, ioaddr + MID_1M + 8 * i);
+			iowrite16(0, ioaddr + MID_1H + 8 * i);
+		}
 
 		for (i = 0; i < 4; i++)
-			hash_table[i] = 0;
-
+			hash_table[i] = 0xffff;
+	}
+	/* Use internal multicast address registers if the number of
+	 * multicast addresses is not greater than MCAST_MAX. */
+	else if (netdev_mc_count(dev) <= MCAST_MAX) {
+		i = 0;
 		netdev_for_each_mc_addr(ha, dev) {
-			char *addrs = ha->addr;
-
-			if (!(*addrs & 1))
-				continue;
-
-			crc = ether_crc_le(6, addrs);
-			crc >>= 26;
-			hash_table[crc >> 4] |= 1 << (15 - (crc & 0xf));
+			u16 *adrp = (u16 *) ha->addr;
+			iowrite16(adrp[0], ioaddr + MID_1L + 8 * i);
+			iowrite16(adrp[1], ioaddr + MID_1M + 8 * i);
+			iowrite16(adrp[2], ioaddr + MID_1H + 8 * i);
+			i++;
 		}
-		/* Fill the MAC hash tables with their values */
+		while (i < MCAST_MAX) {
+			iowrite16(0, ioaddr + MID_1L + 8 * i);
+			iowrite16(0, ioaddr + MID_1M + 8 * i);
+			iowrite16(0, ioaddr + MID_1H + 8 * i);
+			i++;
+		}
+	}
+	/* Otherwise, Enable multicast hash table function. */
+	else {
+		u32 crc;
+
+		lp->mcr0 |= MCR0_HASH_EN;
+
+		for (i = 0; i < MCAST_MAX ; i++) {
+			iowrite16(0, ioaddr + MID_1L + 8 * i);
+			iowrite16(0, ioaddr + MID_1M + 8 * i);
+			iowrite16(0, ioaddr + MID_1H + 8 * i);
+		}
+
+		/* Build multicast hash table */
+		netdev_for_each_mc_addr(ha, dev) {
+			u8 *addrs = ha->addr;
+
+			crc = ether_crc(ETH_ALEN, addrs);
+			crc >>= 26;
+			hash_table[crc >> 4] |= 1 << (crc & 0xf);
+		}
+	}
+
+	iowrite16(lp->mcr0, ioaddr + MCR0);
+
+	/* Fill the MAC hash tables with their values */
+	if (lp->mcr0 && MCR0_HASH_EN) {
 		iowrite16(hash_table[0], ioaddr + MAR0);
 		iowrite16(hash_table[1], ioaddr + MAR1);
 		iowrite16(hash_table[2], ioaddr + MAR2);
 		iowrite16(hash_table[3], ioaddr + MAR3);
 	}
-	/* Multicast Address 1~4 case */
-	i = 0;
-	netdev_for_each_mc_addr(ha, dev) {
-		if (i < MCAST_MAX) {
-			adrp = (u16 *) ha->addr;
-			iowrite16(adrp[0], ioaddr + MID_1L + 8 * i);
-			iowrite16(adrp[1], ioaddr + MID_1M + 8 * i);
-			iowrite16(adrp[2], ioaddr + MID_1H + 8 * i);
-		} else {
-			iowrite16(0xffff, ioaddr + MID_1L + 8 * i);
-			iowrite16(0xffff, ioaddr + MID_1M + 8 * i);
-			iowrite16(0xffff, ioaddr + MID_1H + 8 * i);
-		}
-		i++;
-	}
+
+	spin_unlock_irqrestore(&lp->lock, flags);
 }
 
 static void netdev_get_drvinfo(struct net_device *dev,
@@ -946,7 +982,7 @@ static const struct net_device_ops r6040_netdev_ops = {
 	.ndo_set_multicast_list = r6040_multicast_list,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_do_ioctl		= r6040_ioctl,
 	.ndo_tx_timeout		= r6040_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1039,7 +1075,7 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	u16 *adrp;
 	int i;
 
-	printk("%s\n", version);
+	pr_info("%s\n", version);
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -1113,7 +1149,8 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	/* Some bootloader/BIOSes do not initialize
 	 * MAC address, warn about that */
 	if (!(adrp[0] || adrp[1] || adrp[2])) {
-		netdev_warn(dev, "MAC address not initialized, generating random\n");
+		netdev_warn(dev, "MAC address not initialized, "
+					"generating random\n");
 		random_ether_addr(dev->dev_addr);
 	}
 
@@ -1135,6 +1172,7 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	lp->mii_bus = mdiobus_alloc();
 	if (!lp->mii_bus) {
 		dev_err(&pdev->dev, "mdiobus_alloc() failed\n");
+		err = -ENOMEM;
 		goto err_out_unmap;
 	}
 
@@ -1147,6 +1185,7 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	lp->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
 	if (!lp->mii_bus->irq) {
 		dev_err(&pdev->dev, "mii_bus irq allocation failed\n");
+		err = -ENOMEM;
 		goto err_out_mdio;
 	}
 

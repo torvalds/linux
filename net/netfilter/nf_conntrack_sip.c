@@ -130,6 +130,44 @@ static int digits_len(const struct nf_conn *ct, const char *dptr,
 	return len;
 }
 
+static int iswordc(const char c)
+{
+	if (isalnum(c) || c == '!' || c == '"' || c == '%' ||
+	    (c >= '(' && c <= '/') || c == ':' || c == '<' || c == '>' ||
+	    c == '?' || (c >= '[' && c <= ']') || c == '_' || c == '`' ||
+	    c == '{' || c == '}' || c == '~')
+		return 1;
+	return 0;
+}
+
+static int word_len(const char *dptr, const char *limit)
+{
+	int len = 0;
+	while (dptr < limit && iswordc(*dptr)) {
+		dptr++;
+		len++;
+	}
+	return len;
+}
+
+static int callid_len(const struct nf_conn *ct, const char *dptr,
+		      const char *limit, int *shift)
+{
+	int len, domain_len;
+
+	len = word_len(dptr, limit);
+	dptr += len;
+	if (!len || dptr == limit || *dptr != '@')
+		return len;
+	dptr++;
+	len++;
+
+	domain_len = word_len(dptr, limit);
+	if (!domain_len)
+		return 0;
+	return len + domain_len;
+}
+
 /* get media type + port length */
 static int media_len(const struct nf_conn *ct, const char *dptr,
 		     const char *limit, int *shift)
@@ -151,6 +189,9 @@ static int parse_addr(const struct nf_conn *ct, const char *cp,
 {
 	const char *end;
 	int ret = 0;
+
+	if (!ct)
+		return 0;
 
 	memset(addr, 0, sizeof(*addr));
 	switch (nf_ct_l3num(ct)) {
@@ -296,6 +337,7 @@ static const struct sip_header ct_sip_hdrs[] = {
 	[SIP_HDR_VIA_TCP]		= SIP_HDR("Via", "v", "TCP ", epaddr_len),
 	[SIP_HDR_EXPIRES]		= SIP_HDR("Expires", NULL, NULL, digits_len),
 	[SIP_HDR_CONTENT_LENGTH]	= SIP_HDR("Content-Length", "l", NULL, digits_len),
+	[SIP_HDR_CALL_ID]		= SIP_HDR("Call-Id", "i", NULL, callid_len),
 };
 
 static const char *sip_follow_continuation(const char *dptr, const char *limit)
@@ -665,7 +707,7 @@ static const char *ct_sdp_header_search(const char *dptr, const char *limit,
 }
 
 /* Locate a SDP header (optionally a substring within the header value),
- * optionally stopping at the first occurence of the term header, parse
+ * optionally stopping at the first occurrence of the term header, parse
  * it and return the offset and length of the data we're interested in.
  */
 int ct_sip_get_sdp_header(const struct nf_conn *ct, const char *dptr,
@@ -1377,10 +1419,11 @@ static int sip_help_tcp(struct sk_buff *skb, unsigned int protoff,
 	const char *dptr, *end;
 	s16 diff, tdiff = 0;
 	int ret = NF_ACCEPT;
+	bool term;
 	typeof(nf_nat_sip_seq_adjust_hook) nf_nat_sip_seq_adjust;
 
 	if (ctinfo != IP_CT_ESTABLISHED &&
-	    ctinfo != IP_CT_ESTABLISHED + IP_CT_IS_REPLY)
+	    ctinfo != IP_CT_ESTABLISHED_REPLY)
 		return NF_ACCEPT;
 
 	/* No Data ? */
@@ -1411,14 +1454,21 @@ static int sip_help_tcp(struct sk_buff *skb, unsigned int protoff,
 		if (dptr + matchoff == end)
 			break;
 
-		if (end + strlen("\r\n\r\n") > dptr + datalen)
-			break;
-		if (end[0] != '\r' || end[1] != '\n' ||
-		    end[2] != '\r' || end[3] != '\n')
+		term = false;
+		for (; end + strlen("\r\n\r\n") <= dptr + datalen; end++) {
+			if (end[0] == '\r' && end[1] == '\n' &&
+			    end[2] == '\r' && end[3] == '\n') {
+				term = true;
+				break;
+			}
+		}
+		if (!term)
 			break;
 		end += strlen("\r\n\r\n") + clen;
 
 		msglen = origlen = end - dptr;
+		if (msglen > datalen)
+			return NF_DROP;
 
 		ret = process_sip_msg(skb, ct, dataoff, &dptr, &msglen);
 		if (ret != NF_ACCEPT)

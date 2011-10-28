@@ -14,8 +14,13 @@
 #ifndef __ASM_S390_SYSINFO_H
 #define __ASM_S390_SYSINFO_H
 
+#include <asm/bitsperlong.h>
+
 struct sysinfo_1_1_1 {
-	char reserved_0[32];
+	unsigned short :16;
+	unsigned char ccr;
+	unsigned char cai;
+	char reserved_0[28];
 	char manufacturer[16];
 	char type[4];
 	char reserved_1[12];
@@ -102,6 +107,39 @@ struct sysinfo_3_2_2 {
 
 	} vm[8];
 	char reserved_544[3552];
+};
+
+#define TOPOLOGY_CPU_BITS	64
+#define TOPOLOGY_NR_MAG		6
+
+struct topology_cpu {
+	unsigned char reserved0[4];
+	unsigned char :6;
+	unsigned char pp:2;
+	unsigned char reserved1;
+	unsigned short origin;
+	unsigned long mask[TOPOLOGY_CPU_BITS / BITS_PER_LONG];
+};
+
+struct topology_container {
+	unsigned char reserved[7];
+	unsigned char id;
+};
+
+union topology_entry {
+	unsigned char nl;
+	struct topology_cpu cpu;
+	struct topology_container container;
+};
+
+struct sysinfo_15_1_x {
+	unsigned char reserved0[2];
+	unsigned short length;
+	unsigned char mag[TOPOLOGY_NR_MAG];
+	unsigned char reserved1;
+	unsigned char mnest;
+	unsigned char reserved2[4];
+	union topology_entry tle[0];
 };
 
 static inline int stsi(void *sysinfo, int fc, int sel1, int sel2)

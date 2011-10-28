@@ -197,7 +197,7 @@ err_out:
 	} else if (ctx_needs_reset) {
 		/*
 		 * If there is no attribute list, restoring the search context
-		 * is acomplished simply by copying the saved context back over
+		 * is accomplished simply by copying the saved context back over
 		 * the caller supplied context.  If there is an attribute list,
 		 * things are more complicated as we need to deal with mapping
 		 * of mft records and resulting potential changes in pointers.
@@ -1181,7 +1181,7 @@ not_found:
  * for, i.e. if one wants to add the attribute to the mft record this is the
  * correct place to insert its attribute list entry into.
  *
- * When -errno != -ENOENT, an error occured during the lookup.  @ctx->attr is
+ * When -errno != -ENOENT, an error occurred during the lookup.  @ctx->attr is
  * then undefined and in particular you should not rely on it not changing.
  */
 int ntfs_attr_lookup(const ATTR_TYPE type, const ntfschar *name,

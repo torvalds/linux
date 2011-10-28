@@ -316,8 +316,8 @@ static int __devinit gpio_nand_probe(struct platform_device *dev)
 		gpiomtd->plat.adjust_parts(&gpiomtd->plat,
 					   gpiomtd->mtd_info.size);
 
-	add_mtd_partitions(&gpiomtd->mtd_info, gpiomtd->plat.parts,
-			   gpiomtd->plat.num_parts);
+	mtd_device_register(&gpiomtd->mtd_info, gpiomtd->plat.parts,
+			    gpiomtd->plat.num_parts);
 	platform_set_drvdata(dev, gpiomtd);
 
 	return 0;

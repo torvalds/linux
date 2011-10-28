@@ -1,8 +1,3 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-
-mainmenu "Linux/Xtensa Kernel Configuration"
-
 config FRAME_POINTER
 	def_bool n
 
@@ -12,6 +7,8 @@ config ZONE_DMA
 config XTENSA
 	def_bool y
 	select HAVE_IDE
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_SHOW
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
@@ -23,13 +20,7 @@ config XTENSA
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
 
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
 config GENERIC_HWEIGHT
-	def_bool y
-
-config GENERIC_HARDIRQS
 	def_bool y
 
 config GENERIC_GPIO

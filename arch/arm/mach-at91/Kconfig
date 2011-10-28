@@ -3,9 +3,6 @@ if ARCH_AT91
 config HAVE_AT91_DATAFLASH_CARD
 	bool
 
-config HAVE_NAND_ATMEL_BUSWIDTH_16
-	bool
-
 config HAVE_AT91_USART3
 	bool
 
@@ -33,6 +30,7 @@ config ARCH_AT91SAM9260
 	select HAVE_AT91_USART3
 	select HAVE_AT91_USART4
 	select HAVE_AT91_USART5
+	select HAVE_NET_MACB
 
 config ARCH_AT91SAM9261
 	bool "AT91SAM9261"
@@ -51,6 +49,7 @@ config ARCH_AT91SAM9263
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
 	select HAVE_FB_ATMEL
+	select HAVE_NET_MACB
 
 config ARCH_AT91SAM9RL
 	bool "AT91SAM9RL"
@@ -66,6 +65,7 @@ config ARCH_AT91SAM9G20
 	select HAVE_AT91_USART3
 	select HAVE_AT91_USART4
 	select HAVE_AT91_USART5
+	select HAVE_NET_MACB
 
 config ARCH_AT91SAM9G45
 	bool "AT91SAM9G45"
@@ -73,17 +73,14 @@ config ARCH_AT91SAM9G45
 	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_USART3
 	select HAVE_FB_ATMEL
+	select HAVE_NET_MACB
 
 config ARCH_AT91CAP9
 	bool "AT91CAP9"
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
 	select HAVE_FB_ATMEL
-
-config ARCH_AT572D940HF
-	bool "AT572D940HF"
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
+	select HAVE_NET_MACB
 
 config ARCH_AT91X40
 	bool "AT91x40"
@@ -105,7 +102,7 @@ config MACH_ONEARM
 	bool "Ajeco 1ARM Single Board Computer"
 	help
 	  Select this if you are using Ajeco's 1ARM Single Board Computer.
-	  <http://www.ajeco.fi/products.htm>
+	  <http://www.ajeco.fi/>
 
 config ARCH_AT91RM9200DK
 	bool "Atmel AT91RM9200-DK Development board"
@@ -137,7 +134,7 @@ config MACH_CARMEVA
 	bool "Conitec ARM&EVA"
 	help
 	  Select this if you are using Conitec's AT91RM9200-MCU-Module.
-	  <http://www.conitec.net/english/linuxboard.htm>
+	  <http://www.conitec.net/english/linuxboard.php>
 
 config MACH_ATEB9200
 	bool "Embest ATEB9200"
@@ -149,7 +146,7 @@ config MACH_KB9200
 	bool "KwikByte KB920x"
 	help
 	  Select this if you are using KwikByte's KB920x board.
-	  <http://kwikbyte.com/KB9202_description_new.htm>
+	  <http://www.kwikbyte.com/KB9202.html>
 
 config MACH_PICOTUX2XX
 	bool "picotux 200"
@@ -204,7 +201,6 @@ comment "AT91SAM9260 / AT91SAM9XE Board Type"
 config MACH_AT91SAM9260EK
 	bool "Atmel AT91SAM9260-EK / AT91SAM9XE Evaluation Kit"
 	select HAVE_AT91_DATAFLASH_CARD
-	select HAVE_NAND_ATMEL_BUSWIDTH_16
 	help
 	  Select this if you are using Atmel's AT91SAM9260-EK or AT91SAM9XE Evaluation Kit
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3933>
@@ -248,6 +244,12 @@ config MACH_CPU9260
 	  Select this if you are using a Eukrea Electromatique's
 	  CPU9260 Board <http://www.eukrea.com/>
 
+config MACH_FLEXIBITY
+	bool "Flexibity Connect board"
+	help
+	  Select this if you are using Flexibity Connect board
+	  <http://www.flexibity.com>
+
 endif
 
 # ----------------------------------------------------------
@@ -259,7 +261,6 @@ comment "AT91SAM9261 Board Type"
 config MACH_AT91SAM9261EK
 	bool "Atmel AT91SAM9261-EK Evaluation Kit"
 	select HAVE_AT91_DATAFLASH_CARD
-	select HAVE_NAND_ATMEL_BUSWIDTH_16
 	help
 	  Select this if you are using Atmel's AT91SAM9261-EK Evaluation Kit.
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3820>
@@ -275,7 +276,6 @@ comment "AT91SAM9G10 Board Type"
 config MACH_AT91SAM9G10EK
 	bool "Atmel AT91SAM9G10-EK Evaluation Kit"
 	select HAVE_AT91_DATAFLASH_CARD
-	select HAVE_NAND_ATMEL_BUSWIDTH_16
 	help
 	  Select this if you are using Atmel's AT91SAM9G10-EK Evaluation Kit.
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4588>
@@ -291,7 +291,6 @@ comment "AT91SAM9263 Board Type"
 config MACH_AT91SAM9263EK
 	bool "Atmel AT91SAM9263-EK Evaluation Kit"
 	select HAVE_AT91_DATAFLASH_CARD
-	select HAVE_NAND_ATMEL_BUSWIDTH_16
 	help
 	  Select this if you are using Atmel's AT91SAM9263-EK Evaluation Kit.
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4057>
@@ -332,14 +331,13 @@ comment "AT91SAM9G20 Board Type"
 config MACH_AT91SAM9G20EK
 	bool "Atmel AT91SAM9G20-EK Evaluation Kit"
 	select HAVE_AT91_DATAFLASH_CARD
-	select HAVE_NAND_ATMEL_BUSWIDTH_16
 	help
 	  Select this if you are using Atmel's AT91SAM9G20-EK Evaluation Kit
 	  that embeds only one SD/MMC slot.
 
 config MACH_AT91SAM9G20EK_2MMC
+	depends on MACH_AT91SAM9G20EK
 	bool "Atmel AT91SAM9G20-EK Evaluation Kit with 2 SD/MMC Slots"
-	select HAVE_NAND_ATMEL_BUSWIDTH_16
 	help
 	  Select this if you are using an Atmel AT91SAM9G20-EK Evaluation Kit
 	  with 2 SD/MMC Slots. This is the case for AT91SAM9G20-EK rev. C and
@@ -350,6 +348,12 @@ config MACH_CPU9G20
 	help
 	  Select this if you are using a Eukrea Electromatique's
 	  CPU9G20 Board <http://www.eukrea.com/>
+
+config MACH_ACMENETUSFOXG20
+	bool "Acme Systems srl FOX Board G20"
+	help
+	  Select this if you are using Acme Systems
+	  FOX Board G20 <http://www.acmesystems.it>
 
 config MACH_PORTUXG20
 	bool "taskit PortuxG20"
@@ -364,6 +368,19 @@ config MACH_STAMP9G20
 	  evaluation board.
 	  <http://www.taskit.de/en/>
 
+config MACH_PCONTROL_G20
+	bool "PControl G20 CPU module"
+	help
+	  Select this if you are using taskit's Stamp9G20 CPU module on this
+	  carrier board, beeing the decentralized unit of a building automation
+	  system; featuring nvram, eth-switch, iso-rs485, display, io
+
+config MACH_GSIA18S
+	bool "GS_IA18_S board"
+	help
+	  This enables support for the GS_IA18_S board
+	  produced by GeoSIG Ltd company. This is an internet accelerograph.
+	  <http://www.geosig.com>
 endif
 
 if (ARCH_AT91SAM9260 || ARCH_AT91SAM9G20)
@@ -383,9 +400,8 @@ if ARCH_AT91SAM9G45
 
 comment "AT91SAM9G45 Board Type"
 
-config MACH_AT91SAM9G45EKES
-	bool "Atmel AT91SAM9G45-EKES Evaluation Kit"
-	select HAVE_NAND_ATMEL_BUSWIDTH_16
+config MACH_AT91SAM9M10G45EK
+	bool "Atmel AT91SAM9M10G45-EK Evaluation Kits"
 	help
 	  Select this if you are using Atmel's AT91SAM9G45-EKES Evaluation Kit.
 	  "ES" at the end of the name means that this board is an
@@ -402,27 +418,9 @@ comment "AT91CAP9 Board Type"
 config MACH_AT91CAP9ADK
 	bool "Atmel AT91CAP9A-DK Evaluation Kit"
 	select HAVE_AT91_DATAFLASH_CARD
-	select HAVE_NAND_ATMEL_BUSWIDTH_16
 	help
 	  Select this if you are using Atmel's AT91CAP9A-DK Evaluation Kit.
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4138>
-
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT572D940HF
-
-comment "AT572D940HF Board Type"
-
-config MACH_AT572D940HFEB
-	bool "AT572D940HF-EK"
-	depends on ARCH_AT572D940HF
-	select HAVE_AT91_DATAFLASH_CARD
-	select HAVE_NAND_ATMEL_BUSWIDTH_16
-	help
-	  Select this if you are using Atmel's AT572D940HF-EK evaluation kit.
-	  <http://www.atmel.com/products/diopsis/default.asp>
 
 endif
 
@@ -451,13 +449,6 @@ config MTD_AT91_DATAFLASH_CARD
 	depends on HAVE_AT91_DATAFLASH_CARD
 	help
 	  Enable support for the DataFlash card.
-
-config MTD_NAND_ATMEL_BUSWIDTH_16
-	bool "Enable 16-bit data bus interface to NAND flash"
-	depends on HAVE_NAND_ATMEL_BUSWIDTH_16
-	help
-	  On AT91SAM926x boards both types of NAND flash can be present
-	  (8 and 16 bit data bus width).
 
 # ----------------------------------------------------------
 

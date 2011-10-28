@@ -366,7 +366,7 @@ he_init_one(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent)
 		goto init_one_failure;
 	}
 
-	atm_dev = atm_dev_register(DEV_LABEL, &he_ops, -1, NULL);
+	atm_dev = atm_dev_register(DEV_LABEL, &pci_dev->dev, &he_ops, -1, NULL);
 	if (!atm_dev) {
 		err = -ENODEV;
 		goto init_one_failure;
@@ -1801,7 +1801,7 @@ return_host_buffers:
 next_rbrq_entry:
 		he_dev->rbrq_head = (struct he_rbrq *)
 				((unsigned long) he_dev->rbrq_base |
-					RBRQ_MASK(++he_dev->rbrq_head));
+					RBRQ_MASK(he_dev->rbrq_head + 1));
 
 	}
 	read_unlock(&vcc_sklist_lock);
@@ -1884,7 +1884,7 @@ next_tbrq_entry:
 			pci_pool_free(he_dev->tpd_pool, tpd, TPD_ADDR(tpd->status));
 		he_dev->tbrq_head = (struct he_tbrq *)
 				((unsigned long) he_dev->tbrq_base |
-					TBRQ_MASK(++he_dev->tbrq_head));
+					TBRQ_MASK(he_dev->tbrq_head + 1));
 	}
 
 	if (updated) {

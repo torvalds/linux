@@ -136,6 +136,7 @@ Table 1-1: Process specific entries in /proc
  statm		Process memory status information
  status		Process status in human readable form
  wchan		If CONFIG_KALLSYMS is set, a pre-decoded wchan
+ pagemap	Page table
  stack		Report full stack trace, enable via CONFIG_STACKTRACE
  smaps		a extension based on maps, showing the memory consumption of
 		each mapping
@@ -370,17 +371,25 @@ Shared_Dirty:          0 kB
 Private_Clean:         0 kB
 Private_Dirty:         0 kB
 Referenced:          892 kB
+Anonymous:             0 kB
 Swap:                  0 kB
 KernelPageSize:        4 kB
 MMUPageSize:           4 kB
+Locked:              374 kB
 
-The first  of these lines shows  the same information  as is displayed for the
-mapping in /proc/PID/maps.  The remaining lines show  the size of the mapping,
-the amount of the mapping that is currently resident in RAM, the "proportional
-set size” (divide each shared page by the number of processes sharing it), the
-number of clean and dirty shared pages in the mapping, and the number of clean
-and dirty private pages in the mapping.  The "Referenced" indicates the amount
-of memory currently marked as referenced or accessed.
+The first of these lines shows the same information as is displayed for the
+mapping in /proc/PID/maps.  The remaining lines show the size of the mapping
+(size), the amount of the mapping that is currently resident in RAM (RSS), the
+process' proportional share of this mapping (PSS), the number of clean and
+dirty private pages in the mapping.  Note that even a page which is part of a
+MAP_SHARED mapping, but has only a single pte mapped, i.e.  is currently used
+by only one process, is accounted as private and not as shared.  "Referenced"
+indicates the amount of memory currently marked as referenced or accessed.
+"Anonymous" shows the amount of memory that does not belong to any file.  Even
+a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
+and a page is modified, the file page is replaced by a private anonymous copy.
+"Swap" shows how much would-be-anonymous memory is also used, but out on
+swap.
 
 This file is only present if the CONFIG_MMU kernel configuration option is
 enabled.
@@ -397,6 +406,9 @@ To clear the bits for the file mapped pages associated with the process
     > echo 3 > /proc/PID/clear_refs
 Any other value written to /proc/PID/clear_refs will have no effect.
 
+The /proc/pid/pagemap gives the PFN, which can be used to find the pageflags
+using /proc/kpageflags and number of times a page is mapped using
+/proc/kpagecount. For detailed explanation, see Documentation/vm/pagemap.txt.
 
 1.2 Kernel data
 ---------------
@@ -531,7 +543,7 @@ just those considered 'most important'.  The new vectors are:
   their statistics are used by kernel developers and interested users to
   determine the occurrence of interrupts of the given type.
 
-The above IRQ vectors are displayed only when relevent.  For example,
+The above IRQ vectors are displayed only when relevant.  For example,
 the threshold vector does not exist on x86_64 platforms.  Others are
 suppressed when the system is a uniprocessor.  As of this writing, only
 i386 and x86_64 platforms support the new IRQ vector displays.
@@ -562,6 +574,12 @@ The contents of each smp_affinity file is the same by default:
   > cat /proc/irq/0/smp_affinity
   ffffffff
 
+There is an alternate interface, smp_affinity_list which allows specifying
+a cpu range instead of a bitmask:
+
+  > cat /proc/irq/0/smp_affinity_list
+  1024-1031
+
 The default_smp_affinity mask applies to all non-active IRQs, which are the
 IRQs which have not yet been allocated/activated, and hence which lack a
 /proc/irq/[0-9]* directory.
@@ -571,12 +589,13 @@ reports itself as being attached. This hardware locality information does not
 include information about any possible driver locality preference.
 
 prof_cpu_mask specifies which CPUs are to be profiled by the system wide
-profiler. Default value is ffffffff (all cpus).
+profiler. Default value is ffffffff (all cpus if there are only 32 of them).
 
 The way IRQs are routed is handled by the IO-APIC, and it's Round Robin
 between all the CPUs which are allowed to handle it. As usual the kernel has
 more info than you and does a better job than you, so the defaults are the
-best choice for almost everyone.
+best choice for almost everyone.  [Note this applies only to those IO-APIC's
+that support "Round Robin" interrupt distribution.]
 
 There are  three  more  important subdirectories in /proc: net, scsi, and sys.
 The general  rule  is  that  the  contents,  or  even  the  existence of these
@@ -658,6 +677,8 @@ varies by architecture and compile options.  The following is from a
 16GB PIII, which has highmem enabled.  You may not have all of these fields.
 
 > cat /proc/meminfo
+
+The "Locked" indicates whether the mapping is locked in memory or not.
 
 
 MemTotal:     16344972 kB
@@ -1170,6 +1191,30 @@ Table 1-12: Files in /proc/fs/ext4/<devname>
  mb_groups       details of multiblock allocator buddy cache of free blocks
 ..............................................................................
 
+2.0 /proc/consoles
+------------------
+Shows registered system console lines.
+
+To see which character device lines are currently used for the system console
+/dev/console, you may simply look into the file /proc/consoles:
+
+  > cat /proc/consoles
+  tty0                 -WU (ECp)       4:7
+  ttyS0                -W- (Ep)        4:64
+
+The columns are:
+
+  device               name of the device
+  operations           R = can do read operations
+                       W = can do write operations
+                       U = can do unblank
+  flags                E = it is enabled
+                       C = it is preferred console
+                       B = it is primary boot console
+                       p = it is used for printk buffer
+                       b = it is not a TTY but a Braille device
+                       a = it is safe to use when cpu is offline
+  major:minor          major and minor number of the device separated by a colon
 
 ------------------------------------------------------------------------------
 Summary
@@ -1285,11 +1330,15 @@ scaled linearly with /proc/<pid>/oom_score_adj.
 Writing to /proc/<pid>/oom_score_adj or /proc/<pid>/oom_adj will change the
 other with its scaled value.
 
+The value of /proc/<pid>/oom_score_adj may be reduced no lower than the last
+value set by a CAP_SYS_RESOURCE process. To reduce the value any lower
+requires CAP_SYS_RESOURCE.
+
 NOTICE: /proc/<pid>/oom_adj is deprecated and will be removed, please see
 Documentation/feature-removal-schedule.txt.
 
 Caveat: when a parent task is selected, the oom killer will sacrifice any first
-generation children with seperate address spaces instead, if possible.  This
+generation children with separate address spaces instead, if possible.  This
 avoids servers and important system daemons from being killed and loses the
 minimal amount of work.
 

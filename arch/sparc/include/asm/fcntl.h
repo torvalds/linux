@@ -34,6 +34,8 @@
 #define __O_SYNC	0x800000
 #define O_SYNC		(__O_SYNC|O_DSYNC)
 
+#define O_PATH		0x1000000
+
 #define F_GETOWN	5	/*  for sockets. */
 #define F_SETOWN	6	/*  for sockets. */
 #define F_GETLK		7

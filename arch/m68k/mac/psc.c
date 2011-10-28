@@ -88,7 +88,7 @@ void __init psc_init(void)
 
 	/*
 	 * The PSC is always at the same spot, but using psc
-	 * keeps things consisant with the psc_xxxx functions.
+	 * keeps things consistent with the psc_xxxx functions.
 	 */
 
 	psc = (void *) PSC_BASE;

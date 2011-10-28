@@ -44,7 +44,7 @@
    this for the 64K version would require a lot of heinous bank
    switching, which I'm sure not interested in doing.  If you try to
    implement a bank switching version, you'll basically have to remember
-   what bank is enabled and do a switch everytime you access a memory
+   what bank is enabled and do a switch every time you access a memory
    location that's not current.  You'll also have to remap pointers on
    the driver side, because it only knows about 16K of the memory.
    Anyone desperate or masochistic enough to try?
@@ -287,7 +287,7 @@ static int elmc_open(struct net_device *dev)
 
 	elmc_id_attn586();	/* disable interrupts */
 
-	ret = request_irq(dev->irq, elmc_interrupt, IRQF_SHARED | IRQF_SAMPLE_RANDOM,
+	ret = request_irq(dev->irq, elmc_interrupt, IRQF_SHARED,
 			  dev->name, dev);
 	if (ret) {
 		pr_err("%s: couldn't get irq %d\n", dev->name, dev->irq);
@@ -463,7 +463,7 @@ static int __init do_elmc_probe(struct net_device *dev)
 
 	/* we didn't find any 3c523 in the slots we checked for */
 	if (slot == MCA_NOTFOUND)
-		return ((base_addr || irq) ? -ENXIO : -ENODEV);
+		return (base_addr || irq) ? -ENXIO : -ENODEV;
 
 	mca_set_adapter_name(slot, "3Com 3c523 Etherlink/MC");
 	mca_set_adapter_procfn(slot, (MCA_ProcFn) elmc_getinfo, dev);

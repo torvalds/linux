@@ -36,7 +36,7 @@
 
 /****************************************************************************
  * 8MiB NOR flash. The struct mtd_partition is not in the same order as the
- *     partitions on the device because we want to keep compatability with
+ *     partitions on the device because we want to keep compatibility with
  *     existing QNAP firmware.
  *
  * Layout as used by QNAP:
@@ -117,7 +117,7 @@ void __init qnap_ts209_pci_preinit(void)
 	pin = QNAP_TS209_PCI_SLOT0_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int1") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "qnap_ts209_pci_preinit failed to "
 					"set_irq_type pin %d\n", pin);
@@ -131,7 +131,7 @@ void __init qnap_ts209_pci_preinit(void)
 	pin = QNAP_TS209_PCI_SLOT1_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int2") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "qnap_ts209_pci_preinit failed "
 					"to set_irq_type pin %d\n", pin);
@@ -244,28 +244,28 @@ static struct mv_sata_platform_data qnap_ts209_sata_data = {
 
  * General Setup
  ****************************************************************************/
-static struct orion5x_mpp_mode ts209_mpp_modes[] __initdata = {
-	{  0, MPP_UNUSED },
-	{  1, MPP_GPIO },		/* USB copy button */
-	{  2, MPP_GPIO },		/* Load defaults button */
-	{  3, MPP_GPIO },		/* GPIO RTC */
-	{  4, MPP_UNUSED },
-	{  5, MPP_UNUSED },
-	{  6, MPP_GPIO },		/* PCI Int A */
-	{  7, MPP_GPIO },		/* PCI Int B */
-	{  8, MPP_UNUSED },
-	{  9, MPP_UNUSED },
-	{ 10, MPP_UNUSED },
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_SATA_LED },		/* SATA 0 presence */
-	{ 13, MPP_SATA_LED },		/* SATA 1 presence */
-	{ 14, MPP_SATA_LED },		/* SATA 0 active */
-	{ 15, MPP_SATA_LED },		/* SATA 1 active */
-	{ 16, MPP_UART },		/* UART1 RXD */
-	{ 17, MPP_UART },		/* UART1 TXD */
-	{ 18, MPP_GPIO },		/* SW_RST */
-	{ 19, MPP_UNUSED },
-	{ -1 },
+static unsigned int ts209_mpp_modes[] __initdata = {
+	MPP0_UNUSED,
+	MPP1_GPIO,		/* USB copy button */
+	MPP2_GPIO,		/* Load defaults button */
+	MPP3_GPIO,		/* GPIO RTC */
+	MPP4_UNUSED,
+	MPP5_UNUSED,
+	MPP6_GPIO,		/* PCI Int A */
+	MPP7_GPIO,		/* PCI Int B */
+	MPP8_UNUSED,
+	MPP9_UNUSED,
+	MPP10_UNUSED,
+	MPP11_UNUSED,
+	MPP12_SATA_LED,		/* SATA 0 presence */
+	MPP13_SATA_LED,		/* SATA 1 presence */
+	MPP14_SATA_LED,		/* SATA 0 active */
+	MPP15_SATA_LED,		/* SATA 1 active */
+	MPP16_UART,		/* UART1 RXD */
+	MPP17_UART,		/* UART1 TXD */
+	MPP18_GPIO,		/* SW_RST */
+	MPP19_UNUSED,
+	0,
 };
 
 static void __init qnap_ts209_init(void)
@@ -322,11 +322,10 @@ static void __init qnap_ts209_init(void)
 
 MACHINE_START(TS209, "QNAP TS-109/TS-209")
 	/* Maintainer: Byron Bradley <byron.bbradley@gmail.com> */
-	.phys_io	= ORION5X_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= qnap_ts209_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

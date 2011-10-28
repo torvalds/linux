@@ -223,8 +223,8 @@ typedef enum {
  * Synchronous transfer state
  */
 typedef enum {					/* Synchronous transfer state		*/
-    SYNC_ASYNCHRONOUS,				/* don't negociate synchronous transfers*/
-    SYNC_NEGOCIATE,				/* start negociation			*/
+    SYNC_ASYNCHRONOUS,				/* don't negotiate synchronous transfers*/
+    SYNC_NEGOCIATE,				/* start negotiation			*/
     SYNC_SENT_REQUEST,				/* sent SDTR message			*/
     SYNC_COMPLETED,				/* received SDTR reply			*/
 } syncxfer_t;
@@ -322,7 +322,7 @@ typedef struct acornscsi_hostdata {
     /* per-device info */
     struct {
 	unsigned char	sync_xfer;		/* synchronous transfer (SBIC value)	*/
-	syncxfer_t	sync_state;		/* sync xfer negociation state		*/
+	syncxfer_t	sync_state;		/* sync xfer negotiation state		*/
 	unsigned char	disconnect_ok:1;	/* device can disconnect		*/
     } device[8];
     unsigned long	busyluns[64 / sizeof(unsigned long)];/* array of bits indicating LUNs busy	*/

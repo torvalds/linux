@@ -222,7 +222,7 @@ typedef struct {
 /* 24*/	sle64 file_size;	/* Usable byte size of the log file.  If the
 				   restart_area_offset + the offset of the
 				   file_size are > 510 then corruption has
-				   occured.  This is the very first check when
+				   occurred.  This is the very first check when
 				   starting with the restart_area as if it
 				   fails it means that some of the above values
 				   will be corrupted by the multi sector

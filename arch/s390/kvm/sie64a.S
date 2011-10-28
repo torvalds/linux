@@ -48,10 +48,10 @@ sie_irq_handler:
 	tm	__TI_flags+7(%r2),_TIF_EXIT_SIE
 	jz	0f
 	larl	%r2,sie_exit			# work pending, leave sie
-	stg	%r2,__LC_RETURN_PSW+8
+	stg	%r2,SPI_PSW+8(0,%r15)
 	br	%r14
 0:	larl	%r2,sie_reenter			# re-enter with guest id
-	stg	%r2,__LC_RETURN_PSW+8
+	stg	%r2,SPI_PSW+8(0,%r15)
 1:	br	%r14
 
 /*
@@ -93,4 +93,6 @@ sie_err:
 
 	.section __ex_table,"a"
 	.quad	sie_inst,sie_err
+	.quad	sie_exit,sie_err
+	.quad	sie_reenter,sie_err
 	.previous

@@ -13,6 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -866,7 +867,7 @@ static int __devinit s3c24xxfb_probe(struct platform_device *pdev,
 		goto dealloc_fb;
 	}
 
-	size = (res->end - res->start) + 1;
+	size = resource_size(res);
 	info->mem = request_mem_region(res->start, size, pdev->name);
 	if (info->mem == NULL) {
 		dev_err(&pdev->dev, "failed to get memory region\n");
@@ -918,9 +919,9 @@ static int __devinit s3c24xxfb_probe(struct platform_device *pdev,
 	}
 
 	info->clk = clk_get(NULL, "lcd");
-	if (!info->clk || IS_ERR(info->clk)) {
+	if (IS_ERR(info->clk)) {
 		printk(KERN_ERR "failed to get lcd clock source\n");
-		ret = -ENOENT;
+		ret = PTR_ERR(info->clk);
 		goto release_irq;
 	}
 
@@ -996,8 +997,7 @@ release_irq:
 release_regs:
 	iounmap(info->io);
 release_mem:
-	release_resource(info->mem);
-	kfree(info->mem);
+	release_mem_region(res->start, size);
 dealloc_fb:
 	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(fbinfo);
@@ -1043,8 +1043,7 @@ static int __devexit s3c2410fb_remove(struct platform_device *pdev)
 
 	iounmap(info->io);
 
-	release_resource(info->mem);
-	kfree(info->mem);
+	release_mem_region(info->mem->start, resource_size(info->mem));
 
 	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(fbinfo);

@@ -1,0 +1,21 @@
+Kernel driver max6642
+=====================
+
+Supported chips:
+  * Maxim MAX6642
+    Prefix: 'max6642'
+    Addresses scanned: I2C 0x48-0x4f
+    Datasheet: Publicly available at the Maxim website
+               http://datasheets.maxim-ic.com/en/ds/MAX6642.pdf
+
+Authors:
+        Per Dalen <per.dalen@appeartv.com>
+
+Description
+-----------
+
+The MAX6642 is a digital temperature sensor. It senses its own temperature as
+well as the temperature on one external diode.
+
+All temperature values are given in degrees Celsius. Resolution
+is 0.25 degree for the local temperature and for the remote temperature.

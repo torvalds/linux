@@ -312,7 +312,7 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 			remote->data.tester = remote->data.tester >> 5;
 			remote->data.bits_left -= 5;
 		} else {
-			err("Bad message recieved, no stop bit found.\n");
+			err("Bad message received, no stop bit found.\n");
 		}
 
 		dev_dbg(&remote->udev->dev,

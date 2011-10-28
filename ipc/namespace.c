@@ -11,10 +11,13 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
+#include <linux/user_namespace.h>
+#include <linux/proc_fs.h>
 
 #include "util.h"
 
-static struct ipc_namespace *create_ipc_ns(void)
+static struct ipc_namespace *create_ipc_ns(struct task_struct *tsk,
+					   struct ipc_namespace *old_ns)
 {
 	struct ipc_namespace *ns;
 	int err;
@@ -43,14 +46,19 @@ static struct ipc_namespace *create_ipc_ns(void)
 	ipcns_notify(IPCNS_CREATED);
 	register_ipcns_notifier(ns);
 
+	ns->user_ns = get_user_ns(task_cred_xxx(tsk, user)->user_ns);
+
 	return ns;
 }
 
-struct ipc_namespace *copy_ipcs(unsigned long flags, struct ipc_namespace *ns)
+struct ipc_namespace *copy_ipcs(unsigned long flags,
+				struct task_struct *tsk)
 {
+	struct ipc_namespace *ns = tsk->nsproxy->ipc_ns;
+
 	if (!(flags & CLONE_NEWIPC))
 		return get_ipc_ns(ns);
-	return create_ipc_ns();
+	return create_ipc_ns(tsk, ns);
 }
 
 /*
@@ -97,7 +105,6 @@ static void free_ipc_ns(struct ipc_namespace *ns)
 	sem_exit_ns(ns);
 	msg_exit_ns(ns);
 	shm_exit_ns(ns);
-	kfree(ns);
 	atomic_dec(&nr_ipc_ns);
 
 	/*
@@ -105,6 +112,8 @@ static void free_ipc_ns(struct ipc_namespace *ns)
 	 * order to have a correct value when recomputing msgmni.
 	 */
 	ipcns_notify(IPCNS_REMOVED);
+	put_user_ns(ns->user_ns);
+	kfree(ns);
 }
 
 /*
@@ -132,3 +141,39 @@ void put_ipc_ns(struct ipc_namespace *ns)
 		free_ipc_ns(ns);
 	}
 }
+
+static void *ipcns_get(struct task_struct *task)
+{
+	struct ipc_namespace *ns = NULL;
+	struct nsproxy *nsproxy;
+
+	rcu_read_lock();
+	nsproxy = task_nsproxy(task);
+	if (nsproxy)
+		ns = get_ipc_ns(nsproxy->ipc_ns);
+	rcu_read_unlock();
+
+	return ns;
+}
+
+static void ipcns_put(void *ns)
+{
+	return put_ipc_ns(ns);
+}
+
+static int ipcns_install(struct nsproxy *nsproxy, void *ns)
+{
+	/* Ditch state from the old ipc namespace */
+	exit_sem(current);
+	put_ipc_ns(nsproxy->ipc_ns);
+	nsproxy->ipc_ns = get_ipc_ns(ns);
+	return 0;
+}
+
+const struct proc_ns_operations ipcns_operations = {
+	.name		= "ipc",
+	.type		= CLONE_NEWIPC,
+	.get		= ipcns_get,
+	.put		= ipcns_put,
+	.install	= ipcns_install,
+};

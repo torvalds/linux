@@ -110,7 +110,4 @@
 #define WM8960_OPCLK_DIV_5_5		(4 << 0)
 #define WM8960_OPCLK_DIV_6		(5 << 0)
 
-extern struct snd_soc_dai wm8960_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8960;
-
 #endif

@@ -71,21 +71,20 @@ broken.
   ===========================================================================*/
 
 static DEFINE_PCI_DEVICE_TABLE(me4000_pci_table) = {
-	{
-	PCI_VENDOR_ID_MEILHAUS, 0x4650, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_MEILHAUS, 0x4660, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_MEILHAUS, 0x4661, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_MEILHAUS, 0x4662, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_MEILHAUS, 0x4663, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_MEILHAUS, 0x4670, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_MEILHAUS, 0x4671, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_MEILHAUS, 0x4672, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_MEILHAUS, 0x4673, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_MEILHAUS, 0x4680, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_MEILHAUS, 0x4681, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_MEILHAUS, 0x4682, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_MEILHAUS, 0x4683, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4650) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4660) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4661) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4662) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4663) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4670) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4671) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4672) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4673) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4680) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4681) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4682) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, 0x4683) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, me4000_pci_table);
@@ -120,10 +119,10 @@ static int me4000_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it);
 static int me4000_detach(struct comedi_device *dev);
 static struct comedi_driver driver_me4000 = {
-driver_name: "me4000",
-module : THIS_MODULE,
-attach : me4000_attach,
-detach : me4000_detach,
+	.driver_name = "me4000",
+	.module = THIS_MODULE,
+	.attach = me4000_attach,
+	.detach = me4000_detach,
 };
 
 /*-----------------------------------------------------------------------------
@@ -1811,7 +1810,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		       ai_context->irq_status_reg) &
 	    ME4000_IRQ_STATUS_BIT_AI_HF) {
 		ISR_PDEBUG
-		    ("me4000_ai_isr(): Fifo half full interrupt occured\n");
+		    ("me4000_ai_isr(): Fifo half full interrupt occurred\n");
 
 		/* Read status register to find out what happened */
 		tmp = me4000_inl(dev, ai_context->ctrl_reg);
@@ -1904,7 +1903,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	if (me4000_inl(dev,
 		       ai_context->irq_status_reg) & ME4000_IRQ_STATUS_BIT_SC) {
 		ISR_PDEBUG
-		    ("me4000_ai_isr(): Sample counter interrupt occured\n");
+		    ("me4000_ai_isr(): Sample counter interrupt occurred\n");
 
 		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOA;
 

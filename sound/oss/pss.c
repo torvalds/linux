@@ -859,7 +859,7 @@ static int pss_coproc_ioctl(void *dev_info, unsigned int cmd, void __user *arg, 
 			return 0;
 
 		case SNDCTL_COPR_LOAD:
-			buf = (copr_buffer *) vmalloc(sizeof(copr_buffer));
+			buf = vmalloc(sizeof(copr_buffer));
 			if (buf == NULL)
 				return -ENOSPC;
 			if (copy_from_user(buf, arg, sizeof(copr_buffer))) {
@@ -871,7 +871,7 @@ static int pss_coproc_ioctl(void *dev_info, unsigned int cmd, void __user *arg, 
 			return err;
 		
 		case SNDCTL_COPR_SENDMSG:
-			mbuf = (copr_msg *)vmalloc(sizeof(copr_msg));
+			mbuf = vmalloc(sizeof(copr_msg));
 			if (mbuf == NULL)
 				return -ENOSPC;
 			if (copy_from_user(mbuf, arg, sizeof(copr_msg))) {
@@ -895,7 +895,7 @@ static int pss_coproc_ioctl(void *dev_info, unsigned int cmd, void __user *arg, 
 
 		case SNDCTL_COPR_RCVMSG:
 			err = 0;
-			mbuf = (copr_msg *)vmalloc(sizeof(copr_msg));
+			mbuf = vmalloc(sizeof(copr_msg));
 			if (mbuf == NULL)
 				return -ENOSPC;
 			data = (unsigned short *)mbuf->data;

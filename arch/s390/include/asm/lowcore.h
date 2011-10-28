@@ -124,7 +124,7 @@ struct _lowcore {
 	/* Address space pointer. */
 	__u32	kernel_asce;			/* 0x02ac */
 	__u32	user_asce;			/* 0x02b0 */
-	__u32	user_exec_asce;			/* 0x02b4 */
+	__u32	current_pid;			/* 0x02b4 */
 
 	/* SMP info area */
 	__u32	cpu_nr;				/* 0x02b8 */
@@ -150,9 +150,10 @@ struct _lowcore {
 	 */
 	__u32	ipib;				/* 0x0e00 */
 	__u32	ipib_checksum;			/* 0x0e04 */
+	__u8	pad_0x0e08[0x0f00-0x0e08];	/* 0x0e08 */
 
-	/* Align to the top 1k of prefix area */
-	__u8	pad_0x0e08[0x1000-0x0e08];	/* 0x0e08 */
+	/* Extended facility list */
+	__u64	stfle_fac_list[32];		/* 0x0f00 */
 } __packed;
 
 #else /* CONFIG_32BIT */
@@ -254,7 +255,7 @@ struct _lowcore {
 	/* Address space pointer. */
 	__u64	kernel_asce;			/* 0x0310 */
 	__u64	user_asce;			/* 0x0318 */
-	__u64	user_exec_asce;			/* 0x0320 */
+	__u64	current_pid;			/* 0x0320 */
 
 	/* SMP info area */
 	__u32	cpu_nr;				/* 0x0328 */
@@ -285,7 +286,11 @@ struct _lowcore {
 	 */
 	__u64	ipib;				/* 0x0e00 */
 	__u32	ipib_checksum;			/* 0x0e08 */
-	__u8	pad_0x0e0c[0x11b8-0x0e0c];	/* 0x0e0c */
+	__u8	pad_0x0e0c[0x0f00-0x0e0c];	/* 0x0e0c */
+
+	/* Extended facility list */
+	__u64	stfle_fac_list[32];		/* 0x0f00 */
+	__u8	pad_0x1000[0x11b8-0x1000];	/* 0x1000 */
 
 	/* 64 bit extparam used for pfault/diag 250: defined by architecture */
 	__u64	ext_params2;			/* 0x11B8 */

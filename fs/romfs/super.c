@@ -282,6 +282,7 @@ error:
 static const struct file_operations romfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= romfs_readdir,
+	.llseek		= default_llseek,
 };
 
 static const struct inode_operations romfs_dir_inode_operations = {
@@ -399,9 +400,16 @@ static struct inode *romfs_alloc_inode(struct super_block *sb)
 /*
  * return a spent inode to the slab cache
  */
+static void romfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(romfs_inode_cachep, ROMFS_I(inode));
+}
+
 static void romfs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(romfs_inode_cachep, ROMFS_I(inode));
+	call_rcu(&inode->i_rcu, romfs_i_callback);
 }
 
 /*
@@ -551,20 +559,19 @@ error_rsb:
 /*
  * get a superblock for mounting
  */
-static int romfs_get_sb(struct file_system_type *fs_type,
+static struct dentry *romfs_mount(struct file_system_type *fs_type,
 			int flags, const char *dev_name,
-			void *data, struct vfsmount *mnt)
+			void *data)
 {
-	int ret = -EINVAL;
+	struct dentry *ret = ERR_PTR(-EINVAL);
 
 #ifdef CONFIG_ROMFS_ON_MTD
-	ret = get_sb_mtd(fs_type, flags, dev_name, data, romfs_fill_super,
-			 mnt);
+	ret = mount_mtd(fs_type, flags, dev_name, data, romfs_fill_super);
 #endif
 #ifdef CONFIG_ROMFS_ON_BLOCK
-	if (ret == -EINVAL)
-		ret = get_sb_bdev(fs_type, flags, dev_name, data,
-				  romfs_fill_super, mnt);
+	if (ret == ERR_PTR(-EINVAL))
+		ret = mount_bdev(fs_type, flags, dev_name, data,
+				  romfs_fill_super);
 #endif
 	return ret;
 }
@@ -591,7 +598,7 @@ static void romfs_kill_sb(struct super_block *sb)
 static struct file_system_type romfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "romfs",
-	.get_sb		= romfs_get_sb,
+	.mount		= romfs_mount,
 	.kill_sb	= romfs_kill_sb,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

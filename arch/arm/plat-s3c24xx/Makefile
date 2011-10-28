@@ -23,7 +23,7 @@ obj-$(CONFIG_S3C24XX_DCLK)	+= clock-dclk.o
 obj-$(CONFIG_CPU_FREQ_S3C24XX)	+= cpu-freq.o
 obj-$(CONFIG_CPU_FREQ_S3C24XX_DEBUGFS) += cpu-freq-debugfs.o
 
-# Architecture dependant builds
+# Architecture dependent builds
 
 obj-$(CONFIG_PM_SIMTEC)		+= pm-simtec.o
 obj-$(CONFIG_PM)		+= pm.o

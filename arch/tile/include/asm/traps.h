@@ -15,10 +15,14 @@
 #ifndef _ASM_TILE_TRAPS_H
 #define _ASM_TILE_TRAPS_H
 
+#include <arch/chip.h>
+
 /* mm/fault.c */
 void do_page_fault(struct pt_regs *, int fault_num,
 		   unsigned long address, unsigned long write);
+#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
 void do_async_page_fault(struct pt_regs *);
+#endif
 
 #ifndef __tilegx__
 /*
@@ -58,5 +62,9 @@ void do_hardwall_trap(struct pt_regs *, int fault_num);
 /* kernel/ptrace.c */
 void do_breakpoint(struct pt_regs *, int fault_num);
 
+
+#ifdef __tilegx__
+void gx_singlestep_handle(struct pt_regs *, int fault_num);
+#endif
 
 #endif /* _ASM_TILE_SYSCALLS_H */

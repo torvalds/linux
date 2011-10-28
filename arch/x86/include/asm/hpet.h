@@ -74,10 +74,12 @@ extern void hpet_disable(void);
 extern unsigned int hpet_readl(unsigned int a);
 extern void force_hpet_resume(void);
 
-extern void hpet_msi_unmask(unsigned int irq);
-extern void hpet_msi_mask(unsigned int irq);
-extern void hpet_msi_write(unsigned int irq, struct msi_msg *msg);
-extern void hpet_msi_read(unsigned int irq, struct msi_msg *msg);
+struct irq_data;
+extern void hpet_msi_unmask(struct irq_data *data);
+extern void hpet_msi_mask(struct irq_data *data);
+struct hpet_dev;
+extern void hpet_msi_write(struct hpet_dev *hdev, struct msi_msg *msg);
+extern void hpet_msi_read(struct hpet_dev *hdev, struct msi_msg *msg);
 
 #ifdef CONFIG_PCI_MSI
 extern int arch_setup_hpet_msi(unsigned int irq, unsigned int id);

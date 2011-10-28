@@ -379,7 +379,7 @@ struct gru_thread_state {
 						   required for contest */
 	char			ts_cch_req_slice;/* CCH packet slice */
 	char			ts_blade;	/* If >= 0, migrate context if
-						   ref from diferent blade */
+						   ref from different blade */
 	char			ts_force_cch_reload;
 	char			ts_cbr_idx[GRU_CBR_AU];/* CBR numbers of each
 							  allocated CB */

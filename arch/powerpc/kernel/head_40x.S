@@ -40,6 +40,7 @@
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/ptrace.h>
 
 /* As with the other PowerPC ports, it is expected that when code
  * execution begins here, the following registers contain valid, yet
@@ -765,7 +766,7 @@ DataAccess:
 	 * miss get to this point to load the TLB.
 	 * 	r10 - TLB_TAG value
 	 * 	r11 - Linux PTE
-	 *	r12, r9 - avilable to use
+	 *	r12, r9 - available to use
 	 *	PID - loaded with proper value when we get here
 	 *	Upon exit, we reload everything and RFI.
 	 * Actually, it will fit now, but oh well.....a common place
@@ -923,11 +924,7 @@ initial_mmu:
 	mtspr	SPRN_PID,r0
 	sync
 
-	/* Configure and load two entries into TLB slots 62 and 63.
-	 * In case we are pinning TLBs, these are reserved in by the
-	 * other TLB functions.  If not reserving, then it doesn't
-	 * matter where they are loaded.
-	 */
+	/* Configure and load one entry into TLB slots 63 */
 	clrrwi	r4,r4,10		/* Mask off the real page number */
 	ori	r4,r4,(TLB_WR | TLB_EX)	/* Set the write and execute bits */
 

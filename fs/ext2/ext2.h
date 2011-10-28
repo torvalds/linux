@@ -110,7 +110,7 @@ extern struct ext2_dir_entry_2 * ext2_dotdot (struct inode *, struct page **);
 extern void ext2_set_link(struct inode *, struct ext2_dir_entry_2 *, struct page *, struct inode *, int);
 
 /* ialloc.c */
-extern struct inode * ext2_new_inode (struct inode *, int);
+extern struct inode * ext2_new_inode (struct inode *, int, const struct qstr *);
 extern void ext2_free_inode (struct inode *);
 extern unsigned long ext2_count_free_inodes (struct super_block *);
 extern void ext2_check_inodes_bitmap (struct super_block *);
@@ -120,7 +120,6 @@ extern unsigned long ext2_count_free (struct buffer_head *, unsigned);
 extern struct inode *ext2_iget (struct super_block *, unsigned long);
 extern int ext2_write_inode (struct inode *, struct writeback_control *);
 extern void ext2_evict_inode(struct inode *);
-extern int ext2_sync_inode (struct inode *);
 extern int ext2_get_block(struct inode *, sector_t, struct buffer_head *, int);
 extern int ext2_setattr (struct dentry *, struct iattr *);
 extern void ext2_set_inode_flags(struct inode *inode);
@@ -175,3 +174,9 @@ ext2_group_first_block_no(struct super_block *sb, unsigned long group_no)
 	return group_no * (ext2_fsblk_t)EXT2_BLOCKS_PER_GROUP(sb) +
 		le32_to_cpu(EXT2_SB(sb)->s_es->s_first_data_block);
 }
+
+#define ext2_set_bit	__test_and_set_bit_le
+#define ext2_clear_bit	__test_and_clear_bit_le
+#define ext2_test_bit	test_bit_le
+#define ext2_find_first_zero_bit	find_first_zero_bit_le
+#define ext2_find_next_zero_bit		find_next_zero_bit_le

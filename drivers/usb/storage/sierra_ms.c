@@ -121,18 +121,16 @@ static ssize_t show_truinst(struct device *dev, struct device_attribute *attr,
 	}
 	return result;
 }
-static DEVICE_ATTR(truinst, S_IWUGO | S_IRUGO, show_truinst, NULL);
+static DEVICE_ATTR(truinst, S_IRUGO, show_truinst, NULL);
 
 int sierra_ms_init(struct us_data *us)
 {
 	int result, retries;
-	signed long delay_t;
 	struct swoc_info *swocInfo;
 	struct usb_device *udev;
 	struct Scsi_Host *sh;
 	struct scsi_device *sd;
 
-	delay_t = 2;
 	retries = 3;
 	result = 0;
 	udev = us->pusb_dev;

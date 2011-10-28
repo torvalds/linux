@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2009 Solarflare Communications Inc.
+ * Copyright 2006-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -216,7 +216,7 @@ static void efx_mtd_remove_partition(struct efx_mtd_partition *part)
 	int rc;
 
 	for (;;) {
-		rc = del_mtd_device(&part->mtd);
+		rc = mtd_device_unregister(&part->mtd);
 		if (rc != -EBUSY)
 			break;
 		ssleep(1);
@@ -268,7 +268,7 @@ static int efx_mtd_probe_device(struct efx_nic *efx, struct efx_mtd *efx_mtd)
 		part->mtd.write = efx_mtd->ops->write;
 		part->mtd.sync = efx_mtd_sync;
 
-		if (add_mtd_device(&part->mtd))
+		if (mtd_device_register(&part->mtd, NULL, 0))
 			goto fail;
 	}
 
@@ -280,7 +280,7 @@ fail:
 		--part;
 		efx_mtd_remove_partition(part);
 	}
-	/* add_mtd_device() returns 1 if the MTD table is full */
+	/* mtd_device_register() returns 1 if the MTD table is full */
 	return -ENOMEM;
 }
 
@@ -321,14 +321,15 @@ static int falcon_mtd_read(struct mtd_info *mtd, loff_t start,
 	struct efx_mtd *efx_mtd = mtd->priv;
 	const struct efx_spi_device *spi = efx_mtd->spi;
 	struct efx_nic *efx = efx_mtd->efx;
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
 
-	rc = mutex_lock_interruptible(&efx->spi_lock);
+	rc = mutex_lock_interruptible(&nic_data->spi_lock);
 	if (rc)
 		return rc;
 	rc = falcon_spi_read(efx, spi, part->offset + start, len,
 			     retlen, buffer);
-	mutex_unlock(&efx->spi_lock);
+	mutex_unlock(&nic_data->spi_lock);
 	return rc;
 }
 
@@ -337,13 +338,14 @@ static int falcon_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len)
 	struct efx_mtd_partition *part = to_efx_mtd_partition(mtd);
 	struct efx_mtd *efx_mtd = mtd->priv;
 	struct efx_nic *efx = efx_mtd->efx;
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
 
-	rc = mutex_lock_interruptible(&efx->spi_lock);
+	rc = mutex_lock_interruptible(&nic_data->spi_lock);
 	if (rc)
 		return rc;
 	rc = efx_spi_erase(part, part->offset + start, len);
-	mutex_unlock(&efx->spi_lock);
+	mutex_unlock(&nic_data->spi_lock);
 	return rc;
 }
 
@@ -354,14 +356,15 @@ static int falcon_mtd_write(struct mtd_info *mtd, loff_t start,
 	struct efx_mtd *efx_mtd = mtd->priv;
 	const struct efx_spi_device *spi = efx_mtd->spi;
 	struct efx_nic *efx = efx_mtd->efx;
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
 
-	rc = mutex_lock_interruptible(&efx->spi_lock);
+	rc = mutex_lock_interruptible(&nic_data->spi_lock);
 	if (rc)
 		return rc;
 	rc = falcon_spi_write(efx, spi, part->offset + start, len,
 			      retlen, buffer);
-	mutex_unlock(&efx->spi_lock);
+	mutex_unlock(&nic_data->spi_lock);
 	return rc;
 }
 
@@ -370,11 +373,12 @@ static int falcon_mtd_sync(struct mtd_info *mtd)
 	struct efx_mtd_partition *part = to_efx_mtd_partition(mtd);
 	struct efx_mtd *efx_mtd = mtd->priv;
 	struct efx_nic *efx = efx_mtd->efx;
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
 
-	mutex_lock(&efx->spi_lock);
+	mutex_lock(&nic_data->spi_lock);
 	rc = efx_spi_slow_wait(part, true);
-	mutex_unlock(&efx->spi_lock);
+	mutex_unlock(&nic_data->spi_lock);
 	return rc;
 }
 
@@ -387,35 +391,67 @@ static struct efx_mtd_ops falcon_mtd_ops = {
 
 static int falcon_mtd_probe(struct efx_nic *efx)
 {
-	struct efx_spi_device *spi = efx->spi_flash;
+	struct falcon_nic_data *nic_data = efx->nic_data;
+	struct efx_spi_device *spi;
 	struct efx_mtd *efx_mtd;
-	int rc;
+	int rc = -ENODEV;
 
 	ASSERT_RTNL();
 
-	if (!spi || spi->size <= FALCON_FLASH_BOOTCODE_START)
-		return -ENODEV;
+	spi = &nic_data->spi_flash;
+	if (efx_spi_present(spi) && spi->size > FALCON_FLASH_BOOTCODE_START) {
+		efx_mtd = kzalloc(sizeof(*efx_mtd) + sizeof(efx_mtd->part[0]),
+				  GFP_KERNEL);
+		if (!efx_mtd)
+			return -ENOMEM;
 
-	efx_mtd = kzalloc(sizeof(*efx_mtd) + sizeof(efx_mtd->part[0]),
-			  GFP_KERNEL);
-	if (!efx_mtd)
-		return -ENOMEM;
+		efx_mtd->spi = spi;
+		efx_mtd->name = "flash";
+		efx_mtd->ops = &falcon_mtd_ops;
 
-	efx_mtd->spi = spi;
-	efx_mtd->name = "flash";
-	efx_mtd->ops = &falcon_mtd_ops;
+		efx_mtd->n_parts = 1;
+		efx_mtd->part[0].mtd.type = MTD_NORFLASH;
+		efx_mtd->part[0].mtd.flags = MTD_CAP_NORFLASH;
+		efx_mtd->part[0].mtd.size = spi->size - FALCON_FLASH_BOOTCODE_START;
+		efx_mtd->part[0].mtd.erasesize = spi->erase_size;
+		efx_mtd->part[0].offset = FALCON_FLASH_BOOTCODE_START;
+		efx_mtd->part[0].type_name = "sfc_flash_bootrom";
 
-	efx_mtd->n_parts = 1;
-	efx_mtd->part[0].mtd.type = MTD_NORFLASH;
-	efx_mtd->part[0].mtd.flags = MTD_CAP_NORFLASH;
-	efx_mtd->part[0].mtd.size = spi->size - FALCON_FLASH_BOOTCODE_START;
-	efx_mtd->part[0].mtd.erasesize = spi->erase_size;
-	efx_mtd->part[0].offset = FALCON_FLASH_BOOTCODE_START;
-	efx_mtd->part[0].type_name = "sfc_flash_bootrom";
+		rc = efx_mtd_probe_device(efx, efx_mtd);
+		if (rc) {
+			kfree(efx_mtd);
+			return rc;
+		}
+	}
 
-	rc = efx_mtd_probe_device(efx, efx_mtd);
-	if (rc)
-		kfree(efx_mtd);
+	spi = &nic_data->spi_eeprom;
+	if (efx_spi_present(spi) && spi->size > EFX_EEPROM_BOOTCONFIG_START) {
+		efx_mtd = kzalloc(sizeof(*efx_mtd) + sizeof(efx_mtd->part[0]),
+				  GFP_KERNEL);
+		if (!efx_mtd)
+			return -ENOMEM;
+
+		efx_mtd->spi = spi;
+		efx_mtd->name = "EEPROM";
+		efx_mtd->ops = &falcon_mtd_ops;
+
+		efx_mtd->n_parts = 1;
+		efx_mtd->part[0].mtd.type = MTD_RAM;
+		efx_mtd->part[0].mtd.flags = MTD_CAP_RAM;
+		efx_mtd->part[0].mtd.size =
+			min(spi->size, EFX_EEPROM_BOOTCONFIG_END) -
+			EFX_EEPROM_BOOTCONFIG_START;
+		efx_mtd->part[0].mtd.erasesize = spi->erase_size;
+		efx_mtd->part[0].offset = EFX_EEPROM_BOOTCONFIG_START;
+		efx_mtd->part[0].type_name = "sfc_bootconfig";
+
+		rc = efx_mtd_probe_device(efx, efx_mtd);
+		if (rc) {
+			kfree(efx_mtd);
+			return rc;
+		}
+	}
+
 	return rc;
 }
 

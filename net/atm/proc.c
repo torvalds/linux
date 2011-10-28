@@ -38,6 +38,7 @@ static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 static const struct file_operations proc_atm_dev_ops = {
 	.owner =	THIS_MODULE,
 	.read =		proc_dev_atm_read,
+	.llseek =	noop_llseek,
 };
 
 static void add_stats(struct seq_file *seq, const char *aal,
@@ -190,7 +191,7 @@ static void vcc_info(struct seq_file *seq, struct atm_vcc *vcc)
 {
 	struct sock *sk = sk_atm(vcc);
 
-	seq_printf(seq, "%p ", vcc);
+	seq_printf(seq, "%pK ", vcc);
 	if (!vcc->dev)
 		seq_printf(seq, "Unassigned    ");
 	else
@@ -217,7 +218,7 @@ static void svc_info(struct seq_file *seq, struct atm_vcc *vcc)
 {
 	if (!vcc->dev)
 		seq_printf(seq, sizeof(void *) == 4 ?
-			   "N/A@%p%10s" : "N/A@%p%2s", vcc, "");
+			   "N/A@%pK%10s" : "N/A@%pK%2s", vcc, "");
 	else
 		seq_printf(seq, "%3d %3d %5d         ",
 			   vcc->dev->number, vcc->vpi, vcc->vci);

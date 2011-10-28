@@ -37,32 +37,6 @@ static inline int prepare_hugepage_range(struct file *file,
 int arch_prepare_hugepage(struct page *page);
 void arch_release_hugepage(struct page *page);
 
-static inline pte_t pte_mkhuge(pte_t pte)
-{
-	/*
-	 * PROT_NONE needs to be remapped from the pte type to the ste type.
-	 * The HW invalid bit is also different for pte and ste. The pte
-	 * invalid bit happens to be the same as the ste _SEGMENT_ENTRY_LARGE
-	 * bit, so we don't have to clear it.
-	 */
-	if (pte_val(pte) & _PAGE_INVALID) {
-		if (pte_val(pte) & _PAGE_SWT)
-			pte_val(pte) |= _HPAGE_TYPE_NONE;
-		pte_val(pte) |= _SEGMENT_ENTRY_INV;
-	}
-	/*
-	 * Clear SW pte bits SWT and SWX, there are no SW bits in a segment
-	 * table entry.
-	 */
-	pte_val(pte) &= ~(_PAGE_SWT | _PAGE_SWX);
-	/*
-	 * Also set the change-override bit because we don't need dirty bit
-	 * tracking for hugetlbfs pages.
-	 */
-	pte_val(pte) |= (_SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_CO);
-	return pte;
-}
-
 static inline pte_t huge_pte_wrprotect(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_RO;
@@ -137,21 +111,10 @@ static inline void huge_ptep_invalidate(struct mm_struct *mm,
 {
 	pmd_t *pmdp = (pmd_t *) ptep;
 
-	if (!MACHINE_HAS_IDTE) {
-		__pmd_csp(pmdp);
-		if (mm->context.noexec) {
-			pmdp = get_shadow_table(pmdp);
-			__pmd_csp(pmdp);
-		}
-		return;
-	}
-
-	__pmd_idte(address, pmdp);
-	if (mm->context.noexec) {
-		pmdp = get_shadow_table(pmdp);
+	if (MACHINE_HAS_IDTE)
 		__pmd_idte(address, pmdp);
-	}
-	return;
+	else
+		__pmd_csp(pmdp);
 }
 
 #define huge_ptep_set_access_flags(__vma, __addr, __ptep, __entry, __dirty) \

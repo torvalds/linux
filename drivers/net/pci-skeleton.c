@@ -78,7 +78,7 @@ that almost all frames will need to be copied to an alignment buffer.
 
 IVb. References
 
-http://www.realtek.com.tw/cn/cn.html
+http://www.realtek.com.tw/
 http://www.scyld.com/expert/NWay.html
 
 IVc. Errata
@@ -214,7 +214,7 @@ static struct {
 	{ "SMC1211TX EZCard 10/100 (RealTek RTL8139)" },
 /*	{ MPX5030, "Accton MPX5030 (RealTek RTL8139)" },*/
 	{ "Delta Electronics 8139 10/100BaseTX" },
-	{ "Addtron Technolgy 8139 10/100BaseTX" },
+	{ "Addtron Technology 8139 10/100BaseTX" },
 };
 
 
@@ -1125,7 +1125,7 @@ static int netdrv_open(struct net_device *dev)
 	init_timer(&tp->timer);
 	tp->timer.expires = jiffies + 3 * HZ;
 	tp->timer.data = (unsigned long) dev;
-	tp->timer.function = &netdrv_timer;
+	tp->timer.function = netdrv_timer;
 	add_timer(&tp->timer);
 
 	DPRINTK("EXIT, returning 0\n");

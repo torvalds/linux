@@ -32,7 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/math64.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 
 #include <asm/uaccess.h>
@@ -53,12 +53,15 @@ MODULE_LICENSE("GPL");
 
 #define RTC_BITS 55 /* 55 bits for this implementation */
 
+static struct k_clock sgi_clock;
+
 extern unsigned long sn_rtc_cycles_per_second;
 
 #define RTC_COUNTER_ADDR        ((long *)LOCAL_MMR_ADDR(SH_RTC))
 
 #define rtc_time()              (*RTC_COUNTER_ADDR)
 
+static DEFINE_MUTEX(mmtimer_mutex);
 static long mmtimer_ioctl(struct file *file, unsigned int cmd,
 						unsigned long arg);
 static int mmtimer_mmap(struct file *file, struct vm_area_struct *vma);
@@ -72,6 +75,7 @@ static const struct file_operations mmtimer_fops = {
 	.owner = THIS_MODULE,
 	.mmap =	mmtimer_mmap,
 	.unlocked_ioctl = mmtimer_ioctl,
+	.llseek = noop_llseek,
 };
 
 /*
@@ -174,9 +178,9 @@ static void mmtimer_setup_int_2(int cpu, u64 expires)
  * in order to insure that the setup succeeds in a deterministic time frame.
  * It will check if the interrupt setup succeeded.
  */
-static int mmtimer_setup(int cpu, int comparator, unsigned long expires)
+static int mmtimer_setup(int cpu, int comparator, unsigned long expires,
+	u64 *set_completion_time)
 {
-
 	switch (comparator) {
 	case 0:
 		mmtimer_setup_int_0(cpu, expires);
@@ -189,7 +193,8 @@ static int mmtimer_setup(int cpu, int comparator, unsigned long expires)
 		break;
 	}
 	/* We might've missed our expiration time */
-	if (rtc_time() <= expires)
+	*set_completion_time = rtc_time();
+	if (*set_completion_time <= expires)
 		return 1;
 
 	/*
@@ -225,6 +230,8 @@ static int mmtimer_disable_int(long nasid, int comparator)
 #define TIMER_OFF	0xbadcabLL	/* Timer is not setup */
 #define TIMER_SET	0		/* Comparator is set for this timer */
 
+#define MMTIMER_INTERVAL_RETRY_INCREMENT_DEFAULT 40
+
 /* There is one of these for each timer */
 struct mmtimer {
 	struct rb_node list;
@@ -240,6 +247,11 @@ struct mmtimer_node {
 };
 static struct mmtimer_node *timers;
 
+static unsigned mmtimer_interval_retry_increment =
+	MMTIMER_INTERVAL_RETRY_INCREMENT_DEFAULT;
+module_param(mmtimer_interval_retry_increment, uint, 0644);
+MODULE_PARM_DESC(mmtimer_interval_retry_increment,
+	"RTC ticks to add to expiration on interval retry (default 40)");
 
 /*
  * Add a new mmtimer struct to the node's mmtimer list.
@@ -287,7 +299,8 @@ static void mmtimer_set_next_timer(int nodeid)
 	struct mmtimer_node *n = &timers[nodeid];
 	struct mmtimer *x;
 	struct k_itimer *t;
-	int o;
+	u64 expires, exp, set_completion_time;
+	int i;
 
 restart:
 	if (n->next == NULL)
@@ -298,7 +311,8 @@ restart:
 	if (!t->it.mmtimer.incr) {
 		/* Not an interval timer */
 		if (!mmtimer_setup(x->cpu, COMPARATOR,
-					t->it.mmtimer.expires)) {
+					t->it.mmtimer.expires,
+					&set_completion_time)) {
 			/* Late setup, fire now */
 			tasklet_schedule(&n->tasklet);
 		}
@@ -306,34 +320,28 @@ restart:
 	}
 
 	/* Interval timer */
-	o = 0;
-	while (!mmtimer_setup(x->cpu, COMPARATOR, t->it.mmtimer.expires)) {
-		unsigned long e, e1;
-		struct rb_node *next;
-		t->it.mmtimer.expires += t->it.mmtimer.incr << o;
-		t->it_overrun += 1 << o;
-		o++;
-		if (o > 20) {
+	i = 0;
+	expires = exp = t->it.mmtimer.expires;
+	while (!mmtimer_setup(x->cpu, COMPARATOR, expires,
+				&set_completion_time)) {
+		int to;
+
+		i++;
+		expires = set_completion_time +
+				mmtimer_interval_retry_increment + (1 << i);
+		/* Calculate overruns as we go. */
+		to = ((u64)(expires - exp) / t->it.mmtimer.incr);
+		if (to) {
+			t->it_overrun += to;
+			t->it.mmtimer.expires += t->it.mmtimer.incr * to;
+			exp = t->it.mmtimer.expires;
+		}
+		if (i > 20) {
 			printk(KERN_ALERT "mmtimer: cannot reschedule timer\n");
 			t->it.mmtimer.clock = TIMER_OFF;
 			n->next = rb_next(&x->list);
 			rb_erase(&x->list, &n->timer_head);
 			kfree(x);
-			goto restart;
-		}
-
-		e = t->it.mmtimer.expires;
-		next = rb_next(&x->list);
-
-		if (next == NULL)
-			continue;
-
-		e1 = rb_entry(next, struct mmtimer, list)->
-			timer->it.mmtimer.expires;
-		if (e > e1) {
-			n->next = next;
-			rb_erase(&x->list, &n->timer_head);
-			mmtimer_add_list(x);
 			goto restart;
 		}
 	}
@@ -371,7 +379,7 @@ static long mmtimer_ioctl(struct file *file, unsigned int cmd,
 {
 	int ret = 0;
 
-	lock_kernel();
+	mutex_lock(&mmtimer_mutex);
 
 	switch (cmd) {
 	case MMTIMER_GETOFFSET:	/* offset of the counter */
@@ -414,7 +422,7 @@ static long mmtimer_ioctl(struct file *file, unsigned int cmd,
 		ret = -ENOTTY;
 		break;
 	}
-	unlock_kernel();
+	mutex_unlock(&mmtimer_mutex);
 	return ret;
 }
 
@@ -481,7 +489,7 @@ static int sgi_clock_get(clockid_t clockid, struct timespec *tp)
 	return 0;
 };
 
-static int sgi_clock_set(clockid_t clockid, struct timespec *tp)
+static int sgi_clock_set(const clockid_t clockid, const struct timespec *tp)
 {
 
 	u64 nsec;
@@ -757,15 +765,21 @@ static int sgi_timer_set(struct k_itimer *timr, int flags,
 	return err;
 }
 
+static int sgi_clock_getres(const clockid_t which_clock, struct timespec *tp)
+{
+	tp->tv_sec = 0;
+	tp->tv_nsec = sgi_clock_period;
+	return 0;
+}
+
 static struct k_clock sgi_clock = {
-	.res = 0,
-	.clock_set = sgi_clock_set,
-	.clock_get = sgi_clock_get,
-	.timer_create = sgi_timer_create,
-	.nsleep = do_posix_clock_nonanosleep,
-	.timer_set = sgi_timer_set,
-	.timer_del = sgi_timer_del,
-	.timer_get = sgi_timer_get
+	.clock_set	= sgi_clock_set,
+	.clock_get	= sgi_clock_get,
+	.clock_getres	= sgi_clock_getres,
+	.timer_create	= sgi_timer_create,
+	.timer_set	= sgi_timer_set,
+	.timer_del	= sgi_timer_del,
+	.timer_get	= sgi_timer_get
 };
 
 /**
@@ -825,8 +839,8 @@ static int __init mmtimer_init(void)
 			(unsigned long) node);
 	}
 
-	sgi_clock_period = sgi_clock.res = NSEC_PER_SEC / sn_rtc_cycles_per_second;
-	register_posix_clock(CLOCK_SGI_CYCLE, &sgi_clock);
+	sgi_clock_period = NSEC_PER_SEC / sn_rtc_cycles_per_second;
+	posix_timers_register_clock(CLOCK_SGI_CYCLE, &sgi_clock);
 
 	printk(KERN_INFO "%s: v%s, %ld MHz\n", MMTIMER_DESC, MMTIMER_VERSION,
 	       sn_rtc_cycles_per_second/(unsigned long)1E6);

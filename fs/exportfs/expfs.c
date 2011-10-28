@@ -43,24 +43,26 @@ find_acceptable_alias(struct dentry *result,
 		void *context)
 {
 	struct dentry *dentry, *toput = NULL;
+	struct inode *inode;
 
 	if (acceptable(context, result))
 		return result;
 
-	spin_lock(&dcache_lock);
-	list_for_each_entry(dentry, &result->d_inode->i_dentry, d_alias) {
-		dget_locked(dentry);
-		spin_unlock(&dcache_lock);
+	inode = result->d_inode;
+	spin_lock(&inode->i_lock);
+	list_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+		dget(dentry);
+		spin_unlock(&inode->i_lock);
 		if (toput)
 			dput(toput);
 		if (dentry != result && acceptable(context, dentry)) {
 			dput(result);
 			return dentry;
 		}
-		spin_lock(&dcache_lock);
+		spin_lock(&inode->i_lock);
 		toput = dentry;
 	}
-	spin_unlock(&dcache_lock);
+	spin_unlock(&inode->i_lock);
 
 	if (toput)
 		dput(toput);
@@ -74,20 +76,19 @@ static struct dentry *
 find_disconnected_root(struct dentry *dentry)
 {
 	dget(dentry);
-	spin_lock(&dentry->d_lock);
-	while (!IS_ROOT(dentry) &&
-	       (dentry->d_parent->d_flags & DCACHE_DISCONNECTED)) {
-		struct dentry *parent = dentry->d_parent;
-		dget(parent);
-		spin_unlock(&dentry->d_lock);
+	while (!IS_ROOT(dentry)) {
+		struct dentry *parent = dget_parent(dentry);
+
+		if (!(parent->d_flags & DCACHE_DISCONNECTED)) {
+			dput(parent);
+			break;
+		}
+
 		dput(dentry);
 		dentry = parent;
-		spin_lock(&dentry->d_lock);
 	}
-	spin_unlock(&dentry->d_lock);
 	return dentry;
 }
-
 
 /*
  * Make sure target_dir is fully connected to the dentry tree.
@@ -319,9 +320,14 @@ static int export_encode_fh(struct dentry *dentry, struct fid *fid,
 	struct inode * inode = dentry->d_inode;
 	int len = *max_len;
 	int type = FILEID_INO32_GEN;
-	
-	if (len < 2 || (connectable && len < 4))
+
+	if (connectable && (len < 4)) {
+		*max_len = 4;
 		return 255;
+	} else if (len < 2) {
+		*max_len = 2;
+		return 255;
+	}
 
 	len = 2;
 	fid->i32.ino = inode->i_ino;
@@ -368,6 +374,8 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 	/*
 	 * Try to get any dentry for the given file handle from the filesystem.
 	 */
+	if (!nop || !nop->fh_to_dentry)
+		return ERR_PTR(-ESTALE);
 	result = nop->fh_to_dentry(mnt->mnt_sb, fid, fh_len, fileid_type);
 	if (!result)
 		result = ERR_PTR(-ESTALE);

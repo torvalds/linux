@@ -1,10 +1,12 @@
 /* Glue code to lib/swiotlb-xen.c */
 
 #include <linux/dma-mapping.h>
+#include <linux/pci.h>
 #include <xen/swiotlb-xen.h>
 
 #include <asm/xen/hypervisor.h>
 #include <xen/xen.h>
+#include <asm/iommu_table.h>
 
 int xen_swiotlb __read_mostly;
 
@@ -34,7 +36,7 @@ int __init pci_xen_swiotlb_detect(void)
 
 	/* If running as PV guest, either iommu=soft, or swiotlb=force will
 	 * activate this IOMMU. If running as PV privileged, activate it
-	 * irregardlesss.
+	 * irregardless.
 	 */
 	if ((xen_initial_domain() || swiotlb || swiotlb_force) &&
 	    (xen_pv_domain()))
@@ -54,5 +56,12 @@ void __init pci_xen_swiotlb_init(void)
 	if (xen_swiotlb) {
 		xen_swiotlb_init(1);
 		dma_ops = &xen_swiotlb_dma_ops;
+
+		/* Make sure ACS will be enabled */
+		pci_request_acs();
 	}
 }
+IOMMU_INIT_FINISH(pci_xen_swiotlb_detect,
+		  0,
+		  pci_xen_swiotlb_init,
+		  0);

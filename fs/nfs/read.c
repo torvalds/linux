@@ -18,8 +18,10 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
+#include <linux/module.h>
 
 #include <asm/system.h>
+#include "pnfs.h"
 
 #include "nfs4_fs.h"
 #include "internal.h"
@@ -28,8 +30,8 @@
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
-static int nfs_pagein_multi(struct inode *, struct list_head *, unsigned int, size_t, int);
-static int nfs_pagein_one(struct inode *, struct list_head *, unsigned int, size_t, int);
+static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc);
+static int nfs_pagein_one(struct nfs_pageio_descriptor *desc);
 static const struct rpc_call_ops nfs_read_partial_ops;
 static const struct rpc_call_ops nfs_read_full_ops;
 
@@ -46,7 +48,6 @@ struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
 		p->npages = pagecount;
-		p->res.seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
 		if (pagecount <= ARRAY_SIZE(p->page_array))
 			p->pagevec = p->page_array;
 		else {
@@ -69,6 +70,7 @@ void nfs_readdata_free(struct nfs_read_data *p)
 
 static void nfs_readdata_release(struct nfs_read_data *rdata)
 {
+	put_lseg(rdata->lseg);
 	put_nfs_open_context(rdata->args.context);
 	nfs_readdata_free(rdata);
 }
@@ -114,9 +116,9 @@ static void nfs_readpage_truncate_uninitialised_page(struct nfs_read_data *data)
 int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 		       struct page *page)
 {
-	LIST_HEAD(one_request);
 	struct nfs_page	*new;
 	unsigned int len;
+	struct nfs_pageio_descriptor pgio;
 
 	len = nfs_page_length(page);
 	if (len == 0)
@@ -129,11 +131,14 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	if (len < PAGE_CACHE_SIZE)
 		zero_user_segment(page, len, PAGE_CACHE_SIZE);
 
-	nfs_list_add_request(new, &one_request);
+	nfs_pageio_init(&pgio, inode, NULL, 0, 0);
+	nfs_list_add_request(new, &pgio.pg_list);
+	pgio.pg_count = len;
+
 	if (NFS_SERVER(inode)->rsize < PAGE_CACHE_SIZE)
-		nfs_pagein_multi(inode, &one_request, 1, len, 0);
+		nfs_pagein_multi(&pgio);
 	else
-		nfs_pagein_one(inode, &one_request, 1, len, 0);
+		nfs_pagein_one(&pgio);
 	return 0;
 }
 
@@ -151,28 +156,23 @@ static void nfs_readpage_release(struct nfs_page *req)
 			(long long)NFS_FILEID(req->wb_context->path.dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
-	nfs_clear_request(req);
 	nfs_release_request(req);
 }
 
-/*
- * Set up the NFS read request struct
- */
-static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
-		const struct rpc_call_ops *call_ops,
-		unsigned int count, unsigned int offset)
+int nfs_initiate_read(struct nfs_read_data *data, struct rpc_clnt *clnt,
+		      const struct rpc_call_ops *call_ops)
 {
-	struct inode *inode = req->wb_context->path.dentry->d_inode;
+	struct inode *inode = data->inode;
 	int swap_flags = IS_SWAPFILE(inode) ? NFS_RPC_SWAPFLAGS : 0;
 	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_argp = &data->args,
 		.rpc_resp = &data->res,
-		.rpc_cred = req->wb_context->cred,
+		.rpc_cred = data->cred,
 	};
 	struct rpc_task_setup task_setup_data = {
 		.task = &data->task,
-		.rpc_client = NFS_CLIENT(inode),
+		.rpc_client = clnt,
 		.rpc_message = &msg,
 		.callback_ops = call_ops,
 		.callback_data = data,
@@ -180,9 +180,39 @@ static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 		.flags = RPC_TASK_ASYNC | swap_flags,
 	};
 
+	/* Set up the initial task struct. */
+	NFS_PROTO(inode)->read_setup(data, &msg);
+
+	dprintk("NFS: %5u initiated read call (req %s/%lld, %u bytes @ "
+			"offset %llu)\n",
+			data->task.tk_pid,
+			inode->i_sb->s_id,
+			(long long)NFS_FILEID(inode),
+			data->args.count,
+			(unsigned long long)data->args.offset);
+
+	task = rpc_run_task(&task_setup_data);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	rpc_put_task(task);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nfs_initiate_read);
+
+/*
+ * Set up the NFS read request struct
+ */
+static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
+		const struct rpc_call_ops *call_ops,
+		unsigned int count, unsigned int offset,
+		struct pnfs_layout_segment *lseg)
+{
+	struct inode *inode = req->wb_context->path.dentry->d_inode;
+
 	data->req	  = req;
 	data->inode	  = inode;
-	data->cred	  = msg.rpc_cred;
+	data->cred	  = req->wb_context->cred;
+	data->lseg	  = get_lseg(lseg);
 
 	data->args.fh     = NFS_FH(inode);
 	data->args.offset = req_offset(req) + offset;
@@ -197,21 +227,11 @@ static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	data->res.eof     = 0;
 	nfs_fattr_init(&data->fattr);
 
-	/* Set up the initial task struct. */
-	NFS_PROTO(inode)->read_setup(data, &msg);
+	if (data->lseg &&
+	    (pnfs_try_to_read_data(data, call_ops) == PNFS_ATTEMPTED))
+		return 0;
 
-	dprintk("NFS: %5u initiated read call (req %s/%Ld, %u bytes @ offset %Lu)\n",
-			data->task.tk_pid,
-			inode->i_sb->s_id,
-			(long long)NFS_FILEID(inode),
-			count,
-			(unsigned long long)data->args.offset);
-
-	task = rpc_run_task(&task_setup_data);
-	if (IS_ERR(task))
-		return PTR_ERR(task);
-	rpc_put_task(task);
-	return 0;
+	return nfs_initiate_read(data, NFS_CLIENT(inode), call_ops);
 }
 
 static void
@@ -240,20 +260,21 @@ nfs_async_read_error(struct list_head *head)
  * won't see the new data until our attribute cache is updated.  This is more
  * or less conventional NFS client behavior.
  */
-static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigned int npages, size_t count, int flags)
+static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc)
 {
-	struct nfs_page *req = nfs_list_entry(head->next);
+	struct nfs_page *req = nfs_list_entry(desc->pg_list.next);
 	struct page *page = req->wb_page;
 	struct nfs_read_data *data;
-	size_t rsize = NFS_SERVER(inode)->rsize, nbytes;
+	size_t rsize = NFS_SERVER(desc->pg_inode)->rsize, nbytes;
 	unsigned int offset;
 	int requests = 0;
 	int ret = 0;
+	struct pnfs_layout_segment *lseg;
 	LIST_HEAD(list);
 
 	nfs_list_remove_request(req);
 
-	nbytes = count;
+	nbytes = desc->pg_count;
 	do {
 		size_t len = min(nbytes,rsize);
 
@@ -266,9 +287,13 @@ static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigne
 	} while(nbytes != 0);
 	atomic_set(&req->wb_complete, requests);
 
+	BUG_ON(desc->pg_lseg != NULL);
+	lseg = pnfs_update_layout(desc->pg_inode, req->wb_context,
+				  req_offset(req), desc->pg_count,
+				  IOMODE_READ, GFP_KERNEL);
 	ClearPageError(page);
 	offset = 0;
-	nbytes = count;
+	nbytes = desc->pg_count;
 	do {
 		int ret2;
 
@@ -280,12 +305,14 @@ static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigne
 		if (nbytes < rsize)
 			rsize = nbytes;
 		ret2 = nfs_read_rpcsetup(req, data, &nfs_read_partial_ops,
-				  rsize, offset);
+					 rsize, offset, lseg);
 		if (ret == 0)
 			ret = ret2;
 		offset += rsize;
 		nbytes -= rsize;
 	} while (nbytes != 0);
+	put_lseg(lseg);
+	desc->pg_lseg = NULL;
 
 	return ret;
 
@@ -300,16 +327,21 @@ out_bad:
 	return -ENOMEM;
 }
 
-static int nfs_pagein_one(struct inode *inode, struct list_head *head, unsigned int npages, size_t count, int flags)
+static int nfs_pagein_one(struct nfs_pageio_descriptor *desc)
 {
 	struct nfs_page		*req;
 	struct page		**pages;
 	struct nfs_read_data	*data;
+	struct list_head *head = &desc->pg_list;
+	struct pnfs_layout_segment *lseg = desc->pg_lseg;
 	int ret = -ENOMEM;
 
-	data = nfs_readdata_alloc(npages);
-	if (!data)
-		goto out_bad;
+	data = nfs_readdata_alloc(nfs_page_array_len(desc->pg_base,
+						     desc->pg_count));
+	if (!data) {
+		nfs_async_read_error(head);
+		goto out;
+	}
 
 	pages = data->pagevec;
 	while (!list_empty(head)) {
@@ -320,10 +352,16 @@ static int nfs_pagein_one(struct inode *inode, struct list_head *head, unsigned 
 		*pages++ = req->wb_page;
 	}
 	req = nfs_list_entry(data->pages.next);
+	if ((!lseg) && list_is_singular(&data->pages))
+		lseg = pnfs_update_layout(desc->pg_inode, req->wb_context,
+					  req_offset(req), desc->pg_count,
+					  IOMODE_READ, GFP_KERNEL);
 
-	return nfs_read_rpcsetup(req, data, &nfs_read_full_ops, count, 0);
-out_bad:
-	nfs_async_read_error(head);
+	ret = nfs_read_rpcsetup(req, data, &nfs_read_full_ops, desc->pg_count,
+				0, lseg);
+out:
+	put_lseg(lseg);
+	desc->pg_lseg = NULL;
 	return ret;
 }
 
@@ -366,6 +404,7 @@ static void nfs_readpage_retry(struct rpc_task *task, struct nfs_read_data *data
 		return;
 
 	/* Yes, so retry the read at the end of the data */
+	data->mds_offset += resp->count;
 	argp->offset += resp->count;
 	argp->pgbase += resp->count;
 	argp->count -= resp->count;

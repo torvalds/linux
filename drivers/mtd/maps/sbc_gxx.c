@@ -182,7 +182,7 @@ static struct mtd_info *all_mtd;
 static void cleanup_sbc_gxx(void)
 {
 	if( all_mtd ) {
-		del_mtd_partitions( all_mtd );
+		mtd_device_unregister(all_mtd);
 		map_destroy( all_mtd );
 	}
 
@@ -223,7 +223,7 @@ static int __init init_sbc_gxx(void)
 	all_mtd->owner = THIS_MODULE;
 
 	/* Create MTD devices for each partition. */
-	add_mtd_partitions(all_mtd, partition_info, NUM_PARTITIONS );
+	mtd_device_register(all_mtd, partition_info, NUM_PARTITIONS);
 
 	return 0;
 }

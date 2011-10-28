@@ -37,7 +37,6 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/signal.h>
 #include <linux/poll.h>
 #include <linux/module.h>
@@ -803,7 +802,7 @@ static int proc_control(struct dev_state *ps, void __user *arg)
 				    tbuf, ctrl.wLength, tmo);
 		usb_lock_device(dev);
 		snoop_urb(dev, NULL, pipe, max(i, 0), min(i, 0), COMPLETE,
-			tbuf, i);
+			  tbuf, max(i, 0));
 		if ((i > 0) && ctrl.wLength) {
 			if (copy_to_user(ctrl.data, tbuf, i)) {
 				free_page((unsigned long)tbuf);
@@ -965,10 +964,11 @@ static int proc_getdriver(struct dev_state *ps, void __user *arg)
 
 static int proc_connectinfo(struct dev_state *ps, void __user *arg)
 {
-	struct usbdevfs_connectinfo ci;
+	struct usbdevfs_connectinfo ci = {
+		.devnum = ps->dev->devnum,
+		.slow = ps->dev->speed == USB_SPEED_LOW
+	};
 
-	ci.devnum = ps->dev->devnum;
-	ci.slow = ps->dev->speed == USB_SPEED_LOW;
 	if (copy_to_user(arg, &ci, sizeof(ci)))
 		return -EFAULT;
 	return 0;

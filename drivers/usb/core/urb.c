@@ -366,7 +366,16 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	if (xfertype == USB_ENDPOINT_XFER_ISOC) {
 		int	n, len;
 
-		/* FIXME SuperSpeed isoc endpoints have up to 16 bursts */
+		/* SuperSpeed isoc endpoints have up to 16 bursts of up to
+		 * 3 packets each
+		 */
+		if (dev->speed == USB_SPEED_SUPER) {
+			int     burst = 1 + ep->ss_ep_comp.bMaxBurst;
+			int     mult = USB_SS_MULT(ep->ss_ep_comp.bmAttributes);
+			max *= burst;
+			max *= mult;
+		}
+
 		/* "high bandwidth" mode, 1-3 packets/uframe? */
 		if (dev->speed == USB_SPEED_HIGH) {
 			int	mult = 1 + ((max >> 11) & 0x03);
@@ -401,8 +410,11 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	};
 
 	/* Check that the pipe's type matches the endpoint's type */
-	if (usb_pipetype(urb->pipe) != pipetypes[xfertype])
+	if (usb_pipetype(urb->pipe) != pipetypes[xfertype]) {
+		dev_err(&dev->dev, "BOGUS urb xfer, pipe %x != type %x\n",
+			usb_pipetype(urb->pipe), pipetypes[xfertype]);
 		return -EPIPE;		/* The most suitable error code :-) */
+	}
 
 	/* enforce simple/standard policy */
 	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_INTERRUPT | URB_DIR_MASK |

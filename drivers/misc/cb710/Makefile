@@ -1,6 +1,4 @@
-ifeq ($(CONFIG_CB710_DEBUG),y)
-	EXTRA_CFLAGS		+= -DDEBUG
-endif
+ccflags-$(CONFIG_CB710_DEBUG)	:= -DDEBUG
 
 obj-$(CONFIG_CB710_CORE)	+= cb710.o
 

@@ -1,0 +1,9 @@
+#
+# West Bridge gadget driver configuration
+#
+
+config WESTBRIDGE_GADGET_DRIVER
+	tristate "West Bridge Gadget Driver"
+	help
+		Include the West Bridge based gadget peripheral controller driver
+

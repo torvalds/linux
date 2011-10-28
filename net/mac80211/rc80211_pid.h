@@ -24,9 +24,6 @@
 /* Fixed point arithmetic shifting amount. */
 #define RC_PID_ARITH_SHIFT		8
 
-/* Fixed point arithmetic factor. */
-#define RC_PID_ARITH_FACTOR		(1 << RC_PID_ARITH_SHIFT)
-
 /* Proportional PID component coefficient. */
 #define RC_PID_COEFF_P			15
 /* Integral PID component coefficient. */
@@ -80,7 +77,7 @@ union rc_pid_event_data {
 };
 
 struct rc_pid_event {
-	/* The time when the event occured */
+	/* The time when the event occurred */
 	unsigned long timestamp;
 
 	/* Event ID number */

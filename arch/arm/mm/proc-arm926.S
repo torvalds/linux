@@ -111,6 +111,17 @@ ENTRY(cpu_arm926_do_idle)
 	mov	pc, lr
 
 /*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(arm926_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(arm926_flush_icache_all)
+
+/*
  *	flush_user_cache_all()
  *
  *	Clean and invalidate all cache entries in a particular
@@ -325,6 +336,7 @@ ENTRY(arm926_dma_unmap_area)
 ENDPROC(arm926_dma_unmap_area)
 
 ENTRY(arm926_cache_fns)
+	.long	arm926_flush_icache_all
 	.long	arm926_flush_kern_cache_all
 	.long	arm926_flush_user_cache_all
 	.long	arm926_flush_user_cache_range
@@ -389,7 +401,41 @@ ENTRY(cpu_arm926_set_pte_ext)
 #endif
 	mov	pc, lr
 
-	__INIT
+/* Suspend/resume support: taken from arch/arm/plat-s3c24xx/sleep.S */
+.globl	cpu_arm926_suspend_size
+.equ	cpu_arm926_suspend_size, 4 * 3
+#ifdef CONFIG_PM_SLEEP
+ENTRY(cpu_arm926_do_suspend)
+	stmfd	sp!, {r4 - r7, lr}
+	mrc	p15, 0, r4, c13, c0, 0	@ PID
+	mrc	p15, 0, r5, c3, c0, 0	@ Domain ID
+	mrc	p15, 0, r6, c2, c0, 0	@ TTB address
+	mrc	p15, 0, r7, c1, c0, 0	@ Control register
+	stmia	r0, {r4 - r7}
+	ldmfd	sp!, {r4 - r7, pc}
+ENDPROC(cpu_arm926_do_suspend)
+
+ENTRY(cpu_arm926_do_resume)
+	mov	ip, #0
+	mcr	p15, 0, ip, c8, c7, 0	@ invalidate I+D TLBs
+	mcr	p15, 0, ip, c7, c7, 0	@ invalidate I+D caches
+	ldmia	r0, {r4 - r7}
+	mcr	p15, 0, r4, c13, c0, 0	@ PID
+	mcr	p15, 0, r5, c3, c0, 0	@ Domain ID
+	mcr	p15, 0, r6, c2, c0, 0	@ TTB address
+	mov	r0, r7			@ control register
+	mov	r2, r6, lsr #14		@ get TTB0 base
+	mov	r2, r2, lsl #14
+	ldr	r3, =PMD_TYPE_SECT | PMD_SECT_BUFFERABLE | \
+		     PMD_SECT_CACHEABLE | PMD_BIT4 | PMD_SECT_AP_WRITE
+	b	cpu_resume_mmu
+ENDPROC(cpu_arm926_do_resume)
+#else
+#define cpu_arm926_do_suspend	0
+#define cpu_arm926_do_resume	0
+#endif
+
+	__CPUINIT
 
 	.type	__arm926_setup, #function
 __arm926_setup:
@@ -444,6 +490,9 @@ arm926_processor_functions:
 	.word	cpu_arm926_dcache_clean_area
 	.word	cpu_arm926_switch_mm
 	.word	cpu_arm926_set_pte_ext
+	.word	cpu_arm926_suspend_size
+	.word	cpu_arm926_do_suspend
+	.word	cpu_arm926_do_resume
 	.size	arm926_processor_functions, . - arm926_processor_functions
 
 	.section ".rodata"

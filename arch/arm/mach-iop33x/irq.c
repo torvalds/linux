@@ -53,45 +53,45 @@ static void intsize_write(u32 val)
 }
 
 static void
-iop33x_irq_mask1 (unsigned int irq)
+iop33x_irq_mask1 (struct irq_data *d)
 {
-	iop33x_mask0 &= ~(1 << irq);
+	iop33x_mask0 &= ~(1 << d->irq);
 	intctl0_write(iop33x_mask0);
 }
 
 static void
-iop33x_irq_mask2 (unsigned int irq)
+iop33x_irq_mask2 (struct irq_data *d)
 {
-	iop33x_mask1 &= ~(1 << (irq - 32));
+	iop33x_mask1 &= ~(1 << (d->irq - 32));
 	intctl1_write(iop33x_mask1);
 }
 
 static void
-iop33x_irq_unmask1(unsigned int irq)
+iop33x_irq_unmask1(struct irq_data *d)
 {
-	iop33x_mask0 |= 1 << irq;
+	iop33x_mask0 |= 1 << d->irq;
 	intctl0_write(iop33x_mask0);
 }
 
 static void
-iop33x_irq_unmask2(unsigned int irq)
+iop33x_irq_unmask2(struct irq_data *d)
 {
-	iop33x_mask1 |= (1 << (irq - 32));
+	iop33x_mask1 |= (1 << (d->irq - 32));
 	intctl1_write(iop33x_mask1);
 }
 
 struct irq_chip iop33x_irqchip1 = {
-	.name	= "IOP33x-1",
-	.ack	= iop33x_irq_mask1,
-	.mask	= iop33x_irq_mask1,
-	.unmask	= iop33x_irq_unmask1,
+	.name		= "IOP33x-1",
+	.irq_ack	= iop33x_irq_mask1,
+	.irq_mask	= iop33x_irq_mask1,
+	.irq_unmask	= iop33x_irq_unmask1,
 };
 
 struct irq_chip iop33x_irqchip2 = {
-	.name	= "IOP33x-2",
-	.ack	= iop33x_irq_mask2,
-	.mask	= iop33x_irq_mask2,
-	.unmask	= iop33x_irq_unmask2,
+	.name		= "IOP33x-2",
+	.irq_ack	= iop33x_irq_mask2,
+	.irq_mask	= iop33x_irq_mask2,
+	.irq_unmask	= iop33x_irq_unmask2,
 };
 
 void __init iop33x_init_irq(void)
@@ -110,8 +110,9 @@ void __init iop33x_init_irq(void)
 		*IOP3XX_PCIIRSR = 0x0f;
 
 	for (i = 0; i < NR_IRQS; i++) {
-		set_irq_chip(i, (i < 32) ? &iop33x_irqchip1 : &iop33x_irqchip2);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i,
+					 (i < 32) ? &iop33x_irqchip1 : &iop33x_irqchip2,
+					 handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 }

@@ -454,7 +454,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 				goto out; /* scan completed */
 
 		}while(!channel_map[ch]);
-		/* this fuction can be called in two situations
+		/* this function can be called in two situations
 		 * 1- We have switched to ad-hoc mode and we are
 		 *    performing a complete syncro scan before conclude
 		 *    there are no interesting cell and to create a
@@ -517,7 +517,7 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
 //	printk("=======hh===============>ips scan\n");
      	while(1)
         {
-                /* this fuction can be called in two situations
+                /* this function can be called in two situations
                  * 1- We have switched to ad-hoc mode and we are
                  *    performing a complete syncro scan before conclude
                  *    there are no interesting cell and to create a
@@ -1435,8 +1435,9 @@ static inline u16 auth_parse(struct sk_buff *skb, u8** challenge, int *chlen)
 
 		if(*(t++) == MFIE_TYPE_CHALLENGE){
 			*chlen = *(t++);
-			*challenge = kmalloc(*chlen, GFP_ATOMIC);
-			memcpy(*challenge, t, *chlen);
+			*challenge = kmemdup(t, *chlen, GFP_ATOMIC);
+			if (!*challenge)
+				return -ENOMEM;
 		}
 	}
 
@@ -1953,7 +1954,7 @@ associate_complete:
 
 
 
-/* following are for a simplier TX queue management.
+/* following are for a simpler TX queue management.
  * Instead of using netif_[stop/wake]_queue the driver
  * will uses these two function (plus a reset one), that
  * will internally uses the kernel netif_* and takes
@@ -2604,8 +2605,7 @@ void ieee80211_softmac_free(struct ieee80211_device *ieee)
 	cancel_delayed_work(&ieee->GPIOChangeRFWorkItem);
 
 	destroy_workqueue(ieee->wq);
-	if(NULL != ieee->pDot11dInfo)
-		kfree(ieee->pDot11dInfo);
+	kfree(ieee->pDot11dInfo);
 	up(&ieee->wx_sem);
 }
 

@@ -4,7 +4,7 @@
  *	Copyright (C) 2006-2007
  *		Ivan N. Zlatev <contact@i-nz.net>
  *	Copyright (C) 2008-2009
- *		Laurent Pinchart <laurent.pinchart@skynet.be>
+ *		Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by

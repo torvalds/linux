@@ -17,11 +17,11 @@
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
 #include <linux/sched.h>
-#include <linux/cnt32_to_63.h>
 
 #include <asm/div64.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
+#include <asm/sched_clock.h>
 #include <mach/regs-ost.h>
 
 /*
@@ -32,29 +32,18 @@
  * long as there is always less than 582 seconds between successive
  * calls to sched_clock() which should always be the case in practice.
  */
+static DEFINE_CLOCK_DATA(cd);
 
-#define OSCR2NS_SCALE_FACTOR 10
-
-static unsigned long oscr2ns_scale;
-
-static void __init set_oscr2ns_scale(unsigned long oscr_rate)
+unsigned long long notrace sched_clock(void)
 {
-	unsigned long long v = 1000000000ULL << OSCR2NS_SCALE_FACTOR;
-	do_div(v, oscr_rate);
-	oscr2ns_scale = v;
-	/*
-	 * We want an even value to automatically clear the top bit
-	 * returned by cnt32_to_63() without an additional run time
-	 * instruction. So if the LSB is 1 then round it up.
-	 */
-	if (oscr2ns_scale & 1)
-		oscr2ns_scale++;
+	u32 cyc = OSCR;
+	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
 }
 
-unsigned long long sched_clock(void)
+static void notrace pxa_update_sched_clock(void)
 {
-	unsigned long long v = cnt32_to_63(OSCR);
-	return (v * oscr2ns_scale) >> OSCR2NS_SCALE_FACTOR;
+	u32 cyc = OSCR;
+	update_sched_clock(&cd, cyc, (u32)~0);
 }
 
 
@@ -111,24 +100,9 @@ pxa_osmr0_set_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 static struct clock_event_device ckevt_pxa_osmr0 = {
 	.name		= "osmr0",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
 	.rating		= 200,
 	.set_next_event	= pxa_osmr0_set_next_event,
 	.set_mode	= pxa_osmr0_set_mode,
-};
-
-static cycle_t pxa_read_oscr(struct clocksource *cs)
-{
-	return OSCR;
-}
-
-static struct clocksource cksrc_pxa_oscr0 = {
-	.name           = "oscr0",
-	.rating         = 200,
-	.read           = pxa_read_oscr,
-	.mask           = CLOCKSOURCE_MASK(32),
-	.shift          = 20,
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static struct irqaction pxa_ost0_irq = {
@@ -145,22 +119,19 @@ static void __init pxa_timer_init(void)
 	OIER = 0;
 	OSSR = OSSR_M0 | OSSR_M1 | OSSR_M2 | OSSR_M3;
 
-	set_oscr2ns_scale(clock_tick_rate);
+	init_sched_clock(&cd, pxa_update_sched_clock, 32, clock_tick_rate);
 
-	ckevt_pxa_osmr0.mult =
-		div_sc(clock_tick_rate, NSEC_PER_SEC, ckevt_pxa_osmr0.shift);
+	clockevents_calc_mult_shift(&ckevt_pxa_osmr0, clock_tick_rate, 4);
 	ckevt_pxa_osmr0.max_delta_ns =
 		clockevent_delta2ns(0x7fffffff, &ckevt_pxa_osmr0);
 	ckevt_pxa_osmr0.min_delta_ns =
 		clockevent_delta2ns(MIN_OSCR_DELTA * 2, &ckevt_pxa_osmr0) + 1;
 	ckevt_pxa_osmr0.cpumask = cpumask_of(0);
 
-	cksrc_pxa_oscr0.mult =
-		clocksource_hz2mult(clock_tick_rate, cksrc_pxa_oscr0.shift);
-
 	setup_irq(IRQ_OST0, &pxa_ost0_irq);
 
-	clocksource_register(&cksrc_pxa_oscr0);
+	clocksource_mmio_init(&OSCR, "oscr0", clock_tick_rate, 200, 32,
+		clocksource_mmio_readl_up);
 	clockevents_register_device(&ckevt_pxa_osmr0);
 }
 

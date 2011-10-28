@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -144,7 +144,7 @@ void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value)
  *  @hw: pointer to the HW structure
  *  @rar_count: receive address registers
  *
- *  Setups the receive address registers by setting the base receive address
+ *  Setup the receive address registers by setting the base receive address
  *  register to the devices MAC address and clearing all the other receive
  *  address registers to 0.
  **/
@@ -493,9 +493,8 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	 * different link partner.
 	 */
 	ret_val = e1000e_config_fc_after_link_up(hw);
-	if (ret_val) {
+	if (ret_val)
 		e_dbg("Error configuring flow control\n");
-	}
 
 	return ret_val;
 }
@@ -534,7 +533,7 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
 			mac->autoneg_failed = 1;
 			return 0;
 		}
-		e_dbg("NOT RXing /C/, disable AutoNeg and force link.\n");
+		e_dbg("NOT Rx'ing /C/, disable AutoNeg and force link.\n");
 
 		/* Disable auto-negotiation in the TXCW register */
 		ew32(TXCW, (mac->txcw & ~E1000_TXCW_ANE));
@@ -557,7 +556,7 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
 		 * and disable forced link in the Device Control register
 		 * in an attempt to auto-negotiate with our link partner.
 		 */
-		e_dbg("RXing /C/, enable AutoNeg and stop forcing link.\n");
+		e_dbg("Rx'ing /C/, enable AutoNeg and stop forcing link.\n");
 		ew32(TXCW, mac->txcw);
 		ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 
@@ -599,7 +598,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 			mac->autoneg_failed = 1;
 			return 0;
 		}
-		e_dbg("NOT RXing /C/, disable AutoNeg and force link.\n");
+		e_dbg("NOT Rx'ing /C/, disable AutoNeg and force link.\n");
 
 		/* Disable auto-negotiation in the TXCW register */
 		ew32(TXCW, (mac->txcw & ~E1000_TXCW_ANE));
@@ -622,7 +621,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 		 * and disable forced link in the Device Control register
 		 * in an attempt to auto-negotiate with our link partner.
 		 */
-		e_dbg("RXing /C/, enable AutoNeg and stop forcing link.\n");
+		e_dbg("Rx'ing /C/, enable AutoNeg and stop forcing link.\n");
 		ew32(TXCW, mac->txcw);
 		ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 
@@ -801,9 +800,9 @@ static s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause frames,
-	 *	  but not send pause frames).
+	 *          but not send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames but we
-	 *	  do not support receiving pause frames).
+	 *          do not support receiving pause frames).
 	 *      3:  Both Rx and Tx flow control (symmetric) are enabled.
 	 */
 	switch (hw->fc.current_mode) {
@@ -869,7 +868,7 @@ static s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw)
 	 * milliseconds even if the other end is doing it in SW).
 	 */
 	for (i = 0; i < FIBER_LINK_UP_LIMIT; i++) {
-		msleep(10);
+		usleep_range(10000, 20000);
 		status = er32(STATUS);
 		if (status & E1000_STATUS_LU)
 			break;
@@ -931,7 +930,7 @@ s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw)
 
 	ew32(CTRL, ctrl);
 	e1e_flush();
-	msleep(1);
+	usleep_range(1000, 2000);
 
 	/*
 	 * For these adapters, the SW definable pin 1 is set when the optics
@@ -1032,9 +1031,9 @@ s32 e1000e_force_mac_fc(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause
-	 *	  frames but not send pause frames).
+	 *          frames but not send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames
-	 *	  frames but we do not receive pause frames).
+	 *          frames but we do not receive pause frames).
 	 *      3:  Both Rx and Tx flow control (symmetric) is enabled.
 	 *  other:  No other values should be possible at this point.
 	 */
@@ -1136,7 +1135,8 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		ret_val = e1e_rphy(hw, PHY_AUTONEG_ADV, &mii_nway_adv_reg);
 		if (ret_val)
 			return ret_val;
-		ret_val = e1e_rphy(hw, PHY_LP_ABILITY, &mii_nway_lp_ability_reg);
+		ret_val =
+		    e1e_rphy(hw, PHY_LP_ABILITY, &mii_nway_lp_ability_reg);
 		if (ret_val)
 			return ret_val;
 
@@ -1181,7 +1181,7 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			 * of pause frames.  In this case, we had to advertise
 			 * FULL flow control because we could not advertise Rx
 			 * ONLY. Hence, we must now check to see if we need to
-			 * turn OFF  the TRANSMISSION of PAUSE frames.
+			 * turn OFF the TRANSMISSION of PAUSE frames.
 			 */
 			if (hw->fc.requested_mode == e1000_fc_full) {
 				hw->fc.current_mode = e1000_fc_full;
@@ -1189,7 +1189,7 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			} else {
 				hw->fc.current_mode = e1000_fc_rx_pause;
 				e_dbg("Flow Control = "
-					 "RX PAUSE frames only.\r\n");
+				      "Rx PAUSE frames only.\r\n");
 			}
 		}
 		/*
@@ -1385,7 +1385,7 @@ s32 e1000e_get_auto_rd_done(struct e1000_hw *hw)
 	while (i < AUTO_READ_DONE_TIMEOUT) {
 		if (er32(EECD) & E1000_EECD_AUTO_RD)
 			break;
-		msleep(1);
+		usleep_range(1000, 2000);
 		i++;
 	}
 
@@ -1496,9 +1496,8 @@ s32 e1000e_setup_led_generic(struct e1000_hw *hw)
 {
 	u32 ledctl;
 
-	if (hw->mac.ops.setup_led != e1000e_setup_led_generic) {
+	if (hw->mac.ops.setup_led != e1000e_setup_led_generic)
 		return -E1000_ERR_CONFIG;
-	}
 
 	if (hw->phy.media_type == e1000_media_type_fiber) {
 		ledctl = er32(LEDCTL);
@@ -1531,12 +1530,12 @@ s32 e1000e_cleanup_led_generic(struct e1000_hw *hw)
 }
 
 /**
- *  e1000e_blink_led - Blink LED
+ *  e1000e_blink_led_generic - Blink LED
  *  @hw: pointer to the HW structure
  *
  *  Blink the LEDs which are set to be on.
  **/
-s32 e1000e_blink_led(struct e1000_hw *hw)
+s32 e1000e_blink_led_generic(struct e1000_hw *hw)
 {
 	u32 ledctl_blink = 0;
 	u32 i;
@@ -1979,15 +1978,15 @@ static s32 e1000_ready_nvm_eeprom(struct e1000_hw *hw)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	u32 eecd = er32(EECD);
-	u16 timeout = 0;
 	u8 spi_stat_reg;
 
 	if (nvm->type == e1000_nvm_eeprom_spi) {
+		u16 timeout = NVM_MAX_RETRY_SPI;
+
 		/* Clear SK and CS */
 		eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
 		ew32(EECD, eecd);
 		udelay(1);
-		timeout = NVM_MAX_RETRY_SPI;
 
 		/*
 		 * Read "Status Register" repeatedly until the LSB is cleared.
@@ -2088,8 +2087,6 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	if (ret_val)
 		return ret_val;
 
-	msleep(10);
-
 	while (widx < words) {
 		u8 write_opcode = NVM_WRITE_OPCODE_SPI;
 
@@ -2133,9 +2130,122 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 		}
 	}
 
-	msleep(10);
+	usleep_range(10000, 20000);
 	nvm->ops.release(hw);
 	return 0;
+}
+
+/**
+ *  e1000_read_pba_string_generic - Read device part number
+ *  @hw: pointer to the HW structure
+ *  @pba_num: pointer to device part number
+ *  @pba_num_size: size of part number buffer
+ *
+ *  Reads the product board assembly (PBA) number from the EEPROM and stores
+ *  the value in pba_num.
+ **/
+s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
+				  u32 pba_num_size)
+{
+	s32 ret_val;
+	u16 nvm_data;
+	u16 pba_ptr;
+	u16 offset;
+	u16 length;
+
+	if (pba_num == NULL) {
+		e_dbg("PBA string buffer was null\n");
+		ret_val = E1000_ERR_INVALID_ARGUMENT;
+		goto out;
+	}
+
+	ret_val = e1000_read_nvm(hw, NVM_PBA_OFFSET_0, 1, &nvm_data);
+	if (ret_val) {
+		e_dbg("NVM Read Error\n");
+		goto out;
+	}
+
+	ret_val = e1000_read_nvm(hw, NVM_PBA_OFFSET_1, 1, &pba_ptr);
+	if (ret_val) {
+		e_dbg("NVM Read Error\n");
+		goto out;
+	}
+
+	/*
+	 * if nvm_data is not ptr guard the PBA must be in legacy format which
+	 * means pba_ptr is actually our second data word for the PBA number
+	 * and we can decode it into an ascii string
+	 */
+	if (nvm_data != NVM_PBA_PTR_GUARD) {
+		e_dbg("NVM PBA number is not stored as string\n");
+
+		/* we will need 11 characters to store the PBA */
+		if (pba_num_size < 11) {
+			e_dbg("PBA string buffer too small\n");
+			return E1000_ERR_NO_SPACE;
+		}
+
+		/* extract hex string from data and pba_ptr */
+		pba_num[0] = (nvm_data >> 12) & 0xF;
+		pba_num[1] = (nvm_data >> 8) & 0xF;
+		pba_num[2] = (nvm_data >> 4) & 0xF;
+		pba_num[3] = nvm_data & 0xF;
+		pba_num[4] = (pba_ptr >> 12) & 0xF;
+		pba_num[5] = (pba_ptr >> 8) & 0xF;
+		pba_num[6] = '-';
+		pba_num[7] = 0;
+		pba_num[8] = (pba_ptr >> 4) & 0xF;
+		pba_num[9] = pba_ptr & 0xF;
+
+		/* put a null character on the end of our string */
+		pba_num[10] = '\0';
+
+		/* switch all the data but the '-' to hex char */
+		for (offset = 0; offset < 10; offset++) {
+			if (pba_num[offset] < 0xA)
+				pba_num[offset] += '0';
+			else if (pba_num[offset] < 0x10)
+				pba_num[offset] += 'A' - 0xA;
+		}
+
+		goto out;
+	}
+
+	ret_val = e1000_read_nvm(hw, pba_ptr, 1, &length);
+	if (ret_val) {
+		e_dbg("NVM Read Error\n");
+		goto out;
+	}
+
+	if (length == 0xFFFF || length == 0) {
+		e_dbg("NVM PBA number section invalid length\n");
+		ret_val = E1000_ERR_NVM_PBA_SECTION;
+		goto out;
+	}
+	/* check if pba_num buffer is big enough */
+	if (pba_num_size < (((u32)length * 2) - 1)) {
+		e_dbg("PBA string buffer too small\n");
+		ret_val = E1000_ERR_NO_SPACE;
+		goto out;
+	}
+
+	/* trim pba length from start of string */
+	pba_ptr++;
+	length--;
+
+	for (offset = 0; offset < length; offset++) {
+		ret_val = e1000_read_nvm(hw, pba_ptr + offset, 1, &nvm_data);
+		if (ret_val) {
+			e_dbg("NVM Read Error\n");
+			goto out;
+		}
+		pba_num[offset * 2] = (u8)(nvm_data >> 8);
+		pba_num[(offset * 2) + 1] = (u8)(nvm_data & 0xFF);
+	}
+	pba_num[offset * 2] = '\0';
+
+out:
+	return ret_val;
 }
 
 /**
@@ -2578,26 +2688,4 @@ bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 
 out:
 	return ret_val;
-}
-
-s32 e1000e_read_pba_num(struct e1000_hw *hw, u32 *pba_num)
-{
-	s32 ret_val;
-	u16 nvm_data;
-
-	ret_val = e1000_read_nvm(hw, NVM_PBA_OFFSET_0, 1, &nvm_data);
-	if (ret_val) {
-		e_dbg("NVM Read Error\n");
-		return ret_val;
-	}
-	*pba_num = (u32)(nvm_data << 16);
-
-	ret_val = e1000_read_nvm(hw, NVM_PBA_OFFSET_1, 1, &nvm_data);
-	if (ret_val) {
-		e_dbg("NVM Read Error\n");
-		return ret_val;
-	}
-	*pba_num |= nvm_data;
-
-	return 0;
 }

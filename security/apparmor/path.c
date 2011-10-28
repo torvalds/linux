@@ -72,10 +72,8 @@ static int d_namespace_path(struct path *path, char *buf, int buflen,
 		path_get(&root);
 	}
 
-	spin_lock(&dcache_lock);
 	tmp = root;
 	res = __d_path(path, &tmp, buf, buflen);
-	spin_unlock(&dcache_lock);
 
 	*name = res;
 	/* handle error conditions - and still allow a partial path to

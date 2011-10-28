@@ -18,13 +18,17 @@
  * the defines are used for setting up the I/O memory mapping.
  */
 
+#ifdef __ASSEMBLER__
+#define IOMEM(a) (a)
+#else
+#define IOMEM(a) (void __iomem *) a
+#endif
+
 /* NAND Flash CS0 */
 #define U300_NAND_CS0_PHYS_BASE		0x80000000
-#define U300_NAND_CS0_VIRT_BASE		0xff040000
 
 /* NFIF */
 #define U300_NAND_IF_PHYS_BASE		0x9f800000
-#define U300_NAND_IF_VIRT_BASE		0xff030000
 
 /* AHB Peripherals */
 #define U300_AHB_PER_PHYS_BASE		0xa0000000
@@ -50,13 +54,6 @@
 #endif
 
 /*
- * All the following peripherals are specified at their PHYSICAL address,
- * so if you need to access them (in the kernel), you MUST use the macros
- * defined in <asm/io.h> to map to the IO_ADDRESS_AHB() IO_ADDRESS_FAST()
- * etc.
- */
-
-/*
  * AHB peripherals
  */
 
@@ -65,11 +62,11 @@
 
 /* Vectored Interrupt Controller 0, servicing 32 interrupts */
 #define U300_INTCON0_BASE		(U300_AHB_PER_PHYS_BASE+0x1000)
-#define U300_INTCON0_VBASE		(U300_AHB_PER_VIRT_BASE+0x1000)
+#define U300_INTCON0_VBASE		IOMEM(U300_AHB_PER_VIRT_BASE+0x1000)
 
 /* Vectored Interrupt Controller 1, servicing 32 interrupts */
 #define U300_INTCON1_BASE		(U300_AHB_PER_PHYS_BASE+0x2000)
-#define U300_INTCON1_VBASE		(U300_AHB_PER_VIRT_BASE+0x2000)
+#define U300_INTCON1_VBASE		IOMEM(U300_AHB_PER_VIRT_BASE+0x2000)
 
 /* Memory Stick Pro (MSPRO) controller */
 #define U300_MSPRO_BASE			(U300_AHB_PER_PHYS_BASE+0x3000)
@@ -117,7 +114,7 @@
 
 /* SYSCON */
 #define U300_SYSCON_BASE		(U300_SLOW_PER_PHYS_BASE+0x1000)
-#define U300_SYSCON_VBASE		(U300_SLOW_PER_VIRT_BASE+0x1000)
+#define U300_SYSCON_VBASE		IOMEM(U300_SLOW_PER_VIRT_BASE+0x1000)
 
 /* Watchdog */
 #define U300_WDOG_BASE			(U300_SLOW_PER_PHYS_BASE+0x2000)
@@ -127,7 +124,7 @@
 
 /* APP side special timer */
 #define U300_TIMER_APP_BASE		(U300_SLOW_PER_PHYS_BASE+0x4000)
-#define U300_TIMER_APP_VBASE		(U300_SLOW_PER_VIRT_BASE+0x4000)
+#define U300_TIMER_APP_VBASE		IOMEM(U300_SLOW_PER_VIRT_BASE+0x4000)
 
 /* Keypad */
 #define U300_KEYPAD_BASE		(U300_SLOW_PER_PHYS_BASE+0x5000)
@@ -182,6 +179,5 @@
 /*
  * Virtual accessor macros for static devices
  */
-
 
 #endif

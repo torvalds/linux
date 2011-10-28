@@ -14,7 +14,7 @@
 #define current_text_addr() ({ __label__ _l; _l: &&_l;})
 
 #include <asm/ptrace.h>
-#include <asm/blackfin.h>
+#include <mach/blackfin.h>
 
 static inline unsigned long rdusp(void)
 {
@@ -133,6 +133,8 @@ static inline uint32_t __pure bfin_dspid(void)
 {
 	return bfin_read_DSPID();
 }
+
+#define blackfin_core_id() (bfin_dspid() & 0xff)
 
 static inline uint32_t __pure bfin_compiled_revid(void)
 {

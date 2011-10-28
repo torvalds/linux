@@ -376,13 +376,11 @@ __build_packet_message(struct nfulnl_instance *inst,
 			unsigned int hooknum,
 			const struct net_device *indev,
 			const struct net_device *outdev,
-			const struct nf_loginfo *li,
 			const char *prefix, unsigned int plen)
 {
 	struct nfulnl_msg_packet_hdr pmsg;
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
-	__be32 tmp_uint;
 	sk_buff_data_t old_tail = inst->skb->tail;
 
 	nlh = NLMSG_PUT(inst->skb, 0, 0,
@@ -429,7 +427,6 @@ __build_packet_message(struct nfulnl_instance *inst,
 	}
 
 	if (outdev) {
-		tmp_uint = htonl(outdev->ifindex);
 #ifndef CONFIG_BRIDGE_NETFILTER
 		NLA_PUT_BE32(inst->skb, NFULA_IFINDEX_OUTDEV,
 			     htonl(outdev->ifindex));
@@ -459,7 +456,8 @@ __build_packet_message(struct nfulnl_instance *inst,
 	if (skb->mark)
 		NLA_PUT_BE32(inst->skb, NFULA_MARK, htonl(skb->mark));
 
-	if (indev && skb->dev) {
+	if (indev && skb->dev &&
+	    skb->mac_header != skb->network_header) {
 		struct nfulnl_msg_packet_hw phw;
 		int len = dev_parse_header(skb, phw.hw_addr);
 		if (len > 0) {
@@ -652,7 +650,7 @@ nfulnl_log_packet(u_int8_t pf,
 	inst->qlen++;
 
 	__build_packet_message(inst, skb, data_len, pf,
-				hooknum, in, out, li, prefix, plen);
+				hooknum, in, out, prefix, plen);
 
 	if (inst->qlen >= qthreshold)
 		__nfulnl_flush(inst);
@@ -874,19 +872,19 @@ static struct hlist_node *get_first(struct iter_state *st)
 
 	for (st->bucket = 0; st->bucket < INSTANCE_BUCKETS; st->bucket++) {
 		if (!hlist_empty(&instance_table[st->bucket]))
-			return rcu_dereference_bh(instance_table[st->bucket].first);
+			return rcu_dereference_bh(hlist_first_rcu(&instance_table[st->bucket]));
 	}
 	return NULL;
 }
 
 static struct hlist_node *get_next(struct iter_state *st, struct hlist_node *h)
 {
-	h = rcu_dereference_bh(h->next);
+	h = rcu_dereference_bh(hlist_next_rcu(h));
 	while (!h) {
 		if (++st->bucket >= INSTANCE_BUCKETS)
 			return NULL;
 
-		h = rcu_dereference_bh(instance_table[st->bucket].first);
+		h = rcu_dereference_bh(hlist_first_rcu(&instance_table[st->bucket]));
 	}
 	return h;
 }

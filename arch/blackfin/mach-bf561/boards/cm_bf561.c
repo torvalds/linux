@@ -72,7 +72,7 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SND_BLACKFIN_AD183X) || defined(CONFIG_SND_BLACKFIN_AD183X_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) || defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 	.enable_dma = 0,
 	.bits_per_word = 16,
@@ -111,12 +111,12 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_SND_BLACKFIN_AD183X) || defined(CONFIG_SND_BLACKFIN_AD183X_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) || defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 	{
-		.modalias = "ad1836",
+		.modalias = "ad183x",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
-		.chip_select = CONFIG_SND_BLACKFIN_SPI_PFBIT,
+		.chip_select = 4,
 		.controller_data = &ad1836_spi_chip_info,
 	},
 #endif
@@ -278,7 +278,7 @@ static struct resource isp1362_hcd_resources[] = {
 	}, {
 		.start = IRQ_PF47,
 		.end = IRQ_PF47,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
 
@@ -334,7 +334,7 @@ static struct resource bfin_uart0_resources[] = {
 	},
 };
 
-unsigned short bfin_uart0_peripherals[] = {
+static unsigned short bfin_uart0_peripherals[] = {
 	P_UART0_TX, P_UART0_RX, 0
 };
 
@@ -541,7 +541,7 @@ static int __init cm_bf561_init(void)
 #endif
 
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
-	irq_desc[PATA_INT].status |= IRQ_NOAUTOEN;
+	irq_set_status_flags(PATA_INT, IRQ_NOAUTOEN);
 #endif
 	return 0;
 }

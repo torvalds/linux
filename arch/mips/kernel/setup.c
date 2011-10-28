@@ -31,6 +31,7 @@
 #include <asm/setup.h>
 #include <asm/smp-ops.h>
 #include <asm/system.h>
+#include <asm/prom.h>
 
 struct cpuinfo_mips cpu_data[NR_CPUS] __read_mostly;
 
@@ -69,7 +70,7 @@ static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
  * mips_io_port_base is the begin of the address space to which x86 style
  * I/O ports are mapped.
  */
-const unsigned long mips_io_port_base __read_mostly = -1;
+const unsigned long mips_io_port_base = -1;
 EXPORT_SYMBOL(mips_io_port_base);
 
 static struct resource code_resource = { .name = "Kernel code", };
@@ -487,7 +488,9 @@ static void __init arch_mem_init(char **cmdline_p)
 	}
 
 	bootmem_init();
+	device_tree_init();
 	sparse_init();
+	plat_swiotlb_setup();
 	paging_init();
 }
 

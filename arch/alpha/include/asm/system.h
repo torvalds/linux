@@ -259,34 +259,6 @@ __CALL_PAL_RW2(wrperfmon, unsigned long, unsigned long, unsigned long);
 __CALL_PAL_W1(wrusp, unsigned long);
 __CALL_PAL_W1(wrvptptr, unsigned long);
 
-#define IPL_MIN		0
-#define IPL_SW0		1
-#define IPL_SW1		2
-#define IPL_DEV0	3
-#define IPL_DEV1	4
-#define IPL_TIMER	5
-#define IPL_PERF	6
-#define IPL_POWERFAIL	6
-#define IPL_MCHECK	7
-#define IPL_MAX		7
-
-#ifdef CONFIG_ALPHA_BROKEN_IRQ_MASK
-#undef IPL_MIN
-#define IPL_MIN		__min_ipl
-extern int __min_ipl;
-#endif
-
-#define getipl()		(rdps() & 7)
-#define setipl(ipl)		((void) swpipl(ipl))
-
-#define local_irq_disable()			do { setipl(IPL_MAX); barrier(); } while(0)
-#define local_irq_enable()			do { barrier(); setipl(IPL_MIN); } while(0)
-#define local_save_flags(flags)	((flags) = rdps())
-#define local_irq_save(flags)	do { (flags) = swpipl(IPL_MAX); barrier(); } while(0)
-#define local_irq_restore(flags)	do { barrier(); setipl(flags); barrier(); } while(0)
-
-#define irqs_disabled()	(getipl() == IPL_MAX)
-
 /*
  * TB routines..
  */

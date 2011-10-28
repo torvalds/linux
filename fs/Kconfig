@@ -30,15 +30,6 @@ config FS_MBCACHE
 source "fs/reiserfs/Kconfig"
 source "fs/jfs/Kconfig"
 
-config FS_POSIX_ACL
-# Posix ACL utility routines (for now, only ext2/ext3/jfs/reiserfs/nfs4)
-#
-# NOTE: you can implement Posix ACLs without these helpers (XFS does).
-# 	Never use this symbol for ifdefs.
-#
-	bool
-	default n
-
 source "fs/xfs/Kconfig"
 source "fs/gfs2/Kconfig"
 source "fs/ocfs2/Kconfig"
@@ -47,8 +38,19 @@ source "fs/nilfs2/Kconfig"
 
 endif # BLOCK
 
+# Posix ACL utility routines
+#
+# Note: Posix ACLs can be implemented without these helpers.  Never use
+# this symbol for ifdefs in core code.
+#
+config FS_POSIX_ACL
+	def_bool n
+
+config EXPORTFS
+	tristate
+
 config FILE_LOCKING
-	bool "Enable POSIX file locking API" if EMBEDDED
+	bool "Enable POSIX file locking API" if EXPERT
 	default y
 	help
 	  This option enables standard file locking support, required
@@ -59,7 +61,6 @@ source "fs/notify/Kconfig"
 
 source "fs/quota/Kconfig"
 
-source "fs/autofs/Kconfig"
 source "fs/autofs4/Kconfig"
 source "fs/fuse/Kconfig"
 
@@ -123,6 +124,7 @@ config TMPFS
 config TMPFS_POSIX_ACL
 	bool "Tmpfs POSIX Access Control Lists"
 	depends on TMPFS
+	select TMPFS_XATTR
 	select GENERIC_ACL
 	help
 	  POSIX Access Control Lists (ACLs) support permissions for users and
@@ -132,6 +134,22 @@ config TMPFS_POSIX_ACL
 	  Linux website <http://acl.bestbits.at/>.
 
 	  If you don't know what Access Control Lists are, say N.
+
+config TMPFS_XATTR
+	bool "Tmpfs extended attributes"
+	depends on TMPFS
+	default n
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  Currently this enables support for the trusted.* and
+	  security.* namespaces.
+
+	  You need this for POSIX ACL support on tmpfs.
+
+	  If unsure, say N.
 
 config HUGETLBFS
 	bool "HugeTLB file system support"
@@ -174,6 +192,10 @@ source "fs/hfsplus/Kconfig"
 source "fs/befs/Kconfig"
 source "fs/bfs/Kconfig"
 source "fs/efs/Kconfig"
+
+# Patched by YAFFS
+source "fs/yaffs2/Kconfig"
+
 source "fs/jffs2/Kconfig"
 # UBIFS File system configuration
 source "fs/ubifs/Kconfig"
@@ -186,6 +208,7 @@ source "fs/omfs/Kconfig"
 source "fs/hpfs/Kconfig"
 source "fs/qnx4/Kconfig"
 source "fs/romfs/Kconfig"
+source "fs/pstore/Kconfig"
 source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
 source "fs/exofs/Kconfig"
@@ -221,9 +244,6 @@ config LOCKD_V4
 	depends on FILE_LOCKING
 	default y
 
-config EXPORTFS
-	tristate
-
 config NFS_ACL_SUPPORT
 	tristate
 	select FS_POSIX_ACL
@@ -234,7 +254,6 @@ config NFS_COMMON
 	default y
 
 source "net/sunrpc/Kconfig"
-source "fs/smbfs/Kconfig"
 source "fs/ceph/Kconfig"
 source "fs/cifs/Kconfig"
 source "fs/ncpfs/Kconfig"

@@ -125,6 +125,8 @@ int wm97xx_read_aux_adc(struct wm97xx *wm, u16 adcsel)
 {
 	int power_adc = 0, auxval;
 	u16 power = 0;
+	int rc = 0;
+	int timeout = 0;
 
 	/* get codec */
 	mutex_lock(&wm->codec_mutex);
@@ -143,7 +145,9 @@ int wm97xx_read_aux_adc(struct wm97xx *wm, u16 adcsel)
 
 	/* Turn polling mode on to read AUX ADC */
 	wm->pen_probably_down = 1;
-	wm->codec->poll_sample(wm, adcsel, &auxval);
+
+	while (rc != RC_VALID && timeout++ < 5)
+		rc = wm->codec->poll_sample(wm, adcsel, &auxval);
 
 	if (power_adc)
 		wm97xx_reg_write(wm, AC97_EXTENDED_MID, power | 0x8000);
@@ -152,8 +156,15 @@ int wm97xx_read_aux_adc(struct wm97xx *wm, u16 adcsel)
 
 	wm->pen_probably_down = 0;
 
+	if (timeout >= 5) {
+		dev_err(wm->dev,
+			"timeout reading auxadc %d, disabling digitiser\n",
+			adcsel);
+		wm->codec->dig_enable(wm, false);
+	}
+
 	mutex_unlock(&wm->codec_mutex);
-	return auxval & 0xfff;
+	return (rc == RC_VALID ? auxval & 0xfff : -EBUSY);
 }
 EXPORT_SYMBOL_GPL(wm97xx_read_aux_adc);
 
@@ -324,7 +335,7 @@ static void wm97xx_pen_irq_worker(struct work_struct *work)
 	 */
 	if (!wm->mach_ops->acc_enabled || wm->mach_ops->acc_pen_down) {
 		if (wm->pen_is_down && !pen_was_down) {
-			/* Data is not availiable immediately on pen down */
+			/* Data is not available immediately on pen down */
 			queue_delayed_work(wm->ts_workq, &wm->ts_reader, 1);
 		}
 
@@ -343,7 +354,7 @@ static void wm97xx_pen_irq_worker(struct work_struct *work)
  * Codec PENDOWN irq handler
  *
  * We have to disable the codec interrupt in the handler because it
- * can take upto 1ms to clear the interrupt source. We schedule a task
+ * can take up to 1ms to clear the interrupt source. We schedule a task
  * in a work queue to do the actual interaction with the chip.  The
  * interrupt is then enabled again in the slow handler when the source
  * has been cleared.
@@ -684,8 +695,7 @@ static int wm97xx_probe(struct device *dev)
  touch_reg_err:
 	platform_device_put(wm->touch_dev);
  touch_err:
-	platform_device_unregister(wm->battery_dev);
-	wm->battery_dev = NULL;
+	platform_device_del(wm->battery_dev);
  batt_reg_err:
 	platform_device_put(wm->battery_dev);
  batt_err:

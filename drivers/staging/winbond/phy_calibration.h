@@ -1,7 +1,7 @@
 #ifndef __WINBOND_PHY_CALIBRATION_H
 #define __WINBOND_PHY_CALIBRATION_H
 
-#include "wbhal_f.h"
+#include "wbhal.h"
 
 #define REG_AGC_CTRL1		0x1000
 #define REG_AGC_CTRL2		0x1004

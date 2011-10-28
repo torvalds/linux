@@ -55,21 +55,10 @@
 
 #define SISIOMEMTYPE
 
-#ifdef SIS_LINUX_KERNEL
 typedef unsigned long SISIOADDRESS;
 #include <linux/types.h>  /* Need __iomem */
 #undef SISIOMEMTYPE
 #define SISIOMEMTYPE __iomem
-#endif
-
-#ifdef SIS_XORG_XF86
-#if XF86_VERSION_CURRENT < XF86_VERSION_NUMERIC(4,2,0,0,0)
-typedef unsigned long IOADDRESS;
-typedef unsigned long SISIOADDRESS;
-#else
-typedef IOADDRESS SISIOADDRESS;
-#endif
-#endif
 
 typedef enum _SIS_CHIP_TYPE {
     SIS_VGALegacy = 0,
@@ -98,6 +87,7 @@ typedef enum _SIS_CHIP_TYPE {
     SIS_341,
     SIS_342,
     XGI_20  = 75,
+    XGI_21,
     XGI_40,
     MAX_SIS_CHIP
 } SIS_CHIP_TYPE;

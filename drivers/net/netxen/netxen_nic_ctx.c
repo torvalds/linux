@@ -112,6 +112,21 @@ nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, int mtu)
 	return 0;
 }
 
+int
+nx_fw_cmd_set_gbe_port(struct netxen_adapter *adapter,
+			u32 speed, u32 duplex, u32 autoneg)
+{
+
+	return netxen_issue_cmd(adapter,
+				adapter->ahw.pci_func,
+				NXHAL_VERSION,
+				speed,
+				duplex,
+				autoneg,
+				NX_CDRP_CMD_CONFIG_GBE_PORT);
+
+}
+
 static int
 nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 {
@@ -252,19 +267,6 @@ out_free_rsp:
 out_free_rq:
 	pci_free_consistent(adapter->pdev, rq_size, prq, hostrq_phys_addr);
 	return err;
-}
-
-static void
-nx_fw_cmd_reset_ctx(struct netxen_adapter *adapter)
-{
-
-	netxen_issue_cmd(adapter, adapter->ahw.pci_func, NXHAL_VERSION,
-			adapter->ahw.pci_func, NX_DESTROY_CTX_RESET, 0,
-			NX_CDRP_CMD_DESTROY_RX_CTX);
-
-	netxen_issue_cmd(adapter, adapter->ahw.pci_func, NXHAL_VERSION,
-			adapter->ahw.pci_func, NX_DESTROY_CTX_RESET, 0,
-			NX_CDRP_CMD_DESTROY_TX_CTX);
 }
 
 static void
@@ -698,8 +700,6 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		if (test_and_set_bit(__NX_FW_ATTACHED, &adapter->state))
 			goto done;
-		if (reset_devices)
-			nx_fw_cmd_reset_ctx(adapter);
 		err = nx_fw_cmd_create_rx_ctx(adapter);
 		if (err)
 			goto err_out_free;

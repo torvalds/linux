@@ -17,9 +17,8 @@
 #include <linux/string.h>
 
 #include <linux/coda.h>
-#include <linux/coda_linux.h>
 #include <linux/coda_psdev.h>
-#include <linux/coda_fs_i.h>
+#include "coda_linux.h"
 
 /* initialize the debugging variables */
 int coda_fake_statfs;

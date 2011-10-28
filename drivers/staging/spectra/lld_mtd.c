@@ -26,18 +26,14 @@
 #include "lld.h"
 #if CMD_DMA
 #include "lld_cdma.h"
+u32 totalUsedBanks;
+u32 valid_banks[MAX_CHANS];
 #endif
 
 #define GLOB_LLD_PAGES           64
 #define GLOB_LLD_PAGE_SIZE       (512+16)
 #define GLOB_LLD_PAGE_DATA_SIZE  512
 #define GLOB_LLD_BLOCKS          2048
-
-#if CMD_DMA
-#include "lld_cdma.h"
-u32 totalUsedBanks;
-u32 valid_banks[MAX_CHANS];
-#endif
 
 static struct mtd_info *spectra_mtd;
 static int mtddev = -1;

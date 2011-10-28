@@ -23,7 +23,7 @@ For AI:
 - If cmd->scan_begin_src=TRIG_EXT then trigger input is TGIN (pin 46).
 - If cmd->convert_src=TRIG_EXT then trigger input is EXTTRG (pin 44).
 - If cmd->start_src/stop_src=TRIG_EXT then trigger input is TGIN (pin 46).
-- It is not neccessary to have cmd.scan_end_arg=cmd.chanlist_len but
+- It is not necessary to have cmd.scan_end_arg=cmd.chanlist_len but
   cmd.scan_end_arg modulo cmd.chanlist_len must by 0.
 - If return value of cmdtest is 5 then you've bad channel list
   (it isn't possible mixture S.E. and DIFF inputs or bipolar and unipolar
@@ -252,9 +252,8 @@ struct boardtype {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(pci9118_pci_table) = {
-	{
-	PCI_VENDOR_ID_AMCC, 0x80d9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMCC, 0x80d9) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, pci9118_pci_table);
@@ -635,7 +634,7 @@ static unsigned int defragment_dma_buffer(struct comedi_device *dev,
 /*
 ==============================================================================
 */
-static unsigned int move_block_from_dma(struct comedi_device *dev,
+static int move_block_from_dma(struct comedi_device *dev,
 					struct comedi_subdevice *s,
 					short *dma_buffer,
 					unsigned int num_samples)
@@ -824,7 +823,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 		move_block_from_dma(dev, s,
 				    devpriv->dmabuf_virt[devpriv->dma_actbuf],
 				    samplesinbuf);
-		m = m - sampls;		/* m= how many samples was transfered */
+		m = m - sampls;		/* m= how many samples was transferred */
 	}
 /* DPRINTK("YYY\n"); */
 
@@ -1235,7 +1234,7 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 							 * align to 32bit down
 							 */
 	}
-	DPRINTK("2 dmalen0=%d dmalen1=%d \n", dmalen0, dmalen1);
+	DPRINTK("2 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 
 	/* we want wake up every scan? */
 	if (devpriv->ai_flags & TRIG_WAKE_EOS) {
@@ -1295,10 +1294,10 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 		}
 	}
 
-	DPRINTK("3 dmalen0=%d dmalen1=%d \n", dmalen0, dmalen1);
+	DPRINTK("3 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 	/* transfer without TRIG_WAKE_EOS */
 	if (!(devpriv->ai_flags & TRIG_WAKE_EOS)) {
-		/* if it's possible then allign DMA buffers to length of scan */
+		/* if it's possible then align DMA buffers to length of scan */
 		i = dmalen0;
 		dmalen0 =
 		    (dmalen0 / (devpriv->ai_n_realscanlen << 1)) *
@@ -1323,13 +1322,13 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 			    ((devpriv->ai_n_realscanlen << 1) *
 			     devpriv->ai_scans)) {
 				DPRINTK
-				    ("3.0 ai_n_realscanlen=%d ai_scans=%d \n",
+				    ("3.0 ai_n_realscanlen=%d ai_scans=%d\n",
 				     devpriv->ai_n_realscanlen,
 				     devpriv->ai_scans);
 				dmalen0 =
 				    (devpriv->ai_n_realscanlen << 1) *
 				    devpriv->ai_scans;
-				DPRINTK("3.1 dmalen0=%d dmalen1=%d \n", dmalen0,
+				DPRINTK("3.1 dmalen0=%d dmalen1=%d\n", dmalen0,
 					dmalen1);
 				dmalen0 &= ~3L;
 			} else {	/*
@@ -1342,21 +1341,21 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 					dmalen1 =
 					    (devpriv->ai_n_realscanlen << 1) *
 					    devpriv->ai_scans - dmalen0;
-				DPRINTK("3.2 dmalen0=%d dmalen1=%d \n", dmalen0,
+				DPRINTK("3.2 dmalen0=%d dmalen1=%d\n", dmalen0,
 					dmalen1);
 				dmalen1 &= ~3L;
 			}
 		}
 	}
 
-	DPRINTK("4 dmalen0=%d dmalen1=%d \n", dmalen0, dmalen1);
+	DPRINTK("4 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 
 	/* these DMA buffer size will be used */
 	devpriv->dma_actbuf = 0;
 	devpriv->dmabuf_use_size[0] = dmalen0;
 	devpriv->dmabuf_use_size[1] = dmalen1;
 
-	DPRINTK("5 dmalen0=%d dmalen1=%d \n", dmalen0, dmalen1);
+	DPRINTK("5 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 #if 0
 	if (devpriv->ai_n_scanlen < this_board->half_fifo_size) {
 		devpriv->dmabuf_panic_size[0] =
@@ -1418,7 +1417,7 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 		comedi_error(dev,
 			     "pci9118_ai_docmd_sampl() mode number bug!\n");
 		return -EIO;
-	};
+	}
 
 	devpriv->int_ai_func = interrupt_pci9118_ai_onesample;
 						/* transfer function */
@@ -1497,7 +1496,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 	default:
 		comedi_error(dev, "pci9118_ai_docmd_dma() mode number bug!\n");
 		return -EIO;
-	};
+	}
 
 	if (devpriv->ai12_startstop) {
 		pci9118_exttrg_add(dev, EXTTRG_AI);
@@ -1576,12 +1575,12 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* use sample&hold signal? */
-	if (cmd->convert_src == TRIG_NOW) {
+	if (cmd->convert_src == TRIG_NOW)
 		devpriv->usessh = 1;
-	} /* yes */
-	else {
+	/* yes */
+	else
 		devpriv->usessh = 0;
-	}			/*  no */
+				/*  no */
 
 	DPRINTK("1 neverending=%d scans=%u usessh=%d ai_startstop=0x%2x\n",
 		devpriv->ai_neverending, devpriv->ai_scans, devpriv->usessh,
@@ -1598,9 +1597,8 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->usedma = 1;
 		if ((cmd->flags & TRIG_WAKE_EOS) &&
 		    (devpriv->ai_n_scanlen == 1)) {
-			if (cmd->convert_src == TRIG_NOW) {
+			if (cmd->convert_src == TRIG_NOW)
 				devpriv->ai_add_back = 1;
-			}
 			if (cmd->convert_src == TRIG_TIMER) {
 				devpriv->usedma = 0;
 					/*
@@ -1695,11 +1693,10 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		(cmd->scan_begin_src == TRIG_INT)) &&
 		(cmd->convert_src == TRIG_TIMER)) {
 					/* both timer is used for one time */
-		if (cmd->scan_begin_src == TRIG_EXT) {
+		if (cmd->scan_begin_src == TRIG_EXT)
 			devpriv->ai_do = 4;
-		} else {
+		else
 			devpriv->ai_do = 1;
-		}
 		pci9118_calc_divisors(devpriv->ai_do, dev, s,
 				      &cmd->scan_begin_arg, &cmd->convert_arg,
 				      devpriv->ai_flags,
@@ -2213,11 +2210,10 @@ static int pci9118_attach(struct comedi_device *dev,
 
 	opt_bus = it->options[0];
 	opt_slot = it->options[1];
-	if (it->options[3] & 1) {
+	if (it->options[3] & 1)
 		master = 0;	/* user don't want use bus master */
-	} else {
+	else
 		master = 1;
-	}
 
 	ret = alloc_private(dev, sizeof(struct pci9118_private));
 	if (ret < 0) {

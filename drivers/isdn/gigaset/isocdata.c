@@ -842,13 +842,14 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 
 	if (unlikely(bcs->ignore)) {
 		bcs->ignore--;
-		hdlc_flush(bcs);
 		return;
 	}
 	skb = bcs->rx_skb;
-	if (skb == NULL)
+	if (skb == NULL) {
 		skb = gigaset_new_rx_skb(bcs);
-	bcs->hw.bas->goodbytes += skb->len;
+		if (skb == NULL)
+			return;
+	}
 	dobytes = bcs->rx_bufsize - skb->len;
 	while (count > 0) {
 		dst = skb_put(skb, count < dobytes ? count : dobytes);
@@ -860,6 +861,7 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 		if (dobytes == 0) {
 			dump_bytes(DEBUG_STREAM_DUMP,
 				   "rcv data", skb->data, skb->len);
+			bcs->hw.bas->goodbytes += skb->len;
 			gigaset_skb_rcvd(bcs, skb);
 			skb = gigaset_new_rx_skb(bcs);
 			if (skb == NULL)

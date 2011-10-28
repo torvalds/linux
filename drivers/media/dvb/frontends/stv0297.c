@@ -435,7 +435,7 @@ static int stv0297_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 		return -EINVAL;
 	}
 
-	// determine inversion dependant parameters
+	// determine inversion dependent parameters
 	inversion = p->inversion;
 	if (state->config->invert)
 		inversion = (inversion == INVERSION_ON) ? INVERSION_OFF : INVERSION_ON;

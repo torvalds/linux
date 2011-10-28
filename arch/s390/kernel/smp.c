@@ -23,6 +23,7 @@
 #define KMSG_COMPONENT "cpu"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/workqueue.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -43,7 +44,6 @@
 #include <asm/sigp.h>
 #include <asm/pgalloc.h>
 #include <asm/irq.h>
-#include <asm/s390_ext.h>
 #include <asm/cpcmd.h>
 #include <asm/tlbflush.h>
 #include <asm/timer.h>
@@ -156,17 +156,19 @@ void smp_send_stop(void)
  * cpus are handled.
  */
 
-static void do_ext_call_interrupt(__u16 code)
+static void do_ext_call_interrupt(unsigned int ext_int_code,
+				  unsigned int param32, unsigned long param64)
 {
 	unsigned long bits;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_IPI]++;
 	/*
 	 * handle bit signal external calls
-	 *
-	 * For the ec_schedule signal we have to do nothing. All the work
-	 * is done automatically when we return from the interrupt.
 	 */
 	bits = xchg(&S390_lowcore.ext_call_fast, 0);
+
+	if (test_bit(ec_schedule, &bits))
+		scheduler_ipi();
 
 	if (test_bit(ec_call_function, &bits))
 		generic_smp_call_function_interrupt();
@@ -260,7 +262,7 @@ void smp_ctl_set_bit(int cr, int bit)
 
 	memset(&parms.orvals, 0, sizeof(parms.orvals));
 	memset(&parms.andvals, 0xff, sizeof(parms.andvals));
-	parms.orvals[cr] = 1 << bit;
+	parms.orvals[cr] = 1UL << bit;
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
 EXPORT_SYMBOL(smp_ctl_set_bit);
@@ -274,7 +276,7 @@ void smp_ctl_clear_bit(int cr, int bit)
 
 	memset(&parms.orvals, 0, sizeof(parms.orvals));
 	memset(&parms.andvals, 0xff, sizeof(parms.andvals));
-	parms.andvals[cr] = ~(1L << bit);
+	parms.andvals[cr] = ~(1UL << bit);
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
 EXPORT_SYMBOL(smp_ctl_clear_bit);
@@ -332,7 +334,7 @@ static int smp_rescan_cpus_sigp(cpumask_t avail)
 		smp_cpu_polarization[logical_cpu] = POLARIZATION_UNKNWN;
 		if (!cpu_stopped(logical_cpu))
 			continue;
-		cpu_set(logical_cpu, cpu_present_map);
+		set_cpu_present(logical_cpu, true);
 		smp_cpu_state[logical_cpu] = CPU_STATE_CONFIGURED;
 		logical_cpu = cpumask_next(logical_cpu, &avail);
 		if (logical_cpu >= nr_cpu_ids)
@@ -364,7 +366,7 @@ static int smp_rescan_cpus_sclp(cpumask_t avail)
 			continue;
 		__cpu_logical_map[logical_cpu] = cpu_id;
 		smp_cpu_polarization[logical_cpu] = POLARIZATION_UNKNWN;
-		cpu_set(logical_cpu, cpu_present_map);
+		set_cpu_present(logical_cpu, true);
 		if (cpu >= info->configured)
 			smp_cpu_state[logical_cpu] = CPU_STATE_STANDBY;
 		else
@@ -382,7 +384,7 @@ static int __smp_rescan_cpus(void)
 {
 	cpumask_t avail;
 
-	cpus_xor(avail, cpu_possible_map, cpu_present_map);
+	cpumask_xor(&avail, cpu_possible_mask, cpu_present_mask);
 	if (smp_use_sigp_detection)
 		return smp_rescan_cpus_sigp(avail);
 	else
@@ -464,29 +466,29 @@ int __cpuinit start_secondary(void *cpuvoid)
 	notify_cpu_starting(smp_processor_id());
 	/* Mark this cpu as online */
 	ipi_call_lock();
-	cpu_set(smp_processor_id(), cpu_online_map);
+	set_cpu_online(smp_processor_id(), true);
 	ipi_call_unlock();
 	/* Switch on interrupts */
 	local_irq_enable();
-	/* Print info about this processor */
-	print_cpu_info();
 	/* cpu_idle will call schedule for us */
 	cpu_idle();
 	return 0;
 }
 
-static void __init smp_create_idle(unsigned int cpu)
-{
-	struct task_struct *p;
+struct create_idle {
+	struct work_struct work;
+	struct task_struct *idle;
+	struct completion done;
+	int cpu;
+};
 
-	/*
-	 *  don't care about the psw and regs settings since we'll never
-	 *  reschedule the forked task.
-	 */
-	p = fork_idle(cpu);
-	if (IS_ERR(p))
-		panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
-	current_set[cpu] = p;
+static void __cpuinit smp_fork_idle(struct work_struct *work)
+{
+	struct create_idle *c_idle;
+
+	c_idle = container_of(work, struct create_idle, work);
+	c_idle->idle = fork_idle(c_idle->cpu);
+	complete(&c_idle->done);
 }
 
 static int __cpuinit smp_alloc_lowcore(int cpu)
@@ -550,6 +552,7 @@ static void smp_free_lowcore(int cpu)
 int __cpuinit __cpu_up(unsigned int cpu)
 {
 	struct _lowcore *cpu_lowcore;
+	struct create_idle c_idle;
 	struct task_struct *idle;
 	struct stack_frame *sf;
 	u32 lowcore;
@@ -557,6 +560,19 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 	if (smp_cpu_state[cpu] != CPU_STATE_CONFIGURED)
 		return -EIO;
+	idle = current_set[cpu];
+	if (!idle) {
+		c_idle.done = COMPLETION_INITIALIZER_ONSTACK(c_idle.done);
+		INIT_WORK_ONSTACK(&c_idle.work, smp_fork_idle);
+		c_idle.cpu = cpu;
+		schedule_work(&c_idle.work);
+		wait_for_completion(&c_idle.done);
+		if (IS_ERR(c_idle.idle))
+			return PTR_ERR(c_idle.idle);
+		idle = c_idle.idle;
+		current_set[cpu] = c_idle.idle;
+	}
+	init_idle(idle, cpu);
 	if (smp_alloc_lowcore(cpu))
 		return -ENOMEM;
 	do {
@@ -571,7 +587,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	while (sigp_p(lowcore, cpu, sigp_set_prefix) == sigp_busy)
 		udelay(10);
 
-	idle = current_set[cpu];
 	cpu_lowcore = lowcore_ptr[cpu];
 	cpu_lowcore->kernel_stack = (unsigned long)
 		task_stack_page(idle) + THREAD_SIZE;
@@ -593,6 +608,8 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	cpu_lowcore->kernel_asce = S390_lowcore.kernel_asce;
 	cpu_lowcore->machine_flags = S390_lowcore.machine_flags;
 	cpu_lowcore->ftrace_func = S390_lowcore.ftrace_func;
+	memcpy(cpu_lowcore->stfle_fac_list, S390_lowcore.stfle_fac_list,
+	       MAX_FACILITY_BIT/8);
 	eieio();
 
 	while (sigp(cpu, sigp_restart) == sigp_busy)
@@ -626,7 +643,7 @@ int __cpu_disable(void)
 	struct ec_creg_mask_parms cr_parms;
 	int cpu = smp_processor_id();
 
-	cpu_clear(cpu, cpu_online_map);
+	set_cpu_online(cpu, false);
 
 	/* Disable pfault pseudo page faults on this cpu. */
 	pfault_fini();
@@ -636,8 +653,8 @@ int __cpu_disable(void)
 
 	/* disable all external interrupts */
 	cr_parms.orvals[0] = 0;
-	cr_parms.andvals[0] = ~(1 << 15 | 1 << 14 | 1 << 13 | 1 << 12 |
-				1 << 11 | 1 << 10 | 1 <<  6 | 1 <<  4);
+	cr_parms.andvals[0] = ~(1 << 15 | 1 << 14 | 1 << 13 | 1 << 11 |
+				1 << 10 | 1 <<	9 | 1 <<  6 | 1 <<  4);
 	/* disable all I/O interrupts */
 	cr_parms.orvals[6] = 0;
 	cr_parms.andvals[6] = ~(1 << 31 | 1 << 30 | 1 << 29 | 1 << 28 |
@@ -661,10 +678,9 @@ void __cpu_die(unsigned int cpu)
 		udelay(10);
 	smp_free_lowcore(cpu);
 	atomic_dec(&init_mm.context.attach_count);
-	pr_info("Processor %d stopped\n", cpu);
 }
 
-void cpu_die(void)
+void __noreturn cpu_die(void)
 {
 	idle_task_exit();
 	while (sigp(smp_processor_id(), sigp_stop) == sigp_busy)
@@ -681,14 +697,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 #endif
 	unsigned long async_stack, panic_stack;
 	struct _lowcore *lowcore;
-	unsigned int cpu;
 
 	smp_detect_cpus();
 
 	/* request the 0x1201 emergency signal external interrupt */
 	if (register_external_interrupt(0x1201, do_ext_call_interrupt) != 0)
 		panic("Couldn't request external interrupt 0x1201");
-	print_cpu_info();
 
 	/* Reallocate current lowcore, but keep its contents. */
 	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
@@ -716,9 +730,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (vdso_alloc_per_cpu(smp_processor_id(), &S390_lowcore))
 		BUG();
 #endif
-	for_each_possible_cpu(cpu)
-		if (cpu != smp_processor_id())
-			smp_create_idle(cpu);
 }
 
 void __init smp_prepare_boot_cpu(void)
@@ -726,8 +737,8 @@ void __init smp_prepare_boot_cpu(void)
 	BUG_ON(smp_processor_id() != 0);
 
 	current_thread_info()->cpu = 0;
-	cpu_set(0, cpu_present_map);
-	cpu_set(0, cpu_online_map);
+	set_cpu_present(0, true);
+	set_cpu_online(0, true);
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	current_set[0] = current;
 	smp_cpu_state[0] = CPU_STATE_CONFIGURED;
@@ -1004,21 +1015,21 @@ int __ref smp_rescan_cpus(void)
 
 	get_online_cpus();
 	mutex_lock(&smp_cpu_state_mutex);
-	newcpus = cpu_present_map;
+	cpumask_copy(&newcpus, cpu_present_mask);
 	rc = __smp_rescan_cpus();
 	if (rc)
 		goto out;
-	cpus_andnot(newcpus, cpu_present_map, newcpus);
-	for_each_cpu_mask(cpu, newcpus) {
+	cpumask_andnot(&newcpus, cpu_present_mask, &newcpus);
+	for_each_cpu(cpu, &newcpus) {
 		rc = smp_add_present_cpu(cpu);
 		if (rc)
-			cpu_clear(cpu, cpu_present_map);
+			set_cpu_present(cpu, false);
 	}
 	rc = 0;
 out:
 	mutex_unlock(&smp_cpu_state_mutex);
 	put_online_cpus();
-	if (!cpus_empty(newcpus))
+	if (!cpumask_empty(&newcpus))
 		topology_schedule_update();
 	return rc;
 }

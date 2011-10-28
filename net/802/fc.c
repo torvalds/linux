@@ -70,7 +70,7 @@ static int fc_header(struct sk_buff *skb, struct net_device *dev,
 	if(daddr)
 	{
 		memcpy(fch->daddr,daddr,dev->addr_len);
-		return(hdr_len);
+		return hdr_len;
 	}
 	return -hdr_len;
 }

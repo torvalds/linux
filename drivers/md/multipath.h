@@ -9,7 +9,6 @@ struct multipath_private_data {
 	mddev_t			*mddev;
 	struct multipath_info	*multipaths;
 	int			raid_disks;
-	int			working_disks;
 	spinlock_t		device_lock;
 	struct list_head	retry_list;
 

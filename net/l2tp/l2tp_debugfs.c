@@ -249,7 +249,7 @@ static int l2tp_dfs_seq_open(struct inode *inode, struct file *file)
 	struct seq_file *seq;
 	int rc = -ENOMEM;
 
-	pd = kzalloc(GFP_KERNEL, sizeof(*pd));
+	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (pd == NULL)
 		goto out;
 
@@ -258,7 +258,7 @@ static int l2tp_dfs_seq_open(struct inode *inode, struct file *file)
 	 */
 	pd->net = get_net_ns_by_pid(current->pid);
 	if (IS_ERR(pd->net)) {
-		rc = -PTR_ERR(pd->net);
+		rc = PTR_ERR(pd->net);
 		goto err_free_pd;
 	}
 

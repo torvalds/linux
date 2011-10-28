@@ -84,23 +84,21 @@ void afs_put_writeback(struct afs_writeback *wb)
  * partly or wholly fill a page that's under preparation for writing
  */
 static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
-			 loff_t pos, unsigned len, struct page *page)
+			 loff_t pos, struct page *page)
 {
 	loff_t i_size;
-	unsigned eof;
 	int ret;
+	int len;
 
-	_enter(",,%llu,%u", (unsigned long long)pos, len);
-
-	ASSERTCMP(len, <=, PAGE_CACHE_SIZE);
+	_enter(",,%llu", (unsigned long long)pos);
 
 	i_size = i_size_read(&vnode->vfs_inode);
-	if (pos + len > i_size)
-		eof = i_size;
+	if (pos + PAGE_CACHE_SIZE > i_size)
+		len = i_size - pos;
 	else
-		eof = PAGE_CACHE_SIZE;
+		len = PAGE_CACHE_SIZE;
 
-	ret = afs_vnode_fetch_data(vnode, key, 0, eof, page);
+	ret = afs_vnode_fetch_data(vnode, key, pos, len, page);
 	if (ret < 0) {
 		if (ret == -ENOENT) {
 			_debug("got NOENT from server"
@@ -140,6 +138,7 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 	candidate->first = candidate->last = index;
 	candidate->offset_first = from;
 	candidate->to_last = to;
+	INIT_LIST_HEAD(&candidate->link);
 	candidate->usage = 1;
 	candidate->state = AFS_WBACK_PENDING;
 	init_waitqueue_head(&candidate->waitq);
@@ -152,9 +151,8 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 	*pagep = page;
 	/* page won't leak in error case: it eventually gets cleaned off LRU */
 
-	if (!PageUptodate(page)) {
-		_debug("not up to date");
-		ret = afs_fill_page(vnode, key, pos, len, page);
+	if (!PageUptodate(page) && len != PAGE_CACHE_SIZE) {
+		ret = afs_fill_page(vnode, key, index << PAGE_CACHE_SHIFT, page);
 		if (ret < 0) {
 			kfree(candidate);
 			_leave(" = %d [prep]", ret);
@@ -438,7 +436,6 @@ no_more:
  */
 int afs_writepage(struct page *page, struct writeback_control *wbc)
 {
-	struct backing_dev_info *bdi = page->mapping->backing_dev_info;
 	struct afs_writeback *wb;
 	int ret;
 
@@ -455,8 +452,6 @@ int afs_writepage(struct page *page, struct writeback_control *wbc)
 	}
 
 	wbc->nr_to_write -= ret;
-	if (wbc->nonblocking && bdi_write_congested(bdi))
-		wbc->encountered_congestion = 1;
 
 	_leave(" = 0");
 	return 0;
@@ -469,7 +464,6 @@ static int afs_writepages_region(struct address_space *mapping,
 				 struct writeback_control *wbc,
 				 pgoff_t index, pgoff_t end, pgoff_t *_next)
 {
-	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	struct afs_writeback *wb;
 	struct page *page;
 	int ret, n;
@@ -529,11 +523,6 @@ static int afs_writepages_region(struct address_space *mapping,
 
 		wbc->nr_to_write -= ret;
 
-		if (wbc->nonblocking && bdi_write_congested(bdi)) {
-			wbc->encountered_congestion = 1;
-			break;
-		}
-
 		cond_resched();
 	} while (index < end && wbc->nr_to_write > 0);
 
@@ -548,24 +537,16 @@ static int afs_writepages_region(struct address_space *mapping,
 int afs_writepages(struct address_space *mapping,
 		   struct writeback_control *wbc)
 {
-	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	pgoff_t start, end, next;
 	int ret;
 
 	_enter("");
 
-	if (wbc->nonblocking && bdi_write_congested(bdi)) {
-		wbc->encountered_congestion = 1;
-		_leave(" = 0 [congest]");
-		return 0;
-	}
-
 	if (wbc->range_cyclic) {
 		start = mapping->writeback_index;
 		end = -1;
 		ret = afs_writepages_region(mapping, wbc, start, end, &next);
-		if (start > 0 && wbc->nr_to_write > 0 && ret == 0 &&
-		    !(wbc->nonblocking && wbc->encountered_congestion))
+		if (start > 0 && wbc->nr_to_write > 0 && ret == 0)
 			ret = afs_writepages_region(mapping, wbc, 0, start,
 						    &next);
 		mapping->writeback_index = next;

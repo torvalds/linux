@@ -1,0 +1,213 @@
+/*
+ * P1020 RDB  Core0 Device Tree Source in CAMP mode.
+ *
+ * In CAMP mode, each core needs to have its own dts. Only mpic and L2 cache
+ * can be shared, all the other devices must be assigned to one core only.
+ * This dts file allows core0 to have memory, l2, i2c, spi, gpio, tdm, dma, usb,
+ * eth1, eth2, sdhc, crypto, global-util, message, pci0, pci1, msi.
+ *
+ * Please note to add "-b 0" for core0's dts compiling.
+ *
+ * Copyright 2011 Freescale Semiconductor Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/include/ "p1020si.dtsi"
+
+/ {
+	model = "fsl,P1020RDB";
+	compatible = "fsl,P1020RDB", "fsl,MPC85XXRDB-CAMP";
+
+	aliases {
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		serial0 = &serial0;
+		pci0 = &pci0;
+		pci1 = &pci1;
+	};
+
+	cpus {
+		PowerPC,P1020@1 {
+		status = "disabled";
+		};
+	};
+
+	memory {
+		device_type = "memory";
+	};
+
+	localbus@ffe05000 {
+		status = "disabled";
+	};
+
+	soc@ffe00000 {
+		i2c@3000 {
+			rtc@68 {
+				compatible = "dallas,ds1339";
+				reg = <0x68>;
+			};
+		};
+
+		serial1: serial@4600 {
+			status = "disabled";
+		};
+
+		spi@7000 {
+			fsl_m25p80@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "fsl,espi-flash";
+				reg = <0>;
+				linux,modalias = "fsl_m25p80";
+				spi-max-frequency = <40000000>;
+
+				partition@0 {
+					/* 512KB for u-boot Bootloader Image */
+					reg = <0x0 0x00080000>;
+					label = "SPI (RO) U-Boot Image";
+					read-only;
+				};
+
+				partition@80000 {
+					/* 512KB for DTB Image */
+					reg = <0x00080000 0x00080000>;
+					label = "SPI (RO) DTB Image";
+					read-only;
+				};
+
+				partition@100000 {
+					/* 4MB for Linux Kernel Image */
+					reg = <0x00100000 0x00400000>;
+					label = "SPI (RO) Linux Kernel Image";
+					read-only;
+				};
+
+				partition@500000 {
+					/* 4MB for Compressed RFS Image */
+					reg = <0x00500000 0x00400000>;
+					label = "SPI (RO) Compressed RFS Image";
+					read-only;
+				};
+
+				partition@900000 {
+					/* 7MB for JFFS2 based RFS */
+					reg = <0x00900000 0x00700000>;
+					label = "SPI (RW) JFFS2 RFS";
+				};
+			};
+		};
+
+		mdio@24000 {
+			phy0: ethernet-phy@0 {
+				interrupt-parent = <&mpic>;
+				interrupts = <3 1>;
+				reg = <0x0>;
+			};
+			phy1: ethernet-phy@1 {
+				interrupt-parent = <&mpic>;
+				interrupts = <2 1>;
+				reg = <0x1>;
+			};
+		};
+
+		mdio@25000 {
+			tbi0: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		enet0: ethernet@b0000 {
+			status = "disabled";
+		};
+
+		enet1: ethernet@b1000 {
+			phy-handle = <&phy0>;
+			tbi-handle = <&tbi0>;
+			phy-connection-type = "sgmii";
+		};
+
+		enet2: ethernet@b2000 {
+			phy-handle = <&phy1>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		usb@22000 {
+			phy_type = "ulpi";
+		};
+
+		/* USB2 is shared with localbus, so it must be disabled
+		   by default. We can't put 'status = "disabled";' here
+		   since U-Boot doesn't clear the status property when
+		   it enables USB2. OTOH, U-Boot does create a new node
+		   when there isn't any. So, just comment it out.
+		usb@23000 {
+			phy_type = "ulpi";
+		};
+		*/
+
+		mpic: pic@40000 {
+			protected-sources = <
+			42 29 30 34	/* serial1, enet0-queue-group0 */
+			17 18 24 45	/* enet0-queue-group1, crypto */
+			>;
+		};
+
+	};
+
+	pci0: pcie@ffe09000 {
+		ranges = <0x2000000 0x0 0xa0000000 0 0xa0000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0 0xffc10000 0x0 0x10000>;
+		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+		interrupt-map = <
+			/* IDSEL 0x0 */
+			0000 0x0 0x0 0x1 &mpic 0x4 0x1
+			0000 0x0 0x0 0x2 &mpic 0x5 0x1
+			0000 0x0 0x0 0x3 &mpic 0x6 0x1
+			0000 0x0 0x0 0x4 &mpic 0x7 0x1
+			>;
+		pcie@0 {
+			reg = <0x0 0x0 0x0 0x0 0x0>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			device_type = "pci";
+			ranges = <0x2000000 0x0 0xa0000000
+				  0x2000000 0x0 0xa0000000
+				  0x0 0x20000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x100000>;
+		};
+	};
+
+	pci1: pcie@ffe0a000 {
+		ranges = <0x2000000 0x0 0x80000000 0 0x80000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0 0xffc00000 0x0 0x10000>;
+		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+		interrupt-map = <
+			/* IDSEL 0x0 */
+			0000 0x0 0x0 0x1 &mpic 0x0 0x1
+			0000 0x0 0x0 0x2 &mpic 0x1 0x1
+			0000 0x0 0x0 0x3 &mpic 0x2 0x1
+			0000 0x0 0x0 0x4 &mpic 0x3 0x1
+			>;
+		pcie@0 {
+			reg = <0x0 0x0 0x0 0x0 0x0>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			device_type = "pci";
+			ranges = <0x2000000 0x0 0x80000000
+				  0x2000000 0x0 0x80000000
+				  0x0 0x20000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x100000>;
+		};
+	};
+};

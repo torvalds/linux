@@ -301,6 +301,11 @@ error_ret:
 
 };
 
+static const struct iio_info kxsd9_info = {
+	.attrs = &kxsd9_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit kxsd9_probe(struct spi_device *spi)
 {
 
@@ -329,19 +334,14 @@ static int __devinit kxsd9_probe(struct spi_device *spi)
 
 	st->us = spi;
 	mutex_init(&st->buf_lock);
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_tx;
 	}
 	st->indio_dev->dev.parent = &spi->dev;
-	/* for now */
-	st->indio_dev->num_interrupt_lines = 0;
-	st->indio_dev->event_attrs = NULL;
-
-	st->indio_dev->attrs = &kxsd9_attribute_group;
+	st->indio_dev->info = &kxsd9_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->indio_dev);

@@ -19,6 +19,12 @@
 #include <asm/frame.inc>
 #include <asm/param.h>
 #include <unit/serial.h>
+#ifdef CONFIG_SMP
+#include <asm/smp.h>
+#include <asm/intctl-regs.h>
+#include <asm/cpu-regs.h>
+#include <proc/smp-regs.h>
+#endif /* CONFIG_SMP */
 
 	__HEAD
 
@@ -30,17 +36,51 @@
 	.globl	_start
 	.type	_start,@function
 _start:
+#ifdef CONFIG_SMP
+	#
+	# If this is a secondary CPU (AP), then deal with that elsewhere
+	#
+	mov	(CPUID),d3
+	and	CPUID_MASK,d3
+	bne	startup_secondary
+
+	#
+	# We're dealing with the primary CPU (BP) here, then.
+	# Keep BP's D0,D1,D2 register for boot check.
+	#
+
+	# Set up the Boot IPI for each secondary CPU
+	mov	0x1,a0
+loop_set_secondary_icr:
+	mov	a0,a1
+	asl	CROSS_ICR_CPU_SHIFT,a1
+	add	CROSS_GxICR(SMP_BOOT_IRQ,0),a1
+	movhu	(a1),d3
+	or	GxICR_ENABLE|GxICR_LEVEL_0,d3
+	movhu	d3,(a1)
+	movhu	(a1),d3				# flush
+	inc	a0
+	cmp	NR_CPUS,a0
+	bne	loop_set_secondary_icr
+#endif /* CONFIG_SMP */
+
 	# save commandline pointer
 	mov	d0,a3
 
 	# preload the PGD pointer register
 	mov	swapper_pg_dir,d0
 	mov	d0,(PTBR)
+	clr	d0
+	movbu	d0,(PIDR)
 
 	# turn on the TLBs
 	mov	MMUCTR_IIV|MMUCTR_DIV,d0
 	mov	d0,(MMUCTR)
+#ifdef CONFIG_AM34_2
+	mov	MMUCTR_ITE|MMUCTR_DTE|MMUCTR_CE|MMUCTR_WTE,d0
+#else
 	mov	MMUCTR_ITE|MMUCTR_DTE|MMUCTR_CE,d0
+#endif
 	mov	d0,(MMUCTR)
 
 	# turn on AM33v2 exception handling mode and set the trap table base
@@ -51,6 +91,11 @@ _start:
 	mov	d0,(TBR)
 
 	# invalidate and enable both of the caches
+#ifdef CONFIG_SMP
+	mov	ECHCTR,a0
+	clr	d0
+	mov	d0,(a0)
+#endif
 	mov	CHCTR,a0
 	clr	d0
 	movhu	d0,(a0)					# turn off first
@@ -61,18 +106,18 @@ _start:
 	btst	CHCTR_ICBUSY|CHCTR_DCBUSY,d0		# wait till not busy
 	lne
 
-#ifndef CONFIG_MN10300_CACHE_DISABLED
+#ifdef CONFIG_MN10300_CACHE_ENABLED
 #ifdef CONFIG_MN10300_CACHE_WBACK
 #ifndef CONFIG_MN10300_CACHE_WBACK_NOWRALLOC
 	mov	CHCTR_ICEN|CHCTR_DCEN|CHCTR_DCWTMD_WRBACK,d0
 #else
 	mov	CHCTR_ICEN|CHCTR_DCEN|CHCTR_DCWTMD_WRBACK|CHCTR_DCALMD,d0
-#endif /* CACHE_DISABLED */
+#endif /* NOWRALLOC */
 #else
 	mov	CHCTR_ICEN|CHCTR_DCEN|CHCTR_DCWTMD_WRTHROUGH,d0
 #endif /* WBACK */
 	movhu	d0,(a0)					# enable
-#endif /* NOWRALLOC */
+#endif /* ENABLED */
 
 	# turn on RTS on the debug serial port if applicable
 #ifdef CONFIG_MN10300_UNIT_ASB2305
@@ -206,6 +251,44 @@ __no_parameters:
 	call	processor_init[],0
 	call	unit_init[],0
 
+#ifdef CONFIG_SMP
+	# mark the primary CPU in cpu_boot_map
+	mov	cpu_boot_map,a0
+	mov	0x1,d0
+	mov	d0,(a0)
+
+	# signal each secondary CPU to begin booting
+	mov	0x1,d2				# CPU ID
+
+loop_request_boot_secondary:
+	mov	d2,a0
+	# send SMP_BOOT_IPI to secondary CPU
+	asl	CROSS_ICR_CPU_SHIFT,a0
+	add	CROSS_GxICR(SMP_BOOT_IRQ,0),a0
+	movhu	(a0),d0
+	or	GxICR_REQUEST|GxICR_DETECT,d0
+	movhu	d0,(a0)
+	movhu	(a0),d0				# flush
+
+	# wait up to 100ms for AP's IPI to be received
+	clr	d3
+wait_on_secondary_boot:
+	mov	DELAY_TIME_BOOT_IPI,d0
+	call	__delay[],0
+	inc	d3
+	mov	cpu_boot_map,a0
+	mov	(a0),d0
+	lsr	d2,d0
+	btst	0x1,d0
+	bne	1f
+	cmp	TIME_OUT_COUNT_BOOT_IPI,d3
+	bne	wait_on_secondary_boot
+1:
+	inc	d2
+	cmp	NR_CPUS,d2
+	bne	loop_request_boot_secondary
+#endif /* CONFIG_SMP */
+
 #ifdef CONFIG_GDBSTUB
 	call	gdbstub_init[],0
 
@@ -217,7 +300,118 @@ __gdbstub_pause:
 #endif
 
 	jmp	start_kernel
-	.size	_start, _start-.
+	.size	_start,.-_start
+
+###############################################################################
+#
+# Secondary CPU boot point
+#
+###############################################################################
+#ifdef CONFIG_SMP
+startup_secondary:
+	# preload the PGD pointer register
+	mov	swapper_pg_dir,d0
+	mov	d0,(PTBR)
+	clr	d0
+	movbu	d0,(PIDR)
+
+	# turn on the TLBs
+	mov	MMUCTR_IIV|MMUCTR_DIV,d0
+	mov	d0,(MMUCTR)
+#ifdef CONFIG_AM34_2
+	mov	MMUCTR_ITE|MMUCTR_DTE|MMUCTR_CE|MMUCTR_WTE,d0
+#else
+	mov	MMUCTR_ITE|MMUCTR_DTE|MMUCTR_CE,d0
+#endif
+	mov	d0,(MMUCTR)
+
+	# turn on AM33v2 exception handling mode and set the trap table base
+	movhu	(CPUP),d0
+	or	CPUP_EXM_AM33V2,d0
+	movhu	d0,(CPUP)
+
+	# set the interrupt vector table
+	mov	CONFIG_INTERRUPT_VECTOR_BASE,d0
+	mov	d0,(TBR)
+
+	# invalidate and enable both of the caches
+	mov	ECHCTR,a0
+	clr	d0
+	mov	d0,(a0)
+	mov	CHCTR,a0
+	clr	d0
+	movhu	d0,(a0)					# turn off first
+	mov	CHCTR_ICINV|CHCTR_DCINV,d0
+	movhu	d0,(a0)
+	setlb
+	mov	(a0),d0
+	btst	CHCTR_ICBUSY|CHCTR_DCBUSY,d0		# wait till not busy (use CPU loop buffer)
+	lne
+
+#ifdef CONFIG_MN10300_CACHE_ENABLED
+#ifdef  CONFIG_MN10300_CACHE_WBACK
+#ifndef CONFIG_MN10300_CACHE_WBACK_NOWRALLOC
+	mov	CHCTR_ICEN|CHCTR_DCEN|CHCTR_DCWTMD_WRBACK,d0
+#else
+	mov	CHCTR_ICEN|CHCTR_DCEN|CHCTR_DCWTMD_WRBACK|CHCTR_DCALMD,d0
+#endif  /* !NOWRALLOC */
+#else
+	mov	CHCTR_ICEN|CHCTR_DCEN|CHCTR_DCWTMD_WRTHROUGH,d0
+#endif  /* WBACK */
+	movhu	d0,(a0)					# enable
+#endif  /* ENABLED */
+
+	# Clear the boot IPI interrupt for this CPU
+	movhu	(GxICR(SMP_BOOT_IRQ)),d0
+	and	~GxICR_REQUEST,d0
+	movhu	d0,(GxICR(SMP_BOOT_IRQ))
+	movhu	(GxICR(SMP_BOOT_IRQ)),d0		# flush
+
+	/* get stack */
+	mov	CONFIG_INTERRUPT_VECTOR_BASE + CONFIG_BOOT_STACK_OFFSET,a0
+	mov	(CPUID),d0
+	and	CPUID_MASK,d0
+	mulu	CONFIG_BOOT_STACK_SIZE,d0
+	sub	d0,a0
+	mov	a0,sp
+
+	# init interrupt for AP
+	call	smp_prepare_cpu_init[],0
+
+	# mark this secondary CPU in cpu_boot_map
+	mov	(CPUID),d0
+	mov	0x1,d1
+	asl	d0,d1
+	mov	cpu_boot_map,a0
+	bset	d1,(a0)
+
+	or	EPSW_IE|EPSW_IM_1,epsw  # permit level 0 interrupts
+	nop
+	nop
+#ifdef  CONFIG_MN10300_CACHE_WBACK
+	# flush the local cache if it's in writeback mode
+	call	mn10300_local_dcache_flush_inv[],0
+	setlb
+	mov	(CHCTR),d0
+	btst	CHCTR_DCBUSY,d0		# wait till not busy (use CPU loop buffer)
+	lne
+#endif
+
+	# now sleep waiting for further instructions
+secondary_sleep:
+	mov	CPUM_SLEEP,d0
+	movhu	d0,(CPUM)
+	nop
+	nop
+	bra	secondary_sleep
+	.size	startup_secondary,.-startup_secondary
+#endif /* CONFIG_SMP */
+
+###############################################################################
+#
+#
+#
+###############################################################################
 ENTRY(__head_end)
 
 /*

@@ -136,6 +136,7 @@ struct logfs_area_ops {
 	int	(*erase_segment)(struct logfs_area *area);
 };
 
+struct logfs_super;	/* forward */
 /**
  * struct logfs_device_ops - device access operations
  *
@@ -156,7 +157,7 @@ struct logfs_device_ops {
 			int ensure_write);
 	int (*can_write_buf)(struct super_block *sb, u64 ofs);
 	void (*sync)(struct super_block *sb);
-	void (*put_device)(struct super_block *sb);
+	void (*put_device)(struct logfs_super *s);
 };
 
 /**
@@ -471,11 +472,13 @@ void logfs_compr_exit(void);
 
 /* dev_bdev.c */
 #ifdef CONFIG_BLOCK
-int logfs_get_sb_bdev(struct file_system_type *type, int flags,
-		const char *devname, struct vfsmount *mnt);
+int logfs_get_sb_bdev(struct logfs_super *s,
+		struct file_system_type *type,
+		const char *devname);
 #else
-static inline int logfs_get_sb_bdev(struct file_system_type *type, int flags,
-		const char *devname, struct vfsmount *mnt)
+static inline int logfs_get_sb_bdev(struct logfs_super *s,
+		struct file_system_type *type,
+		const char *devname)
 {
 	return -ENODEV;
 }
@@ -483,11 +486,9 @@ static inline int logfs_get_sb_bdev(struct file_system_type *type, int flags,
 
 /* dev_mtd.c */
 #ifdef CONFIG_MTD
-int logfs_get_sb_mtd(struct file_system_type *type, int flags,
-		int mtdnr, struct vfsmount *mnt);
+int logfs_get_sb_mtd(struct logfs_super *s, int mtdnr);
 #else
-static inline int logfs_get_sb_mtd(struct file_system_type *type, int flags,
-		int mtdnr, struct vfsmount *mnt)
+static inline int logfs_get_sb_mtd(struct logfs_super *s, int mtdnr)
 {
 	return -ENODEV;
 }
@@ -619,9 +620,6 @@ void emergency_read_end(struct page *page);
 void logfs_crash_dump(struct super_block *sb);
 void *memchr_inv(const void *s, int c, size_t n);
 int logfs_statfs(struct dentry *dentry, struct kstatfs *stats);
-int logfs_get_sb_device(struct file_system_type *type, int flags,
-		struct mtd_info *mtd, struct block_device *bdev,
-		const struct logfs_device_ops *devops, struct vfsmount *mnt);
 int logfs_check_ds(struct logfs_disk_super *ds);
 int logfs_write_sb(struct super_block *sb);
 

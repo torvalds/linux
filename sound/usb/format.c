@@ -30,6 +30,7 @@
 #include "helper.h"
 #include "debug.h"
 #include "clock.h"
+#include "format.h"
 
 /*
  * parse the audio format type I descriptor
@@ -76,7 +77,10 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		format = 1 << UAC_FORMAT_TYPE_I_PCM;
 	}
 	if (format & (1 << UAC_FORMAT_TYPE_I_PCM)) {
-		if (sample_width > sample_bytes * 8) {
+		if (chip->usb_id == USB_ID(0x0582, 0x0016) /* Edirol SD-90 */ &&
+		    sample_width == 24 && sample_bytes == 2)
+			sample_bytes = 3;
+		else if (sample_width > sample_bytes * 8) {
 			snd_printk(KERN_INFO "%d:%u:%d : sample bitwidth %d in over sample bytes %d\n",
 				   chip->dev->devnum, fp->iface, fp->altsetting,
 				   sample_width, sample_bytes);
@@ -173,9 +177,11 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 			if (!rate)
 				continue;
 			/* C-Media CM6501 mislabels its 96 kHz altsetting */
+			/* Terratec Aureon 7.1 USB C-Media 6206, too */
 			if (rate == 48000 && nr_rates == 1 &&
 			    (chip->usb_id == USB_ID(0x0d8c, 0x0201) ||
-			     chip->usb_id == USB_ID(0x0d8c, 0x0102)) &&
+			     chip->usb_id == USB_ID(0x0d8c, 0x0102) ||
+			     chip->usb_id == USB_ID(0x0ccd, 0x00b1)) &&
 			    fp->altsetting == 5 && fp->maxpacksize == 392)
 				rate = 96000;
 			/* Creative VF0470 Live Cam reports 16 kHz instead of 8kHz */

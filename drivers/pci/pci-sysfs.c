@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/capability.h>
+#include <linux/security.h>
 #include <linux/pci-aspm.h>
 #include <linux/slab.h>
 #include "pci.h"
@@ -105,6 +106,40 @@ static ssize_t local_cpulist_show(struct device *dev,
 	buf[len++] = '\n';
 	buf[len] = '\0';
 	return len;
+}
+
+/*
+ * PCI Bus Class Devices
+ */
+static ssize_t pci_bus_show_cpuaffinity(struct device *dev,
+					int type,
+					struct device_attribute *attr,
+					char *buf)
+{
+	int ret;
+	const struct cpumask *cpumask;
+
+	cpumask = cpumask_of_pcibus(to_pci_bus(dev));
+	ret = type ?
+		cpulist_scnprintf(buf, PAGE_SIZE-2, cpumask) :
+		cpumask_scnprintf(buf, PAGE_SIZE-2, cpumask);
+	buf[ret++] = '\n';
+	buf[ret] = '\0';
+	return ret;
+}
+
+static inline ssize_t pci_bus_show_cpumaskaffinity(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	return pci_bus_show_cpuaffinity(dev, 0, attr, buf);
+}
+
+static inline ssize_t pci_bus_show_cpulistaffinity(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	return pci_bus_show_cpuaffinity(dev, 1, attr, buf);
 }
 
 /* show resources */
@@ -317,6 +352,25 @@ remove_store(struct device *dev, struct device_attribute *dummy,
 		count = ret;
 	return count;
 }
+
+static ssize_t
+dev_bus_rescan_store(struct device *dev, struct device_attribute *attr,
+		 const char *buf, size_t count)
+{
+	unsigned long val;
+	struct pci_bus *bus = to_pci_bus(dev);
+
+	if (strict_strtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val) {
+		mutex_lock(&pci_remove_rescan_mutex);
+		pci_rescan_bus(bus);
+		mutex_unlock(&pci_remove_rescan_mutex);
+	}
+	return count;
+}
+
 #endif
 
 struct device_attribute pci_dev_attrs[] = {
@@ -346,6 +400,15 @@ struct device_attribute pci_dev_attrs[] = {
 	__ATTR_NULL,
 };
 
+struct device_attribute pcibus_dev_attrs[] = {
+#ifdef CONFIG_HOTPLUG
+	__ATTR(rescan, (S_IWUSR|S_IWGRP), NULL, dev_bus_rescan_store),
+#endif
+	__ATTR(cpuaffinity, S_IRUGO, pci_bus_show_cpumaskaffinity, NULL),
+	__ATTR(cpulistaffinity, S_IRUGO, pci_bus_show_cpulistaffinity, NULL),
+	__ATTR_NULL,
+};
+
 static ssize_t
 boot_vga_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -368,7 +431,7 @@ pci_read_config(struct file *filp, struct kobject *kobj,
 	u8 *data = (u8*) buf;
 
 	/* Several chips lock up trying to read undefined config space */
-	if (cap_raised(filp->f_cred->cap_effective, CAP_SYS_ADMIN)) {
+	if (security_capable(&init_user_ns, filp->f_cred, CAP_SYS_ADMIN) == 0) {
 		size = dev->cfg_size;
 	} else if (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS) {
 		size = 128;
@@ -644,7 +707,7 @@ pci_adjust_legacy_attr(struct pci_bus *b, enum pci_mmap_state mmap_type)
  * a per-bus basis.  This routine creates the files and ties them into
  * their associated read, write and mmap files from pci-sysfs.c
  *
- * On error unwind, but don't propogate the error to the caller
+ * On error unwind, but don't propagate the error to the caller
  * as it is ok to set up the PCI bus without these files.
  */
 void pci_create_legacy_files(struct pci_bus *b)
@@ -705,17 +768,21 @@ void pci_remove_legacy_files(struct pci_bus *b)
 
 #ifdef HAVE_PCI_MMAP
 
-int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma)
+int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma,
+		  enum pci_mmap_api mmap_api)
 {
-	unsigned long nr, start, size;
+	unsigned long nr, start, size, pci_start;
 
+	if (pci_resource_len(pdev, resno) == 0)
+		return 0;
 	nr = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 	start = vma->vm_pgoff;
 	size = ((pci_resource_len(pdev, resno) - 1) >> PAGE_SHIFT) + 1;
-	if (start < size && size - start >= nr)
+	pci_start = (mmap_api == PCI_MMAP_PROCFS) ?
+			pci_resource_start(pdev, resno) >> PAGE_SHIFT : 0;
+	if (start >= pci_start && start < pci_start + size &&
+			start + nr <= pci_start + size)
 		return 1;
-	WARN(1, "process \"%s\" tried to map 0x%08lx-0x%08lx on %s BAR %d (size 0x%08lx)\n",
-		current->comm, start, start+nr, pci_name(pdev), resno, size);
 	return 0;
 }
 
@@ -745,8 +812,15 @@ pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 	if (i >= PCI_ROM_RESOURCE)
 		return -ENODEV;
 
-	if (!pci_mmap_fits(pdev, i, vma))
+	if (!pci_mmap_fits(pdev, i, vma, PCI_MMAP_SYSFS)) {
+		WARN(1, "process \"%s\" tried to map 0x%08lx bytes "
+			"at page 0x%08lx on %s BAR %d (start 0x%16Lx, size 0x%16Lx)\n",
+			current->comm, vma->vm_end-vma->vm_start, vma->vm_pgoff,
+			pci_name(pdev), i,
+			(u64)pci_resource_start(pdev, i),
+			(u64)pci_resource_len(pdev, i));
 		return -EINVAL;
+	}
 
 	/* pci_mmap_page_range() expects the same kind of entry as coming
 	 * from /proc/bus/pci/ which is a "user visible" value. If this is
@@ -1076,7 +1150,7 @@ static int pci_create_capabilities_sysfs(struct pci_dev *dev)
 		attr->write = write_vpd_attr;
 		retval = sysfs_create_bin_file(&dev->dev.kobj, attr);
 		if (retval) {
-			kfree(dev->vpd->attr);
+			kfree(attr);
 			return retval;
 		}
 		dev->vpd->attr = attr;
@@ -1138,7 +1212,7 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 		sysfs_bin_attr_init(attr);
 		attr->size = rom_size;
 		attr->attr.name = "rom";
-		attr->attr.mode = S_IRUSR;
+		attr->attr.mode = S_IRUSR | S_IWUSR;
 		attr->read = pci_read_rom;
 		attr->write = pci_write_rom;
 		retval = sysfs_create_bin_file(&pdev->dev.kobj, attr);

@@ -33,6 +33,9 @@
 #define DM365_MMCSD0_BASE	     0x01D11000
 #define DM365_MMCSD1_BASE	     0x01D00000
 
+/* System control register offsets */
+#define DM64XX_VDD3P3V_PWDN	0x48
+
 static struct resource i2c_resources[] = {
 	{
 		.start		= DAVINCI_I2C_BASE,
@@ -213,7 +216,7 @@ void __init davinci_setup_mmc(int module, struct davinci_mmc_config *config)
 				IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE + 0x7c);
 
 			/* Configure pull down control */
-			__raw_writel((__raw_readl(pupdctl1) & ~0x400),
+			__raw_writel((__raw_readl(pupdctl1) & ~0xfc0),
 					pupdctl1);
 
 			mmcsd1_resources[0].start = DM365_MMCSD1_BASE;
@@ -295,6 +298,18 @@ static void davinci_init_wdt(void)
 
 /*-------------------------------------------------------------------------*/
 
+static struct platform_device davinci_pcm_device = {
+	.name		= "davinci-pcm-audio",
+	.id		= -1,
+};
+
+static void davinci_init_pcm(void)
+{
+	platform_device_register(&davinci_pcm_device);
+}
+
+/*-------------------------------------------------------------------------*/
+
 struct davinci_timer_instance davinci_timer_instance[2] = {
 	{
 		.base		= DAVINCI_TIMER0_BASE,
@@ -315,6 +330,7 @@ static int __init davinci_init_devices(void)
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
+	davinci_init_pcm();
 	davinci_init_wdt();
 
 	return 0;

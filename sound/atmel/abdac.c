@@ -420,9 +420,9 @@ static int __devinit atmel_abdac_probe(struct platform_device *pdev)
 		return PTR_ERR(pclk);
 	}
 	sample_clk = clk_get(&pdev->dev, "sample_clk");
-	if (IS_ERR(pclk)) {
+	if (IS_ERR(sample_clk)) {
 		dev_dbg(&pdev->dev, "no sample clock\n");
-		retval = PTR_ERR(pclk);
+		retval = PTR_ERR(sample_clk);
 		goto out_put_pclk;
 	}
 	clk_enable(pclk);
@@ -599,4 +599,4 @@ module_exit(atmel_abdac_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for Atmel Audio Bitstream DAC (ABDAC)");
-MODULE_AUTHOR("Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>");
+MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");

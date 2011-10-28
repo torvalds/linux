@@ -60,7 +60,7 @@ enum {
  *
  * The Object Location Table header is placed at the beginning of each
  * OLT extent.  It is used to fing certain filesystem-wide metadata, e.g.
- * the inital inode list, the fileset header or the device configuration.
+ * the initial inode list, the fileset header or the device configuration.
  */
 struct vxfs_olt {
 	u_int32_t	olt_magic;	/* magic number			*/

@@ -114,7 +114,7 @@ enum {
 	WIMAX_GNL_RESET_IFIDX = 1,
 };
 
-/* Atributes for wimax_state_get() */
+/* Attributes for wimax_state_get() */
 enum {
 	WIMAX_GNL_STGET_IFIDX = 1,
 };

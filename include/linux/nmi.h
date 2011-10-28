@@ -14,22 +14,14 @@
  * may be used to reset the timeout - for code which intentionally
  * disables interrupts for a long time. This call is stateless.
  */
-#ifdef ARCH_HAS_NMI_WATCHDOG
+#if defined(ARCH_HAS_NMI_WATCHDOG) || defined(CONFIG_HARDLOCKUP_DETECTOR)
 #include <asm/nmi.h>
 extern void touch_nmi_watchdog(void);
-extern void acpi_nmi_disable(void);
-extern void acpi_nmi_enable(void);
 #else
-#ifndef CONFIG_HARDLOCKUP_DETECTOR
 static inline void touch_nmi_watchdog(void)
 {
 	touch_softlockup_watchdog();
 }
-#else
-extern void touch_nmi_watchdog(void);
-#endif
-static inline void acpi_nmi_disable(void) { }
-static inline void acpi_nmi_enable(void) { }
 #endif
 
 /*
@@ -53,11 +45,12 @@ static inline bool trigger_all_cpu_backtrace(void)
 
 #ifdef CONFIG_LOCKUP_DETECTOR
 int hw_nmi_is_cpu_stuck(struct pt_regs *);
-u64 hw_nmi_get_sample_period(void);
+u64 hw_nmi_get_sample_period(int watchdog_thresh);
 extern int watchdog_enabled;
+extern int watchdog_thresh;
 struct ctl_table;
-extern int proc_dowatchdog_enabled(struct ctl_table *, int ,
-			void __user *, size_t *, loff_t *);
+extern int proc_dowatchdog(struct ctl_table *, int ,
+			   void __user *, size_t *, loff_t *);
 #endif
 
 #endif

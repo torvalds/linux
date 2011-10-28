@@ -233,24 +233,15 @@ struct SiS_Private
 {
 	unsigned char			ChipType;
 	unsigned char			ChipRevision;
-#ifdef SIS_XORG_XF86
-	PCITAG				PciTag;
-#endif
-#ifdef SIS_LINUX_KERNEL
 	void				*ivideo;
-#endif
 	unsigned char 			*VirtualRomBase;
 	bool				UseROM;
-#ifdef SIS_LINUX_KERNEL
 	unsigned char SISIOMEMTYPE	*VideoMemoryAddress;
 	unsigned int			VideoMemorySize;
-#endif
 	SISIOADDRESS			IOAddress;
 	SISIOADDRESS			IOAddress2;  /* For dual chip XGI volari */
 
-#ifdef SIS_LINUX_KERNEL
 	SISIOADDRESS			RelIO;
-#endif
 	SISIOADDRESS			SiS_P3c4;
 	SISIOADDRESS			SiS_P3d4;
 	SISIOADDRESS			SiS_P3c0;
@@ -280,9 +271,6 @@ struct SiS_Private
 	unsigned short			SiS_IF_DEF_FSTN;
 	unsigned short			SiS_SysFlags;
 	unsigned char			SiS_VGAINFO;
-#ifdef SIS_XORG_XF86
-	unsigned short			SiS_CP1, SiS_CP2, SiS_CP3, SiS_CP4;
-#endif
 	bool				SiS_UseROM;
 	bool				SiS_ROMNew;
 	bool				SiS_XGIROM;

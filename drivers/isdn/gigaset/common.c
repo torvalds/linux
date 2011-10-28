@@ -1026,32 +1026,6 @@ struct cardstate *gigaset_get_cs_by_id(int id)
 	return ret;
 }
 
-void gigaset_debugdrivers(void)
-{
-	unsigned long flags;
-	static struct cardstate *cs;
-	struct gigaset_driver *drv;
-	unsigned i;
-
-	spin_lock_irqsave(&driver_lock, flags);
-	list_for_each_entry(drv, &drivers, list) {
-		gig_dbg(DEBUG_DRIVER, "driver %p", drv);
-		spin_lock(&drv->lock);
-		for (i = 0; i < drv->minors; ++i) {
-			gig_dbg(DEBUG_DRIVER, "  index %u", i);
-			cs = drv->cs + i;
-			gig_dbg(DEBUG_DRIVER, "    cardstate %p", cs);
-			gig_dbg(DEBUG_DRIVER, "    flags 0x%02x", cs->flags);
-			gig_dbg(DEBUG_DRIVER, "    minor_index %u",
-				cs->minor_index);
-			gig_dbg(DEBUG_DRIVER, "    driver %p", cs->driver);
-			gig_dbg(DEBUG_DRIVER, "    i4l id %d", cs->myid);
-		}
-		spin_unlock(&drv->lock);
-	}
-	spin_unlock_irqrestore(&driver_lock, flags);
-}
-
 static struct cardstate *gigaset_get_cs_by_minor(unsigned minor)
 {
 	unsigned long flags;

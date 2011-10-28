@@ -34,7 +34,8 @@
 		"{MidiMan M Audio,Delta 410},"\
 		"{MidiMan M Audio,Audiophile 24/96},"\
 		"{Digigram,VX442},"\
-		"{Lionstracs,Mediastation},"
+		"{Lionstracs,Mediastation},"\
+		"{Edirol,DA2496},"
 
 #define ICE1712_SUBDEVICE_DELTA1010	0x121430d6
 #define ICE1712_SUBDEVICE_DELTA1010E	0xff1430d6
@@ -47,6 +48,7 @@
 #define ICE1712_SUBDEVICE_DELTA1010LT	0x12143bd6
 #define ICE1712_SUBDEVICE_VX442		0x12143cd6
 #define ICE1712_SUBDEVICE_MEDIASTATION	0x694c0100
+#define ICE1712_SUBDEVICE_EDIROLDA2496	0xce164010
 
 /* entry point */
 extern struct snd_ice1712_card_info snd_ice1712_delta_cards[];
@@ -141,6 +143,17 @@ extern struct snd_ice1712_card_info snd_ice1712_delta_cards[];
 #define ICE1712_DELTA_1010LT_CS_CS8427	0x40	/* CS8427 */
 #define ICE1712_DELTA_1010LT_CS_NONE	0x50	/* nothing */
 #define ICE1712_DELTA_1010LT_WORDCLOCK 0x80	/* sample clock source: 0 = Word Clock Input, 1 = S/PDIF Input ??? */
+
+/* M-Audio Delta 66 rev. E definitions.
+ * Newer revisions of Delta 66 have CS8427 over SPI for
+ * S/PDIF transceiver instead of CS8404/CS8414. */
+/* 0x01 = DFS */
+#define ICE1712_DELTA_66E_CCLK		0x02	/* SPI clock */
+#define ICE1712_DELTA_66E_DIN		0x04	/* data input */
+#define ICE1712_DELTA_66E_DOUT		0x08	/* data output */
+#define ICE1712_DELTA_66E_CS_CS8427	0x10	/* chip select, low = CS8427 */
+#define ICE1712_DELTA_66E_CS_CHIP_A	0x20	/* AK4524 #0 */
+#define ICE1712_DELTA_66E_CS_CHIP_B	0x40	/* AK4524 #1 */
 
 /* Digigram VX442 definitions */
 #define ICE1712_VX442_CCLK		0x02	/* SPI clock */

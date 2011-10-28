@@ -214,11 +214,9 @@ static int pci_fire_msi_setup(struct pci_pbm_info *pbm, unsigned long msiqid,
 
 static int pci_fire_msi_teardown(struct pci_pbm_info *pbm, unsigned long msi)
 {
-	unsigned long msiqid;
 	u64 val;
 
 	val = upa_readq(pbm->pbm_regs + MSI_MAP(msi));
-	msiqid = (val & MSI_MAP_EQNUM);
 
 	val &= ~MSI_MAP_VALID;
 
@@ -277,7 +275,7 @@ static int pci_fire_msiq_build_irq(struct pci_pbm_info *pbm,
 {
 	unsigned long cregs = (unsigned long) pbm->pbm_regs;
 	unsigned long imap_reg, iclr_reg, int_ctrlr;
-	unsigned int virt_irq;
+	unsigned int irq;
 	int fixup;
 	u64 val;
 
@@ -293,14 +291,14 @@ static int pci_fire_msiq_build_irq(struct pci_pbm_info *pbm,
 
 	fixup = ((pbm->portid << 6) | devino) - int_ctrlr;
 
-	virt_irq = build_irq(fixup, iclr_reg, imap_reg);
-	if (!virt_irq)
+	irq = build_irq(fixup, iclr_reg, imap_reg);
+	if (!irq)
 		return -ENOMEM;
 
 	upa_writeq(EVENT_QUEUE_CONTROL_SET_EN,
 		   pbm->pbm_regs + EVENT_QUEUE_CONTROL_SET(msiqid));
 
-	return virt_irq;
+	return irq;
 }
 
 static const struct sparc64_msiq_ops pci_fire_msiq_ops = {
@@ -455,8 +453,7 @@ static int __devinit pci_fire_pbm_init(struct pci_pbm_info *pbm,
 	return 0;
 }
 
-static int __devinit fire_probe(struct platform_device *op,
-				const struct of_device_id *match)
+static int __devinit fire_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct pci_pbm_info *pbm;
@@ -499,7 +496,7 @@ out_err:
 	return err;
 }
 
-static struct of_device_id __initdata fire_match[] = {
+static const struct of_device_id fire_match[] = {
 	{
 		.name = "pci",
 		.compatible = "pciex108e,80f0",
@@ -507,7 +504,7 @@ static struct of_device_id __initdata fire_match[] = {
 	{},
 };
 
-static struct of_platform_driver fire_driver = {
+static struct platform_driver fire_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -518,7 +515,7 @@ static struct of_platform_driver fire_driver = {
 
 static int __init fire_init(void)
 {
-	return of_register_platform_driver(&fire_driver);
+	return platform_driver_register(&fire_driver);
 }
 
 subsys_initcall(fire_init);

@@ -235,33 +235,24 @@ static int omfs_dir_is_empty(struct inode *inode)
 	return *ptr != ~0;
 }
 
-static int omfs_unlink(struct inode *dir, struct dentry *dentry)
+static int omfs_remove(struct inode *dir, struct dentry *dentry)
 {
-	int ret;
 	struct inode *inode = dentry->d_inode;
+	int ret;
+
+
+	if (S_ISDIR(inode->i_mode) &&
+	    !omfs_dir_is_empty(inode))
+		return -ENOTEMPTY;
 
 	ret = omfs_delete_entry(dentry);
 	if (ret)
-		goto end_unlink;
-
-	inode_dec_link_count(inode);
+		return ret;
+	
+	clear_nlink(inode);
+	mark_inode_dirty(inode);
 	mark_inode_dirty(dir);
-
-end_unlink:
-	return ret;
-}
-
-static int omfs_rmdir(struct inode *dir, struct dentry *dentry)
-{
-	int err = -ENOTEMPTY;
-	struct inode *inode = dentry->d_inode;
-
-	if (omfs_dir_is_empty(inode)) {
-		err = omfs_unlink(dir, dentry);
-		if (!err)
-			inode_dec_link_count(inode);
-	}
-	return err;
+	return 0;
 }
 
 static int omfs_add_node(struct inode *dir, struct dentry *dentry, int mode)
@@ -372,9 +363,10 @@ static int omfs_fill_chain(struct file *filp, void *dirent, filldir_t filldir,
 
 		res = filldir(dirent, oi->i_name, strnlen(oi->i_name,
 			OMFS_NAMELEN), filp->f_pos, self, d_type);
-		if (res == 0)
-			filp->f_pos++;
 		brelse(bh);
+		if (res < 0)
+			break;
+		filp->f_pos++;
 	}
 out:
 	return res;
@@ -385,44 +377,28 @@ static int omfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 {
 	struct inode *new_inode = new_dentry->d_inode;
 	struct inode *old_inode = old_dentry->d_inode;
-	struct buffer_head *bh;
-	int is_dir;
 	int err;
-
-	is_dir = S_ISDIR(old_inode->i_mode);
 
 	if (new_inode) {
 		/* overwriting existing file/dir */
-		err = -ENOTEMPTY;
-		if (is_dir && !omfs_dir_is_empty(new_inode))
-			goto out;
-
-		err = -ENOENT;
-		bh = omfs_find_entry(new_dir, new_dentry->d_name.name,
-			new_dentry->d_name.len);
-		if (IS_ERR(bh))
-			goto out;
-		brelse(bh);
-
-		err = omfs_unlink(new_dir, new_dentry);
+		err = omfs_remove(new_dir, new_dentry);
 		if (err)
 			goto out;
 	}
 
 	/* since omfs locates files by name, we need to unlink _before_
 	 * adding the new link or we won't find the old one */
-	inode_inc_link_count(old_inode);
-	err = omfs_unlink(old_dir, old_dentry);
-	if (err) {
-		inode_dec_link_count(old_inode);
+	err = omfs_delete_entry(old_dentry);
+	if (err)
 		goto out;
-	}
 
+	mark_inode_dirty(old_dir);
 	err = omfs_add_link(new_dentry, old_inode);
 	if (err)
 		goto out;
 
 	old_inode->i_ctime = CURRENT_TIME_SEC;
+	mark_inode_dirty(old_inode);
 out:
 	return err;
 }
@@ -488,8 +464,8 @@ const struct inode_operations omfs_dir_inops = {
 	.mkdir = omfs_mkdir,
 	.rename = omfs_rename,
 	.create = omfs_create,
-	.unlink = omfs_unlink,
-	.rmdir = omfs_rmdir,
+	.unlink = omfs_remove,
+	.rmdir = omfs_remove,
 };
 
 const struct file_operations omfs_dir_operations = {

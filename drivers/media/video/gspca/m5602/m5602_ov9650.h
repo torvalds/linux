@@ -110,7 +110,7 @@
 
 #define OV9650_VARIOPIXEL		(1 << 2)
 #define OV9650_SYSTEM_CLK_SEL		(1 << 7)
-#define OV9650_SLAM_MODE 		(1 << 4)
+#define OV9650_SLAM_MODE		(1 << 4)
 
 #define OV9650_QVGA_VARIOPIXEL		(1 << 7)
 
@@ -154,8 +154,7 @@ static const struct m5602_sensor ov9650 = {
 	.disconnect = ov9650_disconnect,
 };
 
-static const unsigned char preinit_ov9650[][3] =
-{
+static const unsigned char preinit_ov9650[][3] = {
 	/* [INITCAM] */
 	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02},
 	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0},
@@ -180,8 +179,7 @@ static const unsigned char preinit_ov9650[][3] =
 	{SENSOR, OV9650_OFON, 0x40}
 };
 
-static const unsigned char init_ov9650[][3] =
-{
+static const unsigned char init_ov9650[][3] = {
 	/* [INITCAM] */
 	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02},
 	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0},
@@ -297,8 +295,7 @@ static const unsigned char init_ov9650[][3] =
 	{SENSOR, OV9650_COM2, OV9650_SOFT_SLEEP | OV9650_OUTPUT_DRIVE_2X},
 };
 
-static const unsigned char res_init_ov9650[][3] =
-{
+static const unsigned char res_init_ov9650[][3] = {
 	{SENSOR, OV9650_COM2, OV9650_OUTPUT_DRIVE_2X},
 
 	{BRIDGE, M5602_XB_LINE_OF_FRAME_H, 0x82},
@@ -307,5 +304,4 @@ static const unsigned char res_init_ov9650[][3] =
 	{BRIDGE, M5602_XB_PIX_OF_LINE_L, 0x00},
 	{BRIDGE, M5602_XB_SIG_INI, 0x01}
 };
-
 #endif

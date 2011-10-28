@@ -15,6 +15,7 @@
 #define KMSG_COMPONENT "time"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/kernel_stat.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -37,9 +38,9 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/gfp.h>
+#include <linux/kprobes.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
-#include <asm/s390_ext.h>
 #include <asm/div64.h>
 #include <asm/vdso.h>
 #include <asm/irq.h>
@@ -60,7 +61,7 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long notrace sched_clock(void)
+unsigned long long notrace __kprobes sched_clock(void)
 {
 	return (get_clock_monotonic() * 125) >> 9;
 }
@@ -155,8 +156,11 @@ void init_cpu_timer(void)
 	__ctl_set_bit(0, 4);
 }
 
-static void clock_comparator_interrupt(__u16 code)
+static void clock_comparator_interrupt(unsigned int ext_int_code,
+				       unsigned int param32,
+				       unsigned long param64)
 {
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_CLK]++;
 	if (S390_lowcore.clock_comparator == -1ULL)
 		set_clock_comparator(S390_lowcore.clock_comparator);
 }
@@ -164,14 +168,14 @@ static void clock_comparator_interrupt(__u16 code)
 static void etr_timing_alert(struct etr_irq_parm *);
 static void stp_timing_alert(struct stp_irq_parm *);
 
-static void timing_alert_interrupt(__u16 code)
+static void timing_alert_interrupt(unsigned int ext_int_code,
+				   unsigned int param32, unsigned long param64)
 {
-	if (S390_lowcore.ext_params & 0x00c40000)
-		etr_timing_alert((struct etr_irq_parm *)
-				 &S390_lowcore.ext_params);
-	if (S390_lowcore.ext_params & 0x00038000)
-		stp_timing_alert((struct stp_irq_parm *)
-				 &S390_lowcore.ext_params);
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_TLA]++;
+	if (param32 & 0x00c40000)
+		etr_timing_alert((struct etr_irq_parm *) &param32);
+	if (param32 & 0x00038000)
+		stp_timing_alert((struct stp_irq_parm *) &param32);
 }
 
 static void etr_reset(void);
@@ -719,7 +723,7 @@ static void clock_sync_cpu(struct clock_sync_data *sync)
 }
 
 /*
- * Sync the TOD clock using the port refered to by aibp. This port
+ * Sync the TOD clock using the port referred to by aibp. This port
  * has to be enabled and the other port has to be disabled. The
  * last eacr update has to be more than 1.6 seconds in the past.
  */
@@ -805,7 +809,7 @@ static int etr_sync_clock_stop(struct etr_aib *aib, int port)
 	etr_sync.etr_port = port;
 	get_online_cpus();
 	atomic_set(&etr_sync.cpus, num_online_cpus() - 1);
-	rc = stop_machine(etr_sync_clock, &etr_sync, &cpu_online_map);
+	rc = stop_machine(etr_sync_clock, &etr_sync, cpu_online_mask);
 	put_online_cpus();
 	return rc;
 }
@@ -1007,7 +1011,7 @@ static void etr_work_fn(struct work_struct *work)
 		eacr = etr_handle_update(&aib, eacr);
 
 	/*
-	 * Select ports to enable. The prefered synchronization mode is PPS.
+	 * Select ports to enable. The preferred synchronization mode is PPS.
 	 * If a port can be enabled depends on a number of things:
 	 * 1) The port needs to be online and uptodate. A port is not
 	 *    disabled just because it is not uptodate, but it is only
@@ -1086,7 +1090,7 @@ static void etr_work_fn(struct work_struct *work)
 	/*
 	 * Update eacr and try to synchronize the clock. If the update
 	 * of eacr caused a stepping port switch (or if we have to
-	 * assume that a stepping port switch has occured) or the
+	 * assume that a stepping port switch has occurred) or the
 	 * clock syncing failed, reset the sync check control bit
 	 * and set up a timer to try again after 0.5 seconds
 	 */
@@ -1574,7 +1578,7 @@ static void stp_work_fn(struct work_struct *work)
 	memset(&stp_sync, 0, sizeof(stp_sync));
 	get_online_cpus();
 	atomic_set(&stp_sync.cpus, num_online_cpus() - 1);
-	stop_machine(stp_sync_clock, &stp_sync, &cpu_online_map);
+	stop_machine(stp_sync_clock, &stp_sync, cpu_online_mask);
 	put_online_cpus();
 
 	if (!check_sync_clock())

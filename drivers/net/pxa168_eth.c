@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2010 Marvell International Ltd.
  *		Sachin Sanap <ssanap@marvell.com>
+ *		Zhangfei Gao <zgao6@marvell.com>
  *		Philip Rakity <prakity@marvell.com>
  *		Mark Brown <markb@marvell.com>
  *
@@ -42,8 +43,6 @@
 #include <linux/types.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
-#include <linux/delay.h>
-#include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 #include <linux/pxa168_eth.h>
 
@@ -463,7 +462,7 @@ static u32 hash_function(unsigned char *mac_addr_orig)
  * pep - ETHERNET .
  * mac_addr - MAC address.
  * skip - if 1, skip this address.Used in case of deleting an entry which is a
- *	  part of chain in the hash table.We cant just delete the entry since
+ *	  part of chain in the hash table.We can't just delete the entry since
  *	  that will break the chain.We need to defragment the tables time to
  *	  time.
  * rd   - 0 Discard packet upon match.
@@ -850,7 +849,6 @@ static int rxq_process(struct net_device *dev, int budget)
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_receive_skb(skb);
 		}
-		dev->last_rx = jiffies;
 	}
 	/* Fill RX ring with skb's */
 	rxq_refill(dev);
@@ -1275,7 +1273,7 @@ static int pxa168_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	wmb();
 	wrl(pep, SDMA_CMD, SDMA_CMD_TXDH | SDMA_CMD_ERD);
 
-	stats->tx_bytes += skb->len;
+	stats->tx_bytes += length;
 	stats->tx_packets++;
 	dev->trans_start = jiffies;
 	if (pep->tx_ring_size - pep->tx_desc_count <= 1) {
@@ -1452,16 +1450,11 @@ static void pxa168_get_drvinfo(struct net_device *dev,
 	strncpy(info->bus_info, "N/A", 32);
 }
 
-static u32 pxa168_get_link(struct net_device *dev)
-{
-	return !!netif_carrier_ok(dev);
-}
-
 static const struct ethtool_ops pxa168_ethtool_ops = {
 	.get_settings = pxa168_get_settings,
 	.set_settings = pxa168_set_settings,
 	.get_drvinfo = pxa168_get_drvinfo,
-	.get_link = pxa168_get_link,
+	.get_link = ethtool_op_get_link,
 };
 
 static const struct net_device_ops pxa168_eth_netdev_ops = {
@@ -1609,7 +1602,7 @@ static int pxa168_eth_remove(struct platform_device *pdev)
 	mdiobus_unregister(pep->smi_bus);
 	mdiobus_free(pep->smi_bus);
 	unregister_netdev(dev);
-	flush_scheduled_work();
+	cancel_work_sync(&pep->tx_timeout_task);
 	free_netdev(dev);
 	platform_set_drvdata(pdev, NULL);
 	return 0;

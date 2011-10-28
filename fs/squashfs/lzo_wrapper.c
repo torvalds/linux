@@ -29,7 +29,6 @@
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"
-#include "squashfs_fs_i.h"
 #include "squashfs.h"
 #include "decompressor.h"
 
@@ -38,7 +37,7 @@ struct squashfs_lzo {
 	void	*output;
 };
 
-static void *lzo_init(struct squashfs_sb_info *msblk)
+static void *lzo_init(struct squashfs_sb_info *msblk, void *buff, int len)
 {
 	int block_size = max_t(int, msblk->block_size, SQUASHFS_METADATA_SIZE);
 
@@ -59,7 +58,7 @@ failed2:
 failed:
 	ERROR("Failed to allocate lzo workspace\n");
 	kfree(stream);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 

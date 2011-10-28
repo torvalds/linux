@@ -462,14 +462,14 @@ static int __devinit sdh_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	mmc = mmc_alloc_host(sizeof(*mmc), &pdev->dev);
+	mmc = mmc_alloc_host(sizeof(struct sdh_host), &pdev->dev);
 	if (!mmc) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	mmc->ops = &sdh_ops;
-	mmc->max_phys_segs = 32;
+	mmc->max_segs = 32;
 	mmc->max_seg_size = 1 << 16;
 	mmc->max_blk_size = 1 << 11;
 	mmc->max_blk_count = 1 << 11;

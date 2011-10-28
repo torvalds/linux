@@ -4,7 +4,6 @@
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- * http://www.algor.co.uk
  *
  * ########################################################################
  *
@@ -105,7 +104,7 @@ ieee754dp ieee754dp_mul(ieee754dp x, ieee754dp y)
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_NORM):
 		break;
 	}
-	/* rm = xm * ym, re = xe+ye basicly */
+	/* rm = xm * ym, re = xe+ye basically */
 	assert(xm & DP_HIDDEN_BIT);
 	assert(ym & DP_HIDDEN_BIT);
 	{

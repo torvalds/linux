@@ -32,12 +32,14 @@ fw-shipped-$(CONFIG_ADAPTEC_STARFIRE) += adaptec/starfire_rx.bin \
 					 adaptec/starfire_tx.bin
 fw-shipped-$(CONFIG_ATARI_DSP56K) += dsp56k/bootstrap.bin
 fw-shipped-$(CONFIG_ATM_AMBASSADOR) += atmsar11.fw
-fw-shipped-$(CONFIG_BNX2X) += bnx2x-e1-5.2.13.0.fw bnx2x-e1h-5.2.13.0.fw
-fw-shipped-$(CONFIG_BNX2) += bnx2/bnx2-mips-09-5.0.0.j15.fw \
-			     bnx2/bnx2-rv2p-09-5.0.0.j10.fw \
-			     bnx2/bnx2-rv2p-09ax-5.0.0.j10.fw \
-			     bnx2/bnx2-mips-06-5.0.0.j6.fw \
-			     bnx2/bnx2-rv2p-06-5.0.0.j3.fw
+fw-shipped-$(CONFIG_BNX2X) += bnx2x/bnx2x-e1-6.2.9.0.fw \
+			      bnx2x/bnx2x-e1h-6.2.9.0.fw \
+			      bnx2x/bnx2x-e2-6.2.9.0.fw
+fw-shipped-$(CONFIG_BNX2) += bnx2/bnx2-mips-09-6.2.1a.fw \
+			     bnx2/bnx2-rv2p-09-6.0.17.fw \
+			     bnx2/bnx2-rv2p-09ax-6.0.17.fw \
+			     bnx2/bnx2-mips-06-6.2.1.fw \
+			     bnx2/bnx2-rv2p-06-6.0.15.fw
 fw-shipped-$(CONFIG_CASSINI) += sun/cassini.bin
 fw-shipped-$(CONFIG_COMPUTONE) += intelliport2.bin
 fw-shipped-$(CONFIG_CHELSIO_T3) += cxgb3/t3b_psram-1.1.0.bin \
@@ -80,6 +82,7 @@ fw-shipped-$(CONFIG_SERIAL_8250_CS) += cis/MT5634ZLX.cis cis/RS-COM-2P.cis \
 fw-shipped-$(CONFIG_PCMCIA_SMC91C92) += ositech/Xilinx7OD.bin
 fw-shipped-$(CONFIG_SCSI_ADVANSYS) += advansys/mcode.bin advansys/38C1600.bin \
 				      advansys/3550.bin advansys/38C0800.bin
+fw-shipped-$(CONFIG_SCSI_ISCI) += isci/isci_firmware.bin
 fw-shipped-$(CONFIG_SCSI_QLOGIC_1280) += qlogic/1040.bin qlogic/1280.bin \
 					 qlogic/12160.bin
 fw-shipped-$(CONFIG_SCSI_QLOGICPTI) += qlogic/isp1000.bin

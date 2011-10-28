@@ -21,7 +21,7 @@
 #define RPC_LED_10	(0x02)	/* LED = 10Mbps link detect */
 #define RPC_LED_FD	(0x03)	/* LED = Full Duplex Mode */
 #define RPC_LED_TX_RX	(0x04)	/* LED = TX or RX packet occurred */
-#define RPC_LED_100	(0x05)	/* LED = 100Mbps link dectect */
+#define RPC_LED_100	(0x05)	/* LED = 100Mbps link detect */
 #define RPC_LED_TX	(0x06)	/* LED = TX packet occurred */
 #define RPC_LED_RX	(0x07)	/* LED = RX packet occurred */
 

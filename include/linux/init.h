@@ -46,16 +46,23 @@
 #define __exitdata	__section(.exit.data)
 #define __exit_call	__used __section(.exitcall.exit)
 
-/* modpost check for section mismatches during the kernel build.
+/*
+ * modpost check for section mismatches during the kernel build.
  * A section mismatch happens when there are references from a
  * code or data section to an init section (both code or data).
  * The init sections are (for most archs) discarded by the kernel
  * when early init has completed so all such references are potential bugs.
  * For exit sections the same issue exists.
+ *
  * The following markers are used for the cases where the reference to
  * the *init / *exit section (code or data) is valid and will teach
- * modpost not to issue a warning.
- * The markers follow same syntax rules as __init / __initdata. */
+ * modpost not to issue a warning.  Intended semantics is that a code or
+ * data tagged __ref* can reference code or data from init section without
+ * producing a warning (of course, no warning does not mean code is
+ * correct, so optimally document why the __ref is needed and why it's OK).
+ *
+ * The markers follow same syntax rules as __init / __initdata.
+ */
 #define __ref            __section(.ref.text) noinline
 #define __refdata        __section(.ref.data)
 #define __refconst       __section(.ref.rodata)
@@ -72,29 +79,29 @@
 #define __exitused  __used
 #endif
 
-#define __exit          __section(.exit.text) __exitused __cold
+#define __exit          __section(.exit.text) __exitused __cold notrace
 
 /* Used for HOTPLUG */
-#define __devinit        __section(.devinit.text) __cold
+#define __devinit        __section(.devinit.text) __cold notrace
 #define __devinitdata    __section(.devinit.data)
 #define __devinitconst   __section(.devinit.rodata)
-#define __devexit        __section(.devexit.text) __exitused __cold
+#define __devexit        __section(.devexit.text) __exitused __cold notrace
 #define __devexitdata    __section(.devexit.data)
 #define __devexitconst   __section(.devexit.rodata)
 
 /* Used for HOTPLUG_CPU */
-#define __cpuinit        __section(.cpuinit.text) __cold
+#define __cpuinit        __section(.cpuinit.text) __cold notrace
 #define __cpuinitdata    __section(.cpuinit.data)
 #define __cpuinitconst   __section(.cpuinit.rodata)
-#define __cpuexit        __section(.cpuexit.text) __exitused __cold
+#define __cpuexit        __section(.cpuexit.text) __exitused __cold notrace
 #define __cpuexitdata    __section(.cpuexit.data)
 #define __cpuexitconst   __section(.cpuexit.rodata)
 
 /* Used for MEMORY_HOTPLUG */
-#define __meminit        __section(.meminit.text) __cold
+#define __meminit        __section(.meminit.text) __cold notrace
 #define __meminitdata    __section(.meminit.data)
 #define __meminitconst   __section(.meminit.rodata)
-#define __memexit        __section(.memexit.text) __exitused __cold
+#define __memexit        __section(.memexit.text) __exitused __cold notrace
 #define __memexitdata    __section(.memexit.data)
 #define __memexitconst   __section(.memexit.rodata)
 

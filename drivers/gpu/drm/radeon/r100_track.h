@@ -46,19 +46,13 @@ struct r100_cs_track_texture {
 	unsigned		height_11;
 	bool			use_pitch;
 	bool			enabled;
+	bool                    lookup_disable;
 	bool			roundup_w;
 	bool			roundup_h;
 	unsigned                compress_format;
 };
 
-struct r100_cs_track_limits {
-	unsigned num_cb;
-	unsigned num_texture;
-	unsigned max_levels;
-};
-
 struct r100_cs_track {
-	struct radeon_device *rdev;
 	unsigned			num_cb;
 	unsigned                        num_texture;
 	unsigned			maxy;
@@ -69,14 +63,20 @@ struct r100_cs_track {
 	unsigned			num_arrays;
 	unsigned			max_indx;
 	unsigned			color_channel_mask;
-	struct r100_cs_track_array	arrays[11];
+	struct r100_cs_track_array	arrays[16];
 	struct r100_cs_track_cb 	cb[R300_MAX_CB];
 	struct r100_cs_track_cb 	zb;
+	struct r100_cs_track_cb 	aa;
 	struct r100_cs_track_texture	textures[R300_TRACK_MAX_TEXTURE];
 	bool				z_enabled;
 	bool                            separate_cube;
 	bool				zb_cb_clear;
 	bool				blend_read_enable;
+	bool				cb_dirty;
+	bool				zb_dirty;
+	bool				tex_dirty;
+	bool				aa_dirty;
+	bool				aaresolve;
 };
 
 int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track);
@@ -146,6 +146,12 @@ static inline int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 	ib = p->ib->ptr;
 	track = (struct r100_cs_track *)p->track;
 	c = radeon_get_ib_value(p, idx++) & 0x1F;
+	if (c > 16) {
+	    DRM_ERROR("Only 16 vertex buffers are allowed %d\n",
+		      pkt->opcode);
+	    r100_cs_dump_packet(p, pkt);
+	    return -EINVAL;
+	}
 	track->num_arrays = c;
 	for (i = 0; i < (c - 1); i+=2, idx+=3) {
 		r = r100_cs_packet_next_reloc(p, &reloc);

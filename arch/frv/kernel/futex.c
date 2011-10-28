@@ -18,7 +18,7 @@
  * the various futex operations; MMU fault checking is ignored under no-MMU
  * conditions
  */
-static inline int atomic_futex_op_xchg_set(int oparg, int __user *uaddr, int *_oldval)
+static inline int atomic_futex_op_xchg_set(int oparg, u32 __user *uaddr, int *_oldval)
 {
 	int oldval, ret;
 
@@ -50,7 +50,7 @@ static inline int atomic_futex_op_xchg_set(int oparg, int __user *uaddr, int *_o
 	return ret;
 }
 
-static inline int atomic_futex_op_xchg_add(int oparg, int __user *uaddr, int *_oldval)
+static inline int atomic_futex_op_xchg_add(int oparg, u32 __user *uaddr, int *_oldval)
 {
 	int oldval, ret;
 
@@ -83,7 +83,7 @@ static inline int atomic_futex_op_xchg_add(int oparg, int __user *uaddr, int *_o
 	return ret;
 }
 
-static inline int atomic_futex_op_xchg_or(int oparg, int __user *uaddr, int *_oldval)
+static inline int atomic_futex_op_xchg_or(int oparg, u32 __user *uaddr, int *_oldval)
 {
 	int oldval, ret;
 
@@ -116,7 +116,7 @@ static inline int atomic_futex_op_xchg_or(int oparg, int __user *uaddr, int *_ol
 	return ret;
 }
 
-static inline int atomic_futex_op_xchg_and(int oparg, int __user *uaddr, int *_oldval)
+static inline int atomic_futex_op_xchg_and(int oparg, u32 __user *uaddr, int *_oldval)
 {
 	int oldval, ret;
 
@@ -149,7 +149,7 @@ static inline int atomic_futex_op_xchg_and(int oparg, int __user *uaddr, int *_o
 	return ret;
 }
 
-static inline int atomic_futex_op_xchg_xor(int oparg, int __user *uaddr, int *_oldval)
+static inline int atomic_futex_op_xchg_xor(int oparg, u32 __user *uaddr, int *_oldval)
 {
 	int oldval, ret;
 
@@ -186,7 +186,7 @@ static inline int atomic_futex_op_xchg_xor(int oparg, int __user *uaddr, int *_o
 /*
  * do the futex operations
  */
-int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
+int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 {
 	int op = (encoded_op >> 28) & 7;
 	int cmp = (encoded_op >> 24) & 15;
@@ -197,7 +197,7 @@ int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
 		oparg = 1 << oparg;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	pagefault_disable();

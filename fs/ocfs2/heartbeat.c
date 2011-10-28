@@ -28,7 +28,6 @@
 #include <linux/types.h>
 #include <linux/highmem.h>
 
-#define MLOG_MASK_PREFIX ML_SUPER
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"
@@ -37,6 +36,7 @@
 #include "heartbeat.h"
 #include "inode.h"
 #include "journal.h"
+#include "ocfs2_trace.h"
 
 #include "buffer_head_io.h"
 
@@ -66,7 +66,7 @@ void ocfs2_do_node_down(int node_num, void *data)
 
 	BUG_ON(osb->node_num == node_num);
 
-	mlog(0, "ocfs2: node down event for %d\n", node_num);
+	trace_ocfs2_do_node_down(node_num);
 
 	if (!osb->cconn) {
 		/*

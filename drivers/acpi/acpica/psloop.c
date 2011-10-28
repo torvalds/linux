@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -655,7 +655,7 @@ acpi_ps_link_module_code(union acpi_parse_object *parent_op,
 		method_obj->method.aml_start = aml_start;
 		method_obj->method.aml_length = aml_length;
 		method_obj->method.owner_id = owner_id;
-		method_obj->method.flags |= AOPOBJ_MODULE_LEVEL;
+		method_obj->method.info_flags |= ACPI_METHOD_MODULE_LEVEL;
 
 		/*
 		 * Save the parent node in next_object. This is cheating, but we

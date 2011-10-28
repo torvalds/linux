@@ -72,6 +72,7 @@ u8 acpi_sci_flags __initdata;
 int acpi_sci_override_gsi __initdata;
 int acpi_skip_timer_override __initdata;
 int acpi_use_timer_override __initdata;
+int acpi_fix_pin2_polarity __initdata;
 
 #ifdef CONFIG_X86_LOCAL_APIC
 static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
@@ -197,6 +198,11 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 static void __cpuinit acpi_register_lapic(int id, u8 enabled)
 {
 	unsigned int ver = 0;
+
+	if (id >= (MAX_LOCAL_APIC-1)) {
+		printk(KERN_INFO PREFIX "skipped apicid that is too big\n");
+		return;
+	}
 
 	if (!enabled) {
 		++disabled_cpus;
@@ -410,10 +416,15 @@ acpi_parse_int_src_ovr(struct acpi_subtable_header * header,
 		return 0;
 	}
 
-	if (acpi_skip_timer_override &&
-	    intsrc->source_irq == 0 && intsrc->global_irq == 2) {
-		printk(PREFIX "BIOS IRQ0 pin2 override ignored.\n");
-		return 0;
+	if (intsrc->source_irq == 0 && intsrc->global_irq == 2) {
+		if (acpi_skip_timer_override) {
+			printk(PREFIX "BIOS IRQ0 pin2 override ignored.\n");
+			return 0;
+		}
+		if (acpi_fix_pin2_polarity && (intsrc->inti_flags & ACPI_MADT_POLARITY_MASK)) {
+			intsrc->inti_flags &= ~ACPI_MADT_POLARITY_MASK;
+			printk(PREFIX "BIOS IRQ0 pin2 override: forcing polarity to high active.\n");
+		}
 	}
 
 	mp_override_legacy_irq(intsrc->source_irq,
@@ -504,6 +515,7 @@ int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(acpi_gsi_to_irq);
 
 int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
 {
@@ -512,6 +524,33 @@ int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
 	*gsi = irq_to_gsi(isa_irq);
 	return 0;
 }
+
+static int acpi_register_gsi_pic(struct device *dev, u32 gsi,
+				 int trigger, int polarity)
+{
+#ifdef CONFIG_PCI
+	/*
+	 * Make sure all (legacy) PCI IRQs are set as level-triggered.
+	 */
+	if (trigger == ACPI_LEVEL_SENSITIVE)
+		eisa_set_level_irq(gsi);
+#endif
+
+	return gsi;
+}
+
+static int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
+				    int trigger, int polarity)
+{
+#ifdef CONFIG_X86_IO_APIC
+	gsi = mp_register_gsi(dev, gsi, trigger, polarity);
+#endif
+
+	return gsi;
+}
+
+int (*__acpi_register_gsi)(struct device *dev, u32 gsi,
+			   int trigger, int polarity) = acpi_register_gsi_pic;
 
 /*
  * success: return IRQ number (>=0)
@@ -522,24 +561,24 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 	unsigned int irq;
 	unsigned int plat_gsi = gsi;
 
-#ifdef CONFIG_PCI
-	/*
-	 * Make sure all (legacy) PCI IRQs are set as level-triggered.
-	 */
-	if (acpi_irq_model == ACPI_IRQ_MODEL_PIC) {
-		if (trigger == ACPI_LEVEL_SENSITIVE)
-			eisa_set_level_irq(gsi);
-	}
-#endif
-
-#ifdef CONFIG_X86_IO_APIC
-	if (acpi_irq_model == ACPI_IRQ_MODEL_IOAPIC) {
-		plat_gsi = mp_register_gsi(dev, gsi, trigger, polarity);
-	}
-#endif
+	plat_gsi = (*__acpi_register_gsi)(dev, gsi, trigger, polarity);
 	irq = gsi_to_irq(plat_gsi);
 
 	return irq;
+}
+
+void __init acpi_set_irq_model_pic(void)
+{
+	acpi_irq_model = ACPI_IRQ_MODEL_PIC;
+	__acpi_register_gsi = acpi_register_gsi_pic;
+	acpi_ioapic = 0;
+}
+
+void __init acpi_set_irq_model_ioapic(void)
+{
+	acpi_irq_model = ACPI_IRQ_MODEL_IOAPIC;
+	__acpi_register_gsi = acpi_register_gsi_ioapic;
+	acpi_ioapic = 1;
 }
 
 /*
@@ -556,14 +595,8 @@ static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 	nid = acpi_get_node(handle);
 	if (nid == -1 || !node_online(nid))
 		return;
-#ifdef CONFIG_X86_64
-	apicid_to_node[physid] = nid;
+	set_apicid_to_node(physid, nid);
 	numa_set_node(cpu, nid);
-#else /* CONFIG_X86_32 */
-	apicid_2_node[physid] = nid;
-	cpu_to_node_map[cpu] = nid;
-#endif
-
 #endif
 }
 
@@ -820,18 +853,6 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
  * returns 0 on success, < 0 on error
  */
 
-static void __init acpi_register_lapic_address(unsigned long address)
-{
-	mp_lapic_addr = address;
-
-	set_fixmap_nocache(FIX_APIC_BASE, address);
-	if (boot_cpu_physical_apicid == -1U) {
-		boot_cpu_physical_apicid  = read_apic_id();
-		apic_version[boot_cpu_physical_apicid] =
-			 GET_APIC_VERSION(apic_read(APIC_LVR));
-	}
-}
-
 static int __init early_acpi_parse_madt_lapic_addr_ovr(void)
 {
 	int count;
@@ -853,7 +874,7 @@ static int __init early_acpi_parse_madt_lapic_addr_ovr(void)
 		return count;
 	}
 
-	acpi_register_lapic_address(acpi_lapic_addr);
+	register_lapic_address(acpi_lapic_addr);
 
 	return count;
 }
@@ -880,16 +901,16 @@ static int __init acpi_parse_madt_lapic_entries(void)
 		return count;
 	}
 
-	acpi_register_lapic_address(acpi_lapic_addr);
+	register_lapic_address(acpi_lapic_addr);
 
 	count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_SAPIC,
-				      acpi_parse_sapic, MAX_APICS);
+				      acpi_parse_sapic, MAX_LOCAL_APIC);
 
 	if (!count) {
 		x2count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_X2APIC,
-						acpi_parse_x2apic, MAX_APICS);
+					acpi_parse_x2apic, MAX_LOCAL_APIC);
 		count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_APIC,
-					      acpi_parse_lapic, MAX_APICS);
+					acpi_parse_lapic, MAX_LOCAL_APIC);
 	}
 	if (!count && !x2count) {
 		printk(KERN_ERR PREFIX "No LAPIC entries present\n");
@@ -922,32 +943,6 @@ static int __init acpi_parse_madt_lapic_entries(void)
 extern int es7000_plat;
 #endif
 
-static void assign_to_mp_irq(struct mpc_intsrc *m,
-				    struct mpc_intsrc *mp_irq)
-{
-	memcpy(mp_irq, m, sizeof(struct mpc_intsrc));
-}
-
-static int mp_irq_cmp(struct mpc_intsrc *mp_irq,
-				struct mpc_intsrc *m)
-{
-	return memcmp(mp_irq, m, sizeof(struct mpc_intsrc));
-}
-
-static void save_mp_irq(struct mpc_intsrc *m)
-{
-	int i;
-
-	for (i = 0; i < mp_irq_entries; i++) {
-		if (!mp_irq_cmp(&mp_irqs[i], m))
-			return;
-	}
-
-	assign_to_mp_irq(m, &mp_irqs[mp_irq_entries]);
-	if (++mp_irq_entries == MAX_IRQ_SOURCES)
-		panic("Max # of irq sources exceeded!!\n");
-}
-
 void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 {
 	int ioapic;
@@ -975,10 +970,10 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 	mp_irq.irqflag = (trigger << 2) | polarity;
 	mp_irq.srcbus = MP_ISA_BUS;
 	mp_irq.srcbusirq = bus_irq;	/* IRQ */
-	mp_irq.dstapic = mp_ioapics[ioapic].apicid; /* APIC ID */
+	mp_irq.dstapic = mpc_ioapic_id(ioapic); /* APIC ID */
 	mp_irq.dstirq = pin;	/* INTIN# */
 
-	save_mp_irq(&mp_irq);
+	mp_save_irq(&mp_irq);
 
 	isa_irq_to_gsi[bus_irq] = gsi;
 }
@@ -1026,7 +1021,7 @@ void __init mp_config_acpi_legacy_irqs(void)
 		if (ioapic < 0)
 			continue;
 		pin = mp_find_ioapic_pin(ioapic, gsi);
-		dstapic = mp_ioapics[ioapic].apicid;
+		dstapic = mpc_ioapic_id(ioapic);
 
 		for (idx = 0; idx < mp_irq_entries; idx++) {
 			struct mpc_intsrc *irq = mp_irqs + idx;
@@ -1053,7 +1048,7 @@ void __init mp_config_acpi_legacy_irqs(void)
 		mp_irq.srcbusirq = i; /* Identity mapped */
 		mp_irq.dstirq = pin;
 
-		save_mp_irq(&mp_irq);
+		mp_save_irq(&mp_irq);
 	}
 }
 
@@ -1087,10 +1082,10 @@ static int mp_config_acpi_gsi(struct device *dev, u32 gsi, int trigger,
 	mp_irq.srcbus = number;
 	mp_irq.srcbusirq = (((devfn >> 3) & 0x1f) << 2) | ((pin - 1) & 3);
 	ioapic = mp_find_ioapic(gsi);
-	mp_irq.dstapic = mp_ioapics[ioapic].apicid;
+	mp_irq.dstapic = mpc_ioapic_id(ioapic);
 	mp_irq.dstirq = mp_find_ioapic_pin(ioapic, gsi);
 
-	save_mp_irq(&mp_irq);
+	mp_save_irq(&mp_irq);
 #endif
 	return 0;
 }
@@ -1118,7 +1113,7 @@ int mp_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 
 	if (ioapic_pin > MP_MAX_IOAPIC_PIN) {
 		printk(KERN_ERR "Invalid reference to IOAPIC pin "
-		       "%d-%d\n", mp_ioapics[ioapic].apicid,
+		       "%d-%d\n", mpc_ioapic_id(ioapic),
 		       ioapic_pin);
 		return gsi;
 	}
@@ -1259,8 +1254,7 @@ static void __init acpi_process_madt(void)
 			 */
 			error = acpi_parse_madt_ioapic_entries();
 			if (!error) {
-				acpi_irq_model = ACPI_IRQ_MODEL_IOAPIC;
-				acpi_ioapic = 1;
+				acpi_set_irq_model_ioapic();
 
 				smp_found_config = 1;
 			}

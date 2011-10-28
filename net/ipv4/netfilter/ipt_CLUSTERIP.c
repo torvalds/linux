@@ -29,6 +29,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/net_namespace.h>
 #include <net/checksum.h>
+#include <net/ip.h>
 
 #define CLUSTERIP_VERSION "0.8"
 
@@ -231,24 +232,22 @@ clusterip_hashfn(const struct sk_buff *skb,
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	unsigned long hashval;
-	u_int16_t sport, dport;
-	const u_int16_t *ports;
+	u_int16_t sport = 0, dport = 0;
+	int poff;
 
-	switch (iph->protocol) {
-	case IPPROTO_TCP:
-	case IPPROTO_UDP:
-	case IPPROTO_UDPLITE:
-	case IPPROTO_SCTP:
-	case IPPROTO_DCCP:
-	case IPPROTO_ICMP:
-		ports = (const void *)iph+iph->ihl*4;
-		sport = ports[0];
-		dport = ports[1];
-		break;
-	default:
+	poff = proto_ports_offset(iph->protocol);
+	if (poff >= 0) {
+		const u_int16_t *ports;
+		u16 _ports[2];
+
+		ports = skb_header_pointer(skb, iph->ihl * 4 + poff, 4, _ports);
+		if (ports) {
+			sport = ports[0];
+			dport = ports[1];
+		}
+	} else {
 		if (net_ratelimit())
 			pr_info("unknown protocol %u\n", iph->protocol);
-		sport = dport = 0;
 	}
 
 	switch (config->hash_mode) {
@@ -301,19 +300,14 @@ clusterip_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	 * that the ->target() function isn't called after ->destroy() */
 
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct == NULL) {
-		pr_info("no conntrack!\n");
-			/* FIXME: need to drop invalid ones, since replies
-			 * to outgoing connections of other nodes will be
-			 * marked as INVALID */
+	if (ct == NULL)
 		return NF_DROP;
-	}
 
 	/* special case: ICMP error handling. conntrack distinguishes between
 	 * error messages (RELATED) and information requests (see below) */
 	if (ip_hdr(skb)->protocol == IPPROTO_ICMP &&
 	    (ctinfo == IP_CT_RELATED ||
-	     ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY))
+	     ctinfo == IP_CT_RELATED_REPLY))
 		return XT_CONTINUE;
 
 	/* ip_conntrack_icmp guarantees us that we only have ICMP_ECHO,
@@ -327,12 +321,12 @@ clusterip_tg(struct sk_buff *skb, const struct xt_action_param *par)
 			ct->mark = hash;
 			break;
 		case IP_CT_RELATED:
-		case IP_CT_RELATED+IP_CT_IS_REPLY:
+		case IP_CT_RELATED_REPLY:
 			/* FIXME: we don't handle expectations at the
 			 * moment.  they can arrive on a different node than
 			 * the master connection (e.g. FTP passive mode) */
 		case IP_CT_ESTABLISHED:
-		case IP_CT_ESTABLISHED+IP_CT_IS_REPLY:
+		case IP_CT_ESTABLISHED_REPLY:
 			break;
 		default:
 			break;
@@ -670,8 +664,11 @@ static ssize_t clusterip_proc_write(struct file *file, const char __user *input,
 	char buffer[PROC_WRITELEN+1];
 	unsigned long nodenum;
 
-	if (copy_from_user(buffer, input, PROC_WRITELEN))
+	if (size > PROC_WRITELEN)
+		return -EIO;
+	if (copy_from_user(buffer, input, size))
 		return -EFAULT;
+	buffer[size] = 0;
 
 	if (*buffer == '+') {
 		nodenum = simple_strtoul(buffer+1, NULL, 10);

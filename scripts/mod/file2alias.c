@@ -702,6 +702,24 @@ static int do_ssb_entry(const char *filename,
 	return 1;
 }
 
+/* Looks like: bcma:mNidNrevNclN. */
+static int do_bcma_entry(const char *filename,
+			 struct bcma_device_id *id, char *alias)
+{
+	id->manuf = TO_NATIVE(id->manuf);
+	id->id = TO_NATIVE(id->id);
+	id->rev = TO_NATIVE(id->rev);
+	id->class = TO_NATIVE(id->class);
+
+	strcpy(alias, "bcma:");
+	ADD(alias, "m", id->manuf != BCMA_ANY_MANUF, id->manuf);
+	ADD(alias, "id", id->id != BCMA_ANY_ID, id->id);
+	ADD(alias, "rev", id->rev != BCMA_ANY_REV, id->rev);
+	ADD(alias, "cl", id->class != BCMA_ANY_CLASS, id->class);
+	add_wildcard(alias);
+	return 1;
+}
+
 /* Looks like: virtio:dNvN */
 static int do_virtio_entry(const char *filename, struct virtio_device_id *id,
 			   char *alias)
@@ -968,6 +986,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct ssb_device_id), "ssb",
 			 do_ssb_entry, mod);
+	else if (sym_is(symname, "__mod_bcma_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct bcma_device_id), "bcma",
+			 do_bcma_entry, mod);
 	else if (sym_is(symname, "__mod_virtio_device_table"))
 		do_table(symval, sym->st_size,
 			 sizeof(struct virtio_device_id), "virtio",

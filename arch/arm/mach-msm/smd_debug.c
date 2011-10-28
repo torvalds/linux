@@ -212,6 +212,7 @@ static int debug_open(struct inode *inode, struct file *file)
 static const struct file_operations debug_ops = {
 	.read = debug_read,
 	.open = debug_open,
+	.llseek = default_llseek,
 };
 
 static void debug_create(const char *name, mode_t mode,
@@ -269,8 +270,10 @@ void smsm_print_sleep_info(void)
 {
 	unsigned long flags;
 	uint32_t *ptr;
+#ifndef CONFIG_ARCH_MSM_SCORPION
 	struct tramp_gpio_smem *gpio;
 	struct smsm_interrupt_info *int_info;
+#endif
 
 
 	spin_lock_irqsave(&smem_lock, flags);

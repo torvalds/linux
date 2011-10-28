@@ -1,7 +1,7 @@
 /*
  * Generic SCSI-3 ALUA SCSI Device Handler
  *
- * Copyright (C) 2007, 2008 Hannes Reinecke, SUSE Linux Products GmbH.
+ * Copyright (C) 2007-2010 Hannes Reinecke, SUSE Linux Products GmbH.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,17 +20,19 @@
  *
  */
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dh.h>
 
 #define ALUA_DH_NAME "alua"
-#define ALUA_DH_VER "1.2"
+#define ALUA_DH_VER "1.3"
 
 #define TPGS_STATE_OPTIMIZED		0x0
 #define TPGS_STATE_NONOPTIMIZED		0x1
 #define TPGS_STATE_STANDBY		0x2
 #define TPGS_STATE_UNAVAILABLE		0x3
+#define TPGS_STATE_LBA_DEPENDENT	0x4
 #define TPGS_STATE_OFFLINE		0xe
 #define TPGS_STATE_TRANSITIONING	0xf
 
@@ -39,6 +41,7 @@
 #define TPGS_SUPPORT_NONOPTIMIZED	0x02
 #define TPGS_SUPPORT_STANDBY		0x04
 #define TPGS_SUPPORT_UNAVAILABLE	0x08
+#define TPGS_SUPPORT_LBA_DEPENDENT	0x10
 #define TPGS_SUPPORT_OFFLINE		0x40
 #define TPGS_SUPPORT_TRANSITION		0x80
 
@@ -250,13 +253,15 @@ static void stpg_endio(struct request *req, int error)
 {
 	struct alua_dh_data *h = req->end_io_data;
 	struct scsi_sense_hdr sense_hdr;
-	unsigned err = SCSI_DH_IO;
+	unsigned err = SCSI_DH_OK;
 
 	if (error || host_byte(req->errors) != DID_OK ||
-			msg_byte(req->errors) != COMMAND_COMPLETE)
+			msg_byte(req->errors) != COMMAND_COMPLETE) {
+		err = SCSI_DH_IO;
 		goto done;
+	}
 
-	if (err == SCSI_DH_IO && h->senselen > 0) {
+	if (h->senselen > 0) {
 		err = scsi_normalize_sense(h->sense, SCSI_SENSE_BUFFERSIZE,
 					   &sense_hdr);
 		if (!err) {
@@ -282,7 +287,8 @@ static void stpg_endio(struct request *req, int error)
 			    print_alua_state(h->state));
 	}
 done:
-	blk_put_request(req);
+	req->end_io_data = NULL;
+	__blk_put_request(req->q, req);
 	if (h->callback_fn) {
 		h->callback_fn(h->callback_data, err);
 		h->callback_fn = h->callback_data = NULL;
@@ -300,7 +306,6 @@ done:
 static unsigned submit_stpg(struct alua_dh_data *h)
 {
 	struct request *rq;
-	int err = SCSI_DH_RES_TEMP_UNAVAIL;
 	int stpg_len = 8;
 	struct scsi_device *sdev = h->sdev;
 
@@ -329,7 +334,7 @@ static unsigned submit_stpg(struct alua_dh_data *h)
 	rq->end_io_data = h;
 
 	blk_execute_rq_nowait(rq->q, NULL, rq, 1, stpg_endio);
-	return err;
+	return SCSI_DH_OK;
 }
 
 /*
@@ -460,6 +465,8 @@ static char print_alua_state(int state)
 		return 'S';
 	case TPGS_STATE_UNAVAILABLE:
 		return 'U';
+	case TPGS_STATE_LBA_DEPENDENT:
+		return 'L';
 	case TPGS_STATE_OFFLINE:
 		return 'O';
 	case TPGS_STATE_TRANSITIONING:
@@ -534,7 +541,7 @@ static int alua_check_sense(struct scsi_device *sdev,
  *
  * Evaluate the Target Port Group State.
  * Returns SCSI_DH_DEV_OFFLINED if the path is
- * found to be unuseable.
+ * found to be unusable.
  */
 static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 {
@@ -542,7 +549,9 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 	int len, k, off, valid_states = 0;
 	char *ucp;
 	unsigned err;
+	unsigned long expiry, interval = 10;
 
+	expiry = round_jiffies_up(jiffies + ALUA_FAILOVER_TIMEOUT);
  retry:
 	err = submit_rtpg(sdev, h);
 
@@ -553,7 +562,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 			return SCSI_DH_IO;
 
 		err = alua_check_sense(sdev, &sense_hdr);
-		if (err == ADD_TO_MLQUEUE)
+		if (err == ADD_TO_MLQUEUE && time_before(jiffies, expiry))
 			goto retry;
 		sdev_printk(KERN_INFO, sdev,
 			    "%s: rtpg sense code %02x/%02x/%02x\n",
@@ -587,38 +596,37 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 	}
 
 	sdev_printk(KERN_INFO, sdev,
-		    "%s: port group %02x state %c supports %c%c%c%c%c%c\n",
+		    "%s: port group %02x state %c supports %c%c%c%c%c%c%c\n",
 		    ALUA_DH_NAME, h->group_id, print_alua_state(h->state),
 		    valid_states&TPGS_SUPPORT_TRANSITION?'T':'t',
 		    valid_states&TPGS_SUPPORT_OFFLINE?'O':'o',
+		    valid_states&TPGS_SUPPORT_LBA_DEPENDENT?'L':'l',
 		    valid_states&TPGS_SUPPORT_UNAVAILABLE?'U':'u',
 		    valid_states&TPGS_SUPPORT_STANDBY?'S':'s',
 		    valid_states&TPGS_SUPPORT_NONOPTIMIZED?'N':'n',
 		    valid_states&TPGS_SUPPORT_OPTIMIZED?'A':'a');
 
-	if (h->tpgs & TPGS_MODE_EXPLICIT) {
-		switch (h->state) {
-		case TPGS_STATE_TRANSITIONING:
+	switch (h->state) {
+	case TPGS_STATE_TRANSITIONING:
+		if (time_before(jiffies, expiry)) {
 			/* State transition, retry */
+			interval *= 10;
+			msleep(interval);
 			goto retry;
-			break;
-		case TPGS_STATE_OFFLINE:
-			/* Path is offline, fail */
-			err = SCSI_DH_DEV_OFFLINED;
-			break;
-		default:
-			break;
 		}
-	} else {
-		/* Only Implicit ALUA support */
-		if (h->state == TPGS_STATE_OPTIMIZED ||
-		    h->state == TPGS_STATE_NONOPTIMIZED ||
-		    h->state == TPGS_STATE_STANDBY)
-			/* Useable path if active */
-			err = SCSI_DH_OK;
-		else
-			/* Path unuseable for unavailable/offline */
-			err = SCSI_DH_DEV_OFFLINED;
+		/* Transitioning time exceeded, set port to standby */
+		err = SCSI_DH_RETRY;
+		h->state = TPGS_STATE_STANDBY;
+		break;
+	case TPGS_STATE_OFFLINE:
+	case TPGS_STATE_UNAVAILABLE:
+		/* Path unusable for unavailable/offline */
+		err = SCSI_DH_DEV_OFFLINED;
+		break;
+	default:
+		/* Useable path if active */
+		err = SCSI_DH_OK;
+		break;
 	}
 	return err;
 }
@@ -672,7 +680,9 @@ static int alua_activate(struct scsi_device *sdev,
 			goto out;
 	}
 
-	if (h->tpgs & TPGS_MODE_EXPLICIT && h->state != TPGS_STATE_OPTIMIZED) {
+	if (h->tpgs & TPGS_MODE_EXPLICIT &&
+	    h->state != TPGS_STATE_OPTIMIZED &&
+	    h->state != TPGS_STATE_LBA_DEPENDENT) {
 		h->callback_fn = fn;
 		h->callback_data = data;
 		err = submit_stpg(h);
@@ -698,8 +708,11 @@ static int alua_prep_fn(struct scsi_device *sdev, struct request *req)
 	struct alua_dh_data *h = get_alua_data(sdev);
 	int ret = BLKPREP_OK;
 
-	if (h->state != TPGS_STATE_OPTIMIZED &&
-	    h->state != TPGS_STATE_NONOPTIMIZED) {
+	if (h->state == TPGS_STATE_TRANSITIONING)
+		ret = BLKPREP_DEFER;
+	else if (h->state != TPGS_STATE_OPTIMIZED &&
+		 h->state != TPGS_STATE_NONOPTIMIZED &&
+		 h->state != TPGS_STATE_LBA_DEPENDENT) {
 		ret = BLKPREP_KILL;
 		req->cmd_flags |= REQ_QUIET;
 	}
@@ -719,7 +732,9 @@ static const struct scsi_dh_devlist alua_dev_list[] = {
 	{"Pillar", "Axiom" },
 	{"Intel", "Multi-Flex"},
 	{"NETAPP", "LUN"},
+	{"NETAPP", "LUN C-Mode"},
 	{"AIX", "NVDISK"},
+	{"Promise", "VTrak"},
 	{NULL, NULL}
 };
 
@@ -748,7 +763,7 @@ static int alua_bus_attach(struct scsi_device *sdev)
 	unsigned long flags;
 	int err = SCSI_DH_OK;
 
-	scsi_dh_data = kzalloc(sizeof(struct scsi_device_handler *)
+	scsi_dh_data = kzalloc(sizeof(*scsi_dh_data)
 			       + sizeof(*h) , GFP_KERNEL);
 	if (!scsi_dh_data) {
 		sdev_printk(KERN_ERR, sdev, "%s: Attach failed\n",
@@ -767,7 +782,7 @@ static int alua_bus_attach(struct scsi_device *sdev)
 	h->sdev = sdev;
 
 	err = alua_initialize(sdev, h);
-	if (err != SCSI_DH_OK)
+	if ((err != SCSI_DH_OK) && (err != SCSI_DH_DEV_OFFLINED))
 		goto failed;
 
 	if (!try_module_get(THIS_MODULE))

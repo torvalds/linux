@@ -58,6 +58,7 @@ struct inode *ramfs_get_inode(struct super_block *sb,
 	struct inode * inode = new_inode(sb);
 
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, dir, mode);
 		inode->i_mapping->a_ops = &ramfs_aops;
 		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
@@ -254,17 +255,16 @@ fail:
 	return err;
 }
 
-int ramfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+struct dentry *ramfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, ramfs_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, ramfs_fill_super);
 }
 
-static int rootfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *rootfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags|MS_NOUSER, data, ramfs_fill_super,
-			    mnt);
+	return mount_nodev(fs_type, flags|MS_NOUSER, data, ramfs_fill_super);
 }
 
 static void ramfs_kill_sb(struct super_block *sb)
@@ -275,12 +275,12 @@ static void ramfs_kill_sb(struct super_block *sb)
 
 static struct file_system_type ramfs_fs_type = {
 	.name		= "ramfs",
-	.get_sb		= ramfs_get_sb,
+	.mount		= ramfs_mount,
 	.kill_sb	= ramfs_kill_sb,
 };
 static struct file_system_type rootfs_fs_type = {
 	.name		= "rootfs",
-	.get_sb		= rootfs_get_sb,
+	.mount		= rootfs_mount,
 	.kill_sb	= kill_litter_super,
 };
 

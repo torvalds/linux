@@ -37,6 +37,9 @@ static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 	char *value = NULL;
 	struct posix_acl *acl;
 
+	if (!IS_POSIXACL(inode))
+		return NULL;
+
 	acl = get_cached_acl(inode, type);
 	if (acl != ACL_NOT_CACHED)
 		return acl;
@@ -60,8 +63,10 @@ static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 		size = __btrfs_getxattr(inode, name, value, size);
 		if (size > 0) {
 			acl = posix_acl_from_xattr(value, size);
-			if (IS_ERR(acl))
+			if (IS_ERR(acl)) {
+				kfree(value);
 				return acl;
+			}
 			set_cached_acl(inode, type, acl);
 		}
 		kfree(value);
@@ -81,6 +86,9 @@ static int btrfs_xattr_acl_get(struct dentry *dentry, const char *name,
 {
 	struct posix_acl *acl;
 	int ret = 0;
+
+	if (!IS_POSIXACL(dentry->d_inode))
+		return -EOPNOTSUPP;
 
 	acl = btrfs_get_acl(dentry->d_inode, type);
 
@@ -162,7 +170,7 @@ static int btrfs_xattr_acl_set(struct dentry *dentry, const char *name,
 	int ret;
 	struct posix_acl *acl = NULL;
 
-	if (!is_owner_or_cap(dentry->d_inode))
+	if (!inode_owner_or_capable(dentry->d_inode))
 		return -EPERM;
 
 	if (!IS_POSIXACL(dentry->d_inode))
@@ -170,33 +178,40 @@ static int btrfs_xattr_acl_set(struct dentry *dentry, const char *name,
 
 	if (value) {
 		acl = posix_acl_from_xattr(value, size);
-		if (acl == NULL) {
-			value = NULL;
-			size = 0;
-		} else if (IS_ERR(acl)) {
+		if (IS_ERR(acl))
 			return PTR_ERR(acl);
+
+		if (acl) {
+			ret = posix_acl_valid(acl);
+			if (ret)
+				goto out;
 		}
 	}
 
 	ret = btrfs_set_acl(NULL, dentry->d_inode, acl, type);
-
+out:
 	posix_acl_release(acl);
 
 	return ret;
 }
 
-int btrfs_check_acl(struct inode *inode, int mask)
+int btrfs_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
-	struct posix_acl *acl;
 	int error = -EAGAIN;
 
-	acl = btrfs_get_acl(inode, ACL_TYPE_ACCESS);
+	if (flags & IPERM_FLAG_RCU) {
+		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
+			error = -ECHILD;
 
-	if (IS_ERR(acl))
-		return PTR_ERR(acl);
-	if (acl) {
-		error = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
+	} else {
+		struct posix_acl *acl;
+		acl = btrfs_get_acl(inode, ACL_TYPE_ACCESS);
+		if (IS_ERR(acl))
+			return PTR_ERR(acl);
+		if (acl) {
+			error = posix_acl_permission(inode, acl, mask);
+			posix_acl_release(acl);
+		}
 	}
 
 	return error;
@@ -273,7 +288,7 @@ int btrfs_acl_chmod(struct inode *inode)
 		return 0;
 
 	acl = btrfs_get_acl(inode, ACL_TYPE_ACCESS);
-	if (IS_ERR(acl) || !acl)
+	if (IS_ERR_OR_NULL(acl))
 		return PTR_ERR(acl);
 
 	clone = posix_acl_clone(acl, GFP_KERNEL);

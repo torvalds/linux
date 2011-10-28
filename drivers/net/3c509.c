@@ -1207,7 +1207,7 @@ el3_netdev_get_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 			ecmd->duplex = DUPLEX_FULL;
 	}
 
-	ecmd->speed = SPEED_10;
+	ethtool_cmd_speed_set(ecmd, SPEED_10);
 	EL3WINDOW(1);
 	return 0;
 }

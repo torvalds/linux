@@ -18,15 +18,15 @@ DriverVer           = 06/21/2006,6.0.6000.16384
 
 ; Decoration for x86 architecture
 [LinuxDevices.NTx86]
-%LinuxDevice%       = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2, USB\VID_0525&PID_a4ab&MI_00
+%LinuxDevice%       = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2, USB\VID_1d6b&PID_0104&MI_00
 
 ; Decoration for x64 architecture
 [LinuxDevices.NTamd64]
-%LinuxDevice%       = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2, USB\VID_0525&PID_a4ab&MI_00
+%LinuxDevice%       = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2, USB\VID_1d6b&PID_0104&MI_00
 
 ; Decoration for ia64 architecture
 [LinuxDevices.NTia64]
-%LinuxDevice%       = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2, USB\VID_0525&PID_a4ab&MI_00
+%LinuxDevice%       = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2, USB\VID_1d6b&PID_0104&MI_00
 
 ;@@@ This is the common setting for setup
 [ControlFlags]

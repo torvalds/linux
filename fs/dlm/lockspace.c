@@ -243,7 +243,6 @@ static struct dlm_ls *find_ls_to_scan(void)
 static int dlm_scand(void *data)
 {
 	struct dlm_ls *ls;
-	int timeout_jiffies = dlm_config.ci_scan_secs * HZ;
 
 	while (!kthread_should_stop()) {
 		ls = find_ls_to_scan();
@@ -252,13 +251,14 @@ static int dlm_scand(void *data)
 				ls->ls_scan_time = jiffies;
 				dlm_scan_rsbs(ls);
 				dlm_scan_timeout(ls);
+				dlm_scan_waiters(ls);
 				dlm_unlock_recovery(ls);
 			} else {
 				ls->ls_scan_time += HZ;
 			}
-		} else {
-			schedule_timeout_interruptible(timeout_jiffies);
+			continue;
 		}
+		schedule_timeout_interruptible(dlm_config.ci_scan_secs * HZ);
 	}
 	return 0;
 }

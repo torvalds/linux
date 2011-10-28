@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2006-2009 Solarflare Communications Inc.
+ * Copyright 2006-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -41,6 +41,8 @@
 #define PCS_UC_STATUS_LBN	0
 #define PCS_UC_STATUS_WIDTH	8
 #define PCS_UC_STATUS_FW_SAVE	0x20
+#define PMA_PMD_MODE_REG	0xc301
+#define PMA_PMD_RXIN_SEL_LBN	6
 #define PMA_PMD_FTX_CTRL2_REG	0xc309
 #define PMA_PMD_FTX_STATIC_LBN	13
 #define PMA_PMD_VEND1_REG	0xc001
@@ -282,6 +284,10 @@ static int qt2025c_select_phy_mode(struct efx_nic *efx)
 	 * slow) reload of the firmware image (the microcontroller's code
 	 * memory is not affected by the microcontroller reset). */
 	efx_mdio_write(efx, 1, 0xc317, 0x00ff);
+	/* PMA/PMD loopback sets RXIN to inverse polarity and the firmware
+	 * restart doesn't reset it. We need to do that ourselves. */
+	efx_mdio_set_flag(efx, 1, PMA_PMD_MODE_REG,
+			  1 << PMA_PMD_RXIN_SEL_LBN, false);
 	efx_mdio_write(efx, 1, 0xc300, 0x0002);
 	msleep(20);
 
@@ -443,7 +449,7 @@ static void qt202x_phy_remove(struct efx_nic *efx)
 	efx->phy_data = NULL;
 }
 
-struct efx_phy_operations falcon_qt202x_phy_ops = {
+const struct efx_phy_operations falcon_qt202x_phy_ops = {
 	.probe		 = qt202x_phy_probe,
 	.init		 = qt202x_phy_init,
 	.reconfigure	 = qt202x_phy_reconfigure,

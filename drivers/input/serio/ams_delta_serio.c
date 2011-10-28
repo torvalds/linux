@@ -149,7 +149,7 @@ static int __init ams_delta_serio_init(void)
 	 * at FIQ level, switch back from edge to simple interrupt handler
 	 * to avoid bad interaction.
 	 */
-	set_irq_handler(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK),
+	irq_set_handler(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK),
 			handle_simple_irq);
 
 	serio_register_port(ams_delta_serio);
@@ -172,6 +172,5 @@ static void __exit ams_delta_serio_exit(void)
 	free_irq(OMAP_GPIO_IRQ(AMS_DELTA_GPIO_PIN_KEYBRD_CLK), 0);
 	gpio_free(AMS_DELTA_GPIO_PIN_KEYBRD_CLK);
 	gpio_free(AMS_DELTA_GPIO_PIN_KEYBRD_DATA);
-	kfree(ams_delta_serio);
 }
 module_exit(ams_delta_serio_exit);

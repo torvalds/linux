@@ -95,6 +95,8 @@ xfs_allocbt_alloc_block(
 		return 0;
 	}
 
+	xfs_alloc_busy_reuse(cur->bc_mp, cur->bc_private.a.agno, bno, 1, false);
+
 	xfs_trans_agbtree_delta(cur->bc_tp, 1);
 	new->s = cpu_to_be32(bno);
 
@@ -118,18 +120,8 @@ xfs_allocbt_free_block(
 	if (error)
 		return error;
 
-	/*
-	 * Since blocks move to the free list without the coordination used in
-	 * xfs_bmap_finish, we can't allow block to be available for
-	 * reallocation and non-transaction writing (user data) until we know
-	 * that the transaction that moved it to the free list is permanently
-	 * on disk. We track the blocks by declaring these blocks as "busy";
-	 * the busy list is maintained on a per-ag basis and each transaction
-	 * records which entries should be removed when the iclog commits to
-	 * disk. If a busy block is allocated, the iclog is pushed up to the
-	 * LSN that freed the block.
-	 */
-	xfs_alloc_busy_insert(cur->bc_tp, be32_to_cpu(agf->agf_seqno), bno, 1);
+	xfs_alloc_busy_insert(cur->bc_tp, be32_to_cpu(agf->agf_seqno), bno, 1,
+			      XFS_ALLOC_BUSY_SKIP_DISCARD);
 	xfs_trans_agbtree_delta(cur->bc_tp, -1);
 	return 0;
 }
@@ -280,38 +272,6 @@ xfs_allocbt_key_diff(
 	return (__int64_t)be32_to_cpu(kp->ar_startblock) - rec->ar_startblock;
 }
 
-STATIC int
-xfs_allocbt_kill_root(
-	struct xfs_btree_cur	*cur,
-	struct xfs_buf		*bp,
-	int			level,
-	union xfs_btree_ptr	*newroot)
-{
-	int			error;
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_STATS_INC(cur, killroot);
-
-	/*
-	 * Update the root pointer, decreasing the level by 1 and then
-	 * free the old root.
-	 */
-	xfs_allocbt_set_root(cur, newroot, -1);
-	error = xfs_allocbt_free_block(cur, bp);
-	if (error) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
-		return error;
-	}
-
-	XFS_BTREE_STATS_INC(cur, free);
-
-	xfs_btree_setbuf(cur, level, NULL);
-	cur->bc_nlevels--;
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
-	return 0;
-}
-
 #ifdef DEBUG
 STATIC int
 xfs_allocbt_keys_inorder(
@@ -423,7 +383,6 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 
 	.dup_cursor		= xfs_allocbt_dup_cursor,
 	.set_root		= xfs_allocbt_set_root,
-	.kill_root		= xfs_allocbt_kill_root,
 	.alloc_block		= xfs_allocbt_alloc_block,
 	.free_block		= xfs_allocbt_free_block,
 	.update_lastrec		= xfs_allocbt_update_lastrec,

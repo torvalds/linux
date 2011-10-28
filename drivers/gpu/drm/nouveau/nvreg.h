@@ -153,7 +153,8 @@
 #define NV_PCRTC_START					0x00600800
 #define NV_PCRTC_CONFIG					0x00600804
 #	define NV_PCRTC_CONFIG_START_ADDRESS_NON_VGA		(1 << 0)
-#	define NV_PCRTC_CONFIG_START_ADDRESS_HSYNC		(2 << 0)
+#	define NV04_PCRTC_CONFIG_START_ADDRESS_HSYNC		(4 << 0)
+#	define NV10_PCRTC_CONFIG_START_ADDRESS_HSYNC		(2 << 0)
 #define NV_PCRTC_CURSOR_CONFIG				0x00600810
 #	define NV_PCRTC_CURSOR_CONFIG_ENABLE_ENABLE		(1 << 0)
 #	define NV_PCRTC_CURSOR_CONFIG_DOUBLE_SCAN_ENABLE	(1 << 4)
@@ -263,6 +264,7 @@
 #		define NV_CIO_CRE_HCUR_ADDR1_ADR	7:2
 #	define NV_CIO_CRE_LCD__INDEX		0x33
 #		define NV_CIO_CRE_LCD_LCD_SELECT	0:0
+#		define NV_CIO_CRE_LCD_ROUTE_MASK	0x3b
 #	define NV_CIO_CRE_DDC0_STATUS__INDEX	0x36
 #	define NV_CIO_CRE_DDC0_WR__INDEX	0x37
 #	define NV_CIO_CRE_ILACE__INDEX		0x39	/* interlace */
@@ -275,6 +277,8 @@
 #		define NV_CIO_CRE_EBR_VDE_11		2:2
 #		define NV_CIO_CRE_EBR_VRS_11		4:4
 #		define NV_CIO_CRE_EBR_VBS_11		6:6
+#	define NV_CIO_CRE_42			0x42
+#		define NV_CIO_CRE_42_OFFSET_11		6:6
 #	define NV_CIO_CRE_43			0x43
 #	define NV_CIO_CRE_44			0x44	/* head control */
 #	define NV_CIO_CRE_CSB			0x45	/* colour saturation boost */

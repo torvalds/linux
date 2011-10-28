@@ -1,0 +1,59 @@
+# arch/arm/mach-s5p64x0/Kconfig
+#
+# Copyright (c) 2009-2010 Samsung Electronics Co., Ltd.
+#		http://www.samsung.com/
+#
+# Licensed under GPLv2
+
+if ARCH_S5P64X0
+
+config CPU_S5P6440
+	bool
+	select S3C_PL330_DMA
+	select S5P_HRT
+	help
+	  Enable S5P6440 CPU support
+
+config CPU_S5P6450
+	bool
+	select S3C_PL330_DMA
+	select S5P_HRT
+	help
+	  Enable S5P6450 CPU support
+
+config S5P64X0_SETUP_I2C1
+	bool
+	help
+	  Common setup code for i2c bus 1.
+
+# machine support
+
+config MACH_SMDK6440
+	bool "SMDK6440"
+	select CPU_S5P6440
+	select S3C_DEV_I2C1
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S3C64XX_DEV_SPI
+	select SAMSUNG_DEV_ADC
+	select SAMSUNG_DEV_PWM
+	select SAMSUNG_DEV_TS
+	select S5P64X0_SETUP_I2C1
+	help
+	  Machine support for the Samsung SMDK6440
+
+config MACH_SMDK6450
+	bool "SMDK6450"
+	select CPU_S5P6450
+	select S3C_DEV_I2C1
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S3C64XX_DEV_SPI
+	select SAMSUNG_DEV_ADC
+	select SAMSUNG_DEV_PWM
+	select SAMSUNG_DEV_TS
+	select S5P64X0_SETUP_I2C1
+	help
+	  Machine support for the Samsung SMDK6450
+
+endif

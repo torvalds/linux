@@ -27,7 +27,7 @@
 #undef DEBUG
 
 /* function for reading internal MAC register */
-u16 dnet_readw_mac(struct dnet *bp, u16 reg)
+static u16 dnet_readw_mac(struct dnet *bp, u16 reg)
 {
 	u16 data_read;
 
@@ -46,7 +46,7 @@ u16 dnet_readw_mac(struct dnet *bp, u16 reg)
 }
 
 /* function for writing internal MAC register */
-void dnet_writew_mac(struct dnet *bp, u16 reg, u16 val)
+static void dnet_writew_mac(struct dnet *bp, u16 reg, u16 val)
 {
 	/* load data to write */
 	dnet_writel(bp, val, MACREG_DATA);
@@ -63,11 +63,11 @@ static void __dnet_set_hwaddr(struct dnet *bp)
 {
 	u16 tmp;
 
-	tmp = cpu_to_be16(*((u16 *) bp->dev->dev_addr));
+	tmp = be16_to_cpup((__be16 *)bp->dev->dev_addr);
 	dnet_writew_mac(bp, DNET_INTERNAL_MAC_ADDR_0_REG, tmp);
-	tmp = cpu_to_be16(*((u16 *) (bp->dev->dev_addr + 2)));
+	tmp = be16_to_cpup((__be16 *)(bp->dev->dev_addr + 2));
 	dnet_writew_mac(bp, DNET_INTERNAL_MAC_ADDR_1_REG, tmp);
-	tmp = cpu_to_be16(*((u16 *) (bp->dev->dev_addr + 4)));
+	tmp = be16_to_cpup((__be16 *)(bp->dev->dev_addr + 4));
 	dnet_writew_mac(bp, DNET_INTERNAL_MAC_ADDR_2_REG, tmp);
 }
 
@@ -89,11 +89,11 @@ static void __devinit dnet_get_hwaddr(struct dnet *bp)
 	 * Mac_addr[15:0]).
 	 */
 	tmp = dnet_readw_mac(bp, DNET_INTERNAL_MAC_ADDR_0_REG);
-	*((u16 *) addr) = be16_to_cpu(tmp);
+	*((__be16 *)addr) = cpu_to_be16(tmp);
 	tmp = dnet_readw_mac(bp, DNET_INTERNAL_MAC_ADDR_1_REG);
-	*((u16 *) (addr + 2)) = be16_to_cpu(tmp);
+	*((__be16 *)(addr + 2)) = cpu_to_be16(tmp);
 	tmp = dnet_readw_mac(bp, DNET_INTERNAL_MAC_ADDR_2_REG);
-	*((u16 *) (addr + 4)) = be16_to_cpu(tmp);
+	*((__be16 *)(addr + 4)) = cpu_to_be16(tmp);
 
 	if (is_valid_ether_addr(addr))
 		memcpy(bp->dev->dev_addr, addr, sizeof(addr));
@@ -337,8 +337,6 @@ static int dnet_mii_init(struct dnet *bp)
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		bp->mii_bus->irq[i] = PHY_POLL;
 
-	platform_set_drvdata(bp->dev, bp->mii_bus);
-
 	if (mdiobus_register(bp->mii_bus)) {
 		err = -ENXIO;
 		goto err_out_free_mdio_irq;
@@ -361,7 +359,7 @@ err_out:
 }
 
 /* For Neptune board: LINK1000 as Link LED and TX as activity LED */
-int dnet_phy_marvell_fixup(struct phy_device *phydev)
+static int dnet_phy_marvell_fixup(struct phy_device *phydev)
 {
 	return phy_write(phydev, 0x18, 0x4148);
 }
@@ -863,6 +861,7 @@ static int __devinit dnet_probe(struct platform_device *pdev)
 	bp = netdev_priv(dev);
 	bp->dev = dev;
 
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	spin_lock_init(&bp->lock);

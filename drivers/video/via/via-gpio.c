@@ -145,7 +145,7 @@ static int via_gpio_get(struct gpio_chip *chip, unsigned int nr)
 }
 
 
-static struct viafb_gpio_cfg gpio_config = {
+static struct viafb_gpio_cfg viafb_gpio_config = {
 	.gpio_chip = {
 		.label = "VIAFB onboard GPIO",
 		.owner = THIS_MODULE,
@@ -172,6 +172,28 @@ static void viafb_gpio_disable(struct viafb_gpio *gpio)
 	via_write_reg_mask(VIASR, gpio->vg_port_index, 0, 0x02);
 }
 
+#ifdef CONFIG_PM
+
+static int viafb_gpio_suspend(void *private)
+{
+	return 0;
+}
+
+static int viafb_gpio_resume(void *private)
+{
+	int i;
+
+	for (i = 0; i < viafb_gpio_config.gpio_chip.ngpio; i += 2)
+		viafb_gpio_enable(viafb_gpio_config.active_gpios[i]);
+	return 0;
+}
+
+static struct viafb_pm_hooks viafb_gpio_pm_hooks = {
+	.suspend = viafb_gpio_suspend,
+	.resume = viafb_gpio_resume
+};
+#endif /* CONFIG_PM */
+
 /*
  * Look up a specific gpio and return the number it was assigned.
  */
@@ -179,9 +201,9 @@ int viafb_gpio_lookup(const char *name)
 {
 	int i;
 
-	for (i = 0; i < gpio_config.gpio_chip.ngpio; i++)
-		if (!strcmp(name, gpio_config.active_gpios[i]->vg_name))
-			return gpio_config.gpio_chip.base + i;
+	for (i = 0; i < viafb_gpio_config.gpio_chip.ngpio; i++)
+		if (!strcmp(name, viafb_gpio_config.active_gpios[i]->vg_name))
+			return viafb_gpio_config.gpio_chip.base + i;
 	return -1;
 }
 EXPORT_SYMBOL_GPL(viafb_gpio_lookup);
@@ -207,14 +229,15 @@ static __devinit int viafb_gpio_probe(struct platform_device *platdev)
 		for (gpio = viafb_all_gpios;
 		     gpio < viafb_all_gpios + VIAFB_NUM_GPIOS; gpio++)
 			if (gpio->vg_port_index == port_cfg[i].ioport_index) {
-				gpio_config.active_gpios[ngpio] = gpio;
-				gpio_config.gpio_names[ngpio] = gpio->vg_name;
+				viafb_gpio_config.active_gpios[ngpio] = gpio;
+				viafb_gpio_config.gpio_names[ngpio] =
+					gpio->vg_name;
 				ngpio++;
 			}
 	}
-	gpio_config.gpio_chip.ngpio = ngpio;
-	gpio_config.gpio_chip.names = gpio_config.gpio_names;
-	gpio_config.vdev = vdev;
+	viafb_gpio_config.gpio_chip.ngpio = ngpio;
+	viafb_gpio_config.gpio_chip.names = viafb_gpio_config.gpio_names;
+	viafb_gpio_config.vdev = vdev;
 	if (ngpio == 0) {
 		printk(KERN_INFO "viafb: no GPIOs configured\n");
 		return 0;
@@ -223,19 +246,22 @@ static __devinit int viafb_gpio_probe(struct platform_device *platdev)
 	 * Enable the ports.  They come in pairs, with a single
 	 * enable bit for both.
 	 */
-	spin_lock_irqsave(&gpio_config.vdev->reg_lock, flags);
+	spin_lock_irqsave(&viafb_gpio_config.vdev->reg_lock, flags);
 	for (i = 0; i < ngpio; i += 2)
-		viafb_gpio_enable(gpio_config.active_gpios[i]);
-	spin_unlock_irqrestore(&gpio_config.vdev->reg_lock, flags);
+		viafb_gpio_enable(viafb_gpio_config.active_gpios[i]);
+	spin_unlock_irqrestore(&viafb_gpio_config.vdev->reg_lock, flags);
 	/*
 	 * Get registered.
 	 */
-	gpio_config.gpio_chip.base = -1;  /* Dynamic */
-	ret = gpiochip_add(&gpio_config.gpio_chip);
+	viafb_gpio_config.gpio_chip.base = -1;  /* Dynamic */
+	ret = gpiochip_add(&viafb_gpio_config.gpio_chip);
 	if (ret) {
 		printk(KERN_ERR "viafb: failed to add gpios (%d)\n", ret);
-		gpio_config.gpio_chip.ngpio = 0;
+		viafb_gpio_config.gpio_chip.ngpio = 0;
 	}
+#ifdef CONFIG_PM
+	viafb_pm_register(&viafb_gpio_pm_hooks);
+#endif
 	return ret;
 }
 
@@ -245,11 +271,15 @@ static int viafb_gpio_remove(struct platform_device *platdev)
 	unsigned long flags;
 	int ret = 0, i;
 
+#ifdef CONFIG_PM
+	viafb_pm_unregister(&viafb_gpio_pm_hooks);
+#endif
+
 	/*
 	 * Get unregistered.
 	 */
-	if (gpio_config.gpio_chip.ngpio > 0) {
-		ret = gpiochip_remove(&gpio_config.gpio_chip);
+	if (viafb_gpio_config.gpio_chip.ngpio > 0) {
+		ret = gpiochip_remove(&viafb_gpio_config.gpio_chip);
 		if (ret) { /* Somebody still using it? */
 			printk(KERN_ERR "Viafb: GPIO remove failed\n");
 			return ret;
@@ -258,11 +288,11 @@ static int viafb_gpio_remove(struct platform_device *platdev)
 	/*
 	 * Disable the ports.
 	 */
-	spin_lock_irqsave(&gpio_config.vdev->reg_lock, flags);
-	for (i = 0; i < gpio_config.gpio_chip.ngpio; i += 2)
-		viafb_gpio_disable(gpio_config.active_gpios[i]);
-	gpio_config.gpio_chip.ngpio = 0;
-	spin_unlock_irqrestore(&gpio_config.vdev->reg_lock, flags);
+	spin_lock_irqsave(&viafb_gpio_config.vdev->reg_lock, flags);
+	for (i = 0; i < viafb_gpio_config.gpio_chip.ngpio; i += 2)
+		viafb_gpio_disable(viafb_gpio_config.active_gpios[i]);
+	viafb_gpio_config.gpio_chip.ngpio = 0;
+	spin_unlock_irqrestore(&viafb_gpio_config.vdev->reg_lock, flags);
 	return ret;
 }
 

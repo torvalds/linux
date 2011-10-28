@@ -1,6 +1,8 @@
 #include "../../../include/linux/hw_breakpoint.h"
 #include "util.h"
 #include "../perf.h"
+#include "evlist.h"
+#include "evsel.h"
 #include "parse-options.h"
 #include "parse-events.h"
 #include "exec_cmd.h"
@@ -9,11 +11,6 @@
 #include "cache.h"
 #include "header.h"
 #include "debugfs.h"
-
-int				nr_counters;
-
-struct perf_event_attr		attrs[MAX_COUNTERS];
-char				*filters[MAX_COUNTERS];
 
 struct event_symbol {
 	u8		type;
@@ -34,34 +31,36 @@ char debugfs_path[MAXPATHLEN];
 #define CSW(x) .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_##x
 
 static struct event_symbol event_symbols[] = {
-  { CHW(CPU_CYCLES),		"cpu-cycles",		"cycles"	},
-  { CHW(INSTRUCTIONS),		"instructions",		""		},
-  { CHW(CACHE_REFERENCES),	"cache-references",	""		},
-  { CHW(CACHE_MISSES),		"cache-misses",		""		},
-  { CHW(BRANCH_INSTRUCTIONS),	"branch-instructions",	"branches"	},
-  { CHW(BRANCH_MISSES),		"branch-misses",	""		},
-  { CHW(BUS_CYCLES),		"bus-cycles",		""		},
+  { CHW(CPU_CYCLES),			"cpu-cycles",			"cycles"		},
+  { CHW(STALLED_CYCLES_FRONTEND),	"stalled-cycles-frontend",	"idle-cycles-frontend"	},
+  { CHW(STALLED_CYCLES_BACKEND),	"stalled-cycles-backend",	"idle-cycles-backend"	},
+  { CHW(INSTRUCTIONS),			"instructions",			""			},
+  { CHW(CACHE_REFERENCES),		"cache-references",		""			},
+  { CHW(CACHE_MISSES),			"cache-misses",			""			},
+  { CHW(BRANCH_INSTRUCTIONS),		"branch-instructions",		"branches"		},
+  { CHW(BRANCH_MISSES),			"branch-misses",		""			},
+  { CHW(BUS_CYCLES),			"bus-cycles",			""			},
 
-  { CSW(CPU_CLOCK),		"cpu-clock",		""		},
-  { CSW(TASK_CLOCK),		"task-clock",		""		},
-  { CSW(PAGE_FAULTS),		"page-faults",		"faults"	},
-  { CSW(PAGE_FAULTS_MIN),	"minor-faults",		""		},
-  { CSW(PAGE_FAULTS_MAJ),	"major-faults",		""		},
-  { CSW(CONTEXT_SWITCHES),	"context-switches",	"cs"		},
-  { CSW(CPU_MIGRATIONS),	"cpu-migrations",	"migrations"	},
-  { CSW(ALIGNMENT_FAULTS),	"alignment-faults",	""		},
-  { CSW(EMULATION_FAULTS),	"emulation-faults",	""		},
+  { CSW(CPU_CLOCK),			"cpu-clock",			""			},
+  { CSW(TASK_CLOCK),			"task-clock",			""			},
+  { CSW(PAGE_FAULTS),			"page-faults",			"faults"		},
+  { CSW(PAGE_FAULTS_MIN),		"minor-faults",			""			},
+  { CSW(PAGE_FAULTS_MAJ),		"major-faults",			""			},
+  { CSW(CONTEXT_SWITCHES),		"context-switches",		"cs"			},
+  { CSW(CPU_MIGRATIONS),		"cpu-migrations",		"migrations"		},
+  { CSW(ALIGNMENT_FAULTS),		"alignment-faults",		""			},
+  { CSW(EMULATION_FAULTS),		"emulation-faults",		""			},
 };
 
 #define __PERF_EVENT_FIELD(config, name) \
 	((config & PERF_EVENT_##name##_MASK) >> PERF_EVENT_##name##_SHIFT)
 
-#define PERF_EVENT_RAW(config)	__PERF_EVENT_FIELD(config, RAW)
+#define PERF_EVENT_RAW(config)		__PERF_EVENT_FIELD(config, RAW)
 #define PERF_EVENT_CONFIG(config)	__PERF_EVENT_FIELD(config, CONFIG)
-#define PERF_EVENT_TYPE(config)	__PERF_EVENT_FIELD(config, TYPE)
+#define PERF_EVENT_TYPE(config)		__PERF_EVENT_FIELD(config, TYPE)
 #define PERF_EVENT_ID(config)		__PERF_EVENT_FIELD(config, EVENT)
 
-static const char *hw_event_names[] = {
+static const char *hw_event_names[PERF_COUNT_HW_MAX] = {
 	"cycles",
 	"instructions",
 	"cache-references",
@@ -69,11 +68,13 @@ static const char *hw_event_names[] = {
 	"branches",
 	"branch-misses",
 	"bus-cycles",
+	"stalled-cycles-frontend",
+	"stalled-cycles-backend",
 };
 
-static const char *sw_event_names[] = {
-	"cpu-clock-msecs",
-	"task-clock-msecs",
+static const char *sw_event_names[PERF_COUNT_SW_MAX] = {
+	"cpu-clock",
+	"task-clock",
 	"page-faults",
 	"context-switches",
 	"CPU-migrations",
@@ -266,10 +267,35 @@ static char *event_cache_name(u8 cache_type, u8 cache_op, u8 cache_result)
 	return name;
 }
 
-const char *event_name(int counter)
+const char *event_type(int type)
 {
-	u64 config = attrs[counter].config;
-	int type = attrs[counter].type;
+	switch (type) {
+	case PERF_TYPE_HARDWARE:
+		return "hardware";
+
+	case PERF_TYPE_SOFTWARE:
+		return "software";
+
+	case PERF_TYPE_TRACEPOINT:
+		return "tracepoint";
+
+	case PERF_TYPE_HW_CACHE:
+		return "hardware-cache";
+
+	default:
+		break;
+	}
+
+	return "unknown";
+}
+
+const char *event_name(struct perf_evsel *evsel)
+{
+	u64 config = evsel->attr.config;
+	int type = evsel->attr.type;
+
+	if (evsel->name)
+		return evsel->name;
 
 	return __event_name(type, config);
 }
@@ -279,13 +305,13 @@ const char *__event_name(int type, u64 config)
 	static char buf[32];
 
 	if (type == PERF_TYPE_RAW) {
-		sprintf(buf, "raw 0x%llx", config);
+		sprintf(buf, "raw 0x%" PRIx64, config);
 		return buf;
 	}
 
 	switch (type) {
 	case PERF_TYPE_HARDWARE:
-		if (config < PERF_COUNT_HW_MAX)
+		if (config < PERF_COUNT_HW_MAX && hw_event_names[config])
 			return hw_event_names[config];
 		return "unknown-hardware";
 
@@ -311,7 +337,7 @@ const char *__event_name(int type, u64 config)
 	}
 
 	case PERF_TYPE_SOFTWARE:
-		if (config < PERF_COUNT_SW_MAX)
+		if (config < PERF_COUNT_SW_MAX && sw_event_names[config])
 			return sw_event_names[config];
 		return "unknown-software";
 
@@ -434,7 +460,7 @@ parse_single_tracepoint_event(char *sys_name,
 	id = atoll(id_buf);
 	attr->config = id;
 	attr->type = PERF_TYPE_TRACEPOINT;
-	*strp = evt_name + evt_length;
+	*strp += strlen(sys_name) + evt_length + 1; /* + 1 for the ':' */
 
 	attr->sample_type |= PERF_SAMPLE_RAW;
 	attr->sample_type |= PERF_SAMPLE_TIME;
@@ -449,8 +475,8 @@ parse_single_tracepoint_event(char *sys_name,
 /* sys + ':' + event + ':' + flags*/
 #define MAX_EVOPT_LEN	(MAX_EVENT_LENGTH * 2 + 2 + 128)
 static enum event_result
-parse_multiple_tracepoint_event(char *sys_name, const char *evt_exp,
-				char *flags)
+parse_multiple_tracepoint_event(const struct option *opt, char *sys_name,
+				const char *evt_exp, char *flags)
 {
 	char evt_path[MAXPATHLEN];
 	struct dirent *evt_ent;
@@ -483,19 +509,19 @@ parse_multiple_tracepoint_event(char *sys_name, const char *evt_exp,
 		if (len < 0)
 			return EVT_FAILED;
 
-		if (parse_events(NULL, event_opt, 0))
+		if (parse_events(opt, event_opt, 0))
 			return EVT_FAILED;
 	}
 
 	return EVT_HANDLED_ALL;
 }
 
-
-static enum event_result parse_tracepoint_event(const char **strp,
-				    struct perf_event_attr *attr)
+static enum event_result
+parse_tracepoint_event(const struct option *opt, const char **strp,
+		       struct perf_event_attr *attr)
 {
 	const char *evt_name;
-	char *flags;
+	char *flags = NULL, *comma_loc;
 	char sys_name[MAX_EVENT_LENGTH];
 	unsigned int sys_length, evt_length;
 
@@ -514,6 +540,11 @@ static enum event_result parse_tracepoint_event(const char **strp,
 	sys_name[sys_length] = '\0';
 	evt_name = evt_name + 1;
 
+	comma_loc = strchr(evt_name, ',');
+	if (comma_loc) {
+		/* take the event name up to the comma */
+		evt_name = strndup(evt_name, comma_loc - evt_name);
+	}
 	flags = strchr(evt_name, ':');
 	if (flags) {
 		/* split it out: */
@@ -524,14 +555,14 @@ static enum event_result parse_tracepoint_event(const char **strp,
 	evt_length = strlen(evt_name);
 	if (evt_length >= MAX_EVENT_LENGTH)
 		return EVT_FAILED;
-
 	if (strpbrk(evt_name, "*?")) {
-		*strp = evt_name + evt_length;
-		return parse_multiple_tracepoint_event(sys_name, evt_name,
+		*strp += strlen(sys_name) + evt_length + 1; /* 1 == the ':' */
+		return parse_multiple_tracepoint_event(opt, sys_name, evt_name,
 						       flags);
-	} else
+	} else {
 		return parse_single_tracepoint_event(sys_name, evt_name,
 						     evt_length, attr, strp);
+	}
 }
 
 static enum event_result
@@ -621,13 +652,15 @@ static int check_events(const char *str, unsigned int i)
 	int n;
 
 	n = strlen(event_symbols[i].symbol);
-	if (!strncmp(str, event_symbols[i].symbol, n))
+	if (!strncasecmp(str, event_symbols[i].symbol, n))
 		return n;
 
 	n = strlen(event_symbols[i].alias);
-	if (n)
-		if (!strncmp(str, event_symbols[i].alias, n))
+	if (n) {
+		if (!strncasecmp(str, event_symbols[i].alias, n))
 			return n;
+	}
+
 	return 0;
 }
 
@@ -691,15 +724,22 @@ parse_numeric_event(const char **strp, struct perf_event_attr *attr)
 	return EVT_FAILED;
 }
 
-static enum event_result
+static int
 parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 {
 	const char *str = *strp;
 	int exclude = 0;
 	int eu = 0, ek = 0, eh = 0, precise = 0;
 
-	if (*str++ != ':')
+	if (!*str)
 		return 0;
+
+	if (*str == ',')
+		return 0;
+
+	if (*str++ != ':')
+		return -1;
+
 	while (*str) {
 		if (*str == 'u') {
 			if (!exclude)
@@ -720,14 +760,16 @@ parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 
 		++str;
 	}
-	if (str >= *strp + 2) {
-		*strp = str;
-		attr->exclude_user   = eu;
-		attr->exclude_kernel = ek;
-		attr->exclude_hv     = eh;
-		attr->precise_ip     = precise;
-		return 1;
-	}
+	if (str < *strp + 2)
+		return -1;
+
+	*strp = str;
+
+	attr->exclude_user   = eu;
+	attr->exclude_kernel = ek;
+	attr->exclude_hv     = eh;
+	attr->precise_ip     = precise;
+
 	return 0;
 }
 
@@ -736,11 +778,12 @@ parse_event_modifier(const char **strp, struct perf_event_attr *attr)
  * Symbolic names are (almost) exactly matched.
  */
 static enum event_result
-parse_event_symbols(const char **str, struct perf_event_attr *attr)
+parse_event_symbols(const struct option *opt, const char **str,
+		    struct perf_event_attr *attr)
 {
 	enum event_result ret;
 
-	ret = parse_tracepoint_event(str, attr);
+	ret = parse_tracepoint_event(opt, str, attr);
 	if (ret != EVT_FAILED)
 		goto modifier;
 
@@ -769,52 +812,27 @@ parse_event_symbols(const char **str, struct perf_event_attr *attr)
 	return EVT_FAILED;
 
 modifier:
-	parse_event_modifier(str, attr);
+	if (parse_event_modifier(str, attr) < 0) {
+		fprintf(stderr, "invalid event modifier: '%s'\n", *str);
+		fprintf(stderr, "Run 'perf list' for a list of valid events and modifiers\n");
+
+		return EVT_FAILED;
+	}
 
 	return ret;
 }
 
-static int store_event_type(const char *orgname)
+int parse_events(const struct option *opt, const char *str, int unset __used)
 {
-	char filename[PATH_MAX], *c;
-	FILE *file;
-	int id, n;
-
-	sprintf(filename, "%s/", debugfs_path);
-	strncat(filename, orgname, strlen(orgname));
-	strcat(filename, "/id");
-
-	c = strchr(filename, ':');
-	if (c)
-		*c = '/';
-
-	file = fopen(filename, "r");
-	if (!file)
-		return 0;
-	n = fscanf(file, "%i", &id);
-	fclose(file);
-	if (n < 1) {
-		pr_err("cannot store event ID\n");
-		return -EINVAL;
-	}
-	return perf_header__push_event(id, orgname);
-}
-
-int parse_events(const struct option *opt __used, const char *str, int unset __used)
-{
+	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
 	struct perf_event_attr attr;
 	enum event_result ret;
-
-	if (strchr(str, ':'))
-		if (store_event_type(str) < 0)
-			return -1;
+	const char *ostr;
 
 	for (;;) {
-		if (nr_counters == MAX_COUNTERS)
-			return -1;
-
+		ostr = str;
 		memset(&attr, 0, sizeof(attr));
-		ret = parse_event_symbols(&str, &attr);
+		ret = parse_event_symbols(opt, &str, &attr);
 		if (ret == EVT_FAILED)
 			return -1;
 
@@ -822,8 +840,16 @@ int parse_events(const struct option *opt __used, const char *str, int unset __u
 			return -1;
 
 		if (ret != EVT_HANDLED_ALL) {
-			attrs[nr_counters] = attr;
-			nr_counters++;
+			struct perf_evsel *evsel;
+			evsel = perf_evsel__new(&attr, evlist->nr_entries);
+			if (evsel == NULL)
+				return -1;
+			perf_evlist__add(evlist, evsel);
+
+			evsel->name = calloc(str - ostr + 1, 1);
+			if (!evsel->name)
+				return -1;
+			strncpy(evsel->name, ostr, str - ostr);
 		}
 
 		if (*str == 0)
@@ -837,24 +863,26 @@ int parse_events(const struct option *opt __used, const char *str, int unset __u
 	return 0;
 }
 
-int parse_filter(const struct option *opt __used, const char *str,
+int parse_filter(const struct option *opt, const char *str,
 		 int unset __used)
 {
-	int i = nr_counters - 1;
-	int len = strlen(str);
+	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
+	struct perf_evsel *last = NULL;
 
-	if (i < 0 || attrs[i].type != PERF_TYPE_TRACEPOINT) {
+	if (evlist->nr_entries > 0)
+		last = list_entry(evlist->entries.prev, struct perf_evsel, node);
+
+	if (last == NULL || last->attr.type != PERF_TYPE_TRACEPOINT) {
 		fprintf(stderr,
 			"-F option should follow a -e tracepoint option\n");
 		return -1;
 	}
 
-	filters[i] = malloc(len + 1);
-	if (!filters[i]) {
+	last->filter = strdup(str);
+	if (last->filter == NULL) {
 		fprintf(stderr, "not enough memory to hold filter string\n");
 		return -1;
 	}
-	strcpy(filters[i], str);
 
 	return 0;
 }
@@ -872,7 +900,7 @@ static const char * const event_type_descriptors[] = {
  * Print the events from <debugfs_mount_point>/tracing/events
  */
 
-static void print_tracepoint_events(void)
+void print_tracepoint_events(const char *subsys_glob, const char *event_glob)
 {
 	DIR *sys_dir, *evt_dir;
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
@@ -887,6 +915,50 @@ static void print_tracepoint_events(void)
 		return;
 
 	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
+		if (subsys_glob != NULL && 
+		    !strglobmatch(sys_dirent.d_name, subsys_glob))
+			continue;
+
+		snprintf(dir_path, MAXPATHLEN, "%s/%s", debugfs_path,
+			 sys_dirent.d_name);
+		evt_dir = opendir(dir_path);
+		if (!evt_dir)
+			continue;
+
+		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next) {
+			if (event_glob != NULL && 
+			    !strglobmatch(evt_dirent.d_name, event_glob))
+				continue;
+
+			snprintf(evt_path, MAXPATHLEN, "%s:%s",
+				 sys_dirent.d_name, evt_dirent.d_name);
+			printf("  %-50s [%s]\n", evt_path,
+				event_type_descriptors[PERF_TYPE_TRACEPOINT]);
+		}
+		closedir(evt_dir);
+	}
+	closedir(sys_dir);
+}
+
+/*
+ * Check whether event is in <debugfs_mount_point>/tracing/events
+ */
+
+int is_valid_tracepoint(const char *event_string)
+{
+	DIR *sys_dir, *evt_dir;
+	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
+	char evt_path[MAXPATHLEN];
+	char dir_path[MAXPATHLEN];
+
+	if (debugfs_valid_mountpoint(debugfs_path))
+		return 0;
+
+	sys_dir = opendir(debugfs_path);
+	if (!sys_dir)
+		return 0;
+
+	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
 
 		snprintf(dir_path, MAXPATHLEN, "%s/%s", debugfs_path,
 			 sys_dirent.d_name);
@@ -897,43 +969,43 @@ static void print_tracepoint_events(void)
 		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next) {
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
 				 sys_dirent.d_name, evt_dirent.d_name);
-			printf("  %-42s [%s]\n", evt_path,
-				event_type_descriptors[PERF_TYPE_TRACEPOINT]);
+			if (!strcmp(evt_path, event_string)) {
+				closedir(evt_dir);
+				closedir(sys_dir);
+				return 1;
+			}
 		}
 		closedir(evt_dir);
 	}
 	closedir(sys_dir);
+	return 0;
 }
 
-/*
- * Print the help text for the event symbols:
- */
-void print_events(void)
+void print_events_type(u8 type)
 {
 	struct event_symbol *syms = event_symbols;
-	unsigned int i, type, op, prev_type = -1;
-	char name[40];
-
-	printf("\n");
-	printf("List of pre-defined events (to be used in -e):\n");
+	unsigned int i;
+	char name[64];
 
 	for (i = 0; i < ARRAY_SIZE(event_symbols); i++, syms++) {
-		type = syms->type;
-
-		if (type != prev_type)
-			printf("\n");
+		if (type != syms->type)
+			continue;
 
 		if (strlen(syms->alias))
-			sprintf(name, "%s OR %s", syms->symbol, syms->alias);
+			snprintf(name, sizeof(name),  "%s OR %s",
+				 syms->symbol, syms->alias);
 		else
-			strcpy(name, syms->symbol);
-		printf("  %-42s [%s]\n", name,
+			snprintf(name, sizeof(name), "%s", syms->symbol);
+
+		printf("  %-50s [%s]\n", name,
 			event_type_descriptors[type]);
-
-		prev_type = type;
 	}
+}
 
-	printf("\n");
+int print_hwcache_events(const char *event_glob)
+{
+	unsigned int type, op, i, printed = 0;
+
 	for (type = 0; type < PERF_COUNT_HW_CACHE_MAX; type++) {
 		for (op = 0; op < PERF_COUNT_HW_CACHE_OP_MAX; op++) {
 			/* skip invalid cache type */
@@ -941,25 +1013,81 @@ void print_events(void)
 				continue;
 
 			for (i = 0; i < PERF_COUNT_HW_CACHE_RESULT_MAX; i++) {
-				printf("  %-42s [%s]\n",
-					event_cache_name(type, op, i),
+				char *name = event_cache_name(type, op, i);
+
+				if (event_glob != NULL && !strglobmatch(name, event_glob))
+					continue;
+
+				printf("  %-50s [%s]\n", name,
 					event_type_descriptors[PERF_TYPE_HW_CACHE]);
+				++printed;
 			}
 		}
 	}
 
+	return printed;
+}
+
+#define MAX_NAME_LEN 100
+
+/*
+ * Print the help text for the event symbols:
+ */
+void print_events(const char *event_glob)
+{
+	unsigned int i, type, prev_type = -1, printed = 0, ntypes_printed = 0;
+	struct event_symbol *syms = event_symbols;
+	char name[MAX_NAME_LEN];
+
 	printf("\n");
-	printf("  %-42s [%s]\n",
+	printf("List of pre-defined events (to be used in -e):\n");
+
+	for (i = 0; i < ARRAY_SIZE(event_symbols); i++, syms++) {
+		type = syms->type;
+
+		if (type != prev_type && printed) {
+			printf("\n");
+			printed = 0;
+			ntypes_printed++;
+		}
+
+		if (event_glob != NULL && 
+		    !(strglobmatch(syms->symbol, event_glob) ||
+		      (syms->alias && strglobmatch(syms->alias, event_glob))))
+			continue;
+
+		if (strlen(syms->alias))
+			snprintf(name, MAX_NAME_LEN, "%s OR %s", syms->symbol, syms->alias);
+		else
+			strncpy(name, syms->symbol, MAX_NAME_LEN);
+		printf("  %-50s [%s]\n", name,
+			event_type_descriptors[type]);
+
+		prev_type = type;
+		++printed;
+	}
+
+	if (ntypes_printed) {
+		printed = 0;
+		printf("\n");
+	}
+	print_hwcache_events(event_glob);
+
+	if (event_glob != NULL)
+		return;
+
+	printf("\n");
+	printf("  %-50s [%s]\n",
 		"rNNN (see 'perf list --help' on how to encode it)",
 	       event_type_descriptors[PERF_TYPE_RAW]);
 	printf("\n");
 
-	printf("  %-42s [%s]\n",
+	printf("  %-50s [%s]\n",
 			"mem:<addr>[:access]",
 			event_type_descriptors[PERF_TYPE_BREAKPOINT]);
 	printf("\n");
 
-	print_tracepoint_events();
+	print_tracepoint_events(NULL, NULL);
 
 	exit(129);
 }

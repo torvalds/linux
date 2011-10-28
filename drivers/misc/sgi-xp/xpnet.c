@@ -495,13 +495,13 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
+
 	if (atomic_dec_return(&queued_msg->use_count) == 0) {
 		dev_kfree_skb(skb);
 		kfree(queued_msg);
 	}
-
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
 
 	return NETDEV_TX_OK;
 }

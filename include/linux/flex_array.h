@@ -21,6 +21,8 @@ struct flex_array {
 		struct {
 			int element_size;
 			int total_nr_elements;
+			int elems_per_part;
+			u32 reciprocal_elems;
 			struct flex_array_part *parts[];
 		};
 		/*
@@ -61,7 +63,7 @@ struct flex_array {
 struct flex_array *flex_array_alloc(int element_size, unsigned int total,
 		gfp_t flags);
 int flex_array_prealloc(struct flex_array *fa, unsigned int start,
-		unsigned int end, gfp_t flags);
+		unsigned int nr_elements, gfp_t flags);
 void flex_array_free(struct flex_array *fa);
 void flex_array_free_parts(struct flex_array *fa);
 int flex_array_put(struct flex_array *fa, unsigned int element_nr, void *src,
@@ -71,7 +73,7 @@ void *flex_array_get(struct flex_array *fa, unsigned int element_nr);
 int flex_array_shrink(struct flex_array *fa);
 
 #define flex_array_put_ptr(fa, nr, src, gfp) \
-	flex_array_put(fa, nr, &(void *)(src), gfp)
+	flex_array_put(fa, nr, (void *)&(src), gfp)
 
 void *flex_array_get_ptr(struct flex_array *fa, unsigned int element_nr);
 

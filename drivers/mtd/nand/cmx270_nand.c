@@ -238,7 +238,7 @@ static int __init cmx270_init(void)
 
 	/* Register the partitions */
 	pr_notice("Using %s partition definition\n", part_type);
-	ret = add_mtd_partitions(cmx270_nand_mtd, mtd_parts, mtd_parts_nb);
+	ret = mtd_device_register(cmx270_nand_mtd, mtd_parts, mtd_parts_nb);
 	if (ret)
 		goto err_scan;
 

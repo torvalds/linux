@@ -222,7 +222,7 @@ static __inline__ int fls(int x)
 
 #ifdef __KERNEL__
 
-#include <asm-generic/bitops/ext2-non-atomic.h>
+#include <asm-generic/bitops/le.h>
 
 /* '3' is bits per byte */
 #define LE_BYTE_ADDR ((sizeof(unsigned long) - 1) << 3)
@@ -233,7 +233,5 @@ static __inline__ int fls(int x)
 		test_and_clear_bit( (nr) ^ LE_BYTE_ADDR, (unsigned long *)addr)
 
 #endif	/* __KERNEL__ */
-
-#include <asm-generic/bitops/minix-le.h>
 
 #endif /* _PARISC_BITOPS_H */

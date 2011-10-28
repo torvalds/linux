@@ -37,6 +37,7 @@
 #include <linux/tcp.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 #include <net/arp.h>
 #include "common.h"
 #include "regs.h"
@@ -199,7 +200,7 @@ static inline void refill_rspq(struct adapter *adapter,
  *	need_skb_unmap - does the platform need unmapping of sk_buffs?
  *
  *	Returns true if the platform needs sk_buff unmapping.  The compiler
- *	optimizes away unecessary code if this returns true.
+ *	optimizes away unnecessary code if this returns true.
  */
 static inline int need_skb_unmap(void)
 {
@@ -296,8 +297,10 @@ static void free_tx_desc(struct adapter *adapter, struct sge_txq *q,
 		if (d->skb) {	/* an SGL is present */
 			if (need_unmap)
 				unmap_skb(d->skb, q, cidx, pdev);
-			if (d->eop)
+			if (d->eop) {
 				kfree_skb(d->skb);
+				d->skb = NULL;
+			}
 		}
 		++d;
 		if (++cidx == q->size) {
@@ -1145,7 +1148,7 @@ static void write_tx_pkt_wr(struct adapter *adap, struct sk_buff *skb,
 	cpl->len = htonl(skb->len);
 	cntrl = V_TXPKT_INTF(pi->port_id);
 
-	if (vlan_tx_tag_present(skb) && pi->vlan_grp)
+	if (vlan_tx_tag_present(skb))
 		cntrl |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN(vlan_tx_tag_get(skb));
 
 	tso_info = V_LSO_MSS(skb_shinfo(skb)->gso_size);
@@ -1279,7 +1282,7 @@ netdev_tx_t t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		qs->port_stats[SGE_PSTAT_TX_CSUM]++;
 	if (skb_shinfo(skb)->gso_size)
 		qs->port_stats[SGE_PSTAT_TSO]++;
-	if (vlan_tx_tag_present(skb) && pi->vlan_grp)
+	if (vlan_tx_tag_present(skb))
 		qs->port_stats[SGE_PSTAT_VLANINS]++;
 
 	/*
@@ -2017,13 +2020,13 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 	skb_pull(skb, sizeof(*p) + pad);
 	skb->protocol = eth_type_trans(skb, adap->port[p->iff]);
 	pi = netdev_priv(skb->dev);
-	if ((pi->rx_offload & T3_RX_CSUM) && p->csum_valid &&
+	if ((skb->dev->features & NETIF_F_RXCSUM) && p->csum_valid &&
 	    p->csum == htons(0xffff) && !p->fragment) {
 		qs->port_stats[SGE_PSTAT_RX_CSUM_GOOD]++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
-	skb_record_rx_queue(skb, qs - &adap->sge.qs[0]);
+		skb_checksum_none_assert(skb);
+	skb_record_rx_queue(skb, qs - &adap->sge.qs[pi->first_qset]);
 
 	if (unlikely(p->vlan_valid)) {
 		struct vlan_group *grp = pi->vlan_grp;
@@ -2118,7 +2121,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 		offset = 2 + sizeof(struct cpl_rx_pkt);
 		cpl = qs->lro_va = sd->pg_chunk.va + 2;
 
-		if ((pi->rx_offload & T3_RX_CSUM) &&
+		if ((qs->netdev->features & NETIF_F_RXCSUM) &&
 		     cpl->csum_valid && cpl->csum == htons(0xffff)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			qs->port_stats[SGE_PSTAT_RX_CSUM_GOOD]++;
@@ -2142,7 +2145,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	if (!complete)
 		return;
 
-	skb_record_rx_queue(skb, qs - &adap->sge.qs[0]);
+	skb_record_rx_queue(skb, qs - &adap->sge.qs[pi->first_qset]);
 
 	if (unlikely(cpl->vlan_valid)) {
 		struct vlan_group *grp = pi->vlan_grp;
@@ -2283,7 +2286,8 @@ static int process_responses(struct adapter *adap, struct sge_qset *qs,
 	q->next_holdoff = q->holdoff_tmr;
 
 	while (likely(budget_left && is_new_response(r, q))) {
-		int packet_complete, eth, ethpad = 2, lro = qs->lro_enabled;
+		int packet_complete, eth, ethpad = 2;
+		int lro = !!(qs->netdev->features & NETIF_F_GRO);
 		struct sk_buff *skb = NULL;
 		u32 len, flags;
 		__be32 rss_hi, rss_lo;
@@ -2554,7 +2558,7 @@ static inline int handle_responses(struct adapter *adap, struct sge_rspq *q)
  * The MSI-X interrupt handler for an SGE response queue for the non-NAPI case
  * (i.e., response queue serviced in hard interrupt).
  */
-irqreturn_t t3_sge_intr_msix(int irq, void *cookie)
+static irqreturn_t t3_sge_intr_msix(int irq, void *cookie)
 {
 	struct sge_qset *qs = cookie;
 	struct adapter *adap = qs->adap;
@@ -3319,41 +3323,4 @@ void t3_sge_prep(struct adapter *adap, struct sge_params *p)
 	}
 
 	spin_lock_init(&adap->sge.reg_lock);
-}
-
-/**
- *	t3_get_desc - dump an SGE descriptor for debugging purposes
- *	@qs: the queue set
- *	@qnum: identifies the specific queue (0..2: Tx, 3:response, 4..5: Rx)
- *	@idx: the descriptor index in the queue
- *	@data: where to dump the descriptor contents
- *
- *	Dumps the contents of a HW descriptor of an SGE queue.  Returns the
- *	size of the descriptor.
- */
-int t3_get_desc(const struct sge_qset *qs, unsigned int qnum, unsigned int idx,
-		unsigned char *data)
-{
-	if (qnum >= 6)
-		return -EINVAL;
-
-	if (qnum < 3) {
-		if (!qs->txq[qnum].desc || idx >= qs->txq[qnum].size)
-			return -EINVAL;
-		memcpy(data, &qs->txq[qnum].desc[idx], sizeof(struct tx_desc));
-		return sizeof(struct tx_desc);
-	}
-
-	if (qnum == 3) {
-		if (!qs->rspq.desc || idx >= qs->rspq.size)
-			return -EINVAL;
-		memcpy(data, &qs->rspq.desc[idx], sizeof(struct rsp_desc));
-		return sizeof(struct rsp_desc);
-	}
-
-	qnum -= 4;
-	if (!qs->fl[qnum].desc || idx >= qs->fl[qnum].size)
-		return -EINVAL;
-	memcpy(data, &qs->fl[qnum].desc[idx], sizeof(struct rx_desc));
-	return sizeof(struct rx_desc);
 }

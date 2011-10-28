@@ -218,8 +218,6 @@ extern struct sys_timer ioc_timer;
 
 MACHINE_START(RISCPC, "Acorn-RiscPC")
 	/* Maintainer: Russell King */
-	.phys_io	= 0x03000000,
-	.io_pg_offst	= ((0xe0000000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.reserve_lp0	= 1,
 	.reserve_lp1	= 1,

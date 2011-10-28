@@ -275,7 +275,7 @@ static void free_buffer(struct videobuf_queue *vq, struct pxa_buffer *buf)
 	 * This waits until this buffer is out of danger, i.e., until it is no
 	 * longer in STATE_QUEUED or STATE_ACTIVE
 	 */
-	videobuf_waiton(&buf->vb, 0, 0);
+	videobuf_waiton(vq, &buf->vb, 0, 0);
 	videobuf_dma_unmap(vq->dev, dma);
 	videobuf_dma_free(dma);
 
@@ -714,7 +714,7 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
  *
  * The DMA chaining is done with DMA running. This means a tiny temporal window
  * remains, where a buffer is queued on the chain, while the chain is already
- * stopped. This means the tailed buffer would never be transfered by DMA.
+ * stopped. This means the tailed buffer would never be transferred by DMA.
  * This function restarts the capture for this corner case, where :
  *  - DADR() == DADDR_STOP
  *  - a videobuffer is queued on the pcdev->capture list
@@ -852,7 +852,7 @@ static void pxa_camera_init_videobuf(struct videobuf_queue *q,
 	 */
 	videobuf_queue_sg_init(q, &pxa_videobuf_ops, NULL, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct pxa_buffer), icd);
+				sizeof(struct pxa_buffer), icd, &icd->video_lock);
 }
 
 static u32 mclk_get_divisor(struct platform_device *pdev,
@@ -1155,15 +1155,11 @@ static int pxa_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
 	unsigned long bus_flags, camera_flags, common_flags;
-	const struct soc_mbus_pixelfmt *fmt;
 	int ret;
 	struct pxa_cam *cam = icd->host_priv;
 
-	fmt = soc_mbus_get_fmtdesc(icd->current_fmt->code);
-	if (!fmt)
-		return -EINVAL;
-
-	ret = test_platform_param(pcdev, fmt->bits_per_sample, &bus_flags);
+	ret = test_platform_param(pcdev, icd->current_fmt->host_fmt->bits_per_sample,
+				  &bus_flags);
 	if (ret < 0)
 		return ret;
 
@@ -1539,7 +1535,7 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int pxa_camera_reqbufs(struct soc_camera_file *icf,
+static int pxa_camera_reqbufs(struct soc_camera_device *icd,
 			      struct v4l2_requestbuffers *p)
 {
 	int i;
@@ -1551,7 +1547,7 @@ static int pxa_camera_reqbufs(struct soc_camera_file *icf,
 	 * it hadn't triggered
 	 */
 	for (i = 0; i < p->count; i++) {
-		struct pxa_buffer *buf = container_of(icf->vb_vidq.bufs[i],
+		struct pxa_buffer *buf = container_of(icd->vb_vidq.bufs[i],
 						      struct pxa_buffer, vb);
 		buf->inwork = 0;
 		INIT_LIST_HEAD(&buf->vb.queue);
@@ -1562,10 +1558,10 @@ static int pxa_camera_reqbufs(struct soc_camera_file *icf,
 
 static unsigned int pxa_camera_poll(struct file *file, poll_table *pt)
 {
-	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = file->private_data;
 	struct pxa_buffer *buf;
 
-	buf = list_entry(icf->vb_vidq.stream.next, struct pxa_buffer,
+	buf = list_entry(icd->vb_vidq.stream.next, struct pxa_buffer,
 			 vb.stream);
 
 	poll_wait(file, &buf->vb.done, pt);

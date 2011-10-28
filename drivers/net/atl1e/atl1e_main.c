@@ -547,8 +547,8 @@ static int __devinit atl1e_sw_init(struct atl1e_adapter *adapter)
 	hw->device_id = pdev->device;
 	hw->subsystem_vendor_id = pdev->subsystem_vendor;
 	hw->subsystem_id = pdev->subsystem_device;
+	hw->revision_id  = pdev->revision;
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &hw->revision_id);
 	pci_read_config_word(pdev, PCI_COMMAND, &hw->pci_cmd_word);
 
 	phy_status_data = AT_READ_REG(hw, REG_PHY_STATUS);
@@ -691,10 +691,8 @@ static void atl1e_cal_ring_size(struct atl1e_adapter *adapter, u32 *ring_size)
 
 static void atl1e_init_ring_resources(struct atl1e_adapter *adapter)
 {
-	struct atl1e_tx_ring *tx_ring = NULL;
 	struct atl1e_rx_ring *rx_ring = NULL;
 
-	tx_ring = &adapter->tx_ring;
 	rx_ring = &adapter->rx_ring;
 
 	rx_ring->real_page_size = adapter->rx_ring.page_size
@@ -932,11 +930,11 @@ static inline void atl1e_configure_tx(struct atl1e_adapter *adapter)
 	max_pay_load  = ((dev_ctrl_data >> DEVICE_CTRL_MAX_PAYLOAD_SHIFT)) &
 			DEVICE_CTRL_MAX_PAYLOAD_MASK;
 
-	hw->dmaw_block = min(max_pay_load, hw->dmaw_block);
+	hw->dmaw_block = min_t(u32, max_pay_load, hw->dmaw_block);
 
 	max_pay_load  = ((dev_ctrl_data >> DEVICE_CTRL_MAX_RREQ_SZ_SHIFT)) &
 			DEVICE_CTRL_MAX_RREQ_SZ_MASK;
-	hw->dmar_block = min(max_pay_load, hw->dmar_block);
+	hw->dmar_block = min_t(u32, max_pay_load, hw->dmar_block);
 
 	if (hw->nic_type != athr_l2e_revB)
 		AT_WRITE_REGW(hw, REG_TXQ_CTRL + 2,
@@ -1331,7 +1329,7 @@ static inline void atl1e_rx_checksum(struct atl1e_adapter *adapter,
 	u16 pkt_flags;
 	u16 err_flags;
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 	pkt_flags = prrs->pkt_flag;
 	err_flags = prrs->err_flag;
 	if (((pkt_flags & RRS_IS_IPV4) || (pkt_flags & RRS_IS_IPV6)) &&
@@ -1649,7 +1647,7 @@ check_sum:
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		u8 css, cso;
 
-		cso = skb_transport_offset(skb);
+		cso = skb_checksum_start_offset(skb);
 		if (unlikely(cso & 0x1)) {
 			netdev_err(adapter->netdev,
 				   "payload offset should not ant event number\n");
@@ -1814,7 +1812,7 @@ static netdev_tx_t atl1e_xmit_frame(struct sk_buff *skb,
 
 	tpd = atl1e_get_tpd(adapter);
 
-	if (unlikely(adapter->vlgrp && vlan_tx_tag_present(skb))) {
+	if (unlikely(vlan_tx_tag_present(skb))) {
 		u16 vlan_tag = vlan_tx_tag_get(skb);
 		u16 atl1e_vlan_tag;
 
@@ -1927,11 +1925,7 @@ void atl1e_down(struct atl1e_adapter *adapter)
 	 * reschedule our watchdog timer */
 	set_bit(__AT_DOWN, &adapter->flags);
 
-#ifdef NETIF_F_LLTX
 	netif_stop_queue(netdev);
-#else
-	netif_tx_disable(netdev);
-#endif
 
 	/* reset MAC to disable all RX/TX */
 	atl1e_reset_hw(&adapter->hw);
@@ -2051,9 +2045,9 @@ static int atl1e_suspend(struct pci_dev *pdev, pm_message_t state)
 		atl1e_read_phy_reg(hw, MII_BMSR, (u16 *)&mii_bmsr_data);
 		atl1e_read_phy_reg(hw, MII_BMSR, (u16 *)&mii_bmsr_data);
 
-		mii_advertise_data = MII_AR_10T_HD_CAPS;
+		mii_advertise_data = ADVERTISE_10HALF;
 
-		if ((atl1e_write_phy_reg(hw, MII_AT001_CR, 0) != 0) ||
+		if ((atl1e_write_phy_reg(hw, MII_CTRL1000, 0) != 0) ||
 		    (atl1e_write_phy_reg(hw,
 			   MII_ADVERTISE, mii_advertise_data) != 0) ||
 		    (atl1e_phy_commit(hw)) != 0) {
@@ -2223,10 +2217,10 @@ static int atl1e_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 	netdev->watchdog_timeo = AT_TX_WATCHDOG;
 	atl1e_set_ethtool_ops(netdev);
 
-	netdev->features = NETIF_F_SG | NETIF_F_HW_CSUM |
-		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	netdev->features |= NETIF_F_LLTX;
-	netdev->features |= NETIF_F_TSO;
+	netdev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_TSO |
+		NETIF_F_HW_VLAN_TX;
+	netdev->features = netdev->hw_features |
+		NETIF_F_HW_VLAN_RX | NETIF_F_LLTX;
 
 	return 0;
 }
@@ -2316,7 +2310,7 @@ static int __devinit atl1e_probe(struct pci_dev *pdev,
 	netif_napi_add(netdev, &adapter->napi, atl1e_clean, 64);
 
 	init_timer(&adapter->phy_config_timer);
-	adapter->phy_config_timer.function = &atl1e_phy_config;
+	adapter->phy_config_timer.function = atl1e_phy_config;
 	adapter->phy_config_timer.data = (unsigned long) adapter;
 
 	/* get user settings */
@@ -2509,7 +2503,7 @@ static struct pci_driver atl1e_driver = {
 	.id_table = atl1e_pci_tbl,
 	.probe    = atl1e_probe,
 	.remove   = __devexit_p(atl1e_remove),
-	/* Power Managment Hooks */
+	/* Power Management Hooks */
 #ifdef CONFIG_PM
 	.suspend  = atl1e_suspend,
 	.resume   = atl1e_resume,

@@ -7,6 +7,7 @@
  * Copyright (C) 2008 Jason Baron <jbaron@redhat.com>
  * By Greg Banks <gnb@melbourne.sgi.com>
  * Copyright (c) 2008 Silicon Graphics Inc.  All Rights Reserved.
+ * Copyright (C) 2011 Bart Van Assche.  All Rights Reserved.
  */
 
 #include <linux/kernel.h>
@@ -26,18 +27,12 @@
 #include <linux/dynamic_debug.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/jump_label.h>
+#include <linux/hardirq.h>
+#include <linux/sched.h>
 
 extern struct _ddebug __start___verbose[];
 extern struct _ddebug __stop___verbose[];
-
-/* dynamic_debug_enabled, and dynamic_debug_enabled2 are bitmasks in which
- * bit n is set to 1 if any modname hashes into the bucket n, 0 otherwise. They
- * use independent hash functions, to reduce the chance of false positives.
- */
-long long dynamic_debug_enabled;
-EXPORT_SYMBOL_GPL(dynamic_debug_enabled);
-long long dynamic_debug_enabled2;
-EXPORT_SYMBOL_GPL(dynamic_debug_enabled2);
 
 struct ddebug_table {
 	struct list_head link;
@@ -71,40 +66,30 @@ static inline const char *basename(const char *path)
 	return tail ? tail+1 : path;
 }
 
+static struct { unsigned flag:8; char opt_char; } opt_array[] = {
+	{ _DPRINTK_FLAGS_PRINT, 'p' },
+	{ _DPRINTK_FLAGS_INCL_MODNAME, 'm' },
+	{ _DPRINTK_FLAGS_INCL_FUNCNAME, 'f' },
+	{ _DPRINTK_FLAGS_INCL_LINENO, 'l' },
+	{ _DPRINTK_FLAGS_INCL_TID, 't' },
+};
+
 /* format a string into buf[] which describes the _ddebug's flags */
 static char *ddebug_describe_flags(struct _ddebug *dp, char *buf,
 				    size_t maxlen)
 {
 	char *p = buf;
+	int i;
 
 	BUG_ON(maxlen < 4);
-	if (dp->flags & _DPRINTK_FLAGS_PRINT)
-		*p++ = 'p';
+	for (i = 0; i < ARRAY_SIZE(opt_array); ++i)
+		if (dp->flags & opt_array[i].flag)
+			*p++ = opt_array[i].opt_char;
 	if (p == buf)
 		*p++ = '-';
 	*p = '\0';
 
 	return buf;
-}
-
-/*
- * must be called with ddebug_lock held
- */
-
-static int disabled_hash(char hash, bool first_table)
-{
-	struct ddebug_table *dt;
-	char table_hash_value;
-
-	list_for_each_entry(dt, &ddebug_tables, link) {
-		if (first_table)
-			table_hash_value = dt->ddebugs->primary_hash;
-		else
-			table_hash_value = dt->ddebugs->secondary_hash;
-		if (dt->num_enabled && (hash == table_hash_value))
-			return 0;
-	}
-	return 1;
 }
 
 /*
@@ -169,19 +154,10 @@ static void ddebug_change(const struct ddebug_query *query,
 			else if (!dp->flags)
 				dt->num_enabled++;
 			dp->flags = newflags;
-			if (newflags) {
-				dynamic_debug_enabled |=
-						(1LL << dp->primary_hash);
-				dynamic_debug_enabled2 |=
-						(1LL << dp->secondary_hash);
-			} else {
-				if (disabled_hash(dp->primary_hash, true))
-					dynamic_debug_enabled &=
-						~(1LL << dp->primary_hash);
-				if (disabled_hash(dp->secondary_hash, false))
-					dynamic_debug_enabled2 &=
-						~(1LL << dp->secondary_hash);
-			}
+			if (newflags)
+				dp->enabled = 1;
+			else
+				dp->enabled = 0;
 			if (verbose)
 				printk(KERN_INFO
 					"ddebug: changed %s:%d [%s]%s %s\n",
@@ -380,7 +356,7 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 			       unsigned int *maskp)
 {
 	unsigned flags = 0;
-	int op = '=';
+	int op = '=', i;
 
 	switch (*str) {
 	case '+':
@@ -395,13 +371,14 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 		printk(KERN_INFO "%s: op='%c'\n", __func__, op);
 
 	for ( ; *str ; ++str) {
-		switch (*str) {
-		case 'p':
-			flags |= _DPRINTK_FLAGS_PRINT;
-			break;
-		default:
-			return -EINVAL;
+		for (i = ARRAY_SIZE(opt_array) - 1; i >= 0; i--) {
+			if (*str == opt_array[i].opt_char) {
+				flags |= opt_array[i].flag;
+				break;
+			}
 		}
+		if (i < 0)
+			return -EINVAL;
 	}
 	if (flags == 0)
 		return -EINVAL;
@@ -429,6 +406,69 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 	return 0;
 }
 
+static int ddebug_exec_query(char *query_string)
+{
+	unsigned int flags = 0, mask = 0;
+	struct ddebug_query query;
+#define MAXWORDS 9
+	int nwords;
+	char *words[MAXWORDS];
+
+	nwords = ddebug_tokenize(query_string, words, MAXWORDS);
+	if (nwords <= 0)
+		return -EINVAL;
+	if (ddebug_parse_query(words, nwords-1, &query))
+		return -EINVAL;
+	if (ddebug_parse_flags(words[nwords-1], &flags, &mask))
+		return -EINVAL;
+
+	/* actually go and implement the change */
+	ddebug_change(&query, flags, mask);
+	return 0;
+}
+
+int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
+{
+	va_list args;
+	int res;
+
+	BUG_ON(!descriptor);
+	BUG_ON(!fmt);
+
+	va_start(args, fmt);
+	res = printk(KERN_DEBUG);
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_TID) {
+		if (in_interrupt())
+			res += printk(KERN_CONT "<intr> ");
+		else
+			res += printk(KERN_CONT "[%d] ", task_pid_vnr(current));
+	}
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_MODNAME)
+		res += printk(KERN_CONT "%s:", descriptor->modname);
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_FUNCNAME)
+		res += printk(KERN_CONT "%s:", descriptor->function);
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_LINENO)
+		res += printk(KERN_CONT "%d ", descriptor->lineno);
+	res += vprintk(fmt, args);
+	va_end(args);
+
+	return res;
+}
+EXPORT_SYMBOL(__dynamic_pr_debug);
+
+static __initdata char ddebug_setup_string[1024];
+static __init int ddebug_setup_query(char *str)
+{
+	if (strlen(str) >= 1024) {
+		pr_warning("ddebug boot param string too large\n");
+		return 0;
+	}
+	strcpy(ddebug_setup_string, str);
+	return 1;
+}
+
+__setup("ddebug_query=", ddebug_setup_query);
+
 /*
  * File_ops->write method for <debugfs>/dynamic_debug/conrol.  Gathers the
  * command text from userspace, parses and executes it.
@@ -436,12 +476,8 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 				  size_t len, loff_t *offp)
 {
-	unsigned int flags = 0, mask = 0;
-	struct ddebug_query query;
-#define MAXWORDS 9
-	int nwords;
-	char *words[MAXWORDS];
 	char tmpbuf[256];
+	int ret;
 
 	if (len == 0)
 		return 0;
@@ -455,16 +491,9 @@ static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 		printk(KERN_INFO "%s: read %d bytes from userspace\n",
 			__func__, (int)len);
 
-	nwords = ddebug_tokenize(tmpbuf, words, MAXWORDS);
-	if (nwords <= 0)
-		return -EINVAL;
-	if (ddebug_parse_query(words, nwords-1, &query))
-		return -EINVAL;
-	if (ddebug_parse_flags(words[nwords-1], &flags, &mask))
-		return -EINVAL;
-
-	/* actually go and implement the change */
-	ddebug_change(&query, flags, mask);
+	ret = ddebug_exec_query(tmpbuf);
+	if (ret)
+		return ret;
 
 	*offp += len;
 	return len;
@@ -725,13 +754,14 @@ static void ddebug_remove_all_tables(void)
 	mutex_unlock(&ddebug_lock);
 }
 
-static int __init dynamic_debug_init(void)
+static __initdata int ddebug_init_success;
+
+static int __init dynamic_debug_init_debugfs(void)
 {
 	struct dentry *dir, *file;
-	struct _ddebug *iter, *iter_start;
-	const char *modname = NULL;
-	int ret = 0;
-	int n = 0;
+
+	if (!ddebug_init_success)
+		return -ENODEV;
 
 	dir = debugfs_create_dir("dynamic_debug", NULL);
 	if (!dir)
@@ -742,6 +772,16 @@ static int __init dynamic_debug_init(void)
 		debugfs_remove(dir);
 		return -ENOMEM;
 	}
+	return 0;
+}
+
+static int __init dynamic_debug_init(void)
+{
+	struct _ddebug *iter, *iter_start;
+	const char *modname = NULL;
+	int ret = 0;
+	int n = 0;
+
 	if (__start___verbose != __stop___verbose) {
 		iter = __start___verbose;
 		modname = iter->modname;
@@ -759,12 +799,26 @@ static int __init dynamic_debug_init(void)
 		}
 		ret = ddebug_add_module(iter_start, n, modname);
 	}
-out_free:
-	if (ret) {
-		ddebug_remove_all_tables();
-		debugfs_remove(dir);
-		debugfs_remove(file);
+
+	/* ddebug_query boot param got passed -> set it up */
+	if (ddebug_setup_string[0] != '\0') {
+		ret = ddebug_exec_query(ddebug_setup_string);
+		if (ret)
+			pr_warning("Invalid ddebug boot param %s",
+				   ddebug_setup_string);
+		else
+			pr_info("ddebug initialized with string %s",
+				ddebug_setup_string);
 	}
+
+out_free:
+	if (ret)
+		ddebug_remove_all_tables();
+	else
+		ddebug_init_success = 1;
 	return 0;
 }
-module_init(dynamic_debug_init);
+/* Allow early initialization for boot messages via boot param */
+arch_initcall(dynamic_debug_init);
+/* Debugfs setup must be done later */
+module_init(dynamic_debug_init_debugfs);

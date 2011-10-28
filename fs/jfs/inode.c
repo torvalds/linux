@@ -173,7 +173,7 @@ void jfs_evict_inode(struct inode *inode)
 	dquot_drop(inode);
 }
 
-void jfs_dirty_inode(struct inode *inode)
+void jfs_dirty_inode(struct inode *inode, int flags)
 {
 	static int noisy = 5;
 
@@ -352,7 +352,6 @@ const struct address_space_operations jfs_aops = {
 	.readpages	= jfs_readpages,
 	.writepage	= jfs_writepage,
 	.writepages	= jfs_writepages,
-	.sync_page	= block_sync_page,
 	.write_begin	= jfs_write_begin,
 	.write_end	= nobh_write_end,
 	.bmap		= jfs_bmap,

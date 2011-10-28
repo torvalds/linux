@@ -182,7 +182,7 @@ _syscall_traced:
 	move.d	$r0, [$sp]
 
 	;; The registers carrying parameters (R10-R13) are intact. The optional
-	;; fifth and sixth parameters is in MOF and SRP respectivly. Put them
+	;; fifth and sixth parameters is in MOF and SRP respectively. Put them
 	;; back on the stack.
 	subq	4, $sp
 	move	$srp, [$sp]
@@ -880,6 +880,7 @@ sys_call_table:
 	.long sys_inotify_init1
 	.long sys_preadv
 	.long sys_pwritev
+	.long sys_setns			/* 335 */
 
         /*
          * NOTE!! This doesn't have to be exact - we just have

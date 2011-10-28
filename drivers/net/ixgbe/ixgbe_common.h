@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -29,13 +29,16 @@
 #define _IXGBE_COMMON_H_
 
 #include "ixgbe_type.h"
+#include "ixgbe.h"
 
 u32 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw);
 s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw);
+s32 ixgbe_start_hw_gen2(struct ixgbe_hw *hw);
 s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw);
-s32 ixgbe_read_pba_num_generic(struct ixgbe_hw *hw, u32 *pba_num);
+s32 ixgbe_read_pba_string_generic(struct ixgbe_hw *hw, u8 *pba_num,
+                                  u32 pba_num_size);
 s32 ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr);
 s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw);
 void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw);
@@ -46,21 +49,28 @@ s32 ixgbe_led_off_generic(struct ixgbe_hw *hw, u32 index);
 
 s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw);
 s32 ixgbe_write_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 data);
+s32 ixgbe_write_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
+					       u16 words, u16 *data);
 s32 ixgbe_read_eerd_generic(struct ixgbe_hw *hw, u16 offset, u16 *data);
+s32 ixgbe_read_eerd_buffer_generic(struct ixgbe_hw *hw, u16 offset,
+				   u16 words, u16 *data);
+s32 ixgbe_write_eewr_generic(struct ixgbe_hw *hw, u16 offset, u16 data);
+s32 ixgbe_write_eewr_buffer_generic(struct ixgbe_hw *hw, u16 offset,
+				    u16 words, u16 *data);
 s32 ixgbe_read_eeprom_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
                                        u16 *data);
+s32 ixgbe_read_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
+					      u16 words, u16 *data);
+u16 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw);
 s32 ixgbe_validate_eeprom_checksum_generic(struct ixgbe_hw *hw,
                                            u16 *checksum_val);
 s32 ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw);
-s32 ixgbe_poll_eerd_eewr_done(struct ixgbe_hw *hw, u32 ee_reg);
 
 s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
                           u32 enable_addr);
 s32 ixgbe_clear_rar_generic(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw);
 s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw,
-				      struct net_device *netdev);
-s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw,
 				      struct net_device *netdev);
 s32 ixgbe_enable_mc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw);
@@ -82,9 +92,13 @@ s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw);
 s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw,
                                  ixgbe_link_speed *speed,
                                  bool *link_up, bool link_up_wait_to_complete);
-
+s32 ixgbe_get_wwn_prefix_generic(struct ixgbe_hw *hw, u16 *wwnn_prefix,
+                                 u16 *wwpn_prefix);
 s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index);
+void ixgbe_set_mac_anti_spoofing(struct ixgbe_hw *hw, bool enable, int pf);
+void ixgbe_set_vlan_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf);
+s32 ixgbe_get_device_caps_generic(struct ixgbe_hw *hw, u16 *device_caps);
 
 #define IXGBE_WRITE_REG(a, reg, value) writel((value), ((a)->hw_addr + (reg)))
 
@@ -105,9 +119,8 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index);
 
 #define IXGBE_WRITE_FLUSH(a) IXGBE_READ_REG(a, IXGBE_STATUS)
 
-extern struct net_device *ixgbe_get_hw_dev(struct ixgbe_hw *hw);
 #define hw_dbg(hw, format, arg...) \
-	netdev_dbg(ixgbe_get_hw_dev(hw), format, ##arg)
+	netdev_dbg(((struct ixgbe_adapter *)(hw->back))->netdev, format, ##arg)
 #define e_dev_info(format, arg...) \
 	dev_info(&adapter->pdev->dev, format, ## arg)
 #define e_dev_warn(format, arg...) \

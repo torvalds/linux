@@ -15,6 +15,7 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -597,9 +598,9 @@ static int __devinit nuc900fb_probe(struct platform_device *pdev)
 	}
 
 	fbi->clk = clk_get(&pdev->dev, NULL);
-	if (!fbi->clk || IS_ERR(fbi->clk)) {
+	if (IS_ERR(fbi->clk)) {
 		printk(KERN_ERR "nuc900-lcd:failed to get lcd clock source\n");
-		ret = -ENOENT;
+		ret = PTR_ERR(fbi->clk);
 		goto release_irq;
 	}
 
@@ -695,6 +696,8 @@ static int nuc900fb_remove(struct platform_device *pdev)
 	nuc900fb_stop_lcd(fbinfo);
 	msleep(1);
 
+	unregister_framebuffer(fbinfo);
+	nuc900fb_cpufreq_deregister(fbi);
 	nuc900fb_unmap_video_memory(fbinfo);
 
 	iounmap(fbi->io);
@@ -722,7 +725,7 @@ static int nuc900fb_suspend(struct platform_device *dev, pm_message_t state)
 	struct fb_info	   *fbinfo = platform_get_drvdata(dev);
 	struct nuc900fb_info *info = fbinfo->par;
 
-	nuc900fb_stop_lcd();
+	nuc900fb_stop_lcd(fbinfo);
 	msleep(1);
 	clk_disable(info->clk);
 	return 0;
@@ -739,7 +742,7 @@ static int nuc900fb_resume(struct platform_device *dev)
 	msleep(1);
 
 	nuc900fb_init_registers(fbinfo);
-	nuc900fb_activate_var(bfinfo);
+	nuc900fb_activate_var(fbinfo);
 
 	return 0;
 }

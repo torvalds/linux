@@ -214,10 +214,10 @@ Syntax:         <n>
 Description:    Debugging information level, from 0 to 3:
 		0 = none (use carefully)
 		1 = critical errors
-		2 = significant informations
+		2 = significant information
 		3 = more verbose messages
 		Level 3 is useful for testing only. It also shows some more
-		informations about the hardware being detected.
+		information about the hardware being detected.
 		This parameter can be changed at runtime thanks to the /sys
 		filesystem interface.
 Default:        2

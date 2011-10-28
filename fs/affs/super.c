@@ -16,7 +16,6 @@
 #include <linux/parser.h>
 #include <linux/magic.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include "affs.h"
 
@@ -46,8 +45,6 @@ affs_put_super(struct super_block *sb)
 	struct affs_sb_info *sbi = AFFS_SB(sb);
 	pr_debug("AFFS: put_super()\n");
 
-	lock_kernel();
-
 	if (!(sb->s_flags & MS_RDONLY) && sb->s_dirt)
 		affs_commit_super(sb, 1, 1);
 
@@ -56,8 +53,6 @@ affs_put_super(struct super_block *sb)
 	affs_brelse(sbi->s_root_bh);
 	kfree(sbi);
 	sb->s_fs_info = NULL;
-
-	unlock_kernel();
 }
 
 static void
@@ -100,17 +95,24 @@ static struct inode *affs_alloc_inode(struct super_block *sb)
 	return &i->vfs_inode;
 }
 
+static void affs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(affs_inode_cachep, AFFS_I(inode));
+}
+
 static void affs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(affs_inode_cachep, AFFS_I(inode));
+	call_rcu(&inode->i_rcu, affs_i_callback);
 }
 
 static void init_once(void *foo)
 {
 	struct affs_inode_info *ei = (struct affs_inode_info *) foo;
 
-	init_MUTEX(&ei->i_link_lock);
-	init_MUTEX(&ei->i_ext_lock);
+	sema_init(&ei->i_link_lock, 1);
+	sema_init(&ei->i_ext_lock, 1);
 	inode_init_once(&ei->vfs_inode);
 }
 
@@ -302,6 +304,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi = kzalloc(sizeof(struct affs_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
+
 	sb->s_fs_info = sbi;
 	mutex_init(&sbi->s_bmlock);
 	spin_lock_init(&sbi->symlink_lock);
@@ -474,12 +477,16 @@ got_root:
 		goto out_error_noinode;
 	}
 
+	if (AFFS_SB(sb)->s_flags & SF_INTL)
+		sb->s_d_op = &affs_intl_dentry_operations;
+	else
+		sb->s_d_op = &affs_dentry_operations;
+
 	sb->s_root = d_alloc_root(root_inode);
 	if (!sb->s_root) {
 		printk(KERN_ERR "AFFS: Get root inode failed\n");
 		goto out_error;
 	}
-	sb->s_root->d_op = &affs_dentry_operations;
 
 	pr_debug("AFFS: s_flags=%lX\n",sb->s_flags);
 	return 0;
@@ -527,7 +534,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 		kfree(new_opts);
 		return -EINVAL;
 	}
-	lock_kernel();
+
 	replace_mount_options(sb, new_opts);
 
 	sbi->s_flags = mount_flags;
@@ -543,17 +550,15 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	memcpy(sbi->s_volume, volume, 32);
 	spin_unlock(&sbi->symlink_lock);
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
-		unlock_kernel();
+	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		return 0;
-	}
+
 	if (*flags & MS_RDONLY) {
 		affs_write_super(sb);
 		affs_free_bitmap(sb);
 	} else
 		res = affs_init_bitmap(sb, flags);
 
-	unlock_kernel();
 	return res;
 }
 
@@ -579,17 +584,16 @@ affs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int affs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *affs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, affs_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, affs_fill_super);
 }
 
 static struct file_system_type affs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "affs",
-	.get_sb		= affs_get_sb,
+	.mount		= affs_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

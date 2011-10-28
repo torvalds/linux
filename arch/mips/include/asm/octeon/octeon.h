@@ -35,6 +35,7 @@ extern int octeon_is_simulation(void);
 extern int octeon_is_pci_host(void);
 extern int octeon_usb_is_ref_clk(void);
 extern uint64_t octeon_get_clock_rate(void);
+extern u64 octeon_get_io_clock_rate(void);
 extern const char *octeon_board_type_string(void);
 extern const char *octeon_get_pci_interrupts(void);
 extern int octeon_get_southbridge_interrupt(void);
@@ -255,5 +256,7 @@ static inline uint32_t octeon_npi_read32(uint64_t address)
 extern struct cvmx_bootinfo *octeon_bootinfo;
 
 extern uint64_t octeon_bootloader_entry_addr;
+
+extern void (*octeon_irq_setup_secondary)(void);
 
 #endif /* __ASM_OCTEON_OCTEON_H */

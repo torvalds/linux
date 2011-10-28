@@ -31,10 +31,11 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/cpu.h>
 
 #include "dss.h"
+#include "dss_features.h"
 
 static int num_overlays;
 static struct list_head overlay_list;
@@ -200,12 +201,16 @@ static ssize_t overlay_enabled_show(struct omap_overlay *ovl, char *buf)
 static ssize_t overlay_enabled_store(struct omap_overlay *ovl, const char *buf,
 		size_t size)
 {
-	int r;
+	int r, enable;
 	struct omap_overlay_info info;
 
 	ovl->get_overlay_info(ovl, &info);
 
-	info.enabled = simple_strtoul(buf, NULL, 10);
+	r = kstrtoint(buf, 0, &enable);
+	if (r)
+		return r;
+
+	info.enabled = !!enable;
 
 	r = ovl->set_overlay_info(ovl, &info);
 	if (r)
@@ -230,17 +235,65 @@ static ssize_t overlay_global_alpha_store(struct omap_overlay *ovl,
 		const char *buf, size_t size)
 {
 	int r;
+	u8 alpha;
 	struct omap_overlay_info info;
+
+	r = kstrtou8(buf, 0, &alpha);
+	if (r)
+		return r;
 
 	ovl->get_overlay_info(ovl, &info);
 
 	/* Video1 plane does not support global alpha
 	 * to always make it 255 completely opaque
 	 */
-	if (ovl->id == OMAP_DSS_VIDEO1)
+	if (!dss_has_feature(FEAT_GLOBAL_ALPHA_VID1) &&
+			ovl->id == OMAP_DSS_VIDEO1)
 		info.global_alpha = 255;
 	else
-		info.global_alpha = simple_strtoul(buf, NULL, 10);
+		info.global_alpha = alpha;
+
+	r = ovl->set_overlay_info(ovl, &info);
+	if (r)
+		return r;
+
+	if (ovl->manager) {
+		r = ovl->manager->apply(ovl->manager);
+		if (r)
+			return r;
+	}
+
+	return size;
+}
+
+static ssize_t overlay_pre_mult_alpha_show(struct omap_overlay *ovl,
+		char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			ovl->info.pre_mult_alpha);
+}
+
+static ssize_t overlay_pre_mult_alpha_store(struct omap_overlay *ovl,
+		const char *buf, size_t size)
+{
+	int r;
+	u8 alpha;
+	struct omap_overlay_info info;
+
+	r = kstrtou8(buf, 0, &alpha);
+	if (r)
+		return r;
+
+	ovl->get_overlay_info(ovl, &info);
+
+	/* only GFX and Video2 plane support pre alpha multiplied
+	 * set zero for Video1 plane
+	 */
+	if (!dss_has_feature(FEAT_GLOBAL_ALPHA_VID1) &&
+		ovl->id == OMAP_DSS_VIDEO1)
+		info.pre_mult_alpha = 0;
+	else
+		info.pre_mult_alpha = alpha;
 
 	r = ovl->set_overlay_info(ovl, &info);
 	if (r)
@@ -278,6 +331,9 @@ static OVERLAY_ATTR(enabled, S_IRUGO|S_IWUSR,
 		overlay_enabled_show, overlay_enabled_store);
 static OVERLAY_ATTR(global_alpha, S_IRUGO|S_IWUSR,
 		overlay_global_alpha_show, overlay_global_alpha_store);
+static OVERLAY_ATTR(pre_mult_alpha, S_IRUGO|S_IWUSR,
+		overlay_pre_mult_alpha_show,
+		overlay_pre_mult_alpha_store);
 
 static struct attribute *overlay_sysfs_attrs[] = {
 	&overlay_attr_name.attr,
@@ -288,6 +344,7 @@ static struct attribute *overlay_sysfs_attrs[] = {
 	&overlay_attr_output_size.attr,
 	&overlay_attr_enabled.attr,
 	&overlay_attr_global_alpha.attr,
+	&overlay_attr_pre_mult_alpha.attr,
 	NULL
 };
 
@@ -447,16 +504,21 @@ static int omap_dss_set_manager(struct omap_overlay *ovl,
 
 	ovl->manager = mgr;
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
-	/* XXX: on manual update display, in auto update mode, a bug happens
-	 * here. When an overlay is first enabled on LCD, then it's disabled,
-	 * and the manager is changed to TV, we sometimes get SYNC_LOST_DIGIT
-	 * errors. Waiting before changing the channel_out fixes it. I'm
-	 * guessing that the overlay is still somehow being used for the LCD,
-	 * but I don't understand how or why. */
-	msleep(40);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
+	/* XXX: When there is an overlay on a DSI manual update display, and
+	 * the overlay is first disabled, then moved to tv, and enabled, we
+	 * seem to get SYNC_LOST_DIGIT error.
+	 *
+	 * Waiting doesn't seem to help, but updating the manual update display
+	 * after disabling the overlay seems to fix this. This hints that the
+	 * overlay is perhaps somehow tied to the LCD output until the output
+	 * is updated.
+	 *
+	 * Userspace workaround for this is to update the LCD after disabling
+	 * the overlay, but before moving the overlay to TV.
+	 */
 	dispc_set_channel_out(ovl->id, mgr->id);
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	return 0;
 }
@@ -510,11 +572,11 @@ static void omap_dss_add_overlay(struct omap_overlay *overlay)
 	list_add_tail(&overlay->list, &overlay_list);
 }
 
-static struct omap_overlay *dispc_overlays[3];
+static struct omap_overlay *dispc_overlays[MAX_DSS_OVERLAYS];
 
 void dss_overlay_setup_dispc_manager(struct omap_overlay_manager *mgr)
 {
-	mgr->num_overlays = 3;
+	mgr->num_overlays = dss_feat_get_num_ovls();
 	mgr->overlays = dispc_overlays;
 }
 
@@ -535,7 +597,7 @@ void dss_init_overlays(struct platform_device *pdev)
 
 	num_overlays = 0;
 
-	for (i = 0; i < 3; ++i) {
+	for (i = 0; i < dss_feat_get_num_ovls(); ++i) {
 		struct omap_overlay *ovl;
 		ovl = kzalloc(sizeof(*ovl), GFP_KERNEL);
 
@@ -545,18 +607,12 @@ void dss_init_overlays(struct platform_device *pdev)
 		case 0:
 			ovl->name = "gfx";
 			ovl->id = OMAP_DSS_GFX;
-			ovl->supported_modes = cpu_is_omap34xx() ?
-				OMAP_DSS_COLOR_GFX_OMAP3 :
-				OMAP_DSS_COLOR_GFX_OMAP2;
 			ovl->caps = OMAP_DSS_OVL_CAP_DISPC;
 			ovl->info.global_alpha = 255;
 			break;
 		case 1:
 			ovl->name = "vid1";
 			ovl->id = OMAP_DSS_VIDEO1;
-			ovl->supported_modes = cpu_is_omap34xx() ?
-				OMAP_DSS_COLOR_VID1_OMAP3 :
-				OMAP_DSS_COLOR_VID_OMAP2;
 			ovl->caps = OMAP_DSS_OVL_CAP_SCALE |
 				OMAP_DSS_OVL_CAP_DISPC;
 			ovl->info.global_alpha = 255;
@@ -564,9 +620,6 @@ void dss_init_overlays(struct platform_device *pdev)
 		case 2:
 			ovl->name = "vid2";
 			ovl->id = OMAP_DSS_VIDEO2;
-			ovl->supported_modes = cpu_is_omap34xx() ?
-				OMAP_DSS_COLOR_VID2_OMAP3 :
-				OMAP_DSS_COLOR_VID_OMAP2;
 			ovl->caps = OMAP_DSS_OVL_CAP_SCALE |
 				OMAP_DSS_OVL_CAP_DISPC;
 			ovl->info.global_alpha = 255;
@@ -578,6 +631,9 @@ void dss_init_overlays(struct platform_device *pdev)
 		ovl->set_overlay_info = &dss_ovl_set_overlay_info;
 		ovl->get_overlay_info = &dss_ovl_get_overlay_info;
 		ovl->wait_for_go = &dss_ovl_wait_for_go;
+
+		ovl->supported_modes =
+			dss_feat_get_supported_color_modes(ovl->id);
 
 		omap_dss_add_overlay(ovl);
 
@@ -627,12 +683,23 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 	int i;
 	struct omap_overlay_manager *lcd_mgr;
 	struct omap_overlay_manager *tv_mgr;
+	struct omap_overlay_manager *lcd2_mgr = NULL;
 	struct omap_overlay_manager *mgr = NULL;
 
 	lcd_mgr = omap_dss_get_overlay_manager(OMAP_DSS_OVL_MGR_LCD);
 	tv_mgr = omap_dss_get_overlay_manager(OMAP_DSS_OVL_MGR_TV);
+	if (dss_has_feature(FEAT_MGR_LCD2))
+		lcd2_mgr = omap_dss_get_overlay_manager(OMAP_DSS_OVL_MGR_LCD2);
 
-	if (dssdev->type != OMAP_DISPLAY_TYPE_VENC) {
+	if (dssdev->channel == OMAP_DSS_CHANNEL_LCD2) {
+		if (!lcd2_mgr->device || force) {
+			if (lcd2_mgr->device)
+				lcd2_mgr->unset_device(lcd2_mgr);
+			lcd2_mgr->set_device(lcd2_mgr, dssdev);
+			mgr = lcd2_mgr;
+		}
+	} else if (dssdev->type != OMAP_DISPLAY_TYPE_VENC
+			&& dssdev->type != OMAP_DISPLAY_TYPE_HDMI) {
 		if (!lcd_mgr->device || force) {
 			if (lcd_mgr->device)
 				lcd_mgr->unset_device(lcd_mgr);
@@ -641,7 +708,8 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 		}
 	}
 
-	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC) {
+	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC
+			|| dssdev->type == OMAP_DISPLAY_TYPE_HDMI) {
 		if (!tv_mgr->device || force) {
 			if (tv_mgr->device)
 				tv_mgr->unset_device(tv_mgr);
@@ -651,7 +719,7 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 	}
 
 	if (mgr) {
-		for (i = 0; i < 3; i++) {
+		for (i = 0; i < dss_feat_get_num_ovls(); i++) {
 			struct omap_overlay *ovl;
 			ovl = omap_dss_get_overlay(i);
 			if (!ovl->manager || force) {

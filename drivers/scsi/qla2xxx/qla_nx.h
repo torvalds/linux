@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2011 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -26,6 +26,7 @@
 #define CRB_RCVPEG_STATE		QLA82XX_REG(0x13c)
 #define BOOT_LOADER_DIMM_STATUS		QLA82XX_REG(0x54)
 #define CRB_DMA_SHIFT			QLA82XX_REG(0xcc)
+#define QLA82XX_DMA_SHIFT_VALUE		0x55555555
 
 #define QLA82XX_HW_H0_CH_HUB_ADR    0x05
 #define QLA82XX_HW_H1_CH_HUB_ADR    0x0E
@@ -522,8 +523,6 @@
 # define QLA82XX_CAM_RAM_BASE		(QLA82XX_CRB_CAM + 0x02000)
 # define QLA82XX_CAM_RAM(reg)		(QLA82XX_CAM_RAM_BASE + (reg))
 
-#define QLA82XX_PEG_TUNE_MN_SPD_ZEROED	0x80000000
-#define QLA82XX_BOOT_LOADER_MN_ISSUE	0xff00ffff
 #define QLA82XX_PORT_MODE_ADDR		(QLA82XX_CAM_RAM(0x24))
 #define QLA82XX_PEG_HALT_STATUS1	(QLA82XX_CAM_RAM(0xa8))
 #define QLA82XX_PEG_HALT_STATUS2	(QLA82XX_CAM_RAM(0xac))
@@ -582,6 +581,10 @@
 #define QLA82XX_DRVST_NOT_RDY		0
 #define	QLA82XX_DRVST_RST_RDY		1
 #define QLA82XX_DRVST_QSNT_RDY		2
+
+/* Different drive active state */
+#define QLA82XX_DRV_NOT_ACTIVE		0
+#define QLA82XX_DRV_ACTIVE		1
 
 /*
  * The PCI VendorID and DeviceID for our board.

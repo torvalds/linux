@@ -176,7 +176,7 @@ out:
 	return 0;
 }
 
-static struct platform_suspend_ops avr32_pm_ops = {
+static const struct platform_suspend_ops avr32_pm_ops = {
 	.valid	= avr32_pm_valid_state,
 	.enter	= avr32_pm_enter,
 };

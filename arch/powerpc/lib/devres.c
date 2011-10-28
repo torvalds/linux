@@ -9,11 +9,11 @@
 
 #include <linux/device.h>	/* devres_*(), devm_ioremap_release() */
 #include <linux/gfp.h>
-#include <linux/io.h>		/* ioremap_flags() */
+#include <linux/io.h>		/* ioremap_prot() */
 #include <linux/module.h>	/* EXPORT_SYMBOL() */
 
 /**
- * devm_ioremap_prot - Managed ioremap_flags()
+ * devm_ioremap_prot - Managed ioremap_prot()
  * @dev: Generic device to remap IO address for
  * @offset: BUS offset to map
  * @size: Size of map
@@ -31,7 +31,7 @@ void __iomem *devm_ioremap_prot(struct device *dev, resource_size_t offset,
 	if (!ptr)
 		return NULL;
 
-	addr = ioremap_flags(offset, size, flags);
+	addr = ioremap_prot(offset, size, flags);
 	if (addr) {
 		*ptr = addr;
 		devres_add(dev, ptr);

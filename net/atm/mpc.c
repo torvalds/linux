@@ -64,8 +64,6 @@
 	do { if (0) printk(KERN_CONT format, ##args); } while (0)
 #endif
 
-#define MPOA_TAG_LEN 4
-
 /* mpc_daemon -> kernel */
 static void MPOA_trigger_rcvd(struct k_message *msg, struct mpoa_client *mpc);
 static void MPOA_res_reply_rcvd(struct k_message *msg, struct mpoa_client *mpc);
@@ -1484,7 +1482,7 @@ static __init int atm_mpoa_init(void)
 	if (mpc_proc_init() != 0)
 		pr_info("failed to initialize /proc/mpoa\n");
 
-	pr_info("mpc.c: " __DATE__ " " __TIME__ " initialized\n");
+	pr_info("mpc.c: initialized\n");
 
 	return 0;
 }

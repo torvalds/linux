@@ -1,7 +1,7 @@
 /*
  * Keymile KMETER1 Device Tree Source
  *
- * 2008 DENX Software Engineering GmbH
+ * 2008-2011 DENX Software Engineering GmbH
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -70,11 +70,11 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			cell-index = <0>;
-			compatible = "fsl-i2c";
+			compatible = "fsl,mpc8313-i2c","fsl-i2c";
 			reg = <0x3000 0x100>;
 			interrupts = <14 0x8>;
 			interrupt-parent = <&ipic>;
-			dfsrr;
+			clock-frequency = <400000>;
 		};
 
 		serial0: serial@4500 {
@@ -137,6 +137,13 @@
 			compatible = "fsl,mpc8360-par_io";
 			num-ports = <7>;
 
+			qe_pio_c: gpio-controller@30 {
+				#gpio-cells = <2>;
+				compatible = "fsl,mpc8360-qe-pario-bank",
+					     "fsl,mpc8323-qe-pario-bank";
+				reg = <0x1430 0x18>;
+				gpio-controller;
+			};
 			pio_ucc1: ucc_pin@0 {
 				reg = <0>;
 
@@ -472,7 +479,17 @@
 				#address-cells = <0>;
 				#interrupt-cells = <1>;
 				reg = <0x80 0x80>;
-				interrupts = <32 8 33 8>;
+				big-endian;
+				interrupts = <
+					32 0x8
+					33 0x8
+					34 0x8
+					35 0x8
+					40 0x8
+					41 0x8
+					42 0x8
+					43 0x8
+				>;
 				interrupt-parent = <&ipic>;
 			};
 		};
@@ -484,43 +501,31 @@
 		compatible = "fsl,mpc8360-localbus", "fsl,pq2pro-localbus",
 			     "simple-bus";
 		reg = <0xe0005000 0xd8>;
-		ranges = <0 0 0xf0000000 0x04000000>;	/* Filled in by U-Boot */
+		ranges = <0 0 0xf0000000 0x04000000	/* LB 0 */
+			  1 0 0xe8000000 0x01000000	/* LB 1 */
+			  3 0 0xa0000000 0x10000000>;	/* LB 3 */
 
-		flash@f0000000,0 {
+		flash@0,0 {
 			compatible = "cfi-flash";
-			/*
-			 * The Intel P30 chip has 2 non-identical chips on
-			 * one die, so we need to define 2 separate regions
-			 * that are scanned by physmap_of independantly.
-			 */
-			reg = <0 0x00000000 0x02000000
-			       0 0x02000000 0x02000000>;	/* Filled in by U-Boot */
-			bank-width = <2>;
+			reg = <0 0 0x04000000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			partition@0 {
+			bank-width = <2>;
+			partition@0 { /* 768KB */
 				label = "u-boot";
-				reg = <0 0x40000>;
+				reg = <0 0xC0000>;
 			};
-			partition@40000 {
+			partition@c0000 { /* 128KB */
 				label = "env";
-				reg = <0x40000 0x40000>;
+				reg = <0xC0000 0x20000>;
 			};
-			partition@80000 {
-				label = "dtb";
-				reg = <0x80000 0x20000>;
+			partition@e0000 { /* 128KB */
+				label = "envred";
+				reg = <0xE0000 0x20000>;
 			};
-			partition@a0000 {
-				label = "kernel";
-				reg = <0xa0000 0x300000>;
-			};
-			partition@3a0000 {
-				label = "ramdisk";
-				reg = <0x3a0000 0x800000>;
-			};
-			partition@ba0000 {
-				label = "user";
-				reg = <0xba0000 0x3460000>;
+			partition@100000 { /* 64512KB */
+				label = "ubi0";
+				reg = <0x100000 0x3F00000>;
 			};
 		};
 	};

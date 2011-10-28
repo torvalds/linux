@@ -1002,7 +1002,7 @@ XX1( CFG_SCAN,					SCAN_RS_STRCT, scan_result[32]		 ) /*Scan results											*
 #define CFG_CONNECTION_MODE				0x0908		//controls the mode of the FW (ESS/AP/IBSS/ADHOC)
 #define CFG_IFB							0x0909		//byte wise copy of IFB
 #define CFG_MSF_TALLIES					0x090A		//MSF tallies (int's, rx and tx)
-#define CFG_CURRENT_LINK_STATUS			0x090B		//Latest link status got trough 0xF200 LinkEvent
+#define CFG_CURRENT_LINK_STATUS			0x090B		//Latest link status got through 0xF200 LinkEvent
 
 /*============================================================ INFORMATION FRAMES =========================*/
 #define CFG_INFO_FRAME_MIN				0xF000		//lowest value representing an Informatio Frame

@@ -959,6 +959,7 @@ struct IsdnCardState {
 	u_long		event;
 	struct work_struct tqueue;
 	struct timer_list dbusytimer;
+	unsigned int	irq_cnt;
 #ifdef ERROR_STATISTIC
 	int		err_crc;
 	int		err_tx;
@@ -1285,7 +1286,9 @@ int jiftime(char *s, long mark);
 
 int HiSax_command(isdn_ctrl * ic);
 int HiSax_writebuf_skb(int id, int chan, int ack, struct sk_buff *skb);
+__attribute__((format(printf, 3, 4)))
 void HiSax_putstatus(struct IsdnCardState *cs, char *head, char *fmt, ...);
+__attribute__((format(printf, 3, 0)))
 void VHiSax_putstatus(struct IsdnCardState *cs, char *head, char *fmt, va_list args);
 void HiSax_reportcard(int cardnr, int sel);
 int QuickHex(char *txt, u_char * p, int cnt);

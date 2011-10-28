@@ -47,7 +47,7 @@ This driver supports the hardware monitoring features of the third revision of
 the Abit uGuru chip, found on recent Abit uGuru featuring motherboards.
 
 The 3rd revision of the uGuru chip in reality is a Winbond W83L951G.
-Unfortunatly this doesn't help since the W83L951G is a generic microcontroller
+Unfortunately this doesn't help since the W83L951G is a generic microcontroller
 with a custom Abit application running on it.
 
 Despite Abit not releasing any information regarding the uGuru revision 3,

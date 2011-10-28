@@ -148,7 +148,7 @@ static void __cpuinit amd_k7_smp_check(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	/* calling is from identify_secondary_cpu() ? */
-	if (c->cpu_index == boot_cpu_id)
+	if (!c->cpu_index)
 		return;
 
 	/*
@@ -233,18 +233,22 @@ static void __cpuinit init_amd_k7(struct cpuinfo_x86 *c)
 }
 #endif
 
-#if defined(CONFIG_NUMA) && defined(CONFIG_X86_64)
+#ifdef CONFIG_NUMA
+/*
+ * To workaround broken NUMA config.  Read the comment in
+ * srat_detect_node().
+ */
 static int __cpuinit nearby_node(int apicid)
 {
 	int i, node;
 
 	for (i = apicid - 1; i >= 0; i--) {
-		node = apicid_to_node[i];
+		node = __apicid_to_node[i];
 		if (node != NUMA_NO_NODE && node_online(node))
 			return node;
 	}
 	for (i = apicid + 1; i < MAX_LOCAL_APIC; i++) {
-		node = apicid_to_node[i];
+		node = __apicid_to_node[i];
 		if (node != NUMA_NO_NODE && node_online(node))
 			return node;
 	}
@@ -253,37 +257,55 @@ static int __cpuinit nearby_node(int apicid)
 #endif
 
 /*
- * Fixup core topology information for AMD multi-node processors.
- * Assumption: Number of cores in each internal node is the same.
+ * Fixup core topology information for
+ * (1) AMD multi-node processors
+ *     Assumption: Number of cores in each internal node is the same.
+ * (2) AMD processors supporting compute units
  */
 #ifdef CONFIG_X86_HT
-static void __cpuinit amd_fixup_dcm(struct cpuinfo_x86 *c)
+static void __cpuinit amd_get_topology(struct cpuinfo_x86 *c)
 {
-	unsigned long long value;
-	u32 nodes, cores_per_node;
+	u32 nodes, cores_per_cu = 1;
+	u8 node_id;
 	int cpu = smp_processor_id();
 
-	if (!cpu_has(c, X86_FEATURE_NODEID_MSR))
+	/* get information required for multi-node processors */
+	if (cpu_has(c, X86_FEATURE_TOPOEXT)) {
+		u32 eax, ebx, ecx, edx;
+
+		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
+		nodes = ((ecx >> 8) & 7) + 1;
+		node_id = ecx & 7;
+
+		/* get compute unit information */
+		smp_num_siblings = ((ebx >> 8) & 3) + 1;
+		c->compute_unit_id = ebx & 0xff;
+		cores_per_cu += ((ebx >> 8) & 3);
+	} else if (cpu_has(c, X86_FEATURE_NODEID_MSR)) {
+		u64 value;
+
+		rdmsrl(MSR_FAM10H_NODE_ID, value);
+		nodes = ((value >> 3) & 7) + 1;
+		node_id = value & 7;
+	} else
 		return;
 
-	/* fixup topology information only once for a core */
-	if (cpu_has(c, X86_FEATURE_AMD_DCM))
-		return;
+	/* fixup multi-node processor information */
+	if (nodes > 1) {
+		u32 cores_per_node;
+		u32 cus_per_node;
 
-	rdmsrl(MSR_FAM10H_NODE_ID, value);
+		set_cpu_cap(c, X86_FEATURE_AMD_DCM);
+		cores_per_node = c->x86_max_cores / nodes;
+		cus_per_node = cores_per_node / cores_per_cu;
 
-	nodes = ((value >> 3) & 7) + 1;
-	if (nodes == 1)
-		return;
+		/* store NodeID, use llc_shared_map to store sibling info */
+		per_cpu(cpu_llc_id, cpu) = node_id;
 
-	set_cpu_cap(c, X86_FEATURE_AMD_DCM);
-	cores_per_node = c->x86_max_cores / nodes;
-
-	/* store NodeID, use llc_shared_map to store sibling info */
-	per_cpu(cpu_llc_id, cpu) = value & 7;
-
-	/* fixup core id to be in range from 0 to (cores_per_node - 1) */
-	c->cpu_core_id = c->cpu_core_id % cores_per_node;
+		/* core id has to be in the [0 .. cores_per_node - 1] range */
+		c->cpu_core_id %= cores_per_node;
+		c->compute_unit_id %= cus_per_node;
+	}
 }
 #endif
 
@@ -304,9 +326,7 @@ static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
 	c->phys_proc_id = c->initial_apicid >> bits;
 	/* use socket ID also for last level cache */
 	per_cpu(cpu_llc_id, cpu) = c->phys_proc_id;
-	/* fixup topology information on multi-node processors */
-	if ((c->x86 == 0x10) && (c->x86_model == 9))
-		amd_fixup_dcm(c);
+	amd_get_topology(c);
 #endif
 }
 
@@ -322,31 +342,40 @@ EXPORT_SYMBOL_GPL(amd_get_nb_id);
 
 static void __cpuinit srat_detect_node(struct cpuinfo_x86 *c)
 {
-#if defined(CONFIG_NUMA) && defined(CONFIG_X86_64)
+#ifdef CONFIG_NUMA
 	int cpu = smp_processor_id();
 	int node;
 	unsigned apicid = c->apicid;
 
-	node = per_cpu(cpu_llc_id, cpu);
+	node = numa_cpu_node(cpu);
+	if (node == NUMA_NO_NODE)
+		node = per_cpu(cpu_llc_id, cpu);
 
-	if (apicid_to_node[apicid] != NUMA_NO_NODE)
-		node = apicid_to_node[apicid];
 	if (!node_online(node)) {
-		/* Two possibilities here:
-		   - The CPU is missing memory and no node was created.
-		   In that case try picking one from a nearby CPU
-		   - The APIC IDs differ from the HyperTransport node IDs
-		   which the K8 northbridge parsing fills in.
-		   Assume they are all increased by a constant offset,
-		   but in the same order as the HT nodeids.
-		   If that doesn't result in a usable node fall back to the
-		   path for the previous case.  */
-
+		/*
+		 * Two possibilities here:
+		 *
+		 * - The CPU is missing memory and no node was created.  In
+		 *   that case try picking one from a nearby CPU.
+		 *
+		 * - The APIC IDs differ from the HyperTransport node IDs
+		 *   which the K8 northbridge parsing fills in.  Assume
+		 *   they are all increased by a constant offset, but in
+		 *   the same order as the HT nodeids.  If that doesn't
+		 *   result in a usable node fall back to the path for the
+		 *   previous case.
+		 *
+		 * This workaround operates directly on the mapping between
+		 * APIC ID and NUMA node, assuming certain relationship
+		 * between APIC ID, HT node ID and NUMA topology.  As going
+		 * through CPU mapping may alter the outcome, directly
+		 * access __apicid_to_node[].
+		 */
 		int ht_nodeid = c->initial_apicid;
 
 		if (ht_nodeid >= 0 &&
-		    apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
-			node = apicid_to_node[ht_nodeid];
+		    __apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
+			node = __apicid_to_node[ht_nodeid];
 		/* Pick a nearby node */
 		if (!node_online(node))
 			node = nearby_node(apicid);
@@ -412,6 +441,23 @@ static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_EXTD_APICID);
 	}
 #endif
+
+	/* We need to do the following only once */
+	if (c != &boot_cpu_data)
+		return;
+
+	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
+
+		if (c->x86 > 0x10 ||
+		    (c->x86 == 0x10 && c->x86_model >= 0x2)) {
+			u64 val;
+
+			rdmsrl(MSR_K7_HWCR, val);
+			if (!(val & BIT(24)))
+				printk(KERN_WARNING FW_BUG "TSC doesn't count "
+					"with P0 frequency!\n");
+		}
+	}
 }
 
 static void __cpuinit init_amd(struct cpuinfo_x86 *c)
@@ -523,7 +569,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 #endif
 
 	if (c->extended_cpuid_level >= 0x80000006) {
-		if ((c->x86 >= 0x0f) && (cpuid_edx(0x80000006) & 0xf000))
+		if (cpuid_edx(0x80000006) & 0xf000)
 			num_cache_leaves = 4;
 		else
 			num_cache_leaves = 3;
@@ -565,6 +611,35 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		}
 	}
 #endif
+
+	/*
+	 * Family 0x12 and above processors have APIC timer
+	 * running in deep C states.
+	 */
+	if (c->x86 > 0x11)
+		set_cpu_cap(c, X86_FEATURE_ARAT);
+
+	/*
+	 * Disable GART TLB Walk Errors on Fam10h. We do this here
+	 * because this is always needed when GART is enabled, even in a
+	 * kernel which has no MCE support built in.
+	 */
+	if (c->x86 == 0x10) {
+		/*
+		 * BIOS should disable GartTlbWlk Errors themself. If
+		 * it doesn't do it here as suggested by the BKDG.
+		 *
+		 * Fixes: https://bugzilla.kernel.org/show_bug.cgi?id=33012
+		 */
+		u64 mask;
+		int err;
+
+		err = rdmsrl_safe(MSR_AMD64_MCx_MASK(4), &mask);
+		if (err == 0) {
+			mask |= (1 << 10);
+			checking_wrmsrl(MSR_AMD64_MCx_MASK(4), mask);
+		}
+	}
 }
 
 #ifdef CONFIG_X86_32
@@ -639,7 +714,7 @@ EXPORT_SYMBOL_GPL(amd_erratum_383);
 
 bool cpu_has_amd_erratum(const int *erratum)
 {
-	struct cpuinfo_x86 *cpu = &current_cpu_data;
+	struct cpuinfo_x86 *cpu = __this_cpu_ptr(&cpu_info);
 	int osvw_id = *erratum++;
 	u32 range;
 	u32 ms;

@@ -254,7 +254,7 @@ MODULE_LICENSE("GPL");
 module_init(smsc_init);
 module_exit(smsc_exit);
 
-static struct mdio_device_id smsc_tbl[] = {
+static struct mdio_device_id __maybe_unused smsc_tbl[] = {
 	{ 0x0007c0a0, 0xfffffff0 },
 	{ 0x0007c0b0, 0xfffffff0 },
 	{ 0x0007c0c0, 0xfffffff0 },

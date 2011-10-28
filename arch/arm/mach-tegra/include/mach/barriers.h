@@ -23,7 +23,7 @@
 
 #include <asm/outercache.h>
 
-#define rmb()		dmb()
+#define rmb()		dsb()
 #define wmb()		do { dsb(); outer_sync(); } while (0)
 #define mb()		wmb()
 

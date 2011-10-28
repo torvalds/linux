@@ -55,6 +55,10 @@ struct ssb_sprom {
 	u8 tri5gl;		/* 5.2GHz TX isolation */
 	u8 tri5g;		/* 5.3GHz TX isolation */
 	u8 tri5gh;		/* 5.8GHz TX isolation */
+	u8 txpid2g[4];		/* 2GHz TX power index */
+	u8 txpid5gl[4];		/* 4.9 - 5.1GHz TX power index */
+	u8 txpid5g[4];		/* 5.1 - 5.5GHz TX power index */
+	u8 txpid5gh[4];		/* 5.5 - ...GHz TX power index */
 	u8 rxpo2g;		/* 2GHz RX power offset */
 	u8 rxpo5g;		/* 5GHz RX power offset */
 	u8 rssisav2g;		/* 2GHz RSSI params */
@@ -304,7 +308,7 @@ struct ssb_bus {
 
 	/* ID information about the Chip. */
 	u16 chip_id;
-	u16 chip_rev;
+	u8 chip_rev;
 	u16 sprom_offset;
 	u16 sprom_size;		/* number of words in sprom */
 	u8 chip_package;
@@ -400,7 +404,9 @@ extern bool ssb_is_sprom_available(struct ssb_bus *bus);
 
 /* Set a fallback SPROM.
  * See kdoc at the function definition for complete documentation. */
-extern int ssb_arch_set_fallback_sprom(const struct ssb_sprom *sprom);
+extern int ssb_arch_register_fallback_sprom(
+		int (*sprom_callback)(struct ssb_bus *bus,
+		struct ssb_sprom *out));
 
 /* Suspend a SSB bus.
  * Call this from the parent bus suspend routine. */
@@ -514,6 +520,7 @@ extern int ssb_bus_may_powerdown(struct ssb_bus *bus);
  * Otherwise static always-on powercontrol will be used. */
 extern int ssb_bus_powerup(struct ssb_bus *bus, bool dynamic_pctl);
 
+extern void ssb_commit_settings(struct ssb_bus *bus);
 
 /* Various helper functions */
 extern u32 ssb_admatch_base(u32 adm);

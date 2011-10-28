@@ -136,12 +136,12 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	 * station address is used for generating and checking pause control
 	 * packets.
 	 */
-	station2.bits.Octet1 = etdev->CurrentAddress[0];
-	station2.bits.Octet2 = etdev->CurrentAddress[1];
-	station1.bits.Octet3 = etdev->CurrentAddress[2];
-	station1.bits.Octet4 = etdev->CurrentAddress[3];
-	station1.bits.Octet5 = etdev->CurrentAddress[4];
-	station1.bits.Octet6 = etdev->CurrentAddress[5];
+	station2.bits.Octet1 = etdev->addr[0];
+	station2.bits.Octet2 = etdev->addr[1];
+	station1.bits.Octet3 = etdev->addr[2];
+	station1.bits.Octet4 = etdev->addr[3];
+	station1.bits.Octet5 = etdev->addr[4];
+	station1.bits.Octet6 = etdev->addr[5];
 	writel(station1.value, &pMac->station_addr_1.value);
 	writel(station2.value, &pMac->station_addr_2.value);
 
@@ -191,7 +191,7 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	cfg1 |= CFG1_RX_ENABLE|CFG1_TX_ENABLE|CFG1_TX_FLOW;
 	/* Initialize loop back to off */
 	cfg1 &= ~(CFG1_LOOPBACK|CFG1_RX_FLOW);
-	if (etdev->FlowControl == RxOnly || etdev->FlowControl == Both)
+	if (etdev->flowcontrol == FLOW_RXONLY || etdev->flowcontrol == FLOW_BOTH)
 		cfg1 |= CFG1_RX_FLOW;
 	writel(cfg1, &pMac->cfg1);
 
@@ -280,14 +280,14 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	writel(0, &pRxMac->mask4_word3);
 
 	/* Lets setup the WOL Source Address */
-	sa_lo.bits.sa3 = etdev->CurrentAddress[2];
-	sa_lo.bits.sa4 = etdev->CurrentAddress[3];
-	sa_lo.bits.sa5 = etdev->CurrentAddress[4];
-	sa_lo.bits.sa6 = etdev->CurrentAddress[5];
+	sa_lo.bits.sa3 = etdev->addr[2];
+	sa_lo.bits.sa4 = etdev->addr[3];
+	sa_lo.bits.sa5 = etdev->addr[4];
+	sa_lo.bits.sa6 = etdev->addr[5];
 	writel(sa_lo.value, &pRxMac->sa_lo.value);
 
-	sa_hi.bits.sa1 = etdev->CurrentAddress[0];
-	sa_hi.bits.sa2 = etdev->CurrentAddress[1];
+	sa_hi.bits.sa1 = etdev->addr[0];
+	sa_hi.bits.sa2 = etdev->addr[1];
 	writel(sa_hi.value, &pRxMac->sa_hi.value);
 
 	/* Disable all Packet Filtering */
@@ -373,7 +373,7 @@ void ConfigTxMacRegs(struct et131x_adapter *etdev)
 	 * cfpt - control frame pause timer set to 64 (0x40)
 	 * cfep - control frame extended pause timer set to 0x0
 	 */
-	if (etdev->FlowControl == None)
+	if (etdev->flowcontrol == FLOW_NONE)
 		writel(0, &txmac->cf_param);
 	else
 		writel(0x40, &txmac->cf_param);
@@ -414,7 +414,7 @@ void ConfigMacStatRegs(struct et131x_adapter *etdev)
 void ConfigFlowControl(struct et131x_adapter *etdev)
 {
 	if (etdev->duplex_mode == 0) {
-		etdev->FlowControl = None;
+		etdev->flowcontrol = FLOW_NONE;
 	} else {
 		char remote_pause, remote_async_pause;
 
@@ -426,22 +426,22 @@ void ConfigFlowControl(struct et131x_adapter *etdev)
 
 		if ((remote_pause == TRUEPHY_BIT_SET) &&
 		    (remote_async_pause == TRUEPHY_BIT_SET)) {
-			etdev->FlowControl = etdev->RegistryFlowControl;
+			etdev->flowcontrol = etdev->wanted_flow;
 		} else if ((remote_pause == TRUEPHY_BIT_SET) &&
 			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
-			if (etdev->RegistryFlowControl == Both)
-				etdev->FlowControl = Both;
+			if (etdev->wanted_flow == FLOW_BOTH)
+				etdev->flowcontrol = FLOW_BOTH;
 			else
-				etdev->FlowControl = None;
+				etdev->flowcontrol = FLOW_NONE;
 		} else if ((remote_pause == TRUEPHY_BIT_CLEAR) &&
 			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
-			etdev->FlowControl = None;
+			etdev->flowcontrol = FLOW_NONE;
 		} else {/* if (remote_pause == TRUEPHY_CLEAR_BIT &&
 			       remote_async_pause == TRUEPHY_SET_BIT) */
-			if (etdev->RegistryFlowControl == Both)
-				etdev->FlowControl = RxOnly;
+			if (etdev->wanted_flow == FLOW_BOTH)
+				etdev->flowcontrol = FLOW_RXONLY;
 			else
-				etdev->FlowControl = None;
+				etdev->flowcontrol = FLOW_NONE;
 		}
 	}
 }
@@ -597,20 +597,20 @@ void SetupDeviceForUnicast(struct et131x_adapter *etdev)
 	 * Set up unicast packet filter reg 3 to be the octets 2 - 5 of the
 	 * MAC address for first address
 	 */
-	uni_pf3.bits.addr1_1 = etdev->CurrentAddress[0];
-	uni_pf3.bits.addr1_2 = etdev->CurrentAddress[1];
-	uni_pf3.bits.addr2_1 = etdev->CurrentAddress[0];
-	uni_pf3.bits.addr2_2 = etdev->CurrentAddress[1];
+	uni_pf3.bits.addr1_1 = etdev->addr[0];
+	uni_pf3.bits.addr1_2 = etdev->addr[1];
+	uni_pf3.bits.addr2_1 = etdev->addr[0];
+	uni_pf3.bits.addr2_2 = etdev->addr[1];
 
-	uni_pf2.bits.addr2_3 = etdev->CurrentAddress[2];
-	uni_pf2.bits.addr2_4 = etdev->CurrentAddress[3];
-	uni_pf2.bits.addr2_5 = etdev->CurrentAddress[4];
-	uni_pf2.bits.addr2_6 = etdev->CurrentAddress[5];
+	uni_pf2.bits.addr2_3 = etdev->addr[2];
+	uni_pf2.bits.addr2_4 = etdev->addr[3];
+	uni_pf2.bits.addr2_5 = etdev->addr[4];
+	uni_pf2.bits.addr2_6 = etdev->addr[5];
 
-	uni_pf1.bits.addr1_3 = etdev->CurrentAddress[2];
-	uni_pf1.bits.addr1_4 = etdev->CurrentAddress[3];
-	uni_pf1.bits.addr1_5 = etdev->CurrentAddress[4];
-	uni_pf1.bits.addr1_6 = etdev->CurrentAddress[5];
+	uni_pf1.bits.addr1_3 = etdev->addr[2];
+	uni_pf1.bits.addr1_4 = etdev->addr[3];
+	uni_pf1.bits.addr1_5 = etdev->addr[4];
+	uni_pf1.bits.addr1_6 = etdev->addr[5];
 
 	pm_csr = readl(&etdev->regs->global.pm_csr);
 	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {

@@ -74,6 +74,15 @@ Description:
 		hot-remove the PCI device and any of its children.
 		Depends on CONFIG_HOTPLUG.
 
+What:		/sys/bus/pci/devices/.../pci_bus/.../rescan
+Date:		May 2011
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		Writing a non-zero value to this attribute will
+		force a rescan of the bus and all child buses,
+		and re-discover devices removed earlier from this
+		part of the device tree.  Depends on CONFIG_HOTPLUG.
+
 What:		/sys/bus/pci/devices/.../rescan
 Date:		January 2009
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
@@ -145,9 +154,11 @@ Date:		July 2010
 Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
 Description:
 		Reading this attribute will provide the firmware
-		given name(SMBIOS type 41 string) of the PCI device.
-		The attribute will be created only if the firmware
-		has given a name to the PCI device.
+		given name (SMBIOS type 41 string or ACPI _DSM string) of
+		the PCI device.	The attribute will be created only
+		if the firmware	has given a name to the PCI device.
+		ACPI _DSM string name will be given priority if the
+		system firmware provides SMBIOS type 41 string also.
 Users:
 		Userspace applications interested in knowing the
 		firmware assigned name of the PCI device.
@@ -157,12 +168,27 @@ Date:		July 2010
 Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
 Description:
 		Reading this attribute will provide the firmware
-		given instance(SMBIOS type 41 device type instance)
-		of the PCI device. The attribute will be created
-		only if the firmware has given a device type instance
-		to the PCI device.
+		given instance (SMBIOS type 41 device type instance) of the
+		PCI device. The attribute will be created only if the firmware
+		has given an instance number to the PCI device.
 Users:
 		Userspace applications interested in knowing the
 		firmware assigned device type instance of the PCI
+		device that can help in understanding the firmware
+		intended order of the PCI device.
+
+What:		/sys/bus/pci/devices/.../acpi_index
+Date:		July 2010
+Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Description:
+		Reading this attribute will provide the firmware
+		given instance (ACPI _DSM instance number) of the PCI device.
+		The attribute will be created only if the firmware has given
+		an instance number to the PCI device. ACPI _DSM instance number
+		will be given priority if the system firmware provides SMBIOS
+		type 41 device type instance also.
+Users:
+		Userspace applications interested in knowing the
+		firmware assigned instance number of the PCI
 		device that can help in understanding the firmware
 		intended order of the PCI device.

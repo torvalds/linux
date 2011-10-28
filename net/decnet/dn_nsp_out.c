@@ -78,7 +78,7 @@ static void dn_nsp_send(struct sk_buff *skb)
 	struct sock *sk = skb->sk;
 	struct dn_scp *scp = DN_SK(sk);
 	struct dst_entry *dst;
-	struct flowi fl;
+	struct flowidn fld;
 
 	skb_reset_transport_header(skb);
 	scp->stamp = jiffies;
@@ -91,13 +91,13 @@ try_again:
 		return;
 	}
 
-	memset(&fl, 0, sizeof(fl));
-	fl.oif = sk->sk_bound_dev_if;
-	fl.fld_src = dn_saddr2dn(&scp->addr);
-	fl.fld_dst = dn_saddr2dn(&scp->peer);
-	dn_sk_ports_copy(&fl, scp);
-	fl.proto = DNPROTO_NSP;
-	if (dn_route_output_sock(&sk->sk_dst_cache, &fl, sk, 0) == 0) {
+	memset(&fld, 0, sizeof(fld));
+	fld.flowidn_oif = sk->sk_bound_dev_if;
+	fld.saddr = dn_saddr2dn(&scp->addr);
+	fld.daddr = dn_saddr2dn(&scp->peer);
+	dn_sk_ports_copy(&fld, scp);
+	fld.flowidn_proto = DNPROTO_NSP;
+	if (dn_route_output_sock(&sk->sk_dst_cache, &fld, sk, 0) == 0) {
 		dst = sk_dst_get(sk);
 		sk->sk_route_caps = dst->dev->features;
 		goto try_again;
@@ -693,22 +693,22 @@ void dn_nsp_send_conninit(struct sock *sk, unsigned char msgflg)
 	aux = scp->accessdata.acc_userl;
 	*skb_put(skb, 1) = aux;
 	if (aux > 0)
-	memcpy(skb_put(skb, aux), scp->accessdata.acc_user, aux);
+		memcpy(skb_put(skb, aux), scp->accessdata.acc_user, aux);
 
 	aux = scp->accessdata.acc_passl;
 	*skb_put(skb, 1) = aux;
 	if (aux > 0)
-	memcpy(skb_put(skb, aux), scp->accessdata.acc_pass, aux);
+		memcpy(skb_put(skb, aux), scp->accessdata.acc_pass, aux);
 
 	aux = scp->accessdata.acc_accl;
 	*skb_put(skb, 1) = aux;
 	if (aux > 0)
-	memcpy(skb_put(skb, aux), scp->accessdata.acc_acc, aux);
+		memcpy(skb_put(skb, aux), scp->accessdata.acc_acc, aux);
 
 	aux = (__u8)le16_to_cpu(scp->conndata_out.opt_optl);
 	*skb_put(skb, 1) = aux;
 	if (aux > 0)
-	memcpy(skb_put(skb,aux), scp->conndata_out.opt_data, aux);
+		memcpy(skb_put(skb, aux), scp->conndata_out.opt_data, aux);
 
 	scp->persist = dn_nsp_persist(sk);
 	scp->persist_fxn = dn_nsp_retrans_conninit;

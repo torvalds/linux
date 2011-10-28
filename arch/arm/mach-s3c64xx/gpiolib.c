@@ -72,7 +72,7 @@ static struct s3c_gpio_cfg gpio_4bit_cfg_eint0011 = {
 	.get_pull	= s3c_gpio_getpull_updown,
 };
 
-int s3c64xx_gpio2int_gpm(struct gpio_chip *chip, unsigned pin)
+static int s3c64xx_gpio2int_gpm(struct gpio_chip *chip, unsigned pin)
 {
 	return pin < 5 ? IRQ_EINT(23) + pin : -ENXIO;
 }
@@ -138,7 +138,7 @@ static struct s3c_gpio_chip gpio_4bit[] = {
 	},
 };
 
-int s3c64xx_gpio2int_gpl(struct gpio_chip *chip, unsigned pin)
+static int s3c64xx_gpio2int_gpl(struct gpio_chip *chip, unsigned pin)
 {
 	return pin >= 8 ? IRQ_EINT(16) + pin - 8 : -ENXIO;
 }
@@ -195,11 +195,6 @@ static struct s3c_gpio_cfg gpio_2bit_cfg_eint11 = {
 	.get_pull	= s3c_gpio_getpull_updown,
 };
 
-int s3c64xx_gpio2int_gpn(struct gpio_chip *chip, unsigned pin)
-{
-	return IRQ_EINT(0) + pin;
-}
-
 static struct s3c_gpio_chip gpio_2bit[] = {
 	{
 		.base	= S3C64XX_GPF_BASE,
@@ -227,12 +222,13 @@ static struct s3c_gpio_chip gpio_2bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPN_BASE,
+		.irq_base = IRQ_EINT(0),
 		.config	= &gpio_2bit_cfg_eint10,
 		.chip	= {
 			.base	= S3C64XX_GPN(0),
 			.ngpio	= S3C64XX_GPIO_N_NR,
 			.label	= "GPN",
-			.to_irq = s3c64xx_gpio2int_gpn,
+			.to_irq = samsung_gpiolib_to_irq,
 		},
 	}, {
 		.base	= S3C64XX_GPO_BASE,

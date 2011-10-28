@@ -46,7 +46,7 @@ ENTRY(cpu_arm9tdmi_proc_fin)
 ENTRY(cpu_arm9tdmi_reset)
 		mov	pc, r0
 
-		__INIT
+		__CPUINIT
 
 		.type	__arm9tdmi_setup, #function
 __arm9tdmi_setup:
@@ -70,6 +70,9 @@ ENTRY(arm9tdmi_processor_functions)
 		.word	cpu_arm9tdmi_dcache_clean_area
 		.word	cpu_arm9tdmi_switch_mm
 		.word	0		@ cpu_*_set_pte
+		.word	0
+		.word	0
+		.word	0
 		.size	arm9tdmi_processor_functions, . - arm9tdmi_processor_functions
 
 		.section ".rodata"
@@ -113,7 +116,7 @@ __arm9tdmi_proc_info:
 		.long	0
 		.long	0
 		.long	v4_cache_fns
-		.size	__arm9tdmi_proc_info, . - __arm9dmi_proc_info
+		.size	__arm9tdmi_proc_info, . - __arm9tdmi_proc_info
 
 		.type	__p2001_proc_info, #object
 __p2001_proc_info:

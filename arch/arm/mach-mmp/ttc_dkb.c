@@ -14,6 +14,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/onenand.h>
+#include <linux/interrupt.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -23,6 +24,8 @@
 #include <mach/pxa910.h>
 
 #include "common.h"
+
+#define TTCDKB_NR_IRQS		(IRQ_BOARD_START + 24)
 
 static unsigned long ttc_dkb_pin_config[] __initdata = {
 	/* UART2 */
@@ -122,9 +125,8 @@ static void __init ttc_dkb_init(void)
 }
 
 MACHINE_START(TTC_DKB, "PXA910-based TTC_DKB Development Platform")
-	.phys_io        = APB_PHYS_BASE,
-	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
 	.map_io		= mmp_map_io,
+	.nr_irqs	= TTCDKB_NR_IRQS,
 	.init_irq       = pxa910_init_irq,
 	.timer          = &pxa910_timer,
 	.init_machine   = ttc_dkb_init,

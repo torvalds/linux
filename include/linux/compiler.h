@@ -16,7 +16,11 @@
 # define __release(x)	__context__(x,-1)
 # define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
 # define __percpu	__attribute__((noderef, address_space(3)))
+#ifdef CONFIG_SPARSE_RCU_POINTER
+# define __rcu		__attribute__((noderef, address_space(4)))
+#else
 # define __rcu
+#endif
 extern void __chk_user_ptr(const volatile void __user *);
 extern void __chk_io_ptr(const volatile void __iomem *);
 #else

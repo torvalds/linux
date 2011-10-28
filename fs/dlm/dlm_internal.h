@@ -192,11 +192,6 @@ struct dlm_args {
  * lkb is a process copy, the nodeid specifies the lock master.
  */
 
-/* lkb_ast_type */
-
-#define AST_COMP		1
-#define AST_BAST		2
-
 /* lkb_status */
 
 #define DLM_LKSTS_WAITING	1
@@ -214,8 +209,23 @@ struct dlm_args {
 #define DLM_IFL_WATCH_TIMEWARN	0x00400000
 #define DLM_IFL_TIMEOUT_CANCEL	0x00800000
 #define DLM_IFL_DEADLOCK_CANCEL	0x01000000
+#define DLM_IFL_STUB_MS		0x02000000 /* magic number for m_flags */
 #define DLM_IFL_USER		0x00000001
 #define DLM_IFL_ORPHAN		0x00000002
+
+#define DLM_CALLBACKS_SIZE	6
+
+#define DLM_CB_CAST		0x00000001
+#define DLM_CB_BAST		0x00000002
+#define DLM_CB_SKIP		0x00000004
+
+struct dlm_callback {
+	uint64_t		seq;
+	uint32_t		flags;		/* DLM_CBF_ */
+	int			sb_status;	/* copy to lksb status */
+	uint8_t			sb_flags;	/* copy to lksb flags */
+	int8_t			mode; /* rq mode of bast, gr mode of cast */
+};
 
 struct dlm_lkb {
 	struct dlm_rsb		*lkb_resource;	/* the rsb */
@@ -236,13 +246,7 @@ struct dlm_lkb {
 
 	int8_t			lkb_wait_type;	/* type of reply waiting for */
 	int8_t			lkb_wait_count;
-	int8_t			lkb_ast_type;	/* type of ast queued for */
-	int8_t			lkb_ast_first;	/* type of first ast queued */
-
-	int8_t			lkb_bastmode;	/* req mode of queued bast */
-	int8_t			lkb_castmode;	/* gr mode of queued cast */
-	int8_t			lkb_bastmode_done; /* last delivered bastmode */
-	int8_t			lkb_castmode_done; /* last delivered castmode */
+	int			lkb_wait_nodeid; /* for debugging */
 
 	struct list_head	lkb_idtbl_list;	/* lockspace lkbtbl */
 	struct list_head	lkb_statequeue;	/* rsb g/c/w list */
@@ -251,9 +255,15 @@ struct dlm_lkb {
 	struct list_head	lkb_astqueue;	/* need ast to be sent */
 	struct list_head	lkb_ownqueue;	/* list of locks for a process */
 	struct list_head	lkb_time_list;
-	ktime_t			lkb_time_bast;	/* for debugging */
 	ktime_t			lkb_timestamp;
+	ktime_t			lkb_wait_time;
 	unsigned long		lkb_timeout_cs;
+
+	struct dlm_callback	lkb_callbacks[DLM_CALLBACKS_SIZE];
+	struct dlm_callback	lkb_last_cast;
+	struct dlm_callback	lkb_last_bast;
+	ktime_t			lkb_last_cast_time;	/* for debugging */
+	ktime_t			lkb_last_bast_time;	/* for debugging */
 
 	char			*lkb_lvbptr;
 	struct dlm_lksb		*lkb_lksb;      /* caller's status block */
@@ -544,8 +554,6 @@ struct dlm_user_args {
 					  (dlm_user_proc) on the struct file,
 					  the process's locks point back to it*/
 	struct dlm_lksb		lksb;
-	int			old_mode;
-	int			update_user_lvb;
 	struct dlm_lksb __user	*user_lksb;
 	void __user		*castparam;
 	void __user		*castaddr;

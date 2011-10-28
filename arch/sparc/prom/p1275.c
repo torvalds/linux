@@ -39,7 +39,7 @@ void p1275_cmd_direct(unsigned long *args)
 	unsigned long flags;
 
 	raw_local_save_flags(flags);
-	raw_local_irq_restore(PIL_NMI);
+	raw_local_irq_restore((unsigned long)PIL_NMI);
 	raw_spin_lock(&prom_entry_lock);
 
 	prom_world(1);

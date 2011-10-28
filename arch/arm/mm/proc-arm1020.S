@@ -64,7 +64,7 @@
 /*
  * This is the size at which it becomes more efficient to
  * clean the whole cache, rather than using the individual
- * cache line maintainence instructions.
+ * cache line maintenance instructions.
  */
 #define CACHE_DLIMIT	32768
 
@@ -119,6 +119,20 @@ ENTRY(cpu_arm1020_do_idle)
 /* ================================= CACHE ================================ */
 
 	.align	5
+
+/*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(arm1020_flush_icache_all)
+#ifndef CONFIG_CPU_ICACHE_DISABLE
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+#endif
+	mov	pc, lr
+ENDPROC(arm1020_flush_icache_all)
+
 /*
  *	flush_user_cache_all()
  *
@@ -351,6 +365,7 @@ ENTRY(arm1020_dma_unmap_area)
 ENDPROC(arm1020_dma_unmap_area)
 
 ENTRY(arm1020_cache_fns)
+	.long	arm1020_flush_icache_all
 	.long	arm1020_flush_kern_cache_all
 	.long	arm1020_flush_user_cache_all
 	.long	arm1020_flush_user_cache_range
@@ -430,7 +445,7 @@ ENTRY(cpu_arm1020_set_pte_ext)
 #endif /* CONFIG_MMU */
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__arm1020_setup, #function
 __arm1020_setup:
@@ -478,6 +493,9 @@ arm1020_processor_functions:
 	.word	cpu_arm1020_dcache_clean_area
 	.word	cpu_arm1020_switch_mm
 	.word	cpu_arm1020_set_pte_ext
+	.word	0
+	.word	0
+	.word	0
 	.size	arm1020_processor_functions, . - arm1020_processor_functions
 
 	.section ".rodata"

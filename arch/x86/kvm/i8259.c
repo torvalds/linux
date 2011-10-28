@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2003-2004 Fabrice Bellard
  * Copyright (c) 2007 Intel Corporation
- * Copyright 2009 Red Hat, Inc. and/or its affilates.
+ * Copyright 2009 Red Hat, Inc. and/or its affiliates.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +39,7 @@ static void pic_irq_request(struct kvm *kvm, int level);
 static void pic_lock(struct kvm_pic *s)
 	__acquires(&s->lock)
 {
-	raw_spin_lock(&s->lock);
+	spin_lock(&s->lock);
 }
 
 static void pic_unlock(struct kvm_pic *s)
@@ -51,7 +51,7 @@ static void pic_unlock(struct kvm_pic *s)
 
 	s->wakeup_needed = false;
 
-	raw_spin_unlock(&s->lock);
+	spin_unlock(&s->lock);
 
 	if (wakeup) {
 		kvm_for_each_vcpu(i, vcpu, s->kvm) {
@@ -62,11 +62,9 @@ static void pic_unlock(struct kvm_pic *s)
 		}
 
 		if (!found)
-			found = s->kvm->bsp_vcpu;
-
-		if (!found)
 			return;
 
+		kvm_make_request(KVM_REQ_EVENT, found);
 		kvm_vcpu_kick(found);
 	}
 }
@@ -74,7 +72,6 @@ static void pic_unlock(struct kvm_pic *s)
 static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
 {
 	s->isr &= ~(1 << irq);
-	s->isr_ack |= (1 << irq);
 	if (s != &s->pics_state->pics[0])
 		irq += 8;
 	/*
@@ -86,16 +83,6 @@ static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
 	pic_unlock(s->pics_state);
 	kvm_notify_acked_irq(s->pics_state->kvm, SELECT_PIC(irq), irq);
 	pic_lock(s->pics_state);
-}
-
-void kvm_pic_clear_isr_ack(struct kvm *kvm)
-{
-	struct kvm_pic *s = pic_irqchip(kvm);
-
-	pic_lock(s);
-	s->pics[0].isr_ack = 0xff;
-	s->pics[1].isr_ack = 0xff;
-	pic_unlock(s);
 }
 
 /*
@@ -280,7 +267,6 @@ void kvm_pic_reset(struct kvm_kpic_state *s)
 	s->irr = 0;
 	s->imr = 0;
 	s->isr = 0;
-	s->isr_ack = 0xff;
 	s->priority_add = 0;
 	s->irq_base = 0;
 	s->read_reg_select = 0;
@@ -308,13 +294,17 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 	addr &= 1;
 	if (addr == 0) {
 		if (val & 0x10) {
-			kvm_pic_reset(s);	/* init */
-			/*
-			 * deassert a pending interrupt
-			 */
-			pic_irq_request(s->pics_state->kvm, 0);
-			s->init_state = 1;
 			s->init4 = val & 1;
+			s->last_irr = 0;
+			s->imr = 0;
+			s->priority_add = 0;
+			s->special_mask = 0;
+			s->read_reg_select = 0;
+			if (!s->init4) {
+				s->special_fully_nested_mode = 0;
+				s->auto_eoi = 0;
+			}
+			s->init_state = 1;
 			if (val & 0x02)
 				printk(KERN_ERR "single mode not supported");
 			if (val & 0x08)
@@ -540,15 +530,11 @@ static int picdev_read(struct kvm_io_device *this,
  */
 static void pic_irq_request(struct kvm *kvm, int level)
 {
-	struct kvm_vcpu *vcpu = kvm->bsp_vcpu;
 	struct kvm_pic *s = pic_irqchip(kvm);
-	int irq = pic_get_irq(&s->pics[0]);
 
-	s->output = level;
-	if (vcpu && level && (s->pics[0].isr_ack & (1 << irq))) {
-		s->pics[0].isr_ack &= ~(1 << irq);
+	if (!s->output)
 		s->wakeup_needed = true;
-	}
+	s->output = level;
 }
 
 static const struct kvm_io_device_ops picdev_ops = {
@@ -564,7 +550,7 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 	s = kzalloc(sizeof(struct kvm_pic), GFP_KERNEL);
 	if (!s)
 		return NULL;
-	raw_spin_lock_init(&s->lock);
+	spin_lock_init(&s->lock);
 	s->kvm = kvm;
 	s->pics[0].elcr_mask = 0xf8;
 	s->pics[1].elcr_mask = 0xde;

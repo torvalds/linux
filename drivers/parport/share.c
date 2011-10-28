@@ -306,7 +306,7 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	spin_lock_init(&tmp->pardevice_lock);
 	tmp->ieee1284.mode = IEEE1284_MODE_COMPAT;
 	tmp->ieee1284.phase = IEEE1284_PH_FWD_IDLE;
-	init_MUTEX_LOCKED (&tmp->ieee1284.irq); /* actually a semaphore at 0 */
+	sema_init(&tmp->ieee1284.irq, 0);
 	tmp->spintime = parport_default_spintime;
 	atomic_set (&tmp->ref_count, 1);
 	INIT_LIST_HEAD(&tmp->full_list);
@@ -678,7 +678,7 @@ void parport_unregister_device(struct pardevice *dev)
 
 	/* Make sure we haven't left any pointers around in the wait
 	 * list. */
-	spin_lock (&port->waitlist_lock);
+	spin_lock_irq(&port->waitlist_lock);
 	if (dev->waitprev || dev->waitnext || port->waithead == dev) {
 		if (dev->waitprev)
 			dev->waitprev->waitnext = dev->waitnext;
@@ -689,7 +689,7 @@ void parport_unregister_device(struct pardevice *dev)
 		else
 			port->waittail = dev->waitprev;
 	}
-	spin_unlock (&port->waitlist_lock);
+	spin_unlock_irq(&port->waitlist_lock);
 
 	kfree(dev->state);
 	kfree(dev);

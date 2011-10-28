@@ -15,7 +15,7 @@
  *  Rewritten for 2.6 by Cesar Eduardo Barros
  *
  *  A datasheet for this chip can be found at
- *  http://www.silan.com.cn/english/products/pdf/SC92031AY.pdf
+ *  http://www.silan.com.cn/english/product/pdf/SC92031AY.pdf 
  */
 
 /* Note about set_mac_address: I don't know how to change the hardware
@@ -1173,7 +1173,8 @@ static int sc92031_ethtool_get_settings(struct net_device *dev,
 	if (phy_ctrl & PhyCtrlAne)
 		cmd->advertising |= ADVERTISED_Autoneg;
 
-	cmd->speed = (output_status & 0x2) ? SPEED_100 : SPEED_10;
+	ethtool_cmd_speed_set(cmd,
+			      (output_status & 0x2) ? SPEED_100 : SPEED_10);
 	cmd->duplex = (output_status & 0x4) ? DUPLEX_FULL : DUPLEX_HALF;
 	cmd->port = PORT_MII;
 	cmd->phy_address = phy_address;
@@ -1188,10 +1189,11 @@ static int sc92031_ethtool_set_settings(struct net_device *dev,
 {
 	struct sc92031_priv *priv = netdev_priv(dev);
 	void __iomem *port_base = priv->port_base;
+	u32 speed = ethtool_cmd_speed(cmd);
 	u32 phy_ctrl;
 	u32 old_phy_ctrl;
 
-	if (!(cmd->speed == SPEED_10 || cmd->speed == SPEED_100))
+	if (!(speed == SPEED_10 || speed == SPEED_100))
 		return -EINVAL;
 	if (!(cmd->duplex == DUPLEX_HALF || cmd->duplex == DUPLEX_FULL))
 		return -EINVAL;
@@ -1229,7 +1231,7 @@ static int sc92031_ethtool_set_settings(struct net_device *dev,
 		// FIXME: Whole branch guessed
 		phy_ctrl = 0;
 
-		if (cmd->speed == SPEED_10)
+		if (speed == SPEED_10)
 			phy_ctrl |= PhyCtrlSpd10;
 		else /* cmd->speed == SPEED_100 */
 			phy_ctrl |= PhyCtrlSpd100;
@@ -1249,16 +1251,6 @@ static int sc92031_ethtool_set_settings(struct net_device *dev,
 	spin_unlock_bh(&priv->lock);
 
 	return 0;
-}
-
-static void sc92031_ethtool_get_drvinfo(struct net_device *dev,
-		struct ethtool_drvinfo *drvinfo)
-{
-	struct sc92031_priv *priv = netdev_priv(dev);
-	struct pci_dev *pdev = priv->pdev;
-
-	strcpy(drvinfo->driver, SC92031_NAME);
-	strcpy(drvinfo->bus_info, pci_name(pdev));
 }
 
 static void sc92031_ethtool_get_wol(struct net_device *dev,
@@ -1382,7 +1374,6 @@ static void sc92031_ethtool_get_ethtool_stats(struct net_device *dev,
 static const struct ethtool_ops sc92031_ethtool_ops = {
 	.get_settings		= sc92031_ethtool_get_settings,
 	.set_settings		= sc92031_ethtool_set_settings,
-	.get_drvinfo		= sc92031_ethtool_get_drvinfo,
 	.get_wol		= sc92031_ethtool_get_wol,
 	.set_wol		= sc92031_ethtool_set_wol,
 	.nway_reset		= sc92031_ethtool_nway_reset,
@@ -1460,7 +1451,8 @@ static int __devinit sc92031_probe(struct pci_dev *pdev,
 	dev->irq = pdev->irq;
 
 	/* faked with skb_copy_and_csum_dev */
-	dev->features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_HIGHDMA;
+	dev->features = NETIF_F_SG | NETIF_F_HIGHDMA |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 
 	dev->netdev_ops		= &sc92031_netdev_ops;
 	dev->watchdog_timeo	= TX_TIMEOUT;

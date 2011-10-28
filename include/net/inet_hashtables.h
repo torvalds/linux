@@ -245,7 +245,7 @@ static inline int inet_sk_listen_hashfn(const struct sock *sk)
 }
 
 /* Caller must disable local BH processing. */
-extern void __inet_inherit_port(struct sock *sk, struct sock *child);
+extern int __inet_inherit_port(struct sock *sk, struct sock *child);
 
 extern void inet_put_port(struct sock *sk);
 

@@ -164,7 +164,7 @@ This is the (partial) list of the hooks:
    It puts the scheduling entity (task) into the red-black tree and
    increments the nr_running variable.
 
- - dequeue_tree(...)
+ - dequeue_task(...)
 
    When a task is no longer runnable, this function is called to keep the
    corresponding scheduling entity out of the red-black tree.  It decrements
@@ -195,11 +195,6 @@ This is the (partial) list of the hooks:
    This function is mostly called from time tick functions; it might lead to
    process switch.  This drives the running preemption.
 
- - task_new(...)
-
-   The core scheduler gives the scheduling module an opportunity to manage new
-   task startup.  The CFS scheduling module uses it for group scheduling, while
-   the scheduling module for a real-time task does not use it.
 
 
 
@@ -228,9 +223,10 @@ When CONFIG_FAIR_GROUP_SCHED is defined, a "cpu.shares" file is created for each
 group created using the pseudo filesystem.  See example steps below to create
 task groups and modify their CPU share using the "cgroups" pseudo filesystem.
 
-	# mkdir /dev/cpuctl
-	# mount -t cgroup -ocpu none /dev/cpuctl
-	# cd /dev/cpuctl
+	# mount -t tmpfs cgroup_root /sys/fs/cgroup
+	# mkdir /sys/fs/cgroup/cpu
+	# mount -t cgroup -ocpu none /sys/fs/cgroup/cpu
+	# cd /sys/fs/cgroup/cpu
 
 	# mkdir multimedia	# create "multimedia" group of tasks
 	# mkdir browser		# create "browser" group of tasks

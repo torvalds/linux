@@ -294,13 +294,13 @@ static void pluto_dma_end(struct pluto *pluto, unsigned int nbpackets)
 
 	/* Workaround for broken hardware:
 	 * [1] On startup NBPACKETS seems to contain an uninitialized value,
-	 *     but no packets have been transfered.
+	 *     but no packets have been transferred.
 	 * [2] Sometimes (actually very often) NBPACKETS stays at zero
-	 *     although one packet has been transfered.
+	 *     although one packet has been transferred.
 	 * [3] Sometimes (actually rarely), the card gets into an erroneous
 	 *     mode where it continuously generates interrupts, claiming it
-	 *     has recieved nbpackets>TS_DMA_PACKETS packets, but no packet
-	 *     has been transfered. Only a reset seems to solve this
+	 *     has received nbpackets>TS_DMA_PACKETS packets, but no packet
+	 *     has been transferred. Only a reset seems to solve this
 	 */
 	if ((nbpackets == 0) || (nbpackets > TS_DMA_PACKETS)) {
 		unsigned int i = 0;
@@ -332,7 +332,7 @@ static irqreturn_t pluto_irq(int irq, void *dev_id)
 	struct pluto *pluto = dev_id;
 	u32 tscr;
 
-	/* check whether an interrupt occured on this device */
+	/* check whether an interrupt occurred on this device */
 	tscr = pluto_readreg(pluto, REG_TSCR);
 	if (!(tscr & (TSCR_DE | TSCR_OVR)))
 		return IRQ_NONE;
@@ -647,7 +647,6 @@ static int __devinit pluto2_probe(struct pci_dev *pdev,
 	i2c_set_adapdata(&pluto->i2c_adap, pluto);
 	strcpy(pluto->i2c_adap.name, DRIVER_NAME);
 	pluto->i2c_adap.owner = THIS_MODULE;
-	pluto->i2c_adap.class = I2C_CLASS_TV_DIGITAL;
 	pluto->i2c_adap.dev.parent = &pdev->dev;
 	pluto->i2c_adap.algo_data = &pluto->i2c_bit;
 	pluto->i2c_bit.data = pluto;

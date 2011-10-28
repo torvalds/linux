@@ -15,23 +15,30 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/cpufeature.h>
+#include <asm/alternative-asm.h>
 
-	.macro ALTERNATIVE_JUMP feature,orig,alt
+/*
+ * By placing feature2 after feature1 in altinstructions section, we logically
+ * implement:
+ * If CPU has feature2, jmp to alt2 is used
+ * else if CPU has feature1, jmp to alt1 is used
+ * else jmp to orig is used.
+ */
+	.macro ALTERNATIVE_JUMP feature1,feature2,orig,alt1,alt2
 0:
 	.byte 0xe9	/* 32bit jump */
 	.long \orig-1f	/* by default jump to orig */
 1:
 	.section .altinstr_replacement,"ax"
 2:	.byte 0xe9			/* near jump with 32bit immediate */
-	.long \alt-1b /* offset */   /* or alternatively to alt */
+	.long \alt1-1b /* offset */   /* or alternatively to alt1 */
+3:	.byte 0xe9			/* near jump with 32bit immediate */
+	.long \alt2-1b /* offset */   /* or alternatively to alt2 */
 	.previous
+
 	.section .altinstructions,"a"
-	.align 8
-	.quad  0b
-	.quad  2b
-	.word  \feature			/* when feature is set */
-	.byte  5
-	.byte  5
+	altinstruction_entry 0b,2b,\feature1,5,5
+	altinstruction_entry 0b,3b,\feature2,5,5
 	.previous
 	.endm
 
@@ -72,8 +79,10 @@ ENTRY(_copy_to_user)
 	addq %rdx,%rcx
 	jc bad_to_user
 	cmpq TI_addr_limit(%rax),%rcx
-	jae bad_to_user
-	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,copy_user_generic_unrolled,copy_user_generic_string
+	ja bad_to_user
+	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,X86_FEATURE_ERMS,	\
+		copy_user_generic_unrolled,copy_user_generic_string,	\
+		copy_user_enhanced_fast_string
 	CFI_ENDPROC
 ENDPROC(_copy_to_user)
 
@@ -85,8 +94,10 @@ ENTRY(_copy_from_user)
 	addq %rdx,%rcx
 	jc bad_from_user
 	cmpq TI_addr_limit(%rax),%rcx
-	jae bad_from_user
-	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,copy_user_generic_unrolled,copy_user_generic_string
+	ja bad_from_user
+	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,X86_FEATURE_ERMS,	\
+		copy_user_generic_unrolled,copy_user_generic_string,	\
+		copy_user_enhanced_fast_string
 	CFI_ENDPROC
 ENDPROC(_copy_from_user)
 
@@ -117,7 +128,7 @@ ENDPROC(bad_from_user)
  * rdx count
  *
  * Output:
- * eax uncopied bytes or 0 if successfull.
+ * eax uncopied bytes or 0 if successful.
  */
 ENTRY(copy_user_generic_unrolled)
 	CFI_STARTPROC
@@ -255,3 +266,37 @@ ENTRY(copy_user_generic_string)
 	.previous
 	CFI_ENDPROC
 ENDPROC(copy_user_generic_string)
+
+/*
+ * Some CPUs are adding enhanced REP MOVSB/STOSB instructions.
+ * It's recommended to use enhanced REP MOVSB/STOSB if it's enabled.
+ *
+ * Input:
+ * rdi destination
+ * rsi source
+ * rdx count
+ *
+ * Output:
+ * eax uncopied bytes or 0 if successful.
+ */
+ENTRY(copy_user_enhanced_fast_string)
+	CFI_STARTPROC
+	andl %edx,%edx
+	jz 2f
+	movl %edx,%ecx
+1:	rep
+	movsb
+2:	xorl %eax,%eax
+	ret
+
+	.section .fixup,"ax"
+12:	movl %ecx,%edx		/* ecx is zerorest also */
+	jmp copy_user_handle_tail
+	.previous
+
+	.section __ex_table,"a"
+	.align 8
+	.quad 1b,12b
+	.previous
+	CFI_ENDPROC
+ENDPROC(copy_user_enhanced_fast_string)

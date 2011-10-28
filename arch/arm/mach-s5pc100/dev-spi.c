@@ -15,6 +15,7 @@
 #include <mach/dma.h>
 #include <mach/map.h>
 #include <mach/spi-clocks.h>
+#include <mach/irqs.h>
 
 #include <plat/s3c64xx-spi.h>
 #include <plat/gpio-cfg.h>
@@ -38,30 +39,20 @@ static int s5pc100_spi_cfg_gpio(struct platform_device *pdev)
 {
 	switch (pdev->id) {
 	case 0:
-		s3c_gpio_cfgpin(S5PC100_GPB(0), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PC100_GPB(1), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PC100_GPB(2), S3C_GPIO_SFN(2));
-		s3c_gpio_setpull(S5PC100_GPB(0), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5PC100_GPB(1), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5PC100_GPB(2), S3C_GPIO_PULL_UP);
+		s3c_gpio_cfgall_range(S5PC100_GPB(0), 3,
+				      S3C_GPIO_SFN(2), S3C_GPIO_PULL_UP);
 		break;
 
 	case 1:
-		s3c_gpio_cfgpin(S5PC100_GPB(4), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PC100_GPB(5), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PC100_GPB(6), S3C_GPIO_SFN(2));
-		s3c_gpio_setpull(S5PC100_GPB(4), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5PC100_GPB(5), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5PC100_GPB(6), S3C_GPIO_PULL_UP);
+		s3c_gpio_cfgall_range(S5PC100_GPB(4), 3,
+				      S3C_GPIO_SFN(2), S3C_GPIO_PULL_UP);
 		break;
 
 	case 2:
 		s3c_gpio_cfgpin(S5PC100_GPG3(0), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PC100_GPG3(2), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PC100_GPG3(3), S3C_GPIO_SFN(3));
 		s3c_gpio_setpull(S5PC100_GPG3(0), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5PC100_GPG3(2), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5PC100_GPG3(3), S3C_GPIO_PULL_UP);
+		s3c_gpio_cfgall_range(S5PC100_GPB(2), 2,
+				      S3C_GPIO_SFN(3), S3C_GPIO_PULL_UP);
 		break;
 
 	default:
@@ -100,6 +91,7 @@ static struct s3c64xx_spi_info s5pc100_spi0_pdata = {
 	.fifo_lvl_mask = 0x7f,
 	.rx_lvl_offset = 13,
 	.high_speed = 1,
+	.tx_st_done = 21,
 };
 
 static u64 spi_dmamask = DMA_BIT_MASK(32);
@@ -144,6 +136,7 @@ static struct s3c64xx_spi_info s5pc100_spi1_pdata = {
 	.fifo_lvl_mask = 0x7f,
 	.rx_lvl_offset = 13,
 	.high_speed = 1,
+	.tx_st_done = 21,
 };
 
 struct platform_device s5pc100_device_spi1 = {
@@ -186,6 +179,7 @@ static struct s3c64xx_spi_info s5pc100_spi2_pdata = {
 	.fifo_lvl_mask = 0x7f,
 	.rx_lvl_offset = 13,
 	.high_speed = 1,
+	.tx_st_done = 21,
 };
 
 struct platform_device s5pc100_device_spi2 = {

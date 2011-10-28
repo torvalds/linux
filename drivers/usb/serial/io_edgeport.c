@@ -216,12 +216,14 @@ static void edge_unthrottle(struct tty_struct *tty);
 static void edge_set_termios(struct tty_struct *tty,
 					struct usb_serial_port *port,
 					struct ktermios *old_termios);
-static int  edge_ioctl(struct tty_struct *tty, struct file *file,
+static int  edge_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg);
 static void edge_break(struct tty_struct *tty, int break_state);
-static int  edge_tiocmget(struct tty_struct *tty, struct file *file);
-static int  edge_tiocmset(struct tty_struct *tty, struct file *file,
+static int  edge_tiocmget(struct tty_struct *tty);
+static int  edge_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear);
+static int  edge_get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *icount);
 static int  edge_startup(struct usb_serial *serial);
 static void edge_disconnect(struct usb_serial *serial);
 static void edge_release(struct usb_serial *serial);
@@ -1465,8 +1467,6 @@ static void edge_throttle(struct tty_struct *tty)
 		if (status != 0)
 			return;
 	}
-
-	return;
 }
 
 
@@ -1568,7 +1568,7 @@ static int get_lsr_info(struct edgeport_port *edge_port,
 	return 0;
 }
 
-static int edge_tiocmset(struct tty_struct *tty, struct file *file,
+static int edge_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1599,7 +1599,7 @@ static int edge_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static int edge_tiocmget(struct tty_struct *tty, struct file *file)
+static int edge_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
@@ -1622,6 +1622,31 @@ static int edge_tiocmget(struct tty_struct *tty, struct file *file)
 	dbg("%s -- %x", __func__, result);
 
 	return result;
+}
+
+static int edge_get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *icount)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
+	struct async_icount cnow;
+	cnow = edge_port->icount;
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+
+	dbg("%s (%d) TIOCGICOUNT RX=%d, TX=%d",
+			__func__,  port->number, icount->rx, icount->tx);
+	return 0;
 }
 
 static int get_serial_info(struct edgeport_port *edge_port,
@@ -1650,12 +1675,11 @@ static int get_serial_info(struct edgeport_port *edge_port,
 }
 
 
-
 /*****************************************************************************
  * SerialIoctl
  *	this function handles any ioctl calls to the driver
  *****************************************************************************/
-static int edge_ioctl(struct tty_struct *tty, struct file *file,
+static int edge_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1663,7 +1687,6 @@ static int edge_ioctl(struct tty_struct *tty, struct file *file,
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	struct async_icount cnow;
 	struct async_icount cprev;
-	struct serial_icounter_struct icount;
 
 	dbg("%s - port %d, cmd = 0x%x", __func__, port->number, cmd);
 
@@ -1702,26 +1725,6 @@ static int edge_ioctl(struct tty_struct *tty, struct file *file,
 		/* NOTREACHED */
 		break;
 
-	case TIOCGICOUNT:
-		cnow = edge_port->icount;
-		memset(&icount, 0, sizeof(icount));
-		icount.cts = cnow.cts;
-		icount.dsr = cnow.dsr;
-		icount.rng = cnow.rng;
-		icount.dcd = cnow.dcd;
-		icount.rx = cnow.rx;
-		icount.tx = cnow.tx;
-		icount.frame = cnow.frame;
-		icount.overrun = cnow.overrun;
-		icount.parity = cnow.parity;
-		icount.brk = cnow.brk;
-		icount.buf_overrun = cnow.buf_overrun;
-
-		dbg("%s (%d) TIOCGICOUNT RX=%d, TX=%d",
-				__func__,  port->number, icount.rx, icount.tx);
-		if (copy_to_user((void __user *)arg, &icount, sizeof(icount)))
-			return -EFAULT;
-		return 0;
 	}
 	return -ENOIOCTLCMD;
 }
@@ -1770,8 +1773,6 @@ static void edge_break(struct tty_struct *tty, int break_state)
 			dbg("%s - error sending break set/clear command.",
 				__func__);
 	}
-
-	return;
 }
 
 
@@ -1980,7 +1981,7 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 	if (code == IOSP_STATUS_OPEN_RSP) {
 		edge_port->txCredits = GET_TX_BUFFER_SIZE(byte3);
 		edge_port->maxTxCredits = edge_port->txCredits;
-		dbg("%s - Port %u Open Response Inital MSR = %02x TxBufferSize = %d", __func__, edge_serial->rxPort, byte2, edge_port->txCredits);
+		dbg("%s - Port %u Open Response Initial MSR = %02x TxBufferSize = %d", __func__, edge_serial->rxPort, byte2, edge_port->txCredits);
 		handle_new_msr(edge_port, byte2);
 
 		/* send the current line settings to the port so we are
@@ -2042,7 +2043,6 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 		dbg("%s - Unrecognized IOSP status code %u", __func__, code);
 		break;
 	}
-	return;
 }
 
 
@@ -2095,8 +2095,6 @@ static void handle_new_msr(struct edgeport_port *edge_port, __u8 newMsr)
 
 	/* Save the new modem status */
 	edge_port->shadowMSR = newMsr & 0xf0;
-
-	return;
 }
 
 
@@ -2143,8 +2141,6 @@ static void handle_new_lsr(struct edgeport_port *edge_port, __u8 lsrData,
 		icount->parity++;
 	if (newLsr & LSR_FRM_ERR)
 		icount->frame++;
-
-	return;
 }
 
 
@@ -2347,7 +2343,6 @@ static int write_cmd_usb(struct edgeport_port *edge_port,
 				usb_get_serial_data(edge_port->port->serial);
 	int status = 0;
 	struct urb *urb;
-	int timeout;
 
 	usb_serial_debug_data(debug, &edge_port->port->dev,
 						__func__, length, buffer);
@@ -2380,8 +2375,6 @@ static int write_cmd_usb(struct edgeport_port *edge_port,
 		return status;
 	}
 
-	/* wait for command to finish */
-	timeout = COMMAND_TIMEOUT;
 #if 0
 	wait_event(&edge_port->wait_command, !edge_port->commandPending);
 
@@ -2720,7 +2713,6 @@ static void change_port_settings(struct tty_struct *tty,
 		baud = tty_termios_baud_rate(old_termios);
 		tty_encode_baud_rate(tty, baud, baud);
 	}
-	return;
 }
 
 
@@ -2894,8 +2886,8 @@ static void load_application_firmware(struct edgeport_serial *edge_serial)
 
 	dbg("%s %d.%d.%d", fw_info, rec->data[0], rec->data[1], build);
 
-	edge_serial->product_info.FirmwareMajorVersion = fw->data[0];
-	edge_serial->product_info.FirmwareMinorVersion = fw->data[1];
+	edge_serial->product_info.FirmwareMajorVersion = rec->data[0];
+	edge_serial->product_info.FirmwareMinorVersion = rec->data[1];
 	edge_serial->product_info.FirmwareBuildNumber = cpu_to_le16(build);
 
 	for (rec = ihex_next_binrec(rec); rec;
@@ -2922,7 +2914,6 @@ static void load_application_firmware(struct edgeport_serial *edge_serial)
 				    0x40, 0x4000, 0x0001, NULL, 0, 3000);
 
 	release_firmware(fw);
-	return;
 }
 
 

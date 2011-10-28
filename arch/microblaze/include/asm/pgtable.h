@@ -57,6 +57,13 @@ static inline int pte_file(pte_t pte) { return 0; }
 
 #define pgprot_noncached_wc(prot)	prot
 
+/*
+ * All 32bit addresses are effectively valid for vmalloc...
+ * Sort of meaningless for non-VM targets.
+ */
+#define	VMALLOC_START	0
+#define	VMALLOC_END	0xffffffff
+
 #else /* CONFIG_MMU */
 
 #include <asm-generic/4level-fixup.h>
@@ -404,20 +411,19 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 static inline unsigned long pte_update(pte_t *p, unsigned long clr,
 				unsigned long set)
 {
-	unsigned long old, tmp, msr;
+	unsigned long flags, old, tmp;
 
-	__asm__ __volatile__("\
-	msrclr	%2, 0x2\n\
-	nop\n\
-	lw	%0, %4, r0\n\
-	andn	%1, %0, %5\n\
-	or	%1, %1, %6\n\
-	sw	%1, %4, r0\n\
-	mts     rmsr, %2\n\
-	nop"
-	: "=&r" (old), "=&r" (tmp), "=&r" (msr), "=m" (*p)
-	: "r" ((unsigned long)(p + 1) - 4), "r" (clr), "r" (set), "m" (*p)
-	: "cc");
+	raw_local_irq_save(flags);
+
+	__asm__ __volatile__(	"lw	%0, %2, r0	\n"
+				"andn	%1, %0, %3	\n"
+				"or	%1, %1, %4	\n"
+				"sw	%1, %2, r0	\n"
+			: "=&r" (old), "=&r" (tmp)
+			: "r" ((unsigned long)(p + 1) - 4), "r" (clr), "r" (set)
+			: "cc");
+
+	raw_local_irq_restore(flags);
 
 	return old;
 }
@@ -437,8 +443,9 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	*ptep = pte;
 }
 
-static inline int ptep_test_and_clear_young(struct mm_struct *mm,
-		unsigned long addr, pte_t *ptep)
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
+		unsigned long address, pte_t *ptep)
 {
 	return (pte_update(ptep, _PAGE_ACCESSED, 0) & _PAGE_ACCESSED) != 0;
 }
@@ -450,6 +457,7 @@ static inline int ptep_test_and_clear_dirty(struct mm_struct *mm,
 		(_PAGE_DIRTY | _PAGE_HWWRITE), 0) & _PAGE_DIRTY) != 0;
 }
 
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 		unsigned long addr, pte_t *ptep)
 {
@@ -497,12 +505,9 @@ static inline pmd_t *pmd_offset(pgd_t *dir, unsigned long address)
 #define pte_offset_kernel(dir, addr)	\
 	((pte_t *) pmd_page_kernel(*(dir)) + pte_index(addr))
 #define pte_offset_map(dir, addr)		\
-	((pte_t *) kmap_atomic(pmd_page(*(dir)), KM_PTE0) + pte_index(addr))
-#define pte_offset_map_nested(dir, addr)	\
-	((pte_t *) kmap_atomic(pmd_page(*(dir)), KM_PTE1) + pte_index(addr))
+	((pte_t *) kmap_atomic(pmd_page(*(dir))) + pte_index(addr))
 
-#define pte_unmap(pte)		kunmap_atomic(pte, KM_PTE0)
-#define pte_unmap_nested(pte)	kunmap_atomic(pte, KM_PTE1)
+#define pte_unmap(pte)		kunmap_atomic(pte)
 
 /* Encode and decode a nonlinear file mapping entry */
 #define PTE_FILE_MAX_BITS	29
@@ -567,7 +572,7 @@ void __init *early_get_page(void);
 
 extern unsigned long ioremap_bot, ioremap_base;
 
-void *consistent_alloc(int gfp, size_t size, dma_addr_t *dma_handle);
+void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle);
 void consistent_free(size_t size, void *vaddr);
 void consistent_sync(void *vaddr, size_t size, int direction);
 void consistent_sync_page(struct page *page, unsigned long offset,

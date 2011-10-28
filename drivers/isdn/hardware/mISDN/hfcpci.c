@@ -272,7 +272,7 @@ reset_hfcpci(struct hfc_pci *hc)
 	 * D- and monitor/CI channel are not enabled
 	 * STIO1 is used as output for data, B1+B2 from ST->IOM+HFC
 	 * STIO2 is used as data input, B1+B2 from IOM->ST
-	 * ST B-channel send disabled -> continous 1s
+	 * ST B-channel send disabled -> continuous 1s
 	 * The IOM slots are always enabled
 	 */
 	if (test_bit(HFC_CFG_PCM, &hc->cfg)) {
@@ -405,7 +405,7 @@ hfcpci_empty_bfifo(struct bchannel *bch, struct bzfifo *bz,
     u_char *bdata, int count)
 {
 	u_char		*ptr, *ptr1, new_f2;
-	int		total, maxlen, new_z2;
+	int		maxlen, new_z2;
 	struct zt	*zp;
 
 	if ((bch->debug & DEBUG_HW_BCHANNEL) && !(bch->debug & DEBUG_HW_BFIFO))
@@ -431,7 +431,6 @@ hfcpci_empty_bfifo(struct bchannel *bch, struct bzfifo *bz,
 			printk(KERN_WARNING "HFCPCI: receive out of memory\n");
 			return;
 		}
-		total = count;
 		count -= 3;
 		ptr = skb_put(bch->rx_skb, count);
 
@@ -968,7 +967,6 @@ static void
 ph_state_nt(struct dchannel *dch)
 {
 	struct hfc_pci	*hc = dch->hw;
-	u_char	val;
 
 	if (dch->debug)
 		printk(KERN_DEBUG "%s: NT newstate %x\n",
@@ -982,7 +980,7 @@ ph_state_nt(struct dchannel *dch)
 			hc->hw.int_m1 &= ~HFCPCI_INTS_TIMER;
 			Write_hfc(hc, HFCPCI_INT_M1, hc->hw.int_m1);
 			/* Clear already pending ints */
-			val = Read_hfc(hc, HFCPCI_INT_S1);
+			(void) Read_hfc(hc, HFCPCI_INT_S1);
 			Write_hfc(hc, HFCPCI_STATES, 4 | HFCPCI_LOAD_STATE);
 			udelay(10);
 			Write_hfc(hc, HFCPCI_STATES, 4);

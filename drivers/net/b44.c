@@ -381,11 +381,11 @@ static void b44_set_flow_ctrl(struct b44 *bp, u32 local, u32 remote)
 	__b44_set_flow_ctrl(bp, pause_enab);
 }
 
-#ifdef SSB_DRIVER_MIPS
-extern char *nvram_get(char *name);
+#ifdef CONFIG_BCM47XX
+#include <asm/mach-bcm47xx/nvram.h>
 static void b44_wap54g10_workaround(struct b44 *bp)
 {
-	const char *str;
+	char buf[20];
 	u32 val;
 	int err;
 
@@ -394,10 +394,9 @@ static void b44_wap54g10_workaround(struct b44 *bp)
 	 * see https://dev.openwrt.org/ticket/146
 	 * check and reset bit "isolate"
 	 */
-	str = nvram_get("boardnum");
-	if (!str)
+	if (nvram_getenv("boardnum", buf, sizeof(buf)) < 0)
 		return;
-	if (simple_strtoul(str, NULL, 0) == 2) {
+	if (simple_strtoul(buf, NULL, 0) == 2) {
 		err = __b44_readphy(bp, 0, MII_BMCR, &val);
 		if (err)
 			goto error;
@@ -818,7 +817,7 @@ static int b44_rx(struct b44 *bp, int budget)
 							 copy_skb->data, len);
 			skb = copy_skb;
 		}
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		netif_receive_skb(skb);
 		received++;
@@ -1808,8 +1807,8 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (bp->flags & B44_FLAG_ADV_100FULL)
 		cmd->advertising |= ADVERTISED_100baseT_Full;
 	cmd->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
-	cmd->speed = (bp->flags & B44_FLAG_100_BASE_T) ?
-		SPEED_100 : SPEED_10;
+	ethtool_cmd_speed_set(cmd, ((bp->flags & B44_FLAG_100_BASE_T) ?
+				    SPEED_100 : SPEED_10));
 	cmd->duplex = (bp->flags & B44_FLAG_FULL_DUPLEX) ?
 		DUPLEX_FULL : DUPLEX_HALF;
 	cmd->port = 0;
@@ -1821,7 +1820,7 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (cmd->autoneg == AUTONEG_ENABLE)
 		cmd->advertising |= ADVERTISED_Autoneg;
 	if (!netif_running(dev)){
-		cmd->speed = 0;
+		ethtool_cmd_speed_set(cmd, 0);
 		cmd->duplex = 0xff;
 	}
 	cmd->maxtxpkt = 0;
@@ -1832,6 +1831,7 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int b44_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct b44 *bp = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(cmd);
 
 	/* We do not support gigabit. */
 	if (cmd->autoneg == AUTONEG_ENABLE) {
@@ -1839,8 +1839,8 @@ static int b44_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		    (ADVERTISED_1000baseT_Half |
 		     ADVERTISED_1000baseT_Full))
 			return -EINVAL;
-	} else if ((cmd->speed != SPEED_100 &&
-		    cmd->speed != SPEED_10) ||
+	} else if ((speed != SPEED_100 &&
+		    speed != SPEED_10) ||
 		   (cmd->duplex != DUPLEX_HALF &&
 		    cmd->duplex != DUPLEX_FULL)) {
 			return -EINVAL;
@@ -1874,7 +1874,7 @@ static int b44_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	} else {
 		bp->flags |= B44_FLAG_FORCE_LINK;
 		bp->flags &= ~(B44_FLAG_100_BASE_T | B44_FLAG_FULL_DUPLEX);
-		if (cmd->speed == SPEED_100)
+		if (speed == SPEED_100)
 			bp->flags |= B44_FLAG_100_BASE_T;
 		if (cmd->duplex == DUPLEX_FULL)
 			bp->flags |= B44_FLAG_FULL_DUPLEX;
@@ -2296,18 +2296,27 @@ static int b44_resume(struct ssb_device *sdev)
 	if (!netif_running(dev))
 		return 0;
 
+	spin_lock_irq(&bp->lock);
+	b44_init_rings(bp);
+	b44_init_hw(bp, B44_FULL_RESET);
+	spin_unlock_irq(&bp->lock);
+
+	/*
+	 * As a shared interrupt, the handler can be called immediately. To be
+	 * able to check the interrupt status the hardware must already be
+	 * powered back on (b44_init_hw).
+	 */
 	rc = request_irq(dev->irq, b44_interrupt, IRQF_SHARED, dev->name, dev);
 	if (rc) {
 		netdev_err(dev, "request_irq failed\n");
+		spin_lock_irq(&bp->lock);
+		b44_halt(bp);
+		b44_free_rings(bp);
+		spin_unlock_irq(&bp->lock);
 		return rc;
 	}
 
-	spin_lock_irq(&bp->lock);
-
-	b44_init_rings(bp);
-	b44_init_hw(bp, B44_FULL_RESET);
 	netif_device_attach(bp->dev);
-	spin_unlock_irq(&bp->lock);
 
 	b44_enable_ints(bp);
 	netif_wake_queue(dev);

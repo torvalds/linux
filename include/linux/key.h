@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  *
  *
- * See Documentation/keys.txt for information on keys/keyrings.
+ * See Documentation/security/keys.txt for information on keys/keyrings.
  */
 
 #ifndef _LINUX_KEY_H
@@ -170,6 +170,7 @@ struct key {
 		struct list_head	link;
 		unsigned long		x[2];
 		void			*p[2];
+		int			reject_error;
 	} type_data;
 
 	/* key data
@@ -178,8 +179,9 @@ struct key {
 	 */
 	union {
 		unsigned long		value;
+		void __rcu		*rcudata;
 		void			*data;
-		struct keyring_list	*subscriptions;
+		struct keyring_list __rcu *subscriptions;
 	} payload;
 };
 
@@ -273,6 +275,23 @@ static inline key_serial_t key_serial(struct key *key)
 {
 	return key ? key->serial : 0;
 }
+
+/**
+ * key_is_instantiated - Determine if a key has been positively instantiated
+ * @key: The key to check.
+ *
+ * Return true if the specified key has been positively instantiated, false
+ * otherwise.
+ */
+static inline bool key_is_instantiated(const struct key *key)
+{
+	return test_bit(KEY_FLAG_INSTANTIATED, &key->flags) &&
+		!test_bit(KEY_FLAG_NEGATIVE, &key->flags);
+}
+
+#define rcu_dereference_key(KEY)					\
+	(rcu_dereference_protected((KEY)->payload.rcudata,		\
+				   rwsem_is_locked(&((struct key *)(KEY))->sem)))
 
 #ifdef CONFIG_SYSCTL
 extern ctl_table key_sysctls[];

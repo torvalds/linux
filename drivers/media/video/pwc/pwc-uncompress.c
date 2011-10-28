@@ -54,7 +54,7 @@ int pwc_decompress(struct pwc_device *pdev)
 	yuv = fbuf->data + pdev->frame_header_size;  /* Skip header */
 
 	/* Raw format; that's easy... */
-	if (pdev->vpalette == VIDEO_PALETTE_RAW)
+	if (pdev->pixfmt != V4L2_PIX_FMT_YUV420)
 	{
 		struct pwc_raw_frame *raw_frame = image;
 		raw_frame->type = cpu_to_le16(pdev->type);

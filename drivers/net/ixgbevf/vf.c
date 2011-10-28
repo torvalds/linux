@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -216,6 +216,39 @@ static s32 ixgbevf_get_mac_addr_vf(struct ixgbe_hw *hw, u8 *mac_addr)
 	return 0;
 }
 
+static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	u32 msgbuf[3];
+	u8 *msg_addr = (u8 *)(&msgbuf[1]);
+	s32 ret_val;
+
+	memset(msgbuf, 0, sizeof(msgbuf));
+	/*
+	 * If index is one then this is the start of a new list and needs
+	 * indication to the PF so it can do it's own list management.
+	 * If it is zero then that tells the PF to just clear all of
+	 * this VF's macvlans and there is no new list.
+	 */
+	msgbuf[0] |= index << IXGBE_VT_MSGINFO_SHIFT;
+	msgbuf[0] |= IXGBE_VF_SET_MACVLAN;
+	if (addr)
+		memcpy(msg_addr, addr, 6);
+	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
+
+	if (!ret_val)
+		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
+
+	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+
+	if (!ret_val)
+		if (msgbuf[0] ==
+		    (IXGBE_VF_SET_MACVLAN | IXGBE_VT_MSGTYPE_NACK))
+			ret_val = -ENOMEM;
+
+	return ret_val;
+}
+
 /**
  *  ixgbevf_set_rar_vf - set device MAC address
  *  @hw: pointer to hardware structure
@@ -368,7 +401,7 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 	return 0;
 }
 
-struct ixgbe_mac_operations ixgbevf_mac_ops = {
+static struct ixgbe_mac_operations ixgbevf_mac_ops = {
 	.init_hw             = ixgbevf_init_hw_vf,
 	.reset_hw            = ixgbevf_reset_hw_vf,
 	.start_hw            = ixgbevf_start_hw_vf,
@@ -378,11 +411,16 @@ struct ixgbe_mac_operations ixgbevf_mac_ops = {
 	.check_link          = ixgbevf_check_mac_link_vf,
 	.set_rar             = ixgbevf_set_rar_vf,
 	.update_mc_addr_list = ixgbevf_update_mc_addr_list_vf,
+	.set_uc_addr         = ixgbevf_set_uc_addr_vf,
 	.set_vfta            = ixgbevf_set_vfta_vf,
 };
 
-struct ixgbevf_info ixgbevf_vf_info = {
+struct ixgbevf_info ixgbevf_82599_vf_info = {
 	.mac = ixgbe_mac_82599_vf,
 	.mac_ops = &ixgbevf_mac_ops,
 };
 
+struct ixgbevf_info ixgbevf_X540_vf_info = {
+	.mac = ixgbe_mac_X540_vf,
+	.mac_ops = &ixgbevf_mac_ops,
+};

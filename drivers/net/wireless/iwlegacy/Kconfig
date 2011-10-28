@@ -1,0 +1,117 @@
+config IWLWIFI_LEGACY
+	tristate
+	select FW_LOADER
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_TRIGGERS
+	select MAC80211_LEDS
+
+menu "Debugging Options"
+	depends on IWLWIFI_LEGACY
+
+config IWLWIFI_LEGACY_DEBUG
+	bool "Enable full debugging output in 4965 and 3945 drivers"
+	depends on IWLWIFI_LEGACY
+	---help---
+	  This option will enable debug tracing output for the iwlwifilegacy
+	  drivers.
+
+	  This will result in the kernel module being ~100k larger.  You can
+	  control which debug output is sent to the kernel log by setting the
+	  value in
+
+		/sys/class/net/wlan0/device/debug_level
+
+	  This entry will only exist if this option is enabled.
+
+	  To set a value, simply echo an 8-byte hex value to the same file:
+
+		  % echo 0x43fff > /sys/class/net/wlan0/device/debug_level
+
+	  You can find the list of debug mask values in:
+		  drivers/net/wireless/iwlwifilegacy/iwl-debug.h
+
+	  If this is your first time using this driver, you should say Y here
+	  as the debug information can assist others in helping you resolve
+	  any problems you may encounter.
+
+config IWLWIFI_LEGACY_DEBUGFS
+        bool "4965 and 3945 debugfs support"
+        depends on IWLWIFI_LEGACY && MAC80211_DEBUGFS
+        ---help---
+	  Enable creation of debugfs files for the iwlwifilegacy drivers. This
+	  is a low-impact option that allows getting insight into the
+	  driver's state at runtime.
+
+config IWLWIFI_LEGACY_DEVICE_TRACING
+	bool "iwlwifilegacy legacy device access tracing"
+	depends on IWLWIFI_LEGACY
+	depends on EVENT_TRACING
+	help
+	  Say Y here to trace all commands, including TX frames and IO
+	  accesses, sent to the device. If you say yes, iwlwifilegacy will
+	  register with the ftrace framework for event tracing and dump
+	  all this information to the ringbuffer, you may need to
+	  increase the ringbuffer size. See the ftrace documentation
+	  for more information.
+
+	  When tracing is not enabled, this option still has some
+	  (though rather small) overhead.
+
+	  If unsure, say Y so we can help you better when problems
+	  occur.
+endmenu
+
+config IWL4965
+	tristate "Intel Wireless WiFi 4965AGN (iwl4965)"
+	depends on PCI && MAC80211
+	select IWLWIFI_LEGACY
+	---help---
+	  This option enables support for
+
+	  Select to build the driver supporting the:
+
+	  Intel Wireless WiFi Link 4965AGN
+
+	  This driver uses the kernel's mac80211 subsystem.
+
+	  In order to use this driver, you will need a microcode (uCode)
+	  image for it. You can obtain the microcode from:
+
+	          <http://intellinuxwireless.org/>.
+
+	  The microcode is typically installed in /lib/firmware. You can
+	  look in the hotplug script /etc/hotplug/firmware.agent to
+	  determine which directory FIRMWARE_DIR is set to when the script
+	  runs.
+
+	  If you want to compile the driver as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want),
+	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
+	  module will be called iwl4965.
+
+config IWL3945
+	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection (iwl3945)"
+	depends on PCI && MAC80211
+	select IWLWIFI_LEGACY
+	---help---
+	  Select to build the driver supporting the:
+
+	  Intel PRO/Wireless 3945ABG/BG Network Connection
+
+	  This driver uses the kernel's mac80211 subsystem.
+
+	  In order to use this driver, you will need a microcode (uCode)
+	  image for it. You can obtain the microcode from:
+
+	          <http://intellinuxwireless.org/>.
+
+	  The microcode is typically installed in /lib/firmware. You can
+	  look in the hotplug script /etc/hotplug/firmware.agent to
+	  determine which directory FIRMWARE_DIR is set to when the script
+	  runs.
+
+	  If you want to compile the driver as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want),
+	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
+	  module will be called iwl3945.

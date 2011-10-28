@@ -1,0 +1,33 @@
+config BCMDHD
+	tristate "Broadcom 4329/30 wireless cards support"
+	depends on MMC
+	---help---
+	  This module adds support for wireless adapters based on
+	  Broadcom 4329/30 chipset.
+
+	  This driver uses the kernel's wireless extensions subsystem.
+
+	  If you choose to build a module, it'll be called dhd. Say M if
+	  unsure.
+
+config BCMDHD_FW_PATH
+	depends on BCMDHD
+	string "Firmware path"
+	default "/system/etc/firmware/fw_bcmdhd.bin"
+	---help---
+	  Path to the firmware file.
+
+config BCMDHD_NVRAM_PATH
+	depends on BCMDHD
+	string "NVRAM path"
+	default "/system/etc/wifi/bcmdhd.cal"
+	---help---
+	  Path to the calibration file.
+
+config BCMDHD_WEXT
+	bool "Enable WEXT support"
+	depends on BCMDHD && CFG80211 = n
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	help
+	  Enables WEXT support

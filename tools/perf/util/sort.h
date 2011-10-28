@@ -70,7 +70,7 @@ struct hist_entry {
 		struct hist_entry *pair;
 		struct rb_root	  sorted_chain;
 	};
-	struct callchain_node	callchain[0];
+	struct callchain_root	callchain[0];
 };
 
 enum sort_type {

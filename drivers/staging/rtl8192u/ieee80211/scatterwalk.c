@@ -71,7 +71,7 @@ static void scatterwalk_pagedone(struct scatter_walk *walk, int out,
 				 unsigned int more)
 {
 	/* walk->data may be pointing the first byte of the next page;
-	   however, we know we transfered at least one byte.  So,
+	   however, we know we transferred at least one byte.  So,
 	   walk->data - 1 will be a virtual address in the mapped page. */
 
 	if (out)

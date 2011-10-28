@@ -270,8 +270,6 @@ int __init nmi_init(void)
 			atomic_set(&nmi_active, -1);
 		}
 	}
-	if (!err)
-		init_hw_perf_events();
 
 	return err;
 }

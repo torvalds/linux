@@ -1,5 +1,5 @@
 /*
- * Netburst Perfomance Events (P4, old Xeon)
+ * Netburst Performance Events (P4, old Xeon)
  */
 
 #ifndef PERF_EVENT_P4_H
@@ -9,7 +9,7 @@
 #include <linux/bitops.h>
 
 /*
- * NetBurst has perfomance MSRs shared between
+ * NetBurst has performance MSRs shared between
  * threads if HT is turned on, ie for both logical
  * processors (mem: in turn in Atom with HT support
  * perf-MSRs are not shared and every thread has its
@@ -19,6 +19,10 @@
 #define ARCH_P4_RESERVED_ESCR	(2) /* IQ_ESCR(0,1) not always present */
 #define ARCH_P4_MAX_ESCR	(ARCH_P4_TOTAL_ESCR - ARCH_P4_RESERVED_ESCR)
 #define ARCH_P4_MAX_CCCR	(18)
+
+#define ARCH_P4_CNTRVAL_BITS	(40)
+#define ARCH_P4_CNTRVAL_MASK	((1ULL << ARCH_P4_CNTRVAL_BITS) - 1)
+#define ARCH_P4_UNFLAGGED_BIT	((1ULL) << (ARCH_P4_CNTRVAL_BITS - 1))
 
 #define P4_ESCR_EVENT_MASK	0x7e000000U
 #define P4_ESCR_EVENT_SHIFT	25
@@ -35,19 +39,6 @@
 #define P4_ESCR_EVENT(v)	((v) << P4_ESCR_EVENT_SHIFT)
 #define P4_ESCR_EMASK(v)	((v) << P4_ESCR_EVENTMASK_SHIFT)
 #define P4_ESCR_TAG(v)		((v) << P4_ESCR_TAG_SHIFT)
-
-/* Non HT mask */
-#define P4_ESCR_MASK			\
-	(P4_ESCR_EVENT_MASK	|	\
-	P4_ESCR_EVENTMASK_MASK	|	\
-	P4_ESCR_TAG_MASK	|	\
-	P4_ESCR_TAG_ENABLE	|	\
-	P4_ESCR_T0_OS		|	\
-	P4_ESCR_T0_USR)
-
-/* HT mask */
-#define P4_ESCR_MASK_HT			\
-	(P4_ESCR_MASK |	P4_ESCR_T1_OS | P4_ESCR_T1_USR)
 
 #define P4_CCCR_OVF			0x80000000U
 #define P4_CCCR_CASCADE			0x40000000U
@@ -69,23 +60,6 @@
 
 #define P4_CCCR_THRESHOLD(v)		((v) << P4_CCCR_THRESHOLD_SHIFT)
 #define P4_CCCR_ESEL(v)			((v) << P4_CCCR_ESCR_SELECT_SHIFT)
-
-/* Non HT mask */
-#define P4_CCCR_MASK				\
-	(P4_CCCR_OVF			|	\
-	P4_CCCR_CASCADE			|	\
-	P4_CCCR_OVF_PMI_T0		|	\
-	P4_CCCR_FORCE_OVF		|	\
-	P4_CCCR_EDGE			|	\
-	P4_CCCR_THRESHOLD_MASK		|	\
-	P4_CCCR_COMPLEMENT		|	\
-	P4_CCCR_COMPARE			|	\
-	P4_CCCR_ESCR_SELECT_MASK	|	\
-	P4_CCCR_ENABLE)
-
-/* HT mask */
-#define P4_CCCR_MASK_HT				\
-	(P4_CCCR_MASK | P4_CCCR_OVF_PMI_T1 | P4_CCCR_THREAD_ANY)
 
 #define P4_GEN_ESCR_EMASK(class, name, bit)	\
 	class##__##name = ((1 << bit) << P4_ESCR_EVENTMASK_SHIFT)
@@ -126,6 +100,28 @@
 
 #define P4_CONFIG_HT_SHIFT		63
 #define P4_CONFIG_HT			(1ULL << P4_CONFIG_HT_SHIFT)
+
+/*
+ * The bits we allow to pass for RAW events
+ */
+#define P4_CONFIG_MASK_ESCR		\
+	P4_ESCR_EVENT_MASK	|	\
+	P4_ESCR_EVENTMASK_MASK	|	\
+	P4_ESCR_TAG_MASK	|	\
+	P4_ESCR_TAG_ENABLE
+
+#define P4_CONFIG_MASK_CCCR		\
+	P4_CCCR_EDGE		|	\
+	P4_CCCR_THRESHOLD_MASK	|	\
+	P4_CCCR_COMPLEMENT	|	\
+	P4_CCCR_COMPARE		|	\
+	P4_CCCR_THREAD_ANY	|	\
+	P4_CCCR_RESERVED
+
+/* some dangerous bits are reserved for kernel internals */
+#define P4_CONFIG_MASK				  	  \
+	(p4_config_pack_escr(P4_CONFIG_MASK_ESCR))	| \
+	(p4_config_pack_cccr(P4_CONFIG_MASK_CCCR))
 
 static inline bool p4_is_event_cascaded(u64 config)
 {
@@ -752,14 +748,6 @@ enum P4_ESCR_EMASKS {
 };
 
 /*
- * P4 PEBS specifics (Replay Event only)
- *
- * Format (bits):
- *   0-6: metric from P4_PEBS_METRIC enum
- *    7 : reserved
- *    8 : reserved
- * 9-11 : reserved
- *
  * Note we have UOP and PEBS bits reserved for now
  * just in case if we will need them once
  */
@@ -795,6 +783,61 @@ enum P4_PEBS_METRIC {
 
 	P4_PEBS_METRIC__max
 };
+
+/*
+ * Notes on internal configuration of ESCR+CCCR tuples
+ *
+ * Since P4 has quite the different architecture of
+ * performance registers in compare with "architectural"
+ * once and we have on 64 bits to keep configuration
+ * of performance event, the following trick is used.
+ *
+ * 1) Since both ESCR and CCCR registers have only low
+ *    32 bits valuable, we pack them into a single 64 bit
+ *    configuration. Low 32 bits of such config correspond
+ *    to low 32 bits of CCCR register and high 32 bits
+ *    correspond to low 32 bits of ESCR register.
+ *
+ * 2) The meaning of every bit of such config field can
+ *    be found in Intel SDM but it should be noted that
+ *    we "borrow" some reserved bits for own usage and
+ *    clean them or set to a proper value when we do
+ *    a real write to hardware registers.
+ *
+ * 3) The format of bits of config is the following
+ *    and should be either 0 or set to some predefined
+ *    values:
+ *
+ *    Low 32 bits
+ *    -----------
+ *      0-6: P4_PEBS_METRIC enum
+ *     7-11:                    reserved
+ *       12:                    reserved (Enable)
+ *    13-15:                    reserved (ESCR select)
+ *    16-17: Active Thread
+ *       18: Compare
+ *       19: Complement
+ *    20-23: Threshold
+ *       24: Edge
+ *       25:                    reserved (FORCE_OVF)
+ *       26:                    reserved (OVF_PMI_T0)
+ *       27:                    reserved (OVF_PMI_T1)
+ *    28-29:                    reserved
+ *       30:                    reserved (Cascade)
+ *       31:                    reserved (OVF)
+ *
+ *    High 32 bits
+ *    ------------
+ *        0:                    reserved (T1_USR)
+ *        1:                    reserved (T1_OS)
+ *        2:                    reserved (T0_USR)
+ *        3:                    reserved (T0_OS)
+ *        4: Tag Enable
+ *      5-8: Tag Value
+ *     9-24: Event Mask (may use P4_ESCR_EMASK_BIT helper)
+ *    25-30: enum P4_EVENTS
+ *       31:                    reserved (HT thread)
+ */
 
 #endif /* PERF_EVENT_P4_H */
 

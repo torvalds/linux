@@ -30,7 +30,7 @@
 #include "edac_core.h"
 #include "edac_module.h"
 
-#define CPC925_EDAC_REVISION	" Ver: 1.0.0 " __DATE__
+#define CPC925_EDAC_REVISION	" Ver: 1.0.0"
 #define CPC925_EDAC_MOD_STR	"cpc925_edac"
 
 #define cpc925_printk(level, fmt, arg...) \
@@ -817,10 +817,11 @@ static void cpc925_del_edac_devices(void)
 	}
 }
 
-/* Convert current back-ground scrub rate into byte/sec bandwith */
-static int cpc925_get_sdram_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
+/* Convert current back-ground scrub rate into byte/sec bandwidth */
+static int cpc925_get_sdram_scrub_rate(struct mem_ctl_info *mci)
 {
 	struct cpc925_mc_pdata *pdata = mci->pvt_info;
+	int bw;
 	u32 mscr;
 	u8 si;
 
@@ -832,11 +833,11 @@ static int cpc925_get_sdram_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
 	if (((mscr & MSCR_SCRUB_MOD_MASK) != MSCR_BACKGR_SCRUB) ||
 	    (si == 0)) {
 		cpc925_mc_printk(mci, KERN_INFO, "Scrub mode not enabled\n");
-		*bw = 0;
+		bw = 0;
 	} else
-		*bw = CPC925_SCRUB_BLOCK_SIZE * 0xFA67 / si;
+		bw = CPC925_SCRUB_BLOCK_SIZE * 0xFA67 / si;
 
-	return 0;
+	return bw;
 }
 
 /* Return 0 for single channel; 1 for dual channel */

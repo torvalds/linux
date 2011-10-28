@@ -338,7 +338,7 @@ ENTRY(cpu_mohawk_set_pte_ext)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__mohawk_setup, #function
 __mohawk_setup:
@@ -388,6 +388,9 @@ mohawk_processor_functions:
 	.word	cpu_mohawk_dcache_clean_area
 	.word	cpu_mohawk_switch_mm
 	.word	cpu_mohawk_set_pte_ext
+	.word	0
+	.word	0
+	.word	0
 	.size	mohawk_processor_functions, . - mohawk_processor_functions
 
 	.section ".rodata"

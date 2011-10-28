@@ -133,6 +133,7 @@ Code  Seq#(hex)	Include File		Comments
 'H'	C0-DF	net/bluetooth/hidp/hidp.h	conflict!
 'H'	C0-DF	net/bluetooth/cmtp/cmtp.h	conflict!
 'H'	C0-DF	net/bluetooth/bnep/bnep.h	conflict!
+'H'	F1	linux/hid-roccat.h	<mailto:erazor_de@users.sourceforge.net>
 'I'	all	linux/isdn.h		conflict!
 'I'	00-0F	drivers/isdn/divert/isdn_divert.h	conflict!
 'I'	40-4F	linux/mISDNif.h		conflict!
@@ -155,7 +156,6 @@ Code  Seq#(hex)	Include File		Comments
 'Q'	all	linux/soundcard.h
 'R'	00-1F	linux/random.h		conflict!
 'R'	01	linux/rfkill.h		conflict!
-'R'	01-0F	media/rds.h		conflict!
 'R'	C0-DF	net/bluetooth/rfcomm.h
 'S'	all	linux/cdrom.h		conflict!
 'S'	80-81	scsi/scsi_ioctl.h	conflict!
@@ -166,7 +166,6 @@ Code  Seq#(hex)	Include File		Comments
 'T'	all	arch/x86/include/asm/ioctls.h	conflict!
 'T'	C0-DF	linux/if_tun.h		conflict!
 'U'	all	sound/asound.h		conflict!
-'U'	00-0F	drivers/media/video/uvc/uvcvideo.h	conflict!
 'U'	00-CF	linux/uinput.h		conflict!
 'U'	00-EF	linux/usbdevice_fs.h
 'U'	C0-CF	drivers/bluetooth/hci_uart.h
@@ -194,7 +193,6 @@ Code  Seq#(hex)	Include File		Comments
 					<http://lrcwww.epfl.ch/>
 'b'	00-FF				conflict! bit3 vme host bridge
 					<mailto:natalia@nikhefk.nikhef.nl>
-'b'	00-0F	media/bt819.h		conflict!
 'c'	all	linux/cm4000_cs.h	conflict!
 'c'	00-7F	linux/comstats.h	conflict!
 'c'	00-7F	linux/coda.h		conflict!
@@ -249,7 +247,7 @@ Code  Seq#(hex)	Include File		Comments
 'p'	40-7F	linux/nvram.h
 'p'	80-9F	linux/ppdev.h		user-space parport
 					<mailto:tim@cyberelk.net>
-'p'	A1-A4	linux/pps.h		LinuxPPS
+'p'	A1-A5	linux/pps.h		LinuxPPS
 					<mailto:giometti@linux.it>
 'q'	00-1F	linux/serio.h
 'q'	80-FF	linux/telephony.h	Internet PhoneJACK, Internet LineJACK
@@ -259,15 +257,13 @@ Code  Seq#(hex)	Include File		Comments
 't'	00-7F	linux/if_ppp.h
 't'	80-8F	linux/isdn_ppp.h
 't'	90	linux/toshiba.h
-'u'	00-1F	linux/smb_fs.h
-'v'	all	linux/videodev.h	conflict!
+'u'	00-1F	linux/smb_fs.h		gone
+'u'	20-3F	linux/uvcvideo.h	USB video class host driver
 'v'	00-1F	linux/ext2_fs.h		conflict!
 'v'	00-1F	linux/fs.h		conflict!
 'v'	00-0F	linux/sonypi.h		conflict!
-'v'	C0-CF	drivers/media/video/ov511.h	conflict!
 'v'	C0-DF	media/pwc-ioctl.h	conflict!
 'v'	C0-FF	linux/meye.h		conflict!
-'v'	C0-CF	drivers/media/video/zoran/zoran.h	conflict!
 'v'	D0-DF	drivers/media/video/cpia2/cpia2dev.h	conflict!
 'w'	all				CERN SCI driver
 'y'	00-1F				packet based user level communications
@@ -277,9 +273,8 @@ Code  Seq#(hex)	Include File		Comments
 'z'	40-7F				CAN bus card	conflict!
 					<mailto:oe@port.de>
 'z'	10-4F	drivers/s390/crypto/zcrypt_api.h	conflict!
+'|'	00-7F	linux/media.h
 0x80	00-1F	linux/fb.h
-0x81	00-1F	linux/videotext.h
-0x88	00-3F	media/ovcamchip.h
 0x89	00-06	arch/x86/include/asm/sockios.h
 0x89	0B-DF	linux/sockios.h
 0x89	E0-EF	linux/sockios.h		SIOCPROTOPRIVATE range
@@ -309,6 +304,7 @@ Code  Seq#(hex)	Include File		Comments
 0xB0	all	RATIO devices		in development:
 					<mailto:vgo@ratio.de>
 0xB1	00-1F	PPPoX			<mailto:mostrows@styx.uwaterloo.ca>
+0xB3	00	linux/mmc/ioctl.h
 0xC0	00-0F	linux/usb/iowarrior.h
 0xCB	00-1F	CBM serial IEC bus	in development:
 					<mailto:michael.klein@puffin.lb.shuttle.de>

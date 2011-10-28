@@ -209,32 +209,6 @@ static void pxa_rtc_release(struct device *dev)
 	free_irq(pxa_rtc->irq_1Hz, dev);
 }
 
-static int pxa_periodic_irq_set_freq(struct device *dev, int freq)
-{
-	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
-	int period_ms;
-
-	if (freq < 1 || freq > MAXFREQ_PERIODIC)
-		return -EINVAL;
-
-	period_ms = 1000 / freq;
-	rtc_writel(pxa_rtc, PIAR, period_ms);
-
-	return 0;
-}
-
-static int pxa_periodic_irq_set_state(struct device *dev, int enabled)
-{
-	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
-
-	if (enabled)
-		rtsr_set_bits(pxa_rtc, RTSR_PIALE | RTSR_PICE);
-	else
-		rtsr_clear_bits(pxa_rtc, RTSR_PIALE | RTSR_PICE);
-
-	return 0;
-}
-
 static int pxa_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
@@ -245,21 +219,6 @@ static int pxa_alarm_irq_enable(struct device *dev, unsigned int enabled)
 		rtsr_set_bits(pxa_rtc, RTSR_RDALE1);
 	else
 		rtsr_clear_bits(pxa_rtc, RTSR_RDALE1);
-
-	spin_unlock_irq(&pxa_rtc->lock);
-	return 0;
-}
-
-static int pxa_update_irq_enable(struct device *dev, unsigned int enabled)
-{
-	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
-
-	spin_lock_irq(&pxa_rtc->lock);
-
-	if (enabled)
-		rtsr_set_bits(pxa_rtc, RTSR_HZE);
-	else
-		rtsr_clear_bits(pxa_rtc, RTSR_HZE);
 
 	spin_unlock_irq(&pxa_rtc->lock);
 	return 0;
@@ -346,10 +305,7 @@ static const struct rtc_class_ops pxa_rtc_ops = {
 	.read_alarm = pxa_rtc_read_alarm,
 	.set_alarm = pxa_rtc_set_alarm,
 	.alarm_irq_enable = pxa_alarm_irq_enable,
-	.update_irq_enable = pxa_update_irq_enable,
 	.proc = pxa_rtc_proc,
-	.irq_set_state = pxa_periodic_irq_set_state,
-	.irq_set_freq = pxa_periodic_irq_set_freq,
 };
 
 static int __init pxa_rtc_probe(struct platform_device *pdev)

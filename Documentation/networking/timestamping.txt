@@ -172,15 +172,19 @@ struct skb_shared_hwtstamps {
 };
 
 Time stamps for outgoing packets are to be generated as follows:
-- In hard_start_xmit(), check if skb_tx(skb)->hardware is set no-zero.
-  If yes, then the driver is expected to do hardware time stamping.
+- In hard_start_xmit(), check if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)
+  is set no-zero. If yes, then the driver is expected to do hardware time
+  stamping.
 - If this is possible for the skb and requested, then declare
-  that the driver is doing the time stamping by setting the field
-  skb_tx(skb)->in_progress non-zero. You might want to keep a pointer
-  to the associated skb for the next step and not free the skb. A driver
-  not supporting hardware time stamping doesn't do that. A driver must
-  never touch sk_buff::tstamp! It is used to store software generated
-  time stamps by the network subsystem.
+  that the driver is doing the time stamping by setting the flag
+  SKBTX_IN_PROGRESS in skb_shinfo(skb)->tx_flags , e.g. with
+
+      skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+
+  You might want to keep a pointer to the associated skb for the next step
+  and not free the skb. A driver not supporting hardware time stamping doesn't
+  do that. A driver must never touch sk_buff::tstamp! It is used to store
+  software generated time stamps by the network subsystem.
 - As soon as the driver has sent the packet and/or obtained a
   hardware time stamp for it, it passes the time stamp back by
   calling skb_hwtstamp_tx() with the original skb, the raw
@@ -191,6 +195,6 @@ Time stamps for outgoing packets are to be generated as follows:
   this would occur at a later time in the processing pipeline than other
   software time stamping and therefore could lead to unexpected deltas
   between time stamps.
-- If the driver did not call set skb_tx(skb)->in_progress, then
+- If the driver did not set the SKBTX_IN_PROGRESS flag (see above), then
   dev_hard_start_xmit() checks whether software time stamping
   is wanted as fallback and potentially generates the time stamp.

@@ -26,15 +26,6 @@
 
 #include <linux/delay.h>
 
-/*
- * Since generic IRQs don't currently support interrupt controllers on
- * interrupt driven buses we don't use genirq but instead provide an
- * interface that looks very much like the standard ones.  This leads
- * to some bodges, including storing interrupt handler information in
- * the static irq_data table we use to look up the data for individual
- * interrupts, but hopefully won't last too long.
- */
-
 struct wm831x_irq_data {
 	int primary;
 	int reg;
@@ -345,22 +336,26 @@ static inline struct wm831x_irq_data *irq_to_wm831x_irq(struct wm831x *wm831x,
 	return &wm831x_irqs[irq - wm831x->irq_base];
 }
 
-static void wm831x_irq_lock(unsigned int irq)
+static void wm831x_irq_lock(struct irq_data *data)
 {
-	struct wm831x *wm831x = get_irq_chip_data(irq);
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&wm831x->irq_lock);
 }
 
-static void wm831x_irq_sync_unlock(unsigned int irq)
+static void wm831x_irq_sync_unlock(struct irq_data *data)
 {
-	struct wm831x *wm831x = get_irq_chip_data(irq);
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(wm831x->irq_masks_cur); i++) {
 		/* If there's been a change in the mask write it back
 		 * to the hardware. */
 		if (wm831x->irq_masks_cur[i] != wm831x->irq_masks_cache[i]) {
+			dev_dbg(wm831x->dev, "IRQ mask sync: %x = %x\n",
+				WM831X_INTERRUPT_STATUS_1_MASK + i,
+				wm831x->irq_masks_cur[i]);
+
 			wm831x->irq_masks_cache[i] = wm831x->irq_masks_cur[i];
 			wm831x_reg_write(wm831x,
 					 WM831X_INTERRUPT_STATUS_1_MASK + i,
@@ -371,28 +366,30 @@ static void wm831x_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&wm831x->irq_lock);
 }
 
-static void wm831x_irq_unmask(unsigned int irq)
+static void wm831x_irq_enable(struct irq_data *data)
 {
-	struct wm831x *wm831x = get_irq_chip_data(irq);
-	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x, irq);
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
+	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x,
+							     data->irq);
 
 	wm831x->irq_masks_cur[irq_data->reg - 1] &= ~irq_data->mask;
 }
 
-static void wm831x_irq_mask(unsigned int irq)
+static void wm831x_irq_disable(struct irq_data *data)
 {
-	struct wm831x *wm831x = get_irq_chip_data(irq);
-	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x, irq);
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
+	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x,
+							     data->irq);
 
 	wm831x->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
 }
 
-static int wm831x_irq_set_type(unsigned int irq, unsigned int type)
+static int wm831x_irq_set_type(struct irq_data *data, unsigned int type)
 {
-	struct wm831x *wm831x = get_irq_chip_data(irq);
-	int val;
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
+	int val, irq;
 
-	irq = irq - wm831x->irq_base;
+	irq = data->irq - wm831x->irq_base;
 
 	if (irq < WM831X_IRQ_GPIO_1 || irq > WM831X_IRQ_GPIO_11) {
 		/* Ignore internal-only IRQs */
@@ -421,12 +418,12 @@ static int wm831x_irq_set_type(unsigned int irq, unsigned int type)
 }
 
 static struct irq_chip wm831x_irq_chip = {
-	.name = "wm831x",
-	.bus_lock = wm831x_irq_lock,
-	.bus_sync_unlock = wm831x_irq_sync_unlock,
-	.mask = wm831x_irq_mask,
-	.unmask = wm831x_irq_unmask,
-	.set_type = wm831x_irq_set_type,
+	.name			= "wm831x",
+	.irq_bus_lock		= wm831x_irq_lock,
+	.irq_bus_sync_unlock	= wm831x_irq_sync_unlock,
+	.irq_disable		= wm831x_irq_disable,
+	.irq_enable		= wm831x_irq_enable,
+	.irq_set_type		= wm831x_irq_set_type,
 };
 
 /* The processing of the primary interrupt occurs in a thread so that
@@ -446,6 +443,18 @@ static irqreturn_t wm831x_irq_thread(int irq, void *data)
 			primary);
 		goto out;
 	}
+
+	/* The touch interrupts are visible in the primary register as
+	 * an optimisation; open code this to avoid complicating the
+	 * main handling loop and so we can also skip iterating the
+	 * descriptors.
+	 */
+	if (primary & WM831X_TCHPD_INT)
+		handle_nested_irq(wm831x->irq_base + WM831X_IRQ_TCHPD);
+	if (primary & WM831X_TCHDATA_INT)
+		handle_nested_irq(wm831x->irq_base + WM831X_IRQ_TCHDATA);
+	if (primary & (WM831X_TCHDATA_EINT | WM831X_TCHPD_EINT))
+		goto out;
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_irqs); i++) {
 		int offset = wm831x_irqs[i].reg - 1;
@@ -479,6 +488,9 @@ static irqreturn_t wm831x_irq_thread(int irq, void *data)
 	}
 
 out:
+	/* Touchscreen interrupts are handled specially in the driver */
+	status_regs[0] &= ~(WM831X_TCHDATA_EINT | WM831X_TCHPD_EINT);
+
 	for (i = 0; i < ARRAY_SIZE(status_regs); i++) {
 		if (status_regs[i])
 			wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_1 + i,
@@ -503,16 +515,29 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 				 0xffff);
 	}
 
-	if (!irq) {
-		dev_warn(wm831x->dev,
-			 "No interrupt specified - functionality limited\n");
-		return 0;
-	}
-
 	if (!pdata || !pdata->irq_base) {
 		dev_err(wm831x->dev,
 			"No interrupt base specified, no interrupts\n");
 		return 0;
+	}
+
+	if (pdata->irq_cmos)
+		i = 0;
+	else
+		i = WM831X_IRQ_OD;
+
+	wm831x_set_bits(wm831x, WM831X_IRQ_CONFIG,
+			WM831X_IRQ_OD, i);
+
+	/* Try to flag /IRQ as a wake source; there are a number of
+	 * unconditional wake sources in the PMIC so this isn't
+	 * conditional but we don't actually care *too* much if it
+	 * fails.
+	 */
+	ret = enable_irq_wake(irq);
+	if (ret != 0) {
+		dev_warn(wm831x->dev, "Can't enable IRQ as wake source: %d\n",
+			 ret);
 	}
 
 	wm831x->irq = irq;
@@ -522,28 +547,35 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 	for (cur_irq = wm831x->irq_base;
 	     cur_irq < ARRAY_SIZE(wm831x_irqs) + wm831x->irq_base;
 	     cur_irq++) {
-		set_irq_chip_data(cur_irq, wm831x);
-		set_irq_chip_and_handler(cur_irq, &wm831x_irq_chip,
+		irq_set_chip_data(cur_irq, wm831x);
+		irq_set_chip_and_handler(cur_irq, &wm831x_irq_chip,
 					 handle_edge_irq);
-		set_irq_nested_thread(cur_irq, 1);
+		irq_set_nested_thread(cur_irq, 1);
 
 		/* ARM needs us to explicitly flag the IRQ as valid
 		 * and will set them noprobe when we do so. */
 #ifdef CONFIG_ARM
 		set_irq_flags(cur_irq, IRQF_VALID);
 #else
-		set_irq_noprobe(cur_irq);
+		irq_set_noprobe(cur_irq);
 #endif
 	}
 
-	ret = request_threaded_irq(irq, NULL, wm831x_irq_thread,
-				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				   "wm831x", wm831x);
-	if (ret != 0) {
-		dev_err(wm831x->dev, "Failed to request IRQ %d: %d\n",
-			irq, ret);
-		return ret;
+	if (irq) {
+		ret = request_threaded_irq(irq, NULL, wm831x_irq_thread,
+					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					   "wm831x", wm831x);
+		if (ret != 0) {
+			dev_err(wm831x->dev, "Failed to request IRQ %d: %d\n",
+				irq, ret);
+			return ret;
+		}
+	} else {
+		dev_warn(wm831x->dev,
+			 "No interrupt specified - functionality limited\n");
 	}
+
+
 
 	/* Enable top level interrupts, we mask at secondary level */
 	wm831x_reg_write(wm831x, WM831X_SYSTEM_INTERRUPTS_MASK, 0);

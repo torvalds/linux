@@ -1,13 +1,12 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
 config FRV
 	bool
 	default y
 	select HAVE_IDE
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_SHOW
 
 config ZONE_DMA
 	bool
@@ -20,10 +19,6 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
-config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
-
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -31,14 +26,6 @@ config GENERIC_HWEIGHT
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default n
-
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	bool
-	default y
 
 config TIME_LOW_RES
 	bool
@@ -59,8 +46,6 @@ config ARCH_HAS_ILOG2_U64
 config HZ
 	int
 	default 1000
-
-mainmenu "Fujitsu FR-V Kernel Configuration"
 
 source "init/Kconfig"
 
@@ -369,7 +354,6 @@ menu "Power management options"
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
-	depends on !SMP
 
 source kernel/power/Kconfig
 endmenu

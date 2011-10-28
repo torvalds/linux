@@ -18,6 +18,8 @@ struct ufs_sb_info {
 	unsigned s_cgno[UFS_MAX_GROUP_LOADED];
 	unsigned short s_cg_loaded;
 	unsigned s_mount_opt;
+	struct mutex mutex;
+	struct task_struct *mutex_owner;
 };
 
 struct ufs_inode_info {
@@ -109,7 +111,6 @@ extern struct inode *ufs_iget(struct super_block *, unsigned long);
 extern int ufs_write_inode (struct inode *, struct writeback_control *);
 extern int ufs_sync_inode (struct inode *);
 extern void ufs_evict_inode (struct inode *);
-extern struct buffer_head * ufs_bread (struct inode *, unsigned, int, int *);
 extern int ufs_getfrag_block (struct inode *inode, sector_t fragment, struct buffer_head *bh_result, int create);
 
 /* namei.c */
@@ -153,5 +154,8 @@ static inline u32 ufs_dtogd(struct ufs_sb_private_info * uspi, u64 b)
 {
 	return do_div(b, uspi->s_fpg);
 }
+
+extern void lock_ufs(struct super_block *sb);
+extern void unlock_ufs(struct super_block *sb);
 
 #endif /* _UFS_UFS_H */

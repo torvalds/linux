@@ -136,7 +136,7 @@ SECTIONS
 
 	. = ALIGN(16);
 	INIT_DATA_SECTION(16)
-	PERCPU(4)
+	PERCPU_SECTION(32)
 
 	.exit.data :
 	{
@@ -155,14 +155,8 @@ SECTIONS
 		SECURITY_INITCALL
 		INIT_RAM_FS
 
-		. = ALIGN(4);
 		___per_cpu_load = .;
-		___per_cpu_start = .;
-		*(.data.percpu.first)
-		*(.data.percpu.page_aligned)
-		*(.data.percpu)
-		*(.data.percpu.shared_aligned)
-		___per_cpu_end = .;
+		PERCPU_INPUT(32)
 
 		EXIT_DATA
 		__einitdata = .;
@@ -176,6 +170,7 @@ SECTIONS
 	{
 		. = ALIGN(4);
 		__stext_l1 = .;
+		*(.l1.text.head)
 		*(.l1.text)
 #ifdef CONFIG_SCHEDULE_L1
 		SCHED_TEXT

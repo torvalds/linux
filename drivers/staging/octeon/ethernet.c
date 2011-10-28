@@ -465,10 +465,7 @@ int cvm_oct_common_init(struct net_device *dev)
 
 	if (cvm_oct_mac_addr_offset >= octeon_bootinfo->mac_addr_count)
 		printk(KERN_DEBUG "%s: Using MAC outside of the assigned range:"
-			" %02x:%02x:%02x:%02x:%02x:%02x\n", dev->name,
-			sa.sa_data[0] & 0xff, sa.sa_data[1] & 0xff,
-			sa.sa_data[2] & 0xff, sa.sa_data[3] & 0xff,
-			sa.sa_data[4] & 0xff, sa.sa_data[5] & 0xff);
+			" %pM\n", dev->name, sa.sa_data);
 	cvm_oct_mac_addr_offset++;
 
 	/*
@@ -673,7 +670,7 @@ static int __init cvm_oct_init_module(void)
 
 			if (register_netdev(dev) < 0) {
 				pr_err("Failed to register ethernet device for POW\n");
-				kfree(dev);
+				free_netdev(dev);
 			} else {
 				cvm_oct_device[CVMX_PIP_NUM_INPUT_PORTS] = dev;
 				pr_info("%s: POW send group %d, receive group %d\n",
@@ -759,12 +756,12 @@ static int __init cvm_oct_init_module(void)
 			}
 
 			if (!dev->netdev_ops) {
-				kfree(dev);
+				free_netdev(dev);
 			} else if (register_netdev(dev) < 0) {
 				pr_err("Failed to register ethernet device "
 					 "for interface %d, port %d\n",
 					 interface, priv->port);
-				kfree(dev);
+				free_netdev(dev);
 			} else {
 				cvm_oct_device[priv->port] = dev;
 				fau -=
@@ -818,7 +815,7 @@ static void __exit cvm_oct_cleanup_module(void)
 
 			cvm_oct_tx_shutdown_dev(dev);
 			unregister_netdev(dev);
-			kfree(dev);
+			free_netdev(dev);
 			cvm_oct_device[port] = NULL;
 		}
 	}

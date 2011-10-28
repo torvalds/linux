@@ -18,6 +18,9 @@ enum ip_conntrack_info {
 	/* >= this indicates reply direction */
 	IP_CT_IS_REPLY,
 
+	IP_CT_ESTABLISHED_REPLY = IP_CT_ESTABLISHED + IP_CT_IS_REPLY,
+	IP_CT_RELATED_REPLY = IP_CT_RELATED + IP_CT_IS_REPLY,
+	IP_CT_NEW_REPLY = IP_CT_NEW + IP_CT_IS_REPLY,	
 	/* Number of distinct IP_CT types (no NEW in reply dirn). */
 	IP_CT_NUMBER = IP_CT_IS_REPLY * 2 - 1
 };
@@ -98,7 +101,13 @@ enum ip_conntrack_events {
 
 enum ip_conntrack_expect_events {
 	IPEXP_NEW,		/* new expectation */
+	IPEXP_DESTROY,		/* destroyed expectation */
 };
+
+/* expectation flags */
+#define NF_CT_EXPECT_PERMANENT		0x1
+#define NF_CT_EXPECT_INACTIVE		0x2
+#define NF_CT_EXPECT_USERSPACE		0x4
 
 #ifdef __KERNEL__
 struct ip_conntrack_stat {

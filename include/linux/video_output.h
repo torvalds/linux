@@ -23,6 +23,7 @@
 #ifndef _LINUX_VIDEO_OUTPUT_H
 #define _LINUX_VIDEO_OUTPUT_H
 #include <linux/device.h>
+#include <linux/err.h>
 struct output_device;
 struct output_properties {
 	int (*set_state)(struct output_device *);
@@ -34,9 +35,23 @@ struct output_device {
 	struct device dev;
 };
 #define to_output_device(obj) container_of(obj, struct output_device, dev)
+#if	defined(CONFIG_VIDEO_OUTPUT_CONTROL) || defined(CONFIG_VIDEO_OUTPUT_CONTROL_MODULE)
 struct output_device *video_output_register(const char *name,
 	struct device *dev,
 	void *devdata,
 	struct output_properties *op);
 void video_output_unregister(struct output_device *dev);
+#else
+static struct output_device *video_output_register(const char *name,
+        struct device *dev,
+        void *devdata,
+        struct output_properties *op)
+{
+	return ERR_PTR(-ENODEV);
+}
+static void video_output_unregister(struct output_device *dev)
+{
+	return;
+}
+#endif
 #endif

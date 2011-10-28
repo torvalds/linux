@@ -57,6 +57,9 @@ extern void mdio_bus_exit(void);
 static LIST_HEAD(phy_fixup_list);
 static DEFINE_MUTEX(phy_fixup_lock);
 
+static int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
+			     u32 flags, phy_interface_t interface);
+
 /*
  * Creates a new phy_fixup and adds it to the list
  * @bus_id: A string which matches phydev->dev.bus_id (or PHY_ANY_ID)
@@ -146,7 +149,8 @@ int phy_scan_fixups(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_scan_fixups);
 
-struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
+static struct phy_device* phy_device_create(struct mii_bus *bus,
+					    int addr, int phy_id)
 {
 	struct phy_device *dev;
 
@@ -193,7 +197,6 @@ struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 
 	return dev;
 }
-EXPORT_SYMBOL(phy_device_create);
 
 /**
  * get_phy_id - reads the specified addr for its ID.
@@ -316,7 +319,7 @@ EXPORT_SYMBOL(phy_find_first);
  *   If you want to monitor your own link state, don't call
  *   this function.
  */
-void phy_prepare_link(struct phy_device *phydev,
+static void phy_prepare_link(struct phy_device *phydev,
 		void (*handler)(struct net_device *))
 {
 	phydev->adjust_link = handler;
@@ -435,15 +438,15 @@ int phy_init_hw(struct phy_device *phydev)
  *     the attaching device, and given a callback for link status
  *     change.  The phy_device is returned to the attaching driver.
  */
-int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
-		      u32 flags, phy_interface_t interface)
+static int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
+			     u32 flags, phy_interface_t interface)
 {
 	struct device *d = &phydev->dev;
+	int err;
 
 	/* Assume that if there is no driver, that it doesn't
 	 * exist, and we should use the genphy driver. */
 	if (NULL == d->driver) {
-		int err;
 		d->driver = &genphy_driver.driver;
 
 		err = d->driver->probe(d);
@@ -471,9 +474,12 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	/* Do initial configuration here, now that
 	 * we have certain key parameters
 	 * (dev_flags and interface) */
-	return phy_init_hw(phydev);
+	err = phy_init_hw(phydev);
+	if (err)
+		phy_detach(phydev);
+
+	return err;
 }
-EXPORT_SYMBOL(phy_attach_direct);
 
 /**
  * phy_attach - attach a network device to a particular PHY device
@@ -532,7 +538,7 @@ EXPORT_SYMBOL(phy_detach);
 /* Generic PHY support and helper functions */
 
 /**
- * genphy_config_advert - sanitize and advertise auto-negotation parameters
+ * genphy_config_advert - sanitize and advertise auto-negotiation parameters
  * @phydev: target phy_device struct
  *
  * Description: Writes MII_ADVERTISE with the appropriate values,
@@ -540,7 +546,7 @@ EXPORT_SYMBOL(phy_detach);
  *   what is supported.  Returns < 0 on error, 0 if the PHY's advertisement
  *   hasn't changed, and > 0 if it has changed.
  */
-int genphy_config_advert(struct phy_device *phydev)
+static int genphy_config_advert(struct phy_device *phydev)
 {
 	u32 advertise;
 	int oldadv, adv;
@@ -605,7 +611,6 @@ int genphy_config_advert(struct phy_device *phydev)
 
 	return changed;
 }
-EXPORT_SYMBOL(genphy_config_advert);
 
 /**
  * genphy_setup_forced - configures/forces speed/duplex from @phydev
@@ -615,7 +620,7 @@ EXPORT_SYMBOL(genphy_config_advert);
  *   to the values in phydev. Assumes that the values are valid.
  *   Please see phy_sanitize_settings().
  */
-int genphy_setup_forced(struct phy_device *phydev)
+static int genphy_setup_forced(struct phy_device *phydev)
 {
 	int err;
 	int ctl = 0;
@@ -682,7 +687,7 @@ int genphy_config_aneg(struct phy_device *phydev)
 		return result;
 
 	if (result == 0) {
-		/* Advertisment hasn't changed, but maybe aneg was never on to
+		/* Advertisement hasn't changed, but maybe aneg was never on to
 		 * begin with?  Or maybe phy was isolated? */
 		int ctl = phy_read(phydev, MII_BMCR);
 

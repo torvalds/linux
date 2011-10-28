@@ -24,6 +24,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -56,7 +58,7 @@ static ssize_t lm70_sense_temp(struct device *dev,
 	int status, val = 0;
 	u8 rxbuf[2];
 	s16 raw=0;
-	struct lm70 *p_lm70 = dev_get_drvdata(&spi->dev);
+	struct lm70 *p_lm70 = spi_get_drvdata(spi);
 
 	if (mutex_lock_interruptible(&p_lm70->lock))
 		return -ERESTARTSYS;
@@ -67,8 +69,7 @@ static ssize_t lm70_sense_temp(struct device *dev,
 	 */
 	status = spi_write_then_read(spi, NULL, 0, &rxbuf[0], 2);
 	if (status < 0) {
-		printk(KERN_WARNING
-		"spi_write_then_read failed with status %d\n", status);
+		pr_warn("spi_write_then_read failed with status %d\n", status);
 		goto out;
 	}
 	raw = (rxbuf[0] << 8) + rxbuf[1];
@@ -162,7 +163,7 @@ static int __devinit lm70_probe(struct spi_device *spi)
 		status = PTR_ERR(p_lm70->hwmon_dev);
 		goto out_dev_reg_failed;
 	}
-	dev_set_drvdata(&spi->dev, p_lm70);
+	spi_set_drvdata(spi, p_lm70);
 
 	if ((status = device_create_file(&spi->dev, &dev_attr_temp1_input))
 	 || (status = device_create_file(&spi->dev, &dev_attr_name))) {
@@ -176,19 +177,19 @@ out_dev_create_file_failed:
 	device_remove_file(&spi->dev, &dev_attr_temp1_input);
 	hwmon_device_unregister(p_lm70->hwmon_dev);
 out_dev_reg_failed:
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	kfree(p_lm70);
 	return status;
 }
 
 static int __devexit lm70_remove(struct spi_device *spi)
 {
-	struct lm70 *p_lm70 = dev_get_drvdata(&spi->dev);
+	struct lm70 *p_lm70 = spi_get_drvdata(spi);
 
 	device_remove_file(&spi->dev, &dev_attr_temp1_input);
 	device_remove_file(&spi->dev, &dev_attr_name);
 	hwmon_device_unregister(p_lm70->hwmon_dev);
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	kfree(p_lm70);
 
 	return 0;

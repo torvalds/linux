@@ -13,7 +13,7 @@
  *
  ********************************************************************
  *
- * Copyright (C) 1999 RG Studio s.c., http://www.rgstudio.com.pl/
+ * Copyright (C) 1999 RG Studio s.c.
  * Written by Krzysztof Halasa <khc@rgstudio.com.pl>
  *
  * Portions (C) SBE Inc., used by permission.

@@ -72,7 +72,7 @@ Tx Descriptors: Number of transmit descriptors. A transmit descriptor is a data
    ethtool -G eth? tx n, where n is the number of desired tx descriptors.
 
 Speed/Duplex: The driver auto-negotiates the link speed and duplex settings by
-   default. Ethtool can be used as follows to force speed/duplex.
+   default. The ethtool utility can be used as follows to force speed/duplex.
 
    ethtool -s eth?  autoneg off speed {10|100} duplex {full|half}
 
@@ -126,29 +126,20 @@ Additional Configurations
   -------
 
   The driver utilizes the ethtool interface for driver configuration and
-  diagnostics, as well as displaying statistical information.  Ethtool
+  diagnostics, as well as displaying statistical information.  The ethtool
   version 1.6 or later is required for this functionality.
 
   The latest release of ethtool can be found from
-  http://sourceforge.net/projects/gkernel.
-
-  NOTE: Ethtool 1.6 only supports a limited set of ethtool options. Support
-  for a more complete ethtool feature set can be enabled by upgrading
-  ethtool to ethtool-1.8.1.
-
+  http://ftp.kernel.org/pub/software/network/ethtool/
 
   Enabling Wake on LAN* (WoL)
   ---------------------------
-  WoL is provided through the Ethtool* utility. Ethtool is included with Red
-  Hat* 8.0. For other Linux distributions, download and install Ethtool from
-  the following website: http://sourceforge.net/projects/gkernel.
-
-  For instructions on enabling WoL with Ethtool, refer to the Ethtool man page.
+  WoL is provided through the ethtool* utility.  For instructions on enabling
+  WoL with ethtool, refer to the ethtool man page.
 
   WoL will be enabled on the system during the next shut down or reboot. For
   this driver version, in order to enable WoL, the e100 driver must be
   loaded when shutting down or rebooting the system.
-
 
   NAPI
   ----

@@ -120,30 +120,6 @@ static void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
 	}
 }
 
-#if 0
-/**
- *	t4_write_indirect - write indirectly addressed registers
- *	@adap: the adapter
- *	@addr_reg: register holding the indirect addresses
- *	@data_reg: register holding the value for the indirect registers
- *	@vals: values to write
- *	@nregs: how many indirect registers to write
- *	@start_idx: address of first indirect register to write
- *
- *	Writes a sequential block of registers that are accessed indirectly
- *	through an address/data register pair.
- */
-static void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
-			      unsigned int data_reg, const u32 *vals,
-			      unsigned int nregs, unsigned int start_idx)
-{
-	while (nregs--) {
-		t4_write_reg(adap, addr_reg, start_idx++);
-		t4_write_reg(adap, data_reg, *vals++);
-	}
-}
-#endif
-
 /*
  * Get the reply to a mailbox command and store it in @rpl in big-endian order.
  */
@@ -207,7 +183,7 @@ static void dump_mbox(struct adapter *adap, int mbox, u32 data_reg)
 int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 		    void *rpl, bool sleep_ok)
 {
-	static int delay[] = {
+	static const int delay[] = {
 		1, 1, 3, 5, 10, 10, 20, 50, 100, 200
 	};
 
@@ -354,18 +330,6 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 	return 0;
 }
 
-/*
- * Partial EEPROM Vital Product Data structure.  Includes only the ID and
- * VPD-R header.
- */
-struct t4_vpd_hdr {
-	u8  id_tag;
-	u8  id_len[2];
-	u8  id_data[ID_LEN];
-	u8  vpdr_tag;
-	u8  vpdr_len[2];
-};
-
 #define EEPROM_STAT_ADDR   0x7bfc
 #define VPD_BASE           0
 #define VPD_LEN            512
@@ -394,25 +358,38 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable)
 static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
 	int i, ret;
-	int ec, sn, v2;
+	int ec, sn;
 	u8 vpd[VPD_LEN], csum;
-	unsigned int vpdr_len;
-	const struct t4_vpd_hdr *v;
+	unsigned int vpdr_len, kw_offset, id_len;
 
 	ret = pci_read_vpd(adapter->pdev, VPD_BASE, sizeof(vpd), vpd);
 	if (ret < 0)
 		return ret;
 
-	v = (const struct t4_vpd_hdr *)vpd;
-	vpdr_len = pci_vpd_lrdt_size(&v->vpdr_tag);
-	if (vpdr_len + sizeof(struct t4_vpd_hdr) > VPD_LEN) {
+	if (vpd[0] != PCI_VPD_LRDT_ID_STRING) {
+		dev_err(adapter->pdev_dev, "missing VPD ID string\n");
+		return -EINVAL;
+	}
+
+	id_len = pci_vpd_lrdt_size(vpd);
+	if (id_len > ID_LEN)
+		id_len = ID_LEN;
+
+	i = pci_vpd_find_tag(vpd, 0, VPD_LEN, PCI_VPD_LRDT_RO_DATA);
+	if (i < 0) {
+		dev_err(adapter->pdev_dev, "missing VPD-R section\n");
+		return -EINVAL;
+	}
+
+	vpdr_len = pci_vpd_lrdt_size(&vpd[i]);
+	kw_offset = i + PCI_VPD_LRDT_TAG_SIZE;
+	if (vpdr_len + kw_offset > VPD_LEN) {
 		dev_err(adapter->pdev_dev, "bad VPD-R length %u\n", vpdr_len);
 		return -EINVAL;
 	}
 
 #define FIND_VPD_KW(var, name) do { \
-	var = pci_vpd_find_info_keyword(&v->id_tag, sizeof(struct t4_vpd_hdr), \
-					vpdr_len, name); \
+	var = pci_vpd_find_info_keyword(vpd, kw_offset, vpdr_len, name); \
 	if (var < 0) { \
 		dev_err(adapter->pdev_dev, "missing VPD keyword " name "\n"); \
 		return -EINVAL; \
@@ -432,11 +409,9 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 
 	FIND_VPD_KW(ec, "EC");
 	FIND_VPD_KW(sn, "SN");
-	FIND_VPD_KW(v2, "V2");
 #undef FIND_VPD_KW
 
-	p->cclk = simple_strtoul(vpd + v2, NULL, 10);
-	memcpy(p->id, v->id_data, ID_LEN);
+	memcpy(p->id, vpd + PCI_VPD_LRDT_TAG_SIZE, id_len);
 	strim(p->id);
 	memcpy(p->ec, vpd + ec, EC_LEN);
 	strim(p->ec);
@@ -908,7 +883,7 @@ struct intr_info {
  *
  *	A table driven interrupt handler that applies a set of masks to an
  *	interrupt status word and performs the corresponding actions if the
- *	interrupts described by the mask have occured.  The actions include
+ *	interrupts described by the mask have occurred.  The actions include
  *	optionally emitting a warning or alert message.  The table is terminated
  *	by an entry specifying mask 0.  Returns the number of fatal interrupt
  *	conditions.
@@ -943,7 +918,7 @@ static int t4_handle_intr_status(struct adapter *adapter, unsigned int reg,
  */
 static void pcie_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info sysbus_intr_info[] = {
+	static const struct intr_info sysbus_intr_info[] = {
 		{ RNPP, "RXNP array parity error", -1, 1 },
 		{ RPCP, "RXPC array parity error", -1, 1 },
 		{ RCIP, "RXCIF array parity error", -1, 1 },
@@ -951,7 +926,7 @@ static void pcie_intr_handler(struct adapter *adapter)
 		{ RFTP, "RXFT array parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info pcie_port_intr_info[] = {
+	static const struct intr_info pcie_port_intr_info[] = {
 		{ TPCP, "TXPC array parity error", -1, 1 },
 		{ TNPP, "TXNP array parity error", -1, 1 },
 		{ TFTP, "TXFT array parity error", -1, 1 },
@@ -963,7 +938,7 @@ static void pcie_intr_handler(struct adapter *adapter)
 		{ TDUE, "Tx uncorrectable data error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info pcie_intr_info[] = {
+	static const struct intr_info pcie_intr_info[] = {
 		{ MSIADDRLPERR, "MSI AddrL parity error", -1, 1 },
 		{ MSIADDRHPERR, "MSI AddrH parity error", -1, 1 },
 		{ MSIDATAPERR, "MSI data parity error", -1, 1 },
@@ -1015,7 +990,7 @@ static void pcie_intr_handler(struct adapter *adapter)
  */
 static void tp_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info tp_intr_info[] = {
+	static const struct intr_info tp_intr_info[] = {
 		{ 0x3fffffff, "TP parity error", -1, 1 },
 		{ FLMTXFLSTEMPTY, "TP out of Tx pages", -1, 1 },
 		{ 0 }
@@ -1032,7 +1007,7 @@ static void sge_intr_handler(struct adapter *adapter)
 {
 	u64 v;
 
-	static struct intr_info sge_intr_info[] = {
+	static const struct intr_info sge_intr_info[] = {
 		{ ERR_CPL_EXCEED_IQE_SIZE,
 		  "SGE received CPL exceeding IQE size", -1, 1 },
 		{ ERR_INVALID_CIDX_INC,
@@ -1077,7 +1052,7 @@ static void sge_intr_handler(struct adapter *adapter)
  */
 static void cim_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info cim_intr_info[] = {
+	static const struct intr_info cim_intr_info[] = {
 		{ PREFDROPINT, "CIM control register prefetch drop", -1, 1 },
 		{ OBQPARERR, "CIM OBQ parity error", -1, 1 },
 		{ IBQPARERR, "CIM IBQ parity error", -1, 1 },
@@ -1087,7 +1062,7 @@ static void cim_intr_handler(struct adapter *adapter)
 		{ TIEQOUTPARERRINT, "CIM TIEQ incoming parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info cim_upintr_info[] = {
+	static const struct intr_info cim_upintr_info[] = {
 		{ RSVDSPACEINT, "CIM reserved space access", -1, 1 },
 		{ ILLTRANSINT, "CIM illegal transaction", -1, 1 },
 		{ ILLWRINT, "CIM illegal write", -1, 1 },
@@ -1134,7 +1109,7 @@ static void cim_intr_handler(struct adapter *adapter)
  */
 static void ulprx_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info ulprx_intr_info[] = {
+	static const struct intr_info ulprx_intr_info[] = {
 		{ 0x1800000, "ULPRX context error", -1, 1 },
 		{ 0x7fffff, "ULPRX parity error", -1, 1 },
 		{ 0 }
@@ -1149,7 +1124,7 @@ static void ulprx_intr_handler(struct adapter *adapter)
  */
 static void ulptx_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info ulptx_intr_info[] = {
+	static const struct intr_info ulptx_intr_info[] = {
 		{ PBL_BOUND_ERR_CH3, "ULPTX channel 3 PBL out of bounds", -1,
 		  0 },
 		{ PBL_BOUND_ERR_CH2, "ULPTX channel 2 PBL out of bounds", -1,
@@ -1171,7 +1146,7 @@ static void ulptx_intr_handler(struct adapter *adapter)
  */
 static void pmtx_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info pmtx_intr_info[] = {
+	static const struct intr_info pmtx_intr_info[] = {
 		{ PCMD_LEN_OVFL0, "PMTX channel 0 pcmd too large", -1, 1 },
 		{ PCMD_LEN_OVFL1, "PMTX channel 1 pcmd too large", -1, 1 },
 		{ PCMD_LEN_OVFL2, "PMTX channel 2 pcmd too large", -1, 1 },
@@ -1193,7 +1168,7 @@ static void pmtx_intr_handler(struct adapter *adapter)
  */
 static void pmrx_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info pmrx_intr_info[] = {
+	static const struct intr_info pmrx_intr_info[] = {
 		{ ZERO_E_CMD_ERROR, "PMRX 0-length pcmd", -1, 1 },
 		{ PMRX_FRAMING_ERROR, "PMRX framing error", -1, 1 },
 		{ OCSPI_PAR_ERROR, "PMRX ocspi parity error", -1, 1 },
@@ -1212,7 +1187,7 @@ static void pmrx_intr_handler(struct adapter *adapter)
  */
 static void cplsw_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info cplsw_intr_info[] = {
+	static const struct intr_info cplsw_intr_info[] = {
 		{ CIM_OP_MAP_PERR, "CPLSW CIM op_map parity error", -1, 1 },
 		{ CIM_OVFL_ERROR, "CPLSW CIM overflow", -1, 1 },
 		{ TP_FRAMING_ERROR, "CPLSW TP framing error", -1, 1 },
@@ -1231,7 +1206,7 @@ static void cplsw_intr_handler(struct adapter *adapter)
  */
 static void le_intr_handler(struct adapter *adap)
 {
-	static struct intr_info le_intr_info[] = {
+	static const struct intr_info le_intr_info[] = {
 		{ LIPMISS, "LE LIP miss", -1, 0 },
 		{ LIP0, "LE 0 LIP error", -1, 0 },
 		{ PARITYERR, "LE parity error", -1, 1 },
@@ -1249,11 +1224,11 @@ static void le_intr_handler(struct adapter *adap)
  */
 static void mps_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info mps_rx_intr_info[] = {
+	static const struct intr_info mps_rx_intr_info[] = {
 		{ 0xffffff, "MPS Rx parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info mps_tx_intr_info[] = {
+	static const struct intr_info mps_tx_intr_info[] = {
 		{ TPFIFO, "MPS Tx TP FIFO parity error", -1, 1 },
 		{ NCSIFIFO, "MPS Tx NC-SI FIFO parity error", -1, 1 },
 		{ TXDATAFIFO, "MPS Tx data FIFO parity error", -1, 1 },
@@ -1263,25 +1238,25 @@ static void mps_intr_handler(struct adapter *adapter)
 		{ FRMERR, "MPS Tx framing error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info mps_trc_intr_info[] = {
+	static const struct intr_info mps_trc_intr_info[] = {
 		{ FILTMEM, "MPS TRC filter parity error", -1, 1 },
 		{ PKTFIFO, "MPS TRC packet FIFO parity error", -1, 1 },
 		{ MISCPERR, "MPS TRC misc parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info mps_stat_sram_intr_info[] = {
+	static const struct intr_info mps_stat_sram_intr_info[] = {
 		{ 0x1fffff, "MPS statistics SRAM parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info mps_stat_tx_intr_info[] = {
+	static const struct intr_info mps_stat_tx_intr_info[] = {
 		{ 0xfffff, "MPS statistics Tx FIFO parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info mps_stat_rx_intr_info[] = {
+	static const struct intr_info mps_stat_rx_intr_info[] = {
 		{ 0xffffff, "MPS statistics Rx FIFO parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info mps_cls_intr_info[] = {
+	static const struct intr_info mps_cls_intr_info[] = {
 		{ MATCHSRAM, "MPS match SRAM parity error", -1, 1 },
 		{ MATCHTCAM, "MPS match TCAM parity error", -1, 1 },
 		{ HASHSRAM, "MPS hash SRAM parity error", -1, 1 },
@@ -1380,7 +1355,7 @@ static void ma_intr_handler(struct adapter *adap)
  */
 static void smb_intr_handler(struct adapter *adap)
 {
-	static struct intr_info smb_intr_info[] = {
+	static const struct intr_info smb_intr_info[] = {
 		{ MSTTXFIFOPARINT, "SMB master Tx FIFO parity error", -1, 1 },
 		{ MSTRXFIFOPARINT, "SMB master Rx FIFO parity error", -1, 1 },
 		{ SLVFIFOPARINT, "SMB slave FIFO parity error", -1, 1 },
@@ -1396,7 +1371,7 @@ static void smb_intr_handler(struct adapter *adap)
  */
 static void ncsi_intr_handler(struct adapter *adap)
 {
-	static struct intr_info ncsi_intr_info[] = {
+	static const struct intr_info ncsi_intr_info[] = {
 		{ CIM_DM_PRTY_ERR, "NC-SI CIM parity error", -1, 1 },
 		{ MPS_DM_PRTY_ERR, "NC-SI MPS parity error", -1, 1 },
 		{ TXFIFO_PRTY_ERR, "NC-SI Tx FIFO parity error", -1, 1 },
@@ -1434,7 +1409,7 @@ static void xgmac_intr_handler(struct adapter *adap, int port)
  */
 static void pl_intr_handler(struct adapter *adap)
 {
-	static struct intr_info pl_intr_info[] = {
+	static const struct intr_info pl_intr_info[] = {
 		{ FATALPERR, "T4 fatal parity error", -1, 1 },
 		{ PERRVFID, "PL VFID_MAP parity error", -1, 1 },
 		{ 0 }
@@ -1560,44 +1535,6 @@ void t4_intr_disable(struct adapter *adapter)
 }
 
 /**
- *	t4_intr_clear - clear all interrupts
- *	@adapter: the adapter whose interrupts should be cleared
- *
- *	Clears all interrupts.  The caller must be a PCI function managing
- *	global interrupts.
- */
-void t4_intr_clear(struct adapter *adapter)
-{
-	static const unsigned int cause_reg[] = {
-		SGE_INT_CAUSE1, SGE_INT_CAUSE2, SGE_INT_CAUSE3,
-		PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
-		PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
-		PCIE_NONFAT_ERR, PCIE_INT_CAUSE,
-		MC_INT_CAUSE,
-		MA_INT_WRAP_STATUS, MA_PARITY_ERROR_STATUS, MA_INT_CAUSE,
-		EDC_INT_CAUSE, EDC_REG(EDC_INT_CAUSE, 1),
-		CIM_HOST_INT_CAUSE, CIM_HOST_UPACC_INT_CAUSE,
-		MYPF_REG(CIM_PF_HOST_INT_CAUSE),
-		TP_INT_CAUSE,
-		ULP_RX_INT_CAUSE, ULP_TX_INT_CAUSE,
-		PM_RX_INT_CAUSE, PM_TX_INT_CAUSE,
-		MPS_RX_PERR_INT_CAUSE,
-		CPL_INTR_CAUSE,
-		MYPF_REG(PL_PF_INT_CAUSE),
-		PL_PL_INT_CAUSE,
-		LE_DB_INT_CAUSE,
-	};
-
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(cause_reg); ++i)
-		t4_write_reg(adapter, cause_reg[i], 0xffffffff);
-
-	t4_write_reg(adapter, PL_INT_CAUSE, GLBL_INTR_MASK);
-	(void) t4_read_reg(adapter, PL_INT_CAUSE);          /* flush */
-}
-
-/**
  *	hash_mac_addr - return the hash value of a MAC address
  *	@addr: the 48-bit Ethernet MAC address
  *
@@ -1709,36 +1646,6 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 	return t4_wr_mbox(adapter, mbox, &c, sizeof(c), NULL);
 }
 
-/* Read an RSS table row */
-static int rd_rss_row(struct adapter *adap, int row, u32 *val)
-{
-	t4_write_reg(adap, TP_RSS_LKP_TABLE, 0xfff00000 | row);
-	return t4_wait_op_done_val(adap, TP_RSS_LKP_TABLE, LKPTBLROWVLD, 1,
-				   5, 0, val);
-}
-
-/**
- *	t4_read_rss - read the contents of the RSS mapping table
- *	@adapter: the adapter
- *	@map: holds the contents of the RSS mapping table
- *
- *	Reads the contents of the RSS hash->queue mapping table.
- */
-int t4_read_rss(struct adapter *adapter, u16 *map)
-{
-	u32 val;
-	int i, ret;
-
-	for (i = 0; i < RSS_NENTRIES / 2; ++i) {
-		ret = rd_rss_row(adapter, i, &val);
-		if (ret)
-			return ret;
-		*map++ = LKPTBLQUEUE0_GET(val);
-		*map++ = LKPTBLQUEUE1_GET(val);
-	}
-	return 0;
-}
-
 /**
  *	t4_tp_get_tcp_stats - read TP's TCP MIB counters
  *	@adap: the adapter
@@ -1776,29 +1683,6 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 #undef STAT64
 #undef STAT
 #undef STAT_IDX
-}
-
-/**
- *	t4_tp_get_err_stats - read TP's error MIB counters
- *	@adap: the adapter
- *	@st: holds the counter values
- *
- *	Returns the values of TP's error counters.
- */
-void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
-{
-	t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, st->macInErrs,
-			 12, TP_MIB_MAC_IN_ERR_0);
-	t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, st->tnlCongDrops,
-			 8, TP_MIB_TNL_CNG_DROP_0);
-	t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, st->tnlTxDrops,
-			 4, TP_MIB_TNL_DROP_0);
-	t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, st->ofldVlanDrops,
-			 4, TP_MIB_OFD_VLN_DROP_0);
-	t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, st->tcp6InErrs,
-			 4, TP_MIB_TCP_V6IN_ERR_0);
-	t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, &st->ofldNoNeigh,
-			 2, TP_MIB_OFD_ARP_DROP);
 }
 
 /**
@@ -1916,122 +1800,6 @@ void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
 }
 
 /**
- *	t4_set_trace_filter - configure one of the tracing filters
- *	@adap: the adapter
- *	@tp: the desired trace filter parameters
- *	@idx: which filter to configure
- *	@enable: whether to enable or disable the filter
- *
- *	Configures one of the tracing filters available in HW.  If @enable is
- *	%0 @tp is not examined and may be %NULL.
- */
-int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
-			int idx, int enable)
-{
-	int i, ofst = idx * 4;
-	u32 data_reg, mask_reg, cfg;
-	u32 multitrc = TRCMULTIFILTER;
-
-	if (!enable) {
-		t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + ofst, 0);
-		goto out;
-	}
-
-	if (tp->port > 11 || tp->invert > 1 || tp->skip_len > 0x1f ||
-	    tp->skip_ofst > 0x1f || tp->min_len > 0x1ff ||
-	    tp->snap_len > 9600 || (idx && tp->snap_len > 256))
-		return -EINVAL;
-
-	if (tp->snap_len > 256) {            /* must be tracer 0 */
-		if ((t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + 4) |
-		     t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + 8) |
-		     t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + 12)) & TFEN)
-			return -EINVAL;  /* other tracers are enabled */
-		multitrc = 0;
-	} else if (idx) {
-		i = t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_B);
-		if (TFCAPTUREMAX_GET(i) > 256 &&
-		    (t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A) & TFEN))
-			return -EINVAL;
-	}
-
-	/* stop the tracer we'll be changing */
-	t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + ofst, 0);
-
-	/* disable tracing globally if running in the wrong single/multi mode */
-	cfg = t4_read_reg(adap, MPS_TRC_CFG);
-	if ((cfg & TRCEN) && multitrc != (cfg & TRCMULTIFILTER)) {
-		t4_write_reg(adap, MPS_TRC_CFG, cfg ^ TRCEN);
-		t4_read_reg(adap, MPS_TRC_CFG);                  /* flush */
-		msleep(1);
-		if (!(t4_read_reg(adap, MPS_TRC_CFG) & TRCFIFOEMPTY))
-			return -ETIMEDOUT;
-	}
-	/*
-	 * At this point either the tracing is enabled and in the right mode or
-	 * disabled.
-	 */
-
-	idx *= (MPS_TRC_FILTER1_MATCH - MPS_TRC_FILTER0_MATCH);
-	data_reg = MPS_TRC_FILTER0_MATCH + idx;
-	mask_reg = MPS_TRC_FILTER0_DONT_CARE + idx;
-
-	for (i = 0; i < TRACE_LEN / 4; i++, data_reg += 4, mask_reg += 4) {
-		t4_write_reg(adap, data_reg, tp->data[i]);
-		t4_write_reg(adap, mask_reg, ~tp->mask[i]);
-	}
-	t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_B + ofst,
-		     TFCAPTUREMAX(tp->snap_len) |
-		     TFMINPKTSIZE(tp->min_len));
-	t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + ofst,
-		     TFOFFSET(tp->skip_ofst) | TFLENGTH(tp->skip_len) |
-		     TFPORT(tp->port) | TFEN |
-		     (tp->invert ? TFINVERTMATCH : 0));
-
-	cfg &= ~TRCMULTIFILTER;
-	t4_write_reg(adap, MPS_TRC_CFG, cfg | TRCEN | multitrc);
-out:	t4_read_reg(adap, MPS_TRC_CFG);  /* flush */
-	return 0;
-}
-
-/**
- *	t4_get_trace_filter - query one of the tracing filters
- *	@adap: the adapter
- *	@tp: the current trace filter parameters
- *	@idx: which trace filter to query
- *	@enabled: non-zero if the filter is enabled
- *
- *	Returns the current settings of one of the HW tracing filters.
- */
-void t4_get_trace_filter(struct adapter *adap, struct trace_params *tp, int idx,
-			 int *enabled)
-{
-	u32 ctla, ctlb;
-	int i, ofst = idx * 4;
-	u32 data_reg, mask_reg;
-
-	ctla = t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + ofst);
-	ctlb = t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_B + ofst);
-
-	*enabled = !!(ctla & TFEN);
-	tp->snap_len = TFCAPTUREMAX_GET(ctlb);
-	tp->min_len = TFMINPKTSIZE_GET(ctlb);
-	tp->skip_ofst = TFOFFSET_GET(ctla);
-	tp->skip_len = TFLENGTH_GET(ctla);
-	tp->invert = !!(ctla & TFINVERTMATCH);
-	tp->port = TFPORT_GET(ctla);
-
-	ofst = (MPS_TRC_FILTER1_MATCH - MPS_TRC_FILTER0_MATCH) * idx;
-	data_reg = MPS_TRC_FILTER0_MATCH + ofst;
-	mask_reg = MPS_TRC_FILTER0_DONT_CARE + ofst;
-
-	for (i = 0; i < TRACE_LEN / 4; i++, data_reg += 4, mask_reg += 4) {
-		tp->mask[i] = ~t4_read_reg(adap, mask_reg);
-		tp->data[i] = t4_read_reg(adap, data_reg) & tp->mask[i];
-	}
-}
-
-/**
  *	get_mps_bg_map - return the buffer groups associated with a port
  *	@adap: the adapter
  *	@idx: the port index
@@ -2127,52 +1895,6 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_trunc1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_MAC_TRUNC_FRAME) : 0;
 	p->rx_trunc2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_MAC_TRUNC_FRAME) : 0;
 	p->rx_trunc3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_MAC_TRUNC_FRAME) : 0;
-
-#undef GET_STAT
-#undef GET_STAT_COM
-}
-
-/**
- *	t4_get_lb_stats - collect loopback port statistics
- *	@adap: the adapter
- *	@idx: the loopback port index
- *	@p: the stats structure to fill
- *
- *	Return HW statistics for the given loopback port.
- */
-void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
-{
-	u32 bgmap = get_mps_bg_map(adap, idx);
-
-#define GET_STAT(name) \
-	t4_read_reg64(adap, PORT_REG(idx, MPS_PORT_STAT_LB_PORT_##name##_L))
-#define GET_STAT_COM(name) t4_read_reg64(adap, MPS_STAT_##name##_L)
-
-	p->octets           = GET_STAT(BYTES);
-	p->frames           = GET_STAT(FRAMES);
-	p->bcast_frames     = GET_STAT(BCAST);
-	p->mcast_frames     = GET_STAT(MCAST);
-	p->ucast_frames     = GET_STAT(UCAST);
-	p->error_frames     = GET_STAT(ERROR);
-
-	p->frames_64        = GET_STAT(64B);
-	p->frames_65_127    = GET_STAT(65B_127B);
-	p->frames_128_255   = GET_STAT(128B_255B);
-	p->frames_256_511   = GET_STAT(256B_511B);
-	p->frames_512_1023  = GET_STAT(512B_1023B);
-	p->frames_1024_1518 = GET_STAT(1024B_1518B);
-	p->frames_1519_max  = GET_STAT(1519B_MAX);
-	p->drop             = t4_read_reg(adap, PORT_REG(idx,
-					  MPS_PORT_STAT_LB_PORT_DROP_FRAMES));
-
-	p->ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_DROP_FRAME) : 0;
-	p->ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_DROP_FRAME) : 0;
-	p->ovflow2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_LB_DROP_FRAME) : 0;
-	p->ovflow3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_LB_DROP_FRAME) : 0;
-	p->trunc0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_TRUNC_FRAME) : 0;
-	p->trunc1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_TRUNC_FRAME) : 0;
-	p->trunc2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_LB_TRUNC_FRAME) : 0;
-	p->trunc3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_LB_TRUNC_FRAME) : 0;
 
 #undef GET_STAT
 #undef GET_STAT_COM
@@ -2584,30 +2306,6 @@ int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 }
 
 /**
- *	t4_free_vi - free a virtual interface
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *	@pf: the PF owning the VI
- *	@vf: the VF owning the VI
- *	@viid: virtual interface identifiler
- *
- *	Free a previously allocated virtual interface.
- */
-int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
-	       unsigned int vf, unsigned int viid)
-{
-	struct fw_vi_cmd c;
-
-	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(FW_CMD_OP(FW_VI_CMD) | FW_CMD_REQUEST |
-			    FW_CMD_EXEC | FW_VI_CMD_PFN(pf) |
-			    FW_VI_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_VI_CMD_FREE | FW_LEN16(c));
-	c.type_viid = htons(FW_VI_CMD_VIID(viid));
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
-}
-
-/**
  *	t4_set_rxmode - set Rx properties of a virtual interface
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -2709,7 +2407,7 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 		if (index < NEXACT_MAC)
 			ret++;
 		else if (hash)
-			*hash |= (1 << hash_mac_addr(addr[i]));
+			*hash |= (1ULL << hash_mac_addr(addr[i]));
 	}
 	return ret;
 }
@@ -2829,37 +2527,6 @@ int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 			     FW_CMD_EXEC | FW_VI_ENABLE_CMD_VIID(viid));
 	c.ien_to_len16 = htonl(FW_VI_ENABLE_CMD_LED | FW_LEN16(c));
 	c.blinkdur = htons(nblinks);
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
-}
-
-/**
- *	t4_iq_start_stop - enable/disable an ingress queue and its FLs
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *	@start: %true to enable the queues, %false to disable them
- *	@pf: the PF owning the queues
- *	@vf: the VF owning the queues
- *	@iqid: ingress queue id
- *	@fl0id: FL0 queue id or 0xffff if no attached FL0
- *	@fl1id: FL1 queue id or 0xffff if no attached FL1
- *
- *	Starts or stops an ingress queue and its associated FLs, if any.
- */
-int t4_iq_start_stop(struct adapter *adap, unsigned int mbox, bool start,
-		     unsigned int pf, unsigned int vf, unsigned int iqid,
-		     unsigned int fl0id, unsigned int fl1id)
-{
-	struct fw_iq_cmd c;
-
-	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(FW_CMD_OP(FW_IQ_CMD) | FW_CMD_REQUEST |
-			    FW_CMD_EXEC | FW_IQ_CMD_PFN(pf) |
-			    FW_IQ_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_IQ_CMD_IQSTART(start) |
-				 FW_IQ_CMD_IQSTOP(!start) | FW_LEN16(c));
-	c.iqid = htons(iqid);
-	c.fl0id = htons(fl0id);
-	c.fl1id = htons(fl1id);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 

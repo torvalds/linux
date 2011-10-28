@@ -18,41 +18,6 @@
 #include <net/udp.h>
 #include <net/netfilter/nf_tproxy_core.h>
 
-struct sock *
-nf_tproxy_get_sock_v4(struct net *net, const u8 protocol,
-		      const __be32 saddr, const __be32 daddr,
-		      const __be16 sport, const __be16 dport,
-		      const struct net_device *in, bool listening_only)
-{
-	struct sock *sk;
-
-	/* look up socket */
-	switch (protocol) {
-	case IPPROTO_TCP:
-		if (listening_only)
-			sk = __inet_lookup_listener(net, &tcp_hashinfo,
-						    daddr, ntohs(dport),
-						    in->ifindex);
-		else
-			sk = __inet_lookup(net, &tcp_hashinfo,
-					   saddr, sport, daddr, dport,
-					   in->ifindex);
-		break;
-	case IPPROTO_UDP:
-		sk = udp4_lib_lookup(net, saddr, sport, daddr, dport,
-				     in->ifindex);
-		break;
-	default:
-		WARN_ON(1);
-		sk = NULL;
-	}
-
-	pr_debug("tproxy socket lookup: proto %u %08x:%u -> %08x:%u, listener only: %d, sock %p\n",
-		 protocol, ntohl(saddr), ntohs(sport), ntohl(daddr), ntohs(dport), listening_only, sk);
-
-	return sk;
-}
-EXPORT_SYMBOL_GPL(nf_tproxy_get_sock_v4);
 
 static void
 nf_tproxy_destructor(struct sk_buff *skb)
@@ -63,26 +28,23 @@ nf_tproxy_destructor(struct sk_buff *skb)
 	skb->destructor = NULL;
 
 	if (sk)
-		nf_tproxy_put_sock(sk);
+		sock_put(sk);
 }
 
 /* consumes sk */
-int
+void
 nf_tproxy_assign_sock(struct sk_buff *skb, struct sock *sk)
 {
-	bool transparent = (sk->sk_state == TCP_TIME_WAIT) ?
-				inet_twsk(sk)->tw_transparent :
-				inet_sk(sk)->transparent;
+	/* assigning tw sockets complicates things; most
+	 * skb->sk->X checks would have to test sk->sk_state first */
+	if (sk->sk_state == TCP_TIME_WAIT) {
+		inet_twsk_put(inet_twsk(sk));
+		return;
+	}
 
-	if (transparent) {
-		skb_orphan(skb);
-		skb->sk = sk;
-		skb->destructor = nf_tproxy_destructor;
-		return 1;
-	} else
-		nf_tproxy_put_sock(sk);
-
-	return 0;
+	skb_orphan(skb);
+	skb->sk = sk;
+	skb->destructor = nf_tproxy_destructor;
 }
 EXPORT_SYMBOL_GPL(nf_tproxy_assign_sock);
 

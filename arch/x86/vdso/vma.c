@@ -15,9 +15,6 @@
 #include <asm/proto.h>
 #include <asm/vdso.h>
 
-#include "vextern.h"		/* Just for VMAGIC.  */
-#undef VEXTERN
-
 unsigned int __read_mostly vdso_enabled = 1;
 
 extern char vdso_start[], vdso_end[];
@@ -26,20 +23,10 @@ extern unsigned short vdso_sync_cpuid;
 static struct page **vdso_pages;
 static unsigned vdso_size;
 
-static inline void *var_ref(void *p, char *name)
-{
-	if (*(void **)p != (void *)VMAGIC) {
-		printk("VDSO: variable %s broken\n", name);
-		vdso_enabled = 0;
-	}
-	return p;
-}
-
 static int __init init_vdso_vars(void)
 {
 	int npages = (vdso_end - vdso_start + PAGE_SIZE - 1) / PAGE_SIZE;
 	int i;
-	char *vbase;
 
 	vdso_size = npages << PAGE_SHIFT;
 	vdso_pages = kmalloc(sizeof(struct page *) * npages, GFP_KERNEL);
@@ -54,20 +41,6 @@ static int __init init_vdso_vars(void)
 		copy_page(page_address(p), vdso_start + i*PAGE_SIZE);
 	}
 
-	vbase = vmap(vdso_pages, npages, 0, PAGE_KERNEL);
-	if (!vbase)
-		goto oom;
-
-	if (memcmp(vbase, "\177ELF", 4)) {
-		printk("VDSO: I'm broken; not ELF\n");
-		vdso_enabled = 0;
-	}
-
-#define VEXTERN(x) \
-	*(typeof(__ ## x) **) var_ref(VDSO64_SYMBOL(vbase, x), #x) = &__ ## x;
-#include "vextern.h"
-#undef VEXTERN
-	vunmap(vbase);
 	return 0;
 
  oom:

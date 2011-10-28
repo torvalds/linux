@@ -7,7 +7,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#include <linux/threads.h>
+#include <linux/smp.h>
 #include <linux/module.h>
 #include <linux/memblock.h>
 
@@ -36,7 +36,7 @@ extern unsigned long __toc_start;
  * will suffice to ensure that it doesn't cross a page boundary.
  */
 struct lppaca lppaca[] = {
-	[0 ... (NR_CPUS-1)] = {
+	[0 ... (NR_LPPACAS-1)] = {
 		.desc = 0xd397d781,	/* "LpPa" */
 		.size = sizeof(struct lppaca),
 		.dyn_proc_status = 2,
@@ -48,6 +48,54 @@ struct lppaca lppaca[] = {
 		.page_ins = 0,
 	},
 };
+
+static struct lppaca *extra_lppacas;
+static long __initdata lppaca_size;
+
+static void allocate_lppacas(int nr_cpus, unsigned long limit)
+{
+	if (nr_cpus <= NR_LPPACAS)
+		return;
+
+	lppaca_size = PAGE_ALIGN(sizeof(struct lppaca) *
+				 (nr_cpus - NR_LPPACAS));
+	extra_lppacas = __va(memblock_alloc_base(lppaca_size,
+						 PAGE_SIZE, limit));
+}
+
+static struct lppaca *new_lppaca(int cpu)
+{
+	struct lppaca *lp;
+
+	if (cpu < NR_LPPACAS)
+		return &lppaca[cpu];
+
+	lp = extra_lppacas + (cpu - NR_LPPACAS);
+	*lp = lppaca[0];
+
+	return lp;
+}
+
+static void free_lppacas(void)
+{
+	long new_size = 0, nr;
+
+	if (!lppaca_size)
+		return;
+	nr = num_possible_cpus() - NR_LPPACAS;
+	if (nr > 0)
+		new_size = PAGE_ALIGN(nr * sizeof(struct lppaca));
+	if (new_size >= lppaca_size)
+		return;
+
+	memblock_free(__pa(extra_lppacas) + new_size, lppaca_size - new_size);
+	lppaca_size = new_size;
+}
+
+#else
+
+static inline void allocate_lppacas(int nr_cpus, unsigned long limit) { }
+static inline void free_lppacas(void) { }
 
 #endif /* CONFIG_PPC_BOOK3S */
 
@@ -88,7 +136,7 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 	unsigned long kernel_toc = (unsigned long)(&__toc_start) + 0x8000UL;
 
 #ifdef CONFIG_PPC_BOOK3S
-	new_paca->lppaca_ptr = &lppaca[cpu];
+	new_paca->lppaca_ptr = new_lppaca(cpu);
 #else
 	new_paca->kernel_pgd = swapper_pg_dir;
 #endif
@@ -108,18 +156,29 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 /* Put the paca pointer into r13 and SPRG_PACA */
 void setup_paca(struct paca_struct *new_paca)
 {
+	/* Setup r13 */
 	local_paca = new_paca;
-	mtspr(SPRN_SPRG_PACA, local_paca);
+
 #ifdef CONFIG_PPC_BOOK3E
+	/* On Book3E, initialize the TLB miss exception frames */
 	mtspr(SPRN_SPRG_TLB_EXFRAME, local_paca->extlb);
+#else
+	/* In HV mode, we setup both HPACA and PACA to avoid problems
+	 * if we do a GET_PACA() before the feature fixups have been
+	 * applied
+	 */
+	if (cpu_has_feature(CPU_FTR_HVMODE_206))
+		mtspr(SPRN_SPRG_HPACA, local_paca);
 #endif
+	mtspr(SPRN_SPRG_PACA, local_paca);
+
 }
 
 static int __initdata paca_size;
 
 void __init allocate_pacas(void)
 {
-	int nr_cpus, cpu, limit;
+	int cpu, limit;
 
 	/*
 	 * We can't take SLB misses on the paca, and we want to access them
@@ -127,25 +186,22 @@ void __init allocate_pacas(void)
 	 * the first segment. On iSeries they must be within the area mapped
 	 * by the HV, which is HvPagesToMap * HVPAGESIZE bytes.
 	 */
-	limit = min(0x10000000ULL, memblock.rmo_size);
+	limit = min(0x10000000ULL, ppc64_rma_size);
 	if (firmware_has_feature(FW_FEATURE_ISERIES))
 		limit = min(limit, HvPagesToMap * HVPAGESIZE);
 
-	nr_cpus = NR_CPUS;
-	/* On iSeries we know we can never have more than 64 cpus */
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		nr_cpus = min(64, nr_cpus);
-
-	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpus);
+	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);
 
 	paca = __va(memblock_alloc_base(paca_size, PAGE_SIZE, limit));
 	memset(paca, 0, paca_size);
 
 	printk(KERN_DEBUG "Allocated %u bytes for %d pacas at %p\n",
-		paca_size, nr_cpus, paca);
+		paca_size, nr_cpu_ids, paca);
+
+	allocate_lppacas(nr_cpu_ids, limit);
 
 	/* Can't use for_each_*_cpu, as they aren't functional yet */
-	for (cpu = 0; cpu < nr_cpus; cpu++)
+	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
 		initialise_paca(&paca[cpu], cpu);
 }
 
@@ -153,7 +209,7 @@ void __init free_unused_pacas(void)
 {
 	int new_size;
 
-	new_size = PAGE_ALIGN(sizeof(struct paca_struct) * num_possible_cpus());
+	new_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);
 
 	if (new_size >= paca_size)
 		return;
@@ -164,4 +220,6 @@ void __init free_unused_pacas(void)
 		paca_size - new_size);
 
 	paca_size = new_size;
+
+	free_lppacas();
 }

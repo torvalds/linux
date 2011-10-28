@@ -877,12 +877,12 @@ static void tdfxfb_fillrect(struct fb_info *info,
 	else
 		tdfx_rop = TDFX_ROP_XOR;
 
-	/* asume always rect->height < 4096 */
+	/* assume always rect->height < 4096 */
 	if (dy + rect->height > 4095) {
 		dstbase = stride * dy;
 		dy = 0;
 	}
-	/* asume always rect->width < 4096 */
+	/* assume always rect->width < 4096 */
 	if (dx + rect->width > 4095) {
 		dstbase += dx * bpp >> 3;
 		dx = 0;
@@ -915,22 +915,22 @@ static void tdfxfb_copyarea(struct fb_info *info,
 	u32 dstbase = 0;
 	u32 srcbase = 0;
 
-	/* asume always area->height < 4096 */
+	/* assume always area->height < 4096 */
 	if (sy + area->height > 4095) {
 		srcbase = stride * sy;
 		sy = 0;
 	}
-	/* asume always area->width < 4096 */
+	/* assume always area->width < 4096 */
 	if (sx + area->width > 4095) {
 		srcbase += sx * bpp >> 3;
 		sx = 0;
 	}
-	/* asume always area->height < 4096 */
+	/* assume always area->height < 4096 */
 	if (dy + area->height > 4095) {
 		dstbase = stride * dy;
 		dy = 0;
 	}
-	/* asume always area->width < 4096 */
+	/* assume always area->width < 4096 */
 	if (dx + area->width > 4095) {
 		dstbase += dx * bpp >> 3;
 		dx = 0;
@@ -1003,12 +1003,12 @@ static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image)
 #else
 	srcfmt = 0x400000;
 #endif
-	/* asume always image->height < 4096 */
+	/* assume always image->height < 4096 */
 	if (dy + image->height > 4095) {
 		dstbase = stride * dy;
 		dy = 0;
 	}
-	/* asume always image->width < 4096 */
+	/* assume always image->width < 4096 */
 	if (dx + image->width > 4095) {
 		dstbase += dx * bpp >> 3;
 		dx = 0;
@@ -1124,7 +1124,7 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		 * lower half (least significant 64 bits) of a 128 bit word
 		 * and pattern 1 the upper half. If you examine the data of
 		 * the cursor image the graphics card uses then from the
-		 * begining you see line one of pattern 0, line one of
+		 * beginning you see line one of pattern 0, line one of
 		 * pattern 1, line two of pattern 0, line two of pattern 1,
 		 * etc etc. The linear stride for the cursor is always 16 bytes
 		 * (128 bits) which is the maximum cursor width times two for

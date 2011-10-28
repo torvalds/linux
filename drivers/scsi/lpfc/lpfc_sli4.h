@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009 Emulex.  All rights reserved.                *
+ * Copyright (C) 2009-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -19,9 +19,15 @@
  *******************************************************************/
 
 #define LPFC_ACTIVE_MBOX_WAIT_CNT               100
+#define LPFC_XRI_EXCH_BUSY_WAIT_TMO		10000
+#define LPFC_XRI_EXCH_BUSY_WAIT_T1   		10
+#define LPFC_XRI_EXCH_BUSY_WAIT_T2              30000
 #define LPFC_RELEASE_NOTIFICATION_INTERVAL	32
 #define LPFC_GET_QE_REL_INT			32
 #define LPFC_RPI_LOW_WATER_MARK			10
+
+#define LPFC_UNREG_FCF                          1
+#define LPFC_SKIP_UNREG_FCF                     0
 
 /* Amount of time in seconds for waiting FCF rediscovery to complete */
 #define LPFC_FCF_REDISCOVER_WAIT_TMO		2000 /* msec */
@@ -119,9 +125,9 @@ struct lpfc_queue {
 	uint32_t entry_count;	/* Number of entries to support on the queue */
 	uint32_t entry_size;	/* Size of each queue entry. */
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
+	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
 	struct list_head page_list;
 	uint32_t page_count;	/* Number of pages allocated for this queue */
-
 	uint32_t host_index;	/* The host's index for putting or getting */
 	uint32_t hba_index;	/* The last known hba index for get or put */
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
@@ -131,9 +137,11 @@ struct lpfc_sli4_link {
 	uint8_t speed;
 	uint8_t duplex;
 	uint8_t status;
-	uint8_t physical;
+	uint8_t type;
+	uint8_t number;
 	uint8_t fault;
 	uint16_t logical_speed;
+	uint16_t topology;
 };
 
 struct lpfc_fcf_rec {
@@ -163,9 +171,8 @@ struct lpfc_fcf {
 #define FCF_REDISC_PEND	0x80 /* FCF rediscovery pending */
 #define FCF_REDISC_EVT	0x100 /* FCF rediscovery event to worker thread */
 #define FCF_REDISC_FOV	0x200 /* Post FCF rediscovery fast failover */
-#define FCF_REDISC_RRU	0x400 /* Roundrobin bitmap updated */
+#define FCF_REDISC_PROG (FCF_REDISC_PEND | FCF_REDISC_EVT)
 	uint32_t addr_mode;
-	uint16_t fcf_rr_init_indx;
 	uint32_t eligible_fcf_cnt;
 	struct lpfc_fcf_rec current_rec;
 	struct lpfc_fcf_rec failover_rec;
@@ -303,7 +310,6 @@ struct lpfc_max_cfg_param {
 	uint16_t vfi_base;
 	uint16_t vfi_used;
 	uint16_t max_fcfi;
-	uint16_t fcfi_base;
 	uint16_t fcfi_used;
 	uint16_t max_eq;
 	uint16_t max_rq;
@@ -352,6 +358,15 @@ struct lpfc_pc_sli4_params {
 	uint32_t hdr_pp_align;
 	uint32_t sgl_pages_max;
 	uint32_t sgl_pp_align;
+	uint8_t cqv;
+	uint8_t mqv;
+	uint8_t wqv;
+	uint8_t rqv;
+};
+
+struct lpfc_iov {
+	uint32_t pf_number;
+	uint32_t vf_number;
 };
 
 /* SLI4 HBA data structure entries */
@@ -362,23 +377,39 @@ struct lpfc_sli4_hba {
 					     PCI BAR1, control registers */
 	void __iomem *drbl_regs_memmap_p; /* Kernel memory mapped address for
 					     PCI BAR2, doorbell registers */
-	/* BAR0 PCI config space register memory map */
-	void __iomem *UERRLOregaddr; /* Address to UERR_STATUS_LO register */
-	void __iomem *UERRHIregaddr; /* Address to UERR_STATUS_HI register */
-	void __iomem *UEMASKLOregaddr; /* Address to UE_MASK_LO register */
-	void __iomem *UEMASKHIregaddr; /* Address to UE_MASK_HI register */
-	void __iomem *SLIINTFregaddr; /* Address to SLI_INTF register */
-	/* BAR1 FCoE function CSR register memory map */
-	void __iomem *STAregaddr;    /* Address to HST_STATE register */
-	void __iomem *ISRregaddr;    /* Address to HST_ISR register */
-	void __iomem *IMRregaddr;    /* Address to HST_IMR register */
-	void __iomem *ISCRregaddr;   /* Address to HST_ISCR register */
-	/* BAR2 VF-0 doorbell register memory map */
-	void __iomem *RQDBregaddr;   /* Address to RQ_DOORBELL register */
-	void __iomem *WQDBregaddr;   /* Address to WQ_DOORBELL register */
-	void __iomem *EQCQDBregaddr; /* Address to EQCQ_DOORBELL register */
-	void __iomem *MQDBregaddr;   /* Address to MQ_DOORBELL register */
-	void __iomem *BMBXregaddr;   /* Address to BootStrap MBX register */
+	union {
+		struct {
+			/* IF Type 0, BAR 0 PCI cfg space reg mem map */
+			void __iomem *UERRLOregaddr;
+			void __iomem *UERRHIregaddr;
+			void __iomem *UEMASKLOregaddr;
+			void __iomem *UEMASKHIregaddr;
+		} if_type0;
+		struct {
+			/* IF Type 2, BAR 0 PCI cfg space reg mem map. */
+			void __iomem *STATUSregaddr;
+			void __iomem *CTRLregaddr;
+			void __iomem *ERR1regaddr;
+			void __iomem *ERR2regaddr;
+		} if_type2;
+	} u;
+
+	/* IF type 0, BAR1 and if type 2, Bar 0 CSR register memory map */
+	void __iomem *PSMPHRregaddr;
+
+	/* Well-known SLI INTF register memory map. */
+	void __iomem *SLIINTFregaddr;
+
+	/* IF type 0, BAR 1 function CSR register memory map */
+	void __iomem *ISRregaddr;	/* HST_ISR register */
+	void __iomem *IMRregaddr;	/* HST_IMR register */
+	void __iomem *ISCRregaddr;	/* HST_ISCR register */
+	/* IF type 0, BAR 0 and if type 2, BAR 0 doorbell register memory map */
+	void __iomem *RQDBregaddr;	/* RQ_DOORBELL register */
+	void __iomem *WQDBregaddr;	/* WQ_DOORBELL register */
+	void __iomem *EQCQDBregaddr;	/* EQCQ_DOORBELL register */
+	void __iomem *MQDBregaddr;	/* MQ_DOORBELL register */
+	void __iomem *BMBXregaddr;	/* BootStrap MBX register */
 
 	uint32_t ue_mask_lo;
 	uint32_t ue_mask_hi;
@@ -417,10 +448,13 @@ struct lpfc_sli4_hba {
 	uint32_t intr_enable;
 	struct lpfc_bmbx bmbx;
 	struct lpfc_max_cfg_param max_cfg_param;
+	uint16_t extents_in_use; /* must allocate resource extents. */
+	uint16_t rpi_hdrs_in_use; /* must post rpi hdrs if set. */
 	uint16_t next_xri; /* last_xri - max_cfg_param.xri_base = used */
 	uint16_t next_rpi;
 	uint16_t scsi_xri_max;
 	uint16_t scsi_xri_cnt;
+	uint16_t scsi_xri_start;
 	struct list_head lpfc_free_sgl_list;
 	struct list_head lpfc_sgl_list;
 	struct lpfc_sglq **lpfc_els_sgl_array;
@@ -431,7 +465,17 @@ struct lpfc_sli4_hba {
 	struct lpfc_sglq **lpfc_sglq_active_list;
 	struct list_head lpfc_rpi_hdr_list;
 	unsigned long *rpi_bmask;
+	uint16_t *rpi_ids;
 	uint16_t rpi_count;
+	struct list_head lpfc_rpi_blk_list;
+	unsigned long *xri_bmask;
+	uint16_t *xri_ids;
+	uint16_t xri_count;
+	struct list_head lpfc_xri_blk_list;
+	unsigned long *vfi_bmask;
+	uint16_t *vfi_ids;
+	uint16_t vfi_count;
+	struct list_head lpfc_vfi_blk_list;
 	struct lpfc_sli4_flags sli4_flags;
 	struct list_head sp_queue_event;
 	struct list_head sp_cqe_event_pool;
@@ -440,6 +484,7 @@ struct lpfc_sli4_hba {
 	struct list_head sp_els_xri_aborted_work_queue;
 	struct list_head sp_unsol_work_queue;
 	struct lpfc_sli4_link link_state;
+	struct lpfc_iov iov;
 	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t abts_sgl_list_lock; /* list of aborted els IOs */
 };
@@ -461,7 +506,9 @@ struct lpfc_sglq {
 	struct list_head clist;
 	enum lpfc_sge_type buff_type; /* is this a scsi sgl */
 	enum lpfc_sgl_state state;
+	struct lpfc_nodelist *ndlp; /* ndlp associated with IO */
 	uint16_t iotag;         /* pre-assigned IO tag */
+	uint16_t sli4_lxritag;  /* logical pre-assigned xri. */
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
 	struct sli4_sge *sgl;	/* pre-assigned SGL */
 	void *virt;		/* virtual address. */
@@ -476,12 +523,18 @@ struct lpfc_rpi_hdr {
 	uint32_t start_rpi;
 };
 
+struct lpfc_rsrc_blks {
+	struct list_head list;
+	uint16_t rsrc_start;
+	uint16_t rsrc_size;
+	uint16_t rsrc_used;
+};
+
 /*
  * SLI4 specific function prototypes
  */
 int lpfc_pci_function_reset(struct lpfc_hba *);
 int lpfc_sli4_hba_setup(struct lpfc_hba *);
-int lpfc_sli4_hba_down(struct lpfc_hba *);
 int lpfc_sli4_config(struct lpfc_hba *, struct lpfcMboxq *, uint8_t,
 		     uint8_t, uint32_t, bool);
 void lpfc_sli4_mbox_cmd_free(struct lpfc_hba *, struct lpfcMboxq *);
@@ -514,11 +567,13 @@ int lpfc_sli4_queue_setup(struct lpfc_hba *);
 void lpfc_sli4_queue_unset(struct lpfc_hba *);
 int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
 int lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *);
-int lpfc_sli4_remove_all_sgl_pages(struct lpfc_hba *);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);
-int lpfc_sli4_post_sgl_list(struct lpfc_hba *phba);
+int lpfc_sli4_post_els_sgl_list(struct lpfc_hba *phba);
+int lpfc_sli4_post_els_sgl_list_ext(struct lpfc_hba *phba);
 int lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *, struct list_head *, int);
+int lpfc_sli4_post_scsi_sgl_blk_ext(struct lpfc_hba *, struct list_head *,
+				    int);
 struct lpfc_cq_event *__lpfc_sli4_cq_event_alloc(struct lpfc_hba *);
 struct lpfc_cq_event *lpfc_sli4_cq_event_alloc(struct lpfc_hba *);
 void __lpfc_sli4_cq_event_release(struct lpfc_hba *, struct lpfc_cq_event *);
@@ -529,7 +584,6 @@ int lpfc_sli4_post_all_rpi_hdrs(struct lpfc_hba *);
 struct lpfc_rpi_hdr *lpfc_sli4_create_rpi_hdr(struct lpfc_hba *);
 void lpfc_sli4_remove_rpi_hdrs(struct lpfc_hba *);
 int lpfc_sli4_alloc_rpi(struct lpfc_hba *);
-void __lpfc_sli4_free_rpi(struct lpfc_hba *, int);
 void lpfc_sli4_free_rpi(struct lpfc_hba *, int);
 void lpfc_sli4_remove_rpis(struct lpfc_hba *);
 void lpfc_sli4_async_event_proc(struct lpfc_hba *);
@@ -541,11 +595,13 @@ void lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *,
 			       struct sli4_wcqe_xri_aborted *);
 void lpfc_sli4_els_xri_aborted(struct lpfc_hba *,
 			       struct sli4_wcqe_xri_aborted *);
+void lpfc_sli4_vport_delete_els_xri_aborted(struct lpfc_vport *);
+void lpfc_sli4_vport_delete_fcp_xri_aborted(struct lpfc_vport *);
 int lpfc_sli4_brdreset(struct lpfc_hba *);
 int lpfc_sli4_add_fcf_record(struct lpfc_hba *, struct fcf_record *);
 void lpfc_sli_remove_dflt_fcf(struct lpfc_hba *);
 int lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *);
-int lpfc_sli4_init_vpi(struct lpfc_hba *, uint16_t);
+int lpfc_sli4_init_vpi(struct lpfc_vport *);
 uint32_t lpfc_sli4_cq_release(struct lpfc_queue *, bool);
 uint32_t lpfc_sli4_eq_release(struct lpfc_queue *, bool);
 void lpfc_sli4_fcfi_unreg(struct lpfc_hba *, uint16_t);

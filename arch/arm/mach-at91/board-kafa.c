@@ -35,31 +35,30 @@
 
 #include <mach/board.h>
 #include <mach/gpio.h>
+#include <mach/cpu.h>
 
 #include "generic.h"
 
 
-/*
- * Serial port configuration.
- *    0 .. 3 = USART0 .. USART3
- *    4      = DBGU
- */
-static struct at91_uart_config __initdata kafa_uart_config = {
-	.console_tty	= 0,				/* ttyS0 */
-	.nr_tty		= 2,
-	.tty_map	= { 4, 0, -1, -1, -1 }		/* ttyS0, ..., ttyS4 */
-};
-
-static void __init kafa_map_io(void)
+static void __init kafa_init_early(void)
 {
+	/* Set cpu type: PQFP */
+	at91rm9200_set_type(ARCH_REVISON_9200_PQFP);
+
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000, AT91RM9200_PQFP);
+	at91rm9200_initialize(18432000);
 
 	/* Set up the LEDs */
 	at91_init_leds(AT91_PIN_PB4, AT91_PIN_PB4);
 
-	/* Setup the serial ports and console */
-	at91_init_serial(&kafa_uart_config);
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1 (Rx, Tx, CTS, RTS) */
+	at91_register_uart(AT91RM9200_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
+
+	/* set serial console to ttyS0 (ie, DBGU) */
+	at91_set_serial_console(0);
 }
 
 static void __init kafa_init_irq(void)
@@ -99,11 +98,9 @@ static void __init kafa_board_init(void)
 
 MACHINE_START(KAFA, "Sperry-Sun KAFA")
 	/* Maintainer: Sergei Sharonov */
-	.phys_io	= AT91_BASE_SYS,
-	.io_pg_offst	= (AT91_VA_BASE_SYS >> 18) & 0xfffc,
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= kafa_map_io,
+	.map_io		= at91rm9200_map_io,
+	.init_early	= kafa_init_early,
 	.init_irq	= kafa_init_irq,
 	.init_machine	= kafa_board_init,
 MACHINE_END

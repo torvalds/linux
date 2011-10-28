@@ -17,6 +17,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
@@ -86,13 +87,24 @@ static struct sleep_save s3c2412_sleep[] = {
 	SAVE_ITEM(S3C2413_GPJSLPCON),
 };
 
-static int s3c2412_pm_suspend(struct sys_device *dev, pm_message_t state)
+static struct sysdev_driver s3c2412_pm_driver = {
+	.add		= s3c2412_pm_add,
+};
+
+static __init int s3c2412_pm_init(void)
+{
+	return sysdev_driver_register(&s3c2412_sysclass, &s3c2412_pm_driver);
+}
+
+arch_initcall(s3c2412_pm_init);
+
+static int s3c2412_pm_suspend(void)
 {
 	s3c_pm_do_save(s3c2412_sleep, ARRAY_SIZE(s3c2412_sleep));
 	return 0;
 }
 
-static int s3c2412_pm_resume(struct sys_device *dev)
+static void s3c2412_pm_resume(void)
 {
 	unsigned long tmp;
 
@@ -102,18 +114,9 @@ static int s3c2412_pm_resume(struct sys_device *dev)
 	__raw_writel(tmp, S3C2412_PWRCFG);
 
 	s3c_pm_do_restore(s3c2412_sleep, ARRAY_SIZE(s3c2412_sleep));
-	return 0;
 }
 
-static struct sysdev_driver s3c2412_pm_driver = {
-	.add		= s3c2412_pm_add,
+struct syscore_ops s3c2412_pm_syscore_ops = {
 	.suspend	= s3c2412_pm_suspend,
 	.resume		= s3c2412_pm_resume,
 };
-
-static __init int s3c2412_pm_init(void)
-{
-	return sysdev_driver_register(&s3c2412_sysclass, &s3c2412_pm_driver);
-}
-
-arch_initcall(s3c2412_pm_init);

@@ -28,6 +28,16 @@ config INPUT_88PM860X_ONKEY
 	  To compile this driver as a module, choose M here: the module
 	  will be called 88pm860x_onkey.
 
+config INPUT_AB8500_PONKEY
+	tristate "AB8500 Pon (PowerOn) Key"
+	depends on AB8500_CORE
+	help
+	  Say Y here to use the PowerOn Key for ST-Ericsson's AB8500
+	  Mix-Sig PMIC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ab8500-ponkey.
+
 config INPUT_AD714X
 	tristate "Analog Devices AD714x Capacitance Touch Sensor"
 	help
@@ -189,6 +199,17 @@ config INPUT_ATI_REMOTE2
 	  To compile this driver as a module, choose M here: the module will be
 	  called ati_remote2.
 
+config INPUT_KEYCHORD
+	tristate "Key chord input driver support"
+	help
+	  Say Y here if you want to enable the key chord driver
+	  accessible at /dev/keychord.  This driver can be used
+	  for receiving notifications when client specified key
+	  combinations are pressed.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called keychord.
+
 config INPUT_KEYSPAN_REMOTE
 	tristate "Keyspan DMR USB remote control (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -300,23 +321,10 @@ config INPUT_SGI_BTNS
 	  To compile this driver as a module, choose M here: the
 	  module will be called sgi_btns.
 
-config INPUT_WINBOND_CIR
-	tristate "Winbond IR remote control"
-	depends on X86 && PNP
-	select NEW_LEDS
-	select LEDS_CLASS
-	select LEDS_TRIGGERS
-	select BITREVERSE
+config INPUT_GPIO
+	tristate "GPIO driver support"
 	help
-	  Say Y here if you want to use the IR remote functionality found
-	  in some Winbond SuperI/O chips. Currently only the WPCD376I
-	  chip is supported (included in some Intel Media series motherboards).
-
-	  IR Receive and wake-on-IR from suspend and power-off is currently
-	  supported.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called winbond_cir.
+	  Say Y here if you want to support gpio based keys, wheels etc...
 
 config HP_SDC_RTC
 	tristate "HP SDC Real Time Clock"
@@ -353,6 +361,17 @@ config INPUT_PWM_BEEPER
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pwm-beeper.
+
+config INPUT_PMIC8XXX_PWRKEY
+	tristate "PMIC8XXX power key support"
+	depends on MFD_PM8XXX
+	help
+	  Say Y here if you want support for the PMIC8XXX power key.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pmic8xxx-pwrkey.
 
 config INPUT_GPIO_ROTARY_ENCODER
 	tristate "Rotary encoders connected to GPIO pins"
@@ -453,5 +472,42 @@ config INPUT_ADXL34X_SPI
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called adxl34x-spi.
+
+config INPUT_CMA3000
+	tristate "VTI CMA3000 Tri-axis accelerometer"
+	help
+	  Say Y here if you want to use VTI CMA3000_D0x Accelerometer
+	  driver
+
+	  This driver currently only supports I2C interface to the
+	  controller. Also select the I2C method.
+
+	  If unsure, say N
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cma3000_d0x.
+
+config INPUT_CMA3000_I2C
+	tristate "Support I2C bus connection"
+	depends on INPUT_CMA3000 && I2C
+	help
+	  Say Y here if you want to use VTI CMA3000_D0x Accelerometer
+	  through I2C interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cma3000_d0x_i2c.
+
+config INPUT_XEN_KBDDEV_FRONTEND
+	tristate "Xen virtual keyboard and mouse support"
+	depends on XEN_FBDEV_FRONTEND
+	default y
+	select XEN_XENBUS_FRONTEND
+	help
+	  This driver implements the front-end of the Xen virtual
+	  keyboard and mouse device driver.  It communicates with a back-end
+	  in another domain.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xen-kbdfront.
 
 endif

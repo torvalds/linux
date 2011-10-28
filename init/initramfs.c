@@ -485,7 +485,8 @@ static int __init retain_initrd_param(char *str)
 }
 __setup("retain_initrd", retain_initrd_param);
 
-extern char __initramfs_start[], __initramfs_end[];
+extern char __initramfs_start[];
+extern unsigned long __initramfs_size;
 #include <linux/initrd.h>
 #include <linux/kexec.h>
 
@@ -530,7 +531,7 @@ static void __init clean_rootfs(void)
 	struct linux_dirent64 *dirp;
 	int num;
 
-	fd = sys_open("/", O_RDONLY, 0);
+	fd = sys_open((const char __user __force *) "/", O_RDONLY, 0);
 	WARN_ON(fd < 0);
 	if (fd < 0)
 		return;
@@ -572,8 +573,7 @@ static void __init clean_rootfs(void)
 
 static int __init populate_rootfs(void)
 {
-	char *err = unpack_to_rootfs(__initramfs_start,
-			 __initramfs_end - __initramfs_start);
+	char *err = unpack_to_rootfs(__initramfs_start, __initramfs_size);
 	if (err)
 		panic(err);	/* Failed to decompress INTERNAL initramfs */
 	if (initrd_start) {
@@ -587,12 +587,12 @@ static int __init populate_rootfs(void)
 			return 0;
 		} else {
 			clean_rootfs();
-			unpack_to_rootfs(__initramfs_start,
-				 __initramfs_end - __initramfs_start);
+			unpack_to_rootfs(__initramfs_start, __initramfs_size);
 		}
 		printk(KERN_INFO "rootfs image is not initramfs (%s)"
 				"; looks like an initrd\n", err);
-		fd = sys_open("/initrd.image", O_WRONLY|O_CREAT, 0700);
+		fd = sys_open((const char __user __force *) "/initrd.image",
+			      O_WRONLY|O_CREAT, 0700);
 		if (fd >= 0) {
 			sys_write(fd, (char *)initrd_start,
 					initrd_end - initrd_start);

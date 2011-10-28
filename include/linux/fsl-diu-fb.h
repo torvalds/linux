@@ -24,12 +24,6 @@
  * See mpc8610fb_set_par(), map_video_memory(), and unmap_video_memory()
  */
 #define MEM_ALLOC_THRESHOLD (1024*768*4+32)
-/* Minimum value that the pixel clock can be set to in pico seconds
- * This is determined by platform clock/3 where the minimum platform
- * clock is 533MHz. This gives 5629 pico seconds.
- */
-#define MIN_PIX_CLK 5629
-#define MAX_PIX_CLK 96096
 
 #include <linux/types.h>
 
@@ -54,7 +48,6 @@ struct aoi_display_offset {
 };
 
 #define MFB_SET_CHROMA_KEY	_IOW('M', 1, struct mfb_chroma_key)
-#define MFB_WAIT_FOR_VSYNC	_IOW('F', 0x20, u_int32_t)
 #define MFB_SET_BRIGHTNESS	_IOW('M', 3, __u8)
 
 #define MFB_SET_ALPHA		0x80014d00

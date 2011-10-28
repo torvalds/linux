@@ -26,7 +26,7 @@
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "cx23885.h"
 
@@ -704,6 +704,7 @@ static int cx23888_ir_rx_read(struct v4l2_subdev *sd, u8 *buf, size_t count,
 		if (v > IR_MAX_DURATION)
 			v = IR_MAX_DURATION;
 
+		init_ir_raw_event(&p->ir_core_data);
 		p->ir_core_data.pulse = u;
 		p->ir_core_data.duration = v;
 

@@ -239,6 +239,7 @@ Your cooperation is appreciated.
 		  0 = /dev/tty		Current TTY device
 		  1 = /dev/console	System console
 		  2 = /dev/ptmx		PTY master multiplex
+		  3 = /dev/ttyprintk	User messages via printk TTY device
 		 64 = /dev/cua0		Callout device for ttyS0
 		    ...
 		255 = /dev/cua191	Callout device for ttyS191
@@ -1495,9 +1496,6 @@ Your cooperation is appreciated.
 		 64 = /dev/radio0	Radio device
 		    ...
 		127 = /dev/radio63	Radio device
-		192 = /dev/vtx0		Teletext device
-		    ...
-		223 = /dev/vtx31	Teletext device
 		224 = /dev/vbi0		Vertical blank interrupt
 		    ...
 		255 = /dev/vbi31	Vertical blank interrupt
@@ -2519,6 +2517,12 @@ Your cooperation is appreciated.
 		  8 = /dev/mmcblk1      Second SD/MMC card
 		    ...
 
+		The start of next SD/MMC card can be configured with
+		CONFIG_MMC_BLOCK_MINORS, or overridden at boot/modprobe
+		time using the mmcblk.perdev_minors option. That would
+		bump the offset between each card to be the configured
+		value instead of the default 8.
+
 179 char	CCube DVXChip-based PCI products
 		  0 = /dev/dvxirq0	First DVX device
 		  1 = /dev/dvxirq1	Second DVX device
@@ -2553,7 +2557,10 @@ Your cooperation is appreciated.
 		175 = /dev/usb/legousbtower15	16th USB Legotower device
 		176 = /dev/usb/usbtmc1	First USB TMC device
 		   ...
-		192 = /dev/usb/usbtmc16	16th USB TMC device
+		191 = /dev/usb/usbtmc16	16th USB TMC device
+		192 = /dev/usb/yurex1	First USB Yurex device
+		   ...
+		209 = /dev/usb/yurex16	16th USB Yurex device
 		240 = /dev/usb/dabusb0	First daubusb device
 		    ...
 		243 = /dev/usb/dabusb3	Fourth dabusb device

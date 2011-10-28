@@ -47,7 +47,7 @@
 #include <plat/dma.h>
 #include <plat/vram.h>
 #include <plat/vrfb.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 #include "omap_voutlib.h"
 #include "omap_voutdef.h"
@@ -473,7 +473,7 @@ static int omap_vout_vrfb_buffer_setup(struct omap_vout_device *vout,
 /*
  * Convert V4L2 rotation to DSS rotation
  *	V4L2 understand 0, 90, 180, 270.
- *	Convert to 0, 1, 2 and 3 repsectively for DSS
+ *	Convert to 0, 1, 2 and 3 respectively for DSS
  */
 static int v4l2_rot_to_dss_rot(int v4l2_rotation,
 			enum dss_rotation *rotation, bool mirror)
@@ -982,6 +982,14 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 	startindex = (vout->vid == OMAP_VIDEO1) ?
 		video1_numbuffers : video2_numbuffers;
 
+	/* Check the size of the buffer */
+	if (*size > vout->buffer_size) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+				"buffer allocation mismatch [%u] [%u]\n",
+				*size, vout->buffer_size);
+		return -ENOMEM;
+	}
+
 	for (i = startindex; i < *count; i++) {
 		vout->buffer_size = *size;
 
@@ -1142,7 +1150,7 @@ static int omap_vout_buffer_prepare(struct videobuf_queue *q,
 }
 
 /*
- * Buffer queue funtion will be called from the videobuf layer when _QBUF
+ * Buffer queue function will be called from the videobuf layer when _QBUF
  * ioctl is called. It is used to enqueue buffer, which is ready to be
  * displayed.
  */
@@ -1228,6 +1236,14 @@ static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
 				(vma->vm_pgoff << PAGE_SHIFT));
 		return -EINVAL;
 	}
+	/* Check the size of the buffer */
+	if (size > vout->buffer_size) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+				"insufficient memory [%lu] [%u]\n",
+				size, vout->buffer_size);
+		return -ENOMEM;
+	}
+
 	q->bufs[i]->baddr = vma->vm_start;
 
 	vma->vm_flags |= VM_RESERVED;
@@ -1286,7 +1302,7 @@ static int omap_vout_release(struct file *file)
 	videobuf_mmap_free(q);
 
 	/* Even if apply changes fails we should continue
-	   freeing allocated memeory */
+	   freeing allocated memory */
 	if (vout->streaming) {
 		u32 mask = 0;
 
@@ -1341,7 +1357,7 @@ static int omap_vout_open(struct file *file)
 
 	videobuf_queue_dma_contig_init(q, &video_vbq_ops, q->dev,
 			&vout->vbq_lock, vout->type, V4L2_FIELD_NONE,
-			sizeof(struct videobuf_buffer), vout);
+			sizeof(struct videobuf_buffer), vout, NULL);
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
 	return 0;
@@ -2230,7 +2246,6 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 
 	strlcpy(vfd->name, VOUT_NAME, sizeof(vfd->name));
 
-	/* need to register for a VID_HARDWARE_* ID in videodev.h */
 	vfd->fops = &omap_vout_fops;
 	vfd->v4l2_dev = &vout->vid_dev->v4l2_dev;
 	mutex_init(&vout->lock);
@@ -2392,7 +2407,7 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 		/* Register the Video device with V4L2
 		 */
 		vfd = vout->vfd;
-		if (video_register_device(vfd, VFL_TYPE_GRABBER, k + 1) < 0) {
+		if (video_register_device(vfd, VFL_TYPE_GRABBER, -1) < 0) {
 			dev_err(&pdev->dev, ": Could not register "
 					"Video for Linux device\n");
 			vfd->minor = -1;

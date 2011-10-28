@@ -32,6 +32,12 @@
 #define R_MN10300_ALIGN 	34	/* Alignment requirement. */
 
 /*
+ * AM33/AM34 HW Capabilities
+ */
+#define HWCAP_MN10300_ATOMIC_OP_UNIT	1	/* Has AM34 Atomic Operations */
+
+
+/*
  * ELF register definitions..
  */
 typedef unsigned long elf_greg_t;
@@ -46,8 +52,6 @@ typedef struct {
 	elf_fpreg_t	fpregs[ELF_NFPREG];
 	u_int32_t	fpcr;
 } elf_fpregset_t;
-
-extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 
 /*
  * This is used to ensure we don't load something for the wrong architecture
@@ -130,7 +134,11 @@ do {						\
  * instruction set this CPU supports.  This could be done in user space,
  * but it's not easy, and we've already done it here.
  */
+#ifdef CONFIG_MN10300_HAS_ATOMIC_OPS_UNIT
+#define ELF_HWCAP	(HWCAP_MN10300_ATOMIC_OP_UNIT)
+#else
 #define ELF_HWCAP	(0)
+#endif
 
 /*
  * This yields a string that ld.so will use to load implementation

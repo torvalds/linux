@@ -307,7 +307,7 @@ int sr_drive_status(struct cdrom_device_info *cdi, int slot)
 		/* we have no changer support */
 		return -EINVAL;
 	}
-	if (0 == sr_test_unit_ready(cd->device, &sshdr))
+	if (!scsi_test_unit_ready(cd->device, SR_TIMEOUT, MAX_RETRIES, &sshdr))
 		return CDS_DISC_OK;
 
 	/* SK/ASC/ASCQ of 2/4/1 means "unit is becoming ready" */
@@ -323,6 +323,15 @@ int sr_drive_status(struct cdrom_device_info *cdi, int slot)
 		else
 			return CDS_NO_DISC;
 	}
+
+	/*
+	 * SK/ASC/ASCQ of 2/4/2 means "initialization required"
+	 * Using CD_TRAY_OPEN results in an START_STOP_UNIT to close
+	 * the tray, which resolves the initialization requirement.
+	 */
+	if (scsi_sense_valid(&sshdr) && sshdr.sense_key == NOT_READY
+			&& sshdr.asc == 0x04 && sshdr.ascq == 0x02)
+		return CDS_TRAY_OPEN;
 
 	/*
 	 * 0x04 is format in progress .. but there must be a disc present!

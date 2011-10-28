@@ -96,7 +96,7 @@ static struct ata_port_operations sis_ops = {
 };
 
 static const struct ata_port_info sis_port_info = {
-	.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+	.flags		= ATA_FLAG_SATA,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
 	.udma_mask	= ATA_UDMA6,

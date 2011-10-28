@@ -356,7 +356,7 @@ static int ql_get_settings(struct net_device *ndev,
 		ecmd->port = PORT_FIBRE;
 	}
 
-	ecmd->speed = SPEED_10000;
+	ethtool_cmd_speed_set(ecmd, SPEED_10000);
 	ecmd->duplex = DUPLEX_FULL;
 
 	return 0;
@@ -375,7 +375,10 @@ static void ql_get_drvinfo(struct net_device *ndev,
 	strncpy(drvinfo->bus_info, pci_name(qdev->pdev), 32);
 	drvinfo->n_stats = 0;
 	drvinfo->testinfo_len = 0;
-	drvinfo->regdump_len = 0;
+	if (!test_bit(QL_FRC_COREDUMP, &qdev->flags))
+		drvinfo->regdump_len = sizeof(struct ql_mpi_coredump);
+	else
+		drvinfo->regdump_len = sizeof(struct ql_reg_dump);
 	drvinfo->eedump_len = 0;
 }
 
@@ -409,31 +412,31 @@ static int ql_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
-static int ql_phys_id(struct net_device *ndev, u32 data)
+static int ql_set_phys_id(struct net_device *ndev,
+			  enum ethtool_phys_id_state state)
+
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
-	u32 led_reg, i;
-	int status;
 
-	/* Save the current LED settings */
-	status = ql_mb_get_led_cfg(qdev);
-	if (status)
-		return status;
-	led_reg = qdev->led_config;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		/* Save the current LED settings */
+		if (ql_mb_get_led_cfg(qdev))
+			return -EIO;
 
-	/* Start blinking the led */
-	if (!data || data > 300)
-		data = 300;
-
-	for (i = 0; i < (data * 10); i++)
+		/* Start blinking */
 		ql_mb_set_led_cfg(qdev, QL_LED_BLINK);
+		return 0;
 
-	/* Restore LED settings */
-	status = ql_mb_set_led_cfg(qdev, led_reg);
-	if (status)
-		return status;
+	case ETHTOOL_ID_INACTIVE:
+		/* Restore LED settings */
+		if (ql_mb_set_led_cfg(qdev, qdev->led_config))
+			return -EIO;
+		return 0;
 
-	return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int ql_start_loopback(struct ql_adapter *qdev)
@@ -547,7 +550,12 @@ static void ql_self_test(struct net_device *ndev,
 
 static int ql_get_regs_len(struct net_device *ndev)
 {
-	return sizeof(struct ql_reg_dump);
+	struct ql_adapter *qdev = netdev_priv(ndev);
+
+	if (!test_bit(QL_FRC_COREDUMP, &qdev->flags))
+		return sizeof(struct ql_mpi_coredump);
+	else
+		return sizeof(struct ql_reg_dump);
 }
 
 static void ql_get_regs(struct net_device *ndev,
@@ -555,7 +563,12 @@ static void ql_get_regs(struct net_device *ndev,
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 
-	ql_gen_reg_dump(qdev, p);
+	ql_get_dump(qdev, p);
+	qdev->core_is_dumped = 0;
+	if (!test_bit(QL_FRC_COREDUMP, &qdev->flags))
+		regs->len = sizeof(struct ql_mpi_coredump);
+	else
+		regs->len = sizeof(struct ql_reg_dump);
 }
 
 static int ql_get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
@@ -642,32 +655,6 @@ static int ql_set_pauseparam(struct net_device *netdev,
 	return status;
 }
 
-static u32 ql_get_rx_csum(struct net_device *netdev)
-{
-	struct ql_adapter *qdev = netdev_priv(netdev);
-	return qdev->rx_csum;
-}
-
-static int ql_set_rx_csum(struct net_device *netdev, uint32_t data)
-{
-	struct ql_adapter *qdev = netdev_priv(netdev);
-	qdev->rx_csum = data;
-	return 0;
-}
-
-static int ql_set_tso(struct net_device *ndev, uint32_t data)
-{
-
-	if (data) {
-		ndev->features |= NETIF_F_TSO;
-		ndev->features |= NETIF_F_TSO6;
-	} else {
-		ndev->features &= ~NETIF_F_TSO;
-		ndev->features &= ~NETIF_F_TSO6;
-	}
-	return 0;
-}
-
 static u32 ql_get_msglevel(struct net_device *ndev)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
@@ -690,18 +677,10 @@ const struct ethtool_ops qlge_ethtool_ops = {
 	.get_msglevel = ql_get_msglevel,
 	.set_msglevel = ql_set_msglevel,
 	.get_link = ethtool_op_get_link,
-	.phys_id		 = ql_phys_id,
+	.set_phys_id		 = ql_set_phys_id,
 	.self_test		 = ql_self_test,
 	.get_pauseparam		 = ql_get_pauseparam,
 	.set_pauseparam		 = ql_set_pauseparam,
-	.get_rx_csum = ql_get_rx_csum,
-	.set_rx_csum = ql_set_rx_csum,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.set_tx_csum = ethtool_op_set_tx_csum,
-	.get_sg = ethtool_op_get_sg,
-	.set_sg = ethtool_op_set_sg,
-	.get_tso = ethtool_op_get_tso,
-	.set_tso = ql_set_tso,
 	.get_coalesce = ql_get_coalesce,
 	.set_coalesce = ql_set_coalesce,
 	.get_sset_count = ql_get_sset_count,

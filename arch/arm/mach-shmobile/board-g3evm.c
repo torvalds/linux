@@ -347,7 +347,6 @@ static void __init g3evm_init(void)
 	gpio_request(GPIO_FN_IRDA_OUT, NULL);
 	gpio_request(GPIO_FN_IRDA_IN, NULL);
 	gpio_request(GPIO_FN_IRDA_FIRSEL, NULL);
-	set_irq_type(evt2irq(0x480), IRQ_TYPE_LEVEL_LOW);
 
 	sh7367_add_standard_devices();
 
@@ -365,10 +364,9 @@ static struct sys_timer g3evm_timer = {
 };
 
 MACHINE_START(G3EVM, "g3evm")
-	.phys_io	= 0xe6000000,
-	.io_pg_offst	= ((0xe6000000) >> 18) & 0xfffc,
 	.map_io		= g3evm_map_io,
 	.init_irq	= sh7367_init_irq,
+	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= g3evm_init,
 	.timer		= &g3evm_timer,
 MACHINE_END

@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
+#include <linux/prefetch.h>
 #include <asm/sstep.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
@@ -30,6 +31,7 @@ extern char system_call_common[];
 #define XER_OV		0x40000000U
 #define XER_CA		0x20000000U
 
+#ifdef CONFIG_PPC_FPU
 /*
  * Functions in ldstfp.S
  */
@@ -41,6 +43,19 @@ extern int do_lvx(int rn, unsigned long ea);
 extern int do_stvx(int rn, unsigned long ea);
 extern int do_lxvd2x(int rn, unsigned long ea);
 extern int do_stxvd2x(int rn, unsigned long ea);
+#endif
+
+/*
+ * Emulate the truncation of 64 bit values in 32-bit mode.
+ */
+static unsigned long truncate_if_32bit(unsigned long msr, unsigned long val)
+{
+#ifdef __powerpc64__
+	if ((msr & MSR_64BIT) == 0)
+		val &= 0xffffffffUL;
+#endif
+	return val;
+}
 
 /*
  * Determine whether a conditional branch instruction would branch.
@@ -88,11 +103,8 @@ static unsigned long __kprobes dform_ea(unsigned int instr, struct pt_regs *regs
 		if (instr & 0x04000000)		/* update forms */
 			regs->gpr[ra] = ea;
 	}
-#ifdef __powerpc64__
-	if (!(regs->msr & MSR_SF))
-		ea &= 0xffffffffUL;
-#endif
-	return ea;
+
+	return truncate_if_32bit(regs->msr, ea);
 }
 
 #ifdef __powerpc64__
@@ -111,9 +123,8 @@ static unsigned long __kprobes dsform_ea(unsigned int instr, struct pt_regs *reg
 		if ((instr & 3) == 1)		/* update forms */
 			regs->gpr[ra] = ea;
 	}
-	if (!(regs->msr & MSR_SF))
-		ea &= 0xffffffffUL;
-	return ea;
+
+	return truncate_if_32bit(regs->msr, ea);
 }
 #endif /* __powerpc64 */
 
@@ -134,11 +145,8 @@ static unsigned long __kprobes xform_ea(unsigned int instr, struct pt_regs *regs
 		if (do_update)		/* update forms */
 			regs->gpr[ra] = ea;
 	}
-#ifdef __powerpc64__
-	if (!(regs->msr & MSR_SF))
-		ea &= 0xffffffffUL;
-#endif
-	return ea;
+
+	return truncate_if_32bit(regs->msr, ea);
 }
 
 /*
@@ -290,6 +298,7 @@ static int __kprobes write_mem(unsigned long val, unsigned long ea, int nb,
 	return write_mem_unaligned(val, ea, nb, regs);
 }
 
+#ifdef CONFIG_PPC_FPU
 /*
  * Check the address and alignment, and call func to do the actual
  * load or store.
@@ -351,6 +360,7 @@ static int __kprobes do_fp_store(int rn, int (*func)(int, unsigned long),
 	}
 	return err;
 }
+#endif
 
 #ifdef CONFIG_ALTIVEC
 /* For Altivec/VMX, no need to worry about alignment */
@@ -462,7 +472,7 @@ static void __kprobes set_cr0(struct pt_regs *regs, int rd)
 
 	regs->ccr = (regs->ccr & 0x0fffffff) | ((regs->xer >> 3) & 0x10000000);
 #ifdef __powerpc64__
-	if (!(regs->msr & MSR_SF))
+	if (!(regs->msr & MSR_64BIT))
 		val = (int) val;
 #endif
 	if (val < 0)
@@ -483,7 +493,7 @@ static void __kprobes add_with_carry(struct pt_regs *regs, int rd,
 		++val;
 	regs->gpr[rd] = val;
 #ifdef __powerpc64__
-	if (!(regs->msr & MSR_SF)) {
+	if (!(regs->msr & MSR_64BIT)) {
 		val = (unsigned int) val;
 		val1 = (unsigned int) val1;
 	}
@@ -566,8 +576,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		if ((instr & 2) == 0)
 			imm += regs->nip;
 		regs->nip += 4;
-		if ((regs->msr & MSR_SF) == 0)
-			regs->nip &= 0xffffffffUL;
+		regs->nip = truncate_if_32bit(regs->msr, regs->nip);
 		if (instr & 1)
 			regs->link = regs->nip;
 		if (branch_taken(instr, regs))
@@ -600,13 +609,9 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 			imm -= 0x04000000;
 		if ((instr & 2) == 0)
 			imm += regs->nip;
-		if (instr & 1) {
-			regs->link = regs->nip + 4;
-			if ((regs->msr & MSR_SF) == 0)
-				regs->link &= 0xffffffffUL;
-		}
-		if ((regs->msr & MSR_SF) == 0)
-			imm &= 0xffffffffUL;
+		if (instr & 1)
+			regs->link = truncate_if_32bit(regs->msr, regs->nip + 4);
+		imm = truncate_if_32bit(regs->msr, imm);
 		regs->nip = imm;
 		return 1;
 	case 19:
@@ -614,11 +619,8 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		case 16:	/* bclr */
 		case 528:	/* bcctr */
 			imm = (instr & 0x400)? regs->ctr: regs->link;
-			regs->nip += 4;
-			if ((regs->msr & MSR_SF) == 0) {
-				regs->nip &= 0xffffffffUL;
-				imm &= 0xffffffffUL;
-			}
+			regs->nip = truncate_if_32bit(regs->msr, regs->nip + 4);
+			imm = truncate_if_32bit(regs->msr, imm);
 			if (instr & 1)
 				regs->link = regs->nip;
 			if (branch_taken(instr, regs))
@@ -1393,6 +1395,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 				regs->gpr[rd] = byterev_4(val);
 			goto ldst_done;
 
+#ifdef CONFIG_PPC_CPU
 		case 535:	/* lfsx */
 		case 567:	/* lfsux */
 			if (!(regs->msr & MSR_FP))
@@ -1424,6 +1427,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 			ea = xform_ea(instr, regs, u);
 			err = do_fp_store(rd, do_stfd, ea, 8, regs);
 			goto ldst_done;
+#endif
 
 #ifdef __powerpc64__
 		case 660:	/* stdbrx */
@@ -1534,6 +1538,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		} while (++rd < 32);
 		goto instr_done;
 
+#ifdef CONFIG_PPC_FPU
 	case 48:	/* lfs */
 	case 49:	/* lfsu */
 		if (!(regs->msr & MSR_FP))
@@ -1565,6 +1570,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		ea = dform_ea(instr, regs);
 		err = do_fp_store(rd, do_stfd, ea, 8, regs);
 		goto ldst_done;
+#endif
 
 #ifdef __powerpc64__
 	case 58:	/* ld[u], lwa */
@@ -1608,11 +1614,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		return 0;	/* invoke DSI if -EFAULT? */
 	}
  instr_done:
-	regs->nip += 4;
-#ifdef __powerpc64__
-	if ((regs->msr & MSR_SF) == 0)
-		regs->nip &= 0xffffffffUL;
-#endif
+	regs->nip = truncate_if_32bit(regs->msr, regs->nip + 4);
 	return 1;
 
  logical_done:

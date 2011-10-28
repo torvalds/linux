@@ -91,8 +91,88 @@ struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
 #define         BPF_TAX         0x00
 #define         BPF_TXA         0x80
 
+#ifndef BPF_MAXINSNS
+#define BPF_MAXINSNS 4096
+#endif
+
+/*
+ * Macros for filter block array initializers.
+ */
+#ifndef BPF_STMT
+#define BPF_STMT(code, k) { (unsigned short)(code), 0, 0, k }
+#endif
+#ifndef BPF_JUMP
+#define BPF_JUMP(code, k, jt, jf) { (unsigned short)(code), jt, jf, k }
+#endif
+
+/*
+ * Number of scratch memory words for: BPF_ST and BPF_STX
+ */
+#define BPF_MEMWORDS 16
+
+/* RATIONALE. Negative offsets are invalid in BPF.
+   We use them to reference ancillary data.
+   Unlike introduction new instructions, it does not break
+   existing compilers/optimizers.
+ */
+#define SKF_AD_OFF    (-0x1000)
+#define SKF_AD_PROTOCOL 0
+#define SKF_AD_PKTTYPE 	4
+#define SKF_AD_IFINDEX 	8
+#define SKF_AD_NLATTR	12
+#define SKF_AD_NLATTR_NEST	16
+#define SKF_AD_MARK 	20
+#define SKF_AD_QUEUE	24
+#define SKF_AD_HATYPE	28
+#define SKF_AD_RXHASH	32
+#define SKF_AD_CPU	36
+#define SKF_AD_MAX	40
+#define SKF_NET_OFF   (-0x100000)
+#define SKF_LL_OFF    (-0x200000)
+
+#ifdef __KERNEL__
+
+struct sk_buff;
+struct sock;
+
+struct sk_filter
+{
+	atomic_t		refcnt;
+	unsigned int         	len;	/* Number of filter blocks */
+	unsigned int		(*bpf_func)(const struct sk_buff *skb,
+					    const struct sock_filter *filter);
+	struct rcu_head		rcu;
+	struct sock_filter     	insns[0];
+};
+
+static inline unsigned int sk_filter_len(const struct sk_filter *fp)
+{
+	return fp->len * sizeof(struct sock_filter) + sizeof(*fp);
+}
+
+extern int sk_filter(struct sock *sk, struct sk_buff *skb);
+extern unsigned int sk_run_filter(const struct sk_buff *skb,
+				  const struct sock_filter *filter);
+extern int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
+extern int sk_detach_filter(struct sock *sk);
+extern int sk_chk_filter(struct sock_filter *filter, int flen);
+
+#ifdef CONFIG_BPF_JIT
+extern void bpf_jit_compile(struct sk_filter *fp);
+extern void bpf_jit_free(struct sk_filter *fp);
+#define SK_RUN_FILTER(FILTER, SKB) (*FILTER->bpf_func)(SKB, FILTER->insns)
+#else
+static inline void bpf_jit_compile(struct sk_filter *fp)
+{
+}
+static inline void bpf_jit_free(struct sk_filter *fp)
+{
+}
+#define SK_RUN_FILTER(FILTER, SKB) sk_run_filter(SKB, FILTER->insns)
+#endif
+
 enum {
-	BPF_S_RET_K = 0,
+	BPF_S_RET_K = 1,
 	BPF_S_RET_A,
 	BPF_S_ALU_ADD_K,
 	BPF_S_ALU_ADD_X,
@@ -137,68 +217,19 @@ enum {
 	BPF_S_JMP_JGT_X,
 	BPF_S_JMP_JSET_K,
 	BPF_S_JMP_JSET_X,
+	/* Ancillary data */
+	BPF_S_ANC_PROTOCOL,
+	BPF_S_ANC_PKTTYPE,
+	BPF_S_ANC_IFINDEX,
+	BPF_S_ANC_NLATTR,
+	BPF_S_ANC_NLATTR_NEST,
+	BPF_S_ANC_MARK,
+	BPF_S_ANC_QUEUE,
+	BPF_S_ANC_HATYPE,
+	BPF_S_ANC_RXHASH,
+	BPF_S_ANC_CPU,
 };
 
-#ifndef BPF_MAXINSNS
-#define BPF_MAXINSNS 4096
-#endif
-
-/*
- * Macros for filter block array initializers.
- */
-#ifndef BPF_STMT
-#define BPF_STMT(code, k) { (unsigned short)(code), 0, 0, k }
-#endif
-#ifndef BPF_JUMP
-#define BPF_JUMP(code, k, jt, jf) { (unsigned short)(code), jt, jf, k }
-#endif
-
-/*
- * Number of scratch memory words for: BPF_ST and BPF_STX
- */
-#define BPF_MEMWORDS 16
-
-/* RATIONALE. Negative offsets are invalid in BPF.
-   We use them to reference ancillary data.
-   Unlike introduction new instructions, it does not break
-   existing compilers/optimizers.
- */
-#define SKF_AD_OFF    (-0x1000)
-#define SKF_AD_PROTOCOL 0
-#define SKF_AD_PKTTYPE 	4
-#define SKF_AD_IFINDEX 	8
-#define SKF_AD_NLATTR	12
-#define SKF_AD_NLATTR_NEST	16
-#define SKF_AD_MARK 	20
-#define SKF_AD_QUEUE	24
-#define SKF_AD_HATYPE	28
-#define SKF_AD_MAX	32
-#define SKF_NET_OFF   (-0x100000)
-#define SKF_LL_OFF    (-0x200000)
-
-#ifdef __KERNEL__
-struct sk_filter
-{
-	atomic_t		refcnt;
-	unsigned int         	len;	/* Number of filter blocks */
-	struct rcu_head		rcu;
-	struct sock_filter     	insns[0];
-};
-
-static inline unsigned int sk_filter_len(const struct sk_filter *fp)
-{
-	return fp->len * sizeof(struct sock_filter) + sizeof(*fp);
-}
-
-struct sk_buff;
-struct sock;
-
-extern int sk_filter(struct sock *sk, struct sk_buff *skb);
-extern unsigned int sk_run_filter(struct sk_buff *skb,
-				  struct sock_filter *filter, int flen);
-extern int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
-extern int sk_detach_filter(struct sock *sk);
-extern int sk_chk_filter(struct sock_filter *filter, int flen);
 #endif /* __KERNEL__ */
 
 #endif /* __LINUX_FILTER_H__ */

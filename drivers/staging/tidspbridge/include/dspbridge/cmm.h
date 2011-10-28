@@ -81,7 +81,7 @@ extern void *cmm_calloc_buf(struct cmm_object *hcmm_mgr,
  *  Requires:
  *      cmm_init(void) called.
  *      ph_cmm_mgr != NULL.
- *      mgr_attrts->ul_min_block_size >= 4 bytes.
+ *      mgr_attrts->min_block_size >= 4 bytes.
  *  Ensures:
  *
  */
@@ -190,7 +190,7 @@ extern int cmm_get_info(struct cmm_object *hcmm_mgr,
  *      Initializes private state of CMM module.
  *  Parameters:
  *  Returns:
- *      TRUE if initialized; FALSE if error occured.
+ *      TRUE if initialized; FALSE if error occurred.
  *  Requires:
  *  Ensures:
  *      CMM initialized.
@@ -298,25 +298,6 @@ extern void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator,
 extern int cmm_xlator_create(struct cmm_xlatorobject **xlator,
 				    struct cmm_object *hcmm_mgr,
 				    struct cmm_xlatorattrs *xlator_attrs);
-
-/*
- *  ======== cmm_xlator_delete ========
- *  Purpose:
- *      Delete translator resources
- *  Parameters:
- *      xlator:    handle to translator.
- *      force:     force = TRUE will free XLators SM buffers/dscriptrs.
- *  Returns:
- *      0:        Success.
- *      -EFAULT:    Bad translator handle.
- *      -EPERM:      Unable to free translator resources.
- *  Requires:
- *      refs > 0
- *  Ensures:
- *
- */
-extern int cmm_xlator_delete(struct cmm_xlatorobject *xlator,
-				    bool force);
 
 /*
  *  ======== cmm_xlator_free_buf ========

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2010 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -31,7 +31,7 @@ void lpfc_read_nv(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_config_async(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t);
 
 void lpfc_heart_beat(struct lpfc_hba *, LPFC_MBOXQ_t *);
-int lpfc_read_la(struct lpfc_hba *, LPFC_MBOXQ_t *, struct lpfc_dmabuf *);
+int lpfc_read_topology(struct lpfc_hba *, LPFC_MBOXQ_t *, struct lpfc_dmabuf *);
 void lpfc_clear_la(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_issue_clear_la(struct lpfc_hba *, struct lpfc_vport *);
 void lpfc_config_link(struct lpfc_hba *, LPFC_MBOXQ_t *);
@@ -40,10 +40,12 @@ int lpfc_read_sparam(struct lpfc_hba *, LPFC_MBOXQ_t *, int);
 void lpfc_read_config(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_read_lnk_stat(struct lpfc_hba *, LPFC_MBOXQ_t *);
 int lpfc_reg_rpi(struct lpfc_hba *, uint16_t, uint32_t, uint8_t *,
-		 LPFC_MBOXQ_t *, uint32_t);
+		 LPFC_MBOXQ_t *, uint16_t);
 void lpfc_set_var(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t, uint32_t);
 void lpfc_unreg_login(struct lpfc_hba *, uint16_t, uint32_t, LPFC_MBOXQ_t *);
 void lpfc_unreg_did(struct lpfc_hba *, uint16_t, uint32_t, LPFC_MBOXQ_t *);
+void lpfc_sli4_unreg_all_rpis(struct lpfc_vport *);
+
 void lpfc_reg_vpi(struct lpfc_vport *, LPFC_MBOXQ_t *);
 void lpfc_register_new_vport(struct lpfc_hba *, struct lpfc_vport *,
 			struct lpfc_nodelist *);
@@ -51,9 +53,11 @@ void lpfc_unreg_vpi(struct lpfc_hba *, uint16_t, LPFC_MBOXQ_t *);
 void lpfc_init_link(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t, uint32_t);
 void lpfc_request_features(struct lpfc_hba *, struct lpfcMboxq *);
 void lpfc_supported_pages(struct lpfcMboxq *);
-void lpfc_sli4_params(struct lpfcMboxq *);
+void lpfc_pc_sli4_params(struct lpfcMboxq *);
 int lpfc_pc_sli4_params_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
-
+int lpfc_sli4_mbox_rsrc_extent(struct lpfc_hba *, struct lpfcMboxq *,
+			   uint16_t, uint16_t, bool);
+int lpfc_get_sli4_parameters(struct lpfc_hba *, LPFC_MBOXQ_t *);
 struct lpfc_vport *lpfc_find_vport_by_did(struct lpfc_hba *, uint32_t);
 void lpfc_cleanup_rcv_buffers(struct lpfc_vport *);
 void lpfc_rcv_seq_check_edtov(struct lpfc_vport *);
@@ -62,7 +66,7 @@ void lpfc_cleanup_pending_mbox(struct lpfc_vport *);
 int lpfc_linkdown(struct lpfc_hba *);
 void lpfc_linkdown_port(struct lpfc_vport *);
 void lpfc_port_link_failure(struct lpfc_vport *);
-void lpfc_mbx_cmpl_read_la(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_mbx_cmpl_read_topology(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_init_vpi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_cancel_all_vport_retry_delay_timer(struct lpfc_hba *);
 void lpfc_retry_pport_discovery(struct lpfc_hba *);
@@ -119,6 +123,7 @@ void lpfc_end_rscn(struct lpfc_vport *);
 int lpfc_els_chk_latt(struct lpfc_vport *);
 int lpfc_els_abort_flogi(struct lpfc_hba *);
 int lpfc_initial_flogi(struct lpfc_vport *);
+void lpfc_issue_init_vfi(struct lpfc_vport *);
 int lpfc_initial_fdisc(struct lpfc_vport *);
 int lpfc_issue_els_plogi(struct lpfc_vport *, uint32_t, uint8_t);
 int lpfc_issue_els_prli(struct lpfc_vport *, struct lpfc_nodelist *, uint8_t);
@@ -164,8 +169,11 @@ int lpfc_ns_cmd(struct lpfc_vport *, int, uint8_t, uint32_t);
 int lpfc_fdmi_cmd(struct lpfc_vport *, struct lpfc_nodelist *, int);
 void lpfc_fdmi_tmo(unsigned long);
 void lpfc_fdmi_timeout_handler(struct lpfc_vport *);
+void lpfc_delayed_disc_tmo(unsigned long);
+void lpfc_delayed_disc_timeout_handler(struct lpfc_vport *);
 
 int lpfc_config_port_prep(struct lpfc_hba *);
+void lpfc_update_vport_wwn(struct lpfc_vport *vport);
 int lpfc_config_port_post(struct lpfc_hba *);
 int lpfc_hba_down_prep(struct lpfc_hba *);
 int lpfc_hba_down_post(struct lpfc_hba *);
@@ -229,6 +237,7 @@ void lpfc_sli4_fcf_dead_failthrough(struct lpfc_hba *);
 uint16_t lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *);
 int lpfc_sli4_fcf_rr_index_set(struct lpfc_hba *, uint16_t);
 void lpfc_sli4_fcf_rr_index_clear(struct lpfc_hba *, uint16_t);
+int lpfc_sli4_fcf_rr_next_proc(struct lpfc_vport *, uint16_t);
 
 int lpfc_mem_alloc(struct lpfc_hba *, int align);
 void lpfc_mem_free(struct lpfc_hba *);
@@ -248,8 +257,8 @@ uint16_t lpfc_sli_next_iotag(struct lpfc_hba *, struct lpfc_iocbq *);
 void lpfc_sli_cancel_iocbs(struct lpfc_hba *, struct list_head *, uint32_t,
 			   uint32_t);
 void lpfc_sli_wake_mbox_wait(struct lpfc_hba *, LPFC_MBOXQ_t *);
-
-void lpfc_reset_barrier(struct lpfc_hba * phba);
+int lpfc_selective_reset(struct lpfc_hba *);
+void lpfc_reset_barrier(struct lpfc_hba *);
 int lpfc_sli_brdready(struct lpfc_hba *, uint32_t);
 int lpfc_sli_brdkill(struct lpfc_hba *);
 int lpfc_sli_brdreset(struct lpfc_hba *);
@@ -271,6 +280,7 @@ int lpfc_sli_issue_iocb(struct lpfc_hba *, uint32_t,
 void lpfc_sli_pcimem_bcopy(void *, void *, uint32_t);
 void lpfc_sli_bemem_bcopy(void *, void *, uint32_t);
 void lpfc_sli_abort_iocb_ring(struct lpfc_hba *, struct lpfc_sli_ring *);
+void lpfc_sli_hba_iocb_abort(struct lpfc_hba *);
 void lpfc_sli_flush_fcp_rings(struct lpfc_hba *);
 int lpfc_sli_ringpostbuf_put(struct lpfc_hba *, struct lpfc_sli_ring *,
 			     struct lpfc_dmabuf *);
@@ -336,6 +346,7 @@ extern struct fc_function_template lpfc_transport_functions;
 extern struct fc_function_template lpfc_vport_transport_functions;
 extern int lpfc_sli_mode;
 extern int lpfc_enable_npiv;
+extern int lpfc_delay_discovery;
 
 int  lpfc_vport_symbolic_node_name(struct lpfc_vport *, char *, size_t);
 int  lpfc_vport_symbolic_port_name(struct lpfc_vport *, char *,	size_t);
@@ -356,6 +367,10 @@ extern void lpfc_debugfs_disc_trc(struct lpfc_vport *, int, char *, uint32_t,
 extern void lpfc_debugfs_slow_ring_trc(struct lpfc_hba *, char *, uint32_t,
 	uint32_t, uint32_t);
 extern struct lpfc_hbq_init *lpfc_hbq_defs[];
+
+/* SLI4 if_type 2 externs. */
+int lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *);
+int lpfc_sli4_dealloc_resource_identifiers(struct lpfc_hba *);
 
 /* externs BlockGuard */
 extern char *_dump_buf_data;
@@ -411,5 +426,16 @@ struct lpfc_iocbq *lpfc_sli_ringtx_get(struct lpfc_hba *,
 int __lpfc_sli_issue_iocb(struct lpfc_hba *, uint32_t,
 	struct lpfc_iocbq *, uint32_t);
 uint32_t lpfc_drain_txq(struct lpfc_hba *);
-
-
+void lpfc_clr_rrq_active(struct lpfc_hba *, uint16_t, struct lpfc_node_rrq *);
+int lpfc_test_rrq_active(struct lpfc_hba *, struct lpfc_nodelist *, uint16_t);
+void lpfc_handle_rrq_active(struct lpfc_hba *);
+int lpfc_send_rrq(struct lpfc_hba *, struct lpfc_node_rrq *);
+int lpfc_set_rrq_active(struct lpfc_hba *, struct lpfc_nodelist *,
+	uint16_t, uint16_t, uint16_t);
+void lpfc_cleanup_wt_rrqs(struct lpfc_hba *);
+void lpfc_cleanup_vports_rrqs(struct lpfc_vport *, struct lpfc_nodelist *);
+struct lpfc_node_rrq *lpfc_get_active_rrq(struct lpfc_vport *, uint16_t,
+	uint32_t);
+int lpfc_wr_object(struct lpfc_hba *, struct list_head *, uint32_t, uint32_t *);
+/* functions to support SR-IOV */
+int lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *, int);

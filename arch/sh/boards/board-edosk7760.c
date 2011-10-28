@@ -56,7 +56,7 @@ static struct mtd_partition edosk7760_nor_flash_partitions[] = {
 	}, {
 		.name = "fs",
 		.offset = MTDPART_OFS_APPEND,
-		.size = SZ_26M,
+		.size = (26 << 20),
 	}, {
 		.name = "other",
 		.offset = MTDPART_OFS_APPEND,
@@ -182,7 +182,7 @@ static int __init init_edosk7760_devices(void)
 	return platform_add_devices(edosk7760_devices,
 				    ARRAY_SIZE(edosk7760_devices));
 }
-__initcall(init_edosk7760_devices);
+device_initcall(init_edosk7760_devices);
 
 /*
  * The Machine Vector

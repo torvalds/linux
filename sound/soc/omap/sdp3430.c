@@ -28,7 +28,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/jack.h>
 
 #include <asm/mach-types.h>
@@ -36,9 +35,11 @@
 #include <mach/gpio.h>
 #include <plat/mcbsp.h>
 
+/* Register descriptions for twl4030 codec part */
+#include <linux/mfd/twl4030-codec.h>
+
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
-#include "../codecs/twl4030.h"
 
 /* TWL4030 PMBR1 Register */
 #define TWL4030_INTBR_PMBR1		0x0D
@@ -51,8 +52,8 @@ static int sdp3430_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret;
 
 	/* Set codec DAI configuration */
@@ -94,8 +95,8 @@ static int sdp3430_hw_voice_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret;
 
 	/* Set codec DAI configuration */
@@ -186,46 +187,48 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Headset Stereophone", NULL, "HSOR"},
 };
 
-static int sdp3430_twl4030_init(struct snd_soc_codec *codec)
+static int sdp3430_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	/* Add SDP3430 specific widgets */
-	ret = snd_soc_dapm_new_controls(codec, sdp3430_twl4030_dapm_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, sdp3430_twl4030_dapm_widgets,
 				ARRAY_SIZE(sdp3430_twl4030_dapm_widgets));
 	if (ret)
 		return ret;
 
 	/* Set up SDP3430 specific audio path audio_map */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	/* SDP3430 connected pins */
-	snd_soc_dapm_enable_pin(codec, "Ext Mic");
-	snd_soc_dapm_enable_pin(codec, "Ext Spk");
-	snd_soc_dapm_disable_pin(codec, "Headset Mic");
-	snd_soc_dapm_disable_pin(codec, "Headset Stereophone");
+	snd_soc_dapm_enable_pin(dapm, "Ext Mic");
+	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
+	snd_soc_dapm_disable_pin(dapm, "Headset Mic");
+	snd_soc_dapm_disable_pin(dapm, "Headset Stereophone");
 
 	/* TWL4030 not connected pins */
-	snd_soc_dapm_nc_pin(codec, "AUXL");
-	snd_soc_dapm_nc_pin(codec, "AUXR");
-	snd_soc_dapm_nc_pin(codec, "CARKITMIC");
-	snd_soc_dapm_nc_pin(codec, "DIGIMIC0");
-	snd_soc_dapm_nc_pin(codec, "DIGIMIC1");
+	snd_soc_dapm_nc_pin(dapm, "AUXL");
+	snd_soc_dapm_nc_pin(dapm, "AUXR");
+	snd_soc_dapm_nc_pin(dapm, "CARKITMIC");
+	snd_soc_dapm_nc_pin(dapm, "DIGIMIC0");
+	snd_soc_dapm_nc_pin(dapm, "DIGIMIC1");
 
-	snd_soc_dapm_nc_pin(codec, "OUTL");
-	snd_soc_dapm_nc_pin(codec, "OUTR");
-	snd_soc_dapm_nc_pin(codec, "EARPIECE");
-	snd_soc_dapm_nc_pin(codec, "PREDRIVEL");
-	snd_soc_dapm_nc_pin(codec, "PREDRIVER");
-	snd_soc_dapm_nc_pin(codec, "CARKITL");
-	snd_soc_dapm_nc_pin(codec, "CARKITR");
+	snd_soc_dapm_nc_pin(dapm, "OUTL");
+	snd_soc_dapm_nc_pin(dapm, "OUTR");
+	snd_soc_dapm_nc_pin(dapm, "EARPIECE");
+	snd_soc_dapm_nc_pin(dapm, "PREDRIVEL");
+	snd_soc_dapm_nc_pin(dapm, "PREDRIVER");
+	snd_soc_dapm_nc_pin(dapm, "CARKITL");
+	snd_soc_dapm_nc_pin(dapm, "CARKITR");
 
-	ret = snd_soc_dapm_sync(codec);
+	ret = snd_soc_dapm_sync(dapm);
 	if (ret)
 		return ret;
 
 	/* Headset jack detection */
-	ret = snd_soc_jack_new(&snd_soc_sdp3430, "Headset Jack",
+	ret = snd_soc_jack_new(codec, "Headset Jack",
 				SND_JACK_HEADSET, &hs_jack);
 	if (ret)
 		return ret;
@@ -241,14 +244,15 @@ static int sdp3430_twl4030_init(struct snd_soc_codec *codec)
 	return ret;
 }
 
-static int sdp3430_twl4030_voice_init(struct snd_soc_codec *codec)
+static int sdp3430_twl4030_voice_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
 	unsigned short reg;
 
 	/* Enable voice interface */
-	reg = codec->read(codec, TWL4030_REG_VOICE_IF);
+	reg = codec->driver->read(codec, TWL4030_REG_VOICE_IF);
 	reg |= TWL4030_VIF_DIN_EN | TWL4030_VIF_DOUT_EN | TWL4030_VIF_EN;
-	codec->write(codec, TWL4030_REG_VOICE_IF, reg);
+	codec->driver->write(codec, TWL4030_REG_VOICE_IF, reg);
 
 	return 0;
 }
@@ -259,16 +263,20 @@ static struct snd_soc_dai_link sdp3430_dai[] = {
 	{
 		.name = "TWL4030 I2S",
 		.stream_name = "TWL4030 Audio",
-		.cpu_dai = &omap_mcbsp_dai[0],
-		.codec_dai = &twl4030_dai[TWL4030_DAI_HIFI],
+		.cpu_dai_name = "omap-mcbsp-dai.1",
+		.codec_dai_name = "twl4030-hifi",
+		.platform_name = "omap-pcm-audio",
+		.codec_name = "twl4030-codec",
 		.init = sdp3430_twl4030_init,
 		.ops = &sdp3430_ops,
 	},
 	{
 		.name = "TWL4030 PCM",
 		.stream_name = "TWL4030 Voice",
-		.cpu_dai = &omap_mcbsp_dai[1],
-		.codec_dai = &twl4030_dai[TWL4030_DAI_VOICE],
+		.cpu_dai_name = "omap-mcbsp-dai.2",
+		.codec_dai_name = "twl4030-voice",
+		.platform_name = "omap-pcm-audio",
+		.codec_name = "twl4030-codec",
 		.init = sdp3430_twl4030_voice_init,
 		.ops = &sdp3430_voice_ops,
 	},
@@ -277,23 +285,8 @@ static struct snd_soc_dai_link sdp3430_dai[] = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_sdp3430 = {
 	.name = "SDP3430",
-	.platform = &omap_soc_platform,
 	.dai_link = sdp3430_dai,
 	.num_links = ARRAY_SIZE(sdp3430_dai),
-};
-
-/* twl4030 setup */
-static struct twl4030_setup_data twl4030_setup = {
-	.ramp_delay_value = 3,
-	.sysclk = 26000,
-	.hs_extmute = 1,
-};
-
-/* Audio subsystem */
-static struct snd_soc_device sdp3430_snd_devdata = {
-	.card = &snd_soc_sdp3430,
-	.codec_dev = &soc_codec_dev_twl4030,
-	.codec_data = &twl4030_setup,
 };
 
 static struct platform_device *sdp3430_snd_device;
@@ -303,10 +296,8 @@ static int __init sdp3430_soc_init(void)
 	int ret;
 	u8 pin_mux;
 
-	if (!machine_is_omap_3430sdp()) {
-		pr_debug("Not SDP3430!\n");
+	if (!machine_is_omap_3430sdp())
 		return -ENODEV;
-	}
 	printk(KERN_INFO "SDP3430 SoC init\n");
 
 	sdp3430_snd_device = platform_device_alloc("soc-audio", -1);
@@ -315,10 +306,7 @@ static int __init sdp3430_soc_init(void)
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(sdp3430_snd_device, &sdp3430_snd_devdata);
-	sdp3430_snd_devdata.dev = &sdp3430_snd_device->dev;
-	*(unsigned int *)sdp3430_dai[0].cpu_dai->private_data = 1; /* McBSP2 */
-	*(unsigned int *)sdp3430_dai[1].cpu_dai->private_data = 2; /* McBSP3 */
+	platform_set_drvdata(sdp3430_snd_device, &snd_soc_sdp3430);
 
 	/* Set TWL4030 GPIO6 as EXTMUTE signal */
 	twl_i2c_read_u8(TWL4030_MODULE_INTBR, &pin_mux,

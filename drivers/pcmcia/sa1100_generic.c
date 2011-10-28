@@ -35,7 +35,6 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
 
 #include <asm/hardware/scoop.h>
@@ -44,7 +43,7 @@
 
 int __init pcmcia_collie_init(struct device *dev);
 
-static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
+static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) __devinitdata = {
 #ifdef CONFIG_SA1100_ASSABET
 	pcmcia_assabet_init,
 #endif
@@ -53,6 +52,9 @@ static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #endif
 #if defined(CONFIG_SA1100_H3100) || defined(CONFIG_SA1100_H3600)
 	pcmcia_h3600_init,
+#endif
+#ifdef CONFIG_SA1100_NANOENGINE
+	pcmcia_nanoengine_init,
 #endif
 #ifdef CONFIG_SA1100_SHANNON
 	pcmcia_shannon_init,
@@ -65,7 +67,7 @@ static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #endif
 };
 
-static int sa11x0_drv_pcmcia_probe(struct platform_device *dev)
+static int __devinit sa11x0_drv_pcmcia_probe(struct platform_device *dev)
 {
 	int i, ret = -ENODEV;
 

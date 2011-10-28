@@ -310,7 +310,7 @@ static int cx24110_set_symbolrate (struct cx24110_state* state, u32 srate)
 
 }
 
-static int _cx24110_pll_write (struct dvb_frontend* fe, u8 *buf, int len)
+static int _cx24110_pll_write (struct dvb_frontend* fe, const u8 buf[], int len)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 
@@ -544,7 +544,7 @@ static int cx24110_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	cx24110_set_inversion (state, p->inversion);
 	cx24110_set_fec (state, p->u.qpsk.fec_inner);
 	cx24110_set_symbolrate (state, p->u.qpsk.symbol_rate);
-	cx24110_writereg(state,0x04,0x05); /* start aquisition */
+	cx24110_writereg(state,0x04,0x05); /* start acquisition */
 
 	return 0;
 }

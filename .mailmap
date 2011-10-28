@@ -20,9 +20,11 @@ Andreas Herrmann <aherrman@de.ibm.com>
 Andrew Morton <akpm@osdl.org>
 Andrew Vasquez <andrew.vasquez@qlogic.com>
 Andy Adamson <andros@citi.umich.edu>
+Archit Taneja <archit@ti.com>
 Arnaud Patard <arnaud.patard@rtp-net.org>
 Arnd Bergmann <arnd@arndb.de>
 Axel Dyks <xl@xlsigned.net>
+Axel Lin <axel.lin@gmail.com>
 Ben Gardner <bgardner@wabtec.com>
 Ben M Cahill <ben.m.cahill@intel.com>
 Björn Steinbrink <B.Steinbrink@gmx.de>
@@ -30,6 +32,7 @@ Brian Avery <b.avery@hp.com>
 Brian King <brking@us.ibm.com>
 Christoph Hellwig <hch@lst.de>
 Corey Minyard <minyard@acm.org>
+Damian Hobson-Garcia <dhobsong@igel.co.jp>
 David Brownell <david-b@pacbell.net>
 David Woodhouse <dwmw2@shinybook.infradead.org>
 Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
@@ -69,6 +72,7 @@ Leonid I Ananiev <leonid.i.ananiev@intel.com>
 Linas Vepstas <linas@austin.ibm.com>
 Mark Brown <broonie@sirena.org.uk>
 Matthieu CASTET <castet.matthieu@free.fr>
+Mayuresh Janorkar <mayur@ti.com>
 Michael Buesch <mb@bu3sch.de>
 Michael Buesch <mbuesch@freenet.de>
 Michel Dänzer <michel@tungstengraphics.com>
@@ -77,6 +81,7 @@ Morten Welinder <terra@gnome.org>
 Morten Welinder <welinder@anemone.rentec.com>
 Morten Welinder <welinder@darter.rentec.com>
 Morten Welinder <welinder@troll.com>
+Mythri P K <mythripk@ti.com>
 Nguyen Anh Quynh <aquynh@gmail.com>
 Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
 Patrick Mochel <mochel@digitalimplant.org>
@@ -97,6 +102,7 @@ S.Çağlar Onur <caglar@pardus.org.tr>
 Simon Kelley <simon@thekelleys.org.uk>
 Stéphane Witzmann <stephane.witzmann@ubpmes.univ-bpclermont.fr>
 Stephen Hemminger <shemminger@osdl.org>
+Sumit Semwal <sumit.semwal@ti.com>
 Tejun Heo <htejun@gmail.com>
 Thomas Graf <tgraf@suug.ch>
 Tony Luck <tony.luck@intel.com>
@@ -105,3 +111,4 @@ Uwe Kleine-König <ukleinek@informatik.uni-freiburg.de>
 Uwe Kleine-König <ukl@pengutronix.de>
 Uwe Kleine-König <Uwe.Kleine-Koenig@digi.com>
 Valdis Kletnieks <Valdis.Kletnieks@vt.edu>
+Takashi YOSHII <takashi.yoshii.zj@renesas.com>

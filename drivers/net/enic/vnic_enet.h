@@ -30,7 +30,7 @@ struct vnic_enet_config {
 	u32 wq_desc_count;
 	u32 rq_desc_count;
 	u16 mtu;
-	u16 intr_timer;
+	u16 intr_timer_deprecated;
 	u8 intr_timer_type;
 	u8 intr_mode;
 	char devname[16];

@@ -14,6 +14,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/rcupdate.h>
+#include <linux/rculist_bl.h>
 #include <asm/atomic.h>
 
 #include "gfs2.h"
@@ -24,6 +26,7 @@
 #include "glock.h"
 #include "quota.h"
 #include "recovery.h"
+#include "dir.h"
 
 static struct shrinker qd_shrinker = {
 	.shrink = gfs2_shrink_qd_memory,
@@ -44,12 +47,13 @@ static void gfs2_init_glock_once(void *foo)
 {
 	struct gfs2_glock *gl = foo;
 
-	INIT_HLIST_NODE(&gl->gl_list);
+	INIT_HLIST_BL_NODE(&gl->gl_list);
 	spin_lock_init(&gl->gl_spin);
 	INIT_LIST_HEAD(&gl->gl_holders);
 	INIT_LIST_HEAD(&gl->gl_lru);
 	INIT_LIST_HEAD(&gl->gl_ail_list);
 	atomic_set(&gl->gl_ail_count, 0);
+	atomic_set(&gl->gl_revokes, 0);
 }
 
 static void gfs2_init_gl_aspace_once(void *foo)
@@ -58,14 +62,7 @@ static void gfs2_init_gl_aspace_once(void *foo)
 	struct address_space *mapping = (struct address_space *)(gl + 1);
 
 	gfs2_init_glock_once(gl);
-	memset(mapping, 0, sizeof(*mapping));
-	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
-	spin_lock_init(&mapping->tree_lock);
-	spin_lock_init(&mapping->i_mmap_lock);
-	INIT_LIST_HEAD(&mapping->private_list);
-	spin_lock_init(&mapping->private_lock);
-	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
-	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
+	address_space_init_once(mapping);
 }
 
 /**
@@ -77,6 +74,9 @@ static void gfs2_init_gl_aspace_once(void *foo)
 static int __init init_gfs2_fs(void)
 {
 	int error;
+
+	gfs2_str2qstr(&gfs2_qdot, ".");
+	gfs2_str2qstr(&gfs2_qdotdot, "..");
 
 	error = gfs2_sys_init();
 	if (error)
@@ -140,13 +140,13 @@ static int __init init_gfs2_fs(void)
 
 	error = -ENOMEM;
 	gfs_recovery_wq = alloc_workqueue("gfs_recovery",
-					  WQ_NON_REENTRANT | WQ_RESCUER, 0);
+					  WQ_MEM_RECLAIM | WQ_FREEZABLE, 0);
 	if (!gfs_recovery_wq)
 		goto fail_wq;
 
 	gfs2_register_debugfs();
 
-	printk("GFS2 (built %s %s) installed\n", __DATE__, __TIME__);
+	printk("GFS2 installed\n");
 
 	return 0;
 
@@ -193,6 +193,8 @@ static void __exit exit_gfs2_fs(void)
 	unregister_filesystem(&gfs2_fs_type);
 	unregister_filesystem(&gfs2meta_fs_type);
 	destroy_workqueue(gfs_recovery_wq);
+
+	rcu_barrier();
 
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);

@@ -60,7 +60,7 @@ static unsigned int ns_to_tim_reg(unsigned int tim_mult, unsigned int nsecs)
 	 * Compute # of eclock periods to get desired duration in
 	 * nanoseconds.
 	 */
-	val = DIV_ROUND_UP(nsecs * (octeon_get_clock_rate() / 1000000),
+	val = DIV_ROUND_UP(nsecs * (octeon_get_io_clock_rate() / 1000000),
 			  1000 * tim_mult);
 
 	return val;
@@ -653,8 +653,6 @@ static irqreturn_t octeon_cf_interrupt(int irq, void *dev_instance)
 
 		ap = host->ports[i];
 		ocd = ap->dev->platform_data;
-
-		ocd = ap->dev->platform_data;
 		cf_port = ap->private_data;
 		dma_int.u64 =
 			cvmx_read_csr(CVMX_MIO_BOOT_DMA_INTX(ocd->dma_engine));
@@ -850,8 +848,7 @@ static int __devinit octeon_cf_probe(struct platform_device *pdev)
 	cf_port->ap = ap;
 	ap->ops = &octeon_cf_ops;
 	ap->pio_mask = ATA_PIO6;
-	ap->flags |= ATA_FLAG_MMIO | ATA_FLAG_NO_LEGACY
-		  | ATA_FLAG_NO_ATAPI | ATA_FLAG_PIO_POLLING;
+	ap->flags |= ATA_FLAG_NO_ATAPI | ATA_FLAG_PIO_POLLING;
 
 	base = cs0 + ocd->base_region_bias;
 	if (!ocd->is16bit) {

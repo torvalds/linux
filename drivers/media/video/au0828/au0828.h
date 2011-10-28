@@ -53,7 +53,7 @@
 
 /* Defination for AU0828 USB transfer */
 #define AU0828_MAX_ISO_BUFS    12  /* maybe resize this value in the future */
-#define AU0828_ISO_PACKETS_PER_URB      10
+#define AU0828_ISO_PACKETS_PER_URB      128
 
 #define AU0828_MIN_BUF 4
 #define AU0828_DEF_BUF 8
@@ -204,6 +204,10 @@ struct au0828_dev {
 	unsigned int resources;	/* resources in use */
 	struct video_device *vdev;
 	struct video_device *vbi_dev;
+	struct timer_list vid_timeout;
+	int vid_timeout_running;
+	struct timer_list vbi_timeout;
+	int vbi_timeout_running;
 	int width;
 	int height;
 	int vbi_width;

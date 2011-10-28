@@ -84,12 +84,12 @@ DMA usage
        transfer is not started. On "End Of Frame" interrupt, the irq handler
        starts the DMA chain.
      - capture of one videobuffer
-       The DMA chain starts transfering data into videobuffer RAM pages.
-       When all pages are transfered, the DMA irq is raised on "ENDINTR" status
+       The DMA chain starts transferring data into videobuffer RAM pages.
+       When all pages are transferred, the DMA irq is raised on "ENDINTR" status
      - finishing one videobuffer
        The DMA irq handler marks the videobuffer as "done", and removes it from
        the active running queue
-       Meanwhile, the next videobuffer (if there is one), is transfered by DMA
+       Meanwhile, the next videobuffer (if there is one), is transferred by DMA
      - finishing the last videobuffer
        On the DMA irq of the last videobuffer, the QCI is stopped.
 
@@ -101,7 +101,7 @@ DMA usage
 
      This structure is pointed by dma->sg_cpu.
      The descriptors are used as follows :
-      - desc-sg[i]: i-th descriptor, transfering the i-th sg
+      - desc-sg[i]: i-th descriptor, transferring the i-th sg
         element to the video buffer scatter gather
       - finisher: has ddadr=DADDR_STOP, dcmd=ENDIRQEN
       - linker: has ddadr= desc-sg[0] of next video buffer, dcmd=0

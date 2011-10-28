@@ -150,7 +150,7 @@ static void perf_read_values__display_pretty(FILE *fp,
 		if (width > tidwidth)
 			tidwidth = width;
 		for (j = 0; j < values->counters; j++) {
-			width = snprintf(NULL, 0, "%Lu", values->value[i][j]);
+			width = snprintf(NULL, 0, "%" PRIu64, values->value[i][j]);
 			if (width > counterwidth[j])
 				counterwidth[j] = width;
 		}
@@ -165,7 +165,7 @@ static void perf_read_values__display_pretty(FILE *fp,
 		fprintf(fp, "  %*d  %*d", pidwidth, values->pid[i],
 			tidwidth, values->tid[i]);
 		for (j = 0; j < values->counters; j++)
-			fprintf(fp, "  %*Lu",
+			fprintf(fp, "  %*" PRIu64,
 				counterwidth[j], values->value[i][j]);
 		fprintf(fp, "\n");
 	}
@@ -196,13 +196,13 @@ static void perf_read_values__display_raw(FILE *fp,
 		width = strlen(values->countername[j]);
 		if (width > namewidth)
 			namewidth = width;
-		width = snprintf(NULL, 0, "%llx", values->counterrawid[j]);
+		width = snprintf(NULL, 0, "%" PRIx64, values->counterrawid[j]);
 		if (width > rawwidth)
 			rawwidth = width;
 	}
 	for (i = 0; i < values->threads; i++) {
 		for (j = 0; j < values->counters; j++) {
-			width = snprintf(NULL, 0, "%Lu", values->value[i][j]);
+			width = snprintf(NULL, 0, "%" PRIu64, values->value[i][j]);
 			if (width > countwidth)
 				countwidth = width;
 		}
@@ -214,7 +214,7 @@ static void perf_read_values__display_raw(FILE *fp,
 		countwidth, "Count");
 	for (i = 0; i < values->threads; i++)
 		for (j = 0; j < values->counters; j++)
-			fprintf(fp, "  %*d  %*d  %*s  %*llx  %*Lu\n",
+			fprintf(fp, "  %*d  %*d  %*s  %*" PRIx64 "  %*" PRIu64,
 				pidwidth, values->pid[i],
 				tidwidth, values->tid[i],
 				namewidth, values->countername[j],

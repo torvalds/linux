@@ -66,7 +66,7 @@ static const struct ctrl vv6410_ctrl[] = {
 			.minimum	= 0,
 			.maximum	= 1,
 			.step		= 1,
-			.default_value 	= 0
+			.default_value	= 0
 		},
 		.set = vv6410_set_vflip,
 		.get = vv6410_get_vflip

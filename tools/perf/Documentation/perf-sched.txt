@@ -8,11 +8,11 @@ perf-sched - Tool to trace/measure scheduler properties (latencies)
 SYNOPSIS
 --------
 [verse]
-'perf sched' {record|latency|replay|trace}
+'perf sched' {record|latency|map|replay|trace}
 
 DESCRIPTION
 -----------
-There are four variants of perf sched:
+There are five variants of perf sched:
 
   'perf sched record <command>' to record the scheduling events
   of an arbitrary workload.
@@ -30,8 +30,22 @@ There are four variants of perf sched:
   of the workload as it occurred when it was recorded - and can repeat
   it a number of times, measuring its performance.)
 
+  'perf sched map' to print a textual context-switching outline of
+  workload captured via perf sched record.  Columns stand for
+  individual CPUs, and the two-letter shortcuts stand for tasks that
+  are running on a CPU. A '*' denotes the CPU that had the event, and
+  a dot signals an idle CPU.
+
 OPTIONS
 -------
+-i::
+--input=<file>::
+        Input file name. (default: perf.data)
+
+-v::
+--verbose::
+        Be more verbose. (show symbol address, etc)
+
 -D::
 --dump-raw-trace=::
         Display verbose dump of the sched data.

@@ -1,18 +1,15 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux Kernel Configuration"
-
 config AVR32
 	def_bool y
-	# With EMBEDDED=n, we get lots of stuff automatically selected
+	# With EXPERT=n, we get lots of stuff automatically selected
 	# that we usually don't need on AVR32.
-	select EMBEDDED
+	select EXPERT
 	select HAVE_CLK
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_PROBE
+	select HARDIRQS_SW_RESEND
+	select GENERIC_IRQ_SHOW
 	help
 	  AVR32 is a high-performance 32-bit RISC microprocessor core,
 	  designed for cost-sensitive embedded applications, with particular
@@ -24,9 +21,6 @@ config AVR32
 config GENERIC_GPIO
 	def_bool y
 
-config GENERIC_HARDIRQS
-	def_bool y
-
 config STACKTRACE_SUPPORT
 	def_bool y
 
@@ -34,12 +28,6 @@ config LOCKDEP_SUPPORT
 	def_bool y
 
 config TRACE_IRQFLAGS_SUPPORT
-	def_bool y
-
-config HARDIRQS_SW_RESEND
-	def_bool y
-
-config GENERIC_IRQ_PROBE
 	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
@@ -90,6 +78,7 @@ config PLATFORM_AT32AP
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_ALLOCATOR
 	select HAVE_FB_ATMEL
+	select HAVE_NET_MACB
 
 #
 # CPU types
@@ -145,7 +134,7 @@ config BOARD_HAMMERHEAD
 	  will cover even the most exceptional need of memory bandwidth. Together with the onboard
 	  video decoder the board is ready for video processing.
 
-	  For more information see: http://www.miromico.com/hammerhead
+	  For more information see: http://www.miromico.ch/index.php/hammerhead.html 
 
 config BOARD_FAVR_32
 	bool "Favr-32 LCD-board"

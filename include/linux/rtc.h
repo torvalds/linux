@@ -92,10 +92,10 @@ struct rtc_pll_info {
 #define RTC_PLL_SET	_IOW('p', 0x12, struct rtc_pll_info)  /* Set PLL correction */
 
 /* interrupt flags */
-#define RTC_IRQF 0x80 /* any of the following is active */
-#define RTC_PF 0x40
-#define RTC_AF 0x20
-#define RTC_UF 0x10
+#define RTC_IRQF 0x80	/* Any of the following is active */
+#define RTC_PF 0x40	/* Periodic interrupt */
+#define RTC_AF 0x20	/* Alarm interrupt */
+#define RTC_UF 0x10	/* Update interrupt for 1Hz RTC */
 
 #ifdef __KERNEL__
 
@@ -107,12 +107,17 @@ extern int rtc_year_days(unsigned int day, unsigned int month, unsigned int year
 extern int rtc_valid_tm(struct rtc_time *tm);
 extern int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time);
 extern void rtc_time_to_tm(unsigned long time, struct rtc_time *tm);
+ktime_t rtc_tm_to_ktime(struct rtc_time tm);
+struct rtc_time rtc_ktime_to_tm(ktime_t kt);
+
 
 #include <linux/device.h>
 #include <linux/seq_file.h>
 #include <linux/cdev.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
+#include <linux/timerqueue.h>
+#include <linux/workqueue.h>
 
 extern struct class *rtc_class;
 
@@ -128,7 +133,6 @@ extern struct class *rtc_class;
  * The (current) exceptions are mostly filesystem hooks:
  *   - the proc() hook for procfs
  *   - non-ioctl() chardev hooks:  open(), release(), read_callback()
- *   - periodic irq calls:  irq_set_state(), irq_set_freq()
  *
  * REVISIT those periodic irq calls *do* have ops_lock when they're
  * issued through ioctl() ...
@@ -143,15 +147,24 @@ struct rtc_class_ops {
 	int (*set_alarm)(struct device *, struct rtc_wkalrm *);
 	int (*proc)(struct device *, struct seq_file *);
 	int (*set_mmss)(struct device *, unsigned long secs);
-	int (*irq_set_state)(struct device *, int enabled);
-	int (*irq_set_freq)(struct device *, int freq);
 	int (*read_callback)(struct device *, int data);
 	int (*alarm_irq_enable)(struct device *, unsigned int enabled);
-	int (*update_irq_enable)(struct device *, unsigned int enabled);
 };
 
 #define RTC_DEVICE_NAME_SIZE 20
-struct rtc_task;
+typedef struct rtc_task {
+	void (*func)(void *private_data);
+	void *private_data;
+} rtc_task_t;
+
+
+struct rtc_timer {
+	struct rtc_task	task;
+	struct timerqueue_node node;
+	ktime_t period;
+	int enabled;
+};
+
 
 /* flags */
 #define RTC_DEV_BUSY 0
@@ -179,6 +192,15 @@ struct rtc_device
 	spinlock_t irq_task_lock;
 	int irq_freq;
 	int max_user_freq;
+
+	struct timerqueue_head timerqueue;
+	struct rtc_timer aie_timer;
+	struct rtc_timer uie_rtctimer;
+	struct hrtimer pie_timer; /* sub second exp, so needs hrtimer */
+	int pie_enabled;
+	struct work_struct irqwork;
+
+
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	struct work_struct uie_task;
 	struct timer_list uie_timer;
@@ -201,9 +223,12 @@ extern void rtc_device_unregister(struct rtc_device *rtc);
 extern int rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm);
 extern int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm);
 extern int rtc_set_mmss(struct rtc_device *rtc, unsigned long secs);
+int __rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm);
 extern int rtc_read_alarm(struct rtc_device *rtc,
 			struct rtc_wkalrm *alrm);
 extern int rtc_set_alarm(struct rtc_device *rtc,
+				struct rtc_wkalrm *alrm);
+extern int rtc_initialize_alarm(struct rtc_device *rtc,
 				struct rtc_wkalrm *alrm);
 extern void rtc_update_irq(struct rtc_device *rtc,
 			unsigned long num, unsigned long events);
@@ -224,14 +249,20 @@ extern int rtc_alarm_irq_enable(struct rtc_device *rtc, unsigned int enabled);
 extern int rtc_dev_update_irq_enable_emul(struct rtc_device *rtc,
 						unsigned int enabled);
 
-typedef struct rtc_task {
-	void (*func)(void *private_data);
-	void *private_data;
-} rtc_task_t;
+void rtc_handle_legacy_irq(struct rtc_device *rtc, int num, int mode);
+void rtc_aie_update_irq(void *private);
+void rtc_uie_update_irq(void *private);
+enum hrtimer_restart rtc_pie_update_irq(struct hrtimer *timer);
 
 int rtc_register(rtc_task_t *task);
 int rtc_unregister(rtc_task_t *task);
 int rtc_control(rtc_task_t *t, unsigned int cmd, unsigned long arg);
+
+void rtc_timer_init(struct rtc_timer *timer, void (*f)(void* p), void* data);
+int rtc_timer_start(struct rtc_device *rtc, struct rtc_timer* timer,
+			ktime_t expires, ktime_t period);
+int rtc_timer_cancel(struct rtc_device *rtc, struct rtc_timer* timer);
+void rtc_timer_do_work(struct work_struct *work);
 
 static inline bool is_leap_year(unsigned int year)
 {

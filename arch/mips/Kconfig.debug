@@ -7,7 +7,7 @@ config TRACE_IRQFLAGS_SUPPORT
 source "lib/Kconfig.debug"
 
 config EARLY_PRINTK
-	bool "Early printk" if EMBEDDED
+	bool "Early printk" if EXPERT
 	depends on SYS_HAS_EARLY_PRINTK
 	default y
 	help
@@ -67,14 +67,14 @@ config CMDLINE_OVERRIDE
 
 	  Normally, you will choose 'N' here.
 
-config DEBUG_STACK_USAGE
-	bool "Enable stack utilization instrumentation"
+config DEBUG_STACKOVERFLOW
+	bool "Check for stack overflows"
 	depends on DEBUG_KERNEL
 	help
-	  Enables the display of the minimum amount of free stack which each
-	  task has ever had available in the sysrq-T and sysrq-P debug output.
-
-	  This option will slow down process creation somewhat.
+	  This option will cause messages to be printed if free stack space
+	  drops below a certain limit(2GB on MIPS). The debugging option
+	  provides another way to check stack overflow happened on kernel mode
+	  stack usually caused by nested interruption.
 
 config SMTC_IDLE_HOOK_DEBUG
 	bool "Enable additional debug checks before going into CPU idle loop"

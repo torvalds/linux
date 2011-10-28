@@ -7,9 +7,7 @@ menuconfig ACPI
 	depends on !IA64_HP_SIM
 	depends on IA64 || X86
 	depends on PCI
-	depends on PM
 	select PNP
-	select CPU_IDLE
 	default y
 	help
 	  Advanced Configuration and Power Interface (ACPI) support for 
@@ -52,12 +50,7 @@ config ACPI_PROCFS
 	  For backwards compatibility, this option allows
 	  deprecated /proc/acpi/ files to exist, even when
 	  they have been replaced by functions in /sys.
-	  The deprecated files (and their replacements) include:
 
-	  /proc/acpi/processor/*/throttling (/sys/class/thermal/
-		cooling_device*/*)
-	  /proc/acpi/video/*/brightness (/sys/class/backlight/)
-	  /proc/acpi/thermal_zone/*/* (/sys/class/thermal/)
 	  This option has no effect on /proc/acpi/ files
 	  and functions which do not yet exist in /sys.
 
@@ -66,7 +59,6 @@ config ACPI_PROCFS
 config ACPI_PROCFS_POWER
 	bool "Deprecated power /proc/acpi directories"
 	depends on PROC_FS
-	default y
 	help
 	  For backwards compatibility, this option allows
           deprecated power /proc/acpi/ directories to exist, even when
@@ -76,26 +68,10 @@ config ACPI_PROCFS_POWER
 	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*)
 	  This option has no effect on /proc/acpi/ directories
 	  and functions, which do not yet exist in /sys
+	  This option, together with the proc directories, will be
+	  deleted in 2.6.39.
 
 	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
-
-config ACPI_POWER_METER
-	tristate "ACPI 4.0 power meter"
-	depends on HWMON
-	help
-	  This driver exposes ACPI 4.0 power meters as hardware monitoring
-	  devices.  Say Y (or M) if you have a computer with ACPI 4.0 firmware
-	  and a power meter.
-
-	  To compile this driver as a module, choose M here:
-	  the module will be called power-meter.
-
-config ACPI_SYSFS_POWER
-	bool "Future power /sys interface"
-	select POWER_SUPPLY
-	default y
-	help
-	  Say N to disable power /sys interface
 
 config ACPI_EC_DEBUGFS
 	tristate "EC read/write access through /sys/kernel/debug/ec"
@@ -136,6 +112,7 @@ config ACPI_PROC_EVENT
 config ACPI_AC
 	tristate "AC Adapter"
 	depends on X86
+	select POWER_SUPPLY
 	default y
 	help
 	  This driver supports the AC Adapter object, which indicates
@@ -148,6 +125,7 @@ config ACPI_AC
 config ACPI_BATTERY
 	tristate "Battery"
 	depends on X86
+	select POWER_SUPPLY
 	default y
 	help
 	  This driver adds support for battery information through
@@ -206,6 +184,7 @@ config ACPI_DOCK
 config ACPI_PROCESSOR
 	tristate "Processor"
 	select THERMAL
+	select CPU_IDLE
 	default y
 	help
 	  This driver installs ACPI as the idle handler for Linux and uses
@@ -215,6 +194,17 @@ config ACPI_PROCESSOR
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called processor.
+config ACPI_IPMI
+	tristate "IPMI"
+	depends on EXPERIMENTAL && IPMI_SI && IPMI_HANDLER
+	default n
+	help
+	  This driver enables the ACPI to access the BMC controller. And it
+	  uses the IPMI request/response message to communicate with BMC
+	  controller, which can be found on on the server.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called as acpi_ipmi.
 
 config ACPI_HOTPLUG_CPU
 	bool
@@ -316,7 +306,7 @@ config ACPI_PCI_SLOT
 	  the module will be called pci_slot.
 
 config X86_PM_TIMER
-	bool "Power Management Timer Support" if EMBEDDED
+	bool "Power Management Timer Support" if EXPERT
 	depends on X86
 	default y
 	help
@@ -364,6 +354,7 @@ config ACPI_HOTPLUG_MEMORY
 config ACPI_SBS
 	tristate "Smart Battery System"
 	depends on X86
+	select POWER_SUPPLY
 	help
 	  This driver supports the Smart Battery System, another
 	  type of access to battery information, found on some laptops.
@@ -377,6 +368,21 @@ config ACPI_HED
 	  This driver supports the Hardware Error Device (PNP0C33),
 	  which is used to report some hardware errors notified via
 	  SCI, mainly the corrected errors.
+
+config ACPI_CUSTOM_METHOD
+	tristate "Allow ACPI methods to be inserted/replaced at run time"
+	depends on DEBUG_FS
+	default n
+	help
+	  This debug facility allows ACPI AML methods to me inserted and/or
+	  replaced without rebooting the system. For details refer to:
+	  Documentation/acpi/method-customizing.txt.
+
+	  NOTE: This option is security sensitive, because it allows arbitrary
+	  kernel memory to be written to by root (uid=0) users, allowing them
+	  to bypass certain security measures (e.g. if root is not allowed to
+	  load additional kernel modules after boot, this feature may be used
+	  to override that restriction).
 
 source "drivers/acpi/apei/Kconfig"
 

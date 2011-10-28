@@ -39,7 +39,6 @@
 #include <linux/skbuff.h>
 #include <linux/io.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -865,8 +864,7 @@ static int bluecard_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
+	link->config_flags |= CONF_ENABLE_IRQ;
 
 	return bluecard_config(link);
 }
@@ -886,7 +884,7 @@ static int bluecard_config(struct pcmcia_device *link)
 	bluecard_info_t *info = link->priv;
 	int i, n;
 
-	link->conf.ConfigIndex = 0x20;
+	link->config_index = 0x20;
 
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 	link->resource[0]->end = 64;
@@ -906,7 +904,7 @@ static int bluecard_config(struct pcmcia_device *link)
 	if (i != 0)
 		goto failed;
 
-	i = pcmcia_request_configuration(link, &link->conf);
+	i = pcmcia_enable_device(link);
 	if (i != 0)
 		goto failed;
 
@@ -932,7 +930,7 @@ static void bluecard_release(struct pcmcia_device *link)
 	pcmcia_disable_device(link);
 }
 
-static struct pcmcia_device_id bluecard_ids[] = {
+static const struct pcmcia_device_id bluecard_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("BlueCard", "LSE041", 0xbaf16fbf, 0x657cc15e),
 	PCMCIA_DEVICE_PROD_ID12("BTCFCARD", "LSE139", 0xe3987764, 0x2524b59c),
 	PCMCIA_DEVICE_PROD_ID12("WSS", "LSE039", 0x0a0736ec, 0x24e6dfab),
@@ -942,9 +940,7 @@ MODULE_DEVICE_TABLE(pcmcia, bluecard_ids);
 
 static struct pcmcia_driver bluecard_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "bluecard_cs",
-	},
+	.name		= "bluecard_cs",
 	.probe		= bluecard_probe,
 	.remove		= bluecard_detach,
 	.id_table	= bluecard_ids,

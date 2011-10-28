@@ -59,28 +59,28 @@ is non-freezable.
 
 * Examples of usage :
 
-   # mkdir /containers
-   # mount -t cgroup -ofreezer freezer  /containers
-   # mkdir /containers/0
-   # echo $some_pid > /containers/0/tasks
+   # mkdir /sys/fs/cgroup/freezer
+   # mount -t cgroup -ofreezer freezer /sys/fs/cgroup/freezer
+   # mkdir /sys/fs/cgroup/freezer/0
+   # echo $some_pid > /sys/fs/cgroup/freezer/0/tasks
 
 to get status of the freezer subsystem :
 
-   # cat /containers/0/freezer.state
+   # cat /sys/fs/cgroup/freezer/0/freezer.state
    THAWED
 
 to freeze all tasks in the container :
 
-   # echo FROZEN > /containers/0/freezer.state
-   # cat /containers/0/freezer.state
+   # echo FROZEN > /sys/fs/cgroup/freezer/0/freezer.state
+   # cat /sys/fs/cgroup/freezer/0/freezer.state
    FREEZING
-   # cat /containers/0/freezer.state
+   # cat /sys/fs/cgroup/freezer/0/freezer.state
    FROZEN
 
 to unfreeze all tasks in the container :
 
-   # echo THAWED > /containers/0/freezer.state
-   # cat /containers/0/freezer.state
+   # echo THAWED > /sys/fs/cgroup/freezer/0/freezer.state
+   # cat /sys/fs/cgroup/freezer/0/freezer.state
    THAWED
 
 This is the basic mechanism which should do the right thing for user space task

@@ -824,6 +824,13 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 	kfree(uverbs_dev);
 }
 
+static char *uverbs_devnode(struct device *dev, mode_t *mode)
+{
+	if (mode)
+		*mode = 0666;
+	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
+}
+
 static int __init ib_uverbs_init(void)
 {
 	int ret;
@@ -841,6 +848,8 @@ static int __init ib_uverbs_init(void)
 		printk(KERN_ERR "user_verbs: couldn't create class infiniband_verbs\n");
 		goto out_chrdev;
 	}
+
+	uverbs_class->devnode = uverbs_devnode;
 
 	ret = class_create_file(uverbs_class, &class_attr_abi_version.attr);
 	if (ret) {

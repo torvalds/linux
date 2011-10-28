@@ -396,6 +396,12 @@
 #define __NR_fanotify_init		(__NR_SYSCALL_BASE+367)
 #define __NR_fanotify_mark		(__NR_SYSCALL_BASE+368)
 #define __NR_prlimit64			(__NR_SYSCALL_BASE+369)
+#define __NR_name_to_handle_at		(__NR_SYSCALL_BASE+370)
+#define __NR_open_by_handle_at		(__NR_SYSCALL_BASE+371)
+#define __NR_clock_adjtime		(__NR_SYSCALL_BASE+372)
+#define __NR_syncfs			(__NR_SYSCALL_BASE+373)
+#define __NR_sendmmsg			(__NR_SYSCALL_BASE+374)
+#define __NR_setns			(__NR_SYSCALL_BASE+375)
 
 /*
  * The following SWIs are ARM private.

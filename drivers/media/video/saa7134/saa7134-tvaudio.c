@@ -550,16 +550,16 @@ static int tvaudio_thread(void *data)
 		} else if (0 != dev->last_carrier) {
 			/* no carrier -- try last detected one as fallback */
 			carrier = dev->last_carrier;
-			dprintk(KERN_WARNING "%s/audio: audio carrier scan failed, "
-			       "using %d.%03d MHz [last detected]\n",
-			       dev->name, carrier/1000, carrier%1000);
+			dprintk("audio carrier scan failed, "
+				"using %d.%03d MHz [last detected]\n",
+				carrier/1000, carrier%1000);
 
 		} else {
 			/* no carrier + no fallback -- use default */
 			carrier = default_carrier;
-			dprintk(KERN_WARNING "%s/audio: audio carrier scan failed, "
-			       "using %d.%03d MHz [default]\n",
-			       dev->name, carrier/1000, carrier%1000);
+			dprintk("audio carrier scan failed, "
+				"using %d.%03d MHz [default]\n",
+				carrier/1000, carrier%1000);
 		}
 		tvaudio_setcarrier(dev,carrier,carrier);
 		dev->automute = 0;

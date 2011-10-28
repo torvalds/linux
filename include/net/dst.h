@@ -16,13 +16,6 @@
 #include <net/neighbour.h>
 #include <asm/processor.h>
 
-/*
- * 0 - no debugging messages
- * 1 - rare events and bugs (default)
- * 2 - trace mode.
- */
-#define RT_CACHE_DEBUG		0
-
 #define DST_GC_MIN	(HZ/10)
 #define DST_GC_INC	(HZ/2)
 #define DST_GC_MAX	(120*HZ)
@@ -40,23 +33,10 @@ struct dst_entry {
 	struct rcu_head		rcu_head;
 	struct dst_entry	*child;
 	struct net_device       *dev;
-	short			error;
-	short			obsolete;
-	int			flags;
-#define DST_HOST		1
-#define DST_NOXFRM		2
-#define DST_NOPOLICY		4
-#define DST_NOHASH		8
+	struct  dst_ops	        *ops;
+	unsigned long		_metrics;
 	unsigned long		expires;
-
-	unsigned short		header_len;	/* more space at head required */
-	unsigned short		trailer_len;	/* space to reserve at tail */
-
-	unsigned int		rate_tokens;
-	unsigned long		rate_last;	/* rate limiting for ICMP */
-
 	struct dst_entry	*path;
-
 	struct neighbour	*neighbour;
 	struct hh_cache		*hh;
 #ifdef CONFIG_XFRM
@@ -67,16 +47,15 @@ struct dst_entry {
 	int			(*input)(struct sk_buff*);
 	int			(*output)(struct sk_buff*);
 
-	struct  dst_ops	        *ops;
-
-	u32			metrics[RTAX_MAX];
-
-#ifdef CONFIG_NET_CLS_ROUTE
+	short			error;
+	short			obsolete;
+	unsigned short		header_len;	/* more space at head required */
+	unsigned short		trailer_len;	/* space to reserve at tail */
+#ifdef CONFIG_IP_ROUTE_CLASSID
 	__u32			tclassid;
 #else
 	__u32			__pad2;
 #endif
-
 
 	/*
 	 * Align __refcnt to a 64 bytes alignment
@@ -92,20 +71,115 @@ struct dst_entry {
 	atomic_t		__refcnt;	/* client references	*/
 	int			__use;
 	unsigned long		lastuse;
+	int			flags;
+#define DST_HOST		0x0001
+#define DST_NOXFRM		0x0002
+#define DST_NOPOLICY		0x0004
+#define DST_NOHASH		0x0008
+#define DST_NOCACHE		0x0010
+#define DST_NOCOUNT		0x0020
 	union {
-		struct dst_entry *next;
-		struct rtable    *rt_next;
-		struct rt6_info   *rt6_next;
-		struct dn_route  *dn_next;
+		struct dst_entry	*next;
+		struct rtable __rcu	*rt_next;
+		struct rt6_info		*rt6_next;
+		struct dn_route __rcu	*dn_next;
 	};
 };
 
-#ifdef __KERNEL__
+extern u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old);
+extern const u32 dst_default_metrics[RTAX_MAX];
+
+#define DST_METRICS_READ_ONLY	0x1UL
+#define __DST_METRICS_PTR(Y)	\
+	((u32 *)((Y) & ~DST_METRICS_READ_ONLY))
+#define DST_METRICS_PTR(X)	__DST_METRICS_PTR((X)->_metrics)
+
+static inline bool dst_metrics_read_only(const struct dst_entry *dst)
+{
+	return dst->_metrics & DST_METRICS_READ_ONLY;
+}
+
+extern void __dst_destroy_metrics_generic(struct dst_entry *dst, unsigned long old);
+
+static inline void dst_destroy_metrics_generic(struct dst_entry *dst)
+{
+	unsigned long val = dst->_metrics;
+	if (!(val & DST_METRICS_READ_ONLY))
+		__dst_destroy_metrics_generic(dst, val);
+}
+
+static inline u32 *dst_metrics_write_ptr(struct dst_entry *dst)
+{
+	unsigned long p = dst->_metrics;
+
+	BUG_ON(!p);
+
+	if (p & DST_METRICS_READ_ONLY)
+		return dst->ops->cow_metrics(dst, p);
+	return __DST_METRICS_PTR(p);
+}
+
+/* This may only be invoked before the entry has reached global
+ * visibility.
+ */
+static inline void dst_init_metrics(struct dst_entry *dst,
+				    const u32 *src_metrics,
+				    bool read_only)
+{
+	dst->_metrics = ((unsigned long) src_metrics) |
+		(read_only ? DST_METRICS_READ_ONLY : 0);
+}
+
+static inline void dst_copy_metrics(struct dst_entry *dest, const struct dst_entry *src)
+{
+	u32 *dst_metrics = dst_metrics_write_ptr(dest);
+
+	if (dst_metrics) {
+		u32 *src_metrics = DST_METRICS_PTR(src);
+
+		memcpy(dst_metrics, src_metrics, RTAX_MAX * sizeof(u32));
+	}
+}
+
+static inline u32 *dst_metrics_ptr(struct dst_entry *dst)
+{
+	return DST_METRICS_PTR(dst);
+}
 
 static inline u32
-dst_metric(const struct dst_entry *dst, int metric)
+dst_metric_raw(const struct dst_entry *dst, const int metric)
 {
-	return dst->metrics[metric-1];
+	u32 *p = DST_METRICS_PTR(dst);
+
+	return p[metric-1];
+}
+
+static inline u32
+dst_metric(const struct dst_entry *dst, const int metric)
+{
+	WARN_ON_ONCE(metric == RTAX_HOPLIMIT ||
+		     metric == RTAX_ADVMSS ||
+		     metric == RTAX_MTU);
+	return dst_metric_raw(dst, metric);
+}
+
+static inline u32
+dst_metric_advmss(const struct dst_entry *dst)
+{
+	u32 advmss = dst_metric_raw(dst, RTAX_ADVMSS);
+
+	if (!advmss)
+		advmss = dst->ops->default_advmss(dst);
+
+	return advmss;
+}
+
+static inline void dst_metric_set(struct dst_entry *dst, int metric, u32 val)
+{
+	u32 *p = dst_metrics_write_ptr(dst);
+
+	if (p)
+		p[metric-1] = val;
 }
 
 static inline u32
@@ -116,11 +190,11 @@ dst_feature(const struct dst_entry *dst, u32 feature)
 
 static inline u32 dst_mtu(const struct dst_entry *dst)
 {
-	u32 mtu = dst_metric(dst, RTAX_MTU);
-	/*
-	 * Alexey put it here, so ask him about it :)
-	 */
-	barrier();
+	u32 mtu = dst_metric_raw(dst, RTAX_MTU);
+
+	if (!mtu)
+		mtu = dst->ops->default_mtu(dst);
+
 	return mtu;
 }
 
@@ -133,20 +207,18 @@ static inline unsigned long dst_metric_rtt(const struct dst_entry *dst, int metr
 static inline void set_dst_metric_rtt(struct dst_entry *dst, int metric,
 				      unsigned long rtt)
 {
-	dst->metrics[metric-1] = jiffies_to_msecs(rtt);
+	dst_metric_set(dst, metric, jiffies_to_msecs(rtt));
 }
 
 static inline u32
 dst_allfrag(const struct dst_entry *dst)
 {
 	int ret = dst_feature(dst,  RTAX_FEATURE_ALLFRAG);
-	/* Yes, _exactly_. This is paranoia. */
-	barrier();
 	return ret;
 }
 
 static inline int
-dst_metric_locked(struct dst_entry *dst, int metric)
+dst_metric_locked(const struct dst_entry *dst, int metric)
 {
 	return dst_metric(dst, RTAX_LOCK) & (1<<metric);
 }
@@ -228,23 +300,37 @@ static inline void skb_dst_force(struct sk_buff *skb)
 
 
 /**
+ *	__skb_tunnel_rx - prepare skb for rx reinsert
+ *	@skb: buffer
+ *	@dev: tunnel device
+ *
+ *	After decapsulation, packet is going to re-enter (netif_rx()) our stack,
+ *	so make some cleanups. (no accounting done)
+ */
+static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
+{
+	skb->dev = dev;
+	skb->rxhash = 0;
+	skb_set_queue_mapping(skb, 0);
+	skb_dst_drop(skb);
+	nf_reset(skb);
+}
+
+/**
  *	skb_tunnel_rx - prepare skb for rx reinsert
  *	@skb: buffer
  *	@dev: tunnel device
  *
  *	After decapsulation, packet is going to re-enter (netif_rx()) our stack,
  *	so make some cleanups, and perform accounting.
+ *	Note: this accounting is not SMP safe.
  */
 static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
 {
-	skb->dev = dev;
 	/* TODO : stats should be SMP safe */
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
-	skb->rxhash = 0;
-	skb_set_queue_mapping(skb, 0);
-	skb_dst_drop(skb);
-	nf_reset(skb);
+	__skb_tunnel_rx(skb, dev);
 }
 
 /* Children define the path of the packet through the
@@ -253,14 +339,15 @@ static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
 
 static inline struct dst_entry *skb_dst_pop(struct sk_buff *skb)
 {
-	struct dst_entry *child = skb_dst(skb)->child;
+	struct dst_entry *child = dst_clone(skb_dst(skb)->child);
 
 	skb_dst_drop(skb);
 	return child;
 }
 
 extern int dst_discard(struct sk_buff *skb);
-extern void * dst_alloc(struct dst_ops * ops);
+extern void *dst_alloc(struct dst_ops * ops, struct net_device *dev,
+		       int initial_ref, int initial_obsolete, int flags);
 extern void __dst_free(struct dst_entry * dst);
 extern struct dst_entry *dst_destroy(struct dst_entry * dst);
 
@@ -329,28 +416,22 @@ extern void		dst_init(void);
 
 /* Flags for xfrm_lookup flags argument. */
 enum {
-	XFRM_LOOKUP_WAIT = 1 << 0,
-	XFRM_LOOKUP_ICMP = 1 << 1,
+	XFRM_LOOKUP_ICMP = 1 << 0,
 };
 
 struct flowi;
 #ifndef CONFIG_XFRM
-static inline int xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-			      struct flowi *fl, struct sock *sk, int flags)
+static inline struct dst_entry *xfrm_lookup(struct net *net,
+					    struct dst_entry *dst_orig,
+					    const struct flowi *fl, struct sock *sk,
+					    int flags)
 {
-	return 0;
+	return dst_orig;
 } 
-static inline int __xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-				struct flowi *fl, struct sock *sk, int flags)
-{
-	return 0;
-}
 #else
-extern int xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-		       struct flowi *fl, struct sock *sk, int flags);
-extern int __xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-			 struct flowi *fl, struct sock *sk, int flags);
-#endif
+extern struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
+				     const struct flowi *fl, struct sock *sk,
+				     int flags);
 #endif
 
 #endif /* _NET_DST_H */

@@ -579,8 +579,8 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 #define RF3 2
 	u32 rf_default[3];
 	u32 rf_freq[3];
-	u8 prog_cal[3];
-	u8 prog_tab[3];
+	s32 prog_cal[3];
+	s32 prog_tab[3];
 
 	i = tda18271_lookup_rf_band(fe, &freq, NULL);
 
@@ -602,32 +602,33 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 			return bcal;
 
 		tda18271_calc_rf_cal(fe, &rf_freq[rf]);
-		prog_tab[rf] = regs[R_EB14];
+		prog_tab[rf] = (s32)regs[R_EB14];
 
 		if (1 == bcal)
-			prog_cal[rf] = tda18271_calibrate_rf(fe, rf_freq[rf]);
+			prog_cal[rf] =
+				(s32)tda18271_calibrate_rf(fe, rf_freq[rf]);
 		else
 			prog_cal[rf] = prog_tab[rf];
 
 		switch (rf) {
 		case RF1:
 			map[i].rf_a1 = 0;
-			map[i].rf_b1 = (s32)(prog_cal[RF1] - prog_tab[RF1]);
+			map[i].rf_b1 = (prog_cal[RF1] - prog_tab[RF1]);
 			map[i].rf1   = rf_freq[RF1] / 1000;
 			break;
 		case RF2:
-			dividend = (s32)(prog_cal[RF2] - prog_tab[RF2]) -
-				   (s32)(prog_cal[RF1] + prog_tab[RF1]);
+			dividend = (prog_cal[RF2] - prog_tab[RF2] -
+				    prog_cal[RF1] + prog_tab[RF1]);
 			divisor = (s32)(rf_freq[RF2] - rf_freq[RF1]) / 1000;
 			map[i].rf_a1 = (dividend / divisor);
 			map[i].rf2   = rf_freq[RF2] / 1000;
 			break;
 		case RF3:
-			dividend = (s32)(prog_cal[RF3] - prog_tab[RF3]) -
-				   (s32)(prog_cal[RF2] + prog_tab[RF2]);
+			dividend = (prog_cal[RF3] - prog_tab[RF3] -
+				    prog_cal[RF2] + prog_tab[RF2]);
 			divisor = (s32)(rf_freq[RF3] - rf_freq[RF2]) / 1000;
 			map[i].rf_a2 = (dividend / divisor);
-			map[i].rf_b2 = (s32)(prog_cal[RF2] - prog_tab[RF2]);
+			map[i].rf_b2 = (prog_cal[RF2] - prog_tab[RF2]);
 			map[i].rf3   = rf_freq[RF3] / 1000;
 			break;
 		default:
@@ -975,6 +976,10 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 			tda_warn("bandwidth not set!\n");
 			return -EINVAL;
 		}
+	} else if (fe->ops.info.type == FE_QAM) {
+		/* DVB-C */
+		map = &std_map->qam_8;
+		bw = 8000000;
 	} else {
 		tda_warn("modulation type not supported!\n");
 		return -EINVAL;
@@ -1156,7 +1161,6 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	char *name;
-	int ret = 0;
 
 	mutex_lock(&priv->lock);
 	tda18271_read_regs(fe);
@@ -1172,17 +1176,16 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 		priv->id = TDA18271HDC2;
 		break;
 	default:
-		name = "Unknown device";
-		ret = -EINVAL;
-		break;
+		tda_info("Unknown device (%i) detected @ %d-%04x, device not supported.\n",
+			 regs[R_ID], i2c_adapter_id(priv->i2c_props.adap),
+			 priv->i2c_props.addr);
+		return -EINVAL;
 	}
 
-	tda_info("%s detected @ %d-%04x%s\n", name,
-		 i2c_adapter_id(priv->i2c_props.adap),
-		 priv->i2c_props.addr,
-		 (0 == ret) ? "" : ", device not supported.");
+	tda_info("%s detected @ %d-%04x\n", name,
+		 i2c_adapter_id(priv->i2c_props.adap), priv->i2c_props.addr);
 
-	return ret;
+	return 0;
 }
 
 static int tda18271_setup_configuration(struct dvb_frontend *fe,

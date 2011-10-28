@@ -3,7 +3,7 @@
  * 
  * (The IMM is the embedded controller in the ZIP Plus drive.)
  * 
- * My unoffical company acronym list is 21 pages long:
+ * My unofficial company acronym list is 21 pages long:
  *      FLA:    Four letter acronym with built in facility for
  *              future expansion to five letters.
  */
@@ -926,7 +926,7 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 	return 0;
 }
 
-static int imm_queuecommand(struct scsi_cmnd *cmd,
+static int imm_queuecommand_lck(struct scsi_cmnd *cmd,
 		void (*done)(struct scsi_cmnd *))
 {
 	imm_struct *dev = imm_dev(cmd->device->host);
@@ -948,6 +948,8 @@ static int imm_queuecommand(struct scsi_cmnd *cmd,
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(imm_queuecommand)
 
 /*
  * Apparently the disk->capacity attribute is off by 1 sector 

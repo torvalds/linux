@@ -4,7 +4,7 @@
  * Driver for Palm Tungsten|C PCMCIA
  *
  * Copyright (C) 2008 Alex Osborne <ato@meshy.org>
- * Copyright (C) 2009 Marek Vasut <marek.vasut@gmail.com>
+ * Copyright (C) 2009-2011 Marek Vasut <marek.vasut@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,79 +21,30 @@
 #include <mach/palmtc.h>
 #include "soc_common.h"
 
+static struct gpio palmtc_pcmcia_gpios[] = {
+	{ GPIO_NR_PALMTC_PCMCIA_POWER1,	GPIOF_INIT_LOW,	"PCMCIA Power 1" },
+	{ GPIO_NR_PALMTC_PCMCIA_POWER2,	GPIOF_INIT_LOW,	"PCMCIA Power 2" },
+	{ GPIO_NR_PALMTC_PCMCIA_POWER3,	GPIOF_INIT_LOW,	"PCMCIA Power 3" },
+	{ GPIO_NR_PALMTC_PCMCIA_RESET,	GPIOF_INIT_HIGH,"PCMCIA Reset" },
+	{ GPIO_NR_PALMTC_PCMCIA_READY,	GPIOF_IN,	"PCMCIA Ready" },
+	{ GPIO_NR_PALMTC_PCMCIA_PWRREADY, GPIOF_IN,	"PCMCIA Power Ready" },
+};
+
 static int palmtc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	int ret;
 
-	ret = gpio_request(GPIO_NR_PALMTC_PCMCIA_POWER1, "PCMCIA PWR1");
-	if (ret)
-		goto err1;
-	ret = gpio_direction_output(GPIO_NR_PALMTC_PCMCIA_POWER1, 0);
-	if (ret)
-		goto err2;
-
-	ret = gpio_request(GPIO_NR_PALMTC_PCMCIA_POWER2, "PCMCIA PWR2");
-	if (ret)
-		goto err2;
-	ret = gpio_direction_output(GPIO_NR_PALMTC_PCMCIA_POWER2, 0);
-	if (ret)
-		goto err3;
-
-	ret = gpio_request(GPIO_NR_PALMTC_PCMCIA_POWER3, "PCMCIA PWR3");
-	if (ret)
-		goto err3;
-	ret = gpio_direction_output(GPIO_NR_PALMTC_PCMCIA_POWER3, 0);
-	if (ret)
-		goto err4;
-
-	ret = gpio_request(GPIO_NR_PALMTC_PCMCIA_RESET, "PCMCIA RST");
-	if (ret)
-		goto err4;
-	ret = gpio_direction_output(GPIO_NR_PALMTC_PCMCIA_RESET, 1);
-	if (ret)
-		goto err5;
-
-	ret = gpio_request(GPIO_NR_PALMTC_PCMCIA_READY, "PCMCIA RDY");
-	if (ret)
-		goto err5;
-	ret = gpio_direction_input(GPIO_NR_PALMTC_PCMCIA_READY);
-	if (ret)
-		goto err6;
-
-	ret = gpio_request(GPIO_NR_PALMTC_PCMCIA_PWRREADY, "PCMCIA PWRRDY");
-	if (ret)
-		goto err6;
-	ret = gpio_direction_input(GPIO_NR_PALMTC_PCMCIA_PWRREADY);
-	if (ret)
-		goto err7;
+	ret = gpio_request_array(palmtc_pcmcia_gpios,
+				ARRAY_SIZE(palmtc_pcmcia_gpios));
 
 	skt->socket.pci_irq = IRQ_GPIO(GPIO_NR_PALMTC_PCMCIA_READY);
-	return 0;
 
-err7:
-	gpio_free(GPIO_NR_PALMTC_PCMCIA_PWRREADY);
-err6:
-	gpio_free(GPIO_NR_PALMTC_PCMCIA_READY);
-err5:
-	gpio_free(GPIO_NR_PALMTC_PCMCIA_RESET);
-err4:
-	gpio_free(GPIO_NR_PALMTC_PCMCIA_POWER3);
-err3:
-	gpio_free(GPIO_NR_PALMTC_PCMCIA_POWER2);
-err2:
-	gpio_free(GPIO_NR_PALMTC_PCMCIA_POWER1);
-err1:
 	return ret;
 }
 
 static void palmtc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 {
-	gpio_free(GPIO_NR_PALMTC_PCMCIA_PWRREADY);
-	gpio_free(GPIO_NR_PALMTC_PCMCIA_READY);
-	gpio_free(GPIO_NR_PALMTC_PCMCIA_RESET);
-	gpio_free(GPIO_NR_PALMTC_PCMCIA_POWER3);
-	gpio_free(GPIO_NR_PALMTC_PCMCIA_POWER2);
-	gpio_free(GPIO_NR_PALMTC_PCMCIA_POWER1);
+	gpio_free_array(palmtc_pcmcia_gpios, ARRAY_SIZE(palmtc_pcmcia_gpios));
 }
 
 static void palmtc_pcmcia_socket_state(struct soc_pcmcia_socket *skt,

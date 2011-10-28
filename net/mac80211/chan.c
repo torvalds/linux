@@ -11,7 +11,7 @@ __ieee80211_get_channel_mode(struct ieee80211_local *local,
 {
 	struct ieee80211_sub_if_data *sdata;
 
-	WARN_ON(!mutex_is_locked(&local->iflist_mtx));
+	lockdep_assert_held(&local->iflist_mtx);
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata == ignore)
@@ -77,6 +77,9 @@ bool ieee80211_set_channel_type(struct ieee80211_local *local,
 		switch (tmp->vif.bss_conf.channel_type) {
 		case NL80211_CHAN_NO_HT:
 		case NL80211_CHAN_HT20:
+			if (superchan > tmp->vif.bss_conf.channel_type)
+				break;
+
 			superchan = tmp->vif.bss_conf.channel_type;
 			break;
 		case NL80211_CHAN_HT40PLUS:

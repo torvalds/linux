@@ -195,27 +195,6 @@ device_initcall(microdev_devices_setup);
 static struct sh_machine_vector mv_sh4202_microdev __initmv = {
 	.mv_name		= "SH4-202 MicroDev",
 	.mv_nr_irqs		= 72,
-
-	.mv_inb			= microdev_inb,
-	.mv_inw			= microdev_inw,
-	.mv_inl			= microdev_inl,
-	.mv_outb		= microdev_outb,
-	.mv_outw		= microdev_outw,
-	.mv_outl		= microdev_outl,
-
-	.mv_inb_p		= microdev_inb_p,
-	.mv_inw_p		= microdev_inw_p,
-	.mv_inl_p		= microdev_inl_p,
-	.mv_outb_p		= microdev_outb_p,
-	.mv_outw_p		= microdev_outw_p,
-	.mv_outl_p		= microdev_outl_p,
-
-	.mv_insb		= microdev_insb,
-	.mv_insw		= microdev_insw,
-	.mv_insl		= microdev_insl,
-	.mv_outsb		= microdev_outsb,
-	.mv_outsw		= microdev_outsw,
-	.mv_outsl		= microdev_outsl,
-
+	.mv_ioport_map		= microdev_ioport_map,
 	.mv_init_irq		= init_microdev_irq,
 };

@@ -78,10 +78,16 @@ config TEST_POWER
 
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
-	select W1
-	select W1_SLAVE_DS2760
+	depends on W1 && W1_SLAVE_DS2760
 	help
 	  Say Y here to enable support for batteries with ds2760 chip.
+
+config BATTERY_DS2780
+	tristate "DS2780 battery driver"
+	select W1
+	select W1_SLAVE_DS2780
+	help
+	  Say Y here to enable support for batteries with ds2780 chip.
 
 config BATTERY_DS2782
 	tristate "DS2782/DS2786 standalone gas-gauge"
@@ -123,11 +129,32 @@ config BATTERY_WM97XX
 	help
 	  Say Y to enable support for battery measured by WM97xx aux port.
 
+config BATTERY_BQ20Z75
+        tristate "TI BQ20z75 gas gauge"
+        depends on I2C
+        help
+         Say Y to include support for TI BQ20z75 SBS-compliant
+         gas gauge and protection IC.
+
 config BATTERY_BQ27x00
 	tristate "BQ27x00 battery driver"
+	help
+	  Say Y here to enable support for batteries with BQ27x00 (I2C/HDQ) chips.
+
+config BATTERY_BQ27X00_I2C
+	bool "BQ27200/BQ27500 support"
+	depends on BATTERY_BQ27x00
 	depends on I2C
+	default y
 	help
 	  Say Y here to enable support for batteries with BQ27x00 (I2C) chips.
+
+config BATTERY_BQ27X00_PLATFORM
+	bool "BQ27000 support"
+	depends on BATTERY_BQ27x00
+	default y
+	help
+	  Say Y here to enable support for batteries with BQ27000 (HDQ) chips.
 
 config BATTERY_DA9030
 	tristate "DA9030 battery driver"
@@ -143,6 +170,16 @@ config BATTERY_MAX17040
 	  MAX17040 is fuel-gauge systems for lithium-ion (Li+) batteries
 	  in handheld and portable equipment. The MAX17040 is configured
 	  to operate with a single lithium cell
+
+config BATTERY_MAX17042
+	tristate "Maxim MAX17042/8997/8966 Fuel Gauge"
+	depends on I2C
+	help
+	  MAX17042 is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. The MAX17042 is configured
+	  to operate with a single lithium cell. MAX8997 and MAX8966 are
+	  multi-function devices that include fuel gauages that are compatible
+	  with MAX17042.
 
 config BATTERY_Z2
 	tristate "Z2 battery driver"
@@ -222,5 +259,37 @@ config BATTERY_INTEL_MID
 	help
 	  Say Y here to enable the battery driver on Intel MID
 	  platforms.
+
+config CHARGER_ISP1704
+	tristate "ISP1704 USB Charger Detection"
+	depends on USB_OTG_UTILS
+	help
+	  Say Y to enable support for USB Charger Detection with
+	  ISP1707/ISP1704 USB transceivers.
+
+config CHARGER_MAX8903
+	tristate "MAX8903 Battery DC-DC Charger for USB and Adapter Power"
+	depends on GENERIC_HARDIRQS
+	help
+	  Say Y to enable support for the MAX8903 DC-DC charger and sysfs.
+	  The driver supports controlling charger-enable and current-limit
+	  pins based on the status of charger connections with interrupt
+	  handlers.
+
+config CHARGER_TWL4030
+	tristate "OMAP TWL4030 BCI charger driver"
+	depends on TWL4030_CORE
+	help
+	  Say Y here to enable support for TWL4030 Battery Charge Interface.
+
+config CHARGER_GPIO
+	tristate "GPIO charger"
+	depends on GPIOLIB
+	help
+	  Say Y to include support for chargers which report their online status
+	  through a GPIO pin.
+
+	  This driver can be build as a module. If so, the module will be
+	  called gpio-charger.
 
 endif # POWER_SUPPLY

@@ -191,37 +191,30 @@ static int __devinit k8temp_probe(struct pci_dev *pdev,
 	model = boot_cpu_data.x86_model;
 	stepping = boot_cpu_data.x86_mask;
 
-	switch (boot_cpu_data.x86) {
-	case 0xf:
-		/* feature available since SH-C0, exclude older revisions */
-		if (((model == 4) && (stepping == 0)) ||
-		    ((model == 5) && (stepping <= 1))) {
-			err = -ENODEV;
-			goto exit_free;
-		}
-
-		/*
-		 * AMD NPT family 0fh, i.e. RevF and RevG:
-		 * meaning of SEL_CORE bit is inverted
-		 */
-		if (model >= 0x40) {
-			data->swap_core_select = 1;
-			dev_warn(&pdev->dev, "Temperature readouts might be "
-				 "wrong - check erratum #141\n");
-		}
-
-		if (is_rev_g_desktop(model)) {
-			/*
-			 * RevG desktop CPUs (i.e. no socket S1G1 or
-			 * ASB1 parts) need additional offset,
-			 * otherwise reported temperature is below
-			 * ambient temperature
-			 */
-			data->temp_offset = 21000;
-		}
-
-		break;
+	/* feature available since SH-C0, exclude older revisions */
+	if (((model == 4) && (stepping == 0)) ||
+	    ((model == 5) && (stepping <= 1))) {
+		err = -ENODEV;
+		goto exit_free;
 	}
+
+	/*
+	 * AMD NPT family 0fh, i.e. RevF and RevG:
+	 * meaning of SEL_CORE bit is inverted
+	 */
+	if (model >= 0x40) {
+		data->swap_core_select = 1;
+		dev_warn(&pdev->dev, "Temperature readouts might be wrong - "
+			 "check erratum #141\n");
+	}
+
+	/*
+	 * RevG desktop CPUs (i.e. no socket S1G1 or ASB1 parts) need
+	 * additional offset, otherwise reported temperature is below
+	 * ambient temperature
+	 */
+	if (is_rev_g_desktop(model))
+		data->temp_offset = 21000;
 
 	pci_read_config_byte(pdev, REG_TEMP, &scfg);
 	scfg &= ~(SEL_PLACE | SEL_CORE);		/* Select sensor 0, core0 */
@@ -259,7 +252,7 @@ static int __devinit k8temp_probe(struct pci_dev *pdev,
 
 	data->name = "k8temp";
 	mutex_init(&data->update_lock);
-	dev_set_drvdata(&pdev->dev, data);
+	pci_set_drvdata(pdev, data);
 
 	/* Register sysfs hooks */
 	err = device_create_file(&pdev->dev,
@@ -314,7 +307,7 @@ exit_remove:
 			   &sensor_dev_attr_temp4_input.dev_attr);
 	device_remove_file(&pdev->dev, &dev_attr_name);
 exit_free:
-	dev_set_drvdata(&pdev->dev, NULL);
+	pci_set_drvdata(pdev, NULL);
 	kfree(data);
 exit:
 	return err;
@@ -322,7 +315,7 @@ exit:
 
 static void __devexit k8temp_remove(struct pci_dev *pdev)
 {
-	struct k8temp_data *data = dev_get_drvdata(&pdev->dev);
+	struct k8temp_data *data = pci_get_drvdata(pdev);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	device_remove_file(&pdev->dev,
@@ -334,7 +327,7 @@ static void __devexit k8temp_remove(struct pci_dev *pdev)
 	device_remove_file(&pdev->dev,
 			   &sensor_dev_attr_temp4_input.dev_attr);
 	device_remove_file(&pdev->dev, &dev_attr_name);
-	dev_set_drvdata(&pdev->dev, NULL);
+	pci_set_drvdata(pdev, NULL);
 	kfree(data);
 }
 

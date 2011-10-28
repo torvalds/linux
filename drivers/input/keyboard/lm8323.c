@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/leds.h>
+#include <linux/pm.h>
 #include <linux/i2c/lm8323.h>
 #include <linux/slab.h>
 
@@ -802,12 +803,13 @@ static int __devexit lm8323_remove(struct i2c_client *client)
  * We don't need to explicitly suspend the chip, as it already switches off
  * when there's no activity.
  */
-static int lm8323_suspend(struct i2c_client *client, pm_message_t mesg)
+static int lm8323_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct lm8323_chip *lm = i2c_get_clientdata(client);
 	int i;
 
-	set_irq_wake(client->irq, 0);
+	irq_set_irq_wake(client->irq, 0);
 	disable_irq(client->irq);
 
 	mutex_lock(&lm->lock);
@@ -821,8 +823,9 @@ static int lm8323_suspend(struct i2c_client *client, pm_message_t mesg)
 	return 0;
 }
 
-static int lm8323_resume(struct i2c_client *client)
+static int lm8323_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct lm8323_chip *lm = i2c_get_clientdata(client);
 	int i;
 
@@ -835,14 +838,13 @@ static int lm8323_resume(struct i2c_client *client)
 			led_classdev_resume(&lm->pwm[i].cdev);
 
 	enable_irq(client->irq);
-	set_irq_wake(client->irq, 1);
+	irq_set_irq_wake(client->irq, 1);
 
 	return 0;
 }
-#else
-#define lm8323_suspend	NULL
-#define lm8323_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(lm8323_pm_ops, lm8323_suspend, lm8323_resume);
 
 static const struct i2c_device_id lm8323_id[] = {
 	{ "lm8323", 0 },
@@ -852,11 +854,10 @@ static const struct i2c_device_id lm8323_id[] = {
 static struct i2c_driver lm8323_i2c_driver = {
 	.driver = {
 		.name	= "lm8323",
+		.pm	= &lm8323_pm_ops,
 	},
 	.probe		= lm8323_probe,
 	.remove		= __devexit_p(lm8323_remove),
-	.suspend	= lm8323_suspend,
-	.resume		= lm8323_resume,
 	.id_table	= lm8323_id,
 };
 MODULE_DEVICE_TABLE(i2c, lm8323_id);

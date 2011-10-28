@@ -189,6 +189,9 @@ static void hdmi_update_short_audio_desc(struct cea_sad *a,
 	a->channels = GRAB_BITS(buf, 0, 0, 3);
 	a->channels++;
 
+	a->sample_bits = 0;
+	a->max_bitrate = 0;
+
 	a->format = GRAB_BITS(buf, 0, 3, 4);
 	switch (a->format) {
 	case AUDIO_CODING_TYPE_REF_STREAM_HEADER:
@@ -198,7 +201,6 @@ static void hdmi_update_short_audio_desc(struct cea_sad *a,
 
 	case AUDIO_CODING_TYPE_LPCM:
 		val = GRAB_BITS(buf, 2, 0, 3);
-		a->sample_bits = 0;
 		for (i = 0; i < 3; i++)
 			if (val & (1 << i))
 				a->sample_bits |= cea_sample_sizes[i + 1];
@@ -292,7 +294,7 @@ static int hdmi_update_eld(struct hdmi_eld *e,
 		snd_printd(KERN_INFO "HDMI: out of range MNL %d\n", mnl);
 		goto out_fail;
 	} else
-		strlcpy(e->monitor_name, buf + ELD_FIXED_BYTES, mnl);
+		strlcpy(e->monitor_name, buf + ELD_FIXED_BYTES, mnl + 1);
 
 	for (i = 0; i < e->sad_count; i++) {
 		if (ELD_FIXED_BYTES + mnl + 3 * (i + 1) > size) {
@@ -310,29 +312,11 @@ out_fail:
 	return -EINVAL;
 }
 
-static int hdmi_eld_valid(struct hda_codec *codec, hda_nid_t nid)
-{
-	int eldv;
-	int present;
-
-	present = snd_hda_pin_sense(codec, nid);
-	eldv    = (present & AC_PINSENSE_ELDV);
-	present = (present & AC_PINSENSE_PRESENCE);
-
-#ifdef CONFIG_SND_DEBUG_VERBOSE
-	printk(KERN_INFO "HDMI: sink_present = %d, eld_valid = %d\n",
-			!!present, !!eldv);
-#endif
-
-	return eldv && present;
-}
-
 int snd_hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid)
 {
 	return snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_HDMI_DIP_SIZE,
 						 AC_DIPSIZE_ELD_BUF);
 }
-EXPORT_SYMBOL_HDA(snd_hdmi_get_eld_size);
 
 int snd_hdmi_get_eld(struct hdmi_eld *eld,
 		     struct hda_codec *codec, hda_nid_t nid)
@@ -342,7 +326,7 @@ int snd_hdmi_get_eld(struct hdmi_eld *eld,
 	int size;
 	unsigned char *buf;
 
-	if (!hdmi_eld_valid(codec, nid))
+	if (!eld->eld_valid)
 		return -ENOENT;
 
 	size = snd_hdmi_get_eld_size(codec, nid);
@@ -368,7 +352,6 @@ int snd_hdmi_get_eld(struct hdmi_eld *eld,
 	kfree(buf);
 	return ret;
 }
-EXPORT_SYMBOL_HDA(snd_hdmi_get_eld);
 
 static void hdmi_show_short_audio_desc(struct cea_sad *a)
 {
@@ -381,7 +364,7 @@ static void hdmi_show_short_audio_desc(struct cea_sad *a)
 	snd_print_pcm_rates(a->rates, buf, sizeof(buf));
 
 	if (a->format == AUDIO_CODING_TYPE_LPCM)
-		snd_print_pcm_bits(a->sample_bits, buf2 + 8, sizeof(buf2 - 8));
+		snd_print_pcm_bits(a->sample_bits, buf2 + 8, sizeof(buf2) - 8);
 	else if (a->max_bitrate)
 		snprintf(buf2, sizeof(buf2),
 				", max bitrate = %d", a->max_bitrate);
@@ -407,7 +390,6 @@ void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen)
 	}
 	buf[j] = '\0';	/* necessary when j == 0 */
 }
-EXPORT_SYMBOL_HDA(snd_print_channel_allocation);
 
 void snd_hdmi_show_eld(struct hdmi_eld *e)
 {
@@ -426,7 +408,6 @@ void snd_hdmi_show_eld(struct hdmi_eld *e)
 	for (i = 0; i < e->sad_count; i++)
 		hdmi_show_short_audio_desc(e->sad + i);
 }
-EXPORT_SYMBOL_HDA(snd_hdmi_show_eld);
 
 #ifdef CONFIG_PROC_FS
 
@@ -479,6 +460,8 @@ static void hdmi_print_eld_info(struct snd_info_entry *entry,
 
 	snd_iprintf(buffer, "monitor_present\t\t%d\n", e->monitor_present);
 	snd_iprintf(buffer, "eld_valid\t\t%d\n", e->eld_valid);
+	if (!e->eld_valid)
+		return;
 	snd_iprintf(buffer, "monitor_name\t\t%s\n", e->monitor_name);
 	snd_iprintf(buffer, "connection_type\t\t%s\n",
 				eld_connection_type_names[e->conn_type]);
@@ -585,7 +568,6 @@ int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld,
 
 	return 0;
 }
-EXPORT_SYMBOL_HDA(snd_hda_eld_proc_new);
 
 void snd_hda_eld_proc_free(struct hda_codec *codec, struct hdmi_eld *eld)
 {
@@ -594,7 +576,6 @@ void snd_hda_eld_proc_free(struct hda_codec *codec, struct hdmi_eld *eld)
 		eld->proc_entry = NULL;
 	}
 }
-EXPORT_SYMBOL_HDA(snd_hda_eld_proc_free);
 
 #endif /* CONFIG_PROC_FS */
 
@@ -604,24 +585,19 @@ void hdmi_eld_update_pcm_info(struct hdmi_eld *eld, struct hda_pcm_stream *pcm,
 {
 	int i;
 
-	pcm->rates = 0;
-	pcm->formats = 0;
-	pcm->maxbps = 0;
-	pcm->channels_min = -1;
-	pcm->channels_max = 0;
+	/* assume basic audio support (the basic audio flag is not in ELD;
+	 * however, all audio capable sinks are required to support basic
+	 * audio) */
+	pcm->rates = SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000;
+	pcm->formats = SNDRV_PCM_FMTBIT_S16_LE;
+	pcm->maxbps = 16;
+	pcm->channels_max = 2;
 	for (i = 0; i < eld->sad_count; i++) {
 		struct cea_sad *a = &eld->sad[i];
 		pcm->rates |= a->rates;
-		if (a->channels < pcm->channels_min)
-			pcm->channels_min = a->channels;
 		if (a->channels > pcm->channels_max)
 			pcm->channels_max = a->channels;
 		if (a->format == AUDIO_CODING_TYPE_LPCM) {
-			if (a->sample_bits & AC_SUPPCM_BITS_16) {
-				pcm->formats |= SNDRV_PCM_FMTBIT_S16_LE;
-				if (pcm->maxbps < 16)
-					pcm->maxbps = 16;
-			}
 			if (a->sample_bits & AC_SUPPCM_BITS_20) {
 				pcm->formats |= SNDRV_PCM_FMTBIT_S32_LE;
 				if (pcm->maxbps < 20)
@@ -641,8 +617,6 @@ void hdmi_eld_update_pcm_info(struct hdmi_eld *eld, struct hda_pcm_stream *pcm,
 	/* restrict the parameters by the values the codec provides */
 	pcm->rates &= codec_pars->rates;
 	pcm->formats &= codec_pars->formats;
-	pcm->channels_min = max(pcm->channels_min, codec_pars->channels_min);
 	pcm->channels_max = min(pcm->channels_max, codec_pars->channels_max);
 	pcm->maxbps = min(pcm->maxbps, codec_pars->maxbps);
 }
-EXPORT_SYMBOL_HDA(hdmi_eld_update_pcm_info);

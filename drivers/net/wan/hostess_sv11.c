@@ -15,7 +15,7 @@
  *	The hardware does the bus handling to avoid the need for delays between
  *	touching control registers.
  *
- *	Port B isnt wired (why - beats me)
+ *	Port B isn't wired (why - beats me)
  *
  *	Generic HDLC port Copyright (C) 2008 Krzysztof Halasa <khc@pm.waw.pl>
  */

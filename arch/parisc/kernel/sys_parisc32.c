@@ -20,7 +20,6 @@
 #include <linux/times.h>
 #include <linux/time.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
@@ -228,4 +227,12 @@ asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
 {
         return sys_fallocate(fd, mode, ((loff_t)offhi << 32) | offlo,
                              ((loff_t)lenhi << 32) | lenlo);
+}
+
+asmlinkage long compat_sys_fanotify_mark(int fan_fd, int flags, u32 mask_hi,
+					 u32 mask_lo, int fd,
+					 const char __user *pathname)
+{
+	return sys_fanotify_mark(fan_fd, flags, ((u64)mask_hi << 32) | mask_lo,
+				 fd, pathname);
 }

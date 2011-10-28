@@ -454,12 +454,10 @@ sched_find_first_bit(const unsigned long b[2])
 	return __ffs(tmp) + ofs;
 }
 
-#include <asm-generic/bitops/ext2-non-atomic.h>
+#include <asm-generic/bitops/le.h>
 
 #define ext2_set_bit_atomic(l,n,a)   test_and_set_bit(n,a)
 #define ext2_clear_bit_atomic(l,n,a) test_and_clear_bit(n,a)
-
-#include <asm-generic/bitops/minix.h>
 
 #endif /* __KERNEL__ */
 

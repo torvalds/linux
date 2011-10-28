@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -62,6 +62,7 @@ struct ixgbe_mac_operations {
 
 	/* RAR, Multicast, VLAN */
 	s32 (*set_rar)(struct ixgbe_hw *, u32, u8 *, u32);
+	s32 (*set_uc_addr)(struct ixgbe_hw *, u32, u8 *);
 	s32 (*init_rx_addrs)(struct ixgbe_hw *);
 	s32 (*update_mc_addr_list)(struct ixgbe_hw *, struct net_device *);
 	s32 (*enable_mc)(struct ixgbe_hw *);
@@ -73,6 +74,7 @@ struct ixgbe_mac_operations {
 enum ixgbe_mac_type {
 	ixgbe_mac_unknown = 0,
 	ixgbe_mac_82599_vf,
+	ixgbe_mac_X540_vf,
 	ixgbe_num_macs
 };
 
@@ -124,8 +126,6 @@ struct ixgbe_hw {
 	void *back;
 
 	u8 __iomem *hw_addr;
-	u8 *flash_address;
-	unsigned long io_base;
 
 	struct ixgbe_mac_info mac;
 	struct ixgbe_mbx_info mbx;

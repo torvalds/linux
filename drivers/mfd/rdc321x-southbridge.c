@@ -61,12 +61,14 @@ static struct mfd_cell rdc321x_sb_cells[] = {
 		.name		= "rdc321x-wdt",
 		.resources	= rdc321x_wdt_resource,
 		.num_resources	= ARRAY_SIZE(rdc321x_wdt_resource),
-		.driver_data	= &rdc321x_wdt_pdata,
+		.platform_data	= &rdc321x_wdt_pdata,
+		.pdata_size	= sizeof(rdc321x_wdt_pdata),
 	}, {
 		.name		= "rdc321x-gpio",
 		.resources	= rdc321x_gpio_resources,
 		.num_resources	= ARRAY_SIZE(rdc321x_gpio_resources),
-		.driver_data	= &rdc321x_gpio_pdata,
+		.platform_data	= &rdc321x_gpio_pdata,
+		.pdata_size	= sizeof(rdc321x_gpio_pdata),
 	},
 };
 
@@ -97,6 +99,7 @@ static DEFINE_PCI_DEVICE_TABLE(rdc321x_sb_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_RDC, PCI_DEVICE_ID_RDC_R6030) },
 	{}
 };
+MODULE_DEVICE_TABLE(pci, rdc321x_sb_table);
 
 static struct pci_driver rdc321x_sb_driver = {
 	.name		= "RDC321x Southbridge",

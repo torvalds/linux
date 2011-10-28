@@ -25,10 +25,13 @@
 #include <linux/hardirq.h>
 #include <linux/syscalls.h>
 #include <linux/kernel.h>
+#include <linux/tracehook.h>
+#include <linux/signal.h>
 #include <asm/system.h>
 #include <asm/stack.h>
 #include <asm/homecache.h>
 #include <asm/syscalls.h>
+#include <asm/traps.h>
 #ifdef CONFIG_HARDWALL
 #include <asm/hardwall.h>
 #endif
@@ -109,7 +112,7 @@ void cpu_idle(void)
 	}
 }
 
-struct thread_info *alloc_thread_info(struct task_struct *task)
+struct thread_info *alloc_thread_info_node(struct task_struct *task, int node)
 {
 	struct page *page;
 	gfp_t flags = GFP_KERNEL;
@@ -118,7 +121,7 @@ struct thread_info *alloc_thread_info(struct task_struct *task)
 	flags |= __GFP_ZERO;
 #endif
 
-	page = alloc_pages(flags, THREAD_SIZE_ORDER);
+	page = alloc_pages_node(node, flags, THREAD_SIZE_ORDER);
 	if (!page)
 		return NULL;
 
@@ -165,7 +168,7 @@ void free_thread_info(struct thread_info *info)
 		kfree(step_state);
 	}
 
-	free_page((unsigned long)info);
+	free_pages((unsigned long)info, THREAD_SIZE_ORDER);
 }
 
 static void save_arch_state(struct thread_struct *t);
@@ -212,11 +215,19 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	childregs->sp = sp;  /* override with new user stack pointer */
 
 	/*
+	 * If CLONE_SETTLS is set, set "tp" in the new task to "r4",
+	 * which is passed in as arg #5 to sys_clone().
+	 */
+	if (clone_flags & CLONE_SETTLS)
+		childregs->tp = regs->regs[4];
+
+	/*
 	 * Copy the callee-saved registers from the passed pt_regs struct
 	 * into the context-switch callee-saved registers area.
-	 * We have to restore the callee-saved registers since we may
-	 * be cloning a userspace task with userspace register state,
-	 * and we won't be unwinding the same kernel frames to restore them.
+	 * This way when we start the interrupt-return sequence, the
+	 * callee-save registers will be correctly in registers, which
+	 * is how we assume the compiler leaves them as we start doing
+	 * the normal return-from-interrupt path after calling C code.
 	 * Zero out the C ABI save area to mark the top of the stack.
 	 */
 	ksp = (unsigned long) childregs;
@@ -304,15 +315,25 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 /* Allow user processes to access the DMA SPRs */
 void grant_dma_mpls(void)
 {
+#if CONFIG_KERNEL_PL == 2
+	__insn_mtspr(SPR_MPL_DMA_CPL_SET_1, 1);
+	__insn_mtspr(SPR_MPL_DMA_NOTIFY_SET_1, 1);
+#else
 	__insn_mtspr(SPR_MPL_DMA_CPL_SET_0, 1);
 	__insn_mtspr(SPR_MPL_DMA_NOTIFY_SET_0, 1);
+#endif
 }
 
 /* Forbid user processes from accessing the DMA SPRs */
 void restrict_dma_mpls(void)
 {
+#if CONFIG_KERNEL_PL == 2
+	__insn_mtspr(SPR_MPL_DMA_CPL_SET_2, 1);
+	__insn_mtspr(SPR_MPL_DMA_NOTIFY_SET_2, 1);
+#else
 	__insn_mtspr(SPR_MPL_DMA_CPL_SET_1, 1);
 	__insn_mtspr(SPR_MPL_DMA_NOTIFY_SET_1, 1);
+#endif
 }
 
 /* Pause the DMA engine, then save off its state registers. */
@@ -523,19 +544,60 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 	 * Switch kernel SP, PC, and callee-saved registers.
 	 * In the context of the new task, return the old task pointer
 	 * (i.e. the task that actually called __switch_to).
-	 * Pass the value to use for SYSTEM_SAVE_1_0 when we reset our sp.
+	 * Pass the value to use for SYSTEM_SAVE_K_0 when we reset our sp.
 	 */
 	return __switch_to(prev, next, next_current_ksp0(next));
 }
 
-long _sys_fork(struct pt_regs *regs)
+/*
+ * This routine is called on return from interrupt if any of the
+ * TIF_WORK_MASK flags are set in thread_info->flags.  It is
+ * entered with interrupts disabled so we don't miss an event
+ * that modified the thread_info flags.  If any flag is set, we
+ * handle it and return, and the calling assembly code will
+ * re-disable interrupts, reload the thread flags, and call back
+ * if more flags need to be handled.
+ *
+ * We return whether we need to check the thread_info flags again
+ * or not.  Note that we don't clear TIF_SINGLESTEP here, so it's
+ * important that it be tested last, and then claim that we don't
+ * need to recheck the flags.
+ */
+int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 {
-	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
+	if (thread_info_flags & _TIF_NEED_RESCHED) {
+		schedule();
+		return 1;
+	}
+#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
+	if (thread_info_flags & _TIF_ASYNC_TLB) {
+		do_async_page_fault(regs);
+		return 1;
+	}
+#endif
+	if (thread_info_flags & _TIF_SIGPENDING) {
+		do_signal(regs);
+		return 1;
+	}
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
+		return 1;
+	}
+	if (thread_info_flags & _TIF_SINGLESTEP) {
+		if ((regs->ex1 & SPR_EX_CONTEXT_1_1__PL_MASK) == 0)
+			single_step_once(regs);
+		return 0;
+	}
+	panic("work_pending: bad flags %#x\n", thread_info_flags);
 }
 
-long _sys_clone(unsigned long clone_flags, unsigned long newsp,
-		void __user *parent_tidptr, void __user *child_tidptr,
-		struct pt_regs *regs)
+/* Note there is an implicit fifth argument if (clone_flags & CLONE_SETTLS). */
+SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
+		void __user *, parent_tidptr, void __user *, child_tidptr,
+		struct pt_regs *, regs)
 {
 	if (!newsp)
 		newsp = regs->sp;
@@ -543,18 +605,13 @@ long _sys_clone(unsigned long clone_flags, unsigned long newsp,
 		       parent_tidptr, child_tidptr);
 }
 
-long _sys_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp,
-		       regs, 0, NULL, NULL);
-}
-
 /*
  * sys_execve() executes a new program.
  */
-long _sys_execve(const char __user *path,
-		 const char __user *const __user *argv,
-		 const char __user *const __user *envp, struct pt_regs *regs)
+SYSCALL_DEFINE4(execve, const char __user *, path,
+		const char __user *const __user *, argv,
+		const char __user *const __user *, envp,
+		struct pt_regs *, regs)
 {
 	long error;
 	char *filename;
@@ -565,14 +622,17 @@ long _sys_execve(const char __user *path,
 		goto out;
 	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
+	if (error == 0)
+		single_step_execve();
 out:
 	return error;
 }
 
 #ifdef CONFIG_COMPAT
-long _compat_sys_execve(const char __user *path,
-			const compat_uptr_t __user *argv,
-			const compat_uptr_t __user *envp, struct pt_regs *regs)
+long compat_sys_execve(const char __user *path,
+		       compat_uptr_t __user *argv,
+		       compat_uptr_t __user *envp,
+		       struct pt_regs *regs)
 {
 	long error;
 	char *filename;
@@ -583,6 +643,8 @@ long _compat_sys_execve(const char __user *path,
 		goto out;
 	error = compat_do_execve(filename, argv, envp, regs);
 	putname(filename);
+	if (error == 0)
+		single_step_execve();
 out:
 	return error;
 }

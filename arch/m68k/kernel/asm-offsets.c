@@ -22,16 +22,10 @@
 int main(void)
 {
 	/* offsets into the task struct */
-	DEFINE(TASK_STATE, offsetof(struct task_struct, state));
-	DEFINE(TASK_FLAGS, offsetof(struct task_struct, flags));
-	DEFINE(TASK_PTRACE, offsetof(struct task_struct, ptrace));
 	DEFINE(TASK_THREAD, offsetof(struct task_struct, thread));
-	DEFINE(TASK_INFO, offsetof(struct task_struct, thread.info));
 	DEFINE(TASK_MM, offsetof(struct task_struct, mm));
-	DEFINE(TASK_ACTIVE_MM, offsetof(struct task_struct, active_mm));
-#ifdef CONFIG_MMU
+	DEFINE(TASK_INFO, offsetof(struct task_struct, thread.info));
 	DEFINE(TASK_TINFO, offsetof(struct task_struct, thread.info));
-#endif
 
 	/* offsets into the thread struct */
 	DEFINE(THREAD_KSP, offsetof(struct thread_struct, ksp));
@@ -61,20 +55,24 @@ int main(void)
 	DEFINE(PT_OFF_A2, offsetof(struct pt_regs, a2));
 	DEFINE(PT_OFF_PC, offsetof(struct pt_regs, pc));
 	DEFINE(PT_OFF_SR, offsetof(struct pt_regs, sr));
+
 	/* bitfields are a bit difficult */
+#ifdef CONFIG_COLDFIRE
+	DEFINE(PT_OFF_FORMATVEC, offsetof(struct pt_regs, sr) - 2);
+#else
 	DEFINE(PT_OFF_FORMATVEC, offsetof(struct pt_regs, pc) + 4);
-
-	/* offsets into the irq_handler struct */
-	DEFINE(IRQ_HANDLER, offsetof(struct irq_node, handler));
-	DEFINE(IRQ_DEVID, offsetof(struct irq_node, dev_id));
-	DEFINE(IRQ_NEXT, offsetof(struct irq_node, next));
-
-	/* offsets into the kernel_stat struct */
-	DEFINE(STAT_IRQ, offsetof(struct kernel_stat, irqs));
+#endif
 
 	/* offsets into the irq_cpustat_t struct */
 	DEFINE(CPUSTAT_SOFTIRQ_PENDING, offsetof(irq_cpustat_t, __softirq_pending));
 
+	/* signal defines */
+	DEFINE(LSIGSEGV, SIGSEGV);
+	DEFINE(LSEGV_MAPERR, SEGV_MAPERR);
+	DEFINE(LSIGTRAP, SIGTRAP);
+	DEFINE(LTRAP_TRACE, TRAP_TRACE);
+
+#ifdef CONFIG_MMU
 	/* offsets into the bi_record struct */
 	DEFINE(BIR_TAG, offsetof(struct bi_record, tag));
 	DEFINE(BIR_SIZE, offsetof(struct bi_record, size));
@@ -87,12 +85,6 @@ int main(void)
 	DEFINE(FONT_DESC_HEIGHT, offsetof(struct font_desc, height));
 	DEFINE(FONT_DESC_DATA, offsetof(struct font_desc, data));
 	DEFINE(FONT_DESC_PREF, offsetof(struct font_desc, pref));
-
-	/* signal defines */
-	DEFINE(LSIGSEGV, SIGSEGV);
-	DEFINE(LSEGV_MAPERR, SEGV_MAPERR);
-	DEFINE(LSIGTRAP, SIGTRAP);
-	DEFINE(LTRAP_TRACE, TRAP_TRACE);
 
 	/* offsets into the custom struct */
 	DEFINE(CUSTOMBASE, &amiga_custom);
@@ -107,6 +99,7 @@ int main(void)
 	DEFINE(CIABBASE, &ciab);
 	DEFINE(C_PRA, offsetof(struct CIA, pra));
 	DEFINE(ZTWOBASE, zTwoBase);
+#endif
 
 	return 0;
 }

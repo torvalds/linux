@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ ACPI_MODULE_NAME("utresrc")
 #if defined(ACPI_DISASSEMBLER) || defined (ACPI_DEBUGGER)
 /*
  * Strings used to decode resource descriptors.
- * Used by both the disasssembler and the debugger resource dump routines
+ * Used by both the disassembler and the debugger resource dump routines
  */
 const char *acpi_gbl_bm_decode[] = {
 	"NotBusMaster",

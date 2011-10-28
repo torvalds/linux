@@ -27,6 +27,9 @@
 #define HPET_DEV_FSB_CAP		0x1000
 #define HPET_DEV_PERI_CAP		0x2000
 
+#define HPET_MIN_CYCLES			128
+#define HPET_MIN_PROG_DELTA		(HPET_MIN_CYCLES + (HPET_MIN_CYCLES >> 1))
+
 #define EVT_TO_HPET_DEV(evt) container_of(evt, struct hpet_dev, evt)
 
 /*
@@ -214,7 +217,7 @@ static void hpet_reserve_platform_timers(unsigned int id) { }
 /*
  * Common hpet info
  */
-static unsigned long hpet_period;
+static unsigned long hpet_freq;
 
 static void hpet_legacy_set_mode(enum clock_event_mode mode,
 			  struct clock_event_device *evt);
@@ -229,7 +232,6 @@ static struct clock_event_device hpet_clockevent = {
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode	= hpet_legacy_set_mode,
 	.set_next_event = hpet_legacy_next_event,
-	.shift		= 32,
 	.irq		= 0,
 	.rating		= 50,
 };
@@ -287,27 +289,12 @@ static void hpet_legacy_clockevent_register(void)
 	hpet_enable_legacy_int();
 
 	/*
-	 * The mult factor is defined as (include/linux/clockchips.h)
-	 *  mult/2^shift = cyc/ns (in contrast to ns/cyc in clocksource.h)
-	 * hpet_period is in units of femtoseconds (per cycle), so
-	 *  mult/2^shift = cyc/ns = 10^6/hpet_period
-	 *  mult = (10^6 * 2^shift)/hpet_period
-	 *  mult = (FSEC_PER_NSEC << hpet_clockevent.shift)/hpet_period
-	 */
-	hpet_clockevent.mult = div_sc((unsigned long) FSEC_PER_NSEC,
-				      hpet_period, hpet_clockevent.shift);
-	/* Calculate the min / max delta */
-	hpet_clockevent.max_delta_ns = clockevent_delta2ns(0x7FFFFFFF,
-							   &hpet_clockevent);
-	/* 5 usec minimum reprogramming delta. */
-	hpet_clockevent.min_delta_ns = 5000;
-
-	/*
 	 * Start hpet with the boot cpu mask and make it
 	 * global after the IO_APIC has been initialized.
 	 */
 	hpet_clockevent.cpumask = cpumask_of(smp_processor_id());
-	clockevents_register_device(&hpet_clockevent);
+	clockevents_config_and_register(&hpet_clockevent, hpet_freq,
+					HPET_MIN_PROG_DELTA, 0x7FFFFFFF);
 	global_clock_event = &hpet_clockevent;
 	printk(KERN_DEBUG "hpet clockevent registered\n");
 }
@@ -380,44 +367,37 @@ static int hpet_next_event(unsigned long delta,
 			   struct clock_event_device *evt, int timer)
 {
 	u32 cnt;
+	s32 res;
 
 	cnt = hpet_readl(HPET_COUNTER);
 	cnt += (u32) delta;
 	hpet_writel(cnt, HPET_Tn_CMP(timer));
 
 	/*
-	 * We need to read back the CMP register on certain HPET
-	 * implementations (ATI chipsets) which seem to delay the
-	 * transfer of the compare register into the internal compare
-	 * logic. With small deltas this might actually be too late as
-	 * the counter could already be higher than the compare value
-	 * at that point and we would wait for the next hpet interrupt
-	 * forever. We found out that reading the CMP register back
-	 * forces the transfer so we can rely on the comparison with
-	 * the counter register below. If the read back from the
-	 * compare register does not match the value we programmed
-	 * then we might have a real hardware problem. We can not do
-	 * much about it here, but at least alert the user/admin with
-	 * a prominent warning.
-	 *
-	 * An erratum on some chipsets (ICH9,..), results in
-	 * comparator read immediately following a write returning old
-	 * value. Workaround for this is to read this value second
-	 * time, when first read returns old value.
-	 *
-	 * In fact the write to the comparator register is delayed up
-	 * to two HPET cycles so the workaround we tried to restrict
-	 * the readback to those known to be borked ATI chipsets
-	 * failed miserably. So we give up on optimizations forever
-	 * and penalize all HPET incarnations unconditionally.
+	 * HPETs are a complete disaster. The compare register is
+	 * based on a equal comparison and neither provides a less
+	 * than or equal functionality (which would require to take
+	 * the wraparound into account) nor a simple count down event
+	 * mode. Further the write to the comparator register is
+	 * delayed internally up to two HPET clock cycles in certain
+	 * chipsets (ATI, ICH9,10). Some newer AMD chipsets have even
+	 * longer delays. We worked around that by reading back the
+	 * compare register, but that required another workaround for
+	 * ICH9,10 chips where the first readout after write can
+	 * return the old stale value. We already had a minimum
+	 * programming delta of 5us enforced, but a NMI or SMI hitting
+	 * between the counter readout and the comparator write can
+	 * move us behind that point easily. Now instead of reading
+	 * the compare register back several times, we make the ETIME
+	 * decision based on the following: Return ETIME if the
+	 * counter value after the write is less than HPET_MIN_CYCLES
+	 * away from the event or if the counter is already ahead of
+	 * the event. The minimum programming delta for the generic
+	 * clockevents code is set to 1.5 * HPET_MIN_CYCLES.
 	 */
-	if (unlikely((u32)hpet_readl(HPET_Tn_CMP(timer)) != cnt)) {
-		if (hpet_readl(HPET_Tn_CMP(timer)) != cnt)
-			printk_once(KERN_WARNING
-				"hpet: compare register read back failed.\n");
-	}
+	res = (s32)(cnt - hpet_readl(HPET_COUNTER));
 
-	return (s32)(hpet_readl(HPET_COUNTER) - cnt) >= 0 ? -ETIME : 0;
+	return res < HPET_MIN_CYCLES ? -ETIME : 0;
 }
 
 static void hpet_legacy_set_mode(enum clock_event_mode mode,
@@ -440,9 +420,9 @@ static int hpet_legacy_next_event(unsigned long delta,
 static DEFINE_PER_CPU(struct hpet_dev *, cpu_hpet_dev);
 static struct hpet_dev	*hpet_devs;
 
-void hpet_msi_unmask(unsigned int irq)
+void hpet_msi_unmask(struct irq_data *data)
 {
-	struct hpet_dev *hdev = get_irq_data(irq);
+	struct hpet_dev *hdev = data->handler_data;
 	unsigned int cfg;
 
 	/* unmask it */
@@ -451,10 +431,10 @@ void hpet_msi_unmask(unsigned int irq)
 	hpet_writel(cfg, HPET_Tn_CFG(hdev->num));
 }
 
-void hpet_msi_mask(unsigned int irq)
+void hpet_msi_mask(struct irq_data *data)
 {
+	struct hpet_dev *hdev = data->handler_data;
 	unsigned int cfg;
-	struct hpet_dev *hdev = get_irq_data(irq);
 
 	/* mask it */
 	cfg = hpet_readl(HPET_Tn_CFG(hdev->num));
@@ -462,18 +442,14 @@ void hpet_msi_mask(unsigned int irq)
 	hpet_writel(cfg, HPET_Tn_CFG(hdev->num));
 }
 
-void hpet_msi_write(unsigned int irq, struct msi_msg *msg)
+void hpet_msi_write(struct hpet_dev *hdev, struct msi_msg *msg)
 {
-	struct hpet_dev *hdev = get_irq_data(irq);
-
 	hpet_writel(msg->data, HPET_Tn_ROUTE(hdev->num));
 	hpet_writel(msg->address_lo, HPET_Tn_ROUTE(hdev->num) + 4);
 }
 
-void hpet_msi_read(unsigned int irq, struct msi_msg *msg)
+void hpet_msi_read(struct hpet_dev *hdev, struct msi_msg *msg)
 {
-	struct hpet_dev *hdev = get_irq_data(irq);
-
 	msg->data = hpet_readl(HPET_Tn_ROUTE(hdev->num));
 	msg->address_lo = hpet_readl(HPET_Tn_ROUTE(hdev->num) + 4);
 	msg->address_hi = 0;
@@ -510,7 +486,7 @@ static int hpet_assign_irq(struct hpet_dev *dev)
 	if (!irq)
 		return -EINVAL;
 
-	set_irq_data(irq, dev);
+	irq_set_handler_data(irq, dev);
 
 	if (hpet_setup_msi_irq(irq))
 		return -EINVAL;
@@ -556,7 +532,6 @@ static int hpet_setup_irq(struct hpet_dev *dev)
 static void init_one_hpet_msi_clockevent(struct hpet_dev *hdev, int cpu)
 {
 	struct clock_event_device *evt = &hdev->evt;
-	uint64_t hpet_freq;
 
 	WARN_ON(cpu != smp_processor_id());
 	if (!(hdev->flags & HPET_DEV_VALID))
@@ -578,24 +553,10 @@ static void init_one_hpet_msi_clockevent(struct hpet_dev *hdev, int cpu)
 
 	evt->set_mode = hpet_msi_set_mode;
 	evt->set_next_event = hpet_msi_next_event;
-	evt->shift = 32;
-
-	/*
-	 * The period is a femto seconds value. We need to calculate the
-	 * scaled math multiplication factor for nanosecond to hpet tick
-	 * conversion.
-	 */
-	hpet_freq = FSEC_PER_SEC;
-	do_div(hpet_freq, hpet_period);
-	evt->mult = div_sc((unsigned long) hpet_freq,
-				      NSEC_PER_SEC, evt->shift);
-	/* Calculate the max delta */
-	evt->max_delta_ns = clockevent_delta2ns(0x7FFFFFFF, evt);
-	/* 5 usec minimum reprogramming delta. */
-	evt->min_delta_ns = 5000;
-
 	evt->cpumask = cpumask_of(hdev->cpu);
-	clockevents_register_device(evt);
+
+	clockevents_config_and_register(evt, hpet_freq, HPET_MIN_PROG_DELTA,
+					0x7FFFFFFF);
 }
 
 #ifdef CONFIG_HPET
@@ -726,7 +687,7 @@ static int hpet_cpuhp_notify(struct notifier_block *n,
 
 	switch (action & 0xf) {
 	case CPU_ONLINE:
-		INIT_DELAYED_WORK_ON_STACK(&work.work, hpet_work);
+		INIT_DELAYED_WORK_ONSTACK(&work.work, hpet_work);
 		init_completion(&work.complete);
 		/* FIXME: add schedule_work_on() */
 		schedule_delayed_work_on(cpu, &work.work, 0);
@@ -799,7 +760,6 @@ static struct clocksource clocksource_hpet = {
 static int hpet_clocksource_register(void)
 {
 	u64 start, now;
-	u64 hpet_freq;
 	cycle_t t1;
 
 	/* Start the counter */
@@ -826,24 +786,7 @@ static int hpet_clocksource_register(void)
 		return -ENODEV;
 	}
 
-	/*
-	 * The definition of mult is (include/linux/clocksource.h)
-	 * mult/2^shift = ns/cyc and hpet_period is in units of fsec/cyc
-	 * so we first need to convert hpet_period to ns/cyc units:
-	 *  mult/2^shift = ns/cyc = hpet_period/10^6
-	 *  mult = (hpet_period * 2^shift)/10^6
-	 *  mult = (hpet_period << shift)/FSEC_PER_NSEC
-	 */
-
-	/* Need to convert hpet_period (fsec/cyc) to cyc/sec:
-	 *
-	 * cyc/sec = FSEC_PER_SEC/hpet_period(fsec/cyc)
-	 * cyc/sec = (FSEC_PER_NSEC * NSEC_PER_SEC)/hpet_period
-	 */
-	hpet_freq = FSEC_PER_SEC;
-	do_div(hpet_freq, hpet_period);
 	clocksource_register_hz(&clocksource_hpet, (u32)hpet_freq);
-
 	return 0;
 }
 
@@ -852,7 +795,9 @@ static int hpet_clocksource_register(void)
  */
 int __init hpet_enable(void)
 {
+	unsigned long hpet_period;
 	unsigned int id;
+	u64 freq;
 	int i;
 
 	if (!is_hpet_capable())
@@ -889,6 +834,14 @@ int __init hpet_enable(void)
 
 	if (hpet_period < HPET_MIN_PERIOD || hpet_period > HPET_MAX_PERIOD)
 		goto out_nohpet;
+
+	/*
+	 * The period is a femto seconds value. Convert it to a
+	 * frequency.
+	 */
+	freq = FSEC_PER_SEC;
+	do_div(freq, hpet_period);
+	hpet_freq = freq;
 
 	/*
 	 * Read the HPET ID register to retrieve the IRQ routing

@@ -436,7 +436,7 @@ static int lance_open( struct net_device *dev )
 		DPRINTK( 2, ( "lance_open(): opening %s failed, i=%d, csr0=%04x\n",
 					  dev->name, i, DREG ));
 		DREG = CSR0_STOP;
-		return( -EIO );
+		return -EIO;
 	}
 
 	DREG = CSR0_IDON | CSR0_STRT | CSR0_INEA;
@@ -445,7 +445,7 @@ static int lance_open( struct net_device *dev )
 
 	DPRINTK( 2, ( "%s: LANCE is open, csr0 %04x\n", dev->name, DREG ));
 
-	return( 0 );
+	return 0;
 }
 
 

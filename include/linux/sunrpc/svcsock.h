@@ -28,7 +28,7 @@ struct svc_sock {
 	/* private TCP part */
 	u32			sk_reclen;	/* length of record */
 	u32			sk_tcplen;	/* current read length */
-	struct rpc_xprt		*sk_bc_xprt;	/* NFSv4.1 backchannel xprt */
+	struct page *		sk_pages[RPCSVC_MAXPAGES];	/* received data */
 };
 
 /*

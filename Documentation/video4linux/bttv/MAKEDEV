@@ -19,7 +19,6 @@ function makedev () {
 echo "*** new device names ***"
 makedev video 0
 makedev radio 64
-makedev vtx 192
 makedev vbi 224
 
 #echo "*** old device names (for compatibility only) ***"

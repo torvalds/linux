@@ -73,6 +73,7 @@ config PPC_BOOK3S_64
 config PPC_BOOK3E_64
 	bool "Embedded processors"
 	select PPC_FPU # Make it a choice ?
+	select PPC_SMP_MUXED_IPI
 
 endchoice
 
@@ -107,6 +108,10 @@ config POWER4
 	depends on PPC64 && PPC_BOOK3S
 	def_bool y
 
+config PPC_A2
+	bool
+	depends on PPC_BOOK3E_64
+
 config TUNE_CELL
 	bool "Optimize for Cell Broadband Engine"
 	depends on PPC64 && PPC_BOOK3S
@@ -125,6 +130,7 @@ config 8xx
 
 config E500
 	select FSL_EMB_PERFMON
+	select PPC_FSL_BOOK3E
 	bool
 
 config PPC_E500MC
@@ -166,9 +172,15 @@ config BOOKE
 
 config FSL_BOOKE
 	bool
-	depends on E200 || E500
+	depends on (E200 || E500) && PPC32
 	default y
 
+# this is for common code between PPC32 & PPC64 FSL BOOKE
+config PPC_FSL_BOOK3E
+	bool
+	select FSL_EMB_PERFMON
+	select PPC_SMP_MUXED_IPI
+	default y if FSL_BOOKE
 
 config PTE_64BIT
 	bool
@@ -219,6 +231,24 @@ config VSX
 	  CPUs (it does, however add code to the kernel).
 
 	  If in doubt, say Y here.
+
+config PPC_ICSWX
+	bool "Support for PowerPC icswx coprocessor instruction"
+	depends on POWER4
+	default n
+	---help---
+
+	  This option enables kernel support for the PowerPC Initiate
+	  Coprocessor Store Word (icswx) coprocessor instruction on POWER7
+	  or newer processors.
+
+	  This option is only useful if you have a processor that supports
+	  the icswx coprocessor instruction. It does not have any effect
+	  on processors without the icswx coprocessor instruction.
+
+	  This option slightly increases kernel memory usage.
+
+	  If in doubt, say N here.
 
 config SPE
 	bool "SPE Support"

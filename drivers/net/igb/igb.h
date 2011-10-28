@@ -77,6 +77,7 @@ struct vf_data_storage {
 	unsigned long last_nack;
 	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
 	u16 pf_qos;
+	u16 tx_rate;
 };
 
 #define IGB_VF_FLAG_CTS            0x00000001 /* VF is clear to send data */
@@ -143,7 +144,7 @@ struct igb_buffer {
 			u16 next_to_watch;
 			unsigned int bytecount;
 			u16 gso_segs;
-			union skb_shared_tx shtx;
+			u8 tx_flags;
 			u8 mapped_as_page;
 		};
 		/* RX */
@@ -159,6 +160,7 @@ struct igb_tx_queue_stats {
 	u64 packets;
 	u64 bytes;
 	u64 restart_queue;
+	u64 restart_queue2;
 };
 
 struct igb_rx_queue_stats {
@@ -210,11 +212,14 @@ struct igb_ring {
 		/* TX */
 		struct {
 			struct igb_tx_queue_stats tx_stats;
+			struct u64_stats_sync tx_syncp;
+			struct u64_stats_sync tx_syncp2;
 			bool detect_tx_hung;
 		};
 		/* RX */
 		struct {
 			struct igb_rx_queue_stats rx_stats;
+			struct u64_stats_sync rx_syncp;
 			u32 rx_buffer_len;
 		};
 	};
@@ -288,6 +293,9 @@ struct igb_adapter {
 	struct timecompare compare;
 	struct hwtstamp_config hwtstamp_config;
 
+	spinlock_t stats64_lock;
+	struct rtnl_link_stats64 stats64;
+
 	/* structs defined in e1000_hw.h */
 	struct e1000_hw hw;
 	struct e1000_hw_stats stats;
@@ -316,13 +324,21 @@ struct igb_adapter {
 	u16 rx_ring_count;
 	unsigned int vfs_allocated_count;
 	struct vf_data_storage *vf_data;
+	int vf_rate_link_speed;
 	u32 rss_queues;
+	u32 wvbr;
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)
 #define IGB_FLAG_DCA_ENABLED       (1 << 1)
 #define IGB_FLAG_QUAD_PORT_A       (1 << 2)
 #define IGB_FLAG_QUEUE_PAIRS       (1 << 3)
+#define IGB_FLAG_DMAC              (1 << 4)
+
+/* DMA Coalescing defines */
+#define IGB_MIN_TXPBSIZE           20408
+#define IGB_TX_BUF_4096            4096
+#define IGB_DMCTLX_DCFLUSH_DIS     0x80000000  /* Disable DMA Coal Flush */
 
 #define IGB_82576_TSYNC_SHIFT 19
 #define IGB_82580_TSYNC_SHIFT 24
@@ -344,7 +360,7 @@ extern int igb_up(struct igb_adapter *);
 extern void igb_down(struct igb_adapter *);
 extern void igb_reinit_locked(struct igb_adapter *);
 extern void igb_reset(struct igb_adapter *);
-extern int igb_set_spd_dplx(struct igb_adapter *, u16);
+extern int igb_set_spd_dplx(struct igb_adapter *, u32, u8);
 extern int igb_setup_tx_resources(struct igb_ring *);
 extern int igb_setup_rx_resources(struct igb_ring *);
 extern void igb_free_tx_resources(struct igb_ring *);
@@ -357,7 +373,7 @@ extern netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *, struct igb_ring *);
 extern void igb_unmap_and_free_tx_resource(struct igb_ring *,
 					   struct igb_buffer *);
 extern void igb_alloc_rx_buffers_adv(struct igb_ring *, int);
-extern void igb_update_stats(struct igb_adapter *);
+extern void igb_update_stats(struct igb_adapter *, struct rtnl_link_stats64 *);
 extern bool igb_has_link(struct igb_adapter *adapter);
 extern void igb_set_ethtool_ops(struct net_device *);
 extern void igb_power_up_link(struct igb_adapter *);

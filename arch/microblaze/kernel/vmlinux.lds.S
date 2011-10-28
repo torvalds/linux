@@ -8,7 +8,6 @@
  * for more details.
  */
 
-OUTPUT_FORMAT("elf32-microblaze", "elf32-microblaze", "elf32-microblaze")
 OUTPUT_ARCH(microblaze)
 ENTRY(microblaze_start)
 
@@ -16,7 +15,11 @@ ENTRY(microblaze_start)
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/thread_info.h>
 
+#ifdef __MICROBLAZEEL__
+jiffies = jiffies_64;
+#else
 jiffies = jiffies_64 + 4;
+#endif
 
 SECTIONS {
 	. = CONFIG_KERNEL_START;
@@ -67,11 +70,6 @@ SECTIONS {
 	RW_DATA_SECTION(32, PAGE_SIZE, THREAD_SIZE)
 	_edata = . ;
 
-	/* Reserve some low RAM for r0 based memory references */
-	. = ALIGN(0x4) ;
-	r0_ram = . ;
-	. = . +  PAGE_SIZE;	/* a page should be enough */
-
 	/* Under the microblaze ABI, .sdata and .sbss must be contiguous */
 	. = ALIGN(8);
 	.sdata : AT(ADDR(.sdata) - LOAD_OFFSET) {
@@ -120,20 +118,10 @@ SECTIONS {
 
 	__init_end_before_initramfs = .;
 
-	.init.ramfs ALIGN(PAGE_SIZE) : AT(ADDR(.init.ramfs) - LOAD_OFFSET) {
-		__initramfs_start = .;
-		*(.init.ramfs)
-		__initramfs_end = .;
-		. = ALIGN(4);
-		LONG(0);
-/*
- * FIXME this can break initramfs for MMU.
- * Pad init.ramfs up to page boundary,
- * so that __init_end == __bss_start. This will make image.elf
- * consistent with the image.bin
- */
-		/* . = ALIGN(PAGE_SIZE); */
+	.init.ramfs : AT(ADDR(.init.ramfs) - LOAD_OFFSET) {
+		INIT_RAM_FS
 	}
+
 	__init_end = .;
 
 	.bss ALIGN (PAGE_SIZE) : AT(ADDR(.bss) - LOAD_OFFSET) {

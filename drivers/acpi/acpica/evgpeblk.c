@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -361,6 +361,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	gpe_block->node = gpe_device;
 	gpe_block->gpe_count = (u16)(register_count * ACPI_GPE_REGISTER_WIDTH);
+	gpe_block->initialized = FALSE;
 	gpe_block->register_count = register_count;
 	gpe_block->block_base_number = gpe_block_base_number;
 
@@ -385,11 +386,12 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 		return_ACPI_STATUS(status);
 	}
 
+	acpi_gbl_all_gpes_initialized = FALSE;
+
 	/* Find all GPE methods (_Lxx or_Exx) for this block */
 
 	walk_info.gpe_block = gpe_block;
 	walk_info.gpe_device = gpe_device;
-	walk_info.enable_this_gpe = FALSE;
 	walk_info.execute_by_owner_id = FALSE;
 
 	status = acpi_ns_walk_namespace(ACPI_TYPE_METHOD, gpe_device,
@@ -421,47 +423,44 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
  *
  * FUNCTION:    acpi_ev_initialize_gpe_block
  *
- * PARAMETERS:  gpe_device          - Handle to the parent GPE block
- *              gpe_block           - Gpe Block info
+ * PARAMETERS:  acpi_gpe_callback
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Initialize and enable a GPE block. First find and run any
- *              _PRT methods associated with the block, then enable the
- *              appropriate GPEs.
+ * DESCRIPTION: Initialize and enable a GPE block. Enable GPEs that have
+ *              associated methods.
  *              Note: Assumes namespace is locked.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
-			     struct acpi_gpe_block_info *gpe_block)
+acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+			     struct acpi_gpe_block_info *gpe_block,
+			     void *ignored)
 {
 	acpi_status status;
 	struct acpi_gpe_event_info *gpe_event_info;
 	u32 gpe_enabled_count;
 	u32 gpe_index;
-	u32 gpe_number;
 	u32 i;
 	u32 j;
 
 	ACPI_FUNCTION_TRACE(ev_initialize_gpe_block);
 
-	/* Ignore a null GPE block (e.g., if no GPE block 1 exists) */
-
-	if (!gpe_block) {
+	/*
+	 * Ignore a null GPE block (e.g., if no GPE block 1 exists), and
+	 * any GPE blocks that have been initialized already.
+	 */
+	if (!gpe_block || gpe_block->initialized) {
 		return_ACPI_STATUS(AE_OK);
 	}
 
 	/*
-	 * Enable all GPEs that have a corresponding method.  Any other GPEs
-	 * within this block must be enabled via the acpi_enable_gpe interface.
+	 * Enable all GPEs that have a corresponding method and have the
+	 * ACPI_GPE_CAN_WAKE flag unset. Any other GPEs within this block
+	 * must be enabled via the acpi_enable_gpe() interface.
 	 */
 	gpe_enabled_count = 0;
-
-	if (gpe_device == acpi_gbl_fadt_gpe_device) {
-		gpe_device = NULL;
-	}
 
 	for (i = 0; i < gpe_block->register_count; i++) {
 		for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
@@ -470,27 +469,24 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 
 			gpe_index = (i * ACPI_GPE_REGISTER_WIDTH) + j;
 			gpe_event_info = &gpe_block->event_info[gpe_index];
-			gpe_number = gpe_index + gpe_block->block_base_number;
 
-			/* Ignore GPEs that have no corresponding _Lxx/_Exx method */
-
-			if (!(gpe_event_info->flags & ACPI_GPE_DISPATCH_METHOD)) {
+			/*
+			 * Ignore GPEs that have no corresponding _Lxx/_Exx method
+			 * and GPEs that are used to wake the system
+			 */
+			if (((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
+			     ACPI_GPE_DISPATCH_NONE)
+			    || ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK)
+				== ACPI_GPE_DISPATCH_HANDLER)
+			    || (gpe_event_info->flags & ACPI_GPE_CAN_WAKE)) {
 				continue;
 			}
 
-			/*
-			 * If the GPE has already been enabled for runtime
-			 * signaling, make sure it remains enabled, but do not
-			 * increment its reference counter.
-			 */
-			status = gpe_event_info->runtime_count ?
-				acpi_ev_enable_gpe(gpe_event_info) :
-				acpi_enable_gpe(gpe_device, gpe_number);
-
+			status = acpi_ev_add_gpe_reference(gpe_event_info);
 			if (ACPI_FAILURE(status)) {
 				ACPI_EXCEPTION((AE_INFO, status,
-						"Could not enable GPE 0x%02X",
-						gpe_number));
+					"Could not enable GPE 0x%02X",
+					gpe_index + gpe_block->block_base_number));
 				continue;
 			}
 
@@ -503,6 +499,8 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 				  "Enabled %u GPEs in this block\n",
 				  gpe_enabled_count));
 	}
+
+	gpe_block->initialized = TRUE;
 
 	return_ACPI_STATUS(AE_OK);
 }

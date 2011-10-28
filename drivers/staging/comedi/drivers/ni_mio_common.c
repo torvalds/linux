@@ -34,7 +34,7 @@
 	   340747b.pdf  AT-MIO E series Register Level Programmer Manual
 	   341079b.pdf  PCI E Series RLPM
 	   340934b.pdf  DAQ-STC reference manual
-	67xx and 611x registers (from http://www.ni.com/pdf/daq/us)
+	67xx and 611x registers (from ftp://ftp.ni.com/support/daq/mhddk/documentation/)
 	release_ni611x.pdf
 	release_ni67xx.pdf
 	Other possibly relevant info:
@@ -1627,7 +1627,7 @@ static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 	default:
 		mite_prep_dma(devpriv->ai_mite_chan, 16, 16);
 		break;
-	};
+	}
 	/*start the MITE */
 	mite_dma_arm(devpriv->ai_mite_chan);
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -2156,7 +2156,7 @@ static unsigned ni_min_ai_scan_period_ns(struct comedi_device *dev,
 	default:
 		/*  multiplexed inputs */
 		break;
-	};
+	}
 	return boardtype.ai_speed * num_channels;
 }
 
@@ -5173,7 +5173,7 @@ static void GPCT_Reset(struct comedi_device *dev, int chan)
 		devpriv->stc_writew(dev, devpriv->an_trig_etc_reg,
 				    Analog_Trigger_Etc_Register);
 		break;
-	};
+	}
 
 	devpriv->gpct_mode[chan] = 0;
 	devpriv->gpct_input_select[chan] = 0;

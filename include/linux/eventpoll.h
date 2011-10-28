@@ -1,5 +1,5 @@
 /*
- *  include/linux/eventpoll.h ( Efficent event polling implementation )
+ *  include/linux/eventpoll.h ( Efficient event polling implementation )
  *  Copyright (C) 2001,...,2006	 Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify

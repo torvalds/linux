@@ -351,7 +351,7 @@ register SSTAT2 {
 	address			0x00d
 	access_mode RO
 	field	OVERRUN		0x80
-	field	SHVALID		0x40	/* Shaddow Layer non-zero */
+	field	SHVALID		0x40	/* Shadow Layer non-zero */
 	field	EXP_ACTIVE	0x10	/* SCSI Expander Active */
 	field	CRCVALERR	0x08	/* CRC doesn't match (U3 only) */
 	field	CRCENDERR	0x04	/* No terminal CRC packet (U3 only) */

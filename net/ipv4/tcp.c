@@ -266,11 +266,13 @@
 #include <linux/crypto.h>
 #include <linux/time.h>
 #include <linux/slab.h>
+#include <linux/uid_stat.h>
 
 #include <net/icmp.h>
 #include <net/tcp.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
+#include <net/ip6_route.h>
 #include <net/netdma.h>
 #include <net/sock.h>
 
@@ -282,7 +284,7 @@ int sysctl_tcp_fin_timeout __read_mostly = TCP_FIN_TIMEOUT;
 struct percpu_counter tcp_orphan_count;
 EXPORT_SYMBOL_GPL(tcp_orphan_count);
 
-int sysctl_tcp_mem[3] __read_mostly;
+long sysctl_tcp_mem[3] __read_mostly;
 int sysctl_tcp_wmem[3] __read_mostly;
 int sysctl_tcp_rmem[3] __read_mostly;
 
@@ -290,7 +292,7 @@ EXPORT_SYMBOL(sysctl_tcp_mem);
 EXPORT_SYMBOL(sysctl_tcp_rmem);
 EXPORT_SYMBOL(sysctl_tcp_wmem);
 
-atomic_t tcp_memory_allocated;	/* Current allocated memory. */
+atomic_long_t tcp_memory_allocated;	/* Current allocated memory. */
 EXPORT_SYMBOL(tcp_memory_allocated);
 
 /*
@@ -504,6 +506,15 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			answ = 0;
 		else
 			answ = tp->write_seq - tp->snd_una;
+		break;
+	case SIOCOUTQNSD:
+		if (sk->sk_state == TCP_LISTEN)
+			return -EINVAL;
+
+		if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))
+			answ = 0;
+		else
+			answ = tp->write_seq - tp->snd_nxt;
 		break;
 	default:
 		return -ENOIOCTLCMD;
@@ -873,9 +884,7 @@ int tcp_sendpage(struct sock *sk, struct page *page, int offset,
 					flags);
 
 	lock_sock(sk);
-	TCP_CHECK_TIMER(sk);
 	res = do_tcp_sendpages(sk, &page, offset, size, flags);
-	TCP_CHECK_TIMER(sk);
 	release_sock(sk);
 	return res;
 }
@@ -916,7 +925,6 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	long timeo;
 
 	lock_sock(sk);
-	TCP_CHECK_TIMER(sk);
 
 	flags = msg->msg_flags;
 	timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
@@ -993,7 +1001,8 @@ new_segment:
 				/* We have some space in skb head. Superb! */
 				if (copy > skb_tailroom(skb))
 					copy = skb_tailroom(skb);
-				if ((err = skb_add_data(skb, from, copy)) != 0)
+				err = skb_add_data_nocache(sk, skb, from, copy);
+				if (err)
 					goto do_fault;
 			} else {
 				int merge = 0;
@@ -1036,8 +1045,8 @@ new_segment:
 
 				/* Time to copy data. We are close to
 				 * the end! */
-				err = skb_copy_to_page(sk, from, skb, page,
-						       off, copy);
+				err = skb_copy_to_page_nocache(sk, from, skb,
+							       page, off, copy);
 				if (err) {
 					/* If this page was new, give it to the
 					 * socket so it does not get leaked.
@@ -1104,8 +1113,10 @@ wait_for_memory:
 out:
 	if (copied)
 		tcp_push(sk, flags, mss_now, tp->nonagle);
-	TCP_CHECK_TIMER(sk);
 	release_sock(sk);
+
+	if (copied > 0)
+		uid_stat_tcp_snd(current_uid(), copied);
 	return copied;
 
 do_fault:
@@ -1123,7 +1134,6 @@ do_error:
 		goto out;
 out_err:
 	err = sk_stream_error(sk, flags, err);
-	TCP_CHECK_TIMER(sk);
 	release_sock(sk);
 	return err;
 }
@@ -1193,7 +1203,7 @@ void tcp_cleanup_rbuf(struct sock *sk, int copied)
 	struct sk_buff *skb = skb_peek(&sk->sk_receive_queue);
 
 	WARN(skb && !before(tp->copied_seq, TCP_SKB_CB(skb)->end_seq),
-	     KERN_INFO "cleanup rbuf bug: copied %X seq %X rcvnxt %X\n",
+	     "cleanup rbuf bug: copied %X seq %X rcvnxt %X\n",
 	     tp->copied_seq, TCP_SKB_CB(skb)->end_seq, tp->rcv_nxt);
 #endif
 
@@ -1383,8 +1393,11 @@ int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
 	tcp_rcv_space_adjust(sk);
 
 	/* Clean up data we have read: This will do ACK frames. */
-	if (copied > 0)
+	if (copied > 0) {
 		tcp_cleanup_rbuf(sk, copied);
+		uid_stat_tcp_rcv(current_uid(), copied);
+	}
+
 	return copied;
 }
 EXPORT_SYMBOL(tcp_read_sock);
@@ -1414,8 +1427,6 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	u32 urg_hole = 0;
 
 	lock_sock(sk);
-
-	TCP_CHECK_TIMER(sk);
 
 	err = -ENOTCONN;
 	if (sk->sk_state == TCP_LISTEN)
@@ -1477,10 +1488,9 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			 * shouldn't happen.
 			 */
 			if (WARN(before(*seq, TCP_SKB_CB(skb)->seq),
-			     KERN_INFO "recvmsg bug: copied %X "
-				       "seq %X rcvnxt %X fl %X\n", *seq,
-				       TCP_SKB_CB(skb)->seq, tp->rcv_nxt,
-				       flags))
+				 "recvmsg bug: copied %X seq %X rcvnxt %X fl %X\n",
+				 *seq, TCP_SKB_CB(skb)->seq, tp->rcv_nxt,
+				 flags))
 				break;
 
 			offset = *seq - TCP_SKB_CB(skb)->seq;
@@ -1490,10 +1500,9 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 				goto found_ok_skb;
 			if (tcp_hdr(skb)->fin)
 				goto found_fin_ok;
-			WARN(!(flags & MSG_PEEK), KERN_INFO "recvmsg bug 2: "
-					"copied %X seq %X rcvnxt %X fl %X\n",
-					*seq, TCP_SKB_CB(skb)->seq,
-					tp->rcv_nxt, flags);
+			WARN(!(flags & MSG_PEEK),
+			     "recvmsg bug 2: copied %X seq %X rcvnxt %X fl %X\n",
+			     *seq, TCP_SKB_CB(skb)->seq, tp->rcv_nxt, flags);
 		}
 
 		/* Well, if we have backlog, try to process it now yet. */
@@ -1769,17 +1778,20 @@ skip_copy:
 	/* Clean up data we have read: This will do ACK frames. */
 	tcp_cleanup_rbuf(sk, copied);
 
-	TCP_CHECK_TIMER(sk);
 	release_sock(sk);
+
+	if (copied > 0)
+		uid_stat_tcp_rcv(current_uid(), copied);
 	return copied;
 
 out:
-	TCP_CHECK_TIMER(sk);
 	release_sock(sk);
 	return err;
 
 recv_urg:
 	err = tcp_recv_urg(sk, msg, len, flags);
+	if (err > 0)
+		uid_stat_tcp_rcv(current_uid(), err);
 	goto out;
 }
 EXPORT_SYMBOL(tcp_recvmsg);
@@ -2246,7 +2258,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		/* Values greater than interface MTU won't take effect. However
 		 * at the point when this call is done we typically don't yet
 		 * know which interface is going to be used */
-		if (val < 8 || val > MAX_TCP_WINDOW) {
+		if (val < TCP_MIN_MSS || val > MAX_TCP_WINDOW) {
 			err = -EINVAL;
 			break;
 		}
@@ -2392,7 +2404,12 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		err = tp->af_specific->md5_parse(sk, optval, optlen);
 		break;
 #endif
-
+	case TCP_USER_TIMEOUT:
+		/* Cap the max timeout in ms TCP will retry/retrans
+		 * before giving up and aborting (ETIMEDOUT) a connection.
+		 */
+		icsk->icsk_user_timeout = msecs_to_jiffies(val);
+		break;
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -2611,6 +2628,10 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 	case TCP_THIN_DUPACK:
 		val = tp->thin_dupack;
 		break;
+
+	case TCP_USER_TIMEOUT:
+		val = jiffies_to_msecs(icsk->icsk_user_timeout);
+		break;
 	default:
 		return -ENOPROTOOPT;
 	}
@@ -2646,7 +2667,7 @@ int compat_tcp_getsockopt(struct sock *sk, int level, int optname,
 EXPORT_SYMBOL(compat_tcp_getsockopt);
 #endif
 
-struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
+struct sk_buff *tcp_tso_segment(struct sk_buff *skb, u32 features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	struct tcphdr *th;
@@ -3212,7 +3233,7 @@ __setup("thash_entries=", set_thash_entries);
 void __init tcp_init(void)
 {
 	struct sk_buff *skb = NULL;
-	unsigned long nr_pages, limit;
+	unsigned long limit;
 	int i, max_share, cnt;
 	unsigned long jiffy = jiffies;
 
@@ -3269,13 +3290,7 @@ void __init tcp_init(void)
 	sysctl_tcp_max_orphans = cnt / 2;
 	sysctl_max_syn_backlog = max(128, cnt / 256);
 
-	/* Set the pressure threshold to be a fraction of global memory that
-	 * is up to 1/2 at 256 MB, decreasing toward zero with the amount of
-	 * memory, with a floor of 128 pages.
-	 */
-	nr_pages = totalram_pages - totalhigh_pages;
-	limit = min(nr_pages, 1UL<<(28-PAGE_SHIFT)) >> (20-PAGE_SHIFT);
-	limit = (limit * (nr_pages >> (20-PAGE_SHIFT))) >> (PAGE_SHIFT-11);
+	limit = nr_free_buffer_pages() / 8;
 	limit = max(limit, 128UL);
 	sysctl_tcp_mem[0] = limit / 4 * 3;
 	sysctl_tcp_mem[1] = limit;
@@ -3307,4 +3322,101 @@ void __init tcp_init(void)
 	tcp_secret_primary = &tcp_secret_one;
 	tcp_secret_retiring = &tcp_secret_two;
 	tcp_secret_secondary = &tcp_secret_two;
+}
+
+static int tcp_is_local(struct net *net, __be32 addr) {
+	struct rtable *rt;
+	struct flowi4 fl4 = { .daddr = addr };
+	rt = ip_route_output_key(net, &fl4);
+	if (IS_ERR_OR_NULL(rt))
+		return 0;
+	return rt->dst.dev && (rt->dst.dev->flags & IFF_LOOPBACK);
+}
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static int tcp_is_local6(struct net *net, struct in6_addr *addr) {
+	struct rt6_info *rt6 = rt6_lookup(net, addr, addr, 0, 0);
+	return rt6 && rt6->rt6i_dev && (rt6->rt6i_dev->flags & IFF_LOOPBACK);
+}
+#endif
+
+/*
+ * tcp_nuke_addr - destroy all sockets on the given local address
+ * if local address is the unspecified address (0.0.0.0 or ::), destroy all
+ * sockets with local addresses that are not configured.
+ */
+int tcp_nuke_addr(struct net *net, struct sockaddr *addr)
+{
+	int family = addr->sa_family;
+	unsigned int bucket;
+
+	struct in_addr *in;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct in6_addr *in6;
+#endif
+	if (family == AF_INET) {
+		in = &((struct sockaddr_in *)addr)->sin_addr;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	} else if (family == AF_INET6) {
+		in6 = &((struct sockaddr_in6 *)addr)->sin6_addr;
+#endif
+	} else {
+		return -EAFNOSUPPORT;
+	}
+
+	for (bucket = 0; bucket < tcp_hashinfo.ehash_mask; bucket++) {
+		struct hlist_nulls_node *node;
+		struct sock *sk;
+		spinlock_t *lock = inet_ehash_lockp(&tcp_hashinfo, bucket);
+
+restart:
+		spin_lock_bh(lock);
+		sk_nulls_for_each(sk, node, &tcp_hashinfo.ehash[bucket].chain) {
+			struct inet_sock *inet = inet_sk(sk);
+
+			if (family == AF_INET) {
+				__be32 s4 = inet->inet_rcv_saddr;
+				if (in->s_addr != s4 &&
+				    !(in->s_addr == INADDR_ANY &&
+				      !tcp_is_local(net, s4)))
+					continue;
+			}
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+			if (family == AF_INET6) {
+				struct in6_addr *s6;
+				if (!inet->pinet6)
+					continue;
+				s6 = &inet->pinet6->rcv_saddr;
+				if (!ipv6_addr_equal(in6, s6) &&
+				    !(ipv6_addr_equal(in6, &in6addr_any) &&
+				      !tcp_is_local6(net, s6)))
+				continue;
+			}
+#endif
+
+			if (sysctl_ip_dynaddr && sk->sk_state == TCP_SYN_SENT)
+				continue;
+			if (sock_flag(sk, SOCK_DEAD))
+				continue;
+
+			sock_hold(sk);
+			spin_unlock_bh(lock);
+
+			local_bh_disable();
+			bh_lock_sock(sk);
+			sk->sk_err = ETIMEDOUT;
+			sk->sk_error_report(sk);
+
+			tcp_done(sk);
+			bh_unlock_sock(sk);
+			local_bh_enable();
+			sock_put(sk);
+
+			goto restart;
+		}
+		spin_unlock_bh(lock);
+	}
+
+	return 0;
 }

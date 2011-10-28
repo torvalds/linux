@@ -4,7 +4,7 @@
  * Squashfs
  *
  * Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008
- * Phillip Lougher <phillip@lougher.demon.co.uk>
+ * Phillip Lougher <phillip@squashfs.org.uk>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,4 +45,10 @@ struct squashfs_inode_info {
 	};
 	struct inode	vfs_inode;
 };
+
+
+static inline struct squashfs_inode_info *squashfs_i(struct inode *inode)
+{
+	return list_entry(inode, struct squashfs_inode_info, vfs_inode);
+}
 #endif

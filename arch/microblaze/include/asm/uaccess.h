@@ -120,16 +120,16 @@ static inline unsigned long __must_check __clear_user(void __user *to,
 {
 	/* normal memset with two words to __ex_table */
 	__asm__ __volatile__ (				\
-			"1:	sb	r0, %2, r0;"	\
+			"1:	sb	r0, %1, r0;"	\
 			"	addik	%0, %0, -1;"	\
 			"	bneid	%0, 1b;"	\
-			"	addik	%2, %2, 1;"	\
+			"	addik	%1, %1, 1;"	\
 			"2:			"	\
 			__EX_TABLE_SECTION		\
 			".word	1b,2b;"			\
 			".previous;"			\
-		: "=r"(n)				\
-		: "0"(n), "r"(to)
+		: "=r"(n), "=r"(to)			\
+		: "0"(n), "1"(to)
 	);
 	return n;
 }

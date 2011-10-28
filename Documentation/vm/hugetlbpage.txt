@@ -72,7 +72,7 @@ number of huge pages requested.  This is the most reliable method of
 allocating huge pages as memory has not yet become fragmented.
 
 Some platforms support multiple huge page sizes.  To allocate huge pages
-of a specific size, one must preceed the huge pages boot command parameters
+of a specific size, one must precede the huge pages boot command parameters
 with a huge page size selection parameter "hugepagesz=<size>".  <size> must
 be specified in bytes with optional scale suffix [kKmMgG].  The default huge
 page size may be selected with the "default_hugepagesz=<size>" boot parameter.

@@ -332,17 +332,19 @@ static int __devinit twl4030_kp_program(struct twl4030_keypad *kp)
 static int __devinit twl4030_kp_probe(struct platform_device *pdev)
 {
 	struct twl4030_keypad_data *pdata = pdev->dev.platform_data;
-	const struct matrix_keymap_data *keymap_data = pdata->keymap_data;
+	const struct matrix_keymap_data *keymap_data;
 	struct twl4030_keypad *kp;
 	struct input_dev *input;
 	u8 reg;
 	int error;
 
-	if (!pdata || !pdata->rows || !pdata->cols ||
+	if (!pdata || !pdata->rows || !pdata->cols || !pdata->keymap_data ||
 	    pdata->rows > TWL4030_MAX_ROWS || pdata->cols > TWL4030_MAX_COLS) {
 		dev_err(&pdev->dev, "Invalid platform_data\n");
 		return -EINVAL;
 	}
+
+	keymap_data = pdata->keymap_data;
 
 	kp = kzalloc(sizeof(*kp), GFP_KERNEL);
 	input = input_allocate_device();
@@ -406,23 +408,22 @@ static int __devinit twl4030_kp_probe(struct platform_device *pdev)
 	if (error) {
 		dev_info(kp->dbg_dev, "request_irq failed for irq no=%d\n",
 			kp->irq);
-		goto err3;
+		goto err2;
 	}
 
 	/* Enable KP and TO interrupts now. */
 	reg = (u8) ~(KEYP_IMR1_KP | KEYP_IMR1_TO);
 	if (twl4030_kpwrite_u8(kp, reg, KEYP_IMR1)) {
 		error = -EIO;
-		goto err4;
+		goto err3;
 	}
 
 	platform_set_drvdata(pdev, kp);
 	return 0;
 
-err4:
+err3:
 	/* mask all events - we don't care about the result */
 	(void) twl4030_kpwrite_u8(kp, 0xff, KEYP_IMR1);
-err3:
 	free_irq(kp->irq, NULL);
 err2:
 	input_unregister_device(input);

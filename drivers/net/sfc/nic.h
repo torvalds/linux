@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2009 Solarflare Communications Inc.
+ * Copyright 2006-2011 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -15,6 +15,7 @@
 #include "net_driver.h"
 #include "efx.h"
 #include "mcdi.h"
+#include "spi.h"
 
 /*
  * Falcon hardware control
@@ -113,6 +114,11 @@ struct falcon_board {
  * @stats_pending: Is there a pending DMA of MAC statistics.
  * @stats_timer: A timer for regularly fetching MAC statistics.
  * @stats_dma_done: Pointer to the flag which indicates DMA completion.
+ * @spi_flash: SPI flash device
+ * @spi_eeprom: SPI EEPROM device
+ * @spi_lock: SPI bus lock
+ * @mdio_lock: MDIO bus lock
+ * @xmac_poll_required: XMAC link state needs polling
  */
 struct falcon_nic_data {
 	struct pci_dev *pci_dev2;
@@ -121,6 +127,11 @@ struct falcon_nic_data {
 	bool stats_pending;
 	struct timer_list stats_timer;
 	u32 *stats_dma_done;
+	struct efx_spi_device spi_flash;
+	struct efx_spi_device spi_eeprom;
+	struct mutex spi_lock;
+	struct mutex mdio_lock;
+	bool xmac_poll_required;
 };
 
 static inline struct falcon_board *falcon_board(struct efx_nic *efx)
@@ -131,24 +142,19 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
 
 /**
  * struct siena_nic_data - Siena NIC state
- * @fw_version: Management controller firmware version
- * @fw_build: Firmware build number
  * @mcdi: Management-Controller-to-Driver Interface
+ * @mcdi_smem: MCDI shared memory mapping. The mapping is always uncacheable.
  * @wol_filter_id: Wake-on-LAN packet filter id
- * @ipv6_rss_key: Toeplitz hash key for IPv6 RSS
  */
 struct siena_nic_data {
-	u64 fw_version;
-	u32 fw_build;
 	struct efx_mcdi_iface mcdi;
+	void __iomem *mcdi_smem;
 	int wol_filter_id;
 };
 
-extern void siena_print_fwver(struct efx_nic *efx, char *buf, size_t len);
-
-extern struct efx_nic_type falcon_a1_nic_type;
-extern struct efx_nic_type falcon_b0_nic_type;
-extern struct efx_nic_type siena_a0_nic_type;
+extern const struct efx_nic_type falcon_a1_nic_type;
+extern const struct efx_nic_type falcon_b0_nic_type;
+extern const struct efx_nic_type siena_a0_nic_type;
 
 /**************************************************************************
  *
@@ -180,11 +186,11 @@ extern void efx_nic_fini_eventq(struct efx_channel *channel);
 extern void efx_nic_remove_eventq(struct efx_channel *channel);
 extern int efx_nic_process_eventq(struct efx_channel *channel, int rx_quota);
 extern void efx_nic_eventq_read_ack(struct efx_channel *channel);
+extern bool efx_nic_event_present(struct efx_channel *channel);
 
 /* MAC/PHY */
 extern void falcon_drain_tx_fifo(struct efx_nic *efx);
 extern void falcon_reconfigure_mac_wrapper(struct efx_nic *efx);
-extern int efx_nic_rx_xoff_thresh, efx_nic_rx_xon_thresh;
 
 /* Interrupts and test events */
 extern int efx_nic_init_interrupt(struct efx_nic *efx);

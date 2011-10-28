@@ -568,7 +568,7 @@ static void sh5_flush_dcache_page(void *page)
 }
 
 /*
- * Flush the range [start,end] of kernel virtual adddress space from
+ * Flush the range [start,end] of kernel virtual address space from
  * the I-cache.  The corresponding range must be purged from the
  * D-cache also because the SH-5 doesn't have cache snooping between
  * the caches.  The addresses will be visible through the superpage

@@ -145,7 +145,7 @@ config MMC_RICOH_MMC
 
 config MMC_SDHCI_OF
 	tristate "SDHCI support on OpenFirmware platforms"
-	depends on MMC_SDHCI && PPC_OF
+	depends on MMC_SDHCI && OF
 	help
 	  This selects the OF support for Secure Digital Host Controller
 	  Interfaces.
@@ -155,6 +155,7 @@ config MMC_SDHCI_OF
 config MMC_SDHCI_OF_ESDHC
 	bool "SDHCI OF support for the Freescale eSDHC controller"
 	depends on MMC_SDHCI_OF
+	depends on PPC_OF
 	select MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 	help
 	  This selects the Freescale eSDHC controller support.
@@ -164,6 +165,7 @@ config MMC_SDHCI_OF_ESDHC
 config MMC_SDHCI_OF_HLWD
 	bool "SDHCI OF support for the Nintendo Wii SDHCI controllers"
 	depends on MMC_SDHCI_OF
+	depends on PPC_OF
 	select MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
@@ -192,6 +194,37 @@ config MMC_SDHCI_CNS3XXX
 
 	  If unsure, say N.
 
+config MMC_SDHCI_ESDHC_IMX
+	bool "SDHCI platform support for the Freescale eSDHC i.MX controller"
+	depends on MMC_SDHCI_PLTFM && (ARCH_MX25 || ARCH_MX35 || ARCH_MX5)
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Freescale eSDHC controller support on the platform
+	  bus, found on platforms like mx35/51.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_DOVE
+	bool "SDHCI support on Marvell's Dove SoC"
+	depends on ARCH_DOVE
+	depends on MMC_SDHCI_PLTFM
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Secure Digital Host Controller Interface in
+	  Marvell's Dove SoC.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_TEGRA
+	bool "SDHCI platform support for the Tegra SD/MMC Controller"
+	depends on MMC_SDHCI_PLTFM && ARCH_TEGRA
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Tegra SD/MMC controller. If you have a Tegra
+	  platform with SD or MMC devices, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_S3C
 	tristate "SDHCI support on Samsung S3C SoC"
 	depends on MMC_SDHCI && PLAT_SAMSUNG
@@ -204,6 +237,18 @@ config MMC_SDHCI_S3C
 	  available with CONFIG_EXPERIMENTAL is selected.
 
 	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_PXA
+	tristate "Marvell PXA168/PXA910/MMP2 SD Host Controller support"
+	depends on ARCH_PXA || ARCH_MMP
+	select MMC_SDHCI
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Marvell(R) PXA168/PXA910/MMP2 SD Host Controller.
+	  If you have a PXA168/PXA910/MMP2 platform with SD Host Controller
+	  and a card slot, say Y or M here.
 
 	  If unsure, say N.
 
@@ -242,7 +287,7 @@ config MMC_OMAP
 
 config MMC_OMAP_HS
 	tristate "TI OMAP High Speed Multimedia Card Interface support"
-	depends on ARCH_OMAP2430 || ARCH_OMAP3 || ARCH_OMAP4
+	depends on SOC_OMAP2430 || ARCH_OMAP3 || ARCH_OMAP4
 	help
 	  This selects the TI OMAP High Speed Multimedia card Interface.
 	  If you have an OMAP2430 or OMAP3 board or OMAP4 board with a
@@ -299,7 +344,7 @@ endchoice
 
 config MMC_ATMELMCI_DMA
 	bool "Atmel MCI DMA support (EXPERIMENTAL)"
-	depends on MMC_ATMELMCI && AVR32 && DMA_ENGINE && EXPERIMENTAL
+	depends on MMC_ATMELMCI && (AVR32 || ARCH_AT91SAM9G45) && DMA_ENGINE && EXPERIMENTAL
 	help
 	  Say Y here to have the Atmel MCI driver use a DMA engine to
 	  do data transfers and thus increase the throughput and
@@ -328,11 +373,20 @@ config MMC_MSM
 
 config MMC_MXC
 	tristate "Freescale i.MX2/3 Multimedia Card Interface support"
-	depends on ARCH_MXC
+	depends on MACH_MX21 || MACH_MX27 || ARCH_MX31
 	help
 	  This selects the Freescale i.MX2/3 Multimedia card Interface.
 	  If you have a i.MX platform with a Multimedia Card slot,
 	  say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_MXS
+	tristate "Freescale MXS Multimedia Card Interface support"
+	depends on ARCH_MXS && MXS_DMA
+	help
+	  This selects the Freescale SSP MMC controller found on MXS based
+	  platforms like mx23/28.
 
 	  If unsure, say N.
 
@@ -447,16 +501,29 @@ config MMC_SDRICOH_CS
 	  To compile this driver as a module, choose M here: the
 	  module will be called sdricoh_cs.
 
+config MMC_TMIO_CORE
+	tristate
+
 config MMC_TMIO
 	tristate "Toshiba Mobile IO Controller (TMIO) MMC/SD function support"
-	depends on MFD_TMIO || MFD_ASIC3 || MFD_SH_MOBILE_SDHI
+	depends on MFD_TMIO || MFD_ASIC3
+	select MMC_TMIO_CORE
 	help
 	  This provides support for the SD/MMC cell found in TC6393XB,
 	  T7L66XB and also HTC ASIC3
 
+config MMC_SDHI
+	tristate "SH-Mobile SDHI SD/SDIO controller support"
+	depends on SUPERH || ARCH_SHMOBILE
+	select MMC_TMIO_CORE
+	help
+	  This provides support for the SDHI SD/SDIO controller found in
+	  SuperH and ARM SH-Mobile SoCs
+
 config MMC_CB710
 	tristate "ENE CB710 MMC/SD Interface support"
 	depends on PCI
+	select MISC_DEVICES
 	select CB710_CORE
 	help
 	  This option enables support for MMC/SD part of ENE CB710/720 Flash
@@ -497,11 +564,27 @@ config SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND
 	help
 	  If you say yes here SD-Cards may work on the EZkit.
 
+config MMC_DW
+	tristate "Synopsys DesignWare Memory Card Interface"
+	depends on ARM
+	help
+	  This selects support for the Synopsys DesignWare Mobile Storage IP
+	  block, this provides host support for SD and MMC interfaces, in both
+	  PIO and external DMA modes.
+
+config MMC_DW_IDMAC
+	bool "Internal DMAC interface"
+	depends on MMC_DW
+	help
+	  This selects support for the internal DMAC block within the Synopsys
+	  Designware Mobile Storage IP block. This disables the external DMA
+	  interface.
+
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"
 	depends on MMC_BLOCK && (SUPERH || ARCH_SHMOBILE)
 	help
-	  This selects the MMC Host Interface controler (MMCIF).
+	  This selects the MMC Host Interface controller (MMCIF).
 
 	  This driver supports MMCIF in sh7724/sh7757/sh7372.
 
@@ -513,3 +596,48 @@ config MMC_JZ4740
 	  SoCs.
 	  If you have a board based on such a SoC and with a SD/MMC slot,
 	  say Y or M here.
+
+config MMC_VUB300
+	tristate "VUB300 USB to SDIO/SD/MMC Host Controller support"
+	depends on USB
+	help
+	  This selects support for Elan Digital Systems' VUB300 chip.
+
+	  The VUB300 is a USB-SDIO Host Controller Interface chip
+	  that enables the host computer to use SDIO/SD/MMC cards
+	  via a USB 2.0 or USB 1.1 host.
+
+	  The VUB300 chip will be found in both physically separate
+	  USB to SDIO/SD/MMC adapters and embedded on some motherboards.
+
+	  The VUB300 chip supports SD and MMC memory cards in addition
+	  to single and multifunction SDIO cards.
+
+	  Some SDIO cards will need a firmware file to be loaded and
+	  sent to VUB300 chip in order to achieve better data throughput.
+	  Download these "Offload Pseudocode" from Elan Digital Systems'
+	  web-site http://www.elandigitalsystems.com/support/downloads.php
+	  and put them in /lib/firmware. Note that without these additional
+	  firmware files the VUB300 chip will still function, but not at
+	  the best obtainable data rate.
+
+	  To compile this mmc host controller driver as a module,
+	  choose M here: the module will be called vub300.
+
+	  If you have a computer with an embedded VUB300 chip
+	  or if you intend connecting a USB adapter based on a
+	  VUB300 chip say Y or M here.
+
+config MMC_USHC
+	tristate "USB SD Host Controller (USHC) support"
+	depends on USB
+	help
+	  This selects support for USB SD Host Controllers based on
+	  the Cypress Astoria chip with firmware compliant with CSR's
+	  USB SD Host Controller specification (CS-118793-SP).
+
+	  CSR boards with this device include: USB<>SDIO (M1985v2),
+	  and Ultrasira.
+
+	  Note: These controllers only support SDIO cards and do not
+	  support MMC or SD memory cards.

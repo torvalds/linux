@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -305,7 +305,8 @@ acpi_ex_create_region(u8 * aml_start,
 	 * range
 	 */
 	if ((region_space >= ACPI_NUM_PREDEFINED_REGIONS) &&
-	    (region_space < ACPI_USER_REGION_BEGIN)) {
+	    (region_space < ACPI_USER_REGION_BEGIN) &&
+	    (region_space != ACPI_ADR_SPACE_DATA_TABLE)) {
 		ACPI_ERROR((AE_INFO, "Invalid AddressSpace type 0x%X",
 			    region_space));
 		return_ACPI_STATUS(AE_AML_INVALID_SPACE_ID);
@@ -482,13 +483,11 @@ acpi_ex_create_method(u8 * aml_start,
 	obj_desc->method.aml_length = aml_length;
 
 	/*
-	 * Disassemble the method flags. Split off the Arg Count
-	 * for efficiency
+	 * Disassemble the method flags. Split off the arg_count, Serialized
+	 * flag, and sync_level for efficiency.
 	 */
 	method_flags = (u8) operand[1]->integer.value;
 
-	obj_desc->method.method_flags =
-	    (u8) (method_flags & ~AML_METHOD_ARG_COUNT);
 	obj_desc->method.param_count =
 	    (u8) (method_flags & AML_METHOD_ARG_COUNT);
 
@@ -497,6 +496,8 @@ acpi_ex_create_method(u8 * aml_start,
 	 * created for this method when it is parsed.
 	 */
 	if (method_flags & AML_METHOD_SERIALIZED) {
+		obj_desc->method.info_flags = ACPI_METHOD_SERIALIZED;
+
 		/*
 		 * ACPI 1.0: sync_level = 0
 		 * ACPI 2.0: sync_level = sync_level in method declaration

@@ -137,6 +137,7 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 static const struct file_operations audmux_debugfs_fops = {
 	.open = audmux_open_file,
 	.read = audmux_read_file,
+	.llseek = default_llseek,
 };
 
 static void audmux_debugfs_init(void)
@@ -186,7 +187,13 @@ EXPORT_SYMBOL_GPL(mxc_audmux_v2_configure_port);
 static int mxc_audmux_v2_init(void)
 {
 	int ret;
-
+#if defined(CONFIG_ARCH_MX5)
+	if (cpu_is_mx51()) {
+		audmux_base = MX51_IO_ADDRESS(MX51_AUDMUX_BASE_ADDR);
+		ret = 0;
+		return ret;
+	}
+#endif
 #if defined(CONFIG_ARCH_MX3)
 	if (cpu_is_mx31())
 		audmux_base = MX31_IO_ADDRESS(MX31_AUDMUX_BASE_ADDR);
@@ -202,7 +209,7 @@ static int mxc_audmux_v2_init(void)
 		audmux_base = MX35_IO_ADDRESS(MX35_AUDMUX_BASE_ADDR);
 	}
 #endif
-#if defined(CONFIG_ARCH_MX25)
+#if defined(CONFIG_SOC_IMX25)
 	if (cpu_is_mx25()) {
 		audmux_clk = clk_get(NULL, "audmux");
 		if (IS_ERR(audmux_clk)) {
@@ -213,7 +220,7 @@ static int mxc_audmux_v2_init(void)
 		}
 		audmux_base = MX25_IO_ADDRESS(MX25_AUDMUX_BASE_ADDR);
 	}
-#endif
+#endif /* if defined(CONFIG_SOC_IMX25) */
 	audmux_debugfs_init();
 
 	return 0;

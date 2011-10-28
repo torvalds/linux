@@ -104,10 +104,10 @@ TRIG_WAKE_EOS
 #define STATUS_REG		0x12	/*  read only */
 #define   FNE_BIT		0x1	/*  fifo not empty */
 #define   OVFL_BIT		0x8	/*  fifo overflow */
-#define   EDAQ_BIT		0x10	/*  end of aquisition interrupt */
+#define   EDAQ_BIT		0x10	/*  end of acquisition interrupt */
 #define   DCAL_BIT		0x20	/*  offset calibration in progress */
-#define   INTR_BIT		0x40	/*  interrupt has occured */
-#define   DMA_TC_BIT		0x80	/*  dma terminal count interrupt has occured */
+#define   INTR_BIT		0x40	/*  interrupt has occurred */
+#define   DMA_TC_BIT		0x80	/*  dma terminal count interrupt has occurred */
 #define   ID_BITS(x)	(((x) >> 8) & 0x3)
 #define IRQ_DMA_CNTRL_REG		0x12	/*  write only */
 #define   DMA_CHAN_BITS(x)		((x) & 0x7)	/*  sets dma channel */
@@ -434,7 +434,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->cancel = a2150_cancel;
 
 	/* need to do this for software counting of completed conversions, to
-	 * prevent hardware count from stopping aquisition */
+	 * prevent hardware count from stopping acquisition */
 	outw(HW_COUNT_DISABLE, dev->iobase + I8253_MODE_REG);
 
 	/*  set card's irq and dma levels */
@@ -479,8 +479,7 @@ static int a2150_detach(struct comedi_device *dev)
 	if (devpriv) {
 		if (devpriv->dma)
 			free_dma(devpriv->dma);
-		if (devpriv->dma_buffer)
-			kfree(devpriv->dma_buffer);
+		kfree(devpriv->dma_buffer);
 	}
 
 	return 0;
@@ -730,7 +729,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  send trigger config bits */
 	outw(trigger_bits, dev->iobase + TRIGGER_REG);
 
-	/*  start aquisition for soft trigger */
+	/*  start acquisition for soft trigger */
 	if (cmd->start_src == TRIG_NOW) {
 		outw(0, dev->iobase + FIFO_START_REG);
 	}
@@ -769,7 +768,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	/*  setup start triggering */
 	outw(0, dev->iobase + TRIGGER_REG);
 
-	/*  start aquisition for soft trigger */
+	/*  start acquisition for soft trigger */
 	outw(0, dev->iobase + FIFO_START_REG);
 
 	/* there is a 35.6 sample delay for data to get through the antialias filter */

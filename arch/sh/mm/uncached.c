@@ -28,7 +28,7 @@ EXPORT_SYMBOL(virt_addr_uncached);
 
 void __init uncached_init(void)
 {
-#ifdef CONFIG_29BIT
+#if defined(CONFIG_29BIT) || !defined(CONFIG_MMU)
 	uncached_start = P2SEG;
 #else
 	uncached_start = memory_end;

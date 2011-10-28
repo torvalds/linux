@@ -396,7 +396,7 @@ static int reg_w(struct gspca_dev *gspca_dev,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			value, index, NULL, 0, 500);
 	if (ret < 0)
-		PDEBUG(D_ERR, "reg write: error %d", ret);
+		err("reg write: error %d", ret);
 	return ret;
 }
 
@@ -418,8 +418,8 @@ static int reg_r_12(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf, length,
 			500);		/* timeout */
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r_12 err %d", ret);
-		return -1;
+		err("reg_r_12 err %d", ret);
+		return ret;
 	}
 	return (gspca_dev->usb_buf[1] << 8) + gspca_dev->usb_buf[0];
 }
@@ -607,7 +607,7 @@ static void spca500_reinit(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x00, 0x8880, 2);
 	/* family cam Quicksmart stuff */
 	reg_w(gspca_dev, 0x00, 0x800a, 0x00);
-	/* Set agc transfer: synced inbetween frames */
+	/* Set agc transfer: synced between frames */
 	reg_w(gspca_dev, 0x00, 0x820f, 0x01);
 	/* Init SDRAM - needed for SDRAM access */
 	reg_w(gspca_dev, 0x00, 0x870a, 0x04);
@@ -831,7 +831,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 		/* familycam Quicksmart pocketDV stuff */
 		reg_w(gspca_dev, 0x00, 0x800a, 0x00);
-		/* Set agc transfer: synced inbetween frames */
+		/* Set agc transfer: synced between frames */
 		reg_w(gspca_dev, 0x00, 0x820f, 0x01);
 		/* Init SDRAM - needed for SDRAM access */
 		reg_w(gspca_dev, 0x00, 0x870a, 0x04);
@@ -1051,7 +1051,7 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x040a, 0x0300), .driver_info = KodakEZ200},
 	{USB_DEVICE(0x041e, 0x400a), .driver_info = CreativePCCam300},
 	{USB_DEVICE(0x046d, 0x0890), .driver_info = LogitechTraveler},
@@ -1093,17 +1093,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

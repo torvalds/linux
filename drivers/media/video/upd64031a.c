@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/upd64031a.h>
 
 /* --------------------- read registers functions define -------------------- */
@@ -231,7 +230,7 @@ static int upd64031a_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	state = kmalloc(sizeof(struct upd64031a_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct upd64031a_state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
 	sd = &state->sd;
@@ -262,9 +261,25 @@ static const struct i2c_device_id upd64031a_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, upd64031a_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "upd64031a",
-	.probe = upd64031a_probe,
-	.remove = upd64031a_remove,
-	.id_table = upd64031a_id,
+static struct i2c_driver upd64031a_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "upd64031a",
+	},
+	.probe		= upd64031a_probe,
+	.remove		= upd64031a_remove,
+	.id_table	= upd64031a_id,
 };
+
+static __init int init_upd64031a(void)
+{
+	return i2c_add_driver(&upd64031a_driver);
+}
+
+static __exit void exit_upd64031a(void)
+{
+	i2c_del_driver(&upd64031a_driver);
+}
+
+module_init(init_upd64031a);
+module_exit(exit_upd64031a);

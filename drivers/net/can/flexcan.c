@@ -923,7 +923,7 @@ static int __devinit flexcan_probe(struct platform_device *pdev)
 	mem_size = resource_size(mem);
 	if (!request_mem_region(mem->start, mem_size, pdev->name)) {
 		err = -EBUSY;
-		goto failed_req;
+		goto failed_get;
 	}
 
 	base = ioremap(mem->start, mem_size);
@@ -977,9 +977,8 @@ static int __devinit flexcan_probe(struct platform_device *pdev)
 	iounmap(base);
  failed_map:
 	release_mem_region(mem->start, mem_size);
- failed_req:
-	clk_put(clk);
  failed_get:
+	clk_put(clk);
  failed_clock:
 	return err;
 }
@@ -992,13 +991,14 @@ static int __devexit flexcan_remove(struct platform_device *pdev)
 
 	unregister_flexcandev(dev);
 	platform_set_drvdata(pdev, NULL);
-	free_candev(dev);
 	iounmap(priv->base);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, resource_size(mem));
 
 	clk_put(priv->clk);
+
+	free_candev(dev);
 
 	return 0;
 }

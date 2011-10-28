@@ -1,3 +1,0 @@
-lirc_i2c provides support for some drivers that have already a RC
-driver under drivers/media/video. It should be integrated into those
-drivers, in special with drivers/media/video/ir-kbd-i2c.c.

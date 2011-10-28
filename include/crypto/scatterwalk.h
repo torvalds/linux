@@ -68,6 +68,21 @@ static inline struct scatterlist *scatterwalk_sg_next(struct scatterlist *sg)
 	return (++sg)->length ? sg : (void *)sg_page(sg);
 }
 
+static inline void scatterwalk_crypto_chain(struct scatterlist *head,
+					    struct scatterlist *sg,
+					    int chain, int num)
+{
+	if (chain) {
+		head->length += sg->length;
+		sg = scatterwalk_sg_next(sg);
+	}
+
+	if (sg)
+		scatterwalk_sg_chain(head, num, sg);
+	else
+		sg_mark_end(head);
+}
+
 static inline unsigned long scatterwalk_samebuf(struct scatter_walk *walk_in,
 						struct scatter_walk *walk_out)
 {

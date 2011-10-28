@@ -19,6 +19,14 @@
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 
+#if defined(CONFIG_CPU_PJ4)
+#define PJ4(code...)		code
+#define XSC(code...)
+#else
+#define PJ4(code...)
+#define XSC(code...)		code
+#endif
+
 #define MMX_WR0		 	(0x00)
 #define MMX_WR1		 	(0x08)
 #define MMX_WR2		 	(0x10)
@@ -58,11 +66,17 @@
 
 ENTRY(iwmmxt_task_enable)
 
-	mrc	p15, 0, r2, c15, c1, 0
-	tst	r2, #0x3			@ CP0 and CP1 accessible?
+	XSC(mrc	p15, 0, r2, c15, c1, 0)
+	PJ4(mrc p15, 0, r2, c1, c0, 2)
+	@ CP0 and CP1 accessible?
+	XSC(tst	r2, #0x3)
+	PJ4(tst	r2, #0xf)
 	movne	pc, lr				@ if so no business here
-	orr	r2, r2, #0x3			@ enable access to CP0 and CP1
-	mcr	p15, 0, r2, c15, c1, 0
+	@ enable access to CP0 and CP1
+	XSC(orr	r2, r2, #0x3)
+	XSC(mcr	p15, 0, r2, c15, c1, 0)
+	PJ4(orr	r2, r2, #0xf)
+	PJ4(mcr	p15, 0, r2, c1, c0, 2)
 
 	ldr	r3, =concan_owner
 	add	r0, r10, #TI_IWMMXT_STATE	@ get task Concan save area
@@ -179,17 +193,26 @@ ENTRY(iwmmxt_task_disable)
 	teqne	r1, r2				@ or specified one?
 	bne	1f				@ no: quit
 
-	mrc	p15, 0, r4, c15, c1, 0
-	orr	r4, r4, #0x3			@ enable access to CP0 and CP1
-	mcr	p15, 0, r4, c15, c1, 0
+	@ enable access to CP0 and CP1
+	XSC(mrc	p15, 0, r4, c15, c1, 0)
+	XSC(orr	r4, r4, #0xf)
+	XSC(mcr	p15, 0, r4, c15, c1, 0)
+	PJ4(mrc p15, 0, r4, c1, c0, 2)
+	PJ4(orr	r4, r4, #0x3)
+	PJ4(mcr	p15, 0, r4, c1, c0, 2)
+
 	mov	r0, #0				@ nothing to load
 	str	r0, [r3]			@ no more current owner
 	mrc	p15, 0, r2, c2, c0, 0
 	mov	r2, r2				@ cpwait
 	bl	concan_save
 
-	bic	r4, r4, #0x3			@ disable access to CP0 and CP1
-	mcr	p15, 0, r4, c15, c1, 0
+	@ disable access to CP0 and CP1
+	XSC(bic	r4, r4, #0x3)
+	XSC(mcr	p15, 0, r4, c15, c1, 0)
+	PJ4(bic	r4, r4, #0xf)
+	PJ4(mcr	p15, 0, r4, c1, c0, 2)
+
 	mrc	p15, 0, r2, c2, c0, 0
 	mov	r2, r2				@ cpwait
 
@@ -277,8 +300,11 @@ ENTRY(iwmmxt_task_restore)
  */
 ENTRY(iwmmxt_task_switch)
 
-	mrc	p15, 0, r1, c15, c1, 0
-	tst	r1, #0x3			@ CP0 and CP1 accessible?
+	XSC(mrc	p15, 0, r1, c15, c1, 0)
+	PJ4(mrc	p15, 0, r1, c1, c0, 2)
+	@ CP0 and CP1 accessible?
+	XSC(tst	r1, #0x3)
+	PJ4(tst	r1, #0xf)
 	bne	1f				@ yes: block them for next task
 
 	ldr	r2, =concan_owner
@@ -287,8 +313,11 @@ ENTRY(iwmmxt_task_switch)
 	teq	r2, r3				@ next task owns it?
 	movne	pc, lr				@ no: leave Concan disabled
 
-1:	eor	r1, r1, #3			@ flip Concan access
-	mcr	p15, 0, r1, c15, c1, 0
+1:	@ flip Conan access
+	XSC(eor	r1, r1, #0x3)
+	XSC(mcr	p15, 0, r1, c15, c1, 0)
+	PJ4(eor r1, r1, #0xf)
+	PJ4(mcr	p15, 0, r1, c1, c0, 2)
 
 	mrc	p15, 0, r1, c2, c0, 0
 	sub	pc, lr, r1, lsr #32		@ cpwait and return

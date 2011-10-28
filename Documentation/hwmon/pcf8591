@@ -4,7 +4,7 @@ Kernel driver pcf8591
 Supported chips:
   * Philips/NXP PCF8591
     Prefix: 'pcf8591'
-    Addresses scanned: I2C 0x48 - 0x4f
+    Addresses scanned: none
     Datasheet: Publicly available at the NXP website
                http://www.nxp.com/pip/PCF8591_6.html
 
@@ -58,18 +58,16 @@ Module parameters
 Accessing PCF8591 via /sys interface
 -------------------------------------
 
-! Be careful !
-The PCF8591 is plainly impossible to detect! Stupid chip.
-So every chip with address in the interval [0x48..0x4f] is
-detected as PCF8591. If you have other chips in this address
-range, the workaround is to load this module after the one
-for your others chips.
+The PCF8591 is plainly impossible to detect! Thus the driver won't even
+try. You have to explicitly instantiate the device at the relevant
+address (in the interval [0x48..0x4f]) either through platform data, or
+using the sysfs interface. See Documentation/i2c/instantiating-devices
+for details.
 
-On detection (i.e. insmod, modprobe et al.), directories are being
-created for each detected PCF8591:
+Directories are being created for each instantiated PCF8591:
 
 /sys/bus/i2c/devices/<0>-<1>/
-where <0> is the bus the chip was detected on (e. g. i2c-0)
+where <0> is the bus the chip is connected to (e. g. i2c-0)
 and <1> the chip address ([48..4f])
 
 Inside these directories, there are such files:

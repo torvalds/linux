@@ -20,7 +20,7 @@
  at standard samplerates,
  what led to this part of the usx2y module: 
  It provides the alsa kernel half of the usx2y-alsa-jack driver pair.
- The pair uses a hardware dependant alsa-device for mmaped pcm transport.
+ The pair uses a hardware dependent alsa-device for mmaped pcm transport.
  Advantage achieved:
          The usb_hc moves pcm data from/into memory via DMA.
          That memory is mmaped by jack's usx2y driver.
@@ -36,9 +36,9 @@
          plain usx2y alsa mode is able to achieve 64frames, 4periods, but only at the
          cost of easier triggered i.e. aeolus xruns (128 or 256frames,
          2periods works but is useless cause of crackling).
- 
+
  This is a first "proof of concept" implementation.
- Later, funcionalities should migrate to more apropriate places:
+ Later, functionalities should migrate to more appropriate places:
  Userland:
  - The jackd could mmap its float-pcm buffers directly from alsa-lib.
  - alsa-lib could provide power of 2 period sized shaping combined with int/float
@@ -54,7 +54,7 @@
 #include <linux/gfp.h>
 #include "usbusx2yaudio.c"
 
-#if defined(USX2Y_NRPACKS_VARIABLE) || (!defined(USX2Y_NRPACKS_VARIABLE) &&  USX2Y_NRPACKS == 1)
+#if defined(USX2Y_NRPACKS_VARIABLE) || USX2Y_NRPACKS == 1
 
 #include <sound/hwdep.h>
 

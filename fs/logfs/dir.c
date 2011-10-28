@@ -92,7 +92,7 @@ static int beyond_eof(struct inode *inode, loff_t bix)
  * so short names (len <= 9) don't even occupy the complete 32bit name
  * space.  A prime >256 ensures short names quickly spread the 32bit
  * name space.  Add about 26 for the estimated amount of information
- * of each character and pick a prime nearby, preferrably a bit-sparse
+ * of each character and pick a prime nearby, preferably a bit-sparse
  * one.
  */
 static u32 hash_32(const char *s, int len, u32 seed)
@@ -555,11 +555,6 @@ static int logfs_symlink(struct inode *dir, struct dentry *dentry,
 	return __logfs_create(dir, dentry, inode, target, destlen);
 }
 
-static int logfs_permission(struct inode *inode, int mask)
-{
-	return generic_permission(inode, mask, NULL);
-}
-
 static int logfs_link(struct dentry *old_dentry, struct inode *dir,
 		struct dentry *dentry)
 {
@@ -569,7 +564,7 @@ static int logfs_link(struct dentry *old_dentry, struct inode *dir,
 		return -EMLINK;
 
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 	inode->i_nlink++;
 	mark_inode_dirty_sync(inode);
 
@@ -818,7 +813,6 @@ const struct inode_operations logfs_dir_iops = {
 	.mknod		= logfs_mknod,
 	.rename		= logfs_rename,
 	.rmdir		= logfs_rmdir,
-	.permission	= logfs_permission,
 	.symlink	= logfs_symlink,
 	.unlink		= logfs_unlink,
 };
@@ -827,4 +821,5 @@ const struct file_operations logfs_dir_fops = {
 	.unlocked_ioctl	= logfs_ioctl,
 	.readdir	= logfs_readdir,
 	.read		= generic_read_dir,
+	.llseek		= default_llseek,
 };

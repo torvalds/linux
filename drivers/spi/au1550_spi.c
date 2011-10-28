@@ -480,7 +480,7 @@ static irqreturn_t au1550_spi_dma_irq_callback(struct au1550_spi *hw)
 		au1xxx_dbdma_stop(hw->dma_rx_ch);
 		au1xxx_dbdma_stop(hw->dma_tx_ch);
 
-		/* get number of transfered bytes */
+		/* get number of transferred bytes */
 		hw->rx_count = hw->len - au1xxx_get_dma_residue(hw->dma_rx_ch);
 		hw->tx_count = hw->len - au1xxx_get_dma_residue(hw->dma_tx_ch);
 

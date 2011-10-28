@@ -71,7 +71,7 @@ int sound_install_audiodrv(int vers, char *name, struct audio_driver *driver,
 	if (sound_nblocks >= MAX_MEM_BLOCKS)
 		sound_nblocks = MAX_MEM_BLOCKS - 1;
 
-	op = (struct audio_operations *) (sound_mem_blocks[sound_nblocks] = vmalloc(sizeof(struct audio_operations)));
+	op = (struct audio_operations *) (sound_mem_blocks[sound_nblocks] = vzalloc(sizeof(struct audio_operations)));
 	sound_nblocks++;
 	if (sound_nblocks >= MAX_MEM_BLOCKS)
 		sound_nblocks = MAX_MEM_BLOCKS - 1;
@@ -81,7 +81,6 @@ int sound_install_audiodrv(int vers, char *name, struct audio_driver *driver,
 		sound_unload_audiodev(num);
 		return -(ENOMEM);
 	}
-	memset((char *) op, 0, sizeof(struct audio_operations));
 	init_waitqueue_head(&op->in_sleeper);
 	init_waitqueue_head(&op->out_sleeper);	
 	init_waitqueue_head(&op->poll_sleeper);
@@ -128,7 +127,7 @@ int sound_install_mixer(int vers, char *name, struct mixer_operations *driver,
 	/* FIXME: This leaks a mixer_operations struct every time its called
 	   until you unload sound! */
 	   
-	op = (struct mixer_operations *) (sound_mem_blocks[sound_nblocks] = vmalloc(sizeof(struct mixer_operations)));
+	op = (struct mixer_operations *) (sound_mem_blocks[sound_nblocks] = vzalloc(sizeof(struct mixer_operations)));
 	sound_nblocks++;
 	if (sound_nblocks >= MAX_MEM_BLOCKS)
 		sound_nblocks = MAX_MEM_BLOCKS - 1;
@@ -137,7 +136,6 @@ int sound_install_mixer(int vers, char *name, struct mixer_operations *driver,
 		printk(KERN_ERR "Sound: Can't allocate mixer driver for (%s)\n", name);
 		return -ENOMEM;
 	}
-	memset((char *) op, 0, sizeof(struct mixer_operations));
 	memcpy((char *) op, (char *) driver, driver_size);
 
 	strlcpy(op->name, name, sizeof(op->name));

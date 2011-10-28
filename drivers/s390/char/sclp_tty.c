@@ -408,118 +408,72 @@ static int sclp_switch_cases(unsigned char *buf, int count)
 	return op - buf;
 }
 
-static void
-sclp_get_input(unsigned char *start, unsigned char *end)
+static void sclp_get_input(struct gds_subvector *sv)
 {
+	unsigned char *str;
 	int count;
 
-	count = end - start;
+	str = (unsigned char *) (sv + 1);
+	count = sv->length - sizeof(*sv);
 	if (sclp_tty_tolower)
-		EBC_TOLOWER(start, count);
-	count = sclp_switch_cases(start, count);
+		EBC_TOLOWER(str, count);
+	count = sclp_switch_cases(str, count);
 	/* convert EBCDIC to ASCII (modify original input in SCCB) */
-	sclp_ebcasc_str(start, count);
+	sclp_ebcasc_str(str, count);
 
 	/* transfer input to high level driver */
-	sclp_tty_input(start, count);
+	sclp_tty_input(str, count);
 }
 
-static inline struct gds_vector *
-find_gds_vector(struct gds_vector *start, struct gds_vector *end, u16 id)
+static inline void sclp_eval_selfdeftextmsg(struct gds_subvector *sv)
 {
-	struct gds_vector *vec;
+	void *end;
 
-	for (vec = start; vec < end; vec = (void *) vec + vec->length)
-		if (vec->gds_id == id)
-			return vec;
-	return NULL;
+	end = (void *) sv + sv->length;
+	for (sv = sv + 1; (void *) sv < end; sv = (void *) sv + sv->length)
+		if (sv->key == 0x30)
+			sclp_get_input(sv);
 }
 
-static inline struct gds_subvector *
-find_gds_subvector(struct gds_subvector *start,
-		   struct gds_subvector *end, u8 key)
+static inline void sclp_eval_textcmd(struct gds_vector *v)
 {
-	struct gds_subvector *subvec;
+	struct gds_subvector *sv;
+	void *end;
 
-	for (subvec = start; subvec < end;
-	     subvec = (void *) subvec + subvec->length)
-		if (subvec->key == key)
-			return subvec;
-	return NULL;
+	end = (void *) v + v->length;
+	for (sv = (struct gds_subvector *) (v + 1);
+	     (void *) sv < end; sv = (void *) sv + sv->length)
+		if (sv->key == GDS_KEY_SELFDEFTEXTMSG)
+			sclp_eval_selfdeftextmsg(sv);
+
 }
 
-static inline void
-sclp_eval_selfdeftextmsg(struct gds_subvector *start,
-			 struct gds_subvector *end)
+static inline void sclp_eval_cpmsu(struct gds_vector *v)
 {
-	struct gds_subvector *subvec;
+	void *end;
 
-	subvec = start;
-	while (subvec < end) {
-		subvec = find_gds_subvector(subvec, end, 0x30);
-		if (!subvec)
-			break;
-		sclp_get_input((unsigned char *)(subvec + 1),
-			       (unsigned char *) subvec + subvec->length);
-		subvec = (void *) subvec + subvec->length;
-	}
-}
-
-static inline void
-sclp_eval_textcmd(struct gds_subvector *start,
-		  struct gds_subvector *end)
-{
-	struct gds_subvector *subvec;
-
-	subvec = start;
-	while (subvec < end) {
-		subvec = find_gds_subvector(subvec, end,
-					    GDS_KEY_SELFDEFTEXTMSG);
-		if (!subvec)
-			break;
-		sclp_eval_selfdeftextmsg((struct gds_subvector *)(subvec + 1),
-					 (void *)subvec + subvec->length);
-		subvec = (void *) subvec + subvec->length;
-	}
-}
-
-static inline void
-sclp_eval_cpmsu(struct gds_vector *start, struct gds_vector *end)
-{
-	struct gds_vector *vec;
-
-	vec = start;
-	while (vec < end) {
-		vec = find_gds_vector(vec, end, GDS_ID_TEXTCMD);
-		if (!vec)
-			break;
-		sclp_eval_textcmd((struct gds_subvector *)(vec + 1),
-				  (void *) vec + vec->length);
-		vec = (void *) vec + vec->length;
-	}
+	end = (void *) v + v->length;
+	for (v = v + 1; (void *) v < end; v = (void *) v + v->length)
+		if (v->gds_id == GDS_ID_TEXTCMD)
+			sclp_eval_textcmd(v);
 }
 
 
-static inline void
-sclp_eval_mdsmu(struct gds_vector *start, void *end)
+static inline void sclp_eval_mdsmu(struct gds_vector *v)
 {
-	struct gds_vector *vec;
-
-	vec = find_gds_vector(start, end, GDS_ID_CPMSU);
-	if (vec)
-		sclp_eval_cpmsu(vec + 1, (void *) vec + vec->length);
+	v = sclp_find_gds_vector(v + 1, (void *) v + v->length, GDS_ID_CPMSU);
+	if (v)
+		sclp_eval_cpmsu(v);
 }
 
-static void
-sclp_tty_receiver(struct evbuf_header *evbuf)
+static void sclp_tty_receiver(struct evbuf_header *evbuf)
 {
-	struct gds_vector *start, *end, *vec;
+	struct gds_vector *v;
 
-	start = (struct gds_vector *)(evbuf + 1);
-	end = (void *) evbuf + evbuf->length;
-	vec = find_gds_vector(start, end, GDS_ID_MDSMU);
-	if (vec)
-		sclp_eval_mdsmu(vec + 1, (void *) vec + vec->length);
+	v = sclp_find_gds_vector(evbuf + 1, (void *) evbuf + evbuf->length,
+				 GDS_ID_MDSMU);
+	if (v)
+		sclp_eval_mdsmu(v);
 }
 
 static void

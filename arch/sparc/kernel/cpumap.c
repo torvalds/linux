@@ -202,7 +202,7 @@ static struct cpuinfo_tree *build_cpuinfo_tree(void)
 	new_tree->total_nodes = n;
 	memcpy(&new_tree->level, tmp_level, sizeof(tmp_level));
 
-	prev_cpu = cpu = first_cpu(cpu_online_map);
+	prev_cpu = cpu = cpumask_first(cpu_online_mask);
 
 	/* Initialize all levels in the tree with the first CPU */
 	for (level = CPUINFO_LVL_PROC; level >= CPUINFO_LVL_ROOT; level--) {
@@ -381,7 +381,7 @@ static int simple_map_to_cpu(unsigned int index)
 	}
 
 	/* Impossible, since num_online_cpus() <= num_possible_cpus() */
-	return first_cpu(cpu_online_map);
+	return cpumask_first(cpu_online_mask);
 }
 
 static int _map_to_cpu(unsigned int index)

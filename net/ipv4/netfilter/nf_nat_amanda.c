@@ -44,9 +44,16 @@ static unsigned int help(struct sk_buff *skb,
 
 	/* Try to get same port: if not, try to change it. */
 	for (port = ntohs(exp->saved_proto.tcp.port); port != 0; port++) {
+		int res;
+
 		exp->tuple.dst.u.tcp.port = htons(port);
-		if (nf_ct_expect_related(exp) == 0)
+		res = nf_ct_expect_related(exp);
+		if (res == 0)
 			break;
+		else if (res != -EBUSY) {
+			port = 0;
+			break;
+		}
 	}
 
 	if (port == 0)

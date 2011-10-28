@@ -560,7 +560,7 @@ int dt2811_adtrig(kdev_t minor, comedi_adtrig *adtrig)
 	switch (dev->i_admode) {
 	case COMEDI_MDEMAND:
 		dev->ntrig = adtrig->n - 1;
-		/* not neccessary */
+		/* not necessary */
 		/*printk("dt2811: AD soft trigger\n"); */
 		/*outb(DT2811_CLRERROR|DT2811_INTENB,
 			dev->iobase+DT2811_ADCSR); */

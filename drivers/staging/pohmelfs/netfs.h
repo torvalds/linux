@@ -191,7 +191,7 @@ enum {
 /*
  * POHMELFS capabilities: information about supported
  * crypto operations (hash/cipher, modes, key sizes and so on),
- * root informaion (used/available size, number of objects, permissions)
+ * root information (used/available size, number of objects, permissions)
  */
 enum pohmelfs_capabilities {
 	POHMELFS_CRYPTO_CAPABILITIES = 0,

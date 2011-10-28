@@ -2457,7 +2457,7 @@ static void sym_int_ma (struct sym_hcb *np)
 		}
 
 		/*
-		 *  The data in the dma fifo has not been transfered to
+		 *  The data in the dma fifo has not been transferred to
 		 *  the target -> add the amount to the rest
 		 *  and clear the data.
 		 *  Check the sstat2 register in case of wide transfer.
@@ -5094,7 +5094,7 @@ fail:
 }
 
 /*
- *  Lun control block deallocation. Returns the number of valid remaing LCBs
+ *  Lun control block deallocation. Returns the number of valid remaining LCBs
  *  for the target.
  */
 int sym_free_lcb(struct sym_hcb *np, u_char tn, u_char ln)

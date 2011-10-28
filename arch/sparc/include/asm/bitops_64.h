@@ -89,14 +89,12 @@ static inline unsigned int __arch_hweight8(unsigned int w)
 
 #ifdef __KERNEL__
 
-#include <asm-generic/bitops/ext2-non-atomic.h>
+#include <asm-generic/bitops/le.h>
 
 #define ext2_set_bit_atomic(lock,nr,addr) \
 	test_and_set_bit((nr) ^ 0x38,(unsigned long *)(addr))
 #define ext2_clear_bit_atomic(lock,nr,addr) \
 	test_and_clear_bit((nr) ^ 0x38,(unsigned long *)(addr))
-
-#include <asm-generic/bitops/minix.h>
 
 #endif /* __KERNEL__ */
 

@@ -273,7 +273,7 @@ static int __init sbc7240_wdt_init(void)
 
 	/* The IO port 0x043 used to disable the watchdog
 	 * is already claimed by the system timer, so we
-	 * cant request_region() it ...*/
+	 * can't request_region() it ...*/
 
 	if (timeout < 1 || timeout > SBC7240_MAX_TIMEOUT) {
 		timeout = SBC7240_TIMEOUT;

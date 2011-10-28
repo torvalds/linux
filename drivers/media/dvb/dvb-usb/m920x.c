@@ -134,22 +134,26 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	struct m920x_state *m = d->priv;
 	int i, ret = 0;
-	u8 rc_state[2];
+	u8 *rc_state;
+
+	rc_state = kmalloc(2, GFP_KERNEL);
+	if (!rc_state)
+		return -ENOMEM;
 
 	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE, rc_state, 1)) != 0)
-		goto unlock;
+		goto out;
 
 	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY, rc_state + 1, 1)) != 0)
-		goto unlock;
+		goto out;
 
-	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++)
-		if (rc5_data(&d->props.rc.legacy.rc_key_map[i]) == rc_state[1]) {
-			*event = d->props.rc.legacy.rc_key_map[i].keycode;
+	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
+		if (rc5_data(&d->props.rc.legacy.rc_map_table[i]) == rc_state[1]) {
+			*event = d->props.rc.legacy.rc_map_table[i].keycode;
 
 			switch(rc_state[0]) {
 			case 0x80:
 				*state = REMOTE_NO_KEY_PRESSED;
-				goto unlock;
+				goto out;
 
 			case 0x88: /* framing error or "invalid code" */
 			case 0x99:
@@ -157,7 +161,7 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			case 0xd8:
 				*state = REMOTE_NO_KEY_PRESSED;
 				m->rep_count = 0;
-				goto unlock;
+				goto out;
 
 			case 0x93:
 			case 0x92:
@@ -165,7 +169,7 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			case 0x82:
 				m->rep_count = 0;
 				*state = REMOTE_KEY_PRESSED;
-				goto unlock;
+				goto out;
 
 			case 0x91:
 			case 0x81: /* pinnacle PCTV310e */
@@ -174,12 +178,12 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 					*state = REMOTE_KEY_REPEAT;
 				else
 					*state = REMOTE_NO_KEY_PRESSED;
-				goto unlock;
+				goto out;
 
 			default:
 				deb("Unexpected rc state %02x\n", rc_state[0]);
 				*state = REMOTE_NO_KEY_PRESSED;
-				goto unlock;
+				goto out;
 			}
 		}
 
@@ -188,8 +192,8 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 	*state = REMOTE_NO_KEY_PRESSED;
 
- unlock:
-
+ out:
+	kfree(rc_state);
 	return ret;
 }
 
@@ -339,12 +343,18 @@ static int m920x_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, in
 static int m920x_firmware_download(struct usb_device *udev, const struct firmware *fw)
 {
 	u16 value, index, size;
-	u8 read[4], *buff;
+	u8 *read, *buff;
 	int i, pass, ret = 0;
 
 	buff = kmalloc(65536, GFP_KERNEL);
 	if (buff == NULL)
 		return -ENOMEM;
+
+	read = kmalloc(4, GFP_KERNEL);
+	if (!read) {
+		kfree(buff);
+		return -ENOMEM;
+	}
 
 	if ((ret = m920x_read(udev, M9206_FILTER, 0x0, 0x8000, read, 4)) != 0)
 		goto done;
@@ -396,6 +406,7 @@ static int m920x_firmware_download(struct usb_device *udev, const struct firmwar
 	deb("firmware uploaded!\n");
 
  done:
+	kfree(read);
 	kfree(buff);
 
 	return ret;
@@ -589,7 +600,7 @@ static struct m920x_inits pinnacle310e_init[] = {
 };
 
 /* ir keymaps */
-static struct ir_scancode ir_codes_megasky_table[] = {
+static struct rc_map_table rc_map_megasky_table[] = {
 	{ 0x0012, KEY_POWER },
 	{ 0x001e, KEY_CYCLEWINDOWS }, /* min/max */
 	{ 0x0002, KEY_CHANNELUP },
@@ -608,7 +619,7 @@ static struct ir_scancode ir_codes_megasky_table[] = {
 	{ 0x000e, KEY_COFFEE }, /* "MTS" */
 };
 
-static struct ir_scancode ir_codes_tvwalkertwin_table[] = {
+static struct rc_map_table rc_map_tvwalkertwin_table[] = {
 	{ 0x0001, KEY_ZOOM }, /* Full Screen */
 	{ 0x0002, KEY_CAMERA }, /* snapshot */
 	{ 0x0003, KEY_MUTE },
@@ -628,13 +639,13 @@ static struct ir_scancode ir_codes_tvwalkertwin_table[] = {
 	{ 0x001e, KEY_VOLUMEUP },
 };
 
-static struct ir_scancode ir_codes_pinnacle310e_table[] = {
+static struct rc_map_table rc_map_pinnacle310e_table[] = {
 	{ 0x16, KEY_POWER },
 	{ 0x17, KEY_FAVORITES },
 	{ 0x0f, KEY_TEXT },
-	{ 0x48, KEY_MEDIA },		/* preview */
+	{ 0x48, KEY_PROGRAM },		/* preview */
 	{ 0x1c, KEY_EPG },
-	{ 0x04, KEY_LIST },			/* record list */
+	{ 0x04, KEY_LIST },		/* record list */
 	{ 0x03, KEY_1 },
 	{ 0x01, KEY_2 },
 	{ 0x06, KEY_3 },
@@ -674,14 +685,14 @@ static struct ir_scancode ir_codes_pinnacle310e_table[] = {
 	{ 0x0e, KEY_MUTE },
 /*	{ 0x49, KEY_LR },	*/		/* L/R */
 	{ 0x07, KEY_SLEEP },		/* Hibernate */
-	{ 0x08, KEY_MEDIA },		/* A/V */
-	{ 0x0e, KEY_MENU },			/* Recall */
+	{ 0x08, KEY_VIDEO },		/* A/V */
+	{ 0x0e, KEY_MENU },		/* Recall */
 	{ 0x45, KEY_ZOOMIN },
 	{ 0x46, KEY_ZOOMOUT },
-	{ 0x18, KEY_TV },			/* Red */
-	{ 0x53, KEY_VCR },			/* Green */
-	{ 0x5e, KEY_SAT },			/* Yellow */
-	{ 0x5f, KEY_PLAYER },		/* Blue */
+	{ 0x18, KEY_RED },		/* Red */
+	{ 0x53, KEY_GREEN },		/* Green */
+	{ 0x5e, KEY_YELLOW },		/* Yellow */
+	{ 0x5f, KEY_BLUE },		/* Blue */
 };
 
 /* DVB USB Driver stuff */
@@ -786,8 +797,8 @@ static struct dvb_usb_device_properties megasky_properties = {
 
 	.rc.legacy = {
 		.rc_interval      = 100,
-		.rc_key_map       = ir_codes_megasky_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_megasky_table),
+		.rc_map_table     = rc_map_megasky_table,
+		.rc_map_size      = ARRAY_SIZE(rc_map_megasky_table),
 		.rc_query         = m920x_rc_query,
 	},
 
@@ -889,8 +900,8 @@ static struct dvb_usb_device_properties tvwalkertwin_properties = {
 
 	.rc.legacy = {
 		.rc_interval      = 100,
-		.rc_key_map       = ir_codes_tvwalkertwin_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_tvwalkertwin_table),
+		.rc_map_table     = rc_map_tvwalkertwin_table,
+		.rc_map_size      = ARRAY_SIZE(rc_map_tvwalkertwin_table),
 		.rc_query         = m920x_rc_query,
 	},
 
@@ -998,8 +1009,8 @@ static struct dvb_usb_device_properties pinnacle_pctv310e_properties = {
 
 	.rc.legacy = {
 		.rc_interval      = 100,
-		.rc_key_map       = ir_codes_pinnacle310e_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_pinnacle310e_table),
+		.rc_map_table     = rc_map_pinnacle310e_table,
+		.rc_map_size      = ARRAY_SIZE(rc_map_pinnacle310e_table),
 		.rc_query         = m920x_rc_query,
 	},
 

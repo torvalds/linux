@@ -565,7 +565,7 @@ void sctp_err_finish(struct sock *sk, struct sctp_association *asoc)
  */
 void sctp_v4_err(struct sk_buff *skb, __u32 info)
 {
-	struct iphdr *iph = (struct iphdr *)skb->data;
+	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	const int ihlen = iph->ihl * 4;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
@@ -661,7 +661,6 @@ static int sctp_rcv_ootb(struct sk_buff *skb)
 {
 	sctp_chunkhdr_t *ch;
 	__u8 *ch_end;
-	sctp_errhdr_t *err;
 
 	ch = (sctp_chunkhdr_t *) skb->data;
 
@@ -696,20 +695,6 @@ static int sctp_rcv_ootb(struct sk_buff *skb)
 		 */
 		if (SCTP_CID_INIT == ch->type && (void *)ch != skb->data)
 			goto discard;
-
-		/* RFC 8.4, 7) If the packet contains a "Stale cookie" ERROR
-		 * or a COOKIE ACK the SCTP Packet should be silently
-		 * discarded.
-		 */
-		if (SCTP_CID_COOKIE_ACK == ch->type)
-			goto discard;
-
-		if (SCTP_CID_ERROR == ch->type) {
-			sctp_walk_errors(err, ch) {
-				if (SCTP_ERROR_STALE_COOKIE == err->cause)
-					goto discard;
-			}
-		}
 
 		ch = (sctp_chunkhdr_t *) ch_end;
 	} while (ch_end < skb_tail_pointer(skb));
@@ -948,13 +933,10 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct sk_buff *skb,
 	union sctp_addr addr;
 	union sctp_addr *paddr = &addr;
 	struct sctphdr *sh = sctp_hdr(skb);
-	sctp_chunkhdr_t *ch;
 	union sctp_params params;
 	sctp_init_chunk_t *init;
 	struct sctp_transport *transport;
 	struct sctp_af *af;
-
-	ch = (sctp_chunkhdr_t *) skb->data;
 
 	/*
 	 * This code will NOT touch anything inside the chunk--it is
@@ -1020,7 +1002,7 @@ static struct sctp_association *__sctp_rcv_asconf_lookup(
 	/* Skip over the ADDIP header and find the Address parameter */
 	param = (union sctp_addr_param *)(asconf + 1);
 
-	af = sctp_get_af_specific(param_type2af(param->v4.param_hdr.type));
+	af = sctp_get_af_specific(param_type2af(param->p.type));
 	if (unlikely(!af))
 		return NULL;
 
@@ -1037,7 +1019,7 @@ static struct sctp_association *__sctp_rcv_asconf_lookup(
 *    association.
 *
 * This means that any chunks that can help us identify the association need
-* to be looked at to find this assocation.
+* to be looked at to find this association.
 */
 static struct sctp_association *__sctp_rcv_walk_lookup(struct sk_buff *skb,
 				      const union sctp_addr *laddr,

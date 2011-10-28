@@ -24,7 +24,7 @@
   *
   * Linux driver notes:
   * Linux uses the device struct lmc_private to pass private information
-  * arround.
+  * around.
   *
   * The initialization portion of this driver (the lmc_reset() and the
   * lmc_dec_reset() functions, as well as the led controls and the
@@ -1022,7 +1022,7 @@ static int lmc_open(struct net_device *dev)
 
     if (sc->lmc_ok){
         lmc_trace(dev, "lmc_open lmc_ok out");
-        return (0);
+        return 0;
     }
 
     lmc_softreset (sc);
@@ -1105,12 +1105,12 @@ static int lmc_open(struct net_device *dev)
     init_timer (&sc->timer);
     sc->timer.expires = jiffies + HZ;
     sc->timer.data = (unsigned long) dev;
-    sc->timer.function = &lmc_watchdog;
+    sc->timer.function = lmc_watchdog;
     add_timer (&sc->timer);
 
     lmc_trace(dev, "lmc_open out");
 
-    return (0);
+    return 0;
 }
 
 /* Total reset to compensate for the AdTran DSU doing bad things

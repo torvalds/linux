@@ -94,6 +94,7 @@ static noinline __init void create_kernel_nss(void)
 	unsigned int sinitrd_pfn, einitrd_pfn;
 #endif
 	int response;
+	int hlen;
 	size_t len;
 	char *savesys_ptr;
 	char defsys_cmd[DEFSYS_CMD_SIZE];
@@ -124,24 +125,27 @@ static noinline __init void create_kernel_nss(void)
 	end_pfn = PFN_UP(__pa(&_end));
 	min_size = end_pfn << 2;
 
-	sprintf(defsys_cmd, "DEFSYS %s 00000-%.5X EW %.5X-%.5X SR %.5X-%.5X",
-		kernel_nss_name, stext_pfn - 1, stext_pfn, eshared_pfn - 1,
-		eshared_pfn, end_pfn);
+	hlen = snprintf(defsys_cmd, DEFSYS_CMD_SIZE,
+			"DEFSYS %s 00000-%.5X EW %.5X-%.5X SR %.5X-%.5X",
+			kernel_nss_name, stext_pfn - 1, stext_pfn,
+			eshared_pfn - 1, eshared_pfn, end_pfn);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (INITRD_START && INITRD_SIZE) {
 		sinitrd_pfn = PFN_DOWN(__pa(INITRD_START));
 		einitrd_pfn = PFN_UP(__pa(INITRD_START + INITRD_SIZE));
 		min_size = einitrd_pfn << 2;
-		sprintf(defsys_cmd, "%s EW %.5X-%.5X", defsys_cmd,
-		sinitrd_pfn, einitrd_pfn);
+		hlen += snprintf(defsys_cmd + hlen, DEFSYS_CMD_SIZE - hlen,
+				 " EW %.5X-%.5X", sinitrd_pfn, einitrd_pfn);
 	}
 #endif
 
-	sprintf(defsys_cmd, "%s EW MINSIZE=%.7iK PARMREGS=0-13",
-		defsys_cmd, min_size);
-	sprintf(savesys_cmd, "SAVESYS %s \n IPL %s",
-		kernel_nss_name, kernel_nss_name);
+	snprintf(defsys_cmd + hlen, DEFSYS_CMD_SIZE - hlen,
+		 " EW MINSIZE=%.7iK PARMREGS=0-13", min_size);
+	defsys_cmd[DEFSYS_CMD_SIZE - 1] = '\0';
+	snprintf(savesys_cmd, SAVESYS_CMD_SIZE, "SAVESYS %s \n IPL %s",
+		 kernel_nss_name, kernel_nss_name);
+	savesys_cmd[SAVESYS_CMD_SIZE - 1] = '\0';
 
 	__cpcmd(defsys_cmd, NULL, 0, &response);
 
@@ -208,7 +212,8 @@ static noinline __init void init_kernel_storage_key(void)
 	end_pfn = PFN_UP(__pa(&_end));
 
 	for (init_pfn = 0 ; init_pfn < end_pfn; init_pfn++)
-		page_set_storage_key(init_pfn << PAGE_SHIFT, PAGE_DEFAULT_KEY);
+		page_set_storage_key(init_pfn << PAGE_SHIFT,
+				     PAGE_DEFAULT_KEY, 0);
 }
 
 static __initdata struct sysinfo_3_2_2 vmms __aligned(PAGE_SIZE);
@@ -255,13 +260,33 @@ static noinline __init void setup_lowcore_early(void)
 	s390_base_pgm_handler_fn = early_pgm_check_handler;
 }
 
+static noinline __init void setup_facility_list(void)
+{
+	unsigned long nr;
+
+	S390_lowcore.stfl_fac_list = 0;
+	asm volatile(
+		"	.insn	s,0xb2b10000,0(0)\n" /* stfl */
+		"0:\n"
+		EX_TABLE(0b,0b) : "=m" (S390_lowcore.stfl_fac_list));
+	memcpy(&S390_lowcore.stfle_fac_list, &S390_lowcore.stfl_fac_list, 4);
+	nr = 4;				/* # bytes stored by stfl */
+	if (test_facility(7)) {
+		/* More facility bits available with stfle */
+		register unsigned long reg0 asm("0") = MAX_FACILITY_BIT/64 - 1;
+		asm volatile(".insn s,0xb2b00000,%0" /* stfle */
+			     : "=m" (S390_lowcore.stfle_fac_list), "+d" (reg0)
+			     : : "cc");
+		nr = (reg0 + 1) * 8;	/* # bytes stored by stfle */
+	}
+	memset((char *) S390_lowcore.stfle_fac_list + nr, 0,
+	       MAX_FACILITY_BIT/8 - nr);
+}
+
 static noinline __init void setup_hpage(void)
 {
 #ifndef CONFIG_DEBUG_PAGEALLOC
-	unsigned int facilities;
-
-	facilities = stfl();
-	if (!(facilities & (1UL << 23)) || !(facilities & (1UL << 29)))
+	if (!test_facility(2) || !test_facility(8))
 		return;
 	S390_lowcore.machine_flags |= MACHINE_FLAG_HPAGE;
 	__ctl_set_bit(0, 23);
@@ -355,18 +380,15 @@ static __init void detect_diag44(void)
 static __init void detect_machine_facilities(void)
 {
 #ifdef CONFIG_64BIT
-	unsigned int facilities;
-	unsigned long long facility_bits;
-
-	facilities = stfl();
-	if (facilities & (1 << 28))
+	if (test_facility(3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
-	if (facilities & (1 << 23))
+	if (test_facility(8))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_PFMF;
-	if (facilities & (1 << 4))
+	if (test_facility(11))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_TOPOLOGY;
+	if (test_facility(27))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
-	if ((stfle(&facility_bits, 1) > 0) &&
-	    (facility_bits & (1ULL << (63 - 40))))
+	if (test_facility(40))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_SPP;
 #endif
 }
@@ -447,6 +469,7 @@ void __init startup_init(void)
 	lockdep_off();
 	sort_main_extable();
 	setup_lowcore_early();
+	setup_facility_list();
 	detect_machine_type();
 	ipl_update_parameters();
 	setup_boot_command_line();

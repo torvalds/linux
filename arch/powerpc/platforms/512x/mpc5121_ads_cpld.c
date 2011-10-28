@@ -59,9 +59,9 @@ irq_to_pic_bit(unsigned int irq)
 }
 
 static void
-cpld_mask_irq(unsigned int irq)
+cpld_mask_irq(struct irq_data *d)
 {
-	unsigned int cpld_irq = (unsigned int)irq_map[irq].hwirq;
+	unsigned int cpld_irq = (unsigned int)irqd_to_hwirq(d);
 	void __iomem *pic_mask = irq_to_pic_mask(cpld_irq);
 
 	out_8(pic_mask,
@@ -69,9 +69,9 @@ cpld_mask_irq(unsigned int irq)
 }
 
 static void
-cpld_unmask_irq(unsigned int irq)
+cpld_unmask_irq(struct irq_data *d)
 {
-	unsigned int cpld_irq = (unsigned int)irq_map[irq].hwirq;
+	unsigned int cpld_irq = (unsigned int)irqd_to_hwirq(d);
 	void __iomem *pic_mask = irq_to_pic_mask(cpld_irq);
 
 	out_8(pic_mask,
@@ -80,9 +80,9 @@ cpld_unmask_irq(unsigned int irq)
 
 static struct irq_chip cpld_pic = {
 	.name = "CPLD PIC",
-	.mask = cpld_mask_irq,
-	.ack = cpld_mask_irq,
-	.unmask = cpld_unmask_irq,
+	.irq_mask = cpld_mask_irq,
+	.irq_ack = cpld_mask_irq,
+	.irq_unmask = cpld_unmask_irq,
 };
 
 static int
@@ -97,7 +97,7 @@ cpld_pic_get_irq(int offset, u8 ignore, u8 __iomem *statusp,
 	status |= (ignore | mask);
 
 	if (status == 0xff)
-		return NO_IRQ_IGNORE;
+		return NO_IRQ;
 
 	cpld_irq = ffz(status) + offset;
 
@@ -109,14 +109,14 @@ cpld_pic_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	irq = cpld_pic_get_irq(0, PCI_IGNORE, &cpld_regs->pci_status,
 		&cpld_regs->pci_mask);
-	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE) {
+	if (irq != NO_IRQ) {
 		generic_handle_irq(irq);
 		return;
 	}
 
 	irq = cpld_pic_get_irq(8, MISC_IGNORE, &cpld_regs->misc_status,
 		&cpld_regs->misc_mask);
-	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE) {
+	if (irq != NO_IRQ) {
 		generic_handle_irq(irq);
 		return;
 	}
@@ -132,8 +132,8 @@ static int
 cpld_pic_host_map(struct irq_host *h, unsigned int virq,
 			     irq_hw_number_t hw)
 {
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &cpld_pic, handle_level_irq);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &cpld_pic, handle_level_irq);
 	return 0;
 }
 
@@ -198,7 +198,7 @@ mpc5121_ads_cpld_pic_init(void)
 		goto end;
 	}
 
-	set_irq_chained_handler(cascade_irq, cpld_pic_cascade);
+	irq_set_chained_handler(cascade_irq, cpld_pic_cascade);
 end:
 	of_node_put(np);
 }

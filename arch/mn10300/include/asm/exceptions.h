@@ -15,8 +15,8 @@
 
 /*
  * define the breakpoint instruction opcode to use
- * - note that the JTAG unit steals 0xFF, so we want to avoid that if we can
- *   (can use 0xF7)
+ * - note that the JTAG unit steals 0xFF, so you can't use JTAG and GDBSTUB at
+ *   the same time.
  */
 #define GDBSTUB_BKPT		0xFF
 
@@ -90,7 +90,6 @@ enum exception_code {
 
 extern void __set_intr_stub(enum exception_code code, void *handler);
 extern void set_intr_stub(enum exception_code code, void *handler);
-extern void set_jtag_stub(enum exception_code code, void *handler);
 
 struct pt_regs;
 
@@ -102,7 +101,6 @@ extern asmlinkage void dtlb_aerror(void);
 extern asmlinkage void raw_bus_error(void);
 extern asmlinkage void double_fault(void);
 extern asmlinkage int  system_call(struct pt_regs *);
-extern asmlinkage void fpu_exception(struct pt_regs *, enum exception_code);
 extern asmlinkage void nmi(struct pt_regs *, enum exception_code);
 extern asmlinkage void uninitialised_exception(struct pt_regs *,
 					       enum exception_code);
@@ -115,6 +113,8 @@ extern void die(const char *, struct pt_regs *, enum exception_code)
 	ATTRIB_NORET;
 
 extern int die_if_no_fixup(const char *, struct pt_regs *, enum exception_code);
+
+#define NUM2EXCEP_IRQ_LEVEL(num)	(EXCEP_IRQ_LEVEL0 + (num) * 8)
 
 #endif /* __ASSEMBLY__ */
 

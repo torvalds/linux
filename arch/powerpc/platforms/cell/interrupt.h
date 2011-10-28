@@ -75,7 +75,7 @@ enum {
 };
 
 extern void iic_init_IRQ(void);
-extern void iic_cause_IPI(int cpu, int mesg);
+extern void iic_message_pass(int cpu, int msg);
 extern void iic_request_IPIs(void);
 extern void iic_setup_cpu(void);
 

@@ -38,7 +38,7 @@ static int marvell_pata_active(struct pci_dev *pdev)
 
 	/* We don't yet know how to do this for other devices */
 	if (pdev->device != 0x6145)
-		return 1;	
+		return 1;
 
 	barp = pci_iomap(pdev, 5, 0x10);
 	if (barp == NULL)
@@ -161,6 +161,9 @@ static const struct pci_device_id marvell_pci_tbl[] = {
 	{ PCI_DEVICE(0x11AB, 0x6121), },
 	{ PCI_DEVICE(0x11AB, 0x6123), },
 	{ PCI_DEVICE(0x11AB, 0x6145), },
+	{ PCI_DEVICE(0x1B4B, 0x91A0), },
+	{ PCI_DEVICE(0x1B4B, 0x91A4), },
+
 	{ }	/* terminate list */
 };
 

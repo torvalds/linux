@@ -1,6 +1,6 @@
 /* bnx2i.c: Broadcom NetXtreme II iSCSI driver.
  *
- * Copyright (c) 2006 - 2009 Broadcom Corporation
+ * Copyright (c) 2006 - 2010 Broadcom Corporation
  * Copyright (c) 2007, 2008 Red Hat, Inc.  All rights reserved.
  * Copyright (c) 2007, 2008 Mike Christie
  *
@@ -9,6 +9,7 @@
  * the Free Software Foundation.
  *
  * Written by: Anil Veerabhadrappa (anilgv@broadcom.com)
+ * Maintained by: Eddie Wai (eddie.wai@broadcom.com)
  */
 
 #include "bnx2i.h"
@@ -17,16 +18,18 @@ static struct list_head adapter_list = LIST_HEAD_INIT(adapter_list);
 static u32 adapter_count;
 
 #define DRV_MODULE_NAME		"bnx2i"
-#define DRV_MODULE_VERSION	"2.1.2"
-#define DRV_MODULE_RELDATE	"Jun 28, 2010"
+#define DRV_MODULE_VERSION	"2.6.2.3"
+#define DRV_MODULE_RELDATE	"Dec 31, 2010"
 
 static char version[] __devinitdata =
 		"Broadcom NetXtreme II iSCSI Driver " DRV_MODULE_NAME \
 		" v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 
-MODULE_AUTHOR("Anil Veerabhadrappa <anilgv@broadcom.com>");
-MODULE_DESCRIPTION("Broadcom NetXtreme II BCM5706/5708/5709/57710/57711"
+MODULE_AUTHOR("Anil Veerabhadrappa <anilgv@broadcom.com> and "
+	      "Eddie Wai <eddie.wai@broadcom.com>");
+
+MODULE_DESCRIPTION("Broadcom NetXtreme II BCM5706/5708/5709/57710/57711/57712"
 		   " iSCSI Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
@@ -63,8 +66,6 @@ MODULE_PARM_DESC(rq_size, "Configure RQ size");
 
 u64 iscsi_error_mask = 0x00;
 
-static void bnx2i_unreg_one_device(struct bnx2i_hba *hba) ;
-
 
 /**
  * bnx2i_identify_device - identifies NetXtreme II device type
@@ -87,9 +88,11 @@ void bnx2i_identify_device(struct bnx2i_hba *hba)
 	    (hba->pci_did == PCI_DEVICE_ID_NX2_5709S)) {
 		set_bit(BNX2I_NX2_DEV_5709, &hba->cnic_dev_type);
 		hba->mail_queue_access = BNX2I_MQ_BIN_MODE;
-	} else if (hba->pci_did == PCI_DEVICE_ID_NX2_57710 ||
-		   hba->pci_did == PCI_DEVICE_ID_NX2_57711 ||
-		   hba->pci_did == PCI_DEVICE_ID_NX2_57711E)
+	} else if (hba->pci_did == PCI_DEVICE_ID_NX2_57710  ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57711  ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57711E ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57712  ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57712E)
 		set_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type);
 	else
 		printk(KERN_ALERT "bnx2i: unknown device, 0x%x\n",
@@ -160,9 +163,56 @@ void bnx2i_start(void *handle)
 	struct bnx2i_hba *hba = handle;
 	int i = HZ;
 
+	if (!hba->cnic->max_iscsi_conn) {
+		printk(KERN_ALERT "bnx2i: dev %s does not support "
+			"iSCSI\n", hba->netdev->name);
+
+		if (test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
+			mutex_lock(&bnx2i_dev_lock);
+			list_del_init(&hba->link);
+			adapter_count--;
+			hba->cnic->unregister_device(hba->cnic, CNIC_ULP_ISCSI);
+			clear_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
+			mutex_unlock(&bnx2i_dev_lock);
+			bnx2i_free_hba(hba);
+		}
+		return;
+	}
 	bnx2i_send_fw_iscsi_init_msg(hba);
 	while (!test_bit(ADAPTER_STATE_UP, &hba->adapter_state) && i--)
 		msleep(BNX2I_INIT_POLL_TIME);
+}
+
+
+/**
+ * bnx2i_chip_cleanup - local routine to handle chip cleanup
+ * @hba:	Adapter instance to register
+ *
+ * Driver checks if adapter still has any active connections before
+ *	executing the cleanup process
+ */
+static void bnx2i_chip_cleanup(struct bnx2i_hba *hba)
+{
+	struct bnx2i_endpoint *bnx2i_ep;
+	struct list_head *pos, *tmp;
+
+	if (hba->ofld_conns_active) {
+		/* Stage to force the disconnection
+		 * This is the case where the daemon is either slow or
+		 * not present
+		 */
+		printk(KERN_ALERT "bnx2i: (%s) chip cleanup for %d active "
+			"connections\n", hba->netdev->name,
+			hba->ofld_conns_active);
+		mutex_lock(&hba->net_dev_lock);
+		list_for_each_safe(pos, tmp, &hba->ep_active_list) {
+			bnx2i_ep = list_entry(pos, struct bnx2i_endpoint, link);
+			/* Clean up the chip only */
+			bnx2i_hw_ep_disconnect(bnx2i_ep);
+			bnx2i_ep->cm_sk = NULL;
+		}
+		mutex_unlock(&hba->net_dev_lock);
+	}
 }
 
 
@@ -176,16 +226,25 @@ void bnx2i_start(void *handle)
 void bnx2i_stop(void *handle)
 {
 	struct bnx2i_hba *hba = handle;
-	struct list_head *pos, *tmp;
-	struct bnx2i_endpoint *bnx2i_ep;
 	int conns_active;
+	int wait_delay = 1 * HZ;
 
 	/* check if cleanup happened in GOING_DOWN context */
-	if (!test_and_clear_bit(ADAPTER_STATE_GOING_DOWN,
-				&hba->adapter_state))
+	if (!test_and_set_bit(ADAPTER_STATE_GOING_DOWN,
+			      &hba->adapter_state)) {
 		iscsi_host_for_each_session(hba->shost,
 					    bnx2i_drop_session);
-
+		wait_delay = hba->hba_shutdown_tmo;
+	}
+	/* Wait for inflight offload connection tasks to complete before
+	 * proceeding. Forcefully terminate all connection recovery in
+	 * progress at the earliest, either in bind(), send_pdu(LOGIN),
+	 * or conn_start()
+	 */
+	wait_event_interruptible_timeout(hba->eh_wait,
+					 (list_empty(&hba->ep_ofld_list) &&
+					 list_empty(&hba->ep_destroy_list)),
+					 2 * HZ);
 	/* Wait for all endpoints to be torn down, Chip will be reset once
 	 *  control returns to network driver. So it is required to cleanup and
 	 * release all connection resources before returning from this routine.
@@ -194,112 +253,17 @@ void bnx2i_stop(void *handle)
 		conns_active = hba->ofld_conns_active;
 		wait_event_interruptible_timeout(hba->eh_wait,
 				(hba->ofld_conns_active != conns_active),
-				hba->hba_shutdown_tmo);
+				wait_delay);
 		if (hba->ofld_conns_active == conns_active)
 			break;
 	}
-	if (hba->ofld_conns_active) {
-		/* Stage to force the disconnection
-		 * This is the case where the daemon is either slow or
-		 * not present
-		 */
-		printk(KERN_ALERT "bnx2i: Wait timeout, force all eps "
-			"to disconnect (%d)\n", hba->ofld_conns_active);
-		mutex_lock(&hba->net_dev_lock);
-		list_for_each_safe(pos, tmp, &hba->ep_active_list) {
-			bnx2i_ep = list_entry(pos, struct bnx2i_endpoint, link);
-			/* Clean up the chip only */
-			bnx2i_hw_ep_disconnect(bnx2i_ep);
-		}
-		mutex_unlock(&hba->net_dev_lock);
-		if (hba->ofld_conns_active)
-			printk(KERN_ERR "bnx2i: EP disconnect timeout (%d)!\n",
-				hba->ofld_conns_active);
-	}
+	bnx2i_chip_cleanup(hba);
 
 	/* This flag should be cleared last so that ep_disconnect() gracefully
 	 * cleans up connection context
 	 */
+	clear_bit(ADAPTER_STATE_GOING_DOWN, &hba->adapter_state);
 	clear_bit(ADAPTER_STATE_UP, &hba->adapter_state);
-}
-
-/**
- * bnx2i_register_device - register bnx2i adapter instance with the cnic driver
- * @hba:	Adapter instance to register
- *
- * registers bnx2i adapter instance with the cnic driver while holding the
- *	adapter structure lock
- */
-void bnx2i_register_device(struct bnx2i_hba *hba)
-{
-	int rc;
-
-	if (test_bit(ADAPTER_STATE_GOING_DOWN, &hba->adapter_state) ||
-	    test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
-		return;
-	}
-
-	rc = hba->cnic->register_device(hba->cnic, CNIC_ULP_ISCSI, hba);
-
-	if (!rc)
-		set_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
-}
-
-
-/**
- * bnx2i_reg_dev_all - registers all adapter instances with the cnic driver
- *
- * registers all bnx2i adapter instances with the cnic driver while holding
- *	the global resource lock
- */
-void bnx2i_reg_dev_all(void)
-{
-	struct bnx2i_hba *hba, *temp;
-
-	mutex_lock(&bnx2i_dev_lock);
-	list_for_each_entry_safe(hba, temp, &adapter_list, link)
-		bnx2i_register_device(hba);
-	mutex_unlock(&bnx2i_dev_lock);
-}
-
-
-/**
- * bnx2i_unreg_one_device - unregister adapter instance with the cnic driver
- * @hba:	Adapter instance to unregister
- *
- * registers bnx2i adapter instance with the cnic driver while holding
- *	the adapter structure lock
- */
-static void bnx2i_unreg_one_device(struct bnx2i_hba *hba)
-{
-	if (hba->ofld_conns_active ||
-	    !test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic) ||
-	    test_bit(ADAPTER_STATE_GOING_DOWN, &hba->adapter_state))
-		return;
-
-	hba->cnic->unregister_device(hba->cnic, CNIC_ULP_ISCSI);
-
-	/* ep_disconnect could come before NETDEV_DOWN, driver won't
-	 * see NETDEV_DOWN as it already unregistered itself.
-	 */
-	hba->adapter_state = 0;
-	clear_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
-}
-
-/**
- * bnx2i_unreg_dev_all - unregisters all bnx2i instances with the cnic driver
- *
- * unregisters all bnx2i adapter instances with the cnic driver while holding
- *	the global resource lock
- */
-void bnx2i_unreg_dev_all(void)
-{
-	struct bnx2i_hba *hba, *temp;
-
-	mutex_lock(&bnx2i_dev_lock);
-	list_for_each_entry_safe(hba, temp, &adapter_list, link)
-		bnx2i_unreg_one_device(hba);
-	mutex_unlock(&bnx2i_dev_lock);
 }
 
 
@@ -457,6 +421,7 @@ static void __exit bnx2i_mod_exit(void)
 		adapter_count--;
 
 		if (test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
+			bnx2i_chip_cleanup(hba);
 			hba->cnic->unregister_device(hba->cnic, CNIC_ULP_ISCSI);
 			clear_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
 		}

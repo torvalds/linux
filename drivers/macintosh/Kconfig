@@ -102,6 +102,7 @@ config ADB_PMU_LED
 config ADB_PMU_LED_IDE
 	bool "Use front LED as IDE LED by default"
 	depends on ADB_PMU_LED
+	depends on LEDS_CLASS
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_IDE_DISK
 	help
@@ -255,5 +256,31 @@ config PMAC_RACKMETER
 	help
 	  This driver provides some support to control the front panel
           blue LEDs "vu-meter" of the XServer macs.
+
+config SENSORS_AMS
+	tristate "Apple Motion Sensor driver"
+	depends on PPC_PMAC && !PPC64 && INPUT && ((ADB_PMU && I2C = y) || (ADB_PMU && !I2C) || I2C) && EXPERIMENTAL
+	select INPUT_POLLDEV
+	help
+	  Support for the motion sensor included in PowerBooks. Includes
+	  implementations for PMU and I2C.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ams.
+
+config SENSORS_AMS_PMU
+	bool "PMU variant"
+	depends on SENSORS_AMS && ADB_PMU
+	default y
+	help
+	  PMU variant of motion sensor, found in late 2005 PowerBooks.
+
+config SENSORS_AMS_I2C
+	bool "I2C variant"
+	depends on SENSORS_AMS && I2C
+	default y
+	help
+	  I2C variant of motion sensor, found in early 2005 PowerBooks and
+	  iBooks.
 
 endif # MACINTOSH_DRIVERS

@@ -78,28 +78,9 @@ static struct s3c2410_uartcfg smdk2413_uartcfgs[] __initdata = {
 	}
 };
 
-static void smdk2413_udc_pullup(enum s3c2410_udc_cmd_e cmd)
-{
-	printk(KERN_DEBUG "udc: pullup(%d)\n",cmd);
-
-	switch (cmd)
-	{
-		case S3C2410_UDC_P_ENABLE :
-			gpio_set_value(S3C2410_GPF(2), 1);
-			break;
-		case S3C2410_UDC_P_DISABLE :
-			gpio_set_value(S3C2410_GPF(2), 0);
-			break;
-		case S3C2410_UDC_P_RESET :
-			break;
-		default:
-			break;
-	}
-}
-
 
 static struct s3c2410_udc_mach_info smdk2413_udc_cfg __initdata = {
-	.udc_command		= smdk2413_udc_pullup,
+	.pullup_pin = S3C2410_GPF(2),
 };
 
 
@@ -133,9 +114,6 @@ static void __init smdk2413_machine_init(void)
 {	/* Turn off suspend on both USB ports, and switch the
 	 * selectable USB port to USB device mode. */
 
-	WARN_ON(gpio_request(S3C2410_GPF(2), "udc pull"));
-	gpio_direction_output(S3C2410_GPF(2), 0);
-
 	s3c2410_modify_misccr(S3C2410_MISCCR_USBHOST |
 			      S3C2410_MISCCR_USBSUSPND0 |
 			      S3C2410_MISCCR_USBSUSPND1, 0x0);
@@ -150,8 +128,6 @@ static void __init smdk2413_machine_init(void)
 
 MACHINE_START(S3C2413, "S3C2413")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
-	.phys_io	= S3C2410_PA_UART,
-	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 
 	.fixup		= smdk2413_fixup,
@@ -163,8 +139,6 @@ MACHINE_END
 
 MACHINE_START(SMDK2412, "SMDK2412")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
-	.phys_io	= S3C2410_PA_UART,
-	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 
 	.fixup		= smdk2413_fixup,
@@ -176,8 +150,6 @@ MACHINE_END
 
 MACHINE_START(SMDK2413, "SMDK2413")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
-	.phys_io	= S3C2410_PA_UART,
-	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 
 	.fixup		= smdk2413_fixup,

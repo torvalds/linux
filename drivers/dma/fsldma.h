@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007 Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (C) 2007-2010 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Author:
  *   Zhang Wei <wei.zhang@freescale.com>, Jul 2007
@@ -35,6 +35,13 @@
 #define FSL_DMA_MR_EMS_EN	0x00040000
 #define FSL_DMA_MR_DAHE		0x00002000
 #define FSL_DMA_MR_SAHE		0x00001000
+
+/*
+ * Bandwidth/pause control determines how many bytes a given
+ * channel is allowed to transfer before the DMA engine pauses
+ * the current channel and switches to the next channel
+ */
+#define FSL_DMA_MR_BWC         0x08000000
 
 /* Special MR definition for MPC8349 */
 #define FSL_DMA_MR_EOTIE	0x00000080
@@ -95,8 +102,8 @@ struct fsl_desc_sw {
 } __attribute__((aligned(32)));
 
 struct fsldma_chan_regs {
-	u32 mr;	/* 0x00 - Mode Register */
-	u32 sr;	/* 0x04 - Status Register */
+	u32 mr;		/* 0x00 - Mode Register */
+	u32 sr;		/* 0x04 - Status Register */
 	u64 cdar;	/* 0x08 - Current descriptor address register */
 	u64 sar;	/* 0x10 - Source Address Register */
 	u64 dar;	/* 0x18 - Destination Address Register */
@@ -128,6 +135,7 @@ struct fsldma_device {
 #define FSL_DMA_CHAN_START_EXT	0x00002000
 
 struct fsldma_chan {
+	char name[8];			/* Channel name */
 	struct fsldma_chan_regs __iomem *regs;
 	dma_cookie_t completed_cookie;	/* The maximum cookie completed */
 	spinlock_t desc_lock;		/* Descriptor operation lock */
@@ -140,6 +148,7 @@ struct fsldma_chan {
 	int id;				/* Raw id of this channel */
 	struct tasklet_struct tasklet;
 	u32 feature;
+	bool idle;			/* DMA controller is idle */
 
 	void (*toggle_ext_pause)(struct fsldma_chan *fsl_chan, int enable);
 	void (*toggle_ext_start)(struct fsldma_chan *fsl_chan, int enable);

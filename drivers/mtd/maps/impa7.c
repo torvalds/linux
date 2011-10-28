@@ -15,10 +15,7 @@
 #include <asm/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
-
-#ifdef CONFIG_MTD_PARTITIONS
 #include <linux/mtd/partitions.h>
-#endif
 
 #define WINDOW_ADDR0 0x00000000      /* physical properties of flash */
 #define WINDOW_SIZE0 0x00800000
@@ -49,8 +46,6 @@ static struct map_info impa7_map[NUM_FLASHBANKS] = {
 	},
 };
 
-#ifdef CONFIG_MTD_PARTITIONS
-
 /*
  * MTD partitioning stuff
  */
@@ -65,8 +60,6 @@ static struct mtd_partition static_partitions[] =
 
 static int mtd_parts_nb[NUM_FLASHBANKS];
 static struct mtd_partition *mtd_parts[NUM_FLASHBANKS];
-
-#endif
 
 static const char *probes[] = { "cmdlinepart", NULL };
 
@@ -104,7 +97,6 @@ static int __init init_impa7(void)
 		if (impa7_mtd[i]) {
 			impa7_mtd[i]->owner = THIS_MODULE;
 			devicesfound++;
-#ifdef CONFIG_MTD_PARTITIONS
 			mtd_parts_nb[i] = parse_mtd_partitions(impa7_mtd[i],
 							       probes,
 							       &mtd_parts[i],
@@ -120,12 +112,8 @@ static int __init init_impa7(void)
 			printk(KERN_NOTICE MSG_PREFIX
 			       "using %s partition definition\n",
 			       part_type);
-			add_mtd_partitions(impa7_mtd[i],
-					   mtd_parts[i], mtd_parts_nb[i]);
-#else
-			add_mtd_device(impa7_mtd[i]);
-
-#endif
+			mtd_device_register(impa7_mtd[i],
+					    mtd_parts[i], mtd_parts_nb[i]);
 		}
 		else
 			iounmap((void *)impa7_map[i].virt);
@@ -138,11 +126,7 @@ static void __exit cleanup_impa7(void)
 	int i;
 	for (i=0; i<NUM_FLASHBANKS; i++) {
 		if (impa7_mtd[i]) {
-#ifdef CONFIG_MTD_PARTITIONS
-			del_mtd_partitions(impa7_mtd[i]);
-#else
-			del_mtd_device(impa7_mtd[i]);
-#endif
+			mtd_device_unregister(impa7_mtd[i]);
 			map_destroy(impa7_mtd[i]);
 			iounmap((void *)impa7_map[i].virt);
 			impa7_map[i].virt = 0;

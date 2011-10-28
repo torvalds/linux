@@ -39,7 +39,7 @@ struct macvtap_queue {
 	struct socket sock;
 	struct socket_wq wq;
 	int vnet_hdr_sz;
-	struct macvlan_dev *vlan;
+	struct macvlan_dev __rcu *vlan;
 	struct file *file;
 	unsigned int flags;
 };
@@ -84,25 +84,44 @@ static const struct proto_ops macvtap_socket_ops;
 static DEFINE_SPINLOCK(macvtap_lock);
 
 /*
- * Choose the next free queue, for now there is only one
+ * get_slot: return a [unused/occupied] slot in vlan->taps[]:
+ *	- if 'q' is NULL, return the first empty slot;
+ *	- otherwise, return the slot this pointer occupies.
  */
+static int get_slot(struct macvlan_dev *vlan, struct macvtap_queue *q)
+{
+	int i;
+
+	for (i = 0; i < MAX_MACVTAP_QUEUES; i++) {
+		if (rcu_dereference(vlan->taps[i]) == q)
+			return i;
+	}
+
+	/* Should never happen */
+	BUG_ON(1);
+}
+
 static int macvtap_set_queue(struct net_device *dev, struct file *file,
 				struct macvtap_queue *q)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
+	int index;
 	int err = -EBUSY;
 
 	spin_lock(&macvtap_lock);
-	if (rcu_dereference(vlan->tap))
+	if (vlan->numvtaps == MAX_MACVTAP_QUEUES)
 		goto out;
 
 	err = 0;
+	index = get_slot(vlan, NULL);
 	rcu_assign_pointer(q->vlan, vlan);
-	rcu_assign_pointer(vlan->tap, q);
+	rcu_assign_pointer(vlan->taps[index], q);
 	sock_hold(&q->sk);
 
 	q->file = file;
 	file->private_data = q;
+
+	vlan->numvtaps++;
 
 out:
 	spin_unlock(&macvtap_lock);
@@ -122,11 +141,15 @@ static void macvtap_put_queue(struct macvtap_queue *q)
 	struct macvlan_dev *vlan;
 
 	spin_lock(&macvtap_lock);
-	vlan = rcu_dereference(q->vlan);
+	vlan = rcu_dereference_protected(q->vlan,
+					 lockdep_is_held(&macvtap_lock));
 	if (vlan) {
-		rcu_assign_pointer(vlan->tap, NULL);
+		int index = get_slot(vlan, q);
+
+		rcu_assign_pointer(vlan->taps[index], NULL);
 		rcu_assign_pointer(q->vlan, NULL);
 		sock_put(&q->sk);
+		--vlan->numvtaps;
 	}
 
 	spin_unlock(&macvtap_lock);
@@ -136,39 +159,83 @@ static void macvtap_put_queue(struct macvtap_queue *q)
 }
 
 /*
- * Since we only support one queue, just dereference the pointer.
+ * Select a queue based on the rxq of the device on which this packet
+ * arrived. If the incoming device is not mq, calculate a flow hash
+ * to select a queue. If all fails, find the first available queue.
+ * Cache vlan->numvtaps since it can become zero during the execution
+ * of this function.
  */
 static struct macvtap_queue *macvtap_get_queue(struct net_device *dev,
 					       struct sk_buff *skb)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
+	struct macvtap_queue *tap = NULL;
+	int numvtaps = vlan->numvtaps;
+	__u32 rxq;
 
-	return rcu_dereference(vlan->tap);
+	if (!numvtaps)
+		goto out;
+
+	if (likely(skb_rx_queue_recorded(skb))) {
+		rxq = skb_get_rx_queue(skb);
+
+		while (unlikely(rxq >= numvtaps))
+			rxq -= numvtaps;
+
+		tap = rcu_dereference(vlan->taps[rxq]);
+		if (tap)
+			goto out;
+	}
+
+	/* Check if we can use flow to select a queue */
+	rxq = skb_get_rxhash(skb);
+	if (rxq) {
+		tap = rcu_dereference(vlan->taps[rxq % numvtaps]);
+		if (tap)
+			goto out;
+	}
+
+	/* Everything failed - find first available queue */
+	for (rxq = 0; rxq < MAX_MACVTAP_QUEUES; rxq++) {
+		tap = rcu_dereference(vlan->taps[rxq]);
+		if (tap)
+			break;
+	}
+
+out:
+	return tap;
 }
 
 /*
  * The net_device is going away, give up the reference
- * that it holds on the queue (all the queues one day)
- * and safely set the pointer from the queues to NULL.
+ * that it holds on all queues and safely set the pointer
+ * from the queues to NULL.
  */
 static void macvtap_del_queues(struct net_device *dev)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
-	struct macvtap_queue *q;
+	struct macvtap_queue *q, *qlist[MAX_MACVTAP_QUEUES];
+	int i, j = 0;
 
+	/* macvtap_put_queue can free some slots, so go through all slots */
 	spin_lock(&macvtap_lock);
-	q = rcu_dereference(vlan->tap);
-	if (!q) {
-		spin_unlock(&macvtap_lock);
-		return;
+	for (i = 0; i < MAX_MACVTAP_QUEUES && vlan->numvtaps; i++) {
+		q = rcu_dereference_protected(vlan->taps[i],
+					      lockdep_is_held(&macvtap_lock));
+		if (q) {
+			qlist[j++] = q;
+			rcu_assign_pointer(vlan->taps[i], NULL);
+			rcu_assign_pointer(q->vlan, NULL);
+			vlan->numvtaps--;
+		}
 	}
-
-	rcu_assign_pointer(vlan->tap, NULL);
-	rcu_assign_pointer(q->vlan, NULL);
+	BUG_ON(vlan->numvtaps != 0);
 	spin_unlock(&macvtap_lock);
 
 	synchronize_rcu();
-	sock_put(&q->sk);
+
+	for (--j; j >= 0; j--)
+		sock_put(&qlist[j]->sk);
 }
 
 /*
@@ -439,8 +506,7 @@ static int macvtap_skb_to_vnet_hdr(const struct sk_buff *skb,
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		vnet_hdr->flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
-		vnet_hdr->csum_start = skb->csum_start -
-					skb_headroom(skb);
+		vnet_hdr->csum_start = skb_checksum_start_offset(skb);
 		vnet_hdr->csum_offset = skb->csum_offset;
 	} /* else everything is zero */
 
@@ -464,8 +530,9 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q,
 		vnet_hdr_len = q->vnet_hdr_sz;
 
 		err = -EINVAL;
-		if ((len -= vnet_hdr_len) < 0)
+		if (len < vnet_hdr_len)
 			goto err;
+		len -= vnet_hdr_len;
 
 		err = memcpy_fromiovecend((void *)&vnet_hdr, iv, 0,
 					   sizeof(vnet_hdr));
@@ -505,7 +572,7 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q,
 	}
 
 	rcu_read_lock_bh();
-	vlan = rcu_dereference(q->vlan);
+	vlan = rcu_dereference_bh(q->vlan);
 	if (vlan)
 		macvlan_start_xmit(skb, vlan->dev);
 	else
@@ -519,9 +586,9 @@ err_kfree:
 
 err:
 	rcu_read_lock_bh();
-	vlan = rcu_dereference(q->vlan);
+	vlan = rcu_dereference_bh(q->vlan);
 	if (vlan)
-		netdev_get_tx_queue(vlan->dev, 0)->tx_dropped++;
+		vlan->dev->stats.tx_dropped++;
 	rcu_read_unlock_bh();
 
 	return err;
@@ -567,7 +634,7 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 	ret = skb_copy_datagram_const_iovec(skb, 0, iv, vnet_hdr_len, len);
 
 	rcu_read_lock_bh();
-	vlan = rcu_dereference(q->vlan);
+	vlan = rcu_dereference_bh(q->vlan);
 	if (vlan)
 		macvlan_count_rx(vlan, len, ret == 0, 0);
 	rcu_read_unlock_bh();
@@ -663,7 +730,7 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 
 	case TUNGETIFF:
 		rcu_read_lock_bh();
-		vlan = rcu_dereference(q->vlan);
+		vlan = rcu_dereference_bh(q->vlan);
 		if (vlan)
 			dev_hold(vlan->dev);
 		rcu_read_unlock_bh();
@@ -672,7 +739,7 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 			return -ENOLINK;
 
 		ret = 0;
-		if (copy_to_user(&ifr->ifr_name, q->vlan->dev->name, IFNAMSIZ) ||
+		if (copy_to_user(&ifr->ifr_name, vlan->dev->name, IFNAMSIZ) ||
 		    put_user(q->flags, &ifr->ifr_flags))
 			ret = -EFAULT;
 		dev_put(vlan->dev);

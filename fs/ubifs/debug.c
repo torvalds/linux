@@ -34,7 +34,6 @@
 #include <linux/moduleparam.h>
 #include <linux/debugfs.h>
 #include <linux/math64.h>
-#include <linux/slab.h>
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
@@ -43,15 +42,12 @@ DEFINE_SPINLOCK(dbg_lock);
 static char dbg_key_buf0[128];
 static char dbg_key_buf1[128];
 
-unsigned int ubifs_msg_flags = UBIFS_MSG_FLAGS_DEFAULT;
-unsigned int ubifs_chk_flags = UBIFS_CHK_FLAGS_DEFAULT;
+unsigned int ubifs_chk_flags;
 unsigned int ubifs_tst_flags;
 
-module_param_named(debug_msgs, ubifs_msg_flags, uint, S_IRUGO | S_IWUSR);
 module_param_named(debug_chks, ubifs_chk_flags, uint, S_IRUGO | S_IWUSR);
 module_param_named(debug_tsts, ubifs_tst_flags, uint, S_IRUGO | S_IWUSR);
 
-MODULE_PARM_DESC(debug_msgs, "Debug message type flags");
 MODULE_PARM_DESC(debug_chks, "Debug check flags");
 MODULE_PARM_DESC(debug_tsts, "Debug special test flags");
 
@@ -317,6 +313,8 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 		printk(KERN_DEBUG "\tflags          %#x\n", sup_flags);
 		printk(KERN_DEBUG "\t  big_lpt      %u\n",
 		       !!(sup_flags & UBIFS_FLG_BIGLPT));
+		printk(KERN_DEBUG "\t  space_fixup  %u\n",
+		       !!(sup_flags & UBIFS_FLG_SPACE_FIXUP));
 		printk(KERN_DEBUG "\tmin_io_size    %u\n",
 		       le32_to_cpu(sup->min_io_size));
 		printk(KERN_DEBUG "\tleb_size       %u\n",
@@ -602,7 +600,7 @@ void dbg_dump_lstats(const struct ubifs_lp_stats *lst)
 	spin_unlock(&dbg_lock);
 }
 
-void dbg_dump_budg(struct ubifs_info *c)
+void dbg_dump_budg(struct ubifs_info *c, const struct ubifs_budg_info *bi)
 {
 	int i;
 	struct rb_node *rb;
@@ -610,26 +608,42 @@ void dbg_dump_budg(struct ubifs_info *c)
 	struct ubifs_gced_idx_leb *idx_gc;
 	long long available, outstanding, free;
 
-	ubifs_assert(spin_is_locked(&c->space_lock));
+	spin_lock(&c->space_lock);
 	spin_lock(&dbg_lock);
-	printk(KERN_DEBUG "(pid %d) Budgeting info: budg_data_growth %lld, "
-	       "budg_dd_growth %lld, budg_idx_growth %lld\n", current->pid,
-	       c->budg_data_growth, c->budg_dd_growth, c->budg_idx_growth);
-	printk(KERN_DEBUG "\tdata budget sum %lld, total budget sum %lld, "
-	       "freeable_cnt %d\n", c->budg_data_growth + c->budg_dd_growth,
-	       c->budg_data_growth + c->budg_dd_growth + c->budg_idx_growth,
-	       c->freeable_cnt);
-	printk(KERN_DEBUG "\tmin_idx_lebs %d, old_idx_sz %lld, "
-	       "calc_idx_sz %lld, idx_gc_cnt %d\n", c->min_idx_lebs,
-	       c->old_idx_sz, c->calc_idx_sz, c->idx_gc_cnt);
+	printk(KERN_DEBUG "(pid %d) Budgeting info: data budget sum %lld, "
+	       "total budget sum %lld\n", current->pid,
+	       bi->data_growth + bi->dd_growth,
+	       bi->data_growth + bi->dd_growth + bi->idx_growth);
+	printk(KERN_DEBUG "\tbudg_data_growth %lld, budg_dd_growth %lld, "
+	       "budg_idx_growth %lld\n", bi->data_growth, bi->dd_growth,
+	       bi->idx_growth);
+	printk(KERN_DEBUG "\tmin_idx_lebs %d, old_idx_sz %llu, "
+	       "uncommitted_idx %lld\n", bi->min_idx_lebs, bi->old_idx_sz,
+	       bi->uncommitted_idx);
+	printk(KERN_DEBUG "\tpage_budget %d, inode_budget %d, dent_budget %d\n",
+	       bi->page_budget, bi->inode_budget, bi->dent_budget);
+	printk(KERN_DEBUG "\tnospace %u, nospace_rp %u\n",
+	       bi->nospace, bi->nospace_rp);
+	printk(KERN_DEBUG "\tdark_wm %d, dead_wm %d, max_idx_node_sz %d\n",
+	       c->dark_wm, c->dead_wm, c->max_idx_node_sz);
+
+	if (bi != &c->bi)
+		/*
+		 * If we are dumping saved budgeting data, do not print
+		 * additional information which is about the current state, not
+		 * the old one which corresponded to the saved budgeting data.
+		 */
+		goto out_unlock;
+
+	printk(KERN_DEBUG "\tfreeable_cnt %d, calc_idx_sz %lld, idx_gc_cnt %d\n",
+	       c->freeable_cnt, c->calc_idx_sz, c->idx_gc_cnt);
 	printk(KERN_DEBUG "\tdirty_pg_cnt %ld, dirty_zn_cnt %ld, "
 	       "clean_zn_cnt %ld\n", atomic_long_read(&c->dirty_pg_cnt),
 	       atomic_long_read(&c->dirty_zn_cnt),
 	       atomic_long_read(&c->clean_zn_cnt));
-	printk(KERN_DEBUG "\tdark_wm %d, dead_wm %d, max_idx_node_sz %d\n",
-	       c->dark_wm, c->dead_wm, c->max_idx_node_sz);
 	printk(KERN_DEBUG "\tgc_lnum %d, ihead_lnum %d\n",
 	       c->gc_lnum, c->ihead_lnum);
+
 	/* If we are in R/O mode, journal heads do not exist */
 	if (c->jheads)
 		for (i = 0; i < c->jhead_cnt; i++)
@@ -648,13 +662,15 @@ void dbg_dump_budg(struct ubifs_info *c)
 	printk(KERN_DEBUG "\tcommit state %d\n", c->cmt_state);
 
 	/* Print budgeting predictions */
-	available = ubifs_calc_available(c, c->min_idx_lebs);
-	outstanding = c->budg_data_growth + c->budg_dd_growth;
+	available = ubifs_calc_available(c, c->bi.min_idx_lebs);
+	outstanding = c->bi.data_growth + c->bi.dd_growth;
 	free = ubifs_get_free_space_nolock(c);
 	printk(KERN_DEBUG "Budgeting predictions:\n");
 	printk(KERN_DEBUG "\tavailable: %lld, outstanding %lld, free %lld\n",
 	       available, outstanding, free);
+out_unlock:
 	spin_unlock(&dbg_lock);
+	spin_unlock(&c->space_lock);
 }
 
 void dbg_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp)
@@ -729,7 +745,13 @@ void dbg_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp)
 		if (bud->lnum == lp->lnum) {
 			int head = 0;
 			for (i = 0; i < c->jhead_cnt; i++) {
-				if (lp->lnum == c->jheads[i].wbuf.lnum) {
+				/*
+				 * Note, if we are in R/O mode or in the middle
+				 * of mounting/re-mounting, the write-buffers do
+				 * not exist.
+				 */
+				if (c->jheads &&
+				    lp->lnum == c->jheads[i].wbuf.lnum) {
 					printk(KERN_CONT ", jhead %s",
 					       dbg_jhead(i));
 					head = 1;
@@ -810,16 +832,24 @@ void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 {
 	struct ubifs_scan_leb *sleb;
 	struct ubifs_scan_node *snod;
+	void *buf;
 
 	if (dbg_failure_mode)
 		return;
 
 	printk(KERN_DEBUG "(pid %d) start dumping LEB %d\n",
 	       current->pid, lnum);
-	sleb = ubifs_scan(c, lnum, 0, c->dbg->buf, 0);
+
+	buf = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
+	if (!buf) {
+		ubifs_err("cannot allocate memory for dumping LEB %d", lnum);
+		return;
+	}
+
+	sleb = ubifs_scan(c, lnum, 0, buf, 0);
 	if (IS_ERR(sleb)) {
 		ubifs_err("scan error %d", (int)PTR_ERR(sleb));
-		return;
+		goto out;
 	}
 
 	printk(KERN_DEBUG "LEB %d has %d nodes ending at %d\n", lnum,
@@ -835,6 +865,9 @@ void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 	printk(KERN_DEBUG "(pid %d) finish dumping LEB %d\n",
 	       current->pid, lnum);
 	ubifs_scan_destroy(sleb);
+
+out:
+	vfree(buf);
 	return;
 }
 
@@ -961,11 +994,41 @@ void dbg_dump_index(struct ubifs_info *c)
 void dbg_save_space_info(struct ubifs_info *c)
 {
 	struct ubifs_debug_info *d = c->dbg;
-
-	ubifs_get_lp_stats(c, &d->saved_lst);
+	int freeable_cnt;
 
 	spin_lock(&c->space_lock);
+	memcpy(&d->saved_lst, &c->lst, sizeof(struct ubifs_lp_stats));
+	memcpy(&d->saved_bi, &c->bi, sizeof(struct ubifs_budg_info));
+	d->saved_idx_gc_cnt = c->idx_gc_cnt;
+
+	/*
+	 * We use a dirty hack here and zero out @c->freeable_cnt, because it
+	 * affects the free space calculations, and UBIFS might not know about
+	 * all freeable eraseblocks. Indeed, we know about freeable eraseblocks
+	 * only when we read their lprops, and we do this only lazily, upon the
+	 * need. So at any given point of time @c->freeable_cnt might be not
+	 * exactly accurate.
+	 *
+	 * Just one example about the issue we hit when we did not zero
+	 * @c->freeable_cnt.
+	 * 1. The file-system is mounted R/O, c->freeable_cnt is %0. We save the
+	 *    amount of free space in @d->saved_free
+	 * 2. We re-mount R/W, which makes UBIFS to read the "lsave"
+	 *    information from flash, where we cache LEBs from various
+	 *    categories ('ubifs_remount_fs()' -> 'ubifs_lpt_init()'
+	 *    -> 'lpt_init_wr()' -> 'read_lsave()' -> 'ubifs_lpt_lookup()'
+	 *    -> 'ubifs_get_pnode()' -> 'update_cats()'
+	 *    -> 'ubifs_add_to_cat()').
+	 * 3. Lsave contains a freeable eraseblock, and @c->freeable_cnt
+	 *    becomes %1.
+	 * 4. We calculate the amount of free space when the re-mount is
+	 *    finished in 'dbg_check_space_info()' and it does not match
+	 *    @d->saved_free.
+	 */
+	freeable_cnt = c->freeable_cnt;
+	c->freeable_cnt = 0;
 	d->saved_free = ubifs_get_free_space_nolock(c);
+	c->freeable_cnt = freeable_cnt;
 	spin_unlock(&c->space_lock);
 }
 
@@ -982,12 +1045,15 @@ int dbg_check_space_info(struct ubifs_info *c)
 {
 	struct ubifs_debug_info *d = c->dbg;
 	struct ubifs_lp_stats lst;
-	long long avail, free;
+	long long free;
+	int freeable_cnt;
 
 	spin_lock(&c->space_lock);
-	avail = ubifs_calc_available(c, c->min_idx_lebs);
+	freeable_cnt = c->freeable_cnt;
+	c->freeable_cnt = 0;
+	free = ubifs_get_free_space_nolock(c);
+	c->freeable_cnt = freeable_cnt;
 	spin_unlock(&c->space_lock);
-	free = ubifs_get_free_space(c);
 
 	if (free != d->saved_free) {
 		ubifs_err("free space changed from %lld to %lld",
@@ -1000,14 +1066,14 @@ int dbg_check_space_info(struct ubifs_info *c)
 out:
 	ubifs_msg("saved lprops statistics dump");
 	dbg_dump_lstats(&d->saved_lst);
-	ubifs_get_lp_stats(c, &lst);
-
+	ubifs_msg("saved budgeting info dump");
+	dbg_dump_budg(c, &d->saved_bi);
+	ubifs_msg("saved idx_gc_cnt %d", d->saved_idx_gc_cnt);
 	ubifs_msg("current lprops statistics dump");
+	ubifs_get_lp_stats(c, &lst);
 	dbg_dump_lstats(&lst);
-
-	spin_lock(&c->space_lock);
-	dbg_dump_budg(c);
-	spin_unlock(&c->space_lock);
+	ubifs_msg("current budgeting info dump");
+	dbg_dump_budg(c, &c->bi);
 	dump_stack();
 	return -EINVAL;
 }
@@ -1751,6 +1817,8 @@ static struct fsck_inode *add_inode(struct ubifs_info *c,
 	struct rb_node **p, *parent = NULL;
 	struct fsck_inode *fscki;
 	ino_t inum = key_inum_flash(c, &ino->key);
+	struct inode *inode;
+	struct ubifs_inode *ui;
 
 	p = &fsckd->inodes.rb_node;
 	while (*p) {
@@ -1774,19 +1842,46 @@ static struct fsck_inode *add_inode(struct ubifs_info *c,
 	if (!fscki)
 		return ERR_PTR(-ENOMEM);
 
+	inode = ilookup(c->vfs_sb, inum);
+
 	fscki->inum = inum;
-	fscki->nlink = le32_to_cpu(ino->nlink);
-	fscki->size = le64_to_cpu(ino->size);
-	fscki->xattr_cnt = le32_to_cpu(ino->xattr_cnt);
-	fscki->xattr_sz = le32_to_cpu(ino->xattr_size);
-	fscki->xattr_nms = le32_to_cpu(ino->xattr_names);
-	fscki->mode = le32_to_cpu(ino->mode);
+	/*
+	 * If the inode is present in the VFS inode cache, use it instead of
+	 * the on-flash inode which might be out-of-date. E.g., the size might
+	 * be out-of-date. If we do not do this, the following may happen, for
+	 * example:
+	 *   1. A power cut happens
+	 *   2. We mount the file-system R/O, the replay process fixes up the
+	 *      inode size in the VFS cache, but on on-flash.
+	 *   3. 'check_leaf()' fails because it hits a data node beyond inode
+	 *      size.
+	 */
+	if (!inode) {
+		fscki->nlink = le32_to_cpu(ino->nlink);
+		fscki->size = le64_to_cpu(ino->size);
+		fscki->xattr_cnt = le32_to_cpu(ino->xattr_cnt);
+		fscki->xattr_sz = le32_to_cpu(ino->xattr_size);
+		fscki->xattr_nms = le32_to_cpu(ino->xattr_names);
+		fscki->mode = le32_to_cpu(ino->mode);
+	} else {
+		ui = ubifs_inode(inode);
+		fscki->nlink = inode->i_nlink;
+		fscki->size = inode->i_size;
+		fscki->xattr_cnt = ui->xattr_cnt;
+		fscki->xattr_sz = ui->xattr_size;
+		fscki->xattr_nms = ui->xattr_names;
+		fscki->mode = inode->i_mode;
+		iput(inode);
+	}
+
 	if (S_ISDIR(fscki->mode)) {
 		fscki->calc_sz = UBIFS_INO_NODE_SZ;
 		fscki->calc_cnt = 2;
 	}
+
 	rb_link_node(&fscki->rb, parent, p);
 	rb_insert_color(&fscki->rb, &fsckd->inodes);
+
 	return fscki;
 }
 
@@ -2239,14 +2334,169 @@ out_free:
 	return err;
 }
 
-static int invocation_cnt;
+/**
+ * dbg_check_data_nodes_order - check that list of data nodes is sorted.
+ * @c: UBIFS file-system description object
+ * @head: the list of nodes ('struct ubifs_scan_node' objects)
+ *
+ * This function returns zero if the list of data nodes is sorted correctly,
+ * and %-EINVAL if not.
+ */
+int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head)
+{
+	struct list_head *cur;
+	struct ubifs_scan_node *sa, *sb;
+
+	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+		return 0;
+
+	for (cur = head->next; cur->next != head; cur = cur->next) {
+		ino_t inuma, inumb;
+		uint32_t blka, blkb;
+
+		cond_resched();
+		sa = container_of(cur, struct ubifs_scan_node, list);
+		sb = container_of(cur->next, struct ubifs_scan_node, list);
+
+		if (sa->type != UBIFS_DATA_NODE) {
+			ubifs_err("bad node type %d", sa->type);
+			dbg_dump_node(c, sa->node);
+			return -EINVAL;
+		}
+		if (sb->type != UBIFS_DATA_NODE) {
+			ubifs_err("bad node type %d", sb->type);
+			dbg_dump_node(c, sb->node);
+			return -EINVAL;
+		}
+
+		inuma = key_inum(c, &sa->key);
+		inumb = key_inum(c, &sb->key);
+
+		if (inuma < inumb)
+			continue;
+		if (inuma > inumb) {
+			ubifs_err("larger inum %lu goes before inum %lu",
+				  (unsigned long)inuma, (unsigned long)inumb);
+			goto error_dump;
+		}
+
+		blka = key_block(c, &sa->key);
+		blkb = key_block(c, &sb->key);
+
+		if (blka > blkb) {
+			ubifs_err("larger block %u goes before %u", blka, blkb);
+			goto error_dump;
+		}
+		if (blka == blkb) {
+			ubifs_err("two data nodes for the same block");
+			goto error_dump;
+		}
+	}
+
+	return 0;
+
+error_dump:
+	dbg_dump_node(c, sa->node);
+	dbg_dump_node(c, sb->node);
+	return -EINVAL;
+}
+
+/**
+ * dbg_check_nondata_nodes_order - check that list of data nodes is sorted.
+ * @c: UBIFS file-system description object
+ * @head: the list of nodes ('struct ubifs_scan_node' objects)
+ *
+ * This function returns zero if the list of non-data nodes is sorted correctly,
+ * and %-EINVAL if not.
+ */
+int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head)
+{
+	struct list_head *cur;
+	struct ubifs_scan_node *sa, *sb;
+
+	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+		return 0;
+
+	for (cur = head->next; cur->next != head; cur = cur->next) {
+		ino_t inuma, inumb;
+		uint32_t hasha, hashb;
+
+		cond_resched();
+		sa = container_of(cur, struct ubifs_scan_node, list);
+		sb = container_of(cur->next, struct ubifs_scan_node, list);
+
+		if (sa->type != UBIFS_INO_NODE && sa->type != UBIFS_DENT_NODE &&
+		    sa->type != UBIFS_XENT_NODE) {
+			ubifs_err("bad node type %d", sa->type);
+			dbg_dump_node(c, sa->node);
+			return -EINVAL;
+		}
+		if (sa->type != UBIFS_INO_NODE && sa->type != UBIFS_DENT_NODE &&
+		    sa->type != UBIFS_XENT_NODE) {
+			ubifs_err("bad node type %d", sb->type);
+			dbg_dump_node(c, sb->node);
+			return -EINVAL;
+		}
+
+		if (sa->type != UBIFS_INO_NODE && sb->type == UBIFS_INO_NODE) {
+			ubifs_err("non-inode node goes before inode node");
+			goto error_dump;
+		}
+
+		if (sa->type == UBIFS_INO_NODE && sb->type != UBIFS_INO_NODE)
+			continue;
+
+		if (sa->type == UBIFS_INO_NODE && sb->type == UBIFS_INO_NODE) {
+			/* Inode nodes are sorted in descending size order */
+			if (sa->len < sb->len) {
+				ubifs_err("smaller inode node goes first");
+				goto error_dump;
+			}
+			continue;
+		}
+
+		/*
+		 * This is either a dentry or xentry, which should be sorted in
+		 * ascending (parent ino, hash) order.
+		 */
+		inuma = key_inum(c, &sa->key);
+		inumb = key_inum(c, &sb->key);
+
+		if (inuma < inumb)
+			continue;
+		if (inuma > inumb) {
+			ubifs_err("larger inum %lu goes before inum %lu",
+				  (unsigned long)inuma, (unsigned long)inumb);
+			goto error_dump;
+		}
+
+		hasha = key_block(c, &sa->key);
+		hashb = key_block(c, &sb->key);
+
+		if (hasha > hashb) {
+			ubifs_err("larger hash %u goes before %u",
+				  hasha, hashb);
+			goto error_dump;
+		}
+	}
+
+	return 0;
+
+error_dump:
+	ubifs_msg("dumping first node");
+	dbg_dump_node(c, sa->node);
+	ubifs_msg("dumping second node");
+	dbg_dump_node(c, sb->node);
+	return -EINVAL;
+	return 0;
+}
 
 int dbg_force_in_the_gaps(void)
 {
-	if (!dbg_force_in_the_gaps_enabled)
+	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
 		return 0;
-	/* Force in-the-gaps every 8th commit */
-	return !((invocation_cnt++) & 0x7);
+
+	return !(random32() & 7);
 }
 
 /* Failure mode for recovery testing */
@@ -2434,7 +2684,7 @@ int dbg_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 		 int len, int check)
 {
 	if (in_failure_mode(desc))
-		return -EIO;
+		return -EROFS;
 	return ubi_leb_read(desc, lnum, buf, offset, len, check);
 }
 
@@ -2444,7 +2694,7 @@ int dbg_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	int err, failing;
 
 	if (in_failure_mode(desc))
-		return -EIO;
+		return -EROFS;
 	failing = do_fail(desc, lnum, 1);
 	if (failing)
 		cut_data(buf, len);
@@ -2452,7 +2702,7 @@ int dbg_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	if (err)
 		return err;
 	if (failing)
-		return -EIO;
+		return -EROFS;
 	return 0;
 }
 
@@ -2462,12 +2712,12 @@ int dbg_leb_change(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	int err;
 
 	if (do_fail(desc, lnum, 1))
-		return -EIO;
+		return -EROFS;
 	err = ubi_leb_change(desc, lnum, buf, len, dtype);
 	if (err)
 		return err;
 	if (do_fail(desc, lnum, 1))
-		return -EIO;
+		return -EROFS;
 	return 0;
 }
 
@@ -2476,12 +2726,12 @@ int dbg_leb_erase(struct ubi_volume_desc *desc, int lnum)
 	int err;
 
 	if (do_fail(desc, lnum, 0))
-		return -EIO;
+		return -EROFS;
 	err = ubi_leb_erase(desc, lnum);
 	if (err)
 		return err;
 	if (do_fail(desc, lnum, 0))
-		return -EIO;
+		return -EROFS;
 	return 0;
 }
 
@@ -2490,19 +2740,19 @@ int dbg_leb_unmap(struct ubi_volume_desc *desc, int lnum)
 	int err;
 
 	if (do_fail(desc, lnum, 0))
-		return -EIO;
+		return -EROFS;
 	err = ubi_leb_unmap(desc, lnum);
 	if (err)
 		return err;
 	if (do_fail(desc, lnum, 0))
-		return -EIO;
+		return -EROFS;
 	return 0;
 }
 
 int dbg_is_mapped(struct ubi_volume_desc *desc, int lnum)
 {
 	if (in_failure_mode(desc))
-		return -EIO;
+		return -EROFS;
 	return ubi_is_mapped(desc, lnum);
 }
 
@@ -2511,12 +2761,12 @@ int dbg_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype)
 	int err;
 
 	if (do_fail(desc, lnum, 0))
-		return -EIO;
+		return -EROFS;
 	err = ubi_leb_map(desc, lnum, dtype);
 	if (err)
 		return err;
 	if (do_fail(desc, lnum, 0))
-		return -EIO;
+		return -EROFS;
 	return 0;
 }
 
@@ -2534,16 +2784,8 @@ int ubifs_debugging_init(struct ubifs_info *c)
 	if (!c->dbg)
 		return -ENOMEM;
 
-	c->dbg->buf = vmalloc(c->leb_size);
-	if (!c->dbg->buf)
-		goto out;
-
 	failure_mode_init(c);
 	return 0;
-
-out:
-	kfree(c->dbg);
-	return -ENOMEM;
 }
 
 /**
@@ -2553,7 +2795,6 @@ out:
 void ubifs_debugging_exit(struct ubifs_info *c)
 {
 	failure_mode_exit(c);
-	vfree(c->dbg->buf);
 	kfree(c->dbg);
 }
 
@@ -2595,7 +2836,7 @@ void dbg_debugfs_exit(void)
 static int open_debugfs_file(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static ssize_t write_debugfs_file(struct file *file, const char __user *buf,
@@ -2606,18 +2847,15 @@ static ssize_t write_debugfs_file(struct file *file, const char __user *buf,
 
 	if (file->f_path.dentry == d->dfs_dump_lprops)
 		dbg_dump_lprops(c);
-	else if (file->f_path.dentry == d->dfs_dump_budg) {
-		spin_lock(&c->space_lock);
-		dbg_dump_budg(c);
-		spin_unlock(&c->space_lock);
-	} else if (file->f_path.dentry == d->dfs_dump_tnc) {
+	else if (file->f_path.dentry == d->dfs_dump_budg)
+		dbg_dump_budg(c, &c->bi);
+	else if (file->f_path.dentry == d->dfs_dump_tnc) {
 		mutex_lock(&c->tnc_mutex);
 		dbg_dump_tnc(c);
 		mutex_unlock(&c->tnc_mutex);
 	} else
 		return -EINVAL;
 
-	*ppos += count;
 	return count;
 }
 
@@ -2625,6 +2863,7 @@ static const struct file_operations dfs_fops = {
 	.open = open_debugfs_file,
 	.write = write_debugfs_file,
 	.owner = THIS_MODULE,
+	.llseek = no_llseek,
 };
 
 /**
@@ -2647,40 +2886,38 @@ int dbg_debugfs_init_fs(struct ubifs_info *c)
 	struct ubifs_debug_info *d = c->dbg;
 
 	sprintf(d->dfs_dir_name, "ubi%d_%d", c->vi.ubi_num, c->vi.vol_id);
-	d->dfs_dir = debugfs_create_dir(d->dfs_dir_name, dfs_rootdir);
-	if (IS_ERR(d->dfs_dir)) {
-		err = PTR_ERR(d->dfs_dir);
-		ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
-			  d->dfs_dir_name, err);
+	fname = d->dfs_dir_name;
+	dent = debugfs_create_dir(fname, dfs_rootdir);
+	if (IS_ERR_OR_NULL(dent))
 		goto out;
-	}
+	d->dfs_dir = dent;
 
 	fname = "dump_lprops";
-	dent = debugfs_create_file(fname, S_IWUGO, d->dfs_dir, c, &dfs_fops);
-	if (IS_ERR(dent))
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_dump_lprops = dent;
 
 	fname = "dump_budg";
-	dent = debugfs_create_file(fname, S_IWUGO, d->dfs_dir, c, &dfs_fops);
-	if (IS_ERR(dent))
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_dump_budg = dent;
 
 	fname = "dump_tnc";
-	dent = debugfs_create_file(fname, S_IWUGO, d->dfs_dir, c, &dfs_fops);
-	if (IS_ERR(dent))
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_dump_tnc = dent;
 
 	return 0;
 
 out_remove:
-	err = PTR_ERR(dent);
-	ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
-		  fname, err);
 	debugfs_remove_recursive(d->dfs_dir);
 out:
+	err = dent ? PTR_ERR(dent) : -ENODEV;
+	ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
+		  fname, err);
 	return err;
 }
 

@@ -646,7 +646,7 @@ static int yellowfin_open(struct net_device *dev)
 	init_timer(&yp->timer);
 	yp->timer.expires = jiffies + 3*HZ;
 	yp->timer.data = (unsigned long)dev;
-	yp->timer.function = &yellowfin_timer;				/* timer handler */
+	yp->timer.function = yellowfin_timer;				/* timer handler */
 	add_timer(&yp->timer);
 
 	return 0;
@@ -744,7 +744,7 @@ static int yellowfin_init_ring(struct net_device *dev)
 	}
 
 	for (i = 0; i < RX_RING_SIZE; i++) {
-		struct sk_buff *skb = dev_alloc_skb(yp->rx_buf_sz);
+		struct sk_buff *skb = dev_alloc_skb(yp->rx_buf_sz + 2);
 		yp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
@@ -1157,7 +1157,7 @@ static int yellowfin_rx(struct net_device *dev)
 	for (; yp->cur_rx - yp->dirty_rx > 0; yp->dirty_rx++) {
 		entry = yp->dirty_rx % RX_RING_SIZE;
 		if (yp->rx_skbuff[entry] == NULL) {
-			struct sk_buff *skb = dev_alloc_skb(yp->rx_buf_sz);
+			struct sk_buff *skb = dev_alloc_skb(yp->rx_buf_sz + 2);
 			if (skb == NULL)
 				break;				/* Better luck next round. */
 			yp->rx_skbuff[entry] = skb;

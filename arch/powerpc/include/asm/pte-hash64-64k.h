@@ -22,7 +22,7 @@
 #define _PAGE_HASHPTE	_PAGE_HPTE_SUB
 
 /* Note the full page bits must be in the same location as for normal
- * 4k pages as the same asssembly will be used to insert 64K pages
+ * 4k pages as the same assembly will be used to insert 64K pages
  * wether the kernel has CONFIG_PPC_64K_PAGES or not
  */
 #define _PAGE_F_SECOND  0x00008000 /* full page: hidx bits */

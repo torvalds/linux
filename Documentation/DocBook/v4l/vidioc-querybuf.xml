@@ -61,6 +61,10 @@ buffer at any time after buffers have been allocated with the
 to the number of buffers allocated with &VIDIOC-REQBUFS;
     (&v4l2-requestbuffers; <structfield>count</structfield>) minus one.
 The <structfield>reserved</structfield> field should to set to 0.
+When using the <link linkend="planar-apis">multi-planar API</link>, the
+<structfield>m.planes</structfield> field must contain a userspace pointer to an
+array of &v4l2-plane; and the <structfield>length</structfield> field has
+to be set to the number of elements in that array.
 After calling <constant>VIDIOC_QUERYBUF</constant> with a pointer to
     this structure drivers return an error code or fill the rest of
 the structure.</para>
@@ -70,11 +74,13 @@ the structure.</para>
 <constant>V4L2_BUF_FLAG_QUEUED</constant> and
 <constant>V4L2_BUF_FLAG_DONE</constant> flags will be valid. The
 <structfield>memory</structfield> field will be set to the current
-I/O method, the <structfield>m.offset</structfield>
+I/O method. For the single-planar API, the <structfield>m.offset</structfield>
 contains the offset of the buffer from the start of the device memory,
-the <structfield>length</structfield> field its size. The driver may
-or may not set the remaining fields and flags, they are meaningless in
-this context.</para>
+the <structfield>length</structfield> field its size. For the multi-planar API,
+fields <structfield>m.mem_offset</structfield> and
+<structfield>length</structfield> in the <structfield>m.planes</structfield>
+array elements will be used instead. The driver may or may not set the remaining
+fields and flags, they are meaningless in this context.</para>
 
     <para>The <structname>v4l2_buffer</structname> structure is
     specified in <xref linkend="buffer" />.</para>

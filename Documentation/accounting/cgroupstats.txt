@@ -21,7 +21,7 @@ information will not be available.
 To extract cgroup statistics a utility very similar to getdelays.c
 has been developed, the sample output of the utility is shown below
 
-~/balbir/cgroupstats # ./getdelays  -C "/cgroup/a"
+~/balbir/cgroupstats # ./getdelays  -C "/sys/fs/cgroup/a"
 sleeping 1, blocked 0, running 1, stopped 0, uninterruptible 0
-~/balbir/cgroupstats # ./getdelays  -C "/cgroup"
+~/balbir/cgroupstats # ./getdelays  -C "/sys/fs/cgroup"
 sleeping 155, blocked 0, running 1, stopped 0, uninterruptible 2

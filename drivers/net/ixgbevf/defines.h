@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -30,6 +30,7 @@
 
 /* Device IDs */
 #define IXGBE_DEV_ID_82599_VF           0x10ED
+#define IXGBE_DEV_ID_X540_VF            0x1515
 
 #define IXGBE_VF_IRQ_CLEAR_MASK         7
 #define IXGBE_VF_MAX_TX_QUEUES          1
@@ -64,6 +65,8 @@ typedef u32 ixgbe_link_speed;
 #define IXGBE_RXCTRL_DMBYPS     0x00000002  /* Descriptor Monitor Bypass */
 #define IXGBE_RXDCTL_ENABLE     0x02000000  /* Enable specific Rx Queue */
 #define IXGBE_RXDCTL_VME        0x40000000  /* VLAN mode enable */
+#define IXGBE_RXDCTL_RLPMLMASK  0x00003FFF  /* Only supported on the X540 */
+#define IXGBE_RXDCTL_RLPML_EN   0x00008000
 
 /* DCA Control */
 #define IXGBE_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* Tx Desc writeback RO bit */

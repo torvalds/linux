@@ -10,12 +10,14 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/cpumask.h>
+#include <linux/init.h>
 
 extern void cpu_idle(void);
 
+typedef void (*smp_call_func_t)(void *info);
 struct call_single_data {
 	struct list_head list;
-	void (*func) (void *info);
+	smp_call_func_t func;
 	void *info;
 	u16 flags;
 	u16 priv;
@@ -24,8 +26,8 @@ struct call_single_data {
 /* total number of cpus in this system (may exceed NR_CPUS) */
 extern unsigned int total_cpus;
 
-int smp_call_function_single(int cpuid, void (*func) (void *info), void *info,
-				int wait);
+int smp_call_function_single(int cpuid, smp_call_func_t func, void *info,
+			     int wait);
 
 #ifdef CONFIG_SMP
 
@@ -69,42 +71,35 @@ extern void smp_cpus_done(unsigned int max_cpus);
 /*
  * Call a function on all other processors
  */
-int smp_call_function(void(*func)(void *info), void *info, int wait);
+int smp_call_function(smp_call_func_t func, void *info, int wait);
 void smp_call_function_many(const struct cpumask *mask,
-			    void (*func)(void *info), void *info, bool wait);
+			    smp_call_func_t func, void *info, bool wait);
 
 void __smp_call_function_single(int cpuid, struct call_single_data *data,
 				int wait);
 
 int smp_call_function_any(const struct cpumask *mask,
-			  void (*func)(void *info), void *info, int wait);
+			  smp_call_func_t func, void *info, int wait);
 
 /*
  * Generic and arch helpers
  */
 #ifdef CONFIG_USE_GENERIC_SMP_HELPERS
+void __init call_function_init(void);
 void generic_smp_call_function_single_interrupt(void);
 void generic_smp_call_function_interrupt(void);
 void ipi_call_lock(void);
 void ipi_call_unlock(void);
 void ipi_call_lock_irq(void);
 void ipi_call_unlock_irq(void);
+#else
+static inline void call_function_init(void) { }
 #endif
 
 /*
  * Call a function on all processors
  */
-int on_each_cpu(void (*func) (void *info), void *info, int wait);
-
-#define MSG_ALL_BUT_SELF	0x8000	/* Assume <32768 CPU's */
-#define MSG_ALL			0x8001
-
-#define MSG_INVALIDATE_TLB	0x0001	/* Remote processor TLB invalidate */
-#define MSG_STOP_CPU		0x0002	/* Sent to shut down slave CPU's
-					 * when rebooting
-					 */
-#define MSG_RESCHEDULE		0x0003	/* Reschedule request from master CPU*/
-#define MSG_CALL_FUNCTION       0x0004  /* Call function on all other CPUs */
+int on_each_cpu(smp_call_func_t func, void *info, int wait);
 
 /*
  * Mark the boot cpu "online" so that it can call console drivers in
@@ -113,6 +108,8 @@ int on_each_cpu(void (*func) (void *info), void *info, int wait);
 void smp_prepare_boot_cpu(void);
 
 extern unsigned int setup_max_cpus;
+extern void __init setup_nr_cpu_ids(void);
+extern void __init smp_init(void);
 
 #else /* !SMP */
 
@@ -122,7 +119,7 @@ static inline void smp_send_stop(void) { }
  *	These macros fold the SMP functionality into a single CPU system
  */
 #define raw_smp_processor_id()			0
-static inline int up_smp_call_function(void (*func)(void *), void *info)
+static inline int up_smp_call_function(smp_call_func_t func, void *info)
 {
 	return 0;
 }
@@ -140,10 +137,10 @@ static inline void smp_send_reschedule(int cpu) { }
 #define smp_prepare_boot_cpu()			do {} while (0)
 #define smp_call_function_many(mask, func, info, wait) \
 			(up_smp_call_function(func, info))
-static inline void init_call_single_data(void) { }
+static inline void call_function_init(void) { }
 
 static inline int
-smp_call_function_any(const struct cpumask *mask, void (*func)(void *info),
+smp_call_function_any(const struct cpumask *mask, smp_call_func_t func,
 		      void *info, int wait)
 {
 	return smp_call_function_single(0, func, info, wait);

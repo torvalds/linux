@@ -118,13 +118,11 @@ int PIPEnsControlOutAsyn(
 {
 	int ntStatus;
 
-    if (MP_TEST_FLAG(pDevice, fMP_DISCONNECTED))
+    if (pDevice->Flags & fMP_DISCONNECTED)
         return STATUS_FAILURE;
 
-
-    if (MP_TEST_FLAG(pDevice, fMP_CONTROL_WRITES)) {
+    if (pDevice->Flags & fMP_CONTROL_WRITES)
         return STATUS_FAILURE;
-    }
 
     if (in_interrupt()) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"in_interrupt return ..byRequest %x\n", byRequest);
@@ -164,12 +162,11 @@ int PIPEnsControlOut(
 	int ntStatus = 0;
     int ii;
 
-    if (MP_TEST_FLAG(pDevice, fMP_DISCONNECTED))
+    if (pDevice->Flags & fMP_DISCONNECTED)
         return STATUS_FAILURE;
 
-    if (MP_TEST_FLAG(pDevice, fMP_CONTROL_WRITES)) {
+    if (pDevice->Flags & fMP_CONTROL_WRITES)
         return STATUS_FAILURE;
-    }
 
 	pDevice->sUsbCtlRequest.bRequestType = 0x40;
 	pDevice->sUsbCtlRequest.bRequest = byRequest;
@@ -193,12 +190,15 @@ int PIPEnsControlOut(
 	}
 	spin_unlock_irq(&pDevice->lock);
     for (ii = 0; ii <= USB_CTL_WAIT; ii ++) {
-        if (MP_TEST_FLAG(pDevice, fMP_CONTROL_WRITES))
-            mdelay(1);
+
+	if (pDevice->Flags & fMP_CONTROL_WRITES)
+		mdelay(1);
         else
-            break;
+		break;
+
         if (ii >= USB_CTL_WAIT) {
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"control send request submission timeout \n");
+		DBG_PRT(MSG_LEVEL_DEBUG,
+			KERN_INFO "control send request submission timeout\n");
             spin_lock_irq(&pDevice->lock);
             MP_CLEAR_FLAG(pDevice, fMP_CONTROL_WRITES);
             return STATUS_FAILURE;
@@ -221,12 +221,12 @@ int PIPEnsControlIn(
 	int ntStatus = 0;
     int ii;
 
-    if (MP_TEST_FLAG(pDevice, fMP_DISCONNECTED))
+    if (pDevice->Flags & fMP_DISCONNECTED)
         return STATUS_FAILURE;
 
-    if (MP_TEST_FLAG(pDevice, fMP_CONTROL_READS)) {
-        return STATUS_FAILURE;
-    }
+    if (pDevice->Flags & fMP_CONTROL_READS)
+	return STATUS_FAILURE;
+
 	pDevice->sUsbCtlRequest.bRequestType = 0xC0;
 	pDevice->sUsbCtlRequest.bRequest = byRequest;
 	pDevice->sUsbCtlRequest.wValue = cpu_to_le16p(&wValue);
@@ -247,13 +247,15 @@ int PIPEnsControlIn(
 
 	spin_unlock_irq(&pDevice->lock);
     for (ii = 0; ii <= USB_CTL_WAIT; ii ++) {
-        if (MP_TEST_FLAG(pDevice, fMP_CONTROL_READS))
-            mdelay(1);
-        else {
-            break;
-        }
-        if (ii >= USB_CTL_WAIT) {
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"control rcv request submission timeout \n");
+
+	if (pDevice->Flags & fMP_CONTROL_READS)
+		mdelay(1);
+	else
+		break;
+
+	if (ii >= USB_CTL_WAIT) {
+		DBG_PRT(MSG_LEVEL_DEBUG,
+			KERN_INFO "control rcv request submission timeout\n");
             spin_lock_irq(&pDevice->lock);
             MP_CLEAR_FLAG(pDevice, fMP_CONTROL_READS);
             return STATUS_FAILURE;
@@ -492,7 +494,7 @@ int PIPEnsBulkInUsbRead(PSDevice pDevice, PRCB pRCB)
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsStartBulkInUsbRead\n");
 
-    if (MP_TEST_FLAG(pDevice, fMP_DISCONNECTED))
+    if (pDevice->Flags & fMP_DISCONNECTED)
         return STATUS_FAILURE;
 
     pDevice->ulBulkInPosted++;
@@ -618,7 +620,7 @@ s_nsBulkInUsbIoCompleteRead(
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-NDIS_STATUS
+int
 PIPEnsSendBulkOut(
       PSDevice pDevice,
       PUSB_SEND_CONTEXT pContext
@@ -643,7 +645,7 @@ PIPEnsSendBulkOut(
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_nsSendBulkOut\n");
 
-    if(MP_IS_READY(pDevice) && MP_TEST_FLAG(pDevice, fMP_POST_WRITES)) {
+    if (MP_IS_READY(pDevice) && (pDevice->Flags & fMP_POST_WRITES)) {
 
         pUrb = pContext->pUrb;
         pDevice->ulBulkOutPosted++;

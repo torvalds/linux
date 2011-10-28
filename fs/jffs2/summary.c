@@ -121,7 +121,7 @@ int jffs2_sum_add_inode_mem(struct jffs2_summary *s, struct jffs2_raw_inode *ri,
 	temp->nodetype = ri->nodetype;
 	temp->inode = ri->ino;
 	temp->version = ri->version;
-	temp->offset = cpu_to_je32(ofs); /* relative offset from the begining of the jeb */
+	temp->offset = cpu_to_je32(ofs); /* relative offset from the beginning of the jeb */
 	temp->totlen = ri->totlen;
 	temp->next = NULL;
 
@@ -139,7 +139,7 @@ int jffs2_sum_add_dirent_mem(struct jffs2_summary *s, struct jffs2_raw_dirent *r
 
 	temp->nodetype = rd->nodetype;
 	temp->totlen = rd->totlen;
-	temp->offset = cpu_to_je32(ofs);	/* relative from the begining of the jeb */
+	temp->offset = cpu_to_je32(ofs);	/* relative from the beginning of the jeb */
 	temp->pino = rd->pino;
 	temp->version = rd->version;
 	temp->ino = rd->ino;

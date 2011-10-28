@@ -43,6 +43,7 @@ const struct file_operations debugfs_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		default_open,
+	.llseek =	noop_llseek,
 };
 
 static void *debugfs_follow_link(struct dentry *dentry, struct nameidata *nd)
@@ -427,26 +428,17 @@ static ssize_t write_file_bool(struct file *file, const char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
 	char buf[32];
-	int buf_size;
+	size_t buf_size;
+	bool bv;
 	u32 *val = file->private_data;
 
 	buf_size = min(count, (sizeof(buf)-1));
 	if (copy_from_user(buf, user_buf, buf_size))
 		return -EFAULT;
 
-	switch (buf[0]) {
-	case 'y':
-	case 'Y':
-	case '1':
-		*val = 1;
-		break;
-	case 'n':
-	case 'N':
-	case '0':
-		*val = 0;
-		break;
-	}
-	
+	if (strtobool(buf, &bv) == 0)
+		*val = bv;
+
 	return count;
 }
 
@@ -454,6 +446,7 @@ static const struct file_operations fops_bool = {
 	.read =		read_file_bool,
 	.write =	write_file_bool,
 	.open =		default_open,
+	.llseek =	default_llseek,
 };
 
 /**
@@ -498,6 +491,7 @@ static ssize_t read_file_blob(struct file *file, char __user *user_buf,
 static const struct file_operations fops_blob = {
 	.read =		read_file_blob,
 	.open =		default_open,
+	.llseek =	default_llseek,
 };
 
 /**

@@ -21,8 +21,8 @@
  *
  * Based upon touchkitusb.c
  *
- * Vendor documentation is available in support section of:
- * http://www.egalax.com.tw/
+ * Vendor documentation is available at:
+ * http://home.eeti.com.tw/web20/drivers/Software%20Programming%20Guide_v2.0.pdf 
  */
 
 #include <linux/kernel.h>

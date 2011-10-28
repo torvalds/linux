@@ -29,7 +29,7 @@ static unsigned long jornada_ssp_flags;
 /**
  * jornada_ssp_reverse - reverses input byte
  *
- * we need to reverse all data we recieve from the mcu due to its physical location
+ * we need to reverse all data we receive from the mcu due to its physical location
  * returns : 01110111 -> 11101110
  */
 u8 inline jornada_ssp_reverse(u8 byte)
@@ -179,7 +179,7 @@ static int __devinit jornada_ssp_probe(struct platform_device *dev)
 
 static int jornada_ssp_remove(struct platform_device *dev)
 {
-	/* Note that this doesnt actually remove the driver, since theres nothing to remove
+	/* Note that this doesn't actually remove the driver, since theres nothing to remove
 	 * It just makes sure everything is turned off */
 	GPSR = GPIO_GPIO25;
 	ssp_exit();

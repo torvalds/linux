@@ -26,8 +26,11 @@
 #include "drm.h"
 #include "nouveau_drm.h"
 #include "nouveau_drv.h"
+#include "nouveau_util.h"
 
-#define NV10_FIFO_NUMBER 32
+struct nv10_graph_engine {
+	struct nouveau_exec_engine base;
+};
 
 struct pipe_state {
 	uint32_t pipe_0x0000[0x040/4];
@@ -410,9 +413,9 @@ struct graph_state {
 
 static void nv10_graph_save_pipe(struct nouveau_channel *chan)
 {
-	struct drm_device *dev = chan->dev;
-	struct graph_state *pgraph_ctx = chan->pgraph_ctx;
+	struct graph_state *pgraph_ctx = chan->engctx[NVOBJ_ENGINE_GR];
 	struct pipe_state *pipe = &pgraph_ctx->pipe_state;
+	struct drm_device *dev = chan->dev;
 
 	PIPE_SAVE(dev, pipe->pipe_0x4400, 0x4400);
 	PIPE_SAVE(dev, pipe->pipe_0x0200, 0x0200);
@@ -428,9 +431,9 @@ static void nv10_graph_save_pipe(struct nouveau_channel *chan)
 
 static void nv10_graph_load_pipe(struct nouveau_channel *chan)
 {
-	struct drm_device *dev = chan->dev;
-	struct graph_state *pgraph_ctx = chan->pgraph_ctx;
+	struct graph_state *pgraph_ctx = chan->engctx[NVOBJ_ENGINE_GR];
 	struct pipe_state *pipe = &pgraph_ctx->pipe_state;
+	struct drm_device *dev = chan->dev;
 	uint32_t xfmode0, xfmode1;
 	int i;
 
@@ -478,9 +481,9 @@ static void nv10_graph_load_pipe(struct nouveau_channel *chan)
 
 static void nv10_graph_create_pipe(struct nouveau_channel *chan)
 {
-	struct drm_device *dev = chan->dev;
-	struct graph_state *pgraph_ctx = chan->pgraph_ctx;
+	struct graph_state *pgraph_ctx = chan->engctx[NVOBJ_ENGINE_GR];
 	struct pipe_state *fifo_pipe_state = &pgraph_ctx->pipe_state;
+	struct drm_device *dev = chan->dev;
 	uint32_t *fifo_pipe_state_addr;
 	int i;
 #define PIPE_INIT(addr) \
@@ -657,8 +660,6 @@ static void nv10_graph_load_dma_vtxbuf(struct nouveau_channel *chan,
 				       uint32_t inst)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	uint32_t st2, st2_dl, st2_dh, fifo_ptr, fifo[0x60/4];
 	uint32_t ctx_user, ctx_switch[5];
 	int i, subchan = -1;
@@ -707,8 +708,8 @@ static void nv10_graph_load_dma_vtxbuf(struct nouveau_channel *chan,
 		0x2c000000 | chan->id << 20 | subchan << 16 | 0x18c);
 	nv_wr32(dev, NV10_PGRAPH_FFINTFC_ST2_DL, inst);
 	nv_mask(dev, NV10_PGRAPH_CTX_CONTROL, 0, 0x10000);
-	pgraph->fifo_access(dev, true);
-	pgraph->fifo_access(dev, false);
+	nv04_graph_fifo_access(dev, true);
+	nv04_graph_fifo_access(dev, false);
 
 	/* Restore the FIFO state */
 	for (i = 0; i < ARRAY_SIZE(fifo); i++)
@@ -725,11 +726,12 @@ static void nv10_graph_load_dma_vtxbuf(struct nouveau_channel *chan,
 	nv_wr32(dev, NV10_PGRAPH_CTX_USER, ctx_user);
 }
 
-int nv10_graph_load_context(struct nouveau_channel *chan)
+static int
+nv10_graph_load_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct graph_state *pgraph_ctx = chan->pgraph_ctx;
+	struct graph_state *pgraph_ctx = chan->engctx[NVOBJ_ENGINE_GR];
 	uint32_t tmp;
 	int i;
 
@@ -753,21 +755,20 @@ int nv10_graph_load_context(struct nouveau_channel *chan)
 	return 0;
 }
 
-int
+static int
 nv10_graph_unload_context(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_channel *chan;
 	struct graph_state *ctx;
 	uint32_t tmp;
 	int i;
 
-	chan = pgraph->channel(dev);
+	chan = nv10_graph_channel(dev);
 	if (!chan)
 		return 0;
-	ctx = chan->pgraph_ctx;
+	ctx = chan->engctx[NVOBJ_ENGINE_GR];
 
 	for (i = 0; i < ARRAY_SIZE(nv10_graph_ctx_regs); i++)
 		ctx->nv10[i] = nv_rd32(dev, nv10_graph_ctx_regs[i]);
@@ -786,15 +787,13 @@ nv10_graph_unload_context(struct drm_device *dev)
 	return 0;
 }
 
-void
+static void
 nv10_graph_context_switch(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct nouveau_channel *chan = NULL;
 	int chid;
 
-	pgraph->fifo_access(dev, false);
 	nouveau_wait_for_idle(dev);
 
 	/* If previous context is valid, we need to save it */
@@ -802,11 +801,9 @@ nv10_graph_context_switch(struct drm_device *dev)
 
 	/* Load context for next channel */
 	chid = (nv_rd32(dev, NV04_PGRAPH_TRAPPED_ADDR) >> 20) & 0x1f;
-	chan = dev_priv->fifos[chid];
-	if (chan)
+	chan = dev_priv->channels.ptr[chid];
+	if (chan && chan->engctx[NVOBJ_ENGINE_GR])
 		nv10_graph_load_context(chan);
-
-	pgraph->fifo_access(dev, true);
 }
 
 #define NV_WRITE_CTX(reg, val) do { \
@@ -833,10 +830,11 @@ nv10_graph_channel(struct drm_device *dev)
 	if (chid >= dev_priv->engine.fifo.channels)
 		return NULL;
 
-	return dev_priv->fifos[chid];
+	return dev_priv->channels.ptr[chid];
 }
 
-int nv10_graph_create_context(struct nouveau_channel *chan)
+static int
+nv10_graph_context_new(struct nouveau_channel *chan, int engine)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -844,11 +842,10 @@ int nv10_graph_create_context(struct nouveau_channel *chan)
 
 	NV_DEBUG(dev, "nv10_graph_context_create %d\n", chan->id);
 
-	chan->pgraph_ctx = pgraph_ctx = kzalloc(sizeof(*pgraph_ctx),
-						GFP_KERNEL);
+	pgraph_ctx = kzalloc(sizeof(*pgraph_ctx), GFP_KERNEL);
 	if (pgraph_ctx == NULL)
 		return -ENOMEM;
-
+	chan->engctx[engine] = pgraph_ctx;
 
 	NV_WRITE_CTX(0x00400e88, 0x08000000);
 	NV_WRITE_CTX(0x00400e9c, 0x4b7fffff);
@@ -873,32 +870,45 @@ int nv10_graph_create_context(struct nouveau_channel *chan)
 	return 0;
 }
 
-void nv10_graph_destroy_context(struct nouveau_channel *chan)
+static void
+nv10_graph_context_del(struct nouveau_channel *chan, int engine)
 {
-	struct graph_state *pgraph_ctx = chan->pgraph_ctx;
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct graph_state *pgraph_ctx = chan->engctx[engine];
+	unsigned long flags;
 
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	nv04_graph_fifo_access(dev, false);
+
+	/* Unload the context if it's the currently active one */
+	if (nv10_graph_channel(dev) == chan)
+		nv10_graph_unload_context(dev);
+
+	nv04_graph_fifo_access(dev, true);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
+
+	/* Free the context resources */
+	chan->engctx[engine] = NULL;
 	kfree(pgraph_ctx);
-	chan->pgraph_ctx = NULL;
 }
 
-void
-nv10_graph_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
-			     uint32_t size, uint32_t pitch)
-{
-	uint32_t limit = max(1u, addr + size) - 1;
-
-	if (pitch)
-		addr |= 1 << 31;
-
-	nv_wr32(dev, NV10_PGRAPH_TLIMIT(i), limit);
-	nv_wr32(dev, NV10_PGRAPH_TSIZE(i), pitch);
-	nv_wr32(dev, NV10_PGRAPH_TILE(i), addr);
-}
-
-int nv10_graph_init(struct drm_device *dev)
+static void
+nv10_graph_set_tile_region(struct drm_device *dev, int i)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t tmp;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+
+	nv_wr32(dev, NV10_PGRAPH_TLIMIT(i), tile->limit);
+	nv_wr32(dev, NV10_PGRAPH_TSIZE(i), tile->pitch);
+	nv_wr32(dev, NV10_PGRAPH_TILE(i), tile->addr);
+}
+
+static int
+nv10_graph_init(struct drm_device *dev, int engine)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u32 tmp;
 	int i;
 
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) &
@@ -928,7 +938,7 @@ int nv10_graph_init(struct drm_device *dev)
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < NV10_PFB_TILE__SIZE; i++)
-		nv10_graph_set_region_tiling(dev, i, 0, 0, 0);
+		nv10_graph_set_tile_region(dev, i);
 
 	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH(0), 0x00000000);
 	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH(1), 0x00000000);
@@ -946,19 +956,21 @@ int nv10_graph_init(struct drm_device *dev)
 	return 0;
 }
 
-void nv10_graph_takedown(struct drm_device *dev)
+static int
+nv10_graph_fini(struct drm_device *dev, int engine)
 {
+	nv10_graph_unload_context(dev);
+	nv_wr32(dev, NV03_PGRAPH_INTR_EN, 0x00000000);
+	return 0;
 }
 
 static int
-nv17_graph_mthd_lma_window(struct nouveau_channel *chan, int grclass,
-			   int mthd, uint32_t data)
+nv17_graph_mthd_lma_window(struct nouveau_channel *chan,
+			   u32 class, u32 mthd, u32 data)
 {
+	struct graph_state *ctx = chan->engctx[NVOBJ_ENGINE_GR];
 	struct drm_device *dev = chan->dev;
-	struct graph_state *ctx = chan->pgraph_ctx;
 	struct pipe_state *pipe = &ctx->pipe_state;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	uint32_t pipe_0x0040[1], pipe_0x64c0[8], pipe_0x6a80[3], pipe_0x6ab0[3];
 	uint32_t xfmode0, xfmode1;
 	int i;
@@ -1025,18 +1037,14 @@ nv17_graph_mthd_lma_window(struct nouveau_channel *chan, int grclass,
 
 	nouveau_wait_for_idle(dev);
 
-	pgraph->fifo_access(dev, true);
-
 	return 0;
 }
 
 static int
-nv17_graph_mthd_lma_enable(struct nouveau_channel *chan, int grclass,
-			   int mthd, uint32_t data)
+nv17_graph_mthd_lma_enable(struct nouveau_channel *chan,
+			   u32 class, u32 mthd, u32 data)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 
 	nouveau_wait_for_idle(dev);
 
@@ -1045,40 +1053,137 @@ nv17_graph_mthd_lma_enable(struct nouveau_channel *chan, int grclass,
 	nv_wr32(dev, 0x004006b0,
 		nv_rd32(dev, 0x004006b0) | 0x8 << 24);
 
-	pgraph->fifo_access(dev, true);
-
 	return 0;
 }
 
-static struct nouveau_pgraph_object_method nv17_graph_celsius_mthds[] = {
-	{ 0x1638, nv17_graph_mthd_lma_window },
-	{ 0x163c, nv17_graph_mthd_lma_window },
-	{ 0x1640, nv17_graph_mthd_lma_window },
-	{ 0x1644, nv17_graph_mthd_lma_window },
-	{ 0x1658, nv17_graph_mthd_lma_enable },
+struct nouveau_bitfield nv10_graph_intr[] = {
+	{ NV_PGRAPH_INTR_NOTIFY, "NOTIFY" },
+	{ NV_PGRAPH_INTR_ERROR,  "ERROR"  },
 	{}
 };
 
-struct nouveau_pgraph_object_class nv10_graph_grclass[] = {
-	{ 0x0030, false, NULL }, /* null */
-	{ 0x0039, false, NULL }, /* m2mf */
-	{ 0x004a, false, NULL }, /* gdirect */
-	{ 0x005f, false, NULL }, /* imageblit */
-	{ 0x009f, false, NULL }, /* imageblit (nv12) */
-	{ 0x008a, false, NULL }, /* ifc */
-	{ 0x0089, false, NULL }, /* sifm */
-	{ 0x0062, false, NULL }, /* surf2d */
-	{ 0x0043, false, NULL }, /* rop */
-	{ 0x0012, false, NULL }, /* beta1 */
-	{ 0x0072, false, NULL }, /* beta4 */
-	{ 0x0019, false, NULL }, /* cliprect */
-	{ 0x0044, false, NULL }, /* pattern */
-	{ 0x0052, false, NULL }, /* swzsurf */
-	{ 0x0093, false, NULL }, /* surf3d */
-	{ 0x0094, false, NULL }, /* tex_tri */
-	{ 0x0095, false, NULL }, /* multitex_tri */
-	{ 0x0056, false, NULL }, /* celcius (nv10) */
-	{ 0x0096, false, NULL }, /* celcius (nv11) */
-	{ 0x0099, false, nv17_graph_celsius_mthds }, /* celcius (nv17) */
+struct nouveau_bitfield nv10_graph_nstatus[] = {
+	{ NV10_PGRAPH_NSTATUS_STATE_IN_USE,       "STATE_IN_USE" },
+	{ NV10_PGRAPH_NSTATUS_INVALID_STATE,      "INVALID_STATE" },
+	{ NV10_PGRAPH_NSTATUS_BAD_ARGUMENT,       "BAD_ARGUMENT" },
+	{ NV10_PGRAPH_NSTATUS_PROTECTION_FAULT,   "PROTECTION_FAULT" },
 	{}
 };
+
+static void
+nv10_graph_isr(struct drm_device *dev)
+{
+	u32 stat;
+
+	while ((stat = nv_rd32(dev, NV03_PGRAPH_INTR))) {
+		u32 nsource = nv_rd32(dev, NV03_PGRAPH_NSOURCE);
+		u32 nstatus = nv_rd32(dev, NV03_PGRAPH_NSTATUS);
+		u32 addr = nv_rd32(dev, NV04_PGRAPH_TRAPPED_ADDR);
+		u32 chid = (addr & 0x01f00000) >> 20;
+		u32 subc = (addr & 0x00070000) >> 16;
+		u32 mthd = (addr & 0x00001ffc);
+		u32 data = nv_rd32(dev, NV04_PGRAPH_TRAPPED_DATA);
+		u32 class = nv_rd32(dev, 0x400160 + subc * 4) & 0xfff;
+		u32 show = stat;
+
+		if (stat & NV_PGRAPH_INTR_ERROR) {
+			if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {
+				if (!nouveau_gpuobj_mthd_call2(dev, chid, class, mthd, data))
+					show &= ~NV_PGRAPH_INTR_ERROR;
+			}
+		}
+
+		if (stat & NV_PGRAPH_INTR_CONTEXT_SWITCH) {
+			nv_wr32(dev, NV03_PGRAPH_INTR, NV_PGRAPH_INTR_CONTEXT_SWITCH);
+			stat &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
+			show &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
+			nv10_graph_context_switch(dev);
+		}
+
+		nv_wr32(dev, NV03_PGRAPH_INTR, stat);
+		nv_wr32(dev, NV04_PGRAPH_FIFO, 0x00000001);
+
+		if (show && nouveau_ratelimit()) {
+			NV_INFO(dev, "PGRAPH -");
+			nouveau_bitfield_print(nv10_graph_intr, show);
+			printk(" nsource:");
+			nouveau_bitfield_print(nv04_graph_nsource, nsource);
+			printk(" nstatus:");
+			nouveau_bitfield_print(nv10_graph_nstatus, nstatus);
+			printk("\n");
+			NV_INFO(dev, "PGRAPH - ch %d/%d class 0x%04x "
+				     "mthd 0x%04x data 0x%08x\n",
+				chid, subc, class, mthd, data);
+		}
+	}
+}
+
+static void
+nv10_graph_destroy(struct drm_device *dev, int engine)
+{
+	struct nv10_graph_engine *pgraph = nv_engine(dev, engine);
+
+	nouveau_irq_unregister(dev, 12);
+	kfree(pgraph);
+}
+
+int
+nv10_graph_create(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv10_graph_engine *pgraph;
+
+	pgraph = kzalloc(sizeof(*pgraph), GFP_KERNEL);
+	if (!pgraph)
+		return -ENOMEM;
+
+	pgraph->base.destroy = nv10_graph_destroy;
+	pgraph->base.init = nv10_graph_init;
+	pgraph->base.fini = nv10_graph_fini;
+	pgraph->base.context_new = nv10_graph_context_new;
+	pgraph->base.context_del = nv10_graph_context_del;
+	pgraph->base.object_new = nv04_graph_object_new;
+	pgraph->base.set_tile_region = nv10_graph_set_tile_region;
+
+	NVOBJ_ENGINE_ADD(dev, GR, &pgraph->base);
+	nouveau_irq_register(dev, 12, nv10_graph_isr);
+
+	/* nvsw */
+	NVOBJ_CLASS(dev, 0x506e, SW);
+	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv04_graph_mthd_page_flip);
+
+	NVOBJ_CLASS(dev, 0x0030, GR); /* null */
+	NVOBJ_CLASS(dev, 0x0039, GR); /* m2mf */
+	NVOBJ_CLASS(dev, 0x004a, GR); /* gdirect */
+	NVOBJ_CLASS(dev, 0x005f, GR); /* imageblit */
+	NVOBJ_CLASS(dev, 0x009f, GR); /* imageblit (nv12) */
+	NVOBJ_CLASS(dev, 0x008a, GR); /* ifc */
+	NVOBJ_CLASS(dev, 0x0089, GR); /* sifm */
+	NVOBJ_CLASS(dev, 0x0062, GR); /* surf2d */
+	NVOBJ_CLASS(dev, 0x0043, GR); /* rop */
+	NVOBJ_CLASS(dev, 0x0012, GR); /* beta1 */
+	NVOBJ_CLASS(dev, 0x0072, GR); /* beta4 */
+	NVOBJ_CLASS(dev, 0x0019, GR); /* cliprect */
+	NVOBJ_CLASS(dev, 0x0044, GR); /* pattern */
+	NVOBJ_CLASS(dev, 0x0052, GR); /* swzsurf */
+	NVOBJ_CLASS(dev, 0x0093, GR); /* surf3d */
+	NVOBJ_CLASS(dev, 0x0094, GR); /* tex_tri */
+	NVOBJ_CLASS(dev, 0x0095, GR); /* multitex_tri */
+
+	/* celcius */
+	if (dev_priv->chipset <= 0x10) {
+		NVOBJ_CLASS(dev, 0x0056, GR);
+	} else
+	if (dev_priv->chipset < 0x17 || dev_priv->chipset == 0x1a) {
+		NVOBJ_CLASS(dev, 0x0096, GR);
+	} else {
+		NVOBJ_CLASS(dev, 0x0099, GR);
+		NVOBJ_MTHD (dev, 0x0099, 0x1638, nv17_graph_mthd_lma_window);
+		NVOBJ_MTHD (dev, 0x0099, 0x163c, nv17_graph_mthd_lma_window);
+		NVOBJ_MTHD (dev, 0x0099, 0x1640, nv17_graph_mthd_lma_window);
+		NVOBJ_MTHD (dev, 0x0099, 0x1644, nv17_graph_mthd_lma_window);
+		NVOBJ_MTHD (dev, 0x0099, 0x1658, nv17_graph_mthd_lma_enable);
+	}
+
+	return 0;
+}

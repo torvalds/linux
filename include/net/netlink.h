@@ -225,13 +225,15 @@ extern int		nlmsg_notify(struct sock *sk, struct sk_buff *skb,
 				     u32 pid, unsigned int group, int report,
 				     gfp_t flags);
 
-extern int		nla_validate(struct nlattr *head, int len, int maxtype,
+extern int		nla_validate(const struct nlattr *head,
+				     int len, int maxtype,
 				     const struct nla_policy *policy);
-extern int		nla_parse(struct nlattr *tb[], int maxtype,
-				  struct nlattr *head, int len,
+extern int		nla_parse(struct nlattr **tb, int maxtype,
+				  const struct nlattr *head, int len,
 				  const struct nla_policy *policy);
 extern int		nla_policy_len(const struct nla_policy *, int);
-extern struct nlattr *	nla_find(struct nlattr *head, int len, int attrtype);
+extern struct nlattr *	nla_find(const struct nlattr *head,
+				 int len, int attrtype);
 extern size_t		nla_strlcpy(char *dst, const struct nlattr *nla,
 				    size_t dstsize);
 extern int		nla_memcpy(void *dest, const struct nlattr *src, int count);
@@ -288,7 +290,7 @@ static inline int nlmsg_padlen(int payload)
 
 /**
  * nlmsg_data - head of message payload
- * @nlh: netlink messsage header
+ * @nlh: netlink message header
  */
 static inline void *nlmsg_data(const struct nlmsghdr *nlh)
 {
@@ -346,7 +348,8 @@ static inline int nlmsg_ok(const struct nlmsghdr *nlh, int remaining)
  * Returns the next netlink message in the message stream and
  * decrements remaining by the size of the current message.
  */
-static inline struct nlmsghdr *nlmsg_next(struct nlmsghdr *nlh, int *remaining)
+static inline struct nlmsghdr *
+nlmsg_next(const struct nlmsghdr *nlh, int *remaining)
 {
 	int totlen = NLMSG_ALIGN(nlh->nlmsg_len);
 
@@ -384,7 +387,7 @@ static inline int nlmsg_parse(const struct nlmsghdr *nlh, int hdrlen,
  *
  * Returns the first attribute which matches the specified type.
  */
-static inline struct nlattr *nlmsg_find_attr(struct nlmsghdr *nlh,
+static inline struct nlattr *nlmsg_find_attr(const struct nlmsghdr *nlh,
 					     int hdrlen, int attrtype)
 {
 	return nla_find(nlmsg_attrdata(nlh, hdrlen),
@@ -398,7 +401,8 @@ static inline struct nlattr *nlmsg_find_attr(struct nlmsghdr *nlh,
  * @maxtype: maximum attribute type to be expected
  * @policy: validation policy
  */
-static inline int nlmsg_validate(struct nlmsghdr *nlh, int hdrlen, int maxtype,
+static inline int nlmsg_validate(const struct nlmsghdr *nlh,
+				 int hdrlen, int maxtype,
 				 const struct nla_policy *policy)
 {
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
@@ -727,7 +731,8 @@ static inline struct nlattr *nla_next(const struct nlattr *nla, int *remaining)
  *
  * Returns the first attribute which matches the specified type.
  */
-static inline struct nlattr *nla_find_nested(struct nlattr *nla, int attrtype)
+static inline struct nlattr *
+nla_find_nested(const struct nlattr *nla, int attrtype)
 {
 	return nla_find(nla_data(nla), nla_len(nla), attrtype);
 }
@@ -851,17 +856,26 @@ static inline int nla_put_msecs(struct sk_buff *skb, int attrtype,
 #define NLA_PUT_BE16(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, __be16, attrtype, value)
 
+#define NLA_PUT_NET16(skb, attrtype, value) \
+	NLA_PUT_BE16(skb, attrtype | NLA_F_NET_BYTEORDER, value)
+
 #define NLA_PUT_U32(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, u32, attrtype, value)
 
 #define NLA_PUT_BE32(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, __be32, attrtype, value)
 
+#define NLA_PUT_NET32(skb, attrtype, value) \
+	NLA_PUT_BE32(skb, attrtype | NLA_F_NET_BYTEORDER, value)
+
 #define NLA_PUT_U64(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, u64, attrtype, value)
 
 #define NLA_PUT_BE64(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, __be64, attrtype, value)
+
+#define NLA_PUT_NET64(skb, attrtype, value) \
+	NLA_PUT_BE64(skb, attrtype | NLA_F_NET_BYTEORDER, value)
 
 #define NLA_PUT_STRING(skb, attrtype, value) \
 	NLA_PUT(skb, attrtype, strlen(value) + 1, value)
@@ -1032,7 +1046,7 @@ static inline void nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
  *
  * Returns 0 on success or a negative error code.
  */
-static inline int nla_validate_nested(struct nlattr *start, int maxtype,
+static inline int nla_validate_nested(const struct nlattr *start, int maxtype,
 				      const struct nla_policy *policy)
 {
 	return nla_validate(nla_data(start), nla_len(start), maxtype, policy);

@@ -59,7 +59,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/dvb/net.h>
-#include <linux/smp_lock.h>
 #include <linux/uio.h>
 #include <asm/uaccess.h>
 #include <linux/crc32.h>
@@ -1330,7 +1329,8 @@ static int dvb_net_remove_if(struct dvb_net *dvbnet, unsigned long num)
 		return -EBUSY;
 
 	dvb_net_stop(net);
-	flush_scheduled_work();
+	flush_work_sync(&priv->set_multicast_list_wq);
+	flush_work_sync(&priv->restart_net_feed_wq);
 	printk("dvb_net: removed network interface %s\n", net->name);
 	unregister_netdev(net);
 	dvbnet->state[num]=0;
@@ -1445,13 +1445,7 @@ static int dvb_net_do_ioctl(struct file *file,
 static long dvb_net_ioctl(struct file *file,
 	      unsigned int cmd, unsigned long arg)
 {
-	int ret;
-
-	lock_kernel();
-	ret = dvb_usercopy(file, cmd, arg, dvb_net_do_ioctl);
-	unlock_kernel();
-
-	return ret;
+	return dvb_usercopy(file, cmd, arg, dvb_net_do_ioctl);
 }
 
 static int dvb_net_close(struct inode *inode, struct file *file)
@@ -1475,6 +1469,7 @@ static const struct file_operations dvb_net_fops = {
 	.unlocked_ioctl = dvb_net_ioctl,
 	.open =	dvb_generic_open,
 	.release = dvb_net_close,
+	.llseek = noop_llseek,
 };
 
 static struct dvb_device dvbdev_net = {

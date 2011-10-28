@@ -168,7 +168,7 @@ Older Version	: 2.20.4.6 (scsi module), 2.20.2.6 (cmm module)
 
 1.	Sorted out PCI IDs to remove megaraid support overlaps.
 	Based on the patch from Daniel, sorted out PCI IDs along with
-	charactor node name change from 'megadev' to 'megadev_legacy' to avoid
+	character node name change from 'megadev' to 'megadev_legacy' to avoid
 	conflict.
 	---
 	Hopefully we'll be getting the build restriction zapped much sooner, 

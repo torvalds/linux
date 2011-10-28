@@ -26,6 +26,8 @@
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/sched.h>
@@ -339,7 +341,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
     { 0x85, 0x83, "DesignCapacity" },
     { 0x85, 0x85, "ManufacturerDate" },
     { 0x85, 0x89, "iDeviceChemistry" },
-    { 0x85, 0x8b, "Rechargable" },
+    { 0x85, 0x8b, "Rechargeable" },
     { 0x85, 0x8f, "iOEMInformation" },
     { 0x85, 0x8d, "CapacityGranularity1" },
     { 0x85, 0xd0, "ACPresent" },
@@ -393,7 +395,7 @@ char *hid_resolv_usage(unsigned usage, struct seq_file *f) {
 
 	buf = resolv_usage_page(usage >> 16, f);
 	if (IS_ERR(buf)) {
-		printk(KERN_ERR "error allocating HID debug buffer\n");
+		pr_err("error allocating HID debug buffer\n");
 		return NULL;
 	}
 
@@ -447,6 +449,11 @@ void hid_dump_field(struct hid_field *field, int n, struct seq_file *f) {
 		tab(n, f);
 		seq_printf(f, "Logical(");
 		hid_resolv_usage(field->logical, f); seq_printf(f, ")\n");
+	}
+	if (field->application) {
+		tab(n, f);
+		seq_printf(f, "Application(");
+		hid_resolv_usage(field->application, f); seq_printf(f, ")\n");
 	}
 	tab(n, f); seq_printf(f, "Usage(%d)\n", field->maxusage);
 	for (j = 0; j < field->maxusage; j++) {
@@ -570,6 +577,8 @@ void hid_debug_event(struct hid_device *hdev, char *buf)
 				buf[i];
 		list->tail = (list->tail + i) % HID_DEBUG_BUFSIZE;
         }
+
+	wake_up_interruptible(&hdev->debug_wait);
 }
 EXPORT_SYMBOL_GPL(hid_debug_event);
 
@@ -1051,6 +1060,7 @@ static const struct file_operations hid_debug_events_fops = {
 	.read           = hid_debug_events_read,
 	.poll		= hid_debug_events_poll,
 	.release        = hid_debug_events_release,
+	.llseek		= noop_llseek,
 };
 
 

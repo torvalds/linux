@@ -70,7 +70,7 @@ MODULE_PARM_DESC(radio_deemphasis, "Radio deemphasis time constant, "
 
 /* ----------------------------------------------------------- */
 
-static char *aud_ctl_names[64] = {
+static const char * const aud_ctl_names[64] = {
 	[EN_BTSC_FORCE_MONO] = "BTSC_FORCE_MONO",
 	[EN_BTSC_FORCE_STEREO] = "BTSC_FORCE_STEREO",
 	[EN_BTSC_FORCE_SAP] = "BTSC_FORCE_SAP",
@@ -360,7 +360,15 @@ static void set_audio_standard_NICAM(struct cx88_core *core, u32 mode)
 		set_audio_registers(core, nicam_bgdki_common);
 		set_audio_registers(core, nicam_i);
 		break;
-	default:
+	case WW_NONE:
+	case WW_BTSC:
+	case WW_BG:
+	case WW_DK:
+	case WW_EIAJ:
+	case WW_I2SPT:
+	case WW_FM:
+	case WW_I2SADC:
+	case WW_M:
 		dprintk("%s PAL-BGDK NICAM (status: known-good)\n", __func__);
 		set_audio_registers(core, nicam_bgdki_common);
 		set_audio_registers(core, nicam_default);
@@ -621,7 +629,13 @@ static void set_audio_standard_A2(struct cx88_core *core, u32 mode)
 		dprintk("%s AM-L (status: devel)\n", __func__);
 		set_audio_registers(core, am_l);
 		break;
-	default:
+	case WW_NONE:
+	case WW_BTSC:
+	case WW_EIAJ:
+	case WW_I2SPT:
+	case WW_FM:
+	case WW_I2SADC:
+	case WW_M:
 		dprintk("%s Warning: wrong value\n", __func__);
 		return;
 		break;
@@ -772,14 +786,18 @@ void cx88_set_tvaudio(struct cx88_core *core)
 		break;
 	case WW_I2SADC:
 		set_audio_start(core, 0x01);
-		/* Slave/Philips/Autobaud */
-		cx_write(AUD_I2SINPUTCNTL, 0);
+		/*
+		 * Slave/Philips/Autobaud
+		 * NB on Nova-S bit1 NPhilipsSony appears to be inverted:
+		 *	0= Sony, 1=Philips
+		 */
+		cx_write(AUD_I2SINPUTCNTL, core->board.i2sinputcntl);
 		/* Switch to "I2S ADC mode" */
 		cx_write(AUD_I2SCNTL, 0x1);
 		set_audio_finish(core, EN_I2SIN_ENABLE);
 		break;
 	case WW_NONE:
-	default:
+	case WW_I2SPT:
 		printk("%s/0: unknown tv audio mode [%d]\n",
 		       core->name, core->tvaudio);
 		break;
@@ -795,8 +813,8 @@ void cx88_newstation(struct cx88_core *core)
 
 void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t)
 {
-	static char *m[] = { "stereo", "dual mono", "mono", "sap" };
-	static char *p[] = { "no pilot", "pilot c1", "pilot c2", "?" };
+	static const char * const m[] = { "stereo", "dual mono", "mono", "sap" };
+	static const char * const p[] = { "no pilot", "pilot c1", "pilot c2", "?" };
 	u32 reg, mode, pilot;
 
 	reg = cx_read(AUD_STATUS);
@@ -840,7 +858,12 @@ void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t)
 			break;
 		}
 		break;
-	default:
+	case WW_NONE:
+	case WW_I:
+	case WW_L:
+	case WW_I2SPT:
+	case WW_FM:
+	case WW_I2SADC:
 		/* nothing */
 		break;
 	}
@@ -945,6 +968,9 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 		}
 		break;
 	case WW_I2SADC:
+	case WW_NONE:
+	case WW_EIAJ:
+	case WW_I2SPT:
 		/* DO NOTHING */
 		break;
 	}
@@ -1000,7 +1026,12 @@ int cx88_audio_thread(void *data)
 			/* automatically switch to best available mode */
 			cx88_set_stereo(core, mode, 0);
 			break;
-		default:
+		case WW_NONE:
+		case WW_BTSC:
+		case WW_EIAJ:
+		case WW_I2SPT:
+		case WW_FM:
+		case WW_I2SADC:
 hw_autodetect:
 			/* stereo autodetection is supported by hardware so
 			   we don't need to do it manually. Do nothing. */

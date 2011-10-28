@@ -201,6 +201,7 @@ enum em28xx_chip_id {
 	CHIP_ID_EM2870 = 35,
 	CHIP_ID_EM2883 = 36,
 	CHIP_ID_EM2874 = 65,
+	CHIP_ID_EM28174 = 113,
 };
 
 /*

@@ -56,7 +56,7 @@ static int ehci_atmel_setup(struct usb_hcd *hcd)
 	/* registers start at offset 0x0 */
 	ehci->caps = hcd->regs;
 	ehci->regs = hcd->regs +
-		HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 	dbg_hcs_params(ehci, "reset");
 	dbg_hcc_params(ehci, "reset");
 
@@ -99,6 +99,7 @@ static const struct hc_driver ehci_atmel_hc_driver = {
 	.urb_enqueue		= ehci_urb_enqueue,
 	.urb_dequeue		= ehci_urb_dequeue,
 	.endpoint_disable	= ehci_endpoint_disable,
+	.endpoint_reset		= ehci_endpoint_reset,
 
 	/* scheduling support */
 	.get_frame_number	= ehci_get_frame,
@@ -110,9 +111,11 @@ static const struct hc_driver ehci_atmel_hc_driver = {
 	.bus_resume		= ehci_bus_resume,
 	.relinquish_port	= ehci_relinquish_port,
 	.port_handed_over	= ehci_port_handed_over,
+
+	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };
 
-static int __init ehci_atmel_drv_probe(struct platform_device *pdev)
+static int __devinit ehci_atmel_drv_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	const struct hc_driver *driver = &ehci_atmel_hc_driver;
@@ -204,7 +207,7 @@ fail_create_hcd:
 	return retval;
 }
 
-static int __exit ehci_atmel_drv_remove(struct platform_device *pdev)
+static int __devexit ehci_atmel_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
@@ -224,7 +227,7 @@ static int __exit ehci_atmel_drv_remove(struct platform_device *pdev)
 
 static struct platform_driver ehci_atmel_driver = {
 	.probe		= ehci_atmel_drv_probe,
-	.remove		= __exit_p(ehci_atmel_drv_remove),
+	.remove		= __devexit_p(ehci_atmel_drv_remove),
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver.name	= "atmel-ehci",
 };

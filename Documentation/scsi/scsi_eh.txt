@@ -290,7 +290,7 @@ scmd->allowed.
 	SCSI transports/LLDDs automatically acquire sense data on
 	command failures (autosense).  Autosense is recommended for
 	performance reasons and as sense information could get out of
-	sync inbetween occurrence of CHECK CONDITION and this action.
+	sync between occurrence of CHECK CONDITION and this action.
 
 	Note that if autosense is not supported, scmd->sense_buffer
 	contains invalid sense data when error-completing the scmd

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -43,8 +43,8 @@
 
 #include "ixgbe_sriov.h"
 
-int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
-			    int entries, u16 *hash_list, u32 vf)
+static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
+				   int entries, u16 *hash_list, u32 vf)
 {
 	struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -68,7 +68,7 @@ int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
 	 * addresses
 	 */
 	for (i = 0; i < entries; i++) {
-		vfinfo->vf_mc_hashes[i] = hash_list[i];;
+		vfinfo->vf_mc_hashes[i] = hash_list[i];
 	}
 
 	for (i = 0; i < vfinfo->num_vf_mc_hashes; i++) {
@@ -80,6 +80,21 @@ int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
 	}
 
 	return 0;
+}
+
+static void ixgbe_restore_vf_macvlans(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct list_head *pos;
+	struct vf_macvlans *entry;
+
+	list_for_each(pos, &adapter->vf_mvs.l) {
+		entry = list_entry(pos, struct vf_macvlans, l);
+		if (entry->free == false)
+			hw->mac.ops.set_rar(hw, entry->rar_entry,
+					    entry->vf_macvlan,
+					    entry->vf, IXGBE_RAH_AV);
+	}
 }
 
 void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
@@ -102,19 +117,48 @@ void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
 			IXGBE_WRITE_REG(hw, IXGBE_MTA(vector_reg), mta_reg);
 		}
 	}
+
+	/* Restore any VF macvlans */
+	ixgbe_restore_vf_macvlans(adapter);
 }
 
-int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid, u32 vf)
+static int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid,
+			     u32 vf)
 {
 	return adapter->hw.mac.ops.set_vfta(&adapter->hw, vid, vf, (bool)add);
 }
 
+static void ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int new_mtu = msgbuf[1];
+	u32 max_frs;
+	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 
-void ixgbe_set_vmolr(struct ixgbe_hw *hw, u32 vf, bool aupe)
+	/* Only X540 supports jumbo frames in IOV mode */
+	if (adapter->hw.mac.type != ixgbe_mac_X540)
+		return;
+
+	/* MTU < 68 is an error and causes problems on some kernels */
+	if ((new_mtu < 68) || (max_frame > IXGBE_MAX_JUMBO_FRAME_SIZE)) {
+		e_err(drv, "VF mtu %d out of range\n", new_mtu);
+		return;
+	}
+
+	max_frs = (IXGBE_READ_REG(hw, IXGBE_MAXFRS) &
+		   IXGBE_MHADD_MFS_MASK) >> IXGBE_MHADD_MFS_SHIFT;
+	if (max_frs < new_mtu) {
+		max_frs = new_mtu << IXGBE_MHADD_MFS_SHIFT;
+		IXGBE_WRITE_REG(hw, IXGBE_MAXFRS, max_frs);
+	}
+
+	e_info(hw, "VF requests change max MTU to %d\n", new_mtu);
+}
+
+static void ixgbe_set_vmolr(struct ixgbe_hw *hw, u32 vf, bool aupe)
 {
 	u32 vmolr = IXGBE_READ_REG(hw, IXGBE_VMOLR(vf));
 	vmolr |= (IXGBE_VMOLR_ROMPE |
-		  IXGBE_VMOLR_ROPE |
 		  IXGBE_VMOLR_BAM);
 	if (aupe)
 		vmolr |= IXGBE_VMOLR_AUPE;
@@ -134,7 +178,7 @@ static void ixgbe_set_vmvir(struct ixgbe_adapter *adapter, u32 vid, u32 vf)
 		IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf), 0);
 }
 
-inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
+static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int rar_entry = hw->mac.num_rar_entries - (vf + 1);
@@ -162,8 +206,8 @@ inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 	hw->mac.ops.clear_rar(hw, rar_entry);
 }
 
-int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
-                          int vf, unsigned char *mac_addr)
+static int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
+			    int vf, unsigned char *mac_addr)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int rar_entry = hw->mac.num_rar_entries - (vf + 1);
@@ -174,11 +218,65 @@ int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
 	return 0;
 }
 
+static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
+				int vf, int index, unsigned char *mac_addr)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct list_head *pos;
+	struct vf_macvlans *entry;
+
+	if (index <= 1) {
+		list_for_each(pos, &adapter->vf_mvs.l) {
+			entry = list_entry(pos, struct vf_macvlans, l);
+			if (entry->vf == vf) {
+				entry->vf = -1;
+				entry->free = true;
+				entry->is_macvlan = false;
+				hw->mac.ops.clear_rar(hw, entry->rar_entry);
+			}
+		}
+	}
+
+	/*
+	 * If index was zero then we were asked to clear the uc list
+	 * for the VF.  We're done.
+	 */
+	if (!index)
+		return 0;
+
+	entry = NULL;
+
+	list_for_each(pos, &adapter->vf_mvs.l) {
+		entry = list_entry(pos, struct vf_macvlans, l);
+		if (entry->free)
+			break;
+	}
+
+	/*
+	 * If we traversed the entire list and didn't find a free entry
+	 * then we're out of space on the RAR table.  Also entry may
+	 * be NULL because the original memory allocation for the list
+	 * failed, which is not fatal but does mean we can't support
+	 * VF requests for MACVLAN because we couldn't allocate
+	 * memory for the list management required.
+	 */
+	if (!entry || !entry->free)
+		return -ENOSPC;
+
+	entry->free = false;
+	entry->is_macvlan = true;
+	entry->vf = vf;
+	memcpy(entry->vf_macvlan, mac_addr, ETH_ALEN);
+
+	hw->mac.ops.set_rar(hw, entry->rar_entry, mac_addr, vf, IXGBE_RAH_AV);
+
+	return 0;
+}
+
 int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 {
 	unsigned char vf_mac_addr[6];
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
 	unsigned int vfn = (event_mask & 0x3f);
 
 	bool enable = ((event_mask & 0x10000000U) != 0);
@@ -197,7 +295,7 @@ int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 	return 0;
 }
 
-inline void ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
+static inline void ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 reg;
@@ -215,18 +313,24 @@ inline void ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 	reg |= (reg | (1 << vf_shift));
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), reg);
 
+	/* Enable counting of spoofed packets in the SSVPC register */
+	reg = IXGBE_READ_REG(hw, IXGBE_VMECM(reg_offset));
+	reg |= (1 << vf_shift);
+	IXGBE_WRITE_REG(hw, IXGBE_VMECM(reg_offset), reg);
+
 	ixgbe_vf_reset_event(adapter, vf);
 }
 
 static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 {
 	u32 mbx_size = IXGBE_VFMAILBOX_SIZE;
-	u32 msgbuf[mbx_size];
+	u32 msgbuf[IXGBE_VFMAILBOX_SIZE];
 	struct ixgbe_hw *hw = &adapter->hw;
 	s32 retval;
 	int entries;
 	u16 *hash_list;
-	int add, vid;
+	int add, vid, index;
+	u8 *new_mac;
 
 	retval = ixgbe_read_mbx(hw, msgbuf, mbx_size, vf);
 
@@ -244,15 +348,22 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 
 	if (msgbuf[0] == IXGBE_VF_RESET) {
 		unsigned char *vf_mac = adapter->vfinfo[vf].vf_mac_addresses;
-		u8 *addr = (u8 *)(&msgbuf[1]);
+		new_mac = (u8 *)(&msgbuf[1]);
 		e_info(probe, "VF Reset msg received from vf %d\n", vf);
 		adapter->vfinfo[vf].clear_to_send = false;
 		ixgbe_vf_reset_msg(adapter, vf);
 		adapter->vfinfo[vf].clear_to_send = true;
 
+		if (is_valid_ether_addr(new_mac) &&
+		    !adapter->vfinfo[vf].pf_set_mac)
+			ixgbe_set_vf_mac(adapter, vf, vf_mac);
+		else
+			ixgbe_set_vf_mac(adapter,
+				 vf, adapter->vfinfo[vf].vf_mac_addresses);
+
 		/* reply to reset with ack and vf mac address */
 		msgbuf[0] = IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK;
-		memcpy(addr, vf_mac, IXGBE_ETH_LENGTH_OF_ADDRESS);
+		memcpy(new_mac, vf_mac, IXGBE_ETH_LENGTH_OF_ADDRESS);
 		/*
 		 * Piggyback the multicast filter type so VF can compute the
 		 * correct vectors
@@ -271,14 +382,16 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 
 	switch ((msgbuf[0] & 0xFFFF)) {
 	case IXGBE_VF_SET_MAC_ADDR:
-		{
-			u8 *new_mac = ((u8 *)(&msgbuf[1]));
-			if (is_valid_ether_addr(new_mac) &&
-			    !adapter->vfinfo[vf].pf_set_mac)
-				ixgbe_set_vf_mac(adapter, vf, new_mac);
-			else
-				ixgbe_set_vf_mac(adapter,
-				  vf, adapter->vfinfo[vf].vf_mac_addresses);
+		new_mac = ((u8 *)(&msgbuf[1]));
+		if (is_valid_ether_addr(new_mac) &&
+		    !adapter->vfinfo[vf].pf_set_mac) {
+			ixgbe_set_vf_mac(adapter, vf, new_mac);
+		} else if (memcmp(adapter->vfinfo[vf].vf_mac_addresses,
+				  new_mac, ETH_ALEN)) {
+			e_warn(drv, "VF %d attempted to override "
+			       "administratively set MAC address\nReload "
+			       "the VF driver to resume operations\n", vf);
+			retval = -1;
 		}
 		break;
 	case IXGBE_VF_SET_MULTICAST:
@@ -289,13 +402,39 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		                                 hash_list, vf);
 		break;
 	case IXGBE_VF_SET_LPE:
-		WARN_ON((msgbuf[0] & 0xFFFF) == IXGBE_VF_SET_LPE);
+		ixgbe_set_vf_lpe(adapter, msgbuf);
 		break;
 	case IXGBE_VF_SET_VLAN:
 		add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK)
 		      >> IXGBE_VT_MSGINFO_SHIFT;
 		vid = (msgbuf[1] & IXGBE_VLVF_VLANID_MASK);
-		retval = ixgbe_set_vf_vlan(adapter, add, vid, vf);
+		if (adapter->vfinfo[vf].pf_vlan) {
+			e_warn(drv, "VF %d attempted to override "
+			       "administratively set VLAN configuration\n"
+			       "Reload the VF driver to resume operations\n",
+			       vf);
+			retval = -1;
+		} else {
+			retval = ixgbe_set_vf_vlan(adapter, add, vid, vf);
+		}
+		break;
+	case IXGBE_VF_SET_MACVLAN:
+		index = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >>
+			IXGBE_VT_MSGINFO_SHIFT;
+		/*
+		 * If the VF is allowed to set MAC filters then turn off
+		 * anti-spoofing to avoid false positives.  An index
+		 * greater than 0 will indicate the VF is setting a
+		 * macvlan MAC filter.
+		 */
+		if (index > 0 && adapter->antispoofing_enabled) {
+			hw->mac.ops.set_mac_anti_spoofing(hw, false,
+							  adapter->num_vfs);
+			hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
+			adapter->antispoofing_enabled = false;
+		}
+		retval = ixgbe_set_vf_macvlan(adapter, vf, index,
+					      (unsigned char *)(&msgbuf[1]));
 		break;
 	default:
 		e_err(drv, "Unhandled Msg %8.8x\n", msgbuf[0]);
@@ -394,6 +533,7 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 {
 	int err = 0;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
 
 	if ((vf >= adapter->num_vfs) || (vlan > 4095) || (qos > 7))
 		return -EINVAL;
@@ -402,7 +542,9 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 		if (err)
 			goto out;
 		ixgbe_set_vmvir(adapter, vlan | (qos << VLAN_PRIO_SHIFT), vf);
-		ixgbe_set_vmolr(&adapter->hw, vf, false);
+		ixgbe_set_vmolr(hw, vf, false);
+		if (adapter->antispoofing_enabled)
+			hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
 		adapter->vfinfo[vf].pf_vlan = vlan;
 		adapter->vfinfo[vf].pf_qos = qos;
 		dev_info(&adapter->pdev->dev,
@@ -419,7 +561,8 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 		err = ixgbe_set_vf_vlan(adapter, false,
 					adapter->vfinfo[vf].pf_vlan, vf);
 		ixgbe_set_vmvir(adapter, vlan, vf);
-		ixgbe_set_vmolr(&adapter->hw, vf, true);
+		ixgbe_set_vmolr(hw, vf, true);
+		hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
 		adapter->vfinfo[vf].pf_vlan = 0;
 		adapter->vfinfo[vf].pf_qos = 0;
        }
@@ -427,9 +570,90 @@ out:
        return err;
 }
 
+static int ixgbe_link_mbps(int internal_link_speed)
+{
+	switch (internal_link_speed) {
+	case IXGBE_LINK_SPEED_100_FULL:
+		return 100;
+	case IXGBE_LINK_SPEED_1GB_FULL:
+		return 1000;
+	case IXGBE_LINK_SPEED_10GB_FULL:
+		return 10000;
+	default:
+		return 0;
+	}
+}
+
+static void ixgbe_set_vf_rate_limit(struct ixgbe_hw *hw, int vf, int tx_rate,
+				    int link_speed)
+{
+	int rf_dec, rf_int;
+	u32 bcnrc_val;
+
+	if (tx_rate != 0) {
+		/* Calculate the rate factor values to set */
+		rf_int = link_speed / tx_rate;
+		rf_dec = (link_speed - (rf_int * tx_rate));
+		rf_dec = (rf_dec * (1<<IXGBE_RTTBCNRC_RF_INT_SHIFT)) / tx_rate;
+
+		bcnrc_val = IXGBE_RTTBCNRC_RS_ENA;
+		bcnrc_val |= ((rf_int<<IXGBE_RTTBCNRC_RF_INT_SHIFT) &
+		               IXGBE_RTTBCNRC_RF_INT_MASK);
+		bcnrc_val |= (rf_dec & IXGBE_RTTBCNRC_RF_DEC_MASK);
+	} else {
+		bcnrc_val = 0;
+	}
+
+	IXGBE_WRITE_REG(hw, IXGBE_RTTDQSEL, 2*vf); /* vf Y uses queue 2*Y */
+	IXGBE_WRITE_REG(hw, IXGBE_RTTBCNRC, bcnrc_val);
+}
+
+void ixgbe_check_vf_rate_limit(struct ixgbe_adapter *adapter)
+{
+	int actual_link_speed, i;
+	bool reset_rate = false;
+
+	/* VF Tx rate limit was not set */
+	if (adapter->vf_rate_link_speed == 0)
+		return;
+
+	actual_link_speed = ixgbe_link_mbps(adapter->link_speed);
+	if (actual_link_speed != adapter->vf_rate_link_speed) {
+		reset_rate = true;
+		adapter->vf_rate_link_speed = 0;
+		dev_info(&adapter->pdev->dev,
+		         "Link speed has been changed. VF Transmit rate "
+		         "is disabled\n");
+	}
+
+	for (i = 0; i < adapter->num_vfs; i++) {
+		if (reset_rate)
+			adapter->vfinfo[i].tx_rate = 0;
+
+		ixgbe_set_vf_rate_limit(&adapter->hw, i,
+					adapter->vfinfo[i].tx_rate,
+					actual_link_speed);
+	}
+}
+
 int ixgbe_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate)
 {
-	return -EOPNOTSUPP;
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	int actual_link_speed;
+
+	actual_link_speed = ixgbe_link_mbps(adapter->link_speed);
+	if ((vf >= adapter->num_vfs) || (!adapter->link_up) ||
+	    (tx_rate > actual_link_speed) || (actual_link_speed != 10000) ||
+	    ((tx_rate != 0) && (tx_rate <= 10)))
+	    /* rate limit cannot be set to 10Mb or less in 10Gb adapters */
+		return -EINVAL;
+
+	adapter->vf_rate_link_speed = actual_link_speed;
+	adapter->vfinfo[vf].tx_rate = (u16)tx_rate;
+	ixgbe_set_vf_rate_limit(hw, vf, tx_rate, actual_link_speed);
+
+	return 0;
 }
 
 int ixgbe_ndo_get_vf_config(struct net_device *netdev,
@@ -440,7 +664,7 @@ int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 		return -EINVAL;
 	ivi->vf = vf;
 	memcpy(&ivi->mac, adapter->vfinfo[vf].vf_mac_addresses, ETH_ALEN);
-	ivi->tx_rate = 0;
+	ivi->tx_rate = adapter->vfinfo[vf].tx_rate;
 	ivi->vlan = adapter->vfinfo[vf].pf_vlan;
 	ivi->qos = adapter->vfinfo[vf].pf_qos;
 	return 0;

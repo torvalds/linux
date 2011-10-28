@@ -20,10 +20,15 @@
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/pfn.h>
+#include <linux/cpuset.h>
+#include <linux/node.h>
 #include <asm/sparsemem.h>
 #include <asm/prom.h>
 #include <asm/system.h>
 #include <asm/smp.h>
+#include <asm/firmware.h>
+#include <asm/paca.h>
+#include <asm/hvcall.h>
 
 static int numa_enabled = 1;
 
@@ -163,7 +168,7 @@ static void __init get_node_active_region(unsigned long start_pfn,
 	work_with_active_regions(nid, get_active_region_work_fn, node_ar);
 }
 
-static void __cpuinit map_cpu_to_node(int cpu, int node)
+static void map_cpu_to_node(int cpu, int node)
 {
 	numa_cpu_lookup_table[cpu] = node;
 
@@ -173,7 +178,7 @@ static void __cpuinit map_cpu_to_node(int cpu, int node)
 		cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_PPC_SPLPAR)
 static void unmap_cpu_from_node(unsigned long cpu)
 {
 	int node = numa_cpu_lookup_table[cpu];
@@ -181,13 +186,13 @@ static void unmap_cpu_from_node(unsigned long cpu)
 	dbg("removing cpu %lu from node %d\n", cpu, node);
 
 	if (cpumask_test_cpu(cpu, node_to_cpumask_map[node])) {
-		cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
+		cpumask_clear_cpu(cpu, node_to_cpumask_map[node]);
 	} else {
 		printk(KERN_ERR "WARNING: cpu %lu not found in node %d\n",
 		       cpu, node);
 	}
 }
-#endif /* CONFIG_HOTPLUG_CPU */
+#endif /* CONFIG_HOTPLUG_CPU || CONFIG_PPC_SPLPAR */
 
 /* must hold reference to node during call */
 static const int *of_get_associativity(struct device_node *dev)
@@ -246,29 +251,38 @@ static void initialize_distance_lookup_table(int nid,
 /* Returns nid in the range [0..MAX_NUMNODES-1], or -1 if no useful numa
  * info is found.
  */
-static int of_node_to_nid_single(struct device_node *device)
+static int associativity_to_nid(const unsigned int *associativity)
 {
 	int nid = -1;
-	const unsigned int *tmp;
 
 	if (min_common_depth == -1)
 		goto out;
 
-	tmp = of_get_associativity(device);
-	if (!tmp)
-		goto out;
-
-	if (tmp[0] >= min_common_depth)
-		nid = tmp[min_common_depth];
+	if (associativity[0] >= min_common_depth)
+		nid = associativity[min_common_depth];
 
 	/* POWER4 LPAR uses 0xffff as invalid node */
 	if (nid == 0xffff || nid >= MAX_NUMNODES)
 		nid = -1;
 
-	if (nid > 0 && tmp[0] >= distance_ref_points_depth)
-		initialize_distance_lookup_table(nid, tmp);
+	if (nid > 0 && associativity[0] >= distance_ref_points_depth)
+		initialize_distance_lookup_table(nid, associativity);
 
 out:
+	return nid;
+}
+
+/* Returns the nid associated with the given device tree node,
+ * or -1 if not found.
+ */
+static int of_node_to_nid_single(struct device_node *device)
+{
+	int nid = -1;
+	const unsigned int *tmp;
+
+	tmp = of_get_associativity(device);
+	if (tmp)
+		nid = associativity_to_nid(tmp);
 	return nid;
 }
 
@@ -297,14 +311,13 @@ EXPORT_SYMBOL_GPL(of_node_to_nid);
 static int __init find_min_common_depth(void)
 {
 	int depth;
-	struct device_node *rtas_root;
 	struct device_node *chosen;
+	struct device_node *root;
 	const char *vec5;
 
-	rtas_root = of_find_node_by_path("/rtas");
-
-	if (!rtas_root)
-		return -1;
+	root = of_find_node_by_path("/rtas");
+	if (!root)
+		root = of_find_node_by_path("/");
 
 	/*
 	 * This property is a set of 32-bit integers, each representing
@@ -318,7 +331,7 @@ static int __init find_min_common_depth(void)
 	 * NUMA boundary and the following are progressively less significant
 	 * boundaries. There can be more than one level of NUMA.
 	 */
-	distance_ref_points = of_get_property(rtas_root,
+	distance_ref_points = of_get_property(root,
 					"ibm,associativity-reference-points",
 					&distance_ref_points_depth);
 
@@ -362,11 +375,11 @@ static int __init find_min_common_depth(void)
 		distance_ref_points_depth = MAX_DISTANCE_REF_POINTS;
 	}
 
-	of_node_put(rtas_root);
+	of_node_put(root);
 	return depth;
 
 err:
-	of_node_put(rtas_root);
+	of_node_put(root);
 	return -1;
 }
 
@@ -426,11 +439,11 @@ static void read_drconf_cell(struct of_drconf_cell *drmem, const u32 **cellp)
 }
 
 /*
- * Retreive and validate the ibm,dynamic-memory property of the device tree.
+ * Retrieve and validate the ibm,dynamic-memory property of the device tree.
  *
  * The layout of the ibm,dynamic-memory property is a number N of memblock
  * list entries followed by N memblock list entries.  Each memblock list entry
- * contains information as layed out in the of_drconf_cell struct above.
+ * contains information as laid out in the of_drconf_cell struct above.
  */
 static int of_get_drconf_memory(struct device_node *memory, const u32 **dm)
 {
@@ -454,7 +467,7 @@ static int of_get_drconf_memory(struct device_node *memory, const u32 **dm)
 }
 
 /*
- * Retreive and validate the ibm,lmb-size property for drconf memory
+ * Retrieve and validate the ibm,lmb-size property for drconf memory
  * from the device tree.
  */
 static u64 of_get_lmb_size(struct device_node *memory)
@@ -476,7 +489,7 @@ struct assoc_arrays {
 };
 
 /*
- * Retreive and validate the list of associativity arrays for drconf
+ * Retrieve and validate the list of associativity arrays for drconf
  * memory from the ibm,associativity-lookup-arrays property of the
  * device tree..
  *
@@ -590,7 +603,7 @@ static int __cpuinit cpu_numa_callback(struct notifier_block *nfb,
  * Returns the size the region should have to enforce the memory limit.
  * This will either be the original value of size, a truncated value,
  * or zero. If the returned value of size is 0 the region should be
- * discarded as it lies wholy above the memory limit.
+ * discarded as it lies wholly above the memory limit.
  */
 static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 						      unsigned long size)
@@ -802,16 +815,17 @@ static void __init setup_nonnuma(void)
 	unsigned long top_of_ram = memblock_end_of_DRAM();
 	unsigned long total_ram = memblock_phys_mem_size();
 	unsigned long start_pfn, end_pfn;
-	unsigned int i, nid = 0;
+	unsigned int nid = 0;
+	struct memblock_region *reg;
 
 	printk(KERN_DEBUG "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
 	       top_of_ram, total_ram);
 	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
 	       (top_of_ram - total_ram) >> 20);
 
-	for (i = 0; i < memblock.memory.cnt; ++i) {
-		start_pfn = memblock.memory.region[i].base >> PAGE_SHIFT;
-		end_pfn = start_pfn + memblock_size_pages(&memblock.memory, i);
+	for_each_memblock(memory, reg) {
+		start_pfn = memblock_region_memory_base_pfn(reg);
+		end_pfn = memblock_region_memory_end_pfn(reg);
 
 		fake_numa_create_new_node(end_pfn, &nid);
 		add_active_range(nid, start_pfn, end_pfn);
@@ -947,11 +961,11 @@ static struct notifier_block __cpuinitdata ppc64_numa_nb = {
 static void mark_reserved_regions_for_nid(int nid)
 {
 	struct pglist_data *node = NODE_DATA(nid);
-	int i;
+	struct memblock_region *reg;
 
-	for (i = 0; i < memblock.reserved.cnt; i++) {
-		unsigned long physbase = memblock.reserved.region[i].base;
-		unsigned long size = memblock.reserved.region[i].size;
+	for_each_memblock(reserved, reg) {
+		unsigned long physbase = reg->base;
+		unsigned long size = reg->size;
 		unsigned long start_pfn = physbase >> PAGE_SHIFT;
 		unsigned long end_pfn = PFN_UP(physbase + size);
 		struct node_active_region node_ar;
@@ -1246,4 +1260,281 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 	return nid;
 }
 
+static u64 hot_add_drconf_memory_max(void)
+{
+        struct device_node *memory = NULL;
+        unsigned int drconf_cell_cnt = 0;
+        u64 lmb_size = 0;
+        const u32 *dm = 0;
+
+        memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+        if (memory) {
+                drconf_cell_cnt = of_get_drconf_memory(memory, &dm);
+                lmb_size = of_get_lmb_size(memory);
+                of_node_put(memory);
+        }
+        return lmb_size * drconf_cell_cnt;
+}
+
+/*
+ * memory_hotplug_max - return max address of memory that may be added
+ *
+ * This is currently only used on systems that support drconfig memory
+ * hotplug.
+ */
+u64 memory_hotplug_max(void)
+{
+        return max(hot_add_drconf_memory_max(), memblock_end_of_DRAM());
+}
 #endif /* CONFIG_MEMORY_HOTPLUG */
+
+/* Virtual Processor Home Node (VPHN) support */
+#ifdef CONFIG_PPC_SPLPAR
+static u8 vphn_cpu_change_counts[NR_CPUS][MAX_DISTANCE_REF_POINTS];
+static cpumask_t cpu_associativity_changes_mask;
+static int vphn_enabled;
+static void set_topology_timer(void);
+
+/*
+ * Store the current values of the associativity change counters in the
+ * hypervisor.
+ */
+static void setup_cpu_associativity_change_counters(void)
+{
+	int cpu;
+
+	/* The VPHN feature supports a maximum of 8 reference points */
+	BUILD_BUG_ON(MAX_DISTANCE_REF_POINTS > 8);
+
+	for_each_possible_cpu(cpu) {
+		int i;
+		u8 *counts = vphn_cpu_change_counts[cpu];
+		volatile u8 *hypervisor_counts = lppaca[cpu].vphn_assoc_counts;
+
+		for (i = 0; i < distance_ref_points_depth; i++)
+			counts[i] = hypervisor_counts[i];
+	}
+}
+
+/*
+ * The hypervisor maintains a set of 8 associativity change counters in
+ * the VPA of each cpu that correspond to the associativity levels in the
+ * ibm,associativity-reference-points property. When an associativity
+ * level changes, the corresponding counter is incremented.
+ *
+ * Set a bit in cpu_associativity_changes_mask for each cpu whose home
+ * node associativity levels have changed.
+ *
+ * Returns the number of cpus with unhandled associativity changes.
+ */
+static int update_cpu_associativity_changes_mask(void)
+{
+	int cpu, nr_cpus = 0;
+	cpumask_t *changes = &cpu_associativity_changes_mask;
+
+	cpumask_clear(changes);
+
+	for_each_possible_cpu(cpu) {
+		int i, changed = 0;
+		u8 *counts = vphn_cpu_change_counts[cpu];
+		volatile u8 *hypervisor_counts = lppaca[cpu].vphn_assoc_counts;
+
+		for (i = 0; i < distance_ref_points_depth; i++) {
+			if (hypervisor_counts[i] != counts[i]) {
+				counts[i] = hypervisor_counts[i];
+				changed = 1;
+			}
+		}
+		if (changed) {
+			cpumask_set_cpu(cpu, changes);
+			nr_cpus++;
+		}
+	}
+
+	return nr_cpus;
+}
+
+/*
+ * 6 64-bit registers unpacked into 12 32-bit associativity values. To form
+ * the complete property we have to add the length in the first cell.
+ */
+#define VPHN_ASSOC_BUFSIZE (6*sizeof(u64)/sizeof(u32) + 1)
+
+/*
+ * Convert the associativity domain numbers returned from the hypervisor
+ * to the sequence they would appear in the ibm,associativity property.
+ */
+static int vphn_unpack_associativity(const long *packed, unsigned int *unpacked)
+{
+	int i, nr_assoc_doms = 0;
+	const u16 *field = (const u16*) packed;
+
+#define VPHN_FIELD_UNUSED	(0xffff)
+#define VPHN_FIELD_MSB		(0x8000)
+#define VPHN_FIELD_MASK		(~VPHN_FIELD_MSB)
+
+	for (i = 1; i < VPHN_ASSOC_BUFSIZE; i++) {
+		if (*field == VPHN_FIELD_UNUSED) {
+			/* All significant fields processed, and remaining
+			 * fields contain the reserved value of all 1's.
+			 * Just store them.
+			 */
+			unpacked[i] = *((u32*)field);
+			field += 2;
+		} else if (*field & VPHN_FIELD_MSB) {
+			/* Data is in the lower 15 bits of this field */
+			unpacked[i] = *field & VPHN_FIELD_MASK;
+			field++;
+			nr_assoc_doms++;
+		} else {
+			/* Data is in the lower 15 bits of this field
+			 * concatenated with the next 16 bit field
+			 */
+			unpacked[i] = *((u32*)field);
+			field += 2;
+			nr_assoc_doms++;
+		}
+	}
+
+	/* The first cell contains the length of the property */
+	unpacked[0] = nr_assoc_doms;
+
+	return nr_assoc_doms;
+}
+
+/*
+ * Retrieve the new associativity information for a virtual processor's
+ * home node.
+ */
+static long hcall_vphn(unsigned long cpu, unsigned int *associativity)
+{
+	long rc;
+	long retbuf[PLPAR_HCALL9_BUFSIZE] = {0};
+	u64 flags = 1;
+	int hwcpu = get_hard_smp_processor_id(cpu);
+
+	rc = plpar_hcall9(H_HOME_NODE_ASSOCIATIVITY, retbuf, flags, hwcpu);
+	vphn_unpack_associativity(retbuf, associativity);
+
+	return rc;
+}
+
+static long vphn_get_associativity(unsigned long cpu,
+					unsigned int *associativity)
+{
+	long rc;
+
+	rc = hcall_vphn(cpu, associativity);
+
+	switch (rc) {
+	case H_FUNCTION:
+		printk(KERN_INFO
+			"VPHN is not supported. Disabling polling...\n");
+		stop_topology_update();
+		break;
+	case H_HARDWARE:
+		printk(KERN_ERR
+			"hcall_vphn() experienced a hardware fault "
+			"preventing VPHN. Disabling polling...\n");
+		stop_topology_update();
+	}
+
+	return rc;
+}
+
+/*
+ * Update the node maps and sysfs entries for each cpu whose home node
+ * has changed.
+ */
+int arch_update_cpu_topology(void)
+{
+	int cpu, nid, old_nid;
+	unsigned int associativity[VPHN_ASSOC_BUFSIZE] = {0};
+	struct sys_device *sysdev;
+
+	for_each_cpu(cpu,&cpu_associativity_changes_mask) {
+		vphn_get_associativity(cpu, associativity);
+		nid = associativity_to_nid(associativity);
+
+		if (nid < 0 || !node_online(nid))
+			nid = first_online_node;
+
+		old_nid = numa_cpu_lookup_table[cpu];
+
+		/* Disable hotplug while we update the cpu
+		 * masks and sysfs.
+		 */
+		get_online_cpus();
+		unregister_cpu_under_node(cpu, old_nid);
+		unmap_cpu_from_node(cpu);
+		map_cpu_to_node(cpu, nid);
+		register_cpu_under_node(cpu, nid);
+		put_online_cpus();
+
+		sysdev = get_cpu_sysdev(cpu);
+		if (sysdev)
+			kobject_uevent(&sysdev->kobj, KOBJ_CHANGE);
+	}
+
+	return 1;
+}
+
+static void topology_work_fn(struct work_struct *work)
+{
+	rebuild_sched_domains();
+}
+static DECLARE_WORK(topology_work, topology_work_fn);
+
+void topology_schedule_update(void)
+{
+	schedule_work(&topology_work);
+}
+
+static void topology_timer_fn(unsigned long ignored)
+{
+	if (!vphn_enabled)
+		return;
+	if (update_cpu_associativity_changes_mask() > 0)
+		topology_schedule_update();
+	set_topology_timer();
+}
+static struct timer_list topology_timer =
+	TIMER_INITIALIZER(topology_timer_fn, 0, 0);
+
+static void set_topology_timer(void)
+{
+	topology_timer.data = 0;
+	topology_timer.expires = jiffies + 60 * HZ;
+	add_timer(&topology_timer);
+}
+
+/*
+ * Start polling for VPHN associativity changes.
+ */
+int start_topology_update(void)
+{
+	int rc = 0;
+
+	/* Disabled until races with load balancing are fixed */
+	if (0 && firmware_has_feature(FW_FEATURE_VPHN) &&
+	    get_lppaca()->shared_proc) {
+		vphn_enabled = 1;
+		setup_cpu_associativity_change_counters();
+		init_timer_deferrable(&topology_timer);
+		set_topology_timer();
+		rc = 1;
+	}
+
+	return rc;
+}
+__initcall(start_topology_update);
+
+/*
+ * Disable polling for VPHN associativity changes.
+ */
+int stop_topology_update(void)
+{
+	vphn_enabled = 0;
+	return del_timer_sync(&topology_timer);
+}
+#endif /* CONFIG_PPC_SPLPAR */

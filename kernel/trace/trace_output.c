@@ -353,6 +353,33 @@ ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
 }
 EXPORT_SYMBOL(ftrace_print_symbols_seq);
 
+#if BITS_PER_LONG == 32
+const char *
+ftrace_print_symbols_seq_u64(struct trace_seq *p, unsigned long long val,
+			 const struct trace_print_flags_u64 *symbol_array)
+{
+	int i;
+	const char *ret = p->buffer + p->len;
+
+	for (i = 0;  symbol_array[i].name; i++) {
+
+		if (val != symbol_array[i].mask)
+			continue;
+
+		trace_seq_puts(p, symbol_array[i].name);
+		break;
+	}
+
+	if (!p->len)
+		trace_seq_printf(p, "0x%llx", val);
+
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+EXPORT_SYMBOL(ftrace_print_symbols_seq_u64);
+#endif
+
 const char *
 ftrace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len)
 {
@@ -529,24 +556,34 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
  * @entry: The trace entry field from the ring buffer
  *
  * Prints the generic fields of irqs off, in hard or softirq, preempt
- * count and lock depth.
+ * count.
  */
 int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
 {
-	int hardirq, softirq;
+	char hardsoft_irq;
+	char need_resched;
+	char irqs_off;
+	int hardirq;
+	int softirq;
 	int ret;
 
 	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
 	softirq = entry->flags & TRACE_FLAG_SOFTIRQ;
 
+	irqs_off =
+		(entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
+		(entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ? 'X' :
+		'.';
+	need_resched =
+		(entry->flags & TRACE_FLAG_NEED_RESCHED) ? 'N' : '.';
+	hardsoft_irq =
+		(hardirq && softirq) ? 'H' :
+		hardirq ? 'h' :
+		softirq ? 's' :
+		'.';
+
 	if (!trace_seq_printf(s, "%c%c%c",
-			      (entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
-				(entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ?
-				  'X' : '.',
-			      (entry->flags & TRACE_FLAG_NEED_RESCHED) ?
-				'N' : '.',
-			      (hardirq && softirq) ? 'H' :
-				hardirq ? 'h' : softirq ? 's' : '.'))
+			      irqs_off, need_resched, hardsoft_irq))
 		return 0;
 
 	if (entry->preempt_count)
@@ -554,13 +591,7 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
 	else
 		ret = trace_seq_putc(s, '.');
 
-	if (!ret)
-		return 0;
-
-	if (entry->lock_depth < 0)
-		return trace_seq_putc(s, '.');
-
-	return trace_seq_printf(s, "%d", entry->lock_depth);
+	return ret;
 }
 
 static int
@@ -826,6 +857,9 @@ EXPORT_SYMBOL_GPL(unregister_ftrace_event);
 enum print_line_t trace_nop_print(struct trace_iterator *iter, int flags,
 				  struct trace_event *event)
 {
+	if (!trace_seq_printf(&iter->seq, "type: %d\n", iter->ent->type))
+		return TRACE_TYPE_PARTIAL_LINE;
+
 	return TRACE_TYPE_HANDLED;
 }
 

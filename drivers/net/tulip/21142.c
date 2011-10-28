@@ -122,8 +122,8 @@ void t21142_start_nway(struct net_device *dev)
 	tp->nway = tp->mediasense = 1;
 	tp->nwayset = tp->lpar = 0;
 	if (tulip_debug > 1)
-		printk(KERN_DEBUG "%s: Restarting 21143 autonegotiation, csr14=%08x\n",
-		       dev->name, csr14);
+		netdev_dbg(dev, "Restarting 21143 autonegotiation, csr14=%08x\n",
+			   csr14);
 	iowrite32(0x0001, ioaddr + CSR13);
 	udelay(100);
 	iowrite32(csr14, ioaddr + CSR14);
@@ -206,14 +206,14 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 #if 0							/* Restart shouldn't be needed. */
 		iowrite32(tp->csr6 | RxOn, ioaddr + CSR6);
 		if (tulip_debug > 2)
-			printk(KERN_DEBUG "%s:  Restarting Tx and Rx, CSR5 is %08x\n",
-			       dev->name, ioread32(ioaddr + CSR5));
+			netdev_dbg(dev, " Restarting Tx and Rx, CSR5 is %08x\n",
+				   ioread32(ioaddr + CSR5));
 #endif
 		tulip_start_rxtx(tp);
 		if (tulip_debug > 2)
-			printk(KERN_DEBUG "%s:  Setting CSR6 %08x/%x CSR12 %08x\n",
-			       dev->name, tp->csr6, ioread32(ioaddr + CSR6),
-			       ioread32(ioaddr + CSR12));
+			netdev_dbg(dev, " Setting CSR6 %08x/%x CSR12 %08x\n",
+				   tp->csr6, ioread32(ioaddr + CSR6),
+				   ioread32(ioaddr + CSR12));
 	} else if ((tp->nwayset  &&  (csr5 & 0x08000000) &&
 		    (dev->if_port == 3  ||  dev->if_port == 5) &&
 		    (csr12 & 2) == 2) ||

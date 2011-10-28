@@ -318,7 +318,7 @@ static int __devinit s6i2c_probe(struct platform_device *dev)
 	rc = request_irq(iface->irq, s6i2c_interrupt_entry,
 			 IRQF_SHARED, dev->name, iface);
 	if (rc) {
-		dev_err(&p_adap->dev, "s6i2c: cant get IRQ %d\n", iface->irq);
+		dev_err(&p_adap->dev, "s6i2c: can't get IRQ %d\n", iface->irq);
 		goto err_clk_dis;
 	}
 

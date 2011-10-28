@@ -117,10 +117,10 @@ void __init board_setup(void)
 
 static int __init pb1100_init_irq(void)
 {
-	set_irq_type(AU1100_GPIO9_INT,  IRQF_TRIGGER_LOW); /* PCCD# */
-	set_irq_type(AU1100_GPIO10_INT, IRQF_TRIGGER_LOW); /* PCSTSCHG# */
-	set_irq_type(AU1100_GPIO11_INT, IRQF_TRIGGER_LOW); /* PCCard# */
-	set_irq_type(AU1100_GPIO13_INT, IRQF_TRIGGER_LOW); /* DC_IRQ# */
+	irq_set_irq_type(AU1100_GPIO9_INT, IRQF_TRIGGER_LOW); /* PCCD# */
+	irq_set_irq_type(AU1100_GPIO10_INT, IRQF_TRIGGER_LOW); /* PCSTSCHG# */
+	irq_set_irq_type(AU1100_GPIO11_INT, IRQF_TRIGGER_LOW); /* PCCard# */
+	irq_set_irq_type(AU1100_GPIO13_INT, IRQF_TRIGGER_LOW); /* DC_IRQ# */
 
 	return 0;
 }

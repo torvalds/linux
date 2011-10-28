@@ -40,6 +40,7 @@
 #include "pvrusb2-io.h"
 #include <media/v4l2-device.h>
 #include <media/cx2341x.h>
+#include <media/ir-kbd-i2c.h>
 #include "pvrusb2-devattr.h"
 
 /* Legal values for PVR2_CID_HSM */
@@ -115,7 +116,7 @@ struct pvr2_ctl_info {
 		} type_int;
 		struct { /* enumerated control */
 			unsigned int count;       /* enum value count */
-			const char **value_names; /* symbol names */
+			const char * const *value_names; /* symbol names */
 		} type_enum;
 		struct { /* bitmask control */
 			unsigned int valid_bits; /* bits in use */
@@ -202,6 +203,7 @@ struct pvr2_hdw {
 
 	/* IR related */
 	unsigned int ir_scheme_active; /* IR scheme as seen from the outside */
+	struct IR_i2c_init_data ir_init_data; /* params passed to IR modules */
 
 	/* Frequency table */
 	unsigned int freqTable[FREQTABLE_SIZE];

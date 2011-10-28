@@ -23,6 +23,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/hardirq.h>
 #include <linux/init.h>
 
 #include "em28xx.h"

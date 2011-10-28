@@ -30,9 +30,13 @@
 #include <arch/abi.h>
 #include <arch/interrupts.h>
 
+#define KBT_ONGOING	0  /* Backtrace still ongoing */
+#define KBT_DONE	1  /* Backtrace cleanly completed */
+#define KBT_RUNNING	2  /* Can't run backtrace on a running task */
+#define KBT_LOOP	3  /* Backtrace entered a loop */
 
 /* Is address on the specified kernel stack? */
-static int in_kernel_stack(struct KBacktraceIterator *kbt, VirtualAddress sp)
+static int in_kernel_stack(struct KBacktraceIterator *kbt, unsigned long sp)
 {
 	ulong kstack_base = (ulong) kbt->task->stack;
 	if (kstack_base == 0)  /* corrupt task pointer; just follow stack... */
@@ -40,15 +44,8 @@ static int in_kernel_stack(struct KBacktraceIterator *kbt, VirtualAddress sp)
 	return sp >= kstack_base && sp < kstack_base + THREAD_SIZE;
 }
 
-/* Is address in the specified kernel code? */
-static int in_kernel_text(VirtualAddress address)
-{
-	return (address >= MEM_SV_INTRPT &&
-		address < MEM_SV_INTRPT + HPAGE_SIZE);
-}
-
 /* Is address valid for reading? */
-static int valid_address(struct KBacktraceIterator *kbt, VirtualAddress address)
+static int valid_address(struct KBacktraceIterator *kbt, unsigned long address)
 {
 	HV_PTE *l1_pgtable = kbt->pgtable;
 	HV_PTE *l2_pgtable;
@@ -59,6 +56,23 @@ static int valid_address(struct KBacktraceIterator *kbt, VirtualAddress address)
 	if (l1_pgtable == NULL)
 		return 0;	/* can't read user space in other tasks */
 
+#ifdef CONFIG_64BIT
+	/* Find the real l1_pgtable by looking in the l0_pgtable. */
+	pte = l1_pgtable[HV_L0_INDEX(address)];
+	if (!hv_pte_get_present(pte))
+		return 0;
+	pfn = hv_pte_get_pfn(pte);
+	if (pte_huge(pte)) {
+		if (!pfn_valid(pfn)) {
+			pr_err("L0 huge page has bad pfn %#lx\n", pfn);
+			return 0;
+		}
+		return hv_pte_get_present(pte) && hv_pte_get_readable(pte);
+	}
+	page = pfn_to_page(pfn);
+	BUG_ON(PageHighMem(page));  /* No HIGHMEM on 64-bit. */
+	l1_pgtable = (HV_PTE *)pfn_to_kaddr(pfn);
+#endif
 	pte = l1_pgtable[HV_L1_INDEX(address)];
 	if (!hv_pte_get_present(pte))
 		return 0;
@@ -83,12 +97,12 @@ static int valid_address(struct KBacktraceIterator *kbt, VirtualAddress address)
 }
 
 /* Callback for backtracer; basically a glorified memcpy */
-static bool read_memory_func(void *result, VirtualAddress address,
+static bool read_memory_func(void *result, unsigned long address,
 			     unsigned int size, void *vkbt)
 {
 	int retval;
 	struct KBacktraceIterator *kbt = (struct KBacktraceIterator *)vkbt;
-	if (in_kernel_text(address)) {
+	if (__kernel_text_address(address)) {
 		/* OK to read kernel code. */
 	} else if (address >= PAGE_OFFSET) {
 		/* We only tolerate kernel-space reads of this task's stack */
@@ -110,7 +124,7 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 {
 	const char *fault = NULL;  /* happy compiler */
 	char fault_buf[64];
-	VirtualAddress sp = kbt->it.sp;
+	unsigned long sp = kbt->it.sp;
 	struct pt_regs *p;
 
 	if (!in_kernel_stack(kbt, sp))
@@ -128,7 +142,7 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 		}
 	}
 	if (EX1_PL(p->ex1) == KERNEL_PL &&
-	    in_kernel_text(p->pc) &&
+	    __kernel_text_address(p->pc) &&
 	    in_kernel_stack(kbt, p->sp) &&
 	    p->sp >= sp) {
 		if (kbt->verbose)
@@ -149,7 +163,7 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 }
 
 /* Is the pc pointing to a sigreturn trampoline? */
-static int is_sigreturn(VirtualAddress pc)
+static int is_sigreturn(unsigned long pc)
 {
 	return (pc == VDSO_BASE);
 }
@@ -207,11 +221,11 @@ static int KBacktraceIterator_next_item_inclusive(
 	for (;;) {
 		do {
 			if (!KBacktraceIterator_is_sigreturn(kbt))
-				return 1;
+				return KBT_ONGOING;
 		} while (backtrace_next(&kbt->it));
 
 		if (!KBacktraceIterator_restart(kbt))
-			return 0;
+			return KBT_DONE;
 	}
 }
 
@@ -246,7 +260,7 @@ static void validate_stack(struct pt_regs *regs)
 void KBacktraceIterator_init(struct KBacktraceIterator *kbt,
 			     struct task_struct *t, struct pt_regs *regs)
 {
-	VirtualAddress pc, lr, sp, r52;
+	unsigned long pc, lr, sp, r52;
 	int is_current;
 
 	/*
@@ -264,7 +278,7 @@ void KBacktraceIterator_init(struct KBacktraceIterator *kbt,
 	kbt->pgtable = NULL;
 	kbt->verbose = 0;   /* override in caller if desired */
 	kbt->profile = 0;   /* override in caller if desired */
-	kbt->end = 0;
+	kbt->end = KBT_ONGOING;
 	kbt->new_context = 0;
 	if (is_current) {
 		HV_PhysAddr pgdir_pa = hv_inquire_context().page_table;
@@ -290,7 +304,7 @@ void KBacktraceIterator_init(struct KBacktraceIterator *kbt,
 	if (regs == NULL) {
 		if (is_current || t->state == TASK_RUNNING) {
 			/* Can't do this; we need registers */
-			kbt->end = 1;
+			kbt->end = KBT_RUNNING;
 			return;
 		}
 		pc = get_switch_to_pc();
@@ -305,26 +319,29 @@ void KBacktraceIterator_init(struct KBacktraceIterator *kbt,
 	}
 
 	backtrace_init(&kbt->it, read_memory_func, kbt, pc, lr, sp, r52);
-	kbt->end = !KBacktraceIterator_next_item_inclusive(kbt);
+	kbt->end = KBacktraceIterator_next_item_inclusive(kbt);
 }
 EXPORT_SYMBOL(KBacktraceIterator_init);
 
 int KBacktraceIterator_end(struct KBacktraceIterator *kbt)
 {
-	return kbt->end;
+	return kbt->end != KBT_ONGOING;
 }
 EXPORT_SYMBOL(KBacktraceIterator_end);
 
 void KBacktraceIterator_next(struct KBacktraceIterator *kbt)
 {
+	unsigned long old_pc = kbt->it.pc, old_sp = kbt->it.sp;
 	kbt->new_context = 0;
-	if (!backtrace_next(&kbt->it) &&
-	    !KBacktraceIterator_restart(kbt)) {
-			kbt->end = 1;
-			return;
-		}
-
-	kbt->end = !KBacktraceIterator_next_item_inclusive(kbt);
+	if (!backtrace_next(&kbt->it) && !KBacktraceIterator_restart(kbt)) {
+		kbt->end = KBT_DONE;
+		return;
+	}
+	kbt->end = KBacktraceIterator_next_item_inclusive(kbt);
+	if (old_pc == kbt->it.pc && old_sp == kbt->it.sp) {
+		/* Trapped in a loop; give up. */
+		kbt->end = KBT_LOOP;
+	}
 }
 EXPORT_SYMBOL(KBacktraceIterator_next);
 
@@ -387,6 +404,8 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 			break;
 		}
 	}
+	if (kbt->end == KBT_LOOP)
+		pr_err("Stack dump stopped; next frame identical to this one\n");
 	if (headers)
 		pr_err("Stack dump complete\n");
 }

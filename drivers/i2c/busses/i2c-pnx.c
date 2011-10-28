@@ -65,7 +65,7 @@ static inline void i2c_pnx_arm_timer(struct i2c_pnx_algo_data *alg_data)
 		jiffies, expires);
 
 	timer->expires = jiffies + expires;
-	timer->data = (unsigned long)&alg_data;
+	timer->data = (unsigned long)alg_data;
 
 	add_timer(timer);
 }

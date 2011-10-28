@@ -226,6 +226,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 	PCI_DEVICE_ID_INTEL_82439TX, 	quir
  *	VIA Apollo KT133 needs PCI latency patch
  *	Made according to a windows driver based patch by George E. Breese
  *	see PCI Latency Adjust on http://www.viahardware.com/download/viatweak.shtm
+ *	and http://www.georgebreese.com/net/software/#PCI
  *      Also see http://www.au-ja.org/review-kt133a-1-en.phtml for
  *      the info on which Mr Breese based his work.
  *
@@ -262,7 +263,7 @@ static void quirk_vialatency(struct pci_dev *dev)
 	 *	This happens to include the IDE controllers....
 	 *
 	 *	VIA only apply this fix when an SB Live! is present but under
-	 *	both Linux and Windows this isnt enough, and we have seen
+	 *	both Linux and Windows this isn't enough, and we have seen
 	 *	corruption without SB Live! but with things like 3 UDMA IDE
 	 *	controllers. So we ignore that bit of the VIA recommendation..
 	 */
@@ -532,6 +533,17 @@ static void __devinit quirk_piix4_acpi(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82371AB_3,	quirk_piix4_acpi);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82443MX_3,	quirk_piix4_acpi);
 
+#define ICH_PMBASE	0x40
+#define ICH_ACPI_CNTL	0x44
+#define  ICH4_ACPI_EN	0x10
+#define  ICH6_ACPI_EN	0x80
+#define ICH4_GPIOBASE	0x58
+#define ICH4_GPIO_CNTL	0x5c
+#define  ICH4_GPIO_EN	0x10
+#define ICH6_GPIOBASE	0x48
+#define ICH6_GPIO_CNTL	0x4c
+#define  ICH6_GPIO_EN	0x10
+
 /*
  * ICH4, ICH4-M, ICH5, ICH5-M ACPI: Three IO regions pointed to by longwords at
  *	0x40 (128 bytes of ACPI, GPIO & TCO registers)
@@ -540,12 +552,33 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82443MX_3,	qui
 static void __devinit quirk_ich4_lpc_acpi(struct pci_dev *dev)
 {
 	u32 region;
+	u8 enable;
 
-	pci_read_config_dword(dev, 0x40, &region);
-	quirk_io_region(dev, region, 128, PCI_BRIDGE_RESOURCES, "ICH4 ACPI/GPIO/TCO");
+	/*
+	 * The check for PCIBIOS_MIN_IO is to ensure we won't create a conflict
+	 * with low legacy (and fixed) ports. We don't know the decoding
+	 * priority and can't tell whether the legacy device or the one created
+	 * here is really at that address.  This happens on boards with broken
+	 * BIOSes.
+	*/
 
-	pci_read_config_dword(dev, 0x58, &region);
-	quirk_io_region(dev, region, 64, PCI_BRIDGE_RESOURCES+1, "ICH4 GPIO");
+	pci_read_config_byte(dev, ICH_ACPI_CNTL, &enable);
+	if (enable & ICH4_ACPI_EN) {
+		pci_read_config_dword(dev, ICH_PMBASE, &region);
+		region &= PCI_BASE_ADDRESS_IO_MASK;
+		if (region >= PCIBIOS_MIN_IO)
+			quirk_io_region(dev, region, 128, PCI_BRIDGE_RESOURCES,
+					"ICH4 ACPI/GPIO/TCO");
+	}
+
+	pci_read_config_byte(dev, ICH4_GPIO_CNTL, &enable);
+	if (enable & ICH4_GPIO_EN) {
+		pci_read_config_dword(dev, ICH4_GPIOBASE, &region);
+		region &= PCI_BASE_ADDRESS_IO_MASK;
+		if (region >= PCIBIOS_MIN_IO)
+			quirk_io_region(dev, region, 64,
+					PCI_BRIDGE_RESOURCES + 1, "ICH4 GPIO");
+	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801AA_0,		quirk_ich4_lpc_acpi);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801AB_0,		quirk_ich4_lpc_acpi);
@@ -561,12 +594,25 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_ESB_1,		qui
 static void __devinit ich6_lpc_acpi_gpio(struct pci_dev *dev)
 {
 	u32 region;
+	u8 enable;
 
-	pci_read_config_dword(dev, 0x40, &region);
-	quirk_io_region(dev, region, 128, PCI_BRIDGE_RESOURCES, "ICH6 ACPI/GPIO/TCO");
+	pci_read_config_byte(dev, ICH_ACPI_CNTL, &enable);
+	if (enable & ICH6_ACPI_EN) {
+		pci_read_config_dword(dev, ICH_PMBASE, &region);
+		region &= PCI_BASE_ADDRESS_IO_MASK;
+		if (region >= PCIBIOS_MIN_IO)
+			quirk_io_region(dev, region, 128, PCI_BRIDGE_RESOURCES,
+					"ICH6 ACPI/GPIO/TCO");
+	}
 
-	pci_read_config_dword(dev, 0x48, &region);
-	quirk_io_region(dev, region, 64, PCI_BRIDGE_RESOURCES+1, "ICH6 GPIO");
+	pci_read_config_byte(dev, ICH6_GPIO_CNTL, &enable);
+	if (enable & ICH6_GPIO_EN) {
+		pci_read_config_dword(dev, ICH6_GPIOBASE, &region);
+		region &= PCI_BASE_ADDRESS_IO_MASK;
+		if (region >= PCIBIOS_MIN_IO)
+			quirk_io_region(dev, region, 64,
+					PCI_BRIDGE_RESOURCES + 1, "ICH6 GPIO");
+	}
 }
 
 static void __devinit ich6_lpc_generic_decode(struct pci_dev *dev, unsigned reg, const char *name, int dynsize)
@@ -635,7 +681,7 @@ static void __devinit ich7_lpc_generic_decode(struct pci_dev *dev, unsigned reg,
 /* ICH7-10 has the same common LPC generic IO decode registers */
 static void __devinit quirk_ich7_lpc(struct pci_dev *dev)
 {
-	/* We share the common ACPI/DPIO decode with ICH6 */
+	/* We share the common ACPI/GPIO decode with ICH6 */
 	ich6_lpc_acpi_gpio(dev);
 
 	/* And have 4 ICH7+ generic decodes */
@@ -1016,7 +1062,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TOSHIBA,	0x605,	quirk_transparent_bridge)
 /*
  * Common misconfiguration of the MediaGX/Geode PCI master that will
  * reduce PCI bandwidth from 70MB/s to 25MB/s.  See the GXM/GXLV/GX1
- * datasheets found at http://www.national.com/ds/GX for info on what
+ * datasheets found at http://www.national.com/analog for info on what
  * these bits do.  <christer@weinigel.se>
  */
 static void quirk_mediagx_master(struct pci_dev *dev)
@@ -2135,6 +2181,24 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82865_HB,
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82875_HB,
 			quirk_unhide_mch_dev6);
 
+#ifdef CONFIG_TILE
+/*
+ * The Tilera TILEmpower platform needs to set the link speed
+ * to 2.5GT(Giga-Transfers)/s (Gen 1). The default link speed
+ * setting is 5GT/s (Gen 2). 0x98 is the Link Control2 PCIe
+ * capability register of the PEX8624 PCIe switch. The switch
+ * supports link speed auto negotiation, but falsely sets
+ * the link speed to 5GT/s.
+ */
+static void __devinit quirk_tile_plx_gen1(struct pci_dev *dev)
+{
+	if (tile_plx_gen1) {
+		pci_write_config_dword(dev, 0x98, 0x1);
+		mdelay(50);
+	}
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_PLX, 0x8624, quirk_tile_plx_gen1);
+#endif /* CONFIG_TILE */
 
 #ifdef CONFIG_PCI_MSI
 /* Some chipsets do not support MSI. We cannot easily rely on setting
@@ -2285,8 +2349,11 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8132_BRIDGE,
  */
 static void __devinit nvenet_msi_disable(struct pci_dev *dev)
 {
-	if (dmi_name_in_vendors("P5N32-SLI PREMIUM") ||
-	    dmi_name_in_vendors("P5N32-E SLI")) {
+	const char *board_name = dmi_get_system_info(DMI_BOARD_NAME);
+
+	if (board_name &&
+	    (strstr(board_name, "P5N32-SLI PREMIUM") ||
+	     strstr(board_name, "P5N32-E SLI"))) {
 		dev_info(&dev->dev,
 			 "Disabling msi for MCP55 NIC on P5N32-SLI\n");
 		dev->no_msi = 1;
@@ -2295,6 +2362,40 @@ static void __devinit nvenet_msi_disable(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
 			PCI_DEVICE_ID_NVIDIA_NVENET_15,
 			nvenet_msi_disable);
+
+/*
+ * Some versions of the MCP55 bridge from nvidia have a legacy irq routing
+ * config register.  This register controls the routing of legacy interrupts
+ * from devices that route through the MCP55.  If this register is misprogramed
+ * interrupts are only sent to the bsp, unlike conventional systems where the
+ * irq is broadxast to all online cpus.  Not having this register set
+ * properly prevents kdump from booting up properly, so lets make sure that
+ * we have it set correctly.
+ * Note this is an undocumented register.
+ */
+static void __devinit nvbridge_check_legacy_irq_routing(struct pci_dev *dev)
+{
+	u32 cfg;
+
+	if (!pci_find_capability(dev, PCI_CAP_ID_HT))
+		return;
+
+	pci_read_config_dword(dev, 0x74, &cfg);
+
+	if (cfg & ((1 << 2) | (1 << 15))) {
+		printk(KERN_INFO "Rewriting irq routing register on MCP55\n");
+		cfg &= ~((1 << 2) | (1 << 15));
+		pci_write_config_dword(dev, 0x74, cfg);
+	}
+}
+
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
+			PCI_DEVICE_ID_NVIDIA_MCP55_BRIDGE_V0,
+			nvbridge_check_legacy_irq_routing);
+
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
+			PCI_DEVICE_ID_NVIDIA_MCP55_BRIDGE_V4,
+			nvbridge_check_legacy_irq_routing);
 
 static int __devinit ht_check_msi_mapping(struct pci_dev *dev)
 {
@@ -2565,58 +2666,6 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4375,
 
 #endif /* CONFIG_PCI_MSI */
 
-#ifdef CONFIG_PCI_IOV
-
-/*
- * For Intel 82576 SR-IOV NIC, if BIOS doesn't allocate resources for the
- * SR-IOV BARs, zero the Flash BAR and program the SR-IOV BARs to use the
- * old Flash Memory Space.
- */
-static void __devinit quirk_i82576_sriov(struct pci_dev *dev)
-{
-	int pos, flags;
-	u32 bar, start, size;
-
-	if (PAGE_SIZE > 0x10000)
-		return;
-
-	flags = pci_resource_flags(dev, 0);
-	if ((flags & PCI_BASE_ADDRESS_SPACE) !=
-			PCI_BASE_ADDRESS_SPACE_MEMORY ||
-	    (flags & PCI_BASE_ADDRESS_MEM_TYPE_MASK) !=
-			PCI_BASE_ADDRESS_MEM_TYPE_32)
-		return;
-
-	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_SRIOV);
-	if (!pos)
-		return;
-
-	pci_read_config_dword(dev, pos + PCI_SRIOV_BAR, &bar);
-	if (bar & PCI_BASE_ADDRESS_MEM_MASK)
-		return;
-
-	start = pci_resource_start(dev, 1);
-	size = pci_resource_len(dev, 1);
-	if (!start || size != 0x400000 || start & (size - 1))
-		return;
-
-	pci_resource_flags(dev, 1) = 0;
-	pci_write_config_dword(dev, PCI_BASE_ADDRESS_1, 0);
-	pci_write_config_dword(dev, pos + PCI_SRIOV_BAR, start);
-	pci_write_config_dword(dev, pos + PCI_SRIOV_BAR + 12, start + size / 2);
-
-	dev_info(&dev->dev, "use Flash Memory Space for SR-IOV BARs\n");
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10c9, quirk_i82576_sriov);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10e6, quirk_i82576_sriov);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10e7, quirk_i82576_sriov);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10e8, quirk_i82576_sriov);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x150a, quirk_i82576_sriov);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x150d, quirk_i82576_sriov);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x1518, quirk_i82576_sriov);
-
-#endif	/* CONFIG_PCI_IOV */
-
 /* Allow manual resource allocation for PCI hotplug bridges
  * via pci=hpmemsize=nnM and pci=hpiosize=nnM parameters. For
  * some PCI-PCI hotplug bridges, like PLX 6254 (former HINT HB6),
@@ -2634,7 +2683,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_HINT, 0x0020, quirk_hotplug_bridge);
  * This is a quirk for the Ricoh MMC controller found as a part of
  * some mulifunction chips.
 
- * This is very similiar and based on the ricoh_mmc driver written by
+ * This is very similar and based on the ricoh_mmc driver written by
  * Philip Langdale. Thank you for these magic sequences.
  *
  * These chips implement the four main memory card controllers (SD, MMC, MS, xD)
@@ -2709,11 +2758,69 @@ static void ricoh_mmc_fixup_r5c832(struct pci_dev *dev)
 
 	dev_notice(&dev->dev, "proprietary Ricoh MMC controller disabled (via firewire function)\n");
 	dev_notice(&dev->dev, "MMC cards are now supported by standard SDHCI controller\n");
+
+	/*
+	 * RICOH 0xe823 SD/MMC card reader fails to recognize
+	 * certain types of SD/MMC cards. Lowering the SD base
+	 * clock frequency from 200Mhz to 50Mhz fixes this issue.
+	 *
+	 * 0x150 - SD2.0 mode enable for changing base clock
+	 *	   frequency to 50Mhz
+	 * 0xe1  - Base clock frequency
+	 * 0x32  - 50Mhz new clock frequency
+	 * 0xf9  - Key register for 0x150
+	 * 0xfc  - key register for 0xe1
+	 */
+	if (dev->device == PCI_DEVICE_ID_RICOH_R5CE823) {
+		pci_write_config_byte(dev, 0xf9, 0xfc);
+		pci_write_config_byte(dev, 0x150, 0x10);
+		pci_write_config_byte(dev, 0xf9, 0x00);
+		pci_write_config_byte(dev, 0xfc, 0x01);
+		pci_write_config_byte(dev, 0xe1, 0x32);
+		pci_write_config_byte(dev, 0xfc, 0x00);
+
+		dev_notice(&dev->dev, "MMC controller base frequency changed to 50Mhz.\n");
+	}
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5C832, ricoh_mmc_fixup_r5c832);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5C832, ricoh_mmc_fixup_r5c832);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5CE823, ricoh_mmc_fixup_r5c832);
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5CE823, ricoh_mmc_fixup_r5c832);
 #endif /*CONFIG_MMC_RICOH_MMC*/
 
+#if defined(CONFIG_DMAR) || defined(CONFIG_INTR_REMAP)
+#define VTUNCERRMSK_REG	0x1ac
+#define VTD_MSK_SPEC_ERRORS	(1 << 31)
+/*
+ * This is a quirk for masking vt-d spec defined errors to platform error
+ * handling logic. With out this, platforms using Intel 7500, 5500 chipsets
+ * (and the derivative chipsets like X58 etc) seem to generate NMI/SMI (based
+ * on the RAS config settings of the platform) when a vt-d fault happens.
+ * The resulting SMI caused the system to hang.
+ *
+ * VT-d spec related errors are already handled by the VT-d OS code, so no
+ * need to report the same error through other channels.
+ */
+static void vtd_mask_spec_errors(struct pci_dev *dev)
+{
+	u32 word;
+
+	pci_read_config_dword(dev, VTUNCERRMSK_REG, &word);
+	pci_write_config_dword(dev, VTUNCERRMSK_REG, word | VTD_MSK_SPEC_ERRORS);
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x342e, vtd_mask_spec_errors);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x3c28, vtd_mask_spec_errors);
+#endif
+
+static void __devinit fixup_ti816x_class(struct pci_dev* dev)
+{
+	/* TI 816x devices do not have class code set when in PCIe boot mode */
+	if (dev->class == PCI_CLASS_NOT_DEFINED) {
+		dev_info(&dev->dev, "Setting PCI class for 816x PCIe device\n");
+		dev->class = PCI_CLASS_MULTIMEDIA_VIDEO;
+	}
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_TI, 0xb800, fixup_ti816x_class);
 
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 			  struct pci_fixup *end)

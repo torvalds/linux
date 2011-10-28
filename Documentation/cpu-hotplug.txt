@@ -196,7 +196,7 @@ the state as 0 when a cpu if offline and 1 when its online.
 	#To display the current cpu state.
 	#cat /sys/devices/system/cpu/cpuX/online
 
-Q: Why cant i remove CPU0 on some systems?
+Q: Why can't i remove CPU0 on some systems?
 A: Some architectures may have some special dependency on a certain CPU.
 
 For e.g in IA64 platforms we have ability to sent platform interrupts to the

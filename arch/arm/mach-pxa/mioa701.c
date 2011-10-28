@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
@@ -39,18 +39,18 @@
 #include <linux/usb/gpio_vbus.h>
 #include <linux/regulator/max1586.h>
 #include <linux/slab.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #include <mach/pxa27x.h>
 #include <mach/regs-rtc.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/pxa27x-udc.h>
-#include <plat/i2c.h>
 #include <mach/camera.h>
 #include <mach/audio.h>
 #include <media/soc_camera.h>
@@ -458,7 +458,7 @@ static struct platform_device strataflash = {
 /*
  * Suspend/Resume bootstrap management
  *
- * MIO A701 reboot sequence is highly ROM dependant. From the one dissassembled,
+ * MIO A701 reboot sequence is highly ROM dependent. From the one dissassembled,
  * this sequence is as follows :
  *   - disables interrupts
  *   - initialize SDRAM (self refresh RAM into active RAM)
@@ -488,7 +488,7 @@ static void install_bootstrap(void)
 }
 
 
-static int mioa701_sys_suspend(struct sys_device *sysdev, pm_message_t state)
+static int mioa701_sys_suspend(void)
 {
 	int i = 0, is_bt_on;
 	u32 *mem_resume_vector	= phys_to_virt(RESUME_VECTOR_ADDR);
@@ -514,7 +514,7 @@ static int mioa701_sys_suspend(struct sys_device *sysdev, pm_message_t state)
 	return 0;
 }
 
-static int mioa701_sys_resume(struct sys_device *sysdev)
+static void mioa701_sys_resume(void)
 {
 	int i = 0;
 	u32 *mem_resume_vector	= phys_to_virt(RESUME_VECTOR_ADDR);
@@ -527,43 +527,18 @@ static int mioa701_sys_resume(struct sys_device *sysdev)
 	*mem_resume_enabler = save_buffer[i++];
 	*mem_resume_bt	    = save_buffer[i++];
 	*mem_resume_unknown = save_buffer[i++];
-
-	return 0;
 }
 
-static struct sysdev_class mioa701_sysclass = {
-	.name = "mioa701",
-};
-
-static struct sys_device sysdev_bootstrap = {
-	.cls		= &mioa701_sysclass,
-};
-
-static struct sysdev_driver driver_bootstrap = {
-	.suspend	= &mioa701_sys_suspend,
-	.resume		= &mioa701_sys_resume,
+static struct syscore_ops mioa701_syscore_ops = {
+	.suspend	= mioa701_sys_suspend,
+	.resume		= mioa701_sys_resume,
 };
 
 static int __init bootstrap_init(void)
 {
-	int rc;
 	int save_size = mioa701_bootstrap_lg + (sizeof(u32) * 3);
 
-	rc = sysdev_class_register(&mioa701_sysclass);
-	if (rc) {
-		printk(KERN_ERR "Failed registering mioa701 sys class\n");
-		return -ENODEV;
-	}
-	rc = sysdev_register(&sysdev_bootstrap);
-	if (rc) {
-		printk(KERN_ERR "Failed registering mioa701 sys device\n");
-		return -ENODEV;
-	}
-	rc = sysdev_driver_register(&mioa701_sysclass, &driver_bootstrap);
-	if (rc) {
-		printk(KERN_ERR "Failed registering PMU sys driver\n");
-		return -ENODEV;
-	}
+	register_syscore_ops(&mioa701_syscore_ops);
 
 	save_buffer = kmalloc(save_size, GFP_KERNEL);
 	if (!save_buffer)
@@ -576,9 +551,7 @@ static int __init bootstrap_init(void)
 static void bootstrap_exit(void)
 {
 	kfree(save_buffer);
-	sysdev_driver_unregister(&mioa701_sysclass, &driver_bootstrap);
-	sysdev_unregister(&sysdev_bootstrap);
-	sysdev_class_unregister(&mioa701_sysclass);
+	unregister_syscore_ops(&mioa701_syscore_ops);
 
 	printk(KERN_CRIT "Unregistering mioa701 suspend will hang next"
 	       "resume !!!\n");
@@ -711,7 +684,6 @@ static struct soc_camera_link iclink = {
 	.bus_id		= 0, /* Match id in pxa27x_device_camera in device.c */
 	.board_info	= &mioa701_i2c_devices[0],
 	.i2c_adapter_id	= 0,
-	.module_name	= "mt9m111",
 };
 
 struct i2c_pxa_platform_data i2c_pdata = {
@@ -796,7 +768,7 @@ static void __init mioa701_machine_init(void)
 	pxa_set_stuart_info(NULL);
 	mio_gpio_request(ARRAY_AND_SIZE(global_gpios));
 	bootstrap_init();
-	set_pxa_fb_info(&mioa701_pxafb_info);
+	pxa_set_fb_info(NULL, &mioa701_pxafb_info);
 	pxa_set_mci_info(&mioa701_mci_info);
 	pxa_set_keypad_info(&mioa701_keypad_info);
 	pxa_set_udc_info(&mioa701_udc_info);
@@ -819,10 +791,8 @@ static void mioa701_machine_exit(void)
 }
 
 MACHINE_START(MIOA701, "MIO A701")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
-	.map_io		= &pxa_map_io,
+	.map_io		= &pxa27x_map_io,
 	.init_irq	= &pxa27x_init_irq,
 	.init_machine	= mioa701_machine_init,
 	.timer		= &pxa_timer,

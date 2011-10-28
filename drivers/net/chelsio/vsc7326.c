@@ -255,7 +255,7 @@ static int bist_rd(adapter_t *adapter, int moduleid, int address)
 	else if ((result & (1 << 8)) != 0x0)
 		pr_err("bist read error: 0x%x\n", result);
 
-	return (result & 0xff);
+	return result & 0xff;
 }
 
 static int bist_wr(adapter_t *adapter, int moduleid, int address, int value)
@@ -566,7 +566,7 @@ static int mac_disable(struct cmac *mac, int which)
 	for (i = 0; i <= 0x3a; ++i)
 		vsc_write(mac->adapter, CRA(4, port, i), 0);
 
-	/* Clear sofware counters */
+	/* Clear software counters */
 	memset(&mac->stats, 0, sizeof(struct cmac_statistics));
 
 	return 0;

@@ -150,7 +150,7 @@ static void iuu_release(struct usb_serial *serial)
 	}
 }
 
-static int iuu_tiocmset(struct tty_struct *tty, struct file *file,
+static int iuu_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -179,7 +179,7 @@ static int iuu_tiocmset(struct tty_struct *tty, struct file *file,
  * When no card , the reader respond with TIOCM_CD
  * This is known as CD autodetect mechanism
  */
-static int iuu_tiocmget(struct tty_struct *tty, struct file *file)
+static int iuu_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct iuu_private *priv = usb_get_serial_port_data(port);
@@ -807,7 +807,6 @@ static void read_rxcmd_callback(struct urb *urb)
 			  iuu_uart_read_callback, port);
 	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 	dbg("%s - submit result = %d", __func__, result);
-	return;
 }
 
 static int iuu_uart_on(struct usb_serial_port *port)
@@ -1276,6 +1275,7 @@ static struct usb_serial_driver iuu_device = {
 		   .name = "iuu_phoenix",
 		   },
 	.id_table = id_table,
+	.usb_driver = &iuu_driver,
 	.num_ports = 1,
 	.bulk_in_size = 512,
 	.bulk_out_size = 512,

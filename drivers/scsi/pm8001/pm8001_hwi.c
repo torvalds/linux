@@ -339,7 +339,7 @@ update_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha, int number)
 
 /**
  * bar4_shift - function is called to shift BAR base address
- * @pm8001_ha : our hba card infomation
+ * @pm8001_ha : our hba card information
  * @shiftValue : shifting value in memory bar.
  */
 static int bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue)
@@ -1382,53 +1382,50 @@ static u32 mpi_msg_consume(struct pm8001_hba_info *pm8001_ha,
 	return MPI_IO_STATUS_BUSY;
 }
 
-static void pm8001_work_queue(struct work_struct *work)
+static void pm8001_work_fn(struct work_struct *work)
 {
-	struct delayed_work *dw = container_of(work, struct delayed_work, work);
-	struct pm8001_wq *wq = container_of(dw, struct pm8001_wq, work_q);
+	struct pm8001_work *pw = container_of(work, struct pm8001_work, work);
 	struct pm8001_device *pm8001_dev;
-	struct domain_device	*dev;
+	struct domain_device *dev;
 
-	switch (wq->handler) {
+	switch (pw->handler) {
 	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS:
-		pm8001_dev = wq->data;
+		pm8001_dev = pw->data;
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
 	case IO_OPEN_CNX_ERROR_STP_RESOURCES_BUSY:
-		pm8001_dev = wq->data;
+		pm8001_dev = pw->data;
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
 	case IO_DS_IN_ERROR:
-		pm8001_dev = wq->data;
+		pm8001_dev = pw->data;
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
 	case IO_DS_NON_OPERATIONAL:
-		pm8001_dev = wq->data;
+		pm8001_dev = pw->data;
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
 	}
-	list_del(&wq->entry);
-	kfree(wq);
+	kfree(pw);
 }
 
 static int pm8001_handle_event(struct pm8001_hba_info *pm8001_ha, void *data,
 			       int handler)
 {
-	struct pm8001_wq *wq;
+	struct pm8001_work *pw;
 	int ret = 0;
 
-	wq = kmalloc(sizeof(struct pm8001_wq), GFP_ATOMIC);
-	if (wq) {
-		wq->pm8001_ha = pm8001_ha;
-		wq->data = data;
-		wq->handler = handler;
-		INIT_DELAYED_WORK(&wq->work_q, pm8001_work_queue);
-		list_add_tail(&wq->entry, &pm8001_ha->wq_list);
-		schedule_delayed_work(&wq->work_q, 0);
+	pw = kmalloc(sizeof(struct pm8001_work), GFP_ATOMIC);
+	if (pw) {
+		pw->pm8001_ha = pm8001_ha;
+		pw->data = data;
+		pw->handler = handler;
+		INIT_WORK(&pw->work, pm8001_work_fn);
+		queue_work(pm8001_wq, &pw->work);
 	} else
 		ret = -ENOMEM;
 
@@ -4194,6 +4191,8 @@ static int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 
 	nvmd_type = ioctl_payload->minor_function;
 	fw_control_context = kzalloc(sizeof(struct fw_control_ex), GFP_KERNEL);
+	if (!fw_control_context)
+		return -ENOMEM;
 	fw_control_context->usrAddr = (u8 *)&ioctl_payload->func_specific[0];
 	fw_control_context->len = ioctl_payload->length;
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
@@ -4272,6 +4271,8 @@ static int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 
 	nvmd_type = ioctl_payload->minor_function;
 	fw_control_context = kzalloc(sizeof(struct fw_control_ex), GFP_KERNEL);
+	if (!fw_control_context)
+		return -ENOMEM;
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	memcpy(pm8001_ha->memoryMap.region[NVMD].virt_ptr,
 		ioctl_payload->func_specific,
@@ -4381,6 +4382,8 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 	struct pm8001_ioctl_payload *ioctl_payload = payload;
 
 	fw_control_context = kzalloc(sizeof(struct fw_control_ex), GFP_KERNEL);
+	if (!fw_control_context)
+		return -ENOMEM;
 	fw_control = (struct fw_control_info *)&ioctl_payload->func_specific[0];
 	if (fw_control->len != 0) {
 		if (pm8001_mem_alloc(pm8001_ha->pdev,

@@ -61,12 +61,30 @@ union cnt32_to_63 {
  *
  * 2) this code must not be preempted for a duration longer than the
  *    32-bit counter half period minus the longest period between two
- *    calls to this code.
+ *    calls to this code;
  *
  * Those requirements ensure proper update to the state bit in memory.
  * This is usually not a problem in practice, but if it is then a kernel
  * timer should be scheduled to manage for this code to be executed often
  * enough.
+ *
+ * And finally:
+ *
+ * 3) the cnt_lo argument must be seen as a globally incrementing value,
+ *    meaning that it should be a direct reference to the counter data which
+ *    can be evaluated according to a specific ordering within the macro,
+ *    and not the result of a previous evaluation stored in a variable.
+ *
+ * For example, this is wrong:
+ *
+ *	u32 partial = get_hw_count();
+ *	u64 full = cnt32_to_63(partial);
+ *	return full;
+ *
+ * This is fine:
+ *
+ *	u64 full = cnt32_to_63(get_hw_count());
+ *	return full;
  *
  * Note that the top bit (bit 63) in the returned value should be considered
  * as garbage.  It is not cleared here because callers are likely to use a

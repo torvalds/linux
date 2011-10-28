@@ -314,7 +314,7 @@ hdlc_fill_fifo(struct BCState *bcs)
 			bcs->hw.hdlc.ctrl.sr.cmd |= HDLC_CMD_XME;
 	}
 	if ((cs->debug & L1_DEB_HSCX) && !(cs->debug & L1_DEB_HSCX_FIFO))
-		debugl1(cs, "hdlc_fill_fifo %d/%ld", count, bcs->tx_skb->len);
+		debugl1(cs, "hdlc_fill_fifo %d/%u", count, bcs->tx_skb->len);
 	p = bcs->tx_skb->data;
 	ptr = (u_int *)p;
 	skb_pull(bcs->tx_skb, count);

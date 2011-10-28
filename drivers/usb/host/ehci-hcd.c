@@ -1,4 +1,8 @@
 /*
+ * Enhanced Host Controller Interface (EHCI) driver for USB.
+ *
+ * Maintainer: Alan Stern <stern@rowland.harvard.edu>
+ *
  * Copyright (c) 2000-2004 by David Brownell
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -90,7 +94,8 @@ static const char	hcd_name [] = "ehci_hcd";
 #define EHCI_IAA_MSECS		10		/* arbitrary */
 #define EHCI_IO_JIFFIES		(HZ/10)		/* io watchdog > irq_thresh */
 #define EHCI_ASYNC_JIFFIES	(HZ/20)		/* async idle timeout */
-#define EHCI_SHRINK_FRAMES	5		/* async qh unlink delay */
+#define EHCI_SHRINK_JIFFIES	(DIV_ROUND_UP(HZ, 200) + 1)
+						/* 200-ms async qh unlink delay */
 
 /* Initial IRQ latency:  faster than hw default */
 static int log2_irq_thresh = 0;		// 0 to 6
@@ -118,6 +123,7 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us\n");
 
 #include "ehci.h"
 #include "ehci-dbg.c"
+#include "pci-quirks.h"
 
 /*-------------------------------------------------------------------------*/
 
@@ -147,10 +153,7 @@ timer_action(struct ehci_hcd *ehci, enum ehci_timer_action action)
 			break;
 		/* case TIMER_ASYNC_SHRINK: */
 		default:
-			/* add a jiffie since we synch against the
-			 * 8 KHz uframe counter.
-			 */
-			t = DIV_ROUND_UP(EHCI_SHRINK_FRAMES * HZ, 1000) + 1;
+			t = EHCI_SHRINK_JIFFIES;
 			break;
 		}
 		mod_timer(&ehci->watchdog, t + jiffies);
@@ -194,6 +197,17 @@ static int handshake (struct ehci_hcd *ehci, void __iomem *ptr,
 	return -ETIMEDOUT;
 }
 
+/* check TDI/ARC silicon is in host mode */
+static int tdi_in_host_mode (struct ehci_hcd *ehci)
+{
+	u32 __iomem	*reg_ptr;
+	u32		tmp;
+
+	reg_ptr = (u32 __iomem *)(((u8 __iomem *)ehci->regs) + USBMODE);
+	tmp = ehci_readl(ehci, reg_ptr);
+	return (tmp & 3) == USBMODE_CM_HC;
+}
+
 /* force HC to halt state from unknown (EHCI spec section 2.3) */
 static int ehci_halt (struct ehci_hcd *ehci)
 {
@@ -201,6 +215,10 @@ static int ehci_halt (struct ehci_hcd *ehci)
 
 	/* disable any irqs left enabled by previous code */
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
+
+	if (ehci_is_TDI(ehci) && tdi_in_host_mode(ehci) == 0) {
+		return 0;
+	}
 
 	if ((temp & STS_HALT) != 0)
 		return 0;
@@ -514,6 +532,9 @@ static void ehci_stop (struct usb_hcd *hcd)
 	spin_unlock_irq (&ehci->lock);
 	ehci_mem_cleanup (ehci);
 
+	if (ehci->amd_pll_fix == 1)
+		usb_amd_dev_put();
+
 #ifdef	EHCI_STATS
 	ehci_dbg (ehci, "irq normal %ld err %ld reclaim %ld (lost %ld)\n",
 		ehci->stats.normal, ehci->stats.error, ehci->stats.reclaim,
@@ -549,6 +570,8 @@ static int ehci_init(struct usb_hcd *hcd)
 	ehci->iaa_watchdog.function = ehci_iaa_watchdog;
 	ehci->iaa_watchdog.data = (unsigned long) ehci;
 
+	hcc_params = ehci_readl(ehci, &ehci->caps->hcc_params);
+
 	/*
 	 * hw default: 1K periodic list heads, one per frame.
 	 * periodic_size can shrink by USBCMD update if hcc_params allows.
@@ -556,11 +579,20 @@ static int ehci_init(struct usb_hcd *hcd)
 	ehci->periodic_size = DEFAULT_I_TDPS;
 	INIT_LIST_HEAD(&ehci->cached_itd_list);
 	INIT_LIST_HEAD(&ehci->cached_sitd_list);
+
+	if (HCC_PGM_FRAMELISTLEN(hcc_params)) {
+		/* periodic schedule size can be smaller than default */
+		switch (EHCI_TUNE_FLS) {
+		case 0: ehci->periodic_size = 1024; break;
+		case 1: ehci->periodic_size = 512; break;
+		case 2: ehci->periodic_size = 256; break;
+		default:	BUG();
+		}
+	}
 	if ((retval = ehci_mem_init(ehci, GFP_KERNEL)) < 0)
 		return retval;
 
 	/* controllers may cache some of the periodic schedule ... */
-	hcc_params = ehci_readl(ehci, &ehci->caps->hcc_params);
 	if (HCC_ISOC_CACHE(hcc_params))		// full frame cache
 		ehci->i_thresh = 2 + 8;
 	else					// N microframes cached
@@ -614,12 +646,6 @@ static int ehci_init(struct usb_hcd *hcd)
 		/* periodic schedule size can be smaller than default */
 		temp &= ~(3 << 2);
 		temp |= (EHCI_TUNE_FLS << 2);
-		switch (EHCI_TUNE_FLS) {
-		case 0: ehci->periodic_size = 1024; break;
-		case 1: ehci->periodic_size = 512; break;
-		case 2: ehci->periodic_size = 256; break;
-		default:	BUG();
-		}
 	}
 	if (HCC_LPM(hcc_params)) {
 		/* support link power management EHCI 1.1 addendum */
@@ -651,7 +677,12 @@ static int ehci_run (struct usb_hcd *hcd)
 	hcd->uses_new_polling = 1;
 
 	/* EHCI spec section 4.1 */
-	if ((retval = ehci_reset(ehci)) != 0) {
+	/*
+	 * TDI driver does the ehci_reset in their reset callback.
+	 * Don't reset here, because configuration settings will
+	 * vanish.
+	 */
+	if (!ehci_is_TDI(ehci) && (retval = ehci_reset(ehci)) != 0) {
 		ehci_mem_cleanup(ehci);
 		return retval;
 	}
@@ -710,7 +741,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	up_write(&ehci_cf_port_reset_rwsem);
 	ehci->last_periodic_enable = ktime_get_real();
 
-	temp = HC_VERSION(ehci_readl(ehci, &ehci->caps->hc_capbase));
+	temp = HC_VERSION(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 	ehci_info (ehci,
 		"USB %x.%x started, EHCI %x.%02x%s\n",
 		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),
@@ -748,8 +779,9 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		goto dead;
 	}
 
+	/* Shared IRQ? */
 	masked_status = status & INTR_MASK;
-	if (!masked_status) {		/* irq sharing? */
+	if (!masked_status || unlikely(hcd->state == HC_STATE_HALT)) {
 		spin_unlock(&ehci->lock);
 		return IRQ_NONE;
 	}
@@ -844,6 +876,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 dead:
 		ehci_reset(ehci);
 		ehci_writel(ehci, 0, &ehci->regs->configured_flag);
+		usb_hc_died(hcd);
 		/* generic layer kills/unlinks all urbs, then
 		 * uses ehci_stop to clean up the rest
 		 */
@@ -1048,10 +1081,11 @@ rescan:
 				tmp && tmp != qh;
 				tmp = tmp->qh_next.qh)
 			continue;
-		/* periodic qh self-unlinks on empty */
-		if (!tmp)
-			goto nogood;
-		unlink_async (ehci, qh);
+		/* periodic qh self-unlinks on empty, and a COMPLETING qh
+		 * may already be unlinked.
+		 */
+		if (tmp)
+			unlink_async(ehci, qh);
 		/* FALL THROUGH */
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 	case QH_STATE_UNLINK_WAIT:
@@ -1068,7 +1102,6 @@ idle_timeout:
 		}
 		/* else FALL THROUGH */
 	default:
-nogood:
 		/* caller was supposed to have unlinked any requests;
 		 * that's not our job.  just leak this memory.
 		 */
@@ -1080,7 +1113,6 @@ nogood:
 	ep->hcpriv = NULL;
 done:
 	spin_unlock_irqrestore (&ehci->lock, flags);
-	return;
 }
 
 static void
@@ -1152,12 +1184,17 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_mxc_driver
 #endif
 
+#ifdef CONFIG_USB_EHCI_SH
+#include "ehci-sh.c"
+#define PLATFORM_DRIVER		ehci_hcd_sh_driver
+#endif
+
 #ifdef CONFIG_SOC_AU1200
 #include "ehci-au1xxx.c"
 #define	PLATFORM_DRIVER		ehci_hcd_au1xxx_driver
 #endif
 
-#ifdef CONFIG_ARCH_OMAP3
+#ifdef CONFIG_USB_EHCI_HCD_OMAP
 #include "ehci-omap.c"
 #define        PLATFORM_DRIVER         ehci_hcd_omap_driver
 #endif
@@ -1195,6 +1232,56 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_ARCH_AT91
 #include "ehci-atmel.c"
 #define	PLATFORM_DRIVER		ehci_atmel_driver
+#endif
+
+#ifdef CONFIG_USB_OCTEON_EHCI
+#include "ehci-octeon.c"
+#define PLATFORM_DRIVER		ehci_octeon_driver
+#endif
+
+#ifdef CONFIG_USB_CNS3XXX_EHCI
+#include "ehci-cns3xxx.c"
+#define PLATFORM_DRIVER		cns3xxx_ehci_driver
+#endif
+
+#ifdef CONFIG_ARCH_VT8500
+#include "ehci-vt8500.c"
+#define	PLATFORM_DRIVER		vt8500_ehci_driver
+#endif
+
+#ifdef CONFIG_PLAT_SPEAR
+#include "ehci-spear.c"
+#define PLATFORM_DRIVER		spear_ehci_hcd_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_MSM
+#include "ehci-msm.c"
+#define PLATFORM_DRIVER		ehci_msm_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_HCD_PMC_MSP
+#include "ehci-pmcmsp.c"
+#define	PLATFORM_DRIVER		ehci_hcd_msp_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_TEGRA
+#include "ehci-tegra.c"
+#define PLATFORM_DRIVER		tegra_ehci_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_S5P
+#include "ehci-s5p.c"
+#define PLATFORM_DRIVER		s5p_ehci_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_ATH79
+#include "ehci-ath79.c"
+#define PLATFORM_DRIVER		ehci_ath79_driver
+#endif
+
+#ifdef CONFIG_SPARC_LEON
+#include "ehci-grlib.c"
+#define PLATFORM_DRIVER		ehci_grlib_driver
 #endif
 
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \
@@ -1249,24 +1336,24 @@ static int __init ehci_hcd_init(void)
 #endif
 
 #ifdef OF_PLATFORM_DRIVER
-	retval = of_register_platform_driver(&OF_PLATFORM_DRIVER);
+	retval = platform_driver_register(&OF_PLATFORM_DRIVER);
 	if (retval < 0)
 		goto clean3;
 #endif
 
 #ifdef XILINX_OF_PLATFORM_DRIVER
-	retval = of_register_platform_driver(&XILINX_OF_PLATFORM_DRIVER);
+	retval = platform_driver_register(&XILINX_OF_PLATFORM_DRIVER);
 	if (retval < 0)
 		goto clean4;
 #endif
 	return retval;
 
 #ifdef XILINX_OF_PLATFORM_DRIVER
-	/* of_unregister_platform_driver(&XILINX_OF_PLATFORM_DRIVER); */
+	/* platform_driver_unregister(&XILINX_OF_PLATFORM_DRIVER); */
 clean4:
 #endif
 #ifdef OF_PLATFORM_DRIVER
-	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
+	platform_driver_unregister(&OF_PLATFORM_DRIVER);
 clean3:
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
@@ -1294,10 +1381,10 @@ module_init(ehci_hcd_init);
 static void __exit ehci_hcd_cleanup(void)
 {
 #ifdef XILINX_OF_PLATFORM_DRIVER
-	of_unregister_platform_driver(&XILINX_OF_PLATFORM_DRIVER);
+	platform_driver_unregister(&XILINX_OF_PLATFORM_DRIVER);
 #endif
 #ifdef OF_PLATFORM_DRIVER
-	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
+	platform_driver_unregister(&OF_PLATFORM_DRIVER);
 #endif
 #ifdef PLATFORM_DRIVER
 	platform_driver_unregister(&PLATFORM_DRIVER);

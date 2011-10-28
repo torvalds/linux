@@ -87,8 +87,8 @@
 #define IBFT_ISCSI_VERSION "0.5.0"
 #define IBFT_ISCSI_DATE "2010-Feb-25"
 
-MODULE_AUTHOR("Peter Jones <pjones@redhat.com> and \
-Konrad Rzeszutek <ketuzsezr@darnok.org>");
+MODULE_AUTHOR("Peter Jones <pjones@redhat.com> and "
+	      "Konrad Rzeszutek <ketuzsezr@darnok.org>");
 MODULE_DESCRIPTION("sysfs interface to BIOS iBFT information");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(IBFT_ISCSI_VERSION);

@@ -100,15 +100,14 @@
 #include <linux/sched.h>		/* For struct task_struct.  */
 
 
-extern long arch_ptrace(struct task_struct *child, long request, long addr, long data);
-extern int ptrace_traceme(void);
+extern long arch_ptrace(struct task_struct *child, long request,
+			unsigned long addr, unsigned long data);
 extern int ptrace_readdata(struct task_struct *tsk, unsigned long src, char __user *dst, int len);
 extern int ptrace_writedata(struct task_struct *tsk, char __user *src, unsigned long dst, int len);
-extern int ptrace_attach(struct task_struct *tsk);
-extern int ptrace_detach(struct task_struct *, unsigned int);
 extern void ptrace_disable(struct task_struct *);
 extern int ptrace_check_attach(struct task_struct *task, int kill);
-extern int ptrace_request(struct task_struct *child, long request, long addr, long data);
+extern int ptrace_request(struct task_struct *child, long request,
+			  unsigned long addr, unsigned long data);
 extern void ptrace_notify(int exit_code);
 extern void __ptrace_link(struct task_struct *child,
 			  struct task_struct *new_parent);
@@ -132,8 +131,10 @@ static inline void ptrace_unlink(struct task_struct *child)
 		__ptrace_unlink(child);
 }
 
-int generic_ptrace_peekdata(struct task_struct *tsk, long addr, long data);
-int generic_ptrace_pokedata(struct task_struct *tsk, long addr, long data);
+int generic_ptrace_peekdata(struct task_struct *tsk, unsigned long addr,
+			    unsigned long data);
+int generic_ptrace_pokedata(struct task_struct *tsk, unsigned long addr,
+			    unsigned long data);
 
 /**
  * task_ptrace - return %PT_* flags that apply to a task
@@ -188,6 +189,10 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 		child->ptrace = current->ptrace;
 		__ptrace_link(child, current->parent);
 	}
+
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	atomic_set(&child->ptrace_bp_refcnt, 1);
+#endif
 }
 
 /**
@@ -349,6 +354,13 @@ extern int task_current_syscall(struct task_struct *target, long *callno,
 				unsigned long args[6], unsigned int maxargs,
 				unsigned long *sp, unsigned long *pc);
 
-#endif
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+extern int ptrace_get_breakpoints(struct task_struct *tsk);
+extern void ptrace_put_breakpoints(struct task_struct *tsk);
+#else
+static inline void ptrace_put_breakpoints(struct task_struct *tsk) { }
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
+
+#endif /* __KERNEL */
 
 #endif

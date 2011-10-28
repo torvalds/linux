@@ -29,6 +29,7 @@
 #include <linux/signal.h>
 #include <linux/seccomp.h>
 #include <linux/audit.h>
+#include <trace/syscall.h>
 #ifdef CONFIG_PPC32
 #include <linux/module.h>
 #endif
@@ -39,6 +40,9 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/syscalls.h>
 
 /*
  * The parameter save area on the stack is used to store arguments being passed
@@ -229,12 +233,16 @@ static int gpr_get(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count,
 		   void *kbuf, void __user *ubuf)
 {
-	int ret;
+	int i, ret;
 
 	if (target->thread.regs == NULL)
 		return -EIO;
 
-	CHECK_FULL_REGS(target->thread.regs);
+	if (!FULL_REGS(target->thread.regs)) {
+		/* We have a partial register set.  Fill 14-31 with bogus values */
+		for (i = 14; i < 32; i++)
+			target->thread.regs->gpr[i] = NV_REG_POISON;
+	}
 
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				  target->thread.regs,
@@ -459,7 +467,7 @@ static int vr_set(struct task_struct *target, const struct user_regset *regset,
 #ifdef CONFIG_VSX
 /*
  * Currently to set and and get all the vsx state, you need to call
- * the fp and VMX calls aswell.  This only get/sets the lower 32
+ * the fp and VMX calls as well.  This only get/sets the lower 32
  * 128bit VSX registers.
  */
 
@@ -641,11 +649,16 @@ static int gpr32_get(struct task_struct *target,
 	compat_ulong_t *k = kbuf;
 	compat_ulong_t __user *u = ubuf;
 	compat_ulong_t reg;
+	int i;
 
 	if (target->thread.regs == NULL)
 		return -EIO;
 
-	CHECK_FULL_REGS(target->thread.regs);
+	if (!FULL_REGS(target->thread.regs)) {
+		/* We have a partial register set.  Fill 14-31 with bogus values */
+		for (i = 14; i < 32; i++)
+			target->thread.regs->gpr[i] = NV_REG_POISON; 
+	}
 
 	pos /= sizeof(reg);
 	count /= sizeof(reg);
@@ -924,12 +937,16 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	if (data && !(data & DABR_TRANSLATION))
 		return -EIO;
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
+	if (ptrace_get_breakpoints(task) < 0)
+		return -ESRCH;
+
 	bp = thread->ptrace_bps[0];
 	if ((!data) || !(data & (DABR_DATA_WRITE | DABR_DATA_READ))) {
 		if (bp) {
 			unregister_hw_breakpoint(bp);
 			thread->ptrace_bps[0] = NULL;
 		}
+		ptrace_put_breakpoints(task);
 		return 0;
 	}
 	if (bp) {
@@ -939,9 +956,12 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 					(DABR_DATA_WRITE | DABR_DATA_READ),
 							&attr.bp_type);
 		ret =  modify_user_hw_breakpoint(bp, &attr);
-		if (ret)
+		if (ret) {
+			ptrace_put_breakpoints(task);
 			return ret;
+		}
 		thread->ptrace_bps[0] = bp;
+		ptrace_put_breakpoints(task);
 		thread->dabr = data;
 		return 0;
 	}
@@ -956,8 +976,11 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 							ptrace_triggered, task);
 	if (IS_ERR(bp)) {
 		thread->ptrace_bps[0] = NULL;
+		ptrace_put_breakpoints(task);
 		return PTR_ERR(bp);
 	}
+
+	ptrace_put_breakpoints(task);
 
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 
@@ -1316,6 +1339,10 @@ static int set_dac_range(struct task_struct *child,
 static long ppc_set_hwdebug(struct task_struct *child,
 		     struct ppc_hw_breakpoint *bp_info)
 {
+#ifndef CONFIG_PPC_ADV_DEBUG_REGS
+	unsigned long dabr;
+#endif
+
 	if (bp_info->version != 1)
 		return -ENOTSUPP;
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
@@ -1353,11 +1380,10 @@ static long ppc_set_hwdebug(struct task_struct *child,
 	/*
 	 * We only support one data breakpoint
 	 */
-	if (((bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_RW) == 0) ||
-	    ((bp_info->trigger_type & ~PPC_BREAKPOINT_TRIGGER_RW) != 0) ||
-	    (bp_info->trigger_type != PPC_BREAKPOINT_TRIGGER_WRITE) ||
-	    (bp_info->addr_mode != PPC_BREAKPOINT_MODE_EXACT) ||
-	    (bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_NONE))
+	if ((bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_RW) == 0 ||
+	    (bp_info->trigger_type & ~PPC_BREAKPOINT_TRIGGER_RW) != 0 ||
+	    bp_info->addr_mode != PPC_BREAKPOINT_MODE_EXACT ||
+	    bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_NONE)
 		return -EINVAL;
 
 	if (child->thread.dabr)
@@ -1366,7 +1392,14 @@ static long ppc_set_hwdebug(struct task_struct *child,
 	if ((unsigned long)bp_info->addr >= TASK_SIZE)
 		return -EIO;
 
-	child->thread.dabr = (unsigned long)bp_info->addr;
+	dabr = (unsigned long)bp_info->addr & ~7UL;
+	dabr |= DABR_TRANSLATION;
+	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_READ)
+		dabr |= DABR_DATA_READ;
+	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_WRITE)
+		dabr |= DABR_DATA_WRITE;
+
+	child->thread.dabr = dabr;
 
 	return 1;
 #endif /* !CONFIG_PPC_ADV_DEBUG_DVCS */
@@ -1406,37 +1439,42 @@ static long ppc_del_hwdebug(struct task_struct *child, long addr, long data)
  * Here are the old "legacy" powerpc specific getregs/setregs ptrace calls,
  * we mark them as obsolete now, they will be removed in a future version
  */
-static long arch_ptrace_old(struct task_struct *child, long request, long addr,
-			    long data)
+static long arch_ptrace_old(struct task_struct *child, long request,
+			    unsigned long addr, unsigned long data)
 {
+	void __user *datavp = (void __user *) data;
+
 	switch (request) {
 	case PPC_PTRACE_GETREGS:	/* Get GPRs 0 - 31. */
 		return copy_regset_to_user(child, &user_ppc_native_view,
 					   REGSET_GPR, 0, 32 * sizeof(long),
-					   (void __user *) data);
+					   datavp);
 
 	case PPC_PTRACE_SETREGS:	/* Set GPRs 0 - 31. */
 		return copy_regset_from_user(child, &user_ppc_native_view,
 					     REGSET_GPR, 0, 32 * sizeof(long),
-					     (const void __user *) data);
+					     datavp);
 
 	case PPC_PTRACE_GETFPREGS:	/* Get FPRs 0 - 31. */
 		return copy_regset_to_user(child, &user_ppc_native_view,
 					   REGSET_FPR, 0, 32 * sizeof(double),
-					   (void __user *) data);
+					   datavp);
 
 	case PPC_PTRACE_SETFPREGS:	/* Set FPRs 0 - 31. */
 		return copy_regset_from_user(child, &user_ppc_native_view,
 					     REGSET_FPR, 0, 32 * sizeof(double),
-					     (const void __user *) data);
+					     datavp);
 	}
 
 	return -EPERM;
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	int ret = -EPERM;
+	void __user *datavp = (void __user *) data;
+	unsigned long __user *datalp = datavp;
 
 	switch (request) {
 	/* read the word at location addr in the USER area. */
@@ -1446,11 +1484,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = -EIO;
 		/* convert to index and check */
 #ifdef CONFIG_PPC32
-		index = (unsigned long) addr >> 2;
+		index = addr >> 2;
 		if ((addr & 3) || (index > PT_FPSCR)
 		    || (child->thread.regs == NULL))
 #else
-		index = (unsigned long) addr >> 3;
+		index = addr >> 3;
 		if ((addr & 7) || (index > PT_FPSCR))
 #endif
 			break;
@@ -1463,7 +1501,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			tmp = ((unsigned long *)child->thread.fpr)
 				[TS_FPRWIDTH * (index - PT_FPR0)];
 		}
-		ret = put_user(tmp,(unsigned long __user *) data);
+		ret = put_user(tmp, datalp);
 		break;
 	}
 
@@ -1474,11 +1512,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = -EIO;
 		/* convert to index and check */
 #ifdef CONFIG_PPC32
-		index = (unsigned long) addr >> 2;
+		index = addr >> 2;
 		if ((addr & 3) || (index > PT_FPSCR)
 		    || (child->thread.regs == NULL))
 #else
-		index = (unsigned long) addr >> 3;
+		index = addr >> 3;
 		if ((addr & 7) || (index > PT_FPSCR))
 #endif
 			break;
@@ -1525,11 +1563,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		dbginfo.features = 0;
 #endif /* CONFIG_PPC_ADV_DEBUG_REGS */
 
-		if (!access_ok(VERIFY_WRITE, data,
+		if (!access_ok(VERIFY_WRITE, datavp,
 			       sizeof(struct ppc_debug_info)))
 			return -EFAULT;
-		ret = __copy_to_user((struct ppc_debug_info __user *)data,
-				     &dbginfo, sizeof(struct ppc_debug_info)) ?
+		ret = __copy_to_user(datavp, &dbginfo,
+				     sizeof(struct ppc_debug_info)) ?
 		      -EFAULT : 0;
 		break;
 	}
@@ -1537,11 +1575,10 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PPC_PTRACE_SETHWDEBUG: {
 		struct ppc_hw_breakpoint bp_info;
 
-		if (!access_ok(VERIFY_READ, data,
+		if (!access_ok(VERIFY_READ, datavp,
 			       sizeof(struct ppc_hw_breakpoint)))
 			return -EFAULT;
-		ret = __copy_from_user(&bp_info,
-				       (struct ppc_hw_breakpoint __user *)data,
+		ret = __copy_from_user(&bp_info, datavp,
 				       sizeof(struct ppc_hw_breakpoint)) ?
 		      -EFAULT : 0;
 		if (!ret)
@@ -1560,11 +1597,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		if (addr > 0)
 			break;
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
-		ret = put_user(child->thread.dac1,
-			       (unsigned long __user *)data);
+		ret = put_user(child->thread.dac1, datalp);
 #else
-		ret = put_user(child->thread.dabr,
-			       (unsigned long __user *)data);
+		ret = put_user(child->thread.dabr, datalp);
 #endif
 		break;
 	}
@@ -1580,7 +1615,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		return copy_regset_to_user(child, &user_ppc_native_view,
 					   REGSET_GPR,
 					   0, sizeof(struct pt_regs),
-					   (void __user *) data);
+					   datavp);
 
 #ifdef CONFIG_PPC64
 	case PTRACE_SETREGS64:
@@ -1589,19 +1624,19 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		return copy_regset_from_user(child, &user_ppc_native_view,
 					     REGSET_GPR,
 					     0, sizeof(struct pt_regs),
-					     (const void __user *) data);
+					     datavp);
 
 	case PTRACE_GETFPREGS: /* Get the child FPU state (FPR0...31 + FPSCR) */
 		return copy_regset_to_user(child, &user_ppc_native_view,
 					   REGSET_FPR,
 					   0, sizeof(elf_fpregset_t),
-					   (void __user *) data);
+					   datavp);
 
 	case PTRACE_SETFPREGS: /* Set the child FPU state (FPR0...31 + FPSCR) */
 		return copy_regset_from_user(child, &user_ppc_native_view,
 					     REGSET_FPR,
 					     0, sizeof(elf_fpregset_t),
-					     (const void __user *) data);
+					     datavp);
 
 #ifdef CONFIG_ALTIVEC
 	case PTRACE_GETVRREGS:
@@ -1609,40 +1644,40 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 					   REGSET_VMX,
 					   0, (33 * sizeof(vector128) +
 					       sizeof(u32)),
-					   (void __user *) data);
+					   datavp);
 
 	case PTRACE_SETVRREGS:
 		return copy_regset_from_user(child, &user_ppc_native_view,
 					     REGSET_VMX,
 					     0, (33 * sizeof(vector128) +
 						 sizeof(u32)),
-					     (const void __user *) data);
+					     datavp);
 #endif
 #ifdef CONFIG_VSX
 	case PTRACE_GETVSRREGS:
 		return copy_regset_to_user(child, &user_ppc_native_view,
 					   REGSET_VSX,
 					   0, 32 * sizeof(double),
-					   (void __user *) data);
+					   datavp);
 
 	case PTRACE_SETVSRREGS:
 		return copy_regset_from_user(child, &user_ppc_native_view,
 					     REGSET_VSX,
 					     0, 32 * sizeof(double),
-					     (const void __user *) data);
+					     datavp);
 #endif
 #ifdef CONFIG_SPE
 	case PTRACE_GETEVRREGS:
 		/* Get the child spe register state. */
 		return copy_regset_to_user(child, &user_ppc_native_view,
 					   REGSET_SPE, 0, 35 * sizeof(u32),
-					   (void __user *) data);
+					   datavp);
 
 	case PTRACE_SETEVRREGS:
 		/* Set the child spe register state. */
 		return copy_regset_from_user(child, &user_ppc_native_view,
 					     REGSET_SPE, 0, 35 * sizeof(u32),
-					     (const void __user *) data);
+					     datavp);
 #endif
 
 	/* Old reverse args ptrace callss */
@@ -1679,9 +1714,12 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 		 */
 		ret = -1L;
 
+	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
+		trace_sys_enter(regs, regs->gpr[0]);
+
 	if (unlikely(current->audit_context)) {
 #ifdef CONFIG_PPC64
-		if (!test_thread_flag(TIF_32BIT))
+		if (!is_32bit_task())
 			audit_syscall_entry(AUDIT_ARCH_PPC64,
 					    regs->gpr[0],
 					    regs->gpr[3], regs->gpr[4],
@@ -1706,6 +1744,9 @@ void do_syscall_trace_leave(struct pt_regs *regs)
 	if (unlikely(current->audit_context))
 		audit_syscall_exit((regs->ccr&0x10000000)?AUDITSC_FAILURE:AUDITSC_SUCCESS,
 				   regs->result);
+
+	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
+		trace_sys_exit(regs, regs->result);
 
 	step = test_thread_flag(TIF_SINGLESTEP);
 	if (step || test_thread_flag(TIF_SYSCALL_TRACE))

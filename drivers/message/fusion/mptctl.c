@@ -54,7 +54,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>	/* for mdelay */
 #include <linux/miscdevice.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/compat.h>
 
 #include <asm/io.h>
@@ -83,6 +83,7 @@ MODULE_VERSION(my_VERSION);
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
+static DEFINE_MUTEX(mpctl_mutex);
 static u8 mptctl_id = MPT_MAX_PROTOCOL_DRIVERS;
 static u8 mptctl_taskmgmt_id = MPT_MAX_PROTOCOL_DRIVERS;
 
@@ -596,17 +597,24 @@ mptctl_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 }
 
 static int
+mptctl_release(struct inode *inode, struct file *filep)
+{
+	fasync_helper(-1, filep, 0, &async_queue);
+	return 0;
+}
+
+static int
 mptctl_fasync(int fd, struct file *filep, int mode)
 {
 	MPT_ADAPTER	*ioc;
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&mpctl_mutex);
 	list_for_each_entry(ioc, &ioc_list, list)
 		ioc->aen_event_read_flag=0;
 
 	ret = fasync_helper(fd, filep, mode, &async_queue);
-	unlock_kernel();
+	mutex_unlock(&mpctl_mutex);
 	return ret;
 }
 
@@ -698,9 +706,9 @@ static long
 mptctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret;
-	lock_kernel();
+	mutex_lock(&mpctl_mutex);
 	ret = __mptctl_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&mpctl_mutex);
 	return ret;
 }
 
@@ -977,7 +985,7 @@ retry_wait:
 	ReplyMsg = (pFWDownloadReply_t)iocp->ioctl_cmds.reply;
 	iocstat = le16_to_cpu(ReplyMsg->IOCStatus) & MPI_IOCSTATUS_MASK;
 	if (iocstat == MPI_IOCSTATUS_SUCCESS) {
-		printk(MYIOC_s_INFO_FMT "F/W update successfull!\n", iocp->name);
+		printk(MYIOC_s_INFO_FMT "F/W update successful!\n", iocp->name);
 		return 0;
 	} else if (iocstat == MPI_IOCSTATUS_INVALID_FUNCTION) {
 		printk(MYIOC_s_WARN_FMT "Hmmm...  F/W download not supported!?!\n",
@@ -1306,8 +1314,10 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 	else
 		karg->adapterType = MPT_IOCTL_INTERFACE_SCSI;
 
-	if (karg->hdr.port > 1)
+	if (karg->hdr.port > 1) {
+		kfree(karg);
 		return -EINVAL;
+	}
 	port = karg->hdr.port;
 
 	karg->port = port;
@@ -2397,7 +2407,7 @@ done_free_mem:
 	}
 
 	/* mf is null if command issued successfully
-	 * otherwise, failure occured after mf acquired.
+	 * otherwise, failure occurred after mf acquired.
 	 */
 	if (mf)
 		mpt_free_msg_frame(ioc, mf);
@@ -2814,6 +2824,7 @@ static const struct file_operations mptctl_fops = {
 	.llseek =	no_llseek,
 	.fasync = 	mptctl_fasync,
 	.unlocked_ioctl = mptctl_ioctl,
+	.release =	mptctl_release,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = compat_mpctl_ioctl,
 #endif
@@ -2926,7 +2937,7 @@ compat_mpt_command(struct file *filp, unsigned int cmd,
 static long compat_mpctl_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 {
 	long ret;
-	lock_kernel();
+	mutex_lock(&mpctl_mutex);
 	switch (cmd) {
 	case MPTIOCINFO:
 	case MPTIOCINFO1:
@@ -2951,7 +2962,7 @@ static long compat_mpctl_ioctl(struct file *f, unsigned int cmd, unsigned long a
 		ret = -ENOIOCTLCMD;
 		break;
 	}
-	unlock_kernel();
+	mutex_unlock(&mpctl_mutex);
 	return ret;
 }
 

@@ -46,7 +46,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <scsi/scsicam.h>
 
@@ -62,6 +62,7 @@ MODULE_DESCRIPTION ("LSI Logic MegaRAID legacy driver");
 MODULE_LICENSE ("GPL");
 MODULE_VERSION(MEGARAID_MODULE_VERSION);
 
+static DEFINE_MUTEX(megadev_mutex);
 static unsigned int max_cmd_per_lun = DEF_CMD_PER_LUN;
 module_param(max_cmd_per_lun, uint, 0);
 MODULE_PARM_DESC(max_cmd_per_lun, "Maximum number of commands which can be issued to a single LUN (default=DEF_CMD_PER_LUN=63)");
@@ -101,6 +102,7 @@ static const struct file_operations megadev_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= megadev_unlocked_ioctl,
 	.open		= megadev_open,
+	.llseek		= noop_llseek,
 };
 
 /*
@@ -282,7 +284,7 @@ mega_query_adapter(adapter_t *adapter)
 
 	adapter->host->max_id = 16;	/* max targets per channel */
 
-	adapter->host->max_lun = 7;	/* Upto 7 luns for non disk devices */
+	adapter->host->max_lun = 7;	/* Up to 7 luns for non disk devices */
 
 	adapter->host->cmd_per_lun = max_cmd_per_lun;
 
@@ -364,7 +366,7 @@ mega_runpendq(adapter_t *adapter)
  * The command queuing entry point for the mid-layer.
  */
 static int
-megaraid_queue(Scsi_Cmnd *scmd, void (*done)(Scsi_Cmnd *))
+megaraid_queue_lck(Scsi_Cmnd *scmd, void (*done)(Scsi_Cmnd *))
 {
 	adapter_t	*adapter;
 	scb_t	*scb;
@@ -406,6 +408,8 @@ megaraid_queue(Scsi_Cmnd *scmd, void (*done)(Scsi_Cmnd *))
 	spin_unlock_irqrestore(&adapter->lock, flags);
 	return busy;
 }
+
+static DEF_SCSI_QCMD(megaraid_queue)
 
 /**
  * mega_allocate_scb()
@@ -1408,7 +1412,7 @@ megaraid_isr_memmapped(int irq, void *devp)
  * @nstatus - number of completed commands
  * @status - status of the last command completed
  *
- * Complete the comamnds and call the scsi mid-layer callback hooks.
+ * Complete the commands and call the scsi mid-layer callback hooks.
  */
 static void
 mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
@@ -1465,8 +1469,8 @@ mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
 			if( scb->state & SCB_ABORT ) {
 
 				printk(KERN_WARNING
-				"megaraid: aborted cmd %lx[%x] complete.\n",
-					scb->cmd->serial_number, scb->idx);
+				"megaraid: aborted cmd [%x] complete.\n",
+					scb->idx);
 
 				scb->cmd->result = (DID_ABORT << 16);
 
@@ -1484,8 +1488,8 @@ mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
 			if( scb->state & SCB_RESET ) {
 
 				printk(KERN_WARNING
-				"megaraid: reset cmd %lx[%x] complete.\n",
-					scb->cmd->serial_number, scb->idx);
+				"megaraid: reset cmd [%x] complete.\n",
+					scb->idx);
 
 				scb->cmd->result = (DID_RESET << 16);
 
@@ -1954,8 +1958,8 @@ megaraid_abort_and_reset(adapter_t *adapter, Scsi_Cmnd *cmd, int aor)
 	struct list_head	*pos, *next;
 	scb_t			*scb;
 
-	printk(KERN_WARNING "megaraid: %s-%lx cmd=%x <c=%d t=%d l=%d>\n",
-	     (aor == SCB_ABORT)? "ABORTING":"RESET", cmd->serial_number,
+	printk(KERN_WARNING "megaraid: %s cmd=%x <c=%d t=%d l=%d>\n",
+	     (aor == SCB_ABORT)? "ABORTING":"RESET",
 	     cmd->cmnd[0], cmd->device->channel, 
 	     cmd->device->id, cmd->device->lun);
 
@@ -1979,9 +1983,9 @@ megaraid_abort_and_reset(adapter_t *adapter, Scsi_Cmnd *cmd, int aor)
 			if( scb->state & SCB_ISSUED ) {
 
 				printk(KERN_WARNING
-					"megaraid: %s-%lx[%x], fw owner.\n",
+					"megaraid: %s[%x], fw owner.\n",
 					(aor==SCB_ABORT) ? "ABORTING":"RESET",
-					cmd->serial_number, scb->idx);
+					scb->idx);
 
 				return FALSE;
 			}
@@ -1992,9 +1996,9 @@ megaraid_abort_and_reset(adapter_t *adapter, Scsi_Cmnd *cmd, int aor)
 				 * list
 				 */
 				printk(KERN_WARNING
-					"megaraid: %s-%lx[%x], driver owner.\n",
+					"megaraid: %s-[%x], driver owner.\n",
 					(aor==SCB_ABORT) ? "ABORTING":"RESET",
-					cmd->serial_number, scb->idx);
+					scb->idx);
 
 				mega_free_scb(adapter, scb);
 
@@ -3282,7 +3286,6 @@ mega_init_scb(adapter_t *adapter)
 static int
 megadev_open (struct inode *inode, struct file *filep)
 {
-	cycle_kernel_lock();
 	/*
 	 * Only allow superuser to access private ioctl interface
 	 */
@@ -3701,9 +3704,9 @@ megadev_unlocked_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&megadev_mutex);
 	ret = megadev_ioctl(filep, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&megadev_mutex);
 
 	return ret;
 }
@@ -3731,7 +3734,7 @@ mega_m_to_n(void __user *arg, nitioctl_t *uioc)
 	 * check is the application conforms to NIT. We do not have to do much
 	 * in that case.
 	 * We exploit the fact that the signature is stored in the very
-	 * begining of the structure.
+	 * beginning of the structure.
 	 */
 
 	if( copy_from_user(signature, arg, 7) )
@@ -4293,7 +4296,7 @@ mega_support_cluster(adapter_t *adapter)
  * @adapter - pointer to our soft state
  * @dma_handle - DMA address of the buffer
  *
- * Issue internal comamnds while interrupts are available.
+ * Issue internal commands while interrupts are available.
  * We only issue direct mailbox commands from within the driver. ioctl()
  * interface using these routines can issue passthru commands.
  */
@@ -4455,7 +4458,7 @@ mega_internal_command(adapter_t *adapter, megacmd_t *mc, mega_passthru *pthru)
 
 	scb->idx = CMDID_INT_CMDS;
 
-	megaraid_queue(scmd, mega_internal_done);
+	megaraid_queue_lck(scmd, mega_internal_done);
 
 	wait_for_completion(&adapter->int_waitq);
 

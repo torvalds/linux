@@ -3,6 +3,7 @@
  * AVR32 systems.)
  *
  * Copyright (C) 2007 Atmel Corporation
+ * Copyright (C) 2010-2011 ST Microelectronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,9 +17,18 @@
 /**
  * struct dw_dma_platform_data - Controller configuration parameters
  * @nr_channels: Number of channels supported by hardware (max 8)
+ * @is_private: The device channels should be marked as private and not for
+ *	by the general purpose DMA channel allocator.
  */
 struct dw_dma_platform_data {
 	unsigned int	nr_channels;
+	bool		is_private;
+#define CHAN_ALLOCATION_ASCENDING	0	/* zero to seven */
+#define CHAN_ALLOCATION_DESCENDING	1	/* seven to zero */
+	unsigned char	chan_allocation_order;
+#define CHAN_PRIORITY_ASCENDING		0	/* chan0 highest */
+#define CHAN_PRIORITY_DESCENDING	1	/* chan7 highest */
+	unsigned char	chan_priority;
 };
 
 /**
@@ -33,6 +43,30 @@ enum dw_dma_slave_width {
 	DW_DMA_SLAVE_WIDTH_32BIT,
 };
 
+/* bursts size */
+enum dw_dma_msize {
+	DW_DMA_MSIZE_1,
+	DW_DMA_MSIZE_4,
+	DW_DMA_MSIZE_8,
+	DW_DMA_MSIZE_16,
+	DW_DMA_MSIZE_32,
+	DW_DMA_MSIZE_64,
+	DW_DMA_MSIZE_128,
+	DW_DMA_MSIZE_256,
+};
+
+/* flow controller */
+enum dw_dma_fc {
+	DW_DMA_FC_D_M2M,
+	DW_DMA_FC_D_M2P,
+	DW_DMA_FC_D_P2M,
+	DW_DMA_FC_D_P2P,
+	DW_DMA_FC_P_P2M,
+	DW_DMA_FC_SP_P2P,
+	DW_DMA_FC_P_M2P,
+	DW_DMA_FC_DP_P2P,
+};
+
 /**
  * struct dw_dma_slave - Controller-specific information about a slave
  *
@@ -44,6 +78,11 @@ enum dw_dma_slave_width {
  * @reg_width: peripheral register width
  * @cfg_hi: Platform-specific initializer for the CFG_HI register
  * @cfg_lo: Platform-specific initializer for the CFG_LO register
+ * @src_master: src master for transfers on allocated channel.
+ * @dst_master: dest master for transfers on allocated channel.
+ * @src_msize: src burst size.
+ * @dst_msize: dest burst size.
+ * @fc: flow controller for DMA transfer
  */
 struct dw_dma_slave {
 	struct device		*dma_dev;
@@ -52,6 +91,11 @@ struct dw_dma_slave {
 	enum dw_dma_slave_width	reg_width;
 	u32			cfg_hi;
 	u32			cfg_lo;
+	u8			src_master;
+	u8			dst_master;
+	u8			src_msize;
+	u8			dst_msize;
+	u8			fc;
 };
 
 /* Platform-configurable bits in CFG_HI */
@@ -62,7 +106,6 @@ struct dw_dma_slave {
 #define DWC_CFGH_DST_PER(x)	((x) << 11)
 
 /* Platform-configurable bits in CFG_LO */
-#define DWC_CFGL_PRIO(x)	((x) << 5)	/* priority */
 #define DWC_CFGL_LOCK_CH_XFER	(0 << 12)	/* scope of LOCK_CH */
 #define DWC_CFGL_LOCK_CH_BLOCK	(1 << 12)
 #define DWC_CFGL_LOCK_CH_XACT	(2 << 12)

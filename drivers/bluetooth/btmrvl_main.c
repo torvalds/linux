@@ -117,8 +117,8 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 				(event->data[2] == MODULE_ALREADY_UP)) ?
 				"Bring-up succeed" : "Bring-up failed");
 
-			if (event->length > 3)
-				priv->btmrvl_dev.dev_type = event->data[3];
+			if (event->length > 3 && event->data[3])
+				priv->btmrvl_dev.dev_type = HCI_AMP;
 			else
 				priv->btmrvl_dev.dev_type = HCI_BREDR;
 

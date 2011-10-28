@@ -7,7 +7,6 @@
 
 #include "localpara.h"
 #include "mac_structures.h"
-#include "scan_s.h"
 
 /* Preamble_Type, see <SFS-802.11G-MIB-203> */
 enum {
@@ -107,10 +106,6 @@ struct wb35_mds {
 
 	u8	TxRate[((MAX_USB_TX_DESCRIPTOR + 1) & ~0x01)][2]; /* [0] current tx rate, [1] fall back rate */
 	u8	TxInfo[((MAX_USB_TX_DESCRIPTOR + 1) & ~0x01)]; /*Store information for callback function */
-
-	/* for scanning mechanism */
-	u8	TxToggle;	/* It is TRUE if there are tx activities in some time interval */
-	u8	Reserved_[3];
 
 	/* ---- for Tx Parameter */
 	u16	TxFragmentThreshold;	/* For frame body only */

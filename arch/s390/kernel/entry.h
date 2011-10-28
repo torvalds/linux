@@ -5,21 +5,21 @@
 #include <linux/signal.h>
 #include <asm/ptrace.h>
 
-typedef void pgm_check_handler_t(struct pt_regs *, long);
+typedef void pgm_check_handler_t(struct pt_regs *, long, unsigned long);
 extern pgm_check_handler_t *pgm_check_table[128];
 pgm_check_handler_t do_protection_exception;
 pgm_check_handler_t do_dat_exception;
 
 extern int sysctl_userprocess_debug;
 
-void do_single_step(struct pt_regs *regs);
+void do_per_trap(struct pt_regs *regs);
 void syscall_trace(struct pt_regs *regs, int entryexit);
 void kernel_stack_overflow(struct pt_regs * regs);
 void do_signal(struct pt_regs *regs);
 int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		    siginfo_t *info, sigset_t *oldset, struct pt_regs *regs);
 
-void do_extint(struct pt_regs *regs, unsigned short code);
+void do_extint(struct pt_regs *regs, unsigned int, unsigned int, unsigned long);
 int __cpuinit start_secondary(void *cpuvoid);
 void __init startup_init(void);
 void die(const char * str, struct pt_regs * regs, long err);

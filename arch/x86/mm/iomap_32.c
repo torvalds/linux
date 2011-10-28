@@ -48,21 +48,20 @@ int iomap_create_wc(resource_size_t base, unsigned long size, pgprot_t *prot)
 }
 EXPORT_SYMBOL_GPL(iomap_create_wc);
 
-void
-iomap_free(resource_size_t base, unsigned long size)
+void iomap_free(resource_size_t base, unsigned long size)
 {
 	io_free_memtype(base, base + size);
 }
 EXPORT_SYMBOL_GPL(iomap_free);
 
-void *kmap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot)
+void *kmap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
 {
-	enum fixed_addresses idx;
 	unsigned long vaddr;
+	int idx, type;
 
 	pagefault_disable();
 
-	debug_kmap_atomic(type);
+	type = kmap_atomic_idx_push();
 	idx = type + KM_TYPE_NR * smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 	set_pte(kmap_pte - idx, pfn_pte(pfn, prot));
@@ -72,10 +71,10 @@ void *kmap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot)
 }
 
 /*
- * Map 'pfn' using fixed map 'type' and protections 'prot'
+ * Map 'pfn' using protections 'prot'
  */
 void __iomem *
-iomap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot)
+iomap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
 {
 	/*
 	 * For non-PAT systems, promote PAGE_KERNEL_WC to PAGE_KERNEL_UC_MINUS.
@@ -86,24 +85,34 @@ iomap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot)
 	if (!pat_enabled && pgprot_val(prot) == pgprot_val(PAGE_KERNEL_WC))
 		prot = PAGE_KERNEL_UC_MINUS;
 
-	return (void __force __iomem *) kmap_atomic_prot_pfn(pfn, type, prot);
+	return (void __force __iomem *) kmap_atomic_prot_pfn(pfn, prot);
 }
 EXPORT_SYMBOL_GPL(iomap_atomic_prot_pfn);
 
 void
-iounmap_atomic(void __iomem *kvaddr, enum km_type type)
+iounmap_atomic(void __iomem *kvaddr)
 {
 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
-	enum fixed_addresses idx = type + KM_TYPE_NR*smp_processor_id();
 
-	/*
-	 * Force other mappings to Oops if they'll try to access this pte
-	 * without first remap it.  Keeping stale mappings around is a bad idea
-	 * also, in case the page changes cacheability attributes or becomes
-	 * a protected page in a hypervisor.
-	 */
-	if (vaddr == __fix_to_virt(FIX_KMAP_BEGIN+idx))
+	if (vaddr >= __fix_to_virt(FIX_KMAP_END) &&
+	    vaddr <= __fix_to_virt(FIX_KMAP_BEGIN)) {
+		int idx, type;
+
+		type = kmap_atomic_idx();
+		idx = type + KM_TYPE_NR * smp_processor_id();
+
+#ifdef CONFIG_DEBUG_HIGHMEM
+		WARN_ON_ONCE(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
+#endif
+		/*
+		 * Force other mappings to Oops if they'll try to access this
+		 * pte without first remap it.  Keeping stale mappings around
+		 * is a bad idea also, in case the page changes cacheability
+		 * attributes or becomes a protected page in a hypervisor.
+		 */
 		kpte_clear_flush(kmap_pte-idx, vaddr);
+		kmap_atomic_idx_pop();
+	}
 
 	pagefault_enable();
 }

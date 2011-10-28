@@ -129,12 +129,12 @@ Limit injection to pages owned by memgroup. Specified by inode number
 of the memcg.
 
 Example:
-        mkdir /cgroup/hwpoison
+        mkdir /sys/fs/cgroup/mem/hwpoison
 
         usemem -m 100 -s 1000 &
-        echo `jobs -p` > /cgroup/hwpoison/tasks
+        echo `jobs -p` > /sys/fs/cgroup/mem/hwpoison/tasks
 
-        memcg_ino=$(ls -id /cgroup/hwpoison | cut -f1 -d' ')
+        memcg_ino=$(ls -id /sys/fs/cgroup/mem/hwpoison | cut -f1 -d' ')
         echo $memcg_ino > /debug/hwpoison/corrupt-filter-memcg
 
         page-types -p `pidof init`   --hwpoison  # shall do nothing

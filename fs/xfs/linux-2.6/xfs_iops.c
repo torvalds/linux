@@ -46,7 +46,6 @@
 #include <linux/namei.h>
 #include <linux/posix_acl.h>
 #include <linux/security.h>
-#include <linux/falloc.h>
 #include <linux/fiemap.h>
 #include <linux/slab.h>
 
@@ -71,7 +70,7 @@ xfs_synchronize_times(
 
 /*
  * If the linux inode is valid, mark it dirty.
- * Used when commiting a dirty inode into a transaction so that
+ * Used when committing a dirty inode into a transaction so that
  * the inode will get written back by the linux code
  */
 void
@@ -95,41 +94,6 @@ xfs_mark_inode_dirty(
 }
 
 /*
- * Change the requested timestamp in the given inode.
- * We don't lock across timestamp updates, and we don't log them but
- * we do record the fact that there is dirty information in core.
- */
-void
-xfs_ichgtime(
-	xfs_inode_t	*ip,
-	int		flags)
-{
-	struct inode	*inode = VFS_I(ip);
-	timespec_t	tv;
-	int		sync_it = 0;
-
-	tv = current_fs_time(inode->i_sb);
-
-	if ((flags & XFS_ICHGTIME_MOD) &&
-	    !timespec_equal(&inode->i_mtime, &tv)) {
-		inode->i_mtime = tv;
-		sync_it = 1;
-	}
-	if ((flags & XFS_ICHGTIME_CHG) &&
-	    !timespec_equal(&inode->i_ctime, &tv)) {
-		inode->i_ctime = tv;
-		sync_it = 1;
-	}
-
-	/*
-	 * Update complete - now make sure everyone knows that the inode
-	 * is dirty.
-	 */
-	if (sync_it)
-		xfs_mark_inode_dirty_sync(ip);
-}
-
-/*
  * Hook in SELinux.  This is not quite correct yet, what we really need
  * here (as we do for default ACLs) is a mechanism by which creation of
  * these attrs can be journalled at inode creation time (along with the
@@ -138,7 +102,8 @@ xfs_ichgtime(
 STATIC int
 xfs_init_security(
 	struct inode	*inode,
-	struct inode	*dir)
+	struct inode	*dir,
+	const struct qstr *qstr)
 {
 	struct xfs_inode *ip = XFS_I(inode);
 	size_t		length;
@@ -146,7 +111,7 @@ xfs_init_security(
 	unsigned char	*name;
 	int		error;
 
-	error = security_inode_init_security(inode, dir, (char **)&name,
+	error = security_inode_init_security(inode, dir, qstr, (char **)&name,
 					     &value, &length);
 	if (error) {
 		if (error == -EOPNOTSUPP)
@@ -217,20 +182,20 @@ xfs_vn_mknod(
 	if (IS_POSIXACL(dir)) {
 		default_acl = xfs_get_acl(dir, ACL_TYPE_DEFAULT);
 		if (IS_ERR(default_acl))
-			return -PTR_ERR(default_acl);
+			return PTR_ERR(default_acl);
 
 		if (!default_acl)
 			mode &= ~current_umask();
 	}
 
 	xfs_dentry_to_name(&name, dentry);
-	error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip, NULL);
+	error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip);
 	if (unlikely(error))
 		goto out_free_acl;
 
 	inode = VFS_I(ip);
 
-	error = xfs_init_security(inode, dir);
+	error = xfs_init_security(inode, dir, &dentry->d_name);
 	if (unlikely(error))
 		goto out_cleanup_inode;
 
@@ -352,7 +317,7 @@ xfs_vn_link(
 	if (unlikely(error))
 		return -error;
 
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 	d_instantiate(dentry, inode);
 	return 0;
 }
@@ -397,13 +362,13 @@ xfs_vn_symlink(
 		(irix_symlink_mode ? 0777 & ~current_umask() : S_IRWXUGO);
 	xfs_dentry_to_name(&name, dentry);
 
-	error = xfs_symlink(XFS_I(dir), &name, symname, mode, &cip, NULL);
+	error = xfs_symlink(XFS_I(dir), &name, symname, mode, &cip);
 	if (unlikely(error))
 		goto out;
 
 	inode = VFS_I(cip);
 
-	error = xfs_init_security(inode, dir);
+	error = xfs_init_security(inode, dir, &dentry->d_name);
 	if (unlikely(error))
 		goto out_cleanup_inode;
 
@@ -540,58 +505,6 @@ xfs_vn_setattr(
 	return -xfs_setattr(XFS_I(dentry->d_inode), iattr, 0);
 }
 
-STATIC long
-xfs_vn_fallocate(
-	struct inode	*inode,
-	int		mode,
-	loff_t		offset,
-	loff_t		len)
-{
-	long		error;
-	loff_t		new_size = 0;
-	xfs_flock64_t	bf;
-	xfs_inode_t	*ip = XFS_I(inode);
-
-	/* preallocation on directories not yet supported */
-	error = -ENODEV;
-	if (S_ISDIR(inode->i_mode))
-		goto out_error;
-
-	bf.l_whence = 0;
-	bf.l_start = offset;
-	bf.l_len = len;
-
-	xfs_ilock(ip, XFS_IOLOCK_EXCL);
-
-	/* check the new inode size is valid before allocating */
-	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-	    offset + len > i_size_read(inode)) {
-		new_size = offset + len;
-		error = inode_newsize_ok(inode, new_size);
-		if (error)
-			goto out_unlock;
-	}
-
-	error = -xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
-				       0, XFS_ATTR_NOLOCK);
-	if (error)
-		goto out_unlock;
-
-	/* Change file size if needed */
-	if (new_size) {
-		struct iattr iattr;
-
-		iattr.ia_valid = ATTR_SIZE;
-		iattr.ia_size = new_size;
-		error = -xfs_setattr(ip, &iattr, XFS_ATTR_NOLOCK);
-	}
-
-out_unlock:
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-out_error:
-	return error;
-}
-
 #define XFS_FIEMAP_FLAGS	(FIEMAP_FLAG_SYNC|FIEMAP_FLAG_XATTR)
 
 /*
@@ -685,7 +598,6 @@ static const struct inode_operations xfs_inode_operations = {
 	.getxattr		= generic_getxattr,
 	.removexattr		= generic_removexattr,
 	.listxattr		= xfs_vn_listxattr,
-	.fallocate		= xfs_vn_fallocate,
 	.fiemap			= xfs_vn_fiemap,
 };
 
@@ -795,7 +707,10 @@ xfs_setup_inode(
 
 	inode->i_ino = ip->i_ino;
 	inode->i_state = I_NEW;
-	inode_add_to_lists(ip->i_mount->m_super, inode);
+
+	inode_sb_list_add(inode);
+	/* make the inode look hashed for the writeback code */
+	hlist_add_fake(&inode->i_hash);
 
 	inode->i_mode	= ip->i_d.di_mode;
 	inode->i_nlink	= ip->i_d.di_nlink;

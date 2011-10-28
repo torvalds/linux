@@ -5,7 +5,6 @@
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- * http://www.algor.co.uk
  *
  * ########################################################################
  *
@@ -71,7 +70,7 @@
 
 
 #define COMPXSP \
-  unsigned xm; int xe; int xs; int xc
+  unsigned xm; int xe; int xs __maybe_unused; int xc
 
 #define COMPYSP \
   unsigned ym; int ye; int ys; int yc
@@ -105,7 +104,7 @@
 
 
 #define COMPXDP \
-u64 xm; int xe; int xs; int xc
+u64 xm; int xe; int xs __maybe_unused; int xc
 
 #define COMPYDP \
 u64 ym; int ye; int ys; int yc

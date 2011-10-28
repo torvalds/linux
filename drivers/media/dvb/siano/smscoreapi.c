@@ -438,7 +438,7 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 	int rc;
 	void *buffer;
 
-	coredev->ir.input_dev = NULL;
+	coredev->ir.dev = NULL;
 	ir_io = sms_get_board(smscore_get_board_id(coredev))->board_cfg.ir;
 	if (ir_io) {/* only if IR port exist we use IR sub-module */
 		sms_info("IR loading");
@@ -1504,8 +1504,7 @@ int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 PinNum,
 		u32 msgData[3]; /* keep it 3 ! */
 	} *pMsg;
 
-	if ((NewLevel > 1) || (PinNum > MAX_GPIO_PIN_NUMBER) ||
-			(PinNum > MAX_GPIO_PIN_NUMBER))
+	if ((NewLevel > 1) || (PinNum > MAX_GPIO_PIN_NUMBER))
 		return -EINVAL;
 
 	totalLen = sizeof(struct SmsMsgHdr_ST) +

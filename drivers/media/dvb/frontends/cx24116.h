@@ -35,6 +35,9 @@ struct cx24116_config {
 
 	/* Need to set MPEG parameters */
 	u8 mpg_clk_pos_pol:0x02;
+
+	/* max bytes I2C provider can write at once */
+	u16 i2c_wr_max;
 };
 
 #if defined(CONFIG_DVB_CX24116) || \

@@ -1,0 +1,99 @@
+What:		/sys/block/zram<id>/disksize
+Date:		August 2010
+Contact:	Nitin Gupta <ngupta@vflare.org>
+Description:
+		The disksize file is read-write and specifies the disk size
+		which represents the limit on the *uncompressed* worth of data
+		that can be stored in this disk.
+
+What:		/sys/block/zram<id>/initstate
+Date:		August 2010
+Contact:	Nitin Gupta <ngupta@vflare.org>
+Description:
+		The disksize file is read-only and shows the initialization
+		state of the device.
+
+What:		/sys/block/zram<id>/reset
+Date:		August 2010
+Contact:	Nitin Gupta <ngupta@vflare.org>
+Description:
+		The disksize file is write-only and allows resetting the
+		device. The reset operation frees all the memory assocaited
+		with this device.
+
+What:		/sys/block/zram<id>/num_reads
+Date:		August 2010
+Contact:	Nitin Gupta <ngupta@vflare.org>
+Description:
+		The num_reads file is read-only and specifies the number of
+		reads (failed or successful) done on this device.
+
+What:		/sys/block/zram<id>/num_writes
+Date:		August 2010
+Contact:	Nitin Gupta <ngupta@vflare.org>
+Description:
+		The num_writes file is read-only and specifies the number of
+		writes (failed or successful) done on this device.
+
+What:		/sys/block/zram<id>/invalid_io
+Date:		August 2010
+Contact:	Nitin Gupta <ngupta@vflare.org>
+Description:
+		The invalid_io file is read-only and specifies the number of
+		non-page-size-aligned I/O requests issued to this device.
+
+What:		/sys/block/zram<id>/notify_free
+Date:		August 2010
+Contact:	Nitin Gupta <ngupta@vflare.org>
+Description:
+		The notify_free file is read-only and specifies the number of
+		swap slot free notifications received by this device. These
+		notifications are send to a swap block device when a swap slot
+		is freed. This statistic is applicable only when this disk is
+		being used as a swap disk.
+
+What:		/sys/block/zram<id>/discard
+Date:		August 2010
+Contact:	Nitin Gupta <ngupta@vflare.org>
+Description:
+		The discard file is read-only and specifies the number of
+		discard requests received by this device. These requests
+		provide information to block device regarding blocks which are
+		no longer used by filesystem.
+
+What:		/sys/block/zram<id>/zero_pages
+Date:		August 2010
+Contact:	Nitin Gupta <ngupta@vflare.org>
+Description:
+		The zero_pages file is read-only and specifies number of zero
+		filled pages written to this disk. No memory is allocated for
+		such pages.
+
+What:		/sys/block/zram<id>/orig_data_size
+Date:		August 2010
+Contact:	Nitin Gupta <ngupta@vflare.org>
+Description:
+		The orig_data_size file is read-only and specifies uncompressed
+		size of data stored in this disk. This excludes zero-filled
+		pages (zero_pages) since no memory is allocated for them.
+		Unit: bytes
+
+What:		/sys/block/zram<id>/compr_data_size
+Date:		August 2010
+Contact:	Nitin Gupta <ngupta@vflare.org>
+Description:
+		The compr_data_size file is read-only and specifies compressed
+		size of data stored in this disk. So, compression ratio can be
+		calculated using orig_data_size and this statistic.
+		Unit: bytes
+
+What:		/sys/block/zram<id>/mem_used_total
+Date:		August 2010
+Contact:	Nitin Gupta <ngupta@vflare.org>
+Description:
+		The mem_used_total file is read-only and specifies the amount
+		of memory, including allocator fragmentation and metadata
+		overhead, allocated for this disk. So, allocator space
+		efficiency can be calculated using compr_data_size and this
+		statistic.
+		Unit: bytes

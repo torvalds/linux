@@ -2,6 +2,7 @@ menuconfig INFINIBAND
 	tristate "InfiniBand support"
 	depends on PCI || BROKEN
 	depends on HAS_IOMEM
+	depends on NET
 	---help---
 	  Core support for InfiniBand (IB).  Make sure to also select
 	  any protocols you wish to use as well as drivers for your
@@ -16,7 +17,7 @@ config INFINIBAND_USER_MAD
 	  Userspace InfiniBand Management Datagram (MAD) support.  This
 	  is the kernel side of the userspace MAD support, which allows
 	  userspace processes to send and receive MADs. You will also
-	  need libibumad from <http://www.openib.org>.
+	  need libibumad from <http://www.openfabrics.org/downloads/management/>.
 
 config INFINIBAND_USER_ACCESS
 	tristate "InfiniBand userspace access (verbs and CM)"
@@ -28,7 +29,7 @@ config INFINIBAND_USER_ACCESS
 	  to set up connections and directly access InfiniBand
 	  hardware for fast-path operations.  You will also need
 	  libibverbs, libibcm and a hardware driver library from
-	  <http://www.openib.org>.
+	  <http://www.openfabrics.org/git/>.
 
 config INFINIBAND_USER_MEM
 	bool

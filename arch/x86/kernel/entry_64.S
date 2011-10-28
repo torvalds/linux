@@ -18,7 +18,7 @@
  * A note on terminology:
  * - top of stack: Architecture defined interrupt frame from SS to RIP
  * at the top of the kernel process stack.
- * - partial stack frame: partially saved registers upto R11.
+ * - partial stack frame: partially saved registers up to R11.
  * - full stack frame: Like partial stack frame, but all register saved.
  *
  * Some macro usage:
@@ -61,6 +61,8 @@
 #define __AUDIT_ARCH_LE	   0x40000000
 
 	.code64
+	.section .entry.text, "ax"
+
 #ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
 ENTRY(mcount)
@@ -213,23 +215,17 @@ ENDPROC(native_usergs_sysret64)
 	.macro FAKE_STACK_FRAME child_rip
 	/* push in order ss, rsp, eflags, cs, rip */
 	xorl %eax, %eax
-	pushq $__KERNEL_DS /* ss */
-	CFI_ADJUST_CFA_OFFSET	8
+	pushq_cfi $__KERNEL_DS /* ss */
 	/*CFI_REL_OFFSET	ss,0*/
-	pushq %rax /* rsp */
-	CFI_ADJUST_CFA_OFFSET	8
+	pushq_cfi %rax /* rsp */
 	CFI_REL_OFFSET	rsp,0
-	pushq $X86_EFLAGS_IF /* eflags - interrupts on */
-	CFI_ADJUST_CFA_OFFSET	8
+	pushq_cfi $X86_EFLAGS_IF /* eflags - interrupts on */
 	/*CFI_REL_OFFSET	rflags,0*/
-	pushq $__KERNEL_CS /* cs */
-	CFI_ADJUST_CFA_OFFSET	8
+	pushq_cfi $__KERNEL_CS /* cs */
 	/*CFI_REL_OFFSET	cs,0*/
-	pushq \child_rip /* rip */
-	CFI_ADJUST_CFA_OFFSET	8
+	pushq_cfi \child_rip /* rip */
 	CFI_REL_OFFSET	rip,0
-	pushq	%rax /* orig rax */
-	CFI_ADJUST_CFA_OFFSET	8
+	pushq_cfi %rax /* orig rax */
 	.endm
 
 	.macro UNFAKE_STACK_FRAME
@@ -301,20 +297,25 @@ ENDPROC(native_usergs_sysret64)
 	.endm
 
 /* save partial stack frame */
+	.pushsection .kprobes.text, "ax"
 ENTRY(save_args)
 	XCPT_FRAME
 	cld
-	movq_cfi rdi, RDI+16-ARGOFFSET
-	movq_cfi rsi, RSI+16-ARGOFFSET
-	movq_cfi rdx, RDX+16-ARGOFFSET
-	movq_cfi rcx, RCX+16-ARGOFFSET
-	movq_cfi rax, RAX+16-ARGOFFSET
-	movq_cfi  r8,  R8+16-ARGOFFSET
-	movq_cfi  r9,  R9+16-ARGOFFSET
-	movq_cfi r10, R10+16-ARGOFFSET
-	movq_cfi r11, R11+16-ARGOFFSET
+	/*
+	 * start from rbp in pt_regs and jump over
+	 * return address.
+	 */
+	movq_cfi rdi, RDI+8-RBP
+	movq_cfi rsi, RSI+8-RBP
+	movq_cfi rdx, RDX+8-RBP
+	movq_cfi rcx, RCX+8-RBP
+	movq_cfi rax, RAX+8-RBP
+	movq_cfi  r8,  R8+8-RBP
+	movq_cfi  r9,  R9+8-RBP
+	movq_cfi r10, R10+8-RBP
+	movq_cfi r11, R11+8-RBP
 
-	leaq -ARGOFFSET+16(%rsp),%rdi	/* arg1 for handler */
+	leaq -RBP+8(%rsp),%rdi	/* arg1 for handler */
 	movq_cfi rbp, 8		/* push %rbp */
 	leaq 8(%rsp), %rbp		/* mov %rsp, %ebp */
 	testl $3, CS(%rdi)
@@ -340,6 +341,7 @@ ENTRY(save_args)
 	ret
 	CFI_ENDPROC
 END(save_args)
+	.popsection
 
 ENTRY(save_rest)
 	PARTIAL_FRAME 1 REST_SKIP+8
@@ -398,10 +400,8 @@ ENTRY(ret_from_fork)
 
 	LOCK ; btr $TIF_FORK,TI_flags(%r8)
 
-	push kernel_eflags(%rip)
-	CFI_ADJUST_CFA_OFFSET 8
-	popf					# reset kernel eflags
-	CFI_ADJUST_CFA_OFFSET -8
+	pushq_cfi kernel_eflags(%rip)
+	popfq_cfi				# reset kernel eflags
 
 	call schedule_tail			# rdi: 'prev' task parameter
 
@@ -422,7 +422,7 @@ ENTRY(ret_from_fork)
 END(ret_from_fork)
 
 /*
- * System call entry. Upto 6 arguments in registers are supported.
+ * System call entry. Up to 6 arguments in registers are supported.
  *
  * SYSCALL does not save anything on the stack and does not change the
  * stack pointer.
@@ -521,11 +521,9 @@ sysret_careful:
 	jnc sysret_signal
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_NONE)
-	pushq %rdi
-	CFI_ADJUST_CFA_OFFSET 8
+	pushq_cfi %rdi
 	call schedule
-	popq  %rdi
-	CFI_ADJUST_CFA_OFFSET -8
+	popq_cfi %rdi
 	jmp sysret_check
 
 	/* Handle a signal */
@@ -634,11 +632,9 @@ int_careful:
 	jnc  int_very_careful
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_NONE)
-	pushq %rdi
-	CFI_ADJUST_CFA_OFFSET 8
+	pushq_cfi %rdi
 	call schedule
-	popq %rdi
-	CFI_ADJUST_CFA_OFFSET -8
+	popq_cfi %rdi
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	jmp int_with_check
@@ -652,12 +648,10 @@ int_check_syscall_exit_work:
 	/* Check for syscall exit trace */
 	testl $_TIF_WORK_SYSCALL_EXIT,%edx
 	jz int_signal
-	pushq %rdi
-	CFI_ADJUST_CFA_OFFSET 8
+	pushq_cfi %rdi
 	leaq 8(%rsp),%rdi	# &ptregs -> arg1
 	call syscall_trace_leave
-	popq %rdi
-	CFI_ADJUST_CFA_OFFSET -8
+	popq_cfi %rdi
 	andl $~(_TIF_WORK_SYSCALL_EXIT|_TIF_SYSCALL_EMU),%edi
 	jmp int_restore_rest
 
@@ -714,9 +708,8 @@ END(ptregscall_common)
 
 ENTRY(stub_execve)
 	CFI_STARTPROC
-	popq %r11
-	CFI_ADJUST_CFA_OFFSET -8
-	CFI_REGISTER rip, r11
+	addq $8, %rsp
+	PARTIAL_FRAME 0
 	SAVE_REST
 	FIXUP_TOP_OF_STACK %r11
 	movq %rsp, %rcx
@@ -735,7 +728,7 @@ END(stub_execve)
 ENTRY(stub_rt_sigreturn)
 	CFI_STARTPROC
 	addq $8, %rsp
-	CFI_ADJUST_CFA_OFFSET	-8
+	PARTIAL_FRAME 0
 	SAVE_REST
 	movq %rsp,%rdi
 	FIXUP_TOP_OF_STACK %r11
@@ -753,7 +746,7 @@ END(stub_rt_sigreturn)
  */
 	.section .init.rodata,"a"
 ENTRY(interrupt)
-	.text
+	.section .entry.text
 	.p2align 5
 	.p2align CONFIG_X86_L1_CACHE_SHIFT
 ENTRY(irq_entries_start)
@@ -766,14 +759,13 @@ vector=FIRST_EXTERNAL_VECTOR
       .if vector <> FIRST_EXTERNAL_VECTOR
 	CFI_ADJUST_CFA_OFFSET -8
       .endif
-1:	pushq $(~vector+0x80)	/* Note: always in signed byte range */
-	CFI_ADJUST_CFA_OFFSET 8
+1:	pushq_cfi $(~vector+0x80)	/* Note: always in signed byte range */
       .if ((vector-FIRST_EXTERNAL_VECTOR)%7) <> 6
 	jmp 2f
       .endif
       .previous
 	.quad 1b
-      .text
+      .section .entry.text
 vector=vector+1
     .endif
   .endr
@@ -796,8 +788,9 @@ END(interrupt)
 
 /* 0(%rsp): ~(interrupt number) */
 	.macro interrupt func
-	subq $10*8, %rsp
-	CFI_ADJUST_CFA_OFFSET 10*8
+	/* reserve pt_regs for scratch regs and rbp */
+	subq $ORIG_RAX-RBP, %rsp
+	CFI_ADJUST_CFA_OFFSET ORIG_RAX-RBP
 	call save_args
 	PARTIAL_FRAME 0
 	call \func
@@ -822,7 +815,13 @@ ret_from_intr:
 	TRACE_IRQS_OFF
 	decl PER_CPU_VAR(irq_count)
 	leaveq
+
+	CFI_RESTORE		rbp
 	CFI_DEF_CFA_REGISTER	rsp
+	CFI_ADJUST_CFA_OFFSET	-8
+
+	/* we did not save rbx, restore only from ARGOFFSET */
+	addq $8, %rsp
 	CFI_ADJUST_CFA_OFFSET	-8
 exit_intr:
 	GET_THREAD_INFO(%rcx)
@@ -903,11 +902,9 @@ retint_careful:
 	jnc   retint_signal
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_NONE)
-	pushq %rdi
-	CFI_ADJUST_CFA_OFFSET	8
+	pushq_cfi %rdi
 	call  schedule
-	popq %rdi
-	CFI_ADJUST_CFA_OFFSET	-8
+	popq_cfi %rdi
 	GET_THREAD_INFO(%rcx)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
@@ -956,8 +953,7 @@ END(common_interrupt)
 .macro apicinterrupt num sym do_sym
 ENTRY(\sym)
 	INTR_FRAME
-	pushq $~(\num)
-	CFI_ADJUST_CFA_OFFSET 8
+	pushq_cfi $~(\num)
 	interrupt \do_sym
 	jmp ret_from_intr
 	CFI_ENDPROC
@@ -981,22 +977,13 @@ apicinterrupt X86_PLATFORM_IPI_VECTOR \
 	x86_platform_ipi smp_x86_platform_ipi
 
 #ifdef CONFIG_SMP
-apicinterrupt INVALIDATE_TLB_VECTOR_START+0 \
-	invalidate_interrupt0 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+1 \
-	invalidate_interrupt1 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+2 \
-	invalidate_interrupt2 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+3 \
-	invalidate_interrupt3 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+4 \
-	invalidate_interrupt4 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+5 \
-	invalidate_interrupt5 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+6 \
-	invalidate_interrupt6 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+7 \
-	invalidate_interrupt7 smp_invalidate_interrupt
+.irp idx,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15, \
+	16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
+.if NUM_INVALIDATE_TLB_VECTORS > \idx
+apicinterrupt (INVALIDATE_TLB_VECTOR_START)+\idx \
+	invalidate_interrupt\idx smp_invalidate_interrupt
+.endif
+.endr
 #endif
 
 apicinterrupt THRESHOLD_APIC_VECTOR \
@@ -1023,9 +1010,9 @@ apicinterrupt ERROR_APIC_VECTOR \
 apicinterrupt SPURIOUS_APIC_VECTOR \
 	spurious_interrupt smp_spurious_interrupt
 
-#ifdef CONFIG_PERF_EVENTS
-apicinterrupt LOCAL_PENDING_VECTOR \
-	perf_pending_interrupt smp_perf_pending_interrupt
+#ifdef CONFIG_IRQ_WORK
+apicinterrupt IRQ_WORK_VECTOR \
+	irq_work_interrupt smp_irq_work_interrupt
 #endif
 
 /*
@@ -1036,8 +1023,8 @@ ENTRY(\sym)
 	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq_cfi $-1		/* ORIG_RAX: no syscall to restart */
-	subq $15*8,%rsp
-	CFI_ADJUST_CFA_OFFSET 15*8
+	subq $ORIG_RAX-R15, %rsp
+	CFI_ADJUST_CFA_OFFSET ORIG_RAX-R15
 	call error_entry
 	DEFAULT_FRAME 0
 	movq %rsp,%rdi		/* pt_regs pointer */
@@ -1052,9 +1039,9 @@ END(\sym)
 ENTRY(\sym)
 	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
-	pushq $-1		/* ORIG_RAX: no syscall to restart */
-	CFI_ADJUST_CFA_OFFSET 8
-	subq $15*8, %rsp
+	pushq_cfi $-1		/* ORIG_RAX: no syscall to restart */
+	subq $ORIG_RAX-R15, %rsp
+	CFI_ADJUST_CFA_OFFSET ORIG_RAX-R15
 	call save_paranoid
 	TRACE_IRQS_OFF
 	movq %rsp,%rdi		/* pt_regs pointer */
@@ -1070,9 +1057,9 @@ END(\sym)
 ENTRY(\sym)
 	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
-	pushq $-1		/* ORIG_RAX: no syscall to restart */
-	CFI_ADJUST_CFA_OFFSET 8
-	subq $15*8, %rsp
+	pushq_cfi $-1		/* ORIG_RAX: no syscall to restart */
+	subq $ORIG_RAX-R15, %rsp
+	CFI_ADJUST_CFA_OFFSET ORIG_RAX-R15
 	call save_paranoid
 	TRACE_IRQS_OFF
 	movq %rsp,%rdi		/* pt_regs pointer */
@@ -1089,8 +1076,8 @@ END(\sym)
 ENTRY(\sym)
 	XCPT_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
-	subq $15*8,%rsp
-	CFI_ADJUST_CFA_OFFSET 15*8
+	subq $ORIG_RAX-R15, %rsp
+	CFI_ADJUST_CFA_OFFSET ORIG_RAX-R15
 	call error_entry
 	DEFAULT_FRAME 0
 	movq %rsp,%rdi			/* pt_regs pointer */
@@ -1107,8 +1094,8 @@ END(\sym)
 ENTRY(\sym)
 	XCPT_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
-	subq $15*8,%rsp
-	CFI_ADJUST_CFA_OFFSET 15*8
+	subq $ORIG_RAX-R15, %rsp
+	CFI_ADJUST_CFA_OFFSET ORIG_RAX-R15
 	call save_paranoid
 	DEFAULT_FRAME 0
 	TRACE_IRQS_OFF
@@ -1139,16 +1126,14 @@ zeroentry simd_coprocessor_error do_simd_coprocessor_error
 	/* edi:  new selector */
 ENTRY(native_load_gs_index)
 	CFI_STARTPROC
-	pushf
-	CFI_ADJUST_CFA_OFFSET 8
+	pushfq_cfi
 	DISABLE_INTERRUPTS(CLBR_ANY & ~CLBR_RDI)
 	SWAPGS
 gs_change:
 	movl %edi,%gs
 2:	mfence		/* workaround */
 	SWAPGS
-	popf
-	CFI_ADJUST_CFA_OFFSET -8
+	popfq_cfi
 	ret
 	CFI_ENDPROC
 END(native_load_gs_index)
@@ -1215,8 +1200,7 @@ END(kernel_execve)
 /* Call softirq on interrupt stack. Interrupts are off. */
 ENTRY(call_softirq)
 	CFI_STARTPROC
-	push %rbp
-	CFI_ADJUST_CFA_OFFSET	8
+	pushq_cfi %rbp
 	CFI_REL_OFFSET rbp,0
 	mov  %rsp,%rbp
 	CFI_DEF_CFA_REGISTER rbp
@@ -1225,6 +1209,7 @@ ENTRY(call_softirq)
 	push  %rbp			# backlink for old unwinder
 	call __do_softirq
 	leaveq
+	CFI_RESTORE		rbp
 	CFI_DEF_CFA_REGISTER	rsp
 	CFI_ADJUST_CFA_OFFSET   -8
 	decl PER_CPU_VAR(irq_count)
@@ -1268,7 +1253,7 @@ ENTRY(xen_do_hypervisor_callback)   # do_hypervisor_callback(struct *pt_regs)
 	decl PER_CPU_VAR(irq_count)
 	jmp  error_exit
 	CFI_ENDPROC
-END(do_hypervisor_callback)
+END(xen_do_hypervisor_callback)
 
 /*
  * Hypervisor uses this for application faults while it executes.
@@ -1349,6 +1334,9 @@ errorentry xen_stack_segment do_stack_segment
 #endif
 errorentry general_protection do_general_protection
 errorentry page_fault do_page_fault
+#ifdef CONFIG_KVM_GUEST
+errorentry async_page_fault do_async_page_fault
+#endif
 #ifdef CONFIG_X86_MCE
 paranoidzeroentry machine_check *machine_check_vector(%rip)
 #endif
@@ -1368,7 +1356,7 @@ paranoidzeroentry machine_check *machine_check_vector(%rip)
 
 	/* ebx:	no swapgs flag */
 ENTRY(paranoid_exit)
-	INTR_FRAME
+	DEFAULT_FRAME
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl %ebx,%ebx				/* swapgs needed? */
@@ -1445,7 +1433,6 @@ error_swapgs:
 error_sti:
 	TRACE_IRQS_OFF
 	ret
-	CFI_ENDPROC
 
 /*
  * There are two places in the kernel that can potentially fault with
@@ -1470,6 +1457,7 @@ bstep_iret:
 	/* Fix truncated RIP */
 	movq %rcx,RIP+8(%rsp)
 	jmp error_swapgs
+	CFI_ENDPROC
 END(error_entry)
 
 
@@ -1498,8 +1486,8 @@ ENTRY(nmi)
 	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq_cfi $-1
-	subq $15*8, %rsp
-	CFI_ADJUST_CFA_OFFSET 15*8
+	subq $ORIG_RAX-R15, %rsp
+	CFI_ADJUST_CFA_OFFSET ORIG_RAX-R15
 	call save_paranoid
 	DEFAULT_FRAME 0
 	/* paranoidentry do_nmi, 0; without TRACE_IRQS_OFF */

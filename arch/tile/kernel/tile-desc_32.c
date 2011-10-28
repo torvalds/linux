@@ -2413,12 +2413,13 @@ const struct tile_operand tile_operands[43] =
 
 
 
-/* Given a set of bundle bits and the lookup FSM for a specific pipe,
- * returns which instruction the bundle contains in that pipe.
+/* Given a set of bundle bits and a specific pipe, returns which
+ * instruction the bundle contains in that pipe.
  */
-static const struct tile_opcode *
-find_opcode(tile_bundle_bits bits, const unsigned short *table)
+const struct tile_opcode *
+find_opcode(tile_bundle_bits bits, tile_pipeline pipe)
 {
+  const unsigned short *table = tile_bundle_decoder_fsms[pipe];
   int index = 0;
 
   while (1)
@@ -2465,7 +2466,7 @@ parse_insn_tile(tile_bundle_bits bits,
     int i;
 
     d = &decoded[num_instructions++];
-    opc = find_opcode (bits, tile_bundle_decoder_fsms[pipe]);
+    opc = find_opcode (bits, (tile_pipeline)pipe);
     d->opcode = opc;
 
     /* Decode each operand, sign extending, etc. as appropriate. */

@@ -18,6 +18,7 @@
 #ifndef __ASM_OFFSETS_H__
 #include <asm/asm-offsets.h>
 #endif
+#include <asm/thread_info.h>
 
 #define pi break
 
@@ -37,11 +38,15 @@
 	movm	[d2,d3,a2,a3,exreg0,exreg1,exother],(sp)
 	mov	sp,fp				# FRAME pointer in A3
 	add	-12,sp				# allow for calls to be made
-	mov	(__frame),a1
-	mov	a1,(REG_NEXT,fp)
-	mov	fp,(__frame)
 
-	and	~EPSW_FE,epsw			# disable the FPU inside the kernel
+	# push the exception frame onto the front of the list
+	GET_THREAD_INFO a1
+	mov	(TI_frame,a1),a0
+	mov	a0,(REG_NEXT,fp)
+	mov	fp,(TI_frame,a1)
+
+	# disable the FPU inside the kernel
+	and	~EPSW_FE,epsw
 
 	# we may be holding current in E2
 #ifdef CONFIG_MN10300_CURRENT_IN_E2
@@ -57,10 +62,11 @@
 .macro RESTORE_ALL
 	# peel back the stack to the calling frame
 	# - this permits execve() to discard extra frames due to kernel syscalls
-	mov	(__frame),fp
+	GET_THREAD_INFO a0
+	mov	(TI_frame,a0),fp
 	mov	fp,sp
-	mov	(REG_NEXT,fp),d0                # userspace has regs->next == 0
-	mov	d0,(__frame)
+	mov	(REG_NEXT,fp),d0
+	mov	d0,(TI_frame,a0)                # userspace has regs->next == 0
 
 #ifndef CONFIG_MN10300_USING_JTAG
 	mov	(REG_EPSW,fp),d0

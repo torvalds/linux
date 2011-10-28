@@ -73,7 +73,7 @@
  * Infinite thanks to those brave souls for providing the infrastructure
  * upon which IrNET is built.
  *
- * Thanks to all my collegues in HP for helping me. In particular,
+ * Thanks to all my colleagues in HP for helping me. In particular,
  * thanks to Salil Pradhan and Bill Serra for W2k testing...
  * Thanks to Luiz Magalhaes for irnetd and much testing...
  *
@@ -457,6 +457,8 @@ typedef struct irnet_socket
   struct irda_device_info *discoveries;	/* Copy of the discovery log */
   int			disco_index;	/* Last read in the discovery log */
   int			disco_number;	/* Size of the discovery log */
+
+  struct mutex		lock;
 
 } irnet_socket;
 

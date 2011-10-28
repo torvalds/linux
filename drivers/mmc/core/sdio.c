@@ -10,11 +10,13 @@
  */
 
 #include <linux/err.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/mmc/sdio_ids.h>
 
 #include "core.h"
 #include "bus.h"
@@ -25,10 +27,19 @@
 #include "sdio_ops.h"
 #include "sdio_cis.h"
 
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+#include <linux/mmc/sdio_ids.h>
+#endif
+
 static int sdio_read_fbr(struct sdio_func *func)
 {
 	int ret;
 	unsigned char data;
+
+	if (mmc_card_nonstd_func_interface(func->card)) {
+		func->class = SDIO_CLASS_NONE;
+		return 0;
+	}
 
 	ret = mmc_io_rw_direct(func->card, 0, 0,
 		SDIO_FBR_BASE(func->num) + SDIO_FBR_STD_IF, 0, &data);
@@ -180,7 +191,7 @@ static int sdio_disable_cd(struct mmc_card *card)
 	int ret;
 	u8 ctrl;
 
-	if (!card->cccr.disable_cd)
+	if (!mmc_card_disable_cd(card))
 		return 0;
 
 	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_IF, 0, &ctrl);
@@ -362,8 +373,8 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		goto err;
 	}
 
-	if (ocr & R4_MEMORY_PRESENT
-	    && mmc_sd_get_cid(host, host->ocr & ocr, card->raw_cid) == 0) {
+	if ((ocr & R4_MEMORY_PRESENT) &&
+	    mmc_sd_get_cid(host, host->ocr & ocr, card->raw_cid, NULL) == 0) {
 		card->type = MMC_TYPE_SD_COMBO;
 
 		if (oldcard && (oldcard->type != MMC_TYPE_SD_COMBO ||
@@ -393,6 +404,14 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_send_relative_addr(host, &card->rca);
 		if (err)
 			goto remove;
+
+		/*
+		 * Update oldcard with the new RCA received from the SDIO
+		 * device -- we're doing this so that it's updated in the
+		 * "card" struct when oldcard overwrites that later.
+		 */
+		if (oldcard)
+			oldcard->rca = card->rca;
 
 		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
 	}
@@ -434,19 +453,35 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		goto finish;
 	}
 
-	/*
-	 * Read the common registers.
-	 */
-	err = sdio_read_cccr(card);
-	if (err)
-		goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (host->embedded_sdio_data.cccr)
+		memcpy(&card->cccr, host->embedded_sdio_data.cccr, sizeof(struct sdio_cccr));
+	else {
+#endif
+		/*
+		 * Read the common registers.
+		 */
+		err = sdio_read_cccr(card);
+		if (err)
+			goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	}
+#endif
 
-	/*
-	 * Read the common CIS tuples.
-	 */
-	err = sdio_read_common_cis(card);
-	if (err)
-		goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (host->embedded_sdio_data.cis)
+		memcpy(&card->cis, host->embedded_sdio_data.cis, sizeof(struct sdio_cis));
+	else {
+#endif
+		/*
+		 * Read the common CIS tuples.
+		 */
+		err = sdio_read_common_cis(card);
+		if (err)
+			goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	}
+#endif
 
 	if (oldcard) {
 		int same = (card->cis.vendor == oldcard->cis.vendor &&
@@ -456,8 +491,8 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 			return -ENOENT;
 
 		card = oldcard;
-		return 0;
 	}
+	mmc_fixup_device(card, NULL);
 
 	if (card->type == MMC_TYPE_SD_COMBO) {
 		err = mmc_sd_setup_card(host, card, oldcard != NULL);
@@ -546,6 +581,13 @@ static void mmc_sdio_detect(struct mmc_host *host)
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
+	/* Make sure card is powered before detecting it */
+	if (host->caps & MMC_CAP_POWER_OFF_CARD) {
+		err = pm_runtime_get_sync(&host->card->dev);
+		if (err < 0)
+			goto out;
+	}
+
 	mmc_claim_host(host);
 
 	/*
@@ -555,6 +597,21 @@ static void mmc_sdio_detect(struct mmc_host *host)
 
 	mmc_release_host(host);
 
+	/*
+	 * Tell PM core it's OK to power off the card now.
+	 *
+	 * The _sync variant is used in order to ensure that the card
+	 * is left powered off in case an error occurred, and the card
+	 * is going to be removed.
+	 *
+	 * Since there is no specific reason to believe a new user
+	 * is about to show up at this point, the _sync variant is
+	 * desirable anyway.
+	 */
+	if (host->caps & MMC_CAP_POWER_OFF_CARD)
+		pm_runtime_put_sync(&host->card->dev);
+
+out:
 	if (err) {
 		mmc_sdio_remove(host);
 
@@ -594,7 +651,7 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 		}
 	}
 
-	if (!err && host->pm_flags & MMC_PM_KEEP_POWER) {
+	if (!err && mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host)) {
 		mmc_claim_host(host);
 		sdio_disable_wide(host->card);
 		mmc_release_host(host);
@@ -605,23 +662,27 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 
 static int mmc_sdio_resume(struct mmc_host *host)
 {
-	int i, err;
+	int i, err = 0;
 
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
 	/* Basic card reinitialization. */
 	mmc_claim_host(host);
-	err = mmc_sdio_init_card(host, host->ocr, host->card,
-				 (host->pm_flags & MMC_PM_KEEP_POWER));
-	if (!err) {
-		/* We may have switched to 1-bit mode during suspend. */
+
+	/* No need to reinitialize powered-resumed nonremovable cards */
+	if (mmc_card_is_removable(host) || !mmc_card_keep_power(host))
+		err = mmc_sdio_init_card(host, host->ocr, host->card,
+					mmc_card_keep_power(host));
+	else if (mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host)) {
+		/* We may have switched to 1-bit mode during suspend */
 		err = sdio_enable_4bit_bus(host->card);
 		if (err > 0) {
 			mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
 			err = 0;
 		}
 	}
+
 	if (!err && host->sdio_irqs)
 		mmc_signal_sdio_irq(host);
 	mmc_release_host(host);
@@ -647,27 +708,90 @@ static int mmc_sdio_resume(struct mmc_host *host)
 	return err;
 }
 
+static int mmc_sdio_power_restore(struct mmc_host *host)
+{
+	int ret;
+	u32 ocr;
+
+	BUG_ON(!host);
+	BUG_ON(!host->card);
+
+	mmc_claim_host(host);
+
+	/*
+	 * Reset the card by performing the same steps that are taken by
+	 * mmc_rescan_try_freq() and mmc_attach_sdio() during a "normal" probe.
+	 *
+	 * sdio_reset() is technically not needed. Having just powered up the
+	 * hardware, it should already be in reset state. However, some
+	 * platforms (such as SD8686 on OLPC) do not instantly cut power,
+	 * meaning that a reset is required when restoring power soon after
+	 * powering off. It is harmless in other cases.
+	 *
+	 * The CMD5 reset (mmc_send_io_op_cond()), according to the SDIO spec,
+	 * is not necessary for non-removable cards. However, it is required
+	 * for OLPC SD8686 (which expects a [CMD5,5,3,7] init sequence), and
+	 * harmless in other situations.
+	 *
+	 * With these steps taken, mmc_select_voltage() is also required to
+	 * restore the correct voltage setting of the card.
+	 */
+	sdio_reset(host);
+	mmc_go_idle(host);
+	mmc_send_if_cond(host, host->ocr_avail);
+
+	ret = mmc_send_io_op_cond(host, 0, &ocr);
+	if (ret)
+		goto out;
+
+	if (host->ocr_avail_sdio)
+		host->ocr_avail = host->ocr_avail_sdio;
+
+	host->ocr = mmc_select_voltage(host, ocr & ~0x7F);
+	if (!host->ocr) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = mmc_sdio_init_card(host, host->ocr, host->card,
+				mmc_card_keep_power(host));
+	if (!ret && host->sdio_irqs)
+		mmc_signal_sdio_irq(host);
+
+out:
+	mmc_release_host(host);
+
+	return ret;
+}
+
 static const struct mmc_bus_ops mmc_sdio_ops = {
 	.remove = mmc_sdio_remove,
 	.detect = mmc_sdio_detect,
 	.suspend = mmc_sdio_suspend,
 	.resume = mmc_sdio_resume,
+	.power_restore = mmc_sdio_power_restore,
 };
 
 
 /*
  * Starting point for SDIO card init.
  */
-int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
+int mmc_attach_sdio(struct mmc_host *host)
 {
-	int err;
-	int i, funcs;
+	int err, i, funcs;
+	u32 ocr;
 	struct mmc_card *card;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
+	err = mmc_send_io_op_cond(host, 0, &ocr);
+	if (err)
+		return err;
+
 	mmc_attach_bus(host, &mmc_sdio_ops);
+	if (host->ocr_avail_sdio)
+		host->ocr_avail = host->ocr_avail_sdio;
 
 	/*
 	 * Sanity check the voltages that the card claims to
@@ -699,26 +823,70 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	card = host->card;
 
 	/*
+	 * Enable runtime PM only if supported by host+card+board
+	 */
+	if (host->caps & MMC_CAP_POWER_OFF_CARD) {
+		/*
+		 * Let runtime PM core know our card is active
+		 */
+		err = pm_runtime_set_active(&card->dev);
+		if (err)
+			goto remove;
+
+		/*
+		 * Enable runtime PM for this card
+		 */
+		pm_runtime_enable(&card->dev);
+	}
+
+	/*
 	 * The number of functions on the card is encoded inside
 	 * the ocr.
 	 */
 	funcs = (ocr & 0x70000000) >> 28;
 	card->sdio_funcs = 0;
 
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (host->embedded_sdio_data.funcs)
+		card->sdio_funcs = funcs = host->embedded_sdio_data.num_funcs;
+#endif
+
 	/*
 	 * Initialize (but don't add) all present functions.
 	 */
 	for (i = 0; i < funcs; i++, card->sdio_funcs++) {
-		err = sdio_init_func(host->card, i + 1);
-		if (err)
-			goto remove;
-	}
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+		if (host->embedded_sdio_data.funcs) {
+			struct sdio_func *tmp;
 
-	mmc_release_host(host);
+			tmp = sdio_alloc_func(host->card);
+			if (IS_ERR(tmp))
+				goto remove;
+			tmp->num = (i + 1);
+			card->sdio_func[i] = tmp;
+			tmp->class = host->embedded_sdio_data.funcs[i].f_class;
+			tmp->max_blksize = host->embedded_sdio_data.funcs[i].f_maxblksize;
+			tmp->vendor = card->cis.vendor;
+			tmp->device = card->cis.device;
+		} else {
+#endif
+			err = sdio_init_func(host->card, i + 1);
+			if (err)
+				goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+		}
+#endif
+		/*
+		 * Enable Runtime PM for this func (if supported)
+		 */
+		if (host->caps & MMC_CAP_POWER_OFF_CARD)
+			pm_runtime_enable(&card->sdio_func[i]->dev);
+	}
 
 	/*
 	 * First add the card to the driver model...
 	 */
+	mmc_release_host(host);
 	err = mmc_add_card(host->card);
 	if (err)
 		goto remove_added;
@@ -732,6 +900,7 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 			goto remove_added;
 	}
 
+	mmc_claim_host(host);
 	return 0;
 
 
@@ -741,11 +910,12 @@ remove_added:
 	mmc_claim_host(host);
 remove:
 	/* And with lock if it hasn't been added. */
+	mmc_release_host(host);
 	if (host->card)
 		mmc_sdio_remove(host);
+	mmc_claim_host(host);
 err:
 	mmc_detach_bus(host);
-	mmc_release_host(host);
 
 	printk(KERN_ERR "%s: error %d whilst initialising SDIO card\n",
 		mmc_hostname(host), err);
@@ -753,3 +923,77 @@ err:
 	return err;
 }
 
+int sdio_reset_comm(struct mmc_card *card)
+{
+	struct mmc_host *host = card->host;
+	u32 ocr;
+	int err;
+
+	printk("%s():\n", __func__);
+	mmc_claim_host(host);
+
+	mmc_go_idle(host);
+
+	mmc_set_clock(host, host->f_min);
+
+	err = mmc_send_io_op_cond(host, 0, &ocr);
+	if (err)
+		goto err;
+
+	host->ocr = mmc_select_voltage(host, ocr);
+	if (!host->ocr) {
+		err = -EINVAL;
+		goto err;
+	}
+
+	err = mmc_send_io_op_cond(host, host->ocr, &ocr);
+	if (err)
+		goto err;
+
+	if (mmc_host_is_spi(host)) {
+		err = mmc_spi_set_crc(host, use_spi_crc);
+		if (err)
+			goto err;
+	}
+
+	if (!mmc_host_is_spi(host)) {
+		err = mmc_send_relative_addr(host, &card->rca);
+		if (err)
+			goto err;
+		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
+	}
+	if (!mmc_host_is_spi(host)) {
+		err = mmc_select_card(card);
+		if (err)
+			goto err;
+	}
+
+	/*
+	 * Switch to high-speed (if supported).
+	 */
+	err = sdio_enable_hs(card);
+	if (err > 0)
+		mmc_sd_go_highspeed(card);
+	else if (err)
+		goto err;
+
+	/*
+	 * Change to the card's maximum speed.
+	 */
+	mmc_set_clock(host, mmc_sdio_get_max_clock(card));
+
+	err = sdio_enable_4bit_bus(card);
+	if (err > 0)
+		mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
+	else if (err)
+		goto err;
+
+	mmc_release_host(host);
+	return 0;
+err:
+	printk("%s: Error resetting SDIO communications (%d)\n",
+	       mmc_hostname(host), err);
+	mmc_release_host(host);
+	return err;
+}
+EXPORT_SYMBOL(sdio_reset_comm);

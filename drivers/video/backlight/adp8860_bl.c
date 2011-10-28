@@ -502,8 +502,10 @@ static ssize_t adp8860_bl_l1_daylight_max_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct adp8860_bl *data = dev_get_drvdata(dev);
+	int ret = strict_strtoul(buf, 10, &data->cached_daylight_max);
+	if (ret)
+		return ret;
 
-	strict_strtoul(buf, 10, &data->cached_daylight_max);
 	return adp8860_store(dev, buf, count, ADP8860_BLMX1);
 }
 static DEVICE_ATTR(l1_daylight_max, 0664, adp8860_bl_l1_daylight_max_show,
@@ -614,7 +616,7 @@ static ssize_t adp8860_bl_ambient_light_zone_store(struct device *dev,
 	if (val == 0) {
 		/* Enable automatic ambient light sensing */
 		adp8860_set_bits(data->client, ADP8860_MDCR, CMP_AUTOEN);
-	} else if ((val > 0) && (val < 6)) {
+	} else if ((val > 0) && (val <= 3)) {
 		/* Disable automatic ambient light sensing */
 		adp8860_clr_bits(data->client, ADP8860_MDCR, CMP_AUTOEN);
 
@@ -622,7 +624,7 @@ static ssize_t adp8860_bl_ambient_light_zone_store(struct device *dev,
 		mutex_lock(&data->lock);
 		adp8860_read(data->client, ADP8860_CFGR, &reg_val);
 		reg_val &= ~(CFGR_BLV_MASK << CFGR_BLV_SHIFT);
-		reg_val |= val << CFGR_BLV_SHIFT;
+		reg_val |= (val - 1) << CFGR_BLV_SHIFT;
 		adp8860_write(data->client, ADP8860_CFGR, reg_val);
 		mutex_unlock(&data->lock);
 	}
@@ -707,6 +709,7 @@ static int __devinit adp8860_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, data);
 
 	memset(&props, 0, sizeof(props));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = ADP8860_MAX_BRIGHTNESS;
 
 	mutex_init(&data->lock);

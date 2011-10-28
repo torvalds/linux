@@ -1,0 +1,35 @@
+
+menuconfig TARGET_CORE
+	tristate "Generic Target Core Mod (TCM) and ConfigFS Infrastructure"
+	depends on SCSI && BLOCK
+	select CONFIGFS_FS
+	default n
+	help
+	Say Y or M here to enable the TCM Storage Engine and ConfigFS enabled
+	control path for target_core_mod.  This includes built-in TCM RAMDISK
+	subsystem logic for virtual LUN 0 access
+
+if TARGET_CORE
+
+config TCM_IBLOCK
+	tristate "TCM/IBLOCK Subsystem Plugin for Linux/BLOCK"
+	help
+	Say Y here to enable the TCM/IBLOCK subsystem plugin for non-buffered
+	access to Linux/Block devices using BIO
+
+config TCM_FILEIO
+	tristate "TCM/FILEIO Subsystem Plugin for Linux/VFS"
+	help
+	Say Y here to enable the TCM/FILEIO subsystem plugin for buffered
+	access to Linux/VFS struct file or struct block_device
+
+config TCM_PSCSI
+	tristate "TCM/pSCSI Subsystem Plugin for Linux/SCSI"
+	help
+	Say Y here to enable the TCM/pSCSI subsystem plugin for non-buffered
+	passthrough access to Linux/SCSI device
+
+source "drivers/target/loopback/Kconfig"
+source "drivers/target/tcm_fc/Kconfig"
+
+endif

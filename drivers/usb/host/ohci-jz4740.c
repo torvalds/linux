@@ -273,4 +273,4 @@ static struct platform_driver ohci_hcd_jz4740_driver = {
 	},
 };
 
-MODULE_ALIAS("platfrom:jz4740-ohci");
+MODULE_ALIAS("platform:jz4740-ohci");

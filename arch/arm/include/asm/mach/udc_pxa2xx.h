@@ -20,8 +20,6 @@ struct pxa2xx_udc_mach_info {
 	 * VBUS IRQ and omit the methods above.  Store the GPIO number
 	 * here.  Note that sometimes the signals go through inverters...
 	 */
-	bool	gpio_vbus_inverted;
-	int	gpio_vbus;			/* high == vbus present */
 	bool	gpio_pullup_inverted;
 	int	gpio_pullup;			/* high == pullup activated */
 };

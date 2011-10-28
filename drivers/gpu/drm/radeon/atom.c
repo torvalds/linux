@@ -32,6 +32,7 @@
 #include "atom.h"
 #include "atom-names.h"
 #include "atom-bits.h"
+#include "radeon.h"
 
 #define ATOM_COND_ABOVE		0
 #define ATOM_COND_ABOVEOREQUAL	1
@@ -101,7 +102,9 @@ static void debug_print_spaces(int n)
 static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 				 uint32_t index, uint32_t data)
 {
+	struct radeon_device *rdev = ctx->card->dev->dev_private;
 	uint32_t temp = 0xCDCDCDCD;
+
 	while (1)
 		switch (CU8(base)) {
 		case ATOM_IIO_NOP:
@@ -112,6 +115,8 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 			base += 3;
 			break;
 		case ATOM_IIO_WRITE:
+			if (rdev->family == CHIP_RV515)
+				(void)ctx->card->ioreg_read(ctx->card, CU16(base + 1));
 			ctx->card->ioreg_write(ctx->card, CU16(base + 1), temp);
 			base += 3;
 			break;
@@ -130,7 +135,7 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 		case ATOM_IIO_MOVE_INDEX:
 			temp &=
 			    ~((0xFFFFFFFF >> (32 - CU8(base + 1))) <<
-			      CU8(base + 2));
+			      CU8(base + 3));
 			temp |=
 			    ((index >> CU8(base + 2)) &
 			     (0xFFFFFFFF >> (32 - CU8(base + 1)))) << CU8(base +
@@ -140,7 +145,7 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 		case ATOM_IIO_MOVE_DATA:
 			temp &=
 			    ~((0xFFFFFFFF >> (32 - CU8(base + 1))) <<
-			      CU8(base + 2));
+			      CU8(base + 3));
 			temp |=
 			    ((data >> CU8(base + 2)) &
 			     (0xFFFFFFFF >> (32 - CU8(base + 1)))) << CU8(base +
@@ -150,7 +155,7 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 		case ATOM_IIO_MOVE_ATTR:
 			temp &=
 			    ~((0xFFFFFFFF >> (32 - CU8(base + 1))) <<
-			      CU8(base + 2));
+			      CU8(base + 3));
 			temp |=
 			    ((ctx->
 			      io_attr >> CU8(base + 2)) & (0xFFFFFFFF >> (32 -
@@ -647,12 +652,12 @@ static void atom_op_compare(atom_exec_context *ctx, int *ptr, int arg)
 
 static void atom_op_delay(atom_exec_context *ctx, int *ptr, int arg)
 {
-	uint8_t count = U8((*ptr)++);
+	unsigned count = U8((*ptr)++);
 	SDEBUG("   count: %d\n", count);
 	if (arg == ATOM_UNIT_MICROSEC)
 		udelay(count);
 	else
-		schedule_timeout_uninterruptible(msecs_to_jiffies(count));
+		msleep(count);
 }
 
 static void atom_op_div(atom_exec_context *ctx, int *ptr, int arg)
@@ -733,16 +738,16 @@ static void atom_op_jump(atom_exec_context *ctx, int *ptr, int arg)
 static void atom_op_mask(atom_exec_context *ctx, int *ptr, int arg)
 {
 	uint8_t attr = U8((*ptr)++);
-	uint32_t dst, src1, src2, saved;
+	uint32_t dst, mask, src, saved;
 	int dptr = *ptr;
 	SDEBUG("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
-	SDEBUG("   src1: ");
-	src1 = atom_get_src_direct(ctx, ((attr >> 3) & 7), ptr);
-	SDEBUG("   src2: ");
-	src2 = atom_get_src(ctx, attr, ptr);
-	dst &= src1;
-	dst |= src2;
+	mask = atom_get_src_direct(ctx, ((attr >> 3) & 7), ptr);
+	SDEBUG("   mask: 0x%08x", mask);
+	SDEBUG("   src: ");
+	src = atom_get_src(ctx, attr, ptr);
+	dst &= mask;
+	dst |= src;
 	SDEBUG("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }

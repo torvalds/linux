@@ -390,7 +390,7 @@ static int dsa_remove(struct platform_device *pdev)
 	if (dst->link_poll_needed)
 		del_timer_sync(&dst->link_poll_timer);
 
-	flush_scheduled_work();
+	flush_work_sync(&dst->link_poll_work);
 
 	for (i = 0; i < dst->pd->nr_chips; i++) {
 		struct dsa_switch *ds = dst->ds[i];
@@ -428,7 +428,7 @@ static void __exit dsa_cleanup_module(void)
 }
 module_exit(dsa_cleanup_module);
 
-MODULE_AUTHOR("Lennert Buytenhek <buytenh@wantstofly.org>")
+MODULE_AUTHOR("Lennert Buytenhek <buytenh@wantstofly.org>");
 MODULE_DESCRIPTION("Driver for Distributed Switch Architecture switch chips");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:dsa");

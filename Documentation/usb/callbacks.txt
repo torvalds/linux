@@ -95,9 +95,11 @@ pre_reset
 
 int (*pre_reset)(struct usb_interface *intf);
 
-Another driver or user space is triggering a reset on the device which
-contains the interface passed as an argument. Cease IO and save any
-device state you need to restore.
+A driver or user space is triggering a reset on the device which
+contains the interface passed as an argument. Cease IO, wait for all
+outstanding URBs to complete, and save any device state you need to
+restore.  No more URBs may be submitted until the post_reset method
+is called.
 
 If you need to allocate memory here, use GFP_NOIO or GFP_ATOMIC, if you
 are in atomic context.

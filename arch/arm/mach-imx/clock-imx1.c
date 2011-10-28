@@ -22,8 +22,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 
 #include <mach/clock.h>
 #include <mach/hardware.h>
@@ -592,7 +591,8 @@ static struct clk_lookup lookups[] __initdata = {
 	_REGISTER_CLOCK("imx-uart.1", NULL, uart_clk)
 	_REGISTER_CLOCK("imx-uart.2", NULL, uart_clk)
 	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c_clk)
-	_REGISTER_CLOCK("spi_imx.0", NULL, spi_clk)
+	_REGISTER_CLOCK("imx1-cspi.0", NULL, spi_clk)
+	_REGISTER_CLOCK("imx1-cspi.1", NULL, spi_clk)
 	_REGISTER_CLOCK("imx-mmc.0", NULL, sdhc_clk)
 	_REGISTER_CLOCK("imx-fb.0", NULL, lcdc_clk)
 	_REGISTER_CLOCK(NULL, "mshc", mshc_clk)

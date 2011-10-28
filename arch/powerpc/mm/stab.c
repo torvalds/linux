@@ -243,7 +243,7 @@ void __init stabs_alloc(void)
 {
 	int cpu;
 
-	if (cpu_has_feature(CPU_FTR_SLB))
+	if (mmu_has_feature(MMU_FTR_SLB))
 		return;
 
 	for_each_possible_cpu(cpu) {

@@ -42,16 +42,12 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_adb = {
 	.rate_min = 5000,
 	.rate_max = 48000,
 	.channels_min = 1,
-#ifdef CHIP_AU8830
-	.channels_max = 4,
-#else
 	.channels_max = 2,
-#endif
 	.buffer_bytes_max = 0x10000,
-	.period_bytes_min = 0x1,
+	.period_bytes_min = 0x20,
 	.period_bytes_max = 0x1000,
 	.periods_min = 2,
-	.periods_max = 32,
+	.periods_max = 1024,
 };
 
 #ifndef CHIP_AU8820
@@ -115,6 +111,17 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_wt = {
 	.periods_max = 64,
 };
 #endif
+#ifdef CHIP_AU8830
+static unsigned int au8830_channels[3] = {
+	1, 2, 4,
+};
+
+static struct snd_pcm_hw_constraint_list hw_constraints_au8830_channels = {
+	.count = ARRAY_SIZE(au8830_channels),
+	.list = au8830_channels,
+	.mask = 0,
+};
+#endif
 /* open callback */
 static int snd_vortex_pcm_open(struct snd_pcm_substream *substream)
 {
@@ -132,6 +139,9 @@ static int snd_vortex_pcm_open(struct snd_pcm_substream *substream)
 	     snd_pcm_hw_constraint_pow2(runtime, 0,
 					SNDRV_PCM_HW_PARAM_PERIOD_BYTES)) < 0)
 		return err;
+
+	snd_pcm_hw_constraint_step(runtime, 0,
+					SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 64);
 
 	if (VORTEX_PCM_TYPE(substream->pcm) != VORTEX_PCM_WT) {
 #ifndef CHIP_AU8820
@@ -156,6 +166,15 @@ static int snd_vortex_pcm_open(struct snd_pcm_substream *substream)
 		if (VORTEX_PCM_TYPE(substream->pcm) == VORTEX_PCM_ADB
 		    || VORTEX_PCM_TYPE(substream->pcm) == VORTEX_PCM_I2S)
 			runtime->hw = snd_vortex_playback_hw_adb;
+#ifdef CHIP_AU8830
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+			VORTEX_PCM_TYPE(substream->pcm) == VORTEX_PCM_ADB) {
+			runtime->hw.channels_max = 4;
+			snd_pcm_hw_constraint_list(runtime, 0,
+				SNDRV_PCM_HW_PARAM_CHANNELS,
+				&hw_constraints_au8830_channels);
+		}
+#endif
 		substream->runtime->private_data = NULL;
 	}
 #ifndef CHIP_AU8810
@@ -407,11 +426,11 @@ static struct snd_pcm_ops snd_vortex_playback_ops = {
 */
 
 static char *vortex_pcm_prettyname[VORTEX_PCM_LAST] = {
-	"AU88x0 ADB",
-	"AU88x0 SPDIF",
-	"AU88x0 A3D",
-	"AU88x0 WT",
-	"AU88x0 I2S",
+	CARD_NAME " ADB",
+	CARD_NAME " SPDIF",
+	CARD_NAME " A3D",
+	CARD_NAME " WT",
+	CARD_NAME " I2S",
 };
 static char *vortex_pcm_name[VORTEX_PCM_LAST] = {
 	"adb",
@@ -499,7 +518,7 @@ static int __devinit snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 		return -ENODEV;
 
 	/* idx indicates which kind of PCM device. ADB, SPDIF, I2S and A3D share the 
-	 * same dma engine. WT uses it own separate dma engine whcih cant capture. */
+	 * same dma engine. WT uses it own separate dma engine which can't capture. */
 	if (idx == VORTEX_PCM_ADB)
 		nr_capt = nr;
 	else
@@ -508,7 +527,8 @@ static int __devinit snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 			  nr_capt, &pcm);
 	if (err < 0)
 		return err;
-	strcpy(pcm->name, vortex_pcm_name[idx]);
+	snprintf(pcm->name, sizeof(pcm->name),
+		"%s %s", CARD_NAME_SHORT, vortex_pcm_name[idx]);
 	chip->pcm[idx] = pcm;
 	// This is an evil hack, but it saves a lot of duplicated code.
 	VORTEX_PCM_TYPE(pcm) = idx;

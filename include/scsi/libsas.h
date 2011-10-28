@@ -205,6 +205,7 @@ struct domain_device {
         };
 
         void *lldd_dev;
+	int gone;
 };
 
 struct sas_discovery_event {
@@ -360,6 +361,8 @@ struct sas_ha_struct {
 	/* The class calls this to send a task for execution. */
 	int lldd_max_execute_num;
 	int lldd_queue_size;
+	int strict_wide_ports; /* both sas_addr and attached_sas_addr must match
+				* their siblings when forming wide ports */
 
 	/* LLDD calls these to notify the class of an event. */
 	void (*notify_ha_event)(struct sas_ha_struct *, enum ha_event);
@@ -601,6 +604,7 @@ struct sas_domain_function_template {
 	int (*lldd_clear_aca)(struct domain_device *, u8 *lun);
 	int (*lldd_clear_task_set)(struct domain_device *, u8 *lun);
 	int (*lldd_I_T_nexus_reset)(struct domain_device *);
+	int (*lldd_ata_soft_reset)(struct domain_device *);
 	int (*lldd_lu_reset)(struct domain_device *, u8 *lun);
 	int (*lldd_query_task)(struct sas_task *);
 
@@ -620,8 +624,7 @@ int sas_set_phy_speed(struct sas_phy *phy,
 int sas_phy_enable(struct sas_phy *phy, int enabled);
 int sas_phy_reset(struct sas_phy *phy, int hard_reset);
 int sas_queue_up(struct sas_task *task);
-extern int sas_queuecommand(struct scsi_cmnd *,
-		     void (*scsi_done)(struct scsi_cmnd *));
+extern int sas_queuecommand(struct Scsi_Host * ,struct scsi_cmnd *);
 extern int sas_target_alloc(struct scsi_target *);
 extern int sas_slave_alloc(struct scsi_device *);
 extern int sas_slave_configure(struct scsi_device *);

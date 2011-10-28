@@ -53,6 +53,7 @@ obj-$(CONFIG_MACH_ANW6410)	+= mach-anw6410.o
 obj-$(CONFIG_MACH_SMDK6400)	+= mach-smdk6400.o
 obj-$(CONFIG_MACH_SMDK6410)	+= mach-smdk6410.o
 obj-$(CONFIG_MACH_REAL6410)     += mach-real6410.o
+obj-$(CONFIG_MACH_MINI6410)     += mach-mini6410.o
 obj-$(CONFIG_MACH_NCP)		+= mach-ncp.o
 obj-$(CONFIG_MACH_HMT)		+= mach-hmt.o
 obj-$(CONFIG_MACH_SMARTQ)	+= mach-smartq.o

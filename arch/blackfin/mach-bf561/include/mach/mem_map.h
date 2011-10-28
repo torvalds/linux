@@ -106,7 +106,7 @@
 #define COREA_L1_SCRATCH_START	0xFFB00000
 #define COREB_L1_SCRATCH_START	0xFF700000
 
-#ifdef __ASSEMBLY__
+#ifdef CONFIG_SMP
 
 /*
  * The following macros both return the address of the PDA for the
@@ -121,8 +121,7 @@
  * is allowed to use the specified Dreg for determining the PDA
  * address to be returned into Preg.
  */
-#ifdef CONFIG_SMP
-#define GET_PDA_SAFE(preg)		\
+# define GET_PDA_SAFE(preg)		\
 	preg.l = lo(DSPID);		\
 	preg.h = hi(DSPID);		\
 	preg = [preg];			\
@@ -158,7 +157,7 @@
 	preg = [preg];			\
 4:
 
-#define GET_PDA(preg, dreg)		\
+# define GET_PDA(preg, dreg)		\
 	preg.l = lo(DSPID);		\
 	preg.h = hi(DSPID);		\
 	dreg = [preg];			\
@@ -169,12 +168,16 @@
 	preg = [preg];			\
 1:					\
 
-#define GET_CPUID(preg, dreg)		\
+# define GET_CPUID(preg, dreg)		\
 	preg.l = lo(DSPID);		\
 	preg.h = hi(DSPID);		\
 	dreg = [preg];			\
 	dreg = ROT dreg BY -1;		\
 	dreg = CC;
+
+# ifndef __ASSEMBLY__
+
+#  include <asm/processor.h>
 
 static inline unsigned long get_l1_scratch_start_cpu(int cpu)
 {
@@ -210,8 +213,7 @@ static inline unsigned long get_l1_data_b_start(void)
 	return get_l1_data_b_start_cpu(blackfin_core_id());
 }
 
+# endif /* __ASSEMBLY__ */
 #endif /* CONFIG_SMP */
-
-#endif /* __ASSEMBLY__ */
 
 #endif

@@ -1584,10 +1584,10 @@ static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, void *data, co
 	if (!new_dev)
 		return -ENOMEM;
 
-	while (serio->child) {
+	while (!list_empty(&serio->children)) {
 		if (++retry > 3) {
 			printk(KERN_WARNING
-				"psmouse: failed to destroy child port, "
+				"psmouse: failed to destroy children ports, "
 				"protocol change aborted.\n");
 			input_free_device(new_dev);
 			return -EIO;
@@ -1711,6 +1711,7 @@ static int __init psmouse_init(void)
 
 	lifebook_module_init();
 	synaptics_module_init();
+	hgpk_module_init();
 
 	kpsmoused_wq = create_singlethread_workqueue("kpsmoused");
 	if (!kpsmoused_wq) {

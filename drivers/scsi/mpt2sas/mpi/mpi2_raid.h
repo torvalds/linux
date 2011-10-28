@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2008 LSI Corporation.
+ *  Copyright (c) 2000-2010 LSI Corporation.
  *
  *
  *           Name:  mpi2_raid.h
  *          Title:  MPI Integrated RAID messages and structures
  *  Creation Date:  April 26, 2007
  *
- *    mpi2_raid.h Version:  02.00.04
+ *    mpi2_raid.h Version:  02.00.05
  *
  *  Version History
  *  ---------------
@@ -22,6 +22,7 @@
  *                      can be sized by the build environment.
  *  07-30-09  02.00.04  Added proper define for the Use Default Settings bit of
  *                      VolumeCreationFlags and marked the old one as obsolete.
+ *  05-12-10  02.00.05  Added MPI2_RAID_VOL_FLAGS_OP_MDC define.
  *  --------------------------------------------------------------------------
  */
 
@@ -260,6 +261,7 @@ typedef struct _MPI2_RAID_VOL_INDICATOR
 #define MPI2_RAID_VOL_FLAGS_OP_ONLINE_CAP_EXPANSION (0x00000001)
 #define MPI2_RAID_VOL_FLAGS_OP_CONSISTENCY_CHECK    (0x00000002)
 #define MPI2_RAID_VOL_FLAGS_OP_RESYNC               (0x00000003)
+#define MPI2_RAID_VOL_FLAGS_OP_MDC                  (0x00000004)
 
 
 /* RAID Action Reply ActionData union */

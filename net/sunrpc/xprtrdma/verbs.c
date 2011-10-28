@@ -144,6 +144,7 @@ rpcrdma_cq_async_error_upcall(struct ib_event *event, void *context)
 static inline
 void rpcrdma_event_process(struct ib_wc *wc)
 {
+	struct rpcrdma_mw *frmr;
 	struct rpcrdma_rep *rep =
 			(struct rpcrdma_rep *)(unsigned long) wc->wr_id;
 
@@ -154,15 +155,23 @@ void rpcrdma_event_process(struct ib_wc *wc)
 		return;
 
 	if (IB_WC_SUCCESS != wc->status) {
-		dprintk("RPC:       %s: %s WC status %X, connection lost\n",
-			__func__, (wc->opcode & IB_WC_RECV) ? "recv" : "send",
-			 wc->status);
+		dprintk("RPC:       %s: WC opcode %d status %X, connection lost\n",
+			__func__, wc->opcode, wc->status);
 		rep->rr_len = ~0U;
-		rpcrdma_schedule_tasklet(rep);
+		if (wc->opcode != IB_WC_FAST_REG_MR && wc->opcode != IB_WC_LOCAL_INV)
+			rpcrdma_schedule_tasklet(rep);
 		return;
 	}
 
 	switch (wc->opcode) {
+	case IB_WC_FAST_REG_MR:
+		frmr = (struct rpcrdma_mw *)(unsigned long)wc->wr_id;
+		frmr->r.frmr.state = FRMR_IS_VALID;
+		break;
+	case IB_WC_LOCAL_INV:
+		frmr = (struct rpcrdma_mw *)(unsigned long)wc->wr_id;
+		frmr->r.frmr.state = FRMR_IS_INVALID;
+		break;
 	case IB_WC_RECV:
 		rep->rr_len = wc->byte_len;
 		ib_dma_sync_single_for_cpu(
@@ -378,7 +387,7 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt,
 
 	init_completion(&ia->ri_done);
 
-	id = rdma_create_id(rpcrdma_conn_upcall, xprt, RDMA_PS_TCP);
+	id = rdma_create_id(rpcrdma_conn_upcall, xprt, RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(id)) {
 		rc = PTR_ERR(id);
 		dprintk("RPC:       %s: rdma_create_id() failed %i\n",
@@ -1450,6 +1459,12 @@ rpcrdma_map_one(struct rpcrdma_ia *ia, struct rpcrdma_mr_seg *seg, int writing)
 		seg->mr_dma = ib_dma_map_single(ia->ri_id->device,
 				seg->mr_offset,
 				seg->mr_dmalen, seg->mr_dir);
+	if (ib_dma_mapping_error(ia->ri_id->device, seg->mr_dma)) {
+		dprintk("RPC:       %s: mr_dma %llx mr_offset %p mr_dma_len %zu\n",
+			__func__,
+			(unsigned long long)seg->mr_dma,
+			seg->mr_offset, seg->mr_dmalen);
+	}
 }
 
 static void
@@ -1469,7 +1484,8 @@ rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
 			struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_mr_seg *seg1 = seg;
-	struct ib_send_wr frmr_wr, *bad_wr;
+	struct ib_send_wr invalidate_wr, frmr_wr, *bad_wr, *post_wr;
+
 	u8 key;
 	int len, pageoff;
 	int i, rc;
@@ -1484,6 +1500,7 @@ rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
 		rpcrdma_map_one(ia, seg, writing);
 		seg1->mr_chunk.rl_mw->r.frmr.fr_pgl->page_list[i] = seg->mr_dma;
 		len += seg->mr_len;
+		BUG_ON(seg->mr_len > PAGE_SIZE);
 		++seg;
 		++i;
 		/* Check for holes */
@@ -1494,26 +1511,45 @@ rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
 	dprintk("RPC:       %s: Using frmr %p to map %d segments\n",
 		__func__, seg1->mr_chunk.rl_mw, i);
 
+	if (unlikely(seg1->mr_chunk.rl_mw->r.frmr.state == FRMR_IS_VALID)) {
+		dprintk("RPC:       %s: frmr %x left valid, posting invalidate.\n",
+			__func__,
+			seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey);
+		/* Invalidate before using. */
+		memset(&invalidate_wr, 0, sizeof invalidate_wr);
+		invalidate_wr.wr_id = (unsigned long)(void *)seg1->mr_chunk.rl_mw;
+		invalidate_wr.next = &frmr_wr;
+		invalidate_wr.opcode = IB_WR_LOCAL_INV;
+		invalidate_wr.send_flags = IB_SEND_SIGNALED;
+		invalidate_wr.ex.invalidate_rkey =
+			seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey;
+		DECR_CQCOUNT(&r_xprt->rx_ep);
+		post_wr = &invalidate_wr;
+	} else
+		post_wr = &frmr_wr;
+
 	/* Bump the key */
 	key = (u8)(seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey & 0x000000FF);
 	ib_update_fast_reg_key(seg1->mr_chunk.rl_mw->r.frmr.fr_mr, ++key);
 
 	/* Prepare FRMR WR */
 	memset(&frmr_wr, 0, sizeof frmr_wr);
+	frmr_wr.wr_id = (unsigned long)(void *)seg1->mr_chunk.rl_mw;
 	frmr_wr.opcode = IB_WR_FAST_REG_MR;
-	frmr_wr.send_flags = 0;			/* unsignaled */
+	frmr_wr.send_flags = IB_SEND_SIGNALED;
 	frmr_wr.wr.fast_reg.iova_start = seg1->mr_dma;
 	frmr_wr.wr.fast_reg.page_list = seg1->mr_chunk.rl_mw->r.frmr.fr_pgl;
 	frmr_wr.wr.fast_reg.page_list_len = i;
 	frmr_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
 	frmr_wr.wr.fast_reg.length = i << PAGE_SHIFT;
+	BUG_ON(frmr_wr.wr.fast_reg.length < len);
 	frmr_wr.wr.fast_reg.access_flags = (writing ?
 				IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE :
 				IB_ACCESS_REMOTE_READ);
 	frmr_wr.wr.fast_reg.rkey = seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey;
 	DECR_CQCOUNT(&r_xprt->rx_ep);
 
-	rc = ib_post_send(ia->ri_id->qp, &frmr_wr, &bad_wr);
+	rc = ib_post_send(ia->ri_id->qp, post_wr, &bad_wr);
 
 	if (rc) {
 		dprintk("RPC:       %s: failed ib_post_send for register,"
@@ -1542,8 +1578,9 @@ rpcrdma_deregister_frmr_external(struct rpcrdma_mr_seg *seg,
 		rpcrdma_unmap_one(ia, seg++);
 
 	memset(&invalidate_wr, 0, sizeof invalidate_wr);
+	invalidate_wr.wr_id = (unsigned long)(void *)seg1->mr_chunk.rl_mw;
 	invalidate_wr.opcode = IB_WR_LOCAL_INV;
-	invalidate_wr.send_flags = 0;			/* unsignaled */
+	invalidate_wr.send_flags = IB_SEND_SIGNALED;
 	invalidate_wr.ex.invalidate_rkey = seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey;
 	DECR_CQCOUNT(&r_xprt->rx_ep);
 

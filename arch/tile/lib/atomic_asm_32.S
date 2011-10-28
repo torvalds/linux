@@ -14,7 +14,7 @@
  * Support routines for atomic operations.  Each function takes:
  *
  * r0: address to manipulate
- * r1: pointer to atomic lock guarding this operation (for FUTEX_LOCK_REG)
+ * r1: pointer to atomic lock guarding this operation (for ATOMIC_LOCK_REG)
  * r2: new value to write, or for cmpxchg/add_unless, value to compare against
  * r3: (cmpxchg/xchg_add_unless) new value to write or add;
  *     (atomic64 ops) high word of value to write
@@ -59,7 +59,7 @@
  * bad kernel addresses).
  *
  * Note that if the value we would store is the same as what we
- * loaded, we bypass the load.  Other platforms with true atomics can
+ * loaded, we bypass the store.  Other platforms with true atomics can
  * make the guarantee that a non-atomic __clear_bit(), for example,
  * can safely race with an atomic test_and_set_bit(); this example is
  * from bit_spinlock.h in slub_lock() / slub_unlock().  We can't do

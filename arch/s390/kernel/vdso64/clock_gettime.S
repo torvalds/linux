@@ -20,11 +20,11 @@
 __kernel_clock_gettime:
 	.cfi_startproc
 	larl	%r5,_vdso_data
-	cghi	%r2,CLOCK_REALTIME
+	cghi	%r2,__CLOCK_REALTIME
 	je	4f
 	cghi	%r2,-2		/* CLOCK_THREAD_CPUTIME_ID for this thread */
 	je	9f
-	cghi	%r2,CLOCK_MONOTONIC
+	cghi	%r2,__CLOCK_MONOTONIC
 	jne	12f
 
 	/* CLOCK_MONOTONIC */

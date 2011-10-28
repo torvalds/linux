@@ -32,34 +32,15 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"1.4.1.1"
-#define DRV_COPYRIGHT		"Copyright 2008-2010 Cisco Systems, Inc"
+#define DRV_VERSION		"2.1.1.13"
+#define DRV_COPYRIGHT		"Copyright 2008-2011 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
 
-#define ENIC_WQ_MAX		8
-#define ENIC_RQ_MAX		8
+#define ENIC_WQ_MAX		1
+#define ENIC_RQ_MAX		1
 #define ENIC_CQ_MAX		(ENIC_WQ_MAX + ENIC_RQ_MAX)
 #define ENIC_INTR_MAX		(ENIC_CQ_MAX + 2)
-
-enum enic_cq_index {
-	ENIC_CQ_RQ,
-	ENIC_CQ_WQ,
-};
-
-enum enic_intx_intr_index {
-	ENIC_INTX_WQ_RQ,
-	ENIC_INTX_ERR,
-	ENIC_INTX_NOTIFY,
-};
-
-enum enic_msix_intr_index {
-	ENIC_MSIX_RQ,
-	ENIC_MSIX_WQ,
-	ENIC_MSIX_ERR,
-	ENIC_MSIX_NOTIFY,
-	ENIC_MSIX_MAX,
-};
 
 struct enic_msix_entry {
 	int requested;
@@ -68,7 +49,7 @@ struct enic_msix_entry {
 	void *devid;
 };
 
-#define ENIC_SET_APPLIED		(1 << 0)
+#define ENIC_PORT_REQUEST_APPLIED	(1 << 0)
 #define ENIC_SET_REQUEST		(1 << 1)
 #define ENIC_SET_NAME			(1 << 2)
 #define ENIC_SET_INSTANCE		(1 << 3)
@@ -80,6 +61,8 @@ struct enic_port_profile {
 	char name[PORT_PROFILE_MAX];
 	u8 instance_uuid[PORT_UUID_MAX];
 	u8 host_uuid[PORT_UUID_MAX];
+	u8 vf_mac[ETH_ALEN];
+	u8 mac_addr[ETH_ALEN];
 };
 
 /* Per-instance private data structure */
@@ -91,15 +74,16 @@ struct enic {
 	struct vnic_dev *vdev;
 	struct timer_list notify_timer;
 	struct work_struct reset;
-	struct msix_entry msix_entry[ENIC_MSIX_MAX];
-	struct enic_msix_entry msix[ENIC_MSIX_MAX];
+	struct msix_entry msix_entry[ENIC_INTR_MAX];
+	struct enic_msix_entry msix[ENIC_INTR_MAX];
 	u32 msg_enable;
 	spinlock_t devcmd_lock;
 	u8 mac_addr[ETH_ALEN];
 	u8 mc_addr[ENIC_MULTICAST_PERFECT_FILTERS][ETH_ALEN];
+	u8 uc_addr[ENIC_UNICAST_PERFECT_FILTERS][ETH_ALEN];
 	unsigned int flags;
 	unsigned int mc_count;
-	int csum_rx_enabled;
+	unsigned int uc_count;
 	u32 port_mtu;
 	u32 rx_coalesce_usecs;
 	u32 tx_coalesce_usecs;
@@ -116,10 +100,9 @@ struct enic {
 	/* receive queue cache line section */
 	____cacheline_aligned struct vnic_rq rq[ENIC_RQ_MAX];
 	unsigned int rq_count;
-	int (*rq_alloc_buf)(struct vnic_rq *rq);
 	u64 rq_truncated_pkts;
 	u64 rq_bad_fcs;
-	struct napi_struct napi;
+	struct napi_struct napi[ENIC_RQ_MAX];
 
 	/* interrupt resource cache line section */
 	____cacheline_aligned struct vnic_intr intr[ENIC_INTR_MAX];
@@ -135,5 +118,7 @@ static inline struct device *enic_get_dev(struct enic *enic)
 {
 	return &(enic->pdev->dev);
 }
+
+void enic_reset_addr_lists(struct enic *enic);
 
 #endif /* _ENIC_H_ */

@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2006 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -61,7 +61,7 @@ struct ddb_entry *qla4xxx_alloc_sess(struct scsi_qla_host *ha);
 int qla4xxx_add_sess(struct ddb_entry *);
 void qla4xxx_destroy_sess(struct ddb_entry *ddb_entry);
 int qla4xxx_is_nvram_configuration_valid(struct scsi_qla_host *ha);
-int qla4xxx_get_fw_version(struct scsi_qla_host * ha);
+int qla4xxx_about_firmware(struct scsi_qla_host *ha);
 void qla4xxx_interrupt_service_routine(struct scsi_qla_host *ha,
 				       uint32_t intr_status);
 int qla4xxx_init_rings(struct scsi_qla_host *ha);
@@ -94,6 +94,7 @@ void qla4xxx_process_response_queue(struct scsi_qla_host *ha);
 void qla4xxx_wake_dpc(struct scsi_qla_host *ha);
 void qla4xxx_get_conn_event_log(struct scsi_qla_host *ha);
 void qla4xxx_mailbox_premature_completion(struct scsi_qla_host *ha);
+void qla4xxx_dump_registers(struct scsi_qla_host *ha);
 
 void qla4_8xxx_pci_config(struct scsi_qla_host *);
 int qla4_8xxx_iospace_config(struct scsi_qla_host *ha);
@@ -135,8 +136,8 @@ void qla4_8xxx_clear_drv_active(struct scsi_qla_host *ha);
 void qla4_8xxx_set_drv_active(struct scsi_qla_host *ha);
 
 extern int ql4xextended_error_logging;
-extern int ql4xdiscoverywait;
 extern int ql4xdontresethba;
 extern int ql4xenablemsix;
 
+extern struct device_attribute *qla4xxx_host_attrs[];
 #endif /* _QLA4x_GBL_H */

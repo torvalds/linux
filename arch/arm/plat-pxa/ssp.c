@@ -28,11 +28,11 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/io.h>
 
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <plat/ssp.h>
 
 static DEFINE_MUTEX(ssp_lock);
 static LIST_HEAD(ssp_list);

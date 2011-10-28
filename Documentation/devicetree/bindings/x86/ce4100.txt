@@ -1,0 +1,38 @@
+CE4100 Device Tree Bindings
+---------------------------
+
+The CE4100 SoC uses for in core peripherals the following compatible
+format: <vendor>,<chip>-<device>.
+Many of the "generic" devices like HPET or IO APIC have the ce4100
+name in their compatible property because they first appeared in this
+SoC.
+
+The CPU node
+------------
+	cpu@0 {
+		device_type = "cpu";
+		compatible = "intel,ce4100";
+		reg = <0>;
+		lapic = <&lapic0>;
+	};
+
+The reg property describes the CPU number. The lapic property points to
+the local APIC timer.
+
+The SoC node
+------------
+
+This node describes the in-core peripherals. Required property:
+  compatible = "intel,ce4100-cp";
+
+The PCI node
+------------
+This node describes the PCI bus on the SoC. Its property should be
+  compatible = "intel,ce4100-pci", "pci";
+
+If the OS is using the IO-APIC for interrupt routing then the reported
+interrupt numbers for devices is no longer true. In order to obtain the
+correct interrupt number, the child node which represents the device has
+to contain the interrupt property. Besides the interrupt property it has
+to contain at least the reg property containing the PCI bus address and
+compatible property according to "PCI Bus Binding Revision 2.1".

@@ -285,8 +285,6 @@ void __init ixdp2800_init_irq(void)
 
 MACHINE_START(IXDP2800, "Intel IXDP2800 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.phys_io	= IXP2000_UART_PHYS_BASE,
-	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.map_io		= ixdp2x00_map_io,
 	.init_irq	= ixdp2800_init_irq,

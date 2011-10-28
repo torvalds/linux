@@ -21,10 +21,16 @@
 #ifndef __UBI_DEBUG_H__
 #define __UBI_DEBUG_H__
 
+struct ubi_ec_hdr;
+struct ubi_vid_hdr;
+struct ubi_volume;
+struct ubi_vtbl_record;
+struct ubi_scan_volume;
+struct ubi_scan_leb;
+struct ubi_mkvol_req;
+
 #ifdef CONFIG_MTD_UBI_DEBUG
 #include <linux/random.h>
-
-#define dbg_err(fmt, ...) ubi_err(fmt, ##__VA_ARGS__)
 
 #define ubi_assert(expr)  do {                                               \
 	if (unlikely(!(expr))) {                                             \
@@ -34,19 +40,28 @@
 	}                                                                    \
 } while (0)
 
-#define dbg_msg(fmt, ...)                                    \
-	printk(KERN_DEBUG "UBI DBG (pid %d): %s: " fmt "\n", \
-	       current->pid, __func__, ##__VA_ARGS__)
+#define dbg_err(fmt, ...) ubi_err(fmt, ##__VA_ARGS__)
 
 #define ubi_dbg_dump_stack() dump_stack()
 
-struct ubi_ec_hdr;
-struct ubi_vid_hdr;
-struct ubi_volume;
-struct ubi_vtbl_record;
-struct ubi_scan_volume;
-struct ubi_scan_leb;
-struct ubi_mkvol_req;
+#define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)  \
+		print_hex_dump(l, ps, pt, r, g, b, len, a)
+
+#define ubi_dbg_msg(type, fmt, ...) \
+	pr_debug("UBI DBG " type ": " fmt "\n", ##__VA_ARGS__)
+
+/* Just a debugging messages not related to any specific UBI subsystem */
+#define dbg_msg(fmt, ...) ubi_dbg_msg("msg", fmt, ##__VA_ARGS__)
+/* General debugging messages */
+#define dbg_gen(fmt, ...) ubi_dbg_msg("gen", fmt, ##__VA_ARGS__)
+/* Messages from the eraseblock association sub-system */
+#define dbg_eba(fmt, ...) ubi_dbg_msg("eba", fmt, ##__VA_ARGS__)
+/* Messages from the wear-leveling sub-system */
+#define dbg_wl(fmt, ...)  ubi_dbg_msg("wl", fmt, ##__VA_ARGS__)
+/* Messages from the input/output sub-system */
+#define dbg_io(fmt, ...)  ubi_dbg_msg("io", fmt, ##__VA_ARGS__)
+/* Initialization and build messages */
+#define dbg_bld(fmt, ...) ubi_dbg_msg("bld", fmt, ##__VA_ARGS__)
 
 void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr);
 void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
@@ -57,59 +72,51 @@ void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type);
 void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
 void ubi_dbg_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
 
-#ifdef CONFIG_MTD_UBI_DEBUG_MSG
-/* General debugging messages */
-#define dbg_gen(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
-#else
-#define dbg_gen(fmt, ...) ({})
-#endif
+extern unsigned int ubi_chk_flags;
 
-#ifdef CONFIG_MTD_UBI_DEBUG_MSG_EBA
-/* Messages from the eraseblock association sub-system */
-#define dbg_eba(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
-#else
-#define dbg_eba(fmt, ...) ({})
-#endif
+/*
+ * Debugging check flags.
+ *
+ * UBI_CHK_GEN: general checks
+ * UBI_CHK_IO: check writes and erases
+ */
+enum {
+	UBI_CHK_GEN = 0x1,
+	UBI_CHK_IO  = 0x2,
+};
 
-#ifdef CONFIG_MTD_UBI_DEBUG_MSG_WL
-/* Messages from the wear-leveling sub-system */
-#define dbg_wl(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
-#else
-#define dbg_wl(fmt, ...) ({})
-#endif
-
-#ifdef CONFIG_MTD_UBI_DEBUG_MSG_IO
-/* Messages from the input/output sub-system */
-#define dbg_io(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
-#else
-#define dbg_io(fmt, ...) ({})
-#endif
-
-#ifdef CONFIG_MTD_UBI_DEBUG_MSG_BLD
-/* Initialization and build messages */
-#define dbg_bld(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
-#define UBI_IO_DEBUG 1
-#else
-#define dbg_bld(fmt, ...) ({})
-#define UBI_IO_DEBUG 0
-#endif
-
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
 int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len);
 int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 			int offset, int len);
-#else
-#define ubi_dbg_check_all_ff(ubi, pnum, offset, len) 0
-#define ubi_dbg_check_write(ubi, buf, pnum, offset, len) 0
-#endif
 
-#ifdef CONFIG_MTD_UBI_DEBUG_DISABLE_BGT
-#define DBG_DISABLE_BGT 1
-#else
-#define DBG_DISABLE_BGT 0
-#endif
+extern unsigned int ubi_tst_flags;
 
-#ifdef CONFIG_MTD_UBI_DEBUG_EMULATE_BITFLIPS
+/*
+ * Special testing flags.
+ *
+ * UBIFS_TST_DISABLE_BGT: disable the background thread
+ * UBI_TST_EMULATE_BITFLIPS: emulate bit-flips
+ * UBI_TST_EMULATE_WRITE_FAILURES: emulate write failures
+ * UBI_TST_EMULATE_ERASE_FAILURES: emulate erase failures
+ */
+enum {
+	UBI_TST_DISABLE_BGT            = 0x1,
+	UBI_TST_EMULATE_BITFLIPS       = 0x2,
+	UBI_TST_EMULATE_WRITE_FAILURES = 0x4,
+	UBI_TST_EMULATE_ERASE_FAILURES = 0x8,
+};
+
+/**
+ * ubi_dbg_is_bgt_disabled - if the background thread is disabled.
+ *
+ * Returns non-zero if the UBI background thread is disabled for testing
+ * purposes.
+ */
+static inline int ubi_dbg_is_bgt_disabled(void)
+{
+	return ubi_tst_flags & UBI_TST_DISABLE_BGT;
+}
+
 /**
  * ubi_dbg_is_bitflip - if it is time to emulate a bit-flip.
  *
@@ -117,13 +124,11 @@ int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
  */
 static inline int ubi_dbg_is_bitflip(void)
 {
-	return !(random32() % 200);
+	if (ubi_tst_flags & UBI_TST_EMULATE_BITFLIPS)
+		return !(random32() % 200);
+	return 0;
 }
-#else
-#define ubi_dbg_is_bitflip() 0
-#endif
 
-#ifdef CONFIG_MTD_UBI_DEBUG_EMULATE_WRITE_FAILURES
 /**
  * ubi_dbg_is_write_failure - if it is time to emulate a write failure.
  *
@@ -132,13 +137,11 @@ static inline int ubi_dbg_is_bitflip(void)
  */
 static inline int ubi_dbg_is_write_failure(void)
 {
-	return !(random32() % 500);
+	if (ubi_tst_flags & UBI_TST_EMULATE_WRITE_FAILURES)
+		return !(random32() % 500);
+	return 0;
 }
-#else
-#define ubi_dbg_is_write_failure() 0
-#endif
 
-#ifdef CONFIG_MTD_UBI_DEBUG_EMULATE_ERASE_FAILURES
 /**
  * ubi_dbg_is_erase_failure - if its time to emulate an erase failure.
  *
@@ -147,39 +150,68 @@ static inline int ubi_dbg_is_write_failure(void)
  */
 static inline int ubi_dbg_is_erase_failure(void)
 {
+	if (ubi_tst_flags & UBI_TST_EMULATE_ERASE_FAILURES)
 		return !(random32() % 400);
+	return 0;
 }
-#else
-#define ubi_dbg_is_erase_failure() 0
-#endif
 
 #else
 
-#define ubi_assert(expr)                 ({})
-#define dbg_err(fmt, ...)                ({})
-#define dbg_msg(fmt, ...)                ({})
-#define dbg_gen(fmt, ...)                ({})
-#define dbg_eba(fmt, ...)                ({})
-#define dbg_wl(fmt, ...)                 ({})
-#define dbg_io(fmt, ...)                 ({})
-#define dbg_bld(fmt, ...)                ({})
-#define ubi_dbg_dump_stack()             ({})
-#define ubi_dbg_dump_ec_hdr(ec_hdr)      ({})
-#define ubi_dbg_dump_vid_hdr(vid_hdr)    ({})
-#define ubi_dbg_dump_vol_info(vol)       ({})
-#define ubi_dbg_dump_vtbl_record(r, idx) ({})
-#define ubi_dbg_dump_sv(sv)              ({})
-#define ubi_dbg_dump_seb(seb, type)      ({})
-#define ubi_dbg_dump_mkvol_req(req)      ({})
-#define ubi_dbg_dump_flash(ubi, pnum, offset, len) ({})
+/* Use "if (0)" to make compiler check arguments even if debugging is off */
+#define ubi_assert(expr)  do {                                               \
+	if (0) {                                                             \
+		printk(KERN_CRIT "UBI assert failed in %s at %u (pid %d)\n", \
+		       __func__, __LINE__, current->pid);                    \
+	}                                                                    \
+} while (0)
 
-#define UBI_IO_DEBUG               0
-#define DBG_DISABLE_BGT            0
-#define ubi_dbg_is_bitflip()       0
-#define ubi_dbg_is_write_failure() 0
-#define ubi_dbg_is_erase_failure() 0
-#define ubi_dbg_check_all_ff(ubi, pnum, offset, len) 0
-#define ubi_dbg_check_write(ubi, buf, pnum, offset, len) 0
+#define dbg_err(fmt, ...) do {                                               \
+	if (0)                                                               \
+		ubi_err(fmt, ##__VA_ARGS__);                                 \
+} while (0)
+
+#define ubi_dbg_msg(fmt, ...) do {                                           \
+	if (0)                                                               \
+		pr_debug(fmt "\n", ##__VA_ARGS__);                           \
+} while (0)
+
+#define dbg_msg(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_gen(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_eba(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_wl(fmt, ...)   ubi_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_io(fmt, ...)   ubi_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_bld(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
+
+static inline void ubi_dbg_dump_stack(void)                          { return; }
+static inline void
+ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)                 { return; }
+static inline void
+ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)              { return; }
+static inline void
+ubi_dbg_dump_vol_info(const struct ubi_volume *vol)                  { return; }
+static inline void
+ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)   { return; }
+static inline void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv) { return; }
+static inline void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb,
+				    int type)                        { return; }
+static inline void
+ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req)              { return; }
+static inline void ubi_dbg_dump_flash(struct ubi_device *ubi,
+				      int pnum, int offset, int len) { return; }
+static inline void
+ubi_dbg_print_hex_dump(const char *l, const char *ps, int pt, int r,
+		       int g, const void *b, size_t len, bool a)     { return; }
+
+static inline int ubi_dbg_is_bgt_disabled(void)                    { return 0; }
+static inline int ubi_dbg_is_bitflip(void)                         { return 0; }
+static inline int ubi_dbg_is_write_failure(void)                   { return 0; }
+static inline int ubi_dbg_is_erase_failure(void)                   { return 0; }
+static inline int ubi_dbg_check_all_ff(struct ubi_device *ubi,
+				       int pnum, int offset,
+				       int len)                    { return 0; }
+static inline int ubi_dbg_check_write(struct ubi_device *ubi,
+				      const void *buf, int pnum,
+				      int offset, int len)         { return 0; }
 
 #endif /* !CONFIG_MTD_UBI_DEBUG */
 #endif /* !__UBI_DEBUG_H__ */

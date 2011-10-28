@@ -252,6 +252,7 @@ void atm_dev_release_vccs(struct atm_dev *dev)
 	}
 	write_unlock_irq(&vcc_sklist_lock);
 }
+EXPORT_SYMBOL(atm_dev_release_vccs);
 
 static int adjust_tp(struct atm_trafprm *tp, unsigned char aal)
 {
@@ -792,7 +793,7 @@ int vcc_getsockopt(struct socket *sock, int level, int optname,
 	default:
 		if (level == SOL_SOCKET)
 			return -EINVAL;
-			break;
+		break;
 	}
 	if (!vcc->dev || !vcc->dev->ops->getsockopt)
 		return -EINVAL;

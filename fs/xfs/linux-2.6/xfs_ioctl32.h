@@ -65,8 +65,10 @@ typedef struct compat_xfs_bstat {
 	__s32		bs_extsize;	/* extent size			*/
 	__s32		bs_extents;	/* number of extents		*/
 	__u32		bs_gen;		/* generation count		*/
-	__u16		bs_projid;	/* project id			*/
-	unsigned char	bs_pad[14];	/* pad space, unused		*/
+	__u16		bs_projid_lo;	/* lower part of project id	*/
+#define	bs_projid	bs_projid_lo	/* (previously just bs_projid)	*/
+	__u16		bs_projid_hi;	/* high part of project id	*/
+	unsigned char	bs_pad[12];	/* pad space, unused		*/
 	__u32		bs_dmevmask;	/* DMIG event mask		*/
 	__u16		bs_dmstate;	/* DMIG state info		*/
 	__u16		bs_aextents;	/* attribute number of extents	*/
@@ -182,6 +184,7 @@ typedef struct compat_xfs_flock64 {
 #define XFS_IOC_UNRESVSP_32	_IOW('X', 41, struct compat_xfs_flock64)
 #define XFS_IOC_RESVSP64_32	_IOW('X', 42, struct compat_xfs_flock64)
 #define XFS_IOC_UNRESVSP64_32	_IOW('X', 43, struct compat_xfs_flock64)
+#define XFS_IOC_ZERO_RANGE_32	_IOW('X', 57, struct compat_xfs_flock64)
 
 typedef struct compat_xfs_fsop_geom_v1 {
 	__u32		blocksize;	/* filesystem (data) block size */

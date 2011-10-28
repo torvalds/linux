@@ -199,7 +199,8 @@ struct jffs2_inode_cache {
 #define RAWNODE_CLASS_XATTR_DATUM	1
 #define RAWNODE_CLASS_XATTR_REF		2
 
-#define INOCACHE_HASHSIZE 128
+#define INOCACHE_HASHSIZE_MIN 128
+#define INOCACHE_HASHSIZE_MAX 1024
 
 #define write_ofs(c) ((c)->nextblock->offset + (c)->sector_size - (c)->nextblock->free_size)
 
@@ -400,7 +401,7 @@ int jffs2_write_inode_range(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			    struct jffs2_raw_inode *ri, unsigned char *buf,
 			    uint32_t offset, uint32_t writelen, uint32_t *retlen);
 int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, struct jffs2_inode_info *f,
-		    struct jffs2_raw_inode *ri, const char *name, int namelen);
+		    struct jffs2_raw_inode *ri, const struct qstr *qstr);
 int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, const char *name,
 		    int namelen, struct jffs2_inode_info *dead_f, uint32_t time);
 int jffs2_do_link(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint32_t ino,

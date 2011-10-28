@@ -1,0 +1,69 @@
+
+What:           /sys/class/net/<mesh_iface>/mesh/aggregated_ogms
+Date:           May 2010
+Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Description:
+                Indicates whether the batman protocol messages of the
+                mesh <mesh_iface> shall be aggregated or not.
+
+What:           /sys/class/net/<mesh_iface>/mesh/bonding
+Date:           June 2010
+Contact:        Simon Wunderlich <siwu@hrz.tu-chemnitz.de>
+Description:
+                Indicates whether the data traffic going through the
+                mesh will be sent using multiple interfaces at the
+                same time (if available).
+
+What:           /sys/class/net/<mesh_iface>/mesh/fragmentation
+Date:           October 2010
+Contact:        Andreas Langer <an.langer@gmx.de>
+Description:
+                Indicates whether the data traffic going through the
+                mesh will be fragmented or silently discarded if the
+                packet size exceeds the outgoing interface MTU.
+
+What:           /sys/class/net/<mesh_iface>/mesh/gw_bandwidth
+Date:           October 2010
+Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Description:
+                Defines the bandwidth which is propagated by this
+                node if gw_mode was set to 'server'.
+
+What:           /sys/class/net/<mesh_iface>/mesh/gw_mode
+Date:           October 2010
+Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Description:
+                Defines the state of the gateway features. Can be
+                either 'off', 'client' or 'server'.
+
+What:           /sys/class/net/<mesh_iface>/mesh/gw_sel_class
+Date:           October 2010
+Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Description:
+                Defines the selection criteria this node will use
+                to choose a gateway if gw_mode was set to 'client'.
+
+What:           /sys/class/net/<mesh_iface>/mesh/orig_interval
+Date:           May 2010
+Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Description:
+                Defines the interval in milliseconds in which batman
+                sends its protocol messages.
+
+What:           /sys/class/net/<mesh_iface>/mesh/hop_penalty
+Date:           Oct 2010
+Contact:        Linus Lüssing <linus.luessing@web.de>
+Description:
+		Defines the penalty which will be applied to an
+		originator message's tq-field on every hop.
+
+What:           /sys/class/net/<mesh_iface>/mesh/vis_mode
+Date:           May 2010
+Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Description:
+                Each batman node only maintains information about its
+                own local neighborhood, therefore generating graphs
+                showing the topology of the entire mesh is not easily
+                feasible without having a central instance to collect
+                the local topologies from all nodes. This file allows
+                to activate the collecting (server) mode.

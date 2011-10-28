@@ -53,8 +53,8 @@
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
 #define _NETXEN_NIC_LINUX_MINOR 0
-#define _NETXEN_NIC_LINUX_SUBVERSION 74
-#define NETXEN_NIC_LINUX_VERSIONID  "4.0.74"
+#define _NETXEN_NIC_LINUX_SUBVERSION 75
+#define NETXEN_NIC_LINUX_VERSIONID  "4.0.75"
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -174,8 +174,11 @@
 
 #define	MAX_NUM_CARDS		4
 
-#define MAX_BUFFERS_PER_CMD	32
-#define TX_STOP_THRESH		((MAX_SKB_FRAGS >> 2) + 4)
+#define NETXEN_MAX_FRAGS_PER_TX	14
+#define MAX_TSO_HEADER_DESC	2
+#define MGMT_CMD_DESC_RESV	4
+#define TX_STOP_THRESH		((MAX_SKB_FRAGS >> 2) + MAX_TSO_HEADER_DESC \
+							+ MGMT_CMD_DESC_RESV)
 #define NX_MAX_TX_TIMEOUTS	2
 
 /*
@@ -555,7 +558,7 @@ struct netxen_recv_crb {
  */
 struct netxen_cmd_buffer {
 	struct sk_buff *skb;
-	struct netxen_skb_frag frag_array[MAX_BUFFERS_PER_CMD + 1];
+	struct netxen_skb_frag frag_array[MAX_SKB_FRAGS + 1];
 	u32 frag_count;
 };
 
@@ -736,7 +739,8 @@ struct netxen_recv_context {
 #define NX_CDRP_CMD_READ_PEXQ_PARAMETERS	0x0000001c
 #define NX_CDRP_CMD_GET_LIC_CAPABILITIES	0x0000001d
 #define NX_CDRP_CMD_READ_MAX_LRO_PER_BOARD	0x0000001e
-#define NX_CDRP_CMD_MAX				0x0000001f
+#define NX_CDRP_CMD_CONFIG_GBE_PORT		0x0000001f
+#define NX_CDRP_CMD_MAX				0x00000020
 
 #define NX_RCODE_SUCCESS		0
 #define NX_RCODE_NO_HOST_MEM		1
@@ -1051,6 +1055,7 @@ typedef struct {
 #define NX_FW_CAPABILITY_BDG			(1 << 8)
 #define NX_FW_CAPABILITY_FVLANTX		(1 << 9)
 #define NX_FW_CAPABILITY_HW_LRO			(1 << 10)
+#define NX_FW_CAPABILITY_GBE_LINK_CFG		(1 << 11)
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -1129,6 +1134,7 @@ typedef struct {
 #define NETXEN_NIC_MSI_ENABLED		0x02
 #define NETXEN_NIC_MSIX_ENABLED		0x04
 #define NETXEN_NIC_LRO_ENABLED		0x08
+#define NETXEN_NIC_LRO_DISABLED		0x00
 #define NETXEN_NIC_BRIDGE_ENABLED       0X10
 #define NETXEN_NIC_DIAG_ENABLED		0x20
 #define NETXEN_IS_MSI_FAMILY(adapter) \
@@ -1171,7 +1177,7 @@ struct netxen_adapter {
 	u8 max_sds_rings;
 	u8 driver_mismatch;
 	u8 msix_supported;
-	u8 rx_csum;
+	u8 __pad;
 	u8 pci_using_dac;
 	u8 portnum;
 	u8 physical_port;
@@ -1253,18 +1259,8 @@ struct netxen_adapter {
 	const struct firmware *fw;
 };
 
-int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port);
-int netxen_niu_disable_xg_port(struct netxen_adapter *adapter);
-
 int nx_fw_cmd_query_phy(struct netxen_adapter *adapter, u32 reg, u32 *val);
 int nx_fw_cmd_set_phy(struct netxen_adapter *adapter, u32 reg, u32 val);
-
-/* Functions available from netxen_nic_hw.c */
-int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu);
-int netxen_nic_set_mtu_gb(struct netxen_adapter *adapter, int new_mtu);
-
-int netxen_p2_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr);
-int netxen_p3_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr);
 
 #define NXRD32(adapter, off) \
 	(adapter->crb_read(adapter, off))
@@ -1345,11 +1341,8 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 		struct nx_host_rds_ring *rds_ring);
 int netxen_process_cmd_ring(struct netxen_adapter *adapter);
 int netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max);
-void netxen_p2_nic_set_multi(struct net_device *netdev);
-void netxen_p3_nic_set_multi(struct net_device *netdev);
+
 void netxen_p3_free_mac_list(struct netxen_adapter *adapter);
-int netxen_p2_nic_set_promisc(struct netxen_adapter *adapter, u32 mode);
-int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32);
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter);
 int netxen_config_rss(struct netxen_adapter *adapter, int enable);
 int netxen_config_ipaddr(struct netxen_adapter *adapter, u32 ip, int cmd);
@@ -1358,14 +1351,13 @@ void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup);
 void netxen_pci_camqm_read_2M(struct netxen_adapter *, u64, u64 *);
 void netxen_pci_camqm_write_2M(struct netxen_adapter *, u64, u64);
 
+int nx_fw_cmd_set_gbe_port(struct netxen_adapter *adapter,
+				u32 speed, u32 duplex, u32 autoneg);
 int nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, int mtu);
 int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
 int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable);
 int netxen_config_bridged_mode(struct netxen_adapter *adapter, int enable);
 int netxen_send_lro_cleanup(struct netxen_adapter *adapter);
-
-int netxen_nic_set_mac(struct net_device *netdev, void *p);
-struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
 
 void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 		struct nx_host_tx_ring *tx_ring);

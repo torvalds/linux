@@ -200,10 +200,9 @@ s_vProcessRxMACHeader (
     } else if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
         cbHeaderSize += 6;
         pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
-        if ((*pwType!= TYPE_PKT_IPX) && (*pwType != cpu_to_le16(0xF380))) {
-        }
-        else {
-            cbHeaderSize -= 8;
+	if ((*pwType == cpu_to_le16(ETH_P_IPX)) ||
+	    (*pwType == cpu_to_le16(0xF380))) {
+		cbHeaderSize -= 8;
             pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
             if (bIsWEP) {
                 if (bExtIV) {
@@ -377,9 +376,9 @@ RXbBulkInProcessData (
         return FALSE;
     }
 
-    if ((BytesToIndicate > 2372)||(BytesToIndicate <= 40)) {
+    if ((BytesToIndicate > 2372) || (BytesToIndicate <= 40)) {
         // Frame Size error drop this packet.
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- WRONG Length 2 \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---------- WRONG Length 2\n");
         return FALSE;
     }
 
@@ -731,7 +730,7 @@ RXbBulkInProcessData (
                 pMgmt->bInTIMWake = FALSE;
             }
         }
-    };
+    }
 
     // Now it only supports 802.11g Infrastructure Mode, and support rate must up to 54 Mbps
     if (pDevice->bDiversityEnable && (FrameSize>50) &&
@@ -865,7 +864,6 @@ RXbBulkInProcessData (
                             pDevice->dev->name);
                     }
                 }
-		//2008-0409-07, <Add> by Einsn Liu
        #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 				//send event to wpa_supplicant
 				//if(pDevice->bWPASuppWextEnabled == TRUE)
@@ -915,7 +913,7 @@ RXbBulkInProcessData (
                      memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
                      netif_rx(pDevice->skb);
                      pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-                 };
+                 }
 
                 return FALSE;
 
@@ -1047,7 +1045,7 @@ static BOOL s_bAPModeRxCtl (
                                          );
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: send vMgrDeAuthenBeginSta 1\n");
                     return TRUE;
-                };
+                }
                 if (pMgmt->sNodeDBTable[iSANodeIndex].eNodeState < NODE_ASSOC) {
                     // send deassoc notification
                     // reason = (7) class 3 received from nonassoc sta
@@ -1059,7 +1057,7 @@ static BOOL s_bAPModeRxCtl (
                                          );
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: send vMgrDisassocBeginSta 2\n");
                     return TRUE;
-                };
+                }
 
                 if (pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable) {
                     // delcare received ps-poll event
@@ -1490,7 +1488,7 @@ static BOOL s_bAPModeRxData (
                     bRelayOnly = TRUE;
                 }
             }
-        };
+        }
     }
 
     if (bRelayOnly || bRelayAndForward) {
@@ -1524,7 +1522,8 @@ void RXvWorkItem(void *Context)
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
     spin_lock_irq(&pDevice->lock);
-    while ( MP_TEST_FLAG(pDevice, fMP_POST_READS) &&
+
+    while ((pDevice->Flags & fMP_POST_READS) &&
             MP_IS_READY(pDevice) &&
             (pDevice->NumRecvFreeList != 0) ) {
         pRCB = pDevice->FirstRecvFreeList;
@@ -1569,7 +1568,7 @@ RXvFreeRCB(
     pDevice->NumRecvFreeList++;
 
 
-    if (MP_TEST_FLAG(pDevice, fMP_POST_READS) && MP_IS_READY(pDevice) &&
+    if ((pDevice->Flags & fMP_POST_READS) && MP_IS_READY(pDevice) &&
         (pDevice->bIsRxWorkItemQueued == FALSE) ) {
 
         pDevice->bIsRxWorkItemQueued = TRUE;
@@ -1609,8 +1608,8 @@ void RXvMngWorkItem(void *Context)
         }
     }
 
-    pDevice->bIsRxMngWorkItemQueued = FALSE;
-    spin_unlock_irq(&pDevice->lock);
+	pDevice->bIsRxMngWorkItemQueued = FALSE;
+	spin_unlock_irq(&pDevice->lock);
 
 }
 

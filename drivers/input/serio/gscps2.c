@@ -358,7 +358,7 @@ static int __devinit gscps2_probe(struct parisc_device *dev)
 	gscps2_reset(ps2port);
 	ps2port->id = readb(ps2port->addr + GSC_ID) & 0x0f;
 
-	snprintf(serio->name, sizeof(serio->name), "GSC PS/2 %s",
+	snprintf(serio->name, sizeof(serio->name), "gsc-ps2-%s",
 		 (ps2port->id == GSC_ID_KEYBOARD) ? "keyboard" : "mouse");
 	strlcpy(serio->phys, dev_name(&dev->dev), sizeof(serio->phys));
 	serio->id.type		= SERIO_8042;

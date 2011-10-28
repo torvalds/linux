@@ -238,9 +238,6 @@ struct e1000_adapter {
 	struct work_struct reset_task;
 	u8 fc_autoneg;
 
-	struct timer_list blink_timer;
-	unsigned long led_status;
-
 	/* TX */
 	struct e1000_tx_ring *tx_ring;      /* One per active queue */
 	unsigned int restart_queue;
@@ -310,6 +307,9 @@ struct e1000_adapter {
 	int need_ioport;
 
 	bool discarding;
+
+	struct work_struct fifo_stall_task;
+	struct work_struct phy_info_task;
 };
 
 enum e1000_state_t {
@@ -346,7 +346,7 @@ extern int e1000_up(struct e1000_adapter *adapter);
 extern void e1000_down(struct e1000_adapter *adapter);
 extern void e1000_reinit_locked(struct e1000_adapter *adapter);
 extern void e1000_reset(struct e1000_adapter *adapter);
-extern int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx);
+extern int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx);
 extern int e1000_setup_all_rx_resources(struct e1000_adapter *adapter);
 extern int e1000_setup_all_tx_resources(struct e1000_adapter *adapter);
 extern void e1000_free_all_rx_resources(struct e1000_adapter *adapter);

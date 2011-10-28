@@ -179,6 +179,7 @@ static void mark_screen_rdonly(struct mm_struct *mm)
 	if (pud_none_or_clear_bad(pud))
 		goto out;
 	pmd = pmd_offset(pud, 0xA0000);
+	split_huge_page_pmd(mm, pmd);
 	if (pmd_none_or_clear_bad(pmd))
 		goto out;
 	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
@@ -551,8 +552,14 @@ cannot_handle:
 int handle_vm86_trap(struct kernel_vm86_regs *regs, long error_code, int trapno)
 {
 	if (VMPI.is_vm86pus) {
-		if ((trapno == 3) || (trapno == 1))
-			return_to_32bit(regs, VM86_TRAP + (trapno << 8));
+		if ((trapno == 3) || (trapno == 1)) {
+			KVM86->regs32->ax = VM86_TRAP + (trapno << 8);
+			/* setting this flag forces the code in entry_32.S to
+			   call save_v86_state() and change the stack pointer
+			   to KVM86->regs32 */
+			set_thread_flag(TIF_IRET);
+			return 0;
+		}
 		do_int(regs, trapno, (unsigned char __user *) (regs->pt.ss << 4), SP(regs));
 		return 0;
 	}

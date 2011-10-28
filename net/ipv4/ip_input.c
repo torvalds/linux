@@ -268,7 +268,7 @@ int ip_local_deliver(struct sk_buff *skb)
 static inline int ip_rcv_options(struct sk_buff *skb)
 {
 	struct ip_options *opt;
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	struct net_device *dev = skb->dev;
 
 	/* It looks as overkill, because not all
@@ -340,7 +340,7 @@ static int ip_rcv_finish(struct sk_buff *skb)
 		}
 	}
 
-#ifdef CONFIG_NET_CLS_ROUTE
+#ifdef CONFIG_IP_ROUTE_CLASSID
 	if (unlikely(skb_dst(skb)->tclassid)) {
 		struct ip_rt_acct *st = this_cpu_ptr(ip_rt_acct);
 		u32 idx = skb_dst(skb)->tclassid;
@@ -374,7 +374,7 @@ drop:
  */
 int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	u32 len;
 
 	/* When the interface is in promisc. mode, drop all the crap

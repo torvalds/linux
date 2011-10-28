@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2011 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -121,8 +121,11 @@ qla2x00_chk_ms_status(scsi_qla_host_t *vha, ms_iocb_entry_t *ms_pkt,
 
 	rval = QLA_FUNCTION_FAILED;
 	if (ms_pkt->entry_status != 0) {
-		DEBUG2_3(printk("scsi(%ld): %s failed, error status (%x).\n",
-		    vha->host_no, routine, ms_pkt->entry_status));
+		DEBUG2_3(printk(KERN_WARNING "scsi(%ld): %s failed, error status "
+		    "(%x) on port_id: %02x%02x%02x.\n",
+		    vha->host_no, routine, ms_pkt->entry_status,
+		    vha->d_id.b.domain, vha->d_id.b.area,
+		    vha->d_id.b.al_pa));
 	} else {
 		if (IS_FWI2_CAPABLE(ha))
 			comp_status = le16_to_cpu(
@@ -136,8 +139,10 @@ qla2x00_chk_ms_status(scsi_qla_host_t *vha, ms_iocb_entry_t *ms_pkt,
 			if (ct_rsp->header.response !=
 			    __constant_cpu_to_be16(CT_ACCEPT_RESPONSE)) {
 				DEBUG2_3(printk("scsi(%ld): %s failed, "
-				    "rejected request:\n", vha->host_no,
-				    routine));
+				    "rejected request on port_id: %02x%02x%02x\n",
+				    vha->host_no, routine,
+				    vha->d_id.b.domain, vha->d_id.b.area,
+				    vha->d_id.b.al_pa));
 				DEBUG2_3(qla2x00_dump_buffer(
 				    (uint8_t *)&ct_rsp->header,
 				    sizeof(struct ct_rsp_hdr)));
@@ -147,8 +152,10 @@ qla2x00_chk_ms_status(scsi_qla_host_t *vha, ms_iocb_entry_t *ms_pkt,
 			break;
 		default:
 			DEBUG2_3(printk("scsi(%ld): %s failed, completion "
-			    "status (%x).\n", vha->host_no, routine,
-			    comp_status));
+			    "status (%x) on port_id: %02x%02x%02x.\n",
+			    vha->host_no, routine, comp_status,
+			    vha->d_id.b.domain, vha->d_id.b.area,
+			    vha->d_id.b.al_pa));
 			break;
 		}
 	}
@@ -1965,7 +1972,7 @@ qla2x00_gff_id(scsi_qla_host_t *vha, sw_info_t *list)
 			    "scsi(%ld): GFF_ID issue IOCB failed "
 			    "(%d).\n", vha->host_no, rval));
 		} else if (qla2x00_chk_ms_status(vha, ms_pkt, ct_rsp,
-			       "GPN_ID") != QLA_SUCCESS) {
+			       "GFF_ID") != QLA_SUCCESS) {
 			DEBUG2_3(printk(KERN_INFO
 			    "scsi(%ld): GFF_ID IOCB status had a "
 			    "failure status code\n", vha->host_no));

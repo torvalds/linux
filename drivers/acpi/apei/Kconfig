@@ -1,5 +1,7 @@
 config ACPI_APEI
 	bool "ACPI Platform Error Interface (APEI)"
+	select MISC_FILESYSTEMS
+	select PSTORE
 	depends on X86
 	help
 	  APEI allows to report errors (for example from the chipset)
@@ -20,6 +22,13 @@ config ACPI_APEI_GHES
 	  error registers or non-standard hardware link can be checked
 	  by firmware to produce more valuable hardware error
 	  information for Linux.
+
+config ACPI_APEI_PCIEAER
+	bool "APEI PCIe AER logging/recovering support"
+	depends on ACPI_APEI && PCIEAER
+	help
+	  PCIe AER errors may be reported via APEI firmware first mode.
+	  Turn on this option to enable the corresponding support.
 
 config ACPI_APEI_EINJ
 	tristate "APEI Error INJection (EINJ)"

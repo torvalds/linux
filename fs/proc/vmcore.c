@@ -35,6 +35,46 @@ static u64 vmcore_size;
 
 static struct proc_dir_entry *proc_vmcore = NULL;
 
+/*
+ * Returns > 0 for RAM pages, 0 for non-RAM pages, < 0 on error
+ * The called function has to take care of module refcounting.
+ */
+static int (*oldmem_pfn_is_ram)(unsigned long pfn);
+
+int register_oldmem_pfn_is_ram(int (*fn)(unsigned long pfn))
+{
+	if (oldmem_pfn_is_ram)
+		return -EBUSY;
+	oldmem_pfn_is_ram = fn;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(register_oldmem_pfn_is_ram);
+
+void unregister_oldmem_pfn_is_ram(void)
+{
+	oldmem_pfn_is_ram = NULL;
+	wmb();
+}
+EXPORT_SYMBOL_GPL(unregister_oldmem_pfn_is_ram);
+
+static int pfn_is_ram(unsigned long pfn)
+{
+	int (*fn)(unsigned long pfn);
+	/* pfn is ram unless fn() checks pagetype */
+	int ret = 1;
+
+	/*
+	 * Ask hypervisor if the pfn is really ram.
+	 * A ballooned page contains no data and reading from such a page
+	 * will cause high load in the hypervisor.
+	 */
+	fn = oldmem_pfn_is_ram;
+	if (fn)
+		ret = fn(pfn);
+
+	return ret;
+}
+
 /* Reads a page from the oldmem device from given offset. */
 static ssize_t read_from_oldmem(char *buf, size_t count,
 				u64 *ppos, int userbuf)
@@ -55,9 +95,15 @@ static ssize_t read_from_oldmem(char *buf, size_t count,
 		else
 			nr_bytes = count;
 
-		tmp = copy_oldmem_page(pfn, buf, nr_bytes, offset, userbuf);
-		if (tmp < 0)
-			return tmp;
+		/* If pfn is not ram, return zeros for sparse dump files */
+		if (pfn_is_ram(pfn) == 0)
+			memset(buf, 0, nr_bytes);
+		else {
+			tmp = copy_oldmem_page(pfn, buf, nr_bytes,
+						offset, userbuf);
+			if (tmp < 0)
+				return tmp;
+		}
 		*ppos += nr_bytes;
 		count -= nr_bytes;
 		buf += nr_bytes;
@@ -499,7 +545,7 @@ static int __init parse_crash_elf64_headers(void)
 	/* Do some basic Verification. */
 	if (memcmp(ehdr.e_ident, ELFMAG, SELFMAG) != 0 ||
 		(ehdr.e_type != ET_CORE) ||
-		!vmcore_elf_check_arch(&ehdr) ||
+		!vmcore_elf64_check_arch(&ehdr) ||
 		ehdr.e_ident[EI_CLASS] != ELFCLASS64 ||
 		ehdr.e_ident[EI_VERSION] != EV_CURRENT ||
 		ehdr.e_version != EV_CURRENT ||

@@ -53,11 +53,8 @@
 #define LCDC_SIZE	0x04
 #define SIZE_XMAX(x)	((((x) >> 4) & 0x3f) << 20)
 
-#ifdef CONFIG_ARCH_MX1
-#define SIZE_YMAX(y)	((y) & 0x1ff)
-#else
-#define SIZE_YMAX(y)	((y) & 0x3ff)
-#endif
+#define YMAX_MASK       (cpu_is_mx1() ? 0x1ff : 0x3ff)
+#define SIZE_YMAX(y)	((y) & YMAX_MASK)
 
 #define LCDC_VPW	0x08
 #define VPW_VPW(x)	((x) & 0x3ff)
@@ -68,12 +65,6 @@
 #define CPOS_OP		(1<<28)
 #define CPOS_CXP(x)	(((x) & 3ff) << 16)
 
-#ifdef CONFIG_ARCH_MX1
-#define CPOS_CYP(y)	((y) & 0x1ff)
-#else
-#define CPOS_CYP(y)	((y) & 0x3ff)
-#endif
-
 #define LCDC_LCWHB	0x10
 #define LCWHB_BK_EN	(1<<31)
 #define LCWHB_CW(w)	(((w) & 0x1f) << 24)
@@ -81,16 +72,6 @@
 #define LCWHB_BD(x)	((x) & 0xff)
 
 #define LCDC_LCHCC	0x14
-
-#ifdef CONFIG_ARCH_MX1
-#define LCHCC_CUR_COL_R(r) (((r) & 0x1f) << 11)
-#define LCHCC_CUR_COL_G(g) (((g) & 0x3f) << 5)
-#define LCHCC_CUR_COL_B(b) ((b) & 0x1f)
-#else
-#define LCHCC_CUR_COL_R(r) (((r) & 0x3f) << 12)
-#define LCHCC_CUR_COL_G(g) (((g) & 0x3f) << 6)
-#define LCHCC_CUR_COL_B(b) ((b) & 0x3f)
-#endif
 
 #define LCDC_PCR	0x18
 
@@ -118,11 +99,7 @@
 
 #define LCDC_RMCR	0x34
 
-#ifdef CONFIG_ARCH_MX1
-#define RMCR_LCDC_EN	(1<<1)
-#else
-#define RMCR_LCDC_EN	0
-#endif
+#define RMCR_LCDC_EN_MX1	(1<<1)
 
 #define RMCR_SELF_REF	(1<<0)
 
@@ -502,6 +479,7 @@ static void imxfb_init_backlight(struct imxfb_info *fbi)
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.max_brightness = 0xff;
+	props.type = BACKLIGHT_RAW;
 	writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
 
 	bl = backlight_device_register("imxfb-bl", &fbi->pdev->dev, fbi,
@@ -538,7 +516,11 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 	writel(readl(fbi->regs + LCDC_CPOS) & ~(CPOS_CC0 | CPOS_CC1),
 		fbi->regs + LCDC_CPOS);
 
-	writel(RMCR_LCDC_EN, fbi->regs + LCDC_RMCR);
+	/*
+	 * RMCR_LCDC_EN_MX1 is present on i.MX1 only, but doesn't hurt
+	 * on other SoCs
+	 */
+	writel(RMCR_LCDC_EN_MX1, fbi->regs + LCDC_RMCR);
 
 	clk_enable(fbi->clk);
 
@@ -623,7 +605,7 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	if (var->right_margin > 255)
 		printk(KERN_ERR "%s: invalid right_margin %d\n",
 			info->fix.id, var->right_margin);
-	if (var->yres < 1 || var->yres > 511)
+	if (var->yres < 1 || var->yres > YMAX_MASK)
 		printk(KERN_ERR "%s: invalid yres %d\n",
 			info->fix.id, var->yres);
 	if (var->vsync_len > 100)
@@ -874,10 +856,10 @@ failed_platform_init:
 		dma_free_writecombine(&pdev->dev,fbi->map_size,fbi->map_cpu,
 			fbi->map_dma);
 failed_map:
-	clk_put(fbi->clk);
-failed_getclock:
 	iounmap(fbi->regs);
 failed_ioremap:
+	clk_put(fbi->clk);
+failed_getclock:
 	release_mem_region(res->start, resource_size(res));
 failed_req:
 	kfree(info->pseudo_palette);
@@ -977,6 +959,6 @@ static void __exit imxfb_cleanup(void)
 module_init(imxfb_init);
 module_exit(imxfb_cleanup);
 
-MODULE_DESCRIPTION("Motorola i.MX framebuffer driver");
+MODULE_DESCRIPTION("Freescale i.MX framebuffer driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
 MODULE_LICENSE("GPL");

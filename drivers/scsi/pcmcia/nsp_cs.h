@@ -299,8 +299,7 @@ static        int        nsp_proc_info  (
 					 off_t   offset,
 					 int     length,
 					 int     inout);
-static int nsp_queuecommand(struct scsi_cmnd *SCpnt,
-			    void (* done)(struct scsi_cmnd *SCpnt));
+static int nsp_queuecommand(struct Scsi_Host *h, struct scsi_cmnd *SCpnt);
 
 /* Error handler */
 /*static int nsp_eh_abort       (struct scsi_cmnd *SCpnt);*/

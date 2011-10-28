@@ -74,9 +74,7 @@ struct txx9ndfmc_drvdata {
 	unsigned char hold;	/* in gbusclock */
 	unsigned char spw;	/* in gbusclock */
 	struct nand_hw_control hw_control;
-#ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *parts[MAX_TXX9NDFMC_DEV];
-#endif
 };
 
 static struct platform_device *mtd_to_platdev(struct mtd_info *mtd)
@@ -277,8 +275,9 @@ static int txx9ndfmc_nand_scan(struct mtd_info *mtd)
 	ret = nand_scan_ident(mtd, 1, NULL);
 	if (!ret) {
 		if (mtd->writesize >= 512) {
-			chip->ecc.size = mtd->writesize;
-			chip->ecc.bytes = 3 * (mtd->writesize / 256);
+			/* Hardware ECC 6 byte ECC per 512 Byte data */
+			chip->ecc.size = 512;
+			chip->ecc.bytes = 6;
 		}
 		ret = nand_scan_tail(mtd);
 	}
@@ -288,9 +287,7 @@ static int txx9ndfmc_nand_scan(struct mtd_info *mtd)
 static int __init txx9ndfmc_probe(struct platform_device *dev)
 {
 	struct txx9ndfmc_platform_data *plat = dev->dev.platform_data;
-#ifdef CONFIG_MTD_PARTITIONS
 	static const char *probes[] = { "cmdlinepart", NULL };
-#endif
 	int hold, spw;
 	int i;
 	struct txx9ndfmc_drvdata *drvdata;
@@ -336,9 +333,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		struct txx9ndfmc_priv *txx9_priv;
 		struct nand_chip *chip;
 		struct mtd_info *mtd;
-#ifdef CONFIG_MTD_PARTITIONS
 		int nr_parts;
-#endif
 
 		if (!(plat->ch_mask & (1 << i)))
 			continue;
@@ -398,13 +393,9 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		}
 		mtd->name = txx9_priv->mtdname;
 
-#ifdef CONFIG_MTD_PARTITIONS
 		nr_parts = parse_mtd_partitions(mtd, probes,
 						&drvdata->parts[i], 0);
-		if (nr_parts > 0)
-			add_mtd_partitions(mtd, drvdata->parts[i], nr_parts);
-#endif
-		add_mtd_device(mtd);
+		mtd_device_register(mtd, drvdata->parts[i], nr_parts);
 		drvdata->mtds[i] = mtd;
 	}
 
@@ -430,9 +421,7 @@ static int __exit txx9ndfmc_remove(struct platform_device *dev)
 		txx9_priv = chip->priv;
 
 		nand_release(mtd);
-#ifdef CONFIG_MTD_PARTITIONS
 		kfree(drvdata->parts[i]);
-#endif
 		kfree(txx9_priv->mtdname);
 		kfree(txx9_priv);
 	}

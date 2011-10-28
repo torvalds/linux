@@ -320,7 +320,7 @@ static void ks8842_reset_hw(struct ks8842_adapter *adapter)
 	/* RX 2 kb high watermark */
 	ks8842_write16(adapter, 0, 0x1000, REG_QRFCR);
 
-	/* aggresive back off in half duplex */
+	/* aggressive back off in half duplex */
 	ks8842_enable_bits(adapter, 32, 1 << 8, REG_SGCR1);
 
 	/* enable no excessive collison drop */
@@ -661,7 +661,7 @@ static void ks8842_rx_frame(struct net_device *netdev,
 
 	/* check the status */
 	if ((status & RXSR_VALID) && !(status & RXSR_ERROR)) {
-		struct sk_buff *skb = netdev_alloc_skb_ip_align(netdev, len);
+		struct sk_buff *skb = netdev_alloc_skb_ip_align(netdev, len + 3);
 
 		if (skb) {
 

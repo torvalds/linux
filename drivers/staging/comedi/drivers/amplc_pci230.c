@@ -971,7 +971,7 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (thisboard->ao_chans > 0) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = thisboard->ao_chans;;
+		s->n_chan = thisboard->ao_chans;
 		s->maxdata = (1 << thisboard->ao_bits) - 1;
 		s->range_table = &pci230_ao_range;
 		s->insn_write = &pci230_ao_winsn;

@@ -67,7 +67,7 @@ MODULE_PARM_DESC(index, "Index value for the USB MIDI Gadget adapter.");
 module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for the USB MIDI Gadget adapter.");
 
-/* Some systems will want different product identifers published in the
+/* Some systems will want different product identifiers published in the
  * device descriptor, either numbers or strings or both.  These string
  * parameters are in UTF-8 (superset of ASCII's 7 bit characters).
  */
@@ -1157,7 +1157,7 @@ fail:
 /*
  * Creates an output endpoint, and initializes output ports.
  */
-static int __ref gmidi_bind(struct usb_gadget *gadget)
+static int __init gmidi_bind(struct usb_gadget *gadget)
 {
 	struct gmidi_device *dev;
 	struct usb_ep *in_ep, *out_ep;
@@ -1292,7 +1292,6 @@ static void gmidi_resume(struct usb_gadget *gadget)
 static struct usb_gadget_driver gmidi_driver = {
 	.speed		= USB_SPEED_FULL,
 	.function	= (char *)longname,
-	.bind		= gmidi_bind,
 	.unbind		= gmidi_unbind,
 
 	.setup		= gmidi_setup,
@@ -1309,7 +1308,7 @@ static struct usb_gadget_driver gmidi_driver = {
 
 static int __init gmidi_init(void)
 {
-	return usb_gadget_register_driver(&gmidi_driver);
+	return usb_gadget_probe_driver(&gmidi_driver, gmidi_bind);
 }
 module_init(gmidi_init);
 

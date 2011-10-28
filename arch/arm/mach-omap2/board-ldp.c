@@ -22,11 +22,11 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
 #include <linux/io.h>
 #include <linux/smsc911x.h>
+#include <linux/mmc/host.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -41,48 +41,21 @@
 #include <mach/board-zoom.h>
 
 #include <asm/delay.h>
-#include <plat/control.h>
 #include <plat/usb.h>
+#include <plat/gpmc-smsc911x.h>
 
+#include "board-flash.h"
 #include "mux.h"
 #include "hsmmc.h"
+#include "control.h"
+#include "common-board-devices.h"
 
 #define LDP_SMSC911X_CS		1
 #define LDP_SMSC911X_GPIO	152
 #define DEBUG_BASE		0x08000000
 #define LDP_ETHR_START		DEBUG_BASE
 
-static struct resource ldp_smsc911x_resources[] = {
-	[0] = {
-		.start	= LDP_ETHR_START,
-		.end	= LDP_ETHR_START + SZ_4K,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 0,
-		.end	= 0,
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},
-};
-
-static struct smsc911x_platform_config ldp_smsc911x_config = {
-	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
-	.flags		= SMSC911X_USE_32BIT,
-	.phy_interface	= PHY_INTERFACE_MODE_MII,
-};
-
-static struct platform_device ldp_smsc911x_device = {
-	.name		= "smsc911x",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(ldp_smsc911x_resources),
-	.resource	= ldp_smsc911x_resources,
-	.dev		= {
-		.platform_data = &ldp_smsc911x_config,
-	},
-};
-
-static int board_keymap[] = {
+static uint32_t board_keymap[] = {
 	KEY(0, 0, KEY_1),
 	KEY(1, 0, KEY_2),
 	KEY(2, 0, KEY_3),
@@ -195,82 +168,16 @@ static struct platform_device ldp_gpio_keys_device = {
 	},
 };
 
-static int ts_gpio;
-
-/**
- * @brief ads7846_dev_init : Requests & sets GPIO line for pen-irq
- *
- * @return - void. If request gpio fails then Flag KERN_ERR.
- */
-static void ads7846_dev_init(void)
-{
-	if (gpio_request(ts_gpio, "ads7846 irq") < 0) {
-		printk(KERN_ERR "can't get ads746 pen down GPIO\n");
-		return;
-	}
-
-	gpio_direction_input(ts_gpio);
-	gpio_set_debounce(ts_gpio, 310);
-}
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(ts_gpio);
-}
-
-static struct ads7846_platform_data tsc2046_config __initdata = {
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-};
-
-static struct omap2_mcspi_device_config tsc2046_mcspi_config = {
-	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
-};
-
-static struct spi_board_info ldp_spi_board_info[] __initdata = {
-	[0] = {
-		/*
-		 * TSC2046 operates at a max freqency of 2MHz, so
-		 * operate slightly below at 1.5MHz
-		 */
-		.modalias		= "ads7846",
-		.bus_num		= 1,
-		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &tsc2046_mcspi_config,
-		.irq			= 0,
-		.platform_data		= &tsc2046_config,
-	},
+static struct omap_smsc911x_platform_data smsc911x_cfg = {
+	.cs             = LDP_SMSC911X_CS,
+	.gpio_irq       = LDP_SMSC911X_GPIO,
+	.gpio_reset     = -EINVAL,
+	.flags		= SMSC911X_USE_32BIT,
 };
 
 static inline void __init ldp_init_smsc911x(void)
 {
-	int eth_cs;
-	unsigned long cs_mem_base;
-	int eth_gpio = 0;
-
-	eth_cs = LDP_SMSC911X_CS;
-
-	if (gpmc_cs_request(eth_cs, SZ_16M, &cs_mem_base) < 0) {
-		printk(KERN_ERR "Failed to request GPMC mem for smsc911x\n");
-		return;
-	}
-
-	ldp_smsc911x_resources[0].start = cs_mem_base + 0x0;
-	ldp_smsc911x_resources[0].end   = cs_mem_base + 0xff;
-	udelay(100);
-
-	eth_gpio = LDP_SMSC911X_GPIO;
-
-	ldp_smsc911x_resources[1].start = OMAP_GPIO_IRQ(eth_gpio);
-
-	if (gpio_request(eth_gpio, "smsc911x irq") < 0) {
-		printk(KERN_ERR "Failed to request GPIO%d for smsc911x IRQ\n",
-				eth_gpio);
-		return;
-	}
-	gpio_direction_input(eth_gpio);
+	gpmc_smsc911x_init(&smsc911x_cfg);
 }
 
 static struct platform_device ldp_lcd_device = {
@@ -286,14 +193,10 @@ static struct omap_board_config_kernel ldp_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&ldp_lcd_config },
 };
 
-static void __init omap_ldp_init_irq(void)
+static void __init omap_ldp_init_early(void)
 {
-	omap_board_config = ldp_config;
-	omap_board_config_size = ARRAY_SIZE(ldp_config);
-	omap2_init_common_hw(NULL, NULL);
-	omap_init_irq();
-	omap_gpio_init();
-	ldp_init_smsc911x();
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(NULL, NULL);
 }
 
 static struct twl4030_usb_data ldp_usb_data = {
@@ -329,6 +232,26 @@ static struct regulator_init_data ldp_vmmc1 = {
 	.consumer_supplies	= &ldp_vmmc1_supply,
 };
 
+/* ads7846 on SPI */
+static struct regulator_consumer_supply ldp_vaux1_supplies[] = {
+	REGULATOR_SUPPLY("vcc", "spi1.0"),
+};
+
+/* VAUX1 */
+static struct regulator_init_data ldp_vaux1 = {
+	.constraints = {
+		.min_uV			= 3000000,
+		.max_uV			= 3000000,
+		.apply_uV		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies		= ARRAY_SIZE(ldp_vaux1_supplies),
+	.consumer_supplies		= ldp_vaux1_supplies,
+};
+
 static struct twl4030_platform_data ldp_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
@@ -337,23 +260,14 @@ static struct twl4030_platform_data ldp_twldata = {
 	.madc		= &ldp_madc_data,
 	.usb		= &ldp_usb_data,
 	.vmmc1		= &ldp_vmmc1,
+	.vaux1		= &ldp_vaux1,
 	.gpio		= &ldp_gpio_data,
 	.keypad		= &ldp_kp_twl4030_data,
 };
 
-static struct i2c_board_info __initdata ldp_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl4030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &ldp_twldata,
-	},
-};
-
 static int __init omap_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 2600, ldp_i2c_boardinfo,
-			ARRAY_SIZE(ldp_i2c_boardinfo));
+	omap3_pmic_init("twl4030", &ldp_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;
@@ -362,7 +276,7 @@ static int __init omap_i2c_init(void)
 static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.mmc		= 1,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 	},
@@ -370,7 +284,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 };
 
 static struct platform_device *ldp_devices[] __initdata = {
-	&ldp_smsc911x_device,
 	&ldp_lcd_device,
 	&ldp_gpio_keys_device,
 };
@@ -379,15 +292,7 @@ static struct platform_device *ldp_devices[] __initdata = {
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux	NULL
 #endif
-
-static struct omap_musb_board_data musb_board_data = {
-	.interface_type		= MUSB_INTERFACE_ULPI,
-	.mode			= MUSB_OTG,
-	.power			= 100,
-};
 
 static struct mtd_partition ldp_nand_partitions[] = {
 	/* All the partition sizes are listed in terms of NAND block size */
@@ -424,17 +329,16 @@ static struct mtd_partition ldp_nand_partitions[] = {
 static void __init omap_ldp_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	omap_board_config = ldp_config;
+	omap_board_config_size = ARRAY_SIZE(ldp_config);
+	ldp_init_smsc911x();
 	omap_i2c_init();
 	platform_add_devices(ldp_devices, ARRAY_SIZE(ldp_devices));
-	ts_gpio = 54;
-	ldp_spi_board_info[0].irq = gpio_to_irq(ts_gpio);
-	spi_register_board_info(ldp_spi_board_info,
-				ARRAY_SIZE(ldp_spi_board_info));
-	ads7846_dev_init();
+	omap_ads7846_init(1, 54, 310, NULL);
 	omap_serial_init();
-	usb_musb_init(&musb_board_data);
+	usb_musb_init(NULL);
 	board_nand_init(ldp_nand_partitions,
-		ARRAY_SIZE(ldp_nand_partitions), ZOOM_NAND_CS);
+		ARRAY_SIZE(ldp_nand_partitions), ZOOM_NAND_CS, 0);
 
 	omap2_hsmmc_init(mmc);
 	/* link regulators to MMC adapters */
@@ -442,12 +346,11 @@ static void __init omap_ldp_init(void)
 }
 
 MACHINE_START(OMAP_LDP, "OMAP LDP board")
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_ldp_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= omap_ldp_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= omap_ldp_init,
 	.timer		= &omap_timer,
 MACHINE_END

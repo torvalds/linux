@@ -34,7 +34,7 @@ struct input_event {
  * Protocol version.
  */
 
-#define EV_VERSION		0x010000
+#define EV_VERSION		0x010001
 
 /*
  * IOCTLs (0x00 - 0x7f)
@@ -47,6 +47,25 @@ struct input_id {
 	__u16 version;
 };
 
+/**
+ * struct input_absinfo - used by EVIOCGABS/EVIOCSABS ioctls
+ * @value: latest reported value for the axis.
+ * @minimum: specifies minimum value for the axis.
+ * @maximum: specifies maximum value for the axis.
+ * @fuzz: specifies fuzz value that is used to filter noise from
+ *	the event stream.
+ * @flat: values that are within this value will be discarded by
+ *	joydev interface and reported as 0 instead.
+ * @resolution: specifies resolution for the values reported for
+ *	the axis.
+ *
+ * Note that input core does not clamp reported values to the
+ * [minimum, maximum] limits, such task is left to userspace.
+ *
+ * Resolution for main axes (ABS_X, ABS_Y, ABS_Z) is reported in
+ * units per millimeter (units/mm), resolution for rotational axes
+ * (ABS_RX, ABS_RY, ABS_RZ) is reported in units per radian.
+ */
 struct input_absinfo {
 	__s32 value;
 	__s32 minimum;
@@ -56,31 +75,71 @@ struct input_absinfo {
 	__s32 resolution;
 };
 
+/**
+ * struct input_keymap_entry - used by EVIOCGKEYCODE/EVIOCSKEYCODE ioctls
+ * @scancode: scancode represented in machine-endian form.
+ * @len: length of the scancode that resides in @scancode buffer.
+ * @index: index in the keymap, may be used instead of scancode
+ * @flags: allows to specify how kernel should handle the request. For
+ *	example, setting INPUT_KEYMAP_BY_INDEX flag indicates that kernel
+ *	should perform lookup in keymap by @index instead of @scancode
+ * @keycode: key code assigned to this scancode
+ *
+ * The structure is used to retrieve and modify keymap data. Users have
+ * option of performing lookup either by @scancode itself or by @index
+ * in keymap entry. EVIOCGKEYCODE will also return scancode or index
+ * (depending on which element was used to perform lookup).
+ */
+struct input_keymap_entry {
+#define INPUT_KEYMAP_BY_INDEX	(1 << 0)
+	__u8  flags;
+	__u8  len;
+	__u16 index;
+	__u32 keycode;
+	__u8  scancode[32];
+};
+
 #define EVIOCGVERSION		_IOR('E', 0x01, int)			/* get driver version */
 #define EVIOCGID		_IOR('E', 0x02, struct input_id)	/* get device ID */
 #define EVIOCGREP		_IOR('E', 0x03, unsigned int[2])	/* get repeat settings */
 #define EVIOCSREP		_IOW('E', 0x03, unsigned int[2])	/* set repeat settings */
-#define EVIOCGKEYCODE		_IOR('E', 0x04, unsigned int[2])	/* get keycode */
-#define EVIOCSKEYCODE		_IOW('E', 0x04, unsigned int[2])	/* set keycode */
+
+#define EVIOCGKEYCODE		_IOR('E', 0x04, unsigned int[2])        /* get keycode */
+#define EVIOCGKEYCODE_V2	_IOR('E', 0x04, struct input_keymap_entry)
+#define EVIOCSKEYCODE		_IOW('E', 0x04, unsigned int[2])        /* set keycode */
+#define EVIOCSKEYCODE_V2	_IOW('E', 0x04, struct input_keymap_entry)
 
 #define EVIOCGNAME(len)		_IOC(_IOC_READ, 'E', 0x06, len)		/* get device name */
 #define EVIOCGPHYS(len)		_IOC(_IOC_READ, 'E', 0x07, len)		/* get physical location */
 #define EVIOCGUNIQ(len)		_IOC(_IOC_READ, 'E', 0x08, len)		/* get unique identifier */
+#define EVIOCGPROP(len)		_IOC(_IOC_READ, 'E', 0x09, len)		/* get device properties */
 
-#define EVIOCGKEY(len)		_IOC(_IOC_READ, 'E', 0x18, len)		/* get global keystate */
+#define EVIOCGKEY(len)		_IOC(_IOC_READ, 'E', 0x18, len)		/* get global key state */
 #define EVIOCGLED(len)		_IOC(_IOC_READ, 'E', 0x19, len)		/* get all LEDs */
 #define EVIOCGSND(len)		_IOC(_IOC_READ, 'E', 0x1a, len)		/* get all sounds status */
 #define EVIOCGSW(len)		_IOC(_IOC_READ, 'E', 0x1b, len)		/* get all switch states */
 
 #define EVIOCGBIT(ev,len)	_IOC(_IOC_READ, 'E', 0x20 + ev, len)	/* get event bits */
-#define EVIOCGABS(abs)		_IOR('E', 0x40 + abs, struct input_absinfo)		/* get abs value/limits */
-#define EVIOCSABS(abs)		_IOW('E', 0xc0 + abs, struct input_absinfo)		/* set abs value/limits */
+#define EVIOCGABS(abs)		_IOR('E', 0x40 + abs, struct input_absinfo)	/* get abs value/limits */
+#define EVIOCSABS(abs)		_IOW('E', 0xc0 + abs, struct input_absinfo)	/* set abs value/limits */
 
 #define EVIOCSFF		_IOC(_IOC_WRITE, 'E', 0x80, sizeof(struct ff_effect))	/* send a force effect to a force feedback device */
 #define EVIOCRMFF		_IOW('E', 0x81, int)			/* Erase a force effect */
 #define EVIOCGEFFECTS		_IOR('E', 0x84, int)			/* Report number of effects playable at the same time */
 
 #define EVIOCGRAB		_IOW('E', 0x90, int)			/* Grab/Release device */
+
+/*
+ * Device properties and quirks
+ */
+
+#define INPUT_PROP_POINTER		0x00	/* needs a pointer */
+#define INPUT_PROP_DIRECT		0x01	/* direct input devices */
+#define INPUT_PROP_BUTTONPAD		0x02	/* has button(s) under pad */
+#define INPUT_PROP_SEMI_MT		0x03	/* touch rectangle only */
+
+#define INPUT_PROP_MAX			0x1f
+#define INPUT_PROP_CNT			(INPUT_PROP_MAX + 1)
 
 /*
  * Event types
@@ -108,6 +167,7 @@ struct input_absinfo {
 #define SYN_REPORT		0
 #define SYN_CONFIG		1
 #define SYN_MT_REPORT		2
+#define SYN_DROPPED		3
 
 /*
  * Keys and buttons
@@ -494,8 +554,8 @@ struct input_absinfo {
 #define KEY_DVD			0x185	/* Media Select DVD */
 #define KEY_AUX			0x186
 #define KEY_MP3			0x187
-#define KEY_AUDIO		0x188
-#define KEY_VIDEO		0x189
+#define KEY_AUDIO		0x188	/* AL Audio Browser */
+#define KEY_VIDEO		0x189	/* AL Movie Browser */
 #define KEY_DIRECTORY		0x18a
 #define KEY_LIST		0x18b
 #define KEY_MEMO		0x18c	/* Media Select Messages */
@@ -544,6 +604,9 @@ struct input_absinfo {
 #define KEY_FRAMEFORWARD	0x1b5
 #define KEY_CONTEXT_MENU	0x1b6	/* GenDesc - system context menu */
 #define KEY_MEDIA_REPEAT	0x1b7	/* Consumer - transport control */
+#define KEY_10CHANNELSUP	0x1b8	/* 10 channels up (10+) */
+#define KEY_10CHANNELSDOWN	0x1b9	/* 10 channels down (10-) */
+#define KEY_IMAGES		0x1ba	/* AL Image Browser */
 
 #define KEY_DEL_EOL		0x1c0
 #define KEY_DEL_EOS		0x1c1
@@ -598,6 +661,17 @@ struct input_absinfo {
 
 #define KEY_CAMERA_FOCUS	0x210
 #define KEY_WPS_BUTTON		0x211	/* WiFi Protected Setup key */
+
+#define KEY_TOUCHPAD_TOGGLE	0x212	/* Request switch touchpad on or off */
+#define KEY_TOUCHPAD_ON		0x213
+#define KEY_TOUCHPAD_OFF	0x214
+
+#define KEY_CAMERA_ZOOMIN	0x215
+#define KEY_CAMERA_ZOOMOUT	0x216
+#define KEY_CAMERA_UP		0x217
+#define KEY_CAMERA_DOWN		0x218
+#define KEY_CAMERA_LEFT		0x219
+#define KEY_CAMERA_RIGHT	0x21a
 
 #define BTN_TRIGGER_HAPPY		0x2c0
 #define BTN_TRIGGER_HAPPY1		0x2c0
@@ -708,11 +782,12 @@ struct input_absinfo {
 #define ABS_MT_BLOB_ID		0x38	/* Group a set of packets as a blob */
 #define ABS_MT_TRACKING_ID	0x39	/* Unique ID of initiated contact */
 #define ABS_MT_PRESSURE		0x3a	/* Pressure on contact area */
+#define ABS_MT_DISTANCE		0x3b	/* Contact hover distance */
 
 #ifdef __KERNEL__
 /* Implementation details, userspace should not care about these */
 #define ABS_MT_FIRST		ABS_MT_TOUCH_MAJOR
-#define ABS_MT_LAST		ABS_MT_PRESSURE
+#define ABS_MT_LAST		ABS_MT_DISTANCE
 #endif
 
 #define ABS_MAX			0x3f
@@ -736,6 +811,7 @@ struct input_absinfo {
 #define SW_CAMERA_LENS_COVER	0x09  /* set = lens covered */
 #define SW_KEYPAD_SLIDE		0x0a  /* set = keypad slide out */
 #define SW_FRONT_PROXIMITY	0x0b  /* set = front proximity sensor active */
+#define SW_ROTATE_LOCK		0x0c  /* set = rotate locked/disabled */
 #define SW_MAX			0x0f
 #define SW_CNT			(SW_MAX+1)
 
@@ -823,6 +899,7 @@ struct input_absinfo {
  */
 #define MT_TOOL_FINGER		0
 #define MT_TOOL_PEN		1
+#define MT_TOOL_MAX		1
 
 /*
  * Values describing the status of a force-feedback effect
@@ -1058,19 +1135,12 @@ struct ff_effect {
 #include <linux/mod_devicetable.h>
 
 /**
- * struct input_mt_slot - represents the state of an input MT slot
- * @abs: holds current values of ABS_MT axes for this slot
- */
-struct input_mt_slot {
-	int abs[ABS_MT_LAST - ABS_MT_FIRST + 1];
-};
-
-/**
  * struct input_dev - represents an input device
  * @name: name of the device
  * @phys: physical path to the device in the system hierarchy
  * @uniq: unique identification code for the device (if device has it)
  * @id: id of the device (struct input_id)
+ * @propbit: bitmap of device properties and quirks
  * @evbit: bitmap of types of events supported by the device (EV_KEY,
  *	EV_REL, etc.)
  * @keybit: bitmap of keys/buttons this device has
@@ -1088,13 +1158,11 @@ struct input_mt_slot {
  * @keycodemax: size of keycode table
  * @keycodesize: size of elements in keycode table
  * @keycode: map of scancodes to keycodes for this device
+ * @getkeycode: optional legacy method to retrieve current keymap.
  * @setkeycode: optional method to alter current keymap, used to implement
  *	sparse keymaps. If not supplied default mechanism will be used.
  *	The method is being called while holding event_lock and thus must
  *	not sleep
- * @getkeycode: optional method to retrieve current keymap. If not supplied
- *	default mechanism will be used. The method is being called while
- *	holding event_lock and thus must not sleep
  * @ff: force feedback structure associated with the device if device
  *	supports force feedback effects
  * @repeat_key: stores key code of the last key pressed; used to implement
@@ -1105,7 +1173,8 @@ struct input_mt_slot {
  *	of tracked contacts
  * @mtsize: number of MT slots the device uses
  * @slot: MT slot currently being transmitted
- * @absinfo: array of &struct absinfo elements holding information
+ * @trkid: stores MT tracking ID for the current contact
+ * @absinfo: array of &struct input_absinfo elements holding information
  *	about absolute axes (current value, min, max, flat, fuzz,
  *	resolution)
  * @key: reflects current state of device's keys/buttons
@@ -1153,6 +1222,8 @@ struct input_dev {
 	const char *uniq;
 	struct input_id id;
 
+	unsigned long propbit[BITS_TO_LONGS(INPUT_PROP_CNT)];
+
 	unsigned long evbit[BITS_TO_LONGS(EV_CNT)];
 	unsigned long keybit[BITS_TO_LONGS(KEY_CNT)];
 	unsigned long relbit[BITS_TO_LONGS(REL_CNT)];
@@ -1168,10 +1239,12 @@ struct input_dev {
 	unsigned int keycodemax;
 	unsigned int keycodesize;
 	void *keycode;
+
 	int (*setkeycode)(struct input_dev *dev,
-			  unsigned int scancode, unsigned int keycode);
+			  const struct input_keymap_entry *ke,
+			  unsigned int *old_keycode);
 	int (*getkeycode)(struct input_dev *dev,
-			  unsigned int scancode, unsigned int *keycode);
+			  struct input_keymap_entry *ke);
 
 	struct ff_device *ff;
 
@@ -1183,6 +1256,7 @@ struct input_dev {
 	struct input_mt_slot *mt;
 	int mtsize;
 	int slot;
+	int trkid;
 
 	struct input_absinfo *absinfo;
 
@@ -1196,7 +1270,7 @@ struct input_dev {
 	int (*flush)(struct input_dev *dev, struct file *file);
 	int (*event)(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 
-	struct input_handle *grab;
+	struct input_handle __rcu *grab;
 
 	spinlock_t event_lock;
 	struct mutex mutex;
@@ -1375,6 +1449,8 @@ static inline void input_set_drvdata(struct input_dev *dev, void *data)
 int __must_check input_register_device(struct input_dev *);
 void input_unregister_device(struct input_dev *);
 
+void input_reset_device(struct input_dev *);
+
 int __must_check input_register_handler(struct input_handler *);
 void input_unregister_handler(struct input_handler *);
 
@@ -1390,7 +1466,7 @@ void input_release_device(struct input_handle *);
 int input_open_device(struct input_handle *);
 void input_close_device(struct input_handle *);
 
-int input_flush_device(struct input_handle* handle, struct file* file);
+int input_flush_device(struct input_handle *handle, struct file *file);
 
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 void input_inject_event(struct input_handle *handle, unsigned int type, unsigned int code, int value);
@@ -1428,11 +1504,6 @@ static inline void input_sync(struct input_dev *dev)
 static inline void input_mt_sync(struct input_dev *dev)
 {
 	input_event(dev, EV_SYN, SYN_MT_REPORT, 0);
-}
-
-static inline void input_mt_slot(struct input_dev *dev, int slot)
-{
-	input_event(dev, EV_ABS, ABS_MT_SLOT, slot);
 }
 
 void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int code);
@@ -1478,10 +1549,12 @@ INPUT_GENERATE_ABS_ACCESSORS(fuzz, fuzz)
 INPUT_GENERATE_ABS_ACCESSORS(flat, flat)
 INPUT_GENERATE_ABS_ACCESSORS(res, resolution)
 
-int input_get_keycode(struct input_dev *dev,
-		      unsigned int scancode, unsigned int *keycode);
+int input_scancode_to_scalar(const struct input_keymap_entry *ke,
+			     unsigned int *scancode);
+
+int input_get_keycode(struct input_dev *dev, struct input_keymap_entry *ke);
 int input_set_keycode(struct input_dev *dev,
-		      unsigned int scancode, unsigned int keycode);
+		      const struct input_keymap_entry *ke);
 
 extern struct class input_class;
 
@@ -1544,9 +1617,6 @@ int input_ff_erase(struct input_dev *dev, int effect_id, struct file *file);
 
 int input_ff_create_memless(struct input_dev *dev, void *data,
 		int (*play_effect)(struct input_dev *, void *, struct ff_effect *));
-
-int input_mt_create_slots(struct input_dev *dev, unsigned int num_slots);
-void input_mt_destroy_slots(struct input_dev *dev);
 
 #endif
 #endif

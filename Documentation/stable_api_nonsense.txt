@@ -122,7 +122,7 @@ operating system to suffer.
 
 In both of these instances, all developers agreed that these were
 important changes that needed to be made, and they were made, with
-relatively little pain.  If Linux had to ensure that it preserve a
+relatively little pain.  If Linux had to ensure that it will preserve a
 stable source interface, a new interface would have been created, and
 the older, broken one would have had to be maintained over time, leading
 to extra work for the USB developers.  Since all Linux USB developers do

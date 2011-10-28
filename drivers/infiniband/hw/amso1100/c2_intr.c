@@ -62,8 +62,8 @@ void c2_rnic_interrupt(struct c2_dev *c2dev)
 static void handle_mq(struct c2_dev *c2dev, u32 mq_index)
 {
 	if (c2dev->qptr_array[mq_index] == NULL) {
-		pr_debug(KERN_INFO "handle_mq: stray activity for mq_index=%d\n",
-			mq_index);
+		pr_debug("handle_mq: stray activity for mq_index=%d\n",
+			 mq_index);
 		return;
 	}
 

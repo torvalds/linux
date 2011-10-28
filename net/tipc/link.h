@@ -2,7 +2,7 @@
  * net/tipc/link.h: Include file for TIPC link code
  *
  * Copyright (c) 1995-2006, Ericsson AB
- * Copyright (c) 2004-2005, Wind River Systems
+ * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
 #ifndef _TIPC_LINK_H
 #define _TIPC_LINK_H
 
-#include "dbg.h"
+#include "log.h"
 #include "msg.h"
-#include "bearer.h"
 #include "node.h"
 
 #define PUSH_FAILED   1
@@ -108,7 +107,6 @@
  * @long_msg_seq_no: next identifier to use for outbound fragmented messages
  * @defragm_buf: list of partially reassembled inbound message fragments
  * @stats: collects statistics regarding link activity
- * @print_buf: print buffer used to log link activity
  */
 
 struct link {
@@ -124,7 +122,7 @@ struct link {
 	u32 checkpoint;
 	u32 peer_session;
 	u32 peer_bearer_id;
-	struct bearer *b_ptr;
+	struct tipc_bearer *b_ptr;
 	u32 tolerance;
 	u32 continuity_interval;
 	u32 abort_limit;
@@ -198,30 +196,19 @@ struct link {
 		u32 bearer_congs;
 		u32 deferred_recv;
 		u32 duplicates;
-
-		/* for statistical profiling of send queue size */
-
-		u32 max_queue_sz;
-		u32 accu_queue_sz;
-		u32 queue_sz_counts;
-
-		/* for statistical profiling of message lengths */
-
-		u32 msg_length_counts;
-		u32 msg_lengths_total;
-		u32 msg_length_profile[7];
-#if 0
-		u32 sent_tunneled;
-		u32 recv_tunneled;
-#endif
+		u32 max_queue_sz;	/* send queue size high water mark */
+		u32 accu_queue_sz;	/* used for send queue size profiling */
+		u32 queue_sz_counts;	/* used for send queue size profiling */
+		u32 msg_length_counts;	/* used for message length profiling */
+		u32 msg_lengths_total;	/* used for message length profiling */
+		u32 msg_length_profile[7]; /* used for msg. length profiling */
 	} stats;
-
-	struct print_buf print_buf;
 };
 
-struct port;
+struct tipc_port;
 
-struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
+struct link *tipc_link_create(struct tipc_node *n_ptr,
+			      struct tipc_bearer *b_ptr,
 			      const struct tipc_media_addr *media_addr);
 void tipc_link_delete(struct link *l_ptr);
 void tipc_link_changeover(struct link *l_ptr);
@@ -229,7 +216,6 @@ void tipc_link_send_duplicate(struct link *l_ptr, struct link *dest);
 void tipc_link_reset_fragments(struct link *l_ptr);
 int tipc_link_is_up(struct link *l_ptr);
 int tipc_link_is_active(struct link *l_ptr);
-void tipc_link_start(struct link *l_ptr);
 u32 tipc_link_push_packet(struct link *l_ptr);
 void tipc_link_stop(struct link *l_ptr);
 struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area, int req_tlv_space, u16 cmd);
@@ -238,14 +224,12 @@ struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area, int req_tlv_
 void tipc_link_reset(struct link *l_ptr);
 int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector);
 int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf);
-u32 tipc_link_get_max_pkt(u32 dest,u32 selector);
-int tipc_link_send_sections_fast(struct port* sender,
+u32 tipc_link_get_max_pkt(u32 dest, u32 selector);
+int tipc_link_send_sections_fast(struct tipc_port *sender,
 				 struct iovec const *msg_sect,
 				 const u32 num_sect,
+				 unsigned int total_len,
 				 u32 destnode);
-int tipc_link_send_long_buf(struct link *l_ptr, struct sk_buff *buf);
-void tipc_link_tunnel(struct link *l_ptr, struct tipc_msg *tnl_hdr,
-		      struct tipc_msg *msg, u32 selector);
 void tipc_link_recv_bundle(struct sk_buff *buf);
 int  tipc_link_recv_fragment(struct sk_buff **pending,
 			     struct sk_buff **fb,
@@ -279,12 +263,12 @@ static inline int between(u32 lower, u32 upper, u32 n)
 
 static inline int less_eq(u32 left, u32 right)
 {
-	return (mod(right - left) < 32768u);
+	return mod(right - left) < 32768u;
 }
 
 static inline int less(u32 left, u32 right)
 {
-	return (less_eq(left, right) && (mod(right) != mod(left)));
+	return less_eq(left, right) && (mod(right) != mod(left));
 }
 
 static inline u32 lesser(u32 left, u32 right)
@@ -299,32 +283,32 @@ static inline u32 lesser(u32 left, u32 right)
 
 static inline int link_working_working(struct link *l_ptr)
 {
-	return (l_ptr->state == WORKING_WORKING);
+	return l_ptr->state == WORKING_WORKING;
 }
 
 static inline int link_working_unknown(struct link *l_ptr)
 {
-	return (l_ptr->state == WORKING_UNKNOWN);
+	return l_ptr->state == WORKING_UNKNOWN;
 }
 
 static inline int link_reset_unknown(struct link *l_ptr)
 {
-	return (l_ptr->state == RESET_UNKNOWN);
+	return l_ptr->state == RESET_UNKNOWN;
 }
 
 static inline int link_reset_reset(struct link *l_ptr)
 {
-	return (l_ptr->state == RESET_RESET);
+	return l_ptr->state == RESET_RESET;
 }
 
 static inline int link_blocked(struct link *l_ptr)
 {
-	return (l_ptr->exp_msg_count || l_ptr->blocked);
+	return l_ptr->exp_msg_count || l_ptr->blocked;
 }
 
 static inline int link_congested(struct link *l_ptr)
 {
-	return (l_ptr->out_queue_size >= l_ptr->queue_limit[0]);
+	return l_ptr->out_queue_size >= l_ptr->queue_limit[0];
 }
 
 #endif

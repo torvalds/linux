@@ -9,6 +9,9 @@ Mount options for ADFS
 		will be nnn.  Default 0700.
   othmask=nnn	The permission mask for ADFS 'other' permissions
 		will be nnn.  Default 0077.
+  ftsuffix=n	When ftsuffix=0, no file type suffix will be applied.
+		When ftsuffix=1, a hexadecimal suffix corresponding to
+		the RISC OS file type will be added.  Default 0.
 
 Mapping of ADFS permissions to Linux permissions
 ------------------------------------------------
@@ -55,3 +58,18 @@ Mapping of ADFS permissions to Linux permissions
 
   You can therefore tailor the permission translation to whatever you
   desire the permissions should be under Linux.
+
+RISC OS file type suffix
+------------------------
+
+  RISC OS file types are stored in bits 19..8 of the file load address.
+
+  To enable non-RISC OS systems to be used to store files without losing
+  file type information, a file naming convention was devised (initially
+  for use with NFS) such that a hexadecimal suffix of the form ,xyz
+  denoted the file type: e.g. BasicFile,ffb is a BASIC (0xffb) file.  This
+  naming convention is now also used by RISC OS emulators such as RPCEmu.
+
+  Mounting an ADFS disc with option ftsuffix=1 will cause appropriate file
+  type suffixes to be appended to file names read from a directory.  If the
+  ftsuffix option is zero or omitted, no file type suffixes will be added.

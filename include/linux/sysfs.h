@@ -164,6 +164,10 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 			const struct attribute *attr, const char *group);
 void sysfs_remove_file_from_group(struct kobject *kobj,
 			const struct attribute *attr, const char *group);
+int sysfs_merge_group(struct kobject *kobj,
+		       const struct attribute_group *grp);
+void sysfs_unmerge_group(struct kobject *kobj,
+		       const struct attribute_group *grp);
 
 void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
 void sysfs_notify_dirent(struct sysfs_dirent *sd);
@@ -172,10 +176,6 @@ struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
 				      const unsigned char *name);
 struct sysfs_dirent *sysfs_get(struct sysfs_dirent *sd);
 void sysfs_put(struct sysfs_dirent *sd);
-void sysfs_printk_last_file(void);
-
-/* Called to clear a ns tag when it is no longer valid */
-void sysfs_exit_ns(enum kobj_ns_type type, const void *tag);
 
 int __must_check sysfs_init(void);
 
@@ -302,6 +302,17 @@ static inline void sysfs_remove_file_from_group(struct kobject *kobj,
 {
 }
 
+static inline int sysfs_merge_group(struct kobject *kobj,
+		       const struct attribute_group *grp)
+{
+	return 0;
+}
+
+static inline void sysfs_unmerge_group(struct kobject *kobj,
+		       const struct attribute_group *grp)
+{
+}
+
 static inline void sysfs_notify(struct kobject *kobj, const char *dir,
 				const char *attr)
 {
@@ -324,17 +335,9 @@ static inline void sysfs_put(struct sysfs_dirent *sd)
 {
 }
 
-static inline void sysfs_exit_ns(int type, const void *tag)
-{
-}
-
 static inline int __must_check sysfs_init(void)
 {
 	return 0;
-}
-
-static inline void sysfs_printk_last_file(void)
-{
 }
 
 #endif /* CONFIG_SYSFS */

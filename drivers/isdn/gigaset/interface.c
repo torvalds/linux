@@ -115,15 +115,15 @@ static int if_config(struct cardstate *cs, int *arg)
 
 static int  if_open(struct tty_struct *tty, struct file *filp);
 static void if_close(struct tty_struct *tty, struct file *filp);
-static int  if_ioctl(struct tty_struct *tty, struct file *file,
+static int  if_ioctl(struct tty_struct *tty,
 		     unsigned int cmd, unsigned long arg);
 static int  if_write_room(struct tty_struct *tty);
 static int  if_chars_in_buffer(struct tty_struct *tty);
 static void if_throttle(struct tty_struct *tty);
 static void if_unthrottle(struct tty_struct *tty);
 static void if_set_termios(struct tty_struct *tty, struct ktermios *old);
-static int  if_tiocmget(struct tty_struct *tty, struct file *file);
-static int  if_tiocmset(struct tty_struct *tty, struct file *file,
+static int  if_tiocmget(struct tty_struct *tty);
+static int  if_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 static int  if_write(struct tty_struct *tty,
 		     const unsigned char *buf, int count);
@@ -156,8 +156,10 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 	if (!cs || !try_module_get(cs->driver->owner))
 		return -ENODEV;
 
-	if (mutex_lock_interruptible(&cs->mutex))
+	if (mutex_lock_interruptible(&cs->mutex)) {
+		module_put(cs->driver->owner);
 		return -ERESTARTSYS;
+	}
 	tty->driver_data = cs;
 
 	++cs->open_count;
@@ -205,7 +207,7 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 	module_put(cs->driver->owner);
 }
 
-static int if_ioctl(struct tty_struct *tty, struct file *file,
+static int if_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct cardstate *cs;
@@ -280,7 +282,7 @@ static int if_ioctl(struct tty_struct *tty, struct file *file,
 	return retval;
 }
 
-static int if_tiocmget(struct tty_struct *tty, struct file *file)
+static int if_tiocmget(struct tty_struct *tty)
 {
 	struct cardstate *cs;
 	int retval;
@@ -303,7 +305,7 @@ static int if_tiocmget(struct tty_struct *tty, struct file *file)
 	return retval;
 }
 
-static int if_tiocmset(struct tty_struct *tty, struct file *file,
+static int if_tiocmset(struct tty_struct *tty,
 		       unsigned int set, unsigned int clear)
 {
 	struct cardstate *cs;

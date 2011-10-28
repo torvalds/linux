@@ -1,7 +1,7 @@
 /*
  * MFD driver for twl4030 codec submodule
  *
- * Author:	Peter Ujfalusi <peter.ujfalusi@nokia.com>
+ * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
  * Copyright:   (C) 2009 Nokia Corporation
  *
@@ -207,16 +207,16 @@ static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 
 	if (pdata->audio) {
 		cell = &codec->cells[childs];
-		cell->name = "twl4030_codec_audio";
+		cell->name = "twl4030-codec";
 		cell->platform_data = pdata->audio;
-		cell->data_size = sizeof(*pdata->audio);
+		cell->pdata_size = sizeof(*pdata->audio);
 		childs++;
 	}
 	if (pdata->vibra) {
 		cell = &codec->cells[childs];
-		cell->name = "twl4030_codec_vibra";
+		cell->name = "twl4030-vibra";
 		cell->platform_data = pdata->vibra;
-		cell->data_size = sizeof(*pdata->vibra);
+		cell->pdata_size = sizeof(*pdata->vibra);
 		childs++;
 	}
 
@@ -249,14 +249,14 @@ static int __devexit twl4030_codec_remove(struct platform_device *pdev)
 	return 0;
 }
 
-MODULE_ALIAS("platform:twl4030_codec");
+MODULE_ALIAS("platform:twl4030-audio");
 
 static struct platform_driver twl4030_codec_driver = {
 	.probe		= twl4030_codec_probe,
 	.remove		= __devexit_p(twl4030_codec_remove),
 	.driver		= {
 		.owner	= THIS_MODULE,
-		.name	= "twl4030_codec",
+		.name	= "twl4030-audio",
 	},
 };
 
@@ -272,6 +272,6 @@ static void __devexit twl4030_codec_exit(void)
 }
 module_exit(twl4030_codec_exit);
 
-MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@nokia.com>");
+MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@ti.com>");
 MODULE_LICENSE("GPL");
 

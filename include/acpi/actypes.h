@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -115,7 +115,6 @@
  *
  * ACPI_SIZE        16/32/64-bit unsigned value
  * ACPI_NATIVE_INT  16/32/64-bit signed value
- *
  */
 
 /*******************************************************************************
@@ -131,6 +130,16 @@ typedef COMPILER_DEPENDENT_UINT64 UINT64;
 typedef COMPILER_DEPENDENT_INT64 INT64;
 
 /*! [End] no source code translation !*/
+
+/*
+ * Value returned by acpi_os_get_thread_id. There is no standard "thread_id"
+ * across operating systems or even the various UNIX systems. Since ACPICA
+ * only needs the thread ID as a unique thread identifier, we use a u64
+ * as the only common data type - it will accommodate any type of pointer or
+ * any type of integer. It is up to the host-dependent OSL to cast the
+ * native thread ID type to a u64 (in acpi_os_get_thread_id).
+ */
+#define acpi_thread_id                  u64
 
 /*******************************************************************************
  *
@@ -210,12 +219,6 @@ typedef u32 acpi_physical_address;
  * be defined in the OS-specific header, and this will take precedence.
  *
  ******************************************************************************/
-
-/* Value returned by acpi_os_get_thread_id */
-
-#ifndef acpi_thread_id
-#define acpi_thread_id			acpi_size
-#endif
 
 /* Flags for acpi_os_acquire_lock/acpi_os_release_lock */
 
@@ -375,16 +378,6 @@ typedef void *acpi_handle;	/* Actually a ptr to a NS Node */
 typedef u8 acpi_owner_id;
 #define ACPI_OWNER_ID_MAX               0xFF
 
-struct uint64_struct {
-	u32 lo;
-	u32 hi;
-};
-
-union uint64_overlay {
-	u64 full;
-	struct uint64_struct part;
-};
-
 #define ACPI_INTEGER_BIT_SIZE           64
 #define ACPI_MAX_DECIMAL_DIGITS         20	/* 2^64 = 18,446,744,073,709,551,616 */
 
@@ -508,8 +501,9 @@ typedef u64 acpi_integer;
 #define ACPI_STATE_D1                   (u8) 1
 #define ACPI_STATE_D2                   (u8) 2
 #define ACPI_STATE_D3                   (u8) 3
-#define ACPI_D_STATES_MAX               ACPI_STATE_D3
-#define ACPI_D_STATE_COUNT              4
+#define ACPI_STATE_D3_COLD              (u8) 4
+#define ACPI_D_STATES_MAX               ACPI_STATE_D3_COLD
+#define ACPI_D_STATE_COUNT              5
 
 #define ACPI_STATE_C0                   (u8) 0
 #define ACPI_STATE_C1                   (u8) 1
@@ -663,33 +657,34 @@ typedef u32 acpi_event_status;
 #define ACPI_GPE_MAX                    0xFF
 #define ACPI_NUM_GPE                    256
 
-/* Actions for acpi_gpe_wakeup, acpi_hw_low_set_gpe */
+/* Actions for acpi_set_gpe_wake_mask, acpi_hw_low_set_gpe */
 
 #define ACPI_GPE_ENABLE                 0
 #define ACPI_GPE_DISABLE                1
-#define ACPI_GPE_COND_ENABLE            2
+#define ACPI_GPE_CONDITIONAL_ENABLE     2
 
 /*
  * GPE info flags - Per GPE
- * +-------+---+-+-+
- * |  7:4  |3:2|1|0|
- * +-------+---+-+-+
- *     |     |  | |
- *     |     |  | +--- Interrupt type: edge or level triggered
- *     |     |  +----- GPE can wake the system
- *     |     +-------- Type of dispatch:to method, handler, or none
- *     +-------------- <Reserved>
+ * +-------+-+-+---+
+ * |  7:4  |3|2|1:0|
+ * +-------+-+-+---+
+ *     |    | |  |
+ *     |    | |  +-- Type of dispatch:to method, handler, notify, or none
+ *     |    | +----- Interrupt type: edge or level triggered
+ *     |    +------- Is a Wake GPE
+ *     +------------ <Reserved>
  */
-#define ACPI_GPE_XRUPT_TYPE_MASK        (u8) 0x01
-#define ACPI_GPE_LEVEL_TRIGGERED        (u8) 0x01
+#define ACPI_GPE_DISPATCH_NONE          (u8) 0x00
+#define ACPI_GPE_DISPATCH_METHOD        (u8) 0x01
+#define ACPI_GPE_DISPATCH_HANDLER       (u8) 0x02
+#define ACPI_GPE_DISPATCH_NOTIFY        (u8) 0x03
+#define ACPI_GPE_DISPATCH_MASK          (u8) 0x03
+
+#define ACPI_GPE_LEVEL_TRIGGERED        (u8) 0x04
 #define ACPI_GPE_EDGE_TRIGGERED         (u8) 0x00
+#define ACPI_GPE_XRUPT_TYPE_MASK        (u8) 0x04
 
-#define ACPI_GPE_CAN_WAKE		(u8) 0x02
-
-#define ACPI_GPE_DISPATCH_MASK          (u8) 0x0C
-#define ACPI_GPE_DISPATCH_HANDLER       (u8) 0x04
-#define ACPI_GPE_DISPATCH_METHOD        (u8) 0x08
-#define ACPI_GPE_DISPATCH_NOT_USED      (u8) 0x00
+#define ACPI_GPE_CAN_WAKE               (u8) 0x08
 
 /*
  * Flags for GPE and Lock interfaces
@@ -718,8 +713,24 @@ typedef u8 acpi_adr_space_type;
 #define ACPI_ADR_SPACE_CMOS             (acpi_adr_space_type) 5
 #define ACPI_ADR_SPACE_PCI_BAR_TARGET   (acpi_adr_space_type) 6
 #define ACPI_ADR_SPACE_IPMI             (acpi_adr_space_type) 7
-#define ACPI_ADR_SPACE_DATA_TABLE       (acpi_adr_space_type) 8
-#define ACPI_ADR_SPACE_FIXED_HARDWARE   (acpi_adr_space_type) 127
+
+#define ACPI_NUM_PREDEFINED_REGIONS     8
+
+/*
+ * Special Address Spaces
+ *
+ * Note: A Data Table region is a special type of operation region
+ * that has its own AML opcode. However, internally, the AML
+ * interpreter simply creates an operation region with an an address
+ * space type of ACPI_ADR_SPACE_DATA_TABLE.
+ */
+#define ACPI_ADR_SPACE_DATA_TABLE       (acpi_adr_space_type) 0x7E	/* Internal to ACPICA only */
+#define ACPI_ADR_SPACE_FIXED_HARDWARE   (acpi_adr_space_type) 0x7F
+
+/* Values for _REG connection code */
+
+#define ACPI_REG_DISCONNECT             0
+#define ACPI_REG_CONNECT                1
 
 /*
  * bit_register IDs
@@ -901,7 +912,18 @@ typedef void
 /*
  * Various handlers and callback procedures
  */
+typedef
+void (*ACPI_GBL_EVENT_HANDLER) (u32 event_type,
+			       acpi_handle device,
+			       u32 event_number, void *context);
+
+#define ACPI_EVENT_TYPE_GPE         0
+#define ACPI_EVENT_TYPE_FIXED       1
+
 typedef u32(*acpi_event_handler) (void *context);
+
+typedef
+u32 (*acpi_gpe_handler) (acpi_handle gpe_device, u32 gpe_number, void *context);
 
 typedef
 void (*acpi_notify_handler) (acpi_handle device, u32 value, void *context);
@@ -950,10 +972,17 @@ acpi_status(*acpi_walk_callback) (acpi_handle object,
 				  u32 nesting_level,
 				  void *context, void **return_value);
 
+typedef
+u32 (*acpi_interface_handler) (acpi_string interface_name, u32 supported);
+
 /* Interrupt handler return values */
 
 #define ACPI_INTERRUPT_NOT_HANDLED      0x00
 #define ACPI_INTERRUPT_HANDLED          0x01
+
+/* GPE handler return values */
+
+#define ACPI_REENABLE_GPE               0x80
 
 /* Length of 32-bit EISAID values when converted back to a string */
 

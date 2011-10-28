@@ -64,7 +64,8 @@ ip6t_mangle_out(struct sk_buff *skb, const struct net_device *out)
 	    (memcmp(&ipv6_hdr(skb)->saddr, &saddr, sizeof(saddr)) ||
 	     memcmp(&ipv6_hdr(skb)->daddr, &daddr, sizeof(daddr)) ||
 	     skb->mark != mark ||
-	     ipv6_hdr(skb)->hop_limit != hop_limit))
+	     ipv6_hdr(skb)->hop_limit != hop_limit ||
+	     flowlabel != *((u_int32_t *)ipv6_hdr(skb))))
 		return ip6_route_me_harder(skb) == 0 ? ret : NF_DROP;
 
 	return ret;

@@ -151,7 +151,7 @@ static struct ata_port_operations hpt3x3_port_ops = {
 	.check_atapi_dma= hpt3x3_atapi_dma,
 	.freeze		= hpt3x3_freeze,
 #endif
-	
+
 };
 
 /**

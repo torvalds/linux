@@ -638,7 +638,7 @@ static struct snd_kcontrol_new pontis_controls[] __devinitdata = {
  */
 static void wm_proc_regs_write(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
-	struct snd_ice1712 *ice = (struct snd_ice1712 *)entry->private_data;
+	struct snd_ice1712 *ice = entry->private_data;
 	char line[64];
 	unsigned int reg, val;
 	mutex_lock(&ice->gpio_mutex);
@@ -653,7 +653,7 @@ static void wm_proc_regs_write(struct snd_info_entry *entry, struct snd_info_buf
 
 static void wm_proc_regs_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
-	struct snd_ice1712 *ice = (struct snd_ice1712 *)entry->private_data;
+	struct snd_ice1712 *ice = entry->private_data;
 	int reg, val;
 
 	mutex_lock(&ice->gpio_mutex);
@@ -676,7 +676,7 @@ static void wm_proc_init(struct snd_ice1712 *ice)
 
 static void cs_proc_regs_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
-	struct snd_ice1712 *ice = (struct snd_ice1712 *)entry->private_data;
+	struct snd_ice1712 *ice = entry->private_data;
 	int reg, val;
 
 	mutex_lock(&ice->gpio_mutex);
@@ -768,7 +768,7 @@ static int __devinit pontis_init(struct snd_ice1712 *ice)
 	ice->num_total_dacs = 2;
 	ice->num_total_adcs = 2;
 
-	/* to remeber the register values */
+	/* to remember the register values */
 	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ice->akm)
 		return -ENOMEM;

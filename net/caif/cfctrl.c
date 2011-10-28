@@ -4,6 +4,8 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
+
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -14,7 +16,6 @@
 #define container_obj(layr) container_of(layr, struct cfctrl, serv.layer)
 #define UTILITY_NAME_LENGTH 16
 #define CFPKT_CTRL_PKT_LEN 20
-
 
 #ifdef CAIF_NO_LOOP
 static int handle_loop(struct cfctrl *ctrl,
@@ -36,7 +37,7 @@ struct cflayer *cfctrl_create(void)
 	struct cfctrl *this =
 		kmalloc(sizeof(struct cfctrl), GFP_ATOMIC);
 	if (!this) {
-		pr_warning("CAIF: %s(): Out of memory\n", __func__);
+		pr_warn("Out of memory\n");
 		return NULL;
 	}
 	caif_assert(offsetof(struct cfctrl, serv.layer) == 0);
@@ -49,14 +50,31 @@ struct cflayer *cfctrl_create(void)
 	this->serv.layer.receive = cfctrl_recv;
 	sprintf(this->serv.layer.name, "ctrl");
 	this->serv.layer.ctrlcmd = cfctrl_ctrlcmd;
+#ifndef CAIF_NO_LOOP
 	spin_lock_init(&this->loop_linkid_lock);
+	this->loop_linkid = 1;
+#endif
 	spin_lock_init(&this->info_list_lock);
 	INIT_LIST_HEAD(&this->list);
-	this->loop_linkid = 1;
 	return &this->serv.layer;
 }
 
-static bool param_eq(struct cfctrl_link_param *p1, struct cfctrl_link_param *p2)
+void cfctrl_remove(struct cflayer *layer)
+{
+	struct cfctrl_request_info *p, *tmp;
+	struct cfctrl *ctrl = container_obj(layer);
+
+	spin_lock_bh(&ctrl->info_list_lock);
+	list_for_each_entry_safe(p, tmp, &ctrl->list, list) {
+		list_del(&p->list);
+		kfree(p);
+	}
+	spin_unlock_bh(&ctrl->info_list_lock);
+	kfree(layer);
+}
+
+static bool param_eq(const struct cfctrl_link_param *p1,
+			const struct cfctrl_link_param *p2)
 {
 	bool eq =
 	    p1->linktype == p2->linktype &&
@@ -98,8 +116,8 @@ static bool param_eq(struct cfctrl_link_param *p1, struct cfctrl_link_param *p2)
 	return false;
 }
 
-bool cfctrl_req_eq(struct cfctrl_request_info *r1,
-		   struct cfctrl_request_info *r2)
+static bool cfctrl_req_eq(const struct cfctrl_request_info *r1,
+			  const struct cfctrl_request_info *r2)
 {
 	if (r1->cmd != r2->cmd)
 		return false;
@@ -110,31 +128,28 @@ bool cfctrl_req_eq(struct cfctrl_request_info *r1,
 }
 
 /* Insert request at the end */
-void cfctrl_insert_req(struct cfctrl *ctrl,
+static void cfctrl_insert_req(struct cfctrl *ctrl,
 			      struct cfctrl_request_info *req)
 {
-	spin_lock(&ctrl->info_list_lock);
+	spin_lock_bh(&ctrl->info_list_lock);
 	atomic_inc(&ctrl->req_seq_no);
 	req->sequence_no = atomic_read(&ctrl->req_seq_no);
 	list_add_tail(&req->list, &ctrl->list);
-	spin_unlock(&ctrl->info_list_lock);
+	spin_unlock_bh(&ctrl->info_list_lock);
 }
 
 /* Compare and remove request */
-struct cfctrl_request_info *cfctrl_remove_req(struct cfctrl *ctrl,
-					      struct cfctrl_request_info *req)
+static struct cfctrl_request_info *cfctrl_remove_req(struct cfctrl *ctrl,
+						struct cfctrl_request_info *req)
 {
 	struct cfctrl_request_info *p, *tmp, *first;
 
-	spin_lock(&ctrl->info_list_lock);
 	first = list_first_entry(&ctrl->list, struct cfctrl_request_info, list);
 
 	list_for_each_entry_safe(p, tmp, &ctrl->list, list) {
 		if (cfctrl_req_eq(req, p)) {
 			if (p != first)
-				pr_warning("CAIF: %s(): Requests are not "
-					"received in order\n",
-					__func__);
+				pr_warn("Requests are not received in order\n");
 
 			atomic_set(&ctrl->rsp_seq_no,
 					 p->sequence_no);
@@ -144,7 +159,6 @@ struct cfctrl_request_info *cfctrl_remove_req(struct cfctrl *ctrl,
 	}
 	p = NULL;
 out:
-	spin_unlock(&ctrl->info_list_lock);
 	return p;
 }
 
@@ -152,16 +166,6 @@ struct cfctrl_rsp *cfctrl_get_respfuncs(struct cflayer *layer)
 {
 	struct cfctrl *this = container_obj(layer);
 	return &this->res;
-}
-
-void cfctrl_set_dnlayer(struct cflayer *this, struct cflayer *dn)
-{
-	this->dn = dn;
-}
-
-void cfctrl_set_uplayer(struct cflayer *this, struct cflayer *up)
-{
-	this->up = up;
 }
 
 static void init_info(struct caif_payload_info *info, struct cfctrl *cfctrl)
@@ -174,10 +178,14 @@ static void init_info(struct caif_payload_info *info, struct cfctrl *cfctrl)
 void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 {
 	struct cfctrl *cfctrl = container_obj(layer);
-	int ret;
 	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
+	struct cflayer *dn = cfctrl->serv.layer.dn;
 	if (!pkt) {
-		pr_warning("CAIF: %s(): Out of memory\n", __func__);
+		pr_warn("Out of memory\n");
+		return;
+	}
+	if (!dn) {
+		pr_debug("not able to send enum request\n");
 		return;
 	}
 	caif_assert(offsetof(struct cfctrl, serv.layer) == 0);
@@ -186,13 +194,7 @@ void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 	cfctrl->serv.dev_info.id = physlinkid;
 	cfpkt_addbdy(pkt, CFCTRL_CMD_ENUM);
 	cfpkt_addbdy(pkt, physlinkid);
-	ret =
-	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
-	if (ret < 0) {
-		pr_err("CAIF: %s(): Could not transmit enum message\n",
-			__func__);
-		cfpkt_destroy(pkt);
-	}
+	dn->transmit(dn, pkt);
 }
 
 int cfctrl_linkup_request(struct cflayer *layer,
@@ -206,14 +208,29 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	struct cfctrl_request_info *req;
 	int ret;
 	char utility_name[16];
-	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
+	struct cfpkt *pkt;
+	struct cflayer *dn = cfctrl->serv.layer.dn;
+
+	if (!dn) {
+		pr_debug("not able to send linkup request\n");
+		return -ENODEV;
+	}
+
+	if (cfctrl_cancel_req(layer, user_layer) > 0) {
+		/* Slight Paranoia, check if already connecting */
+		pr_err("Duplicate connect request for same client\n");
+		WARN_ON(1);
+		return -EALREADY;
+	}
+
+	pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
 	if (!pkt) {
-		pr_warning("CAIF: %s(): Out of memory\n", __func__);
+		pr_warn("Out of memory\n");
 		return -ENOMEM;
 	}
 	cfpkt_addbdy(pkt, CFCTRL_CMD_LINK_SETUP);
-	cfpkt_addbdy(pkt, (param->chtype << 4) + param->linktype);
-	cfpkt_addbdy(pkt, (param->priority << 3) + param->phyid);
+	cfpkt_addbdy(pkt, (param->chtype << 4) | param->linktype);
+	cfpkt_addbdy(pkt, (param->priority << 3) | param->phyid);
 	cfpkt_addbdy(pkt, param->endpoint & 0x03);
 
 	switch (param->linktype) {
@@ -253,13 +270,13 @@ int cfctrl_linkup_request(struct cflayer *layer,
 			       param->u.utility.paramlen);
 		break;
 	default:
-		pr_warning("CAIF: %s():Request setup of bad link type = %d\n",
-			   __func__, param->linktype);
+		pr_warn("Request setup of bad link type = %d\n",
+			param->linktype);
 		return -EINVAL;
 	}
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req) {
-		pr_warning("CAIF: %s(): Out of memory\n", __func__);
+		pr_warn("Out of memory\n");
 		return -ENOMEM;
 	}
 	req->client_layer = user_layer;
@@ -274,12 +291,15 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	 */
 	cfpkt_info(pkt)->dev_info->id = param->phyid;
 	ret =
-	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
+	    dn->transmit(dn, pkt);
 	if (ret < 0) {
-		pr_err("CAIF: %s(): Could not transmit linksetup request\n",
-			__func__);
-		cfpkt_destroy(pkt);
-		return -ENODEV;
+		int count;
+
+		count = cfctrl_cancel_req(&cfctrl->serv.layer,
+						user_layer);
+		if (count != 1)
+			pr_err("Could not remove request (%d)", count);
+			return -ENODEV;
 	}
 	return 0;
 }
@@ -290,92 +310,46 @@ int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
 	int ret;
 	struct cfctrl *cfctrl = container_obj(layer);
 	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
+	struct cflayer *dn = cfctrl->serv.layer.dn;
+
 	if (!pkt) {
-		pr_warning("CAIF: %s(): Out of memory\n", __func__);
+		pr_warn("Out of memory\n");
 		return -ENOMEM;
 	}
+
+	if (!dn) {
+		pr_debug("not able to send link-down request\n");
+		return -ENODEV;
+	}
+
 	cfpkt_addbdy(pkt, CFCTRL_CMD_LINK_DESTROY);
 	cfpkt_addbdy(pkt, channelid);
 	init_info(cfpkt_info(pkt), cfctrl);
 	ret =
-	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
-	if (ret < 0) {
-		pr_err("CAIF: %s(): Could not transmit link-down request\n",
-			__func__);
-		cfpkt_destroy(pkt);
-	}
+	    dn->transmit(dn, pkt);
+#ifndef CAIF_NO_LOOP
+	cfctrl->loop_linkused[channelid] = 0;
+#endif
 	return ret;
 }
 
-void cfctrl_sleep_req(struct cflayer *layer)
-{
-	int ret;
-	struct cfctrl *cfctrl = container_obj(layer);
-	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
-	if (!pkt) {
-		pr_warning("CAIF: %s(): Out of memory\n", __func__);
-		return;
-	}
-	cfpkt_addbdy(pkt, CFCTRL_CMD_SLEEP);
-	init_info(cfpkt_info(pkt), cfctrl);
-	ret =
-	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
-	if (ret < 0)
-		cfpkt_destroy(pkt);
-}
-
-void cfctrl_wake_req(struct cflayer *layer)
-{
-	int ret;
-	struct cfctrl *cfctrl = container_obj(layer);
-	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
-	if (!pkt) {
-		pr_warning("CAIF: %s(): Out of memory\n", __func__);
-		return;
-	}
-	cfpkt_addbdy(pkt, CFCTRL_CMD_WAKE);
-	init_info(cfpkt_info(pkt), cfctrl);
-	ret =
-	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
-	if (ret < 0)
-		cfpkt_destroy(pkt);
-}
-
-void cfctrl_getstartreason_req(struct cflayer *layer)
-{
-	int ret;
-	struct cfctrl *cfctrl = container_obj(layer);
-	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
-	if (!pkt) {
-		pr_warning("CAIF: %s(): Out of memory\n", __func__);
-		return;
-	}
-	cfpkt_addbdy(pkt, CFCTRL_CMD_START_REASON);
-	init_info(cfpkt_info(pkt), cfctrl);
-	ret =
-	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
-	if (ret < 0)
-		cfpkt_destroy(pkt);
-}
-
-
-void cfctrl_cancel_req(struct cflayer *layr, struct cflayer *adap_layer)
+int cfctrl_cancel_req(struct cflayer *layr, struct cflayer *adap_layer)
 {
 	struct cfctrl_request_info *p, *tmp;
 	struct cfctrl *ctrl = container_obj(layr);
-	spin_lock(&ctrl->info_list_lock);
-	pr_warning("CAIF: %s(): enter\n", __func__);
+	int found = 0;
+	spin_lock_bh(&ctrl->info_list_lock);
 
 	list_for_each_entry_safe(p, tmp, &ctrl->list, list) {
 		if (p->client_layer == adap_layer) {
-			pr_warning("CAIF: %s(): cancel req :%d\n", __func__,
-					p->sequence_no);
 			list_del(&p->list);
 			kfree(p);
+			found++;
 		}
 	}
 
-	spin_unlock(&ctrl->info_list_lock);
+	spin_unlock_bh(&ctrl->info_list_lock);
+	return found;
 }
 
 static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
@@ -394,7 +368,8 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 	cfpkt_extr_head(pkt, &cmdrsp, 1);
 	cmd = cmdrsp & CFCTRL_CMD_MASK;
 	if (cmd != CFCTRL_CMD_LINK_ERR
-	    && CFCTRL_RSP_BIT != (CFCTRL_RSP_BIT & cmdrsp)) {
+	    && CFCTRL_RSP_BIT != (CFCTRL_RSP_BIT & cmdrsp)
+		&& CFCTRL_ERR_BIT != (CFCTRL_ERR_BIT & cmdrsp)) {
 		if (handle_loop(cfctrl, cmd, pkt) != 0)
 			cmdrsp |= CFCTRL_ERR_BIT;
 	}
@@ -520,21 +495,20 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 				cfpkt_extr_head(pkt, &param, len);
 				break;
 			default:
-				pr_warning("CAIF: %s(): Request setup "
-					   "- invalid link type (%d)",
-					   __func__, serv);
+				pr_warn("Request setup, invalid type (%d)\n",
+					serv);
 				goto error;
 			}
 
 			rsp.cmd = cmd;
 			rsp.param = linkparam;
+			spin_lock_bh(&cfctrl->info_list_lock);
 			req = cfctrl_remove_req(cfctrl, &rsp);
 
 			if (CFCTRL_ERR_BIT == (CFCTRL_ERR_BIT & cmdrsp) ||
 				cfpkt_erroneous(pkt)) {
-				pr_err("CAIF: %s(): Invalid O/E bit or parse "
-				       "error on CAIF control channel",
-					__func__);
+				pr_err("Invalid O/E bit or parse error "
+						"on CAIF control channel\n");
 				cfctrl->res.reject_rsp(cfctrl->serv.layer.up,
 						       0,
 						       req ? req->client_layer
@@ -549,6 +523,8 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 
 			if (req != NULL)
 				kfree(req);
+
+			spin_unlock_bh(&cfctrl->info_list_lock);
 		}
 		break;
 	case CFCTRL_CMD_LINK_DESTROY:
@@ -556,8 +532,7 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 		cfctrl->res.linkdestroy_rsp(cfctrl->serv.layer.up, linkid);
 		break;
 	case CFCTRL_CMD_LINK_ERR:
-		pr_err("CAIF: %s(): Frame Error Indication received\n",
-			__func__);
+		pr_err("Frame Error Indication received\n");
 		cfctrl->res.linkerror_ind();
 		break;
 	case CFCTRL_CMD_ENUM:
@@ -576,7 +551,7 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 		cfctrl->res.radioset_rsp();
 		break;
 	default:
-		pr_err("CAIF: %s(): Unrecognized Control Frame\n", __func__);
+		pr_err("Unrecognized Control Frame\n");
 		goto error;
 		break;
 	}
@@ -593,13 +568,28 @@ static void cfctrl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 	switch (ctrl) {
 	case _CAIF_CTRLCMD_PHYIF_FLOW_OFF_IND:
 	case CAIF_CTRLCMD_FLOW_OFF_IND:
-		spin_lock(&this->info_list_lock);
-		if (!list_empty(&this->list)) {
-			pr_debug("CAIF: %s(): Received flow off in "
-				   "control layer", __func__);
-		}
-		spin_unlock(&this->info_list_lock);
+		spin_lock_bh(&this->info_list_lock);
+		if (!list_empty(&this->list))
+			pr_debug("Received flow off in control layer\n");
+		spin_unlock_bh(&this->info_list_lock);
 		break;
+	case _CAIF_CTRLCMD_PHYIF_DOWN_IND: {
+		struct cfctrl_request_info *p, *tmp;
+
+		/* Find all connect request and report failure */
+		spin_lock_bh(&this->info_list_lock);
+		list_for_each_entry_safe(p, tmp, &this->list, list) {
+			if (p->param.phyid == phyid) {
+				list_del(&p->list);
+				p->client_layer->ctrlcmd(p->client_layer,
+						CAIF_CTRLCMD_INIT_FAIL_RSP,
+						phyid);
+				kfree(p);
+			}
+		}
+		spin_unlock_bh(&this->info_list_lock);
+		break;
+	}
 	default:
 		break;
 	}
@@ -609,27 +599,33 @@ static void cfctrl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 static int handle_loop(struct cfctrl *ctrl, int cmd, struct cfpkt *pkt)
 {
 	static int last_linkid;
+	static int dec;
 	u8 linkid, linktype, tmp;
 	switch (cmd) {
 	case CFCTRL_CMD_LINK_SETUP:
-		spin_lock(&ctrl->loop_linkid_lock);
-		for (linkid = last_linkid + 1; linkid < 255; linkid++)
+		spin_lock_bh(&ctrl->loop_linkid_lock);
+		if (!dec) {
+			for (linkid = last_linkid + 1; linkid < 254; linkid++)
+				if (!ctrl->loop_linkused[linkid])
+					goto found;
+		}
+		dec = 1;
+		for (linkid = last_linkid - 1; linkid > 1; linkid--)
 			if (!ctrl->loop_linkused[linkid])
 				goto found;
-		for (linkid = last_linkid - 1; linkid > 0; linkid--)
-			if (!ctrl->loop_linkused[linkid])
-				goto found;
-		spin_unlock(&ctrl->loop_linkid_lock);
-		pr_err("CAIF: %s(): Out of link-ids\n", __func__);
-		return -EINVAL;
+		spin_unlock_bh(&ctrl->loop_linkid_lock);
+		return -1;
 found:
+		if (linkid < 10)
+			dec = 0;
+
 		if (!ctrl->loop_linkused[linkid])
 			ctrl->loop_linkused[linkid] = 1;
 
 		last_linkid = linkid;
 
 		cfpkt_add_trail(pkt, &linkid, 1);
-		spin_unlock(&ctrl->loop_linkid_lock);
+		spin_unlock_bh(&ctrl->loop_linkid_lock);
 		cfpkt_peek_head(pkt, &linktype, 1);
 		if (linktype ==  CFCTRL_SRV_UTIL) {
 			tmp = 0x01;
@@ -639,10 +635,10 @@ found:
 		break;
 
 	case CFCTRL_CMD_LINK_DESTROY:
-		spin_lock(&ctrl->loop_linkid_lock);
+		spin_lock_bh(&ctrl->loop_linkid_lock);
 		cfpkt_peek_head(pkt, &linkid, 1);
 		ctrl->loop_linkused[linkid] = 0;
-		spin_unlock(&ctrl->loop_linkid_lock);
+		spin_unlock_bh(&ctrl->loop_linkid_lock);
 		break;
 	default:
 		break;

@@ -24,6 +24,7 @@
 #include <linux/bug.h>
 #include <linux/mm.h>
 #include <linux/gfp.h>
+#include <linux/jump_label.h>
 
 #include <asm/system.h>
 #include <asm/page.h>
@@ -37,20 +38,11 @@
 
 void *module_alloc(unsigned long size)
 {
-	struct vm_struct *area;
-
-	if (!size)
+	if (PAGE_ALIGN(size) > MODULES_LEN)
 		return NULL;
-	size = PAGE_ALIGN(size);
-	if (size > MODULES_LEN)
-		return NULL;
-
-	area = __get_vm_area(size, VM_ALLOC, MODULES_VADDR, MODULES_END);
-	if (!area)
-		return NULL;
-
-	return __vmalloc_area(area, GFP_KERNEL | __GFP_HIGHMEM,
-					PAGE_KERNEL_EXEC);
+	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+				GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL_EXEC,
+				-1, __builtin_return_address(0));
 }
 
 /* Free memory returned from module_alloc */
@@ -238,6 +230,9 @@ int module_finalize(const Elf_Ehdr *hdr,
 		void *pseg = (void *)para->sh_addr;
 		apply_paravirt(pseg, pseg + para->sh_size);
 	}
+
+	/* make jump label nops */
+	jump_label_apply_nops(me);
 
 	return 0;
 }

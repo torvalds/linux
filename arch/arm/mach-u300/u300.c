@@ -19,9 +19,9 @@
 #include <linux/io.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <mach/memory.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/memory.h>
 
 static void __init u300_reserve(void)
 {
@@ -61,8 +61,6 @@ static void __init u300_init_machine(void)
 
 MACHINE_START(U300, MACH_U300_STRING)
 	/* Maintainer: Linus Walleij <linus.walleij@stericsson.com> */
-	.phys_io	= U300_AHB_PER_PHYS_BASE,
-	.io_pg_offst	= ((U300_AHB_PER_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= BOOT_PARAMS_OFFSET,
 	.map_io		= u300_map_io,
 	.reserve	= u300_reserve,

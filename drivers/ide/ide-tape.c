@@ -32,11 +32,9 @@
 #include <linux/errno.h>
 #include <linux/genhd.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
-#include <linux/smp_lock.h>
 #include <linux/completion.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
@@ -220,6 +218,7 @@ typedef struct ide_tape_obj {
 	char write_prot;
 } idetape_tape_t;
 
+static DEFINE_MUTEX(ide_tape_mutex);
 static DEFINE_MUTEX(idetape_ref_mutex);
 
 static DEFINE_MUTEX(idetape_chrdev_mutex);
@@ -1426,9 +1425,9 @@ static long idetape_chrdev_ioctl(struct file *file,
 				unsigned int cmd, unsigned long arg)
 {
 	long ret;
-	lock_kernel();
+	mutex_lock(&ide_tape_mutex);
 	ret = do_idetape_chrdev_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&ide_tape_mutex);
 	return ret;
 }
 
@@ -1903,15 +1902,16 @@ static const struct file_operations idetape_fops = {
 	.unlocked_ioctl	= idetape_chrdev_ioctl,
 	.open		= idetape_chrdev_open,
 	.release	= idetape_chrdev_release,
+	.llseek		= noop_llseek,
 };
 
 static int idetape_open(struct block_device *bdev, fmode_t mode)
 {
 	struct ide_tape_obj *tape;
 
-	lock_kernel();
+	mutex_lock(&ide_tape_mutex);
 	tape = ide_tape_get(bdev->bd_disk, false, 0);
-	unlock_kernel();
+	mutex_unlock(&ide_tape_mutex);
 
 	if (!tape)
 		return -ENXIO;
@@ -1923,9 +1923,9 @@ static int idetape_release(struct gendisk *disk, fmode_t mode)
 {
 	struct ide_tape_obj *tape = ide_drv_g(disk, ide_tape_obj);
 
-	lock_kernel();
+	mutex_lock(&ide_tape_mutex);
 	ide_tape_put(tape);
-	unlock_kernel();
+	mutex_unlock(&ide_tape_mutex);
 
 	return 0;
 }
@@ -1937,11 +1937,11 @@ static int idetape_ioctl(struct block_device *bdev, fmode_t mode,
 	ide_drive_t *drive = tape->drive;
 	int err;
 
-	lock_kernel();
+	mutex_lock(&ide_tape_mutex);
 	err = generic_ide_ioctl(drive, bdev, cmd, arg);
 	if (err == -EINVAL)
 		err = idetape_blkdev_ioctl(drive, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&ide_tape_mutex);
 
 	return err;
 }

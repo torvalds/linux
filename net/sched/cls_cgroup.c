@@ -34,8 +34,6 @@ struct cgroup_subsys net_cls_subsys = {
 	.populate	= cgrp_populate,
 #ifdef CONFIG_NET_CLS_CGROUP
 	.subsys_id	= net_cls_subsys_id,
-#else
-#define net_cls_subsys_id net_cls_subsys.subsys_id
 #endif
 	.module		= THIS_MODULE,
 };
@@ -58,7 +56,8 @@ static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
 {
 	struct cgroup_cls_state *cs;
 
-	if (!(cs = kzalloc(sizeof(*cs), GFP_KERNEL)))
+	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
+	if (!cs)
 		return ERR_PTR(-ENOMEM);
 
 	if (cgrp->parent)
@@ -96,8 +95,7 @@ static int cgrp_populate(struct cgroup_subsys *ss, struct cgroup *cgrp)
 	return cgroup_add_files(cgrp, ss, ss_files, ARRAY_SIZE(ss_files));
 }
 
-struct cls_cgroup_head
-{
+struct cls_cgroup_head {
 	u32			handle;
 	struct tcf_exts		exts;
 	struct tcf_ematch_tree	ematches;
@@ -123,7 +121,7 @@ static int cls_cgroup_classify(struct sk_buff *skb, struct tcf_proto *tp,
 	 * calls by looking at the number of nested bh disable calls because
 	 * softirqs always disables bh.
 	 */
-	if (softirq_count() != SOFTIRQ_OFFSET) {
+	if (in_serving_softirq()) {
 		/* If there is an sk_classid we'll use that. */
 		if (!skb->sk)
 			return -1;
@@ -168,7 +166,7 @@ static int cls_cgroup_change(struct tcf_proto *tp, unsigned long base,
 			     u32 handle, struct nlattr **tca,
 			     unsigned long *arg)
 {
-	struct nlattr *tb[TCA_CGROUP_MAX+1];
+	struct nlattr *tb[TCA_CGROUP_MAX + 1];
 	struct cls_cgroup_head *head = tp->root;
 	struct tcf_ematch_tree t;
 	struct tcf_exts e;

@@ -2119,7 +2119,7 @@ request_sense:
 	 * executed, unless a target connects to us.
 	 */
 	if (info->reqSCpnt)
-		printk(KERN_WARNING "scsi%d.%c: loosing request command\n",
+		printk(KERN_WARNING "scsi%d.%c: losing request command\n",
 			info->host->host_no, '0' + SCpnt->device->id);
 	info->reqSCpnt = SCpnt;
 }
@@ -2198,7 +2198,7 @@ no_command:
  * Returns: 0 on success, else error.
  * Notes: io_request_lock is held, interrupts are disabled.
  */
-int fas216_queue_command(struct scsi_cmnd *SCpnt,
+static int fas216_queue_command_lck(struct scsi_cmnd *SCpnt,
 			 void (*done)(struct scsi_cmnd *))
 {
 	FAS216_Info *info = (FAS216_Info *)SCpnt->device->host->hostdata;
@@ -2240,6 +2240,8 @@ int fas216_queue_command(struct scsi_cmnd *SCpnt,
 	return result;
 }
 
+DEF_SCSI_QCMD(fas216_queue_command)
+
 /**
  * fas216_internal_done - trigger restart of a waiting thread in fas216_noqueue_command
  * @SCpnt: Command to wake
@@ -2263,7 +2265,7 @@ static void fas216_internal_done(struct scsi_cmnd *SCpnt)
  * Returns: scsi result code.
  * Notes: io_request_lock is held, interrupts are disabled.
  */
-int fas216_noqueue_command(struct scsi_cmnd *SCpnt,
+static int fas216_noqueue_command_lck(struct scsi_cmnd *SCpnt,
 			   void (*done)(struct scsi_cmnd *))
 {
 	FAS216_Info *info = (FAS216_Info *)SCpnt->device->host->hostdata;
@@ -2277,7 +2279,7 @@ int fas216_noqueue_command(struct scsi_cmnd *SCpnt,
 	BUG_ON(info->scsi.irq != NO_IRQ);
 
 	info->internal_done = 0;
-	fas216_queue_command(SCpnt, fas216_internal_done);
+	fas216_queue_command_lck(SCpnt, fas216_internal_done);
 
 	/*
 	 * This wastes time, since we can't return until the command is
@@ -2292,7 +2294,7 @@ int fas216_noqueue_command(struct scsi_cmnd *SCpnt,
 		 * If we don't have an IRQ, then we must poll the card for
 		 * it's interrupt, and use that to call this driver's
 		 * interrupt routine.  That way, we keep the command
-		 * progressing.  Maybe we can add some inteligence here
+		 * progressing.  Maybe we can add some intelligence here
 		 * and go to sleep if we know that the device is going
 		 * to be some time (eg, disconnected).
 		 */
@@ -2309,6 +2311,8 @@ int fas216_noqueue_command(struct scsi_cmnd *SCpnt,
 
 	return 0;
 }
+
+DEF_SCSI_QCMD(fas216_noqueue_command)
 
 /*
  * Error handler timeout function.  Indicate that we timed out,

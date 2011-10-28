@@ -66,6 +66,9 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 	/* own MCS TX capabilities */
 	tx_mcs_set_cap = sband->ht_cap.mcs.tx_params;
 
+	/* Copy peer MCS TX capabilities, the driver might need them. */
+	ht_cap->mcs.tx_params = ht_cap_ie->mcs.tx_params;
+
 	/* can we TX with MCS rates? */
 	if (!(tx_mcs_set_cap & IEEE80211_HT_MCS_TX_DEFINED))
 		return;
@@ -79,7 +82,7 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 		max_tx_streams = IEEE80211_HT_MCS_TX_MAX_STREAMS;
 
 	/*
-	 * 802.11n D5.0 20.3.5 / 20.6 says:
+	 * 802.11n-2009 20.3.5 / 20.6 says:
 	 * - indices 0 to 7 and 32 are single spatial stream
 	 * - 8 to 31 are multiple spatial streams using equal modulation
 	 *   [8..15 for two streams, 16..23 for three and 24..31 for four]
@@ -101,16 +104,16 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 		ht_cap->mcs.rx_mask[32/8] |= 1;
 }
 
-void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta)
+void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta, bool tx)
 {
 	int i;
 
 	cancel_work_sync(&sta->ampdu_mlme.work);
 
 	for (i = 0; i <  STA_TID_NUM; i++) {
-		__ieee80211_stop_tx_ba_session(sta, i, WLAN_BACK_INITIATOR);
+		__ieee80211_stop_tx_ba_session(sta, i, WLAN_BACK_INITIATOR, tx);
 		__ieee80211_stop_rx_ba_session(sta, i, WLAN_BACK_RECIPIENT,
-					       WLAN_REASON_QSTA_LEAVE_QBSS);
+					       WLAN_REASON_QSTA_LEAVE_QBSS, tx);
 	}
 }
 
@@ -135,18 +138,34 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		if (test_and_clear_bit(tid, sta->ampdu_mlme.tid_rx_timer_expired))
 			___ieee80211_stop_rx_ba_session(
 				sta, tid, WLAN_BACK_RECIPIENT,
-				WLAN_REASON_QSTA_TIMEOUT);
+				WLAN_REASON_QSTA_TIMEOUT, true);
 
-		tid_tx = sta->ampdu_mlme.tid_tx[tid];
-		if (!tid_tx)
-			continue;
+		tid_tx = sta->ampdu_mlme.tid_start_tx[tid];
+		if (tid_tx) {
+			/*
+			 * Assign it over to the normal tid_tx array
+			 * where it "goes live".
+			 */
+			spin_lock_bh(&sta->lock);
 
-		if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state))
+			sta->ampdu_mlme.tid_start_tx[tid] = NULL;
+			/* could there be a race? */
+			if (sta->ampdu_mlme.tid_tx[tid])
+				kfree(tid_tx);
+			else
+				ieee80211_assign_tid_tx(sta, tid, tid_tx);
+			spin_unlock_bh(&sta->lock);
+
 			ieee80211_tx_ba_session_handle_start(sta, tid);
-		else if (test_and_clear_bit(HT_AGG_STATE_WANT_STOP,
-					    &tid_tx->state))
+			continue;
+		}
+
+		tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
+		if (tid_tx && test_and_clear_bit(HT_AGG_STATE_WANT_STOP,
+						 &tid_tx->state))
 			___ieee80211_stop_tx_ba_session(sta, tid,
-							WLAN_BACK_INITIATOR);
+							WLAN_BACK_INITIATOR,
+							true);
 	}
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
@@ -214,9 +233,11 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	if (initiator == WLAN_BACK_INITIATOR)
-		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_INITIATOR, 0);
+		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_INITIATOR, 0,
+					       true);
 	else
-		__ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_RECIPIENT);
+		__ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_RECIPIENT,
+					       true);
 }
 
 int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
@@ -265,3 +286,33 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 
 	return 0;
 }
+
+void ieee80211_request_smps_work(struct work_struct *work)
+{
+	struct ieee80211_sub_if_data *sdata =
+		container_of(work, struct ieee80211_sub_if_data,
+			     u.mgd.request_smps_work);
+
+	mutex_lock(&sdata->u.mgd.mtx);
+	__ieee80211_request_smps(sdata, sdata->u.mgd.driver_smps_mode);
+	mutex_unlock(&sdata->u.mgd.mtx);
+}
+
+void ieee80211_request_smps(struct ieee80211_vif *vif,
+			    enum ieee80211_smps_mode smps_mode)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION))
+		return;
+
+	if (WARN_ON(smps_mode == IEEE80211_SMPS_OFF))
+		smps_mode = IEEE80211_SMPS_AUTOMATIC;
+
+	sdata->u.mgd.driver_smps_mode = smps_mode;
+
+	ieee80211_queue_work(&sdata->local->hw,
+			     &sdata->u.mgd.request_smps_work);
+}
+/* this might change ... don't want non-open drivers using it */
+EXPORT_SYMBOL_GPL(ieee80211_request_smps);

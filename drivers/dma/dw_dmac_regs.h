@@ -2,6 +2,7 @@
  * Driver for the Synopsys DesignWare AHB DMA Controller
  *
  * Copyright (C) 2005-2007 Atmel Corporation
+ * Copyright (C) 2010-2011 ST Microelectronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -86,6 +87,7 @@ struct dw_dma_regs {
 #define DWC_CTLL_SRC_MSIZE(n)	((n)<<14)
 #define DWC_CTLL_S_GATH_EN	(1 << 17)	/* src gather, !FIX */
 #define DWC_CTLL_D_SCAT_EN	(1 << 18)	/* dst scatter, !FIX */
+#define DWC_CTLL_FC(n)		((n) << 20)
 #define DWC_CTLL_FC_M2M		(0 << 20)	/* mem-to-mem */
 #define DWC_CTLL_FC_M2P		(1 << 20)	/* mem-to-periph */
 #define DWC_CTLL_FC_P2M		(2 << 20)	/* periph-to-mem */
@@ -101,6 +103,8 @@ struct dw_dma_regs {
 #define DWC_CTLH_BLOCK_TS_MASK	0x00000fff
 
 /* Bitfields in CFG_LO. Platform-configurable bits are in <linux/dw_dmac.h> */
+#define DWC_CFGL_CH_PRIOR_MASK	(0x7 << 5)	/* priority mask */
+#define DWC_CFGL_CH_PRIOR(x)	((x) << 5)	/* priority */
 #define DWC_CFGL_CH_SUSP	(1 << 8)	/* pause xfer */
 #define DWC_CFGL_FIFO_EMPTY	(1 << 9)	/* pause xfer */
 #define DWC_CFGL_HS_DST		(1 << 10)	/* handshake w/dst */
@@ -134,6 +138,8 @@ struct dw_dma_chan {
 	struct dma_chan		chan;
 	void __iomem		*ch_regs;
 	u8			mask;
+	u8			priority;
+	bool			paused;
 
 	spinlock_t		lock;
 
@@ -155,9 +161,9 @@ __dwc_regs(struct dw_dma_chan *dwc)
 }
 
 #define channel_readl(dwc, name) \
-	__raw_readl(&(__dwc_regs(dwc)->name))
+	readl(&(__dwc_regs(dwc)->name))
 #define channel_writel(dwc, name, val) \
-	__raw_writel((val), &(__dwc_regs(dwc)->name))
+	writel((val), &(__dwc_regs(dwc)->name))
 
 static inline struct dw_dma_chan *to_dw_dma_chan(struct dma_chan *chan)
 {
@@ -181,9 +187,9 @@ static inline struct dw_dma_regs __iomem *__dw_regs(struct dw_dma *dw)
 }
 
 #define dma_readl(dw, name) \
-	__raw_readl(&(__dw_regs(dw)->name))
+	readl(&(__dw_regs(dw)->name))
 #define dma_writel(dw, name, val) \
-	__raw_writel((val), &(__dw_regs(dw)->name))
+	writel((val), &(__dw_regs(dw)->name))
 
 #define channel_set_bit(dw, reg, mask) \
 	dma_writel(dw, reg, ((mask) << 8) | (mask))

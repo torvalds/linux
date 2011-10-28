@@ -162,7 +162,7 @@ static int ixp4xx_flash_remove(struct platform_device *dev)
 		return 0;
 
 	if (info->mtd) {
-		del_mtd_partitions(info->mtd);
+		mtd_device_unregister(info->mtd);
 		map_destroy(info->mtd);
 	}
 	if (info->map.virt)
@@ -252,10 +252,8 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 	/* Use the fast version */
 	info->map.write = ixp4xx_write16;
 
-#ifdef CONFIG_MTD_PARTITIONS
 	nr_parts = parse_mtd_partitions(info->mtd, probes, &info->partitions,
 					dev->resource->start);
-#endif
 	if (nr_parts > 0) {
 		part_type = "dynamic";
 	} else {
@@ -263,18 +261,16 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 		nr_parts = plat->nr_parts;
 		part_type = "static";
 	}
-	if (nr_parts == 0) {
+	if (nr_parts == 0)
 		printk(KERN_NOTICE "IXP4xx flash: no partition info "
 			"available, registering whole flash\n");
-		err = add_mtd_device(info->mtd);
-	} else {
+	else
 		printk(KERN_NOTICE "IXP4xx flash: using %s partition "
 			"definition\n", part_type);
-		err = add_mtd_partitions(info->mtd, info->partitions, nr_parts);
 
-		if(err)
-			printk(KERN_ERR "Could not parse partitions\n");
-	}
+	err = mtd_device_register(info->mtd, info->partitions, nr_parts);
+	if (err)
+		printk(KERN_ERR "Could not parse partitions\n");
 
 	if (err)
 		goto Error;

@@ -4,7 +4,7 @@
 
 obj-$(CONFIG_ET131X) += et131x.o
 
-et131x-objs :=	et1310_eeprom.o \
+et131x-y :=	et1310_eeprom.o \
 		et1310_mac.o \
 		et1310_phy.o \
 		et1310_pm.o \

@@ -61,6 +61,14 @@ extern const struct file_operations proc_pagemap_operations;
 extern const struct file_operations proc_net_operations;
 extern const struct inode_operations proc_net_inode_operations;
 
+struct proc_maps_private {
+	struct pid *pid;
+	struct task_struct *task;
+#ifdef CONFIG_MMU
+	struct vm_area_struct *tail_vma;
+#endif
+};
+
 void proc_init_inodecache(void);
 
 static inline struct pid *proc_pid(struct inode *inode)
@@ -96,7 +104,8 @@ extern spinlock_t proc_subdir_lock;
 struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *);
 int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir);
 unsigned long task_vsize(struct mm_struct *);
-int task_statm(struct mm_struct *, int *, int *, int *, int *);
+unsigned long task_statm(struct mm_struct *,
+	unsigned long *, unsigned long *, unsigned long *, unsigned long *);
 void task_mem(struct seq_file *, struct mm_struct *);
 
 static inline struct proc_dir_entry *pde_get(struct proc_dir_entry *pde)
@@ -106,9 +115,8 @@ static inline struct proc_dir_entry *pde_get(struct proc_dir_entry *pde)
 }
 void pde_put(struct proc_dir_entry *pde);
 
-extern struct vfsmount *proc_mnt;
 int proc_fill_super(struct super_block *);
-struct inode *proc_get_inode(struct super_block *, unsigned int, struct proc_dir_entry *);
+struct inode *proc_get_inode(struct super_block *, struct proc_dir_entry *);
 
 /*
  * These are generic /proc routines that use the internal
@@ -119,3 +127,21 @@ struct inode *proc_get_inode(struct super_block *, unsigned int, struct proc_dir
  */
 int proc_readdir(struct file *, void *, filldir_t);
 struct dentry *proc_lookup(struct inode *, struct dentry *, struct nameidata *);
+
+
+
+/* Lookups */
+typedef struct dentry *instantiate_t(struct inode *, struct dentry *,
+				struct task_struct *, const void *);
+int proc_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
+	const char *name, int len,
+	instantiate_t instantiate, struct task_struct *task, const void *ptr);
+int pid_revalidate(struct dentry *dentry, struct nameidata *nd);
+struct inode *proc_pid_make_inode(struct super_block * sb, struct task_struct *task);
+extern const struct dentry_operations pid_dentry_operations;
+int pid_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
+int proc_setattr(struct dentry *dentry, struct iattr *attr);
+
+extern const struct inode_operations proc_ns_dir_inode_operations;
+extern const struct file_operations proc_ns_dir_operations;
+

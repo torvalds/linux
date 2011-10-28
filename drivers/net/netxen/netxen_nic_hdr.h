@@ -780,7 +780,7 @@ enum {
 
 /*
  * capabilities register, can be used to selectively enable/disable features
- * for backward compability
+ * for backward compatibility
  */
 #define CRB_NIC_CAPABILITIES_HOST	NETXEN_NIC_REG(0x1a8)
 #define CRB_NIC_MSI_MODE_HOST		NETXEN_NIC_REG(0x270)

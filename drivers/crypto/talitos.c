@@ -161,7 +161,7 @@ struct talitos_private {
 static void to_talitos_ptr(struct talitos_ptr *talitos_ptr, dma_addr_t dma_addr)
 {
 	talitos_ptr->ptr = cpu_to_be32(lower_32_bits(dma_addr));
-	talitos_ptr->eptr = cpu_to_be32(upper_32_bits(dma_addr));
+	talitos_ptr->eptr = upper_32_bits(dma_addr);
 }
 
 /*
@@ -332,10 +332,9 @@ static int talitos_submit(struct device *dev, struct talitos_desc *desc,
 
 	/* GO! */
 	wmb();
-	out_be32(priv->reg + TALITOS_FF(ch),
-		 cpu_to_be32(upper_32_bits(request->dma_desc)));
+	out_be32(priv->reg + TALITOS_FF(ch), upper_32_bits(request->dma_desc));
 	out_be32(priv->reg + TALITOS_FF_LO(ch),
-		 cpu_to_be32(lower_32_bits(request->dma_desc)));
+		 lower_32_bits(request->dma_desc));
 
 	spin_unlock_irqrestore(&priv->chan[ch].head_lock, flags);
 
@@ -1751,14 +1750,14 @@ static int ahash_init_sha224_swinit(struct ahash_request *areq)
 	ahash_init(areq);
 	req_ctx->swinit = 1;/* prevent h/w initting context with sha256 values*/
 
-	req_ctx->hw_context[0] = cpu_to_be32(SHA224_H0);
-	req_ctx->hw_context[1] = cpu_to_be32(SHA224_H1);
-	req_ctx->hw_context[2] = cpu_to_be32(SHA224_H2);
-	req_ctx->hw_context[3] = cpu_to_be32(SHA224_H3);
-	req_ctx->hw_context[4] = cpu_to_be32(SHA224_H4);
-	req_ctx->hw_context[5] = cpu_to_be32(SHA224_H5);
-	req_ctx->hw_context[6] = cpu_to_be32(SHA224_H6);
-	req_ctx->hw_context[7] = cpu_to_be32(SHA224_H7);
+	req_ctx->hw_context[0] = SHA224_H0;
+	req_ctx->hw_context[1] = SHA224_H1;
+	req_ctx->hw_context[2] = SHA224_H2;
+	req_ctx->hw_context[3] = SHA224_H3;
+	req_ctx->hw_context[4] = SHA224_H4;
+	req_ctx->hw_context[5] = SHA224_H5;
+	req_ctx->hw_context[6] = SHA224_H6;
+	req_ctx->hw_context[7] = SHA224_H7;
 
 	/* init 64-bit count */
 	req_ctx->hw_context[8] = 0;
@@ -2333,8 +2332,7 @@ static int talitos_remove(struct platform_device *ofdev)
 		talitos_unregister_rng(dev);
 
 	for (i = 0; i < priv->num_channels; i++)
-		if (priv->chan[i].fifo)
-			kfree(priv->chan[i].fifo);
+		kfree(priv->chan[i].fifo);
 
 	kfree(priv->chan);
 
@@ -2389,6 +2387,9 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 					DESC_HDR_MODE0_MDEU_SHA256;
 		}
 		break;
+	default:
+		dev_err(dev, "unknown algorithm type %d\n", t_alg->algt.type);
+		return ERR_PTR(-EINVAL);
 	}
 
 	alg->cra_module = THIS_MODULE;
@@ -2401,8 +2402,7 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 	return t_alg;
 }
 
-static int talitos_probe(struct platform_device *ofdev,
-			 const struct of_device_id *match)
+static int talitos_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct device_node *np = ofdev->dev.of_node;
@@ -2579,7 +2579,7 @@ static const struct of_device_id talitos_match[] = {
 };
 MODULE_DEVICE_TABLE(of, talitos_match);
 
-static struct of_platform_driver talitos_driver = {
+static struct platform_driver talitos_driver = {
 	.driver = {
 		.name = "talitos",
 		.owner = THIS_MODULE,
@@ -2591,13 +2591,13 @@ static struct of_platform_driver talitos_driver = {
 
 static int __init talitos_init(void)
 {
-	return of_register_platform_driver(&talitos_driver);
+	return platform_driver_register(&talitos_driver);
 }
 module_init(talitos_init);
 
 static void __exit talitos_exit(void)
 {
-	of_unregister_platform_driver(&talitos_driver);
+	platform_driver_unregister(&talitos_driver);
 }
 module_exit(talitos_exit);
 

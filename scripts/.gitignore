@@ -7,3 +7,5 @@ pnmtologo
 bin2c
 unifdef
 ihex2fw
+recordmcount
+docproc

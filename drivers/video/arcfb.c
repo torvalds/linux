@@ -2,7 +2,6 @@
  * linux/drivers/video/arcfb.c -- FB driver for Arc monochrome LCD board
  *
  * Copyright (C) 2005, Jaya Kumar <jayalk@intworks.biz>
- * http://www.intworks.biz/arclcd
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file COPYING in the main directory of this archive for
@@ -516,10 +515,9 @@ static int __devinit arcfb_probe(struct platform_device *dev)
 
 	/* We need a flat backing store for the Arc's
 	   less-flat actual paged framebuffer */
-	if (!(videomemory = vmalloc(videomemorysize)))
+	videomemory = vzalloc(videomemorysize);
+	if (!videomemory)
 		return retval;
-
-	memset(videomemory, 0, videomemorysize);
 
 	info = framebuffer_alloc(sizeof(struct arcfb_par), &dev->dev);
 	if (!info)

@@ -14,6 +14,24 @@ config MMC_BLOCK
 	  mount the filesystem. Almost everyone wishing MMC support
 	  should say Y or M here.
 
+config MMC_BLOCK_MINORS
+	int "Number of minors per block device"
+	depends on MMC_BLOCK
+	range 4 256
+	default 8
+	help
+	  Number of minors per block device. One is needed for every
+	  partition on the disk (plus one for the whole disk).
+
+	  Number of total MMC minors available is 256, so your number
+	  of supported block devices will be limited to 256 divided
+	  by this number.
+
+	  Default is 8 to be backwards compatible with previous
+	  hardwired device numbering.
+
+	  If unsure, say 8 here.
+
 config MMC_BLOCK_BOUNCE
 	bool "Use bounce buffer for simple hosts"
 	depends on MMC_BLOCK
@@ -32,6 +50,15 @@ config MMC_BLOCK_BOUNCE
 
 	  If unsure, say Y here.
 
+config MMC_BLOCK_DEFERRED_RESUME
+	bool "Deferr MMC layer resume until I/O is requested"
+	depends on MMC_BLOCK
+	default n
+	help
+	  Say Y here to enable deferred MMC resume until I/O
+	  is requested. This will reduce overall resume latency and
+	  save power when theres an SD card inserted but not being used.
+
 config SDIO_UART
 	tristate "SDIO UART/GPS class support"
 	help
@@ -40,12 +67,11 @@ config SDIO_UART
 
 config MMC_TEST
 	tristate "MMC host test driver"
-	default n
 	help
 	  Development driver that performs a series of reads and writes
 	  to a memory card in order to expose certain well known bugs
 	  in host controllers. The tests are executed by writing to the
-	  "test" file in sysfs under each card. Note that whatever is
+	  "test" file in debugfs under each card. Note that whatever is
 	  on your card will be overwritten by these tests.
 
 	  This driver is only of interest to those developing or

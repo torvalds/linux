@@ -174,7 +174,7 @@
  Future Domain sold DOS BIOS source for $250 and the UN*X driver source was
  $750, but these required a non-disclosure agreement, so even if I could
  have afforded them, they would *not* have been useful for writing this
- publically distributable driver.  Future Domain technical support has
+ publicly distributable driver.  Future Domain technical support has
  provided some information on the phone and have sent a few useful FAXs.
  They have been much more helpful since they started to recognize that the
  word "Linux" refers to an operating system :-).
@@ -1419,7 +1419,7 @@ static irqreturn_t do_fdomain_16x0_intr(int irq, void *dev_id)
    return IRQ_HANDLED;
 }
 
-static int fdomain_16x0_queue(struct scsi_cmnd *SCpnt,
+static int fdomain_16x0_queue_lck(struct scsi_cmnd *SCpnt,
 		void (*done)(struct scsi_cmnd *))
 {
    if (in_command) {
@@ -1468,6 +1468,8 @@ static int fdomain_16x0_queue(struct scsi_cmnd *SCpnt,
 
    return 0;
 }
+
+static DEF_SCSI_QCMD(fdomain_16x0_queue)
 
 #if DEBUG_ABORT
 static void print_info(struct scsi_cmnd *SCpnt)

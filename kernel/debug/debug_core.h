@@ -40,6 +40,7 @@ struct debuggerinfo_struct {
 	int			exception_state;
 	int			ret_state;
 	int			irq_depth;
+	int			enter_kgdb;
 };
 
 extern struct debuggerinfo_struct kgdb_info[];

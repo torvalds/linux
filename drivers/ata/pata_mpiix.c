@@ -15,7 +15,7 @@
  * with PCI IDE and also that we do not disable the device when our driver is
  * unloaded (as it has many other functions).
  *
- * The driver conciously keeps this logic internally to avoid pushing quirky
+ * The driver consciously keeps this logic internally to avoid pushing quirky
  * PATA history into the clean libata layer.
  *
  * Thinkpad specific note: If you boot an MPIIX using a thinkpad with a PCMCIA

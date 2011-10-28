@@ -33,8 +33,6 @@ static struct clocksource clocksource_sn2 = {
         .rating         = 450,
         .read           = read_sn2,
         .mask           = (1LL << 55) - 1,
-        .mult           = 0,
-        .shift          = 10,
         .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -57,9 +55,7 @@ ia64_sn_udelay (unsigned long usecs)
 void __init sn_timer_init(void)
 {
 	clocksource_sn2.fsys_mmio = RTC_COUNTER_ADDR;
-	clocksource_sn2.mult = clocksource_hz2mult(sn_rtc_cycles_per_second,
-							clocksource_sn2.shift);
-	clocksource_register(&clocksource_sn2);
+	clocksource_register_hz(&clocksource_sn2, sn_rtc_cycles_per_second);
 
 	ia64_udelay = &ia64_sn_udelay;
 }

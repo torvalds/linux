@@ -39,8 +39,8 @@ Status: working
 
 Configuration Options:
   [0] - I/O base address
-  [1] - convertion rate
-	Convertion rate  RMS noise  Effective Number Of Bits
+  [1] - conversion rate
+	Conversion rate  RMS noise  Effective Number Of Bits
 	0      3.52kHz        23uV                17
 	1      1.76kHz       3.5uV                20
 	2       880Hz         2uV                21.3
@@ -93,8 +93,8 @@ Configuration Options:
 #define MPC624_DMY_BIT          (1<<30)
 #define MPC624_SGN_BIT          (1<<29)
 
-/* Convertion speeds */
-/* OSR4 OSR3 OSR2 OSR1 OSR0  Convertion rate  RMS noise  ENOB^
+/* Conversion speeds */
+/* OSR4 OSR3 OSR2 OSR1 OSR0  Conversion rate  RMS noise  ENOB^
  *  X    0    0    0    1        3.52kHz        23uV      17
  *  X    0    0    1    0        1.76kHz       3.5uV      20
  *  X    0    0    1    1         880Hz         2uV      21.3
@@ -227,7 +227,7 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 	default:
 		printk
-		    (KERN_ERR "illegal convertion rate setting!"
+		    (KERN_ERR "illegal conversion rate setting!"
 			" Valid numbers are 0..9. Using 9 => 6.875 Hz, ");
 		devpriv->ulConvertionRate = MPC624_SPEED_3_52_kHz;
 	}
@@ -296,7 +296,7 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 	}
 
 	for (n = 0; n < insn->n; n++) {
-		/*  Trigger the convertion */
+		/*  Trigger the conversion */
 		outb(MPC624_ADSCK, dev->iobase + MPC624_ADC);
 		udelay(1);
 		outb(MPC624_ADCS | MPC624_ADSCK, dev->iobase + MPC624_ADC);
@@ -304,7 +304,7 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 		outb(0, dev->iobase + MPC624_ADC);
 		udelay(1);
 
-		/*  Wait for the convertion to end */
+		/*  Wait for the conversion to end */
 		for (i = 0; i < TIMEOUT; i++) {
 			ucPort = inb(dev->iobase + MPC624_ADC);
 			if (ucPort & MPC624_ADBUSY)

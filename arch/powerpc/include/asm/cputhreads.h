@@ -37,16 +37,16 @@ extern cpumask_t threads_core_mask;
  * This can typically be used for things like IPI for tlb invalidations
  * since those need to be done only once per core/TLB
  */
-static inline cpumask_t cpu_thread_mask_to_cores(cpumask_t threads)
+static inline cpumask_t cpu_thread_mask_to_cores(const struct cpumask *threads)
 {
 	cpumask_t	tmp, res;
 	int		i;
 
-	res = CPU_MASK_NONE;
+	cpumask_clear(&res);
 	for (i = 0; i < NR_CPUS; i += threads_per_core) {
-		cpus_shift_left(tmp, threads_core_mask, i);
-		if (cpus_intersects(threads, tmp))
-			cpu_set(i, res);
+		cpumask_shift_left(&tmp, &threads_core_mask, i);
+		if (cpumask_intersects(threads, &tmp))
+			cpumask_set_cpu(i, &res);
 	}
 	return res;
 }
@@ -58,25 +58,28 @@ static inline int cpu_nr_cores(void)
 
 static inline cpumask_t cpu_online_cores_map(void)
 {
-	return cpu_thread_mask_to_cores(cpu_online_map);
+	return cpu_thread_mask_to_cores(cpu_online_mask);
 }
 
-static inline int cpu_thread_to_core(int cpu)
-{
-	return cpu >> threads_shift;
-}
+#ifdef CONFIG_SMP
+int cpu_core_index_of_thread(int cpu);
+int cpu_first_thread_of_core(int core);
+#else
+static inline int cpu_core_index_of_thread(int cpu) { return cpu; }
+static inline int cpu_first_thread_of_core(int core) { return core; }
+#endif
 
 static inline int cpu_thread_in_core(int cpu)
 {
 	return cpu & (threads_per_core - 1);
 }
 
-static inline int cpu_first_thread_in_core(int cpu)
+static inline int cpu_first_thread_sibling(int cpu)
 {
 	return cpu & ~(threads_per_core - 1);
 }
 
-static inline int cpu_last_thread_in_core(int cpu)
+static inline int cpu_last_thread_sibling(int cpu)
 {
 	return cpu | (threads_per_core - 1);
 }

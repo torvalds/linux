@@ -50,7 +50,7 @@ MODULE_LICENSE("GPL");
 
 static void chsc_subchannel_irq(struct subchannel *sch)
 {
-	struct chsc_private *private = sch->private;
+	struct chsc_private *private = dev_get_drvdata(&sch->dev);
 	struct chsc_request *request = private->request;
 	struct irb *irb = (struct irb *)&S390_lowcore.irb;
 
@@ -80,13 +80,14 @@ static int chsc_subchannel_probe(struct subchannel *sch)
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (!private)
 		return -ENOMEM;
+	dev_set_drvdata(&sch->dev, private);
 	ret = cio_enable_subchannel(sch, (u32)(unsigned long)sch);
 	if (ret) {
 		CHSC_MSG(0, "Failed to enable 0.%x.%04x: %d\n",
 			 sch->schid.ssid, sch->schid.sch_no, ret);
+		dev_set_drvdata(&sch->dev, NULL);
 		kfree(private);
 	} else {
-		sch->private = private;
 		if (dev_get_uevent_suppress(&sch->dev)) {
 			dev_set_uevent_suppress(&sch->dev, 0);
 			kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
@@ -100,8 +101,8 @@ static int chsc_subchannel_remove(struct subchannel *sch)
 	struct chsc_private *private;
 
 	cio_disable_subchannel(sch);
-	private = sch->private;
-	sch->private = NULL;
+	private = dev_get_drvdata(&sch->dev);
+	dev_set_drvdata(&sch->dev, NULL);
 	if (private->request) {
 		complete(&private->request->completion);
 		put_device(&sch->dev);
@@ -147,7 +148,10 @@ static struct css_device_id chsc_subchannel_ids[] = {
 MODULE_DEVICE_TABLE(css, chsc_subchannel_ids);
 
 static struct css_driver chsc_subchannel_driver = {
-	.owner = THIS_MODULE,
+	.drv = {
+		.owner = THIS_MODULE,
+		.name = "chsc_subchannel",
+	},
 	.subchannel_type = chsc_subchannel_ids,
 	.irq = chsc_subchannel_irq,
 	.probe = chsc_subchannel_probe,
@@ -157,7 +161,6 @@ static struct css_driver chsc_subchannel_driver = {
 	.freeze = chsc_subchannel_freeze,
 	.thaw = chsc_subchannel_restore,
 	.restore = chsc_subchannel_restore,
-	.name = "chsc_subchannel",
 };
 
 static int __init chsc_init_dbfs(void)
@@ -241,7 +244,7 @@ static int chsc_async(struct chsc_async_area *chsc_area,
 	chsc_area->header.key = PAGE_DEFAULT_KEY >> 4;
 	while ((sch = chsc_get_next_subchannel(sch))) {
 		spin_lock(sch->lock);
-		private = sch->private;
+		private = dev_get_drvdata(&sch->dev);
 		if (private->request) {
 			spin_unlock(sch->lock);
 			ret = -EBUSY;
@@ -688,25 +691,31 @@ out_free:
 
 static int chsc_ioctl_chpd(void __user *user_chpd)
 {
+	struct chsc_scpd *scpd_area;
 	struct chsc_cpd_info *chpd;
 	int ret;
 
 	chpd = kzalloc(sizeof(*chpd), GFP_KERNEL);
-	if (!chpd)
-		return -ENOMEM;
+	scpd_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!scpd_area || !chpd) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
 	if (copy_from_user(chpd, user_chpd, sizeof(*chpd))) {
 		ret = -EFAULT;
 		goto out_free;
 	}
 	ret = chsc_determine_channel_path_desc(chpd->chpid, chpd->fmt,
 					       chpd->rfmt, chpd->c, chpd->m,
-					       &chpd->chpdb);
+					       scpd_area);
 	if (ret)
 		goto out_free;
+	memcpy(&chpd->chpdb, &scpd_area->response, scpd_area->response.length);
 	if (copy_to_user(user_chpd, chpd, sizeof(*chpd)))
 		ret = -EFAULT;
 out_free:
 	kfree(chpd);
+	free_page((unsigned long)scpd_area);
 	return ret;
 }
 
@@ -806,6 +815,7 @@ static const struct file_operations chsc_fops = {
 	.open = nonseekable_open,
 	.unlocked_ioctl = chsc_ioctl,
 	.compat_ioctl = chsc_ioctl,
+	.llseek = no_llseek,
 };
 
 static struct miscdevice chsc_misc_device = {

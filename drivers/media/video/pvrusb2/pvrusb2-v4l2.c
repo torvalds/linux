@@ -795,12 +795,10 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_S_CROP:
 	{
 		struct v4l2_crop *crop = (struct v4l2_crop *)arg;
-		struct v4l2_cropcap cap;
 		if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 			ret = -EINVAL;
 			break;
 		}
-		cap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		ret = pvr2_ctrl_set_value(
 			pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_CROPL),
 			crop->c.left);
@@ -852,8 +850,8 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 #endif
 
 	default :
-		ret = v4l_compat_translate_ioctl(file, cmd,
-						 arg, pvr2_v4l2_do_ioctl);
+		ret = -EINVAL;
+		break;
 	}
 
 	pvr2_hdw_commit_ctl(hdw);

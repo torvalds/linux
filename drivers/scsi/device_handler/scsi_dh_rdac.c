@@ -182,14 +182,24 @@ struct rdac_dh_data {
 	struct rdac_controller	*ctlr;
 #define UNINITIALIZED_LUN	(1 << 8)
 	unsigned		lun;
+
+#define RDAC_MODE		0
+#define RDAC_MODE_AVT		1
+#define RDAC_MODE_IOSHIP	2
+	unsigned char		mode;
+
 #define RDAC_STATE_ACTIVE	0
 #define RDAC_STATE_PASSIVE	1
 	unsigned char		state;
 
 #define RDAC_LUN_UNOWNED	0
 #define RDAC_LUN_OWNED		1
-#define RDAC_LUN_AVT		2
 	char			lun_state;
+
+#define RDAC_PREFERRED		0
+#define RDAC_NON_PREFERRED	1
+	char			preferred;
+
 	unsigned char		sense[SCSI_SENSE_BUFFERSIZE];
 	union			{
 		struct c2_inquiry c2;
@@ -199,11 +209,15 @@ struct rdac_dh_data {
 	} inq;
 };
 
+static const char *mode[] = {
+	"RDAC",
+	"AVT",
+	"IOSHIP",
+};
 static const char *lun_state[] =
 {
 	"unowned",
 	"owned",
-	"owned (AVT mode)",
 };
 
 struct rdac_queue_data {
@@ -281,11 +295,13 @@ static struct request *get_rdac_req(struct scsi_device *sdev,
 }
 
 static struct request *rdac_failover_get(struct scsi_device *sdev,
-					 struct rdac_dh_data *h)
+			struct rdac_dh_data *h, struct list_head *list)
 {
 	struct request *rq;
 	struct rdac_mode_common *common;
 	unsigned data_size;
+	struct rdac_queue_data *qdata;
+	u8 *lun_table;
 
 	if (h->ctlr->use_ms10) {
 		struct rdac_pg_expanded *rdac_pg;
@@ -298,6 +314,7 @@ static struct request *rdac_failover_get(struct scsi_device *sdev,
 		rdac_pg->subpage_code = 0x1;
 		rdac_pg->page_len[0] = 0x01;
 		rdac_pg->page_len[1] = 0x28;
+		lun_table = rdac_pg->lun_table;
 	} else {
 		struct rdac_pg_legacy *rdac_pg;
 
@@ -307,10 +324,15 @@ static struct request *rdac_failover_get(struct scsi_device *sdev,
 		common = &rdac_pg->common;
 		rdac_pg->page_code = RDAC_PAGE_CODE_REDUNDANT_CONTROLLER;
 		rdac_pg->page_len = 0x68;
+		lun_table = rdac_pg->lun_table;
 	}
 	common->rdac_mode[1] = RDAC_MODE_TRANSFER_SPECIFIED_LUNS;
 	common->quiescence_timeout = RDAC_QUIESCENCE_TIME;
 	common->rdac_options = RDAC_FORCED_QUIESENCE;
+
+	list_for_each_entry(qdata, list, entry) {
+		lun_table[qdata->h->lun] = 0x81;
+	}
 
 	/* get request for block layer packet command */
 	rq = get_rdac_req(sdev, &h->ctlr->mode_select, data_size, WRITE);
@@ -450,25 +472,33 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 	int err;
 	struct c9_inquiry *inqp;
 
-	h->lun_state = RDAC_LUN_UNOWNED;
 	h->state = RDAC_STATE_ACTIVE;
 	err = submit_inquiry(sdev, 0xC9, sizeof(struct c9_inquiry), h);
 	if (err == SCSI_DH_OK) {
 		inqp = &h->inq.c9;
-		if ((inqp->avte_cvp >> 7) == 0x1) {
-			/* LUN in AVT mode */
-			sdev_printk(KERN_NOTICE, sdev,
-				    "%s: AVT mode detected\n",
-				    RDAC_NAME);
-			h->lun_state = RDAC_LUN_AVT;
-		} else if ((inqp->avte_cvp & 0x1) != 0) {
-			/* LUN was owned by the controller */
-			h->lun_state = RDAC_LUN_OWNED;
-		}
-	}
+		/* detect the operating mode */
+		if ((inqp->avte_cvp >> 5) & 0x1)
+			h->mode = RDAC_MODE_IOSHIP; /* LUN in IOSHIP mode */
+		else if (inqp->avte_cvp >> 7)
+			h->mode = RDAC_MODE_AVT; /* LUN in AVT mode */
+		else
+			h->mode = RDAC_MODE; /* LUN in RDAC mode */
 
-	if (h->lun_state == RDAC_LUN_UNOWNED)
-		h->state = RDAC_STATE_PASSIVE;
+		/* Update ownership */
+		if (inqp->avte_cvp & 0x1)
+			h->lun_state = RDAC_LUN_OWNED;
+		else {
+			h->lun_state = RDAC_LUN_UNOWNED;
+			if (h->mode == RDAC_MODE)
+				h->state = RDAC_STATE_PASSIVE;
+		}
+
+		/* Update path prio*/
+		if (inqp->path_prio & 0x1)
+			h->preferred = RDAC_PREFERRED;
+		else
+			h->preferred = RDAC_NON_PREFERRED;
+	}
 
 	return err;
 }
@@ -565,7 +595,6 @@ static void send_mode_select(struct work_struct *work)
 	int err, retry_cnt = RDAC_RETRY_COUNT;
 	struct rdac_queue_data *tmp, *qdata;
 	LIST_HEAD(list);
-	u8 *lun_table;
 
 	spin_lock(&ctlr->ms_lock);
 	list_splice_init(&ctlr->ms_head, &list);
@@ -573,20 +602,11 @@ static void send_mode_select(struct work_struct *work)
 	ctlr->ms_sdev = NULL;
 	spin_unlock(&ctlr->ms_lock);
 
-	if (ctlr->use_ms10)
-		lun_table = ctlr->mode_select.expanded.lun_table;
-	else
-		lun_table = ctlr->mode_select.legacy.lun_table;
-
 retry:
 	err = SCSI_DH_RES_TEMP_UNAVAIL;
-	rq = rdac_failover_get(sdev, h);
+	rq = rdac_failover_get(sdev, h, &list);
 	if (!rq)
 		goto done;
-
-	list_for_each_entry(qdata, &list, entry) {
-		lun_table[qdata->h->lun] = 0x81;
-	}
 
 	RDAC_LOG(RDAC_LOG_FAILOVER, sdev, "array %s, ctlr %d, "
 		"%s MODE_SELECT command",
@@ -650,12 +670,27 @@ static int rdac_activate(struct scsi_device *sdev,
 {
 	struct rdac_dh_data *h = get_rdac_data(sdev);
 	int err = SCSI_DH_OK;
+	int act = 0;
 
 	err = check_ownership(sdev, h);
 	if (err != SCSI_DH_OK)
 		goto done;
 
-	if (h->lun_state == RDAC_LUN_UNOWNED) {
+	switch (h->mode) {
+	case RDAC_MODE:
+		if (h->lun_state == RDAC_LUN_UNOWNED)
+			act = 1;
+		break;
+	case RDAC_MODE_IOSHIP:
+		if ((h->lun_state == RDAC_LUN_UNOWNED) &&
+		    (h->preferred == RDAC_PREFERRED))
+			act = 1;
+		break;
+	default:
+		break;
+	}
+
+	if (act) {
 		err = queue_mode_select(sdev, fn, data);
 		if (err == SCSI_DH_OK)
 			return 0;
@@ -769,10 +804,13 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"DELL", "MD32xx"},
 	{"DELL", "MD32xxi"},
 	{"DELL", "MD36xxi"},
+	{"DELL", "MD36xxf"},
 	{"LSI", "INF-01-00"},
 	{"ENGENIO", "INF-01-00"},
 	{"STK", "FLEXLINE 380"},
 	{"SUN", "CSM100_R_FC"},
+	{"SUN", "STK6580_6780"},
+	{"SUN", "SUN_6180"},
 	{NULL, NULL},
 };
 
@@ -798,7 +836,7 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	int err;
 	char array_name[ARRAY_LABEL_LEN];
 
-	scsi_dh_data = kzalloc(sizeof(struct scsi_device_handler *)
+	scsi_dh_data = kzalloc(sizeof(*scsi_dh_data)
 			       + sizeof(*h) , GFP_KERNEL);
 	if (!scsi_dh_data) {
 		sdev_printk(KERN_ERR, sdev, "%s: Attach failed\n",
@@ -835,8 +873,9 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
 
 	sdev_printk(KERN_NOTICE, sdev,
-		    "%s: LUN %d (%s)\n",
-		    RDAC_NAME, h->lun, lun_state[(int)h->lun_state]);
+		    "%s: LUN %d (%s) (%s)\n",
+		    RDAC_NAME, h->lun, mode[(int)h->mode],
+		    lun_state[(int)h->lun_state]);
 
 	return 0;
 
@@ -904,4 +943,5 @@ module_exit(rdac_exit);
 
 MODULE_DESCRIPTION("Multipath LSI/Engenio RDAC driver");
 MODULE_AUTHOR("Mike Christie, Chandra Seetharaman");
+MODULE_VERSION("01.00.0000.0000");
 MODULE_LICENSE("GPL");

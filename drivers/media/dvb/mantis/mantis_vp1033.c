@@ -37,7 +37,7 @@
 
 u8 lgtdqcs001f_inittab[] = {
 	0x01, 0x15,
-	0x02, 0x00,
+	0x02, 0x30,
 	0x03, 0x00,
 	0x04, 0x2a,
 	0x05, 0x85,
@@ -173,7 +173,7 @@ static int vp1033_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 		msleep(250);
 
 		dprintk(MANTIS_ERROR, 1, "Probing for STV0299 (DVB-S)");
-		fe = stv0299_attach(&lgtdqcs001f_config, adapter);
+		fe = dvb_attach(stv0299_attach, &lgtdqcs001f_config, adapter);
 
 		if (fe) {
 			fe->ops.tuner_ops.set_params = lgtdqcs001f_tuner_set;

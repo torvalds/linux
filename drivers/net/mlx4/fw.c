@@ -98,7 +98,8 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u32 flags)
 		[20] = "Address vector port checking support",
 		[21] = "UD multicast support",
 		[24] = "Demand paging support",
-		[25] = "Router support"
+		[25] = "Router support",
+		[30] = "IBoE support"
 	};
 	int i;
 
@@ -141,6 +142,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	struct mlx4_cmd_mailbox *mailbox;
 	u32 *outbox;
 	u8 field;
+	u32 field32;
 	u16 size;
 	u16 stat_rate;
 	int err;
@@ -178,6 +180,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MAX_GID_OFFSET		0x3b
 #define QUERY_DEV_CAP_RATE_SUPPORT_OFFSET	0x3c
 #define QUERY_DEV_CAP_MAX_PKEY_OFFSET		0x3f
+#define QUERY_DEV_CAP_UDP_RSS_OFFSET		0x42
+#define QUERY_DEV_CAP_ETH_UC_LOOPBACK_OFFSET	0x43
 #define QUERY_DEV_CAP_FLAGS_OFFSET		0x44
 #define QUERY_DEV_CAP_RSVD_UAR_OFFSET		0x48
 #define QUERY_DEV_CAP_UAR_SZ_OFFSET		0x49
@@ -268,6 +272,13 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev_cap->max_msg_sz = 1 << (field & 0x1f);
 	MLX4_GET(stat_rate, outbox, QUERY_DEV_CAP_RATE_SUPPORT_OFFSET);
 	dev_cap->stat_rate_support = stat_rate;
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_UDP_RSS_OFFSET);
+	dev_cap->udp_rss = field & 0x1;
+	dev_cap->vep_uc_steering = field & 0x2;
+	dev_cap->vep_mc_steering = field & 0x4;
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_ETH_UC_LOOPBACK_OFFSET);
+	dev_cap->loopback_support = field & 0x1;
+	dev_cap->wol = field & 0x40;
 	MLX4_GET(dev_cap->flags, outbox, QUERY_DEV_CAP_FLAGS_OFFSET);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_RSVD_UAR_OFFSET);
 	dev_cap->reserved_uars = field >> 4;
@@ -281,6 +292,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		MLX4_GET(field, outbox, QUERY_DEV_CAP_LOG_BF_REG_SZ_OFFSET);
 		dev_cap->bf_reg_size = 1 << (field & 0x1f);
 		MLX4_GET(field, outbox, QUERY_DEV_CAP_LOG_MAX_BF_REGS_PER_PAGE_OFFSET);
+		if ((1 << (field & 0x3f)) > (PAGE_SIZE / dev_cap->bf_reg_size))
+			field = 3;
 		dev_cap->bf_regs_per_page = 1 << (field & 0x3f);
 		mlx4_dbg(dev, "BlueFlame available (reg size %d, regs/page %d)\n",
 			 dev_cap->bf_reg_size, dev_cap->bf_regs_per_page);
@@ -365,6 +378,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_PORT_MAX_MACVLAN_OFFSET		0x0a
 #define QUERY_PORT_MAX_VL_OFFSET		0x0b
 #define QUERY_PORT_MAC_OFFSET			0x10
+#define QUERY_PORT_TRANS_VENDOR_OFFSET		0x18
+#define QUERY_PORT_WAVELENGTH_OFFSET		0x1c
+#define QUERY_PORT_TRANS_CODE_OFFSET		0x20
 
 		for (i = 1; i <= dev_cap->num_ports; ++i) {
 			err = mlx4_cmd_box(dev, 0, mailbox->dma, i, 0, MLX4_CMD_QUERY_PORT,
@@ -388,6 +404,11 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			dev_cap->log_max_vlans[i] = field >> 4;
 			MLX4_GET(dev_cap->eth_mtu[i], outbox, QUERY_PORT_ETH_MTU_OFFSET);
 			MLX4_GET(dev_cap->def_mac[i], outbox, QUERY_PORT_MAC_OFFSET);
+			MLX4_GET(field32, outbox, QUERY_PORT_TRANS_VENDOR_OFFSET);
+			dev_cap->trans_type[i] = field32 >> 24;
+			dev_cap->vendor_oui[i] = field32 & 0xffffff;
+			MLX4_GET(dev_cap->wavelength[i], outbox, QUERY_PORT_WAVELENGTH_OFFSET);
+			MLX4_GET(dev_cap->trans_code[i], outbox, QUERY_PORT_TRANS_CODE_OFFSET);
 		}
 	}
 
@@ -719,6 +740,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #define	 INIT_HCA_MC_BASE_OFFSET	 (INIT_HCA_MCAST_OFFSET + 0x00)
 #define	 INIT_HCA_LOG_MC_ENTRY_SZ_OFFSET (INIT_HCA_MCAST_OFFSET + 0x12)
 #define	 INIT_HCA_LOG_MC_HASH_SZ_OFFSET	 (INIT_HCA_MCAST_OFFSET + 0x16)
+#define  INIT_HCA_UC_STEERING_OFFSET	 (INIT_HCA_MCAST_OFFSET + 0x18)
 #define	 INIT_HCA_LOG_MC_TABLE_SZ_OFFSET (INIT_HCA_MCAST_OFFSET + 0x1b)
 #define INIT_HCA_TPT_OFFSET		 0x0f0
 #define	 INIT_HCA_DMPT_BASE_OFFSET	 (INIT_HCA_TPT_OFFSET + 0x00)
@@ -779,6 +801,8 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	MLX4_PUT(inbox, param->mc_base,		INIT_HCA_MC_BASE_OFFSET);
 	MLX4_PUT(inbox, param->log_mc_entry_sz, INIT_HCA_LOG_MC_ENTRY_SZ_OFFSET);
 	MLX4_PUT(inbox, param->log_mc_hash_sz,  INIT_HCA_LOG_MC_HASH_SZ_OFFSET);
+	if (dev->caps.vep_mc_steering)
+		MLX4_PUT(inbox, (u8) (1 << 3),	INIT_HCA_UC_STEERING_OFFSET);
 	MLX4_PUT(inbox, param->log_mc_table_sz, INIT_HCA_LOG_MC_TABLE_SZ_OFFSET);
 
 	/* TPT attributes */
@@ -890,3 +914,22 @@ int mlx4_NOP(struct mlx4_dev *dev)
 	/* Input modifier of 0x1f means "finish as soon as possible." */
 	return mlx4_cmd(dev, 0, 0x1f, 0, MLX4_CMD_NOP, 100);
 }
+
+#define MLX4_WOL_SETUP_MODE (5 << 28)
+int mlx4_wol_read(struct mlx4_dev *dev, u64 *config, int port)
+{
+	u32 in_mod = MLX4_WOL_SETUP_MODE | port << 8;
+
+	return mlx4_cmd_imm(dev, 0, config, in_mod, 0x3,
+			    MLX4_CMD_MOD_STAT_CFG, MLX4_CMD_TIME_CLASS_A);
+}
+EXPORT_SYMBOL_GPL(mlx4_wol_read);
+
+int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port)
+{
+	u32 in_mod = MLX4_WOL_SETUP_MODE | port << 8;
+
+	return mlx4_cmd(dev, config, in_mod, 0x1, MLX4_CMD_MOD_STAT_CFG,
+					MLX4_CMD_TIME_CLASS_A);
+}
+EXPORT_SYMBOL_GPL(mlx4_wol_write);

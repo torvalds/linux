@@ -12,40 +12,9 @@
 #define _XTENSA_SYSTEM_H
 
 #include <linux/stringify.h>
+#include <linux/irqflags.h>
 
 #include <asm/processor.h>
-
-/* interrupt control */
-
-#define local_save_flags(x)						\
-	__asm__ __volatile__ ("rsr %0,"__stringify(PS) : "=a" (x));
-#define local_irq_restore(x)	do {					\
-	__asm__ __volatile__ ("wsr %0, "__stringify(PS)" ; rsync" 	\
-	    		      :: "a" (x) : "memory"); } while(0);
-#define local_irq_save(x)	do {					\
-	__asm__ __volatile__ ("rsil %0, "__stringify(LOCKLEVEL) 	\
-	    		      : "=a" (x) :: "memory");} while(0);
-
-static inline void local_irq_disable(void)
-{
-	unsigned long flags;
-	__asm__ __volatile__ ("rsil %0, "__stringify(LOCKLEVEL)
-	    		      : "=a" (flags) :: "memory");
-}
-static inline void local_irq_enable(void)
-{
-	unsigned long flags;
-	__asm__ __volatile__ ("rsil %0, 0" : "=a" (flags) :: "memory");
-
-}
-
-static inline int irqs_disabled(void)
-{
-	unsigned long flags;
-	local_save_flags(flags);
-	return flags & 0xf;
-}
-
 
 #define smp_read_barrier_depends() do { } while(0)
 #define read_barrier_depends() do { } while(0)

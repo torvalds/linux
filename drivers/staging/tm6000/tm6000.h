@@ -1,23 +1,23 @@
 /*
-   tm6000.h - driver for TM5600/TM6000/TM6010 USB video capture devices
-
-   Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
-
-   Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
-	- DVB-T support
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation version 2
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  tm6000.h - driver for TM5600/TM6000/TM6010 USB video capture devices
+ *
+ *  Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *
+ *  Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
+ *	- DVB-T support
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation version 2
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /* Use the tm6000-hack, instead of the proper initialization code i*/
@@ -40,11 +40,24 @@
 #define TM6000_VERSION KERNEL_VERSION(0, 0, 2)
 
 /* Inputs */
-
 enum tm6000_itype {
-	TM6000_INPUT_TV	= 0,
-	TM6000_INPUT_COMPOSITE,
+	TM6000_INPUT_TV	= 1,
+	TM6000_INPUT_COMPOSITE1,
+	TM6000_INPUT_COMPOSITE2,
 	TM6000_INPUT_SVIDEO,
+	TM6000_INPUT_DVB,
+	TM6000_INPUT_RADIO,
+};
+
+enum tm6000_mux {
+	TM6000_VMUX_VIDEO_A = 1,
+	TM6000_VMUX_VIDEO_B,
+	TM6000_VMUX_VIDEO_AB,
+	TM6000_AMUX_ADC1,
+	TM6000_AMUX_ADC2,
+	TM6000_AMUX_SIF1,
+	TM6000_AMUX_SIF2,
+	TM6000_AMUX_I2S,
 };
 
 enum tm6000_devtype {
@@ -53,9 +66,18 @@ enum tm6000_devtype {
 	TM6010,
 };
 
+struct tm6000_input {
+	enum tm6000_itype	type;
+	enum tm6000_mux		vmux;
+	enum tm6000_mux		amux;
+	unsigned int		v_gpio;
+	unsigned int		a_gpio;
+};
+
 /* ------------------------------------------------------------------
-	Basic structures
-   ------------------------------------------------------------------*/
+ *	Basic structures
+ * ------------------------------------------------------------------
+ */
 
 struct tm6000_fmt {
 	char  *name;
@@ -120,6 +142,7 @@ struct tm6000_capabilities {
 	unsigned int    has_zl10353:1;
 	unsigned int    has_eeprom:1;
 	unsigned int    has_remote:1;
+	unsigned int    has_radio:1;
 };
 
 struct tm6000_dvb {
@@ -156,6 +179,8 @@ struct tm6000_core {
 	int				model;		/* index in the device_data struct */
 	int				devno;		/* marks the number of this device */
 	enum tm6000_devtype		dev_type;	/* type of device */
+	unsigned char			eedata[256];	/* Eeprom data */
+	unsigned			eedata_size;	/* Size of the eeprom info */
 
 	v4l2_std_id                     norm;           /* Current norm */
 	int				width, height;	/* Selected resolution */
@@ -173,6 +198,8 @@ struct tm6000_core {
 
 	char				*ir_codes;
 
+	__u8				radio;
+
 	/* Demodulator configuration */
 	int				demod_addr;	/* demodulator address */
 
@@ -189,22 +216,34 @@ struct tm6000_core {
 	int				users;
 
 	/* various device info */
-	unsigned int			resources;
+	struct tm6000_fh		*resources;	/* Points to fh that is streaming */
+	bool				is_res_read;
+
 	struct video_device		*vfd;
+	struct video_device		*radio_dev;
 	struct tm6000_dmaqueue		vidq;
 	struct v4l2_device		v4l2_dev;
 
 	int				input;
+	struct tm6000_input		vinput[3];	/* video input */
+	struct tm6000_input		rinput;		/* radio input */
+
 	int				freq;
 	unsigned int			fourcc;
 
 	enum tm6000_mode		mode;
+
+	int				ctl_mute;             /* audio */
+	int				ctl_volume;
+	int				amode;
 
 	/* DVB-T support */
 	struct tm6000_dvb		*dvb;
 
 	/* audio support */
 	struct snd_tm6000_card		*adev;
+	struct work_struct		wq_trigger;   /* Trigger to start/stop audio for alsa module */
+	atomic_t			stream_started;  /* stream should be running if true */
 
 	struct tm6000_IR		*ir;
 
@@ -242,6 +281,7 @@ struct tm6000_ops {
 
 struct tm6000_fh {
 	struct tm6000_core           *dev;
+	unsigned int                 radio;
 
 	/* video capture */
 	struct tm6000_fmt            *fmt;
@@ -251,15 +291,16 @@ struct tm6000_fh {
 	enum v4l2_buf_type           type;
 };
 
-#define TM6000_STD	V4L2_STD_PAL|V4L2_STD_PAL_N|V4L2_STD_PAL_Nc|    \
+#define TM6000_STD	(V4L2_STD_PAL|V4L2_STD_PAL_N|V4L2_STD_PAL_Nc|    \
 			V4L2_STD_PAL_M|V4L2_STD_PAL_60|V4L2_STD_NTSC_M| \
-			V4L2_STD_NTSC_M_JP|V4L2_STD_SECAM
+			V4L2_STD_NTSC_M_JP|V4L2_STD_SECAM)
 
 /* In tm6000-cards.c */
 
 int tm6000_tuner_callback(void *ptr, int component, int command, int arg);
 int tm6000_xc5000_callback(void *ptr, int component, int command, int arg);
 int tm6000_cards_setup(struct tm6000_core *dev);
+void tm6000_flash_led(struct tm6000_core *dev, u8 state);
 
 /* In tm6000-core.c */
 
@@ -269,12 +310,17 @@ int tm6000_get_reg(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_get_reg16(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_get_reg32(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_set_reg(struct tm6000_core *dev, u8 req, u16 value, u16 index);
+int tm6000_set_reg_mask(struct tm6000_core *dev, u8 req, u16 value,
+						u16 index, u16 mask);
 int tm6000_i2c_reset(struct tm6000_core *dev, u16 tsleep);
 int tm6000_init(struct tm6000_core *dev);
 
 int tm6000_init_analog_mode(struct tm6000_core *dev);
 int tm6000_init_digital_mode(struct tm6000_core *dev);
 int tm6000_set_audio_bitrate(struct tm6000_core *dev, int bitrate);
+int tm6000_set_audio_rinput(struct tm6000_core *dev);
+int tm6000_tvaudio_set_mute(struct tm6000_core *dev, u8 mute);
+void tm6000_set_volume(struct tm6000_core *dev, int vol);
 
 int tm6000_v4l2_register(struct tm6000_core *dev);
 int tm6000_v4l2_unregister(struct tm6000_core *dev);
@@ -293,7 +339,7 @@ int tm6000_call_fillbuf(struct tm6000_core *dev, enum tm6000_ops_type type,
 
 /* In tm6000-stds.c */
 void tm6000_get_std_res(struct tm6000_core *dev);
-int tm6000_set_standard(struct tm6000_core *dev, v4l2_std_id *norm);
+int tm6000_set_standard(struct tm6000_core *dev);
 
 /* In tm6000-i2c.c */
 int tm6000_i2c_register(struct tm6000_core *dev);
@@ -326,6 +372,8 @@ int tm6000_queue_init(struct tm6000_core *dev);
 int tm6000_ir_init(struct tm6000_core *dev);
 int tm6000_ir_fini(struct tm6000_core *dev);
 void tm6000_ir_wait(struct tm6000_core *dev, u8 state);
+int tm6000_ir_int_start(struct tm6000_core *dev);
+void tm6000_ir_int_stop(struct tm6000_core *dev);
 
 /* Debug stuff */
 

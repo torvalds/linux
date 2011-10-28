@@ -15,7 +15,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <linux/ioport.h>
-#include <linux/workqueue.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
@@ -546,7 +545,6 @@ void diva_os_remove_soft_isr(diva_os_soft_isr_t * psoft_isr)
 		void *mem;
 
 		tasklet_kill(&pdpc->divas_task);
-		flush_scheduled_work();
 		mem = psoft_isr->object;
 		psoft_isr->object = NULL;
 		diva_os_free(0, mem);

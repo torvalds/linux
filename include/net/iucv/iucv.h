@@ -173,7 +173,7 @@ struct iucv_handler {
 	/*
 	 * The message_pending function is called after an icuv interrupt
 	 * type 0x06 or type 0x07 has been received. A new message is
-	 * availabe and can be received with iucv_message_receive.
+	 * available and can be received with iucv_message_receive.
 	 */
 	void (*message_pending)(struct iucv_path *, struct iucv_message *);
 	/*

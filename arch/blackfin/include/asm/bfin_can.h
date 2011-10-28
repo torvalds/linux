@@ -34,6 +34,7 @@ struct bfin_can_mask_regs {
 };
 
 struct bfin_can_channel_regs {
+	/* data[0,2,4,6] -> data{0,1,2,3} while data[1,3,5,7] is padding */
 	u16 data[8];
 	__BFP(dlc);
 	__BFP(tsv);
@@ -83,16 +84,18 @@ struct bfin_can_regs {
 	__BFP(gif);           /* offset 0x9c */
 	__BFP(control);       /* offset 0xa0 */
 	__BFP(intr);          /* offset 0xa4 */
-	u32 __pad3[1];
+	__BFP(version);       /* offset 0xa8 */
 	__BFP(mbtd);          /* offset 0xac */
 	__BFP(ewr);           /* offset 0xb0 */
 	__BFP(esr);           /* offset 0xb4 */
-	u32 __pad4[2];
+	u32 __pad3[2];
 	__BFP(ucreg);         /* offset 0xc0 */
 	__BFP(uccnt);         /* offset 0xc4 */
 	__BFP(ucrc);          /* offset 0xc8 */
 	__BFP(uccnf);         /* offset 0xcc */
-	u32 __pad5[12];
+	u32 __pad4[1];
+	__BFP(version2);      /* offset 0xd4 */
+	u32 __pad5[10];
 
 	/*
 	 * channel(mailbox) mask and message registers

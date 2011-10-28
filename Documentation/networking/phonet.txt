@@ -112,6 +112,22 @@ However, connect() and getpeername() are not supported, as they did
 not seem useful with Phonet usages (could be added easily).
 
 
+Resource subscription
+---------------------
+
+A Phonet datagram socket can be subscribed to any number of 8-bits
+Phonet resources, as follow:
+
+  uint32_t res = 0xXX;
+  ioctl(fd, SIOCPNADDRESOURCE, &res);
+
+Subscription is similarly cancelled using the SIOCPNDELRESOURCE I/O
+control request, or when the socket is closed.
+
+Note that no more than one socket can be subcribed to any given
+resource at a time. If not, ioctl() will return EBUSY.
+
+
 Phonet Pipe protocol
 --------------------
 
@@ -138,9 +154,28 @@ connections, one per accept()'d socket.
     write(cfd, msg, msglen);
   }
 
-Connections are established between two endpoints by a "third party"
-application. This means that both endpoints are passive; so connect()
-is not possible.
+Connections are traditionally established between two endpoints by a
+"third party" application. This means that both endpoints are passive.
+
+
+As of Linux kernel version 2.6.39, it is also possible to connect
+two endpoints directly, using connect() on the active side. This is
+intended to support the newer Nokia Wireless Modem API, as found in
+e.g. the Nokia Slim Modem in the ST-Ericsson U8500 platform:
+
+  struct sockaddr_spn spn;
+  int fd;
+
+  fd = socket(PF_PHONET, SOCK_SEQPACKET, PN_PROTO_PIPE);
+  memset(&spn, 0, sizeof(spn));
+  spn.spn_family = AF_PHONET;
+  spn.spn_obj = ...;
+  spn.spn_dev = ...;
+  spn.spn_resource = 0xD9;
+  connect(fd, (struct sockaddr *)&spn, sizeof(spn));
+  /* normal I/O here ... */
+  close(fd);
+
 
 WARNING:
 When polling a connected pipe socket for writability, there is an
@@ -164,6 +199,10 @@ The pipe protocol provides two socket options at the SOL_PNPIPE level:
   PNPIPE_IFINDEX is a read-only integer value. It contains the
     interface index of the network interface created by PNPIPE_ENCAP,
     or zero if encapsulation is off.
+
+  PNPIPE_HANDLE is a read-only integer value. It contains the underlying
+    identifier ("pipe handle") of the pipe. This is only defined for
+    socket descriptors that are already connected or being connected.
 
 
 Authors

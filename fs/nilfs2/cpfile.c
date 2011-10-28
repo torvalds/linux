@@ -216,14 +216,14 @@ int nilfs_cpfile_get_checkpoint(struct inode *cpfile,
 		if (!nilfs_cpfile_is_in_first(cpfile, cno))
 			nilfs_cpfile_block_add_valid_checkpoints(cpfile, cp_bh,
 								 kaddr, 1);
-		nilfs_mdt_mark_buffer_dirty(cp_bh);
+		mark_buffer_dirty(cp_bh);
 
 		kaddr = kmap_atomic(header_bh->b_page, KM_USER0);
 		header = nilfs_cpfile_block_get_header(cpfile, header_bh,
 						       kaddr);
 		le64_add_cpu(&header->ch_ncheckpoints, 1);
 		kunmap_atomic(kaddr, KM_USER0);
-		nilfs_mdt_mark_buffer_dirty(header_bh);
+		mark_buffer_dirty(header_bh);
 		nilfs_mdt_mark_dirty(cpfile);
 	}
 
@@ -326,7 +326,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 		}
 		if (nicps > 0) {
 			tnicps += nicps;
-			nilfs_mdt_mark_buffer_dirty(cp_bh);
+			mark_buffer_dirty(cp_bh);
 			nilfs_mdt_mark_dirty(cpfile);
 			if (!nilfs_cpfile_is_in_first(cpfile, cno)) {
 				count =
@@ -358,7 +358,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 		header = nilfs_cpfile_block_get_header(cpfile, header_bh,
 						       kaddr);
 		le64_add_cpu(&header->ch_ncheckpoints, -(u64)tnicps);
-		nilfs_mdt_mark_buffer_dirty(header_bh);
+		mark_buffer_dirty(header_bh);
 		nilfs_mdt_mark_dirty(cpfile);
 		kunmap_atomic(kaddr, KM_USER0);
 	}
@@ -671,10 +671,10 @@ static int nilfs_cpfile_set_snapshot(struct inode *cpfile, __u64 cno)
 	le64_add_cpu(&header->ch_nsnapshots, 1);
 	kunmap_atomic(kaddr, KM_USER0);
 
-	nilfs_mdt_mark_buffer_dirty(prev_bh);
-	nilfs_mdt_mark_buffer_dirty(curr_bh);
-	nilfs_mdt_mark_buffer_dirty(cp_bh);
-	nilfs_mdt_mark_buffer_dirty(header_bh);
+	mark_buffer_dirty(prev_bh);
+	mark_buffer_dirty(curr_bh);
+	mark_buffer_dirty(cp_bh);
+	mark_buffer_dirty(header_bh);
 	nilfs_mdt_mark_dirty(cpfile);
 
 	brelse(prev_bh);
@@ -774,10 +774,10 @@ static int nilfs_cpfile_clear_snapshot(struct inode *cpfile, __u64 cno)
 	le64_add_cpu(&header->ch_nsnapshots, -1);
 	kunmap_atomic(kaddr, KM_USER0);
 
-	nilfs_mdt_mark_buffer_dirty(next_bh);
-	nilfs_mdt_mark_buffer_dirty(prev_bh);
-	nilfs_mdt_mark_buffer_dirty(cp_bh);
-	nilfs_mdt_mark_buffer_dirty(header_bh);
+	mark_buffer_dirty(next_bh);
+	mark_buffer_dirty(prev_bh);
+	mark_buffer_dirty(cp_bh);
+	mark_buffer_dirty(header_bh);
 	nilfs_mdt_mark_dirty(cpfile);
 
 	brelse(prev_bh);
@@ -863,26 +863,19 @@ int nilfs_cpfile_is_snapshot(struct inode *cpfile, __u64 cno)
  */
 int nilfs_cpfile_change_cpmode(struct inode *cpfile, __u64 cno, int mode)
 {
-	struct the_nilfs *nilfs;
 	int ret;
-
-	nilfs = NILFS_MDT(cpfile)->mi_nilfs;
 
 	switch (mode) {
 	case NILFS_CHECKPOINT:
-		/*
-		 * Check for protecting existing snapshot mounts:
-		 * ns_mount_mutex is used to make this operation atomic and
-		 * exclusive with a new mount job.  Though it doesn't cover
-		 * umount, it's enough for the purpose.
-		 */
-		if (nilfs_checkpoint_is_mounted(nilfs, cno, 1)) {
-			/* Current implementation does not have to protect
-			   plain read-only mounts since they are exclusive
-			   with a read/write mount and are protected from the
-			   cleaner. */
+		if (nilfs_checkpoint_is_mounted(cpfile->i_sb, cno))
+			/*
+			 * Current implementation does not have to protect
+			 * plain read-only mounts since they are exclusive
+			 * with a read/write mount and are protected from the
+			 * cleaner.
+			 */
 			ret = -EBUSY;
-		} else
+		else
 			ret = nilfs_cpfile_clear_snapshot(cpfile, cno);
 		return ret;
 	case NILFS_SNAPSHOT:
@@ -933,27 +926,40 @@ int nilfs_cpfile_get_stat(struct inode *cpfile, struct nilfs_cpstat *cpstat)
 }
 
 /**
- * nilfs_cpfile_read - read cpfile inode
- * @cpfile: cpfile inode
- * @raw_inode: on-disk cpfile inode
- */
-int nilfs_cpfile_read(struct inode *cpfile, struct nilfs_inode *raw_inode)
-{
-	return nilfs_read_inode_common(cpfile, raw_inode);
-}
-
-/**
- * nilfs_cpfile_new - create cpfile
- * @nilfs: nilfs object
+ * nilfs_cpfile_read - read or get cpfile inode
+ * @sb: super block instance
  * @cpsize: size of a checkpoint entry
+ * @raw_inode: on-disk cpfile inode
+ * @inodep: buffer to store the inode
  */
-struct inode *nilfs_cpfile_new(struct the_nilfs *nilfs, size_t cpsize)
+int nilfs_cpfile_read(struct super_block *sb, size_t cpsize,
+		      struct nilfs_inode *raw_inode, struct inode **inodep)
 {
 	struct inode *cpfile;
+	int err;
 
-	cpfile = nilfs_mdt_new(nilfs, NULL, NILFS_CPFILE_INO, 0);
-	if (cpfile)
-		nilfs_mdt_set_entry_size(cpfile, cpsize,
-					 sizeof(struct nilfs_cpfile_header));
-	return cpfile;
+	cpfile = nilfs_iget_locked(sb, NULL, NILFS_CPFILE_INO);
+	if (unlikely(!cpfile))
+		return -ENOMEM;
+	if (!(cpfile->i_state & I_NEW))
+		goto out;
+
+	err = nilfs_mdt_init(cpfile, NILFS_MDT_GFP, 0);
+	if (err)
+		goto failed;
+
+	nilfs_mdt_set_entry_size(cpfile, cpsize,
+				 sizeof(struct nilfs_cpfile_header));
+
+	err = nilfs_read_inode_common(cpfile, raw_inode);
+	if (err)
+		goto failed;
+
+	unlock_new_inode(cpfile);
+ out:
+	*inodep = cpfile;
+	return 0;
+ failed:
+	iget_failed(cpfile);
+	return err;
 }

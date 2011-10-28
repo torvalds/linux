@@ -161,7 +161,7 @@ static int saa7146_i2c_reset(struct saa7146_dev *dev)
 		msleep(SAA7146_I2C_DELAY);
 	}
 
-	/* if any error is still present, a fatal error has occured ... */
+	/* if any error is still present, a fatal error has occurred ... */
 	status = saa7146_i2c_status(dev);
 	if ( dev->i2c_bitrate != status ) {
 		DEB_I2C(("fatal error. status:0x%08x\n",status));
@@ -326,9 +326,9 @@ static int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *m
 			if ( 0 != err) {
 				/* this one is unsatisfying: some i2c slaves on some
 				   dvb cards don't acknowledge correctly, so the saa7146
-				   thinks that an address error occured. in that case, the
+				   thinks that an address error occurred. in that case, the
 				   transaction should be retrying, even if an address error
-				   occured. analog saa7146 based cards extensively rely on
+				   occurred. analog saa7146 based cards extensively rely on
 				   i2c address probing, however, and address errors indicate that a
 				   device is really *not* there. retrying in that case
 				   increases the time the device needs to probe greatly, so
@@ -365,7 +365,7 @@ static int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *m
 	DEB_I2C(("transmission successful. (msg:%d).\n",err));
 out:
 	/* another bug in revision 0: the i2c-registers get uploaded randomly by other
-	   uploads, so we better clear them out before continueing */
+	   uploads, so we better clear them out before continuing */
 	if( 0 == dev->revision ) {
 		__le32 zero = 0;
 		saa7146_i2c_reset(dev);
@@ -391,7 +391,6 @@ static int saa7146_i2c_xfer(struct i2c_adapter* adapter, struct i2c_msg *msg, in
 
 /*****************************************************************************/
 /* i2c-adapter helper functions                                              */
-#include <linux/i2c-id.h>
 
 /* exported algorithm data */
 static struct i2c_algorithm saa7146_algo = {
@@ -414,7 +413,6 @@ int saa7146_i2c_adapter_prepare(struct saa7146_dev *dev, struct i2c_adapter *i2c
 		i2c_adapter->dev.parent    = &dev->pci->dev;
 		i2c_adapter->algo	   = &saa7146_algo;
 		i2c_adapter->algo_data     = NULL;
-		i2c_adapter->id		   = I2C_HW_SAA7146;
 		i2c_adapter->timeout = SAA7146_I2C_TIMEOUT;
 		i2c_adapter->retries = SAA7146_I2C_RETRIES;
 	}

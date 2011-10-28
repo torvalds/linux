@@ -22,8 +22,6 @@ struct _ddebug {
 	const char *function;
 	const char *filename;
 	const char *format;
-	char primary_hash;
-	char secondary_hash;
 	unsigned int lineno:24;
 	/*
  	 * The flags field controls the behaviour at the callsite.
@@ -31,8 +29,13 @@ struct _ddebug {
 	 * writes commands to <debugfs>/dynamic_debug/control
 	 */
 #define _DPRINTK_FLAGS_PRINT   (1<<0)  /* printk() a message using the format */
+#define _DPRINTK_FLAGS_INCL_MODNAME	(1<<1)
+#define _DPRINTK_FLAGS_INCL_FUNCNAME	(1<<2)
+#define _DPRINTK_FLAGS_INCL_LINENO	(1<<3)
+#define _DPRINTK_FLAGS_INCL_TID		(1<<4)
 #define _DPRINTK_FLAGS_DEFAULT 0
 	unsigned int flags:8;
+	char enabled;
 } __attribute__((aligned(8)));
 
 
@@ -41,23 +44,17 @@ int ddebug_add_module(struct _ddebug *tab, unsigned int n,
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
 extern int ddebug_remove_module(const char *mod_name);
-
-#define __dynamic_dbg_enabled(dd)  ({	     \
-	int __ret = 0;							     \
-	if (unlikely((dynamic_debug_enabled & (1LL << DEBUG_HASH)) &&	     \
-			(dynamic_debug_enabled2 & (1LL << DEBUG_HASH2))))   \
-				if (unlikely(dd.flags))			     \
-					__ret = 1;			     \
-	__ret; })
+extern int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
 
 #define dynamic_pr_debug(fmt, ...) do {					\
 	static struct _ddebug descriptor				\
 	__used								\
 	__attribute__((section("__verbose"), aligned(8))) =		\
-	{ KBUILD_MODNAME, __func__, __FILE__, fmt, DEBUG_HASH,	\
-		DEBUG_HASH2, __LINE__, _DPRINTK_FLAGS_DEFAULT };	\
-	if (__dynamic_dbg_enabled(descriptor))				\
-		printk(KERN_DEBUG pr_fmt(fmt),	##__VA_ARGS__);		\
+	{ KBUILD_MODNAME, __func__, __FILE__, fmt, __LINE__,		\
+		_DPRINTK_FLAGS_DEFAULT };				\
+	if (unlikely(descriptor.enabled))				\
+		__dynamic_pr_debug(&descriptor, pr_fmt(fmt), ##__VA_ARGS__); \
 	} while (0)
 
 
@@ -65,9 +62,9 @@ extern int ddebug_remove_module(const char *mod_name);
 	static struct _ddebug descriptor				\
 	__used								\
 	__attribute__((section("__verbose"), aligned(8))) =		\
-	{ KBUILD_MODNAME, __func__, __FILE__, fmt, DEBUG_HASH,	\
-		DEBUG_HASH2, __LINE__, _DPRINTK_FLAGS_DEFAULT };	\
-	if (__dynamic_dbg_enabled(descriptor))				\
+	{ KBUILD_MODNAME, __func__, __FILE__, fmt, __LINE__,		\
+		_DPRINTK_FLAGS_DEFAULT };				\
+	if (unlikely(descriptor.enabled))				\
 		dev_printk(KERN_DEBUG, dev, fmt, ##__VA_ARGS__);	\
 	} while (0)
 
@@ -80,7 +77,7 @@ static inline int ddebug_remove_module(const char *mod)
 
 #define dynamic_pr_debug(fmt, ...)					\
 	do { if (0) printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); } while (0)
-#define dynamic_dev_dbg(dev, format, ...)				\
+#define dynamic_dev_dbg(dev, fmt, ...)					\
 	do { if (0) dev_printk(KERN_DEBUG, dev, fmt, ##__VA_ARGS__); } while (0)
 #endif
 

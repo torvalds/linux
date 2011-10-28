@@ -321,7 +321,8 @@ static int tps65023_dcdc_get_voltage(struct regulator_dev *dev)
 }
 
 static int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
-				int min_uV, int max_uV)
+				     int min_uV, int max_uV,
+				     unsigned *selector)
 {
 	struct tps_pmic *tps = rdev_get_drvdata(dev);
 	int dcdc = rdev_get_id(dev);
@@ -345,6 +346,8 @@ static int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
 		if (min_uV <= uV && uV <= max_uV)
 			break;
 	}
+
+	*selector = vsel;
 
 	/* write to the register in case we found a match */
 	if (vsel == tps->info[dcdc]->table_len)
@@ -371,7 +374,7 @@ static int tps65023_ldo_get_voltage(struct regulator_dev *dev)
 }
 
 static int tps65023_ldo_set_voltage(struct regulator_dev *dev,
-				int min_uV, int max_uV)
+				    int min_uV, int max_uV, unsigned *selector)
 {
 	struct tps_pmic *tps = rdev_get_drvdata(dev);
 	int data, vsel, ldo = rdev_get_id(dev);
@@ -395,6 +398,8 @@ static int tps65023_ldo_set_voltage(struct regulator_dev *dev,
 
 	if (vsel == tps->info[ldo]->table_len)
 		return -EINVAL;
+
+	*selector = vsel;
 
 	data = tps_65023_reg_read(tps, TPS65023_REG_LDO_CTRL);
 	if (data < 0)
@@ -461,7 +466,6 @@ static struct regulator_ops tps65023_ldo_ops = {
 static int __devinit tps_65023_probe(struct i2c_client *client,
 				     const struct i2c_device_id *id)
 {
-	static int desc_id;
 	const struct tps_info *info = (void *)id->driver_data;
 	struct regulator_init_data *init_data;
 	struct regulator_dev *rdev;
@@ -494,7 +498,7 @@ static int __devinit tps_65023_probe(struct i2c_client *client,
 		tps->info[i] = info;
 
 		tps->desc[i].name = info->name;
-		tps->desc[i].id = desc_id++;
+		tps->desc[i].id = i;
 		tps->desc[i].n_voltages = num_voltages[i];
 		tps->desc[i].ops = (i > TPS65023_DCDC_3 ?
 					&tps65023_ldo_ops : &tps65023_dcdc_ops);

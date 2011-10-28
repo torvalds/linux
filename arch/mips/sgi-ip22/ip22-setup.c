@@ -1,7 +1,7 @@
 /*
  * ip22-setup.c: SGI specific setup, including init of the feature struct.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997, 1998 Ralf Baechle (ralf@gnu.org)
  */
 #include <linux/init.h>

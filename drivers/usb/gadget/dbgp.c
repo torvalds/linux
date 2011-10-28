@@ -261,8 +261,8 @@ static int __init dbgp_configure_endpoints(struct usb_gadget *gadget)
 	o_desc.wMaxPacketSize =
 		__constant_cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
 
-	dbg_desc.bDebugInEndpoint = i_desc.bEndpointAddress & 0x7f;
-	dbg_desc.bDebugOutEndpoint = o_desc.bEndpointAddress & 0x7f;
+	dbg_desc.bDebugInEndpoint = i_desc.bEndpointAddress;
+	dbg_desc.bDebugOutEndpoint = o_desc.bEndpointAddress;
 
 #ifdef CONFIG_USB_G_DBGP_SERIAL
 	dbgp.serial->in = dbgp.i_ep;
@@ -312,6 +312,7 @@ static int __init dbgp_bind(struct usb_gadget *gadget)
 
 	dbgp.req->length = DBGP_REQ_EP0_LEN;
 	gadget->ep0->driver_data = gadget;
+	device_desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 
 #ifdef CONFIG_USB_G_DBGP_SERIAL
 	dbgp.serial = kzalloc(sizeof(struct gserial), GFP_KERNEL);
@@ -350,9 +351,9 @@ static int dbgp_setup(struct usb_gadget *gadget,
 	u8 request = ctrl->bRequest;
 	u16 value = le16_to_cpu(ctrl->wValue);
 	u16 length = le16_to_cpu(ctrl->wLength);
-	int err = 0;
-	void *data;
-	u16 len;
+	int err = -EOPNOTSUPP;
+	void *data = NULL;
+	u16 len = 0;
 
 	gadget->ep0->driver_data = gadget;
 
@@ -371,10 +372,9 @@ static int dbgp_setup(struct usb_gadget *gadget,
 		default:
 			goto fail;
 		}
+		err = 0;
 	} else if (request == USB_REQ_SET_FEATURE &&
 		   value == USB_DEVICE_DEBUG_MODE) {
-		len = 0;
-		data = NULL;
 		dev_dbg(&dbgp.gadget->dev, "setup: feat debug\n");
 #ifdef CONFIG_USB_G_DBGP_PRINTK
 		err = dbgp_enable_ep();
@@ -386,15 +386,13 @@ static int dbgp_setup(struct usb_gadget *gadget,
 	} else
 		goto fail;
 
-	if (len >= 0) {
-		req->length = min(length, len);
-		req->zero = len < req->length;
-		if (data && req->length)
-			memcpy(req->buf, data, req->length);
+	req->length = min(length, len);
+	req->zero = len < req->length;
+	if (data && req->length)
+		memcpy(req->buf, data, req->length);
 
-		req->complete = dbgp_setup_complete;
-		return usb_ep_queue(gadget->ep0, req, GFP_ATOMIC);
-	}
+	req->complete = dbgp_setup_complete;
+	return usb_ep_queue(gadget->ep0, req, GFP_ATOMIC);
 
 fail:
 	dev_dbg(&dbgp.gadget->dev,
@@ -405,7 +403,6 @@ fail:
 static struct usb_gadget_driver dbgp_driver = {
 	.function = "dbgp",
 	.speed = USB_SPEED_HIGH,
-	.bind = dbgp_bind,
 	.unbind = dbgp_unbind,
 	.setup = dbgp_setup,
 	.disconnect = dbgp_disconnect,
@@ -417,7 +414,7 @@ static struct usb_gadget_driver dbgp_driver = {
 
 static int __init dbgp_init(void)
 {
-	return usb_gadget_register_driver(&dbgp_driver);
+	return usb_gadget_probe_driver(&dbgp_driver, dbgp_bind);
 }
 
 static void __exit dbgp_exit(void)

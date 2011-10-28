@@ -191,7 +191,8 @@ static int cisco_rx(struct sk_buff *skb)
 
 		switch (ntohl (cisco_data->type)) {
 		case CISCO_ADDR_REQ: /* Stolen from syncppp.c :-) */
-			in_dev = dev->ip_ptr;
+			rcu_read_lock();
+			in_dev = __in_dev_get_rcu(dev);
 			addr = 0;
 			mask = ~cpu_to_be32(0); /* is the mask correct? */
 
@@ -211,6 +212,7 @@ static int cisco_rx(struct sk_buff *skb)
 				cisco_keepalive_send(dev, CISCO_ADDR_REPLY,
 						     addr, mask);
 			}
+			rcu_read_unlock();
 			dev_kfree_skb_any(skb);
 			return NET_RX_SUCCESS;
 

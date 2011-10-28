@@ -18,6 +18,7 @@
 #include <asm/thread_info.h>
 #include <asm/frame.inc>
 #include <asm/intctl-regs.h>
+#include <asm/irqflags.h>
 #include <unit/serial.h>
 
 	.text
@@ -69,7 +70,7 @@ gdbstub_io_rx_overflow:
 	bra	gdbstub_io_rx_done
 
 gdbstub_io_rx_enter:
-	or	EPSW_IE|EPSW_IM_1,epsw
+	LOCAL_CHANGE_INTR_MASK_LEVEL(NUM2EPSW_IM(CONFIG_GDBSTUB_IRQ_LEVEL+1))
 	add	-4,sp
 	SAVE_ALL
 
@@ -80,7 +81,7 @@ gdbstub_io_rx_enter:
 	mov	fp,d0
 	call	gdbstub_rx_irq[],0	# gdbstub_rx_irq(regs,excep)
 
-	and	~EPSW_IE,epsw
+	LOCAL_CLI
 	bclr	0x01,(gdbstub_busy)
 
 	.globl gdbstub_return

@@ -36,7 +36,6 @@ struct ebitmap {
 };
 
 #define ebitmap_length(e) ((e)->highbit)
-#define ebitmap_startbit(e) ((e)->node ? (e)->node->startbit : 0)
 
 static inline unsigned int ebitmap_start_positive(struct ebitmap *e,
 						  struct ebitmap_node **n)
@@ -123,6 +122,7 @@ int ebitmap_get_bit(struct ebitmap *e, unsigned long bit);
 int ebitmap_set_bit(struct ebitmap *e, unsigned long bit, int value);
 void ebitmap_destroy(struct ebitmap *e);
 int ebitmap_read(struct ebitmap *e, void *fp);
+int ebitmap_write(struct ebitmap *e, void *fp);
 
 #ifdef CONFIG_NETLABEL
 int ebitmap_netlbl_export(struct ebitmap *ebmap,

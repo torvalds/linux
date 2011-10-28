@@ -18,26 +18,24 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/fsl_devices.h>
 #include <linux/i2c/tsc2007.h>
 #include <linux/leds.h>
-#include <linux/input/matrix_keypad.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx51.h>
 
 #include <asm/mach/arch.h>
 
+#include "devices-imx51.h"
 #include "devices.h"
 
-#define MBIMX51_TSC2007_GPIO	(2*32 + 30)
+#define MBIMX51_TSC2007_GPIO	IMX_GPIO_NR(3, 30)
 #define MBIMX51_TSC2007_IRQ	(MXC_INTERNAL_IRQS + MBIMX51_TSC2007_GPIO)
-#define MBIMX51_LED0		(2*32 + 5)
-#define MBIMX51_LED1		(2*32 + 6)
-#define MBIMX51_LED2		(2*32 + 7)
-#define MBIMX51_LED3		(2*32 + 8)
+#define MBIMX51_LED0		IMX_GPIO_NR(3, 5)
+#define MBIMX51_LED1		IMX_GPIO_NR(3, 6)
+#define MBIMX51_LED2		IMX_GPIO_NR(3, 7)
+#define MBIMX51_LED3		IMX_GPIO_NR(3, 8)
 
 static struct gpio_led mbimx51_leds[] = {
 	{
@@ -83,7 +81,7 @@ static struct platform_device *devices[] __initdata = {
 	&mbimx51_leds_gpio,
 };
 
-static struct pad_desc mbimx51_pads[] = {
+static iomux_v3_cfg_t mbimx51_pads[] = {
 	/* UART2 */
 	MX51_PAD_UART2_RXD__UART2_RXD,
 	MX51_PAD_UART2_TXD__UART2_TXD,
@@ -95,13 +93,13 @@ static struct pad_desc mbimx51_pads[] = {
 	MX51_PAD_KEY_COL5__UART3_CTS,
 
 	/* TSC2007 IRQ */
-	MX51_PAD_NANDF_D10__GPIO_3_30,
+	MX51_PAD_NANDF_D10__GPIO3_30,
 
 	/* LEDS */
-	MX51_PAD_DISPB2_SER_DIN__GPIO_3_5,
-	MX51_PAD_DISPB2_SER_DIO__GPIO_3_6,
-	MX51_PAD_DISPB2_SER_CLK__GPIO_3_7,
-	MX51_PAD_DISPB2_SER_RS__GPIO_3_8,
+	MX51_PAD_DISPB2_SER_DIN__GPIO3_5,
+	MX51_PAD_DISPB2_SER_DIO__GPIO3_6,
+	MX51_PAD_DISPB2_SER_CLK__GPIO3_7,
+	MX51_PAD_DISPB2_SER_RS__GPIO3_8,
 
 	/* KPP */
 	MX51_PAD_KEY_ROW0__KEY_ROW0,
@@ -112,9 +110,25 @@ static struct pad_desc mbimx51_pads[] = {
 	MX51_PAD_KEY_COL1__KEY_COL1,
 	MX51_PAD_KEY_COL2__KEY_COL2,
 	MX51_PAD_KEY_COL3__KEY_COL3,
+
+	/* SD 1 */
+	MX51_PAD_SD1_CMD__SD1_CMD,
+	MX51_PAD_SD1_CLK__SD1_CLK,
+	MX51_PAD_SD1_DATA0__SD1_DATA0,
+	MX51_PAD_SD1_DATA1__SD1_DATA1,
+	MX51_PAD_SD1_DATA2__SD1_DATA2,
+	MX51_PAD_SD1_DATA3__SD1_DATA3,
+
+	/* SD 2 */
+	MX51_PAD_SD2_CMD__SD2_CMD,
+	MX51_PAD_SD2_CLK__SD2_CLK,
+	MX51_PAD_SD2_DATA0__SD2_DATA0,
+	MX51_PAD_SD2_DATA1__SD2_DATA1,
+	MX51_PAD_SD2_DATA2__SD2_DATA2,
+	MX51_PAD_SD2_DATA3__SD2_DATA3,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -140,7 +154,7 @@ static int mbimx51_keymap[] = {
 	KEY(3, 3, KEY_ENTER),
 };
 
-static struct matrix_keymap_data mbimx51_map_data = {
+static const struct matrix_keymap_data mbimx51_map_data __initconst = {
 	.keymap		= mbimx51_keymap,
 	.keymap_size	= ARRAY_SIZE(mbimx51_keymap),
 };
@@ -158,9 +172,11 @@ struct tsc2007_platform_data tsc2007_data = {
 
 static struct i2c_board_info mbimx51_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("tsc2007", 0x48),
+		I2C_BOARD_INFO("tsc2007", 0x49),
 		.irq  = MBIMX51_TSC2007_IRQ,
 		.platform_data = &tsc2007_data,
+	}, {
+		I2C_BOARD_INFO("tlv320aic23", 0x1a),
 	},
 };
 
@@ -172,8 +188,8 @@ void __init eukrea_mbimx51_baseboard_init(void)
 	mxc_iomux_v3_setup_multiple_pads(mbimx51_pads,
 					ARRAY_SIZE(mbimx51_pads));
 
-	mxc_register_device(&mxc_uart_device1, NULL);
-	mxc_register_device(&mxc_uart_device2, &uart_pdata);
+	imx51_add_imx_uart(1, NULL);
+	imx51_add_imx_uart(2, &uart_pdata);
 
 	gpio_request(MBIMX51_LED0, "LED0");
 	gpio_direction_output(MBIMX51_LED0, 1);
@@ -190,11 +206,14 @@ void __init eukrea_mbimx51_baseboard_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_register_device(&mxc_keypad_device, &mbimx51_map_data);
+	imx51_add_imx_keypad(&mbimx51_map_data);
 
 	gpio_request(MBIMX51_TSC2007_GPIO, "tsc2007_irq");
 	gpio_direction_input(MBIMX51_TSC2007_GPIO);
-	set_irq_type(MBIMX51_TSC2007_IRQ, IRQF_TRIGGER_FALLING);
+	irq_set_irq_type(MBIMX51_TSC2007_IRQ, IRQF_TRIGGER_FALLING);
 	i2c_register_board_info(1, mbimx51_i2c_devices,
 				ARRAY_SIZE(mbimx51_i2c_devices));
+
+	imx51_add_sdhci_esdhc_imx(0, NULL);
+	imx51_add_sdhci_esdhc_imx(1, NULL);
 }

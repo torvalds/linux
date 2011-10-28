@@ -21,9 +21,8 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
 #include <linux/io.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
-#include <mach/clkdev.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
 #include <asm/irq.h>
@@ -145,11 +144,14 @@ static struct clk_lookup lookups[] = {
 	}
 };
 
+void __init integrator_init_early(void)
+{
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
+}
+
 static int __init integrator_init(void)
 {
 	int i;
-
-	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

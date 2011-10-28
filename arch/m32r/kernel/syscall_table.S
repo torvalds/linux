@@ -324,3 +324,4 @@ ENTRY(sys_call_table)
 	.long sys_ni_syscall
 	.long sys_eventfd
 	.long sys_fallocate
+	.long sys_setns			/* 325 */

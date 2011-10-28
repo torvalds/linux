@@ -147,8 +147,6 @@ struct hfs_sb_info {
 	u16 blockoffset;
 
 	int fs_div;
-
-	struct hlist_head rsrc_inodes;
 };
 
 #define HFS_FLG_BITMAP_DIRTY	0
@@ -215,10 +213,14 @@ extern int hfs_part_find(struct super_block *, sector_t *, sector_t *);
 /* string.c */
 extern const struct dentry_operations hfs_dentry_operations;
 
-extern int hfs_hash_dentry(struct dentry *, struct qstr *);
+extern int hfs_hash_dentry(const struct dentry *, const struct inode *,
+		struct qstr *);
 extern int hfs_strcmp(const unsigned char *, unsigned int,
 		      const unsigned char *, unsigned int);
-extern int hfs_compare_dentry(struct dentry *, struct qstr *, struct qstr *);
+extern int hfs_compare_dentry(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name);
 
 /* trans.c */
 extern void hfs_asc2mac(struct super_block *, struct hfs_name *, struct qstr *);
@@ -252,17 +254,6 @@ static inline void hfs_bitmap_dirty(struct super_block *sb)
 {
 	set_bit(HFS_FLG_BITMAP_DIRTY, &HFS_SB(sb)->flags);
 	sb->s_dirt = 1;
-}
-
-static inline void hfs_buffer_sync(struct buffer_head *bh)
-{
-	while (buffer_locked(bh)) {
-		wait_on_buffer(bh);
-	}
-	if (buffer_dirty(bh)) {
-		ll_rw_block(WRITE, 1, &bh);
-		wait_on_buffer(bh);
-	}
 }
 
 #define sb_bread512(sb, sec, data) ({			\

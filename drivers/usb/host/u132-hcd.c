@@ -316,7 +316,6 @@ static void u132_ring_requeue_work(struct u132 *u132, struct u132_ring *ring,
 	} else if (queue_delayed_work(workqueue, &ring->scheduler, 0))
 		return;
 	kref_put(&u132->kref, u132_hcd_delete);
-	return;
 }
 
 static void u132_ring_queue_work(struct u132 *u132, struct u132_ring *ring,
@@ -324,7 +323,6 @@ static void u132_ring_queue_work(struct u132 *u132, struct u132_ring *ring,
 {
 	kref_get(&u132->kref);
 	u132_ring_requeue_work(u132, ring, delta);
-	return;
 }
 
 static void u132_ring_cancel_work(struct u132 *u132, struct u132_ring *ring)
@@ -543,7 +541,6 @@ static void u132_hcd_giveback_urb(struct u132 *u132, struct u132_endp *endp,
 	mutex_unlock(&u132->scheduler_lock);
 	u132_endp_put_kref(u132, endp);
 	usb_hcd_giveback_urb(hcd, urb, status);
-	return;
 }
 
 static void u132_hcd_forget_urb(struct u132 *u132, struct u132_endp *endp,
@@ -574,8 +571,8 @@ static void u132_hcd_abandon_urb(struct u132 *u132, struct u132_endp *endp,
 		endp->active = 0;
 		spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
 		kfree(urbq);
-	} usb_hcd_giveback_urb(hcd, urb, status);
-	return;
+	}
+	usb_hcd_giveback_urb(hcd, urb, status);
 }
 
 static inline int edset_input(struct u132 *u132, struct u132_ring *ring,
@@ -2607,13 +2604,14 @@ static int u132_roothub_descriptor(struct u132 *u132,
 	retval = u132_read_pcimem(u132, roothub.b, &rh_b);
 	if (retval)
 		return retval;
-	memset(desc->bitmap, 0xff, sizeof(desc->bitmap));
-	desc->bitmap[0] = rh_b & RH_B_DR;
+	memset(desc->u.hs.DeviceRemovable, 0xff,
+			sizeof(desc->u.hs.DeviceRemovable));
+	desc->u.hs.DeviceRemovable[0] = rh_b & RH_B_DR;
 	if (u132->num_ports > 7) {
-		desc->bitmap[1] = (rh_b & RH_B_DR) >> 8;
-		desc->bitmap[2] = 0xff;
+		desc->u.hs.DeviceRemovable[1] = (rh_b & RH_B_DR) >> 8;
+		desc->u.hs.DeviceRemovable[2] = 0xff;
 	} else
-		desc->bitmap[1] = 0xff;
+		desc->u.hs.DeviceRemovable[1] = 0xff;
 	return 0;
 }
 
@@ -3085,7 +3083,6 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
 		u132->endp[endps] = NULL;
 
 	mutex_unlock(&u132->sw_lock);
-	return;
 }
 
 static int __devinit u132_probe(struct platform_device *pdev)
@@ -3233,8 +3230,7 @@ static int __init u132_hcd_init(void)
 	mutex_init(&u132_module_lock);
 	if (usb_disabled())
 		return -ENODEV;
-	printk(KERN_INFO "driver %s built at %s on %s\n", hcd_name, __TIME__,
-		__DATE__);
+	printk(KERN_INFO "driver %s\n", hcd_name);
 	workqueue = create_singlethread_workqueue("u132");
 	retval = platform_driver_register(&u132_platform_driver);
 	return retval;

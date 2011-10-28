@@ -33,6 +33,12 @@
 #define FCOE_MAX_CMD_LEN	16	/* Supported CDB length */
 
 /*
+ * Max MTU for FCoE: 14 (FCoE header) + 24 (FC header) + 2112 (max FC payload)
+ * + 4 (FC CRC) + 4 (FCoE trailer) =  2158 bytes
+ */
+#define FCOE_MTU	2158
+
+/*
  * FIP tunable parameters.
  */
 #define FCOE_CTLR_START_DELAY	2000	/* mS after first adv. to choose FCF */
@@ -92,10 +98,12 @@ enum fip_state {
  * @timer_work:	   &work_struct for doing keep-alives and resets.
  * @recv_work:	   &work_struct for receiving FIP frames.
  * @fip_recv_list: list of received FIP frames.
+ * @flogi_req:	   clone of FLOGI request sent
  * @rnd_state:	   state for pseudo-random number generator.
  * @port_id:	   proposed or selected local-port ID.
  * @user_mfs:	   configured maximum FC frame size, including FC header.
  * @flogi_oxid:    exchange ID of most recent fabric login.
+ * @flogi_req_send: send of FLOGI requested
  * @flogi_count:   number of FLOGI attempts in AUTO mode.
  * @map_dest:	   use the FC_MAP mode for destination MAC addresses.
  * @spma:	   supports SPMA server-provided MACs mode
@@ -106,6 +114,7 @@ enum fip_state {
  * @update_mac:    LLD-supplied function to handle changes to MAC addresses.
  * @get_src_addr:  LLD-supplied function to supply a source MAC address.
  * @ctlr_mutex:	   lock protecting this structure.
+ * @ctlr_lock:     spinlock covering flogi_req
  *
  * This structure is used by all FCoE drivers.  It contains information
  * needed by all FCoE low-level drivers (LLDs) as well as internal state
@@ -126,12 +135,14 @@ struct fcoe_ctlr {
 	struct work_struct timer_work;
 	struct work_struct recv_work;
 	struct sk_buff_head fip_recv_list;
+	struct sk_buff *flogi_req;
 
 	struct rnd_state rnd_state;
 	u32 port_id;
 
 	u16 user_mfs;
 	u16 flogi_oxid;
+	u8 flogi_req_send;
 	u8 flogi_count;
 	u8 map_dest;
 	u8 spma;
@@ -143,6 +154,7 @@ struct fcoe_ctlr {
 	void (*update_mac)(struct fc_lport *, u8 *addr);
 	u8 * (*get_src_addr)(struct fc_lport *);
 	struct mutex ctlr_mutex;
+	spinlock_t ctlr_lock;
 };
 
 /**
@@ -155,6 +167,7 @@ struct fcoe_ctlr {
  * @fcf_mac:	 Ethernet address of the FCF
  * @vfid:	 virtual fabric ID
  * @pri:	 selection priority, smaller values are better
+ * @flogi_sent:	 current FLOGI sent to this FCF
  * @flags:	 flags received from advertisement
  * @fka_period:	 keep-alive period, in jiffies
  *
@@ -176,6 +189,7 @@ struct fcoe_fcf {
 	u8 fcf_mac[ETH_ALEN];
 
 	u8 pri;
+	u8 flogi_sent;
 	u16 flags;
 	u32 fka_period;
 	u8 fd_flags:1;
@@ -213,6 +227,8 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *, struct fc_lport *,
 u64 fcoe_wwn_from_mac(unsigned char mac[], unsigned int, unsigned int);
 int fcoe_libfc_config(struct fc_lport *, struct fcoe_ctlr *,
 		      const struct libfc_function_template *, int init_fcp);
+u32 fcoe_fc_crc(struct fc_frame *fp);
+int fcoe_start_io(struct sk_buff *skb);
 
 /**
  * is_fip_mode() - returns true if FIP mode selected.
@@ -223,5 +239,102 @@ static inline bool is_fip_mode(struct fcoe_ctlr *fip)
 	return fip->state == FIP_ST_ENABLED;
 }
 
+/* helper for FCoE SW HBA drivers, can include subven and subdev if needed. The
+ * modpost would use pci_device_id table to auto-generate formatted module alias
+ * into the corresponding .mod.c file, but there may or may not be a pci device
+ * id table for FCoE drivers so we use the following helper for build the fcoe
+ * driver module alias.
+ */
+#define MODULE_ALIAS_FCOE_PCI(ven, dev) \
+	MODULE_ALIAS("fcoe-pci:"	\
+		"v" __stringify(ven)	\
+		"d" __stringify(dev) "sv*sd*bc*sc*i*")
+
+/* the name of the default FCoE transport driver fcoe.ko */
+#define FCOE_TRANSPORT_DEFAULT	"fcoe"
+
+/* struct fcoe_transport - The FCoE transport interface
+ * @name:	a vendor specific name for their FCoE transport driver
+ * @attached:	whether this transport is already attached
+ * @list:	list linkage to all attached transports
+ * @match:	handler to allow the transport driver to match up a given netdev
+ * @create:	handler to sysfs entry of create for FCoE instances
+ * @destroy:	handler to sysfs entry of destroy for FCoE instances
+ * @enable:	handler to sysfs entry of enable for FCoE instances
+ * @disable:	handler to sysfs entry of disable for FCoE instances
+ */
+struct fcoe_transport {
+	char name[IFNAMSIZ];
+	bool attached;
+	struct list_head list;
+	bool (*match) (struct net_device *device);
+	int (*create) (struct net_device *device, enum fip_state fip_mode);
+	int (*destroy) (struct net_device *device);
+	int (*enable) (struct net_device *device);
+	int (*disable) (struct net_device *device);
+};
+
+/**
+ * struct fcoe_percpu_s - The context for FCoE receive thread(s)
+ * @thread:	    The thread context
+ * @fcoe_rx_list:   The queue of pending packets to process
+ * @page:	    The memory page for calculating frame trailer CRCs
+ * @crc_eof_offset: The offset into the CRC page pointing to available
+ *		    memory for a new trailer
+ */
+struct fcoe_percpu_s {
+	struct task_struct *thread;
+	struct sk_buff_head fcoe_rx_list;
+	struct page *crc_eof_page;
+	int crc_eof_offset;
+};
+
+/**
+ * struct fcoe_port - The FCoE private structure
+ * @priv:		       The associated fcoe interface. The structure is
+ *			       defined by the low level driver
+ * @lport:		       The associated local port
+ * @fcoe_pending_queue:	       The pending Rx queue of skbs
+ * @fcoe_pending_queue_active: Indicates if the pending queue is active
+ * @max_queue_depth:	       Max queue depth of pending queue
+ * @min_queue_depth:	       Min queue depth of pending queue
+ * @timer:		       The queue timer
+ * @destroy_work:	       Handle for work context
+ *			       (to prevent RTNL deadlocks)
+ * @data_srt_addr:	       Source address for data
+ *
+ * An instance of this structure is to be allocated along with the
+ * Scsi_Host and libfc fc_lport structures.
+ */
+struct fcoe_port {
+	void		      *priv;
+	struct fc_lport	      *lport;
+	struct sk_buff_head   fcoe_pending_queue;
+	u8		      fcoe_pending_queue_active;
+	u32		      max_queue_depth;
+	u32		      min_queue_depth;
+	struct timer_list     timer;
+	struct work_struct    destroy_work;
+	u8		      data_src_addr[ETH_ALEN];
+};
+void fcoe_clean_pending_queue(struct fc_lport *);
+void fcoe_check_wait_queue(struct fc_lport *lport, struct sk_buff *skb);
+void fcoe_queue_timer(ulong lport);
+int fcoe_get_paged_crc_eof(struct sk_buff *skb, int tlen,
+			   struct fcoe_percpu_s *fps);
+
+/**
+ * struct netdev_list
+ * A mapping from netdevice to fcoe_transport
+ */
+struct fcoe_netdev_mapping {
+	struct list_head list;
+	struct net_device *netdev;
+	struct fcoe_transport *ft;
+};
+
+/* fcoe transports registration and deregistration */
+int fcoe_transport_attach(struct fcoe_transport *ft);
+int fcoe_transport_detach(struct fcoe_transport *ft);
 
 #endif /* _LIBFCOE_H */

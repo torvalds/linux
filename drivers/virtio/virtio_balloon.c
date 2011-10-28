@@ -40,9 +40,6 @@ struct virtio_balloon
 	/* Waiting for host to ack the pages we released. */
 	struct completion acked;
 
-	/* Do we have to tell Host *before* we reuse pages? */
-	bool tell_host_first;
-
 	/* The pages we've told the Host we're not using. */
 	unsigned int num_pages;
 	struct list_head pages;
@@ -151,13 +148,14 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
 		vb->num_pages--;
 	}
 
-	if (vb->tell_host_first) {
-		tell_host(vb, vb->deflate_vq);
-		release_pages_by_pfn(vb->pfns, vb->num_pfns);
-	} else {
-		release_pages_by_pfn(vb->pfns, vb->num_pfns);
-		tell_host(vb, vb->deflate_vq);
-	}
+
+	/*
+	 * Note that if
+	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
+	 * is true, we *have* to do it in this order
+	 */
+	tell_host(vb, vb->deflate_vq);
+	release_pages_by_pfn(vb->pfns, vb->num_pfns);
 }
 
 static inline void update_stat(struct virtio_balloon *vb, int idx,
@@ -324,9 +322,6 @@ static int virtballoon_probe(struct virtio_device *vdev)
 		err = PTR_ERR(vb->thread);
 		goto out_del_vqs;
 	}
-
-	vb->tell_host_first
-		= virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
 
 	return 0;
 

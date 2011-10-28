@@ -11,7 +11,7 @@
 #include <asm/blackfin.h>
 #include <asm/dma.h>
 
-struct dma_register *dma_io_base_addr[MAX_DMA_CHANNELS] = {
+struct dma_register * const dma_io_base_addr[MAX_DMA_CHANNELS] = {
 	(struct dma_register *) DMA0_NEXT_DESC_PTR,
 	(struct dma_register *) DMA1_NEXT_DESC_PTR,
 	(struct dma_register *) DMA2_NEXT_DESC_PTR,
@@ -63,6 +63,7 @@ int channel2irq(unsigned int channel)
 		break;
 	case CH_SPORT1_TX:
 		ret_irq = IRQ_SPORT1_TX;
+		break;
 	case CH_SPI0:
 		ret_irq = IRQ_SPI0;
 		break;

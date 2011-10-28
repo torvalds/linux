@@ -24,6 +24,9 @@
 #include <mach/common.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
+#include <mach/gpio.h>
+#include <mach/irqs.h>
+#include <mach/iomux-v1.h>
 
 /* MX21 memory map definition */
 static struct map_desc imx21_io_desc[] __initdata = {
@@ -35,33 +38,18 @@ static struct map_desc imx21_io_desc[] __initdata = {
 	 * - ROM Patch
 	 * - and some reserved space
 	 */
-	{
-		.virtual = MX21_AIPI_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX21_AIPI_BASE_ADDR),
-		.length = MX21_AIPI_SIZE,
-		.type = MT_DEVICE
-	},
+	imx_map_entry(MX21, AIPI, MT_DEVICE),
 	/*
 	 * this fixed mapping covers:
 	 * - CSI
 	 * - ATA
 	 */
-	{
-		.virtual = MX21_SAHB1_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX21_SAHB1_BASE_ADDR),
-		.length = MX21_SAHB1_SIZE,
-		.type = MT_DEVICE
-	},
+	imx_map_entry(MX21, SAHB1, MT_DEVICE),
 	/*
 	 * this fixed mapping covers:
 	 * - EMI
 	 */
-	{
-		.virtual = MX21_X_MEMC_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX21_X_MEMC_BASE_ADDR),
-		.length = MX21_X_MEMC_SIZE,
-		.type = MT_DEVICE
-	},
+	imx_map_entry(MX21, X_MEMC, MT_DEVICE),
 };
 
 /*
@@ -71,16 +59,28 @@ static struct map_desc imx21_io_desc[] __initdata = {
  */
 void __init mx21_map_io(void)
 {
-	mxc_set_cpu_type(MXC_CPU_MX21);
-	mxc_arch_reset_init(MX21_IO_ADDRESS(MX21_WDOG_BASE_ADDR));
-
 	iotable_init(imx21_io_desc, ARRAY_SIZE(imx21_io_desc));
 }
 
-int imx21_register_gpios(void);
+void __init imx21_init_early(void)
+{
+	mxc_set_cpu_type(MXC_CPU_MX21);
+	mxc_arch_reset_init(MX21_IO_ADDRESS(MX21_WDOG_BASE_ADDR));
+	imx_iomuxv1_init(MX21_IO_ADDRESS(MX21_GPIO_BASE_ADDR),
+			MX21_NUM_GPIO_PORT);
+}
+
+static struct mxc_gpio_port imx21_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX21, 0, 1, MX21_INT_GPIO),
+	DEFINE_IMX_GPIO_PORT(MX21, 1, 2),
+	DEFINE_IMX_GPIO_PORT(MX21, 2, 3),
+	DEFINE_IMX_GPIO_PORT(MX21, 3, 4),
+	DEFINE_IMX_GPIO_PORT(MX21, 4, 5),
+	DEFINE_IMX_GPIO_PORT(MX21, 5, 6),
+};
 
 void __init mx21_init_irq(void)
 {
 	mxc_init_irq(MX21_IO_ADDRESS(MX21_AVIC_BASE_ADDR));
-	imx21_register_gpios();
+	mxc_gpio_init(imx21_gpio_ports,	ARRAY_SIZE(imx21_gpio_ports));
 }

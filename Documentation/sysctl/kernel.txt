@@ -28,11 +28,13 @@ show up in /proc/sys/kernel:
 - core_uses_pid
 - ctrl-alt-del
 - dentry-state
+- dmesg_restrict
 - domainname
 - hostname
 - hotplug
 - java-appletviewer           [ binfmt_java, obsolete ]
 - java-interpreter            [ binfmt_java, obsolete ]
+- kptr_restrict
 - kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
 - modprobe                    ==> Documentation/debugging-modules.txt
@@ -159,7 +161,8 @@ core_pattern is used to specify a core dumpfile pattern name.
 	%s	signal number
 	%t	UNIX time of dump
 	%h	hostname
-	%e	executable filename
+	%e	executable filename (may be shortened)
+	%E	executable path
 	%<OTHER> both are dropped
 . If the first character of the pattern is a '|', the kernel will treat
   the rest of the pattern as a command to run.  The core dump will be
@@ -213,6 +216,19 @@ to decide what to do with it.
 
 ==============================================================
 
+dmesg_restrict:
+
+This toggle indicates whether unprivileged users are prevented from using
+dmesg(8) to view messages from the kernel's log buffer.  When
+dmesg_restrict is set to (0) there are no restrictions.  When
+dmesg_restrict is set set to (1), users must have CAP_SYSLOG to use
+dmesg(8).
+
+The kernel config option CONFIG_SECURITY_DMESG_RESTRICT sets the default
+value of dmesg_restrict.
+
+==============================================================
+
 domainname & hostname:
 
 These files can be used to set the NIS/YP domainname and the
@@ -244,6 +260,19 @@ l2cr: (PPC only)
 
 This flag controls the L2 cache of G3 processor boards. If
 0, the cache is disabled. Enabled if nonzero.
+
+==============================================================
+
+kptr_restrict:
+
+This toggle indicates whether restrictions are placed on
+exposing kernel addresses via /proc and other interfaces.  When
+kptr_restrict is set to (0), there are no restrictions.  When
+kptr_restrict is set to (1), the default, kernel pointers
+printed using the %pK format specifier will be replaced with 0's
+unless the user has CAP_SYSLOG.  When kptr_restrict is set to
+(2), kernel pointers printed using %pK will be replaced with 0's
+regardless of privileges.
 
 ==============================================================
 
@@ -339,7 +368,7 @@ the different loglevels.
 
 - console_loglevel: messages with a higher priority than
   this will be printed to the console
-- default_message_level: messages without an explicit priority
+- default_message_loglevel: messages without an explicit priority
   will be printed with this priority
 - minimum_console_loglevel: minimum (highest) value to which
   console_loglevel can be set

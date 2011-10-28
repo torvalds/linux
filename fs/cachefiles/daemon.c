@@ -55,6 +55,7 @@ const struct file_operations cachefiles_daemon_fops = {
 	.read		= cachefiles_daemon_read,
 	.write		= cachefiles_daemon_write,
 	.poll		= cachefiles_daemon_poll,
+	.llseek		= noop_llseek,
 };
 
 struct cachefiles_daemon_cmd {

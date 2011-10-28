@@ -86,7 +86,7 @@ int kdb_stub(struct kgdb_state *ks)
 	}
 	/* Set initial kdb state variables */
 	KDB_STATE_CLEAR(KGDB_TRANS);
-	kdb_initial_cpu = ks->cpu;
+	kdb_initial_cpu = atomic_read(&kgdb_active);
 	kdb_current_task = kgdb_info[ks->cpu].task;
 	kdb_current_regs = kgdb_info[ks->cpu].debuggerinfo;
 	/* Remove any breakpoints as needed by kdb and clear single step */
@@ -105,7 +105,6 @@ int kdb_stub(struct kgdb_state *ks)
 		ks->pass_exception = 1;
 		KDB_FLAG_SET(CATASTROPHIC);
 	}
-	kdb_initial_cpu = ks->cpu;
 	if (KDB_STATE(SSBPT) && reason == KDB_REASON_SSTEP) {
 		KDB_STATE_CLEAR(SSBPT);
 		KDB_STATE_CLEAR(DOING_SS);

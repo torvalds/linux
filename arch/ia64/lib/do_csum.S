@@ -201,7 +201,7 @@ GLOBAL_ENTRY(do_csum)
 	;;
 (p6)	adds result1[0]=1,result1[0]
 (p9)	br.cond.sptk .do_csum_exit	// if (count == 1) exit
-	// Fall through to caluculate the checksum, feeding result1[0] as
+	// Fall through to calculate the checksum, feeding result1[0] as
 	// the initial value in result1[0].
 	//
 	// Calculate the checksum loading two 8-byte words per loop.

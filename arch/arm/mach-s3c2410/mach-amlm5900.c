@@ -58,8 +58,6 @@
 #include <plat/cpu.h>
 #include <plat/gpio-cfg.h>
 
-#ifdef CONFIG_MTD_PARTITIONS
-
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/map.h>
@@ -113,7 +111,6 @@ static struct platform_device amlm5900_device_nor = {
 	.num_resources	= 1,
 	.resource	= &amlm5900_nor_resource,
 };
-#endif
 
 static struct map_desc amlm5900_iodesc[] __initdata = {
 };
@@ -158,9 +155,7 @@ static struct platform_device *amlm5900_devices[] __initdata = {
  	&s3c_device_rtc,
 	&s3c_device_usbgadget,
         &s3c_device_sdi,
-#ifdef CONFIG_MTD_PARTITIONS
 	&amlm5900_device_nor,
-#endif
 };
 
 static void __init amlm5900_map_io(void)
@@ -241,8 +236,6 @@ static void __init amlm5900_init(void)
 }
 
 MACHINE_START(AML_M5900, "AML_M5900")
-	.phys_io	= S3C2410_PA_UART,
-	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= amlm5900_map_io,
 	.init_irq	= s3c24xx_init_irq,

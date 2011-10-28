@@ -220,6 +220,14 @@ module_param_call(trace_state, param_set_trace_state, param_get_trace_state,
 		  NULL, 0644);
 #endif /* CONFIG_ACPI_DEBUG */
 
+
+/* /sys/modules/acpi/parameters/aml_debug_output */
+
+module_param_named(aml_debug_output, acpi_gbl_enable_aml_debug_object,
+		   bool, 0644);
+MODULE_PARM_DESC(aml_debug_output,
+		 "To enable/disable the ACPI Debug Object output.");
+
 /* /sys/module/acpi/parameters/acpica_version */
 static int param_get_acpica_version(char *buffer, struct kernel_param *kp)
 {
@@ -438,7 +446,7 @@ static void delete_gpe_attr_array(void)
 	return;
 }
 
-void acpi_os_gpe_count(u32 gpe_number)
+static void gpe_count(u32 gpe_number)
 {
 	acpi_gpe_count++;
 
@@ -454,7 +462,7 @@ void acpi_os_gpe_count(u32 gpe_number)
 	return;
 }
 
-void acpi_os_fixed_event_count(u32 event_number)
+static void fixed_event_count(u32 event_number)
 {
 	if (!all_counters)
 		return;
@@ -466,6 +474,16 @@ void acpi_os_fixed_event_count(u32 event_number)
 			     COUNT_ERROR].count++;
 
 	return;
+}
+
+static void acpi_gbl_event_handler(u32 event_type, acpi_handle device,
+	u32 event_number, void *context)
+{
+	if (event_type == ACPI_EVENT_TYPE_GPE)
+		gpe_count(event_number);
+
+	if (event_type == ACPI_EVENT_TYPE_FIXED)
+		fixed_event_count(event_number);
 }
 
 static int get_status(u32 index, acpi_event_status *status,
@@ -601,6 +619,7 @@ end:
 
 void acpi_irq_stats_init(void)
 {
+	acpi_status status;
 	int i;
 
 	if (all_counters)
@@ -617,6 +636,10 @@ void acpi_irq_stats_init(void)
 	all_counters = kzalloc(sizeof(struct event_counter) * (num_counters),
 			       GFP_KERNEL);
 	if (all_counters == NULL)
+		goto fail;
+
+	status = acpi_install_global_event_handler(acpi_gbl_event_handler, NULL);
+	if (ACPI_FAILURE(status))
 		goto fail;
 
 	counter_attrs = kzalloc(sizeof(struct kobj_attribute) * (num_counters),

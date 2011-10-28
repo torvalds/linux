@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -308,7 +308,7 @@ out_no_read:
  *
  *  Initializes the hw->mbx struct to correct values for vf mailbox
  */
-s32 ixgbevf_init_mbx_params_vf(struct ixgbe_hw *hw)
+static s32 ixgbevf_init_mbx_params_vf(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 

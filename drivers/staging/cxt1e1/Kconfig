@@ -18,5 +18,5 @@ config SBE_PMCC4_NCOMM
 	---help---
       SBE supplies optional support for NCOMM products.
 
-      If you have purchased this optional support you must say Y or M
+      If you have purchased this optional support you must say Y
       here to allow the driver to operate with the NCOMM product.

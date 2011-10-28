@@ -163,8 +163,6 @@ static void __init snappercl15_init_machine(void)
 
 MACHINE_START(SNAPPER_CL15, "Bluewater Systems Snapper CL15")
 	/* Maintainer: Ryan Mallon <ryan@bluewatersys.com> */
-	.phys_io	= EP93XX_APB_PHYS_BASE,
-	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE0_PHYS_BASE + 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,

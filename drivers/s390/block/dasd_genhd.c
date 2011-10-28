@@ -73,7 +73,7 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 	if (base->features & DASD_FEATURE_READONLY ||
 	    test_bit(DASD_FLAG_DEVICE_RO, &base->flags))
 		set_disk_ro(gdp, 1);
-	gdp->private_data = block;
+	dasd_add_link_to_gendisk(gdp, base);
 	gdp->queue = block->request_queue;
 	block->gdp = gdp;
 	set_capacity(block->gdp, 0);
@@ -103,7 +103,7 @@ int dasd_scan_partitions(struct dasd_block *block)
 	struct block_device *bdev;
 
 	bdev = bdget_disk(block->gdp, 0);
-	if (!bdev || blkdev_get(bdev, FMODE_READ) < 0)
+	if (!bdev || blkdev_get(bdev, FMODE_READ, NULL) < 0)
 		return -ENODEV;
 	/*
 	 * See fs/partition/check.c:register_disk,rescan_partitions

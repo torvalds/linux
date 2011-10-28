@@ -12,7 +12,7 @@
 /**
  * struct mcp251x_platform_data - MCP251X SPI CAN controller platform data
  * @oscillator_frequency:       - oscillator frequency in Hz
- * @model:                      - actual type of chip
+ * @irq_flags:                  - IRQF configuration flags
  * @board_specific_setup:       - called before probing the chip (power,reset)
  * @transceiver_enable:         - called to power on/off the transceiver
  * @power_enable:               - called to power on/off the mcp *and* the
@@ -25,9 +25,7 @@
 
 struct mcp251x_platform_data {
 	unsigned long oscillator_frequency;
-	int model;
-#define CAN_MCP251X_MCP2510 0x2510
-#define CAN_MCP251X_MCP2515 0x2515
+	unsigned long irq_flags;
 	int (*board_specific_setup)(struct spi_device *spi);
 	int (*transceiver_enable)(int enable);
 	int (*power_enable) (int enable);

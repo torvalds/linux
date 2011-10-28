@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2008 STMicroelectronics
  * Copyright (C) 2010 Alessandro Rubini
+ * Copyright (C) 2010 Linus Walleij for ST-Ericsson
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2, as
@@ -16,48 +17,36 @@
 #include <linux/clk.h>
 #include <linux/jiffies.h>
 #include <linux/err.h>
+#include <linux/sched.h>
 #include <asm/mach/time.h>
+#include <asm/sched_clock.h>
 
 #include <plat/mtu.h>
 
-void __iomem *mtu_base; /* ssigned by machine code */
-
-/*
- * Kernel assumes that sched_clock can be called early
- * but the MTU may not yet be initialized.
- */
-static cycle_t nmdk_read_timer_dummy(struct clocksource *cs)
-{
-	return 0;
-}
-
-/* clocksource: MTU decrements, so we negate the value being read. */
-static cycle_t nmdk_read_timer(struct clocksource *cs)
-{
-	return -readl(mtu_base + MTU_VAL(0));
-}
-
-static struct clocksource nmdk_clksrc = {
-	.name		= "mtu_0",
-	.rating		= 200,
-	.read		= nmdk_read_timer_dummy,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
+void __iomem *mtu_base; /* Assigned by machine code */
 
 /*
  * Override the global weak sched_clock symbol with this
  * local implementation which uses the clocksource to get some
- * better resolution when scheduling the kernel. We accept that
- * this wraps around for now, since it is just a relative time
- * stamp. (Inspired by OMAP implementation.)
+ * better resolution when scheduling the kernel.
  */
+static DEFINE_CLOCK_DATA(cd);
+
 unsigned long long notrace sched_clock(void)
 {
-	return clocksource_cyc2ns(nmdk_clksrc.read(
-				  &nmdk_clksrc),
-				  nmdk_clksrc.mult,
-				  nmdk_clksrc.shift);
+	u32 cyc;
+
+	if (unlikely(!mtu_base))
+		return 0;
+
+	cyc = -readl(mtu_base + MTU_VAL(0));
+	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
+}
+
+static void notrace nomadik_update_sched_clock(void)
+{
+	u32 cyc = -readl(mtu_base + MTU_VAL(0));
+	update_sched_clock(&cd, cyc, (u32)~0);
 }
 
 /* Clockevent device: use one-shot mode */
@@ -153,7 +142,6 @@ void __init nmdk_timer_init(void)
 	} else {
 		cr |= MTU_CRn_PRESCALE_1;
 	}
-	clocksource_calc_mult_shift(&nmdk_clksrc, rate, MTU_MIN_RANGE);
 
 	/* Timer 0 is the free running clocksource */
 	writel(cr, mtu_base + MTU_CR(0));
@@ -161,12 +149,12 @@ void __init nmdk_timer_init(void)
 	writel(0, mtu_base + MTU_BGLR(0));
 	writel(cr | MTU_CRn_ENA, mtu_base + MTU_CR(0));
 
-	/* Now the scheduling clock is ready */
-	nmdk_clksrc.read = nmdk_read_timer;
-
-	if (clocksource_register(&nmdk_clksrc))
+	if (clocksource_mmio_init(mtu_base + MTU_VAL(0), "mtu_0",
+			rate, 200, 32, clocksource_mmio_readl_down))
 		pr_err("timer: failed to initialize clock source %s\n",
-		       nmdk_clksrc.name);
+		       "mtu_0");
+
+	init_sched_clock(&cd, nomadik_update_sched_clock, 32, rate);
 
 	/* Timer 1 is used for events */
 

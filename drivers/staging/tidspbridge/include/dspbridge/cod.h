@@ -27,9 +27,6 @@
 #define COD_TRACEBEG            "SYS_PUTCBEG"
 #define COD_TRACEEND            "SYS_PUTCEND"
 #define COD_TRACECURPOS	"BRIDGE_SYS_PUTC_current"
-#define COD_TRACESECT           "trace"
-#define COD_TRACEBEGOLD         "PUTCBEG"
-#define COD_TRACEENDOLD         "PUTCEND"
 
 #define COD_NOLOAD              DBLL_NOLOAD
 #define COD_SYMB                DBLL_SYMB
@@ -39,11 +36,6 @@ struct cod_manager;
 
 /* COD library handle */
 struct cod_libraryobj;
-
-/* COD attributes */
-struct cod_attrs {
-	u32 ul_reserved;
-};
 
 /*
  *  Function prototypes for writing memory to a DSP system, allocating
@@ -79,8 +71,6 @@ extern void cod_close(struct cod_libraryobj *lib);
  *  Parameters:
  *      manager:        created manager object
  *      str_zl_file:    ZL DLL filename, of length < COD_MAXPATHLENGTH.
- *      attrs:          attributes to be used by this object. A NULL value
- *                      will cause default attrs to be used.
  *  Returns:
  *      0:                Success.
  *      -ESPIPE:   ZL_Create failed.
@@ -92,8 +82,7 @@ extern void cod_close(struct cod_libraryobj *lib);
  *  Ensures:
  */
 extern int cod_create(struct cod_manager **mgr,
-			     char *str_zl_file,
-			     const struct cod_attrs *attrs);
+			     char *str_zl_file);
 
 /*
  *  ======== cod_delete ========
@@ -260,7 +249,7 @@ extern int cod_get_sym_value(struct cod_manager *cod_mgr_obj,
  *  Parameters:
  *      None.
  *  Returns:
- *      TRUE if initialized; FALSE if error occured.
+ *      TRUE if initialized; FALSE if error occurred.
  *  Requires:
  *  Ensures:
  *      A requirement for each of the other public COD functions.

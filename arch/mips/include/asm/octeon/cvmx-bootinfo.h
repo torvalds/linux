@@ -200,7 +200,7 @@ enum cvmx_chip_types_enum {
 	CVMX_CHIP_TYPE_MAX,
 };
 
-/* Compatability alias for NAC38 name change, planned to be removed
+/* Compatibility alias for NAC38 name change, planned to be removed
  * from SDK 1.7 */
 #define CVMX_BOARD_TYPE_NAO38	CVMX_BOARD_TYPE_NAC38
 

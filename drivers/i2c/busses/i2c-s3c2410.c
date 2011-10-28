@@ -24,7 +24,6 @@
 #include <linux/module.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
@@ -249,12 +248,12 @@ static inline int is_msgend(struct s3c24xx_i2c *i2c)
 	return i2c->msg_ptr >= i2c->msg->len;
 }
 
-/* i2s_s3c_irq_nextbyte
+/* i2c_s3c_irq_nextbyte
  *
  * process an interrupt and work out what to do
  */
 
-static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
+static int i2c_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 {
 	unsigned long tmp;
 	unsigned char byte;
@@ -265,7 +264,6 @@ static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 	case STATE_IDLE:
 		dev_err(i2c->dev, "%s: called in STATE_IDLE\n", __func__);
 		goto out;
-		break;
 
 	case STATE_STOP:
 		dev_err(i2c->dev, "%s: called in STATE_STOP\n", __func__);
@@ -445,7 +443,7 @@ static irqreturn_t s3c24xx_i2c_irq(int irqno, void *dev_id)
 	/* pretty much this leaves us with the fact that we've
 	 * transmitted or received whatever byte we last sent */
 
-	i2s_s3c_irq_nextbyte(i2c, status);
+	i2c_s3c_irq_nextbyte(i2c, status);
 
  out:
 	return IRQ_HANDLED;
@@ -555,18 +553,23 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	int retry;
 	int ret;
 
+	clk_enable(i2c->clk);
+
 	for (retry = 0; retry < adap->retries; retry++) {
 
 		ret = s3c24xx_i2c_doxfer(i2c, msgs, num);
 
-		if (ret != -EAGAIN)
+		if (ret != -EAGAIN) {
+			clk_disable(i2c->clk);
 			return ret;
+		}
 
 		dev_dbg(i2c->dev, "Retrying transmission (%d)\n", retry);
 
 		udelay(100);
 	}
 
+	clk_disable(i2c->clk);
 	return -EREMOTEIO;
 }
 
@@ -911,6 +914,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, i2c);
 
 	dev_info(&pdev->dev, "%s: S3C I2C adapter\n", dev_name(&i2c->adap.dev));
+	clk_disable(i2c->clk);
 	return 0;
 
  err_cpufreq:
@@ -978,7 +982,9 @@ static int s3c24xx_i2c_resume(struct device *dev)
 	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 0;
+	clk_enable(i2c->clk);
 	s3c24xx_i2c_init(i2c);
+	clk_disable(i2c->clk);
 
 	return 0;
 }

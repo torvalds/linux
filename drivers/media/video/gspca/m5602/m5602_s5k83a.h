@@ -35,7 +35,7 @@
 #define S5K83A_MAXIMUM_EXPOSURE		0x3c
 #define S5K83A_FLIP_MASK		0x10
 #define S5K83A_GPIO_LED_MASK		0x10
-#define S5K83A_GPIO_ROTATION_MASK 	0x40
+#define S5K83A_GPIO_ROTATION_MASK	0x40
 
 /*****************************************************************************/
 
@@ -67,8 +67,7 @@ struct s5k83a_priv {
 	s32 *settings;
 };
 
-static const unsigned char preinit_s5k83a[][4] =
-{
+static const unsigned char preinit_s5k83a[][4] = {
 	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02, 0x00},
 	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
@@ -108,8 +107,7 @@ static const unsigned char preinit_s5k83a[][4] =
 /* This could probably be considerably shortened.
    I don't have the hardware to experiment with it, patches welcome
 */
-static const unsigned char init_s5k83a[][4] =
-{
+static const unsigned char init_s5k83a[][4] = {
 	/* The following sequence is useless after a clean boot
 	   but is necessary after resume from suspend */
 	{BRIDGE, M5602_XB_GPIO_DIR, 0x1d, 0x00},
@@ -166,8 +164,7 @@ static const unsigned char init_s5k83a[][4] =
 	{SENSOR, 0x00, 0x06, 0x00},
 };
 
-static const unsigned char start_s5k83a[][4] =
-{
+static const unsigned char start_s5k83a[][4] = {
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x06, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0, 0x00},
 	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0, 0x00},
@@ -193,5 +190,4 @@ static const unsigned char start_s5k83a[][4] =
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0, 0x00},
 };
-
 #endif

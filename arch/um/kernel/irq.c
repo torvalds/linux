@@ -18,50 +18,6 @@
 #include "os.h"
 
 /*
- * Generic, controller-independent functions:
- */
-
-int show_interrupts(struct seq_file *p, void *v)
-{
-	int i = *(loff_t *) v, j;
-	struct irqaction * action;
-	unsigned long flags;
-
-	if (i == 0) {
-		seq_printf(p, "           ");
-		for_each_online_cpu(j)
-			seq_printf(p, "CPU%d       ",j);
-		seq_putc(p, '\n');
-	}
-
-	if (i < NR_IRQS) {
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
-		if (!action)
-			goto skip;
-		seq_printf(p, "%3d: ",i);
-#ifndef CONFIG_SMP
-		seq_printf(p, "%10u ", kstat_irqs(i));
-#else
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-#endif
-		seq_printf(p, " %14s", irq_desc[i].chip->typename);
-		seq_printf(p, "  %s", action->name);
-
-		for (action=action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-
-		seq_putc(p, '\n');
-skip:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS)
-		seq_putc(p, '\n');
-
-	return 0;
-}
-
-/*
  * This list is accessed under irq_lock, except in sigio_handler,
  * where it is safe from being modified.  IRQ handlers won't change it -
  * if an IRQ source has vanished, it will be freed by free_irqs just
@@ -334,7 +290,7 @@ unsigned int do_IRQ(int irq, struct uml_pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs((struct pt_regs *)regs);
 	irq_enter();
-	__do_IRQ(irq);
+	generic_handle_irq(irq);
 	irq_exit();
 	set_irq_regs(old_regs);
 	return 1;
@@ -360,49 +316,38 @@ EXPORT_SYMBOL(um_request_irq);
 EXPORT_SYMBOL(reactivate_fd);
 
 /*
- * irq_chip must define (startup || enable) &&
- * (shutdown || disable) && end
+ * irq_chip must define at least enable/disable and ack when
+ * the edge handler is used.
  */
-static void dummy(unsigned int irq)
+static void dummy(struct irq_data *d)
 {
 }
 
 /* This is used for everything else than the timer. */
 static struct irq_chip normal_irq_type = {
-	.typename = "SIGIO",
+	.name = "SIGIO",
 	.release = free_irq_by_irq_and_dev,
-	.disable = dummy,
-	.enable = dummy,
-	.ack = dummy,
-	.end = dummy
+	.irq_disable = dummy,
+	.irq_enable = dummy,
+	.irq_ack = dummy,
 };
 
 static struct irq_chip SIGVTALRM_irq_type = {
-	.typename = "SIGVTALRM",
+	.name = "SIGVTALRM",
 	.release = free_irq_by_irq_and_dev,
-	.shutdown = dummy, /* never called */
-	.disable = dummy,
-	.enable = dummy,
-	.ack = dummy,
-	.end = dummy
+	.irq_disable = dummy,
+	.irq_enable = dummy,
+	.irq_ack = dummy,
 };
 
 void __init init_IRQ(void)
 {
 	int i;
 
-	irq_desc[TIMER_IRQ].status = IRQ_DISABLED;
-	irq_desc[TIMER_IRQ].action = NULL;
-	irq_desc[TIMER_IRQ].depth = 1;
-	irq_desc[TIMER_IRQ].chip = &SIGVTALRM_irq_type;
-	enable_irq(TIMER_IRQ);
-	for (i = 1; i < NR_IRQS; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 1;
-		irq_desc[i].chip = &normal_irq_type;
-		enable_irq(i);
-	}
+	irq_set_chip_and_handler(TIMER_IRQ, &SIGVTALRM_irq_type, handle_edge_irq);
+
+	for (i = 1; i < NR_IRQS; i++)
+		irq_set_chip_and_handler(i, &normal_irq_type, handle_edge_irq);
 }
 
 /*

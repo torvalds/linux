@@ -1,6 +1,4 @@
 # Put here option for CPU selection and depending optimization
-if !X86_ELAN
-
 choice
 	prompt "Processor family"
 	default M686 if X86_32
@@ -203,6 +201,14 @@ config MWINCHIP3D
 	  stores for this CPU, which can increase performance of some
 	  operations.
 
+config MELAN
+	bool "AMD Elan"
+	depends on X86_32
+	---help---
+	  Select this for an AMD Elan processor.
+
+	  Do not use this option for K6/Athlon/Opteron processors!
+
 config MGEODEGX1
 	bool "GeodeGX1"
 	depends on X86_32
@@ -292,13 +298,6 @@ config X86_GENERIC
 	  This is really intended for distributors who need more
 	  generic optimizations.
 
-endif
-
-config X86_CPU
-	def_bool y
-	select GENERIC_FIND_FIRST_BIT
-	select GENERIC_FIND_NEXT_BIT
-
 #
 # Define implied options from the CPU selection here
 config X86_INTERNODE_CACHE_SHIFT
@@ -310,11 +309,14 @@ config X86_INTERNODE_CACHE_SHIFT
 config X86_CMPXCHG
 	def_bool X86_64 || (X86_32 && !M386)
 
+config CMPXCHG_LOCAL
+	def_bool X86_64 || (X86_32 && !M386)
+
 config X86_L1_CACHE_SHIFT
 	int
 	default "7" if MPENTIUM4 || MPSC
 	default "6" if MK7 || MK8 || MPENTIUMM || MCORE2 || MATOM || MVIAC7 || X86_GENERIC || GENERIC_CPU
-	default "4" if X86_ELAN || M486 || M386 || MGEODEGX1
+	default "4" if MELAN || M486 || M386 || MGEODEGX1
 	default "5" if MWINCHIP3D || MWINCHIPC6 || MCRUSOE || MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODE_LX
 
 config X86_XADD
@@ -328,7 +330,7 @@ config X86_PPRO_FENCE
 	  Old PentiumPro multiprocessor systems had errata that could cause
 	  memory operations to violate the x86 ordering standard in rare cases.
 	  Enabling this option will attempt to work around some (but not all)
-	  occurances of this problem, at the cost of much heavier spinlock and
+	  occurrences of this problem, at the cost of much heavier spinlock and
 	  memory barrier operations.
 
 	  If unsure, say n here. Even distro kernels should think twice before
@@ -360,7 +362,7 @@ config X86_POPAD_OK
 
 config X86_ALIGNMENT_16
 	def_bool y
-	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || X86_ELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2 || MGEODEGX1
+	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || MELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2 || MGEODEGX1
 
 config X86_INTEL_USERCOPY
 	def_bool y
@@ -368,7 +370,7 @@ config X86_INTEL_USERCOPY
 
 config X86_USE_PPRO_CHECKSUM
 	def_bool y
-	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2 || MEFFICEON || MGEODE_LX || MCORE2 || MATOM
+	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2 || MVIAC7 || MEFFICEON || MGEODE_LX || MCORE2 || MATOM
 
 config X86_USE_3DNOW
 	def_bool y
@@ -421,7 +423,7 @@ config X86_DEBUGCTLMSR
 	depends on !(MK6 || MWINCHIPC6 || MWINCHIP3D || MCYRIXIII || M586MMX || M586TSC || M586 || M486 || M386) && !UML
 
 menuconfig PROCESSOR_SELECT
-	bool "Supported processor vendors" if EMBEDDED
+	bool "Supported processor vendors" if EXPERT
 	---help---
 	  This lets you choose what x86 vendor support code your kernel
 	  will include.

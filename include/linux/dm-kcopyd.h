@@ -25,8 +25,7 @@
  * To use kcopyd you must first create a dm_kcopyd_client object.
  */
 struct dm_kcopyd_client;
-int dm_kcopyd_client_create(unsigned num_pages,
-			    struct dm_kcopyd_client **result);
+struct dm_kcopyd_client *dm_kcopyd_client_create(void);
 void dm_kcopyd_client_destroy(struct dm_kcopyd_client *kc);
 
 /*

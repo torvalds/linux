@@ -518,10 +518,9 @@ static int ip6addrlbl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 static inline int ip6addrlbl_msgsize(void)
 {
-	return (NLMSG_ALIGN(sizeof(struct ifaddrlblmsg))
+	return NLMSG_ALIGN(sizeof(struct ifaddrlblmsg))
 		+ nla_total_size(16)	/* IFAL_ADDRESS */
-		+ nla_total_size(4)	/* IFAL_LABEL */
-	);
+		+ nla_total_size(4);	/* IFAL_LABEL */
 }
 
 static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh,

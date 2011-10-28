@@ -62,7 +62,7 @@ MODULE_LICENSE("GPL");
         Programmer has no control over these numbers.
         TODO there are holes - specifically  1,7,0x0a
 */
-#define VERSION_ID              0       /* Get Version (request/respose) */
+#define VERSION_ID              0       /* Get Version (request/response) */
 #define KEYBD_ID                2       /* Keyboard (event) */
 #define TOUCHS_ID               3       /* Touch Screen (event)*/
 #define EEPROM_READ_ID          4       /* (request/response) */
@@ -396,34 +396,37 @@ static int h3600ts_connect(struct serio *serio, struct serio_driver *drv)
 	set_GPIO_IRQ_edge(GPIO_BITSY_NPOWER_BUTTON, GPIO_RISING_EDGE);
 
 	if (request_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, action_button_handler,
-			IRQF_SHARED | IRQF_DISABLED, "h3600_action", &ts->dev)) {
+			IRQF_SHARED | IRQF_DISABLED, "h3600_action", ts->dev)) {
 		printk(KERN_ERR "h3600ts.c: Could not allocate Action Button IRQ!\n");
 		err = -EBUSY;
-		goto fail2;
+		goto fail1;
 	}
 
 	if (request_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, npower_button_handler,
-			IRQF_SHARED | IRQF_DISABLED, "h3600_suspend", &ts->dev)) {
+			IRQF_SHARED | IRQF_DISABLED, "h3600_suspend", ts->dev)) {
 		printk(KERN_ERR "h3600ts.c: Could not allocate Power Button IRQ!\n");
 		err = -EBUSY;
-		goto fail3;
+		goto fail2;
 	}
 
 	serio_set_drvdata(serio, ts);
 
 	err = serio_open(serio, drv);
 	if (err)
-		return err;
+		goto fail3;
 
 	//h3600_flite_control(1, 25);     /* default brightness */
-	input_register_device(ts->dev);
+	err = input_register_device(ts->dev);
+	if (err)
+		goto fail4;
 
 	return 0;
 
-fail3:	free_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, ts->dev);
+fail4:	serio_close(serio);
+fail3:	serio_set_drvdata(serio, NULL);
+	free_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, ts->dev);
 fail2:	free_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, ts->dev);
-fail1:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+fail1:	input_free_device(input_dev);
 	kfree(ts);
 	return err;
 }
@@ -436,8 +439,8 @@ static void h3600ts_disconnect(struct serio *serio)
 {
 	struct h3600_dev *ts = serio_get_drvdata(serio);
 
-	free_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, &ts->dev);
-	free_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, &ts->dev);
+	free_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, ts->dev);
+	free_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, ts->dev);
 	input_get_device(ts->dev);
 	input_unregister_device(ts->dev);
 	serio_close(serio);

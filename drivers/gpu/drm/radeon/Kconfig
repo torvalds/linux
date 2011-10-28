@@ -1,6 +1,7 @@
 config DRM_RADEON_KMS
 	bool "Enable modesetting on radeon by default - NEW DRIVER"
 	depends on DRM_RADEON
+	select BACKLIGHT_CLASS_DEVICE
 	help
 	  Choose this option if you want kernel modesetting enabled by default.
 
@@ -27,11 +28,4 @@ config DRM_RADEON_KMS
 	  The kernel will also perform security check on command stream
 	  provided by the user, we want to catch and forbid any illegal use
 	  of the GPU such as DMA into random system memory or into memory
-	  not owned by the process supplying the command stream. This part
-	  of the code is still incomplete and this why we propose that patch
-	  as a staging driver addition, future security might forbid current
-	  experimental userspace to run.
-
-	  This code support the following hardware : R1XX,R2XX,R3XX,R4XX,R5XX
-	  (radeon up to X1950). Works is underway to provide support for R6XX,
-	  R7XX and newer hardware (radeon from HD2XXX to HD4XXX).
+	  not owned by the process supplying the command stream.

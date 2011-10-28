@@ -23,6 +23,7 @@
 #define GRETH_BD_LEN 0x7FF
 
 #define GRETH_TXEN 0x1
+#define GRETH_INT_TE 0x2
 #define GRETH_INT_TX 0x8
 #define GRETH_TXI 0x4
 #define GRETH_TXBD_STATUS 0x0001C000
@@ -35,6 +36,7 @@
 #define GRETH_TXBD_ERR_UE 0x4000
 #define GRETH_TXBD_ERR_AL 0x8000
 
+#define GRETH_INT_RE         0x1
 #define GRETH_INT_RX         0x4
 #define GRETH_RXEN           0x2
 #define GRETH_RXI            0x8
@@ -74,9 +76,6 @@
  * Set to 1520 to make all buffers word aligned for non-gbit MAC.
  */
 #define MAX_FRAME_SIZE		1520
-
-/* Flags */
-#define GRETH_FLAG_RX_CSUM 0x1
 
 /* GRETH APB registers */
 struct greth_regs {
@@ -131,7 +130,6 @@ struct greth_private {
 	unsigned int duplex;
 
 	u32 msg_enable;
-	u32 flags;
 
 	u8 phyaddr;
 	u8 multicast;

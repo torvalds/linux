@@ -1675,7 +1675,7 @@ drop_frame:
 			if (lan_status_diff & LSC_SOFT_ERR)
 				printk(KERN_WARNING "%s: Adapter transmitted Soft Error Report Mac Frame\n", dev->name);
 			if (lan_status_diff & LSC_TRAN_BCN)
-				printk(KERN_INFO "%s: We are tranmitting the beacon, aaah\n", dev->name);
+				printk(KERN_INFO "%s: We are transmitting the beacon, aaah\n", dev->name);
 			if (lan_status_diff & LSC_SS)
 				printk(KERN_INFO "%s: Single Station on the ring\n", dev->name);
 			if (lan_status_diff & LSC_RING_REC)

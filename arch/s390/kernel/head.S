@@ -460,7 +460,7 @@ startup:
 #ifndef CONFIG_MARCH_G5
 	# check capabilities against MARCH_{G5,Z900,Z990,Z9_109,Z10}
 	xc	__LC_STFL_FAC_LIST(8),__LC_STFL_FAC_LIST
-	stfl	__LC_STFL_FAC_LIST	# store facility list
+	.insn	s,0xb2b10000,__LC_STFL_FAC_LIST	# store facility list
 	tm	__LC_STFL_FAC_LIST,0x01	# stfle available ?
 	jz	0f
 	la	%r0,0
@@ -488,7 +488,9 @@ startup:
 	.align 16
 2:	.long	0x000a0000,0x8badcccc
 #if defined(CONFIG_64BIT)
-#if defined(CONFIG_MARCH_Z10)
+#if defined(CONFIG_MARCH_Z196)
+	.long 0xc100efe3, 0xf46c0000
+#elif defined(CONFIG_MARCH_Z10)
 	.long 0xc100efe3, 0xf0680000
 #elif defined(CONFIG_MARCH_Z9_109)
 	.long 0xc100efc3, 0x00000000
@@ -498,7 +500,9 @@ startup:
 	.long 0xc0000000, 0x00000000
 #endif
 #else
-#if defined(CONFIG_MARCH_Z10)
+#if defined(CONFIG_MARCH_Z196)
+	.long 0x8100c880, 0x00000000
+#elif defined(CONFIG_MARCH_Z10)
 	.long 0x8100c880, 0x00000000
 #elif defined(CONFIG_MARCH_Z9_109)
 	.long 0x8100c880, 0x00000000

@@ -22,6 +22,7 @@
 #define DC_HFILT_COUNT	0x100
 #define DC_VFILT_COUNT	0x100
 #define VP_COEFF_SIZE	0x1000
+#define VP_PAL_COUNT	0x100
 
 #define OUTPUT_CRT   0x01
 #define OUTPUT_PANEL 0x02
@@ -48,7 +49,8 @@ struct lxfb_par {
 	uint64_t vp[VP_REG_COUNT];
 	uint64_t fp[FP_REG_COUNT];
 
-	uint32_t pal[DC_PAL_COUNT];
+	uint32_t dc_pal[DC_PAL_COUNT];
+	uint32_t vp_pal[VP_PAL_COUNT];
 	uint32_t hcoeff[DC_HFILT_COUNT * 2];
 	uint32_t vcoeff[DC_VFILT_COUNT];
 	uint32_t vp_coeff[VP_COEFF_SIZE / 4];
@@ -115,7 +117,7 @@ enum gp_registers {
 };
 
 #define GP_BLT_STATUS_CE		(1 << 4)	/* cmd buf empty */
-#define GP_BLT_STATUS_PB		(1 << 0)	/* primative busy */
+#define GP_BLT_STATUS_PB		(1 << 0)	/* primitive busy */
 
 
 /* Display Controller registers (table 6-47 from the data book) */

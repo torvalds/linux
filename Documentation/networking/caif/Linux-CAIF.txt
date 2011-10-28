@@ -136,7 +136,7 @@ The CAIF Protocol implementation contains:
       - CFMUX CAIF Mux layer. Handles multiplexing between multiple
 	physical bearers and multiple channels such as VEI, Datagram, etc.
 	The MUX keeps track of the existing CAIF Channels and
-	Physical Instances and selects the apropriate instance based
+	Physical Instances and selects the appropriate instance based
 	on Channel-Id and Physical-ID.
 
       - CFFRML CAIF Framing layer. Handles Framing i.e. Frame length

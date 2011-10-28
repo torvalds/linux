@@ -1,56 +1,42 @@
 #include <linux/io.h>
+#include <linux/memblock.h>
 
 #include <asm/trampoline.h>
+#include <asm/cacheflush.h>
 #include <asm/pgtable.h>
-#include <asm/e820.h>
 
-#if defined(CONFIG_X86_64) && defined(CONFIG_ACPI_SLEEP)
-#define __trampinit
-#define __trampinitdata
-#else
-#define __trampinit __cpuinit
-#define __trampinitdata __cpuinitdata
-#endif
+unsigned char *x86_trampoline_base;
 
-/* ready for x86_64 and x86 */
-unsigned char *__trampinitdata trampoline_base;
-
-void __init reserve_trampoline_memory(void)
+void __init setup_trampolines(void)
 {
-	unsigned long mem;
+	phys_addr_t mem;
+	size_t size = PAGE_ALIGN(x86_trampoline_end - x86_trampoline_start);
 
 	/* Has to be in very low memory so we can execute real-mode AP code. */
-	mem = find_e820_area(0, 1<<20, TRAMPOLINE_SIZE, PAGE_SIZE);
-	if (mem == -1L)
+	mem = memblock_find_in_range(0, 1<<20, size, PAGE_SIZE);
+	if (mem == MEMBLOCK_ERROR)
 		panic("Cannot allocate trampoline\n");
 
-	trampoline_base = __va(mem);
-	reserve_early(mem, mem + TRAMPOLINE_SIZE, "TRAMPOLINE");
+	x86_trampoline_base = __va(mem);
+	memblock_x86_reserve_range(mem, mem + size, "TRAMPOLINE");
+
+	printk(KERN_DEBUG "Base memory trampoline at [%p] %llx size %zu\n",
+	       x86_trampoline_base, (unsigned long long)mem, size);
+
+	memcpy(x86_trampoline_base, x86_trampoline_start, size);
 }
 
 /*
- * Currently trivial. Write the real->protected mode
- * bootstrap into the page concerned. The caller
- * has made sure it's suitably aligned.
+ * setup_trampolines() gets called very early, to guarantee the
+ * availability of low memory.  This is before the proper kernel page
+ * tables are set up, so we cannot set page permissions in that
+ * function.  Thus, we use an arch_initcall instead.
  */
-unsigned long __trampinit setup_trampoline(void)
+static int __init configure_trampolines(void)
 {
-	memcpy(trampoline_base, trampoline_data, TRAMPOLINE_SIZE);
-	return virt_to_phys(trampoline_base);
-}
+	size_t size = PAGE_ALIGN(x86_trampoline_end - x86_trampoline_start);
 
-void __init setup_trampoline_page_table(void)
-{
-#ifdef CONFIG_X86_32
-	/* Copy kernel address range */
-	clone_pgd_range(trampoline_pg_dir + KERNEL_PGD_BOUNDARY,
-			swapper_pg_dir + KERNEL_PGD_BOUNDARY,
-			KERNEL_PGD_PTRS);
-
-	/* Initialize low mappings */
-	clone_pgd_range(trampoline_pg_dir,
-			swapper_pg_dir + KERNEL_PGD_BOUNDARY,
-			min_t(unsigned long, KERNEL_PGD_PTRS,
-			      KERNEL_PGD_BOUNDARY));
-#endif
+	set_memory_x((unsigned long)x86_trampoline_base, size >> PAGE_SHIFT);
+	return 0;
 }
+arch_initcall(configure_trampolines);

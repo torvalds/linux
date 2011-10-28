@@ -76,4 +76,12 @@ static inline unsigned long get_clock_tick_rate(void)
 #include "SA-1101.h"
 #endif
 
+#if defined(CONFIG_ARCH_SA1100) && defined(CONFIG_PCI)
+#define PCIBIOS_MIN_IO		0
+#define PCIBIOS_MIN_MEM		0
+#define pcibios_assign_all_busses()	1
+#define HAVE_ARCH_PCI_SET_DMA_MASK	1
+#endif
+
+
 #endif  /* _ASM_ARCH_HARDWARE_H */

@@ -71,6 +71,11 @@ struct fuse_mount_data {
 	unsigned blksize;
 };
 
+struct fuse_forget_link *fuse_alloc_forget()
+{
+	return kzalloc(sizeof(struct fuse_forget_link), GFP_KERNEL);
+}
+
 static struct inode *fuse_alloc_inode(struct super_block *sb)
 {
 	struct inode *inode;
@@ -90,8 +95,8 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	INIT_LIST_HEAD(&fi->queued_writes);
 	INIT_LIST_HEAD(&fi->writepages);
 	init_waitqueue_head(&fi->page_waitq);
-	fi->forget_req = fuse_request_alloc();
-	if (!fi->forget_req) {
+	fi->forget = fuse_alloc_forget();
+	if (!fi->forget) {
 		kmem_cache_free(fuse_inode_cachep, inode);
 		return NULL;
 	}
@@ -99,27 +104,20 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	return inode;
 }
 
+static void fuse_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(fuse_inode_cachep, inode);
+}
+
 static void fuse_destroy_inode(struct inode *inode)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	BUG_ON(!list_empty(&fi->write_files));
 	BUG_ON(!list_empty(&fi->queued_writes));
-	if (fi->forget_req)
-		fuse_request_free(fi->forget_req);
-	kmem_cache_free(fuse_inode_cachep, inode);
-}
-
-void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
-		      u64 nodeid, u64 nlookup)
-{
-	struct fuse_forget_in *inarg = &req->misc.forget_in;
-	inarg->nlookup = nlookup;
-	req->in.h.opcode = FUSE_FORGET;
-	req->in.h.nodeid = nodeid;
-	req->in.numargs = 1;
-	req->in.args[0].size = sizeof(struct fuse_forget_in);
-	req->in.args[0].value = inarg;
-	fuse_request_send_noreply(fc, req);
+	kfree(fi->forget);
+	call_rcu(&inode->i_rcu, fuse_i_callback);
 }
 
 static void fuse_evict_inode(struct inode *inode)
@@ -129,8 +127,8 @@ static void fuse_evict_inode(struct inode *inode)
 	if (inode->i_sb->s_flags & MS_ACTIVE) {
 		struct fuse_conn *fc = get_fuse_conn(inode);
 		struct fuse_inode *fi = get_fuse_inode(inode);
-		fuse_send_forget(fc, fi->forget_req, fi->nodeid, fi->nlookup);
-		fi->forget_req = NULL;
+		fuse_queue_forget(fc, fi->forget, fi->nodeid, fi->nlookup);
+		fi->forget = NULL;
 	}
 }
 
@@ -534,6 +532,7 @@ void fuse_conn_init(struct fuse_conn *fc)
 	INIT_LIST_HEAD(&fc->interrupts);
 	INIT_LIST_HEAD(&fc->bg_queue);
 	INIT_LIST_HEAD(&fc->entry);
+	fc->forget_list_tail = &fc->forget_list_head;
 	atomic_set(&fc->num_waiting, 0);
 	fc->max_background = FUSE_DEFAULT_MAX_BACKGROUND;
 	fc->congestion_threshold = FUSE_DEFAULT_CONGESTION_THRESHOLD;
@@ -618,10 +617,8 @@ static struct dentry *fuse_get_dentry(struct super_block *sb,
 		goto out_iput;
 
 	entry = d_obtain_alias(inode);
-	if (!IS_ERR(entry) && get_node_id(inode) != FUSE_ROOT_ID) {
-		entry->d_op = &fuse_dentry_operations;
+	if (!IS_ERR(entry) && get_node_id(inode) != FUSE_ROOT_ID)
 		fuse_invalidate_entry_cache(entry);
-	}
 
 	return entry;
 
@@ -640,8 +637,10 @@ static int fuse_encode_fh(struct dentry *dentry, u32 *fh, int *max_len,
 	u64 nodeid;
 	u32 generation;
 
-	if (*max_len < len)
+	if (*max_len < len) {
+		*max_len = len;
 		return  255;
+	}
 
 	nodeid = get_fuse_inode(inode)->nodeid;
 	generation = inode->i_generation;
@@ -720,10 +719,8 @@ static struct dentry *fuse_get_parent(struct dentry *child)
 	}
 
 	parent = d_obtain_alias(inode);
-	if (!IS_ERR(parent) && get_node_id(inode) != FUSE_ROOT_ID) {
-		parent->d_op = &fuse_dentry_operations;
+	if (!IS_ERR(parent) && get_node_id(inode) != FUSE_ROOT_ID)
 		fuse_invalidate_entry_cache(parent);
-	}
 
 	return parent;
 }
@@ -873,7 +870,6 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 
 	fc->bdi.name = "fuse";
 	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
-	fc->bdi.unplug_io_fn = default_unplug_io_fn;
 	/* fuse does it's own writeback accounting */
 	fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
 
@@ -924,6 +920,8 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	err = -EINVAL;
 	if (sb->s_flags & MS_MANDLOCK)
 		goto err;
+
+	sb->s_flags &= ~MS_NOSEC;
 
 	if (!parse_fuse_opt((char *) data, &d, is_bdev))
 		goto err;
@@ -990,6 +988,8 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 		iput(root);
 		goto err_put_conn;
 	}
+	/* only now - we want root dentry with NULL ->d_op */
+	sb->s_d_op = &fuse_dentry_operations;
 
 	init_req = fuse_request_alloc();
 	if (!init_req)
@@ -1041,11 +1041,11 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	return err;
 }
 
-static int fuse_get_sb(struct file_system_type *fs_type,
+static struct dentry *fuse_mount(struct file_system_type *fs_type,
 		       int flags, const char *dev_name,
-		       void *raw_data, struct vfsmount *mnt)
+		       void *raw_data)
 {
-	return get_sb_nodev(fs_type, flags, raw_data, fuse_fill_super, mnt);
+	return mount_nodev(fs_type, flags, raw_data, fuse_fill_super);
 }
 
 static void fuse_kill_sb_anon(struct super_block *sb)
@@ -1065,17 +1065,16 @@ static struct file_system_type fuse_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fuse",
 	.fs_flags	= FS_HAS_SUBTYPE,
-	.get_sb		= fuse_get_sb,
+	.mount		= fuse_mount,
 	.kill_sb	= fuse_kill_sb_anon,
 };
 
 #ifdef CONFIG_BLOCK
-static int fuse_get_sb_blk(struct file_system_type *fs_type,
+static struct dentry *fuse_mount_blk(struct file_system_type *fs_type,
 			   int flags, const char *dev_name,
-			   void *raw_data, struct vfsmount *mnt)
+			   void *raw_data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, raw_data, fuse_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, raw_data, fuse_fill_super);
 }
 
 static void fuse_kill_sb_blk(struct super_block *sb)
@@ -1094,7 +1093,7 @@ static void fuse_kill_sb_blk(struct super_block *sb)
 static struct file_system_type fuseblk_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fuseblk",
-	.get_sb		= fuse_get_sb_blk,
+	.mount		= fuse_mount_blk,
 	.kill_sb	= fuse_kill_sb_blk,
 	.fs_flags	= FS_REQUIRES_DEV | FS_HAS_SUBTYPE,
 };

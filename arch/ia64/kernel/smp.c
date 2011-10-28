@@ -293,6 +293,7 @@ smp_flush_tlb_all (void)
 void
 smp_flush_tlb_mm (struct mm_struct *mm)
 {
+	cpumask_var_t cpus;
 	preempt_disable();
 	/* this happens for the common case of a single-threaded fork():  */
 	if (likely(mm == current->active_mm && atomic_read(&mm->mm_users) == 1))
@@ -301,9 +302,15 @@ smp_flush_tlb_mm (struct mm_struct *mm)
 		preempt_enable();
 		return;
 	}
-
-	smp_call_function_many(mm_cpumask(mm),
-		(void (*)(void *))local_finish_flush_tlb_mm, mm, 1);
+	if (!alloc_cpumask_var(&cpus, GFP_ATOMIC)) {
+		smp_call_function((void (*)(void *))local_finish_flush_tlb_mm,
+			mm, 1);
+	} else {
+		cpumask_copy(cpus, mm_cpumask(mm));
+		smp_call_function_many(cpus,
+			(void (*)(void *))local_finish_flush_tlb_mm, mm, 1);
+		free_cpumask_var(cpus);
+	}
 	local_irq_disable();
 	local_finish_flush_tlb_mm(mm);
 	local_irq_enable();

@@ -946,6 +946,8 @@ struct cdrom_device_info {
 /* device-related storage */
 	unsigned int options	: 30;	/* options flags */
 	unsigned mc_flags	: 2;	/* media change buffer flags */
+	unsigned int vfs_events;	/* cached events for vfs path */
+	unsigned int ioctl_events;	/* cached events for ioctl path */
     	int use_count;                  /* number of times device opened */
     	char name[20];                  /* name of the device type */
 /* per-device flags */
@@ -965,6 +967,8 @@ struct cdrom_device_ops {
 	int (*open) (struct cdrom_device_info *, int);
 	void (*release) (struct cdrom_device_info *);
 	int (*drive_status) (struct cdrom_device_info *, int);
+	unsigned int (*check_events) (struct cdrom_device_info *cdi,
+				      unsigned int clearing, int slot);
 	int (*media_changed) (struct cdrom_device_info *, int);
 	int (*tray_move) (struct cdrom_device_info *, int);
 	int (*lock_door) (struct cdrom_device_info *, int);
@@ -993,6 +997,8 @@ extern int cdrom_open(struct cdrom_device_info *cdi, struct block_device *bdev,
 extern void cdrom_release(struct cdrom_device_info *cdi, fmode_t mode);
 extern int cdrom_ioctl(struct cdrom_device_info *cdi, struct block_device *bdev,
 		       fmode_t mode, unsigned int cmd, unsigned long arg);
+extern unsigned int cdrom_check_events(struct cdrom_device_info *cdi,
+				       unsigned int clearing);
 extern int cdrom_media_changed(struct cdrom_device_info *);
 
 extern int register_cdrom(struct cdrom_device_info *cdi);

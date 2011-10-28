@@ -227,7 +227,7 @@ pcibr_dma_unmap(struct pci_dev *hwdev, dma_addr_t dma_handle, int direction)
  * after doing the read.  For PIC this routine then forces a fake interrupt
  * on another line, which is logically associated with the slot that the PIO
  * is addressed to.  It then spins while watching the memory location that
- * the interrupt is targetted to.  When the interrupt response arrives, we 
+ * the interrupt is targeted to.  When the interrupt response arrives, we 
  * are sure that the DMA has landed in memory and it is safe for the driver
  * to proceed.	For TIOCP use the Device(x) Write Request Buffer Flush 
  * Bridge register since it ensures the data has entered the coherence domain,

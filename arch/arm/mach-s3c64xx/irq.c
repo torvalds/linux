@@ -58,12 +58,7 @@ void __init s3c64xx_init_irq(u32 vic0_valid, u32 vic1_valid)
 	vic_init(VA_VIC1, IRQ_VIC1_BASE, vic1_valid, 0);
 
 	/* add the timer sub-irqs */
-
-	s3c_init_vic_timer_irq(IRQ_TIMER0_VIC, IRQ_TIMER0);
-	s3c_init_vic_timer_irq(IRQ_TIMER1_VIC, IRQ_TIMER1);
-	s3c_init_vic_timer_irq(IRQ_TIMER2_VIC, IRQ_TIMER2);
-	s3c_init_vic_timer_irq(IRQ_TIMER3_VIC, IRQ_TIMER3);
-	s3c_init_vic_timer_irq(IRQ_TIMER4_VIC, IRQ_TIMER4);
+	s3c_init_vic_timer_irq(5, IRQ_TIMER0);
 
 	s3c_init_uart_irqs(uart_irqs, ARRAY_SIZE(uart_irqs));
 }

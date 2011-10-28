@@ -322,9 +322,14 @@ static void gpio_keys_report_event(struct gpio_button_data *bdata)
 	struct gpio_keys_button *button = bdata->button;
 	struct input_dev *input = bdata->input;
 	unsigned int type = button->type ?: EV_KEY;
-	int state = (gpio_get_value(button->gpio) ? 1 : 0) ^ button->active_low;
+	int state = (gpio_get_value_cansleep(button->gpio) ? 1 : 0) ^ button->active_low;
 
-	input_event(input, type, button->code, !!state);
+	if (type == EV_ABS) {
+		if (state)
+			input_event(input, type, button->code, button->value);
+	} else {
+		input_event(input, type, button->code, !!state);
+	}
 	input_sync(input);
 }
 
@@ -363,7 +368,7 @@ static int __devinit gpio_keys_setup_key(struct platform_device *pdev,
 					 struct gpio_button_data *bdata,
 					 struct gpio_keys_button *button)
 {
-	char *desc = button->desc ? button->desc : "gpio_keys";
+	const char *desc = button->desc ? button->desc : "gpio_keys";
 	struct device *dev = &pdev->dev;
 	unsigned long irqflags;
 	int irq, error;
@@ -410,8 +415,8 @@ static int __devinit gpio_keys_setup_key(struct platform_device *pdev,
 	if (!button->can_disable)
 		irqflags |= IRQF_SHARED;
 
-	error = request_irq(irq, gpio_keys_isr, irqflags, desc, bdata);
-	if (error) {
+	error = request_any_context_irq(irq, gpio_keys_isr, irqflags, desc, bdata);
+	if (error < 0) {
 		dev_err(dev, "Unable to claim irq %d; error %d\n",
 			irq, error);
 		goto fail3;
@@ -468,7 +473,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ddata);
 	input_set_drvdata(input, ddata);
 
-	input->name = pdev->name;
+	input->name = pdata->name ? : pdev->name;
 	input->phys = "gpio-keys/input0";
 	input->dev.parent = &pdev->dev;
 	input->open = gpio_keys_open;

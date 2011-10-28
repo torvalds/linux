@@ -13,7 +13,6 @@
 #include <linux/kdb.h>
 #include <linux/ftrace.h>
 
-#include "../debug/kdb/kdb_private.h"
 #include "trace.h"
 #include "trace_output.h"
 

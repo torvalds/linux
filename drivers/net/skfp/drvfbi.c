@@ -267,7 +267,7 @@ void timer_irq(struct s_smc *smc)
 int pcm_get_s_port(struct s_smc *smc)
 {
 	SK_UNUSED(smc) ;
-	return(PS) ;
+	return PS;
 }
 
 /*
@@ -366,7 +366,7 @@ void sm_pm_bypass_req(struct s_smc *smc, int mode)
  */
 int sm_pm_bypass_present(struct s_smc *smc)
 {
-	return(	(inp(ADDR(B0_DAS)) & DAS_BYP_ST) ? TRUE: FALSE) ;
+	return (inp(ADDR(B0_DAS)) & DAS_BYP_ST) ? TRUE : FALSE;
 }
 
 void plc_clear_irq(struct s_smc *smc, int p)
@@ -483,9 +483,9 @@ static int is_equal_num(char comp1[], char comp2[], int num)
 
 	for (i = 0 ; i < num ; i++) {
 		if (comp1[i] != comp2[i])
-			return (0) ;
+			return 0;
 	}
-		return (1) ;
+		return 1;
 }	/* is_equal_num */
 
 
@@ -522,18 +522,18 @@ int set_oi_id_def(struct s_smc *smc)
 			i++ ;
 			break ;			/* entry ok */
 		default:
-			return (1) ;		/* invalid oi_status */
+			return 1;		/* invalid oi_status */
 		}
 	}
 
 	if (i == 0)
-		return (2) ;
+		return 2;
 	if (!act_entries)
-		return (3) ;
+		return 3;
 
 	/* ok, we have a valid OEM data base with an active entry */
 	smc->hw.oem_id = (struct s_oem_ids *)  &oem_ids[sel_id] ;
-	return (0) ;
+	return 0;
 }
 #endif	/* MULT_OEM */
 

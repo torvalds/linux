@@ -244,8 +244,7 @@ enum {
 	BID_SIL3131		= 2,
 
 	/* host flags */
-	SIL24_COMMON_FLAGS	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
+	SIL24_COMMON_FLAGS	= ATA_FLAG_SATA | ATA_FLAG_PIO_DMA |
 				  ATA_FLAG_NCQ | ATA_FLAG_ACPI_SATA |
 				  ATA_FLAG_AN | ATA_FLAG_PMP,
 	SIL24_FLAG_PCIX_IRQ_WOC	= (1 << 24), /* IRQ loss errata on PCI-X */
@@ -589,9 +588,9 @@ static int sil24_init_port(struct ata_port *ap)
 		sil24_clear_pmp(ap);
 
 	writel(PORT_CS_INIT, port + PORT_CTRL_STAT);
-	ata_wait_register(port + PORT_CTRL_STAT,
+	ata_wait_register(ap, port + PORT_CTRL_STAT,
 			  PORT_CS_INIT, PORT_CS_INIT, 10, 100);
-	tmp = ata_wait_register(port + PORT_CTRL_STAT,
+	tmp = ata_wait_register(ap, port + PORT_CTRL_STAT,
 				PORT_CS_RDY, 0, 10, 100);
 
 	if ((tmp & (PORT_CS_INIT | PORT_CS_RDY)) != PORT_CS_RDY) {
@@ -631,7 +630,7 @@ static int sil24_exec_polled_cmd(struct ata_port *ap, int pmp,
 	writel((u64)paddr >> 32, port + PORT_CMD_ACTIVATE + 4);
 
 	irq_mask = (PORT_IRQ_COMPLETE | PORT_IRQ_ERROR) << PORT_IRQ_RAW_SHIFT;
-	irq_stat = ata_wait_register(port + PORT_IRQ_STAT, irq_mask, 0x0,
+	irq_stat = ata_wait_register(ap, port + PORT_IRQ_STAT, irq_mask, 0x0,
 				     10, timeout_msec);
 
 	writel(irq_mask, port + PORT_IRQ_STAT); /* clear IRQs */
@@ -719,9 +718,9 @@ static int sil24_hardreset(struct ata_link *link, unsigned int *class,
 				"state, performing PORT_RST\n");
 
 		writel(PORT_CS_PORT_RST, port + PORT_CTRL_STAT);
-		msleep(10);
+		ata_msleep(ap, 10);
 		writel(PORT_CS_PORT_RST, port + PORT_CTRL_CLR);
-		ata_wait_register(port + PORT_CTRL_STAT, PORT_CS_RDY, 0,
+		ata_wait_register(ap, port + PORT_CTRL_STAT, PORT_CS_RDY, 0,
 				  10, 5000);
 
 		/* restore port configuration */
@@ -740,7 +739,7 @@ static int sil24_hardreset(struct ata_link *link, unsigned int *class,
 		tout_msec = 5000;
 
 	writel(PORT_CS_DEV_RST, port + PORT_CTRL_STAT);
-	tmp = ata_wait_register(port + PORT_CTRL_STAT,
+	tmp = ata_wait_register(ap, port + PORT_CTRL_STAT,
 				PORT_CS_DEV_RST, PORT_CS_DEV_RST, 10,
 				tout_msec);
 
@@ -1253,7 +1252,7 @@ static void sil24_init_controller(struct ata_host *host)
 		tmp = readl(port + PORT_CTRL_STAT);
 		if (tmp & PORT_CS_PORT_RST) {
 			writel(PORT_CS_PORT_RST, port + PORT_CTRL_CLR);
-			tmp = ata_wait_register(port + PORT_CTRL_STAT,
+			tmp = ata_wait_register(NULL, port + PORT_CTRL_STAT,
 						PORT_CS_PORT_RST,
 						PORT_CS_PORT_RST, 10, 100);
 			if (tmp & PORT_CS_PORT_RST)

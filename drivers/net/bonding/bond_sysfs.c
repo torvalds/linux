@@ -118,7 +118,10 @@ static ssize_t bonding_store_bonds(struct class *cls,
 		pr_info("%s is being created...\n", ifname);
 		rv = bond_create(net, ifname);
 		if (rv) {
-			pr_info("Bond creation failed.\n");
+			if (rv == -EEXIST)
+				pr_info("%s already exists.\n", ifname);
+			else
+				pr_info("%s creation failed.\n", ifname);
 			res = rv;
 		}
 	} else if (command[0] == '-') {
@@ -224,12 +227,6 @@ static ssize_t bonding_store_slaves(struct device *d,
 	struct net_device *dev;
 	struct bonding *bond = to_bond(d);
 
-	/* Quick sanity check -- is the bond interface up? */
-	if (!(bond->dev->flags & IFF_UP)) {
-		pr_warning("%s: doing slave updates when interface is down.\n",
-			   bond->dev->name);
-	}
-
 	if (!rtnl_trylock())
 		return restart_syscall();
 
@@ -322,11 +319,6 @@ static ssize_t bonding_store_mode(struct device *d,
 		ret = -EINVAL;
 		goto out;
 	}
-	if (bond->params.mode == BOND_MODE_8023AD)
-		bond_unset_master_3ad_flags(bond);
-
-	if (bond->params.mode == BOND_MODE_ALB)
-		bond_unset_master_alb_flags(bond);
 
 	bond->params.mode = new_value;
 	bond_set_mode_ops(bond, bond->params.mode);
@@ -423,11 +415,6 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 	pr_info("%s: setting arp_validate to %s (%d).\n",
 		bond->dev->name, arp_validate_tbl[new_value].modename,
 		new_value);
-
-	if (!bond->params.arp_validate && new_value)
-		bond_register_arp(bond);
-	else if (bond->params.arp_validate && !new_value)
-		bond_unregister_arp(bond);
 
 	bond->params.arp_validate = new_value;
 
@@ -527,8 +514,6 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 	pr_info("%s: Setting ARP monitoring interval to %d.\n",
 		bond->dev->name, new_value);
 	bond->params.arp_interval = new_value;
-	if (bond->params.arp_interval)
-		bond->dev->priv_flags |= IFF_MASTER_ARPMON;
 	if (bond->params.miimon) {
 		pr_info("%s: ARP monitoring cannot be used with MII monitoring. %s Disabling MII monitoring.\n",
 			bond->dev->name, bond->dev->name);
@@ -878,82 +863,28 @@ static DEVICE_ATTR(ad_select, S_IRUGO | S_IWUSR,
 		   bonding_show_ad_select, bonding_store_ad_select);
 
 /*
- * Show and set the number of grat ARP to send after a failover event.
+ * Show and set the number of peer notifications to send after a failover event.
  */
-static ssize_t bonding_show_n_grat_arp(struct device *d,
-				   struct device_attribute *attr,
-				   char *buf)
+static ssize_t bonding_show_num_peer_notif(struct device *d,
+					   struct device_attribute *attr,
+					   char *buf)
 {
 	struct bonding *bond = to_bond(d);
-
-	return sprintf(buf, "%d\n", bond->params.num_grat_arp);
+	return sprintf(buf, "%d\n", bond->params.num_peer_notif);
 }
 
-static ssize_t bonding_store_n_grat_arp(struct device *d,
-				    struct device_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t bonding_store_num_peer_notif(struct device *d,
+					    struct device_attribute *attr,
+					    const char *buf, size_t count)
 {
-	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
-
-	if (sscanf(buf, "%d", &new_value) != 1) {
-		pr_err("%s: no num_grat_arp value specified.\n",
-		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-	if (new_value < 0 || new_value > 255) {
-		pr_err("%s: Invalid num_grat_arp value %d not in range 0-255; rejected.\n",
-		       bond->dev->name, new_value);
-		ret = -EINVAL;
-		goto out;
-	} else {
-		bond->params.num_grat_arp = new_value;
-	}
-out:
-	return ret;
+	int err = kstrtou8(buf, 10, &bond->params.num_peer_notif);
+	return err ? err : count;
 }
 static DEVICE_ATTR(num_grat_arp, S_IRUGO | S_IWUSR,
-		   bonding_show_n_grat_arp, bonding_store_n_grat_arp);
-
-/*
- * Show and set the number of unsolicited NA's to send after a failover event.
- */
-static ssize_t bonding_show_n_unsol_na(struct device *d,
-				       struct device_attribute *attr,
-				       char *buf)
-{
-	struct bonding *bond = to_bond(d);
-
-	return sprintf(buf, "%d\n", bond->params.num_unsol_na);
-}
-
-static ssize_t bonding_store_n_unsol_na(struct device *d,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
-{
-	int new_value, ret = count;
-	struct bonding *bond = to_bond(d);
-
-	if (sscanf(buf, "%d", &new_value) != 1) {
-		pr_err("%s: no num_unsol_na value specified.\n",
-		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (new_value < 0 || new_value > 255) {
-		pr_err("%s: Invalid num_unsol_na value %d not in range 0-255; rejected.\n",
-		       bond->dev->name, new_value);
-		ret = -EINVAL;
-		goto out;
-	} else
-		bond->params.num_unsol_na = new_value;
-out:
-	return ret;
-}
+		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
 static DEVICE_ATTR(num_unsol_na, S_IRUGO | S_IWUSR,
-		   bonding_show_n_unsol_na, bonding_store_n_unsol_na);
+		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
 
 /*
  * Show and set the MII monitor interval.  There are two tricky bits
@@ -1004,9 +935,7 @@ static ssize_t bonding_store_miimon(struct device *d,
 			pr_info("%s: MII monitoring cannot be used with ARP monitoring. Disabling ARP monitoring...\n",
 				bond->dev->name);
 			bond->params.arp_interval = 0;
-			bond->dev->priv_flags &= ~IFF_MASTER_ARPMON;
 			if (bond->params.arp_validate) {
-				bond_unregister_arp(bond);
 				bond->params.arp_validate =
 					BOND_ARP_VALIDATE_NONE;
 			}
@@ -1066,6 +995,7 @@ static ssize_t bonding_store_primary(struct device *d,
 
 	if (!rtnl_trylock())
 		return restart_syscall();
+	block_netpoll_tx();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
@@ -1101,6 +1031,7 @@ static ssize_t bonding_store_primary(struct device *d,
 out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
+	unblock_netpoll_tx();
 	rtnl_unlock();
 
 	return count;
@@ -1146,11 +1077,13 @@ static ssize_t bonding_store_primary_reselect(struct device *d,
 		bond->dev->name, pri_reselect_tbl[new_value].modename,
 		new_value);
 
+	block_netpoll_tx();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 	bond_select_active_slave(bond);
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
+	unblock_netpoll_tx();
 out:
 	rtnl_unlock();
 	return ret;
@@ -1194,7 +1127,7 @@ static ssize_t bonding_store_carrier(struct device *d,
 			bond->dev->name, new_value);
 	}
 out:
-	return count;
+	return ret;
 }
 static DEVICE_ATTR(use_carrier, S_IRUGO | S_IWUSR,
 		   bonding_show_carrier, bonding_store_carrier);
@@ -1232,6 +1165,8 @@ static ssize_t bonding_store_active_slave(struct device *d,
 
 	if (!rtnl_trylock())
 		return restart_syscall();
+
+	block_netpoll_tx();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
@@ -1288,6 +1223,8 @@ static ssize_t bonding_store_active_slave(struct device *d,
  out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
+	unblock_netpoll_tx();
+
 	rtnl_unlock();
 
 	return count;
@@ -1579,18 +1516,61 @@ static ssize_t bonding_store_slaves_active(struct device *d,
 	}
 
 	bond_for_each_slave(bond, slave, i) {
-		if (slave->state == BOND_STATE_BACKUP) {
+		if (!bond_is_active_slave(slave)) {
 			if (new_value)
-				slave->dev->priv_flags &= ~IFF_SLAVE_INACTIVE;
+				slave->inactive = 0;
 			else
-				slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
+				slave->inactive = 1;
 		}
 	}
 out:
-	return count;
+	return ret;
 }
 static DEVICE_ATTR(all_slaves_active, S_IRUGO | S_IWUSR,
 		   bonding_show_slaves_active, bonding_store_slaves_active);
+
+/*
+ * Show and set the number of IGMP membership reports to send on link failure
+ */
+static ssize_t bonding_show_resend_igmp(struct device *d,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n", bond->params.resend_igmp);
+}
+
+static ssize_t bonding_store_resend_igmp(struct device *d,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	int new_value, ret = count;
+	struct bonding *bond = to_bond(d);
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		pr_err("%s: no resend_igmp value specified.\n",
+		       bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (new_value < 0 || new_value > 255) {
+		pr_err("%s: Invalid resend_igmp value %d not in range 0-255; rejected.\n",
+		       bond->dev->name, new_value);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	pr_info("%s: Setting resend_igmp to %d.\n",
+		bond->dev->name, new_value);
+	bond->params.resend_igmp = new_value;
+out:
+	return ret;
+}
+
+static DEVICE_ATTR(resend_igmp, S_IRUGO | S_IWUSR,
+		   bonding_show_resend_igmp, bonding_store_resend_igmp);
 
 static struct attribute *per_bond_attrs[] = {
 	&dev_attr_slaves.attr,
@@ -1619,6 +1599,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_ad_partner_mac.attr,
 	&dev_attr_queue_id.attr,
 	&dev_attr_all_slaves_active.attr,
+	&dev_attr_resend_igmp.attr,
 	NULL,
 };
 

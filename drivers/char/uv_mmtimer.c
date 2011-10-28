@@ -23,7 +23,6 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/math64.h>
-#include <linux/smp_lock.h>
 
 #include <asm/genapic.h>
 #include <asm/uv/uv_hub.h>
@@ -52,6 +51,7 @@ static const struct file_operations uv_mmtimer_fops = {
 	.owner = THIS_MODULE,
 	.mmap =	uv_mmtimer_mmap,
 	.unlocked_ioctl = uv_mmtimer_ioctl,
+	.llseek = noop_llseek,
 };
 
 /**

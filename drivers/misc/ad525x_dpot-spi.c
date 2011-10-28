@@ -38,6 +38,8 @@ static const struct ad_dpot_id ad_dpot_spi_devlist[] = {
 	{.name = "ad8402", .devid = AD8402_ID},
 	{.name = "ad8403", .devid = AD8403_ID},
 	{.name = "adn2850", .devid = ADN2850_ID},
+	{.name = "ad5270", .devid = AD5270_ID},
+	{.name = "ad5271", .devid = AD5271_ID},
 	{}
 };
 
@@ -53,13 +55,13 @@ static int write8(void *client, u8 val)
 static int write16(void *client, u8 reg, u8 val)
 {
 	u8 data[2] = {reg, val};
-	return spi_write(client, data, 1);
+	return spi_write(client, data, 2);
 }
 
 static int write24(void *client, u8 reg, u16 val)
 {
 	u8 data[3] = {reg, val >> 8, val};
-	return spi_write(client, data, 1);
+	return spi_write(client, data, 3);
 }
 
 static int read8(void *client)

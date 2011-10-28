@@ -192,17 +192,17 @@ int usb_create_ep_devs(struct device *parent,
 	ep_dev->dev.parent = parent;
 	ep_dev->dev.release = ep_device_release;
 	dev_set_name(&ep_dev->dev, "ep_%02x", endpoint->desc.bEndpointAddress);
-	device_enable_async_suspend(&ep_dev->dev);
 
 	retval = device_register(&ep_dev->dev);
 	if (retval)
 		goto error_register;
 
+	device_enable_async_suspend(&ep_dev->dev);
 	endpoint->ep_dev = ep_dev;
 	return retval;
 
 error_register:
-	kfree(ep_dev);
+	put_device(&ep_dev->dev);
 exit:
 	return retval;
 }

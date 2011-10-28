@@ -9,7 +9,7 @@
   the Free Software Foundation; either version 2 of the License, or
   (at your option) any later version.
 
-  See http://misc.nu/hugh/keyspan.html for more information.
+  See http://blemings.org/hugh/keyspan.html for more information.
   
   Code in this driver inspired by and in a number of places taken
   from Brian Warner's original Keyspan-PDA driver.
@@ -58,10 +58,9 @@ static void keyspan_set_termios		(struct tty_struct *tty,
 					 struct ktermios *old);
 static void keyspan_break_ctl		(struct tty_struct *tty,
 					 int break_state);
-static int  keyspan_tiocmget		(struct tty_struct *tty,
-					 struct file *file);
+static int  keyspan_tiocmget		(struct tty_struct *tty);
 static int  keyspan_tiocmset		(struct tty_struct *tty,
-					 struct file *file, unsigned int set,
+					 unsigned int set,
 					 unsigned int clear);
 static int  keyspan_fake_startup	(struct usb_serial *serial);
 
@@ -546,6 +545,7 @@ static struct usb_serial_driver keyspan_pre_device = {
 		.name		= "keyspan_no_firm",
 	},
 	.description		= "Keyspan - (without firmware)",
+	.usb_driver		= &keyspan_driver,
 	.id_table		= keyspan_pre_ids,
 	.num_ports		= 1,
 	.attach			= keyspan_fake_startup,
@@ -557,6 +557,7 @@ static struct usb_serial_driver keyspan_1port_device = {
 		.name		= "keyspan_1",
 	},
 	.description		= "Keyspan 1 port adapter",
+	.usb_driver		= &keyspan_driver,
 	.id_table		= keyspan_1port_ids,
 	.num_ports		= 1,
 	.open			= keyspan_open,
@@ -579,6 +580,7 @@ static struct usb_serial_driver keyspan_2port_device = {
 		.name		= "keyspan_2",
 	},
 	.description		= "Keyspan 2 port adapter",
+	.usb_driver		= &keyspan_driver,
 	.id_table		= keyspan_2port_ids,
 	.num_ports		= 2,
 	.open			= keyspan_open,
@@ -601,6 +603,7 @@ static struct usb_serial_driver keyspan_4port_device = {
 		.name		= "keyspan_4",
 	},
 	.description		= "Keyspan 4 port adapter",
+	.usb_driver		= &keyspan_driver,
 	.id_table		= keyspan_4port_ids,
 	.num_ports		= 4,
 	.open			= keyspan_open,

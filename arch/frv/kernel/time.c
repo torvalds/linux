@@ -50,29 +50,19 @@ static struct irqaction timer_irq  = {
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "do_timer()" routine every clocktick
+ * as well as call the "xtime_update()" routine every clocktick
  */
 static irqreturn_t timer_interrupt(int irq, void *dummy)
 {
 	profile_tick(CPU_PROFILING);
-	/*
-	 * Here we are in the timer irq handler. We just have irqs locally
-	 * disabled but we don't know if the timer_bh is running on the other
-	 * CPU. We need to avoid to SMP race with it. NOTE: we don't need
-	 * the irq version of write_lock because as just said we have irq
-	 * locally disabled. -arca
-	 */
-	write_seqlock(&xtime_lock);
 
-	do_timer(1);
+	xtime_update(1);
 
 #ifdef CONFIG_HEARTBEAT
 	static unsigned short n;
 	n++;
 	__set_LEDS(n);
 #endif /* CONFIG_HEARTBEAT */
-
-	write_sequnlock(&xtime_lock);
 
 	update_process_times(user_mode(get_irq_regs()));
 

@@ -1233,15 +1233,8 @@ static void bmac_reset_and_enable(struct net_device *dev)
 	}
 	spin_unlock_irqrestore(&bp->lock, flags);
 }
-static void bmac_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
-{
-	struct bmac_data *bp = netdev_priv(dev);
-	strcpy(info->driver, "bmac");
-	strcpy(info->bus_info, dev_name(&bp->mdev->ofdev.dev));
-}
 
 static const struct ethtool_ops bmac_ethtool_ops = {
-	.get_drvinfo		= bmac_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 };
 
@@ -1588,7 +1581,7 @@ bmac_proc_info(char *buffer, char **start, off_t offset, int length)
 	int i;
 
 	if (bmac_devs == NULL)
-		return (-ENOSYS);
+		return -ENOSYS;
 
 	len += sprintf(buffer, "BMAC counters & registers\n");
 

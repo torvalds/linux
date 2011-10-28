@@ -362,6 +362,35 @@ TRACE_EVENT(sched_stat_runtime,
 			(unsigned long long)__entry->vruntime)
 );
 
+/*
+ * Tracepoint for showing priority inheritance modifying a tasks
+ * priority.
+ */
+TRACE_EVENT(sched_pi_setprio,
+
+	TP_PROTO(struct task_struct *tsk, int newprio),
+
+	TP_ARGS(tsk, newprio),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN	)
+		__field( pid_t,	pid			)
+		__field( int,	oldprio			)
+		__field( int,	newprio			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid		= tsk->pid;
+		__entry->oldprio	= tsk->prio;
+		__entry->newprio	= newprio;
+	),
+
+	TP_printk("comm=%s pid=%d oldprio=%d newprio=%d",
+			__entry->comm, __entry->pid,
+			__entry->oldprio, __entry->newprio)
+);
+
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */

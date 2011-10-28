@@ -848,7 +848,7 @@ void irlap_send_data_primary_poll(struct irlap_cb *self, struct sk_buff *skb)
 	 * though IrLAP is currently sending the *last* frame of the
 	 * tx-window, the driver most likely has only just started
 	 * sending the *first* frame of the same tx-window.
-	 * I.e. we are always at the very begining of or Tx window.
+	 * I.e. we are always at the very beginning of or Tx window.
 	 * Now, we are supposed to set the final timer from the end
 	 * of our tx-window to let the other peer reply. So, we need
 	 * to add extra time to compensate for the fact that we

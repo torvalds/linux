@@ -35,7 +35,7 @@ static inline cycles_t get_cycles(void)
 static __always_inline cycles_t vget_cycles(void)
 {
 	/*
-	 * We only do VDSOs on TSC capable CPUs, so this shouldnt
+	 * We only do VDSOs on TSC capable CPUs, so this shouldn't
 	 * access boot_cpu_data (which is not VDSO-safe):
 	 */
 #ifndef CONFIG_X86_TSC
@@ -50,6 +50,10 @@ extern void mark_tsc_unstable(char *reason);
 extern int unsynchronized_tsc(void);
 extern int check_tsc_unstable(void);
 extern unsigned long native_calibrate_tsc(void);
+
+#ifdef CONFIG_X86_64
+extern cycles_t vread_tsc(void);
+#endif
 
 /*
  * Boot-time check whether the TSCs are synchronized across

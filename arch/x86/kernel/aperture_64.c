@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
@@ -27,8 +27,24 @@
 #include <asm/gart.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>
-#include <asm/k8.h>
+#include <asm/amd_nb.h>
 #include <asm/x86_init.h>
+
+/*
+ * Using 512M as goal, in case kexec will load kernel_big
+ * that will do the on-position decompress, and could overlap with
+ * with the gart aperture that is used.
+ * Sequence:
+ * kernel_small
+ * ==> kexec (with kdump trigger path or gart still enabled)
+ * ==> kernel_small (gart area become e820_reserved)
+ * ==> kexec (with kdump trigger path or gart still enabled)
+ * ==> kerne_big (uncompressed size will be big than 64M or 128M)
+ * So don't use 512M below as gart iommu, leave the space for kernel
+ * code for safe.
+ */
+#define GART_MIN_ADDR	(512ULL << 20)
+#define GART_MAX_ADDR	(1ULL   << 32)
 
 int gart_iommu_aperture;
 int gart_iommu_aperture_disabled __initdata;
@@ -38,18 +54,6 @@ int fallback_aper_order __initdata = 1; /* 64MB */
 int fallback_aper_force __initdata;
 
 int fix_aperture __initdata = 1;
-
-struct bus_dev_range {
-	int bus;
-	int dev_base;
-	int dev_limit;
-};
-
-static struct bus_dev_range bus_dev_ranges[] __initdata = {
-	{ 0x00, 0x18, 0x20},
-	{ 0xff, 0x00, 0x20},
-	{ 0xfe, 0x00, 0x20}
-};
 
 static struct resource gart_resource = {
 	.name	= "GART",
@@ -69,7 +73,7 @@ static void __init insert_aperture_resource(u32 aper_base, u32 aper_size)
 static u32 __init allocate_aperture(void)
 {
 	u32 aper_size;
-	void *p;
+	unsigned long addr;
 
 	/* aper_size should <= 1G */
 	if (fallback_aper_order > 5)
@@ -82,40 +86,27 @@ static u32 __init allocate_aperture(void)
 	 * memory. Unfortunately we cannot move it up because that would
 	 * make the IOMMU useless.
 	 */
-	/*
-	 * using 512M as goal, in case kexec will load kernel_big
-	 * that will do the on position decompress, and  could overlap with
-	 * that positon with gart that is used.
-	 * sequende:
-	 * kernel_small
-	 * ==> kexec (with kdump trigger path or previous doesn't shutdown gart)
-	 * ==> kernel_small(gart area become e820_reserved)
-	 * ==> kexec (with kdump trigger path or previous doesn't shutdown gart)
-	 * ==> kerne_big (uncompressed size will be big than 64M or 128M)
-	 * so don't use 512M below as gart iommu, leave the space for kernel
-	 * code for safe
-	 */
-	p = __alloc_bootmem_nopanic(aper_size, aper_size, 512ULL<<20);
+	addr = memblock_find_in_range(GART_MIN_ADDR, GART_MAX_ADDR,
+				      aper_size, aper_size);
+	if (addr == MEMBLOCK_ERROR || addr + aper_size > GART_MAX_ADDR) {
+		printk(KERN_ERR
+			"Cannot allocate aperture memory hole (%lx,%uK)\n",
+				addr, aper_size>>10);
+		return 0;
+	}
+	memblock_x86_reserve_range(addr, addr + aper_size, "aperture64");
 	/*
 	 * Kmemleak should not scan this block as it may not be mapped via the
 	 * kernel direct mapping.
 	 */
-	kmemleak_ignore(p);
-	if (!p || __pa(p)+aper_size > 0xffffffff) {
-		printk(KERN_ERR
-			"Cannot allocate aperture memory hole (%p,%uK)\n",
-				p, aper_size>>10);
-		if (p)
-			free_bootmem(__pa(p), aper_size);
-		return 0;
-	}
+	kmemleak_ignore(phys_to_virt(addr));
 	printk(KERN_INFO "Mapping aperture over %d KB of RAM @ %lx\n",
-			aper_size >> 10, __pa(p));
-	insert_aperture_resource((u32)__pa(p), aper_size);
-	register_nosave_region((u32)__pa(p) >> PAGE_SHIFT,
-				(u32)__pa(p+aper_size) >> PAGE_SHIFT);
+			aper_size >> 10, addr);
+	insert_aperture_resource((u32)addr, aper_size);
+	register_nosave_region(addr >> PAGE_SHIFT,
+			       (addr+aper_size) >> PAGE_SHIFT);
 
-	return (u32)__pa(p);
+	return (u32)addr;
 }
 
 
@@ -206,7 +197,7 @@ static u32 __init read_agp(int bus, int slot, int func, int cap, u32 *order)
  * Do an PCI bus scan by hand because we're running before the PCI
  * subsystem.
  *
- * All K8 AGP bridges are AGPv3 compliant, so we can do this scan
+ * All AMD AGP bridges are AGPv3 compliant, so we can do this scan
  * generically. It's probably overkill to always scan all slots because
  * the AGP bridges should be always an own bus on the HT hierarchy,
  * but do it here for future safety.
@@ -294,20 +285,20 @@ void __init early_gart_iommu_check(void)
 	search_agp_bridge(&agp_aper_order, &valid_agp);
 
 	fix = 0;
-	for (i = 0; i < ARRAY_SIZE(bus_dev_ranges); i++) {
+	for (i = 0; amd_nb_bus_dev_ranges[i].dev_limit; i++) {
 		int bus;
 		int dev_base, dev_limit;
 
-		bus = bus_dev_ranges[i].bus;
-		dev_base = bus_dev_ranges[i].dev_base;
-		dev_limit = bus_dev_ranges[i].dev_limit;
+		bus = amd_nb_bus_dev_ranges[i].bus;
+		dev_base = amd_nb_bus_dev_ranges[i].dev_base;
+		dev_limit = amd_nb_bus_dev_ranges[i].dev_limit;
 
 		for (slot = dev_base; slot < dev_limit; slot++) {
-			if (!early_is_k8_nb(read_pci_config(bus, slot, 3, 0x00)))
+			if (!early_is_amd_nb(read_pci_config(bus, slot, 3, 0x00)))
 				continue;
 
 			ctl = read_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL);
-			aper_enabled = ctl & AMD64_GARTEN;
+			aper_enabled = ctl & GARTEN;
 			aper_order = (ctl >> 1) & 7;
 			aper_size = (32 * 1024 * 1024) << aper_order;
 			aper_base = read_pci_config(bus, slot, 3, AMD64_GARTAPERTUREBASE) & 0x7fff;
@@ -349,20 +340,20 @@ void __init early_gart_iommu_check(void)
 		return;
 
 	/* disable them all at first */
-	for (i = 0; i < ARRAY_SIZE(bus_dev_ranges); i++) {
+	for (i = 0; i < amd_nb_bus_dev_ranges[i].dev_limit; i++) {
 		int bus;
 		int dev_base, dev_limit;
 
-		bus = bus_dev_ranges[i].bus;
-		dev_base = bus_dev_ranges[i].dev_base;
-		dev_limit = bus_dev_ranges[i].dev_limit;
+		bus = amd_nb_bus_dev_ranges[i].bus;
+		dev_base = amd_nb_bus_dev_ranges[i].dev_base;
+		dev_limit = amd_nb_bus_dev_ranges[i].dev_limit;
 
 		for (slot = dev_base; slot < dev_limit; slot++) {
-			if (!early_is_k8_nb(read_pci_config(bus, slot, 3, 0x00)))
+			if (!early_is_amd_nb(read_pci_config(bus, slot, 3, 0x00)))
 				continue;
 
 			ctl = read_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL);
-			ctl &= ~AMD64_GARTEN;
+			ctl &= ~GARTEN;
 			write_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL, ctl);
 		}
 	}
@@ -371,7 +362,7 @@ void __init early_gart_iommu_check(void)
 
 static int __initdata printed_gart_size_msg;
 
-void __init gart_iommu_hole_init(void)
+int __init gart_iommu_hole_init(void)
 {
 	u32 agp_aper_base = 0, agp_aper_order = 0;
 	u32 aper_size, aper_alloc = 0, aper_order = 0, last_aper_order = 0;
@@ -381,7 +372,7 @@ void __init gart_iommu_hole_init(void)
 
 	if (gart_iommu_aperture_disabled || !fix_aperture ||
 	    !early_pci_allowed())
-		return;
+		return -ENODEV;
 
 	printk(KERN_INFO  "Checking aperture...\n");
 
@@ -390,17 +381,17 @@ void __init gart_iommu_hole_init(void)
 
 	fix = 0;
 	node = 0;
-	for (i = 0; i < ARRAY_SIZE(bus_dev_ranges); i++) {
+	for (i = 0; i < amd_nb_bus_dev_ranges[i].dev_limit; i++) {
 		int bus;
 		int dev_base, dev_limit;
 		u32 ctl;
 
-		bus = bus_dev_ranges[i].bus;
-		dev_base = bus_dev_ranges[i].dev_base;
-		dev_limit = bus_dev_ranges[i].dev_limit;
+		bus = amd_nb_bus_dev_ranges[i].bus;
+		dev_base = amd_nb_bus_dev_ranges[i].dev_base;
+		dev_limit = amd_nb_bus_dev_ranges[i].dev_limit;
 
 		for (slot = dev_base; slot < dev_limit; slot++) {
-			if (!early_is_k8_nb(read_pci_config(bus, slot, 3, 0x00)))
+			if (!early_is_amd_nb(read_pci_config(bus, slot, 3, 0x00)))
 				continue;
 
 			iommu_detected = 1;
@@ -463,8 +454,9 @@ out:
 			unsigned long n = (32 * 1024 * 1024) << last_aper_order;
 
 			insert_aperture_resource((u32)last_aper_base, n);
+			return 1;
 		}
-		return;
+		return 0;
 	}
 
 	if (!fallback_aper_force) {
@@ -500,28 +492,32 @@ out:
 			panic("Not enough memory for aperture");
 		}
 	} else {
-		return;
+		return 0;
 	}
 
 	/* Fix up the north bridges */
-	for (i = 0; i < ARRAY_SIZE(bus_dev_ranges); i++) {
-		int bus;
-		int dev_base, dev_limit;
+	for (i = 0; i < amd_nb_bus_dev_ranges[i].dev_limit; i++) {
+		int bus, dev_base, dev_limit;
 
-		bus = bus_dev_ranges[i].bus;
-		dev_base = bus_dev_ranges[i].dev_base;
-		dev_limit = bus_dev_ranges[i].dev_limit;
+		/*
+		 * Don't enable translation yet but enable GART IO and CPU
+		 * accesses and set DISTLBWALKPRB since GART table memory is UC.
+		 */
+		u32 ctl = aper_order << 1;
+
+		bus = amd_nb_bus_dev_ranges[i].bus;
+		dev_base = amd_nb_bus_dev_ranges[i].dev_base;
+		dev_limit = amd_nb_bus_dev_ranges[i].dev_limit;
 		for (slot = dev_base; slot < dev_limit; slot++) {
-			if (!early_is_k8_nb(read_pci_config(bus, slot, 3, 0x00)))
+			if (!early_is_amd_nb(read_pci_config(bus, slot, 3, 0x00)))
 				continue;
 
-			/* Don't enable translation yet. That is done later.
-			   Assume this BIOS didn't initialise the GART so
-			   just overwrite all previous bits */
-			write_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL, aper_order << 1);
+			write_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL, ctl);
 			write_pci_config(bus, slot, 3, AMD64_GARTAPERTUREBASE, aper_alloc >> 25);
 		}
 	}
 
 	set_up_gart_resume(aper_order, aper_alloc);
+
+	return 1;
 }

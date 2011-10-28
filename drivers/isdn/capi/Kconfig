@@ -33,21 +33,6 @@ config ISDN_CAPI_CAPI20
 	  standardized libcapi20 to access this functionality.  You should say
 	  Y/M here.
 
-config ISDN_CAPI_CAPIFS_BOOL
-	bool "CAPI2.0 filesystem support (DEPRECATED)"
-	depends on ISDN_CAPI_MIDDLEWARE && ISDN_CAPI_CAPI20
-	help
-	  This option provides a special file system, similar to /dev/pts with
-	  device nodes for the special ttys established by using the
-	  middleware extension above.
-	  You no longer need this, udev fully replaces it. This feature is
-	  scheduled for removal.
-
-config ISDN_CAPI_CAPIFS
-	tristate
-	depends on ISDN_CAPI_CAPIFS_BOOL
-	default ISDN_CAPI_CAPI20
-
 config ISDN_CAPI_CAPIDRV
 	tristate "CAPI2.0 capidrv interface support"
 	depends on ISDN_I4L

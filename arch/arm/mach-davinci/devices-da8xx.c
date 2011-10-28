@@ -24,25 +24,39 @@
 #include "clock.h"
 
 #define DA8XX_TPCC_BASE			0x01c00000
-#define DA850_TPCC1_BASE		0x01e30000
 #define DA8XX_TPTC0_BASE		0x01c08000
 #define DA8XX_TPTC1_BASE		0x01c08400
-#define DA850_TPTC2_BASE		0x01e38000
 #define DA8XX_WDOG_BASE			0x01c21000 /* DA8XX_TIMER64P1_BASE */
 #define DA8XX_I2C0_BASE			0x01c22000
-#define DA8XX_RTC_BASE			0x01C23000
+#define DA8XX_RTC_BASE			0x01c23000
+#define DA8XX_MMCSD0_BASE		0x01c40000
+#define DA8XX_SPI0_BASE			0x01c41000
+#define DA830_SPI1_BASE			0x01e12000
+#define DA8XX_LCD_CNTRL_BASE		0x01e13000
+#define DA850_MMCSD1_BASE		0x01e1b000
 #define DA8XX_EMAC_CPPI_PORT_BASE	0x01e20000
 #define DA8XX_EMAC_CPGMACSS_BASE	0x01e22000
 #define DA8XX_EMAC_CPGMAC_BASE		0x01e23000
 #define DA8XX_EMAC_MDIO_BASE		0x01e24000
-#define DA8XX_GPIO_BASE			0x01e26000
 #define DA8XX_I2C1_BASE			0x01e28000
+#define DA850_TPCC1_BASE		0x01e30000
+#define DA850_TPTC2_BASE		0x01e38000
+#define DA850_SPI1_BASE			0x01f0e000
+#define DA8XX_DDR2_CTL_BASE		0xb0000000
 
 #define DA8XX_EMAC_CTRL_REG_OFFSET	0x3000
 #define DA8XX_EMAC_MOD_REG_OFFSET	0x2000
 #define DA8XX_EMAC_RAM_OFFSET		0x0000
-#define DA8XX_MDIO_REG_OFFSET		0x4000
 #define DA8XX_EMAC_CTRL_RAM_SIZE	SZ_8K
+
+#define DA8XX_DMA_SPI0_RX	EDMA_CTLR_CHAN(0, 14)
+#define DA8XX_DMA_SPI0_TX	EDMA_CTLR_CHAN(0, 15)
+#define DA8XX_DMA_MMCSD0_RX	EDMA_CTLR_CHAN(0, 16)
+#define DA8XX_DMA_MMCSD0_TX	EDMA_CTLR_CHAN(0, 17)
+#define DA8XX_DMA_SPI1_RX	EDMA_CTLR_CHAN(0, 18)
+#define DA8XX_DMA_SPI1_TX	EDMA_CTLR_CHAN(0, 19)
+#define DA850_DMA_MMCSD1_RX	EDMA_CTLR_CHAN(1, 28)
+#define DA850_DMA_MMCSD1_TX	EDMA_CTLR_CHAN(1, 29)
 
 void __iomem *da8xx_syscfg0_base;
 void __iomem *da8xx_syscfg1_base;
@@ -351,7 +365,7 @@ int __init da8xx_register_watchdog(void)
 static struct resource da8xx_emac_resources[] = {
 	{
 		.start	= DA8XX_EMAC_CPPI_PORT_BASE,
-		.end	= DA8XX_EMAC_CPPI_PORT_BASE + 0x5000 - 1,
+		.end	= DA8XX_EMAC_CPPI_PORT_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -380,7 +394,6 @@ struct emac_platform_data da8xx_emac_pdata = {
 	.ctrl_reg_offset	= DA8XX_EMAC_CTRL_REG_OFFSET,
 	.ctrl_mod_reg_offset	= DA8XX_EMAC_MOD_REG_OFFSET,
 	.ctrl_ram_offset	= DA8XX_EMAC_RAM_OFFSET,
-	.mdio_reg_offset	= DA8XX_MDIO_REG_OFFSET,
 	.ctrl_ram_size		= DA8XX_EMAC_CTRL_RAM_SIZE,
 	.version		= EMAC_VERSION_2,
 };
@@ -395,9 +408,34 @@ static struct platform_device da8xx_emac_device = {
 	.resource	= da8xx_emac_resources,
 };
 
+static struct resource da8xx_mdio_resources[] = {
+	{
+		.start	= DA8XX_EMAC_MDIO_BASE,
+		.end	= DA8XX_EMAC_MDIO_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device da8xx_mdio_device = {
+	.name		= "davinci_mdio",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(da8xx_mdio_resources),
+	.resource	= da8xx_mdio_resources,
+};
+
 int __init da8xx_register_emac(void)
 {
-	return platform_device_register(&da8xx_emac_device);
+	int ret;
+
+	ret = platform_device_register(&da8xx_mdio_device);
+	if (ret < 0)
+		return ret;
+	ret = platform_device_register(&da8xx_emac_device);
+	if (ret < 0)
+		return ret;
+	ret = clk_add_alias(NULL, dev_name(&da8xx_mdio_device.dev),
+			    NULL, &da8xx_emac_device.dev);
+	return ret;
 }
 
 static struct resource da830_mcasp1_resources[] = {
@@ -456,8 +494,15 @@ static struct platform_device da850_mcasp_device = {
 	.resource	= da850_mcasp_resources,
 };
 
+static struct platform_device davinci_pcm_device = {
+	.name	= "davinci-pcm-audio",
+	.id	= -1,
+};
+
 void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata)
 {
+	platform_device_register(&davinci_pcm_device);
+
 	/* DA830/OMAP-L137 has 3 instances of McASP */
 	if (cpu_is_davinci_da830() && id == 1) {
 		da830_mcasp1_device.dev.platform_data = pdata;
@@ -542,13 +587,13 @@ static struct resource da8xx_mmcsd0_resources[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	{		/* DMA RX */
-		.start	= EDMA_CTLR_CHAN(0, 16),
-		.end	= EDMA_CTLR_CHAN(0, 16),
+		.start	= DA8XX_DMA_MMCSD0_RX,
+		.end	= DA8XX_DMA_MMCSD0_RX,
 		.flags	= IORESOURCE_DMA,
 	},
 	{		/* DMA TX */
-		.start	= EDMA_CTLR_CHAN(0, 17),
-		.end	= EDMA_CTLR_CHAN(0, 17),
+		.start	= DA8XX_DMA_MMCSD0_TX,
+		.end	= DA8XX_DMA_MMCSD0_TX,
 		.flags	= IORESOURCE_DMA,
 	},
 };
@@ -565,6 +610,44 @@ int __init da8xx_register_mmcsd0(struct davinci_mmc_config *config)
 	da8xx_mmcsd0_device.dev.platform_data = config;
 	return platform_device_register(&da8xx_mmcsd0_device);
 }
+
+#ifdef CONFIG_ARCH_DAVINCI_DA850
+static struct resource da850_mmcsd1_resources[] = {
+	{		/* registers */
+		.start	= DA850_MMCSD1_BASE,
+		.end	= DA850_MMCSD1_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{		/* interrupt */
+		.start	= IRQ_DA850_MMCSDINT0_1,
+		.end	= IRQ_DA850_MMCSDINT0_1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{		/* DMA RX */
+		.start	= DA850_DMA_MMCSD1_RX,
+		.end	= DA850_DMA_MMCSD1_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{		/* DMA TX */
+		.start	= DA850_DMA_MMCSD1_TX,
+		.end	= DA850_DMA_MMCSD1_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device da850_mmcsd1_device = {
+	.name		= "davinci_mmc",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(da850_mmcsd1_resources),
+	.resource	= da850_mmcsd1_resources,
+};
+
+int __init da850_register_mmcsd1(struct davinci_mmc_config *config)
+{
+	da850_mmcsd1_device.dev.platform_data = config;
+	return platform_device_register(&da850_mmcsd1_device);
+}
+#endif
 
 static struct resource da8xx_rtc_resources[] = {
 	{
@@ -655,4 +738,107 @@ int __init da8xx_register_cpuidle(void)
 	da8xx_cpuidle_pdata.ddr2_ctlr_base = da8xx_get_mem_ctlr();
 
 	return platform_device_register(&da8xx_cpuidle_device);
+}
+
+static struct resource da8xx_spi0_resources[] = {
+	[0] = {
+		.start	= DA8XX_SPI0_BASE,
+		.end	= DA8XX_SPI0_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_DA8XX_SPINT0,
+		.end	= IRQ_DA8XX_SPINT0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= DA8XX_DMA_SPI0_RX,
+		.end	= DA8XX_DMA_SPI0_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= DA8XX_DMA_SPI0_TX,
+		.end	= DA8XX_DMA_SPI0_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct resource da8xx_spi1_resources[] = {
+	[0] = {
+		.start	= DA830_SPI1_BASE,
+		.end	= DA830_SPI1_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_DA8XX_SPINT1,
+		.end	= IRQ_DA8XX_SPINT1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= DA8XX_DMA_SPI1_RX,
+		.end	= DA8XX_DMA_SPI1_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= DA8XX_DMA_SPI1_TX,
+		.end	= DA8XX_DMA_SPI1_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+struct davinci_spi_platform_data da8xx_spi_pdata[] = {
+	[0] = {
+		.version	= SPI_VERSION_2,
+		.intr_line	= 1,
+		.dma_event_q	= EVENTQ_0,
+	},
+	[1] = {
+		.version	= SPI_VERSION_2,
+		.intr_line	= 1,
+		.dma_event_q	= EVENTQ_0,
+	},
+};
+
+static struct platform_device da8xx_spi_device[] = {
+	[0] = {
+		.name		= "spi_davinci",
+		.id		= 0,
+		.num_resources	= ARRAY_SIZE(da8xx_spi0_resources),
+		.resource	= da8xx_spi0_resources,
+		.dev		= {
+			.platform_data = &da8xx_spi_pdata[0],
+		},
+	},
+	[1] = {
+		.name		= "spi_davinci",
+		.id		= 1,
+		.num_resources	= ARRAY_SIZE(da8xx_spi1_resources),
+		.resource	= da8xx_spi1_resources,
+		.dev		= {
+			.platform_data = &da8xx_spi_pdata[1],
+		},
+	},
+};
+
+int __init da8xx_register_spi(int instance, struct spi_board_info *info,
+			      unsigned len)
+{
+	int ret;
+
+	if (instance < 0 || instance > 1)
+		return -EINVAL;
+
+	ret = spi_register_board_info(info, len);
+	if (ret)
+		pr_warning("%s: failed to register board info for spi %d :"
+			   " %d\n", __func__, instance, ret);
+
+	da8xx_spi_pdata[instance].num_chipselect = len;
+
+	if (instance == 1 && cpu_is_davinci_da850()) {
+		da8xx_spi1_resources[0].start = DA850_SPI1_BASE;
+		da8xx_spi1_resources[0].end = DA850_SPI1_BASE + SZ_4K - 1;
+	}
+
+	return platform_device_register(&da8xx_spi_device[instance]);
 }

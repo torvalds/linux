@@ -23,6 +23,8 @@ static int mouse_button3_keycode = KEY_RIGHTALT;	/* right option key */
 
 static struct input_dev *mac_hid_emumouse_dev;
 
+static DEFINE_MUTEX(mac_hid_emumouse_mutex);
+
 static int mac_hid_create_emumouse(void)
 {
 	static struct lock_class_key mac_hid_emumouse_dev_event_class;
@@ -187,6 +189,10 @@ static int mac_hid_toggle_emumouse(ctl_table *table, int write,
 	int old_val = *valp;
 	int rc;
 
+	rc = mutex_lock_killable(&mac_hid_emumouse_mutex);
+	if (rc)
+		return rc;
+
 	rc = proc_dointvec(table, write, buffer, lenp, ppos);
 
 	if (rc == 0 && write && *valp != old_val) {
@@ -201,6 +207,8 @@ static int mac_hid_toggle_emumouse(ctl_table *table, int write,
 	/* Restore the old value in case of error */
 	if (rc)
 		*valp = old_val;
+
+	mutex_unlock(&mac_hid_emumouse_mutex);
 
 	return rc;
 }

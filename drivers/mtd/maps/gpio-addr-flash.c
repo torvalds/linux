@@ -155,9 +155,7 @@ static void gf_copy_to(struct map_info *map, unsigned long to, const void *from,
 	memcpy_toio(map->virt + (to % state->win_size), from, len);
 }
 
-#ifdef CONFIG_MTD_PARTITIONS
 static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", NULL };
-#endif
 
 /**
  * gpio_flash_probe() - setup a mapping for a GPIO assisted flash
@@ -189,7 +187,7 @@ static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", NULL };
  */
 static int __devinit gpio_flash_probe(struct platform_device *pdev)
 {
-	int ret;
+	int nr_parts;
 	size_t i, arr_size;
 	struct physmap_flash_data *pdata;
 	struct resource *memory;
@@ -208,10 +206,14 @@ static int __devinit gpio_flash_probe(struct platform_device *pdev)
 	if (!state)
 		return -ENOMEM;
 
+	/*
+	 * We cast start/end to known types in the boards file, so cast
+	 * away their pointer types here to the known types (gpios->xxx).
+	 */
 	state->gpio_count     = gpios->end;
-	state->gpio_addrs     = (void *)gpios->start;
+	state->gpio_addrs     = (void *)(unsigned long)gpios->start;
 	state->gpio_values    = (void *)(state + 1);
-	state->win_size       = memory->end - memory->start + 1;
+	state->win_size       = resource_size(memory);
 	memset(state->gpio_values, 0xff, arr_size);
 
 	state->map.name       = DRIVER_NAME;
@@ -221,7 +223,7 @@ static int __devinit gpio_flash_probe(struct platform_device *pdev)
 	state->map.copy_to    = gf_copy_to;
 	state->map.bankwidth  = pdata->width;
 	state->map.size       = state->win_size * (1 << state->gpio_count);
-	state->map.virt       = (void __iomem *)memory->start;
+	state->map.virt       = ioremap_nocache(memory->start, state->map.size);
 	state->map.phys       = NO_XIP;
 	state->map.map_priv_1 = (unsigned long)state;
 
@@ -250,23 +252,20 @@ static int __devinit gpio_flash_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-#ifdef CONFIG_MTD_PARTITIONS
-	ret = parse_mtd_partitions(state->mtd, part_probe_types, &pdata->parts, 0);
-	if (ret > 0) {
+	nr_parts = parse_mtd_partitions(state->mtd, part_probe_types,
+					&pdata->parts, 0);
+	if (nr_parts > 0) {
 		pr_devinit(KERN_NOTICE PFX "Using commandline partition definition\n");
-		add_mtd_partitions(state->mtd, pdata->parts, ret);
 		kfree(pdata->parts);
-
 	} else if (pdata->nr_parts) {
 		pr_devinit(KERN_NOTICE PFX "Using board partition definition\n");
-		add_mtd_partitions(state->mtd, pdata->parts, pdata->nr_parts);
-
-	} else
-#endif
-	{
+		nr_parts = pdata->nr_parts;
+	} else {
 		pr_devinit(KERN_NOTICE PFX "no partition info available, registering whole flash at once\n");
-		add_mtd_device(state->mtd);
+		nr_parts = 0;
 	}
+
+	mtd_device_register(state->mtd, pdata->parts, nr_parts);
 
 	return 0;
 }
@@ -278,9 +277,7 @@ static int __devexit gpio_flash_remove(struct platform_device *pdev)
 	do {
 		gpio_free(state->gpio_addrs[i]);
 	} while (++i < state->gpio_count);
-#ifdef CONFIG_MTD_PARTITIONS
-	del_mtd_partitions(state->mtd);
-#endif
+	mtd_device_unregister(state->mtd);
 	map_destroy(state->mtd);
 	kfree(state);
 	return 0;

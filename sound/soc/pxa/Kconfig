@@ -1,6 +1,7 @@
 config SND_PXA2XX_SOC
 	tristate "SoC Audio for the Intel PXA2xx chip"
 	depends on ARCH_PXA
+	select SND_ARM
 	select SND_PXA2XX_LIB
 	help
 	  Say Y or M if you want to add support for codecs attached to
@@ -117,6 +118,24 @@ config SND_PXA2XX_SOC_PALM27X
 	  Say Y if you want to add support for SoC audio on
 	  Palm T|X, T5, E2 or LifeDrive handheld computer.
 
+config SND_SOC_SAARB
+	tristate "SoC Audio support for Marvell Saarb"
+	depends on SND_PXA2XX_SOC && MACH_SAARB
+	select SND_PXA_SOC_SSP
+	select SND_SOC_88PM860X
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  Marvell Saarb reference platform.
+
+config SND_SOC_TAVOREVB3
+	tristate "SoC Audio support for Marvell Tavor EVB3"
+	depends on SND_PXA2XX_SOC && MACH_TAVOREVB3
+	select SND_PXA_SOC_SSP
+	select SND_SOC_88PM860X
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  Marvell Saarb reference platform.
+
 config SND_SOC_ZYLONITE
 	tristate "SoC Audio support for Marvell Zylonite"
 	depends on SND_PXA2XX_SOC && MACH_ZYLONITE
@@ -135,6 +154,15 @@ config SND_SOC_RAUMFELD
 	select SND_SOC_AK4104
 	help
 	  Say Y if you want to add support for SoC audio on Raumfeld devices
+
+config SND_PXA2XX_SOC_HX4700
+	tristate "SoC Audio support for HP iPAQ hx4700"
+	depends on SND_PXA2XX_SOC && MACH_H4700
+	select SND_PXA2XX_SOC_I2S
+	select SND_SOC_AK4641
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  HP iPAQ hx4700.
 
 config SND_PXA2XX_SOC_MAGICIAN
 	tristate "SoC Audio support for HTC Magician"

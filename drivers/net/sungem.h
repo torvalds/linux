@@ -843,7 +843,7 @@ struct gem_txd {
 
 /* GEM requires that RX descriptors are provided four at a time,
  * aligned.  Also, the RX ring may not wrap around.  This means that
- * there will be at least 4 unused desciptor entries in the middle
+ * there will be at least 4 unused descriptor entries in the middle
  * of the RX ring at all times.
  *
  * Similar to HME, GEM assumes that it can write garbage bytes before
@@ -994,7 +994,6 @@ struct gem {
 	u32			status;
 
 	struct napi_struct	napi;
-	struct net_device_stats net_stats;
 
 	int			tx_fifo_sz;
 	int			rx_fifo_sz;

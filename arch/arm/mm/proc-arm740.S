@@ -55,7 +55,7 @@ ENTRY(cpu_arm740_reset)
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	mov	pc, r0
 
-	__INIT
+	__CPUINIT
 
 	.type	__arm740_setup, #function
 __arm740_setup:
@@ -130,6 +130,9 @@ ENTRY(arm740_processor_functions)
 	.word	cpu_arm740_dcache_clean_area
 	.word	cpu_arm740_switch_mm
 	.word	0			@ cpu_*_set_pte
+	.word	0
+	.word	0
+	.word	0
 	.size	arm740_processor_functions, . - arm740_processor_functions
 
 	.section ".rodata"

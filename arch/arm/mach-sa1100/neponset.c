@@ -35,7 +35,7 @@ neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
 		/*
 		 * Acknowledge the parent IRQ.
 		 */
-		desc->chip->ack(irq);
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 		/*
 		 * Read the interrupt reason register.  Let's have all
@@ -53,7 +53,7 @@ neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
 		 * recheck the register for any pending IRQs.
 		 */
 		if (irr & (IRR_ETHERNET | IRR_USAR)) {
-			desc->chip->mask(irq);
+			desc->irq_data.chip->irq_mask(&desc->irq_data);
 
 			/*
 			 * Ack the interrupt now to prevent re-entering
@@ -61,7 +61,7 @@ neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
 			 * since we'll check the IRR register prior to
 			 * leaving.
 			 */
-			desc->chip->ack(irq);
+			desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 			if (irr & IRR_ETHERNET) {
 				generic_handle_irq(IRQ_NEPONSET_SMC9196);
@@ -71,7 +71,7 @@ neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
 				generic_handle_irq(IRQ_NEPONSET_USAR);
 			}
 
-			desc->chip->unmask(irq);
+			desc->irq_data.chip->irq_unmask(&desc->irq_data);
 		}
 
 		if (irr & IRR_SA1111) {
@@ -145,8 +145,8 @@ static int __devinit neponset_probe(struct platform_device *dev)
 	/*
 	 * Install handler for GPIO25.
 	 */
-	set_irq_type(IRQ_GPIO25, IRQ_TYPE_EDGE_RISING);
-	set_irq_chained_handler(IRQ_GPIO25, neponset_irq_handler);
+	irq_set_irq_type(IRQ_GPIO25, IRQ_TYPE_EDGE_RISING);
+	irq_set_chained_handler(IRQ_GPIO25, neponset_irq_handler);
 
 	/*
 	 * We would set IRQ_GPIO25 to be a wake-up IRQ, but
@@ -161,9 +161,9 @@ static int __devinit neponset_probe(struct platform_device *dev)
 	 * Setup other Neponset IRQs.  SA1111 will be done by the
 	 * generic SA1111 code.
 	 */
-	set_irq_handler(IRQ_NEPONSET_SMC9196, handle_simple_irq);
+	irq_set_handler(IRQ_NEPONSET_SMC9196, handle_simple_irq);
 	set_irq_flags(IRQ_NEPONSET_SMC9196, IRQF_VALID | IRQF_PROBE);
-	set_irq_handler(IRQ_NEPONSET_USAR, handle_simple_irq);
+	irq_set_handler(IRQ_NEPONSET_USAR, handle_simple_irq);
 	set_irq_flags(IRQ_NEPONSET_USAR, IRQF_VALID | IRQF_PROBE);
 
 	/*

@@ -1,4 +1,4 @@
-//**
+/**
 @verbatim
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
@@ -8,7 +8,7 @@ Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 	D-77833 Ottersweier
 	Tel: +19(0)7223/9493-0
 	Fax: +49(0)7223/9493-92
-	http://www.addi-data-com
+	http://www.addi-data.com
 	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
@@ -33,7 +33,7 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-------------------------------+---------------------------------------+
   | Project manager: Eric Stolz   | Date       :  02/12/2002              |
   +-------------------------------+---------------------------------------+
-  | Description :   Hardware Layer Acces For APCI-1710                    |
+  | Description :   Hardware Layer Access For APCI-1710                   |
   +-----------------------------------------------------------------------+
   |                             UPDATES                                   |
   +----------+-----------+------------------------------------------------+
@@ -225,7 +225,7 @@ int i_APCI1710_Reset(struct comedi_device *dev)
 
 	devpriv->s_BoardInfos.b_BoardVersion = 1;
 
-	/*  Enable the interrupt for the controler */
+	/*  Enable the interrupt for the controller */
 	dw_Dummy = inl(devpriv->s_BoardInfos.ui_Address + 0x38);
 	outl(dw_Dummy | 0x2000, devpriv->s_BoardInfos.ui_Address + 0x38);
 

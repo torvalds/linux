@@ -240,6 +240,9 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 	size += out->maxpacket - 1;
 	size -= size % out->maxpacket;
 
+	if (dev->port_usb->is_fixed)
+		size = max_t(size_t, size, dev->port_usb->fixed_out_len);
+
 	skb = alloc_skb(size + NET_IP_ALIGN, gfp_flags);
 	if (skb == NULL) {
 		DBG(dev, "no rx skb\n");
@@ -578,12 +581,19 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	req->context = skb;
 	req->complete = tx_complete;
 
+	/* NCM requires no zlp if transfer is dwNtbInMaxSize */
+	if (dev->port_usb->is_fixed &&
+	    length == dev->port_usb->fixed_in_len &&
+	    (length % in->maxpacket) == 0)
+		req->zero = 0;
+	else
+		req->zero = 1;
+
 	/* use zlp framing on tx for strict CDC-Ether conformance,
 	 * though any robust network rx path ignores extra padding.
 	 * and some hardware doesn't like to write zlps.
 	 */
-	req->zero = 1;
-	if (!dev->zlp && (length % in->maxpacket) == 0)
+	if (req->zero && !dev->zlp && (length % in->maxpacket) == 0)
 		length++;
 
 	req->length = length;
@@ -755,6 +765,26 @@ static struct device_type gadget_type = {
  */
 int gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
 {
+	return gether_setup_name(g, ethaddr, "usb");
+}
+
+/**
+ * gether_setup_name - initialize one ethernet-over-usb link
+ * @g: gadget to associated with these links
+ * @ethaddr: NULL, or a buffer in which the ethernet address of the
+ *	host side of the link is recorded
+ * @netname: name for network device (for example, "usb")
+ * Context: may sleep
+ *
+ * This sets up the single network link that may be exported by a
+ * gadget driver using this framework.  The link layer addresses are
+ * set up using module parameters.
+ *
+ * Returns negative errno, or zero on success
+ */
+int gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
+		const char *netname)
+{
 	struct eth_dev		*dev;
 	struct net_device	*net;
 	int			status;
@@ -777,7 +807,7 @@ int gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
 
 	/* network device setup */
 	dev->net = net;
-	strcpy(net->name, "usb%d");
+	snprintf(net->name, sizeof(net->name), "%s%%d", netname);
 
 	if (get_ether_addr(dev_addr, net->dev_addr))
 		dev_warn(&g->dev,
@@ -797,7 +827,6 @@ int gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
 	 *  - iff DATA transfer is active, carrier is "on"
 	 *  - tx queueing enabled if open *and* carrier is "on"
 	 */
-	netif_stop_queue(net);
 	netif_carrier_off(net);
 
 	dev->gadget = g;
@@ -830,10 +859,8 @@ void gether_cleanup(void)
 		return;
 
 	unregister_netdev(the_dev->net);
+	flush_work_sync(&the_dev->work);
 	free_netdev(the_dev->net);
-
-	/* assuming we used keventd, it must quiesce too */
-	flush_scheduled_work();
 
 	the_dev = NULL;
 }
@@ -936,7 +963,6 @@ void gether_disconnect(struct gether *link)
 	struct eth_dev		*dev = link->ioport;
 	struct usb_request	*req;
 
-	WARN_ON(!dev);
 	if (!dev)
 		return;
 

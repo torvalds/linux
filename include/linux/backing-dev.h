@@ -66,8 +66,6 @@ struct backing_dev_info {
 	unsigned int capabilities; /* Device capabilities */
 	congested_fn *congested_fn; /* Function pointer if device is md/dm */
 	void *congested_data;	/* Pointer to aux data for congested func */
-	void (*unplug_io_fn)(struct backing_dev_info *, struct page *);
-	void *unplug_io_data;
 
 	char *name;
 
@@ -111,6 +109,7 @@ void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi);
 
 extern spinlock_t bdi_lock;
 extern struct list_head bdi_list;
+extern struct list_head bdi_pending_list;
 
 static inline int wb_has_dirty_io(struct bdi_writeback *wb)
 {
@@ -250,7 +249,6 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
 
 extern struct backing_dev_info default_backing_dev_info;
 extern struct backing_dev_info noop_backing_dev_info;
-void default_unplug_io_fn(struct backing_dev_info *bdi, struct page *page);
 
 int writeback_in_progress(struct backing_dev_info *bdi);
 
@@ -285,7 +283,7 @@ enum {
 void clear_bdi_congested(struct backing_dev_info *bdi, int sync);
 void set_bdi_congested(struct backing_dev_info *bdi, int sync);
 long congestion_wait(int sync, long timeout);
-
+long wait_iff_congested(struct zone *zone, int sync, long timeout);
 
 static inline bool bdi_cap_writeback_dirty(struct backing_dev_info *bdi)
 {
@@ -333,19 +331,6 @@ static inline int bdi_sched_wait(void *word)
 {
 	schedule();
 	return 0;
-}
-
-static inline void blk_run_backing_dev(struct backing_dev_info *bdi,
-				       struct page *page)
-{
-	if (bdi && bdi->unplug_io_fn)
-		bdi->unplug_io_fn(bdi, page);
-}
-
-static inline void blk_run_address_space(struct address_space *mapping)
-{
-	if (mapping)
-		blk_run_backing_dev(mapping->backing_dev_info, NULL);
 }
 
 #endif		/* _LINUX_BACKING_DEV_H */

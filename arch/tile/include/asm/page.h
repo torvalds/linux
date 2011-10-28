@@ -16,10 +16,12 @@
 #define _ASM_TILE_PAGE_H
 
 #include <linux/const.h>
+#include <hv/hypervisor.h>
+#include <arch/chip.h>
 
 /* PAGE_SHIFT and HPAGE_SHIFT determine the page sizes. */
-#define PAGE_SHIFT	16
-#define HPAGE_SHIFT	24
+#define PAGE_SHIFT	HV_LOG2_PAGE_SIZE_SMALL
+#define HPAGE_SHIFT	HV_LOG2_PAGE_SIZE_LARGE
 
 #define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
 #define HPAGE_SIZE	(_AC(1, UL) << HPAGE_SHIFT)
@@ -27,25 +29,13 @@
 #define PAGE_MASK	(~(PAGE_SIZE - 1))
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 
-#ifdef __KERNEL__
-
-#include <hv/hypervisor.h>
-#include <arch/chip.h>
-
 /*
- * The {,H}PAGE_SHIFT values must match the HV_LOG2_PAGE_SIZE_xxx
- * definitions in <hv/hypervisor.h>.  We validate this at build time
- * here, and again at runtime during early boot.  We provide a
- * separate definition since userspace doesn't have <hv/hypervisor.h>.
- *
- * Be careful to distinguish PAGE_SHIFT from HV_PTE_INDEX_PFN, since
- * they are the same on i386 but not TILE.
+ * If the Kconfig doesn't specify, set a maximum zone order that
+ * is enough so that we can create huge pages from small pages given
+ * the respective sizes of the two page types.  See <linux/mmzone.h>.
  */
-#if HV_LOG2_PAGE_SIZE_SMALL != PAGE_SHIFT
-# error Small page size mismatch in Linux
-#endif
-#if HV_LOG2_PAGE_SIZE_LARGE != HPAGE_SHIFT
-# error Huge page size mismatch in Linux
+#ifndef CONFIG_FORCE_MAX_ZONEORDER
+#define CONFIG_FORCE_MAX_ZONEORDER (HPAGE_SHIFT - PAGE_SHIFT + 1)
 #endif
 
 #ifndef __ASSEMBLY__
@@ -81,12 +71,6 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
  * Hypervisor page tables are made of the same basic structure.
  */
 
-typedef __u64 pteval_t;
-typedef __u64 pmdval_t;
-typedef __u64 pudval_t;
-typedef __u64 pgdval_t;
-typedef __u64 pgprotval_t;
-
 typedef HV_PTE pte_t;
 typedef HV_PTE pgd_t;
 typedef HV_PTE pgprot_t;
@@ -102,6 +86,10 @@ typedef struct page *pgtable_t;
 
 /* Must be a macro since it is used to create constants. */
 #define __pgprot(val) hv_pte(val)
+
+/* Rarely-used initializers, typically with a "zero" value. */
+#define __pte(x) hv_pte(x)
+#define __pgd(x) hv_pte(x)
 
 static inline u64 pgprot_val(pgprot_t pgprot)
 {
@@ -121,6 +109,8 @@ static inline u64 pgd_val(pgd_t pgd)
 #ifdef __tilegx__
 
 typedef HV_PTE pmd_t;
+
+#define __pmd(x) hv_pte(x)
 
 static inline u64 pmd_val(pmd_t pmd)
 {
@@ -199,17 +189,17 @@ static inline __attribute_const__ int get_order(unsigned long size)
  * If you want more physical memory than this then see the CONFIG_HIGHMEM
  * option in the kernel configuration.
  *
- * The top two 16MB chunks in the table below (VIRT and HV) are
- * unavailable to Linux.  Since the kernel interrupt vectors must live
- * at 0xfd000000, we map all of the bottom of RAM at this address with
- * a huge page table entry to minimize its ITLB footprint (as well as
- * at PAGE_OFFSET).  The last architected requirement is that user
- * interrupt vectors live at 0xfc000000, so we make that range of
- * memory available to user processes.  The remaining regions are sized
- * as shown; after the first four addresses, we show "typical" values,
- * since the actual addresses depend on kernel #defines.
+ * The top 16MB chunk in the table below is unavailable to Linux.  Since
+ * the kernel interrupt vectors must live at ether 0xfe000000 or 0xfd000000
+ * (depending on whether the kernel is at PL2 or Pl1), we map all of the
+ * bottom of RAM at this address with a huge page table entry to minimize
+ * its ITLB footprint (as well as at PAGE_OFFSET).  The last architected
+ * requirement is that user interrupt vectors live at 0xfc000000, so we
+ * make that range of memory available to user processes.  The remaining
+ * regions are sized as shown; the first four addresses use the PL 1
+ * values, and after that, we show "typical" values, since the actual
+ * addresses depend on kernel #defines.
  *
- * MEM_VIRT_INTRPT                 0xff000000
  * MEM_HV_INTRPT                   0xfe000000
  * MEM_SV_INTRPT (kernel code)     0xfd000000
  * MEM_USER_INTRPT (user vector)   0xfc000000
@@ -221,9 +211,14 @@ static inline __attribute_const__ int get_order(unsigned long size)
  */
 
 #define MEM_USER_INTRPT		_AC(0xfc000000, UL)
+#if CONFIG_KERNEL_PL == 1
 #define MEM_SV_INTRPT		_AC(0xfd000000, UL)
 #define MEM_HV_INTRPT		_AC(0xfe000000, UL)
-#define MEM_VIRT_INTRPT		_AC(0xff000000, UL)
+#else
+#define MEM_GUEST_INTRPT	_AC(0xfd000000, UL)
+#define MEM_SV_INTRPT		_AC(0xfe000000, UL)
+#define MEM_HV_INTRPT		_AC(0xff000000, UL)
+#endif
 
 #define INTRPT_SIZE		0x4000
 
@@ -325,7 +320,7 @@ static inline int pfn_valid(unsigned long pfn)
 
 /* Provide as macros since these require some other headers included. */
 #define page_to_pa(page) ((phys_addr_t)(page_to_pfn(page)) << PAGE_SHIFT)
-#define virt_to_page(kaddr) pfn_to_page(kaddr_to_pfn(kaddr))
+#define virt_to_page(kaddr) pfn_to_page(kaddr_to_pfn((void *)(kaddr)))
 #define page_to_virt(page) pfn_to_kaddr(page_to_pfn(page))
 
 struct mm_struct;
@@ -337,7 +332,5 @@ extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 	(VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/memory_model.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_TILE_PAGE_H */

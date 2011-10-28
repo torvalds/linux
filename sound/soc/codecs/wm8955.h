@@ -15,9 +15,6 @@
 
 #define WM8955_CLK_MCLK 1
 
-extern struct snd_soc_dai wm8955_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8955;
-
 /*
  * Register values.
  */

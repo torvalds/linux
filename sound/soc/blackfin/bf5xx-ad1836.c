@@ -20,7 +20,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/pcm_params.h>
 
 #include <asm/blackfin.h>
@@ -30,28 +29,18 @@
 #include <asm/portmux.h>
 
 #include "../codecs/ad1836.h"
-#include "bf5xx-sport.h"
 
 #include "bf5xx-tdm-pcm.h"
 #include "bf5xx-tdm.h"
 
 static struct snd_soc_card bf5xx_ad1836;
 
-static int bf5xx_ad1836_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-
-	cpu_dai->private_data = sport_handle;
-	return 0;
-}
-
 static int bf5xx_ad1836_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	unsigned int channel_map[] = {0, 4, 1, 5, 2, 6, 3, 7};
 	int ret = 0;
 	/* set cpu DAI configuration */
@@ -76,28 +65,34 @@ static int bf5xx_ad1836_hw_params(struct snd_pcm_substream *substream,
 }
 
 static struct snd_soc_ops bf5xx_ad1836_ops = {
-	.startup = bf5xx_ad1836_startup,
 	.hw_params = bf5xx_ad1836_hw_params,
 };
 
-static struct snd_soc_dai_link bf5xx_ad1836_dai = {
-	.name = "ad1836",
-	.stream_name = "AD1836",
-	.cpu_dai = &bf5xx_tdm_dai,
-	.codec_dai = &ad1836_dai,
-	.ops = &bf5xx_ad1836_ops,
+static struct snd_soc_dai_link bf5xx_ad1836_dai[] = {
+	{
+		.name = "ad1836",
+		.stream_name = "AD1836",
+		.cpu_dai_name = "bfin-tdm.0",
+		.codec_dai_name = "ad1836-hifi",
+		.platform_name = "bfin-tdm-pcm-audio",
+		.codec_name = "spi0.4",
+		.ops = &bf5xx_ad1836_ops,
+	},
+	{
+		.name = "ad1836",
+		.stream_name = "AD1836",
+		.cpu_dai_name = "bfin-tdm.1",
+		.codec_dai_name = "ad1836-hifi",
+		.platform_name = "bfin-tdm-pcm-audio",
+		.codec_name = "spi0.4",
+		.ops = &bf5xx_ad1836_ops,
+	},
 };
 
 static struct snd_soc_card bf5xx_ad1836 = {
-	.name = "bf5xx_ad1836",
-	.platform = &bf5xx_tdm_soc_platform,
-	.dai_link = &bf5xx_ad1836_dai,
+	.name = "bfin-ad1836",
+	.dai_link = &bf5xx_ad1836_dai[CONFIG_SND_BF5XX_SPORT_NUM],
 	.num_links = 1,
-};
-
-static struct snd_soc_device bf5xx_ad1836_snd_devdata = {
-	.card = &bf5xx_ad1836,
-	.codec_dev = &soc_codec_dev_ad1836,
 };
 
 static struct platform_device *bfxx_ad1836_snd_device;
@@ -110,8 +105,7 @@ static int __init bf5xx_ad1836_init(void)
 	if (!bfxx_ad1836_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(bfxx_ad1836_snd_device, &bf5xx_ad1836_snd_devdata);
-	bf5xx_ad1836_snd_devdata.dev = &bfxx_ad1836_snd_device->dev;
+	platform_set_drvdata(bfxx_ad1836_snd_device, &bf5xx_ad1836);
 	ret = platform_device_add(bfxx_ad1836_snd_device);
 
 	if (ret)

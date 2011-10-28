@@ -1,18 +1,19 @@
 #ifndef _IP6T_RT_H
 #define _IP6T_RT_H
 
+#include <linux/types.h>
 /*#include <linux/in6.h>*/
 
 #define IP6T_RT_HOPS 16
 
 struct ip6t_rt {
-	u_int32_t rt_type;			/* Routing Type */
-	u_int32_t segsleft[2];			/* Segments Left */
-	u_int32_t hdrlen;			/* Header Length */
-	u_int8_t  flags;			/*  */
-	u_int8_t  invflags;			/* Inverse flags */
+	__u32 rt_type;			/* Routing Type */
+	__u32 segsleft[2];			/* Segments Left */
+	__u32 hdrlen;			/* Header Length */
+	__u8  flags;			/*  */
+	__u8  invflags;			/* Inverse flags */
 	struct in6_addr addrs[IP6T_RT_HOPS];	/* Hops */
-	u_int8_t addrnr;			/* Nr of Addresses */
+	__u8 addrnr;			/* Nr of Addresses */
 };
 
 #define IP6T_RT_TYP 		0x01

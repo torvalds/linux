@@ -1,5 +1,5 @@
 /*
- * Context.c.  Python interfaces for perf trace.
+ * Context.c.  Python interfaces for perf script.
  *
  * Copyright (C) 2010 Tom Zanussi <tzanussi@gmail.com>
  *

@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "IA-64 Linux Kernel Configuration"
-
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -29,6 +22,11 @@ config IA64
 	select HAVE_KVM
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_PROBE
+	select GENERIC_PENDING_IRQ if SMP
+	select IRQ_PER_CPU
+	select GENERIC_IRQ_SHOW
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -53,6 +51,9 @@ config MMU
 	bool
 	default y
 
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool y
+
 config NEED_DMA_MAP_STATE
 	def_bool y
 
@@ -61,6 +62,9 @@ config NEED_SG_DMA_LENGTH
 
 config SWIOTLB
        bool
+
+config STACKTRACE_SUPPORT
+	def_bool y
 
 config GENERIC_LOCKBREAK
 	def_bool n
@@ -72,10 +76,6 @@ config RWSEM_XCHGADD_ALGORITHM
 config HUGETLB_PAGE_SIZE_VARIABLE
 	bool
 	depends on HUGETLB_PAGE
-	default y
-
-config GENERIC_FIND_NEXT_BIT
-	bool
 	default y
 
 config GENERIC_CALIBRATE_DELAY
@@ -410,11 +410,11 @@ config PERMIT_BSP_REMOVE
 	support. 
 
 config FORCE_CPEI_RETARGET
-	bool "Force assumption that CPEI can be re-targetted"
+	bool "Force assumption that CPEI can be re-targeted"
 	depends on PERMIT_BSP_REMOVE
 	default n
 	---help---
-	Say Y if you need to force the assumption that CPEI can be re-targetted to
+	Say Y if you need to force the assumption that CPEI can be re-targeted to
 	any cpu in the system. This hint is available via ACPI 3.0 specifications.
 	Tiger4 systems are capable of re-directing CPEI to any CPU other than BSP.
 	This option it useful to enable this feature on older BIOS's as well.
@@ -678,26 +678,6 @@ source "crypto/Kconfig"
 source "arch/ia64/kvm/Kconfig"
 
 source "lib/Kconfig"
-
-#
-# Use the generic interrupt handling code in kernel/irq/:
-#
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_IRQ_PROBE
-	bool
-	default y
-
-config GENERIC_PENDING_IRQ
-	bool
-	depends on GENERIC_HARDIRQS && SMP
-	default y
-
-config IRQ_PER_CPU
-	bool
-	default y
 
 config IOMMU_HELPER
 	def_bool (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC || SWIOTLB)

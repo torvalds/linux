@@ -89,7 +89,7 @@
 /* the following commands are new in the 82078. They are not used in the
  * floppy driver, except the first three. These commands may be useful for apps
  * which use the FDRAWCMD interface. For doc, get the 82078 spec sheets at
- * http://www-techdoc.intel.com/docs/periph/fd_contr/datasheets/ */
+ * http://www.intel.com/design/archives/periphrl/docs/29046803.htm */
 
 #define FD_PARTID		0x18	/* part id ("extended" version cmd) */
 #define FD_SAVE			0x2e	/* save fdc regs for later restore */

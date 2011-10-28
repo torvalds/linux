@@ -35,6 +35,7 @@
 #include <linux/ioctl.h>
 #include <linux/file.h>
 #include <linux/wait.h>
+#include <linux/kthread.h>
 #include <net/sock.h>
 
 #include <linux/isdn/capilli.h>
@@ -143,7 +144,7 @@ static void cmtp_send_capimsg(struct cmtp_session *session, struct sk_buff *skb)
 
 	skb_queue_tail(&session->transmit, skb);
 
-	cmtp_schedule(session);
+	wake_up_interruptible(sk_sleep(session->sock->sk));
 }
 
 static void cmtp_send_interopmsg(struct cmtp_session *session,
@@ -155,7 +156,8 @@ static void cmtp_send_interopmsg(struct cmtp_session *session,
 
 	BT_DBG("session %p subcmd 0x%02x appl %d msgnum %d", session, subcmd, appl, msgnum);
 
-	if (!(skb = alloc_skb(CAPI_MSG_BASELEN + 6 + len, GFP_ATOMIC))) {
+	skb = alloc_skb(CAPI_MSG_BASELEN + 6 + len, GFP_ATOMIC);
+	if (!skb) {
 		BT_ERR("Can't allocate memory for interoperability packet");
 		return;
 	}
@@ -324,7 +326,7 @@ void cmtp_recv_capimsg(struct cmtp_session *session, struct sk_buff *skb)
 {
 	struct capi_ctr *ctrl = &session->ctrl;
 	struct cmtp_application *application;
-	__u16 cmd, appl;
+	__u16 appl;
 	__u32 contr;
 
 	BT_DBG("session %p skb %p len %d", session, skb, skb->len);
@@ -342,7 +344,6 @@ void cmtp_recv_capimsg(struct cmtp_session *session, struct sk_buff *skb)
 		return;
 	}
 
-	cmd = CAPICMD(CAPIMSG_COMMAND(skb->data), CAPIMSG_SUBCOMMAND(skb->data));
 	appl = CAPIMSG_APPID(skb->data);
 	contr = CAPIMSG_CONTROL(skb->data);
 
@@ -385,8 +386,7 @@ static void cmtp_reset_ctr(struct capi_ctr *ctrl)
 
 	capi_ctr_down(ctrl);
 
-	atomic_inc(&session->terminate);
-	cmtp_schedule(session);
+	kthread_stop(session->task);
 }
 
 static void cmtp_register_appl(struct capi_ctr *ctrl, __u16 appl, capi_register_params *rp)

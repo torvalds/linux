@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -194,7 +195,6 @@ void __init s3c24xx_ts_set_platdata(struct s3c2410_ts_mach_info *hard_s3c2410ts_
 	memcpy(&s3c2410ts_info, hard_s3c2410ts_info, sizeof(struct s3c2410_ts_mach_info));
 	s3c_device_ts.dev.platform_data = &s3c2410ts_info;
 }
-EXPORT_SYMBOL(s3c24xx_ts_set_platdata);
 
 /* USB Device (Gadget)*/
 
@@ -234,6 +234,46 @@ void __init s3c24xx_udc_set_platdata(struct s3c2410_udc_mach_info *pd)
 	}
 }
 
+/* USB High Speed 2.0 Device (Gadget) */
+static struct resource s3c_hsudc_resource[] = {
+	[0] = {
+		.start	= S3C2416_PA_HSUDC,
+		.end	= S3C2416_PA_HSUDC + S3C2416_SZ_HSUDC - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_USBD,
+		.end	= IRQ_USBD,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static u64 s3c_hsudc_dmamask = DMA_BIT_MASK(32);
+
+struct platform_device s3c_device_usb_hsudc = {
+	.name		= "s3c-hsudc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(s3c_hsudc_resource),
+	.resource	= s3c_hsudc_resource,
+	.dev		= {
+		.dma_mask		= &s3c_hsudc_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+void __init s3c24xx_hsudc_set_platdata(struct s3c24xx_hsudc_platdata *pd)
+{
+	struct s3c24xx_hsudc_platdata *npd;
+
+	npd = kmalloc(sizeof(*npd), GFP_KERNEL);
+	if (npd) {
+		memcpy(npd, pd, sizeof(*npd));
+		s3c_device_usb_hsudc.dev.platform_data = npd;
+	} else {
+		printk(KERN_ERR "no memory for udc platform data\n");
+	}
+}
+
 /* IIS */
 
 static struct resource s3c_iis_resource[] = {
@@ -247,7 +287,7 @@ static struct resource s3c_iis_resource[] = {
 static u64 s3c_device_iis_dmamask = 0xffffffffUL;
 
 struct platform_device s3c_device_iis = {
-	.name		  = "s3c2410-iis",
+	.name		  = "s3c24xx-iis",
 	.id		  = -1,
 	.num_resources	  = ARRAY_SIZE(s3c_iis_resource),
 	.resource	  = s3c_iis_resource,
@@ -481,19 +521,32 @@ static struct resource s3c_ac97_resource[] = {
 	},
 };
 
-static u64 s3c_device_ac97_dmamask = 0xffffffffUL;
+static u64 s3c_device_audio_dmamask = 0xffffffffUL;
 
 struct platform_device s3c_device_ac97 = {
-	.name		  = "s3c-ac97",
+	.name		  = "samsung-ac97",
 	.id		  = -1,
 	.num_resources	  = ARRAY_SIZE(s3c_ac97_resource),
 	.resource	  = s3c_ac97_resource,
 	.dev              = {
-		.dma_mask = &s3c_device_ac97_dmamask,
+		.dma_mask = &s3c_device_audio_dmamask,
 		.coherent_dma_mask = 0xffffffffUL
 	}
 };
 
 EXPORT_SYMBOL(s3c_device_ac97);
+
+/* ASoC I2S */
+
+struct platform_device s3c2412_device_iis = {
+	.name		  = "s3c2412-iis",
+	.id		  = -1,
+	.dev              = {
+		.dma_mask = &s3c_device_audio_dmamask,
+		.coherent_dma_mask = 0xffffffffUL
+	}
+};
+
+EXPORT_SYMBOL(s3c2412_device_iis);
 
 #endif // CONFIG_CPU_S32440

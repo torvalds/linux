@@ -286,6 +286,11 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_PAGEFLIPPING	 8
 #define I915_PARAM_HAS_EXECBUF2          9
 #define I915_PARAM_HAS_BSD		 10
+#define I915_PARAM_HAS_BLT		 11
+#define I915_PARAM_HAS_RELAXED_FENCING	 12
+#define I915_PARAM_HAS_COHERENT_RINGS	 13
+#define I915_PARAM_HAS_EXEC_CONSTANTS	 14
+#define I915_PARAM_HAS_RELAXED_DELTA	 15
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -627,8 +632,22 @@ struct drm_i915_gem_execbuffer2 {
 	__u32 num_cliprects;
 	/** This is a struct drm_clip_rect *cliprects */
 	__u64 cliprects_ptr;
+#define I915_EXEC_RING_MASK              (7<<0)
+#define I915_EXEC_DEFAULT                (0<<0)
 #define I915_EXEC_RENDER                 (1<<0)
-#define I915_EXEC_BSD                    (1<<1)
+#define I915_EXEC_BSD                    (2<<0)
+#define I915_EXEC_BLT                    (3<<0)
+
+/* Used for switching the constants addressing mode on gen4+ RENDER ring.
+ * Gen6+ only supports relative addressing to dynamic state (default) and
+ * absolute addressing.
+ *
+ * These flags are ignored for the BSD and BLT rings.
+ */
+#define I915_EXEC_CONSTANTS_MASK 	(3<<6)
+#define I915_EXEC_CONSTANTS_REL_GENERAL (0<<6) /* default */
+#define I915_EXEC_CONSTANTS_ABSOLUTE 	(1<<6)
+#define I915_EXEC_CONSTANTS_REL_SURFACE (2<<6) /* gen4/5 only */
 	__u64 flags;
 	__u64 rsvd1;
 	__u64 rsvd2;

@@ -21,7 +21,7 @@
 #ifndef __LINUX_UBI_H__
 #define __LINUX_UBI_H__
 
-#include <asm/ioctl.h>
+#include <linux/ioctl.h>
 #include <linux/types.h>
 #include <mtd/ubi-user.h>
 
@@ -87,7 +87,7 @@ enum {
  * physical eraseblock size and on how much bytes UBI headers consume. But
  * because of the volume alignment (@alignment), the usable size of logical
  * eraseblocks if a volume may be less. The following equation is true:
- * 	@usable_leb_size = LEB size - (LEB size mod @alignment),
+ *	@usable_leb_size = LEB size - (LEB size mod @alignment),
  * where LEB size is the logical eraseblock size defined by the UBI device.
  *
  * The alignment is multiple to the minimal flash input/output unit size or %1
@@ -116,18 +116,40 @@ struct ubi_volume_info {
  * struct ubi_device_info - UBI device description data structure.
  * @ubi_num: ubi device number
  * @leb_size: logical eraseblock size on this UBI device
+ * @leb_start: starting offset of logical eraseblocks within physical
+ *             eraseblocks
  * @min_io_size: minimal I/O unit size
+ * @max_write_size: maximum amount of bytes the underlying flash can write at a
+ *                  time (MTD write buffer size)
  * @ro_mode: if this device is in read-only mode
  * @cdev: UBI character device major and minor numbers
  *
  * Note, @leb_size is the logical eraseblock size offered by the UBI device.
  * Volumes of this UBI device may have smaller logical eraseblock size if their
  * alignment is not equivalent to %1.
+ *
+ * The @max_write_size field describes flash write maximum write unit. For
+ * example, NOR flash allows for changing individual bytes, so @min_io_size is
+ * %1. However, it does not mean than NOR flash has to write data byte-by-byte.
+ * Instead, CFI NOR flashes have a write-buffer of, e.g., 64 bytes, and when
+ * writing large chunks of data, they write 64-bytes at a time. Obviously, this
+ * improves write throughput.
+ *
+ * Also, the MTD device may have N interleaved (striped) flash chips
+ * underneath, in which case @min_io_size can be physical min. I/O size of
+ * single flash chip, while @max_write_size can be N * @min_io_size.
+ *
+ * The @max_write_size field is always greater or equivalent to @min_io_size.
+ * E.g., some NOR flashes may have (@min_io_size = 1, @max_write_size = 64). In
+ * contrast, NAND flashes usually have @min_io_size = @max_write_size = NAND
+ * page size.
  */
 struct ubi_device_info {
 	int ubi_num;
 	int leb_size;
+	int leb_start;
 	int min_io_size;
+	int max_write_size;
 	int ro_mode;
 	dev_t cdev;
 };

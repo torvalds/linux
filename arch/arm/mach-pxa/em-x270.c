@@ -26,10 +26,12 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/tdo24m.h>
 #include <linux/spi/libertas_spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/power_supply.h>
 #include <linux/apm-emulation.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/regulator/userspace-consumer.h>
 
 #include <media/soc_camera.h>
@@ -43,10 +45,8 @@
 #include <mach/pxafb.h>
 #include <mach/ohci.h>
 #include <mach/mmc.h>
-#include <mach/pxa27x_keypad.h>
-#include <plat/i2c.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/camera.h>
-#include <mach/pxa2xx_spi.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -689,7 +689,7 @@ static struct pxafb_mach_info em_x270_lcd = {
 
 static void __init em_x270_init_lcd(void)
 {
-	set_pxa_fb_info(&em_x270_lcd);
+	pxa_set_fb_info(NULL, &em_x270_lcd);
 }
 #else
 static inline void em_x270_init_lcd(void) {}
@@ -1015,7 +1015,6 @@ static struct soc_camera_link iclink = {
 	.power		= em_x270_sensor_power,
 	.board_info	= &em_x270_i2c_cam_info[0],
 	.i2c_adapter_id	= 0,
-	.module_name	= "mt9m111",
 };
 
 static struct platform_device em_x270_camera = {
@@ -1301,9 +1300,7 @@ static void __init em_x270_init(void)
 
 MACHINE_START(EM_X270, "Compulab EM-X270")
 	.boot_params	= 0xa0000100,
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= em_x270_init,
@@ -1311,9 +1308,7 @@ MACHINE_END
 
 MACHINE_START(EXEDA, "Compulab eXeda")
 	.boot_params	= 0xa0000100,
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= em_x270_init,

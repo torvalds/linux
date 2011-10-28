@@ -30,18 +30,13 @@
 #include <linux/slab.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+#include <asm/mwait.h>
 
 #define ACPI_PROCESSOR_AGGREGATOR_CLASS	"acpi_pad"
 #define ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME "Processor Aggregator"
 #define ACPI_PROCESSOR_AGGREGATOR_NOTIFY 0x80
 static DEFINE_MUTEX(isolated_cpus_lock);
 
-#define MWAIT_SUBSTATE_MASK	(0xf)
-#define MWAIT_CSTATE_MASK	(0xf)
-#define MWAIT_SUBSTATE_SIZE	(4)
-#define CPUID_MWAIT_LEAF (5)
-#define CPUID5_ECX_EXTENSIONS_SUPPORTED (0x1)
-#define CPUID5_ECX_INTERRUPT_BREAK	(0x2)
 static unsigned long power_saving_mwait_eax;
 
 static unsigned char tsc_detected_unstable;
@@ -303,7 +298,7 @@ static ssize_t acpi_pad_rrtime_store(struct device *dev,
 static ssize_t acpi_pad_rrtime_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d", round_robin_time);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", round_robin_time);
 }
 static DEVICE_ATTR(rrtime, S_IRUGO|S_IWUSR,
 	acpi_pad_rrtime_show,
@@ -326,7 +321,7 @@ static ssize_t acpi_pad_idlepct_store(struct device *dev,
 static ssize_t acpi_pad_idlepct_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d", idle_pct);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", idle_pct);
 }
 static DEVICE_ATTR(idlepct, S_IRUGO|S_IWUSR,
 	acpi_pad_idlepct_show,
@@ -347,8 +342,11 @@ static ssize_t acpi_pad_idlecpus_store(struct device *dev,
 static ssize_t acpi_pad_idlecpus_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	return cpumask_scnprintf(buf, PAGE_SIZE,
-		to_cpumask(pad_busy_cpus_bits));
+	int n = 0;
+	n = cpumask_scnprintf(buf, PAGE_SIZE-2, to_cpumask(pad_busy_cpus_bits));
+	buf[n++] = '\n';
+	buf[n] = '\0';
+	return n;
 }
 static DEVICE_ATTR(idlecpus, S_IRUGO|S_IWUSR,
 	acpi_pad_idlecpus_show,
@@ -458,7 +456,7 @@ static void acpi_pad_notify(acpi_handle handle, u32 event,
 			dev_name(&device->dev), event, 0);
 		break;
 	default:
-		printk(KERN_WARNING"Unsupported event [0x%x]\n", event);
+		printk(KERN_WARNING "Unsupported event [0x%x]\n", event);
 		break;
 	}
 }

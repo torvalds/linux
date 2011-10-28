@@ -352,12 +352,13 @@ void __devinit e1000_check_options(struct e1000_adapter *adapter)
 	}
 	{ /* Flow Control */
 
-		struct e1000_opt_list fc_list[] =
-			{{ E1000_FC_NONE,    "Flow Control Disabled" },
-			 { E1000_FC_RX_PAUSE,"Flow Control Receive Only" },
-			 { E1000_FC_TX_PAUSE,"Flow Control Transmit Only" },
-			 { E1000_FC_FULL,    "Flow Control Enabled" },
-			 { E1000_FC_DEFAULT, "Flow Control Hardware Default" }};
+		static const struct e1000_opt_list fc_list[] = {
+		       { E1000_FC_NONE, "Flow Control Disabled" },
+		       { E1000_FC_RX_PAUSE, "Flow Control Receive Only" },
+		       { E1000_FC_TX_PAUSE, "Flow Control Transmit Only" },
+		       { E1000_FC_FULL, "Flow Control Enabled" },
+		       { E1000_FC_DEFAULT, "Flow Control Hardware Default" }
+		};
 
 		opt = (struct e1000_option) {
 			.type = list_option,

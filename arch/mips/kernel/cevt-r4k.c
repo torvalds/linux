@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
 #include <linux/smp.h>
+#include <linux/irq.h>
 
 #include <asm/smtc_ipi.h>
 #include <asm/time.h>
@@ -31,7 +32,7 @@ static int mips_next_event(unsigned long delta,
 	cnt = read_c0_count();
 	cnt += delta;
 	write_c0_compare(cnt);
-	res = ((int)(read_c0_count() - cnt) > 0) ? -ETIME : 0;
+	res = ((int)(read_c0_count() - cnt) >= 0) ? -ETIME : 0;
 	return res;
 }
 

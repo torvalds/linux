@@ -29,9 +29,6 @@ struct iovm_struct {
  * lower 16 bit is used for h/w and upper 16 bit is for s/w.
  */
 #define IOVMF_SW_SHIFT		16
-#define IOVMF_HW_SIZE		(1 << IOVMF_SW_SHIFT)
-#define IOVMF_HW_MASK		(IOVMF_HW_SIZE - 1)
-#define IOVMF_SW_MASK		(~IOVMF_HW_MASK)UL
 
 /*
  * iovma: h/w flags derived from cam and ram attribute
@@ -71,8 +68,6 @@ struct iovm_struct {
 #define IOVMF_LINEAR_MASK	(3 << (2 + IOVMF_SW_SHIFT))
 
 #define IOVMF_DA_FIXED		(1 << (4 + IOVMF_SW_SHIFT))
-#define IOVMF_DA_ANON		(2 << (4 + IOVMF_SW_SHIFT))
-#define IOVMF_DA_MASK		(3 << (4 + IOVMF_SW_SHIFT))
 
 
 extern struct iovm_struct *find_iovm_area(struct iommu *obj, u32 da);

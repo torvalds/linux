@@ -39,7 +39,7 @@ static int ce6230_rw_udev(struct usb_device *udev, struct req_t *req)
 	u8 requesttype;
 	u16 value;
 	u16 index;
-	u8 buf[req->data_len];
+	u8 *buf;
 
 	request = req->cmd;
 	value = req->value;
@@ -62,6 +62,12 @@ static int ce6230_rw_udev(struct usb_device *udev, struct req_t *req)
 		goto error;
 	}
 
+	buf = kmalloc(req->data_len, GFP_KERNEL);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
 	if (requesttype == (USB_TYPE_VENDOR | USB_DIR_OUT)) {
 		/* write */
 		memcpy(buf, req->data, req->data_len);
@@ -74,7 +80,7 @@ static int ce6230_rw_udev(struct usb_device *udev, struct req_t *req)
 	msleep(1); /* avoid I2C errors */
 
 	ret = usb_control_msg(udev, pipe, request, requesttype, value, index,
-				buf, sizeof(buf), CE6230_USB_TIMEOUT);
+				buf, req->data_len, CE6230_USB_TIMEOUT);
 
 	ce6230_debug_dump(request, requesttype, value, index, buf,
 		req->data_len, deb_xfer);
@@ -88,6 +94,7 @@ static int ce6230_rw_udev(struct usb_device *udev, struct req_t *req)
 	if (!ret && requesttype == (USB_TYPE_VENDOR | USB_DIR_IN))
 		memcpy(req->data, buf, req->data_len);
 
+	kfree(buf);
 error:
 	return ret;
 }

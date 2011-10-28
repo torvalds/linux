@@ -837,7 +837,7 @@ static inline Scb *alloc_scbs(struct Scsi_Host *host, int needed)
 		}
 	}
 
-	/* Take the lock, then check we didnt get beaten, if so try again */
+	/* Take the lock, then check we didn't get beaten, if so try again */
 	spin_lock_irqsave(&scbpool_lock, flags);
 	if (freescbs < needed) {
 		spin_unlock_irqrestore(&scbpool_lock, flags);
@@ -1082,7 +1082,7 @@ static irqreturn_t wd7000_intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int wd7000_queuecommand(struct scsi_cmnd *SCpnt,
+static int wd7000_queuecommand_lck(struct scsi_cmnd *SCpnt,
 		void (*done)(struct scsi_cmnd *))
 {
 	Scb *scb;
@@ -1138,6 +1138,8 @@ static int wd7000_queuecommand(struct scsi_cmnd *SCpnt,
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(wd7000_queuecommand)
 
 static int wd7000_diagnostics(Adapter * host, int code)
 {

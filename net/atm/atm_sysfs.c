@@ -59,6 +59,14 @@ static ssize_t show_atmaddress(struct device *cdev,
 	return pos - buf;
 }
 
+static ssize_t show_atmindex(struct device *cdev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct atm_dev *adev = to_atm_dev(cdev);
+
+	return sprintf(buf, "%d\n", adev->number);
+}
+
 static ssize_t show_carrier(struct device *cdev,
 			    struct device_attribute *attr, char *buf)
 {
@@ -99,6 +107,7 @@ static ssize_t show_link_rate(struct device *cdev,
 
 static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
 static DEVICE_ATTR(atmaddress, S_IRUGO, show_atmaddress, NULL);
+static DEVICE_ATTR(atmindex, S_IRUGO, show_atmindex, NULL);
 static DEVICE_ATTR(carrier, S_IRUGO, show_carrier, NULL);
 static DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
 static DEVICE_ATTR(link_rate, S_IRUGO, show_link_rate, NULL);
@@ -106,6 +115,7 @@ static DEVICE_ATTR(link_rate, S_IRUGO, show_link_rate, NULL);
 static struct device_attribute *atm_attrs[] = {
 	&dev_attr_atmaddress,
 	&dev_attr_address,
+	&dev_attr_atmindex,
 	&dev_attr_carrier,
 	&dev_attr_type,
 	&dev_attr_link_rate,
@@ -143,12 +153,13 @@ static struct class atm_class = {
 	.dev_uevent		= atm_uevent,
 };
 
-int atm_register_sysfs(struct atm_dev *adev)
+int atm_register_sysfs(struct atm_dev *adev, struct device *parent)
 {
 	struct device *cdev = &adev->class_dev;
 	int i, j, err;
 
 	cdev->class = &atm_class;
+	cdev->parent = parent;
 	dev_set_drvdata(cdev, adev);
 
 	dev_set_name(cdev, "%s%d", adev->type, adev->number);

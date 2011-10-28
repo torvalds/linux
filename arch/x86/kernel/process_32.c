@@ -57,8 +57,6 @@
 #include <asm/syscalls.h>
 #include <asm/debugreg.h>
 
-#include <trace/events/power.h>
-
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
 /*
@@ -113,8 +111,6 @@ void cpu_idle(void)
 			stop_critical_timings();
 			pm_idle();
 			start_critical_timings();
-
-			trace_power_end(smp_processor_id());
 		}
 		tick_nohz_restart_sched_tick();
 		preempt_enable_no_resched();
@@ -249,7 +245,6 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 {
 	set_user_gs(regs, 0);
 	regs->fs		= 0;
-	set_fs(USER_DS);
 	regs->ds		= __USER_DS;
 	regs->es		= __USER_DS;
 	regs->ss		= __USER_DS;

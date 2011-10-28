@@ -24,7 +24,7 @@
  * @src_addr: transfer source address
  * @dst_addr: transfer destination address
  * @link_addr:  physical address to next lli
- * @virt_link_addr: virtual addres of next lli (only used by pool_free)
+ * @virt_link_addr: virtual address of next lli (only used by pool_free)
  * @phy_this: physical address of current lli (only used by pool_free)
  */
 struct coh901318_lli {
@@ -90,7 +90,7 @@ struct powersave {
  * struct coh901318_platform - platform arch structure
  * @chans_slave: specifying dma slave channels
  * @chans_memcpy: specifying dma memcpy channels
- * @access_memory_state: requesting DMA memeory access (on / off)
+ * @access_memory_state: requesting DMA memory access (on / off)
  * @chan_conf: dma channel configurations
  * @max_channels: max number of dma chanenls
  */
@@ -102,6 +102,7 @@ struct coh901318_platform {
 	const int max_channels;
 };
 
+#ifdef CONFIG_COH901318
 /**
  * coh901318_filter_id() - DMA channel filter function
  * @chan: dma channel handle
@@ -110,6 +111,12 @@ struct coh901318_platform {
  * In dma_request_channel() it specifies what channel id to be requested
  */
 bool coh901318_filter_id(struct dma_chan *chan, void *chan_id);
+#else
+static inline bool coh901318_filter_id(struct dma_chan *chan, void *chan_id)
+{
+	return false;
+}
+#endif
 
 /*
  * DMA Controller - this access the static mappings of the coh901318 dma.

@@ -17,8 +17,8 @@
 
 #include <linux/debugfs.h>
 
-#include <bfad_drv.h>
-#include <bfad_im.h>
+#include "bfad_drv.h"
+#include "bfad_im.h"
 
 /*
  * BFA debufs interface
@@ -28,10 +28,10 @@
  * mount -t debugfs none /sys/kernel/debug
  *
  * BFA Hierarchy:
- * 	- bfa/host#
- * where the host number corresponds to the one under /sys/class/scsi_host/host#
+ *	- bfa/pci_dev:<pci_name>
+ * where the pci_name corresponds to the one under /sys/bus/pci/drivers/bfa
  *
- * Debugging service available per host:
+ * Debugging service available per pci_dev:
  * fwtrc:  To collect current firmware trace.
  * drvtrc: To collect current driver trace
  * fwsave: To collect last saved fw trace as a result of firmware crash.
@@ -90,7 +90,7 @@ bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 	memset(fw_debug->debug_buffer, 0, fw_debug->buffer_len);
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	rc = bfa_debug_fwtrc(&bfad->bfa,
+	rc = bfa_ioc_debug_fwtrc(&bfad->bfa.ioc,
 			fw_debug->debug_buffer,
 			&fw_debug->buffer_len);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -134,7 +134,7 @@ bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 	memset(fw_debug->debug_buffer, 0, fw_debug->buffer_len);
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	rc = bfa_debug_fwsave(&bfad->bfa,
+	rc = bfa_ioc_debug_fwsave(&bfad->bfa.ioc,
 			fw_debug->debug_buffer,
 			&fw_debug->buffer_len);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -208,7 +208,7 @@ bfad_debugfs_read(struct file *file, char __user *buf,
 	if (!debug || !debug->debug_buffer)
 		return 0;
 
-	return memory_read_from_buffer(buf, nbytes, pos,
+	return simple_read_from_buffer(buf, nbytes, pos,
 				debug->debug_buffer, debug->buffer_len);
 }
 
@@ -217,7 +217,7 @@ bfad_debugfs_read(struct file *file, char __user *buf,
 #define BFA_REG_ADDRSZ(__bfa)	\
 	((bfa_ioc_devid(&(__bfa)->ioc) == BFA_PCI_DEVICE_ID_CT) ?	\
 		BFA_REG_CT_ADDRSZ : BFA_REG_CB_ADDRSZ)
-#define BFA_REG_ADDRMSK(__bfa)  ((uint32_t)(BFA_REG_ADDRSZ(__bfa) - 1))
+#define BFA_REG_ADDRMSK(__bfa)  ((u32)(BFA_REG_ADDRSZ(__bfa) - 1))
 
 static bfa_status_t
 bfad_reg_offset_check(struct bfa_s *bfa, u32 offset, u32 len)
@@ -254,7 +254,7 @@ bfad_debugfs_read_regrd(struct file *file, char __user *buf,
 	if (!bfad->regdata)
 		return 0;
 
-	rc = memory_read_from_buffer(buf, nbytes, pos,
+	rc = simple_read_from_buffer(buf, nbytes, pos,
 			bfad->regdata, bfad->reglen);
 
 	if ((*pos + nbytes) >= bfad->reglen) {
@@ -279,15 +279,31 @@ bfad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	u32 *regbuf;
 	void __iomem *rb, *reg_addr;
 	unsigned long flags;
+	void *kern_buf;
 
-	rc = sscanf(buf, "%x:%x", &addr, &len);
+	kern_buf = kzalloc(nbytes, GFP_KERNEL);
+
+	if (!kern_buf) {
+		printk(KERN_INFO "bfad[%d]: Failed to allocate buffer\n",
+				bfad->inst_no);
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(kern_buf, (void  __user *)buf, nbytes)) {
+		kfree(kern_buf);
+		return -ENOMEM;
+	}
+
+	rc = sscanf(kern_buf, "%x:%x", &addr, &len);
 	if (rc < 2) {
 		printk(KERN_INFO
 			"bfad[%d]: %s failed to read user buf\n",
 			bfad->inst_no, __func__);
+		kfree(kern_buf);
 		return -EINVAL;
 	}
 
+	kfree(kern_buf);
 	kfree(bfad->regdata);
 	bfad->regdata = NULL;
 	bfad->reglen = 0;
@@ -318,7 +334,7 @@ bfad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	regbuf =  (u32 *)bfad->regdata;
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	for (i = 0; i < len; i++) {
-		*regbuf = bfa_reg_read(reg_addr);
+		*regbuf = readl(reg_addr);
 		regbuf++;
 		reg_addr += sizeof(u32);
 	}
@@ -339,14 +355,30 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 	int addr, val, rc;
 	void __iomem *reg_addr;
 	unsigned long flags;
+	void *kern_buf;
 
-	rc = sscanf(buf, "%x:%x", &addr, &val);
+	kern_buf = kzalloc(nbytes, GFP_KERNEL);
+
+	if (!kern_buf) {
+		printk(KERN_INFO "bfad[%d]: Failed to allocate buffer\n",
+				bfad->inst_no);
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(kern_buf, (void  __user *)buf, nbytes)) {
+		kfree(kern_buf);
+		return -ENOMEM;
+	}
+
+	rc = sscanf(kern_buf, "%x:%x", &addr, &val);
 	if (rc < 2) {
 		printk(KERN_INFO
 			"bfad[%d]: %s failed to read user buf\n",
 			bfad->inst_no, __func__);
+		kfree(kern_buf);
 		return -EINVAL;
 	}
+	kfree(kern_buf);
 
 	addr &= BFA_REG_ADDRMSK(bfa); /* offset only 17 bit and word align */
 
@@ -359,9 +391,9 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 		return -EINVAL;
 	}
 
-	reg_addr = (uint32_t *) ((uint8_t *) bfa_ioc_bar0(ioc) + addr);
+	reg_addr = (bfa_ioc_bar0(ioc)) + addr;
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	bfa_reg_write(reg_addr, val);
+	writel(val, reg_addr);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	return nbytes;
@@ -457,11 +489,9 @@ static atomic_t bfa_debugfs_port_count;
 inline void
 bfad_debugfs_init(struct bfad_port_s *port)
 {
-	struct bfad_im_port_s *im_port = port->im_port;
-	struct bfad_s *bfad = im_port->bfad;
-	struct Scsi_Host *shost = im_port->shost;
+	struct bfad_s *bfad = port->bfad;
 	const struct bfad_debugfs_entry *file;
-	char name[16];
+	char name[64];
 	int i;
 
 	if (!bfa_debugfs_enable)
@@ -478,17 +508,15 @@ bfad_debugfs_init(struct bfad_port_s *port)
 		}
 	}
 
-	/*
-	 * Setup the host# directory for the port,
-	 * corresponds to the scsi_host num of this port.
-	 */
-	snprintf(name, sizeof(name), "host%d", shost->host_no);
+	/* Setup the pci_dev debugfs directory for the port */
+	snprintf(name, sizeof(name), "pci_dev:%s", bfad->pci_name);
 	if (!port->port_debugfs_root) {
 		port->port_debugfs_root =
 			debugfs_create_dir(name, bfa_debugfs_root);
 		if (!port->port_debugfs_root) {
 			printk(KERN_WARNING
-				"BFA host root dir creation failed\n");
+				"bfa %s: debugfs root creation failed\n",
+				bfad->pci_name);
 			goto err;
 		}
 
@@ -504,8 +532,8 @@ bfad_debugfs_init(struct bfad_port_s *port)
 							file->fops);
 			if (!bfad->bfad_dentry_files[i]) {
 				printk(KERN_WARNING
-					"BFA host%d: create %s entry failed\n",
-					shost->host_no, file->name);
+					"bfa %s: debugfs %s creation failed\n",
+					bfad->pci_name, file->name);
 				goto err;
 			}
 		}
@@ -518,8 +546,7 @@ err:
 inline void
 bfad_debugfs_exit(struct bfad_port_s *port)
 {
-	struct bfad_im_port_s *im_port = port->im_port;
-	struct bfad_s *bfad = im_port->bfad;
+	struct bfad_s *bfad = port->bfad;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(bfad_debugfs_files); i++) {
@@ -530,9 +557,7 @@ bfad_debugfs_exit(struct bfad_port_s *port)
 	}
 
 	/*
-	 * Remove the host# directory for the port,
-	 * corresponds to the scsi_host num of this port.
-	*/
+	 * Remove the pci_dev debugfs directory for the port */
 	if (port->port_debugfs_root) {
 		debugfs_remove(port->port_debugfs_root);
 		port->port_debugfs_root = NULL;

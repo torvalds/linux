@@ -102,6 +102,5 @@ void agp_free_memory_wrap(struct agp_memory *memory);
 struct agp_memory *agp_allocate_memory_wrap(size_t pg_count, u32 type);
 struct agp_memory *agp_find_mem_by_key(int key);
 struct agp_client *agp_find_client_by_pid(pid_t id);
-int agpioc_chipset_flush_wrap(struct agp_file_private *priv);
 
 #endif /* _AGP_COMPAT_H */

@@ -160,8 +160,7 @@ static const struct file_operations flash_fops = {
 
 static struct miscdevice flash_dev = { FLASH_MINOR, "flash", &flash_fops };
 
-static int __devinit flash_probe(struct platform_device *op,
-				 const struct of_device_id *match)
+static int __devinit flash_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct device_node *parent;
@@ -207,7 +206,7 @@ static const struct of_device_id flash_match[] = {
 };
 MODULE_DEVICE_TABLE(of, flash_match);
 
-static struct of_platform_driver flash_driver = {
+static struct platform_driver flash_driver = {
 	.driver = {
 		.name = "flash",
 		.owner = THIS_MODULE,
@@ -219,12 +218,12 @@ static struct of_platform_driver flash_driver = {
 
 static int __init flash_init(void)
 {
-	return of_register_platform_driver(&flash_driver);
+	return platform_driver_register(&flash_driver);
 }
 
 static void __exit flash_cleanup(void)
 {
-	of_unregister_platform_driver(&flash_driver);
+	platform_driver_unregister(&flash_driver);
 }
 
 module_init(flash_init);

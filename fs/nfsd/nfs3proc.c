@@ -151,10 +151,10 @@ nfsd3_proc_read(struct svc_rqst *rqstp, struct nfsd3_readargs *argp,
 	__be32	nfserr;
 	u32	max_blocksize = svc_max_payload(rqstp);
 
-	dprintk("nfsd: READ(3) %s %lu bytes at %lu\n",
+	dprintk("nfsd: READ(3) %s %lu bytes at %Lu\n",
 				SVCFH_fmt(&argp->fh),
 				(unsigned long) argp->count,
-				(unsigned long) argp->offset);
+				(unsigned long long) argp->offset);
 
 	/* Obtain buffer pointer for payload.
 	 * 1 (status) + 22 (post_op_attr) + 1 (count) + 1 (eof)
@@ -191,10 +191,10 @@ nfsd3_proc_write(struct svc_rqst *rqstp, struct nfsd3_writeargs *argp,
 	__be32	nfserr;
 	unsigned long cnt = argp->len;
 
-	dprintk("nfsd: WRITE(3)    %s %d bytes at %ld%s\n",
+	dprintk("nfsd: WRITE(3)    %s %d bytes at %Lu%s\n",
 				SVCFH_fmt(&argp->fh),
 				argp->len,
-				(unsigned long) argp->offset,
+				(unsigned long long) argp->offset,
 				argp->stable? " stable" : "");
 
 	fh_copy(&resp->fh, &argp->fh);
@@ -245,7 +245,7 @@ nfsd3_proc_create(struct svc_rqst *rqstp, struct nfsd3_createargs *argp,
 	}
 
 	/* Now create the file and set attributes */
-	nfserr = nfsd_create_v3(rqstp, dirfhp, argp->name, argp->len,
+	nfserr = do_nfsd_create(rqstp, dirfhp, argp->name, argp->len,
 				attr, newfhp,
 				argp->createmode, argp->verf, NULL, NULL);
 

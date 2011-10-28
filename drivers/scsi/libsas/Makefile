@@ -21,10 +21,6 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 # USA
 
-ifeq ($(CONFIG_SCSI_SAS_LIBSAS_DEBUG),y)
-	EXTRA_CFLAGS += -DSAS_DEBUG
-endif
-
 obj-$(CONFIG_SCSI_SAS_LIBSAS) += libsas.o
 libsas-y +=  sas_init.o     \
 		sas_phy.o      \

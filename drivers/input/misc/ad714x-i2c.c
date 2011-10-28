@@ -10,22 +10,22 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/pm.h>
 #include "ad714x.h"
 
 #ifdef CONFIG_PM
-static int ad714x_i2c_suspend(struct i2c_client *client, pm_message_t message)
+static int ad714x_i2c_suspend(struct device *dev)
 {
-	return ad714x_disable(i2c_get_clientdata(client));
+	return ad714x_disable(i2c_get_clientdata(to_i2c_client(dev)));
 }
 
-static int ad714x_i2c_resume(struct i2c_client *client)
+static int ad714x_i2c_resume(struct device *dev)
 {
-	return ad714x_enable(i2c_get_clientdata(client));
+	return ad714x_enable(i2c_get_clientdata(to_i2c_client(dev)));
 }
-#else
-# define ad714x_i2c_suspend NULL
-# define ad714x_i2c_resume  NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(ad714x_i2c_pm, ad714x_i2c_suspend, ad714x_i2c_resume);
 
 static int ad714x_i2c_write(struct device *dev, unsigned short reg,
 				unsigned short data)
@@ -114,11 +114,10 @@ MODULE_DEVICE_TABLE(i2c, ad714x_id);
 static struct i2c_driver ad714x_i2c_driver = {
 	.driver = {
 		.name = "ad714x_captouch",
+		.pm   = &ad714x_i2c_pm,
 	},
 	.probe    = ad714x_i2c_probe,
 	.remove   = __devexit_p(ad714x_i2c_remove),
-	.suspend  = ad714x_i2c_suspend,
-	.resume	  = ad714x_i2c_resume,
 	.id_table = ad714x_id,
 };
 

@@ -31,46 +31,51 @@
 /*
  * Define shape of hierarchy based on NR_CPUS and CONFIG_RCU_FANOUT.
  * In theory, it should be possible to add more levels straightforwardly.
- * In practice, this has not been tested, so there is probably some
- * bug somewhere.
+ * In practice, this did work well going from three levels to four.
+ * Of course, your mileage may vary.
  */
 #define MAX_RCU_LVLS 4
-#define RCU_FANOUT	      (CONFIG_RCU_FANOUT)
-#define RCU_FANOUT_SQ	      (RCU_FANOUT * RCU_FANOUT)
-#define RCU_FANOUT_CUBE	      (RCU_FANOUT_SQ * RCU_FANOUT)
-#define RCU_FANOUT_FOURTH     (RCU_FANOUT_CUBE * RCU_FANOUT)
+#if CONFIG_RCU_FANOUT > 16
+#define RCU_FANOUT_LEAF       16
+#else /* #if CONFIG_RCU_FANOUT > 16 */
+#define RCU_FANOUT_LEAF       (CONFIG_RCU_FANOUT)
+#endif /* #else #if CONFIG_RCU_FANOUT > 16 */
+#define RCU_FANOUT_1	      (RCU_FANOUT_LEAF)
+#define RCU_FANOUT_2	      (RCU_FANOUT_1 * CONFIG_RCU_FANOUT)
+#define RCU_FANOUT_3	      (RCU_FANOUT_2 * CONFIG_RCU_FANOUT)
+#define RCU_FANOUT_4	      (RCU_FANOUT_3 * CONFIG_RCU_FANOUT)
 
-#if NR_CPUS <= RCU_FANOUT
+#if NR_CPUS <= RCU_FANOUT_1
 #  define NUM_RCU_LVLS	      1
 #  define NUM_RCU_LVL_0	      1
 #  define NUM_RCU_LVL_1	      (NR_CPUS)
 #  define NUM_RCU_LVL_2	      0
 #  define NUM_RCU_LVL_3	      0
 #  define NUM_RCU_LVL_4	      0
-#elif NR_CPUS <= RCU_FANOUT_SQ
+#elif NR_CPUS <= RCU_FANOUT_2
 #  define NUM_RCU_LVLS	      2
 #  define NUM_RCU_LVL_0	      1
-#  define NUM_RCU_LVL_1	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT)
+#  define NUM_RCU_LVL_1	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_1)
 #  define NUM_RCU_LVL_2	      (NR_CPUS)
 #  define NUM_RCU_LVL_3	      0
 #  define NUM_RCU_LVL_4	      0
-#elif NR_CPUS <= RCU_FANOUT_CUBE
+#elif NR_CPUS <= RCU_FANOUT_3
 #  define NUM_RCU_LVLS	      3
 #  define NUM_RCU_LVL_0	      1
-#  define NUM_RCU_LVL_1	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_SQ)
-#  define NUM_RCU_LVL_2	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT)
-#  define NUM_RCU_LVL_3	      NR_CPUS
+#  define NUM_RCU_LVL_1	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_2)
+#  define NUM_RCU_LVL_2	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_1)
+#  define NUM_RCU_LVL_3	      (NR_CPUS)
 #  define NUM_RCU_LVL_4	      0
-#elif NR_CPUS <= RCU_FANOUT_FOURTH
+#elif NR_CPUS <= RCU_FANOUT_4
 #  define NUM_RCU_LVLS	      4
 #  define NUM_RCU_LVL_0	      1
-#  define NUM_RCU_LVL_1	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_CUBE)
-#  define NUM_RCU_LVL_2	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_SQ)
-#  define NUM_RCU_LVL_3	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT)
-#  define NUM_RCU_LVL_4	      NR_CPUS
+#  define NUM_RCU_LVL_1	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_3)
+#  define NUM_RCU_LVL_2	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_2)
+#  define NUM_RCU_LVL_3	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_1)
+#  define NUM_RCU_LVL_4	      (NR_CPUS)
 #else
 # error "CONFIG_RCU_FANOUT insufficient for NR_CPUS"
-#endif /* #if (NR_CPUS) <= RCU_FANOUT */
+#endif /* #if (NR_CPUS) <= RCU_FANOUT_1 */
 
 #define RCU_SUM (NUM_RCU_LVL_0 + NUM_RCU_LVL_1 + NUM_RCU_LVL_2 + NUM_RCU_LVL_3 + NUM_RCU_LVL_4)
 #define NUM_RCU_NODES (RCU_SUM - NR_CPUS)
@@ -79,12 +84,18 @@
  * Dynticks per-CPU state.
  */
 struct rcu_dynticks {
-	int dynticks_nesting;	/* Track nesting level, sort of. */
-	int dynticks;		/* Even value for dynticks-idle, else odd. */
-	int dynticks_nmi;	/* Even value for either dynticks-idle or */
-				/*  not in nmi handler, else odd.  So this */
-				/*  remains even for nmi from irq handler. */
+	int dynticks_nesting;	/* Track irq/process nesting level. */
+	int dynticks_nmi_nesting; /* Track NMI nesting level. */
+	atomic_t dynticks;	/* Even value for dynticks-idle, else odd. */
 };
+
+/* RCU's kthread states for tracing. */
+#define RCU_KTHREAD_STOPPED  0
+#define RCU_KTHREAD_RUNNING  1
+#define RCU_KTHREAD_WAITING  2
+#define RCU_KTHREAD_OFFCPU   3
+#define RCU_KTHREAD_YIELDING 4
+#define RCU_KTHREAD_MAX      4
 
 /*
  * Definition for node within the RCU grace-period-detection hierarchy.
@@ -104,10 +115,13 @@ struct rcu_node {
 				/*  an rcu_data structure, otherwise, each */
 				/*  bit corresponds to a child rcu_node */
 				/*  structure. */
-	unsigned long expmask;	/* Groups that have ->blocked_tasks[] */
+	unsigned long expmask;	/* Groups that have ->blkd_tasks */
 				/*  elements that need to drain to allow the */
 				/*  current expedited grace period to */
 				/*  complete (only for TREE_PREEMPT_RCU). */
+	atomic_t wakemask;	/* CPUs whose kthread needs to be awakened. */
+				/*  Since this has meaning only for leaf */
+				/*  rcu_node structures, 32 bits suffices. */
 	unsigned long qsmaskinit;
 				/* Per-GP initial value for qsmask & expmask. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
@@ -117,11 +131,62 @@ struct rcu_node {
 	u8	grpnum;		/* CPU/group number for next level up. */
 	u8	level;		/* root is at level 0. */
 	struct rcu_node *parent;
-	struct list_head blocked_tasks[4];
-				/* Tasks blocked in RCU read-side critsect. */
-				/*  Grace period number (->gpnum) x blocked */
-				/*  by tasks on the (x & 0x1) element of the */
-				/*  blocked_tasks[] array. */
+	struct list_head blkd_tasks;
+				/* Tasks blocked in RCU read-side critical */
+				/*  section.  Tasks are placed at the head */
+				/*  of this list and age towards the tail. */
+	struct list_head *gp_tasks;
+				/* Pointer to the first task blocking the */
+				/*  current grace period, or NULL if there */
+				/*  is no such task. */
+	struct list_head *exp_tasks;
+				/* Pointer to the first task blocking the */
+				/*  current expedited grace period, or NULL */
+				/*  if there is no such task.  If there */
+				/*  is no current expedited grace period, */
+				/*  then there can cannot be any such task. */
+#ifdef CONFIG_RCU_BOOST
+	struct list_head *boost_tasks;
+				/* Pointer to first task that needs to be */
+				/*  priority boosted, or NULL if no priority */
+				/*  boosting is needed for this rcu_node */
+				/*  structure.  If there are no tasks */
+				/*  queued on this rcu_node structure that */
+				/*  are blocking the current grace period, */
+				/*  there can be no such task. */
+	unsigned long boost_time;
+				/* When to start boosting (jiffies). */
+	struct task_struct *boost_kthread_task;
+				/* kthread that takes care of priority */
+				/*  boosting for this rcu_node structure. */
+	unsigned int boost_kthread_status;
+				/* State of boost_kthread_task for tracing. */
+	unsigned long n_tasks_boosted;
+				/* Total number of tasks boosted. */
+	unsigned long n_exp_boosts;
+				/* Number of tasks boosted for expedited GP. */
+	unsigned long n_normal_boosts;
+				/* Number of tasks boosted for normal GP. */
+	unsigned long n_balk_blkd_tasks;
+				/* Refused to boost: no blocked tasks. */
+	unsigned long n_balk_exp_gp_tasks;
+				/* Refused to boost: nothing blocking GP. */
+	unsigned long n_balk_boost_tasks;
+				/* Refused to boost: already boosting. */
+	unsigned long n_balk_notblocked;
+				/* Refused to boost: RCU RS CS still running. */
+	unsigned long n_balk_notyet;
+				/* Refused to boost: not yet time. */
+	unsigned long n_balk_nos;
+				/* Refused to boost: not sure why, though. */
+				/*  This can happen due to race conditions. */
+#endif /* #ifdef CONFIG_RCU_BOOST */
+	struct task_struct *node_kthread_task;
+				/* kthread that takes care of this rcu_node */
+				/*  structure, for example, awakening the */
+				/*  per-CPU kthreads as needed. */
+	unsigned int node_kthread_status;
+				/* State of node_kthread_task for tracing. */
 } ____cacheline_internodealigned_in_smp;
 
 /*
@@ -170,7 +235,7 @@ struct rcu_data {
 	bool		passed_quiesc;	/* User-mode/idle loop etc. */
 	bool		qs_pending;	/* Core waits for quiesc state. */
 	bool		beenonline;	/* CPU online at least once. */
-	bool		preemptable;	/* Preemptable RCU? */
+	bool		preemptible;	/* Preemptible RCU? */
 	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
 	unsigned long grpmask;		/* Mask to apply to leaf qsmask. */
 
@@ -202,6 +267,9 @@ struct rcu_data {
 	long		qlen;		/* # of queued callbacks */
 	long		qlen_last_fqs_check;
 					/* qlen at last check for QS forcing */
+	unsigned long	n_cbs_invoked;	/* count of RCU cbs invoked. */
+	unsigned long   n_cbs_orphaned; /* RCU cbs orphaned by dying CPU */
+	unsigned long   n_cbs_adopted;  /* RCU cbs adopted from dying CPU */
 	unsigned long	n_force_qs_snap;
 					/* did other CPU force QS recently? */
 	long		blimit;		/* Upper limit on a processed batch */
@@ -210,7 +278,6 @@ struct rcu_data {
 	/* 3) dynticks interface. */
 	struct rcu_dynticks *dynticks;	/* Shared per-CPU dynticks state. */
 	int dynticks_snap;		/* Per-GP tracking for dynticks. */
-	int dynticks_nmi_snap;		/* Per-GP tracking for dynticks_nmi. */
 #endif /* #ifdef CONFIG_NO_HZ */
 
 	/* 4) reasons this CPU needed to be kicked by force_quiescent_state */
@@ -246,7 +313,6 @@ struct rcu_data {
 #endif /* #else #ifdef CONFIG_NO_HZ */
 
 #define RCU_JIFFIES_TILL_FORCE_QS	 3	/* for rsp->jiffies_force_qs */
-#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 
 #ifdef CONFIG_PROVE_RCU
 #define RCU_STALL_DELAY_DELTA	       (5 * HZ)
@@ -254,19 +320,26 @@ struct rcu_data {
 #define RCU_STALL_DELAY_DELTA	       0
 #endif
 
-#define RCU_SECONDS_TILL_STALL_CHECK   (10 * HZ + RCU_STALL_DELAY_DELTA)
+#define RCU_SECONDS_TILL_STALL_CHECK   (CONFIG_RCU_CPU_STALL_TIMEOUT * HZ + \
+					RCU_STALL_DELAY_DELTA)
 						/* for rsp->jiffies_stall */
-#define RCU_SECONDS_TILL_STALL_RECHECK (30 * HZ + RCU_STALL_DELAY_DELTA)
+#define RCU_SECONDS_TILL_STALL_RECHECK (3 * RCU_SECONDS_TILL_STALL_CHECK + 30)
 						/* for rsp->jiffies_stall */
 #define RCU_STALL_RAT_DELAY		2	/* Allow other CPUs time */
 						/*  to take at least one */
 						/*  scheduling clock irq */
 						/*  before ratting on them. */
 
-#endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
-
-#define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))
-#define ULONG_CMP_LT(a, b)	(ULONG_MAX / 2 < (a) - (b))
+#define rcu_wait(cond)							\
+do {									\
+	for (;;) {							\
+		set_current_state(TASK_INTERRUPTIBLE);			\
+		if (cond)						\
+			break;						\
+		schedule();						\
+	}								\
+	__set_current_state(TASK_RUNNING);				\
+} while (0)
 
 /*
  * RCU global state, including node hierarchy.  This hierarchy is
@@ -283,7 +356,7 @@ struct rcu_state {
 	struct rcu_node *level[NUM_RCU_LVLS];	/* Hierarchy levels. */
 	u32 levelcnt[MAX_RCU_LVLS + 1];		/* # nodes in each level. */
 	u8 levelspread[NUM_RCU_LVLS];		/* kids/node in each level. */
-	struct rcu_data *rda[NR_CPUS];		/* array of rdp pointers. */
+	struct rcu_data __percpu *rda;		/* pointer of percu rcu_data. */
 
 	/* The following fields are guarded by the root rcu_node's lock. */
 
@@ -296,21 +369,14 @@ struct rcu_state {
 						/*  period because */
 						/*  force_quiescent_state() */
 						/*  was running. */
+	u8	boost;				/* Subject to priority boost. */
 	unsigned long gpnum;			/* Current gp number. */
 	unsigned long completed;		/* # of last completed gp. */
 
 	/* End of fields guarded by root rcu_node's lock. */
 
 	raw_spinlock_t onofflock;		/* exclude on/offline and */
-						/*  starting new GP.  Also */
-						/*  protects the following */
-						/*  orphan_cbs fields. */
-	struct rcu_head *orphan_cbs_list;	/* list of rcu_head structs */
-						/*  orphaned by all CPUs in */
-						/*  a given leaf rcu_node */
-						/*  going offline. */
-	struct rcu_head **orphan_cbs_tail;	/* And tail pointer. */
-	long orphan_qlen;			/* Number of orphaned cbs. */
+						/*  starting new GP. */
 	raw_spinlock_t fqslock;			/* Only one task forcing */
 						/*  quiescent states. */
 	unsigned long jiffies_force_qs;		/* Time at which to invoke */
@@ -321,12 +387,12 @@ struct rcu_state {
 						/*  due to lock unavailable. */
 	unsigned long n_force_qs_ngp;		/* Number of calls leaving */
 						/*  due to no GP active. */
-#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 	unsigned long gp_start;			/* Time at which GP started, */
 						/*  but in jiffies. */
 	unsigned long jiffies_stall;		/* Time at which to check */
 						/*  for CPU stalls. */
-#endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+	unsigned long gp_max;			/* Maximum GP duration in */
+						/*  jiffies. */
 	char *name;				/* Name of structure. */
 };
 
@@ -357,15 +423,15 @@ DECLARE_PER_CPU(struct rcu_data, rcu_preempt_data);
 static void rcu_bootup_announce(void);
 long rcu_batches_completed(void);
 static void rcu_preempt_note_context_switch(int cpu);
-static int rcu_preempted_readers(struct rcu_node *rnp);
+static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp);
 #ifdef CONFIG_HOTPLUG_CPU
 static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp,
 				      unsigned long flags);
+static void rcu_stop_cpu_kthread(int cpu);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
-#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 static void rcu_print_detail_task_stall(struct rcu_state *rsp);
 static void rcu_print_task_stall(struct rcu_node *rnp);
-#endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+static void rcu_preempt_stall_reset(void);
 static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
 #ifdef CONFIG_HOTPLUG_CPU
 static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
@@ -382,8 +448,23 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp);
 static int rcu_preempt_pending(int cpu);
 static int rcu_preempt_needs_cpu(int cpu);
 static void __cpuinit rcu_preempt_init_percpu_data(int cpu);
-static void rcu_preempt_send_cbs_to_orphanage(void);
+static void rcu_preempt_send_cbs_to_online(void);
 static void __init __rcu_init_preempt(void);
 static void rcu_needs_cpu_flush(void);
+static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
+static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);
+static void invoke_rcu_callbacks_kthread(void);
+#ifdef CONFIG_RCU_BOOST
+static void rcu_preempt_do_callbacks(void);
+static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp,
+					  cpumask_var_t cm);
+static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
+						 struct rcu_node *rnp,
+						 int rnp_index);
+static void invoke_rcu_node_kthread(struct rcu_node *rnp);
+static void rcu_yield(void (*f)(unsigned long), unsigned long arg);
+#endif /* #ifdef CONFIG_RCU_BOOST */
+static void rcu_cpu_kthread_setrt(int cpu, int to_rt);
+static void __cpuinit rcu_prepare_kthreads(int cpu);
 
 #endif /* #ifndef RCU_TREE_NONCORE */

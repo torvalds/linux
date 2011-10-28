@@ -37,11 +37,6 @@ struct dlm_debug_ctxt {
 	struct dentry *debug_purgelist_dentry;
 };
 
-struct debug_buffer {
-	int len;
-	char *buf;
-};
-
 struct debug_lockres {
 	int dl_len;
 	char *dl_buf;

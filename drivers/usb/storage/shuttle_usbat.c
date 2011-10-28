@@ -340,7 +340,7 @@ static int usbat_check_status(struct us_data *us)
 }
 
 /*
- * Stores critical information in internal registers in prepartion for the execution
+ * Stores critical information in internal registers in preparation for the execution
  * of a conditional usbat_read_blocks or usbat_write_blocks call.
  */
 static int usbat_set_shuttle_features(struct us_data *us,

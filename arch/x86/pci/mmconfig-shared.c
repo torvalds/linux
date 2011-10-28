@@ -65,7 +65,6 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 							int end, u64 addr)
 {
 	struct pci_mmcfg_region *new;
-	int num_buses;
 	struct resource *res;
 
 	if (addr == 0)
@@ -82,10 +81,9 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 
 	list_add_sorted(new);
 
-	num_buses = end - start + 1;
 	res = &new->res;
 	res->start = addr + PCI_MMCFG_BUS_OFFSET(start);
-	res->end = addr + PCI_MMCFG_BUS_OFFSET(num_buses) - 1;
+	res->end = addr + PCI_MMCFG_BUS_OFFSET(end + 1) - 1;
 	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 	snprintf(new->name, PCI_MMCFG_RESOURCE_NAME_LEN,
 		 "PCI MMCONFIG %04x [bus %02x-%02x]", segment, start, end);
@@ -607,6 +605,16 @@ static void __init __pci_mmcfg_init(int early)
 
 	if (list_empty(&pci_mmcfg_list))
 		return;
+
+	if (pcibios_last_bus < 0) {
+		const struct pci_mmcfg_region *cfg;
+
+		list_for_each_entry(cfg, &pci_mmcfg_list, list) {
+			if (cfg->segment)
+				break;
+			pcibios_last_bus = cfg->end_bus;
+		}
+	}
 
 	if (pci_mmcfg_arch_init())
 		pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;

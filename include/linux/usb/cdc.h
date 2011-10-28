@@ -32,6 +32,8 @@
 
 #define USB_CDC_PROTO_EEM			7
 
+#define USB_CDC_NCM_PROTO_NTB			1
+
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -87,7 +89,7 @@ struct usb_cdc_acm_descriptor {
 
 #define USB_CDC_COMM_FEATURE	0x01
 #define USB_CDC_CAP_LINE	0x02
-#define USB_CDC_CAP_BRK	0x04
+#define USB_CDC_CAP_BRK		0x04
 #define USB_CDC_CAP_NOTIFY	0x08
 
 /* "Union Functional Descriptor" from CDC spec 5.2.3.8 */
@@ -269,18 +271,23 @@ struct usb_cdc_notification {
 	__le16	wLength;
 } __attribute__ ((packed));
 
+struct usb_cdc_speed_change {
+	__le32	DLBitRRate;	/* contains the downlink bit rate (IN pipe) */
+	__le32	ULBitRate;	/* contains the uplink bit rate (OUT pipe) */
+} __attribute__ ((packed));
+
 /*-------------------------------------------------------------------------*/
 
 /*
  * Class Specific structures and constants
  *
- * CDC NCM parameter structure, CDC NCM subclass 6.2.1
+ * CDC NCM NTB parameters structure, CDC NCM subclass 6.2.1
  *
  */
 
-struct usb_cdc_ncm_ntb_parameter {
+struct usb_cdc_ncm_ntb_parameters {
 	__le16	wLength;
-	__le16	bmNtbFormatSupported;
+	__le16	bmNtbFormatsSupported;
 	__le32	dwNtbInMaxSize;
 	__le16	wNdpInDivisor;
 	__le16	wNdpInPayloadRemainder;
@@ -290,22 +297,22 @@ struct usb_cdc_ncm_ntb_parameter {
 	__le16	wNdpOutDivisor;
 	__le16	wNdpOutPayloadRemainder;
 	__le16	wNdpOutAlignment;
-	__le16	wPadding2;
+	__le16	wNtbOutMaxDatagrams;
 } __attribute__ ((packed));
 
 /*
  * CDC NCM transfer headers, CDC NCM subclass 3.2
  */
 
-#define NCM_NTH16_SIGN		0x484D434E /* NCMH */
-#define NCM_NTH32_SIGN		0x686D636E /* ncmh */
+#define USB_CDC_NCM_NTH16_SIGN		0x484D434E /* NCMH */
+#define USB_CDC_NCM_NTH32_SIGN		0x686D636E /* ncmh */
 
 struct usb_cdc_ncm_nth16 {
 	__le32	dwSignature;
 	__le16	wHeaderLength;
 	__le16	wSequence;
 	__le16	wBlockLength;
-	__le16	wFpIndex;
+	__le16	wNdpIndex;
 } __attribute__ ((packed));
 
 struct usb_cdc_ncm_nth32 {
@@ -313,32 +320,93 @@ struct usb_cdc_ncm_nth32 {
 	__le16	wHeaderLength;
 	__le16	wSequence;
 	__le32	dwBlockLength;
-	__le32	dwFpIndex;
+	__le32	dwNdpIndex;
 } __attribute__ ((packed));
 
 /*
  * CDC NCM datagram pointers, CDC NCM subclass 3.3
  */
 
-#define NCM_NDP16_CRC_SIGN	0x314D434E /* NCM1 */
-#define NCM_NDP16_NOCRC_SIGN	0x304D434E /* NCM0 */
-#define NCM_NDP32_CRC_SIGN	0x316D636E /* ncm1 */
-#define NCM_NDP32_NOCRC_SIGN	0x306D636E /* ncm0 */
+#define USB_CDC_NCM_NDP16_CRC_SIGN	0x314D434E /* NCM1 */
+#define USB_CDC_NCM_NDP16_NOCRC_SIGN	0x304D434E /* NCM0 */
+#define USB_CDC_NCM_NDP32_CRC_SIGN	0x316D636E /* ncm1 */
+#define USB_CDC_NCM_NDP32_NOCRC_SIGN	0x306D636E /* ncm0 */
 
+/* 16-bit NCM Datagram Pointer Entry */
+struct usb_cdc_ncm_dpe16 {
+	__le16	wDatagramIndex;
+	__le16	wDatagramLength;
+} __attribute__((__packed__));
+
+/* 16-bit NCM Datagram Pointer Table */
 struct usb_cdc_ncm_ndp16 {
 	__le32	dwSignature;
 	__le16	wLength;
-	__le16	wNextFpIndex;
-	__u8	data[0];
+	__le16	wNextNdpIndex;
+	struct	usb_cdc_ncm_dpe16 dpe16[0];
 } __attribute__ ((packed));
 
+/* 32-bit NCM Datagram Pointer Entry */
+struct usb_cdc_ncm_dpe32 {
+	__le32	dwDatagramIndex;
+	__le32	dwDatagramLength;
+} __attribute__((__packed__));
+
+/* 32-bit NCM Datagram Pointer Table */
 struct usb_cdc_ncm_ndp32 {
 	__le32	dwSignature;
 	__le16	wLength;
 	__le16	wReserved6;
-	__le32	dwNextFpIndex;
+	__le32	dwNextNdpIndex;
 	__le32	dwReserved12;
-	__u8	data[0];
+	struct	usb_cdc_ncm_dpe32 dpe32[0];
 } __attribute__ ((packed));
+
+/* CDC NCM subclass 3.2.1 and 3.2.2 */
+#define USB_CDC_NCM_NDP16_INDEX_MIN			0x000C
+#define USB_CDC_NCM_NDP32_INDEX_MIN			0x0010
+
+/* CDC NCM subclass 3.3.3 Datagram Formatting */
+#define USB_CDC_NCM_DATAGRAM_FORMAT_CRC			0x30
+#define USB_CDC_NCM_DATAGRAM_FORMAT_NOCRC		0X31
+
+/* CDC NCM subclass 4.2 NCM Communications Interface Protocol Code */
+#define USB_CDC_NCM_PROTO_CODE_NO_ENCAP_COMMANDS	0x00
+#define USB_CDC_NCM_PROTO_CODE_EXTERN_PROTO		0xFE
+
+/* CDC NCM subclass 5.2.1 NCM Functional Descriptor, bmNetworkCapabilities */
+#define USB_CDC_NCM_NCAP_ETH_FILTER			(1 << 0)
+#define USB_CDC_NCM_NCAP_NET_ADDRESS			(1 << 1)
+#define USB_CDC_NCM_NCAP_ENCAP_COMMAND			(1 << 2)
+#define USB_CDC_NCM_NCAP_MAX_DATAGRAM_SIZE		(1 << 3)
+#define USB_CDC_NCM_NCAP_CRC_MODE			(1 << 4)
+#define	USB_CDC_NCM_NCAP_NTB_INPUT_SIZE			(1 << 5)
+
+/* CDC NCM subclass Table 6-3: NTB Parameter Structure */
+#define USB_CDC_NCM_NTB16_SUPPORTED			(1 << 0)
+#define USB_CDC_NCM_NTB32_SUPPORTED			(1 << 1)
+
+/* CDC NCM subclass Table 6-3: NTB Parameter Structure */
+#define USB_CDC_NCM_NDP_ALIGN_MIN_SIZE			0x04
+#define USB_CDC_NCM_NTB_MAX_LENGTH			0x1C
+
+/* CDC NCM subclass 6.2.5 SetNtbFormat */
+#define USB_CDC_NCM_NTB16_FORMAT			0x00
+#define USB_CDC_NCM_NTB32_FORMAT			0x01
+
+/* CDC NCM subclass 6.2.7 SetNtbInputSize */
+#define USB_CDC_NCM_NTB_MIN_IN_SIZE			2048
+#define USB_CDC_NCM_NTB_MIN_OUT_SIZE			2048
+
+/* NTB Input Size Structure */
+struct usb_cdc_ncm_ndp_input_size {
+	__le32	dwNtbInMaxSize;
+	__le16	wNtbInMaxDatagrams;
+	__le16	wReserved;
+} __attribute__ ((packed));
+
+/* CDC NCM subclass 6.2.11 SetCrcMode */
+#define USB_CDC_NCM_CRC_NOT_APPENDED			0x00
+#define USB_CDC_NCM_CRC_APPENDED			0x01
 
 #endif /* __LINUX_USB_CDC_H */

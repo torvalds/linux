@@ -13,17 +13,16 @@
 
 /*-------------------------------------------------------------------------*/
 
-// FIXME make these public somewhere; usbdevfs.h?
-//
+/* FIXME make these public somewhere; usbdevfs.h? */
 struct usbtest_param {
-	// inputs
+	/* inputs */
 	unsigned		test_num;	/* 0..(TEST_CASES-1) */
 	unsigned		iterations;
 	unsigned		length;
 	unsigned		vary;
 	unsigned		sglen;
 
-	// outputs
+	/* outputs */
 	struct timeval		duration;
 };
 #define USBTEST_REQUEST	_IOWR('U', 100, struct usbtest_param)
@@ -45,9 +44,9 @@ struct usbtest_info {
 	const char		*name;
 	u8			ep_in;		/* bulk/intr source */
 	u8			ep_out;		/* bulk/intr sink */
-	unsigned		autoconf : 1;
-	unsigned		ctrl_out : 1;
-	unsigned		iso : 1;	/* try iso in/out */
+	unsigned		autoconf:1;
+	unsigned		ctrl_out:1;
+	unsigned		iso:1;		/* try iso in/out */
 	int			alt;
 };
 
@@ -71,9 +70,9 @@ struct usbtest_dev {
 	u8			*buf;
 };
 
-static struct usb_device *testdev_to_usbdev (struct usbtest_dev *test)
+static struct usb_device *testdev_to_usbdev(struct usbtest_dev *test)
 {
-	return interface_to_usbdev (test->intf);
+	return interface_to_usbdev(test->intf);
 }
 
 /* set up all urbs so they can be used with either bulk or interrupt */
@@ -84,10 +83,12 @@ static struct usb_device *testdev_to_usbdev (struct usbtest_dev *test)
 #define WARNING(tdev, fmt, args...) \
 	dev_warn(&(tdev)->intf->dev , fmt , ## args)
 
+#define GUARD_BYTE	0xA5
+
 /*-------------------------------------------------------------------------*/
 
 static int
-get_endpoints (struct usbtest_dev *dev, struct usb_interface *intf)
+get_endpoints(struct usbtest_dev *dev, struct usb_interface *intf)
 {
 	int				tmp;
 	struct usb_host_interface	*alt;
@@ -103,7 +104,7 @@ get_endpoints (struct usbtest_dev *dev, struct usb_interface *intf)
 		alt = intf->altsetting + tmp;
 
 		/* take the first altsetting with in-bulk + out-bulk;
-		 * ignore other endpoints and altsetttings.
+		 * ignore other endpoints and altsettings.
 		 */
 		for (ep = 0; ep < alt->desc.bNumEndpoints; ep++) {
 			struct usb_host_endpoint	*e;
@@ -115,7 +116,7 @@ get_endpoints (struct usbtest_dev *dev, struct usb_interface *intf)
 			case USB_ENDPOINT_XFER_ISOC:
 				if (dev->info->iso)
 					goto try_iso;
-				// FALLTHROUGH
+				/* FALLTHROUGH */
 			default:
 				continue;
 			}
@@ -142,9 +143,9 @@ try_iso:
 	return -EINVAL;
 
 found:
-	udev = testdev_to_usbdev (dev);
+	udev = testdev_to_usbdev(dev);
 	if (alt->desc.bAlternateSetting != 0) {
-		tmp = usb_set_interface (udev,
+		tmp = usb_set_interface(udev,
 				alt->desc.bInterfaceNumber,
 				alt->desc.bAlternateSetting);
 		if (tmp < 0)
@@ -152,21 +153,21 @@ found:
 	}
 
 	if (in) {
-		dev->in_pipe = usb_rcvbulkpipe (udev,
+		dev->in_pipe = usb_rcvbulkpipe(udev,
 			in->desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
-		dev->out_pipe = usb_sndbulkpipe (udev,
+		dev->out_pipe = usb_sndbulkpipe(udev,
 			out->desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
 	}
 	if (iso_in) {
 		dev->iso_in = &iso_in->desc;
-		dev->in_iso_pipe = usb_rcvisocpipe (udev,
+		dev->in_iso_pipe = usb_rcvisocpipe(udev,
 				iso_in->desc.bEndpointAddress
 					& USB_ENDPOINT_NUMBER_MASK);
 	}
 
 	if (iso_out) {
 		dev->iso_out = &iso_out->desc;
-		dev->out_iso_pipe = usb_sndisocpipe (udev,
+		dev->out_iso_pipe = usb_sndisocpipe(udev,
 				iso_out->desc.bEndpointAddress
 					& USB_ENDPOINT_NUMBER_MASK);
 	}
@@ -182,45 +183,73 @@ found:
  * them with non-zero test data (or test for it) when appropriate.
  */
 
-static void simple_callback (struct urb *urb)
+static void simple_callback(struct urb *urb)
 {
 	complete(urb->context);
 }
 
-static struct urb *simple_alloc_urb (
+static struct urb *usbtest_alloc_urb(
 	struct usb_device	*udev,
 	int			pipe,
-	unsigned long		bytes
-)
+	unsigned long		bytes,
+	unsigned		transfer_flags,
+	unsigned		offset)
 {
 	struct urb		*urb;
 
-	urb = usb_alloc_urb (0, GFP_KERNEL);
+	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
 		return urb;
-	usb_fill_bulk_urb (urb, udev, pipe, NULL, bytes, simple_callback, NULL);
+	usb_fill_bulk_urb(urb, udev, pipe, NULL, bytes, simple_callback, NULL);
 	urb->interval = (udev->speed == USB_SPEED_HIGH)
 			? (INTERRUPT_RATE << 3)
 			: INTERRUPT_RATE;
-	urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
-	if (usb_pipein (pipe))
+	urb->transfer_flags = transfer_flags;
+	if (usb_pipein(pipe))
 		urb->transfer_flags |= URB_SHORT_NOT_OK;
-	urb->transfer_buffer = usb_alloc_coherent (udev, bytes, GFP_KERNEL,
-			&urb->transfer_dma);
+
+	if (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
+		urb->transfer_buffer = usb_alloc_coherent(udev, bytes + offset,
+			GFP_KERNEL, &urb->transfer_dma);
+	else
+		urb->transfer_buffer = kmalloc(bytes + offset, GFP_KERNEL);
+
 	if (!urb->transfer_buffer) {
-		usb_free_urb (urb);
-		urb = NULL;
-	} else
-		memset (urb->transfer_buffer, 0, bytes);
+		usb_free_urb(urb);
+		return NULL;
+	}
+
+	/* To test unaligned transfers add an offset and fill the
+		unused memory with a guard value */
+	if (offset) {
+		memset(urb->transfer_buffer, GUARD_BYTE, offset);
+		urb->transfer_buffer += offset;
+		if (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
+			urb->transfer_dma += offset;
+	}
+
+	/* For inbound transfers use guard byte so that test fails if
+		data not correctly copied */
+	memset(urb->transfer_buffer,
+			usb_pipein(urb->pipe) ? GUARD_BYTE : 0,
+			bytes);
 	return urb;
 }
 
-static unsigned pattern = 0;
+static struct urb *simple_alloc_urb(
+	struct usb_device	*udev,
+	int			pipe,
+	unsigned long		bytes)
+{
+	return usbtest_alloc_urb(udev, pipe, bytes, URB_NO_TRANSFER_DMA_MAP, 0);
+}
+
+static unsigned pattern;
 static unsigned mod_pattern;
 module_param_named(pattern, mod_pattern, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(mod_pattern, "i/o pattern (0 == zeroes)");
 
-static inline void simple_fill_buf (struct urb *urb)
+static inline void simple_fill_buf(struct urb *urb)
 {
 	unsigned	i;
 	u8		*buf = urb->transfer_buffer;
@@ -228,9 +257,9 @@ static inline void simple_fill_buf (struct urb *urb)
 
 	switch (pattern) {
 	default:
-		// FALLTHROUGH
+		/* FALLTHROUGH */
 	case 0:
-		memset (buf, 0, len);
+		memset(buf, 0, len);
 		break;
 	case 1:			/* mod63 */
 		for (i = 0; i < len; i++)
@@ -239,12 +268,37 @@ static inline void simple_fill_buf (struct urb *urb)
 	}
 }
 
-static inline int simple_check_buf(struct usbtest_dev *tdev, struct urb *urb)
+static inline unsigned long buffer_offset(void *buf)
+{
+	return (unsigned long)buf & (ARCH_KMALLOC_MINALIGN - 1);
+}
+
+static int check_guard_bytes(struct usbtest_dev *tdev, struct urb *urb)
+{
+	u8 *buf = urb->transfer_buffer;
+	u8 *guard = buf - buffer_offset(buf);
+	unsigned i;
+
+	for (i = 0; guard < buf; i++, guard++) {
+		if (*guard != GUARD_BYTE) {
+			ERROR(tdev, "guard byte[%d] %d (not %d)\n",
+				i, *guard, GUARD_BYTE);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int simple_check_buf(struct usbtest_dev *tdev, struct urb *urb)
 {
 	unsigned	i;
 	u8		expected;
 	u8		*buf = urb->transfer_buffer;
 	unsigned	len = urb->actual_length;
+
+	int ret = check_guard_bytes(tdev, urb);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < len; i++, buf++) {
 		switch (pattern) {
@@ -273,14 +327,22 @@ static inline int simple_check_buf(struct usbtest_dev *tdev, struct urb *urb)
 	return 0;
 }
 
-static void simple_free_urb (struct urb *urb)
+static void simple_free_urb(struct urb *urb)
 {
-	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
-			  urb->transfer_buffer, urb->transfer_dma);
-	usb_free_urb (urb);
+	unsigned long offset = buffer_offset(urb->transfer_buffer);
+
+	if (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
+		usb_free_coherent(
+			urb->dev,
+			urb->transfer_buffer_length + offset,
+			urb->transfer_buffer - offset,
+			urb->transfer_dma - offset);
+	else
+		kfree(urb->transfer_buffer - offset);
+	usb_free_urb(urb);
 }
 
-static int simple_io (
+static int simple_io(
 	struct usbtest_dev	*tdev,
 	struct urb		*urb,
 	int			iterations,
@@ -296,17 +358,18 @@ static int simple_io (
 
 	urb->context = &completion;
 	while (retval == 0 && iterations-- > 0) {
-		init_completion (&completion);
-		if (usb_pipeout (urb->pipe))
-			simple_fill_buf (urb);
-		if ((retval = usb_submit_urb (urb, GFP_KERNEL)) != 0)
+		init_completion(&completion);
+		if (usb_pipeout(urb->pipe))
+			simple_fill_buf(urb);
+		retval = usb_submit_urb(urb, GFP_KERNEL);
+		if (retval != 0)
 			break;
 
 		/* NOTE:  no timeouts; can't be broken out of by interrupt */
-		wait_for_completion (&completion);
+		wait_for_completion(&completion);
 		retval = urb->status;
 		urb->dev = udev;
-		if (retval == 0 && usb_pipein (urb->pipe))
+		if (retval == 0 && usb_pipein(urb->pipe))
 			retval = simple_check_buf(tdev, urb);
 
 		if (vary) {
@@ -337,7 +400,7 @@ static int simple_io (
  * Yes, this also tests the scatterlist primitives.
  */
 
-static void free_sglist (struct scatterlist *sg, int nents)
+static void free_sglist(struct scatterlist *sg, int nents)
 {
 	unsigned		i;
 
@@ -346,19 +409,19 @@ static void free_sglist (struct scatterlist *sg, int nents)
 	for (i = 0; i < nents; i++) {
 		if (!sg_page(&sg[i]))
 			continue;
-		kfree (sg_virt(&sg[i]));
+		kfree(sg_virt(&sg[i]));
 	}
-	kfree (sg);
+	kfree(sg);
 }
 
 static struct scatterlist *
-alloc_sglist (int nents, int max, int vary)
+alloc_sglist(int nents, int max, int vary)
 {
 	struct scatterlist	*sg;
 	unsigned		i;
 	unsigned		size = max;
 
-	sg = kmalloc (nents * sizeof *sg, GFP_KERNEL);
+	sg = kmalloc(nents * sizeof *sg, GFP_KERNEL);
 	if (!sg)
 		return NULL;
 	sg_init_table(sg, nents);
@@ -367,9 +430,9 @@ alloc_sglist (int nents, int max, int vary)
 		char		*buf;
 		unsigned	j;
 
-		buf = kzalloc (size, GFP_KERNEL);
+		buf = kzalloc(size, GFP_KERNEL);
 		if (!buf) {
-			free_sglist (sg, i);
+			free_sglist(sg, i);
 			return NULL;
 		}
 
@@ -397,7 +460,7 @@ alloc_sglist (int nents, int max, int vary)
 	return sg;
 }
 
-static int perform_sglist (
+static int perform_sglist(
 	struct usbtest_dev	*tdev,
 	unsigned		iterations,
 	int			pipe,
@@ -410,7 +473,7 @@ static int perform_sglist (
 	int			retval = 0;
 
 	while (retval == 0 && iterations-- > 0) {
-		retval = usb_sg_init (req, udev, pipe,
+		retval = usb_sg_init(req, udev, pipe,
 				(udev->speed == USB_SPEED_HIGH)
 					? (INTERRUPT_RATE << 3)
 					: INTERRUPT_RATE,
@@ -418,7 +481,7 @@ static int perform_sglist (
 
 		if (retval)
 			break;
-		usb_sg_wait (req);
+		usb_sg_wait(req);
 		retval = req->status;
 
 		/* FIXME check resulting data pattern */
@@ -426,9 +489,9 @@ static int perform_sglist (
 		/* FIXME if endpoint halted, clear halt (and log) */
 	}
 
-	// FIXME for unlink or fault handling tests, don't report
-	// failure if retval is as we expected ...
-
+	/* FIXME for unlink or fault handling tests, don't report
+	 * failure if retval is as we expected ...
+	 */
 	if (retval)
 		ERROR(tdev, "perform_sglist failed, "
 				"iterations left %d, status %d\n",
@@ -452,31 +515,31 @@ static int perform_sglist (
  */
 
 static unsigned realworld = 1;
-module_param (realworld, uint, 0);
-MODULE_PARM_DESC (realworld, "clear to demand stricter spec compliance");
+module_param(realworld, uint, 0);
+MODULE_PARM_DESC(realworld, "clear to demand stricter spec compliance");
 
-static int get_altsetting (struct usbtest_dev *dev)
+static int get_altsetting(struct usbtest_dev *dev)
 {
 	struct usb_interface	*iface = dev->intf;
-	struct usb_device	*udev = interface_to_usbdev (iface);
+	struct usb_device	*udev = interface_to_usbdev(iface);
 	int			retval;
 
-	retval = usb_control_msg (udev, usb_rcvctrlpipe (udev, 0),
+	retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			USB_REQ_GET_INTERFACE, USB_DIR_IN|USB_RECIP_INTERFACE,
-			0, iface->altsetting [0].desc.bInterfaceNumber,
+			0, iface->altsetting[0].desc.bInterfaceNumber,
 			dev->buf, 1, USB_CTRL_GET_TIMEOUT);
 	switch (retval) {
 	case 1:
-		return dev->buf [0];
+		return dev->buf[0];
 	case 0:
 		retval = -ERANGE;
-		// FALLTHROUGH
+		/* FALLTHROUGH */
 	default:
 		return retval;
 	}
 }
 
-static int set_altsetting (struct usbtest_dev *dev, int alternate)
+static int set_altsetting(struct usbtest_dev *dev, int alternate)
 {
 	struct usb_interface		*iface = dev->intf;
 	struct usb_device		*udev;
@@ -484,9 +547,9 @@ static int set_altsetting (struct usbtest_dev *dev, int alternate)
 	if (alternate < 0 || alternate >= 256)
 		return -EINVAL;
 
-	udev = interface_to_usbdev (iface);
-	return usb_set_interface (udev,
-			iface->altsetting [0].desc.bInterfaceNumber,
+	udev = interface_to_usbdev(iface);
+	return usb_set_interface(udev,
+			iface->altsetting[0].desc.bInterfaceNumber,
 			alternate);
 }
 
@@ -519,9 +582,9 @@ static int is_good_config(struct usbtest_dev *tdev, int len)
 		return 0;
 	}
 
-	if (le16_to_cpu(config->wTotalLength) == len)		/* read it all */
+	if (le16_to_cpu(config->wTotalLength) == len)	/* read it all */
 		return 1;
-	if (le16_to_cpu(config->wTotalLength) >= TBUF_SIZE)		/* max partial read */
+	if (le16_to_cpu(config->wTotalLength) >= TBUF_SIZE)	/* max partial read */
 		return 1;
 	ERROR(tdev, "bogus config descriptor read size\n");
 	return 0;
@@ -542,10 +605,10 @@ static int is_good_config(struct usbtest_dev *tdev, int len)
  * to see if usbcore, hcd, and device all behave right.  such testing would
  * involve varied read sizes and other operation sequences.
  */
-static int ch9_postconfig (struct usbtest_dev *dev)
+static int ch9_postconfig(struct usbtest_dev *dev)
 {
 	struct usb_interface	*iface = dev->intf;
-	struct usb_device	*udev = interface_to_usbdev (iface);
+	struct usb_device	*udev = interface_to_usbdev(iface);
 	int			i, alt, retval;
 
 	/* [9.2.3] if there's more than one altsetting, we need to be able to
@@ -554,7 +617,7 @@ static int ch9_postconfig (struct usbtest_dev *dev)
 	for (i = 0; i < iface->num_altsetting; i++) {
 
 		/* 9.2.3 constrains the range here */
-		alt = iface->altsetting [i].desc.bAlternateSetting;
+		alt = iface->altsetting[i].desc.bAlternateSetting;
 		if (alt < 0 || alt >= iface->num_altsetting) {
 			dev_err(&iface->dev,
 					"invalid alt [%d].bAltSetting = %d\n",
@@ -566,7 +629,7 @@ static int ch9_postconfig (struct usbtest_dev *dev)
 			continue;
 
 		/* [9.4.10] set_interface */
-		retval = set_altsetting (dev, alt);
+		retval = set_altsetting(dev, alt);
 		if (retval) {
 			dev_err(&iface->dev, "can't set_interface = %d, %d\n",
 					alt, retval);
@@ -574,7 +637,7 @@ static int ch9_postconfig (struct usbtest_dev *dev)
 		}
 
 		/* [9.4.4] get_interface always works */
-		retval = get_altsetting (dev);
+		retval = get_altsetting(dev);
 		if (retval != alt) {
 			dev_err(&iface->dev, "get alt should be %d, was %d\n",
 					alt, retval);
@@ -591,11 +654,11 @@ static int ch9_postconfig (struct usbtest_dev *dev)
 		 * ... although some cheap devices (like one TI Hub I've got)
 		 * won't return config descriptors except before set_config.
 		 */
-		retval = usb_control_msg (udev, usb_rcvctrlpipe (udev, 0),
+		retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				USB_REQ_GET_CONFIGURATION,
 				USB_DIR_IN | USB_RECIP_DEVICE,
 				0, 0, dev->buf, 1, USB_CTRL_GET_TIMEOUT);
-		if (retval != 1 || dev->buf [0] != expected) {
+		if (retval != 1 || dev->buf[0] != expected) {
 			dev_err(&iface->dev, "get config --> %d %d (1 %d)\n",
 				retval, dev->buf[0], expected);
 			return (retval < 0) ? retval : -EDOM;
@@ -603,7 +666,7 @@ static int ch9_postconfig (struct usbtest_dev *dev)
 	}
 
 	/* there's always [9.4.3] a device descriptor [9.6.1] */
-	retval = usb_get_descriptor (udev, USB_DT_DEVICE, 0,
+	retval = usb_get_descriptor(udev, USB_DT_DEVICE, 0,
 			dev->buf, sizeof udev->descriptor);
 	if (retval != sizeof udev->descriptor) {
 		dev_err(&iface->dev, "dev descriptor --> %d\n", retval);
@@ -612,7 +675,7 @@ static int ch9_postconfig (struct usbtest_dev *dev)
 
 	/* there's always [9.4.3] at least one config descriptor [9.6.3] */
 	for (i = 0; i < udev->descriptor.bNumConfigurations; i++) {
-		retval = usb_get_descriptor (udev, USB_DT_CONFIG, i,
+		retval = usb_get_descriptor(udev, USB_DT_CONFIG, i,
 				dev->buf, TBUF_SIZE);
 		if (!is_good_config(dev, retval)) {
 			dev_err(&iface->dev,
@@ -621,18 +684,19 @@ static int ch9_postconfig (struct usbtest_dev *dev)
 			return (retval < 0) ? retval : -EDOM;
 		}
 
-		// FIXME cross-checking udev->config[i] to make sure usbcore
-		// parsed it right (etc) would be good testing paranoia
+		/* FIXME cross-checking udev->config[i] to make sure usbcore
+		 * parsed it right (etc) would be good testing paranoia
+		 */
 	}
 
 	/* and sometimes [9.2.6.6] speed dependent descriptors */
 	if (le16_to_cpu(udev->descriptor.bcdUSB) == 0x0200) {
-		struct usb_qualifier_descriptor		*d = NULL;
+		struct usb_qualifier_descriptor *d = NULL;
 
 		/* device qualifier [9.6.2] */
-		retval = usb_get_descriptor (udev,
+		retval = usb_get_descriptor(udev,
 				USB_DT_DEVICE_QUALIFIER, 0, dev->buf,
-				sizeof (struct usb_qualifier_descriptor));
+				sizeof(struct usb_qualifier_descriptor));
 		if (retval == -EPIPE) {
 			if (udev->speed == USB_SPEED_HIGH) {
 				dev_err(&iface->dev,
@@ -641,7 +705,7 @@ static int ch9_postconfig (struct usbtest_dev *dev)
 				return (retval < 0) ? retval : -EDOM;
 			}
 			/* usb2.0 but not high-speed capable; fine */
-		} else if (retval != sizeof (struct usb_qualifier_descriptor)) {
+		} else if (retval != sizeof(struct usb_qualifier_descriptor)) {
 			dev_err(&iface->dev, "dev qualifier --> %d\n", retval);
 			return (retval < 0) ? retval : -EDOM;
 		} else
@@ -651,7 +715,7 @@ static int ch9_postconfig (struct usbtest_dev *dev)
 		if (d) {
 			unsigned max = d->bNumConfigurations;
 			for (i = 0; i < max; i++) {
-				retval = usb_get_descriptor (udev,
+				retval = usb_get_descriptor(udev,
 					USB_DT_OTHER_SPEED_CONFIG, i,
 					dev->buf, TBUF_SIZE);
 				if (!is_good_config(dev, retval)) {
@@ -663,25 +727,26 @@ static int ch9_postconfig (struct usbtest_dev *dev)
 			}
 		}
 	}
-	// FIXME fetch strings from at least the device descriptor
+	/* FIXME fetch strings from at least the device descriptor */
 
 	/* [9.4.5] get_status always works */
-	retval = usb_get_status (udev, USB_RECIP_DEVICE, 0, dev->buf);
+	retval = usb_get_status(udev, USB_RECIP_DEVICE, 0, dev->buf);
 	if (retval != 2) {
 		dev_err(&iface->dev, "get dev status --> %d\n", retval);
 		return (retval < 0) ? retval : -EDOM;
 	}
 
-	// FIXME configuration.bmAttributes says if we could try to set/clear
-	// the device's remote wakeup feature ... if we can, test that here
+	/* FIXME configuration.bmAttributes says if we could try to set/clear
+	 * the device's remote wakeup feature ... if we can, test that here
+	 */
 
-	retval = usb_get_status (udev, USB_RECIP_INTERFACE,
-			iface->altsetting [0].desc.bInterfaceNumber, dev->buf);
+	retval = usb_get_status(udev, USB_RECIP_INTERFACE,
+			iface->altsetting[0].desc.bInterfaceNumber, dev->buf);
 	if (retval != 2) {
 		dev_err(&iface->dev, "get interface status --> %d\n", retval);
 		return (retval < 0) ? retval : -EDOM;
 	}
-	// FIXME get status for each endpoint in the interface
+	/* FIXME get status for each endpoint in the interface */
 
 	return 0;
 }
@@ -717,7 +782,7 @@ struct subcase {
 	int			expected;
 };
 
-static void ctrl_complete (struct urb *urb)
+static void ctrl_complete(struct urb *urb)
 {
 	struct ctrl_ctx		*ctx = urb->context;
 	struct usb_ctrlrequest	*reqp;
@@ -725,9 +790,9 @@ static void ctrl_complete (struct urb *urb)
 	int			status = urb->status;
 
 	reqp = (struct usb_ctrlrequest *)urb->setup_packet;
-	subcase = container_of (reqp, struct subcase, setup);
+	subcase = container_of(reqp, struct subcase, setup);
 
-	spin_lock (&ctx->lock);
+	spin_lock(&ctx->lock);
 	ctx->count--;
 	ctx->pending--;
 
@@ -787,14 +852,14 @@ error:
 
 			/* unlink whatever's still pending */
 			for (i = 1; i < ctx->param->sglen; i++) {
-				struct urb	*u = ctx->urb [
-						(i + subcase->number)
-						% ctx->param->sglen];
+				struct urb *u = ctx->urb[
+							(i + subcase->number)
+							% ctx->param->sglen];
 
 				if (u == urb || !u->dev)
 					continue;
 				spin_unlock(&ctx->lock);
-				status = usb_unlink_urb (u);
+				status = usb_unlink_urb(u);
 				spin_lock(&ctx->lock);
 				switch (status) {
 				case -EINPROGRESS:
@@ -812,7 +877,8 @@ error:
 
 	/* resubmit if we need to, else mark this as done */
 	if ((status == 0) && (ctx->pending < ctx->count)) {
-		if ((status = usb_submit_urb (urb, GFP_ATOMIC)) != 0) {
+		status = usb_submit_urb(urb, GFP_ATOMIC);
+		if (status != 0) {
 			ERROR(ctx->dev,
 				"can't resubmit ctrl %02x.%02x, err %d\n",
 				reqp->bRequestType, reqp->bRequest, status);
@@ -824,21 +890,21 @@ error:
 
 	/* signal completion when nothing's queued */
 	if (ctx->pending == 0)
-		complete (&ctx->complete);
-	spin_unlock (&ctx->lock);
+		complete(&ctx->complete);
+	spin_unlock(&ctx->lock);
 }
 
 static int
-test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
+test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 {
-	struct usb_device	*udev = testdev_to_usbdev (dev);
+	struct usb_device	*udev = testdev_to_usbdev(dev);
 	struct urb		**urb;
 	struct ctrl_ctx		context;
 	int			i;
 
-	spin_lock_init (&context.lock);
+	spin_lock_init(&context.lock);
 	context.dev = dev;
-	init_completion (&context.complete);
+	init_completion(&context.complete);
 	context.count = param->sglen * param->iterations;
 	context.pending = 0;
 	context.status = -ENOMEM;
@@ -853,7 +919,7 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 	if (!urb)
 		return -ENOMEM;
 	for (i = 0; i < param->sglen; i++) {
-		int			pipe = usb_rcvctrlpipe (udev, 0);
+		int			pipe = usb_rcvctrlpipe(udev, 0);
 		unsigned		len;
 		struct urb		*u;
 		struct usb_ctrlrequest	req;
@@ -869,104 +935,110 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 		 * device, but some are chosen to trigger protocol stalls
 		 * or short reads.
 		 */
-		memset (&req, 0, sizeof req);
+		memset(&req, 0, sizeof req);
 		req.bRequest = USB_REQ_GET_DESCRIPTOR;
 		req.bRequestType = USB_DIR_IN|USB_RECIP_DEVICE;
 
 		switch (i % NUM_SUBCASES) {
-		case 0:		// get device descriptor
-			req.wValue = cpu_to_le16 (USB_DT_DEVICE << 8);
-			len = sizeof (struct usb_device_descriptor);
+		case 0:		/* get device descriptor */
+			req.wValue = cpu_to_le16(USB_DT_DEVICE << 8);
+			len = sizeof(struct usb_device_descriptor);
 			break;
-		case 1:		// get first config descriptor (only)
-			req.wValue = cpu_to_le16 ((USB_DT_CONFIG << 8) | 0);
-			len = sizeof (struct usb_config_descriptor);
+		case 1:		/* get first config descriptor (only) */
+			req.wValue = cpu_to_le16((USB_DT_CONFIG << 8) | 0);
+			len = sizeof(struct usb_config_descriptor);
 			break;
-		case 2:		// get altsetting (OFTEN STALLS)
+		case 2:		/* get altsetting (OFTEN STALLS) */
 			req.bRequest = USB_REQ_GET_INTERFACE;
 			req.bRequestType = USB_DIR_IN|USB_RECIP_INTERFACE;
-			// index = 0 means first interface
+			/* index = 0 means first interface */
 			len = 1;
 			expected = EPIPE;
 			break;
-		case 3:		// get interface status
+		case 3:		/* get interface status */
 			req.bRequest = USB_REQ_GET_STATUS;
 			req.bRequestType = USB_DIR_IN|USB_RECIP_INTERFACE;
-			// interface 0
+			/* interface 0 */
 			len = 2;
 			break;
-		case 4:		// get device status
+		case 4:		/* get device status */
 			req.bRequest = USB_REQ_GET_STATUS;
 			req.bRequestType = USB_DIR_IN|USB_RECIP_DEVICE;
 			len = 2;
 			break;
-		case 5:		// get device qualifier (MAY STALL)
+		case 5:		/* get device qualifier (MAY STALL) */
 			req.wValue = cpu_to_le16 (USB_DT_DEVICE_QUALIFIER << 8);
-			len = sizeof (struct usb_qualifier_descriptor);
+			len = sizeof(struct usb_qualifier_descriptor);
 			if (udev->speed != USB_SPEED_HIGH)
 				expected = EPIPE;
 			break;
-		case 6:		// get first config descriptor, plus interface
-			req.wValue = cpu_to_le16 ((USB_DT_CONFIG << 8) | 0);
-			len = sizeof (struct usb_config_descriptor);
-			len += sizeof (struct usb_interface_descriptor);
+		case 6:		/* get first config descriptor, plus interface */
+			req.wValue = cpu_to_le16((USB_DT_CONFIG << 8) | 0);
+			len = sizeof(struct usb_config_descriptor);
+			len += sizeof(struct usb_interface_descriptor);
 			break;
-		case 7:		// get interface descriptor (ALWAYS STALLS)
+		case 7:		/* get interface descriptor (ALWAYS STALLS) */
 			req.wValue = cpu_to_le16 (USB_DT_INTERFACE << 8);
-			// interface == 0
-			len = sizeof (struct usb_interface_descriptor);
+			/* interface == 0 */
+			len = sizeof(struct usb_interface_descriptor);
 			expected = -EPIPE;
 			break;
-		// NOTE: two consecutive stalls in the queue here.
-		// that tests fault recovery a bit more aggressively.
-		case 8:		// clear endpoint halt (MAY STALL)
+		/* NOTE: two consecutive stalls in the queue here.
+		 *  that tests fault recovery a bit more aggressively. */
+		case 8:		/* clear endpoint halt (MAY STALL) */
 			req.bRequest = USB_REQ_CLEAR_FEATURE;
 			req.bRequestType = USB_RECIP_ENDPOINT;
-			// wValue 0 == ep halt
-			// wIndex 0 == ep0 (shouldn't halt!)
+			/* wValue 0 == ep halt */
+			/* wIndex 0 == ep0 (shouldn't halt!) */
 			len = 0;
-			pipe = usb_sndctrlpipe (udev, 0);
+			pipe = usb_sndctrlpipe(udev, 0);
 			expected = EPIPE;
 			break;
-		case 9:		// get endpoint status
+		case 9:		/* get endpoint status */
 			req.bRequest = USB_REQ_GET_STATUS;
 			req.bRequestType = USB_DIR_IN|USB_RECIP_ENDPOINT;
-			// endpoint 0
+			/* endpoint 0 */
 			len = 2;
 			break;
-		case 10:	// trigger short read (EREMOTEIO)
-			req.wValue = cpu_to_le16 ((USB_DT_CONFIG << 8) | 0);
+		case 10:	/* trigger short read (EREMOTEIO) */
+			req.wValue = cpu_to_le16((USB_DT_CONFIG << 8) | 0);
 			len = 1024;
 			expected = -EREMOTEIO;
 			break;
-		// NOTE: two consecutive _different_ faults in the queue.
-		case 11:	// get endpoint descriptor (ALWAYS STALLS)
-			req.wValue = cpu_to_le16 (USB_DT_ENDPOINT << 8);
-			// endpoint == 0
-			len = sizeof (struct usb_interface_descriptor);
+		/* NOTE: two consecutive _different_ faults in the queue. */
+		case 11:	/* get endpoint descriptor (ALWAYS STALLS) */
+			req.wValue = cpu_to_le16(USB_DT_ENDPOINT << 8);
+			/* endpoint == 0 */
+			len = sizeof(struct usb_interface_descriptor);
 			expected = EPIPE;
 			break;
-		// NOTE: sometimes even a third fault in the queue!
-		case 12:	// get string 0 descriptor (MAY STALL)
-			req.wValue = cpu_to_le16 (USB_DT_STRING << 8);
-			// string == 0, for language IDs
-			len = sizeof (struct usb_interface_descriptor);
-			// may succeed when > 4 languages
-			expected = EREMOTEIO;	// or EPIPE, if no strings
+		/* NOTE: sometimes even a third fault in the queue! */
+		case 12:	/* get string 0 descriptor (MAY STALL) */
+			req.wValue = cpu_to_le16(USB_DT_STRING << 8);
+			/* string == 0, for language IDs */
+			len = sizeof(struct usb_interface_descriptor);
+			/* may succeed when > 4 languages */
+			expected = EREMOTEIO;	/* or EPIPE, if no strings */
 			break;
-		case 13:	// short read, resembling case 10
-			req.wValue = cpu_to_le16 ((USB_DT_CONFIG << 8) | 0);
-			// last data packet "should" be DATA1, not DATA0
+		case 13:	/* short read, resembling case 10 */
+			req.wValue = cpu_to_le16((USB_DT_CONFIG << 8) | 0);
+			/* last data packet "should" be DATA1, not DATA0 */
 			len = 1024 - udev->descriptor.bMaxPacketSize0;
 			expected = -EREMOTEIO;
 			break;
-		case 14:	// short read; try to fill the last packet
-			req.wValue = cpu_to_le16 ((USB_DT_DEVICE << 8) | 0);
+		case 14:	/* short read; try to fill the last packet */
+			req.wValue = cpu_to_le16((USB_DT_DEVICE << 8) | 0);
 			/* device descriptor size == 18 bytes */
 			len = udev->descriptor.bMaxPacketSize0;
+			if (udev->speed == USB_SPEED_SUPER)
+				len = 512;
 			switch (len) {
-			case 8:		len = 24; break;
-			case 16:	len = 32; break;
+			case 8:
+				len = 24;
+				break;
+			case 16:
+				len = 32;
+				break;
 			}
 			expected = -EREMOTEIO;
 			break;
@@ -975,8 +1047,8 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 			context.status = -EINVAL;
 			goto cleanup;
 		}
-		req.wLength = cpu_to_le16 (len);
-		urb [i] = u = simple_alloc_urb (udev, pipe, len);
+		req.wLength = cpu_to_le16(len);
+		urb[i] = u = simple_alloc_urb(udev, pipe, len);
 		if (!u)
 			goto cleanup;
 
@@ -994,9 +1066,9 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 
 	/* queue the urbs */
 	context.urb = urb;
-	spin_lock_irq (&context.lock);
+	spin_lock_irq(&context.lock);
 	for (i = 0; i < param->sglen; i++) {
-		context.status = usb_submit_urb (urb [i], GFP_ATOMIC);
+		context.status = usb_submit_urb(urb[i], GFP_ATOMIC);
 		if (context.status != 0) {
 			ERROR(dev, "can't submit urb[%d], status %d\n",
 					i, context.status);
@@ -1005,23 +1077,23 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 		}
 		context.pending++;
 	}
-	spin_unlock_irq (&context.lock);
+	spin_unlock_irq(&context.lock);
 
 	/* FIXME  set timer and time out; provide a disconnect hook */
 
 	/* wait for the last one to complete */
 	if (context.pending > 0)
-		wait_for_completion (&context.complete);
+		wait_for_completion(&context.complete);
 
 cleanup:
 	for (i = 0; i < param->sglen; i++) {
-		if (!urb [i])
+		if (!urb[i])
 			continue;
-		urb [i]->dev = udev;
+		urb[i]->dev = udev;
 		kfree(urb[i]->setup_packet);
-		simple_free_urb (urb [i]);
+		simple_free_urb(urb[i]);
 	}
-	kfree (urb);
+	kfree(urb);
 	return context.status;
 }
 #undef NUM_SUBCASES
@@ -1029,27 +1101,27 @@ cleanup:
 
 /*-------------------------------------------------------------------------*/
 
-static void unlink1_callback (struct urb *urb)
+static void unlink1_callback(struct urb *urb)
 {
 	int	status = urb->status;
 
-	// we "know" -EPIPE (stall) never happens
+	/* we "know" -EPIPE (stall) never happens */
 	if (!status)
-		status = usb_submit_urb (urb, GFP_ATOMIC);
+		status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
 		urb->status = status;
 		complete(urb->context);
 	}
 }
 
-static int unlink1 (struct usbtest_dev *dev, int pipe, int size, int async)
+static int unlink1(struct usbtest_dev *dev, int pipe, int size, int async)
 {
 	struct urb		*urb;
 	struct completion	completion;
 	int			retval = 0;
 
-	init_completion (&completion);
-	urb = simple_alloc_urb (testdev_to_usbdev (dev), pipe, size);
+	init_completion(&completion);
+	urb = simple_alloc_urb(testdev_to_usbdev(dev), pipe, size);
 	if (!urb)
 		return -ENOMEM;
 	urb->context = &completion;
@@ -1061,7 +1133,8 @@ static int unlink1 (struct usbtest_dev *dev, int pipe, int size, int async)
 	 * FIXME want additional tests for when endpoint is STALLing
 	 * due to errors, or is just NAKing requests.
 	 */
-	if ((retval = usb_submit_urb (urb, GFP_KERNEL)) != 0) {
+	retval = usb_submit_urb(urb, GFP_KERNEL);
+	if (retval != 0) {
 		dev_err(&dev->intf->dev, "submit fail %d\n", retval);
 		return retval;
 	}
@@ -1069,7 +1142,7 @@ static int unlink1 (struct usbtest_dev *dev, int pipe, int size, int async)
 	/* unlinking that should always work.  variable delay tests more
 	 * hcd states and code paths, even with little other system load.
 	 */
-	msleep (jiffies % (2 * INTERRUPT_RATE));
+	msleep(jiffies % (2 * INTERRUPT_RATE));
 	if (async) {
 		while (!completion_done(&completion)) {
 			retval = usb_unlink_urb(urb);
@@ -1098,11 +1171,11 @@ static int unlink1 (struct usbtest_dev *dev, int pipe, int size, int async)
 			break;
 		}
 	} else
-		usb_kill_urb (urb);
+		usb_kill_urb(urb);
 
-	wait_for_completion (&completion);
+	wait_for_completion(&completion);
 	retval = urb->status;
-	simple_free_urb (urb);
+	simple_free_urb(urb);
 
 	if (async)
 		return (retval == -ECONNRESET) ? 0 : retval - 1000;
@@ -1111,14 +1184,112 @@ static int unlink1 (struct usbtest_dev *dev, int pipe, int size, int async)
 				0 : retval - 2000;
 }
 
-static int unlink_simple (struct usbtest_dev *dev, int pipe, int len)
+static int unlink_simple(struct usbtest_dev *dev, int pipe, int len)
 {
 	int			retval = 0;
 
 	/* test sync and async paths */
-	retval = unlink1 (dev, pipe, len, 1);
+	retval = unlink1(dev, pipe, len, 1);
 	if (!retval)
-		retval = unlink1 (dev, pipe, len, 0);
+		retval = unlink1(dev, pipe, len, 0);
+	return retval;
+}
+
+/*-------------------------------------------------------------------------*/
+
+struct queued_ctx {
+	struct completion	complete;
+	atomic_t		pending;
+	unsigned		num;
+	int			status;
+	struct urb		**urbs;
+};
+
+static void unlink_queued_callback(struct urb *urb)
+{
+	int			status = urb->status;
+	struct queued_ctx	*ctx = urb->context;
+
+	if (ctx->status)
+		goto done;
+	if (urb == ctx->urbs[ctx->num - 4] || urb == ctx->urbs[ctx->num - 2]) {
+		if (status == -ECONNRESET)
+			goto done;
+		/* What error should we report if the URB completed normally? */
+	}
+	if (status != 0)
+		ctx->status = status;
+
+ done:
+	if (atomic_dec_and_test(&ctx->pending))
+		complete(&ctx->complete);
+}
+
+static int unlink_queued(struct usbtest_dev *dev, int pipe, unsigned num,
+		unsigned size)
+{
+	struct queued_ctx	ctx;
+	struct usb_device	*udev = testdev_to_usbdev(dev);
+	void			*buf;
+	dma_addr_t		buf_dma;
+	int			i;
+	int			retval = -ENOMEM;
+
+	init_completion(&ctx.complete);
+	atomic_set(&ctx.pending, 1);	/* One more than the actual value */
+	ctx.num = num;
+	ctx.status = 0;
+
+	buf = usb_alloc_coherent(udev, size, GFP_KERNEL, &buf_dma);
+	if (!buf)
+		return retval;
+	memset(buf, 0, size);
+
+	/* Allocate and init the urbs we'll queue */
+	ctx.urbs = kcalloc(num, sizeof(struct urb *), GFP_KERNEL);
+	if (!ctx.urbs)
+		goto free_buf;
+	for (i = 0; i < num; i++) {
+		ctx.urbs[i] = usb_alloc_urb(0, GFP_KERNEL);
+		if (!ctx.urbs[i])
+			goto free_urbs;
+		usb_fill_bulk_urb(ctx.urbs[i], udev, pipe, buf, size,
+				unlink_queued_callback, &ctx);
+		ctx.urbs[i]->transfer_dma = buf_dma;
+		ctx.urbs[i]->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+	}
+
+	/* Submit all the URBs and then unlink URBs num - 4 and num - 2. */
+	for (i = 0; i < num; i++) {
+		atomic_inc(&ctx.pending);
+		retval = usb_submit_urb(ctx.urbs[i], GFP_KERNEL);
+		if (retval != 0) {
+			dev_err(&dev->intf->dev, "submit urbs[%d] fail %d\n",
+					i, retval);
+			atomic_dec(&ctx.pending);
+			ctx.status = retval;
+			break;
+		}
+	}
+	if (i == num) {
+		usb_unlink_urb(ctx.urbs[num - 4]);
+		usb_unlink_urb(ctx.urbs[num - 2]);
+	} else {
+		while (--i >= 0)
+			usb_unlink_urb(ctx.urbs[i]);
+	}
+
+	if (atomic_dec_and_test(&ctx.pending))		/* The extra count */
+		complete(&ctx.complete);
+	wait_for_completion(&ctx.complete);
+	retval = ctx.status;
+
+ free_urbs:
+	for (i = 0; i < num; i++)
+		usb_free_urb(ctx.urbs[i]);
+	kfree(ctx.urbs);
+ free_buf:
+	usb_free_coherent(udev, size, buf, buf_dma);
 	return retval;
 }
 
@@ -1130,7 +1301,7 @@ static int verify_not_halted(struct usbtest_dev *tdev, int ep, struct urb *urb)
 	u16	status;
 
 	/* shouldn't look or act halted */
-	retval = usb_get_status (urb->dev, USB_RECIP_ENDPOINT, ep, &status);
+	retval = usb_get_status(urb->dev, USB_RECIP_ENDPOINT, ep, &status);
 	if (retval < 0) {
 		ERROR(tdev, "ep %02x couldn't get no-halt status, %d\n",
 				ep, retval);
@@ -1152,7 +1323,7 @@ static int verify_halted(struct usbtest_dev *tdev, int ep, struct urb *urb)
 	u16	status;
 
 	/* should look and act halted */
-	retval = usb_get_status (urb->dev, USB_RECIP_ENDPOINT, ep, &status);
+	retval = usb_get_status(urb->dev, USB_RECIP_ENDPOINT, ep, &status);
 	if (retval < 0) {
 		ERROR(tdev, "ep %02x couldn't get halt status, %d\n",
 				ep, retval);
@@ -1182,7 +1353,7 @@ static int test_halt(struct usbtest_dev *tdev, int ep, struct urb *urb)
 		return retval;
 
 	/* set halt (protocol test only), verify it worked */
-	retval = usb_control_msg (urb->dev, usb_sndctrlpipe (urb->dev, 0),
+	retval = usb_control_msg(urb->dev, usb_sndctrlpipe(urb->dev, 0),
 			USB_REQ_SET_FEATURE, USB_RECIP_ENDPOINT,
 			USB_ENDPOINT_HALT, ep,
 			NULL, 0, USB_CTRL_SET_TIMEOUT);
@@ -1195,7 +1366,7 @@ static int test_halt(struct usbtest_dev *tdev, int ep, struct urb *urb)
 		return retval;
 
 	/* clear halt (tests API + protocol), verify it worked */
-	retval = usb_clear_halt (urb->dev, urb->pipe);
+	retval = usb_clear_halt(urb->dev, urb->pipe);
 	if (retval < 0) {
 		ERROR(tdev, "ep %02x couldn't clear halt, %d\n", ep, retval);
 		return retval;
@@ -1209,18 +1380,18 @@ static int test_halt(struct usbtest_dev *tdev, int ep, struct urb *urb)
 	return 0;
 }
 
-static int halt_simple (struct usbtest_dev *dev)
+static int halt_simple(struct usbtest_dev *dev)
 {
 	int		ep;
 	int		retval = 0;
 	struct urb	*urb;
 
-	urb = simple_alloc_urb (testdev_to_usbdev (dev), 0, 512);
+	urb = simple_alloc_urb(testdev_to_usbdev(dev), 0, 512);
 	if (urb == NULL)
 		return -ENOMEM;
 
 	if (dev->in_pipe) {
-		ep = usb_pipeendpoint (dev->in_pipe) | USB_DIR_IN;
+		ep = usb_pipeendpoint(dev->in_pipe) | USB_DIR_IN;
 		urb->pipe = dev->in_pipe;
 		retval = test_halt(dev, ep, urb);
 		if (retval < 0)
@@ -1228,12 +1399,12 @@ static int halt_simple (struct usbtest_dev *dev)
 	}
 
 	if (dev->out_pipe) {
-		ep = usb_pipeendpoint (dev->out_pipe);
+		ep = usb_pipeendpoint(dev->out_pipe);
 		urb->pipe = dev->out_pipe;
 		retval = test_halt(dev, ep, urb);
 	}
 done:
-	simple_free_urb (urb);
+	simple_free_urb(urb);
 	return retval;
 }
 
@@ -1247,8 +1418,8 @@ done:
  * need to be able to handle more than one OUT data packet.  We'll
  * try whatever we're told to try.
  */
-static int ctrl_out (struct usbtest_dev *dev,
-		unsigned count, unsigned length, unsigned vary)
+static int ctrl_out(struct usbtest_dev *dev,
+		unsigned count, unsigned length, unsigned vary, unsigned offset)
 {
 	unsigned		i, j, len;
 	int			retval;
@@ -1259,11 +1430,12 @@ static int ctrl_out (struct usbtest_dev *dev,
 	if (length < 1 || length > 0xffff || vary >= length)
 		return -EINVAL;
 
-	buf = kmalloc(length, GFP_KERNEL);
+	buf = kmalloc(length + offset, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	udev = testdev_to_usbdev (dev);
+	buf += offset;
+	udev = testdev_to_usbdev(dev);
 	len = length;
 	retval = 0;
 
@@ -1273,8 +1445,8 @@ static int ctrl_out (struct usbtest_dev *dev,
 	for (i = 0; i < count; i++) {
 		/* write patterned data */
 		for (j = 0; j < len; j++)
-			buf [j] = i + j;
-		retval = usb_control_msg (udev, usb_sndctrlpipe (udev,0),
+			buf[j] = i + j;
+		retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				0x5b, USB_DIR_OUT|USB_TYPE_VENDOR,
 				0, 0, buf, len, USB_CTRL_SET_TIMEOUT);
 		if (retval != len) {
@@ -1288,7 +1460,7 @@ static int ctrl_out (struct usbtest_dev *dev,
 		}
 
 		/* read it back -- assuming nothing intervened!!  */
-		retval = usb_control_msg (udev, usb_rcvctrlpipe (udev,0),
+		retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				0x5c, USB_DIR_IN|USB_TYPE_VENDOR,
 				0, 0, buf, len, USB_CTRL_GET_TIMEOUT);
 		if (retval != len) {
@@ -1303,9 +1475,9 @@ static int ctrl_out (struct usbtest_dev *dev,
 
 		/* fail if we can't verify */
 		for (j = 0; j < len; j++) {
-			if (buf [j] != (u8) (i + j)) {
+			if (buf[j] != (u8) (i + j)) {
 				ERROR(dev, "ctrl_out, byte %d is %d not %d\n",
-					j, buf [j], (u8) i + j);
+					j, buf[j], (u8) i + j);
 				retval = -EBADMSG;
 				break;
 			}
@@ -1326,10 +1498,10 @@ static int ctrl_out (struct usbtest_dev *dev,
 	}
 
 	if (retval < 0)
-		ERROR (dev, "ctrl_out %s failed, code %d, count %d\n",
+		ERROR(dev, "ctrl_out %s failed, code %d, count %d\n",
 			what, retval, i);
 
-	kfree (buf);
+	kfree(buf - offset);
 	return retval;
 }
 
@@ -1351,7 +1523,7 @@ struct iso_context {
 	struct usbtest_dev	*dev;
 };
 
-static void iso_callback (struct urb *urb)
+static void iso_callback(struct urb *urb)
 {
 	struct iso_context	*ctx = urb->context;
 
@@ -1363,10 +1535,14 @@ static void iso_callback (struct urb *urb)
 		ctx->errors += urb->error_count;
 	else if (urb->status != 0)
 		ctx->errors += urb->number_of_packets;
+	else if (urb->actual_length != urb->transfer_buffer_length)
+		ctx->errors++;
+	else if (check_guard_bytes(ctx->dev, urb) != 0)
+		ctx->errors++;
 
 	if (urb->status == 0 && ctx->count > (ctx->pending - 1)
 			&& !ctx->submit_error) {
-		int status = usb_submit_urb (urb, GFP_ATOMIC);
+		int status = usb_submit_urb(urb, GFP_ATOMIC);
 		switch (status) {
 		case 0:
 			goto done;
@@ -1388,17 +1564,18 @@ static void iso_callback (struct urb *urb)
 			dev_err(&ctx->dev->intf->dev,
 				"iso test, %lu errors out of %lu\n",
 				ctx->errors, ctx->packet_count);
-		complete (&ctx->done);
+		complete(&ctx->done);
 	}
 done:
 	spin_unlock(&ctx->lock);
 }
 
-static struct urb *iso_alloc_urb (
+static struct urb *iso_alloc_urb(
 	struct usb_device	*udev,
 	int			pipe,
 	struct usb_endpoint_descriptor	*desc,
-	long			bytes
+	long			bytes,
+	unsigned offset
 )
 {
 	struct urb		*urb;
@@ -1410,7 +1587,7 @@ static struct urb *iso_alloc_urb (
 	maxp *= 1 + (0x3 & (le16_to_cpu(desc->wMaxPacketSize) >> 11));
 	packets = DIV_ROUND_UP(bytes, maxp);
 
-	urb = usb_alloc_urb (packets, GFP_KERNEL);
+	urb = usb_alloc_urb(packets, GFP_KERNEL);
 	if (!urb)
 		return urb;
 	urb->dev = udev;
@@ -1418,31 +1595,42 @@ static struct urb *iso_alloc_urb (
 
 	urb->number_of_packets = packets;
 	urb->transfer_buffer_length = bytes;
-	urb->transfer_buffer = usb_alloc_coherent (udev, bytes, GFP_KERNEL,
-			&urb->transfer_dma);
+	urb->transfer_buffer = usb_alloc_coherent(udev, bytes + offset,
+							GFP_KERNEL,
+							&urb->transfer_dma);
 	if (!urb->transfer_buffer) {
-		usb_free_urb (urb);
+		usb_free_urb(urb);
 		return NULL;
 	}
-	memset (urb->transfer_buffer, 0, bytes);
+	if (offset) {
+		memset(urb->transfer_buffer, GUARD_BYTE, offset);
+		urb->transfer_buffer += offset;
+		urb->transfer_dma += offset;
+	}
+	/* For inbound transfers use guard byte so that test fails if
+		data not correctly copied */
+	memset(urb->transfer_buffer,
+			usb_pipein(urb->pipe) ? GUARD_BYTE : 0,
+			bytes);
+
 	for (i = 0; i < packets; i++) {
 		/* here, only the last packet will be short */
-		urb->iso_frame_desc[i].length = min ((unsigned) bytes, maxp);
+		urb->iso_frame_desc[i].length = min((unsigned) bytes, maxp);
 		bytes -= urb->iso_frame_desc[i].length;
 
 		urb->iso_frame_desc[i].offset = maxp * i;
 	}
 
 	urb->complete = iso_callback;
-	// urb->context = SET BY CALLER
+	/* urb->context = SET BY CALLER */
 	urb->interval = 1 << (desc->bInterval - 1);
 	urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 	return urb;
 }
 
 static int
-test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
-		int pipe, struct usb_endpoint_descriptor *desc)
+test_iso_queue(struct usbtest_dev *dev, struct usbtest_param *param,
+		int pipe, struct usb_endpoint_descriptor *desc, unsigned offset)
 {
 	struct iso_context	context;
 	struct usb_device	*udev;
@@ -1457,11 +1645,11 @@ test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
 	memset(&context, 0, sizeof context);
 	context.count = param->iterations * param->sglen;
 	context.dev = dev;
-	init_completion (&context.done);
-	spin_lock_init (&context.lock);
+	init_completion(&context.done);
+	spin_lock_init(&context.lock);
 
-	memset (urbs, 0, sizeof urbs);
-	udev = testdev_to_usbdev (dev);
+	memset(urbs, 0, sizeof urbs);
+	udev = testdev_to_usbdev(dev);
 	dev_info(&dev->intf->dev,
 		"... iso period %d %sframes, wMaxPacket %04x\n",
 		1 << (desc->bInterval - 1),
@@ -1469,14 +1657,14 @@ test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
 		le16_to_cpu(desc->wMaxPacketSize));
 
 	for (i = 0; i < param->sglen; i++) {
-		urbs [i] = iso_alloc_urb (udev, pipe, desc,
-				param->length);
-		if (!urbs [i]) {
+		urbs[i] = iso_alloc_urb(udev, pipe, desc,
+					param->length, offset);
+		if (!urbs[i]) {
 			status = -ENOMEM;
 			goto fail;
 		}
 		packets += urbs[i]->number_of_packets;
-		urbs [i]->context = &context;
+		urbs[i]->context = &context;
 	}
 	packets *= param->iterations;
 	dev_info(&dev->intf->dev,
@@ -1485,27 +1673,27 @@ test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
 			/ ((udev->speed == USB_SPEED_HIGH) ? 8 : 1),
 		packets);
 
-	spin_lock_irq (&context.lock);
+	spin_lock_irq(&context.lock);
 	for (i = 0; i < param->sglen; i++) {
 		++context.pending;
-		status = usb_submit_urb (urbs [i], GFP_ATOMIC);
+		status = usb_submit_urb(urbs[i], GFP_ATOMIC);
 		if (status < 0) {
-			ERROR (dev, "submit iso[%d], error %d\n", i, status);
+			ERROR(dev, "submit iso[%d], error %d\n", i, status);
 			if (i == 0) {
-				spin_unlock_irq (&context.lock);
+				spin_unlock_irq(&context.lock);
 				goto fail;
 			}
 
-			simple_free_urb (urbs [i]);
+			simple_free_urb(urbs[i]);
 			urbs[i] = NULL;
 			context.pending--;
 			context.submit_error = 1;
 			break;
 		}
 	}
-	spin_unlock_irq (&context.lock);
+	spin_unlock_irq(&context.lock);
 
-	wait_for_completion (&context.done);
+	wait_for_completion(&context.done);
 
 	for (i = 0; i < param->sglen; i++) {
 		if (urbs[i])
@@ -1526,10 +1714,30 @@ test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
 
 fail:
 	for (i = 0; i < param->sglen; i++) {
-		if (urbs [i])
-			simple_free_urb (urbs [i]);
+		if (urbs[i])
+			simple_free_urb(urbs[i]);
 	}
 	return status;
+}
+
+static int test_unaligned_bulk(
+	struct usbtest_dev *tdev,
+	int pipe,
+	unsigned length,
+	int iterations,
+	unsigned transfer_flags,
+	const char *label)
+{
+	int retval;
+	struct urb *urb = usbtest_alloc_urb(
+		testdev_to_usbdev(tdev), pipe, length, transfer_flags, 1);
+
+	if (!urb)
+		return -ENOMEM;
+
+	retval = simple_io(tdev, urb, iterations, 0, 0, label);
+	simple_free_urb(urb);
+	return retval;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1557,10 +1765,10 @@ fail:
 
 /* No BKL needed */
 static int
-usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
+usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 {
-	struct usbtest_dev	*dev = usb_get_intfdata (intf);
-	struct usb_device	*udev = testdev_to_usbdev (dev);
+	struct usbtest_dev	*dev = usb_get_intfdata(intf);
+	struct usb_device	*udev = testdev_to_usbdev(dev);
 	struct usbtest_param	*param = buf;
 	int			retval = -EOPNOTSUPP;
 	struct urb		*urb;
@@ -1569,7 +1777,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 	struct timeval		start;
 	unsigned		i;
 
-	// FIXME USBDEVFS_CONNECTINFO doesn't say how fast the device is.
+	/* FIXME USBDEVFS_CONNECTINFO doesn't say how fast the device is. */
 
 	pattern = mod_pattern;
 
@@ -1595,9 +1803,9 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 			mutex_unlock(&dev->lock);
 			return -ENODEV;
 		}
-		res = set_altsetting (dev, dev->info->alt);
+		res = set_altsetting(dev, dev->info->alt);
 		if (res) {
-			dev_err (&intf->dev,
+			dev_err(&intf->dev,
 					"set altsetting to %d failed, %d\n",
 					dev->info->alt, res);
 			mutex_unlock(&dev->lock);
@@ -1614,7 +1822,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 	 * FIXME add more tests!  cancel requests, verify the data, control
 	 * queueing, concurrent read+write threads, and so on.
 	 */
-	do_gettimeofday (&start);
+	do_gettimeofday(&start);
 	switch (param->test_num) {
 
 	case 0:
@@ -1629,14 +1837,14 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 		dev_info(&intf->dev,
 				"TEST 1:  write %d bytes %u times\n",
 				param->length, param->iterations);
-		urb = simple_alloc_urb (udev, dev->out_pipe, param->length);
+		urb = simple_alloc_urb(udev, dev->out_pipe, param->length);
 		if (!urb) {
 			retval = -ENOMEM;
 			break;
 		}
-		// FIRMWARE:  bulk sink (maybe accepts short writes)
+		/* FIRMWARE:  bulk sink (maybe accepts short writes) */
 		retval = simple_io(dev, urb, param->iterations, 0, 0, "test1");
-		simple_free_urb (urb);
+		simple_free_urb(urb);
 		break;
 	case 2:
 		if (dev->in_pipe == 0)
@@ -1644,14 +1852,14 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 		dev_info(&intf->dev,
 				"TEST 2:  read %d bytes %u times\n",
 				param->length, param->iterations);
-		urb = simple_alloc_urb (udev, dev->in_pipe, param->length);
+		urb = simple_alloc_urb(udev, dev->in_pipe, param->length);
 		if (!urb) {
 			retval = -ENOMEM;
 			break;
 		}
-		// FIRMWARE:  bulk source (maybe generates short writes)
+		/* FIRMWARE:  bulk source (maybe generates short writes) */
 		retval = simple_io(dev, urb, param->iterations, 0, 0, "test2");
-		simple_free_urb (urb);
+		simple_free_urb(urb);
 		break;
 	case 3:
 		if (dev->out_pipe == 0 || param->vary == 0)
@@ -1659,15 +1867,15 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 		dev_info(&intf->dev,
 				"TEST 3:  write/%d 0..%d bytes %u times\n",
 				param->vary, param->length, param->iterations);
-		urb = simple_alloc_urb (udev, dev->out_pipe, param->length);
+		urb = simple_alloc_urb(udev, dev->out_pipe, param->length);
 		if (!urb) {
 			retval = -ENOMEM;
 			break;
 		}
-		// FIRMWARE:  bulk sink (maybe accepts short writes)
+		/* FIRMWARE:  bulk sink (maybe accepts short writes) */
 		retval = simple_io(dev, urb, param->iterations, param->vary,
 					0, "test3");
-		simple_free_urb (urb);
+		simple_free_urb(urb);
 		break;
 	case 4:
 		if (dev->in_pipe == 0 || param->vary == 0)
@@ -1675,15 +1883,15 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 		dev_info(&intf->dev,
 				"TEST 4:  read/%d 0..%d bytes %u times\n",
 				param->vary, param->length, param->iterations);
-		urb = simple_alloc_urb (udev, dev->in_pipe, param->length);
+		urb = simple_alloc_urb(udev, dev->in_pipe, param->length);
 		if (!urb) {
 			retval = -ENOMEM;
 			break;
 		}
-		// FIRMWARE:  bulk source (maybe generates short writes)
+		/* FIRMWARE:  bulk source (maybe generates short writes) */
 		retval = simple_io(dev, urb, param->iterations, param->vary,
 					0, "test4");
-		simple_free_urb (urb);
+		simple_free_urb(urb);
 		break;
 
 	/* Queued bulk I/O tests */
@@ -1694,15 +1902,15 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 			"TEST 5:  write %d sglists %d entries of %d bytes\n",
 				param->iterations,
 				param->sglen, param->length);
-		sg = alloc_sglist (param->sglen, param->length, 0);
+		sg = alloc_sglist(param->sglen, param->length, 0);
 		if (!sg) {
 			retval = -ENOMEM;
 			break;
 		}
-		// FIRMWARE:  bulk sink (maybe accepts short writes)
+		/* FIRMWARE:  bulk sink (maybe accepts short writes) */
 		retval = perform_sglist(dev, param->iterations, dev->out_pipe,
 				&req, sg, param->sglen);
-		free_sglist (sg, param->sglen);
+		free_sglist(sg, param->sglen);
 		break;
 
 	case 6:
@@ -1712,15 +1920,15 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 			"TEST 6:  read %d sglists %d entries of %d bytes\n",
 				param->iterations,
 				param->sglen, param->length);
-		sg = alloc_sglist (param->sglen, param->length, 0);
+		sg = alloc_sglist(param->sglen, param->length, 0);
 		if (!sg) {
 			retval = -ENOMEM;
 			break;
 		}
-		// FIRMWARE:  bulk source (maybe generates short writes)
+		/* FIRMWARE:  bulk source (maybe generates short writes) */
 		retval = perform_sglist(dev, param->iterations, dev->in_pipe,
 				&req, sg, param->sglen);
-		free_sglist (sg, param->sglen);
+		free_sglist(sg, param->sglen);
 		break;
 	case 7:
 		if (dev->out_pipe == 0 || param->sglen == 0 || param->vary == 0)
@@ -1729,15 +1937,15 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 			"TEST 7:  write/%d %d sglists %d entries 0..%d bytes\n",
 				param->vary, param->iterations,
 				param->sglen, param->length);
-		sg = alloc_sglist (param->sglen, param->length, param->vary);
+		sg = alloc_sglist(param->sglen, param->length, param->vary);
 		if (!sg) {
 			retval = -ENOMEM;
 			break;
 		}
-		// FIRMWARE:  bulk sink (maybe accepts short writes)
+		/* FIRMWARE:  bulk sink (maybe accepts short writes) */
 		retval = perform_sglist(dev, param->iterations, dev->out_pipe,
 				&req, sg, param->sglen);
-		free_sglist (sg, param->sglen);
+		free_sglist(sg, param->sglen);
 		break;
 	case 8:
 		if (dev->in_pipe == 0 || param->sglen == 0 || param->vary == 0)
@@ -1746,15 +1954,15 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 			"TEST 8:  read/%d %d sglists %d entries 0..%d bytes\n",
 				param->vary, param->iterations,
 				param->sglen, param->length);
-		sg = alloc_sglist (param->sglen, param->length, param->vary);
+		sg = alloc_sglist(param->sglen, param->length, param->vary);
 		if (!sg) {
 			retval = -ENOMEM;
 			break;
 		}
-		// FIRMWARE:  bulk source (maybe generates short writes)
+		/* FIRMWARE:  bulk source (maybe generates short writes) */
 		retval = perform_sglist(dev, param->iterations, dev->in_pipe,
 				&req, sg, param->sglen);
-		free_sglist (sg, param->sglen);
+		free_sglist(sg, param->sglen);
 		break;
 
 	/* non-queued sanity tests for control (chapter 9 subset) */
@@ -1764,7 +1972,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 			"TEST 9:  ch9 (subset) control tests, %d times\n",
 				param->iterations);
 		for (i = param->iterations; retval == 0 && i--; /* NOP */)
-			retval = ch9_postconfig (dev);
+			retval = ch9_postconfig(dev);
 		if (retval)
 			dev_err(&intf->dev, "ch9 subset failed, "
 					"iterations left %d\n", i);
@@ -1779,7 +1987,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 				"TEST 10:  queue %d control calls, %d times\n",
 				param->sglen,
 				param->iterations);
-		retval = test_ctrl_queue (dev, param);
+		retval = test_ctrl_queue(dev, param);
 		break;
 
 	/* simple non-queued unlinks (ring with one urb) */
@@ -1790,7 +1998,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 		dev_info(&intf->dev, "TEST 11:  unlink %d reads of %d\n",
 				param->iterations, param->length);
 		for (i = param->iterations; retval == 0 && i--; /* NOP */)
-			retval = unlink_simple (dev, dev->in_pipe,
+			retval = unlink_simple(dev, dev->in_pipe,
 						param->length);
 		if (retval)
 			dev_err(&intf->dev, "unlink reads failed %d, "
@@ -1803,7 +2011,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 		dev_info(&intf->dev, "TEST 12:  unlink %d writes of %d\n",
 				param->iterations, param->length);
 		for (i = param->iterations; retval == 0 && i--; /* NOP */)
-			retval = unlink_simple (dev, dev->out_pipe,
+			retval = unlink_simple(dev, dev->out_pipe,
 						param->length);
 		if (retval)
 			dev_err(&intf->dev, "unlink writes failed %d, "
@@ -1818,7 +2026,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 		dev_info(&intf->dev, "TEST 13:  set/clear %d halts\n",
 				param->iterations);
 		for (i = param->iterations; retval == 0 && i--; /* NOP */)
-			retval = halt_simple (dev);
+			retval = halt_simple(dev);
 
 		if (retval)
 			ERROR(dev, "halts failed, iterations left %d\n", i);
@@ -1833,7 +2041,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 				realworld ? 1 : 0, param->length,
 				param->vary);
 		retval = ctrl_out(dev, param->iterations,
-				param->length, param->vary);
+				param->length, param->vary, 0);
 		break;
 
 	/* iso write tests */
@@ -1844,9 +2052,9 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 			"TEST 15:  write %d iso, %d entries of %d bytes\n",
 				param->iterations,
 				param->sglen, param->length);
-		// FIRMWARE:  iso sink
-		retval = test_iso_queue (dev, param,
-				dev->out_iso_pipe, dev->iso_out);
+		/* FIRMWARE:  iso sink */
+		retval = test_iso_queue(dev, param,
+				dev->out_iso_pipe, dev->iso_out, 0);
 		break;
 
 	/* iso read tests */
@@ -1857,17 +2065,125 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 			"TEST 16:  read %d iso, %d entries of %d bytes\n",
 				param->iterations,
 				param->sglen, param->length);
-		// FIRMWARE:  iso source
-		retval = test_iso_queue (dev, param,
-				dev->in_iso_pipe, dev->iso_in);
+		/* FIRMWARE:  iso source */
+		retval = test_iso_queue(dev, param,
+				dev->in_iso_pipe, dev->iso_in, 0);
 		break;
 
-	// FIXME unlink from queue (ring with N urbs)
+	/* FIXME scatterlist cancel (needs helper thread) */
 
-	// FIXME scatterlist cancel (needs helper thread)
+	/* Tests for bulk I/O using DMA mapping by core and odd address */
+	case 17:
+		if (dev->out_pipe == 0)
+			break;
+		dev_info(&intf->dev,
+			"TEST 17:  write odd addr %d bytes %u times core map\n",
+			param->length, param->iterations);
+
+		retval = test_unaligned_bulk(
+				dev, dev->out_pipe,
+				param->length, param->iterations,
+				0, "test17");
+		break;
+
+	case 18:
+		if (dev->in_pipe == 0)
+			break;
+		dev_info(&intf->dev,
+			"TEST 18:  read odd addr %d bytes %u times core map\n",
+			param->length, param->iterations);
+
+		retval = test_unaligned_bulk(
+				dev, dev->in_pipe,
+				param->length, param->iterations,
+				0, "test18");
+		break;
+
+	/* Tests for bulk I/O using premapped coherent buffer and odd address */
+	case 19:
+		if (dev->out_pipe == 0)
+			break;
+		dev_info(&intf->dev,
+			"TEST 19:  write odd addr %d bytes %u times premapped\n",
+			param->length, param->iterations);
+
+		retval = test_unaligned_bulk(
+				dev, dev->out_pipe,
+				param->length, param->iterations,
+				URB_NO_TRANSFER_DMA_MAP, "test19");
+		break;
+
+	case 20:
+		if (dev->in_pipe == 0)
+			break;
+		dev_info(&intf->dev,
+			"TEST 20:  read odd addr %d bytes %u times premapped\n",
+			param->length, param->iterations);
+
+		retval = test_unaligned_bulk(
+				dev, dev->in_pipe,
+				param->length, param->iterations,
+				URB_NO_TRANSFER_DMA_MAP, "test20");
+		break;
+
+	/* control write tests with unaligned buffer */
+	case 21:
+		if (!dev->info->ctrl_out)
+			break;
+		dev_info(&intf->dev,
+				"TEST 21:  %d ep0out odd addr, %d..%d vary %d\n",
+				param->iterations,
+				realworld ? 1 : 0, param->length,
+				param->vary);
+		retval = ctrl_out(dev, param->iterations,
+				param->length, param->vary, 1);
+		break;
+
+	/* unaligned iso tests */
+	case 22:
+		if (dev->out_iso_pipe == 0 || param->sglen == 0)
+			break;
+		dev_info(&intf->dev,
+			"TEST 22:  write %d iso odd, %d entries of %d bytes\n",
+				param->iterations,
+				param->sglen, param->length);
+		retval = test_iso_queue(dev, param,
+				dev->out_iso_pipe, dev->iso_out, 1);
+		break;
+
+	case 23:
+		if (dev->in_iso_pipe == 0 || param->sglen == 0)
+			break;
+		dev_info(&intf->dev,
+			"TEST 23:  read %d iso odd, %d entries of %d bytes\n",
+				param->iterations,
+				param->sglen, param->length);
+		retval = test_iso_queue(dev, param,
+				dev->in_iso_pipe, dev->iso_in, 1);
+		break;
+
+	/* unlink URBs from a bulk-OUT queue */
+	case 24:
+		if (dev->out_pipe == 0 || !param->length || param->sglen < 4)
+			break;
+		retval = 0;
+		dev_info(&intf->dev, "TEST 17:  unlink from %d queues of "
+				"%d %d-byte writes\n",
+				param->iterations, param->sglen, param->length);
+		for (i = param->iterations; retval == 0 && i > 0; --i) {
+			retval = unlink_queued(dev, dev->out_pipe,
+						param->sglen, param->length);
+			if (retval) {
+				dev_err(&intf->dev,
+					"unlink queued writes failed %d, "
+					"iterations left %d\n", retval, i);
+				break;
+			}
+		}
+		break;
 
 	}
-	do_gettimeofday (&param->duration);
+	do_gettimeofday(&param->duration);
 	param->duration.tv_sec -= start.tv_sec;
 	param->duration.tv_usec -= start.tv_usec;
 	if (param->duration.tv_usec < 0) {
@@ -1880,22 +2196,22 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 
 /*-------------------------------------------------------------------------*/
 
-static unsigned force_interrupt = 0;
-module_param (force_interrupt, uint, 0);
-MODULE_PARM_DESC (force_interrupt, "0 = test default; else interrupt");
+static unsigned force_interrupt;
+module_param(force_interrupt, uint, 0);
+MODULE_PARM_DESC(force_interrupt, "0 = test default; else interrupt");
 
 #ifdef	GENERIC
 static unsigned short vendor;
 module_param(vendor, ushort, 0);
-MODULE_PARM_DESC (vendor, "vendor code (from usb-if)");
+MODULE_PARM_DESC(vendor, "vendor code (from usb-if)");
 
 static unsigned short product;
 module_param(product, ushort, 0);
-MODULE_PARM_DESC (product, "product code (from vendor)");
+MODULE_PARM_DESC(product, "product code (from vendor)");
 #endif
 
 static int
-usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
+usbtest_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device	*udev;
 	struct usbtest_dev	*dev;
@@ -1903,7 +2219,7 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 	char			*rtest, *wtest;
 	char			*irtest, *iwtest;
 
-	udev = interface_to_usbdev (intf);
+	udev = interface_to_usbdev(intf);
 
 #ifdef	GENERIC
 	/* specify devices by module parameters? */
@@ -1930,8 +2246,9 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 	dev->intf = intf;
 
 	/* cacheline-aligned scratch for i/o */
-	if ((dev->buf = kmalloc (TBUF_SIZE, GFP_KERNEL)) == NULL) {
-		kfree (dev);
+	dev->buf = kmalloc(TBUF_SIZE, GFP_KERNEL);
+	if (dev->buf == NULL) {
+		kfree(dev);
 		return -ENOMEM;
 	}
 
@@ -1943,18 +2260,18 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 	irtest = iwtest = "";
 	if (force_interrupt || udev->speed == USB_SPEED_LOW) {
 		if (info->ep_in) {
-			dev->in_pipe = usb_rcvintpipe (udev, info->ep_in);
+			dev->in_pipe = usb_rcvintpipe(udev, info->ep_in);
 			rtest = " intr-in";
 		}
 		if (info->ep_out) {
-			dev->out_pipe = usb_sndintpipe (udev, info->ep_out);
+			dev->out_pipe = usb_sndintpipe(udev, info->ep_out);
 			wtest = " intr-out";
 		}
 	} else {
 		if (info->autoconf) {
 			int status;
 
-			status = get_endpoints (dev, intf);
+			status = get_endpoints(dev, intf);
 			if (status < 0) {
 				WARNING(dev, "couldn't get endpoints, %d\n",
 						status);
@@ -1963,10 +2280,10 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 			/* may find bulk or ISO pipes */
 		} else {
 			if (info->ep_in)
-				dev->in_pipe = usb_rcvbulkpipe (udev,
+				dev->in_pipe = usb_rcvbulkpipe(udev,
 							info->ep_in);
 			if (info->ep_out)
-				dev->out_pipe = usb_sndbulkpipe (udev,
+				dev->out_pipe = usb_sndbulkpipe(udev,
 							info->ep_out);
 		}
 		if (dev->in_pipe)
@@ -1979,15 +2296,26 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 			iwtest = " iso-out";
 	}
 
-	usb_set_intfdata (intf, dev);
-	dev_info (&intf->dev, "%s\n", info->name);
-	dev_info (&intf->dev, "%s speed {control%s%s%s%s%s} tests%s\n",
+	usb_set_intfdata(intf, dev);
+	dev_info(&intf->dev, "%s\n", info->name);
+	dev_info(&intf->dev, "%s speed {control%s%s%s%s%s} tests%s\n",
 			({ char *tmp;
 			switch (udev->speed) {
-			case USB_SPEED_LOW: tmp = "low"; break;
-			case USB_SPEED_FULL: tmp = "full"; break;
-			case USB_SPEED_HIGH: tmp = "high"; break;
-			default: tmp = "unknown"; break;
+			case USB_SPEED_LOW:
+				tmp = "low";
+				break;
+			case USB_SPEED_FULL:
+				tmp = "full";
+				break;
+			case USB_SPEED_HIGH:
+				tmp = "high";
+				break;
+			case USB_SPEED_SUPER:
+				tmp = "super";
+				break;
+			default:
+				tmp = "unknown";
+				break;
 			}; tmp; }),
 			info->ctrl_out ? " in/out" : "",
 			rtest, wtest,
@@ -1996,24 +2324,24 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 	return 0;
 }
 
-static int usbtest_suspend (struct usb_interface *intf, pm_message_t message)
+static int usbtest_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	return 0;
 }
 
-static int usbtest_resume (struct usb_interface *intf)
+static int usbtest_resume(struct usb_interface *intf)
 {
 	return 0;
 }
 
 
-static void usbtest_disconnect (struct usb_interface *intf)
+static void usbtest_disconnect(struct usb_interface *intf)
 {
-	struct usbtest_dev	*dev = usb_get_intfdata (intf);
+	struct usbtest_dev	*dev = usb_get_intfdata(intf);
 
-	usb_set_intfdata (intf, NULL);
-	dev_dbg (&intf->dev, "disconnect\n");
-	kfree (dev);
+	usb_set_intfdata(intf, NULL);
+	dev_dbg(&intf->dev, "disconnect\n");
+	kfree(dev);
 }
 
 /* Basic testing only needs a device that can source or sink bulk traffic.
@@ -2050,9 +2378,9 @@ static struct usbtest_info fw_info = {
 	.ep_in		= 2,
 	.ep_out		= 2,
 	.alt		= 1,
-	.autoconf	= 1,		// iso and ctrl_out need autoconf
+	.autoconf	= 1,		/* iso and ctrl_out need autoconf */
 	.ctrl_out	= 1,
-	.iso		= 1,		// iso_ep's are #8 in/out
+	.iso		= 1,		/* iso_ep's are #8 in/out */
 };
 
 /* peripheral running Linux and 'zero.c' test firmware, or
@@ -2109,56 +2437,56 @@ static const struct usb_device_id id_table[] = {
 	 */
 
 	/* generic EZ-USB FX controller */
-	{ USB_DEVICE (0x0547, 0x2235),
+	{ USB_DEVICE(0x0547, 0x2235),
 		.driver_info = (unsigned long) &ez1_info,
-		},
+	},
 
 	/* CY3671 development board with EZ-USB FX */
-	{ USB_DEVICE (0x0547, 0x0080),
+	{ USB_DEVICE(0x0547, 0x0080),
 		.driver_info = (unsigned long) &ez1_info,
-		},
+	},
 
 	/* generic EZ-USB FX2 controller (or development board) */
-	{ USB_DEVICE (0x04b4, 0x8613),
+	{ USB_DEVICE(0x04b4, 0x8613),
 		.driver_info = (unsigned long) &ez2_info,
-		},
+	},
 
 	/* re-enumerated usb test device firmware */
-	{ USB_DEVICE (0xfff0, 0xfff0),
+	{ USB_DEVICE(0xfff0, 0xfff0),
 		.driver_info = (unsigned long) &fw_info,
-		},
+	},
 
 	/* "Gadget Zero" firmware runs under Linux */
-	{ USB_DEVICE (0x0525, 0xa4a0),
+	{ USB_DEVICE(0x0525, 0xa4a0),
 		.driver_info = (unsigned long) &gz_info,
-		},
+	},
 
 	/* so does a user-mode variant */
-	{ USB_DEVICE (0x0525, 0xa4a4),
+	{ USB_DEVICE(0x0525, 0xa4a4),
 		.driver_info = (unsigned long) &um_info,
-		},
+	},
 
 	/* ... and a user-mode variant that talks iso */
-	{ USB_DEVICE (0x0525, 0xa4a3),
+	{ USB_DEVICE(0x0525, 0xa4a3),
 		.driver_info = (unsigned long) &um2_info,
-		},
+	},
 
 #ifdef KEYSPAN_19Qi
 	/* Keyspan 19qi uses an21xx (original EZ-USB) */
-	// this does not coexist with the real Keyspan 19qi driver!
-	{ USB_DEVICE (0x06cd, 0x010b),
+	/* this does not coexist with the real Keyspan 19qi driver! */
+	{ USB_DEVICE(0x06cd, 0x010b),
 		.driver_info = (unsigned long) &ez1_info,
-		},
+	},
 #endif
 
 	/*-------------------------------------------------------------*/
 
 #ifdef IBOT2
 	/* iBOT2 makes a nice source of high speed bulk-in data */
-	// this does not coexist with a real iBOT2 driver!
-	{ USB_DEVICE (0x0b62, 0x0059),
+	/* this does not coexist with a real iBOT2 driver! */
+	{ USB_DEVICE(0x0b62, 0x0059),
 		.driver_info = (unsigned long) &ibot2_info,
-		},
+	},
 #endif
 
 	/*-------------------------------------------------------------*/
@@ -2172,7 +2500,7 @@ static const struct usb_device_id id_table[] = {
 
 	{ }
 };
-MODULE_DEVICE_TABLE (usb, id_table);
+MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_driver usbtest_driver = {
 	.name =		"usbtest",
@@ -2186,22 +2514,22 @@ static struct usb_driver usbtest_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __init usbtest_init (void)
+static int __init usbtest_init(void)
 {
 #ifdef GENERIC
 	if (vendor)
 		pr_debug("params: vend=0x%04x prod=0x%04x\n", vendor, product);
 #endif
-	return usb_register (&usbtest_driver);
+	return usb_register(&usbtest_driver);
 }
-module_init (usbtest_init);
+module_init(usbtest_init);
 
-static void __exit usbtest_exit (void)
+static void __exit usbtest_exit(void)
 {
-	usb_deregister (&usbtest_driver);
+	usb_deregister(&usbtest_driver);
 }
-module_exit (usbtest_exit);
+module_exit(usbtest_exit);
 
-MODULE_DESCRIPTION ("USB Core/HCD Testing Driver");
-MODULE_LICENSE ("GPL");
+MODULE_DESCRIPTION("USB Core/HCD Testing Driver");
+MODULE_LICENSE("GPL");
 

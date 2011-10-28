@@ -85,6 +85,17 @@ config NF_CONNTRACK_EVENTS
 
 	  If unsure, say `N'.
 
+config NF_CONNTRACK_TIMESTAMP
+	bool  'Connection tracking timestamping'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option enables support for connection tracking timestamping.
+	  This allows you to store the flow start-time and to obtain
+	  the flow-stop time (once it has been destroyed) via Connection
+	  tracking events.
+
+	  If unsure, say `N'.
+
 config NF_CT_PROTO_DCCP
 	tristate 'DCCP protocol connection tracking support (EXPERIMENTAL)'
 	depends on EXPERIMENTAL
@@ -185,9 +196,13 @@ config NF_CONNTRACK_IRC
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_CONNTRACK_BROADCAST
+	tristate
+
 config NF_CONNTRACK_NETBIOS_NS
 	tristate "NetBIOS name service protocol support"
 	depends on NETFILTER_ADVANCED
+	select NF_CONNTRACK_BROADCAST
 	help
 	  NetBIOS name service requests are sent as broadcast messages from an
 	  unprivileged port and responded to with unicast messages to the
@@ -201,6 +216,21 @@ config NF_CONNTRACK_NETBIOS_NS
 	  $ ip -4 address show eth0
 	  4: eth0: <BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast qlen 1000
 	      inet 172.16.2.252/24 brd 172.16.2.255 scope global eth0
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_SNMP
+	tristate "SNMP service protocol support"
+	depends on NETFILTER_ADVANCED
+	select NF_CONNTRACK_BROADCAST
+	help
+	  SNMP service requests are sent as broadcast messages from an
+	  unprivileged port and responded to with unicast messages to the
+	  same port. This make them hard to firewall properly because connection
+	  tracking doesn't deal with broadcasts. This helper tracks locally
+	  originating SNMP service requests and the corresponding
+	  responses. It relies on correct IP address configuration, specifically
+	  netmask and broadcast address.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -322,9 +352,31 @@ config NETFILTER_XT_CONNMARK
 	ctmark), similarly to the packet mark (nfmark). Using this
 	target and match, you can set and match on this mark.
 
+config NETFILTER_XT_SET
+	tristate 'set target and match support'
+	depends on IP_SET
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds the "SET" target and "set" match.
+
+	  Using this target and match, you can add/delete and match
+	  elements in the sets created by ipset(8).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 # alphabetically ordered list of targets
 
 comment "Xtables targets"
+
+config NETFILTER_XT_TARGET_AUDIT
+	tristate "AUDIT target support"
+	depends on AUDIT
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This option adds a 'AUDIT' target, which can be used to create
+	  audit records for packets dropped/accepted.
+
+	  To compileit as a module, choose M here. If unsure, say N.
 
 config NETFILTER_XT_TARGET_CHECKSUM
 	tristate "CHECKSUM target support"
@@ -477,6 +529,7 @@ config NETFILTER_XT_TARGET_NFLOG
 config NETFILTER_XT_TARGET_NFQUEUE
 	tristate '"NFQUEUE" target Support'
 	depends on NETFILTER_ADVANCED
+	select NETFILTER_NETLINK_QUEUE
 	help
 	  This target replaced the old obsolete QUEUE target.
 
@@ -525,6 +578,7 @@ config NETFILTER_XT_TARGET_TPROXY
 	depends on NETFILTER_XTABLES
 	depends on NETFILTER_ADVANCED
 	select NF_DEFRAG_IPV4
+	select NF_DEFRAG_IPV6 if IP6_NF_IPTABLES
 	help
 	  This option adds a `TPROXY' target, which is somewhat similar to
 	  REDIRECT.  It can only be used in the mangle table and is useful
@@ -594,6 +648,16 @@ config NETFILTER_XT_TARGET_TCPOPTSTRIP
 # alphabetically ordered list of matches
 
 comment "Xtables matches"
+
+config NETFILTER_XT_MATCH_ADDRTYPE
+	tristate '"addrtype" address type match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This option allows you to match what routing thinks of an address,
+	  eg. UNICAST, LOCAL, BROADCAST, ...
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_CLUSTER
 	tristate '"cluster" match support'
@@ -683,6 +747,15 @@ config NETFILTER_XT_MATCH_DCCP
 
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_DEVGROUP
+	tristate '"devgroup" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This options adds a `devgroup' match, which allows to match on the
+	  device group a network device is assigned to.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NETFILTER_XT_MATCH_DSCP
 	tristate '"dscp" and "tos" match support'
@@ -829,6 +902,8 @@ config NETFILTER_XT_MATCH_OWNER
 	based on who created the socket: the user or group. It is also
 	possible to check whether a socket actually exists.
 
+	Conflicts with '"quota, tag, uid" match'
+
 config NETFILTER_XT_MATCH_POLICY
 	tristate 'IPsec "policy" match support'
 	depends on XFRM
@@ -862,6 +937,22 @@ config NETFILTER_XT_MATCH_PKTTYPE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_QTAGUID
+	bool '"quota, tag, owner" match and stats support'
+        depends on NETFILTER_XT_MATCH_SOCKET
+	depends on NETFILTER_XT_MATCH_OWNER=n
+	help
+	  This option replaces the `owner' match. In addition to matching
+	  on uid, it keeps stats based on a tag assigned to a socket.
+	  The full tag is comprised of a UID and an accounting tag.
+	  The tags are assignable to sockets from user space (e.g. a download
+	  manager can assign the socket to another UID for accounting).
+	  Stats and control are done via /proc/net/xt_qtaguid/.
+	  It replaces owner as it takes the same arguments, but should
+	  really be recognized by the iptables tool.
+
+	  If unsure, say `N'.
+
 config NETFILTER_XT_MATCH_QUOTA
 	tristate '"quota" match support'
 	depends on NETFILTER_ADVANCED
@@ -871,6 +962,30 @@ config NETFILTER_XT_MATCH_QUOTA
 
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_QUOTA2
+	tristate '"quota2" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `quota2' match, which allows to match on a
+	  byte counter correctly and not per CPU.
+	  It allows naming the quotas.
+	  This is based on http://xtables-addons.git.sourceforge.net
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_QUOTA2_LOG
+	bool '"quota2" Netfilter LOG support'
+	depends on NETFILTER_XT_MATCH_QUOTA2
+	depends on IP_NF_TARGET_ULOG=n    # not yes, not module, just no
+	default n
+	help
+	  This option allows `quota2' to log ONCE when a quota limit
+	  is passed. It logs via NETLINK using the NETLINK_NFLOG family.
+	  It logs similarly to how ipt_ULOG would without data.
+
+	  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_RATEEST
 	tristate '"rateest" match support'
@@ -885,7 +1000,7 @@ config NETFILTER_XT_MATCH_RATEEST
 config NETFILTER_XT_MATCH_REALM
 	tristate  '"realm" match support'
 	depends on NETFILTER_ADVANCED
-	select NET_CLS_ROUTE
+	select IP_ROUTE_CLASSID
 	help
 	  This option adds a `realm' match, which allows you to use the realm
 	  key from the routing subsystem inside iptables.
@@ -927,6 +1042,7 @@ config NETFILTER_XT_MATCH_SOCKET
 	depends on NETFILTER_ADVANCED
 	depends on !NF_CONNTRACK || NF_CONNTRACK
 	select NF_DEFRAG_IPV4
+	select NF_DEFRAG_IPV6 if IP6_NF_IPTABLES
 	help
 	  This option adds a `socket' match, which can be used to match
 	  packets for which a TCP or UDP socket lookup finds a valid socket.
@@ -1008,5 +1124,7 @@ config NETFILTER_XT_MATCH_U32
 endif # NETFILTER_XTABLES
 
 endmenu
+
+source "net/netfilter/ipset/Kconfig"
 
 source "net/netfilter/ipvs/Kconfig"

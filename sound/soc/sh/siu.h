@@ -75,7 +75,7 @@ struct siu_firmware {
 
 #include <sound/core.h>
 #include <sound/pcm.h>
-#include <sound/soc-dai.h>
+#include <sound/soc.h>
 
 #define SIU_PERIOD_BYTES_MAX	8192		/* DMA transfer/period size */
 #define SIU_PERIOD_BYTES_MIN	256		/* DMA transfer/period size */
@@ -98,7 +98,9 @@ enum {
 	SIU_CLKB_EXT
 };
 
+struct device;
 struct siu_info {
+	struct device		*dev;
 	int			port_id;
 	u32 __iomem		*pram;
 	u32 __iomem		*xram;
@@ -181,8 +183,8 @@ static inline u32 siu_read32(u32 __iomem *addr)
 #define SIU_BRGBSEL	(0x108 / sizeof(u32))
 #define SIU_BRRB	(0x10c / sizeof(u32))
 
-extern struct snd_soc_platform siu_platform;
-extern struct snd_soc_dai siu_i2s_dai;
+extern struct snd_soc_platform_driver siu_platform;
+extern struct siu_info *siu_i2s_data;
 
 int siu_init_port(int port, struct siu_port **port_info, struct snd_card *card);
 void siu_free_port(struct siu_port *port_info);

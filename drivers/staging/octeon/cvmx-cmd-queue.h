@@ -110,7 +110,7 @@ typedef enum {
 } cvmx_cmd_queue_id_t;
 
 /**
- * Command write operations can fail if the comamnd queue needs
+ * Command write operations can fail if the command queue needs
  * a new buffer and the associated FPA pool is empty. It can also
  * fail if the number of queued command words reaches the maximum
  * set at initialization.
@@ -136,12 +136,12 @@ typedef struct {
 	uint64_t unused2:6;
 	/* FPA buffer size in 64bit words minus 1 */
 	uint64_t pool_size_m1:13;
-	/* Number of comamnds already used in buffer */
+	/* Number of commands already used in buffer */
 	uint64_t index:13;
 } __cvmx_cmd_queue_state_t;
 
 /**
- * This structure contains the global state of all comamnd queues.
+ * This structure contains the global state of all command queues.
  * It is stored in a bootmem named block and shared by all
  * applications running on Octeon. Tickets are stored in a differnet
  * cahce line that queue information to reduce the contention on the
@@ -214,7 +214,7 @@ static inline int __cvmx_cmd_queue_get_index(cvmx_cmd_queue_id_t queue_id)
 	/*
 	 * Warning: This code currently only works with devices that
 	 * have 256 queues or less. Devices with more than 16 queues
-	 * are layed out in memory to allow cores quick access to
+	 * are laid out in memory to allow cores quick access to
 	 * every 16th queue. This reduces cache thrashing when you are
 	 * running 16 queues per port to support lockless operation.
 	 */
@@ -308,7 +308,7 @@ static inline __cvmx_cmd_queue_state_t
 
 /**
  * Write an arbitrary number of command words to a command queue.
- * This is a generic function; the fixed number of comamnd word
+ * This is a generic function; the fixed number of command word
  * functions yield higher performance.
  *
  * @queue_id:  Hardware command queue to write to
@@ -317,7 +317,7 @@ static inline __cvmx_cmd_queue_state_t
  *                  updates. If you don't use this locking you must ensure
  *                  exclusivity some other way. Locking is strongly recommended.
  * @cmd_count: Number of command words to write
- * @cmds:      Array of comamnds to write
+ * @cmds:      Array of commands to write
  *
  * Returns CVMX_CMD_QUEUE_SUCCESS or a failure code
  */
@@ -363,7 +363,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write(cvmx_cmd_queue_id_t
 		uint64_t *ptr;
 		int count;
 		/*
-		 * We need a new comamnd buffer. Fail if there isn't
+		 * We need a new command buffer. Fail if there isn't
 		 * one available.
 		 */
 		uint64_t *new_buffer =
@@ -466,7 +466,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write2(cvmx_cmd_queue_id_t
 		 */
 		int count = qptr->pool_size_m1 - qptr->index;
 		/*
-		 * We need a new comamnd buffer. Fail if there isn't
+		 * We need a new command buffer. Fail if there isn't
 		 * one available.
 		 */
 		uint64_t *new_buffer =
@@ -568,7 +568,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write3(cvmx_cmd_queue_id_t
 		 */
 		int count = qptr->pool_size_m1 - qptr->index;
 		/*
-		 * We need a new comamnd buffer. Fail if there isn't
+		 * We need a new command buffer. Fail if there isn't
 		 * one available
 		 */
 		uint64_t *new_buffer =

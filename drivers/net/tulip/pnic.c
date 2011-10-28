@@ -40,8 +40,8 @@ void pnic_do_nway(struct net_device *dev)
 			new_csr6 |= 0x00000200;
 		}
 		if (tulip_debug > 1)
-			printk(KERN_DEBUG "%s: PNIC autonegotiated status %08x, %s\n",
-			       dev->name, phy_reg, medianame[dev->if_port]);
+			netdev_dbg(dev, "PNIC autonegotiated status %08x, %s\n",
+				   phy_reg, medianame[dev->if_port]);
 		if (tp->csr6 != new_csr6) {
 			tp->csr6 = new_csr6;
 			/* Restart Tx */
@@ -58,8 +58,8 @@ void pnic_lnk_change(struct net_device *dev, int csr5)
 	int phy_reg = ioread32(ioaddr + 0xB8);
 
 	if (tulip_debug > 1)
-		printk(KERN_DEBUG "%s: PNIC link changed state %08x, CSR5 %08x\n",
-		       dev->name, phy_reg, csr5);
+		netdev_dbg(dev, "PNIC link changed state %08x, CSR5 %08x\n",
+			   phy_reg, csr5);
 	if (ioread32(ioaddr + CSR5) & TPLnkFail) {
 		iowrite32((ioread32(ioaddr + CSR7) & ~TPLnkFail) | TPLnkPass, ioaddr + CSR7);
 		/* If we use an external MII, then we mustn't use the
@@ -114,8 +114,8 @@ void pnic_timer(unsigned long data)
 		int csr5 = ioread32(ioaddr + CSR5);
 
 		if (tulip_debug > 1)
-			printk(KERN_DEBUG "%s: PNIC timer PHY status %08x, %s CSR5 %08x\n",
-			       dev->name, phy_reg, medianame[dev->if_port], csr5);
+			netdev_dbg(dev, "PNIC timer PHY status %08x, %s CSR5 %08x\n",
+				   phy_reg, medianame[dev->if_port], csr5);
 		if (phy_reg & 0x04000000) {	/* Remote link fault */
 			iowrite32(0x0201F078, ioaddr + 0xB8);
 			next_tick = 1*HZ;
@@ -125,11 +125,11 @@ void pnic_timer(unsigned long data)
 			next_tick = 60*HZ;
 		} else if (csr5 & TPLnkFail) { /* 100baseTx link beat */
 			if (tulip_debug > 1)
-				printk(KERN_DEBUG "%s: %s link beat failed, CSR12 %04x, CSR5 %08x, PHY %03x\n",
-				       dev->name, medianame[dev->if_port],
-				       csr12,
-				       ioread32(ioaddr + CSR5),
-				       ioread32(ioaddr + 0xB8));
+				netdev_dbg(dev, "%s link beat failed, CSR12 %04x, CSR5 %08x, PHY %03x\n",
+					   medianame[dev->if_port],
+					   csr12,
+					   ioread32(ioaddr + CSR5),
+					   ioread32(ioaddr + 0xB8));
 			next_tick = 3*HZ;
 			if (tp->medialock) {
 			} else if (tp->nwayset  &&  (dev->if_port & 1)) {

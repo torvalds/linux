@@ -263,6 +263,7 @@ enum iscsi_err {
 	ISCSI_ERR_INVALID_HOST		= ISCSI_ERR_BASE + 18,
 	ISCSI_ERR_XMIT_FAILED		= ISCSI_ERR_BASE + 19,
 	ISCSI_ERR_TCP_CONN_CLOSE	= ISCSI_ERR_BASE + 20,
+	ISCSI_ERR_SCSI_EH_SESSION_RST	= ISCSI_ERR_BASE + 21,
 };
 
 /*
@@ -291,7 +292,7 @@ enum iscsi_param {
 	ISCSI_PARAM_PERSISTENT_PORT,
 	ISCSI_PARAM_SESS_RECOVERY_TMO,
 
-	/* pased in through bind conn using transport_fd */
+	/* passed in through bind conn using transport_fd */
 	ISCSI_PARAM_CONN_PORT,
 	ISCSI_PARAM_CONN_ADDRESS,
 

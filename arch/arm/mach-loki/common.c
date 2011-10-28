@@ -13,14 +13,16 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
-#include <linux/mv643xx_eth.h>
+#include <linux/dma-mapping.h>
 #include <asm/page.h>
 #include <asm/timex.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
+#include <mach/bridge-regs.h>
 #include <mach/loki.h>
 #include <plat/orion_nand.h>
 #include <plat/time.h>
+#include <plat/common.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -42,116 +44,28 @@ void __init loki_map_io(void)
 
 
 /*****************************************************************************
- * GE0
+ * GE00
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data loki_ge0_shared_data = {
-	.t_clk		= LOKI_TCLK,
-	.dram		= &loki_mbus_dram_info,
-};
-
-static struct resource loki_ge0_shared_resources[] = {
-	{
-		.name	= "ge0 base",
-		.start	= GE0_PHYS_BASE + 0x2000,
-		.end	= GE0_PHYS_BASE + 0x3fff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device loki_ge0_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &loki_ge0_shared_data,
-	},
-	.num_resources	= 1,
-	.resource	= loki_ge0_shared_resources,
-};
-
-static struct resource loki_ge0_resources[] = {
-	{
-		.name	= "ge0 irq",
-		.start	= IRQ_LOKI_GBE_A_INT,
-		.end	= IRQ_LOKI_GBE_A_INT,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device loki_ge0 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 0,
-	.num_resources	= 1,
-	.resource	= loki_ge0_resources,
-	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
-	},
-};
-
 void __init loki_ge0_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	eth_data->shared = &loki_ge0_shared;
-	loki_ge0.dev.platform_data = eth_data;
-
 	writel(0x00079220, GE0_VIRT_BASE + 0x20b0);
-	platform_device_register(&loki_ge0_shared);
-	platform_device_register(&loki_ge0);
+
+	orion_ge00_init(eth_data, &loki_mbus_dram_info,
+			GE0_PHYS_BASE, IRQ_LOKI_GBE_A_INT,
+			0, LOKI_TCLK);
 }
 
 
 /*****************************************************************************
- * GE1
+ * GE01
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data loki_ge1_shared_data = {
-	.t_clk		= LOKI_TCLK,
-	.dram		= &loki_mbus_dram_info,
-};
-
-static struct resource loki_ge1_shared_resources[] = {
-	{
-		.name	= "ge1 base",
-		.start	= GE1_PHYS_BASE + 0x2000,
-		.end	= GE1_PHYS_BASE + 0x3fff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device loki_ge1_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 1,
-	.dev		= {
-		.platform_data	= &loki_ge1_shared_data,
-	},
-	.num_resources	= 1,
-	.resource	= loki_ge1_shared_resources,
-};
-
-static struct resource loki_ge1_resources[] = {
-	{
-		.name	= "ge1 irq",
-		.start	= IRQ_LOKI_GBE_B_INT,
-		.end	= IRQ_LOKI_GBE_B_INT,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device loki_ge1 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 1,
-	.num_resources	= 1,
-	.resource	= loki_ge1_resources,
-	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
-	},
-};
-
 void __init loki_ge1_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	eth_data->shared = &loki_ge1_shared;
-	loki_ge1.dev.platform_data = eth_data;
-
 	writel(0x00079220, GE1_VIRT_BASE + 0x20b0);
-	platform_device_register(&loki_ge1_shared);
-	platform_device_register(&loki_ge1);
+
+	orion_ge01_init(eth_data, &loki_mbus_dram_info,
+			GE1_PHYS_BASE, IRQ_LOKI_GBE_B_INT,
+			0, LOKI_TCLK);
 }
 
 
@@ -186,7 +100,7 @@ static struct platform_device loki_sas = {
 	.name		= "mvsas",
 	.id		= 0,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(loki_sas_resources),
 	.resource	= loki_sas_resources,
@@ -202,97 +116,34 @@ void __init loki_sas_init(void)
 /*****************************************************************************
  * UART0
  ****************************************************************************/
-static struct plat_serial8250_port loki_uart0_data[] = {
-	{
-		.mapbase	= UART0_PHYS_BASE,
-		.membase	= (char *)UART0_VIRT_BASE,
-		.irq		= IRQ_LOKI_UART0,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= LOKI_TCLK,
-	}, {
-	},
-};
-
-static struct resource loki_uart0_resources[] = {
-	{
-		.start		= UART0_PHYS_BASE,
-		.end		= UART0_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_LOKI_UART0,
-		.end		= IRQ_LOKI_UART0,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device loki_uart0 = {
-	.name			= "serial8250",
-	.id			= 0,
-	.dev			= {
-		.platform_data	= loki_uart0_data,
-	},
-	.resource		= loki_uart0_resources,
-	.num_resources		= ARRAY_SIZE(loki_uart0_resources),
-};
-
 void __init loki_uart0_init(void)
 {
-	platform_device_register(&loki_uart0);
+	orion_uart0_init(UART0_VIRT_BASE, UART0_PHYS_BASE,
+			 IRQ_LOKI_UART0, LOKI_TCLK);
 }
-
 
 /*****************************************************************************
  * UART1
  ****************************************************************************/
-static struct plat_serial8250_port loki_uart1_data[] = {
-	{
-		.mapbase	= UART1_PHYS_BASE,
-		.membase	= (char *)UART1_VIRT_BASE,
-		.irq		= IRQ_LOKI_UART1,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= LOKI_TCLK,
-	}, {
-	},
-};
-
-static struct resource loki_uart1_resources[] = {
-	{
-		.start		= UART1_PHYS_BASE,
-		.end		= UART1_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_LOKI_UART1,
-		.end		= IRQ_LOKI_UART1,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device loki_uart1 = {
-	.name			= "serial8250",
-	.id			= 1,
-	.dev			= {
-		.platform_data	= loki_uart1_data,
-	},
-	.resource		= loki_uart1_resources,
-	.num_resources		= ARRAY_SIZE(loki_uart1_resources),
-};
-
 void __init loki_uart1_init(void)
 {
-	platform_device_register(&loki_uart1);
+	orion_uart1_init(UART1_VIRT_BASE, UART1_PHYS_BASE,
+			 IRQ_LOKI_UART1, LOKI_TCLK);
 }
 
 
 /*****************************************************************************
  * Time handling
  ****************************************************************************/
+void __init loki_init_early(void)
+{
+	orion_time_set_base(TIMER_VIRT_BASE);
+}
+
 static void loki_timer_init(void)
 {
-	orion_time_init(IRQ_LOKI_BRIDGE, LOKI_TCLK);
+	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
+			IRQ_LOKI_BRIDGE, LOKI_TCLK);
 }
 
 struct sys_timer loki_timer = {

@@ -28,7 +28,7 @@
 #include <linux/mutex.h>
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = {
+static const unsigned short normal_i2c[] = {
 	0x2c, 0x2d, 0x2e, I2C_CLIENT_END
 };
 
@@ -52,7 +52,7 @@ struct asc7621_chip {
 	u8 company_id;
 	u8 verstep_reg;
 	u8 verstep_id;
-	unsigned short *addresses;
+	const unsigned short *addresses;
 };
 
 static struct asc7621_chip asc7621_chips[] = {

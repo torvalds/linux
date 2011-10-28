@@ -102,16 +102,6 @@ EXPORT_SYMBOL(lowcore_ptr);
 
 #include <asm/setup.h>
 
-static struct resource code_resource = {
-	.name  = "Kernel code",
-	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
-};
-
-static struct resource data_resource = {
-	.name = "Kernel data",
-	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
-};
-
 /*
  * condev= and conmode= setup parameter.
  */
@@ -315,8 +305,7 @@ static int set_amode_and_uaccess(unsigned long user_amode,
  */
 static int __init early_parse_switch_amode(char *p)
 {
-	if (user_mode != SECONDARY_SPACE_MODE)
-		user_mode = PRIMARY_SPACE_MODE;
+	user_mode = PRIMARY_SPACE_MODE;
 	return 0;
 }
 early_param("switch_amode", early_parse_switch_amode);
@@ -325,10 +314,6 @@ static int __init early_parse_user_mode(char *p)
 {
 	if (p && strcmp(p, "primary") == 0)
 		user_mode = PRIMARY_SPACE_MODE;
-#ifdef CONFIG_S390_EXEC_PROTECT
-	else if (p && strcmp(p, "secondary") == 0)
-		user_mode = SECONDARY_SPACE_MODE;
-#endif
 	else if (!p || strcmp(p, "home") == 0)
 		user_mode = HOME_SPACE_MODE;
 	else
@@ -337,31 +322,9 @@ static int __init early_parse_user_mode(char *p)
 }
 early_param("user_mode", early_parse_user_mode);
 
-#ifdef CONFIG_S390_EXEC_PROTECT
-/*
- * Enable execute protection?
- */
-static int __init early_parse_noexec(char *p)
-{
-	if (!strncmp(p, "off", 3))
-		return 0;
-	user_mode = SECONDARY_SPACE_MODE;
-	return 0;
-}
-early_param("noexec", early_parse_noexec);
-#endif /* CONFIG_S390_EXEC_PROTECT */
-
 static void setup_addressing_mode(void)
 {
-	if (user_mode == SECONDARY_SPACE_MODE) {
-		if (set_amode_and_uaccess(PSW_ASC_SECONDARY,
-					  PSW32_ASC_SECONDARY))
-			pr_info("Execute protection active, "
-				"mvcos available\n");
-		else
-			pr_info("Execute protection active, "
-				"mvcos not available\n");
-	} else if (user_mode == PRIMARY_SPACE_MODE) {
+	if (user_mode == PRIMARY_SPACE_MODE) {
 		if (set_amode_and_uaccess(PSW_ASC_PRIMARY, PSW32_ASC_PRIMARY))
 			pr_info("Address spaces switched, "
 				"mvcos available\n");
@@ -409,6 +372,9 @@ setup_lowcore(void)
 	lc->current_task = (unsigned long) init_thread_union.thread_info.task;
 	lc->thread_info = (unsigned long) &init_thread_union;
 	lc->machine_flags = S390_lowcore.machine_flags;
+	lc->stfl_fac_list = S390_lowcore.stfl_fac_list;
+	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
+	       MAX_FACILITY_BIT/8);
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
 		lc->extended_save_area_addr = (__u32)
@@ -433,21 +399,43 @@ setup_lowcore(void)
 	lowcore_ptr[0] = lc;
 }
 
-static void __init
-setup_resources(void)
+static struct resource code_resource = {
+	.name  = "Kernel code",
+	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
+};
+
+static struct resource data_resource = {
+	.name = "Kernel data",
+	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
+};
+
+static struct resource bss_resource = {
+	.name = "Kernel bss",
+	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
+};
+
+static struct resource __initdata *standard_resources[] = {
+	&code_resource,
+	&data_resource,
+	&bss_resource,
+};
+
+static void __init setup_resources(void)
 {
-	struct resource *res, *sub_res;
-	int i;
+	struct resource *res, *std_res, *sub_res;
+	int i, j;
 
 	code_resource.start = (unsigned long) &_text;
 	code_resource.end = (unsigned long) &_etext - 1;
 	data_resource.start = (unsigned long) &_etext;
 	data_resource.end = (unsigned long) &_edata - 1;
+	bss_resource.start = (unsigned long) &__bss_start;
+	bss_resource.end = (unsigned long) &__bss_stop - 1;
 
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		if (!memory_chunk[i].size)
 			continue;
-		res = alloc_bootmem_low(sizeof(struct resource));
+		res = alloc_bootmem_low(sizeof(*res));
 		res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
 		switch (memory_chunk[i].type) {
 		case CHUNK_READ_WRITE:
@@ -461,40 +449,24 @@ setup_resources(void)
 			res->name = "reserved";
 		}
 		res->start = memory_chunk[i].addr;
-		res->end = memory_chunk[i].addr +  memory_chunk[i].size - 1;
+		res->end = res->start + memory_chunk[i].size - 1;
 		request_resource(&iomem_resource, res);
 
-		if (code_resource.start >= res->start  &&
-			code_resource.start <= res->end &&
-			code_resource.end > res->end) {
-			sub_res = alloc_bootmem_low(sizeof(struct resource));
-			memcpy(sub_res, &code_resource,
-				sizeof(struct resource));
-			sub_res->end = res->end;
-			code_resource.start = res->end + 1;
-			request_resource(res, sub_res);
+		for (j = 0; j < ARRAY_SIZE(standard_resources); j++) {
+			std_res = standard_resources[j];
+			if (std_res->start < res->start ||
+			    std_res->start > res->end)
+				continue;
+			if (std_res->end > res->end) {
+				sub_res = alloc_bootmem_low(sizeof(*sub_res));
+				*sub_res = *std_res;
+				sub_res->end = res->end;
+				std_res->start = res->end + 1;
+				request_resource(res, sub_res);
+			} else {
+				request_resource(res, std_res);
+			}
 		}
-
-		if (code_resource.start >= res->start &&
-			code_resource.start <= res->end &&
-			code_resource.end <= res->end)
-			request_resource(res, &code_resource);
-
-		if (data_resource.start >= res->start &&
-			data_resource.start <= res->end &&
-			data_resource.end > res->end) {
-			sub_res = alloc_bootmem_low(sizeof(struct resource));
-			memcpy(sub_res, &data_resource,
-				sizeof(struct resource));
-			sub_res->end = res->end;
-			data_resource.start = res->end + 1;
-			request_resource(res, sub_res);
-		}
-
-		if (data_resource.start >= res->start &&
-			data_resource.start <= res->end &&
-			data_resource.end <= res->end)
-			request_resource(res, &data_resource);
 	}
 }
 
@@ -627,7 +599,8 @@ setup_memory(void)
 		add_active_range(0, start_chunk, end_chunk);
 		pfn = max(start_chunk, start_pfn);
 		for (; pfn < end_chunk; pfn++)
-			page_set_storage_key(PFN_PHYS(pfn), PAGE_DEFAULT_KEY);
+			page_set_storage_key(PFN_PHYS(pfn),
+					     PAGE_DEFAULT_KEY, 0);
 	}
 
 	psw_set_key(PAGE_DEFAULT_KEY);
@@ -674,12 +647,9 @@ setup_memory(void)
 static void __init setup_hwcaps(void)
 {
 	static const int stfl_bits[6] = { 0, 2, 7, 17, 19, 21 };
-	unsigned long long facility_list_extended;
-	unsigned int facility_list;
 	struct cpuid cpu_id;
 	int i;
 
-	facility_list = stfl();
 	/*
 	 * The store facility list bits numbers as found in the principles
 	 * of operation are numbered with bit 1UL<<31 as number 0 to
@@ -699,11 +669,10 @@ static void __init setup_hwcaps(void)
 	 *   HWCAP_S390_ETF3EH bit 8 (22 && 30).
 	 */
 	for (i = 0; i < 6; i++)
-		if (facility_list & (1UL << (31 - stfl_bits[i])))
+		if (test_facility(stfl_bits[i]))
 			elf_hwcap |= 1UL << i;
 
-	if ((facility_list & (1UL << (31 - 22)))
-	    && (facility_list & (1UL << (31 - 30))))
+	if (test_facility(22) && test_facility(30))
 		elf_hwcap |= HWCAP_S390_ETF3EH;
 
 	/*
@@ -712,19 +681,15 @@ static void __init setup_hwcaps(void)
 	 * and 1ULL<<0 as bit 63. Bits 0-31 contain the same information
 	 * as stored by stfl, bits 32-xxx contain additional facilities.
 	 * How many facility words are stored depends on the number of
-	 * doublewords passed to the instruction. The additional facilites
+	 * doublewords passed to the instruction. The additional facilities
 	 * are:
 	 *   Bit 42: decimal floating point facility is installed
 	 *   Bit 44: perform floating point operation facility is installed
 	 * translated to:
 	 *   HWCAP_S390_DFP bit 6 (42 && 44).
 	 */
-	if ((elf_hwcap & (1UL << 2)) &&
-	    __stfle(&facility_list_extended, 1) > 0) {
-		if ((facility_list_extended & (1ULL << (63 - 42)))
-		    && (facility_list_extended & (1ULL << (63 - 44))))
-			elf_hwcap |= HWCAP_S390_DFP;
-	}
+	if ((elf_hwcap & (1UL << 2)) && test_facility(42) && test_facility(44))
+		elf_hwcap |= HWCAP_S390_DFP;
 
 	/*
 	 * Huge page support HWCAP_S390_HPAGE is bit 7.
@@ -764,6 +729,9 @@ static void __init setup_hwcaps(void)
 	case 0x2097:
 	case 0x2098:
 		strcpy(elf_platform, "z10");
+		break;
+	case 0x2817:
+		strcpy(elf_platform, "z196");
 		break;
 	}
 }

@@ -71,12 +71,7 @@ else
 $(obj)/uImage: LOADADDR=$(ZRELADDR)
 endif
 
-ifeq ($(CONFIG_THUMB2_KERNEL),y)
-# Set bit 0 to 1 so that "mov pc, rx" switches to Thumb-2 mode
-$(obj)/uImage: STARTADDR=$(shell echo $(LOADADDR) | sed -e "s/.$$/1/")
-else
 $(obj)/uImage: STARTADDR=$(LOADADDR)
-endif
 
 $(obj)/Image.gz: $(obj)/Image FORCE
 	$(call if_changed,gzip)
@@ -108,6 +103,10 @@ install: $(obj)/Image
 zinstall: $(obj)/zImage
 	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh $(KERNELRELEASE) \
 	$(obj)/zImage System.map "$(INSTALL_PATH)"
+
+uinstall: $(obj)/uImage
+	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh $(KERNELRELEASE) \
+	$(obj)/uImage System.map "$(INSTALL_PATH)"
 
 zi:
 	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh $(KERNELRELEASE) \

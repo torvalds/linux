@@ -205,7 +205,7 @@ static inline u32 blocking_read_reg32(volatile u32 *const addr)
  *   custom_read_reg32(address, tmp);	<-- Reads the address and put the value
  *						in the 'tmp' variable given
  *
- *	From here on out, you are (basicly) atomic, so don't do anything too
+ *	From here on out, you are (basically) atomic, so don't do anything too
  *	fancy!
  *	Also, this code may loop if the end of this block fails to write
  *	everything back safely due do the other CPU, so do NOT do anything

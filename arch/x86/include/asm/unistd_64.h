@@ -669,6 +669,18 @@ __SYSCALL(__NR_fanotify_init, sys_fanotify_init)
 __SYSCALL(__NR_fanotify_mark, sys_fanotify_mark)
 #define __NR_prlimit64				302
 __SYSCALL(__NR_prlimit64, sys_prlimit64)
+#define __NR_name_to_handle_at			303
+__SYSCALL(__NR_name_to_handle_at, sys_name_to_handle_at)
+#define __NR_open_by_handle_at			304
+__SYSCALL(__NR_open_by_handle_at, sys_open_by_handle_at)
+#define __NR_clock_adjtime			305
+__SYSCALL(__NR_clock_adjtime, sys_clock_adjtime)
+#define __NR_syncfs                             306
+__SYSCALL(__NR_syncfs, sys_syncfs)
+#define __NR_sendmmsg				307
+__SYSCALL(__NR_sendmmsg, sys_sendmmsg)
+#define __NR_setns				308
+__SYSCALL(__NR_setns, sys_setns)
 
 #ifndef __NO_STUBS
 #define __ARCH_WANT_OLD_READDIR

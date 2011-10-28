@@ -11,12 +11,11 @@
 #include <linux/swapops.h>
 #include <linux/kmemleak.h>
 
-static void __meminit
-__init_page_cgroup(struct page_cgroup *pc, unsigned long pfn)
+static void __meminit init_page_cgroup(struct page_cgroup *pc, unsigned long id)
 {
 	pc->flags = 0;
+	set_page_cgroup_array_id(pc, id);
 	pc->mem_cgroup = NULL;
-	pc->page = pfn_to_page(pfn);
 	INIT_LIST_HEAD(&pc->lru);
 }
 static unsigned long total_usage;
@@ -43,6 +42,19 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
 	return base + offset;
 }
 
+struct page *lookup_cgroup_page(struct page_cgroup *pc)
+{
+	unsigned long pfn;
+	struct page *page;
+	pg_data_t *pgdat;
+
+	pgdat = NODE_DATA(page_cgroup_array_id(pc));
+	pfn = pc - pgdat->node_page_cgroup + pgdat->node_start_pfn;
+	page = pfn_to_page(pfn);
+	VM_BUG_ON(pc != lookup_page_cgroup(page));
+	return page;
+}
+
 static int __init alloc_node_page_cgroup(int nid)
 {
 	struct page_cgroup *base, *pc;
@@ -63,7 +75,7 @@ static int __init alloc_node_page_cgroup(int nid)
 		return -ENOMEM;
 	for (index = 0; index < nr_pages; index++) {
 		pc = base + index;
-		__init_page_cgroup(pc, start_pfn + index);
+		init_page_cgroup(pc, nid);
 	}
 	NODE_DATA(nid)->node_page_cgroup = base;
 	total_usage += table_size;
@@ -105,46 +117,74 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
 	return section->page_cgroup + pfn;
 }
 
-/* __alloc_bootmem...() is protected by !slab_available() */
-static int __init_refok init_section_page_cgroup(unsigned long pfn)
+struct page *lookup_cgroup_page(struct page_cgroup *pc)
 {
-	struct mem_section *section = __pfn_to_section(pfn);
-	struct page_cgroup *base, *pc;
-	unsigned long table_size;
-	int nid, index;
+	struct mem_section *section;
+	struct page *page;
+	unsigned long nr;
 
-	if (!section->page_cgroup) {
-		nid = page_to_nid(pfn_to_page(pfn));
-		table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
-		VM_BUG_ON(!slab_is_available());
-		if (node_state(nid, N_HIGH_MEMORY)) {
-			base = kmalloc_node(table_size,
-				GFP_KERNEL | __GFP_NOWARN, nid);
-			if (!base)
-				base = vmalloc_node(table_size, nid);
-		} else {
-			base = kmalloc(table_size, GFP_KERNEL | __GFP_NOWARN);
-			if (!base)
-				base = vmalloc(table_size);
-		}
-		/*
-		 * The value stored in section->page_cgroup is (base - pfn)
-		 * and it does not point to the memory block allocated above,
-		 * causing kmemleak false positives.
-		 */
-		kmemleak_not_leak(base);
+	nr = page_cgroup_array_id(pc);
+	section = __nr_to_section(nr);
+	page = pfn_to_page(pc - section->page_cgroup);
+	VM_BUG_ON(pc != lookup_page_cgroup(page));
+	return page;
+}
+
+static void *__meminit alloc_page_cgroup(size_t size, int nid)
+{
+	void *addr = NULL;
+
+	addr = alloc_pages_exact_nid(nid, size, GFP_KERNEL | __GFP_NOWARN);
+	if (addr)
+		return addr;
+
+	if (node_state(nid, N_HIGH_MEMORY))
+		addr = vmalloc_node(size, nid);
+	else
+		addr = vmalloc(size);
+
+	return addr;
+}
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+static void free_page_cgroup(void *addr)
+{
+	if (is_vmalloc_addr(addr)) {
+		vfree(addr);
 	} else {
-		/*
- 		 * We don't have to allocate page_cgroup again, but
-		 * address of memmap may be changed. So, we have to initialize
-		 * again.
-		 */
-		base = section->page_cgroup + pfn;
-		table_size = 0;
-		/* check address of memmap is changed or not. */
-		if (base->page == pfn_to_page(pfn))
-			return 0;
+		struct page *page = virt_to_page(addr);
+		size_t table_size =
+			sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+
+		BUG_ON(PageReserved(page));
+		free_pages_exact(addr, table_size);
 	}
+}
+#endif
+
+static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
+{
+	struct page_cgroup *base, *pc;
+	struct mem_section *section;
+	unsigned long table_size;
+	unsigned long nr;
+	int index;
+
+	nr = pfn_to_section_nr(pfn);
+	section = __nr_to_section(nr);
+
+	if (section->page_cgroup)
+		return 0;
+
+	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+	base = alloc_page_cgroup(table_size, nid);
+
+	/*
+	 * The value stored in section->page_cgroup is (base - pfn)
+	 * and it does not point to the memory block allocated above,
+	 * causing kmemleak false positives.
+	 */
+	kmemleak_not_leak(base);
 
 	if (!base) {
 		printk(KERN_ERR "page cgroup allocation failure\n");
@@ -153,9 +193,13 @@ static int __init_refok init_section_page_cgroup(unsigned long pfn)
 
 	for (index = 0; index < PAGES_PER_SECTION; index++) {
 		pc = base + index;
-		__init_page_cgroup(pc, pfn + index);
+		init_page_cgroup(pc, nr);
 	}
-
+	/*
+	 * The passed "pfn" may not be aligned to SECTION.  For the calculation
+	 * we need to apply a mask.
+	 */
+	pfn &= PAGE_SECTION_MASK;
 	section->page_cgroup = base - pfn;
 	total_usage += table_size;
 	return 0;
@@ -170,16 +214,8 @@ void __free_page_cgroup(unsigned long pfn)
 	if (!ms || !ms->page_cgroup)
 		return;
 	base = ms->page_cgroup + pfn;
-	if (is_vmalloc_addr(base)) {
-		vfree(base);
-		ms->page_cgroup = NULL;
-	} else {
-		struct page *page = virt_to_page(base);
-		if (!PageReserved(page)) { /* Is bootmem ? */
-			kfree(base);
-			ms->page_cgroup = NULL;
-		}
-	}
+	free_page_cgroup(base);
+	ms->page_cgroup = NULL;
 }
 
 int __meminit online_page_cgroup(unsigned long start_pfn,
@@ -192,10 +228,20 @@ int __meminit online_page_cgroup(unsigned long start_pfn,
 	start = start_pfn & ~(PAGES_PER_SECTION - 1);
 	end = ALIGN(start_pfn + nr_pages, PAGES_PER_SECTION);
 
+	if (nid == -1) {
+		/*
+		 * In this case, "nid" already exists and contains valid memory.
+		 * "start_pfn" passed to us is a pfn which is an arg for
+		 * online__pages(), and start_pfn should exist.
+		 */
+		nid = pfn_to_nid(start_pfn);
+		VM_BUG_ON(!node_state(nid, N_ONLINE));
+	}
+
 	for (pfn = start; !fail && pfn < end; pfn += PAGES_PER_SECTION) {
 		if (!pfn_present(pfn))
 			continue;
-		fail = init_section_page_cgroup(pfn);
+		fail = init_section_page_cgroup(pfn, nid);
 	}
 	if (!fail)
 		return 0;
@@ -243,12 +289,7 @@ static int __meminit page_cgroup_callback(struct notifier_block *self,
 		break;
 	}
 
-	if (ret)
-		ret = notifier_from_errno(ret);
-	else
-		ret = NOTIFY_OK;
-
-	return ret;
+	return notifier_from_errno(ret);
 }
 
 #endif
@@ -256,25 +297,47 @@ static int __meminit page_cgroup_callback(struct notifier_block *self,
 void __init page_cgroup_init(void)
 {
 	unsigned long pfn;
-	int fail = 0;
+	int nid;
 
 	if (mem_cgroup_disabled())
 		return;
 
-	for (pfn = 0; !fail && pfn < max_pfn; pfn += PAGES_PER_SECTION) {
-		if (!pfn_present(pfn))
-			continue;
-		fail = init_section_page_cgroup(pfn);
+	for_each_node_state(nid, N_HIGH_MEMORY) {
+		unsigned long start_pfn, end_pfn;
+
+		start_pfn = node_start_pfn(nid);
+		end_pfn = node_end_pfn(nid);
+		/*
+		 * start_pfn and end_pfn may not be aligned to SECTION and the
+		 * page->flags of out of node pages are not initialized.  So we
+		 * scan [start_pfn, the biggest section's pfn < end_pfn) here.
+		 */
+		for (pfn = start_pfn;
+		     pfn < end_pfn;
+                     pfn = ALIGN(pfn + 1, PAGES_PER_SECTION)) {
+
+			if (!pfn_valid(pfn))
+				continue;
+			/*
+			 * Nodes's pfns can be overlapping.
+			 * We know some arch can have a nodes layout such as
+			 * -------------pfn-------------->
+			 * N0 | N1 | N2 | N0 | N1 | N2|....
+			 */
+			if (pfn_to_nid(pfn) != nid)
+				continue;
+			if (init_section_page_cgroup(pfn, nid))
+				goto oom;
+		}
 	}
-	if (fail) {
-		printk(KERN_CRIT "try 'cgroup_disable=memory' boot option\n");
-		panic("Out of memory");
-	} else {
-		hotplug_memory_notifier(page_cgroup_callback, 0);
-	}
+	hotplug_memory_notifier(page_cgroup_callback, 0);
 	printk(KERN_INFO "allocated %ld bytes of page_cgroup\n", total_usage);
-	printk(KERN_INFO "please try 'cgroup_disable=memory' option if you don't"
-	" want memory cgroups\n");
+	printk(KERN_INFO "please try 'cgroup_disable=memory' option if you "
+			 "don't want memory cgroups\n");
+	return;
+oom:
+	printk(KERN_CRIT "try 'cgroup_disable=memory' boot option\n");
+	panic("Out of memory");
 }
 
 void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
@@ -349,7 +412,7 @@ not_enough_page:
  * @new: new id
  *
  * Returns old id at success, 0 at failure.
- * (There is no mem_cgroup useing 0 as its id)
+ * (There is no mem_cgroup using 0 as its id)
  */
 unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
 					unsigned short old, unsigned short new)
@@ -447,7 +510,7 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
 	if (!do_swap_account)
 		return 0;
 
-	length = ((max_pages/SC_PER_PAGE) + 1);
+	length = DIV_ROUND_UP(max_pages, SC_PER_PAGE);
 	array_size = length * sizeof(void *);
 
 	array = vmalloc(array_size);
@@ -464,8 +527,8 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
 		/* memory shortage */
 		ctrl->map = NULL;
 		ctrl->length = 0;
-		vfree(array);
 		mutex_unlock(&swap_cgroup_mutex);
+		vfree(array);
 		goto nomem;
 	}
 	mutex_unlock(&swap_cgroup_mutex);
@@ -480,7 +543,8 @@ nomem:
 
 void swap_cgroup_swapoff(int type)
 {
-	int i;
+	struct page **map;
+	unsigned long i, length;
 	struct swap_cgroup_ctrl *ctrl;
 
 	if (!do_swap_account)
@@ -488,17 +552,20 @@ void swap_cgroup_swapoff(int type)
 
 	mutex_lock(&swap_cgroup_mutex);
 	ctrl = &swap_cgroup_ctrl[type];
-	if (ctrl->map) {
-		for (i = 0; i < ctrl->length; i++) {
-			struct page *page = ctrl->map[i];
+	map = ctrl->map;
+	length = ctrl->length;
+	ctrl->map = NULL;
+	ctrl->length = 0;
+	mutex_unlock(&swap_cgroup_mutex);
+
+	if (map) {
+		for (i = 0; i < length; i++) {
+			struct page *page = map[i];
 			if (page)
 				__free_page(page);
 		}
-		vfree(ctrl->map);
-		ctrl->map = NULL;
-		ctrl->length = 0;
+		vfree(map);
 	}
-	mutex_unlock(&swap_cgroup_mutex);
 }
 
 #endif

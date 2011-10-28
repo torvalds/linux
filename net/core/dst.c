@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <net/net_namespace.h>
 #include <linux/sched.h>
+#include <linux/prefetch.h>
 
 #include <net/dst.h>
 
@@ -33,9 +34,6 @@
  * 3) This list is guarded by a mutex,
  *    so that the gc_task and dst_dev_event() can be synchronized.
  */
-#if RT_CACHE_DEBUG >= 2
-static atomic_t			 dst_total = ATOMIC_INIT(0);
-#endif
 
 /*
  * We want to keep lock & list close together
@@ -69,10 +67,6 @@ static void dst_gc_task(struct work_struct *work)
 	unsigned long expires = ~0L;
 	struct dst_entry *dst, *next, head;
 	struct dst_entry *last = &head;
-#if RT_CACHE_DEBUG >= 2
-	ktime_t time_start = ktime_get();
-	struct timespec elapsed;
-#endif
 
 	mutex_lock(&dst_gc_mutex);
 	next = dst_busy_list;
@@ -146,15 +140,6 @@ loop:
 
 	spin_unlock_bh(&dst_garbage.lock);
 	mutex_unlock(&dst_gc_mutex);
-#if RT_CACHE_DEBUG >= 2
-	elapsed = ktime_to_timespec(ktime_sub(ktime_get(), time_start));
-	printk(KERN_DEBUG "dst_total: %d delayed: %d work_perf: %d"
-		" expires: %lu elapsed: %lu us\n",
-		atomic_read(&dst_total), delayed, work_performed,
-		expires,
-		elapsed.tv_sec * USEC_PER_SEC +
-		  elapsed.tv_nsec / NSEC_PER_USEC);
-#endif
 }
 
 int dst_discard(struct sk_buff *skb)
@@ -164,26 +149,49 @@ int dst_discard(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(dst_discard);
 
-void *dst_alloc(struct dst_ops *ops)
+const u32 dst_default_metrics[RTAX_MAX];
+
+void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
+		int initial_ref, int initial_obsolete, int flags)
 {
 	struct dst_entry *dst;
 
-	if (ops->gc && atomic_read(&ops->entries) > ops->gc_thresh) {
+	if (ops->gc && dst_entries_get_fast(ops) > ops->gc_thresh) {
 		if (ops->gc(ops))
 			return NULL;
 	}
-	dst = kmem_cache_zalloc(ops->kmem_cachep, GFP_ATOMIC);
+	dst = kmem_cache_alloc(ops->kmem_cachep, GFP_ATOMIC);
 	if (!dst)
 		return NULL;
-	atomic_set(&dst->__refcnt, 0);
+	dst->child = NULL;
+	dst->dev = dev;
+	if (dev)
+		dev_hold(dev);
 	dst->ops = ops;
-	dst->lastuse = jiffies;
+	dst_init_metrics(dst, dst_default_metrics, true);
+	dst->expires = 0UL;
 	dst->path = dst;
-	dst->input = dst->output = dst_discard;
-#if RT_CACHE_DEBUG >= 2
-	atomic_inc(&dst_total);
+	dst->neighbour = NULL;
+	dst->hh = NULL;
+#ifdef CONFIG_XFRM
+	dst->xfrm = NULL;
 #endif
-	atomic_inc(&ops->entries);
+	dst->input = dst_discard;
+	dst->output = dst_discard;
+	dst->error = 0;
+	dst->obsolete = initial_obsolete;
+	dst->header_len = 0;
+	dst->trailer_len = 0;
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	dst->tclassid = 0;
+#endif
+	atomic_set(&dst->__refcnt, initial_ref);
+	dst->__use = 0;
+	dst->lastuse = jiffies;
+	dst->flags = flags;
+	dst->next = NULL;
+	if (!(flags & DST_NOCOUNT))
+		dst_entries_add(ops, 1);
 	return dst;
 }
 EXPORT_SYMBOL(dst_alloc);
@@ -228,23 +236,21 @@ again:
 	child = dst->child;
 
 	dst->hh = NULL;
-	if (hh && atomic_dec_and_test(&hh->hh_refcnt))
-		kfree(hh);
+	if (hh)
+		hh_cache_put(hh);
 
 	if (neigh) {
 		dst->neighbour = NULL;
 		neigh_release(neigh);
 	}
 
-	atomic_dec(&dst->ops->entries);
+	if (!(dst->flags & DST_NOCOUNT))
+		dst_entries_add(dst->ops, -1);
 
 	if (dst->ops->destroy)
 		dst->ops->destroy(dst);
 	if (dst->dev)
 		dev_put(dst->dev);
-#if RT_CACHE_DEBUG >= 2
-	atomic_dec(&dst_total);
-#endif
 	kmem_cache_free(dst->ops->kmem_cachep, dst);
 
 	dst = child;
@@ -271,12 +277,75 @@ void dst_release(struct dst_entry *dst)
 	if (dst) {
 		int newrefcnt;
 
-		smp_mb__before_atomic_dec();
 		newrefcnt = atomic_dec_return(&dst->__refcnt);
 		WARN_ON(newrefcnt < 0);
+		if (unlikely(dst->flags & DST_NOCACHE) && !newrefcnt) {
+			dst = dst_destroy(dst);
+			if (dst)
+				__dst_free(dst);
+		}
 	}
 }
 EXPORT_SYMBOL(dst_release);
+
+u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old)
+{
+	u32 *p = kmalloc(sizeof(u32) * RTAX_MAX, GFP_ATOMIC);
+
+	if (p) {
+		u32 *old_p = __DST_METRICS_PTR(old);
+		unsigned long prev, new;
+
+		memcpy(p, old_p, sizeof(u32) * RTAX_MAX);
+
+		new = (unsigned long) p;
+		prev = cmpxchg(&dst->_metrics, old, new);
+
+		if (prev != old) {
+			kfree(p);
+			p = __DST_METRICS_PTR(prev);
+			if (prev & DST_METRICS_READ_ONLY)
+				p = NULL;
+		}
+	}
+	return p;
+}
+EXPORT_SYMBOL(dst_cow_metrics_generic);
+
+/* Caller asserts that dst_metrics_read_only(dst) is false.  */
+void __dst_destroy_metrics_generic(struct dst_entry *dst, unsigned long old)
+{
+	unsigned long prev, new;
+
+	new = ((unsigned long) dst_default_metrics) | DST_METRICS_READ_ONLY;
+	prev = cmpxchg(&dst->_metrics, old, new);
+	if (prev == old)
+		kfree(__DST_METRICS_PTR(old));
+}
+EXPORT_SYMBOL(__dst_destroy_metrics_generic);
+
+/**
+ * skb_dst_set_noref - sets skb dst, without a reference
+ * @skb: buffer
+ * @dst: dst entry
+ *
+ * Sets skb dst, assuming a reference was not taken on dst
+ * skb_dst_drop() should not dst_release() this dst
+ */
+void skb_dst_set_noref(struct sk_buff *skb, struct dst_entry *dst)
+{
+	WARN_ON(!rcu_read_lock_held() && !rcu_read_lock_bh_held());
+	/* If dst not in cache, we must take a reference, because
+	 * dst_release() will destroy dst as soon as its refcount becomes zero
+	 */
+	if (unlikely(dst->flags & DST_NOCACHE)) {
+		dst_hold(dst);
+		skb_dst_set(skb, dst);
+	} else {
+		skb->_skb_refdst = (unsigned long)dst | SKB_DST_NOREF;
+	}
+}
+EXPORT_SYMBOL(skb_dst_set_noref);
 
 /* Dirty hack. We did it in 2.2 (in __dst_free),
  * we have _very_ good reasons not to repeat
@@ -343,6 +412,7 @@ static int dst_dev_event(struct notifier_block *this, unsigned long event,
 
 static struct notifier_block dst_dev_notifier = {
 	.notifier_call	= dst_dev_event,
+	.priority = -10, /* must be called after other network notifiers */
 };
 
 void __init dst_init(void)

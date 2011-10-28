@@ -17,7 +17,6 @@
 #include <linux/resource.h>
 #include <linux/times.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
@@ -110,7 +109,7 @@ asmlinkage long compat_sys_ipc(u32 call, u32 first, u32 second, u32 third, compa
 
 	default:
 		return -ENOSYS;
-	};
+	}
 
 	return -ENOSYS;
 }

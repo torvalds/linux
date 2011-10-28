@@ -80,7 +80,7 @@ struct ucc_geth {
 				   frames) received that were between 128
 				   (Including FCS length==4) and 255 octets */
 	u32 txok;		/* Total number of octets residing in frames
-				   that where involved in successfull
+				   that where involved in successful
 				   transmission */
 	u16 txcf;		/* Total number of PAUSE control frames
 				   transmitted by this MAC */
@@ -759,7 +759,7 @@ struct ucc_geth_hardware_statistics {
 				   frames) received that were between 128
 				   (Including FCS length==4) and 255 octets */
 	u32 txok;		/* Total number of octets residing in frames
-				   that where involved in successfull
+				   that where involved in successful
 				   transmission */
 	u16 txcf;		/* Total number of PAUSE control frames
 				   transmitted by this MAC */
@@ -899,7 +899,8 @@ struct ucc_geth_hardware_statistics {
 #define UCC_GETH_UTFS_INIT                      512	/* Tx virtual FIFO size
 							 */
 #define UCC_GETH_UTFET_INIT                     256	/* 1/2 utfs */
-#define UCC_GETH_UTFTT_INIT                     512
+#define UCC_GETH_UTFTT_INIT                     256	/* 1/2 utfs
+							   due to errata */
 /* Gigabit Ethernet (1000 Mbps) */
 #define UCC_GETH_URFS_GIGA_INIT                 4096/*2048*/	/* Rx virtual
 								   FIFO size */

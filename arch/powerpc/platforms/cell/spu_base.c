@@ -32,11 +32,13 @@
 #include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/linux_logo.h>
+#include <linux/syscore_ops.h>
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
 #include <asm/spu_csa.h>
 #include <asm/xmon.h>
 #include <asm/prom.h>
+#include <asm/kexec.h>
 
 const struct spu_management_ops *spu_management_ops;
 EXPORT_SYMBOL_GPL(spu_management_ops);
@@ -520,18 +522,8 @@ void spu_init_channels(struct spu *spu)
 }
 EXPORT_SYMBOL_GPL(spu_init_channels);
 
-static int spu_shutdown(struct sys_device *sysdev)
-{
-	struct spu *spu = container_of(sysdev, struct spu, sysdev);
-
-	spu_free_irqs(spu);
-	spu_destroy_spu(spu);
-	return 0;
-}
-
 static struct sysdev_class spu_sysdev_class = {
 	.name = "spu",
-	.shutdown = spu_shutdown,
 };
 
 int spu_add_sysdev_attr(struct sysdev_attribute *attr)
@@ -727,6 +719,91 @@ static ssize_t spu_stat_show(struct sys_device *sysdev,
 
 static SYSDEV_ATTR(stat, 0644, spu_stat_show, NULL);
 
+#ifdef CONFIG_KEXEC
+
+struct crash_spu_info {
+	struct spu *spu;
+	u32 saved_spu_runcntl_RW;
+	u32 saved_spu_status_R;
+	u32 saved_spu_npc_RW;
+	u64 saved_mfc_sr1_RW;
+	u64 saved_mfc_dar;
+	u64 saved_mfc_dsisr;
+};
+
+#define CRASH_NUM_SPUS	16	/* Enough for current hardware */
+static struct crash_spu_info crash_spu_info[CRASH_NUM_SPUS];
+
+static void crash_kexec_stop_spus(void)
+{
+	struct spu *spu;
+	int i;
+	u64 tmp;
+
+	for (i = 0; i < CRASH_NUM_SPUS; i++) {
+		if (!crash_spu_info[i].spu)
+			continue;
+
+		spu = crash_spu_info[i].spu;
+
+		crash_spu_info[i].saved_spu_runcntl_RW =
+			in_be32(&spu->problem->spu_runcntl_RW);
+		crash_spu_info[i].saved_spu_status_R =
+			in_be32(&spu->problem->spu_status_R);
+		crash_spu_info[i].saved_spu_npc_RW =
+			in_be32(&spu->problem->spu_npc_RW);
+
+		crash_spu_info[i].saved_mfc_dar    = spu_mfc_dar_get(spu);
+		crash_spu_info[i].saved_mfc_dsisr  = spu_mfc_dsisr_get(spu);
+		tmp = spu_mfc_sr1_get(spu);
+		crash_spu_info[i].saved_mfc_sr1_RW = tmp;
+
+		tmp &= ~MFC_STATE1_MASTER_RUN_CONTROL_MASK;
+		spu_mfc_sr1_set(spu, tmp);
+
+		__delay(200);
+	}
+}
+
+static void crash_register_spus(struct list_head *list)
+{
+	struct spu *spu;
+	int ret;
+
+	list_for_each_entry(spu, list, full_list) {
+		if (WARN_ON(spu->number >= CRASH_NUM_SPUS))
+			continue;
+
+		crash_spu_info[spu->number].spu = spu;
+	}
+
+	ret = crash_shutdown_register(&crash_kexec_stop_spus);
+	if (ret)
+		printk(KERN_ERR "Could not register SPU crash handler");
+}
+
+#else
+static inline void crash_register_spus(struct list_head *list)
+{
+}
+#endif
+
+static void spu_shutdown(void)
+{
+	struct spu *spu;
+
+	mutex_lock(&spu_full_list_mutex);
+	list_for_each_entry(spu, &spu_full_list, full_list) {
+		spu_free_irqs(spu);
+		spu_destroy_spu(spu);
+	}
+	mutex_unlock(&spu_full_list_mutex);
+}
+
+static struct syscore_ops spu_syscore_ops = {
+	.shutdown = spu_shutdown,
+};
+
 static int __init init_spu_base(void)
 {
 	int i, ret = 0;
@@ -760,6 +837,7 @@ static int __init init_spu_base(void)
 	crash_register_spus(&spu_full_list);
 	mutex_unlock(&spu_full_list_mutex);
 	spu_add_sysdev_attr(&attr_stat);
+	register_syscore_ops(&spu_syscore_ops);
 
 	spu_init_affinity();
 

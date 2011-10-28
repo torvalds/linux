@@ -57,9 +57,11 @@ dead.  However, this detection isn't perfect on some devices.  In such
 a case, you can change the default method via `position_fix` option.
 
 `position_fix=1` means to use LPIB method explicitly.
-`position_fix=2` means to use the position-buffer.  0 is the default
-value, the automatic check and fallback to LPIB as described in the
-above.  If you get a problem of repeated sounds, this option might
+`position_fix=2` means to use the position-buffer.
+`position_fix=3` means to use a combination of both methods, needed
+for some VIA and ATI controllers.  0 is the default value for all other
+controllers, the automatic check and fallback to LPIB as described in
+the above.  If you get a problem of repeated sounds, this option might
 help.
 
 In addition to that, every controller is known to be broken regarding

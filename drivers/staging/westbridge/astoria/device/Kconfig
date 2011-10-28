@@ -1,0 +1,9 @@
+#
+# West Bridge block driver configuration
+#
+
+config WESTBRIDGE_DEVICE_DRIVER
+	tristate "West Bridge Device Driver"
+	help
+		Include the West Bridge based device driver
+

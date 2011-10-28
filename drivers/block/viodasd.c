@@ -41,7 +41,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/dma-mapping.h>
 #include <linux/completion.h>
 #include <linux/device.h>
@@ -73,6 +73,7 @@ enum {
 	MAX_DISK_NAME = FIELD_SIZEOF(struct gendisk, disk_name)
 };
 
+static DEFINE_MUTEX(viodasd_mutex);
 static DEFINE_SPINLOCK(viodasd_spinlock);
 
 #define VIOMAXREQ		16
@@ -93,7 +94,7 @@ static const struct vio_error_entry viodasd_err_table[] = {
 	{ 0x0204, EIO, "Use Error" },
 	{ 0x0205, EIO, "Release Error" },
 	{ 0x0206, EINVAL, "Invalid Disk" },
-	{ 0x0207, EBUSY, "Cant Lock" },
+	{ 0x0207, EBUSY, "Can't Lock" },
 	{ 0x0208, EIO, "Already Locked" },
 	{ 0x0209, EIO, "Already Unlocked" },
 	{ 0x020A, EIO, "Invalid Arg" },
@@ -180,9 +181,9 @@ static int viodasd_unlocked_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&viodasd_mutex);
 	ret = viodasd_open(bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&viodasd_mutex);
 
 	return ret;
 }
@@ -196,7 +197,7 @@ static int viodasd_release(struct gendisk *disk, fmode_t mode)
 	struct viodasd_device *d = disk->private_data;
 	HvLpEvent_Rc hvrc;
 
-	lock_kernel();
+	mutex_lock(&viodasd_mutex);
 	/* Send the event to OS/400.  We DON'T expect a response */
 	hvrc = HvCallEvent_signalLpEventFast(viopath_hostLp,
 			HvLpEvent_Type_VirtualIo,
@@ -210,7 +211,7 @@ static int viodasd_release(struct gendisk *disk, fmode_t mode)
 	if (hvrc != 0)
 		pr_warning("HV close call failed %d\n", (int)hvrc);
 
-	unlock_kernel();
+	mutex_unlock(&viodasd_mutex);
 
 	return 0;
 }

@@ -4544,7 +4544,7 @@ AscMemWordCopyPtrToLram(PortAddr iop_base, ushort s_addr,
  * Copy 4 bytes to LRAM.
  *
  * The source data is assumed to be in little-endian order in memory
- * and is maintained in little-endian order when writen to LRAM.
+ * and is maintained in little-endian order when written to LRAM.
  */
 static void
 AscMemDWordCopyPtrToLram(PortAddr iop_base,
@@ -9500,7 +9500,7 @@ static int asc_execute_scsi_cmnd(struct scsi_cmnd *scp)
  * in the 'scp' result field.
  */
 static int
-advansys_queuecommand(struct scsi_cmnd *scp, void (*done)(struct scsi_cmnd *))
+advansys_queuecommand_lck(struct scsi_cmnd *scp, void (*done)(struct scsi_cmnd *))
 {
 	struct Scsi_Host *shost = scp->device->host;
 	int asc_res, result = 0;
@@ -9524,6 +9524,8 @@ advansys_queuecommand(struct scsi_cmnd *scp, void (*done)(struct scsi_cmnd *))
 
 	return result;
 }
+
+static DEF_SCSI_QCMD(advansys_queuecommand)
 
 static ushort __devinit AscGetEisaChipCfg(PortAddr iop_base)
 {

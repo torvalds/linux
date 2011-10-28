@@ -16,6 +16,8 @@
 #include <linux/pci.h>
 #include <video/vga.h>
 
+static bool request_mem_succeeded = false;
+
 static struct fb_var_screeninfo efifb_defined __devinitdata = {
 	.activate		= FB_ACTIVATE_NOW,
 	.height			= -1,
@@ -53,6 +55,7 @@ enum {
 	M_MB_7_1,	/* MacBook, 7th rev. */
 	M_MB_SR,	/* MacBook, 2nd gen, (Santa Rosa) */
 	M_MBA,		/* MacBook Air */
+	M_MBA_3,	/* Macbook Air, 3rd rev */
 	M_MBP,		/* MacBook Pro */
 	M_MBP_2,	/* MacBook Pro 2nd gen */
 	M_MBP_2_2,	/* MacBook Pro 2,2nd gen */
@@ -64,8 +67,15 @@ enum {
 	M_MBP_6_1,	/* MacBook Pro, 6,1th gen */
 	M_MBP_6_2,	/* MacBook Pro, 6,2th gen */
 	M_MBP_7_1,	/* MacBook Pro, 7,1th gen */
+	M_MBP_8_2,	/* MacBook Pro, 8,2nd gen */
 	M_UNKNOWN	/* placeholder */
 };
+
+#define OVERRIDE_NONE	0x0
+#define OVERRIDE_BASE	0x1
+#define OVERRIDE_STRIDE	0x2
+#define OVERRIDE_HEIGHT	0x4
+#define OVERRIDE_WIDTH	0x8
 
 static struct efifb_dmi_info {
 	char *optname;
@@ -73,34 +83,38 @@ static struct efifb_dmi_info {
 	int stride;
 	int width;
 	int height;
+	int flags;
 } dmi_list[] __initdata = {
-	[M_I17] = { "i17", 0x80010000, 1472 * 4, 1440, 900 },
-	[M_I20] = { "i20", 0x80010000, 1728 * 4, 1680, 1050 }, /* guess */
-	[M_I20_SR] = { "imac7", 0x40010000, 1728 * 4, 1680, 1050 },
-	[M_I24] = { "i24", 0x80010000, 2048 * 4, 1920, 1200 }, /* guess */
-	[M_I24_8_1] = { "imac8", 0xc0060000, 2048 * 4, 1920, 1200 },
-	[M_I24_10_1] = { "imac10", 0xc0010000, 2048 * 4, 1920, 1080 },
-	[M_I27_11_1] = { "imac11", 0xc0010000, 2560 * 4, 2560, 1440 },
-	[M_MINI]= { "mini", 0x80000000, 2048 * 4, 1024, 768 },
-	[M_MINI_3_1] = { "mini31", 0x40010000, 1024 * 4, 1024, 768 },
-	[M_MINI_4_1] = { "mini41", 0xc0010000, 2048 * 4, 1920, 1200 },
-	[M_MB] = { "macbook", 0x80000000, 2048 * 4, 1280, 800 },
-	[M_MB_5_1] = { "macbook51", 0x80010000, 2048 * 4, 1280, 800 },
-	[M_MB_6_1] = { "macbook61", 0x80010000, 2048 * 4, 1280, 800 },
-	[M_MB_7_1] = { "macbook71", 0x80010000, 2048 * 4, 1280, 800 },
-	[M_MBA] = { "mba", 0x80000000, 2048 * 4, 1280, 800 },
-	[M_MBP] = { "mbp", 0x80010000, 1472 * 4, 1440, 900 },
-	[M_MBP_2] = { "mbp2", 0, 0, 0, 0 }, /* placeholder */
-	[M_MBP_2_2] = { "mbp22", 0x80010000, 1472 * 4, 1440, 900 },
-	[M_MBP_SR] = { "mbp3", 0x80030000, 2048 * 4, 1440, 900 },
-	[M_MBP_4] = { "mbp4", 0xc0060000, 2048 * 4, 1920, 1200 },
-	[M_MBP_5_1] = { "mbp51", 0xc0010000, 2048 * 4, 1440, 900 },
-	[M_MBP_5_2] = { "mbp52", 0xc0010000, 2048 * 4, 1920, 1200 },
-	[M_MBP_5_3] = { "mbp53", 0xd0010000, 2048 * 4, 1440, 900 },
-	[M_MBP_6_1] = { "mbp61", 0x90030000, 2048 * 4, 1920, 1200 },
-	[M_MBP_6_2] = { "mbp62", 0x90030000, 2048 * 4, 1680, 1050 },
-	[M_MBP_7_1] = { "mbp71", 0xc0010000, 2048 * 4, 1280, 800 },
-	[M_UNKNOWN] = { NULL, 0, 0, 0, 0 }
+	[M_I17] = { "i17", 0x80010000, 1472 * 4, 1440, 900, OVERRIDE_NONE },
+	[M_I20] = { "i20", 0x80010000, 1728 * 4, 1680, 1050, OVERRIDE_NONE }, /* guess */
+	[M_I20_SR] = { "imac7", 0x40010000, 1728 * 4, 1680, 1050, OVERRIDE_NONE },
+	[M_I24] = { "i24", 0x80010000, 2048 * 4, 1920, 1200, OVERRIDE_NONE }, /* guess */
+	[M_I24_8_1] = { "imac8", 0xc0060000, 2048 * 4, 1920, 1200, OVERRIDE_NONE },
+	[M_I24_10_1] = { "imac10", 0xc0010000, 2048 * 4, 1920, 1080, OVERRIDE_NONE },
+	[M_I27_11_1] = { "imac11", 0xc0010000, 2560 * 4, 2560, 1440, OVERRIDE_NONE },
+	[M_MINI]= { "mini", 0x80000000, 2048 * 4, 1024, 768, OVERRIDE_NONE },
+	[M_MINI_3_1] = { "mini31", 0x40010000, 1024 * 4, 1024, 768, OVERRIDE_NONE },
+	[M_MINI_4_1] = { "mini41", 0xc0010000, 2048 * 4, 1920, 1200, OVERRIDE_NONE },
+	[M_MB] = { "macbook", 0x80000000, 2048 * 4, 1280, 800, OVERRIDE_NONE },
+	[M_MB_5_1] = { "macbook51", 0x80010000, 2048 * 4, 1280, 800, OVERRIDE_NONE },
+	[M_MB_6_1] = { "macbook61", 0x80010000, 2048 * 4, 1280, 800, OVERRIDE_NONE },
+	[M_MB_7_1] = { "macbook71", 0x80010000, 2048 * 4, 1280, 800, OVERRIDE_NONE },
+	[M_MBA] = { "mba", 0x80000000, 2048 * 4, 1280, 800, OVERRIDE_NONE },
+	/* 11" Macbook Air 3,1 passes the wrong stride */
+	[M_MBA_3] = { "mba3", 0, 2048 * 4, 0, 0, OVERRIDE_STRIDE },
+	[M_MBP] = { "mbp", 0x80010000, 1472 * 4, 1440, 900, OVERRIDE_NONE },
+	[M_MBP_2] = { "mbp2", 0, 0, 0, 0, OVERRIDE_NONE }, /* placeholder */
+	[M_MBP_2_2] = { "mbp22", 0x80010000, 1472 * 4, 1440, 900, OVERRIDE_NONE },
+	[M_MBP_SR] = { "mbp3", 0x80030000, 2048 * 4, 1440, 900, OVERRIDE_NONE },
+	[M_MBP_4] = { "mbp4", 0xc0060000, 2048 * 4, 1920, 1200, OVERRIDE_NONE },
+	[M_MBP_5_1] = { "mbp51", 0xc0010000, 2048 * 4, 1440, 900, OVERRIDE_NONE },
+	[M_MBP_5_2] = { "mbp52", 0xc0010000, 2048 * 4, 1920, 1200, OVERRIDE_NONE },
+	[M_MBP_5_3] = { "mbp53", 0xd0010000, 2048 * 4, 1440, 900, OVERRIDE_NONE },
+	[M_MBP_6_1] = { "mbp61", 0x90030000, 2048 * 4, 1920, 1200, OVERRIDE_NONE },
+	[M_MBP_6_2] = { "mbp62", 0x90030000, 2048 * 4, 1680, 1050, OVERRIDE_NONE },
+	[M_MBP_7_1] = { "mbp71", 0xc0010000, 2048 * 4, 1280, 800, OVERRIDE_NONE },
+	[M_MBP_8_2] = { "mbp82", 0x90010000, 1472 * 4, 1440, 900, OVERRIDE_NONE },
+	[M_UNKNOWN] = { NULL, 0, 0, 0, 0, OVERRIDE_NONE }
 };
 
 static int set_system(const struct dmi_system_id *id);
@@ -138,6 +152,7 @@ static const struct dmi_system_id dmi_system_table[] __initconst = {
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBook6,1", M_MB_6_1),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBook7,1", M_MB_7_1),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookAir1,1", M_MBA),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookAir3,1", M_MBA_3),
 	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBookPro1,1", M_MBP),
 	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBookPro2,1", M_MBP_2),
 	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBookPro2,2", M_MBP_2_2),
@@ -151,19 +166,26 @@ static const struct dmi_system_id dmi_system_table[] __initconst = {
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro6,1", M_MBP_6_1),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro6,2", M_MBP_6_2),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro7,1", M_MBP_7_1),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro8,2", M_MBP_8_2),
 	{},
 };
+
+#define choose_value(dmivalue, fwvalue, field, flags) ({	\
+		typeof(fwvalue) _ret_ = fwvalue;		\
+		if ((flags) & (field))				\
+			_ret_ = dmivalue;			\
+		else if ((fwvalue) == 0)			\
+			_ret_ = dmivalue;			\
+		_ret_;						\
+	})
 
 static int set_system(const struct dmi_system_id *id)
 {
 	struct efifb_dmi_info *info = id->driver_data;
-	if (info->base == 0)
-		return 0;
 
-	printk(KERN_INFO "efifb: dmi detected %s - framebuffer at %p "
-			 "(%dx%d, stride %d)\n", id->ident,
-			 (void *)info->base, info->width, info->height,
-			 info->stride);
+	if (info->base == 0 && info->height == 0 && info->width == 0
+			&& info->stride == 0)
+		return 0;
 
 	/* Trust the bootloader over the DMI tables */
 	if (screen_info.lfb_base == 0) {
@@ -171,40 +193,47 @@ static int set_system(const struct dmi_system_id *id)
 		struct pci_dev *dev = NULL;
 		int found_bar = 0;
 #endif
-		screen_info.lfb_base = info->base;
+		if (info->base) {
+			screen_info.lfb_base = choose_value(info->base,
+				screen_info.lfb_base, OVERRIDE_BASE,
+				info->flags);
 
 #if defined(CONFIG_PCI)
-		/* make sure that the address in the table is actually on a
-		 * VGA device's PCI BAR */
+			/* make sure that the address in the table is actually
+			 * on a VGA device's PCI BAR */
 
-		for_each_pci_dev(dev) {
-			int i;
-			if ((dev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
-				continue;
-			for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-				resource_size_t start, end;
+			for_each_pci_dev(dev) {
+				int i;
+				if ((dev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
+					continue;
+				for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+					resource_size_t start, end;
 
-				start = pci_resource_start(dev, i);
-				if (start == 0)
-					break;
-				end = pci_resource_end(dev, i);
-				if (screen_info.lfb_base >= start &&
-						screen_info.lfb_base < end) {
-					found_bar = 1;
+					start = pci_resource_start(dev, i);
+					if (start == 0)
+						break;
+					end = pci_resource_end(dev, i);
+					if (screen_info.lfb_base >= start &&
+					    screen_info.lfb_base < end) {
+						found_bar = 1;
+					}
 				}
 			}
-		}
-		if (!found_bar)
-			screen_info.lfb_base = 0;
+			if (!found_bar)
+				screen_info.lfb_base = 0;
 #endif
+		}
 	}
 	if (screen_info.lfb_base) {
-		if (screen_info.lfb_linelength == 0)
-			screen_info.lfb_linelength = info->stride;
-		if (screen_info.lfb_width == 0)
-			screen_info.lfb_width = info->width;
-		if (screen_info.lfb_height == 0)
-			screen_info.lfb_height = info->height;
+		screen_info.lfb_linelength = choose_value(info->stride,
+			screen_info.lfb_linelength, OVERRIDE_STRIDE,
+			info->flags);
+		screen_info.lfb_width = choose_value(info->width,
+			screen_info.lfb_width, OVERRIDE_WIDTH,
+			info->flags);
+		screen_info.lfb_height = choose_value(info->height,
+			screen_info.lfb_height, OVERRIDE_HEIGHT,
+			info->flags);
 		if (screen_info.orig_video_isVGA == 0)
 			screen_info.orig_video_isVGA = VIDEO_TYPE_EFI;
 	} else {
@@ -214,6 +243,13 @@ static int set_system(const struct dmi_system_id *id)
 		screen_info.orig_video_isVGA = 0;
 		return 0;
 	}
+
+	printk(KERN_INFO "efifb: dmi detected %s - framebuffer at 0x%08x "
+			 "(%dx%d, stride %d)\n", id->ident,
+			 screen_info.lfb_base, screen_info.lfb_width,
+			 screen_info.lfb_height, screen_info.lfb_linelength);
+
+
 	return 1;
 }
 
@@ -247,7 +283,9 @@ static void efifb_destroy(struct fb_info *info)
 {
 	if (info->screen_base)
 		iounmap(info->screen_base);
-	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
+	if (request_mem_succeeded)
+		release_mem_region(info->apertures->ranges[0].base,
+				   info->apertures->ranges[0].size);
 	framebuffer_release(info);
 }
 
@@ -292,14 +330,13 @@ static int __init efifb_setup(char *options)
 	return 0;
 }
 
-static int __devinit efifb_probe(struct platform_device *dev)
+static int __init efifb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	int err;
 	unsigned int size_vmode;
 	unsigned int size_remap;
 	unsigned int size_total;
-	int request_succeeded = 0;
 
 	if (!screen_info.lfb_depth)
 		screen_info.lfb_depth = 32;
@@ -353,7 +390,7 @@ static int __devinit efifb_probe(struct platform_device *dev)
 	efifb_fix.smem_len = size_remap;
 
 	if (request_mem_region(efifb_fix.smem_start, size_remap, "efifb")) {
-		request_succeeded = 1;
+		request_mem_succeeded = true;
 	} else {
 		/* We cannot make this fatal. Sometimes this comes from magic
 		   spaces our resource handlers simply don't know about */
@@ -379,7 +416,7 @@ static int __devinit efifb_probe(struct platform_device *dev)
 	info->apertures->ranges[0].base = efifb_fix.smem_start;
 	info->apertures->ranges[0].size = size_remap;
 
-	info->screen_base = ioremap(efifb_fix.smem_start, efifb_fix.smem_len);
+	info->screen_base = ioremap_wc(efifb_fix.smem_start, efifb_fix.smem_len);
 	if (!info->screen_base) {
 		printk(KERN_ERR "efifb: abort, cannot ioremap video memory "
 				"0x%x @ 0x%lx\n",
@@ -457,13 +494,12 @@ err_unmap:
 err_release_fb:
 	framebuffer_release(info);
 err_release_mem:
-	if (request_succeeded)
+	if (request_mem_succeeded)
 		release_mem_region(efifb_fix.smem_start, size_total);
 	return err;
 }
 
 static struct platform_driver efifb_driver = {
-	.probe	= efifb_probe,
 	.driver	= {
 		.name	= "efifb",
 	},
@@ -494,13 +530,21 @@ static int __init efifb_init(void)
 	if (!screen_info.lfb_linelength)
 		return -ENODEV;
 
-	ret = platform_driver_register(&efifb_driver);
+	ret = platform_device_register(&efifb_device);
+	if (ret)
+		return ret;
 
-	if (!ret) {
-		ret = platform_device_register(&efifb_device);
-		if (ret)
-			platform_driver_unregister(&efifb_driver);
+	/*
+	 * This is not just an optimization.  We will interfere
+	 * with a real driver if we get reprobed, so don't allow
+	 * it.
+	 */
+	ret = platform_driver_probe(&efifb_driver, efifb_probe);
+	if (ret) {
+		platform_device_unregister(&efifb_device);
+		return ret;
 	}
+
 	return ret;
 }
 module_init(efifb_init);

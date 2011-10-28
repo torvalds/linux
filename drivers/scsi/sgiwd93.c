@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1999 Andrew R. Baker (andrewb@uab.edu)
  * Copyright (C) 2001 Florian Lohoff (flo@rfc822.org)
  * Copyright (C) 2003, 07 Ralf Baechle (ralf@linux-mips.org)

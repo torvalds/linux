@@ -1,9 +1,9 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-
-mainmenu "Linux/SCORE Kernel Configuration"
-
 menu "Machine selection"
+
+config SCORE
+       def_bool y
+       select HAVE_GENERIC_HARDIRQS
+       select GENERIC_IRQ_SHOW
 
 choice
 	prompt "System type"
@@ -43,9 +43,6 @@ config NO_DMA
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
 config GENERIC_HWEIGHT
 	def_bool y
 
@@ -58,9 +55,6 @@ config GENERIC_CLOCKEVENTS
 config SCHED_NO_NO_OMIT_FRAME_POINTER
 	def_bool y
 
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
-
 config GENERIC_SYSCALL_TABLE
 	def_bool y
 
@@ -71,9 +65,6 @@ config SCORE_L1_CACHE_SHIFT
 menu "Kernel type"
 
 config 32BIT
-	def_bool y
-
-config GENERIC_HARDIRQS
 	def_bool y
 
 config ARCH_FLATMEM_ENABLE

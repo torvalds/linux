@@ -1591,7 +1591,7 @@ void rtl8180_rx(struct net_device *dev)
 		priv->RSSI = RSSI;
 		/* SQ translation formula is provided by SD3 DZ. 2006.06.27 */
 		if (quality >= 127)
-			quality = 1; /*0; */ /* 0 will cause epc to show signal zero , walk aroud now; */
+			quality = 1; /*0; */ /* 0 will cause epc to show signal zero , walk around now; */
 		else if (quality < 27)
 			quality = 100;
 		else
@@ -3547,6 +3547,7 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 	struct net_device *dev = NULL;
 	struct r8180_priv *priv = NULL;
 	u8 unit = 0;
+	int ret = -ENODEV;
 
 	unsigned long pmem_start, pmem_len, pmem_flags;
 
@@ -3561,8 +3562,10 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 	pci_set_dma_mask(pdev, 0xffffff00ULL);
 	pci_set_consistent_dma_mask(pdev, 0xffffff00ULL);
 	dev = alloc_ieee80211(sizeof(struct r8180_priv));
-	if (!dev)
-		return -ENOMEM;
+	if (!dev) {
+		ret = -ENOMEM;
+		goto fail_free;
+	}
 	priv = ieee80211_priv(dev);
 	priv->ieee80211 = netdev_priv(dev);
 
@@ -3641,11 +3644,12 @@ fail:
 		free_ieee80211(dev);
 	}
 
+fail_free:
 	pci_disable_device(pdev);
 
 	DMESG("wlan driver load failed\n");
 	pci_set_drvdata(pdev, NULL);
-	return -ENODEV;
+	return ret;
 }
 
 static void __devexit rtl8180_pci_remove(struct pci_dev *pdev)
@@ -3879,7 +3883,7 @@ void rtl8180_tx_isr(struct net_device *dev, int pri, short error)
 	 * If the packet previous of the nic pointer has been
 	 * processed this doesn't matter: it will be checked
 	 * here at the next round. Anyway if no more packet are
-	 * TXed no memory leak occour at all.
+	 * TXed no memory leak occur at all.
 	 */
 
 	switch (pri) {

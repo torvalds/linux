@@ -10,7 +10,7 @@
 #     workqueue:workqueue_destruction -e workqueue:workqueue_execution
 #     -e workqueue:workqueue_insertion
 #
-#   perf trace -p -s tools/perf/scripts/perl/workqueue-stats.pl
+#   perf script -p -s tools/perf/scripts/perl/workqueue-stats.pl
 
 use 5.010000;
 use strict;

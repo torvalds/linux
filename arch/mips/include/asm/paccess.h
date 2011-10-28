@@ -7,7 +7,7 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  *
  * Protected memory access.  Used for everything that might take revenge
- * by sending a DBE error like accessing possibly non-existant memory or
+ * by sending a DBE error like accessing possibly non-existent memory or
  * devices.
  */
 #ifndef _ASM_PACCESS_H

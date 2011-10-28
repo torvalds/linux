@@ -64,6 +64,8 @@
 #define GB_BACKEND_MAP  				0x98FC
 #define DMIF_ADDR_CONFIG  				0xBD4
 #define HDP_ADDR_CONFIG  				0x2F48
+#define HDP_MISC_CNTL  					0x2F4C
+#define		HDP_FLUSH_INVALIDATE_CACHE      	(1 << 0)
 
 #define	CC_SYS_RB_BACKEND_DISABLE			0x3F88
 #define	GC_USER_RB_BACKEND_DISABLE			0x9B7C
@@ -98,6 +100,7 @@
 #define		BUF_SWAP_32BIT					(2 << 16)
 #define	CP_RB_RPTR					0x8700
 #define	CP_RB_RPTR_ADDR					0xC10C
+#define		RB_RPTR_SWAP(x)					((x) << 0)
 #define	CP_RB_RPTR_ADDR_HI				0xC110
 #define	CP_RB_RPTR_WR					0xC108
 #define	CP_RB_WPTR					0xC114
@@ -164,22 +167,32 @@
 #define		SE_SC_BUSY					(1 << 29)
 #define		SE_DB_BUSY					(1 << 30)
 #define		SE_CB_BUSY					(1 << 31)
-
+/* evergreen */
+#define	CG_THERMAL_CTRL					0x72c
+#define		TOFFSET_MASK			        0x00003FE0
+#define		TOFFSET_SHIFT			        5
 #define	CG_MULT_THERMAL_STATUS				0x740
 #define		ASIC_T(x)			        ((x) << 16)
-#define		ASIC_T_MASK			        0x7FF0000
+#define		ASIC_T_MASK			        0x07FF0000
 #define		ASIC_T_SHIFT			        16
+#define	CG_TS0_STATUS					0x760
+#define		TS0_ADC_DOUT_MASK			0x000003FF
+#define		TS0_ADC_DOUT_SHIFT			0
+/* APU */
+#define	CG_THERMAL_STATUS			        0x678
 
 #define	HDP_HOST_PATH_CNTL				0x2C00
 #define	HDP_NONSURFACE_BASE				0x2C04
 #define	HDP_NONSURFACE_INFO				0x2C08
 #define	HDP_NONSURFACE_SIZE				0x2C0C
+#define HDP_MEM_COHERENCY_FLUSH_CNTL			0x5480
 #define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 #define	HDP_TILING_CONFIG				0x2F3C
 
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x00003000
+#define MC_SHARED_CHREMAP					0x2008
 
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0
@@ -195,10 +208,12 @@
 #define		BURSTLENGTH_SHIFT				9
 #define		BURSTLENGTH_MASK				0x00000200
 #define		CHANSIZE_OVERRIDE				(1 << 11)
+#define	FUS_MC_ARB_RAMCFG				0x2768
 #define	MC_VM_AGP_TOP					0x2028
 #define	MC_VM_AGP_BOT					0x202C
 #define	MC_VM_AGP_BASE					0x2030
 #define	MC_VM_FB_LOCATION				0x2024
+#define	MC_FUS_VM_FB_OFFSET				0x2898
 #define	MC_VM_MB_L1_TLB0_CNTL				0x2234
 #define	MC_VM_MB_L1_TLB1_CNTL				0x2238
 #define	MC_VM_MB_L1_TLB2_CNTL				0x223C
@@ -215,6 +230,11 @@
 #define	MC_VM_MD_L1_TLB0_CNTL				0x2654
 #define	MC_VM_MD_L1_TLB1_CNTL				0x2658
 #define	MC_VM_MD_L1_TLB2_CNTL				0x265C
+
+#define	FUS_MC_VM_MD_L1_TLB0_CNTL			0x265C
+#define	FUS_MC_VM_MD_L1_TLB1_CNTL			0x2660
+#define	FUS_MC_VM_MD_L1_TLB2_CNTL			0x2664
+
 #define	MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR		0x203C
 #define	MC_VM_SYSTEM_APERTURE_HIGH_ADDR			0x2038
 #define	MC_VM_SYSTEM_APERTURE_LOW_ADDR			0x2034
@@ -235,6 +255,7 @@
 #define		FORCE_EOV_MAX_CLK_CNT(x)			((x) << 0)
 #define		FORCE_EOV_MAX_REZ_CNT(x)			((x) << 16)
 #define PA_SC_LINE_STIPPLE				0x28A0C
+#define	PA_SU_LINE_STIPPLE_VALUE			0x8A60
 #define	PA_SC_LINE_STIPPLE_STATE			0x8B10
 
 #define	SCRATCH_REG0					0x8500
@@ -348,6 +369,9 @@
 #define		SYNC_WALKER					(1 << 25)
 #define		SYNC_ALIGNER					(1 << 26)
 
+#define	TCP_CHAN_STEER_LO				0x960c
+#define	TCP_CHAN_STEER_HI				0x9610
+
 #define	VGT_CACHE_INVALIDATION				0x88C4
 #define		CACHE_INVALIDATION(x)				((x) << 0)
 #define			VC_ONLY						0
@@ -412,6 +436,19 @@
 #define		SOFT_RESET_REGBB		       	(1 << 22)
 #define		SOFT_RESET_ORB				(1 << 23)
 
+/* display watermarks */
+#define	DC_LB_MEMORY_SPLIT				  0x6b0c
+#define	PRIORITY_A_CNT			                  0x6b18
+#define		PRIORITY_MARK_MASK			  0x7fff
+#define		PRIORITY_OFF				  (1 << 16)
+#define		PRIORITY_ALWAYS_ON			  (1 << 20)
+#define	PRIORITY_B_CNT			                  0x6b1c
+#define	PIPE0_ARBITRATION_CONTROL3			  0x0bf0
+#       define LATENCY_WATERMARK_MASK(x)                  ((x) << 16)
+#define	PIPE0_LATENCY_CONTROL			          0x0bf4
+#       define LATENCY_LOW_WATERMARK(x)                   ((x) << 0)
+#       define LATENCY_HIGH_WATERMARK(x)                  ((x) << 16)
+
 #define IH_RB_CNTL                                        0x3e00
 #       define IH_RB_ENABLE                               (1 << 0)
 #       define IH_IB_SIZE(x)                              ((x) << 1) /* log2 */
@@ -429,7 +466,7 @@
 #define IH_RB_WPTR_ADDR_LO                                0x3e14
 #define IH_CNTL                                           0x3e18
 #       define ENABLE_INTR                                (1 << 0)
-#       define IH_MC_SWAP(x)                              ((x) << 2)
+#       define IH_MC_SWAP(x)                              ((x) << 1)
 #       define IH_MC_SWAP_NONE                            0
 #       define IH_MC_SWAP_16BIT                           1
 #       define IH_MC_SWAP_32BIT                           2
@@ -510,7 +547,7 @@
 #       define LB_D5_VBLANK_INTERRUPT                   (1 << 3)
 #       define DC_HPD5_INTERRUPT                        (1 << 17)
 #       define DC_HPD5_RX_INTERRUPT                     (1 << 18)
-#define DISP_INTERRUPT_STATUS_CONTINUE5                 0x6050
+#define DISP_INTERRUPT_STATUS_CONTINUE5                 0x6150
 #       define LB_D6_VLINE_INTERRUPT                    (1 << 2)
 #       define LB_D6_VBLANK_INTERRUPT                   (1 << 3)
 #       define DC_HPD6_INTERRUPT                        (1 << 17)
@@ -560,6 +597,44 @@
 #       define DC_HPDx_RX_INT_TIMER(x)                    ((x) << 16)
 #       define DC_HPDx_EN                                 (1 << 28)
 
+/* PCIE link stuff */
+#define PCIE_LC_TRAINING_CNTL                             0xa1 /* PCIE_P */
+#define PCIE_LC_LINK_WIDTH_CNTL                           0xa2 /* PCIE_P */
+#       define LC_LINK_WIDTH_SHIFT                        0
+#       define LC_LINK_WIDTH_MASK                         0x7
+#       define LC_LINK_WIDTH_X0                           0
+#       define LC_LINK_WIDTH_X1                           1
+#       define LC_LINK_WIDTH_X2                           2
+#       define LC_LINK_WIDTH_X4                           3
+#       define LC_LINK_WIDTH_X8                           4
+#       define LC_LINK_WIDTH_X16                          6
+#       define LC_LINK_WIDTH_RD_SHIFT                     4
+#       define LC_LINK_WIDTH_RD_MASK                      0x70
+#       define LC_RECONFIG_ARC_MISSING_ESCAPE             (1 << 7)
+#       define LC_RECONFIG_NOW                            (1 << 8)
+#       define LC_RENEGOTIATION_SUPPORT                   (1 << 9)
+#       define LC_RENEGOTIATE_EN                          (1 << 10)
+#       define LC_SHORT_RECONFIG_EN                       (1 << 11)
+#       define LC_UPCONFIGURE_SUPPORT                     (1 << 12)
+#       define LC_UPCONFIGURE_DIS                         (1 << 13)
+#define PCIE_LC_SPEED_CNTL                                0xa4 /* PCIE_P */
+#       define LC_GEN2_EN_STRAP                           (1 << 0)
+#       define LC_TARGET_LINK_SPEED_OVERRIDE_EN           (1 << 1)
+#       define LC_FORCE_EN_HW_SPEED_CHANGE                (1 << 5)
+#       define LC_FORCE_DIS_HW_SPEED_CHANGE               (1 << 6)
+#       define LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_MASK      (0x3 << 8)
+#       define LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_SHIFT     3
+#       define LC_CURRENT_DATA_RATE                       (1 << 11)
+#       define LC_VOLTAGE_TIMER_SEL_MASK                  (0xf << 14)
+#       define LC_CLR_FAILED_SPD_CHANGE_CNT               (1 << 21)
+#       define LC_OTHER_SIDE_EVER_SENT_GEN2               (1 << 23)
+#       define LC_OTHER_SIDE_SUPPORTS_GEN2                (1 << 24)
+#define MM_CFGREGS_CNTL                                   0x544c
+#       define MM_WR_TO_CFG_EN                            (1 << 3)
+#define LINK_CNTL2                                        0x88 /* F0 */
+#       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
+#       define SELECTABLE_DEEMPHASIS                      (1 << 6)
+
 /*
  * PM4
  */
@@ -589,10 +664,11 @@
 #define	PACKET3_NOP					0x10
 #define	PACKET3_SET_BASE				0x11
 #define	PACKET3_CLEAR_STATE				0x12
-#define	PACKET3_INDIRECT_BUFFER_SIZE			0x13
+#define	PACKET3_INDEX_BUFFER_SIZE			0x13
 #define	PACKET3_DISPATCH_DIRECT				0x15
 #define	PACKET3_DISPATCH_INDIRECT			0x16
 #define	PACKET3_INDIRECT_BUFFER_END			0x17
+#define	PACKET3_MODE_CONTROL				0x18
 #define	PACKET3_SET_PREDICATION				0x20
 #define	PACKET3_REG_RMW					0x21
 #define	PACKET3_COND_EXEC				0x22
@@ -630,14 +706,14 @@
 #              define PACKET3_CB8_DEST_BASE_ENA    (1 << 15)
 #              define PACKET3_CB9_DEST_BASE_ENA    (1 << 16)
 #              define PACKET3_CB10_DEST_BASE_ENA   (1 << 17)
-#              define PACKET3_CB11_DEST_BASE_ENA   (1 << 17)
+#              define PACKET3_CB11_DEST_BASE_ENA   (1 << 18)
 #              define PACKET3_FULL_CACHE_ENA       (1 << 20)
 #              define PACKET3_TC_ACTION_ENA        (1 << 23)
 #              define PACKET3_VC_ACTION_ENA        (1 << 24)
 #              define PACKET3_CB_ACTION_ENA        (1 << 25)
 #              define PACKET3_DB_ACTION_ENA        (1 << 26)
 #              define PACKET3_SH_ACTION_ENA        (1 << 27)
-#              define PACKET3_SMX_ACTION_ENA       (1 << 28)
+#              define PACKET3_SX_ACTION_ENA        (1 << 28)
 #define	PACKET3_ME_INITIALIZE				0x44
 #define		PACKET3_ME_INITIALIZE_DEVICE_ID(x) ((x) << 16)
 #define	PACKET3_COND_WRITE				0x45
@@ -645,6 +721,8 @@
 #define	PACKET3_EVENT_WRITE_EOP				0x47
 #define	PACKET3_EVENT_WRITE_EOS				0x48
 #define	PACKET3_PREAMBLE_CNTL				0x4A
+#              define PACKET3_PREAMBLE_BEGIN_CLEAR_STATE     (2 << 28)
+#              define PACKET3_PREAMBLE_END_CLEAR_STATE       (3 << 28)
 #define	PACKET3_RB_OFFSET				0x4B
 #define	PACKET3_ALU_PS_CONST_BUFFER_COPY		0x4C
 #define	PACKET3_ALU_VS_CONST_BUFFER_COPY		0x4D
@@ -691,13 +769,21 @@
 
 #define SQ_CONST_MEM_BASE				0x8df8
 
+#define SQ_ESGS_RING_BASE				0x8c40
 #define SQ_ESGS_RING_SIZE				0x8c44
+#define SQ_GSVS_RING_BASE				0x8c48
 #define SQ_GSVS_RING_SIZE				0x8c4c
+#define SQ_ESTMP_RING_BASE				0x8c50
 #define SQ_ESTMP_RING_SIZE				0x8c54
+#define SQ_GSTMP_RING_BASE				0x8c58
 #define SQ_GSTMP_RING_SIZE				0x8c5c
+#define SQ_VSTMP_RING_BASE				0x8c60
 #define SQ_VSTMP_RING_SIZE				0x8c64
+#define SQ_PSTMP_RING_BASE				0x8c68
 #define SQ_PSTMP_RING_SIZE				0x8c6c
+#define SQ_LSTMP_RING_BASE				0x8e10
 #define SQ_LSTMP_RING_SIZE				0x8e14
+#define SQ_HSTMP_RING_BASE				0x8e18
 #define SQ_HSTMP_RING_SIZE				0x8e1c
 #define VGT_TF_RING_SIZE				0x8988
 
@@ -801,6 +887,11 @@
 #define SQ_ALU_CONST_CACHE_LS_13			0x28f74
 #define SQ_ALU_CONST_CACHE_LS_14			0x28f78
 #define SQ_ALU_CONST_CACHE_LS_15			0x28f7c
+
+#define PA_SC_SCREEN_SCISSOR_TL                         0x28030
+#define PA_SC_GENERIC_SCISSOR_TL                        0x28240
+#define PA_SC_WINDOW_SCISSOR_TL                         0x28204
+#define VGT_PRIMITIVE_TYPE                              0x8958
 
 #define DB_DEPTH_CONTROL				0x28800
 #define DB_DEPTH_VIEW					0x28008
@@ -1024,5 +1115,14 @@
 #define SQ_TEX_RESOURCE_WORD6_0                         0x30018
 #define SQ_TEX_RESOURCE_WORD7_0                         0x3001c
 
+/* cayman 3D regs */
+#define CAYMAN_VGT_OFFCHIP_LDS_BASE			0x89B0
+#define CAYMAN_DB_EQAA					0x28804
+#define CAYMAN_DB_DEPTH_INFO				0x2803C
+#define CAYMAN_PA_SC_AA_CONFIG				0x28BE0
+#define         CAYMAN_MSAA_NUM_SAMPLES_SHIFT           0
+#define         CAYMAN_MSAA_NUM_SAMPLES_MASK            0x7
+/* cayman packet3 addition */
+#define	CAYMAN_PACKET3_DEALLOC_STATE			0x14
 
 #endif

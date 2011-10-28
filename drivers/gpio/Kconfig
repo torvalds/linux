@@ -1,5 +1,5 @@
 #
-# platform-neutral GPIO infrastructure and expanders
+# GPIO infrastructure and drivers
 #
 
 config ARCH_WANT_OPTIONAL_GPIOLIB
@@ -31,7 +31,7 @@ menuconfig GPIOLIB
 	help
 	  This enables GPIO support through the generic GPIO library.
 	  You only need to enable this, if you also want to enable
-	  one or more of the GPIO expansion card drivers below.
+	  one or more of the GPIO drivers below.
 
 	  If unsure, say N.
 
@@ -63,18 +63,44 @@ config GPIO_SYSFS
 	  Kernel drivers may also request that a particular GPIO be
 	  exported to userspace; this can be useful when debugging.
 
-# put expanders in the right section, in alphabetical order
+# put drivers in the right section, in alphabetical order
 
 config GPIO_MAX730X
 	tristate
 
-comment "Memory mapped GPIO expanders:"
+comment "Memory mapped GPIO drivers:"
+
+config GPIO_BASIC_MMIO_CORE
+	tristate
+	help
+	  Provides core functionality for basic memory-mapped GPIO controllers.
+
+config GPIO_BASIC_MMIO
+	tristate "Basic memory-mapped GPIO controllers support"
+	select GPIO_BASIC_MMIO_CORE
+	help
+	  Say yes here to support basic memory-mapped GPIO controllers.
 
 config GPIO_IT8761E
 	tristate "IT8761E GPIO support"
-	depends on GPIOLIB
 	help
 	  Say yes here to support GPIO functionality of IT8761E super I/O chip.
+
+config GPIO_EXYNOS4
+	def_bool y
+	depends on CPU_EXYNOS4210
+
+config GPIO_PLAT_SAMSUNG
+	def_bool y
+	depends on SAMSUNG_GPIOLIB_4BIT
+
+config GPIO_S5PC100
+	def_bool y
+	depends on CPU_S5PC100
+
+config GPIO_S5PV210
+	def_bool y
+	depends on CPU_S5PV210
 
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
@@ -95,21 +121,36 @@ config GPIO_VR41XX
 	  Say yes here to support the NEC VR4100 series General-purpose I/O Uint
 
 config GPIO_SCH
-	tristate "Intel SCH GPIO"
-	depends on GPIOLIB && PCI
+	tristate "Intel SCH/TunnelCreek GPIO"
+	depends on PCI && X86
 	select MFD_CORE
 	select LPC_SCH
 	help
-	  Say yes here to support GPIO interface on Intel Poulsbo SCH.
+	  Say yes here to support GPIO interface on Intel Poulsbo SCH
+	  or Intel Tunnel Creek processor.
 	  The Intel SCH contains a total of 14 GPIO pins. Ten GPIOs are
 	  powered by the core power rail and are turned off during sleep
 	  modes (S3 and higher). The remaining four GPIOs are powered by
 	  the Intel SCH suspend power supply. These GPIOs remain
 	  active during S3. The suspend powered GPIOs can be used to wake the
 	  system from the Suspend-to-RAM state.
+	  The Intel Tunnel Creek processor has 5 GPIOs powered by the
+	  core power rail and 9 from suspend power supply.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called sch-gpio.
+
+config GPIO_VX855
+	tristate "VIA VX855/VX875 GPIO"
+	depends on MFD_SUPPORT && PCI
+	select MFD_CORE
+	select MFD_VX855
+	help
+	  Support access to the VX855/VX875 GPIO lines through the gpio library.
+
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
 
 comment "I2C GPIO expanders:"
 
@@ -213,11 +254,11 @@ config GPIO_STMPE
 	  This enables support for the GPIOs found on the STMPE I/O
 	  Expanders.
 
-config GPIO_TC35892
-	bool "TC35892 GPIOs"
-	depends on MFD_TC35892
+config GPIO_TC3589X
+	bool "TC3589X GPIOs"
+	depends on MFD_TC3589X
 	help
-	  This enables support for the GPIOs found on the TC35892
+	  This enables support for the GPIOs found on the TC3589X
 	  I/O Expander.
 
 config GPIO_TWL4030
@@ -274,11 +315,18 @@ config GPIO_ADP5588
 	  To compile this driver as a module, choose M here: the module will be
 	  called adp5588-gpio.
 
+config GPIO_ADP5588_IRQ
+	bool "Interrupt controller support for ADP5588"
+	depends on GPIO_ADP5588=y
+	help
+	  Say yes here to enable the adp5588 to be used as an interrupt
+	  controller. It requires the driver to be built in the kernel.
+
 comment "PCI GPIO expanders:"
 
 config GPIO_CS5535
 	tristate "AMD CS5535/CS5536 GPIO support"
-	depends on PCI && !CS5535_GPIO
+	depends on PCI && X86 && !CS5535_GPIO && MFD_CS5535
 	help
 	  The AMD CS5535 and CS5536 southbridges support 28 GPIO pins that
 	  can be used for quite a number of things.  The CS5535/6 is found on
@@ -304,19 +352,43 @@ config GPIO_BT8XX
 
 config GPIO_LANGWELL
 	bool "Intel Langwell/Penwell GPIO support"
-	depends on PCI
+	depends on PCI && X86
 	help
 	  Say Y here to support Intel Langwell/Penwell GPIO.
 
+config GPIO_PCH
+	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR ML7223 IOH GPIO"
+	depends on PCI && X86
+	help
+	  This driver is for PCH(Platform controller Hub) GPIO of Intel Topcliff
+	  which is an IOH(Input/Output Hub) for x86 embedded processor.
+	  This driver can access PCH GPIO device.
+
+	  This driver also can be used for OKI SEMICONDUCTOR IOH(Input/
+	  Output Hub), ML7223.
+	  ML7223 IOH is for MP(Media Phone) use.
+	  ML7223 is companion chip for Intel Atom E6xx series.
+	  ML7223 is completely compatible for Intel EG20T PCH.
+
+config GPIO_ML_IOH
+	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"
+	depends on PCI
+	help
+	  ML7213 is companion chip for Intel Atom E6xx series.
+	  This driver can be used for OKI SEMICONDUCTOR ML7213 IOH(Input/Output
+	  Hub) which is for IVI(In-Vehicle Infotainment) use.
+	  This driver can access the IOH's GPIO device.
+
 config GPIO_TIMBERDALE
 	bool "Support for timberdale GPIO IP"
-	depends on MFD_TIMBERDALE && GPIOLIB && HAS_IOMEM
+	depends on MFD_TIMBERDALE && HAS_IOMEM
 	---help---
 	Add support for the GPIO IP in the timberdale FPGA.
 
 config GPIO_RDC321X
 	tristate "RDC R-321x GPIO support"
-	depends on PCI && GPIOLIB
+	depends on PCI
+	select MFD_SUPPORT
 	select MFD_CORE
 	select MFD_RDC321X
 	help
@@ -333,11 +405,11 @@ config GPIO_MAX7301
 	  GPIO driver for Maxim MAX7301 SPI-based GPIO expander.
 
 config GPIO_MCP23S08
-	tristate "Microchip MCP23S08 I/O expander"
+	tristate "Microchip MCP23Sxx I/O expander"
 	depends on SPI_MASTER
 	help
-	  SPI driver for Microchip MCP23S08 I/O expander.  This provides
-	  a GPIO interface supporting inputs and outputs.
+	  SPI driver for Microchip MCP23S08/MPC23S17 I/O expanders.
+	  This provides a GPIO interface supporting inputs and outputs.
 
 config GPIO_MC33880
 	tristate "Freescale MC33880 high-side/low-side switch"
@@ -345,6 +417,14 @@ config GPIO_MC33880
 	help
 	  SPI driver for Freescale MC33880 high-side/low-side switch.
 	  This provides GPIO interface supporting inputs and outputs.
+
+config GPIO_74X164
+	tristate "74x164 serial-in/parallel-out 8-bits shift register"
+	depends on SPI_MASTER
+	help
+	  Platform driver for 74x164 compatible serial-in/parallel-out
+	  8-outputs shift registers. This driver can be used to provide access
+	  to more gpio outputs.
 
 comment "AC97 GPIO expanders:"
 
@@ -407,4 +487,16 @@ config GPIO_JANZ_TTL
 	  This driver provides support for driving the pins in output
 	  mode only. Input mode is not supported.
 
+config AB8500_GPIO
+	bool "ST-Ericsson AB8500 Mixed Signal Circuit gpio functions"
+	depends on AB8500_CORE && BROKEN
+	help
+	  Select this to enable the AB8500 IC GPIO driver
+
+config GPIO_TPS65910
+	bool "TPS65910 GPIO"
+	depends on MFD_TPS65910
+	help
+	  Select this option to enable GPIO driver for the TPS65910
+	  chip family.
 endif

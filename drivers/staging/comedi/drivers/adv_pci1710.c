@@ -98,7 +98,7 @@ Configuration options:
 #define	Status_FE	0x0100	/* 1=FIFO is empty */
 #define Status_FH	0x0200	/* 1=FIFO is half full */
 #define Status_FF	0x0400	/* 1=FIFO is full, fatal error */
-#define Status_IRQ	0x0800	/* 1=IRQ occured */
+#define Status_IRQ	0x0800	/* 1=IRQ occurred */
 /* bits from control register (PCI171x_CONTROL) */
 #define Control_CNT0	0x0040	/* 1=CNT0 have external source,
 				 * 0=have internal 100kHz source */
@@ -217,13 +217,12 @@ struct boardtype {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(pci1710_pci_table) = {
-	{
-	PCI_VENDOR_ID_ADVANTECH, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_ADVANTECH, 0x1711, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_ADVANTECH, 0x1713, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_ADVANTECH, 0x1720, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_ADVANTECH, 0x1731, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1710) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1711) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1713) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1720) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1731) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, pci1710_pci_table);
@@ -1162,7 +1161,7 @@ static int check_channel_list(struct comedi_device *dev,
 	}
 
 	if (n_chan > 1) {
-		chansegment[0] = chanlist[0];	/*  first channel is everytime ok */
+		chansegment[0] = chanlist[0];	/*  first channel is every time ok */
 		for (i = 1, seglen = 1; i < n_chan; i++, seglen++) {	/*  build part of chanlist */
 			/*  printk("%d. %d %d\n",i,CR_CHAN(chanlist[i]),CR_RANGE(chanlist[i])); */
 			if (chanlist[0] == chanlist[i])
@@ -1177,9 +1176,9 @@ static int check_channel_list(struct comedi_device *dev,
 			    (CR_CHAN(chansegment[i - 1]) + 1) % s->n_chan;
 			if (CR_AREF(chansegment[i - 1]) == AREF_DIFF)
 				nowmustbechan = (nowmustbechan + 1) % s->n_chan;
-			if (nowmustbechan != CR_CHAN(chanlist[i])) {	/*  channel list isn't continous :-( */
+			if (nowmustbechan != CR_CHAN(chanlist[i])) {	/*  channel list isn't continuous :-( */
 				printk
-				    ("channel list must be continous! chanlist[%i]=%d but must be %d or %d!\n",
+				    ("channel list must be continuous! chanlist[%i]=%d but must be %d or %d!\n",
 				     i, CR_CHAN(chanlist[i]), nowmustbechan,
 				     CR_CHAN(chanlist[0]));
 				return 0;

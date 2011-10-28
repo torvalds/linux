@@ -104,20 +104,6 @@ static struct irqaction netx_timer_irq = {
 	.handler	= netx_timer_interrupt,
 };
 
-cycle_t netx_get_cycles(struct clocksource *cs)
-{
-	return readl(NETX_GPIO_COUNTER_CURRENT(TIMER_CLOCKSOURCE));
-}
-
-static struct clocksource clocksource_netx = {
-	.name		= "netx_timer",
-	.rating		= 200,
-	.read		= netx_get_cycles,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 20,
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 /*
  * Set up timer interrupt
  */
@@ -151,9 +137,8 @@ static void __init netx_timer_init(void)
 	writel(NETX_GPIO_COUNTER_CTRL_RUN,
 			NETX_GPIO_COUNTER_CTRL(TIMER_CLOCKSOURCE));
 
-	clocksource_netx.mult =
-		clocksource_hz2mult(CLOCK_TICK_RATE, clocksource_netx.shift);
-	clocksource_register(&clocksource_netx);
+	clocksource_mmio_init(NETX_GPIO_COUNTER_CURRENT(TIMER_CLOCKSOURCE),
+		"netx_timer", CLOCK_TICK_RATE, 200, 32, clocksource_mmio_readl_up);
 
 	netx_clockevent.mult = div_sc(CLOCK_TICK_RATE, NSEC_PER_SEC,
 			netx_clockevent.shift);

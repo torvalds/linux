@@ -125,7 +125,7 @@
    transfers.  Any interrupts associated with the canceled transfers
    will occur as if the transfer had finished.
    Since this bit is designed to recover from DMA related issues
-   which are caused by unpredictable situations, it is prefered to wait
+   which are caused by unpredictable situations, it is preferred to wait
    for normal DMA transfer end without using this bit.
 */
 #define PS3_AUDIO_CONFIG_CLEAR          (1 << 8)  /* RWIVF */
@@ -316,13 +316,13 @@ DISABLED=Interrupt generation disabled.
 
 /*
 Audio Port Interrupt Status Register
-Indicates Interrupt status, which interrupt has occured, and can clear
+Indicates Interrupt status, which interrupt has occurred, and can clear
 each interrupt in this register.
 Writing 1b to a field containing 1b clears field and de-asserts interrupt.
 Writing 0b to a field has no effect.
 Field vaules are the following:
-0 - Interrupt hasn't occured.
-1 - Interrupt has occured.
+0 - Interrupt hasn't occurred.
+1 - Interrupt has occurred.
 
 
  31            24 23           16 15            8 7             0
@@ -473,7 +473,7 @@ Channel N is out of action by setting 0 to asoen.
 /*
 Sampling Rate
 Specifies the divide ratio of the bit clock (clock output
-from bclko) used by the 3-wire Audio Output Clock, whcih
+from bclko) used by the 3-wire Audio Output Clock, which
 is applied to the master clock selected by mcksel.
 Data output is synchronized with this clock.
 */
@@ -756,7 +756,7 @@ The STATUS field can be used to monitor the progress of a DMA request.
 DONE indicates the previous request has completed.
 EVENT indicates that the DMA engine is waiting for the EVENT to occur.
 PENDING indicates that the DMA engine has not started processing this
-request, but the EVENT has occured.
+request, but the EVENT has occurred.
 DMA indicates that the data transfer is in progress.
 NOTIFY indicates that the notifier signalling end of transfer is being written.
 CLEAR indicated that the previous transfer was cleared.
@@ -824,7 +824,7 @@ AUDIOFIFO = Audio WriteData FIFO,
 
 /*
 PS3_AUDIO_DMASIZE specifies the number of 128-byte blocks + 1 to transfer.
-So a value of 0 means 128-bytes will get transfered.
+So a value of 0 means 128-bytes will get transferred.
 
 
  31            24 23           16 15            8 7             0

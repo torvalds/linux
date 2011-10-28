@@ -15,6 +15,7 @@
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
 #include <asm/cpcmd.h>
+#include <asm/topology.h>
 
 /* Sigh, math-emu. Don't ask. */
 #include <asm/sfp-util.h>
@@ -74,6 +75,44 @@ static int stsi_1_1_1(struct sysinfo_1_1_1 *info, char *page, int len)
 			       "Model Temp. Capacity: %-16.16s %08u\n",
 			       info->model_temp_cap,
 			       *(u32 *) info->model_temp_cap_rating);
+	if (info->cai) {
+		len += sprintf(page + len,
+			       "Capacity Adj. Ind.:   %d\n",
+			       info->cai);
+		len += sprintf(page + len, "Capacity Ch. Reason:  %d\n",
+			       info->ccr);
+	}
+	return len;
+}
+
+static int stsi_15_1_x(struct sysinfo_15_1_x *info, char *page, int len)
+{
+	static int max_mnest;
+	int i, rc;
+
+	len += sprintf(page + len, "\n");
+	if (!MACHINE_HAS_TOPOLOGY)
+		return len;
+	if (max_mnest) {
+		stsi(info, 15, 1, max_mnest);
+	} else {
+		for (max_mnest = 6; max_mnest > 1; max_mnest--) {
+			rc = stsi(info, 15, 1, max_mnest);
+			if (rc != -ENOSYS)
+				break;
+		}
+	}
+	len += sprintf(page + len, "CPU Topology HW:     ");
+	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
+		len += sprintf(page + len, " %d", info->mag[i]);
+	len += sprintf(page + len, "\n");
+#ifdef CONFIG_SCHED_MC
+	store_topology(info);
+	len += sprintf(page + len, "CPU Topology SW:     ");
+	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
+		len += sprintf(page + len, " %d", info->mag[i]);
+	len += sprintf(page + len, "\n");
+#endif
 	return len;
 }
 
@@ -87,7 +126,6 @@ static int stsi_1_2_2(struct sysinfo_1_2_2 *info, char *page, int len)
 	ext = (struct sysinfo_1_2_2_extension *)
 		((unsigned long) info + info->acc_offset);
 
-	len += sprintf(page + len, "\n");
 	len += sprintf(page + len, "CPUs Total:           %d\n",
 		       info->cpus_total);
 	len += sprintf(page + len, "CPUs Configured:      %d\n",
@@ -215,6 +253,9 @@ static int proc_read_sysinfo(char *page, char **start,
 	level = stsi_0();
 	if (level >= 1)
 		len = stsi_1_1_1((struct sysinfo_1_1_1 *) info, page, len);
+
+	if (level >= 1)
+		len = stsi_15_1_x((struct sysinfo_15_1_x *) info, page, len);
 
 	if (level >= 1)
 		len = stsi_1_2_2((struct sysinfo_1_2_2 *) info, page, len);

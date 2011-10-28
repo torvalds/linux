@@ -444,8 +444,8 @@ static inline void fs_kfree_skb (struct sk_buff * skb)
 #define ROUND_NEAREST 3
 /********** make rate (not quite as much fun as Horizon) **********/
 
-static unsigned int make_rate (unsigned int rate, int r,
-			       u16 * bits, unsigned int * actual) 
+static int make_rate(unsigned int rate, int r,
+		      u16 *bits, unsigned int *actual)
 {
 	unsigned char exp = -1; /* hush gcc */
 	unsigned int man = -1;  /* hush gcc */
@@ -1031,7 +1031,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 		/* We now use the "submit_command" function to submit commands to
 		   the firestream. There is a define up near the definition of
 		   that routine that switches this routine between immediate write
-		   to the immediate comamnd registers and queuing the commands in
+		   to the immediate command registers and queuing the commands in
 		   the HPTXQ for execution. This last technique might be more
 		   efficient if we know we're going to submit a whole lot of
 		   commands in one go, but this driver is not setup to be able to
@@ -1782,7 +1782,7 @@ static int __devinit fs_init (struct fs_dev *dev)
 		write_fs (dev, RAS0, RAS0_DCD_XHLT 
 			  | (((1 << FS155_VPI_BITS) - 1) * RAS0_VPSEL)
 			  | (((1 << FS155_VCI_BITS) - 1) * RAS0_VCSEL));
-		/* We can chose the split arbitarily. We might be able to 
+		/* We can chose the split arbitrarily. We might be able to 
 		   support more. Whatever. This should do for now. */
 		dev->atm_dev->ci_range.vpi_bits = FS155_VPI_BITS;
 		dev->atm_dev->ci_range.vci_bits = FS155_VCI_BITS;
@@ -1911,7 +1911,7 @@ static int __devinit firestream_init_one (struct pci_dev *pci_dev,
 		    fs_dev, sizeof (struct fs_dev));
 	if (!fs_dev)
 		goto err_out;
-	atm_dev = atm_dev_register("fs", &ops, -1, NULL);
+	atm_dev = atm_dev_register("fs", &pci_dev->dev, &ops, -1, NULL);
 	if (!atm_dev)
 		goto err_out_free_fs_dev;
   

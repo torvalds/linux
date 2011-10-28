@@ -285,32 +285,28 @@ static void hw_break_val_write(void)
 static int check_and_rewind_pc(char *put_str, char *arg)
 {
 	unsigned long addr = lookup_addr(arg);
+	unsigned long ip;
 	int offset = 0;
 
 	kgdb_hex2mem(&put_str[1], (char *)kgdbts_gdb_regs,
 		 NUMREGBYTES);
 	gdb_regs_to_pt_regs(kgdbts_gdb_regs, &kgdbts_regs);
-	v2printk("Stopped at IP: %lx\n", instruction_pointer(&kgdbts_regs));
-#ifdef CONFIG_X86
-	/* On x86 a breakpoint stop requires it to be decremented */
-	if (addr + 1 == kgdbts_regs.ip)
-		offset = -1;
-#elif defined(CONFIG_SUPERH)
-	/* On SUPERH a breakpoint stop requires it to be decremented */
-	if (addr + 2 == kgdbts_regs.pc)
-		offset = -2;
+	ip = instruction_pointer(&kgdbts_regs);
+	v2printk("Stopped at IP: %lx\n", ip);
+#ifdef GDB_ADJUSTS_BREAK_OFFSET
+	/* On some arches, a breakpoint stop requires it to be decremented */
+	if (addr + BREAK_INSTR_SIZE == ip)
+		offset = -BREAK_INSTR_SIZE;
 #endif
-	if (strcmp(arg, "silent") &&
-		instruction_pointer(&kgdbts_regs) + offset != addr) {
+	if (strcmp(arg, "silent") && ip + offset != addr) {
 		eprintk("kgdbts: BP mismatch %lx expected %lx\n",
-			   instruction_pointer(&kgdbts_regs) + offset, addr);
+			   ip + offset, addr);
 		return 1;
 	}
-#ifdef CONFIG_X86
-	/* On x86 adjust the instruction pointer if needed */
-	kgdbts_regs.ip += offset;
-#elif defined(CONFIG_SUPERH)
-	kgdbts_regs.pc += offset;
+	/* Readjust the instruction pointer if needed */
+	ip += offset;
+#ifdef GDB_ADJUSTS_BREAK_OFFSET
+	instruction_pointer_set(&kgdbts_regs, ip);
 #endif
 	return 0;
 }
@@ -645,7 +641,7 @@ static int validate_simple_test(char *put_str)
 
 	while (*chk_str != '\0' && *put_str != '\0') {
 		/* If someone does a * to match the rest of the string, allow
-		 * it, or stop if the recieved string is complete.
+		 * it, or stop if the received string is complete.
 		 */
 		if (*put_str == '#' || *chk_str == '*')
 			return 0;
@@ -988,7 +984,7 @@ static void kgdbts_run_tests(void)
 
 static int kgdbts_option_setup(char *opt)
 {
-	if (strlen(opt) > MAX_CONFIG_LEN) {
+	if (strlen(opt) >= MAX_CONFIG_LEN) {
 		printk(KERN_ERR "kgdbts: config string too long\n");
 		return -ENOSPC;
 	}
@@ -1044,12 +1040,6 @@ static int __init init_kgdbts(void)
 	return configure_kgdbts();
 }
 
-static void cleanup_kgdbts(void)
-{
-	if (configured == 1)
-		kgdb_unregister_io_module(&kgdbts_io_ops);
-}
-
 static int kgdbts_get_char(void)
 {
 	int val = 0;
@@ -1081,10 +1071,8 @@ static int param_set_kgdbts_var(const char *kmessage, struct kernel_param *kp)
 		return 0;
 	}
 
-	if (kgdb_connected) {
-		printk(KERN_ERR
-	       "kgdbts: Cannot reconfigure while KGDB is connected.\n");
-
+	if (configured == 1) {
+		printk(KERN_ERR "kgdbts: ERROR: Already configured and running.\n");
 		return -EBUSY;
 	}
 
@@ -1092,9 +1080,6 @@ static int param_set_kgdbts_var(const char *kmessage, struct kernel_param *kp)
 	/* Chop out \n char as a result of echo */
 	if (config[len - 1] == '\n')
 		config[len - 1] = '\0';
-
-	if (configured == 1)
-		cleanup_kgdbts();
 
 	/* Go and configure with the new params. */
 	return configure_kgdbts();
@@ -1123,7 +1108,6 @@ static struct kgdb_io kgdbts_io_ops = {
 };
 
 module_init(init_kgdbts);
-module_exit(cleanup_kgdbts);
 module_param_call(kgdbts, param_set_kgdbts_var, param_get_string, &kps, 0644);
 MODULE_PARM_DESC(kgdbts, "<A|V1|V2>[F#|S#][N#]");
 MODULE_DESCRIPTION("KGDB Test Suite");

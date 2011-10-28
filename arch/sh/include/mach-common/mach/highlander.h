@@ -24,7 +24,7 @@
 #define PA_OBLED        (PA_BCR+0x001c) /* On Board LED control */
 #define PA_OBSW         (PA_BCR+0x001e) /* On Board Switch control */
 #define PA_AUDIOSEL     (PA_BCR+0x0020) /* Sound Interface Select control */
-#define PA_EXTPLR       (PA_BCR+0x001e) /* Extention Pin Polarity control */
+#define PA_EXTPLR       (PA_BCR+0x001e) /* Extension Pin Polarity control */
 #define PA_TPCTL        (PA_BCR+0x0100) /* Touch Panel Access control */
 #define PA_TPDCKCTL     (PA_BCR+0x0102) /* Touch Panel Access data control */
 #define PA_TPCTLCLR     (PA_BCR+0x0104) /* Touch Panel Access control */
@@ -89,7 +89,7 @@
 #define PA_OBLED	(PA_BCR+0x0018)	/* On Board LED control */
 #define PA_OBSW		(PA_BCR+0x001a)	/* On Board Switch control */
 #define PA_AUDIOSEL	(PA_BCR+0x001c)	/* Sound Interface Select control */
-#define PA_EXTPLR	(PA_BCR+0x001e)	/* Extention Pin Polarity control */
+#define PA_EXTPLR	(PA_BCR+0x001e)	/* Extension Pin Polarity control */
 #define PA_TPCTL	(PA_BCR+0x0100)	/* Touch Panel Access control */
 #define PA_TPDCKCTL	(PA_BCR+0x0102)	/* Touch Panel Access data control */
 #define PA_TPCTLCLR	(PA_BCR+0x0104)	/* Touch Panel Access control */

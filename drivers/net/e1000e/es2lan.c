@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -100,8 +100,8 @@
  * with a lower bound at "index" and the upper bound at
  * "index + 5".
  */
-static const u16 e1000_gg82563_cable_length_table[] =
-	 { 0, 60, 115, 150, 150, 60, 115, 150, 180, 180, 0xFF };
+static const u16 e1000_gg82563_cable_length_table[] = {
+	 0, 60, 115, 150, 150, 60, 115, 150, 180, 180, 0xFF };
 #define GG82563_CABLE_LENGTH_TABLE_SIZE \
 		ARRAY_SIZE(e1000_gg82563_cable_length_table)
 
@@ -426,8 +426,8 @@ static void e1000_release_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
 {
 	u32 swfw_sync;
 
-	while (e1000e_get_hw_semaphore(hw) != 0);
-	/* Empty */
+	while (e1000e_get_hw_semaphore(hw) != 0)
+		; /* Empty */
 
 	swfw_sync = er32(SW_FW_SYNC);
 	swfw_sync &= ~mask;
@@ -612,7 +612,7 @@ static s32 e1000_get_cfg_done_80003es2lan(struct e1000_hw *hw)
 	while (timeout) {
 		if (er32(EEMNGCTL) & mask)
 			break;
-		msleep(1);
+		usleep_range(1000, 2000);
 		timeout--;
 	}
 	if (!timeout) {
@@ -784,7 +784,7 @@ static s32 e1000_get_link_up_info_80003es2lan(struct e1000_hw *hw, u16 *speed,
  **/
 static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 {
-	u32 ctrl, icr;
+	u32 ctrl;
 	s32 ret_val;
 
 	/*
@@ -802,7 +802,7 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 	ew32(TCTL, E1000_TCTL_PSP);
 	e1e_flush();
 
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	ctrl = er32(CTRL);
 
@@ -818,7 +818,7 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 
 	/* Clear any pending interrupt events. */
 	ew32(IMC, 0xffffffff);
-	icr = er32(ICR);
+	er32(ICR);
 
 	ret_val = e1000_check_alt_mac_addr_generic(hw);
 
@@ -1434,6 +1434,7 @@ static void e1000_clear_hw_cntrs_80003es2lan(struct e1000_hw *hw)
 static struct e1000_mac_operations es2_mac_ops = {
 	.read_mac_addr		= e1000_read_mac_addr_80003es2lan,
 	.id_led_init		= e1000e_id_led_init,
+	.blink_led		= e1000e_blink_led_generic,
 	.check_mng_mode		= e1000e_check_mng_mode_generic,
 	/* check_for_link dependent on media type */
 	.cleanup_led		= e1000e_cleanup_led_generic,
@@ -1494,6 +1495,7 @@ struct e1000_info e1000_es2_info = {
 				  | FLAG_APME_CHECK_PORT_B
 				  | FLAG_DISABLE_FC_PAUSE_TIME /* errata */
 				  | FLAG_TIPG_MEDIUM_FOR_80003ESLAN,
+	.flags2			= FLAG2_DMA_BURST,
 	.pba			= 38,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_80003es2lan,

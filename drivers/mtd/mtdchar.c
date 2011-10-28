@@ -26,17 +26,19 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/backing-dev.h>
 #include <linux/compat.h>
 #include <linux/mount.h>
-
+#include <linux/blkpg.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
 #include <linux/mtd/map.h>
 
 #include <asm/uaccess.h>
 
 #define MTD_INODE_FS_MAGIC 0x11307854
+static DEFINE_MUTEX(mtd_mutex);
 static struct vfsmount *mtd_inode_mnt __read_mostly;
 
 /*
@@ -90,7 +92,7 @@ static int mtd_open(struct inode *inode, struct file *file)
 	if ((file->f_mode & FMODE_WRITE) && (minor & 1))
 		return -EACCES;
 
-	lock_kernel();
+	mutex_lock(&mtd_mutex);
 	mtd = get_mtd_device(NULL, devnum);
 
 	if (IS_ERR(mtd)) {
@@ -138,7 +140,7 @@ static int mtd_open(struct inode *inode, struct file *file)
 	file->private_data = mfi;
 
 out:
-	unlock_kernel();
+	mutex_unlock(&mtd_mutex);
 	return ret;
 } /* mtd_open */
 
@@ -164,10 +166,23 @@ static int mtd_close(struct inode *inode, struct file *file)
 	return 0;
 } /* mtd_close */
 
-/* FIXME: This _really_ needs to die. In 2.5, we should lock the
-   userspace buffer down and use it directly with readv/writev.
-*/
-#define MAX_KMALLOC_SIZE 0x20000
+/* Back in June 2001, dwmw2 wrote:
+ *
+ *   FIXME: This _really_ needs to die. In 2.5, we should lock the
+ *   userspace buffer down and use it directly with readv/writev.
+ *
+ * The implementation below, using mtd_kmalloc_up_to, mitigates
+ * allocation failures when the system is under low-memory situations
+ * or if memory is highly fragmented at the cost of reducing the
+ * performance of the requested transfer due to a smaller buffer size.
+ *
+ * A more complex but more memory-efficient implementation based on
+ * get_user_pages and iovecs to cover extents of those pages is a
+ * longer-term goal, as intimated by dwmw2 above. However, for the
+ * write case, this requires yet more complex head and tail transfer
+ * handling when those head and tail offsets and sizes are such that
+ * alignment requirements are not met in the NAND subdriver.
+ */
 
 static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t *ppos)
 {
@@ -177,6 +192,7 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 	size_t total_retlen=0;
 	int ret=0;
 	int len;
+	size_t size = count;
 	char *kbuf;
 
 	DEBUG(MTD_DEBUG_LEVEL0,"MTD_read\n");
@@ -187,23 +203,12 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 	if (!count)
 		return 0;
 
-	/* FIXME: Use kiovec in 2.5 to lock down the user's buffers
-	   and pass them directly to the MTD functions */
-
-	if (count > MAX_KMALLOC_SIZE)
-		kbuf=kmalloc(MAX_KMALLOC_SIZE, GFP_KERNEL);
-	else
-		kbuf=kmalloc(count, GFP_KERNEL);
-
+	kbuf = mtd_kmalloc_up_to(mtd, &size);
 	if (!kbuf)
 		return -ENOMEM;
 
 	while (count) {
-
-		if (count > MAX_KMALLOC_SIZE)
-			len = MAX_KMALLOC_SIZE;
-		else
-			len = count;
+		len = min_t(size_t, count, size);
 
 		switch (mfi->mode) {
 		case MTD_MODE_OTP_FACTORY:
@@ -232,7 +237,7 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		 * the data. For our userspace tools it is important
 		 * to dump areas with ecc errors !
 		 * For kernel internal usage it also might return -EUCLEAN
-		 * to signal the caller that a bitflip has occured and has
+		 * to signal the caller that a bitflip has occurred and has
 		 * been corrected by the ECC algorithm.
 		 * Userspace software which accesses NAND this way
 		 * must be aware of the fact that it deals with NAND
@@ -266,6 +271,7 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 {
 	struct mtd_file_info *mfi = file->private_data;
 	struct mtd_info *mtd = mfi->mtd;
+	size_t size = count;
 	char *kbuf;
 	size_t retlen;
 	size_t total_retlen=0;
@@ -283,20 +289,12 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 	if (!count)
 		return 0;
 
-	if (count > MAX_KMALLOC_SIZE)
-		kbuf=kmalloc(MAX_KMALLOC_SIZE, GFP_KERNEL);
-	else
-		kbuf=kmalloc(count, GFP_KERNEL);
-
+	kbuf = mtd_kmalloc_up_to(mtd, &size);
 	if (!kbuf)
 		return -ENOMEM;
 
 	while (count) {
-
-		if (count > MAX_KMALLOC_SIZE)
-			len = MAX_KMALLOC_SIZE;
-		else
-			len = count;
+		len = min_t(size_t, count, size);
 
 		if (copy_from_user(kbuf, buf, len)) {
 			kfree(kbuf);
@@ -477,6 +475,75 @@ static int mtd_do_readoob(struct mtd_info *mtd, uint64_t start,
 	return ret;
 }
 
+/*
+ * Copies (and truncates, if necessary) data from the larger struct,
+ * nand_ecclayout, to the smaller, deprecated layout struct,
+ * nand_ecclayout_user. This is necessary only to suppport the deprecated
+ * API ioctl ECCGETLAYOUT while allowing all new functionality to use
+ * nand_ecclayout flexibly (i.e. the struct may change size in new
+ * releases without requiring major rewrites).
+ */
+static int shrink_ecclayout(const struct nand_ecclayout *from,
+		struct nand_ecclayout_user *to)
+{
+	int i;
+
+	if (!from || !to)
+		return -EINVAL;
+
+	memset(to, 0, sizeof(*to));
+
+	to->eccbytes = min((int)from->eccbytes, MTD_MAX_ECCPOS_ENTRIES);
+	for (i = 0; i < to->eccbytes; i++)
+		to->eccpos[i] = from->eccpos[i];
+
+	for (i = 0; i < MTD_MAX_OOBFREE_ENTRIES; i++) {
+		if (from->oobfree[i].length == 0 &&
+				from->oobfree[i].offset == 0)
+			break;
+		to->oobavail += from->oobfree[i].length;
+		to->oobfree[i] = from->oobfree[i];
+	}
+
+	return 0;
+}
+
+static int mtd_blkpg_ioctl(struct mtd_info *mtd,
+			   struct blkpg_ioctl_arg __user *arg)
+{
+	struct blkpg_ioctl_arg a;
+	struct blkpg_partition p;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (copy_from_user(&a, arg, sizeof(struct blkpg_ioctl_arg)))
+		return -EFAULT;
+
+	if (copy_from_user(&p, a.data, sizeof(struct blkpg_partition)))
+		return -EFAULT;
+
+	switch (a.op) {
+	case BLKPG_ADD_PARTITION:
+
+		/* Only master mtd device must be used to add partitions */
+		if (mtd_is_partition(mtd))
+			return -EINVAL;
+
+		return mtd_add_partition(mtd, p.devname, p.start, p.length);
+
+	case BLKPG_DEL_PARTITION:
+
+		if (p.pno < 0)
+			return -EINVAL;
+
+		return mtd_del_partition(mtd, p.pno);
+
+	default:
+		return -EINVAL;
+	}
+}
+
 static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 {
 	struct mtd_file_info *mfi = file->private_data;
@@ -513,6 +580,9 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 		if (get_user(ur_idx, &(ur->regionindex)))
 			return -EFAULT;
 
+		if (ur_idx >= mtd->numeraseregions)
+			return -EINVAL;
+
 		kr = &(mtd->eraseregions[ur_idx]);
 
 		if (put_user(kr->offset, &(ur->offset))
@@ -524,6 +594,7 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 	}
 
 	case MEMGETINFO:
+		memset(&info, 0, sizeof(info));
 		info.type	= mtd->type;
 		info.flags	= mtd->flags;
 		info.size	= mtd->size;
@@ -532,7 +603,6 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 		info.oobsize	= mtd->oobsize;
 		/* The below fields are obsolete */
 		info.ecctype	= -1;
-		info.eccsize	= 0;
 		if (copy_to_user(argp, &info, sizeof(struct mtd_info_user)))
 			return -EFAULT;
 		break;
@@ -812,14 +882,23 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 	}
 #endif
 
+	/* This ioctl is being deprecated - it truncates the ecc layout */
 	case ECCGETLAYOUT:
 	{
+		struct nand_ecclayout_user *usrlay;
+
 		if (!mtd->ecclayout)
 			return -EOPNOTSUPP;
 
-		if (copy_to_user(argp, mtd->ecclayout,
-				 sizeof(struct nand_ecclayout)))
-			return -EFAULT;
+		usrlay = kmalloc(sizeof(*usrlay), GFP_KERNEL);
+		if (!usrlay)
+			return -ENOMEM;
+
+		shrink_ecclayout(mtd->ecclayout, usrlay);
+
+		if (copy_to_user(argp, usrlay, sizeof(*usrlay)))
+			ret = -EFAULT;
+		kfree(usrlay);
 		break;
 	}
 
@@ -855,6 +934,20 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 		break;
 	}
 
+	case BLKPG:
+	{
+		ret = mtd_blkpg_ioctl(mtd,
+		      (struct blkpg_ioctl_arg __user *)arg);
+		break;
+	}
+
+	case BLKRRPART:
+	{
+		/* No reread partition feature. Just return ok */
+		ret = 0;
+		break;
+	}
+
 	default:
 		ret = -ENOTTY;
 	}
@@ -866,9 +959,9 @@ static long mtd_unlocked_ioctl(struct file *file, u_int cmd, u_long arg)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&mtd_mutex);
 	ret = mtd_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&mtd_mutex);
 
 	return ret;
 }
@@ -892,7 +985,7 @@ static long mtd_compat_ioctl(struct file *file, unsigned int cmd,
 	void __user *argp = compat_ptr(arg);
 	int ret = 0;
 
-	lock_kernel();
+	mutex_lock(&mtd_mutex);
 
 	switch (cmd) {
 	case MEMWRITEOOB32:
@@ -927,7 +1020,7 @@ static long mtd_compat_ioctl(struct file *file, unsigned int cmd,
 		ret = mtd_ioctl(file, cmd, (unsigned long)argp);
 	}
 
-	unlock_kernel();
+	mutex_unlock(&mtd_mutex);
 
 	return ret;
 }
@@ -1029,17 +1122,15 @@ static const struct file_operations mtd_fops = {
 #endif
 };
 
-static int mtd_inodefs_get_sb(struct file_system_type *fs_type, int flags,
-                               const char *dev_name, void *data,
-                               struct vfsmount *mnt)
+static struct dentry *mtd_inodefs_mount(struct file_system_type *fs_type,
+				int flags, const char *dev_name, void *data)
 {
-        return get_sb_pseudo(fs_type, "mtd_inode:", NULL, MTD_INODE_FS_MAGIC,
-                             mnt);
+	return mount_pseudo(fs_type, "mtd_inode:", NULL, NULL, MTD_INODE_FS_MAGIC);
 }
 
 static struct file_system_type mtd_inodefs_type = {
        .name = "mtd_inodefs",
-       .get_sb = mtd_inodefs_get_sb,
+       .mount = mtd_inodefs_mount,
        .kill_sb = kill_anon_super,
 };
 

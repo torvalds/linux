@@ -75,13 +75,12 @@ void sh_mobile_setup_cpuidle(void)
 	i = CPUIDLE_DRIVER_STATE_START;
 
 	state = &dev->states[i++];
-	snprintf(state->name, CPUIDLE_NAME_LEN, "C0");
+	snprintf(state->name, CPUIDLE_NAME_LEN, "C1");
 	strncpy(state->desc, "SuperH Sleep Mode", CPUIDLE_DESC_LEN);
 	state->exit_latency = 1;
 	state->target_residency = 1 * 2;
 	state->power_usage = 3;
 	state->flags = 0;
-	state->flags |= CPUIDLE_FLAG_SHALLOW;
 	state->flags |= CPUIDLE_FLAG_TIME_VALID;
 	state->enter = cpuidle_sleep_enter;
 
@@ -89,7 +88,7 @@ void sh_mobile_setup_cpuidle(void)
 
 	if (sh_mobile_sleep_supported & SUSP_SH_SF) {
 		state = &dev->states[i++];
-		snprintf(state->name, CPUIDLE_NAME_LEN, "C1");
+		snprintf(state->name, CPUIDLE_NAME_LEN, "C2");
 		strncpy(state->desc, "SuperH Sleep Mode [SF]",
 			CPUIDLE_DESC_LEN);
 		state->exit_latency = 100;
@@ -102,7 +101,7 @@ void sh_mobile_setup_cpuidle(void)
 
 	if (sh_mobile_sleep_supported & SUSP_SH_STANDBY) {
 		state = &dev->states[i++];
-		snprintf(state->name, CPUIDLE_NAME_LEN, "C2");
+		snprintf(state->name, CPUIDLE_NAME_LEN, "C3");
 		strncpy(state->desc, "SuperH Mobile Standby Mode [SF]",
 			CPUIDLE_DESC_LEN);
 		state->exit_latency = 2300;

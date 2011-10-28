@@ -1572,10 +1572,8 @@ struct ieee80211_network {
 #ifdef THOMAS_TURBO
 	u8 Turbo_Enable;//enable turbo mode, added by thomas
 #endif
-#ifdef ENABLE_DOT11D
 	u16 CountryIeLen;
 	u8 CountryIeBuf[MAX_IE_LEN];
-#endif
 	// HT Related, by amy, 2008.04.29
 	BSS_HT	bssht;
 	// Add to handle broadcom AP management frame CCK rate.
@@ -1769,7 +1767,6 @@ typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_IPS BIT28
 #define RF_CHANGE_BY_INIT	0	// Do not change the RFOff reason. Defined by Bruce, 2008-01-17.
 
-#ifdef ENABLE_DOT11D
 typedef enum
 {
 	COUNTRY_CODE_FCC = 0,
@@ -1784,7 +1781,6 @@ typedef enum
 	COUNTRY_CODE_MIC,
 	COUNTRY_CODE_GLOBAL_DOMAIN
 }country_code_type_t;
-#endif
 
 #define RT_MAX_LD_SLOT_NUM	10
 typedef struct _RT_LINK_DETECT_T{
@@ -1969,13 +1965,9 @@ struct ieee80211_device {
 	u16 prev_seq_ctl;       /* used to drop duplicate frames */
 
 	/* map of allowed channels. 0 is dummy */
-	// FIXME: remeber to default to a basic channel plan depending of the PHY type
-#ifdef ENABLE_DOT11D
+	// FIXME: remember to default to a basic channel plan depending of the PHY type
 	void* pDot11dInfo;
 	bool bGlobalDomain;
-#else
-	int channel_map[MAX_CHANNEL_NUMBER+1];
-#endif
 	int rate;       /* current rate */
 	int basic_rate;
 	//FIXME: pleace callback, see if redundant with softmac_features
@@ -2127,7 +2119,7 @@ struct ieee80211_device {
 	 * not set. As some cards may have different HW queues that
 	 * one might want to use for data and management frames
 	 * the option to have two callbacks might be useful.
-	 * This fucntion can't sleep.
+	 * This function can't sleep.
 	 */
 	int (*softmac_hard_start_xmit)(struct sk_buff *skb,
 			       struct net_device *dev);
@@ -2166,9 +2158,9 @@ struct ieee80211_device {
 	 * it is called in a work_queue when swithcing to ad-hoc mode
 	 * or in behalf of iwlist scan when the card is associated
 	 * and root user ask for a scan.
-	 * the fucntion stop_scan should stop both the syncro and
+	 * the function stop_scan should stop both the syncro and
 	 * background scanning and can sleep.
-	 * The fucntion start_scan should initiate the background
+	 * The function start_scan should initiate the background
 	 * scanning and can't sleep.
 	 */
 	void (*scan_syncro)(struct net_device *dev);

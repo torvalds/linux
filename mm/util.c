@@ -6,6 +6,8 @@
 #include <linux/sched.h>
 #include <asm/uaccess.h>
 
+#include "internal.h"
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/kmem.h>
 
@@ -186,27 +188,6 @@ void kzfree(const void *p)
 }
 EXPORT_SYMBOL(kzfree);
 
-int kern_ptr_validate(const void *ptr, unsigned long size)
-{
-	unsigned long addr = (unsigned long)ptr;
-	unsigned long min_addr = PAGE_OFFSET;
-	unsigned long align_mask = sizeof(void *) - 1;
-
-	if (unlikely(addr < min_addr))
-		goto out;
-	if (unlikely(addr > (unsigned long)high_memory - size))
-		goto out;
-	if (unlikely(addr & align_mask))
-		goto out;
-	if (unlikely(!kern_addr_valid(addr)))
-		goto out;
-	if (unlikely(!kern_addr_valid(addr + size - 1)))
-		goto out;
-	return 1;
-out:
-	return 0;
-}
-
 /*
  * strndup_user - duplicate an existing string from user space
  * @s: The string to duplicate
@@ -236,6 +217,28 @@ char *strndup_user(const char __user *s, long n)
 }
 EXPORT_SYMBOL(strndup_user);
 
+void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+		struct vm_area_struct *prev, struct rb_node *rb_parent)
+{
+	struct vm_area_struct *next;
+
+	vma->vm_prev = prev;
+	if (prev) {
+		next = prev->vm_next;
+		prev->vm_next = vma;
+	} else {
+		mm->mmap = vma;
+		if (rb_parent)
+			next = rb_entry(rb_parent,
+					struct vm_area_struct, vm_rb);
+		else
+			next = NULL;
+	}
+	vma->vm_next = next;
+	if (next)
+		next->vm_prev = vma;
+}
+
 #if defined(CONFIG_MMU) && !defined(HAVE_ARCH_PICK_MMAP_LAYOUT)
 void arch_pick_mmap_layout(struct mm_struct *mm)
 {
@@ -244,6 +247,19 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	mm->unmap_area = arch_unmap_area;
 }
 #endif
+
+/*
+ * Like get_user_pages_fast() except its IRQ-safe in that it won't fall
+ * back to the regular GUP.
+ * If the architecture not support this function, simply return with no
+ * page pinned
+ */
+int __attribute__((weak)) __get_user_pages_fast(unsigned long start,
+				 int nr_pages, int write, struct page **pages)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__get_user_pages_fast);
 
 /**
  * get_user_pages_fast() - pin user pages in memory

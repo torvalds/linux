@@ -443,8 +443,7 @@ void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
 {
 	int i;
 	for (i = 0; i < *nfchunks; i++) {
-		if (fchunk[i].data != NULL)
-			kfree(fchunk[i].data);
+		kfree(fchunk[i].data);
 	}
 	*nfchunks = 0;
 	memset(fchunk, 0, sizeof(*fchunk));

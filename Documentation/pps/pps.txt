@@ -170,3 +170,49 @@ and the run ppstest as follow:
 
 Please, note that to compile userland programs you need the file timepps.h
 (see Documentation/pps/).
+
+
+Generators
+----------
+
+Sometimes one needs to be able not only to catch PPS signals but to produce
+them also. For example, running a distributed simulation, which requires
+computers' clock to be synchronized very tightly. One way to do this is to
+invent some complicated hardware solutions but it may be neither necessary
+nor affordable. The cheap way is to load a PPS generator on one of the
+computers (master) and PPS clients on others (slaves), and use very simple
+cables to deliver signals using parallel ports, for example.
+
+Parallel port cable pinout:
+pin	name	master      slave
+1	STROBE	  *------     *
+2	D0	  *     |     *
+3	D1	  *     |     *
+4	D2	  *     |     *
+5	D3	  *     |     *
+6	D4	  *     |     *
+7	D5	  *     |     *
+8	D6	  *     |     *
+9	D7	  *     |     *
+10	ACK	  *     ------*
+11	BUSY	  *           *
+12	PE	  *           *
+13	SEL	  *           *
+14	AUTOFD	  *           *
+15	ERROR	  *           *
+16	INIT	  *           *
+17	SELIN	  *           *
+18-25	GND	  *-----------*
+
+Please note that parallel port interrupt occurs only on high->low transition,
+so it is used for PPS assert edge. PPS clear edge can be determined only
+using polling in the interrupt handler which actually can be done way more
+precisely because interrupt handling delays can be quite big and random. So
+current parport PPS generator implementation (pps_gen_parport module) is
+geared towards using the clear edge for time synchronization.
+
+Clear edge polling is done with disabled interrupts so it's better to select
+delay between assert and clear edge as small as possible to reduce system
+latencies. But if it is too small slave won't be able to capture clear edge
+transition. The default of 30us should be good enough in most situations.
+The delay can be selected using 'delay' pps_gen_parport module parameter.

@@ -16,7 +16,7 @@
  * Partition definition structure:
  *
  * An array of struct partition is passed along with a MTD object to
- * add_mtd_partitions() to create them.
+ * mtd_device_register() to create them.
  *
  * For each partition, these fields are available:
  * name: string that will be used to label the partition's MTD device.
@@ -39,7 +39,7 @@ struct mtd_partition {
 	uint64_t size;			/* partition size */
 	uint64_t offset;		/* offset within the master MTD space */
 	uint32_t mask_flags;		/* master MTD flags to mask out for this partition */
-	struct nand_ecclayout *ecclayout;	/* out of band layout for this partition (NAND only)*/
+	struct nand_ecclayout *ecclayout;	/* out of band layout for this partition (NAND only) */
 };
 
 #define MTDPART_OFS_NXTBLK	(-2)
@@ -48,9 +48,6 @@ struct mtd_partition {
 
 
 struct mtd_info;
-
-int add_mtd_partitions(struct mtd_info *, const struct mtd_partition *, int);
-int del_mtd_partitions(struct mtd_info *);
 
 /*
  * Functions dealing with the various ways of partitioning the space
@@ -73,14 +70,17 @@ extern int parse_mtd_partitions(struct mtd_info *master, const char **types,
 struct device;
 struct device_node;
 
+#ifdef CONFIG_MTD_OF_PARTS
 int __devinit of_mtd_parse_partitions(struct device *dev,
                                       struct device_node *node,
                                       struct mtd_partition **pparts);
-
-#ifdef CONFIG_MTD_PARTITIONS
-static inline int mtd_has_partitions(void) { return 1; }
 #else
-static inline int mtd_has_partitions(void) { return 0; }
+static inline int of_mtd_parse_partitions(struct device *dev,
+					  struct device_node *node,
+					  struct mtd_partition **pparts)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_MTD_CMDLINE_PARTS
@@ -88,5 +88,10 @@ static inline int mtd_has_cmdlinepart(void) { return 1; }
 #else
 static inline int mtd_has_cmdlinepart(void) { return 0; }
 #endif
+
+int mtd_is_partition(struct mtd_info *mtd);
+int mtd_add_partition(struct mtd_info *master, char *name,
+		      long long offset, long long length);
+int mtd_del_partition(struct mtd_info *master, int partno);
 
 #endif

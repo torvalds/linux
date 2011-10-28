@@ -203,8 +203,6 @@ static void __init em7210_init_machine(void)
 }
 
 MACHINE_START(EM7210, "Lanner EM7210")
-	.phys_io	= IQ31244_UART,
-	.io_pg_offst	= ((IQ31244_UART) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= em7210_map_io,
 	.init_irq	= iop32x_init_irq,

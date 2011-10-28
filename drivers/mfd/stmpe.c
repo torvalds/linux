@@ -699,16 +699,16 @@ static irqreturn_t stmpe_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void stmpe_irq_lock(unsigned int irq)
+static void stmpe_irq_lock(struct irq_data *data)
 {
-	struct stmpe *stmpe = get_irq_chip_data(irq);
+	struct stmpe *stmpe = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&stmpe->irq_lock);
 }
 
-static void stmpe_irq_sync_unlock(unsigned int irq)
+static void stmpe_irq_sync_unlock(struct irq_data *data)
 {
-	struct stmpe *stmpe = get_irq_chip_data(irq);
+	struct stmpe *stmpe = irq_data_get_irq_chip_data(data);
 	struct stmpe_variant_info *variant = stmpe->variant;
 	int num = DIV_ROUND_UP(variant->num_irqs, 8);
 	int i;
@@ -727,20 +727,20 @@ static void stmpe_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&stmpe->irq_lock);
 }
 
-static void stmpe_irq_mask(unsigned int irq)
+static void stmpe_irq_mask(struct irq_data *data)
 {
-	struct stmpe *stmpe = get_irq_chip_data(irq);
-	int offset = irq - stmpe->irq_base;
+	struct stmpe *stmpe = irq_data_get_irq_chip_data(data);
+	int offset = data->irq - stmpe->irq_base;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
 	stmpe->ier[regoffset] &= ~mask;
 }
 
-static void stmpe_irq_unmask(unsigned int irq)
+static void stmpe_irq_unmask(struct irq_data *data)
 {
-	struct stmpe *stmpe = get_irq_chip_data(irq);
-	int offset = irq - stmpe->irq_base;
+	struct stmpe *stmpe = irq_data_get_irq_chip_data(data);
+	int offset = data->irq - stmpe->irq_base;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
@@ -749,10 +749,10 @@ static void stmpe_irq_unmask(unsigned int irq)
 
 static struct irq_chip stmpe_irq_chip = {
 	.name			= "stmpe",
-	.bus_lock		= stmpe_irq_lock,
-	.bus_sync_unlock	= stmpe_irq_sync_unlock,
-	.mask			= stmpe_irq_mask,
-	.unmask			= stmpe_irq_unmask,
+	.irq_bus_lock		= stmpe_irq_lock,
+	.irq_bus_sync_unlock	= stmpe_irq_sync_unlock,
+	.irq_mask		= stmpe_irq_mask,
+	.irq_unmask		= stmpe_irq_unmask,
 };
 
 static int __devinit stmpe_irq_init(struct stmpe *stmpe)
@@ -762,14 +762,14 @@ static int __devinit stmpe_irq_init(struct stmpe *stmpe)
 	int irq;
 
 	for (irq = base; irq < base + num_irqs; irq++) {
-		set_irq_chip_data(irq, stmpe);
-		set_irq_chip_and_handler(irq, &stmpe_irq_chip,
+		irq_set_chip_data(irq, stmpe);
+		irq_set_chip_and_handler(irq, &stmpe_irq_chip,
 					 handle_edge_irq);
-		set_irq_nested_thread(irq, 1);
+		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID);
 #else
-		set_irq_noprobe(irq);
+		irq_set_noprobe(irq);
 #endif
 	}
 
@@ -786,8 +786,8 @@ static void stmpe_irq_remove(struct stmpe *stmpe)
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, 0);
 #endif
-		set_irq_chip_and_handler(irq, NULL, NULL);
-		set_irq_chip_data(irq, NULL);
+		irq_set_chip_and_handler(irq, NULL, NULL);
+		irq_set_chip_data(irq, NULL);
 	}
 }
 
@@ -872,6 +872,28 @@ static int __devinit stmpe_devices_init(struct stmpe *stmpe)
 
 	return ret;
 }
+
+#ifdef CONFIG_PM
+static int stmpe_suspend(struct device *dev)
+{
+	struct i2c_client *i2c = to_i2c_client(dev);
+
+	if (device_may_wakeup(&i2c->dev))
+		enable_irq_wake(i2c->irq);
+
+	return 0;
+}
+
+static int stmpe_resume(struct device *dev)
+{
+	struct i2c_client *i2c = to_i2c_client(dev);
+
+	if (device_may_wakeup(&i2c->dev))
+		disable_irq_wake(i2c->irq);
+
+	return 0;
+}
+#endif
 
 static int __devinit stmpe_probe(struct i2c_client *i2c,
 				 const struct i2c_device_id *id)
@@ -960,9 +982,19 @@ static const struct i2c_device_id stmpe_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, stmpe_id);
 
+#ifdef CONFIG_PM
+static const struct dev_pm_ops stmpe_dev_pm_ops = {
+	.suspend	= stmpe_suspend,
+	.resume		= stmpe_resume,
+};
+#endif
+
 static struct i2c_driver stmpe_driver = {
 	.driver.name	= "stmpe",
 	.driver.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+	.driver.pm	= &stmpe_dev_pm_ops,
+#endif
 	.probe		= stmpe_probe,
 	.remove		= __devexit_p(stmpe_remove),
 	.id_table	= stmpe_id,

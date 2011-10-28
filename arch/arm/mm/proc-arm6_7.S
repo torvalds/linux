@@ -238,7 +238,7 @@ ENTRY(cpu_arm7_reset)
 		mcr	p15, 0, r1, c1, c0, 0		@ turn off MMU etc
 		mov	pc, r0
 
-		__INIT
+		__CPUINIT
 
 		.type	__arm6_setup, #function
 __arm6_setup:	mov	r0, #0
@@ -284,6 +284,9 @@ ENTRY(arm6_processor_functions)
 		.word	cpu_arm6_dcache_clean_area
 		.word	cpu_arm6_switch_mm
 		.word	cpu_arm6_set_pte_ext
+		.word	0
+		.word	0
+		.word	0
 		.size	arm6_processor_functions, . - arm6_processor_functions
 
 /*
@@ -301,6 +304,9 @@ ENTRY(arm7_processor_functions)
 		.word	cpu_arm7_dcache_clean_area
 		.word	cpu_arm7_switch_mm
 		.word	cpu_arm7_set_pte_ext
+		.word	0
+		.word	0
+		.word	0
 		.size	arm7_processor_functions, . - arm7_processor_functions
 
 		.section ".rodata"

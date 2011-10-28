@@ -693,7 +693,7 @@ static void wait_intr(void)
 }
 #endif
 
-static int NCR53c406a_queue(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
+static int NCR53c406a_queue_lck(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 {
 	int i;
 
@@ -725,6 +725,8 @@ static int NCR53c406a_queue(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 	rtrc(1);
 	return 0;
 }
+
+static DEF_SCSI_QCMD(NCR53c406a_queue)
 
 static int NCR53c406a_host_reset(Scsi_Cmnd * SCpnt)
 {

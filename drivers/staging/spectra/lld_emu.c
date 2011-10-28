@@ -25,18 +25,16 @@
 #include "lld.h"
 #if CMD_DMA
 #include "lld_cdma.h"
+#if FLASH_EMU
+u32 totalUsedBanks;
+u32 valid_banks[MAX_CHANS];
+#endif
 #endif
 
 #define GLOB_LLD_PAGES           64
 #define GLOB_LLD_PAGE_SIZE       (512+16)
 #define GLOB_LLD_PAGE_DATA_SIZE  512
 #define GLOB_LLD_BLOCKS          2048
-
-#if (CMD_DMA  && FLASH_EMU)
-#include "lld_cdma.h"
-u32 totalUsedBanks;
-u32 valid_banks[MAX_CHANS];
-#endif
 
 #if FLASH_EMU			/* This is for entire module */
 
@@ -182,10 +180,8 @@ u16 emu_Flash_Init(void)
 	nand_dbg_print(NAND_DBG_TRACE, "%s, Line %d, Function: %s\n",
 		       __FILE__, __LINE__, __func__);
 
-	flash_memory[0] = (u8 *)vmalloc(GLOB_LLD_PAGE_SIZE *
-						   GLOB_LLD_BLOCKS *
-						   GLOB_LLD_PAGES *
-						   sizeof(u8));
+	flash_memory[0] = vmalloc(GLOB_LLD_PAGE_SIZE * GLOB_LLD_BLOCKS *
+				  GLOB_LLD_PAGES * sizeof(u8));
 	if (!flash_memory[0]) {
 		printk(KERN_ERR "Fail to allocate memory "
 		       "for nand emulator!\n");

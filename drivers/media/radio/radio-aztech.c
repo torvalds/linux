@@ -324,7 +324,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 static const struct v4l2_file_operations aztech_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops aztech_ioctl_ops = {
@@ -375,6 +375,8 @@ static int __init aztech_init(void)
 	az->vdev.ioctl_ops = &aztech_ioctl_ops;
 	az->vdev.release = video_device_release_empty;
 	video_set_drvdata(&az->vdev, az);
+	/* mute card - prevents noisy bootups */
+	outb(0, az->io);
 
 	if (video_register_device(&az->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
 		v4l2_device_unregister(v4l2_dev);
@@ -383,8 +385,6 @@ static int __init aztech_init(void)
 	}
 
 	v4l2_info(v4l2_dev, "Aztech radio card driver v1.00/19990224 rkroll@exploits.org\n");
-	/* mute card - prevents noisy bootups */
-	outb(0, az->io);
 	return 0;
 }
 

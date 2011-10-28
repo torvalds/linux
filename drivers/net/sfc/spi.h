@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005 Fen Systems Ltd.
- * Copyright 2006 Solarflare Communications Inc.
+ * Copyright 2006-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -60,6 +60,11 @@ struct efx_spi_device {
 	unsigned int erase_size;
 	unsigned int block_size;
 };
+
+static inline bool efx_spi_present(const struct efx_spi_device *spi)
+{
+	return spi->size != 0;
+}
 
 int falcon_spi_cmd(struct efx_nic *efx,
 		   const struct efx_spi_device *spi, unsigned int command,

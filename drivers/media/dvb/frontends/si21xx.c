@@ -268,7 +268,7 @@ static int si21_writereg(struct si21xx_state *state, u8 reg, u8 data)
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
 
-static int si21_write(struct dvb_frontend *fe, u8 *buf, int len)
+static int si21_write(struct dvb_frontend *fe, const u8 buf[], int len)
 {
 	struct si21xx_state *state = fe->demodulator_priv;
 

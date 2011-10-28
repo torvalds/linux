@@ -361,8 +361,8 @@ static int dma;
 struct net_device * __init ni65_probe(int unit)
 {
 	struct net_device *dev = alloc_etherdev(0);
-	static int ports[] = {0x360,0x300,0x320,0x340, 0};
-	int *port;
+	static const int ports[] = { 0x360, 0x300, 0x320, 0x340, 0 };
+	const int *port;
 	int err = 0;
 
 	if (!dev)

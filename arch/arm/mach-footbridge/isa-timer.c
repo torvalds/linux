@@ -4,88 +4,92 @@
  *  Copyright (C) 1998 Russell King.
  *  Copyright (C) 1998 Phil Blundell
  */
+#include <linux/clockchips.h>
+#include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
+#include <linux/timex.h>
 
 #include <asm/irq.h>
-
+#include <asm/i8253.h>
 #include <asm/mach/time.h>
 
 #include "common.h"
 
-/*
- * ISA timer tick support
- */
-#define mSEC_10_from_14 ((14318180 + 100) / 200)
+DEFINE_RAW_SPINLOCK(i8253_lock);
 
-static unsigned long isa_gettimeoffset(void)
+static void pit_set_mode(enum clock_event_mode mode,
+	struct clock_event_device *evt)
 {
-	int count;
+	unsigned long flags;
 
-	static int count_p = (mSEC_10_from_14/6);    /* for the first call after boot */
-	static unsigned long jiffies_p = 0;
+	raw_local_irq_save(flags);
 
-	/*
-	 * cache volatile jiffies temporarily; we have IRQs turned off. 
-	 */
-	unsigned long jiffies_t;
+	switch (mode) {
+	case CLOCK_EVT_MODE_PERIODIC:
+		outb_p(0x34, PIT_MODE);
+		outb_p(PIT_LATCH & 0xff, PIT_CH0);
+		outb_p(PIT_LATCH >> 8, PIT_CH0);
+		break;
 
-	/* timer count may underflow right here */
-	outb_p(0x00, 0x43);	/* latch the count ASAP */
+	case CLOCK_EVT_MODE_SHUTDOWN:
+	case CLOCK_EVT_MODE_UNUSED:
+		outb_p(0x30, PIT_MODE);
+		outb_p(0, PIT_CH0);
+		outb_p(0, PIT_CH0);
+		break;
 
-	count = inb_p(0x40);	/* read the latched count */
-
-	/*
-	 * We do this guaranteed double memory access instead of a _p 
-	 * postfix in the previous port access. Wheee, hackady hack
-	 */
- 	jiffies_t = jiffies;
-
-	count |= inb_p(0x40) << 8;
-
-	/* Detect timer underflows.  If we haven't had a timer tick since 
-	   the last time we were called, and time is apparently going
-	   backwards, the counter must have wrapped during this routine. */
-	if ((jiffies_t == jiffies_p) && (count > count_p))
-		count -= (mSEC_10_from_14/6);
-	else
-		jiffies_p = jiffies_t;
-
-	count_p = count;
-
-	count = (((mSEC_10_from_14/6)-1) - count) * (tick_nsec / 1000);
-	count = (count + (mSEC_10_from_14/6)/2) / (mSEC_10_from_14/6);
-
-	return count;
+	case CLOCK_EVT_MODE_ONESHOT:
+	case CLOCK_EVT_MODE_RESUME:
+		break;
+	}
+	local_irq_restore(flags);
 }
 
-static irqreturn_t
-isa_timer_interrupt(int irq, void *dev_id)
+static int pit_set_next_event(unsigned long delta,
+	struct clock_event_device *evt)
 {
-	timer_tick();
+	return 0;
+}
+
+static struct clock_event_device pit_ce = {
+	.name		= "pit",
+	.features	= CLOCK_EVT_FEAT_PERIODIC,
+	.set_mode	= pit_set_mode,
+	.set_next_event	= pit_set_next_event,
+	.shift		= 32,
+};
+
+static irqreturn_t pit_timer_interrupt(int irq, void *dev_id)
+{
+	struct clock_event_device *ce = dev_id;
+	ce->event_handler(ce);
 	return IRQ_HANDLED;
 }
 
-static struct irqaction isa_timer_irq = {
-	.name		= "ISA timer tick",
-	.handler	= isa_timer_interrupt,
+static struct irqaction pit_timer_irq = {
+	.name		= "pit",
+	.handler	= pit_timer_interrupt,
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.dev_id		= &pit_ce,
 };
 
 static void __init isa_timer_init(void)
 {
-	/* enable PIT timer */
-	/* set for periodic (4) and LSB/MSB write (0x30) */
-	outb(0x34, 0x43);
-	outb((mSEC_10_from_14/6) & 0xFF, 0x40);
-	outb((mSEC_10_from_14/6) >> 8, 0x40);
+	pit_ce.cpumask = cpumask_of(smp_processor_id());
+	pit_ce.mult = div_sc(PIT_TICK_RATE, NSEC_PER_SEC, pit_ce.shift);
+	pit_ce.max_delta_ns = clockevent_delta2ns(0x7fff, &pit_ce);
+	pit_ce.min_delta_ns = clockevent_delta2ns(0x000f, &pit_ce);
 
-	setup_irq(IRQ_ISA_TIMER, &isa_timer_irq);
+	clocksource_i8253_init();
+
+	setup_irq(pit_ce.irq, &pit_timer_irq);
+	clockevents_register_device(&pit_ce);
 }
 
 struct sys_timer isa_timer = {
 	.init		= isa_timer_init,
-	.offset		= isa_gettimeoffset,
 };

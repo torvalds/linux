@@ -128,7 +128,7 @@ static int radeon_bl_get_brightness(struct backlight_device *bd)
 	return bd->props.brightness;
 }
 
-static struct backlight_ops radeon_bl_data = {
+static const struct backlight_ops radeon_bl_data = {
 	.get_brightness = radeon_bl_get_brightness,
 	.update_status	= radeon_bl_update_status,
 };
@@ -158,6 +158,7 @@ void radeonfb_bl_init(struct radeonfb_info *rinfo)
 	snprintf(name, sizeof(name), "radeonbl%d", rinfo->info->node);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
 	bd = backlight_device_register(name, rinfo->info->dev, pdata,
 				       &radeon_bl_data, &props);

@@ -49,7 +49,7 @@ struct nfs_fhbase_old {
  *
  * The auth_type field specifies how the filehandle can be authenticated
  * This might allow a file to be confirmed to be in a writable part of a
- * filetree without checking the path from it upto the root.
+ * filetree without checking the path from it up to the root.
  * Current values:
  *     0  - No authentication.  fb_auth is 0 bytes long
  * Possible future values:

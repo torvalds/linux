@@ -183,10 +183,10 @@
 #define IMX_SSI_RX_DIV_PSR	4
 #define IMX_SSI_RX_DIV_PM	5
 
-extern struct snd_soc_dai imx_ssi_pcm_dai[2];
-extern struct snd_soc_platform imx_soc_platform;
-
 #define DRV_NAME "imx-ssi"
+
+#include <linux/dmaengine.h>
+#include <mach/dma.h>
 
 struct imx_pcm_dma_params {
 	int dma;
@@ -197,7 +197,7 @@ struct imx_pcm_dma_params {
 struct imx_ssi {
 	struct platform_device *ac97_dev;
 
-	struct snd_soc_device imx_ac97;
+	struct snd_soc_dai *imx_ac97;
 	struct clk *clk;
 	void __iomem *base;
 	int irq;
@@ -213,6 +213,9 @@ struct imx_ssi {
 	struct imx_pcm_dma_params	dma_params_tx;
 
 	int enabled;
+
+	struct platform_device *soc_platform_pdev;
+	struct platform_device *soc_platform_pdev_fiq;
 };
 
 struct snd_soc_platform *imx_ssi_fiq_init(struct platform_device *pdev,
@@ -230,8 +233,5 @@ void imx_pcm_free(struct snd_pcm *pcm);
  * Do not change this as the FIQ handler depends on this size
  */
 #define IMX_SSI_DMABUF_SIZE	(64 * 1024)
-
-#define DMA_RXFIFO_BURST      0x4
-#define DMA_TXFIFO_BURST      0x6
 
 #endif /* _IMX_SSI_H */

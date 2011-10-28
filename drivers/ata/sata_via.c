@@ -148,7 +148,7 @@ static struct ata_port_operations vt8251_ops = {
 };
 
 static const struct ata_port_info vt6420_port_info = {
-	.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+	.flags		= ATA_FLAG_SATA,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
 	.udma_mask	= ATA_UDMA6,
@@ -156,7 +156,7 @@ static const struct ata_port_info vt6420_port_info = {
 };
 
 static struct ata_port_info vt6421_sport_info = {
-	.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+	.flags		= ATA_FLAG_SATA,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
 	.udma_mask	= ATA_UDMA6,
@@ -164,7 +164,7 @@ static struct ata_port_info vt6421_sport_info = {
 };
 
 static struct ata_port_info vt6421_pport_info = {
-	.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_NO_LEGACY,
+	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
 	/* No MWDMA */
 	.udma_mask	= ATA_UDMA6,
@@ -172,8 +172,7 @@ static struct ata_port_info vt6421_pport_info = {
 };
 
 static struct ata_port_info vt8251_port_info = {
-	.flags		= ATA_FLAG_SATA | ATA_FLAG_SLAVE_POSS |
-			  ATA_FLAG_NO_LEGACY,
+	.flags		= ATA_FLAG_SATA | ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
 	.udma_mask	= ATA_UDMA6,
@@ -349,7 +348,7 @@ static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 
 	/* wait for phy to become ready, if necessary */
 	do {
-		msleep(200);
+		ata_msleep(link->ap, 200);
 		svia_scr_read(link, SCR_STATUS, &sstatus);
 		if ((sstatus & 0xf) != 1)
 			break;
@@ -538,7 +537,7 @@ static int vt8251_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	return 0;
 }
 
-static void svia_configure(struct pci_dev *pdev)
+static void svia_configure(struct pci_dev *pdev, int board_id)
 {
 	u8 tmp8;
 
@@ -577,13 +576,13 @@ static void svia_configure(struct pci_dev *pdev)
 	}
 
 	/*
-	 * vt6421 has problems talking to some drives.  The following
+	 * vt6420/1 has problems talking to some drives.  The following
 	 * is the fix from Joseph Chan <JosephChan@via.com.tw>.
 	 *
 	 * When host issues HOLD, device may send up to 20DW of data
 	 * before acknowledging it with HOLDA and the host should be
 	 * able to buffer them in FIFO.  Unfortunately, some WD drives
-	 * send upto 40DW before acknowledging HOLD and, in the
+	 * send up to 40DW before acknowledging HOLD and, in the
 	 * default configuration, this ends up overflowing vt6421's
 	 * FIFO, making the controller abort the transaction with
 	 * R_ERR.
@@ -596,8 +595,9 @@ static void svia_configure(struct pci_dev *pdev)
 	 *
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=15173
 	 * http://article.gmane.org/gmane.linux.ide/46352
+	 * http://thread.gmane.org/gmane.linux.kernel/1062139
 	 */
-	if (pdev->device == 0x3249) {
+	if (board_id == vt6420 || board_id == vt6421) {
 		pci_read_config_byte(pdev, 0x52, &tmp8);
 		tmp8 |= 1 << 2;
 		pci_write_config_byte(pdev, 0x52, tmp8);
@@ -652,7 +652,7 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	svia_configure(pdev);
+	svia_configure(pdev, board_id);
 
 	pci_set_master(pdev);
 	return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,

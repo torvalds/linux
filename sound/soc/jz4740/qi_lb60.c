@@ -19,13 +19,7 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <linux/gpio.h>
-
-#include "../codecs/jz4740.h"
-#include "jz4740-pcm.h"
-#include "jz4740-i2s.h"
-
 
 #define QI_LB60_SND_GPIO JZ_GPIO_PORTB(29)
 #define QI_LB60_AMP_GPIO JZ_GPIO_PORTD(4)
@@ -33,11 +27,7 @@
 static int qi_lb60_spk_event(struct snd_soc_dapm_widget *widget,
 			     struct snd_kcontrol *ctrl, int event)
 {
-	int on = 0;
-	if (event & SND_SOC_DAPM_POST_PMU)
-		on = 1;
-	else if (event & SND_SOC_DAPM_PRE_PMD)
-		on = 0;
+	int on = !SND_SOC_DAPM_EVENT_OFF(event);
 
 	gpio_set_value(QI_LB60_SND_GPIO, on);
 	gpio_set_value(QI_LB60_AMP_GPIO, on);
@@ -60,13 +50,15 @@ static const struct snd_soc_dapm_route qi_lb60_routes[] = {
 			SND_SOC_DAIFMT_NB_NF | \
 			SND_SOC_DAIFMT_CBM_CFM)
 
-static int qi_lb60_codec_init(struct snd_soc_codec *codec)
+static int qi_lb60_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
-	struct snd_soc_dai *cpu_dai = codec->socdev->card->dai_link->cpu_dai;
 
-	snd_soc_dapm_nc_pin(codec, "LIN");
-	snd_soc_dapm_nc_pin(codec, "RIN");
+	snd_soc_dapm_nc_pin(dapm, "LIN");
+	snd_soc_dapm_nc_pin(dapm, "RIN");
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, QI_LB60_DAIFMT);
 	if (ret < 0) {
@@ -74,18 +66,16 @@ static int qi_lb60_codec_init(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	snd_soc_dapm_new_controls(codec, qi_lb60_widgets, ARRAY_SIZE(qi_lb60_widgets));
-	snd_soc_dapm_add_routes(codec, qi_lb60_routes, ARRAY_SIZE(qi_lb60_routes));
-	snd_soc_dapm_sync(codec);
-
 	return 0;
 }
 
 static struct snd_soc_dai_link qi_lb60_dai = {
 	.name = "jz4740",
 	.stream_name = "jz4740",
-	.cpu_dai = &jz4740_i2s_dai,
-	.codec_dai = &jz4740_codec_dai,
+	.cpu_dai_name = "jz4740-i2s",
+	.platform_name = "jz4740-pcm-audio",
+	.codec_dai_name = "jz4740-hifi",
+	.codec_name = "jz4740-codec",
 	.init = qi_lb60_codec_init,
 };
 
@@ -93,15 +83,19 @@ static struct snd_soc_card qi_lb60 = {
 	.name = "QI LB60",
 	.dai_link = &qi_lb60_dai,
 	.num_links = 1,
-	.platform = &jz4740_soc_platform,
-};
 
-static struct snd_soc_device qi_lb60_snd_devdata = {
-	.card = &qi_lb60,
-	.codec_dev = &soc_codec_dev_jz4740_codec,
+	.dapm_widgets = qi_lb60_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(qi_lb60_widgets),
+	.dapm_routes = qi_lb60_routes,
+	.num_dapm_routes = ARRAY_SIZE(qi_lb60_routes),
 };
 
 static struct platform_device *qi_lb60_snd_device;
+
+static const struct gpio qi_lb60_gpios[] = {
+	{ QI_LB60_SND_GPIO, GPIOF_OUT_INIT_LOW, "SND" },
+	{ QI_LB60_AMP_GPIO, GPIOF_OUT_INIT_LOW, "AMP" },
+};
 
 static int __init qi_lb60_init(void)
 {
@@ -112,25 +106,13 @@ static int __init qi_lb60_init(void)
 	if (!qi_lb60_snd_device)
 		return -ENOMEM;
 
-	ret = gpio_request(QI_LB60_SND_GPIO, "SND");
+	ret = gpio_request_array(qi_lb60_gpios, ARRAY_SIZE(qi_lb60_gpios));
 	if (ret) {
-		pr_err("qi_lb60 snd: Failed to request SND GPIO(%d): %d\n",
-				QI_LB60_SND_GPIO, ret);
+		pr_err("qi_lb60 snd: Failed to request gpios: %d\n", ret);
 		goto err_device_put;
 	}
 
-	ret = gpio_request(QI_LB60_AMP_GPIO, "AMP");
-	if (ret) {
-		pr_err("qi_lb60 snd: Failed to request AMP GPIO(%d): %d\n",
-				QI_LB60_AMP_GPIO, ret);
-		goto err_gpio_free_snd;
-	}
-
-	gpio_direction_output(QI_LB60_SND_GPIO, 0);
-	gpio_direction_output(QI_LB60_AMP_GPIO, 0);
-
-	platform_set_drvdata(qi_lb60_snd_device, &qi_lb60_snd_devdata);
-	qi_lb60_snd_devdata.dev = &qi_lb60_snd_device->dev;
+	platform_set_drvdata(qi_lb60_snd_device, &qi_lb60);
 
 	ret = platform_device_add(qi_lb60_snd_device);
 	if (ret) {
@@ -142,10 +124,8 @@ static int __init qi_lb60_init(void)
 
 err_unset_pdata:
 	platform_set_drvdata(qi_lb60_snd_device, NULL);
-/*err_gpio_free_amp:*/
-	gpio_free(QI_LB60_AMP_GPIO);
-err_gpio_free_snd:
-	gpio_free(QI_LB60_SND_GPIO);
+/*err_gpio_free_array:*/
+	gpio_free_array(qi_lb60_gpios, ARRAY_SIZE(qi_lb60_gpios));
 err_device_put:
 	platform_device_put(qi_lb60_snd_device);
 
@@ -155,9 +135,8 @@ module_init(qi_lb60_init);
 
 static void __exit qi_lb60_exit(void)
 {
-	gpio_free(QI_LB60_AMP_GPIO);
-	gpio_free(QI_LB60_SND_GPIO);
 	platform_device_unregister(qi_lb60_snd_device);
+	gpio_free_array(qi_lb60_gpios, ARRAY_SIZE(qi_lb60_gpios));
 }
 module_exit(qi_lb60_exit);
 

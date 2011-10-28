@@ -79,7 +79,6 @@ struct ssu100_port_private {
 	u8 shadowLSR;
 	u8 shadowMSR;
 	wait_queue_head_t delta_msr_wait; /* Used for TIOCMIWAIT */
-	unsigned short max_packet_size;
 	struct async_icount icount;
 };
 
@@ -416,12 +415,34 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 	return 0;
 }
 
-static int ssu100_ioctl(struct tty_struct *tty, struct file *file,
-		    unsigned int cmd, unsigned long arg)
+static int ssu100_get_icount(struct tty_struct *tty,
+			struct serial_icounter_struct *icount)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ssu100_port_private *priv = usb_get_serial_port_data(port);
-	void __user *user_arg = (void __user *)arg;
+	struct async_icount cnow = priv->icount;
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+
+	return 0;
+}
+
+
+
+static int ssu100_ioctl(struct tty_struct *tty,
+		    unsigned int cmd, unsigned long arg)
+{
+	struct usb_serial_port *port = tty->driver_data;
 
 	dbg("%s cmd 0x%04x", __func__, cmd);
 
@@ -433,27 +454,6 @@ static int ssu100_ioctl(struct tty_struct *tty, struct file *file,
 	case TIOCMIWAIT:
 		return wait_modem_info(port, arg);
 
-	case TIOCGICOUNT:
-	{
-		struct serial_icounter_struct icount;
-		struct async_icount cnow = priv->icount;
-		memset(&icount, 0, sizeof(icount));
-		icount.cts = cnow.cts;
-		icount.dsr = cnow.dsr;
-		icount.rng = cnow.rng;
-		icount.dcd = cnow.dcd;
-		icount.rx = cnow.rx;
-		icount.tx = cnow.tx;
-		icount.frame = cnow.frame;
-		icount.overrun = cnow.overrun;
-		icount.parity = cnow.parity;
-		icount.brk = cnow.brk;
-		icount.buf_overrun = cnow.buf_overrun;
-		if (copy_to_user(user_arg, &icount, sizeof(icount)))
-			return -EFAULT;
-		return 0;
-	}
-
 	default:
 		break;
 	}
@@ -461,36 +461,6 @@ static int ssu100_ioctl(struct tty_struct *tty, struct file *file,
 	dbg("%s arg not supported", __func__);
 
 	return -ENOIOCTLCMD;
-}
-
-static void ssu100_set_max_packet_size(struct usb_serial_port *port)
-{
-	struct ssu100_port_private *priv = usb_get_serial_port_data(port);
-	struct usb_serial *serial = port->serial;
-	struct usb_device *udev = serial->dev;
-
-	struct usb_interface *interface = serial->interface;
-	struct usb_endpoint_descriptor *ep_desc = &interface->cur_altsetting->endpoint[1].desc;
-
-	unsigned num_endpoints;
-	int i;
-	unsigned long flags;
-
-	num_endpoints = interface->cur_altsetting->desc.bNumEndpoints;
-	dev_info(&udev->dev, "Number of endpoints %d\n", num_endpoints);
-
-	for (i = 0; i < num_endpoints; i++) {
-		dev_info(&udev->dev, "Endpoint %d MaxPacketSize %d\n", i+1,
-			interface->cur_altsetting->endpoint[i].desc.wMaxPacketSize);
-		ep_desc = &interface->cur_altsetting->endpoint[i].desc;
-	}
-
-	/* set max packet size based on descriptor */
-	spin_lock_irqsave(&priv->status_lock, flags);
-	priv->max_packet_size = ep_desc->wMaxPacketSize;
-	spin_unlock_irqrestore(&priv->status_lock, flags);
-
-	dev_info(&udev->dev, "Setting MaxPacketSize %d\n", priv->max_packet_size);
 }
 
 static int ssu100_attach(struct usb_serial *serial)
@@ -510,12 +480,11 @@ static int ssu100_attach(struct usb_serial *serial)
 	spin_lock_init(&priv->status_lock);
 	init_waitqueue_head(&priv->delta_msr_wait);
 	usb_set_serial_port_data(port, priv);
-	ssu100_set_max_packet_size(port);
 
 	return ssu100_initdevice(serial->dev);
 }
 
-static int ssu100_tiocmget(struct tty_struct *tty, struct file *file)
+static int ssu100_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_device *dev = port->serial->dev;
@@ -548,7 +517,7 @@ mget_out:
 	return r;
 }
 
-static int ssu100_tiocmset(struct tty_struct *tty, struct file *file,
+static int ssu100_tiocmset(struct tty_struct *tty,
 			   unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -640,13 +609,14 @@ static void ssu100_update_lsr(struct usb_serial_port *port, u8 lsr,
 
 }
 
-static int ssu100_process_packet(struct tty_struct *tty,
-				 struct usb_serial_port *port,
-				 struct ssu100_port_private *priv,
-				 char *packet, int len)
+static int ssu100_process_packet(struct urb *urb,
+				 struct tty_struct *tty)
 {
-	int i;
+	struct usb_serial_port *port = urb->context;
+	char *packet = (char *)urb->transfer_buffer;
 	char flag = TTY_NORMAL;
+	u32 len = urb->actual_length;
+	int i;
 	char *ch;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -684,12 +654,8 @@ static int ssu100_process_packet(struct tty_struct *tty,
 static void ssu100_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	struct ssu100_port_private *priv = usb_get_serial_port_data(port);
-	char *data = (char *)urb->transfer_buffer;
 	struct tty_struct *tty;
-	int count = 0;
-	int i;
-	int len;
+	int count;
 
 	dbg("%s", __func__);
 
@@ -697,10 +663,7 @@ static void ssu100_process_read_urb(struct urb *urb)
 	if (!tty)
 		return;
 
-	for (i = 0; i < urb->actual_length; i += priv->max_packet_size) {
-		len = min_t(int, urb->actual_length - i, priv->max_packet_size);
-		count += ssu100_process_packet(tty, port, priv, &data[i], len);
-	}
+	count = ssu100_process_packet(urb, tty);
 
 	if (count)
 		tty_flip_buffer_push(tty);
@@ -716,8 +679,6 @@ static struct usb_serial_driver ssu100_device = {
 	.id_table	     = id_table,
 	.usb_driver	     = &ssu100_driver,
 	.num_ports	     = 1,
-	.bulk_in_size        = 256,
-	.bulk_out_size       = 256,
 	.open		     = ssu100_open,
 	.close		     = ssu100_close,
 	.attach              = ssu100_attach,
@@ -726,6 +687,7 @@ static struct usb_serial_driver ssu100_device = {
 	.process_read_urb    = ssu100_process_read_urb,
 	.tiocmget            = ssu100_tiocmget,
 	.tiocmset            = ssu100_tiocmset,
+	.get_icount	     = ssu100_get_icount,
 	.ioctl               = ssu100_ioctl,
 	.set_termios         = ssu100_set_termios,
 	.disconnect          = usb_serial_generic_disconnect,

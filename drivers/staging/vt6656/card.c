@@ -1092,7 +1092,7 @@ CARDbChannelSwitch (
         pDevice->sMgmtObj.uCurrChannel = byNewChannel;
         bResult = CARDbSetMediaChannel(pDevice, byNewChannel);
 
-        return(bResult);
+	return bResult;
     }
     pDevice->byChannelSwitchCount = byCount;
     pDevice->byNewChannel = byNewChannel;
@@ -1102,7 +1102,7 @@ CARDbChannelSwitch (
         //bResult=CARDbStopTxPacket(pDevice, PKT_TYPE_802_11_ALL);
         pDevice->bStopDataPkt = TRUE;
     }
-    return (bResult);
+	return bResult;
 }
 
 

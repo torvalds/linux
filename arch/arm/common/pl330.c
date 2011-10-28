@@ -147,8 +147,7 @@
 #define DESIGNER	0x41
 #define REVISION	0x1
 #define INTEG_CFG	0x0
-#define PERIPH_ID_VAL	((PART << 0) | (DESIGNER << 12) \
-			  | (REVISION << 20) | (INTEG_CFG << 24))
+#define PERIPH_ID_VAL	((PART << 0) | (DESIGNER << 12))
 
 #define PCELL_ID_VAL	0xb105f00d
 
@@ -1047,7 +1046,7 @@ static inline int _loop(unsigned dry_run, u8 buf[],
 	unsigned lcnt0, lcnt1, ljmp0, ljmp1;
 	struct _arg_LPEND lpend;
 
-	/* Max iterations possibile in DMALP is 256 */
+	/* Max iterations possible in DMALP is 256 */
 	if (*bursts >= 256*256) {
 		lcnt1 = 256;
 		lcnt0 = 256;
@@ -1448,7 +1447,7 @@ int pl330_update(const struct pl330_info *pi)
 	}
 
 	for (ev = 0; ev < pi->pcfg.num_events; ev++) {
-		if (val & (1 << ev)) { /* Event occured */
+		if (val & (1 << ev)) { /* Event occurred */
 			struct pl330_thread *thrd;
 			u32 inten = readl(regs + INTEN);
 			int active;
@@ -1860,10 +1859,10 @@ int pl330_add(struct pl330_info *pi)
 	regs = pi->base;
 
 	/* Check if we can handle this DMAC */
-	if (get_id(pi, PERIPH_ID) != PERIPH_ID_VAL
+	if ((get_id(pi, PERIPH_ID) & 0xfffff) != PERIPH_ID_VAL
 	   || get_id(pi, PCELL_ID) != PCELL_ID_VAL) {
 		dev_err(pi->dev, "PERIPH_ID 0x%x, PCELL_ID 0x%x !\n",
-			readl(regs + PERIPH_ID), readl(regs + PCELL_ID));
+			get_id(pi, PERIPH_ID), get_id(pi, PCELL_ID));
 		return -EINVAL;
 	}
 

@@ -15,8 +15,8 @@
  *  May be copied or modified under the terms of the GNU General Public License
  *  Based in part on the ITE vendor provided SCSI driver.
  *
- *  Documentation available from
- * 	http://www.ite.com.tw/pc/IT8212F_V04.pdf
+ *  Documentation available from IT8212F_V04.pdf
+ * 	http://www.ite.com.tw/EN/products_more.aspx?CategoryID=3&ID=5,91
  *  Some other documents are NDA.
  *
  *  The ITE8212 isn't exactly a standard IDE controller. It has two
@@ -616,7 +616,7 @@ static void it821x_display_disk(int n, u8 *buf)
 	if (buf[52] > 4)	/* No Disk */
 		return;
 
-	ata_id_c_string((u16 *)buf, id, 0, 41); 
+	ata_id_c_string((u16 *)buf, id, 0, 41);
 
 	if (buf[51]) {
 		mode = ffs(buf[51]);
@@ -910,7 +910,7 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
-		
+
 	if (pdev->vendor == PCI_VENDOR_ID_RDC) {
 		/* Deal with Vortex86SX */
 		if (pdev->revision == 0x11)

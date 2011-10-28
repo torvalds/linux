@@ -192,14 +192,10 @@ static struct tagtable __tagtable_##fn __tag = { tag, fn }
 /*
  * Memory map description
  */
-#ifdef CONFIG_ARCH_LH7A40X
-# define NR_BANKS 16
-#else
-# define NR_BANKS 8
-#endif
+#define NR_BANKS 8
 
 struct membank {
-	unsigned long start;
+	phys_addr_t start;
 	unsigned long size;
 	unsigned int highmem;
 };
@@ -220,6 +216,10 @@ extern struct meminfo meminfo;
 #define bank_phys_start(bank)	(bank)->start
 #define bank_phys_end(bank)	((bank)->start + (bank)->size)
 #define bank_phys_size(bank)	(bank)->size
+
+extern int arm_add_memory(phys_addr_t start, unsigned long size);
+extern void early_print(const char *str, ...);
+extern void dump_machine_table(void);
 
 #endif  /*  __KERNEL__  */
 

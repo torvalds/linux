@@ -270,8 +270,6 @@ static __init void dm355_leopard_init(void)
 }
 
 MACHINE_START(DM355_LEOPARD, "DaVinci DM355 leopard")
-	.phys_io      = IO_PHYS,
-	.io_pg_offst  = (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params  = (0x80000100),
 	.map_io	      = dm355_leopard_map_io,
 	.init_irq     = davinci_irq_init,

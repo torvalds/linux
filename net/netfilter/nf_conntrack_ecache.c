@@ -26,10 +26,10 @@
 
 static DEFINE_MUTEX(nf_ct_ecache_mutex);
 
-struct nf_ct_event_notifier *nf_conntrack_event_cb __read_mostly;
+struct nf_ct_event_notifier __rcu *nf_conntrack_event_cb __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_event_cb);
 
-struct nf_exp_event_notifier *nf_expect_event_cb __read_mostly;
+struct nf_exp_event_notifier __rcu *nf_expect_event_cb __read_mostly;
 EXPORT_SYMBOL_GPL(nf_expect_event_cb);
 
 /* deliver cached events and clear cache entry - must be called with locally
@@ -62,6 +62,9 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 		 * the lock, thus we may send missed events twice. However,
 		 * this does not harm and it happens very rarely. */
 		unsigned long missed = e->missed;
+
+		if (!((events | missed) & e->ctmask))
+			goto out_unlock;
 
 		ret = notify->fcn(events | missed, &item);
 		if (unlikely(ret < 0 || missed)) {

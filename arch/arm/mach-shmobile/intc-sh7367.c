@@ -189,10 +189,10 @@ static struct intc_mask_reg intca_mask_registers[] __initdata = {
 	  { SCIFB, SCIFA5, SCIFA4, MSIOF1,
 	    0, 0, MSIOF2, 0 } },
 	{ 0xe694009c, 0xe69400dc, 8, /* IMR7A / IMCR7A */
-	  { DISABLED, DISABLED, ENABLED, ENABLED,
+	  { DISABLED, ENABLED, ENABLED, ENABLED,
 	    FLCTL_FLTREQ1I, FLCTL_FLTREQ0I, FLCTL_FLTENDI, FLCTL_FLSTEI } },
 	{ 0xe69400a0, 0xe69400e0, 8, /* IMR8A / IMCR8A */
-	  { DISABLED, DISABLED, ENABLED, ENABLED,
+	  { DISABLED, ENABLED, ENABLED, ENABLED,
 	    TTI20, USBDMAC_USHDMI, SPU, SIU } },
 	{ 0xe69400a4, 0xe69400e4, 8, /* IMR9A / IMCR9A */
 	  { CMT1_CMT13, CMT1_CMT12, CMT1_CMT11, CMT1_CMT10,
@@ -207,7 +207,7 @@ static struct intc_mask_reg intca_mask_registers[] __initdata = {
 	  { 0, 0, TPU0, TPU1,
 	    TPU2, TPU3, TPU4, 0 } },
 	{ 0xe69400b4, 0xe69400f4, 8, /* IMR13A / IMCR13A */
-	  { DISABLED, DISABLED, ENABLED, ENABLED,
+	  { DISABLED, ENABLED, ENABLED, ENABLED,
 	    MISTY, CMT3, RWDT1, RWDT0 } },
 };
 
@@ -421,7 +421,7 @@ static struct intc_desc intcs_desc __initdata = {
 
 static void intcs_demux(unsigned int irq, struct irq_desc *desc)
 {
-	void __iomem *reg = (void *)get_irq_data(irq);
+	void __iomem *reg = (void *)irq_get_handler_data(irq);
 	unsigned int evtcodeas = ioread32(reg);
 
 	generic_handle_irq(intcs_evt2irq(evtcodeas));
@@ -435,6 +435,6 @@ void __init sh7367_init_irq(void)
 	register_intc_controller(&intcs_desc);
 
 	/* demux using INTEVTSA */
-	set_irq_data(evt2irq(0xf80), (void *)intevtsa);
-	set_irq_chained_handler(evt2irq(0xf80), intcs_demux);
+	irq_set_handler_data(evt2irq(0xf80), (void *)intevtsa);
+	irq_set_chained_handler(evt2irq(0xf80), intcs_demux);
 }

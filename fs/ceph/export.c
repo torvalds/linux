@@ -1,10 +1,11 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/exportfs.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #include "super.h"
+#include "mds_client.h"
 
 /*
  * NFS export support
@@ -58,7 +59,7 @@ static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 		dout("encode_fh %p connectable\n", dentry);
 		cfh->ino = ceph_ino(dentry->d_inode);
 		cfh->parent_ino = ceph_ino(parent->d_inode);
-		cfh->parent_name_hash = parent->d_name.hash;
+		cfh->parent_name_hash = ceph_dentry_hash(parent);
 		*max_len = connected_handle_length;
 		type = 2;
 	} else if (*max_len >= handle_length) {
@@ -85,6 +86,7 @@ static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 static struct dentry *__fh_to_dentry(struct super_block *sb,
 				     struct ceph_nfs_fh *fh)
 {
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(sb)->mdsc;
 	struct inode *inode;
 	struct dentry *dentry;
 	struct ceph_vino vino;
@@ -94,8 +96,24 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 	vino.ino = fh->ino;
 	vino.snap = CEPH_NOSNAP;
 	inode = ceph_find_inode(sb, vino);
-	if (!inode)
-		return ERR_PTR(-ESTALE);
+	if (!inode) {
+		struct ceph_mds_request *req;
+
+		req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_LOOKUPINO,
+					       USE_ANY_MDS);
+		if (IS_ERR(req))
+			return ERR_CAST(req);
+
+		req->r_ino1 = vino;
+		req->r_num_caps = 1;
+		err = ceph_mdsc_do_request(mdsc, NULL, req);
+		inode = req->r_target_inode;
+		if (inode)
+			ihold(inode);
+		ceph_mdsc_put_request(req);
+		if (!inode)
+			return ERR_PTR(-ESTALE);
+	}
 
 	dentry = d_obtain_alias(inode);
 	if (IS_ERR(dentry)) {
@@ -120,7 +138,7 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 static struct dentry *__cfh_to_dentry(struct super_block *sb,
 				      struct ceph_nfs_confh *cfh)
 {
-	struct ceph_mds_client *mdsc = &ceph_sb_to_client(sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(sb)->mdsc;
 	struct inode *inode;
 	struct dentry *dentry;
 	struct ceph_vino vino;
@@ -147,8 +165,10 @@ static struct dentry *__cfh_to_dentry(struct super_block *sb,
 		snprintf(req->r_path2, 16, "%d", cfh->parent_name_hash);
 		req->r_num_caps = 1;
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
+		inode = req->r_target_inode;
+		if (inode)
+			ihold(inode);
 		ceph_mdsc_put_request(req);
-		inode = ceph_find_inode(sb, vino);
 		if (!inode)
 			return ERR_PTR(err ? err : -ESTALE);
 	}

@@ -109,7 +109,7 @@ static inline void freezer_count(void)
 }
 
 /*
- * Check if the task should be counted as freezeable by the freezer
+ * Check if the task should be counted as freezable by the freezer
  */
 static inline int freezer_should_skip(struct task_struct *p)
 {

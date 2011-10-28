@@ -12,6 +12,10 @@ Controller Drivers (HCD). So, if HCD is buggy, the traces reported by
 usbmon may not correspond to bus transactions precisely. This is the same
 situation as with tcpdump.
 
+Two APIs are currently implemented: "text" and "binary". The binary API
+is available through a character device in /dev namespace and is an ABI.
+The text API is deprecated since 2.6.35, but available for convenience.
+
 * How to use usbmon to collect raw text traces
 
 Unlike the packet socket, usbmon has an interface which provides traces
@@ -162,39 +166,11 @@ Here is the list of words, from left to right:
   not machine words, but really just a byte stream split into words to make
   it easier to read. Thus, the last word may contain from one to four bytes.
   The length of collected data is limited and can be less than the data length
-  report in Data Length word.
-
-Here is an example of code to read the data stream in a well known programming
-language:
-
-class ParsedLine {
-	int data_len;		/* Available length of data */
-	byte data[];
-
-	void parseData(StringTokenizer st) {
-		int availwords = st.countTokens();
-		data = new byte[availwords * 4];
-		data_len = 0;
-		while (st.hasMoreTokens()) {
-			String data_str = st.nextToken();
-			int len = data_str.length() / 2;
-			int i;
-			int b;	// byte is signed, apparently?! XXX
-			for (i = 0; i < len; i++) {
-				// data[data_len] = Byte.parseByte(
-				//     data_str.substring(i*2, i*2 + 2),
-				//     16);
-				b = Integer.parseInt(
-				     data_str.substring(i*2, i*2 + 2),
-				     16);
-				if (b >= 128)
-					b *= -1;
-				data[data_len] = (byte) b;
-				data_len++;
-			}
-		}
-	}
-}
+  reported in the Data Length word. In the case of an Isochronous input (Zi)
+  completion where the received data is sparse in the buffer, the length of
+  the collected data can be greater than the Data Length value (because Data
+  Length counts only the bytes that were received whereas the Data words
+  contain the entire transfer buffer).
 
 Examples:
 

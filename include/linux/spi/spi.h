@@ -204,6 +204,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
 /**
  * struct spi_master - interface to SPI master controller
  * @dev: device interface to this driver
+ * @list: link with the global spi_master list
  * @bus_num: board-specific (and often SOC-specific) identifier for a
  *	given SPI controller.
  * @num_chipselect: chipselects are used to distinguish individual
@@ -237,6 +238,8 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  */
 struct spi_master {
 	struct device	dev;
+
+	struct list_head list;
 
 	/* other than negative (== assign one dynamically), bus_num is fully
 	 * board-specific.  usually that simplifies to being SOC-specific.
@@ -579,7 +582,7 @@ extern int spi_bus_unlock(struct spi_master *master);
  * Callable only from contexts that can sleep.
  */
 static inline int
-spi_write(struct spi_device *spi, const u8 *buf, size_t len)
+spi_write(struct spi_device *spi, const void *buf, size_t len)
 {
 	struct spi_transfer	t = {
 			.tx_buf		= buf,
@@ -603,7 +606,7 @@ spi_write(struct spi_device *spi, const u8 *buf, size_t len)
  * Callable only from contexts that can sleep.
  */
 static inline int
-spi_read(struct spi_device *spi, u8 *buf, size_t len)
+spi_read(struct spi_device *spi, void *buf, size_t len)
 {
 	struct spi_transfer	t = {
 			.rx_buf		= buf,
@@ -618,8 +621,8 @@ spi_read(struct spi_device *spi, u8 *buf, size_t len)
 
 /* this copies txbuf and rxbuf data; for small transfers only! */
 extern int spi_write_then_read(struct spi_device *spi,
-		const u8 *txbuf, unsigned n_tx,
-		u8 *rxbuf, unsigned n_rx);
+		const void *txbuf, unsigned n_tx,
+		void *rxbuf, unsigned n_rx);
 
 /**
  * spi_w8r8 - SPI synchronous 8 bit write followed by 8 bit read

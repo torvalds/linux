@@ -71,6 +71,12 @@ static long madvise_behavior(struct vm_area_struct * vma,
 		if (error)
 			goto out;
 		break;
+	case MADV_HUGEPAGE:
+	case MADV_NOHUGEPAGE:
+		error = hugepage_madvise(vma, &new_flags, behavior);
+		if (error)
+			goto out;
+		break;
 	}
 
 	if (new_flags == vma->vm_flags) {
@@ -282,6 +288,10 @@ madvise_behavior_valid(int behavior)
 #ifdef CONFIG_KSM
 	case MADV_MERGEABLE:
 	case MADV_UNMERGEABLE:
+#endif
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	case MADV_HUGEPAGE:
+	case MADV_NOHUGEPAGE:
 #endif
 		return 1;
 

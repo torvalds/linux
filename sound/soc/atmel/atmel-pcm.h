@@ -74,9 +74,6 @@ struct atmel_pcm_dma_params {
 	void (*dma_intr_handler)(u32, struct snd_pcm_substream *);
 };
 
-extern struct snd_soc_platform atmel_soc_platform;
-
-
 /*
  * SSC register access (since ssc_writel() / ssc_readl() require literal name)
  */

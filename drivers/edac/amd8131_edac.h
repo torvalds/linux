@@ -99,7 +99,7 @@ struct amd8131_dev_info {
 
 /*
  * AMD8131 chipset has two pairs of PCIX Bridge and related IOAPIC
- * Controler, and ATCA-6101 has two AMD8131 chipsets, so there are
+ * Controller, and ATCA-6101 has two AMD8131 chipsets, so there are
  * four PCIX Bridges on ATCA-6101 altogether.
  *
  * These PCIX Bridges share the same PCI Device ID and are all of

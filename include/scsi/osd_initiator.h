@@ -137,7 +137,7 @@ struct osd_request {
 		void *buff;
 		unsigned alloc_size; /* 0 here means: don't call kfree */
 		unsigned total_bytes;
-	} set_attr, enc_get_attr, get_attr;
+	} cdb_cont, set_attr, enc_get_attr, get_attr;
 
 	struct _osd_io_info {
 		struct bio *bio;
@@ -265,7 +265,7 @@ int osd_execute_request_async(struct osd_request *or,
  * @osi           - Recievs a more detailed error report information (optional).
  * @silent        - Do not print to dmsg (Even if enabled)
  * @bad_obj_list  - Some commands act on multiple objects. Failed objects will
- *                  be recieved here (optional)
+ *                  be received here (optional)
  * @max_obj       - Size of @bad_obj_list.
  * @bad_attr_list - List of failing attributes (optional)
  * @max_attr      - Size of @bad_attr_list.
@@ -447,6 +447,20 @@ void osd_req_read(struct osd_request *or,
 	const struct osd_obj_id *obj, u64 offset, struct bio *bio, u64 len);
 int osd_req_read_kern(struct osd_request *or,
 	const struct osd_obj_id *obj, u64 offset, void *buff, u64 len);
+
+/* Scatter/Gather write/read commands */
+int osd_req_write_sg(struct osd_request *or,
+	const struct osd_obj_id *obj, struct bio *bio,
+	const struct osd_sg_entry *sglist, unsigned numentries);
+int osd_req_read_sg(struct osd_request *or,
+	const struct osd_obj_id *obj, struct bio *bio,
+	const struct osd_sg_entry *sglist, unsigned numentries);
+int osd_req_write_sg_kern(struct osd_request *or,
+	const struct osd_obj_id *obj, void **buff,
+	const struct osd_sg_entry *sglist, unsigned numentries);
+int osd_req_read_sg_kern(struct osd_request *or,
+	const struct osd_obj_id *obj, void **buff,
+	const struct osd_sg_entry *sglist, unsigned numentries);
 
 /*
  * Root/Partition/Collection/Object Attributes commands

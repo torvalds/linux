@@ -19,7 +19,6 @@
  *    the userland interface
  */
 
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -97,6 +96,7 @@ struct smu_device {
  * I don't think there will ever be more than one SMU, so
  * for now, just hard code that
  */
+static DEFINE_MUTEX(smu_mutex);
 static struct smu_device	*smu;
 static DEFINE_MUTEX(smu_part_access);
 static int smu_irq_inited;
@@ -645,8 +645,7 @@ static void smu_expose_childs(struct work_struct *unused)
 
 static DECLARE_WORK(smu_expose_childs_work, smu_expose_childs);
 
-static int smu_platform_probe(struct platform_device* dev,
-			      const struct of_device_id *match)
+static int smu_platform_probe(struct platform_device* dev)
 {
 	if (!smu)
 		return -ENODEV;
@@ -669,7 +668,7 @@ static const struct of_device_id smu_platform_match[] =
 	{},
 };
 
-static struct of_platform_driver smu_of_platform_driver =
+static struct platform_driver smu_of_platform_driver =
 {
 	.driver = {
 		.name = "smu",
@@ -689,7 +688,7 @@ static int __init smu_init_sysfs(void)
 	 * I'm a bit too far from figuring out how that works with those
 	 * new chipsets, but that will come back and bite us
 	 */
-	of_register_platform_driver(&smu_of_platform_driver);
+	platform_driver_register(&smu_of_platform_driver);
 	return 0;
 }
 
@@ -1095,12 +1094,12 @@ static int smu_open(struct inode *inode, struct file *file)
 	pp->mode = smu_file_commands;
 	init_waitqueue_head(&pp->wait);
 
-	lock_kernel();
+	mutex_lock(&smu_mutex);
 	spin_lock_irqsave(&smu_clist_lock, flags);
 	list_add(&pp->list, &smu_clist);
 	spin_unlock_irqrestore(&smu_clist_lock, flags);
 	file->private_data = pp;
-	unlock_kernel();
+	mutex_unlock(&smu_mutex);
 
 	return 0;
 }

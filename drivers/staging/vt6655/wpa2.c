@@ -216,7 +216,7 @@ WPA2vParseRSN (
         m = *((unsigned short *) &(pRSN->abyRSN[4]));
 
         if (pRSN->len >= 10+m*4) { // ver(2) + GK(4) + PK count(2) + PKS(4*m) + AKMSS count(2)
-            pBSSNode->wAKMSSAuthCount = *((unsigned short *) &(pRSN->abyRSN[6+4*m]));;
+            pBSSNode->wAKMSSAuthCount = *((unsigned short *) &(pRSN->abyRSN[6+4*m]));
             j = 0;
             pbyOUI = &(pRSN->abyRSN[8+4*m]);
             for (i = 0; (i < pBSSNode->wAKMSSAuthCount) && (j < sizeof(pBSSNode->abyAKMSSAuthType)/sizeof(unsigned char)); i++) {
@@ -235,7 +235,7 @@ WPA2vParseRSN (
             pBSSNode->wAKMSSAuthCount = (unsigned short)j;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wAKMSSAuthCount: %d\n", pBSSNode->wAKMSSAuthCount);
 
-            n = *((unsigned short *) &(pRSN->abyRSN[6+4*m]));;
+            n = *((unsigned short *) &(pRSN->abyRSN[6+4*m]));
             if (pRSN->len >= 12+4*m+4*n) { // ver(2)+GK(4)+PKCnt(2)+PKS(4*m)+AKMSSCnt(2)+AKMSS(4*n)+Cap(2)
                 pBSSNode->sRSNCapObj.bRSNCapExist = true;
                 pBSSNode->sRSNCapObj.wRSNCap = *((unsigned short *) &(pRSN->abyRSN[8+4*m+4*n]));

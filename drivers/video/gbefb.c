@@ -721,7 +721,7 @@ static int gbefb_set_par(struct fb_info *info)
 
 	   Tiles have the advantage that they can be allocated individually in
 	   memory. However, this mapping is not linear at all, which is not
-	   really convienient. In order to support linear addressing, the GBE
+	   really convenient. In order to support linear addressing, the GBE
 	   DMA hardware is fooled into thinking the screen is only one tile
 	   large and but has a greater height, so that the DMA transfer covers
 	   the same region.
@@ -1143,8 +1143,10 @@ static int __devinit gbefb_probe(struct platform_device *p_dev)
 		return -ENOMEM;
 
 #ifndef MODULE
-	if (fb_get_options("gbefb", &options))
-		return -ENODEV;
+	if (fb_get_options("gbefb", &options)) {
+		ret = -ENODEV;
+		goto out_release_framebuffer;
+	}
 	gbefb_setup(options);
 #endif
 

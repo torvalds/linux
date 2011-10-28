@@ -229,7 +229,7 @@ static int serverworks_fetch_size(void)
  * This routine could be implemented by taking the addresses
  * written to the GATT, and flushing them individually.  However
  * currently it just flushes the whole table.  Which is probably
- * more efficent, since agp_memory blocks can be a large number of
+ * more efficient, since agp_memory blocks can be a large number of
  * entries.
  */
 static void serverworks_tlbflush(struct agp_memory *temp)

@@ -106,12 +106,14 @@ static int ti_write_room(struct tty_struct *tty);
 static int ti_chars_in_buffer(struct tty_struct *tty);
 static void ti_throttle(struct tty_struct *tty);
 static void ti_unthrottle(struct tty_struct *tty);
-static int ti_ioctl(struct tty_struct *tty, struct file *file,
+static int ti_ioctl(struct tty_struct *tty,
 		unsigned int cmd, unsigned long arg);
+static int ti_get_icount(struct tty_struct *tty,
+		struct serial_icounter_struct *icount);
 static void ti_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios);
-static int ti_tiocmget(struct tty_struct *tty, struct file *file);
-static int ti_tiocmset(struct tty_struct *tty, struct file *file,
+static int ti_tiocmget(struct tty_struct *tty);
+static int ti_tiocmset(struct tty_struct *tty,
 		unsigned int set, unsigned int clear);
 static void ti_break(struct tty_struct *tty, int break_state);
 static void ti_interrupt_callback(struct urb *urb);
@@ -237,6 +239,7 @@ static struct usb_serial_driver ti_1port_device = {
 	.set_termios		= ti_set_termios,
 	.tiocmget		= ti_tiocmget,
 	.tiocmset		= ti_tiocmset,
+	.get_icount		= ti_get_icount,
 	.break_ctl		= ti_break,
 	.read_int_callback	= ti_interrupt_callback,
 	.read_bulk_callback	= ti_bulk_in_callback,
@@ -265,6 +268,7 @@ static struct usb_serial_driver ti_2port_device = {
 	.set_termios		= ti_set_termios,
 	.tiocmget		= ti_tiocmget,
 	.tiocmset		= ti_tiocmset,
+	.get_icount		= ti_get_icount,
 	.break_ctl		= ti_break,
 	.read_int_callback	= ti_interrupt_callback,
 	.read_bulk_callback	= ti_bulk_in_callback,
@@ -365,9 +369,9 @@ failed_1port:
 
 static void __exit ti_exit(void)
 {
+	usb_deregister(&ti_usb_driver);
 	usb_serial_deregister(&ti_1port_device);
 	usb_serial_deregister(&ti_2port_device);
-	usb_deregister(&ti_usb_driver);
 }
 
 
@@ -788,8 +792,33 @@ static void ti_unthrottle(struct tty_struct *tty)
 	}
 }
 
+static int ti_get_icount(struct tty_struct *tty,
+		struct serial_icounter_struct *icount)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct ti_port *tport = usb_get_serial_port_data(port);
+	struct async_icount cnow = tport->tp_icount;
 
-static int ti_ioctl(struct tty_struct *tty, struct file *file,
+	dbg("%s - (%d) TIOCGICOUNT RX=%d, TX=%d",
+		__func__, port->number,
+		cnow.rx, cnow.tx);
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+
+	return 0;
+}
+
+static int ti_ioctl(struct tty_struct *tty,
 	unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -830,14 +859,6 @@ static int ti_ioctl(struct tty_struct *tty, struct file *file,
 			cprev = cnow;
 		}
 		break;
-	case TIOCGICOUNT:
-		dbg("%s - (%d) TIOCGICOUNT RX=%d, TX=%d",
-				__func__, port->number,
-				tport->tp_icount.rx, tport->tp_icount.tx);
-		if (copy_to_user((void __user *)arg, &tport->tp_icount,
-					sizeof(tport->tp_icount)))
-			return -EFAULT;
-		return 0;
 	}
 	return -ENOIOCTLCMD;
 }
@@ -979,7 +1000,7 @@ static void ti_set_termios(struct tty_struct *tty,
 }
 
 
-static int ti_tiocmget(struct tty_struct *tty, struct file *file)
+static int ti_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ti_port *tport = usb_get_serial_port_data(port);
@@ -1012,8 +1033,8 @@ static int ti_tiocmget(struct tty_struct *tty, struct file *file)
 }
 
 
-static int ti_tiocmset(struct tty_struct *tty, struct file *file,
-	unsigned int set, unsigned int clear)
+static int ti_tiocmset(struct tty_struct *tty,
+				unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ti_port *tport = usb_get_serial_port_data(port);
@@ -1724,6 +1745,7 @@ static int ti_download_firmware(struct ti_device *tdev)
 	}
 	if (fw_p->size > TI_FIRMWARE_BUF_SIZE) {
 		dev_err(&dev->dev, "%s - firmware too large %zu\n", __func__, fw_p->size);
+		release_firmware(fw_p);
 		return -ENOENT;
 	}
 

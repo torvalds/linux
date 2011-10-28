@@ -38,7 +38,7 @@ static int girbil_change_speed(struct sir_dev *dev, unsigned speed);
 /* Control register 1 */
 #define GIRBIL_TXEN    0x01 /* Enable transmitter */
 #define GIRBIL_RXEN    0x02 /* Enable receiver */
-#define GIRBIL_ECAN    0x04 /* Cancel self emmited data */
+#define GIRBIL_ECAN    0x04 /* Cancel self emitted data */
 #define GIRBIL_ECHO    0x08 /* Echo control characters */
 
 /* LED Current Register (0x2) */

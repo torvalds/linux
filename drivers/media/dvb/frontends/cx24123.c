@@ -949,7 +949,7 @@ static int cx24123_set_frontend(struct dvb_frontend *fe,
 	else
 		err("it seems I don't have a tuner...");
 
-	/* Enable automatic aquisition and reset cycle */
+	/* Enable automatic acquisition and reset cycle */
 	cx24123_writereg(state, 0x03, (cx24123_readreg(state, 0x03) | 0x07));
 	cx24123_writereg(state, 0x00, 0x10);
 	cx24123_writereg(state, 0x00, 0);
@@ -1108,7 +1108,6 @@ struct dvb_frontend *cx24123_attach(const struct cx24123_config *config,
 
 	strlcpy(state->tuner_i2c_adapter.name, "CX24123 tuner I2C bus",
 		sizeof(state->tuner_i2c_adapter.name));
-	state->tuner_i2c_adapter.class     = I2C_CLASS_TV_DIGITAL,
 	state->tuner_i2c_adapter.algo      = &cx24123_tuner_i2c_algo;
 	state->tuner_i2c_adapter.algo_data = NULL;
 	i2c_set_adapdata(&state->tuner_i2c_adapter, state);

@@ -294,37 +294,45 @@ void zconf_initscan(const char *name)
 
 	current_file = file_lookup(name);
 	current_file->lineno = 1;
-	current_file->flags = FILE_BUSY;
 }
 
 void zconf_nextfile(const char *name)
 {
+	struct file *iter;
 	struct file *file = file_lookup(name);
 	struct buffer *buf = malloc(sizeof(*buf));
 	memset(buf, 0, sizeof(*buf));
 
 	current_buf->state = YY_CURRENT_BUFFER;
-	yyin = zconf_fopen(name);
+	yyin = zconf_fopen(file->name);
 	if (!yyin) {
-		printf("%s:%d: can't open file \"%s\"\n", zconf_curname(), zconf_lineno(), name);
+		printf("%s:%d: can't open file \"%s\"\n",
+		    zconf_curname(), zconf_lineno(), file->name);
 		exit(1);
 	}
 	yy_switch_to_buffer(yy_create_buffer(yyin, YY_BUF_SIZE));
 	buf->parent = current_buf;
 	current_buf = buf;
 
-	if (file->flags & FILE_BUSY) {
-		printf("%s:%d: do not source '%s' from itself\n",
-		       zconf_curname(), zconf_lineno(), name);
-		exit(1);
+	for (iter = current_file->parent; iter; iter = iter->parent ) {
+		if (!strcmp(current_file->name,iter->name) ) {
+			printf("%s:%d: recursive inclusion detected. "
+			       "Inclusion path:\n  current file : '%s'\n",
+			       zconf_curname(), zconf_lineno(),
+			       zconf_curname());
+			iter = current_file->parent;
+			while (iter && \
+			       strcmp(iter->name,current_file->name)) {
+				printf("  included from: '%s:%d'\n",
+				       iter->name, iter->lineno-1);
+				iter = iter->parent;
+			}
+			if (iter)
+				printf("  included from: '%s:%d'\n",
+				       iter->name, iter->lineno+1);
+			exit(1);
+		}
 	}
-	if (file->flags & FILE_SCANNED) {
-		printf("%s:%d: file '%s' is already sourced from '%s'\n",
-		       zconf_curname(), zconf_lineno(), name,
-		       file->parent->name);
-		exit(1);
-	}
-	file->flags |= FILE_BUSY;
 	file->lineno = 1;
 	file->parent = current_file;
 	current_file = file;
@@ -334,8 +342,6 @@ static void zconf_endfile(void)
 {
 	struct buffer *parent;
 
-	current_file->flags |= FILE_SCANNED;
-	current_file->flags &= ~FILE_BUSY;
 	current_file = current_file->parent;
 
 	parent = current_buf->parent;
@@ -353,7 +359,7 @@ int zconf_lineno(void)
 	return current_pos.lineno;
 }
 
-char *zconf_curname(void)
+const char *zconf_curname(void)
 {
 	return current_pos.file ? current_pos.file->name : "<none>";
 }

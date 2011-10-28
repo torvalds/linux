@@ -539,7 +539,8 @@ out:
 }
 
 static const struct file_operations ofdt_fops = {
-	.write = ofdt_write
+	.write = ofdt_write,
+	.llseek = noop_llseek,
 };
 
 /* create /proc/powerpc/ofdt write-only by root */

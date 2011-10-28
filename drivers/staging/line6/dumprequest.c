@@ -1,7 +1,7 @@
 /*
- * Line6 Linux USB driver - 0.8.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
- * Copyright (C) 2004-2009 Markus Grabner (grabner@icg.tugraz.at)
+ * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -9,12 +9,10 @@
  *
  */
 
-#include "driver.h"
-
 #include <linux/slab.h>
 
+#include "driver.h"
 #include "dumprequest.h"
-
 
 /*
 	Set "dump in progress" flag.
@@ -39,17 +37,17 @@ void line6_invalidate_current(struct line6_dump_request *l6dr)
 void line6_dump_finished(struct line6_dump_request *l6dr)
 {
 	l6dr->in_progress = LINE6_DUMP_NONE;
-	wake_up_interruptible(&l6dr->wait);
+	wake_up(&l6dr->wait);
 }
 
 /*
 	Send an asynchronous channel dump request.
 */
 int line6_dump_request_async(struct line6_dump_request *l6dr,
-			     struct usb_line6 *line6, int num)
+			     struct usb_line6 *line6, int num, int dest)
 {
 	int ret;
-	line6_invalidate_current(l6dr);
+	line6_dump_started(l6dr, dest);
 	ret = line6_send_raw_message_async(line6, l6dr->reqbufs[num].buffer,
 					   l6dr->reqbufs[num].length);
 
@@ -60,43 +58,30 @@ int line6_dump_request_async(struct line6_dump_request *l6dr,
 }
 
 /*
-	Send an asynchronous dump request after a given interval.
+	Wait for completion (interruptible).
 */
-void line6_startup_delayed(struct line6_dump_request *l6dr, int seconds,
-			   void (*function)(unsigned long), void *data)
+int line6_dump_wait_interruptible(struct line6_dump_request *l6dr)
 {
-	l6dr->timer.expires = jiffies + seconds * HZ;
-	l6dr->timer.function = function;
-	l6dr->timer.data = (unsigned long)data;
-	add_timer(&l6dr->timer);
+	return wait_event_interruptible(l6dr->wait,
+					l6dr->in_progress == LINE6_DUMP_NONE);
 }
 
 /*
 	Wait for completion.
 */
-int line6_wait_dump(struct line6_dump_request *l6dr, int nonblock)
+void line6_dump_wait(struct line6_dump_request *l6dr)
 {
-	int retval = 0;
-	DECLARE_WAITQUEUE(wait, current);
-	add_wait_queue(&l6dr->wait, &wait);
-	current->state = TASK_INTERRUPTIBLE;
+	wait_event(l6dr->wait, l6dr->in_progress == LINE6_DUMP_NONE);
+}
 
-	while (l6dr->in_progress) {
-		if (nonblock) {
-			retval = -EAGAIN;
-			break;
-		}
-
-		if (signal_pending(current)) {
-			retval = -ERESTARTSYS;
-			break;
-		} else
-			schedule();
-	}
-
-	current->state = TASK_RUNNING;
-	remove_wait_queue(&l6dr->wait, &wait);
-	return retval;
+/*
+	Wait for completion (with timeout).
+*/
+int line6_dump_wait_timeout(struct line6_dump_request *l6dr, long timeout)
+{
+	return wait_event_timeout(l6dr->wait,
+				  l6dr->in_progress == LINE6_DUMP_NONE,
+				  timeout);
 }
 
 /*
@@ -123,7 +108,6 @@ int line6_dumpreq_init(struct line6_dump_request *l6dr, const void *buf,
 	if (ret < 0)
 		return ret;
 	init_waitqueue_head(&l6dr->wait);
-	init_timer(&l6dr->timer);
 	return 0;
 }
 
@@ -148,6 +132,4 @@ void line6_dumpreq_destruct(struct line6_dump_request *l6dr)
 	if (l6dr->reqbufs[0].buffer == NULL)
 		return;
 	line6_dumpreq_destructbuf(l6dr, 0);
-	l6dr->ok = 1;
-	del_timer_sync(&l6dr->timer);
 }

@@ -41,6 +41,7 @@
 #include <linux/ppp-comp.h>
 
 #include <linux/zlib.h>
+#include <asm/unaligned.h>
 
 /*
  * State for a Deflate (de)compressor.
@@ -128,7 +129,7 @@ static void *z_comp_alloc(unsigned char *options, int opt_len)
 
 	state->strm.next_in   = NULL;
 	state->w_size         = w_size;
-	state->strm.workspace = vmalloc(zlib_deflate_workspacesize());
+	state->strm.workspace = vmalloc(zlib_deflate_workspacesize(-w_size, 8));
 	if (state->strm.workspace == NULL)
 		goto out_free;
 
@@ -232,11 +233,9 @@ static int z_compress(void *arg, unsigned char *rptr, unsigned char *obuf,
 	 */
 	wptr[0] = PPP_ADDRESS(rptr);
 	wptr[1] = PPP_CONTROL(rptr);
-	wptr[2] = PPP_COMP >> 8;
-	wptr[3] = PPP_COMP;
+	put_unaligned_be16(PPP_COMP, wptr + 2);
 	wptr += PPP_HDRLEN;
-	wptr[0] = state->seqno >> 8;
-	wptr[1] = state->seqno;
+	put_unaligned_be16(state->seqno, wptr);
 	wptr += DEFLATE_OVHD;
 	olen = PPP_HDRLEN + DEFLATE_OVHD;
 	state->strm.next_out = wptr;
@@ -306,7 +305,7 @@ static void z_decomp_free(void *arg)
 
 	if (state) {
 		zlib_inflateEnd(&state->strm);
-		kfree(state->strm.workspace);
+		vfree(state->strm.workspace);
 		kfree(state);
 	}
 }
@@ -346,8 +345,7 @@ static void *z_decomp_alloc(unsigned char *options, int opt_len)
 
 	state->w_size         = w_size;
 	state->strm.next_out  = NULL;
-	state->strm.workspace = kmalloc(zlib_inflate_workspacesize(),
-					GFP_KERNEL|__GFP_REPEAT);
+	state->strm.workspace = vmalloc(zlib_inflate_workspacesize());
 	if (state->strm.workspace == NULL)
 		goto out_free;
 
@@ -451,7 +449,7 @@ static int z_decompress(void *arg, unsigned char *ibuf, int isize,
 	}
 
 	/* Check the sequence number. */
-	seq = (ibuf[PPP_HDRLEN] << 8) + ibuf[PPP_HDRLEN+1];
+	seq = get_unaligned_be16(ibuf + PPP_HDRLEN);
 	if (seq != (state->seqno & 0xffff)) {
 		if (state->debug)
 			printk(KERN_DEBUG "z_decompress%d: bad seq # %d, expected %d\n",

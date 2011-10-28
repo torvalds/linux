@@ -32,9 +32,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #endif
-#ifdef CONFIG_ACPI_SYSFS_POWER
 #include <linux/power_supply.h>
-#endif
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
@@ -86,9 +84,7 @@ static struct acpi_driver acpi_ac_driver = {
 };
 
 struct acpi_ac {
-#ifdef CONFIG_ACPI_SYSFS_POWER
 	struct power_supply charger;
-#endif
 	struct acpi_device * device;
 	unsigned long long state;
 };
@@ -104,26 +100,7 @@ static const struct file_operations acpi_ac_fops = {
 	.release = single_release,
 };
 #endif
-#ifdef CONFIG_ACPI_SYSFS_POWER
-static int get_ac_property(struct power_supply *psy,
-			   enum power_supply_property psp,
-			   union power_supply_propval *val)
-{
-	struct acpi_ac *ac = to_acpi_ac(psy);
-	switch (psp) {
-	case POWER_SUPPLY_PROP_ONLINE:
-		val->intval = ac->state;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
 
-static enum power_supply_property ac_props[] = {
-	POWER_SUPPLY_PROP_ONLINE,
-};
-#endif
 /* --------------------------------------------------------------------------
                                AC Adapter Management
    -------------------------------------------------------------------------- */
@@ -145,6 +122,35 @@ static int acpi_ac_get_state(struct acpi_ac *ac)
 
 	return 0;
 }
+
+/* --------------------------------------------------------------------------
+                            sysfs I/F
+   -------------------------------------------------------------------------- */
+static int get_ac_property(struct power_supply *psy,
+			   enum power_supply_property psp,
+			   union power_supply_propval *val)
+{
+	struct acpi_ac *ac = to_acpi_ac(psy);
+
+	if (!ac)
+		return -ENODEV;
+
+	if (acpi_ac_get_state(ac))
+		return -ENODEV;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = ac->state;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static enum power_supply_property ac_props[] = {
+	POWER_SUPPLY_PROP_ONLINE,
+};
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
 /* --------------------------------------------------------------------------
@@ -191,7 +197,8 @@ static int acpi_ac_add_fs(struct acpi_device *device)
 {
 	struct proc_dir_entry *entry = NULL;
 
-
+	printk(KERN_WARNING PREFIX "Deprecated procfs I/F for AC is loaded,"
+			" please retry with CONFIG_ACPI_PROCFS_POWER cleared\n");
 	if (!acpi_device_dir(device)) {
 		acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device),
 						     acpi_ac_dir);
@@ -247,9 +254,7 @@ static void acpi_ac_notify(struct acpi_device *device, u32 event)
 						  dev_name(&device->dev), event,
 						  (u32) ac->state);
 		acpi_notifier_call_chain(device, event, (u32) ac->state);
-#ifdef CONFIG_ACPI_SYSFS_POWER
 		kobject_uevent(&ac->charger.dev->kobj, KOBJ_CHANGE);
-#endif
 	}
 
 	return;
@@ -282,14 +287,12 @@ static int acpi_ac_add(struct acpi_device *device)
 #endif
 	if (result)
 		goto end;
-#ifdef CONFIG_ACPI_SYSFS_POWER
 	ac->charger.name = acpi_device_bid(device);
 	ac->charger.type = POWER_SUPPLY_TYPE_MAINS;
 	ac->charger.properties = ac_props;
 	ac->charger.num_properties = ARRAY_SIZE(ac_props);
 	ac->charger.get_property = get_ac_property;
 	power_supply_register(&ac->device->dev, &ac->charger);
-#endif
 
 	printk(KERN_INFO PREFIX "%s [%s] (%s)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
@@ -316,10 +319,8 @@ static int acpi_ac_resume(struct acpi_device *device)
 	old_state = ac->state;
 	if (acpi_ac_get_state(ac))
 		return 0;
-#ifdef CONFIG_ACPI_SYSFS_POWER
 	if (old_state != ac->state)
 		kobject_uevent(&ac->charger.dev->kobj, KOBJ_CHANGE);
-#endif
 	return 0;
 }
 
@@ -333,10 +334,8 @@ static int acpi_ac_remove(struct acpi_device *device, int type)
 
 	ac = acpi_driver_data(device);
 
-#ifdef CONFIG_ACPI_SYSFS_POWER
 	if (ac->charger.dev)
 		power_supply_unregister(&ac->charger);
-#endif
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_ac_remove_fs(device);
 #endif

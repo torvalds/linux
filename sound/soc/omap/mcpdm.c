@@ -402,7 +402,7 @@ int omap_mcpdm_set_offset(int offset1, int offset2)
 	return 0;
 }
 
-static int __devinit omap_mcpdm_probe(struct platform_device *pdev)
+int __devinit omap_mcpdm_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int ret = 0;
@@ -449,7 +449,7 @@ exit:
 	return ret;
 }
 
-static int __devexit omap_mcpdm_remove(struct platform_device *pdev)
+int __devexit omap_mcpdm_remove(struct platform_device *pdev)
 {
 	struct omap_mcpdm *mcpdm_ptr = platform_get_drvdata(pdev);
 
@@ -468,18 +468,3 @@ static int __devexit omap_mcpdm_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver omap_mcpdm_driver = {
-	.probe = omap_mcpdm_probe,
-	.remove = __devexit_p(omap_mcpdm_remove),
-	.driver = {
-		.name = "omap-mcpdm",
-	},
-};
-
-static struct platform_device *omap_mcpdm_device;
-
-static int __init omap_mcpdm_init(void)
-{
-	return platform_driver_register(&omap_mcpdm_driver);
-}
-arch_initcall(omap_mcpdm_init);

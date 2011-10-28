@@ -61,6 +61,7 @@
 #include "mixer.h"
 #include "helper.h"
 #include "mixer_quirks.h"
+#include "power.h"
 
 #define MAX_ID_ELEMS	256
 
@@ -85,17 +86,7 @@ struct mixer_build {
 	const struct usbmix_selector_map *selector_map;
 };
 
-enum {
-	USB_MIXER_BOOLEAN,
-	USB_MIXER_INV_BOOLEAN,
-	USB_MIXER_S8,
-	USB_MIXER_U8,
-	USB_MIXER_S16,
-	USB_MIXER_U16,
-};
-
-
-/*E-mu 0202(0404) eXtension Unit(XU) control*/
+/*E-mu 0202/0404/0204 eXtension Unit(XU) control*/
 enum {
 	USB_XU_CLOCK_RATE 		= 0xe301,
 	USB_XU_CLOCK_SOURCE		= 0xe302,
@@ -295,16 +286,22 @@ static int get_ctl_value_v1(struct usb_mixer_elem_info *cval, int request, int v
 	unsigned char buf[2];
 	int val_len = cval->val_type >= USB_MIXER_S16 ? 2 : 1;
 	int timeout = 10;
+	int err;
 
+	err = snd_usb_autoresume(cval->mixer->chip);
+	if (err < 0)
+		return -EIO;
 	while (timeout-- > 0) {
 		if (snd_usb_ctl_msg(chip->dev, usb_rcvctrlpipe(chip->dev, 0), request,
 				    USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
 				    validx, snd_usb_ctrl_intf(chip) | (cval->id << 8),
 				    buf, val_len, 100) >= val_len) {
 			*value_ret = convert_signed_value(cval, snd_usb_combine_bytes(buf, val_len));
+			snd_usb_autosuspend(cval->mixer->chip);
 			return 0;
 		}
 	}
+	snd_usb_autosuspend(cval->mixer->chip);
 	snd_printdd(KERN_ERR "cannot get ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d\n",
 		    request, validx, snd_usb_ctrl_intf(chip) | (cval->id << 8), cval->val_type);
 	return -EINVAL;
@@ -328,12 +325,18 @@ static int get_ctl_value_v2(struct usb_mixer_elem_info *cval, int request, int v
 
 	memset(buf, 0, sizeof(buf));
 
+	ret = snd_usb_autoresume(chip) ? -EIO : 0;
+	if (ret)
+		goto error;
+
 	ret = snd_usb_ctl_msg(chip->dev, usb_rcvctrlpipe(chip->dev, 0), bRequest,
 			      USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
 			      validx, snd_usb_ctrl_intf(chip) | (cval->id << 8),
 			      buf, size, 1000);
+	snd_usb_autosuspend(chip);
 
 	if (ret < 0) {
+error:
 		snd_printk(KERN_ERR "cannot get ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d\n",
 			   request, validx, snd_usb_ctrl_intf(chip) | (cval->id << 8), cval->val_type);
 		return ret;
@@ -413,7 +416,7 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 {
 	struct snd_usb_audio *chip = cval->mixer->chip;
 	unsigned char buf[2];
-	int val_len, timeout = 10;
+	int val_len, err, timeout = 10;
 
 	if (cval->mixer->protocol == UAC_VERSION_1) {
 		val_len = cval->val_type >= USB_MIXER_S16 ? 2 : 1;
@@ -433,13 +436,19 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 	value_set = convert_bytes_value(cval, value_set);
 	buf[0] = value_set & 0xff;
 	buf[1] = (value_set >> 8) & 0xff;
+	err = snd_usb_autoresume(chip);
+	if (err < 0)
+		return -EIO;
 	while (timeout-- > 0)
 		if (snd_usb_ctl_msg(chip->dev,
 				    usb_sndctrlpipe(chip->dev, 0), request,
 				    USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
 				    validx, snd_usb_ctrl_intf(chip) | (cval->id << 8),
-				    buf, val_len, 100) >= 0)
+				    buf, val_len, 100) >= 0) {
+			snd_usb_autosuspend(chip);
 			return 0;
+		}
+	snd_usb_autosuspend(chip);
 	snd_printdd(KERN_ERR "cannot set ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d, data = %#x/%#x\n",
 		    request, validx, snd_usb_ctrl_intf(chip) | (cval->id << 8), cval->val_type, buf[0], buf[1]);
 	return -EINVAL;
@@ -516,20 +525,21 @@ static int check_matrix_bitmap(unsigned char *bmap, int ich, int och, int num_ou
  * if failed, give up and free the control instance.
  */
 
-static int add_control_to_empty(struct mixer_build *state, struct snd_kcontrol *kctl)
+int snd_usb_mixer_add_control(struct usb_mixer_interface *mixer,
+			      struct snd_kcontrol *kctl)
 {
 	struct usb_mixer_elem_info *cval = kctl->private_data;
 	int err;
 
-	while (snd_ctl_find_id(state->chip->card, &kctl->id))
+	while (snd_ctl_find_id(mixer->chip->card, &kctl->id))
 		kctl->id.index++;
-	if ((err = snd_ctl_add(state->chip->card, kctl)) < 0) {
+	if ((err = snd_ctl_add(mixer->chip->card, kctl)) < 0) {
 		snd_printd(KERN_ERR "cannot add control (err = %d)\n", err);
 		return err;
 	}
 	cval->elem_id = &kctl->id;
-	cval->next_id_elem = state->mixer->id_elems[cval->id];
-	state->mixer->id_elems[cval->id] = cval;
+	cval->next_id_elem = mixer->id_elems[cval->id];
+	mixer->id_elems[cval->id] = cval;
 	return 0;
 }
 
@@ -759,8 +769,6 @@ static void usb_mixer_elem_free(struct snd_kcontrol *kctl)
  */
 static int get_min_max(struct usb_mixer_elem_info *cval, int default_min)
 {
-	struct snd_usb_audio *chip = cval->mixer->chip;
-
 	/* for failsafe */
 	cval->min = default_min;
 	cval->max = cval->min + 1;
@@ -783,7 +791,7 @@ static int get_min_max(struct usb_mixer_elem_info *cval, int default_min)
 		if (get_ctl_value(cval, UAC_GET_MAX, (cval->control << 8) | minchn, &cval->max) < 0 ||
 		    get_ctl_value(cval, UAC_GET_MIN, (cval->control << 8) | minchn, &cval->min) < 0) {
 			snd_printd(KERN_ERR "%d:%d: cannot get min/max values for control %d (id %d)\n",
-				   cval->id, snd_usb_ctrl_intf(chip), cval->control, cval->id);
+				   cval->id, snd_usb_ctrl_intf(cval->mixer->chip), cval->control, cval->id);
 			return -EINVAL;
 		}
 		if (get_ctl_value(cval, UAC_GET_RES, (cval->control << 8) | minchn, &cval->res) < 0) {
@@ -967,6 +975,9 @@ static struct snd_kcontrol_new usb_feature_unit_ctl_ro = {
 	.put = NULL,
 };
 
+/* This symbol is exported in order to allow the mixer quirks to
+ * hook up to the standard feature unit control mechanism */
+struct snd_kcontrol_new *snd_usb_feature_unit_ctl = &usb_feature_unit_ctl;
 
 /*
  * build a feature control
@@ -989,6 +1000,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 	struct snd_kcontrol *kctl;
 	struct usb_mixer_elem_info *cval;
 	const struct usbmix_name_map *map;
+	unsigned int range;
 
 	control++; /* change from zero-based to 1-based value */
 
@@ -1079,11 +1091,13 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		append_ctl_name(kctl, control == UAC_FU_MUTE ?
 				" Switch" : " Volume");
 		if (control == UAC_FU_VOLUME) {
-			kctl->tlv.c = mixer_vol_tlv;
-			kctl->vd[0].access |= 
-				SNDRV_CTL_ELEM_ACCESS_TLV_READ |
-				SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
 			check_mapped_dB(map, cval);
+			if (cval->dBmin < cval->dBmax) {
+				kctl->tlv.c = mixer_vol_tlv;
+				kctl->vd[0].access |= 
+					SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+					SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+			}
 		}
 		break;
 
@@ -1123,6 +1137,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		}
 		break;
 
+	case USB_ID(0x046d, 0x0808):
 	case USB_ID(0x046d, 0x0809):
 	case USB_ID(0x046d, 0x0991):
 	/* Most audio usb devices lie about volume resolution.
@@ -1138,9 +1153,24 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 
 	}
 
+	range = (cval->max - cval->min) / cval->res;
+	/* Are there devices with volume range more than 255? I use a bit more
+	 * to be sure. 384 is a resolution magic number found on Logitech
+	 * devices. It will definitively catch all buggy Logitech devices.
+	 */
+	if (range > 384) {
+		snd_printk(KERN_WARNING "usb_audio: Warning! Unlikely big "
+			   "volume range (=%u), cval->res is probably wrong.",
+			   range);
+		snd_printk(KERN_WARNING "usb_audio: [%d] FU [%s] ch = %d, "
+			   "val = %d/%d/%d", cval->id,
+			   kctl->id.name, cval->channels,
+			   cval->min, cval->max, cval->res);
+	}
+
 	snd_printdd(KERN_INFO "[%d] FU [%s] ch = %d, val = %d/%d/%d\n",
 		    cval->id, kctl->id.name, cval->channels, cval->min, cval->max, cval->res);
-	add_control_to_empty(state, kctl);
+	snd_usb_mixer_add_control(state->mixer, kctl);
 }
 
 
@@ -1148,7 +1178,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 /*
  * parse a feature unit
  *
- * most of controlls are defined here.
+ * most of controls are defined here.
  */
 static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void *_ftr)
 {
@@ -1304,7 +1334,7 @@ static void build_mixer_unit_ctl(struct mixer_build *state,
 
 	snd_printdd(KERN_INFO "[%d] MU [%s] ch = %d, val = %d/%d\n",
 		    cval->id, kctl->id.name, cval->channels, cval->min, cval->max);
-	add_control_to_empty(state, kctl);
+	snd_usb_mixer_add_control(state->mixer, kctl);
 }
 
 
@@ -1568,7 +1598,7 @@ static int build_audio_procunit(struct mixer_build *state, int unitid, void *raw
 			cval->initialized = 1;
 		} else {
 			if (type == USB_XU_CLOCK_RATE) {
-				/* E-Mu USB 0404/0202/TrackerPre
+				/* E-Mu USB 0404/0202/TrackerPre/0204
 				 * samplerate control quirk
 				 */
 				cval->min = 0;
@@ -1605,7 +1635,7 @@ static int build_audio_procunit(struct mixer_build *state, int unitid, void *raw
 
 		snd_printdd(KERN_INFO "[%d] PU [%s] ch = %d, val = %d/%d\n",
 			    cval->id, kctl->id.name, cval->channels, cval->min, cval->max);
-		if ((err = add_control_to_empty(state, kctl)) < 0)
+		if ((err = snd_usb_mixer_add_control(state->mixer, kctl)) < 0)
 			return err;
 	}
 	return 0;
@@ -1635,17 +1665,11 @@ static int parse_audio_extension_unit(struct mixer_build *state, int unitid, voi
 static int mixer_ctl_selector_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct usb_mixer_elem_info *cval = kcontrol->private_data;
-	char **itemlist = (char **)kcontrol->private_value;
+	const char **itemlist = (const char **)kcontrol->private_value;
 
 	if (snd_BUG_ON(!itemlist))
 		return -EINVAL;
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = cval->max;
-	if ((int)uinfo->value.enumerated.item >= cval->max)
-		uinfo->value.enumerated.item = cval->max - 1;
-	strcpy(uinfo->value.enumerated.name, itemlist[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, cval->max, itemlist);
 }
 
 /* get callback for selector unit */
@@ -1828,7 +1852,7 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid, void
 
 	snd_printdd(KERN_INFO "[%d] SU [%s] items = %d\n",
 		    cval->id, kctl->id.name, desc->bNrInPins);
-	if ((err = add_control_to_empty(state, kctl)) < 0)
+	if ((err = snd_usb_mixer_add_control(state->mixer, kctl)) < 0)
 		return err;
 
 	return 0;
@@ -2066,8 +2090,9 @@ static void snd_usb_mixer_interrupt(struct urb *urb)
 {
 	struct usb_mixer_interface *mixer = urb->context;
 	int len = urb->actual_length;
+	int ustatus = urb->status;
 
-	if (urb->status != 0)
+	if (ustatus != 0)
 		goto requeue;
 
 	if (mixer->protocol == UAC_VERSION_1) {
@@ -2108,10 +2133,30 @@ static void snd_usb_mixer_interrupt(struct urb *urb)
 	}
 
 requeue:
-	if (urb->status != -ENOENT && urb->status != -ECONNRESET) {
+	if (ustatus != -ENOENT && ustatus != -ECONNRESET && ustatus != -ESHUTDOWN) {
 		urb->dev = mixer->chip->dev;
 		usb_submit_urb(urb, GFP_ATOMIC);
 	}
+}
+
+/* stop any bus activity of a mixer */
+void snd_usb_mixer_inactivate(struct usb_mixer_interface *mixer)
+{
+	usb_kill_urb(mixer->urb);
+	usb_kill_urb(mixer->rc_urb);
+}
+
+int snd_usb_mixer_activate(struct usb_mixer_interface *mixer)
+{
+	int err;
+
+	if (mixer->urb) {
+		err = usb_submit_urb(mixer->urb, GFP_NOIO);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
 /* create the handler for the optional status interrupt endpoint */

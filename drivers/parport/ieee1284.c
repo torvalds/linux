@@ -355,7 +355,7 @@ int parport_negotiate (struct parport *port, int mode)
 		return 0;
 	}
 
-	/* Go to compability forward idle mode */
+	/* Go to compatibility forward idle mode */
 	if (port->ieee1284.mode != IEEE1284_MODE_COMPAT)
 		parport_ieee1284_terminate (port);
 

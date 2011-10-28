@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009 Advanced Micro Devices, Inc.
+ * Copyright (C) 2007-2010 Advanced Micro Devices, Inc.
  * Author: Joerg Roedel <joerg.roedel@amd.com>
  *         Leo Duran <leo.duran@amd.com>
  *
@@ -24,11 +24,11 @@
 
 #ifdef CONFIG_AMD_IOMMU
 
-extern void amd_iommu_detect(void);
+extern int amd_iommu_detect(void);
 
 #else
 
-static inline void amd_iommu_detect(void) { }
+static inline int amd_iommu_detect(void) { return -ENODEV; }
 
 #endif
 

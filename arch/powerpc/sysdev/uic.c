@@ -41,8 +41,6 @@
 #define UIC_VR		0x7
 #define UIC_VCR		0x8
 
-#define uic_irq_to_hw(virq)	(irq_map[virq].hwirq)
-
 struct uic *primary_uic;
 
 struct uic {
@@ -55,18 +53,17 @@ struct uic {
 	struct irq_host	*irqhost;
 };
 
-static void uic_unmask_irq(unsigned int virq)
+static void uic_unmask_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(virq);
-	struct uic *uic = get_irq_chip_data(virq);
-	unsigned int src = uic_irq_to_hw(virq);
+	struct uic *uic = irq_data_get_irq_chip_data(d);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 er, sr;
 
 	sr = 1 << (31-src);
 	spin_lock_irqsave(&uic->lock, flags);
 	/* ack level-triggered interrupts here */
-	if (desc->status & IRQ_LEVEL)
+	if (irqd_is_level_type(d))
 		mtdcr(uic->dcrbase + UIC_SR, sr);
 	er = mfdcr(uic->dcrbase + UIC_ER);
 	er |= sr;
@@ -74,10 +71,10 @@ static void uic_unmask_irq(unsigned int virq)
 	spin_unlock_irqrestore(&uic->lock, flags);
 }
 
-static void uic_mask_irq(unsigned int virq)
+static void uic_mask_irq(struct irq_data *d)
 {
-	struct uic *uic = get_irq_chip_data(virq);
-	unsigned int src = uic_irq_to_hw(virq);
+	struct uic *uic = irq_data_get_irq_chip_data(d);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 er;
 
@@ -88,10 +85,10 @@ static void uic_mask_irq(unsigned int virq)
 	spin_unlock_irqrestore(&uic->lock, flags);
 }
 
-static void uic_ack_irq(unsigned int virq)
+static void uic_ack_irq(struct irq_data *d)
 {
-	struct uic *uic = get_irq_chip_data(virq);
-	unsigned int src = uic_irq_to_hw(virq);
+	struct uic *uic = irq_data_get_irq_chip_data(d);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 
 	spin_lock_irqsave(&uic->lock, flags);
@@ -99,11 +96,10 @@ static void uic_ack_irq(unsigned int virq)
 	spin_unlock_irqrestore(&uic->lock, flags);
 }
 
-static void uic_mask_ack_irq(unsigned int virq)
+static void uic_mask_ack_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(virq);
-	struct uic *uic = get_irq_chip_data(virq);
-	unsigned int src = uic_irq_to_hw(virq);
+	struct uic *uic = irq_data_get_irq_chip_data(d);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 er, sr;
 
@@ -120,23 +116,22 @@ static void uic_mask_ack_irq(unsigned int virq)
 	 * level interrupts are ack'ed after the actual
 	 * isr call in the uic_unmask_irq()
 	 */
-	if (!(desc->status & IRQ_LEVEL))
+	if (!irqd_is_level_type(d))
 		mtdcr(uic->dcrbase + UIC_SR, sr);
 	spin_unlock_irqrestore(&uic->lock, flags);
 }
 
-static int uic_set_irq_type(unsigned int virq, unsigned int flow_type)
+static int uic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
-	struct uic *uic = get_irq_chip_data(virq);
-	unsigned int src = uic_irq_to_hw(virq);
-	struct irq_desc *desc = irq_to_desc(virq);
+	struct uic *uic = irq_data_get_irq_chip_data(d);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	int trigger, polarity;
 	u32 tr, pr, mask;
 
 	switch (flow_type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_NONE:
-		uic_mask_irq(virq);
+		uic_mask_irq(d);
 		return 0;
 
 	case IRQ_TYPE_EDGE_RISING:
@@ -166,11 +161,6 @@ static int uic_set_irq_type(unsigned int virq, unsigned int flow_type)
 	mtdcr(uic->dcrbase + UIC_PR, pr);
 	mtdcr(uic->dcrbase + UIC_TR, tr);
 
-	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
-	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
-	if (!trigger)
-		desc->status |= IRQ_LEVEL;
-
 	spin_unlock_irqrestore(&uic->lock, flags);
 
 	return 0;
@@ -178,11 +168,11 @@ static int uic_set_irq_type(unsigned int virq, unsigned int flow_type)
 
 static struct irq_chip uic_irq_chip = {
 	.name		= "UIC",
-	.unmask		= uic_unmask_irq,
-	.mask		= uic_mask_irq,
- 	.mask_ack	= uic_mask_ack_irq,
-	.ack		= uic_ack_irq,
-	.set_type	= uic_set_irq_type,
+	.irq_unmask	= uic_unmask_irq,
+	.irq_mask	= uic_mask_irq,
+	.irq_mask_ack	= uic_mask_ack_irq,
+	.irq_ack	= uic_ack_irq,
+	.irq_set_type	= uic_set_irq_type,
 };
 
 static int uic_host_map(struct irq_host *h, unsigned int virq,
@@ -190,13 +180,13 @@ static int uic_host_map(struct irq_host *h, unsigned int virq,
 {
 	struct uic *uic = h->host_data;
 
-	set_irq_chip_data(virq, uic);
+	irq_set_chip_data(virq, uic);
 	/* Despite the name, handle_level_irq() works for both level
 	 * and edge irqs on UIC.  FIXME: check this is correct */
-	set_irq_chip_and_handler(virq, &uic_irq_chip, handle_level_irq);
+	irq_set_chip_and_handler(virq, &uic_irq_chip, handle_level_irq);
 
 	/* Set default irq type */
-	set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_irq_type(virq, IRQ_TYPE_NONE);
 
 	return 0;
 }
@@ -220,16 +210,18 @@ static struct irq_host_ops uic_host_ops = {
 
 void uic_irq_cascade(unsigned int virq, struct irq_desc *desc)
 {
-	struct uic *uic = get_irq_data(virq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct irq_data *idata = irq_desc_get_irq_data(desc);
+	struct uic *uic = irq_get_handler_data(virq);
 	u32 msr;
 	int src;
 	int subvirq;
 
 	raw_spin_lock(&desc->lock);
-	if (desc->status & IRQ_LEVEL)
-		desc->chip->mask(virq);
+	if (irqd_is_level_type(idata))
+		chip->irq_mask(idata);
 	else
-		desc->chip->mask_ack(virq);
+		chip->irq_mask_ack(idata);
 	raw_spin_unlock(&desc->lock);
 
 	msr = mfdcr(uic->dcrbase + UIC_MSR);
@@ -243,10 +235,10 @@ void uic_irq_cascade(unsigned int virq, struct irq_desc *desc)
 
 uic_irq_ret:
 	raw_spin_lock(&desc->lock);
-	if (desc->status & IRQ_LEVEL)
-		desc->chip->ack(virq);
-	if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
-		desc->chip->unmask(virq);
+	if (irqd_is_level_type(idata))
+		chip->irq_ack(idata);
+	if (!irqd_irq_disabled(idata) && chip->irq_unmask)
+		chip->irq_unmask(idata);
 	raw_spin_unlock(&desc->lock);
 }
 
@@ -335,8 +327,8 @@ void __init uic_init_tree(void)
 
 			cascade_virq = irq_of_parse_and_map(np, 0);
 
-			set_irq_data(cascade_virq, uic);
-			set_irq_chained_handler(cascade_virq, uic_irq_cascade);
+			irq_set_handler_data(cascade_virq, uic);
+			irq_set_chained_handler(cascade_virq, uic_irq_cascade);
 
 			/* FIXME: setup critical cascade?? */
 		}

@@ -1,4 +1,3 @@
-#include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -23,6 +22,7 @@
 #define IDE_GD_VERSION	"1.18"
 
 /* module parameters */
+static DEFINE_MUTEX(ide_gd_mutex);
 static unsigned long debug_mask;
 module_param(debug_mask, ulong, 0644);
 
@@ -242,9 +242,9 @@ static int ide_gd_unlocked_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ide_gd_mutex);
 	ret = ide_gd_open(bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&ide_gd_mutex);
 
 	return ret;
 }
@@ -257,7 +257,7 @@ static int ide_gd_release(struct gendisk *disk, fmode_t mode)
 
 	ide_debug_log(IDE_DBG_FUNC, "enter");
 
-	lock_kernel();
+	mutex_lock(&ide_gd_mutex);
 	if (idkp->openers == 1)
 		drive->disk_ops->flush(drive);
 
@@ -269,7 +269,7 @@ static int ide_gd_release(struct gendisk *disk, fmode_t mode)
 	idkp->openers--;
 
 	ide_disk_put(idkp);
-	unlock_kernel();
+	mutex_unlock(&ide_gd_mutex);
 
 	return 0;
 }
@@ -285,11 +285,12 @@ static int ide_gd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int ide_gd_media_changed(struct gendisk *disk)
+static unsigned int ide_gd_check_events(struct gendisk *disk,
+					unsigned int clearing)
 {
 	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
-	int ret;
+	bool ret;
 
 	/* do not scan partitions twice if this is a removable device */
 	if (drive->dev_flags & IDE_DFLAG_ATTACH) {
@@ -297,10 +298,16 @@ static int ide_gd_media_changed(struct gendisk *disk)
 		return 0;
 	}
 
-	ret = !!(drive->dev_flags & IDE_DFLAG_MEDIA_CHANGED);
+	/*
+	 * The following is used to force revalidation on the first open on
+	 * removeable devices, and never gets reported to userland as
+	 * genhd->events is 0.  This is intended as removeable ide disk
+	 * can't really detect MEDIA_CHANGE events.
+	 */
+	ret = drive->dev_flags & IDE_DFLAG_MEDIA_CHANGED;
 	drive->dev_flags &= ~IDE_DFLAG_MEDIA_CHANGED;
 
-	return ret;
+	return ret ? DISK_EVENT_MEDIA_CHANGE : 0;
 }
 
 static void ide_gd_unlock_native_capacity(struct gendisk *disk)
@@ -318,7 +325,7 @@ static int ide_gd_revalidate_disk(struct gendisk *disk)
 	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 
-	if (ide_gd_media_changed(disk))
+	if (ide_gd_check_events(disk, 0))
 		drive->disk_ops->get_capacity(drive);
 
 	set_capacity(disk, ide_gd_capacity(drive));
@@ -340,7 +347,7 @@ static const struct block_device_operations ide_gd_ops = {
 	.release		= ide_gd_release,
 	.ioctl			= ide_gd_ioctl,
 	.getgeo			= ide_gd_getgeo,
-	.media_changed		= ide_gd_media_changed,
+	.check_events		= ide_gd_check_events,
 	.unlock_native_capacity	= ide_gd_unlock_native_capacity,
 	.revalidate_disk	= ide_gd_revalidate_disk
 };

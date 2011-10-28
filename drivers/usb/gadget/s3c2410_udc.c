@@ -36,6 +36,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/prefetch.h>
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -902,7 +903,7 @@ static irqreturn_t s3c2410_udc_irq(int dummy, void *_dev)
 	int pwr_reg;
 	int ep0csr;
 	int i;
-	u32 idx;
+	u32 idx, idx2;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -1014,6 +1015,20 @@ static irqreturn_t s3c2410_udc_irq(int dummy, void *_dev)
 			/* Clear the interrupt bit by setting it to 1 */
 			udc_write(tmp, S3C2410_UDC_EP_INT_REG);
 			s3c2410_udc_handle_ep(&dev->ep[i]);
+		}
+	}
+
+	/* what else causes this interrupt? a receive! who is it? */
+	if (!usb_status && !usbd_status && !pwr_reg && !ep0csr) {
+		for (i = 1; i < S3C2410_ENDPOINTS; i++) {
+			idx2 = udc_read(S3C2410_UDC_INDEX_REG);
+			udc_write(i, S3C2410_UDC_INDEX_REG);
+
+			if (udc_read(S3C2410_UDC_OUT_CSR1_REG) & 0x1)
+				s3c2410_udc_handle_ep(&dev->ep[i]);
+
+			/* restore index */
+			udc_write(idx2, S3C2410_UDC_INDEX_REG);
 		}
 	}
 
@@ -1467,7 +1482,9 @@ static int s3c2410_udc_set_pullup(struct s3c2410_udc *udc, int is_on)
 {
 	dprintk(DEBUG_NORMAL, "%s()\n", __func__);
 
-	if (udc_info && udc_info->udc_command) {
+	if (udc_info && (udc_info->udc_command ||
+		gpio_is_valid(udc_info->pullup_pin))) {
+
 		if (is_on)
 			s3c2410_udc_enable(udc);
 		else {
@@ -1544,6 +1561,32 @@ static const struct usb_gadget_ops s3c2410_ops = {
 	.vbus_draw		= s3c2410_vbus_draw,
 };
 
+static void s3c2410_udc_command(enum s3c2410_udc_cmd_e cmd)
+{
+	if (!udc_info)
+		return;
+
+	if (udc_info->udc_command) {
+		udc_info->udc_command(S3C2410_UDC_P_DISABLE);
+	} else if (gpio_is_valid(udc_info->pullup_pin)) {
+		int value;
+
+		switch (cmd) {
+		case S3C2410_UDC_P_ENABLE:
+			value = 1;
+			break;
+		case S3C2410_UDC_P_DISABLE:
+			value = 0;
+			break;
+		default:
+			return;
+		}
+		value ^= udc_info->pullup_pin_inverted;
+
+		gpio_set_value(udc_info->pullup_pin, value);
+	}
+}
+
 /*------------------------- gadget driver handling---------------------------*/
 /*
  * s3c2410_udc_disable
@@ -1565,8 +1608,7 @@ static void s3c2410_udc_disable(struct s3c2410_udc *dev)
 	udc_write(0x1F, S3C2410_UDC_EP_INT_REG);
 
 	/* Good bye, cruel world */
-	if (udc_info && udc_info->udc_command)
-		udc_info->udc_command(S3C2410_UDC_P_DISABLE);
+	s3c2410_udc_command(S3C2410_UDC_P_DISABLE);
 
 	/* Set speed to unknown */
 	dev->gadget.speed = USB_SPEED_UNKNOWN;
@@ -1627,20 +1669,19 @@ static void s3c2410_udc_enable(struct s3c2410_udc *dev)
 	udc_write(S3C2410_UDC_INT_EP0, S3C2410_UDC_EP_INT_EN_REG);
 
 	/* time to say "hello, world" */
-	if (udc_info && udc_info->udc_command)
-		udc_info->udc_command(S3C2410_UDC_P_ENABLE);
+	s3c2410_udc_command(S3C2410_UDC_P_ENABLE);
 }
 
 /*
- *	usb_gadget_register_driver
+ *	usb_gadget_probe_driver
  */
-int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	struct s3c2410_udc *udc = the_controller;
 	int		retval;
 
-	dprintk(DEBUG_NORMAL, "usb_gadget_register_driver() '%s'\n",
-		driver->driver.name);
+	dprintk(DEBUG_NORMAL, "%s() '%s'\n", __func__, driver->driver.name);
 
 	/* Sanity checks */
 	if (!udc)
@@ -1649,10 +1690,9 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	if (udc->driver)
 		return -EBUSY;
 
-	if (!driver->bind || !driver->setup
-			|| driver->speed < USB_SPEED_FULL) {
+	if (!bind || !driver->setup || driver->speed < USB_SPEED_FULL) {
 		printk(KERN_ERR "Invalid driver: bind %p setup %p speed %d\n",
-			driver->bind, driver->setup, driver->speed);
+			bind, driver->setup, driver->speed);
 		return -EINVAL;
 	}
 #if defined(MODULE)
@@ -1675,7 +1715,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	dprintk(DEBUG_NORMAL, "binding gadget driver '%s'\n",
 		driver->driver.name);
 
-	if ((retval = driver->bind (&udc->gadget)) != 0) {
+	if ((retval = bind(&udc->gadget)) != 0) {
 		device_del(&udc->gadget.dev);
 		goto register_error;
 	}
@@ -1690,6 +1730,7 @@ register_error:
 	udc->gadget.dev.driver = NULL;
 	return retval;
 }
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 /*
  *	usb_gadget_unregister_driver
@@ -1903,6 +1944,17 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 		udc->vbus = 1;
 	}
 
+	if (udc_info && !udc_info->udc_command &&
+		gpio_is_valid(udc_info->pullup_pin)) {
+
+		retval = gpio_request_one(udc_info->pullup_pin,
+				udc_info->vbus_pin_inverted ?
+				GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
+				"udc pullup");
+		if (retval)
+			goto err_vbus_irq;
+	}
+
 	if (s3c2410_udc_debugfs_root) {
 		udc->regs_info = debugfs_create_file("registers", S_IRUGO,
 				s3c2410_udc_debugfs_root,
@@ -1915,6 +1967,9 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_vbus_irq:
+	if (udc_info && udc_info->vbus_pin > 0)
+		free_irq(gpio_to_irq(udc_info->vbus_pin), udc);
 err_gpio_claim:
 	if (udc_info && udc_info->vbus_pin > 0)
 		gpio_free(udc_info->vbus_pin);
@@ -1941,6 +1996,10 @@ static int s3c2410_udc_remove(struct platform_device *pdev)
 		return -EBUSY;
 
 	debugfs_remove(udc->regs_info);
+
+	if (udc_info && !udc_info->udc_command &&
+		gpio_is_valid(udc_info->pullup_pin))
+		gpio_free(udc_info->pullup_pin);
 
 	if (udc_info && udc_info->vbus_pin > 0) {
 		irq = gpio_to_irq(udc_info->vbus_pin);
@@ -1973,16 +2032,14 @@ static int s3c2410_udc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int s3c2410_udc_suspend(struct platform_device *pdev, pm_message_t message)
 {
-	if (udc_info && udc_info->udc_command)
-		udc_info->udc_command(S3C2410_UDC_P_DISABLE);
+	s3c2410_udc_command(S3C2410_UDC_P_DISABLE);
 
 	return 0;
 }
 
 static int s3c2410_udc_resume(struct platform_device *pdev)
 {
-	if (udc_info && udc_info->udc_command)
-		udc_info->udc_command(S3C2410_UDC_P_ENABLE);
+	s3c2410_udc_command(S3C2410_UDC_P_ENABLE);
 
 	return 0;
 }
@@ -2049,7 +2106,6 @@ static void __exit udc_exit(void)
 }
 
 EXPORT_SYMBOL(usb_gadget_unregister_driver);
-EXPORT_SYMBOL(usb_gadget_register_driver);
 
 module_init(udc_init);
 module_exit(udc_exit);

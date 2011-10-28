@@ -74,10 +74,6 @@ static void __init mahimahi_map_io(void)
 extern struct sys_timer msm_timer;
 
 MACHINE_START(MAHIMAHI, "mahimahi")
-#ifdef CONFIG_MSM_DEBUG_UART
-	.phys_io        = MSM_DEBUG_UART_PHYS,
-	.io_pg_offst    = ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
-#endif
 	.boot_params	= 0x20000100,
 	.fixup		= mahimahi_fixup,
 	.map_io		= mahimahi_map_io,

@@ -9,7 +9,8 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Changes:
+ * Changes:     Hans Schillstrom <hans.schillstrom@ericsson.com>
+ *              Network name space (netns) aware.
  *
  */
 
@@ -28,9 +29,10 @@
 #include <net/ip6_checksum.h>
 
 static int
-udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
+udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		  int *verdict, struct ip_vs_conn **cpp)
 {
+	struct net *net;
 	struct ip_vs_service *svc;
 	struct udphdr _udph, *uh;
 	struct ip_vs_iphdr iph;
@@ -42,11 +44,13 @@ udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		*verdict = NF_DROP;
 		return 0;
 	}
-
-	svc = ip_vs_service_get(af, skb->mark, iph.protocol,
+	net = skb_net(skb);
+	svc = ip_vs_service_get(net, af, skb->mark, iph.protocol,
 				&iph.daddr, uh->dest);
 	if (svc) {
-		if (ip_vs_todrop()) {
+		int ignored;
+
+		if (ip_vs_todrop(net_ipvs(net))) {
 			/*
 			 * It seems that we are very loaded.
 			 * We have to drop this packet :(
@@ -60,13 +64,19 @@ udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb);
-		if (!*cpp) {
-			*verdict = ip_vs_leave(svc, skb, pp);
+		*cpp = ip_vs_schedule(svc, skb, pd, &ignored);
+		if (!*cpp && ignored <= 0) {
+			if (!ignored)
+				*verdict = ip_vs_leave(svc, skb, pd);
+			else {
+				ip_vs_service_put(svc);
+				*verdict = NF_DROP;
+			}
 			return 0;
 		}
 		ip_vs_service_put(svc);
 	}
+	/* NF_ACCEPT */
 	return 1;
 }
 
@@ -102,15 +112,15 @@ udp_partial_csum_update(int af, struct udphdr *uhdr,
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
 		uhdr->check =
-			csum_fold(ip_vs_check_diff16(oldip->ip6, newip->ip6,
+			~csum_fold(ip_vs_check_diff16(oldip->ip6, newip->ip6,
 					 ip_vs_check_diff2(oldlen, newlen,
-						~csum_unfold(uhdr->check))));
+						csum_unfold(uhdr->check))));
 	else
 #endif
 	uhdr->check =
-		csum_fold(ip_vs_check_diff4(oldip->ip, newip->ip,
+		~csum_fold(ip_vs_check_diff4(oldip->ip, newip->ip,
 				ip_vs_check_diff2(oldlen, newlen,
-						~csum_unfold(uhdr->check))));
+						csum_unfold(uhdr->check))));
 }
 
 
@@ -121,6 +131,7 @@ udp_snat_handler(struct sk_buff *skb,
 	struct udphdr *udph;
 	unsigned int udphoff;
 	int oldlen;
+	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6)
@@ -135,6 +146,8 @@ udp_snat_handler(struct sk_buff *skb,
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
+		int ret;
+
 		/* Some checks before mangling */
 		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
 			return 0;
@@ -142,8 +155,13 @@ udp_snat_handler(struct sk_buff *skb,
 		/*
 		 *	Call application helper if needed
 		 */
-		if (!ip_vs_app_pkt_out(cp, skb))
+		if (!(ret = ip_vs_app_pkt_out(cp, skb)))
 			return 0;
+		/* ret=2: csum update is needed after payload mangling */
+		if (ret == 1)
+			oldlen = skb->len - udphoff;
+		else
+			payload_csum = 1;
 	}
 
 	udph = (void *)skb_network_header(skb) + udphoff;
@@ -156,12 +174,13 @@ udp_snat_handler(struct sk_buff *skb,
 		udp_partial_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
 					htons(oldlen),
 					htons(skb->len - udphoff));
-	} else if (!cp->app && (udph->check != 0)) {
+	} else if (!payload_csum && (udph->check != 0)) {
 		/* Only port and addr are changed, do fast csum update */
 		udp_fast_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
 				     cp->dport, cp->vport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = (cp->app && pp->csum_check) ?
+					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
 		udph->check = 0;
@@ -181,6 +200,7 @@ udp_snat_handler(struct sk_buff *skb,
 							skb->csum);
 		if (udph->check == 0)
 			udph->check = CSUM_MANGLED_0;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		IP_VS_DBG(11, "O-pkt: %s O-csum=%d (+%zd)\n",
 			  pp->name, udph->check,
 			  (char*)&(udph->check) - (char*)udph);
@@ -196,6 +216,7 @@ udp_dnat_handler(struct sk_buff *skb,
 	struct udphdr *udph;
 	unsigned int udphoff;
 	int oldlen;
+	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6)
@@ -210,6 +231,8 @@ udp_dnat_handler(struct sk_buff *skb,
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
+		int ret;
+
 		/* Some checks before mangling */
 		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
 			return 0;
@@ -218,8 +241,13 @@ udp_dnat_handler(struct sk_buff *skb,
 		 *	Attempt ip_vs_app call.
 		 *	It will fix ip_vs_conn
 		 */
-		if (!ip_vs_app_pkt_in(cp, skb))
+		if (!(ret = ip_vs_app_pkt_in(cp, skb)))
 			return 0;
+		/* ret=2: csum update is needed after payload mangling */
+		if (ret == 1)
+			oldlen = skb->len - udphoff;
+		else
+			payload_csum = 1;
 	}
 
 	udph = (void *)skb_network_header(skb) + udphoff;
@@ -229,15 +257,16 @@ udp_dnat_handler(struct sk_buff *skb,
 	 *	Adjust UDP checksums
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		udp_partial_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
+		udp_partial_csum_update(cp->af, udph, &cp->vaddr, &cp->daddr,
 					htons(oldlen),
 					htons(skb->len - udphoff));
-	} else if (!cp->app && (udph->check != 0)) {
+	} else if (!payload_csum && (udph->check != 0)) {
 		/* Only port and addr are changed, do fast csum update */
 		udp_fast_csum_update(cp->af, udph, &cp->vaddr, &cp->daddr,
 				     cp->vport, cp->dport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = (cp->app && pp->csum_check) ?
+					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
 		udph->check = 0;
@@ -293,7 +322,7 @@ udp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 						    skb->len - udphoff,
 						    ipv6_hdr(skb)->nexthdr,
 						    skb->csum)) {
-					IP_VS_DBG_RL_PKT(0, pp, skb, 0,
+					IP_VS_DBG_RL_PKT(0, af, pp, skb, 0,
 							 "Failed checksum for");
 					return 0;
 				}
@@ -304,7 +333,7 @@ udp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 						      skb->len - udphoff,
 						      ip_hdr(skb)->protocol,
 						      skb->csum)) {
-					IP_VS_DBG_RL_PKT(0, pp, skb, 0,
+					IP_VS_DBG_RL_PKT(0, af, pp, skb, 0,
 							 "Failed checksum for");
 					return 0;
 				}
@@ -317,19 +346,6 @@ udp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 	return 1;
 }
 
-
-/*
- *	Note: the caller guarantees that only one of register_app,
- *	unregister_app or app_conn_bind is called each time.
- */
-
-#define	UDP_APP_TAB_BITS	4
-#define	UDP_APP_TAB_SIZE	(1 << UDP_APP_TAB_BITS)
-#define	UDP_APP_TAB_MASK	(UDP_APP_TAB_SIZE - 1)
-
-static struct list_head udp_apps[UDP_APP_TAB_SIZE];
-static DEFINE_SPINLOCK(udp_app_lock);
-
 static inline __u16 udp_app_hashkey(__be16 port)
 {
 	return (((__force u16)port >> UDP_APP_TAB_BITS) ^ (__force u16)port)
@@ -337,44 +353,50 @@ static inline __u16 udp_app_hashkey(__be16 port)
 }
 
 
-static int udp_register_app(struct ip_vs_app *inc)
+static int udp_register_app(struct net *net, struct ip_vs_app *inc)
 {
 	struct ip_vs_app *i;
 	__u16 hash;
 	__be16 port = inc->port;
 	int ret = 0;
+	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(net, IPPROTO_UDP);
 
 	hash = udp_app_hashkey(port);
 
 
-	spin_lock_bh(&udp_app_lock);
-	list_for_each_entry(i, &udp_apps[hash], p_list) {
+	spin_lock_bh(&ipvs->udp_app_lock);
+	list_for_each_entry(i, &ipvs->udp_apps[hash], p_list) {
 		if (i->port == port) {
 			ret = -EEXIST;
 			goto out;
 		}
 	}
-	list_add(&inc->p_list, &udp_apps[hash]);
-	atomic_inc(&ip_vs_protocol_udp.appcnt);
+	list_add(&inc->p_list, &ipvs->udp_apps[hash]);
+	atomic_inc(&pd->appcnt);
 
   out:
-	spin_unlock_bh(&udp_app_lock);
+	spin_unlock_bh(&ipvs->udp_app_lock);
 	return ret;
 }
 
 
 static void
-udp_unregister_app(struct ip_vs_app *inc)
+udp_unregister_app(struct net *net, struct ip_vs_app *inc)
 {
-	spin_lock_bh(&udp_app_lock);
-	atomic_dec(&ip_vs_protocol_udp.appcnt);
+	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(net, IPPROTO_UDP);
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	spin_lock_bh(&ipvs->udp_app_lock);
+	atomic_dec(&pd->appcnt);
 	list_del(&inc->p_list);
-	spin_unlock_bh(&udp_app_lock);
+	spin_unlock_bh(&ipvs->udp_app_lock);
 }
 
 
 static int udp_app_conn_bind(struct ip_vs_conn *cp)
 {
+	struct netns_ipvs *ipvs = net_ipvs(ip_vs_conn_net(cp));
 	int hash;
 	struct ip_vs_app *inc;
 	int result = 0;
@@ -386,12 +408,12 @@ static int udp_app_conn_bind(struct ip_vs_conn *cp)
 	/* Lookup application incarnations and bind the right one */
 	hash = udp_app_hashkey(cp->vport);
 
-	spin_lock(&udp_app_lock);
-	list_for_each_entry(inc, &udp_apps[hash], p_list) {
+	spin_lock(&ipvs->udp_app_lock);
+	list_for_each_entry(inc, &ipvs->udp_apps[hash], p_list) {
 		if (inc->port == cp->vport) {
 			if (unlikely(!ip_vs_app_inc_get(inc)))
 				break;
-			spin_unlock(&udp_app_lock);
+			spin_unlock(&ipvs->udp_app_lock);
 
 			IP_VS_DBG_BUF(9, "%s(): Binding conn %s:%u->"
 				      "%s:%u to app %s on port %u\n",
@@ -408,14 +430,14 @@ static int udp_app_conn_bind(struct ip_vs_conn *cp)
 			goto out;
 		}
 	}
-	spin_unlock(&udp_app_lock);
+	spin_unlock(&ipvs->udp_app_lock);
 
   out:
 	return result;
 }
 
 
-static int udp_timeouts[IP_VS_UDP_S_LAST+1] = {
+static const int udp_timeouts[IP_VS_UDP_S_LAST+1] = {
 	[IP_VS_UDP_S_NORMAL]		=	5*60*HZ,
 	[IP_VS_UDP_S_LAST]		=	2*HZ,
 };
@@ -424,14 +446,6 @@ static const char *const udp_state_name_table[IP_VS_UDP_S_LAST+1] = {
 	[IP_VS_UDP_S_NORMAL]		=	"UDP",
 	[IP_VS_UDP_S_LAST]		=	"BUG!",
 };
-
-
-static int
-udp_set_state_timeout(struct ip_vs_protocol *pp, char *sname, int to)
-{
-	return ip_vs_set_state_timeout(pp->timeout_table, IP_VS_UDP_S_LAST,
-				       udp_state_name_table, sname, to);
-}
 
 static const char * udp_state_name(int state)
 {
@@ -443,20 +457,30 @@ static const char * udp_state_name(int state)
 static int
 udp_state_transition(struct ip_vs_conn *cp, int direction,
 		     const struct sk_buff *skb,
-		     struct ip_vs_protocol *pp)
+		     struct ip_vs_proto_data *pd)
 {
-	cp->timeout = pp->timeout_table[IP_VS_UDP_S_NORMAL];
+	if (unlikely(!pd)) {
+		pr_err("UDP no ns data\n");
+		return 0;
+	}
+
+	cp->timeout = pd->timeout_table[IP_VS_UDP_S_NORMAL];
 	return 1;
 }
 
-static void udp_init(struct ip_vs_protocol *pp)
+static void __udp_init(struct net *net, struct ip_vs_proto_data *pd)
 {
-	IP_VS_INIT_HASH_TABLE(udp_apps);
-	pp->timeout_table = udp_timeouts;
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	ip_vs_init_hash_table(ipvs->udp_apps, UDP_APP_TAB_SIZE);
+	spin_lock_init(&ipvs->udp_app_lock);
+	pd->timeout_table = ip_vs_create_timeout_table((int *)udp_timeouts,
+							sizeof(udp_timeouts));
 }
 
-static void udp_exit(struct ip_vs_protocol *pp)
+static void __udp_exit(struct net *net, struct ip_vs_proto_data *pd)
 {
+	kfree(pd->timeout_table);
 }
 
 
@@ -465,8 +489,10 @@ struct ip_vs_protocol ip_vs_protocol_udp = {
 	.protocol =		IPPROTO_UDP,
 	.num_states =		IP_VS_UDP_S_LAST,
 	.dont_defrag =		0,
-	.init =			udp_init,
-	.exit =			udp_exit,
+	.init =			NULL,
+	.exit =			NULL,
+	.init_netns =		__udp_init,
+	.exit_netns =		__udp_exit,
 	.conn_schedule =	udp_conn_schedule,
 	.conn_in_get =		ip_vs_conn_in_get_proto,
 	.conn_out_get =		ip_vs_conn_out_get_proto,
@@ -480,5 +506,4 @@ struct ip_vs_protocol ip_vs_protocol_udp = {
 	.app_conn_bind =	udp_app_conn_bind,
 	.debug_packet =		ip_vs_tcpudp_debug_packet,
 	.timeout_change =	NULL,
-	.set_state_timeout =	udp_set_state_timeout,
 };

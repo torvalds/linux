@@ -90,3 +90,29 @@ int platform_register_pflash(unsigned int size, struct mtd_partition *parts,
 
 	return platform_device_register(&pflash_device);
 }
+
+static struct resource gemini_rtc_resources[] = {
+	[0] = {
+		.start  = GEMINI_RTC_BASE,
+		.end    = GEMINI_RTC_BASE + 0x24,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_RTC,
+		.end    = IRQ_RTC,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device gemini_rtc_device = {
+	.name		= "rtc-gemini",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(gemini_rtc_resources),
+	.resource	= gemini_rtc_resources,
+};
+
+int __init platform_register_rtc(void)
+{
+	return platform_device_register(&gemini_rtc_device);
+}
+

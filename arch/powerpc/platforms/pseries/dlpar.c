@@ -33,7 +33,7 @@ struct cc_workarea {
 	u32	prop_offset;
 };
 
-static void dlpar_free_cc_property(struct property *prop)
+void dlpar_free_cc_property(struct property *prop)
 {
 	kfree(prop->name);
 	kfree(prop->value);
@@ -55,13 +55,12 @@ static struct property *dlpar_parse_cc_property(struct cc_workarea *ccwa)
 
 	prop->length = ccwa->prop_length;
 	value = (char *)ccwa + ccwa->prop_offset;
-	prop->value = kzalloc(prop->length, GFP_KERNEL);
+	prop->value = kmemdup(value, prop->length, GFP_KERNEL);
 	if (!prop->value) {
 		dlpar_free_cc_property(prop);
 		return NULL;
 	}
 
-	memcpy(prop->value, value, prop->length);
 	return prop;
 }
 
@@ -75,7 +74,7 @@ static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa)
 		return NULL;
 
 	/* The configure connector reported name does not contain a
-	 * preceeding '/', so we allocate a buffer large enough to
+	 * preceding '/', so we allocate a buffer large enough to
 	 * prepend this to the full_name.
 	 */
 	name = (char *)ccwa + ccwa->name_offset;
@@ -102,7 +101,7 @@ static void dlpar_free_one_cc_node(struct device_node *dn)
 	kfree(dn);
 }
 
-static void dlpar_free_cc_nodes(struct device_node *dn)
+void dlpar_free_cc_nodes(struct device_node *dn)
 {
 	if (dn->child)
 		dlpar_free_cc_nodes(dn->child);

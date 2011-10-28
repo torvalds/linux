@@ -763,7 +763,7 @@ static int fb_wait_for_vsync(struct fb_info *info)
 
 	/*
 	 * Set flag to 0 and wait for isr to set to 1. It would seem there is a
-	 * race condition here where the ISR could have occured just before or
+	 * race condition here where the ISR could have occurred just before or
 	 * just after this set. But since we are just coarsely waiting for
 	 * a frame to complete then that's OK. i.e. if the frame completed
 	 * just before this code executed then we have to wait another full
@@ -899,7 +899,7 @@ static struct fb_ops da8xx_fb_ops = {
 	.fb_blank = cfb_blank,
 };
 
-static int __init fb_probe(struct platform_device *device)
+static int __devinit fb_probe(struct platform_device *device)
 {
 	struct da8xx_lcdc_platform_data *fb_pdata =
 						device->dev.platform_data;
@@ -1029,10 +1029,6 @@ static int __init fb_probe(struct platform_device *device)
 		goto err_release_pl_mem;
 	}
 
-	ret = request_irq(par->irq, lcdc_irq_handler, 0, DRIVER_NAME, par);
-	if (ret)
-		goto err_release_pl_mem;
-
 	/* Initialize par */
 	da8xx_fb_info->var.bits_per_pixel = lcd_cfg->bpp;
 
@@ -1060,7 +1056,7 @@ static int __init fb_probe(struct platform_device *device)
 
 	ret = fb_alloc_cmap(&da8xx_fb_info->cmap, PALETTE_SIZE, 0);
 	if (ret)
-		goto err_free_irq;
+		goto err_release_pl_mem;
 	da8xx_fb_info->cmap.len = par->palette_sz;
 
 	/* initialize var_screeninfo */
@@ -1088,18 +1084,21 @@ static int __init fb_probe(struct platform_device *device)
 		goto err_cpu_freq;
 	}
 #endif
+
+	ret = request_irq(par->irq, lcdc_irq_handler, 0, DRIVER_NAME, par);
+	if (ret)
+		goto irq_freq;
 	return 0;
 
+irq_freq:
 #ifdef CONFIG_CPU_FREQ
+	lcd_da8xx_cpufreq_deregister(par);
+#endif
 err_cpu_freq:
 	unregister_framebuffer(da8xx_fb_info);
-#endif
 
 err_dealloc_cmap:
 	fb_dealloc_cmap(&da8xx_fb_info->cmap);
-
-err_free_irq:
-	free_irq(par->irq, par);
 
 err_release_pl_mem:
 	dma_free_coherent(NULL, PALETTE_SIZE, par->v_palette_base,
@@ -1132,14 +1131,14 @@ static int fb_suspend(struct platform_device *dev, pm_message_t state)
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct da8xx_fb_par *par = info->par;
 
-	acquire_console_sem();
+	console_lock();
 	if (par->panel_power_ctrl)
 		par->panel_power_ctrl(0);
 
 	fb_set_suspend(info, 1);
 	lcd_disable_raster();
 	clk_disable(par->lcdc_clk);
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }
@@ -1148,14 +1147,14 @@ static int fb_resume(struct platform_device *dev)
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct da8xx_fb_par *par = info->par;
 
-	acquire_console_sem();
+	console_lock();
 	if (par->panel_power_ctrl)
 		par->panel_power_ctrl(1);
 
 	clk_enable(par->lcdc_clk);
 	lcd_enable_raster();
 	fb_set_suspend(info, 0);
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }
@@ -1166,7 +1165,7 @@ static int fb_resume(struct platform_device *dev)
 
 static struct platform_driver da8xx_fb_driver = {
 	.probe = fb_probe,
-	.remove = fb_remove,
+	.remove = __devexit_p(fb_remove),
 	.suspend = fb_suspend,
 	.resume = fb_resume,
 	.driver = {

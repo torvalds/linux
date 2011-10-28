@@ -137,7 +137,7 @@ MODULE_PARM_DESC(n_ports, "number of ports to create, default=1");
 
 /*-------------------------------------------------------------------------*/
 
-static int __ref serial_bind_config(struct usb_configuration *c)
+static int __init serial_bind_config(struct usb_configuration *c)
 {
 	unsigned i;
 	int status = 0;
@@ -155,13 +155,12 @@ static int __ref serial_bind_config(struct usb_configuration *c)
 
 static struct usb_configuration serial_config_driver = {
 	/* .label = f(use_acm) */
-	.bind		= serial_bind_config,
 	/* .bConfigurationValue = f(use_acm) */
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
 };
 
-static int __ref gs_bind(struct usb_composite_dev *cdev)
+static int __init gs_bind(struct usb_composite_dev *cdev)
 {
 	int			gcnum;
 	struct usb_gadget	*gadget = cdev->gadget;
@@ -225,7 +224,8 @@ static int __ref gs_bind(struct usb_composite_dev *cdev)
 	}
 
 	/* register our configuration */
-	status = usb_add_config(cdev, &serial_config_driver);
+	status = usb_add_config(cdev, &serial_config_driver,
+			serial_bind_config);
 	if (status < 0)
 		goto fail;
 
@@ -242,7 +242,6 @@ static struct usb_composite_driver gserial_driver = {
 	.name		= "g_serial",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
-	.bind		= gs_bind,
 };
 
 static int __init init(void)
@@ -271,7 +270,7 @@ static int __init init(void)
 	}
 	strings_dev[STRING_DESCRIPTION_IDX].s = serial_config_driver.label;
 
-	return usb_composite_register(&gserial_driver);
+	return usb_composite_probe(&gserial_driver, gs_bind);
 }
 module_init(init);
 

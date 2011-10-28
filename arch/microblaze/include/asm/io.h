@@ -70,7 +70,7 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 
 /*
  * read (readb, readw, readl, readq) and write (writeb, writew,
- * writel, writeq) accessors are for PCI and thus littel endian.
+ * writel, writeq) accessors are for PCI and thus little endian.
  * Linux 2.4 for Microblaze had this wrong.
  */
 static inline unsigned char readb(const volatile void __iomem *addr)
@@ -242,6 +242,8 @@ static inline void __iomem *__ioremap(phys_addr_t address, unsigned long size,
 /* Byte ops */
 #define out_8(a, v) __raw_writeb((v), (a))
 #define in_8(a) __raw_readb(a)
+
+#define mmiowb()
 
 #define ioport_map(port, nr)	((void __iomem *)(port))
 #define ioport_unmap(addr)

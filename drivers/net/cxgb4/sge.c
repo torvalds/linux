@@ -39,6 +39,7 @@
 #include <linux/ip.h>
 #include <linux/dma-mapping.h>
 #include <linux/jiffies.h>
+#include <linux/prefetch.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
 #include "cxgb4.h"
@@ -557,7 +558,8 @@ out:	cred = q->avail - cred;
 
 	if (unlikely(fl_starving(q))) {
 		smp_wmb();
-		set_bit(q->cntxt_id, adap->sge.starving_fl);
+		set_bit(q->cntxt_id - adap->sge.egr_start,
+			adap->sge.starving_fl);
 	}
 
 	return cred;
@@ -578,6 +580,7 @@ static inline void __refill_fl(struct adapter *adap, struct sge_fl *fl)
  *	@phys: the physical address of the allocated ring
  *	@metadata: address of the array holding the SW state for the ring
  *	@stat_size: extra space in HW ring for status information
+ *	@node: preferred node for memory allocations
  *
  *	Allocates resources for an SGE descriptor ring, such as Tx queues,
  *	free buffer lists, or response queues.  Each SGE ring requires
@@ -589,7 +592,7 @@ static inline void __refill_fl(struct adapter *adap, struct sge_fl *fl)
  */
 static void *alloc_ring(struct device *dev, size_t nelem, size_t elem_size,
 			size_t sw_size, dma_addr_t *phys, void *metadata,
-			size_t stat_size)
+			size_t stat_size, int node)
 {
 	size_t len = nelem * elem_size + stat_size;
 	void *s = NULL;
@@ -598,7 +601,7 @@ static void *alloc_ring(struct device *dev, size_t nelem, size_t elem_size,
 	if (!p)
 		return NULL;
 	if (sw_size) {
-		s = kcalloc(nelem, sw_size, GFP_KERNEL);
+		s = kzalloc_node(nelem * sw_size, GFP_KERNEL, node);
 
 		if (!s) {
 			dma_free_coherent(dev, len, p, *phys);
@@ -974,7 +977,7 @@ out_free:	dev_kfree_skb(skb);
 	}
 
 	cpl->ctrl0 = htonl(TXPKT_OPCODE(CPL_TX_PKT_XT) |
-			   TXPKT_INTF(pi->tx_chan) | TXPKT_PF(0));
+			   TXPKT_INTF(pi->tx_chan) | TXPKT_PF(adap->fn));
 	cpl->pack = htons(0);
 	cpl->len = htons(skb->len);
 	cpl->ctrl1 = cpu_to_be64(cntrl);
@@ -1213,7 +1216,8 @@ static void txq_stop_maperr(struct sge_ofld_txq *q)
 {
 	q->mapping_err++;
 	q->q.stops++;
-	set_bit(q->q.cntxt_id, q->adap->sge.txq_maperr);
+	set_bit(q->q.cntxt_id - q->adap->sge.egr_start,
+		q->adap->sge.txq_maperr);
 }
 
 /**
@@ -1528,18 +1532,11 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 		skb->rxhash = (__force u32)pkt->rsshdr.hash_val;
 
 	if (unlikely(pkt->vlan_ex)) {
-		struct port_info *pi = netdev_priv(rxq->rspq.netdev);
-		struct vlan_group *grp = pi->vlan_grp;
-
+		__vlan_hwaccel_put_tag(skb, ntohs(pkt->vlan));
 		rxq->stats.vlan_ex++;
-		if (likely(grp)) {
-			ret = vlan_gro_frags(&rxq->rspq.napi, grp,
-					     ntohs(pkt->vlan));
-			goto stats;
-		}
 	}
 	ret = napi_gro_frags(&rxq->rspq.napi);
-stats:	if (ret == GRO_HELD)
+	if (ret == GRO_HELD)
 		rxq->stats.lro_pkts++;
 	else if (ret == GRO_MERGED || ret == GRO_MERGED_FREE)
 		rxq->stats.lro_merged++;
@@ -1560,7 +1557,6 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 {
 	bool csum_ok;
 	struct sk_buff *skb;
-	struct port_info *pi;
 	const struct cpl_rx_pkt *pkt;
 	struct sge_eth_rxq *rxq = container_of(q, struct sge_eth_rxq, rspq);
 
@@ -1588,10 +1584,9 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	if (skb->dev->features & NETIF_F_RXHASH)
 		skb->rxhash = (__force u32)pkt->rsshdr.hash_val;
 
-	pi = netdev_priv(skb->dev);
 	rxq->stats.pkts++;
 
-	if (csum_ok && (pi->rx_offload & RX_CSO) &&
+	if (csum_ok && (q->netdev->features & NETIF_F_RXCSUM) &&
 	    (pkt->l2info & htonl(RXF_UDP | RXF_TCP))) {
 		if (!pkt->ip_frag) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1603,19 +1598,13 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 			rxq->stats.rx_cso++;
 		}
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 
 	if (unlikely(pkt->vlan_ex)) {
-		struct vlan_group *grp = pi->vlan_grp;
-
+		__vlan_hwaccel_put_tag(skb, ntohs(pkt->vlan));
 		rxq->stats.vlan_ex++;
-		if (likely(grp))
-			vlan_hwaccel_receive_skb(skb, grp, ntohs(pkt->vlan));
-		else
-			dev_kfree_skb_any(skb);
-	} else
-		netif_receive_skb(skb);
-
+	}
+	netif_receive_skb(skb);
 	return 0;
 }
 
@@ -1835,6 +1824,7 @@ static unsigned int process_intrq(struct adapter *adap)
 		if (RSPD_TYPE(rc->type_gen) == RSP_TYPE_INTR) {
 			unsigned int qid = ntohl(rc->pldbuflen_qid);
 
+			qid -= adap->sge.ingr_start;
 			napi_schedule(&adap->sge.ingr_map[qid]->napi);
 		}
 
@@ -1992,7 +1982,7 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	iq->size = roundup(iq->size, 16);
 
 	iq->desc = alloc_ring(adap->pdev_dev, iq->size, iq->iqe_len, 0,
-			      &iq->phys_addr, NULL, 0);
+			      &iq->phys_addr, NULL, 0, NUMA_NO_NODE);
 	if (!iq->desc)
 		return -ENOMEM;
 
@@ -2018,12 +2008,14 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		fl->size = roundup(fl->size, 8);
 		fl->desc = alloc_ring(adap->pdev_dev, fl->size, sizeof(__be64),
 				      sizeof(struct rx_sw_desc), &fl->addr,
-				      &fl->sdesc, STAT_LEN);
+				      &fl->sdesc, STAT_LEN, NUMA_NO_NODE);
 		if (!fl->desc)
 			goto fl_nomem;
 
 		flsz = fl->size / 8 + STAT_LEN / sizeof(struct tx_desc);
 		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_FL0PACKEN |
+					    FW_IQ_CMD_FL0FETCHRO(1) |
+					    FW_IQ_CMD_FL0DATARO(1) |
 					    FW_IQ_CMD_FL0PADEN);
 		c.fl0dcaen_to_fl0cidxfthresh = htons(FW_IQ_CMD_FL0FBMIN(2) |
 				FW_IQ_CMD_FL0FBMAX(3));
@@ -2050,14 +2042,14 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	/* set offset to -1 to distinguish ingress queues without FL */
 	iq->offset = fl ? 0 : -1;
 
-	adap->sge.ingr_map[iq->cntxt_id] = iq;
+	adap->sge.ingr_map[iq->cntxt_id - adap->sge.ingr_start] = iq;
 
 	if (fl) {
 		fl->cntxt_id = ntohs(c.fl0id);
 		fl->avail = fl->pend_cred = 0;
 		fl->pidx = fl->cidx = 0;
 		fl->alloc_failed = fl->large_alloc_failed = fl->starving = 0;
-		adap->sge.egr_map[fl->cntxt_id] = fl;
+		adap->sge.egr_map[fl->cntxt_id - adap->sge.egr_start] = fl;
 		refill_fl(adap, fl, fl_cap(fl), GFP_KERNEL);
 	}
 	return 0;
@@ -2087,7 +2079,7 @@ static void init_txq(struct adapter *adap, struct sge_txq *q, unsigned int id)
 	q->stops = q->restarts = 0;
 	q->stat = (void *)&q->desc[q->size];
 	q->cntxt_id = id;
-	adap->sge.egr_map[id] = q;
+	adap->sge.egr_map[id - adap->sge.egr_start] = q;
 }
 
 int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
@@ -2103,7 +2095,8 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, txq->q.size,
 			sizeof(struct tx_desc), sizeof(struct tx_sw_desc),
-			&txq->q.phys_addr, &txq->q.sdesc, STAT_LEN);
+			&txq->q.phys_addr, &txq->q.sdesc, STAT_LEN,
+			netdev_queue_numa_node_read(netdevq));
 	if (!txq->q.desc)
 		return -ENOMEM;
 
@@ -2116,6 +2109,7 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 	c.viid_pkd = htonl(FW_EQ_ETH_CMD_VIID(pi->viid));
 	c.fetchszm_to_iqid = htonl(FW_EQ_ETH_CMD_HOSTFCMODE(2) |
 				   FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) |
+				   FW_EQ_ETH_CMD_FETCHRO(1) |
 				   FW_EQ_ETH_CMD_IQID(iqid));
 	c.dcaen_to_eqsize = htonl(FW_EQ_ETH_CMD_FBMIN(2) |
 				  FW_EQ_ETH_CMD_FBMAX(3) |
@@ -2154,7 +2148,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, nentries,
 				 sizeof(struct tx_desc), 0, &txq->q.phys_addr,
-				 NULL, 0);
+				 NULL, 0, NUMA_NO_NODE);
 	if (!txq->q.desc)
 		return -ENOMEM;
 
@@ -2168,6 +2162,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 	c.physeqid_pkd = htonl(0);
 	c.fetchszm_to_iqid = htonl(FW_EQ_CTRL_CMD_HOSTFCMODE(2) |
 				   FW_EQ_CTRL_CMD_PCIECHN(pi->tx_chan) |
+				   FW_EQ_CTRL_CMD_FETCHRO |
 				   FW_EQ_CTRL_CMD_IQID(iqid));
 	c.dcaen_to_eqsize = htonl(FW_EQ_CTRL_CMD_FBMIN(2) |
 				  FW_EQ_CTRL_CMD_FBMAX(3) |
@@ -2204,7 +2199,8 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, txq->q.size,
 			sizeof(struct tx_desc), sizeof(struct tx_sw_desc),
-			&txq->q.phys_addr, &txq->q.sdesc, STAT_LEN);
+			&txq->q.phys_addr, &txq->q.sdesc, STAT_LEN,
+			NUMA_NO_NODE);
 	if (!txq->q.desc)
 		return -ENOMEM;
 
@@ -2217,6 +2213,7 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 				 FW_EQ_OFLD_CMD_EQSTART | FW_LEN16(c));
 	c.fetchszm_to_iqid = htonl(FW_EQ_OFLD_CMD_HOSTFCMODE(2) |
 				   FW_EQ_OFLD_CMD_PCIECHN(pi->tx_chan) |
+				   FW_EQ_OFLD_CMD_FETCHRO(1) |
 				   FW_EQ_OFLD_CMD_IQID(iqid));
 	c.dcaen_to_eqsize = htonl(FW_EQ_OFLD_CMD_FBMIN(2) |
 				  FW_EQ_OFLD_CMD_FBMAX(3) |
@@ -2259,7 +2256,7 @@ static void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq,
 {
 	unsigned int fl_id = fl ? fl->cntxt_id : 0xffff;
 
-	adap->sge.ingr_map[rq->cntxt_id] = NULL;
+	adap->sge.ingr_map[rq->cntxt_id - adap->sge.ingr_start] = NULL;
 	t4_iq_free(adap, adap->fn, adap->fn, 0, FW_IQ_TYPE_FL_INT_CAP,
 		   rq->cntxt_id, fl_id, 0xffff);
 	dma_free_coherent(adap->pdev_dev, (rq->size + 1) * rq->iqe_len,

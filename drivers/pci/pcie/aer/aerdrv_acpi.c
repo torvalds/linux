@@ -93,4 +93,38 @@ int pcie_aer_get_firmware_first(struct pci_dev *dev)
 		aer_set_firmware_first(dev);
 	return dev->__aer_firmware_first;
 }
+
+static bool aer_firmware_first;
+
+static int aer_hest_parse_aff(struct acpi_hest_header *hest_hdr, void *data)
+{
+	struct acpi_hest_aer_common *p;
+
+	if (aer_firmware_first)
+		return 0;
+
+	switch (hest_hdr->type) {
+	case ACPI_HEST_TYPE_AER_ROOT_PORT:
+	case ACPI_HEST_TYPE_AER_ENDPOINT:
+	case ACPI_HEST_TYPE_AER_BRIDGE:
+		p = (struct acpi_hest_aer_common *)(hest_hdr + 1);
+		aer_firmware_first = !!(p->flags & ACPI_HEST_FIRMWARE_FIRST);
+	default:
+		return 0;
+	}
+}
+
+/**
+ * aer_acpi_firmware_first - Check if APEI should control AER.
+ */
+bool aer_acpi_firmware_first(void)
+{
+	static bool parsed = false;
+
+	if (!parsed) {
+		apei_hest_parse(aer_hest_parse_aff, NULL);
+		parsed = true;
+	}
+	return aer_firmware_first;
+}
 #endif

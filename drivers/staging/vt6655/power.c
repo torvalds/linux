@@ -221,7 +221,7 @@ PSbConsiderPowerDown(
         ((pDevice->dwIsr& ISR_RXDMA0) != 0) &&
         ((pDevice->dwIsr & ISR_RXDMA1) != 0)){
         return false;
-    };
+    }
 
     if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
         if (bCheckCountToWakeUp &&

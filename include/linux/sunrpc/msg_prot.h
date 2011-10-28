@@ -145,6 +145,7 @@ typedef __be32	rpc_fraghdr;
 #define RPCBIND_NETID_TCP	"tcp"
 #define RPCBIND_NETID_UDP6	"udp6"
 #define RPCBIND_NETID_TCP6	"tcp6"
+#define RPCBIND_NETID_LOCAL	"local"
 
 /*
  * Note that RFC 1833 does not put any size restrictions on the

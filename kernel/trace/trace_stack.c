@@ -133,6 +133,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip)
 static struct ftrace_ops trace_ops __read_mostly =
 {
 	.func = stack_trace_call,
+	.flags = FTRACE_OPS_FL_GLOBAL,
 };
 
 static ssize_t
@@ -195,6 +196,7 @@ static const struct file_operations stack_max_size_fops = {
 	.open		= tracing_open_generic,
 	.read		= stack_max_size_read,
 	.write		= stack_max_size_write,
+	.llseek		= default_llseek,
 };
 
 static void *

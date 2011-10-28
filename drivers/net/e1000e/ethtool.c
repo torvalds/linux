@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -45,63 +45,67 @@ struct e1000_stats {
 	int stat_offset;
 };
 
-#define E1000_STAT(m)		E1000_STATS, \
-				sizeof(((struct e1000_adapter *)0)->m), \
-		      		offsetof(struct e1000_adapter, m)
-#define E1000_NETDEV_STAT(m)	NETDEV_STATS, \
-				sizeof(((struct net_device *)0)->m), \
-				offsetof(struct net_device, m)
+#define E1000_STAT(str, m) { \
+		.stat_string = str, \
+		.type = E1000_STATS, \
+		.sizeof_stat = sizeof(((struct e1000_adapter *)0)->m), \
+		.stat_offset = offsetof(struct e1000_adapter, m) }
+#define E1000_NETDEV_STAT(str, m) { \
+		.stat_string = str, \
+		.type = NETDEV_STATS, \
+		.sizeof_stat = sizeof(((struct rtnl_link_stats64 *)0)->m), \
+		.stat_offset = offsetof(struct rtnl_link_stats64, m) }
 
 static const struct e1000_stats e1000_gstrings_stats[] = {
-	{ "rx_packets", E1000_STAT(stats.gprc) },
-	{ "tx_packets", E1000_STAT(stats.gptc) },
-	{ "rx_bytes", E1000_STAT(stats.gorc) },
-	{ "tx_bytes", E1000_STAT(stats.gotc) },
-	{ "rx_broadcast", E1000_STAT(stats.bprc) },
-	{ "tx_broadcast", E1000_STAT(stats.bptc) },
-	{ "rx_multicast", E1000_STAT(stats.mprc) },
-	{ "tx_multicast", E1000_STAT(stats.mptc) },
-	{ "rx_errors", E1000_NETDEV_STAT(stats.rx_errors) },
-	{ "tx_errors", E1000_NETDEV_STAT(stats.tx_errors) },
-	{ "tx_dropped", E1000_NETDEV_STAT(stats.tx_dropped) },
-	{ "multicast", E1000_STAT(stats.mprc) },
-	{ "collisions", E1000_STAT(stats.colc) },
-	{ "rx_length_errors", E1000_NETDEV_STAT(stats.rx_length_errors) },
-	{ "rx_over_errors", E1000_NETDEV_STAT(stats.rx_over_errors) },
-	{ "rx_crc_errors", E1000_STAT(stats.crcerrs) },
-	{ "rx_frame_errors", E1000_NETDEV_STAT(stats.rx_frame_errors) },
-	{ "rx_no_buffer_count", E1000_STAT(stats.rnbc) },
-	{ "rx_missed_errors", E1000_STAT(stats.mpc) },
-	{ "tx_aborted_errors", E1000_STAT(stats.ecol) },
-	{ "tx_carrier_errors", E1000_STAT(stats.tncrs) },
-	{ "tx_fifo_errors", E1000_NETDEV_STAT(stats.tx_fifo_errors) },
-	{ "tx_heartbeat_errors", E1000_NETDEV_STAT(stats.tx_heartbeat_errors) },
-	{ "tx_window_errors", E1000_STAT(stats.latecol) },
-	{ "tx_abort_late_coll", E1000_STAT(stats.latecol) },
-	{ "tx_deferred_ok", E1000_STAT(stats.dc) },
-	{ "tx_single_coll_ok", E1000_STAT(stats.scc) },
-	{ "tx_multi_coll_ok", E1000_STAT(stats.mcc) },
-	{ "tx_timeout_count", E1000_STAT(tx_timeout_count) },
-	{ "tx_restart_queue", E1000_STAT(restart_queue) },
-	{ "rx_long_length_errors", E1000_STAT(stats.roc) },
-	{ "rx_short_length_errors", E1000_STAT(stats.ruc) },
-	{ "rx_align_errors", E1000_STAT(stats.algnerrc) },
-	{ "tx_tcp_seg_good", E1000_STAT(stats.tsctc) },
-	{ "tx_tcp_seg_failed", E1000_STAT(stats.tsctfc) },
-	{ "rx_flow_control_xon", E1000_STAT(stats.xonrxc) },
-	{ "rx_flow_control_xoff", E1000_STAT(stats.xoffrxc) },
-	{ "tx_flow_control_xon", E1000_STAT(stats.xontxc) },
-	{ "tx_flow_control_xoff", E1000_STAT(stats.xofftxc) },
-	{ "rx_long_byte_count", E1000_STAT(stats.gorc) },
-	{ "rx_csum_offload_good", E1000_STAT(hw_csum_good) },
-	{ "rx_csum_offload_errors", E1000_STAT(hw_csum_err) },
-	{ "rx_header_split", E1000_STAT(rx_hdr_split) },
-	{ "alloc_rx_buff_failed", E1000_STAT(alloc_rx_buff_failed) },
-	{ "tx_smbus", E1000_STAT(stats.mgptc) },
-	{ "rx_smbus", E1000_STAT(stats.mgprc) },
-	{ "dropped_smbus", E1000_STAT(stats.mgpdc) },
-	{ "rx_dma_failed", E1000_STAT(rx_dma_failed) },
-	{ "tx_dma_failed", E1000_STAT(tx_dma_failed) },
+	E1000_STAT("rx_packets", stats.gprc),
+	E1000_STAT("tx_packets", stats.gptc),
+	E1000_STAT("rx_bytes", stats.gorc),
+	E1000_STAT("tx_bytes", stats.gotc),
+	E1000_STAT("rx_broadcast", stats.bprc),
+	E1000_STAT("tx_broadcast", stats.bptc),
+	E1000_STAT("rx_multicast", stats.mprc),
+	E1000_STAT("tx_multicast", stats.mptc),
+	E1000_NETDEV_STAT("rx_errors", rx_errors),
+	E1000_NETDEV_STAT("tx_errors", tx_errors),
+	E1000_NETDEV_STAT("tx_dropped", tx_dropped),
+	E1000_STAT("multicast", stats.mprc),
+	E1000_STAT("collisions", stats.colc),
+	E1000_NETDEV_STAT("rx_length_errors", rx_length_errors),
+	E1000_NETDEV_STAT("rx_over_errors", rx_over_errors),
+	E1000_STAT("rx_crc_errors", stats.crcerrs),
+	E1000_NETDEV_STAT("rx_frame_errors", rx_frame_errors),
+	E1000_STAT("rx_no_buffer_count", stats.rnbc),
+	E1000_STAT("rx_missed_errors", stats.mpc),
+	E1000_STAT("tx_aborted_errors", stats.ecol),
+	E1000_STAT("tx_carrier_errors", stats.tncrs),
+	E1000_NETDEV_STAT("tx_fifo_errors", tx_fifo_errors),
+	E1000_NETDEV_STAT("tx_heartbeat_errors", tx_heartbeat_errors),
+	E1000_STAT("tx_window_errors", stats.latecol),
+	E1000_STAT("tx_abort_late_coll", stats.latecol),
+	E1000_STAT("tx_deferred_ok", stats.dc),
+	E1000_STAT("tx_single_coll_ok", stats.scc),
+	E1000_STAT("tx_multi_coll_ok", stats.mcc),
+	E1000_STAT("tx_timeout_count", tx_timeout_count),
+	E1000_STAT("tx_restart_queue", restart_queue),
+	E1000_STAT("rx_long_length_errors", stats.roc),
+	E1000_STAT("rx_short_length_errors", stats.ruc),
+	E1000_STAT("rx_align_errors", stats.algnerrc),
+	E1000_STAT("tx_tcp_seg_good", stats.tsctc),
+	E1000_STAT("tx_tcp_seg_failed", stats.tsctfc),
+	E1000_STAT("rx_flow_control_xon", stats.xonrxc),
+	E1000_STAT("rx_flow_control_xoff", stats.xoffrxc),
+	E1000_STAT("tx_flow_control_xon", stats.xontxc),
+	E1000_STAT("tx_flow_control_xoff", stats.xofftxc),
+	E1000_STAT("rx_long_byte_count", stats.gorc),
+	E1000_STAT("rx_csum_offload_good", hw_csum_good),
+	E1000_STAT("rx_csum_offload_errors", hw_csum_err),
+	E1000_STAT("rx_header_split", rx_hdr_split),
+	E1000_STAT("alloc_rx_buff_failed", alloc_rx_buff_failed),
+	E1000_STAT("tx_smbus", stats.mgptc),
+	E1000_STAT("rx_smbus", stats.mgprc),
+	E1000_STAT("dropped_smbus", stats.mgpdc),
+	E1000_STAT("rx_dma_failed", rx_dma_failed),
+	E1000_STAT("tx_dma_failed", tx_dma_failed),
 };
 
 #define E1000_GLOBAL_STATS_LEN	ARRAY_SIZE(e1000_gstrings_stats)
@@ -118,6 +122,7 @@ static int e1000_get_settings(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	u32 speed;
 
 	if (hw->phy.media_type == e1000_media_type_copper) {
 
@@ -155,23 +160,23 @@ static int e1000_get_settings(struct net_device *netdev,
 		ecmd->transceiver = XCVR_EXTERNAL;
 	}
 
-	ecmd->speed = -1;
+	speed = -1;
 	ecmd->duplex = -1;
 
 	if (netif_running(netdev)) {
 		if (netif_carrier_ok(netdev)) {
-			ecmd->speed = adapter->link_speed;
+			speed = adapter->link_speed;
 			ecmd->duplex = adapter->link_duplex - 1;
 		}
 	} else {
 		u32 status = er32(STATUS);
 		if (status & E1000_STATUS_LU) {
 			if (status & E1000_STATUS_SPEED_1000)
-				ecmd->speed = 1000;
+				speed = SPEED_1000;
 			else if (status & E1000_STATUS_SPEED_100)
-				ecmd->speed = 100;
+				speed = SPEED_100;
 			else
-				ecmd->speed = 10;
+				speed = SPEED_10;
 
 			if (status & E1000_STATUS_FD)
 				ecmd->duplex = DUPLEX_FULL;
@@ -180,6 +185,7 @@ static int e1000_get_settings(struct net_device *netdev,
 		}
 	}
 
+	ethtool_cmd_speed_set(ecmd, speed);
 	ecmd->autoneg = ((hw->phy.media_type == e1000_media_type_fiber) ||
 			 hw->mac.autoneg) ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 
@@ -194,34 +200,25 @@ static int e1000_get_settings(struct net_device *netdev,
 	return 0;
 }
 
-static u32 e1000_get_link(struct net_device *netdev)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
-
-	/*
-	 * Avoid touching hardware registers when possible, otherwise
-	 * link negotiation can get messed up when user-level scripts
-	 * are rapidly polling the driver to see if link is up.
-	 */
-	return netif_running(netdev) ? netif_carrier_ok(netdev) :
-	    !!(er32(STATUS) & E1000_STATUS_LU);
-}
-
-static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx)
+static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx)
 {
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 
 	mac->autoneg = 0;
 
+	/* Make sure dplx is at most 1 bit and lsb of speed is not set
+	 * for the switch() below to work */
+	if ((spd & 1) || (dplx & ~1))
+		goto err_inval;
+
 	/* Fiber NICs only allow 1000 gbps Full duplex */
 	if ((adapter->hw.phy.media_type == e1000_media_type_fiber) &&
-		spddplx != (SPEED_1000 + DUPLEX_FULL)) {
-		e_err("Unsupported Speed/Duplex configuration\n");
-		return -EINVAL;
+	    spd != SPEED_1000 &&
+	    dplx != DUPLEX_FULL) {
+		goto err_inval;
 	}
 
-	switch (spddplx) {
+	switch (spd + dplx) {
 	case SPEED_10 + DUPLEX_HALF:
 		mac->forced_speed_duplex = ADVERTISE_10_HALF;
 		break;
@@ -240,10 +237,13 @@ static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx)
 		break;
 	case SPEED_1000 + DUPLEX_HALF: /* not supported */
 	default:
-		e_err("Unsupported Speed/Duplex configuration\n");
-		return -EINVAL;
+		goto err_inval;
 	}
 	return 0;
+
+err_inval:
+	e_err("Unsupported Speed/Duplex configuration\n");
+	return -EINVAL;
 }
 
 static int e1000_set_settings(struct net_device *netdev,
@@ -263,7 +263,7 @@ static int e1000_set_settings(struct net_device *netdev,
 	}
 
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		hw->mac.autoneg = 1;
@@ -279,7 +279,8 @@ static int e1000_set_settings(struct net_device *netdev,
 		if (adapter->fc_autoneg)
 			hw->fc.requested_mode = e1000_fc_default;
 	} else {
-		if (e1000_set_spd_dplx(adapter, ecmd->speed + ecmd->duplex)) {
+		u32 speed = ethtool_cmd_speed(ecmd);
+		if (e1000_set_spd_dplx(adapter, speed, ecmd->duplex)) {
 			clear_bit(__E1000_RESETTING, &adapter->state);
 			return -EINVAL;
 		}
@@ -327,7 +328,7 @@ static int e1000_set_pauseparam(struct net_device *netdev,
 	adapter->fc_autoneg = pause->autoneg;
 
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	if (adapter->fc_autoneg == AUTONEG_ENABLE) {
 		hw->fc.requested_mode = e1000_fc_default;
@@ -368,7 +369,7 @@ out:
 static u32 e1000_get_rx_csum(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	return (adapter->flags & FLAG_RX_CSUM_ENABLED);
+	return adapter->flags & FLAG_RX_CSUM_ENABLED;
 }
 
 static int e1000_set_rx_csum(struct net_device *netdev, u32 data)
@@ -389,7 +390,7 @@ static int e1000_set_rx_csum(struct net_device *netdev, u32 data)
 
 static u32 e1000_get_tx_csum(struct net_device *netdev)
 {
-	return ((netdev->features & NETIF_F_HW_CSUM) != 0);
+	return (netdev->features & NETIF_F_HW_CSUM) != 0;
 }
 
 static int e1000_set_tx_csum(struct net_device *netdev, u32 data)
@@ -443,13 +444,11 @@ static void e1000_get_regs(struct net_device *netdev,
 	struct e1000_hw *hw = &adapter->hw;
 	u32 *regs_buff = p;
 	u16 phy_data;
-	u8 revision_id;
 
 	memset(p, 0, E1000_REGS_LEN * sizeof(u32));
 
-	pci_read_config_byte(adapter->pdev, PCI_REVISION_ID, &revision_id);
-
-	regs->version = (1 << 24) | (revision_id << 16) | adapter->pdev->device;
+	regs->version = (1 << 24) | (adapter->pdev->revision << 16) |
+			adapter->pdev->device;
 
 	regs_buff[0]  = er32(CTRL);
 	regs_buff[1]  = er32(STATUS);
@@ -634,20 +633,24 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	char firmware_version[32];
 
-	strncpy(drvinfo->driver,  e1000e_driver_name, 32);
-	strncpy(drvinfo->version, e1000e_driver_version, 32);
+	strncpy(drvinfo->driver,  e1000e_driver_name,
+		sizeof(drvinfo->driver) - 1);
+	strncpy(drvinfo->version, e1000e_driver_version,
+		sizeof(drvinfo->version) - 1);
 
 	/*
 	 * EEPROM image version # is reported as firmware version # for
 	 * PCI-E controllers
 	 */
-	sprintf(firmware_version, "%d.%d-%d",
+	snprintf(firmware_version, sizeof(firmware_version), "%d.%d-%d",
 		(adapter->eeprom_vers & 0xF000) >> 12,
 		(adapter->eeprom_vers & 0x0FF0) >> 4,
 		(adapter->eeprom_vers & 0x000F));
 
-	strncpy(drvinfo->fw_version, firmware_version, 32);
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	strncpy(drvinfo->fw_version, firmware_version,
+		sizeof(drvinfo->fw_version) - 1);
+	strncpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info) - 1);
 	drvinfo->regdump_len = e1000_get_regs_len(netdev);
 	drvinfo->eedump_len = e1000_get_eeprom_len(netdev);
 }
@@ -681,7 +684,7 @@ static int e1000_set_ringparam(struct net_device *netdev,
 		return -EINVAL;
 
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	if (netif_running(adapter->netdev))
 		e1000e_down(adapter);
@@ -690,20 +693,13 @@ static int e1000_set_ringparam(struct net_device *netdev,
 	rx_old = adapter->rx_ring;
 
 	err = -ENOMEM;
-	tx_ring = kzalloc(sizeof(struct e1000_ring), GFP_KERNEL);
+	tx_ring = kmemdup(tx_old, sizeof(struct e1000_ring), GFP_KERNEL);
 	if (!tx_ring)
 		goto err_alloc_tx;
-	/*
-	 * use a memcpy to save any previously configured
-	 * items like napi structs from having to be
-	 * reinitialized
-	 */
-	memcpy(tx_ring, tx_old, sizeof(struct e1000_ring));
 
-	rx_ring = kzalloc(sizeof(struct e1000_ring), GFP_KERNEL);
+	rx_ring = kmemdup(rx_old, sizeof(struct e1000_ring), GFP_KERNEL);
 	if (!rx_ring)
 		goto err_alloc_rx;
-	memcpy(rx_ring, rx_old, sizeof(struct e1000_ring));
 
 	adapter->tx_ring = tx_ring;
 	adapter->rx_ring = rx_ring;
@@ -763,8 +759,8 @@ static bool reg_pattern_test(struct e1000_adapter *adapter, u64 *data,
 			     int reg, int offset, u32 mask, u32 write)
 {
 	u32 pat, val;
-	static const u32 test[] =
-		{0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
+	static const u32 test[] = {
+		0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
 	for (pat = 0; pat < ARRAY_SIZE(test); pat++) {
 		E1000_WRITE_REG_ARRAY(&adapter->hw, reg, offset,
 				      (test[pat] & write));
@@ -967,7 +963,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 
 	/* Disable all the interrupts */
 	ew32(IMC, 0xFFFFFFFF);
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	/* Test each interrupt */
 	for (i = 0; i < 10; i++) {
@@ -999,7 +995,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 			adapter->test_icr = 0;
 			ew32(IMC, mask);
 			ew32(ICS, mask);
-			msleep(10);
+			usleep_range(10000, 20000);
 
 			if (adapter->test_icr & mask) {
 				*data = 3;
@@ -1017,7 +1013,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 		adapter->test_icr = 0;
 		ew32(IMS, mask);
 		ew32(ICS, mask);
-		msleep(10);
+		usleep_range(10000, 20000);
 
 		if (!(adapter->test_icr & mask)) {
 			*data = 4;
@@ -1035,7 +1031,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 			adapter->test_icr = 0;
 			ew32(IMC, ~mask & 0x00007FFF);
 			ew32(ICS, ~mask & 0x00007FFF);
-			msleep(10);
+			usleep_range(10000, 20000);
 
 			if (adapter->test_icr) {
 				*data = 5;
@@ -1046,7 +1042,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 
 	/* Disable all the interrupts */
 	ew32(IMC, 0xFFFFFFFF);
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	/* Unhook test interrupt handler */
 	free_irq(irq, netdev);
@@ -1261,8 +1257,8 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl_reg = 0;
-	u32 stat_reg = 0;
 	u16 phy_reg = 0;
+	s32 ret_val = 0;
 
 	hw->mac.autoneg = 0;
 
@@ -1322,7 +1318,13 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	case e1000_phy_82577:
 	case e1000_phy_82578:
 		/* Workaround: K1 must be disabled for stable 1Gbps operation */
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val) {
+			e_err("Cannot setup 1Gbps loopback.\n");
+			return ret_val;
+		}
 		e1000_configure_k1_ich8lan(hw, false);
+		hw->phy.ops.release(hw);
 		break;
 	case e1000_phy_82579:
 		/* Disable PHY energy detect power down */
@@ -1362,8 +1364,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		 * Set the ILOS bit on the fiber Nic if half duplex link is
 		 * detected.
 		 */
-		stat_reg = er32(STATUS);
-		if ((stat_reg & E1000_STATUS_FD) == 0)
+		if ((er32(STATUS) & E1000_STATUS_FD) == 0)
 			ctrl_reg |= (E1000_CTRL_ILOS | E1000_CTRL_SLU);
 	}
 
@@ -1416,7 +1417,7 @@ static int e1000_set_82571_fiber_loopback(struct e1000_adapter *adapter)
 	 */
 #define E1000_SERDES_LB_ON 0x410
 	ew32(SCTL, E1000_SERDES_LB_ON);
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	return 0;
 }
@@ -1511,7 +1512,7 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 		    hw->phy.media_type == e1000_media_type_internal_serdes) {
 #define E1000_SERDES_LB_OFF 0x400
 			ew32(SCTL, E1000_SERDES_LB_OFF);
-			msleep(10);
+			usleep_range(10000, 20000);
 			break;
 		}
 		/* Fall Through */
@@ -1676,10 +1677,13 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 	} else {
 		hw->mac.ops.check_for_link(hw);
 		if (hw->mac.autoneg)
-			msleep(4000);
+			/*
+			 * On some Phy/switch combinations, link establishment
+			 * can take a few seconds more than expected.
+			 */
+			msleep(5000);
 
-		if (!(er32(STATUS) &
-		      E1000_STATUS_LU))
+		if (!(er32(STATUS) & E1000_STATUS_LU))
 			*data = 1;
 	}
 	return *data;
@@ -1707,6 +1711,19 @@ static void e1000_diag_test(struct net_device *netdev,
 	bool if_running = netif_running(netdev);
 
 	set_bit(__E1000_TESTING, &adapter->state);
+
+	if (!if_running) {
+		/* Get control of and reset hardware */
+		if (adapter->flags & FLAG_HAS_AMT)
+			e1000e_get_hw_control(adapter);
+
+		e1000e_power_up_phy(adapter);
+
+		adapter->hw.phy.autoneg_wait_to_complete = 1;
+		e1000e_reset(adapter);
+		adapter->hw.phy.autoneg_wait_to_complete = 0;
+	}
+
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		/* Offline tests */
 
@@ -1717,18 +1734,9 @@ static void e1000_diag_test(struct net_device *netdev,
 
 		e_info("offline testing starting\n");
 
-		/*
-		 * Link test performed before hardware reset so autoneg doesn't
-		 * interfere with test result
-		 */
-		if (e1000_link_test(adapter, &data[4]))
-			eth_test->flags |= ETH_TEST_FL_FAILED;
-
 		if (if_running)
 			/* indicate we're in test mode */
 			dev_close(netdev);
-		else
-			e1000e_reset(adapter);
 
 		if (e1000_reg_test(adapter, &data[0]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
@@ -1742,47 +1750,50 @@ static void e1000_diag_test(struct net_device *netdev,
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		e1000e_reset(adapter);
-		/* make sure the phy is powered up */
-		e1000e_power_up_phy(adapter);
 		if (e1000_loopback_test(adapter, &data[3]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
-
-		/* restore speed, duplex, autoneg settings */
-		adapter->hw.phy.autoneg_advertised = autoneg_advertised;
-		adapter->hw.mac.forced_speed_duplex = forced_speed_duplex;
-		adapter->hw.mac.autoneg = autoneg;
 
 		/* force this routine to wait until autoneg complete/timeout */
 		adapter->hw.phy.autoneg_wait_to_complete = 1;
 		e1000e_reset(adapter);
 		adapter->hw.phy.autoneg_wait_to_complete = 0;
 
+		if (e1000_link_test(adapter, &data[4]))
+			eth_test->flags |= ETH_TEST_FL_FAILED;
+
+		/* restore speed, duplex, autoneg settings */
+		adapter->hw.phy.autoneg_advertised = autoneg_advertised;
+		adapter->hw.mac.forced_speed_duplex = forced_speed_duplex;
+		adapter->hw.mac.autoneg = autoneg;
+		e1000e_reset(adapter);
+
 		clear_bit(__E1000_TESTING, &adapter->state);
 		if (if_running)
 			dev_open(netdev);
 	} else {
-		if (!if_running && (adapter->flags & FLAG_HAS_AMT)) {
-			clear_bit(__E1000_TESTING, &adapter->state);
-			dev_open(netdev);
-			set_bit(__E1000_TESTING, &adapter->state);
-		}
+		/* Online tests */
 
 		e_info("online testing starting\n");
-		/* Online tests */
-		if (e1000_link_test(adapter, &data[4]))
-			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		/* Online tests aren't run; pass by default */
+		/* register, eeprom, intr and loopback tests not run online */
 		data[0] = 0;
 		data[1] = 0;
 		data[2] = 0;
 		data[3] = 0;
 
-		if (!if_running && (adapter->flags & FLAG_HAS_AMT))
-			dev_close(netdev);
+		if (e1000_link_test(adapter, &data[4]))
+			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		clear_bit(__E1000_TESTING, &adapter->state);
 	}
+
+	if (!if_running) {
+		e1000e_reset(adapter);
+
+		if (adapter->flags & FLAG_HAS_AMT)
+			e1000e_release_hw_control(adapter);
+	}
+
 	msleep_interruptible(4 * 1000);
 }
 
@@ -1799,8 +1810,7 @@ static void e1000_get_wol(struct net_device *netdev,
 		return;
 
 	wol->supported = WAKE_UCAST | WAKE_MCAST |
-	                 WAKE_BCAST | WAKE_MAGIC |
-	                 WAKE_PHY | WAKE_ARP;
+	    WAKE_BCAST | WAKE_MAGIC | WAKE_PHY;
 
 	/* apply any specific unsupported masks here */
 	if (adapter->flags & FLAG_NO_WAKE_UCAST) {
@@ -1821,19 +1831,16 @@ static void e1000_get_wol(struct net_device *netdev,
 		wol->wolopts |= WAKE_MAGIC;
 	if (adapter->wol & E1000_WUFC_LNKC)
 		wol->wolopts |= WAKE_PHY;
-	if (adapter->wol & E1000_WUFC_ARP)
-		wol->wolopts |= WAKE_ARP;
 }
 
-static int e1000_set_wol(struct net_device *netdev,
-			 struct ethtool_wolinfo *wol)
+static int e1000_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	if (!(adapter->flags & FLAG_HAS_WOL) ||
 	    !device_can_wakeup(&adapter->pdev->dev) ||
 	    (wol->wolopts & ~(WAKE_UCAST | WAKE_MCAST | WAKE_BCAST |
-	                      WAKE_MAGIC | WAKE_PHY | WAKE_ARP)))
+			      WAKE_MAGIC | WAKE_PHY)))
 		return -EOPNOTSUPP;
 
 	/* these settings will always override what we currently have */
@@ -1849,73 +1856,41 @@ static int e1000_set_wol(struct net_device *netdev,
 		adapter->wol |= E1000_WUFC_MAG;
 	if (wol->wolopts & WAKE_PHY)
 		adapter->wol |= E1000_WUFC_LNKC;
-	if (wol->wolopts & WAKE_ARP)
-		adapter->wol |= E1000_WUFC_ARP;
 
 	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
 	return 0;
 }
 
-/* toggle LED 4 times per second = 2 "blinks" per second */
-#define E1000_ID_INTERVAL	(HZ/4)
-
-/* bit defines for adapter->led_status */
-#define E1000_LED_ON		0
-
-static void e1000e_led_blink_task(struct work_struct *work)
-{
-	struct e1000_adapter *adapter = container_of(work,
-	                                struct e1000_adapter, led_blink_task);
-
-	if (test_and_change_bit(E1000_LED_ON, &adapter->led_status))
-		adapter->hw.mac.ops.led_off(&adapter->hw);
-	else
-		adapter->hw.mac.ops.led_on(&adapter->hw);
-}
-
-static void e1000_led_blink_callback(unsigned long data)
-{
-	struct e1000_adapter *adapter = (struct e1000_adapter *) data;
-
-	schedule_work(&adapter->led_blink_task);
-	mod_timer(&adapter->blink_timer, jiffies + E1000_ID_INTERVAL);
-}
-
-static int e1000_phys_id(struct net_device *netdev, u32 data)
+static int e1000_set_phys_id(struct net_device *netdev,
+			     enum ethtool_phys_id_state state)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
-	if (!data)
-		data = INT_MAX;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		if (!hw->mac.ops.blink_led)
+			return 2;	/* cycle on/off twice per second */
 
-	if ((hw->phy.type == e1000_phy_ife) ||
-	    (hw->mac.type == e1000_pchlan) ||
-	    (hw->mac.type == e1000_pch2lan) ||
-	    (hw->mac.type == e1000_82583) ||
-	    (hw->mac.type == e1000_82574)) {
-		INIT_WORK(&adapter->led_blink_task, e1000e_led_blink_task);
-		if (!adapter->blink_timer.function) {
-			init_timer(&adapter->blink_timer);
-			adapter->blink_timer.function =
-				e1000_led_blink_callback;
-			adapter->blink_timer.data = (unsigned long) adapter;
-		}
-		mod_timer(&adapter->blink_timer, jiffies);
-		msleep_interruptible(data * 1000);
-		del_timer_sync(&adapter->blink_timer);
+		hw->mac.ops.blink_led(hw);
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
 		if (hw->phy.type == e1000_phy_ife)
 			e1e_wphy(hw, IFE_PHY_SPECIAL_CONTROL_LED, 0);
-	} else {
-		e1000e_blink_led(hw);
-		msleep_interruptible(data * 1000);
+		hw->mac.ops.led_off(hw);
+		hw->mac.ops.cleanup_led(hw);
+		break;
+
+	case ETHTOOL_ID_ON:
+		adapter->hw.mac.ops.led_on(&adapter->hw);
+		break;
+
+	case ETHTOOL_ID_OFF:
+		adapter->hw.mac.ops.led_off(&adapter->hw);
+		break;
 	}
-
-	hw->mac.ops.led_off(hw);
-	clear_bit(E1000_LED_ON, &adapter->led_status);
-	hw->mac.ops.cleanup_led(hw);
-
 	return 0;
 }
 
@@ -1965,8 +1940,15 @@ static int e1000_set_coalesce(struct net_device *netdev,
 static int e1000_nway_reset(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	if (netif_running(netdev))
-		e1000e_reinit_locked(adapter);
+
+	if (!netif_running(netdev))
+		return -EAGAIN;
+
+	if (!adapter->hw.mac.autoneg)
+		return -EINVAL;
+
+	e1000e_reinit_locked(adapter);
+
 	return 0;
 }
 
@@ -1975,20 +1957,24 @@ static void e1000_get_ethtool_stats(struct net_device *netdev,
 				    u64 *data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct rtnl_link_stats64 net_stats;
 	int i;
 	char *p = NULL;
 
-	e1000e_update_stats(adapter);
+	e1000e_get_stats64(netdev, &net_stats);
 	for (i = 0; i < E1000_GLOBAL_STATS_LEN; i++) {
 		switch (e1000_gstrings_stats[i].type) {
 		case NETDEV_STATS:
-			p = (char *) netdev +
+			p = (char *) &net_stats +
 					e1000_gstrings_stats[i].stat_offset;
 			break;
 		case E1000_STATS:
 			p = (char *) adapter +
 					e1000_gstrings_stats[i].stat_offset;
 			break;
+		default:
+			data[i] = 0;
+			continue;
 		}
 
 		data[i] = (e1000_gstrings_stats[i].sizeof_stat ==
@@ -2004,7 +1990,7 @@ static void e1000_get_strings(struct net_device *netdev, u32 stringset,
 
 	switch (stringset) {
 	case ETH_SS_TEST:
-		memcpy(data, *e1000_gstrings_test, sizeof(e1000_gstrings_test));
+		memcpy(data, e1000_gstrings_test, sizeof(e1000_gstrings_test));
 		break;
 	case ETH_SS_STATS:
 		for (i = 0; i < E1000_GLOBAL_STATS_LEN; i++) {
@@ -2014,6 +2000,31 @@ static void e1000_get_strings(struct net_device *netdev, u32 stringset,
 		}
 		break;
 	}
+}
+
+static int e1000e_set_flags(struct net_device *netdev, u32 data)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	bool need_reset = false;
+	int rc;
+
+	need_reset = (data & ETH_FLAG_RXVLAN) !=
+		     (netdev->features & NETIF_F_HW_VLAN_RX);
+
+	rc = ethtool_op_set_flags(netdev, data, ETH_FLAG_RXVLAN |
+				  ETH_FLAG_TXVLAN);
+
+	if (rc)
+		return rc;
+
+	if (need_reset) {
+		if (netif_running(netdev))
+			e1000e_reinit_locked(adapter);
+		else
+			e1000e_reset(adapter);
+	}
+
+	return 0;
 }
 
 static const struct ethtool_ops e1000_ethtool_ops = {
@@ -2027,7 +2038,7 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_msglevel		= e1000_get_msglevel,
 	.set_msglevel		= e1000_set_msglevel,
 	.nway_reset		= e1000_nway_reset,
-	.get_link		= e1000_get_link,
+	.get_link		= ethtool_op_get_link,
 	.get_eeprom_len		= e1000_get_eeprom_len,
 	.get_eeprom		= e1000_get_eeprom,
 	.set_eeprom		= e1000_set_eeprom,
@@ -2045,12 +2056,13 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.set_tso		= e1000_set_tso,
 	.self_test		= e1000_diag_test,
 	.get_strings		= e1000_get_strings,
-	.phys_id		= e1000_phys_id,
+	.set_phys_id		= e1000_set_phys_id,
 	.get_ethtool_stats	= e1000_get_ethtool_stats,
 	.get_sset_count		= e1000e_get_sset_count,
 	.get_coalesce		= e1000_get_coalesce,
 	.set_coalesce		= e1000_set_coalesce,
 	.get_flags		= ethtool_op_get_flags,
+	.set_flags		= e1000e_set_flags,
 };
 
 void e1000e_set_ethtool_ops(struct net_device *netdev)

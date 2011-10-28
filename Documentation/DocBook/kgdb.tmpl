@@ -710,7 +710,18 @@ Task Addr       Pid   Parent [*] cpu State Thread     Command
         <listitem><para>A simple shell</para></listitem>
         <listitem><para>The kdb core command set</para></listitem>
         <listitem><para>A registration API to register additional kdb shell commands.</para>
-        <para>A good example of a self-contained kdb module is the "ftdump" command for dumping the ftrace buffer.  See: kernel/trace/trace_kdb.c</para></listitem>
+	<itemizedlist>
+        <listitem><para>A good example of a self-contained kdb module
+        is the "ftdump" command for dumping the ftrace buffer.  See:
+        kernel/trace/trace_kdb.c</para></listitem>
+        <listitem><para>For an example of how to dynamically register
+        a new kdb command you can build the kdb_hello.ko kernel module
+        from samples/kdb/kdb_hello.c.  To build this example you can
+        set CONFIG_SAMPLES=y and CONFIG_SAMPLE_KDB=m in your kernel
+        config.  Later run "modprobe kdb_hello" and the next time you
+        enter the kdb shell, you can run the "hello"
+        command.</para></listitem>
+	</itemizedlist></listitem>
         <listitem><para>The implementation for kdb_printf() which
         emits messages directly to I/O drivers, bypassing the kernel
         log.</para></listitem>

@@ -31,9 +31,6 @@
 
 #define BRDIOCTL_CHNLREAD           (BRDIOCTL_RESERVEDBASE + 0x10)
 #define BRDIOCTL_CHNLWRITE          (BRDIOCTL_RESERVEDBASE + 0x20)
-#define BRDIOCTL_GETINTRCOUNT       (BRDIOCTL_RESERVEDBASE + 0x30)
-#define BRDIOCTL_RESETINTRCOUNT     (BRDIOCTL_RESERVEDBASE + 0x40)
-#define BRDIOCTL_INTERRUPTDSP       (BRDIOCTL_RESERVEDBASE + 0x50)
 /* DMMU */
 #define BRDIOCTL_SETMMUCONFIG       (BRDIOCTL_RESERVEDBASE + 0x60)
 /* PWR */
@@ -47,8 +44,6 @@
 #define BRDIOCTL_DEEPSLEEP          (BRDIOCTL_PWRCONTROL + 0x0)
 #define BRDIOCTL_EMERGENCYSLEEP     (BRDIOCTL_PWRCONTROL + 0x1)
 #define BRDIOCTL_WAKEUP             (BRDIOCTL_PWRCONTROL + 0x2)
-#define BRDIOCTL_PWRENABLE          (BRDIOCTL_PWRCONTROL + 0x3)
-#define BRDIOCTL_PWRDISABLE         (BRDIOCTL_PWRCONTROL + 0x4)
 #define BRDIOCTL_CLK_CTRL		    (BRDIOCTL_PWRCONTROL + 0x7)
 /* DSP Initiated Hibernate */
 #define BRDIOCTL_PWR_HIBERNATE	(BRDIOCTL_PWRCONTROL + 0x8)
@@ -60,11 +55,11 @@
 #define BRDIOCTL_NUMOFMMUTLB        32
 
 struct bridge_ioctl_extproc {
-	u32 ul_dsp_va;		/* DSP virtual address */
-	u32 ul_gpp_pa;		/* GPP physical address */
+	u32 dsp_va;		/* DSP virtual address */
+	u32 gpp_pa;		/* GPP physical address */
 	/* GPP virtual address. __va does not work for ioremapped addresses */
-	u32 ul_gpp_va;
-	u32 ul_size;		/* Size of the mapped memory in bytes */
+	u32 gpp_va;
+	u32 size;		/* Size of the mapped memory in bytes */
 	enum hw_endianism_t endianism;
 	enum hw_mmu_mixed_size_t mixed_mode;
 	enum hw_element_size_t elem_size;

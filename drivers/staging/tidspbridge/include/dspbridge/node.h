@@ -22,7 +22,7 @@
 #include <dspbridge/procpriv.h>
 
 #include <dspbridge/nodedefs.h>
-#include <dspbridge/dispdefs.h>
+#include <dspbridge/disp.h>
 #include <dspbridge/nldrdefs.h>
 #include <dspbridge/drv.h>
 
@@ -44,7 +44,7 @@
  *      -ESPIPE:        iAlg functions not found for a DAIS node.
  *      -EDOM:         attr_in != NULL and attr_in->prio out of
  *                          range.
- *      -EPERM:          A failure occured, unable to allocate node.
+ *      -EPERM:          A failure occurred, unable to allocate node.
  *      -EBADR:    Proccessor is not in the running state.
  *  Requires:
  *      node_init(void) called.
@@ -113,28 +113,10 @@ extern int node_alloc_msg_buf(struct node_object *hnode,
 extern int node_change_priority(struct node_object *hnode, s32 prio);
 
 /*
- *  ======== node_close_orphans ========
- *  Purpose:
- *      Delete all nodes whose owning processor is being destroyed.
- *  Parameters:
- *      hnode_mgr:       Node manager object.
- *      proc:          Handle to processor object being destroyed.
- *  Returns:
- *      0:        Success.
- *      -EPERM:      Unable to delete all nodes belonging to proc.
- *  Requires:
- *      Valid hnode_mgr.
- *      proc != NULL.
- *  Ensures:
- */
-extern int node_close_orphans(struct node_mgr *hnode_mgr,
-				     struct proc_object *proc);
-
-/*
  *  ======== node_connect ========
  *  Purpose:
  *      Connect two nodes on the DSP, or a node on the DSP to the GPP. In the
- *      case that the connnection is being made between a node on the DSP and
+ *      case that the connection is being made between a node on the DSP and
  *      the GPP, one of the node handles (either node1 or node2) must be
  *      the constant NODE_HGPPNODE.
  *  Parameters:

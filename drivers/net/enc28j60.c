@@ -814,7 +814,7 @@ static void enc28j60_read_tsv(struct enc28j60_net *priv, u8 tsv[TSV_SIZE])
 	if (netif_msg_hw(priv))
 		printk(KERN_DEBUG DRV_NAME ": reading TSV at addr:0x%04x\n",
 			 endptr + 1);
-	enc28j60_mem_read(priv, endptr + 1, sizeof(tsv), tsv);
+	enc28j60_mem_read(priv, endptr + 1, TSV_SIZE, tsv);
 }
 
 static void enc28j60_dump_tsv(struct enc28j60_net *priv, const char *msg,
@@ -1490,7 +1490,7 @@ enc28j60_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	cmd->supported	= SUPPORTED_10baseT_Half
 			| SUPPORTED_10baseT_Full
 			| SUPPORTED_TP;
-	cmd->speed	= SPEED_10;
+	ethtool_cmd_speed_set(cmd,  SPEED_10);
 	cmd->duplex	= priv->full_duplex ? DUPLEX_FULL : DUPLEX_HALF;
 	cmd->port	= PORT_TP;
 	cmd->autoneg	= AUTONEG_DISABLE;
@@ -1501,7 +1501,8 @@ enc28j60_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int
 enc28j60_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	return enc28j60_setlink(dev, cmd->autoneg, cmd->speed, cmd->duplex);
+	return enc28j60_setlink(dev, cmd->autoneg,
+				ethtool_cmd_speed(cmd), cmd->duplex);
 }
 
 static u32 enc28j60_get_msglevel(struct net_device *dev)

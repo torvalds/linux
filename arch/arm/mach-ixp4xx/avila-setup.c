@@ -164,8 +164,6 @@ static void __init avila_init(void)
 
 MACHINE_START(AVILA, "Gateworks Avila Network Platform")
 	/* Maintainer: Deepak Saxena <dsaxena@plexity.net> */
-	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
-	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
@@ -181,8 +179,6 @@ MACHINE_END
 #ifdef CONFIG_MACH_LOFT
 MACHINE_START(LOFT, "Giant Shoulder Inc Loft board")
 	/* Maintainer: Tom Billman <kernel@giantshoulderinc.com> */
-	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
-	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,

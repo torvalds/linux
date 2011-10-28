@@ -19,7 +19,7 @@ void selinux_xfrm_state_free(struct xfrm_state *x);
 int selinux_xfrm_state_delete(struct xfrm_state *x);
 int selinux_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir);
 int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
-			struct xfrm_policy *xp, struct flowi *fl);
+			struct xfrm_policy *xp, const struct flowi *fl);
 
 /*
  * Extract the security blob from the sock (it's actually on the socket)

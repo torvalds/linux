@@ -110,6 +110,21 @@ struct mtd_oob_ops {
 	uint8_t		*oobbuf;
 };
 
+#define MTD_MAX_OOBFREE_ENTRIES_LARGE	32
+#define MTD_MAX_ECCPOS_ENTRIES_LARGE	448
+/*
+ * Internal ECC layout control structure. For historical reasons, there is a
+ * similar, smaller struct nand_ecclayout_user (in mtd-abi.h) that is retained
+ * for export to user-space via the ECCGETLAYOUT ioctl.
+ * nand_ecclayout should be expandable in the future simply by the above macros.
+ */
+struct nand_ecclayout {
+	__u32 eccbytes;
+	__u32 eccpos[MTD_MAX_ECCPOS_ENTRIES_LARGE];
+	__u32 oobavail;
+	struct nand_oobfree oobfree[MTD_MAX_OOBFREE_ENTRIES_LARGE];
+};
+
 struct mtd_info {
 	u_char type;
 	uint32_t flags;
@@ -128,6 +143,17 @@ struct mtd_info {
 	 * 1 or larger.
 	 */
 	uint32_t writesize;
+
+	/*
+	 * Size of the write buffer used by the MTD. MTD devices having a write
+	 * buffer can write multiple writesize chunks at a time. E.g. while
+	 * writing 4 * writesize bytes to a device with 2 * writesize bytes
+	 * buffer the MTD driver can (but doesn't have to) do 2 writesize
+	 * operations, but not 4. Currently, all NANDs have writebufsize
+	 * equivalent to writesize (NAND page size). Some NOR flashes do have
+	 * writebufsize greater than writesize.
+	 */
+	uint32_t writebufsize;
 
 	uint32_t oobsize;   // Amount of OOB data per block (e.g. 16)
 	uint32_t oobavail;  // Available OOB bytes per block
@@ -296,9 +322,12 @@ static inline uint32_t mtd_mod_by_ws(uint64_t sz, struct mtd_info *mtd)
 
 	/* Kernel-side ioctl definitions */
 
-extern int add_mtd_device(struct mtd_info *mtd);
-extern int del_mtd_device (struct mtd_info *mtd);
+struct mtd_partition;
 
+extern int mtd_device_register(struct mtd_info *master,
+			       const struct mtd_partition *parts,
+			       int nr_parts);
+extern int mtd_device_unregister(struct mtd_info *master);
 extern struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num);
 extern int __get_mtd_device(struct mtd_info *mtd);
 extern void __put_mtd_device(struct mtd_info *mtd);
@@ -322,15 +351,9 @@ int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 int default_mtd_readv(struct mtd_info *mtd, struct kvec *vecs,
 		      unsigned long count, loff_t from, size_t *retlen);
 
-#ifdef CONFIG_MTD_PARTITIONS
+void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size);
+
 void mtd_erase_callback(struct erase_info *instr);
-#else
-static inline void mtd_erase_callback(struct erase_info *instr)
-{
-	if (instr->callback)
-		instr->callback(instr);
-}
-#endif
 
 /*
  * Debugging macro and defines

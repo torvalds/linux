@@ -20,6 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/leds-lp3944.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <media/soc_camera.h>
 
@@ -30,13 +31,14 @@
 #include <mach/pxa27x.h>
 #include <mach/pxafb.h>
 #include <mach/ohci.h>
-#include <plat/i2c.h>
 #include <mach/hardware.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/camera.h>
 
 #include "devices.h"
 #include "generic.h"
+
+#define EZX_NR_IRQS			(IRQ_BOARD_START + 24)
 
 #define GPIO12_A780_FLIP_LID 		12
 #define GPIO15_A1200_FLIP_LID 		15
@@ -753,7 +755,6 @@ static struct soc_camera_link a780_iclink = {
 	.flags          = SOCAM_SENSOR_INVERT_PCLK,
 	.i2c_adapter_id = 0,
 	.board_info     = &a780_camera_i2c_board_info,
-	.module_name    = "mt9m111",
 	.power          = a780_camera_power,
 	.reset          = a780_camera_reset,
 };
@@ -782,7 +783,7 @@ static void __init a780_init(void)
 
 	pxa_set_i2c_info(NULL);
 
-	set_pxa_fb_info(&ezx_fb_info_1);
+	pxa_set_fb_info(NULL, &ezx_fb_info_1);
 
 	pxa_set_keypad_info(&a780_keypad_platform_data);
 
@@ -796,10 +797,9 @@ static void __init a780_init(void)
 }
 
 MACHINE_START(EZX_A780, "Motorola EZX A780")
-	.phys_io        = 0x40000000,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params    = 0xa0000100,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa27x_map_io,
+	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = a780_init,
@@ -853,7 +853,7 @@ static void __init e680_init(void)
 	pxa_set_i2c_info(NULL);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(e680_i2c_board_info));
 
-	set_pxa_fb_info(&ezx_fb_info_1);
+	pxa_set_fb_info(NULL, &ezx_fb_info_1);
 
 	pxa_set_keypad_info(&e680_keypad_platform_data);
 
@@ -862,10 +862,9 @@ static void __init e680_init(void)
 }
 
 MACHINE_START(EZX_E680, "Motorola EZX E680")
-	.phys_io        = 0x40000000,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params    = 0xa0000100,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa27x_map_io,
+	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = e680_init,
@@ -919,7 +918,7 @@ static void __init a1200_init(void)
 	pxa_set_i2c_info(NULL);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(a1200_i2c_board_info));
 
-	set_pxa_fb_info(&ezx_fb_info_2);
+	pxa_set_fb_info(NULL, &ezx_fb_info_2);
 
 	pxa_set_keypad_info(&a1200_keypad_platform_data);
 
@@ -928,10 +927,9 @@ static void __init a1200_init(void)
 }
 
 MACHINE_START(EZX_A1200, "Motorola EZX A1200")
-	.phys_io        = 0x40000000,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params    = 0xa0000100,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa27x_map_io,
+	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = a1200_init,
@@ -1025,7 +1023,6 @@ static struct soc_camera_link a910_iclink = {
 	.bus_id         = 0,
 	.i2c_adapter_id = 0,
 	.board_info     = &a910_camera_i2c_board_info,
-	.module_name    = "mt9m111",
 	.power          = a910_camera_power,
 	.reset          = a910_camera_reset,
 };
@@ -1106,7 +1103,7 @@ static void __init a910_init(void)
 	pxa_set_i2c_info(NULL);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(a910_i2c_board_info));
 
-	set_pxa_fb_info(&ezx_fb_info_2);
+	pxa_set_fb_info(NULL, &ezx_fb_info_2);
 
 	pxa_set_keypad_info(&a910_keypad_platform_data);
 
@@ -1120,10 +1117,9 @@ static void __init a910_init(void)
 }
 
 MACHINE_START(EZX_A910, "Motorola EZX A910")
-	.phys_io        = 0x40000000,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params    = 0xa0000100,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa27x_map_io,
+	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = a910_init,
@@ -1177,7 +1173,7 @@ static void __init e6_init(void)
 	pxa_set_i2c_info(NULL);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(e6_i2c_board_info));
 
-	set_pxa_fb_info(&ezx_fb_info_2);
+	pxa_set_fb_info(NULL, &ezx_fb_info_2);
 
 	pxa_set_keypad_info(&e6_keypad_platform_data);
 
@@ -1186,10 +1182,9 @@ static void __init e6_init(void)
 }
 
 MACHINE_START(EZX_E6, "Motorola EZX E6")
-	.phys_io        = 0x40000000,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params    = 0xa0000100,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa27x_map_io,
+	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = e6_init,
@@ -1217,7 +1212,7 @@ static void __init e2_init(void)
 	pxa_set_i2c_info(NULL);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(e2_i2c_board_info));
 
-	set_pxa_fb_info(&ezx_fb_info_2);
+	pxa_set_fb_info(NULL, &ezx_fb_info_2);
 
 	pxa_set_keypad_info(&e2_keypad_platform_data);
 
@@ -1226,10 +1221,9 @@ static void __init e2_init(void)
 }
 
 MACHINE_START(EZX_E2, "Motorola EZX E2")
-	.phys_io        = 0x40000000,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params    = 0xa0000100,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa27x_map_io,
+	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = e2_init,

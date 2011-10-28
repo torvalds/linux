@@ -1,6 +1,6 @@
 config DVB_USB
 	tristate "Support for various USB DVB devices"
-	depends on DVB_CORE && USB && I2C && IR_CORE
+	depends on DVB_CORE && USB && I2C && RC_CORE
 	help
 	  By enabling this you will be able to choose the various supported
 	  USB1.1 and USB2.0 DVB devices.
@@ -292,6 +292,11 @@ config DVB_USB_ANYSEE
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	select DVB_TDA10023 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_TDA18212 if !MEDIA_TUNER_CUSTOMISE
+	select DVB_CX24116 if !DVB_FE_CUSTOMISE
+	select DVB_STV0900 if !DVB_FE_CUSTOMISE
+	select DVB_STV6110 if !DVB_FE_CUSTOMISE
+	select DVB_ISL6423 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Anysee E30, Anysee E30 Plus or
 	  Anysee E30 C Plus DVB USB2.0 receiver.
@@ -314,6 +319,8 @@ config DVB_USB_AF9015
 	select MEDIA_TUNER_TDA18271 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MC44S803 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_TDA18218 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_MXL5007T if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the Afatech AF9015 based DVB-T USB2.0 receiver
 
@@ -346,3 +353,23 @@ config DVB_USB_AZ6027
 	select DVB_STB6100 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the AZ6027 device
+
+config DVB_USB_LME2510
+	tristate "LME DM04/QQBOX DVB-S USB2.0 support"
+	depends on DVB_USB
+	select DVB_TDA10086 if !DVB_FE_CUSTOMISE
+	select DVB_TDA826X if !DVB_FE_CUSTOMISE
+	select DVB_STV0288 if !DVB_FE_CUSTOMISE
+	select DVB_IX2505V if !DVB_FE_CUSTOMISE
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_PLL if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the LME DM04/QQBOX DVB-S USB2.0 .
+
+config DVB_USB_TECHNISAT_USB2
+	tristate "Technisat DVB-S/S2 USB2.0 support"
+	depends on DVB_USB
+	select DVB_STV090x if !DVB_FE_CUSTOMISE
+	select DVB_STV6110x if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the Technisat USB2 DVB-S/S2 device

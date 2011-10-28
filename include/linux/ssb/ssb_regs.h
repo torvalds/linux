@@ -85,6 +85,8 @@
 #define  SSB_IMSTATE_AP_RSV	0x00000030 /* Reserved */
 #define  SSB_IMSTATE_IBE	0x00020000 /* In Band Error */
 #define  SSB_IMSTATE_TO		0x00040000 /* Timeout */
+#define  SSB_IMSTATE_BUSY	0x01800000 /* Busy (Backplane rev >= 2.3 only) */
+#define  SSB_IMSTATE_REJECT	0x02000000 /* Reject (Backplane rev >= 2.3 only) */
 #define SSB_INTVEC		0x0F94     /* SB Interrupt Mask */
 #define  SSB_INTVEC_PCI		0x00000001 /* Enable interrupts for PCI */
 #define  SSB_INTVEC_ENET0	0x00000002 /* Enable interrupts for enet 0 */
@@ -95,7 +97,7 @@
 #define  SSB_INTVEC_ENET1	0x00000040 /* Enable interrupts for enet 1 */
 #define SSB_TMSLOW		0x0F98     /* SB Target State Low */
 #define  SSB_TMSLOW_RESET	0x00000001 /* Reset */
-#define  SSB_TMSLOW_REJECT_22	0x00000002 /* Reject (Backplane rev 2.2) */
+#define  SSB_TMSLOW_REJECT	0x00000002 /* Reject (Standard Backplane) */
 #define  SSB_TMSLOW_REJECT_23	0x00000004 /* Reject (Backplane rev 2.3) */
 #define  SSB_TMSLOW_CLOCK	0x00010000 /* Clock Enable */
 #define  SSB_TMSLOW_FGC		0x00020000 /* Force Gated Clocks On */
@@ -267,6 +269,8 @@
 /* SPROM Revision 4 */
 #define SSB_SPROM4_BFLLO		0x0044	/* Boardflags (low 16 bits) */
 #define SSB_SPROM4_BFLHI		0x0046  /* Board Flags Hi */
+#define SSB_SPROM4_BFL2LO		0x0048	/* Board flags 2 (low 16 bits) */
+#define SSB_SPROM4_BFL2HI		0x004A	/* Board flags 2 Hi */
 #define SSB_SPROM4_IL0MAC		0x004C	/* 6 byte MAC address for a/b/g/n */
 #define SSB_SPROM4_CCODE		0x0052	/* Country Code (2 bytes) */
 #define SSB_SPROM4_GPIOA		0x0056	/* Gen. Purpose IO # 0 and 1 */
@@ -298,6 +302,46 @@
 #define  SSB_SPROM4_AGAIN2_SHIFT	0
 #define  SSB_SPROM4_AGAIN3		0xFF00	/* Antenna 3 */
 #define  SSB_SPROM4_AGAIN3_SHIFT	8
+#define SSB_SPROM4_TXPID2G01		0x0062 	/* TX Power Index 2GHz */
+#define  SSB_SPROM4_TXPID2G0		0x00FF
+#define  SSB_SPROM4_TXPID2G0_SHIFT	0
+#define  SSB_SPROM4_TXPID2G1		0xFF00
+#define  SSB_SPROM4_TXPID2G1_SHIFT	8
+#define SSB_SPROM4_TXPID2G23		0x0064 	/* TX Power Index 2GHz */
+#define  SSB_SPROM4_TXPID2G2		0x00FF
+#define  SSB_SPROM4_TXPID2G2_SHIFT	0
+#define  SSB_SPROM4_TXPID2G3		0xFF00
+#define  SSB_SPROM4_TXPID2G3_SHIFT	8
+#define SSB_SPROM4_TXPID5G01		0x0066 	/* TX Power Index 5GHz middle subband */
+#define  SSB_SPROM4_TXPID5G0		0x00FF
+#define  SSB_SPROM4_TXPID5G0_SHIFT	0
+#define  SSB_SPROM4_TXPID5G1		0xFF00
+#define  SSB_SPROM4_TXPID5G1_SHIFT	8
+#define SSB_SPROM4_TXPID5G23		0x0068 	/* TX Power Index 5GHz middle subband */
+#define  SSB_SPROM4_TXPID5G2		0x00FF
+#define  SSB_SPROM4_TXPID5G2_SHIFT	0
+#define  SSB_SPROM4_TXPID5G3		0xFF00
+#define  SSB_SPROM4_TXPID5G3_SHIFT	8
+#define SSB_SPROM4_TXPID5GL01		0x006A 	/* TX Power Index 5GHz low subband */
+#define  SSB_SPROM4_TXPID5GL0		0x00FF
+#define  SSB_SPROM4_TXPID5GL0_SHIFT	0
+#define  SSB_SPROM4_TXPID5GL1		0xFF00
+#define  SSB_SPROM4_TXPID5GL1_SHIFT	8
+#define SSB_SPROM4_TXPID5GL23		0x006C 	/* TX Power Index 5GHz low subband */
+#define  SSB_SPROM4_TXPID5GL2		0x00FF
+#define  SSB_SPROM4_TXPID5GL2_SHIFT	0
+#define  SSB_SPROM4_TXPID5GL3		0xFF00
+#define  SSB_SPROM4_TXPID5GL3_SHIFT	8
+#define SSB_SPROM4_TXPID5GH01		0x006E 	/* TX Power Index 5GHz high subband */
+#define  SSB_SPROM4_TXPID5GH0		0x00FF
+#define  SSB_SPROM4_TXPID5GH0_SHIFT	0
+#define  SSB_SPROM4_TXPID5GH1		0xFF00
+#define  SSB_SPROM4_TXPID5GH1_SHIFT	8
+#define SSB_SPROM4_TXPID5GH23		0x0070 	/* TX Power Index 5GHz high subband */
+#define  SSB_SPROM4_TXPID5GH2		0x00FF
+#define  SSB_SPROM4_TXPID5GH2_SHIFT	0
+#define  SSB_SPROM4_TXPID5GH3		0xFF00
+#define  SSB_SPROM4_TXPID5GH3_SHIFT	8
 #define SSB_SPROM4_MAXP_BG		0x0080  /* Max Power BG in path 1 */
 #define  SSB_SPROM4_MAXP_BG_MASK	0x00FF  /* Mask for Max Power BG */
 #define  SSB_SPROM4_ITSSI_BG		0xFF00	/* Mask for path 1 itssi_bg */
@@ -317,6 +361,8 @@
 #define SSB_SPROM5_CCODE		0x0044	/* Country Code (2 bytes) */
 #define SSB_SPROM5_BFLLO		0x004A	/* Boardflags (low 16 bits) */
 #define SSB_SPROM5_BFLHI		0x004C  /* Board Flags Hi */
+#define SSB_SPROM5_BFL2LO		0x004E	/* Board flags 2 (low 16 bits) */
+#define SSB_SPROM5_BFL2HI		0x0050	/* Board flags 2 Hi */
 #define SSB_SPROM5_IL0MAC		0x0052	/* 6 byte MAC address for a/b/g/n */
 #define SSB_SPROM5_GPIOA		0x0076	/* Gen. Purpose IO # 0 and 1 */
 #define  SSB_SPROM5_GPIOA_P0		0x00FF	/* Pin 0 */

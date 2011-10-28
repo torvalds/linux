@@ -50,7 +50,7 @@
  *  from the SCRIPTS code. In addition, cache line alignment 
  *  is guaranteed for power of 2 cache line size.
  *
- *  This allocator has been developped for the Linux sym53c8xx  
+ *  This allocator has been developed for the Linux sym53c8xx  
  *  driver, since this O/S does not provide naturally aligned 
  *  allocations.
  *  It has the advantage of allowing the driver to use private 

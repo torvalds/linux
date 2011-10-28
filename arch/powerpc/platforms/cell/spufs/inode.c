@@ -71,10 +71,16 @@ spufs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void
-spufs_destroy_inode(struct inode *inode)
+static void spufs_i_callback(struct rcu_head *head)
 {
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(spufs_inode_cache, SPUFS_I(inode));
+}
+
+static void spufs_destroy_inode(struct inode *inode)
+{
+	call_rcu(&inode->i_rcu, spufs_i_callback);
 }
 
 static void
@@ -159,18 +165,18 @@ static void spufs_prune_dir(struct dentry *dir)
 
 	mutex_lock(&dir->d_inode->i_mutex);
 	list_for_each_entry_safe(dentry, tmp, &dir->d_subdirs, d_u.d_child) {
-		spin_lock(&dcache_lock);
 		spin_lock(&dentry->d_lock);
 		if (!(d_unhashed(dentry)) && dentry->d_inode) {
-			dget_locked(dentry);
+			dget_dlock(dentry);
 			__d_drop(dentry);
 			spin_unlock(&dentry->d_lock);
 			simple_unlink(dir->d_inode, dentry);
-			spin_unlock(&dcache_lock);
+			/* XXX: what was dcache_lock protecting here? Other
+			 * filesystems (IB, configfs) release dcache_lock
+			 * before unlink */
 			dput(dentry);
 		} else {
 			spin_unlock(&dentry->d_lock);
-			spin_unlock(&dcache_lock);
 		}
 	}
 	shrink_dcache_parent(dir);
@@ -798,17 +804,17 @@ spufs_fill_super(struct super_block *sb, void *data, int silent)
 	return spufs_create_root(sb, data);
 }
 
-static int
-spufs_get_sb(struct file_system_type *fstype, int flags,
-		const char *name, void *data, struct vfsmount *mnt)
+static struct dentry *
+spufs_mount(struct file_system_type *fstype, int flags,
+		const char *name, void *data)
 {
-	return get_sb_single(fstype, flags, data, spufs_fill_super, mnt);
+	return mount_single(fstype, flags, data, spufs_fill_super);
 }
 
 static struct file_system_type spufs_type = {
 	.owner = THIS_MODULE,
 	.name = "spufs",
-	.get_sb = spufs_get_sb,
+	.mount = spufs_mount,
 	.kill_sb = kill_litter_super,
 };
 

@@ -147,7 +147,9 @@ static void platform_device_release(struct device *dev)
 	struct platform_object *pa = container_of(dev, struct platform_object,
 						  pdev.dev);
 
+	of_device_node_put(&pa->pdev.dev);
 	kfree(pa->pdev.dev.platform_data);
+	kfree(pa->pdev.mfd_cell);
 	kfree(pa->pdev.resource);
 	kfree(pa);
 }
@@ -190,15 +192,18 @@ EXPORT_SYMBOL_GPL(platform_device_alloc);
 int platform_device_add_resources(struct platform_device *pdev,
 				  const struct resource *res, unsigned int num)
 {
-	struct resource *r;
+	struct resource *r = NULL;
 
-	r = kmemdup(res, sizeof(struct resource) * num, GFP_KERNEL);
-	if (r) {
-		pdev->resource = r;
-		pdev->num_resources = num;
-		return 0;
+	if (res) {
+		r = kmemdup(res, sizeof(struct resource) * num, GFP_KERNEL);
+		if (!r)
+			return -ENOMEM;
 	}
-	return -ENOMEM;
+
+	kfree(pdev->resource);
+	pdev->resource = r;
+	pdev->num_resources = num;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(platform_device_add_resources);
 
@@ -215,13 +220,17 @@ EXPORT_SYMBOL_GPL(platform_device_add_resources);
 int platform_device_add_data(struct platform_device *pdev, const void *data,
 			     size_t size)
 {
-	void *d = kmemdup(data, size, GFP_KERNEL);
+	void *d = NULL;
 
-	if (d) {
-		pdev->dev.platform_data = d;
-		return 0;
+	if (data) {
+		d = kmemdup(data, size, GFP_KERNEL);
+		if (!d)
+			return -ENOMEM;
 	}
-	return -ENOMEM;
+
+	kfree(pdev->dev.platform_data);
+	pdev->dev.platform_data = d;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(platform_device_add_data);
 
@@ -358,7 +367,7 @@ EXPORT_SYMBOL_GPL(platform_device_unregister);
  *
  * Returns &struct platform_device pointer on success, or ERR_PTR() on error.
  */
-struct platform_device *__init_or_module platform_device_register_resndata(
+struct platform_device *platform_device_register_resndata(
 		struct device *parent,
 		const char *name, int id,
 		const struct resource *res, unsigned int num,
@@ -373,17 +382,13 @@ struct platform_device *__init_or_module platform_device_register_resndata(
 
 	pdev->dev.parent = parent;
 
-	if (res) {
-		ret = platform_device_add_resources(pdev, res, num);
-		if (ret)
-			goto err;
-	}
+	ret = platform_device_add_resources(pdev, res, num);
+	if (ret)
+		goto err;
 
-	if (data) {
-		ret = platform_device_add_data(pdev, data, size);
-		if (ret)
-			goto err;
-	}
+	ret = platform_device_add_data(pdev, data, size);
+	if (ret)
+		goto err;
 
 	ret = platform_device_add(pdev);
 	if (ret) {
@@ -488,12 +493,12 @@ int __init_or_module platform_driver_probe(struct platform_driver *drv,
 	 * if the probe was successful, and make sure any forced probes of
 	 * new devices fail.
 	 */
-	spin_lock(&platform_bus_type.p->klist_drivers.k_lock);
+	spin_lock(&drv->driver.bus->p->klist_drivers.k_lock);
 	drv->probe = NULL;
 	if (code == 0 && list_empty(&drv->driver.p->klist_devices.k_list))
 		retval = -ENODEV;
 	drv->driver.probe = platform_drv_probe_fail;
-	spin_unlock(&platform_bus_type.p->klist_drivers.k_lock);
+	spin_unlock(&drv->driver.bus->p->klist_drivers.k_lock);
 
 	if (code != retval)
 		platform_driver_unregister(drv);
@@ -530,17 +535,13 @@ struct platform_device * __init_or_module platform_create_bundle(
 		goto err_out;
 	}
 
-	if (res) {
-		error = platform_device_add_resources(pdev, res, n_res);
-		if (error)
-			goto err_pdev_put;
-	}
+	error = platform_device_add_resources(pdev, res, n_res);
+	if (error)
+		goto err_pdev_put;
 
-	if (data) {
-		error = platform_device_add_data(pdev, data, size);
-		if (error)
-			goto err_pdev_put;
-	}
+	error = platform_device_add_data(pdev, data, size);
+	if (error)
+		goto err_pdev_put;
 
 	error = platform_device_add(pdev);
 	if (error)
@@ -666,7 +667,7 @@ static int platform_legacy_resume(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_prepare(struct device *dev)
+int platform_pm_prepare(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -677,7 +678,7 @@ static int platform_pm_prepare(struct device *dev)
 	return ret;
 }
 
-static void platform_pm_complete(struct device *dev)
+void platform_pm_complete(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 
@@ -685,16 +686,11 @@ static void platform_pm_complete(struct device *dev)
 		drv->pm->complete(dev);
 }
 
-#else /* !CONFIG_PM_SLEEP */
-
-#define platform_pm_prepare		NULL
-#define platform_pm_complete		NULL
-
-#endif /* !CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_SUSPEND
 
-int __weak platform_pm_suspend(struct device *dev)
+int platform_pm_suspend(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -712,7 +708,7 @@ int __weak platform_pm_suspend(struct device *dev)
 	return ret;
 }
 
-int __weak platform_pm_suspend_noirq(struct device *dev)
+int platform_pm_suspend_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -728,7 +724,7 @@ int __weak platform_pm_suspend_noirq(struct device *dev)
 	return ret;
 }
 
-int __weak platform_pm_resume(struct device *dev)
+int platform_pm_resume(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -746,7 +742,7 @@ int __weak platform_pm_resume(struct device *dev)
 	return ret;
 }
 
-int __weak platform_pm_resume_noirq(struct device *dev)
+int platform_pm_resume_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -762,18 +758,11 @@ int __weak platform_pm_resume_noirq(struct device *dev)
 	return ret;
 }
 
-#else /* !CONFIG_SUSPEND */
+#endif /* CONFIG_SUSPEND */
 
-#define platform_pm_suspend		NULL
-#define platform_pm_resume		NULL
-#define platform_pm_suspend_noirq	NULL
-#define platform_pm_resume_noirq	NULL
+#ifdef CONFIG_HIBERNATE_CALLBACKS
 
-#endif /* !CONFIG_SUSPEND */
-
-#ifdef CONFIG_HIBERNATION
-
-static int platform_pm_freeze(struct device *dev)
+int platform_pm_freeze(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -791,7 +780,7 @@ static int platform_pm_freeze(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_freeze_noirq(struct device *dev)
+int platform_pm_freeze_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -807,7 +796,7 @@ static int platform_pm_freeze_noirq(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_thaw(struct device *dev)
+int platform_pm_thaw(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -825,7 +814,7 @@ static int platform_pm_thaw(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_thaw_noirq(struct device *dev)
+int platform_pm_thaw_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -841,7 +830,7 @@ static int platform_pm_thaw_noirq(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_poweroff(struct device *dev)
+int platform_pm_poweroff(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -859,7 +848,7 @@ static int platform_pm_poweroff(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_poweroff_noirq(struct device *dev)
+int platform_pm_poweroff_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -875,7 +864,7 @@ static int platform_pm_poweroff_noirq(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_restore(struct device *dev)
+int platform_pm_restore(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -893,7 +882,7 @@ static int platform_pm_restore(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_restore_noirq(struct device *dev)
+int platform_pm_restore_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -909,62 +898,13 @@ static int platform_pm_restore_noirq(struct device *dev)
 	return ret;
 }
 
-#else /* !CONFIG_HIBERNATION */
-
-#define platform_pm_freeze		NULL
-#define platform_pm_thaw		NULL
-#define platform_pm_poweroff		NULL
-#define platform_pm_restore		NULL
-#define platform_pm_freeze_noirq	NULL
-#define platform_pm_thaw_noirq		NULL
-#define platform_pm_poweroff_noirq	NULL
-#define platform_pm_restore_noirq	NULL
-
-#endif /* !CONFIG_HIBERNATION */
-
-#ifdef CONFIG_PM_RUNTIME
-
-int __weak platform_pm_runtime_suspend(struct device *dev)
-{
-	return pm_generic_runtime_suspend(dev);
-};
-
-int __weak platform_pm_runtime_resume(struct device *dev)
-{
-	return pm_generic_runtime_resume(dev);
-};
-
-int __weak platform_pm_runtime_idle(struct device *dev)
-{
-	return pm_generic_runtime_idle(dev);
-};
-
-#else /* !CONFIG_PM_RUNTIME */
-
-#define platform_pm_runtime_suspend NULL
-#define platform_pm_runtime_resume NULL
-#define platform_pm_runtime_idle NULL
-
-#endif /* !CONFIG_PM_RUNTIME */
+#endif /* CONFIG_HIBERNATE_CALLBACKS */
 
 static const struct dev_pm_ops platform_dev_pm_ops = {
-	.prepare = platform_pm_prepare,
-	.complete = platform_pm_complete,
-	.suspend = platform_pm_suspend,
-	.resume = platform_pm_resume,
-	.freeze = platform_pm_freeze,
-	.thaw = platform_pm_thaw,
-	.poweroff = platform_pm_poweroff,
-	.restore = platform_pm_restore,
-	.suspend_noirq = platform_pm_suspend_noirq,
-	.resume_noirq = platform_pm_resume_noirq,
-	.freeze_noirq = platform_pm_freeze_noirq,
-	.thaw_noirq = platform_pm_thaw_noirq,
-	.poweroff_noirq = platform_pm_poweroff_noirq,
-	.restore_noirq = platform_pm_restore_noirq,
-	.runtime_suspend = platform_pm_runtime_suspend,
-	.runtime_resume = platform_pm_runtime_resume,
-	.runtime_idle = platform_pm_runtime_idle,
+	.runtime_suspend = pm_generic_runtime_suspend,
+	.runtime_resume = pm_generic_runtime_resume,
+	.runtime_idle = pm_generic_runtime_idle,
+	USE_PLATFORM_PM_SLEEP_OPS
 };
 
 struct bus_type platform_bus_type = {

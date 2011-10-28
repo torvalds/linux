@@ -21,3 +21,4 @@ obj-$(CONFIG_MACH_WNR854T)	+= wnr854t-setup.o
 obj-$(CONFIG_MACH_RD88F5181L_GE)	+= rd88f5181l-ge-setup.o
 obj-$(CONFIG_MACH_RD88F5181L_FXO)	+= rd88f5181l-fxo-setup.o
 obj-$(CONFIG_MACH_RD88F6183AP_GE)	+= rd88f6183ap-ge-setup.o
+obj-$(CONFIG_MACH_LINKSTATION_LSCHL)	+= ls-chl-setup.o

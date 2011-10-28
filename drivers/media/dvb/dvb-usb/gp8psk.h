@@ -25,7 +25,6 @@ extern int dvb_usb_gp8psk_debug;
 #define deb_xfer(args...) dprintk(dvb_usb_gp8psk_debug,0x02,args)
 #define deb_rc(args...)   dprintk(dvb_usb_gp8psk_debug,0x04,args)
 #define deb_fe(args...)   dprintk(dvb_usb_gp8psk_debug,0x08,args)
-/* gp8psk commands */
 
 /* Twinhan Vendor requests */
 #define TH_COMMAND_IN                     0xC0
@@ -49,8 +48,10 @@ extern int dvb_usb_gp8psk_debug;
 #define SET_DVB_MODE                    0x8E
 #define SET_DN_SWITCH                   0x8F
 #define GET_SIGNAL_LOCK                 0x90    /* in */
+#define GET_FW_VERS			0x92
 #define GET_SERIAL_NUMBER               0x93    /* in */
 #define USE_EXTRA_VOLT                  0x94
+#define GET_FPGA_VERS			0x95
 #define CW3K_INIT			0x9d
 
 /* PSK_configuration bits */
@@ -87,6 +88,11 @@ extern int dvb_usb_gp8psk_debug;
 #define VENDOR_STRING_READ                0x0C
 #define PRODUCT_STRING_READ               0x0D
 #define FW_BCD_VERSION_READ               0x14
+
+/* firmware revision id's */
+#define GP8PSK_FW_REV1			0x020604
+#define GP8PSK_FW_REV2			0x020704
+#define GP8PSK_FW_VERS(_fw_vers)	((_fw_vers)[2]<<0x10 | (_fw_vers)[1]<<0x08 | (_fw_vers)[0])
 
 extern struct dvb_frontend * gp8psk_fe_attach(struct dvb_usb_device *d);
 extern int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 *b, int blen);

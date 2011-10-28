@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2011 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -496,8 +496,8 @@ do_read:
 			offset = 0;
 		}
 
-		rval = qla2x00_read_sfp(vha, ha->sfp_data_dma, addr, offset,
-		    SFP_BLOCK_SIZE);
+		rval = qla2x00_read_sfp(vha, ha->sfp_data_dma, ha->sfp_data,
+		    addr, offset, SFP_BLOCK_SIZE, 0);
 		if (rval != QLA_SUCCESS) {
 			qla_printk(KERN_WARNING, ha,
 			    "Unable to read SFP data (%x/%x/%x).\n", rval,
@@ -628,12 +628,12 @@ qla2x00_sysfs_write_edc(struct file *filp, struct kobject *kobj,
 
 	memcpy(ha->edc_data, &buf[8], len);
 
-	rval = qla2x00_write_edc(vha, dev, adr, ha->edc_data_dma,
-	    ha->edc_data, len, opt);
+	rval = qla2x00_write_sfp(vha, ha->edc_data_dma, ha->edc_data,
+	    dev, adr, len, opt);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "Unable to write EDC (%x) %02x:%02x:%04x:%02x:%02x.\n",
-		    rval, dev, adr, opt, len, *buf));
+		    rval, dev, adr, opt, len, buf[8]));
 		return 0;
 	}
 
@@ -685,8 +685,8 @@ qla2x00_sysfs_write_edc_status(struct file *filp, struct kobject *kobj,
 			return -EINVAL;
 
 	memset(ha->edc_data, 0, len);
-	rval = qla2x00_read_edc(vha, dev, adr, ha->edc_data_dma,
-	    ha->edc_data, len, opt);
+	rval = qla2x00_read_sfp(vha, ha->edc_data_dma, ha->edc_data,
+			dev, adr, len, opt);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "Unable to write EDC status (%x) %02x:%02x:%04x:%02x.\n",
@@ -1309,6 +1309,31 @@ qla2x00_fabric_param_show(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
+qla2x00_thermal_temp_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	int rval = QLA_FUNCTION_FAILED;
+	uint16_t temp, frac;
+
+	if (!vha->hw->flags.thermal_supported)
+		return snprintf(buf, PAGE_SIZE, "\n");
+
+	temp = frac = 0;
+	if (test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
+	    test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags))
+		DEBUG2_3_11(printk(KERN_WARNING
+		    "%s(%ld): isp reset in progress.\n",
+		    __func__, vha->host_no));
+	else if (!vha->hw->flags.eeh_busy)
+		rval = qla2x00_get_thermal_temp(vha, &temp, &frac);
+	if (rval != QLA_SUCCESS)
+		temp = frac = 0;
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", temp, frac);
+}
+
+static ssize_t
 qla2x00_fw_state_show(struct device *dev, struct device_attribute *attr,
     char *buf)
 {
@@ -1366,6 +1391,7 @@ static DEVICE_ATTR(vn_port_mac_address, S_IRUGO,
 		   qla2x00_vn_port_mac_address_show, NULL);
 static DEVICE_ATTR(fabric_param, S_IRUGO, qla2x00_fabric_param_show, NULL);
 static DEVICE_ATTR(fw_state, S_IRUGO, qla2x00_fw_state_show, NULL);
+static DEVICE_ATTR(thermal_temp, S_IRUGO, qla2x00_thermal_temp_show, NULL);
 
 struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_driver_version,
@@ -1394,6 +1420,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_fabric_param,
 	&dev_attr_fw_state,
 	&dev_attr_optrom_gold_fw_version,
+	&dev_attr_thermal_temp,
 	NULL,
 };
 
@@ -1534,9 +1561,23 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 {
 	struct Scsi_Host *host = rport_to_shost(rport);
 	fc_port_t *fcport = *(fc_port_t **)rport->dd_data;
+	unsigned long flags;
 
 	if (!fcport)
 		return;
+
+	/* Now that the rport has been deleted, set the fcport state to
+	   FCS_DEVICE_DEAD */
+	qla2x00_set_fcport_state(fcport, FCS_DEVICE_DEAD);
+
+	/*
+	 * Transport has effectively 'deleted' the rport, clear
+	 * all local references.
+	 */
+	spin_lock_irqsave(host->host_lock, flags);
+	fcport->rport = fcport->drport = NULL;
+	*((fc_port_t **)rport->dd_data) = NULL;
+	spin_unlock_irqrestore(host->host_lock, flags);
 
 	if (test_bit(ABORT_ISP_ACTIVE, &fcport->vha->dpc_flags))
 		return;
@@ -1545,15 +1586,6 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 		qla2x00_abort_all_cmds(fcport->vha, DID_NO_CONNECT << 16);
 		return;
 	}
-
-	/*
-	 * Transport has effectively 'deleted' the rport, clear
-	 * all local references.
-	 */
-	spin_lock_irq(host->host_lock);
-	fcport->rport = NULL;
-	*((fc_port_t **)rport->dd_data) = NULL;
-	spin_unlock_irq(host->host_lock);
 }
 
 static void
@@ -1676,14 +1708,14 @@ static void
 qla2x00_get_host_fabric_name(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
-	u64 node_name;
+	uint8_t node_name[WWN_SIZE] = { 0xFF, 0xFF, 0xFF, 0xFF, \
+		0xFF, 0xFF, 0xFF, 0xFF};
+	u64 fabric_name = wwn_to_u64(node_name);
 
 	if (vha->device_flags & SWITCH_FOUND)
-		node_name = wwn_to_u64(vha->fabric_node_name);
-	else
-		node_name = wwn_to_u64(vha->node_name);
+		fabric_name = wwn_to_u64(vha->fabric_node_name);
 
-	fc_host_fabric_name(shost) = node_name;
+	fc_host_fabric_name(shost) = fabric_name;
 }
 
 static void
@@ -1776,6 +1808,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	}
 
 	/* initialize attributes */
+	fc_host_dev_loss_tmo(vha->host) = ha->port_down_retry_count;
 	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
 	fc_host_port_name(vha->host) = wwn_to_u64(vha->port_name);
 	fc_host_supported_classes(vha->host) =
@@ -1844,13 +1877,14 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 
 	scsi_remove_host(vha->host);
 
+	/* Allow timer to run to drain queued items, when removing vp */
+	qla24xx_deallocate_vp_id(vha);
+
 	if (vha->timer_active) {
 		qla2x00_vp_stop_timer(vha);
 		DEBUG15(printk(KERN_INFO "scsi(%ld): timer for the vport[%d]"
 		" = %p has stopped\n", vha->host_no, vha->vp_idx, vha));
 	}
-
-	qla24xx_deallocate_vp_id(vha);
 
 	/* No pending activities shall be there on the vha now */
 	DEBUG(msleep(random32()%10));  /* Just to see if something falls on
@@ -1984,6 +2018,7 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	u32 speed = FC_PORTSPEED_UNKNOWN;
 
+	fc_host_dev_loss_tmo(vha->host) = ha->port_down_retry_count;
 	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
 	fc_host_port_name(vha->host) = wwn_to_u64(vha->port_name);
 	fc_host_supported_classes(vha->host) = FC_COS_CLASS3;

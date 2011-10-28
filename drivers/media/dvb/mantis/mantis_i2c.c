@@ -229,7 +229,6 @@ int __devinit mantis_i2c_init(struct mantis_pci *mantis)
 	i2c_set_adapdata(i2c_adapter, mantis);
 
 	i2c_adapter->owner	= THIS_MODULE;
-	i2c_adapter->class	= I2C_CLASS_TV_DIGITAL;
 	i2c_adapter->algo	= &mantis_algo;
 	i2c_adapter->algo_data	= NULL;
 	i2c_adapter->timeout	= 500;

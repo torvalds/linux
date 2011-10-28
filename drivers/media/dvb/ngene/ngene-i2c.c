@@ -37,7 +37,6 @@
 #include <asm/div64.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
-#include <linux/smp_lock.h>
 #include <linux/timer.h>
 #include <linux/byteorder/generic.h>
 #include <linux/firmware.h>
@@ -165,7 +164,6 @@ int ngene_i2c_init(struct ngene *dev, int dev_nr)
 	struct i2c_adapter *adap = &(dev->channel[dev_nr].i2c_adapter);
 
 	i2c_set_adapdata(adap, &(dev->channel[dev_nr]));
-	adap->class = I2C_CLASS_TV_DIGITAL | I2C_CLASS_TV_ANALOG;
 
 	strcpy(adap->name, "nGene");
 

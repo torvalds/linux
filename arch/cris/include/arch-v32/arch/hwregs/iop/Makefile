@@ -1,7 +1,7 @@
 # $Id: Makefile,v 1.3 2004/01/07 20:34:55 johana Exp $
 # Makefile to generate or copy the latest register definitions
 # and related datastructures and helpermacros.
-# The offical place for these files is probably at:
+# The official place for these files is probably at:
 RELEASE ?= r1_alfa5
 IOPOFFICIAL_INCDIR = /n/asic/projects/guinness/releases/$(RELEASE)/design/top/sw/include/
 

@@ -390,7 +390,7 @@ bool tomoyo_correct_domain(const unsigned char *domainname)
 		if (!cp)
 			break;
 		if (*domainname != '/' ||
-		    !tomoyo_correct_word2(domainname, cp - domainname - 1))
+		    !tomoyo_correct_word2(domainname, cp - domainname))
 			goto out;
 		domainname = cp + 1;
 	}

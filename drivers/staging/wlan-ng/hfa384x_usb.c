@@ -511,7 +511,7 @@ static void hfa384x_usb_defer(struct work_struct *data)
 * hfa384x_create
 *
 * Sets up the hfa384x_t data structure for use.  Note this
-* does _not_ intialize the actual hardware, just the data structures
+* does _not_ initialize the actual hardware, just the data structures
 * we use to keep track of its state.
 *
 * Arguments:
@@ -612,10 +612,8 @@ void hfa384x_destroy(hfa384x_t *hw)
 		hfa384x_drvr_stop(hw);
 	hw->state = HFA384x_STATE_PREINIT;
 
-	if (hw->scanresults) {
-		kfree(hw->scanresults);
-		hw->scanresults = NULL;
-	}
+	kfree(hw->scanresults);
+	hw->scanresults = NULL;
 
 	/* Now to clean out the auth queue */
 	while ((skb = skb_dequeue(&hw->authq)))

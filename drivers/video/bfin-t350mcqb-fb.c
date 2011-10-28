@@ -192,7 +192,7 @@ static int bfin_t350mcqb_request_ports(int action)
 {
 	if (action) {
 		if (peripheral_request_list(ppi0_req_8, DRIVER_NAME)) {
-			printk(KERN_ERR "Requesting Peripherals faild\n");
+			printk(KERN_ERR "Requesting Peripherals failed\n");
 			return -EFAULT;
 		}
 	} else
@@ -545,6 +545,7 @@ static int __devinit bfin_t350mcqb_probe(struct platform_device *pdev)
 	}
 #ifndef NO_BL_SUPPORT
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = 255;
 	bl_dev = backlight_device_register("bf52x-bl", NULL, NULL,
 					   &bfin_lq043fb_bl_ops, &props);

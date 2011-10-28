@@ -69,14 +69,16 @@ typedef	struct xfs_bmap_free
 #define XFS_BMAPI_ENTIRE	0x004	/* return entire extent, not trimmed */
 #define XFS_BMAPI_METADATA	0x008	/* mapping metadata not user data */
 #define XFS_BMAPI_ATTRFORK	0x010	/* use attribute fork not data */
-#define XFS_BMAPI_RSVBLOCKS	0x020	/* OK to alloc. reserved data blocks */
 #define	XFS_BMAPI_PREALLOC	0x040	/* preallocation op: unwritten space */
 #define	XFS_BMAPI_IGSTATE	0x080	/* Ignore state - */
 					/* combine contig. space */
 #define	XFS_BMAPI_CONTIG	0x100	/* must allocate only one extent */
-#define XFS_BMAPI_CONVERT	0x200	/* unwritten extent conversion - */
-					/* need write cache flushing and no */
-					/* additional allocation alignments */
+/*
+ * unwritten extent conversion - this needs write cache flushing and no additional
+ * allocation alignments. When specified with XFS_BMAPI_PREALLOC it converts
+ * from written to unwritten, otherwise convert from unwritten to written.
+ */
+#define XFS_BMAPI_CONVERT	0x200
 
 #define XFS_BMAPI_FLAGS \
 	{ XFS_BMAPI_WRITE,	"WRITE" }, \
@@ -84,7 +86,6 @@ typedef	struct xfs_bmap_free
 	{ XFS_BMAPI_ENTIRE,	"ENTIRE" }, \
 	{ XFS_BMAPI_METADATA,	"METADATA" }, \
 	{ XFS_BMAPI_ATTRFORK,	"ATTRFORK" }, \
-	{ XFS_BMAPI_RSVBLOCKS,	"RSVBLOCKS" }, \
 	{ XFS_BMAPI_PREALLOC,	"PREALLOC" }, \
 	{ XFS_BMAPI_IGSTATE,	"IGSTATE" }, \
 	{ XFS_BMAPI_CONTIG,	"CONTIG" }, \
@@ -391,6 +392,11 @@ xfs_bmap_count_blocks(
 	int			whichfork,
 	int			*count);
 
+int
+xfs_bmap_punch_delalloc_range(
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		start_fsb,
+	xfs_fileoff_t		length);
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_BMAP_H__ */

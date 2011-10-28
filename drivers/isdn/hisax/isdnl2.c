@@ -1247,10 +1247,10 @@ static void
 l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 {
 	struct PStack *st = fi->userdata;
-	struct sk_buff *skb, *oskb;
+	struct sk_buff *skb;
 	struct Layer2 *l2 = &st->l2;
 	u_char header[MAX_HEADER_LEN];
-	int i;
+	int i, hdr_space_needed;
 	int unsigned p1;
 	u_long flags;
 
@@ -1261,6 +1261,16 @@ l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 	if (!skb)
 		return;
 
+	hdr_space_needed = l2headersize(l2, 0);
+	if (hdr_space_needed > skb_headroom(skb)) {
+		struct sk_buff *orig_skb = skb;
+
+		skb = skb_realloc_headroom(skb, hdr_space_needed);
+		if (!skb) {
+			dev_kfree_skb(orig_skb);
+			return;
+		}
+	}
 	spin_lock_irqsave(&l2->lock, flags);
 	if(test_bit(FLG_MOD128, &l2->flag))
 		p1 = (l2->vs - l2->va) % 128;
@@ -1285,19 +1295,7 @@ l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 		l2->vs = (l2->vs + 1) % 8;
 	}
 	spin_unlock_irqrestore(&l2->lock, flags);
-	p1 = skb->data - skb->head;
-	if (p1 >= i)
-		memcpy(skb_push(skb, i), header, i);
-	else {
-		printk(KERN_WARNING
-		"isdl2 pull_iqueue skb header(%d/%d) too short\n", i, p1);
-		oskb = skb;
-		skb = alloc_skb(oskb->len + i, GFP_ATOMIC);
-		memcpy(skb_put(skb, i), header, i);
-		skb_copy_from_linear_data(oskb,
-					  skb_put(skb, oskb->len), oskb->len);
-		dev_kfree_skb(oskb);
-	}
+	memcpy(skb_push(skb, i), header, i);
 	st->l2.l2l1(st, PH_PULL | INDICATION, skb);
 	test_and_clear_bit(FLG_ACK_PEND, &st->l2.flag);
 	if (!test_and_set_bit(FLG_T200_RUN, &st->l2.flag)) {

@@ -425,16 +425,11 @@ static __devexit int max8925_deinit_charger(struct max8925_power_info *info)
 static __devinit int max8925_power_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct max8925_platform_data *max8925_pdata;
 	struct max8925_power_pdata *pdata = NULL;
 	struct max8925_power_info *info;
 	int ret;
 
-	if (pdev->dev.parent->platform_data) {
-		max8925_pdata = pdev->dev.parent->platform_data;
-		pdata = max8925_pdata->power;
-	}
-
+	pdata = pdev->dev.platform_data;
 	if (!pdata) {
 		dev_err(&pdev->dev, "platform data isn't assigned to "
 			"power supply\n");
@@ -447,6 +442,7 @@ static __devinit int max8925_power_probe(struct platform_device *pdev)
 	info->chip = chip;
 	info->gpm = chip->i2c;
 	info->adc = chip->adc;
+	platform_set_drvdata(pdev, info);
 
 	info->ac.name = "max8925-ac";
 	info->ac.type = POWER_SUPPLY_TYPE_MAINS;
@@ -482,8 +478,6 @@ static __devinit int max8925_power_probe(struct platform_device *pdev)
 	info->topoff_threshold = pdata->topoff_threshold;
 	info->fast_charge = pdata->fast_charge;
 	info->set_charger = pdata->set_charger;
-	dev_set_drvdata(&pdev->dev, info);
-	platform_set_drvdata(pdev, info);
 
 	max8925_init_charger(chip, info);
 	return 0;

@@ -1,8 +1,0 @@
-I'm hesitant to add a TODO file here, as the wireless developers would
-really have people help them out on the "clean" ar9170 driver that can
-be found at the linux-wireless developer site.
-
-This driver is unmaintained and its only purpose is as a
-source of documentation for developers working on ar9170 and carl9170.
-Once carl9170 gets 11n support and merged upstream then this driver
-can be removed.

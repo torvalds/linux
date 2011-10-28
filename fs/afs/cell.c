@@ -293,7 +293,7 @@ struct afs_cell *afs_cell_lookup(const char *name, unsigned namesz,
 		if (!cell) {
 			/* this should not happen unless user tries to mount
 			 * when root cell is not set. Return an impossibly
-			 * bizzare errno to alert the user. Things like
+			 * bizarre errno to alert the user. Things like
 			 * ENOENT might be "more appropriate" but they happen
 			 * for other reasons.
 			 */

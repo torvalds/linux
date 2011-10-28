@@ -70,15 +70,14 @@
 #define SFI_SIG_APIC		"APIC"
 #define SFI_SIG_XSDT		"XSDT"
 #define SFI_SIG_WAKE		"WAKE"
-#define SFI_SIG_SPIB		"SPIB"
-#define SFI_SIG_I2CB		"I2CB"
-#define SFI_SIG_GPEM		"GPEM"
 #define SFI_SIG_DEVS		"DEVS"
 #define SFI_SIG_GPIO		"GPIO"
 
 #define SFI_SIGNATURE_SIZE	4
 #define SFI_OEM_ID_SIZE		6
 #define SFI_OEM_TABLE_ID_SIZE	8
+
+#define SFI_NAME_LEN		16
 
 #define SFI_SYST_SEARCH_BEGIN		0x000E0000
 #define SFI_SYST_SEARCH_END		0x000FFFFF
@@ -159,34 +158,13 @@ struct sfi_device_table_entry {
 	u16	addr;
 	u8	irq;
 	u32	max_freq;
-	char	name[16];
+	char	name[SFI_NAME_LEN];
 } __packed;
 
 struct sfi_gpio_table_entry {
-	char	controller_name[16];
+	char	controller_name[SFI_NAME_LEN];
 	u16	pin_no;
-	char	pin_name[16];
-} __packed;
-
-struct sfi_spi_table_entry {
-	u16	host_num;	/* attached to host 0, 1...*/
-	u16	cs;		/* chip select */
-	u16	irq_info;
-	char	name[16];
-	u8	dev_info[10];
-} __packed;
-
-struct sfi_i2c_table_entry {
-	u16	host_num;
-	u16	addr;		/* slave addr */
-	u16	irq_info;
-	char	name[16];
-	u8	dev_info[10];
-} __packed;
-
-struct sfi_gpe_table_entry {
-	u16	logical_id;	/* logical id */
-	u16	phys_id;	/* physical GPE id */
+	char	pin_name[SFI_NAME_LEN];
 } __packed;
 
 typedef int (*sfi_table_handler) (struct sfi_table_header *table);

@@ -8,7 +8,7 @@
  *			Statistsics for the reply cache
  *	fh <stale> <total-lookups> <anonlookups> <dir-not-in-dcache> <nondir-not-in-dcache>
  *			statistics for filehandle lookup
- *	io <bytes-read> <bytes-writtten>
+ *	io <bytes-read> <bytes-written>
  *			statistics for IO throughput
  *	th <threads> <fullcnt> <10%-20%> <20%-30%> ... <90%-100%> <100%> 
  *			time (seconds) when nfsd thread usage above thresholds

@@ -1,0 +1,209 @@
+# arch/arm/mach-exynos4/Kconfig
+#
+# Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+#		http://www.samsung.com/
+#
+# Licensed under GPLv2
+
+# Configuration options for the EXYNOS4
+
+if ARCH_EXYNOS4
+
+config CPU_EXYNOS4210
+	bool
+	select S3C_PL330_DMA
+	help
+	  Enable EXYNOS4210 CPU support
+
+config EXYNOS4_MCT
+	bool "Kernel timer support by MCT"
+	help
+	  Use MCT (Multi Core Timer) as kernel timers
+
+config EXYNOS4_DEV_AHCI
+	bool
+	help
+	  Compile in platform device definitions for AHCI
+
+config EXYNOS4_DEV_PD
+	bool
+	help
+	  Compile in platform device definitions for Power Domain
+
+config EXYNOS4_DEV_SYSMMU
+	bool
+	help
+	  Common setup code for SYSTEM MMU in EXYNOS4
+
+config EXYNOS4_SETUP_I2C1
+	bool
+	help
+	  Common setup code for i2c bus 1.
+
+config EXYNOS4_SETUP_I2C2
+	bool
+	help
+	  Common setup code for i2c bus 2.
+
+config EXYNOS4_SETUP_I2C3
+	bool
+	help
+	  Common setup code for i2c bus 3.
+
+config EXYNOS4_SETUP_I2C4
+	bool
+	help
+	  Common setup code for i2c bus 4.
+
+config EXYNOS4_SETUP_I2C5
+	bool
+	help
+	  Common setup code for i2c bus 5.
+
+config EXYNOS4_SETUP_I2C6
+	bool
+	help
+	  Common setup code for i2c bus 6.
+
+config EXYNOS4_SETUP_I2C7
+	bool
+	help
+	  Common setup code for i2c bus 7.
+
+config EXYNOS4_SETUP_KEYPAD
+	bool
+	help
+	  Common setup code for keypad.
+
+config EXYNOS4_SETUP_SDHCI
+	bool
+	select EXYNOS4_SETUP_SDHCI_GPIO
+	help
+	  Internal helper functions for EXYNOS4 based SDHCI systems.
+
+config EXYNOS4_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for SDHCI gpio.
+
+config EXYNOS4_SETUP_FIMC
+	bool
+	help
+	  Common setup code for the camera interfaces.
+
+config EXYNOS4_SETUP_USB_PHY
+	bool
+	help
+	  Common setup code for USB PHY controller
+
+# machine support
+
+menu "EXYNOS4 Machines"
+
+config MACH_SMDKC210
+	bool "SMDKC210"
+	select CPU_EXYNOS4210
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S3C_DEV_I2C1
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select EXYNOS4_DEV_PD
+	select EXYNOS4_DEV_SYSMMU
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_SDHCI
+	help
+	  Machine support for Samsung SMDKC210
+
+config MACH_SMDKV310
+	bool "SMDKV310"
+	select CPU_EXYNOS4210
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S3C_DEV_I2C1
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select SAMSUNG_DEV_KEYPAD
+	select EXYNOS4_DEV_PD
+	select EXYNOS4_DEV_SYSMMU
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_KEYPAD
+	select EXYNOS4_SETUP_SDHCI
+	help
+	  Machine support for Samsung SMDKV310
+
+config MACH_ARMLEX4210
+	bool "ARMLEX4210"
+	select CPU_EXYNOS4210
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select EXYNOS4_DEV_AHCI
+	select EXYNOS4_DEV_SYSMMU
+	select EXYNOS4_SETUP_SDHCI
+	help
+	  Machine support for Samsung ARMLEX4210 based on EXYNOS4210
+
+config MACH_UNIVERSAL_C210
+	bool "Mobile UNIVERSAL_C210 Board"
+	select CPU_EXYNOS4210
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C5
+	select S5P_DEV_ONENAND
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_I2C5
+	select EXYNOS4_SETUP_SDHCI
+	help
+	  Machine support for Samsung Mobile Universal S5PC210 Reference
+	  Board.
+
+config MACH_NURI
+	bool "Mobile NURI Board"
+	select CPU_EXYNOS4210
+	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C3
+	select S3C_DEV_I2C5
+	select S5P_DEV_USB_EHCI
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_I2C3
+	select EXYNOS4_SETUP_I2C5
+	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_USB_PHY
+	select SAMSUNG_DEV_PWM
+	help
+	  Machine support for Samsung Mobile NURI Board.
+
+endmenu
+
+comment "Configuration for HSMMC bus width"
+
+menu "Use 8-bit bus width"
+
+config EXYNOS4_SDHCI_CH0_8BIT
+	bool "Channel 0 with 8-bit bus"
+	help
+	  Support HSMMC Channel 0 8-bit bus.
+	  If selected, Channel 1 is disabled.
+
+config EXYNOS4_SDHCI_CH2_8BIT
+	bool "Channel 2 with 8-bit bus"
+	help
+	  Support HSMMC Channel 2 8-bit bus.
+	  If selected, Channel 3 is disabled.
+
+endmenu
+
+endif

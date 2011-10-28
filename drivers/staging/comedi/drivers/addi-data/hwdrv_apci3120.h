@@ -9,7 +9,7 @@
  *	D-77833 Ottersweier
  *	Tel: +19(0)7223/9493-0
  *	Fax: +49(0)7223/9493-92
- *	http://www.addi-data-com
+ *	http://www.addi-data.com
  *	info@addi-data.com
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -169,7 +169,7 @@ struct str_AnalogReadInformation {
 
 	unsigned char b_Type;		/* EOC or EOS */
 	unsigned char b_InterruptFlag;	/* Interrupt use or not                    */
-	unsigned int ui_ConvertTiming;	/* Selection of the convertion time        */
+	unsigned int ui_ConvertTiming;	/* Selection of the conversion time        */
 	unsigned char b_NbrOfChannel;	/* Number of channel to read               */
 	unsigned int ui_ChannelList[MAX_ANALOGINPUT_CHANNELS];	/* Number of the channel to be read        */
 	unsigned int ui_RangeList[MAX_ANALOGINPUT_CHANNELS];	/* Gain of each channel                    */

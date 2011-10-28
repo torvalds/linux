@@ -460,7 +460,7 @@ static int __devinit bt878_probe(struct pci_dev *dev,
 		goto fail0;
 	}
 
-	pci_read_config_byte(dev, PCI_CLASS_REVISION, &bt->revision);
+	bt->revision = dev->revision;
 	pci_read_config_byte(dev, PCI_LATENCY_TIMER, &lat);
 
 

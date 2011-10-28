@@ -5,7 +5,8 @@
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
  *
- * Copyright (c) 2000-2007 Adaptec, Inc. (aacraid@adaptec.com)
+ * Copyright (c) 2000-2010 Adaptec, Inc.
+ *               2010 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -190,7 +191,7 @@ static int open_getadapter_fib(struct aac_dev * dev, void __user *arg)
 		/*
 		 *	Initialize the mutex used to wait for the next AIF.
 		 */
-		init_MUTEX_LOCKED(&fibctx->wait_sem);
+		sema_init(&fibctx->wait_sem, 0);
 		fibctx->wait = 0;
 		/*
 		 *	Initialize the fibs and set the count of fibs on

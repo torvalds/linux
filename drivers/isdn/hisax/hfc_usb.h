@@ -126,7 +126,7 @@ static struct hfcusb_symbolic_list urb_errlist[] = {
 
 
 /*
- * device dependant information to support different
+ * device dependent information to support different
  * ISDN Ta's using the HFC-S USB chip
  */
 

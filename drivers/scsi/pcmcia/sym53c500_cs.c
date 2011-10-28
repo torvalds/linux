@@ -71,7 +71,6 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/ciscode.h>
@@ -548,7 +547,7 @@ SYM53C500_info(struct Scsi_Host *SChost)
 }
 
 static int 
-SYM53C500_queue(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+SYM53C500_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
 	int i;
 	int port_base = SCpnt->device->host->io_port;
@@ -583,6 +582,8 @@ SYM53C500_queue(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(SYM53C500_queue)
 
 static int 
 SYM53C500_host_reset(struct scsi_cmnd *SCpnt)
@@ -684,15 +685,11 @@ static struct scsi_host_template sym53c500_driver_template = {
      .shost_attrs		= SYM53C500_shost_attrs
 };
 
-static int SYM53C500_config_check(struct pcmcia_device *p_dev,
-				  cistpl_cftable_entry_t *cfg,
-				  cistpl_cftable_entry_t *dflt,
-				  unsigned int vcc,
-				  void *priv_data)
+static int SYM53C500_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
 	p_dev->io_lines = 10;
-	p_dev->resource[0]->start = cfg->io.win[0].base;
-	p_dev->resource[0]->end = cfg->io.win[0].len;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
 	if (p_dev->resource[0]->start == 0)
 		return -ENODEV;
@@ -721,7 +718,7 @@ SYM53C500_config(struct pcmcia_device *link)
 	if (!link->irq)
 		goto failed;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
@@ -859,10 +856,7 @@ SYM53C500_probe(struct pcmcia_device *link)
 		return -ENOMEM;
 	info->p_dev = link;
 	link->priv = info;
-	link->resource[0]->end = 16;
-	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	return SYM53C500_config(link);
 } /* SYM53C500_attach */
@@ -871,7 +865,7 @@ MODULE_AUTHOR("Bob Tracy <rct@frus.com>");
 MODULE_DESCRIPTION("SYM53C500 PCMCIA SCSI driver");
 MODULE_LICENSE("GPL");
 
-static struct pcmcia_device_id sym53c500_ids[] = {
+static const struct pcmcia_device_id sym53c500_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("BASICS by New Media Corporation", "SCSI Sym53C500", 0x23c78a9d, 0x0099e7f7),
 	PCMCIA_DEVICE_PROD_ID12("New Media Corporation", "SCSI Bus Toaster Sym53C500", 0x085a850b, 0x45432eb8),
 	PCMCIA_DEVICE_PROD_ID2("SCSI9000", 0x21648f44),
@@ -881,9 +875,7 @@ MODULE_DEVICE_TABLE(pcmcia, sym53c500_ids);
 
 static struct pcmcia_driver sym53c500_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "sym53c500_cs",
-	},
+	.name		= "sym53c500_cs",
 	.probe		= SYM53C500_probe,
 	.remove		= SYM53C500_detach,
 	.id_table       = sym53c500_ids,

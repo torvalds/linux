@@ -930,6 +930,7 @@ enum
 
 #ifdef __KERNEL__
 #include <linux/list.h>
+#include <linux/rcupdate.h>
 
 /* For the /proc/sys support */
 struct ctl_table;
@@ -1037,10 +1038,15 @@ struct ctl_table_root {
    struct ctl_table trees. */
 struct ctl_table_header
 {
-	struct ctl_table *ctl_table;
-	struct list_head ctl_entry;
-	int used;
-	int count;
+	union {
+		struct {
+			struct ctl_table *ctl_table;
+			struct list_head ctl_entry;
+			int used;
+			int count;
+		};
+		struct rcu_head rcu;
+	};
 	struct completion *unregistering;
 	struct ctl_table *ctl_table_arg;
 	struct ctl_table_root *root;

@@ -119,7 +119,7 @@ void et131x_enable_interrupts(struct et131x_adapter *adapter)
 	u32 mask;
 
 	/* Enable all global interrupts */
-	if (adapter->FlowControl == TxOnly || adapter->FlowControl == Both)
+	if (adapter->flowcontrol == FLOW_TXONLY || adapter->flowcontrol == FLOW_BOTH)
 		mask = INT_MASK_ENABLE;
 	else
 		mask = INT_MASK_ENABLE_NO_FLOW;
@@ -177,8 +177,8 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 	 */
 	status = readl(&adapter->regs->global.int_status);
 
-	if (adapter->FlowControl == TxOnly ||
-	    adapter->FlowControl == Both) {
+	if (adapter->flowcontrol == FLOW_TXONLY ||
+	    adapter->flowcontrol == FLOW_BOTH) {
 		status &= ~INT_MASK_ENABLE;
 	} else {
 		status &= ~INT_MASK_ENABLE_NO_FLOW;
@@ -295,8 +295,8 @@ void et131x_isr_handler(struct work_struct *work)
 			/* If the user has flow control on, then we will
 			 * send a pause packet, otherwise just exit
 			 */
-			if (etdev->FlowControl == TxOnly ||
-			    etdev->FlowControl == Both) {
+			if (etdev->flowcontrol == FLOW_TXONLY ||
+			    etdev->flowcontrol == FLOW_BOTH) {
 				u32 pm_csr;
 
 				/* Tell the device to send a pause packet via
@@ -366,7 +366,7 @@ void et131x_isr_handler(struct work_struct *work)
 		if (status & ET_INTR_PHY) {
 			u32 pm_csr;
 			MI_BMSR_t BmsrInts, BmsrData;
-			MI_ISR_t myIsr;
+			u16 myisr;
 
 			/* If we are in coma mode when we get this interrupt,
 			 * we need to disable it.
@@ -384,12 +384,12 @@ void et131x_isr_handler(struct work_struct *work)
 			/* Read the PHY ISR to clear the reason for the
 			 * interrupt.
 			 */
-			MiRead(etdev, (uint8_t) offsetof(MI_REGS_t, isr),
-			       &myIsr.value);
+			MiRead(etdev, (uint8_t) offsetof(struct mi_regs, isr),
+			       &myisr);
 
 			if (!etdev->ReplicaPhyLoopbk) {
 				MiRead(etdev,
-				       (uint8_t) offsetof(MI_REGS_t, bmsr),
+				       (uint8_t) offsetof(struct mi_regs, bmsr),
 				       &BmsrData.value);
 
 				BmsrInts.value =
@@ -466,7 +466,7 @@ void et131x_isr_handler(struct work_struct *work)
 		/* Handle SLV Timeout Interrupt */
 		if (status & ET_INTR_SLV_TIMEOUT) {
 			/*
-			 * This means a timeout has occured on a read or
+			 * This means a timeout has occurred on a read or
 			 * write request to one of the JAGCore registers. The
 			 * Global Resources block has terminated the request
 			 * and on a read request, returned a "fake" value.

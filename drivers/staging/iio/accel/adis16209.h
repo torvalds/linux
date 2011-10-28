@@ -104,18 +104,14 @@
 /**
  * struct adis16209_state - device instance specific data
  * @us:			actual spi_device
- * @work_trigger_to_ring: bh for triggered event handling
- * @last_timestamp:	passing timestamp from th to bh of interrupt handler
  * @indio_dev:		industrial I/O device structure
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
- * @rx:			recieve buffer
+ * @rx:			receive buffer
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct adis16209_state {
 	struct spi_device		*us;
-	struct work_struct		work_trigger_to_ring;
-	s64				last_timestamp;
 	struct iio_dev			*indio_dev;
 	struct iio_trigger		*trig;
 	u8				*tx;
@@ -123,9 +119,7 @@ struct adis16209_state {
 	struct mutex			buf_lock;
 };
 
-int adis16209_set_irq(struct device *dev, bool enable);
-
-#ifdef CONFIG_IIO_RING_BUFFER
+int adis16209_set_irq(struct iio_dev *indio_dev, bool enable);
 
 #define ADIS16209_SCAN_SUPPLY	0
 #define ADIS16209_SCAN_ACC_X	1
@@ -135,6 +129,8 @@ int adis16209_set_irq(struct device *dev, bool enable);
 #define ADIS16209_SCAN_INCLI_X	5
 #define ADIS16209_SCAN_INCLI_Y	6
 #define ADIS16209_SCAN_ROT	7
+
+#ifdef CONFIG_IIO_RING_BUFFER
 
 void adis16209_remove_trigger(struct iio_dev *indio_dev);
 int adis16209_probe_trigger(struct iio_dev *indio_dev);

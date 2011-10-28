@@ -24,6 +24,9 @@
  *
  */
 
+#ifndef __NV50_EVO_H__
+#define __NV50_EVO_H__
+
 #define NV50_EVO_UPDATE                                              0x00000080
 #define NV50_EVO_UNK84                                               0x00000084
 #define NV50_EVO_UNK84_NOTIFY                                        0x40000000
@@ -110,4 +113,7 @@
 /* Both of these are needed, otherwise nothing happens. */
 #define NV50_EVO_CRTC_SCALE_RES1                                     0x000008d8
 #define NV50_EVO_CRTC_SCALE_RES2                                     0x000008dc
+#define NV50_EVO_CRTC_UNK900                                         0x00000900
+#define NV50_EVO_CRTC_UNK904                                         0x00000904
 
+#endif

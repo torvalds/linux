@@ -34,8 +34,8 @@
 #include <sound/initval.h>
 #include <linux/kmod.h>
 
-#if defined(CONFIG_SND_HPET) || defined(CONFIG_SND_HPET_MODULE)
-#define DEFAULT_TIMER_LIMIT 3
+#if defined(CONFIG_SND_HRTIMER) || defined(CONFIG_SND_HRTIMER_MODULE)
+#define DEFAULT_TIMER_LIMIT 4
 #elif defined(CONFIG_SND_RTCTIMER) || defined(CONFIG_SND_RTCTIMER_MODULE)
 #define DEFAULT_TIMER_LIMIT 2
 #else
@@ -51,6 +51,9 @@ module_param(timer_limit, int, 0444);
 MODULE_PARM_DESC(timer_limit, "Maximum global timers in system.");
 module_param(timer_tstamp_monotonic, int, 0444);
 MODULE_PARM_DESC(timer_tstamp_monotonic, "Use posix monotonic clock source for timestamps (default).");
+
+MODULE_ALIAS_CHARDEV(CONFIG_SND_MAJOR, SNDRV_MINOR_TIMER);
+MODULE_ALIAS("devname:snd/timer");
 
 struct snd_timer_user {
 	struct snd_timer_instance *timeri;
@@ -183,9 +186,8 @@ static void snd_timer_check_slave(struct snd_timer_instance *slave)
 		list_for_each_entry(master, &timer->open_list_head, open_list) {
 			if (slave->slave_class == master->slave_class &&
 			    slave->slave_id == master->slave_id) {
-				list_del(&slave->open_list);
-				list_add_tail(&slave->open_list,
-					      &master->slave_list_head);
+				list_move_tail(&slave->open_list,
+					       &master->slave_list_head);
 				spin_lock_irq(&slave_active_lock);
 				slave->master = master;
 				slave->timer = master->timer;
@@ -411,8 +413,7 @@ static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 static int snd_timer_start1(struct snd_timer *timer, struct snd_timer_instance *timeri,
 			    unsigned long sticks)
 {
-	list_del(&timeri->active_list);
-	list_add_tail(&timeri->active_list, &timer->active_list_head);
+	list_move_tail(&timeri->active_list, &timer->active_list_head);
 	if (timer->running) {
 		if (timer->hw.flags & SNDRV_TIMER_HW_SLAVE)
 			goto __start_now;

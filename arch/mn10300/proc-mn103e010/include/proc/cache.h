@@ -23,11 +23,21 @@
 #define L1_CACHE_TAG_DIRTY	0x00000008	/* data cache tag dirty bit */
 #define L1_CACHE_TAG_ENTRY	0x00000ff0	/* cache tag entry address mask */
 #define L1_CACHE_TAG_ADDRESS	0xfffff000	/* cache tag line address mask */
+#define L1_CACHE_TAG_MASK	+(L1_CACHE_TAG_ADDRESS|L1_CACHE_TAG_ENTRY)
 
 /*
  * specification of the interval between interrupt checking intervals whilst
  * managing the cache with the interrupts disabled
  */
 #define MN10300_DCACHE_INV_RANGE_INTR_LOG2_INTERVAL	4
+
+/*
+ * The size of range at which it becomes more economical to just flush the
+ * whole cache rather than trying to flush the specified range.
+ */
+#define MN10300_DCACHE_FLUSH_BORDER	\
+	+(L1_CACHE_NWAYS * L1_CACHE_NENTRIES * L1_CACHE_BYTES)
+#define MN10300_DCACHE_FLUSH_INV_BORDER	\
+	+(L1_CACHE_NWAYS * L1_CACHE_NENTRIES * L1_CACHE_BYTES)
 
 #endif /* _ASM_PROC_CACHE_H */

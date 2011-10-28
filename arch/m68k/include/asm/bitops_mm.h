@@ -181,14 +181,15 @@ static inline int find_first_zero_bit(const unsigned long *vaddr,
 {
 	const unsigned long *p = vaddr;
 	int res = 32;
+	unsigned int words;
 	unsigned long num;
 
 	if (!size)
 		return 0;
 
-	size = (size + 31) >> 5;
+	words = (size + 31) >> 5;
 	while (!(num = ~*p++)) {
-		if (!--size)
+		if (!--words)
 			goto out;
 	}
 
@@ -196,8 +197,10 @@ static inline int find_first_zero_bit(const unsigned long *vaddr,
 			      : "=d" (res) : "d" (num & -num));
 	res ^= 31;
 out:
-	return ((long)p - (long)vaddr - 4) * 8 + res;
+	res += ((long)p - (long)vaddr - 4) * 8;
+	return res < size ? res : size;
 }
+#define find_first_zero_bit find_first_zero_bit
 
 static inline int find_next_zero_bit(const unsigned long *vaddr, int size,
 				     int offset)
@@ -215,27 +218,33 @@ static inline int find_next_zero_bit(const unsigned long *vaddr, int size,
 		/* Look for zero in first longword */
 		__asm__ __volatile__ ("bfffo %1{#0,#0},%0"
 				      : "=d" (res) : "d" (num & -num));
-		if (res < 32)
-			return offset + (res ^ 31);
+		if (res < 32) {
+			offset += res ^ 31;
+			return offset < size ? offset : size;
+		}
 		offset += 32;
+
+		if (offset >= size)
+			return size;
 	}
 	/* No zero yet, search remaining full bytes for a zero */
-	res = find_first_zero_bit(p, size - ((long)p - (long)vaddr) * 8);
-	return offset + res;
+	return offset + find_first_zero_bit(p, size - offset);
 }
+#define find_next_zero_bit find_next_zero_bit
 
 static inline int find_first_bit(const unsigned long *vaddr, unsigned size)
 {
 	const unsigned long *p = vaddr;
 	int res = 32;
+	unsigned int words;
 	unsigned long num;
 
 	if (!size)
 		return 0;
 
-	size = (size + 31) >> 5;
+	words = (size + 31) >> 5;
 	while (!(num = *p++)) {
-		if (!--size)
+		if (!--words)
 			goto out;
 	}
 
@@ -243,8 +252,10 @@ static inline int find_first_bit(const unsigned long *vaddr, unsigned size)
 			      : "=d" (res) : "d" (num & -num));
 	res ^= 31;
 out:
-	return ((long)p - (long)vaddr - 4) * 8 + res;
+	res += ((long)p - (long)vaddr - 4) * 8;
+	return res < size ? res : size;
 }
+#define find_first_bit find_first_bit
 
 static inline int find_next_bit(const unsigned long *vaddr, int size,
 				int offset)
@@ -262,14 +273,19 @@ static inline int find_next_bit(const unsigned long *vaddr, int size,
 		/* Look for one in first longword */
 		__asm__ __volatile__ ("bfffo %1{#0,#0},%0"
 				      : "=d" (res) : "d" (num & -num));
-		if (res < 32)
-			return offset + (res ^ 31);
+		if (res < 32) {
+			offset += res ^ 31;
+			return offset < size ? offset : size;
+		}
 		offset += 32;
+
+		if (offset >= size)
+			return size;
 	}
 	/* No one yet, search remaining full bytes for a one */
-	res = find_first_bit(p, size - ((long)p - (long)vaddr) * 8);
-	return offset + res;
+	return offset + find_first_bit(p, size - offset);
 }
+#define find_next_bit find_next_bit
 
 /*
  * ffz = Find First Zero in word. Undefined if no zero exists,
@@ -325,141 +341,160 @@ static inline int __fls(int x)
 #include <asm-generic/bitops/hweight.h>
 #include <asm-generic/bitops/lock.h>
 
-/* Bitmap functions for the minix filesystem */
+/* Bitmap functions for the little endian bitmap. */
 
-static inline int minix_find_first_zero_bit(const void *vaddr, unsigned size)
+static inline void __set_bit_le(int nr, void *addr)
 {
-	const unsigned short *p = vaddr, *addr = vaddr;
-	int res;
-	unsigned short num;
-
-	if (!size)
-		return 0;
-
-	size = (size >> 4) + ((size & 15) > 0);
-	while (*p++ == 0xffff)
-	{
-		if (--size == 0)
-			return (p - addr) << 4;
-	}
-
-	num = ~*--p;
-	__asm__ __volatile__ ("bfffo %1{#16,#16},%0"
-			      : "=d" (res) : "d" (num & -num));
-	return ((p - addr) << 4) + (res ^ 31);
+	__set_bit(nr ^ 24, addr);
 }
 
-#define minix_test_and_set_bit(nr, addr)	__test_and_set_bit((nr) ^ 16, (unsigned long *)(addr))
-#define minix_set_bit(nr,addr)			__set_bit((nr) ^ 16, (unsigned long *)(addr))
-#define minix_test_and_clear_bit(nr, addr)	__test_and_clear_bit((nr) ^ 16, (unsigned long *)(addr))
-
-static inline int minix_test_bit(int nr, const void *vaddr)
+static inline void __clear_bit_le(int nr, void *addr)
 {
-	const unsigned short *p = vaddr;
-	return (p[nr >> 4] & (1U << (nr & 15))) != 0;
+	__clear_bit(nr ^ 24, addr);
 }
 
-/* Bitmap functions for the ext2 filesystem. */
+static inline int __test_and_set_bit_le(int nr, void *addr)
+{
+	return __test_and_set_bit(nr ^ 24, addr);
+}
 
-#define ext2_set_bit(nr, addr)			__test_and_set_bit((nr) ^ 24, (unsigned long *)(addr))
-#define ext2_set_bit_atomic(lock, nr, addr)	test_and_set_bit((nr) ^ 24, (unsigned long *)(addr))
-#define ext2_clear_bit(nr, addr)		__test_and_clear_bit((nr) ^ 24, (unsigned long *)(addr))
-#define ext2_clear_bit_atomic(lock, nr, addr)	test_and_clear_bit((nr) ^ 24, (unsigned long *)(addr))
-#define ext2_find_next_zero_bit(addr, size, offset) \
-	generic_find_next_zero_le_bit((unsigned long *)addr, size, offset)
-#define ext2_find_next_bit(addr, size, offset) \
-	generic_find_next_le_bit((unsigned long *)addr, size, offset)
+static inline int test_and_set_bit_le(int nr, void *addr)
+{
+	return test_and_set_bit(nr ^ 24, addr);
+}
 
-static inline int ext2_test_bit(int nr, const void *vaddr)
+static inline int __test_and_clear_bit_le(int nr, void *addr)
+{
+	return __test_and_clear_bit(nr ^ 24, addr);
+}
+
+static inline int test_and_clear_bit_le(int nr, void *addr)
+{
+	return test_and_clear_bit(nr ^ 24, addr);
+}
+
+static inline int test_bit_le(int nr, const void *vaddr)
 {
 	const unsigned char *p = vaddr;
 	return (p[nr >> 3] & (1U << (nr & 7))) != 0;
 }
 
-static inline int ext2_find_first_zero_bit(const void *vaddr, unsigned size)
+static inline int find_first_zero_bit_le(const void *vaddr, unsigned size)
 {
 	const unsigned long *p = vaddr, *addr = vaddr;
-	int res;
+	int res = 0;
+	unsigned int words;
 
 	if (!size)
 		return 0;
 
-	size = (size >> 5) + ((size & 31) > 0);
-	while (*p++ == ~0UL)
-	{
-		if (--size == 0)
-			return (p - addr) << 5;
+	words = (size >> 5) + ((size & 31) > 0);
+	while (*p++ == ~0UL) {
+		if (--words == 0)
+			goto out;
 	}
 
 	--p;
 	for (res = 0; res < 32; res++)
-		if (!ext2_test_bit (res, p))
+		if (!test_bit_le(res, p))
 			break;
-	return (p - addr) * 32 + res;
+out:
+	res += (p - addr) * 32;
+	return res < size ? res : size;
 }
+#define find_first_zero_bit_le find_first_zero_bit_le
 
-static inline unsigned long generic_find_next_zero_le_bit(const unsigned long *addr,
+static inline unsigned long find_next_zero_bit_le(const void *addr,
 		unsigned long size, unsigned long offset)
 {
-	const unsigned long *p = addr + (offset >> 5);
+	const unsigned long *p = addr;
 	int bit = offset & 31UL, res;
 
 	if (offset >= size)
 		return size;
 
+	p += offset >> 5;
+
 	if (bit) {
+		offset -= bit;
 		/* Look for zero in first longword */
 		for (res = bit; res < 32; res++)
-			if (!ext2_test_bit (res, p))
-				return (p - addr) * 32 + res;
+			if (!test_bit_le(res, p)) {
+				offset += res;
+				return offset < size ? offset : size;
+			}
 		p++;
+		offset += 32;
+
+		if (offset >= size)
+			return size;
 	}
 	/* No zero yet, search remaining full bytes for a zero */
-	res = ext2_find_first_zero_bit (p, size - 32 * (p - addr));
-	return (p - addr) * 32 + res;
+	return offset + find_first_zero_bit_le(p, size - offset);
 }
+#define find_next_zero_bit_le find_next_zero_bit_le
 
-static inline int ext2_find_first_bit(const void *vaddr, unsigned size)
+static inline int find_first_bit_le(const void *vaddr, unsigned size)
 {
 	const unsigned long *p = vaddr, *addr = vaddr;
-	int res;
+	int res = 0;
+	unsigned int words;
 
 	if (!size)
 		return 0;
 
-	size = (size >> 5) + ((size & 31) > 0);
+	words = (size >> 5) + ((size & 31) > 0);
 	while (*p++ == 0UL) {
-		if (--size == 0)
-			return (p - addr) << 5;
+		if (--words == 0)
+			goto out;
 	}
 
 	--p;
 	for (res = 0; res < 32; res++)
-		if (ext2_test_bit(res, p))
+		if (test_bit_le(res, p))
 			break;
-	return (p - addr) * 32 + res;
+out:
+	res += (p - addr) * 32;
+	return res < size ? res : size;
 }
+#define find_first_bit_le find_first_bit_le
 
-static inline unsigned long generic_find_next_le_bit(const unsigned long *addr,
+static inline unsigned long find_next_bit_le(const void *addr,
 		unsigned long size, unsigned long offset)
 {
-	const unsigned long *p = addr + (offset >> 5);
+	const unsigned long *p = addr;
 	int bit = offset & 31UL, res;
 
 	if (offset >= size)
 		return size;
 
+	p += offset >> 5;
+
 	if (bit) {
+		offset -= bit;
 		/* Look for one in first longword */
 		for (res = bit; res < 32; res++)
-			if (ext2_test_bit(res, p))
-				return (p - addr) * 32 + res;
+			if (test_bit_le(res, p)) {
+				offset += res;
+				return offset < size ? offset : size;
+			}
 		p++;
+		offset += 32;
+
+		if (offset >= size)
+			return size;
 	}
 	/* No set bit yet, search remaining full bytes for a set bit */
-	res = ext2_find_first_bit(p, size - 32 * (p - addr));
-	return (p - addr) * 32 + res;
+	return offset + find_first_bit_le(p, size - offset);
 }
+#define find_next_bit_le find_next_bit_le
+
+/* Bitmap functions for the ext2 filesystem. */
+
+#define ext2_set_bit_atomic(lock, nr, addr)	\
+	test_and_set_bit_le(nr, addr)
+#define ext2_clear_bit_atomic(lock, nr, addr)	\
+	test_and_clear_bit_le(nr, addr)
 
 #endif /* __KERNEL__ */
 

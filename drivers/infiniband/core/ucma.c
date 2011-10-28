@@ -40,6 +40,7 @@
 #include <linux/in6.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
+#include <linux/sysctl.h>
 
 #include <rdma/rdma_user_cm.h>
 #include <rdma/ib_marshall.h>
@@ -50,8 +51,24 @@ MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("RDMA Userspace Connection Manager Access");
 MODULE_LICENSE("Dual BSD/GPL");
 
-enum {
-	UCMA_MAX_BACKLOG	= 128
+static unsigned int max_backlog = 1024;
+
+static struct ctl_table_header *ucma_ctl_table_hdr;
+static ctl_table ucma_ctl_table[] = {
+	{
+		.procname	= "max_backlog",
+		.data		= &max_backlog,
+		.maxlen		= sizeof max_backlog,
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{ }
+};
+
+static struct ctl_path ucma_ctl_path[] = {
+	{ .procname = "net" },
+	{ .procname = "rdma_ucm" },
+	{ }
 };
 
 struct ucma_file {
@@ -350,13 +367,28 @@ done:
 	return ret;
 }
 
-static ssize_t ucma_create_id(struct ucma_file *file,
-				const char __user *inbuf,
-				int in_len, int out_len)
+static int ucma_get_qp_type(struct rdma_ucm_create_id *cmd, enum ib_qp_type *qp_type)
+{
+	switch (cmd->ps) {
+	case RDMA_PS_TCP:
+		*qp_type = IB_QPT_RC;
+		return 0;
+	case RDMA_PS_UDP:
+	case RDMA_PS_IPOIB:
+		*qp_type = IB_QPT_UD;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+static ssize_t ucma_create_id(struct ucma_file *file, const char __user *inbuf,
+			      int in_len, int out_len)
 {
 	struct rdma_ucm_create_id cmd;
 	struct rdma_ucm_create_id_resp resp;
 	struct ucma_context *ctx;
+	enum ib_qp_type qp_type;
 	int ret;
 
 	if (out_len < sizeof(resp))
@@ -365,6 +397,10 @@ static ssize_t ucma_create_id(struct ucma_file *file,
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
+	ret = ucma_get_qp_type(&cmd, &qp_type);
+	if (ret)
+		return ret;
+
 	mutex_lock(&file->mut);
 	ctx = ucma_alloc_ctx(file);
 	mutex_unlock(&file->mut);
@@ -372,7 +408,7 @@ static ssize_t ucma_create_id(struct ucma_file *file,
 		return -ENOMEM;
 
 	ctx->uid = cmd.uid;
-	ctx->cm_id = rdma_create_id(ucma_event_handler, ctx, cmd.ps);
+	ctx->cm_id = rdma_create_id(ucma_event_handler, ctx, cmd.ps, qp_type);
 	if (IS_ERR(ctx->cm_id)) {
 		ret = PTR_ERR(ctx->cm_id);
 		goto err1;
@@ -583,6 +619,52 @@ static void ucma_copy_ib_route(struct rdma_ucm_query_route_resp *resp,
 	}
 }
 
+static void ucma_copy_iboe_route(struct rdma_ucm_query_route_resp *resp,
+				 struct rdma_route *route)
+{
+	struct rdma_dev_addr *dev_addr;
+	struct net_device *dev;
+	u16 vid = 0;
+
+	resp->num_paths = route->num_paths;
+	switch (route->num_paths) {
+	case 0:
+		dev_addr = &route->addr.dev_addr;
+		dev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
+			if (dev) {
+				vid = rdma_vlan_dev_vlan_id(dev);
+				dev_put(dev);
+			}
+
+		iboe_mac_vlan_to_ll((union ib_gid *) &resp->ib_route[0].dgid,
+				    dev_addr->dst_dev_addr, vid);
+		iboe_addr_get_sgid(dev_addr,
+				   (union ib_gid *) &resp->ib_route[0].sgid);
+		resp->ib_route[0].pkey = cpu_to_be16(0xffff);
+		break;
+	case 2:
+		ib_copy_path_rec_to_user(&resp->ib_route[1],
+					 &route->path_rec[1]);
+		/* fall through */
+	case 1:
+		ib_copy_path_rec_to_user(&resp->ib_route[0],
+					 &route->path_rec[0]);
+		break;
+	default:
+		break;
+	}
+}
+
+static void ucma_copy_iw_route(struct rdma_ucm_query_route_resp *resp,
+			       struct rdma_route *route)
+{
+	struct rdma_dev_addr *dev_addr;
+
+	dev_addr = &route->addr.dev_addr;
+	rdma_addr_get_dgid(dev_addr, (union ib_gid *) &resp->ib_route[0].dgid);
+	rdma_addr_get_sgid(dev_addr, (union ib_gid *) &resp->ib_route[0].sgid);
+}
+
 static ssize_t ucma_query_route(struct ucma_file *file,
 				const char __user *inbuf,
 				int in_len, int out_len)
@@ -619,7 +701,20 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 	resp.port_num = ctx->cm_id->port_num;
 	switch (rdma_node_get_transport(ctx->cm_id->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		ucma_copy_ib_route(&resp, &ctx->cm_id->route);
+		switch (rdma_port_get_link_layer(ctx->cm_id->device,
+			ctx->cm_id->port_num)) {
+		case IB_LINK_LAYER_INFINIBAND:
+			ucma_copy_ib_route(&resp, &ctx->cm_id->route);
+			break;
+		case IB_LINK_LAYER_ETHERNET:
+			ucma_copy_iboe_route(&resp, &ctx->cm_id->route);
+			break;
+		default:
+			break;
+		}
+		break;
+	case RDMA_TRANSPORT_IWARP:
+		ucma_copy_iw_route(&resp, &ctx->cm_id->route);
 		break;
 	default:
 		break;
@@ -686,8 +781,8 @@ static ssize_t ucma_listen(struct ucma_file *file, const char __user *inbuf,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	ctx->backlog = cmd.backlog > 0 && cmd.backlog < UCMA_MAX_BACKLOG ?
-		       cmd.backlog : UCMA_MAX_BACKLOG;
+	ctx->backlog = cmd.backlog > 0 && cmd.backlog < max_backlog ?
+		       cmd.backlog : max_backlog;
 	ret = rdma_listen(ctx->cm_id, ctx->backlog);
 	ucma_put_ctx(ctx);
 	return ret;
@@ -806,6 +901,13 @@ static int ucma_set_option_id(struct ucma_context *ctx, int optname,
 			break;
 		}
 		rdma_set_service_type(ctx->cm_id, *((u8 *) optval));
+		break;
+	case RDMA_OPTION_ID_REUSEADDR:
+		if (optlen != sizeof(int)) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = rdma_set_reuseaddr(ctx->cm_id, *((int *) optval) ? 1 : 0);
 		break;
 	default:
 		ret = -ENOSYS;
@@ -1255,9 +1357,11 @@ static const struct file_operations ucma_fops = {
 };
 
 static struct miscdevice ucma_misc = {
-	.minor	= MISC_DYNAMIC_MINOR,
-	.name	= "rdma_cm",
-	.fops	= &ucma_fops,
+	.minor		= MISC_DYNAMIC_MINOR,
+	.name		= "rdma_cm",
+	.nodename	= "infiniband/rdma_cm",
+	.mode		= 0666,
+	.fops		= &ucma_fops,
 };
 
 static ssize_t show_abi_version(struct device *dev,
@@ -1279,16 +1383,26 @@ static int __init ucma_init(void)
 	ret = device_create_file(ucma_misc.this_device, &dev_attr_abi_version);
 	if (ret) {
 		printk(KERN_ERR "rdma_ucm: couldn't create abi_version attr\n");
-		goto err;
+		goto err1;
+	}
+
+	ucma_ctl_table_hdr = register_sysctl_paths(ucma_ctl_path, ucma_ctl_table);
+	if (!ucma_ctl_table_hdr) {
+		printk(KERN_ERR "rdma_ucm: couldn't register sysctl paths\n");
+		ret = -ENOMEM;
+		goto err2;
 	}
 	return 0;
-err:
+err2:
+	device_remove_file(ucma_misc.this_device, &dev_attr_abi_version);
+err1:
 	misc_deregister(&ucma_misc);
 	return ret;
 }
 
 static void __exit ucma_cleanup(void)
 {
+	unregister_sysctl_table(ucma_ctl_table_hdr);
 	device_remove_file(ucma_misc.this_device, &dev_attr_abi_version);
 	misc_deregister(&ucma_misc);
 	idr_destroy(&ctx_idr);

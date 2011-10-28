@@ -10,9 +10,11 @@
  * the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_BASENAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/random.h>
@@ -24,7 +26,6 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
-#include <linux/smp_lock.h>
 #include "input-compat.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
@@ -171,7 +172,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 	if (code == ABS_MT_SLOT) {
 		/*
 		 * "Stage" the event; we'll flush it later, when we
-		 * get actiual touch data.
+		 * get actual touch data.
 		 */
 		if (*pval >= 0 && *pval < dev->mtsize)
 			dev->slot = *pval;
@@ -188,7 +189,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 		pold = &mtslot->abs[code - ABS_MT_FIRST];
 	} else {
 		/*
-		 * Bypass filtering for multitouch events when
+		 * Bypass filtering for multi-touch events when
 		 * not employing slots.
 		 */
 		pold = NULL;
@@ -450,7 +451,6 @@ int input_grab_device(struct input_handle *handle)
 	}
 
 	rcu_assign_pointer(dev->grab, handle);
-	synchronize_rcu();
 
  out:
 	mutex_unlock(&dev->mutex);
@@ -634,78 +634,141 @@ static void input_disconnect_device(struct input_dev *dev)
 	spin_unlock_irq(&dev->event_lock);
 }
 
-static int input_fetch_keycode(struct input_dev *dev, int scancode)
+/**
+ * input_scancode_to_scalar() - converts scancode in &struct input_keymap_entry
+ * @ke: keymap entry containing scancode to be converted.
+ * @scancode: pointer to the location where converted scancode should
+ *	be stored.
+ *
+ * This function is used to convert scancode stored in &struct keymap_entry
+ * into scalar form understood by legacy keymap handling methods. These
+ * methods expect scancodes to be represented as 'unsigned int'.
+ */
+int input_scancode_to_scalar(const struct input_keymap_entry *ke,
+			     unsigned int *scancode)
+{
+	switch (ke->len) {
+	case 1:
+		*scancode = *((u8 *)ke->scancode);
+		break;
+
+	case 2:
+		*scancode = *((u16 *)ke->scancode);
+		break;
+
+	case 4:
+		*scancode = *((u32 *)ke->scancode);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(input_scancode_to_scalar);
+
+/*
+ * Those routines handle the default case where no [gs]etkeycode() is
+ * defined. In this case, an array indexed by the scancode is used.
+ */
+
+static unsigned int input_fetch_keycode(struct input_dev *dev,
+					unsigned int index)
 {
 	switch (dev->keycodesize) {
-		case 1:
-			return ((u8 *)dev->keycode)[scancode];
+	case 1:
+		return ((u8 *)dev->keycode)[index];
 
-		case 2:
-			return ((u16 *)dev->keycode)[scancode];
+	case 2:
+		return ((u16 *)dev->keycode)[index];
 
-		default:
-			return ((u32 *)dev->keycode)[scancode];
+	default:
+		return ((u32 *)dev->keycode)[index];
 	}
 }
 
 static int input_default_getkeycode(struct input_dev *dev,
-				    unsigned int scancode,
-				    unsigned int *keycode)
+				    struct input_keymap_entry *ke)
 {
+	unsigned int index;
+	int error;
+
 	if (!dev->keycodesize)
 		return -EINVAL;
 
-	if (scancode >= dev->keycodemax)
+	if (ke->flags & INPUT_KEYMAP_BY_INDEX)
+		index = ke->index;
+	else {
+		error = input_scancode_to_scalar(ke, &index);
+		if (error)
+			return error;
+	}
+
+	if (index >= dev->keycodemax)
 		return -EINVAL;
 
-	*keycode = input_fetch_keycode(dev, scancode);
+	ke->keycode = input_fetch_keycode(dev, index);
+	ke->index = index;
+	ke->len = sizeof(index);
+	memcpy(ke->scancode, &index, sizeof(index));
 
 	return 0;
 }
 
 static int input_default_setkeycode(struct input_dev *dev,
-				    unsigned int scancode,
-				    unsigned int keycode)
+				    const struct input_keymap_entry *ke,
+				    unsigned int *old_keycode)
 {
-	int old_keycode;
+	unsigned int index;
+	int error;
 	int i;
-
-	if (scancode >= dev->keycodemax)
-		return -EINVAL;
 
 	if (!dev->keycodesize)
 		return -EINVAL;
 
-	if (dev->keycodesize < sizeof(keycode) && (keycode >> (dev->keycodesize * 8)))
+	if (ke->flags & INPUT_KEYMAP_BY_INDEX) {
+		index = ke->index;
+	} else {
+		error = input_scancode_to_scalar(ke, &index);
+		if (error)
+			return error;
+	}
+
+	if (index >= dev->keycodemax)
+		return -EINVAL;
+
+	if (dev->keycodesize < sizeof(ke->keycode) &&
+			(ke->keycode >> (dev->keycodesize * 8)))
 		return -EINVAL;
 
 	switch (dev->keycodesize) {
 		case 1: {
 			u8 *k = (u8 *)dev->keycode;
-			old_keycode = k[scancode];
-			k[scancode] = keycode;
+			*old_keycode = k[index];
+			k[index] = ke->keycode;
 			break;
 		}
 		case 2: {
 			u16 *k = (u16 *)dev->keycode;
-			old_keycode = k[scancode];
-			k[scancode] = keycode;
+			*old_keycode = k[index];
+			k[index] = ke->keycode;
 			break;
 		}
 		default: {
 			u32 *k = (u32 *)dev->keycode;
-			old_keycode = k[scancode];
-			k[scancode] = keycode;
+			*old_keycode = k[index];
+			k[index] = ke->keycode;
 			break;
 		}
 	}
 
-	__clear_bit(old_keycode, dev->keybit);
-	__set_bit(keycode, dev->keybit);
+	__clear_bit(*old_keycode, dev->keybit);
+	__set_bit(ke->keycode, dev->keybit);
 
 	for (i = 0; i < dev->keycodemax; i++) {
-		if (input_fetch_keycode(dev, i) == old_keycode) {
-			__set_bit(old_keycode, dev->keybit);
+		if (input_fetch_keycode(dev, i) == *old_keycode) {
+			__set_bit(*old_keycode, dev->keybit);
 			break; /* Setting the bit twice is useless, so break */
 		}
 	}
@@ -716,21 +779,18 @@ static int input_default_setkeycode(struct input_dev *dev,
 /**
  * input_get_keycode - retrieve keycode currently mapped to a given scancode
  * @dev: input device which keymap is being queried
- * @scancode: scancode (or its equivalent for device in question) for which
- *	keycode is needed
- * @keycode: result
+ * @ke: keymap entry
  *
  * This function should be called by anyone interested in retrieving current
- * keymap. Presently keyboard and evdev handlers use it.
+ * keymap. Presently evdev handlers use it.
  */
-int input_get_keycode(struct input_dev *dev,
-		      unsigned int scancode, unsigned int *keycode)
+int input_get_keycode(struct input_dev *dev, struct input_keymap_entry *ke)
 {
 	unsigned long flags;
 	int retval;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-	retval = dev->getkeycode(dev, scancode, keycode);
+	retval = dev->getkeycode(dev, ke);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	return retval;
@@ -738,31 +798,26 @@ int input_get_keycode(struct input_dev *dev,
 EXPORT_SYMBOL(input_get_keycode);
 
 /**
- * input_get_keycode - assign new keycode to a given scancode
+ * input_set_keycode - attribute a keycode to a given scancode
  * @dev: input device which keymap is being updated
- * @scancode: scancode (or its equivalent for device in question)
- * @keycode: new keycode to be assigned to the scancode
+ * @ke: new keymap entry
  *
  * This function should be called by anyone needing to update current
  * keymap. Presently keyboard and evdev handlers use it.
  */
 int input_set_keycode(struct input_dev *dev,
-		      unsigned int scancode, unsigned int keycode)
+		      const struct input_keymap_entry *ke)
 {
 	unsigned long flags;
 	unsigned int old_keycode;
 	int retval;
 
-	if (keycode > KEY_MAX)
+	if (ke->keycode > KEY_MAX)
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
-	retval = dev->getkeycode(dev, scancode, &old_keycode);
-	if (retval)
-		goto out;
-
-	retval = dev->setkeycode(dev, scancode, keycode);
+	retval = dev->setkeycode(dev, ke, &old_keycode);
 	if (retval)
 		goto out;
 
@@ -848,10 +903,8 @@ static int input_attach_handler(struct input_dev *dev, struct input_handler *han
 
 	error = handler->connect(handler, dev, id);
 	if (error && error != -ENODEV)
-		printk(KERN_ERR
-			"input: failed to attach handler %s to device %s, "
-			"error: %d\n",
-			handler->name, kobject_name(&dev->dev.kobj), error);
+		pr_err("failed to attach handler %s to device %s, error: %d\n",
+		       handler->name, kobject_name(&dev->dev.kobj), error);
 
 	return error;
 }
@@ -998,6 +1051,8 @@ static int input_devices_seq_show(struct seq_file *seq, void *v)
 	list_for_each_entry(handle, &dev->h_list, d_node)
 		seq_printf(seq, "%s ", handle->name);
 	seq_putc(seq, '\n');
+
+	input_seq_print_bitmap(seq, "PROP", dev->propbit, INPUT_PROP_MAX);
 
 	input_seq_print_bitmap(seq, "EV", dev->evbit, EV_MAX);
 	if (test_bit(EV_KEY, dev->evbit))
@@ -1222,11 +1277,26 @@ static ssize_t input_dev_show_modalias(struct device *dev,
 }
 static DEVICE_ATTR(modalias, S_IRUGO, input_dev_show_modalias, NULL);
 
+static int input_print_bitmap(char *buf, int buf_size, unsigned long *bitmap,
+			      int max, int add_cr);
+
+static ssize_t input_dev_show_properties(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	int len = input_print_bitmap(buf, PAGE_SIZE, input_dev->propbit,
+				     INPUT_PROP_MAX, true);
+	return min_t(int, len, PAGE_SIZE);
+}
+static DEVICE_ATTR(properties, S_IRUGO, input_dev_show_properties, NULL);
+
 static struct attribute *input_dev_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_phys.attr,
 	&dev_attr_uniq.attr,
 	&dev_attr_modalias.attr,
+	&dev_attr_properties.attr,
 	NULL
 };
 
@@ -1360,7 +1430,7 @@ static int input_add_uevent_bm_var(struct kobj_uevent_env *env,
 {
 	int len;
 
-	if (add_uevent_var(env, "%s=", name))
+	if (add_uevent_var(env, "%s", name))
 		return -ENOMEM;
 
 	len = input_print_bitmap(&env->buf[env->buflen - 1],
@@ -1426,6 +1496,8 @@ static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 	if (dev->uniq)
 		INPUT_ADD_HOTPLUG_VAR("UNIQ=\"%s\"", dev->uniq);
 
+	INPUT_ADD_HOTPLUG_BM_VAR("PROP=", dev->propbit, INPUT_PROP_MAX);
+
 	INPUT_ADD_HOTPLUG_BM_VAR("EV=", dev->evbit, EV_MAX);
 	if (test_bit(EV_KEY, dev->evbit))
 		INPUT_ADD_HOTPLUG_BM_VAR("KEY=", dev->keybit, KEY_MAX);
@@ -1469,8 +1541,7 @@ static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 		}							\
 	} while (0)
 
-#ifdef CONFIG_PM
-static void input_dev_reset(struct input_dev *dev, bool activate)
+static void input_dev_toggle(struct input_dev *dev, bool activate)
 {
 	if (!dev->event)
 		return;
@@ -1484,12 +1555,44 @@ static void input_dev_reset(struct input_dev *dev, bool activate)
 	}
 }
 
+/**
+ * input_reset_device() - reset/restore the state of input device
+ * @dev: input device whose state needs to be reset
+ *
+ * This function tries to reset the state of an opened input device and
+ * bring internal state and state if the hardware in sync with each other.
+ * We mark all keys as released, restore LED state, repeat rate, etc.
+ */
+void input_reset_device(struct input_dev *dev)
+{
+	mutex_lock(&dev->mutex);
+
+	if (dev->users) {
+		input_dev_toggle(dev, true);
+
+		/*
+		 * Keys that have been pressed at suspend time are unlikely
+		 * to be still pressed when we resume.
+		 */
+		spin_lock_irq(&dev->event_lock);
+		input_dev_release_keys(dev);
+		spin_unlock_irq(&dev->event_lock);
+	}
+
+	mutex_unlock(&dev->mutex);
+}
+EXPORT_SYMBOL(input_reset_device);
+
+#ifdef CONFIG_PM
 static int input_dev_suspend(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);
 
 	mutex_lock(&input_dev->mutex);
-	input_dev_reset(input_dev, false);
+
+	if (input_dev->users)
+		input_dev_toggle(input_dev, false);
+
 	mutex_unlock(&input_dev->mutex);
 
 	return 0;
@@ -1499,18 +1602,7 @@ static int input_dev_resume(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);
 
-	mutex_lock(&input_dev->mutex);
-	input_dev_reset(input_dev, true);
-
-	/*
-	 * Keys that have been pressed at suspend time are unlikely
-	 * to be still pressed when we resume.
-	 */
-	spin_lock_irq(&input_dev->event_lock);
-	input_dev_release_keys(input_dev);
-	spin_unlock_irq(&input_dev->event_lock);
-
-	mutex_unlock(&input_dev->mutex);
+	input_reset_device(input_dev);
 
 	return 0;
 }
@@ -1595,52 +1687,6 @@ void input_free_device(struct input_dev *dev)
 EXPORT_SYMBOL(input_free_device);
 
 /**
- * input_mt_create_slots() - create MT input slots
- * @dev: input device supporting MT events and finger tracking
- * @num_slots: number of slots used by the device
- *
- * This function allocates all necessary memory for MT slot handling in the
- * input device, and adds ABS_MT_SLOT to the device capabilities. All slots
- * are initially marked as unused iby setting ABS_MT_TRACKING_ID to -1.
- */
-int input_mt_create_slots(struct input_dev *dev, unsigned int num_slots)
-{
-	int i;
-
-	if (!num_slots)
-		return 0;
-
-	dev->mt = kcalloc(num_slots, sizeof(struct input_mt_slot), GFP_KERNEL);
-	if (!dev->mt)
-		return -ENOMEM;
-
-	dev->mtsize = num_slots;
-	input_set_abs_params(dev, ABS_MT_SLOT, 0, num_slots - 1, 0, 0);
-
-	/* Mark slots as 'unused' */
-	for (i = 0; i < num_slots; i++)
-		dev->mt[i].abs[ABS_MT_TRACKING_ID - ABS_MT_FIRST] = -1;
-
-	return 0;
-}
-EXPORT_SYMBOL(input_mt_create_slots);
-
-/**
- * input_mt_destroy_slots() - frees the MT slots of the input device
- * @dev: input device with allocated MT slots
- *
- * This function is only needed in error path as the input core will
- * automatically free the MT slots when the device is destroyed.
- */
-void input_mt_destroy_slots(struct input_dev *dev)
-{
-	kfree(dev->mt);
-	dev->mt = NULL;
-	dev->mtsize = 0;
-}
-EXPORT_SYMBOL(input_mt_destroy_slots);
-
-/**
  * input_set_capability - mark device as capable of a certain event
  * @dev: device that is capable of emitting or accepting event
  * @type: type of the event (EV_KEY, EV_REL, etc...)
@@ -1689,9 +1735,8 @@ void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int
 		break;
 
 	default:
-		printk(KERN_ERR
-			"input_set_capability: unknown type %u (code %u)\n",
-			type, code);
+		pr_err("input_set_capability: unknown type %u (code %u)\n",
+		       type, code);
 		dump_stack();
 		return;
 	}
@@ -1699,6 +1744,42 @@ void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int
 	__set_bit(type, dev->evbit);
 }
 EXPORT_SYMBOL(input_set_capability);
+
+static unsigned int input_estimate_events_per_packet(struct input_dev *dev)
+{
+	int mt_slots;
+	int i;
+	unsigned int events;
+
+	if (dev->mtsize) {
+		mt_slots = dev->mtsize;
+	} else if (test_bit(ABS_MT_TRACKING_ID, dev->absbit)) {
+		mt_slots = dev->absinfo[ABS_MT_TRACKING_ID].maximum -
+			   dev->absinfo[ABS_MT_TRACKING_ID].minimum + 1,
+		mt_slots = clamp(mt_slots, 2, 32);
+	} else if (test_bit(ABS_MT_POSITION_X, dev->absbit)) {
+		mt_slots = 2;
+	} else {
+		mt_slots = 0;
+	}
+
+	events = mt_slots + 1; /* count SYN_MT_REPORT and SYN_REPORT */
+
+	for (i = 0; i < ABS_CNT; i++) {
+		if (test_bit(i, dev->absbit)) {
+			if (input_is_mt_axis(i))
+				events += mt_slots;
+			else
+				events++;
+		}
+	}
+
+	for (i = 0; i < REL_CNT; i++)
+		if (test_bit(i, dev->relbit))
+			events++;
+
+	return events;
+}
 
 #define INPUT_CLEANSE_BITMASK(dev, type, bits)				\
 	do {								\
@@ -1747,6 +1828,10 @@ int input_register_device(struct input_dev *dev)
 	/* Make sure that bitmasks not mentioned in dev->evbit are clean. */
 	input_cleanse_bitmasks(dev);
 
+	if (!dev->hint_events_per_packet)
+		dev->hint_events_per_packet =
+				input_estimate_events_per_packet(dev);
+
 	/*
 	 * If delay and period are pre-set by the driver, then autorepeating
 	 * is handled by the driver itself and we don't do it in input.c.
@@ -1773,8 +1858,9 @@ int input_register_device(struct input_dev *dev)
 		return error;
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
-	printk(KERN_INFO "input: %s as %s\n",
-		dev->name ? dev->name : "Unspecified device", path ? path : "N/A");
+	pr_info("%s as %s\n",
+		dev->name ? dev->name : "Unspecified device",
+		path ? path : "N/A");
 	kfree(path);
 
 	error = mutex_lock_interruptible(&input_mutex);
@@ -2047,6 +2133,7 @@ out:
 static const struct file_operations input_fops = {
 	.owner = THIS_MODULE,
 	.open = input_open_file,
+	.llseek = noop_llseek,
 };
 
 static int __init input_init(void)
@@ -2055,7 +2142,7 @@ static int __init input_init(void)
 
 	err = class_register(&input_class);
 	if (err) {
-		printk(KERN_ERR "input: unable to register input_dev class\n");
+		pr_err("unable to register input_dev class\n");
 		return err;
 	}
 
@@ -2065,7 +2152,7 @@ static int __init input_init(void)
 
 	err = register_chrdev(INPUT_MAJOR, "input", &input_fops);
 	if (err) {
-		printk(KERN_ERR "input: unable to register char major %d", INPUT_MAJOR);
+		pr_err("unable to register char major %d", INPUT_MAJOR);
 		goto fail2;
 	}
 

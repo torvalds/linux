@@ -249,7 +249,7 @@ typedef struct _DbgHandle_
  }     regTime ;  /* timestamp for registration       */
  void               *pIrp ;   /* ptr to pending i/o request       */
  unsigned long       dbgMask ;  /* current debug mask               */
- char                drvName[16] ; /* ASCII name of registered driver  */
+ char                drvName[128] ; /* ASCII name of registered driver  */
  char                drvTag[64] ; /* revision string     */
  DbgEnd              dbg_end ;  /* function for debug closing       */
  DbgLog              dbg_prt ;  /* function for debug appending     */

@@ -826,18 +826,10 @@
 #define WM8990_INMIXR_PWR_BIT			2
 #define WM8990_AINRMUX_PWR_BIT			3
 
-struct wm8990_setup_data {
-	unsigned i2c_bus;
-	unsigned short i2c_address;
-};
-
 #define WM8990_MCLK_DIV 0
 #define WM8990_DACCLK_DIV 1
 #define WM8990_ADCCLK_DIV 2
 #define WM8990_BCLK_DIV 3
-
-extern struct snd_soc_dai wm8990_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8990;
 
 #endif	/* __WM8990REGISTERDEFS_H__ */
 /*------------------------------ END OF FILE ---------------------------------*/

@@ -26,9 +26,9 @@ RPM := $(shell if [ -x "/usr/bin/rpmbuild" ]; then echo rpmbuild; \
 	           else echo rpm; fi)
 
 # Remove hyphens since they have special meaning in RPM filenames
-KERNELPATH := kernel-$(subst -,,$(KERNELRELEASE))
+KERNELPATH := kernel-$(subst -,_,$(KERNELRELEASE))
 MKSPEC     := $(srctree)/scripts/package/mkspec
-PREV       := set -e; cd ..;
+PREV       := set -e; cd -P ..;
 
 # rpm-pkg
 # ---------------------------------------------------------------------------
@@ -127,7 +127,8 @@ rm -r $(perf-tar);                                                  \
 $(if $(findstring tar-src,$@),,                                     \
 $(if $(findstring bz2,$@),bzip2,                                    \
 $(if $(findstring gz,$@),gzip,                                      \
-$(error unknown target $@)))                                       \
+$(if $(findstring xz,$@),xz,                                        \
+$(error unknown target $@))))                                       \
 	-f -9 $(perf-tar).tar)
 
 perf-%pkg: FORCE
@@ -142,7 +143,9 @@ help: FORCE
 	@echo '  tar-pkg             - Build the kernel as an uncompressed tarball'
 	@echo '  targz-pkg           - Build the kernel as a gzip compressed tarball'
 	@echo '  tarbz2-pkg          - Build the kernel as a bzip2 compressed tarball'
+	@echo '  tarxz-pkg           - Build the kernel as a xz compressed tarball'
 	@echo '  perf-tar-src-pkg    - Build $(perf-tar).tar source tarball'
 	@echo '  perf-targz-src-pkg  - Build $(perf-tar).tar.gz source tarball'
 	@echo '  perf-tarbz2-src-pkg - Build $(perf-tar).tar.bz2 source tarball'
+	@echo '  perf-tarxz-src-pkg  - Build $(perf-tar).tar.xz source tarball'
 

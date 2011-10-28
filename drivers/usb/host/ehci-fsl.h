@@ -1,4 +1,4 @@
-/* Copyright (c) 2005 freescale semiconductor
+/* Copyright (C) 2005-2010 Freescale Semiconductor, Inc.
  * Copyright (c) 2005 MontaVista Software
  *
  * This program is free software; you can redistribute  it and/or modify it
@@ -28,6 +28,17 @@
 #define PORT_PTS_PTW		(1<<28)
 #define FSL_SOC_USB_PORTSC2	0x188
 #define FSL_SOC_USB_USBMODE	0x1a8
+#define USBMODE_CM_MASK		(3 << 0)	/* controller mode mask */
+#define USBMODE_CM_HOST		(3 << 0)	/* controller mode: host */
+#define USBMODE_ES		(1 << 2)	/* (Big) Endian Select */
+
+#define FSL_SOC_USB_USBGENCTRL	0x200
+#define USBGENCTRL_PPP		(1 << 3)
+#define USBGENCTRL_PFP		(1 << 2)
+#define FSL_SOC_USB_ISIPHYCTRL	0x204
+#define ISIPHYCTRL_PXE		(1)
+#define ISIPHYCTRL_PHYE		(1 << 4)
+
 #define FSL_SOC_USB_SNOOP1	0x400	/* NOTE: big-endian */
 #define FSL_SOC_USB_SNOOP2	0x404	/* NOTE: big-endian */
 #define FSL_SOC_USB_AGECNTTHRSH	0x408	/* NOTE: big-endian */

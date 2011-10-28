@@ -115,6 +115,7 @@
 #include	<linux/debugobjects.h>
 #include	<linux/kmemcheck.h>
 #include	<linux/memory.h>
+#include	<linux/prefetch.h>
 
 #include	<asm/cacheflush.h>
 #include	<asm/tlbflush.h>
@@ -191,22 +192,6 @@ typedef unsigned int kmem_bufctl_t;
 #define	SLAB_LIMIT	(((kmem_bufctl_t)(~0U))-3)
 
 /*
- * struct slab
- *
- * Manages the objs in a slab. Placed either at the beginning of mem allocated
- * for a slab, or allocated from an general cache.
- * Slabs are chained into three list: fully used, partial, fully free slabs.
- */
-struct slab {
-	struct list_head list;
-	unsigned long colouroff;
-	void *s_mem;		/* including colour offset */
-	unsigned int inuse;	/* num of objs active in slab */
-	kmem_bufctl_t free;
-	unsigned short nodeid;
-};
-
-/*
  * struct slab_rcu
  *
  * slab_destroy on a SLAB_DESTROY_BY_RCU cache uses this structure to
@@ -219,13 +204,32 @@ struct slab {
  *
  * rcu_read_lock before reading the address, then rcu_read_unlock after
  * taking the spinlock within the structure expected at that address.
- *
- * We assume struct slab_rcu can overlay struct slab when destroying.
  */
 struct slab_rcu {
 	struct rcu_head head;
 	struct kmem_cache *cachep;
 	void *addr;
+};
+
+/*
+ * struct slab
+ *
+ * Manages the objs in a slab. Placed either at the beginning of mem allocated
+ * for a slab, or allocated from an general cache.
+ * Slabs are chained into three list: fully used, partial, fully free slabs.
+ */
+struct slab {
+	union {
+		struct {
+			struct list_head list;
+			unsigned long colouroff;
+			void *s_mem;		/* including colour offset */
+			unsigned int inuse;	/* num of objs active in slab */
+			kmem_bufctl_t free;
+			unsigned short nodeid;
+		};
+		struct slab_rcu __slab_cover_slab_rcu;
+	};
 };
 
 /*
@@ -284,7 +288,7 @@ struct kmem_list3 {
  * Need this for bootstrapping a per node allocator.
  */
 #define NUM_INIT_LISTS (3 * MAX_NUMNODES)
-struct kmem_list3 __initdata initkmem_list3[NUM_INIT_LISTS];
+static struct kmem_list3 __initdata initkmem_list3[NUM_INIT_LISTS];
 #define	CACHE_CACHE 0
 #define	SIZE_AC MAX_NUMNODES
 #define	SIZE_L3 (2 * MAX_NUMNODES)
@@ -829,12 +833,12 @@ static void init_reap_node(int cpu)
 
 static void next_reap_node(void)
 {
-	int node = __get_cpu_var(slab_reap_node);
+	int node = __this_cpu_read(slab_reap_node);
 
 	node = next_node(node, node_online_map);
 	if (unlikely(node >= MAX_NUMNODES))
 		node = first_node(node_online_map);
-	__get_cpu_var(slab_reap_node) = node;
+	__this_cpu_write(slab_reap_node, node);
 }
 
 #else
@@ -875,7 +879,7 @@ static struct array_cache *alloc_arraycache(int node, int entries,
 	nc = kmalloc_node(memsize, gfp, node);
 	/*
 	 * The array_cache structures contain pointers to free object.
-	 * However, when such objects are allocated or transfered to another
+	 * However, when such objects are allocated or transferred to another
 	 * cache the pointers are not cleared and they could be counted as
 	 * valid references during a kmemleak scan. Therefore, kmemleak must
 	 * not scan such objects.
@@ -901,7 +905,7 @@ static int transfer_objects(struct array_cache *to,
 		struct array_cache *from, unsigned int max)
 {
 	/* Figure out how many entries to transfer */
-	int nr = min(min(from->avail, max), to->limit - to->avail);
+	int nr = min3(from->avail, max, to->limit - to->avail);
 
 	if (!nr)
 		return 0;
@@ -1012,7 +1016,7 @@ static void __drain_alien_cache(struct kmem_cache *cachep,
  */
 static void reap_alien(struct kmem_cache *cachep, struct kmem_list3 *l3)
 {
-	int node = __get_cpu_var(slab_reap_node);
+	int node = __this_cpu_read(slab_reap_node);
 
 	if (l3->alien) {
 		struct array_cache *ac = l3->alien[node];
@@ -1293,7 +1297,7 @@ static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 		 * anything expensive but will only modify reap_work
 		 * and reschedule the timer.
 		*/
-		cancel_rearming_delayed_work(&per_cpu(slab_reap_work, cpu));
+		cancel_delayed_work_sync(&per_cpu(slab_reap_work, cpu));
 		/* Now the cache_reaper is guaranteed to be not running. */
 		per_cpu(slab_reap_work, cpu).work.func = NULL;
   		break;
@@ -1387,7 +1391,7 @@ static int __meminit slab_memory_callback(struct notifier_block *self,
 		break;
 	}
 out:
-	return ret ? notifier_from_errno(ret) : NOTIFY_OK;
+	return notifier_from_errno(ret);
 }
 #endif /* CONFIG_NUMA && CONFIG_MEMORY_HOTPLUG */
 
@@ -2147,8 +2151,6 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
  *
  * @name must be valid until the cache is destroyed. This implies that
  * the module calling this has to destroy the cache before getting unloaded.
- * Note that kmem_cache_name() is not guaranteed to return the same pointer,
- * therefore applications must manage it themselves.
  *
  * The flags are
  *
@@ -2288,8 +2290,8 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	if (ralign < align) {
 		ralign = align;
 	}
-	/* disable debug if not aligning with REDZONE_ALIGN */
-	if (ralign & (__alignof__(unsigned long long) - 1))
+	/* disable debug if necessary */
+	if (ralign > __alignof__(unsigned long long))
 		flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
 	/*
 	 * 4) Store it.
@@ -2315,8 +2317,8 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	 */
 	if (flags & SLAB_RED_ZONE) {
 		/* add space for red zone words */
-		cachep->obj_offset += align;
-		size += align + sizeof(unsigned long long);
+		cachep->obj_offset += sizeof(unsigned long long);
+		size += 2 * sizeof(unsigned long long);
 	}
 	if (flags & SLAB_STORE_USER) {
 		/* user store requires one word storage behind the end of
@@ -2605,7 +2607,7 @@ EXPORT_SYMBOL(kmem_cache_shrink);
  *
  * The cache must be empty before calling this function.
  *
- * The caller must guarantee that noone will allocate memory from the cache
+ * The caller must guarantee that no one will allocate memory from the cache
  * during the kmem_cache_destroy().
  */
 void kmem_cache_destroy(struct kmem_cache *cachep)
@@ -2781,7 +2783,7 @@ static void slab_put_obj(struct kmem_cache *cachep, struct slab *slabp,
 /*
  * Map pages beginning at addr to the given cache and slab. This is required
  * for the slab allocator to be able to lookup the cache and slab of a
- * virtual address for kfree, ksize, kmem_ptr_validate, and slab debugging.
+ * virtual address for kfree, ksize, and slab debugging.
  */
 static void slab_map_pages(struct kmem_cache *cache, struct slab *slab,
 			   void *addr)
@@ -3602,13 +3604,14 @@ free_done:
  * Release an obj back to its cache. If the obj has a constructed state, it must
  * be in this state _before_ it is released.  Called with disabled ints.
  */
-static inline void __cache_free(struct kmem_cache *cachep, void *objp)
+static inline void __cache_free(struct kmem_cache *cachep, void *objp,
+    void *caller)
 {
 	struct array_cache *ac = cpu_cache_get(cachep);
 
 	check_irq_off();
 	kmemleak_free_recursive(objp, cachep->flags);
-	objp = cache_free_debugcheck(cachep, objp, __builtin_return_address(0));
+	objp = cache_free_debugcheck(cachep, objp, caller);
 
 	kmemcheck_slab_free(cachep, objp, obj_size(cachep));
 
@@ -3653,42 +3656,19 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 EXPORT_SYMBOL(kmem_cache_alloc);
 
 #ifdef CONFIG_TRACING
-void *kmem_cache_alloc_notrace(struct kmem_cache *cachep, gfp_t flags)
+void *
+kmem_cache_alloc_trace(size_t size, struct kmem_cache *cachep, gfp_t flags)
 {
-	return __cache_alloc(cachep, flags, __builtin_return_address(0));
+	void *ret;
+
+	ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
+
+	trace_kmalloc(_RET_IP_, ret,
+		      size, slab_buffer_size(cachep), flags);
+	return ret;
 }
-EXPORT_SYMBOL(kmem_cache_alloc_notrace);
+EXPORT_SYMBOL(kmem_cache_alloc_trace);
 #endif
-
-/**
- * kmem_ptr_validate - check if an untrusted pointer might be a slab entry.
- * @cachep: the cache we're checking against
- * @ptr: pointer to validate
- *
- * This verifies that the untrusted pointer looks sane;
- * it is _not_ a guarantee that the pointer is actually
- * part of the slab cache in question, but it at least
- * validates that the pointer can be dereferenced and
- * looks half-way sane.
- *
- * Currently only used for dentry validation.
- */
-int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr)
-{
-	unsigned long size = cachep->buffer_size;
-	struct page *page;
-
-	if (unlikely(!kern_ptr_validate(ptr, size)))
-		goto out;
-	page = virt_to_page(ptr);
-	if (unlikely(!PageSlab(page)))
-		goto out;
-	if (unlikely(page_get_cache(page) != cachep))
-		goto out;
-	return 1;
-out:
-	return 0;
-}
 
 #ifdef CONFIG_NUMA
 void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
@@ -3705,31 +3685,32 @@ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 EXPORT_SYMBOL(kmem_cache_alloc_node);
 
 #ifdef CONFIG_TRACING
-void *kmem_cache_alloc_node_notrace(struct kmem_cache *cachep,
-				    gfp_t flags,
-				    int nodeid)
+void *kmem_cache_alloc_node_trace(size_t size,
+				  struct kmem_cache *cachep,
+				  gfp_t flags,
+				  int nodeid)
 {
-	return __cache_alloc_node(cachep, flags, nodeid,
+	void *ret;
+
+	ret = __cache_alloc_node(cachep, flags, nodeid,
 				  __builtin_return_address(0));
+	trace_kmalloc_node(_RET_IP_, ret,
+			   size, slab_buffer_size(cachep),
+			   flags, nodeid);
+	return ret;
 }
-EXPORT_SYMBOL(kmem_cache_alloc_node_notrace);
+EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
 #endif
 
 static __always_inline void *
 __do_kmalloc_node(size_t size, gfp_t flags, int node, void *caller)
 {
 	struct kmem_cache *cachep;
-	void *ret;
 
 	cachep = kmem_find_general_cachep(size, flags);
 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
 		return cachep;
-	ret = kmem_cache_alloc_node_notrace(cachep, flags, node);
-
-	trace_kmalloc_node((unsigned long) caller, ret,
-			   size, cachep->buffer_size, flags, node);
-
-	return ret;
+	return kmem_cache_alloc_node_trace(size, cachep, flags, node);
 }
 
 #if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_TRACING)
@@ -3821,7 +3802,7 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 	debug_check_no_locks_freed(objp, obj_size(cachep));
 	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
 		debug_check_no_obj_freed(objp, obj_size(cachep));
-	__cache_free(cachep, objp);
+	__cache_free(cachep, objp, __builtin_return_address(0));
 	local_irq_restore(flags);
 
 	trace_kmem_cache_free(_RET_IP_, objp);
@@ -3851,7 +3832,7 @@ void kfree(const void *objp)
 	c = virt_to_cache(objp);
 	debug_check_no_locks_freed(objp, obj_size(c));
 	debug_check_no_obj_freed(objp, obj_size(c));
-	__cache_free(c, (void *)objp);
+	__cache_free(c, (void *)objp, __builtin_return_address(0));
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(kfree);
@@ -3861,12 +3842,6 @@ unsigned int kmem_cache_size(struct kmem_cache *cachep)
 	return obj_size(cachep);
 }
 EXPORT_SYMBOL(kmem_cache_size);
-
-const char *kmem_cache_name(struct kmem_cache *cachep)
-{
-	return cachep->name;
-}
-EXPORT_SYMBOL_GPL(kmem_cache_name);
 
 /*
  * This initializes kmem_list3 or resizes various caches for all nodes.
@@ -4075,7 +4050,7 @@ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
  * necessary. Note that the l3 listlock also protects the array_cache
  * if drain_array() is used on the shared array.
  */
-void drain_array(struct kmem_cache *cachep, struct kmem_list3 *l3,
+static void drain_array(struct kmem_cache *cachep, struct kmem_list3 *l3,
 			 struct array_cache *ac, int force, int node)
 {
 	int tofree;
@@ -4339,7 +4314,7 @@ static const struct seq_operations slabinfo_op = {
  * @count: data length
  * @ppos: unused
  */
-ssize_t slabinfo_write(struct file *file, const char __user * buffer,
+static ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 		       size_t count, loff_t *ppos)
 {
 	char kbuf[MAX_SLABINFO_WRITE + 1], *tmp;

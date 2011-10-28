@@ -361,7 +361,7 @@ enum  velocity_owner {
 #define MAC_REG_CHIPGSR     0x9C
 #define MAC_REG_TESTCFG     0x9D
 #define MAC_REG_DEBUG       0x9E
-#define MAC_REG_CHIPGCR     0x9F
+#define MAC_REG_CHIPGCR     0x9F	/* Chip Operation and Diagnostic Control */
 #define MAC_REG_WOLCR0_SET  0xA0
 #define MAC_REG_WOLCR1_SET  0xA1
 #define MAC_REG_PWCFG_SET   0xA2
@@ -848,10 +848,10 @@ enum  velocity_owner {
  *	Bits in CHIPGCR register
  */
 
-#define CHIPGCR_FCGMII      0x80
-#define CHIPGCR_FCFDX       0x40
+#define CHIPGCR_FCGMII      0x80	/* force GMII (else MII only) */
+#define CHIPGCR_FCFDX       0x40	/* force full duplex */
 #define CHIPGCR_FCRESV      0x20
-#define CHIPGCR_FCMODE      0x10
+#define CHIPGCR_FCMODE      0x10	/* enable MAC forced mode */
 #define CHIPGCR_LPSOPT      0x08
 #define CHIPGCR_TM1US       0x04
 #define CHIPGCR_TM0US       0x02
@@ -1096,7 +1096,7 @@ struct mac_regs {
 
 	volatile __le16 PatternCRC[8];	/* 0xB0 */
 	volatile __le32 ByteMask[4][4];	/* 0xC0 */
-} __packed;
+};
 
 
 enum hw_mib {
@@ -1390,7 +1390,8 @@ enum speed_opt {
 	SPD_DPX_100_HALF = 1,
 	SPD_DPX_100_FULL = 2,
 	SPD_DPX_10_HALF = 3,
-	SPD_DPX_10_FULL = 4
+	SPD_DPX_10_FULL = 4,
+	SPD_DPX_1000_FULL = 5
 };
 
 enum velocity_init_type {
@@ -1504,22 +1505,25 @@ struct velocity_info {
  *	addresses on this chain then we use the first - multi-IP WOL is not
  *	supported.
  *
- *	CHECK ME: locking
  */
 
 static inline int velocity_get_ip(struct velocity_info *vptr)
 {
-	struct in_device *in_dev = (struct in_device *) vptr->dev->ip_ptr;
+	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
+	int res = -ENOENT;
 
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(vptr->dev);
 	if (in_dev != NULL) {
 		ifa = (struct in_ifaddr *) in_dev->ifa_list;
 		if (ifa != NULL) {
 			memcpy(vptr->ip_addr, &ifa->ifa_address, 4);
-			return 0;
+			res = 0;
 		}
 	}
-	return -ENOENT;
+	rcu_read_unlock();
+	return res;
 }
 
 /**

@@ -150,7 +150,7 @@ default_handler(struct task_struct *task, void *buf, pfm_ovfl_arg_t *arg, struct
 	 * current = task running at the time of the overflow.
 	 *
 	 * per-task mode:
-	 * 	- this is ususally the task being monitored.
+	 * 	- this is usually the task being monitored.
 	 * 	  Under certain conditions, it might be a different task
 	 *
 	 * system-wide:

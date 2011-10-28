@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2010 ServerEngines
+ * Copyright (C) 2005 - 2011 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -7,15 +7,14 @@
  * as published by the Free Software Foundation.  The full GNU General
  * Public License is included in this distribution in the file called COPYING.
  *
- * Written by: Jayamohan Kallickal (jayamohank@serverengines.com)
+ * Written by: Jayamohan Kallickal (jayamohan.kallickal@emulex.com)
  *
  * Contact Information:
- * linux-drivers@serverengines.com
+ * linux-drivers@emulex.com
  *
- * ServerEngines
- * 209 N. Fair Oaks Ave
- * Sunnyvale, CA 94085
- *
+ * Emulex
+ * 3333 Susan Street
+ * Costa Mesa, CA 92626
  */
 
 #ifndef _BE_ISCSI_
@@ -48,8 +47,8 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 		      struct iscsi_cls_conn *cls_conn,
 		      uint64_t transport_fd, int is_leading);
 
-int beiscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
-			   enum iscsi_param param, char *buf);
+int beiscsi_ep_get_param(struct iscsi_endpoint *ep, enum iscsi_param param,
+			 char *buf);
 
 int beiscsi_get_host_param(struct Scsi_Host *shost,
 			   enum iscsi_host_param param, char *buf);

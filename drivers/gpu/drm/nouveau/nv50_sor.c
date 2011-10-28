@@ -41,8 +41,7 @@ nv50_sor_disconnect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *evo = dev_priv->evo;
+	struct nouveau_channel *evo = nv50_display(dev)->master;
 	int ret;
 
 	if (!nv_encoder->crtc)
@@ -92,7 +91,7 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 	}
 
 	/* wait for it to be done */
-	if (!nv_wait(NV50_PDISPLAY_SOR_DPMS_CTRL(or),
+	if (!nv_wait(dev, NV50_PDISPLAY_SOR_DPMS_CTRL(or),
 		     NV50_PDISPLAY_SOR_DPMS_CTRL_PENDING, 0)) {
 		NV_ERROR(dev, "timeout: SOR_DPMS_CTRL_PENDING(%d) == 0\n", or);
 		NV_ERROR(dev, "SOR_DPMS_CTRL(%d) = 0x%08x\n", or,
@@ -108,7 +107,7 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 
 	nv_wr32(dev, NV50_PDISPLAY_SOR_DPMS_CTRL(or), val |
 		NV50_PDISPLAY_SOR_DPMS_CTRL_PENDING);
-	if (!nv_wait(NV50_PDISPLAY_SOR_DPMS_STATE(or),
+	if (!nv_wait(dev, NV50_PDISPLAY_SOR_DPMS_STATE(or),
 		     NV50_PDISPLAY_SOR_DPMS_STATE_WAIT, 0)) {
 		NV_ERROR(dev, "timeout: SOR_DPMS_STATE_WAIT(%d) == 0\n", or);
 		NV_ERROR(dev, "SOR_DPMS_STATE(%d) = 0x%08x\n", or,
@@ -184,8 +183,7 @@ static void
 nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		  struct drm_display_mode *adjusted_mode)
 {
-	struct drm_nouveau_private *dev_priv = encoder->dev->dev_private;
-	struct nouveau_channel *evo = dev_priv->evo;
+	struct nouveau_channel *evo = nv50_display(encoder->dev)->master;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_crtc *crtc = nouveau_crtc(encoder->crtc);

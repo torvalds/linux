@@ -17,9 +17,12 @@
 #include <linux/pm.h>
 #include <linux/videodev2.h>
 #include <media/videobuf-core.h>
+#include <media/videobuf2-core.h>
 #include <media/v4l2-device.h>
 
 extern struct bus_type soc_camera_bus_type;
+
+struct file;
 
 struct soc_camera_device {
 	struct list_head list;
@@ -27,6 +30,8 @@ struct soc_camera_device {
 	struct device *pdev;		/* Platform device */
 	s32 user_width;
 	s32 user_height;
+	u32 bytesperline;		/* for padding, zero if unused */
+	u32 sizeimage;
 	enum v4l2_colorspace colorspace;
 	unsigned char iface;		/* Host number */
 	unsigned char devnum;		/* Device number per host */
@@ -41,11 +46,11 @@ struct soc_camera_device {
 	/* soc_camera.c private count. Only accessed with .video_lock held */
 	int use_count;
 	struct mutex video_lock;	/* Protects device data */
-};
-
-struct soc_camera_file {
-	struct soc_camera_device *icd;
-	struct videobuf_queue vb_vidq;
+	struct file *streamer;		/* stream owner */
+	union {
+		struct videobuf_queue vb_vidq;
+		struct vb2_queue vb2_vidq;
+	};
 };
 
 struct soc_camera_host {
@@ -76,17 +81,25 @@ struct soc_camera_host_ops {
 	int (*cropcap)(struct soc_camera_device *, struct v4l2_cropcap *);
 	int (*get_crop)(struct soc_camera_device *, struct v4l2_crop *);
 	int (*set_crop)(struct soc_camera_device *, struct v4l2_crop *);
+	/*
+	 * The difference to .set_crop() is, that .set_livecrop is not allowed
+	 * to change the output sizes
+	 */
+	int (*set_livecrop)(struct soc_camera_device *, struct v4l2_crop *);
 	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	void (*init_videobuf)(struct videobuf_queue *,
 			      struct soc_camera_device *);
-	int (*reqbufs)(struct soc_camera_file *, struct v4l2_requestbuffers *);
+	int (*init_videobuf2)(struct vb2_queue *,
+			      struct soc_camera_device *);
+	int (*reqbufs)(struct soc_camera_device *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
 	int (*set_bus_param)(struct soc_camera_device *, __u32);
 	int (*get_ctrl)(struct soc_camera_device *, struct v4l2_control *);
 	int (*set_ctrl)(struct soc_camera_device *, struct v4l2_control *);
 	int (*get_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	int (*set_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
+	int (*enum_fsizes)(struct soc_camera_device *, struct v4l2_frmsizeenum *);
 	unsigned int (*poll)(struct file *, poll_table *);
 	const struct v4l2_queryctrl *controls;
 	int num_controls;
@@ -100,8 +113,15 @@ struct soc_camera_host_ops {
 #define SOCAM_SENSOR_INVERT_HSYNC	(1 << 2)
 #define SOCAM_SENSOR_INVERT_VSYNC	(1 << 3)
 #define SOCAM_SENSOR_INVERT_DATA	(1 << 4)
+#define SOCAM_MIPI_1LANE		(1 << 5)
+#define SOCAM_MIPI_2LANE		(1 << 6)
+#define SOCAM_MIPI_3LANE		(1 << 7)
+#define SOCAM_MIPI_4LANE		(1 << 8)
+#define SOCAM_MIPI	(SOCAM_MIPI_1LANE | SOCAM_MIPI_2LANE | \
+			SOCAM_MIPI_3LANE | SOCAM_MIPI_4LANE)
 
 struct i2c_board_info;
+struct regulator_bulk_data;
 
 struct soc_camera_link {
 	/* Camera bus id, used to match a camera and a bus */
@@ -112,6 +132,10 @@ struct soc_camera_link {
 	struct i2c_board_info *board_info;
 	const char *module_name;
 	void *priv;
+
+	/* Optional regulators that have to be managed on power on/off events */
+	struct regulator_bulk_data *regulators;
+	int num_regulators;
 
 	/*
 	 * For non-I2C devices platform platform has to provide methods to
@@ -267,6 +291,7 @@ static inline unsigned long soc_camera_bus_param_compatible(
 			unsigned long camera_flags, unsigned long bus_flags)
 {
 	unsigned long common_flags, hsync, vsync, pclk, data, buswidth, mode;
+	unsigned long mipi;
 
 	common_flags = camera_flags & bus_flags;
 
@@ -276,8 +301,9 @@ static inline unsigned long soc_camera_bus_param_compatible(
 	data = common_flags & (SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATA_ACTIVE_LOW);
 	mode = common_flags & (SOCAM_MASTER | SOCAM_SLAVE);
 	buswidth = common_flags & SOCAM_DATAWIDTH_MASK;
+	mipi = common_flags & SOCAM_MIPI;
 
-	return (!hsync || !vsync || !pclk || !data || !mode || !buswidth) ? 0 :
+	return ((!hsync || !vsync || !pclk || !data || !mode || !buswidth) && !mipi) ? 0 :
 		common_flags;
 }
 
@@ -306,5 +332,18 @@ static inline struct video_device *soc_camera_i2c_to_vdev(struct i2c_client *cli
 	struct soc_camera_device *icd = client->dev.platform_data;
 	return icd->vdev;
 }
+
+static inline struct soc_camera_device *soc_camera_from_vb2q(struct vb2_queue *vq)
+{
+	return container_of(vq, struct soc_camera_device, vb2_vidq);
+}
+
+static inline struct soc_camera_device *soc_camera_from_vbq(struct videobuf_queue *vq)
+{
+	return container_of(vq, struct soc_camera_device, vb_vidq);
+}
+
+void soc_camera_lock(struct vb2_queue *vq);
+void soc_camera_unlock(struct vb2_queue *vq);
 
 #endif

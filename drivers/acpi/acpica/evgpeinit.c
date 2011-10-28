@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,10 +45,26 @@
 #include "accommon.h"
 #include "acevents.h"
 #include "acnamesp.h"
-#include "acinterp.h"
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evgpeinit")
+
+/*
+ * Note: History of _PRW support in ACPICA
+ *
+ * Originally (2000 - 2010), the GPE initialization code performed a walk of
+ * the entire namespace to execute the _PRW methods and detect all GPEs
+ * capable of waking the system.
+ *
+ * As of 10/2010, the _PRW method execution has been removed since it is
+ * actually unnecessary. The host OS must in fact execute all _PRW methods
+ * in order to identify the device/power-resource dependencies. We now put
+ * the onus on the host OS to identify the wake GPEs as part of this process
+ * and to inform ACPICA of these GPEs via the acpi_setup_gpe_for_wake interface. This
+ * not only reduces the complexity of the ACPICA initialization code, but in
+ * some cases (on systems with very large namespaces) it should reduce the
+ * kernel boot time as well.
+ */
 
 /*******************************************************************************
  *
@@ -210,8 +226,7 @@ acpi_status acpi_ev_gpe_initialize(void)
  *
  * DESCRIPTION: Check for new GPE methods (_Lxx/_Exx) made available as a
  *              result of a Load() or load_table() operation. If new GPE
- *              methods have been installed, register the new methods and
- *              enable and runtime GPEs that are associated with them.
+ *              methods have been installed, register the new methods.
  *
  ******************************************************************************/
 
@@ -223,7 +238,7 @@ void acpi_ev_update_gpes(acpi_owner_id table_owner_id)
 	acpi_status status = AE_OK;
 
 	/*
-	 * 2) Find any _Lxx/_Exx GPE methods that have just been loaded.
+	 * Find any _Lxx/_Exx GPE methods that have just been loaded.
 	 *
 	 * Any GPEs that correspond to new _Lxx/_Exx methods are immediately
 	 * enabled.
@@ -236,10 +251,9 @@ void acpi_ev_update_gpes(acpi_owner_id table_owner_id)
 		return;
 	}
 
+	walk_info.count = 0;
 	walk_info.owner_id = table_owner_id;
 	walk_info.execute_by_owner_id = TRUE;
-	walk_info.count = 0;
-	walk_info.enable_this_gpe = TRUE;
 
 	/* Walk the interrupt level descriptor list */
 
@@ -300,9 +314,7 @@ void acpi_ev_update_gpes(acpi_owner_id table_owner_id)
  *                  xx     - is the GPE number [in HEX]
  *
  * If walk_info->execute_by_owner_id is TRUE, we only execute examine GPE methods
- *    with that owner.
- * If walk_info->enable_this_gpe is TRUE, the GPE that is referred to by a GPE
- *    method is immediately enabled (Used for Load/load_table operators)
+ * with that owner.
  *
  ******************************************************************************/
 
@@ -315,8 +327,6 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	struct acpi_gpe_walk_info *walk_info =
 	    ACPI_CAST_PTR(struct acpi_gpe_walk_info, context);
 	struct acpi_gpe_event_info *gpe_event_info;
-	struct acpi_namespace_node *gpe_device;
-	acpi_status status;
 	u32 gpe_number;
 	char name[ACPI_NAME_SIZE + 1];
 	u8 type;
@@ -414,35 +424,16 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 		return_ACPI_STATUS(AE_OK);
 	}
 
+	/* Disable the GPE in case it's been enabled already. */
+	(void)acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_DISABLE);
+
 	/*
 	 * Add the GPE information from above to the gpe_event_info block for
 	 * use during dispatch of this GPE.
 	 */
+	gpe_event_info->flags &= ~(ACPI_GPE_DISPATCH_MASK);
 	gpe_event_info->flags |= (u8)(type | ACPI_GPE_DISPATCH_METHOD);
 	gpe_event_info->dispatch.method_node = method_node;
-
-	/*
-	 * Enable this GPE if requested. This only happens when during the
-	 * execution of a Load or load_table operator. We have found a new
-	 * GPE method and want to immediately enable the GPE if it is a
-	 * runtime GPE.
-	 */
-	if (walk_info->enable_this_gpe) {
-
-		walk_info->count++;
-		gpe_device = walk_info->gpe_device;
-
-		if (gpe_device == acpi_gbl_fadt_gpe_device) {
-			gpe_device = NULL;
-		}
-
-		status = acpi_enable_gpe(gpe_device, gpe_number);
-		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not enable GPE 0x%02X",
-					gpe_number));
-		}
-	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
 			  "Registered GPE method %s as GPE number 0x%.2X\n",

@@ -147,7 +147,7 @@ static int loongson_pm_valid_state(suspend_state_t state)
 	}
 }
 
-static struct platform_suspend_ops loongson_pm_ops = {
+static const struct platform_suspend_ops loongson_pm_ops = {
 	.valid	= loongson_pm_valid_state,
 	.enter	= loongson_pm_enter,
 };

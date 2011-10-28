@@ -144,6 +144,7 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 	struct nes_device *nesdev;
 	struct net_device *netdev;
 	struct nes_vnic *nesvnic;
+	unsigned int is_bonded;
 
 	nes_debug(NES_DBG_NETDEV, "nes_inetaddr_event: ip address %pI4, netmask %pI4.\n",
 		  &ifa->ifa_address, &ifa->ifa_mask);
@@ -152,7 +153,9 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 				nesdev, nesdev->netdev[0]->name);
 		netdev = nesdev->netdev[0];
 		nesvnic = netdev_priv(netdev);
-		if (netdev == event_netdev) {
+		is_bonded = netif_is_bond_slave(netdev) &&
+			    (netdev->master == event_netdev);
+		if ((netdev == event_netdev) || is_bonded) {
 			if (nesvnic->rdma_enabled == 0) {
 				nes_debug(NES_DBG_NETDEV, "Returning without processing event for %s since"
 						" RDMA is not enabled.\n",
@@ -169,7 +172,10 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 					nes_manage_arp_cache(netdev, netdev->dev_addr,
 							ntohl(nesvnic->local_ipaddr), NES_ARP_DELETE);
 					nesvnic->local_ipaddr = 0;
-					return NOTIFY_OK;
+					if (is_bonded)
+						continue;
+					else
+						return NOTIFY_OK;
 					break;
 				case NETDEV_UP:
 					nes_debug(NES_DBG_NETDEV, "event:UP\n");
@@ -178,15 +184,24 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 						nes_debug(NES_DBG_NETDEV, "Interface already has local_ipaddr\n");
 						return NOTIFY_OK;
 					}
+					/* fall through */
+				case NETDEV_CHANGEADDR:
 					/* Add the address to the IP table */
-					nesvnic->local_ipaddr = ifa->ifa_address;
+					if (netdev->master)
+						nesvnic->local_ipaddr =
+							((struct in_device *)netdev->master->ip_ptr)->ifa_list->ifa_address;
+					else
+						nesvnic->local_ipaddr = ifa->ifa_address;
 
 					nes_write_indexed(nesdev,
 							NES_IDX_DST_IP_ADDR+(0x10*PCI_FUNC(nesdev->pcidev->devfn)),
-							ntohl(ifa->ifa_address));
+							ntohl(nesvnic->local_ipaddr));
 					nes_manage_arp_cache(netdev, netdev->dev_addr,
 							ntohl(nesvnic->local_ipaddr), NES_ARP_ADD);
-					return NOTIFY_OK;
+					if (is_bonded)
+						continue;
+					else
+						return NOTIFY_OK;
 					break;
 				default:
 					break;
@@ -660,6 +675,8 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	}
 	nes_notifiers_registered++;
 
+	INIT_DELAYED_WORK(&nesdev->work, nes_recheck_link_status);
+
 	/* Initialize network devices */
 	if ((netdev = nes_netdev_init(nesdev, mmio_regs)) == NULL)
 		goto bail7;
@@ -677,7 +694,7 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	nesdev->netdev_count++;
 	nesdev->nesadapter->netdev_count++;
 
-	printk(KERN_ERR PFX "%s: NetEffect RNIC driver successfully loaded.\n",
+	printk(KERN_INFO PFX "%s: NetEffect RNIC driver successfully loaded.\n",
 			pci_name(pcidev));
 	return 0;
 
@@ -742,6 +759,7 @@ static void __devexit nes_remove(struct pci_dev *pcidev)
 	struct nes_device *nesdev = pci_get_drvdata(pcidev);
 	struct net_device *netdev;
 	int netdev_index = 0;
+	unsigned long flags;
 
 		if (nesdev->netdev_count) {
 			netdev = nesdev->netdev[netdev_index];
@@ -767,6 +785,14 @@ static void __devexit nes_remove(struct pci_dev *pcidev)
 
 	free_irq(pcidev->irq, nesdev);
 	tasklet_kill(&nesdev->dpc_tasklet);
+
+	spin_lock_irqsave(&nesdev->nesadapter->phy_lock, flags);
+	if (nesdev->link_recheck) {
+		spin_unlock_irqrestore(&nesdev->nesadapter->phy_lock, flags);
+		cancel_delayed_work_sync(&nesdev->work);
+	} else {
+		spin_unlock_irqrestore(&nesdev->nesadapter->phy_lock, flags);
+	}
 
 	/* Deallocate the Adapter Structure */
 	nes_destroy_adapter(nesdev->nesadapter);
@@ -1112,7 +1138,9 @@ static ssize_t nes_store_wqm_quanta(struct device_driver *ddp,
 	u32 i = 0;
 	struct nes_device *nesdev;
 
-	strict_strtoul(buf, 0, &wqm_quanta_value);
+	if (kstrtoul(buf, 0, &wqm_quanta_value) < 0)
+		return -EINVAL;
+
 	list_for_each_entry(nesdev, &nes_dev_list, list) {
 		if (i == ee_flsh_adapter) {
 			nesdev->nesadapter->wqm_quanta = wqm_quanta_value;

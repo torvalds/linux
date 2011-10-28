@@ -27,7 +27,11 @@
 #include <linux/sched.h>
 #include <linux/prctl.h>
 #include <linux/securebits.h>
-#include <linux/syslog.h>
+#include <linux/user_namespace.h>
+
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
+#include <linux/android_aid.h>
+#endif
 
 /*
  * If a non-root user executes a setuid-root binary in
@@ -53,13 +57,12 @@ static void warn_setuid_and_fcaps_mixed(const char *fname)
 
 int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
 {
-	NETLINK_CB(skb).eff_cap = current_cap();
 	return 0;
 }
 
 int cap_netlink_recv(struct sk_buff *skb, int cap)
 {
-	if (!cap_raised(NETLINK_CB(skb).eff_cap, cap))
+	if (!cap_raised(current_cap(), cap))
 		return -EPERM;
 	return 0;
 }
@@ -69,6 +72,7 @@ EXPORT_SYMBOL(cap_netlink_recv);
  * cap_capable - Determine whether a task has a particular effective capability
  * @tsk: The task to query
  * @cred: The credentials to use
+ * @ns:  The user namespace in which we need the capability
  * @cap: The capability to check for
  * @audit: Whether to write an audit message or not
  *
@@ -80,10 +84,35 @@ EXPORT_SYMBOL(cap_netlink_recv);
  * cap_has_capability() returns 0 when a task has a capability, but the
  * kernel's capable() and has_capability() returns 1 for this case.
  */
-int cap_capable(struct task_struct *tsk, const struct cred *cred, int cap,
-		int audit)
+int cap_capable(struct task_struct *tsk, const struct cred *cred,
+		struct user_namespace *targ_ns, int cap, int audit)
 {
-	return cap_raised(cred->cap_effective, cap) ? 0 : -EPERM;
+	if (cap == CAP_NET_RAW && in_egroup_p(AID_NET_RAW))
+		return 0;
+	if (cap == CAP_NET_ADMIN && in_egroup_p(AID_NET_ADMIN))
+		return 0;
+
+	for (;;) {
+		/* The creator of the user namespace has all caps. */
+		if (targ_ns != &init_user_ns && targ_ns->creator == cred->user)
+			return 0;
+
+		/* Do we have the necessary capabilities? */
+		if (targ_ns == cred->user->user_ns)
+			return cap_raised(cred->cap_effective, cap) ? 0 : -EPERM;
+
+		/* Have we tried all of the parent namespaces? */
+		if (targ_ns == &init_user_ns)
+			return -EPERM;
+
+		/*
+		 *If you have a capability in a parent user ns, then you have
+		 * it over all children user namespaces as well.
+		 */
+		targ_ns = targ_ns->creator->user_ns;
+	}
+
+	/* We never get here */
 }
 
 /**
@@ -94,7 +123,7 @@ int cap_capable(struct task_struct *tsk, const struct cred *cred, int cap,
  * Determine whether the current process may set the system clock and timezone
  * information, returning 0 if permission granted, -ve if denied.
  */
-int cap_settime(struct timespec *ts, struct timezone *tz)
+int cap_settime(const struct timespec *ts, const struct timezone *tz)
 {
 	if (!capable(CAP_SYS_TIME))
 		return -EPERM;
@@ -107,18 +136,30 @@ int cap_settime(struct timespec *ts, struct timezone *tz)
  * @child: The process to be accessed
  * @mode: The mode of attachment.
  *
+ * If we are in the same or an ancestor user_ns and have all the target
+ * task's capabilities, then ptrace access is allowed.
+ * If we have the ptrace capability to the target user_ns, then ptrace
+ * access is allowed.
+ * Else denied.
+ *
  * Determine whether a process may access another, returning 0 if permission
  * granted, -ve if denied.
  */
 int cap_ptrace_access_check(struct task_struct *child, unsigned int mode)
 {
 	int ret = 0;
+	const struct cred *cred, *child_cred;
 
 	rcu_read_lock();
-	if (!cap_issubset(__task_cred(child)->cap_permitted,
-			  current_cred()->cap_permitted) &&
-	    !capable(CAP_SYS_PTRACE))
-		ret = -EPERM;
+	cred = current_cred();
+	child_cred = __task_cred(child);
+	if (cred->user->user_ns == child_cred->user->user_ns &&
+	    cap_issubset(child_cred->cap_permitted, cred->cap_permitted))
+		goto out;
+	if (ns_capable(child_cred->user->user_ns, CAP_SYS_PTRACE))
+		goto out;
+	ret = -EPERM;
+out:
 	rcu_read_unlock();
 	return ret;
 }
@@ -127,18 +168,30 @@ int cap_ptrace_access_check(struct task_struct *child, unsigned int mode)
  * cap_ptrace_traceme - Determine whether another process may trace the current
  * @parent: The task proposed to be the tracer
  *
+ * If parent is in the same or an ancestor user_ns and has all current's
+ * capabilities, then ptrace access is allowed.
+ * If parent has the ptrace capability to current's user_ns, then ptrace
+ * access is allowed.
+ * Else denied.
+ *
  * Determine whether the nominated task is permitted to trace the current
  * process, returning 0 if permission is granted, -ve if denied.
  */
 int cap_ptrace_traceme(struct task_struct *parent)
 {
 	int ret = 0;
+	const struct cred *cred, *child_cred;
 
 	rcu_read_lock();
-	if (!cap_issubset(current_cred()->cap_permitted,
-			  __task_cred(parent)->cap_permitted) &&
-	    !has_capability(parent, CAP_SYS_PTRACE))
-		ret = -EPERM;
+	cred = __task_cred(parent);
+	child_cred = current_cred();
+	if (cred->user->user_ns == child_cred->user->user_ns &&
+	    cap_issubset(child_cred->cap_permitted, cred->cap_permitted))
+		goto out;
+	if (has_ns_capability(parent, child_cred->user->user_ns, CAP_SYS_PTRACE))
+		goto out;
+	ret = -EPERM;
+out:
 	rcu_read_unlock();
 	return ret;
 }
@@ -178,7 +231,8 @@ static inline int cap_inh_is_capped(void)
 	/* they are so limited unless the current task has the CAP_SETPCAP
 	 * capability
 	 */
-	if (cap_capable(current, current_cred(), CAP_SETPCAP,
+	if (cap_capable(current, current_cred(),
+			current_cred()->user->user_ns, CAP_SETPCAP,
 			SECURITY_CAP_AUDIT) == 0)
 		return 0;
 	return 1;
@@ -484,15 +538,10 @@ skip:
 	new->suid = new->fsuid = new->euid;
 	new->sgid = new->fsgid = new->egid;
 
-	/* For init, we want to retain the capabilities set in the initial
-	 * task.  Thus we skip the usual capability rules
-	 */
-	if (!is_global_init(current)) {
-		if (effective)
-			new->cap_effective = new->cap_permitted;
-		else
-			cap_clear(new->cap_effective);
-	}
+	if (effective)
+		new->cap_effective = new->cap_permitted;
+	else
+		cap_clear(new->cap_effective);
 	bprm->cap_effective = effective;
 
 	/*
@@ -719,14 +768,11 @@ static int cap_safe_nice(struct task_struct *p)
 /**
  * cap_task_setscheduler - Detemine if scheduler policy change is permitted
  * @p: The task to affect
- * @policy: The policy to effect
- * @lp: The parameters to the scheduling policy
  *
  * Detemine if the requested scheduler policy change is permitted for the
  * specified task, returning 0 if permission is granted, -ve if denied.
  */
-int cap_task_setscheduler(struct task_struct *p, int policy,
-			   struct sched_param *lp)
+int cap_task_setscheduler(struct task_struct *p)
 {
 	return cap_safe_nice(p);
 }
@@ -833,7 +879,8 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		     & (new->securebits ^ arg2))			/*[1]*/
 		    || ((new->securebits & SECURE_ALL_LOCKS & ~arg2))	/*[2]*/
 		    || (arg2 & ~(SECURE_ALL_LOCKS | SECURE_ALL_BITS))	/*[3]*/
-		    || (cap_capable(current, current_cred(), CAP_SETPCAP,
+		    || (cap_capable(current, current_cred(),
+				    current_cred()->user->user_ns, CAP_SETPCAP,
 				    SECURITY_CAP_AUDIT) != 0)		/*[4]*/
 			/*
 			 * [1] no changing of bits that are locked
@@ -887,24 +934,6 @@ error:
 }
 
 /**
- * cap_syslog - Determine whether syslog function is permitted
- * @type: Function requested
- * @from_file: Whether this request came from an open file (i.e. /proc)
- *
- * Determine whether the current process is permitted to use a particular
- * syslog function, returning 0 if permission is granted, -ve if not.
- */
-int cap_syslog(int type, bool from_file)
-{
-	if (type != SYSLOG_ACTION_OPEN && from_file)
-		return 0;
-	if ((type != SYSLOG_ACTION_READ_ALL &&
-	     type != SYSLOG_ACTION_SIZE_BUFFER) && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
-	return 0;
-}
-
-/**
  * cap_vm_enough_memory - Determine whether a new virtual mapping is permitted
  * @mm: The VM space in which the new mapping is to be made
  * @pages: The size of the mapping
@@ -916,7 +945,7 @@ int cap_vm_enough_memory(struct mm_struct *mm, long pages)
 {
 	int cap_sys_admin = 0;
 
-	if (cap_capable(current, current_cred(), CAP_SYS_ADMIN,
+	if (cap_capable(current, current_cred(), &init_user_ns, CAP_SYS_ADMIN,
 			SECURITY_CAP_NOAUDIT) == 0)
 		cap_sys_admin = 1;
 	return __vm_enough_memory(mm, pages, cap_sys_admin);
@@ -943,7 +972,7 @@ int cap_file_mmap(struct file *file, unsigned long reqprot,
 	int ret = 0;
 
 	if (addr < dac_mmap_min_addr) {
-		ret = cap_capable(current, current_cred(), CAP_SYS_RAWIO,
+		ret = cap_capable(current, current_cred(), &init_user_ns, CAP_SYS_RAWIO,
 				  SECURITY_CAP_AUDIT);
 		/* set PF_SUPERPRIV if it turns out we allow the low mmap */
 		if (ret == 0)

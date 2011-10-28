@@ -221,7 +221,7 @@ static int __sst_wait_idle(u8 __iomem *vbase)
 	while(1) {
 		if (__sst_read(vbase, STATUS) & STATUS_FBI_BUSY) {
 			f_dddprintk("status: busy\n");
-/* FIXME basicaly, this is a busy wait. maybe not that good. oh well;
+/* FIXME basically, this is a busy wait. maybe not that good. oh well;
  * this is a small loop after all.
  * Or maybe we should use mdelay() or udelay() here instead ? */
 			count = 0;
@@ -501,7 +501,7 @@ static int sstfb_set_par(struct fb_info *info)
 	}
 
 	if (IS_VOODOO2(par)) {
-		/* voodoo2 has 32 pixel wide tiles , BUT stange things
+		/* voodoo2 has 32 pixel wide tiles , BUT strange things
 		   happen with odd number of tiles */
 		par->tiles_in_X = (info->var.xres + 63 ) / 64 * 2;
 	} else {
@@ -536,7 +536,7 @@ static int sstfb_set_par(struct fb_info *info)
 	fbiinit2 = sst_read(FBIINIT2);
 	fbiinit3 = sst_read(FBIINIT3);
 
-	/* everything is reset. we enable fbiinit2/3 remap : dac acces ok */
+	/* everything is reset. we enable fbiinit2/3 remap : dac access ok */
 	pci_write_config_dword(sst_dev, PCI_INIT_ENABLE,
 	                       PCI_EN_INIT_WR | PCI_REMAP_DAC );
 
@@ -920,11 +920,11 @@ static int __devinit sst_detect_ti(struct fb_info *info)
  * we get the 1st byte (M value) of preset f1,f7 and fB
  * why those 3 ? mmmh... for now, i'll do it the glide way...
  * and ask questions later. anyway, it seems that all the freq registers are
- * realy at their default state (cf specs) so i ask again, why those 3 regs ?
+ * really at their default state (cf specs) so i ask again, why those 3 regs ?
  * mmmmh.. it seems that's much more ugly than i thought. we use f0 and fA for
  * pll programming, so in fact, we *hope* that the f1, f7 & fB won't be
  * touched...
- * is it realy safe ? how can i reset this ramdac ? geee...
+ * is it really safe ? how can i reset this ramdac ? geee...
  */
 static int __devinit sst_detect_ics(struct fb_info *info)
 {

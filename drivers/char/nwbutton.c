@@ -75,7 +75,7 @@ int button_add_callback (void (*callback) (void), int count)
  * with -EINVAL. If there is more than one entry with the same address,
  * because it searches the list from end to beginning, it will unregister the
  * last one to be registered first (FILO- First In Last Out).
- * Note that this is not neccessarily true if the entries are not submitted
+ * Note that this is not necessarily true if the entries are not submitted
  * at the same time, because another driver could have unregistered a callback
  * between the submissions creating a gap earlier in the list, which would
  * be filled first at submission time.
@@ -182,6 +182,7 @@ static int button_read (struct file *filp, char __user *buffer,
 static const struct file_operations button_fops = {
 	.owner		= THIS_MODULE,
 	.read		= button_read,
+	.llseek		= noop_llseek,
 };
 
 /* 

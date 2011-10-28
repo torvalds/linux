@@ -17,7 +17,6 @@
 #include <linux/writeback.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 #include <linux/notifier.h>
 #include <linux/irqflags.h>
 #include <linux/debugfs.h>
@@ -41,8 +40,6 @@
 
 #include "trace.h"
 #include "trace_output.h"
-
-#define TRACE_BUFFER_FLAGS	(RB_FL_OVERWRITE)
 
 /*
  * On boot up, the ring buffer is set to the minimum size, so that
@@ -341,7 +338,7 @@ static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 /* trace_flags holds trace_options default values */
 unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
 	TRACE_ITER_ANNOTATE | TRACE_ITER_CONTEXT_INFO | TRACE_ITER_SLEEP_TIME |
-	TRACE_ITER_GRAPH_TIME | TRACE_ITER_RECORD_CMD;
+	TRACE_ITER_GRAPH_TIME | TRACE_ITER_RECORD_CMD | TRACE_ITER_OVERWRITE;
 
 static int trace_stop_count;
 static DEFINE_SPINLOCK(tracing_start_lock);
@@ -426,6 +423,7 @@ static const char *trace_options[] = {
 	"sleep-time",
 	"graph-time",
 	"record-cmd",
+	"overwrite",
 	NULL
 };
 
@@ -781,6 +779,11 @@ __acquires(kernel_lock)
 		tracing_reset_online_cpus(tr);
 
 		current_trace = type;
+
+		/* If we expanded the buffers, make sure the max is expanded too */
+		if (ring_buffer_expanded && type->use_max_tr)
+			ring_buffer_resize(max_tr.buffer, trace_buf_size);
+
 		/* the test is responsible for initializing and enabling */
 		pr_info("Testing tracer %s: ", type->name);
 		ret = type->selftest(type, tr);
@@ -792,6 +795,10 @@ __acquires(kernel_lock)
 		}
 		/* Only reset on passing, to avoid touching corrupted buffers */
 		tracing_reset_online_cpus(tr);
+
+		/* Shrink the max buffer again */
+		if (ring_buffer_expanded && type->use_max_tr)
+			ring_buffer_resize(max_tr.buffer, 1);
 
 		printk(KERN_CONT "PASSED\n");
 	}
@@ -1103,7 +1110,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 
 	entry->preempt_count		= pc & 0xff;
 	entry->pid			= (tsk) ? tsk->pid : 0;
-	entry->lock_depth		= (tsk) ? tsk->lock_depth : 0;
+	entry->padding			= 0;
 	entry->flags =
 #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
 		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
@@ -1284,6 +1291,8 @@ void trace_dump_stack(void)
 	__ftrace_trace_stack(global_trace.buffer, flags, 3, preempt_count());
 }
 
+static DEFINE_PER_CPU(int, user_stack_count);
+
 void
 ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 {
@@ -1302,10 +1311,20 @@ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 	if (unlikely(in_nmi()))
 		return;
 
+	/*
+	 * prevent recursion, since the user stack tracing may
+	 * trigger other kernel events.
+	 */
+	preempt_disable();
+	if (__this_cpu_read(user_stack_count))
+		goto out;
+
+	__this_cpu_inc(user_stack_count);
+
 	event = trace_buffer_lock_reserve(buffer, TRACE_USER_STACK,
 					  sizeof(*entry), flags, pc);
 	if (!event)
-		return;
+		goto out_drop_count;
 	entry	= ring_buffer_event_data(event);
 
 	entry->tgid		= current->tgid;
@@ -1319,6 +1338,11 @@ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 	save_stack_trace_user(&trace);
 	if (!filter_check_discard(call, entry, buffer, event))
 		ring_buffer_unlock_commit(buffer, event);
+
+ out_drop_count:
+	__this_cpu_dec(user_stack_count);
+ out:
+	preempt_enable();
 }
 
 #ifdef UNUSED
@@ -1733,10 +1757,9 @@ static void print_lat_help_header(struct seq_file *m)
 	seq_puts(m, "#                | / _----=> need-resched    \n");
 	seq_puts(m, "#                || / _---=> hardirq/softirq \n");
 	seq_puts(m, "#                ||| / _--=> preempt-depth   \n");
-	seq_puts(m, "#                |||| /_--=> lock-depth       \n");
-	seq_puts(m, "#                |||||/     delay             \n");
-	seq_puts(m, "#  cmd     pid   |||||| time  |   caller      \n");
-	seq_puts(m, "#     \\   /      ||||||   \\   |   /           \n");
+	seq_puts(m, "#                |||| /     delay             \n");
+	seq_puts(m, "#  cmd     pid   ||||| time  |   caller      \n");
+	seq_puts(m, "#     \\   /      |||||  \\    |   /           \n");
 }
 
 static void print_func_help_header(struct seq_file *m)
@@ -1991,9 +2014,10 @@ enum print_line_t print_trace_line(struct trace_iterator *iter)
 {
 	enum print_line_t ret;
 
-	if (iter->lost_events)
-		trace_seq_printf(&iter->seq, "CPU:%d [LOST %lu EVENTS]\n",
-				 iter->cpu, iter->lost_events);
+	if (iter->lost_events &&
+	    !trace_seq_printf(&iter->seq, "CPU:%d [LOST %lu EVENTS]\n",
+				 iter->cpu, iter->lost_events))
+		return TRACE_TYPE_PARTIAL_LINE;
 
 	if (iter->trace && iter->trace->print_line) {
 		ret = iter->trace->print_line(iter);
@@ -2196,7 +2220,7 @@ int tracing_open_generic(struct inode *inode, struct file *filp)
 
 static int tracing_release(struct inode *inode, struct file *file)
 {
-	struct seq_file *m = (struct seq_file *)file->private_data;
+	struct seq_file *m = file->private_data;
 	struct trace_iterator *iter;
 	int cpu;
 
@@ -2320,11 +2344,19 @@ tracing_write_stub(struct file *filp, const char __user *ubuf,
 	return count;
 }
 
+static loff_t tracing_seek(struct file *file, loff_t offset, int origin)
+{
+	if (file->f_mode & FMODE_READ)
+		return seq_lseek(file, offset, origin);
+	else
+		return 0;
+}
+
 static const struct file_operations tracing_fops = {
 	.open		= tracing_open,
 	.read		= seq_read,
 	.write		= tracing_write_stub,
-	.llseek		= seq_lseek,
+	.llseek		= tracing_seek,
 	.release	= tracing_release,
 };
 
@@ -2505,6 +2537,9 @@ static void set_tracer_flags(unsigned int mask, int enabled)
 
 	if (mask == TRACE_ITER_RECORD_CMD)
 		trace_event_enable_cmd_record(enabled);
+
+	if (mask == TRACE_ITER_OVERWRITE)
+		ring_buffer_change_overwrite(global_trace.buffer, enabled);
 }
 
 static ssize_t
@@ -2686,6 +2721,10 @@ tracing_ctrl_write(struct file *filp, const char __user *ubuf,
 
 	mutex_lock(&trace_types_lock);
 	if (tracer_enabled ^ val) {
+
+		/* Only need to warn if this is used to change the state */
+		WARN_ONCE(1, "tracing_enabled is deprecated. Use tracing_on");
+
 		if (val) {
 			tracer_enabled = 1;
 			if (current_trace->start)
@@ -3192,6 +3231,14 @@ waitagain:
 
 		if (iter->seq.len >= cnt)
 			break;
+
+		/*
+		 * Setting the full flag means we reached the trace_seq buffer
+		 * size and we should leave by partial output condition above.
+		 * One of the trace_seq_* functions is not used properly.
+		 */
+		WARN_ONCE(iter->seq.full, "full flag set for trace type %d",
+			  iter->ent->type);
 	}
 	trace_access_unlock(iter->cpu_file);
 	trace_event_read_unlock();
@@ -3202,7 +3249,7 @@ waitagain:
 		trace_seq_init(&iter->seq);
 
 	/*
-	 * If there was nothing to send to user, inspite of consuming trace
+	 * If there was nothing to send to user, in spite of consuming trace
 	 * entries, go back to wait for more entries.
 	 */
 	if (sret == -EBUSY)
@@ -3996,13 +4043,9 @@ static void tracing_init_debugfs_percpu(long cpu)
 {
 	struct dentry *d_percpu = tracing_dentry_percpu();
 	struct dentry *d_cpu;
-	/* strlen(cpu) + MAX(log10(cpu)) + '\0' */
-	char cpu_dir[7];
+	char cpu_dir[30]; /* 30 characters should be more than enough */
 
-	if (cpu > 999 || cpu < 0)
-		return;
-
-	sprintf(cpu_dir, "cpu%ld", cpu);
+	snprintf(cpu_dir, 30, "cpu%ld", cpu);
 	d_cpu = debugfs_create_dir(cpu_dir, d_percpu);
 	if (!d_cpu) {
 		pr_warning("Could not create debugfs '%s' entry\n", cpu_dir);
@@ -4531,8 +4574,10 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 __init static int tracer_alloc_buffers(void)
 {
 	int ring_buf_size;
+	enum ring_buffer_flags rb_flags;
 	int i;
 	int ret = -ENOMEM;
+
 
 	if (!alloc_cpumask_var(&tracing_buffer_mask, GFP_KERNEL))
 		goto out;
@@ -4546,12 +4591,13 @@ __init static int tracer_alloc_buffers(void)
 	else
 		ring_buf_size = 1;
 
+	rb_flags = trace_flags & TRACE_ITER_OVERWRITE ? RB_FL_OVERWRITE : 0;
+
 	cpumask_copy(tracing_buffer_mask, cpu_possible_mask);
 	cpumask_copy(tracing_cpumask, cpu_all_mask);
 
 	/* TODO: make the number of buffers hot pluggable with CPUS */
-	global_trace.buffer = ring_buffer_alloc(ring_buf_size,
-						   TRACE_BUFFER_FLAGS);
+	global_trace.buffer = ring_buffer_alloc(ring_buf_size, rb_flags);
 	if (!global_trace.buffer) {
 		printk(KERN_ERR "tracer: failed to allocate ring buffer!\n");
 		WARN_ON(1);
@@ -4561,7 +4607,7 @@ __init static int tracer_alloc_buffers(void)
 
 
 #ifdef CONFIG_TRACER_MAX_TRACE
-	max_tr.buffer = ring_buffer_alloc(1, TRACE_BUFFER_FLAGS);
+	max_tr.buffer = ring_buffer_alloc(1, rb_flags);
 	if (!max_tr.buffer) {
 		printk(KERN_ERR "tracer: failed to allocate max ring buffer!\n");
 		WARN_ON(1);

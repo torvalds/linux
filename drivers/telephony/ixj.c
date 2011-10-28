@@ -169,7 +169,7 @@
  * Added support for Linux 2.4.x kernels.
  *
  * Revision 3.77  2001/01/09 04:00:52  eokerson
- * Linetest will now test the line, even if it has previously succeded.
+ * Linetest will now test the line, even if it has previously succeeded.
  *
  * Revision 3.76  2001/01/08 19:27:00  eokerson
  * Fixed problem with standard cable on Internet PhoneCARD.
@@ -257,7 +257,7 @@
 #include <linux/fs.h>		/* everything... */
 #include <linux/errno.h>	/* error codes */
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/mm.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
@@ -277,18 +277,18 @@
 #define TYPE(inode) (iminor(inode) >> 4)
 #define NUM(inode) (iminor(inode) & 0xf)
 
+static DEFINE_MUTEX(ixj_mutex);
 static int ixjdebug;
 static int hertz = HZ;
 static int samplerate = 100;
 
 module_param(ixjdebug, int, 0);
 
-static struct pci_device_id ixj_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(ixj_pci_tbl) = {
 	{ PCI_VENDOR_ID_QUICKNET, PCI_DEVICE_ID_QUICKNET_XJ,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ }
 };
-
 MODULE_DEVICE_TABLE(pci, ixj_pci_tbl);
 
 /************************************************************************
@@ -352,7 +352,7 @@ static void ixj_fsk_alloc(IXJ *j)
 		} else {
 			j->fsksize = 8000;
 			if(ixjdebug & 0x0200) {
-				printk("IXJ phone%d - allocate succeded\n", j->board);
+				printk("IXJ phone%d - allocate succeeded\n", j->board);
 			}
 		}
 	}
@@ -487,7 +487,7 @@ DSPbase +
 8-9		Hardware Status Register			Read Only
 A-B		Hardware Control Register			Read Write
 C-D Host Transmit (Write) Data Buffer Access Port (buffer input)Write Only
-E-F Host Recieve (Read) Data Buffer Access Port (buffer input)	Read Only
+E-F Host Receive (Read) Data Buffer Access Port (buffer input)	Read Only
 ************************************************************************/
 
 static inline void ixj_read_HSR(IXJ *j)
@@ -4195,7 +4195,7 @@ static void ixj_aec_start(IXJ *j, int level)
 			ixj_WriteDSPCommand(0xE338, j);	/* Set Echo Suppresser Attenuation to 0dB */
 
 			/* Now we can set the AGC initial parameters and turn it on */
-			ixj_WriteDSPCommand(0xCF90, j);	/* Set AGC Minumum gain */
+			ixj_WriteDSPCommand(0xCF90, j);	/* Set AGC Minimum gain */
 			ixj_WriteDSPCommand(0x0020, j);	/* to 0.125 (-18dB) */
 	
 			ixj_WriteDSPCommand(0xCF91, j);	/* Set AGC Maximum gain */
@@ -6580,7 +6580,8 @@ static long do_ixj_ioctl(struct file *file_p, unsigned int cmd, unsigned long ar
 	case IXJCTL_SET_FILTER:
 		if (copy_from_user(&jf, argp, sizeof(jf))) 
 			retval = -EFAULT;
-		retval = ixj_init_filter(j, &jf);
+		else
+			retval = ixj_init_filter(j, &jf);
 		break;
 	case IXJCTL_SET_FILTER_RAW:
 		if (copy_from_user(&jfr, argp, sizeof(jfr))) 
@@ -6655,9 +6656,9 @@ static long do_ixj_ioctl(struct file *file_p, unsigned int cmd, unsigned long ar
 static long ixj_ioctl(struct file *file_p, unsigned int cmd, unsigned long arg)
 {
 	long ret;
-	lock_kernel();
+	mutex_lock(&ixj_mutex);
 	ret = do_ixj_ioctl(file_p, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&ixj_mutex);
 	return ret;
 }
 
@@ -6676,7 +6677,8 @@ static const struct file_operations ixj_fops =
         .poll           = ixj_poll,
         .unlocked_ioctl = ixj_ioctl,
         .release        = ixj_release,
-        .fasync         = ixj_fasync
+        .fasync         = ixj_fasync,
+        .llseek	 = default_llseek,
 };
 
 static int ixj_linetest(IXJ *j)

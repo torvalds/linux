@@ -40,17 +40,6 @@ static inline int pfn_to_nid(unsigned long pfn)
 	return highbits_to_node[__pfn_to_highbits(pfn)];
 }
 
-/*
- * Following are macros that each numa implmentation must define.
- */
-
-#define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
-#define node_end_pfn(nid)						\
-({									\
-	pg_data_t *__pgdat = NODE_DATA(nid);				\
-	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;		\
-})
-
 #define kern_addr_valid(kaddr)	virt_addr_valid((void *)kaddr)
 
 static inline int pfn_valid(int pfn)
