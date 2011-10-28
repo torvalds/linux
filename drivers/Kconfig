@@ -50,10 +50,6 @@ source "drivers/i2c/Kconfig"
 
 source "drivers/spi/Kconfig"
 
-source "drivers/adc/Kconfig"
-
-source "drivers/headset_observe/Kconfig"
-
 source "drivers/pps/Kconfig"
 
 source "drivers/gpio/Kconfig"
@@ -117,13 +113,4 @@ source "drivers/xen/Kconfig"
 source "drivers/staging/Kconfig"
 
 source "drivers/platform/Kconfig"
-
-source "drivers/cmmb/Kconfig"
-
-source "drivers/testcode/Kconfig"
-
-source "drivers/smc/Kconfig"
-
-source "drivers/cir/Kconfig"
-
 endmenu

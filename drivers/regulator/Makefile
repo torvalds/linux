@@ -25,16 +25,11 @@ obj-$(CONFIG_REGULATOR_WM8350) += wm8350-regulator.o
 obj-$(CONFIG_REGULATOR_WM8400) += wm8400-regulator.o
 obj-$(CONFIG_REGULATOR_WM8994) += wm8994-regulator.o
 obj-$(CONFIG_REGULATOR_TPS6586X) += tps6586x-regulator.o
-obj-$(CONFIG_REGULATOR_TPS65910) += tps65910-regulator.o
 obj-$(CONFIG_REGULATOR_DA903X)	+= da903x.o
 obj-$(CONFIG_REGULATOR_PCF50633) += pcf50633-regulator.o
 obj-$(CONFIG_REGULATOR_PCAP) += pcap-regulator.o
 obj-$(CONFIG_REGULATOR_MC13783) += mc13783-regulator.o
 obj-$(CONFIG_REGULATOR_AB3100) += ab3100.o
-obj-$(CONFIG_RK2818_REGULATOR_LP8725) += rk2818_lp8725.o
-obj-$(CONFIG_RK2818_REGULATOR_CHARGE) += charge-regulator.o
-obj-$(CONFIG_RK29_PWM_REGULATOR) += rk29-pwm-regulator.o
-
 obj-$(CONFIG_REGULATOR_CPCAP) += cpcap-regulator.o
 
 obj-$(CONFIG_REGULATOR_TPS65023) += tps65023-regulator.o
@@ -42,6 +37,5 @@ obj-$(CONFIG_REGULATOR_TPS6507X) += tps6507x-regulator.o
 obj-$(CONFIG_REGULATOR_88PM8607) += 88pm8607.o
 obj-$(CONFIG_REGULATOR_ISL6271A) += isl6271a-regulator.o
 obj-$(CONFIG_REGULATOR_AB8500)	+= ab8500.o
-obj-$(CONFIG_REGULATOR_ACT8891) += act8891.o
 
 ccflags-$(CONFIG_REGULATOR_DEBUG) += -DDEBUG

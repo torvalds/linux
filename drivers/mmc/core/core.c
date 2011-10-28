@@ -211,9 +211,6 @@ static void mmc_wait_done(struct mmc_request *mrq)
  */
 void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
-    unsigned long datasize, waittime=0xFFFF;
-    u32 multi, unit;
-    
 	DECLARE_COMPLETION_ONSTACK(complete);
 
 	mrq->done_data = &complete;
@@ -221,47 +218,7 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 
 	mmc_start_request(host, mrq);
 
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-    if( strncmp( mmc_hostname(host) ,"mmc0" , strlen("mmc0")) ) 
-    {
-        multi = (mrq->cmd->retries>0)?mrq->cmd->retries:1;
-        waittime = wait_for_completion_timeout(&complete,HZ*7*multi); //sdio; for cmd dead. Modifyed by xbw at 2011-06-02
-    }
-    else
-    {   
-        //calculate the timeout value for SDMMC; added by xbw at 2011-09-27
-        if(mrq->data)
-        {
-            unit = 3*(1<<20);// unit=3MB
-            datasize = mrq->data->blksz*mrq->data->blocks;
-            multi = datasize/unit;
-            multi += (datasize%unit)?1:0;
-            multi = (multi>0) ? multi : 1;
-            multi += (mrq->cmd->retries>0)?1:0;
-            waittime = wait_for_completion_timeout(&complete,HZ*7*multi); //It should be longer than bottom driver's time,due to the sum of two cmd time.
-                                                                          //modifyed by xbw at 2011-10-08
-                                                                          //
-                                                                          //example:
-                                                                          //rk29_sdmmc_request_end..2336...   CMD12 wait busy timeout!!!!! ====xbw=[sd_mmc]====
-                                                                          //mmc_wait_for_req..236.. !!!!! wait for CMD25 timeout ===xbw[mmc0]===
-        }
-        else
-        {
-            multi = (mrq->cmd->retries>0)?mrq->cmd->retries:1;
-            waittime = wait_for_completion_timeout(&complete,HZ*7*multi);
-        }
-    }
-    
-    if(waittime <= 1)
-    {
-        host->doneflag = 0;
-        mrq->cmd->error = -EIO;
-        printk("%s..%d.. !!!!! wait for CMD%d timeout ===xbw[%s]===\n",\
-            __FUNCTION__, __LINE__, mrq->cmd->opcode, mmc_hostname(host));
-    }
-#else    
 	wait_for_completion(&complete);
-#endif
 }
 
 EXPORT_SYMBOL(mmc_wait_for_req);
@@ -1471,157 +1428,6 @@ int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
 }
 EXPORT_SYMBOL(mmc_erase_group_aligned);
 
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)  
-void mmc_rescan(struct work_struct *work)
-{
-	struct mmc_host *host =
-		container_of(work, struct mmc_host, detect.work);
-	u32 ocr;
-	int err;
-	int extend_wakelock = 0;
-
-    
-	mmc_bus_get(host);
-
-	/* if there is a card registered, check whether it is still present */
-	if ((host->bus_ops != NULL) && host->bus_ops->detect && !host->bus_dead)
-		host->bus_ops->detect(host);
-
-	/* If the card was removed the bus will be marked
-	 * as dead - extend the wakelock so userspace
-	 * can respond */
-	if (host->bus_dead)
-		extend_wakelock = 1;
-
-	mmc_bus_put(host);
-
-
-	mmc_bus_get(host);
-
-	/* if there still is a card present, stop here */
-	if (host->bus_ops != NULL) {
-		mmc_bus_put(host);
-		goto out;
-	}
-
-	/* detect a newly inserted card */
-
-	/*
-	 * Only we can add a new handler, so it's safe to
-	 * release the lock here.
-	 */
-	mmc_bus_put(host);
-    printk("\n%s...%d..  ===== mmc_rescan Begin....======xbw[%s]=====\n",__FILE__, __LINE__, mmc_hostname(host));
-
-	if (host->ops->get_cd && host->ops->get_cd(host) == 0)
-	{
-	    printk("\n=================\n%s..%d..  ====find no SDMMC host.====xbw[%s]=====\n", \
-	        __FUNCTION__, __LINE__, mmc_hostname(host));
-	        
-		goto out;
-	}
-
-	mmc_claim_host(host);
-	
-	mmc_power_up(host);
-	
-	mmc_go_idle(host);
-
-    /*
-        In oder to improve the initialization process in rockchip IC, I modify the following code about the the initialization process of SDIO-SD-MMC.
-        So I deleted the CMD8 and add a conditional to distinguish between the two card type,i.e.SDMMC process and SDIO process.
-        For detail,please refer to "RK29XX Technical Reference Manual" and "SD-MMC-SDIO Specifications".
-        Noted by xbw@2011-04-09
-    */
-
-    //mmc_send_if_cond(host, host->ocr_avail); //deleted by xbw@2011-04-09
-#if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
-     if( strncmp( mmc_hostname(host) ,"mmc0" , strlen("mmc0")) ){
-#endif     
-    	/*
-    	 * First we search for SDIO...
-    	 */
-    	err = mmc_send_io_op_cond(host, 0, &ocr);
-    	if (!err) {
-    		printk("\n%s..%d..  ===== Begin to identify card as SDIO-card===xbw[%s]===\n",__FUNCTION__, __LINE__, mmc_hostname(host));
-
-    		if (mmc_attach_sdio(host, ocr))
-    		{
-    		    printk("\n=====\n %s..%d..  ===== Initialize SDIO-card unsuccessfully!!! ===xbw[%s]===\n=====\n",\
-    		        __FUNCTION__,  __LINE__, mmc_hostname(host));
-    		        
-    			mmc_power_off(host);
-    		}
-    		else
-    		{
-    		    printk("%s..%d..  ===== Initialize SDIO successfully. ===xbw[%s]===\n",__FUNCTION__,  __LINE__, mmc_hostname(host));
-    		}
-    		extend_wakelock = 1;
-    		goto out;
-    	}
-#if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	    	
-    }
-#endif
-
-    /*
-     * ...then normal SD...
-     */
-    err = mmc_send_app_op_cond(host, 0, &ocr);
-    if (!err) {
-    	printk("\n%s..%d..  ===== Begin to identify card as SD-card ===xbw[%s]===\n",__FUNCTION__, __LINE__, mmc_hostname(host));
-
-    	if (mmc_attach_sd(host, ocr))
-    	{
-    	    printk("\n=====\n%s..%d..  ===== Initialize SD-card unsuccessfully!!! ===xbw[%s]===\n====\n",\
-    	        __FUNCTION__,  __LINE__, mmc_hostname(host));
-    	        
-    		mmc_power_off(host);
-    	}
-    	else
-    	{
-    	    printk("%s..%d..  ===== Initialize SD-card successfully. ===xbw[%s]===\n",__FUNCTION__,  __LINE__, mmc_hostname(host));
-    	}
-    	extend_wakelock = 1;
-    	goto out;
-    }
-
-    /*
-     * ...and finally MMC.
-     */
-    err = mmc_send_op_cond(host, 0, &ocr);
-    if (!err) {
-        printk("\n%s..%d..  ===== Begin to identify card as MMC-card ===xbw[%s]===\n", __FUNCTION__, __LINE__, mmc_hostname(host));
-
-    	if (mmc_attach_mmc(host, ocr))
-    	{
-    	    printk("\n =====\n%s..%d..  ===== Initialize MMC-card unsuccessfully!!! ===xbw[%s]===\n======\n",\
-    	        __FUNCTION__,  __LINE__, mmc_hostname(host));
-    	        
-    		mmc_power_off(host);
-    	}
-    	else
-    	{
-    	    printk("%s...%d..  ===== Initialize MMC-card successfully. ===xbw[%s]===\n",__FUNCTION__,  __LINE__, mmc_hostname(host));
-    	}
-    	extend_wakelock = 1;
-    	goto out;
-    }
-
-	mmc_release_host(host);
-	mmc_power_off(host);
-
-out:
-
-	if (extend_wakelock)
-		wake_lock_timeout(&mmc_delayed_work_wake_lock, HZ / 2);
-	else
-		wake_unlock(&mmc_delayed_work_wake_lock);
-
-	if (host->caps & MMC_CAP_NEEDS_POLL)
-		mmc_schedule_delayed_work(&host->detect, HZ);
-}
-
-#else
 void mmc_rescan(struct work_struct *work)
 {
 	struct mmc_host *host =
@@ -1671,7 +1477,7 @@ void mmc_rescan(struct work_struct *work)
 	 * release the lock here.
 	 */
 	mmc_bus_put(host);
-	
+
 	if (host->ops->get_cd && host->ops->get_cd(host) == 0)
 		goto out;
 
@@ -1680,7 +1486,7 @@ void mmc_rescan(struct work_struct *work)
 	mmc_power_up(host);
 	sdio_reset(host);
 	mmc_go_idle(host);
-	
+
 	mmc_send_if_cond(host, host->ocr_avail);
 
 	/*
@@ -1736,7 +1542,6 @@ out:
 	if (host->caps & MMC_CAP_NEEDS_POLL)
 		mmc_schedule_delayed_work(&host->detect, HZ);
 }
-#endif
 
 void mmc_start_host(struct mmc_host *host)
 {
@@ -1920,11 +1725,6 @@ int mmc_resume_host(struct mmc_host *host)
 			mmc_select_voltage(host, host->ocr);
 		}
 		BUG_ON(!host->bus_ops->resume);
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-        //panic if the card is being removed during the resume, deleted by xbw at 2011-06-20
-		host->bus_ops->resume(host);
-
-#else
 		err = host->bus_ops->resume(host);
 		if (err) {
 			printk(KERN_WARNING "%s: error %d during resume "
@@ -1932,7 +1732,6 @@ int mmc_resume_host(struct mmc_host *host)
 					    mmc_hostname(host), err);
 			err = 0;
 		}
-#endif
 	}
 	mmc_bus_put(host);
 

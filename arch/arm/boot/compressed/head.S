@@ -246,10 +246,6 @@ not_relocated:	mov	r0, #0
 		 * pointers, and start decompressing.
 		 */
 		bl	cache_on
-#ifdef CONFIG_ARCH_RK29
-		bl	cache_off
-		bl	cache_on
-#endif
 
 		mov	r1, sp			@ malloc space above stack
 		add	r2, sp, #0x10000	@ 64k max

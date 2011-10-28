@@ -12,25 +12,6 @@ menuconfig INPUT_KEYBOARD
 
 if INPUT_KEYBOARD
 
-config KEYS_RK29
-	tristate "rk29 keyboard"
-	depends on ARCH_RK29
-	default y
-	help
-	  rk29 keyboard drivers(gpio and adc)
-
-config KEYS_RK29_NEWTON
-	tristate "rk29 newton keyboard"
-	depends on ARCH_RK29
-	help
-		rk29 newton keyboard drivers(gpio and adc)
-
-config SYNAPTICS_SO340010
-	tristate "Synaptics So340010 TouchPad KEY"
-	depends on I2C
-	help
-	  Synaptics So340010 Touch Key (I2C) driver
-
 config KEYBOARD_AAED2000
 	tristate "AAED-2000 keyboard"
 	depends on MACH_AAED2000
@@ -197,21 +178,6 @@ config KEYBOARD_GPIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio_keys.
-
-config KEYBOARD_WM831X_GPIO
-	tristate "WM831X_GPIO Buttons"
-	depends on GENERIC_GPIO
-	help
-	  This driver implements support for buttons connected
-	  to GPIO pins of various CPUs (and some other chips).
-
-	  Say Y here if your device has buttons connected
-	  directly to such GPIO pins.  Your board-specific
-	  setup logic must also provide a platform device,
-	  with configuration data saying which GPIOs are used.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called wm831x_gpio_keys.
 
 config KEYBOARD_TCA6416
 	tristate "TCA6416 Keypad Support"

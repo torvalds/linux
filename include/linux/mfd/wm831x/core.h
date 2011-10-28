@@ -17,8 +17,6 @@
 
 #include <linux/completion.h>
 #include <linux/interrupt.h>
-#include <linux/wakelock.h>
-#include <linux/regulator/driver.h>
 
 /*
  * Register values.
@@ -239,15 +237,6 @@
 struct regulator_dev;
 
 #define WM831X_NUM_IRQ_REGS 5
-#define WM831X_IRQ_LIST	1
-enum wm831x_parent {
-	WM8310 = 0x8310,
-	WM8311 = 0x8311,
-	WM8312 = 0x8312,
-	WM8320 = 0x8320,
-	WM8321 = 0x8321,
-	WM8325 = 0x8325,
-};
 
 struct wm831x {
 	struct mutex io_lock;
@@ -261,19 +250,7 @@ struct wm831x {
 	void *control_data;
 
 	int irq;  /* Our chip IRQ */
-	int flag_suspend;
-	spinlock_t		flag_lock;
 	struct mutex irq_lock;
-	struct workqueue_struct *irq_wq;
-	struct delayed_work irq_work;
-	struct wake_lock 	irq_wake;
-	struct wake_lock 	handle_wake;
-#if WM831X_IRQ_LIST
-	struct workqueue_struct *handle_wq;
-	struct work_struct handle_work;
-	spinlock_t		work_lock;
-	struct list_head	handle_queue;
-#endif
 	unsigned int irq_base;
 	int irq_masks_cur[WM831X_NUM_IRQ_REGS];   /* Currently active value */
 	int irq_masks_cache[WM831X_NUM_IRQ_REGS]; /* Cached hardware value */
@@ -297,39 +274,6 @@ struct wm831x {
 	unsigned int locked:1;
 };
 
-#define WM831X_DCDC_MAX_NAME 6
-#define WM831X_LDO_MAX_NAME 6
-#define WM831X_ISINK_MAX_NAME 7
-
-struct wm831x_dcdc {
-        char name[WM831X_DCDC_MAX_NAME];
-        struct regulator_desc desc;
-        int base;
-        struct wm831x *wm831x;
-        struct regulator_dev *regulator;
-        int dvs_gpio;
-        int dvs_gpio_state;
-        int on_vsel;
-        int dvs_vsel;
-};
-
-struct wm831x_ldo {
-        char name[WM831X_LDO_MAX_NAME];
-        struct regulator_desc desc;
-        int base;
-        struct wm831x *wm831x;
-        struct regulator_dev *regulator;
-};
-
-struct wm831x_isink {
-        char name[WM831X_ISINK_MAX_NAME];
-        struct regulator_desc desc;
-        int reg;
-        struct wm831x *wm831x;
-        struct regulator_dev *regulator;
-};
-
-
 /* Device I/O API */
 int wm831x_reg_read(struct wm831x *wm831x, unsigned short reg);
 int wm831x_reg_write(struct wm831x *wm831x, unsigned short reg,
@@ -341,13 +285,6 @@ int wm831x_set_bits(struct wm831x *wm831x, unsigned short reg,
 int wm831x_bulk_read(struct wm831x *wm831x, unsigned short reg,
 		     int count, u16 *buf);
 
-int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq);
-void wm831x_device_exit(struct wm831x *wm831x);
-int wm831x_device_suspend(struct wm831x *wm831x);
-int wm831x_device_resume(struct wm831x *wm831x);
-int wm831x_device_shutdown(struct wm831x *wm831x);
-int wm831x_read_usb(struct wm831x *wm831x);
-int wm831x_device_restart(struct wm831x *wm831x);
 int wm831x_irq_init(struct wm831x *wm831x, int irq);
 void wm831x_irq_exit(struct wm831x *wm831x);
 

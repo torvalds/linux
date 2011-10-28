@@ -302,17 +302,6 @@ __v7_setup:
 	 *   NS1 = PRRR[19] = 1		- normal shareable property
 	 *   NOS = PRRR[24+n] = 1	- not outer shareable
 	 */
-#ifdef CONFIG_ARCH_RK29
-	/* Setup L2 cache */
-	mrc	p15, 1, r5, c9, c0, 2
-	bic	r5, r5, #1 << 29		@ L2 data RAM read multiplexer select: 0 = two cycles
-	bic	r5, r5, #7 << 6
-	bic	r5, r5, #15
-	orr	r5, r5, #2 << 6			@ Tag RAM latency: b010 = 3 cycles
-	orr	r5, r5, #3			@ Data RAM latency: b0011 = 4 cycles
-	mcr	p15, 1, r5, c9, c0, 2
-#endif
-
 	ldr	r5, =0xff0a89a8			@ PRRR
 #ifdef CONFIG_SMP
 	ldr	r6, =0xc0e0c4e0			@ NMRR

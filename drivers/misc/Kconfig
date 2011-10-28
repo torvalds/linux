@@ -348,7 +348,7 @@ config SENSORS_CAP_PROX
 	 Say yes here if you wish to include the Motorola
 	 Capacitive Proximity Sensor driver.
 
-config SENSORS_MOTO_KXTF9
+config SENSORS_KXTF9
 	tristate "KXTF9 Accelerometer"
 	default n
 	depends on I2C
@@ -496,34 +496,9 @@ config TEGRA_CRYPTO_DEV
 	Dev node /dev/tegra-crypto in order to get access to tegra aes
 	hardware from user space
 
-config STE
-	bool "STE modem control driver"
-	default n
-	
-config MTK23D
-	bool "MTK6223D modem control driver"
-	default n	
-
-config FM580X
-	bool "FM rda580x driver"
-	default n	
-	
-config MU509
-	bool "MU509 modem control driver"
-	default n
-config MW100
-	bool "MW100 modem control driver"
-	default n
-config RK29_NEWTON
-	bool "RK29_NEWTON misc driver"
-	default n
-
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
-source "drivers/misc/rk29_modem/Kconfig"
-source "drivers/misc/gps/Kconfig"
-source "drivers/misc/mpu3050/Kconfig"
 source "drivers/misc/ts27010mux/Kconfig"
 source "drivers/misc/iwmc3200top/Kconfig"
 source "drivers/misc/radio_ctrl/Kconfig"

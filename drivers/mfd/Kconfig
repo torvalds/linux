@@ -180,18 +180,6 @@ config TWL4030_POWER
 	  and load scripts controling which resources are switched off/on
 	  or reset when a sleep, wakeup or warm reset event occurs.
 
-config TPS65910_CORE
-	bool "Texas Instruments TPS65910 Support"
-	depends on I2C=y && GENERIC_HARDIRQS
-	help
-	  Say yes here if you have TPS65910 family chip on your board.
-	  This core driver provides register access and registers devices
-          for the various functions so that function-specific drivers can
-          bind to them.
-
-	  These multi-function chips are found on many AM35xx boards,
-          providing power management, RTC, GPIO features.
-
 config TWL4030_CODEC
 	bool
 	depends on TWL4030_CORE
@@ -326,42 +314,15 @@ config MFD_WM8400
 	  the functionality of the device.
 
 config MFD_WM831X
-	bool
-	depends on GENERIC_HARDIRQS
-
-config MFD_WM831X_I2C
-	bool "Support Wolfson Microelectronics WM831x/2x PMICs with I2C"
+	bool "Support Wolfson Microelectronics WM831x/2x PMICs"
 	select MFD_CORE
-	select MFD_WM831X
 	depends on I2C=y && GENERIC_HARDIRQS
 	help
-	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs
-	  when controlled using I2C.  This driver provides common support
-	  for accessing the device, additional drivers must be enabled in
-	  order to use the functionality of the device.
+	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
 
-config MFD_WM831X_SPI
-	bool "Support Wolfson Microelectronics WM831x/2x PMICs with SPI"
-	select MFD_CORE
-	select MFD_WM831X
-	depends on SPI_MASTER && GENERIC_HARDIRQS
-	help
-	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs
-	  when controlled using SPI.  This driver provides common support
-	  for accessing the device, additional drivers must be enabled in
-	  order to use the functionality of the device.
-
-config MFD_WM831X_SPI_A22
-	bool "Support Wolfson Microelectronics WM831x/2x PMICs with SPI for A22"
-	#select MFD_CORE
-	#select MFD_WM831X
-	depends on SPI_MASTER && GENERIC_HARDIRQS
-	help
-	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs
-	  when controlled using SPI.  This driver provides common support
-	  for accessing the device, additional drivers must be enabled in
-	  order to use the functionality of the device.
-	  
 config MFD_WM8350
 	bool
 	depends on GENERIC_HARDIRQS

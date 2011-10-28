@@ -24,9 +24,6 @@ obj-$(CONFIG_MFD_TC6393XB)	+= tc6393xb.o tmio_core.o
 obj-$(CONFIG_MFD_WM8400)	+= wm8400-core.o
 wm831x-objs			:= wm831x-core.o wm831x-irq.o wm831x-otp.o
 obj-$(CONFIG_MFD_WM831X)	+= wm831x.o
-obj-$(CONFIG_MFD_WM831X_I2C)	+= wm831x-i2c.o
-obj-$(CONFIG_MFD_WM831X_SPI)	+= wm831x-spi.o
-obj-$(CONFIG_MFD_WM831X_SPI_A22)	+= wm831x-spi-a22.o
 wm8350-objs			:= wm8350-core.o wm8350-regmap.o wm8350-gpio.o
 wm8350-objs			+= wm8350-irq.o
 obj-$(CONFIG_MFD_WM8350)	+= wm8350.o
@@ -41,8 +38,6 @@ obj-$(CONFIG_TWL4030_CORE)	+= twl-core.o twl4030-irq.o twl6030-irq.o
 obj-$(CONFIG_TWL4030_POWER)    += twl4030-power.o
 obj-$(CONFIG_TWL4030_CODEC)	+= twl4030-codec.o
 obj-$(CONFIG_TWL6030_PWM)	+= twl6030-pwm.o
-
-obj-$(CONFIG_TPS65910_CORE)     += tps65910-core.o
 
 obj-$(CONFIG_MFD_MC13783)	+= mc13783-core.o
 

@@ -807,10 +807,10 @@ static long __video_do_ioctl(struct file *file,
 	case VIDIOC_S_FMT:
 	{
 		struct v4l2_format *f = (struct v4l2_format *)arg;
-		
+
 		/* FIXME: Should be one dump per type */
 		dbgarg(cmd, "type=%s\n", prt_names(f->type, v4l2_type_names));
-		
+
 		switch (f->type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 			CLEAR_AFTER_FIELD(f, fmt.pix);
@@ -2090,7 +2090,7 @@ long video_ioctl2(struct file *file,
 	int     is_ext_ctrl;
 	size_t  ctrls_size = 0;
 	void __user *user_ptr = NULL;
-	
+
 #ifdef __OLD_VIDIOC_
 	cmd = video_fix_command(cmd);
 #endif

@@ -28,17 +28,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
-#include <mach/iomux.h>
-#include <mach/gpio.h>
-
 #include "wm8988.h"
-
-
-#if 0
-#define DBG(x...) printk(KERN_INFO x)
-#else
-#define DBG(x...) do { } while (0)
-#endif
 
 /*
  * wm8988 register cache
@@ -202,8 +192,6 @@ static int wm8988_lrc_control(struct snd_soc_dapm_widget *w,
 	else
 		adctl2 |= 0x4;
 
-	DBG("Enter::%s----%d, adctl2 = %x\n",__FUNCTION__,__LINE__,adctl2);
-	
 	return snd_soc_write(codec, WM8988_ADCTL2, adctl2);
 }
 
@@ -589,7 +577,6 @@ static int wm8988_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	DBG("Enter::%s----%d  iface=%x\n",__FUNCTION__,__LINE__,iface);
 	snd_soc_write(codec, WM8988_IFACE, iface);
 	return 0;
 }
@@ -603,7 +590,6 @@ static int wm8988_pcm_startup(struct snd_pcm_substream *substream,
 	/* The set of sample rates that can be supported depends on the
 	 * MCLK supplied to the CODEC - enforce this.
 	 */
-	DBG("Enter::%s----%d  wm8988->sysclk=%d\n",__FUNCTION__,__LINE__,wm8988->sysclk); 
 	if (!wm8988->sysclk) {
 		dev_err(codec->dev,
 			"No MCLK configured, call set_sysclk() on init\n");
@@ -628,7 +614,7 @@ static int wm8988_pcm_hw_params(struct snd_pcm_substream *substream,
 	u16 iface = snd_soc_read(codec, WM8988_IFACE) & 0x1f3;
 	u16 srate = snd_soc_read(codec, WM8988_SRATE) & 0x180;
 	int coeff;
-	
+
 	coeff = get_coeff(wm8988->sysclk, params_rate(params));
 	if (coeff < 0) {
 		coeff = get_coeff(wm8988->sysclk / 2, params_rate(params));
@@ -655,7 +641,6 @@ static int wm8988_pcm_hw_params(struct snd_pcm_substream *substream,
 		iface |= 0x000c;
 		break;
 	}
-	DBG("Enter::%s----%d  iface=%x srate =%x rate=%d\n",__FUNCTION__,__LINE__,iface,srate,params_rate(params));
 
 	/* set iface & srate */
 	snd_soc_write(codec, WM8988_IFACE, iface);
@@ -670,7 +655,7 @@ static int wm8988_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	u16 mute_reg = snd_soc_read(codec, WM8988_ADCDAC) & 0xfff7;
-	DBG("Enter::%s----%d--mute=%d\n",__FUNCTION__,__LINE__,mute);
+
 	if (mute)
 		snd_soc_write(codec, WM8988_ADCDAC, mute_reg | 0x8);
 	else
@@ -682,7 +667,7 @@ static int wm8988_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
 	u16 pwr_reg = snd_soc_read(codec, WM8988_PWR1) & ~0x1c1;
-	DBG("Enter::%s----%d level =%d\n",__FUNCTION__,__LINE__,level);
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
@@ -751,7 +736,7 @@ static int wm8988_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+
 	wm8988_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
@@ -763,7 +748,7 @@ static int wm8988_resume(struct platform_device *pdev)
 	int i;
 	u8 data[2];
 	u16 *cache = codec->reg_cache;
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+
 	/* Sync reg_cache with the hardware */
 	for (i = 0; i < WM8988_NUM_REG; i++) {
 		if (i == WM8988_RESET)
@@ -872,13 +857,7 @@ static int wm8988_register(struct wm8988_priv *wm8988,
 		dev_err(codec->dev, "Failed to issue reset\n");
 		goto err;
 	}
-#if 1
-		/*disable speaker */
-		gpio_request(RK2818_PIN_PF7, "WM8988");	
-		rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_GPIO1_A3B7);
-		gpio_direction_output(RK2818_PIN_PF7,GPIO_HIGH);
-		
-#endif
+
 	/* set the update bits (we always update left then right) */
 	reg = snd_soc_read(codec, WM8988_RADC);
 	snd_soc_write(codec, WM8988_RADC, reg | 0x100);
@@ -889,22 +868,7 @@ static int wm8988_register(struct wm8988_priv *wm8988,
 	reg = snd_soc_read(codec, WM8988_ROUT2V);
 	snd_soc_write(codec, WM8988_ROUT2V, reg | 0x0100);
 	reg = snd_soc_read(codec, WM8988_RINVOL);
-	snd_soc_write(codec, WM8988_RINVOL, reg | 0x0100); 
-	
-	snd_soc_write(codec, WM8988_LOUTM1, 0x120); 
-    snd_soc_write(codec, WM8988_ROUTM2, 0x120);  
-	snd_soc_write(codec, WM8988_LOUTM2, 0x0070);
-	snd_soc_write(codec, WM8988_ROUTM1, 0x0070);
-	
-	snd_soc_write(codec, WM8988_LOUT1V, 0x017f); 
-	snd_soc_write(codec, WM8988_ROUT1V, 0x017f);
-	snd_soc_write(codec, WM8988_LDAC, 0xff);  
-	snd_soc_write(codec, WM8988_RDAC, 0x1ff);//vol set 
-	
-	snd_soc_write(codec, WM8988_SRATE,0x100);  ///SET MCLK/8
-	snd_soc_write(codec, WM8988_PWR1, 0x1cc);  ///(0x80|0x40|0x20|0x08|0x04|0x10|0x02));
- 	snd_soc_write(codec, WM8988_PWR2, 0x1e0);  //power r l out1
-
+	snd_soc_write(codec, WM8988_RINVOL, reg | 0x0100);
 
 	wm8988_set_bias_level(&wm8988->codec, SND_SOC_BIAS_STANDBY);
 

@@ -94,7 +94,6 @@ void gic_ack_irq(unsigned int irq)
 	spin_lock(&irq_controller_lock);
 	writel(mask, gic_dist_base(irq) + GIC_DIST_ENABLE_CLEAR + (gic_irq(irq) / 32) * 4);
 	writel(gic_irq(irq), gic_cpu_base(irq) + GIC_CPU_EOI);
-	dsb();
 	spin_unlock(&irq_controller_lock);
 }
 
@@ -104,7 +103,6 @@ void gic_mask_irq(unsigned int irq)
 
 	spin_lock(&irq_controller_lock);
 	writel(mask, gic_dist_base(irq) + GIC_DIST_ENABLE_CLEAR + (gic_irq(irq) / 32) * 4);
-	dsb();
 	spin_unlock(&irq_controller_lock);
 }
 
@@ -114,7 +112,6 @@ void gic_unmask_irq(unsigned int irq)
 
 	spin_lock(&irq_controller_lock);
 	writel(mask, gic_dist_base(irq) + GIC_DIST_ENABLE_SET + (gic_irq(irq) / 32) * 4);
-	dsb();
 	spin_unlock(&irq_controller_lock);
 }
 
@@ -211,13 +208,6 @@ static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	chip->unmask(irq);
 }
 
-#if defined(CONFIG_PM) && defined(CONFIG_ARCH_RK29)
-static int gic_set_wake(unsigned int irq, unsigned int on)
-{
-	return 0;
-}
-#endif
-
 static struct irq_chip gic_chip = {
 	.name		= "GIC",
 	.ack		= gic_ack_irq,
@@ -226,9 +216,6 @@ static struct irq_chip gic_chip = {
 	.set_type	= gic_set_type,
 #ifdef CONFIG_SMP
 	.set_affinity	= gic_set_cpu,
-#endif
-#if defined(CONFIG_PM) && defined(CONFIG_ARCH_RK29)
-	.set_wake	= gic_set_wake,
 #endif
 };
 
@@ -252,16 +239,11 @@ static unsigned int _gic_dist_init(unsigned int gic_nr)
 
 	writel(0, base + GIC_DIST_CTRL);
 
-#ifdef CONFIG_ARCH_RK29
-	/* rk29 read GIC_DIST_CTR is 2, why? */
-	max_irq = NR_AIC_IRQS;
-#else
 	/*
 	 * Find out how many interrupts are supported.
 	 */
 	max_irq = readl(base + GIC_DIST_CTR) & 0x1f;
 	max_irq = (max_irq + 1) * 32;
-#endif
 
 	/*
 	 * The GIC only supports up to 1020 interrupt sources.

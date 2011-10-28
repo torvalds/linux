@@ -117,9 +117,6 @@ source "drivers/staging/memrar/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
 
-source "drivers/staging/rk29/vivante/Kconfig"
-source "drivers/staging/rk29/ipp/Kconfig"
-
 source "drivers/staging/zram/Kconfig"
 
 source "drivers/staging/wlags49_h2/Kconfig"

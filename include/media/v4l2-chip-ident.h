@@ -69,20 +69,10 @@ enum {
 	V4L2_IDENT_OV9650 = 254,
 	V4L2_IDENT_OV9655 = 255,
 	V4L2_IDENT_SOI968 = 256,
-	V4L2_IDENT_OV2655 = 257,                            /* ddl@rock-chips.com : ov2655 support */
-	V4L2_IDENT_OV2659 = 258,
-	V4L2_IDENT_OV3640 = 259,
-	V4L2_IDENT_OV5640 = 260,
-	V4L2_IDENT_OV5642 = 261,
-	V4L2_IDENT_OV7675 = 262,
-	V4L2_IDENT_OV2640 = 263,
-	V4L2_IDENT_OV9640 = 264,
+	V4L2_IDENT_OV9640 = 257,
 
 	/* module saa7146: reserved range 300-309 */
 	V4L2_IDENT_SAA7146 = 300,
-
-	/* Samsung sensors: reserved range 310-319 */
-	V4L2_IDENT_S5K66A = 310,							/* ddl@rock-chips.com : s5k66a support */
 
 	/* Conexant MPEG encoder/decoders: reserved range 400-420 */
 	V4L2_IDENT_CX23418_843 = 403, /* Integrated A/V Decoder on the '418 */
@@ -287,7 +277,6 @@ enum {
 	V4L2_IDENT_MT9M001C12STM	= 45005,
 	V4L2_IDENT_MT9M111		= 45007,
 	V4L2_IDENT_MT9M112		= 45008,
-	V4L2_IDENT_MT9D112		= 45009,		/* ddl@rock-chips.com : MT9D112 support */
 	V4L2_IDENT_MT9V022IX7ATC	= 45010, /* No way to detect "normal" I77ATx */
 	V4L2_IDENT_MT9V022IX7ATM	= 45015, /* and "lead free" IA7ATx chips */
 	V4L2_IDENT_MT9T031		= 45020,
@@ -295,9 +284,6 @@ enum {
 	V4L2_IDENT_MT9T112		= 45022,
 	V4L2_IDENT_MT9V111		= 45031,
 	V4L2_IDENT_MT9V112		= 45032,
-
-	V4L2_IDENT_MT9P111		= 45033,     /* ddl@rock-chips.com : MT9P111 support */
-	V4L2_IDENT_MT9D113      = 45034,     /* ddl@rock-chips.com : MT9D113 support */
 
 	/* HV7131R CMOS sensor: just ident 46000 */
 	V4L2_IDENT_HV7131R		= 46000,
@@ -322,19 +308,6 @@ enum {
 	/* module upd64083: just ident 64083 */
 	V4L2_IDENT_UPD64083 = 64083,
 
-
-    V4L2_IDENT_GT2005 = 64099,       /* ddl@rock-chips.com : GT2005 support */
-    V4L2_IDENT_GC0307 = 64100,      /* ddl@rock-chips.com : GC0308 support */
-    V4L2_IDENT_GC0308 = 64101,      /* ddl@rock-chips.com : GC0308 support */
-    V4L2_IDENT_GC0309 = 64102,      /* ddl@rock-chips.com : GC0309 support */
-    V4L2_IDENT_SIV120B = 64103,      /* ddl@rock-chips.com : siv120b support */    
-    
-    V4L2_IDENT_GC2015 = 64105,      /* ddl@rock-chips.com : gc2015 support */
-    V4L2_IDENT_HI253 = 64106,      /* ddl@rock-chips.com : hi253 support */
-    V4L2_IDENT_HI704 = 64107,      /* ddl@rock-chips.com : hi704 support */
-    V4L2_IDENT_NT99250 = 64108,    /* ddl@rock-chips.com : nt99250 support */
-    V4L2_IDENT_SID130B = 64109,      /* ddl@rock-chips.com : sid130B support */
-    
 	/* Don't just add new IDs at the end: KEEP THIS LIST ORDERED BY ID! */
 };
 

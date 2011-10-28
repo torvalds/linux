@@ -29,7 +29,7 @@ struct wm8994_ldo_pdata {
 #define WM8994_CONFIGURE_GPIO 0x8000
 
 #define WM8994_DRC_REGS 5
-#define WM8994_EQ_REGS  19
+#define WM8994_EQ_REGS  20
 
 /**
  * DRC configurations are specified with a label and a set of register
@@ -59,9 +59,6 @@ struct wm8994_retune_mobile_cfg {
         u16 regs[WM8994_EQ_REGS];
 };
 
-#define PCM_BB 1
-#define NO_PCM_BB 0
-
 struct wm8994_pdata {
 	int gpio_base;
 
@@ -73,6 +70,7 @@ struct wm8994_pdata {
 
 	struct wm8994_ldo_pdata ldo[WM8994_NUM_LDO];
 
+	int irq_base;  /** Base IRQ number for WM8994, required for IRQs */
 
         int num_drc_cfgs;
         struct wm8994_drc_cfg *drc_cfgs;
@@ -95,35 +93,6 @@ struct wm8994_pdata {
         /* Jack detect threashold levels, see datasheet for values */
         unsigned int jd_scthr:2;
         unsigned int jd_thr:2;
-
-		//for phonepad
-		unsigned int no_earpiece:1;      // =1  don't have a earpiece,  =0   has a earpiece
-		unsigned int sp_hp_same_channel:1;
-		
-		//BB input can be differential or single ended
-		unsigned int BB_input_diff:1;   //  =0  single ended     =1  differential
-		unsigned int BB_class:1;//PCM_BB= 1  NO_PCM_BB=0
-		
-		//If an external amplifier speakers wm8994		enable>0 disable=0
-		unsigned int PA_control_pin;
-
-		//wm8994 LDO1_ENA and LDO2_ENA
-		unsigned int Power_EN_Pin;
-		char	PowerEN_iomux_name[50];
-		int		PowerEN_iomux_mode;	
-
-	//volume
-	int speaker_incall_vol;			//max = 6, min = -21
-	int speaker_incall_mic_vol;		//max = 30, min = -22
-	int speaker_normal_vol;			//max = 6, min = -57
-	int earpiece_incall_vol;		//max = 6, min = -21
-	int headset_incall_vol;			//max = 6, min = -12
-	int headset_incall_mic_vol;		//max = 30, min = -22
-	int headset_normal_vol;			//max = 6, min = -57
-	int BT_incall_vol;				//max = 30, min = -16
-	int BT_incall_mic_vol;			//max = 6, min = -57
-	int recorder_vol;				//max = 60 , min = -16
-		
 };
 
 #endif
