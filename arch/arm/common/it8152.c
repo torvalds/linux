@@ -327,6 +327,9 @@ err0:
  */
 unsigned int pcibios_max_latency = 255;
 
+/* ITE bridge requires setting latency timer to avoid early bus access
+   termination by PCI bus master devices
+*/
 void pcibios_set_master(struct pci_dev *dev)
 {
 	u8 lat;

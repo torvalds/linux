@@ -571,6 +571,13 @@ void __init pci_common_init(struct hw_pci *hw)
 	}
 }
 
+#ifndef CONFIG_PCI_HOST_ITE8152
+void pcibios_set_master(struct pci_dev *dev)
+{
+	/* No special bus mastering setup handling */
+}
+#endif
+
 char * __init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "debug")) {
