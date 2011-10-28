@@ -967,7 +967,8 @@ xfs_buf_iodone_callbacks(
 	 * I/O errors, there's no point in giving this a retry.
 	 */
 	if (XFS_FORCED_SHUTDOWN(mp)) {
-		XFS_BUF_SUPER_STALE(bp);
+		xfs_buf_stale(bp);
+		XFS_BUF_DONE(bp);
 		trace_xfs_buf_item_iodone(bp, _RET_IP_);
 		goto do_callbacks;
 	}
@@ -975,9 +976,7 @@ xfs_buf_iodone_callbacks(
 	if (bp->b_target != lasttarg ||
 	    time_after(jiffies, (lasttime + 5*HZ))) {
 		lasttime = jiffies;
-		xfs_alert(mp, "Device %s: metadata write error block 0x%llx",
-			xfs_buf_target_name(bp->b_target),
-		      (__uint64_t)XFS_BUF_ADDR(bp));
+		xfs_buf_ioerror_alert(bp, __func__);
 	}
 	lasttarg = bp->b_target;
 
@@ -993,7 +992,7 @@ xfs_buf_iodone_callbacks(
 		xfs_buf_ioerror(bp, 0); /* errno of 0 unsets the flag */
 
 		if (!XFS_BUF_ISSTALE(bp)) {
-			XFS_BUF_DELAYWRITE(bp);
+			xfs_buf_delwri_queue(bp);
 			XFS_BUF_DONE(bp);
 		}
 		ASSERT(bp->b_iodone != NULL);
@@ -1006,9 +1005,8 @@ xfs_buf_iodone_callbacks(
 	 * If the write of the buffer was synchronous, we want to make
 	 * sure to return the error to the caller of xfs_bwrite().
 	 */
-	XFS_BUF_STALE(bp);
+	xfs_buf_stale(bp);
 	XFS_BUF_DONE(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
 
 	trace_xfs_buf_error_relse(bp, _RET_IP_);
 

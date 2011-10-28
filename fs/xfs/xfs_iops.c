@@ -466,7 +466,7 @@ xfs_vn_getattr(
 	trace_xfs_getattr(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return -XFS_ERROR(EIO);
 
 	stat->size = XFS_ISIZE(ip);
 	stat->dev = inode->i_sb->s_dev;
@@ -612,7 +612,7 @@ xfs_setattr_nonsize(
 		}
 	}
 
-	xfs_trans_ijoin(tp, ip);
+	xfs_trans_ijoin(tp, ip, 0);
 
 	/*
 	 * Change file ownership.  Must be the owner or privileged.
@@ -834,16 +834,16 @@ xfs_setattr_size(
 	 * care about here.
 	 */
 	if (ip->i_size != ip->i_d.di_size && iattr->ia_size > ip->i_d.di_size) {
-		error = xfs_flush_pages(ip, ip->i_d.di_size, iattr->ia_size,
-					XBF_ASYNC, FI_NONE);
+		error = xfs_flush_pages(ip, ip->i_d.di_size, iattr->ia_size, 0,
+					FI_NONE);
 		if (error)
 			goto out_unlock;
 	}
 
 	/*
-	 * Wait for all I/O to complete.
+	 * Wait for all direct I/O to complete.
 	 */
-	xfs_ioend_wait(ip);
+	inode_dio_wait(inode);
 
 	error = -block_truncate_page(inode->i_mapping, iattr->ia_size,
 				     xfs_get_blocks);
@@ -864,7 +864,7 @@ xfs_setattr_size(
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 
-	xfs_trans_ijoin(tp, ip);
+	xfs_trans_ijoin(tp, ip, 0);
 
 	/*
 	 * Only change the c/mtime if we are changing the size or we are
