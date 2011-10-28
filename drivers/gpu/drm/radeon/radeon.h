@@ -1144,10 +1144,11 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
 
-/* VRAM scratch page for HDP bug */
-struct r700_vram_scratch {
+/* VRAM scratch page for HDP bug, default vram page */
+struct r600_vram_scratch {
 	struct radeon_bo		*robj;
 	volatile uint32_t		*ptr;
+	u64				gpu_addr;
 };
 
 /*
@@ -1219,7 +1220,7 @@ struct radeon_device {
 	const struct firmware *rlc_fw;	/* r6/700 RLC firmware */
 	const struct firmware *mc_fw;	/* NI MC firmware */
 	struct r600_blit r600_blit;
-	struct r700_vram_scratch vram_scratch;
+	struct r600_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */
 	struct r600_ih ih; /* r6/700 interrupt ring */
 	struct work_struct hotplug_work;
@@ -1466,6 +1467,12 @@ extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc
 extern int radeon_resume_kms(struct drm_device *dev);
 extern int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
 extern void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size);
+
+/*
+ * R600 vram scratch functions
+ */
+int r600_vram_scratch_init(struct radeon_device *rdev);
+void r600_vram_scratch_fini(struct radeon_device *rdev);
 
 /*
  * r600 functions used by radeon_encoder.c
