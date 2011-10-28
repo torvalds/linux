@@ -105,9 +105,9 @@ int cpuidle_idle_call(void)
 		/* This can be moved to within driver enter routine
 		 * but that results in multiple copies of same code.
 		 */
-		dev->states[entered_state].time +=
+		dev->states_usage[entered_state].time +=
 				(unsigned long long)dev->last_residency;
-		dev->states[entered_state].usage++;
+		dev->states_usage[entered_state].usage++;
 	}
 
 	/* give the governor an opportunity to reflect on the outcome */
@@ -186,8 +186,9 @@ static int poll_idle(struct cpuidle_device *dev, int index)
 static void poll_idle_init(struct cpuidle_device *dev)
 {
 	struct cpuidle_state *state = &dev->states[0];
+	struct cpuidle_state_usage *state_usage = &dev->states_usage[0];
 
-	cpuidle_set_statedata(state, NULL);
+	cpuidle_set_statedata(state_usage, NULL);
 
 	snprintf(state->name, CPUIDLE_NAME_LEN, "POLL");
 	snprintf(state->desc, CPUIDLE_DESC_LEN, "CPUIDLE CORE POLL IDLE");
@@ -235,8 +236,8 @@ int cpuidle_enable_device(struct cpuidle_device *dev)
 		goto fail_sysfs;
 
 	for (i = 0; i < dev->state_count; i++) {
-		dev->states[i].usage = 0;
-		dev->states[i].time = 0;
+		dev->states_usage[i].usage = 0;
+		dev->states_usage[i].time = 0;
 	}
 	dev->last_residency = 0;
 

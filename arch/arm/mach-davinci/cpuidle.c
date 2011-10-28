@@ -80,7 +80,8 @@ static struct davinci_ops davinci_states[DAVINCI_CPUIDLE_MAX_STATES] = {
 static int davinci_enter_idle(struct cpuidle_device *dev,
 						int index)
 {
-	struct davinci_ops *ops = cpuidle_get_statedata(&dev->states[index]);
+	struct cpuidle_state_usage *state_usage = &dev->states_usage[index];
+	struct davinci_ops *ops = cpuidle_get_statedata(state_usage);
 	struct timeval before, after;
 	int idle_time;
 
@@ -142,7 +143,7 @@ static int __init davinci_cpuidle_probe(struct platform_device *pdev)
 	strcpy(device->states[1].desc, "WFI and DDR Self Refresh");
 	if (pdata->ddr2_pdown)
 		davinci_states[1].flags |= DAVINCI_CPUIDLE_FLAGS_DDR2_PWDN;
-	cpuidle_set_statedata(&device->states[1], &davinci_states[1]);
+	cpuidle_set_statedata(&device->states_usage[1], &davinci_states[1]);
 
 	device->state_count = DAVINCI_CPUIDLE_MAX_STATES;
 

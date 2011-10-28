@@ -97,7 +97,7 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 				int index)
 {
 	struct omap3_idle_statedata *cx =
-			cpuidle_get_statedata(&dev->states[index]);
+			cpuidle_get_statedata(&dev->states_usage[index]);
 	struct timespec ts_preidle, ts_postidle, ts_idle;
 	u32 mpu_state = cx->mpu_state, core_state = cx->core_state;
 	int idle_time;
@@ -160,8 +160,9 @@ return_sleep_time:
 static int next_valid_state(struct cpuidle_device *dev,
 				int index)
 {
+	struct cpuidle_state_usage *curr_usage = &dev->states_usage[index];
 	struct cpuidle_state *curr = &dev->states[index];
-	struct omap3_idle_statedata *cx = cpuidle_get_statedata(curr);
+	struct omap3_idle_statedata *cx = cpuidle_get_statedata(curr_usage);
 	u32 mpu_deepest_state = PWRDM_POWER_RET;
 	u32 core_deepest_state = PWRDM_POWER_RET;
 	int next_index = -1;
@@ -202,7 +203,7 @@ static int next_valid_state(struct cpuidle_device *dev,
 		 */
 		idx--;
 		for (; idx >= 0; idx--) {
-			cx = cpuidle_get_statedata(&dev->states[idx]);
+			cx = cpuidle_get_statedata(&dev->states_usage[idx]);
 			if ((cx->valid) &&
 			    (cx->mpu_state >= mpu_deepest_state) &&
 			    (cx->core_state >= core_deepest_state)) {
@@ -231,7 +232,6 @@ static int next_valid_state(struct cpuidle_device *dev,
 static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 			       int index)
 {
-	struct cpuidle_state *state = &dev->states[index];
 	int new_state_idx;
 	u32 core_next_state, per_next_state = 0, per_saved_state = 0, cam_state;
 	struct omap3_idle_statedata *cx;
@@ -264,7 +264,7 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 	 * Prevent PER off if CORE is not in retention or off as this
 	 * would disable PER wakeups completely.
 	 */
-	cx = cpuidle_get_statedata(state);
+	cx = cpuidle_get_statedata(&dev->states_usage[index]);
 	core_next_state = cx->core_state;
 	per_next_state = per_saved_state = pwrdm_read_next_pwrst(per_pd);
 	if ((per_next_state == PWRDM_POWER_OFF) &&
@@ -318,6 +318,7 @@ static inline struct omap3_idle_statedata *_fill_cstate(
 {
 	struct omap3_idle_statedata *cx = &omap3_idle_data[idx];
 	struct cpuidle_state *state = &dev->states[idx];
+	struct cpuidle_state_usage *state_usage = &dev->states_usage[idx];
 
 	state->exit_latency	= cpuidle_params_table[idx].exit_latency;
 	state->target_residency	= cpuidle_params_table[idx].target_residency;
@@ -326,7 +327,7 @@ static inline struct omap3_idle_statedata *_fill_cstate(
 	cx->valid		= cpuidle_params_table[idx].valid;
 	sprintf(state->name, "C%d", idx + 1);
 	strncpy(state->desc, descr, CPUIDLE_DESC_LEN);
-	cpuidle_set_statedata(state, cx);
+	cpuidle_set_statedata(state_usage, cx);
 
 	return cx;
 }
