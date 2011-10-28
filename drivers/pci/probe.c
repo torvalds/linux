@@ -1522,12 +1522,13 @@ unsigned int __devinit pci_scan_child_bus(struct pci_bus *bus)
 	return max;
 }
 
-struct pci_bus * pci_create_bus(struct device *parent,
-		int bus, struct pci_ops *ops, void *sysdata)
+struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
+		struct pci_ops *ops, void *sysdata, struct list_head *resources)
 {
 	int error, i;
 	struct pci_bus *b, *b2;
 	struct device *dev;
+	struct pci_bus_resource *bus_res, *n;
 	struct resource *res;
 
 	b = pci_alloc_bus();
@@ -1578,8 +1579,10 @@ struct pci_bus * pci_create_bus(struct device *parent,
 	pci_create_legacy_files(b);
 
 	b->number = b->secondary = bus;
-	b->resource[0] = &ioport_resource;
-	b->resource[1] = &iomem_resource;
+
+	/* Add initial resources to the bus */
+	list_for_each_entry_safe(bus_res, n, resources, list)
+		list_move_tail(&bus_res->list, &b->resources);
 
 	if (parent)
 		dev_info(parent, "PCI host bridge to bus %s\n", dev_name(&b->dev));
@@ -1603,6 +1606,20 @@ err_out:
 	kfree(dev);
 	kfree(b);
 	return NULL;
+}
+
+struct pci_bus *pci_create_bus(struct device *parent,
+		int bus, struct pci_ops *ops, void *sysdata)
+{
+	LIST_HEAD(resources);
+	struct pci_bus *b;
+
+	pci_add_resource(&resources, &ioport_resource);
+	pci_add_resource(&resources, &iomem_resource);
+	b = pci_create_root_bus(parent, bus, ops, sysdata, &resources);
+	if (!b)
+		pci_free_resource_list(&resources);
+	return b;
 }
 
 struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent,
