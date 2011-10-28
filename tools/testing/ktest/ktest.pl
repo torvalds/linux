@@ -250,6 +250,7 @@ sub read_yn {
 
 sub get_ktest_config {
     my ($config) = @_;
+    my $ans;
 
     return if (defined($opt{$config}));
 
@@ -263,16 +264,17 @@ sub get_ktest_config {
 	if (defined($default{$config})) {
 	    print "\[$default{$config}\] ";
 	}
-	$entered_configs{$config} = <STDIN>;
-	$entered_configs{$config} =~ s/^\s*(.*\S)\s*$/$1/;
-	if ($entered_configs{$config} =~ /^\s*$/) {
+	$ans = <STDIN>;
+	$ans =~ s/^\s*(.*\S)\s*$/$1/;
+	if ($ans =~ /^\s*$/) {
 	    if ($default{$config}) {
-		$entered_configs{$config} = $default{$config};
+		$ans = $default{$config};
 	    } else {
 		print "Your answer can not be blank\n";
 		next;
 	    }
 	}
+	$entered_configs{$config} = process_variables($ans);
 	last;
     }
 }
