@@ -1007,22 +1007,24 @@ static int __init dino_probe(struct parisc_device *dev)
 	** It's not used to avoid chicken/egg problems
 	** with configuration accessor functions.
 	*/
-	dino_dev->hba.hba_bus = bus = pci_scan_bus_parented(&dev->dev,
+	dino_dev->hba.hba_bus = bus = pci_create_bus(&dev->dev,
 			 dino_current_bus, &dino_cfg_ops, NULL);
-
-	if(bus) {
-		/* This code *depends* on scanning being single threaded
-		 * if it isn't, this global bus number count will fail
-		 */
-		dino_current_bus = bus->subordinate + 1;
-		pci_bus_assign_resources(bus);
-		pci_bus_add_devices(bus);
-	} else {
+	if (!bus) {
 		printk(KERN_ERR "ERROR: failed to scan PCI bus on %s (duplicate bus number %d?)\n",
 		       dev_name(&dev->dev), dino_current_bus);
 		/* increment the bus number in case of duplicates */
 		dino_current_bus++;
+		return 0;
 	}
+
+	bus->subordinate = pci_scan_child_bus(bus);
+
+	/* This code *depends* on scanning being single threaded
+	 * if it isn't, this global bus number count will fail
+	 */
+	dino_current_bus = bus->subordinate + 1;
+	pci_bus_assign_resources(bus);
+	pci_bus_add_devices(bus);
 	return 0;
 }
 
