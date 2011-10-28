@@ -239,32 +239,49 @@ atombios_dvo_setup(struct drm_encoder *encoder, int action)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	union dvo_encoder_control args;
 	int index = GetIndexIntoMasterTable(COMMAND, DVOEncoderControl);
+	uint8_t frev, crev;
 
 	memset(&args, 0, sizeof(args));
 
-	if (ASIC_IS_DCE3(rdev)) {
-		/* DCE3+ */
-		args.dvo_v3.ucAction = action;
-		args.dvo_v3.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
-		args.dvo_v3.ucDVOConfig = 0; /* XXX */
-	} else if (ASIC_IS_DCE2(rdev)) {
-		/* DCE2 (pre-DCE3 R6xx, RS600/690/740 */
-		args.dvo.sDVOEncoder.ucAction = action;
-		args.dvo.sDVOEncoder.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
-		/* DFP1, CRT1, TV1 depending on the type of port */
-		args.dvo.sDVOEncoder.ucDeviceType = ATOM_DEVICE_DFP1_INDEX;
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return;
 
-		if (radeon_encoder->pixel_clock > 165000)
-			args.dvo.sDVOEncoder.usDevAttr.sDigAttrib.ucAttribute |= PANEL_ENCODER_MISC_DUAL;
-	} else {
-		/* R4xx, R5xx */
-		args.ext_tmds.sXTmdsEncoder.ucEnable = action;
+	switch (frev) {
+	case 1:
+		switch (crev) {
+		case 1:
+			/* R4xx, R5xx */
+			args.ext_tmds.sXTmdsEncoder.ucEnable = action;
 
-		if (radeon_encoder->pixel_clock > 165000)
-			args.ext_tmds.sXTmdsEncoder.ucMisc |= PANEL_ENCODER_MISC_DUAL;
+			if (radeon_encoder->pixel_clock > 165000)
+				args.ext_tmds.sXTmdsEncoder.ucMisc |= PANEL_ENCODER_MISC_DUAL;
 
-		/*if (pScrn->rgbBits == 8)*/
-		args.ext_tmds.sXTmdsEncoder.ucMisc |= ATOM_PANEL_MISC_888RGB;
+			args.ext_tmds.sXTmdsEncoder.ucMisc |= ATOM_PANEL_MISC_888RGB;
+			break;
+		case 2:
+			/* RS600/690/740 */
+			args.dvo.sDVOEncoder.ucAction = action;
+			args.dvo.sDVOEncoder.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+			/* DFP1, CRT1, TV1 depending on the type of port */
+			args.dvo.sDVOEncoder.ucDeviceType = ATOM_DEVICE_DFP1_INDEX;
+
+			if (radeon_encoder->pixel_clock > 165000)
+				args.dvo.sDVOEncoder.usDevAttr.sDigAttrib.ucAttribute |= PANEL_ENCODER_MISC_DUAL;
+			break;
+		case 3:
+			/* R6xx */
+			args.dvo_v3.ucAction = action;
+			args.dvo_v3.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+			args.dvo_v3.ucDVOConfig = 0; /* XXX */
+			break;
+		default:
+			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			break;
+		}
+		break;
+	default:
+		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		break;
 	}
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
