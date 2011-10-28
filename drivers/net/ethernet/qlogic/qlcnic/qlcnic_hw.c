@@ -566,7 +566,7 @@ int qlcnic_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 		return -EIO;
 
 	if (qlcnic_nic_set_promisc(adapter, VPORT_MISS_MODE_ACCEPT_ALL)) {
-		qlcnic_set_fw_loopback(adapter, mode);
+		qlcnic_set_fw_loopback(adapter, 0);
 		return -EIO;
 	}
 
