@@ -40,8 +40,6 @@ MODULE_PARM_DESC(caps_charge, "ALC5623 cap charge time (msecs)");
 /* codec private data */
 struct alc5623_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
-	struct mutex mutex;
 	u8 id;
 	unsigned int sysclk;
 	u16 reg_cache[ALC5623_VENDOR_ID2+2];
@@ -55,8 +53,10 @@ static void alc5623_fill_cache(struct snd_soc_codec *codec)
 	u16 *cache = codec->reg_cache;
 
 	/* not really efficient ... */
+	codec->cache_bypass = 1;
 	for (i = 0 ; i < codec->driver->reg_cache_size ; i += step)
-		cache[i] = codec->hw_read(codec, i);
+		cache[i] = snd_soc_read(codec, i);
+	codec->cache_bypass = 0;
 }
 
 static inline int alc5623_reset(struct snd_soc_codec *codec)
@@ -1050,9 +1050,7 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, alc5623);
-	alc5623->control_data = client;
 	alc5623->control_type = SND_SOC_I2C;
-	mutex_init(&alc5623->mutex);
 
 	ret =  snd_soc_register_codec(&client->dev,
 		&soc_codec_device_alc5623, &alc5623_dai, 1);

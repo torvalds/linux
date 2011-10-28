@@ -65,9 +65,9 @@
 #include "helper.h"
 #include "debug.h"
 #include "pcm.h"
-#include "urb.h"
 #include "format.h"
 #include "power.h"
+#include "stream.h"
 
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("USB Audio");
@@ -185,7 +185,7 @@ static int snd_usb_create_stream(struct snd_usb_audio *chip, int ctrlif, int int
 		return -EINVAL;
 	}
 
-	if (! snd_usb_parse_audio_endpoints(chip, interface)) {
+	if (! snd_usb_parse_audio_interface(chip, interface)) {
 		usb_set_interface(dev, interface, 0); /* reset the current interface */
 		usb_driver_claim_interface(&usb_audio_driver, iface, (void *)-1L);
 		return -EINVAL;

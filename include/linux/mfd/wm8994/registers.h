@@ -72,6 +72,7 @@
 #define WM8994_DC_SERVO_2                       0x55
 #define WM8994_DC_SERVO_4                       0x57
 #define WM8994_DC_SERVO_READBACK                0x58
+#define WM8994_DC_SERVO_4E			0x59
 #define WM8994_ANALOGUE_HP_1                    0x60
 #define WM8958_MIC_DETECT_1                     0xD0
 #define WM8958_MIC_DETECT_2                     0xD1
@@ -133,6 +134,8 @@
 #define WM8994_AIF1_DAC1_FILTERS_2              0x421
 #define WM8994_AIF1_DAC2_FILTERS_1              0x422
 #define WM8994_AIF1_DAC2_FILTERS_2              0x423
+#define WM8958_AIF1_DAC1_NOISE_GATE             0x430
+#define WM8958_AIF1_DAC2_NOISE_GATE             0x431
 #define WM8994_AIF1_DRC1_1                      0x440
 #define WM8994_AIF1_DRC1_2                      0x441
 #define WM8994_AIF1_DRC1_3                      0x442
@@ -190,6 +193,7 @@
 #define WM8994_AIF2_ADC_FILTERS                 0x510
 #define WM8994_AIF2_DAC_FILTERS_1               0x520
 #define WM8994_AIF2_DAC_FILTERS_2               0x521
+#define WM8958_AIF2_DAC_NOISE_GATE              0x530
 #define WM8994_AIF2_DRC_1                       0x540
 #define WM8994_AIF2_DRC_2                       0x541
 #define WM8994_AIF2_DRC_3                       0x542
@@ -1921,6 +1925,44 @@
 #define WM8994_LDO2_DISCH_WIDTH                      1  /* LDO2_DISCH */
 
 /*
+ * R61 (0x3D) - MICBIAS1
+ */
+#define WM8958_MICB1_RATE                       0x0020  /* MICB1_RATE */
+#define WM8958_MICB1_RATE_MASK                  0x0020  /* MICB1_RATE */
+#define WM8958_MICB1_RATE_SHIFT                      5  /* MICB1_RATE */
+#define WM8958_MICB1_RATE_WIDTH                      1  /* MICB1_RATE */
+#define WM8958_MICB1_MODE                       0x0010  /* MICB1_MODE */
+#define WM8958_MICB1_MODE_MASK                  0x0010  /* MICB1_MODE */
+#define WM8958_MICB1_MODE_SHIFT                      4  /* MICB1_MODE */
+#define WM8958_MICB1_MODE_WIDTH                      1  /* MICB1_MODE */
+#define WM8958_MICB1_LVL_MASK                   0x000E  /* MICB1_LVL - [3:1] */
+#define WM8958_MICB1_LVL_SHIFT                       1  /* MICB1_LVL - [3:1] */
+#define WM8958_MICB1_LVL_WIDTH                       3  /* MICB1_LVL - [3:1] */
+#define WM8958_MICB1_DISCH                      0x0001  /* MICB1_DISCH */
+#define WM8958_MICB1_DISCH_MASK                 0x0001  /* MICB1_DISCH */
+#define WM8958_MICB1_DISCH_SHIFT                     0  /* MICB1_DISCH */
+#define WM8958_MICB1_DISCH_WIDTH                     1  /* MICB1_DISCH */
+
+/*
+ * R62 (0x3E) - MICBIAS2
+ */
+#define WM8958_MICB2_RATE                       0x0020  /* MICB2_RATE */
+#define WM8958_MICB2_RATE_MASK                  0x0020  /* MICB2_RATE */
+#define WM8958_MICB2_RATE_SHIFT                      5  /* MICB2_RATE */
+#define WM8958_MICB2_RATE_WIDTH                      1  /* MICB2_RATE */
+#define WM8958_MICB2_MODE                       0x0010  /* MICB2_MODE */
+#define WM8958_MICB2_MODE_MASK                  0x0010  /* MICB2_MODE */
+#define WM8958_MICB2_MODE_SHIFT                      4  /* MICB2_MODE */
+#define WM8958_MICB2_MODE_WIDTH                      1  /* MICB2_MODE */
+#define WM8958_MICB2_LVL_MASK                   0x000E  /* MICB2_LVL - [3:1] */
+#define WM8958_MICB2_LVL_SHIFT                       1  /* MICB2_LVL - [3:1] */
+#define WM8958_MICB2_LVL_WIDTH                       3  /* MICB2_LVL - [3:1] */
+#define WM8958_MICB2_DISCH                      0x0001  /* MICB2_DISCH */
+#define WM8958_MICB2_DISCH_MASK                 0x0001  /* MICB2_DISCH */
+#define WM8958_MICB2_DISCH_SHIFT                     0  /* MICB2_DISCH */
+#define WM8958_MICB2_DISCH_WIDTH                     1  /* MICB2_DISCH */
+
+/*
  * R76 (0x4C) - Charge Pump (1)
  */
 #define WM8994_CP_ENA                           0x8000  /* CP_ENA */
@@ -2027,6 +2069,10 @@
 /*
  * R96 (0x60) - Analogue HP (1)
  */
+#define WM1811_HPOUT1_ATTN                      0x0100  /* HPOUT1_ATTN */
+#define WM1811_HPOUT1_ATTN_MASK                 0x0100  /* HPOUT1_ATTN */
+#define WM1811_HPOUT1_ATTN_SHIFT                     8  /* HPOUT1_ATTN */
+#define WM1811_HPOUT1_ATTN_WIDTH                     1  /* HPOUT1_ATTN */
 #define WM8994_HPOUT1L_RMV_SHORT                0x0080  /* HPOUT1L_RMV_SHORT */
 #define WM8994_HPOUT1L_RMV_SHORT_MASK           0x0080  /* HPOUT1L_RMV_SHORT */
 #define WM8994_HPOUT1L_RMV_SHORT_SHIFT               7  /* HPOUT1L_RMV_SHORT */
@@ -2949,6 +2995,34 @@
 #define WM8994_AIF1DAC2_3D_ENA_WIDTH                 1  /* AIF1DAC2_3D_ENA */
 
 /*
+ * R1072 (0x430) - AIF1 DAC1 Noise Gate
+ */
+#define WM8958_AIF1DAC1_NG_HLD_MASK             0x0060  /* AIF1DAC1_NG_HLD - [6:5] */
+#define WM8958_AIF1DAC1_NG_HLD_SHIFT                 5  /* AIF1DAC1_NG_HLD - [6:5] */
+#define WM8958_AIF1DAC1_NG_HLD_WIDTH                 2  /* AIF1DAC1_NG_HLD - [6:5] */
+#define WM8958_AIF1DAC1_NG_THR_MASK             0x000E  /* AIF1DAC1_NG_THR - [3:1] */
+#define WM8958_AIF1DAC1_NG_THR_SHIFT                 1  /* AIF1DAC1_NG_THR - [3:1] */
+#define WM8958_AIF1DAC1_NG_THR_WIDTH                 3  /* AIF1DAC1_NG_THR - [3:1] */
+#define WM8958_AIF1DAC1_NG_ENA                  0x0001  /* AIF1DAC1_NG_ENA */
+#define WM8958_AIF1DAC1_NG_ENA_MASK             0x0001  /* AIF1DAC1_NG_ENA */
+#define WM8958_AIF1DAC1_NG_ENA_SHIFT                 0  /* AIF1DAC1_NG_ENA */
+#define WM8958_AIF1DAC1_NG_ENA_WIDTH                 1  /* AIF1DAC1_NG_ENA */
+
+/*
+ * R1073 (0x431) - AIF1 DAC2 Noise Gate
+ */
+#define WM8958_AIF1DAC2_NG_HLD_MASK             0x0060  /* AIF1DAC2_NG_HLD - [6:5] */
+#define WM8958_AIF1DAC2_NG_HLD_SHIFT                 5  /* AIF1DAC2_NG_HLD - [6:5] */
+#define WM8958_AIF1DAC2_NG_HLD_WIDTH                 2  /* AIF1DAC2_NG_HLD - [6:5] */
+#define WM8958_AIF1DAC2_NG_THR_MASK             0x000E  /* AIF1DAC2_NG_THR - [3:1] */
+#define WM8958_AIF1DAC2_NG_THR_SHIFT                 1  /* AIF1DAC2_NG_THR - [3:1] */
+#define WM8958_AIF1DAC2_NG_THR_WIDTH                 3  /* AIF1DAC2_NG_THR - [3:1] */
+#define WM8958_AIF1DAC2_NG_ENA                  0x0001  /* AIF1DAC2_NG_ENA */
+#define WM8958_AIF1DAC2_NG_ENA_MASK             0x0001  /* AIF1DAC2_NG_ENA */
+#define WM8958_AIF1DAC2_NG_ENA_SHIFT                 0  /* AIF1DAC2_NG_ENA */
+#define WM8958_AIF1DAC2_NG_ENA_WIDTH                 1  /* AIF1DAC2_NG_ENA */
+
+/*
  * R1088 (0x440) - AIF1 DRC1 (1)
  */
 #define WM8994_AIF1DRC1_SIG_DET_RMS_MASK        0xF800  /* AIF1DRC1_SIG_DET_RMS - [15:11] */
@@ -3558,6 +3632,20 @@
 #define WM8994_AIF2DAC_3D_ENA_MASK              0x0100  /* AIF2DAC_3D_ENA */
 #define WM8994_AIF2DAC_3D_ENA_SHIFT                  8  /* AIF2DAC_3D_ENA */
 #define WM8994_AIF2DAC_3D_ENA_WIDTH                  1  /* AIF2DAC_3D_ENA */
+
+/*
+ * R1328 (0x530) - AIF2 DAC Noise Gate
+ */
+#define WM8958_AIF2DAC_NG_HLD_MASK              0x0060  /* AIF2DAC_NG_HLD - [6:5] */
+#define WM8958_AIF2DAC_NG_HLD_SHIFT                  5  /* AIF2DAC_NG_HLD - [6:5] */
+#define WM8958_AIF2DAC_NG_HLD_WIDTH                  2  /* AIF2DAC_NG_HLD - [6:5] */
+#define WM8958_AIF2DAC_NG_THR_MASK              0x000E  /* AIF2DAC_NG_THR - [3:1] */
+#define WM8958_AIF2DAC_NG_THR_SHIFT                  1  /* AIF2DAC_NG_THR - [3:1] */
+#define WM8958_AIF2DAC_NG_THR_WIDTH                  3  /* AIF2DAC_NG_THR - [3:1] */
+#define WM8958_AIF2DAC_NG_ENA                   0x0001  /* AIF2DAC_NG_ENA */
+#define WM8958_AIF2DAC_NG_ENA_MASK              0x0001  /* AIF2DAC_NG_ENA */
+#define WM8958_AIF2DAC_NG_ENA_SHIFT                  0  /* AIF2DAC_NG_ENA */
+#define WM8958_AIF2DAC_NG_ENA_WIDTH                  1  /* AIF2DAC_NG_ENA */
 
 /*
  * R1344 (0x540) - AIF2 DRC (1)

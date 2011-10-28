@@ -845,7 +845,7 @@ static int __devinit snd_ps3_allocate_irq(void)
 		return ret;
 	}
 
-	ret = request_irq(the_card.irq_no, snd_ps3_interrupt, IRQF_DISABLED,
+	ret = request_irq(the_card.irq_no, snd_ps3_interrupt, 0,
 			  SND_PS3_DRIVER_NAME, &the_card);
 	if (ret) {
 		pr_info("%s: request_irq failed (%d)\n", __func__, ret);

@@ -1,7 +1,7 @@
 /*
  * DB1200 ASoC audio fabric support code.
  *
- * (c) 2008-9 Manuel Lauss <manuel.lauss@gmail.com>
+ * (c) 2008-2011 Manuel Lauss <manuel.lauss@googlemail.com>
  *
  */
 
@@ -20,6 +20,17 @@
 
 #include "../codecs/wm8731.h"
 #include "psc.h"
+
+static struct platform_device_id db1200_pids[] = {
+	{
+		.name		= "db1200-ac97",
+		.driver_data	= 0,
+	}, {
+		.name		= "db1200-i2s",
+		.driver_data	= 1,
+	},
+	{},
+};
 
 /*-------------------------  AC97 PART  ---------------------------*/
 
@@ -89,36 +100,47 @@ static struct snd_soc_card db1200_i2s_machine = {
 
 /*-------------------------  COMMON PART  ---------------------------*/
 
-static struct platform_device *db1200_asoc_dev;
+static struct snd_soc_card *db1200_cards[] __devinitdata = {
+	&db1200_ac97_machine,
+	&db1200_i2s_machine,
+};
+
+static int __devinit db1200_audio_probe(struct platform_device *pdev)
+{
+	const struct platform_device_id *pid = platform_get_device_id(pdev);
+	struct snd_soc_card *card;
+
+	card = db1200_cards[pid->driver_data];
+	card->dev = &pdev->dev;
+	return snd_soc_register_card(card);
+}
+
+static int __devexit db1200_audio_remove(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	snd_soc_unregister_card(card);
+	return 0;
+}
+
+static struct platform_driver db1200_audio_driver = {
+	.driver	= {
+		.name	= "db1200-ac97",
+		.owner	= THIS_MODULE,
+		.pm	= &snd_soc_pm_ops,
+	},
+	.id_table	= db1200_pids,
+	.probe		= db1200_audio_probe,
+	.remove		= __devexit_p(db1200_audio_remove),
+};
 
 static int __init db1200_audio_load(void)
 {
-	int ret;
-
-	ret = -ENOMEM;
-	db1200_asoc_dev = platform_device_alloc("soc-audio", 1); /* PSC1 */
-	if (!db1200_asoc_dev)
-		goto out;
-
-	/* DB1200 board setup set PSC1MUX to preferred audio device */
-	if (bcsr_read(BCSR_RESETS) & BCSR_RESETS_PSC1MUX)
-		platform_set_drvdata(db1200_asoc_dev, &db1200_i2s_machine);
-	else
-		platform_set_drvdata(db1200_asoc_dev, &db1200_ac97_machine);
-
-	ret = platform_device_add(db1200_asoc_dev);
-
-	if (ret) {
-		platform_device_put(db1200_asoc_dev);
-		db1200_asoc_dev = NULL;
-	}
-out:
-	return ret;
+	return platform_driver_register(&db1200_audio_driver);
 }
 
 static void __exit db1200_audio_unload(void)
 {
-	platform_device_unregister(db1200_asoc_dev);
+	platform_driver_unregister(&db1200_audio_driver);
 }
 
 module_init(db1200_audio_load);

@@ -29,9 +29,6 @@ ALC880
 
 ALC260
 ======
-  hp		HP machines
-  hp-3013	HP machines (3013-variant)
-  hp-dc7600	HP DC7600
   fujitsu	Fujitsu S7020
   acer		Acer TravelMate
   will		Will laptops (PB V7900)
@@ -46,15 +43,10 @@ ALC260
 ALC262
 ======
   fujitsu	Fujitsu Laptop
-  hp-bpc	HP xw4400/6400/8400/9400 laptops
-  hp-bpc-d7000	HP BPC D7000
-  hp-tc-t5735	HP Thin Client T5735
-  hp-rp5700	HP RP5700
   benq		Benq ED8
   benq-t31	Benq T31
   hippo		Hippo (ATI) with jack detection, Sony UX-90s
   hippo_1	Hippo (Benq) with jack detection
-  sony-assamd	Sony ASSAMD
   toshiba-s06	Toshiba S06
   toshiba-rx1	Toshiba RX1
   tyan		Tyan Thunder n6650W (S2915-E)
@@ -66,43 +58,15 @@ ALC262
 
 ALC267/268
 ==========
-  quanta-il1	Quanta IL1 mini-notebook
-  3stack	3-stack model
-  toshiba	Toshiba A205
-  acer		Acer laptops
-  acer-dmic	Acer laptops with digital-mic
-  acer-aspire	Acer Aspire One
-  dell		Dell OEM laptops (Vostro 1200)
-  zepto		Zepto laptops
-  test		for testing/debugging purpose, almost all controls can
-		adjusted.  Appearing only when compiled with
-		$CONFIG_SND_DEBUG=y
-  auto		auto-config reading BIOS (default)
+  N/A
 
 ALC269
 ======
-  basic		Basic preset
-  quanta	Quanta FL1
   laptop-amic	Laptops with analog-mic input
   laptop-dmic	Laptops with digital-mic input
-  fujitsu	FSC Amilo
-  lifebook	Fujitsu Lifebook S6420
-  auto		auto-config reading BIOS (default)
 
 ALC662/663/272
 ==============
-  3stack-dig	3-stack (2-channel) with SPDIF
-  3stack-6ch	 3-stack (6-channel)
-  3stack-6ch-dig 3-stack (6-channel) with SPDIF
-  5stack-dig	 5-stack with SPDIF
-  lenovo-101e	 Lenovo laptop
-  eeepc-p701	ASUS Eeepc P701
-  eeepc-ep20	ASUS Eeepc EP20
-  ecs		ECS/Foxconn mobo
-  m51va		ASUS M51VA
-  g71v		ASUS G71V
-  h13		ASUS H13
-  g50v		ASUS G50V
   asus-mode1	ASUS
   asus-mode2	ASUS
   asus-mode3	ASUS
@@ -111,15 +75,10 @@ ALC662/663/272
   asus-mode6	ASUS
   asus-mode7	ASUS
   asus-mode8	ASUS
-  dell		Dell with ALC272
-  dell-zm1	Dell ZM1 with ALC272
-  samsung-nc10	Samsung NC10 mini notebook
-  auto		auto-config reading BIOS (default)
 
 ALC680
 ======
-  base		Base model (ASUS NX90)
-  auto		auto-config reading BIOS (default)
+  N/A
 
 ALC882/883/885/888/889
 ======================
@@ -175,28 +134,11 @@ ALC882/883/885/888/889
 
 ALC861/660
 ==========
-  3stack	3-jack
-  3stack-dig	3-jack with SPDIF I/O
-  6stack-dig	6-jack with SPDIF I/O
-  3stack-660	3-jack (for ALC660)
-  uniwill-m31	Uniwill M31 laptop
-  toshiba	Toshiba laptop support
-  asus		Asus laptop support
-  asus-laptop	ASUS F2/F3 laptops
-  auto		auto-config reading BIOS (default)
+  N/A
 
 ALC861VD/660VD
 ==============
-  3stack	3-jack
-  3stack-dig	3-jack with SPDIF OUT
-  6stack-dig	6-jack with SPDIF OUT
-  3stack-660	3-jack (for ALC660VD)
-  3stack-660-digout 3-jack with SPDIF OUT (for ALC660VD)
-  lenovo	Lenovo 3000 C200
-  dallas	Dallas laptops
-  hp		HP TX1000
-  asus-v1s	ASUS V1Sn
-  auto		auto-config reading BIOS (default)
+  N/A
 
 CMI9880
 =======
@@ -289,7 +231,6 @@ Conexant 5051
   hp-dv6736	HP dv6736
   hp-f700	HP Compaq Presario F700
   ideapad	Lenovo IdeaPad laptop
-  lenovo-x200	Lenovo X200 laptop
   toshiba	Toshiba Satellite M300
 
 Conexant 5066

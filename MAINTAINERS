@@ -529,6 +529,7 @@ S:	Maintained
 F:	drivers/infiniband/hw/amso1100/
 
 ANALOG DEVICES INC ASOC CODEC DRIVERS
+M:	Lars-Peter Clausen <lars@metafoo.de>
 L:	device-drivers-devel@blackfin.uclinux.org
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://wiki.analog.com/
@@ -6038,7 +6039,7 @@ M:	Jaroslav Kysela <perex@perex.cz>
 M:	Takashi Iwai <tiwai@suse.de>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://www.alsa-project.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 T:	git git://git.alsa-project.org/alsa-kernel.git
 S:	Maintained
 F:	Documentation/sound/
@@ -7259,6 +7260,7 @@ T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus
 W:	http://opensource.wolfsonmicro.com/content/linux-drivers-wolfson-devices
 S:	Supported
 F:	Documentation/hwmon/wm83??
+F:	arch/arm/mach-s3c64xx/mach-crag6410*
 F:	drivers/leds/leds-wm83*.c
 F:	drivers/input/misc/wm831x-on.c
 F:	drivers/input/touchscreen/wm831x-ts.c

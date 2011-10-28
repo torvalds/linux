@@ -383,7 +383,7 @@ static int inmixer_event (struct snd_soc_dapm_widget *w,
 		(1 << WM8400_AINRMUX_PWR))) {
 		reg |= WM8400_AINR_ENA;
 	} else {
-		reg &= ~WM8400_AINL_ENA;
+		reg &= ~WM8400_AINR_ENA;
 	}
 	wm8400_write(w->codec, WM8400_POWER_MANAGEMENT_2, reg);
 

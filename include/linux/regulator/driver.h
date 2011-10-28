@@ -199,6 +199,9 @@ struct regulator_dev {
 	struct regulation_constraints *constraints;
 	struct regulator *supply;	/* for tree */
 
+	struct delayed_work disable_work;
+	int deferred_disables;
+
 	void *reg_data;		/* regulator_dev data */
 
 #ifdef CONFIG_DEBUG_FS

@@ -167,6 +167,18 @@ static struct mfd_cell wm8994_devs[] = {
  * and should be handled via the standard regulator API supply
  * management.
  */
+static const char *wm1811_main_supplies[] = {
+	"DBVDD1",
+	"DBVDD2",
+	"DBVDD3",
+	"DCVDD",
+	"AVDD1",
+	"AVDD2",
+	"CPVDD",
+	"SPKVDD1",
+	"SPKVDD2",
+};
+
 static const char *wm8994_main_supplies[] = {
 	"DBVDD",
 	"DCVDD",
@@ -329,6 +341,9 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	}
 
 	switch (wm8994->type) {
+	case WM1811:
+		wm8994->num_supplies = ARRAY_SIZE(wm1811_main_supplies);
+		break;
 	case WM8994:
 		wm8994->num_supplies = ARRAY_SIZE(wm8994_main_supplies);
 		break;
@@ -349,6 +364,10 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	}
 
 	switch (wm8994->type) {
+	case WM1811:
+		for (i = 0; i < ARRAY_SIZE(wm1811_main_supplies); i++)
+			wm8994->supplies[i].supply = wm1811_main_supplies[i];
+		break;
 	case WM8994:
 		for (i = 0; i < ARRAY_SIZE(wm8994_main_supplies); i++)
 			wm8994->supplies[i].supply = wm8994_main_supplies[i];
@@ -382,6 +401,13 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		goto err_enable;
 	}
 	switch (ret) {
+	case 0x1811:
+		devname = "WM1811";
+		if (wm8994->type != WM1811)
+			dev_warn(wm8994->dev, "Device registered as type %d\n",
+				 wm8994->type);
+		wm8994->type = WM1811;
+		break;
 	case 0x8994:
 		devname = "WM8994";
 		if (wm8994->type != WM8994)
@@ -539,6 +565,7 @@ static int wm8994_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8994_i2c_id[] = {
+	{ "wm1811", WM1811 },
 	{ "wm8994", WM8994 },
 	{ "wm8958", WM8958 },
 	{ }
