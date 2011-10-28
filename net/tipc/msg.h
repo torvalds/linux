@@ -517,6 +517,16 @@ static inline void msg_set_seq_gap(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 1, 16, 0x1fff, n);
 }
 
+static inline u32 msg_node_sig(struct tipc_msg *m)
+{
+	return msg_bits(m, 1, 0, 0xffff);
+}
+
+static inline void msg_set_node_sig(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 1, 0, 0xffff, n);
+}
+
 
 /*
  * Word 2

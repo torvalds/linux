@@ -82,6 +82,7 @@ static struct sk_buff *tipc_disc_init_msg(u32 type,
 		msg = buf_msg(buf);
 		tipc_msg_init(msg, LINK_CONFIG, type, INT_H_SIZE, dest_domain);
 		msg_set_non_seq(msg, 1);
+		msg_set_node_sig(msg, tipc_random);
 		msg_set_dest_domain(msg, dest_domain);
 		msg_set_bc_netid(msg, tipc_net_id);
 		b_ptr->media->addr2msg(&b_ptr->addr, msg_media_addr(msg));
@@ -128,6 +129,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	u32 orig = msg_prevnode(msg);
 	u32 net_id = msg_bc_netid(msg);
 	u32 type = msg_type(msg);
+	u32 signature = msg_node_sig(msg);
 	int link_fully_up;
 
 	media_addr.broadcast = 1;
@@ -197,6 +199,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	}
 
 	/* Accept discovery message & send response, if necessary */
+	n_ptr->signature = signature;
 	link_fully_up = link_working_working(link);
 
 	if ((type == DSC_REQ_MSG) && !link_fully_up && !b_ptr->blocked) {

@@ -112,6 +112,7 @@ struct tipc_node *tipc_node_create(u32 addr)
 	}
 	list_add_tail(&n_ptr->list, &temp_node->list);
 	n_ptr->block_setup = WAIT_PEER_DOWN;
+	n_ptr->signature = INVALID_NODE_SIG;
 
 	tipc_num_nodes++;
 

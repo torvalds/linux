@@ -42,6 +42,11 @@
 #include "net.h"
 #include "bearer.h"
 
+/*
+ * Out-of-range value for node signature
+ */
+#define INVALID_NODE_SIG 0x10000
+
 /* Flags used to block (re)establishment of contact with a neighboring node */
 
 #define WAIT_PEER_DOWN	0x0001	/* wait to see that peer's links are down */
@@ -61,6 +66,7 @@
  * @block_setup: bit mask of conditions preventing link establishment to node
  * @link_cnt: number of links to node
  * @permit_changeover: non-zero if node has redundant links to this system
+ * @signature: node instance identifier
  * @bclink: broadcast-related info
  *    @supportable: non-zero if node supports TIPC b'cast link capability
  *    @supported: non-zero if node supports TIPC b'cast capability
@@ -86,6 +92,7 @@ struct tipc_node {
 	int working_links;
 	int block_setup;
 	int permit_changeover;
+	u32 signature;
 	struct {
 		u8 supportable;
 		u8 supported;
