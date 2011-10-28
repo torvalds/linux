@@ -619,6 +619,7 @@ error:
 	ret = -EBUSY;
 resume:
 	nv_mask(dev, 0x002504, 0x00000001, 0x00000000);
+	kfree(info);
 	return ret;
 }
 
