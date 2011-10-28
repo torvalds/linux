@@ -227,6 +227,11 @@ char __init *pcibios_setup(char *str)
 	return str;
 }
 
+void pcibios_set_master(struct pci_dev *dev)
+{
+	/* No special bus mastering setup handling */
+}
+
 /* the next one is stolen from the alpha port... */
 
 void __init
