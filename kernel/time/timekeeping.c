@@ -809,11 +809,11 @@ static void timekeeping_adjust(s64 offset)
 	 * First we shift it down from NTP_SHIFT to clocksource->shifted nsecs.
 	 *
 	 * Note we subtract one in the shift, so that error is really error*2.
-	 * This "saves" dividing(shifting) intererval twice, but keeps the
-	 * (error > interval) comparision as still measuring if error is
+	 * This "saves" dividing(shifting) interval twice, but keeps the
+	 * (error > interval) comparison as still measuring if error is
 	 * larger then half an interval.
 	 *
-	 * Note: It does not "save" on aggrivation when reading the code.
+	 * Note: It does not "save" on aggravation when reading the code.
 	 */
 	error = timekeeper.ntp_error >> (timekeeper.ntp_error_shift - 1);
 	if (error > interval) {
@@ -829,7 +829,7 @@ static void timekeeping_adjust(s64 offset)
 		 * nanosecond, and store the amount rounded up into
 		 * the error. This causes the likely below to be unlikely.
 		 *
-		 * The properfix is to avoid rounding up by using
+		 * The proper fix is to avoid rounding up by using
 		 * the high precision timekeeper.xtime_nsec instead of
 		 * xtime.tv_nsec everywhere. Fixing this will take some
 		 * time.
