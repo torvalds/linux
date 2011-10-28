@@ -1154,7 +1154,7 @@ static void init_inode(struct inode *inode, struct treepath *path)
 		set_inode_item_key_version(inode, KEY_FORMAT_3_5);
 		set_inode_sd_version(inode, STAT_DATA_V1);
 		inode->i_mode = sd_v1_mode(sd);
-		inode->i_nlink = sd_v1_nlink(sd);
+		set_nlink(inode, sd_v1_nlink(sd));
 		inode->i_uid = sd_v1_uid(sd);
 		inode->i_gid = sd_v1_gid(sd);
 		inode->i_size = sd_v1_size(sd);
@@ -1199,7 +1199,7 @@ static void init_inode(struct inode *inode, struct treepath *path)
 		struct stat_data *sd = (struct stat_data *)B_I_PITEM(bh, ih);
 
 		inode->i_mode = sd_v2_mode(sd);
-		inode->i_nlink = sd_v2_nlink(sd);
+		set_nlink(inode, sd_v2_nlink(sd));
 		inode->i_uid = sd_v2_uid(sd);
 		inode->i_size = sd_v2_size(sd);
 		inode->i_gid = sd_v2_gid(sd);
@@ -1832,7 +1832,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 #endif
 
 	/* fill stat data */
-	inode->i_nlink = (S_ISDIR(mode) ? 2 : 1);
+	set_nlink(inode, (S_ISDIR(mode) ? 2 : 1));
 
 	/* uid and gid must already be set by the caller for quota init */
 

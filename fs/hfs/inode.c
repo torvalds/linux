@@ -183,7 +183,7 @@ struct inode *hfs_new_inode(struct inode *dir, struct qstr *name, int mode)
 	inode->i_mode = mode;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
-	inode->i_nlink = 1;
+	set_nlink(inode, 1);
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
 	HFS_I(inode)->flags = 0;
 	HFS_I(inode)->rsrc_inode = NULL;
@@ -313,7 +313,7 @@ static int hfs_read_inode(struct inode *inode, void *data)
 	/* Initialize the inode */
 	inode->i_uid = hsb->s_uid;
 	inode->i_gid = hsb->s_gid;
-	inode->i_nlink = 1;
+	set_nlink(inode, 1);
 
 	if (idata->key)
 		HFS_I(inode)->cat_key = *idata->key;

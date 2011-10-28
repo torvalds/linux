@@ -2534,7 +2534,7 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	inode_item = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_inode_item);
 	inode->i_mode = btrfs_inode_mode(leaf, inode_item);
-	inode->i_nlink = btrfs_inode_nlink(leaf, inode_item);
+	set_nlink(inode, btrfs_inode_nlink(leaf, inode_item));
 	inode->i_uid = btrfs_inode_uid(leaf, inode_item);
 	inode->i_gid = btrfs_inode_gid(leaf, inode_item);
 	btrfs_i_size_write(inode, btrfs_inode_size(leaf, inode_item));
@@ -6728,7 +6728,7 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 	inode->i_op = &btrfs_dir_inode_operations;
 	inode->i_fop = &btrfs_dir_file_operations;
 
-	inode->i_nlink = 1;
+	set_nlink(inode, 1);
 	btrfs_i_size_write(inode, 0);
 
 	err = btrfs_update_inode(trans, new_root, inode);

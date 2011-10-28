@@ -199,7 +199,7 @@ static struct inode *ocfs2_get_init_inode(struct inode *dir, int mode)
 	 * these are used by the support functions here and in
 	 * callers. */
 	if (S_ISDIR(mode))
-		inode->i_nlink = 2;
+		set_nlink(inode, 2);
 	inode_init_owner(inode, dir, mode);
 	dquot_initialize(inode);
 	return inode;
@@ -2016,7 +2016,7 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 	orphan_fe = (struct ocfs2_dinode *) orphan_dir_bh->b_data;
 	if (S_ISDIR(inode->i_mode))
 		ocfs2_add_links_count(orphan_fe, 1);
-	orphan_dir_inode->i_nlink = ocfs2_read_links_count(orphan_fe);
+	set_nlink(orphan_dir_inode, ocfs2_read_links_count(orphan_fe));
 	ocfs2_journal_dirty(handle, orphan_dir_bh);
 
 	status = __ocfs2_add_entry(handle, orphan_dir_inode, name,
@@ -2114,7 +2114,7 @@ int ocfs2_orphan_del(struct ocfs2_super *osb,
 	orphan_fe = (struct ocfs2_dinode *) orphan_dir_bh->b_data;
 	if (S_ISDIR(inode->i_mode))
 		ocfs2_add_links_count(orphan_fe, -1);
-	orphan_dir_inode->i_nlink = ocfs2_read_links_count(orphan_fe);
+	set_nlink(orphan_dir_inode, ocfs2_read_links_count(orphan_fe));
 	ocfs2_journal_dirty(handle, orphan_dir_bh);
 
 leave:
@@ -2435,7 +2435,7 @@ int ocfs2_mv_orphaned_inode_to_new(struct inode *dir,
 	di = (struct ocfs2_dinode *)di_bh->b_data;
 	le32_add_cpu(&di->i_flags, -OCFS2_ORPHANED_FL);
 	di->i_orphaned_slot = 0;
-	inode->i_nlink = 1;
+	set_nlink(inode, 1);
 	ocfs2_set_links_count(di, inode->i_nlink);
 	ocfs2_journal_dirty(handle, di_bh);
 

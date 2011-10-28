@@ -215,7 +215,7 @@ affs_remove_link(struct dentry *dentry)
 				break;
 			default:
 				if (!AFFS_TAIL(sb, bh)->link_chain)
-					inode->i_nlink = 1;
+					set_nlink(inode, 1);
 			}
 			affs_free_block(sb, link_ino);
 			goto done;

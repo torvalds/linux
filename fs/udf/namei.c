@@ -667,7 +667,7 @@ static int udf_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		iput(inode);
 		goto out;
 	}
-	inode->i_nlink = 2;
+	set_nlink(inode, 2);
 	cfi.icb.extLength = cpu_to_le32(inode->i_sb->s_blocksize);
 	cfi.icb.extLocation = cpu_to_lelb(dinfo->i_location);
 	*(__le32 *)((struct allocDescImpUse *)cfi.icb.impUse)->impUse =
@@ -837,7 +837,7 @@ static int udf_unlink(struct inode *dir, struct dentry *dentry)
 	if (!inode->i_nlink) {
 		udf_debug("Deleting nonexistent file (%lu), %d\n",
 			  inode->i_ino, inode->i_nlink);
-		inode->i_nlink = 1;
+		set_nlink(inode, 1);
 	}
 	retval = udf_delete_entry(dir, fi, &fibh, &cfi);
 	if (retval)

@@ -77,7 +77,7 @@ void hpfs_read_inode(struct inode *i)
 			i->i_mode = S_IFLNK | 0777;
 			i->i_op = &page_symlink_inode_operations;
 			i->i_data.a_ops = &hpfs_symlink_aops;
-			i->i_nlink = 1;
+			set_nlink(i, 1);
 			i->i_size = ea_size;
 			i->i_blocks = 1;
 			brelse(bh);
@@ -101,7 +101,7 @@ void hpfs_read_inode(struct inode *i)
 			}
 			if (S_ISBLK(mode) || S_ISCHR(mode) || S_ISFIFO(mode) || S_ISSOCK(mode)) {
 				brelse(bh);
-				i->i_nlink = 1;
+				set_nlink(i, 1);
 				i->i_size = 0;
 				i->i_blocks = 1;
 				init_special_inode(i, mode,
@@ -125,13 +125,13 @@ void hpfs_read_inode(struct inode *i)
 		hpfs_count_dnodes(i->i_sb, hpfs_inode->i_dno, &n_dnodes, &n_subdirs, NULL);
 		i->i_blocks = 4 * n_dnodes;
 		i->i_size = 2048 * n_dnodes;
-		i->i_nlink = 2 + n_subdirs;
+		set_nlink(i, 2 + n_subdirs);
 	} else {
 		i->i_mode |= S_IFREG;
 		if (!hpfs_inode->i_ea_mode) i->i_mode &= ~0111;
 		i->i_op = &hpfs_file_iops;
 		i->i_fop = &hpfs_file_ops;
-		i->i_nlink = 1;
+		set_nlink(i, 1);
 		i->i_size = le32_to_cpu(fnode->file_size);
 		i->i_blocks = ((i->i_size + 511) >> 9) + 1;
 		i->i_data.a_ops = &hpfs_aops;

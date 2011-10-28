@@ -90,7 +90,7 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 			vnode->vfs_inode.i_uid = status->owner;
 			vnode->vfs_inode.i_gid = status->group;
 			vnode->vfs_inode.i_generation = vnode->fid.unique;
-			vnode->vfs_inode.i_nlink = status->nlink;
+			set_nlink(&vnode->vfs_inode, status->nlink);
 
 			mode = vnode->vfs_inode.i_mode;
 			mode &= ~S_IALLUGO;

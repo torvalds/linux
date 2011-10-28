@@ -2363,7 +2363,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	}
 
 	if ((issued & CEPH_CAP_LINK_EXCL) == 0)
-		inode->i_nlink = le32_to_cpu(grant->nlink);
+		set_nlink(inode, le32_to_cpu(grant->nlink));
 
 	if ((issued & CEPH_CAP_XATTR_EXCL) == 0 && grant->xattr_len) {
 		int len = le32_to_cpu(grant->xattr_len);

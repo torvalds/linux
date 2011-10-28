@@ -618,7 +618,7 @@ static int fill_inode(struct inode *inode,
 	}
 
 	if ((issued & CEPH_CAP_LINK_EXCL) == 0)
-		inode->i_nlink = le32_to_cpu(info->nlink);
+		set_nlink(inode, le32_to_cpu(info->nlink));
 
 	/* be careful with mtime, atime, size */
 	ceph_decode_timespec(&atime, &info->atime);

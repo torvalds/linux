@@ -561,7 +561,7 @@ int ubifs_removexattr(struct dentry *dentry, const char *name)
 	clear_nlink(inode);
 	err = remove_xattr(c, host, inode, &nm);
 	if (err)
-		inode->i_nlink = 1;
+		set_nlink(inode, 1);
 
 	/* If @i_nlink is 0, 'iput()' will delete the inode */
 	iput(inode);
