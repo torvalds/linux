@@ -2613,6 +2613,10 @@ void __weak pcibios_set_master(struct pci_dev *dev)
 {
 	u8 lat;
 
+	/* The latency timer doesn't apply to PCIe (either Type 0 or Type 1) */
+	if (pci_is_pcie(dev))
+		return;
+
 	pci_read_config_byte(dev, PCI_LATENCY_TIMER, &lat);
 	if (lat < 16)
 		lat = (64 <= pcibios_max_latency) ? 64 : pcibios_max_latency;
