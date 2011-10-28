@@ -36,9 +36,15 @@ static void __devinit pcibios_scanbus(struct pci_channel *hose)
 {
 	static int next_busno;
 	static int need_domain_info;
+	LIST_HEAD(resources);
+	int i;
 	struct pci_bus *bus;
 
-	bus = pci_scan_bus(next_busno, hose->pci_ops, hose);
+	for (i = 0; i < hose->nr_resources; i++)
+		pci_add_resource(&resources, hose->resources + i);
+
+	bus = pci_scan_root_bus(NULL, next_busno, hose->pci_ops, hose,
+				&resources);
 	hose->bus = bus;
 
 	need_domain_info = need_domain_info || hose->index;
@@ -55,6 +61,8 @@ static void __devinit pcibios_scanbus(struct pci_channel *hose)
 		pci_bus_size_bridges(bus);
 		pci_bus_assign_resources(bus);
 		pci_enable_bridges(bus);
+	} else {
+		pci_free_resource_list(&resources);
 	}
 }
 
@@ -162,16 +170,8 @@ static void pcibios_fixup_device_resources(struct pci_dev *dev,
  */
 void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
-	struct pci_dev *dev = bus->self;
+	struct pci_dev *dev;
 	struct list_head *ln;
-	struct pci_channel *hose = bus->sysdata;
-
-	if (!dev) {
-		int i;
-
-		for (i = 0; i < hose->nr_resources; i++)
-			bus->resource[i] = hose->resources + i;
-	}
 
 	for (ln = bus->devices.next; ln != &bus->devices; ln = ln->next) {
 		dev = pci_dev_b(ln);
