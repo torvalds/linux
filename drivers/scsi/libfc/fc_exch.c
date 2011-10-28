@@ -469,6 +469,7 @@ static int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp,
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
 	int error;
 	u32 f_ctl;
+	u8 fh_type = fh->fh_type;
 
 	ep = fc_seq_exch(sp);
 	WARN_ON((ep->esb_stat & ESB_ST_SEQ_INIT) != ESB_ST_SEQ_INIT);
@@ -493,7 +494,7 @@ static int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp,
 	 */
 	error = lport->tt.frame_send(lport, fp);
 
-	if (fh->fh_type == FC_TYPE_BLS)
+	if (fh_type == FC_TYPE_BLS)
 		return error;
 
 	/*
