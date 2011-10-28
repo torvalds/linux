@@ -514,6 +514,11 @@ pcibios_fixup_bus (struct pci_bus *b)
 	return;
 }
 
+void pcibios_set_master (struct pci_dev *dev)
+{
+	/* No special bus mastering setup handling */
+}
+
 void __devinit
 pcibios_update_irq (struct pci_dev *dev, int irq)
 {
