@@ -1821,7 +1821,7 @@ static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int origin)
 	switch (origin) {
 	case SEEK_END:
 	case SEEK_CUR:
-		offset = generic_file_llseek_unlocked(file, offset, origin);
+		offset = generic_file_llseek(file, offset, origin);
 		goto out;
 	case SEEK_DATA:
 	case SEEK_HOLE:
