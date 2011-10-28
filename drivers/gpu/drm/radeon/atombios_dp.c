@@ -560,9 +560,12 @@ static void radeon_dp_set_panel_mode(struct drm_encoder *encoder,
 	if (!ASIC_IS_DCE4(rdev))
 		return;
 
-	if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) !=
-	    ENCODER_OBJECT_ID_NONE)
+	if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) ==
+	    ENCODER_OBJECT_ID_NUTMEG)
 		panel_mode = DP_PANEL_MODE_INTERNAL_DP1_MODE;
+	else if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) ==
+		 ENCODER_OBJECT_ID_TRAVIS)
+		panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
 	else if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
 		u8 tmp = radeon_read_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_CAP);
 		if (tmp & 1)
