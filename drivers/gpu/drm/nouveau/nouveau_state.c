@@ -417,6 +417,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->vram.flags_valid	= nvc0_vram_flags_valid;
 		engine->pm.temp_get		= nv84_temp_get;
 		engine->pm.clocks_get		= nvc0_pm_clocks_get;
+		engine->pm.clocks_pre		= nvc0_pm_clocks_pre;
+		engine->pm.clocks_set		= nvc0_pm_clocks_set;
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
 		engine->pm.pwm_get		= nv50_pm_pwm_get;
@@ -468,6 +470,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->vram.flags_valid	= nvc0_vram_flags_valid;
 		engine->pm.temp_get		= nv84_temp_get;
 		engine->pm.clocks_get		= nvc0_pm_clocks_get;
+		engine->pm.clocks_pre		= nvc0_pm_clocks_pre;
+		engine->pm.clocks_set		= nvc0_pm_clocks_set;
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
 		break;
