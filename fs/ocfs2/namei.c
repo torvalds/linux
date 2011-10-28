@@ -200,8 +200,6 @@ static struct inode *ocfs2_get_init_inode(struct inode *dir, int mode)
 	 * callers. */
 	if (S_ISDIR(mode))
 		inode->i_nlink = 2;
-	else
-		inode->i_nlink = 1;
 	inode_init_owner(inode, dir, mode);
 	dquot_initialize(inode);
 	return inode;
