@@ -1123,7 +1123,7 @@ static inline int ip6_ufo_append_data(struct sock *sk,
 			hh_len + fragheaderlen + transhdrlen + 20,
 			(flags & MSG_DONTWAIT), &err);
 		if (skb == NULL)
-			return -ENOMEM;
+			return err;
 
 		/* reserve space for Hardware header */
 		skb_reserve(skb, hh_len);
