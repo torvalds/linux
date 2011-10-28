@@ -1623,20 +1623,6 @@ struct pci_bus * __devinit pci_scan_root_bus(struct device *parent, int bus,
 }
 EXPORT_SYMBOL(pci_scan_root_bus);
 
-struct pci_bus *pci_create_bus(struct device *parent,
-		int bus, struct pci_ops *ops, void *sysdata)
-{
-	LIST_HEAD(resources);
-	struct pci_bus *b;
-
-	pci_add_resource(&resources, &ioport_resource);
-	pci_add_resource(&resources, &iomem_resource);
-	b = pci_create_root_bus(parent, bus, ops, sysdata, &resources);
-	if (!b)
-		pci_free_resource_list(&resources);
-	return b;
-}
-
 /* Deprecated; use pci_scan_root_bus() instead */
 struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent,
 		int bus, struct pci_ops *ops, void *sysdata)
