@@ -244,6 +244,15 @@ enum sci_remote_device_states {
 	SCI_STP_DEV_NCQ_ERROR,
 
 	/**
+	 * This is the ATAPI error state for the STP ATAPI remote device.
+	 * This state is entered when ATAPI device sends error status FIS
+	 * without data while the device object is in CMD state.
+	 * A suspension event is expected in this state.
+	 * The device object will resume right away.
+	 */
+	SCI_STP_DEV_ATAPI_ERROR,
+
+	/**
 	 * This is the READY substate indicates the device is waiting for the RESET task
 	 * coming to be recovered from certain hardware specific error.
 	 */

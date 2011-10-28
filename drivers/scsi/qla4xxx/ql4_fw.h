@@ -146,6 +146,13 @@ struct isp_reg {
 #define QL4022_NVRAM_SEM_MASK	(QL4022_RESOURCE_MASK_BASE_CODE << (10+16))
 #define QL4022_FLASH_SEM_MASK	(QL4022_RESOURCE_MASK_BASE_CODE << (13+16))
 
+/* nvram address for 4032 */
+#define NVRAM_PORT0_BOOT_MODE		0x03b1
+#define NVRAM_PORT0_BOOT_PRI_TGT	0x03b2
+#define NVRAM_PORT0_BOOT_SEC_TGT	0x03bb
+#define NVRAM_PORT1_BOOT_MODE		0x07b1
+#define NVRAM_PORT1_BOOT_PRI_TGT	0x07b2
+#define NVRAM_PORT1_BOOT_SEC_TGT	0x07bb
 
 
 /* Page # defines for 4022 */
@@ -194,6 +201,9 @@ static inline uint32_t clr_rmask(uint32_t val)
 /* ISP 4022 nvram definitions */
 #define NVR_WRITE_ENABLE			0x00000010	/* 4022 */
 
+#define QL4010_NVRAM_SIZE			0x200
+#define QL40X2_NVRAM_SIZE			0x800
+
 /*  ISP port_status definitions */
 
 /*  ISP Semaphore definitions */
@@ -241,6 +251,8 @@ union external_hw_config_reg {
 #define FA_BOOT_CODE_ADDR_82		0x20000
 #define FA_RISC_CODE_ADDR_82		0x40000
 #define FA_GOLD_RISC_CODE_ADDR_82	0x80000
+#define FA_FLASH_ISCSI_CHAP		0x540000
+#define FA_FLASH_CHAP_SIZE		0xC0000
 
 /* Flash Description Table */
 struct qla_fdt_layout {
@@ -296,8 +308,11 @@ struct qla_flt_header {
 #define FLT_REG_FLT		0x1c
 #define FLT_REG_BOOTLOAD_82	0x72
 #define FLT_REG_FW_82		0x74
+#define FLT_REG_FW_82_1		0x97
 #define FLT_REG_GOLD_FW_82	0x75
 #define FLT_REG_BOOT_CODE_82	0x78
+#define FLT_REG_ISCSI_PARAM	0x65
+#define FLT_REG_ISCSI_CHAP	0x63
 
 struct qla_flt_region {
 	uint32_t code;
@@ -331,9 +346,11 @@ struct qla_flt_region {
 #define MBOX_CMD_WRITE_FLASH			0x0025
 #define MBOX_CMD_READ_FLASH			0x0026
 #define MBOX_CMD_CLEAR_DATABASE_ENTRY		0x0031
+#define MBOX_CMD_CONN_OPEN			0x0074
 #define MBOX_CMD_CONN_CLOSE_SESS_LOGOUT		0x0056
-#define LOGOUT_OPTION_CLOSE_SESSION		0x01
-#define LOGOUT_OPTION_RELOGIN			0x02
+#define LOGOUT_OPTION_CLOSE_SESSION		0x0002
+#define LOGOUT_OPTION_RELOGIN			0x0004
+#define LOGOUT_OPTION_FREE_DDB			0x0008
 #define MBOX_CMD_EXECUTE_IOCB_A64		0x005A
 #define MBOX_CMD_INITIALIZE_FIRMWARE		0x0060
 #define MBOX_CMD_GET_INIT_FW_CTRL_BLOCK		0x0061
@@ -342,12 +359,15 @@ struct qla_flt_region {
 #define MBOX_CMD_GET_DATABASE_ENTRY		0x0064
 #define DDB_DS_UNASSIGNED			0x00
 #define DDB_DS_NO_CONNECTION_ACTIVE		0x01
+#define DDB_DS_DISCOVERY			0x02
 #define DDB_DS_SESSION_ACTIVE			0x04
 #define DDB_DS_SESSION_FAILED			0x06
 #define DDB_DS_LOGIN_IN_PROCESS			0x07
 #define MBOX_CMD_GET_FW_STATE			0x0069
 #define MBOX_CMD_GET_INIT_FW_CTRL_BLOCK_DEFAULTS 0x006A
 #define MBOX_CMD_GET_SYS_INFO			0x0078
+#define MBOX_CMD_GET_NVRAM			0x0078	/* For 40xx */
+#define MBOX_CMD_SET_NVRAM			0x0079	/* For 40xx */
 #define MBOX_CMD_RESTORE_FACTORY_DEFAULTS	0x0087
 #define MBOX_CMD_SET_ACB			0x0088
 #define MBOX_CMD_GET_ACB			0x0089
@@ -375,7 +395,10 @@ struct qla_flt_region {
 #define FW_ADDSTATE_DHCPv4_LEASE_EXPIRED	0x0008
 #define FW_ADDSTATE_LINK_UP			0x0010
 #define FW_ADDSTATE_ISNS_SVC_ENABLED		0x0020
+
 #define MBOX_CMD_GET_DATABASE_ENTRY_DEFAULTS	0x006B
+#define IPV6_DEFAULT_DDB_ENTRY			0x0001
+
 #define MBOX_CMD_CONN_OPEN_SESS_LOGIN		0x0074
 #define MBOX_CMD_GET_CRASH_RECORD		0x0076	/* 4010 only */
 #define MBOX_CMD_GET_CONN_EVENT_LOG		0x0077
@@ -434,6 +457,14 @@ struct qla_flt_region {
 #define ACB_STATE_VALID		0x05
 #define ACB_STATE_DISABLING	0x06
 
+/* FLASH offsets */
+#define FLASH_SEGMENT_IFCB	0x04000000
+
+#define FLASH_OPT_RMW_HOLD	0
+#define FLASH_OPT_RMW_INIT	1
+#define FLASH_OPT_COMMIT	2
+#define FLASH_OPT_RMW_COMMIT	3
+
 /*************************************************************************/
 
 /* Host Adapter Initialization Control Block (from host) */
@@ -455,7 +486,8 @@ struct addr_ctrl_blk {
 	uint8_t res0;	/* 07 */
 	uint16_t eth_mtu_size;	/* 08-09 */
 	uint16_t add_fw_options;	/* 0A-0B */
-#define SERIALIZE_TASK_MGMT		0x0400
+#define ADFWOPT_SERIALIZE_TASK_MGMT	0x0400
+#define ADFWOPT_AUTOCONN_DISABLE	0x0002
 
 	uint8_t hb_interval;	/* 0C */
 	uint8_t inst_num; /* 0D */
@@ -473,8 +505,10 @@ struct addr_ctrl_blk {
 
 	uint16_t iscsi_opts;	/* 30-31 */
 	uint16_t ipv4_tcp_opts;	/* 32-33 */
+#define TCPOPT_DHCP_ENABLE		0x0200
 	uint16_t ipv4_ip_opts;	/* 34-35 */
-#define  IPOPT_IPv4_PROTOCOL_ENABLE	0x8000
+#define IPOPT_IPV4_PROTOCOL_ENABLE	0x8000
+#define IPOPT_VLAN_TAGGING_ENABLE	0x2000
 
 	uint16_t iscsi_max_pdu_size;	/* 36-37 */
 	uint8_t ipv4_tos;	/* 38 */
@@ -526,6 +560,7 @@ struct addr_ctrl_blk {
 	uint16_t ipv6_port;	/* 204-205 */
 	uint16_t ipv6_opts;	/* 206-207 */
 #define IPV6_OPT_IPV6_PROTOCOL_ENABLE	0x8000
+#define IPV6_OPT_VLAN_TAGGING_ENABLE	0x2000
 
 	uint16_t ipv6_addtl_opts;	/* 208-209 */
 #define IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE	0x0002 /* Pri ACB
@@ -574,13 +609,105 @@ struct init_fw_ctrl_blk {
 /*	struct addr_ctrl_blk sec;*/
 };
 
+#define PRIMARI_ACB		0
+#define SECONDARY_ACB		1
+
+struct addr_ctrl_blk_def {
+	uint8_t reserved1[1];	/* 00 */
+	uint8_t control;	/* 01 */
+	uint8_t reserved2[11];	/* 02-0C */
+	uint8_t inst_num;	/* 0D */
+	uint8_t reserved3[34];	/* 0E-2F */
+	uint16_t iscsi_opts;	/* 30-31 */
+	uint16_t ipv4_tcp_opts;	/* 32-33 */
+	uint16_t ipv4_ip_opts;	/* 34-35 */
+	uint16_t iscsi_max_pdu_size;	/* 36-37 */
+	uint8_t ipv4_tos;	/* 38 */
+	uint8_t ipv4_ttl;	/* 39 */
+	uint8_t reserved4[2];	/* 3A-3B */
+	uint16_t def_timeout;	/* 3C-3D */
+	uint16_t iscsi_fburst_len;	/* 3E-3F */
+	uint8_t reserved5[4];	/* 40-43 */
+	uint16_t iscsi_max_outstnd_r2t;	/* 44-45 */
+	uint8_t reserved6[2];	/* 46-47 */
+	uint16_t ipv4_port;	/* 48-49 */
+	uint16_t iscsi_max_burst_len;	/* 4A-4B */
+	uint8_t reserved7[4];	/* 4C-4F */
+	uint8_t ipv4_addr[4];	/* 50-53 */
+	uint16_t ipv4_vlan_tag;	/* 54-55 */
+	uint8_t ipv4_addr_state;	/* 56 */
+	uint8_t ipv4_cacheid;	/* 57 */
+	uint8_t reserved8[8];	/* 58-5F */
+	uint8_t ipv4_subnet[4];	/* 60-63 */
+	uint8_t reserved9[12];	/* 64-6F */
+	uint8_t ipv4_gw_addr[4];	/* 70-73 */
+	uint8_t reserved10[84];	/* 74-C7 */
+	uint8_t abort_timer;	/* C8    */
+	uint8_t ipv4_tcp_wsf;	/* C9    */
+	uint8_t reserved11[10];	/* CA-D3 */
+	uint8_t ipv4_dhcp_vid_len;	/* D4 */
+	uint8_t ipv4_dhcp_vid[11];	/* D5-DF */
+	uint8_t reserved12[20];	/* E0-F3 */
+	uint8_t ipv4_dhcp_alt_cid_len;	/* F4 */
+	uint8_t ipv4_dhcp_alt_cid[11];	/* F5-FF */
+	uint8_t iscsi_name[224];	/* 100-1DF */
+	uint8_t reserved13[32];	/* 1E0-1FF */
+	uint32_t cookie;	/* 200-203 */
+	uint16_t ipv6_port;	/* 204-205 */
+	uint16_t ipv6_opts;	/* 206-207 */
+	uint16_t ipv6_addtl_opts;	/* 208-209 */
+	uint16_t ipv6_tcp_opts;		/* 20A-20B */
+	uint8_t ipv6_tcp_wsf;		/* 20C */
+	uint16_t ipv6_flow_lbl;		/* 20D-20F */
+	uint8_t ipv6_dflt_rtr_addr[16];	/* 210-21F */
+	uint16_t ipv6_vlan_tag;		/* 220-221 */
+	uint8_t ipv6_lnk_lcl_addr_state;	/* 222 */
+	uint8_t ipv6_addr0_state;	/* 223 */
+	uint8_t ipv6_addr1_state;	/* 224 */
+	uint8_t ipv6_dflt_rtr_state;	/* 225 */
+	uint8_t ipv6_traffic_class;	/* 226 */
+	uint8_t ipv6_hop_limit;		/* 227 */
+	uint8_t ipv6_if_id[8];		/* 228-22F */
+	uint8_t ipv6_addr0[16];		/* 230-23F */
+	uint8_t ipv6_addr1[16];		/* 240-24F */
+	uint32_t ipv6_nd_reach_time;	/* 250-253 */
+	uint32_t ipv6_nd_rexmit_timer;	/* 254-257 */
+	uint32_t ipv6_nd_stale_timeout;	/* 258-25B */
+	uint8_t ipv6_dup_addr_detect_count;	/* 25C */
+	uint8_t ipv6_cache_id;		/* 25D */
+	uint8_t reserved14[18];		/* 25E-26F */
+	uint32_t ipv6_gw_advrt_mtu;	/* 270-273 */
+	uint8_t reserved15[140];	/* 274-2FF */
+};
+
 /*************************************************************************/
+
+#define MAX_CHAP_ENTRIES_40XX	128
+#define MAX_CHAP_ENTRIES_82XX	1024
+#define MAX_RESRV_CHAP_IDX	3
+#define FLASH_CHAP_OFFSET	0x06000000
+
+struct ql4_chap_table {
+	uint16_t link;
+	uint8_t flags;
+	uint8_t secret_len;
+#define MIN_CHAP_SECRET_LEN	12
+#define MAX_CHAP_SECRET_LEN	100
+	uint8_t secret[MAX_CHAP_SECRET_LEN];
+#define MAX_CHAP_NAME_LEN	256
+	uint8_t name[MAX_CHAP_NAME_LEN];
+	uint16_t reserved;
+#define CHAP_VALID_COOKIE	0x4092
+#define CHAP_INVALID_COOKIE	0xFFEE
+	uint16_t cookie;
+};
 
 struct dev_db_entry {
 	uint16_t options;	/* 00-01 */
 #define DDB_OPT_DISC_SESSION  0x10
 #define DDB_OPT_TARGET	      0x02 /* device is a target */
 #define DDB_OPT_IPV6_DEVICE	0x100
+#define DDB_OPT_AUTO_SENDTGTS_DISABLE		0x40
 #define DDB_OPT_IPV6_NULL_LINK_LOCAL		0x800 /* post connection */
 #define DDB_OPT_IPV6_FW_DEFINED_LINK_LOCAL	0x800 /* pre connection */
 
@@ -591,6 +718,7 @@ struct dev_db_entry {
 	uint16_t tcp_options;	/* 0A-0B */
 	uint16_t ip_options;	/* 0C-0D */
 	uint16_t iscsi_max_rcv_data_seg_len;	/* 0E-0F */
+#define BYTE_UNITS	512
 	uint32_t res1;	/* 10-13 */
 	uint16_t iscsi_max_snd_data_seg_len;	/* 14-15 */
 	uint16_t iscsi_first_burst_len;	/* 16-17 */
@@ -627,7 +755,10 @@ struct dev_db_entry {
 	uint8_t tcp_rcv_wsf;	/* 1C7 */
 	uint32_t stat_sn;	/* 1C8-1CB */
 	uint32_t exp_stat_sn;	/* 1CC-1CF */
-	uint8_t res6[0x30];	/* 1D0-1FF */
+	uint8_t res6[0x2b];	/* 1D0-1FB */
+#define DDB_VALID_COOKIE	0x9034
+	uint16_t cookie;	/* 1FC-1FD */
+	uint16_t len;		/* 1FE-1FF */
 };
 
 /*************************************************************************/
@@ -639,6 +770,14 @@ struct dev_db_entry {
 #define FLASH_EOF_OFFSET	(FLASH_DEFAULTBLOCKSIZE-8) /* 4 bytes
 							    * for EOF
 							    * signature */
+#define FLASH_RAW_ACCESS_ADDR	0x8e000000
+
+#define BOOT_PARAM_OFFSET_PORT0 0x3b0
+#define BOOT_PARAM_OFFSET_PORT1 0x7b0
+
+#define FLASH_OFFSET_DB_INFO	0x05000000
+#define FLASH_OFFSET_DB_END	(FLASH_OFFSET_DB_INFO + 0x7fff)
+
 
 struct sys_info_phys_addr {
 	uint8_t address[6];	/* 00-05 */
@@ -774,6 +913,7 @@ struct qla4_header {
 
 	uint8_t entryStatus;
 	uint8_t systemDefined;
+#define SD_ISCSI_PDU	0x01
 	uint8_t entryCount;
 
 	/* SyetemDefined definition */
@@ -931,21 +1071,22 @@ struct passthru0 {
 	struct qla4_header hdr;		       /* 00-03 */
 	uint32_t handle;	/* 04-07 */
 	uint16_t target;	/* 08-09 */
-	uint16_t connectionID;	/* 0A-0B */
+	uint16_t connection_id;	/* 0A-0B */
 #define ISNS_DEFAULT_SERVER_CONN_ID	((uint16_t)0x8000)
 
-	uint16_t controlFlags;	/* 0C-0D */
+	uint16_t control_flags;	/* 0C-0D */
 #define PT_FLAG_ETHERNET_FRAME		0x8000
 #define PT_FLAG_ISNS_PDU		0x8000
 #define PT_FLAG_SEND_BUFFER		0x0200
 #define PT_FLAG_WAIT_4_RESPONSE		0x0100
+#define PT_FLAG_ISCSI_PDU		0x1000
 
 	uint16_t timeout;	/* 0E-0F */
 #define PT_DEFAULT_TIMEOUT		30 /* seconds */
 
-	struct data_seg_a64 outDataSeg64;	/* 10-1B */
+	struct data_seg_a64 out_dsd;    /* 10-1B */
 	uint32_t res1;		/* 1C-1F */
-	struct data_seg_a64 inDataSeg64;	/* 20-2B */
+	struct data_seg_a64 in_dsd;     /* 20-2B */
 	uint8_t res2[20];	/* 2C-3F */
 };
 
@@ -976,6 +1117,45 @@ struct response {
 	uint8_t data[60];
 	uint32_t signature;
 #define RESPONSE_PROCESSED	0xDEADDEAD	/* Signature */
+};
+
+struct ql_iscsi_stats {
+	uint8_t reserved1[656]; /* 0000-028F */
+	uint32_t tx_cmd_pdu; /* 0290-0293 */
+	uint32_t tx_resp_pdu; /* 0294-0297 */
+	uint32_t rx_cmd_pdu; /* 0298-029B */
+	uint32_t rx_resp_pdu; /* 029C-029F */
+
+	uint64_t tx_data_octets; /* 02A0-02A7 */
+	uint64_t rx_data_octets; /* 02A8-02AF */
+
+	uint32_t hdr_digest_err; /* 02B0–02B3 */
+	uint32_t data_digest_err; /* 02B4–02B7 */
+	uint32_t conn_timeout_err; /* 02B8–02BB */
+	uint32_t framing_err; /* 02BC–02BF */
+
+	uint32_t tx_nopout_pdus; /* 02C0–02C3 */
+	uint32_t tx_scsi_cmd_pdus;  /* 02C4–02C7 */
+	uint32_t tx_tmf_cmd_pdus; /* 02C8–02CB */
+	uint32_t tx_login_cmd_pdus; /* 02CC–02CF */
+	uint32_t tx_text_cmd_pdus; /* 02D0–02D3 */
+	uint32_t tx_scsi_write_pdus; /* 02D4–02D7 */
+	uint32_t tx_logout_cmd_pdus; /* 02D8–02DB */
+	uint32_t tx_snack_req_pdus; /* 02DC–02DF */
+
+	uint32_t rx_nopin_pdus; /* 02E0–02E3 */
+	uint32_t rx_scsi_resp_pdus; /* 02E4–02E7 */
+	uint32_t rx_tmf_resp_pdus; /* 02E8–02EB */
+	uint32_t rx_login_resp_pdus; /* 02EC–02EF */
+	uint32_t rx_text_resp_pdus; /* 02F0–02F3 */
+	uint32_t rx_scsi_read_pdus; /* 02F4–02F7 */
+	uint32_t rx_logout_resp_pdus; /* 02F8–02FB */
+
+	uint32_t rx_r2t_pdus; /* 02FC–02FF */
+	uint32_t rx_async_pdus; /* 0300–0303 */
+	uint32_t rx_reject_pdus; /* 0304–0307 */
+
+	uint8_t reserved2[264]; /* 0x0308 - 0x040F */
 };
 
 #endif /*  _QLA4X_FW_H */

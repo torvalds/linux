@@ -293,13 +293,11 @@ struct lpfc_sli {
 	struct lpfc_lnk_stat lnk_stat_offsets;
 };
 
-#define LPFC_MBOX_TMO           30	/* Sec tmo for outstanding mbox
-					   command */
-#define LPFC_MBOX_SLI4_CONFIG_TMO 60	/* Sec tmo for outstanding mbox
-					   command */
-#define LPFC_MBOX_TMO_FLASH_CMD 300     /* Sec tmo for outstanding FLASH write
-					 * or erase cmds. This is especially
-					 * long because of the potential of
-					 * multiple flash erases that can be
-					 * spawned.
-					 */
+/* Timeout for normal outstanding mbox command (Seconds) */
+#define LPFC_MBOX_TMO				30
+/* Timeout for non-flash-based outstanding sli_config mbox command (Seconds) */
+#define LPFC_MBOX_SLI4_CONFIG_TMO		60
+/* Timeout for flash-based outstanding sli_config mbox command (Seconds) */
+#define LPFC_MBOX_SLI4_CONFIG_EXTENDED_TMO	300
+/* Timeout for other flash-based outstanding mbox command (Seconds) */
+#define LPFC_MBOX_TMO_FLASH_CMD			300

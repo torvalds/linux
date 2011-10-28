@@ -294,8 +294,8 @@ static void isci_port_link_down(struct isci_host *isci_host,
 					__func__, isci_device);
 				set_bit(IDEV_GONE, &isci_device->flags);
 			}
+			isci_port_change_state(isci_port, isci_stopping);
 		}
-		isci_port_change_state(isci_port, isci_stopping);
 	}
 
 	/* Notify libsas of the borken link, this will trigger calls to our

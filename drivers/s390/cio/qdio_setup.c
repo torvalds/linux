@@ -381,6 +381,7 @@ static void setup_qdr(struct qdio_irq *irq_ptr,
 	int i;
 
 	irq_ptr->qdr->qfmt = qdio_init->q_format;
+	irq_ptr->qdr->ac = qdio_init->qdr_ac;
 	irq_ptr->qdr->iqdcnt = qdio_init->no_input_qs;
 	irq_ptr->qdr->oqdcnt = qdio_init->no_output_qs;
 	irq_ptr->qdr->iqdsz = sizeof(struct qdesfmt0) / 4; /* size in words */

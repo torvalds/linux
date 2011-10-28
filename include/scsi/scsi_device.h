@@ -197,6 +197,7 @@ struct scsi_device_handler {
 	int (*activate)(struct scsi_device *, activate_complete, void *);
 	int (*prep_fn)(struct scsi_device *, struct request *);
 	int (*set_params)(struct scsi_device *, const char *);
+	bool (*match)(struct scsi_device *);
 };
 
 struct scsi_dh_data {
@@ -469,6 +470,11 @@ static inline int scsi_device_enclosure(struct scsi_device *sdev)
 static inline int scsi_device_protection(struct scsi_device *sdev)
 {
 	return sdev->scsi_level > SCSI_2 && sdev->inquiry[5] & (1<<0);
+}
+
+static inline int scsi_device_tpgs(struct scsi_device *sdev)
+{
+	return sdev->inquiry ? (sdev->inquiry[5] >> 4) & 0x3 : 0;
 }
 
 #define MODULE_ALIAS_SCSI_DEVICE(type) \

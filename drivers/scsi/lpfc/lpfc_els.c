@@ -3386,7 +3386,14 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			cmdiocb->context1 = NULL;
 		}
 	}
+
+	/*
+	 * The driver received a LOGO from the rport and has ACK'd it.
+	 * At this point, the driver is done so release the IOCB and
+	 * remove the ndlp reference.
+	 */
 	lpfc_els_free_iocb(phba, cmdiocb);
+	lpfc_nlp_put(ndlp);
 	return;
 }
 
@@ -4082,9 +4089,6 @@ lpfc_els_rsp_rnid_acc(struct lpfc_vport *vport, uint8_t format,
 
 	phba->fc_stat.elsXmitACC++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
-	lpfc_nlp_put(ndlp);
-	elsiocb->context1 = NULL;  /* Don't need ndlp for cmpl,
-				    * it could be freed */
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 	if (rc == IOCB_ERROR) {
@@ -4166,6 +4170,11 @@ lpfc_els_rsp_echo_acc(struct lpfc_vport *vport, uint8_t *data,
 	psli = &phba->sli;
 	cmdsize = oldiocb->iocb.unsli3.rcvsli3.acc_len;
 
+	/* The accumulated length can exceed the BPL_SIZE.  For
+	 * now, use this as the limit
+	 */
+	if (cmdsize > LPFC_BPL_SIZE)
+		cmdsize = LPFC_BPL_SIZE;
 	elsiocb = lpfc_prep_els_iocb(vport, 0, cmdsize, oldiocb->retry, ndlp,
 				     ndlp->nlp_DID, ELS_CMD_ACC);
 	if (!elsiocb)
@@ -4189,9 +4198,6 @@ lpfc_els_rsp_echo_acc(struct lpfc_vport *vport, uint8_t *data,
 
 	phba->fc_stat.elsXmitACC++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
-	lpfc_nlp_put(ndlp);
-	elsiocb->context1 = NULL;  /* Don't need ndlp for cmpl,
-				    * it could be freed */
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 	if (rc == IOCB_ERROR) {
@@ -7258,16 +7264,11 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	icmd->un.elsreq64.myID = 0;
 	icmd->un.elsreq64.fl = 1;
 
-	if  ((phba->sli_rev == LPFC_SLI_REV4) &&
-	     (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
-	      LPFC_SLI_INTF_IF_TYPE_0)) {
-		/* FDISC needs to be 1 for WQE VPI */
-		elsiocb->iocb.ulpCt_h = (SLI4_CT_VPI >> 1) & 1;
-		elsiocb->iocb.ulpCt_l = SLI4_CT_VPI & 1 ;
-		/* Set the ulpContext to the vpi */
-		elsiocb->iocb.ulpContext = phba->vpi_ids[vport->vpi];
-	} else {
-		/* For FDISC, Let FDISC rsp set the NPortID for this VPI */
+	/*
+	 * SLI3 ports require a different context type value than SLI4.
+	 * Catch SLI3 ports here and override the prep.
+	 */
+	if (phba->sli_rev == LPFC_SLI_REV3) {
 		icmd->ulpCt_h = 1;
 		icmd->ulpCt_l = 0;
 	}

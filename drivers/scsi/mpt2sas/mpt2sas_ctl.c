@@ -2704,6 +2704,33 @@ _ctl_ioc_reset_count_show(struct device *cdev, struct device_attribute *attr,
 static DEVICE_ATTR(ioc_reset_count, S_IRUGO,
     _ctl_ioc_reset_count_show, NULL);
 
+/**
+ * _ctl_ioc_reply_queue_count_show - number of reply queues
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * This is number of reply queues
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t
+_ctl_ioc_reply_queue_count_show(struct device *cdev,
+	 struct device_attribute *attr, char *buf)
+{
+	u8 reply_queue_count;
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	if ((ioc->facts.IOCCapabilities &
+	    MPI2_IOCFACTS_CAPABILITY_MSI_X_INDEX) && ioc->msix_enable)
+		reply_queue_count = ioc->reply_queue_count;
+	else
+		reply_queue_count = 1;
+	return snprintf(buf, PAGE_SIZE, "%d\n", reply_queue_count);
+}
+static DEVICE_ATTR(reply_queue_count, S_IRUGO,
+	 _ctl_ioc_reply_queue_count_show, NULL);
+
 struct DIAG_BUFFER_START {
 	__le32 Size;
 	__le32 DiagVersion;
@@ -2914,6 +2941,7 @@ struct device_attribute *mpt2sas_host_attrs[] = {
 	&dev_attr_host_trace_buffer_size,
 	&dev_attr_host_trace_buffer,
 	&dev_attr_host_trace_buffer_enable,
+	&dev_attr_reply_queue_count,
 	NULL,
 };
 

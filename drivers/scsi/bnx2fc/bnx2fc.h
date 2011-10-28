@@ -62,7 +62,7 @@
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
-#define BNX2FC_VERSION		"1.0.4"
+#define BNX2FC_VERSION		"1.0.8"
 
 #define PFX			"bnx2fc: "
 
@@ -224,6 +224,7 @@ struct bnx2fc_interface {
 	struct fcoe_ctlr ctlr;
 	u8 vlan_enabled;
 	int vlan_id;
+	bool enabled;
 };
 
 #define bnx2fc_from_ctlr(fip) container_of(fip, struct bnx2fc_interface, ctlr)

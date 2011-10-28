@@ -1480,13 +1480,19 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			if (rval == QLA_SUCCESS) {
 enable_82xx_npiv:
 				fw_major_version = ha->fw_major_version;
-				rval = qla2x00_get_fw_version(vha,
-				    &ha->fw_major_version,
-				    &ha->fw_minor_version,
-				    &ha->fw_subminor_version,
-				    &ha->fw_attributes, &ha->fw_memory_size,
-				    ha->mpi_version, &ha->mpi_capabilities,
-				    ha->phy_version);
+				if (IS_QLA82XX(ha))
+					qla82xx_check_md_needed(vha);
+				else {
+					rval = qla2x00_get_fw_version(vha,
+					    &ha->fw_major_version,
+					    &ha->fw_minor_version,
+					    &ha->fw_subminor_version,
+					    &ha->fw_attributes,
+					    &ha->fw_memory_size,
+					    ha->mpi_version,
+					    &ha->mpi_capabilities,
+					    ha->phy_version);
+				}
 				if (rval != QLA_SUCCESS)
 					goto failed;
 				ha->flags.npiv_supported = 0;
@@ -1503,10 +1509,8 @@ enable_82xx_npiv:
 				    &ha->fw_xcb_count, NULL, NULL,
 				    &ha->max_npiv_vports, NULL);
 
-				if (!fw_major_version && ql2xallocfwdump) {
-					if (!IS_QLA82XX(ha))
-						qla2x00_alloc_fw_dump(vha);
-				}
+				if (!fw_major_version && ql2xallocfwdump)
+					qla2x00_alloc_fw_dump(vha);
 			}
 		} else {
 			ql_log(ql_log_fatal, vha, 0x00cd,
@@ -1924,7 +1928,7 @@ qla2x00_fw_ready(scsi_qla_host_t *vha)
 					rval = qla84xx_init_chip(vha);
 					if (rval != QLA_SUCCESS) {
 						ql_log(ql_log_warn,
-						    vha, 0x8043,
+						    vha, 0x8026,
 						    "Init chip failed.\n");
 						break;
 					}
@@ -1933,7 +1937,7 @@ qla2x00_fw_ready(scsi_qla_host_t *vha)
 					cs84xx_time = jiffies - cs84xx_time;
 					wtime += cs84xx_time;
 					mtime += cs84xx_time;
-					ql_dbg(ql_dbg_taskm, vha, 0x8042,
+					ql_dbg(ql_dbg_taskm, vha, 0x8025,
 					    "Increasing wait time by %ld. "
 					    "New time %ld.\n", cs84xx_time,
 					    wtime);
@@ -5443,11 +5447,7 @@ qla82xx_restart_isp(scsi_qla_host_t *vha)
 		clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
 
 		/* Update the firmware version */
-		qla2x00_get_fw_version(vha, &ha->fw_major_version,
-		    &ha->fw_minor_version, &ha->fw_subminor_version,
-		    &ha->fw_attributes, &ha->fw_memory_size,
-		    ha->mpi_version, &ha->mpi_capabilities,
-		    ha->phy_version);
+		status = qla82xx_check_md_needed(vha);
 
 		if (ha->fce) {
 			ha->flags.fce_enabled = 1;
