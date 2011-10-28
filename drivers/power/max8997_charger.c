@@ -97,7 +97,7 @@ static __devinit int max8997_battery_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	if (pdata->eoc_mA) {
-		u8 val = (pdata->eoc_mA - 50) / 10;
+		int val = (pdata->eoc_mA - 50) / 10;
 		if (val < 0)
 			val = 0;
 		if (val > 0xf)
