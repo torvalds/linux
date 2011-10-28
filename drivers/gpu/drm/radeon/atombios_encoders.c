@@ -585,97 +585,140 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
 		return;
 
-	args.v1.ucAction = action;
-	args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
-	if (action == ATOM_ENCODER_CMD_SETUP_PANEL_MODE)
-		args.v3.ucPanelMode = panel_mode;
-	else
-		args.v1.ucEncoderMode = atombios_get_encoder_mode(encoder);
+	switch (frev) {
+	case 1:
+		switch (crev) {
+		case 1:
+			args.v1.ucAction = action;
+			args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+			if (action == ATOM_ENCODER_CMD_SETUP_PANEL_MODE)
+				args.v3.ucPanelMode = panel_mode;
+			else
+				args.v1.ucEncoderMode = atombios_get_encoder_mode(encoder);
 
-	if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode))
-		args.v1.ucLaneNum = dp_lane_count;
-	else if (radeon_encoder->pixel_clock > 165000)
-		args.v1.ucLaneNum = 8;
-	else
-		args.v1.ucLaneNum = 4;
+			if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode))
+				args.v1.ucLaneNum = dp_lane_count;
+			else if (radeon_encoder->pixel_clock > 165000)
+				args.v1.ucLaneNum = 8;
+			else
+				args.v1.ucLaneNum = 4;
 
-	if (ASIC_IS_DCE5(rdev)) {
-		if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode)) {
-			if (dp_clock == 270000)
-				args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_2_70GHZ;
-			else if (dp_clock == 540000)
-				args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_5_40GHZ;
-		}
-		args.v4.acConfig.ucDigSel = dig->dig_encoder;
-		switch (bpc) {
-		case 0:
-			args.v4.ucBitPerColor = PANEL_BPC_UNDEFINE;
+			if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode) && (dp_clock == 270000))
+				args.v1.ucConfig |= ATOM_ENCODER_CONFIG_DPLINKRATE_2_70GHZ;
+			switch (radeon_encoder->encoder_id) {
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+				args.v1.ucConfig = ATOM_ENCODER_CONFIG_V2_TRANSMITTER1;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+			case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+				args.v1.ucConfig = ATOM_ENCODER_CONFIG_V2_TRANSMITTER2;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+				args.v1.ucConfig = ATOM_ENCODER_CONFIG_V2_TRANSMITTER3;
+				break;
+			}
+			if (dig->linkb)
+				args.v1.ucConfig |= ATOM_ENCODER_CONFIG_LINKB;
+			else
+				args.v1.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
 			break;
-		case 6:
-			args.v4.ucBitPerColor = PANEL_6BIT_PER_COLOR;
+		case 2:
+		case 3:
+			args.v3.ucAction = action;
+			args.v3.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+			if (action == ATOM_ENCODER_CMD_SETUP_PANEL_MODE)
+				args.v3.ucPanelMode = panel_mode;
+			else
+				args.v3.ucEncoderMode = atombios_get_encoder_mode(encoder);
+
+			if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode))
+				args.v3.ucLaneNum = dp_lane_count;
+			else if (radeon_encoder->pixel_clock > 165000)
+				args.v3.ucLaneNum = 8;
+			else
+				args.v3.ucLaneNum = 4;
+
+			if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode) && (dp_clock == 270000))
+				args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V3_DPLINKRATE_2_70GHZ;
+			args.v3.acConfig.ucDigSel = dig->dig_encoder;
+			switch (bpc) {
+			case 0:
+				args.v3.ucBitPerColor = PANEL_BPC_UNDEFINE;
+				break;
+			case 6:
+				args.v3.ucBitPerColor = PANEL_6BIT_PER_COLOR;
+				break;
+			case 8:
+			default:
+				args.v3.ucBitPerColor = PANEL_8BIT_PER_COLOR;
+				break;
+			case 10:
+				args.v3.ucBitPerColor = PANEL_10BIT_PER_COLOR;
+				break;
+			case 12:
+				args.v3.ucBitPerColor = PANEL_12BIT_PER_COLOR;
+				break;
+			case 16:
+				args.v3.ucBitPerColor = PANEL_16BIT_PER_COLOR;
+				break;
+			}
 			break;
-		case 8:
+		case 4:
+			args.v4.ucAction = action;
+			args.v4.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+			if (action == ATOM_ENCODER_CMD_SETUP_PANEL_MODE)
+				args.v4.ucPanelMode = panel_mode;
+			else
+				args.v4.ucEncoderMode = atombios_get_encoder_mode(encoder);
+
+			if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode))
+				args.v4.ucLaneNum = dp_lane_count;
+			else if (radeon_encoder->pixel_clock > 165000)
+				args.v4.ucLaneNum = 8;
+			else
+				args.v4.ucLaneNum = 4;
+
+			if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode)) {
+				if (dp_clock == 270000)
+					args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_2_70GHZ;
+				else if (dp_clock == 540000)
+					args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_5_40GHZ;
+			}
+			args.v4.acConfig.ucDigSel = dig->dig_encoder;
+			switch (bpc) {
+			case 0:
+				args.v4.ucBitPerColor = PANEL_BPC_UNDEFINE;
+				break;
+			case 6:
+				args.v4.ucBitPerColor = PANEL_6BIT_PER_COLOR;
+				break;
+			case 8:
+			default:
+				args.v4.ucBitPerColor = PANEL_8BIT_PER_COLOR;
+				break;
+			case 10:
+				args.v4.ucBitPerColor = PANEL_10BIT_PER_COLOR;
+				break;
+			case 12:
+				args.v4.ucBitPerColor = PANEL_12BIT_PER_COLOR;
+				break;
+			case 16:
+				args.v4.ucBitPerColor = PANEL_16BIT_PER_COLOR;
+				break;
+			}
+			if (hpd_id == RADEON_HPD_NONE)
+				args.v4.ucHPD_ID = 0;
+			else
+				args.v4.ucHPD_ID = hpd_id + 1;
+			break;
 		default:
-			args.v4.ucBitPerColor = PANEL_8BIT_PER_COLOR;
-			break;
-		case 10:
-			args.v4.ucBitPerColor = PANEL_10BIT_PER_COLOR;
-			break;
-		case 12:
-			args.v4.ucBitPerColor = PANEL_12BIT_PER_COLOR;
-			break;
-		case 16:
-			args.v4.ucBitPerColor = PANEL_16BIT_PER_COLOR;
+			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
 			break;
 		}
-		if (hpd_id == RADEON_HPD_NONE)
-			args.v4.ucHPD_ID = 0;
-		else
-			args.v4.ucHPD_ID = hpd_id + 1;
-	} else if (ASIC_IS_DCE4(rdev)) {
-		if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode) && (dp_clock == 270000))
-			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V3_DPLINKRATE_2_70GHZ;
-		args.v3.acConfig.ucDigSel = dig->dig_encoder;
-		switch (bpc) {
-		case 0:
-			args.v3.ucBitPerColor = PANEL_BPC_UNDEFINE;
-			break;
-		case 6:
-			args.v3.ucBitPerColor = PANEL_6BIT_PER_COLOR;
-			break;
-		case 8:
-		default:
-			args.v3.ucBitPerColor = PANEL_8BIT_PER_COLOR;
-			break;
-		case 10:
-			args.v3.ucBitPerColor = PANEL_10BIT_PER_COLOR;
-			break;
-		case 12:
-			args.v3.ucBitPerColor = PANEL_12BIT_PER_COLOR;
-			break;
-		case 16:
-			args.v3.ucBitPerColor = PANEL_16BIT_PER_COLOR;
-			break;
-		}
-	} else {
-		if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode) && (dp_clock == 270000))
-			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_DPLINKRATE_2_70GHZ;
-		switch (radeon_encoder->encoder_id) {
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-			args.v1.ucConfig = ATOM_ENCODER_CONFIG_V2_TRANSMITTER1;
-			break;
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-			args.v1.ucConfig = ATOM_ENCODER_CONFIG_V2_TRANSMITTER2;
-			break;
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-			args.v1.ucConfig = ATOM_ENCODER_CONFIG_V2_TRANSMITTER3;
-			break;
-		}
-		if (dig->linkb)
-			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_LINKB;
-		else
-			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
+		break;
+	default:
+		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		break;
 	}
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
