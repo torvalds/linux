@@ -822,6 +822,13 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 	}
 
+	/* Ignore absolute values that are out of bounds */
+	if ((usage->type == EV_ABS && (value < field->logical_minimum ||
+					value > field->logical_maximum))) {
+		dbg_hid("Ignoring out-of-range value %x\n", value);
+		return;
+	}
+
 	/* report the usage code as scancode if the key status has changed */
 	if (usage->type == EV_KEY && !!test_bit(usage->code, input->key) != value)
 		input_event(input, EV_MSC, MSC_SCAN, usage->hid);
