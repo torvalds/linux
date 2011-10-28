@@ -1637,6 +1637,7 @@ struct pci_bus *pci_create_bus(struct device *parent,
 	return b;
 }
 
+/* Deprecated; use pci_scan_root_bus() instead */
 struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent,
 		int bus, struct pci_ops *ops, void *sysdata)
 {
