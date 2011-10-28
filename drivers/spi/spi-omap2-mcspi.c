@@ -1196,6 +1196,7 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 err4:
 	spi_master_put(master);
 err3:
+	pm_runtime_disable(&pdev->dev);
 	kfree(mcspi->dma_channels);
 err2:
 	release_mem_region(r->start, resource_size(r));
@@ -1217,6 +1218,7 @@ static int __exit omap2_mcspi_remove(struct platform_device *pdev)
 	dma_channels = mcspi->dma_channels;
 
 	omap2_mcspi_disable_clocks(mcspi);
+	pm_runtime_disable(&pdev->dev);
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(r->start, resource_size(r));
 
