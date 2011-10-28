@@ -772,6 +772,11 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		igp_lane_info = dig_connector->igp_lane_info;
 	}
 
+	if (encoder->crtc) {
+		struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
+		pll_id = radeon_crtc->pll_id;
+	}
+
 	/* no dig encoder assigned */
 	if (dig_encoder == -1)
 		return;
@@ -798,44 +803,202 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
 		return;
 
-	args.v1.ucAction = action;
-	if (action == ATOM_TRANSMITTER_ACTION_INIT) {
-		args.v1.usInitInfo = cpu_to_le16(connector_object_id);
-	} else if (action == ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH) {
-		args.v1.asMode.ucLaneSel = lane_num;
-		args.v1.asMode.ucLaneSet = lane_set;
-	} else {
-		if (is_dp)
-			args.v1.usPixelClock =
-				cpu_to_le16(dp_clock / 10);
-		else if (radeon_encoder->pixel_clock > 165000)
-			args.v1.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
-		else
-			args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
-	}
-	if (ASIC_IS_DCE4(rdev)) {
-		if (is_dp)
-			args.v3.ucLaneNum = dp_lane_count;
-		else if (radeon_encoder->pixel_clock > 165000)
-			args.v3.ucLaneNum = 8;
-		else
-			args.v3.ucLaneNum = 4;
+	switch (frev) {
+	case 1:
+		switch (crev) {
+		case 1:
+			args.v1.ucAction = action;
+			if (action == ATOM_TRANSMITTER_ACTION_INIT) {
+				args.v1.usInitInfo = cpu_to_le16(connector_object_id);
+			} else if (action == ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH) {
+				args.v1.asMode.ucLaneSel = lane_num;
+				args.v1.asMode.ucLaneSet = lane_set;
+			} else {
+				if (is_dp)
+					args.v1.usPixelClock =
+						cpu_to_le16(dp_clock / 10);
+				else if (radeon_encoder->pixel_clock > 165000)
+					args.v1.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
+				else
+					args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+			}
 
-		if (dig->linkb)
-			args.v3.acConfig.ucLinkSel = 1;
-		if (dig_encoder & 1)
-			args.v3.acConfig.ucEncoderSel = 1;
+			args.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
 
-		/* Select the PLL for the PHY
-		 * DP PHY should be clocked from external src if there is
-		 * one.
-		 */
-		if (encoder->crtc) {
-			struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
-			pll_id = radeon_crtc->pll_id;
-		}
+			if (dig_encoder)
+				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
+			else
+				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
 
-		if (ASIC_IS_DCE5(rdev)) {
+			if ((rdev->flags & RADEON_IS_IGP) &&
+			    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_UNIPHY)) {
+				if (is_dp || (radeon_encoder->pixel_clock <= 165000)) {
+					if (igp_lane_info & 0x1)
+						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_3;
+					else if (igp_lane_info & 0x2)
+						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_4_7;
+					else if (igp_lane_info & 0x4)
+						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_11;
+					else if (igp_lane_info & 0x8)
+						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_12_15;
+				} else {
+					if (igp_lane_info & 0x3)
+						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_7;
+					else if (igp_lane_info & 0xc)
+						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_15;
+				}
+			}
+
+			if (dig->linkb)
+				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKB;
+			else
+				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA;
+
+			if (is_dp)
+				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
+			else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
+				if (dig->coherent_mode)
+					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
+				if (radeon_encoder->pixel_clock > 165000)
+					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_8LANE_LINK;
+			}
+			break;
+		case 2:
+			args.v2.ucAction = action;
+			if (action == ATOM_TRANSMITTER_ACTION_INIT) {
+				args.v2.usInitInfo = cpu_to_le16(connector_object_id);
+			} else if (action == ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH) {
+				args.v2.asMode.ucLaneSel = lane_num;
+				args.v2.asMode.ucLaneSet = lane_set;
+			} else {
+				if (is_dp)
+					args.v2.usPixelClock =
+						cpu_to_le16(dp_clock / 10);
+				else if (radeon_encoder->pixel_clock > 165000)
+					args.v2.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
+				else
+					args.v2.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+			}
+
+			args.v2.acConfig.ucEncoderSel = dig_encoder;
+			if (dig->linkb)
+				args.v2.acConfig.ucLinkSel = 1;
+
+			switch (radeon_encoder->encoder_id) {
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+				args.v2.acConfig.ucTransmitterSel = 0;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+				args.v2.acConfig.ucTransmitterSel = 1;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+				args.v2.acConfig.ucTransmitterSel = 2;
+				break;
+			}
+
+			if (is_dp) {
+				args.v2.acConfig.fCoherentMode = 1;
+				args.v2.acConfig.fDPConnector = 1;
+			} else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
+				if (dig->coherent_mode)
+					args.v2.acConfig.fCoherentMode = 1;
+				if (radeon_encoder->pixel_clock > 165000)
+					args.v2.acConfig.fDualLinkConnector = 1;
+			}
+			break;
+		case 3:
+			args.v3.ucAction = action;
+			if (action == ATOM_TRANSMITTER_ACTION_INIT) {
+				args.v3.usInitInfo = cpu_to_le16(connector_object_id);
+			} else if (action == ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH) {
+				args.v3.asMode.ucLaneSel = lane_num;
+				args.v3.asMode.ucLaneSet = lane_set;
+			} else {
+				if (is_dp)
+					args.v3.usPixelClock =
+						cpu_to_le16(dp_clock / 10);
+				else if (radeon_encoder->pixel_clock > 165000)
+					args.v3.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
+				else
+					args.v3.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+			}
+
+			if (is_dp)
+				args.v3.ucLaneNum = dp_lane_count;
+			else if (radeon_encoder->pixel_clock > 165000)
+				args.v3.ucLaneNum = 8;
+			else
+				args.v3.ucLaneNum = 4;
+
+			if (dig->linkb)
+				args.v3.acConfig.ucLinkSel = 1;
+			if (dig_encoder & 1)
+				args.v3.acConfig.ucEncoderSel = 1;
+
+			/* Select the PLL for the PHY
+			 * DP PHY should be clocked from external src if there is
+			 * one.
+			 */
+			/* On DCE4, if there is an external clock, it generates the DP ref clock */
+			if (is_dp && rdev->clock.dp_extclk)
+				args.v3.acConfig.ucRefClkSource = 2; /* external src */
+			else
+				args.v3.acConfig.ucRefClkSource = pll_id;
+
+			switch (radeon_encoder->encoder_id) {
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+				args.v3.acConfig.ucTransmitterSel = 0;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+				args.v3.acConfig.ucTransmitterSel = 1;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+				args.v3.acConfig.ucTransmitterSel = 2;
+				break;
+			}
+
+			if (is_dp)
+				args.v3.acConfig.fCoherentMode = 1; /* DP requires coherent */
+			else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
+				if (dig->coherent_mode)
+					args.v3.acConfig.fCoherentMode = 1;
+				if (radeon_encoder->pixel_clock > 165000)
+					args.v3.acConfig.fDualLinkConnector = 1;
+			}
+			break;
+		case 4:
+			args.v4.ucAction = action;
+			if (action == ATOM_TRANSMITTER_ACTION_INIT) {
+				args.v4.usInitInfo = cpu_to_le16(connector_object_id);
+			} else if (action == ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH) {
+				args.v4.asMode.ucLaneSel = lane_num;
+				args.v4.asMode.ucLaneSet = lane_set;
+			} else {
+				if (is_dp)
+					args.v4.usPixelClock =
+						cpu_to_le16(dp_clock / 10);
+				else if (radeon_encoder->pixel_clock > 165000)
+					args.v4.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
+				else
+					args.v4.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+			}
+
+			if (is_dp)
+				args.v4.ucLaneNum = dp_lane_count;
+			else if (radeon_encoder->pixel_clock > 165000)
+				args.v4.ucLaneNum = 8;
+			else
+				args.v4.ucLaneNum = 4;
+
+			if (dig->linkb)
+				args.v4.acConfig.ucLinkSel = 1;
+			if (dig_encoder & 1)
+				args.v4.acConfig.ucEncoderSel = 1;
+
+			/* Select the PLL for the PHY
+			 * DP PHY should be clocked from external src if there is
+			 * one.
+			 */
 			/* On DCE5 DCPLL usually generates the DP ref clock */
 			if (is_dp) {
 				if (rdev->clock.dp_extclk)
@@ -844,100 +1007,36 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 					args.v4.acConfig.ucRefClkSource = ENCODER_REFCLK_SRC_DCPLL;
 			} else
 				args.v4.acConfig.ucRefClkSource = pll_id;
-		} else {
-			/* On DCE4, if there is an external clock, it generates the DP ref clock */
-			if (is_dp && rdev->clock.dp_extclk)
-				args.v3.acConfig.ucRefClkSource = 2; /* external src */
-			else
-				args.v3.acConfig.ucRefClkSource = pll_id;
-		}
 
-		switch (radeon_encoder->encoder_id) {
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-			args.v3.acConfig.ucTransmitterSel = 0;
-			break;
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-			args.v3.acConfig.ucTransmitterSel = 1;
-			break;
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-			args.v3.acConfig.ucTransmitterSel = 2;
-			break;
-		}
-
-		if (is_dp)
-			args.v3.acConfig.fCoherentMode = 1; /* DP requires coherent */
-		else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
-			if (dig->coherent_mode)
-				args.v3.acConfig.fCoherentMode = 1;
-			if (radeon_encoder->pixel_clock > 165000)
-				args.v3.acConfig.fDualLinkConnector = 1;
-		}
-	} else if (ASIC_IS_DCE32(rdev)) {
-		args.v2.acConfig.ucEncoderSel = dig_encoder;
-		if (dig->linkb)
-			args.v2.acConfig.ucLinkSel = 1;
-
-		switch (radeon_encoder->encoder_id) {
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-			args.v2.acConfig.ucTransmitterSel = 0;
-			break;
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-			args.v2.acConfig.ucTransmitterSel = 1;
-			break;
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-			args.v2.acConfig.ucTransmitterSel = 2;
-			break;
-		}
-
-		if (is_dp) {
-			args.v2.acConfig.fCoherentMode = 1;
-			args.v2.acConfig.fDPConnector = 1;
-		} else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
-			if (dig->coherent_mode)
-				args.v2.acConfig.fCoherentMode = 1;
-			if (radeon_encoder->pixel_clock > 165000)
-				args.v2.acConfig.fDualLinkConnector = 1;
-		}
-	} else {
-		args.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
-
-		if (dig_encoder)
-			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
-		else
-			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
-
-		if ((rdev->flags & RADEON_IS_IGP) &&
-		    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_UNIPHY)) {
-			if (is_dp || (radeon_encoder->pixel_clock <= 165000)) {
-				if (igp_lane_info & 0x1)
-					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_3;
-				else if (igp_lane_info & 0x2)
-					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_4_7;
-				else if (igp_lane_info & 0x4)
-					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_11;
-				else if (igp_lane_info & 0x8)
-					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_12_15;
-			} else {
-				if (igp_lane_info & 0x3)
-					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_7;
-				else if (igp_lane_info & 0xc)
-					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_15;
+			switch (radeon_encoder->encoder_id) {
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+				args.v4.acConfig.ucTransmitterSel = 0;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+				args.v4.acConfig.ucTransmitterSel = 1;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+				args.v4.acConfig.ucTransmitterSel = 2;
+				break;
 			}
-		}
 
-		if (dig->linkb)
-			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKB;
-		else
-			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA;
-
-		if (is_dp)
-			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
-		else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
-			if (dig->coherent_mode)
-				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
-			if (radeon_encoder->pixel_clock > 165000)
-				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_8LANE_LINK;
+			if (is_dp)
+				args.v4.acConfig.fCoherentMode = 1; /* DP requires coherent */
+			else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
+				if (dig->coherent_mode)
+					args.v4.acConfig.fCoherentMode = 1;
+				if (radeon_encoder->pixel_clock > 165000)
+					args.v4.acConfig.fDualLinkConnector = 1;
+			}
+			break;
+		default:
+			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			break;
 		}
+		break;
+	default:
+		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		break;
 	}
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
