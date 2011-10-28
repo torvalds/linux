@@ -456,7 +456,7 @@ struct pci_bus * __devinit pcibios_scan_root(int busnum)
 	sd->node = get_mp_bus_to_node(busnum);
 
 	printk(KERN_DEBUG "PCI: Probing PCI hardware (bus %02x)\n", busnum);
-	bus = pci_scan_bus_parented(NULL, busnum, &pci_root_ops, sd);
+	bus = pci_scan_bus(busnum, &pci_root_ops, sd);
 	if (!bus)
 		kfree(sd);
 
