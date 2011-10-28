@@ -1083,6 +1083,11 @@ void pci_resource_to_user(const struct pci_dev *pdev, int bar,
 	*end = rp->end - offset;
 }
 
+void pcibios_set_master(struct pci_dev *dev)
+{
+	/* No special bus mastering setup handling */
+}
+
 static int __init pcibios_init(void)
 {
 	pci_dfl_cache_line_size = 64 >> 2;
