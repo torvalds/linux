@@ -1608,6 +1608,21 @@ err_out:
 	return NULL;
 }
 
+struct pci_bus * __devinit pci_scan_root_bus(struct device *parent, int bus,
+		struct pci_ops *ops, void *sysdata, struct list_head *resources)
+{
+	struct pci_bus *b;
+
+	b = pci_create_root_bus(parent, bus, ops, sysdata, resources);
+	if (!b)
+		return NULL;
+
+	b->subordinate = pci_scan_child_bus(b);
+	pci_bus_add_devices(b);
+	return b;
+}
+EXPORT_SYMBOL(pci_scan_root_bus);
+
 struct pci_bus *pci_create_bus(struct device *parent,
 		int bus, struct pci_ops *ops, void *sysdata)
 {
