@@ -1976,11 +1976,12 @@ static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static struct cfg80211_bss *rndis_bss_info_update(struct usbnet *usbdev,
-					struct ndis_80211_bssid_ex *bssid)
+static bool rndis_bss_info_update(struct usbnet *usbdev,
+				  struct ndis_80211_bssid_ex *bssid)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct ieee80211_channel *channel;
+	struct cfg80211_bss *bss;
 	s32 signal;
 	u64 timestamp;
 	u16 capability;
@@ -2019,9 +2020,12 @@ static struct cfg80211_bss *rndis_bss_info_update(struct usbnet *usbdev,
 	capability = le16_to_cpu(fixed->capabilities);
 	beacon_interval = le16_to_cpu(fixed->beacon_interval);
 
-	return cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid->mac,
+	bss = cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid->mac,
 		timestamp, capability, beacon_interval, ie, ie_len, signal,
 		GFP_KERNEL);
+	cfg80211_put_bss(bss);
+
+	return (bss != NULL);
 }
 
 static struct ndis_80211_bssid_ex *next_bssid_list_item(
@@ -2648,6 +2652,7 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	struct ieee80211_channel *channel;
 	struct ndis_80211_conf config;
 	struct ndis_80211_ssid ssid;
+	struct cfg80211_bss *bss;
 	s32 signal;
 	u64 timestamp;
 	u16 capability;
@@ -2721,9 +2726,10 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 		bssid, (u32)timestamp, capability, beacon_interval, ie_len,
 		ssid.essid, signal);
 
-	cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid,
+	bss = cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid,
 		timestamp, capability, beacon_interval, ie_buf, ie_len,
 		signal, GFP_KERNEL);
+	cfg80211_put_bss(bss);
 }
 
 /*
