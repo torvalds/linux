@@ -1377,7 +1377,7 @@ static int ocfs2_rename(struct inode *old_dir,
 	}
 
 	if (new_inode) {
-		new_inode->i_nlink--;
+		drop_nlink(new_inode);
 		new_inode->i_ctime = CURRENT_TIME;
 	}
 	old_dir->i_ctime = old_dir->i_mtime = CURRENT_TIME;
@@ -1385,9 +1385,9 @@ static int ocfs2_rename(struct inode *old_dir,
 	if (update_dot_dot) {
 		status = ocfs2_update_entry(old_inode, handle,
 					    &old_inode_dot_dot_res, new_dir);
-		old_dir->i_nlink--;
+		drop_nlink(old_dir);
 		if (new_inode) {
-			new_inode->i_nlink--;
+			drop_nlink(new_inode);
 		} else {
 			inc_nlink(new_dir);
 			mark_inode_dirty(new_dir);
@@ -2280,7 +2280,7 @@ int ocfs2_create_inode_in_orphan(struct inode *dir,
 		goto leave;
 	}
 
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	/* do the real work now. */
 	status = __ocfs2_mknod_locked(dir, inode,
 				      0, &new_di_bh, parent_di_bh, handle,

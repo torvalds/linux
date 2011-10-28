@@ -320,7 +320,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 		memset(&inode->i_ctime, 0, sizeof(inode->i_ctime));
 		inode->i_version = 0;
 		inode->i_size = 0;
-		inode->i_nlink = 0;
+		clear_nlink(inode);
 		inode->i_uid = -2;
 		inode->i_gid = -2;
 		inode->i_blocks = 0;

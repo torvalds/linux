@@ -359,7 +359,7 @@ static struct dentry *hypfs_create_file(struct super_block *sb,
 	} else if (mode & S_IFDIR) {
 		inode->i_op = &simple_dir_inode_operations;
 		inode->i_fop = &simple_dir_operations;
-		parent->d_inode->i_nlink++;
+		inc_nlink(parent->d_inode);
 	} else
 		BUG();
 	inode->i_private = data;

@@ -197,7 +197,7 @@ static int logfs_remove_inode(struct inode *inode)
 {
 	int ret;
 
-	inode->i_nlink--;
+	drop_nlink(inode);
 	ret = write_inode(inode);
 	LOGFS_BUG_ON(ret, inode->i_sb);
 	return ret;
@@ -433,7 +433,7 @@ static int __logfs_create(struct inode *dir, struct dentry *dentry,
 
 	ta = kzalloc(sizeof(*ta), GFP_KERNEL);
 	if (!ta) {
-		inode->i_nlink--;
+		drop_nlink(inode);
 		iput(inode);
 		return -ENOMEM;
 	}
@@ -456,7 +456,7 @@ static int __logfs_create(struct inode *dir, struct dentry *dentry,
 		abort_transaction(inode, ta);
 		li->li_flags |= LOGFS_IF_STILLBORN;
 		/* FIXME: truncate symlink */
-		inode->i_nlink--;
+		drop_nlink(inode);
 		iput(inode);
 		goto out;
 	}
@@ -563,7 +563,7 @@ static int logfs_link(struct dentry *old_dentry, struct inode *dir,
 
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	ihold(inode);
-	inode->i_nlink++;
+	inc_nlink(inode);
 	mark_inode_dirty_sync(inode);
 
 	return __logfs_create(dir, dentry, inode, NULL, 0);

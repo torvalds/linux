@@ -1144,7 +1144,7 @@ static void mtdchar_notify_remove(struct mtd_info *mtd)
 
 	if (mtd_ino) {
 		/* Destroy the inode if it exists */
-		mtd_ino->i_nlink = 0;
+		clear_nlink(mtd_ino);
 		iput(mtd_ino);
 	}
 }
