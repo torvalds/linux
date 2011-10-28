@@ -1110,11 +1110,13 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->noaccel = !!nouveau_noaccel;
 	if (nouveau_noaccel == -1) {
 		switch (dev_priv->chipset) {
-		case 0xc1: /* known broken */
+#if 0
+		case 0xXX: /* known broken */
 			NV_INFO(dev, "acceleration disabled by default, pass "
 				     "noaccel=0 to force enable\n");
 			dev_priv->noaccel = true;
 			break;
+#endif
 		default:
 			dev_priv->noaccel = false;
 			break;
