@@ -2840,8 +2840,15 @@ qlcnic_fwinit_work(struct work_struct *work)
 		goto wait_npar;
 	}
 
+	if (dev_state == QLCNIC_DEV_INITIALIZING ||
+	    dev_state == QLCNIC_DEV_READY) {
+		dev_info(&adapter->pdev->dev, "Detected state change from "
+				"DEV_NEED_RESET, skipping ack check\n");
+		goto skip_ack_check;
+	}
+
 	if (adapter->fw_wait_cnt++ > adapter->reset_ack_timeo) {
-		dev_err(&adapter->pdev->dev, "Reset:Failed to get ack %d sec\n",
+		dev_info(&adapter->pdev->dev, "Reset:Failed to get ack %d sec\n",
 					adapter->reset_ack_timeo);
 		goto skip_ack_check;
 	}
