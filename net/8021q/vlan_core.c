@@ -4,7 +4,7 @@
 #include <linux/netpoll.h>
 #include "vlan.h"
 
-bool vlan_do_receive(struct sk_buff **skbp)
+bool vlan_do_receive(struct sk_buff **skbp, bool last_handler)
 {
 	struct sk_buff *skb = *skbp;
 	u16 vlan_id = skb->vlan_tci & VLAN_VID_MASK;
@@ -13,7 +13,10 @@ bool vlan_do_receive(struct sk_buff **skbp)
 
 	vlan_dev = vlan_find_dev(skb->dev, vlan_id);
 	if (!vlan_dev) {
-		if (vlan_id)
+		/* Only the last call to vlan_do_receive() should change
+		 * pkt_type to PACKET_OTHERHOST
+		 */
+		if (vlan_id && last_handler)
 			skb->pkt_type = PACKET_OTHERHOST;
 		return false;
 	}
