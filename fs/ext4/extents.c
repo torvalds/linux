@@ -4171,11 +4171,11 @@ out2:
 		ext4_ext_drop_refs(path);
 		kfree(path);
 	}
-	trace_ext4_ext_map_blocks_exit(inode, map->m_lblk,
-		newblock, map->m_len, err ? err : allocated);
-
 	result = (flags & EXT4_GET_BLOCKS_PUNCH_OUT_EXT) ?
 			punched_out : allocated;
+
+	trace_ext4_ext_map_blocks_exit(inode, map->m_lblk,
+		newblock, map->m_len, err ? err : result);
 
 	return err ? err : result;
 }
