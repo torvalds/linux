@@ -502,6 +502,7 @@ static void flush_sample_queue(struct perf_session *s,
 	struct perf_sample sample;
 	u64 limit = os->next_flush;
 	u64 last_ts = os->last_sample ? os->last_sample->timestamp : 0ULL;
+	unsigned idx = 0, progress_next = os->nr_samples / 16;
 	int ret;
 
 	if (!ops->ordered_samples || !limit)
@@ -521,6 +522,11 @@ static void flush_sample_queue(struct perf_session *s,
 		os->last_flush = iter->timestamp;
 		list_del(&iter->list);
 		list_add(&iter->list, &os->sample_cache);
+		if (++idx >= progress_next) {
+			progress_next += os->nr_samples / 16;
+			ui_progress__update(idx, os->nr_samples,
+					    "Processing time ordered events...");
+		}
 	}
 
 	if (list_empty(head)) {
@@ -529,6 +535,8 @@ static void flush_sample_queue(struct perf_session *s,
 		os->last_sample =
 			list_entry(head->prev, struct sample_queue, list);
 	}
+
+	os->nr_samples = 0;
 }
 
 /*
@@ -588,6 +596,7 @@ static void __queue_event(struct sample_queue *new, struct perf_session *s)
 	u64 timestamp = new->timestamp;
 	struct list_head *p;
 
+	++os->nr_samples;
 	os->last_sample = new;
 
 	if (!sample) {
