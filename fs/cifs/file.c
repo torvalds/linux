@@ -793,6 +793,9 @@ cifs_posix_lock_test(struct file *file, struct file_lock *flock)
 	struct cifsInodeInfo *cinode = CIFS_I(file->f_path.dentry->d_inode);
 	unsigned char saved_type = flock->fl_type;
 
+	if ((flock->fl_flags & FL_POSIX) == 0)
+		return 1;
+
 	mutex_lock(&cinode->lock_mutex);
 	posix_test_lock(file, flock);
 
@@ -809,12 +812,15 @@ static int
 cifs_posix_lock_set(struct file *file, struct file_lock *flock)
 {
 	struct cifsInodeInfo *cinode = CIFS_I(file->f_path.dentry->d_inode);
-	int rc;
+	int rc = 1;
+
+	if ((flock->fl_flags & FL_POSIX) == 0)
+		return rc;
 
 	mutex_lock(&cinode->lock_mutex);
 	if (!cinode->can_cache_brlcks) {
 		mutex_unlock(&cinode->lock_mutex);
-		return 1;
+		return rc;
 	}
 	rc = posix_lock_file_wait(file, flock);
 	mutex_unlock(&cinode->lock_mutex);
