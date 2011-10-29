@@ -181,12 +181,10 @@ static inline int ext4_ext_space_block(struct inode *inode, int check)
 
 	size = (inode->i_sb->s_blocksize - sizeof(struct ext4_extent_header))
 			/ sizeof(struct ext4_extent);
-	if (!check) {
 #ifdef AGGRESSIVE_TEST
-		if (size > 6)
-			size = 6;
+	if (!check && size > 6)
+		size = 6;
 #endif
-	}
 	return size;
 }
 
@@ -196,12 +194,10 @@ static inline int ext4_ext_space_block_idx(struct inode *inode, int check)
 
 	size = (inode->i_sb->s_blocksize - sizeof(struct ext4_extent_header))
 			/ sizeof(struct ext4_extent_idx);
-	if (!check) {
 #ifdef AGGRESSIVE_TEST
-		if (size > 5)
-			size = 5;
+	if (!check && size > 5)
+		size = 5;
 #endif
-	}
 	return size;
 }
 
@@ -212,12 +208,10 @@ static inline int ext4_ext_space_root(struct inode *inode, int check)
 	size = sizeof(EXT4_I(inode)->i_data);
 	size -= sizeof(struct ext4_extent_header);
 	size /= sizeof(struct ext4_extent);
-	if (!check) {
 #ifdef AGGRESSIVE_TEST
-		if (size > 3)
-			size = 3;
+	if (!check && size > 3)
+		size = 3;
 #endif
-	}
 	return size;
 }
 
@@ -228,12 +222,10 @@ static inline int ext4_ext_space_root_idx(struct inode *inode, int check)
 	size = sizeof(EXT4_I(inode)->i_data);
 	size -= sizeof(struct ext4_extent_header);
 	size /= sizeof(struct ext4_extent_idx);
-	if (!check) {
 #ifdef AGGRESSIVE_TEST
-		if (size > 4)
-			size = 4;
+	if (!check && size > 4)
+		size = 4;
 #endif
-	}
 	return size;
 }
 
