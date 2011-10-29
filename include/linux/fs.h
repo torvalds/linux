@@ -771,12 +771,13 @@ struct inode {
 	unsigned long		i_ino;
 	unsigned int		i_nlink;
 	dev_t			i_rdev;
-	loff_t			i_size;
 	struct timespec		i_atime;
 	struct timespec		i_mtime;
 	struct timespec		i_ctime;
-	unsigned int		i_blkbits;
+	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
+	unsigned short          i_bytes;
 	blkcnt_t		i_blocks;
+	loff_t			i_size;
 
 #ifdef __NEED_I_SIZE_ORDERED
 	seqcount_t		i_size_seqcount;
@@ -784,7 +785,6 @@ struct inode {
 
 	/* Misc */
 	unsigned long		i_state;
-	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
 	struct mutex		i_mutex;
 
 	unsigned long		dirtied_when;	/* jiffies of first dirtying */
@@ -798,9 +798,10 @@ struct inode {
 		struct rcu_head		i_rcu;
 	};
 	atomic_t		i_count;
+	unsigned int		i_blkbits;
 	u64			i_version;
-	unsigned short          i_bytes;
 	atomic_t		i_dio_count;
+	atomic_t		i_writecount;
 	const struct file_operations	*i_fop;	/* former ->i_op->default_file_ops */
 	struct file_lock	*i_flock;
 	struct address_space	i_data;
@@ -824,7 +825,6 @@ struct inode {
 #ifdef CONFIG_IMA
 	atomic_t		i_readcount; /* struct files open RO */
 #endif
-	atomic_t		i_writecount;
 	void			*i_private; /* fs or device private pointer */
 };
 
