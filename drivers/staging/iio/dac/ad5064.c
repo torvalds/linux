@@ -280,8 +280,8 @@ static int ad5064_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad5064_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
 	unsigned int vref;
+	int scale_uv;
 
 	switch (m) {
 	case 0:
