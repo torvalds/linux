@@ -691,7 +691,7 @@ err_ret:
  * group to find a free inode.
  */
 struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode,
-			     const struct qstr *qstr, __u32 goal)
+			     const struct qstr *qstr, __u32 goal, uid_t *owner)
 {
 	struct super_block *sb;
 	struct buffer_head *inode_bitmap_bh = NULL;
@@ -852,8 +852,11 @@ got:
 		flex_group = ext4_flex_group(sbi, group);
 		atomic_dec(&sbi->s_flex_groups[flex_group].free_inodes);
 	}
-
-	if (test_opt(sb, GRPID)) {
+	if (owner) {
+		inode->i_mode = mode;
+		inode->i_uid = owner[0];
+		inode->i_gid = owner[1];
+	} else if (test_opt(sb, GRPID)) {
 		inode->i_mode = mode;
 		inode->i_uid = current_fsuid();
 		inode->i_gid = dir->i_gid;

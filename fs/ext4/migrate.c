@@ -439,6 +439,7 @@ int ext4_ext_migrate(struct inode *inode)
 	struct migrate_struct lb;
 	unsigned long max_entries;
 	__u32 goal;
+	uid_t owner[2];
 
 	/*
 	 * If the filesystem does not support extents, or the inode
@@ -466,10 +467,12 @@ int ext4_ext_migrate(struct inode *inode)
 	}
 	goal = (((inode->i_ino - 1) / EXT4_INODES_PER_GROUP(inode->i_sb)) *
 		EXT4_INODES_PER_GROUP(inode->i_sb)) + 1;
+	owner[0] = inode->i_uid;
+	owner[1] = inode->i_gid;
 	tmp_inode = ext4_new_inode(handle, inode->i_sb->s_root->d_inode,
-				   S_IFREG, NULL, goal);
+				   S_IFREG, NULL, goal, owner);
 	if (IS_ERR(tmp_inode)) {
-		retval = -ENOMEM;
+		retval = PTR_ERR(inode);
 		ext4_journal_stop(handle);
 		return retval;
 	}
