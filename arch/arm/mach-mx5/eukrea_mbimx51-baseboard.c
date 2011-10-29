@@ -31,13 +31,12 @@
 #include "devices.h"
 
 #define MBIMX51_TSC2007_GPIO	IMX_GPIO_NR(3, 30)
-#define MBIMX51_TSC2007_IRQ	(MXC_INTERNAL_IRQS + MBIMX51_TSC2007_GPIO)
 #define MBIMX51_LED0		IMX_GPIO_NR(3, 5)
 #define MBIMX51_LED1		IMX_GPIO_NR(3, 6)
 #define MBIMX51_LED2		IMX_GPIO_NR(3, 7)
 #define MBIMX51_LED3		IMX_GPIO_NR(3, 8)
 
-static struct gpio_led mbimx51_leds[] = {
+static const struct gpio_led mbimx51_leds[] __initconst = {
 	{
 		.name			= "led0",
 		.default_trigger	= "heartbeat",
@@ -64,21 +63,9 @@ static struct gpio_led mbimx51_leds[] = {
 	},
 };
 
-static struct gpio_led_platform_data mbimx51_leds_info = {
+static const struct gpio_led_platform_data mbimx51_leds_info __initconst = {
 	.leds		= mbimx51_leds,
 	.num_leds	= ARRAY_SIZE(mbimx51_leds),
-};
-
-static struct platform_device mbimx51_leds_gpio = {
-	.name	= "leds-gpio",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &mbimx51_leds_info,
-	},
-};
-
-static struct platform_device *devices[] __initdata = {
-	&mbimx51_leds_gpio,
 };
 
 static iomux_v3_cfg_t mbimx51_pads[] = {
@@ -173,7 +160,7 @@ struct tsc2007_platform_data tsc2007_data = {
 static struct i2c_board_info mbimx51_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("tsc2007", 0x49),
-		.irq  = MBIMX51_TSC2007_IRQ,
+		.irq  = gpio_to_irq(MBIMX51_TSC2007_GPIO),
 		.platform_data = &tsc2007_data,
 	}, {
 		I2C_BOARD_INFO("tlv320aic23", 0x1a),
@@ -204,13 +191,14 @@ void __init eukrea_mbimx51_baseboard_init(void)
 	gpio_direction_output(MBIMX51_LED3, 1);
 	gpio_free(MBIMX51_LED3);
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	gpio_led_register_device(-1, &mbimx51_leds_info);
 
 	imx51_add_imx_keypad(&mbimx51_map_data);
 
 	gpio_request(MBIMX51_TSC2007_GPIO, "tsc2007_irq");
 	gpio_direction_input(MBIMX51_TSC2007_GPIO);
-	irq_set_irq_type(MBIMX51_TSC2007_IRQ, IRQF_TRIGGER_FALLING);
+	irq_set_irq_type(gpio_to_irq(MBIMX51_TSC2007_GPIO),
+					IRQF_TRIGGER_FALLING);
 	i2c_register_board_info(1, mbimx51_i2c_devices,
 				ARRAY_SIZE(mbimx51_i2c_devices));
 

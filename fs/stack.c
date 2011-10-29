@@ -29,10 +29,7 @@ void fsstack_copy_inode_size(struct inode *dst, struct inode *src)
 	 *
 	 * We don't actually know what locking is used at the lower level;
 	 * but if it's a filesystem that supports quotas, it will be using
-	 * i_lock as in inode_add_bytes().  tmpfs uses other locking, and
-	 * its 32-bit is (just) able to exceed 2TB i_size with the aid of
-	 * holes; but its i_blocks cannot carry into the upper long without
-	 * almost 2TB swap - let's ignore that case.
+	 * i_lock as in inode_add_bytes().
 	 */
 	if (sizeof(i_blocks) > sizeof(long))
 		spin_lock(&src->i_lock);

@@ -28,19 +28,26 @@
 #include "jfs_acl.h"
 #include "jfs_debug.h"
 
-int jfs_fsync(struct file *file, int datasync)
+int jfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	int rc = 0;
 
+	rc = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (rc)
+		return rc;
+
+	mutex_lock(&inode->i_mutex);
 	if (!(inode->i_state & I_DIRTY) ||
 	    (datasync && !(inode->i_state & I_DIRTY_DATASYNC))) {
 		/* Make sure committed changes hit the disk */
 		jfs_flush_journal(JFS_SBI(inode->i_sb)->log, 1);
+		mutex_unlock(&inode->i_mutex);
 		return rc;
 	}
 
 	rc |= jfs_commit_inode(inode, 1);
+	mutex_unlock(&inode->i_mutex);
 
 	return rc ? -EIO : 0;
 }
@@ -110,6 +117,8 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 
 	if ((iattr->ia_valid & ATTR_SIZE) &&
 	    iattr->ia_size != i_size_read(inode)) {
+		inode_dio_wait(inode);
+
 		rc = vmtruncate(inode, iattr->ia_size);
 		if (rc)
 			return rc;
@@ -131,7 +140,7 @@ const struct inode_operations jfs_file_inode_operations = {
 	.removexattr	= jfs_removexattr,
 	.setattr	= jfs_setattr,
 #ifdef CONFIG_JFS_POSIX_ACL
-	.check_acl	= jfs_check_acl,
+	.get_acl	= jfs_get_acl,
 #endif
 };
 

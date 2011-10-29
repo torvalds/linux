@@ -34,7 +34,7 @@
  */
 #define DCACHELINESIZE	32
 
-	__INIT
+	.section .text
 
 /*
  * cpu_sa1100_proc_init()
@@ -44,8 +44,6 @@ ENTRY(cpu_sa1100_proc_init)
 	mcr	p15, 0, r0, c15, c1, 2		@ Enable clock switching
 	mcr	p15, 0, r0, c9, c0, 5		@ Allow read-buffer operations from userland
 	mov	pc, lr
-
-	.section .text
 
 /*
  * cpu_sa1100_proc_fin()
@@ -184,11 +182,11 @@ ENDPROC(cpu_sa1100_do_suspend)
 
 ENTRY(cpu_sa1100_do_resume)
 	ldmia	r0, {r4 - r7}			@ load cp regs
-	mov	r1, #0
-	mcr	p15, 0, r1, c8, c7, 0		@ flush I+D TLBs
-	mcr	p15, 0, r1, c7, c7, 0		@ flush I&D cache
-	mcr	p15, 0, r1, c9, c0, 0		@ invalidate RB
-	mcr	p15, 0, r1, c9, c0, 5		@ allow user space to use RB
+	mov	ip, #0
+	mcr	p15, 0, ip, c8, c7, 0		@ flush I+D TLBs
+	mcr	p15, 0, ip, c7, c7, 0		@ flush I&D cache
+	mcr	p15, 0, ip, c9, c0, 0		@ invalidate RB
+	mcr	p15, 0, ip, c9, c0, 5		@ allow user space to use RB
 
 	mcr	p15, 0, r4, c3, c0, 0		@ domain ID
 	mcr	p15, 0, r5, c2, c0, 0		@ translation table base addr
@@ -200,9 +198,6 @@ ENTRY(cpu_sa1100_do_resume)
 		     PMD_SECT_CACHEABLE | PMD_SECT_AP_WRITE
 	b	cpu_resume_mmu
 ENDPROC(cpu_sa1100_do_resume)
-#else
-#define cpu_sa1100_do_suspend	0
-#define cpu_sa1100_do_resume	0
 #endif
 
 	__CPUINIT
@@ -236,59 +231,28 @@ sa1100_crval:
 	__INITDATA
 
 /*
- * Purpose : Function pointers used to access above functions - all calls
- *	     come through these
- */
-
-/*
  * SA1100 and SA1110 share the same function calls
  */
-	.type	sa1100_processor_functions, #object
-ENTRY(sa1100_processor_functions)
-	.word	v4_early_abort
-	.word	legacy_pabort
-	.word	cpu_sa1100_proc_init
-	.word	cpu_sa1100_proc_fin
-	.word	cpu_sa1100_reset
-	.word	cpu_sa1100_do_idle
-	.word	cpu_sa1100_dcache_clean_area
-	.word	cpu_sa1100_switch_mm
-	.word	cpu_sa1100_set_pte_ext
-	.word	cpu_sa1100_suspend_size
-	.word	cpu_sa1100_do_suspend
-	.word	cpu_sa1100_do_resume
-	.size	sa1100_processor_functions, . - sa1100_processor_functions
+
+	@ define struct processor (see <asm/proc-fns.h> and proc-macros.S)
+	define_processor_functions sa1100, dabort=v4_early_abort, pabort=legacy_pabort, suspend=1
 
 	.section ".rodata"
 
-	.type	cpu_arch_name, #object
-cpu_arch_name:
-	.asciz	"armv4"
-	.size	cpu_arch_name, . - cpu_arch_name
-
-	.type	cpu_elf_name, #object
-cpu_elf_name:
-	.asciz	"v4"
-	.size	cpu_elf_name, . - cpu_elf_name
-
-	.type	cpu_sa1100_name, #object
-cpu_sa1100_name:
-	.asciz	"StrongARM-1100"
-	.size	cpu_sa1100_name, . - cpu_sa1100_name
-
-	.type	cpu_sa1110_name, #object
-cpu_sa1110_name:
-	.asciz	"StrongARM-1110"
-	.size	cpu_sa1110_name, . - cpu_sa1110_name
+	string	cpu_arch_name, "armv4"
+	string	cpu_elf_name, "v4"
+	string	cpu_sa1100_name, "StrongARM-1100"
+	string	cpu_sa1110_name, "StrongARM-1110"
 
 	.align
 
 	.section ".proc.info.init", #alloc, #execinstr
 
-	.type	__sa1100_proc_info,#object
-__sa1100_proc_info:
-	.long	0x4401a110
-	.long	0xfffffff0
+.macro sa1100_proc_info name:req, cpu_val:req, cpu_mask:req, cpu_name:req
+	.type	__\name\()_proc_info,#object
+__\name\()_proc_info:
+	.long	\cpu_val
+	.long	\cpu_mask
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \
@@ -301,32 +265,13 @@ __sa1100_proc_info:
 	.long	cpu_arch_name
 	.long	cpu_elf_name
 	.long	HWCAP_SWP | HWCAP_HALF | HWCAP_26BIT | HWCAP_FAST_MULT
-	.long	cpu_sa1100_name
+	.long	\cpu_name
 	.long	sa1100_processor_functions
 	.long	v4wb_tlb_fns
 	.long	v4_mc_user_fns
 	.long	v4wb_cache_fns
-	.size	__sa1100_proc_info, . - __sa1100_proc_info
+	.size	__\name\()_proc_info, . - __\name\()_proc_info
+.endm
 
-	.type	__sa1110_proc_info,#object
-__sa1110_proc_info:
-	.long	0x6901b110
-	.long	0xfffffff0
-	.long   PMD_TYPE_SECT | \
-		PMD_SECT_BUFFERABLE | \
-		PMD_SECT_CACHEABLE | \
-		PMD_SECT_AP_WRITE | \
-		PMD_SECT_AP_READ
-	.long   PMD_TYPE_SECT | \
-		PMD_SECT_AP_WRITE | \
-		PMD_SECT_AP_READ
-	b	__sa1100_setup
-	.long	cpu_arch_name
-	.long	cpu_elf_name
-	.long	HWCAP_SWP | HWCAP_HALF | HWCAP_26BIT | HWCAP_FAST_MULT
-	.long	cpu_sa1110_name
-	.long	sa1100_processor_functions
-	.long	v4wb_tlb_fns
-	.long	v4_mc_user_fns
-	.long	v4wb_cache_fns
-	.size	__sa1110_proc_info, . - __sa1110_proc_info
+	sa1100_proc_info sa1100, 0x4401a110, 0xfffffff0, cpu_sa1100_name
+	sa1100_proc_info sa1110, 0x6901b110, 0xfffffff0, cpu_sa1110_name

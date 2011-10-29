@@ -621,7 +621,7 @@ static struct  xfrm_state *pfkey_xfrm_state_lookup(struct net *net, const struct
 	unsigned short family;
 	xfrm_address_t *xaddr;
 
-	sa = (const struct sadb_sa *) ext_hdrs[SADB_EXT_SA-1];
+	sa = ext_hdrs[SADB_EXT_SA - 1];
 	if (sa == NULL)
 		return NULL;
 
@@ -630,7 +630,7 @@ static struct  xfrm_state *pfkey_xfrm_state_lookup(struct net *net, const struct
 		return NULL;
 
 	/* sadb_address_len should be checked by caller */
-	addr = (const struct sadb_address *) ext_hdrs[SADB_EXT_ADDRESS_DST-1];
+	addr = ext_hdrs[SADB_EXT_ADDRESS_DST - 1];
 	if (addr == NULL)
 		return NULL;
 
@@ -1039,7 +1039,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 	int err;
 
 
-	sa = (const struct sadb_sa *) ext_hdrs[SADB_EXT_SA-1];
+	sa = ext_hdrs[SADB_EXT_SA - 1];
 	if (!sa ||
 	    !present_and_same_family(ext_hdrs[SADB_EXT_ADDRESS_SRC-1],
 				     ext_hdrs[SADB_EXT_ADDRESS_DST-1]))
@@ -1078,7 +1078,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 	     sa->sadb_sa_encrypt > SADB_X_CALG_MAX) ||
 	    sa->sadb_sa_encrypt > SADB_EALG_MAX)
 		return ERR_PTR(-EINVAL);
-	key = (const struct sadb_key*) ext_hdrs[SADB_EXT_KEY_AUTH-1];
+	key = ext_hdrs[SADB_EXT_KEY_AUTH - 1];
 	if (key != NULL &&
 	    sa->sadb_sa_auth != SADB_X_AALG_NULL &&
 	    ((key->sadb_key_bits+7) / 8 == 0 ||
@@ -1105,14 +1105,14 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 	if (sa->sadb_sa_flags & SADB_SAFLAGS_NOPMTUDISC)
 		x->props.flags |= XFRM_STATE_NOPMTUDISC;
 
-	lifetime = (const struct sadb_lifetime*) ext_hdrs[SADB_EXT_LIFETIME_HARD-1];
+	lifetime = ext_hdrs[SADB_EXT_LIFETIME_HARD - 1];
 	if (lifetime != NULL) {
 		x->lft.hard_packet_limit = _KEY2X(lifetime->sadb_lifetime_allocations);
 		x->lft.hard_byte_limit = _KEY2X(lifetime->sadb_lifetime_bytes);
 		x->lft.hard_add_expires_seconds = lifetime->sadb_lifetime_addtime;
 		x->lft.hard_use_expires_seconds = lifetime->sadb_lifetime_usetime;
 	}
-	lifetime = (const struct sadb_lifetime*) ext_hdrs[SADB_EXT_LIFETIME_SOFT-1];
+	lifetime = ext_hdrs[SADB_EXT_LIFETIME_SOFT - 1];
 	if (lifetime != NULL) {
 		x->lft.soft_packet_limit = _KEY2X(lifetime->sadb_lifetime_allocations);
 		x->lft.soft_byte_limit = _KEY2X(lifetime->sadb_lifetime_bytes);
@@ -1120,7 +1120,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 		x->lft.soft_use_expires_seconds = lifetime->sadb_lifetime_usetime;
 	}
 
-	sec_ctx = (const struct sadb_x_sec_ctx *) ext_hdrs[SADB_X_EXT_SEC_CTX-1];
+	sec_ctx = ext_hdrs[SADB_X_EXT_SEC_CTX - 1];
 	if (sec_ctx != NULL) {
 		struct xfrm_user_sec_ctx *uctx = pfkey_sadb2xfrm_user_sec_ctx(sec_ctx);
 
@@ -1134,7 +1134,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 			goto out;
 	}
 
-	key = (const struct sadb_key*) ext_hdrs[SADB_EXT_KEY_AUTH-1];
+	key = ext_hdrs[SADB_EXT_KEY_AUTH - 1];
 	if (sa->sadb_sa_auth) {
 		int keysize = 0;
 		struct xfrm_algo_desc *a = xfrm_aalg_get_byid(sa->sadb_sa_auth);
@@ -2219,7 +2219,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, const struct sadb_
 	if (xp->selector.dport)
 		xp->selector.dport_mask = htons(0xffff);
 
-	sec_ctx = (struct sadb_x_sec_ctx *) ext_hdrs[SADB_X_EXT_SEC_CTX-1];
+	sec_ctx = ext_hdrs[SADB_X_EXT_SEC_CTX - 1];
 	if (sec_ctx != NULL) {
 		struct xfrm_user_sec_ctx *uctx = pfkey_sadb2xfrm_user_sec_ctx(sec_ctx);
 
@@ -2323,7 +2323,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, const struct sa
 	if (sel.dport)
 		sel.dport_mask = htons(0xffff);
 
-	sec_ctx = (struct sadb_x_sec_ctx *) ext_hdrs[SADB_X_EXT_SEC_CTX-1];
+	sec_ctx = ext_hdrs[SADB_X_EXT_SEC_CTX - 1];
 	if (sec_ctx != NULL) {
 		struct xfrm_user_sec_ctx *uctx = pfkey_sadb2xfrm_user_sec_ctx(sec_ctx);
 

@@ -19,12 +19,12 @@
 #include <linux/pm_runtime.h>
 
 #include <drm/drmP.h>
-#include "psb_fb.h"
+#include "framebuffer.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
 #include "psb_intel_display.h"
-#include "psb_powermgmt.h"
+#include "power.h"
 
 struct psb_intel_range_t {
 	int min, max;
@@ -86,7 +86,7 @@ static const struct mrst_limit_t *mrst_limit(struct drm_crtc *crtc)
 {
 	const struct mrst_limit_t *limit = NULL;
 	struct drm_device *dev = crtc->dev;
-	DRM_DRIVER_PRIVATE_T *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 
 	if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
 	    || psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_MIPI)) {
@@ -103,7 +103,7 @@ static const struct mrst_limit_t *mrst_limit(struct drm_crtc *crtc)
 		}
 	} else {
 		limit = NULL;
-		PSB_DEBUG_ENTRY("mrst_limit Wrong display type.\n");
+		dev_err(dev->dev, "mrst_limit Wrong display type.\n");
 	}
 
 	return limit;
@@ -117,7 +117,7 @@ static void mrst_clock(int refclk, struct mrst_clock_t *clock)
 
 void mrstPrintPll(char *prefix, struct mrst_clock_t *clock)
 {
-	PSB_DEBUG_ENTRY("%s: dotclock = %d,  m = %d, p1 = %d.\n",
+	pr_debug("%s: dotclock = %d,  m = %d, p1 = %d.\n",
 	     prefix, clock->dot, clock->m, clock->p1);
 }
 
@@ -149,8 +149,7 @@ mrstFindBestPLL(struct drm_crtc *crtc, int target, int refclk,
 			}
 		}
 	}
-	DRM_DEBUG("mrstFindBestPLL err = %d.\n", err);
-
+	dev_dbg(crtc->dev->dev, "mrstFindBestPLL err = %d.\n", err);
 	return err != target;
 }
 
@@ -171,8 +170,6 @@ static void mrst_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
 	u32 temp;
 	bool enabled;
-
-	PSB_DEBUG_ENTRY("mode = %d, pipe = %d\n", mode, pipe);
 
 	if (!gma_power_begin(dev, true))
 		return;
@@ -296,7 +293,7 @@ static int mrst_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	DRM_DRIVER_PRIVATE_T *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	int pipe = psb_intel_crtc->pipe;
 	int fp_reg = (pipe == 0) ? MRST_FPA0 : FPB0;
 	int dpll_reg = (pipe == 0) ? MRST_DPLL_A : DPLL_B;
@@ -319,8 +316,6 @@ static int mrst_crtc_mode_set(struct drm_crtc *crtc,
 	struct psb_intel_output *psb_intel_output = NULL;
 	uint64_t scalingType = DRM_MODE_SCALE_FULLSCREEN;
 	struct drm_encoder *encoder;
-
-	PSB_DEBUG_ENTRY("pipe = 0x%x\n", pipe);
 
 	if (!gma_power_begin(dev, true))
 		return 0;
@@ -446,10 +441,9 @@ static int mrst_crtc_mode_set(struct drm_crtc *crtc,
 	ok = mrstFindBestPLL(crtc, adjusted_mode->clock, refclk, &clock);
 
 	if (!ok) {
-		PSB_DEBUG_ENTRY(
-			"mrstFindBestPLL fail in mrst_crtc_mode_set.\n");
+		dev_dbg(dev->dev, "mrstFindBestPLL fail in mrst_crtc_mode_set.\n");
 	} else {
-		PSB_DEBUG_ENTRY("mrst_crtc_mode_set pixel clock = %d,"
+		dev_dbg(dev->dev, "mrst_crtc_mode_set pixel clock = %d,"
 			 "m = %x, p1 = %x.\n", clock.dot, clock.m,
 			 clock.p1);
 	}
@@ -540,11 +534,9 @@ int mrst_pipe_set_base(struct drm_crtc *crtc,
 	u32 dspcntr;
 	int ret = 0;
 
-	PSB_DEBUG_ENTRY("\n");
-
 	/* no fb bound */
 	if (!crtc->fb) {
-		DRM_DEBUG("No FB bound\n");
+		dev_dbg(dev->dev, "No FB bound\n");
 		return 0;
 	}
 
@@ -574,13 +566,12 @@ int mrst_pipe_set_base(struct drm_crtc *crtc,
 		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
 		break;
 	default:
-		DRM_ERROR("Unknown color depth\n");
+		dev_err(dev->dev, "Unknown color depth\n");
 		ret = -EINVAL;
 		goto pipe_set_base_exit;
 	}
 	REG_WRITE(dspcntr_reg, dspcntr);
 
-	DRM_DEBUG("Writing base %08lX %08lX %d %d\n", start, offset, x, y);
 	if (0 /* FIXMEAC - check what PSB needs */) {
 		REG_WRITE(dspbase, offset);
 		REG_READ(dspbase);

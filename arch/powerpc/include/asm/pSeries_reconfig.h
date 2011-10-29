@@ -17,7 +17,7 @@
 #ifdef CONFIG_PPC_PSERIES
 extern int pSeries_reconfig_notifier_register(struct notifier_block *);
 extern void pSeries_reconfig_notifier_unregister(struct notifier_block *);
-extern struct blocking_notifier_head pSeries_reconfig_chain;
+extern int pSeries_reconfig_notify(unsigned long action, void *p);
 /* Not the best place to put this, will be fixed when we move some
  * of the rtas suspend-me stuff to pseries */
 extern void pSeries_coalesce_init(void);

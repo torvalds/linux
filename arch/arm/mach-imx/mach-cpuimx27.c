@@ -250,6 +250,8 @@ __setup("otg_mode=", eukrea_cpuimx27_otg_mode);
 
 static void __init eukrea_cpuimx27_init(void)
 {
+	imx27_soc_init();
+
 	mxc_gpio_setup_multiple_pins(eukrea_cpuimx27_pins,
 		ARRAY_SIZE(eukrea_cpuimx27_pins), "CPUIMX27");
 
@@ -308,7 +310,7 @@ static struct sys_timer eukrea_cpuimx27_timer = {
 	.init = eukrea_cpuimx27_timer_init,
 };
 
-MACHINE_START(CPUIMX27, "EUKREA CPUIMX27")
+MACHINE_START(EUKREA_CPUIMX27, "EUKREA CPUIMX27")
 	.boot_params = MX27_PHYS_OFFSET + 0x100,
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,

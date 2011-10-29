@@ -14,7 +14,7 @@
 #include <linux/nodemask.h>
 #include <linux/spinlock.h>
 #include <linux/seqlock.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct super_block;
 struct vfsmount;

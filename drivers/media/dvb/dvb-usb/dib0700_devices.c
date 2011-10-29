@@ -17,6 +17,7 @@
 #include "mt2266.h"
 #include "tuner-xc2028.h"
 #include "xc5000.h"
+#include "xc4000.h"
 #include "s5h1411.h"
 #include "dib0070.h"
 #include "dib0090.h"
@@ -2655,6 +2656,156 @@ static int xc5000_tuner_attach(struct dvb_usb_adapter *adap)
 		== NULL ? -ENODEV : 0;
 }
 
+static int dib0700_xc4000_tuner_callback(void *priv, int component,
+					 int command, int arg)
+{
+	struct dvb_usb_adapter *adap = priv;
+
+	if (command == XC4000_TUNER_RESET) {
+		/* Reset the tuner */
+		dib7000p_set_gpio(adap->fe, 8, 0, 0);
+		msleep(10);
+		dib7000p_set_gpio(adap->fe, 8, 0, 1);
+	} else {
+		err("xc4000: unknown tuner callback command: %d\n", command);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static struct dibx000_agc_config stk7700p_7000p_xc4000_agc_config = {
+	.band_caps = BAND_UHF | BAND_VHF,
+	.setup = 0x64,
+	.inv_gain = 0x02c8,
+	.time_stabiliz = 0x15,
+	.alpha_level = 0x00,
+	.thlock = 0x76,
+	.wbd_inv = 0x01,
+	.wbd_ref = 0x0b33,
+	.wbd_sel = 0x00,
+	.wbd_alpha = 0x02,
+	.agc1_max = 0x00,
+	.agc1_min = 0x00,
+	.agc2_max = 0x9b26,
+	.agc2_min = 0x26ca,
+	.agc1_pt1 = 0x00,
+	.agc1_pt2 = 0x00,
+	.agc1_pt3 = 0x00,
+	.agc1_slope1 = 0x00,
+	.agc1_slope2 = 0x00,
+	.agc2_pt1 = 0x00,
+	.agc2_pt2 = 0x80,
+	.agc2_slope1 = 0x1d,
+	.agc2_slope2 = 0x1d,
+	.alpha_mant = 0x11,
+	.alpha_exp = 0x1b,
+	.beta_mant = 0x17,
+	.beta_exp = 0x33,
+	.perform_agc_softsplit = 0x00,
+};
+
+static struct dibx000_bandwidth_config stk7700p_xc4000_pll_config = {
+	60000, 30000,	/* internal, sampling */
+	1, 8, 3, 1, 0,	/* pll_cfg: prediv, ratio, range, reset, bypass */
+	0, 0, 1, 1, 0,	/* misc: refdiv, bypclk_div, IO_CLK_en_core, */
+			/* ADClkSrc, modulo */
+	(3 << 14) | (1 << 12) | 524,	/* sad_cfg: refsel, sel, freq_15k */
+	39370534,	/* ifreq */
+	20452225,	/* timf */
+	30000000	/* xtal */
+};
+
+/* FIXME: none of these inputs are validated yet */
+static struct dib7000p_config pctv_340e_config = {
+	.output_mpeg2_in_188_bytes = 1,
+
+	.agc_config_count = 1,
+	.agc = &stk7700p_7000p_xc4000_agc_config,
+	.bw  = &stk7700p_xc4000_pll_config,
+
+	.gpio_dir = DIB7000M_GPIO_DEFAULT_DIRECTIONS,
+	.gpio_val = DIB7000M_GPIO_DEFAULT_VALUES,
+	.gpio_pwm_pos = DIB7000M_GPIO_DEFAULT_PWM_POS,
+};
+
+/* PCTV 340e GPIOs map:
+   dib0700:
+   GPIO2  - CX25843 sleep
+   GPIO3  - CS5340 reset
+   GPIO5  - IRD
+   GPIO6  - Power Supply
+   GPIO8  - LNA (1=off 0=on)
+   GPIO10 - CX25843 reset
+   dib7000:
+   GPIO8  - xc4000 reset
+ */
+static int pctv340e_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct dib0700_state *st = adap->dev->priv;
+
+	/* Power Supply on */
+	dib0700_set_gpio(adap->dev, GPIO6,  GPIO_OUT, 0);
+	msleep(50);
+	dib0700_set_gpio(adap->dev, GPIO6,  GPIO_OUT, 1);
+	msleep(100); /* Allow power supply to settle before probing */
+
+	/* cx25843 reset */
+	dib0700_set_gpio(adap->dev, GPIO10,  GPIO_OUT, 0);
+	msleep(1); /* cx25843 datasheet say 350us required */
+	dib0700_set_gpio(adap->dev, GPIO10,  GPIO_OUT, 1);
+
+	/* LNA off for now */
+	dib0700_set_gpio(adap->dev, GPIO8,  GPIO_OUT, 1);
+
+	/* Put the CX25843 to sleep for now since we're in digital mode */
+	dib0700_set_gpio(adap->dev, GPIO2, GPIO_OUT, 1);
+
+	/* FIXME: not verified yet */
+	dib0700_ctrl_clock(adap->dev, 72, 1);
+
+	msleep(500);
+
+	if (dib7000pc_detection(&adap->dev->i2c_adap) == 0) {
+		/* Demodulator not found for some reason? */
+		return -ENODEV;
+	}
+
+	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x12,
+			      &pctv_340e_config);
+	st->is_dib7000pc = 1;
+
+	return adap->fe == NULL ? -ENODEV : 0;
+}
+
+static struct xc4000_config dib7000p_xc4000_tunerconfig = {
+	.i2c_address	  = 0x61,
+	.default_pm	  = 1,
+	.dvb_amplitude	  = 0,
+	.set_smoothedcvbs = 0,
+	.if_khz		  = 5400
+};
+
+static int xc4000_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	struct i2c_adapter *tun_i2c;
+
+	/* The xc4000 is not on the main i2c bus */
+	tun_i2c = dib7000p_get_i2c_master(adap->fe,
+					  DIBX000_I2C_INTERFACE_TUNER, 1);
+	if (tun_i2c == NULL) {
+		printk(KERN_ERR "Could not reach tuner i2c bus\n");
+		return 0;
+	}
+
+	/* Setup the reset callback */
+	adap->fe->callback = dib0700_xc4000_tuner_callback;
+
+	return dvb_attach(xc4000_attach, adap->fe, tun_i2c,
+			  &dib7000p_xc4000_tunerconfig)
+		== NULL ? -ENODEV : 0;
+}
+
 static struct lgdt3305_config hcw_lgdt3305_config = {
 	.i2c_addr           = 0x0e,
 	.mpeg_mode          = LGDT3305_MPEG_PARALLEL,
@@ -2802,6 +2953,8 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_TFE7090PVR) },
 	{ USB_DEVICE(USB_VID_TECHNISAT, USB_PID_TECHNISAT_AIRSTAR_TELESTICK_2) },
 /* 75 */{ USB_DEVICE(USB_VID_MEDION,    USB_PID_CREATIX_CTX1921) },
+	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV340E) },
+	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV340E_SE) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -3762,6 +3915,41 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol  = dib0700_change_protocol,
+		},
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+		.num_adapters = 1,
+		.adapter = {
+			{
+				.frontend_attach  = pctv340e_frontend_attach,
+				.tuner_attach     = xc4000_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+
+				.size_of_priv = sizeof(struct
+						dib0700_adapter_state),
+			},
+		},
+
+		.num_device_descs = 2,
+		.devices = {
+			{   "Pinnacle PCTV 340e HD Pro USB Stick",
+				{ &dib0700_usb_id_table[76], NULL },
+				{ NULL },
+			},
+			{   "Pinnacle PCTV Hybrid Stick Solo",
+				{ &dib0700_usb_id_table[77], NULL },
+				{ NULL },
+			},
+		},
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
 			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,

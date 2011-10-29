@@ -3,7 +3,7 @@
   Broadcom B43 wireless driver
   IEEE 802.11a/g LP-PHY driver
 
-  Copyright (c) 2008-2009 Michael Buesch <mb@bu3sch.de>
+  Copyright (c) 2008-2009 Michael Buesch <m@bues.ch>
   Copyright (c) 2009 Gábor Stefanik <netrolller.3d@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
@@ -85,39 +85,39 @@ static void b43_lpphy_op_free(struct b43_wldev *dev)
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/LP/ReadBandSrom */
 static void lpphy_read_band_sprom(struct b43_wldev *dev)
 {
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->sdev->bus;
 	u16 cckpo, maxpwr;
 	u32 ofdmpo;
 	int i;
 
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
-		lpphy->tx_isolation_med_band = bus->sprom.tri2g;
-		lpphy->bx_arch = bus->sprom.bxa2g;
-		lpphy->rx_pwr_offset = bus->sprom.rxpo2g;
-		lpphy->rssi_vf = bus->sprom.rssismf2g;
-		lpphy->rssi_vc = bus->sprom.rssismc2g;
-		lpphy->rssi_gs = bus->sprom.rssisav2g;
-		lpphy->txpa[0] = bus->sprom.pa0b0;
-		lpphy->txpa[1] = bus->sprom.pa0b1;
-		lpphy->txpa[2] = bus->sprom.pa0b2;
-		maxpwr = bus->sprom.maxpwr_bg;
+		lpphy->tx_isolation_med_band = sprom->tri2g;
+		lpphy->bx_arch = sprom->bxa2g;
+		lpphy->rx_pwr_offset = sprom->rxpo2g;
+		lpphy->rssi_vf = sprom->rssismf2g;
+		lpphy->rssi_vc = sprom->rssismc2g;
+		lpphy->rssi_gs = sprom->rssisav2g;
+		lpphy->txpa[0] = sprom->pa0b0;
+		lpphy->txpa[1] = sprom->pa0b1;
+		lpphy->txpa[2] = sprom->pa0b2;
+		maxpwr = sprom->maxpwr_bg;
 		lpphy->max_tx_pwr_med_band = maxpwr;
-		cckpo = bus->sprom.cck2gpo;
+		cckpo = sprom->cck2gpo;
 		/*
 		 * We don't read SPROM's opo as specs say. On rev8 SPROMs
 		 * opo == ofdm2gpo and we don't know any SSB with LP-PHY
 		 * and SPROM rev below 8.
 		 */
-		B43_WARN_ON(bus->sprom.revision < 8);
-		ofdmpo = bus->sprom.ofdm2gpo;
+		B43_WARN_ON(sprom->revision < 8);
+		ofdmpo = sprom->ofdm2gpo;
 		if (cckpo) {
 			for (i = 0; i < 4; i++) {
 				lpphy->tx_max_rate[i] =
 					maxpwr - (ofdmpo & 0xF) * 2;
 				ofdmpo >>= 4;
 			}
-			ofdmpo = bus->sprom.ofdm2gpo;
+			ofdmpo = sprom->ofdm2gpo;
 			for (i = 4; i < 15; i++) {
 				lpphy->tx_max_rate[i] =
 					maxpwr - (ofdmpo & 0xF) * 2;
@@ -131,39 +131,39 @@ static void lpphy_read_band_sprom(struct b43_wldev *dev)
 				lpphy->tx_max_rate[i] = maxpwr - ofdmpo;
 		}
 	} else { /* 5GHz */
-		lpphy->tx_isolation_low_band = bus->sprom.tri5gl;
-		lpphy->tx_isolation_med_band = bus->sprom.tri5g;
-		lpphy->tx_isolation_hi_band = bus->sprom.tri5gh;
-		lpphy->bx_arch = bus->sprom.bxa5g;
-		lpphy->rx_pwr_offset = bus->sprom.rxpo5g;
-		lpphy->rssi_vf = bus->sprom.rssismf5g;
-		lpphy->rssi_vc = bus->sprom.rssismc5g;
-		lpphy->rssi_gs = bus->sprom.rssisav5g;
-		lpphy->txpa[0] = bus->sprom.pa1b0;
-		lpphy->txpa[1] = bus->sprom.pa1b1;
-		lpphy->txpa[2] = bus->sprom.pa1b2;
-		lpphy->txpal[0] = bus->sprom.pa1lob0;
-		lpphy->txpal[1] = bus->sprom.pa1lob1;
-		lpphy->txpal[2] = bus->sprom.pa1lob2;
-		lpphy->txpah[0] = bus->sprom.pa1hib0;
-		lpphy->txpah[1] = bus->sprom.pa1hib1;
-		lpphy->txpah[2] = bus->sprom.pa1hib2;
-		maxpwr = bus->sprom.maxpwr_al;
-		ofdmpo = bus->sprom.ofdm5glpo;
+		lpphy->tx_isolation_low_band = sprom->tri5gl;
+		lpphy->tx_isolation_med_band = sprom->tri5g;
+		lpphy->tx_isolation_hi_band = sprom->tri5gh;
+		lpphy->bx_arch = sprom->bxa5g;
+		lpphy->rx_pwr_offset = sprom->rxpo5g;
+		lpphy->rssi_vf = sprom->rssismf5g;
+		lpphy->rssi_vc = sprom->rssismc5g;
+		lpphy->rssi_gs = sprom->rssisav5g;
+		lpphy->txpa[0] = sprom->pa1b0;
+		lpphy->txpa[1] = sprom->pa1b1;
+		lpphy->txpa[2] = sprom->pa1b2;
+		lpphy->txpal[0] = sprom->pa1lob0;
+		lpphy->txpal[1] = sprom->pa1lob1;
+		lpphy->txpal[2] = sprom->pa1lob2;
+		lpphy->txpah[0] = sprom->pa1hib0;
+		lpphy->txpah[1] = sprom->pa1hib1;
+		lpphy->txpah[2] = sprom->pa1hib2;
+		maxpwr = sprom->maxpwr_al;
+		ofdmpo = sprom->ofdm5glpo;
 		lpphy->max_tx_pwr_low_band = maxpwr;
 		for (i = 4; i < 12; i++) {
 			lpphy->tx_max_ratel[i] = maxpwr - (ofdmpo & 0xF) * 2;
 			ofdmpo >>= 4;
 		}
-		maxpwr = bus->sprom.maxpwr_a;
-		ofdmpo = bus->sprom.ofdm5gpo;
+		maxpwr = sprom->maxpwr_a;
+		ofdmpo = sprom->ofdm5gpo;
 		lpphy->max_tx_pwr_med_band = maxpwr;
 		for (i = 4; i < 12; i++) {
 			lpphy->tx_max_rate[i] = maxpwr - (ofdmpo & 0xF) * 2;
 			ofdmpo >>= 4;
 		}
-		maxpwr = bus->sprom.maxpwr_ah;
-		ofdmpo = bus->sprom.ofdm5ghpo;
+		maxpwr = sprom->maxpwr_ah;
+		ofdmpo = sprom->ofdm5ghpo;
 		lpphy->max_tx_pwr_hi_band = maxpwr;
 		for (i = 4; i < 12; i++) {
 			lpphy->tx_max_rateh[i] = maxpwr - (ofdmpo & 0xF) * 2;
@@ -214,7 +214,8 @@ static void lpphy_table_init(struct b43_wldev *dev)
 
 static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
+	struct ssb_bus *bus = dev->dev->sdev->bus;
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 	u16 tmp, tmp2;
 
@@ -242,9 +243,9 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_CRS_ED_THRESH, 0x00FF, 0xAD00);
 	b43_phy_maskset(dev, B43_LPPHY_INPUT_PWRDB,
 			0xFF00, lpphy->rx_pwr_offset);
-	if ((bus->sprom.boardflags_lo & B43_BFL_FEM) &&
+	if ((sprom->boardflags_lo & B43_BFL_FEM) &&
 	   ((b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) ||
-	   (bus->sprom.boardflags_hi & B43_BFH_PAREF))) {
+	   (sprom->boardflags_hi & B43_BFH_PAREF))) {
 		ssb_pmu_set_ldo_voltage(&bus->chipco, LDO_PAREF, 0x28);
 		ssb_pmu_set_ldo_paref(&bus->chipco, true);
 		if (dev->phy.rev == 0) {
@@ -260,7 +261,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 	}
 	tmp = lpphy->rssi_vf | lpphy->rssi_vc << 4 | 0xA000;
 	b43_phy_write(dev, B43_LPPHY_AFE_RSSI_CTL_0, tmp);
-	if (bus->sprom.boardflags_hi & B43_BFH_RSSIINV)
+	if (sprom->boardflags_hi & B43_BFH_RSSIINV)
 		b43_phy_maskset(dev, B43_LPPHY_AFE_RSSI_CTL_1, 0xF000, 0x0AAA);
 	else
 		b43_phy_maskset(dev, B43_LPPHY_AFE_RSSI_CTL_1, 0xF000, 0x02AA);
@@ -268,7 +269,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_RX_RADIO_CTL,
 			0xFFF9, (lpphy->bx_arch << 1));
 	if (dev->phy.rev == 1 &&
-	   (bus->sprom.boardflags_hi & B43_BFH_FEM_BT)) {
+	   (sprom->boardflags_hi & B43_BFH_FEM_BT)) {
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x000A);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0x3F00, 0x0900);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xFFC0, 0x000A);
@@ -286,8 +287,8 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_8, 0xFFC0, 0x000A);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_8, 0xC0FF, 0x0B00);
 	} else if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ ||
-		  (bus->boardinfo.type == 0x048A) || ((dev->phy.rev == 0) &&
-		  (bus->sprom.boardflags_lo & B43_BFL_FEM))) {
+		  (dev->dev->board_type == 0x048A) || ((dev->phy.rev == 0) &&
+		  (sprom->boardflags_lo & B43_BFL_FEM))) {
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x0001);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xC0FF, 0x0400);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xFFC0, 0x0001);
@@ -297,7 +298,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xFFC0, 0x0002);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xC0FF, 0x0A00);
 	} else if (dev->phy.rev == 1 ||
-		  (bus->sprom.boardflags_lo & B43_BFL_FEM)) {
+		  (sprom->boardflags_lo & B43_BFL_FEM)) {
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x0004);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xC0FF, 0x0800);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xFFC0, 0x0004);
@@ -316,15 +317,15 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xFFC0, 0x0006);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xC0FF, 0x0700);
 	}
-	if (dev->phy.rev == 1 && (bus->sprom.boardflags_hi & B43_BFH_PAREF)) {
+	if (dev->phy.rev == 1 && (sprom->boardflags_hi & B43_BFH_PAREF)) {
 		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_5, B43_LPPHY_TR_LOOKUP_1);
 		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_6, B43_LPPHY_TR_LOOKUP_2);
 		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_7, B43_LPPHY_TR_LOOKUP_3);
 		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_8, B43_LPPHY_TR_LOOKUP_4);
 	}
-	if ((bus->sprom.boardflags_hi & B43_BFH_FEM_BT) &&
-	    (bus->chip_id == 0x5354) &&
-	    (bus->chip_package == SSB_CHIPPACK_BCM4712S)) {
+	if ((sprom->boardflags_hi & B43_BFH_FEM_BT) &&
+	    (dev->dev->chip_id == 0x5354) &&
+	    (dev->dev->chip_pkg == SSB_CHIPPACK_BCM4712S)) {
 		b43_phy_set(dev, B43_LPPHY_CRSGAIN_CTL, 0x0006);
 		b43_phy_write(dev, B43_LPPHY_GPIO_SELECT, 0x0005);
 		b43_phy_write(dev, B43_LPPHY_GPIO_OUTEN, 0xFFFF);
@@ -412,7 +413,6 @@ static void lpphy_restore_dig_flt_state(struct b43_wldev *dev)
 
 static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 
 	b43_phy_write(dev, B43_LPPHY_AFE_DAC_CTL, 0x50);
@@ -432,7 +432,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_mask(dev, B43_LPPHY_CRSGAIN_CTL, ~0x4000);
 	b43_phy_mask(dev, B43_LPPHY_CRSGAIN_CTL, ~0x2000);
 	b43_phy_set(dev, B43_PHY_OFDM(0x10A), 0x1);
-	if (bus->boardinfo.rev >= 0x18) {
+	if (dev->dev->board_rev >= 0x18) {
 		b43_lptab_write(dev, B43_LPTAB32(17, 65), 0xEC);
 		b43_phy_maskset(dev, B43_PHY_OFDM(0x10A), 0xFF01, 0x14);
 	} else {
@@ -449,7 +449,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xFC1F, 0xA0);
 	b43_phy_maskset(dev, B43_LPPHY_GAINDIRECTMISMATCH, 0xE0FF, 0x300);
 	b43_phy_maskset(dev, B43_LPPHY_HIGAINDB, 0x00FF, 0x2A00);
-	if ((bus->chip_id == 0x4325) && (bus->chip_rev == 0)) {
+	if ((dev->dev->chip_id == 0x4325) && (dev->dev->chip_rev == 0)) {
 		b43_phy_maskset(dev, B43_LPPHY_LOWGAINDB, 0x00FF, 0x2100);
 		b43_phy_maskset(dev, B43_LPPHY_VERYLOWGAINDB, 0xFF00, 0xA);
 	} else {
@@ -467,7 +467,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xFFE0, 0x12);
 	b43_phy_maskset(dev, B43_LPPHY_GAINMISMATCH, 0x0FFF, 0x9000);
 
-	if ((bus->chip_id == 0x4325) && (bus->chip_rev == 0)) {
+	if ((dev->dev->chip_id == 0x4325) && (dev->dev->chip_rev == 0)) {
 		b43_lptab_write(dev, B43_LPTAB16(0x08, 0x14), 0);
 		b43_lptab_write(dev, B43_LPTAB16(0x08, 0x12), 0x40);
 	}
@@ -492,7 +492,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 		      0x2000 | ((u16)lpphy->rssi_gs << 10) |
 		      ((u16)lpphy->rssi_vc << 4) | lpphy->rssi_vf);
 
-	if ((bus->chip_id == 0x4325) && (bus->chip_rev == 0)) {
+	if ((dev->dev->chip_id == 0x4325) && (dev->dev->chip_rev == 0)) {
 		b43_phy_set(dev, B43_LPPHY_AFE_ADC_CTL_0, 0x1C);
 		b43_phy_maskset(dev, B43_LPPHY_AFE_CTL, 0x00FF, 0x8800);
 		b43_phy_maskset(dev, B43_LPPHY_AFE_ADC_CTL_1, 0xFC3C, 0x0400);
@@ -519,7 +519,7 @@ struct b2062_freqdata {
 static void lpphy_2062_init(struct b43_wldev *dev)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->sdev->bus;
+	struct ssb_bus *bus = dev->dev->sdev->bus;
 	u32 crystalfreq, tmp, ref;
 	unsigned int i;
 	const struct b2062_freqdata *fd = NULL;
@@ -697,7 +697,7 @@ static void lpphy_radio_init(struct b43_wldev *dev)
 		lpphy_sync_stx(dev);
 		b43_phy_write(dev, B43_PHY_OFDM(0xF0), 0x5F80);
 		b43_phy_write(dev, B43_PHY_OFDM(0xF1), 0);
-		if (dev->sdev->bus->chip_id == 0x4325) {
+		if (dev->dev->chip_id == 0x4325) {
 			// TODO SSB PMU recalibration
 		}
 	}
@@ -1289,7 +1289,7 @@ finish:
 
 static void lpphy_rev2plus_rc_calib(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
+	struct ssb_bus *bus = dev->dev->sdev->bus;
 	u32 crystal_freq = bus->chipco.pmu.crystalfreq * 1000;
 	u8 tmp = b43_radio_read(dev, B2063_RX_BB_SP8) & 0xFF;
 	int i;
@@ -1840,7 +1840,6 @@ static void lpphy_papd_cal(struct b43_wldev *dev, struct lpphy_tx_gains gains,
 static void lpphy_papd_cal_txpwr(struct b43_wldev *dev)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->sdev->bus;
 	struct lpphy_tx_gains gains, oldgains;
 	int old_txpctl, old_afe_ovr, old_rf, old_bbmult;
 
@@ -1854,7 +1853,7 @@ static void lpphy_papd_cal_txpwr(struct b43_wldev *dev)
 
 	lpphy_set_tx_power_control(dev, B43_LPPHY_TXPCTL_OFF);
 
-	if (bus->chip_id == 0x4325 && bus->chip_rev == 0)
+	if (dev->dev->chip_id == 0x4325 && dev->dev->chip_rev == 0)
 		lpphy_papd_cal(dev, gains, 0, 1, 30);
 	else
 		lpphy_papd_cal(dev, gains, 0, 1, 65);
@@ -1870,7 +1869,6 @@ static int lpphy_rx_iq_cal(struct b43_wldev *dev, bool noise, bool tx,
 			    bool rx, bool pa, struct lpphy_tx_gains *gains)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->sdev->bus;
 	const struct lpphy_rx_iq_comp *iqcomp = NULL;
 	struct lpphy_tx_gains nogains, oldgains;
 	u16 tmp;
@@ -1879,7 +1877,7 @@ static int lpphy_rx_iq_cal(struct b43_wldev *dev, bool noise, bool tx,
 	memset(&nogains, 0, sizeof(nogains));
 	memset(&oldgains, 0, sizeof(oldgains));
 
-	if (bus->chip_id == 0x5354) {
+	if (dev->dev->chip_id == 0x5354) {
 		for (i = 0; i < ARRAY_SIZE(lpphy_5354_iq_table); i++) {
 			if (lpphy_5354_iq_table[i].chan == lpphy->channel) {
 				iqcomp = &lpphy_5354_iq_table[i];
@@ -2408,11 +2406,9 @@ static const struct b206x_channel b2063_chantbl[] = {
 
 static void lpphy_b2062_reset_pll_bias(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
-
 	b43_radio_write(dev, B2062_S_RFPLL_CTL2, 0xFF);
 	udelay(20);
-	if (bus->chip_id == 0x5354) {
+	if (dev->dev->chip_id == 0x5354) {
 		b43_radio_write(dev, B2062_N_COMM1, 4);
 		b43_radio_write(dev, B2062_S_RFPLL_CTL2, 4);
 	} else {
@@ -2432,7 +2428,7 @@ static int lpphy_b2062_tune(struct b43_wldev *dev,
 			    unsigned int channel)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->sdev->bus;
+	struct ssb_bus *bus = dev->dev->sdev->bus;
 	const struct b206x_channel *chandata = NULL;
 	u32 crystal_freq = bus->chipco.pmu.crystalfreq * 1000;
 	u32 tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9;
@@ -2522,7 +2518,7 @@ static void lpphy_b2063_vco_calib(struct b43_wldev *dev)
 static int lpphy_b2063_tune(struct b43_wldev *dev,
 			    unsigned int channel)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
+	struct ssb_bus *bus = dev->dev->sdev->bus;
 
 	static const struct b206x_channel *chandata = NULL;
 	u32 crystal_freq = bus->chipco.pmu.crystalfreq * 1000;
@@ -2669,6 +2665,11 @@ static int b43_lpphy_op_switch_channel(struct b43_wldev *dev,
 static int b43_lpphy_op_init(struct b43_wldev *dev)
 {
 	int err;
+
+	if (dev->dev->bus_type != B43_BUS_SSB) {
+		b43err(dev->wl, "LP-PHY is supported only on SSB!\n");
+		return -EOPNOTSUPP;
+	}
 
 	lpphy_read_band_sprom(dev); //FIXME should this be in prepare_structs?
 	lpphy_baseband_init(dev);

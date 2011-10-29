@@ -271,7 +271,7 @@ int iser_send_command(struct iscsi_conn *conn,
 	unsigned long edtl;
 	int err;
 	struct iser_data_buf *data_buf;
-	struct iscsi_cmd *hdr =  (struct iscsi_cmd *)task->hdr;
+	struct iscsi_scsi_req *hdr = (struct iscsi_scsi_req *)task->hdr;
 	struct scsi_cmnd *sc  =  task->sc;
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
 
@@ -412,7 +412,7 @@ int iser_send_control(struct iscsi_conn *conn,
 		memcpy(iser_conn->ib_conn->login_buf, task->data,
 							task->data_count);
 		tx_dsg->addr    = iser_conn->ib_conn->login_dma;
-		tx_dsg->length  = data_seg_len;
+		tx_dsg->length  = task->data_count;
 		tx_dsg->lkey    = device->mr->lkey;
 		mdesc->num_sge = 2;
 	}

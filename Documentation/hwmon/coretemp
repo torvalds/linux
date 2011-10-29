@@ -42,9 +42,10 @@ tempX_label	 - Contains string "Core X", where X is processor
 		   number. For Package temp, this will be "Physical id Y",
 		   where Y is the package number.
 
-The TjMax temperature is set to 85 degrees C if undocumented model specific
-register (UMSR) 0xee has bit 30 set. If not the TjMax is 100 degrees C as
-(sometimes) documented in processor datasheet.
+On CPU models which support it, TjMax is read from a model-specific register.
+On other models, it is set to an arbitrary value based on weak heuristics.
+If these heuristics don't work for you, you can pass the correct TjMax value
+as a module parameter (tjmax).
 
 Appendix A. Known TjMax lists (TBD):
 Some information comes from ark.intel.com

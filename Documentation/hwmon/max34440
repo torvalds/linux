@@ -56,6 +56,8 @@ in[1-6]_min_alarm	Voltage low alarm. From VOLTAGE_UV_WARNING status.
 in[1-6]_max_alarm	Voltage high alarm. From VOLTAGE_OV_WARNING status.
 in[1-6]_lcrit_alarm	Voltage critical low alarm. From VOLTAGE_UV_FAULT status.
 in[1-6]_crit_alarm	Voltage critical high alarm. From VOLTAGE_OV_FAULT status.
+in[1-6]_highest		Historical maximum voltage.
+in[1-6]_reset_history	Write any value to reset history.
 
 curr[1-6]_label		"iout[1-6]".
 curr[1-6]_input		Measured current. From READ_IOUT register.
@@ -63,6 +65,8 @@ curr[1-6]_max		Maximum current. From IOUT_OC_WARN_LIMIT register.
 curr[1-6]_crit		Critical maximum current. From IOUT_OC_FAULT_LIMIT register.
 curr[1-6]_max_alarm	Current high alarm. From IOUT_OC_WARNING status.
 curr[1-6]_crit_alarm	Current critical high alarm. From IOUT_OC_FAULT status.
+curr[1-6]_highest	Historical maximum current.
+curr[1-6]_reset_history	Write any value to reset history.
 
 			in6 and curr6 attributes only exist for MAX34440.
 
@@ -75,5 +79,7 @@ temp[1-8]_max		Maximum temperature. From OT_WARN_LIMIT register.
 temp[1-8]_crit		Critical high temperature. From OT_FAULT_LIMIT register.
 temp[1-8]_max_alarm	Temperature high alarm.
 temp[1-8]_crit_alarm	Temperature critical high alarm.
+temp[1-8]_highest	Historical maximum temperature.
+temp[1-8]_reset_history	Write any value to reset history.
 
 			temp7 and temp8 attributes only exist for MAX34440.

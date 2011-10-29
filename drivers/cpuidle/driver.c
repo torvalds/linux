@@ -26,6 +26,9 @@ int cpuidle_register_driver(struct cpuidle_driver *drv)
 	if (!drv)
 		return -EINVAL;
 
+	if (cpuidle_disabled())
+		return -ENODEV;
+
 	spin_lock(&cpuidle_driver_lock);
 	if (cpuidle_curr_driver) {
 		spin_unlock(&cpuidle_driver_lock);

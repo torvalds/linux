@@ -49,6 +49,27 @@ config DVB_STV6110x
 	help
 	  A Silicon tuner that supports DVB-S and DVB-S2 modes
 
+comment "Multistandard (cable + terrestrial) frontends"
+	depends on DVB_CORE
+
+config DVB_DRXK
+	tristate "Micronas DRXK based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Micronas DRX-K DVB-C/T demodulator.
+
+	  Say Y when you want to support this frontend.
+
+config DVB_TDA18271C2DD
+	tristate "NXP TDA18271C2 silicon tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  NXP TDA18271 silicon tuner.
+
+	  Say Y when you want to support this tuner.
+
 comment "DVB-S (satellite) frontends"
 	depends on DVB_CORE
 

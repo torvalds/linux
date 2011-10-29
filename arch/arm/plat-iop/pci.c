@@ -374,6 +374,9 @@ void __init iop3xx_pci_preinit_cond(void)
 
 void __init iop3xx_pci_preinit(void)
 {
+	pcibios_min_io = 0;
+	pcibios_min_mem = 0;
+
 	iop3xx_atu_disable();
 	iop3xx_atu_setup();
 	iop3xx_atu_debug();

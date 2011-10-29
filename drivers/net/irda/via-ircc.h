@@ -210,7 +210,7 @@ static void DisableDmaChannel(unsigned int channel)
 		break;
 	default:
 		break;
-	};			//Switch
+	}
 }
 
 static unsigned char ReadLPCReg(int iRegNum)

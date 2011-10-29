@@ -349,7 +349,7 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 		goto error_out;
 	}
 
-	msi->msi_regs = ioremap(res.start, res.end - res.start + 1);
+	msi->msi_regs = ioremap(res.start, resource_size(&res));
 	if (!msi->msi_regs) {
 		dev_err(&dev->dev, "ioremap problem failed\n");
 		goto error_out;

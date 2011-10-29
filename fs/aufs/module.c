@@ -78,6 +78,10 @@ static void au_cache_fin(void)
 int au_dir_roflags;
 
 #ifdef CONFIG_AUFS_SBILIST
+/*
+ * iterate_supers_type() doesn't protect us from
+ * remounting (branch management)
+ */
 struct au_splhead au_sbilist;
 #endif
 

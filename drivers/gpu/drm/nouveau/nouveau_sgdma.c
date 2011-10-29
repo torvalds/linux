@@ -37,8 +37,11 @@ nouveau_sgdma_populate(struct ttm_backend *be, unsigned long num_pages,
 		return -ENOMEM;
 
 	nvbe->ttm_alloced = kmalloc(sizeof(bool) * num_pages, GFP_KERNEL);
-	if (!nvbe->ttm_alloced)
+	if (!nvbe->ttm_alloced) {
+		kfree(nvbe->pages);
+		nvbe->pages = NULL;
 		return -ENOMEM;
+	}
 
 	nvbe->nr_pages = 0;
 	while (num_pages--) {
@@ -126,7 +129,7 @@ nv04_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
 
 		for (j = 0; j < PAGE_SIZE / NV_CTXDMA_PAGE_SIZE; j++, pte++) {
 			nv_wo32(gpuobj, (pte * 4) + 0, offset_l | 3);
-			dma_offset += NV_CTXDMA_PAGE_SIZE;
+			offset_l += NV_CTXDMA_PAGE_SIZE;
 		}
 	}
 
@@ -429,7 +432,7 @@ nouveau_sgdma_init(struct drm_device *dev)
 	u32 aper_size, align;
 	int ret;
 
-	if (dev_priv->card_type >= NV_40 && drm_pci_device_is_pcie(dev))
+	if (dev_priv->card_type >= NV_40 && pci_is_pcie(dev->pdev))
 		aper_size = 512 * 1024 * 1024;
 	else
 		aper_size = 64 * 1024 * 1024;
@@ -458,7 +461,7 @@ nouveau_sgdma_init(struct drm_device *dev)
 		dev_priv->gart_info.type = NOUVEAU_GART_HW;
 		dev_priv->gart_info.func = &nv50_sgdma_backend;
 	} else
-	if (0 && drm_pci_device_is_pcie(dev) &&
+	if (0 && pci_is_pcie(dev->pdev) &&
 	    dev_priv->chipset > 0x40 && dev_priv->chipset != 0x45) {
 		if (nv44_graph_class(dev)) {
 			dev_priv->gart_info.func = &nv44_sgdma_backend;

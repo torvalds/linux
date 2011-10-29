@@ -3704,13 +3704,16 @@ static int __devinit init_one(struct pci_dev *pdev,
 	if (err) {
 		dev_warn(&pdev->dev, "only %d net devices registered\n", i);
 		err = 0;
-	};
+	}
 
 	if (cxgb4_debugfs_root) {
 		adapter->debugfs_root = debugfs_create_dir(pci_name(pdev),
 							   cxgb4_debugfs_root);
 		setup_debugfs(adapter);
 	}
+
+	/* PCIe EEH recovery on powerpc platforms needs fundamental reset */
+	pdev->needs_freset = 1;
 
 	if (is_offload(adapter))
 		attach_ulds(adapter);

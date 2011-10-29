@@ -1,7 +1,6 @@
 #ifndef PD_COMMON_H
 #define PD_COMMON_H
 
-#include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/wait.h>
 #include <linux/list.h>

@@ -75,6 +75,7 @@ Revision History:
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -660,15 +661,6 @@ static void amd8111e_free_ring(struct amd8111e_priv* lp)
 	}
 
 }
-#if AMD8111E_VLAN_TAG_USED
-/*
-This is the receive indication function for packets with vlan tag.
-*/
-static int amd8111e_vlan_rx(struct amd8111e_priv *lp, struct sk_buff *skb, u16 vlan_tag)
-{
-	return vlan_hwaccel_receive_skb(skb, lp->vlgrp,vlan_tag);
-}
-#endif
 
 /*
 This function will free all the transmit skbs that are actually transmitted by the device. It will check the ownership of the skb before freeing the skb.
@@ -763,7 +755,7 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 #if AMD8111E_VLAN_TAG_USED
 			vtag = status & TT_MASK;
 			/*MAC will strip vlan tag*/
-			if(lp->vlgrp != NULL && vtag !=0)
+			if (vtag != 0)
 				min_pkt_len =MIN_PKT_LEN - 4;
 			else
 #endif
@@ -798,12 +790,12 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 			skb->protocol = eth_type_trans(skb, dev);
 
 #if AMD8111E_VLAN_TAG_USED
-			if(lp->vlgrp != NULL && (vtag == TT_VLAN_TAGGED)){
-				amd8111e_vlan_rx(lp, skb,
-					 le16_to_cpu(lp->rx_ring[rx_index].tag_ctrl_info));
-			} else
+			if (vtag == TT_VLAN_TAGGED){
+				u16 vlan_tag = le16_to_cpu(lp->rx_ring[rx_index].tag_ctrl_info);
+				__vlan_hwaccel_put_tag(skb, vlan_tag);
+			}
 #endif
-				netif_receive_skb(skb);
+			netif_receive_skb(skb);
 			/*COAL update rx coalescing parameters*/
 			lp->coal_conf.rx_packets++;
 			lp->coal_conf.rx_bytes += pkt_len;
@@ -1597,16 +1589,6 @@ static int amd8111e_change_mtu(struct net_device *dev, int new_mtu)
 	return err;
 }
 
-#if AMD8111E_VLAN_TAG_USED
-static void amd8111e_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
-{
-	struct  amd8111e_priv *lp = netdev_priv(dev);
-	spin_lock_irq(&lp->lock);
-	lp->vlgrp = grp;
-	spin_unlock_irq(&lp->lock);
-}
-#endif
-
 static int amd8111e_enable_magicpkt(struct amd8111e_priv* lp)
 {
 	writel( VAL1|MPPLBA, lp->mmio + CMD3);
@@ -1821,9 +1803,6 @@ static const struct net_device_ops amd8111e_netdev_ops = {
 	.ndo_set_mac_address	= amd8111e_set_mac_address,
 	.ndo_do_ioctl		= amd8111e_ioctl,
 	.ndo_change_mtu		= amd8111e_change_mtu,
-#if AMD8111E_VLAN_TAG_USED
-	.ndo_vlan_rx_register	= amd8111e_vlan_rx_register,
-#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	 = amd8111e_poll,
 #endif
@@ -1958,7 +1937,7 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 						 IPG_CONVERGE_JIFFIES;
 		lp->ipg_data.ipg = DEFAULT_IPG;
 		lp->ipg_data.ipg_state = CSTATE;
-	};
+	}
 
 	/*  display driver and device information */
 

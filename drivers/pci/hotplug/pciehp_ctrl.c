@@ -213,6 +213,9 @@ static int board_added(struct slot *p_slot)
 		goto err_exit;
 	}
 
+	/* Wait for 1 second after checking link training status */
+	msleep(1000);
+
 	/* Check for a power fault */
 	if (ctrl->power_fault_detected || pciehp_query_power_fault(p_slot)) {
 		ctrl_err(ctrl, "Power fault on slot %s\n", slot_name(p_slot));

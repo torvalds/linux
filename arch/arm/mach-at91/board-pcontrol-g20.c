@@ -53,13 +53,6 @@ static void __init pcontrol_g20_init_early(void)
 	at91_register_uart(AT91SAM9260_ID_US4, 3, 0);
 }
 
-
-static void __init init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
-}
-
-
 static struct sam9_smc_config __initdata pcontrol_smc_config[2] = { {
 	.ncs_read_setup		= 16,
 	.nrd_setup		= 18,
@@ -223,8 +216,8 @@ static void __init pcontrol_g20_board_init(void)
 MACHINE_START(PCONTROL_G20, "PControl G20")
 	/* Maintainer: pgsellmann@portner-elektronik.at */
 	.timer		= &at91sam926x_timer,
-	.map_io		= at91sam9260_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= pcontrol_g20_init_early,
-	.init_irq	= init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= pcontrol_g20_board_init,
 MACHINE_END

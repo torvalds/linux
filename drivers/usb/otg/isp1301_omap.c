@@ -660,7 +660,7 @@ static irqreturn_t omap_otg_irq(int irq, void *_isp)
 	int		ret = IRQ_NONE;
 	struct isp1301	*isp = _isp;
 
-	/* update ISP1301 transciever from OTG controller */
+	/* update ISP1301 transceiver from OTG controller */
 	if (otg_irq & OPRT_CHG) {
 		omap_writew(OPRT_CHG, OTG_IRQ_SRC);
 		isp1301_defer_work(isp, WORK_UPDATE_ISP);
@@ -755,7 +755,7 @@ static irqreturn_t omap_otg_irq(int irq, void *_isp)
 		omap_writew(A_VBUS_ERR, OTG_IRQ_SRC);
 		ret = IRQ_HANDLED;
 
-	/* switch driver; the transciever code activates it,
+	/* switch driver; the transceiver code activates it,
 	 * ungating the udc clock or resuming OHCI.
 	 */
 	} else if (otg_irq & DRIVER_SWITCH) {

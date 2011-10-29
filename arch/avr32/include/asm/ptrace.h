@@ -132,8 +132,6 @@ struct pt_regs {
 #define instruction_pointer(regs)       ((regs)->pc)
 #define profile_pc(regs)                instruction_pointer(regs)
 
-extern void show_regs (struct pt_regs *);
-
 static __inline__ int valid_user_regs(struct pt_regs *regs)
 {
 	/*

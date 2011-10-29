@@ -61,8 +61,6 @@ struct pt_regs {
 #define instruction_pointer(regs)	((regs)->pc)
 #define profile_pc(regs)		instruction_pointer(regs)
 
-void show_regs(struct pt_regs *);
-
 #else /* __KERNEL__ */
 
 /* pt_regs offsets used by gdbserver etc in ptrace syscalls */

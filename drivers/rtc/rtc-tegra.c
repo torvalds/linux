@@ -343,7 +343,7 @@ static int __devinit tegra_rtc_probe(struct platform_device *pdev)
 
 	/* set context info. */
 	info->pdev = pdev;
-	info->tegra_rtc_lock = __SPIN_LOCK_UNLOCKED(info->tegra_rtc_lock);
+	spin_lock_init(&info->tegra_rtc_lock);
 
 	platform_set_drvdata(pdev, info);
 

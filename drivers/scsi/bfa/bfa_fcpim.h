@@ -24,6 +24,34 @@
 #include "bfa_defs_svc.h"
 #include "bfa_cs.h"
 
+/* FCP module related definitions */
+#define BFA_IO_MAX	BFI_IO_MAX
+#define BFA_FWTIO_MAX	2000
+
+struct bfa_fcp_mod_s;
+struct bfa_iotag_s {
+	struct list_head	qe;	/* queue element	*/
+	u16	tag;			/* FW IO tag		*/
+};
+
+struct bfa_itn_s {
+	bfa_isr_func_t isr;
+};
+
+void bfa_itn_create(struct bfa_s *bfa, struct bfa_rport_s *rport,
+		void (*isr)(struct bfa_s *bfa, struct bfi_msg_s *m));
+void bfa_itn_isr(struct bfa_s *bfa, struct bfi_msg_s *m);
+void bfa_iotag_attach(struct bfa_fcp_mod_s *fcp);
+void bfa_fcp_res_recfg(struct bfa_s *bfa, u16 num_ioim_fw);
+
+#define BFA_FCP_MOD(_hal)	(&(_hal)->modules.fcp_mod)
+#define BFA_MEM_FCP_KVA(__bfa)	(&(BFA_FCP_MOD(__bfa)->kva_seg))
+#define BFA_IOTAG_FROM_TAG(_fcp, _tag)	\
+	(&(_fcp)->iotag_arr[(_tag & BFA_IOIM_IOTAG_MASK)])
+#define BFA_ITN_FROM_TAG(_fcp, _tag)	\
+	((_fcp)->itn_arr + ((_tag) & ((_fcp)->num_itns - 1)))
+#define BFA_SNSINFO_FROM_TAG(_fcp, _tag) \
+	bfa_mem_get_dmabuf_kva(_fcp, _tag, BFI_IOIM_SNSLEN)
 
 #define BFA_ITNIM_MIN   32
 #define BFA_ITNIM_MAX   1024
@@ -51,14 +79,22 @@ bfa_ioim_get_index(u32 n) {
 	if (n >= (1UL)<<22)
 		return BFA_IOBUCKET_MAX - 1;
 	n >>= 8;
-	if (n >= (1UL)<<16)
-		n >>= 16; pos += 16;
-	if (n >= 1 << 8)
-		n >>= 8; pos += 8;
-	if (n >= 1 << 4)
-		n >>= 4; pos += 4;
-	if (n >= 1 << 2)
-		n >>= 2; pos += 2;
+	if (n >= (1UL)<<16) {
+		n >>= 16;
+		pos += 16;
+	}
+	if (n >= 1 << 8) {
+		n >>= 8;
+		pos += 8;
+	}
+	if (n >= 1 << 4) {
+		n >>= 4;
+		pos += 4;
+	}
+	if (n >= 1 << 2) {
+		n >>= 2;
+		pos += 2;
+	}
 	if (n >= 1 << 1)
 		pos += 1;
 
@@ -74,26 +110,26 @@ struct bfad_ioim_s;
 struct bfad_tskim_s;
 
 typedef void    (*bfa_fcpim_profile_t) (struct bfa_ioim_s *ioim);
+typedef bfa_boolean_t (*bfa_ioim_lm_proc_rsp_data_t) (struct bfa_ioim_s *ioim);
 
-struct bfa_fcpim_mod_s {
+struct bfa_fcpim_s {
 	struct bfa_s		*bfa;
+	struct bfa_fcp_mod_s	*fcp;
 	struct bfa_itnim_s	*itnim_arr;
 	struct bfa_ioim_s	*ioim_arr;
 	struct bfa_ioim_sp_s	*ioim_sp_arr;
 	struct bfa_tskim_s	*tskim_arr;
-	struct bfa_dma_s	snsbase;
 	int			num_itnims;
-	int			num_ioim_reqs;
 	int			num_tskim_reqs;
 	u32			path_tov;
 	u16			q_depth;
 	u8			reqq;		/*  Request queue to be used */
-	u8			rsvd;
+	u8			lun_masking_pending;
 	struct list_head	itnim_q;	/*  queue of active itnim */
-	struct list_head	ioim_free_q;	/*  free IO resources	*/
 	struct list_head	ioim_resfree_q; /*  IOs waiting for f/w */
 	struct list_head	ioim_comp_q;	/*  IO global comp Q	*/
 	struct list_head	tskim_free_q;
+	struct list_head	tskim_unused_q;	/* Unused tskim Q */
 	u32			ios_active;	/*  current active IOs	*/
 	u32			delay_comp;
 	struct bfa_fcpim_del_itn_stats_s del_itn_stats;
@@ -104,6 +140,25 @@ struct bfa_fcpim_mod_s {
 	bfa_fcpim_profile_t     profile_start;
 };
 
+/* Max FCP dma segs required */
+#define BFA_FCP_DMA_SEGS	BFI_IOIM_SNSBUF_SEGS
+
+struct bfa_fcp_mod_s {
+	struct bfa_s		*bfa;
+	struct list_head	iotag_ioim_free_q;	/* free IO resources */
+	struct list_head	iotag_tio_free_q;	/* free IO resources */
+	struct list_head	iotag_unused_q;	/* unused IO resources*/
+	struct bfa_iotag_s	*iotag_arr;
+	struct bfa_itn_s	*itn_arr;
+	int			num_ioim_reqs;
+	int			num_fwtio_reqs;
+	int			num_itns;
+	struct bfa_dma_s	snsbase[BFA_FCP_DMA_SEGS];
+	struct bfa_fcpim_s	fcpim;
+	struct bfa_mem_dma_s	dma_seg[BFA_FCP_DMA_SEGS];
+	struct bfa_mem_kva_s	kva_seg;
+};
+
 /*
  * BFA IO (initiator mode)
  */
@@ -111,7 +166,7 @@ struct bfa_ioim_s {
 	struct list_head	qe;		/*  queue elememt	*/
 	bfa_sm_t		sm;		/*  BFA ioim state machine */
 	struct bfa_s		*bfa;		/*  BFA module	*/
-	struct bfa_fcpim_mod_s	*fcpim;		/*  parent fcpim module */
+	struct bfa_fcpim_s	*fcpim;		/*  parent fcpim module */
 	struct bfa_itnim_s	*itnim;		/*  i-t-n nexus for this IO  */
 	struct bfad_ioim_s	*dio;		/*  driver IO handle	*/
 	u16			iotag;		/*  FWI IO tag	*/
@@ -124,12 +179,13 @@ struct bfa_ioim_s {
 	bfa_cb_cbfn_t		io_cbfn;	/*  IO completion handler */
 	struct bfa_ioim_sp_s	*iosp;		/*  slow-path IO handling */
 	u8			reqq;		/*  Request queue for I/O */
+	u8			mode;		/*  IO is passthrough or not */
 	u64			start_time;	/*  IO's Profile start val */
+	bfa_ioim_lm_proc_rsp_data_t proc_rsp_data; /* RSP data adjust */
 };
 
 struct bfa_ioim_sp_s {
 	struct bfi_msg_s	comp_rspmsg;	/*  IO comp f/w response */
-	u8			*snsinfo;	/*  sense info for this IO   */
 	struct bfa_sgpg_wqe_s	sgpg_wqe;	/*  waitq elem for sgpg	*/
 	struct bfa_reqq_wait_s	reqq_wait;	/*  to wait for room in reqq */
 	bfa_boolean_t		abort_explicit;	/*  aborted by OS	*/
@@ -143,7 +199,7 @@ struct bfa_tskim_s {
 	struct list_head	qe;
 	bfa_sm_t		sm;
 	struct bfa_s		*bfa;	/*  BFA module  */
-	struct bfa_fcpim_mod_s  *fcpim;	/*  parent fcpim module	*/
+	struct bfa_fcpim_s	*fcpim;	/*  parent fcpim module	*/
 	struct bfa_itnim_s	*itnim;	/*  i-t-n nexus for this IO  */
 	struct bfad_tskim_s	*dtsk;  /*  driver task mgmt cmnd	*/
 	bfa_boolean_t		notify;	/*  notify itnim on TM comp  */
@@ -182,13 +238,13 @@ struct bfa_itnim_s {
 	struct bfa_wc_s	wc;		/*  waiting counter	*/
 	struct bfa_timer_s timer;	/*  pending IO TOV	 */
 	struct bfa_reqq_wait_s reqq_wait; /*  to wait for room in reqq */
-	struct bfa_fcpim_mod_s *fcpim;	/*  fcpim module	*/
+	struct bfa_fcpim_s *fcpim;	/*  fcpim module	*/
 	struct bfa_itnim_iostats_s	stats;
 	struct bfa_itnim_ioprofile_s  ioprofile;
 };
 
 #define bfa_itnim_is_online(_itnim) ((_itnim)->is_online)
-#define BFA_FCPIM_MOD(_hal) (&(_hal)->modules.fcpim_mod)
+#define BFA_FCPIM(_hal)	(&(_hal)->modules.fcp_mod.fcpim)
 #define BFA_IOIM_TAG_2_ID(_iotag)	((_iotag) & BFA_IOIM_IOTAG_MASK)
 #define BFA_IOIM_FROM_TAG(_fcpim, _iotag)	\
 	(&fcpim->ioim_arr[(_iotag & BFA_IOIM_IOTAG_MASK)])
@@ -196,14 +252,18 @@ struct bfa_itnim_s {
 	(&fcpim->tskim_arr[_tmtag & (fcpim->num_tskim_reqs - 1)])
 
 #define bfa_io_profile_start_time(_bfa)	\
-	(_bfa->modules.fcpim_mod.io_profile_start_time)
+	((_bfa)->modules.fcp_mod.fcpim.io_profile_start_time)
 #define bfa_fcpim_get_io_profile(_bfa)	\
-	(_bfa->modules.fcpim_mod.io_profile)
+	((_bfa)->modules.fcp_mod.fcpim.io_profile)
 #define bfa_ioim_update_iotag(__ioim) do {				\
 	uint16_t k = (__ioim)->iotag >> BFA_IOIM_RETRY_TAG_OFFSET;	\
 	k++; (__ioim)->iotag &= BFA_IOIM_IOTAG_MASK;			\
 	(__ioim)->iotag |= k << BFA_IOIM_RETRY_TAG_OFFSET;		\
 } while (0)
+
+#define BFA_IOIM_TO_LPS(__ioim)		\
+	BFA_LPS_FROM_TAG(BFA_LPS_MOD(__ioim->bfa),	\
+		__ioim->itnim->rport->rport_info.lp_tag)
 
 static inline bfa_boolean_t
 bfa_ioim_maxretry_reached(struct bfa_ioim_s *ioim)
@@ -217,8 +277,7 @@ bfa_ioim_maxretry_reached(struct bfa_ioim_s *ioim)
 /*
  * function prototypes
  */
-void	bfa_ioim_attach(struct bfa_fcpim_mod_s *fcpim,
-					struct bfa_meminfo_s *minfo);
+void	bfa_ioim_attach(struct bfa_fcpim_s *fcpim);
 void	bfa_ioim_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 void	bfa_ioim_good_comp_isr(struct bfa_s *bfa,
 					struct bfi_msg_s *msg);
@@ -228,18 +287,15 @@ void	bfa_ioim_cleanup_tm(struct bfa_ioim_s *ioim,
 void	bfa_ioim_iocdisable(struct bfa_ioim_s *ioim);
 void	bfa_ioim_tov(struct bfa_ioim_s *ioim);
 
-void	bfa_tskim_attach(struct bfa_fcpim_mod_s *fcpim,
-					struct bfa_meminfo_s *minfo);
+void	bfa_tskim_attach(struct bfa_fcpim_s *fcpim);
 void	bfa_tskim_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 void	bfa_tskim_iodone(struct bfa_tskim_s *tskim);
 void	bfa_tskim_iocdisable(struct bfa_tskim_s *tskim);
 void	bfa_tskim_cleanup(struct bfa_tskim_s *tskim);
+void	bfa_tskim_res_recfg(struct bfa_s *bfa, u16 num_tskim_fw);
 
-void	bfa_itnim_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
-					u32 *dm_len);
-void	bfa_itnim_attach(struct bfa_fcpim_mod_s *fcpim,
-					struct bfa_meminfo_s *minfo);
-void	bfa_itnim_detach(struct bfa_fcpim_mod_s *fcpim);
+void	bfa_itnim_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len);
+void	bfa_itnim_attach(struct bfa_fcpim_s *fcpim);
 void	bfa_itnim_iocdisable(struct bfa_itnim_s *itnim);
 void	bfa_itnim_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 void	bfa_itnim_iodone(struct bfa_itnim_s *itnim);
@@ -252,13 +308,19 @@ bfa_boolean_t   bfa_itnim_hold_io(struct bfa_itnim_s *itnim);
 void	bfa_fcpim_path_tov_set(struct bfa_s *bfa, u16 path_tov);
 u16	bfa_fcpim_path_tov_get(struct bfa_s *bfa);
 u16	bfa_fcpim_qdepth_get(struct bfa_s *bfa);
+bfa_status_t bfa_fcpim_port_iostats(struct bfa_s *bfa,
+			struct bfa_itnim_iostats_s *stats, u8 lp_tag);
+void bfa_fcpim_add_stats(struct bfa_itnim_iostats_s *fcpim_stats,
+			struct bfa_itnim_iostats_s *itnim_stats);
+bfa_status_t bfa_fcpim_profile_on(struct bfa_s *bfa, u32 time);
+bfa_status_t bfa_fcpim_profile_off(struct bfa_s *bfa);
 
 #define bfa_fcpim_ioredirect_enabled(__bfa)				\
-	(((struct bfa_fcpim_mod_s *)(BFA_FCPIM_MOD(__bfa)))->ioredirect)
+	(((struct bfa_fcpim_s *)(BFA_FCPIM(__bfa)))->ioredirect)
 
 #define bfa_fcpim_get_next_reqq(__bfa, __qid)				\
 {									\
-	struct bfa_fcpim_mod_s *__fcpim = BFA_FCPIM_MOD(__bfa);      \
+	struct bfa_fcpim_s *__fcpim = BFA_FCPIM(__bfa);      \
 	__fcpim->reqq++;						\
 	__fcpim->reqq &= (BFI_IOC_MAX_CQS - 1);      \
 	*(__qid) = __fcpim->reqq;					\
@@ -351,5 +413,15 @@ void bfa_tskim_start(struct bfa_tskim_s *tskim,
 			enum fcp_tm_cmnd tm, u8 t_secs);
 void bfa_cb_tskim_done(void *bfad, struct bfad_tskim_s *dtsk,
 			enum bfi_tskim_status tsk_status);
+
+void	bfa_fcpim_lunmask_rp_update(struct bfa_s *bfa, wwn_t lp_wwn,
+			wwn_t rp_wwn, u16 rp_tag, u8 lp_tag);
+bfa_status_t	bfa_fcpim_lunmask_update(struct bfa_s *bfa, u32 on_off);
+bfa_status_t	bfa_fcpim_lunmask_query(struct bfa_s *bfa, void *buf);
+bfa_status_t	bfa_fcpim_lunmask_delete(struct bfa_s *bfa, u16 vf_id,
+				wwn_t *pwwn, wwn_t rpwwn, struct scsi_lun lun);
+bfa_status_t	bfa_fcpim_lunmask_add(struct bfa_s *bfa, u16 vf_id,
+				wwn_t *pwwn, wwn_t rpwwn, struct scsi_lun lun);
+bfa_status_t	bfa_fcpim_lunmask_clear(struct bfa_s *bfa);
 
 #endif /* __BFA_FCPIM_H__ */

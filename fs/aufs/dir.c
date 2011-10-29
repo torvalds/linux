@@ -321,16 +321,18 @@ out:
 /*
  * @file may be NULL
  */
-static int aufs_fsync_dir(struct file *file, int datasync)
+static int aufs_fsync_dir(struct file *file, loff_t start, loff_t end,
+			  int datasync)
 {
 	int err;
 	struct dentry *dentry;
 	struct super_block *sb;
-
-	dentry = file->f_dentry;
-	IMustLock(dentry->d_inode);
+	struct mutex *mtx;
 
 	err = 0;
+	dentry = file->f_dentry;
+	mtx = &dentry->d_inode->i_mutex;
+	mutex_lock(mtx);
 	sb = dentry->d_sb;
 	si_noflush_read_lock(sb);
 	if (file)
@@ -345,6 +347,7 @@ static int aufs_fsync_dir(struct file *file, int datasync)
 		fi_write_unlock(file);
 
 	si_read_unlock(sb);
+	mutex_unlock(mtx);
 	return err;
 }
 

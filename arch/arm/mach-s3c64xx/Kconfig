@@ -142,6 +142,7 @@ config MACH_SMDK6410
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_USB_HSOTG
 	select S3C_DEV_WDT
+	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_KEYPAD
 	select SAMSUNG_DEV_PWM
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
@@ -266,3 +267,26 @@ config MACH_SMARTQ7
 	select MACH_SMARTQ
 	help
 	    Machine support for the SmartQ 7
+
+config MACH_WLF_CRAGG_6410
+	bool "Wolfson Cragganmore 6410"
+	select CPU_S3C6410
+	select S3C64XX_SETUP_SDHCI
+	select S3C64XX_SETUP_I2C1
+	select S3C64XX_SETUP_IDE
+	select S3C64XX_SETUP_FB_24BPP
+	select S3C64XX_SETUP_KEYPAD
+	select SAMSUNG_DEV_ADC
+	select SAMSUNG_DEV_KEYPAD
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_USB_HSOTG
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_I2C1
+	select S3C_DEV_WDT
+	select S3C_DEV_RTC
+	select S3C64XX_DEV_SPI
+	select S3C24XX_GPIO_EXTRA128
+	help
+	  Machine support for the Wolfson Cragganmore S3C6410 variant.

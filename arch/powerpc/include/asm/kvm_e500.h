@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (C) 2008-2011 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Author: Yu Liu, <yu.liu@freescale.com>
  *
@@ -29,17 +29,25 @@ struct tlbe{
 	u32 mas7;
 };
 
+#define E500_TLB_VALID 1
+#define E500_TLB_DIRTY 2
+
+struct tlbe_priv {
+	pfn_t pfn;
+	unsigned int flags; /* E500_TLB_* */
+};
+
+struct vcpu_id_table;
+
 struct kvmppc_vcpu_e500 {
 	/* Unmodified copy of the guest's TLB. */
-	struct tlbe *guest_tlb[E500_TLB_NUM];
-	/* TLB that's actually used when the guest is running. */
-	struct tlbe *shadow_tlb[E500_TLB_NUM];
-	/* Pages which are referenced in the shadow TLB. */
-	struct page **shadow_pages[E500_TLB_NUM];
+	struct tlbe *gtlb_arch[E500_TLB_NUM];
 
-	unsigned int guest_tlb_size[E500_TLB_NUM];
-	unsigned int shadow_tlb_size[E500_TLB_NUM];
-	unsigned int guest_tlb_nv[E500_TLB_NUM];
+	/* KVM internal information associated with each guest TLB entry */
+	struct tlbe_priv *gtlb_priv[E500_TLB_NUM];
+
+	unsigned int gtlb_size[E500_TLB_NUM];
+	unsigned int gtlb_nv[E500_TLB_NUM];
 
 	u32 host_pid[E500_PID_NUM];
 	u32 pid[E500_PID_NUM];
@@ -53,6 +61,10 @@ struct kvmppc_vcpu_e500 {
 	u32 mas5;
 	u32 mas6;
 	u32 mas7;
+
+	/* vcpu id table */
+	struct vcpu_id_table *idt;
+
 	u32 l1csr0;
 	u32 l1csr1;
 	u32 hid0;

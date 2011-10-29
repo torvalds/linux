@@ -13,7 +13,7 @@
  *
  */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/init.h>
 #include <linux/crypto.h>
 #include <linux/rwsem.h>

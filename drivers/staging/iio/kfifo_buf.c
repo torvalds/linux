@@ -110,9 +110,7 @@ struct iio_ring_buffer *iio_kfifo_allocate(struct iio_dev *indio_dev)
 	iio_ring_buffer_init(&kf->ring, indio_dev);
 	__iio_init_kfifo(kf);
 	kf->ring.dev.type = &iio_kfifo_type;
-	device_initialize(&kf->ring.dev);
 	kf->ring.dev.parent = &indio_dev->dev;
-	kf->ring.dev.bus = &iio_bus_type;
 	dev_set_drvdata(&kf->ring.dev, (void *)&(kf->ring));
 
 	return &kf->ring;

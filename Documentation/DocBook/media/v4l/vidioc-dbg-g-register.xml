@@ -1,0 +1,258 @@
+<refentry id="vidioc-dbg-g-register">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_DBG_G_REGISTER, VIDIOC_DBG_S_REGISTER</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_DBG_G_REGISTER</refname>
+    <refname>VIDIOC_DBG_S_REGISTER</refname>
+    <refpurpose>Read or write hardware registers</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_dbg_register *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>const struct v4l2_dbg_register
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_DBG_G_REGISTER, VIDIOC_DBG_S_REGISTER</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <note>
+      <title>Experimental</title>
+
+      <para>This is an <link linkend="experimental">experimental</link>
+interface and may change in the future.</para>
+    </note>
+
+    <para>For driver debugging purposes these ioctls allow test
+applications to access hardware registers directly. Regular
+applications must not use them.</para>
+
+    <para>Since writing or even reading registers can jeopardize the
+system security, its stability and damage the hardware, both ioctls
+require superuser privileges. Additionally the Linux kernel must be
+compiled with the <constant>CONFIG_VIDEO_ADV_DEBUG</constant> option
+to enable these ioctls.</para>
+
+    <para>To write a register applications must initialize all fields
+of a &v4l2-dbg-register; and call
+<constant>VIDIOC_DBG_S_REGISTER</constant> with a pointer to this
+structure. The <structfield>match.type</structfield> and
+<structfield>match.addr</structfield> or <structfield>match.name</structfield>
+fields select a chip on the TV
+card, the <structfield>reg</structfield> field specifies a register
+number and the <structfield>val</structfield> field the value to be
+written into the register.</para>
+
+    <para>To read a register applications must initialize the
+<structfield>match.type</structfield>,
+<structfield>match.chip</structfield> or <structfield>match.name</structfield> and
+<structfield>reg</structfield> fields, and call
+<constant>VIDIOC_DBG_G_REGISTER</constant> with a pointer to this
+structure. On success the driver stores the register value in the
+<structfield>val</structfield> field. On failure the structure remains
+unchanged.</para>
+
+    <para>When <structfield>match.type</structfield> is
+<constant>V4L2_CHIP_MATCH_HOST</constant>,
+<structfield>match.addr</structfield> selects the nth non-&i2c; chip
+on the TV card.  The number zero always selects the host chip, &eg; the
+chip connected to the PCI or USB bus. You can find out which chips are
+present with the &VIDIOC-DBG-G-CHIP-IDENT; ioctl.</para>
+
+    <para>When <structfield>match.type</structfield> is
+<constant>V4L2_CHIP_MATCH_I2C_DRIVER</constant>,
+<structfield>match.name</structfield> contains the I2C driver name.
+For instance
+<constant>"saa7127"</constant> will match any chip
+supported by the saa7127 driver, regardless of its &i2c; bus address.
+When multiple chips supported by the same driver are present, the
+effect of these ioctls is undefined. Again with the
+&VIDIOC-DBG-G-CHIP-IDENT; ioctl you can find out which &i2c; chips are
+present.</para>
+
+    <para>When <structfield>match.type</structfield> is
+<constant>V4L2_CHIP_MATCH_I2C_ADDR</constant>,
+<structfield>match.addr</structfield> selects a chip by its 7 bit &i2c;
+bus address.</para>
+
+    <para>When <structfield>match.type</structfield> is
+<constant>V4L2_CHIP_MATCH_AC97</constant>,
+<structfield>match.addr</structfield> selects the nth AC97 chip
+on the TV card.</para>
+
+    <note>
+      <title>Success not guaranteed</title>
+
+      <para>Due to a flaw in the Linux &i2c; bus driver these ioctls may
+return successfully without actually reading or writing a register. To
+catch the most likely failure we recommend a &VIDIOC-DBG-G-CHIP-IDENT;
+call confirming the presence of the selected &i2c; chip.</para>
+    </note>
+
+    <para>These ioctls are optional, not all drivers may support them.
+However when a driver supports these ioctls it must also support
+&VIDIOC-DBG-G-CHIP-IDENT;. Conversely it may support
+<constant>VIDIOC_DBG_G_CHIP_IDENT</constant> but not these ioctls.</para>
+
+    <para><constant>VIDIOC_DBG_G_REGISTER</constant> and
+<constant>VIDIOC_DBG_S_REGISTER</constant> were introduced in Linux
+2.6.21, but their API was changed to the one described here in kernel 2.6.29.</para>
+
+    <para>We recommended the <application>v4l2-dbg</application>
+utility over calling these ioctls directly. It is available from the
+LinuxTV v4l-dvb repository; see <ulink
+url="http://linuxtv.org/repo/">http://linuxtv.org/repo/</ulink> for
+access instructions.</para>
+
+    <!-- Note for convenience vidioc-dbg-g-chip-ident.sgml
+	 contains a duplicate of this table. -->
+    <table pgwide="1" frame="none" id="v4l2-dbg-match">
+      <title>struct <structname>v4l2_dbg_match</structname></title>
+      <tgroup cols="4">
+	&cs-ustr;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry>See <xref linkend="ident-chip-match-types" /> for a list of
+possible types.</entry>
+	  </row>
+	  <row>
+	    <entry>union</entry>
+	    <entry>(anonymous)</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__u32</entry>
+	    <entry><structfield>addr</structfield></entry>
+	    <entry>Match a chip by this number, interpreted according
+to the <structfield>type</structfield> field.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>char</entry>
+	    <entry><structfield>name[32]</structfield></entry>
+	    <entry>Match a chip by this name, interpreted according
+to the <structfield>type</structfield> field.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+
+    <table pgwide="1" frame="none" id="v4l2-dbg-register">
+      <title>struct <structname>v4l2_dbg_register</structname></title>
+      <tgroup cols="4">
+	<colspec colname="c1" />
+	<colspec colname="c2" />
+	<colspec colname="c4" />
+	<tbody valign="top">
+	  <row>
+	    <entry>struct v4l2_dbg_match</entry>
+	    <entry><structfield>match</structfield></entry>
+	    <entry>How to match the chip, see <xref linkend="v4l2-dbg-match" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u64</entry>
+	    <entry><structfield>reg</structfield></entry>
+	    <entry>A register number.</entry>
+	  </row>
+	  <row>
+	    <entry>__u64</entry>
+	    <entry><structfield>val</structfield></entry>
+	    <entry>The value read from, or to be written into the
+register.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <!-- Note for convenience vidioc-dbg-g-chip-ident.sgml
+	 contains a duplicate of this table. -->
+    <table pgwide="1" frame="none" id="chip-match-types">
+      <title>Chip Match Types</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_CHIP_MATCH_HOST</constant></entry>
+	    <entry>0</entry>
+	    <entry>Match the nth chip on the card, zero for the
+	    host chip. Does not match &i2c; chips.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CHIP_MATCH_I2C_DRIVER</constant></entry>
+	    <entry>1</entry>
+	    <entry>Match an &i2c; chip by its driver name.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CHIP_MATCH_I2C_ADDR</constant></entry>
+	    <entry>2</entry>
+	    <entry>Match a chip by its 7 bit &i2c; bus address.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CHIP_MATCH_AC97</constant></entry>
+	    <entry>3</entry>
+	    <entry>Match the nth anciliary AC97 chip.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EPERM</errorcode></term>
+	<listitem>
+	  <para>Insufficient permissions. Root privileges are required
+to execute these ioctls.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

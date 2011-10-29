@@ -27,6 +27,8 @@
  *
  *****************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/vmalloc.h>
 
 #include "../wifi.h"
@@ -183,8 +185,8 @@ static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
 		return 1;
 	}
 
-	printk(KERN_INFO "rtl8192se: Driver for Realtek RTL8192SE/RTL8191SE\n"
-	       "           Loading firmware %s\n", rtlpriv->cfg->fw_name);
+	pr_info("Driver for Realtek RTL8192SE/RTL8191SE\n"
+		"Loading firmware %s\n", rtlpriv->cfg->fw_name);
 	/* request fw */
 	err = request_firmware(&firmware, rtlpriv->cfg->fw_name,
 			rtlpriv->io.dev);

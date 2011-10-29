@@ -28,7 +28,10 @@ int blk_should_fake_timeout(struct request_queue *q)
 
 static int __init fail_io_timeout_debugfs(void)
 {
-	return init_fault_attr_dentries(&fail_io_timeout, "fail_io_timeout");
+	struct dentry *dir = fault_create_debugfs_attr("fail_io_timeout",
+						NULL, &fail_io_timeout);
+
+	return IS_ERR(dir) ? PTR_ERR(dir) : 0;
 }
 
 late_initcall(fail_io_timeout_debugfs);

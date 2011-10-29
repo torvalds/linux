@@ -38,7 +38,7 @@ void __init fsg_pci_preinit(void)
 	ixp4xx_pci_preinit();
 }
 
-static int __init fsg_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init fsg_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static int pci_irq_table[IRQ_LINES] = {
 		IXP4XX_GPIO_IRQ(INTC),

@@ -27,6 +27,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
+#include <linux/workqueue.h>
 
 #if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
 #include "seq_device.h"
@@ -63,6 +64,7 @@ struct snd_rawmidi_global_ops {
 };
 
 struct snd_rawmidi_runtime {
+	struct snd_rawmidi_substream *substream;
 	unsigned int drain: 1,	/* drain stage */
 		     oss: 1;	/* OSS compatible mode */
 	/* midi stream buffer */
@@ -79,7 +81,7 @@ struct snd_rawmidi_runtime {
 	/* event handler (new bytes, input only) */
 	void (*event)(struct snd_rawmidi_substream *substream);
 	/* defers calls to event [input] or ops->trigger [output] */
-	struct tasklet_struct tasklet;
+	struct work_struct event_work;
 	/* private data */
 	void *private_data;
 	void (*private_free)(struct snd_rawmidi_substream *substream);

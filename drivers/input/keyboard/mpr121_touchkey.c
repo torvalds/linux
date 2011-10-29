@@ -43,14 +43,15 @@
  * enabled capacitance sensing inputs and its run/suspend mode.
  */
 #define ELECTRODE_CONF_ADDR		0x5e
+#define ELECTRODE_CONF_QUICK_CHARGE	0x80
 #define AUTO_CONFIG_CTRL_ADDR		0x7b
 #define AUTO_CONFIG_USL_ADDR		0x7d
 #define AUTO_CONFIG_LSL_ADDR		0x7e
 #define AUTO_CONFIG_TL_ADDR		0x7f
 
 /* Threshold of touch/release trigger */
-#define TOUCH_THRESHOLD			0x0f
-#define RELEASE_THRESHOLD		0x0a
+#define TOUCH_THRESHOLD			0x08
+#define RELEASE_THRESHOLD		0x05
 /* Masks for touch and release triggers */
 #define TOUCH_STATUS_MASK		0xfff
 /* MPR121 has 12 keys */
@@ -127,7 +128,7 @@ static int __devinit mpr121_phys_init(const struct mpr121_platform_data *pdata,
 				      struct i2c_client *client)
 {
 	const struct mpr121_init_register *reg;
-	unsigned char usl, lsl, tl;
+	unsigned char usl, lsl, tl, eleconf;
 	int i, t, vdd, ret;
 
 	/* Set up touch/release threshold for ele0-ele11 */
@@ -163,8 +164,15 @@ static int __devinit mpr121_phys_init(const struct mpr121_platform_data *pdata,
 	ret = i2c_smbus_write_byte_data(client, AUTO_CONFIG_USL_ADDR, usl);
 	ret |= i2c_smbus_write_byte_data(client, AUTO_CONFIG_LSL_ADDR, lsl);
 	ret |= i2c_smbus_write_byte_data(client, AUTO_CONFIG_TL_ADDR, tl);
+
+	/*
+	 * Quick charge bit will let the capacitive charge to ready
+	 * state quickly, or the buttons may not function after system
+	 * boot.
+	 */
+	eleconf = mpr121->keycount | ELECTRODE_CONF_QUICK_CHARGE;
 	ret |= i2c_smbus_write_byte_data(client, ELECTRODE_CONF_ADDR,
-					 mpr121->keycount);
+					 eleconf);
 	if (ret != 0)
 		goto err_i2c_write;
 

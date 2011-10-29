@@ -1501,7 +1501,7 @@ static int __devinit pcxhr_probe(struct pci_dev *pci,
 	mgr->irq = -1;
 
 	if (request_irq(pci->irq, pcxhr_interrupt, IRQF_SHARED,
-			card_name, mgr)) {
+			KBUILD_MODNAME, mgr)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		pcxhr_free(mgr);
 		return -EBUSY;
@@ -1608,7 +1608,7 @@ static void __devexit pcxhr_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "Digigram pcxhr",
+	.name = KBUILD_MODNAME,
 	.id_table = pcxhr_ids,
 	.probe = pcxhr_probe,
 	.remove = __devexit_p(pcxhr_remove),

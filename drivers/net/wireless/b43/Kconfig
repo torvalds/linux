@@ -26,6 +26,16 @@ config B43
 	  This driver can be built as a module (recommended) that will be called "b43".
 	  If unsure, say M.
 
+config B43_BCMA
+	bool "Support for BCMA bus"
+	depends on B43 && BCMA
+	default y
+
+config B43_SSB
+	bool
+	depends on B43 && SSB
+	default y
+
 # Auto-select SSB PCI-HOST support, if possible
 config B43_PCI_AUTOSELECT
 	bool
@@ -80,6 +90,12 @@ config B43_SDIO
 
 #Data transfers to the device via PIO. We want it as a fallback even
 # if we can do DMA.
+config B43_BCMA_PIO
+	bool
+	depends on B43_BCMA
+	select BCMA_BLOCKIO
+	default y
+
 config B43_PIO
 	bool
 	depends on B43
@@ -106,6 +122,22 @@ config B43_PHY_LP
 	  The LP-PHY is a low-power PHY built into some notebooks
 	  and embedded devices. It supports 802.11a/g
 	  (802.11a support is optional, and currently disabled).
+
+config B43_PHY_HT
+	bool "Support for HT-PHY devices (BROKEN)"
+	depends on B43 && BROKEN
+	---help---
+	  Support for the HT-PHY.
+
+	  Say N, this is BROKEN and crashes driver.
+
+config B43_PHY_LCN
+	bool "Support for LCN-PHY devices (BROKEN)"
+	depends on B43 && BROKEN
+	---help---
+	  Support for the LCN-PHY.
+
+	  Say N, this is BROKEN and crashes driver.
 
 # This config option automatically enables b43 LEDS support,
 # if it's possible.

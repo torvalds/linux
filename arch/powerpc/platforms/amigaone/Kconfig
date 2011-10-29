@@ -8,7 +8,7 @@ config AMIGAONE
 	select NOT_COHERENT_CACHE
 	select CHECK_CACHE_COHERENCY
 	select DEFAULT_UIMAGE
-	select PCSPKR_PLATFORM
+	select HAVE_PCSPKR_PLATFORM
 	help
 	Select AmigaOne for the following machines:
 	- AmigaOne SE/Teron CX (G3 only)

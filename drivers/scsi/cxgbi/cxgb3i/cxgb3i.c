@@ -913,7 +913,7 @@ static void l2t_put(struct cxgbi_sock *csk)
 	struct t3cdev *t3dev = (struct t3cdev *)csk->cdev->lldev;
 
 	if (csk->l2t) {
-		l2t_release(L2DATA(t3dev), csk->l2t);
+		l2t_release(t3dev, csk->l2t);
 		csk->l2t = NULL;
 		cxgbi_sock_put(csk);
 	}
@@ -985,7 +985,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 		csk->saddr.sin_addr.s_addr = chba->ipv4addr;
 
 	csk->rss_qid = 0;
-	csk->l2t = t3_l2t_get(t3dev, dst->neighbour, ndev);
+	csk->l2t = t3_l2t_get(t3dev, dst_get_neighbour(dst), ndev);
 	if (!csk->l2t) {
 		pr_err("NO l2t available.\n");
 		return -EINVAL;
@@ -1245,7 +1245,7 @@ static int cxgb3i_ddp_init(struct cxgbi_device *cdev)
 	struct cxgbi_ddp_info *ddp = tdev->ulp_iscsi;
 	struct ulp_iscsi_info uinfo;
 	unsigned int pgsz_factor[4];
-	int err;
+	int i, err;
 
 	if (ddp) {
 		kref_get(&ddp->refcnt);
@@ -1271,6 +1271,8 @@ static int cxgb3i_ddp_init(struct cxgbi_device *cdev)
 
 	uinfo.tagmask = ddp->idx_mask << PPOD_IDX_SHIFT;
 	cxgbi_ddp_page_size_factor(pgsz_factor);
+	for (i = 0; i < 4; i++)
+		uinfo.pgsz_factor[i] = pgsz_factor[i];
 	uinfo.ulimit = uinfo.llimit + (ddp->nppods << PPOD_SIZE_SHIFT);
 
 	err = tdev->ctl(tdev, ULP_ISCSI_SET_PARAMS, &uinfo);

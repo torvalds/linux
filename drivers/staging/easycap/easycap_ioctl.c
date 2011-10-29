@@ -25,6 +25,7 @@
 */
 /*****************************************************************************/
 
+#include <linux/version.h>
 #include "easycap.h"
 
 /*--------------------------------------------------------------------------*/
@@ -966,10 +967,6 @@ long easycap_unlocked_ioctl(struct file *file,
 		SAY("ERROR:  peasycap is NULL\n");
 		return -1;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap\n");
-		return -EFAULT;
-	}
 	p = peasycap->pusb_device;
 	if (!p) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
@@ -1003,12 +1000,6 @@ long easycap_unlocked_ioctl(struct file *file,
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
 		}
-		if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-			SAY("ERROR: bad peasycap\n");
-			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
-			return -EFAULT;
-		}
-		p = peasycap->pusb_device;
 		if (!peasycap->pusb_device) {
 			SAM("ERROR: peasycap->pusb_device is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
@@ -2356,14 +2347,8 @@ long easycap_unlocked_ioctl(struct file *file,
 /*---------------------------------------------------------------------------*/
 		JOM(8, "calling wake_up on wq_video and wq_audio\n");
 		wake_up_interruptible(&(peasycap->wq_video));
-#ifdef CONFIG_EASYCAP_OSS
-		wake_up_interruptible(&(peasycap->wq_audio));
-
-#else
 		if (peasycap->psubstream)
 			snd_pcm_period_elapsed(peasycap->psubstream);
-#endif /* CONFIG_EASYCAP_OSS */
-/*---------------------------------------------------------------------------*/
 		break;
 	}
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */

@@ -215,7 +215,7 @@ static int __init rc32434_pci_init(void)
 	rc32434_pcibridge_init();
 
 	io_map_base = ioremap(rc32434_res_pci_io1.start,
-		rc32434_res_pci_io1.end - rc32434_res_pci_io1.start + 1);
+			      resource_size(&rc32434_res_pci_io1));
 
 	if (!io_map_base)
 		return -ENOMEM;

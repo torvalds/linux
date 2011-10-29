@@ -157,27 +157,26 @@ ret_from_interrupt:
  * Handler for uninitialized and spurious interrupts.
  */
 bad_interrupt:
-	addql	#1,num_spurious
+	addql	#1,irq_err_count
 	rte
 
 /*
  * Beware - when entering resume, prev (the current task) is
- * in a0, next (the new task) is in a1,so don't change these
+ * in a0, next (the new task) is in a1, so don't change these
  * registers until their contents are no longer needed.
  */
 ENTRY(resume)
 	movel	%a0,%d1				/* save prev thread in d1 */
 	movew	%sr,%a0@(TASK_THREAD+THREAD_SR)	/* save sr */
-	movel	%usp,%a2			/* save usp */
-	movel	%a2,%a0@(TASK_THREAD+THREAD_USP)
-
 	SAVE_SWITCH_STACK
 	movel	%sp,%a0@(TASK_THREAD+THREAD_KSP) /* save kernel stack */
+	movel	%usp,%a3			/* save usp */
+	movel	%a3,%a0@(TASK_THREAD+THREAD_USP)
+
+	movel	%a1@(TASK_THREAD+THREAD_USP),%a3 /* restore user stack */
+	movel	%a3,%usp
 	movel	%a1@(TASK_THREAD+THREAD_KSP),%sp /* restore new thread stack */
 	RESTORE_SWITCH_STACK
-
-	movel	%a1@(TASK_THREAD+THREAD_USP),%a0 /* restore user stack */
-	movel	%a0,%usp
 	movew	%a1@(TASK_THREAD+THREAD_SR),%sr	/* restore thread status reg */
 	rts
 

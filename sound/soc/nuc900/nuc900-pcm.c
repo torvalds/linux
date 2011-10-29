@@ -315,9 +315,12 @@ static void nuc900_dma_free_dma_buffers(struct snd_pcm *pcm)
 }
 
 static u64 nuc900_pcm_dmamask = DMA_BIT_MASK(32);
-static int nuc900_dma_new(struct snd_card *card,
-	struct snd_soc_dai *dai, struct snd_pcm *pcm)
+static int nuc900_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_pcm *pcm = rtd->pcm;
+
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &nuc900_pcm_dmamask;
 	if (!card->dev->coherent_dma_mask)

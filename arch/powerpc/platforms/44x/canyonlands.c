@@ -55,7 +55,7 @@ static int __init ppc460ex_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 	if (of_flat_dt_is_compatible(root, "amcc,canyonlands")) {
-		ppc_pci_set_flags(PPC_PCI_REASSIGN_ALL_RSRC);
+		pci_set_flags(PCI_REASSIGN_ALL_RSRC);
 		return 1;
 		}
 	return 0;

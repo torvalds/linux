@@ -911,6 +911,7 @@ struct drm_radeon_cs {
 #define RADEON_INFO_NUM_BACKENDS	0x0a /* DB/backends for r600+ - need for OQ */
 #define RADEON_INFO_NUM_TILE_PIPES	0x0b /* tile pipes for r600+ */
 #define RADEON_INFO_FUSION_GART_WORKING	0x0c /* fusion writes to GTT were broken before this */
+#define RADEON_INFO_BACKEND_MAP		0x0d /* pipe to backend map, needed by mesa */
 
 struct drm_radeon_info {
 	uint32_t		request;

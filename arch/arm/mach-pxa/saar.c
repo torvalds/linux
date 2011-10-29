@@ -599,6 +599,7 @@ MACHINE_START(SAAR, "PXA930 Handheld Platform (aka SAAR)")
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa3xx_map_io,
 	.init_irq       = pxa3xx_init_irq,
+	.handle_irq       = pxa3xx_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = saar_init,
 MACHINE_END

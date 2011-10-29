@@ -466,7 +466,7 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	return 0;
 }
 
-int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
+int __init pcibios_map_platform_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 {
         return 71;
 }

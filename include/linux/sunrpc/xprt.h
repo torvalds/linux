@@ -22,6 +22,7 @@
 #define RPC_MIN_SLOT_TABLE	(2U)
 #define RPC_DEF_SLOT_TABLE	(16U)
 #define RPC_MAX_SLOT_TABLE	(128U)
+#define RPC_MAX_SLOT_TABLE_LIMIT	(65536U)
 
 /*
  * This describes a timeout strategy
@@ -100,18 +101,18 @@ struct rpc_rqst {
 	ktime_t			rq_xtime;	/* transmit time stamp */
 	int			rq_ntrans;
 
-#if defined(CONFIG_NFS_V4_1)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	struct list_head	rq_bc_list;	/* Callback service list */
 	unsigned long		rq_bc_pa_state;	/* Backchannel prealloc state */
 	struct list_head	rq_bc_pa_list;	/* Backchannel prealloc list */
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_SUNRPC_BACKCHANEL */
 };
 #define rq_svec			rq_snd_buf.head
 #define rq_slen			rq_snd_buf.len
 
 struct rpc_xprt_ops {
 	void		(*set_buffer_size)(struct rpc_xprt *xprt, size_t sndsize, size_t rcvsize);
-	int		(*reserve_xprt)(struct rpc_task *task);
+	int		(*reserve_xprt)(struct rpc_xprt *xprt, struct rpc_task *task);
 	void		(*release_xprt)(struct rpc_xprt *xprt, struct rpc_task *task);
 	void		(*rpcbind)(struct rpc_task *task);
 	void		(*set_port)(struct rpc_xprt *xprt, unsigned short port);
@@ -164,12 +165,12 @@ struct rpc_xprt {
 
 	struct rpc_wait_queue	binding;	/* requests waiting on rpcbind */
 	struct rpc_wait_queue	sending;	/* requests waiting to send */
-	struct rpc_wait_queue	resend;		/* requests waiting to resend */
 	struct rpc_wait_queue	pending;	/* requests in flight */
 	struct rpc_wait_queue	backlog;	/* waiting for slot */
 	struct list_head	free;		/* free slots */
-	struct rpc_rqst *	slot;		/* slot table storage */
-	unsigned int		max_reqs;	/* total slots */
+	unsigned int		max_reqs;	/* max number of slots */
+	unsigned int		min_reqs;	/* min number of slots */
+	atomic_t		num_reqs;	/* total slots */
 	unsigned long		state;		/* transport state */
 	unsigned char		shutdown   : 1,	/* being shut down */
 				resvport   : 1; /* use a reserved port */
@@ -200,7 +201,7 @@ struct rpc_xprt {
 	u32			xid;		/* Next XID value to use */
 	struct rpc_task *	snd_task;	/* Task blocked in send */
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
-#if defined(CONFIG_NFS_V4_1)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	struct svc_serv		*bc_serv;       /* The RPC service which will */
 						/* process the callback */
 	unsigned int		bc_alloc_count;	/* Total number of preallocs */
@@ -208,7 +209,7 @@ struct rpc_xprt {
 						 * items */
 	struct list_head	bc_pa_list;	/* List of preallocated
 						 * backchannel rpc_rqst's */
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_SUNRPC_BACKCHANNEL */
 	struct list_head	recv;
 
 	struct {
@@ -228,15 +229,15 @@ struct rpc_xprt {
 	const char		*address_strings[RPC_DISPLAY_MAX];
 };
 
-#if defined(CONFIG_NFS_V4_1)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 /*
  * Backchannel flags
  */
 #define	RPC_BC_PA_IN_USE	0x0001		/* Preallocated backchannel */
 						/* buffer in use */
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
-#if defined(CONFIG_NFS_V4_1)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 static inline int bc_prealloc(struct rpc_rqst *req)
 {
 	return test_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state);
@@ -246,7 +247,7 @@ static inline int bc_prealloc(struct rpc_rqst *req)
 {
 	return 0;
 }
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
 struct xprt_create {
 	int			ident;		/* XPRT_TRANSPORT identifier */
@@ -271,8 +272,8 @@ struct xprt_class {
 struct rpc_xprt		*xprt_create_transport(struct xprt_create *args);
 void			xprt_connect(struct rpc_task *task);
 void			xprt_reserve(struct rpc_task *task);
-int			xprt_reserve_xprt(struct rpc_task *task);
-int			xprt_reserve_xprt_cong(struct rpc_task *task);
+int			xprt_reserve_xprt(struct rpc_xprt *xprt, struct rpc_task *task);
+int			xprt_reserve_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task);
 int			xprt_prepare_transmit(struct rpc_task *task);
 void			xprt_transmit(struct rpc_task *task);
 void			xprt_end_transmit(struct rpc_task *task);
@@ -282,7 +283,9 @@ void			xprt_release_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task);
 void			xprt_release(struct rpc_task *task);
 struct rpc_xprt *	xprt_get(struct rpc_xprt *xprt);
 void			xprt_put(struct rpc_xprt *xprt);
-struct rpc_xprt *	xprt_alloc(struct net *net, int size, int max_req);
+struct rpc_xprt *	xprt_alloc(struct net *net, size_t size,
+				unsigned int num_prealloc,
+				unsigned int max_req);
 void			xprt_free(struct rpc_xprt *);
 
 static inline __be32 *xprt_skip_transport_header(struct rpc_xprt *xprt, __be32 *p)
@@ -321,7 +324,6 @@ void			xprt_conditional_disconnect(struct rpc_xprt *xprt, unsigned int cookie);
 #define XPRT_CLOSING		(6)
 #define XPRT_CONNECTION_ABORT	(7)
 #define XPRT_CONNECTION_CLOSE	(8)
-#define XPRT_INITIALIZED	(9)
 
 static inline void xprt_set_connected(struct rpc_xprt *xprt)
 {

@@ -13,10 +13,15 @@
 #include <linux/input.h>
 #include <linux/i2c.h>
 #include <linux/i2c/atmel_mxt_ts.h>
+#include <linux/i2c-gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/gpio.h>
+#include <linux/power/max8903_charger.h>
+#include <linux/power/max17042_battery.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
+#include <linux/mfd/max8997.h>
+#include <linux/mfd/max8997-private.h>
 #include <linux/mmc/host.h>
 #include <linux/fb.h>
 #include <linux/pwm_backlight.h>
@@ -26,6 +31,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
+#include <plat/adc.h>
 #include <plat/regs-serial.h>
 #include <plat/exynos4.h>
 #include <plat/cpu.h>
@@ -35,6 +41,8 @@
 #include <plat/clock.h>
 #include <plat/gpio-cfg.h>
 #include <plat/iic.h>
+#include <plat/mfc.h>
+#include <plat/pd.h>
 
 #include <mach/map.h>
 
@@ -54,6 +62,7 @@
 
 enum fixed_regulator_id {
 	FIXED_REG_ID_MMC = 0,
+	FIXED_REG_ID_MAX8903,
 };
 
 static struct s3c2410_uartcfg nuri_uartcfgs[] __initdata = {
@@ -344,10 +353,730 @@ static void __init nuri_tsp_init(void)
 	s3c_gpio_setpull(gpio, S3C_GPIO_PULL_UP);
 }
 
-/* GPIO I2C 5 (PMIC) */
-static struct i2c_board_info i2c5_devs[] __initdata = {
-	/* max8997, To be updated */
+static struct regulator_consumer_supply __initdata max8997_ldo1_[] = {
+	REGULATOR_SUPPLY("vdd", "s5p-adc"), /* Used by CPU's ADC drv */
 };
+static struct regulator_consumer_supply __initdata max8997_ldo3_[] = {
+	REGULATOR_SUPPLY("vdd11", "s5p-mipi-csis.0"), /* MIPI */
+};
+static struct regulator_consumer_supply __initdata max8997_ldo4_[] = {
+	REGULATOR_SUPPLY("vdd18", "s5p-mipi-csis.0"), /* MIPI */
+};
+static struct regulator_consumer_supply __initdata max8997_ldo5_[] = {
+	REGULATOR_SUPPLY("vhsic", "modemctl"), /* MODEM */
+};
+static struct regulator_consumer_supply __initdata max8997_ldo7_[] = {
+	REGULATOR_SUPPLY("dig_18", "0-001f"), /* HCD803 */
+};
+static struct regulator_consumer_supply __initdata max8997_ldo8_[] = {
+	REGULATOR_SUPPLY("vusb_d", NULL), /* Used by CPU */
+	REGULATOR_SUPPLY("vdac", NULL), /* Used by CPU */
+};
+static struct regulator_consumer_supply __initdata max8997_ldo11_[] = {
+	REGULATOR_SUPPLY("vcc", "platform-lcd"), /* U804 LVDS */
+};
+static struct regulator_consumer_supply __initdata max8997_ldo12_[] = {
+	REGULATOR_SUPPLY("vddio", "6-003c"), /* HDC802 */
+};
+static struct regulator_consumer_supply __initdata max8997_ldo13_[] = {
+	REGULATOR_SUPPLY("vmmc", "s3c-sdhci.2"), /* TFLASH */
+};
+static struct regulator_consumer_supply __initdata max8997_ldo14_[] = {
+	REGULATOR_SUPPLY("inmotor", "max8997-haptic"),
+};
+static struct regulator_consumer_supply __initdata max8997_ldo15_[] = {
+	REGULATOR_SUPPLY("avdd", "3-004a"), /* Touch Screen */
+};
+static struct regulator_consumer_supply __initdata max8997_ldo16_[] = {
+	REGULATOR_SUPPLY("d_sensor", "0-001f"), /* HDC803 */
+};
+static struct regulator_consumer_supply __initdata max8997_ldo18_[] = {
+	REGULATOR_SUPPLY("vdd", "3-004a"), /* Touch Screen */
+};
+static struct regulator_consumer_supply __initdata max8997_buck1_[] = {
+	REGULATOR_SUPPLY("vdd_arm", NULL), /* CPUFREQ */
+};
+static struct regulator_consumer_supply __initdata max8997_buck2_[] = {
+	REGULATOR_SUPPLY("vdd_int", NULL), /* CPUFREQ */
+};
+static struct regulator_consumer_supply __initdata max8997_buck3_[] = {
+	REGULATOR_SUPPLY("vdd", "mali_dev.0"), /* G3D of Exynos 4 */
+};
+static struct regulator_consumer_supply __initdata max8997_buck4_[] = {
+	REGULATOR_SUPPLY("core", "0-001f"), /* HDC803 */
+};
+static struct regulator_consumer_supply __initdata max8997_buck6_[] = {
+	REGULATOR_SUPPLY("dig_28", "0-001f"), /* pin "7" of HDC803 */
+};
+static struct regulator_consumer_supply __initdata max8997_esafeout1_[] = {
+	REGULATOR_SUPPLY("usb_vbus", NULL), /* CPU's USB OTG */
+};
+static struct regulator_consumer_supply __initdata max8997_esafeout2_[] = {
+	REGULATOR_SUPPLY("usb_vbus", "modemctl"), /* VBUS of Modem */
+};
+
+static struct regulator_consumer_supply __initdata max8997_charger_[] = {
+	REGULATOR_SUPPLY("vinchg1", "charger-manager.0"),
+};
+static struct regulator_consumer_supply __initdata max8997_chg_toff_[] = {
+	REGULATOR_SUPPLY("vinchg_stop", NULL), /* for jack interrupt handlers */
+};
+
+static struct regulator_consumer_supply __initdata max8997_32khz_ap_[] = {
+	REGULATOR_SUPPLY("gps_clk", "bcm4751"),
+	REGULATOR_SUPPLY("bt_clk", "bcm4330-b1"),
+	REGULATOR_SUPPLY("wifi_clk", "bcm433-b1"),
+};
+
+static struct regulator_init_data __initdata max8997_ldo1_data = {
+	.constraints	= {
+		.name		= "VADC_3.3V_C210",
+		.min_uV		= 3300000,
+		.max_uV		= 3300000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.apply_uV	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo1_),
+	.consumer_supplies	= max8997_ldo1_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo2_data = {
+	.constraints	= {
+		.name		= "VALIVE_1.1V_C210",
+		.min_uV		= 1100000,
+		.max_uV		= 1100000,
+		.apply_uV	= 1,
+		.always_on	= 1,
+		.state_mem	= {
+			.enabled	= 1,
+		},
+	},
+};
+
+static struct regulator_init_data __initdata max8997_ldo3_data = {
+	.constraints	= {
+		.name		= "VUSB_1.1V_C210",
+		.min_uV		= 1100000,
+		.max_uV		= 1100000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.apply_uV	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo3_),
+	.consumer_supplies	= max8997_ldo3_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo4_data = {
+	.constraints	= {
+		.name		= "VMIPI_1.8V",
+		.min_uV		= 1800000,
+		.max_uV		= 1800000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.apply_uV	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo4_),
+	.consumer_supplies	= max8997_ldo4_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo5_data = {
+	.constraints	= {
+		.name		= "VHSIC_1.2V_C210",
+		.min_uV		= 1200000,
+		.max_uV		= 1200000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.apply_uV	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo5_),
+	.consumer_supplies	= max8997_ldo5_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo6_data = {
+	.constraints	= {
+		.name		= "VCC_1.8V_PDA",
+		.min_uV		= 1800000,
+		.max_uV		= 1800000,
+		.apply_uV	= 1,
+		.always_on	= 1,
+		.state_mem	= {
+			.enabled	= 1,
+		},
+	},
+};
+
+static struct regulator_init_data __initdata max8997_ldo7_data = {
+	.constraints	= {
+		.name		= "CAM_ISP_1.8V",
+		.min_uV		= 1800000,
+		.max_uV		= 1800000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.apply_uV	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo7_),
+	.consumer_supplies	= max8997_ldo7_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo8_data = {
+	.constraints	= {
+		.name		= "VUSB/VDAC_3.3V_C210",
+		.min_uV		= 3300000,
+		.max_uV		= 3300000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.apply_uV	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo8_),
+	.consumer_supplies	= max8997_ldo8_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo9_data = {
+	.constraints	= {
+		.name		= "VCC_2.8V_PDA",
+		.min_uV		= 2800000,
+		.max_uV		= 2800000,
+		.apply_uV	= 1,
+		.always_on	= 1,
+		.state_mem	= {
+			.enabled	= 1,
+		},
+	},
+};
+
+static struct regulator_init_data __initdata max8997_ldo10_data = {
+	.constraints	= {
+		.name		= "VPLL_1.1V_C210",
+		.min_uV		= 1100000,
+		.max_uV		= 1100000,
+		.apply_uV	= 1,
+		.always_on	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+};
+
+static struct regulator_init_data __initdata max8997_ldo11_data = {
+	.constraints	= {
+		.name		= "LVDS_VDD3.3V",
+		.min_uV		= 3300000,
+		.max_uV		= 3300000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.apply_uV	= 1,
+		.boot_on	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo11_),
+	.consumer_supplies	= max8997_ldo11_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo12_data = {
+	.constraints	= {
+		.name		= "VT_CAM_1.8V",
+		.min_uV		= 1800000,
+		.max_uV		= 1800000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.apply_uV	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo12_),
+	.consumer_supplies	= max8997_ldo12_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo13_data = {
+	.constraints	= {
+		.name		= "VTF_2.8V",
+		.min_uV		= 2800000,
+		.max_uV		= 2800000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.apply_uV	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo13_),
+	.consumer_supplies	= max8997_ldo13_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo14_data = {
+	.constraints	= {
+		.name		= "VCC_3.0V_MOTOR",
+		.min_uV		= 3000000,
+		.max_uV		= 3000000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.apply_uV	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo14_),
+	.consumer_supplies	= max8997_ldo14_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo15_data = {
+	.constraints	= {
+		.name		= "VTOUCH_ADVV2.8V",
+		.min_uV		= 2800000,
+		.max_uV		= 2800000,
+		.apply_uV	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo15_),
+	.consumer_supplies	= max8997_ldo15_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo16_data = {
+	.constraints	= {
+		.name		= "CAM_SENSOR_IO_1.8V",
+		.min_uV		= 1800000,
+		.max_uV		= 1800000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.apply_uV	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo16_),
+	.consumer_supplies	= max8997_ldo16_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo18_data = {
+	.constraints	= {
+		.name		= "VTOUCH_VDD2.8V",
+		.min_uV		= 2800000,
+		.max_uV		= 2800000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.apply_uV	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_ldo18_),
+	.consumer_supplies	= max8997_ldo18_,
+};
+
+static struct regulator_init_data __initdata max8997_ldo21_data = {
+	.constraints	= {
+		.name		= "VDDQ_M1M2_1.2V",
+		.min_uV		= 1200000,
+		.max_uV		= 1200000,
+		.apply_uV	= 1,
+		.always_on	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+};
+
+static struct regulator_init_data __initdata max8997_buck1_data = {
+	.constraints	= {
+		.name		= "VARM_1.2V_C210",
+		.min_uV		= 900000,
+		.max_uV		= 1350000,
+		.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE,
+		.always_on	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies = ARRAY_SIZE(max8997_buck1_),
+	.consumer_supplies = max8997_buck1_,
+};
+
+static struct regulator_init_data __initdata max8997_buck2_data = {
+	.constraints	= {
+		.name		= "VINT_1.1V_C210",
+		.min_uV		= 900000,
+		.max_uV		= 1100000,
+		.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE,
+		.always_on	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies = ARRAY_SIZE(max8997_buck2_),
+	.consumer_supplies = max8997_buck2_,
+};
+
+static struct regulator_init_data __initdata max8997_buck3_data = {
+	.constraints	= {
+		.name		= "VG3D_1.1V_C210",
+		.min_uV		= 900000,
+		.max_uV		= 1100000,
+		.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE |
+				  REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies = ARRAY_SIZE(max8997_buck3_),
+	.consumer_supplies = max8997_buck3_,
+};
+
+static struct regulator_init_data __initdata max8997_buck4_data = {
+	.constraints	= {
+		.name		= "CAM_ISP_CORE_1.2V",
+		.min_uV		= 1200000,
+		.max_uV		= 1200000,
+		.apply_uV	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies = ARRAY_SIZE(max8997_buck4_),
+	.consumer_supplies = max8997_buck4_,
+};
+
+static struct regulator_init_data __initdata max8997_buck5_data = {
+	.constraints	= {
+		.name		= "VMEM_1.2V_C210",
+		.min_uV		= 1200000,
+		.max_uV		= 1200000,
+		.apply_uV	= 1,
+		.always_on	= 1,
+		.state_mem	= {
+			.enabled	= 1,
+		},
+	},
+};
+
+static struct regulator_init_data __initdata max8997_buck6_data = {
+	.constraints	= {
+		.name		= "CAM_AF_2.8V",
+		.min_uV		= 2800000,
+		.max_uV		= 2800000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies = ARRAY_SIZE(max8997_buck6_),
+	.consumer_supplies = max8997_buck6_,
+};
+
+static struct regulator_init_data __initdata max8997_buck7_data = {
+	.constraints	= {
+		.name		= "VCC_SUB_2.0V",
+		.min_uV		= 2000000,
+		.max_uV		= 2000000,
+		.apply_uV	= 1,
+		.always_on	= 1,
+		.state_mem	= {
+			.enabled	= 1,
+		},
+	},
+};
+
+static struct regulator_init_data __initdata max8997_32khz_ap_data = {
+	.constraints	= {
+		.name		= "32KHz AP",
+		.always_on	= 1,
+		.state_mem	= {
+			.enabled	= 1,
+		},
+	},
+	.num_consumer_supplies = ARRAY_SIZE(max8997_32khz_ap_),
+	.consumer_supplies = max8997_32khz_ap_,
+};
+
+static struct regulator_init_data __initdata max8997_32khz_cp_data = {
+	.constraints	= {
+		.name		= "32KHz CP",
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+};
+
+static struct regulator_init_data __initdata max8997_vichg_data = {
+	.constraints	= {
+		.name		= "VICHG",
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+};
+
+static struct regulator_init_data __initdata max8997_esafeout1_data = {
+	.constraints	= {
+		.name		= "SAFEOUT1",
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_esafeout1_),
+	.consumer_supplies	= max8997_esafeout1_,
+};
+
+static struct regulator_init_data __initdata max8997_esafeout2_data = {
+	.constraints	= {
+		.name		= "SAFEOUT2",
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.disabled	= 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_esafeout2_),
+	.consumer_supplies	= max8997_esafeout2_,
+};
+
+static struct regulator_init_data __initdata max8997_charger_cv_data = {
+	.constraints	= {
+		.name		= "CHARGER_CV",
+		.min_uV		= 4200000,
+		.max_uV		= 4200000,
+		.apply_uV	= 1,
+	},
+};
+
+static struct regulator_init_data __initdata max8997_charger_data = {
+	.constraints	= {
+		.name		= "CHARGER",
+		.min_uA		= 200000,
+		.max_uA		= 950000,
+		.boot_on	= 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS |
+				REGULATOR_CHANGE_CURRENT,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_charger_),
+	.consumer_supplies	= max8997_charger_,
+};
+
+static struct regulator_init_data __initdata max8997_charger_topoff_data = {
+	.constraints	= {
+		.name		= "CHARGER TOPOFF",
+		.min_uA		= 50000,
+		.max_uA		= 200000,
+		.valid_ops_mask = REGULATOR_CHANGE_CURRENT,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(max8997_chg_toff_),
+	.consumer_supplies	= max8997_chg_toff_,
+};
+
+static struct max8997_regulator_data __initdata nuri_max8997_regulators[] = {
+	{ MAX8997_LDO1, &max8997_ldo1_data },
+	{ MAX8997_LDO2, &max8997_ldo2_data },
+	{ MAX8997_LDO3, &max8997_ldo3_data },
+	{ MAX8997_LDO4, &max8997_ldo4_data },
+	{ MAX8997_LDO5, &max8997_ldo5_data },
+	{ MAX8997_LDO6, &max8997_ldo6_data },
+	{ MAX8997_LDO7, &max8997_ldo7_data },
+	{ MAX8997_LDO8, &max8997_ldo8_data },
+	{ MAX8997_LDO9, &max8997_ldo9_data },
+	{ MAX8997_LDO10, &max8997_ldo10_data },
+	{ MAX8997_LDO11, &max8997_ldo11_data },
+	{ MAX8997_LDO12, &max8997_ldo12_data },
+	{ MAX8997_LDO13, &max8997_ldo13_data },
+	{ MAX8997_LDO14, &max8997_ldo14_data },
+	{ MAX8997_LDO15, &max8997_ldo15_data },
+	{ MAX8997_LDO16, &max8997_ldo16_data },
+
+	{ MAX8997_LDO18, &max8997_ldo18_data },
+	{ MAX8997_LDO21, &max8997_ldo21_data },
+
+	{ MAX8997_BUCK1, &max8997_buck1_data },
+	{ MAX8997_BUCK2, &max8997_buck2_data },
+	{ MAX8997_BUCK3, &max8997_buck3_data },
+	{ MAX8997_BUCK4, &max8997_buck4_data },
+	{ MAX8997_BUCK5, &max8997_buck5_data },
+	{ MAX8997_BUCK6, &max8997_buck6_data },
+	{ MAX8997_BUCK7, &max8997_buck7_data },
+
+	{ MAX8997_EN32KHZ_AP, &max8997_32khz_ap_data },
+	{ MAX8997_EN32KHZ_CP, &max8997_32khz_cp_data },
+
+	{ MAX8997_ENVICHG, &max8997_vichg_data },
+	{ MAX8997_ESAFEOUT1, &max8997_esafeout1_data },
+	{ MAX8997_ESAFEOUT2, &max8997_esafeout2_data },
+	{ MAX8997_CHARGER_CV, &max8997_charger_cv_data },
+	{ MAX8997_CHARGER, &max8997_charger_data },
+	{ MAX8997_CHARGER_TOPOFF, &max8997_charger_topoff_data },
+};
+
+static struct max8997_platform_data __initdata nuri_max8997_pdata = {
+	.wakeup			= 1,
+
+	.num_regulators		= ARRAY_SIZE(nuri_max8997_regulators),
+	.regulators		= nuri_max8997_regulators,
+
+	.buck125_gpios = { EXYNOS4_GPX0(5), EXYNOS4_GPX0(6), EXYNOS4_GPL0(0) },
+	.buck2_gpiodvs = true,
+
+	.buck1_voltage[0] = 1350000, /* 1.35V */
+	.buck1_voltage[1] = 1300000, /* 1.3V */
+	.buck1_voltage[2] = 1250000, /* 1.25V */
+	.buck1_voltage[3] = 1200000, /* 1.2V */
+	.buck1_voltage[4] = 1150000, /* 1.15V */
+	.buck1_voltage[5] = 1100000, /* 1.1V */
+	.buck1_voltage[6] = 1000000, /* 1.0V */
+	.buck1_voltage[7] = 950000, /* 0.95V */
+
+	.buck2_voltage[0] = 1100000, /* 1.1V */
+	.buck2_voltage[1] = 1000000, /* 1.0V */
+	.buck2_voltage[2] = 950000, /* 0.95V */
+	.buck2_voltage[3] = 900000, /* 0.9V */
+	.buck2_voltage[4] = 1100000, /* 1.1V */
+	.buck2_voltage[5] = 1000000, /* 1.0V */
+	.buck2_voltage[6] = 950000, /* 0.95V */
+	.buck2_voltage[7] = 900000, /* 0.9V */
+
+	.buck5_voltage[0] = 1200000, /* 1.2V */
+	.buck5_voltage[1] = 1200000, /* 1.2V */
+	.buck5_voltage[2] = 1200000, /* 1.2V */
+	.buck5_voltage[3] = 1200000, /* 1.2V */
+	.buck5_voltage[4] = 1200000, /* 1.2V */
+	.buck5_voltage[5] = 1200000, /* 1.2V */
+	.buck5_voltage[6] = 1200000, /* 1.2V */
+	.buck5_voltage[7] = 1200000, /* 1.2V */
+};
+
+/* GPIO I2C 5 (PMIC) */
+enum { I2C5_MAX8997 };
+static struct i2c_board_info i2c5_devs[] __initdata = {
+	[I2C5_MAX8997] = {
+		I2C_BOARD_INFO("max8997", 0xCC >> 1),
+		.platform_data	= &nuri_max8997_pdata,
+	},
+};
+
+static struct max17042_platform_data nuri_battery_platform_data = {
+};
+
+/* GPIO I2C 9 (Fuel Gauge) */
+static struct i2c_gpio_platform_data i2c9_gpio_data = {
+	.sda_pin		= EXYNOS4_GPY4(0),      /* XM0ADDR_8 */
+	.scl_pin		= EXYNOS4_GPY4(1),      /* XM0ADDR_9 */
+};
+static struct platform_device i2c9_gpio = {
+	.name			= "i2c-gpio",
+	.id			= 9,
+	.dev			= {
+		.platform_data	= &i2c9_gpio_data,
+	},
+};
+enum { I2C9_MAX17042};
+static struct i2c_board_info i2c9_devs[] __initdata = {
+	[I2C9_MAX17042] = {
+		I2C_BOARD_INFO("max17042", 0x36),
+		.platform_data = &nuri_battery_platform_data,
+	},
+};
+
+/* MAX8903 Secondary Charger */
+static struct regulator_consumer_supply supplies_max8903[] = {
+	REGULATOR_SUPPLY("vinchg2", "charger-manager.0"),
+};
+
+static struct regulator_init_data max8903_charger_en_data = {
+	.constraints = {
+		.name		= "VOUT_CHARGER",
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.boot_on	= 1,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(supplies_max8903),
+	.consumer_supplies = supplies_max8903,
+};
+
+static struct fixed_voltage_config max8903_charger_en = {
+	.supply_name = "VOUT_CHARGER",
+	.microvolts = 5000000, /* Assume 5VDC */
+	.gpio = EXYNOS4_GPY4(5), /* TA_EN negaged */
+	.enable_high = 0, /* Enable = Low */
+	.enabled_at_boot = 1,
+	.init_data = &max8903_charger_en_data,
+};
+
+static struct platform_device max8903_fixed_reg_dev = {
+	.name = "reg-fixed-voltage",
+	.id = FIXED_REG_ID_MAX8903,
+	.dev = { .platform_data	= &max8903_charger_en },
+};
+
+static struct max8903_pdata nuri_max8903 = {
+	/*
+	 * cen: don't control with the driver, let it be
+	 * controlled by regulator above
+	 */
+	.dok = EXYNOS4_GPX1(4), /* TA_nCONNECTED */
+	/* uok, usus: not connected */
+	.chg = EXYNOS4_GPE2(0), /* TA_nCHG */
+	/* flt: vcc_1.8V_pda */
+	.dcm = EXYNOS4_GPL0(1), /* CURR_ADJ */
+
+	.dc_valid = true,
+	.usb_valid = false, /* USB is not wired to MAX8903 */
+};
+
+static struct platform_device nuri_max8903_device = {
+	.name			= "max8903-charger",
+	.dev			= {
+		.platform_data	= &nuri_max8903,
+	},
+};
+
+static struct device *nuri_cm_devices[] = {
+	&s3c_device_i2c5.dev,
+	&s3c_device_adc.dev,
+	NULL, /* Reserved for UART */
+	NULL,
+};
+
+static void __init nuri_power_init(void)
+{
+	int gpio;
+	int irq_base = IRQ_GPIO_END + 1;
+	int ta_en = 0;
+
+	nuri_max8997_pdata.irq_base = irq_base;
+	irq_base += MAX8997_IRQ_NR;
+
+	gpio = EXYNOS4_GPX0(7);
+	gpio_request(gpio, "AP_PMIC_IRQ");
+	s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(0xf));
+	s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
+
+	gpio = EXYNOS4_GPX2(3);
+	gpio_request(gpio, "FUEL_ALERT");
+	s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(0xf));
+	s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
+
+	gpio = nuri_max8903.dok;
+	gpio_request(gpio, "TA_nCONNECTED");
+	s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(0xf));
+	s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
+	ta_en = gpio_get_value(gpio) ? 0 : 1;
+
+	gpio = nuri_max8903.chg;
+	gpio_request(gpio, "TA_nCHG");
+	gpio_direction_input(gpio);
+
+	gpio = nuri_max8903.dcm;
+	gpio_request(gpio, "CURR_ADJ");
+	gpio_direction_output(gpio, ta_en);
+}
 
 /* USB EHCI */
 static struct s5p_ehci_platdata nuri_ehci_pdata;
@@ -361,6 +1090,7 @@ static void __init nuri_ehci_init(void)
 
 static struct platform_device *nuri_devices[] __initdata = {
 	/* Samsung Platform Devices */
+	&s3c_device_i2c5, /* PMIC should initialize first */
 	&emmc_fixed_voltage,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc2,
@@ -369,11 +1099,20 @@ static struct platform_device *nuri_devices[] __initdata = {
 	&s3c_device_timer[0],
 	&s5p_device_ehci,
 	&s3c_device_i2c3,
+	&i2c9_gpio,
+	&s3c_device_adc,
+	&s3c_device_rtc,
+	&s5p_device_mfc,
+	&s5p_device_mfc_l,
+	&s5p_device_mfc_r,
+	&exynos4_device_pd[PD_MFC],
 
 	/* NURI Devices */
 	&nuri_gpio_keys,
 	&nuri_lcd_device,
 	&nuri_backlight_device,
+	&max8903_fixed_reg_dev,
+	&nuri_max8903_device,
 };
 
 static void __init nuri_map_io(void)
@@ -383,21 +1122,32 @@ static void __init nuri_map_io(void)
 	s3c24xx_init_uarts(nuri_uartcfgs, ARRAY_SIZE(nuri_uartcfgs));
 }
 
+static void __init nuri_reserve(void)
+{
+	s5p_mfc_reserve_mem(0x43000000, 8 << 20, 0x51000000, 8 << 20);
+}
+
 static void __init nuri_machine_init(void)
 {
 	nuri_sdhci_init();
 	nuri_tsp_init();
+	nuri_power_init();
 
 	i2c_register_board_info(1, i2c1_devs, ARRAY_SIZE(i2c1_devs));
 	s3c_i2c3_set_platdata(&i2c3_data);
 	i2c_register_board_info(3, i2c3_devs, ARRAY_SIZE(i2c3_devs));
+	s3c_i2c5_set_platdata(NULL);
+	i2c5_devs[I2C5_MAX8997].irq = gpio_to_irq(EXYNOS4_GPX0(7));
 	i2c_register_board_info(5, i2c5_devs, ARRAY_SIZE(i2c5_devs));
+	i2c9_devs[I2C9_MAX17042].irq = gpio_to_irq(EXYNOS4_GPX2(3));
+	i2c_register_board_info(9, i2c9_devs, ARRAY_SIZE(i2c9_devs));
 
 	nuri_ehci_init();
 	clk_xusbxti.rate = 24000000;
 
 	/* Last */
 	platform_add_devices(nuri_devices, ARRAY_SIZE(nuri_devices));
+	s5p_device_mfc.dev.parent = &exynos4_device_pd[PD_MFC].dev;
 }
 
 MACHINE_START(NURI, "NURI")
@@ -407,4 +1157,5 @@ MACHINE_START(NURI, "NURI")
 	.map_io		= nuri_map_io,
 	.init_machine	= nuri_machine_init,
 	.timer		= &exynos4_timer,
+	.reserve        = &nuri_reserve,
 MACHINE_END

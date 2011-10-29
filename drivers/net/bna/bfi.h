@@ -51,13 +51,13 @@ struct bfi_mhdr {
 };
 
 #define bfi_h2i_set(_mh, _mc, _op, _lpuid) do {		\
-	(_mh).msg_class 		= (_mc);		\
+	(_mh).msg_class			= (_mc);		\
 	(_mh).msg_id			= (_op);		\
 	(_mh).mtag.h2i.lpu_id	= (_lpuid);			\
 } while (0)
 
 #define bfi_i2h_set(_mh, _mc, _op, _i2htok) do {		\
-	(_mh).msg_class 		= (_mc);		\
+	(_mh).msg_class			= (_mc);		\
 	(_mh).msg_id			= (_op);		\
 	(_mh).mtag.i2htok		= (_i2htok);		\
 } while (0)
@@ -66,7 +66,7 @@ struct bfi_mhdr {
  * Message opcodes: 0-127 to firmware, 128-255 to host
  */
 #define BFI_I2H_OPCODE_BASE	128
-#define BFA_I2HM(_x) 			((_x) + BFI_I2H_OPCODE_BASE)
+#define BFA_I2HM(_x)			((_x) + BFI_I2H_OPCODE_BASE)
 
 /**
  ****************************************************************************
@@ -186,7 +186,7 @@ enum bfi_mclass {
 #define BFI_BOOT_TYPE_OFF		8
 #define BFI_BOOT_LOADER_OFF		12
 
-#define BFI_BOOT_TYPE_NORMAL 		0
+#define BFI_BOOT_TYPE_NORMAL		0
 #define	BFI_BOOT_TYPE_FLASH		1
 #define	BFI_BOOT_TYPE_MEMTEST		2
 
@@ -211,9 +211,9 @@ enum bfi_ioc_h2i_msgs {
 
 enum bfi_ioc_i2h_msgs {
 	BFI_IOC_I2H_ENABLE_REPLY	= BFA_I2HM(1),
-	BFI_IOC_I2H_DISABLE_REPLY 	= BFA_I2HM(2),
-	BFI_IOC_I2H_GETATTR_REPLY 	= BFA_I2HM(3),
-	BFI_IOC_I2H_READY_EVENT 	= BFA_I2HM(4),
+	BFI_IOC_I2H_DISABLE_REPLY	= BFA_I2HM(2),
+	BFI_IOC_I2H_GETATTR_REPLY	= BFA_I2HM(3),
+	BFI_IOC_I2H_READY_EVENT		= BFA_I2HM(4),
 	BFI_IOC_I2H_HBEAT		= BFA_I2HM(5),
 };
 
@@ -287,6 +287,12 @@ struct bfi_ioc_image_hdr {
 	u32	param;		/*!< parameters		*/
 	u32	rsvd_b[4];
 	u32	md5sum[BFI_IOC_MD5SUM_SZ];
+};
+
+enum bfi_fwboot_type {
+	BFI_FWBOOT_TYPE_NORMAL	= 0,
+	BFI_FWBOOT_TYPE_FLASH	= 1,
+	BFI_FWBOOT_TYPE_MEMTEST	= 2,
 };
 
 /**

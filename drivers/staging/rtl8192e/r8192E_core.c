@@ -27,6 +27,8 @@
 
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/interrupt.h>
+#include <linux/hardirq.h>
 #include <asm/uaccess.h>
 #include "r8192E_hw.h"
 #include "r8192E.h"
@@ -506,7 +508,7 @@ static int proc_get_stats_rx(char *page, char **start,
 static void rtl8192_proc_module_init(void)
 {
 	RT_TRACE(COMP_INIT, "Initializing proc filesystem\n");
-	rtl8192_proc=create_proc_entry(RTL819xE_MODULE_NAME, S_IFDIR, init_net.proc_net);
+	rtl8192_proc = proc_mkdir(RTL819xE_MODULE_NAME, init_net.proc_net);
 }
 
 
@@ -538,9 +540,7 @@ static void rtl8192_proc_init_one(struct r8192_priv *priv)
 	struct net_device *dev = priv->ieee80211->dev;
 	struct proc_dir_entry *e;
 
-	priv->dir_dev = create_proc_entry(dev->name,
-					  S_IFDIR | S_IRUGO | S_IXUGO,
-					  rtl8192_proc);
+	priv->dir_dev = proc_mkdir(dev->name, rtl8192_proc);
 	if (!priv->dir_dev) {
 		RT_TRACE(COMP_ERR, "Unable to initialize /proc/net/rtl8192/%s\n",
 		      dev->name);
@@ -4532,6 +4532,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	u8 unit = 0;
 	int ret = -ENODEV;
 	unsigned long pmem_start, pmem_len, pmem_flags;
+	u8 revisionid;
 
 	RT_TRACE(COMP_INIT,"Configuring chip resources\n");
 
@@ -4591,6 +4592,11 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
          * PCI Tx retries from interfering with C3 CPU state */
          pci_write_config_byte(pdev, 0x41, 0x00);
 
+
+	pci_read_config_byte(pdev, 0x08, &revisionid);
+	/* If the revisionid is 0x10, the device uses rtl8192se. */
+	if (pdev->device == 0x8192 && revisionid == 0x10)
+		goto fail1;
 
 	pci_read_config_byte(pdev, 0x05, &unit);
 	pci_write_config_byte(pdev, 0x05, unit & (~0x04));

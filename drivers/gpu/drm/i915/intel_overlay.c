@@ -773,13 +773,9 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret != 0)
 		return ret;
 
-	ret = i915_gem_object_pin(new_bo, PAGE_SIZE, true);
+	ret = i915_gem_object_pin_to_display_plane(new_bo, 0, NULL);
 	if (ret != 0)
 		return ret;
-
-	ret = i915_gem_object_set_to_gtt_domain(new_bo, 0);
-	if (ret != 0)
-		goto out_unpin;
 
 	ret = i915_gem_object_put_fence(new_bo);
 	if (ret)

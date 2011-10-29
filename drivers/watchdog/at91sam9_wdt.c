@@ -31,7 +31,7 @@
 #include <linux/bitops.h>
 #include <linux/uaccess.h>
 
-#include <mach/at91_wdt.h>
+#include "at91sam9_wdt.h"
 
 #define DRV_NAME "AT91SAM9 Watchdog"
 
@@ -284,27 +284,8 @@ static int __exit at91wdt_remove(struct platform_device *pdev)
 	return res;
 }
 
-#ifdef CONFIG_PM
-
-static int at91wdt_suspend(struct platform_device *pdev, pm_message_t message)
-{
-	return 0;
-}
-
-static int at91wdt_resume(struct platform_device *pdev)
-{
-	return 0;
-}
-
-#else
-#define at91wdt_suspend	NULL
-#define at91wdt_resume	NULL
-#endif
-
 static struct platform_driver at91wdt_driver = {
 	.remove		= __exit_p(at91wdt_remove),
-	.suspend	= at91wdt_suspend,
-	.resume		= at91wdt_resume,
 	.driver		= {
 		.name	= "at91_wdt",
 		.owner	= THIS_MODULE,

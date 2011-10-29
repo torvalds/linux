@@ -72,12 +72,7 @@ nilfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	ino = nilfs_inode_by_name(dir, &dentry->d_name);
-	inode = NULL;
-	if (ino) {
-		inode = nilfs_iget(dir->i_sb, NILFS_I(dir)->i_root, ino);
-		if (IS_ERR(inode))
-			return ERR_CAST(inode);
-	}
+	inode = ino ? nilfs_iget(dir->i_sb, NILFS_I(dir)->i_root, ino) : NULL;
 	return d_splice_alias(inode, dentry);
 }
 

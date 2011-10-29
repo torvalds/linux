@@ -36,6 +36,12 @@ struct usbhs_priv;
 #define CFIFO		0x0014
 #define CFIFOSEL	0x0020
 #define CFIFOCTR	0x0022
+#define D0FIFO		0x0100
+#define D0FIFOSEL	0x0028
+#define D0FIFOCTR	0x002A
+#define D1FIFO		0x0120
+#define D1FIFOSEL	0x002C
+#define D1FIFOCTR	0x002E
 #define INTENB0		0x0030
 #define INTENB1		0x0032
 #define BRDYENB		0x0036
@@ -60,6 +66,30 @@ struct usbhs_priv;
 #define PIPEMAXP	0x006C
 #define PIPEPERI	0x006E
 #define PIPEnCTR	0x0070
+#define PIPE1TRE	0x0090
+#define PIPE1TRN	0x0092
+#define PIPE2TRE	0x0094
+#define PIPE2TRN	0x0096
+#define PIPE3TRE	0x0098
+#define PIPE3TRN	0x009A
+#define PIPE4TRE	0x009C
+#define PIPE4TRN	0x009E
+#define PIPE5TRE	0x00A0
+#define PIPE5TRN	0x00A2
+#define PIPEBTRE	0x00A4
+#define PIPEBTRN	0x00A6
+#define PIPECTRE	0x00A8
+#define PIPECTRN	0x00AA
+#define PIPEDTRE	0x00AC
+#define PIPEDTRN	0x00AE
+#define PIPEETRE	0x00B0
+#define PIPEETRN	0x00B2
+#define PIPEFTRE	0x00B4
+#define PIPEFTRN	0x00B6
+#define PIPE9TRE	0x00B8
+#define PIPE9TRN	0x00BA
+#define PIPEATRE	0x00BC
+#define PIPEATRN	0x00BE
 
 /* SYSCFG */
 #define SCKE	(1 << 10)	/* USB Module Clock Enable */
@@ -78,6 +108,7 @@ struct usbhs_priv;
 #define  RHST_HIGH_SPEED 3	/* High-speed connection */
 
 /* CFIFOSEL */
+#define DREQE	(1 << 12)	/* DMA Transfer Request Enable */
 #define MBW_32	(0x2 << 10)	/* CFIFO Port Access Bit Width */
 
 /* CFIFOCTR */
@@ -164,6 +195,10 @@ struct usbhs_priv;
 
 #define CCPL		(1 << 2)	/* Control Transfer End Enable */
 
+/* PIPEnTRE */
+#define TRENB		(1 << 9)	/* Transaction Counter Enable */
+#define TRCLR		(1 << 8)	/* Transaction Counter Clear */
+
 /* FRMNUM */
 #define FRNM_MASK	(0x7FF)
 
@@ -194,6 +229,11 @@ struct usbhs_priv {
 	 * pipe control
 	 */
 	struct usbhs_pipe_info pipe_info;
+
+	/*
+	 * fifo control
+	 */
+	struct usbhs_fifo_info fifo_info;
 };
 
 /*
@@ -204,6 +244,10 @@ void usbhs_write(struct usbhs_priv *priv, u32 reg, u16 data);
 void usbhs_bset(struct usbhs_priv *priv, u32 reg, u16 mask, u16 data);
 
 int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev);
+
+#define usbhs_lock(p, f) spin_lock_irqsave(usbhs_priv_to_lock(p), f)
+#define usbhs_unlock(p, f) spin_unlock_irqrestore(usbhs_priv_to_lock(p), f)
+
 /*
  * sysconfig
  */

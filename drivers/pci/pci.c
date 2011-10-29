@@ -77,6 +77,8 @@ unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
 unsigned long pci_hotplug_io_size  = DEFAULT_HOTPLUG_IO_SIZE;
 unsigned long pci_hotplug_mem_size = DEFAULT_HOTPLUG_MEM_SIZE;
 
+enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_TUNE_OFF;
+
 /*
  * The default CLS is used if arch didn't set CLS explicitly and not
  * all pci devices agree on the same value.  Arch can override either
@@ -1905,7 +1907,7 @@ void pci_enable_ari(struct pci_dev *dev)
 {
 	int pos;
 	u32 cap;
-	u16 ctrl;
+	u16 flags, ctrl;
 	struct pci_dev *bridge;
 
 	if (!pci_is_pcie(dev) || dev->devfn)
@@ -1921,6 +1923,11 @@ void pci_enable_ari(struct pci_dev *dev)
 
 	pos = pci_pcie_cap(bridge);
 	if (!pos)
+		return;
+
+	/* ARI is a PCIe v2 feature */
+	pci_read_config_word(bridge, pos + PCI_EXP_FLAGS, &flags);
+	if ((flags & PCI_EXP_FLAGS_VERS) < 2)
 		return;
 
 	pci_read_config_dword(bridge, pos + PCI_EXP_DEVCAP2, &cap);
@@ -3186,7 +3193,7 @@ EXPORT_SYMBOL(pcie_get_readrq);
  * @rq: maximum memory read count in bytes
  *    valid values are 128, 256, 512, 1024, 2048, 4096
  *
- * If possible sets maximum read byte count
+ * If possible sets maximum memory read request in bytes
  */
 int pcie_set_readrq(struct pci_dev *dev, int rq)
 {
@@ -3209,13 +3216,74 @@ int pcie_set_readrq(struct pci_dev *dev, int rq)
 	if ((ctl & PCI_EXP_DEVCTL_READRQ) != v) {
 		ctl &= ~PCI_EXP_DEVCTL_READRQ;
 		ctl |= v;
-		err = pci_write_config_dword(dev, cap + PCI_EXP_DEVCTL, ctl);
+		err = pci_write_config_word(dev, cap + PCI_EXP_DEVCTL, ctl);
 	}
 
 out:
 	return err;
 }
 EXPORT_SYMBOL(pcie_set_readrq);
+
+/**
+ * pcie_get_mps - get PCI Express maximum payload size
+ * @dev: PCI device to query
+ *
+ * Returns maximum payload size in bytes
+ *    or appropriate error value.
+ */
+int pcie_get_mps(struct pci_dev *dev)
+{
+	int ret, cap;
+	u16 ctl;
+
+	cap = pci_pcie_cap(dev);
+	if (!cap)
+		return -EINVAL;
+
+	ret = pci_read_config_word(dev, cap + PCI_EXP_DEVCTL, &ctl);
+	if (!ret)
+		ret = 128 << ((ctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
+
+	return ret;
+}
+
+/**
+ * pcie_set_mps - set PCI Express maximum payload size
+ * @dev: PCI device to query
+ * @mps: maximum payload size in bytes
+ *    valid values are 128, 256, 512, 1024, 2048, 4096
+ *
+ * If possible sets maximum payload size
+ */
+int pcie_set_mps(struct pci_dev *dev, int mps)
+{
+	int cap, err = -EINVAL;
+	u16 ctl, v;
+
+	if (mps < 128 || mps > 4096 || !is_power_of_2(mps))
+		goto out;
+
+	v = ffs(mps) - 8;
+	if (v > dev->pcie_mpss) 
+		goto out;
+	v <<= 5;
+
+	cap = pci_pcie_cap(dev);
+	if (!cap)
+		goto out;
+
+	err = pci_read_config_word(dev, cap + PCI_EXP_DEVCTL, &ctl);
+	if (err)
+		goto out;
+
+	if ((ctl & PCI_EXP_DEVCTL_PAYLOAD) != v) {
+		ctl &= ~PCI_EXP_DEVCTL_PAYLOAD;
+		ctl |= v;
+		err = pci_write_config_word(dev, cap + PCI_EXP_DEVCTL, ctl);
+	}
+out:
+	return err;
+}
 
 /**
  * pci_select_bars - Make BAR mask from the type of resource
@@ -3500,6 +3568,14 @@ static int __init pci_setup(char *str)
 				pci_hotplug_io_size = memparse(str + 9, &str);
 			} else if (!strncmp(str, "hpmemsize=", 10)) {
 				pci_hotplug_mem_size = memparse(str + 10, &str);
+			} else if (!strncmp(str, "pcie_bus_tune_off", 17)) {
+				pcie_bus_config = PCIE_BUS_TUNE_OFF;
+			} else if (!strncmp(str, "pcie_bus_safe", 13)) {
+				pcie_bus_config = PCIE_BUS_SAFE;
+			} else if (!strncmp(str, "pcie_bus_perf", 13)) {
+				pcie_bus_config = PCIE_BUS_PERFORMANCE;
+			} else if (!strncmp(str, "pcie_bus_peer2peer", 18)) {
+				pcie_bus_config = PCIE_BUS_PEER2PEER;
 			} else {
 				printk(KERN_ERR "PCI: Unknown option `%s'\n",
 						str);

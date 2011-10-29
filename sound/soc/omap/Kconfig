@@ -9,6 +9,9 @@ config SND_OMAP_SOC_MCBSP
 config SND_OMAP_SOC_MCPDM
 	tristate
 
+config SND_OMAP_SOC_HDMI
+	tristate
+
 config SND_OMAP_SOC_N810
 	tristate "SoC Audio support for Nokia N810"
 	depends on SND_OMAP_SOC && MACH_NOKIA_N810 && I2C
@@ -99,6 +102,14 @@ config SND_OMAP_SOC_SDP4430
 	help
 	  Say Y if you want to add support for SoC audio on Texas Instruments
 	  SDP4430.
+
+config SND_OMAP_SOC_OMAP4_HDMI
+	tristate "SoC Audio support for Texas Instruments OMAP4 HDMI"
+	depends on SND_OMAP_SOC && OMAP4_DSS_HDMI && OMAP2_DSS && ARCH_OMAP4
+	select SND_OMAP_SOC_HDMI
+	help
+	  Say Y if you want to add support for SoC HDMI audio on Texas Instruments
+	  OMAP4 chips
 
 config SND_OMAP_SOC_OMAP3_PANDORA
 	tristate "SoC Audio support for OMAP3 Pandora"

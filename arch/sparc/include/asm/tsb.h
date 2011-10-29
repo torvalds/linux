@@ -133,29 +133,6 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	sub	TSB, 0x8, TSB;   \
 	TSB_STORE(TSB, TAG);
 
-#define KTSB_LOAD_QUAD(TSB, REG) \
-	ldda		[TSB] ASI_NUCLEUS_QUAD_LDD, REG;
-
-#define KTSB_STORE(ADDR, VAL) \
-	stxa		VAL, [ADDR] ASI_N;
-
-#define KTSB_LOCK_TAG(TSB, REG1, REG2)	\
-99:	lduwa	[TSB] ASI_N, REG1;	\
-	sethi	%hi(TSB_TAG_LOCK_HIGH), REG2;\
-	andcc	REG1, REG2, %g0;	\
-	bne,pn	%icc, 99b;		\
-	 nop;				\
-	casa	[TSB] ASI_N, REG1, REG2;\
-	cmp	REG1, REG2;		\
-	bne,pn	%icc, 99b;		\
-	 nop;				\
-
-#define KTSB_WRITE(TSB, TTE, TAG) \
-	add	TSB, 0x8, TSB;   \
-	stxa	TTE, [TSB] ASI_N;     \
-	sub	TSB, 0x8, TSB;   \
-	stxa	TAG, [TSB] ASI_N;
-
 	/* Do a kernel page table walk.  Leaves physical PTE pointer in
 	 * REG1.  Jumps to FAIL_LABEL on early page table walk termination.
 	 * VADDR will not be clobbered, but REG2 will.
@@ -239,6 +216,8 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	(KERNEL_TSB_SIZE_BYTES / 16)
 #define KERNEL_TSB4M_NENTRIES	4096
 
+#define KTSB_PHYS_SHIFT		15
+
 	/* Do a kernel TSB lookup at tl>0 on VADDR+TAG, branch to OK_LABEL
 	 * on TSB hit.  REG1, REG2, REG3, and REG4 are used as temporaries
 	 * and the found TTE will be left in REG1.  REG3 and REG4 must
@@ -247,13 +226,22 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	 * VADDR and TAG will be preserved and not clobbered by this macro.
 	 */
 #define KERN_TSB_LOOKUP_TL1(VADDR, TAG, REG1, REG2, REG3, REG4, OK_LABEL) \
-	sethi		%hi(swapper_tsb), REG1; \
+661:	sethi		%hi(swapper_tsb), REG1;			\
 	or		REG1, %lo(swapper_tsb), REG1; \
+	.section	.swapper_tsb_phys_patch, "ax"; \
+	.word		661b; \
+	.previous; \
+661:	nop; \
+	.section	.tsb_ldquad_phys_patch, "ax"; \
+	.word		661b; \
+	sllx		REG1, KTSB_PHYS_SHIFT, REG1; \
+	sllx		REG1, KTSB_PHYS_SHIFT, REG1; \
+	.previous; \
 	srlx		VADDR, PAGE_SHIFT, REG2; \
 	and		REG2, (KERNEL_TSB_NENTRIES - 1), REG2; \
 	sllx		REG2, 4, REG2; \
 	add		REG1, REG2, REG2; \
-	KTSB_LOAD_QUAD(REG2, REG3); \
+	TSB_LOAD_QUAD(REG2, REG3); \
 	cmp		REG3, TAG; \
 	be,a,pt		%xcc, OK_LABEL; \
 	 mov		REG4, REG1;
@@ -263,12 +251,21 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	 * we can make use of that for the index computation.
 	 */
 #define KERN_TSB4M_LOOKUP_TL1(TAG, REG1, REG2, REG3, REG4, OK_LABEL) \
-	sethi		%hi(swapper_4m_tsb), REG1; \
+661:	sethi		%hi(swapper_4m_tsb), REG1;	     \
 	or		REG1, %lo(swapper_4m_tsb), REG1; \
+	.section	.swapper_4m_tsb_phys_patch, "ax"; \
+	.word		661b; \
+	.previous; \
+661:	nop; \
+	.section	.tsb_ldquad_phys_patch, "ax"; \
+	.word		661b; \
+	sllx		REG1, KTSB_PHYS_SHIFT, REG1; \
+	sllx		REG1, KTSB_PHYS_SHIFT, REG1; \
+	.previous; \
 	and		TAG, (KERNEL_TSB4M_NENTRIES - 1), REG2; \
 	sllx		REG2, 4, REG2; \
 	add		REG1, REG2, REG2; \
-	KTSB_LOAD_QUAD(REG2, REG3); \
+	TSB_LOAD_QUAD(REG2, REG3); \
 	cmp		REG3, TAG; \
 	be,a,pt		%xcc, OK_LABEL; \
 	 mov		REG4, REG1;

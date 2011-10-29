@@ -5,9 +5,7 @@
 #define _FAIL		0
 
 #include "basic_types.h"
-#include <linux/version.h>
 #include <linux/spinlock.h>
-
 #include <linux/semaphore.h>
 #include <linux/sem.h>
 #include <linux/netdevice.h>
@@ -22,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kref.h>
-#include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
@@ -30,7 +27,7 @@
 #include <linux/circ_buf.h>
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/wireless.h>
 #include <linux/rtnetlink.h>
 #include "ethernet.h"
@@ -235,8 +232,6 @@ static inline u32 _RND512(u32 sz)
 {
 	return ((sz >> 9) + ((sz & 511) ? 1 : 0)) << 9;
 }
-
-#define STRUCT_PACKED __attribute__ ((packed))
 
 #endif
 

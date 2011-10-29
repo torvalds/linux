@@ -342,7 +342,7 @@ bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 						(u8)GET_RX_DESC_RX_MCS(pdesc),
 						(bool)GET_RX_DESC_PAGGR(pdesc));
 	rx_status->mactime = GET_RX_DESC_TSFL(pdesc);
-	if (phystatus == true) {
+	if (phystatus) {
 		p_drvinfo = (struct rx_fwinfo_92c *)(pdesc + RTL_RX_DESC_SIZE);
 		rtl92c_translate_rx_signal_stuff(hw, skb, stats, pdesc,
 						 p_drvinfo);
@@ -549,15 +549,16 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 			       (tcb_desc->rts_use_shortpreamble ? 1 : 0)
 			       : (tcb_desc->rts_use_shortgi ? 1 : 0)));
 	if (mac->bw_40) {
-		if (tcb_desc->packet_bw) {
+		if (rate_flag & IEEE80211_TX_RC_DUP_DATA) {
 			SET_TX_DESC_DATA_BW(txdesc, 1);
 			SET_TX_DESC_DATA_SC(txdesc, 3);
+		} else if(rate_flag & IEEE80211_TX_RC_40_MHZ_WIDTH){
+			SET_TX_DESC_DATA_BW(txdesc, 1);
+			SET_TX_DESC_DATA_SC(txdesc, mac->cur_40_prime_sc);
 		} else {
 			SET_TX_DESC_DATA_BW(txdesc, 0);
-				if (rate_flag & IEEE80211_TX_RC_DUP_DATA)
-					SET_TX_DESC_DATA_SC(txdesc,
-							  mac->cur_40_prime_sc);
-			}
+			SET_TX_DESC_DATA_SC(txdesc, 0);
+		}
 	} else {
 		SET_TX_DESC_DATA_BW(txdesc, 0);
 		SET_TX_DESC_DATA_SC(txdesc, 0);

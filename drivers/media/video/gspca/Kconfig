@@ -179,6 +179,16 @@ config USB_GSPCA_PAC7311
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_pac7311.
 
+config USB_GSPCA_SE401
+	tristate "SE401 USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	 Say Y here if you want support for cameras based on the
+	 Endpoints (formerly known as AOX) se401 chip.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called gspca_se401.
+
 config USB_GSPCA_SN9C2028
 	tristate "SONIX Dual-Mode USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA

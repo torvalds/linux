@@ -521,6 +521,7 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_DMA_AREA_KILOBYTES (HDSPM_DMA_AREA_BYTES/1024)
 
 /* revisions >= 230 indicate AES32 card */
+#define HDSPM_MADI_ANCIENT_REV	204
 #define HDSPM_MADI_OLD_REV	207
 #define HDSPM_MADI_REV		210
 #define HDSPM_RAYDAT_REV	211
@@ -1217,6 +1218,22 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 				rate = 0;
 				break;
 			}
+
+			/* QS and DS rates normally can not be detected
+			 * automatically by the card. Only exception is MADI
+			 * in 96k frame mode.
+			 *
+			 * So if we read SS values (32 .. 48k), check for
+			 * user-provided DS/QS bits in the control register
+			 * and multiply the base frequency accordingly.
+			 */
+			if (rate <= 48000) {
+				if (hdspm->control_register & HDSPM_QuadSpeed)
+					rate *= 4;
+				else if (hdspm->control_register &
+						HDSPM_DoubleSpeed)
+					rate *= 2;
+			}
 		}
 		break;
 	}
@@ -1322,6 +1339,10 @@ static u64 hdspm_calc_dds_value(struct hdspm *hdspm, u64 period)
 		break;
 	case MADIface:
 		freq_const = 131072000000000ULL;
+		break;
+	default:
+		snd_BUG();
+		return 0;
 	}
 
 	return div_u64(freq_const, period);
@@ -1339,16 +1360,19 @@ static void hdspm_set_dds_value(struct hdspm *hdspm, int rate)
 
 	switch (hdspm->io_type) {
 	case MADIface:
-	  n = 131072000000000ULL;  /* 125 MHz */
-	  break;
+		n = 131072000000000ULL;  /* 125 MHz */
+		break;
 	case MADI:
 	case AES32:
-	  n = 110069313433624ULL;  /* 105 MHz */
-	  break;
+		n = 110069313433624ULL;  /* 105 MHz */
+		break;
 	case RayDAT:
 	case AIO:
-	  n = 104857600000000ULL;  /* 100 MHz */
-	  break;
+		n = 104857600000000ULL;  /* 100 MHz */
+		break;
+	default:
+		snd_BUG();
+		return;
 	}
 
 	n = div_u64(n, rate);
@@ -3415,6 +3439,91 @@ static int snd_hdspm_put_qs_wire(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+#define HDSPM_MADI_SPEEDMODE(xname, xindex) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	.name = xname, \
+	.index = xindex, \
+	.info = snd_hdspm_info_madi_speedmode, \
+	.get = snd_hdspm_get_madi_speedmode, \
+	.put = snd_hdspm_put_madi_speedmode \
+}
+
+static int hdspm_madi_speedmode(struct hdspm *hdspm)
+{
+	if (hdspm->control_register & HDSPM_QuadSpeed)
+		return 2;
+	if (hdspm->control_register & HDSPM_DoubleSpeed)
+		return 1;
+	return 0;
+}
+
+static int hdspm_set_madi_speedmode(struct hdspm *hdspm, int mode)
+{
+	hdspm->control_register &= ~(HDSPM_DoubleSpeed | HDSPM_QuadSpeed);
+	switch (mode) {
+	case 0:
+		break;
+	case 1:
+		hdspm->control_register |= HDSPM_DoubleSpeed;
+		break;
+	case 2:
+		hdspm->control_register |= HDSPM_QuadSpeed;
+		break;
+	}
+	hdspm_write(hdspm, HDSPM_controlRegister, hdspm->control_register);
+
+	return 0;
+}
+
+static int snd_hdspm_info_madi_speedmode(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_info *uinfo)
+{
+	static char *texts[] = { "Single", "Double", "Quad" };
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 3;
+
+	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
+		uinfo->value.enumerated.item =
+		    uinfo->value.enumerated.items - 1;
+	strcpy(uinfo->value.enumerated.name,
+	       texts[uinfo->value.enumerated.item]);
+
+	return 0;
+}
+
+static int snd_hdspm_get_madi_speedmode(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+
+	spin_lock_irq(&hdspm->lock);
+	ucontrol->value.enumerated.item[0] = hdspm_madi_speedmode(hdspm);
+	spin_unlock_irq(&hdspm->lock);
+	return 0;
+}
+
+static int snd_hdspm_put_madi_speedmode(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+	int change;
+	int val;
+
+	if (!snd_hdspm_use_is_exclusive(hdspm))
+		return -EBUSY;
+	val = ucontrol->value.integer.value[0];
+	if (val < 0)
+		val = 0;
+	if (val > 2)
+		val = 2;
+	spin_lock_irq(&hdspm->lock);
+	change = val != hdspm_madi_speedmode(hdspm);
+	hdspm_set_madi_speedmode(hdspm, val);
+	spin_unlock_irq(&hdspm->lock);
+	return change;
+}
 
 #define HDSPM_MIXER(xname, xindex) \
 { .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
@@ -4289,7 +4398,8 @@ static struct snd_kcontrol_new snd_hdspm_controls_madi[] = {
 	HDSPM_TX_64("TX 64 channels mode", 0),
 	HDSPM_C_TMS("Clear Track Marker", 0),
 	HDSPM_SAFE_MODE("Safe Mode", 0),
-	HDSPM_INPUT_SELECT("Input Select", 0)
+	HDSPM_INPUT_SELECT("Input Select", 0),
+	HDSPM_MADI_SPEEDMODE("MADI Speed Mode", 0)
 };
 
 
@@ -4302,7 +4412,8 @@ static struct snd_kcontrol_new snd_hdspm_controls_madiface[] = {
 	HDSPM_SYNC_CHECK("MADI SyncCheck", 0),
 	HDSPM_TX_64("TX 64 channels mode", 0),
 	HDSPM_C_TMS("Clear Track Marker", 0),
-	HDSPM_SAFE_MODE("Safe Mode", 0)
+	HDSPM_SAFE_MODE("Safe Mode", 0),
+	HDSPM_MADI_SPEEDMODE("MADI Speed Mode", 0)
 };
 
 static struct snd_kcontrol_new snd_hdspm_controls_aio[] = {
@@ -6381,6 +6492,7 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 	switch (hdspm->firmware_rev) {
 	case HDSPM_MADI_REV:
 	case HDSPM_MADI_OLD_REV:
+	case HDSPM_MADI_ANCIENT_REV:
 		hdspm->io_type = MADI;
 		hdspm->card_name = "RME MADI";
 		hdspm->midiPorts = 3;
@@ -6441,7 +6553,7 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 			hdspm->port + io_extent - 1);
 
 	if (request_irq(pci->irq, snd_hdspm_interrupt,
-				IRQF_SHARED, "hdspm", hdspm)) {
+			IRQF_SHARED, KBUILD_MODNAME, hdspm)) {
 		snd_printk(KERN_ERR "HDSPM: unable to use IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
@@ -6779,7 +6891,7 @@ static void __devexit snd_hdspm_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "RME Hammerfall DSP MADI",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_hdspm_ids,
 	.probe = snd_hdspm_probe,
 	.remove = __devexit_p(snd_hdspm_remove),

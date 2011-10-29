@@ -135,6 +135,9 @@ struct fuse_file {
 
 	/** Wait queue head for poll */
 	wait_queue_head_t poll_wait;
+
+	/** Has flock been performed on this file? */
+	bool flock:1;
 };
 
 /** One input argument of a request */
@@ -448,7 +451,7 @@ struct fuse_conn {
 	/** Is removexattr not implemented by fs? */
 	unsigned no_removexattr:1;
 
-	/** Are file locking primitives not implemented by fs? */
+	/** Are posix file locking primitives not implemented by fs? */
 	unsigned no_lock:1;
 
 	/** Is access not implemented by fs? */
@@ -471,6 +474,9 @@ struct fuse_conn {
 
 	/** Don't apply umask to creation modes */
 	unsigned dont_mask:1;
+
+	/** Are BSD file locking primitives not implemented by fs? */
+	unsigned no_flock:1;
 
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
@@ -589,7 +595,8 @@ void fuse_release_common(struct file *file, int opcode);
 /**
  * Send FSYNC or FSYNCDIR request
  */
-int fuse_fsync_common(struct file *file, int datasync, int isdir);
+int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
+		      int datasync, int isdir);
 
 /**
  * Notify poll wakeup

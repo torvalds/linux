@@ -107,6 +107,9 @@ static int xenbus_uevent_backend(struct device *dev,
 	if (xdev == NULL)
 		return -ENODEV;
 
+	if (add_uevent_var(env, "MODALIAS=xen-backend:%s", xdev->devicetype))
+		return -ENOMEM;
+
 	/* stuff we want to pass to /sbin/hotplug */
 	if (add_uevent_var(env, "XENBUS_TYPE=%s", xdev->devicetype))
 		return -ENOMEM;
@@ -183,10 +186,6 @@ static void frontend_changed(struct xenbus_watch *watch,
 	xenbus_otherend_changed(watch, vec, len, 0);
 }
 
-static struct device_attribute xenbus_backend_dev_attrs[] = {
-	__ATTR_NULL
-};
-
 static struct xen_bus_type xenbus_backend = {
 	.root = "backend",
 	.levels = 3,		/* backend/type/<frontend>/<id> */
@@ -200,7 +199,7 @@ static struct xen_bus_type xenbus_backend = {
 		.probe		= xenbus_dev_probe,
 		.remove		= xenbus_dev_remove,
 		.shutdown	= xenbus_dev_shutdown,
-		.dev_attrs	= xenbus_backend_dev_attrs,
+		.dev_attrs	= xenbus_dev_attrs,
 	},
 };
 

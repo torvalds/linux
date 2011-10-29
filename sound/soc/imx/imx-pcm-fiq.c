@@ -238,12 +238,13 @@ static struct snd_pcm_ops imx_pcm_ops = {
 
 static int ssi_irq = 0;
 
-static int imx_pcm_fiq_new(struct snd_card *card, struct snd_soc_dai *dai,
-	struct snd_pcm *pcm)
+static int imx_pcm_fiq_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_pcm *pcm = rtd->pcm;
 	int ret;
 
-	ret = imx_pcm_new(card, dai, pcm);
+	ret = imx_pcm_new(rtd);
 	if (ret)
 		return ret;
 

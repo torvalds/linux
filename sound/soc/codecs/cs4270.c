@@ -636,10 +636,7 @@ static int cs4270_soc_resume(struct snd_soc_codec *codec)
 #endif /* CONFIG_PM */
 
 /*
- * ASoC codec device structure
- *
- * Assign this variable to the codec_dev field of the machine driver's
- * snd_soc_device structure.
+ * ASoC codec driver structure
  */
 static const struct snd_soc_codec_driver soc_codec_device_cs4270 = {
 	.probe =		cs4270_probe,

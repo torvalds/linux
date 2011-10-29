@@ -118,6 +118,9 @@ static struct str_ident {
 
 #if defined(CONFIG_PM)
 static struct gpio_port_s gpio_bank_saved[GPIO_BANK_NUM];
+# ifdef BF538_FAMILY
+static unsigned short port_fer_saved[3];
+# endif
 #endif
 
 static void gpio_error(unsigned gpio)
@@ -604,6 +607,11 @@ void bfin_gpio_pm_hibernate_suspend(void)
 {
 	int i, bank;
 
+#ifdef BF538_FAMILY
+	for (i = 0; i < ARRAY_SIZE(port_fer_saved); ++i)
+		port_fer_saved[i] = *port_fer[i];
+#endif
+
 	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
 		bank = gpio_bank(i);
 
@@ -625,12 +633,21 @@ void bfin_gpio_pm_hibernate_suspend(void)
 		gpio_bank_saved[bank].maska = gpio_array[bank]->maska;
 	}
 
+#ifdef BFIN_SPECIAL_GPIO_BANKS
+	bfin_special_gpio_pm_hibernate_suspend();
+#endif
+
 	AWA_DUMMY_READ(maska);
 }
 
 void bfin_gpio_pm_hibernate_restore(void)
 {
 	int i, bank;
+
+#ifdef BF538_FAMILY
+	for (i = 0; i < ARRAY_SIZE(port_fer_saved); ++i)
+		*port_fer[i] = port_fer_saved[i];
+#endif
 
 	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
 		bank = gpio_bank(i);
@@ -653,6 +670,11 @@ void bfin_gpio_pm_hibernate_restore(void)
 		gpio_array[bank]->both  = gpio_bank_saved[bank].both;
 		gpio_array[bank]->maska = gpio_bank_saved[bank].maska;
 	}
+
+#ifdef BFIN_SPECIAL_GPIO_BANKS
+	bfin_special_gpio_pm_hibernate_restore();
+#endif
+
 	AWA_DUMMY_READ(maska);
 }
 
@@ -691,9 +713,9 @@ void bfin_gpio_pm_hibernate_restore(void)
 		gpio_array[bank]->port_mux = gpio_bank_saved[bank].mux;
 		gpio_array[bank]->port_fer = gpio_bank_saved[bank].fer;
 		gpio_array[bank]->inen = gpio_bank_saved[bank].inen;
-		gpio_array[bank]->dir_set = gpio_bank_saved[bank].dir;
 		gpio_array[bank]->data_set = gpio_bank_saved[bank].data
-						| gpio_bank_saved[bank].dir;
+						& gpio_bank_saved[bank].dir;
+		gpio_array[bank]->dir_set = gpio_bank_saved[bank].dir;
 	}
 }
 #endif

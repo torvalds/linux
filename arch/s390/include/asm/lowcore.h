@@ -18,6 +18,7 @@ void system_call(void);
 void pgm_check_handler(void);
 void mcck_int_handler(void);
 void io_int_handler(void);
+void psw_restart_int_handler(void);
 
 #ifdef CONFIG_32BIT
 
@@ -150,7 +151,10 @@ struct _lowcore {
 	 */
 	__u32	ipib;				/* 0x0e00 */
 	__u32	ipib_checksum;			/* 0x0e04 */
-	__u8	pad_0x0e08[0x0f00-0x0e08];	/* 0x0e08 */
+
+	/* 64 bit save area */
+	__u64	save_area_64;			/* 0x0e08 */
+	__u8	pad_0x0e10[0x0f00-0x0e10];	/* 0x0e10 */
 
 	/* Extended facility list */
 	__u64	stfle_fac_list[32];		/* 0x0f00 */
@@ -268,7 +272,7 @@ struct _lowcore {
 	__u64	vdso_per_cpu_data;		/* 0x0358 */
 	__u64	machine_flags;			/* 0x0360 */
 	__u64	ftrace_func;			/* 0x0368 */
-	__u64	sie_hook;			/* 0x0370 */
+	__u64	gmap;				/* 0x0370 */
 	__u64	cmf_hpp;			/* 0x0378 */
 
 	/* Interrupt response block. */
@@ -286,7 +290,10 @@ struct _lowcore {
 	 */
 	__u64	ipib;				/* 0x0e00 */
 	__u32	ipib_checksum;			/* 0x0e08 */
-	__u8	pad_0x0e0c[0x0f00-0x0e0c];	/* 0x0e0c */
+
+	/* 64 bit save area */
+	__u64	save_area_64;			/* 0x0e0c */
+	__u8	pad_0x0e14[0x0f00-0x0e14];	/* 0x0e14 */
 
 	/* Extended facility list */
 	__u64	stfle_fac_list[32];		/* 0x0f00 */

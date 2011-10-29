@@ -675,12 +675,12 @@ TRACE_EVENT(kvm_emulate_insn,
 		),
 
 	TP_fast_assign(
-		__entry->rip = vcpu->arch.emulate_ctxt.decode.fetch.start;
+		__entry->rip = vcpu->arch.emulate_ctxt.fetch.start;
 		__entry->csbase = kvm_x86_ops->get_segment_base(vcpu, VCPU_SREG_CS);
-		__entry->len = vcpu->arch.emulate_ctxt.decode.eip
-			       - vcpu->arch.emulate_ctxt.decode.fetch.start;
+		__entry->len = vcpu->arch.emulate_ctxt._eip
+			       - vcpu->arch.emulate_ctxt.fetch.start;
 		memcpy(__entry->insn,
-		       vcpu->arch.emulate_ctxt.decode.fetch.data,
+		       vcpu->arch.emulate_ctxt.fetch.data,
 		       15);
 		__entry->flags = kei_decode_mode(vcpu->arch.emulate_ctxt.mode);
 		__entry->failed = failed;
@@ -698,6 +698,29 @@ TRACE_EVENT(kvm_emulate_insn,
 #define trace_kvm_emulate_insn_start(vcpu) trace_kvm_emulate_insn(vcpu, 0)
 #define trace_kvm_emulate_insn_failed(vcpu) trace_kvm_emulate_insn(vcpu, 1)
 
+TRACE_EVENT(
+	vcpu_match_mmio,
+	TP_PROTO(gva_t gva, gpa_t gpa, bool write, bool gpa_match),
+	TP_ARGS(gva, gpa, write, gpa_match),
+
+	TP_STRUCT__entry(
+		__field(gva_t, gva)
+		__field(gpa_t, gpa)
+		__field(bool, write)
+		__field(bool, gpa_match)
+		),
+
+	TP_fast_assign(
+		__entry->gva = gva;
+		__entry->gpa = gpa;
+		__entry->write = write;
+		__entry->gpa_match = gpa_match
+		),
+
+	TP_printk("gva %#lx gpa %#llx %s %s", __entry->gva, __entry->gpa,
+		  __entry->write ? "Write" : "Read",
+		  __entry->gpa_match ? "GPA" : "GVA")
+);
 #endif /* _TRACE_KVM_H */
 
 #undef TRACE_INCLUDE_PATH

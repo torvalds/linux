@@ -70,4 +70,29 @@ config EEPROM_93CX6
 
 	  If unsure, say N.
 
+config EEPROM_93XX46
+	tristate "Microwire EEPROM 93XX46 support"
+	depends on SPI && SYSFS
+	help
+	  Driver for the microwire EEPROM chipsets 93xx46x. The driver
+	  supports both read and write commands and also the command to
+	  erase the whole EEPROM.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called eeprom_93xx46.
+
+	  If unsure, say N.
+
+config EEPROM_DIGSY_MTC_CFG
+	bool "DigsyMTC display configuration EEPROMs device"
+	depends on PPC_MPC5200_GPIO && GPIOLIB && SPI_GPIO
+	help
+	  This option enables access to display configuration EEPROMs
+	  on digsy_mtc board. You have to additionally select Microwire
+	  EEPROM 93XX46 driver. sysfs entries will be created for that
+	  EEPROM allowing to read/write the configuration data or to
+	  erase the whole EEPROM.
+
+	  If unsure, say N.
+
 endmenu

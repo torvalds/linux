@@ -720,7 +720,7 @@ struct qeth_card {
 	wait_queue_head_t wait_q;
 	spinlock_t vlanlock;
 	spinlock_t mclock;
-	struct vlan_group *vlangrp;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct list_head vid_list;
 	struct list_head mc_list;
 	struct work_struct kernel_thread_starter;
