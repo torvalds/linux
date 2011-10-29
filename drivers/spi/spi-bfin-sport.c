@@ -938,15 +938,4 @@ static struct platform_driver bfin_sport_spi_driver = {
 	.suspend = bfin_sport_spi_suspend,
 	.resume  = bfin_sport_spi_resume,
 };
-
-static int __init bfin_sport_spi_init(void)
-{
-	return platform_driver_register(&bfin_sport_spi_driver);
-}
-module_init(bfin_sport_spi_init);
-
-static void __exit bfin_sport_spi_exit(void)
-{
-	platform_driver_unregister(&bfin_sport_spi_driver);
-}
-module_exit(bfin_sport_spi_exit);
+module_platform_driver(bfin_sport_spi_driver);
