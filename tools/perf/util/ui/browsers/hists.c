@@ -295,6 +295,15 @@ static void hist_browser__set_folding(struct hist_browser *self, bool unfold)
 	ui_browser__reset_index(&self->b);
 }
 
+static void ui_browser__warn_lost_events(struct ui_browser *browser)
+{
+	ui_browser__warning(browser, 4,
+		"Events are being lost, check IO/CPU overload!\n\n"
+		"You may want to run 'perf' using a RT scheduler policy:\n\n"
+		" perf top -r 80\n\n"
+		"Or reduce the sampling frequency.");
+}
+
 static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 			     void(*timer)(void *arg), void *arg, int delay_secs)
 {
@@ -318,8 +327,15 @@ static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 		case K_TIMER:
 			timer(arg);
 			ui_browser__update_nr_entries(&self->b, self->hists->nr_entries);
-			hists__browser_title(self->hists, title, sizeof(title),
-					     ev_name);
+
+			if (self->hists->stats.nr_lost_warned !=
+			    self->hists->stats.nr_events[PERF_RECORD_LOST]) {
+				self->hists->stats.nr_lost_warned =
+					self->hists->stats.nr_events[PERF_RECORD_LOST];
+				ui_browser__warn_lost_events(&self->b);
+			}
+
+			hists__browser_title(self->hists, title, sizeof(title), ev_name);
 			ui_browser__show_title(&self->b, title);
 			continue;
 		case 'D': { /* Debug */
@@ -883,7 +899,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			goto out_free_stack;
 		case 'a':
 			if (!browser->has_symbols) {
-				ui_browser__warning(&browser->b,
+				ui_browser__warning(&browser->b, delay_secs * 2,
 			"Annotation is only available for symbolic views, "
 			"include \"sym\" in --sort to use it.");
 				continue;
@@ -1061,6 +1077,7 @@ out:
 struct perf_evsel_menu {
 	struct ui_browser b;
 	struct perf_evsel *selection;
+	bool lost_events, lost_events_warned;
 };
 
 static void perf_evsel_menu__write(struct ui_browser *browser,
@@ -1073,14 +1090,29 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	unsigned long nr_events = evsel->hists.stats.nr_events[PERF_RECORD_SAMPLE];
 	const char *ev_name = event_name(evsel);
 	char bf[256], unit;
+	const char *warn = " ";
+	size_t printed;
 
 	ui_browser__set_color(browser, current_entry ? HE_COLORSET_SELECTED :
 						       HE_COLORSET_NORMAL);
 
 	nr_events = convert_unit(nr_events, &unit);
-	snprintf(bf, sizeof(bf), "%lu%c%s%s", nr_events,
-		 unit, unit == ' ' ? "" : " ", ev_name);
-	slsmg_write_nstring(bf, browser->width);
+	printed = snprintf(bf, sizeof(bf), "%lu%c%s%s", nr_events,
+			   unit, unit == ' ' ? "" : " ", ev_name);
+	slsmg_printf("%s", bf);
+
+	nr_events = evsel->hists.stats.nr_events[PERF_RECORD_LOST];
+	if (nr_events != 0) {
+		menu->lost_events = true;
+		if (!current_entry)
+			ui_browser__set_color(browser, HE_COLORSET_TOP);
+		nr_events = convert_unit(nr_events, &unit);
+		snprintf(bf, sizeof(bf), ": %ld%c%schunks LOST!", nr_events,
+			 unit, unit == ' ' ? "" : " ");
+		warn = bf;
+	}
+
+	slsmg_write_nstring(warn, browser->width - printed);
 
 	if (current_entry)
 		menu->selection = evsel;
@@ -1105,6 +1137,11 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 		switch (key) {
 		case K_TIMER:
 			timer(arg);
+
+			if (!menu->lost_events_warned && menu->lost_events) {
+				ui_browser__warn_lost_events(&menu->b);
+				menu->lost_events_warned = true;
+			}
 			continue;
 		case K_RIGHT:
 		case K_ENTER:

@@ -176,15 +176,28 @@ void ui_browser__handle_resize(struct ui_browser *browser)
 	ui_browser__refresh(browser);
 }
 
-int ui_browser__warning(struct ui_browser *browser, const char *format, ...)
+int ui_browser__warning(struct ui_browser *browser, int timeout,
+			const char *format, ...)
 {
 	va_list args;
-	int key;
+	char *text;
+	int key = 0, err;
 
 	va_start(args, format);
-	while ((key = __ui__warning("Warning!", format, args)) == K_RESIZE)
-		ui_browser__handle_resize(browser);
+	err = vasprintf(&text, format, args);
 	va_end(args);
+
+	if (err < 0) {
+		va_start(args, format);
+		ui_helpline__vpush(format, args);
+		va_end(args);
+	} else {
+		while ((key == ui__question_window("Warning!", text,
+						   "Press any key...",
+						   timeout)) == K_RESIZE)
+			ui_browser__handle_resize(browser);
+		free(text);
+	}
 
 	return key;
 }

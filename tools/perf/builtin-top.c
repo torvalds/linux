@@ -89,6 +89,7 @@ static bool			vmlinux_warned;
 static bool			inherit				=  false;
 static int			realtime_prio			=      0;
 static bool			group				=  false;
+static bool			sample_id_all_avail		=   true;
 static unsigned int		mmap_pages			=    128;
 
 static bool			dump_symtab                     =  false;
@@ -289,11 +290,13 @@ static void print_sym_table(void)
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
 
-	if (top.total_lost_warned != top.session->hists.stats.total_lost) {
-		top.total_lost_warned = top.session->hists.stats.total_lost;
-		color_fprintf(stdout, PERF_COLOR_RED, "WARNING:");
-		printf(" LOST %" PRIu64 " events, Check IO/CPU overload\n",
-		       top.total_lost_warned);
+	if (top.sym_evsel->hists.stats.nr_lost_warned !=
+	    top.sym_evsel->hists.stats.nr_events[PERF_RECORD_LOST]) {
+		top.sym_evsel->hists.stats.nr_lost_warned =
+			top.sym_evsel->hists.stats.nr_events[PERF_RECORD_LOST];
+		color_fprintf(stdout, PERF_COLOR_RED,
+			      "WARNING: LOST %d chunks, Check IO/CPU overload",
+			      top.sym_evsel->hists.stats.nr_lost_warned);
 		++printed;
 	}
 
@@ -671,6 +674,7 @@ static int symbol_filter(struct map *map __used, struct symbol *sym)
 }
 
 static void perf_event__process_sample(const union perf_event *event,
+				       struct perf_evsel *evsel,
 				       struct perf_sample *sample,
 				       struct perf_session *session)
 {
@@ -770,11 +774,7 @@ static void perf_event__process_sample(const union perf_event *event,
 	}
 
 	if (al.sym == NULL || !al.sym->ignore) {
-		struct perf_evsel *evsel;
 		struct hist_entry *he;
-
-		evsel = perf_evlist__id2evsel(top.evlist, sample->id);
-		assert(evsel != NULL);
 
 		if ((sort__has_parent || symbol_conf.use_callchain) &&
 		    sample->callchain) {
@@ -807,6 +807,7 @@ static void perf_event__process_sample(const union perf_event *event,
 static void perf_session__mmap_read_idx(struct perf_session *self, int idx)
 {
 	struct perf_sample sample;
+	struct perf_evsel *evsel;
 	union perf_event *event;
 	int ret;
 
@@ -817,10 +818,16 @@ static void perf_session__mmap_read_idx(struct perf_session *self, int idx)
 			continue;
 		}
 
+		evsel = perf_evlist__id2evsel(self->evlist, sample.id);
+		assert(evsel != NULL);
+
 		if (event->header.type == PERF_RECORD_SAMPLE)
-			perf_event__process_sample(event, &sample, self);
-		else
+			perf_event__process_sample(event, evsel, &sample, self);
+		else if (event->header.type < PERF_RECORD_MAX) {
+			hists__inc_nr_events(&evsel->hists, event->header.type);
 			perf_event__process(event, &sample, self);
+		} else
+			++self->hists.stats.nr_unknown_events;
 	}
 }
 
@@ -864,6 +871,8 @@ static void start_counters(struct perf_evlist *evlist)
 		attr->mmap = 1;
 		attr->comm = 1;
 		attr->inherit = inherit;
+retry_sample_id:
+		attr->sample_id_all = sample_id_all_avail ? 1 : 0;
 try_again:
 		if (perf_evsel__open(counter, top.evlist->cpus,
 				     top.evlist->threads, group,
@@ -873,6 +882,12 @@ try_again:
 			if (err == EPERM || err == EACCES) {
 				ui__error_paranoid();
 				goto out_err;
+			} else if (err == EINVAL && sample_id_all_avail) {
+				/*
+				 * Old kernel, no attr->sample_id_type_all field
+				 */
+				sample_id_all_avail = false;
+				goto retry_sample_id;
 			}
 			/*
 			 * If it's cycles then fall back to hrtimer

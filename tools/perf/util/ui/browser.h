@@ -45,7 +45,8 @@ int ui_browser__run(struct ui_browser *browser, int delay_secs);
 void ui_browser__update_nr_entries(struct ui_browser *browser, u32 nr_entries);
 void ui_browser__handle_resize(struct ui_browser *browser);
 
-int ui_browser__warning(struct ui_browser *browser, const char *format, ...);
+int ui_browser__warning(struct ui_browser *browser, int timeout,
+			const char *format, ...);
 int ui_browser__help_window(struct ui_browser *browser, const char *text);
 bool ui_browser__dialog_yesno(struct ui_browser *browser, const char *text);
 

@@ -738,10 +738,27 @@ static int perf_session_deliver_event(struct perf_session *session,
 
 	dump_event(session, event, file_offset, sample);
 
+	evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	if (evsel != NULL && event->header.type != PERF_RECORD_SAMPLE) {
+		/*
+		 * XXX We're leaving PERF_RECORD_SAMPLE unnacounted here
+		 * because the tools right now may apply filters, discarding
+		 * some of the samples. For consistency, in the future we
+		 * should have something like nr_filtered_samples and remove
+		 * the sample->period from total_sample_period, etc, KISS for
+		 * now tho.
+		 *
+		 * Also testing against NULL allows us to handle files without
+		 * attr.sample_id_all and/or without PERF_SAMPLE_ID. In the
+		 * future probably it'll be a good idea to restrict event
+		 * processing via perf_session to files with both set.
+		 */
+		hists__inc_nr_events(&evsel->hists, event->header.type);
+	}
+
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
 		dump_sample(session, event, sample);
-		evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 		if (evsel == NULL) {
 			++session->hists.stats.nr_unknown_id;
 			return -1;
@@ -874,11 +891,11 @@ static void perf_session__warn_about_errors(const struct perf_session *session,
 					    const struct perf_event_ops *ops)
 {
 	if (ops->lost == perf_event__process_lost &&
-	    session->hists.stats.total_lost != 0) {
-		ui__warning("Processed %" PRIu64 " events and LOST %" PRIu64
-			    "!\n\nCheck IO/CPU overload!\n\n",
-			    session->hists.stats.total_period,
-			    session->hists.stats.total_lost);
+	    session->hists.stats.nr_events[PERF_RECORD_LOST] != 0) {
+		ui__warning("Processed %d events and lost %d chunks!\n\n"
+			    "Check IO/CPU overload!\n\n",
+			    session->hists.stats.nr_events[0],
+			    session->hists.stats.nr_events[PERF_RECORD_LOST]);
 	}
 
 	if (session->hists.stats.nr_unknown_events != 0) {
