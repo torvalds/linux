@@ -23,6 +23,7 @@
 #include <linux/spinlock.h>
 
 #include <asm/byteorder.h>
+#include <asm/errno.h>
 
 typedef u32 phandle;
 typedef u32 ihandle;
