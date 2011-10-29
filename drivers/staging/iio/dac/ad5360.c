@@ -371,8 +371,8 @@ static int ad5360_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad5360_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
 	unsigned int ofs_index;
+	int scale_uv;
 	int ret;
 
 	switch (m) {
