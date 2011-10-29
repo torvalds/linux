@@ -6,7 +6,7 @@ config NET_VENDOR_CIRRUS
 	bool "Cirrus devices"
 	default y
 	depends on ISA || EISA || MACH_IXDP2351 || ARCH_IXDP2X01 \
-		|| MACH_MX31ADS || MACH_QQ2440 || (ARM && ARCH_EP93XX)
+		|| MACH_MX31ADS || MACH_QQ2440 || (ARM && ARCH_EP93XX) || MAC
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -46,5 +46,17 @@ config EP93XX_ETH
 	help
 	  This is a driver for the ethernet hardware included in EP93xx CPUs.
 	  Say Y if you are building a kernel for EP93xx based devices.
+
+config MAC89x0
+	tristate "Macintosh CS89x0 based ethernet cards"
+	depends on MAC
+	---help---
+	  Support for CS89x0 chipset based Ethernet cards.  If you have a
+	  Nubus or LC-PDS network (Ethernet) card of this type, say Y and
+	  read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  To compile this driver as a module, choose M here. This module will
+	  be called mac89x0.
 
 endif # NET_VENDOR_CIRRUS
