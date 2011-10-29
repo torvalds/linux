@@ -28,7 +28,7 @@
 #include <linux/uaccess.h>
 #include "aufs.h"
 
-static int h_permission(struct inode *h_inode, int mask, unsigned int flags,
+static int h_permission(struct inode *h_inode, int mask,
 			struct vfsmount *h_mnt, int brperm)
 {
 	int err;
@@ -52,11 +52,10 @@ static int h_permission(struct inode *h_inode, int mask, unsigned int flags,
 		&& write_mask && !(mask & MAY_READ))
 	    || !h_inode->i_op->permission) {
 		/* AuLabel(generic_permission); */
-		err = generic_permission(h_inode, mask, flags,
-					 h_inode->i_op->check_acl);
+		err = generic_permission(h_inode, mask);
 	} else {
 		/* AuLabel(h_inode->permission); */
-		err = h_inode->i_op->permission(h_inode, mask, flags);
+		err = h_inode->i_op->permission(h_inode, mask);
 		AuTraceErr(err);
 	}
 
@@ -82,7 +81,7 @@ out:
 	return err;
 }
 
-static int aufs_permission(struct inode *inode, int mask, unsigned int flags)
+static int aufs_permission(struct inode *inode, int mask)
 {
 	int err;
 	aufs_bindex_t bindex, bend;
@@ -93,7 +92,7 @@ static int aufs_permission(struct inode *inode, int mask, unsigned int flags)
 	struct au_branch *br;
 
 	/* todo: support rcu-walk? */
-	if (flags & IPERM_FLAG_RCU)
+	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	sb = inode->i_sb;
@@ -116,8 +115,7 @@ static int aufs_permission(struct inode *inode, int mask, unsigned int flags)
 		err = 0;
 		bindex = au_ibstart(inode);
 		br = au_sbr(sb, bindex);
-		err = h_permission(h_inode, mask, flags, br->br_mnt,
-				   br->br_perm);
+		err = h_permission(h_inode, mask, br->br_mnt, br->br_perm);
 		if (write_mask
 		    && !err
 		    && !special_file(h_inode->i_mode)) {
@@ -143,7 +141,7 @@ static int aufs_permission(struct inode *inode, int mask, unsigned int flags)
 				break;
 
 			br = au_sbr(sb, bindex);
-			err = h_permission(h_inode, mask, flags, br->br_mnt,
+			err = h_permission(h_inode, mask, br->br_mnt,
 					   br->br_perm);
 		}
 	}
