@@ -25,8 +25,6 @@
 #include <asm/smp_twd.h>
 #include <asm/hardware/gic.h>
 
-#define TWD_MIN_RANGE 4
-
 /* set up by the platform code */
 void __iomem *twd_base;
 
@@ -96,8 +94,7 @@ static void twd_update_frequency(void *data)
 {
 	twd_timer_rate = clk_get_rate(twd_clk);
 
-	clockevents_reconfigure(__get_cpu_var(twd_ce), twd_timer_rate,
-			TWD_MIN_RANGE);
+	clockevents_update_freq(__get_cpu_var(twd_ce), twd_timer_rate);
 }
 
 static int twd_cpufreq_transition(struct notifier_block *nb,
@@ -193,15 +190,10 @@ void __cpuinit twd_timer_setup(struct clock_event_device *clk)
 	clk->set_mode = twd_set_mode;
 	clk->set_next_event = twd_set_next_event;
 
-	clockevents_calc_mult_shift(clk, twd_timer_rate, TWD_MIN_RANGE);
-
-	clk->max_delta_ns = clockevent_delta2ns(0xffffffff, clk);
-	clk->min_delta_ns = clockevent_delta2ns(0xf, clk);
-
 	/* Make sure our local interrupt controller has this enabled */
 	gic_enable_ppi(clk->irq);
 
 	__get_cpu_var(twd_ce) = clk;
 
-	clockevents_register_device(clk);
+	clockevents_config_and_register(clk, twd_timer_rate, 0xf, 0xffffffff);
 }
