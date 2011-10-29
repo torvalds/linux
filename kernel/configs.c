@@ -92,8 +92,8 @@ static void __exit ikconfig_cleanup(void)
 module_init(ikconfig_init);
 module_exit(ikconfig_cleanup);
 
+#endif /* CONFIG_IKCONFIG_PROC */
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Randy Dunlap");
 MODULE_DESCRIPTION("Echo the kernel .config file used to build the kernel");
-
-#endif /* CONFIG_IKCONFIG_PROC */

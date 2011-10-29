@@ -26,8 +26,8 @@
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
-#include "psb_powermgmt.h"
-
+#include "power.h"
+#include "mdfld_output.h"
 
 /*
  * inline functions
@@ -187,7 +187,8 @@ static void mid_pipe_event_handler(struct drm_device *dev, uint32_t pipe)
 	}
 
 	if (i == WAIT_STATUS_CLEAR_LOOP_COUNT)
-		DRM_ERROR("%s, can't clear the status bits in pipe_stat_reg, its value = 0x%x.\n",
+		dev_err(dev->dev,
+	"%s, can't clear the status bits in pipe_stat_reg, its value = 0x%x.\n",
 			__func__, PSB_RVDC32(pipe_stat_reg));
 
 	if (pipe_stat_val & PIPE_VBLANK_STATUS)
@@ -219,21 +220,11 @@ irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
 
 	vdc_stat = PSB_RVDC32(PSB_INT_IDENTITY_R);
 
-	if (vdc_stat & _MDFLD_DISP_ALL_IRQ_FLAG) {
-		PSB_DEBUG_IRQ("Got DISP interrupt\n");
+	if (vdc_stat & _MDFLD_DISP_ALL_IRQ_FLAG)
 		dsp_int = 1;
-	}
 
-	if (vdc_stat & _PSB_IRQ_SGX_FLAG) {
-		PSB_DEBUG_IRQ("Got SGX interrupt\n");
+	if (vdc_stat & _PSB_IRQ_SGX_FLAG)
 		sgx_int = 1;
-	}
-	if (vdc_stat & _PSB_IRQ_MSVDX_FLAG)
-		PSB_DEBUG_IRQ("Got MSVDX interrupt\n");
-
-	if (vdc_stat & _LNC_IRQ_TOPAZ_FLAG)
-		PSB_DEBUG_IRQ("Got TOPAZ interrupt\n");
-
 
 	vdc_stat &= dev_priv->vdc_irq_mask;
 	spin_unlock(&dev_priv->irqmask_lock);
@@ -293,8 +284,6 @@ int psb_irq_postinstall(struct drm_device *dev)
 	    (struct drm_psb_private *) dev->dev_private;
 	unsigned long irqflags;
 
-	PSB_DEBUG_ENTRY("\n");
-
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
 	/* This register is safe even if display island is off */
@@ -325,8 +314,6 @@ void psb_irq_uninstall(struct drm_device *dev)
 	struct drm_psb_private *dev_priv =
 	    (struct drm_psb_private *) dev->dev_private;
 	unsigned long irqflags;
-
-	PSB_DEBUG_ENTRY("\n");
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
@@ -395,8 +382,6 @@ int psb_irq_enable_dpst(struct drm_device *dev)
 		(struct drm_psb_private *) dev->dev_private;
 	unsigned long irqflags;
 
-	PSB_DEBUG_ENTRY("\n");
-
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
 	/* enable DPST */
@@ -435,8 +420,6 @@ int psb_irq_disable_dpst(struct drm_device *dev)
 	    (struct drm_psb_private *) dev->dev_private;
 	unsigned long irqflags;
 
-	PSB_DEBUG_ENTRY("\n");
-
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
 	mid_disable_pipe_event(dev_priv, 0);
@@ -472,8 +455,12 @@ int psb_enable_vblank(struct drm_device *dev, int pipe)
 	uint32_t reg_val = 0;
 	uint32_t pipeconf_reg = mid_pipeconf(pipe);
 
-	PSB_DEBUG_ENTRY("\n");
-
+#if defined(CONFIG_DRM_PSB_MFLD)
+	/* Medfield is different - we should perhaps extract out vblank
+	   and blacklight etc ops */
+	if (IS_MFLD(dev) && !mdfld_panel_dpi(dev))
+		return mdfld_enable_te(dev, pipe);
+#endif
 	if (gma_power_begin(dev, false)) {
 		reg_val = REG_READ(pipeconf_reg);
 		gma_power_end(dev);
@@ -500,14 +487,68 @@ void psb_disable_vblank(struct drm_device *dev, int pipe)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 
-	PSB_DEBUG_ENTRY("\n");
-
+#if defined(CONFIG_DRM_PSB_MFLD)
+	if (IS_MFLD(dev) && !mdfld_panel_dpi(dev))
+		mdfld_disable_te(dev, pipe);
+#endif
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
 	mid_disable_pipe_event(dev_priv, pipe);
 	psb_disable_pipestat(dev_priv, pipe, PIPE_VBLANK_INTERRUPT_ENABLE);
 
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
+}
+
+/**
+ *	mdfld_enable_te		-	enable TE events
+ *	@dev: our DRM device
+ *	@pipe: which pipe to work on
+ *
+ *	Enable TE events on a Medfield display pipe. Medfield specific.
+ */
+int mdfld_enable_te(struct drm_device *dev, int pipe)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+	uint32_t reg_val = 0;
+	uint32_t pipeconf_reg = mid_pipeconf(pipe);
+
+	if (gma_power_begin(dev, false)) {
+		reg_val = REG_READ(pipeconf_reg);
+		gma_power_end(dev);
+	}
+
+	if (!(reg_val & PIPEACONF_ENABLE))
+		return -EINVAL;
+
+	spin_lock_irqsave(&dev_priv->irqmask_lock, flags);
+
+	mid_enable_pipe_event(dev_priv, pipe);
+	psb_enable_pipestat(dev_priv, pipe, PIPE_TE_ENABLE);
+
+	spin_unlock_irqrestore(&dev_priv->irqmask_lock, flags);
+
+	return 0;
+}
+
+/**
+ *	mdfld_disable_te		-	disable TE events
+ *	@dev: our DRM device
+ *	@pipe: which pipe to work on
+ *
+ *	Disable TE events on a Medfield display pipe. Medfield specific.
+ */
+void mdfld_disable_te(struct drm_device *dev, int pipe)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->irqmask_lock, flags);
+
+	mid_disable_pipe_event(dev_priv, pipe);
+	psb_disable_pipestat(dev_priv, pipe, PIPE_TE_ENABLE);
+
+	spin_unlock_irqrestore(&dev_priv->irqmask_lock, flags);
 }
 
 /* Called from drm generic code, passed a 'crtc', which
@@ -535,7 +576,7 @@ u32 psb_get_vblank_counter(struct drm_device *dev, int pipe)
 		pipeconf_reg = PIPECCONF;
 		break;
 	default:
-		DRM_ERROR("%s, invalded pipe.\n", __func__);
+		dev_err(dev->dev, "%s, invalid pipe.\n", __func__);
 		return 0;
 	}
 
@@ -545,7 +586,7 @@ u32 psb_get_vblank_counter(struct drm_device *dev, int pipe)
 	reg_val = REG_READ(pipeconf_reg);
 
 	if (!(reg_val & PIPEACONF_ENABLE)) {
-		DRM_ERROR("trying to get vblank count for disabled pipe %d\n",
+		dev_err(dev->dev, "trying to get vblank count for disabled pipe %d\n",
 								pipe);
 		goto psb_get_vblank_counter_exit;
 	}

@@ -10,6 +10,7 @@
 
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
@@ -1934,13 +1935,6 @@ void efx_nic_get_regs(struct efx_nic *efx, void *buf)
 			continue;
 
 		size = min_t(size_t, table->step, 16);
-
-		if (table->offset >= efx->type->mem_map_size) {
-			/* No longer mapped; return dummy data */
-			memcpy(buf, "\xde\xc0\xad\xde", 4);
-			buf += table->rows * size;
-			continue;
-		}
 
 		for (i = 0; i < table->rows; i++) {
 			switch (table->step) {

@@ -185,7 +185,7 @@ extern int qla24xx_start_scsi(srb_t *sp);
 int qla2x00_marker(struct scsi_qla_host *, struct req_que *, struct rsp_que *,
 						uint16_t, uint16_t, uint8_t);
 extern int qla2x00_start_sp(srb_t *);
-extern uint16_t qla24xx_calc_iocbs(uint16_t);
+extern uint16_t qla24xx_calc_iocbs(scsi_qla_host_t *, uint16_t);
 extern void qla24xx_build_scsi_iocbs(srb_t *, struct cmd_type_7 *, uint16_t);
 extern int qla24xx_dif_start_scsi(srb_t *);
 
@@ -439,6 +439,9 @@ extern void qla81xx_fw_dump(scsi_qla_host_t *, int);
 extern void qla2x00_dump_regs(scsi_qla_host_t *);
 extern void qla2x00_dump_buffer(uint8_t *, uint32_t);
 extern void qla2x00_dump_buffer_zipped(uint8_t *, uint32_t);
+extern void ql_dump_regs(uint32_t, scsi_qla_host_t *, int32_t);
+extern void ql_dump_buffer(uint32_t, scsi_qla_host_t *, int32_t,
+	uint8_t *, uint32_t);
 
 /*
  * Global Function Prototypes in qla_gs.c source file.
@@ -478,7 +481,8 @@ extern int qla2x00_loopback_test(scsi_qla_host_t *, struct msg_echo_lb *, uint16
 extern int qla2x00_echo_test(scsi_qla_host_t *,
 	struct msg_echo_lb *, uint16_t *);
 extern int qla24xx_update_all_fcp_prio(scsi_qla_host_t *);
-extern int qla24xx_fcp_prio_cfg_valid(struct qla_fcp_prio_cfg *, uint8_t);
+extern int qla24xx_fcp_prio_cfg_valid(scsi_qla_host_t *,
+	struct qla_fcp_prio_cfg *, uint8_t);
 
 /*
  * Global Function Prototypes in qla_dfs.c source file.

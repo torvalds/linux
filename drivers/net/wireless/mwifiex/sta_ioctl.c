@@ -487,6 +487,20 @@ int mwifiex_set_radio_band_cfg(struct mwifiex_private *priv,
 }
 
 /*
+ * The function disables auto deep sleep mode.
+ */
+int mwifiex_disable_auto_ds(struct mwifiex_private *priv)
+{
+	struct mwifiex_ds_auto_ds auto_ds;
+
+	auto_ds.auto_ds = DEEP_SLEEP_OFF;
+
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_PS_MODE_ENH,
+				     DIS_AUTO_PS, BITMAP_AUTO_DS, &auto_ds);
+}
+EXPORT_SYMBOL_GPL(mwifiex_disable_auto_ds);
+
+/*
  * IOCTL request handler to set/get active channel.
  *
  * This function performs validity checking on channel/frequency

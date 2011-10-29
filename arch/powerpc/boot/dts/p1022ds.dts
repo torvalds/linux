@@ -412,7 +412,6 @@
 			fsl,magic-packet;
 			fsl,wake-on-filer;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			fixed-link = <1 1 1000 0 0>;
 			phy-handle = <&phy0>;
 			phy-connection-type = "rgmii-id";
 			queue-group@0{
@@ -439,7 +438,6 @@
 			fsl,num_rx_queues = <0x8>;
 			fsl,num_tx_queues = <0x8>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			fixed-link = <1 1 1000 0 0>;
 			phy-handle = <&phy1>;
 			phy-connection-type = "rgmii-id";
 			queue-group@0{

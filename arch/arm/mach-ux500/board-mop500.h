@@ -7,6 +7,11 @@
 #ifndef __BOARD_MOP500_H
 #define __BOARD_MOP500_H
 
+/* snowball GPIO for MMC card */
+#define SNOWBALL_SDMMC_EN_GPIO 217
+#define SNOWBALL_SDMMC_1V8_3V_GPIO 228
+#define SNOWBALL_SDMMC_CD_GPIO 218
+
 /* HREFv60-specific GPIO assignments, this board has no GPIO expander */
 #define HREFV60_TOUCH_RST_GPIO		143
 #define HREFV60_PROX_SENSE_GPIO		217

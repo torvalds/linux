@@ -284,4 +284,7 @@ MACHINE_START(DSMG600, "D-Link DSM-G600 RevA")
 	.init_irq	= ixp4xx_init_irq,
 	.timer          = &dsmg600_timer,
 	.init_machine	= dsmg600_init,
+#if defined(CONFIG_PCI)
+	.dma_zone_size	= SZ_64M,
+#endif
 MACHINE_END

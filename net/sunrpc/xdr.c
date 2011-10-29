@@ -126,7 +126,7 @@ xdr_terminate_string(struct xdr_buf *buf, const u32 len)
 	kaddr[buf->page_base + len] = '\0';
 	kunmap_atomic(kaddr, KM_USER0);
 }
-EXPORT_SYMBOL(xdr_terminate_string);
+EXPORT_SYMBOL_GPL(xdr_terminate_string);
 
 void
 xdr_encode_pages(struct xdr_buf *xdr, struct page **pages, unsigned int base,

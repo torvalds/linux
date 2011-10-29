@@ -133,13 +133,7 @@ void pgd_dtor(void *pgd)
 
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	pgd_t *pgd;
-
-	pgd = quicklist_alloc(0, GFP_KERNEL, pgd_ctor);
-	if (!pgd)
-		return pgd;
-
-	return pgd;
+	return quicklist_alloc(0, GFP_KERNEL, pgd_ctor);
 }
 
 void pgd_free(struct mm_struct *mm, pgd_t *pgd)

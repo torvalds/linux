@@ -80,14 +80,14 @@ EXPORT_SYMBOL(v9fs_unregister_trans);
  * @name: string identifying transport
  *
  */
-struct p9_trans_module *v9fs_get_trans_by_name(const substring_t *name)
+struct p9_trans_module *v9fs_get_trans_by_name(char *s)
 {
 	struct p9_trans_module *t, *found = NULL;
 
 	spin_lock(&v9fs_trans_lock);
 
 	list_for_each_entry(t, &v9fs_trans_list, list)
-		if (strncmp(t->name, name->from, name->to-name->from) == 0 &&
+		if (strcmp(t->name, s) == 0 &&
 		    try_module_get(t->owner)) {
 			found = t;
 			break;

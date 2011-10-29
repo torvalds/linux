@@ -110,6 +110,23 @@ struct renesas_usbhs_driver_param {
 	 * delay time from notify_hotplug callback
 	 */
 	int detection_delay;
+
+	/*
+	 * option:
+	 *
+	 * dma id for dmaengine
+	 */
+	int d0_tx_id;
+	int d0_rx_id;
+	int d1_tx_id;
+	int d1_rx_id;
+
+	/*
+	 * option:
+	 *
+	 * pio <--> dma border.
+	 */
+	int pio_dma_border; /* default is 64byte */
 };
 
 /*

@@ -195,28 +195,35 @@ static int _pwrdm_post_transition_cb(struct powerdomain *pwrdm, void *unused)
 
 /**
  * pwrdm_init - set up the powerdomain layer
- * @pwrdm_list: array of struct powerdomain pointers to register
+ * @pwrdms: array of struct powerdomain pointers to register
  * @custom_funcs: func pointers for arch specific implementations
  *
- * Loop through the array of powerdomains @pwrdm_list, registering all
- * that are available on the current CPU. If pwrdm_list is supplied
- * and not null, all of the referenced powerdomains will be
- * registered.  No return value.  XXX pwrdm_list is not really a
- * "list"; it is an array.  Rename appropriately.
+ * Loop through the array of powerdomains @pwrdms, registering all
+ * that are available on the current CPU.  Also, program all
+ * powerdomain target state as ON; this is to prevent domains from
+ * hitting low power states (if bootloader has target states set to
+ * something other than ON) and potentially even losing context while
+ * PM is not fully initialized.  The PM late init code can then program
+ * the desired target state for all the power domains.  No return
+ * value.
  */
-void pwrdm_init(struct powerdomain **pwrdm_list, struct pwrdm_ops *custom_funcs)
+void pwrdm_init(struct powerdomain **pwrdms, struct pwrdm_ops *custom_funcs)
 {
 	struct powerdomain **p = NULL;
+	struct powerdomain *temp_p;
 
 	if (!custom_funcs)
 		WARN(1, "powerdomain: No custom pwrdm functions registered\n");
 	else
 		arch_pwrdm = custom_funcs;
 
-	if (pwrdm_list) {
-		for (p = pwrdm_list; *p; p++)
+	if (pwrdms) {
+		for (p = pwrdms; *p; p++)
 			_pwrdm_register(*p);
 	}
+
+	list_for_each_entry(temp_p, &pwrdm_list, node)
+		pwrdm_set_next_pwrst(temp_p, PWRDM_POWER_ON);
 }
 
 /**

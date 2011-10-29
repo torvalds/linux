@@ -468,7 +468,7 @@ static struct i2c_board_info __initdata mx31ads_i2c1_devices[] = {
 #endif
 };
 
-static void mxc_init_i2c(void)
+static void __init mxc_init_i2c(void)
 {
 	i2c_register_board_info(1, mx31ads_i2c1_devices,
 				ARRAY_SIZE(mx31ads_i2c1_devices));
@@ -486,7 +486,7 @@ static unsigned int ssi_pins[] = {
 	MX31_PIN_STXD5__STXD5,
 };
 
-static void mxc_init_audio(void)
+static void __init mxc_init_audio(void)
 {
 	imx31_add_imx_ssi(0, NULL);
 	mxc_iomux_setup_multiple_pins(ssi_pins, ARRAY_SIZE(ssi_pins), "ssi");
@@ -516,6 +516,8 @@ static void __init mx31ads_init_irq(void)
 
 static void __init mx31ads_init(void)
 {
+	imx31_soc_init();
+
 	mxc_init_extuart();
 	mxc_init_imx_uart();
 	mxc_init_i2c();

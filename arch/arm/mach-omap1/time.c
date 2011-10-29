@@ -297,7 +297,7 @@ static inline int omap_32k_timer_usable(void)
  * Timer initialization
  * ---------------------------------------------------------------------------
  */
-static void __init omap_timer_init(void)
+static void __init omap1_timer_init(void)
 {
 	if (omap_32k_timer_usable()) {
 		preferred_sched_clock_init(1);
@@ -307,6 +307,6 @@ static void __init omap_timer_init(void)
 	}
 }
 
-struct sys_timer omap_timer = {
-	.init		= omap_timer_init,
+struct sys_timer omap1_timer = {
+	.init		= omap1_timer_init,
 };

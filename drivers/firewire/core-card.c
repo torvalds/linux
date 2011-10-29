@@ -32,7 +32,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/byteorder.h>
 
 #include "core.h"

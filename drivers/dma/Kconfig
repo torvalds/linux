@@ -237,6 +237,13 @@ config MXS_DMA
 	  Support the MXS DMA engine. This engine including APBH-DMA
 	  and APBX-DMA is integrated into Freescale i.MX23/28 chips.
 
+config EP93XX_DMA
+	bool "Cirrus Logic EP93xx DMA support"
+	depends on ARCH_EP93XX
+	select DMA_ENGINE
+	help
+	  Enable support for the Cirrus Logic EP93xx M2P/M2M DMA controller.
+
 config DMA_ENGINE
 	bool
 

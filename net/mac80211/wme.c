@@ -151,8 +151,7 @@ void ieee80211_set_qos_hdr(struct ieee80211_local *local, struct sk_buff *skb)
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 
 		if (unlikely(local->wifi_wme_noack_test))
-			ack_policy |= QOS_CONTROL_ACK_POLICY_NOACK <<
-					QOS_CONTROL_ACK_POLICY_SHIFT;
+			ack_policy |= IEEE80211_QOS_CTL_ACK_POLICY_NOACK;
 		/* qos header is 2 bytes, second reserved */
 		*p++ = ack_policy | tid;
 		*p = 0;

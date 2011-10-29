@@ -51,13 +51,13 @@ int vmbus_connect(void)
 
 	/* Make sure we are not connecting or connected */
 	if (vmbus_connection.conn_state != DISCONNECTED)
-		return -1;
+		return -EISCONN;
 
 	/* Initialize the vmbus connection */
 	vmbus_connection.conn_state = CONNECTING;
 	vmbus_connection.work_queue = create_workqueue("hv_vmbus_con");
 	if (!vmbus_connection.work_queue) {
-		ret = -1;
+		ret = -ENOMEM;
 		goto cleanup;
 	}
 
@@ -74,7 +74,7 @@ int vmbus_connect(void)
 	vmbus_connection.int_page =
 	(void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO, 0);
 	if (vmbus_connection.int_page == NULL) {
-		ret = -1;
+		ret = -ENOMEM;
 		goto cleanup;
 	}
 
@@ -90,7 +90,7 @@ int vmbus_connect(void)
 	vmbus_connection.monitor_pages =
 	(void *)__get_free_pages((GFP_KERNEL|__GFP_ZERO), 1);
 	if (vmbus_connection.monitor_pages == NULL) {
-		ret = -1;
+		ret = -ENOMEM;
 		goto cleanup;
 	}
 
@@ -135,7 +135,7 @@ int vmbus_connect(void)
 	}
 
 	/* Wait for the connection response */
-	t =  wait_for_completion_timeout(&msginfo->waitevent, HZ);
+	t =  wait_for_completion_timeout(&msginfo->waitevent, 5*HZ);
 	if (t == 0) {
 		spin_lock_irqsave(&vmbus_connection.channelmsg_lock,
 				flags);
@@ -157,7 +157,7 @@ int vmbus_connect(void)
 		pr_err("Unable to connect, "
 			"Version %d not supported by Hyper-V\n",
 			VMBUS_REVISION_NUMBER);
-		ret = -1;
+		ret = -ECONNREFUSED;
 		goto cleanup;
 	}
 
@@ -185,44 +185,6 @@ cleanup:
 	return ret;
 }
 
-/*
- * vmbus_disconnect -
- * Sends a disconnect request on the partition service connection
- */
-int vmbus_disconnect(void)
-{
-	int ret = 0;
-	struct vmbus_channel_message_header *msg;
-
-	/* Make sure we are connected */
-	if (vmbus_connection.conn_state != CONNECTED)
-		return -1;
-
-	msg = kzalloc(sizeof(struct vmbus_channel_message_header), GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-
-	msg->msgtype = CHANNELMSG_UNLOAD;
-
-	ret = vmbus_post_msg(msg,
-			       sizeof(struct vmbus_channel_message_header));
-	if (ret != 0)
-		goto cleanup;
-
-	free_pages((unsigned long)vmbus_connection.int_page, 0);
-	free_pages((unsigned long)vmbus_connection.monitor_pages, 1);
-
-	/* TODO: iterate thru the msg list and free up */
-	destroy_workqueue(vmbus_connection.work_queue);
-
-	vmbus_connection.conn_state = DISCONNECTED;
-
-	pr_info("hv_vmbus disconnected\n");
-
-cleanup:
-	kfree(msg);
-	return ret;
-}
 
 /*
  * relid2channel - Get the channel object given its
@@ -262,7 +224,7 @@ static void process_chn_event(u32 relid)
 	channel = relid2channel(relid);
 
 	if (channel) {
-		vmbus_onchannel_event(channel);
+		channel->onchannel_callback(channel->channel_callback_context);
 	} else {
 		pr_err("channel not found for relid - %u\n", relid);
 	}

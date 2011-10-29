@@ -12,6 +12,7 @@
 #define OMAP_VOUTDEF_H
 
 #include <video/omapdss.h>
+#include <plat/vrfb.h>
 
 #define YUYV_BPP        2
 #define RGB565_BPP      2
@@ -27,6 +28,31 @@
 #define MAX_DISPLAYS	3
 #define MAX_MANAGERS	3
 
+#define QQVGA_WIDTH		160
+#define QQVGA_HEIGHT		120
+
+/* Max Resolution supported by the driver */
+#define VID_MAX_WIDTH		1280	/* Largest width */
+#define VID_MAX_HEIGHT		720	/* Largest height */
+
+/* Mimimum requirement is 2x2 for DSS */
+#define VID_MIN_WIDTH		2
+#define VID_MIN_HEIGHT		2
+
+/* 2048 x 2048 is max res supported by OMAP display controller */
+#define MAX_PIXELS_PER_LINE     2048
+
+#define VRFB_TX_TIMEOUT         1000
+#define VRFB_NUM_BUFS		4
+
+/* Max buffer size tobe allocated during init */
+#define OMAP_VOUT_MAX_BUF_SIZE (VID_MAX_WIDTH*VID_MAX_HEIGHT*4)
+
+enum dma_channel_state {
+	DMA_CHAN_NOT_ALLOTED,
+	DMA_CHAN_ALLOTED,
+};
+
 /* Enum for Rotation
  * DSS understands rotation in 0, 1, 2, 3 context
  * while V4L2 driver understands it as 0, 90, 180, 270
@@ -37,6 +63,18 @@ enum dss_rotation {
 	dss_rotation_180_degree	= 2,
 	dss_rotation_270_degree = 3,
 };
+
+/* Enum for choosing rotation type for vout
+ * DSS2 doesn't understand no rotation as an
+ * option while V4L2 driver doesn't support
+ * rotation in the case where VRFB is not built in
+ * the kernel
+ */
+enum vout_rotaion_type {
+	VOUT_ROT_NONE	= 0,
+	VOUT_ROT_VRFB	= 1,
+};
+
 /*
  * This structure is used to store the DMA transfer parameters
  * for VRFB hidden buffer
@@ -53,6 +91,7 @@ struct omapvideo_info {
 	int id;
 	int num_overlays;
 	struct omap_overlay *overlays[MAX_OVLS];
+	enum vout_rotaion_type rotation_type;
 };
 
 struct omap2video_device {
@@ -144,4 +183,43 @@ struct omap_vout_device {
 	int io_allowed;
 
 };
+
+/*
+ * Return true if rotation is 90 or 270
+ */
+static inline int is_rotation_90_or_270(const struct omap_vout_device *vout)
+{
+	return (vout->rotation == dss_rotation_90_degree ||
+			vout->rotation == dss_rotation_270_degree);
+}
+
+/*
+ * Return true if rotation is enabled
+ */
+static inline int is_rotation_enabled(const struct omap_vout_device *vout)
+{
+	return vout->rotation || vout->mirror;
+}
+
+/*
+ * Reverse the rotation degree if mirroring is enabled
+ */
+static inline int calc_rotation(const struct omap_vout_device *vout)
+{
+	if (!vout->mirror)
+		return vout->rotation;
+
+	switch (vout->rotation) {
+	case dss_rotation_90_degree:
+		return dss_rotation_270_degree;
+	case dss_rotation_270_degree:
+		return dss_rotation_90_degree;
+	case dss_rotation_180_degree:
+		return dss_rotation_0_degree;
+	default:
+		return dss_rotation_180_degree;
+	}
+}
+
+void omap_vout_free_buffers(struct omap_vout_device *vout);
 #endif	/* ifndef OMAP_VOUTDEF_H */

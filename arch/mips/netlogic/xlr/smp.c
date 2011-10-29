@@ -87,17 +87,7 @@ void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc)
 /* IRQ_IPI_SMP_RESCHEDULE  handler */
 void nlm_smp_resched_ipi_handler(unsigned int irq, struct irq_desc *desc)
 {
-	set_need_resched();
-}
-
-void nlm_common_ipi_handler(int irq, struct pt_regs *regs)
-{
-	if (irq == IRQ_IPI_SMP_FUNCTION) {
-		smp_call_function_interrupt();
-	} else {
-		/* Announce that we are for reschduling */
-		set_need_resched();
-	}
+	scheduler_ipi();
 }
 
 /*
@@ -122,6 +112,7 @@ void nlm_smp_finish(void)
 #ifdef notyet
 	nlm_common_msgring_cpu_init();
 #endif
+	local_irq_enable();
 }
 
 void nlm_cpus_done(void)

@@ -46,11 +46,28 @@ static void print_buf_info(int slot, char *name)
 }
 #endif
 
+#define DAVINCI_PCM_FMTBITS	(\
+				SNDRV_PCM_FMTBIT_S8	|\
+				SNDRV_PCM_FMTBIT_U8	|\
+				SNDRV_PCM_FMTBIT_S16_LE	|\
+				SNDRV_PCM_FMTBIT_S16_BE	|\
+				SNDRV_PCM_FMTBIT_U16_LE	|\
+				SNDRV_PCM_FMTBIT_U16_BE	|\
+				SNDRV_PCM_FMTBIT_S24_LE	|\
+				SNDRV_PCM_FMTBIT_S24_BE	|\
+				SNDRV_PCM_FMTBIT_U24_LE	|\
+				SNDRV_PCM_FMTBIT_U24_BE	|\
+				SNDRV_PCM_FMTBIT_S32_LE	|\
+				SNDRV_PCM_FMTBIT_S32_BE	|\
+				SNDRV_PCM_FMTBIT_U32_LE	|\
+				SNDRV_PCM_FMTBIT_U32_BE)
+
 static struct snd_pcm_hardware pcm_hardware_playback = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
-		 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME),
-	.formats = (SNDRV_PCM_FMTBIT_S16_LE),
+		 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME|
+		 SNDRV_PCM_INFO_BATCH),
+	.formats = DAVINCI_PCM_FMTBITS,
 	.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |
 		  SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 |
 		  SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
@@ -59,7 +76,7 @@ static struct snd_pcm_hardware pcm_hardware_playback = {
 	.rate_min = 8000,
 	.rate_max = 96000,
 	.channels_min = 2,
-	.channels_max = 2,
+	.channels_max = 384,
 	.buffer_bytes_max = 128 * 1024,
 	.period_bytes_min = 32,
 	.period_bytes_max = 8 * 1024,
@@ -71,8 +88,9 @@ static struct snd_pcm_hardware pcm_hardware_playback = {
 static struct snd_pcm_hardware pcm_hardware_capture = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
-		 SNDRV_PCM_INFO_PAUSE),
-	.formats = (SNDRV_PCM_FMTBIT_S16_LE),
+		 SNDRV_PCM_INFO_PAUSE |
+		 SNDRV_PCM_INFO_BATCH),
+	.formats = DAVINCI_PCM_FMTBITS,
 	.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |
 		  SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 |
 		  SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
@@ -81,7 +99,7 @@ static struct snd_pcm_hardware pcm_hardware_capture = {
 	.rate_min = 8000,
 	.rate_max = 96000,
 	.channels_min = 2,
-	.channels_max = 2,
+	.channels_max = 384,
 	.buffer_bytes_max = 128 * 1024,
 	.period_bytes_min = 32,
 	.period_bytes_max = 8 * 1024,
@@ -139,6 +157,22 @@ struct davinci_runtime_data {
 	struct edmacc_param ram_params;
 };
 
+static void davinci_pcm_period_elapsed(struct snd_pcm_substream *substream)
+{
+	struct davinci_runtime_data *prtd = substream->runtime->private_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	prtd->period++;
+	if (unlikely(prtd->period >= runtime->periods))
+		prtd->period = 0;
+}
+
+static void davinci_pcm_period_reset(struct snd_pcm_substream *substream)
+{
+	struct davinci_runtime_data *prtd = substream->runtime->private_data;
+
+	prtd->period = 0;
+}
 /*
  * Not used with ping/pong
  */
@@ -199,10 +233,6 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 	else
 		edma_set_transfer_params(link, acnt, fifo_level, count,
 							fifo_level, ABSYNC);
-
-	prtd->period++;
-	if (unlikely(prtd->period >= runtime->periods))
-		prtd->period = 0;
 }
 
 static void davinci_pcm_dma_irq(unsigned link, u16 ch_status, void *data)
@@ -217,12 +247,13 @@ static void davinci_pcm_dma_irq(unsigned link, u16 ch_status, void *data)
 		return;
 
 	if (snd_pcm_running(substream)) {
+		spin_lock(&prtd->lock);
 		if (prtd->ram_channel < 0) {
 			/* No ping/pong must fix up link dma data*/
-			spin_lock(&prtd->lock);
 			davinci_pcm_enqueue_dma(substream);
-			spin_unlock(&prtd->lock);
 		}
+		davinci_pcm_period_elapsed(substream);
+		spin_unlock(&prtd->lock);
 		snd_pcm_period_elapsed(substream);
 	}
 }
@@ -425,7 +456,8 @@ static int request_ping_pong(struct snd_pcm_substream *substream,
 
 	edma_read_slot(link, &prtd->asp_params);
 	prtd->asp_params.opt &= ~(TCCMODE | EDMA_TCC(0x3f) | TCINTEN);
-	prtd->asp_params.opt |= TCCHEN | EDMA_TCC(prtd->ram_channel & 0x3f);
+	prtd->asp_params.opt |= TCCHEN |
+		EDMA_TCC(prtd->ram_channel & 0x3f);
 	edma_write_slot(link, &prtd->asp_params);
 
 	/* pong */
@@ -439,7 +471,7 @@ static int request_ping_pong(struct snd_pcm_substream *substream,
 	prtd->asp_params.opt &= ~(TCCMODE | EDMA_TCC(0x3f));
 	/* interrupt after every pong completion */
 	prtd->asp_params.opt |= TCINTEN | TCCHEN |
-		EDMA_TCC(EDMA_CHAN_SLOT(prtd->ram_channel));
+		EDMA_TCC(prtd->ram_channel & 0x3f);
 	edma_write_slot(link, &prtd->asp_params);
 
 	/* ram */
@@ -527,6 +559,13 @@ static int davinci_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+		edma_start(prtd->asp_channel);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+		    prtd->ram_channel >= 0) {
+			/* copy 1st iram buffer */
+			edma_start(prtd->ram_channel);
+		}
+		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		edma_resume(prtd->asp_channel);
@@ -550,6 +589,7 @@ static int davinci_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct davinci_runtime_data *prtd = substream->runtime->private_data;
 
+	davinci_pcm_period_reset(substream);
 	if (prtd->ram_channel >= 0) {
 		int ret = ping_pong_dma_setup(substream);
 		if (ret < 0)
@@ -565,21 +605,31 @@ static int davinci_pcm_prepare(struct snd_pcm_substream *substream)
 		print_buf_info(prtd->asp_link[0], "asp_link[0]");
 		print_buf_info(prtd->asp_link[1], "asp_link[1]");
 
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			/* copy 1st iram buffer */
-			edma_start(prtd->ram_channel);
-		}
-		edma_start(prtd->asp_channel);
+		/*
+		 * There is a phase offset of 2 periods between the position
+		 * used by dma setup and the position reported in the pointer
+		 * function.
+		 *
+		 * The phase offset, when not using ping-pong buffers, is due to
+		 * the two consecutive calls to davinci_pcm_enqueue_dma() below.
+		 *
+		 * Whereas here, with ping-pong buffers, the phase is due to
+		 * there being an entire buffer transfer complete before the
+		 * first dma completion event triggers davinci_pcm_dma_irq().
+		 */
+		davinci_pcm_period_elapsed(substream);
+		davinci_pcm_period_elapsed(substream);
+
 		return 0;
 	}
-	prtd->period = 0;
 	davinci_pcm_enqueue_dma(substream);
+	davinci_pcm_period_elapsed(substream);
 
 	/* Copy self-linked parameter RAM entry into master channel */
 	edma_read_slot(prtd->asp_link[0], &prtd->asp_params);
 	edma_write_slot(prtd->asp_channel, &prtd->asp_params);
 	davinci_pcm_enqueue_dma(substream);
-	edma_start(prtd->asp_channel);
+	davinci_pcm_period_elapsed(substream);
 
 	return 0;
 }
@@ -591,50 +641,22 @@ davinci_pcm_pointer(struct snd_pcm_substream *substream)
 	struct davinci_runtime_data *prtd = runtime->private_data;
 	unsigned int offset;
 	int asp_count;
-	dma_addr_t asp_src, asp_dst;
+	unsigned int period_size = snd_pcm_lib_period_bytes(substream);
 
+	/*
+	 * There is a phase offset of 2 periods between the position used by dma
+	 * setup and the position reported in the pointer function. Either +2 in
+	 * the dma setup or -2 here in the pointer function (with wrapping,
+	 * both) accounts for this offset -- choose the latter since it makes
+	 * the first-time setup clearer.
+	 */
 	spin_lock(&prtd->lock);
-	if (prtd->ram_channel >= 0) {
-		int ram_count;
-		int mod_ram;
-		dma_addr_t ram_src, ram_dst;
-		unsigned int period_size = snd_pcm_lib_period_bytes(substream);
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			/* reading ram before asp should be safe
-			 * as long as the asp transfers less than a ping size
-			 * of bytes between the 2 reads
-			 */
-			edma_get_position(prtd->ram_channel,
-					&ram_src, &ram_dst);
-			edma_get_position(prtd->asp_channel,
-					&asp_src, &asp_dst);
-			asp_count = asp_src - prtd->asp_params.src;
-			ram_count = ram_src - prtd->ram_params.src;
-			mod_ram = ram_count % period_size;
-			mod_ram -= asp_count;
-			if (mod_ram < 0)
-				mod_ram += period_size;
-			else if (mod_ram == 0) {
-				if (snd_pcm_running(substream))
-					mod_ram += period_size;
-			}
-			ram_count -= mod_ram;
-			if (ram_count < 0)
-				ram_count += period_size * runtime->periods;
-		} else {
-			edma_get_position(prtd->ram_channel,
-					&ram_src, &ram_dst);
-			ram_count = ram_dst - prtd->ram_params.dst;
-		}
-		asp_count = ram_count;
-	} else {
-		edma_get_position(prtd->asp_channel, &asp_src, &asp_dst);
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			asp_count = asp_src - runtime->dma_addr;
-		else
-			asp_count = asp_dst - runtime->dma_addr;
-	}
+	asp_count = prtd->period - 2;
 	spin_unlock(&prtd->lock);
+
+	if (asp_count < 0)
+		asp_count += runtime->periods;
+	asp_count *= period_size;
 
 	offset = bytes_to_frames(runtime, asp_count);
 	if (offset >= runtime->buffer_size)
@@ -811,9 +833,11 @@ static void davinci_pcm_free(struct snd_pcm *pcm)
 
 static u64 davinci_pcm_dmamask = 0xffffffff;
 
-static int davinci_pcm_new(struct snd_card *card,
-			   struct snd_soc_dai *dai, struct snd_pcm *pcm)
+static int davinci_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_pcm *pcm = rtd->pcm;
 	int ret;
 
 	if (!card->dev->dma_mask)

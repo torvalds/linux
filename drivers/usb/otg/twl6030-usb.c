@@ -95,11 +95,15 @@ struct twl6030_usb {
 
 	struct regulator		*usb3v3;
 
+	/* used to set vbus, in atomic path */
+	struct work_struct	set_vbus_work;
+
 	int			irq1;
 	int			irq2;
 	u8			linkstat;
 	u8			asleep;
 	bool			irq_enabled;
+	bool			vbus_enable;
 	unsigned long		features;
 };
 
@@ -370,20 +374,31 @@ static int twl6030_enable_irq(struct otg_transceiver *x)
 	return 0;
 }
 
-static int twl6030_set_vbus(struct otg_transceiver *x, bool enabled)
+static void otg_set_vbus_work(struct work_struct *data)
 {
-	struct twl6030_usb *twl = xceiv_to_twl(x);
+	struct twl6030_usb *twl = container_of(data, struct twl6030_usb,
+								set_vbus_work);
 
 	/*
 	 * Start driving VBUS. Set OPA_MODE bit in CHARGERUSB_CTRL1
 	 * register. This enables boost mode.
 	 */
-	if (enabled)
+
+	if (twl->vbus_enable)
 		twl6030_writeb(twl, TWL_MODULE_MAIN_CHARGE , 0x40,
-						CHARGERUSB_CTRL1);
-	 else
+							CHARGERUSB_CTRL1);
+	else
 		twl6030_writeb(twl, TWL_MODULE_MAIN_CHARGE , 0x00,
-						CHARGERUSB_CTRL1);
+							CHARGERUSB_CTRL1);
+}
+
+static int twl6030_set_vbus(struct otg_transceiver *x, bool enabled)
+{
+	struct twl6030_usb *twl = xceiv_to_twl(x);
+
+	twl->vbus_enable = enabled;
+	schedule_work(&twl->set_vbus_work);
+
 	return 0;
 }
 
@@ -444,6 +459,8 @@ static int __devinit twl6030_usb_probe(struct platform_device *pdev)
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&twl->otg.notifier);
 
+	INIT_WORK(&twl->set_vbus_work, otg_set_vbus_work);
+
 	twl->irq_enabled = true;
 	status = request_threaded_irq(twl->irq1, NULL, twl6030_usbotg_irq,
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
@@ -494,6 +511,7 @@ static int __exit twl6030_usb_remove(struct platform_device *pdev)
 	regulator_put(twl->usb3v3);
 	pdata->phy_exit(twl->dev);
 	device_remove_file(twl->dev, &dev_attr_vbus);
+	cancel_work_sync(&twl->set_vbus_work);
 	kfree(twl);
 
 	return 0;

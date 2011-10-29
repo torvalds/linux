@@ -1,70 +1,108 @@
-Device-mapper RAID (dm-raid) is a bridge from DM to MD.  It
-provides a way to use device-mapper interfaces to access the MD RAID
-drivers.
+dm-raid
+-------
 
-As with all device-mapper targets, the nominal public interfaces are the
-constructor (CTR) tables and the status outputs (both STATUSTYPE_INFO
-and STATUSTYPE_TABLE).  The CTR table looks like the following:
+The device-mapper RAID (dm-raid) target provides a bridge from DM to MD.
+It allows the MD RAID drivers to be accessed using a device-mapper
+interface.
 
-1: <s> <l> raid \
-2:      <raid_type> <#raid_params> <raid_params> \
-3:      <#raid_devs> <meta_dev1> <dev1> .. <meta_devN> <devN>
+The target is named "raid" and it accepts the following parameters:
 
-Line 1 contains the standard first three arguments to any device-mapper
-target - the start, length, and target type fields.  The target type in
-this case is "raid".
+  <raid_type> <#raid_params> <raid_params> \
+    <#raid_devs> <metadata_dev0> <dev0> [.. <metadata_devN> <devN>]
 
-Line 2 contains the arguments that define the particular raid
-type/personality/level, the required arguments for that raid type, and
-any optional arguments.  Possible raid types include: raid4, raid5_la,
-raid5_ls, raid5_rs, raid6_zr, raid6_nr, and raid6_nc.  (raid1 is
-planned for the future.)  The list of required and optional parameters
-is the same for all the current raid types.  The required parameters are
-positional, while the optional parameters are given as key/value pairs.
-The possible parameters are as follows:
- <chunk_size>           Chunk size in sectors.
- [[no]sync]             Force/Prevent RAID initialization
- [rebuild <idx>]        Rebuild the drive indicated by the index
- [daemon_sleep <ms>]    Time between bitmap daemon work to clear bits
- [min_recovery_rate <kB/sec/disk>]      Throttle RAID initialization
- [max_recovery_rate <kB/sec/disk>]      Throttle RAID initialization
- [max_write_behind <sectors>]           See '-write-behind=' (man mdadm)
- [stripe_cache <sectors>]               Stripe cache size for higher RAIDs
+<raid_type>:
+  raid1		RAID1 mirroring
+  raid4		RAID4 dedicated parity disk
+  raid5_la	RAID5 left asymmetric
+		- rotating parity 0 with data continuation
+  raid5_ra	RAID5 right asymmetric
+		- rotating parity N with data continuation
+  raid5_ls	RAID5 left symmetric
+		- rotating parity 0 with data restart
+  raid5_rs 	RAID5 right symmetric
+		- rotating parity N with data restart
+  raid6_zr	RAID6 zero restart
+		- rotating parity zero (left-to-right) with data restart
+  raid6_nr	RAID6 N restart
+		- rotating parity N (right-to-left) with data restart
+  raid6_nc	RAID6 N continue
+		- rotating parity N (right-to-left) with data continuation
 
-Line 3 contains the list of devices that compose the array in
-metadata/data device pairs.  If the metadata is stored separately, a '-'
-is given for the metadata device position.  If a drive has failed or is
-missing at creation time, a '-' can be given for both the metadata and
-data drives for a given position.
+  Refererence: Chapter 4 of
+  http://www.snia.org/sites/default/files/SNIA_DDF_Technical_Position_v2.0.pdf
 
-NB. Currently all metadata devices must be specified as '-'.
+<#raid_params>: The number of parameters that follow.
 
-Examples:
-# RAID4 - 4 data drives, 1 parity
+<raid_params> consists of
+    Mandatory parameters:
+        <chunk_size>: Chunk size in sectors.  This parameter is often known as
+		      "stripe size".  It is the only mandatory parameter and
+		      is placed first.
+
+    followed by optional parameters (in any order):
+	[sync|nosync]   Force or prevent RAID initialization.
+
+	[rebuild <idx>]	Rebuild drive number idx (first drive is 0).
+
+	[daemon_sleep <ms>]
+		Interval between runs of the bitmap daemon that
+		clear bits.  A longer interval means less bitmap I/O but
+		resyncing after a failure is likely to take longer.
+
+	[min_recovery_rate <kB/sec/disk>]  Throttle RAID initialization
+	[max_recovery_rate <kB/sec/disk>]  Throttle RAID initialization
+	[write_mostly <idx>]		   Drive index is write-mostly
+	[max_write_behind <sectors>]       See '-write-behind=' (man mdadm)
+	[stripe_cache <sectors>]           Stripe cache size (higher RAIDs only)
+	[region_size <sectors>]
+		The region_size multiplied by the number of regions is the
+		logical size of the array.  The bitmap records the device
+		synchronisation state for each region.
+
+<#raid_devs>: The number of devices composing the array.
+	Each device consists of two entries.  The first is the device
+	containing the metadata (if any); the second is the one containing the
+	data.
+
+	If a drive has failed or is missing at creation time, a '-' can be
+	given for both the metadata and data drives for a given position.
+
+
+Example tables
+--------------
+# RAID4 - 4 data drives, 1 parity (no metadata devices)
 # No metadata devices specified to hold superblock/bitmap info
 # Chunk size of 1MiB
 # (Lines separated for easy reading)
+
 0 1960893648 raid \
         raid4 1 2048 \
         5 - 8:17 - 8:33 - 8:49 - 8:65 - 8:81
 
-# RAID4 - 4 data drives, 1 parity (no metadata devices)
+# RAID4 - 4 data drives, 1 parity (with metadata devices)
 # Chunk size of 1MiB, force RAID initialization,
 #       min recovery rate at 20 kiB/sec/disk
+
 0 1960893648 raid \
-        raid4 4 2048 min_recovery_rate 20 sync\
-        5 - 8:17 - 8:33 - 8:49 - 8:65 - 8:81
+        raid4 4 2048 sync min_recovery_rate 20 \
+        5 8:17 8:18 8:33 8:34 8:49 8:50 8:65 8:66 8:81 8:82
 
-Performing a 'dmsetup table' should display the CTR table used to
-construct the mapping (with possible reordering of optional
-parameters).
+'dmsetup table' displays the table used to construct the mapping.
+The optional parameters are always printed in the order listed
+above with "sync" or "nosync" always output ahead of the other
+arguments, regardless of the order used when originally loading the table.
+Arguments that can be repeated are ordered by value.
 
-Performing a 'dmsetup status' will yield information on the state and
-health of the array.  The output is as follows:
+'dmsetup status' yields information on the state and health of the
+array.
+The output is as follows:
 1: <s> <l> raid \
 2:      <raid_type> <#devices> <1 health char for each dev> <resync_ratio>
 
-Line 1 is standard DM output.  Line 2 is best shown by example:
+Line 1 is the standard output produced by device-mapper.
+Line 2 is produced by the raid target, and best explained by example:
         0 1960893648 raid raid4 5 AAAAA 2/490221568
 Here we can see the RAID type is raid4, there are 5 devices - all of
 which are 'A'live, and the array is 2/490221568 complete with recovery.
+Faulty or missing devices are marked 'D'.  Devices that are out-of-sync
+are marked 'a'.

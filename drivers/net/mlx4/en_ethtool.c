@@ -104,7 +104,7 @@ static void mlx4_en_get_wol(struct net_device *netdev,
 	int err = 0;
 	u64 config = 0;
 
-	if (!priv->mdev->dev->caps.wol) {
+	if (!(priv->mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_WOL)) {
 		wol->supported = 0;
 		wol->wolopts = 0;
 		return;
@@ -134,7 +134,7 @@ static int mlx4_en_set_wol(struct net_device *netdev,
 	u64 config = 0;
 	int err = 0;
 
-	if (!priv->mdev->dev->caps.wol)
+	if (!(priv->mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_WOL))
 		return -EOPNOTSUPP;
 
 	if (wol->supported & ~WAKE_MAGIC)
@@ -170,7 +170,8 @@ static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
 		return NUM_ALL_STATS +
 			(priv->tx_ring_num + priv->rx_ring_num) * 2;
 	case ETH_SS_TEST:
-		return MLX4_EN_NUM_SELF_TEST - !(priv->mdev->dev->caps.loopback_support) * 2;
+		return MLX4_EN_NUM_SELF_TEST - !(priv->mdev->dev->caps.flags
+					& MLX4_DEV_CAP_FLAG_UC_LOOPBACK) * 2;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -220,7 +221,7 @@ static void mlx4_en_get_strings(struct net_device *dev,
 	case ETH_SS_TEST:
 		for (i = 0; i < MLX4_EN_NUM_SELF_TEST - 2; i++)
 			strcpy(data + i * ETH_GSTRING_LEN, mlx4_en_test_names[i]);
-		if (priv->mdev->dev->caps.loopback_support)
+		if (priv->mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_UC_LOOPBACK)
 			for (; i < MLX4_EN_NUM_SELF_TEST; i++)
 				strcpy(data + i * ETH_GSTRING_LEN, mlx4_en_test_names[i]);
 		break;

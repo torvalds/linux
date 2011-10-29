@@ -56,15 +56,6 @@ static void add_exit_timing(struct kvm_vcpu *vcpu, u64 duration, int type)
 {
 	u64 old;
 
-	do_div(duration, tb_ticks_per_usec);
-	if (unlikely(duration > 0xFFFFFFFF)) {
-		printk(KERN_ERR"%s - duration too big -> overflow"
-			" duration %lld type %d exit #%d\n",
-			__func__, duration, type,
-			vcpu->arch.timing_count_type[type]);
-		return;
-	}
-
 	mutex_lock(&vcpu->arch.exit_timing_lock);
 
 	vcpu->arch.timing_count_type[type]++;

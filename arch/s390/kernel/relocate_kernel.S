@@ -8,6 +8,8 @@
  *
  */
 
+#include <linux/linkage.h>
+
 /*
  * moves the new kernel to its destination...
  * %r2 = pointer to first kimage_entry_t
@@ -22,8 +24,7 @@
  */
 
 	.text
-	.globl		relocate_kernel
-	relocate_kernel:
+ENTRY(relocate_kernel)
 		basr	%r13,0		# base address
 	.base:
 		stnsm	sys_msk-.base(%r13),0xfb	# disable DAT
@@ -112,6 +113,7 @@
 		.byte	0
 		.align	8
 	relocate_kernel_end:
+	.align 8
 	.globl	relocate_kernel_len
 	relocate_kernel_len:
 		.quad	relocate_kernel_end - relocate_kernel

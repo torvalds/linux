@@ -11,7 +11,7 @@
 #include <linux/unistd.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/smp.h>
 #include <asm/time.h>
 

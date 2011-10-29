@@ -23,6 +23,7 @@
 #include <linux/errno.h>
 #include <linux/topology.h>
 #include <linux/wait.h>
+#include <linux/module.h>
 
 #include <asm/irq.h>
 #include <asm/ptrace.h>
@@ -96,11 +97,6 @@ enum {
 
 #define IRQ_NO_BALANCING_MASK	(IRQ_PER_CPU | IRQ_NO_BALANCING)
 
-static inline __deprecated bool CHECK_IRQ_PER_CPU(unsigned int status)
-{
-	return status & IRQ_PER_CPU;
-}
-
 /*
  * Return value for chip->irq_set_affinity()
  *
@@ -113,14 +109,18 @@ enum {
 };
 
 struct msi_desc;
+struct irq_domain;
 
 /**
  * struct irq_data - per irq and irq chip data passed down to chip functions
  * @irq:		interrupt number
+ * @hwirq:		hardware interrupt number, local to the interrupt domain
  * @node:		node index useful for balancing
  * @state_use_accessors: status information for irq chip functions.
  *			Use accessor functions to deal with it
  * @chip:		low level interrupt hardware access
+ * @domain:		Interrupt translation domain; responsible for mapping
+ *			between hwirq number and linux irq number.
  * @handler_data:	per-IRQ data for the irq_chip methods
  * @chip_data:		platform-specific per-chip private data for the chip
  *			methods, to allow shared chip implementations
@@ -133,9 +133,11 @@ struct msi_desc;
  */
 struct irq_data {
 	unsigned int		irq;
+	unsigned long		hwirq;
 	unsigned int		node;
 	unsigned int		state_use_accessors;
 	struct irq_chip		*chip;
+	struct irq_domain	*domain;
 	void			*handler_data;
 	void			*chip_data;
 	struct msi_desc		*msi_desc;
@@ -546,7 +548,15 @@ static inline struct msi_desc *irq_data_get_msi(struct irq_data *d)
 	return d->msi_desc;
 }
 
-int irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node);
+int __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
+		struct module *owner);
+
+static inline int irq_alloc_descs(int irq, unsigned int from, unsigned int cnt,
+		int node)
+{
+	return __irq_alloc_descs(irq, from, cnt, node, THIS_MODULE);
+}
+
 void irq_free_descs(unsigned int irq, unsigned int cnt);
 int irq_reserve_irqs(unsigned int from, unsigned int cnt);
 

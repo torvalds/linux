@@ -34,8 +34,7 @@
 #define PAGESEL		0x13
 #define LAYER4		0x02
 #define LAYER2		0x01
-#define MAX_RXTS	4
-#define MAX_TXTS	4
+#define MAX_RXTS	64
 #define N_EXT_TS	1
 #define PSF_PTPVER	2
 #define PSF_EVNT	0x4000
@@ -218,7 +217,7 @@ static void phy2rxts(struct phy_rxts *p, struct rxts *rxts)
 	rxts->seqid = p->seqid;
 	rxts->msgtype = (p->msgtype >> 12) & 0xf;
 	rxts->hash = p->msgtype & 0x0fff;
-	rxts->tmo = jiffies + HZ;
+	rxts->tmo = jiffies + 2;
 }
 
 static u64 phy2txts(struct phy_txts *p)
@@ -590,7 +589,7 @@ static void decode_rxts(struct dp83640_private *dp83640,
 	prune_rx_ts(dp83640);
 
 	if (list_empty(&dp83640->rxpool)) {
-		pr_warning("dp83640: rx timestamp pool is empty\n");
+		pr_debug("dp83640: rx timestamp pool is empty\n");
 		goto out;
 	}
 	rxts = list_first_entry(&dp83640->rxpool, struct rxts, list);
@@ -613,7 +612,7 @@ static void decode_txts(struct dp83640_private *dp83640,
 	skb = skb_dequeue(&dp83640->tx_queue);
 
 	if (!skb) {
-		pr_warning("dp83640: have timestamp but tx_queue empty\n");
+		pr_debug("dp83640: have timestamp but tx_queue empty\n");
 		return;
 	}
 	ns = phy2txts(phy_txts);

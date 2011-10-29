@@ -619,8 +619,6 @@ struct vmbus_channel *relid2channel(u32 relid);
 
 int vmbus_connect(void);
 
-int vmbus_disconnect(void);
-
 int vmbus_post_msg(void *buffer, size_t buflen);
 
 int vmbus_set_event(u32 child_relid);

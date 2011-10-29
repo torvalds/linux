@@ -9,8 +9,8 @@
  * your option) any later version.
  */
 
-#ifndef MMC_SDIO_H
-#define MMC_SDIO_H
+#ifndef LINUX_MMC_SDIO_H
+#define LINUX_MMC_SDIO_H
 
 /* SDIO commands                         type  argument     response */
 #define SD_IO_SEND_OP_COND          5 /* bcr  [23:0] OCR         R4  */
@@ -161,5 +161,4 @@
 
 #define SDIO_FBR_BLKSIZE	0x10	/* block size (2 bytes) */
 
-#endif
-
+#endif /* LINUX_MMC_SDIO_H */

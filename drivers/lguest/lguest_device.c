@@ -109,6 +109,17 @@ static u32 lg_get_features(struct virtio_device *vdev)
 }
 
 /*
+ * To notify on reset or feature finalization, we (ab)use the NOTIFY
+ * hypercall, with the descriptor address of the device.
+ */
+static void status_notify(struct virtio_device *vdev)
+{
+	unsigned long offset = (void *)to_lgdev(vdev)->desc - lguest_devices;
+
+	hcall(LHCALL_NOTIFY, (max_pfn << PAGE_SHIFT) + offset, 0, 0, 0);
+}
+
+/*
  * The virtio core takes the features the Host offers, and copies the ones
  * supported by the driver into the vdev->features array.  Once that's all
  * sorted out, this routine is called so we can tell the Host which features we
@@ -135,6 +146,9 @@ static void lg_finalize_features(struct virtio_device *vdev)
 		if (test_bit(i, vdev->features))
 			out_features[i / 8] |= (1 << (i % 8));
 	}
+
+	/* Tell Host we've finished with this device's feature negotiation */
+	status_notify(vdev);
 }
 
 /* Once they've found a field, getting a copy of it is easy. */
@@ -168,28 +182,21 @@ static u8 lg_get_status(struct virtio_device *vdev)
 	return to_lgdev(vdev)->desc->status;
 }
 
-/*
- * To notify on status updates, we (ab)use the NOTIFY hypercall, with the
- * descriptor address of the device.  A zero status means "reset".
- */
-static void set_status(struct virtio_device *vdev, u8 status)
-{
-	unsigned long offset = (void *)to_lgdev(vdev)->desc - lguest_devices;
-
-	/* We set the status. */
-	to_lgdev(vdev)->desc->status = status;
-	hcall(LHCALL_NOTIFY, (max_pfn << PAGE_SHIFT) + offset, 0, 0, 0);
-}
-
 static void lg_set_status(struct virtio_device *vdev, u8 status)
 {
 	BUG_ON(!status);
-	set_status(vdev, status);
+	to_lgdev(vdev)->desc->status = status;
+
+	/* Tell Host immediately if we failed. */
+	if (status & VIRTIO_CONFIG_S_FAILED)
+		status_notify(vdev);
 }
 
 static void lg_reset(struct virtio_device *vdev)
 {
-	set_status(vdev, 0);
+	/* 0 status means "reset" */
+	to_lgdev(vdev)->desc->status = 0;
+	status_notify(vdev);
 }
 
 /*

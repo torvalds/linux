@@ -135,7 +135,7 @@ static DEVICE_ATTR(detach, S_IWUSR, NULL, store_detach);
 static int valid_args(__u32 rhport, enum usb_device_speed speed)
 {
 	/* check rhport */
-	if ((rhport < 0) || (rhport >= VHCI_NPORTS)) {
+	if (rhport >= VHCI_NPORTS) {
 		pr_err("port %u\n", rhport);
 		return -EINVAL;
 	}
@@ -192,7 +192,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	/* check sockfd */
 	socket = sockfd_to_socket(sockfd);
 	if (!socket)
-		return  -EINVAL;
+		return -EINVAL;
 
 	/* now need lock until setting vdev status as used */
 
@@ -239,6 +239,6 @@ static struct attribute *dev_attrs[] = {
 	NULL,
 };
 
-struct attribute_group dev_attr_group = {
+const struct attribute_group dev_attr_group = {
 	.attrs = dev_attrs,
 };

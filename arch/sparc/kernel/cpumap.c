@@ -324,6 +324,9 @@ static int iterate_cpu(struct cpuinfo_tree *t, unsigned int root_index)
 	switch (sun4v_chip_type) {
 	case SUN4V_CHIP_NIAGARA1:
 	case SUN4V_CHIP_NIAGARA2:
+	case SUN4V_CHIP_NIAGARA3:
+	case SUN4V_CHIP_NIAGARA4:
+	case SUN4V_CHIP_NIAGARA5:
 		rover_inc_table = niagara_iterate_method;
 		break;
 	default:

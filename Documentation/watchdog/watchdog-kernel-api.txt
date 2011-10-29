@@ -1,0 +1,162 @@
+The Linux WatchDog Timer Driver Core kernel API.
+===============================================
+Last reviewed: 22-Jul-2011
+
+Wim Van Sebroeck <wim@iguana.be>
+
+Introduction
+------------
+This document does not describe what a WatchDog Timer (WDT) Driver or Device is.
+It also does not describe the API which can be used by user space to communicate
+with a WatchDog Timer. If you want to know this then please read the following
+file: Documentation/watchdog/watchdog-api.txt .
+
+So what does this document describe? It describes the API that can be used by
+WatchDog Timer Drivers that want to use the WatchDog Timer Driver Core
+Framework. This framework provides all interfacing towards user space so that
+the same code does not have to be reproduced each time. This also means that
+a watchdog timer driver then only needs to provide the different routines
+(operations) that control the watchdog timer (WDT).
+
+The API
+-------
+Each watchdog timer driver that wants to use the WatchDog Timer Driver Core
+must #include <linux/watchdog.h> (you would have to do this anyway when
+writing a watchdog device driver). This include file contains following
+register/unregister routines:
+
+extern int watchdog_register_device(struct watchdog_device *);
+extern void watchdog_unregister_device(struct watchdog_device *);
+
+The watchdog_register_device routine registers a watchdog timer device.
+The parameter of this routine is a pointer to a watchdog_device structure.
+This routine returns zero on success and a negative errno code for failure.
+
+The watchdog_unregister_device routine deregisters a registered watchdog timer
+device. The parameter of this routine is the pointer to the registered
+watchdog_device structure.
+
+The watchdog device structure looks like this:
+
+struct watchdog_device {
+	const struct watchdog_info *info;
+	const struct watchdog_ops *ops;
+	unsigned int bootstatus;
+	unsigned int timeout;
+	unsigned int min_timeout;
+	unsigned int max_timeout;
+	void *driver_data;
+	unsigned long status;
+};
+
+It contains following fields:
+* info: a pointer to a watchdog_info structure. This structure gives some
+  additional information about the watchdog timer itself. (Like it's unique name)
+* ops: a pointer to the list of watchdog operations that the watchdog supports.
+* timeout: the watchdog timer's timeout value (in seconds).
+* min_timeout: the watchdog timer's minimum timeout value (in seconds).
+* max_timeout: the watchdog timer's maximum timeout value (in seconds).
+* bootstatus: status of the device after booting (reported with watchdog
+  WDIOF_* status bits).
+* driver_data: a pointer to the drivers private data of a watchdog device.
+  This data should only be accessed via the watchdog_set_drvadata and
+  watchdog_get_drvdata routines.
+* status: this field contains a number of status bits that give extra
+  information about the status of the device (Like: is the watchdog timer
+  running/active, is the nowayout bit set, is the device opened via
+  the /dev/watchdog interface or not, ...).
+
+The list of watchdog operations is defined as:
+
+struct watchdog_ops {
+	struct module *owner;
+	/* mandatory operations */
+	int (*start)(struct watchdog_device *);
+	int (*stop)(struct watchdog_device *);
+	/* optional operations */
+	int (*ping)(struct watchdog_device *);
+	unsigned int (*status)(struct watchdog_device *);
+	int (*set_timeout)(struct watchdog_device *, unsigned int);
+	long (*ioctl)(struct watchdog_device *, unsigned int, unsigned long);
+};
+
+It is important that you first define the module owner of the watchdog timer
+driver's operations. This module owner will be used to lock the module when
+the watchdog is active. (This to avoid a system crash when you unload the
+module and /dev/watchdog is still open).
+Some operations are mandatory and some are optional. The mandatory operations
+are:
+* start: this is a pointer to the routine that starts the watchdog timer
+  device.
+  The routine needs a pointer to the watchdog timer device structure as a
+  parameter. It returns zero on success or a negative errno code for failure.
+* stop: with this routine the watchdog timer device is being stopped.
+  The routine needs a pointer to the watchdog timer device structure as a
+  parameter. It returns zero on success or a negative errno code for failure.
+  Some watchdog timer hardware can only be started and not be stopped. The
+  driver supporting this hardware needs to make sure that a start and stop
+  routine is being provided. This can be done by using a timer in the driver
+  that regularly sends a keepalive ping to the watchdog timer hardware.
+
+Not all watchdog timer hardware supports the same functionality. That's why
+all other routines/operations are optional. They only need to be provided if
+they are supported. These optional routines/operations are:
+* ping: this is the routine that sends a keepalive ping to the watchdog timer
+  hardware.
+  The routine needs a pointer to the watchdog timer device structure as a
+  parameter. It returns zero on success or a negative errno code for failure.
+  Most hardware that does not support this as a separate function uses the
+  start function to restart the watchdog timer hardware. And that's also what
+  the watchdog timer driver core does: to send a keepalive ping to the watchdog
+  timer hardware it will either use the ping operation (when available) or the
+  start operation (when the ping operation is not available).
+  (Note: the WDIOC_KEEPALIVE ioctl call will only be active when the
+  WDIOF_KEEPALIVEPING bit has been set in the option field on the watchdog's
+  info structure).
+* status: this routine checks the status of the watchdog timer device. The
+  status of the device is reported with watchdog WDIOF_* status flags/bits.
+* set_timeout: this routine checks and changes the timeout of the watchdog
+  timer device. It returns 0 on success, -EINVAL for "parameter out of range"
+  and -EIO for "could not write value to the watchdog". On success the timeout
+  value of the watchdog_device will be changed to the value that was just used
+  to re-program the watchdog timer device.
+  (Note: the WDIOF_SETTIMEOUT needs to be set in the options field of the
+  watchdog's info structure).
+* ioctl: if this routine is present then it will be called first before we do
+  our own internal ioctl call handling. This routine should return -ENOIOCTLCMD
+  if a command is not supported. The parameters that are passed to the ioctl
+  call are: watchdog_device, cmd and arg.
+
+The status bits should (preferably) be set with the set_bit and clear_bit alike
+bit-operations. The status bits that are defined are:
+* WDOG_ACTIVE: this status bit indicates whether or not a watchdog timer device
+  is active or not. When the watchdog is active after booting, then you should
+  set this status bit (Note: when you register the watchdog timer device with
+  this bit set, then opening /dev/watchdog will skip the start operation)
+* WDOG_DEV_OPEN: this status bit shows whether or not the watchdog device
+  was opened via /dev/watchdog.
+  (This bit should only be used by the WatchDog Timer Driver Core).
+* WDOG_ALLOW_RELEASE: this bit stores whether or not the magic close character
+  has been sent (so that we can support the magic close feature).
+  (This bit should only be used by the WatchDog Timer Driver Core).
+* WDOG_NO_WAY_OUT: this bit stores the nowayout setting for the watchdog.
+  If this bit is set then the watchdog timer will not be able to stop.
+
+Note: The WatchDog Timer Driver Core supports the magic close feature and
+the nowayout feature. To use the magic close feature you must set the
+WDIOF_MAGICCLOSE bit in the options field of the watchdog's info structure.
+The nowayout feature will overrule the magic close feature.
+
+To get or set driver specific data the following two helper functions should be
+used:
+
+static inline void watchdog_set_drvdata(struct watchdog_device *wdd, void *data)
+static inline void *watchdog_get_drvdata(struct watchdog_device *wdd)
+
+The watchdog_set_drvdata function allows you to add driver specific data. The
+arguments of this function are the watchdog device where you want to add the
+driver specific data to and a pointer to the data itself.
+
+The watchdog_get_drvdata function allows you to retrieve driver specific data.
+The argument of this function is the watchdog device where you want to retrieve
+data from. The function retruns the pointer to the driver specific data.

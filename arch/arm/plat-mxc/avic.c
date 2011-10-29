@@ -46,6 +46,8 @@
 #define AVIC_FIPNDH		0x60	/* fast int pending high */
 #define AVIC_FIPNDL		0x64	/* fast int pending low */
 
+#define AVIC_NUM_IRQS 64
+
 void __iomem *avic_base;
 
 #ifdef CONFIG_MXC_IRQ_PRIOR
@@ -54,7 +56,7 @@ static int avic_irq_set_priority(unsigned char irq, unsigned char prio)
 	unsigned int temp;
 	unsigned int mask = 0x0F << irq % 8 * 4;
 
-	if (irq >= MXC_INTERNAL_IRQS)
+	if (irq >= AVIC_NUM_IRQS)
 		return -EINVAL;;
 
 	temp = __raw_readl(avic_base + AVIC_NIPRIORITY(irq / 8));
@@ -72,14 +74,14 @@ static int avic_set_irq_fiq(unsigned int irq, unsigned int type)
 {
 	unsigned int irqt;
 
-	if (irq >= MXC_INTERNAL_IRQS)
+	if (irq >= AVIC_NUM_IRQS)
 		return -EINVAL;
 
-	if (irq < MXC_INTERNAL_IRQS / 2) {
+	if (irq < AVIC_NUM_IRQS / 2) {
 		irqt = __raw_readl(avic_base + AVIC_INTTYPEL) & ~(1 << irq);
 		__raw_writel(irqt | (!!type << irq), avic_base + AVIC_INTTYPEL);
 	} else {
-		irq -= MXC_INTERNAL_IRQS / 2;
+		irq -= AVIC_NUM_IRQS / 2;
 		irqt = __raw_readl(avic_base + AVIC_INTTYPEH) & ~(1 << irq);
 		__raw_writel(irqt | (!!type << irq), avic_base + AVIC_INTTYPEH);
 	}
@@ -138,7 +140,7 @@ void __init mxc_init_irq(void __iomem *irqbase)
 	/* all IRQ no FIQ */
 	__raw_writel(0, avic_base + AVIC_INTTYPEH);
 	__raw_writel(0, avic_base + AVIC_INTTYPEL);
-	for (i = 0; i < MXC_INTERNAL_IRQS; i++) {
+	for (i = 0; i < AVIC_NUM_IRQS; i++) {
 		irq_set_chip_and_handler(i, &mxc_avic_chip.base,
 					 handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);

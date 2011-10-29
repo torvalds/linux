@@ -55,6 +55,7 @@
 /* GPIO Registers */
 #define GPIO_DATA           0x1B7020
 #define GPIO_CTRL           0x1B7024
+#define GPIO_EXT_DATA       0x1B70A0
 
 /* Virtual memory registers */
 #define VMEM_PTPAL          0x1C6300 /* 0x1C6300 + (16 * Chn) */

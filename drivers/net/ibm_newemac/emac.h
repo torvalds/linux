@@ -26,6 +26,7 @@
 #define __IBM_NEWEMAC_H
 
 #include <linux/types.h>
+#include <linux/phy.h>
 
 /* EMAC registers 			Write Access rules */
 struct emac_regs {
@@ -106,15 +107,15 @@ struct emac_regs {
 /*
  * PHY mode settings (EMAC <-> ZMII/RGMII bridge <-> PHY)
  */
-#define PHY_MODE_NA	0
-#define PHY_MODE_MII	1
-#define PHY_MODE_RMII	2
-#define PHY_MODE_SMII	3
-#define PHY_MODE_RGMII	4
-#define PHY_MODE_TBI	5
-#define PHY_MODE_GMII	6
-#define PHY_MODE_RTBI	7
-#define PHY_MODE_SGMII	8
+#define PHY_MODE_NA	PHY_INTERFACE_MODE_NA
+#define PHY_MODE_MII	PHY_INTERFACE_MODE_MII
+#define PHY_MODE_RMII	PHY_INTERFACE_MODE_RMII
+#define PHY_MODE_SMII	PHY_INTERFACE_MODE_SMII
+#define PHY_MODE_RGMII	PHY_INTERFACE_MODE_RGMII
+#define PHY_MODE_TBI	PHY_INTERFACE_MODE_TBI
+#define PHY_MODE_GMII	PHY_INTERFACE_MODE_GMII
+#define PHY_MODE_RTBI	PHY_INTERFACE_MODE_RTBI
+#define PHY_MODE_SGMII	PHY_INTERFACE_MODE_SGMII
 
 /* EMACx_MR0 */
 #define EMAC_MR0_RXI			0x80000000

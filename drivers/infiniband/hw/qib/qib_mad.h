@@ -32,6 +32,8 @@
  * SOFTWARE.
  */
 
+#include <rdma/ib_pma.h>
+
 #define IB_SMP_UNSUP_VERSION    cpu_to_be16(0x0004)
 #define IB_SMP_UNSUP_METHOD     cpu_to_be16(0x0008)
 #define IB_SMP_UNSUP_METH_ATTR  cpu_to_be16(0x000C)
@@ -180,108 +182,7 @@ struct ib_vl_weight_elem {
 #define IB_VLARB_HIGHPRI_0_31   3
 #define IB_VLARB_HIGHPRI_32_63  4
 
-/*
- * PMA class portinfo capability mask bits
- */
-#define IB_PMA_CLASS_CAP_ALLPORTSELECT  cpu_to_be16(1 << 8)
-#define IB_PMA_CLASS_CAP_EXT_WIDTH      cpu_to_be16(1 << 9)
-#define IB_PMA_CLASS_CAP_XMIT_WAIT      cpu_to_be16(1 << 12)
-
-#define IB_PMA_CLASS_PORT_INFO          cpu_to_be16(0x0001)
-#define IB_PMA_PORT_SAMPLES_CONTROL     cpu_to_be16(0x0010)
-#define IB_PMA_PORT_SAMPLES_RESULT      cpu_to_be16(0x0011)
-#define IB_PMA_PORT_COUNTERS            cpu_to_be16(0x0012)
-#define IB_PMA_PORT_COUNTERS_EXT        cpu_to_be16(0x001D)
-#define IB_PMA_PORT_SAMPLES_RESULT_EXT  cpu_to_be16(0x001E)
 #define IB_PMA_PORT_COUNTERS_CONG       cpu_to_be16(0xFF00)
-
-struct ib_perf {
-	u8 base_version;
-	u8 mgmt_class;
-	u8 class_version;
-	u8 method;
-	__be16 status;
-	__be16 unused;
-	__be64 tid;
-	__be16 attr_id;
-	__be16 resv;
-	__be32 attr_mod;
-	u8 reserved[40];
-	u8 data[192];
-} __attribute__ ((packed));
-
-struct ib_pma_classportinfo {
-	u8 base_version;
-	u8 class_version;
-	__be16 cap_mask;
-	u8 reserved[3];
-	u8 resp_time_value;     /* only lower 5 bits */
-	union ib_gid redirect_gid;
-	__be32 redirect_tc_sl_fl;       /* 8, 4, 20 bits respectively */
-	__be16 redirect_lid;
-	__be16 redirect_pkey;
-	__be32 redirect_qp;     /* only lower 24 bits */
-	__be32 redirect_qkey;
-	union ib_gid trap_gid;
-	__be32 trap_tc_sl_fl;   /* 8, 4, 20 bits respectively */
-	__be16 trap_lid;
-	__be16 trap_pkey;
-	__be32 trap_hl_qp;      /* 8, 24 bits respectively */
-	__be32 trap_qkey;
-} __attribute__ ((packed));
-
-struct ib_pma_portsamplescontrol {
-	u8 opcode;
-	u8 port_select;
-	u8 tick;
-	u8 counter_width;       /* only lower 3 bits */
-	__be32 counter_mask0_9; /* 2, 10 * 3, bits */
-	__be16 counter_mask10_14;       /* 1, 5 * 3, bits */
-	u8 sample_mechanisms;
-	u8 sample_status;       /* only lower 2 bits */
-	__be64 option_mask;
-	__be64 vendor_mask;
-	__be32 sample_start;
-	__be32 sample_interval;
-	__be16 tag;
-	__be16 counter_select[15];
-} __attribute__ ((packed));
-
-struct ib_pma_portsamplesresult {
-	__be16 tag;
-	__be16 sample_status;   /* only lower 2 bits */
-	__be32 counter[15];
-} __attribute__ ((packed));
-
-struct ib_pma_portsamplesresult_ext {
-	__be16 tag;
-	__be16 sample_status;   /* only lower 2 bits */
-	__be32 extended_width;  /* only upper 2 bits */
-	__be64 counter[15];
-} __attribute__ ((packed));
-
-struct ib_pma_portcounters {
-	u8 reserved;
-	u8 port_select;
-	__be16 counter_select;
-	__be16 symbol_error_counter;
-	u8 link_error_recovery_counter;
-	u8 link_downed_counter;
-	__be16 port_rcv_errors;
-	__be16 port_rcv_remphys_errors;
-	__be16 port_rcv_switch_relay_errors;
-	__be16 port_xmit_discards;
-	u8 port_xmit_constraint_errors;
-	u8 port_rcv_constraint_errors;
-	u8 reserved1;
-	u8 lli_ebor_errors;     /* 4, 4, bits */
-	__be16 reserved2;
-	__be16 vl15_dropped;
-	__be32 port_xmit_data;
-	__be32 port_rcv_data;
-	__be32 port_xmit_packets;
-	__be32 port_rcv_packets;
-} __attribute__ ((packed));
 
 struct ib_pma_portcounters_cong {
 	u8 reserved;
@@ -297,7 +198,7 @@ struct ib_pma_portcounters_cong {
 	u8 port_xmit_constraint_errors;
 	u8 port_rcv_constraint_errors;
 	u8 reserved2;
-	u8 lli_ebor_errors;    /* 4, 4, bits */
+	u8 link_overrun_errors; /* LocalLink: 7:4, BufferOverrun: 3:0 */
 	__be16 reserved3;
 	__be16 vl15_dropped;
 	__be64 port_xmit_data;
@@ -316,48 +217,10 @@ struct ib_pma_portcounters_cong {
 /* number of 4nsec cycles equaling 2secs */
 #define QIB_CONG_TIMER_PSINTERVAL               0x1DCD64EC
 
-#define IB_PMA_SEL_SYMBOL_ERROR                 cpu_to_be16(0x0001)
-#define IB_PMA_SEL_LINK_ERROR_RECOVERY          cpu_to_be16(0x0002)
-#define IB_PMA_SEL_LINK_DOWNED                  cpu_to_be16(0x0004)
-#define IB_PMA_SEL_PORT_RCV_ERRORS              cpu_to_be16(0x0008)
-#define IB_PMA_SEL_PORT_RCV_REMPHYS_ERRORS      cpu_to_be16(0x0010)
-#define IB_PMA_SEL_PORT_XMIT_DISCARDS           cpu_to_be16(0x0040)
-#define IB_PMA_SEL_LOCAL_LINK_INTEGRITY_ERRORS  cpu_to_be16(0x0200)
-#define IB_PMA_SEL_EXCESSIVE_BUFFER_OVERRUNS    cpu_to_be16(0x0400)
-#define IB_PMA_SEL_PORT_VL15_DROPPED            cpu_to_be16(0x0800)
-#define IB_PMA_SEL_PORT_XMIT_DATA               cpu_to_be16(0x1000)
-#define IB_PMA_SEL_PORT_RCV_DATA                cpu_to_be16(0x2000)
-#define IB_PMA_SEL_PORT_XMIT_PACKETS            cpu_to_be16(0x4000)
-#define IB_PMA_SEL_PORT_RCV_PACKETS             cpu_to_be16(0x8000)
-
 #define IB_PMA_SEL_CONG_ALL                     0x01
 #define IB_PMA_SEL_CONG_PORT_DATA               0x02
 #define IB_PMA_SEL_CONG_XMIT                    0x04
 #define IB_PMA_SEL_CONG_ROUTING                 0x08
-
-struct ib_pma_portcounters_ext {
-	u8 reserved;
-	u8 port_select;
-	__be16 counter_select;
-	__be32 reserved1;
-	__be64 port_xmit_data;
-	__be64 port_rcv_data;
-	__be64 port_xmit_packets;
-	__be64 port_rcv_packets;
-	__be64 port_unicast_xmit_packets;
-	__be64 port_unicast_rcv_packets;
-	__be64 port_multicast_xmit_packets;
-	__be64 port_multicast_rcv_packets;
-} __attribute__ ((packed));
-
-#define IB_PMA_SELX_PORT_XMIT_DATA              cpu_to_be16(0x0001)
-#define IB_PMA_SELX_PORT_RCV_DATA               cpu_to_be16(0x0002)
-#define IB_PMA_SELX_PORT_XMIT_PACKETS           cpu_to_be16(0x0004)
-#define IB_PMA_SELX_PORT_RCV_PACKETS            cpu_to_be16(0x0008)
-#define IB_PMA_SELX_PORT_UNI_XMIT_PACKETS       cpu_to_be16(0x0010)
-#define IB_PMA_SELX_PORT_UNI_RCV_PACKETS        cpu_to_be16(0x0020)
-#define IB_PMA_SELX_PORT_MULTI_XMIT_PACKETS     cpu_to_be16(0x0040)
-#define IB_PMA_SELX_PORT_MULTI_RCV_PACKETS      cpu_to_be16(0x0080)
 
 /*
  * The PortSamplesControl.CounterMasks field is an array of 3 bit fields

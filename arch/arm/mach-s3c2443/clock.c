@@ -59,7 +59,6 @@
 
 static struct clk clk_i2s_ext = {
 	.name		= "i2s-ext",
-	.id		= -1,
 };
 
 /* armdiv
@@ -129,7 +128,7 @@ static int s3c2443_armclk_setrate(struct clk *clk, unsigned long rate)
 		unsigned long clkcon0;
 
 		clkcon0 = __raw_readl(S3C2443_CLKDIV0);
-		clkcon0 &= S3C2443_CLKDIV0_ARMDIV_MASK;
+		clkcon0 &= ~S3C2443_CLKDIV0_ARMDIV_MASK;
 		clkcon0 |= val << S3C2443_CLKDIV0_ARMDIV_SHIFT;
 		__raw_writel(clkcon0, S3C2443_CLKDIV0);
 	}
@@ -139,7 +138,6 @@ static int s3c2443_armclk_setrate(struct clk *clk, unsigned long rate)
 
 static struct clk clk_armdiv = {
 	.name		= "armdiv",
-	.id		= -1,
 	.parent		= &clk_msysclk.clk,
 	.ops		= &(struct clk_ops) {
 		.round_rate = s3c2443_armclk_roundrate,
@@ -160,7 +158,6 @@ static struct clk *clk_arm_sources[] = {
 static struct clksrc_clk clk_arm = {
 	.clk	= {
 		.name		= "armclk",
-		.id		= -1,
 	},
 	.sources = &(struct clksrc_sources) {
 		.sources = clk_arm_sources,
@@ -177,7 +174,6 @@ static struct clksrc_clk clk_arm = {
 static struct clksrc_clk clk_hsspi = {
 	.clk	= {
 		.name		= "hsspi",
-		.id		= -1,
 		.parent		= &clk_esysclk.clk,
 		.ctrlbit	= S3C2443_SCLKCON_HSSPICLK,
 		.enable		= s3c2443_clkcon_enable_s,
@@ -196,7 +192,7 @@ static struct clksrc_clk clk_hsspi = {
 static struct clksrc_clk clk_hsmmc_div = {
 	.clk	= {
 		.name		= "hsmmc-div",
-		.id		= 1,
+		.devname	= "s3c-sdhci.1",
 		.parent		= &clk_esysclk.clk,
 	},
 	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 2, .shift = 6 },
@@ -231,7 +227,7 @@ static int s3c2443_enable_hsmmc(struct clk *clk, int enable)
 
 static struct clk clk_hsmmc = {
 	.name		= "hsmmc-if",
-	.id		= 1,
+	.devname	= "s3c-sdhci.1",
 	.parent		= &clk_hsmmc_div.clk,
 	.enable		= s3c2443_enable_hsmmc,
 	.ops		= &(struct clk_ops) {
@@ -248,7 +244,6 @@ static struct clk clk_hsmmc = {
 static struct clksrc_clk clk_i2s_eplldiv = {
 	.clk	= {
 		.name		= "i2s-eplldiv",
-		.id		= -1,
 		.parent		= &clk_esysclk.clk,
 	},
 	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 4, .shift = 12, },
@@ -271,7 +266,6 @@ struct clk *clk_i2s_srclist[] = {
 static struct clksrc_clk clk_i2s = {
 	.clk	= {
 		.name		= "i2s-if",
-		.id		= -1,
 		.ctrlbit	= S3C2443_SCLKCON_I2SCLK,
 		.enable		= s3c2443_clkcon_enable_s,
 
@@ -288,25 +282,23 @@ static struct clksrc_clk clk_i2s = {
 static struct clk init_clocks_off[] = {
 	{
 		.name		= "sdi",
-		.id		= -1,
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_SDI,
 	}, {
 		.name		= "iis",
-		.id		= -1,
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_IIS,
 	}, {
 		.name		= "spi",
-		.id		= 0,
+		.devname	= "s3c2410-spi.0",
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_SPI0,
 	}, {
 		.name		= "spi",
-		.id		= 1,
+		.devname	= "s3c2410-spi.1",
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_SPI1,

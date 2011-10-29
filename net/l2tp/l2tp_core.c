@@ -55,7 +55,7 @@
 #include <net/protocol.h>
 
 #include <asm/byteorder.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "l2tp_core.h"
 
@@ -1045,8 +1045,10 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	headroom = NET_SKB_PAD + sizeof(struct iphdr) +
 		uhlen + hdr_len;
 	old_headroom = skb_headroom(skb);
-	if (skb_cow_head(skb, headroom))
+	if (skb_cow_head(skb, headroom)) {
+		dev_kfree_skb(skb);
 		goto abort;
+	}
 
 	new_headroom = skb_headroom(skb);
 	skb_orphan(skb);

@@ -11,7 +11,7 @@
  */
 
 /* This file should be up to date with:
- *  - Revision E, 05/25/2010; ADSP-BF534/ADSP-BF536/ADSP-BF537 Blackfin Processor Anomaly List
+ *  - Revision F, 05/23/2011; ADSP-BF534/ADSP-BF536/ADSP-BF537 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -44,18 +44,12 @@
 #define ANOMALY_05000119 (1)
 /* Rx.H Cannot Be Used to Access 16-bit System MMR Registers */
 #define ANOMALY_05000122 (1)
-/* Killed 32-Bit MMR Write Leads to Next System MMR Access Thinking It Should Be 32-Bit */
-#define ANOMALY_05000157 (__SILICON_REVISION__ < 2)
 /* PPI_DELAY Not Functional in PPI Modes with 0 Frame Syncs */
 #define ANOMALY_05000180 (1)
-/* Instruction Cache Is Not Functional */
-#define ANOMALY_05000237 (__SILICON_REVISION__ < 2)
 /* If I-Cache Is On, CSYNC/SSYNC/IDLE Around Change of Control Causes Failures */
 #define ANOMALY_05000244 (__SILICON_REVISION__ < 3)
 /* False Hardware Error from an Access in the Shadow of a Conditional Branch */
 #define ANOMALY_05000245 (1)
-/* Buffered CLKIN Output Is Disabled by Default */
-#define ANOMALY_05000247 (1)
 /* Incorrect Bit Shift of Data Word in Multichannel (TDM) Mode in Certain Conditions */
 #define ANOMALY_05000250 (__SILICON_REVISION__ < 3)
 /* EMAC TX DMA Error After an Early Frame Abort */
@@ -98,7 +92,7 @@
 #define ANOMALY_05000278 (((ANOMALY_BF536 || ANOMALY_BF537) && __SILICON_REVISION__ < 3) || (ANOMALY_BF534 && __SILICON_REVISION__ < 2))
 /* SPI Master Boot Mode Does Not Work Well with Atmel Data Flash Devices */
 #define ANOMALY_05000280 (1)
-/* False Hardware Error Exception when ISR Context Is Not Restored */
+/* False Hardware Error when ISR Context Is Not Restored */
 #define ANOMALY_05000281 (__SILICON_REVISION__ < 3)
 /* Memory DMA Corruption with 32-Bit Data and Traffic Control */
 #define ANOMALY_05000282 (__SILICON_REVISION__ < 3)
@@ -162,9 +156,9 @@
 #define ANOMALY_05000461 (1)
 /* Synchronization Problem at Startup May Cause SPORT Transmit Channels to Misalign */
 #define ANOMALY_05000462 (1)
-/* Interrupted 32-Bit SPORT Data Register Access Results In Underflow */
+/* Interrupted SPORT Receive Data Register Read Results In Underflow when SLEN > 15 */
 #define ANOMALY_05000473 (1)
-/* Possible Lockup Condition whem Modifying PLL from External Memory */
+/* Possible Lockup Condition when Modifying PLL from External Memory */
 #define ANOMALY_05000475 (1)
 /* TESTSET Instruction Cannot Be Interrupted */
 #define ANOMALY_05000477 (1)
@@ -172,8 +166,26 @@
 #define ANOMALY_05000480 (__SILICON_REVISION__ < 3)
 /* Reads of ITEST_COMMAND and ITEST_DATA Registers Cause Cache Corruption */
 #define ANOMALY_05000481 (1)
-/* IFLUSH sucks at life */
+/* PLL May Latch Incorrect Values Coming Out of Reset */
+#define ANOMALY_05000489 (1)
+/* Instruction Memory Stalls Can Cause IFLUSH to Fail */
 #define ANOMALY_05000491 (1)
+/* EXCPT Instruction May Be Lost If NMI Happens Simultaneously */
+#define ANOMALY_05000494 (1)
+/* RXS Bit in SPI_STAT May Become Stuck In RX DMA Modes */
+#define ANOMALY_05000501 (1)
+
+/*
+ * These anomalies have been "phased" out of analog.com anomaly sheets and are
+ * here to show running on older silicon just isn't feasible.
+ */
+
+/* Killed 32-Bit MMR Write Leads to Next System MMR Access Thinking It Should Be 32-Bit */
+#define ANOMALY_05000157 (__SILICON_REVISION__ < 2)
+/* Instruction Cache Is Not Functional */
+#define ANOMALY_05000237 (__SILICON_REVISION__ < 2)
+/* Buffered CLKIN Output Is Disabled by Default */
+#define ANOMALY_05000247 (__SILICON_REVISION__ < 2)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000099 (0)

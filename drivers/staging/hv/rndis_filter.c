@@ -139,14 +139,17 @@ static void put_rndis_request(struct rndis_device *dev,
 	kfree(req);
 }
 
-static void dump_rndis_message(struct rndis_message *rndis_msg)
+static void dump_rndis_message(struct hv_device *hv_dev,
+			struct rndis_message *rndis_msg)
 {
+	struct net_device *netdev = dev_get_drvdata(&hv_dev->device);
+
 	switch (rndis_msg->ndis_msg_type) {
 	case REMOTE_NDIS_PACKET_MSG:
-		DPRINT_DBG(NETVSC, "REMOTE_NDIS_PACKET_MSG (len %u, "
+		netdev_dbg(netdev, "REMOTE_NDIS_PACKET_MSG (len %u, "
 			   "data offset %u data len %u, # oob %u, "
 			   "oob offset %u, oob len %u, pkt offset %u, "
-			   "pkt len %u",
+			   "pkt len %u\n",
 			   rndis_msg->msg_len,
 			   rndis_msg->msg.pkt.data_offset,
 			   rndis_msg->msg.pkt.data_len,
@@ -158,10 +161,10 @@ static void dump_rndis_message(struct rndis_message *rndis_msg)
 		break;
 
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
-		DPRINT_DBG(NETVSC, "REMOTE_NDIS_INITIALIZE_CMPLT "
+		netdev_dbg(netdev, "REMOTE_NDIS_INITIALIZE_CMPLT "
 			"(len %u, id 0x%x, status 0x%x, major %d, minor %d, "
 			"device flags %d, max xfer size 0x%x, max pkts %u, "
-			"pkt aligned %u)",
+			"pkt aligned %u)\n",
 			rndis_msg->msg_len,
 			rndis_msg->msg.init_complete.req_id,
 			rndis_msg->msg.init_complete.status,
@@ -176,9 +179,9 @@ static void dump_rndis_message(struct rndis_message *rndis_msg)
 		break;
 
 	case REMOTE_NDIS_QUERY_CMPLT:
-		DPRINT_DBG(NETVSC, "REMOTE_NDIS_QUERY_CMPLT "
+		netdev_dbg(netdev, "REMOTE_NDIS_QUERY_CMPLT "
 			"(len %u, id 0x%x, status 0x%x, buf len %u, "
-			"buf offset %u)",
+			"buf offset %u)\n",
 			rndis_msg->msg_len,
 			rndis_msg->msg.query_complete.req_id,
 			rndis_msg->msg.query_complete.status,
@@ -189,16 +192,16 @@ static void dump_rndis_message(struct rndis_message *rndis_msg)
 		break;
 
 	case REMOTE_NDIS_SET_CMPLT:
-		DPRINT_DBG(NETVSC,
-			"REMOTE_NDIS_SET_CMPLT (len %u, id 0x%x, status 0x%x)",
+		netdev_dbg(netdev,
+			"REMOTE_NDIS_SET_CMPLT (len %u, id 0x%x, status 0x%x)\n",
 			rndis_msg->msg_len,
 			rndis_msg->msg.set_complete.req_id,
 			rndis_msg->msg.set_complete.status);
 		break;
 
 	case REMOTE_NDIS_INDICATE_STATUS_MSG:
-		DPRINT_DBG(NETVSC, "REMOTE_NDIS_INDICATE_STATUS_MSG "
-			"(len %u, status 0x%x, buf len %u, buf offset %u)",
+		netdev_dbg(netdev, "REMOTE_NDIS_INDICATE_STATUS_MSG "
+			"(len %u, status 0x%x, buf len %u, buf offset %u)\n",
 			rndis_msg->msg_len,
 			rndis_msg->msg.indicate_status.status,
 			rndis_msg->msg.indicate_status.status_buflen,
@@ -206,7 +209,7 @@ static void dump_rndis_message(struct rndis_message *rndis_msg)
 		break;
 
 	default:
-		DPRINT_DBG(NETVSC, "0x%x (len %u)",
+		netdev_dbg(netdev, "0x%x (len %u)\n",
 			rndis_msg->ndis_msg_type,
 			rndis_msg->msg_len);
 		break;
@@ -372,24 +375,6 @@ int rndis_filter_receive(struct hv_device *dev,
 			pkt->page_buf[0].offset);
 
 	/* Make sure we got a valid rndis message */
-	/*
-	 * FIXME: There seems to be a bug in set completion msg where its
-	 * MessageLength is 16 bytes but the ByteCount field in the xfer page
-	 * range shows 52 bytes
-	 * */
-#if 0
-	if (pkt->total_data_buflen != rndis_hdr->msg_len) {
-		kunmap_atomic(rndis_hdr - pkt->page_buf[0].offset,
-			      KM_IRQ0);
-
-		dev_err(&dev->device, "invalid rndis message? (expected %u "
-			   "bytes got %u)...dropping this message!\n",
-			   rndis_hdr->msg_len,
-			   pkt->total_data_buflen);
-		return -1;
-	}
-#endif
-
 	if ((rndis_hdr->ndis_msg_type != REMOTE_NDIS_PACKET_MSG) &&
 	    (rndis_hdr->msg_len > sizeof(struct rndis_message))) {
 		dev_err(&dev->device, "incoming rndis message buffer overflow "
@@ -405,7 +390,7 @@ int rndis_filter_receive(struct hv_device *dev,
 
 	kunmap_atomic(rndis_hdr - pkt->page_buf[0].offset, KM_IRQ0);
 
-	dump_rndis_message(&rndis_msg);
+	dump_rndis_message(dev, &rndis_msg);
 
 	switch (rndis_msg.ndis_msg_type) {
 	case REMOTE_NDIS_PACKET_MSG:
@@ -467,7 +452,7 @@ static int rndis_filter_query_device(struct rndis_device *dev, u32 oid,
 	if (ret != 0)
 		goto Cleanup;
 
-	t = wait_for_completion_timeout(&request->wait_event, HZ);
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
 	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto Cleanup;
@@ -543,7 +528,7 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 	if (ret != 0)
 		goto Cleanup;
 
-	t = wait_for_completion_timeout(&request->wait_event, HZ);
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
 
 	if (t == 0) {
 		ret = -1;
@@ -600,7 +585,7 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 	}
 
 
-	t = wait_for_completion_timeout(&request->wait_event, HZ);
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
 
 	if (t == 0) {
 		ret = -ETIMEDOUT;
@@ -681,7 +666,7 @@ static int rndis_filter_close_device(struct rndis_device *dev)
 	return ret;
 }
 
-int rndis_filte_device_add(struct hv_device *dev,
+int rndis_filter_device_add(struct hv_device *dev,
 				  void *additional_info)
 {
 	int ret;
@@ -741,7 +726,7 @@ int rndis_filte_device_add(struct hv_device *dev,
 	return ret;
 }
 
-int rndis_filter_device_remove(struct hv_device *dev)
+void rndis_filter_device_remove(struct hv_device *dev)
 {
 	struct netvsc_device *net_dev = dev->ext;
 	struct rndis_device *rndis_dev = net_dev->extension;
@@ -753,8 +738,6 @@ int rndis_filter_device_remove(struct hv_device *dev)
 	net_dev->extension = NULL;
 
 	netvsc_device_remove(dev);
-
-	return 0;
 }
 
 

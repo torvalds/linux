@@ -98,6 +98,12 @@ void m5206_cpu_reset(void)
 
 void __init config_BSP(char *commandp, int size)
 {
+#if defined(CONFIG_NETtel)
+	/* Copy command line from FLASH to local buffer... */
+	memcpy(commandp, (char *) 0xf0004000, size);
+	commandp[size-1] = 0;
+#endif /* CONFIG_NETtel */
+
 	mach_reset = m5206_cpu_reset;
 	m5206_timers_init();
 	m5206_uarts_init();

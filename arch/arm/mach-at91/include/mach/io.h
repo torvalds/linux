@@ -21,13 +21,22 @@
 #ifndef __ASM_ARCH_IO_H
 #define __ASM_ARCH_IO_H
 
+#include <mach/hardware.h>
+
 #define IO_SPACE_LIMIT		0xFFFFFFFF
 
 #define __io(a)		__typesafe_io(a)
 #define __mem_pci(a)	(a)
 
-
 #ifndef __ASSEMBLY__
+
+#ifndef CONFIG_ARCH_AT91X40
+#define __arch_ioremap	at91_ioremap
+#define __arch_iounmap	at91_iounmap
+#endif
+
+void __iomem *at91_ioremap(unsigned long phys, size_t size, unsigned int type);
+void at91_iounmap(volatile void __iomem *addr);
 
 static inline unsigned int at91_sys_read(unsigned int reg_offset)
 {

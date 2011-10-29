@@ -41,7 +41,6 @@ struct ad5504_platform_data {
 
 /**
  * struct ad5446_state - driver instance specific data
- * @indio_dev:		the industrial I/O device
  * @us:			spi_device
  * @reg:		supply regulator
  * @vref_mv:		actual reference voltage used
@@ -50,7 +49,6 @@ struct ad5504_platform_data {
  */
 
 struct ad5504_state {
-	struct iio_dev			*indio_dev;
 	struct spi_device		*spi;
 	struct regulator		*reg;
 	unsigned short			vref_mv;

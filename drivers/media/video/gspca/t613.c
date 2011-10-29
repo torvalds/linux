@@ -1387,7 +1387,7 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 		return 0;
 	case V4L2_CID_EFFECTS:
 		if ((unsigned) menu->index < ARRAY_SIZE(effects_control)) {
-			strncpy((char *) menu->name,
+			strlcpy((char *) menu->name,
 				effects_control[menu->index],
 				sizeof menu->name);
 			return 0;

@@ -85,7 +85,7 @@ static inline u8 rc5_data(struct rc_map_table *key)
 	return key->scancode & 0xff;
 }
 
-static inline u8 rc5_scan(struct rc_map_table *key)
+static inline u16 rc5_scan(struct rc_map_table *key)
 {
 	return key->scancode & 0xffff;
 }

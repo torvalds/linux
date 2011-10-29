@@ -316,67 +316,67 @@ int omapfb_update_window(struct fb_info *fbi,
 }
 EXPORT_SYMBOL(omapfb_update_window);
 
-static int omapfb_set_update_mode(struct fb_info *fbi,
+int omapfb_set_update_mode(struct fb_info *fbi,
 				   enum omapfb_update_mode mode)
 {
 	struct omap_dss_device *display = fb2display(fbi);
-	enum omap_dss_update_mode um;
+	struct omapfb_info *ofbi = FB2OFB(fbi);
+	struct omapfb2_device *fbdev = ofbi->fbdev;
+	struct omapfb_display_data *d;
 	int r;
-
-	if (!display || !display->driver->set_update_mode)
-		return -EINVAL;
-
-	switch (mode) {
-	case OMAPFB_UPDATE_DISABLED:
-		um = OMAP_DSS_UPDATE_DISABLED;
-		break;
-
-	case OMAPFB_AUTO_UPDATE:
-		um = OMAP_DSS_UPDATE_AUTO;
-		break;
-
-	case OMAPFB_MANUAL_UPDATE:
-		um = OMAP_DSS_UPDATE_MANUAL;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	r = display->driver->set_update_mode(display, um);
-
-	return r;
-}
-
-static int omapfb_get_update_mode(struct fb_info *fbi,
-		enum omapfb_update_mode *mode)
-{
-	struct omap_dss_device *display = fb2display(fbi);
-	enum omap_dss_update_mode m;
 
 	if (!display)
 		return -EINVAL;
 
-	if (!display->driver->get_update_mode) {
-		*mode = OMAPFB_AUTO_UPDATE;
+	if (mode != OMAPFB_AUTO_UPDATE && mode != OMAPFB_MANUAL_UPDATE)
+		return -EINVAL;
+
+	omapfb_lock(fbdev);
+
+	d = get_display_data(fbdev, display);
+
+	if (d->update_mode == mode) {
+		omapfb_unlock(fbdev);
 		return 0;
 	}
 
-	m = display->driver->get_update_mode(display);
+	r = 0;
 
-	switch (m) {
-	case OMAP_DSS_UPDATE_DISABLED:
-		*mode = OMAPFB_UPDATE_DISABLED;
-		break;
-	case OMAP_DSS_UPDATE_AUTO:
-		*mode = OMAPFB_AUTO_UPDATE;
-		break;
-	case OMAP_DSS_UPDATE_MANUAL:
-		*mode = OMAPFB_MANUAL_UPDATE;
-		break;
-	default:
-		BUG();
+	if (display->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
+		if (mode == OMAPFB_AUTO_UPDATE)
+			omapfb_start_auto_update(fbdev, display);
+		else /* MANUAL_UPDATE */
+			omapfb_stop_auto_update(fbdev, display);
+
+		d->update_mode = mode;
+	} else { /* AUTO_UPDATE */
+		if (mode == OMAPFB_MANUAL_UPDATE)
+			r = -EINVAL;
 	}
+
+	omapfb_unlock(fbdev);
+
+	return r;
+}
+
+int omapfb_get_update_mode(struct fb_info *fbi,
+		enum omapfb_update_mode *mode)
+{
+	struct omap_dss_device *display = fb2display(fbi);
+	struct omapfb_info *ofbi = FB2OFB(fbi);
+	struct omapfb2_device *fbdev = ofbi->fbdev;
+	struct omapfb_display_data *d;
+
+	if (!display)
+		return -EINVAL;
+
+	omapfb_lock(fbdev);
+
+	d = get_display_data(fbdev, display);
+
+	*mode = d->update_mode;
+
+	omapfb_unlock(fbdev);
 
 	return 0;
 }

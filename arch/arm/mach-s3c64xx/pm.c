@@ -16,6 +16,7 @@
 #include <linux/suspend.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
 #include <mach/map.h>
 #include <mach/irqs.h>
@@ -112,7 +113,7 @@ void s3c_pm_save_core(void)
  * this.
  */
 
-static void s3c64xx_cpu_suspend(void)
+static int s3c64xx_cpu_suspend(unsigned long arg)
 {
 	unsigned long tmp;
 

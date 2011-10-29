@@ -91,7 +91,7 @@ int x25_parse_address_block(struct sk_buff *skb,
 	int needed;
 	int rc;
 
-	if (skb->len < 1) {
+	if (!pskb_may_pull(skb, 1)) {
 		/* packet has no address block */
 		rc = 0;
 		goto empty;
@@ -100,7 +100,7 @@ int x25_parse_address_block(struct sk_buff *skb,
 	len = *skb->data;
 	needed = 1 + (len >> 4) + (len & 0x0f);
 
-	if (skb->len < needed) {
+	if (!pskb_may_pull(skb, needed)) {
 		/* packet is too short to hold the addresses it claims
 		   to hold */
 		rc = -1;
@@ -237,21 +237,21 @@ static int x25_device_event(struct notifier_block *this, unsigned long event,
 #endif
 	 ) {
 		switch (event) {
-			case NETDEV_UP:
-				x25_link_device_up(dev);
-				break;
-			case NETDEV_GOING_DOWN:
-				nb = x25_get_neigh(dev);
-				if (nb) {
-					x25_terminate_link(nb);
-					x25_neigh_put(nb);
-				}
-				break;
-			case NETDEV_DOWN:
-				x25_kill_by_device(dev);
-				x25_route_device_down(dev);
-				x25_link_device_down(dev);
-				break;
+		case NETDEV_UP:
+			x25_link_device_up(dev);
+			break;
+		case NETDEV_GOING_DOWN:
+			nb = x25_get_neigh(dev);
+			if (nb) {
+				x25_terminate_link(nb);
+				x25_neigh_put(nb);
+			}
+			break;
+		case NETDEV_DOWN:
+			x25_kill_by_device(dev);
+			x25_route_device_down(dev);
+			x25_link_device_down(dev);
+			break;
 		}
 	}
 
@@ -295,7 +295,8 @@ static struct sock *x25_find_listener(struct x25_address *addr,
 			 * Found a listening socket, now check the incoming
 			 * call user data vs this sockets call user data
 			 */
-			if(skb->len > 0 && x25_sk(s)->cudmatchlength > 0) {
+			if (x25_sk(s)->cudmatchlength > 0 &&
+				skb->len >= x25_sk(s)->cudmatchlength) {
 				if((memcmp(x25_sk(s)->calluserdata.cuddata,
 					skb->data,
 					x25_sk(s)->cudmatchlength)) == 0) {
@@ -951,12 +952,25 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	 *
 	 *	Facilities length is mandatory in call request packets
 	 */
-	if (skb->len < 1)
+	if (!pskb_may_pull(skb, 1))
 		goto out_clear_request;
 	len = skb->data[0] + 1;
-	if (skb->len < len)
+	if (!pskb_may_pull(skb, len))
 		goto out_clear_request;
 	skb_pull(skb,len);
+
+	/*
+	 *	Ensure that the amount of call user data is valid.
+	 */
+	if (skb->len > X25_MAX_CUD_LEN)
+		goto out_clear_request;
+
+	/*
+	 *	Get all the call user data so it can be used in
+	 *	x25_find_listener and skb_copy_from_linear_data up ahead.
+	 */
+	if (!pskb_may_pull(skb, skb->len))
+		goto out_clear_request;
 
 	/*
 	 *	Find a listener for the particular address/cud pair.
@@ -1166,6 +1180,9 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	 *	byte of the user data is the logical value of the Q Bit.
 	 */
 	if (test_bit(X25_Q_BIT_FLAG, &x25->flags)) {
+		if (!pskb_may_pull(skb, 1))
+			goto out_kfree_skb;
+
 		qbit = skb->data[0];
 		skb_pull(skb, 1);
 	}
@@ -1244,7 +1261,9 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 	struct x25_sock *x25 = x25_sk(sk);
 	struct sockaddr_x25 *sx25 = (struct sockaddr_x25 *)msg->msg_name;
 	size_t copied;
-	int qbit;
+	int qbit, header_len = x25->neighbour->extended ?
+		X25_EXT_MIN_LEN : X25_STD_MIN_LEN;
+
 	struct sk_buff *skb;
 	unsigned char *asmptr;
 	int rc = -ENOTCONN;
@@ -1264,6 +1283,9 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 			goto out;
 
 		skb = skb_dequeue(&x25->interrupt_in_queue);
+
+		if (!pskb_may_pull(skb, X25_STD_MIN_LEN))
+			goto out_free_dgram;
 
 		skb_pull(skb, X25_STD_MIN_LEN);
 
@@ -1285,10 +1307,12 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 		if (!skb)
 			goto out;
 
+		if (!pskb_may_pull(skb, header_len))
+			goto out_free_dgram;
+
 		qbit = (skb->data[0] & X25_Q_BIT) == X25_Q_BIT;
 
-		skb_pull(skb, x25->neighbour->extended ?
-				X25_EXT_MIN_LEN : X25_STD_MIN_LEN);
+		skb_pull(skb, header_len);
 
 		if (test_bit(X25_Q_BIT_FLAG, &x25->flags)) {
 			asmptr  = skb_push(skb, 1);
@@ -1336,256 +1360,253 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	int rc;
 
 	switch (cmd) {
-		case TIOCOUTQ: {
-			int amount;
+	case TIOCOUTQ: {
+		int amount;
 
-			amount = sk->sk_sndbuf - sk_wmem_alloc_get(sk);
-			if (amount < 0)
-				amount = 0;
-			rc = put_user(amount, (unsigned int __user *)argp);
-			break;
-		}
+		amount = sk->sk_sndbuf - sk_wmem_alloc_get(sk);
+		if (amount < 0)
+			amount = 0;
+		rc = put_user(amount, (unsigned int __user *)argp);
+		break;
+	}
 
-		case TIOCINQ: {
-			struct sk_buff *skb;
-			int amount = 0;
-			/*
-			 * These two are safe on a single CPU system as
-			 * only user tasks fiddle here
-			 */
-			lock_sock(sk);
-			if ((skb = skb_peek(&sk->sk_receive_queue)) != NULL)
-				amount = skb->len;
-			release_sock(sk);
-			rc = put_user(amount, (unsigned int __user *)argp);
-			break;
-		}
+	case TIOCINQ: {
+		struct sk_buff *skb;
+		int amount = 0;
+		/*
+		 * These two are safe on a single CPU system as
+		 * only user tasks fiddle here
+		 */
+		lock_sock(sk);
+		if ((skb = skb_peek(&sk->sk_receive_queue)) != NULL)
+			amount = skb->len;
+		release_sock(sk);
+		rc = put_user(amount, (unsigned int __user *)argp);
+		break;
+	}
 
-		case SIOCGSTAMP:
-			rc = -EINVAL;
-			if (sk)
-				rc = sock_get_timestamp(sk,
+	case SIOCGSTAMP:
+		rc = -EINVAL;
+		if (sk)
+			rc = sock_get_timestamp(sk,
 						(struct timeval __user *)argp);
+		break;
+	case SIOCGSTAMPNS:
+		rc = -EINVAL;
+		if (sk)
+			rc = sock_get_timestampns(sk,
+					(struct timespec __user *)argp);
+		break;
+	case SIOCGIFADDR:
+	case SIOCSIFADDR:
+	case SIOCGIFDSTADDR:
+	case SIOCSIFDSTADDR:
+	case SIOCGIFBRDADDR:
+	case SIOCSIFBRDADDR:
+	case SIOCGIFNETMASK:
+	case SIOCSIFNETMASK:
+	case SIOCGIFMETRIC:
+	case SIOCSIFMETRIC:
+		rc = -EINVAL;
+		break;
+	case SIOCADDRT:
+	case SIOCDELRT:
+		rc = -EPERM;
+		if (!capable(CAP_NET_ADMIN))
 			break;
-		case SIOCGSTAMPNS:
-			rc = -EINVAL;
-			if (sk)
-				rc = sock_get_timestampns(sk,
-						(struct timespec __user *)argp);
+		rc = x25_route_ioctl(cmd, argp);
+		break;
+	case SIOCX25GSUBSCRIP:
+		rc = x25_subscr_ioctl(cmd, argp);
+		break;
+	case SIOCX25SSUBSCRIP:
+		rc = -EPERM;
+		if (!capable(CAP_NET_ADMIN))
 			break;
-		case SIOCGIFADDR:
-		case SIOCSIFADDR:
-		case SIOCGIFDSTADDR:
-		case SIOCSIFDSTADDR:
-		case SIOCGIFBRDADDR:
-		case SIOCSIFBRDADDR:
-		case SIOCGIFNETMASK:
-		case SIOCSIFNETMASK:
-		case SIOCGIFMETRIC:
-		case SIOCSIFMETRIC:
-			rc = -EINVAL;
-			break;
-		case SIOCADDRT:
-		case SIOCDELRT:
-			rc = -EPERM;
-			if (!capable(CAP_NET_ADMIN))
-				break;
-			rc = x25_route_ioctl(cmd, argp);
-			break;
-		case SIOCX25GSUBSCRIP:
-			rc = x25_subscr_ioctl(cmd, argp);
-			break;
-		case SIOCX25SSUBSCRIP:
-			rc = -EPERM;
-			if (!capable(CAP_NET_ADMIN))
-				break;
-			rc = x25_subscr_ioctl(cmd, argp);
-			break;
-		case SIOCX25GFACILITIES: {
-			lock_sock(sk);
-			rc = copy_to_user(argp, &x25->facilities,
-						sizeof(x25->facilities))
-						? -EFAULT : 0;
-			release_sock(sk);
-			break;
-		}
+		rc = x25_subscr_ioctl(cmd, argp);
+		break;
+	case SIOCX25GFACILITIES: {
+		lock_sock(sk);
+		rc = copy_to_user(argp, &x25->facilities,
+				  sizeof(x25->facilities))
+			? -EFAULT : 0;
+		release_sock(sk);
+		break;
+	}
 
-		case SIOCX25SFACILITIES: {
-			struct x25_facilities facilities;
-			rc = -EFAULT;
-			if (copy_from_user(&facilities, argp,
-					   sizeof(facilities)))
-				break;
-			rc = -EINVAL;
-			lock_sock(sk);
-			if (sk->sk_state != TCP_LISTEN &&
-			    sk->sk_state != TCP_CLOSE)
+	case SIOCX25SFACILITIES: {
+		struct x25_facilities facilities;
+		rc = -EFAULT;
+		if (copy_from_user(&facilities, argp, sizeof(facilities)))
+			break;
+		rc = -EINVAL;
+		lock_sock(sk);
+		if (sk->sk_state != TCP_LISTEN &&
+		    sk->sk_state != TCP_CLOSE)
+			goto out_fac_release;
+		if (facilities.pacsize_in < X25_PS16 ||
+		    facilities.pacsize_in > X25_PS4096)
+			goto out_fac_release;
+		if (facilities.pacsize_out < X25_PS16 ||
+		    facilities.pacsize_out > X25_PS4096)
+			goto out_fac_release;
+		if (facilities.winsize_in < 1 ||
+		    facilities.winsize_in > 127)
+			goto out_fac_release;
+		if (facilities.throughput) {
+			int out = facilities.throughput & 0xf0;
+			int in  = facilities.throughput & 0x0f;
+			if (!out)
+				facilities.throughput |=
+					X25_DEFAULT_THROUGHPUT << 4;
+			else if (out < 0x30 || out > 0xD0)
 				goto out_fac_release;
-			if (facilities.pacsize_in < X25_PS16 ||
-			    facilities.pacsize_in > X25_PS4096)
+			if (!in)
+				facilities.throughput |=
+					X25_DEFAULT_THROUGHPUT;
+			else if (in < 0x03 || in > 0x0D)
 				goto out_fac_release;
-			if (facilities.pacsize_out < X25_PS16 ||
-			    facilities.pacsize_out > X25_PS4096)
-				goto out_fac_release;
-			if (facilities.winsize_in < 1 ||
-			    facilities.winsize_in > 127)
-				goto out_fac_release;
-			if (facilities.throughput) {
-				int out = facilities.throughput & 0xf0;
-				int in  = facilities.throughput & 0x0f;
-				if (!out)
-					facilities.throughput |=
-						X25_DEFAULT_THROUGHPUT << 4;
-				else if (out < 0x30 || out > 0xD0)
-					goto out_fac_release;
-				if (!in)
-					facilities.throughput |=
-						X25_DEFAULT_THROUGHPUT;
-				else if (in < 0x03 || in > 0x0D)
-					goto out_fac_release;
-			}
-			if (facilities.reverse &&
-				(facilities.reverse & 0x81) != 0x81)
-				goto out_fac_release;
-			x25->facilities = facilities;
-			rc = 0;
+		}
+		if (facilities.reverse &&
+		    (facilities.reverse & 0x81) != 0x81)
+			goto out_fac_release;
+		x25->facilities = facilities;
+		rc = 0;
 out_fac_release:
-			release_sock(sk);
-			break;
-		}
+		release_sock(sk);
+		break;
+	}
 
-		case SIOCX25GDTEFACILITIES: {
-			lock_sock(sk);
-			rc = copy_to_user(argp, &x25->dte_facilities,
-						sizeof(x25->dte_facilities));
-			release_sock(sk);
-			if (rc)
-				rc = -EFAULT;
-			break;
-		}
-
-		case SIOCX25SDTEFACILITIES: {
-			struct x25_dte_facilities dtefacs;
+	case SIOCX25GDTEFACILITIES: {
+		lock_sock(sk);
+		rc = copy_to_user(argp, &x25->dte_facilities,
+				  sizeof(x25->dte_facilities));
+		release_sock(sk);
+		if (rc)
 			rc = -EFAULT;
-			if (copy_from_user(&dtefacs, argp, sizeof(dtefacs)))
-				break;
-			rc = -EINVAL;
-			lock_sock(sk);
-			if (sk->sk_state != TCP_LISTEN &&
-					sk->sk_state != TCP_CLOSE)
-				goto out_dtefac_release;
-			if (dtefacs.calling_len > X25_MAX_AE_LEN)
-				goto out_dtefac_release;
-			if (dtefacs.calling_ae == NULL)
-				goto out_dtefac_release;
-			if (dtefacs.called_len > X25_MAX_AE_LEN)
-				goto out_dtefac_release;
-			if (dtefacs.called_ae == NULL)
-				goto out_dtefac_release;
-			x25->dte_facilities = dtefacs;
-			rc = 0;
+		break;
+	}
+
+	case SIOCX25SDTEFACILITIES: {
+		struct x25_dte_facilities dtefacs;
+		rc = -EFAULT;
+		if (copy_from_user(&dtefacs, argp, sizeof(dtefacs)))
+			break;
+		rc = -EINVAL;
+		lock_sock(sk);
+		if (sk->sk_state != TCP_LISTEN &&
+		    sk->sk_state != TCP_CLOSE)
+			goto out_dtefac_release;
+		if (dtefacs.calling_len > X25_MAX_AE_LEN)
+			goto out_dtefac_release;
+		if (dtefacs.calling_ae == NULL)
+			goto out_dtefac_release;
+		if (dtefacs.called_len > X25_MAX_AE_LEN)
+			goto out_dtefac_release;
+		if (dtefacs.called_ae == NULL)
+			goto out_dtefac_release;
+		x25->dte_facilities = dtefacs;
+		rc = 0;
 out_dtefac_release:
-			release_sock(sk);
+		release_sock(sk);
+		break;
+	}
+
+	case SIOCX25GCALLUSERDATA: {
+		lock_sock(sk);
+		rc = copy_to_user(argp, &x25->calluserdata,
+				  sizeof(x25->calluserdata))
+			? -EFAULT : 0;
+		release_sock(sk);
+		break;
+	}
+
+	case SIOCX25SCALLUSERDATA: {
+		struct x25_calluserdata calluserdata;
+
+		rc = -EFAULT;
+		if (copy_from_user(&calluserdata, argp, sizeof(calluserdata)))
 			break;
-		}
-
-		case SIOCX25GCALLUSERDATA: {
-			lock_sock(sk);
-			rc = copy_to_user(argp, &x25->calluserdata,
-					sizeof(x25->calluserdata))
-					? -EFAULT : 0;
-			release_sock(sk);
+		rc = -EINVAL;
+		if (calluserdata.cudlength > X25_MAX_CUD_LEN)
 			break;
-		}
+		lock_sock(sk);
+		x25->calluserdata = calluserdata;
+		release_sock(sk);
+		rc = 0;
+		break;
+	}
 
-		case SIOCX25SCALLUSERDATA: {
-			struct x25_calluserdata calluserdata;
+	case SIOCX25GCAUSEDIAG: {
+		lock_sock(sk);
+		rc = copy_to_user(argp, &x25->causediag, sizeof(x25->causediag))
+			? -EFAULT : 0;
+		release_sock(sk);
+		break;
+	}
 
-			rc = -EFAULT;
-			if (copy_from_user(&calluserdata, argp,
-					   sizeof(calluserdata)))
-				break;
-			rc = -EINVAL;
-			if (calluserdata.cudlength > X25_MAX_CUD_LEN)
-				break;
-			lock_sock(sk);
-			x25->calluserdata = calluserdata;
-			release_sock(sk);
-			rc = 0;
+	case SIOCX25SCAUSEDIAG: {
+		struct x25_causediag causediag;
+		rc = -EFAULT;
+		if (copy_from_user(&causediag, argp, sizeof(causediag)))
 			break;
-		}
+		lock_sock(sk);
+		x25->causediag = causediag;
+		release_sock(sk);
+		rc = 0;
+		break;
 
-		case SIOCX25GCAUSEDIAG: {
-			lock_sock(sk);
-			rc = copy_to_user(argp, &x25->causediag,
-					sizeof(x25->causediag))
-					? -EFAULT : 0;
-			release_sock(sk);
-			break;
-		}
+	}
 
-		case SIOCX25SCAUSEDIAG: {
-			struct x25_causediag causediag;
-			rc = -EFAULT;
-			if (copy_from_user(&causediag, argp, sizeof(causediag)))
-				break;
-			lock_sock(sk);
-			x25->causediag = causediag;
-			release_sock(sk);
-			rc = 0;
-			break;
-
-		}
-
-		case SIOCX25SCUDMATCHLEN: {
-			struct x25_subaddr sub_addr;
-			rc = -EINVAL;
-			lock_sock(sk);
-			if(sk->sk_state != TCP_CLOSE)
-				goto out_cud_release;
-			rc = -EFAULT;
-			if (copy_from_user(&sub_addr, argp,
-					sizeof(sub_addr)))
-				goto out_cud_release;
-			rc = -EINVAL;
-			if(sub_addr.cudmatchlength > X25_MAX_CUD_LEN)
-				goto out_cud_release;
-			x25->cudmatchlength = sub_addr.cudmatchlength;
-			rc = 0;
+	case SIOCX25SCUDMATCHLEN: {
+		struct x25_subaddr sub_addr;
+		rc = -EINVAL;
+		lock_sock(sk);
+		if(sk->sk_state != TCP_CLOSE)
+			goto out_cud_release;
+		rc = -EFAULT;
+		if (copy_from_user(&sub_addr, argp,
+				   sizeof(sub_addr)))
+			goto out_cud_release;
+		rc = -EINVAL;
+		if (sub_addr.cudmatchlength > X25_MAX_CUD_LEN)
+			goto out_cud_release;
+		x25->cudmatchlength = sub_addr.cudmatchlength;
+		rc = 0;
 out_cud_release:
-			release_sock(sk);
-			break;
-		}
+		release_sock(sk);
+		break;
+	}
 
-		case SIOCX25CALLACCPTAPPRV: {
-			rc = -EINVAL;
-			lock_sock(sk);
-			if (sk->sk_state != TCP_CLOSE)
-				break;
-			clear_bit(X25_ACCPT_APPRV_FLAG, &x25->flags);
-			release_sock(sk);
-			rc = 0;
+	case SIOCX25CALLACCPTAPPRV: {
+		rc = -EINVAL;
+		lock_sock(sk);
+		if (sk->sk_state != TCP_CLOSE)
 			break;
-		}
+		clear_bit(X25_ACCPT_APPRV_FLAG, &x25->flags);
+		release_sock(sk);
+		rc = 0;
+		break;
+	}
 
-		case SIOCX25SENDCALLACCPT:  {
-			rc = -EINVAL;
-			lock_sock(sk);
-			if (sk->sk_state != TCP_ESTABLISHED)
-				break;
-			/* must call accptapprv above */
-			if (test_bit(X25_ACCPT_APPRV_FLAG, &x25->flags))
-				break;
-			x25_write_internal(sk, X25_CALL_ACCEPTED);
-			x25->state = X25_STATE_3;
-			release_sock(sk);
-			rc = 0;
+	case SIOCX25SENDCALLACCPT:  {
+		rc = -EINVAL;
+		lock_sock(sk);
+		if (sk->sk_state != TCP_ESTABLISHED)
 			break;
-		}
+		/* must call accptapprv above */
+		if (test_bit(X25_ACCPT_APPRV_FLAG, &x25->flags))
+			break;
+		x25_write_internal(sk, X25_CALL_ACCEPTED);
+		x25->state = X25_STATE_3;
+		release_sock(sk);
+		rc = 0;
+		break;
+	}
 
-		default:
-			rc = -ENOIOCTLCMD;
-			break;
+	default:
+		rc = -ENOIOCTLCMD;
+		break;
 	}
 
 	return rc;

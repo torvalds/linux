@@ -25,100 +25,39 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
+#include <media/v4l2-ctrls.h>
 
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-int v4l2_event_init(struct v4l2_fh *fh)
+static unsigned sev_pos(const struct v4l2_subscribed_event *sev, unsigned idx)
 {
-	fh->events = kzalloc(sizeof(*fh->events), GFP_KERNEL);
-	if (fh->events == NULL)
-		return -ENOMEM;
-
-	init_waitqueue_head(&fh->events->wait);
-
-	INIT_LIST_HEAD(&fh->events->free);
-	INIT_LIST_HEAD(&fh->events->available);
-	INIT_LIST_HEAD(&fh->events->subscribed);
-
-	fh->events->sequence = -1;
-
-	return 0;
+	idx += sev->first;
+	return idx >= sev->elems ? idx - sev->elems : idx;
 }
-EXPORT_SYMBOL_GPL(v4l2_event_init);
-
-int v4l2_event_alloc(struct v4l2_fh *fh, unsigned int n)
-{
-	struct v4l2_events *events = fh->events;
-	unsigned long flags;
-
-	if (!events) {
-		WARN_ON(1);
-		return -ENOMEM;
-	}
-
-	while (events->nallocated < n) {
-		struct v4l2_kevent *kev;
-
-		kev = kzalloc(sizeof(*kev), GFP_KERNEL);
-		if (kev == NULL)
-			return -ENOMEM;
-
-		spin_lock_irqsave(&fh->vdev->fh_lock, flags);
-		list_add_tail(&kev->list, &events->free);
-		events->nallocated++;
-		spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(v4l2_event_alloc);
-
-#define list_kfree(list, type, member)				\
-	while (!list_empty(list)) {				\
-		type *hi;					\
-		hi = list_first_entry(list, type, member);	\
-		list_del(&hi->member);				\
-		kfree(hi);					\
-	}
-
-void v4l2_event_free(struct v4l2_fh *fh)
-{
-	struct v4l2_events *events = fh->events;
-
-	if (!events)
-		return;
-
-	list_kfree(&events->free, struct v4l2_kevent, list);
-	list_kfree(&events->available, struct v4l2_kevent, list);
-	list_kfree(&events->subscribed, struct v4l2_subscribed_event, list);
-
-	kfree(events);
-	fh->events = NULL;
-}
-EXPORT_SYMBOL_GPL(v4l2_event_free);
 
 static int __v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event)
 {
-	struct v4l2_events *events = fh->events;
 	struct v4l2_kevent *kev;
 	unsigned long flags;
 
 	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
 
-	if (list_empty(&events->available)) {
+	if (list_empty(&fh->available)) {
 		spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 		return -ENOENT;
 	}
 
-	WARN_ON(events->navailable == 0);
+	WARN_ON(fh->navailable == 0);
 
-	kev = list_first_entry(&events->available, struct v4l2_kevent, list);
-	list_move(&kev->list, &events->free);
-	events->navailable--;
+	kev = list_first_entry(&fh->available, struct v4l2_kevent, list);
+	list_del(&kev->list);
+	fh->navailable--;
 
-	kev->event.pending = events->navailable;
+	kev->event.pending = fh->navailable;
 	*event = kev->event;
+	kev->sev->first = sev_pos(kev->sev, 1);
+	kev->sev->in_use--;
 
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 
@@ -128,7 +67,6 @@ static int __v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event)
 int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
 		       int nonblocking)
 {
-	struct v4l2_events *events = fh->events;
 	int ret;
 
 	if (nonblocking)
@@ -139,8 +77,8 @@ int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
 		mutex_unlock(fh->vdev->lock);
 
 	do {
-		ret = wait_event_interruptible(events->wait,
-					       events->navailable != 0);
+		ret = wait_event_interruptible(fh->wait,
+					       fh->navailable != 0);
 		if (ret < 0)
 			break;
 
@@ -154,21 +92,70 @@ int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
 }
 EXPORT_SYMBOL_GPL(v4l2_event_dequeue);
 
-/* Caller must hold fh->event->lock! */
+/* Caller must hold fh->vdev->fh_lock! */
 static struct v4l2_subscribed_event *v4l2_event_subscribed(
-	struct v4l2_fh *fh, u32 type)
+		struct v4l2_fh *fh, u32 type, u32 id)
 {
-	struct v4l2_events *events = fh->events;
 	struct v4l2_subscribed_event *sev;
 
 	assert_spin_locked(&fh->vdev->fh_lock);
 
-	list_for_each_entry(sev, &events->subscribed, list) {
-		if (sev->type == type)
+	list_for_each_entry(sev, &fh->subscribed, list)
+		if (sev->type == type && sev->id == id)
 			return sev;
-	}
 
 	return NULL;
+}
+
+static void __v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *ev,
+		const struct timespec *ts)
+{
+	struct v4l2_subscribed_event *sev;
+	struct v4l2_kevent *kev;
+	bool copy_payload = true;
+
+	/* Are we subscribed? */
+	sev = v4l2_event_subscribed(fh, ev->type, ev->id);
+	if (sev == NULL)
+		return;
+
+	/* Increase event sequence number on fh. */
+	fh->sequence++;
+
+	/* Do we have any free events? */
+	if (sev->in_use == sev->elems) {
+		/* no, remove the oldest one */
+		kev = sev->events + sev_pos(sev, 0);
+		list_del(&kev->list);
+		sev->in_use--;
+		sev->first = sev_pos(sev, 1);
+		fh->navailable--;
+		if (sev->elems == 1) {
+			if (sev->replace) {
+				sev->replace(&kev->event, ev);
+				copy_payload = false;
+			}
+		} else if (sev->merge) {
+			struct v4l2_kevent *second_oldest =
+				sev->events + sev_pos(sev, 0);
+			sev->merge(&kev->event, &second_oldest->event);
+		}
+	}
+
+	/* Take one and fill it. */
+	kev = sev->events + sev_pos(sev, sev->in_use);
+	kev->event.type = ev->type;
+	if (copy_payload)
+		kev->event.u = ev->u;
+	kev->event.id = ev->id;
+	kev->event.timestamp = *ts;
+	kev->event.sequence = fh->sequence;
+	sev->in_use++;
+	list_add_tail(&kev->list, &fh->available);
+
+	fh->navailable++;
+
+	wake_up_all(&fh->wait);
 }
 
 void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev)
@@ -181,81 +168,95 @@ void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev)
 
 	spin_lock_irqsave(&vdev->fh_lock, flags);
 
-	list_for_each_entry(fh, &vdev->fh_list, list) {
-		struct v4l2_events *events = fh->events;
-		struct v4l2_kevent *kev;
-
-		/* Are we subscribed? */
-		if (!v4l2_event_subscribed(fh, ev->type))
-			continue;
-
-		/* Increase event sequence number on fh. */
-		events->sequence++;
-
-		/* Do we have any free events? */
-		if (list_empty(&events->free))
-			continue;
-
-		/* Take one and fill it. */
-		kev = list_first_entry(&events->free, struct v4l2_kevent, list);
-		kev->event.type = ev->type;
-		kev->event.u = ev->u;
-		kev->event.timestamp = timestamp;
-		kev->event.sequence = events->sequence;
-		list_move_tail(&kev->list, &events->available);
-
-		events->navailable++;
-
-		wake_up_all(&events->wait);
-	}
+	list_for_each_entry(fh, &vdev->fh_list, list)
+		__v4l2_event_queue_fh(fh, ev, &timestamp);
 
 	spin_unlock_irqrestore(&vdev->fh_lock, flags);
 }
 EXPORT_SYMBOL_GPL(v4l2_event_queue);
 
+void v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *ev)
+{
+	unsigned long flags;
+	struct timespec timestamp;
+
+	ktime_get_ts(&timestamp);
+
+	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
+	__v4l2_event_queue_fh(fh, ev, &timestamp);
+	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+}
+EXPORT_SYMBOL_GPL(v4l2_event_queue_fh);
+
 int v4l2_event_pending(struct v4l2_fh *fh)
 {
-	return fh->events->navailable;
+	return fh->navailable;
 }
 EXPORT_SYMBOL_GPL(v4l2_event_pending);
 
-int v4l2_event_subscribe(struct v4l2_fh *fh,
-			 struct v4l2_event_subscription *sub)
+static void ctrls_replace(struct v4l2_event *old, const struct v4l2_event *new)
 {
-	struct v4l2_events *events = fh->events;
-	struct v4l2_subscribed_event *sev;
-	unsigned long flags;
+	u32 old_changes = old->u.ctrl.changes;
 
-	if (fh->events == NULL) {
-		WARN_ON(1);
-		return -ENOMEM;
+	old->u.ctrl = new->u.ctrl;
+	old->u.ctrl.changes |= old_changes;
+}
+
+static void ctrls_merge(const struct v4l2_event *old, struct v4l2_event *new)
+{
+	new->u.ctrl.changes |= old->u.ctrl.changes;
+}
+
+int v4l2_event_subscribe(struct v4l2_fh *fh,
+			 struct v4l2_event_subscription *sub, unsigned elems)
+{
+	struct v4l2_subscribed_event *sev, *found_ev;
+	struct v4l2_ctrl *ctrl = NULL;
+	unsigned long flags;
+	unsigned i;
+
+	if (elems < 1)
+		elems = 1;
+	if (sub->type == V4L2_EVENT_CTRL) {
+		ctrl = v4l2_ctrl_find(fh->ctrl_handler, sub->id);
+		if (ctrl == NULL)
+			return -EINVAL;
 	}
 
-	sev = kmalloc(sizeof(*sev), GFP_KERNEL);
+	sev = kzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems, GFP_KERNEL);
 	if (!sev)
 		return -ENOMEM;
-
-	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
-
-	if (v4l2_event_subscribed(fh, sub->type) == NULL) {
-		INIT_LIST_HEAD(&sev->list);
-		sev->type = sub->type;
-
-		list_add(&sev->list, &events->subscribed);
-		sev = NULL;
+	for (i = 0; i < elems; i++)
+		sev->events[i].sev = sev;
+	sev->type = sub->type;
+	sev->id = sub->id;
+	sev->flags = sub->flags;
+	sev->fh = fh;
+	sev->elems = elems;
+	if (ctrl) {
+		sev->replace = ctrls_replace;
+		sev->merge = ctrls_merge;
 	}
 
+	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
+	found_ev = v4l2_event_subscribed(fh, sub->type, sub->id);
+	if (!found_ev)
+		list_add(&sev->list, &fh->subscribed);
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 
-	kfree(sev);
+	/* v4l2_ctrl_add_event uses a mutex, so do this outside the spin lock */
+	if (found_ev)
+		kfree(sev);
+	else if (ctrl)
+		v4l2_ctrl_add_event(ctrl, sev);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_event_subscribe);
 
-static void v4l2_event_unsubscribe_all(struct v4l2_fh *fh)
+void v4l2_event_unsubscribe_all(struct v4l2_fh *fh)
 {
-	struct v4l2_events *events = fh->events;
+	struct v4l2_event_subscription sub;
 	struct v4l2_subscribed_event *sev;
 	unsigned long flags;
 
@@ -263,15 +264,18 @@ static void v4l2_event_unsubscribe_all(struct v4l2_fh *fh)
 		sev = NULL;
 
 		spin_lock_irqsave(&fh->vdev->fh_lock, flags);
-		if (!list_empty(&events->subscribed)) {
-			sev = list_first_entry(&events->subscribed,
-				       struct v4l2_subscribed_event, list);
-			list_del(&sev->list);
+		if (!list_empty(&fh->subscribed)) {
+			sev = list_first_entry(&fh->subscribed,
+					struct v4l2_subscribed_event, list);
+			sub.type = sev->type;
+			sub.id = sev->id;
 		}
 		spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
-		kfree(sev);
+		if (sev)
+			v4l2_event_unsubscribe(fh, &sub);
 	} while (sev);
 }
+EXPORT_SYMBOL_GPL(v4l2_event_unsubscribe_all);
 
 int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 			   struct v4l2_event_subscription *sub)
@@ -286,11 +290,19 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 
 	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
 
-	sev = v4l2_event_subscribed(fh, sub->type);
-	if (sev != NULL)
+	sev = v4l2_event_subscribed(fh, sub->type, sub->id);
+	if (sev != NULL) {
 		list_del(&sev->list);
+		sev->fh = NULL;
+	}
 
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+	if (sev && sev->type == V4L2_EVENT_CTRL) {
+		struct v4l2_ctrl *ctrl = v4l2_ctrl_find(fh->ctrl_handler, sev->id);
+
+		if (ctrl)
+			v4l2_ctrl_del_event(ctrl, sev);
+	}
 
 	kfree(sev);
 

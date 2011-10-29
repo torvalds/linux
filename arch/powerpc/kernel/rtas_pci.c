@@ -291,7 +291,7 @@ void __init find_and_init_phbs(void)
 		prop = of_get_property(of_chosen,
 				"linux,pci-assign-all-buses", NULL);
 		if (prop && *prop)
-			ppc_pci_flags |= PPC_PCI_REASSIGN_ALL_BUS;
+			pci_add_flags(PCI_REASSIGN_ALL_BUS);
 #endif /* CONFIG_PPC32 */
 	}
 }

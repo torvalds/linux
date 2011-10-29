@@ -49,11 +49,11 @@ enum orinoco_alg {
 	ORINOCO_ALG_TKIP
 };
 
-typedef enum {
+enum fwtype {
 	FIRMWARE_TYPE_AGERE,
 	FIRMWARE_TYPE_INTERSIL,
 	FIRMWARE_TYPE_SYMBOL
-} fwtype_t;
+};
 
 struct firmware;
 
@@ -88,11 +88,11 @@ struct orinoco_private {
 	struct iw_statistics wstats;
 
 	/* Hardware control variables */
-	hermes_t hw;
+	struct hermes hw;
 	u16 txfid;
 
 	/* Capabilities of the hardware/firmware */
-	fwtype_t firmware_type;
+	enum fwtype firmware_type;
 	int ibss_port;
 	int nicbuf_size;
 	u16 channel_mask;
@@ -122,8 +122,8 @@ struct orinoco_private {
 	struct key_params keys[ORINOCO_MAX_KEYS];
 
 	int bitratemode;
-	char nick[IW_ESSID_MAX_SIZE+1];
-	char desired_essid[IW_ESSID_MAX_SIZE+1];
+	char nick[IW_ESSID_MAX_SIZE + 1];
+	char desired_essid[IW_ESSID_MAX_SIZE + 1];
 	char desired_bssid[ETH_ALEN];
 	int bssid_fixed;
 	u16 frag_thresh, mwo_robust;
@@ -197,8 +197,8 @@ extern int orinoco_up(struct orinoco_private *priv);
 extern void orinoco_down(struct orinoco_private *priv);
 extern irqreturn_t orinoco_interrupt(int irq, void *dev_id);
 
-extern void __orinoco_ev_info(struct net_device *dev, hermes_t *hw);
-extern void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw);
+extern void __orinoco_ev_info(struct net_device *dev, struct hermes *hw);
+extern void __orinoco_ev_rx(struct net_device *dev, struct hermes *hw);
 
 int orinoco_process_xmit_skb(struct sk_buff *skb,
 			     struct net_device *dev,

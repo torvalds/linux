@@ -26,6 +26,7 @@
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
 #include <linux/sh_dma.h>
+#include <linux/delay.h>
 
 #include "tmio_mmc.h"
 
@@ -53,6 +54,39 @@ static int sh_mobile_sdhi_get_cd(struct platform_device *pdev)
 		return p->get_cd(pdev);
 	else
 		return -ENOSYS;
+}
+
+static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
+{
+	int timeout = 1000;
+
+	while (--timeout && !(sd_ctrl_read16(host, CTL_STATUS2) & (1 << 13)))
+		udelay(1);
+
+	if (!timeout) {
+		dev_warn(host->pdata->dev, "timeout waiting for SD bus idle\n");
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int sh_mobile_sdhi_write16_hook(struct tmio_mmc_host *host, int addr)
+{
+	switch (addr)
+	{
+	case CTL_SD_CMD:
+	case CTL_STOP_INTERNAL_ACTION:
+	case CTL_XFER_BLK_COUNT:
+	case CTL_SD_CARD_CLK_CTL:
+	case CTL_SD_XFER_LEN:
+	case CTL_SD_MEM_CARD_OPT:
+	case CTL_TRANSACTION_CTL:
+	case CTL_DMA_ENABLE:
+		return sh_mobile_sdhi_wait_idle(host);
+	}
+
+	return 0;
 }
 
 static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
@@ -89,6 +123,8 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
 	if (p) {
 		mmc_data->flags = p->tmio_flags;
+		if (mmc_data->flags & TMIO_MMC_HAS_IDLE_WAIT)
+			mmc_data->write16_hook = sh_mobile_sdhi_write16_hook;
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
 		mmc_data->capabilities |= p->tmio_caps;
 

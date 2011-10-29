@@ -104,6 +104,8 @@ enum {
 	IPSET_ATTR_NAMEREF,
 	IPSET_ATTR_IP2,
 	IPSET_ATTR_CIDR2,
+	IPSET_ATTR_IP2_TO,
+	IPSET_ATTR_IFACE,
 	__IPSET_ATTR_ADT_MAX,
 };
 #define IPSET_ATTR_ADT_MAX	(__IPSET_ATTR_ADT_MAX - 1)
@@ -142,12 +144,18 @@ enum ipset_errno {
 enum ipset_cmd_flags {
 	IPSET_FLAG_BIT_EXIST	= 0,
 	IPSET_FLAG_EXIST	= (1 << IPSET_FLAG_BIT_EXIST),
+	IPSET_FLAG_BIT_LIST_SETNAME = 1,
+	IPSET_FLAG_LIST_SETNAME	= (1 << IPSET_FLAG_BIT_LIST_SETNAME),
+	IPSET_FLAG_BIT_LIST_HEADER = 2,
+	IPSET_FLAG_LIST_HEADER	= (1 << IPSET_FLAG_BIT_LIST_HEADER),
 };
 
 /* Flags at CADT attribute level */
 enum ipset_cadt_flags {
 	IPSET_FLAG_BIT_BEFORE	= 0,
 	IPSET_FLAG_BEFORE	= (1 << IPSET_FLAG_BIT_BEFORE),
+	IPSET_FLAG_BIT_PHYSDEV	= 1,
+	IPSET_FLAG_PHYSDEV	= (1 << IPSET_FLAG_BIT_PHYSDEV),
 };
 
 /* Commands with settype-specific attributes */
@@ -165,6 +173,7 @@ enum ipset_adt {
 #include <linux/ipv6.h>
 #include <linux/netlink.h>
 #include <linux/netfilter.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/vmalloc.h>
 #include <net/netlink.h>
 
@@ -206,6 +215,8 @@ enum ip_set_feature {
 	IPSET_TYPE_IP2 = (1 << IPSET_TYPE_IP2_FLAG),
 	IPSET_TYPE_NAME_FLAG = 4,
 	IPSET_TYPE_NAME = (1 << IPSET_TYPE_NAME_FLAG),
+	IPSET_TYPE_IFACE_FLAG = 5,
+	IPSET_TYPE_IFACE = (1 << IPSET_TYPE_IFACE_FLAG),
 	/* Strictly speaking not a feature, but a flag for dumping:
 	 * this settype must be dumped last */
 	IPSET_DUMP_LAST_FLAG = 7,
@@ -214,7 +225,17 @@ enum ip_set_feature {
 
 struct ip_set;
 
-typedef int (*ipset_adtfn)(struct ip_set *set, void *value, u32 timeout);
+typedef int (*ipset_adtfn)(struct ip_set *set, void *value,
+			   u32 timeout, u32 flags);
+
+/* Kernel API function options */
+struct ip_set_adt_opt {
+	u8 family;		/* Actual protocol family */
+	u8 dim;			/* Dimension of match/target */
+	u8 flags;		/* Direction and negation flags */
+	u32 cmdflags;		/* Command-like flags */
+	u32 timeout;		/* Timeout value */
+};
 
 /* Set type, variant-specific part */
 struct ip_set_type_variant {
@@ -223,14 +244,15 @@ struct ip_set_type_variant {
 	 *			zero for no match/success to add/delete
 	 *			positive for matching element */
 	int (*kadt)(struct ip_set *set, const struct sk_buff * skb,
-		    enum ipset_adt adt, u8 pf, u8 dim, u8 flags);
+		    const struct xt_action_param *par,
+		    enum ipset_adt adt, const struct ip_set_adt_opt *opt);
 
 	/* Userspace: test/add/del entries
 	 *		returns negative error code,
 	 *			zero for no match/success to add/delete
 	 *			positive for matching element */
 	int (*uadt)(struct ip_set *set, struct nlattr *tb[],
-		    enum ipset_adt adt, u32 *lineno, u32 flags);
+		    enum ipset_adt adt, u32 *lineno, u32 flags, bool retried);
 
 	/* Low level add/del/test functions */
 	ipset_adtfn adt[IPSET_ADT_MAX];
@@ -268,8 +290,8 @@ struct ip_set_type {
 	u8 dimension;
 	/* Supported family: may be AF_UNSPEC for both AF_INET/AF_INET6 */
 	u8 family;
-	/* Type revision */
-	u8 revision;
+	/* Type revisions */
+	u8 revision_min, revision_max;
 
 	/* Create set */
 	int (*create)(struct ip_set *set, struct nlattr *tb[], u32 flags);
@@ -300,6 +322,8 @@ struct ip_set {
 	const struct ip_set_type_variant *variant;
 	/* The actual INET family of the set */
 	u8 family;
+	/* The type revision */
+	u8 revision;
 	/* The type specific data */
 	void *data;
 };
@@ -307,21 +331,25 @@ struct ip_set {
 /* register and unregister set references */
 extern ip_set_id_t ip_set_get_byname(const char *name, struct ip_set **set);
 extern void ip_set_put_byindex(ip_set_id_t index);
-extern const char * ip_set_name_byindex(ip_set_id_t index);
+extern const char *ip_set_name_byindex(ip_set_id_t index);
 extern ip_set_id_t ip_set_nfnl_get(const char *name);
 extern ip_set_id_t ip_set_nfnl_get_byindex(ip_set_id_t index);
 extern void ip_set_nfnl_put(ip_set_id_t index);
 
 /* API for iptables set match, and SET target */
+
 extern int ip_set_add(ip_set_id_t id, const struct sk_buff *skb,
-		      u8 family, u8 dim, u8 flags);
+		      const struct xt_action_param *par,
+		      const struct ip_set_adt_opt *opt);
 extern int ip_set_del(ip_set_id_t id, const struct sk_buff *skb,
-		      u8 family, u8 dim, u8 flags);
+		      const struct xt_action_param *par,
+		      const struct ip_set_adt_opt *opt);
 extern int ip_set_test(ip_set_id_t id, const struct sk_buff *skb,
-		       u8 family, u8 dim, u8 flags);
+		       const struct xt_action_param *par,
+		       const struct ip_set_adt_opt *opt);
 
 /* Utility functions */
-extern void * ip_set_alloc(size_t size);
+extern void *ip_set_alloc(size_t size);
 extern void ip_set_free(void *members);
 extern int ip_set_get_ipaddr4(struct nlattr *nla,  __be32 *ipaddr);
 extern int ip_set_get_ipaddr6(struct nlattr *nla, union nf_inet_addr *ipaddr);
@@ -331,7 +359,7 @@ ip_set_get_hostipaddr4(struct nlattr *nla, u32 *ipaddr)
 {
 	__be32 ip;
 	int ret = ip_set_get_ipaddr4(nla, &ip);
-	
+
 	if (ret)
 		return ret;
 	*ipaddr = ntohl(ip);

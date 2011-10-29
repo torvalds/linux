@@ -36,7 +36,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/irq.h>
 
 #include <mach/regs-clock.h>
@@ -90,14 +90,12 @@ static int s3c2440_camif_upll_setrate(struct clk *clk, unsigned long rate)
 
 static struct clk s3c2440_clk_cam = {
 	.name		= "camif",
-	.id		= -1,
 	.enable		= s3c2410_clkcon_enable,
 	.ctrlbit	= S3C2440_CLKCON_CAMERA,
 };
 
 static struct clk s3c2440_clk_cam_upll = {
 	.name		= "camif-upll",
-	.id		= -1,
 	.ops		= &(struct clk_ops) {
 		.set_rate	= s3c2440_camif_upll_setrate,
 		.round_rate	= s3c2440_camif_upll_round,
@@ -106,7 +104,6 @@ static struct clk s3c2440_clk_cam_upll = {
 
 static struct clk s3c2440_clk_ac97 = {
 	.name		= "ac97",
-	.id		= -1,
 	.enable		= s3c2410_clkcon_enable,
 	.ctrlbit	= S3C2440_CLKCON_CAMERA,
 };

@@ -2047,6 +2047,12 @@ sctp_disposition_t sctp_sf_do_5_2_4_dupcook(const struct sctp_endpoint *ep,
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_ASOC, SCTP_ASOC(new_asoc));
 	sctp_add_cmd_sf(commands, SCTP_CMD_DELETE_TCB, SCTP_NULL());
 
+	/* Restore association pointer to provide SCTP command interpeter
+	 * with a valid context in case it needs to manipulate
+	 * the queues */
+	sctp_add_cmd_sf(commands, SCTP_CMD_SET_ASOC,
+			 SCTP_ASOC((struct sctp_association *)asoc));
+
 	return retval;
 
 nomem:
@@ -4008,31 +4014,32 @@ sctp_disposition_t sctp_sf_eat_auth(const struct sctp_endpoint *ep,
 	auth_hdr = (struct sctp_authhdr *)chunk->skb->data;
 	error = sctp_sf_authenticate(ep, asoc, type, chunk);
 	switch (error) {
-		case SCTP_IERROR_AUTH_BAD_HMAC:
-			/* Generate the ERROR chunk and discard the rest
-			 * of the packet
-			 */
-			err_chunk = sctp_make_op_error(asoc, chunk,
-							SCTP_ERROR_UNSUP_HMAC,
-							&auth_hdr->hmac_id,
-							sizeof(__u16), 0);
-			if (err_chunk) {
-				sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
-						SCTP_CHUNK(err_chunk));
-			}
-			/* Fall Through */
-		case SCTP_IERROR_AUTH_BAD_KEYID:
-		case SCTP_IERROR_BAD_SIG:
-			return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
-			break;
-		case SCTP_IERROR_PROTO_VIOLATION:
-			return sctp_sf_violation_chunklen(ep, asoc, type, arg,
-							  commands);
-			break;
-		case SCTP_IERROR_NOMEM:
-			return SCTP_DISPOSITION_NOMEM;
-		default:
-			break;
+	case SCTP_IERROR_AUTH_BAD_HMAC:
+		/* Generate the ERROR chunk and discard the rest
+		 * of the packet
+		 */
+		err_chunk = sctp_make_op_error(asoc, chunk,
+					       SCTP_ERROR_UNSUP_HMAC,
+					       &auth_hdr->hmac_id,
+					       sizeof(__u16), 0);
+		if (err_chunk) {
+			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
+					SCTP_CHUNK(err_chunk));
+		}
+		/* Fall Through */
+	case SCTP_IERROR_AUTH_BAD_KEYID:
+	case SCTP_IERROR_BAD_SIG:
+		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
+
+	case SCTP_IERROR_PROTO_VIOLATION:
+		return sctp_sf_violation_chunklen(ep, asoc, type, arg,
+						  commands);
+
+	case SCTP_IERROR_NOMEM:
+		return SCTP_DISPOSITION_NOMEM;
+
+	default:			/* Prevent gcc warnings */
+		break;
 	}
 
 	if (asoc->active_key_id != ntohs(auth_hdr->shkey_id)) {

@@ -1176,6 +1176,9 @@ static int pch_udc_pcd_vbus_draw(struct usb_gadget *gadget, unsigned int mA)
 	return -EOPNOTSUPP;
 }
 
+static int pch_udc_start(struct usb_gadget_driver *driver,
+	int (*bind)(struct usb_gadget *));
+static int pch_udc_stop(struct usb_gadget_driver *driver);
 static const struct usb_gadget_ops pch_udc_ops = {
 	.get_frame = pch_udc_pcd_get_frame,
 	.wakeup = pch_udc_pcd_wakeup,
@@ -1183,6 +1186,8 @@ static const struct usb_gadget_ops pch_udc_ops = {
 	.pullup = pch_udc_pcd_pullup,
 	.vbus_session = pch_udc_pcd_vbus_session,
 	.vbus_draw = pch_udc_pcd_vbus_draw,
+	.start	= pch_udc_start,
+	.stop	= pch_udc_stop,
 };
 
 /**
@@ -2690,7 +2695,7 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 	return 0;
 }
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int pch_udc_start(struct usb_gadget_driver *driver,
 	int (*bind)(struct usb_gadget *))
 {
 	struct pch_udc_dev	*dev = pch_udc;
@@ -2733,9 +2738,8 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	dev->connected = 1;
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int pch_udc_stop(struct usb_gadget_driver *driver)
 {
 	struct pch_udc_dev	*dev = pch_udc;
 
@@ -2761,7 +2765,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	pch_udc_set_disconnect(dev);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 static void pch_udc_shutdown(struct pci_dev *pdev)
 {
@@ -2777,6 +2780,8 @@ static void pch_udc_shutdown(struct pci_dev *pdev)
 static void pch_udc_remove(struct pci_dev *pdev)
 {
 	struct pch_udc_dev	*dev = pci_get_drvdata(pdev);
+
+	usb_del_gadget_udc(&dev->gadget);
 
 	/* gadget driver must not be registered */
 	if (dev->driver)
@@ -2953,6 +2958,9 @@ static int pch_udc_probe(struct pci_dev *pdev,
 
 	/* Put the device in disconnected state till a driver is bound */
 	pch_udc_set_disconnect(dev);
+	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
+	if (retval)
+		goto finished;
 	return 0;
 
 finished:

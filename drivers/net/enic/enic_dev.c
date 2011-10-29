@@ -166,6 +166,17 @@ int enic_dev_disable(struct enic *enic)
 	return err;
 }
 
+int enic_dev_intr_coal_timer_info(struct enic *enic)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_intr_coal_timer_info(enic->vdev);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
+}
+
 int enic_vnic_dev_deinit(struct enic *enic)
 {
 	int err;

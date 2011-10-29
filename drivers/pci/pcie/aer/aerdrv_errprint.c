@@ -204,7 +204,7 @@ void aer_print_port_info(struct pci_dev *dev, struct aer_err_info *info)
 }
 
 #ifdef CONFIG_ACPI_APEI_PCIEAER
-static int cper_severity_to_aer(int cper_severity)
+int cper_severity_to_aer(int cper_severity)
 {
 	switch (cper_severity) {
 	case CPER_SEV_RECOVERABLE:
@@ -215,6 +215,7 @@ static int cper_severity_to_aer(int cper_severity)
 		return AER_CORRECTABLE;
 	}
 }
+EXPORT_SYMBOL_GPL(cper_severity_to_aer);
 
 void cper_print_aer(const char *prefix, int cper_severity,
 		    struct aer_capability_regs *aer)

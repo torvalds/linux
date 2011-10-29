@@ -840,8 +840,9 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Need to read VID early b/c it's used to differentiate CPQ and INTC
 	 * discovery
 	 */
-	rc = pci_read_config_word(pdev, PCI_VENDOR_ID, &vendor_id);
-	if (rc || ((vendor_id != PCI_VENDOR_ID_COMPAQ) && (vendor_id != PCI_VENDOR_ID_INTEL))) {
+	vendor_id = pdev->vendor;
+	if ((vendor_id != PCI_VENDOR_ID_COMPAQ) &&
+	    (vendor_id != PCI_VENDOR_ID_INTEL)) {
 		err(msg_HPC_non_compaq_or_intel);
 		rc = -ENODEV;
 		goto err_disable_device;
@@ -868,11 +869,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* TODO: This code can be made to support non-Compaq or Intel
 	 * subsystem IDs
 	 */
-	rc = pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &subsystem_vid);
-	if (rc) {
-		err("%s : pci_read_config_word failed\n", __func__);
-		goto err_disable_device;
-	}
+	subsystem_vid = pdev->subsystem_vendor;
 	dbg("Subsystem Vendor ID: %x\n", subsystem_vid);
 	if ((subsystem_vid != PCI_VENDOR_ID_COMPAQ) && (subsystem_vid != PCI_VENDOR_ID_INTEL)) {
 		err(msg_HPC_non_compaq_or_intel);
@@ -887,11 +884,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_disable_device;
 	}
 
-	rc = pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &subsystem_deviceid);
-	if (rc) {
-		err("%s : pci_read_config_word failed\n", __func__);
-		goto err_free_ctrl;
-	}
+	subsystem_deviceid = pdev->subsystem_device;
 
 	info("Hot Plug Subsystem Device ID: %x\n", subsystem_deviceid);
 

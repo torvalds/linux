@@ -49,7 +49,6 @@
 #define TPS65911_REG_LDO7		11
 #define TPS65911_REG_LDO8		12
 
-#define TPS65910_NUM_REGULATOR		13
 #define TPS65910_SUPPLY_STATE_ENABLED	0x1
 
 /* supported VIO voltages in milivolts */
@@ -264,11 +263,12 @@ static struct tps_info tps65911_regs[] = {
 };
 
 struct tps65910_reg {
-	struct regulator_desc desc[TPS65910_NUM_REGULATOR];
+	struct regulator_desc *desc;
 	struct tps65910 *mfd;
-	struct regulator_dev *rdev[TPS65910_NUM_REGULATOR];
-	struct tps_info *info[TPS65910_NUM_REGULATOR];
+	struct regulator_dev **rdev;
+	struct tps_info **info;
 	struct mutex mutex;
+	int num_regulators;
 	int mode;
 	int  (*get_ctrl_reg)(int);
 };
@@ -759,8 +759,13 @@ static int tps65910_list_voltage_dcdc(struct regulator_dev *dev,
 		mult = (selector / VDD1_2_NUM_VOLTS) + 1;
 		volt = VDD1_2_MIN_VOLT +
 				(selector % VDD1_2_NUM_VOLTS) * VDD1_2_OFFSET;
+		break;
 	case TPS65911_REG_VDDCTRL:
 		volt = VDDCTRL_MIN_VOLT + (selector * VDDCTRL_OFFSET);
+		break;
+	default:
+		BUG();
+		return -EINVAL;
 	}
 
 	return  volt * 100 * mult;
@@ -897,16 +902,42 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 	switch(tps65910_chip_id(tps65910)) {
 	case TPS65910:
 		pmic->get_ctrl_reg = &tps65910_get_ctrl_register;
+		pmic->num_regulators = ARRAY_SIZE(tps65910_regs);
 		info = tps65910_regs;
+		break;
 	case TPS65911:
 		pmic->get_ctrl_reg = &tps65911_get_ctrl_register;
+		pmic->num_regulators = ARRAY_SIZE(tps65911_regs);
 		info = tps65911_regs;
+		break;
 	default:
 		pr_err("Invalid tps chip version\n");
+		kfree(pmic);
 		return -ENODEV;
 	}
 
-	for (i = 0; i < TPS65910_NUM_REGULATOR; i++, info++, reg_data++) {
+	pmic->desc = kcalloc(pmic->num_regulators,
+			sizeof(struct regulator_desc), GFP_KERNEL);
+	if (!pmic->desc) {
+		err = -ENOMEM;
+		goto err_free_pmic;
+	}
+
+	pmic->info = kcalloc(pmic->num_regulators,
+			sizeof(struct tps_info *), GFP_KERNEL);
+	if (!pmic->info) {
+		err = -ENOMEM;
+		goto err_free_desc;
+	}
+
+	pmic->rdev = kcalloc(pmic->num_regulators,
+			sizeof(struct regulator_dev *), GFP_KERNEL);
+	if (!pmic->rdev) {
+		err = -ENOMEM;
+		goto err_free_info;
+	}
+
+	for (i = 0; i < pmic->num_regulators; i++, info++, reg_data++) {
 		/* Register the regulators */
 		pmic->info[i] = info;
 
@@ -938,7 +969,7 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 				"failed to register %s regulator\n",
 				pdev->name);
 			err = PTR_ERR(rdev);
-			goto err;
+			goto err_unregister_regulator;
 		}
 
 		/* Save regulator for cleanup */
@@ -946,23 +977,31 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 	}
 	return 0;
 
-err:
+err_unregister_regulator:
 	while (--i >= 0)
 		regulator_unregister(pmic->rdev[i]);
-
+	kfree(pmic->rdev);
+err_free_info:
+	kfree(pmic->info);
+err_free_desc:
+	kfree(pmic->desc);
+err_free_pmic:
 	kfree(pmic);
 	return err;
 }
 
 static int __devexit tps65910_remove(struct platform_device *pdev)
 {
-	struct tps65910_reg *tps65910_reg = platform_get_drvdata(pdev);
+	struct tps65910_reg *pmic = platform_get_drvdata(pdev);
 	int i;
 
-	for (i = 0; i < TPS65910_NUM_REGULATOR; i++)
-		regulator_unregister(tps65910_reg->rdev[i]);
+	for (i = 0; i < pmic->num_regulators; i++)
+		regulator_unregister(pmic->rdev[i]);
 
-	kfree(tps65910_reg);
+	kfree(pmic->rdev);
+	kfree(pmic->info);
+	kfree(pmic->desc);
+	kfree(pmic);
 	return 0;
 }
 

@@ -142,9 +142,9 @@ static inline struct throtl_grp *tg_of_blkg(struct blkio_group *blkg)
 	return NULL;
 }
 
-static inline int total_nr_queued(struct throtl_data *td)
+static inline unsigned int total_nr_queued(struct throtl_data *td)
 {
-	return (td->nr_queued[0] + td->nr_queued[1]);
+	return td->nr_queued[0] + td->nr_queued[1];
 }
 
 static inline struct throtl_grp *throtl_ref_get_tg(struct throtl_grp *tg)
@@ -746,7 +746,7 @@ static bool tg_may_dispatch(struct throtl_data *td, struct throtl_grp *tg,
 static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 {
 	bool rw = bio_data_dir(bio);
-	bool sync = bio->bi_rw & REQ_SYNC;
+	bool sync = rw_is_sync(bio->bi_rw);
 
 	/* Charge the bio to the group */
 	tg->bytes_disp[rw] += bio->bi_size;
@@ -927,7 +927,7 @@ static int throtl_dispatch(struct request_queue *q)
 
 	bio_list_init(&bio_list_on_stack);
 
-	throtl_log(td, "dispatch nr_queued=%d read=%u write=%u",
+	throtl_log(td, "dispatch nr_queued=%u read=%u write=%u",
 			total_nr_queued(td), td->nr_queued[READ],
 			td->nr_queued[WRITE]);
 
@@ -970,7 +970,7 @@ throtl_schedule_delayed_work(struct throtl_data *td, unsigned long delay)
 	struct delayed_work *dwork = &td->throtl_work;
 
 	/* schedule work if limits changed even if no bio is queued */
-	if (total_nr_queued(td) > 0 || td->limits_changed) {
+	if (total_nr_queued(td) || td->limits_changed) {
 		/*
 		 * We might have a work scheduled to be executed in future.
 		 * Cancel that and schedule a new one.
@@ -1150,7 +1150,7 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
 
 		if (tg_no_rule_group(tg, rw)) {
 			blkiocg_update_dispatch_stats(&tg->blkg, bio->bi_size,
-					rw, bio->bi_rw & REQ_SYNC);
+					rw, rw_is_sync(bio->bi_rw));
 			rcu_read_unlock();
 			return 0;
 		}

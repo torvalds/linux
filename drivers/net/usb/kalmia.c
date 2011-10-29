@@ -100,13 +100,13 @@ kalmia_send_init_packet(struct usbnet *dev, u8 *init_msg, u8 init_msg_len,
 static int
 kalmia_init_and_get_ethernet_addr(struct usbnet *dev, u8 *ethernet_addr)
 {
-	const static char init_msg_1[] =
+	static const char init_msg_1[] =
 		{ 0x57, 0x50, 0x04, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00,
 		0x00, 0x00 };
-	const static char init_msg_2[] =
+	static const char init_msg_2[] =
 		{ 0x57, 0x50, 0x04, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0xf4,
 		0x00, 0x00 };
-	const static int buflen = 28;
+	static const int buflen = 28;
 	char *usb_buf;
 	int status;
 
@@ -239,11 +239,11 @@ kalmia_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	 * Our task here is to strip off framing, leaving skb with one
 	 * data frame for the usbnet framework code to process.
 	 */
-	const static u8 HEADER_END_OF_USB_PACKET[] =
+	static const u8 HEADER_END_OF_USB_PACKET[] =
 		{ 0x57, 0x5a, 0x00, 0x00, 0x08, 0x00 };
-	const static u8 EXPECTED_UNKNOWN_HEADER_1[] =
+	static const u8 EXPECTED_UNKNOWN_HEADER_1[] =
 		{ 0x57, 0x43, 0x1e, 0x00, 0x15, 0x02 };
-	const static u8 EXPECTED_UNKNOWN_HEADER_2[] =
+	static const u8 EXPECTED_UNKNOWN_HEADER_2[] =
 		{ 0x57, 0x50, 0x0e, 0x00, 0x00, 0x00 };
 	int i = 0;
 

@@ -3290,22 +3290,20 @@ static void config_pcie(struct adapter *adap)
 	unsigned int fst_trn_rx, fst_trn_tx, acklat, rpllmt;
 
 	pci_read_config_word(adap->pdev,
-			     adap->params.pci.pcie_cap_addr + PCI_EXP_DEVCTL,
+			     adap->pdev->pcie_cap + PCI_EXP_DEVCTL,
 			     &val);
 	pldsize = (val & PCI_EXP_DEVCTL_PAYLOAD) >> 5;
 
 	pci_read_config_word(adap->pdev, 0x2, &devid);
 	if (devid == 0x37) {
 		pci_write_config_word(adap->pdev,
-				      adap->params.pci.pcie_cap_addr +
-				      PCI_EXP_DEVCTL,
+				      adap->pdev->pcie_cap + PCI_EXP_DEVCTL,
 				      val & ~PCI_EXP_DEVCTL_READRQ &
 				      ~PCI_EXP_DEVCTL_PAYLOAD);
 		pldsize = 0;
 	}
 
-	pci_read_config_word(adap->pdev,
-			     adap->params.pci.pcie_cap_addr + PCI_EXP_LNKCTL,
+	pci_read_config_word(adap->pdev, adap->pdev->pcie_cap + PCI_EXP_LNKCTL,
 			     &val);
 
 	fst_trn_tx = G_NUMFSTTRNSEQ(t3_read_reg(adap, A_PCIE_PEX_CTRL0));
@@ -3429,12 +3427,11 @@ static void get_pci_mode(struct adapter *adapter, struct pci_params *p)
 	static unsigned short speed_map[] = { 33, 66, 100, 133 };
 	u32 pci_mode, pcie_cap;
 
-	pcie_cap = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
+	pcie_cap = pci_pcie_cap(adapter->pdev);
 	if (pcie_cap) {
 		u16 val;
 
 		p->variant = PCI_VARIANT_PCIE;
-		p->pcie_cap_addr = pcie_cap;
 		pci_read_config_word(adapter->pdev, pcie_cap + PCI_EXP_LNKSTA,
 					&val);
 		p->width = (val >> 4) & 0x3f;

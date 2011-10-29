@@ -143,7 +143,7 @@ __SYSCALL(__NR_pivot_root, sys_pivot_root)
 
 /* fs/nfsctl.c */
 #define __NR_nfsservctl 42
-__SC_COMP(__NR_nfsservctl, sys_nfsservctl, compat_sys_nfsservctl)
+__SYSCALL(__NR_nfsservctl, sys_ni_syscall)
 
 /* fs/open.c */
 #define __NR3264_statfs 43

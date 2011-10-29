@@ -29,7 +29,6 @@
 #include <linux/bitmap.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
-#include <linux/version.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -45,7 +44,7 @@
 #include "cx231xx.h"
 #include "cx231xx-vbi.h"
 
-#define CX231XX_VERSION_CODE            KERNEL_VERSION(0, 0, 1)
+#define CX231XX_VERSION "0.0.2"
 
 #define DRIVER_AUTHOR   "Srinivasa Deevi <srinivasa.deevi@conexant.com>"
 #define DRIVER_DESC     "Conexant cx231xx based USB video device driver"
@@ -70,6 +69,7 @@ do {\
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
+MODULE_VERSION(CX231XX_VERSION);
 
 static unsigned int card[]     = {[0 ... (CX231XX_MAXBOARDS - 1)] = UNSET };
 static unsigned int video_nr[] = {[0 ... (CX231XX_MAXBOARDS - 1)] = UNSET };
@@ -1179,7 +1179,8 @@ static int vidioc_enum_input(struct file *file, void *priv,
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
-	unsigned int n;
+	u32 gen_stat;
+	unsigned int ret, n;
 
 	n = i->index;
 	if (n >= MAX_CX231XX_INPUT)
@@ -1197,6 +1198,18 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		i->type = V4L2_INPUT_TYPE_TUNER;
 
 	i->std = dev->vdev->tvnorms;
+
+	/* If they are asking about the active input, read signal status */
+	if (n == dev->video_input) {
+		ret = cx231xx_read_i2c_data(dev, VID_BLK_I2C_ADDRESS,
+					    GEN_STAT, 2, &gen_stat, 4);
+		if (ret > 0) {
+			if ((gen_stat & FLD_VPRES) == 0x00)
+				i->status |= V4L2_IN_ST_NO_SIGNAL;
+			if ((gen_stat & FLD_HLOCK) == 0x00)
+				i->status |= V4L2_IN_ST_NO_H_LOCK;
+		}
+	}
 
 	return 0;
 }
@@ -1869,8 +1882,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strlcpy(cap->card, cx231xx_boards[dev->model].name, sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 
-	cap->version = CX231XX_VERSION_CODE;
-
 	cap->capabilities = V4L2_CAP_VBI_CAPTURE |
 #if 0
 		V4L2_CAP_SLICED_VBI_CAPTURE |
@@ -2057,7 +2068,6 @@ static int radio_querycap(struct file *file, void *priv,
 	strlcpy(cap->card, cx231xx_boards[dev->model].name, sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 
-	cap->version = CX231XX_VERSION_CODE;
 	cap->capabilities = V4L2_CAP_TUNER;
 	return 0;
 }
@@ -2570,11 +2580,8 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 {
 	int ret;
 
-	cx231xx_info("%s: v4l2 driver version %d.%d.%d\n",
-		     dev->name,
-		     (CX231XX_VERSION_CODE >> 16) & 0xff,
-		     (CX231XX_VERSION_CODE >> 8) & 0xff,
-		     CX231XX_VERSION_CODE & 0xff);
+	cx231xx_info("%s: v4l2 driver version %s\n",
+		     dev->name, CX231XX_VERSION);
 
 	/* set default norm */
 	/*dev->norm = cx231xx_video_template.current_norm; */

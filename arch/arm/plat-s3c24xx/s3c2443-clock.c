@@ -56,7 +56,6 @@ int s3c2443_clkcon_enable_s(struct clk *clk, int enable)
 struct clk clk_mpllref = {
 	.name		= "mpllref",
 	.parent		= &clk_xtal,
-	.id		= -1,
 };
 
 static struct clk *clk_epllref_sources[] = {
@@ -69,7 +68,6 @@ static struct clk *clk_epllref_sources[] = {
 struct clksrc_clk clk_epllref = {
 	.clk	= {
 		.name		= "epllref",
-		.id		= -1,
 	},
 	.sources = &(struct clksrc_sources) {
 		.sources = clk_epllref_sources,
@@ -92,7 +90,6 @@ struct clksrc_clk clk_esysclk = {
 	.clk	= {
 		.name		= "esysclk",
 		.parent		= &clk_epll,
-		.id		= -1,
 	},
 	.sources = &(struct clksrc_sources) {
 		.sources = clk_sysclk_sources,
@@ -115,7 +112,6 @@ static unsigned long s3c2443_getrate_mdivclk(struct clk *clk)
 static struct clk clk_mdivclk = {
 	.name		= "mdivclk",
 	.parent		= &clk_mpllref,
-	.id		= -1,
 	.ops		= &(struct clk_ops) {
 		.get_rate	= s3c2443_getrate_mdivclk,
 	},
@@ -132,7 +128,6 @@ struct clksrc_clk clk_msysclk = {
 	.clk	= {
 		.name		= "msysclk",
 		.parent		= &clk_xtal,
-		.id		= -1,
 	},
 	.sources = &(struct clksrc_sources) {
 		.sources = clk_msysclk_sources,
@@ -159,7 +154,6 @@ static unsigned long s3c2443_prediv_getrate(struct clk *clk)
 
 static struct clk clk_prediv = {
 	.name		= "prediv",
-	.id		= -1,
 	.parent		= &clk_msysclk.clk,
 	.ops		= &(struct clk_ops) {
 		.get_rate	= s3c2443_prediv_getrate,
@@ -174,7 +168,6 @@ static struct clk clk_prediv = {
 static struct clksrc_clk clk_usb_bus_host = {
 	.clk	= {
 		.name		= "usb-bus-host-parent",
-		.id		= -1,
 		.parent		= &clk_esysclk.clk,
 		.ctrlbit	= S3C2443_SCLKCON_USBHOST,
 		.enable		= s3c2443_clkcon_enable_s,
@@ -189,7 +182,6 @@ static struct clksrc_clk clksrc_clks[] = {
 		/* ART baud-rate clock sourced from esysclk via a divisor */
 		.clk	= {
 			.name		= "uartclk",
-			.id		= -1,
 			.parent		= &clk_esysclk.clk,
 		},
 		.reg_div = { .reg = S3C2443_CLKDIV1, .size = 4, .shift = 8 },
@@ -197,7 +189,6 @@ static struct clksrc_clk clksrc_clks[] = {
 		/* camera interface bus-clock, divided down from esysclk */
 		.clk	= {
 			.name		= "camif-upll",	/* same as 2440 name */
-			.id		= -1,
 			.parent		= &clk_esysclk.clk,
 			.ctrlbit	= S3C2443_SCLKCON_CAMCLK,
 			.enable		= s3c2443_clkcon_enable_s,
@@ -206,7 +197,6 @@ static struct clksrc_clk clksrc_clks[] = {
 	}, {
 		.clk	= {
 			.name		= "display-if",
-			.id		= -1,
 			.parent		= &clk_esysclk.clk,
 			.ctrlbit	= S3C2443_SCLKCON_DISPCLK,
 			.enable		= s3c2443_clkcon_enable_s,
@@ -219,13 +209,11 @@ static struct clksrc_clk clksrc_clks[] = {
 static struct clk init_clocks_off[] = {
 	{
 		.name		= "adc",
-		.id		= -1,
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_ADC,
 	}, {
 		.name		= "i2c",
-		.id		= -1,
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_IIC,
@@ -235,136 +223,117 @@ static struct clk init_clocks_off[] = {
 static struct clk init_clocks[] = {
 	{
 		.name		= "dma",
-		.id		= 0,
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_DMA0,
 	}, {
 		.name		= "dma",
-		.id		= 1,
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_DMA1,
 	}, {
 		.name		= "dma",
-		.id		= 2,
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_DMA2,
 	}, {
 		.name		= "dma",
-		.id		= 3,
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_DMA3,
 	}, {
 		.name		= "dma",
-		.id		= 4,
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_DMA4,
 	}, {
 		.name		= "dma",
-		.id		= 5,
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_DMA5,
 	}, {
 		.name		= "hsmmc",
-		.id		= 1,
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_HSMMC,
 	}, {
 		.name		= "gpio",
-		.id		= -1,
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_GPIO,
 	}, {
 		.name		= "usb-host",
-		.id		= -1,
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_USBH,
 	}, {
 		.name		= "usb-device",
-		.id		= -1,
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_USBD,
 	}, {
 		.name		= "lcd",
-		.id		= -1,
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_LCDC,
 
 	}, {
 		.name		= "timers",
-		.id		= -1,
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_PWMT,
 	}, {
 		.name		= "cfc",
-		.id		= -1,
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_CFC,
 	}, {
 		.name		= "ssmc",
-		.id		= -1,
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_SSMC,
 	}, {
 		.name		= "uart",
-		.id		= 0,
+		.devname	= "s3c2440-uart.0",
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_UART0,
 	}, {
 		.name		= "uart",
-		.id		= 1,
+		.devname	= "s3c2440-uart.1",
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_UART1,
 	}, {
 		.name		= "uart",
-		.id		= 2,
+		.devname	= "s3c2440-uart.2",
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_UART2,
 	}, {
 		.name		= "uart",
-		.id		= 3,
+		.devname	= "s3c2440-uart.3",
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_UART3,
 	}, {
 		.name		= "rtc",
-		.id		= -1,
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_RTC,
 	}, {
 		.name		= "watchdog",
-		.id		= -1,
 		.parent		= &clk_p,
 		.ctrlbit	= S3C2443_PCLKCON_WDT,
 	}, {
 		.name		= "ac97",
-		.id		= -1,
 		.parent		= &clk_p,
 		.ctrlbit	= S3C2443_PCLKCON_AC97,
 	}, {
 		.name		= "nand",
-		.id		= -1,
 		.parent		= &clk_h,
 	}, {
 		.name		= "usb-bus-host",
-		.id		= -1,
 		.parent		= &clk_usb_bus_host.clk,
 	}
 };

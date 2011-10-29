@@ -183,8 +183,7 @@ struct uvc_xu_control {
  * Driver specific constants.
  */
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(1, 1, 0)
-#define DRIVER_VERSION		"v1.1.0"
+#define DRIVER_VERSION		"1.1.1"
 
 /* Number of isochronous URBs. */
 #define UVC_URBS		5
@@ -639,7 +638,7 @@ extern void uvc_mc_cleanup_entity(struct uvc_entity *entity);
 /* Video */
 extern int uvc_video_init(struct uvc_streaming *stream);
 extern int uvc_video_suspend(struct uvc_streaming *stream);
-extern int uvc_video_resume(struct uvc_streaming *stream);
+extern int uvc_video_resume(struct uvc_streaming *stream, int reset);
 extern int uvc_video_enable(struct uvc_streaming *stream, int enable);
 extern int uvc_probe_video(struct uvc_streaming *stream,
 		struct uvc_streaming_control *probe);

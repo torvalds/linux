@@ -456,13 +456,13 @@ rpc_get_inode(struct super_block *sb, umode_t mode)
 	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	switch(mode & S_IFMT) {
-		case S_IFDIR:
-			inode->i_fop = &simple_dir_operations;
-			inode->i_op = &simple_dir_inode_operations;
-			inc_nlink(inode);
-		default:
-			break;
+	switch (mode & S_IFMT) {
+	case S_IFDIR:
+		inode->i_fop = &simple_dir_operations;
+		inode->i_op = &simple_dir_inode_operations;
+		inc_nlink(inode);
+	default:
+		break;
 	}
 	return inode;
 }

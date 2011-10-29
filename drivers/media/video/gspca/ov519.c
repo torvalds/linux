@@ -134,6 +134,7 @@ enum sensors {
 	SEN_OV7670,
 	SEN_OV76BE,
 	SEN_OV8610,
+	SEN_OV9600,
 };
 
 /* Note this is a bit of a hack, but the w9968cf driver needs the code for all
@@ -340,6 +341,10 @@ static const unsigned ctrl_dis[] = {
 			(1 << EXPOSURE) |
 			(1 << AUTOGAIN) |
 			(1 << FREQ),
+[SEN_OV9600] =		((1 << NCTRL) - 1)	/* no control */
+			^ ((1 << EXPOSURE)	/* but exposure */
+			 | (1 << AUTOGAIN)),	/* and autogain */
+
 };
 
 static const struct v4l2_pix_format ov519_vga_mode[] = {
@@ -524,6 +529,17 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 		.sizeimage = 2048 * 1536,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
+};
+static const struct v4l2_pix_format ovfx2_ov9600_mode[] = {
+	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{1280, 1024, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 1280,
+		.sizeimage = 1280 * 1024,
+		.colorspace = V4L2_COLORSPACE_SRGB},
 };
 
 /* Registers common to OV511 / OV518 */
@@ -1807,6 +1823,22 @@ static const struct ov_i2c_regvals norm_7660[] = {
 			| OV7670_COM8_AEC},
 	{0xa1, 0xc8}
 };
+static const struct ov_i2c_regvals norm_9600[] = {
+	{0x12, 0x80},
+	{0x0c, 0x28},
+	{0x11, 0x80},
+	{0x13, 0xb5},
+	{0x14, 0x3e},
+	{0x1b, 0x04},
+	{0x24, 0xb0},
+	{0x25, 0x90},
+	{0x26, 0x94},
+	{0x35, 0x90},
+	{0x37, 0x07},
+	{0x38, 0x08},
+	{0x01, 0x8e},
+	{0x02, 0x85}
+};
 
 /* 7670. Defaults taken from OmniVision provided data,
 *  as provided by Jonathan Corbet of OLPC		*/
@@ -2400,9 +2432,12 @@ static int ov518_i2c_r(struct sd *sd, u8 reg)
 
 	/* Initiate 2-byte write cycle */
 	reg_w(sd, R518_I2C_CTL, 0x03);
+	reg_r8(sd, R518_I2C_CTL);
 
 	/* Initiate 2-byte read cycle */
 	reg_w(sd, R518_I2C_CTL, 0x05);
+	reg_r8(sd, R518_I2C_CTL);
+
 	value = reg_r(sd, R51x_I2C_DATA);
 	PDEBUG(D_USBI, "ov518_i2c_r %02x %02x", reg, value);
 	return value;
@@ -2686,7 +2721,7 @@ static void write_i2c_regvals(struct sd *sd,
  *
  ***************************************************************************/
 
-/* This initializes the OV2x10 / OV3610 / OV3620 */
+/* This initializes the OV2x10 / OV3610 / OV3620 / OV9600 */
 static void ov_hires_configure(struct sd *sd)
 {
 	int high, low;
@@ -2702,19 +2737,32 @@ static void ov_hires_configure(struct sd *sd)
 	high = i2c_r(sd, 0x0a);
 	low = i2c_r(sd, 0x0b);
 	/* info("%x, %x", high, low); */
-	if (high == 0x96 && low == 0x40) {
-		PDEBUG(D_PROBE, "Sensor is an OV2610");
-		sd->sensor = SEN_OV2610;
-	} else if (high == 0x96 && low == 0x41) {
-		PDEBUG(D_PROBE, "Sensor is an OV2610AE");
-		sd->sensor = SEN_OV2610AE;
-	} else if (high == 0x36 && (low & 0x0f) == 0x00) {
-		PDEBUG(D_PROBE, "Sensor is an OV3610");
-		sd->sensor = SEN_OV3610;
-	} else {
-		err("Error unknown sensor type: %02x%02x",
-			high, low);
+	switch (high) {
+	case 0x96:
+		switch (low) {
+		case 0x40:
+			PDEBUG(D_PROBE, "Sensor is a OV2610");
+			sd->sensor = SEN_OV2610;
+			return;
+		case 0x41:
+			PDEBUG(D_PROBE, "Sensor is a OV2610AE");
+			sd->sensor = SEN_OV2610AE;
+			return;
+		case 0xb1:
+			PDEBUG(D_PROBE, "Sensor is a OV9600");
+			sd->sensor = SEN_OV9600;
+			return;
+		}
+		break;
+	case 0x36:
+		if ((low & 0x0f) == 0x00) {
+			PDEBUG(D_PROBE, "Sensor is a OV3610");
+			sd->sensor = SEN_OV3610;
+			return;
+		}
+		break;
 	}
+	err("Error unknown sensor type: %02x%02x", high, low);
 }
 
 /* This initializes the OV8110, OV8610 sensor. The OV8110 uses
@@ -2810,7 +2858,6 @@ static void ov7xx0_configure(struct sd *sd)
 			case 0x60:
 				PDEBUG(D_PROBE, "Sensor is a OV7660");
 				sd->sensor = SEN_OV7660;
-				sd->invert_led = 0;
 				break;
 			default:
 				PDEBUG(D_PROBE, "Unknown sensor: 0x76%x", low);
@@ -3289,7 +3336,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	case BRIDGE_OV519:
 		cam->cam_mode = ov519_vga_mode;
 		cam->nmodes = ARRAY_SIZE(ov519_vga_mode);
-		sd->invert_led = !sd->invert_led;
 		break;
 	case BRIDGE_OVFX2:
 		cam->cam_mode = ov519_vga_mode;
@@ -3400,6 +3446,10 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			cam->cam_mode = ovfx2_ov3610_mode;
 			cam->nmodes = ARRAY_SIZE(ovfx2_ov3610_mode);
 			break;
+		case SEN_OV9600:
+			cam->cam_mode = ovfx2_ov9600_mode;
+			cam->nmodes = ARRAY_SIZE(ovfx2_ov9600_mode);
+			break;
 		default:
 			if (sd->sif) {
 				cam->cam_mode = ov519_sif_mode;
@@ -3496,6 +3546,12 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		break;
 	case SEN_OV8610:
 		write_i2c_regvals(sd, norm_8610, ARRAY_SIZE(norm_8610));
+		break;
+	case SEN_OV9600:
+		write_i2c_regvals(sd, norm_9600, ARRAY_SIZE(norm_9600));
+
+		/* enable autoexpo */
+/*		i2c_w_mask(sd, 0x13, 0x05, 0x05); */
 		break;
 	}
 	return gspca_dev->usb_err;
@@ -4085,6 +4141,33 @@ static void mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
 		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
 		break;
+	case SEN_OV9600: {
+		const struct ov_i2c_regvals *vals;
+		static const struct ov_i2c_regvals sxga_15[] = {
+			{0x11, 0x80}, {0x14, 0x3e}, {0x24, 0x85}, {0x25, 0x75}
+		};
+		static const struct ov_i2c_regvals sxga_7_5[] = {
+			{0x11, 0x81}, {0x14, 0x3e}, {0x24, 0x85}, {0x25, 0x75}
+		};
+		static const struct ov_i2c_regvals vga_30[] = {
+			{0x11, 0x81}, {0x14, 0x7e}, {0x24, 0x70}, {0x25, 0x60}
+		};
+		static const struct ov_i2c_regvals vga_15[] = {
+			{0x11, 0x83}, {0x14, 0x3e}, {0x24, 0x80}, {0x25, 0x70}
+		};
+
+		/* frame rates:
+		 *	15fps / 7.5 fps for 1280x1024
+		 *	30fps / 15fps for 640x480
+		 */
+		i2c_w_mask(sd, 0x12, qvga ? 0x40 : 0x00, 0x40);
+		if (qvga)
+			vals = sd->frame_rate < 30 ? vga_15 : vga_30;
+		else
+			vals = sd->frame_rate < 15 ? sxga_7_5 : sxga_15;
+		write_i2c_regvals(sd, vals, ARRAY_SIZE(sxga_15));
+		return;
+	    }
 	default:
 		return;
 	}
@@ -4120,6 +4203,7 @@ static void set_ov_sensor_window(struct sd *sd)
 	case SEN_OV2610AE:
 	case SEN_OV3610:
 	case SEN_OV7670:
+	case SEN_OV9600:
 		mode_init_ov_sensor_regs(sd);
 		return;
 	case SEN_OV7660:
@@ -4919,23 +5003,24 @@ static const struct sd_desc sd_desc = {
 /* -- module initialisation -- */
 static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4003), .driver_info = BRIDGE_W9968CF },
-	{USB_DEVICE(0x041e, 0x4052), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x041e, 0x4052),
+		.driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
 	{USB_DEVICE(0x041e, 0x405f), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4060), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4061), .driver_info = BRIDGE_OV519 },
-	{USB_DEVICE(0x041e, 0x4064),
-		.driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
+	{USB_DEVICE(0x041e, 0x4064), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4067), .driver_info = BRIDGE_OV519 },
-	{USB_DEVICE(0x041e, 0x4068),
+	{USB_DEVICE(0x041e, 0x4068), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x045e, 0x028c),
 		.driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
-	{USB_DEVICE(0x045e, 0x028c), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x054c, 0x0154), .driver_info = BRIDGE_OV519 },
-	{USB_DEVICE(0x054c, 0x0155),
-		.driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
+	{USB_DEVICE(0x054c, 0x0155), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x05a9, 0x0511), .driver_info = BRIDGE_OV511 },
 	{USB_DEVICE(0x05a9, 0x0518), .driver_info = BRIDGE_OV518 },
-	{USB_DEVICE(0x05a9, 0x0519), .driver_info = BRIDGE_OV519 },
-	{USB_DEVICE(0x05a9, 0x0530), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x05a9, 0x0519),
+		.driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
+	{USB_DEVICE(0x05a9, 0x0530),
+		.driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
 	{USB_DEVICE(0x05a9, 0x2800), .driver_info = BRIDGE_OVFX2 },
 	{USB_DEVICE(0x05a9, 0x4519), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x05a9, 0x8519), .driver_info = BRIDGE_OV519 },

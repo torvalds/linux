@@ -18,14 +18,16 @@
 #ifndef _ATH5K_H
 #define _ATH5K_H
 
-/* TODO: Clean up channel debuging -doesn't work anyway- and start
+/* TODO: Clean up channel debugging (doesn't work anyway) and start
  * working on reg. control code using all available eeprom information
- * -rev. engineering needed- */
+ * (rev. engineering needed) */
 #define CHAN_DEBUG	0
 
 #include <linux/io.h>
+#include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/average.h>
+#include <linux/leds.h>
 #include <net/mac80211.h>
 
 /* RX/TX descriptor hw structs
@@ -36,43 +38,46 @@
  * TODO: Make a more generic struct (eg. add more stuff to ath5k_capabilities)
  * and clean up common bits, then introduce set/get functions in eeprom.c */
 #include "eeprom.h"
+#include "debug.h"
 #include "../ath.h"
+#include "ani.h"
 
 /* PCI IDs */
-#define PCI_DEVICE_ID_ATHEROS_AR5210 		0x0007 /* AR5210 */
-#define PCI_DEVICE_ID_ATHEROS_AR5311 		0x0011 /* AR5311 */
-#define PCI_DEVICE_ID_ATHEROS_AR5211 		0x0012 /* AR5211 */
-#define PCI_DEVICE_ID_ATHEROS_AR5212 		0x0013 /* AR5212 */
-#define PCI_DEVICE_ID_3COM_3CRDAG675 		0x0013 /* 3CRDAG675 (Atheros AR5212) */
-#define PCI_DEVICE_ID_3COM_2_3CRPAG175 		0x0013 /* 3CRPAG175 (Atheros AR5212) */
-#define PCI_DEVICE_ID_ATHEROS_AR5210_AP 	0x0207 /* AR5210 (Early) */
+#define PCI_DEVICE_ID_ATHEROS_AR5210		0x0007 /* AR5210 */
+#define PCI_DEVICE_ID_ATHEROS_AR5311		0x0011 /* AR5311 */
+#define PCI_DEVICE_ID_ATHEROS_AR5211		0x0012 /* AR5211 */
+#define PCI_DEVICE_ID_ATHEROS_AR5212		0x0013 /* AR5212 */
+#define PCI_DEVICE_ID_3COM_3CRDAG675		0x0013 /* 3CRDAG675 (Atheros AR5212) */
+#define PCI_DEVICE_ID_3COM_2_3CRPAG175		0x0013 /* 3CRPAG175 (Atheros AR5212) */
+#define PCI_DEVICE_ID_ATHEROS_AR5210_AP		0x0207 /* AR5210 (Early) */
 #define PCI_DEVICE_ID_ATHEROS_AR5212_IBM	0x1014 /* AR5212 (IBM MiniPCI) */
-#define PCI_DEVICE_ID_ATHEROS_AR5210_DEFAULT 	0x1107 /* AR5210 (no eeprom) */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_DEFAULT 	0x1113 /* AR5212 (no eeprom) */
-#define PCI_DEVICE_ID_ATHEROS_AR5211_DEFAULT 	0x1112 /* AR5211 (no eeprom) */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_FPGA 	0xf013 /* AR5212 (emulation board) */
-#define PCI_DEVICE_ID_ATHEROS_AR5211_LEGACY 	0xff12 /* AR5211 (emulation board) */
-#define PCI_DEVICE_ID_ATHEROS_AR5211_FPGA11B 	0xf11b /* AR5211 (emulation board) */
-#define PCI_DEVICE_ID_ATHEROS_AR5312_REV2 	0x0052 /* AR5312 WMAC (AP31) */
-#define PCI_DEVICE_ID_ATHEROS_AR5312_REV7 	0x0057 /* AR5312 WMAC (AP30-040) */
-#define PCI_DEVICE_ID_ATHEROS_AR5312_REV8 	0x0058 /* AR5312 WMAC (AP43-030) */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_0014 	0x0014 /* AR5212 compatible */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_0015 	0x0015 /* AR5212 compatible */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_0016 	0x0016 /* AR5212 compatible */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_0017 	0x0017 /* AR5212 compatible */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_0018 	0x0018 /* AR5212 compatible */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_0019 	0x0019 /* AR5212 compatible */
-#define PCI_DEVICE_ID_ATHEROS_AR2413 		0x001a /* AR2413 (Griffin-lite) */
-#define PCI_DEVICE_ID_ATHEROS_AR5413 		0x001b /* AR5413 (Eagle) */
-#define PCI_DEVICE_ID_ATHEROS_AR5424 		0x001c /* AR5424 (Condor PCI-E) */
-#define PCI_DEVICE_ID_ATHEROS_AR5416 		0x0023 /* AR5416 */
-#define PCI_DEVICE_ID_ATHEROS_AR5418 		0x0024 /* AR5418 */
+#define PCI_DEVICE_ID_ATHEROS_AR5210_DEFAULT	0x1107 /* AR5210 (no eeprom) */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_DEFAULT	0x1113 /* AR5212 (no eeprom) */
+#define PCI_DEVICE_ID_ATHEROS_AR5211_DEFAULT	0x1112 /* AR5211 (no eeprom) */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_FPGA	0xf013 /* AR5212 (emulation board) */
+#define PCI_DEVICE_ID_ATHEROS_AR5211_LEGACY	0xff12 /* AR5211 (emulation board) */
+#define PCI_DEVICE_ID_ATHEROS_AR5211_FPGA11B	0xf11b /* AR5211 (emulation board) */
+#define PCI_DEVICE_ID_ATHEROS_AR5312_REV2	0x0052 /* AR5312 WMAC (AP31) */
+#define PCI_DEVICE_ID_ATHEROS_AR5312_REV7	0x0057 /* AR5312 WMAC (AP30-040) */
+#define PCI_DEVICE_ID_ATHEROS_AR5312_REV8	0x0058 /* AR5312 WMAC (AP43-030) */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_0014	0x0014 /* AR5212 compatible */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_0015	0x0015 /* AR5212 compatible */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_0016	0x0016 /* AR5212 compatible */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_0017	0x0017 /* AR5212 compatible */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_0018	0x0018 /* AR5212 compatible */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_0019	0x0019 /* AR5212 compatible */
+#define PCI_DEVICE_ID_ATHEROS_AR2413		0x001a /* AR2413 (Griffin-lite) */
+#define PCI_DEVICE_ID_ATHEROS_AR5413		0x001b /* AR5413 (Eagle) */
+#define PCI_DEVICE_ID_ATHEROS_AR5424		0x001c /* AR5424 (Condor PCI-E) */
+#define PCI_DEVICE_ID_ATHEROS_AR5416		0x0023 /* AR5416 */
+#define PCI_DEVICE_ID_ATHEROS_AR5418		0x0024 /* AR5418 */
 
 /****************************\
   GENERIC DRIVER DEFINITIONS
 \****************************/
 
-#define ATH5K_PRINTF(fmt, ...)   printk("%s: " fmt, __func__, ##__VA_ARGS__)
+#define ATH5K_PRINTF(fmt, ...) \
+	printk(KERN_WARNING "%s: " fmt, __func__, ##__VA_ARGS__)
 
 #define ATH5K_PRINTK(_sc, _level, _fmt, ...) \
 	printk(_level "ath5k %s: " _fmt, \
@@ -155,7 +160,7 @@
 } while (0)
 
 /*
- * Some tuneable values (these should be changeable by the user)
+ * Some tunable values (these should be changeable by the user)
  * TODO: Make use of them and add more options OR use debug/configfs
  */
 #define AR5K_TUNE_DMA_BEACON_RESP		2
@@ -170,8 +175,8 @@
 #define AR5K_TUNE_RSSI_THRES			129
 /* This must be set when setting the RSSI threshold otherwise it can
  * prevent a reset. If AR5K_RSSI_THR is read after writing to it
- * the BMISS_THRES will be seen as 0, seems harware doesn't keep
- * track of it. Max value depends on harware. For AR5210 this is just 7.
+ * the BMISS_THRES will be seen as 0, seems hardware doesn't keep
+ * track of it. Max value depends on hardware. For AR5210 this is just 7.
  * For AR5211+ this seems to be up to 255. */
 #define AR5K_TUNE_BMISS_THRES			7
 #define AR5K_TUNE_REGISTER_DWELL_TIME		20000
@@ -361,7 +366,7 @@ struct ath5k_srev_name {
 /*
  * Some of this information is based on Documentation from:
  *
- * http://madwifi-project.org/wiki/ChipsetFeatures/SuperAG 
+ * http://madwifi-project.org/wiki/ChipsetFeatures/SuperAG
  *
  * Modulation for Atheros' eXtended Range - range enhancing extension that is
  * supposed to double the distance an Atheros client device can keep a
@@ -374,12 +379,12 @@ struct ath5k_srev_name {
  * they are exclusive.
  *
  */
-#define MODULATION_XR 		0x00000200
+#define MODULATION_XR		0x00000200
 /*
  * Modulation for Atheros' Turbo G and Turbo A, its supposed to provide a
  * throughput transmission speed up to 40Mbit/s-60Mbit/s at a 108Mbit/s
  * signaling rate achieved through the bonding of two 54Mbit/s 802.11g
- * channels. To use this feature your Access Point must also suport it.
+ * channels. To use this feature your Access Point must also support it.
  * There is also a distinction between "static" and "dynamic" turbo modes:
  *
  * - Static: is the dumb version: devices set to this mode stick to it until
@@ -495,9 +500,9 @@ enum ath5k_tx_queue {
  */
 enum ath5k_tx_queue_subtype {
 	AR5K_WME_AC_BK = 0,	/*Background traffic*/
-	AR5K_WME_AC_BE, 	/*Best-effort (normal) traffic)*/
-	AR5K_WME_AC_VI, 	/*Video traffic*/
-	AR5K_WME_AC_VO, 	/*Voice traffic*/
+	AR5K_WME_AC_BE,		/*Best-effort (normal) traffic*/
+	AR5K_WME_AC_VI,		/*Video traffic*/
+	AR5K_WME_AC_VO,		/*Voice traffic*/
 };
 
 /*
@@ -535,6 +540,27 @@ enum ath5k_tx_queue_id {
 #define AR5K_TXQ_FLAG_FRAG_BURST_BACKOFF_ENABLE	0x0800	/* Enable backoff while bursting */
 #define AR5K_TXQ_FLAG_POST_FR_BKOFF_DIS		0x1000	/* Disable backoff while bursting */
 #define AR5K_TXQ_FLAG_COMPRESSION_ENABLE	0x2000	/* Enable hw compression -not implemented-*/
+
+/*
+ * Data transmit queue state.  One of these exists for each
+ * hardware transmit queue.  Packets sent to us from above
+ * are assigned to queues based on their priority.  Not all
+ * devices support a complete set of hardware transmit queues.
+ * For those devices the array sc_ac2q will map multiple
+ * priorities to fewer hardware queues (typically all to one
+ * hardware queue).
+ */
+struct ath5k_txq {
+	unsigned int		qnum;	/* hardware q number */
+	u32			*link;	/* link ptr in last TX desc */
+	struct list_head	q;	/* transmit queue */
+	spinlock_t		lock;	/* lock on q and link */
+	bool			setup;
+	int			txq_len; /* number of queued buffers */
+	int			txq_max; /* max allowed num of queued buffers */
+	bool			txq_poll_mark;
+	unsigned int		txq_stuck;	/* informational counter */
+};
 
 /*
  * A struct to hold tx queue's parameters
@@ -616,8 +642,8 @@ struct ath5k_rx_status {
 #define AR5K_RXERR_FIFO		0x04
 #define AR5K_RXERR_DECRYPT	0x08
 #define AR5K_RXERR_MIC		0x10
-#define AR5K_RXKEYIX_INVALID	((u8) - 1)
-#define AR5K_TXKEYIX_INVALID	((u32) - 1)
+#define AR5K_RXKEYIX_INVALID	((u8) -1)
+#define AR5K_TXKEYIX_INVALID	((u32) -1)
 
 
 /**************************\
@@ -678,17 +704,18 @@ struct ath5k_gain {
 #define	CHANNEL_DYN	0x0400	/* Dynamic CCK-OFDM channel (for g operation) */
 #define	CHANNEL_XR	0x0800	/* XR channel */
 
-#define	CHANNEL_A	(CHANNEL_5GHZ|CHANNEL_OFDM)
-#define	CHANNEL_B	(CHANNEL_2GHZ|CHANNEL_CCK)
-#define	CHANNEL_G	(CHANNEL_2GHZ|CHANNEL_OFDM)
-#define	CHANNEL_X	(CHANNEL_5GHZ|CHANNEL_OFDM|CHANNEL_XR)
+#define	CHANNEL_A	(CHANNEL_5GHZ | CHANNEL_OFDM)
+#define	CHANNEL_B	(CHANNEL_2GHZ | CHANNEL_CCK)
+#define	CHANNEL_G	(CHANNEL_2GHZ | CHANNEL_OFDM)
+#define	CHANNEL_X	(CHANNEL_5GHZ | CHANNEL_OFDM | CHANNEL_XR)
 
-#define	CHANNEL_ALL	(CHANNEL_OFDM|CHANNEL_CCK|CHANNEL_2GHZ|CHANNEL_5GHZ)
+#define	CHANNEL_ALL	(CHANNEL_OFDM | CHANNEL_CCK | \
+			 CHANNEL_2GHZ | CHANNEL_5GHZ)
 
 #define CHANNEL_MODES		CHANNEL_ALL
 
 /*
- * Used internaly for reset_tx_queue).
+ * Used internally for ath5k_hw_reset_tx_queue().
  * Also see struct struct ieee80211_channel.
  */
 #define IS_CHAN_XR(_c)	((_c->hw_value & CHANNEL_XR) != 0)
@@ -710,7 +737,7 @@ struct ath5k_athchan_2ghz {
 \******************/
 
 /**
- * Seems the ar5xxx harware supports up to 32 rates, indexed by 1-32.
+ * Seems the ar5xxx hardware supports up to 32 rates, indexed by 1-32.
  *
  * The rate code is used to get the RX rate or set the TX rate on the
  * hardware descriptors. It is also used for internal modulation control
@@ -767,6 +794,7 @@ struct ath5k_athchan_2ghz {
  */
 
 #define AR5K_KEYCACHE_SIZE	8
+extern int ath5k_modparam_nohwcrypt;
 
 /***********************\
  HW RELATED DEFINITIONS
@@ -775,11 +803,11 @@ struct ath5k_athchan_2ghz {
 /*
  * Misc definitions
  */
-#define	AR5K_RSSI_EP_MULTIPLIER	(1<<7)
+#define	AR5K_RSSI_EP_MULTIPLIER	(1 << 7)
 
 #define AR5K_ASSERT_ENTRY(_e, _s) do {		\
 	if (_e >= _s)				\
-		return (false);			\
+		return false;			\
 } while (0)
 
 /*
@@ -790,52 +818,52 @@ struct ath5k_athchan_2ghz {
  * enum ath5k_int - Hardware interrupt masks helpers
  *
  * @AR5K_INT_RX: mask to identify received frame interrupts, of type
- * 	AR5K_ISR_RXOK or AR5K_ISR_RXERR
+ *	AR5K_ISR_RXOK or AR5K_ISR_RXERR
  * @AR5K_INT_RXDESC: Request RX descriptor/Read RX descriptor (?)
  * @AR5K_INT_RXNOFRM: No frame received (?)
  * @AR5K_INT_RXEOL: received End Of List for VEOL (Virtual End Of List). The
- * 	Queue Control Unit (QCU) signals an EOL interrupt only if a descriptor's
- * 	LinkPtr is NULL. For more details, refer to:
- * 	http://www.freepatentsonline.com/20030225739.html
+ *	Queue Control Unit (QCU) signals an EOL interrupt only if a descriptor's
+ *	LinkPtr is NULL. For more details, refer to:
+ *	http://www.freepatentsonline.com/20030225739.html
  * @AR5K_INT_RXORN: Indicates we got RX overrun (eg. no more descriptors).
- * 	Note that Rx overrun is not always fatal, on some chips we can continue
- * 	operation without reseting the card, that's why int_fatal is not
- * 	common for all chips.
+ *	Note that Rx overrun is not always fatal, on some chips we can continue
+ *	operation without resetting the card, that's why int_fatal is not
+ *	common for all chips.
  * @AR5K_INT_TX: mask to identify received frame interrupts, of type
- * 	AR5K_ISR_TXOK or AR5K_ISR_TXERR
+ *	AR5K_ISR_TXOK or AR5K_ISR_TXERR
  * @AR5K_INT_TXDESC: Request TX descriptor/Read TX status descriptor (?)
  * @AR5K_INT_TXURN: received when we should increase the TX trigger threshold
- * 	We currently do increments on interrupt by
- * 	(AR5K_TUNE_MAX_TX_FIFO_THRES - current_trigger_level) / 2
+ *	We currently do increments on interrupt by
+ *	(AR5K_TUNE_MAX_TX_FIFO_THRES - current_trigger_level) / 2
  * @AR5K_INT_MIB: Indicates the either Management Information Base counters or
  *	one of the PHY error counters reached the maximum value and should be
  *	read and cleared.
  * @AR5K_INT_RXPHY: RX PHY Error
  * @AR5K_INT_RXKCM: RX Key cache miss
  * @AR5K_INT_SWBA: SoftWare Beacon Alert - indicates its time to send a
- * 	beacon that must be handled in software. The alternative is if you
- * 	have VEOL support, in that case you let the hardware deal with things.
+ *	beacon that must be handled in software. The alternative is if you
+ *	have VEOL support, in that case you let the hardware deal with things.
  * @AR5K_INT_BMISS: If in STA mode this indicates we have stopped seeing
- * 	beacons from the AP have associated with, we should probably try to
- * 	reassociate. When in IBSS mode this might mean we have not received
- * 	any beacons from any local stations. Note that every station in an
- * 	IBSS schedules to send beacons at the Target Beacon Transmission Time
- * 	(TBTT) with a random backoff.
+ *	beacons from the AP have associated with, we should probably try to
+ *	reassociate. When in IBSS mode this might mean we have not received
+ *	any beacons from any local stations. Note that every station in an
+ *	IBSS schedules to send beacons at the Target Beacon Transmission Time
+ *	(TBTT) with a random backoff.
  * @AR5K_INT_BNR: Beacon Not Ready interrupt - ??
  * @AR5K_INT_GPIO: GPIO interrupt is used for RF Kill, disabled for now
- * 	until properly handled
+ *	until properly handled
  * @AR5K_INT_FATAL: Fatal errors were encountered, typically caused by DMA
- * 	errors. These types of errors we can enable seem to be of type
- * 	AR5K_SIMR2_MCABT, AR5K_SIMR2_SSERR and AR5K_SIMR2_DPERR.
+ *	errors. These types of errors we can enable seem to be of type
+ *	AR5K_SIMR2_MCABT, AR5K_SIMR2_SSERR and AR5K_SIMR2_DPERR.
  * @AR5K_INT_GLOBAL: Used to clear and set the IER
  * @AR5K_INT_NOCARD: signals the card has been removed
- * @AR5K_INT_COMMON: common interrupts shared amogst MACs with the same
- * 	bit value
+ * @AR5K_INT_COMMON: common interrupts shared among MACs with the same
+ *	bit value
  *
  * These are mapped to take advantage of some common bits
  * between the MACs, to be able to set intr properties
  * easier. Some of them are not used yet inside hw.c. Most map
- * to the respective hw interrupt value as they are common amogst different
+ * to the respective hw interrupt value as they are common among different
  * MACs.
  */
 enum ath5k_int {
@@ -944,35 +972,6 @@ enum ath5k_power_mode {
 #define AR5K_SOFTLED_ON		0
 #define AR5K_SOFTLED_OFF	1
 
-/*
- * Chipset capabilities -see ath5k_hw_get_capability-
- * get_capability function is not yet fully implemented
- * in ath5k so most of these don't work yet...
- * TODO: Implement these & merge with _TUNE_ stuff above
- */
-enum ath5k_capability_type {
-	AR5K_CAP_REG_DMN		= 0,	/* Used to get current reg. domain id */
-	AR5K_CAP_TKIP_MIC		= 2,	/* Can handle TKIP MIC in hardware */
-	AR5K_CAP_TKIP_SPLIT		= 3,	/* TKIP uses split keys */
-	AR5K_CAP_PHYCOUNTERS		= 4,	/* PHY error counters */
-	AR5K_CAP_DIVERSITY		= 5,	/* Supports fast diversity */
-	AR5K_CAP_NUM_TXQUEUES		= 6,	/* Used to get max number of hw txqueues */
-	AR5K_CAP_VEOL			= 7,	/* Supports virtual EOL */
-	AR5K_CAP_COMPRESSION		= 8,	/* Supports compression */
-	AR5K_CAP_BURST			= 9,	/* Supports packet bursting */
-	AR5K_CAP_FASTFRAME		= 10,	/* Supports fast frames */
-	AR5K_CAP_TXPOW			= 11,	/* Used to get global tx power limit */
-	AR5K_CAP_TPC			= 12,	/* Can do per-packet tx power control (needed for 802.11a) */
-	AR5K_CAP_BSSIDMASK		= 13,	/* Supports bssid mask */
-	AR5K_CAP_MCAST_KEYSRCH		= 14,	/* Supports multicast key search */
-	AR5K_CAP_TSF_ADJUST		= 15,	/* Supports beacon tsf adjust */
-	AR5K_CAP_XR			= 16,	/* Supports XR mode */
-	AR5K_CAP_WME_TKIPMIC 		= 17,	/* Supports TKIP MIC when using WMM */
-	AR5K_CAP_CHAN_HALFRATE 		= 18,	/* Supports half rate channels */
-	AR5K_CAP_CHAN_QUARTERRATE 	= 19,	/* Supports quarter rate channels */
-	AR5K_CAP_RFSILENT		= 20,	/* Supports RFsilent */
-};
-
 
 /* XXX: we *may* move cap_range stuff to struct wiphy */
 struct ath5k_capabilities {
@@ -1009,8 +1008,7 @@ struct ath5k_capabilities {
 
 /* size of noise floor history (keep it a power of two) */
 #define ATH5K_NF_CAL_HIST_MAX	8
-struct ath5k_nfcal_hist
-{
+struct ath5k_nfcal_hist {
 	s16 index;				/* current index into nfval */
 	s16 nfval[ATH5K_NF_CAL_HIST_MAX];	/* last few noise floors */
 };
@@ -1025,9 +1023,66 @@ struct ath5k_avg_val {
 	int avg_weight;
 };
 
-/***************************************\
-  HARDWARE ABSTRACTION LAYER STRUCTURE
-\***************************************/
+#define ATH5K_LED_MAX_NAME_LEN 31
+
+/*
+ * State for LED triggers
+ */
+struct ath5k_led {
+	char name[ATH5K_LED_MAX_NAME_LEN + 1];	/* name of the LED in sysfs */
+	struct ath5k_hw *ah;			/* driver state */
+	struct led_classdev led_dev;		/* led classdev */
+};
+
+/* Rfkill */
+struct ath5k_rfkill {
+	/* GPIO PIN for rfkill */
+	u16 gpio;
+	/* polarity of rfkill GPIO PIN */
+	bool polarity;
+	/* RFKILL toggle tasklet */
+	struct tasklet_struct toggleq;
+};
+
+/* statistics */
+struct ath5k_statistics {
+	/* antenna use */
+	unsigned int antenna_rx[5];	/* frames count per antenna RX */
+	unsigned int antenna_tx[5];	/* frames count per antenna TX */
+
+	/* frame errors */
+	unsigned int rx_all_count;	/* all RX frames, including errors */
+	unsigned int tx_all_count;	/* all TX frames, including errors */
+	unsigned int rx_bytes_count;	/* all RX bytes, including errored pkts
+					 * and the MAC headers for each packet
+					 */
+	unsigned int tx_bytes_count;	/* all TX bytes, including errored pkts
+					 * and the MAC headers and padding for
+					 * each packet.
+					 */
+	unsigned int rxerr_crc;
+	unsigned int rxerr_phy;
+	unsigned int rxerr_phy_code[32];
+	unsigned int rxerr_fifo;
+	unsigned int rxerr_decrypt;
+	unsigned int rxerr_mic;
+	unsigned int rxerr_proc;
+	unsigned int rxerr_jumbo;
+	unsigned int txerr_retry;
+	unsigned int txerr_fifo;
+	unsigned int txerr_filt;
+
+	/* MIB counters */
+	unsigned int ack_fail;
+	unsigned int rts_fail;
+	unsigned int rts_ok;
+	unsigned int fcs_error;
+	unsigned int beacons;
+
+	unsigned int mib_intr;
+	unsigned int rxorn_intr;
+	unsigned int rxeol_intr;
+};
 
 /*
  * Misc defines
@@ -1036,12 +1091,114 @@ struct ath5k_avg_val {
 #define AR5K_MAX_GPIO		10
 #define AR5K_MAX_RF_BANKS	8
 
-/* TODO: Clean up and merge with ath5k_softc */
+#if CHAN_DEBUG
+#define ATH_CHAN_MAX	(26 + 26 + 26 + 200 + 200)
+#else
+#define ATH_CHAN_MAX	(14 + 14 + 14 + 252 + 20)
+#endif
+
+#define	ATH_RXBUF	40		/* number of RX buffers */
+#define	ATH_TXBUF	200		/* number of TX buffers */
+#define ATH_BCBUF	4		/* number of beacon buffers */
+#define ATH5K_TXQ_LEN_MAX	(ATH_TXBUF / 4)		/* bufs per queue */
+#define ATH5K_TXQ_LEN_LOW	(ATH5K_TXQ_LEN_MAX / 2)	/* low mark */
+
+/* Driver state associated with an instance of a device */
 struct ath5k_hw {
 	struct ath_common       common;
 
-	struct ath5k_softc	*ah_sc;
-	void __iomem		*ah_iobase;
+	struct pci_dev		*pdev;
+	struct device		*dev;		/* for dma mapping */
+	int irq;
+	u16 devid;
+	void __iomem		*iobase;	/* address of the device */
+	struct mutex		lock;		/* dev-level lock */
+	struct ieee80211_hw	*hw;		/* IEEE 802.11 common */
+	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
+	struct ieee80211_channel channels[ATH_CHAN_MAX];
+	struct ieee80211_rate	rates[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
+	s8			rate_idx[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
+	enum nl80211_iftype	opmode;
+
+#ifdef CONFIG_ATH5K_DEBUG
+	struct ath5k_dbg_info	debug;		/* debug info */
+#endif /* CONFIG_ATH5K_DEBUG */
+
+	struct ath5k_buf	*bufptr;	/* allocated buffer ptr */
+	struct ath5k_desc	*desc;		/* TX/RX descriptors */
+	dma_addr_t		desc_daddr;	/* DMA (physical) address */
+	size_t			desc_len;	/* size of TX/RX descriptors */
+
+	DECLARE_BITMAP(status, 6);
+#define ATH_STAT_INVALID	0		/* disable hardware accesses */
+#define ATH_STAT_MRRETRY	1		/* multi-rate retry support */
+#define ATH_STAT_PROMISC	2
+#define ATH_STAT_LEDSOFT	3		/* enable LED gpio status */
+#define ATH_STAT_STARTED	4		/* opened & irqs enabled */
+#define ATH_STAT_2G_DISABLED	5		/* multiband radio without 2G */
+
+	unsigned int		filter_flags;	/* HW flags, AR5K_RX_FILTER_* */
+	struct ieee80211_channel *curchan;	/* current h/w channel */
+
+	u16			nvifs;
+
+	enum ath5k_int		imask;		/* interrupt mask copy */
+
+	spinlock_t		irqlock;
+	bool			rx_pending;	/* rx tasklet pending */
+	bool			tx_pending;	/* tx tasklet pending */
+
+	u8			lladdr[ETH_ALEN];
+	u8			bssidmask[ETH_ALEN];
+
+	unsigned int		led_pin,	/* GPIO pin for driving LED */
+				led_on;		/* pin setting for LED on */
+
+	struct work_struct	reset_work;	/* deferred chip reset */
+
+	unsigned int		rxbufsize;	/* rx size based on mtu */
+	struct list_head	rxbuf;		/* receive buffer */
+	spinlock_t		rxbuflock;
+	u32			*rxlink;	/* link ptr in last RX desc */
+	struct tasklet_struct	rxtq;		/* rx intr tasklet */
+	struct ath5k_led	rx_led;		/* rx led */
+
+	struct list_head	txbuf;		/* transmit buffer */
+	spinlock_t		txbuflock;
+	unsigned int		txbuf_len;	/* buf count in txbuf list */
+	struct ath5k_txq	txqs[AR5K_NUM_TX_QUEUES];	/* tx queues */
+	struct tasklet_struct	txtq;		/* tx intr tasklet */
+	struct ath5k_led	tx_led;		/* tx led */
+
+	struct ath5k_rfkill	rf_kill;
+
+	struct tasklet_struct	calib;		/* calibration tasklet */
+
+	spinlock_t		block;		/* protects beacon */
+	struct tasklet_struct	beacontq;	/* beacon intr tasklet */
+	struct list_head	bcbuf;		/* beacon buffer */
+	struct ieee80211_vif	*bslot[ATH_BCBUF];
+	u16			num_ap_vifs;
+	u16			num_adhoc_vifs;
+	unsigned int		bhalq,		/* SW q for outgoing beacons */
+				bmisscount,	/* missed beacon transmits */
+				bintval,	/* beacon interval in TU */
+				bsent;
+	unsigned int		nexttbtt;	/* next beacon time in TU */
+	struct ath5k_txq	*cabq;		/* content after beacon */
+
+	int			power_level;	/* Requested tx power in dBm */
+	bool			assoc;		/* associate state */
+	bool			enable_beacon;	/* true if beacons are on */
+
+	struct ath5k_statistics	stats;
+
+	struct ath5k_ani_state	ani_state;
+	struct tasklet_struct	ani_tasklet;	/* ANI calibration */
+
+	struct delayed_work	tx_complete_work;
+
+	struct survey_info	survey;		/* collected survey info */
 
 	enum ath5k_int		ah_imr;
 
@@ -1064,6 +1221,8 @@ struct ath5k_hw {
 
 	u8			ah_retry_long;
 	u8			ah_retry_short;
+
+	u32			ah_use_32khz_clock;
 
 	u8			ah_coverage_class;
 	bool			ah_ack_bitrate_high;
@@ -1168,43 +1327,43 @@ struct ath_bus_ops {
 extern const struct ieee80211_ops ath5k_hw_ops;
 
 /* Initialization and detach functions */
-int ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops);
-void ath5k_deinit_softc(struct ath5k_softc *sc);
-int ath5k_hw_init(struct ath5k_softc *sc);
+int ath5k_init_softc(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops);
+void ath5k_deinit_softc(struct ath5k_hw *ah);
+int ath5k_hw_init(struct ath5k_hw *ah);
 void ath5k_hw_deinit(struct ath5k_hw *ah);
 
-int ath5k_sysfs_register(struct ath5k_softc *sc);
-void ath5k_sysfs_unregister(struct ath5k_softc *sc);
+int ath5k_sysfs_register(struct ath5k_hw *ah);
+void ath5k_sysfs_unregister(struct ath5k_hw *ah);
 
 /* base.c */
 struct ath5k_buf;
 struct ath5k_txq;
 
-void set_beacon_filter(struct ieee80211_hw *hw, bool enable);
-bool ath_any_vif_assoc(struct ath5k_softc *sc);
+void ath5k_set_beacon_filter(struct ieee80211_hw *hw, bool enable);
+bool ath5k_any_vif_assoc(struct ath5k_hw *ah);
 void ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 		    struct ath5k_txq *txq);
-int ath5k_init_hw(struct ath5k_softc *sc);
-int ath5k_stop_hw(struct ath5k_softc *sc);
-void ath5k_mode_setup(struct ath5k_softc *sc, struct ieee80211_vif *vif);
-void ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
+int ath5k_start(struct ieee80211_hw *hw);
+void ath5k_stop(struct ieee80211_hw *hw);
+void ath5k_mode_setup(struct ath5k_hw *ah, struct ieee80211_vif *vif);
+void ath5k_update_bssid_mask_and_opmode(struct ath5k_hw *ah,
 					struct ieee80211_vif *vif);
-int ath5k_chan_set(struct ath5k_softc *sc, struct ieee80211_channel *chan);
-void ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf);
+int ath5k_chan_set(struct ath5k_hw *ah, struct ieee80211_channel *chan);
+void ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf);
 int ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-void ath5k_beacon_config(struct ath5k_softc *sc);
-void ath5k_txbuf_free_skb(struct ath5k_softc *sc, struct ath5k_buf *bf);
-void ath5k_rxbuf_free_skb(struct ath5k_softc *sc, struct ath5k_buf *bf);
+void ath5k_beacon_config(struct ath5k_hw *ah);
+void ath5k_txbuf_free_skb(struct ath5k_hw *ah, struct ath5k_buf *bf);
+void ath5k_rxbuf_free_skb(struct ath5k_hw *ah, struct ath5k_buf *bf);
 
 /*Chip id helper functions */
 const char *ath5k_chip_name(enum ath5k_srev_type type, u_int16_t val);
 int ath5k_hw_read_srev(struct ath5k_hw *ah);
 
 /* LED functions */
-int ath5k_init_leds(struct ath5k_softc *sc);
-void ath5k_led_enable(struct ath5k_softc *sc);
-void ath5k_led_off(struct ath5k_softc *sc);
-void ath5k_unregister_leds(struct ath5k_softc *sc);
+int ath5k_init_leds(struct ath5k_hw *ah);
+void ath5k_led_enable(struct ath5k_hw *ah);
+void ath5k_led_off(struct ath5k_hw *ah);
+void ath5k_unregister_leds(struct ath5k_hw *ah);
 
 
 /* Reset Functions */
@@ -1253,7 +1412,7 @@ int ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
 		int len, struct ieee80211_rate *rate, bool shortpre);
 unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah);
 unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah);
-extern int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype opmode);
+int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype opmode);
 void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class);
 /* RX filter control*/
 int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac);
@@ -1318,9 +1477,6 @@ void ath5k_rfkill_hw_stop(struct ath5k_hw *ah);
 
 /* Misc functions TODO: Cleanup */
 int ath5k_hw_set_capabilities(struct ath5k_hw *ah);
-int ath5k_hw_get_capability(struct ath5k_hw *ah,
-			    enum ath5k_capability_type cap_type, u32 capability,
-			    u32 *result);
 int ath5k_hw_enable_pspoll(struct ath5k_hw *ah, u8 *bssid, u16 assoc_id);
 int ath5k_hw_disable_pspoll(struct ath5k_hw *ah);
 
@@ -1356,17 +1512,17 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 				u8 mode, bool fast);
 
 /*
- * Functions used internaly
+ * Functions used internally
  */
 
 static inline struct ath_common *ath5k_hw_common(struct ath5k_hw *ah)
 {
-        return &ah->common;
+	return &ah->common;
 }
 
 static inline struct ath_regulatory *ath5k_hw_regulatory(struct ath5k_hw *ah)
 {
-        return &(ath5k_hw_common(ah)->regulatory);
+	return &(ath5k_hw_common(ah)->regulatory);
 }
 
 #ifdef CONFIG_ATHEROS_AR231X
@@ -1377,10 +1533,10 @@ static inline void __iomem *ath5k_ahb_reg(struct ath5k_hw *ah, u16 reg)
 	/* On AR2315 and AR2317 the PCI clock domain registers
 	 * are outside of the WMAC register space */
 	if (unlikely((reg >= 0x4000) && (reg < 0x5000) &&
-		(ah->ah_mac_srev >= AR5K_SREV_AR2315_R6)))
+	    (ah->ah_mac_srev >= AR5K_SREV_AR2315_R6)))
 		return AR5K_AR2315_PCI_BASE + reg;
 
-	return ah->ah_iobase + reg;
+	return ah->iobase + reg;
 }
 
 static inline u32 ath5k_hw_reg_read(struct ath5k_hw *ah, u16 reg)
@@ -1397,12 +1553,12 @@ static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
 
 static inline u32 ath5k_hw_reg_read(struct ath5k_hw *ah, u16 reg)
 {
-	return ioread32(ah->ah_iobase + reg);
+	return ioread32(ah->iobase + reg);
 }
 
 static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
 {
-	iowrite32(val, ah->ah_iobase + reg);
+	iowrite32(val, ah->iobase + reg);
 }
 
 #endif

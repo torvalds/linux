@@ -1,0 +1,73 @@
+<refentry id="media-func-ioctl">
+  <refmeta>
+    <refentrytitle>media ioctl()</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>media-ioctl</refname>
+    <refpurpose>Control a media device</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcsynopsisinfo>#include &lt;sys/ioctl.h&gt;</funcsynopsisinfo>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>void *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>Media ioctl request code as defined in the media.h header file,
+	  for example MEDIA_IOC_SETUP_LINK.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para>Pointer to a request-specific structure.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+    <para>The <function>ioctl()</function> function manipulates media device
+    parameters. The argument <parameter>fd</parameter> must be an open file
+    descriptor.</para>
+    <para>The ioctl <parameter>request</parameter> code specifies the media
+    function to be called. It has encoded in it whether the argument is an
+    input, output or read/write parameter, and the size of the argument
+    <parameter>argp</parameter> in bytes.</para>
+    <para>Macros and structures definitions specifying media ioctl requests and
+    their parameters are located in the media.h header file. All media ioctl
+    requests, their respective function and parameters are specified in
+    <xref linkend="media-user-func" />.</para>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <para>Request-specific error codes are listed in the
+    individual requests descriptions.</para>
+    <para>When an ioctl that takes an output or read/write parameter fails,
+    the parameter remains unmodified.</para>
+  </refsect1>
+</refentry>

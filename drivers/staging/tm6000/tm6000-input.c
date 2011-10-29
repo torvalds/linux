@@ -449,9 +449,8 @@ int tm6000_ir_fini(struct tm6000_core *dev)
 
 	rc_unregister_device(ir->rc);
 
-	if (ir->int_urb) {
+	if (ir->int_urb)
 		tm6000_ir_int_stop(dev);
-	}
 
 	kfree(ir);
 	dev->ir = NULL;

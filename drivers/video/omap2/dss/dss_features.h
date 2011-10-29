@@ -51,6 +51,10 @@ enum dss_feat_id {
 	FEAT_HDMI_CTS_SWMODE		= 1 << 19,
 	FEAT_HANDLE_UV_SEPARATE         = 1 << 20,
 	FEAT_ATTR2                      = 1 << 21,
+	FEAT_VENC_REQUIRES_TV_DAC_CLK	= 1 << 22,
+	FEAT_CPR			= 1 << 23,
+	FEAT_PRELOAD			= 1 << 24,
+	FEAT_FIR_COEF_V			= 1 << 25,
 };
 
 /* DSS register field id */
@@ -89,6 +93,9 @@ enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane);
 bool dss_feat_color_mode_supported(enum omap_plane plane,
 		enum omap_color_mode color_mode);
 const char *dss_feat_get_clk_source_name(enum omap_dss_clk_source id);
+
+u32 dss_feat_get_buffer_size_unit(void);	/* in bytes */
+u32 dss_feat_get_burst_size_unit(void);		/* in bytes */
 
 bool dss_has_feature(enum dss_feat_id id);
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);

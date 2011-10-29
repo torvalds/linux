@@ -277,6 +277,48 @@
 		};
 	};
 
+	localbus@e0005000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8540-localbus", "fsl,pq3-localbus",
+			     "simple-bus";
+		reg = <0xe0005000 0x1000>;
+		interrupt-parent = <&mpic>;
+		interrupts = <19 2>;
+
+		ranges = <0x0 0x0 0xfe000000 0x02000000>;
+
+		nor@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x0 0x02000000>;
+			bank-width = <4>;
+			device-width = <2>;
+			partition@0 {
+				label = "kernel";
+				reg = <0x00000000 0x00180000>;
+			};
+			partition@180000 {
+				label = "root";
+				reg = <0x00180000 0x01dc0000>;
+			};
+			partition@1f40000 {
+				label = "env1";
+				reg = <0x01f40000 0x00040000>;
+			};
+			partition@1f80000 {
+				label = "env2";
+				reg = <0x01f80000 0x00040000>;
+			};
+			partition@1fc0000 {
+				label = "u-boot";
+				reg = <0x01fc0000 0x00040000>;
+				read-only;
+			};
+		};
+	};
+
 	pci0: pci@e0008000 {
 		#interrupt-cells = <1>;
 		#size-cells = <2>;

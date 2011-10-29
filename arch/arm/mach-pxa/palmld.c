@@ -345,6 +345,7 @@ MACHINE_START(PALMLD, "Palm LifeDrive")
 	.boot_params	= 0xa0000100,
 	.map_io		= palmld_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= palmld_init
 MACHINE_END

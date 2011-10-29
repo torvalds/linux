@@ -6,6 +6,7 @@ config M68K
 	select GENERIC_ATOMIC64 if MMU
 	select HAVE_GENERIC_HARDIRQS if !MMU
 	select GENERIC_IRQ_SHOW if !MMU
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG if RMW_INSNS
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
@@ -41,6 +42,10 @@ config NO_DMA
 config ZONE_DMA
 	bool
 	default y
+
+config CPU_HAS_NO_BITFIELDS
+	bool
+
 config HZ
 	int
 	default 1000 if CLEOPATRA

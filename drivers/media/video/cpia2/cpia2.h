@@ -31,7 +31,6 @@
 #ifndef __CPIA2_H__
 #define __CPIA2_H__
 
-#include <linux/version.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <linux/usb.h>
@@ -42,10 +41,6 @@
 
 /* define for verbose debug output */
 //#define _CPIA2_DEBUG_
-
-#define CPIA2_MAJ_VER	3
-#define CPIA2_MIN_VER   0
-#define CPIA2_PATCH_VER	0
 
 /***
  * Image defines

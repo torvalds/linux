@@ -32,45 +32,6 @@
 #include "ixgbe_dcb_82598.h"
 
 /**
- * ixgbe_dcb_config_packet_buffers_82598 - Configure packet buffers
- * @hw: pointer to hardware structure
- * @dcb_config: pointer to ixgbe_dcb_config structure
- *
- * Configure packet buffers for DCB mode.
- */
-static s32 ixgbe_dcb_config_packet_buffers_82598(struct ixgbe_hw *hw, u8 rx_pba)
-{
-	s32 ret_val = 0;
-	u32 value = IXGBE_RXPBSIZE_64KB;
-	u8  i = 0;
-
-	/* Setup Rx packet buffer sizes */
-	switch (rx_pba) {
-	case pba_80_48:
-		/* Setup the first four at 80KB */
-		value = IXGBE_RXPBSIZE_80KB;
-		for (; i < 4; i++)
-			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), value);
-		/* Setup the last four at 48KB...don't re-init i */
-		value = IXGBE_RXPBSIZE_48KB;
-		/* Fall Through */
-	case pba_equal:
-	default:
-		for (; i < IXGBE_MAX_PACKET_BUFFERS; i++)
-			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), value);
-
-		/* Setup Tx packet buffer sizes */
-		for (i = 0; i < IXGBE_MAX_PACKET_BUFFERS; i++) {
-			IXGBE_WRITE_REG(hw, IXGBE_TXPBSIZE(i),
-					IXGBE_TXPBSIZE_40KB);
-		}
-		break;
-	}
-
-	return ret_val;
-}
-
-/**
  * ixgbe_dcb_config_rx_arbiter_82598 - Config Rx data arbiter
  * @hw: pointer to hardware structure
  * @dcb_config: pointer to ixgbe_dcb_config structure
@@ -321,11 +282,9 @@ static s32 ixgbe_dcb_config_tc_stats_82598(struct ixgbe_hw *hw)
  *
  * Configure dcb settings and enable dcb mode.
  */
-s32 ixgbe_dcb_hw_config_82598(struct ixgbe_hw *hw,
-			      u8 rx_pba, u8 pfc_en, u16 *refill,
+s32 ixgbe_dcb_hw_config_82598(struct ixgbe_hw *hw, u8 pfc_en, u16 *refill,
 			      u16 *max, u8 *bwg_id, u8 *prio_type)
 {
-	ixgbe_dcb_config_packet_buffers_82598(hw, rx_pba);
 	ixgbe_dcb_config_rx_arbiter_82598(hw, refill, max, prio_type);
 	ixgbe_dcb_config_tx_desc_arbiter_82598(hw, refill, max,
 					       bwg_id, prio_type);

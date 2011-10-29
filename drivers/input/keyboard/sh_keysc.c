@@ -291,7 +291,7 @@ static int __devexit sh_keysc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 static int sh_keysc_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);

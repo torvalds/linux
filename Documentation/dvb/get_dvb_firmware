@@ -27,7 +27,7 @@ use IO::Handle;
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
 		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
-		"lme2510c_s7395_old");
+		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -632,6 +632,37 @@ sub lme2510c_s7395_old {
     extract($sourcefile, 4208, 3881, $outfile);
     verify($outfile, $hasho);
     $outfile;
+}
+
+sub drxk {
+    my $url = "http://l4m-daten.de/files/";
+    my $zipfile = "DDTuner.zip";
+    my $hash = "f5a37b9a20a3534997997c0b1382a3e5";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+    my $drvfile = "DDTuner.sys";
+    my $fwfile = "drxk_a3.mc";
+
+    checkstandard();
+
+    wgetfile($zipfile, $url . $zipfile);
+    verify($zipfile, $hash);
+    unzip($zipfile, $tmpdir);
+    extract("$tmpdir/$drvfile", 0x14dd8, 15634, "$fwfile");
+
+    "$fwfile"
+}
+
+sub drxk_terratec_h5 {
+    my $url = "http://www.linuxtv.org/downloads/firmware/";
+    my $hash = "19000dada8e2741162ccc50cc91fa7f1";
+    my $fwfile = "dvb-usb-terratec-h5-drxk.fw";
+
+    checkstandard();
+
+    wgetfile($fwfile, $url . $fwfile);
+    verify($fwfile, $hash);
+
+    "$fwfile"
 }
 
 # ---------------------------------------------------------------

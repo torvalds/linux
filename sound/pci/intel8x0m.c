@@ -1047,7 +1047,7 @@ static int intel8x0m_resume(struct pci_dev *pci)
 	}
 	pci_set_master(pci);
 	if (request_irq(pci->irq, snd_intel8x0m_interrupt,
-			IRQF_SHARED, card->shortname, chip)) {
+			IRQF_SHARED, KBUILD_MODNAME, chip)) {
 		printk(KERN_ERR "intel8x0m: unable to grab IRQ %d, "
 		       "disabling device\n", pci->irq);
 		snd_card_disconnect(card);
@@ -1174,7 +1174,7 @@ static int __devinit snd_intel8x0m_create(struct snd_card *card,
 
  port_inited:
 	if (request_irq(pci->irq, snd_intel8x0m_interrupt, IRQF_SHARED,
-			card->shortname, chip)) {
+			KBUILD_MODNAME, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_intel8x0m_free(chip);
 		return -EBUSY;
@@ -1325,7 +1325,7 @@ static void __devexit snd_intel8x0m_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "Intel ICH Modem",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_intel8x0m_ids,
 	.probe = snd_intel8x0m_probe,
 	.remove = __devexit_p(snd_intel8x0m_remove),

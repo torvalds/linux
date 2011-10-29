@@ -24,7 +24,7 @@
 #include <linux/backlight.h>
 #include <linux/gpio.h>
 #include <video/sh_mobile_lcdc.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "sh_mobile_lcdcfb.h"
 #include "sh_mobile_meram.h"
