@@ -298,61 +298,6 @@ out:
 	return status;
 }
 
-#define REG_DUMP_COUNT_AR6003   60
-#define REGISTER_DUMP_LEN_MAX   60
-
-static void ath6kl_dump_target_assert_info(struct ath6kl *ar)
-{
-	u32 address;
-	u32 regdump_loc = 0;
-	int status;
-	u32 regdump_val[REGISTER_DUMP_LEN_MAX];
-	u32 i;
-
-	if (ar->target_type != TARGET_TYPE_AR6003)
-		return;
-
-	/* the reg dump pointer is copied to the host interest area */
-	address = ath6kl_get_hi_item_addr(ar, HI_ITEM(hi_failure_state));
-	address = TARG_VTOP(ar->target_type, address);
-
-	/* read RAM location through diagnostic window */
-	status = ath6kl_diag_read32(ar, address, &regdump_loc);
-
-	if (status || !regdump_loc) {
-		ath6kl_err("failed to get ptr to register dump area\n");
-		return;
-	}
-
-	ath6kl_dbg(ATH6KL_DBG_TRC, "location of register dump data: 0x%X\n",
-		regdump_loc);
-	regdump_loc = TARG_VTOP(ar->target_type, regdump_loc);
-
-	/* fetch register dump data */
-	status = ath6kl_diag_read(ar, regdump_loc, (u8 *)&regdump_val[0],
-				  REG_DUMP_COUNT_AR6003 * (sizeof(u32)));
-
-	if (status) {
-		ath6kl_err("failed to get register dump\n");
-		return;
-	}
-	ath6kl_dbg(ATH6KL_DBG_TRC, "Register Dump:\n");
-
-	for (i = 0; i < REG_DUMP_COUNT_AR6003; i++)
-		ath6kl_dbg(ATH6KL_DBG_TRC, " %d :  0x%8.8X\n",
-			   i, regdump_val[i]);
-
-}
-
-void ath6kl_target_failure(struct ath6kl *ar)
-{
-	ath6kl_err("target asserted\n");
-
-	/* try dumping target assertion information (if any) */
-	ath6kl_dump_target_assert_info(ar);
-
-}
-
 static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 {
 	int status = 0;
