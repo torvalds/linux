@@ -450,7 +450,7 @@ static void process_buffer_error(struct qdio_q *q, int count)
 		qperf_inc(q, target_full);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x",
 			      q->first_to_check);
-		return;
+		goto set;
 	}
 
 	DBF_ERROR("%4x BUF ERROR", SCH_NO(q));
@@ -460,6 +460,7 @@ static void process_buffer_error(struct qdio_q *q, int count)
 		  q->sbal[q->first_to_check]->element[14].sflags,
 		  q->sbal[q->first_to_check]->element[15].sflags);
 
+set:
 	/*
 	 * Interrupts may be avoided as long as the error is present
 	 * so change the buffer state immediately to avoid starvation.
