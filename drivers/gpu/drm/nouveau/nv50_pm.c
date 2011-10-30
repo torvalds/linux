@@ -562,8 +562,11 @@ nv50_pm_clocks_set(struct drm_device *dev, void *data)
 	}
 	nv_mask(dev, 0x00c040, 0x0c000c00, info->amast);
 
-	/* core/shader: switch core to dom6, shader to hclk */
-	if (dev_priv->chipset == 0x50)
+	/* core/shader: make sure sclk/nvclk are disconnected from their
+	 * plls (nvclk to dom6, sclk to hclk), modify the plls, and
+	 * reconnect sclk/nvclk to their new clock source
+	 */
+	if (dev_priv->chipset < 0x92)
 		nv_mask(dev, 0x00c040, 0x001000b0, 0x00100080); /* grrr! */
 	else
 		nv_mask(dev, 0x00c040, 0x000000b3, 0x00000081);
