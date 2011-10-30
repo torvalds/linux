@@ -62,8 +62,11 @@ ENTRY(store_status)
 	larl	%r2,store_status
 	stg	%r2,__LC_PSW_SAVE_AREA-SAVE_AREA_BASE + 8(%r1)
 	br	%r14
-.align	8
+
+	.section .bss
+	.align	8
 .Lclkcmp:	.quad	0x0000000000000000
+	.previous
 
 #
 # do_reipl_asm
