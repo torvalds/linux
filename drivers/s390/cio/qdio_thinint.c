@@ -36,7 +36,7 @@ static u8 *tiqdio_alsi;
 
 struct indicator_t *q_indicators;
 
-static u64 last_ai_time;
+u64 last_ai_time;
 
 /* returns addr for the device state change indicator */
 static u32 *get_indicator(void)
