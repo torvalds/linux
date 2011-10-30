@@ -558,6 +558,15 @@ static void __init setup_restart_psw(void)
 	copy_to_absolute_zero(&S390_lowcore.restart_psw, &psw, sizeof(psw));
 }
 
+static void __init setup_vmcoreinfo(void)
+{
+#ifdef CONFIG_KEXEC
+	unsigned long ptr = paddr_vmcoreinfo_note();
+
+	copy_to_absolute_zero(&S390_lowcore.vmcore_info, &ptr, sizeof(ptr));
+#endif
+}
+
 #ifdef CONFIG_CRASH_DUMP
 
 /*
@@ -1022,6 +1031,7 @@ setup_arch(char **cmdline_p)
 	reserve_crashkernel();
 	setup_memory();
 	setup_resources();
+	setup_vmcoreinfo();
 	setup_restart_psw();
 	setup_lowcore();
 
