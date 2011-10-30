@@ -31,7 +31,6 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 			 size_t csize, unsigned long offset, int userbuf)
 {
 	unsigned long src;
-	int rc;
 
 	if (!csize)
 		return 0;
@@ -43,11 +42,11 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 		 src < OLDMEM_BASE + OLDMEM_SIZE)
 		src -= OLDMEM_BASE;
 	if (userbuf)
-		rc = copy_to_user_real((void __user *) buf, (void *) src,
-				       csize);
+		copy_to_user_real((void __force __user *) buf, (void *) src,
+				  csize);
 	else
-		rc = memcpy_real(buf, (void *) src, csize);
-	return rc < 0 ? rc : csize;
+		memcpy_real(buf, (void *) src, csize);
+	return csize;
 }
 
 /*
