@@ -212,8 +212,10 @@ __set_psw_mask(unsigned long mask)
 	__load_psw_mask(mask | (arch_local_save_flags() & ~(-1UL >> 8)));
 }
 
-#define local_mcck_enable()  __set_psw_mask(psw_kernel_bits)
-#define local_mcck_disable() __set_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK)
+#define local_mcck_enable() \
+	__set_psw_mask(psw_kernel_bits | PSW_MASK_DAT | PSW_MASK_MCHECK)
+#define local_mcck_disable() \
+	__set_psw_mask(psw_kernel_bits | PSW_MASK_DAT)
 
 #ifdef CONFIG_SMP
 

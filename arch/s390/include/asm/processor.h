@@ -118,17 +118,17 @@ struct stack_frame {
 /*
  * Do necessary setup to start up a new thread.
  */
-#define start_thread(regs, new_psw, new_stackp) do {		\
-	regs->psw.mask	= psw_user_bits;			\
-	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;		\
-	regs->gprs[15]	= new_stackp;				\
+#define start_thread(regs, new_psw, new_stackp) do {			\
+	regs->psw.mask	= psw_user_bits | PSW_MASK_EA | PSW_MASK_BA;	\
+	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
+	regs->gprs[15]	= new_stackp;					\
 } while (0)
 
-#define start_thread31(regs, new_psw, new_stackp) do {		\
-	regs->psw.mask	= psw_user32_bits;			\
-	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;		\
-	regs->gprs[15]	= new_stackp;				\
-	crst_table_downgrade(current->mm, 1UL << 31);		\
+#define start_thread31(regs, new_psw, new_stackp) do {			\
+	regs->psw.mask	= psw_user_bits | PSW_MASK_BA;			\
+	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
+	regs->gprs[15]	= new_stackp;					\
+	crst_table_downgrade(current->mm, 1UL << 31);			\
 } while (0)
 
 /* Forward declaration, a strange C thing */
@@ -234,24 +234,14 @@ static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
 }
  
 /*
- * Function to stop a processor until an interruption occurred
- */
-static inline void enabled_wait(void)
-{
-	__load_psw_mask(PSW_BASE_BITS | PSW_MASK_IO | PSW_MASK_EXT |
-			PSW_MASK_MCHECK | PSW_MASK_WAIT | PSW_DEFAULT_KEY);
-}
-
-/*
  * Function to drop a processor into disabled wait state
  */
-
 static inline void ATTRIB_NORET disabled_wait(unsigned long code)
 {
         unsigned long ctl_buf;
         psw_t dw_psw;
 
-        dw_psw.mask = PSW_BASE_BITS | PSW_MASK_WAIT;
+	dw_psw.mask = PSW_MASK_BASE | PSW_MASK_WAIT | PSW_MASK_BA | PSW_MASK_EA;
         dw_psw.addr = code;
         /* 
          * Store status and then load disabled wait psw,

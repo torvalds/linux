@@ -169,8 +169,9 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 		 */
 		tmp = *(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr);
 		if (addr == (addr_t) &dummy->regs.psw.mask)
-			/* Remove per bit from user psw. */
-			tmp &= ~PSW_MASK_PER;
+			/* Return a clean psw mask. */
+			tmp = psw_user_bits | (tmp & PSW_MASK_USER) |
+				PSW_MASK_EA | PSW_MASK_BA;
 
 	} else if (addr < (addr_t) &dummy->regs.orig_gpr2) {
 		/*
@@ -285,17 +286,18 @@ static inline void __poke_user_per(struct task_struct *child,
 static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 {
 	struct user *dummy = NULL;
-	addr_t offset;
+	addr_t offset, tmp;
 
 	if (addr < (addr_t) &dummy->regs.acrs) {
 		/*
 		 * psw and gprs are stored on the stack
 		 */
+		tmp = (data & ~PSW_MASK_USER) ^ psw_user_bits;
 		if (addr == (addr_t) &dummy->regs.psw.mask &&
 #ifdef CONFIG_COMPAT
-		    data != PSW_MASK_MERGE(psw_user32_bits, data) &&
+		    tmp != PSW_MASK_BA &&
 #endif
-		    data != PSW_MASK_MERGE(psw_user_bits, data))
+		    tmp != (PSW_MASK_EA | PSW_MASK_BA))
 			/* Invalid psw mask. */
 			return -EINVAL;
 #ifndef CONFIG_64BIT
@@ -505,21 +507,20 @@ static u32 __peek_user_compat(struct task_struct *child, addr_t addr)
 	__u32 tmp;
 
 	if (addr < (addr_t) &dummy32->regs.acrs) {
+		struct pt_regs *regs = task_pt_regs(child);
 		/*
 		 * psw and gprs are stored on the stack
 		 */
 		if (addr == (addr_t) &dummy32->regs.psw.mask) {
 			/* Fake a 31 bit psw mask. */
-			tmp = (__u32)(task_pt_regs(child)->psw.mask >> 32);
-			tmp = PSW32_MASK_MERGE(psw32_user_bits, tmp);
+			tmp = (__u32)(regs->psw.mask >> 32);
+			tmp = psw32_user_bits | (tmp & PSW32_MASK_USER);
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Fake a 31 bit psw address. */
-			tmp = (__u32) task_pt_regs(child)->psw.addr |
-				PSW32_ADDR_AMODE31;
+			tmp = (__u32) regs->psw.addr | PSW32_ADDR_AMODE;
 		} else {
 			/* gpr 0-15 */
-			tmp = *(__u32 *)((addr_t) &task_pt_regs(child)->psw +
-					 addr*2 + 4);
+			tmp = *(__u32 *)((addr_t) &regs->psw + addr*2 + 4);
 		}
 	} else if (addr < (addr_t) (&dummy32->regs.orig_gpr2)) {
 		/*
@@ -604,20 +605,20 @@ static int __poke_user_compat(struct task_struct *child,
 	addr_t offset;
 
 	if (addr < (addr_t) &dummy32->regs.acrs) {
+		struct pt_regs *regs = task_pt_regs(child);
 		/*
 		 * psw, gprs, acrs and orig_gpr2 are stored on the stack
 		 */
 		if (addr == (addr_t) &dummy32->regs.psw.mask) {
 			/* Build a 64 bit psw mask from 31 bit mask. */
-			if (tmp != PSW32_MASK_MERGE(psw32_user_bits, tmp))
+			if ((tmp & ~PSW32_MASK_USER) != psw32_user_bits)
 				/* Invalid psw mask. */
 				return -EINVAL;
-			task_pt_regs(child)->psw.mask =
-				PSW_MASK_MERGE(psw_user32_bits, (__u64) tmp << 32);
+			regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
+				(__u64)(tmp & PSW32_MASK_USER) << 32;
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Build a 64 bit psw address from 31 bit address. */
-			task_pt_regs(child)->psw.addr =
-				(__u64) tmp & PSW32_ADDR_INSN;
+			regs->psw.addr = (__u64) tmp & PSW32_ADDR_INSN;
 			/*
 			 * The debugger changed the instruction address,
 			 * reset system call restart, see signal.c:do_signal
@@ -625,8 +626,7 @@ static int __poke_user_compat(struct task_struct *child,
 			task_thread_info(child)->system_call = 0;
 		} else {
 			/* gpr 0-15 */
-			*(__u32*)((addr_t) &task_pt_regs(child)->psw
-				  + addr*2 + 4) = tmp;
+			*(__u32*)((addr_t) &regs->psw + addr*2 + 4) = tmp;
 		}
 	} else if (addr < (addr_t) (&dummy32->regs.orig_gpr2)) {
 		/*

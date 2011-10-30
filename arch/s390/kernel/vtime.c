@@ -170,7 +170,8 @@ void __kprobes vtime_stop_cpu(void)
 	psw_t psw;
 
 	/* Wait for external, I/O or machine check interrupt. */
-	psw.mask = psw_kernel_bits | PSW_MASK_WAIT | PSW_MASK_IO | PSW_MASK_EXT;
+	psw.mask = psw_kernel_bits | PSW_MASK_WAIT |
+		PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 
 	idle->nohz_delay = 0;
 
@@ -183,7 +184,8 @@ void __kprobes vtime_stop_cpu(void)
 		 *	set_cpu_timer(VTIMER_MAX_SLICE);
 		 *	idle->idle_enter = get_clock();
 		 *	__load_psw_mask(psw_kernel_bits | PSW_MASK_WAIT |
-		 *			   PSW_MASK_IO | PSW_MASK_EXT);
+		 *			   PSW_MASK_DAT | PSW_MASK_IO |
+		 *			   PSW_MASK_EXT | PSW_MASK_MCHECK);
 		 * The difference is that the inline assembly makes sure that
 		 * the last three instruction are stpt, stck and lpsw in that
 		 * order. This is done to increase the precision.
@@ -216,7 +218,8 @@ void __kprobes vtime_stop_cpu(void)
 		 *	vq->idle = get_cpu_timer();
 		 *	idle->idle_enter = get_clock();
 		 *	__load_psw_mask(psw_kernel_bits | PSW_MASK_WAIT |
-		 *			   PSW_MASK_IO | PSW_MASK_EXT);
+		 *			   PSW_MASK_DAT | PSW_MASK_IO |
+		 *			   PSW_MASK_EXT | PSW_MASK_MCHECK);
 		 * The difference is that the inline assembly makes sure that
 		 * the last three instruction are stpt, stck and lpsw in that
 		 * order. This is done to increase the precision.

@@ -300,9 +300,9 @@ static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
 	_s390_regs_common32 regs32;
 	int err, i;
 
-	regs32.psw.mask = PSW32_MASK_MERGE(psw32_user_bits,
-					   (__u32)(regs->psw.mask >> 32));
-	regs32.psw.addr = PSW32_ADDR_AMODE31 | (__u32) regs->psw.addr;
+	regs32.psw.mask = psw32_user_bits |
+		((__u32)(regs->psw.mask >> 32) & PSW32_MASK_USER);
+	regs32.psw.addr = PSW32_ADDR_AMODE | (__u32) regs->psw.addr;
 	for (i = 0; i < NUM_GPRS; i++)
 		regs32.gprs[i] = (__u32) regs->gprs[i];
 	save_access_regs(current->thread.acrs);
@@ -327,8 +327,8 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 	err = __copy_from_user(&regs32, &sregs->regs, sizeof(regs32));
 	if (err)
 		return err;
-	regs->psw.mask = PSW_MASK_MERGE(regs->psw.mask,
-				        (__u64)regs32.psw.mask << 32);
+	regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
+		(__u64)(regs32.psw.mask & PSW32_MASK_USER) << 32;
 	regs->psw.addr = (__u64)(regs32.psw.addr & PSW32_ADDR_INSN);
 	for (i = 0; i < NUM_GPRS; i++)
 		regs->gprs[i] = (__u64) regs32.gprs[i];

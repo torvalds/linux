@@ -108,7 +108,7 @@ void smp_restart_with_online_cpu(void)
 	for_each_online_cpu(cpu) {
 		if (stap() == __cpu_logical_map[cpu]) {
 			/* We are online: Enable DAT again and return */
-			__load_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK);
+			__load_psw_mask(psw_kernel_bits | PSW_MASK_DAT);
 			return;
 		}
 	}
@@ -130,14 +130,16 @@ void smp_switch_to_ipl_cpu(void (*func)(void *), void *data)
 
 	if (smp_processor_id() == 0)
 		func(data);
-	__load_psw_mask(PSW_BASE_BITS | PSW_DEFAULT_KEY);
+	__load_psw_mask(PSW_DEFAULT_KEY | PSW_MASK_BASE |
+			PSW_MASK_EA | PSW_MASK_BA);
 	/* Disable lowcore protection */
 	__ctl_clear_bit(0, 28);
 	current_lc = lowcore_ptr[smp_processor_id()];
 	lc = lowcore_ptr[0];
 	if (!lc)
 		lc = current_lc;
-	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
+	lc->restart_psw.mask =
+		PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_EA | PSW_MASK_BA;
 	lc->restart_psw.addr = PSW_ADDR_AMODE | (unsigned long) smp_restart_cpu;
 	if (!cpu_online(0))
 		smp_switch_to_cpu(func, data, 0, stap(), __cpu_logical_map[0]);
@@ -159,7 +161,7 @@ void smp_send_stop(void)
 	int cpu, rc;
 
 	/* Disable all interrupts/machine checks */
-	__load_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK);
+	__load_psw_mask(psw_kernel_bits | PSW_MASK_DAT);
 	trace_hardirqs_off();
 
 	/* stop all processors */
@@ -501,7 +503,8 @@ int __cpuinit start_secondary(void *cpuvoid)
 	set_cpu_online(smp_processor_id(), true);
 	ipi_call_unlock();
 	__ctl_clear_bit(0, 28); /* Disable lowcore protection */
-	S390_lowcore.restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
+	S390_lowcore.restart_psw.mask =
+		PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_EA | PSW_MASK_BA;
 	S390_lowcore.restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) psw_restart_int_handler;
 	__ctl_set_bit(0, 28); /* Enable lowcore protection */
@@ -549,7 +552,8 @@ static int __cpuinit smp_alloc_lowcore(int cpu)
 	memset((char *)lowcore + 512, 0, sizeof(*lowcore) - 512);
 	lowcore->async_stack = async_stack + ASYNC_SIZE;
 	lowcore->panic_stack = panic_stack + PAGE_SIZE;
-	lowcore->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
+	lowcore->restart_psw.mask =
+		PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_EA | PSW_MASK_BA;
 	lowcore->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
 	if (user_mode != HOME_SPACE_MODE)

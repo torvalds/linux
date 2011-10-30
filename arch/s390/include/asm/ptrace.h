@@ -230,6 +230,7 @@ typedef struct
 #define PSW_MASK_IO		0x02000000UL
 #define PSW_MASK_EXT		0x01000000UL
 #define PSW_MASK_KEY		0x00F00000UL
+#define PSW_MASK_BASE		0x00080000UL	/* always one */
 #define PSW_MASK_MCHECK		0x00040000UL
 #define PSW_MASK_WAIT		0x00020000UL
 #define PSW_MASK_PSTATE		0x00010000UL
@@ -239,10 +240,11 @@ typedef struct
 #define PSW_MASK_EA		0x00000000UL
 #define PSW_MASK_BA		0x00000000UL
 
+#define PSW_MASK_USER		0x00003F00UL
+
 #define PSW_ADDR_AMODE		0x80000000UL
 #define PSW_ADDR_INSN		0x7FFFFFFFUL
 
-#define PSW_BASE_BITS		0x00080000UL
 #define PSW_DEFAULT_KEY		(((unsigned long) PAGE_DEFAULT_ACC) << 20)
 
 #define PSW_ASC_PRIMARY		0x00000000UL
@@ -256,6 +258,7 @@ typedef struct
 #define PSW_MASK_DAT		0x0400000000000000UL
 #define PSW_MASK_IO		0x0200000000000000UL
 #define PSW_MASK_EXT		0x0100000000000000UL
+#define PSW_MASK_BASE		0x0000000000000000UL
 #define PSW_MASK_KEY		0x00F0000000000000UL
 #define PSW_MASK_MCHECK		0x0004000000000000UL
 #define PSW_MASK_WAIT		0x0002000000000000UL
@@ -266,11 +269,11 @@ typedef struct
 #define PSW_MASK_EA		0x0000000100000000UL
 #define PSW_MASK_BA		0x0000000080000000UL
 
+#define PSW_MASK_USER		0x00003F0000000000UL
+
 #define PSW_ADDR_AMODE		0x0000000000000000UL
 #define PSW_ADDR_INSN		0xFFFFFFFFFFFFFFFFUL
 
-#define PSW_BASE_BITS		0x0000000180000000UL
-#define PSW_BASE32_BITS		0x0000000080000000UL
 #define PSW_DEFAULT_KEY		(((unsigned long) PAGE_DEFAULT_ACC) << 52)
 
 #define PSW_ASC_PRIMARY		0x0000000000000000UL
@@ -283,18 +286,7 @@ typedef struct
 #ifdef __KERNEL__
 extern long psw_kernel_bits;
 extern long psw_user_bits;
-#ifdef CONFIG_64BIT
-extern long psw_user32_bits;
 #endif
-#endif
-
-/* This macro merges a NEW PSW mask specified by the user into
-   the currently active PSW mask CURRENT, modifying only those
-   bits in CURRENT that the user may be allowed to change: this
-   is the condition code and the program mask bits.  */
-#define PSW_MASK_MERGE(CURRENT,NEW) \
-	(((CURRENT) & ~(PSW_MASK_CC|PSW_MASK_PM)) | \
-	 ((NEW) & (PSW_MASK_CC|PSW_MASK_PM)))
 
 /*
  * The s390_regs structure is used to define the elf_gregset_t.

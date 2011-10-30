@@ -62,11 +62,11 @@
 #include <asm/kvm_virtio.h>
 #include <asm/diag.h>
 
-long psw_kernel_bits	= (PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_PRIMARY |
-			   PSW_MASK_MCHECK | PSW_DEFAULT_KEY);
-long psw_user_bits	= (PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_HOME |
-			   PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |
-			   PSW_MASK_PSTATE | PSW_DEFAULT_KEY);
+long psw_kernel_bits	= PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_ASC_PRIMARY |
+			  PSW_MASK_EA | PSW_MASK_BA;
+long psw_user_bits	= PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT |
+			  PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_MCHECK |
+			  PSW_MASK_PSTATE | PSW_ASC_HOME;
 
 /*
  * User copy operations.
@@ -278,22 +278,14 @@ early_param("mem", early_parse_mem);
 unsigned int user_mode = HOME_SPACE_MODE;
 EXPORT_SYMBOL_GPL(user_mode);
 
-static int set_amode_and_uaccess(unsigned long user_amode,
-				 unsigned long user32_amode)
+static int set_amode_primary(void)
 {
-	psw_user_bits = PSW_BASE_BITS | PSW_MASK_DAT | user_amode |
-			PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |
-			PSW_MASK_PSTATE | PSW_DEFAULT_KEY;
+	psw_kernel_bits = (psw_kernel_bits & ~PSW_MASK_ASC) | PSW_ASC_HOME;
+	psw_user_bits = (psw_user_bits & ~PSW_MASK_ASC) | PSW_ASC_PRIMARY;
 #ifdef CONFIG_COMPAT
-	psw_user32_bits = PSW_BASE32_BITS | PSW_MASK_DAT | user_amode |
-			  PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |
-			  PSW_MASK_PSTATE | PSW_DEFAULT_KEY;
-	psw32_user_bits = PSW32_BASE_BITS | PSW32_MASK_DAT | user32_amode |
-			  PSW32_MASK_IO | PSW32_MASK_EXT | PSW32_MASK_MCHECK |
-			  PSW32_MASK_PSTATE;
+	psw32_user_bits =
+		(psw32_user_bits & ~PSW32_MASK_ASC) | PSW32_ASC_PRIMARY;
 #endif
-	psw_kernel_bits = PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_HOME |
-			  PSW_MASK_MCHECK | PSW_DEFAULT_KEY;
 
 	if (MACHINE_HAS_MVCOS) {
 		memcpy(&uaccess, &uaccess_mvcos_switch, sizeof(uaccess));
@@ -329,7 +321,7 @@ early_param("user_mode", early_parse_user_mode);
 static void setup_addressing_mode(void)
 {
 	if (user_mode == PRIMARY_SPACE_MODE) {
-		if (set_amode_and_uaccess(PSW_ASC_PRIMARY, PSW32_ASC_PRIMARY))
+		if (set_amode_primary())
 			pr_info("Address spaces switched, "
 				"mvcos available\n");
 		else
@@ -348,24 +340,25 @@ setup_lowcore(void)
 	 */
 	BUILD_BUG_ON(sizeof(struct _lowcore) != LC_PAGES * 4096);
 	lc = __alloc_bootmem_low(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
-	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
+	lc->restart_psw.mask = psw_kernel_bits;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) psw_restart_int_handler;
-	if (user_mode != HOME_SPACE_MODE)
-		lc->restart_psw.mask |= PSW_ASC_HOME;
-	lc->external_new_psw.mask = psw_kernel_bits;
+	lc->external_new_psw.mask = psw_kernel_bits |
+		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->external_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = psw_kernel_bits | PSW_MASK_IO | PSW_MASK_EXT;
+	lc->svc_new_psw.mask = psw_kernel_bits |
+		PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	lc->svc_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) system_call;
-	lc->program_new_psw.mask = psw_kernel_bits;
+	lc->program_new_psw.mask = psw_kernel_bits |
+		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->program_new_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long)pgm_check_handler;
-	lc->mcck_new_psw.mask =
-		psw_kernel_bits & ~PSW_MASK_MCHECK & ~PSW_MASK_DAT;
+		PSW_ADDR_AMODE | (unsigned long) pgm_check_handler;
+	lc->mcck_new_psw.mask = psw_kernel_bits;
 	lc->mcck_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = psw_kernel_bits;
+	lc->io_new_psw.mask = psw_kernel_bits |
+		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) io_int_handler;
 	lc->clock_comparator = -1ULL;
 	lc->kernel_stack = ((unsigned long) &init_thread_union) + THREAD_SIZE;
@@ -554,7 +547,7 @@ static void __init setup_restart_psw(void)
 	 * Setup restart PSW for absolute zero lowcore. This is necesary
 	 * if PSW restart is done on an offline CPU that has lowcore zero
 	 */
-	psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
+	psw.mask = PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_EA | PSW_MASK_BA;
 	psw.addr = PSW_ADDR_AMODE | (unsigned long) psw_restart_int_handler;
 	copy_to_absolute_zero(&S390_lowcore.restart_psw, &psw, sizeof(psw));
 }
