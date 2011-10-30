@@ -921,10 +921,6 @@ static void __qdio_outbound_processing(struct qdio_q *q)
 		if (!pci_out_supported(q) && !qdio_outbound_q_done(q))
 			goto sched;
 
-	if ((queue_type(q) == QDIO_IQDIO_QFMT) &&
-	    (atomic_read(&q->nr_buf_used)) > QDIO_IQDIO_POLL_LVL)
-		goto sched;
-
 	if (q->u.out.pci_out_enabled)
 		return;
 
