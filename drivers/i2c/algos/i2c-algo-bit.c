@@ -47,8 +47,8 @@
 /* ----- global variables ---------------------------------------------	*/
 
 static int bit_test;	/* see if the line-setting functions work	*/
-module_param(bit_test, bool, 0);
-MODULE_PARM_DESC(bit_test, "Test the lines of the bus to see if it is stuck");
+module_param(bit_test, int, S_IRUGO);
+MODULE_PARM_DESC(bit_test, "lines testing - 0 off; 1 report; 2 fail if stuck");
 
 #ifdef DEBUG
 static int i2c_debug = 1;
@@ -624,7 +624,7 @@ static int __i2c_bit_add_bus(struct i2c_adapter *adap,
 
 	if (bit_test) {
 		ret = test_bus(adap);
-		if (ret < 0)
+		if (bit_test >= 2 && ret < 0)
 			return -ENODEV;
 	}
 
