@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/miscdevice.h>
 #include <linux/debugfs.h>
+#include <linux/module.h>
 #include <asm/asm-offsets.h>
 #include <asm/ipl.h>
 #include <asm/sclp.h>
