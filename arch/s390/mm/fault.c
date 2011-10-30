@@ -307,7 +307,7 @@ static inline int do_exception(struct pt_regs *regs, int access,
 
 #ifdef CONFIG_PGSTE
 	if (test_tsk_thread_flag(current, TIF_SIE) && S390_lowcore.gmap) {
-		address = gmap_fault(address,
+		address = __gmap_fault(address,
 				     (struct gmap *) S390_lowcore.gmap);
 		if (address == -EFAULT) {
 			fault = VM_FAULT_BADMAP;

@@ -393,7 +393,10 @@ out_unmap:
 }
 EXPORT_SYMBOL_GPL(gmap_map_segment);
 
-unsigned long gmap_fault(unsigned long address, struct gmap *gmap)
+/*
+ * this function is assumed to be called with mmap_sem held
+ */
+unsigned long __gmap_fault(unsigned long address, struct gmap *gmap)
 {
 	unsigned long *table, vmaddr, segment;
 	struct mm_struct *mm;
@@ -461,7 +464,17 @@ unsigned long gmap_fault(unsigned long address, struct gmap *gmap)
 		return vmaddr | (address & ~PMD_MASK);
 	}
 	return -EFAULT;
+}
 
+unsigned long gmap_fault(unsigned long address, struct gmap *gmap)
+{
+	unsigned long rc;
+
+	down_read(&gmap->mm->mmap_sem);
+	rc = __gmap_fault(address, gmap);
+	up_read(&gmap->mm->mmap_sem);
+
+	return rc;
 }
 EXPORT_SYMBOL_GPL(gmap_fault);
 
