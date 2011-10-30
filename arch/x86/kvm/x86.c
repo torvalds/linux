@@ -44,6 +44,7 @@
 #include <linux/perf_event.h>
 #include <linux/uaccess.h>
 #include <linux/hash.h>
+#include <linux/pci.h>
 #include <trace/events/kvm.h>
 
 #define CREATE_TRACE_POINTS
@@ -2123,7 +2124,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = 0;
 		break;
 	case KVM_CAP_IOMMU:
-		r = iommu_found();
+		r = iommu_present(&pci_bus_type);
 		break;
 	case KVM_CAP_MCE:
 		r = KVM_MAX_MCE_BANKS;

@@ -543,6 +543,13 @@ static int msm_iommu_unmap(struct iommu_domain *domain, unsigned long va,
 	}
 
 	ret = __flush_iotlb(domain);
+
+	/*
+	 * the IOMMU API requires us to return the order of the unmapped
+	 * page (on success).
+	 */
+	if (!ret)
+		ret = order;
 fail:
 	spin_unlock_irqrestore(&msm_iommu_lock, flags);
 	return ret;
@@ -721,7 +728,7 @@ static void __init setup_iommu_tex_classes(void)
 static int __init msm_iommu_init(void)
 {
 	setup_iommu_tex_classes();
-	register_iommu(&msm_iommu_ops);
+	bus_set_iommu(&platform_bus_type, &msm_iommu_ops);
 	return 0;
 }
 

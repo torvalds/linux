@@ -3642,7 +3642,7 @@ int __init intel_iommu_init(void)
 
 	init_iommu_pm_ops();
 
-	register_iommu(&intel_iommu_ops);
+	bus_set_iommu(&pci_bus_type, &intel_iommu_ops);
 
 	bus_register_notifier(&pci_bus_type, &device_nb);
 

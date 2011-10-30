@@ -32,6 +32,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/wait.h>
+#include <linux/iommu.h>
 #include <plat/iommu.h>
 #include <plat/iovmm.h>
 
@@ -294,7 +295,9 @@ struct isp_device {
 	unsigned int sbl_resources;
 	unsigned int subclk_resources;
 
-	struct iommu *iommu;
+	struct omap_iommu *iommu;
+	struct iommu_domain *domain;
+	struct device *iommu_dev;
 
 	struct isp_platform_callback platform_cb;
 };

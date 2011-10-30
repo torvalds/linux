@@ -62,6 +62,8 @@ struct dma_debug_entry {
 #endif
 };
 
+typedef bool (*match_fn)(struct dma_debug_entry *, struct dma_debug_entry *);
+
 struct hash_bucket {
 	struct list_head list;
 	spinlock_t lock;
@@ -240,18 +242,37 @@ static void put_hash_bucket(struct hash_bucket *bucket,
 	spin_unlock_irqrestore(&bucket->lock, __flags);
 }
 
+static bool exact_match(struct dma_debug_entry *a, struct dma_debug_entry *b)
+{
+	return ((a->dev_addr == a->dev_addr) &&
+		(a->dev == b->dev)) ? true : false;
+}
+
+static bool containing_match(struct dma_debug_entry *a,
+			     struct dma_debug_entry *b)
+{
+	if (a->dev != b->dev)
+		return false;
+
+	if ((b->dev_addr <= a->dev_addr) &&
+	    ((b->dev_addr + b->size) >= (a->dev_addr + a->size)))
+		return true;
+
+	return false;
+}
+
 /*
  * Search a given entry in the hash bucket list
  */
-static struct dma_debug_entry *hash_bucket_find(struct hash_bucket *bucket,
-						struct dma_debug_entry *ref)
+static struct dma_debug_entry *__hash_bucket_find(struct hash_bucket *bucket,
+						  struct dma_debug_entry *ref,
+						  match_fn match)
 {
 	struct dma_debug_entry *entry, *ret = NULL;
 	int matches = 0, match_lvl, last_lvl = 0;
 
 	list_for_each_entry(entry, &bucket->list, list) {
-		if ((entry->dev_addr != ref->dev_addr) ||
-		    (entry->dev != ref->dev))
+		if (!match(ref, entry))
 			continue;
 
 		/*
@@ -291,6 +312,39 @@ static struct dma_debug_entry *hash_bucket_find(struct hash_bucket *bucket,
 	ret = (matches == 1) ? ret : NULL;
 
 	return ret;
+}
+
+static struct dma_debug_entry *bucket_find_exact(struct hash_bucket *bucket,
+						 struct dma_debug_entry *ref)
+{
+	return __hash_bucket_find(bucket, ref, exact_match);
+}
+
+static struct dma_debug_entry *bucket_find_contain(struct hash_bucket **bucket,
+						   struct dma_debug_entry *ref,
+						   unsigned long *flags)
+{
+
+	unsigned int max_range = dma_get_max_seg_size(ref->dev);
+	struct dma_debug_entry *entry, index = *ref;
+	unsigned int range = 0;
+
+	while (range <= max_range) {
+		entry = __hash_bucket_find(*bucket, &index, containing_match);
+
+		if (entry)
+			return entry;
+
+		/*
+		 * Nothing found, go back a hash bucket
+		 */
+		put_hash_bucket(*bucket, flags);
+		range          += (1 << HASH_FN_SHIFT);
+		index.dev_addr -= (1 << HASH_FN_SHIFT);
+		*bucket = get_hash_bucket(&index, flags);
+	}
+
+	return NULL;
 }
 
 /*
@@ -802,7 +856,7 @@ static void check_unmap(struct dma_debug_entry *ref)
 	}
 
 	bucket = get_hash_bucket(ref, &flags);
-	entry = hash_bucket_find(bucket, ref);
+	entry = bucket_find_exact(bucket, ref);
 
 	if (!entry) {
 		err_printk(ref->dev, NULL, "DMA-API: device driver tries "
@@ -902,7 +956,7 @@ static void check_sync(struct device *dev,
 
 	bucket = get_hash_bucket(ref, &flags);
 
-	entry = hash_bucket_find(bucket, ref);
+	entry = bucket_find_contain(&bucket, ref, &flags);
 
 	if (!entry) {
 		err_printk(dev, NULL, "DMA-API: device driver tries "
@@ -1060,7 +1114,7 @@ static int get_nr_mapped_entries(struct device *dev,
 	int mapped_ents;
 
 	bucket       = get_hash_bucket(ref, &flags);
-	entry        = hash_bucket_find(bucket, ref);
+	entry        = bucket_find_exact(bucket, ref);
 	mapped_ents  = 0;
 
 	if (entry)

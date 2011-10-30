@@ -33,6 +33,7 @@ struct class;
 struct subsys_private;
 struct bus_type;
 struct device_node;
+struct iommu_ops;
 
 struct bus_attribute {
 	struct attribute	attr;
@@ -67,6 +68,9 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * @resume:	Called to bring a device on this bus out of sleep mode.
  * @pm:		Power management operations of this bus, callback the specific
  *		device driver's pm-ops.
+ * @iommu_ops   IOMMU specific operations for this bus, used to attach IOMMU
+ *              driver implementations to a bus and allow the driver to do
+ *              bus-specific setup
  * @p:		The private data of the driver core, only the driver core can
  *		touch this.
  *
@@ -95,6 +99,8 @@ struct bus_type {
 	int (*resume)(struct device *dev);
 
 	const struct dev_pm_ops *pm;
+
+	struct iommu_ops *iommu_ops;
 
 	struct subsys_private *p;
 };
