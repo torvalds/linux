@@ -157,7 +157,7 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	current->thread.fp_regs.fpc &= FPC_VALID_MASK;
 
 	restore_fp_regs(&current->thread.fp_regs);
-	regs->svc_code = 0;	/* disable syscall checks */
+	clear_thread_flag(TIF_SYSCALL);	/* No longer in a system call */
 	return 0;
 }
 
@@ -426,13 +426,14 @@ void do_signal(struct pt_regs *regs)
 	 * the debugger may change all our registers, including the system
 	 * call information.
 	 */
-	current_thread_info()->system_call = regs->svc_code;
+	current_thread_info()->system_call =
+		test_thread_flag(TIF_SYSCALL) ? regs->svc_code : 0;
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-	regs->svc_code = current_thread_info()->system_call;
 
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		if (regs->svc_code > 0) {
+		if (current_thread_info()->system_call) {
+			regs->svc_code = current_thread_info()->system_call;
 			/* Check for system call restarting. */
 			switch (regs->gprs[2]) {
 			case -ERESTART_RESTARTBLOCK:
@@ -453,7 +454,7 @@ void do_signal(struct pt_regs *regs)
 				break;
 			}
 			/* No longer in a system call */
-			regs->svc_code = 0;
+			clear_thread_flag(TIF_SYSCALL);
 		}
 
 		if ((is_compat_task() ?
@@ -478,7 +479,8 @@ void do_signal(struct pt_regs *regs)
 	}
 
 	/* No handlers present - check for system call restart */
-	if (regs->svc_code > 0) {
+	if (current_thread_info()->system_call) {
+		regs->svc_code = current_thread_info()->system_call;
 		switch (regs->gprs[2]) {
 		case -ERESTART_RESTARTBLOCK:
 			/* Restart with sys_restart_syscall */
@@ -489,7 +491,10 @@ void do_signal(struct pt_regs *regs)
 		case -ERESTARTNOINTR:
 			/* Restart system call with magic TIF bit. */
 			regs->gprs[2] = regs->orig_gpr2;
-			set_thread_flag(TIF_RESTART_SVC);
+			set_thread_flag(TIF_SYSCALL);
+			break;
+		default:
+			clear_thread_flag(TIF_SYSCALL);
 			break;
 		}
 	}

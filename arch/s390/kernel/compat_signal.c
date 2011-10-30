@@ -342,7 +342,7 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 		return err;
 
 	restore_fp_regs(&current->thread.fp_regs);
-	regs->svc_code = 0;	/* disable syscall checks */
+	clear_thread_flag(TIF_SYSCALL);	/* No longer in a system call */
 	return 0;
 }
 
