@@ -230,6 +230,8 @@ struct ath6kl_bmi_target_info {
 
 int ath6kl_bmi_init(struct ath6kl *ar);
 void ath6kl_bmi_cleanup(struct ath6kl *ar);
+void ath6kl_bmi_reset(struct ath6kl *ar);
+
 int ath6kl_bmi_done(struct ath6kl *ar);
 int ath6kl_bmi_get_target_info(struct ath6kl *ar,
 			       struct ath6kl_bmi_target_info *targ_info);

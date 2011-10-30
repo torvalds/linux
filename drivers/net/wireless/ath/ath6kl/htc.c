@@ -2622,6 +2622,9 @@ int ath6kl_htc_start(struct htc_target *target)
 	struct htc_packet *packet;
 	int status;
 
+	memset(&target->dev->irq_proc_reg, 0,
+	       sizeof(target->dev->irq_proc_reg));
+
 	/* Disable interrupts at the chip level */
 	ath6kl_hif_disable_intrs(target->dev);
 

@@ -447,6 +447,7 @@ enum ath6kl_dev_state {
 	DESTROY_IN_PROGRESS,
 	SKIP_SCAN,
 	ROAM_TBL_PEND,
+	FIRST_BOOT,
 };
 
 struct ath6kl {
@@ -662,4 +663,7 @@ void ath6kl_deinit_if_data(struct ath6kl_vif *vif);
 void ath6kl_core_free(struct ath6kl *ar);
 struct ath6kl_vif *ath6kl_vif_first(struct ath6kl *ar);
 void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready);
+int ath6kl_init_hw_start(struct ath6kl *ar);
+int ath6kl_init_hw_stop(struct ath6kl *ar);
+
 #endif /* CORE_H */

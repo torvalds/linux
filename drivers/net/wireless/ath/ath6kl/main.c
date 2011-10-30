@@ -673,10 +673,12 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 	set_bit(WMI_READY, &ar->flag);
 	wake_up(&ar->event_wq);
 
-	ath6kl_info("hw %s fw %s%s\n",
-		    get_hw_id_string(ar->wiphy->hw_version),
-		    ar->wiphy->fw_version,
-		    test_bit(TESTMODE, &ar->flag) ? " testmode" : "");
+	if (test_and_clear_bit(FIRST_BOOT, &ar->flag)) {
+		ath6kl_info("hw %s fw %s%s\n",
+			    get_hw_id_string(ar->wiphy->hw_version),
+			    ar->wiphy->fw_version,
+			    test_bit(TESTMODE, &ar->flag) ? " testmode" : "");
+	}
 }
 
 void ath6kl_scan_complete_evt(struct ath6kl_vif *vif, int status)
@@ -1112,6 +1114,12 @@ struct ath6kl_vif *ath6kl_vif_first(struct ath6kl *ar)
 static int ath6kl_open(struct net_device *dev)
 {
 	struct ath6kl_vif *vif = netdev_priv(dev);
+	int ret;
+
+	/* FIXME: how to handle multi vif support? */
+	ret = ath6kl_init_hw_start(vif->ar);
+	if (ret)
+		return ret;
 
 	set_bit(WLAN_ENABLED, &vif->flags);
 
@@ -1128,6 +1136,7 @@ static int ath6kl_close(struct net_device *dev)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
+	int ret;
 
 	netif_stop_queue(dev);
 
@@ -1142,6 +1151,11 @@ static int ath6kl_close(struct net_device *dev)
 	}
 
 	ath6kl_cfg80211_scan_complete_event(vif, -ECANCELED);
+
+	/* FIXME: how to handle multi vif support? */
+	ret = ath6kl_init_hw_stop(ar);
+	if (ret)
+		return ret;
 
 	return 0;
 }

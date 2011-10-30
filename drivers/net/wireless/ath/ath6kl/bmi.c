@@ -670,6 +670,11 @@ int ath6kl_bmi_fast_download(struct ath6kl *ar, u32 addr, u8 *buf, u32 len)
 	return ret;
 }
 
+void ath6kl_bmi_reset(struct ath6kl *ar)
+{
+	ar->bmi.done_sent = false;
+}
+
 int ath6kl_bmi_init(struct ath6kl *ar)
 {
 	ar->bmi.cmd_buf = kzalloc(MAX_BMI_CMDBUF_SZ, GFP_ATOMIC);
