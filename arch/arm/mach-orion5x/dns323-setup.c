@@ -13,7 +13,7 @@
  * License, or (at your option) any later version.
  *
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -30,7 +30,6 @@
 #include <linux/phy.h>
 #include <linux/marvell_phy.h>
 #include <asm/mach-types.h>
-#include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include <mach/orion5x.h>

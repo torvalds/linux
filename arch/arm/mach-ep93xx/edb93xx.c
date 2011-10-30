@@ -37,6 +37,7 @@
 #include <mach/hardware.h>
 #include <mach/fb.h>
 #include <mach/ep93xx_spi.h>
+#include <mach/gpio-ep93xx.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

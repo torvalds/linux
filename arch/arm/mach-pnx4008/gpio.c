@@ -13,14 +13,13 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/io.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <mach/gpio.h>
+#include <mach/gpio-pnx4008.h>
 
 /* register definitions */
 #define PIO_VA_BASE	IO_ADDRESS(PNX4008_PIO_BASE)

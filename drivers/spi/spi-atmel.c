@@ -22,7 +22,7 @@
 
 #include <asm/io.h>
 #include <mach/board.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 #include <mach/cpu.h>
 
 /* SPI register offsets */

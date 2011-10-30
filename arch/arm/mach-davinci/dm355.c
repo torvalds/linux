@@ -13,7 +13,6 @@
 #include <linux/serial_8250.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/gpio.h>
 
 #include <linux/spi/spi.h>
 
@@ -30,6 +29,7 @@
 #include <mach/common.h>
 #include <mach/asp.h>
 #include <mach/spi.h>
+#include <mach/gpio-davinci.h>
 
 #include "clock.h"
 #include "mux.h"
