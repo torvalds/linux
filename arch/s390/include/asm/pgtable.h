@@ -698,6 +698,7 @@ int gmap_map_segment(struct gmap *gmap, unsigned long from,
 int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len);
 unsigned long __gmap_fault(unsigned long address, struct gmap *);
 unsigned long gmap_fault(unsigned long address, struct gmap *);
+void gmap_discard(unsigned long from, unsigned long to, struct gmap *);
 
 /*
  * Certain architectures need to do special things when PTEs

@@ -1,5 +1,5 @@
 /*
- *    Copyright IBM Corp. 2007,2009
+ *    Copyright IBM Corp. 2007,2011
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
@@ -477,6 +477,53 @@ unsigned long gmap_fault(unsigned long address, struct gmap *gmap)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(gmap_fault);
+
+void gmap_discard(unsigned long from, unsigned long to, struct gmap *gmap)
+{
+
+	unsigned long *table, address, size;
+	struct vm_area_struct *vma;
+	struct gmap_pgtable *mp;
+	struct page *page;
+
+	down_read(&gmap->mm->mmap_sem);
+	address = from;
+	while (address < to) {
+		/* Walk the gmap address space page table */
+		table = gmap->table + ((address >> 53) & 0x7ff);
+		if (unlikely(*table & _REGION_ENTRY_INV)) {
+			address = (address + PMD_SIZE) & PMD_MASK;
+			continue;
+		}
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		table = table + ((address >> 42) & 0x7ff);
+		if (unlikely(*table & _REGION_ENTRY_INV)) {
+			address = (address + PMD_SIZE) & PMD_MASK;
+			continue;
+		}
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		table = table + ((address >> 31) & 0x7ff);
+		if (unlikely(*table & _REGION_ENTRY_INV)) {
+			address = (address + PMD_SIZE) & PMD_MASK;
+			continue;
+		}
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		table = table + ((address >> 20) & 0x7ff);
+		if (unlikely(*table & _SEGMENT_ENTRY_INV)) {
+			address = (address + PMD_SIZE) & PMD_MASK;
+			continue;
+		}
+		page = pfn_to_page(*table >> PAGE_SHIFT);
+		mp = (struct gmap_pgtable *) page->index;
+		vma = find_vma(gmap->mm, mp->vmaddr);
+		size = min(to - address, PMD_SIZE - (address & ~PMD_MASK));
+		zap_page_range(vma, mp->vmaddr | (address & ~PMD_MASK),
+			       size, NULL);
+		address = (address + PMD_SIZE) & PMD_MASK;
+	}
+	up_read(&gmap->mm->mmap_sem);
+}
+EXPORT_SYMBOL_GPL(gmap_discard);
 
 void gmap_unmap_notifier(struct mm_struct *mm, unsigned long *table)
 {
