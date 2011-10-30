@@ -13,12 +13,15 @@ menuconfig MTD
 if MTD
 
 config MTD_TESTS
-	tristate "MTD tests support"
+	tristate "MTD tests support (DANGEROUS)"
 	depends on m
 	help
 	  This option includes various MTD tests into compilation. The tests
 	  should normally be compiled as kernel modules. The modules perform
 	  various checks and verifications when loaded.
+
+	  WARNING: some of the tests will ERASE entire MTD device which they
+	  test. Do not use these tests unless you really know what you do.
 
 config MTD_REDBOOT_PARTS
 	tristate "RedBoot partition table parsing"
