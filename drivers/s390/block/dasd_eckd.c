@@ -844,6 +844,30 @@ static void dasd_eckd_fill_rcd_cqr(struct dasd_device *device,
 	set_bit(DASD_CQR_VERIFY_PATH, &cqr->flags);
 }
 
+/*
+ * Wakeup helper for read_conf
+ * if the cqr is not done and needs some error recovery
+ * the buffer has to be re-initialized with the EBCDIC "V1.0"
+ * to show support for virtual device SNEQ
+ */
+static void read_conf_cb(struct dasd_ccw_req *cqr, void *data)
+{
+	struct ccw1 *ccw;
+	__u8 *rcd_buffer;
+
+	if (cqr->status !=  DASD_CQR_DONE) {
+		ccw = cqr->cpaddr;
+		rcd_buffer = (__u8 *)((addr_t) ccw->cda);
+		memset(rcd_buffer, 0, sizeof(*rcd_buffer));
+
+		rcd_buffer[0] = 0xE5;
+		rcd_buffer[1] = 0xF1;
+		rcd_buffer[2] = 0x4B;
+		rcd_buffer[3] = 0xF0;
+	}
+	dasd_wakeup_cb(cqr, data);
+}
+
 static int dasd_eckd_read_conf_immediately(struct dasd_device *device,
 					   struct dasd_ccw_req *cqr,
 					   __u8 *rcd_buffer,
@@ -863,6 +887,7 @@ static int dasd_eckd_read_conf_immediately(struct dasd_device *device,
 	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	set_bit(DASD_CQR_ALLOW_SLOCK, &cqr->flags);
 	cqr->retries = 5;
+	cqr->callback = read_conf_cb;
 	rc = dasd_sleep_on_immediatly(cqr);
 	return rc;
 }
@@ -900,6 +925,7 @@ static int dasd_eckd_read_conf_lpm(struct dasd_device *device,
 		goto out_error;
 	}
 	dasd_eckd_fill_rcd_cqr(device, cqr, rcd_buf, lpm);
+	cqr->callback = read_conf_cb;
 	ret = dasd_sleep_on(cqr);
 	/*
 	 * on success we update the user input parms

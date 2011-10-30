@@ -643,6 +643,7 @@ struct dasd_ccw_req *
 dasd_smalloc_request(int , int, int, struct dasd_device *);
 void dasd_kfree_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_sfree_request(struct dasd_ccw_req *, struct dasd_device *);
+void dasd_wakeup_cb(struct dasd_ccw_req *, void *);
 
 static inline int
 dasd_kmalloc_set_cda(struct ccw1 *ccw, void *cda, struct dasd_device *device)
