@@ -439,6 +439,9 @@ static void htc_tx_comp_handler(struct htc_target *target,
 	struct htc_endpoint *endpoint = &target->endpoint[packet->endpoint];
 	struct list_head container;
 
+	ath6kl_dbg(ATH6KL_DBG_HTC, "htc tx complete seqno %d\n",
+		   packet->info.tx.seqno);
+
 	htc_tx_comp_update(target, endpoint, packet);
 	INIT_LIST_HEAD(&container);
 	list_add_tail(&packet->list, &container);
@@ -501,8 +504,8 @@ static int ath6kl_htc_tx_issue(struct htc_target *target,
 	padded_len = CALC_TXRX_PADDED_LEN(target, send_len);
 
 	ath6kl_dbg(ATH6KL_DBG_HTC,
-		   "htc tx issue len %d padded_len %d mbox 0x%X %s\n",
-		   send_len, padded_len,
+		   "htc tx issue len %d seqno %d padded_len %d mbox 0x%X %s\n",
+		   send_len, packet->info.tx.seqno, padded_len,
 		   target->dev->ar->mbox_info.htc_addr,
 		   sync ? "sync" : "async");
 
@@ -705,8 +708,8 @@ static int ath6kl_htc_tx_setup_scat_list(struct htc_target *target,
 		scat_req->len += len;
 		scat_req->scat_entries++;
 		ath6kl_dbg(ATH6KL_DBG_HTC,
-			   "htc tx adding (%d) pkt 0x%p len %d remaining %d\n",
-			   i, packet, len, rem_scat);
+			   "htc tx adding (%d) pkt 0x%p seqno %d len %d remaining %d\n",
+			   i, packet, packet->info.tx.seqno, len, rem_scat);
 	}
 
 	/* Roll back scatter setup in case of any failure */
