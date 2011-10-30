@@ -1081,6 +1081,7 @@ sie_exit:
 	lghi	%r2,0
 	br	%r14
 sie_fault:
+	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
 	ni	__TI_flags+6(%r14),255-(_TIF_SIE>>8)
 	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
