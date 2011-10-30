@@ -334,7 +334,8 @@ void __kprobes do_per_trap(struct pt_regs *regs)
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
 	info.si_code = TRAP_HWBKPT;
-	info.si_addr = (void *) current->thread.per_event.address;
+	info.si_addr =
+		(void __force __user *) current->thread.per_event.address;
 	force_sig_info(SIGTRAP, &info, current);
 }
 

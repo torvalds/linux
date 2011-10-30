@@ -141,7 +141,8 @@ int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 			break;
 		case __SI_FAULT >> 16:
 			err |= __get_user(tmp, &from->si_addr);
-			to->si_addr = (void __user *)(u64) (tmp & PSW32_ADDR_INSN);
+			to->si_addr = (void __force __user *)
+				(u64) (tmp & PSW32_ADDR_INSN);
 			break;
 		case __SI_POLL >> 16:
 			err |= __get_user(to->si_band, &from->si_band);
@@ -482,7 +483,7 @@ static int setup_frame32(int sig, struct k_sigaction *ka,
 	} else {
 		regs->gprs[14] = (__u64) frame->retcode | PSW32_ADDR_AMODE;
 		if (__put_user(S390_SYSCALL_OPCODE | __NR_sigreturn,
-		               (u16 __user *)(frame->retcode)))
+			       (u16 __force __user *)(frame->retcode)))
 			goto give_sigsegv;
         }
 
@@ -491,12 +492,12 @@ static int setup_frame32(int sig, struct k_sigaction *ka,
 		goto give_sigsegv;
 
 	/* Set up registers for signal handler */
-	regs->gprs[15] = (__u64) frame;
+	regs->gprs[15] = (__force __u64) frame;
 	regs->psw.mask |= PSW_MASK_BA;		/* force amode 31 */
-	regs->psw.addr = (__u64) ka->sa.sa_handler;
+	regs->psw.addr = (__force __u64) ka->sa.sa_handler;
 
 	regs->gprs[2] = map_signal(sig);
-	regs->gprs[3] = (__u64) &frame->sc;
+	regs->gprs[3] = (__force __u64) &frame->sc;
 
 	/* We forgot to include these in the sigcontext.
 	   To avoid breaking binary compatibility, they are passed as args. */
@@ -504,7 +505,7 @@ static int setup_frame32(int sig, struct k_sigaction *ka,
 	regs->gprs[5] = current->thread.prot_addr;
 
 	/* Place signal number on stack to allow backtrace from handler.  */
-	if (__put_user(regs->gprs[2], (int __user *) &frame->signo))
+	if (__put_user(regs->gprs[2], (int __force __user *) &frame->signo))
 		goto give_sigsegv;
 	return 0;
 
@@ -547,21 +548,21 @@ static int setup_rt_frame32(int sig, struct k_sigaction *ka, siginfo_t *info,
 	} else {
 		regs->gprs[14] = (__u64) frame->retcode;
 		err |= __put_user(S390_SYSCALL_OPCODE | __NR_rt_sigreturn,
-		                  (u16 __user *)(frame->retcode));
+				  (u16 __force __user *)(frame->retcode));
 	}
 
 	/* Set up backchain. */
-	if (__put_user(regs->gprs[15], (unsigned int __user *) frame))
+	if (__put_user(regs->gprs[15], (unsigned int __force __user *) frame))
 		goto give_sigsegv;
 
 	/* Set up registers for signal handler */
-	regs->gprs[15] = (__u64) frame;
+	regs->gprs[15] = (__force __u64) frame;
 	regs->psw.mask |= PSW_MASK_BA;		/* force amode 31 */
 	regs->psw.addr = (__u64) ka->sa.sa_handler;
 
 	regs->gprs[2] = map_signal(sig);
-	regs->gprs[3] = (__u64) &frame->info;
-	regs->gprs[4] = (__u64) &frame->uc;
+	regs->gprs[3] = (__force __u64) &frame->info;
+	regs->gprs[4] = (__force __u64) &frame->uc;
 	return 0;
 
 give_sigsegv:
