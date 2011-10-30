@@ -491,9 +491,9 @@ static void logfs_kill_sb(struct super_block *sb)
 	 * From this point on alias entries are simply dropped - and any
 	 * writes to the object store are considered bugs.
 	 */
-	super->s_flags |= LOGFS_SB_FLAG_SHUTDOWN;
 	log_super("LogFS: Now in shutdown\n");
 	generic_shutdown_super(sb);
+	super->s_flags |= LOGFS_SB_FLAG_SHUTDOWN;
 
 	BUG_ON(super->s_dirty_used_bytes || super->s_dirty_free_bytes);
 
