@@ -2261,7 +2261,11 @@ int dasd_sleep_on_immediatly(struct dasd_ccw_req *cqr)
 	cqr->callback = dasd_wakeup_cb;
 	cqr->callback_data = DASD_SLEEPON_START_TAG;
 	cqr->status = DASD_CQR_QUEUED;
-	list_add(&cqr->devlist, &device->ccw_queue);
+	/*
+	 * add new request as second
+	 * first the terminated cqr needs to be finished
+	 */
+	list_add(&cqr->devlist, device->ccw_queue.next);
 
 	/* let the bh start the request to keep them in order */
 	dasd_schedule_device_bh(device);
