@@ -2386,7 +2386,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 	new_track = 1;
 	end_idaw = 0;
 	len_to_track_end = 0;
-	idaw_dst = 0;
+	idaw_dst = NULL;
 	idaw_len = 0;
 	rq_for_each_segment(bv, req, iter) {
 		dst = page_address(bv->bv_page) + bv->bv_offset;
@@ -2448,7 +2448,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 			if (end_idaw) {
 				idaws = idal_create_words(idaws, idaw_dst,
 							  idaw_len);
-				idaw_dst = 0;
+				idaw_dst = NULL;
 				idaw_len = 0;
 				end_idaw = 0;
 			}
