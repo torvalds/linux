@@ -88,6 +88,10 @@ byte. But this time, the data is a complete word (16 bits).
 
 S Addr Wr [A] Comm [A] S Addr Rd [A] [DataLow] A [DataHigh] NA P
 
+Note the convenience function i2c_smbus_read_word_swapped is
+available for reads where the two data bytes are the other way
+around (not SMBus compliant, but very popular.)
+
 
 SMBus Write Byte:  i2c_smbus_write_byte_data()
 ==============================================
@@ -107,6 +111,10 @@ of data is written to a device, to the designated register that is
 specified through the Comm byte. 
 
 S Addr Wr [A] Comm [A] DataLow [A] DataHigh [A] P
+
+Note the convenience function i2c_smbus_write_word_swapped is
+available for writes where the two data bytes are the other way
+around (not SMBus compliant, but very popular.)
 
 
 SMBus Process Call:  i2c_smbus_process_call()
