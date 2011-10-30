@@ -149,17 +149,11 @@ static struct omap3_control_regs control_context;
 
 void __init omap2_set_globals_control(struct omap_globals *omap2_globals)
 {
-	/* Static mapping, never released */
-	if (omap2_globals->ctrl) {
-		omap2_ctrl_base = ioremap(omap2_globals->ctrl, SZ_4K);
-		WARN_ON(!omap2_ctrl_base);
-	}
+	if (omap2_globals->ctrl)
+		omap2_ctrl_base = omap2_globals->ctrl;
 
-	/* Static mapping, never released */
-	if (omap2_globals->ctrl_pad) {
-		omap4_ctrl_pad_base = ioremap(omap2_globals->ctrl_pad, SZ_4K);
-		WARN_ON(!omap4_ctrl_pad_base);
-	}
+	if (omap2_globals->ctrl_pad)
+		omap4_ctrl_pad_base = omap2_globals->ctrl_pad;
 }
 
 void __iomem *omap_ctrl_base_get(void)
