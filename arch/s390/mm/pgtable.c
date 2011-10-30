@@ -256,6 +256,9 @@ void gmap_disable(struct gmap *gmap)
 }
 EXPORT_SYMBOL_GPL(gmap_disable);
 
+/*
+ * gmap_alloc_table is assumed to be called with mmap_sem held
+ */
 static int gmap_alloc_table(struct gmap *gmap,
 			       unsigned long *table, unsigned long init)
 {
@@ -267,14 +270,12 @@ static int gmap_alloc_table(struct gmap *gmap,
 		return -ENOMEM;
 	new = (unsigned long *) page_to_phys(page);
 	crst_table_init(new, init);
-	down_read(&gmap->mm->mmap_sem);
 	if (*table & _REGION_ENTRY_INV) {
 		list_add(&page->lru, &gmap->crst_list);
 		*table = (unsigned long) new | _REGION_ENTRY_LENGTH |
 			(*table & _REGION_ENTRY_TYPE_MASK);
 	} else
 		__free_pages(page, ALLOC_ORDER);
-	up_read(&gmap->mm->mmap_sem);
 	return 0;
 }
 
