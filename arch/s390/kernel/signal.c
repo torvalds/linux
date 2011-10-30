@@ -447,8 +447,9 @@ void do_signal(struct pt_regs *regs)
 			/* fallthrough */
 			case -ERESTARTNOINTR:
 				regs->gprs[2] = regs->orig_gpr2;
-				regs->psw.addr = regs->psw.addr -
-					(regs->svc_code >> 16);
+				regs->psw.addr =
+					__rewind_psw(regs->psw,
+						     regs->svc_code >> 16);
 				break;
 			}
 			/* No longer in a system call */
