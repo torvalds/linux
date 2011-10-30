@@ -418,32 +418,6 @@ static inline int multicast_outbound(struct qdio_q *q)
 #define queue_irqs_disabled(q)			\
 	(test_bit(QDIO_QUEUE_IRQS_DISABLED, &q->u.in.queue_irq_state) != 0)
 
-#define TIQDIO_SHARED_IND		63
-
-/* device state change indicators */
-struct indicator_t {
-	u32 ind;	/* u32 because of compare-and-swap performance */
-	atomic_t count; /* use count, 0 or 1 for non-shared indicators */
-};
-
-extern struct indicator_t *q_indicators;
-
-static inline int has_multiple_inq_on_dsci(struct qdio_irq *irq)
-{
-	return irq->nr_input_qs > 1;
-}
-
-static inline int references_shared_dsci(struct qdio_irq *irq)
-{
-	return irq->dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
-}
-
-static inline int shared_ind(struct qdio_q *q)
-{
-	struct qdio_irq *i = q->irq_ptr;
-	return references_shared_dsci(i) || has_multiple_inq_on_dsci(i);
-}
-
 extern u64 last_ai_time;
 
 /* prototypes for thin interrupt */
@@ -457,7 +431,8 @@ int tiqdio_allocate_memory(void);
 void tiqdio_free_memory(void);
 int tiqdio_register_thinints(void);
 void tiqdio_unregister_thinints(void);
-
+void clear_nonshared_ind(struct qdio_irq *);
+int test_nonshared_ind(struct qdio_irq *);
 
 /* prototypes for setup */
 void qdio_inbound_processing(unsigned long data);
