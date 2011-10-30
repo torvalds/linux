@@ -66,7 +66,7 @@ read_div(struct drm_device *dev)
 }
 
 static u32
-read_pll_ref(struct drm_device *dev, u32 base)
+read_pll_src(struct drm_device *dev, u32 base)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	u32 coef, ref = read_clk(dev, clk_src_crystal);
@@ -137,21 +137,12 @@ read_pll_ref(struct drm_device *dev, u32 base)
 }
 
 static u32
-read_pll(struct drm_device *dev, u32 base)
+read_pll_ref(struct drm_device *dev, u32 base)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	u32 mast = nv_rd32(dev, 0x00c040);
-	u32 src = 0, ref = 0, clk = 0;
-	u32 ctrl, coef;
-	int N1, N2, M1, M2;
+	u32 src, mast = nv_rd32(dev, 0x00c040);
 
 	switch (base) {
 	case 0x004028:
-		if (mast & 0x00100000) {
-			/* wtf, appears to only disable post-divider on nva0 */
-			if (dev_priv->chipset != 0xa0)
-				return read_clk(dev, clk_src_dom6);
-		}
 		src = !!(mast & 0x00200000);
 		break;
 	case 0x004020:
@@ -164,22 +155,33 @@ read_pll(struct drm_device *dev, u32 base)
 		src = !!(mast & 0x02000000);
 		break;
 	case 0x00e810:
-		ref = read_clk(dev, clk_src_crystal);
-		break;
+		return read_clk(dev, clk_src_crystal);
 	default:
 		NV_ERROR(dev, "bad pll 0x%06x\n", base);
 		return 0;
 	}
 
-	if (ref == 0) {
-		if (src)
-			ref = read_clk(dev, clk_src_href);
-		else
-			ref = read_pll_ref(dev, base);
-	}
+	if (src)
+		return read_clk(dev, clk_src_href);
+	return read_pll_src(dev, base);
+}
 
-	ctrl = nv_rd32(dev, base + 0);
-	coef = nv_rd32(dev, base + 4);
+static u32
+read_pll(struct drm_device *dev, u32 base)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u32 mast = nv_rd32(dev, 0x00c040);
+	u32 ctrl = nv_rd32(dev, base + 0);
+	u32 coef = nv_rd32(dev, base + 4);
+	u32 ref = read_pll_ref(dev, base);
+	u32 clk = 0;
+	int N1, N2, M1, M2;
+
+	if (base == 0x004028 && (mast & 0x00100000)) {
+		/* wtf, appears to only disable post-divider on nva0 */
+		if (dev_priv->chipset != 0xa0)
+			return read_clk(dev, clk_src_dom6);
+	}
 
 	N2 = (coef & 0xff000000) >> 24;
 	M2 = (coef & 0x00ff0000) >> 16;
