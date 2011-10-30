@@ -3998,6 +3998,7 @@ static struct ccw_driver dasd_eckd_driver = {
 	.thaw	     = dasd_generic_restore_device,
 	.restore     = dasd_generic_restore_device,
 	.uc_handler  = dasd_generic_uc_handler,
+	.int_class   = IOINT_DAS,
 };
 
 /*
