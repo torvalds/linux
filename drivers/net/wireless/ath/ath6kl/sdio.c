@@ -45,6 +45,8 @@ struct ath6kl_sdio {
 	struct list_head scat_req;
 
 	spinlock_t scat_lock;
+	bool scatter_enabled;
+
 	bool is_disabled;
 	atomic_t irq_handling;
 	const struct sdio_device_id *id;
@@ -651,6 +653,11 @@ static void ath6kl_sdio_cleanup_scatter(struct ath6kl *ar)
 		list_del(&s_req->list);
 		spin_unlock_bh(&ar_sdio->scat_lock);
 
+		/*
+		 * FIXME: should we also call completion handler with
+		 * ath6kl_hif_rw_comp_handler() with status -ECANCELED so
+		 * that the packet is properly freed?
+		 */
 		if (s_req->busrequest)
 			ath6kl_sdio_free_bus_req(ar_sdio, s_req->busrequest);
 		kfree(s_req->virt_dma_buf);
@@ -669,6 +676,11 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar)
 	struct htc_target *target = ar->htc_target;
 	int ret;
 	bool virt_scat = false;
+
+	if (ar_sdio->scatter_enabled)
+		return 0;
+
+	ar_sdio->scatter_enabled = true;
 
 	/* check if host supports scatter and it meets our requirements */
 	if (ar_sdio->func->card->host->max_segs < MAX_SCATTER_ENTRIES_PER_REQ) {
@@ -762,6 +774,38 @@ static int ath6kl_sdio_resume(struct ath6kl *ar)
 	return 0;
 }
 
+static void ath6kl_sdio_stop(struct ath6kl *ar)
+{
+	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
+	struct bus_request *req, *tmp_req;
+	void *context;
+
+	/* FIXME: make sure that wq is not queued again */
+
+	cancel_work_sync(&ar_sdio->wr_async_work);
+
+	spin_lock_bh(&ar_sdio->wr_async_lock);
+
+	list_for_each_entry_safe(req, tmp_req, &ar_sdio->wr_asyncq, list) {
+		list_del(&req->list);
+
+		if (req->scat_req) {
+			/* this is a scatter gather request */
+			req->scat_req->status = -ECANCELED;
+			req->scat_req->complete(ar_sdio->ar->htc_target,
+						req->scat_req);
+		} else {
+			context = req->packet;
+			ath6kl_sdio_free_bus_req(ar_sdio, req);
+			ath6kl_hif_rw_comp_handler(context, -ECANCELED);
+		}
+	}
+
+	spin_unlock_bh(&ar_sdio->wr_async_lock);
+
+	WARN_ON(get_queue_depth(&ar_sdio->scat_req) != 4);
+}
+
 static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.read_write_sync = ath6kl_sdio_read_write_sync,
 	.write_async = ath6kl_sdio_write_async,
@@ -776,6 +820,7 @@ static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.resume = ath6kl_sdio_resume,
 	.power_on = ath6kl_sdio_power_on,
 	.power_off = ath6kl_sdio_power_off,
+	.stop = ath6kl_sdio_stop,
 };
 
 static int ath6kl_sdio_probe(struct sdio_func *func,

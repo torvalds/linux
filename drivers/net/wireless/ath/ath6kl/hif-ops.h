@@ -111,4 +111,11 @@ static inline int ath6kl_hif_power_off(struct ath6kl *ar)
 	return ar->hif_ops->power_off(ar);
 }
 
+static inline void ath6kl_hif_stop(struct ath6kl *ar)
+{
+	ath6kl_dbg(ATH6KL_DBG_HIF, "hif stop\n");
+
+	ar->hif_ops->stop(ar);
+}
+
 #endif
