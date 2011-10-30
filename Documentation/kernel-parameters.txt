@@ -1201,6 +1201,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[KVM,Intel] Disable FlexPriority feature (TPR shadow).
 			Default is 1 (enabled)
 
+	kvm-intel.nested=
+			[KVM,Intel] Enable VMX nesting (nVMX).
+			Default is 0 (disabled)
+
 	kvm-intel.unrestricted_guest=
 			[KVM,Intel] Disable unrestricted guest feature
 			(virtualized real and unpaged mode) on capable
