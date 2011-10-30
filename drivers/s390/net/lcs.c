@@ -1970,7 +1970,7 @@ lcs_portno_store (struct device *dev, struct device_attribute *attr, const char 
 
 static DEVICE_ATTR(portno, 0644, lcs_portno_show, lcs_portno_store);
 
-const char *lcs_type[] = {
+static const char *lcs_type[] = {
 	"not a channel",
 	"2216 parallel",
 	"2216 channel",

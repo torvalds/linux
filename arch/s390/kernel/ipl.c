@@ -276,8 +276,8 @@ static ssize_t ipl_type_show(struct kobject *kobj, struct kobj_attribute *attr,
 static struct kobj_attribute sys_ipl_type_attr = __ATTR_RO(ipl_type);
 
 /* VM IPL PARM routines */
-size_t reipl_get_ascii_vmparm(char *dest, size_t size,
-				   const struct ipl_parameter_block *ipb)
+static size_t reipl_get_ascii_vmparm(char *dest, size_t size,
+				     const struct ipl_parameter_block *ipb)
 {
 	int i;
 	size_t len;
@@ -339,8 +339,8 @@ static size_t scpdata_length(const char* buf, size_t count)
 	return count;
 }
 
-size_t reipl_append_ascii_scpdata(char *dest, size_t size,
-				  const struct ipl_parameter_block *ipb)
+static size_t reipl_append_ascii_scpdata(char *dest, size_t size,
+					 const struct ipl_parameter_block *ipb)
 {
 	size_t count;
 	size_t i;

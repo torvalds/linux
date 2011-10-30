@@ -33,7 +33,7 @@
  * The pointer to our (page) of device descriptions.
  */
 static void *kvm_devices;
-struct work_struct hotplug_work;
+static struct work_struct hotplug_work;
 
 struct kvm_device {
 	struct virtio_device vdev;

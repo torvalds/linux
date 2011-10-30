@@ -281,7 +281,7 @@ static inline int set_buf_state(struct qdio_q *q, int bufnr,
 }
 
 /* set slsb states to initial state */
-void qdio_init_buf_states(struct qdio_irq *irq_ptr)
+static void qdio_init_buf_states(struct qdio_irq *irq_ptr)
 {
 	struct qdio_q *q;
 	int i;

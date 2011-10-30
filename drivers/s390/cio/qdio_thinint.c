@@ -29,7 +29,7 @@
 
 /* list of thin interrupt input queues */
 static LIST_HEAD(tiq_list);
-DEFINE_MUTEX(tiq_list_lock);
+static DEFINE_MUTEX(tiq_list_lock);
 
 /* adapter local summary indicator */
 static u8 *tiqdio_alsi;
