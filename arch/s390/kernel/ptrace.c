@@ -42,6 +42,7 @@ enum s390_regset {
 	REGSET_GENERAL,
 	REGSET_FP,
 	REGSET_LAST_BREAK,
+	REGSET_SYSTEM_CALL,
 	REGSET_GENERAL_EXTENDED,
 };
 
@@ -303,6 +304,13 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 			   high order bit but older gdb's rely on it */
 			data |= PSW_ADDR_AMODE;
 #endif
+		if (addr == (addr_t) &dummy->regs.psw.addr)
+			/*
+			 * The debugger changed the instruction address,
+			 * reset system call restart, see signal.c:do_signal
+			 */
+			task_thread_info(child)->system_call = 0;
+
 		*(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr) = data;
 
 	} else if (addr < (addr_t) (&dummy->regs.orig_gpr2)) {
@@ -610,6 +618,11 @@ static int __poke_user_compat(struct task_struct *child,
 			/* Build a 64 bit psw address from 31 bit address. */
 			task_pt_regs(child)->psw.addr =
 				(__u64) tmp & PSW32_ADDR_INSN;
+			/*
+			 * The debugger changed the instruction address,
+			 * reset system call restart, see signal.c:do_signal
+			 */
+			task_thread_info(child)->system_call = 0;
 		} else {
 			/* gpr 0-15 */
 			*(__u32*)((addr_t) &task_pt_regs(child)->psw
@@ -737,7 +750,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		 * debugger stored an invalid system call number. Skip
 		 * the system call and the system call restart handling.
 		 */
-		regs->svcnr = 0;
+		regs->svc_code = 0;
 		ret = -1;
 	}
 
@@ -899,6 +912,26 @@ static int s390_last_break_get(struct task_struct *target,
 
 #endif
 
+static int s390_system_call_get(struct task_struct *target,
+				const struct user_regset *regset,
+				unsigned int pos, unsigned int count,
+				void *kbuf, void __user *ubuf)
+{
+	unsigned int *data = &task_thread_info(target)->system_call;
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   data, 0, sizeof(unsigned int));
+}
+
+static int s390_system_call_set(struct task_struct *target,
+				const struct user_regset *regset,
+				unsigned int pos, unsigned int count,
+				const void *kbuf, const void __user *ubuf)
+{
+	unsigned int *data = &task_thread_info(target)->system_call;
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  data, 0, sizeof(unsigned int));
+}
+
 static const struct user_regset s390_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
@@ -925,6 +958,14 @@ static const struct user_regset s390_regsets[] = {
 		.get = s390_last_break_get,
 	},
 #endif
+	[REGSET_SYSTEM_CALL] = {
+		.core_note_type = NT_S390_SYSTEM_CALL,
+		.n = 1,
+		.size = sizeof(unsigned int),
+		.align = sizeof(unsigned int),
+		.get = s390_system_call_get,
+		.set = s390_system_call_set,
+	},
 };
 
 static const struct user_regset_view user_s390_view = {
@@ -1103,6 +1144,14 @@ static const struct user_regset s390_compat_regsets[] = {
 		.size = sizeof(long),
 		.align = sizeof(long),
 		.get = s390_compat_last_break_get,
+	},
+	[REGSET_SYSTEM_CALL] = {
+		.core_note_type = NT_S390_SYSTEM_CALL,
+		.n = 1,
+		.size = sizeof(compat_uint_t),
+		.align = sizeof(compat_uint_t),
+		.get = s390_system_call_get,
+		.set = s390_system_call_set,
 	},
 	[REGSET_GENERAL_EXTENDED] = {
 		.core_note_type = NT_S390_HIGH_GPRS,

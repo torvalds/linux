@@ -43,8 +43,7 @@ SP_R13	     =	STACK_FRAME_OVERHEAD + __PT_GPRS + 52
 SP_R14	     =	STACK_FRAME_OVERHEAD + __PT_GPRS + 56
 SP_R15	     =	STACK_FRAME_OVERHEAD + __PT_GPRS + 60
 SP_ORIG_R2   =	STACK_FRAME_OVERHEAD + __PT_ORIG_GPR2
-SP_ILC	     =	STACK_FRAME_OVERHEAD + __PT_ILC
-SP_SVCNR     =	STACK_FRAME_OVERHEAD + __PT_SVCNR
+SP_SVC_CODE  =	STACK_FRAME_OVERHEAD + __PT_SVC_CODE
 SP_SIZE      =	STACK_FRAME_OVERHEAD + __PT_SIZE
 
 _TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
@@ -229,7 +228,7 @@ sysc_saveall:
 	SAVE_ALL_SVC __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 	CREATE_STACK_FRAME __LC_SAVE_AREA
 	mvc	SP_PSW(8,%r15),__LC_SVC_OLD_PSW
-	mvc	SP_ILC(4,%r15),__LC_SVC_ILC
+	mvc	SP_SVC_CODE(4,%r15),__LC_SVC_ILC
 	l	%r12,__LC_THREAD_INFO	# load pointer to thread_info struct
 sysc_vtime:
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_SYNC_ENTER_TIMER,__LC_USER_TIMER
@@ -239,12 +238,12 @@ sysc_update:
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
 sysc_do_svc:
 	xr	%r7,%r7
-	icm	%r7,3,SP_SVCNR(%r15)	# load svc number and test for svc 0
+	icm	%r7,3,SP_SVC_CODE+2(%r15)# load svc number and test for svc 0
 	bnz	BASED(sysc_nr_ok)	# svc number > 0
 	# svc 0: system call number in %r1
 	cl	%r1,BASED(.Lnr_syscalls)
 	bnl	BASED(sysc_nr_ok)
-	sth	%r1,SP_SVCNR(%r15)
+	sth	%r1,SP_SVC_CODE+2(%r15)
 	lr	%r7,%r1 	  # copy svc number to %r7
 sysc_nr_ok:
 	sll	%r7,2		  # svc number *4
@@ -335,10 +334,11 @@ sysc_notify_resume:
 #
 sysc_restart:
 	ni	__TI_flags+3(%r12),255-_TIF_RESTART_SVC # clear TIF_RESTART_SVC
-	l	%r7,SP_R2(%r15) 	# load new svc number
-	mvc	SP_R2(4,%r15),SP_ORIG_R2(%r15) # restore first argument
 	lm	%r2,%r6,SP_R2(%r15)	# load svc arguments
-	sth	%r7,SP_SVCNR(%r15)
+	xr	%r7,%r7			# svc 0 returns -ENOSYS
+	clc	SP_SVC_CODE+2(%r15),BASED(.Lnr_syscalls+2)
+	bnl	BASED(sysc_nr_ok)	# invalid svc number -> do svc 0
+	icm	%r7,3,SP_SVC_CODE+2(%r15)# load new svc number
 	b	BASED(sysc_nr_ok)	# restart svc
 
 #
@@ -346,7 +346,7 @@ sysc_restart:
 #
 sysc_singlestep:
 	ni	__TI_flags+3(%r12),255-_TIF_PER_TRAP # clear TIF_PER_TRAP
-	xc	SP_SVCNR(2,%r15),SP_SVCNR(%r15)		# clear svc number
+	xc	SP_SVC_CODE(4,%r15),SP_SVC_CODE(%r15)	# clear svc code
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	l	%r1,BASED(.Lhandle_per)	# load adr. of per handler
 	la	%r14,BASED(sysc_return)	# load adr. of system return
@@ -361,7 +361,7 @@ sysc_tracesys:
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	la	%r3,0
 	xr	%r0,%r0
-	icm	%r0,3,SP_SVCNR(%r15)
+	icm	%r0,3,SP_SVC_CODE(%r15)
 	st	%r0,SP_R2(%r15)
 	basr	%r14,%r1
 	cl	%r2,BASED(.Lnr_syscalls)
@@ -454,7 +454,7 @@ ENTRY(pgm_check_handler)
 	bnz	BASED(pgm_per)		# got per exception -> special case
 	SAVE_ALL_PGM __LC_PGM_OLD_PSW,__LC_SAVE_AREA
 	CREATE_STACK_FRAME __LC_SAVE_AREA
-	xc	SP_ILC(4,%r15),SP_ILC(%r15)
+	xc	SP_SVC_CODE(4,%r15),SP_SVC_CODE(%r15)
 	mvc	SP_PSW(8,%r15),__LC_PGM_OLD_PSW
 	l	%r12,__LC_THREAD_INFO	# load pointer to thread_info struct
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
@@ -531,7 +531,7 @@ pgm_svcper:
 	SAVE_ALL_PGM __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 	CREATE_STACK_FRAME __LC_SAVE_AREA
 	mvc	SP_PSW(8,%r15),__LC_SVC_OLD_PSW
-	mvc	SP_ILC(4,%r15),__LC_SVC_ILC
+	mvc	SP_SVC_CODE(4,%r15),__LC_SVC_ILC
 	l	%r12,__LC_THREAD_INFO	# load pointer to thread_info struct
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_SYNC_ENTER_TIMER,__LC_USER_TIMER
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
@@ -550,7 +550,7 @@ pgm_svcper:
 #
 kernel_per:
 	REENABLE_IRQS
-	xc	SP_SVCNR(2,%r15),SP_SVCNR(%r15)
+	xc	SP_SVC_CODE(4,%r15),SP_SVC_CODE(%r15)
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	l	%r1,BASED(.Lhandle_per)	# load adr. of per handler
 	basr	%r14,%r1		# branch to do_single_step
@@ -966,7 +966,7 @@ cleanup_system_call:
 	st	%r15,12(%r12)
 	CREATE_STACK_FRAME __LC_SAVE_AREA
 	mvc	SP_PSW(8,%r15),__LC_SVC_OLD_PSW
-	mvc	SP_ILC(4,%r15),__LC_SVC_ILC
+	mvc	SP_SVC_CODE(4,%r15),__LC_SVC_ILC
 	mvc	0(4,%r12),__LC_THREAD_INFO
 cleanup_vtime:
 	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn+12)

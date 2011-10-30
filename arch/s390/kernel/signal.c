@@ -30,6 +30,7 @@
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/lowcore.h>
+#include <asm/compat.h>
 #include "entry.h"
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
@@ -156,7 +157,7 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	current->thread.fp_regs.fpc &= FPC_VALID_MASK;
 
 	restore_fp_regs(&current->thread.fp_regs);
-	regs->svcnr = 0;	/* disable syscall checks */
+	regs->svc_code = 0;	/* disable syscall checks */
 	return 0;
 }
 
@@ -401,7 +402,6 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
  */
 void do_signal(struct pt_regs *regs)
 {
-	unsigned long retval = 0, continue_addr = 0, restart_addr = 0;
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
@@ -421,54 +421,43 @@ void do_signal(struct pt_regs *regs)
 	else
 		oldset = &current->blocked;
 
-	/* Are we from a system call? */
-	if (regs->svcnr) {
-		continue_addr = regs->psw.addr;
-		restart_addr = continue_addr - regs->ilc;
-		retval = regs->gprs[2];
-
-		/* Prepare for system call restart.  We do this here so that a
-		   debugger will see the already changed PSW. */
-		switch (retval) {
-		case -ERESTARTNOHAND:
-		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
-			regs->gprs[2] = regs->orig_gpr2;
-			regs->psw.addr = restart_addr;
-			break;
-		case -ERESTART_RESTARTBLOCK:
-			regs->gprs[2] = -EINTR;
-		}
-		regs->svcnr = 0;	/* Don't deal with this again. */
-	}
-
-	/* Get signal to deliver.  When running under ptrace, at this point
-	   the debugger may change all our registers ... */
+	/*
+	 * Get signal to deliver. When running under ptrace, at this point
+	 * the debugger may change all our registers, including the system
+	 * call information.
+	 */
+	current_thread_info()->system_call = regs->svc_code;
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-
-	/* Depending on the signal settings we may need to revert the
-	   decision to restart the system call. */
-	if (signr > 0 && regs->psw.addr == restart_addr) {
-		if (retval == -ERESTARTNOHAND
-		    || (retval == -ERESTARTSYS
-			 && !(current->sighand->action[signr-1].sa.sa_flags
-			      & SA_RESTART))) {
-			regs->gprs[2] = -EINTR;
-			regs->psw.addr = continue_addr;
-		}
-	}
+	regs->svc_code = current_thread_info()->system_call;
 
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		int ret;
-#ifdef CONFIG_COMPAT
-		if (is_compat_task()) {
-			ret = handle_signal32(signr, &ka, &info, oldset, regs);
-	        }
-		else
-#endif
-			ret = handle_signal(signr, &ka, &info, oldset, regs);
-		if (!ret) {
+		if (regs->svc_code > 0) {
+			/* Check for system call restarting. */
+			switch (regs->gprs[2]) {
+			case -ERESTART_RESTARTBLOCK:
+			case -ERESTARTNOHAND:
+				regs->gprs[2] = -EINTR;
+				break;
+			case -ERESTARTSYS:
+				if (!(ka.sa.sa_flags & SA_RESTART)) {
+					regs->gprs[2] = -EINTR;
+					break;
+				}
+			/* fallthrough */
+			case -ERESTARTNOINTR:
+				regs->gprs[2] = regs->orig_gpr2;
+				regs->psw.addr = regs->psw.addr -
+					(regs->svc_code >> 16);
+				break;
+			}
+			/* No longer in a system call */
+			regs->svc_code = 0;
+		}
+
+		if ((is_compat_task() ?
+		     handle_signal32(signr, &ka, &info, oldset, regs) :
+		     handle_signal(signr, &ka, &info, oldset, regs)) == 0) {
 			/*
 			 * A signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,
@@ -482,9 +471,26 @@ void do_signal(struct pt_regs *regs)
 			 * Let tracing know that we've done the handler setup.
 			 */
 			tracehook_signal_handler(signr, &info, &ka, regs,
-					test_thread_flag(TIF_SINGLE_STEP));
+					 test_thread_flag(TIF_SINGLE_STEP));
 		}
 		return;
+	}
+
+	/* No handlers present - check for system call restart */
+	if (regs->svc_code > 0) {
+		switch (regs->gprs[2]) {
+		case -ERESTART_RESTARTBLOCK:
+			/* Restart with sys_restart_syscall */
+			regs->svc_code = __NR_restart_syscall;
+		/* fallthrough */
+		case -ERESTARTNOHAND:
+		case -ERESTARTSYS:
+		case -ERESTARTNOINTR:
+			/* Restart system call with magic TIF bit. */
+			regs->gprs[2] = regs->orig_gpr2;
+			set_thread_flag(TIF_RESTART_SVC);
+			break;
+		}
 	}
 
 	/*
@@ -493,13 +499,6 @@ void do_signal(struct pt_regs *regs)
 	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
-
-	/* Restart a different system call. */
-	if (retval == -ERESTART_RESTARTBLOCK
-	    && regs->psw.addr == continue_addr) {
-		regs->gprs[2] = __NR_restart_syscall;
-		set_thread_flag(TIF_RESTART_SVC);
 	}
 }
 

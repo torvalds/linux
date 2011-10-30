@@ -48,6 +48,7 @@ struct thread_info {
 	unsigned int		cpu;		/* current CPU */
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	struct restart_block	restart_block;
+	unsigned int		system_call;
 	__u64			user_timer;
 	__u64			system_timer;
 	unsigned long		last_break;	/* last breaking-event-address. */
