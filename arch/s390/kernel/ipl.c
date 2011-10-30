@@ -27,6 +27,7 @@
 #include <asm/sclp.h>
 #include <asm/sigp.h>
 #include <asm/checksum.h>
+#include "entry.h"
 
 #define IPL_PARM_BLOCK_VERSION 0
 
