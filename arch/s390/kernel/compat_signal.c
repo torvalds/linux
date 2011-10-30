@@ -213,16 +213,8 @@ sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
 		ret = get_user(sa_handler, &act->sa_handler);
 		ret |= __copy_from_user(&set32, &act->sa_mask,
 					sizeof(compat_sigset_t));
-		switch (_NSIG_WORDS) {
-		case 4: new_ka.sa.sa_mask.sig[3] = set32.sig[6]
-				| (((long)set32.sig[7]) << 32);
-		case 3: new_ka.sa.sa_mask.sig[2] = set32.sig[4]
-				| (((long)set32.sig[5]) << 32);
-		case 2: new_ka.sa.sa_mask.sig[1] = set32.sig[2]
-				| (((long)set32.sig[3]) << 32);
-		case 1: new_ka.sa.sa_mask.sig[0] = set32.sig[0]
-				| (((long)set32.sig[1]) << 32);
-		}
+		new_ka.sa.sa_mask.sig[0] =
+			set32.sig[0] | (((long)set32.sig[1]) << 32);
 		ret |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
 		
 		if (ret)
@@ -233,20 +225,8 @@ sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		switch (_NSIG_WORDS) {
-		case 4:
-			set32.sig[7] = (old_ka.sa.sa_mask.sig[3] >> 32);
-			set32.sig[6] = old_ka.sa.sa_mask.sig[3];
-		case 3:
-			set32.sig[5] = (old_ka.sa.sa_mask.sig[2] >> 32);
-			set32.sig[4] = old_ka.sa.sa_mask.sig[2];
-		case 2:
-			set32.sig[3] = (old_ka.sa.sa_mask.sig[1] >> 32);
-			set32.sig[2] = old_ka.sa.sa_mask.sig[1];
-		case 1:
-			set32.sig[1] = (old_ka.sa.sa_mask.sig[0] >> 32);
-			set32.sig[0] = old_ka.sa.sa_mask.sig[0];
-		}
+		set32.sig[1] = (old_ka.sa.sa_mask.sig[0] >> 32);
+		set32.sig[0] = old_ka.sa.sa_mask.sig[0];
 		ret = put_user((unsigned long)old_ka.sa.sa_handler, &oact->sa_handler);
 		ret |= __copy_to_user(&oact->sa_mask, &set32,
 				      sizeof(compat_sigset_t));
