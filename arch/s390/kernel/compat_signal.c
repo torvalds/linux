@@ -302,7 +302,8 @@ static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
 
 	regs32.psw.mask = psw32_user_bits |
 		((__u32)(regs->psw.mask >> 32) & PSW32_MASK_USER);
-	regs32.psw.addr = PSW32_ADDR_AMODE | (__u32) regs->psw.addr;
+	regs32.psw.addr = (__u32) regs->psw.addr |
+		(__u32)(regs->psw.mask & PSW_MASK_BA);
 	for (i = 0; i < NUM_GPRS; i++)
 		regs32.gprs[i] = (__u32) regs->gprs[i];
 	save_access_regs(current->thread.acrs);
@@ -328,7 +329,8 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 	if (err)
 		return err;
 	regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
-		(__u64)(regs32.psw.mask & PSW32_MASK_USER) << 32;
+		(__u64)(regs32.psw.mask & PSW32_MASK_USER) << 32 |
+		(__u64)(regs32.psw.addr & PSW32_ADDR_AMODE);
 	regs->psw.addr = (__u64)(regs32.psw.addr & PSW32_ADDR_INSN);
 	for (i = 0; i < NUM_GPRS; i++)
 		regs->gprs[i] = (__u64) regs32.gprs[i];
@@ -496,9 +498,9 @@ static int setup_frame32(int sig, struct k_sigaction *ka,
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
 	if (ka->sa.sa_flags & SA_RESTORER) {
-		regs->gprs[14] = (__u64) ka->sa.sa_restorer;
+		regs->gprs[14] = (__u64) ka->sa.sa_restorer | PSW32_ADDR_AMODE;
 	} else {
-		regs->gprs[14] = (__u64) frame->retcode;
+		regs->gprs[14] = (__u64) frame->retcode | PSW32_ADDR_AMODE;
 		if (__put_user(S390_SYSCALL_OPCODE | __NR_sigreturn,
 		               (u16 __user *)(frame->retcode)))
 			goto give_sigsegv;
@@ -510,6 +512,7 @@ static int setup_frame32(int sig, struct k_sigaction *ka,
 
 	/* Set up registers for signal handler */
 	regs->gprs[15] = (__u64) frame;
+	regs->psw.mask |= PSW_MASK_BA;		/* force amode 31 */
 	regs->psw.addr = (__u64) ka->sa.sa_handler;
 
 	regs->gprs[2] = map_signal(sig);
@@ -573,6 +576,7 @@ static int setup_rt_frame32(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Set up registers for signal handler */
 	regs->gprs[15] = (__u64) frame;
+	regs->psw.mask |= PSW_MASK_BA;		/* force amode 31 */
 	regs->psw.addr = (__u64) ka->sa.sa_handler;
 
 	regs->gprs[2] = map_signal(sig);

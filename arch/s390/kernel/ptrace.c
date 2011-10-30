@@ -170,8 +170,7 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 		tmp = *(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr);
 		if (addr == (addr_t) &dummy->regs.psw.mask)
 			/* Return a clean psw mask. */
-			tmp = psw_user_bits | (tmp & PSW_MASK_USER) |
-				PSW_MASK_EA | PSW_MASK_BA;
+			tmp = psw_user_bits | (tmp & PSW_MASK_USER);
 
 	} else if (addr < (addr_t) &dummy->regs.orig_gpr2) {
 		/*
@@ -286,26 +285,17 @@ static inline void __poke_user_per(struct task_struct *child,
 static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 {
 	struct user *dummy = NULL;
-	addr_t offset, tmp;
+	addr_t offset;
 
 	if (addr < (addr_t) &dummy->regs.acrs) {
 		/*
 		 * psw and gprs are stored on the stack
 		 */
-		tmp = (data & ~PSW_MASK_USER) ^ psw_user_bits;
 		if (addr == (addr_t) &dummy->regs.psw.mask &&
-#ifdef CONFIG_COMPAT
-		    tmp != PSW_MASK_BA &&
-#endif
-		    tmp != (PSW_MASK_EA | PSW_MASK_BA))
+		    ((data & ~PSW_MASK_USER) != psw_user_bits ||
+		     ((data & PSW_MASK_EA) && !(data & PSW_MASK_BA))))
 			/* Invalid psw mask. */
 			return -EINVAL;
-#ifndef CONFIG_64BIT
-		if (addr == (addr_t) &dummy->regs.psw.addr)
-			/* I'd like to reject addresses without the
-			   high order bit but older gdb's rely on it */
-			data |= PSW_ADDR_AMODE;
-#endif
 		if (addr == (addr_t) &dummy->regs.psw.addr)
 			/*
 			 * The debugger changed the instruction address,
@@ -517,7 +507,8 @@ static u32 __peek_user_compat(struct task_struct *child, addr_t addr)
 			tmp = psw32_user_bits | (tmp & PSW32_MASK_USER);
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Fake a 31 bit psw address. */
-			tmp = (__u32) regs->psw.addr | PSW32_ADDR_AMODE;
+			tmp = (__u32) regs->psw.addr |
+				(__u32)(regs->psw.mask & PSW_MASK_BA);
 		} else {
 			/* gpr 0-15 */
 			tmp = *(__u32 *)((addr_t) &regs->psw + addr*2 + 4);
@@ -615,10 +606,14 @@ static int __poke_user_compat(struct task_struct *child,
 				/* Invalid psw mask. */
 				return -EINVAL;
 			regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
+				(regs->psw.mask & PSW_MASK_BA) |
 				(__u64)(tmp & PSW32_MASK_USER) << 32;
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Build a 64 bit psw address from 31 bit address. */
 			regs->psw.addr = (__u64) tmp & PSW32_ADDR_INSN;
+			/* Transfer 31 bit amode bit to psw mask. */
+			regs->psw.mask = (regs->psw.mask & ~PSW_MASK_BA) |
+				(__u64)(tmp & PSW32_ADDR_AMODE);
 			/*
 			 * The debugger changed the instruction address,
 			 * reset system call restart, see signal.c:do_signal
