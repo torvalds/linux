@@ -36,6 +36,9 @@
 /* Allocate one page for the pdp and the second for the code */
 #define KEXEC_CONTROL_PAGE_SIZE 4096
 
+/* Alignment of crashkernel memory */
+#define KEXEC_CRASH_MEM_ALIGN HPAGE_SIZE
+
 /* The native architecture */
 #define KEXEC_ARCH KEXEC_ARCH_S390
 

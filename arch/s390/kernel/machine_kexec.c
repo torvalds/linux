@@ -133,6 +133,37 @@ static int kdump_csum_valid(struct kimage *image)
 }
 
 /*
+ * Map or unmap crashkernel memory
+ */
+static void crash_map_pages(int enable)
+{
+	unsigned long size = resource_size(&crashk_res);
+
+	BUG_ON(crashk_res.start % KEXEC_CRASH_MEM_ALIGN ||
+	       size % KEXEC_CRASH_MEM_ALIGN);
+	if (enable)
+		vmem_add_mapping(crashk_res.start, size);
+	else
+		vmem_remove_mapping(crashk_res.start, size);
+}
+
+/*
+ * Map crashkernel memory
+ */
+void crash_map_reserved_pages(void)
+{
+	crash_map_pages(1);
+}
+
+/*
+ * Unmap crashkernel memory
+ */
+void crash_unmap_reserved_pages(void)
+{
+	crash_map_pages(0);
+}
+
+/*
  * Give back memory to hypervisor before new kdump is loaded
  */
 static int machine_kexec_prepare_kdump(void)

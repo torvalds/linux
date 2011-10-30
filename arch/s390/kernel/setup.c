@@ -446,6 +446,7 @@ static void __init setup_resources(void)
 		res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
 		switch (memory_chunk[i].type) {
 		case CHUNK_READ_WRITE:
+		case CHUNK_CRASHK:
 			res->name = "System RAM";
 			break;
 		case CHUNK_READ_ONLY:
@@ -720,8 +721,8 @@ static void __init reserve_crashkernel(void)
 			       &crash_base);
 	if (rc || crash_size == 0)
 		return;
-	crash_base = PAGE_ALIGN(crash_base);
-	crash_size = PAGE_ALIGN(crash_size);
+	crash_base = ALIGN(crash_base, KEXEC_CRASH_MEM_ALIGN);
+	crash_size = ALIGN(crash_size, KEXEC_CRASH_MEM_ALIGN);
 	if (register_memory_notifier(&kdump_mem_nb))
 		return;
 	if (!crash_base)
@@ -741,7 +742,7 @@ static void __init reserve_crashkernel(void)
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;
 	insert_resource(&iomem_resource, &crashk_res);
-	reserve_kdump_bootmem(crash_base, crash_size, CHUNK_READ_WRITE);
+	reserve_kdump_bootmem(crash_base, crash_size, CHUNK_CRASHK);
 	pr_info("Reserving %lluMB of memory at %lluMB "
 		"for crashkernel (System RAM: %luMB)\n",
 		crash_size >> 20, crash_base >> 20, memory_end >> 20);
@@ -816,7 +817,8 @@ setup_memory(void)
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
 		unsigned long start_chunk, end_chunk, pfn;
 
-		if (memory_chunk[i].type != CHUNK_READ_WRITE)
+		if (memory_chunk[i].type != CHUNK_READ_WRITE &&
+		    memory_chunk[i].type != CHUNK_CRASHK)
 			continue;
 		start_chunk = PFN_DOWN(memory_chunk[i].addr);
 		end_chunk = start_chunk + PFN_DOWN(memory_chunk[i].size);
