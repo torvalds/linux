@@ -853,13 +853,13 @@ restart_go:
 # PSW restart interrupt handler
 #
 ENTRY(psw_restart_int_handler)
-	st	%r15,__LC_SAVE_AREA_64(%r0)	# save r15
+	st	%r15,__LC_SAVE_AREA+48(%r0)	# save r15
 	basr	%r15,0
 0:	l	%r15,.Lrestart_stack-0b(%r15)	# load restart stack
 	l	%r15,0(%r15)
 	ahi	%r15,-SP_SIZE			# make room for pt_regs
 	stm	%r0,%r14,SP_R0(%r15)		# store gprs %r0-%r14 to stack
-	mvc	SP_R15(4,%r15),__LC_SAVE_AREA_64(%r0)# store saved %r15 to stack
+	mvc	SP_R15(4,%r15),__LC_SAVE_AREA+48(%r0)# store saved %r15 to stack
 	mvc	SP_PSW(8,%r15),__LC_RST_OLD_PSW(%r0) # store restart old psw
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # set backchain to 0
 	basr	%r14,0
