@@ -609,7 +609,7 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 	struct vis_info *info = bat_priv->my_vis_info;
 	struct vis_packet *packet = (struct vis_packet *)info->skb_packet->data;
 	struct vis_info_entry *entry;
-	struct tt_local_entry *tt_local_entry;
+	struct tt_common_entry *tt_common_entry;
 	int best_tq = -1;
 	uint32_t i;
 
@@ -672,13 +672,13 @@ next:
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(tt_local_entry, node, head,
+		hlist_for_each_entry_rcu(tt_common_entry, node, head,
 					 hash_entry) {
 			entry = (struct vis_info_entry *)
 					skb_put(info->skb_packet,
 						sizeof(*entry));
 			memset(entry->src, 0, ETH_ALEN);
-			memcpy(entry->dest, tt_local_entry->addr, ETH_ALEN);
+			memcpy(entry->dest, tt_common_entry->addr, ETH_ALEN);
 			entry->quality = 0; /* 0 means TT */
 			packet->entries++;
 
