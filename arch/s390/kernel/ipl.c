@@ -1738,6 +1738,7 @@ static struct kobj_attribute on_restart_attr =
 
 void do_restart(void)
 {
+	smp_restart_with_online_cpu();
 	smp_send_stop();
 	on_restart_trigger.action->fn(&on_restart_trigger);
 	stop_run(&on_restart_trigger);

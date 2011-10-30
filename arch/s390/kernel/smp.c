@@ -97,6 +97,29 @@ static inline int cpu_stopped(int cpu)
 	return raw_cpu_stopped(cpu_logical_map(cpu));
 }
 
+/*
+ * Ensure that PSW restart is done on an online CPU
+ */
+void smp_restart_with_online_cpu(void)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		if (stap() == __cpu_logical_map[cpu]) {
+			/* We are online: Enable DAT again and return */
+			__load_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK);
+			return;
+		}
+	}
+	/* We are not online: Do PSW restart on an online CPU */
+	while (sigp(cpu, sigp_restart) == sigp_busy)
+		cpu_relax();
+	/* And stop ourself */
+	while (raw_sigp(stap(), sigp_stop) == sigp_busy)
+		cpu_relax();
+	for (;;);
+}
+
 void smp_switch_to_ipl_cpu(void (*func)(void *), void *data)
 {
 	struct _lowcore *lc, *current_lc;
