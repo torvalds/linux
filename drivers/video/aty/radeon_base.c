@@ -845,16 +845,16 @@ static int radeonfb_pan_display (struct fb_var_screeninfo *var,
 {
         struct radeonfb_info *rinfo = info->par;
 
-        if ((var->xoffset + var->xres > var->xres_virtual)
-	    || (var->yoffset + var->yres > var->yres_virtual))
-               return -EINVAL;
+	if ((var->xoffset + info->var.xres > info->var.xres_virtual)
+	    || (var->yoffset + info->var.yres > info->var.yres_virtual))
+		return -EINVAL;
                 
         if (rinfo->asleep)
         	return 0;
 
 	radeon_fifo_wait(2);
-        OUTREG(CRTC_OFFSET, ((var->yoffset * var->xres_virtual + var->xoffset)
-			     * var->bits_per_pixel / 8) & ~7);
+	OUTREG(CRTC_OFFSET, (var->yoffset * info->fix.line_length +
+			     var->xoffset * info->var.bits_per_pixel / 8) & ~7);
         return 0;
 }
 

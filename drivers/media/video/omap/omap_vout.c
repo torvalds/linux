@@ -400,7 +400,6 @@ static int omapvid_setup_overlay(struct omap_vout_device *vout,
 
 	ovl->get_overlay_info(ovl, &info);
 	info.paddr = addr;
-	info.vaddr = NULL;
 	info.width = cropwidth;
 	info.height = cropheight;
 	info.color_mode = vout->dss_mode;
@@ -1165,12 +1164,17 @@ static int vidioc_try_fmt_vid_overlay(struct file *file, void *fh,
 {
 	int ret = 0;
 	struct omap_vout_device *vout = fh;
+	struct omap_overlay *ovl;
+	struct omapvideo_info *ovid;
 	struct v4l2_window *win = &f->fmt.win;
+
+	ovid = &vout->vid_info;
+	ovl = ovid->overlays[0];
 
 	ret = omap_vout_try_window(&vout->fbuf, win);
 
 	if (!ret) {
-		if (vout->vid == OMAP_VIDEO1)
+		if ((ovl->caps & OMAP_DSS_OVL_CAP_GLOBAL_ALPHA) == 0)
 			win->global_alpha = 255;
 		else
 			win->global_alpha = f->fmt.win.global_alpha;
@@ -1194,8 +1198,8 @@ static int vidioc_s_fmt_vid_overlay(struct file *file, void *fh,
 
 	ret = omap_vout_new_window(&vout->crop, &vout->win, &vout->fbuf, win);
 	if (!ret) {
-		/* Video1 plane does not support global alpha */
-		if (ovl->id == OMAP_DSS_VIDEO1)
+		/* Video1 plane does not support global alpha on OMAP3 */
+		if ((ovl->caps & OMAP_DSS_OVL_CAP_GLOBAL_ALPHA) == 0)
 			vout->win.global_alpha = 255;
 		else
 			vout->win.global_alpha = f->fmt.win.global_alpha;
@@ -1788,7 +1792,9 @@ static int vidioc_s_fbuf(struct file *file, void *fh,
 	if (ovl->manager && ovl->manager->get_manager_info &&
 			ovl->manager->set_manager_info) {
 		ovl->manager->get_manager_info(ovl->manager, &info);
-		info.alpha_enabled = enable;
+		/* enable this only if there is no zorder cap */
+		if ((ovl->caps & OMAP_DSS_OVL_CAP_ZORDER) == 0)
+			info.partial_alpha_enabled = enable;
 		if (ovl->manager->set_manager_info(ovl->manager, &info))
 			return -EINVAL;
 	}
@@ -1820,7 +1826,7 @@ static int vidioc_g_fbuf(struct file *file, void *fh,
 	}
 	if (ovl->manager && ovl->manager->get_manager_info) {
 		ovl->manager->get_manager_info(ovl->manager, &info);
-		if (info.alpha_enabled)
+		if (info.partial_alpha_enabled)
 			a->flags |= V4L2_FBUF_FLAG_LOCAL_ALPHA;
 	}
 

@@ -1300,27 +1300,17 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	return 0;
 }
 
-static int XGIfb_pan_var(struct xgifb_video_info *xgifb_info,
-			 struct fb_var_screeninfo *var)
+static int XGIfb_pan_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
+	struct xgifb_video_info *xgifb_info = info->par;
 	unsigned int base;
 
 	/* printk("Inside pan_var"); */
 
-	if (var->xoffset > (var->xres_virtual - var->xres)) {
-		/* printk("Pan: xo: %d xv %d xr %d\n",
-			var->xoffset, var->xres_virtual, var->xres); */
-		return -EINVAL;
-	}
-	if (var->yoffset > (var->yres_virtual - var->yres)) {
-		/* printk("Pan: yo: %d yv %d yr %d\n",
-			var->yoffset, var->yres_virtual, var->yres); */
-		return -EINVAL;
-	}
-	base = var->yoffset * var->xres_virtual + var->xoffset;
+	base = var->yoffset * info->var.xres_virtual + var->xoffset;
 
 	/* calculate base bpp dep. */
-	switch (var->bits_per_pixel) {
+	switch (info->var.bits_per_pixel) {
 	case 16:
 		base >>= 1;
 		break;
@@ -1615,13 +1605,12 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 		struct fb_info *info)
 {
 	int err;
-	struct xgifb_video_info *xgifb_info = info->par;
 
 	/* printk("\nInside pan_display:\n"); */
 
-	if (var->xoffset > (var->xres_virtual - var->xres))
+	if (var->xoffset > (info->var.xres_virtual - info->var.xres))
 		return -EINVAL;
-	if (var->yoffset > (var->yres_virtual - var->yres))
+	if (var->yoffset > (info->var.yres_virtual - info->var.yres))
 		return -EINVAL;
 
 	if (var->vmode & FB_VMODE_YWRAP) {
@@ -1634,7 +1623,7 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 						> info->var.yres_virtual)
 			return -EINVAL;
 	}
-	err = XGIfb_pan_var(xgifb_info, var);
+	err = XGIfb_pan_var(var, info);
 	if (err < 0)
 		return err;
 
