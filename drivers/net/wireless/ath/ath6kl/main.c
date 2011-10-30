@@ -1147,7 +1147,6 @@ static int ath6kl_close(struct net_device *dev)
 					      0, 0, 0, 0, 0, 0, 0, 0, 0))
 			return -EIO;
 
-		clear_bit(WLAN_ENABLED, &vif->flags);
 	}
 
 	ath6kl_cfg80211_scan_complete_event(vif, -ECANCELED);
@@ -1156,6 +1155,8 @@ static int ath6kl_close(struct net_device *dev)
 	ret = ath6kl_init_hw_stop(ar);
 	if (ret)
 		return ret;
+
+	clear_bit(WLAN_ENABLED, &vif->flags);
 
 	return 0;
 }
