@@ -83,9 +83,6 @@ int ext4_flush_completed_IO(struct inode *inode)
 	int ret = 0;
 	int ret2 = 0;
 
-	if (list_empty(&ei->i_completed_io_list))
-		return ret;
-
 	dump_completed_IO(inode);
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
 	while (!list_empty(&ei->i_completed_io_list)){
