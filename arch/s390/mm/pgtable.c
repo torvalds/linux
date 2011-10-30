@@ -222,6 +222,7 @@ void gmap_free(struct gmap *gmap)
 
 	/* Free all segment & region tables. */
 	down_read(&gmap->mm->mmap_sem);
+	spin_lock(&gmap->mm->page_table_lock);
 	list_for_each_entry_safe(page, next, &gmap->crst_list, lru) {
 		table = (unsigned long *) page_to_phys(page);
 		if ((*table & _REGION_ENTRY_TYPE_MASK) == 0)
@@ -230,6 +231,7 @@ void gmap_free(struct gmap *gmap)
 				gmap_unlink_segment(gmap, table);
 		__free_pages(page, ALLOC_ORDER);
 	}
+	spin_unlock(&gmap->mm->page_table_lock);
 	up_read(&gmap->mm->mmap_sem);
 	list_del(&gmap->list);
 	kfree(gmap);
@@ -300,6 +302,7 @@ int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len)
 
 	flush = 0;
 	down_read(&gmap->mm->mmap_sem);
+	spin_lock(&gmap->mm->page_table_lock);
 	for (off = 0; off < len; off += PMD_SIZE) {
 		/* Walk the guest addr space page table */
 		table = gmap->table + (((to + off) >> 53) & 0x7ff);
@@ -321,6 +324,7 @@ int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len)
 		*table = _SEGMENT_ENTRY_INV;
 	}
 out:
+	spin_unlock(&gmap->mm->page_table_lock);
 	up_read(&gmap->mm->mmap_sem);
 	if (flush)
 		gmap_flush_tlb(gmap);
@@ -351,6 +355,7 @@ int gmap_map_segment(struct gmap *gmap, unsigned long from,
 
 	flush = 0;
 	down_read(&gmap->mm->mmap_sem);
+	spin_lock(&gmap->mm->page_table_lock);
 	for (off = 0; off < len; off += PMD_SIZE) {
 		/* Walk the gmap address space page table */
 		table = gmap->table + (((to + off) >> 53) & 0x7ff);
@@ -374,12 +379,14 @@ int gmap_map_segment(struct gmap *gmap, unsigned long from,
 		flush |= gmap_unlink_segment(gmap, table);
 		*table = _SEGMENT_ENTRY_INV | _SEGMENT_ENTRY_RO | (from + off);
 	}
+	spin_unlock(&gmap->mm->page_table_lock);
 	up_read(&gmap->mm->mmap_sem);
 	if (flush)
 		gmap_flush_tlb(gmap);
 	return 0;
 
 out_unmap:
+	spin_unlock(&gmap->mm->page_table_lock);
 	up_read(&gmap->mm->mmap_sem);
 	gmap_unmap_segment(gmap, to, len);
 	return -ENOMEM;
@@ -446,7 +453,9 @@ unsigned long gmap_fault(unsigned long address, struct gmap *gmap)
 		page = pmd_page(*pmd);
 		mp = (struct gmap_pgtable *) page->index;
 		rmap->entry = table;
+		spin_lock(&mm->page_table_lock);
 		list_add(&rmap->list, &mp->mapper);
+		spin_unlock(&mm->page_table_lock);
 		/* Set gmap segment table entry to page table. */
 		*table = pmd_val(*pmd) & PAGE_MASK;
 		return vmaddr | (address & ~PMD_MASK);
