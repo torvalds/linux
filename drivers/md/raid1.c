@@ -2562,8 +2562,7 @@ static int stop(mddev_t *mddev)
 	raise_barrier(conf);
 	lower_barrier(conf);
 
-	md_unregister_thread(mddev->thread);
-	mddev->thread = NULL;
+	md_unregister_thread(&mddev->thread);
 	if (conf->r1bio_pool)
 		mempool_destroy(conf->r1bio_pool);
 	kfree(conf->mirrors);

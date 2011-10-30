@@ -2460,7 +2460,7 @@ S:	Supported
 F:	drivers/infiniband/hw/ehca/
 
 EHEA (IBM pSeries eHEA 10Gb ethernet adapter) DRIVER
-M:	Breno Leitao <leitao@linux.vnet.ibm.com>
+M:	Thadeu Lima de Souza Cascardo <cascardo@linux.vnet.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ehea/
@@ -3313,7 +3313,7 @@ M:	David Woodhouse <dwmw2@infradead.org>
 L:	iommu@lists.linux-foundation.org
 T:	git git://git.infradead.org/iommu-2.6.git
 S:	Supported
-F:	drivers/pci/intel-iommu.c
+F:	drivers/iommu/intel-iommu.c
 F:	include/linux/intel-iommu.h
 
 INTEL IOP-ADMA DMA DRIVER
@@ -6366,15 +6366,14 @@ F:	net/ipv4/tcp_lp.c
 
 TEGRA SUPPORT
 M:	Colin Cross <ccross@android.com>
-M:	Erik Gilling <konkers@android.com>
 M:	Olof Johansson <olof@lixom.net>
+M:	Stephen Warren <swarren@nvidia.com>
 L:	linux-tegra@vger.kernel.org
-T:	git git://android.git.kernel.org/kernel/tegra.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/olof/tegra.git
 S:	Supported
 F:	arch/arm/mach-tegra
 
 TEHUTI ETHERNET DRIVER
-M:	Alexander Indenbaum <baum@tehutinetworks.net>
 M:	Andy Gospodarek <andy@greyhouse.net>
 L:	netdev@vger.kernel.org
 S:	Supported

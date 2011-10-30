@@ -77,7 +77,7 @@ unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
 unsigned long pci_hotplug_io_size  = DEFAULT_HOTPLUG_IO_SIZE;
 unsigned long pci_hotplug_mem_size = DEFAULT_HOTPLUG_MEM_SIZE;
 
-enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_SAFE;
+enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_TUNE_OFF;
 
 /*
  * The default CLS is used if arch didn't set CLS explicitly and not
@@ -3568,10 +3568,14 @@ static int __init pci_setup(char *str)
 				pci_hotplug_io_size = memparse(str + 9, &str);
 			} else if (!strncmp(str, "hpmemsize=", 10)) {
 				pci_hotplug_mem_size = memparse(str + 10, &str);
+			} else if (!strncmp(str, "pcie_bus_tune_off", 17)) {
+				pcie_bus_config = PCIE_BUS_TUNE_OFF;
 			} else if (!strncmp(str, "pcie_bus_safe", 13)) {
 				pcie_bus_config = PCIE_BUS_SAFE;
 			} else if (!strncmp(str, "pcie_bus_perf", 13)) {
 				pcie_bus_config = PCIE_BUS_PERFORMANCE;
+			} else if (!strncmp(str, "pcie_bus_peer2peer", 18)) {
+				pcie_bus_config = PCIE_BUS_PEER2PEER;
 			} else {
 				printk(KERN_ERR "PCI: Unknown option `%s'\n",
 						str);

@@ -569,36 +569,6 @@ static u32 cayman_get_tile_pipe_to_backend_map(struct radeon_device *rdev,
 	return backend_map;
 }
 
-static void cayman_program_channel_remap(struct radeon_device *rdev)
-{
-	u32 tcp_chan_steer_lo, tcp_chan_steer_hi, mc_shared_chremap, tmp;
-
-	tmp = RREG32(MC_SHARED_CHMAP);
-	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	default:
-		/* default mapping */
-		mc_shared_chremap = 0x00fac688;
-		break;
-	}
-
-	switch (rdev->family) {
-	case CHIP_CAYMAN:
-	default:
-		//tcp_chan_steer_lo = 0x54763210
-		tcp_chan_steer_lo = 0x76543210;
-		tcp_chan_steer_hi = 0x0000ba98;
-		break;
-	}
-
-	WREG32(TCP_CHAN_STEER_LO, tcp_chan_steer_lo);
-	WREG32(TCP_CHAN_STEER_HI, tcp_chan_steer_hi);
-	WREG32(MC_SHARED_CHREMAP, mc_shared_chremap);
-}
-
 static u32 cayman_get_disable_mask_per_asic(struct radeon_device *rdev,
 					    u32 disable_mask_per_se,
 					    u32 max_disable_mask_per_se,
@@ -841,8 +811,6 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	WREG32(GB_ADDR_CONFIG, gb_addr_config);
 	WREG32(DMIF_ADDR_CONFIG, gb_addr_config);
 	WREG32(HDP_ADDR_CONFIG, gb_addr_config);
-
-	cayman_program_channel_remap(rdev);
 
 	/* primary versions */
 	WREG32(CC_RB_BACKEND_DISABLE, cc_rb_backend_disable);

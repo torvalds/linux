@@ -449,6 +449,8 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_RAW) {
+		const u64 *pdata;
+
 		u.val64 = *array;
 		if (WARN_ONCE(swapped,
 			      "Endianness of raw data not corrected!\n")) {
@@ -462,11 +464,12 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 			return -EFAULT;
 
 		data->raw_size = u.val32[0];
+		pdata = (void *) array + sizeof(u32);
 
-		if (sample_overlap(event, &u.val32[1], data->raw_size))
+		if (sample_overlap(event, pdata, data->raw_size))
 			return -EFAULT;
 
-		data->raw_data = &u.val32[1];
+		data->raw_data = (void *) pdata;
 	}
 
 	return 0;

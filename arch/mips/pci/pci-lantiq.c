@@ -171,8 +171,13 @@ static int __devinit ltq_pci_startup(struct ltq_pci_data *conf)
 	u32 temp_buffer;
 
 	/* set clock to 33Mhz */
-	ltq_cgu_w32(ltq_cgu_r32(LTQ_CGU_IFCCR) & ~0xf00000, LTQ_CGU_IFCCR);
-	ltq_cgu_w32(ltq_cgu_r32(LTQ_CGU_IFCCR) | 0x800000, LTQ_CGU_IFCCR);
+	if (ltq_is_ar9()) {
+		ltq_cgu_w32(ltq_cgu_r32(LTQ_CGU_IFCCR) & ~0x1f00000, LTQ_CGU_IFCCR);
+		ltq_cgu_w32(ltq_cgu_r32(LTQ_CGU_IFCCR) | 0xe00000, LTQ_CGU_IFCCR);
+	} else {
+		ltq_cgu_w32(ltq_cgu_r32(LTQ_CGU_IFCCR) & ~0xf00000, LTQ_CGU_IFCCR);
+		ltq_cgu_w32(ltq_cgu_r32(LTQ_CGU_IFCCR) | 0x800000, LTQ_CGU_IFCCR);
+	}
 
 	/* external or internal clock ? */
 	if (conf->clock) {

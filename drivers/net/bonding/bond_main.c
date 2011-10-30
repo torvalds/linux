@@ -777,6 +777,9 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 
 	read_lock(&bond->lock);
 
+	if (bond->kill_timers)
+		goto out;
+
 	/* rejoin all groups on bond device */
 	__bond_resend_igmp_join_requests(bond->dev);
 
@@ -790,9 +793,9 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 			__bond_resend_igmp_join_requests(vlan_dev);
 	}
 
-	if (--bond->igmp_retrans > 0)
+	if ((--bond->igmp_retrans > 0) && !bond->kill_timers)
 		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
-
+out:
 	read_unlock(&bond->lock);
 }
 
@@ -1432,6 +1435,8 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	struct sk_buff *skb = *pskb;
 	struct slave *slave;
 	struct bonding *bond;
+	void (*recv_probe)(struct sk_buff *, struct bonding *,
+				struct slave *);
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
@@ -1445,11 +1450,12 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	if (bond->params.arp_interval)
 		slave->dev->last_rx = jiffies;
 
-	if (bond->recv_probe) {
+	recv_probe = ACCESS_ONCE(bond->recv_probe);
+	if (recv_probe) {
 		struct sk_buff *nskb = skb_clone(skb, GFP_ATOMIC);
 
 		if (likely(nskb)) {
-			bond->recv_probe(nskb, bond, slave);
+			recv_probe(nskb, bond, slave);
 			dev_kfree_skb(nskb);
 		}
 	}
@@ -2538,7 +2544,7 @@ void bond_mii_monitor(struct work_struct *work)
 	}
 
 re_arm:
-	if (bond->params.miimon)
+	if (bond->params.miimon && !bond->kill_timers)
 		queue_delayed_work(bond->wq, &bond->mii_work,
 				   msecs_to_jiffies(bond->params.miimon));
 out:
@@ -2886,7 +2892,7 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 	}
 
 re_arm:
-	if (bond->params.arp_interval)
+	if (bond->params.arp_interval && !bond->kill_timers)
 		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
 out:
 	read_unlock(&bond->lock);
@@ -3154,7 +3160,7 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 	bond_ab_arp_probe(bond);
 
 re_arm:
-	if (bond->params.arp_interval)
+	if (bond->params.arp_interval && !bond->kill_timers)
 		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
 out:
 	read_unlock(&bond->lock);

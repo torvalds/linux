@@ -26,6 +26,7 @@
  *   LAN9215, LAN9216, LAN9217, LAN9218
  *   LAN9210, LAN9211
  *   LAN9220, LAN9221
+ *   LAN89218
  *
  */
 
@@ -1983,6 +1984,7 @@ static int __devinit smsc911x_init(struct net_device *dev)
 	case 0x01170000:
 	case 0x01160000:
 	case 0x01150000:
+	case 0x218A0000:
 		/* LAN911[5678] family */
 		pdata->generation = pdata->idrev & 0x0000FFFF;
 		break;
