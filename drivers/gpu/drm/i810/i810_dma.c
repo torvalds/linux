@@ -222,8 +222,6 @@ static int i810_dma_cleanup(struct drm_device *dev)
 			pci_free_consistent(dev->pdev, PAGE_SIZE,
 					    dev_priv->hw_status_page,
 					    dev_priv->dma_status_page);
-			/* Need to rewrite hardware status page */
-			I810_WRITE(0x02080, 0x1ffff000);
 		}
 		kfree(dev->dev_private);
 		dev->dev_private = NULL;
