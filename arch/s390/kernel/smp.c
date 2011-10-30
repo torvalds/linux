@@ -209,12 +209,19 @@ static void do_ext_call_interrupt(unsigned int ext_int_code,
  */
 static void smp_ext_bitcall(int cpu, int sig)
 {
+	int order;
+
 	/*
 	 * Set signaling bit in lowcore of target cpu and kick it
 	 */
 	set_bit(sig, (unsigned long *) &lowcore_ptr[cpu]->ext_call_fast);
-	while (sigp(cpu, sigp_emergency_signal) == sigp_busy)
+	while (1) {
+		order = smp_vcpu_scheduled(cpu) ?
+			sigp_external_call : sigp_emergency_signal;
+		if (sigp(cpu, order) != sigp_busy)
+			break;
 		udelay(10);
+	}
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
@@ -754,6 +761,9 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	/* request the 0x1201 emergency signal external interrupt */
 	if (register_external_interrupt(0x1201, do_ext_call_interrupt) != 0)
 		panic("Couldn't request external interrupt 0x1201");
+	/* request the 0x1202 external call external interrupt */
+	if (register_external_interrupt(0x1202, do_ext_call_interrupt) != 0)
+		panic("Couldn't request external interrupt 0x1202");
 
 	/* Reallocate current lowcore, but keep its contents. */
 	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
