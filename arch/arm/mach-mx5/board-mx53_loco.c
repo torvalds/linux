@@ -257,12 +257,17 @@ static const struct gpio_led_platform_data mx53loco_leds_data __initconst = {
 	.num_leds	= ARRAY_SIZE(mx53loco_leds),
 };
 
+void __init imx53_qsb_common_init(void)
+{
+	mxc_iomux_v3_setup_multiple_pads(mx53_loco_pads,
+					 ARRAY_SIZE(mx53_loco_pads));
+}
+
 static void __init mx53_loco_board_init(void)
 {
 	imx53_soc_init();
+	imx53_qsb_common_init();
 
-	mxc_iomux_v3_setup_multiple_pads(mx53_loco_pads,
-					ARRAY_SIZE(mx53_loco_pads));
 	imx53_add_imx_uart(0, NULL);
 	mx53_loco_fec_reset();
 	imx53_add_fec(&mx53_loco_fec_data);

@@ -62,6 +62,15 @@ endif # ARCH_MX50_SUPPORTED
 if ARCH_MX51
 comment "i.MX51 machines:"
 
+config MACH_IMX51_DT
+	bool "Support i.MX51 platforms from device tree"
+	select SOC_IMX51
+	select USE_OF
+	select MACH_MX51_BABBAGE
+	help
+	  Include support for Freescale i.MX51 based platforms
+	  using the device tree for discovery
+
 config MACH_MX51_BABBAGE
 	bool "Support MX51 BABBAGE platforms"
 	select SOC_IMX51
@@ -171,6 +180,18 @@ endif # ARCH_MX51
 
 if ARCH_MX53_SUPPORTED
 comment "i.MX53 machines:"
+
+config MACH_IMX53_DT
+	bool "Support i.MX53 platforms from device tree"
+	select SOC_IMX53
+	select USE_OF
+	select MACH_MX53_ARD
+	select MACH_MX53_EVK
+	select MACH_MX53_LOCO
+	select MACH_MX53_SMD
+	help
+	  Include support for Freescale i.MX53 based platforms
+	  using the device tree for discovery
 
 config MACH_MX53_EVK
 	bool "Support MX53 EVK platforms"

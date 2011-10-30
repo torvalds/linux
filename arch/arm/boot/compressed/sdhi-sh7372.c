@@ -85,7 +85,7 @@ asmlinkage void mmc_loader(unsigned short *buf, unsigned long len)
 		goto err;
 
         /* Disable clock to SDHI1 hardware block */
-        __raw_writel(__raw_readl(SMSTPCR3) & (1 << 13), SMSTPCR3);
+        __raw_writel(__raw_readl(SMSTPCR3) | (1 << 13), SMSTPCR3);
 
 	mmc_update_progress(MMC_PROGRESS_DONE);
 

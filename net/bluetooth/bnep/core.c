@@ -484,9 +484,11 @@ static int bnep_session(void *arg)
 
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(sk_sleep(sk), &wait);
-	while (!kthread_should_stop()) {
+	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
+		if (atomic_read(&s->terminate))
+			break;
 		/* RX */
 		while ((skb = skb_dequeue(&sk->sk_receive_queue))) {
 			skb_orphan(skb);
@@ -504,7 +506,7 @@ static int bnep_session(void *arg)
 
 		schedule();
 	}
-	set_current_state(TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(sk), &wait);
 
 	/* Cleanup session */
@@ -640,9 +642,10 @@ int bnep_del_connection(struct bnep_conndel_req *req)
 	down_read(&bnep_session_sem);
 
 	s = __bnep_get_session(req->dst);
-	if (s)
-		kthread_stop(s->task);
-	else
+	if (s) {
+		atomic_inc(&s->terminate);
+		wake_up_process(s->task);
+	} else
 		err = -ENOENT;
 
 	up_read(&bnep_session_sem);

@@ -131,12 +131,17 @@ static const struct spi_imx_master mx53_evk_spi_data __initconst = {
 	.num_chipselect = ARRAY_SIZE(mx53_evk_spi_cs),
 };
 
+void __init imx53_evk_common_init(void)
+{
+	mxc_iomux_v3_setup_multiple_pads(mx53_evk_pads,
+					 ARRAY_SIZE(mx53_evk_pads));
+}
+
 static void __init mx53_evk_board_init(void)
 {
 	imx53_soc_init();
+	imx53_evk_common_init();
 
-	mxc_iomux_v3_setup_multiple_pads(mx53_evk_pads,
-					ARRAY_SIZE(mx53_evk_pads));
 	mx53_evk_init_uart();
 	mx53_evk_fec_reset();
 	imx53_add_fec(&mx53_evk_fec_pdata);

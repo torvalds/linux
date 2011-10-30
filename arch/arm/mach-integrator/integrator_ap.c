@@ -32,6 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mtd/physmap.h>
+#include <video/vga.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -154,6 +155,7 @@ static struct map_desc ap_io_desc[] __initdata = {
 static void __init ap_map_io(void)
 {
 	iotable_init(ap_io_desc, ARRAY_SIZE(ap_io_desc));
+	vga_base = PCI_MEMORY_VADDR;
 }
 
 #define INTEGRATOR_SC_VALID_INT	0x003fffff
@@ -337,15 +339,15 @@ static unsigned long timer_reload;
 static void integrator_clocksource_init(u32 khz)
 {
 	void __iomem *base = (void __iomem *)TIMER2_VA_BASE;
-	u32 ctrl = TIMER_CTRL_ENABLE;
+	u32 ctrl = TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC;
 
 	if (khz >= 1500) {
 		khz /= 16;
-		ctrl = TIMER_CTRL_DIV16;
+		ctrl |= TIMER_CTRL_DIV16;
 	}
 
-	writel(ctrl, base + TIMER_CTRL);
 	writel(0xffff, base + TIMER_LOAD);
+	writel(ctrl, base + TIMER_CTRL);
 
 	clocksource_mmio_init(base + TIMER_VALUE, "timer2",
 		khz * 1000, 200, 16, clocksource_mmio_readl_down);

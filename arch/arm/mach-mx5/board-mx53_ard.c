@@ -171,9 +171,6 @@ static struct imxi2c_platform_data mx53_ard_i2c3_data = {
 
 static void __init mx53_ard_io_init(void)
 {
-	mxc_iomux_v3_setup_multiple_pads(mx53_ard_pads,
-				ARRAY_SIZE(mx53_ard_pads));
-
 	gpio_request(ARD_ETHERNET_INT_B, "eth-int-b");
 	gpio_direction_input(ARD_ETHERNET_INT_B);
 
@@ -216,6 +213,13 @@ static int weim_cs_config(void)
 	return 0;
 }
 
+void __init imx53_ard_common_init(void)
+{
+	mxc_iomux_v3_setup_multiple_pads(mx53_ard_pads,
+					 ARRAY_SIZE(mx53_ard_pads));
+	weim_cs_config();
+}
+
 static struct platform_device *devices[] __initdata = {
 	&ard_smsc_lan9220_device,
 };
@@ -225,8 +229,8 @@ static void __init mx53_ard_board_init(void)
 	imx53_soc_init();
 	imx53_add_imx_uart(0, NULL);
 
+	imx53_ard_common_init();
 	mx53_ard_io_init();
-	weim_cs_config();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx53_add_sdhci_esdhc_imx(0, &mx53_ard_sd1_data);

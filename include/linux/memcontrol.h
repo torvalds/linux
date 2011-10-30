@@ -39,16 +39,6 @@ extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 					struct mem_cgroup *mem_cont,
 					int active, int file);
 
-struct memcg_scanrecord {
-	struct mem_cgroup *mem; /* scanend memory cgroup */
-	struct mem_cgroup *root; /* scan target hierarchy root */
-	int context;		/* scanning context (see memcontrol.c) */
-	unsigned long nr_scanned[2]; /* the number of scanned pages */
-	unsigned long nr_rotated[2]; /* the number of rotated pages */
-	unsigned long nr_freed[2]; /* the number of freed pages */
-	unsigned long elapsed; /* nsec of time elapsed while scanning */
-};
-
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 /*
  * All "charge" functions with gfp_mask should use GFP_KERNEL or
@@ -126,15 +116,6 @@ struct zone_reclaim_stat*
 mem_cgroup_get_reclaim_stat_from_page(struct page *page);
 extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
 					struct task_struct *p);
-
-extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
-						  gfp_t gfp_mask, bool noswap,
-						  struct memcg_scanrecord *rec);
-extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
-						gfp_t gfp_mask, bool noswap,
-						struct zone *zone,
-						struct memcg_scanrecord *rec,
-						unsigned long *nr_scanned);
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 extern int do_swap_account;

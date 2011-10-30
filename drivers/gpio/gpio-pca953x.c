@@ -577,6 +577,7 @@ pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, int *invert)
 void
 pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, int *invert)
 {
+	*gpio_base = -1;
 }
 #endif
 

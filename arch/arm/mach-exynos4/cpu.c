@@ -24,12 +24,13 @@
 #include <plat/exynos4.h>
 #include <plat/adc-core.h>
 #include <plat/sdhci.h>
-#include <plat/devs.h>
 #include <plat/fb-core.h>
 #include <plat/fimc-core.h>
 #include <plat/iic-core.h>
+#include <plat/reset.h>
 
 #include <mach/regs-irq.h>
+#include <mach/regs-pmu.h>
 
 extern int combiner_init(unsigned int combiner_nr, void __iomem *base,
 			 unsigned int irq_start);
@@ -126,6 +127,11 @@ static void exynos4_idle(void)
 		cpu_do_idle();
 
 	local_irq_enable();
+}
+
+static void exynos4_sw_reset(void)
+{
+	__raw_writel(0x1, S5P_SWRESET);
 }
 
 /*
@@ -240,6 +246,9 @@ int __init exynos4_init(void)
 
 	/* set idle function */
 	pm_idle = exynos4_idle;
+
+	/* set sw_reset function */
+	s5p_reset_hook = exynos4_sw_reset;
 
 	return sysdev_register(&exynos4_sysdev);
 }

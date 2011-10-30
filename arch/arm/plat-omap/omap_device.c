@@ -615,6 +615,9 @@ static int _od_resume_noirq(struct device *dev)
 
 	return pm_generic_resume_noirq(dev);
 }
+#else
+#define _od_suspend_noirq NULL
+#define _od_resume_noirq NULL
 #endif
 
 static struct dev_pm_domain omap_device_pm_domain = {
