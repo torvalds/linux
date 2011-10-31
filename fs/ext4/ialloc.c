@@ -873,11 +873,7 @@ got:
 	ei->i_dir_start_lookup = 0;
 	ei->i_disksize = 0;
 
-	/*
-	 * Don't inherit extent flag from directory, amongst others. We set
-	 * extent flag on newly created directory and file only if -o extent
-	 * mount option is specified
-	 */
+	/* Don't inherit extent flag from directory, amongst others. */
 	ei->i_flags =
 		ext4_mask_flags(mode, EXT4_I(dir)->i_flags & EXT4_FL_INHERITED);
 	ei->i_file_acl = 0;
