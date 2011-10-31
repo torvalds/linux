@@ -153,8 +153,7 @@ struct table {
 };
 
 static struct table fe_clockTable[] = {
-		{12000000, tab3},	/* FPGA     */
-		{16384000, tab6},	/* 16.38MHz */
+		{12000000, tab3},	/* 12.00MHz */
 		{20480000, tab6},	/* 20.48MHz */
 		{36000000, tab3},	/* 36.00MHz */
 		{30000000, tab1},	/* 30.00MHz */
@@ -164,7 +163,6 @@ static struct table fe_clockTable[] = {
 		{34000000, tab2},	/* 34.00MHz */
 		{24000000, tab1},	/* 24.00MHz */
 		{22000000, tab8},	/* 22.00MHz */
-		{12000000, tab3}	/* 12.00MHz */
 };
 
 /* fe get */

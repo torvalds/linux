@@ -53,7 +53,6 @@ struct it913x_fe_state {
 	struct ite_config *config;
 	u8 i2c_addr;
 	u32 frequency;
-	u8 adf;
 	u32 crystalFrequency;
 	u32 adcFrequency;
 	u8 tuner_type;
@@ -698,7 +697,7 @@ static int it913x_fe_start(struct it913x_fe_state *state)
 	if (state->config->chip_ver == 1)
 		ret = it913x_init_tuner(state);
 
-	if (adf < 12) {
+	if (adf < 10) {
 		state->crystalFrequency = fe_clockTable[adf].xtal ;
 		state->table = fe_clockTable[adf].table;
 		state->adcFrequency = state->table->adcFrequency;
@@ -889,5 +888,5 @@ static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
 
 MODULE_DESCRIPTION("it913x Frontend and it9137 tuner");
 MODULE_AUTHOR("Malcolm Priestley tvboxspy@gmail.com");
-MODULE_VERSION("1.08");
+MODULE_VERSION("1.09");
 MODULE_LICENSE("GPL");
