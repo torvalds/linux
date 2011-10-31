@@ -77,7 +77,8 @@ static int kvmppc_dec_enabled(struct kvm_vcpu *vcpu)
 #else
 static int kvmppc_dec_enabled(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.tcr & TCR_DIE;
+	/* On BOOKE, DEC = 0 is as good as decrementer not enabled */
+	return (vcpu->arch.tcr & TCR_DIE) && vcpu->arch.dec;
 }
 #endif
 
