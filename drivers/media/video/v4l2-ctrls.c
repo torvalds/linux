@@ -946,6 +946,7 @@ static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
 			if (ctrl->cluster[0]->has_volatiles)
 				ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 		}
+		fh = NULL;
 	}
 	if (changed || update_inactive) {
 		/* If a control was changed that was not one of the controls
