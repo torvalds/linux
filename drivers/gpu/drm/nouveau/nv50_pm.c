@@ -594,8 +594,10 @@ nv50_pm_clocks_set(struct drm_device *dev, void *data)
 	}
 
 	/* disable display */
-	nv_wr32(dev, 0x611200, 0x00003300);
-	udelay(100);
+	if (dev_priv->chipset >= 0x92) {
+		nv_wr32(dev, 0x611200, 0x00003300);
+		udelay(100);
+	}
 
 	/* prepare ram for reclocking */
 	nv_wr32(dev, 0x1002d4, 0x00000001); /* precharge */
@@ -617,7 +619,8 @@ nv50_pm_clocks_set(struct drm_device *dev, void *data)
 	udelay(100);
 
 	/* re-enable display */
-	nv_wr32(dev, 0x611200, 0x00003330);
+	if (dev_priv->chipset >= 0x92)
+		nv_wr32(dev, 0x611200, 0x00003330);
 
 	goto resume;
 error:
