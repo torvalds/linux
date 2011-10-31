@@ -423,6 +423,7 @@ static void __init palmphone_common_init(void)
 	palmtreo_leds_init();
 }
 
+#ifdef CONFIG_MACH_TREO680
 static void __init treo680_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(treo680_pin_config));
@@ -430,7 +431,9 @@ static void __init treo680_init(void)
 	palm27x_mmc_init(GPIO_NR_TREO_SD_DETECT_N, GPIO_NR_TREO680_SD_READONLY,
 			GPIO_NR_TREO680_SD_POWER, 0);
 }
+#endif
 
+#ifdef CONFIG_MACH_CENTRO
 static void __init centro_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(centro685_pin_config));
@@ -438,7 +441,9 @@ static void __init centro_init(void)
 	palm27x_mmc_init(GPIO_NR_TREO_SD_DETECT_N, -1,
 			GPIO_NR_CENTRO_SD_POWER, 1);
 }
+#endif
 
+#ifdef CONFIG_MACH_TREO680
 MACHINE_START(TREO680, "Palm Treo 680")
 	.atag_offset    = 0x100,
 	.map_io         = pxa27x_map_io,
@@ -448,7 +453,9 @@ MACHINE_START(TREO680, "Palm Treo 680")
 	.timer          = &pxa_timer,
 	.init_machine   = treo680_init,
 MACHINE_END
+#endif
 
+#ifdef CONFIG_MACH_CENTRO
 MACHINE_START(CENTRO, "Palm Centro 685")
 	.atag_offset    = 0x100,
 	.map_io         = pxa27x_map_io,
@@ -458,3 +465,4 @@ MACHINE_START(CENTRO, "Palm Centro 685")
 	.timer          = &pxa_timer,
 	.init_machine	= centro_init,
 MACHINE_END
+#endif

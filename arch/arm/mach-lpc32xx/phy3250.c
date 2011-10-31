@@ -37,6 +37,7 @@
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
+#include <mach/gpio-lpc32xx.h>
 #include "common.h"
 
 /*

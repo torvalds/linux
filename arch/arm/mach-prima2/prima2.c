@@ -36,6 +36,7 @@ MACHINE_START(PRIMA2_EVB, "prima2cb")
 	.map_io         = sirfsoc_map_lluart,
 	.init_irq	= sirfsoc_of_irq_init,
 	.timer		= &sirfsoc_timer,
+	.dma_zone_size	= SZ_256M,
 	.init_machine	= sirfsoc_mach_init,
 	.dt_compat      = prima2cb_dt_match,
 MACHINE_END

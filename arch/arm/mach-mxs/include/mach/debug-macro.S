@@ -30,7 +30,7 @@
 
 #define UART_VADDR	MXS_IO_ADDRESS(UART_PADDR)
 
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 		ldr	\rp, =UART_PADDR	@ physical
 		ldr	\rv, =UART_VADDR	@ virtual
 		.endm
