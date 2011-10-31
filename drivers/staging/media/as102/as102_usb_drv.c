@@ -214,13 +214,9 @@ void as102_urb_stream_irq(struct urb *urb)
 	struct as102_dev_t *as102_dev = urb->context;
 
 	if (urb->actual_length > 0) {
-#if defined(CONFIG_DVB_CORE) || defined(CONFIG_DVB_CORE_MODULE)
 		dvb_dmx_swfilter(&as102_dev->dvb_dmx,
 				 urb->transfer_buffer,
 				 urb->actual_length);
-#else
-		/* do nothing ? */
-#endif
 	} else {
 		if (urb->actual_length == 0)
 			memset(urb->transfer_buffer, 0, AS102_USB_BUF_SIZE);

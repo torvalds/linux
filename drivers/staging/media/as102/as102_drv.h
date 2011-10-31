@@ -30,11 +30,9 @@ extern struct usb_driver as102_usb_driver;
 extern struct spi_driver as102_spi_driver;
 #endif
 
-#if defined(CONFIG_DVB_CORE) || defined(CONFIG_DVB_CORE_MODULE)
 #include "dvb_demux.h"
 #include "dvb_frontend.h"
 #include "dmxdev.h"
-#endif
 
 #define DRIVER_FULL_NAME "Abilis Systems as10x usb driver"
 #define DRIVER_NAME "as10x_usb"
@@ -112,12 +110,10 @@ struct as102_dev_t {
 	struct kref kref;
 	unsigned long minor;
 
-#if defined(CONFIG_DVB_CORE) || defined(CONFIG_DVB_CORE_MODULE)
 	struct dvb_adapter dvb_adap;
 	struct dvb_frontend dvb_fe;
 	struct dvb_demux dvb_dmx;
 	struct dmxdev dvb_dmxdev;
-#endif
 
 	/* demodulator stats */
 	struct as10x_demod_stats demod_stats;
@@ -139,9 +135,7 @@ struct as102_dev_t {
 int as102_dvb_register(struct as102_dev_t *dev);
 void as102_dvb_unregister(struct as102_dev_t *dev);
 
-#if defined(CONFIG_DVB_CORE) || defined(CONFIG_DVB_CORE_MODULE)
 int as102_dvb_register_fe(struct as102_dev_t *dev, struct dvb_frontend *fe);
 int as102_dvb_unregister_fe(struct dvb_frontend *dev);
-#endif
 
 /* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */

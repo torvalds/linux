@@ -30,12 +30,7 @@
 /* header file for Usb device driver*/
 #include "as102_drv.h"
 #include "as102_fw.h"
-
-#if defined(CONFIG_DVB_CORE) || defined(CONFIG_DVB_CORE_MODULE)
 #include "dvbdev.h"
-#else
-#warning >>> DVB_CORE not defined !!! <<<
-#endif
 
 int debug;
 module_param_named(debug, debug, int, 0644);
@@ -65,7 +60,6 @@ MODULE_PARM_DESC(elna_enable, "Activate eLNA (default: on)");
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #endif
 
-#if defined(CONFIG_DVB_CORE) || defined(CONFIG_DVB_CORE_MODULE)
 static void as102_stop_stream(struct as102_dev_t *dev)
 {
 	struct as102_bus_adapter_t *bus_adap;
@@ -200,14 +194,12 @@ static int as102_dvb_dmx_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	LEAVE();
 	return 0;
 }
-#endif
 
 int as102_dvb_register(struct as102_dev_t *as102_dev)
 {
 	int ret = 0;
 	ENTER();
 
-#if defined(CONFIG_DVB_CORE) || defined(CONFIG_DVB_CORE_MODULE)
 	ret = dvb_register_adapter(&as102_dev->dvb_adap,
 				   as102_dev->name,
 				   THIS_MODULE,
@@ -260,7 +252,6 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 		    __func__, ret);
 		goto failed;
 	}
-#endif
 
 	/* init bus mutex for token locking */
 	mutex_init(&as102_dev->bus_adap.lock);
@@ -288,7 +279,6 @@ void as102_dvb_unregister(struct as102_dev_t *as102_dev)
 {
 	ENTER();
 
-#if defined(CONFIG_DVB_CORE) || defined(CONFIG_DVB_CORE_MODULE)
 	/* unregister as102 frontend */
 	as102_dvb_unregister_fe(&as102_dev->dvb_fe);
 
@@ -298,7 +288,7 @@ void as102_dvb_unregister(struct as102_dev_t *as102_dev)
 
 	/* unregister dvb adapter */
 	dvb_unregister_adapter(&as102_dev->dvb_adap);
-#endif
+
 	LEAVE();
 }
 

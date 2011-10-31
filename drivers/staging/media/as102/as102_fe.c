@@ -25,7 +25,6 @@
 
 extern int elna_enable;
 
-#if defined(CONFIG_DVB_CORE) || defined(CONFIG_DVB_CORE_MODULE)
 static void as10x_fe_copy_tps_parameters(struct dvb_frontend_parameters *dst,
 					 struct as10x_tps *src);
 
@@ -672,6 +671,5 @@ static void as102_fe_copy_tune_parameters(struct as10x_tune_args *tune_args,
 			as102_fe_get_code_rate(params->u.ofdm.code_rate_HP);
 	}
 }
-#endif
 
 /* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */
