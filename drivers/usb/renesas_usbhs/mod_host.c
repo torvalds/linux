@@ -503,11 +503,12 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 
 static int usbhsh_queue_push(struct usb_hcd *hcd,
 			     struct usbhs_pipe *pipe,
-			     struct urb *urb)
+			     struct urb *urb,
+			     gfp_t mem_flags)
 {
-	struct usbhsh_request *ureq = usbhsh_urb_to_ureq(urb);
-	struct usbhs_pkt *pkt = &ureq->pkt;
+	struct usbhsh_hpriv *hpriv = usbhsh_hcd_to_hpriv(hcd);
 	struct device *dev = usbhsh_hcd_to_dev(hcd);
+	struct usbhsh_request *ureq;
 	void *buf;
 	int len;
 
@@ -515,6 +516,14 @@ static int usbhsh_queue_push(struct usb_hcd *hcd,
 		dev_err(dev, "pipe iso is not supported now\n");
 		return -EIO;
 	}
+
+	/* this ureq will be freed on usbhsh_queue_done() */
+	ureq = usbhsh_ureq_alloc(hpriv, urb, mem_flags);
+	if (unlikely(!ureq)) {
+		dev_err(dev, "ureq alloc fail\n");
+		return -ENOMEM;
+	}
+	usbhsh_urb_to_ureq(urb) = ureq;
 
 	if (usb_pipein(urb->pipe))
 		pipe->handler = &usbhs_fifo_pio_pop_handler;
@@ -525,7 +534,7 @@ static int usbhsh_queue_push(struct usb_hcd *hcd,
 	len = urb->transfer_buffer_length - urb->actual_length;
 
 	dev_dbg(dev, "%s\n", __func__);
-	usbhs_pkt_push(pipe, pkt, usbhsh_queue_done,
+	usbhs_pkt_push(pipe, &ureq->pkt, usbhsh_queue_done,
 		       buf, len, (urb->transfer_flags & URB_ZERO_PACKET));
 	usbhs_pkt_start(pipe);
 
@@ -605,72 +614,72 @@ static void usbhsh_data_stage_packet_done(struct usbhs_priv *priv,
 	usbhsh_urb_to_ureq(urb) = NULL;
 }
 
-static void usbhsh_data_stage_packet_push(struct usbhsh_hpriv *hpriv,
-					  struct urb *urb,
-					  struct usbhs_pipe *pipe)
+static int usbhsh_data_stage_packet_push(struct usbhsh_hpriv *hpriv,
+					 struct urb *urb,
+					 struct usbhs_pipe *pipe,
+					 gfp_t mem_flags)
+
 {
 	struct usbhsh_request *ureq;
-	struct usbhs_pkt *pkt;
 
-	/*
-	 * FIXME
-	 *
-	 * data stage uses ureq which is connected to urb
-	 * see usbhsh_urb_enqueue() :: alloc new request.
-	 * it will be freed in usbhsh_data_stage_packet_done()
-	 */
-	ureq	= usbhsh_urb_to_ureq(urb);
-	pkt	= &ureq->pkt;
+	/* this ureq will be freed on usbhsh_data_stage_packet_done() */
+	ureq = usbhsh_ureq_alloc(hpriv, urb, mem_flags);
+	if (unlikely(!ureq))
+		return -ENOMEM;
+	usbhsh_urb_to_ureq(urb) = ureq;
 
 	if (usb_pipein(urb->pipe))
 		pipe->handler = &usbhs_dcp_data_stage_in_handler;
 	else
 		pipe->handler = &usbhs_dcp_data_stage_out_handler;
 
-	usbhs_pkt_push(pipe, pkt,
+	usbhs_pkt_push(pipe, &ureq->pkt,
 		       usbhsh_data_stage_packet_done,
 		       urb->transfer_buffer,
 		       urb->transfer_buffer_length,
 		       (urb->transfer_flags & URB_ZERO_PACKET));
+
+	return 0;
 }
 
 /*
  *		DCP status stage
  */
-static void usbhsh_status_stage_packet_push(struct usbhsh_hpriv *hpriv,
+static int usbhsh_status_stage_packet_push(struct usbhsh_hpriv *hpriv,
 					    struct urb *urb,
-					    struct usbhs_pipe *pipe)
+					    struct usbhs_pipe *pipe,
+					    gfp_t mem_flags)
 {
 	struct usbhsh_request *ureq;
-	struct usbhs_pkt *pkt;
 
-	/*
-	 * FIXME
-	 *
-	 * status stage uses allocated ureq.
-	 * it will be freed on usbhsh_queue_done()
-	 */
-	ureq	= usbhsh_ureq_alloc(hpriv, urb, GFP_KERNEL);
-	pkt	= &ureq->pkt;
+	/* This ureq will be freed on usbhsh_queue_done() */
+	ureq = usbhsh_ureq_alloc(hpriv, urb, mem_flags);
+	if (unlikely(!ureq))
+		return -ENOMEM;
+	usbhsh_urb_to_ureq(urb) = ureq;
 
 	if (usb_pipein(urb->pipe))
 		pipe->handler = &usbhs_dcp_status_stage_in_handler;
 	else
 		pipe->handler = &usbhs_dcp_status_stage_out_handler;
 
-	usbhs_pkt_push(pipe, pkt,
+	usbhs_pkt_push(pipe, &ureq->pkt,
 		       usbhsh_queue_done,
 		       NULL,
 		       urb->transfer_buffer_length,
 		       0);
+
+	return 0;
 }
 
 static int usbhsh_dcp_queue_push(struct usb_hcd *hcd,
-				 struct usbhsh_hpriv *hpriv,
 				 struct usbhs_pipe *pipe,
-				 struct urb *urb)
+				 struct urb *urb,
+				 gfp_t mflags)
 {
+	struct usbhsh_hpriv *hpriv = usbhsh_hcd_to_hpriv(hcd);
 	struct device *dev = usbhsh_hcd_to_dev(hcd);
+	int ret;
 
 	dev_dbg(dev, "%s\n", __func__);
 
@@ -686,13 +695,22 @@ static int usbhsh_dcp_queue_push(struct usb_hcd *hcd,
 	 *
 	 * It is pushed only when urb has buffer.
 	 */
-	if (urb->transfer_buffer_length)
-		usbhsh_data_stage_packet_push(hpriv, urb, pipe);
+	if (urb->transfer_buffer_length) {
+		ret = usbhsh_data_stage_packet_push(hpriv, urb, pipe, mflags);
+		if (ret < 0) {
+			dev_err(dev, "data stage failed\n");
+			return ret;
+		}
+	}
 
 	/*
 	 * status stage
 	 */
-	usbhsh_status_stage_packet_push(hpriv, urb, pipe);
+	ret = usbhsh_status_stage_packet_push(hpriv, urb, pipe, mflags);
+	if (ret < 0) {
+		dev_err(dev, "status stage failed\n");
+		return ret;
+	}
 
 	/*
 	 * start pushed packets
@@ -731,7 +749,6 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	struct device *dev = usbhs_priv_to_dev(priv);
 	struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
 	struct usb_host_endpoint *ep = urb->ep;
-	struct usbhsh_request *ureq;
 	struct usbhsh_device *udev, *new_udev = NULL;
 	struct usbhs_pipe *pipe;
 	struct usbhsh_ep *uep;
@@ -770,27 +787,15 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	pipe = usbhsh_uep_to_pipe(uep);
 
 	/*
-	 * alloc new request
-	 */
-	ureq = usbhsh_ureq_alloc(hpriv, urb, mem_flags);
-	if (unlikely(!ureq)) {
-		ret = -ENOMEM;
-		goto usbhsh_urb_enqueue_error_free_endpoint;
-	}
-	usbhsh_urb_to_ureq(urb) = ureq;
-
-	/*
 	 * push packet
 	 */
 	if (usb_pipecontrol(urb->pipe))
-		usbhsh_dcp_queue_push(hcd, hpriv, pipe, urb);
+		ret = usbhsh_dcp_queue_push(hcd, pipe, urb, mem_flags);
 	else
-		usbhsh_queue_push(hcd, pipe, urb);
+		ret = usbhsh_queue_push(hcd, pipe, urb, mem_flags);
 
-	return 0;
+	return ret;
 
-usbhsh_urb_enqueue_error_free_endpoint:
-	usbhsh_endpoint_free(hpriv, ep);
 usbhsh_urb_enqueue_error_free_device:
 	if (new_udev)
 		usbhsh_device_free(hpriv, new_udev);
