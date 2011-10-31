@@ -175,7 +175,7 @@ struct ext4_allocation_context {
 	/* the best found extent */
 	struct ext4_free_extent ac_b_ex;
 
-	/* copy of the bext found extent taken before preallocation efforts */
+	/* copy of the best found extent taken before preallocation efforts */
 	struct ext4_free_extent ac_f_ex;
 
 	/* number of iterations done. we have to track to limit searching */
