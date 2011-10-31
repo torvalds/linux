@@ -208,6 +208,14 @@ config DM_DEBUG
 
 	  If unsure, say N.
 
+config DM_BUFIO
+       tristate
+       depends on BLK_DEV_DM && EXPERIMENTAL
+       ---help---
+	 This interface allows you to do buffered I/O on a device and acts
+	 as a cache, holding recently-read blocks in memory and performing
+	 delayed writes.
+
 config DM_CRYPT
 	tristate "Crypt target support"
 	depends on BLK_DEV_DM
