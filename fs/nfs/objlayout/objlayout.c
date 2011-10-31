@@ -156,59 +156,23 @@ last_byte_offset(u64 start, u64 len)
 	return end > start ? end - 1 : NFS4_MAX_UINT64;
 }
 
-static struct objlayout_io_state *
-objlayout_alloc_io_state(struct pnfs_layout_hdr *pnfs_layout_type,
-			struct page **pages,
-			unsigned pgbase,
-			loff_t offset,
-			size_t count,
-			struct pnfs_layout_segment *lseg,
-			void *rpcdata,
-			gfp_t gfp_flags)
+void _fix_verify_io_params(struct pnfs_layout_segment *lseg,
+			   struct page ***p_pages, unsigned *p_pgbase,
+			   u64 offset, unsigned long count)
 {
-	struct objlayout_io_state *state;
 	u64 lseg_end_offset;
-
-	dprintk("%s: allocating io_state\n", __func__);
-	if (objio_alloc_io_state(lseg, &state, gfp_flags))
-		return NULL;
 
 	BUG_ON(offset < lseg->pls_range.offset);
 	lseg_end_offset = end_offset(lseg->pls_range.offset,
 				     lseg->pls_range.length);
 	BUG_ON(offset >= lseg_end_offset);
-	if (offset + count > lseg_end_offset) {
-		count = lseg->pls_range.length -
-				(offset - lseg->pls_range.offset);
-		dprintk("%s: truncated count %Zd\n", __func__, count);
+	WARN_ON(offset + count > lseg_end_offset);
+
+	if (*p_pgbase > PAGE_SIZE) {
+		dprintk("%s: pgbase(0x%x) > PAGE_SIZE\n", __func__, *p_pgbase);
+		*p_pages += *p_pgbase >> PAGE_SHIFT;
+		*p_pgbase &= ~PAGE_MASK;
 	}
-
-	if (pgbase > PAGE_SIZE) {
-		pages += pgbase >> PAGE_SHIFT;
-		pgbase &= ~PAGE_MASK;
-	}
-
-	INIT_LIST_HEAD(&state->err_list);
-	state->lseg = lseg;
-	state->rpcdata = rpcdata;
-	state->pages = pages;
-	state->pgbase = pgbase;
-	state->nr_pages = (pgbase + count + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	state->offset = offset;
-	state->count = count;
-	state->sync = 0;
-
-	return state;
-}
-
-static void
-objlayout_free_io_state(struct objlayout_io_state *state)
-{
-	dprintk("%s: freeing io_state\n", __func__);
-	if (unlikely(!state))
-		return;
-
-	objio_free_io_state(state);
 }
 
 /*
@@ -217,12 +181,10 @@ objlayout_free_io_state(struct objlayout_io_state *state)
 static void
 objlayout_iodone(struct objlayout_io_state *state)
 {
-	dprintk("%s: state %p status\n", __func__, state);
-
 	if (likely(state->status >= 0)) {
-		objlayout_free_io_state(state);
+		objio_free_result(state);
 	} else {
-		struct objlayout *objlay = OBJLAYOUT(state->lseg->pls_layout);
+		struct objlayout *objlay = state->objlay;
 
 		spin_lock(&objlay->lock);
 		objlay->delta_space_valid = OBJ_DSU_INVALID;
@@ -289,14 +251,14 @@ objlayout_read_done(struct objlayout_io_state *state, ssize_t status, bool sync)
 {
 	struct nfs_read_data *rdata = state->rpcdata;
 
-	state->status = status;
-	dprintk("%s: Begin status=%zd eof=%d\n", __func__,
-		status, rdata->res.eof);
-	rdata->task.tk_status = status;
+	state->status = rdata->task.tk_status = status;
 	if (status >= 0)
 		rdata->res.count = status;
 	objlayout_iodone(state);
 	/* must not use state after this point */
+
+	dprintk("%s: Return status=%zd eof=%d sync=%d\n", __func__,
+		status, rdata->res.eof, sync);
 
 	if (sync)
 		pnfs_ld_read_done(rdata);
@@ -314,7 +276,6 @@ objlayout_read_pagelist(struct nfs_read_data *rdata)
 {
 	loff_t offset = rdata->args.offset;
 	size_t count = rdata->args.count;
-	struct objlayout_io_state *state;
 	int err;
 	loff_t eof;
 
@@ -331,20 +292,14 @@ objlayout_read_pagelist(struct nfs_read_data *rdata)
 	}
 
 	rdata->res.eof = (offset + count) >= eof;
+	_fix_verify_io_params(rdata->lseg, &rdata->args.pages,
+			      &rdata->args.pgbase,
+			      rdata->args.offset, rdata->args.count);
 
-	state = objlayout_alloc_io_state(NFS_I(rdata->inode)->layout,
-					 rdata->args.pages, rdata->args.pgbase,
-					 offset, count,
-					 rdata->lseg, rdata,
-					 GFP_KERNEL);
-	if (unlikely(!state)) {
-		err = -ENOMEM;
-		goto out;
-	}
 	dprintk("%s: inode(%lx) offset 0x%llx count 0x%Zx eof=%d\n",
 		__func__, rdata->inode->i_ino, offset, count, rdata->res.eof);
 
-	err = objio_read_pagelist(state);
+	err = objio_read_pagelist(rdata);
  out:
 	if (unlikely(err)) {
 		rdata->pnfs_error = err;
@@ -374,23 +329,18 @@ void
 objlayout_write_done(struct objlayout_io_state *state, ssize_t status,
 		     bool sync)
 {
-	struct nfs_write_data *wdata;
+	struct nfs_write_data *wdata = state->rpcdata;
 
-	dprintk("%s: Begin\n", __func__);
-	wdata = state->rpcdata;
-	state->status = status;
-	wdata->task.tk_status = status;
+	state->status = wdata->task.tk_status = status;
 	if (status >= 0) {
 		wdata->res.count = status;
 		wdata->verf.committed = state->committed;
-		dprintk("%s: Return status %d committed %d\n",
-			__func__, wdata->task.tk_status,
-			wdata->verf.committed);
-	} else
-		dprintk("%s: Return status %d\n",
-			__func__, wdata->task.tk_status);
+	}
 	objlayout_iodone(state);
-	/* must not use state after this point */
+	/* must not use oir after this point */
+
+	dprintk("%s: Return status %zd committed %d sync=%d\n", __func__,
+		status, wdata->verf.committed, sync);
 
 	if (sync)
 		pnfs_ld_write_done(wdata);
@@ -407,25 +357,13 @@ enum pnfs_try_status
 objlayout_write_pagelist(struct nfs_write_data *wdata,
 			 int how)
 {
-	struct objlayout_io_state *state;
 	int err;
 
-	state = objlayout_alloc_io_state(NFS_I(wdata->inode)->layout,
-					 wdata->args.pages,
-					 wdata->args.pgbase,
-					 wdata->args.offset,
-					 wdata->args.count,
-					 wdata->lseg, wdata,
-					 GFP_NOFS);
-	if (unlikely(!state)) {
-		err = -ENOMEM;
-		goto out;
-	}
+	_fix_verify_io_params(wdata->lseg, &wdata->args.pages,
+			      &wdata->args.pgbase,
+			      wdata->args.offset, wdata->args.count);
 
-	state->sync = how & FLUSH_SYNC;
-
-	err = objio_write_pagelist(state, how & FLUSH_STABLE);
- out:
+	err = objio_write_pagelist(wdata, how);
 	if (unlikely(err)) {
 		wdata->pnfs_error = err;
 		dprintk("%s: Returned Error %d\n", __func__, err);
@@ -564,7 +502,7 @@ encode_accumulated_error(struct objlayout *objlay, __be32 *p)
 			merge_ioerr(&accumulated_err, ioerr);
 		}
 		list_del(&state->err_list);
-		objlayout_free_io_state(state);
+		objio_free_result(state);
 	}
 
 	pnfs_osd_xdr_encode_ioerr(p, &accumulated_err);
@@ -632,7 +570,7 @@ objlayout_encode_layoutreturn(struct pnfs_layout_hdr *pnfslay,
 			goto loop_done;
 		}
 		list_del(&state->err_list);
-		objlayout_free_io_state(state);
+		objio_free_result(state);
 	}
 loop_done:
 	spin_unlock(&objlay->lock);

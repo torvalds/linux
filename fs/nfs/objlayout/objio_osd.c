@@ -148,6 +148,13 @@ struct objio_state {
 	/* Generic layer */
 	struct objlayout_io_state ol_state;
 
+	struct page **pages;
+	unsigned pgbase;
+	unsigned nr_pages;
+	unsigned long count;
+	loff_t offset;
+	bool sync;
+
 	struct objio_segment *layout;
 
 	struct kref kref;
@@ -394,30 +401,43 @@ void objio_free_lseg(struct pnfs_layout_segment *lseg)
 	kfree(objio_seg);
 }
 
-int objio_alloc_io_state(struct pnfs_layout_segment *lseg,
-			 struct objlayout_io_state **outp,
-			 gfp_t gfp_flags)
+static int
+objio_alloc_io_state(struct pnfs_layout_hdr *pnfs_layout_type,
+	struct pnfs_layout_segment *lseg, struct page **pages, unsigned pgbase,
+	loff_t offset, size_t count, void *rpcdata, gfp_t gfp_flags,
+	struct objio_state **outp)
 {
 	struct objio_segment *objio_seg = OBJIO_LSEG(lseg);
 	struct objio_state *ios;
-	const unsigned first_size = sizeof(*ios) +
-				objio_seg->num_comps * sizeof(ios->per_dev[0]);
-	const unsigned sec_size = objio_seg->num_comps *
-						sizeof(ios->ol_state.ioerrs[0]);
+	struct __alloc_objio_state {
+		struct objio_state objios;
+		struct _objio_per_comp per_dev[objio_seg->num_comps];
+		struct pnfs_osd_ioerr ioerrs[objio_seg->num_comps];
+	} *aos;
 
-	ios = kzalloc(first_size + sec_size, gfp_flags);
-	if (unlikely(!ios))
+	aos = kzalloc(sizeof(*aos), gfp_flags);
+	if (unlikely(!aos))
 		return -ENOMEM;
 
-	ios->layout = objio_seg;
-	ios->ol_state.ioerrs = ((void *)ios) + first_size;
-	ios->ol_state.num_comps = objio_seg->num_comps;
+	ios = &aos->objios;
 
-	*outp = &ios->ol_state;
+	ios->layout = objio_seg;
+	objlayout_init_ioerrs(&aos->objios.ol_state, objio_seg->num_comps,
+			aos->ioerrs, rpcdata, pnfs_layout_type);
+
+	ios->pages = pages;
+	ios->pgbase = pgbase;
+	ios->nr_pages = (pgbase + count + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	ios->offset = offset;
+	ios->count = count;
+	ios->sync = 0;
+	BUG_ON(ios->nr_pages > (pgbase + count + PAGE_SIZE - 1) >> PAGE_SHIFT);
+
+	*outp = ios;
 	return 0;
 }
 
-void objio_free_io_state(struct objlayout_io_state *ol_state)
+void objio_free_result(struct objlayout_io_state *ol_state)
 {
 	struct objio_state *ios = container_of(ol_state, struct objio_state,
 					       ol_state);
@@ -598,7 +618,7 @@ static int _add_stripe_unit(struct objio_state *ios,  unsigned *cur_pg,
 	if (per_dev->bio == NULL) {
 		unsigned pages_in_stripe = ios->layout->group_width *
 				      (ios->layout->stripe_unit / PAGE_SIZE);
-		unsigned bio_size = (ios->ol_state.nr_pages + pages_in_stripe) /
+		unsigned bio_size = (ios->nr_pages + pages_in_stripe) /
 				    ios->layout->group_width;
 
 		if (BIO_MAX_PAGES_KMALLOC < bio_size)
@@ -615,11 +635,11 @@ static int _add_stripe_unit(struct objio_state *ios,  unsigned *cur_pg,
 		unsigned pglen = min_t(unsigned, PAGE_SIZE - pgbase, cur_len);
 		unsigned added_len;
 
-		BUG_ON(ios->ol_state.nr_pages <= pg);
+		BUG_ON(ios->nr_pages <= pg);
 		cur_len -= pglen;
 
 		added_len = bio_add_pc_page(q, per_dev->bio,
-					ios->ol_state.pages[pg], pglen, pgbase);
+					ios->pages[pg], pglen, pgbase);
 		if (unlikely(pglen != added_len))
 			return -ENOMEM;
 		pgbase = 0;
@@ -660,7 +680,7 @@ static int _prepare_one_group(struct objio_state *ios, u64 length,
 				cur_len = stripe_unit - si->unit_off;
 				page_off = si->unit_off & ~PAGE_MASK;
 				BUG_ON(page_off &&
-				      (page_off != ios->ol_state.pgbase));
+				      (page_off != ios->pgbase));
 			} else { /* dev > si->dev */
 				per_dev->offset = si->obj_offset - si->unit_off;
 				cur_len = stripe_unit;
@@ -693,8 +713,8 @@ out:
 
 static int _io_rw_pagelist(struct objio_state *ios, gfp_t gfp_flags)
 {
-	u64 length = ios->ol_state.count;
-	u64 offset = ios->ol_state.offset;
+	u64 length = ios->count;
+	u64 offset = ios->offset;
 	struct _striping_info si;
 	unsigned last_pg = 0;
 	int ret = 0;
@@ -748,7 +768,7 @@ static int _io_exec(struct objio_state *ios)
 	int ret = 0;
 	unsigned i;
 	objio_done_fn saved_done_fn = ios->done;
-	bool sync = ios->ol_state.sync;
+	bool sync = ios->sync;
 
 	if (sync) {
 		ios->done = _sync_done;
@@ -792,7 +812,7 @@ static int _read_done(struct objio_state *ios)
 	else
 		status = ret;
 
-	objlayout_read_done(&ios->ol_state, status, ios->ol_state.sync);
+	objlayout_read_done(&ios->ol_state, status, ios->sync);
 	return ret;
 }
 
@@ -854,11 +874,17 @@ err:
 	return ret;
 }
 
-int objio_read_pagelist(struct objlayout_io_state *ol_state)
+int objio_read_pagelist(struct nfs_read_data *rdata)
 {
-	struct objio_state *ios = container_of(ol_state, struct objio_state,
-					       ol_state);
+	struct objio_state *ios;
 	int ret;
+
+	ret = objio_alloc_io_state(NFS_I(rdata->inode)->layout,
+			rdata->lseg, rdata->args.pages, rdata->args.pgbase,
+			rdata->args.offset, rdata->args.count, rdata,
+			GFP_KERNEL, &ios);
+	if (unlikely(ret))
+		return ret;
 
 	ret = _io_rw_pagelist(ios, GFP_KERNEL);
 	if (unlikely(ret))
@@ -886,7 +912,7 @@ static int _write_done(struct objio_state *ios)
 		status = ret;
 	}
 
-	objlayout_write_done(&ios->ol_state, status, ios->ol_state.sync);
+	objlayout_write_done(&ios->ol_state, status, ios->sync);
 	return ret;
 }
 
@@ -976,11 +1002,19 @@ err:
 	return ret;
 }
 
-int objio_write_pagelist(struct objlayout_io_state *ol_state, bool stable)
+int objio_write_pagelist(struct nfs_write_data *wdata, int how)
 {
-	struct objio_state *ios = container_of(ol_state, struct objio_state,
-					       ol_state);
+	struct objio_state *ios;
 	int ret;
+
+	ret = objio_alloc_io_state(NFS_I(wdata->inode)->layout,
+			wdata->lseg, wdata->args.pages, wdata->args.pgbase,
+			wdata->args.offset, wdata->args.count, wdata, GFP_NOFS,
+			&ios);
+	if (unlikely(ret))
+		return ret;
+
+	ios->sync = 0 != (how & FLUSH_SYNC);
 
 	/* TODO: ios->stable = stable; */
 	ret = _io_rw_pagelist(ios, GFP_NOFS);
