@@ -53,20 +53,21 @@ static void __call_rcu(struct rcu_head *head,
 
 #include "rcutiny_plugin.h"
 
-static long long rcu_dynticks_nesting = LLONG_MAX / 2;
+static long long rcu_dynticks_nesting = DYNTICK_TASK_NESTING;
 
 /* Common code for rcu_idle_enter() and rcu_irq_exit(), see kernel/rcutree.c. */
-static void rcu_idle_enter_common(void)
+static void rcu_idle_enter_common(long long oldval)
 {
 	if (rcu_dynticks_nesting) {
-		RCU_TRACE(trace_rcu_dyntick("--=", rcu_dynticks_nesting));
+		RCU_TRACE(trace_rcu_dyntick("--=",
+					    oldval, rcu_dynticks_nesting));
 		return;
 	}
-	RCU_TRACE(trace_rcu_dyntick("Start", rcu_dynticks_nesting));
+	RCU_TRACE(trace_rcu_dyntick("Start", oldval, rcu_dynticks_nesting));
 	if (!idle_cpu(smp_processor_id())) {
 		WARN_ON_ONCE(1);	/* must be idle task! */
 		RCU_TRACE(trace_rcu_dyntick("Error on entry: not idle task",
-					    rcu_dynticks_nesting));
+					    oldval, rcu_dynticks_nesting));
 		ftrace_dump(DUMP_ALL);
 	}
 	rcu_sched_qs(0); /* implies rcu_bh_qsctr_inc(0) */
@@ -79,10 +80,12 @@ static void rcu_idle_enter_common(void)
 void rcu_idle_enter(void)
 {
 	unsigned long flags;
+	long long oldval;
 
 	local_irq_save(flags);
+	oldval = rcu_dynticks_nesting;
 	rcu_dynticks_nesting = 0;
-	rcu_idle_enter_common();
+	rcu_idle_enter_common(oldval);
 	local_irq_restore(flags);
 }
 
@@ -92,11 +95,13 @@ void rcu_idle_enter(void)
 void rcu_irq_exit(void)
 {
 	unsigned long flags;
+	long long oldval;
 
 	local_irq_save(flags);
+	oldval = rcu_dynticks_nesting;
 	rcu_dynticks_nesting--;
 	WARN_ON_ONCE(rcu_dynticks_nesting < 0);
-	rcu_idle_enter_common();
+	rcu_idle_enter_common(oldval);
 	local_irq_restore(flags);
 }
 
@@ -104,14 +109,15 @@ void rcu_irq_exit(void)
 static void rcu_idle_exit_common(long long oldval)
 {
 	if (oldval) {
-		RCU_TRACE(trace_rcu_dyntick("++=", rcu_dynticks_nesting));
+		RCU_TRACE(trace_rcu_dyntick("++=",
+					    oldval, rcu_dynticks_nesting));
 		return;
 	}
-	RCU_TRACE(trace_rcu_dyntick("End", oldval));
+	RCU_TRACE(trace_rcu_dyntick("End", oldval, rcu_dynticks_nesting));
 	if (!idle_cpu(smp_processor_id())) {
 		WARN_ON_ONCE(1);	/* must be idle task! */
 		RCU_TRACE(trace_rcu_dyntick("Error on exit: not idle task",
-			  oldval));
+			  oldval, rcu_dynticks_nesting));
 		ftrace_dump(DUMP_ALL);
 	}
 }
@@ -127,7 +133,7 @@ void rcu_idle_exit(void)
 	local_irq_save(flags);
 	oldval = rcu_dynticks_nesting;
 	WARN_ON_ONCE(oldval != 0);
-	rcu_dynticks_nesting = LLONG_MAX / 2;
+	rcu_dynticks_nesting = DYNTICK_TASK_NESTING;
 	rcu_idle_exit_common(oldval);
 	local_irq_restore(flags);
 }

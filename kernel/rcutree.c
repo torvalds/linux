@@ -196,7 +196,7 @@ void rcu_note_context_switch(int cpu)
 EXPORT_SYMBOL_GPL(rcu_note_context_switch);
 
 DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
-	.dynticks_nesting = LLONG_MAX / 2,
+	.dynticks_nesting = DYNTICK_TASK_NESTING,
 	.dynticks = ATOMIC_INIT(1),
 };
 
@@ -348,17 +348,17 @@ static int rcu_implicit_offline_qs(struct rcu_data *rdp)
  * we really have entered idle, and must do the appropriate accounting.
  * The caller must have disabled interrupts.
  */
-static void rcu_idle_enter_common(struct rcu_dynticks *rdtp)
+static void rcu_idle_enter_common(struct rcu_dynticks *rdtp, long long oldval)
 {
 	if (rdtp->dynticks_nesting) {
-		trace_rcu_dyntick("--=", rdtp->dynticks_nesting);
+		trace_rcu_dyntick("--=", oldval, rdtp->dynticks_nesting);
 		return;
 	}
-	trace_rcu_dyntick("Start", rdtp->dynticks_nesting);
+	trace_rcu_dyntick("Start", oldval, rdtp->dynticks_nesting);
 	if (!idle_cpu(smp_processor_id())) {
 		WARN_ON_ONCE(1);	/* must be idle task! */
 		trace_rcu_dyntick("Error on entry: not idle task",
-				   rdtp->dynticks_nesting);
+				   oldval, rdtp->dynticks_nesting);
 		ftrace_dump(DUMP_ALL);
 	}
 	/* CPUs seeing atomic_inc() must see prior RCU read-side crit sects */
@@ -383,12 +383,14 @@ static void rcu_idle_enter_common(struct rcu_dynticks *rdtp)
 void rcu_idle_enter(void)
 {
 	unsigned long flags;
+	long long oldval;
 	struct rcu_dynticks *rdtp;
 
 	local_irq_save(flags);
 	rdtp = &__get_cpu_var(rcu_dynticks);
+	oldval = rdtp->dynticks_nesting;
 	rdtp->dynticks_nesting = 0;
-	rcu_idle_enter_common(rdtp);
+	rcu_idle_enter_common(rdtp, oldval);
 	local_irq_restore(flags);
 }
 
@@ -411,13 +413,15 @@ void rcu_idle_enter(void)
 void rcu_irq_exit(void)
 {
 	unsigned long flags;
+	long long oldval;
 	struct rcu_dynticks *rdtp;
 
 	local_irq_save(flags);
 	rdtp = &__get_cpu_var(rcu_dynticks);
+	oldval = rdtp->dynticks_nesting;
 	rdtp->dynticks_nesting--;
 	WARN_ON_ONCE(rdtp->dynticks_nesting < 0);
-	rcu_idle_enter_common(rdtp);
+	rcu_idle_enter_common(rdtp, oldval);
 	local_irq_restore(flags);
 }
 
@@ -431,7 +435,7 @@ void rcu_irq_exit(void)
 static void rcu_idle_exit_common(struct rcu_dynticks *rdtp, long long oldval)
 {
 	if (oldval) {
-		trace_rcu_dyntick("++=", rdtp->dynticks_nesting);
+		trace_rcu_dyntick("++=", oldval, rdtp->dynticks_nesting);
 		return;
 	}
 	smp_mb__before_atomic_inc();  /* Force ordering w/previous sojourn. */
@@ -439,10 +443,11 @@ static void rcu_idle_exit_common(struct rcu_dynticks *rdtp, long long oldval)
 	/* CPUs seeing atomic_inc() must see later RCU read-side crit sects */
 	smp_mb__after_atomic_inc();  /* See above. */
 	WARN_ON_ONCE(!(atomic_read(&rdtp->dynticks) & 0x1));
-	trace_rcu_dyntick("End", oldval);
+	trace_rcu_dyntick("End", oldval, rdtp->dynticks_nesting);
 	if (!idle_cpu(smp_processor_id())) {
 		WARN_ON_ONCE(1);	/* must be idle task! */
-		trace_rcu_dyntick("Error on exit: not idle task", oldval);
+		trace_rcu_dyntick("Error on exit: not idle task",
+				  oldval, rdtp->dynticks_nesting);
 		ftrace_dump(DUMP_ALL);
 	}
 }
@@ -453,8 +458,8 @@ static void rcu_idle_exit_common(struct rcu_dynticks *rdtp, long long oldval)
  * Exit idle mode, in other words, -enter- the mode in which RCU
  * read-side critical sections can occur.
  *
- * We crowbar the ->dynticks_nesting field to LLONG_MAX/2 to allow for
- * the possibility of usermode upcalls messing up our count
+ * We crowbar the ->dynticks_nesting field to DYNTICK_TASK_NESTING to
+ * allow for the possibility of usermode upcalls messing up our count
  * of interrupt nesting level during the busy period that is just
  * now starting.
  */
@@ -468,7 +473,7 @@ void rcu_idle_exit(void)
 	rdtp = &__get_cpu_var(rcu_dynticks);
 	oldval = rdtp->dynticks_nesting;
 	WARN_ON_ONCE(oldval != 0);
-	rdtp->dynticks_nesting = LLONG_MAX / 2;
+	rdtp->dynticks_nesting = DYNTICK_TASK_NESTING;
 	rcu_idle_exit_common(rdtp, oldval);
 	local_irq_restore(flags);
 }
@@ -2012,7 +2017,7 @@ rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
 		rdp->nxttail[i] = &rdp->nxtlist;
 	rdp->qlen = 0;
 	rdp->dynticks = &per_cpu(rcu_dynticks, cpu);
-	WARN_ON_ONCE(rdp->dynticks->dynticks_nesting != LLONG_MAX / 2);
+	WARN_ON_ONCE(rdp->dynticks->dynticks_nesting != DYNTICK_TASK_NESTING);
 	WARN_ON_ONCE(atomic_read(&rdp->dynticks->dynticks) != 1);
 	rdp->cpu = cpu;
 	rdp->rsp = rsp;
@@ -2040,7 +2045,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptible)
 	rdp->qlen_last_fqs_check = 0;
 	rdp->n_force_qs_snap = rsp->n_force_qs;
 	rdp->blimit = blimit;
-	WARN_ON_ONCE(rdp->dynticks->dynticks_nesting != LLONG_MAX / 2);
+	WARN_ON_ONCE(rdp->dynticks->dynticks_nesting != DYNTICK_TASK_NESTING);
 	WARN_ON_ONCE((atomic_read(&rdp->dynticks->dynticks) & 0x1) != 1);
 	raw_spin_unlock(&rnp->lock);		/* irqs remain disabled. */
 

@@ -246,21 +246,24 @@ TRACE_EVENT(rcu_fqs,
  */
 TRACE_EVENT(rcu_dyntick,
 
-	TP_PROTO(char *polarity, int nesting),
+	TP_PROTO(char *polarity, long long oldnesting, long long newnesting),
 
-	TP_ARGS(polarity, nesting),
+	TP_ARGS(polarity, oldnesting, newnesting),
 
 	TP_STRUCT__entry(
 		__field(char *, polarity)
-		__field(int, nesting)
+		__field(long long, oldnesting)
+		__field(long long, newnesting)
 	),
 
 	TP_fast_assign(
 		__entry->polarity = polarity;
-		__entry->nesting = nesting;
+		__entry->oldnesting = oldnesting;
+		__entry->newnesting = newnesting;
 	),
 
-	TP_printk("%s %d", __entry->polarity, __entry->nesting)
+	TP_printk("%s %llx %llx", __entry->polarity,
+		  __entry->oldnesting, __entry->newnesting)
 );
 
 /*
@@ -470,7 +473,7 @@ TRACE_EVENT(rcu_torture_read,
 #define trace_rcu_unlock_preempted_task(rcuname, gpnum, pid) do { } while (0)
 #define trace_rcu_quiescent_state_report(rcuname, gpnum, mask, qsmask, level, grplo, grphi, gp_tasks) do { } while (0)
 #define trace_rcu_fqs(rcuname, gpnum, cpu, qsevent) do { } while (0)
-#define trace_rcu_dyntick(polarity, nesting) do { } while (0)
+#define trace_rcu_dyntick(polarity, oldnesting, newnesting) do { } while (0)
 #define trace_rcu_callback(rcuname, rhp, qlen) do { } while (0)
 #define trace_rcu_kfree_callback(rcuname, rhp, offset, qlen) do { } while (0)
 #define trace_rcu_batch_start(rcuname, qlen, blimit) do { } while (0)
