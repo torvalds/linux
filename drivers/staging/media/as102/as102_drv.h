@@ -106,6 +106,7 @@ struct as102_bus_adapter_t {
 };
 
 struct as102_dev_t {
+	const char *name;
 	struct as102_bus_adapter_t bus_adap;
 	struct list_head device_entry;
 	struct kref kref;

@@ -209,7 +209,7 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 
 #if defined(CONFIG_DVB_CORE) || defined(CONFIG_DVB_CORE_MODULE)
 	ret = dvb_register_adapter(&as102_dev->dvb_adap,
-				   DEVICE_FULL_NAME,
+				   as102_dev->name,
 				   THIS_MODULE,
 #if defined(CONFIG_AS102_USB)
 				   &as102_dev->bus_adap.usb_dev->dev

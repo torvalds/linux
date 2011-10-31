@@ -28,16 +28,17 @@
 /* define these values to match the supported devices */
 
 /* Abilis system: "TITAN" */
+#define AS102_REFERENCE_DESIGN		"Abilis Systems DVB-Titan"
 #define AS102_USB_DEVICE_VENDOR_ID	0x1BA6
 #define AS102_USB_DEVICE_PID_0001	0x0001
 
 /* PCTV Systems: PCTV picoStick (74e) */
-#define DEVICE_FULL_NAME		"PCTV Systems : PCTV picoStick (74e)"
+#define AS102_PCTV_74E			"PCTV Systems picoStick (74e)"
 #define PCTV_74E_USB_VID		0x2013
 #define PCTV_74E_USB_PID		0x0246
 
 /* Elgato: EyeTV DTT Deluxe */
-#define ELGATO_EYETV_DTT_NAME		"Elgato EyeTV DTT Deluxe"
+#define AS102_ELGATO_EYETV_DTT_NAME	"Elgato EyeTV DTT Deluxe"
 #define ELGATO_EYETV_DTT_USB_VID	0x0fd9
 #define ELGATO_EYETV_DTT_USB_PID	0x002c
 

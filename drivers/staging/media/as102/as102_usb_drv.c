@@ -44,6 +44,15 @@ static struct usb_device_id as102_usb_id_table[] = {
 	{ } /* Terminating entry */
 };
 
+/* Note that this table must always have the same number of entries as the
+   as102_usb_id_table struct */
+static const char *as102_device_names[] = {
+	AS102_REFERENCE_DESIGN,
+	AS102_PCTV_74E,
+	AS102_ELGATO_EYETV_DTT_NAME,
+	NULL /* Terminating entry */
+};
+
 struct usb_driver as102_usb_driver = {
 	.name       =  DRIVER_FULL_NAME,
 	.probe      =  as102_usb_probe,
@@ -344,6 +353,7 @@ static int as102_usb_probe(struct usb_interface *intf,
 {
 	int ret;
 	struct as102_dev_t *as102_dev;
+	int i;
 
 	ENTER();
 
@@ -352,6 +362,23 @@ static int as102_usb_probe(struct usb_interface *intf,
 		err("%s: kzalloc failed", __func__);
 		return -ENOMEM;
 	}
+
+	/* This should never actually happen */
+	if ((sizeof(as102_usb_id_table) / sizeof(struct usb_device_id)) !=
+	    (sizeof(as102_device_names) / sizeof(const char *))) {
+		printk(KERN_ERR "Device names table invalid size");
+		return -EINVAL;
+	}
+
+	/* Assign the user-friendly device name */
+	for (i = 0; i < (sizeof(as102_usb_id_table) /
+			 sizeof(struct usb_device_id)); i++) {
+		if (id == &as102_usb_id_table[i])
+			as102_dev->name = as102_device_names[i];
+	}
+
+	if (as102_dev->name == NULL)
+		as102_dev->name = "Unknown AS102 device";
 
 	/* set private callback functions */
 	as102_dev->bus_adap.ops = &as102_priv_ops;

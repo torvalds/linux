@@ -346,7 +346,7 @@ static int as102_fe_ts_bus_ctrl(struct dvb_frontend *fe, int acquire)
 
 static struct dvb_frontend_ops as102_fe_ops = {
 	.info = {
-		.name			= DEVICE_FULL_NAME,
+		.name			= "Unknown AS102 device",
 		.type			= FE_OFDM,
 		.frequency_min		= 174000000,
 		.frequency_max		= 862000000,
@@ -408,6 +408,8 @@ int as102_dvb_register_fe(struct as102_dev_t *as102_dev,
 
 	/* init frontend callback ops */
 	memcpy(&dvb_fe->ops, &as102_fe_ops, sizeof(struct dvb_frontend_ops));
+	strncpy(dvb_fe->ops.info.name, as102_dev->name,
+		sizeof(dvb_fe->ops.info.name));
 
 	/* register dbvb frontend */
 	errno = dvb_register_frontend(dvb_adap, dvb_fe);
