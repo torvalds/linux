@@ -1746,12 +1746,12 @@ static struct platform_driver iop_adma_driver = {
 	},
 };
 
-static int __init iop_adma_init (void)
+static int __init iop_adma_init(void)
 {
 	return platform_driver_register(&iop_adma_driver);
 }
 
-static void __exit iop_adma_exit (void)
+static void __exit iop_adma_exit(void)
 {
 	platform_driver_unregister(&iop_adma_driver);
 	return;
