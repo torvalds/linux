@@ -17,8 +17,6 @@
 #include <asm-generic/cmpxchg.h>
 #include <asm-generic/cmpxchg-local.h>
 
-#define __ARCH_WANT_INTERRUPTS_ON_CTXSW
-
 struct task_struct;
 struct thread_info;
 
@@ -95,12 +93,5 @@ extern struct dentry *of_debugfs_root;
 #endif
 
 #define arch_align_stack(x) (x)
-
-/*
- * MicroBlaze doesn't handle unaligned accesses in hardware.
- *
- * Based on this we force the IP header alignment in network drivers.
- */
-#define NET_IP_ALIGN	2
 
 #endif /* _ASM_MICROBLAZE_SYSTEM_H */

@@ -308,7 +308,8 @@ unsigned long long notrace sched_clock(void)
 {
 	if (timer_initialized) {
 		struct clocksource *cs = &clocksource_microblaze;
-		cycle_t cyc = cnt32_to_63(cs->read(NULL));
+
+		cycle_t cyc = cnt32_to_63(cs->read(NULL)) & LLONG_MAX;
 		return clocksource_cyc2ns(cyc, cs->mult, cs->shift);
 	}
 	return 0;

@@ -25,5 +25,6 @@ lib-y += lshrdi3.o
 lib-y += modsi3.o
 lib-y += muldi3.o
 lib-y += mulsi3.o
+lib-y += ucmpdi2.o
 lib-y += udivsi3.o
 lib-y += umodsi3.o
