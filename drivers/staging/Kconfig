@@ -144,4 +144,6 @@ source "drivers/staging/mei/Kconfig"
 
 source "drivers/staging/nvec/Kconfig"
 
+source "drivers/staging/media/as102/Kconfig"
+
 endif # STAGING

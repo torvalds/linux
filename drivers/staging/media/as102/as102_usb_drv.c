@@ -238,7 +238,7 @@ static void as102_free_usb_stream_buffer(struct as102_dev_t *dev)
 	for (i = 0; i < MAX_STREAM_URB; i++)
 		usb_free_urb(dev->stream_urb[i]);
 
-	usb_buffer_free(dev->bus_adap.usb_dev,
+	usb_free_coherent(dev->bus_adap.usb_dev,
 			MAX_STREAM_URB * AS102_USB_BUF_SIZE,
 			dev->stream,
 			dev->dma_addr);
@@ -251,7 +251,7 @@ static int as102_alloc_usb_stream_buffer(struct as102_dev_t *dev)
 
 	ENTER();
 
-	dev->stream = usb_buffer_alloc(dev->bus_adap.usb_dev,
+	dev->stream = usb_alloc_coherent(dev->bus_adap.usb_dev,
 				       MAX_STREAM_URB * AS102_USB_BUF_SIZE,
 				       GFP_KERNEL,
 				       &dev->dma_addr);
