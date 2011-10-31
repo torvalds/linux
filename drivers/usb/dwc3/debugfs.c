@@ -443,29 +443,26 @@ static ssize_t dwc3_mode_write(struct file *file,
 	struct seq_file		*s = file->private_data;
 	struct dwc3		*dwc = s->private;
 	unsigned long		flags;
-	u32			reg;
+	u32			mode = 0;
 	char			buf[32];
 
 	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
-	spin_lock_irqsave(&dwc->lock, flags);
-	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
-
-	reg &= ~(DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_OTG));
-
 	if (!strncmp(buf, "host", 4))
-		reg |= DWC3_GCTL_PRTCAP(DWC3_GCTL_PRTCAP_HOST);
+		mode |= DWC3_GCTL_PRTCAP_HOST;
 
 	if (!strncmp(buf, "device", 6))
-		reg |= DWC3_GCTL_PRTCAP(DWC3_GCTL_PRTCAP_DEVICE);
+		mode |= DWC3_GCTL_PRTCAP_DEVICE;
 
 	if (!strncmp(buf, "otg", 3))
-		reg |= DWC3_GCTL_PRTCAP(DWC3_GCTL_PRTCAP_OTG);
+		mode |= DWC3_GCTL_PRTCAP_OTG;
 
-	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
-	spin_unlock_irqrestore(&dwc->lock, flags);
-
+	if (mode) {
+		spin_lock_irqsave(&dwc->lock, flags);
+		dwc3_set_mode(dwc, mode);
+		spin_unlock_irqrestore(&dwc->lock, flags);
+	}
 	return count;
 }
 

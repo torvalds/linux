@@ -103,7 +103,15 @@ void dwc3_put_device_id(int id)
 }
 EXPORT_SYMBOL_GPL(dwc3_put_device_id);
 
-/* -------------------------------------------------------------------------- */
+void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
+{
+	u32 reg;
+
+	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+	reg &= ~(DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_OTG));
+	reg |= DWC3_GCTL_PRTCAPDIR(mode);
+	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
+}
 
 /**
  * dwc3_core_soft_reset - Issues core soft reset and PHY reset
@@ -452,6 +460,7 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 
 	switch (mode) {
 	case DWC3_MODE_DEVICE:
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
 		ret = dwc3_gadget_init(dwc);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to initialize gadget\n");
@@ -459,6 +468,7 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 		}
 		break;
 	case DWC3_MODE_HOST:
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
 		ret = dwc3_host_init(dwc);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to initialize host\n");
@@ -466,6 +476,7 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 		}
 		break;
 	case DWC3_MODE_DRD:
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_OTG);
 		ret = dwc3_host_init(dwc);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to initialize host\n");

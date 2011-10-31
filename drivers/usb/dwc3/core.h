@@ -786,6 +786,8 @@ union dwc3_event {
 #define DWC3_HAS_OTG			BIT(3)
 
 /* prototypes */
+void dwc3_set_mode(struct dwc3 *dwc, u32 mode);
+
 int dwc3_host_init(struct dwc3 *dwc);
 void dwc3_host_exit(struct dwc3 *dwc);
 

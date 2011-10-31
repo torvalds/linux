@@ -1158,9 +1158,7 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
 
 	reg &= ~DWC3_GCTL_SCALEDOWN(3);
-	reg &= ~DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_OTG);
 	reg &= ~DWC3_GCTL_DISSCRAMBLE;
-	reg |= DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_DEVICE);
 
 	switch (DWC3_GHWPARAMS1_EN_PWROPT(dwc->hwparams.hwparams0)) {
 	case DWC3_GHWPARAMS1_EN_PWROPT_CLK:
