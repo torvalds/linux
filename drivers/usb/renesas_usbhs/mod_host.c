@@ -340,13 +340,14 @@ static void usbhsh_device_free(struct usbhsh_hpriv *hpriv,
 /*
  *		end-point control
  */
-static struct usbhsh_ep *usbhsh_endpoint_alloc(struct usbhsh_hpriv *hpriv,
-					struct usbhsh_device *udev,
-					struct usb_host_endpoint *ep,
-					int dir_in_req,
-					gfp_t mem_flags)
+static int usbhsh_endpoint_attach(struct usbhsh_hpriv *hpriv,
+				  struct urb *urb,
+				  gfp_t mem_flags)
 {
 	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
+	struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
+	struct usbhsh_device *udev = usbhsh_usbv_to_udev(usbv);
+	struct usb_host_endpoint *ep = urb->ep;
 	struct usbhsh_ep *uep;
 	struct usbhsh_pipe_info *info;
 	struct usbhs_pipe *best_pipe = NULL;
@@ -357,7 +358,7 @@ static struct usbhsh_ep *usbhsh_endpoint_alloc(struct usbhsh_hpriv *hpriv,
 	uep = kzalloc(sizeof(struct usbhsh_ep), mem_flags);
 	if (!uep) {
 		dev_err(dev, "usbhsh_ep alloc fail\n");
-		return NULL;
+		return -ENOMEM;
 	}
 
 	/********************  spin lock ********************/
@@ -374,9 +375,8 @@ static struct usbhsh_ep *usbhsh_endpoint_alloc(struct usbhsh_hpriv *hpriv,
 	} else {
 		struct usbhs_pipe *pipe;
 		unsigned int min_usr = ~0;
+		int dir_in_req = !!usb_pipein(urb->pipe);
 		int i, dir_in;
-
-		dir_in_req = !!dir_in_req;
 
 		usbhs_for_each_pipe(pipe, priv, i) {
 			if (!usbhs_pipe_type_is(pipe, usb_endpoint_type(desc)))
@@ -410,7 +410,7 @@ static struct usbhsh_ep *usbhsh_endpoint_alloc(struct usbhsh_hpriv *hpriv,
 	if (unlikely(!best_pipe)) {
 		dev_err(dev, "couldn't find best pipe\n");
 		kfree(uep);
-		return NULL;
+		return -EIO;
 	}
 
 	/*
@@ -437,11 +437,11 @@ static struct usbhsh_ep *usbhsh_endpoint_alloc(struct usbhsh_hpriv *hpriv,
 		usbhsh_device_number(hpriv, udev),
 		usbhs_pipe_name(uep->pipe), uep);
 
-	return uep;
+	return 0;
 }
 
-static void usbhsh_endpoint_free(struct usbhsh_hpriv *hpriv,
-			  struct usb_host_endpoint *ep)
+static void usbhsh_endpoint_detach(struct usbhsh_hpriv *hpriv,
+				   struct usb_host_endpoint *ep)
 {
 	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
 	struct device *dev = usbhs_priv_to_dev(priv);
@@ -745,7 +745,6 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
 	struct usb_host_endpoint *ep = urb->ep;
 	struct usbhsh_device *udev, *new_udev = NULL;
-	struct usbhsh_ep *uep;
 	int is_dir_in = usb_pipein(urb->pipe);
 
 	int ret;
@@ -769,13 +768,11 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	}
 
 	/*
-	 * get uep
+	 * attach endpoint if needed
 	 */
-	uep = usbhsh_ep_to_uep(ep);
-	if (!uep) {
-		uep = usbhsh_endpoint_alloc(hpriv, udev, ep,
-					    is_dir_in, mem_flags);
-		if (!uep)
+	if (!usbhsh_ep_to_uep(ep)) {
+		ret = usbhsh_endpoint_attach(hpriv, urb, mem_flags);
+		if (ret < 0)
 			goto usbhsh_urb_enqueue_error_free_device;
 	}
 
@@ -827,7 +824,7 @@ static void usbhsh_endpoint_disable(struct usb_hcd *hcd,
 	udev	= usbhsh_uep_to_udev(uep);
 	hpriv	= usbhsh_hcd_to_hpriv(hcd);
 
-	usbhsh_endpoint_free(hpriv, ep);
+	usbhsh_endpoint_detach(hpriv, ep);
 
 	/*
 	 * if there is no endpoint,
