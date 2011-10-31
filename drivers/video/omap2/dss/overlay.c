@@ -641,15 +641,6 @@ void dss_overlay_setup_dispc_manager(struct omap_overlay_manager *mgr)
 	mgr->overlays = dispc_overlays;
 }
 
-#ifdef L4_EXAMPLE
-static struct omap_overlay *l4_overlays[1];
-void dss_overlay_setup_l4_manager(struct omap_overlay_manager *mgr)
-{
-	mgr->num_overlays = 1;
-	mgr->overlays = l4_overlays;
-}
-#endif
-
 void dss_init_overlays(struct platform_device *pdev)
 {
 	int i, r;
@@ -716,33 +707,6 @@ void dss_init_overlays(struct platform_device *pdev)
 
 		dispc_overlays[i] = ovl;
 	}
-
-#ifdef L4_EXAMPLE
-	{
-		struct omap_overlay *ovl;
-		ovl = kzalloc(sizeof(*ovl), GFP_KERNEL);
-
-		BUG_ON(ovl == NULL);
-
-		ovl->name = "l4";
-		ovl->supported_modes = OMAP_DSS_COLOR_RGB24U;
-
-		ovl->set_manager = &omap_dss_set_manager;
-		ovl->unset_manager = &omap_dss_unset_manager;
-		ovl->set_overlay_info = &dss_ovl_set_overlay_info;
-		ovl->get_overlay_info = &dss_ovl_get_overlay_info;
-
-		omap_dss_add_overlay(ovl);
-
-		r = kobject_init_and_add(&ovl->kobj, &overlay_ktype,
-				&pdev->dev.kobj, "overlayl4");
-
-		if (r)
-			DSSERR("failed to create sysfs file\n");
-
-		l4_overlays[0] = ovl;
-	}
-#endif
 }
 
 /* connect overlays to the new device, if not already connected. if force
