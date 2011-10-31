@@ -361,16 +361,6 @@ int uvc_commit_video(struct uvc_streaming *stream,
  * Video codecs
  */
 
-/* Values for bmHeaderInfo (Video and Still Image Payload Headers, 2.4.3.3) */
-#define UVC_STREAM_EOH	(1 << 7)
-#define UVC_STREAM_ERR	(1 << 6)
-#define UVC_STREAM_STI	(1 << 5)
-#define UVC_STREAM_RES	(1 << 4)
-#define UVC_STREAM_SCR	(1 << 3)
-#define UVC_STREAM_PTS	(1 << 2)
-#define UVC_STREAM_EOF	(1 << 1)
-#define UVC_STREAM_FID	(1 << 0)
-
 /* Video payload decoding is handled by uvc_video_decode_start(),
  * uvc_video_decode_data() and uvc_video_decode_end().
  *
