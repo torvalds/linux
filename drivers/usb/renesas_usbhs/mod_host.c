@@ -239,6 +239,7 @@ static struct usbhsh_request *usbhsh_ureq_alloc(struct usbhsh_hpriv *hpriv,
 	 */
 	list_add_tail(&ureq->ureq_link, &hpriv->ureq_link_active);
 	ureq->urb = urb;
+	usbhsh_urb_to_ureq(urb) = ureq;
 
 	return ureq;
 }
@@ -254,6 +255,7 @@ static void usbhsh_ureq_free(struct usbhsh_hpriv *hpriv,
 	 * removed from "active" list,
 	 * and push it to "free" list
 	 */
+	usbhsh_urb_to_ureq(ureq->urb) = NULL;
 	ureq->urb = NULL;
 	list_del_init(&ureq->ureq_link);
 	list_add_tail(&ureq->ureq_link, &hpriv->ureq_link_free);
@@ -495,7 +497,6 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 
 	urb->actual_length = pkt->actual;
 	usbhsh_ureq_free(hpriv, ureq);
-	usbhsh_urb_to_ureq(urb) = NULL;
 
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
 	usb_hcd_giveback_urb(hcd, urb, 0);
@@ -523,7 +524,6 @@ static int usbhsh_queue_push(struct usb_hcd *hcd,
 		dev_err(dev, "ureq alloc fail\n");
 		return -ENOMEM;
 	}
-	usbhsh_urb_to_ureq(urb) = ureq;
 
 	if (usb_pipein(urb->pipe))
 		pipe->handler = &usbhs_fifo_pio_pop_handler;
@@ -606,12 +606,10 @@ static void usbhsh_data_stage_packet_done(struct usbhs_priv *priv,
 {
 	struct usbhsh_request *ureq = usbhsh_pkt_to_ureq(pkt);
 	struct usbhsh_hpriv *hpriv = usbhsh_priv_to_hpriv(priv);
-	struct urb *urb = ureq->urb;
 
 	/* this ureq was connected to urb when usbhsh_urb_enqueue()  */
 
 	usbhsh_ureq_free(hpriv, ureq);
-	usbhsh_urb_to_ureq(urb) = NULL;
 }
 
 static int usbhsh_data_stage_packet_push(struct usbhsh_hpriv *hpriv,
@@ -626,7 +624,6 @@ static int usbhsh_data_stage_packet_push(struct usbhsh_hpriv *hpriv,
 	ureq = usbhsh_ureq_alloc(hpriv, urb, mem_flags);
 	if (unlikely(!ureq))
 		return -ENOMEM;
-	usbhsh_urb_to_ureq(urb) = ureq;
 
 	if (usb_pipein(urb->pipe))
 		pipe->handler = &usbhs_dcp_data_stage_in_handler;
@@ -656,7 +653,6 @@ static int usbhsh_status_stage_packet_push(struct usbhsh_hpriv *hpriv,
 	ureq = usbhsh_ureq_alloc(hpriv, urb, mem_flags);
 	if (unlikely(!ureq))
 		return -ENOMEM;
-	usbhsh_urb_to_ureq(urb) = ureq;
 
 	if (usb_pipein(urb->pipe))
 		pipe->handler = &usbhs_dcp_status_stage_in_handler;
@@ -811,10 +807,8 @@ static int usbhsh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	struct usbhsh_hpriv *hpriv = usbhsh_hcd_to_hpriv(hcd);
 	struct usbhsh_request *ureq = usbhsh_urb_to_ureq(urb);
 
-	if (ureq) {
+	if (ureq)
 		usbhsh_ureq_free(hpriv, ureq);
-		usbhsh_urb_to_ureq(urb) = NULL;
-	}
 
 	return 0;
 }
