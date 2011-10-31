@@ -146,7 +146,7 @@ static int build_constructor_string(struct dm_target *ti,
  *	<UUID> <other args>
  * Where 'other args' is the userspace implementation specific log
  * arguments.  An example might be:
- *	<UUID> clustered_disk <arg count> <log dev> <region_size> [[no]sync]
+ *	<UUID> clustered-disk <arg count> <log dev> <region_size> [[no]sync]
  *
  * So, this module will strip off the <UUID> for identification purposes
  * when communicating with userspace about a log; but will pass on everything
