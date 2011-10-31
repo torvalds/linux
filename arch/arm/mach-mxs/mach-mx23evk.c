@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <linux/irq.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -167,6 +166,7 @@ static void __init mx23evk_init(void)
 		gpio_set_value(MX23EVK_BL_ENABLE, 1);
 
 	mx23_add_mxsfb(&mx23evk_mxsfb_pdata);
+	mx23_add_rtc_stmp3xxx();
 }
 
 static void __init mx23evk_timer_init(void)
