@@ -10,6 +10,7 @@
 
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/ratelimit.h>
 
 struct dm_dev;
 struct dm_target;
@@ -375,6 +376,14 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
  *---------------------------------------------------------------*/
 #define DM_NAME "device-mapper"
 
+#ifdef CONFIG_PRINTK
+extern struct ratelimit_state dm_ratelimit_state;
+
+#define dm_ratelimit()	__ratelimit(&dm_ratelimit_state)
+#else
+#define dm_ratelimit()	0
+#endif
+
 #define DMCRIT(f, arg...) \
 	printk(KERN_CRIT DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
 
@@ -382,7 +391,7 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
 	printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
 #define DMERR_LIMIT(f, arg...) \
 	do { \
-		if (printk_ratelimit())	\
+		if (dm_ratelimit())	\
 			printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " \
 			       f "\n", ## arg); \
 	} while (0)
@@ -391,7 +400,7 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
 	printk(KERN_WARNING DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
 #define DMWARN_LIMIT(f, arg...) \
 	do { \
-		if (printk_ratelimit())	\
+		if (dm_ratelimit())	\
 			printk(KERN_WARNING DM_NAME ": " DM_MSG_PREFIX ": " \
 			       f "\n", ## arg); \
 	} while (0)
@@ -400,7 +409,7 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
 	printk(KERN_INFO DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
 #define DMINFO_LIMIT(f, arg...) \
 	do { \
-		if (printk_ratelimit())	\
+		if (dm_ratelimit())	\
 			printk(KERN_INFO DM_NAME ": " DM_MSG_PREFIX ": " f \
 			       "\n", ## arg); \
 	} while (0)
@@ -410,7 +419,7 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
 	printk(KERN_DEBUG DM_NAME ": " DM_MSG_PREFIX " DEBUG: " f "\n", ## arg)
 #  define DMDEBUG_LIMIT(f, arg...) \
 	do { \
-		if (printk_ratelimit())	\
+		if (dm_ratelimit())	\
 			printk(KERN_DEBUG DM_NAME ": " DM_MSG_PREFIX ": " f \
 			       "\n", ## arg); \
 	} while (0)
