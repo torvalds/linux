@@ -13,6 +13,7 @@
 #ifndef _POWERPC_SYSDEV_FSL_MSI_H
 #define _POWERPC_SYSDEV_FSL_MSI_H
 
+#include <linux/of.h>
 #include <asm/msi_bitmap.h>
 
 #define NR_MSI_REG		8
@@ -36,6 +37,8 @@ struct fsl_msi {
 	struct msi_bitmap bitmap;
 
 	struct list_head list;          /* support multiple MSI banks */
+
+	phandle phandle;
 };
 
 #endif /* _POWERPC_SYSDEV_FSL_MSI_H */
