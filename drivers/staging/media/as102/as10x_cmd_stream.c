@@ -21,15 +21,13 @@
 #include "as102_drv.h"
 #include "as10x_cmd.h"
 
-
 /**
-   \brief  send add filter command to AS10x
-   \param  phandle:   pointer to AS10x handle
-   \param  filter:    TSFilter filter for DVB-T
-   \param  pfilter_handle: pointer where to store filter handle
-   \return 0 when no error, < 0 in case of error.
-   \callgraph
-*/
+ * as10x_cmd_add_PID_filter - send add filter command to AS10x
+ * @phandle:   pointer to AS10x handle
+ * @filter:    TSFilter filter for DVB-T
+ *
+ * Return 0 on success or negative value in case of error.
+ */
 int as10x_cmd_add_PID_filter(as10x_handle_t *phandle,
 			     struct as10x_ts_filter *filter)
 {
@@ -84,12 +82,12 @@ out:
 }
 
 /**
-   \brief  Send delete filter command to AS10x
-   \param  phandle:       pointer to AS10x handle
-   \param  filter_handle: filter handle
-   \return 0 when no error, < 0 in case of error.
-   \callgraph
-*/
+ * as10x_cmd_del_PID_filter - Send delete filter command to AS10x
+ * @phandle:      pointer to AS10x handle
+ * @pid_value:    PID to delete
+ *
+ * Return 0 on success or negative value in case of error.
+ */
 int as10x_cmd_del_PID_filter(as10x_handle_t *phandle,
 			     uint16_t pid_value)
 {
@@ -133,11 +131,11 @@ out:
 }
 
 /**
-   \brief Send start streaming command to AS10x
-   \param  phandle:   pointer to AS10x handle
-   \return 0 when no error, < 0 in case of error.
-   \callgraph
-*/
+ * as10x_cmd_start_streaming - Send start streaming command to AS10x
+ * @phandle:   pointer to AS10x handle
+ *
+ * Return 0 on success or negative value in case of error.
+ */
 int as10x_cmd_start_streaming(as10x_handle_t *phandle)
 {
 	int error;
@@ -179,11 +177,11 @@ out:
 }
 
 /**
-   \brief Send stop streaming command to AS10x
-   \param  phandle:   pointer to AS10x handle
-   \return 0 when no error, < 0 in case of error.
-   \callgraph
-*/
+ * as10x_cmd_stop_streaming - Send stop streaming command to AS10x
+ * @phandle:   pointer to AS10x handle
+ *
+ * Return 0 on success or negative value in case of error.
+ */
 int as10x_cmd_stop_streaming(as10x_handle_t *phandle)
 {
 	int8_t error;
@@ -223,5 +221,3 @@ out:
 	LEAVE();
 	return error;
 }
-
-

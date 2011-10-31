@@ -331,8 +331,9 @@ static int __init as102_driver_init(void)
 module_init(as102_driver_init);
 
 /**
- * \brief as102 driver exit point. This function is called when device has
- *       to be removed.
+ * as102_driver_exit - as102 driver exit point
+ *
+ * This function is called when device has to be removed.
  */
 static void __exit as102_driver_exit(void)
 {
