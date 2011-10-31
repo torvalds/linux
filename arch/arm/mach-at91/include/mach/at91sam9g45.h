@@ -128,8 +128,6 @@
 #define AT91SAM9G45_EHCI_BASE	0x00800000	/* USB Host controller (EHCI) */
 #define AT91SAM9G45_VDEC_BASE	0x00900000	/* Video Decoder Controller */
 
-#define CONSISTENT_DMA_SIZE	SZ_4M
-
 /*
  * DMA peripheral identifiers
  * for hardware handshaking interface

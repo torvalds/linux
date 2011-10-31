@@ -25,9 +25,4 @@
 
 #define PLAT_PHYS_OFFSET CFG_GLOBAL_RAM_BASE
 
-/*
- * Maximum DMA memory allowed is 14M
- */
-#define CONSISTENT_DMA_SIZE (SZ_16M - SZ_2M)
-
 #endif

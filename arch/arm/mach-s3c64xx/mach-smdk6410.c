@@ -703,7 +703,7 @@ static void __init smdk6410_machine_init(void)
 
 MACHINE_START(SMDK6410, "SMDK6410")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
-	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= smdk6410_map_io,
