@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <asm/schid.h>
 #include <asm/ccwdev.h>
+#include <asm/irq.h>
 #include "css.h"
 #include "orb.h"
 
@@ -157,6 +158,7 @@ struct ccw_device_private {
 	struct list_head cmb_list;	/* list of measured devices */
 	u64 cmb_start_time;		/* clock value of cmb reset */
 	void *cmb_wait;			/* deferred cmb enable/disable */
+	enum interruption_class int_class;
 };
 
 static inline int rsch(struct subchannel_id schid)

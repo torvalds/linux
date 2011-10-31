@@ -26,17 +26,24 @@
  */
 #define TIQDIO_NR_NONSHARED_IND		63
 #define TIQDIO_NR_INDICATORS		(TIQDIO_NR_NONSHARED_IND + 1)
+#define TIQDIO_SHARED_IND		63
+
+/* device state change indicators */
+struct indicator_t {
+	u32 ind;	/* u32 because of compare-and-swap performance */
+	atomic_t count; /* use count, 0 or 1 for non-shared indicators */
+};
 
 /* list of thin interrupt input queues */
 static LIST_HEAD(tiq_list);
-DEFINE_MUTEX(tiq_list_lock);
+static DEFINE_MUTEX(tiq_list_lock);
 
 /* adapter local summary indicator */
 static u8 *tiqdio_alsi;
 
-struct indicator_t *q_indicators;
+static struct indicator_t *q_indicators;
 
-static u64 last_ai_time;
+u64 last_ai_time;
 
 /* returns addr for the device state change indicator */
 static u32 *get_indicator(void)
@@ -90,6 +97,43 @@ void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
 	synchronize_rcu();
 }
 
+static inline int has_multiple_inq_on_dsci(struct qdio_irq *irq_ptr)
+{
+	return irq_ptr->nr_input_qs > 1;
+}
+
+static inline int references_shared_dsci(struct qdio_irq *irq_ptr)
+{
+	return irq_ptr->dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
+}
+
+static inline int shared_ind(struct qdio_irq *irq_ptr)
+{
+	return references_shared_dsci(irq_ptr) ||
+		has_multiple_inq_on_dsci(irq_ptr);
+}
+
+void clear_nonshared_ind(struct qdio_irq *irq_ptr)
+{
+	if (!is_thinint_irq(irq_ptr))
+		return;
+	if (shared_ind(irq_ptr))
+		return;
+	xchg(irq_ptr->dsci, 0);
+}
+
+int test_nonshared_ind(struct qdio_irq *irq_ptr)
+{
+	if (!is_thinint_irq(irq_ptr))
+		return 0;
+	if (shared_ind(irq_ptr))
+		return 0;
+	if (*irq_ptr->dsci)
+		return 1;
+	else
+		return 0;
+}
+
 static inline u32 clear_shared_ind(void)
 {
 	if (!atomic_read(&q_indicators[TIQDIO_SHARED_IND].count))
@@ -119,7 +163,7 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 			q->u.in.queue_start_poll(q->irq_ptr->cdev, q->nr,
 						 q->irq_ptr->int_parm);
 		} else {
-			if (!shared_ind(q))
+			if (!shared_ind(q->irq_ptr))
 				xchg(q->irq_ptr->dsci, 0);
 
 			/*

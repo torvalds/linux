@@ -145,6 +145,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_sigp_arch;
 	u32 instruction_sigp_prefix;
 	u32 instruction_sigp_restart;
+	u32 diagnose_10;
 	u32 diagnose_44;
 };
 

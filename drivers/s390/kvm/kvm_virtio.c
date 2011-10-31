@@ -33,7 +33,7 @@
  * The pointer to our (page) of device descriptions.
  */
 static void *kvm_devices;
-struct work_struct hotplug_work;
+static struct work_struct hotplug_work;
 
 struct kvm_device {
 	struct virtio_device vdev;
@@ -334,10 +334,10 @@ static void scan_devices(void)
  */
 static int match_desc(struct device *dev, void *data)
 {
-	if ((ulong)to_kvmdev(dev_to_virtio(dev))->desc == (ulong)data)
-		return 1;
+	struct virtio_device *vdev = dev_to_virtio(dev);
+	struct kvm_device *kdev = to_kvmdev(vdev);
 
-	return 0;
+	return kdev->desc == data;
 }
 
 /*

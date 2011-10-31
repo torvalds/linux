@@ -62,3 +62,72 @@ void detect_memory_layout(struct mem_chunk chunk[])
 	arch_local_irq_restore(flags);
 }
 EXPORT_SYMBOL(detect_memory_layout);
+
+/*
+ * Create memory hole with given address, size, and type
+ */
+void create_mem_hole(struct mem_chunk chunks[], unsigned long addr,
+		     unsigned long size, int type)
+{
+	unsigned long start, end, new_size;
+	int i;
+
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		if (chunks[i].size == 0)
+			continue;
+		if (addr + size < chunks[i].addr)
+			continue;
+		if (addr >= chunks[i].addr + chunks[i].size)
+			continue;
+		start = max(addr, chunks[i].addr);
+		end = min(addr + size, chunks[i].addr + chunks[i].size);
+		new_size = end - start;
+		if (new_size == 0)
+			continue;
+		if (start == chunks[i].addr &&
+		    end == chunks[i].addr + chunks[i].size) {
+			/* Remove chunk */
+			chunks[i].type = type;
+		} else if (start == chunks[i].addr) {
+			/* Make chunk smaller at start */
+			if (i >= MEMORY_CHUNKS - 1)
+				panic("Unable to create memory hole");
+			memmove(&chunks[i + 1], &chunks[i],
+				sizeof(struct mem_chunk) *
+				(MEMORY_CHUNKS - (i + 1)));
+			chunks[i + 1].addr = chunks[i].addr + new_size;
+			chunks[i + 1].size = chunks[i].size - new_size;
+			chunks[i].size = new_size;
+			chunks[i].type = type;
+			i += 1;
+		} else if (end == chunks[i].addr + chunks[i].size) {
+			/* Make chunk smaller at end */
+			if (i >= MEMORY_CHUNKS - 1)
+				panic("Unable to create memory hole");
+			memmove(&chunks[i + 1], &chunks[i],
+				sizeof(struct mem_chunk) *
+				(MEMORY_CHUNKS - (i + 1)));
+			chunks[i + 1].addr = start;
+			chunks[i + 1].size = new_size;
+			chunks[i + 1].type = type;
+			chunks[i].size -= new_size;
+			i += 1;
+		} else {
+			/* Create memory hole */
+			if (i >= MEMORY_CHUNKS - 2)
+				panic("Unable to create memory hole");
+			memmove(&chunks[i + 2], &chunks[i],
+				sizeof(struct mem_chunk) *
+				(MEMORY_CHUNKS - (i + 2)));
+			chunks[i + 1].addr = addr;
+			chunks[i + 1].size = size;
+			chunks[i + 1].type = type;
+			chunks[i + 2].addr = addr + size;
+			chunks[i + 2].size =
+				chunks[i].addr + chunks[i].size - (addr + size);
+			chunks[i + 2].type = chunks[i].type;
+			chunks[i].size = addr - chunks[i].addr;
+			i += 2;
+		}
+	}
+}

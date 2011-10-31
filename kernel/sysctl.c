@@ -151,14 +151,6 @@ extern int pwrsw_enabled;
 extern int unaligned_enabled;
 #endif
 
-#ifdef CONFIG_S390
-#ifdef CONFIG_MATHEMU
-extern int sysctl_ieee_emulation_warnings;
-#endif
-extern int sysctl_userprocess_debug;
-extern int spin_retry;
-#endif
-
 #ifdef CONFIG_IA64
 extern int no_unaligned_warning;
 extern int unaligned_dump_stack;
