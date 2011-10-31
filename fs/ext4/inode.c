@@ -3129,7 +3129,7 @@ int ext4_discard_partial_page_buffers(handle_t *handle,
 	page = find_or_create_page(mapping, from >> PAGE_CACHE_SHIFT,
 				   mapping_gfp_mask(mapping) & ~__GFP_FS);
 	if (!page)
-		return -EINVAL;
+		return -ENOMEM;
 
 	err = ext4_discard_partial_page_buffers_no_lock(handle, inode, page,
 		from, length, flags);
@@ -3372,7 +3372,7 @@ int ext4_block_zero_page_range(handle_t *handle,
 	page = find_or_create_page(mapping, from >> PAGE_CACHE_SHIFT,
 				   mapping_gfp_mask(mapping) & ~__GFP_FS);
 	if (!page)
-		return -EINVAL;
+		return -ENOMEM;
 
 	blocksize = inode->i_sb->s_blocksize;
 	max = blocksize - (offset & (blocksize - 1));
