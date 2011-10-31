@@ -1125,6 +1125,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 		trace_drm_vblank_event_delivered(current->pid, pipe,
 						 vblwait->request.sequence);
 	} else {
+		/* drm_handle_vblank_events will call drm_vblank_put */
 		list_add_tail(&e->base.link, &dev->vblank_event_list);
 		vblwait->reply.sequence = vblwait->request.sequence;
 	}
@@ -1205,8 +1206,12 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		goto done;
 	}
 
-	if (flags & _DRM_VBLANK_EVENT)
+	if (flags & _DRM_VBLANK_EVENT) {
+		/* must hold on to the vblank ref until the event fires
+		 * drm_vblank_put will be called asynchronously
+		 */
 		return drm_queue_vblank_event(dev, crtc, vblwait, file_priv);
+	}
 
 	if ((flags & _DRM_VBLANK_NEXTONMISS) &&
 	    (seq - vblwait->request.sequence) <= (1<<23)) {
