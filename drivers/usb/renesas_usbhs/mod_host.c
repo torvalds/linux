@@ -822,7 +822,7 @@ static void usbhsh_endpoint_disable(struct usb_hcd *hcd,
 
 	/*
 	 * this function might be called manytimes by same hcd/ep
-	 * in-endpoitn == out-endpoint if ep == dcp.
+	 * in-endpoint == out-endpoint if ep == dcp.
 	 */
 	if (!uep)
 		return;
@@ -831,7 +831,6 @@ static void usbhsh_endpoint_disable(struct usb_hcd *hcd,
 	hpriv	= usbhsh_hcd_to_hpriv(hcd);
 
 	usbhsh_endpoint_free(hpriv, ep);
-	ep->hcpriv = NULL;
 
 	/*
 	 * if there is no endpoint,
