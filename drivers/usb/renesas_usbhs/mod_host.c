@@ -500,11 +500,12 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 }
 
 static int usbhsh_queue_push(struct usb_hcd *hcd,
-			     struct usbhs_pipe *pipe,
 			     struct urb *urb,
 			     gfp_t mem_flags)
 {
 	struct usbhsh_hpriv *hpriv = usbhsh_hcd_to_hpriv(hcd);
+	struct usbhsh_ep *uep = usbhsh_ep_to_uep(urb->ep);
+	struct usbhs_pipe *pipe = usbhsh_uep_to_pipe(uep);
 	struct device *dev = usbhsh_hcd_to_dev(hcd);
 	struct usbhsh_request *ureq;
 	void *buf;
@@ -666,11 +667,12 @@ static int usbhsh_status_stage_packet_push(struct usbhsh_hpriv *hpriv,
 }
 
 static int usbhsh_dcp_queue_push(struct usb_hcd *hcd,
-				 struct usbhs_pipe *pipe,
 				 struct urb *urb,
 				 gfp_t mflags)
 {
 	struct usbhsh_hpriv *hpriv = usbhsh_hcd_to_hpriv(hcd);
+	struct usbhsh_ep *uep = usbhsh_ep_to_uep(urb->ep);
+	struct usbhs_pipe *pipe = usbhsh_uep_to_pipe(uep);
 	struct device *dev = usbhsh_hcd_to_dev(hcd);
 	int ret;
 
@@ -743,7 +745,6 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
 	struct usb_host_endpoint *ep = urb->ep;
 	struct usbhsh_device *udev, *new_udev = NULL;
-	struct usbhs_pipe *pipe;
 	struct usbhsh_ep *uep;
 	int is_dir_in = usb_pipein(urb->pipe);
 
@@ -777,15 +778,14 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 		if (!uep)
 			goto usbhsh_urb_enqueue_error_free_device;
 	}
-	pipe = usbhsh_uep_to_pipe(uep);
 
 	/*
 	 * push packet
 	 */
 	if (usb_pipecontrol(urb->pipe))
-		ret = usbhsh_dcp_queue_push(hcd, pipe, urb, mem_flags);
+		ret = usbhsh_dcp_queue_push(hcd, urb, mem_flags);
 	else
-		ret = usbhsh_queue_push(hcd, pipe, urb, mem_flags);
+		ret = usbhsh_queue_push(hcd, urb, mem_flags);
 
 	return ret;
 
