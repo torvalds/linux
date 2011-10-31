@@ -138,7 +138,7 @@ static void __init sheevaplug_init(void)
 #ifdef CONFIG_MACH_SHEEVAPLUG
 MACHINE_START(SHEEVAPLUG, "Marvell SheevaPlug Reference Board")
 	/* Maintainer: shadi Ammouri <shadi@marvell.com> */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= sheevaplug_init,
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
@@ -149,7 +149,7 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_ESATA_SHEEVAPLUG
 MACHINE_START(ESATA_SHEEVAPLUG, "Marvell eSATA SheevaPlug Reference Board")
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= sheevaplug_init,
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,

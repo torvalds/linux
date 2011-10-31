@@ -20,6 +20,7 @@
 #include <linux/sysdev.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -119,6 +120,7 @@ static void s5pv210_sw_reset(void)
 void __init s5pv210_map_io(void)
 {
 	iotable_init(s5pv210_iodesc, ARRAY_SIZE(s5pv210_iodesc));
+	init_consistent_dma_size(14 << 20);
 
 	/* initialise device information early */
 	s5pv210_default_sdhci0();

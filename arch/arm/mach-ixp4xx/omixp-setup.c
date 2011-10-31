@@ -241,7 +241,7 @@ static void __init omixp_init(void)
 
 #ifdef CONFIG_MACH_DEVIXP
 MACHINE_START(DEVIXP, "Omicron DEVIXP")
-	.boot_params    = 0x100,
+	.atag_offset    = 0x100,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer          = &ixp4xx_timer,
@@ -251,7 +251,7 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_MICCPT
 MACHINE_START(MICCPT, "Omicron MICCPT")
-	.boot_params    = 0x100,
+	.atag_offset    = 0x100,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer          = &ixp4xx_timer,
@@ -264,7 +264,7 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_MIC256
 MACHINE_START(MIC256, "Omicron MIC256")
-	.boot_params    = 0x100,
+	.atag_offset    = 0x100,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer          = &ixp4xx_timer,

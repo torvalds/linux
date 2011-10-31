@@ -350,7 +350,7 @@ static void __init omap_apollon_map_io(void)
 
 MACHINE_START(OMAP_APOLLON, "OMAP24xx Apollon")
 	/* Maintainer: Kyungmin Park <kyungmin.park@samsung.com> */
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap_apollon_map_io,
 	.init_early	= omap_apollon_init_early,

@@ -98,7 +98,7 @@ static void __init am3517_crane_init(void)
 }
 
 MACHINE_START(CRANEBOARD, "AM3517/05 CRANEBOARD")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= am3517_crane_init_early,

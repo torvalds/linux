@@ -356,7 +356,7 @@ static void __init vision_init_machine(void)
 
 MACHINE_START(VISION_EP9307, "Vision Engraving Systems EP9307")
 	/* Maintainer: H Hartley Sweeten <hsweeten@visionengravers.com> */
-	.boot_params	= EP93XX_SDCE0_PHYS_BASE + 0x100,
+	.atag_offset	= 0x100,
 	.map_io		= vision_map_io,
 	.init_irq	= ep93xx_init_irq,
 	.timer		= &ep93xx_timer,

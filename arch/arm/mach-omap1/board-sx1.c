@@ -420,7 +420,7 @@ static void __init omap_sx1_map_io(void)
 }
 
 MACHINE_START(SX1, "OMAP310 based Siemens SX1")
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= omap_sx1_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= omap_sx1_init_irq,

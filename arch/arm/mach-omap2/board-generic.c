@@ -65,7 +65,7 @@ static void __init omap_generic_map_io(void)
 /* XXX This machine entry name should be updated */
 MACHINE_START(OMAP_GENERIC, "Generic OMAP24xx")
 	/* Maintainer: Paul Mundt <paul.mundt@nokia.com> */
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap_generic_map_io,
 	.init_early	= omap_generic_init_early,

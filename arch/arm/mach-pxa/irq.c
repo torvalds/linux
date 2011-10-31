@@ -18,6 +18,8 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 
+#include <asm/exception.h>
+
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/gpio-pxa.h>

@@ -321,7 +321,7 @@ static void __init omap_palmtt_map_io(void)
 }
 
 MACHINE_START(OMAP_PALMTT, "OMAP1510 based Palm Tungsten|T")
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= omap_palmtt_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= omap_palmtt_init_irq,
