@@ -445,7 +445,7 @@ static void __init centro_init(void)
 
 #ifdef CONFIG_MACH_TREO680
 MACHINE_START(TREO680, "Palm Treo 680")
-	.boot_params    = 0xa0000100,
+	.atag_offset    = 0x100,
 	.map_io         = pxa27x_map_io,
 	.reserve	= treo_reserve,
 	.init_irq       = pxa27x_init_irq,
@@ -457,7 +457,7 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_CENTRO
 MACHINE_START(CENTRO, "Palm Centro 685")
-	.boot_params    = 0xa0000100,
+	.atag_offset    = 0x100,
 	.map_io         = pxa27x_map_io,
 	.reserve	= treo_reserve,
 	.init_irq       = pxa27x_init_irq,
