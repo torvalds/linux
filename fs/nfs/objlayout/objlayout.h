@@ -86,7 +86,6 @@ struct objlayout_io_state {
 
 	void *rpcdata;
 	int status;             /* res */
-	int eof;                /* res */
 	int committed;          /* res */
 
 	/* Error reporting (layout_return) */

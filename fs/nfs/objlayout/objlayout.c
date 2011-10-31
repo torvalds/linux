@@ -287,17 +287,14 @@ static void _rpc_read_complete(struct work_struct *work)
 void
 objlayout_read_done(struct objlayout_io_state *state, ssize_t status, bool sync)
 {
-	int eof = state->eof;
-	struct nfs_read_data *rdata;
+	struct nfs_read_data *rdata = state->rpcdata;
 
 	state->status = status;
-	dprintk("%s: Begin status=%zd eof=%d\n", __func__, status, eof);
-	rdata = state->rpcdata;
+	dprintk("%s: Begin status=%zd eof=%d\n", __func__,
+		status, rdata->res.eof);
 	rdata->task.tk_status = status;
-	if (status >= 0) {
+	if (status >= 0)
 		rdata->res.count = status;
-		rdata->res.eof = eof;
-	}
 	objlayout_iodone(state);
 	/* must not use state after this point */
 
@@ -330,10 +327,13 @@ objlayout_read_pagelist(struct nfs_read_data *rdata)
 			status = 0;
 			rdata->res.count = 0;
 			rdata->res.eof = 1;
+			/*FIXME: do we need to call pnfs_ld_read_done() */
 			goto out;
 		}
 		count = eof - offset;
 	}
+
+	rdata->res.eof = (offset + count) >= eof;
 
 	state = objlayout_alloc_io_state(NFS_I(rdata->inode)->layout,
 					 rdata->args.pages, rdata->args.pgbase,
@@ -344,8 +344,6 @@ objlayout_read_pagelist(struct nfs_read_data *rdata)
 		status = -ENOMEM;
 		goto out;
 	}
-
-	state->eof = state->offset + state->count >= eof;
 
 	status = objio_read_pagelist(state);
  out:
