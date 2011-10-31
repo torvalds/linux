@@ -4337,10 +4337,16 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 		trace_ext4_fallocate_exit(inode, offset, max_blocks, ret);
 		return ret;
 	}
-	flags = EXT4_GET_BLOCKS_CREATE_UNINIT_EXT |
-		EXT4_GET_BLOCKS_NO_NORMALIZE;
+	flags = EXT4_GET_BLOCKS_CREATE_UNINIT_EXT;
 	if (mode & FALLOC_FL_KEEP_SIZE)
 		flags |= EXT4_GET_BLOCKS_KEEP_SIZE;
+	/*
+	 * Don't normalize the request if it can fit in one extent so
+	 * that it doesn't get unnecessarily split into multiple
+	 * extents.
+	 */
+	if (len <= EXT_UNINIT_MAX_LEN << blkbits)
+		flags |= EXT4_GET_BLOCKS_NO_NORMALIZE;
 retry:
 	while (ret >= 0 && ret < max_blocks) {
 		map.m_lblk = map.m_lblk + ret;
