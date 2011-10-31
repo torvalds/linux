@@ -2250,6 +2250,7 @@ struct mapped_device *dm_get_md(dev_t dev)
 
 	return md;
 }
+EXPORT_SYMBOL_GPL(dm_get_md);
 
 void *dm_get_mdptr(struct mapped_device *md)
 {
