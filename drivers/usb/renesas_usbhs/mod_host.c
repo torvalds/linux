@@ -228,8 +228,12 @@ static struct usbhsh_device *usbhsh_device_alloc(struct usbhsh_hpriv *hpriv,
 	struct device *dev = usbhsh_hcd_to_dev(hcd);
 	struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
 	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
+	unsigned long flags;
 	u16 upphub, hubport;
 	int i;
+
+	/********************  spin lock ********************/
+	usbhs_lock(priv, flags);
 
 	/*
 	 * find device
@@ -255,6 +259,19 @@ static struct usbhsh_device *usbhsh_device_alloc(struct usbhsh_hpriv *hpriv,
 		}
 	}
 
+	if (udev) {
+		/*
+		 * usbhsh_usbv_to_udev()
+		 * usbhsh_udev_to_usbv()
+		 * will be enable
+		 */
+		dev_set_drvdata(&usbv->dev, udev);
+		udev->usbv = usbv;
+	}
+
+	usbhs_unlock(priv, flags);
+	/********************  spin unlock ******************/
+
 	if (!udev) {
 		dev_err(dev, "no free usbhsh_device\n");
 		return NULL;
@@ -265,14 +282,6 @@ static struct usbhsh_device *usbhsh_device_alloc(struct usbhsh_hpriv *hpriv,
 
 	/* uep will be attached */
 	INIT_LIST_HEAD(&udev->ep_list_head);
-
-	/*
-	 * usbhsh_usbv_to_udev()
-	 * usbhsh_udev_to_usbv()
-	 * will be enable
-	 */
-	dev_set_drvdata(&usbv->dev, udev);
-	udev->usbv = usbv;
 
 	upphub	= 0;
 	hubport	= 0;
@@ -302,14 +311,19 @@ static void usbhsh_device_free(struct usbhsh_hpriv *hpriv,
 			       struct usbhsh_device *udev)
 {
 	struct usb_hcd *hcd = usbhsh_hpriv_to_hcd(hpriv);
+	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
 	struct device *dev = usbhsh_hcd_to_dev(hcd);
 	struct usb_device *usbv = usbhsh_udev_to_usbv(udev);
+	unsigned long flags;
 
 	dev_dbg(dev, "%s [%d](%p)\n", __func__,
 		usbhsh_device_number(hpriv, udev), udev);
 
 	if (usbhsh_device_has_endpoint(udev))
 		dev_warn(dev, "udev still have endpoint\n");
+
+	/********************  spin lock ********************/
+	usbhs_lock(priv, flags);
 
 	/*
 	 * usbhsh_usbv_to_udev()
@@ -318,6 +332,9 @@ static void usbhsh_device_free(struct usbhsh_hpriv *hpriv,
 	 */
 	dev_set_drvdata(&usbv->dev, NULL);
 	udev->usbv = NULL;
+
+	usbhs_unlock(priv, flags);
+	/********************  spin unlock ******************/
 }
 
 /*
@@ -338,6 +355,7 @@ struct usbhsh_ep *usbhsh_endpoint_alloc(struct usbhsh_hpriv *hpriv,
 	struct usb_endpoint_descriptor *desc = &ep->desc;
 	int type, i, dir_in;
 	unsigned int min_usr;
+	unsigned long flags;
 
 	dir_in_req = !!dir_in_req;
 
@@ -351,6 +369,9 @@ struct usbhsh_ep *usbhsh_endpoint_alloc(struct usbhsh_hpriv *hpriv,
 		best_pipe = usbhsh_hpriv_to_dcp(hpriv);
 		goto usbhsh_endpoint_alloc_find_pipe;
 	}
+
+	/********************  spin lock ********************/
+	usbhs_lock(priv, flags);
 
 	/*
 	 * find best pipe for endpoint
@@ -376,6 +397,19 @@ struct usbhsh_ep *usbhsh_endpoint_alloc(struct usbhsh_hpriv *hpriv,
 		}
 	}
 
+	if (best_pipe) {
+		/* update pipe user count */
+		info = usbhsh_pipe_info(best_pipe);
+		info->usr_cnt++;
+
+		/* init this endpoint, and attach it to udev */
+		INIT_LIST_HEAD(&uep->ep_list);
+		list_add_tail(&uep->ep_list, &udev->ep_list_head);
+	}
+
+	usbhs_unlock(priv, flags);
+	/********************  spin unlock ******************/
+
 	if (unlikely(!best_pipe)) {
 		dev_err(dev, "couldn't find best pipe\n");
 		kfree(uep);
@@ -389,16 +423,6 @@ usbhsh_endpoint_alloc_find_pipe:
 	uep->maxp	= usb_endpoint_maxp(desc);
 	usbhsh_uep_to_udev(uep)	= udev;
 	usbhsh_ep_to_uep(ep)	= uep;
-
-	/*
-	 * update pipe user count
-	 */
-	info = usbhsh_pipe_info(best_pipe);
-	info->usr_cnt++;
-
-	/* init this endpoint, and attach it to udev */
-	INIT_LIST_HEAD(&uep->ep_list);
-	list_add_tail(&uep->ep_list, &udev->ep_list_head);
 
 	/*
 	 * usbhs_pipe_config_update() should be called after
@@ -426,6 +450,7 @@ void usbhsh_endpoint_free(struct usbhsh_hpriv *hpriv,
 	struct device *dev = usbhs_priv_to_dev(priv);
 	struct usbhsh_ep *uep = usbhsh_ep_to_uep(ep);
 	struct usbhsh_pipe_info *info;
+	unsigned long flags;
 
 	if (!uep)
 		return;
@@ -433,6 +458,9 @@ void usbhsh_endpoint_free(struct usbhsh_hpriv *hpriv,
 	dev_dbg(dev, "%s [%d-%s](%p)\n", __func__,
 		usbhsh_device_number(hpriv, usbhsh_uep_to_udev(uep)),
 		usbhs_pipe_name(uep->pipe), uep);
+
+	/********************  spin lock ********************/
+	usbhs_lock(priv, flags);
 
 	info = usbhsh_pipe_info(uep->pipe);
 	info->usr_cnt--;
@@ -442,6 +470,9 @@ void usbhsh_endpoint_free(struct usbhsh_hpriv *hpriv,
 
 	usbhsh_uep_to_udev(uep) = NULL;
 	usbhsh_ep_to_uep(ep) = NULL;
+
+	usbhs_unlock(priv, flags);
+	/********************  spin unlock ******************/
 
 	kfree(uep);
 }
