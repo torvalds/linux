@@ -161,6 +161,8 @@ static const char usbhsh_hcd_name[] = "renesas_usbhs host";
 
 #define usbhsh_pipe_info(p)	((p)->mod_private)
 
+#define usbhsh_device_parent(d)		(usbhsh_usbv_to_udev((d)->usbv->parent))
+#define usbhsh_device_hubport(d)	((d)->usbv->portnum)
 #define usbhsh_device_number(h, d)	((int)((d) - (h)->udev))
 #define usbhsh_device_nth(h, d)		((h)->udev + d)
 #define usbhsh_device0(h)		usbhsh_device_nth(h, 0)
@@ -264,6 +266,13 @@ static void usbhsh_ureq_free(struct usbhsh_hpriv *hpriv,
 /*
  *		device control
  */
+static int usbhsh_connected_to_rhdev(struct usb_hcd *hcd,
+				     struct usbhsh_device *udev)
+{
+	struct usb_device *usbv = usbhsh_udev_to_usbv(udev);
+
+	return hcd->self.root_hub == usbv->parent;
+}
 
 static int usbhsh_device_has_endpoint(struct usbhsh_device *udev)
 {
@@ -278,6 +287,7 @@ static struct usbhsh_device *usbhsh_device_alloc(struct usbhsh_hpriv *hpriv,
 	struct device *dev = usbhsh_hcd_to_dev(hcd);
 	struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
 	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
+	u16 upphub, hubport;
 	int i;
 
 	/*
@@ -316,12 +326,23 @@ usbhsh_device_find:
 	dev_set_drvdata(&usbv->dev, udev);
 	udev->usbv = usbv;
 
+	upphub	= 0;
+	hubport	= 0;
+	if (!usbhsh_connected_to_rhdev(hcd, udev)) {
+		/* if udev is not connected to rhdev, it means parent is Hub */
+		struct usbhsh_device *parent = usbhsh_device_parent(udev);
+
+		upphub	= usbhsh_device_number(hpriv, parent);
+		hubport	= usbhsh_device_hubport(udev);
+
+		dev_dbg(dev, "%s connecte to Hub [%d:%d](%p)\n", __func__,
+			upphub, hubport, parent);
+	}
+
 	/* set device config */
 	usbhs_set_device_config(priv,
 			       usbhsh_device_number(hpriv, udev),
-			       usbhsh_device_number(hpriv, udev),
-			       0, /* FIXME no parent */
-			       usbv->speed);
+			       upphub, hubport, usbv->speed);
 
 	dev_dbg(dev, "%s [%d](%p)\n", __func__,
 		usbhsh_device_number(hpriv, udev), udev);
