@@ -23,13 +23,25 @@
 
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
+
+struct ite_config {
+	u8 chip_ver;
+	u16 chip_type;
+	u32 firmware;
+	u8 tuner_id_0;
+	u8 tuner_id_1;
+	u8 dual_mode;
+	u8 adf;
+};
+
 #if defined(CONFIG_DVB_IT913X_FE) || (defined(CONFIG_DVB_IT913X_FE_MODULE) && \
 defined(MODULE))
 extern struct dvb_frontend *it913x_fe_attach(struct i2c_adapter *i2c_adap,
-			u8 i2c_addr, u8 adf, u8 type);
+			u8 i2c_addr, struct ite_config *config);
 #else
 static inline struct dvb_frontend *it913x_fe_attach(
-		struct i2c_adapter *i2c_adap,	u8 i2c_addr, u8 adf, u8 type)
+		struct i2c_adapter *i2c_adap,
+			u8 i2c_addr, struct ite_config *config)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
@@ -144,8 +156,14 @@ static inline struct dvb_frontend *it913x_fe_attach(
 #define EST_SIGNAL_LEVEL	0x004a
 #define FREE_BAND		0x004b
 #define SUSPEND_FLAG		0x004c
-/* Build in tuners */
+/* Build in tuner types */
 #define IT9137 0x38
+#define IT9135_38 0x38
+#define IT9135_51 0x50
+#define IT9135_52 0x52
+#define IT9135_60 0x60
+#define IT9135_61 0x61
+#define IT9135_62 0x62
 
 enum {
 	CMD_DEMOD_READ = 0,

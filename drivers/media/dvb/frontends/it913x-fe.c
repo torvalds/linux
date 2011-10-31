@@ -50,6 +50,7 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able)).");
 struct it913x_fe_state {
 	struct dvb_frontend frontend;
 	struct i2c_adapter *i2c_adap;
+	struct ite_config *config;
 	u8 i2c_addr;
 	u32 frequency;
 	u8 adf;
@@ -211,13 +212,17 @@ static int it913x_init_tuner(struct it913x_fe_state *state)
 	state->tun_fn_min /= (state->tun_fdiv * nv_val);
 	deb_info("Tuner fn_min %d", state->tun_fn_min);
 
-	for (i = 0; i < 50; i++) {
-		reg = it913x_read_reg_u8(state, 0xec82);
-		if (reg > 0)
-			break;
-		if (reg < 0)
-			return -ENODEV;
-		udelay(2000);
+	if (state->config->chip_ver > 1)
+		msleep(50);
+	else {
+		for (i = 0; i < 50; i++) {
+			reg = it913x_read_reg_u8(state, 0xec82);
+			if (reg > 0)
+				break;
+			if (reg < 0)
+				return -ENODEV;
+			udelay(2000);
+		}
 	}
 
 	return it913x_write_reg(state, PRO_DMOD, 0xed81, val);
@@ -578,7 +583,12 @@ static int it913x_fe_set_frontend(struct dvb_frontend *fe,
 
 	deb_info("Frontend Set Tuner Type %02x", state->tuner_type);
 	switch (state->tuner_type) {
-	case IT9137: /* Tuner type 0x38 */
+	case IT9135_38:
+	case IT9135_51:
+	case IT9135_52:
+	case IT9135_60:
+	case IT9135_61:
+	case IT9135_62:
 		ret = it9137_set_tuner(state,
 			p->u.ofdm.bandwidth, p->frequency);
 		break;
@@ -678,14 +688,15 @@ static u32 compute_div(u32 a, u32 b, u32 x)
 
 static int it913x_fe_start(struct it913x_fe_state *state)
 {
-	struct it913xset *set_fe;
+	struct it913xset *set_lna;
 	struct it913xset *set_mode;
 	int ret;
-	u8 adf = (state->adf & 0xf);
+	u8 adf = (state->config->adf & 0xf);
 	u32 adc, xtal;
 	u8 b[4];
 
-	ret = it913x_init_tuner(state);
+	if (state->config->chip_ver == 1)
+		ret = it913x_init_tuner(state);
 
 	if (adf < 12) {
 		state->crystalFrequency = fe_clockTable[adf].xtal ;
@@ -720,23 +731,57 @@ static int it913x_fe_start(struct it913x_fe_state *state)
 	b[1] = (adc >> 8) & 0xff;
 	b[2] = (adc >> 16) & 0xff;
 	ret |= it913x_write(state, PRO_DMOD, ADC_FREQ, b, 3);
+	if (ret < 0)
+		return -ENODEV;
 
+	/* v1 or v2 tuner script */
+	if (state->config->chip_ver > 1)
+		ret = it913x_fe_script_loader(state, it9135_v2);
+	else
+		ret = it913x_fe_script_loader(state, it9135_v1);
+	if (ret < 0)
+		return ret;
+
+	/* LNA Scripts */
 	switch (state->tuner_type) {
-	case IT9137: /* Tuner type 0x38 */
-		set_fe = it9137_set;
+	case IT9135_51:
+		set_lna = it9135_51;
 		break;
+	case IT9135_52:
+		set_lna = it9135_52;
+		break;
+	case IT9135_60:
+		set_lna = it9135_60;
+		break;
+	case IT9135_61:
+		set_lna = it9135_61;
+		break;
+	case IT9135_62:
+		set_lna = it9135_62;
+		break;
+	case IT9135_38:
 	default:
-		return -EINVAL;
+		set_lna = it9135_38;
 	}
+	ret = it913x_fe_script_loader(state, set_lna);
+	if (ret < 0)
+		return ret;
 
-	/* set the demod */
-	ret = it913x_fe_script_loader(state, set_fe);
+	if (state->config->chip_ver == 2) {
+		ret = it913x_write_reg(state, PRO_DMOD, TRIGGER_OFSM, 0x1);
+		ret |= it913x_write_reg(state, PRO_LINK, PADODPU, 0x0);
+		ret |= it913x_write_reg(state, PRO_LINK, AGC_O_D, 0x0);
+		ret |= it913x_init_tuner(state);
+	}
+	if (ret < 0)
+		return -ENODEV;
+
 	/* Always solo frontend */
 	set_mode = set_solo_fe;
 	ret |= it913x_fe_script_loader(state, set_mode);
 
 	ret |= it913x_fe_suspend(state);
-	return 0;
+	return (ret < 0) ? -ENODEV : 0;
 }
 
 static int it913x_fe_init(struct dvb_frontend *fe)
@@ -750,13 +795,7 @@ static int it913x_fe_init(struct dvb_frontend *fe)
 
 	ret |= it913x_fe_script_loader(state, init_1);
 
-	switch (state->tuner_type) {
-	case IT9137:
-		ret |= it913x_write_reg(state, PRO_DMOD, 0xfba8, 0x0);
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret |= it913x_write_reg(state, PRO_DMOD, 0xfba8, 0x0);
 
 	return (ret < 0) ? -ENODEV : 0;
 }
@@ -770,19 +809,34 @@ static void it913x_fe_release(struct dvb_frontend *fe)
 static struct dvb_frontend_ops it913x_fe_ofdm_ops;
 
 struct dvb_frontend *it913x_fe_attach(struct i2c_adapter *i2c_adap,
-		u8 i2c_addr, u8 adf, u8 type)
+		u8 i2c_addr, struct ite_config *config)
 {
 	struct it913x_fe_state *state = NULL;
 	int ret;
+
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(struct it913x_fe_state), GFP_KERNEL);
 	if (state == NULL)
+		return NULL;
+	if (config == NULL)
 		goto error;
 
 	state->i2c_adap = i2c_adap;
 	state->i2c_addr = i2c_addr;
-	state->adf = adf;
-	state->tuner_type = type;
+	state->config = config;
+
+	switch (state->config->tuner_id_0) {
+	case IT9135_51:
+	case IT9135_52:
+	case IT9135_60:
+	case IT9135_61:
+	case IT9135_62:
+		state->tuner_type = state->config->tuner_id_0;
+		break;
+	default:
+	case IT9135_38:
+		state->tuner_type = IT9135_38;
+	}
 
 	ret = it913x_fe_start(state);
 	if (ret < 0)
@@ -835,5 +889,5 @@ static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
 
 MODULE_DESCRIPTION("it913x Frontend and it9137 tuner");
 MODULE_AUTHOR("Malcolm Priestley tvboxspy@gmail.com");
-MODULE_VERSION("1.07");
+MODULE_VERSION("1.08");
 MODULE_LICENSE("GPL");
