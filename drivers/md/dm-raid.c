@@ -1017,30 +1017,56 @@ static int raid_status(struct dm_target *ti, status_type_t type,
 	struct raid_set *rs = ti->private;
 	unsigned raid_param_cnt = 1; /* at least 1 for chunksize */
 	unsigned sz = 0;
-	int i;
+	int i, array_in_sync = 0;
 	sector_t sync;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
 		DMEMIT("%s %d ", rs->raid_type->name, rs->md.raid_disks);
 
-		for (i = 0; i < rs->md.raid_disks; i++) {
-			if (test_bit(Faulty, &rs->dev[i].rdev.flags))
-				DMEMIT("D");
-			else if (test_bit(In_sync, &rs->dev[i].rdev.flags))
-				DMEMIT("A");
-			else
-				DMEMIT("a");
-		}
-
 		if (test_bit(MD_RECOVERY_RUNNING, &rs->md.recovery))
 			sync = rs->md.curr_resync_completed;
 		else
 			sync = rs->md.recovery_cp;
 
-		if (sync > rs->md.resync_max_sectors)
+		if (sync >= rs->md.resync_max_sectors) {
+			array_in_sync = 1;
 			sync = rs->md.resync_max_sectors;
+		} else {
+			/*
+			 * The array may be doing an initial sync, or it may
+			 * be rebuilding individual components.  If all the
+			 * devices are In_sync, then it is the array that is
+			 * being initialized.
+			 */
+			for (i = 0; i < rs->md.raid_disks; i++)
+				if (!test_bit(In_sync, &rs->dev[i].rdev.flags))
+					array_in_sync = 1;
+		}
+		/*
+		 * Status characters:
+		 *  'D' = Dead/Failed device
+		 *  'a' = Alive but not in-sync
+		 *  'A' = Alive and in-sync
+		 */
+		for (i = 0; i < rs->md.raid_disks; i++) {
+			if (test_bit(Faulty, &rs->dev[i].rdev.flags))
+				DMEMIT("D");
+			else if (!array_in_sync ||
+				 !test_bit(In_sync, &rs->dev[i].rdev.flags))
+				DMEMIT("a");
+			else
+				DMEMIT("A");
+		}
 
+		/*
+		 * In-sync ratio:
+		 *  The in-sync ratio shows the progress of:
+		 *   - Initializing the array
+		 *   - Rebuilding a subset of devices of the array
+		 *  The user can distinguish between the two by referring
+		 *  to the status characters.
+		 */
 		DMEMIT(" %llu/%llu",
 		       (unsigned long long) sync,
 		       (unsigned long long) rs->md.resync_max_sectors);
