@@ -41,6 +41,7 @@ static struct usb_device_id as102_usb_id_table[] = {
 	{ USB_DEVICE(AS102_USB_DEVICE_VENDOR_ID, AS102_USB_DEVICE_PID_0001) },
 	{ USB_DEVICE(PCTV_74E_USB_VID, PCTV_74E_USB_PID) },
 	{ USB_DEVICE(ELGATO_EYETV_DTT_USB_VID, ELGATO_EYETV_DTT_USB_PID) },
+	{ USB_DEVICE(NBOX_DVBT_DONGLE_USB_VID, NBOX_DVBT_DONGLE_USB_PID) },
 	{ } /* Terminating entry */
 };
 
@@ -50,6 +51,7 @@ static const char *as102_device_names[] = {
 	AS102_REFERENCE_DESIGN,
 	AS102_PCTV_74E,
 	AS102_ELGATO_EYETV_DTT_NAME,
+	AS102_NBOX_DVBT_DONGLE_NAME,
 	NULL /* Terminating entry */
 };
 

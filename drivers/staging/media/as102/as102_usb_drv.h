@@ -42,6 +42,11 @@
 #define ELGATO_EYETV_DTT_USB_VID	0x0fd9
 #define ELGATO_EYETV_DTT_USB_PID	0x002c
 
+/* nBox: nBox DVB-T Dongle */
+#define AS102_NBOX_DVBT_DONGLE_NAME	"nBox DVB-T Dongle"
+#define NBOX_DVBT_DONGLE_USB_VID	0x0b89
+#define NBOX_DVBT_DONGLE_USB_PID	0x0007
+
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 18))
 void as102_urb_stream_irq(struct urb *urb, struct pt_regs *regs);
 #else
