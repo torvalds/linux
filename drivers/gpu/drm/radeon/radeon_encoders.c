@@ -266,7 +266,7 @@ struct drm_encoder *radeon_atom_get_external_encoder(struct drm_encoder *encoder
 	return NULL;
 }
 
-bool radeon_encoder_is_dp_bridge(struct drm_encoder *encoder)
+u16 radeon_encoder_get_dp_bridge_encoder_id(struct drm_encoder *encoder)
 {
 	struct drm_encoder *other_encoder = radeon_atom_get_external_encoder(encoder);
 
@@ -368,7 +368,7 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 
 	if (ASIC_IS_DCE3(rdev) &&
 	    ((radeon_encoder->active_device & (ATOM_DEVICE_DFP_SUPPORT | ATOM_DEVICE_LCD_SUPPORT)) ||
-	     radeon_encoder_is_dp_bridge(encoder))) {
+	     (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_NONE))) {
 		struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 		radeon_dp_set_link_config(connector, mode);
 	}
@@ -658,7 +658,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 	struct radeon_connector_atom_dig *dig_connector;
 
 	/* dp bridges are always DP */
-	if (radeon_encoder_is_dp_bridge(encoder))
+	if (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_NONE)
 		return ATOM_ENCODER_MODE_DP;
 
 	/* DVO is always DVO */
@@ -1638,7 +1638,7 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 			break;
 		case 2:
 			args.v2.ucCRTC = radeon_crtc->crtc_id;
-			if (radeon_encoder_is_dp_bridge(encoder)) {
+			if (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_NONE) {
 				struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 
 				if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)
@@ -2099,7 +2099,8 @@ static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 
 	if ((radeon_encoder->active_device &
 	     (ATOM_DEVICE_DFP_SUPPORT | ATOM_DEVICE_LCD_SUPPORT)) ||
-	    radeon_encoder_is_dp_bridge(encoder)) {
+	    (radeon_encoder_get_dp_bridge_encoder_id(encoder) !=
+	     ENCODER_OBJECT_ID_NONE)) {
 		struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 		if (dig)
 			dig->dig_encoder = radeon_atom_pick_dig_encoder(encoder);
