@@ -1056,8 +1056,7 @@ u32 dispc_ovl_get_fifo_size(enum omap_plane plane)
 	return dispc.fifo_size[plane];
 }
 
-static void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low,
-		u32 high)
+void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 {
 	u8 hi_start, hi_end, lo_start, lo_end;
 	u32 unit;
