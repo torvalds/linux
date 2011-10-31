@@ -306,7 +306,7 @@ int usbhs_frame_get_num(struct usbhs_priv *priv);
 /*
  * device config
  */
-int usbhs_set_device_speed(struct usbhs_priv *priv, int devnum, u16 upphub,
+int usbhs_set_device_config(struct usbhs_priv *priv, int devnum, u16 upphub,
 			   u16 hubport, u16 speed);
 
 /*

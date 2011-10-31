@@ -219,7 +219,7 @@ static void usbhsc_bus_init(struct usbhs_priv *priv)
 /*
  *		device configuration
  */
-int usbhs_set_device_speed(struct usbhs_priv *priv, int devnum,
+int usbhs_set_device_config(struct usbhs_priv *priv, int devnum,
 			   u16 upphub, u16 hubport, u16 speed)
 {
 	struct device *dev = usbhs_priv_to_dev(priv);
