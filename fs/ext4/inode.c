@@ -3179,7 +3179,6 @@ int ext4_discard_partial_page_buffers_no_lock(handle_t *handle,
 	ext4_fsblk_t index = from >> PAGE_CACHE_SHIFT;
 	unsigned int offset = from & (PAGE_CACHE_SIZE-1);
 	unsigned int blocksize, max, pos;
-	unsigned int end_of_block, range_to_discard;
 	ext4_lblk_t iblock;
 	struct buffer_head *bh;
 	int err = 0;
@@ -3231,6 +3230,8 @@ int ext4_discard_partial_page_buffers_no_lock(handle_t *handle,
 
 	pos = offset;
 	while (pos < offset + length) {
+		unsigned int end_of_block, range_to_discard;
+
 		err = 0;
 
 		/* The length of space left to zero and unmap */
