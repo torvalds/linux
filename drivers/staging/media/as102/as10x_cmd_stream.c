@@ -1,22 +1,21 @@
-/**
-
- \file   as10x_cmd_stream.c
-
- \author: S. Martinelli
-
- ----------------------------------------------------------------------------\n
-   (c) Copyright Abilis Systems SARL 2005-2009 All rigths reserved \n
-   www.abilis.com                                                  \n
- ----------------------------------------------------------------------------\n
-
- \brief AS10x CMD, stream services
-
-	AS10x CMD management: build command buffer, send command through
-	selected port and wait for the response when required.
-
-*/
-
-
+/*
+ * Abilis Systems Single DVB-T Receiver
+ * Copyright (C) 2008 Pierrick Hascoet <pierrick.hascoet@abilis.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 #if defined(LINUX) && defined(__KERNEL__) /* linux kernel implementation */
 #include <linux/kernel.h>
 #include "as102_drv.h"
