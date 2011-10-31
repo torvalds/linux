@@ -1326,3 +1326,22 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 
 	return 0;
 }
+
+void perf_session__fprintf_info(struct perf_session *session, FILE *fp,
+				bool full)
+{
+	struct stat st;
+	int ret;
+
+	if (session == NULL || fp == NULL)
+		return;
+
+	ret = fstat(session->fd, &st);
+	if (ret == -1)
+		return;
+
+	fprintf(fp, "# ========\n");
+	fprintf(fp, "# captured on: %s", ctime(&st.st_ctime));
+	perf_header__fprintf_info(session, fp, full);
+	fprintf(fp, "# ========\n#\n");
+}

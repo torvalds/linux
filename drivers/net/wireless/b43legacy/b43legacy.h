@@ -14,7 +14,6 @@
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_driver_chipcommon.h>
 
-#include <linux/wireless.h>
 #include <net/mac80211.h>
 
 #include "debugfs.h"
@@ -22,10 +21,6 @@
 #include "rfkill.h"
 #include "phy.h"
 
-
-/* The unique identifier of the firmware that's officially supported by this
- * driver version. */
-#define B43legacy_SUPPORTED_FIRMWARE_ID	"FW10"
 
 #define B43legacy_IRQWAIT_MAX_RETRIES	20
 

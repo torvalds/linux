@@ -26,6 +26,7 @@
 #include <linux/wait.h>
 #include <linux/net.h>
 #include <linux/delay.h>
+#include <linux/freezer.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <linux/mempool.h>
@@ -324,7 +325,7 @@ wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *midQ)
 {
 	int error;
 
-	error = wait_event_killable(server->response_q,
+	error = wait_event_freezekillable(server->response_q,
 				    midQ->midState != MID_REQUEST_SUBMITTED);
 	if (error < 0)
 		return -ERESTARTSYS;
@@ -339,8 +340,8 @@ wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *midQ)
  */
 int
 cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
-		unsigned int nvec, mid_callback_t *callback, void *cbdata,
-		bool ignore_pend)
+		unsigned int nvec, mid_receive_t *receive,
+		mid_callback_t *callback, void *cbdata, bool ignore_pend)
 {
 	int rc;
 	struct mid_q_entry *mid;
@@ -374,6 +375,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 		goto out_err;
 	}
 
+	mid->receive = receive;
 	mid->callback = callback;
 	mid->callback_data = cbdata;
 	mid->midState = MID_REQUEST_SUBMITTED;
@@ -496,13 +498,18 @@ int
 cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		   bool log_error)
 {
-	dump_smb(mid->resp_buf,
-		 min_t(u32, 92, be32_to_cpu(mid->resp_buf->smb_buf_length)));
+	unsigned int len = be32_to_cpu(mid->resp_buf->smb_buf_length) + 4;
+
+	dump_smb(mid->resp_buf, min_t(u32, 92, len));
 
 	/* convert the length into a more usable form */
 	if (server->sec_mode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
+		struct kvec iov;
+
+		iov.iov_base = mid->resp_buf;
+		iov.iov_len = len;
 		/* FIXME: add code to kill session */
-		if (cifs_verify_signature(mid->resp_buf, server,
+		if (cifs_verify_signature(&iov, 1, server,
 					  mid->sequence_number + 1) != 0)
 			cERROR(1, "Unexpected SMB signature");
 	}

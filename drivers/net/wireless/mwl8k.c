@@ -4097,9 +4097,6 @@ static int mwl8k_set_key(struct ieee80211_hw *hw,
 
 		if (rc)
 			goto out;
-
-		mwl8k_vif->is_hw_crypto_enabled = false;
-
 	}
 out:
 	return rc;
@@ -4918,7 +4915,8 @@ static int mwl8k_sta_add(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static int mwl8k_conf_tx(struct ieee80211_hw *hw, u16 queue,
+static int mwl8k_conf_tx(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif, u16 queue,
 			 const struct ieee80211_tx_queue_params *params)
 {
 	struct mwl8k_priv *priv = hw->priv;
@@ -5465,7 +5463,7 @@ static int mwl8k_reload_firmware(struct ieee80211_hw *hw, char *fw_image)
 		goto fail;
 
 	for (i = 0; i < MWL8K_TX_WMM_QUEUES; i++) {
-		rc = mwl8k_conf_tx(hw, i, &priv->wmm_params[i]);
+		rc = mwl8k_conf_tx(hw, NULL, i, &priv->wmm_params[i]);
 		if (rc)
 			goto fail;
 	}
@@ -5504,6 +5502,14 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 
 	/* Set rssi values to dBm */
 	hw->flags |= IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_HAS_RATE_CONTROL;
+
+	/*
+	 * Ask mac80211 to not to trigger PS mode
+	 * based on PM bit of incoming frames.
+	 */
+	if (priv->ap_fw)
+		hw->flags |= IEEE80211_HW_AP_LINK_PS;
+
 	hw->vif_data_size = sizeof(struct mwl8k_vif);
 	hw->sta_data_size = sizeof(struct mwl8k_sta);
 

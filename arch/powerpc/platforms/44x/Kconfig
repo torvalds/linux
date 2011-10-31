@@ -23,7 +23,7 @@ config BLUESTONE
 	default n
 	select PPC44x_SIMPLE
 	select APM821xx
-	select IBM_NEW_EMAC_RGMII
+	select IBM_EMAC_RGMII
 	help
 	  This option enables support for the APM APM821xx Evaluation board.
 
@@ -122,8 +122,8 @@ config CANYONLANDS
 	select PPC4xx_PCI_EXPRESS
 	select PCI_MSI
 	select PPC4xx_MSI
-	select IBM_NEW_EMAC_RGMII
-	select IBM_NEW_EMAC_ZMII
+	select IBM_EMAC_RGMII
+	select IBM_EMAC_ZMII
 	help
 	  This option enables support for the AMCC PPC460EX evaluation board.
 
@@ -135,8 +135,8 @@ config GLACIER
 	select 460EX # Odd since it uses 460GT but the effects are the same
 	select PCI
 	select PPC4xx_PCI_EXPRESS
-	select IBM_NEW_EMAC_RGMII
-	select IBM_NEW_EMAC_ZMII
+	select IBM_EMAC_RGMII
+	select IBM_EMAC_ZMII
 	help
 	  This option enables support for the AMCC PPC460GT evaluation board.
 
@@ -161,7 +161,7 @@ config EIGER
 	select 460SX
 	select PCI
 	select PPC4xx_PCI_EXPRESS
-	select IBM_NEW_EMAC_RGMII
+	select IBM_EMAC_RGMII
 	help
 	  This option enables support for the AMCC PPC460SX evaluation board.
 
@@ -260,59 +260,59 @@ config 440EP
 	bool
 	select PPC_FPU
 	select IBM440EP_ERR42
-	select IBM_NEW_EMAC_ZMII
+	select IBM_EMAC_ZMII
 	select USB_ARCH_HAS_OHCI
 
 config 440EPX
 	bool
 	select PPC_FPU
-	select IBM_NEW_EMAC_EMAC4
-	select IBM_NEW_EMAC_RGMII
-	select IBM_NEW_EMAC_ZMII
+	select IBM_EMAC_EMAC4
+	select IBM_EMAC_RGMII
+	select IBM_EMAC_ZMII
 
 config 440GRX
 	bool
-	select IBM_NEW_EMAC_EMAC4
-	select IBM_NEW_EMAC_RGMII
-	select IBM_NEW_EMAC_ZMII
+	select IBM_EMAC_EMAC4
+	select IBM_EMAC_RGMII
+	select IBM_EMAC_ZMII
 
 config 440GP
 	bool
-	select IBM_NEW_EMAC_ZMII
+	select IBM_EMAC_ZMII
 
 config 440GX
 	bool
-	select IBM_NEW_EMAC_EMAC4
-	select IBM_NEW_EMAC_RGMII
-	select IBM_NEW_EMAC_ZMII #test only
-	select IBM_NEW_EMAC_TAH  #test only
+	select IBM_EMAC_EMAC4
+	select IBM_EMAC_RGMII
+	select IBM_EMAC_ZMII #test only
+	select IBM_EMAC_TAH  #test only
 
 config 440SP
 	bool
 
 config 440SPe
 	bool
-	select IBM_NEW_EMAC_EMAC4
+	select IBM_EMAC_EMAC4
 
 config 460EX
 	bool
 	select PPC_FPU
-	select IBM_NEW_EMAC_EMAC4
-	select IBM_NEW_EMAC_TAH
+	select IBM_EMAC_EMAC4
+	select IBM_EMAC_TAH
 
 config 460SX
 	bool
 	select PPC_FPU
-	select IBM_NEW_EMAC_EMAC4
-	select IBM_NEW_EMAC_RGMII
-	select IBM_NEW_EMAC_ZMII
-	select IBM_NEW_EMAC_TAH
+	select IBM_EMAC_EMAC4
+	select IBM_EMAC_RGMII
+	select IBM_EMAC_ZMII
+	select IBM_EMAC_TAH
 
 config APM821xx
 	bool
 	select PPC_FPU
-	select IBM_NEW_EMAC_EMAC4
-	select IBM_NEW_EMAC_TAH
+	select IBM_EMAC_EMAC4
+	select IBM_EMAC_TAH
 
 # 44x errata/workaround config symbols, selected by the CPU models above
 config IBM440EP_ERR42

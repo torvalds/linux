@@ -50,7 +50,7 @@ static const struct net_device_ops irlan_eth_netdev_ops = {
 	.ndo_open               = irlan_eth_open,
 	.ndo_stop               = irlan_eth_close,
 	.ndo_start_xmit    	= irlan_eth_xmit,
-	.ndo_set_multicast_list = irlan_eth_set_multicast_list,
+	.ndo_set_rx_mode	= irlan_eth_set_multicast_list,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };

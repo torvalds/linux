@@ -700,7 +700,7 @@ static const struct file_operations eventpoll_fops = {
 	.llseek		= noop_llseek,
 };
 
-/* Fast test to see if the file is an evenpoll file */
+/* Fast test to see if the file is an eventpoll file */
 static inline int is_file_epoll(struct file *f)
 {
 	return f->f_op == &eventpoll_fops;

@@ -134,7 +134,6 @@ struct mwifiex_ver_ext {
 struct mwifiex_bss_info {
 	u32 bss_mode;
 	struct mwifiex_802_11_ssid ssid;
-	u32 scan_table_idx;
 	u32 bss_chan;
 	u32 region_code;
 	u32 media_connected;
@@ -307,10 +306,12 @@ struct mwifiex_ds_read_eeprom {
 	u8 value[MAX_EEPROM_DATA];
 };
 
+#define IEEE_MAX_IE_SIZE		256
+
 struct mwifiex_ds_misc_gen_ie {
 	u32 type;
 	u32 len;
-	u8 ie_data[IW_CUSTOM_MAX];
+	u8 ie_data[IEEE_MAX_IE_SIZE];
 };
 
 struct mwifiex_ds_misc_cmd {

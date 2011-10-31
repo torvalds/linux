@@ -204,7 +204,7 @@ net2272_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN)
 		return -ESHUTDOWN;
 
-	max = le16_to_cpu(desc->wMaxPacketSize) & 0x1fff;
+	max = usb_endpoint_maxp(desc) & 0x1fff;
 
 	spin_lock_irqsave(&dev->lock, flags);
 	_ep->maxpacket = max & 0x7fff;
@@ -1172,17 +1172,18 @@ net2272_pullup(struct usb_gadget *_gadget, int is_on)
 	return 0;
 }
 
-static int net2272_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
-static int net2272_stop(struct usb_gadget_driver *driver);
+static int net2272_start(struct usb_gadget *_gadget,
+		struct usb_gadget_driver *driver);
+static int net2272_stop(struct usb_gadget *_gadget,
+		struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops net2272_ops = {
-	.get_frame       = net2272_get_frame,
-	.wakeup          = net2272_wakeup,
+	.get_frame	= net2272_get_frame,
+	.wakeup		= net2272_wakeup,
 	.set_selfpowered = net2272_set_selfpowered,
-	.pullup			= net2272_pullup,
-	.start			= net2272_start,
-	.stop			= net2272_stop,
+	.pullup		= net2272_pullup,
+	.udc_start	= net2272_start,
+	.udc_stop	= net2272_stop,
 };
 
 /*---------------------------------------------------------------------------*/
@@ -1356,8 +1357,6 @@ net2272_set_fifo_mode(struct net2272 *dev, int mode)
 
 /*---------------------------------------------------------------------------*/
 
-static struct net2272 *the_controller;
-
 static void
 net2272_usb_reset(struct net2272 *dev)
 {
@@ -1453,20 +1452,17 @@ net2272_ep0_start(struct net2272 *dev)
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
-static int net2272_start(struct usb_gadget_driver *driver,
-	int (*bind)(struct usb_gadget *))
+static int net2272_start(struct usb_gadget *_gadget,
+		struct usb_gadget_driver *driver)
 {
-	struct net2272 *dev = the_controller;
-	int ret;
+	struct net2272 *dev;
 	unsigned i;
 
-	if (!driver || !bind || !driver->unbind || !driver->setup ||
+	if (!driver || !driver->unbind || !driver->setup ||
 	    driver->speed != USB_SPEED_HIGH)
 		return -EINVAL;
-	if (!dev)
-		return -ENODEV;
-	if (dev->driver)
-		return -EBUSY;
+
+	dev = container_of(_gadget, struct net2272, gadget);
 
 	for (i = 0; i < 4; ++i)
 		dev->ep[i].irqs = 0;
@@ -1475,14 +1471,6 @@ static int net2272_start(struct usb_gadget_driver *driver,
 	driver->driver.bus = NULL;
 	dev->driver = driver;
 	dev->gadget.dev.driver = &driver->driver;
-	ret = bind(&dev->gadget);
-	if (ret) {
-		dev_dbg(dev->dev, "bind to driver %s --> %d\n",
-			driver->driver.name, ret);
-		dev->driver = NULL;
-		dev->gadget.dev.driver = NULL;
-		return ret;
-	}
 
 	/* ... then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
@@ -1510,33 +1498,21 @@ stop_activity(struct net2272 *dev, struct usb_gadget_driver *driver)
 	for (i = 0; i < 4; ++i)
 		net2272_dequeue_all(&dev->ep[i]);
 
-	/* report disconnect; the driver is already quiesced */
-	if (driver) {
-		spin_unlock(&dev->lock);
-		driver->disconnect(&dev->gadget);
-		spin_lock(&dev->lock);
-
-	}
 	net2272_usb_reinit(dev);
 }
 
-static int net2272_stop(struct usb_gadget_driver *driver)
+static int net2272_stop(struct usb_gadget *_gadget,
+		struct usb_gadget_driver *driver)
 {
-	struct net2272 *dev = the_controller;
+	struct net2272 *dev;
 	unsigned long flags;
 
-	if (!dev)
-		return -ENODEV;
-	if (!driver || driver != dev->driver)
-		return -EINVAL;
+	dev = container_of(_gadget, struct net2272, gadget);
 
 	spin_lock_irqsave(&dev->lock, flags);
 	stop_activity(dev, driver);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	net2272_pullup(&dev->gadget, 0);
-
-	driver->unbind(&dev->gadget);
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
@@ -1764,8 +1740,8 @@ net2272_handle_stat0_irqs(struct net2272 *dev, u8 stat)
 				dev->gadget.speed = USB_SPEED_HIGH;
 			else
 				dev->gadget.speed = USB_SPEED_FULL;
-			dev_dbg(dev->dev, "%s speed\n",
-				(dev->gadget.speed == USB_SPEED_HIGH) ? "high" : "full");
+			dev_dbg(dev->dev, "%s\n",
+				usb_speed_string(dev->gadget.speed));
 		}
 
 		ep = &dev->ep[0];
@@ -2238,18 +2214,12 @@ net2272_remove(struct net2272 *dev)
 	device_remove_file(dev->dev, &dev_attr_registers);
 
 	dev_info(dev->dev, "unbind\n");
-	the_controller = NULL;
 }
 
 static struct net2272 * __devinit
 net2272_probe_init(struct device *dev, unsigned int irq)
 {
 	struct net2272 *ret;
-
-	if (the_controller) {
-		dev_warn(dev, "ignoring\n");
-		return ERR_PTR(-EBUSY);
-	}
 
 	if (!irq) {
 		dev_dbg(dev, "No IRQ!\n");
@@ -2306,8 +2276,6 @@ net2272_probe_fin(struct net2272 *dev, unsigned int irqflags)
 		dev->irq, dev->base_addr, dev->chiprev,
 		dma_mode_string());
 	dev_info(dev->dev, "version: %s\n", driver_vers);
-
-	the_controller = dev;
 
 	ret = device_register(&dev->gadget.dev);
 	if (ret)
@@ -2683,8 +2651,6 @@ net2272_plat_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 	dev_info(&pdev->dev, "running in 16-bit, %sbyte swap local bus mode\n",
 		(net2272_read(dev, LOCCTL) & (1 << BYTE_SWAP)) ? "" : "no ");
-
-	the_controller = dev;
 
 	return 0;
 

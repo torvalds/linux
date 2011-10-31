@@ -26,10 +26,10 @@
 /*
  * find which device holds a particular offset 
  */
-static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
+static inline struct dev_info *which_dev(struct mddev *mddev, sector_t sector)
 {
 	int lo, mid, hi;
-	linear_conf_t *conf;
+	struct linear_conf *conf;
 
 	lo = 0;
 	hi = mddev->raid_disks - 1;
@@ -63,8 +63,8 @@ static int linear_mergeable_bvec(struct request_queue *q,
 				 struct bvec_merge_data *bvm,
 				 struct bio_vec *biovec)
 {
-	mddev_t *mddev = q->queuedata;
-	dev_info_t *dev0;
+	struct mddev *mddev = q->queuedata;
+	struct dev_info *dev0;
 	unsigned long maxsectors, bio_sectors = bvm->bi_size >> 9;
 	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
 
@@ -89,8 +89,8 @@ static int linear_mergeable_bvec(struct request_queue *q,
 
 static int linear_congested(void *data, int bits)
 {
-	mddev_t *mddev = data;
-	linear_conf_t *conf;
+	struct mddev *mddev = data;
+	struct linear_conf *conf;
 	int i, ret = 0;
 
 	if (mddev_congested(mddev, bits))
@@ -108,9 +108,9 @@ static int linear_congested(void *data, int bits)
 	return ret;
 }
 
-static sector_t linear_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+static sector_t linear_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 {
-	linear_conf_t *conf;
+	struct linear_conf *conf;
 	sector_t array_sectors;
 
 	rcu_read_lock();
@@ -123,13 +123,13 @@ static sector_t linear_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 	return array_sectors;
 }
 
-static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
+static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 {
-	linear_conf_t *conf;
-	mdk_rdev_t *rdev;
+	struct linear_conf *conf;
+	struct md_rdev *rdev;
 	int i, cnt;
 
-	conf = kzalloc (sizeof (*conf) + raid_disks*sizeof(dev_info_t),
+	conf = kzalloc (sizeof (*conf) + raid_disks*sizeof(struct dev_info),
 			GFP_KERNEL);
 	if (!conf)
 		return NULL;
@@ -139,7 +139,7 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		int j = rdev->raid_disk;
-		dev_info_t *disk = conf->disks + j;
+		struct dev_info *disk = conf->disks + j;
 		sector_t sectors;
 
 		if (j < 0 || j >= raid_disks || disk->rdev) {
@@ -194,9 +194,9 @@ out:
 	return NULL;
 }
 
-static int linear_run (mddev_t *mddev)
+static int linear_run (struct mddev *mddev)
 {
-	linear_conf_t *conf;
+	struct linear_conf *conf;
 
 	if (md_check_no_bitmap(mddev))
 		return -EINVAL;
@@ -213,7 +213,7 @@ static int linear_run (mddev_t *mddev)
 	return md_integrity_register(mddev);
 }
 
-static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
+static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
 {
 	/* Adding a drive to a linear array allows the array to grow.
 	 * It is permitted if the new drive has a matching superblock
@@ -223,7 +223,7 @@ static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 	 * The current one is never freed until the array is stopped.
 	 * This avoids races.
 	 */
-	linear_conf_t *newconf, *oldconf;
+	struct linear_conf *newconf, *oldconf;
 
 	if (rdev->saved_raid_disk != mddev->raid_disks)
 		return -EINVAL;
@@ -245,9 +245,9 @@ static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 	return 0;
 }
 
-static int linear_stop (mddev_t *mddev)
+static int linear_stop (struct mddev *mddev)
 {
-	linear_conf_t *conf = mddev->private;
+	struct linear_conf *conf = mddev->private;
 
 	/*
 	 * We do not require rcu protection here since
@@ -264,9 +264,9 @@ static int linear_stop (mddev_t *mddev)
 	return 0;
 }
 
-static int linear_make_request (mddev_t *mddev, struct bio *bio)
+static int linear_make_request (struct mddev *mddev, struct bio *bio)
 {
-	dev_info_t *tmp_dev;
+	struct dev_info *tmp_dev;
 	sector_t start_sector;
 
 	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
@@ -323,14 +323,14 @@ static int linear_make_request (mddev_t *mddev, struct bio *bio)
 	return 1;
 }
 
-static void linear_status (struct seq_file *seq, mddev_t *mddev)
+static void linear_status (struct seq_file *seq, struct mddev *mddev)
 {
 
 	seq_printf(seq, " %dk rounding", mddev->chunk_sectors / 2);
 }
 
 
-static struct mdk_personality linear_personality =
+static struct md_personality linear_personality =
 {
 	.name		= "linear",
 	.level		= LEVEL_LINEAR,

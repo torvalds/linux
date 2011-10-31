@@ -45,6 +45,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <xen/xenbus.h>
+#include <xen/xen.h>
 #include "xenbus_comms.h"
 
 struct xs_stored_msg {
@@ -620,6 +621,15 @@ static struct xenbus_watch *find_watch(const char *token)
 	return NULL;
 }
 
+static void xs_reset_watches(void)
+{
+	int err;
+
+	err = xs_error(xs_single(XBT_NIL, XS_RESET_WATCHES, "", NULL));
+	if (err && err != -EEXIST)
+		printk(KERN_WARNING "xs_reset_watches failed: %d\n", err);
+}
+
 /* Register callback to watch this node. */
 int register_xenbus_watch(struct xenbus_watch *watch)
 {
@@ -638,8 +648,7 @@ int register_xenbus_watch(struct xenbus_watch *watch)
 
 	err = xs_watch(watch->node, token);
 
-	/* Ignore errors due to multiple registration. */
-	if ((err != 0) && (err != -EEXIST)) {
+	if (err) {
 		spin_lock(&watches_lock);
 		list_del(&watch->list);
 		spin_unlock(&watches_lock);
@@ -896,6 +905,10 @@ int xs_init(void)
 	task = kthread_run(xenbus_thread, NULL, "xenbus");
 	if (IS_ERR(task))
 		return PTR_ERR(task);
+
+	/* shutdown watches for kexec boot */
+	if (xen_hvm_domain())
+		xs_reset_watches();
 
 	return 0;
 }

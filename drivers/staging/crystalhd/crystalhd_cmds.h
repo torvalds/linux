@@ -36,7 +36,7 @@
 #include "crystalhd_misc.h"
 #include "crystalhd_hw.h"
 
-enum crystalhd_state{
+enum crystalhd_state {
 	BC_LINK_INVALID		= 0x00,
 	BC_LINK_INIT		= 0x01,
 	BC_LINK_CAP_EN		= 0x02,

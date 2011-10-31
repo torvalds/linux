@@ -240,7 +240,7 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 			sizeof(delegation->stateid.data));
 	delegation->type = res->delegation_type;
 	delegation->maxsize = res->maxsize;
-	delegation->change_attr = nfsi->change_attr;
+	delegation->change_attr = inode->i_version;
 	delegation->cred = get_rpccred(cred);
 	delegation->inode = inode;
 	delegation->flags = 1<<NFS_DELEGATION_REFERENCED;

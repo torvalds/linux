@@ -20,7 +20,7 @@
 #include "cthardware.h"
 #include <linux/slab.h>
 
-#define SRC_RESOURCE_NUM	64
+#define SRC_RESOURCE_NUM	256
 #define SRCIMP_RESOURCE_NUM	256
 
 static unsigned int conj_mask;

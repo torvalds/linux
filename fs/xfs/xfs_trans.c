@@ -1790,9 +1790,7 @@ xfs_trans_commit_cil(
 }
 
 /*
- * xfs_trans_commit
- *
- * Commit the given transaction to the log a/synchronously.
+ * Commit the given transaction to the log.
  *
  * XFS disk error handling mechanism is not based on a typical
  * transaction abort mechanism. Logically after the filesystem
@@ -1804,10 +1802,9 @@ xfs_trans_commit_cil(
  * Do not reference the transaction structure after this call.
  */
 int
-_xfs_trans_commit(
+xfs_trans_commit(
 	struct xfs_trans	*tp,
-	uint			flags,
-	int			*log_flushed)
+	uint			flags)
 {
 	struct xfs_mount	*mp = tp->t_mountp;
 	xfs_lsn_t		commit_lsn = -1;
@@ -1866,7 +1863,7 @@ _xfs_trans_commit(
 	if (sync) {
 		if (!error) {
 			error = _xfs_log_force_lsn(mp, commit_lsn,
-				      XFS_LOG_SYNC, log_flushed);
+				      XFS_LOG_SYNC, NULL);
 		}
 		XFS_STATS_INC(xs_trans_sync);
 	} else {
@@ -2021,6 +2018,6 @@ xfs_trans_roll(
 	if (error)
 		return error;
 
-	xfs_trans_ijoin(trans, dp);
+	xfs_trans_ijoin(trans, dp, 0);
 	return 0;
 }

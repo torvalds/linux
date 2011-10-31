@@ -4,6 +4,7 @@
 /*
  * ELF register definitions..
  */
+#include <linux/thread_info.h>
 
 #include <asm/ptrace.h>
 #include <asm/user.h>
@@ -320,4 +321,34 @@ extern int syscall32_setup_pages(struct linux_binprm *, int exstack);
 extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 #define arch_randomize_brk arch_randomize_brk
 
+/*
+ * True on X86_32 or when emulating IA32 on X86_64
+ */
+static inline int mmap_is_ia32(void)
+{
+#ifdef CONFIG_X86_32
+	return 1;
+#endif
+#ifdef CONFIG_IA32_EMULATION
+	if (test_thread_flag(TIF_IA32))
+		return 1;
+#endif
+	return 0;
+}
+
+/* The first two values are special, do not change. See align_addr() */
+enum align_flags {
+	ALIGN_VA_32	= BIT(0),
+	ALIGN_VA_64	= BIT(1),
+	ALIGN_VDSO	= BIT(2),
+	ALIGN_TOPDOWN	= BIT(3),
+};
+
+struct va_alignment {
+	int flags;
+	unsigned long mask;
+} ____cacheline_aligned;
+
+extern struct va_alignment va_align;
+extern unsigned long align_addr(unsigned long, struct file *, enum align_flags);
 #endif /* _ASM_X86_ELF_H */

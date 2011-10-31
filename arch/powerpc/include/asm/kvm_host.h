@@ -198,20 +198,28 @@ struct kvm_arch {
  */
 struct kvmppc_vcore {
 	int n_runnable;
-	int n_blocked;
+	int n_busy;
 	int num_threads;
 	int entry_exit_count;
 	int n_woken;
 	int nap_count;
+	int napping_threads;
 	u16 pcpu;
-	u8 vcore_running;
+	u8 vcore_state;
 	u8 in_guest;
 	struct list_head runnable_threads;
 	spinlock_t lock;
+	wait_queue_head_t wq;
 };
 
 #define VCORE_ENTRY_COUNT(vc)	((vc)->entry_exit_count & 0xff)
 #define VCORE_EXIT_COUNT(vc)	((vc)->entry_exit_count >> 8)
+
+/* Values for vcore_state */
+#define VCORE_INACTIVE	0
+#define VCORE_RUNNING	1
+#define VCORE_EXITING	2
+#define VCORE_SLEEPING	3
 
 struct kvmppc_pte {
 	ulong eaddr;
@@ -258,14 +266,6 @@ struct kvm_vcpu_arch {
 	ulong host_stack;
 	u32 host_pid;
 #ifdef CONFIG_PPC_BOOK3S
-	ulong host_msr;
-	ulong host_r2;
-	void *host_retip;
-	ulong trampoline_lowmem;
-	ulong trampoline_enter;
-	ulong highmem_handler;
-	ulong rmcall;
-	ulong host_paca_phys;
 	struct kvmppc_slb slb[64];
 	int slb_max;		/* 1 + index of last valid entry in slb[] */
 	int slb_nr;		/* total number of entries in SLB */
@@ -389,6 +389,9 @@ struct kvm_vcpu_arch {
 	u8 dcr_is_write;
 	u8 osi_needed;
 	u8 osi_enabled;
+	u8 papr_enabled;
+	u8 sane;
+	u8 cpu_type;
 	u8 hcall_needed;
 
 	u32 cpr0_cfgaddr; /* holds the last set cpr0_cfgaddr */
@@ -408,11 +411,13 @@ struct kvm_vcpu_arch {
 	struct dtl *dtl;
 	struct dtl *dtl_end;
 
+	wait_queue_head_t *wqp;
 	struct kvmppc_vcore *vcore;
 	int ret;
 	int trap;
 	int state;
 	int ptid;
+	bool timer_running;
 	wait_queue_head_t cpu_run;
 
 	struct kvm_vcpu_arch_shared *shared;
@@ -428,8 +433,9 @@ struct kvm_vcpu_arch {
 #endif
 };
 
-#define KVMPPC_VCPU_BUSY_IN_HOST	0
-#define KVMPPC_VCPU_BLOCKED		1
+/* Values for vcpu->arch.state */
+#define KVMPPC_VCPU_STOPPED		0
+#define KVMPPC_VCPU_BUSY_IN_HOST	1
 #define KVMPPC_VCPU_RUNNABLE		2
 
 #endif /* __POWERPC_KVM_HOST_H__ */

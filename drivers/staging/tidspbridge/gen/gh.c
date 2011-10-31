@@ -55,7 +55,7 @@ struct gh_t_hash_tab *gh_create(u16 max_bucket, u16 val_size,
 	hash_tab->match = match;
 	hash_tab->delete = delete == NULL ? noop : delete;
 
-	hash_tab->buckets = (struct element **)
+	hash_tab->buckets =
 	    kzalloc(sizeof(struct element *) * max_bucket, GFP_KERNEL);
 	if (hash_tab->buckets == NULL) {
 		gh_delete(hash_tab);

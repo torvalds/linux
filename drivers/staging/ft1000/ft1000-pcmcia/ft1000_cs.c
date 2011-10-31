@@ -41,13 +41,11 @@ MODULE_LICENSE("GPL");
 
 /*====================================================================*/
 
-struct net_device *init_ft1000_card(struct pcmcia_device *link,
-					void *ft1000_reset);
-void stop_ft1000_card(struct net_device *);
-
 static int ft1000_config(struct pcmcia_device *link);
 static void ft1000_detach(struct pcmcia_device *link);
 static int ft1000_attach(struct pcmcia_device *link);
+
+#include "ft1000.h"
 
 /*====================================================================*/
 
@@ -75,7 +73,7 @@ static void ft1000_detach(struct pcmcia_device *link)
 	free_netdev(dev);
 }
 
-int ft1000_confcheck(struct pcmcia_device *link, void *priv_data)
+static int ft1000_confcheck(struct pcmcia_device *link, void *priv_data)
 {
 	return pcmcia_request_io(link);
 }

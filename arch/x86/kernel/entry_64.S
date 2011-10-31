@@ -331,10 +331,15 @@ ENDPROC(native_usergs_sysret64)
 1:	incl PER_CPU_VAR(irq_count)
 	jne 2f
 	mov PER_CPU_VAR(irq_stack_ptr),%rsp
-	EMPTY_FRAME 0
+	CFI_DEF_CFA_REGISTER	rsi
 
 2:	/* Store previous stack value */
 	pushq %rsi
+	CFI_ESCAPE	0x0f /* DW_CFA_def_cfa_expression */, 6, \
+			0x77 /* DW_OP_breg7 */, 0, \
+			0x06 /* DW_OP_deref */, \
+			0x08 /* DW_OP_const1u */, SS+8-RBP, \
+			0x22 /* DW_OP_plus */
 	/* We entered an interrupt context - irqs are off: */
 	TRACE_IRQS_OFF
 	.endm
@@ -788,7 +793,6 @@ END(interrupt)
 	subq $ORIG_RAX-RBP, %rsp
 	CFI_ADJUST_CFA_OFFSET ORIG_RAX-RBP
 	SAVE_ARGS_IRQ
-	PARTIAL_FRAME 0
 	call \func
 	.endm
 
@@ -813,10 +817,10 @@ ret_from_intr:
 
 	/* Restore saved previous stack */
 	popq %rsi
-	leaq 16(%rsi), %rsp
-
+	CFI_DEF_CFA_REGISTER	rsi
+	leaq ARGOFFSET-RBP(%rsi), %rsp
 	CFI_DEF_CFA_REGISTER	rsp
-	CFI_ADJUST_CFA_OFFSET	-16
+	CFI_ADJUST_CFA_OFFSET	RBP-ARGOFFSET
 
 exit_intr:
 	GET_THREAD_INFO(%rcx)

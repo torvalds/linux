@@ -202,7 +202,7 @@ static int init_heap(struct mem_block **heap, int start, int size)
 	blocks->next = blocks->prev = *heap;
 
 	memset(*heap, 0, sizeof(**heap));
-	(*heap)->file_priv = (struct drm_file *) - 1;
+	(*heap)->file_priv = (struct drm_file *) -1;
 	(*heap)->next = (*heap)->prev = blocks;
 	return 0;
 }
@@ -359,19 +359,19 @@ int i915_mem_init_heap(struct drm_device *dev, void *data,
 	return init_heap(heap, initheap->start, initheap->size);
 }
 
-int i915_mem_destroy_heap( struct drm_device *dev, void *data,
-			   struct drm_file *file_priv )
+int i915_mem_destroy_heap(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_mem_destroy_heap_t *destroyheap = data;
 	struct mem_block **heap;
 
-	if ( !dev_priv ) {
-		DRM_ERROR( "called with no initialization\n" );
+	if (!dev_priv) {
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
-	heap = get_heap( dev_priv, destroyheap->region );
+	heap = get_heap(dev_priv, destroyheap->region);
 	if (!heap) {
 		DRM_ERROR("get_heap failed");
 		return -EFAULT;
@@ -382,6 +382,6 @@ int i915_mem_destroy_heap( struct drm_device *dev, void *data,
 		return -EFAULT;
 	}
 
-	i915_mem_takedown( heap );
+	i915_mem_takedown(heap);
 	return 0;
 }

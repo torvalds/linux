@@ -904,7 +904,7 @@ static void __init zeus_map_io(void)
 
 MACHINE_START(ARCOM_ZEUS, "Arcom/Eurotech ZEUS")
 	/* Maintainer: Marc Zyngier <maz@misterjones.org> */
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= zeus_map_io,
 	.nr_irqs	= ZEUS_NR_IRQS,
 	.init_irq	= zeus_init_irq,

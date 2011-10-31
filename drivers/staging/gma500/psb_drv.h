@@ -43,6 +43,7 @@ enum {
 	CHIP_MFLD_0130 = 3,		/* Medfield */
 };
 
+#define IS_PSB(dev) (((dev)->pci_device & 0xfffe) == 0x8108)
 #define IS_MRST(dev) (((dev)->pci_device & 0xfffc) == 0x4100)
 #define IS_MFLD(dev) (((dev)->pci_device & 0xfff8) == 0x0130)
 
@@ -133,6 +134,9 @@ enum {
 #define _PSB_IRQ_SGX_FLAG	  (1<<18)
 #define _PSB_IRQ_MSVDX_FLAG	  (1<<19)
 #define _LNC_IRQ_TOPAZ_FLAG	  (1<<20)
+
+#define _PSB_PIPE_EVENT_FLAG	(_PSB_VSYNC_PIPEA_FLAG | \
+				 _PSB_VSYNC_PIPEB_FLAG)
 
 /* This flag includes all the display IRQ bits excepts the vblank irqs. */
 #define _MDFLD_DISP_ALL_IRQ_FLAG (_MDFLD_PIPEC_EVENT_FLAG | \
@@ -608,7 +612,7 @@ struct drm_psb_private {
 	void (*exit_idle)(struct drm_device *dev, u32 update_src);
 
 	/* 2D acceleration */
-	struct mutex mutex_2d;
+	spinlock_t lock_2d;
 
 	/* FIXME: Arrays anyone ? */
 	struct mdfld_dsi_encoder *encoder0;	

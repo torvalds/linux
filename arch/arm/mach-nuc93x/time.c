@@ -82,7 +82,7 @@ static void nuc93x_timer_setup(void)
 	timer0_load = (rate / TICKS_PER_SEC);
 	__raw_writel(timer0_load, REG_TICR0);
 
-	val |= (PERIOD | COUNTEN | INTEN | PRESCALE);;
+	val |= (PERIOD | COUNTEN | INTEN | PRESCALE);
 	__raw_writel(val, REG_TCSR0);
 
 }

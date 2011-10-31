@@ -152,12 +152,18 @@ static void print_amp_vals(struct snd_info_buffer *buffer,
 
 static void print_pcm_rates(struct snd_info_buffer *buffer, unsigned int pcm)
 {
-	char buf[SND_PRINT_RATES_ADVISED_BUFSIZE];
+	static unsigned int rates[] = {
+		8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200,
+		96000, 176400, 192000, 384000
+	};
+	int i;
 
 	pcm &= AC_SUPPCM_RATES;
 	snd_iprintf(buffer, "    rates [0x%x]:", pcm);
-	snd_print_pcm_rates(pcm, buf, sizeof(buf));
-	snd_iprintf(buffer, "%s\n", buf);
+	for (i = 0; i < ARRAY_SIZE(rates); i++)
+		if (pcm & (1 << i))
+			snd_iprintf(buffer,  " %d", rates[i]);
+	snd_iprintf(buffer, "\n");
 }
 
 static void print_pcm_bits(struct snd_info_buffer *buffer, unsigned int pcm)

@@ -4,8 +4,8 @@ What:		/sys/class/backlight/<backlight>/l2_bright_max
 What:		/sys/class/backlight/<backlight>/l3_office_max
 What:		/sys/class/backlight/<backlight>/l4_indoor_max
 What:		/sys/class/backlight/<backlight>/l5_dark_max
-Date:		Mai 2011
-KernelVersion:	2.6.40
+Date:		May 2011
+KernelVersion:	3.0
 Contact:	device-drivers-devel@blackfin.uclinux.org
 Description:
 		Control the maximum brightness for <ambient light zone>
@@ -18,8 +18,8 @@ What:		/sys/class/backlight/<backlight>/l2_bright_dim
 What:		/sys/class/backlight/<backlight>/l3_office_dim
 What:		/sys/class/backlight/<backlight>/l4_indoor_dim
 What:		/sys/class/backlight/<backlight>/l5_dark_dim
-Date:		Mai 2011
-KernelVersion:	2.6.40
+Date:		May 2011
+KernelVersion:	3.0
 Contact:	device-drivers-devel@blackfin.uclinux.org
 Description:
 		Control the dim brightness for <ambient light zone>
@@ -29,8 +29,8 @@ Description:
 		this <ambient light zone>.
 
 What:		/sys/class/backlight/<backlight>/ambient_light_level
-Date:		Mai 2011
-KernelVersion:	2.6.40
+Date:		May 2011
+KernelVersion:	3.0
 Contact:	device-drivers-devel@blackfin.uclinux.org
 Description:
 		Get conversion value of the light sensor.
@@ -39,8 +39,8 @@ Description:
 		8000 (max ambient brightness)
 
 What:		/sys/class/backlight/<backlight>/ambient_light_zone
-Date:		Mai 2011
-KernelVersion:	2.6.40
+Date:		May 2011
+KernelVersion:	3.0
 Contact:	device-drivers-devel@blackfin.uclinux.org
 Description:
 		Get/Set current ambient light zone. Reading returns

@@ -33,6 +33,7 @@ struct class;
 struct subsys_private;
 struct bus_type;
 struct device_node;
+struct iommu_ops;
 
 struct bus_attribute {
 	struct attribute	attr;
@@ -67,6 +68,9 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * @resume:	Called to bring a device on this bus out of sleep mode.
  * @pm:		Power management operations of this bus, callback the specific
  *		device driver's pm-ops.
+ * @iommu_ops   IOMMU specific operations for this bus, used to attach IOMMU
+ *              driver implementations to a bus and allow the driver to do
+ *              bus-specific setup
  * @p:		The private data of the driver core, only the driver core can
  *		touch this.
  *
@@ -95,6 +99,8 @@ struct bus_type {
 	int (*resume)(struct device *dev);
 
 	const struct dev_pm_ops *pm;
+
+	struct iommu_ops *iommu_ops;
 
 	struct subsys_private *p;
 };
@@ -350,6 +356,8 @@ struct class_attribute {
 			char *buf);
 	ssize_t (*store)(struct class *class, struct class_attribute *attr,
 			const char *buf, size_t count);
+	const void *(*namespace)(struct class *class,
+				 const struct class_attribute *attr);
 };
 
 #define CLASS_ATTR(_name, _mode, _show, _store)			\
@@ -636,6 +644,11 @@ static inline void set_dev_node(struct device *dev, int node)
 }
 #endif
 
+static inline struct pm_subsys_data *dev_to_psd(struct device *dev)
+{
+	return dev ? dev->power.subsys_data : NULL;
+}
+
 static inline unsigned int dev_get_uevent_suppress(const struct device *dev)
 {
 	return dev->kobj.uevent_suppress;
@@ -785,6 +798,8 @@ extern const char *dev_driver_string(const struct device *dev);
 
 #ifdef CONFIG_PRINTK
 
+extern int __dev_printk(const char *level, const struct device *dev,
+			struct va_format *vaf);
 extern int dev_printk(const char *level, const struct device *dev,
 		      const char *fmt, ...)
 	__attribute__ ((format (printf, 3, 4)));
@@ -805,6 +820,9 @@ extern int _dev_info(const struct device *dev, const char *fmt, ...)
 
 #else
 
+static inline int __dev_printk(const char *level, const struct device *dev,
+			       struct va_format *vaf)
+	 { return 0; }
 static inline int dev_printk(const char *level, const struct device *dev,
 		      const char *fmt, ...)
 	__attribute__ ((format (printf, 3, 4)));

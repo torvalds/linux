@@ -495,7 +495,7 @@ static inline void default_wait_for_init_deassert(atomic_t *deassert)
 	return;
 }
 
-extern struct apic *generic_bigsmp_probe(void);
+extern void generic_bigsmp_probe(void);
 
 
 #ifdef CONFIG_X86_LOCAL_APIC

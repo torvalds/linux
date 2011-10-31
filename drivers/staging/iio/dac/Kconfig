@@ -1,14 +1,35 @@
 #
 # DAC drivers
 #
-comment "Digital to analog convertors"
+menu "Digital to analog converters"
+
+config AD5064
+	tristate "Analog Devices AD5064/64-1/44/24 DAC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD5064, AD5064-1,
+	  AD5044, AD5024 Digital to Analog Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5064.
+
+config AD5360
+	tristate "Analog Devices Analog Devices AD5360/61/62/63/70/71/73 DAC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD5360, AD5361,
+	  AD5362, AD5363, AD5370, AD5371, AD5373 multi-channel
+	  Digital to Analog Converters (DAC).
+
+	  To compile this driver as module choose M here: the module will be called
+	  ad5360.
 
 config AD5624R_SPI
 	tristate "Analog Devices AD5624/44/64R DAC spi driver"
 	depends on SPI
 	help
 	  Say yes here to build support for Analog Devices AD5624R, AD5644R and
-	  AD5664R convertors (DAC). This driver uses the common SPI interface.
+	  AD5664R converters (DAC). This driver uses the common SPI interface.
 
 config AD5446
 	tristate "Analog Devices AD5444/6, AD5620/40/60 and AD5542A/12A DAC SPI driver"
@@ -62,3 +83,5 @@ config MAX517
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called max517.
+
+endmenu

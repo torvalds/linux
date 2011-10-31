@@ -120,8 +120,7 @@ static int psb_gem_create(struct drm_file *file,
 	/* Initialize the extra goodies GEM needs to do all the hard work */
 	if (drm_gem_object_init(dev, &r->gem, size) != 0) {
 		psb_gtt_free_range(dev, r);
-		/* GEM doesn't give an error code and we don't have an
-		   EGEMSUCKS so make something up for now - FIXME */
+		/* GEM doesn't give an error code so use -ENOMEM */
 		dev_err(dev->dev, "GEM init failed for %lld\n", size);
 		return -ENOMEM;
 	}
@@ -191,8 +190,6 @@ int psb_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
  *	The VMA was set up by GEM. In doing so it also ensured that the
  *	vma->vm_private_data points to the GEM object that is backing this
  *	mapping.
- *
- *	FIXME
  */
 int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {

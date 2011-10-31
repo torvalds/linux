@@ -681,7 +681,7 @@ config BLK_DEV_IDE_AU1XXX
        select IDE_XFER_MODE
 choice
        prompt "IDE Mode for AMD Alchemy Au1200"
-       default CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA
+       default BLK_DEV_IDE_AU1XXX_PIO_DBDMA
        depends on SOC_AU1200 && BLK_DEV_IDE_AU1XXX
 
 config BLK_DEV_IDE_AU1XXX_PIO_DBDMA

@@ -86,8 +86,7 @@ static int snd_mpu401_create(int dev, struct snd_card **rcard)
 	}
 
 	err = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401, port[dev], 0,
-				  irq[dev], irq[dev] >= 0 ? IRQF_DISABLED : 0,
-				  NULL);
+				  irq[dev], NULL);
 	if (err < 0) {
 		printk(KERN_ERR "MPU401 not detected at 0x%lx\n", port[dev]);
 		goto _err;

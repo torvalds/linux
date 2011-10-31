@@ -14,6 +14,7 @@
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -129,6 +130,7 @@ error_ret:
 static int __devexit ad5930_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
+	iio_free_device(spi_get_drvdata(spi));
 
 	return 0;
 }

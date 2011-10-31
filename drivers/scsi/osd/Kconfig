@@ -11,10 +11,6 @@
 # it under the terms of the GNU General Public version 2 License as
 # published by the Free Software Foundation
 #
-# FIXME: SCSI_OSD_INITIATOR should select CONFIG (HMAC) SHA1 somehow.
-#        How is it done properly?
-#
-
 config SCSI_OSD_INITIATOR
 	tristate "OSD-Initiator library"
 	depends on SCSI

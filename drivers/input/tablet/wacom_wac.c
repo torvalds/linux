@@ -874,7 +874,15 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 		x = le16_to_cpup((__le16 *)&data[2]);
 		y = le16_to_cpup((__le16 *)&data[4]);
 		p = le16_to_cpup((__le16 *)&data[6]);
-		d = data[8];
+		/*
+		 * Convert distance from out prox to distance from tablet.
+		 * distance will be greater than distance_max once
+		 * touching and applying pressure; do not report negative
+		 * distance.
+		 */
+		if (data[8] <= wacom->features.distance_max)
+			d = wacom->features.distance_max - data[8];
+
 		pen = data[1] & 0x01;
 		btn1 = data[1] & 0x02;
 		btn2 = data[1] & 0x04;
@@ -1030,8 +1038,6 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 		features->y_max <<= 5;
 		features->x_fuzz <<= 5;
 		features->y_fuzz <<= 5;
-		features->pressure_max = 256;
-		features->pressure_fuzz = 16;
 		features->quirks |= WACOM_QUIRK_BBTOUCH_LOWRES;
 	}
 }
@@ -1241,14 +1247,14 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 			input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
 					     0, features->y_max,
 					     features->y_fuzz, 0);
-			input_set_abs_params(input_dev, ABS_MT_PRESSURE,
-					     0, features->pressure_max,
-					     features->pressure_fuzz, 0);
 		} else if (features->device_type == BTN_TOOL_PEN) {
 			__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
 			__set_bit(BTN_TOOL_PEN, input_dev->keybit);
 			__set_bit(BTN_STYLUS, input_dev->keybit);
 			__set_bit(BTN_STYLUS2, input_dev->keybit);
+			input_set_abs_params(input_dev, ABS_DISTANCE, 0,
+					      features->distance_max,
+					      0, 0);
 		}
 		break;
 	}
@@ -1469,37 +1475,37 @@ static const struct wacom_features wacom_features_0x47 =
 	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD0 =
 	{ "Wacom Bamboo 2FG",     WACOM_PKGLEN_BBFUN,     14720,  9200, 1023,
-	  63, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD1 =
 	{ "Wacom Bamboo 2FG 4x5", WACOM_PKGLEN_BBFUN,     14720,  9200, 1023,
-	  63, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD2 =
 	{ "Wacom Bamboo Craft",   WACOM_PKGLEN_BBFUN,     14720,  9200, 1023,
-	  63, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD3 =
-	{ "Wacom Bamboo 2FG 6x8", WACOM_PKGLEN_BBFUN,     21648, 13530, 1023,
-	  63, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Bamboo 2FG 6x8", WACOM_PKGLEN_BBFUN,     21648, 13700, 1023,
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD4 =
 	{ "Wacom Bamboo Pen",     WACOM_PKGLEN_BBFUN,     14720,  9200, 1023,
-	  63, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD5 =
-	{ "Wacom Bamboo Pen 6x8",     WACOM_PKGLEN_BBFUN, 21648, 13530, 1023,
-	  63, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Bamboo Pen 6x8",     WACOM_PKGLEN_BBFUN, 21648, 13700, 1023,
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD6 =
 	{ "Wacom BambooPT 2FG 4x5", WACOM_PKGLEN_BBFUN,   14720,  9200, 1023,
-	  63, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD7 =
 	{ "Wacom BambooPT 2FG Small", WACOM_PKGLEN_BBFUN, 14720,  9200, 1023,
-	  63, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD8 =
-	{ "Wacom Bamboo Comic 2FG", WACOM_PKGLEN_BBFUN,   21648, 13530, 1023,
-	  63, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Bamboo Comic 2FG", WACOM_PKGLEN_BBFUN,   21648, 13700, 1023,
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xDA =
 	{ "Wacom Bamboo 2FG 4x5 SE", WACOM_PKGLEN_BBFUN,  14720,  9200, 1023,
-	  63, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static struct wacom_features wacom_features_0xDB =
-	{ "Wacom Bamboo 2FG 6x8 SE", WACOM_PKGLEN_BBFUN,  21648, 13530, 1023,
-	  63, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Bamboo 2FG 6x8 SE", WACOM_PKGLEN_BBFUN,  21648, 13700, 1023,
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x6004 =
 	{ "ISD-V4",               WACOM_PKGLEN_GRAPHIRE,  12800,  8000,  255,
 	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };

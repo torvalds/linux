@@ -117,8 +117,8 @@ again:
 }
 
 /*
- * See <Documentation/x86_64/boot-options.txt> for the iommu kernel parameter
- * documentation.
+ * See <Documentation/x86/x86_64/boot-options.txt> for the iommu kernel
+ * parameter documentation.
  */
 static __init int iommu_setup(char *p)
 {

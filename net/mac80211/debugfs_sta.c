@@ -56,19 +56,22 @@ STA_FILE(last_signal, last_signal, D);
 static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
 {
-	char buf[100];
+	char buf[121];
 	struct sta_info *sta = file->private_data;
-	u32 staflags = get_sta_flags(sta);
-	int res = scnprintf(buf, sizeof(buf), "%s%s%s%s%s%s%s%s%s",
-		staflags & WLAN_STA_AUTH ? "AUTH\n" : "",
-		staflags & WLAN_STA_ASSOC ? "ASSOC\n" : "",
-		staflags & WLAN_STA_PS_STA ? "PS (sta)\n" : "",
-		staflags & WLAN_STA_PS_DRIVER ? "PS (driver)\n" : "",
-		staflags & WLAN_STA_AUTHORIZED ? "AUTHORIZED\n" : "",
-		staflags & WLAN_STA_SHORT_PREAMBLE ? "SHORT PREAMBLE\n" : "",
-		staflags & WLAN_STA_WME ? "WME\n" : "",
-		staflags & WLAN_STA_WDS ? "WDS\n" : "",
-		staflags & WLAN_STA_MFP ? "MFP\n" : "");
+
+#define TEST(flg) \
+	test_sta_flag(sta, WLAN_STA_##flg) ? #flg "\n" : ""
+
+	int res = scnprintf(buf, sizeof(buf),
+			    "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+			    TEST(AUTH), TEST(ASSOC), TEST(PS_STA),
+			    TEST(PS_DRIVER), TEST(AUTHORIZED),
+			    TEST(SHORT_PREAMBLE), TEST(ASSOC_AP),
+			    TEST(WME), TEST(WDS), TEST(CLEAR_PS_FILT),
+			    TEST(MFP), TEST(BLOCK_BA), TEST(PSPOLL),
+			    TEST(UAPSD), TEST(SP), TEST(TDLS_PEER),
+			    TEST(TDLS_PEER_AUTH));
+#undef TEST
 	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
 }
 STA_OPS(flags);
@@ -78,8 +81,14 @@ static ssize_t sta_num_ps_buf_frames_read(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct sta_info *sta = file->private_data;
-	return mac80211_format_buffer(userbuf, count, ppos, "%u\n",
-				      skb_queue_len(&sta->ps_tx_buf));
+	char buf[17*IEEE80211_NUM_ACS], *p = buf;
+	int ac;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+		p += scnprintf(p, sizeof(buf)+buf-p, "AC%d: %d\n", ac,
+			       skb_queue_len(&sta->ps_tx_buf[ac]) +
+			       skb_queue_len(&sta->tx_filtered[ac]));
+	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 }
 STA_OPS(num_ps_buf_frames);
 

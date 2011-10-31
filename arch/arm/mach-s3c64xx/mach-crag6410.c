@@ -766,7 +766,7 @@ static void __init crag6410_machine_init(void)
 
 MACHINE_START(WLF_CRAGG_6410, "Wolfson Cragganmore 6410")
 	/* Maintainer: Mark Brown <broonie@opensource.wolfsonmicro.com> */
-	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= crag6410_map_io,
 	.init_machine	= crag6410_machine_init,

@@ -1067,7 +1067,6 @@ static int onyx_i2c_probe(struct i2c_client *client,
 	printk(KERN_DEBUG PFX "created and attached onyx instance\n");
 	return 0;
  fail:
-	i2c_set_clientdata(client, NULL);
 	kfree(onyx);
 	return -ENODEV;
 }
@@ -1112,8 +1111,7 @@ static int onyx_i2c_remove(struct i2c_client *client)
 
 	aoa_codec_unregister(&onyx->codec);
 	of_node_put(onyx->codec.node);
-	if (onyx->codec_info)
-		kfree(onyx->codec_info);
+	kfree(onyx->codec_info);
 	kfree(onyx);
 	return 0;
 }

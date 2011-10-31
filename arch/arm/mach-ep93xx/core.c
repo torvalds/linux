@@ -38,6 +38,7 @@
 #include <mach/fb.h>
 #include <mach/ep93xx_keypad.h>
 #include <mach/ep93xx_spi.h>
+#include <mach/gpio-ep93xx.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>

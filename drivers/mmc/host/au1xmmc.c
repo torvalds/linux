@@ -55,7 +55,7 @@
 
 #ifdef DEBUG
 #define DBG(fmt, idx, args...)	\
-	printk(KERN_DEBUG "au1xmmc(%d): DEBUG: " fmt, idx, ##args)
+	pr_debug("au1xmmc(%d): DEBUG: " fmt, idx, ##args)
 #else
 #define DBG(fmt, idx, args...) do {} while (0)
 #endif
@@ -268,7 +268,7 @@ static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
 		mmccmd |= SD_CMD_RT_3;
 		break;
 	default:
-		printk(KERN_INFO "au1xmmc: unhandled response type %02x\n",
+		pr_info("au1xmmc: unhandled response type %02x\n",
 			mmc_resp_type(cmd));
 		return -EINVAL;
 	}
@@ -1031,7 +1031,7 @@ static int __devinit au1xmmc_probe(struct platform_device *pdev)
 #ifdef CONFIG_SOC_AU1200
 	ret = au1xmmc_dbdma_init(host);
 	if (ret)
-		printk(KERN_INFO DRIVER_NAME ": DBDMA init failed; using PIO\n");
+		pr_info(DRIVER_NAME ": DBDMA init failed; using PIO\n");
 #endif
 
 #ifdef CONFIG_LEDS_CLASS
@@ -1056,7 +1056,7 @@ static int __devinit au1xmmc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
-	printk(KERN_INFO DRIVER_NAME ": MMC Controller %d set up at %8.8X"
+	pr_info(DRIVER_NAME ": MMC Controller %d set up at %8.8X"
 		" (mode=%s)\n", pdev->id, host->iobase,
 		host->flags & HOST_F_DMA ? "dma" : "pio");
 
@@ -1188,7 +1188,7 @@ static int __init au1xmmc_init(void)
 	 */
 	memid = au1xxx_ddma_add_device(&au1xmmc_mem_dbdev);
 	if (!memid)
-		printk(KERN_ERR "au1xmmc: cannot add memory dbdma dev\n");
+		pr_err("au1xmmc: cannot add memory dbdma dev\n");
 #endif
 	return platform_driver_register(&au1xmmc_driver);
 }

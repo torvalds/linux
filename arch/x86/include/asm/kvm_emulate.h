@@ -262,7 +262,7 @@ struct x86_emulate_ctxt {
 	struct operand dst;
 	bool has_seg_override;
 	u8 seg_override;
-	unsigned int d;
+	u64 d;
 	int (*execute)(struct x86_emulate_ctxt *ctxt);
 	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
 	/* modrm */
@@ -275,6 +275,8 @@ struct x86_emulate_ctxt {
 	unsigned long _eip;
 	/* Fields above regs are cleared together. */
 	unsigned long regs[NR_VCPU_REGS];
+	struct operand memop;
+	struct operand *memopp;
 	struct fetch_cache fetch;
 	struct read_cache io_read;
 	struct read_cache mem_read;

@@ -44,9 +44,6 @@
 #include "xfs_trace.h"
 
 
-STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
-
-
 #ifdef HAVE_PERCPU_SB
 STATIC void	xfs_icsb_balance_counter(xfs_mount_t *, xfs_sb_field_t,
 						int);
@@ -1484,7 +1481,7 @@ xfs_unmountfs(
 	 * state as much as possible.
 	 */
 	xfs_reclaim_inodes(mp, 0);
-	XFS_bflush(mp->m_ddev_targp);
+	xfs_flush_buftarg(mp->m_ddev_targp, 1);
 	xfs_reclaim_inodes(mp, SYNC_WAIT);
 
 	xfs_qm_unmount(mp);
@@ -1495,11 +1492,6 @@ xfs_unmountfs(
 	 * will skip pinned buffers.
 	 */
 	xfs_log_force(mp, XFS_LOG_SYNC);
-
-	xfs_binval(mp->m_ddev_targp);
-	if (mp->m_rtdev_targp) {
-		xfs_binval(mp->m_rtdev_targp);
-	}
 
 	/*
 	 * Unreserve any blocks we have so that when we unmount we don't account
@@ -1526,7 +1518,16 @@ xfs_unmountfs(
 		xfs_warn(mp, "Unable to update superblock counters. "
 				"Freespace may not be correct on next mount.");
 	xfs_unmountfs_writesb(mp);
-	xfs_unmountfs_wait(mp); 		/* wait for async bufs */
+
+	/*
+	 * Make sure all buffers have been flushed and completed before
+	 * unmounting the log.
+	 */
+	error = xfs_flush_buftarg(mp->m_ddev_targp, 1);
+	if (error)
+		xfs_warn(mp, "%d busy buffers during unmount.", error);
+	xfs_wait_buftarg(mp->m_ddev_targp);
+
 	xfs_log_unmount_write(mp);
 	xfs_log_unmount(mp);
 	xfs_uuid_unmount(mp);
@@ -1535,16 +1536,6 @@ xfs_unmountfs(
 	xfs_errortag_clearall(mp, 0);
 #endif
 	xfs_free_perag(mp);
-}
-
-STATIC void
-xfs_unmountfs_wait(xfs_mount_t *mp)
-{
-	if (mp->m_logdev_targp != mp->m_ddev_targp)
-		xfs_wait_buftarg(mp->m_logdev_targp);
-	if (mp->m_rtdev_targp)
-		xfs_wait_buftarg(mp->m_rtdev_targp);
-	xfs_wait_buftarg(mp->m_ddev_targp);
 }
 
 int
@@ -1612,15 +1603,14 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 
 		XFS_BUF_UNDONE(sbp);
 		XFS_BUF_UNREAD(sbp);
-		XFS_BUF_UNDELAYWRITE(sbp);
+		xfs_buf_delwri_dequeue(sbp);
 		XFS_BUF_WRITE(sbp);
 		XFS_BUF_UNASYNC(sbp);
 		ASSERT(sbp->b_target == mp->m_ddev_targp);
 		xfsbdstrat(mp, sbp);
 		error = xfs_buf_iowait(sbp);
 		if (error)
-			xfs_ioerror_alert("xfs_unmountfs_writesb",
-					  mp, sbp, XFS_BUF_ADDR(sbp));
+			xfs_buf_ioerror_alert(sbp, __func__);
 		xfs_buf_relse(sbp);
 	}
 	return error;

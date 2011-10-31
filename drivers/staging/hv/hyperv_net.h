@@ -26,7 +26,7 @@
 #define _HYPERV_NET_H
 
 #include <linux/list.h>
-#include "hyperv.h"
+#include <linux/hyperv.h>
 
 /* Fwd declaration */
 struct hv_netvsc_packet;
@@ -96,7 +96,6 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				unsigned int status);
 int netvsc_recv_callback(struct hv_device *device_obj,
 			struct hv_netvsc_packet *packet);
-int netvsc_initialize(struct hv_driver *drv);
 int rndis_filter_open(struct hv_device *dev);
 int rndis_filter_close(struct hv_device *dev);
 int rndis_filter_device_add(struct hv_device *dev,
@@ -370,8 +369,8 @@ struct nvsp_message {
 struct netvsc_device {
 	struct hv_device *dev;
 
-	atomic_t refcnt;
 	atomic_t num_outstanding_sends;
+	bool destroy;
 	/*
 	 * List of free preallocated hv_netvsc_packet to represent receive
 	 * packet
@@ -392,6 +391,8 @@ struct netvsc_device {
 
 	struct nvsp_message revoke_packet;
 	/* unsigned char HwMacAddr[HW_MACADDR_LEN]; */
+
+	struct net_device *ndev;
 
 	/* Holds rndis device info */
 	void *extension;

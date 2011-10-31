@@ -33,7 +33,7 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include "base.h"
+#include "ath5k.h"
 
 
 static inline void ath5k_rfkill_disable(struct ath5k_hw *ah)

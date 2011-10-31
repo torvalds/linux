@@ -50,6 +50,7 @@ struct dlfb_data {
 	int base16;
 	int base8;
 	u32 pseudo_palette[256];
+	int blank_mode; /*one of FB_BLANK_ */
 	/* blit-only rendering path metrics, exposed through sysfs */
 	atomic_t bytes_rendered; /* raw pixel-bytes driver asked to render */
 	atomic_t bytes_identical; /* saved effort with backbuffer comparison */

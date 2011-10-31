@@ -96,6 +96,22 @@ config USB_GADGET_VBUS_DRAW
 	   This value will be used except for system-specific gadget
 	   drivers that have more specific information.
 
+config USB_GADGET_STORAGE_NUM_BUFFERS
+	int "Number of storage pipeline buffers"
+	range 2 4
+	default 2
+	help
+	   Usually 2 buffers are enough to establish a good buffering
+	   pipeline. The number may be increased in order to compensate
+	   for a bursty VFS behaviour. For instance there may be CPU wake up
+	   latencies that makes the VFS to appear bursty in a system with
+	   an CPU on-demand governor. Especially if DMA is doing IO to
+	   offload the CPU. In this case the CPU will go into power
+	   save often and spin up occasionally to move data within VFS.
+	   If selecting USB_GADGET_DEBUG_FILES this value may be set by
+	   a module parameter as well.
+	   If unsure, say 2.
+
 #
 # USB Peripheral Controller Support
 #
@@ -255,12 +271,11 @@ config USB_S3C_HSOTG
 	  integrated into the S3C64XX series SoC.
 
 config USB_IMX
-	tristate "Freescale IMX USB Peripheral Controller"
-	depends on ARCH_MX1
+	tristate "Freescale i.MX1 USB Peripheral Controller"
+	depends on ARCH_MXC
 	help
-	   Freescale's IMX series include an integrated full speed
-	   USB 1.1 device controller.  The controller in the IMX series
-	   is register-compatible.
+	   Freescale's i.MX1 includes an integrated full speed
+	   USB 1.1 device controller.
 
 	   It has Six fixed-function endpoints, as well as endpoint
 	   zero (for control transfers).
@@ -302,6 +317,18 @@ config USB_PXA_U2O
 	help
 	  PXA9xx Processor series include a high speed USB2.0 device
 	  controller, which support high speed and full speed USB peripheral.
+
+config USB_GADGET_DWC3
+	tristate "DesignWare USB3.0 (DRD) Controller"
+	depends on USB_DWC3
+	select USB_GADGET_DUALSPEED
+	select USB_GADGET_SUPERSPEED
+	help
+	  DesignWare USB3.0 controller is a SuperSpeed USB3.0 Controller
+	  which can be configured for peripheral-only, host-only, hub-only
+	  and Dual-Role operation. This Controller was first integrated into
+	  the OMAP5 series of processors. More information about the OMAP5
+	  version of this controller, refer to http://www.ti.com/omap5.
 
 #
 # Controllers available in both integrated and discrete versions
@@ -845,6 +872,16 @@ config USB_G_NOKIA
 
 	  It's only really useful for N900 hardware. If you're building
 	  a kernel for N900, say Y or M here. If unsure, say N.
+
+config USB_G_ACM_MS
+	tristate "CDC Composite Device (ACM and mass storage)"
+	depends on BLOCK
+	help
+	  This driver provides two functions in one configuration:
+	  a mass storage, and a CDC ACM (serial port) link.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_acm_ms".
 
 config USB_G_MULTI
 	tristate "Multifunction Composite Gadget (EXPERIMENTAL)"

@@ -69,7 +69,7 @@ config HID_ACRUX
 	Say Y here if you want to enable support for ACRUX game controllers.
 
 config HID_ACRUX_FF
-	tristate "ACRUX force feedback support"
+	bool "ACRUX force feedback support"
 	depends on HID_ACRUX
 	select INPUT_FF_MEMLESS
 	---help---
@@ -245,6 +245,15 @@ config HID_LOGITECH
 	---help---
 	Support for Logitech devices that are not fully compliant with HID standard.
 
+config HID_LOGITECH_DJ
+	tristate "Logitech Unifying receivers full support"
+	depends on HID_LOGITECH
+	default m
+	---help---
+	Say Y if you want support for Logitech Unifying receivers and devices.
+	Unifying receivers are capable of pairing up to 6 Logitech compliant
+	devices to the same receiver.
+
 config LOGITECH_FF
 	bool "Logitech force feedback support"
 	depends on HID_LOGITECH
@@ -278,13 +287,21 @@ config LOGIG940_FF
 	  Say Y here if you want to enable force feedback support for Logitech
 	  Flight System G940 devices.
 
-config LOGIWII_FF
-	bool "Logitech Speed Force Wireless force feedback support"
+config LOGIWHEELS_FF
+	bool "Logitech wheels configuration and force feedback support"
 	depends on HID_LOGITECH
 	select INPUT_FF_MEMLESS
+	default LOGITECH_FF
 	help
-	  Say Y here if you want to enable force feedback support for Logitech
-	  Speed Force Wireless (Wii) devices.
+	  Say Y here if you want to enable force feedback and range setting
+	  support for following Logitech wheels:
+	  - Logitech Driving Force
+	  - Logitech Driving Force Pro
+	  - Logitech Driving Force GT
+	  - Logitech G25
+	  - Logitech G27
+	  - Logitech MOMO/MOMO 2
+	  - Logitech Formula Force EX
 
 config HID_MAGICMOUSE
 	tristate "Apple MagicMouse multi-touch support"
@@ -328,6 +345,7 @@ config HID_MULTITOUCH
 	  - Hanvon dual touch panels
 	  - Ilitek dual touch panels
 	  - IrTouch Infrared USB panels
+	  - LG Display panels (Dell ST2220Tc)
 	  - Lumio CrystalTouch panels
 	  - MosArt dual-touch panels
 	  - PenMount dual touch panels
@@ -441,6 +459,13 @@ config HID_PICOLCD_LEDS
 	---help---
 	  Provide access to PicoLCD's GPO pins via leds class.
 
+config HID_PRIMAX
+	tristate "Primax non-fully HID-compliant devices"
+	depends on USB_HID
+	---help---
+	Support for Primax devices that are not fully compliant with the
+	HID standard.
+
 config HID_QUANTA
 	tristate "Quanta Optical Touch panels"
 	depends on USB_HID
@@ -539,7 +564,11 @@ config HID_SMARTJOYPLUS
 	tristate "SmartJoy PLUS PS2/USB adapter support"
 	depends on USB_HID
 	---help---
-	Support for SmartJoy PLUS PS2/USB adapter.
+	Support for SmartJoy PLUS PS2/USB adapter, Super Dual Box,
+	Super Joy Box 3 Pro, Super Dual Box Pro, and Super Joy Box 5 Pro.
+
+	Note that DDR (Dance Dance Revolution) mode is not supported, nor
+	is pressure sensitive buttons on the pro models.
 
 config SMARTJOYPLUS_FF
 	bool "SmartJoy PLUS PS2/USB adapter force feedback support"
@@ -590,6 +619,7 @@ config HID_WIIMOTE
 	tristate "Nintendo Wii Remote support"
 	depends on BT_HIDP
 	depends on LEDS_CLASS
+	select POWER_SUPPLY
 	---help---
 	Support for the Nintendo Wii Remote bluetooth device.
 

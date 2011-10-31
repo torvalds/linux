@@ -473,7 +473,9 @@ extern void proc_clear_tty(struct task_struct *p);
 extern struct tty_struct *get_current_tty(void);
 extern void tty_default_fops(struct file_operations *fops);
 extern struct tty_struct *alloc_tty_struct(void);
-extern int tty_add_file(struct tty_struct *tty, struct file *file);
+extern int tty_alloc_file(struct file *file);
+extern void tty_add_file(struct tty_struct *tty, struct file *file);
+extern void tty_free_file(struct file *file);
 extern void free_tty_struct(struct tty_struct *tty);
 extern void initialize_tty_struct(struct tty_struct *tty,
 		struct tty_driver *driver, int idx);
@@ -581,6 +583,8 @@ extern int __init tty_init(void);
 /* tty_ioctl.c */
 extern int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 		       unsigned int cmd, unsigned long arg);
+extern long n_tty_compat_ioctl_helper(struct tty_struct *tty, struct file *file,
+		       unsigned int cmd, unsigned long arg);
 
 /* serial.c */
 
@@ -602,8 +606,24 @@ extern long vt_compat_ioctl(struct tty_struct *tty,
 /* functions for preparation of BKL removal */
 extern void __lockfunc tty_lock(void) __acquires(tty_lock);
 extern void __lockfunc tty_unlock(void) __releases(tty_lock);
-extern struct task_struct *__big_tty_mutex_owner;
-#define tty_locked()		(current == __big_tty_mutex_owner)
+
+/*
+ * this shall be called only from where BTM is held (like close)
+ *
+ * We need this to ensure nobody waits for us to finish while we are waiting.
+ * Without this we were encountering system stalls.
+ *
+ * This should be indeed removed with BTM removal later.
+ *
+ * Locking: BTM required. Nobody is allowed to hold port->mutex.
+ */
+static inline void tty_wait_until_sent_from_close(struct tty_struct *tty,
+		long timeout)
+{
+	tty_unlock(); /* tty->ops->close holds the BTM, drop it while waiting */
+	tty_wait_until_sent(tty, timeout);
+	tty_lock();
+}
 
 /*
  * wait_event_interruptible_tty -- wait for a condition with the tty lock held

@@ -92,7 +92,7 @@ EXPORT_SYMBOL(sysctl_tcp_low_latency);
 static struct tcp_md5sig_key *tcp_v4_md5_do_lookup(struct sock *sk,
 						   __be32 addr);
 static int tcp_v4_md5_hash_hdr(char *md5_hash, struct tcp_md5sig_key *key,
-			       __be32 daddr, __be32 saddr, struct tcphdr *th);
+			       __be32 daddr, __be32 saddr, const struct tcphdr *th);
 #else
 static inline
 struct tcp_md5sig_key *tcp_v4_md5_do_lookup(struct sock *sk, __be32 addr)
@@ -104,7 +104,7 @@ struct tcp_md5sig_key *tcp_v4_md5_do_lookup(struct sock *sk, __be32 addr)
 struct inet_hashinfo tcp_hashinfo;
 EXPORT_SYMBOL(tcp_hashinfo);
 
-static inline __u32 tcp_v4_init_sequence(struct sk_buff *skb)
+static inline __u32 tcp_v4_init_sequence(const struct sk_buff *skb)
 {
 	return secure_tcp_sequence_number(ip_hdr(skb)->daddr,
 					  ip_hdr(skb)->saddr,
@@ -552,7 +552,7 @@ static void __tcp_v4_send_check(struct sk_buff *skb,
 /* This routine computes an IPv4 TCP checksum. */
 void tcp_v4_send_check(struct sock *sk, struct sk_buff *skb)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	const struct inet_sock *inet = inet_sk(sk);
 
 	__tcp_v4_send_check(skb, inet->inet_saddr, inet->inet_daddr);
 }
@@ -590,7 +590,7 @@ int tcp_v4_gso_send_check(struct sk_buff *skb)
 
 static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcphdr *th = tcp_hdr(skb);
+	const struct tcphdr *th = tcp_hdr(skb);
 	struct {
 		struct tcphdr th;
 #ifdef CONFIG_TCP_MD5SIG
@@ -652,6 +652,7 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 	arg.flags = (sk && inet_sk(sk)->transparent) ? IP_REPLY_ARG_NOSRCCHECK : 0;
 
 	net = dev_net(skb_dst(skb)->dev);
+	arg.tos = ip_hdr(skb)->tos;
 	ip_send_reply(net->ipv4.tcp_sock, skb, ip_hdr(skb)->saddr,
 		      &arg, arg.iov[0].iov_len);
 
@@ -666,9 +667,9 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 			    u32 win, u32 ts, int oif,
 			    struct tcp_md5sig_key *key,
-			    int reply_flags)
+			    int reply_flags, u8 tos)
 {
-	struct tcphdr *th = tcp_hdr(skb);
+	const struct tcphdr *th = tcp_hdr(skb);
 	struct {
 		struct tcphdr th;
 		__be32 opt[(TCPOLEN_TSTAMP_ALIGNED >> 2)
@@ -726,7 +727,7 @@ static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 	arg.csumoffset = offsetof(struct tcphdr, check) / 2;
 	if (oif)
 		arg.bound_dev_if = oif;
-
+	arg.tos = tos;
 	ip_send_reply(net->ipv4.tcp_sock, skb, ip_hdr(skb)->saddr,
 		      &arg, arg.iov[0].iov_len);
 
@@ -743,7 +744,8 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 			tcptw->tw_ts_recent,
 			tw->tw_bound_dev_if,
 			tcp_twsk_md5_key(tcptw),
-			tw->tw_transparent ? IP_REPLY_ARG_NOSRCCHECK : 0
+			tw->tw_transparent ? IP_REPLY_ARG_NOSRCCHECK : 0,
+			tw->tw_tos
 			);
 
 	inet_twsk_put(tw);
@@ -757,7 +759,8 @@ static void tcp_v4_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
 			req->ts_recent,
 			0,
 			tcp_v4_md5_do_lookup(sk, ip_hdr(skb)->daddr),
-			inet_rsk(req)->no_srccheck ? IP_REPLY_ARG_NOSRCCHECK : 0);
+			inet_rsk(req)->no_srccheck ? IP_REPLY_ARG_NOSRCCHECK : 0,
+			ip_hdr(skb)->tos);
 }
 
 /*
@@ -1090,7 +1093,7 @@ static int tcp_v4_md5_hash_pseudoheader(struct tcp_md5sig_pool *hp,
 }
 
 static int tcp_v4_md5_hash_hdr(char *md5_hash, struct tcp_md5sig_key *key,
-			       __be32 daddr, __be32 saddr, struct tcphdr *th)
+			       __be32 daddr, __be32 saddr, const struct tcphdr *th)
 {
 	struct tcp_md5sig_pool *hp;
 	struct hash_desc *desc;
@@ -1122,12 +1125,12 @@ clear_hash_noput:
 }
 
 int tcp_v4_md5_hash_skb(char *md5_hash, struct tcp_md5sig_key *key,
-			struct sock *sk, struct request_sock *req,
-			struct sk_buff *skb)
+			const struct sock *sk, const struct request_sock *req,
+			const struct sk_buff *skb)
 {
 	struct tcp_md5sig_pool *hp;
 	struct hash_desc *desc;
-	struct tcphdr *th = tcp_hdr(skb);
+	const struct tcphdr *th = tcp_hdr(skb);
 	__be32 saddr, daddr;
 
 	if (sk) {
@@ -1172,7 +1175,7 @@ clear_hash_noput:
 }
 EXPORT_SYMBOL(tcp_v4_md5_hash_skb);
 
-static int tcp_v4_inbound_md5_hash(struct sock *sk, struct sk_buff *skb)
+static int tcp_v4_inbound_md5_hash(struct sock *sk, const struct sk_buff *skb)
 {
 	/*
 	 * This gets called for each TCP segment that arrives
@@ -1182,10 +1185,10 @@ static int tcp_v4_inbound_md5_hash(struct sock *sk, struct sk_buff *skb)
 	 * o MD5 hash and we're not expecting one.
 	 * o MD5 hash and its wrong.
 	 */
-	__u8 *hash_location = NULL;
+	const __u8 *hash_location = NULL;
 	struct tcp_md5sig_key *hash_expected;
 	const struct iphdr *iph = ip_hdr(skb);
-	struct tcphdr *th = tcp_hdr(skb);
+	const struct tcphdr *th = tcp_hdr(skb);
 	int genhash;
 	unsigned char newhash[16];
 
@@ -1248,7 +1251,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_extend_values tmp_ext;
 	struct tcp_options_received tmp_opt;
-	u8 *hash_location;
+	const u8 *hash_location;
 	struct request_sock *req;
 	struct inet_request_sock *ireq;
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -1588,7 +1591,7 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 #endif
 
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
-		sock_rps_save_rxhash(sk, skb->rxhash);
+		sock_rps_save_rxhash(sk, skb);
 		if (tcp_rcv_established(sk, skb, tcp_hdr(skb), skb->len)) {
 			rsk = sk;
 			goto reset;
@@ -1605,7 +1608,7 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 			goto discard;
 
 		if (nsk != sk) {
-			sock_rps_save_rxhash(nsk, skb->rxhash);
+			sock_rps_save_rxhash(nsk, skb);
 			if (tcp_child_process(sk, nsk, skb)) {
 				rsk = nsk;
 				goto reset;
@@ -1613,7 +1616,7 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 			return 0;
 		}
 	} else
-		sock_rps_save_rxhash(sk, skb->rxhash);
+		sock_rps_save_rxhash(sk, skb);
 
 	if (tcp_rcv_state_process(sk, skb, tcp_hdr(skb), skb->len)) {
 		rsk = sk;
@@ -1645,7 +1648,7 @@ EXPORT_SYMBOL(tcp_v4_do_rcv);
 int tcp_v4_rcv(struct sk_buff *skb)
 {
 	const struct iphdr *iph;
-	struct tcphdr *th;
+	const struct tcphdr *th;
 	struct sock *sk;
 	int ret;
 	struct net *net = dev_net(skb->dev);
@@ -1680,7 +1683,7 @@ int tcp_v4_rcv(struct sk_buff *skb)
 				    skb->len - th->doff * 4);
 	TCP_SKB_CB(skb)->ack_seq = ntohl(th->ack_seq);
 	TCP_SKB_CB(skb)->when	 = 0;
-	TCP_SKB_CB(skb)->flags	 = iph->tos;
+	TCP_SKB_CB(skb)->ip_dsfield = ipv4_get_dsfield(iph);
 	TCP_SKB_CB(skb)->sacked	 = 0;
 
 	sk = __inet_lookup_skb(&tcp_hashinfo, skb, th->source, th->dest);
@@ -1809,7 +1812,7 @@ EXPORT_SYMBOL(tcp_v4_get_peer);
 
 void *tcp_v4_tw_get_peer(struct sock *sk)
 {
-	struct inet_timewait_sock *tw = inet_twsk(sk);
+	const struct inet_timewait_sock *tw = inet_twsk(sk);
 
 	return inet_getpeer_v4(tw->tw_daddr, 1);
 }
@@ -2381,7 +2384,7 @@ void tcp_proc_unregister(struct net *net, struct tcp_seq_afinfo *afinfo)
 }
 EXPORT_SYMBOL(tcp_proc_unregister);
 
-static void get_openreq4(struct sock *sk, struct request_sock *req,
+static void get_openreq4(const struct sock *sk, const struct request_sock *req,
 			 struct seq_file *f, int i, int uid, int *len)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
@@ -2411,9 +2414,9 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i, int *len)
 {
 	int timer_active;
 	unsigned long timer_expires;
-	struct tcp_sock *tp = tcp_sk(sk);
+	const struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	struct inet_sock *inet = inet_sk(sk);
+	const struct inet_sock *inet = inet_sk(sk);
 	__be32 dest = inet->inet_daddr;
 	__be32 src = inet->inet_rcv_saddr;
 	__u16 destp = ntohs(inet->inet_dport);
@@ -2462,7 +2465,7 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i, int *len)
 		len);
 }
 
-static void get_timewait4_sock(struct inet_timewait_sock *tw,
+static void get_timewait4_sock(const struct inet_timewait_sock *tw,
 			       struct seq_file *f, int i, int *len)
 {
 	__be32 dest, src;

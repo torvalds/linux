@@ -8,7 +8,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -24,7 +24,6 @@
 #include <plat/tc.h>
 #include <plat/board.h>
 #include <plat/mmc.h>
-#include <mach/gpio.h>
 #include <plat/menelaus.h>
 #include <plat/mcbsp.h>
 #include <plat/omap44xx.h>
@@ -70,41 +69,6 @@ void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
 void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
 			struct omap_mcbsp_platform_data *config, int size)
 {  }
-#endif
-
-/*-------------------------------------------------------------------------*/
-
-#if defined(CONFIG_SND_OMAP_SOC_MCPDM) || \
-		defined(CONFIG_SND_OMAP_SOC_MCPDM_MODULE)
-
-static struct resource mcpdm_resources[] = {
-	{
-		.name		= "mcpdm_mem",
-		.start		= OMAP44XX_MCPDM_BASE,
-		.end		= OMAP44XX_MCPDM_BASE + SZ_4K,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.name		= "mcpdm_irq",
-		.start		= OMAP44XX_IRQ_MCPDM,
-		.end		= OMAP44XX_IRQ_MCPDM,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device omap_mcpdm_device = {
-	.name		= "omap-mcpdm",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(mcpdm_resources),
-	.resource	= mcpdm_resources,
-};
-
-static void omap_init_mcpdm(void)
-{
-	(void) platform_device_register(&omap_mcpdm_device);
-}
-#else
-static inline void omap_init_mcpdm(void) {}
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -291,7 +255,6 @@ static int __init omap_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 	omap_init_rng();
-	omap_init_mcpdm();
 	omap_init_uwire();
 	return 0;
 }

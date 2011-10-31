@@ -704,6 +704,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 	elreq.options = bsg_job->request->rqst_data.h_vendor.vendor_cmd[1];
 
 	if ((ha->current_topology == ISP_CFG_F ||
+	    (atomic_read(&vha->loop_state) == LOOP_DOWN) ||
 	    (IS_QLA81XX(ha) &&
 	    le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE
 	    && req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
@@ -1447,6 +1448,148 @@ qla2x00_update_optrom(struct fc_bsg_job *bsg_job)
 }
 
 static int
+qla2x00_update_fru_versions(struct fc_bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = bsg_job->shost;
+	scsi_qla_host_t *vha = shost_priv(host);
+	struct qla_hw_data *ha = vha->hw;
+	int rval = 0;
+	uint8_t bsg[DMA_POOL_SIZE];
+	struct qla_image_version_list *list = (void *)bsg;
+	struct qla_image_version *image;
+	uint32_t count;
+	dma_addr_t sfp_dma;
+	void *sfp = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &sfp_dma);
+	if (!sfp) {
+		bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] =
+		    EXT_STATUS_NO_MEMORY;
+		goto done;
+	}
+
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+	    bsg_job->request_payload.sg_cnt, list, sizeof(bsg));
+
+	image = list->version;
+	count = list->count;
+	while (count--) {
+		memcpy(sfp, &image->field_info, sizeof(image->field_info));
+		rval = qla2x00_write_sfp(vha, sfp_dma, sfp,
+		    image->field_address.device, image->field_address.offset,
+		    sizeof(image->field_info), image->field_address.option);
+		if (rval) {
+			bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] =
+			    EXT_STATUS_MAILBOX;
+			goto dealloc;
+		}
+		image++;
+	}
+
+	bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] = 0;
+
+dealloc:
+	dma_pool_free(ha->s_dma_pool, sfp, sfp_dma);
+
+done:
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	bsg_job->reply->result = DID_OK << 16;
+	bsg_job->job_done(bsg_job);
+
+	return 0;
+}
+
+static int
+qla2x00_read_fru_status(struct fc_bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = bsg_job->shost;
+	scsi_qla_host_t *vha = shost_priv(host);
+	struct qla_hw_data *ha = vha->hw;
+	int rval = 0;
+	uint8_t bsg[DMA_POOL_SIZE];
+	struct qla_status_reg *sr = (void *)bsg;
+	dma_addr_t sfp_dma;
+	uint8_t *sfp = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &sfp_dma);
+	if (!sfp) {
+		bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] =
+		    EXT_STATUS_NO_MEMORY;
+		goto done;
+	}
+
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+	    bsg_job->request_payload.sg_cnt, sr, sizeof(*sr));
+
+	rval = qla2x00_read_sfp(vha, sfp_dma, sfp,
+	    sr->field_address.device, sr->field_address.offset,
+	    sizeof(sr->status_reg), sr->field_address.option);
+	sr->status_reg = *sfp;
+
+	if (rval) {
+		bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] =
+		    EXT_STATUS_MAILBOX;
+		goto dealloc;
+	}
+
+	sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+	    bsg_job->reply_payload.sg_cnt, sr, sizeof(*sr));
+
+	bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] = 0;
+
+dealloc:
+	dma_pool_free(ha->s_dma_pool, sfp, sfp_dma);
+
+done:
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	bsg_job->reply->reply_payload_rcv_len = sizeof(*sr);
+	bsg_job->reply->result = DID_OK << 16;
+	bsg_job->job_done(bsg_job);
+
+	return 0;
+}
+
+static int
+qla2x00_write_fru_status(struct fc_bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = bsg_job->shost;
+	scsi_qla_host_t *vha = shost_priv(host);
+	struct qla_hw_data *ha = vha->hw;
+	int rval = 0;
+	uint8_t bsg[DMA_POOL_SIZE];
+	struct qla_status_reg *sr = (void *)bsg;
+	dma_addr_t sfp_dma;
+	uint8_t *sfp = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &sfp_dma);
+	if (!sfp) {
+		bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] =
+		    EXT_STATUS_NO_MEMORY;
+		goto done;
+	}
+
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+	    bsg_job->request_payload.sg_cnt, sr, sizeof(*sr));
+
+	*sfp = sr->status_reg;
+	rval = qla2x00_write_sfp(vha, sfp_dma, sfp,
+	    sr->field_address.device, sr->field_address.offset,
+	    sizeof(sr->status_reg), sr->field_address.option);
+
+	if (rval) {
+		bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] =
+		    EXT_STATUS_MAILBOX;
+		goto dealloc;
+	}
+
+	bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] = 0;
+
+dealloc:
+	dma_pool_free(ha->s_dma_pool, sfp, sfp_dma);
+
+done:
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	bsg_job->reply->result = DID_OK << 16;
+	bsg_job->job_done(bsg_job);
+
+	return 0;
+}
+
+static int
 qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 {
 	switch (bsg_job->request->rqst_data.h_vendor.vendor_cmd[0]) {
@@ -1473,6 +1616,15 @@ qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 
 	case QL_VND_UPDATE_FLASH:
 		return qla2x00_update_optrom(bsg_job);
+
+	case QL_VND_SET_FRU_VERSION:
+		return qla2x00_update_fru_versions(bsg_job);
+
+	case QL_VND_READ_FRU_STATUS:
+		return qla2x00_read_fru_status(bsg_job);
+
+	case QL_VND_WRITE_FRU_STATUS:
+		return qla2x00_write_fru_status(bsg_job);
 
 	default:
 		bsg_job->reply->result = (DID_ERROR << 16);

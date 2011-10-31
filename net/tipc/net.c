@@ -141,17 +141,6 @@ void tipc_net_route_msg(struct sk_buff *buf)
 		return;
 	msg = buf_msg(buf);
 
-	msg_incr_reroute_cnt(msg);
-	if (msg_reroute_cnt(msg) > 6) {
-		if (msg_errcode(msg)) {
-			buf_discard(buf);
-		} else {
-			tipc_reject_msg(buf, msg_destport(msg) ?
-					TIPC_ERR_NO_PORT : TIPC_ERR_NO_NAME);
-		}
-		return;
-	}
-
 	/* Handle message for this node */
 	dnode = msg_short(msg) ? tipc_own_addr : msg_destnode(msg);
 	if (tipc_in_scope(dnode, tipc_own_addr)) {

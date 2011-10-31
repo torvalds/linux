@@ -481,7 +481,7 @@ static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
 		goto out_4;
 	}
 
-	if (request_irq(IRQ_PPI_ERROR, ppi_irq_error, IRQF_DISABLED,
+	if (request_irq(IRQ_PPI_ERROR, ppi_irq_error, 0,
 			"PPI ERROR", fbdev) < 0) {
 		dev_err(&client->dev, "unable to request PPI ERROR IRQ\n");
 		ret = -EFAULT;

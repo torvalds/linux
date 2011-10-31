@@ -14,6 +14,7 @@
 #include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/spi/spi.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -111,8 +112,8 @@ static ssize_t ad7816_show_mode(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7816_chip_info *chip = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 
 	if (chip->mode)
 		return sprintf(buf, "power-save\n");
@@ -125,8 +126,8 @@ static ssize_t ad7816_store_mode(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7816_chip_info *chip = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 
 	if (strcmp(buf, "full")) {
 		gpio_set_value(chip->rdwr_pin, 1);
@@ -157,8 +158,8 @@ static ssize_t ad7816_show_channel(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7816_chip_info *chip = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", chip->channel_id);
 }
@@ -168,8 +169,8 @@ static ssize_t ad7816_store_channel(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7816_chip_info *chip = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 	unsigned long data;
 	int ret;
 
@@ -179,13 +180,13 @@ static ssize_t ad7816_store_channel(struct device *dev,
 
 	if (data > AD7816_CS_MAX && data != AD7816_CS_MASK) {
 		dev_err(&chip->spi_dev->dev, "Invalid channel id %lu for %s.\n",
-			data, dev_info->name);
+			data, indio_dev->name);
 		return -EINVAL;
-	} else if (strcmp(dev_info->name, "ad7818") == 0 && data > 1) {
+	} else if (strcmp(indio_dev->name, "ad7818") == 0 && data > 1) {
 		dev_err(&chip->spi_dev->dev,
 			"Invalid channel id %lu for ad7818.\n", data);
 		return -EINVAL;
-	} else if (strcmp(dev_info->name, "ad7816") == 0 && data > 0) {
+	} else if (strcmp(indio_dev->name, "ad7816") == 0 && data > 0) {
 		dev_err(&chip->spi_dev->dev,
 			"Invalid channel id %lu for ad7816.\n", data);
 		return -EINVAL;
@@ -206,8 +207,8 @@ static ssize_t ad7816_show_value(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7816_chip_info *chip = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 	u16 data;
 	s8 value;
 	int ret;
@@ -246,16 +247,14 @@ static const struct attribute_group ad7816_attribute_group = {
  * temperature bound events
  */
 
-#define IIO_EVENT_CODE_AD7816_OTI IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_TEMP, \
+#define IIO_EVENT_CODE_AD7816_OTI IIO_UNMOD_EVENT_CODE(IIO_TEMP,	\
 						       0,		\
 						       IIO_EV_TYPE_THRESH, \
 						       IIO_EV_DIR_FALLING)
 
 static irqreturn_t ad7816_event_handler(int irq, void *private)
 {
-	iio_push_event(private, 0,
-		       IIO_EVENT_CODE_AD7816_OTI,
-		       iio_get_time_ns());
+	iio_push_event(private, IIO_EVENT_CODE_AD7816_OTI, iio_get_time_ns());
 	return IRQ_HANDLED;
 }
 
@@ -263,8 +262,8 @@ static ssize_t ad7816_show_oti(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7816_chip_info *chip = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 	int value;
 
 	if (chip->channel_id > AD7816_CS_MAX) {
@@ -284,8 +283,8 @@ static inline ssize_t ad7816_set_oti(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7816_chip_info *chip = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 	long value;
 	u8 data;
 	int ret;
@@ -328,11 +327,11 @@ static struct attribute *ad7816_event_attributes[] = {
 
 static struct attribute_group ad7816_event_attribute_group = {
 	.attrs = ad7816_event_attributes,
+	.name = "events",
 };
 
 static const struct iio_info ad7816_info = {
 	.attrs = &ad7816_attribute_group,
-	.num_interrupt_lines = 1,
 	.event_attrs = &ad7816_event_attribute_group,
 	.driver_module = THIS_MODULE,
 };
@@ -397,10 +396,6 @@ static int __devinit ad7816_probe(struct spi_device *spi_dev)
 	indio_dev->info = &ad7816_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_free_gpio;
-
 	if (spi_dev->irq) {
 		/* Only low trigger is supported in ad7816/7/8 */
 		ret = request_threaded_irq(spi_dev->irq,
@@ -410,16 +405,19 @@ static int __devinit ad7816_probe(struct spi_device *spi_dev)
 					   indio_dev->name,
 					   indio_dev);
 		if (ret)
-			goto error_unreg_dev;
+			goto error_free_gpio;
 	}
+
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_free_irq;
 
 	dev_info(&spi_dev->dev, "%s temperature sensor and ADC registered.\n",
 			 indio_dev->name);
 
 	return 0;
-
-error_unreg_dev:
-	iio_device_unregister(indio_dev);
+error_free_irq:
+	free_irq(spi_dev->irq, indio_dev);
 error_free_gpio:
 	gpio_free(chip->busy_pin);
 error_free_gpio_convert:
@@ -437,13 +435,13 @@ static int __devexit ad7816_remove(struct spi_device *spi_dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(&spi_dev->dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
 	dev_set_drvdata(&spi_dev->dev, NULL);
 	if (spi_dev->irq)
 		free_irq(spi_dev->irq, indio_dev);
 	gpio_free(chip->busy_pin);
 	gpio_free(chip->convert_pin);
 	gpio_free(chip->rdwr_pin);
-	iio_device_unregister(indio_dev);
 	iio_free_device(indio_dev);
 
 	return 0;

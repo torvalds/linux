@@ -87,12 +87,6 @@ void rtl92c_set_data_filter(struct ieee80211_hw *hw, u16 filter);
 
 u32 rtl92c_get_txdma_status(struct ieee80211_hw *hw);
 
-#define RX_HAL_IS_CCK_RATE(_pdesc)\
-	(GET_RX_DESC_RX_MCS(_pdesc) == DESC92C_RATE1M ||\
-	 GET_RX_DESC_RX_MCS(_pdesc) == DESC92C_RATE2M ||\
-	 GET_RX_DESC_RX_MCS(_pdesc) == DESC92C_RATE5_5M ||\
-	 GET_RX_DESC_RX_MCS(_pdesc) == DESC92C_RATE11M)
-
 struct rx_fwinfo_92c {
 	u8 gain_trsw[4];
 	u8 pwdb_all;

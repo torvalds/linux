@@ -72,6 +72,8 @@ struct mmc_data;
  *	rate and timeout calculations.
  * @current_speed: Configured rate of the controller.
  * @num_slots: Number of slots available.
+ * @verid: Denote Version ID.
+ * @data_offset: Set the offset of DATA register according to VERID.
  * @pdev: Platform device associated with the MMC controller.
  * @pdata: Platform data associated with the MMC controller.
  * @slot: Slots sharing this MMC controller.
@@ -147,6 +149,8 @@ struct dw_mci {
 	u32			current_speed;
 	u32			num_slots;
 	u32			fifoth_val;
+	u16			verid;
+	u16			data_offset;
 	struct platform_device	*pdev;
 	struct dw_mci_board	*pdata;
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];

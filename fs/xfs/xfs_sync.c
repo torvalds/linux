@@ -227,21 +227,17 @@ xfs_sync_inode_data(
 	int			error = 0;
 
 	if (!mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
-		goto out_wait;
+		return 0;
 
 	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED)) {
 		if (flags & SYNC_TRYLOCK)
-			goto out_wait;
+			return 0;
 		xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	}
 
 	error = xfs_flush_pages(ip, 0, -1, (flags & SYNC_WAIT) ?
 				0 : XBF_ASYNC, FI_NONE);
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-
- out_wait:
-	if (flags & SYNC_WAIT)
-		xfs_ioend_wait(ip);
 	return error;
 }
 
@@ -322,6 +318,7 @@ xfs_sync_fsdata(
 	struct xfs_mount	*mp)
 {
 	struct xfs_buf		*bp;
+	int			error;
 
 	/*
 	 * If the buffer is pinned then push on the log so we won't get stuck
@@ -334,8 +331,9 @@ xfs_sync_fsdata(
 	bp = xfs_getsb(mp, 0);
 	if (xfs_buf_ispinned(bp))
 		xfs_log_force(mp, 0);
-
-	return xfs_bwrite(mp, bp);
+	error = xfs_bwrite(bp);
+	xfs_buf_relse(bp);
+	return error;
 }
 
 /*
@@ -379,7 +377,7 @@ xfs_quiesce_data(
 
 	/* flush data-only devices */
 	if (mp->m_rtdev_targp)
-		XFS_bflush(mp->m_rtdev_targp);
+		xfs_flush_buftarg(mp->m_rtdev_targp, 1);
 
 	return error ? error : error2;
 }

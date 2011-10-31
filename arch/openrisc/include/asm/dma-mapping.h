@@ -18,7 +18,7 @@
 #define __ASM_OPENRISC_DMA_MAPPING_H
 
 /*
- * See Documentation/PCI/PCI-DMA-mapping.txt and
+ * See Documentation/DMA-API-HOWTO.txt and
  * Documentation/DMA-API.txt for documentation.
  *
  * This file is written with the intention of eventually moving over

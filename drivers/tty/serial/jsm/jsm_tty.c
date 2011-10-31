@@ -118,6 +118,19 @@ static void jsm_tty_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	udelay(10);
 }
 
+/*
+ * jsm_tty_write()
+ *
+ * Take data from the user or kernel and send it out to the FEP.
+ * In here exists all the Transparent Print magic as well.
+ */
+static void jsm_tty_write(struct uart_port *port)
+{
+	struct jsm_channel *channel;
+	channel = container_of(port, struct jsm_channel, uart_port);
+	channel->ch_bd->bd_ops->copy_data_from_queue_to_uart(channel);
+}
+
 static void jsm_tty_start_tx(struct uart_port *port)
 {
 	struct jsm_channel *channel = (struct jsm_channel *)port;
@@ -216,14 +229,6 @@ static int jsm_tty_open(struct uart_port *port)
 			return -ENOMEM;
 		}
 	}
-	if (!channel->ch_wqueue) {
-		channel->ch_wqueue = kzalloc(WQUEUESIZE, GFP_KERNEL);
-		if (!channel->ch_wqueue) {
-			jsm_printk(INIT, ERR, &channel->ch_bd->pci_dev,
-				"unable to allocate write queue buf");
-			return -ENOMEM;
-		}
-	}
 
 	channel->ch_flags &= ~(CH_OPENING);
 	/*
@@ -237,7 +242,6 @@ static int jsm_tty_open(struct uart_port *port)
 	 */
 	channel->ch_r_head = channel->ch_r_tail = 0;
 	channel->ch_e_head = channel->ch_e_tail = 0;
-	channel->ch_w_head = channel->ch_w_tail = 0;
 
 	brd->bd_ops->flush_uart_write(channel);
 	brd->bd_ops->flush_uart_read(channel);
@@ -835,76 +839,4 @@ void jsm_check_queue_flow_control(struct jsm_channel *ch)
 			jsm_printk(READ, INFO, &ch->ch_bd->pci_dev, "Sending start char!\n");
 		}
 	}
-}
-
-/*
- * jsm_tty_write()
- *
- * Take data from the user or kernel and send it out to the FEP.
- * In here exists all the Transparent Print magic as well.
- */
-int jsm_tty_write(struct uart_port *port)
-{
-	int bufcount;
-	int data_count = 0,data_count1 =0;
-	u16 head;
-	u16 tail;
-	u16 tmask;
-	u32 remain;
-	int temp_tail = port->state->xmit.tail;
-	struct jsm_channel *channel = (struct jsm_channel *)port;
-
-	tmask = WQUEUEMASK;
-	head = (channel->ch_w_head) & tmask;
-	tail = (channel->ch_w_tail) & tmask;
-
-	if ((bufcount = tail - head - 1) < 0)
-		bufcount += WQUEUESIZE;
-
-	bufcount = min(bufcount, 56);
-	remain = WQUEUESIZE - head;
-
-	data_count = 0;
-	if (bufcount >= remain) {
-		bufcount -= remain;
-		while ((port->state->xmit.head != temp_tail) &&
-		(data_count < remain)) {
-			channel->ch_wqueue[head++] =
-			port->state->xmit.buf[temp_tail];
-
-			temp_tail++;
-			temp_tail &= (UART_XMIT_SIZE - 1);
-			data_count++;
-		}
-		if (data_count == remain) head = 0;
-	}
-
-	data_count1 = 0;
-	if (bufcount > 0) {
-		remain = bufcount;
-		while ((port->state->xmit.head != temp_tail) &&
-			(data_count1 < remain)) {
-			channel->ch_wqueue[head++] =
-				port->state->xmit.buf[temp_tail];
-
-			temp_tail++;
-			temp_tail &= (UART_XMIT_SIZE - 1);
-			data_count1++;
-
-		}
-	}
-
-	port->state->xmit.tail = temp_tail;
-
-	data_count += data_count1;
-	if (data_count) {
-		head &= tmask;
-		channel->ch_w_head = head;
-	}
-
-	if (data_count) {
-		channel->ch_bd->bd_ops->copy_data_from_queue_to_uart(channel);
-	}
-
-	return data_count;
 }

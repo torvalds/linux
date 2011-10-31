@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/highmem.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
@@ -177,8 +178,6 @@ static int __devinit sdhci_probe(struct platform_device *pdev)
 					sdhci->data->card_power_gpio);
 			goto err_pgpio_direction;
 		}
-
-		gpio_set_value(sdhci->data->card_power_gpio, 1);
 	}
 
 	if (sdhci->data->card_int_gpio >= 0) {

@@ -227,7 +227,7 @@ static bool ch7017_init(struct intel_dvo_device *dvo,
 	default:
 		DRM_DEBUG_KMS("ch701x not detected, got %d: from %s "
 			      "slave %d.\n",
-			      val, adapter->name,dvo->slave_addr);
+			      val, adapter->name, dvo->slave_addr);
 		goto fail;
 	}
 

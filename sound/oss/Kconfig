@@ -432,9 +432,7 @@ config SOUND_SB
 	  ALS-007 and ALS-1X0 chips (read <file:Documentation/sound/oss/ALS>) and
 	  for cards based on ESS chips (read
 	  <file:Documentation/sound/oss/ESS1868> and
-	  <file:Documentation/sound/oss/ESS>). If you have an SB AWE 32 or SB AWE
-	  64, say Y here and also to "AWE32 synth" below and read
-	  <file:Documentation/sound/oss/INSTALL.awe>. If you have an IBM Mwave
+	  <file:Documentation/sound/oss/ESS>). If you have an IBM Mwave
 	  card, say Y here and read <file:Documentation/sound/oss/mwave>.
 
 	  If you compile the driver into the kernel and don't want to use

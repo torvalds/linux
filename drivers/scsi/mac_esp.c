@@ -230,9 +230,6 @@ static void mac_esp_send_pdma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 				  u32 dma_count, int write, u8 cmd)
 {
 	struct mac_esp_priv *mep = MAC_ESP_GET_PRIV(esp);
-	unsigned long flags;
-
-	local_irq_save(flags);
 
 	mep->error = 0;
 
@@ -270,8 +267,6 @@ static void mac_esp_send_pdma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			esp_count = n;
 		}
 	} while (esp_count);
-
-	local_irq_restore(flags);
 }
 
 /*
@@ -353,8 +348,6 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 	struct mac_esp_priv *mep = MAC_ESP_GET_PRIV(esp);
 	u8 *fifo = esp->regs + ESP_FDATA * 16;
 
-	disable_irq(esp->host->irq);
-
 	cmd &= ~ESP_CMD_DMA;
 	mep->error = 0;
 
@@ -431,8 +424,6 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			scsi_esp_cmd(esp, ESP_CMD_TI);
 		}
 	}
-
-	enable_irq(esp->host->irq);
 }
 
 static int mac_esp_irq_pending(struct esp *esp)

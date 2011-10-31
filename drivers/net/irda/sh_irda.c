@@ -2,7 +2,7 @@
  * SuperH IrDA Driver
  *
  * Copyright (C) 2010 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
  * Based on sh_sir.c
  * Copyright (C) 2009 Renesas Solutions Corp.
@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <net/irda/wrapper.h>
 #include <net/irda/irda_device.h>
@@ -144,8 +145,8 @@ struct sh_irda_xir_func {
 
 struct sh_irda_self {
 	void __iomem		*membase;
-	unsigned int		 irq;
-	struct clk		*clk;
+	unsigned int		irq;
+	struct platform_device	*pdev;
 
 	struct net_device	*ndev;
 
@@ -264,7 +265,7 @@ static int sh_irda_set_baudrate(struct sh_irda_self *self, int baudrate)
 	return 0;
 }
 
-static int xir_get_rcv_length(struct sh_irda_self *self)
+static int sh_irda_get_rcv_length(struct sh_irda_self *self)
 {
 	return RFL_MASK & sh_irda_read(self, IRRFLR);
 }
@@ -274,47 +275,47 @@ static int xir_get_rcv_length(struct sh_irda_self *self)
  *		NONE MODE
  *
  *=====================================*/
-static int xir_fre(struct sh_irda_self *self)
+static int sh_irda_xir_fre(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 	dev_err(dev, "none mode: frame recv\n");
 	return 0;
 }
 
-static int xir_trov(struct sh_irda_self *self)
+static int sh_irda_xir_trov(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 	dev_err(dev, "none mode: buffer ram over\n");
 	return 0;
 }
 
-static int xir_9(struct sh_irda_self *self)
+static int sh_irda_xir_9(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 	dev_err(dev, "none mode: time over\n");
 	return 0;
 }
 
-static int xir_8(struct sh_irda_self *self)
+static int sh_irda_xir_8(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 	dev_err(dev, "none mode: framing error\n");
 	return 0;
 }
 
-static int xir_fte(struct sh_irda_self *self)
+static int sh_irda_xir_fte(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 	dev_err(dev, "none mode: frame transmit end\n");
 	return 0;
 }
 
-static struct sh_irda_xir_func xir_func = {
-	.xir_fre	= xir_fre,
-	.xir_trov	= xir_trov,
-	.xir_9		= xir_9,
-	.xir_8		= xir_8,
-	.xir_fte	= xir_fte,
+static struct sh_irda_xir_func sh_irda_xir_func = {
+	.xir_fre	= sh_irda_xir_fre,
+	.xir_trov	= sh_irda_xir_trov,
+	.xir_9		= sh_irda_xir_9,
+	.xir_8		= sh_irda_xir_8,
+	.xir_fte	= sh_irda_xir_fte,
 };
 
 /*=====================================
@@ -323,12 +324,12 @@ static struct sh_irda_xir_func xir_func = {
  *
  * MIR/FIR are not supported now
  *=====================================*/
-static struct sh_irda_xir_func mfir_func = {
-	.xir_fre	= xir_fre,
-	.xir_trov	= xir_trov,
-	.xir_9		= xir_9,
-	.xir_8		= xir_8,
-	.xir_fte	= xir_fte,
+static struct sh_irda_xir_func sh_irda_mfir_func = {
+	.xir_fre	= sh_irda_xir_fre,
+	.xir_trov	= sh_irda_xir_trov,
+	.xir_9		= sh_irda_xir_9,
+	.xir_8		= sh_irda_xir_8,
+	.xir_fte	= sh_irda_xir_fte,
 };
 
 /*=====================================
@@ -336,12 +337,12 @@ static struct sh_irda_xir_func mfir_func = {
  *		SIR MODE
  *
  *=====================================*/
-static int sir_fre(struct sh_irda_self *self)
+static int sh_irda_sir_fre(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 	u16 data16;
 	u8  *data = (u8 *)&data16;
-	int len = xir_get_rcv_length(self);
+	int len = sh_irda_get_rcv_length(self);
 	int i, j;
 
 	if (len > IRDARAM_LEN)
@@ -364,7 +365,7 @@ static int sir_fre(struct sh_irda_self *self)
 	return 0;
 }
 
-static int sir_trov(struct sh_irda_self *self)
+static int sh_irda_sir_trov(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 
@@ -373,7 +374,7 @@ static int sir_trov(struct sh_irda_self *self)
 	return 0;
 }
 
-static int sir_tot(struct sh_irda_self *self)
+static int sh_irda_sir_tot(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 
@@ -383,7 +384,7 @@ static int sir_tot(struct sh_irda_self *self)
 	return 0;
 }
 
-static int sir_fer(struct sh_irda_self *self)
+static int sh_irda_sir_fer(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 
@@ -392,7 +393,7 @@ static int sir_fer(struct sh_irda_self *self)
 	return 0;
 }
 
-static int sir_fte(struct sh_irda_self *self)
+static int sh_irda_sir_fte(struct sh_irda_self *self)
 {
 	struct device *dev = &self->ndev->dev;
 
@@ -402,12 +403,12 @@ static int sir_fte(struct sh_irda_self *self)
 	return 0;
 }
 
-static struct sh_irda_xir_func sir_func = {
-	.xir_fre	= sir_fre,
-	.xir_trov	= sir_trov,
-	.xir_9		= sir_tot,
-	.xir_8		= sir_fer,
-	.xir_fte	= sir_fte,
+static struct sh_irda_xir_func sh_irda_sir_func = {
+	.xir_fre	= sh_irda_sir_fre,
+	.xir_trov	= sh_irda_sir_trov,
+	.xir_9		= sh_irda_sir_tot,
+	.xir_8		= sh_irda_sir_fer,
+	.xir_fte	= sh_irda_sir_fte,
 };
 
 static void sh_irda_set_mode(struct sh_irda_self *self, enum sh_irda_mode mode)
@@ -421,22 +422,22 @@ static void sh_irda_set_mode(struct sh_irda_self *self, enum sh_irda_mode mode)
 	case SH_IRDA_SIR:
 		name	= "SIR";
 		data	= TMD_SIR;
-		func	= &sir_func;
+		func	= &sh_irda_sir_func;
 		break;
 	case SH_IRDA_MIR:
 		name	= "MIR";
 		data	= TMD_MIR;
-		func	= &mfir_func;
+		func	= &sh_irda_mfir_func;
 		break;
 	case SH_IRDA_FIR:
 		name	= "FIR";
 		data	= TMD_FIR;
-		func	= &mfir_func;
+		func	= &sh_irda_mfir_func;
 		break;
 	default:
-		name = "NONE";
-		data = 0;
-		func = &xir_func;
+		name	= "NONE";
+		data	= 0;
+		func	= &sh_irda_xir_func;
 		break;
 	}
 
@@ -694,7 +695,7 @@ static int sh_irda_open(struct net_device *ndev)
 	struct sh_irda_self *self = netdev_priv(ndev);
 	int err;
 
-	clk_enable(self->clk);
+	pm_runtime_get_sync(&self->pdev->dev);
 	err = sh_irda_crc_init(self);
 	if (err)
 		goto open_err;
@@ -718,7 +719,7 @@ static int sh_irda_open(struct net_device *ndev)
 	return 0;
 
 open_err:
-	clk_disable(self->clk);
+	pm_runtime_put_sync(&self->pdev->dev);
 
 	return err;
 }
@@ -734,6 +735,7 @@ static int sh_irda_stop(struct net_device *ndev)
 	}
 
 	netif_stop_queue(ndev);
+	pm_runtime_put_sync(&self->pdev->dev);
 
 	dev_info(&ndev->dev, "stoped\n");
 
@@ -786,11 +788,8 @@ static int __devinit sh_irda_probe(struct platform_device *pdev)
 	if (err)
 		goto err_mem_2;
 
-	self->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(self->clk)) {
-		dev_err(&pdev->dev, "cannot get irda clock\n");
-		goto err_mem_3;
-	}
+	self->pdev = pdev;
+	pm_runtime_enable(&pdev->dev);
 
 	irda_init_max_qos_capabilies(&self->qos);
 
@@ -820,8 +819,7 @@ static int __devinit sh_irda_probe(struct platform_device *pdev)
 	goto exit;
 
 err_mem_4:
-	clk_put(self->clk);
-err_mem_3:
+	pm_runtime_disable(&pdev->dev);
 	sh_irda_remove_iobuf(self);
 err_mem_2:
 	iounmap(self->membase);
@@ -840,7 +838,7 @@ static int __devexit sh_irda_remove(struct platform_device *pdev)
 		return 0;
 
 	unregister_netdev(ndev);
-	clk_put(self->clk);
+	pm_runtime_disable(&pdev->dev);
 	sh_irda_remove_iobuf(self);
 	iounmap(self->membase);
 	free_netdev(ndev);
@@ -849,11 +847,29 @@ static int __devexit sh_irda_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int sh_irda_runtime_nop(struct device *dev)
+{
+	/* Runtime PM callback shared between ->runtime_suspend()
+	 * and ->runtime_resume(). Simply returns success.
+	 *
+	 * This driver re-initializes all registers after
+	 * pm_runtime_get_sync() anyway so there is no need
+	 * to save and restore registers here.
+	 */
+	return 0;
+}
+
+static const struct dev_pm_ops sh_irda_pm_ops = {
+	.runtime_suspend	= sh_irda_runtime_nop,
+	.runtime_resume		= sh_irda_runtime_nop,
+};
+
 static struct platform_driver sh_irda_driver = {
-	.probe   = sh_irda_probe,
-	.remove  = __devexit_p(sh_irda_remove),
-	.driver  = {
-		.name = DRIVER_NAME,
+	.probe	= sh_irda_probe,
+	.remove	= __devexit_p(sh_irda_remove),
+	.driver	= {
+		.name	= DRIVER_NAME,
+		.pm	= &sh_irda_pm_ops,
 	},
 };
 
@@ -870,6 +886,6 @@ static void __exit sh_irda_exit(void)
 module_init(sh_irda_init);
 module_exit(sh_irda_exit);
 
-MODULE_AUTHOR("Kuninori Morimoto <morimoto.kuninori@renesas.com>");
+MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
 MODULE_DESCRIPTION("SuperH IrDA driver");
 MODULE_LICENSE("GPL");

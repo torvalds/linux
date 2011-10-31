@@ -152,11 +152,12 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 		pxmitbuf++;
 	}
 	pxmitpriv->free_xmitbuf_cnt = NR_XMITBUFF;
+	_init_workitem(&padapter->wkFilterRxFF0, r8712_SetFilter, padapter);
 	alloc_hwxmits(padapter);
 	init_hwxmits(pxmitpriv->hwxmits, pxmitpriv->hwxmit_entry);
 	tasklet_init(&pxmitpriv->xmit_tasklet,
-	     (void(*)(addr_t))r8712_xmit_bh,
-	     (addr_t)padapter);
+		(void(*)(unsigned long))r8712_xmit_bh,
+		(unsigned long)padapter);
 	return _SUCCESS;
 }
 
@@ -612,7 +613,7 @@ sint r8712_xmitframe_coalesce(struct _adapter *padapter, _pkt *pkt,
 	if (make_wlanhdr(padapter, mem_start, pattrib) == _FAIL)
 		return _FAIL;
 	_r8712_open_pktfile(pkt, &pktfile);
-	_r8712_pktfile_read(&pktfile, NULL, pattrib->pkt_hdrlen);
+	_r8712_pktfile_read(&pktfile, NULL, (uint) pattrib->pkt_hdrlen);
 	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) {
 		/* truncate TXDESC_SIZE bytes txcmd if at mp mode for 871x */
 		if (pattrib->ether_type == 0x8712) {
@@ -826,13 +827,16 @@ void r8712_free_xmitframe(struct xmit_priv *pxmitpriv,
 	unsigned long irqL;
 	struct  __queue *pfree_xmit_queue = &pxmitpriv->free_xmit_queue;
 	struct _adapter *padapter = pxmitpriv->adapter;
+	struct sk_buff *pndis_pkt = NULL;
 
 	if (pxmitframe == NULL)
 		return;
-	if (pxmitframe->pkt)
-		r8712_xmit_complete(padapter, pxmitframe);
 	spin_lock_irqsave(&pfree_xmit_queue->lock, irqL);
 	list_delete(&pxmitframe->list);
+	if (pxmitframe->pkt) {
+		pndis_pkt = pxmitframe->pkt;
+		pxmitframe->pkt = NULL;
+	}
 	list_insert_tail(&pxmitframe->list, get_list_head(pfree_xmit_queue));
 	pxmitpriv->free_xmitframe_cnt++;
 	spin_unlock_irqrestore(&pfree_xmit_queue->lock, irqL);
@@ -1011,6 +1015,19 @@ static void init_hwxmits(struct hw_xmit *phwxmit, sint entry)
 	}
 }
 
+void xmitframe_xmitbuf_attach(struct xmit_frame *pxmitframe,
+			struct xmit_buf *pxmitbuf)
+{
+	/* pxmitbuf attach to pxmitframe */
+	pxmitframe->pxmitbuf = pxmitbuf;
+	/* urb and irp connection */
+	pxmitframe->pxmit_urb[0] = pxmitbuf->pxmit_urb[0];
+	/* buffer addr assoc */
+	pxmitframe->buf_addr = pxmitbuf->pbuf;
+	/* pxmitframe attach to pxmitbuf */
+	pxmitbuf->priv_data = pxmitframe;
+}
+
 /*
  * tx_action == 0 == no frames to transmit
  * tx_action > 0 ==> we have frames to transmit
@@ -1042,9 +1059,7 @@ int r8712_pre_xmit(struct _adapter *padapter, struct xmit_frame *pxmitframe)
 	} else { /*dump packet directly*/
 		spin_unlock_irqrestore(&pxmitpriv->lock, irqL);
 		ret = true;
-		pxmitframe->pxmitbuf = pxmitbuf;
-		pxmitframe->pxmit_urb[0] = pxmitbuf->pxmit_urb[0];
-		pxmitframe->buf_addr = pxmitbuf->pbuf;
+		xmitframe_xmitbuf_attach(pxmitframe, pxmitbuf);
 		r8712_xmit_direct(padapter, pxmitframe);
 	}
 	return ret;

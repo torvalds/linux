@@ -898,16 +898,15 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	if (!cp)
 		return;
 
-	hci_dev_lock(hdev);
-
 	if (cp->enable == 0x01) {
 		del_timer(&hdev->adv_timer);
+
+		hci_dev_lock(hdev);
 		hci_adv_entries_clear(hdev);
+		hci_dev_unlock(hdev);
 	} else if (cp->enable == 0x00) {
 		mod_timer(&hdev->adv_timer, jiffies + ADV_CLEAR_TIMEOUT);
 	}
-
-	hci_dev_unlock(hdev);
 }
 
 static void hci_cc_le_ltk_reply(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1103,9 +1102,10 @@ static int hci_outgoing_auth_needed(struct hci_dev *hdev,
 		return 0;
 
 	/* Only request authentication for SSP connections or non-SSP
-	 * devices with sec_level HIGH */
+	 * devices with sec_level HIGH or if MITM protection is requested */
 	if (!(hdev->ssp_mode > 0 && conn->ssp_mode > 0) &&
-				conn->pending_sec_level != BT_SECURITY_HIGH)
+				conn->pending_sec_level != BT_SECURITY_HIGH &&
+				!(conn->auth_type & 0x01))
 		return 0;
 
 	return 1;
@@ -1412,7 +1412,7 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			conn->state = BT_CONFIG;
 			hci_conn_hold(conn);
 			conn->disc_timeout = HCI_DISCONN_TIMEOUT;
-			mgmt_connected(hdev->id, &ev->bdaddr);
+			mgmt_connected(hdev->id, &ev->bdaddr, conn->type);
 		} else
 			conn->state = BT_CONNECTED;
 
@@ -2174,7 +2174,10 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
-	if (conn && conn->state == BT_CONNECTED) {
+	if (!conn)
+		goto unlock;
+
+	if (conn->state == BT_CONNECTED) {
 		hci_conn_hold(conn);
 		conn->disc_timeout = HCI_PAIRING_TIMEOUT;
 		hci_conn_put(conn);
@@ -2194,6 +2197,7 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 		mgmt_pin_code_request(hdev->id, &ev->bdaddr, secure);
 	}
 
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -2816,7 +2820,7 @@ static inline void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff
 		goto unlock;
 	}
 
-	mgmt_connected(hdev->id, &ev->bdaddr);
+	mgmt_connected(hdev->id, &ev->bdaddr, conn->type);
 
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->handle = __le16_to_cpu(ev->handle);
@@ -2834,19 +2838,17 @@ unlock:
 static inline void hci_le_adv_report_evt(struct hci_dev *hdev,
 						struct sk_buff *skb)
 {
-	struct hci_ev_le_advertising_info *ev;
-	u8 num_reports;
-
-	num_reports = skb->data[0];
-	ev = (void *) &skb->data[1];
+	u8 num_reports = skb->data[0];
+	void *ptr = &skb->data[1];
 
 	hci_dev_lock(hdev);
 
-	hci_add_adv_entry(hdev, ev);
+	while (num_reports--) {
+		struct hci_ev_le_advertising_info *ev = ptr;
 
-	while (--num_reports) {
-		ev = (void *) (ev->data + ev->length + 1);
 		hci_add_adv_entry(hdev, ev);
+
+		ptr += sizeof(*ev) + ev->length + 1;
 	}
 
 	hci_dev_unlock(hdev);
