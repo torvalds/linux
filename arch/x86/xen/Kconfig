@@ -25,8 +25,7 @@ config XEN_PRIVILEGED_GUEST
 
 config XEN_PVHVM
 	def_bool y
-	depends on XEN
-	depends on X86_LOCAL_APIC
+	depends on XEN && PCI && X86_LOCAL_APIC
 
 config XEN_MAX_DOMAIN_MEMORY
        int
@@ -49,11 +48,3 @@ config XEN_DEBUG_FS
 	help
 	  Enable statistics output and various tuning options in debugfs.
 	  Enabling this option may incur a significant performance overhead.
-
-config XEN_DEBUG
-	bool "Enable Xen debug checks"
-	depends on XEN
-	default n
-	help
-	  Enable various WARN_ON checks in the Xen MMU code.
-	  Enabling this option WILL incur a significant performance overhead.

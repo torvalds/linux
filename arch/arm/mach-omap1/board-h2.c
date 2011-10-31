@@ -18,7 +18,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -32,7 +32,6 @@
 #include <linux/smc91x.h>
 
 #include <mach/hardware.h>
-#include <asm/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -461,7 +460,7 @@ static void __init h2_map_io(void)
 
 MACHINE_START(OMAP_H2, "TI-H2")
 	/* Maintainer: Imre Deak <imre.deak@nokia.com> */
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= h2_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= h2_init_irq,

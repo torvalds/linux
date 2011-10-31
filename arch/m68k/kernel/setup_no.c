@@ -36,6 +36,7 @@
 #include <asm/irq.h>
 #include <asm/machdep.h>
 #include <asm/pgtable.h>
+#include <asm/sections.h>
 
 unsigned long memory_start;
 unsigned long memory_end;
@@ -79,9 +80,6 @@ void (*mach_power_off)(void);
 #ifndef CPU_INSTR_PER_JIFFY
 #define	CPU_INSTR_PER_JIFFY	16
 #endif
-
-extern int _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
-extern int _ramstart, _ramend;
 
 #if defined(CONFIG_UBOOT)
 /*

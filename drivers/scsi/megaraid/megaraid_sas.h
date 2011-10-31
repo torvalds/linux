@@ -33,9 +33,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.05.40-rc1"
-#define MEGASAS_RELDATE				"Jul. 26, 2011"
-#define MEGASAS_EXT_VERSION			"Tue. Jul. 26 17:00:00 PDT 2011"
+#define MEGASAS_VERSION				"00.00.06.12-rc1"
+#define MEGASAS_RELDATE				"Oct. 5, 2011"
+#define MEGASAS_EXT_VERSION			"Wed. Oct. 5 17:00:00 PDT 2011"
 
 /*
  * Device IDs
@@ -48,6 +48,7 @@
 #define	PCI_DEVICE_ID_LSI_SAS0073SKINNY		0x0073
 #define	PCI_DEVICE_ID_LSI_SAS0071SKINNY		0x0071
 #define	PCI_DEVICE_ID_LSI_FUSION		0x005b
+#define PCI_DEVICE_ID_LSI_INVADER		0x005d
 
 /*
  * =====================================
@@ -138,6 +139,7 @@
 #define MFI_CMD_ABORT				0x06
 #define MFI_CMD_SMP				0x07
 #define MFI_CMD_STP				0x08
+#define MFI_CMD_INVALID				0xff
 
 #define MR_DCMD_CTRL_GET_INFO			0x01010000
 #define MR_DCMD_LD_GET_LIST			0x03010000
@@ -221,6 +223,7 @@ enum MFI_STAT {
 	MFI_STAT_RESERVATION_IN_PROGRESS = 0x36,
 	MFI_STAT_I2C_ERRORS_DETECTED = 0x37,
 	MFI_STAT_PCI_ERRORS_DETECTED = 0x38,
+	MFI_STAT_CONFIG_SEQ_MISMATCH = 0x67,
 
 	MFI_STAT_INVALID_STATUS = 0xFF
 };
@@ -716,7 +719,7 @@ struct megasas_ctrl_info {
 #define MEGASAS_DEFAULT_INIT_ID			-1
 #define MEGASAS_MAX_LUN				8
 #define MEGASAS_MAX_LD				64
-#define MEGASAS_DEFAULT_CMD_PER_LUN		128
+#define MEGASAS_DEFAULT_CMD_PER_LUN		256
 #define MEGASAS_MAX_PD                          (MEGASAS_MAX_PD_CHANNELS * \
 						MEGASAS_MAX_DEV_PER_CHANNEL)
 #define MEGASAS_MAX_LD_IDS			(MEGASAS_MAX_LD_CHANNELS * \
@@ -755,6 +758,7 @@ struct megasas_ctrl_info {
 #define MEGASAS_INT_CMDS			32
 #define MEGASAS_SKINNY_INT_CMDS			5
 
+#define MEGASAS_MAX_MSIX_QUEUES			16
 /*
  * FW can accept both 32 and 64 bit SGLs. We want to allocate 32/64 bit
  * SGLs based on the size of dma_addr_t
@@ -1276,6 +1280,11 @@ struct megasas_aen_event {
 	struct megasas_instance *instance;
 };
 
+struct megasas_irq_context {
+	struct megasas_instance *instance;
+	u32 MSIxIndex;
+};
+
 struct megasas_instance {
 
 	u32 *producer;
@@ -1349,8 +1358,9 @@ struct megasas_instance {
 
 	/* Ptr to hba specific information */
 	void *ctrl_context;
-	u8	msi_flag;
-	struct msix_entry msixentry;
+	unsigned int msix_vectors;
+	struct msix_entry msixentry[MEGASAS_MAX_MSIX_QUEUES];
+	struct megasas_irq_context irq_context[MEGASAS_MAX_MSIX_QUEUES];
 	u64 map_id;
 	struct megasas_cmd *map_update_cmd;
 	unsigned long bar;

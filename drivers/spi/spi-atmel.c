@@ -22,7 +22,7 @@
 
 #include <asm/io.h>
 #include <mach/board.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 #include <mach/cpu.h>
 
 /* SPI register offsets */
@@ -1074,18 +1074,7 @@ static struct platform_driver atmel_spi_driver = {
 	.resume		= atmel_spi_resume,
 	.remove		= __exit_p(atmel_spi_remove),
 };
-
-static int __init atmel_spi_init(void)
-{
-	return platform_driver_probe(&atmel_spi_driver, atmel_spi_probe);
-}
-module_init(atmel_spi_init);
-
-static void __exit atmel_spi_exit(void)
-{
-	platform_driver_unregister(&atmel_spi_driver);
-}
-module_exit(atmel_spi_exit);
+module_platform_driver(atmel_spi_driver);
 
 MODULE_DESCRIPTION("Atmel AT32/AT91 SPI Controller driver");
 MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");

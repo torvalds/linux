@@ -49,9 +49,6 @@ extern void __aeabi_ulcmp(void);
 
 extern void fpundefinstr(void);
 
-
-EXPORT_SYMBOL(__backtrace);
-
 	/* platform dependent support */
 EXPORT_SYMBOL(__udelay);
 EXPORT_SYMBOL(__const_udelay);

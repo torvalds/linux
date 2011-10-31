@@ -914,21 +914,6 @@ void se_dev_set_default_attribs(
 	dev->se_sub_dev->se_dev_attrib.queue_depth = dev_limits->queue_depth;
 }
 
-int se_dev_set_task_timeout(struct se_device *dev, u32 task_timeout)
-{
-	if (task_timeout > DA_TASK_TIMEOUT_MAX) {
-		pr_err("dev[%p]: Passed task_timeout: %u larger then"
-			" DA_TASK_TIMEOUT_MAX\n", dev, task_timeout);
-		return -EINVAL;
-	} else {
-		dev->se_sub_dev->se_dev_attrib.task_timeout = task_timeout;
-		pr_debug("dev[%p]: Set SE Device task_timeout: %u\n",
-			dev, task_timeout);
-	}
-
-	return 0;
-}
-
 int se_dev_set_max_unmap_lba_count(
 	struct se_device *dev,
 	u32 max_unmap_lba_count)
@@ -972,36 +957,24 @@ int se_dev_set_unmap_granularity_alignment(
 
 int se_dev_set_emulate_dpo(struct se_device *dev, int flag)
 {
-	if ((flag != 0) && (flag != 1)) {
+	if (flag != 0 && flag != 1) {
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-	if (dev->transport->dpo_emulated == NULL) {
-		pr_err("dev->transport->dpo_emulated is NULL\n");
-		return -EINVAL;
-	}
-	if (dev->transport->dpo_emulated(dev) == 0) {
-		pr_err("dev->transport->dpo_emulated not supported\n");
-		return -EINVAL;
-	}
-	dev->se_sub_dev->se_dev_attrib.emulate_dpo = flag;
-	pr_debug("dev[%p]: SE Device Page Out (DPO) Emulation"
-			" bit: %d\n", dev, dev->se_sub_dev->se_dev_attrib.emulate_dpo);
-	return 0;
+
+	pr_err("dpo_emulated not supported\n");
+	return -EINVAL;
 }
 
 int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 {
-	if ((flag != 0) && (flag != 1)) {
+	if (flag != 0 && flag != 1) {
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-	if (dev->transport->fua_write_emulated == NULL) {
-		pr_err("dev->transport->fua_write_emulated is NULL\n");
-		return -EINVAL;
-	}
-	if (dev->transport->fua_write_emulated(dev) == 0) {
-		pr_err("dev->transport->fua_write_emulated not supported\n");
+
+	if (dev->transport->fua_write_emulated == 0) {
+		pr_err("fua_write_emulated not supported\n");
 		return -EINVAL;
 	}
 	dev->se_sub_dev->se_dev_attrib.emulate_fua_write = flag;
@@ -1012,36 +985,23 @@ int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 
 int se_dev_set_emulate_fua_read(struct se_device *dev, int flag)
 {
-	if ((flag != 0) && (flag != 1)) {
+	if (flag != 0 && flag != 1) {
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-	if (dev->transport->fua_read_emulated == NULL) {
-		pr_err("dev->transport->fua_read_emulated is NULL\n");
-		return -EINVAL;
-	}
-	if (dev->transport->fua_read_emulated(dev) == 0) {
-		pr_err("dev->transport->fua_read_emulated not supported\n");
-		return -EINVAL;
-	}
-	dev->se_sub_dev->se_dev_attrib.emulate_fua_read = flag;
-	pr_debug("dev[%p]: SE Device Forced Unit Access READs: %d\n",
-			dev, dev->se_sub_dev->se_dev_attrib.emulate_fua_read);
-	return 0;
+
+	pr_err("ua read emulated not supported\n");
+	return -EINVAL;
 }
 
 int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 {
-	if ((flag != 0) && (flag != 1)) {
+	if (flag != 0 && flag != 1) {
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-	if (dev->transport->write_cache_emulated == NULL) {
-		pr_err("dev->transport->write_cache_emulated is NULL\n");
-		return -EINVAL;
-	}
-	if (dev->transport->write_cache_emulated(dev) == 0) {
-		pr_err("dev->transport->write_cache_emulated not supported\n");
+	if (dev->transport->write_cache_emulated == 0) {
+		pr_err("write_cache_emulated not supported\n");
 		return -EINVAL;
 	}
 	dev->se_sub_dev->se_dev_attrib.emulate_write_cache = flag;

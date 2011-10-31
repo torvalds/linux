@@ -621,12 +621,15 @@ static int __devinit of_fhci_probe(struct platform_device *ofdev)
 		goto err_pram;
 	}
 
-	pram_addr = cpm_muram_alloc_fixed(iprop[2], FHCI_PRAM_SIZE);
+	pram_addr = cpm_muram_alloc(FHCI_PRAM_SIZE, 64);
 	if (IS_ERR_VALUE(pram_addr)) {
 		dev_err(dev, "failed to allocate usb pram\n");
 		ret = -ENOMEM;
 		goto err_pram;
 	}
+
+	qe_issue_cmd(QE_ASSIGN_PAGE_TO_DEVICE, QE_CR_SUBBLOCK_USB,
+		     QE_CR_PROTOCOL_UNSPECIFIED, pram_addr);
 	fhci->pram = cpm_muram_addr(pram_addr);
 
 	/* GPIOs and pins */
@@ -686,7 +689,7 @@ static int __devinit of_fhci_probe(struct platform_device *ofdev)
 	}
 
 	ret = request_irq(fhci->timer->irq, fhci_frame_limit_timer_irq,
-			  IRQF_DISABLED, "qe timer (usb)", hcd);
+			  0, "qe timer (usb)", hcd);
 	if (ret) {
 		dev_err(dev, "failed to request timer irq");
 		goto err_timer_irq;
@@ -745,7 +748,7 @@ static int __devinit of_fhci_probe(struct platform_device *ofdev)
 	out_be16(&fhci->regs->usb_event, 0xffff);
 	out_be16(&fhci->regs->usb_mask, 0);
 
-	ret = usb_add_hcd(hcd, usb_irq, IRQF_DISABLED);
+	ret = usb_add_hcd(hcd, usb_irq, 0);
 	if (ret < 0)
 		goto err_add_hcd;
 

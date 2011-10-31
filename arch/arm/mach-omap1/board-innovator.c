@@ -15,7 +15,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -34,7 +34,6 @@
 #include <plat/mux.h>
 #include <plat/flash.h>
 #include <plat/fpga.h>
-#include <mach/gpio.h>
 #include <plat/tc.h>
 #include <plat/usb.h>
 #include <plat/keypad.h>
@@ -459,7 +458,7 @@ static void __init innovator_map_io(void)
 
 MACHINE_START(OMAP_INNOVATOR, "TI-Innovator")
 	/* Maintainer: MontaVista Software, Inc. */
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= innovator_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= innovator_init_irq,

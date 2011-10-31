@@ -201,7 +201,7 @@ static int __devinit txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 	if (!drvdata->base)
 		return -EBUSY;
 	err = devm_request_irq(&pdev->dev, irq, txx9aclc_ac97_irq,
-			       IRQF_DISABLED, dev_name(&pdev->dev), drvdata);
+			       0, dev_name(&pdev->dev), drvdata);
 	if (err < 0)
 		return err;
 

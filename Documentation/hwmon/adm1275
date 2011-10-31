@@ -6,6 +6,10 @@ Supported chips:
     Prefix: 'adm1275'
     Addresses scanned: -
     Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1275.pdf
+  * Analog Devices ADM1276
+    Prefix: 'adm1276'
+    Addresses scanned: -
+    Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1276.pdf
 
 Author: Guenter Roeck <guenter.roeck@ericsson.com>
 
@@ -13,13 +17,13 @@ Author: Guenter Roeck <guenter.roeck@ericsson.com>
 Description
 -----------
 
-This driver supports hardware montoring for Analog Devices ADM1275 Hot-Swap
-Controller and Digital Power Monitor.
+This driver supports hardware montoring for Analog Devices ADM1275 and ADM1276
+Hot-Swap Controller and Digital Power Monitor.
 
-The ADM1275 is a hot-swap controller that allows a circuit board to be removed
-from or inserted into a live backplane. It also features current and voltage
-readback via an integrated 12-bit analog-to-digital converter (ADC), accessed
-using a PMBus. interface.
+ADM1275 and ADM1276 are hot-swap controllers that allow a circuit board to be
+removed from or inserted into a live backplane. They also feature current and
+voltage readback via an integrated 12-bit analog-to-digital converter (ADC),
+accessed using a PMBus interface.
 
 The driver is a client driver to the core PMBus driver. Please see
 Documentation/hwmon/pmbus for details on PMBus client drivers.
@@ -48,17 +52,25 @@ attributes are write-only, all other attributes are read-only.
 
 in1_label		"vin1" or "vout1" depending on chip variant and
 			configuration.
-in1_input		Measured voltage. From READ_VOUT register.
-in1_min			Minumum Voltage. From VOUT_UV_WARN_LIMIT register.
-in1_max			Maximum voltage. From VOUT_OV_WARN_LIMIT register.
-in1_min_alarm		Voltage low alarm. From VOLTAGE_UV_WARNING status.
-in1_max_alarm		Voltage high alarm. From VOLTAGE_OV_WARNING status.
+in1_input		Measured voltage.
+in1_min			Minumum Voltage.
+in1_max			Maximum voltage.
+in1_min_alarm		Voltage low alarm.
+in1_max_alarm		Voltage high alarm.
 in1_highest		Historical maximum voltage.
 in1_reset_history	Write any value to reset history.
 
 curr1_label		"iout1"
-curr1_input		Measured current. From READ_IOUT register.
-curr1_max		Maximum current. From IOUT_OC_WARN_LIMIT register.
-curr1_max_alarm		Current high alarm. From IOUT_OC_WARN_LIMIT register.
+curr1_input		Measured current.
+curr1_max		Maximum current.
+curr1_max_alarm		Current high alarm.
+curr1_lcrit		Critical minimum current. Depending on the chip
+			configuration, either curr1_lcrit or curr1_crit is
+			supported, but not both.
+curr1_lcrit_alarm	Critical current low alarm.
+curr1_crit		Critical maximum current. Depending on the chip
+			configuration, either curr1_lcrit or curr1_crit is
+			supported, but not both.
+curr1_crit_alarm	Critical current high alarm.
 curr1_highest		Historical maximum current.
 curr1_reset_history	Write any value to reset history.

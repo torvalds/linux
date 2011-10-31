@@ -141,7 +141,7 @@ static void __init iq80331_init_machine(void)
 
 MACHINE_START(IQ80331, "Intel IQ80331")
 	/* Maintainer: Intel Corp. */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= iop3xx_map_io,
 	.init_irq	= iop33x_init_irq,
 	.timer		= &iq80331_timer,

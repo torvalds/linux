@@ -13,6 +13,7 @@
 #include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/spi/spi.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -399,19 +400,19 @@ static irqreturn_t adt7310_event_handler(int irq, void *private)
 		return ret;
 
 	if (status & ADT7310_STAT_T_HIGH)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING),
 			       timestamp);
 	if (status & ADT7310_STAT_T_LOW)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_FALLING),
 			       timestamp);
 	if (status & ADT7310_STAT_T_CRIT)
-		iio_push_event(indio_dev, 0,
+		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING),
@@ -740,14 +741,15 @@ static struct attribute *adt7310_event_ct_attributes[] = {
 static struct attribute_group adt7310_event_attribute_group[ADT7310_IRQS] = {
 	{
 		.attrs = adt7310_event_int_attributes,
+		.name = "events",
 	}, {
 		.attrs = adt7310_event_ct_attributes,
+		.name = "events",
 	}
 };
 
 static const struct iio_info adt7310_info = {
 	.attrs = &adt7310_attribute_group,
-	.num_interrupt_lines = ADT7310_IRQS,
 	.event_attrs = adt7310_event_attribute_group,
 	.driver_module = THIS_MODULE,
 };
@@ -780,10 +782,6 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 	indio_dev->info = &adt7310_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_free_dev;
-
 	/* CT critcal temperature event. line 0 */
 	if (spi_dev->irq) {
 		if (adt7310_platform_data[2])
@@ -797,7 +795,7 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 					   indio_dev->name,
 					   indio_dev);
 		if (ret)
-			goto error_unreg_dev;
+			goto error_free_dev;
 	}
 
 	/* INT bound temperature alarm event. line 1 */
@@ -834,6 +832,10 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 		}
 	}
 
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_unreg_int_irq;
+
 	dev_info(&spi_dev->dev, "%s temperature sensor registered.\n",
 			indio_dev->name);
 
@@ -843,8 +845,6 @@ error_unreg_int_irq:
 	free_irq(adt7310_platform_data[0], indio_dev);
 error_unreg_ct_irq:
 	free_irq(spi_dev->irq, indio_dev);
-error_unreg_dev:
-	iio_device_unregister(indio_dev);
 error_free_dev:
 	iio_free_device(indio_dev);
 error_ret:
@@ -856,12 +856,12 @@ static int __devexit adt7310_remove(struct spi_device *spi_dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(&spi_dev->dev);
 	unsigned long *adt7310_platform_data = spi_dev->dev.platform_data;
 
+	iio_device_unregister(indio_dev);
 	dev_set_drvdata(&spi_dev->dev, NULL);
 	if (adt7310_platform_data[0])
 		free_irq(adt7310_platform_data[0], indio_dev);
 	if (spi_dev->irq)
 		free_irq(spi_dev->irq, indio_dev);
-	iio_device_unregister(indio_dev);
 	iio_free_device(indio_dev);
 
 	return 0;

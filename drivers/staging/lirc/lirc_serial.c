@@ -841,7 +841,7 @@ static int init_port(void)
 	int i, nlow, nhigh, result;
 
 	result = request_irq(irq, irq_handler,
-			     IRQF_DISABLED | (share_irq ? IRQF_SHARED : 0),
+			     (share_irq ? IRQF_SHARED : 0),
 			     LIRC_DRIVER_NAME, (void *)&hardware);
 
 	switch (result) {

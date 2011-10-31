@@ -12,14 +12,13 @@
 
 #ifdef CONFIG_KVM_MMIO
 
-#define KVM_COALESCED_MMIO_ZONE_MAX 100
+#include <linux/list.h>
 
 struct kvm_coalesced_mmio_dev {
+	struct list_head list;
 	struct kvm_io_device dev;
 	struct kvm *kvm;
-	spinlock_t lock;
-	int nb_zones;
-	struct kvm_coalesced_mmio_zone zone[KVM_COALESCED_MMIO_ZONE_MAX];
+	struct kvm_coalesced_mmio_zone zone;
 };
 
 int kvm_coalesced_mmio_init(struct kvm *kvm);

@@ -12,7 +12,6 @@
 #include <linux/clk.h>
 #include <linux/serial_8250.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
 
 #include <asm/mach/map.h>
 
@@ -26,6 +25,7 @@
 #include <mach/serial.h>
 #include <mach/common.h>
 #include <mach/asp.h>
+#include <mach/gpio-davinci.h>
 
 #include "clock.h"
 #include "mux.h"

@@ -90,7 +90,6 @@ static int __devinit rfkill_regulator_probe(struct platform_device *pdev)
 				pdata->type,
 				&rfkill_regulator_ops, rfkill_data);
 	if (rf_kill == NULL) {
-		dev_err(&pdev->dev, "Cannot alloc rfkill device\n");
 		ret = -ENOMEM;
 		goto err_rfkill_alloc;
 	}

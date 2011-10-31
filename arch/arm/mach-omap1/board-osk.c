@@ -25,7 +25,7 @@
  * with this program; if not, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -42,7 +42,6 @@
 #include <linux/i2c/tps65010.h>
 
 #include <mach/hardware.h>
-#include <asm/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -583,7 +582,7 @@ static void __init osk_map_io(void)
 
 MACHINE_START(OMAP_OSK, "TI-OSK")
 	/* Maintainer: Dirk Behme <dirk.behme@de.bosch.com> */
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= osk_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= osk_init_irq,

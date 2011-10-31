@@ -19,9 +19,9 @@ config SQUASHFS
 
 	  If you want to compile this as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/modules.txt>.  The module
-	  will be called squashfs.  Note that the root file system (the one
-	  containing the directory /) cannot be compiled as a module.
+	  say M here.  The module will be called squashfs.  Note that the root
+	  file system (the one containing the directory /) cannot be compiled
+	  as a module.
 
 	  If unsure, say N.
 

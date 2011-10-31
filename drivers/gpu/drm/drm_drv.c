@@ -438,6 +438,8 @@ long drm_ioctl(struct file *filp,
 					goto err_i1;
 				}
 			}
+			if (asize > usize)
+				memset(kdata + usize, 0, asize - usize);
 		}
 
 		if (cmd & IOC_IN) {

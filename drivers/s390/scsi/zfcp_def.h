@@ -72,6 +72,7 @@ struct zfcp_reqlist;
 #define ZFCP_STATUS_COMMON_NOESC		0x00200000
 
 /* adapter status */
+#define ZFCP_STATUS_ADAPTER_MB_ACT		0x00000001
 #define ZFCP_STATUS_ADAPTER_QDIOUP		0x00000002
 #define ZFCP_STATUS_ADAPTER_SIOSL_ISSUED	0x00000004
 #define ZFCP_STATUS_ADAPTER_XCONFIG_OK		0x00000008
@@ -313,5 +314,11 @@ struct zfcp_fsf_req {
 	unsigned long long	issued;
 	void			(*handler)(struct zfcp_fsf_req *);
 };
+
+static inline
+int zfcp_adapter_multi_buffer_active(struct zfcp_adapter *adapter)
+{
+	return atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_MB_ACT;
+}
 
 #endif /* ZFCP_DEF_H */

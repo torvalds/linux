@@ -126,8 +126,8 @@ static void trimslice_usb_init(void)
 	platform_device_register(&tegra_ehci1_device);
 }
 
-static void __init tegra_trimslice_fixup(struct machine_desc *desc,
-	struct tag *tags, char **cmdline, struct meminfo *mi)
+static void __init tegra_trimslice_fixup(struct tag *tags, char **cmdline,
+	struct meminfo *mi)
 {
 	mi->nr_banks = 2;
 	mi->bank[0].start = PHYS_OFFSET;
@@ -171,7 +171,7 @@ static void __init tegra_trimslice_init(void)
 }
 
 MACHINE_START(TRIMSLICE, "trimslice")
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.fixup		= tegra_trimslice_fixup,
 	.map_io         = tegra_map_common_io,
 	.init_early	= tegra_init_early,

@@ -402,7 +402,7 @@ static int fm_v4l2_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 static int fm_v4l2_vidioc_g_modulator(struct file *file, void *priv,
 		struct v4l2_modulator *mod)
 {
-	struct fmdev *fmdev = video_drvdata(file);;
+	struct fmdev *fmdev = video_drvdata(file);
 
 	if (mod->index != 0)
 		return -EINVAL;

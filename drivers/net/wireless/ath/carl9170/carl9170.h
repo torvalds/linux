@@ -43,6 +43,7 @@
 #include <linux/firmware.h>
 #include <linux/completion.h>
 #include <linux/spinlock.h>
+#include <linux/hw_random.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include <linux/usb.h>
@@ -151,6 +152,7 @@ struct carl9170_sta_tid {
 #define CARL9170_TX_TIMEOUT		2500
 #define CARL9170_JANITOR_DELAY		128
 #define CARL9170_QUEUE_STUCK_TIMEOUT	5500
+#define CARL9170_STAT_WORK		30000
 
 #define CARL9170_NUM_TX_AGG_MAX		30
 
@@ -282,6 +284,7 @@ struct ar9170 {
 		bool rx_stream;
 		bool tx_stream;
 		bool rx_filter;
+		bool hw_counters;
 		unsigned int mem_blocks;
 		unsigned int mem_block_size;
 		unsigned int rx_size;
@@ -331,11 +334,21 @@ struct ar9170 {
 
 	/* PHY */
 	struct ieee80211_channel *channel;
+	unsigned int num_channels;
 	int noise[4];
 	unsigned int chan_fail;
 	unsigned int total_chan_fail;
 	u8 heavy_clip;
 	u8 ht_settings;
+	struct {
+		u64 active;	/* usec */
+		u64 cca;	/* usec */
+		u64 tx_time;	/* usec */
+		u64 rx_total;
+		u64 rx_overrun;
+	} tally;
+	struct delayed_work stat_work;
+	struct survey_info *survey;
 
 	/* power calibration data */
 	u8 power_5G_leg[4];
@@ -437,6 +450,17 @@ struct ar9170 {
 		unsigned int off_override;
 		bool state;
 	} ps;
+
+#ifdef CONFIG_CARL9170_HWRNG
+# define CARL9170_HWRNG_CACHE_SIZE	CARL9170_MAX_CMD_PAYLOAD_LEN
+	struct {
+		struct hwrng rng;
+		bool initialized;
+		char name[30 + 1];
+		u16 cache[CARL9170_HWRNG_CACHE_SIZE / sizeof(u16)];
+		unsigned int cache_idx;
+	} rng;
+#endif /* CONFIG_CARL9170_HWRNG */
 };
 
 enum carl9170_ps_off_override_reasons {

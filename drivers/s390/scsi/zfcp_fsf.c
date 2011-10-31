@@ -936,39 +936,47 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 				       struct scatterlist *sg_resp)
 {
 	struct zfcp_adapter *adapter = req->adapter;
+	struct zfcp_qdio *qdio = adapter->qdio;
+	struct fsf_qtcb *qtcb = req->qtcb;
 	u32 feat = adapter->adapter_features;
-	int bytes;
 
-	if (!(feat & FSF_FEATURE_ELS_CT_CHAINED_SBALS)) {
-		if (!zfcp_qdio_sg_one_sbale(sg_req) ||
-		    !zfcp_qdio_sg_one_sbale(sg_resp))
-			return -EOPNOTSUPP;
+	if (zfcp_adapter_multi_buffer_active(adapter)) {
+		if (zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req, sg_req))
+			return -EIO;
+		if (zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req, sg_resp))
+			return -EIO;
 
-		zfcp_fsf_setup_ct_els_unchained(adapter->qdio, &req->qdio_req,
-						sg_req, sg_resp);
+		zfcp_qdio_set_data_div(qdio, &req->qdio_req,
+					zfcp_qdio_sbale_count(sg_req));
+		zfcp_qdio_set_sbale_last(qdio, &req->qdio_req);
+		zfcp_qdio_set_scount(qdio, &req->qdio_req);
 		return 0;
 	}
 
 	/* use single, unchained SBAL if it can hold the request */
 	if (zfcp_qdio_sg_one_sbale(sg_req) && zfcp_qdio_sg_one_sbale(sg_resp)) {
-		zfcp_fsf_setup_ct_els_unchained(adapter->qdio, &req->qdio_req,
+		zfcp_fsf_setup_ct_els_unchained(qdio, &req->qdio_req,
 						sg_req, sg_resp);
 		return 0;
 	}
 
-	bytes = zfcp_qdio_sbals_from_sg(adapter->qdio, &req->qdio_req, sg_req);
-	if (bytes <= 0)
-		return -EIO;
-	zfcp_qdio_set_sbale_last(adapter->qdio, &req->qdio_req);
-	req->qtcb->bottom.support.req_buf_length = bytes;
-	zfcp_qdio_skip_to_last_sbale(&req->qdio_req);
+	if (!(feat & FSF_FEATURE_ELS_CT_CHAINED_SBALS))
+		return -EOPNOTSUPP;
 
-	bytes = zfcp_qdio_sbals_from_sg(adapter->qdio, &req->qdio_req,
-					sg_resp);
-	req->qtcb->bottom.support.resp_buf_length = bytes;
-	if (bytes <= 0)
+	if (zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req, sg_req))
 		return -EIO;
-	zfcp_qdio_set_sbale_last(adapter->qdio, &req->qdio_req);
+
+	qtcb->bottom.support.req_buf_length = zfcp_qdio_real_bytes(sg_req);
+
+	zfcp_qdio_set_sbale_last(qdio, &req->qdio_req);
+	zfcp_qdio_skip_to_last_sbale(qdio, &req->qdio_req);
+
+	if (zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req, sg_resp))
+		return -EIO;
+
+	qtcb->bottom.support.resp_buf_length = zfcp_qdio_real_bytes(sg_resp);
+
+	zfcp_qdio_set_sbale_last(qdio, &req->qdio_req);
 
 	return 0;
 }
@@ -1119,7 +1127,8 @@ int zfcp_fsf_send_els(struct zfcp_adapter *adapter, u32 d_id,
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
 
-	zfcp_qdio_sbal_limit(qdio, &req->qdio_req, 2);
+	if (!zfcp_adapter_multi_buffer_active(adapter))
+		zfcp_qdio_sbal_limit(qdio, &req->qdio_req, 2);
 
 	ret = zfcp_fsf_setup_ct_els(req, els->req, els->resp, timeout);
 
@@ -2162,7 +2171,7 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 	struct zfcp_fsf_req *req;
 	struct fcp_cmnd *fcp_cmnd;
 	u8 sbtype = SBAL_SFLAGS0_TYPE_READ;
-	int real_bytes, retval = -EIO, dix_bytes = 0;
+	int retval = -EIO;
 	struct scsi_device *sdev = scsi_cmnd->device;
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 	struct zfcp_adapter *adapter = zfcp_sdev->port->adapter;
@@ -2207,7 +2216,8 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 		io->ref_tag_value = scsi_get_lba(scsi_cmnd) & 0xFFFFFFFF;
 	}
 
-	zfcp_fsf_set_data_dir(scsi_cmnd, &io->data_direction);
+	if (zfcp_fsf_set_data_dir(scsi_cmnd, &io->data_direction))
+		goto failed_scsi_cmnd;
 
 	fcp_cmnd = (struct fcp_cmnd *) &req->qtcb->bottom.io.fcp_cmnd;
 	zfcp_fc_scsi_to_fcp(fcp_cmnd, scsi_cmnd, 0);
@@ -2215,18 +2225,22 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 	if (scsi_prot_sg_count(scsi_cmnd)) {
 		zfcp_qdio_set_data_div(qdio, &req->qdio_req,
 				       scsi_prot_sg_count(scsi_cmnd));
-		dix_bytes = zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req,
+		retval = zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req,
+						 scsi_prot_sglist(scsi_cmnd));
+		if (retval)
+			goto failed_scsi_cmnd;
+		io->prot_data_length = zfcp_qdio_real_bytes(
 						scsi_prot_sglist(scsi_cmnd));
-		io->prot_data_length = dix_bytes;
 	}
 
-	real_bytes = zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req,
-					     scsi_sglist(scsi_cmnd));
-
-	if (unlikely(real_bytes < 0) || unlikely(dix_bytes < 0))
+	retval = zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req,
+					 scsi_sglist(scsi_cmnd));
+	if (unlikely(retval))
 		goto failed_scsi_cmnd;
 
 	zfcp_qdio_set_sbale_last(adapter->qdio, &req->qdio_req);
+	if (zfcp_adapter_multi_buffer_active(adapter))
+		zfcp_qdio_set_scount(qdio, &req->qdio_req);
 
 	retval = zfcp_fsf_req_send(req);
 	if (unlikely(retval))
@@ -2328,7 +2342,7 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 	struct zfcp_qdio *qdio = adapter->qdio;
 	struct zfcp_fsf_req *req = NULL;
 	struct fsf_qtcb_bottom_support *bottom;
-	int retval = -EIO, bytes;
+	int retval = -EIO;
 	u8 direction;
 
 	if (!(adapter->adapter_features & FSF_FEATURE_CFDC))
@@ -2361,13 +2375,17 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 	bottom->operation_subtype = FSF_CFDC_OPERATION_SUBTYPE;
 	bottom->option = fsf_cfdc->option;
 
-	bytes = zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req, fsf_cfdc->sg);
+	retval = zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req, fsf_cfdc->sg);
 
-	if (bytes != ZFCP_CFDC_MAX_SIZE) {
+	if (retval ||
+		(zfcp_qdio_real_bytes(fsf_cfdc->sg) != ZFCP_CFDC_MAX_SIZE)) {
 		zfcp_fsf_req_free(req);
+		retval = -EIO;
 		goto out;
 	}
-	zfcp_qdio_set_sbale_last(adapter->qdio, &req->qdio_req);
+	zfcp_qdio_set_sbale_last(qdio, &req->qdio_req);
+	if (zfcp_adapter_multi_buffer_active(adapter))
+		zfcp_qdio_set_scount(qdio, &req->qdio_req);
 
 	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
 	retval = zfcp_fsf_req_send(req);

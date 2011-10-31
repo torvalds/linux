@@ -4950,7 +4950,7 @@ CheckAgain:
 
 	if ( debug_level >= DEBUG_LEVEL_DATA )
 		trace_block(info,info->rx_buf_list_ex[StartIndex].virt_addr,
-			min_t(int, framesize,SCABUFSIZE),0);
+			min_t(unsigned int, framesize, SCABUFSIZE), 0);
 
 	if (framesize) {
 		if (framesize > info->max_frame_size)
@@ -5015,14 +5015,14 @@ static void tx_load_dma_buffer(SLMP_INFO *info, const char *buf, unsigned int co
 	SCADESC_EX *desc_ex;
 
 	if ( debug_level >= DEBUG_LEVEL_DATA )
-		trace_block(info,buf, min_t(int, count,SCABUFSIZE), 1);
+		trace_block(info, buf, min_t(unsigned int, count, SCABUFSIZE), 1);
 
 	/* Copy source buffer to one or more DMA buffers, starting with
 	 * the first transmit dma buffer.
 	 */
 	for(i=0;;)
 	{
-		copy_count = min_t(unsigned short,count,SCABUFSIZE);
+		copy_count = min_t(unsigned int, count, SCABUFSIZE);
 
 		desc = &info->tx_buf_list[i];
 		desc_ex = &info->tx_buf_list_ex[i];

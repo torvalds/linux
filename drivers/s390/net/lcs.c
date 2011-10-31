@@ -2122,7 +2122,7 @@ static const struct net_device_ops lcs_mc_netdev_ops = {
 	.ndo_stop		= lcs_stop_device,
 	.ndo_get_stats		= lcs_getstats,
 	.ndo_start_xmit		= lcs_start_xmit,
-	.ndo_set_multicast_list = lcs_set_multicast_list,
+	.ndo_set_rx_mode	= lcs_set_multicast_list,
 };
 
 static int

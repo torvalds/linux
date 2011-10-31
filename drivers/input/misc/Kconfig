@@ -62,6 +62,17 @@ config INPUT_AD714X_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad714x-spi.
 
+config INPUT_BMA150
+	tristate "BMA150/SMB380 acceleration sensor support"
+	depends on I2C
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you have Bosch Sensortec's BMA150 or SMB380
+	  acceleration sensor hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bma150.
+
 config INPUT_PCSPKR
 	tristate "PC Speaker support"
 	depends on PCSPKR_PLATFORM
@@ -73,6 +84,29 @@ config INPUT_PCSPKR
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcspkr.
+
+config INPUT_PM8XXX_VIBRATOR
+	tristate "Qualcomm PM8XXX vibrator support"
+	depends on MFD_PM8XXX
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables device driver support for the vibrator
+	  on Qualcomm PM8xxx chip. This driver supports ff-memless interface
+	  from input framework.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called pm8xxx-vibrator.
+
+config INPUT_PMIC8XXX_PWRKEY
+	tristate "PMIC8XXX power key support"
+	depends on MFD_PM8XXX
+	help
+	  Say Y here if you want support for the PMIC8XXX power key.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pmic8xxx-pwrkey.
 
 config INPUT_SPARCSPKR
 	tristate "SPARC Speaker support"
@@ -378,17 +412,6 @@ config INPUT_PWM_BEEPER
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pwm-beeper.
-
-config INPUT_PMIC8XXX_PWRKEY
-	tristate "PMIC8XXX power key support"
-	depends on MFD_PM8XXX
-	help
-	  Say Y here if you want support for the PMIC8XXX power key.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pmic8xxx-pwrkey.
 
 config INPUT_GPIO_ROTARY_ENCODER
 	tristate "Rotary encoders connected to GPIO pins"

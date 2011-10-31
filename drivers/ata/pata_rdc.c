@@ -86,6 +86,8 @@ static int rdc_pata_prereset(struct ata_link *link, unsigned long deadline)
 	return ata_sff_prereset(link, deadline);
 }
 
+static DEFINE_SPINLOCK(rdc_lock);
+
 /**
  *	rdc_set_piomode - Initialize host controller PATA PIO timings
  *	@ap: Port whose timings we are configuring
@@ -101,6 +103,7 @@ static void rdc_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned int pio	= adev->pio_mode - XFER_PIO_0;
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
+	unsigned long flags;
 	unsigned int is_slave	= (adev->devno != 0);
 	unsigned int master_port= ap->port_no ? 0x42 : 0x40;
 	unsigned int slave_port	= 0x44;
@@ -123,6 +126,8 @@ static void rdc_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	if (adev->class == ATA_DEV_ATA)
 		control |= 4;	/* PPE enable */
+
+	spin_lock_irqsave(&rdc_lock, flags);
 
 	/* PIO configuration clears DTE unconditionally.  It will be
 	 * programmed in set_dmamode which is guaranteed to be called
@@ -161,6 +166,8 @@ static void rdc_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	pci_read_config_byte(dev, 0x48, &udma_enable);
 	udma_enable &= ~(1 << (2 * ap->port_no + adev->devno));
 	pci_write_config_byte(dev, 0x48, udma_enable);
+
+	spin_unlock_irqrestore(&rdc_lock, flags);
 }
 
 /**
@@ -177,6 +184,7 @@ static void rdc_set_piomode(struct ata_port *ap, struct ata_device *adev)
 static void rdc_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
+	unsigned long flags;
 	u8 master_port		= ap->port_no ? 0x42 : 0x40;
 	u16 master_data;
 	u8 speed		= adev->dma_mode;
@@ -189,6 +197,8 @@ static void rdc_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 			    { 1, 0 },
 			    { 2, 1 },
 			    { 2, 3 }, };
+
+	spin_lock_irqsave(&rdc_lock, flags);
 
 	pci_read_config_word(dev, master_port, &master_data);
 	pci_read_config_byte(dev, 0x48, &udma_enable);
@@ -271,6 +281,8 @@ static void rdc_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		pci_write_config_word(dev, master_port, master_data);
 	}
 	pci_write_config_byte(dev, 0x48, udma_enable);
+
+	spin_unlock_irqrestore(&rdc_lock, flags);
 }
 
 static struct ata_port_operations rdc_pata_ops = {
@@ -375,6 +387,10 @@ static struct pci_driver rdc_pci_driver = {
 	.id_table		= rdc_pci_tbl,
 	.probe			= rdc_init_one,
 	.remove			= rdc_remove_one,
+#ifdef CONFIG_PM
+	.suspend		= ata_pci_device_suspend,
+	.resume			= ata_pci_device_resume,
+#endif
 };
 
 

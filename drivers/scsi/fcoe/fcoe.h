@@ -80,6 +80,7 @@ do {                                                            	\
 struct fcoe_interface {
 	struct list_head   list;
 	struct net_device  *netdev;
+	struct net_device  *realdev;
 	struct packet_type fcoe_packet_type;
 	struct packet_type fip_packet_type;
 	struct fcoe_ctlr   ctlr;
@@ -97,16 +98,6 @@ static inline struct net_device *fcoe_netdev(const struct fc_lport *lport)
 {
 	return ((struct fcoe_interface *)
 			((struct fcoe_port *)lport_priv(lport))->priv)->netdev;
-}
-
-static inline void wwn_to_str(u64 wwn, char *buf, int len)
-{
-	u8 wwpn[8];
-
-	u64_to_wwn(wwn, wwpn);
-	snprintf(buf, len, "%02x%02x%02x%02x%02x%02x%02x%02x",
-		wwpn[0], wwpn[1], wwpn[2], wwpn[3],
-		wwpn[4], wwpn[5], wwpn[6], wwpn[7]);
 }
 
 #endif /* _FCOE_H_ */

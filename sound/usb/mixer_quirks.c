@@ -190,18 +190,18 @@ static int snd_audigy2nx_led_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 		err = snd_usb_ctl_msg(mixer->chip->dev,
 			      usb_sndctrlpipe(mixer->chip->dev, 0), 0x24,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
-			      !value, 0, NULL, 0, 100);
+			      !value, 0, NULL, 0);
 	/* USB X-Fi S51 Pro */
 	if (mixer->chip->usb_id == USB_ID(0x041e, 0x30df))
 		err = snd_usb_ctl_msg(mixer->chip->dev,
 			      usb_sndctrlpipe(mixer->chip->dev, 0), 0x24,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
-			      !value, 0, NULL, 0, 100);
+			      !value, 0, NULL, 0);
 	else
 		err = snd_usb_ctl_msg(mixer->chip->dev,
 			      usb_sndctrlpipe(mixer->chip->dev, 0), 0x24,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
-			      value, index + 2, NULL, 0, 100);
+			      value, index + 2, NULL, 0);
 	if (err < 0)
 		return err;
 	mixer->audigy2nx_leds[index] = value;
@@ -299,7 +299,7 @@ static void snd_audigy2nx_proc_read(struct snd_info_entry *entry,
 				      usb_rcvctrlpipe(mixer->chip->dev, 0),
 				      UAC_GET_MEM, USB_DIR_IN | USB_TYPE_CLASS |
 				      USB_RECIP_INTERFACE, 0,
-				      jacks[i].unitid << 8, buf, 3, 100);
+				      jacks[i].unitid << 8, buf, 3);
 		if (err == 3 && (buf[0] == 3 || buf[0] == 6))
 			snd_iprintf(buffer, "%02x %02x\n", buf[1], buf[2]);
 		else
@@ -332,7 +332,7 @@ static int snd_xonar_u1_switch_put(struct snd_kcontrol *kcontrol,
 	err = snd_usb_ctl_msg(mixer->chip->dev,
 			      usb_sndctrlpipe(mixer->chip->dev, 0), 0x08,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
-			      50, 0, &new_status, 1, 100);
+			      50, 0, &new_status, 1);
 	if (err < 0)
 		return err;
 	mixer->xonar_u1_status = new_status;

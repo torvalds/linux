@@ -123,17 +123,17 @@ void map__fixup_end(struct map *self);
 
 void map__reloc_vmlinux(struct map *self);
 
-size_t __map_groups__fprintf_maps(struct map_groups *self,
+size_t __map_groups__fprintf_maps(struct map_groups *mg,
 				  enum map_type type, int verbose, FILE *fp);
 void maps__insert(struct rb_root *maps, struct map *map);
-void maps__remove(struct rb_root *self, struct map *map);
+void maps__remove(struct rb_root *maps, struct map *map);
 struct map *maps__find(struct rb_root *maps, u64 addr);
-void map_groups__init(struct map_groups *self);
-void map_groups__exit(struct map_groups *self);
-int map_groups__clone(struct map_groups *self,
+void map_groups__init(struct map_groups *mg);
+void map_groups__exit(struct map_groups *mg);
+int map_groups__clone(struct map_groups *mg,
 		      struct map_groups *parent, enum map_type type);
-size_t map_groups__fprintf(struct map_groups *self, int verbose, FILE *fp);
-size_t map_groups__fprintf_maps(struct map_groups *self, int verbose, FILE *fp);
+size_t map_groups__fprintf(struct map_groups *mg, int verbose, FILE *fp);
+size_t map_groups__fprintf_maps(struct map_groups *mg, int verbose, FILE *fp);
 
 typedef void (*machine__process_t)(struct machine *self, void *data);
 
@@ -162,29 +162,29 @@ static inline bool machine__is_host(struct machine *self)
 	return self ? self->pid == HOST_KERNEL_ID : false;
 }
 
-static inline void map_groups__insert(struct map_groups *self, struct map *map)
+static inline void map_groups__insert(struct map_groups *mg, struct map *map)
 {
-	maps__insert(&self->maps[map->type], map);
-	map->groups = self;
+	maps__insert(&mg->maps[map->type], map);
+	map->groups = mg;
 }
 
-static inline void map_groups__remove(struct map_groups *self, struct map *map)
+static inline void map_groups__remove(struct map_groups *mg, struct map *map)
 {
-	maps__remove(&self->maps[map->type], map);
+	maps__remove(&mg->maps[map->type], map);
 }
 
-static inline struct map *map_groups__find(struct map_groups *self,
+static inline struct map *map_groups__find(struct map_groups *mg,
 					   enum map_type type, u64 addr)
 {
-	return maps__find(&self->maps[type], addr);
+	return maps__find(&mg->maps[type], addr);
 }
 
-struct symbol *map_groups__find_symbol(struct map_groups *self,
+struct symbol *map_groups__find_symbol(struct map_groups *mg,
 				       enum map_type type, u64 addr,
 				       struct map **mapp,
 				       symbol_filter_t filter);
 
-struct symbol *map_groups__find_symbol_by_name(struct map_groups *self,
+struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
 					       enum map_type type,
 					       const char *name,
 					       struct map **mapp,
@@ -208,11 +208,11 @@ struct symbol *machine__find_kernel_function(struct machine *self, u64 addr,
 }
 
 static inline
-struct symbol *map_groups__find_function_by_name(struct map_groups *self,
+struct symbol *map_groups__find_function_by_name(struct map_groups *mg,
 						 const char *name, struct map **mapp,
 						 symbol_filter_t filter)
 {
-	return map_groups__find_symbol_by_name(self, MAP__FUNCTION, name, mapp, filter);
+	return map_groups__find_symbol_by_name(mg, MAP__FUNCTION, name, mapp, filter);
 }
 
 static inline
@@ -225,13 +225,13 @@ struct symbol *machine__find_kernel_function_by_name(struct machine *self,
 						 filter);
 }
 
-int map_groups__fixup_overlappings(struct map_groups *self, struct map *map,
+int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map,
 				   int verbose, FILE *fp);
 
-struct map *map_groups__find_by_name(struct map_groups *self,
+struct map *map_groups__find_by_name(struct map_groups *mg,
 				     enum map_type type, const char *name);
 struct map *machine__new_module(struct machine *self, u64 start, const char *filename);
 
-void map_groups__flush(struct map_groups *self);
+void map_groups__flush(struct map_groups *mg);
 
 #endif /* __PERF_MAP_H */

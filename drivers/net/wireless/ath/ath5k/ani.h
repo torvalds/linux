@@ -16,6 +16,10 @@
 #ifndef ANI_H
 #define ANI_H
 
+#include "../ath.h"
+
+enum ath5k_phy_error_code;
+
 /* these thresholds are relative to the ATH5K_ANI_LISTEN_PERIOD */
 #define ATH5K_ANI_LISTEN_PERIOD		100
 #define ATH5K_ANI_OFDM_TRIG_HIGH	500

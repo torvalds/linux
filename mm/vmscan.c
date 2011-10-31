@@ -1416,7 +1416,7 @@ static inline bool should_reclaim_stall(unsigned long nr_taken,
 	if (sc->reclaim_mode & RECLAIM_MODE_SINGLE)
 		return false;
 
-	/* If we have relaimed everything on the isolated list, no stall */
+	/* If we have reclaimed everything on the isolated list, no stall */
 	if (nr_freed == nr_taken)
 		return false;
 

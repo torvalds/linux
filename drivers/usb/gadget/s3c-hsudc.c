@@ -26,6 +26,7 @@
 #include <linux/clk.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/otg.h>
 #include <linux/prefetch.h>
 
 #include <mach/regs-s3c2443-clock.h>
@@ -137,6 +138,7 @@ struct s3c_hsudc {
 	struct usb_gadget_driver *driver;
 	struct device *dev;
 	struct s3c24xx_hsudc_platdata *pd;
+	struct otg_transceiver *transceiver;
 	spinlock_t lock;
 	void __iomem *regs;
 	struct resource *mem_rsrc;
@@ -759,11 +761,11 @@ static int s3c_hsudc_ep_enable(struct usb_ep *_ep,
 	if (!_ep || !desc || hsep->desc || _ep->name == ep0name
 		|| desc->bDescriptorType != USB_DT_ENDPOINT
 		|| hsep->bEndpointAddress != desc->bEndpointAddress
-		|| ep_maxpacket(hsep) < le16_to_cpu(desc->wMaxPacketSize))
+		|| ep_maxpacket(hsep) < usb_endpoint_maxp(desc))
 		return -EINVAL;
 
 	if ((desc->bmAttributes == USB_ENDPOINT_XFER_BULK
-		&& le16_to_cpu(desc->wMaxPacketSize) != ep_maxpacket(hsep))
+		&& usb_endpoint_maxp(desc) != ep_maxpacket(hsep))
 		|| !desc->wMaxPacketSize)
 		return -ERANGE;
 
@@ -779,7 +781,7 @@ static int s3c_hsudc_ep_enable(struct usb_ep *_ep,
 
 	hsep->stopped = hsep->wedge = 0;
 	hsep->desc = desc;
-	hsep->ep.maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	hsep->ep.maxpacket = usb_endpoint_maxp(desc);
 
 	s3c_hsudc_set_halt(_ep, 0);
 	__set_bit(ep_index(hsep), hsudc->regs + S3C_EIER);
@@ -1171,6 +1173,22 @@ static int s3c_hsudc_start(struct usb_gadget_driver *driver,
 		return ret;
 	}
 
+	/* connect to bus through transceiver */
+	if (hsudc->transceiver) {
+		ret = otg_set_peripheral(hsudc->transceiver, &hsudc->gadget);
+		if (ret) {
+			dev_err(hsudc->dev, "%s: can't bind to transceiver\n",
+					hsudc->gadget.name);
+			driver->unbind(&hsudc->gadget);
+
+			device_del(&hsudc->gadget.dev);
+
+			hsudc->driver = NULL;
+			hsudc->gadget.dev.driver = NULL;
+			return ret;
+		}
+	}
+
 	enable_irq(hsudc->irq);
 	dev_info(hsudc->dev, "bound driver %s\n", driver->driver.name);
 
@@ -1201,6 +1219,9 @@ static int s3c_hsudc_stop(struct usb_gadget_driver *driver)
 	s3c_hsudc_stop_activity(hsudc, driver);
 	spin_unlock_irqrestore(&hsudc->lock, flags);
 
+	if (hsudc->transceiver)
+		(void) otg_set_peripheral(hsudc->transceiver, NULL);
+
 	driver->unbind(&hsudc->gadget);
 	device_del(&hsudc->gadget.dev);
 	disable_irq(hsudc->irq);
@@ -1220,10 +1241,24 @@ static int s3c_hsudc_gadget_getframe(struct usb_gadget *gadget)
 	return s3c_hsudc_read_frameno(to_hsudc(gadget));
 }
 
+static int s3c_hsudc_vbus_draw(struct usb_gadget *gadget, unsigned mA)
+{
+	struct s3c_hsudc *hsudc = the_controller;
+
+	if (!hsudc)
+		return -ENODEV;
+
+	if (hsudc->transceiver)
+		return otg_set_power(hsudc->transceiver, mA);
+
+	return -EOPNOTSUPP;
+}
+
 static struct usb_gadget_ops s3c_hsudc_gadget_ops = {
 	.get_frame	= s3c_hsudc_gadget_getframe,
 	.start		= s3c_hsudc_start,
 	.stop		= s3c_hsudc_stop,
+	.vbus_draw	= s3c_hsudc_vbus_draw,
 };
 
 static int s3c_hsudc_probe(struct platform_device *pdev)
@@ -1247,6 +1282,8 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	hsudc->dev = dev;
 	hsudc->pd = pdev->dev.platform_data;
 
+	hsudc->transceiver = otg_get_transceiver();
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "unable to obtain driver resource data\n");
@@ -1269,19 +1306,6 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 		goto err_remap;
 	}
 
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(dev, "unable to obtain IRQ number\n");
-		goto err_irq;
-	}
-	hsudc->irq = ret;
-
-	ret = request_irq(hsudc->irq, s3c_hsudc_irq, 0, driver_name, hsudc);
-	if (ret < 0) {
-		dev_err(dev, "irq request failed\n");
-		goto err_irq;
-	}
-
 	spin_lock_init(&hsudc->lock);
 
 	device_initialize(&hsudc->gadget.dev);
@@ -1298,6 +1322,19 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	hsudc->gadget.is_a_peripheral = 0;
 
 	s3c_hsudc_setup_ep(hsudc);
+
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0) {
+		dev_err(dev, "unable to obtain IRQ number\n");
+		goto err_irq;
+	}
+	hsudc->irq = ret;
+
+	ret = request_irq(hsudc->irq, s3c_hsudc_irq, 0, driver_name, hsudc);
+	if (ret < 0) {
+		dev_err(dev, "irq request failed\n");
+		goto err_irq;
+	}
 
 	hsudc->uclk = clk_get(&pdev->dev, "usb-device");
 	if (IS_ERR(hsudc->uclk)) {

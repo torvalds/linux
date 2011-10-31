@@ -440,6 +440,18 @@ static inline bool is_c0(struct pci_dev *pdev)
 	return false;
 }
 
+/* set hw control for 'activity', even though active enclosures seem to drive
+ * the activity led on their own.  Skip setting FSENG control on 'status' due
+ * to unexpected operation and 'error' due to not being a supported automatic
+ * FSENG output
+ */
+#define SGPIO_HW_CONTROL 0x00000443
+
+static inline int isci_gpio_count(struct isci_host *ihost)
+{
+	return ARRAY_SIZE(ihost->scu_registers->peg0.sgpio.output_data_select);
+}
+
 void sci_controller_post_request(struct isci_host *ihost,
 				      u32 request);
 void sci_controller_release_frame(struct isci_host *ihost,
@@ -542,4 +554,7 @@ void sci_port_configuration_agent_construct(
 enum sci_status sci_port_configuration_agent_initialize(
 	struct isci_host *ihost,
 	struct sci_port_configuration_agent *port_agent);
+
+int isci_gpio_write(struct sas_ha_struct *, u8 reg_type, u8 reg_index,
+		    u8 reg_count, u8 *write_data);
 #endif

@@ -32,12 +32,38 @@ struct nvc0_fb_priv {
 	dma_addr_t r100c10;
 };
 
+static inline void
+nvc0_mfb_subp_isr(struct drm_device *dev, int unit, int subp)
+{
+	u32 subp_base = 0x141000 + (unit * 0x2000) + (subp * 0x400);
+	u32 stat = nv_rd32(dev, subp_base + 0x020);
+
+	if (stat) {
+		NV_INFO(dev, "PMFB%d_SUBP%d: 0x%08x\n", unit, subp, stat);
+		nv_wr32(dev, subp_base + 0x020, stat);
+	}
+}
+
+static void
+nvc0_mfb_isr(struct drm_device *dev)
+{
+	u32 units = nv_rd32(dev, 0x00017c);
+	while (units) {
+		u32 subp, unit = ffs(units) - 1;
+		for (subp = 0; subp < 2; subp++)
+			nvc0_mfb_subp_isr(dev, unit, subp);
+		units &= ~(1 << unit);
+	}
+}
+
 static void
 nvc0_fb_destroy(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
 	struct nvc0_fb_priv *priv = pfb->priv;
+
+	nouveau_irq_unregister(dev, 25);
 
 	if (priv->r100c10_page) {
 		pci_unmap_page(dev->pdev, priv->r100c10, PAGE_SIZE,
@@ -74,6 +100,7 @@ nvc0_fb_create(struct drm_device *dev)
 		return -EFAULT;
 	}
 
+	nouveau_irq_register(dev, 25, nvc0_mfb_isr);
 	return 0;
 }
 

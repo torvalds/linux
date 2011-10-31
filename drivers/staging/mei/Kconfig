@@ -1,6 +1,6 @@
 config INTEL_MEI
 	tristate "Intel Management Engine Interface (Intel MEI)"
-	depends on X86 && PCI && EXPERIMENTAL
+	depends on X86 && PCI && EXPERIMENTAL && WATCHDOG_CORE
 	help
 	  The Intel Management Engine (Intel ME) provides Manageability,
 	  Security and Media services for system containing Intel chipsets.

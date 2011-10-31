@@ -24,6 +24,8 @@ menuconfig STAGING
 
 if STAGING
 
+source "drivers/staging/serial/Kconfig"
+
 source "drivers/staging/et131x/Kconfig"
 
 source "drivers/staging/slicoss/Kconfig"
@@ -44,8 +46,6 @@ source "drivers/staging/wlan-ng/Kconfig"
 
 source "drivers/staging/echo/Kconfig"
 
-source "drivers/staging/brcm80211/Kconfig"
-
 source "drivers/staging/comedi/Kconfig"
 
 source "drivers/staging/olpc_dcon/Kconfig"
@@ -64,6 +64,8 @@ source "drivers/staging/rtl8712/Kconfig"
 
 source "drivers/staging/rts_pstor/Kconfig"
 
+source "drivers/staging/rts5139/Kconfig"
+
 source "drivers/staging/frontier/Kconfig"
 
 source "drivers/staging/pohmelfs/Kconfig"
@@ -71,8 +73,6 @@ source "drivers/staging/pohmelfs/Kconfig"
 source "drivers/staging/phison/Kconfig"
 
 source "drivers/staging/line6/Kconfig"
-
-source "drivers/gpu/drm/vmwgfx/Kconfig"
 
 source "drivers/gpu/drm/nouveau/Kconfig"
 
@@ -125,8 +125,6 @@ source "drivers/staging/tidspbridge/Kconfig"
 source "drivers/staging/quickstart/Kconfig"
 
 source "drivers/staging/sbe-2t3e3/Kconfig"
-
-source "drivers/staging/ath6kl/Kconfig"
 
 source "drivers/staging/keucr/Kconfig"
 

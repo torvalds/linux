@@ -13,6 +13,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -33,7 +34,6 @@
 
 #include <plat/board-voiceblue.h>
 #include <plat/common.h>
-#include <mach/gpio.h>
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
@@ -301,7 +301,7 @@ static void __init voiceblue_init(void)
 
 MACHINE_START(VOICEBLUE, "VoiceBlue OMAP5910")
 	/* Maintainer: Ladislav Michl <michl@2n.cz> */
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= voiceblue_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= voiceblue_init_irq,

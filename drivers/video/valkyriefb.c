@@ -555,7 +555,7 @@ static int __init valkyrie_init_info(struct fb_info *info,
 
 
 /*
- * Parse user speficied options (`video=valkyriefb:')
+ * Parse user specified options (`video=valkyriefb:')
  */
 int __init valkyriefb_setup(char *options)
 {

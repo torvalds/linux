@@ -27,7 +27,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
 
-static const enum dcb_gpio_tag vidtag[] = { 0x04, 0x05, 0x06, 0x1a };
+static const enum dcb_gpio_tag vidtag[] = { 0x04, 0x05, 0x06, 0x1a, 0x73 };
 static int nr_vidtag = sizeof(vidtag) / sizeof(vidtag[0]);
 
 int
@@ -170,6 +170,13 @@ nouveau_volt_init(struct drm_device *dev)
 		 */
 		vidshift  = 2;
 		break;
+	case 0x40:
+		headerlen = volt[1];
+		recordlen = volt[2];
+		entries   = volt[3]; /* not a clue what the entries are for.. */
+		vidmask   = volt[11]; /* guess.. */
+		vidshift  = 0;
+		break;
 	default:
 		NV_WARN(dev, "voltage table 0x%02x unknown\n", volt[0]);
 		return;
@@ -197,16 +204,37 @@ nouveau_volt_init(struct drm_device *dev)
 	}
 
 	/* parse vbios entries into common format */
-	voltage->level = kcalloc(entries, sizeof(*voltage->level), GFP_KERNEL);
-	if (!voltage->level)
-		return;
+	voltage->version = volt[0];
+	if (voltage->version < 0x40) {
+		voltage->nr_level = entries;
+		voltage->level =
+			kcalloc(entries, sizeof(*voltage->level), GFP_KERNEL);
+		if (!voltage->level)
+			return;
 
-	entry = volt + headerlen;
-	for (i = 0; i < entries; i++, entry += recordlen) {
-		voltage->level[i].voltage = entry[0];
-		voltage->level[i].vid     = entry[1] >> vidshift;
+		entry = volt + headerlen;
+		for (i = 0; i < entries; i++, entry += recordlen) {
+			voltage->level[i].voltage = entry[0] * 10000;
+			voltage->level[i].vid     = entry[1] >> vidshift;
+		}
+	} else {
+		u32 volt_uv = ROM32(volt[4]);
+		s16 step_uv = ROM16(volt[8]);
+		u8 vid;
+
+		voltage->nr_level = voltage->vid_mask + 1;
+		voltage->level = kcalloc(voltage->nr_level,
+					 sizeof(*voltage->level), GFP_KERNEL);
+		if (!voltage->level)
+			return;
+
+		for (vid = 0; vid <= voltage->vid_mask; vid++) {
+			voltage->level[vid].voltage = volt_uv;
+			voltage->level[vid].vid = vid;
+			volt_uv += step_uv;
+		}
 	}
-	voltage->nr_level  = entries;
+
 	voltage->supported = true;
 }
 

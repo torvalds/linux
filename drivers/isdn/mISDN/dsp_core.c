@@ -1052,12 +1052,11 @@ dspcreate(struct channel_req *crq)
 	if (crq->protocol != ISDN_P_B_L2DSP
 	 && crq->protocol != ISDN_P_B_L2DSPHDLC)
 		return -EPROTONOSUPPORT;
-	ndsp = vmalloc(sizeof(struct dsp));
+	ndsp = vzalloc(sizeof(struct dsp));
 	if (!ndsp) {
 		printk(KERN_ERR "%s: vmalloc struct dsp failed\n", __func__);
 		return -ENOMEM;
 	}
-	memset(ndsp, 0, sizeof(struct dsp));
 	if (dsp_debug & DEBUG_DSP_CTRL)
 		printk(KERN_DEBUG "%s: creating new dsp instance\n", __func__);
 

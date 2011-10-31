@@ -39,6 +39,10 @@
  *
  * @NFC_CMD_GET_DEVICE: request information about a device (requires
  *	%NFC_ATTR_DEVICE_INDEX) or dump request to get a list of all nfc devices
+ * @NFC_CMD_DEV_UP: turn on the nfc device
+ *	(requires %NFC_ATTR_DEVICE_INDEX)
+ * @NFC_CMD_DEV_DOWN: turn off the nfc device
+ *	(requires %NFC_ATTR_DEVICE_INDEX)
  * @NFC_CMD_START_POLL: start polling for targets using the given protocols
  *	(requires %NFC_ATTR_DEVICE_INDEX and %NFC_ATTR_PROTOCOLS)
  * @NFC_CMD_STOP_POLL: stop polling for targets (requires
@@ -56,6 +60,8 @@
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
 	NFC_CMD_GET_DEVICE,
+	NFC_CMD_DEV_UP,
+	NFC_CMD_DEV_DOWN,
 	NFC_CMD_START_POLL,
 	NFC_CMD_STOP_POLL,
 	NFC_CMD_GET_TARGET,
@@ -122,5 +128,7 @@ struct sockaddr_nfc {
 /* NFC socket protocols */
 #define NFC_SOCKPROTO_RAW	0
 #define NFC_SOCKPROTO_MAX	1
+
+#define NFC_HEADER_SIZE 1
 
 #endif /*__LINUX_NFC_H */

@@ -286,6 +286,25 @@ isci_task_set_completion_status(
 	task->task_status.resp = response;
 	task->task_status.stat = status;
 
+	switch (task->task_proto) {
+
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+
+		if (task_notification_selection
+		    == isci_perform_error_io_completion) {
+			/* SATA/STP I/O has it's own means of scheduling device
+			* error handling on the normal path.
+			*/
+			task_notification_selection
+				= isci_perform_normal_io_completion;
+		}
+		break;
+	default:
+		break;
+	}
+
 	switch (task_notification_selection) {
 
 	case isci_perform_error_io_completion:

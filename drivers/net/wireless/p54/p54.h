@@ -199,6 +199,22 @@ struct p54_common {
 	u8 tx_diversity_mask;
 	unsigned int output_power;
 	struct p54_rssi_db_entry *cur_rssi;
+	struct ieee80211_channel *curchan;
+	struct survey_info *survey;
+	unsigned int chan_num;
+	struct completion stat_comp;
+	bool update_stats;
+	struct {
+		unsigned int timestamp;
+		unsigned int cached_cca;
+		unsigned int cached_tx;
+		unsigned int cached_rssi;
+		u64 active;
+		u64 cca;
+		u64 tx;
+		u64 rssi;
+	} survey_raw;
+
 	int noise;
 	/* calibration, output power limit and rssi<->dBm conversation data */
 	struct pda_iq_autocal_entry *iq_autocal;
@@ -220,6 +236,8 @@ struct p54_common {
 	u32 basic_rate_mask;
 	u16 aid;
 	u8 coverage_class;
+	bool phy_idle;
+	bool phy_ps;
 	bool powersave_override;
 	__le32 beacon_req_id;
 	struct completion beacon_comp;

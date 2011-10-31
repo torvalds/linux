@@ -34,6 +34,7 @@
 #include "endpoint.h"
 #include "pcm.h"
 #include "clock.h"
+#include "stream.h"
 
 /*
  * handle the quirks for the contained interfaces
@@ -106,7 +107,7 @@ static int create_standard_audio_quirk(struct snd_usb_audio *chip,
 
 	alts = &iface->altsetting[0];
 	altsd = get_iface_desc(alts);
-	err = snd_usb_parse_audio_endpoints(chip, altsd->bInterfaceNumber);
+	err = snd_usb_parse_audio_interface(chip, altsd->bInterfaceNumber);
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot setup if %d: error %d\n",
 			   altsd->bInterfaceNumber, err);
@@ -147,7 +148,7 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 
 	stream = (fp->endpoint & USB_DIR_IN)
 		? SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
-	err = snd_usb_add_audio_endpoint(chip, stream, fp);
+	err = snd_usb_add_audio_stream(chip, stream, fp);
 	if (err < 0) {
 		kfree(fp);
 		kfree(rate_table);
@@ -254,7 +255,7 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 
 	stream = (fp->endpoint & USB_DIR_IN)
 		? SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
-	err = snd_usb_add_audio_endpoint(chip, stream, fp);
+	err = snd_usb_add_audio_stream(chip, stream, fp);
 	if (err < 0) {
 		kfree(fp);
 		return err;
@@ -306,6 +307,7 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 		[QUIRK_MIDI_EMAGIC] = create_any_midi_quirk,
 		[QUIRK_MIDI_CME] = create_any_midi_quirk,
 		[QUIRK_MIDI_AKAI] = create_any_midi_quirk,
+		[QUIRK_MIDI_FTDI] = create_any_midi_quirk,
 		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_audio_quirk,
 		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
 		[QUIRK_AUDIO_EDIROL_UAXX] = create_uaxx_quirk,
@@ -338,7 +340,7 @@ static int snd_usb_extigy_boot_quirk(struct usb_device *dev, struct usb_interfac
 		snd_printdd("sending Extigy boot sequence...\n");
 		/* Send message to force it to reconnect with full interface. */
 		err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev,0),
-				      0x10, 0x43, 0x0001, 0x000a, NULL, 0, 1000);
+				      0x10, 0x43, 0x0001, 0x000a, NULL, 0);
 		if (err < 0) snd_printdd("error sending boot message: %d\n", err);
 		err = usb_get_descriptor(dev, USB_DT_DEVICE, 0,
 				&dev->descriptor, sizeof(dev->descriptor));
@@ -359,11 +361,11 @@ static int snd_usb_audigy2nx_boot_quirk(struct usb_device *dev)
 
 	snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), 0x2a,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_OTHER,
-			0, 0, &buf, 1, 1000);
+			0, 0, &buf, 1);
 	if (buf == 0) {
 		snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), 0x29,
 				USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
-				1, 2000, NULL, 0, 1000);
+				1, 2000, NULL, 0);
 		return -ENODEV;
 	}
 	return 0;
@@ -406,7 +408,7 @@ static int snd_usb_cm106_write_int_reg(struct usb_device *dev, int reg, u16 valu
 	buf[3] = reg;
 	return snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), USB_REQ_SET_CONFIGURATION,
 			       USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_ENDPOINT,
-			       0, 0, &buf, 4, 1000);
+			       0, 0, &buf, 4);
 }
 
 static int snd_usb_cm106_boot_quirk(struct usb_device *dev)

@@ -24,11 +24,9 @@
 
 #include <mach/pinmux.h>
 #include "board.h"
+#include "board-harmony.h"
 
 #ifdef CONFIG_TEGRA_PCI
-
-/* GPIO 3 of the PMIC */
-#define EN_VDD_1V05_GPIO	(TEGRA_NR_GPIOS + 2)
 
 static int __init harmony_pcie_init(void)
 {
@@ -38,11 +36,11 @@ static int __init harmony_pcie_init(void)
 	if (!machine_is_harmony())
 		return 0;
 
-	err = gpio_request(EN_VDD_1V05_GPIO, "EN_VDD_1V05");
+	err = gpio_request(TEGRA_GPIO_EN_VDD_1V05_GPIO, "EN_VDD_1V05");
 	if (err)
 		return err;
 
-	gpio_direction_output(EN_VDD_1V05_GPIO, 1);
+	gpio_direction_output(TEGRA_GPIO_EN_VDD_1V05_GPIO, 1);
 
 	regulator = regulator_get(NULL, "pex_clk");
 	if (IS_ERR_OR_NULL(regulator))
@@ -68,7 +66,7 @@ err_pcie:
 	regulator_disable(regulator);
 	regulator_put(regulator);
 err_reg:
-	gpio_free(EN_VDD_1V05_GPIO);
+	gpio_free(TEGRA_GPIO_EN_VDD_1V05_GPIO);
 
 	return err;
 }

@@ -33,8 +33,7 @@ struct wis_tw2804 {
 	int hue;
 };
 
-static u8 global_registers[] =
-{
+static u8 global_registers[] = {
 	0x39, 0x00,
 	0x3a, 0xff,
 	0x3b, 0x84,
@@ -45,8 +44,7 @@ static u8 global_registers[] =
 	0xff, 0xff, /* Terminator (reg 0xff does not exist) */
 };
 
-static u8 channel_registers[] =
-{
+static u8 channel_registers[] = {
 	0x01, 0xc4,
 	0x02, 0xa5,
 	0x03, 0x20,

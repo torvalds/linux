@@ -192,7 +192,7 @@ static ssize_t rbd_snap_add(struct device *dev,
 			    const char *buf,
 			    size_t count);
 static void __rbd_remove_snap_dev(struct rbd_device *rbd_dev,
-				  struct rbd_snap *snap);;
+				  struct rbd_snap *snap);
 
 
 static struct rbd_device *dev_to_rbd(struct device *dev)
@@ -260,7 +260,7 @@ static struct rbd_client *rbd_client_create(struct ceph_options *opt,
 	kref_init(&rbdc->kref);
 	INIT_LIST_HEAD(&rbdc->node);
 
-	rbdc->client = ceph_create_client(opt, rbdc);
+	rbdc->client = ceph_create_client(opt, rbdc, 0, 0);
 	if (IS_ERR(rbdc->client))
 		goto out_rbdc;
 	opt = NULL; /* Now rbdc->client is responsible for opt */

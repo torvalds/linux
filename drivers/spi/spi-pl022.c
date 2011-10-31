@@ -113,7 +113,6 @@
 #define SSP_CR0_MASK_CSS_ST	(0x1FUL << 16)
 #define SSP_CR0_MASK_FRF_ST	(0x3UL << 21)
 
-
 /*
  * SSP Control Register 0  - SSP_CR1
  */
@@ -282,7 +281,6 @@
 #define CLEAR_ALL_INTERRUPTS  0x3
 
 #define SPI_POLLING_TIMEOUT 1000
-
 
 /*
  * The type of reading going on on this chip
@@ -515,9 +513,6 @@ static void giveback(struct pl022 *pl022)
 	if (msg->complete)
 		msg->complete(msg->context);
 	/* This message is completed, so let's turn off the clocks & power */
-	clk_disable(pl022->clk);
-	amba_pclk_disable(pl022->adev);
-	amba_vcore_disable(pl022->adev);
 	pm_runtime_put(&pl022->adev->dev);
 }
 
@@ -751,7 +746,6 @@ static void readwriter(struct pl022 *pl022)
 	 * should be empty
 	 */
 }
-
 
 /**
  * next_transfer - Move to the Next transfer in the current spi message
@@ -1019,14 +1013,14 @@ static int configure_dma(struct pl022 *pl022)
 	dmaengine_slave_config(txchan, &tx_conf);
 
 	/* Create sglists for the transfers */
-	pages = (pl022->cur_transfer->len >> PAGE_SHIFT) + 1;
+	pages = DIV_ROUND_UP(pl022->cur_transfer->len, PAGE_SIZE);
 	dev_dbg(&pl022->adev->dev, "using %d pages for transfer\n", pages);
 
-	ret = sg_alloc_table(&pl022->sgt_rx, pages, GFP_KERNEL);
+	ret = sg_alloc_table(&pl022->sgt_rx, pages, GFP_ATOMIC);
 	if (ret)
 		goto err_alloc_rx_sg;
 
-	ret = sg_alloc_table(&pl022->sgt_tx, pages, GFP_KERNEL);
+	ret = sg_alloc_table(&pl022->sgt_tx, pages, GFP_ATOMIC);
 	if (ret)
 		goto err_alloc_tx_sg;
 
@@ -1534,8 +1528,7 @@ static void pump_messages(struct work_struct *work)
 	/* Initial message state */
 	pl022->cur_msg->state = STATE_START;
 	pl022->cur_transfer = list_entry(pl022->cur_msg->transfers.next,
-					    struct spi_transfer,
-					    transfer_list);
+					    struct spi_transfer, transfer_list);
 
 	/* Setup the SPI using the per chip configuration */
 	pl022->cur_chip = spi_get_ctldata(pl022->cur_msg->spi);
@@ -1545,9 +1538,6 @@ static void pump_messages(struct work_struct *work)
 	 * (poll/interrupt/DMA)
 	 */
 	pm_runtime_get_sync(&pl022->adev->dev);
-	amba_vcore_enable(pl022->adev);
-	amba_pclk_enable(pl022->adev);
-	clk_enable(pl022->clk);
 	restore_state(pl022);
 	flush(pl022);
 
@@ -1557,7 +1547,6 @@ static void pump_messages(struct work_struct *work)
 		do_interrupt_dma_transfer(pl022);
 }
 
-
 static int __init init_queue(struct pl022 *pl022)
 {
 	INIT_LIST_HEAD(&pl022->queue);
@@ -1566,8 +1555,8 @@ static int __init init_queue(struct pl022 *pl022)
 	pl022->running = false;
 	pl022->busy = false;
 
-	tasklet_init(&pl022->pump_transfers,
-			pump_transfers,	(unsigned long)pl022);
+	tasklet_init(&pl022->pump_transfers, pump_transfers,
+			(unsigned long)pl022);
 
 	INIT_WORK(&pl022->pump_messages, pump_messages);
 	pl022->workqueue = create_singlethread_workqueue(
@@ -1577,7 +1566,6 @@ static int __init init_queue(struct pl022 *pl022)
 
 	return 0;
 }
-
 
 static int start_queue(struct pl022 *pl022)
 {
@@ -1600,7 +1588,6 @@ static int start_queue(struct pl022 *pl022)
 
 	return 0;
 }
-
 
 static int stop_queue(struct pl022 *pl022)
 {
@@ -1797,70 +1784,69 @@ static int pl022_transfer(struct spi_device *spi, struct spi_message *msg)
 	return 0;
 }
 
-static int calculate_effective_freq(struct pl022 *pl022,
-				    int freq,
-				    struct ssp_clock_params *clk_freq)
+static inline u32 spi_rate(u32 rate, u16 cpsdvsr, u16 scr)
+{
+	return rate / (cpsdvsr * (1 + scr));
+}
+
+static int calculate_effective_freq(struct pl022 *pl022, int freq, struct
+				    ssp_clock_params * clk_freq)
 {
 	/* Lets calculate the frequency parameters */
-	u16 cpsdvsr = 2;
-	u16 scr = 0;
-	bool freq_found = false;
-	u32 rate;
-	u32 max_tclk;
-	u32 min_tclk;
+	u16 cpsdvsr = CPSDVR_MIN, scr = SCR_MIN;
+	u32 rate, max_tclk, min_tclk, best_freq = 0, best_cpsdvsr = 0,
+		best_scr = 0, tmp, found = 0;
 
 	rate = clk_get_rate(pl022->clk);
 	/* cpsdvscr = 2 & scr 0 */
-	max_tclk = (rate / (CPSDVR_MIN * (1 + SCR_MIN)));
+	max_tclk = spi_rate(rate, CPSDVR_MIN, SCR_MIN);
 	/* cpsdvsr = 254 & scr = 255 */
-	min_tclk = (rate / (CPSDVR_MAX * (1 + SCR_MAX)));
+	min_tclk = spi_rate(rate, CPSDVR_MAX, SCR_MAX);
 
-	if ((freq <= max_tclk) && (freq >= min_tclk)) {
-		while (cpsdvsr <= CPSDVR_MAX && !freq_found) {
-			while (scr <= SCR_MAX && !freq_found) {
-				if ((rate /
-				     (cpsdvsr * (1 + scr))) > freq)
-					scr += 1;
-				else {
-					/*
-					 * This bool is made true when
-					 * effective frequency >=
-					 * target frequency is found
-					 */
-					freq_found = true;
-					if ((rate /
-					     (cpsdvsr * (1 + scr))) != freq) {
-						if (scr == SCR_MIN) {
-							cpsdvsr -= 2;
-							scr = SCR_MAX;
-						} else
-							scr -= 1;
-					}
-				}
-			}
-			if (!freq_found) {
-				cpsdvsr += 2;
-				scr = SCR_MIN;
-			}
-		}
-		if (cpsdvsr != 0) {
-			dev_dbg(&pl022->adev->dev,
-				"SSP Effective Frequency is %u\n",
-				(rate / (cpsdvsr * (1 + scr))));
-			clk_freq->cpsdvsr = (u8) (cpsdvsr & 0xFF);
-			clk_freq->scr = (u8) (scr & 0xFF);
-			dev_dbg(&pl022->adev->dev,
-				"SSP cpsdvsr = %d, scr = %d\n",
-				clk_freq->cpsdvsr, clk_freq->scr);
-		}
-	} else {
+	if (!((freq <= max_tclk) && (freq >= min_tclk))) {
 		dev_err(&pl022->adev->dev,
 			"controller data is incorrect: out of range frequency");
 		return -EINVAL;
 	}
+
+	/*
+	 * best_freq will give closest possible available rate (<= requested
+	 * freq) for all values of scr & cpsdvsr.
+	 */
+	while ((cpsdvsr <= CPSDVR_MAX) && !found) {
+		while (scr <= SCR_MAX) {
+			tmp = spi_rate(rate, cpsdvsr, scr);
+
+			if (tmp > freq)
+				scr++;
+			/*
+			 * If found exact value, update and break.
+			 * If found more closer value, update and continue.
+			 */
+			else if ((tmp == freq) || (tmp > best_freq)) {
+				best_freq = tmp;
+				best_cpsdvsr = cpsdvsr;
+				best_scr = scr;
+
+				if (tmp == freq)
+					break;
+			}
+			scr++;
+		}
+		cpsdvsr += 2;
+		scr = SCR_MIN;
+	}
+
+	clk_freq->cpsdvsr = (u8) (best_cpsdvsr & 0xFF);
+	clk_freq->scr = (u8) (best_scr & 0xFF);
+	dev_dbg(&pl022->adev->dev,
+		"SSP Target Frequency is: %u, Effective Frequency is %u\n",
+		freq, best_freq);
+	dev_dbg(&pl022->adev->dev, "SSP cpsdvsr = %d, scr = %d\n",
+		clk_freq->cpsdvsr, clk_freq->scr);
+
 	return 0;
 }
-
 
 /*
  * A piece of default chip info unless the platform
@@ -1878,7 +1864,6 @@ static const struct pl022_config_chip pl022_default_chip_info = {
 	.duplex = SSP_MICROWIRE_CHANNEL_FULL_DUPLEX,
 	.cs_control = null_cs_control,
 };
-
 
 /**
  * pl022_setup - setup function registered to SPI master framework
@@ -1955,7 +1940,6 @@ static int pl022_setup(struct spi_device *spi)
 			"cpsdvsr is configured incorrectly\n");
 		goto err_config_params;
 	}
-
 
 	status = verify_controller_parameters(pl022, chip_info);
 	if (status) {
@@ -2096,7 +2080,8 @@ static int pl022_setup(struct spi_device *spi)
 	}
 	SSP_WRITE_BITS(chip->cr1, SSP_DISABLED, SSP_CR1_MASK_SSE, 1);
 	SSP_WRITE_BITS(chip->cr1, chip_info->hierarchy, SSP_CR1_MASK_MS, 2);
-	SSP_WRITE_BITS(chip->cr1, chip_info->slave_tx_disable, SSP_CR1_MASK_SOD, 3);
+	SSP_WRITE_BITS(chip->cr1, chip_info->slave_tx_disable, SSP_CR1_MASK_SOD,
+		3);
 
 	/* Save controller_state */
 	spi_set_ctldata(spi, chip);
@@ -2121,7 +2106,6 @@ static void pl022_cleanup(struct spi_device *spi)
 	spi_set_ctldata(spi, NULL);
 	kfree(chip);
 }
-
 
 static int __devinit
 pl022_probe(struct amba_device *adev, const struct amba_id *id)
@@ -2186,14 +2170,18 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 	printk(KERN_INFO "pl022: mapped registers from 0x%08x to %p\n",
 	       adev->res.start, pl022->virtbase);
-	pm_runtime_enable(dev);
-	pm_runtime_resume(dev);
 
 	pl022->clk = clk_get(&adev->dev, NULL);
 	if (IS_ERR(pl022->clk)) {
 		status = PTR_ERR(pl022->clk);
 		dev_err(&adev->dev, "could not retrieve SSP/SPI bus clock\n");
 		goto err_no_clk;
+	}
+
+	status = clk_prepare(pl022->clk);
+	if (status) {
+		dev_err(&adev->dev, "could not prepare SSP/SPI bus clock\n");
+		goto  err_clk_prep;
 	}
 
 	/* Disable SSP */
@@ -2235,22 +2223,22 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_spi_register;
 	}
 	dev_dbg(dev, "probe succeeded\n");
-	/*
-	 * Disable the silicon block pclk and any voltage domain and just
-	 * power it up and clock it when it's needed
-	 */
-	amba_pclk_disable(adev);
-	amba_vcore_disable(adev);
+
+	/* let runtime pm put suspend */
+	pm_runtime_put(dev);
 	return 0;
 
  err_spi_register:
  err_start_queue:
  err_init_queue:
 	destroy_queue(pl022);
-	pl022_dma_remove(pl022);
+	if (platform_info->enable_dma)
+		pl022_dma_remove(pl022);
+
 	free_irq(adev->irq[0], pl022);
-	pm_runtime_disable(&adev->dev);
  err_no_irq:
+	clk_unprepare(pl022->clk);
+ err_clk_prep:
 	clk_put(pl022->clk);
  err_no_clk:
 	iounmap(pl022->virtbase);
@@ -2271,13 +2259,22 @@ pl022_remove(struct amba_device *adev)
 	if (!pl022)
 		return 0;
 
+	/*
+	 * undo pm_runtime_put() in probe.  I assume that we're not
+	 * accessing the primecell here.
+	 */
+	pm_runtime_get_noresume(&adev->dev);
+
 	/* Remove the queue */
 	if (destroy_queue(pl022) != 0)
 		dev_err(&adev->dev, "queue remove failed\n");
 	load_ssp_default_config(pl022);
-	pl022_dma_remove(pl022);
+	if (pl022->master_info->enable_dma)
+		pl022_dma_remove(pl022);
+
 	free_irq(adev->irq[0], pl022);
 	clk_disable(pl022->clk);
+	clk_unprepare(pl022->clk);
 	clk_put(pl022->clk);
 	iounmap(pl022->virtbase);
 	amba_release_regions(adev);
@@ -2288,45 +2285,69 @@ pl022_remove(struct amba_device *adev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int pl022_suspend(struct amba_device *adev, pm_message_t state)
+#ifdef CONFIG_SUSPEND
+static int pl022_suspend(struct device *dev)
 {
-	struct pl022 *pl022 = amba_get_drvdata(adev);
+	struct pl022 *pl022 = dev_get_drvdata(dev);
 	int status = 0;
 
 	status = stop_queue(pl022);
 	if (status) {
-		dev_warn(&adev->dev, "suspend cannot stop queue\n");
+		dev_warn(dev, "suspend cannot stop queue\n");
 		return status;
 	}
 
-	amba_vcore_enable(adev);
-	amba_pclk_enable(adev);
+	amba_vcore_enable(pl022->adev);
+	amba_pclk_enable(pl022->adev);
 	load_ssp_default_config(pl022);
-	amba_pclk_disable(adev);
-	amba_vcore_disable(adev);
-	dev_dbg(&adev->dev, "suspended\n");
+	amba_pclk_disable(pl022->adev);
+	amba_vcore_disable(pl022->adev);
+	dev_dbg(dev, "suspended\n");
 	return 0;
 }
 
-static int pl022_resume(struct amba_device *adev)
+static int pl022_resume(struct device *dev)
 {
-	struct pl022 *pl022 = amba_get_drvdata(adev);
+	struct pl022 *pl022 = dev_get_drvdata(dev);
 	int status = 0;
 
 	/* Start the queue running */
 	status = start_queue(pl022);
 	if (status)
-		dev_err(&adev->dev, "problem starting queue (%d)\n", status);
+		dev_err(dev, "problem starting queue (%d)\n", status);
 	else
-		dev_dbg(&adev->dev, "resumed\n");
+		dev_dbg(dev, "resumed\n");
 
 	return status;
 }
-#else
-#define pl022_suspend NULL
-#define pl022_resume NULL
 #endif	/* CONFIG_PM */
+
+#ifdef CONFIG_PM_RUNTIME
+static int pl022_runtime_suspend(struct device *dev)
+{
+	struct pl022 *pl022 = dev_get_drvdata(dev);
+
+	clk_disable(pl022->clk);
+	amba_vcore_disable(pl022->adev);
+
+	return 0;
+}
+
+static int pl022_runtime_resume(struct device *dev)
+{
+	struct pl022 *pl022 = dev_get_drvdata(dev);
+
+	amba_vcore_enable(pl022->adev);
+	clk_enable(pl022->clk);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops pl022_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pl022_suspend, pl022_resume)
+	SET_RUNTIME_PM_OPS(pl022_runtime_suspend, pl022_runtime_resume, NULL)
+};
 
 static struct vendor_data vendor_arm = {
 	.fifodepth = 8,
@@ -2336,7 +2357,6 @@ static struct vendor_data vendor_arm = {
 	.pl023 = false,
 	.loopback = true,
 };
-
 
 static struct vendor_data vendor_st = {
 	.fifodepth = 32,
@@ -2392,9 +2412,9 @@ static struct amba_id pl022_ids[] = {
 		 * and 32 locations deep TX/RX FIFO but no extended
 		 * CR0/CR1 register
 		 */
-		.id     = 0x00080023,
-		.mask   = 0xffffffff,
-		.data   = &vendor_st_pl023,
+		.id	= 0x00080023,
+		.mask	= 0xffffffff,
+		.data	= &vendor_st_pl023,
 	},
 	{
 		.id	= 0x10080023,
@@ -2407,27 +2427,23 @@ static struct amba_id pl022_ids[] = {
 static struct amba_driver pl022_driver = {
 	.drv = {
 		.name	= "ssp-pl022",
+		.pm	= &pl022_dev_pm_ops,
 	},
 	.id_table	= pl022_ids,
 	.probe		= pl022_probe,
 	.remove		= __devexit_p(pl022_remove),
-	.suspend        = pl022_suspend,
-	.resume         = pl022_resume,
 };
-
 
 static int __init pl022_init(void)
 {
 	return amba_driver_register(&pl022_driver);
 }
-
 subsys_initcall(pl022_init);
 
 static void __exit pl022_exit(void)
 {
 	amba_driver_unregister(&pl022_driver);
 }
-
 module_exit(pl022_exit);
 
 MODULE_AUTHOR("Linus Walleij <linus.walleij@stericsson.com>");

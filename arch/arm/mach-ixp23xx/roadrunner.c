@@ -175,6 +175,6 @@ MACHINE_START(ROADRUNNER, "ADI Engineering RoadRunner Development Platform")
 	.map_io		= ixp23xx_map_io,
 	.init_irq	= ixp23xx_init_irq,
 	.timer		= &ixp23xx_timer,
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= roadrunner_init,
 MACHINE_END

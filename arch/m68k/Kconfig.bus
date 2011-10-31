@@ -1,0 +1,55 @@
+if MMU
+
+comment "Bus Support"
+
+config NUBUS
+	bool
+	depends on MAC
+	default y
+
+config ZORRO
+	bool "Amiga Zorro (AutoConfig) bus support"
+	depends on AMIGA
+	help
+	  This enables support for the Zorro bus in the Amiga. If you have
+	  expansion cards in your Amiga that conform to the Amiga
+	  AutoConfig(tm) specification, say Y, otherwise N. Note that even
+	  expansion cards that do not fit in the Zorro slots but fit in e.g.
+	  the CPU slot may fall in this category, so you have to say Y to let
+	  Linux use these.
+
+config AMIGA_PCMCIA
+	bool "Amiga 1200/600 PCMCIA support (EXPERIMENTAL)"
+	depends on AMIGA && EXPERIMENTAL
+	help
+	  Include support in the kernel for pcmcia on Amiga 1200 and Amiga
+	  600. If you intend to use pcmcia cards say Y; otherwise say N.
+
+config ISA
+	bool
+	depends on Q40 || AMIGA_PCMCIA
+	default y
+	help
+	  Find out whether you have ISA slots on your motherboard.  ISA is the
+	  name of a bus system, i.e. the way the CPU talks to the other stuff
+	  inside your box.  Other bus systems are PCI, EISA, MicroChannel
+	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
+	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
+
+config GENERIC_ISA_DMA
+	def_bool ISA
+
+source "drivers/pci/Kconfig"
+
+source "drivers/zorro/Kconfig"
+
+endif
+
+if !MMU
+
+config ISA_DMA_API
+        def_bool !M5272
+
+source "drivers/pcmcia/Kconfig"
+
+endif

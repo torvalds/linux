@@ -319,8 +319,8 @@ static struct sys_timer realview_pbx_timer = {
 	.init		= realview_pbx_timer_init,
 };
 
-static void realview_pbx_fixup(struct machine_desc *mdesc, struct tag *tags,
-			       char **from, struct meminfo *meminfo)
+static void realview_pbx_fixup(struct tag *tags, char **from,
+			       struct meminfo *meminfo)
 {
 #ifdef CONFIG_SPARSEMEM
 	/*
@@ -335,7 +335,7 @@ static void realview_pbx_fixup(struct machine_desc *mdesc, struct tag *tags,
 	meminfo->bank[2].size = SZ_256M;
 	meminfo->nr_banks = 3;
 #else
-	realview_fixup(mdesc, tags, from, meminfo);
+	realview_fixup(tags, from, meminfo);
 #endif
 }
 
@@ -393,7 +393,7 @@ static void __init realview_pbx_init(void)
 
 MACHINE_START(REALVIEW_PBX, "ARM-RealView PBX")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
+	.atag_offset	= 0x100,
 	.fixup		= realview_pbx_fixup,
 	.map_io		= realview_pbx_map_io,
 	.init_early	= realview_init_early,

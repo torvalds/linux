@@ -175,28 +175,19 @@ int xhci_reset(struct xhci_hcd *xhci)
 	return handshake(xhci, &xhci->op_regs->status, STS_CNR, 0, 250 * 1000);
 }
 
-/*
- * Free IRQs
- * free all IRQs request
- */
-static void xhci_free_irq(struct xhci_hcd *xhci)
+#ifdef CONFIG_PCI
+static int xhci_free_msi(struct xhci_hcd *xhci)
 {
 	int i;
-	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 
-	/* return if using legacy interrupt */
-	if (xhci_to_hcd(xhci)->irq >= 0)
-		return;
+	if (!xhci->msix_entries)
+		return -EINVAL;
 
-	if (xhci->msix_entries) {
-		for (i = 0; i < xhci->msix_count; i++)
-			if (xhci->msix_entries[i].vector)
-				free_irq(xhci->msix_entries[i].vector,
-						xhci_to_hcd(xhci));
-	} else if (pdev->irq >= 0)
-		free_irq(pdev->irq, xhci_to_hcd(xhci));
-
-	return;
+	for (i = 0; i < xhci->msix_count; i++)
+		if (xhci->msix_entries[i].vector)
+			free_irq(xhci->msix_entries[i].vector,
+					xhci_to_hcd(xhci));
+	return 0;
 }
 
 /*
@@ -221,6 +212,28 @@ static int xhci_setup_msi(struct xhci_hcd *xhci)
 	}
 
 	return ret;
+}
+
+/*
+ * Free IRQs
+ * free all IRQs request
+ */
+static void xhci_free_irq(struct xhci_hcd *xhci)
+{
+	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+	int ret;
+
+	/* return if using legacy interrupt */
+	if (xhci_to_hcd(xhci)->irq >= 0)
+		return;
+
+	ret = xhci_free_msi(xhci);
+	if (!ret)
+		return;
+	if (pdev->irq >= 0)
+		free_irq(pdev->irq, xhci_to_hcd(xhci));
+
+	return;
 }
 
 /*
@@ -302,6 +315,72 @@ static void xhci_cleanup_msix(struct xhci_hcd *xhci)
 	return;
 }
 
+static void xhci_msix_sync_irqs(struct xhci_hcd *xhci)
+{
+	int i;
+
+	if (xhci->msix_entries) {
+		for (i = 0; i < xhci->msix_count; i++)
+			synchronize_irq(xhci->msix_entries[i].vector);
+	}
+}
+
+static int xhci_try_enable_msi(struct usb_hcd *hcd)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct pci_dev  *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+	int ret;
+
+	/*
+	 * Some Fresco Logic host controllers advertise MSI, but fail to
+	 * generate interrupts.  Don't even try to enable MSI.
+	 */
+	if (xhci->quirks & XHCI_BROKEN_MSI)
+		return 0;
+
+	/* unregister the legacy interrupt */
+	if (hcd->irq)
+		free_irq(hcd->irq, hcd);
+	hcd->irq = -1;
+
+	ret = xhci_setup_msix(xhci);
+	if (ret)
+		/* fall back to msi*/
+		ret = xhci_setup_msi(xhci);
+
+	if (!ret)
+		/* hcd->irq is -1, we have MSI */
+		return 0;
+
+	/* fall back to legacy interrupt*/
+	ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
+			hcd->irq_descr, hcd);
+	if (ret) {
+		xhci_err(xhci, "request interrupt %d failed\n",
+				pdev->irq);
+		return ret;
+	}
+	hcd->irq = pdev->irq;
+	return 0;
+}
+
+#else
+
+static int xhci_try_enable_msi(struct usb_hcd *hcd)
+{
+	return 0;
+}
+
+static void xhci_cleanup_msix(struct xhci_hcd *xhci)
+{
+}
+
+static void xhci_msix_sync_irqs(struct xhci_hcd *xhci)
+{
+}
+
+#endif
+
 /*
  * Initialize memory for HCD and xHC (one-time init).
  *
@@ -316,7 +395,7 @@ int xhci_init(struct usb_hcd *hcd)
 
 	xhci_dbg(xhci, "xhci_init\n");
 	spin_lock_init(&xhci->lock);
-	if (link_quirk) {
+	if (xhci->hci_version == 0x95 && link_quirk) {
 		xhci_dbg(xhci, "QUIRK: Not clearing Link TRB chain bits.\n");
 		xhci->quirks |= XHCI_LINK_TRB_QUIRK;
 	} else {
@@ -413,9 +492,8 @@ int xhci_run(struct usb_hcd *hcd)
 {
 	u32 temp;
 	u64 temp_64;
-	u32 ret;
+	int ret;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	struct pci_dev  *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 
 	/* Start the xHCI host controller running only after the USB 2.0 roothub
 	 * is setup.
@@ -426,34 +504,10 @@ int xhci_run(struct usb_hcd *hcd)
 		return xhci_run_finished(xhci);
 
 	xhci_dbg(xhci, "xhci_run\n");
-	/* unregister the legacy interrupt */
-	if (hcd->irq)
-		free_irq(hcd->irq, hcd);
-	hcd->irq = -1;
 
-	/* Some Fresco Logic host controllers advertise MSI, but fail to
-	 * generate interrupts.  Don't even try to enable MSI.
-	 */
-	if (xhci->quirks & XHCI_BROKEN_MSI)
-		goto legacy_irq;
-
-	ret = xhci_setup_msix(xhci);
+	ret = xhci_try_enable_msi(hcd);
 	if (ret)
-		/* fall back to msi*/
-		ret = xhci_setup_msi(xhci);
-
-	if (ret) {
-legacy_irq:
-		/* fall back to legacy interrupt*/
-		ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
-					hcd->irq_descr, hcd);
-		if (ret) {
-			xhci_err(xhci, "request interrupt %d failed\n",
-					pdev->irq);
-			return ret;
-		}
-		hcd->irq = pdev->irq;
-	}
+		return ret;
 
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
 	init_timer(&xhci->event_ring_timer);
@@ -694,7 +748,6 @@ int xhci_suspend(struct xhci_hcd *xhci)
 	int			rc = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	u32			command;
-	int			i;
 
 	spin_lock_irq(&xhci->lock);
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
@@ -730,10 +783,7 @@ int xhci_suspend(struct xhci_hcd *xhci)
 
 	/* step 5: remove core well power */
 	/* synchronize irq when using MSI-X */
-	if (xhci->msix_entries) {
-		for (i = 0; i < xhci->msix_count; i++)
-			synchronize_irq(xhci->msix_entries[i].vector);
-	}
+	xhci_msix_sync_irqs(xhci);
 
 	return rc;
 }
@@ -945,8 +995,7 @@ static int xhci_check_args(struct usb_hcd *hcd, struct usb_device *udev,
 		return -ENODEV;
 
 	if (check_virt_dev) {
-		if (!udev->slot_id || !xhci->devs
-			|| !xhci->devs[udev->slot_id]) {
+		if (!udev->slot_id || !xhci->devs[udev->slot_id]) {
 			printk(KERN_DEBUG "xHCI %s called with unaddressed "
 						"device\n", func);
 			return -EINVAL;
@@ -987,7 +1036,7 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 	out_ctx = xhci->devs[slot_id]->out_ctx;
 	ep_ctx = xhci_get_ep_ctx(xhci, out_ctx, ep_index);
 	hw_max_packet_size = MAX_PACKET_DECODED(le32_to_cpu(ep_ctx->ep_info2));
-	max_packet_size = le16_to_cpu(urb->dev->ep0.desc.wMaxPacketSize);
+	max_packet_size = usb_endpoint_maxp(&urb->dev->ep0.desc);
 	if (hw_max_packet_size != max_packet_size) {
 		xhci_dbg(xhci, "Max Packet Size for ep 0 changed.\n");
 		xhci_dbg(xhci, "Max packet size in usb_device = %d\n",
@@ -1035,6 +1084,7 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct xhci_td *buffer;
 	unsigned long flags;
 	int ret = 0;
 	unsigned int slot_id, ep_index;
@@ -1065,13 +1115,15 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	if (!urb_priv)
 		return -ENOMEM;
 
+	buffer = kzalloc(size * sizeof(struct xhci_td), mem_flags);
+	if (!buffer) {
+		kfree(urb_priv);
+		return -ENOMEM;
+	}
+
 	for (i = 0; i < size; i++) {
-		urb_priv->td[i] = kzalloc(sizeof(struct xhci_td), mem_flags);
-		if (!urb_priv->td[i]) {
-			urb_priv->length = i;
-			xhci_urb_free_priv(xhci, urb_priv);
-			return -ENOMEM;
-		}
+		urb_priv->td[i] = buffer;
+		buffer++;
 	}
 
 	urb_priv->length = size;
@@ -1747,6 +1799,564 @@ static void xhci_finish_resource_reservation(struct xhci_hcd *xhci,
 				xhci->num_active_eps);
 }
 
+unsigned int xhci_get_block_size(struct usb_device *udev)
+{
+	switch (udev->speed) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+		return FS_BLOCK;
+	case USB_SPEED_HIGH:
+		return HS_BLOCK;
+	case USB_SPEED_SUPER:
+		return SS_BLOCK;
+	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_WIRELESS:
+	default:
+		/* Should never happen */
+		return 1;
+	}
+}
+
+unsigned int xhci_get_largest_overhead(struct xhci_interval_bw *interval_bw)
+{
+	if (interval_bw->overhead[LS_OVERHEAD_TYPE])
+		return LS_OVERHEAD;
+	if (interval_bw->overhead[FS_OVERHEAD_TYPE])
+		return FS_OVERHEAD;
+	return HS_OVERHEAD;
+}
+
+/* If we are changing a LS/FS device under a HS hub,
+ * make sure (if we are activating a new TT) that the HS bus has enough
+ * bandwidth for this new TT.
+ */
+static int xhci_check_tt_bw_table(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		int old_active_eps)
+{
+	struct xhci_interval_bw_table *bw_table;
+	struct xhci_tt_bw_info *tt_info;
+
+	/* Find the bandwidth table for the root port this TT is attached to. */
+	bw_table = &xhci->rh_bw[virt_dev->real_port - 1].bw_table;
+	tt_info = virt_dev->tt_info;
+	/* If this TT already had active endpoints, the bandwidth for this TT
+	 * has already been added.  Removing all periodic endpoints (and thus
+	 * making the TT enactive) will only decrease the bandwidth used.
+	 */
+	if (old_active_eps)
+		return 0;
+	if (old_active_eps == 0 && tt_info->active_eps != 0) {
+		if (bw_table->bw_used + TT_HS_OVERHEAD > HS_BW_LIMIT)
+			return -ENOMEM;
+		return 0;
+	}
+	/* Not sure why we would have no new active endpoints...
+	 *
+	 * Maybe because of an Evaluate Context change for a hub update or a
+	 * control endpoint 0 max packet size change?
+	 * FIXME: skip the bandwidth calculation in that case.
+	 */
+	return 0;
+}
+
+static int xhci_check_ss_bw(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev)
+{
+	unsigned int bw_reserved;
+
+	bw_reserved = DIV_ROUND_UP(SS_BW_RESERVED*SS_BW_LIMIT_IN, 100);
+	if (virt_dev->bw_table->ss_bw_in > (SS_BW_LIMIT_IN - bw_reserved))
+		return -ENOMEM;
+
+	bw_reserved = DIV_ROUND_UP(SS_BW_RESERVED*SS_BW_LIMIT_OUT, 100);
+	if (virt_dev->bw_table->ss_bw_out > (SS_BW_LIMIT_OUT - bw_reserved))
+		return -ENOMEM;
+
+	return 0;
+}
+
+/*
+ * This algorithm is a very conservative estimate of the worst-case scheduling
+ * scenario for any one interval.  The hardware dynamically schedules the
+ * packets, so we can't tell which microframe could be the limiting factor in
+ * the bandwidth scheduling.  This only takes into account periodic endpoints.
+ *
+ * Obviously, we can't solve an NP complete problem to find the minimum worst
+ * case scenario.  Instead, we come up with an estimate that is no less than
+ * the worst case bandwidth used for any one microframe, but may be an
+ * over-estimate.
+ *
+ * We walk the requirements for each endpoint by interval, starting with the
+ * smallest interval, and place packets in the schedule where there is only one
+ * possible way to schedule packets for that interval.  In order to simplify
+ * this algorithm, we record the largest max packet size for each interval, and
+ * assume all packets will be that size.
+ *
+ * For interval 0, we obviously must schedule all packets for each interval.
+ * The bandwidth for interval 0 is just the amount of data to be transmitted
+ * (the sum of all max ESIT payload sizes, plus any overhead per packet times
+ * the number of packets).
+ *
+ * For interval 1, we have two possible microframes to schedule those packets
+ * in.  For this algorithm, if we can schedule the same number of packets for
+ * each possible scheduling opportunity (each microframe), we will do so.  The
+ * remaining number of packets will be saved to be transmitted in the gaps in
+ * the next interval's scheduling sequence.
+ *
+ * As we move those remaining packets to be scheduled with interval 2 packets,
+ * we have to double the number of remaining packets to transmit.  This is
+ * because the intervals are actually powers of 2, and we would be transmitting
+ * the previous interval's packets twice in this interval.  We also have to be
+ * sure that when we look at the largest max packet size for this interval, we
+ * also look at the largest max packet size for the remaining packets and take
+ * the greater of the two.
+ *
+ * The algorithm continues to evenly distribute packets in each scheduling
+ * opportunity, and push the remaining packets out, until we get to the last
+ * interval.  Then those packets and their associated overhead are just added
+ * to the bandwidth used.
+ */
+static int xhci_check_bw_table(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		int old_active_eps)
+{
+	unsigned int bw_reserved;
+	unsigned int max_bandwidth;
+	unsigned int bw_used;
+	unsigned int block_size;
+	struct xhci_interval_bw_table *bw_table;
+	unsigned int packet_size = 0;
+	unsigned int overhead = 0;
+	unsigned int packets_transmitted = 0;
+	unsigned int packets_remaining = 0;
+	unsigned int i;
+
+	if (virt_dev->udev->speed == USB_SPEED_SUPER)
+		return xhci_check_ss_bw(xhci, virt_dev);
+
+	if (virt_dev->udev->speed == USB_SPEED_HIGH) {
+		max_bandwidth = HS_BW_LIMIT;
+		/* Convert percent of bus BW reserved to blocks reserved */
+		bw_reserved = DIV_ROUND_UP(HS_BW_RESERVED * max_bandwidth, 100);
+	} else {
+		max_bandwidth = FS_BW_LIMIT;
+		bw_reserved = DIV_ROUND_UP(FS_BW_RESERVED * max_bandwidth, 100);
+	}
+
+	bw_table = virt_dev->bw_table;
+	/* We need to translate the max packet size and max ESIT payloads into
+	 * the units the hardware uses.
+	 */
+	block_size = xhci_get_block_size(virt_dev->udev);
+
+	/* If we are manipulating a LS/FS device under a HS hub, double check
+	 * that the HS bus has enough bandwidth if we are activing a new TT.
+	 */
+	if (virt_dev->tt_info) {
+		xhci_dbg(xhci, "Recalculating BW for rootport %u\n",
+				virt_dev->real_port);
+		if (xhci_check_tt_bw_table(xhci, virt_dev, old_active_eps)) {
+			xhci_warn(xhci, "Not enough bandwidth on HS bus for "
+					"newly activated TT.\n");
+			return -ENOMEM;
+		}
+		xhci_dbg(xhci, "Recalculating BW for TT slot %u port %u\n",
+				virt_dev->tt_info->slot_id,
+				virt_dev->tt_info->ttport);
+	} else {
+		xhci_dbg(xhci, "Recalculating BW for rootport %u\n",
+				virt_dev->real_port);
+	}
+
+	/* Add in how much bandwidth will be used for interval zero, or the
+	 * rounded max ESIT payload + number of packets * largest overhead.
+	 */
+	bw_used = DIV_ROUND_UP(bw_table->interval0_esit_payload, block_size) +
+		bw_table->interval_bw[0].num_packets *
+		xhci_get_largest_overhead(&bw_table->interval_bw[0]);
+
+	for (i = 1; i < XHCI_MAX_INTERVAL; i++) {
+		unsigned int bw_added;
+		unsigned int largest_mps;
+		unsigned int interval_overhead;
+
+		/*
+		 * How many packets could we transmit in this interval?
+		 * If packets didn't fit in the previous interval, we will need
+		 * to transmit that many packets twice within this interval.
+		 */
+		packets_remaining = 2 * packets_remaining +
+			bw_table->interval_bw[i].num_packets;
+
+		/* Find the largest max packet size of this or the previous
+		 * interval.
+		 */
+		if (list_empty(&bw_table->interval_bw[i].endpoints))
+			largest_mps = 0;
+		else {
+			struct xhci_virt_ep *virt_ep;
+			struct list_head *ep_entry;
+
+			ep_entry = bw_table->interval_bw[i].endpoints.next;
+			virt_ep = list_entry(ep_entry,
+					struct xhci_virt_ep, bw_endpoint_list);
+			/* Convert to blocks, rounding up */
+			largest_mps = DIV_ROUND_UP(
+					virt_ep->bw_info.max_packet_size,
+					block_size);
+		}
+		if (largest_mps > packet_size)
+			packet_size = largest_mps;
+
+		/* Use the larger overhead of this or the previous interval. */
+		interval_overhead = xhci_get_largest_overhead(
+				&bw_table->interval_bw[i]);
+		if (interval_overhead > overhead)
+			overhead = interval_overhead;
+
+		/* How many packets can we evenly distribute across
+		 * (1 << (i + 1)) possible scheduling opportunities?
+		 */
+		packets_transmitted = packets_remaining >> (i + 1);
+
+		/* Add in the bandwidth used for those scheduled packets */
+		bw_added = packets_transmitted * (overhead + packet_size);
+
+		/* How many packets do we have remaining to transmit? */
+		packets_remaining = packets_remaining % (1 << (i + 1));
+
+		/* What largest max packet size should those packets have? */
+		/* If we've transmitted all packets, don't carry over the
+		 * largest packet size.
+		 */
+		if (packets_remaining == 0) {
+			packet_size = 0;
+			overhead = 0;
+		} else if (packets_transmitted > 0) {
+			/* Otherwise if we do have remaining packets, and we've
+			 * scheduled some packets in this interval, take the
+			 * largest max packet size from endpoints with this
+			 * interval.
+			 */
+			packet_size = largest_mps;
+			overhead = interval_overhead;
+		}
+		/* Otherwise carry over packet_size and overhead from the last
+		 * time we had a remainder.
+		 */
+		bw_used += bw_added;
+		if (bw_used > max_bandwidth) {
+			xhci_warn(xhci, "Not enough bandwidth. "
+					"Proposed: %u, Max: %u\n",
+				bw_used, max_bandwidth);
+			return -ENOMEM;
+		}
+	}
+	/*
+	 * Ok, we know we have some packets left over after even-handedly
+	 * scheduling interval 15.  We don't know which microframes they will
+	 * fit into, so we over-schedule and say they will be scheduled every
+	 * microframe.
+	 */
+	if (packets_remaining > 0)
+		bw_used += overhead + packet_size;
+
+	if (!virt_dev->tt_info && virt_dev->udev->speed == USB_SPEED_HIGH) {
+		unsigned int port_index = virt_dev->real_port - 1;
+
+		/* OK, we're manipulating a HS device attached to a
+		 * root port bandwidth domain.  Include the number of active TTs
+		 * in the bandwidth used.
+		 */
+		bw_used += TT_HS_OVERHEAD *
+			xhci->rh_bw[port_index].num_active_tts;
+	}
+
+	xhci_dbg(xhci, "Final bandwidth: %u, Limit: %u, Reserved: %u, "
+		"Available: %u " "percent\n",
+		bw_used, max_bandwidth, bw_reserved,
+		(max_bandwidth - bw_used - bw_reserved) * 100 /
+		max_bandwidth);
+
+	bw_used += bw_reserved;
+	if (bw_used > max_bandwidth) {
+		xhci_warn(xhci, "Not enough bandwidth. Proposed: %u, Max: %u\n",
+				bw_used, max_bandwidth);
+		return -ENOMEM;
+	}
+
+	bw_table->bw_used = bw_used;
+	return 0;
+}
+
+static bool xhci_is_async_ep(unsigned int ep_type)
+{
+	return (ep_type != ISOC_OUT_EP && ep_type != INT_OUT_EP &&
+					ep_type != ISOC_IN_EP &&
+					ep_type != INT_IN_EP);
+}
+
+static bool xhci_is_sync_in_ep(unsigned int ep_type)
+{
+	return (ep_type == ISOC_IN_EP || ep_type != INT_IN_EP);
+}
+
+static unsigned int xhci_get_ss_bw_consumed(struct xhci_bw_info *ep_bw)
+{
+	unsigned int mps = DIV_ROUND_UP(ep_bw->max_packet_size, SS_BLOCK);
+
+	if (ep_bw->ep_interval == 0)
+		return SS_OVERHEAD_BURST +
+			(ep_bw->mult * ep_bw->num_packets *
+					(SS_OVERHEAD + mps));
+	return DIV_ROUND_UP(ep_bw->mult * ep_bw->num_packets *
+				(SS_OVERHEAD + mps + SS_OVERHEAD_BURST),
+				1 << ep_bw->ep_interval);
+
+}
+
+void xhci_drop_ep_from_interval_table(struct xhci_hcd *xhci,
+		struct xhci_bw_info *ep_bw,
+		struct xhci_interval_bw_table *bw_table,
+		struct usb_device *udev,
+		struct xhci_virt_ep *virt_ep,
+		struct xhci_tt_bw_info *tt_info)
+{
+	struct xhci_interval_bw	*interval_bw;
+	int normalized_interval;
+
+	if (xhci_is_async_ep(ep_bw->type))
+		return;
+
+	if (udev->speed == USB_SPEED_SUPER) {
+		if (xhci_is_sync_in_ep(ep_bw->type))
+			xhci->devs[udev->slot_id]->bw_table->ss_bw_in -=
+				xhci_get_ss_bw_consumed(ep_bw);
+		else
+			xhci->devs[udev->slot_id]->bw_table->ss_bw_out -=
+				xhci_get_ss_bw_consumed(ep_bw);
+		return;
+	}
+
+	/* SuperSpeed endpoints never get added to intervals in the table, so
+	 * this check is only valid for HS/FS/LS devices.
+	 */
+	if (list_empty(&virt_ep->bw_endpoint_list))
+		return;
+	/* For LS/FS devices, we need to translate the interval expressed in
+	 * microframes to frames.
+	 */
+	if (udev->speed == USB_SPEED_HIGH)
+		normalized_interval = ep_bw->ep_interval;
+	else
+		normalized_interval = ep_bw->ep_interval - 3;
+
+	if (normalized_interval == 0)
+		bw_table->interval0_esit_payload -= ep_bw->max_esit_payload;
+	interval_bw = &bw_table->interval_bw[normalized_interval];
+	interval_bw->num_packets -= ep_bw->num_packets;
+	switch (udev->speed) {
+	case USB_SPEED_LOW:
+		interval_bw->overhead[LS_OVERHEAD_TYPE] -= 1;
+		break;
+	case USB_SPEED_FULL:
+		interval_bw->overhead[FS_OVERHEAD_TYPE] -= 1;
+		break;
+	case USB_SPEED_HIGH:
+		interval_bw->overhead[HS_OVERHEAD_TYPE] -= 1;
+		break;
+	case USB_SPEED_SUPER:
+	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_WIRELESS:
+		/* Should never happen because only LS/FS/HS endpoints will get
+		 * added to the endpoint list.
+		 */
+		return;
+	}
+	if (tt_info)
+		tt_info->active_eps -= 1;
+	list_del_init(&virt_ep->bw_endpoint_list);
+}
+
+static void xhci_add_ep_to_interval_table(struct xhci_hcd *xhci,
+		struct xhci_bw_info *ep_bw,
+		struct xhci_interval_bw_table *bw_table,
+		struct usb_device *udev,
+		struct xhci_virt_ep *virt_ep,
+		struct xhci_tt_bw_info *tt_info)
+{
+	struct xhci_interval_bw	*interval_bw;
+	struct xhci_virt_ep *smaller_ep;
+	int normalized_interval;
+
+	if (xhci_is_async_ep(ep_bw->type))
+		return;
+
+	if (udev->speed == USB_SPEED_SUPER) {
+		if (xhci_is_sync_in_ep(ep_bw->type))
+			xhci->devs[udev->slot_id]->bw_table->ss_bw_in +=
+				xhci_get_ss_bw_consumed(ep_bw);
+		else
+			xhci->devs[udev->slot_id]->bw_table->ss_bw_out +=
+				xhci_get_ss_bw_consumed(ep_bw);
+		return;
+	}
+
+	/* For LS/FS devices, we need to translate the interval expressed in
+	 * microframes to frames.
+	 */
+	if (udev->speed == USB_SPEED_HIGH)
+		normalized_interval = ep_bw->ep_interval;
+	else
+		normalized_interval = ep_bw->ep_interval - 3;
+
+	if (normalized_interval == 0)
+		bw_table->interval0_esit_payload += ep_bw->max_esit_payload;
+	interval_bw = &bw_table->interval_bw[normalized_interval];
+	interval_bw->num_packets += ep_bw->num_packets;
+	switch (udev->speed) {
+	case USB_SPEED_LOW:
+		interval_bw->overhead[LS_OVERHEAD_TYPE] += 1;
+		break;
+	case USB_SPEED_FULL:
+		interval_bw->overhead[FS_OVERHEAD_TYPE] += 1;
+		break;
+	case USB_SPEED_HIGH:
+		interval_bw->overhead[HS_OVERHEAD_TYPE] += 1;
+		break;
+	case USB_SPEED_SUPER:
+	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_WIRELESS:
+		/* Should never happen because only LS/FS/HS endpoints will get
+		 * added to the endpoint list.
+		 */
+		return;
+	}
+
+	if (tt_info)
+		tt_info->active_eps += 1;
+	/* Insert the endpoint into the list, largest max packet size first. */
+	list_for_each_entry(smaller_ep, &interval_bw->endpoints,
+			bw_endpoint_list) {
+		if (ep_bw->max_packet_size >=
+				smaller_ep->bw_info.max_packet_size) {
+			/* Add the new ep before the smaller endpoint */
+			list_add_tail(&virt_ep->bw_endpoint_list,
+					&smaller_ep->bw_endpoint_list);
+			return;
+		}
+	}
+	/* Add the new endpoint at the end of the list. */
+	list_add_tail(&virt_ep->bw_endpoint_list,
+			&interval_bw->endpoints);
+}
+
+void xhci_update_tt_active_eps(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		int old_active_eps)
+{
+	struct xhci_root_port_bw_info *rh_bw_info;
+	if (!virt_dev->tt_info)
+		return;
+
+	rh_bw_info = &xhci->rh_bw[virt_dev->real_port - 1];
+	if (old_active_eps == 0 &&
+				virt_dev->tt_info->active_eps != 0) {
+		rh_bw_info->num_active_tts += 1;
+		rh_bw_info->bw_table.bw_used += TT_HS_OVERHEAD;
+	} else if (old_active_eps != 0 &&
+				virt_dev->tt_info->active_eps == 0) {
+		rh_bw_info->num_active_tts -= 1;
+		rh_bw_info->bw_table.bw_used -= TT_HS_OVERHEAD;
+	}
+}
+
+static int xhci_reserve_bandwidth(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		struct xhci_container_ctx *in_ctx)
+{
+	struct xhci_bw_info ep_bw_info[31];
+	int i;
+	struct xhci_input_control_ctx *ctrl_ctx;
+	int old_active_eps = 0;
+
+	if (virt_dev->tt_info)
+		old_active_eps = virt_dev->tt_info->active_eps;
+
+	ctrl_ctx = xhci_get_input_control_ctx(xhci, in_ctx);
+
+	for (i = 0; i < 31; i++) {
+		if (!EP_IS_ADDED(ctrl_ctx, i) && !EP_IS_DROPPED(ctrl_ctx, i))
+			continue;
+
+		/* Make a copy of the BW info in case we need to revert this */
+		memcpy(&ep_bw_info[i], &virt_dev->eps[i].bw_info,
+				sizeof(ep_bw_info[i]));
+		/* Drop the endpoint from the interval table if the endpoint is
+		 * being dropped or changed.
+		 */
+		if (EP_IS_DROPPED(ctrl_ctx, i))
+			xhci_drop_ep_from_interval_table(xhci,
+					&virt_dev->eps[i].bw_info,
+					virt_dev->bw_table,
+					virt_dev->udev,
+					&virt_dev->eps[i],
+					virt_dev->tt_info);
+	}
+	/* Overwrite the information stored in the endpoints' bw_info */
+	xhci_update_bw_info(xhci, virt_dev->in_ctx, ctrl_ctx, virt_dev);
+	for (i = 0; i < 31; i++) {
+		/* Add any changed or added endpoints to the interval table */
+		if (EP_IS_ADDED(ctrl_ctx, i))
+			xhci_add_ep_to_interval_table(xhci,
+					&virt_dev->eps[i].bw_info,
+					virt_dev->bw_table,
+					virt_dev->udev,
+					&virt_dev->eps[i],
+					virt_dev->tt_info);
+	}
+
+	if (!xhci_check_bw_table(xhci, virt_dev, old_active_eps)) {
+		/* Ok, this fits in the bandwidth we have.
+		 * Update the number of active TTs.
+		 */
+		xhci_update_tt_active_eps(xhci, virt_dev, old_active_eps);
+		return 0;
+	}
+
+	/* We don't have enough bandwidth for this, revert the stored info. */
+	for (i = 0; i < 31; i++) {
+		if (!EP_IS_ADDED(ctrl_ctx, i) && !EP_IS_DROPPED(ctrl_ctx, i))
+			continue;
+
+		/* Drop the new copies of any added or changed endpoints from
+		 * the interval table.
+		 */
+		if (EP_IS_ADDED(ctrl_ctx, i)) {
+			xhci_drop_ep_from_interval_table(xhci,
+					&virt_dev->eps[i].bw_info,
+					virt_dev->bw_table,
+					virt_dev->udev,
+					&virt_dev->eps[i],
+					virt_dev->tt_info);
+		}
+		/* Revert the endpoint back to its old information */
+		memcpy(&virt_dev->eps[i].bw_info, &ep_bw_info[i],
+				sizeof(ep_bw_info[i]));
+		/* Add any changed or dropped endpoints back into the table */
+		if (EP_IS_DROPPED(ctrl_ctx, i))
+			xhci_add_ep_to_interval_table(xhci,
+					&virt_dev->eps[i].bw_info,
+					virt_dev->bw_table,
+					virt_dev->udev,
+					&virt_dev->eps[i],
+					virt_dev->tt_info);
+	}
+	return -ENOMEM;
+}
+
+
 /* Issue a configure endpoint command or evaluate context command
  * and wait for it to finish.
  */
@@ -1765,17 +2375,30 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	virt_dev = xhci->devs[udev->slot_id];
-	if (command) {
-		in_ctx = command->in_ctx;
-		if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK) &&
-				xhci_reserve_host_resources(xhci, in_ctx)) {
-			spin_unlock_irqrestore(&xhci->lock, flags);
-			xhci_warn(xhci, "Not enough host resources, "
-					"active endpoint contexts = %u\n",
-					xhci->num_active_eps);
-			return -ENOMEM;
-		}
 
+	if (command)
+		in_ctx = command->in_ctx;
+	else
+		in_ctx = virt_dev->in_ctx;
+
+	if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK) &&
+			xhci_reserve_host_resources(xhci, in_ctx)) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_warn(xhci, "Not enough host resources, "
+				"active endpoint contexts = %u\n",
+				xhci->num_active_eps);
+		return -ENOMEM;
+	}
+	if ((xhci->quirks & XHCI_SW_BW_CHECKING) &&
+			xhci_reserve_bandwidth(xhci, virt_dev, in_ctx)) {
+		if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK))
+			xhci_free_host_resources(xhci, in_ctx);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_warn(xhci, "Not enough bandwidth\n");
+		return -ENOMEM;
+	}
+
+	if (command) {
 		cmd_completion = command->completion;
 		cmd_status = &command->status;
 		command->command_trb = xhci->cmd_ring->enqueue;
@@ -1789,15 +2412,6 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 
 		list_add_tail(&command->cmd_list, &virt_dev->cmd_list);
 	} else {
-		in_ctx = virt_dev->in_ctx;
-		if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK) &&
-				xhci_reserve_host_resources(xhci, in_ctx)) {
-			spin_unlock_irqrestore(&xhci->lock, flags);
-			xhci_warn(xhci, "Not enough host resources, "
-					"active endpoint contexts = %u\n",
-					xhci->num_active_eps);
-			return -ENOMEM;
-		}
 		cmd_completion = &virt_dev->cmd_completion;
 		cmd_status = &virt_dev->cmd_status;
 	}
@@ -1888,6 +2502,12 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	ctrl_ctx->add_flags |= cpu_to_le32(SLOT_FLAG);
 	ctrl_ctx->add_flags &= cpu_to_le32(~EP0_FLAG);
 	ctrl_ctx->drop_flags &= cpu_to_le32(~(SLOT_FLAG | EP0_FLAG));
+
+	/* Don't issue the command if there's no endpoints to update. */
+	if (ctrl_ctx->add_flags == cpu_to_le32(SLOT_FLAG) &&
+			ctrl_ctx->drop_flags == 0)
+		return 0;
+
 	xhci_dbg(xhci, "New Input Control Context:\n");
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->in_ctx);
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx,
@@ -2525,6 +3145,7 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	int timeleft;
 	int last_freed_endpoint;
 	struct xhci_slot_ctx *slot_ctx;
+	int old_active_eps = 0;
 
 	ret = xhci_check_args(hcd, udev, NULL, 0, false, __func__);
 	if (ret <= 0)
@@ -2666,7 +3287,18 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
 			last_freed_endpoint = i;
 		}
+		if (!list_empty(&virt_dev->eps[i].bw_endpoint_list))
+			xhci_drop_ep_from_interval_table(xhci,
+					&virt_dev->eps[i].bw_info,
+					virt_dev->bw_table,
+					udev,
+					&virt_dev->eps[i],
+					virt_dev->tt_info);
+		xhci_clear_endpoint_bw_info(&virt_dev->eps[i].bw_info);
 	}
+	/* If necessary, update the number of active TTs on this root port */
+	xhci_update_tt_active_eps(xhci, virt_dev, old_active_eps);
+
 	xhci_dbg(xhci, "Output context after successful reset device cmd:\n");
 	xhci_dbg_ctx(xhci, virt_dev->out_ctx, last_freed_endpoint);
 	ret = 0;
@@ -2702,6 +3334,11 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	for (i = 0; i < 31; ++i) {
 		virt_dev->eps[i].ep_state &= ~EP_HALT_PENDING;
 		del_timer_sync(&virt_dev->eps[i].stop_cmd_timer);
+	}
+
+	if (udev->usb2_hw_lpm_enabled) {
+		xhci_set_usb2_hardware_lpm(hcd, udev, 0);
+		udev->usb2_hw_lpm_enabled = 0;
 	}
 
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -2889,7 +3526,7 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	 * command on a timeout.
 	 */
 	if (timeleft <= 0) {
-		xhci_warn(xhci, "%s while waiting for a slot\n",
+		xhci_warn(xhci, "%s while waiting for address device command\n",
 				timeleft == 0 ? "Timeout" : "Signal");
 		/* FIXME cancel the address device command */
 		return -ETIME;
@@ -2957,6 +3594,254 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	return 0;
 }
 
+#ifdef CONFIG_USB_SUSPEND
+
+/* BESL to HIRD Encoding array for USB2 LPM */
+static int xhci_besl_encoding[16] = {125, 150, 200, 300, 400, 500, 1000, 2000,
+	3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000};
+
+/* Calculate HIRD/BESL for USB2 PORTPMSC*/
+static int xhci_calculate_hird_besl(int u2del, bool use_besl)
+{
+	int hird;
+
+	if (use_besl) {
+		for (hird = 0; hird < 16; hird++) {
+			if (xhci_besl_encoding[hird] >= u2del)
+				break;
+		}
+	} else {
+		if (u2del <= 50)
+			hird = 0;
+		else
+			hird = (u2del - 51) / 75 + 1;
+
+		if (hird > 15)
+			hird = 15;
+	}
+
+	return hird;
+}
+
+static int xhci_usb2_software_lpm_test(struct usb_hcd *hcd,
+					struct usb_device *udev)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	struct dev_info	*dev_info;
+	__le32 __iomem	**port_array;
+	__le32 __iomem	*addr, *pm_addr;
+	u32		temp, dev_id;
+	unsigned int	port_num;
+	unsigned long	flags;
+	int		u2del, hird;
+	int		ret;
+
+	if (hcd->speed == HCD_USB3 || !xhci->sw_lpm_support ||
+			!udev->lpm_capable)
+		return -EINVAL;
+
+	/* we only support lpm for non-hub device connected to root hub yet */
+	if (!udev->parent || udev->parent->parent ||
+			udev->descriptor.bDeviceClass == USB_CLASS_HUB)
+		return -EINVAL;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	/* Look for devices in lpm_failed_devs list */
+	dev_id = le16_to_cpu(udev->descriptor.idVendor) << 16 |
+			le16_to_cpu(udev->descriptor.idProduct);
+	list_for_each_entry(dev_info, &xhci->lpm_failed_devs, list) {
+		if (dev_info->dev_id == dev_id) {
+			ret = -EINVAL;
+			goto finish;
+		}
+	}
+
+	port_array = xhci->usb2_ports;
+	port_num = udev->portnum - 1;
+
+	if (port_num > HCS_MAX_PORTS(xhci->hcs_params1)) {
+		xhci_dbg(xhci, "invalid port number %d\n", udev->portnum);
+		ret = -EINVAL;
+		goto finish;
+	}
+
+	/*
+	 * Test USB 2.0 software LPM.
+	 * FIXME: some xHCI 1.0 hosts may implement a new register to set up
+	 * hardware-controlled USB 2.0 LPM. See section 5.4.11 and 4.23.5.1.1.1
+	 * in the June 2011 errata release.
+	 */
+	xhci_dbg(xhci, "test port %d software LPM\n", port_num);
+	/*
+	 * Set L1 Device Slot and HIRD/BESL.
+	 * Check device's USB 2.0 extension descriptor to determine whether
+	 * HIRD or BESL shoule be used. See USB2.0 LPM errata.
+	 */
+	pm_addr = port_array[port_num] + 1;
+	u2del = HCS_U2_LATENCY(xhci->hcs_params3);
+	if (le32_to_cpu(udev->bos->ext_cap->bmAttributes) & (1 << 2))
+		hird = xhci_calculate_hird_besl(u2del, 1);
+	else
+		hird = xhci_calculate_hird_besl(u2del, 0);
+
+	temp = PORT_L1DS(udev->slot_id) | PORT_HIRD(hird);
+	xhci_writel(xhci, temp, pm_addr);
+
+	/* Set port link state to U2(L1) */
+	addr = port_array[port_num];
+	xhci_set_link_state(xhci, port_array, port_num, XDEV_U2);
+
+	/* wait for ACK */
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	msleep(10);
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	/* Check L1 Status */
+	ret = handshake(xhci, pm_addr, PORT_L1S_MASK, PORT_L1S_SUCCESS, 125);
+	if (ret != -ETIMEDOUT) {
+		/* enter L1 successfully */
+		temp = xhci_readl(xhci, addr);
+		xhci_dbg(xhci, "port %d entered L1 state, port status 0x%x\n",
+				port_num, temp);
+		ret = 0;
+	} else {
+		temp = xhci_readl(xhci, pm_addr);
+		xhci_dbg(xhci, "port %d software lpm failed, L1 status %d\n",
+				port_num, temp & PORT_L1S_MASK);
+		ret = -EINVAL;
+	}
+
+	/* Resume the port */
+	xhci_set_link_state(xhci, port_array, port_num, XDEV_U0);
+
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	msleep(10);
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	/* Clear PLC */
+	xhci_test_and_clear_bit(xhci, port_array, port_num, PORT_PLC);
+
+	/* Check PORTSC to make sure the device is in the right state */
+	if (!ret) {
+		temp = xhci_readl(xhci, addr);
+		xhci_dbg(xhci, "resumed port %d status 0x%x\n",	port_num, temp);
+		if (!(temp & PORT_CONNECT) || !(temp & PORT_PE) ||
+				(temp & PORT_PLS_MASK) != XDEV_U0) {
+			xhci_dbg(xhci, "port L1 resume fail\n");
+			ret = -EINVAL;
+		}
+	}
+
+	if (ret) {
+		/* Insert dev to lpm_failed_devs list */
+		xhci_warn(xhci, "device LPM test failed, may disconnect and "
+				"re-enumerate\n");
+		dev_info = kzalloc(sizeof(struct dev_info), GFP_ATOMIC);
+		if (!dev_info) {
+			ret = -ENOMEM;
+			goto finish;
+		}
+		dev_info->dev_id = dev_id;
+		INIT_LIST_HEAD(&dev_info->list);
+		list_add(&dev_info->list, &xhci->lpm_failed_devs);
+	} else {
+		xhci_ring_device(xhci, udev->slot_id);
+	}
+
+finish:
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	return ret;
+}
+
+int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
+			struct usb_device *udev, int enable)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	__le32 __iomem	**port_array;
+	__le32 __iomem	*pm_addr;
+	u32		temp;
+	unsigned int	port_num;
+	unsigned long	flags;
+	int		u2del, hird;
+
+	if (hcd->speed == HCD_USB3 || !xhci->hw_lpm_support ||
+			!udev->lpm_capable)
+		return -EPERM;
+
+	if (!udev->parent || udev->parent->parent ||
+			udev->descriptor.bDeviceClass == USB_CLASS_HUB)
+		return -EPERM;
+
+	if (udev->usb2_hw_lpm_capable != 1)
+		return -EPERM;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	port_array = xhci->usb2_ports;
+	port_num = udev->portnum - 1;
+	pm_addr = port_array[port_num] + 1;
+	temp = xhci_readl(xhci, pm_addr);
+
+	xhci_dbg(xhci, "%s port %d USB2 hardware LPM\n",
+			enable ? "enable" : "disable", port_num);
+
+	u2del = HCS_U2_LATENCY(xhci->hcs_params3);
+	if (le32_to_cpu(udev->bos->ext_cap->bmAttributes) & (1 << 2))
+		hird = xhci_calculate_hird_besl(u2del, 1);
+	else
+		hird = xhci_calculate_hird_besl(u2del, 0);
+
+	if (enable) {
+		temp &= ~PORT_HIRD_MASK;
+		temp |= PORT_HIRD(hird) | PORT_RWE;
+		xhci_writel(xhci, temp, pm_addr);
+		temp = xhci_readl(xhci, pm_addr);
+		temp |= PORT_HLE;
+		xhci_writel(xhci, temp, pm_addr);
+	} else {
+		temp &= ~(PORT_HLE | PORT_RWE | PORT_HIRD_MASK);
+		xhci_writel(xhci, temp, pm_addr);
+	}
+
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	return 0;
+}
+
+int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	int		ret;
+
+	ret = xhci_usb2_software_lpm_test(hcd, udev);
+	if (!ret) {
+		xhci_dbg(xhci, "software LPM test succeed\n");
+		if (xhci->hw_lpm_support == 1) {
+			udev->usb2_hw_lpm_capable = 1;
+			ret = xhci_set_usb2_hardware_lpm(hcd, udev, 1);
+			if (!ret)
+				udev->usb2_hw_lpm_enabled = 1;
+		}
+	}
+
+	return 0;
+}
+
+#else
+
+int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
+				struct usb_device *udev, int enable)
+{
+	return 0;
+}
+
+int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	return 0;
+}
+
+#endif /* CONFIG_USB_SUSPEND */
+
 /* Once a hub descriptor is fetched for a device, we need to update the xHC's
  * internal data structures for the device.
  */
@@ -2988,6 +3873,14 @@ int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 	}
 
 	spin_lock_irqsave(&xhci->lock, flags);
+	if (hdev->speed == USB_SPEED_HIGH &&
+			xhci_alloc_tt_info(xhci, vdev, hdev, tt, GFP_ATOMIC)) {
+		xhci_dbg(xhci, "Could not allocate xHCI TT structure.\n");
+		xhci_free_command(xhci, config_cmd);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return -ENOMEM;
+	}
+
 	xhci_slot_copy(xhci, config_cmd->in_ctx, vdev->out_ctx);
 	ctrl_ctx = xhci_get_input_control_ctx(xhci, config_cmd->in_ctx);
 	ctrl_ctx->add_flags |= cpu_to_le32(SLOT_FLAG);
@@ -3051,22 +3944,108 @@ int xhci_get_frame(struct usb_hcd *hcd)
 	return xhci_readl(xhci, &xhci->run_regs->microframe_index) >> 3;
 }
 
+int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
+{
+	struct xhci_hcd		*xhci;
+	struct device		*dev = hcd->self.controller;
+	int			retval;
+	u32			temp;
+
+	hcd->self.sg_tablesize = TRBS_PER_SEGMENT - 2;
+
+	if (usb_hcd_is_primary_hcd(hcd)) {
+		xhci = kzalloc(sizeof(struct xhci_hcd), GFP_KERNEL);
+		if (!xhci)
+			return -ENOMEM;
+		*((struct xhci_hcd **) hcd->hcd_priv) = xhci;
+		xhci->main_hcd = hcd;
+		/* Mark the first roothub as being USB 2.0.
+		 * The xHCI driver will register the USB 3.0 roothub.
+		 */
+		hcd->speed = HCD_USB2;
+		hcd->self.root_hub->speed = USB_SPEED_HIGH;
+		/*
+		 * USB 2.0 roothub under xHCI has an integrated TT,
+		 * (rate matching hub) as opposed to having an OHCI/UHCI
+		 * companion controller.
+		 */
+		hcd->has_tt = 1;
+	} else {
+		/* xHCI private pointer was set in xhci_pci_probe for the second
+		 * registered roothub.
+		 */
+		xhci = hcd_to_xhci(hcd);
+		temp = xhci_readl(xhci, &xhci->cap_regs->hcc_params);
+		if (HCC_64BIT_ADDR(temp)) {
+			xhci_dbg(xhci, "Enabling 64-bit DMA addresses.\n");
+			dma_set_mask(hcd->self.controller, DMA_BIT_MASK(64));
+		} else {
+			dma_set_mask(hcd->self.controller, DMA_BIT_MASK(32));
+		}
+		return 0;
+	}
+
+	xhci->cap_regs = hcd->regs;
+	xhci->op_regs = hcd->regs +
+		HC_LENGTH(xhci_readl(xhci, &xhci->cap_regs->hc_capbase));
+	xhci->run_regs = hcd->regs +
+		(xhci_readl(xhci, &xhci->cap_regs->run_regs_off) & RTSOFF_MASK);
+	/* Cache read-only capability registers */
+	xhci->hcs_params1 = xhci_readl(xhci, &xhci->cap_regs->hcs_params1);
+	xhci->hcs_params2 = xhci_readl(xhci, &xhci->cap_regs->hcs_params2);
+	xhci->hcs_params3 = xhci_readl(xhci, &xhci->cap_regs->hcs_params3);
+	xhci->hcc_params = xhci_readl(xhci, &xhci->cap_regs->hc_capbase);
+	xhci->hci_version = HC_VERSION(xhci->hcc_params);
+	xhci->hcc_params = xhci_readl(xhci, &xhci->cap_regs->hcc_params);
+	xhci_print_registers(xhci);
+
+	get_quirks(dev, xhci);
+
+	/* Make sure the HC is halted. */
+	retval = xhci_halt(xhci);
+	if (retval)
+		goto error;
+
+	xhci_dbg(xhci, "Resetting HCD\n");
+	/* Reset the internal HC memory state and registers. */
+	retval = xhci_reset(xhci);
+	if (retval)
+		goto error;
+	xhci_dbg(xhci, "Reset complete\n");
+
+	temp = xhci_readl(xhci, &xhci->cap_regs->hcc_params);
+	if (HCC_64BIT_ADDR(temp)) {
+		xhci_dbg(xhci, "Enabling 64-bit DMA addresses.\n");
+		dma_set_mask(hcd->self.controller, DMA_BIT_MASK(64));
+	} else {
+		dma_set_mask(hcd->self.controller, DMA_BIT_MASK(32));
+	}
+
+	xhci_dbg(xhci, "Calling HCD init\n");
+	/* Initialize HCD and host controller data structures. */
+	retval = xhci_init(hcd);
+	if (retval)
+		goto error;
+	xhci_dbg(xhci, "Called HCD init\n");
+	return 0;
+error:
+	kfree(xhci);
+	return retval;
+}
+
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_LICENSE("GPL");
 
 static int __init xhci_hcd_init(void)
 {
-#ifdef CONFIG_PCI
-	int retval = 0;
+	int retval;
 
 	retval = xhci_register_pci();
-
 	if (retval < 0) {
 		printk(KERN_DEBUG "Problem registering PCI driver.");
 		return retval;
 	}
-#endif
 	/*
 	 * Check the compiler generated sizes of structures that must be laid
 	 * out in specific ways for hardware access.
@@ -3091,8 +4070,6 @@ module_init(xhci_hcd_init);
 
 static void __exit xhci_hcd_cleanup(void)
 {
-#ifdef CONFIG_PCI
 	xhci_unregister_pci();
-#endif
 }
 module_exit(xhci_hcd_cleanup);

@@ -49,32 +49,27 @@ enum {
 	MEASUREMENT_START_EVENT_ID		 = BIT(8),
 	MEASUREMENT_COMPLETE_EVENT_ID		 = BIT(9),
 	SCAN_COMPLETE_EVENT_ID			 = BIT(10),
-	SCHEDULED_SCAN_COMPLETE_EVENT_ID	 = BIT(11),
+	WFD_DISCOVERY_COMPLETE_EVENT_ID		 = BIT(11),
 	AP_DISCOVERY_COMPLETE_EVENT_ID		 = BIT(12),
 	PS_REPORT_EVENT_ID			 = BIT(13),
 	PSPOLL_DELIVERY_FAILURE_EVENT_ID	 = BIT(14),
 	DISCONNECT_EVENT_COMPLETE_ID		 = BIT(15),
-	JOIN_EVENT_COMPLETE_ID			 = BIT(16),
+	/* BIT(16) is reserved */
 	CHANNEL_SWITCH_COMPLETE_EVENT_ID	 = BIT(17),
 	BSS_LOSE_EVENT_ID			 = BIT(18),
 	REGAINED_BSS_EVENT_ID			 = BIT(19),
 	MAX_TX_RETRY_EVENT_ID			 = BIT(20),
-	/* STA: dummy paket for dynamic mem blocks */
-	DUMMY_PACKET_EVENT_ID                    = BIT(21),
-	/* AP: STA remove complete */
-	STA_REMOVE_COMPLETE_EVENT_ID             = BIT(21),
+	DUMMY_PACKET_EVENT_ID			 = BIT(21),
 	SOFT_GEMINI_SENSE_EVENT_ID		 = BIT(22),
-	/* STA: SG prediction */
-	SOFT_GEMINI_PREDICTION_EVENT_ID		 = BIT(23),
-	/* AP: Inactive STA */
-	INACTIVE_STA_EVENT_ID			 = BIT(23),
+	CHANGE_AUTO_MODE_TIMEOUT_EVENT_ID	 = BIT(23),
 	SOFT_GEMINI_AVALANCHE_EVENT_ID		 = BIT(24),
 	PLT_RX_CALIBRATION_COMPLETE_EVENT_ID	 = BIT(25),
-	DBG_EVENT_ID				 = BIT(26),
-	HEALTH_CHECK_REPLY_EVENT_ID		 = BIT(27),
+	INACTIVE_STA_EVENT_ID			 = BIT(26),
+	PEER_REMOVE_COMPLETE_EVENT_ID		 = BIT(27),
 	PERIODIC_SCAN_COMPLETE_EVENT_ID		 = BIT(28),
 	PERIODIC_SCAN_REPORT_EVENT_ID		 = BIT(29),
 	BA_SESSION_RX_CONSTRAINT_EVENT_ID	 = BIT(30),
+	REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID	 = BIT(31),
 	EVENT_MBOX_ALL_EVENT_ID			 = 0x7fffffff,
 };
 
@@ -82,15 +77,6 @@ enum {
 	EVENT_ENTER_POWER_SAVE_FAIL = 0,
 	EVENT_ENTER_POWER_SAVE_SUCCESS,
 };
-
-struct event_debug_report {
-	u8 debug_event_id;
-	u8 num_params;
-	__le16 pad;
-	__le32 report_1;
-	__le32 report_2;
-	__le32 report_3;
-} __packed;
 
 #define NUM_OF_RSSI_SNR_TRIGGERS 8
 
@@ -100,49 +86,45 @@ struct event_mailbox {
 	__le32 reserved_1;
 	__le32 reserved_2;
 
-	u8 dbg_event_id;
-	u8 num_relevant_params;
-	__le16 reserved_3;
-	__le32 event_report_p1;
-	__le32 event_report_p2;
-	__le32 event_report_p3;
-
 	u8 number_of_scan_results;
 	u8 scan_tag;
-	u8 reserved_4[2];
-	__le32 compl_scheduled_scan_status;
+	u8 completed_scan_status;
+	u8 reserved_3;
 
-	__le16 scheduled_scan_attended_channels;
 	u8 soft_gemini_sense_info;
 	u8 soft_gemini_protective_info;
 	s8 rssi_snr_trigger_metric[NUM_OF_RSSI_SNR_TRIGGERS];
 	u8 channel_switch_status;
 	u8 scheduled_scan_status;
 	u8 ps_status;
+	/* tuned channel (roc) */
+	u8 roc_channel;
 
-	/* AP FW only */
-	u8 hlid_removed;
+	__le16 hlid_removed_bitmap;
 
-	/* a bitmap of hlids for stations that have been inactive too long */
+	/* bitmap of aged stations (by HLID) */
 	__le16 sta_aging_status;
 
-	/* a bitmap of hlids for stations which didn't respond to TX */
+	/* bitmap of stations (by HLID) which exceeded max tx retries */
 	__le16 sta_tx_retry_exceeded;
 
-	/*
-	 * Bitmap, Each bit set represents the Role ID for which this constraint
-	 * is set. Range: 0 - FF, FF means ANY role
-	 */
-	u8 ba_role_id;
-	/*
-	 * Bitmap, Each bit set represents the Link ID for which this constraint
-	 * is set. Not applicable if ba_role_id is set to ANY role (FF).
-	 * Range: 0 - FFFF, FFFF means ANY link in that role
-	 */
-	u8 ba_link_id;
-	u8 ba_allowed;
+	/* discovery completed results */
+	u8 discovery_tag;
+	u8 number_of_preq_results;
+	u8 number_of_prsp_results;
+	u8 reserved_5;
 
-	u8 reserved_5[21];
+	/* rx ba constraint */
+	u8 role_id; /* 0xFF means any role. */
+	u8 rx_ba_allowed;
+	u8 reserved_6[2];
+
+	u8 ps_poll_delivery_failure_role_ids;
+	u8 stopped_role_ids;
+	u8 started_role_ids;
+	u8 change_auto_mode_timeout;
+
+	u8 reserved_7[12];
 } __packed;
 
 int wl1271_event_unmask(struct wl1271 *wl);

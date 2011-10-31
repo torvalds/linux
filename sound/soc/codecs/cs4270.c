@@ -128,7 +128,6 @@ static const char *supply_names[] = {
 /* Private data for the CS4270 */
 struct cs4270_private {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 	unsigned int mclk; /* Input frequency of the MCLK pin */
 	unsigned int mode; /* The mode (I2S or left-justified) */
 	unsigned int slave_mode;
@@ -262,7 +261,6 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
-	int ret = 0;
 
 	/* set DAI format */
 	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -272,7 +270,7 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	default:
 		dev_err(codec->dev, "invalid dai format\n");
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
 	/* set master/slave audio interface */
@@ -285,10 +283,11 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	default:
 		/* all other modes are unsupported by the hardware */
-		ret = -EINVAL;
+		dev_err(codec->dev, "Unknown master/slave configuration\n");
+		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -490,8 +489,6 @@ static int cs4270_probe(struct snd_soc_codec *codec)
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	int i, ret;
 
-	codec->control_data = cs4270->control_data;
-
 	/* Tell ASoC what kind of I/O to use to read the registers.  ASoC will
 	 * then do the I2C transactions itself.
 	 */
@@ -604,7 +601,7 @@ static int cs4270_soc_suspend(struct snd_soc_codec *codec, pm_message_t mesg)
 static int cs4270_soc_resume(struct snd_soc_codec *codec)
 {
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
-	struct i2c_client *i2c_client = codec->control_data;
+	struct i2c_client *i2c_client = to_i2c_client(codec->dev);
 	int reg;
 
 	regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
@@ -690,7 +687,6 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 	}
 
 	i2c_set_clientdata(i2c_client, cs4270);
-	cs4270->control_data = i2c_client;
 	cs4270->control_type = SND_SOC_I2C;
 
 	ret = snd_soc_register_codec(&i2c_client->dev,

@@ -163,11 +163,19 @@ struct iwl_eeprom_enhanced_txpwr {
 } __packed;
 
 /* calibration */
+struct iwl_eeprom_calib_hdr {
+	u8 version;
+	u8 pa_type;
+	__le16 voltage;
+} __packed;
+
 #define EEPROM_CALIB_ALL	(INDIRECT_ADDRESS | INDIRECT_CALIBRATION)
 #define EEPROM_XTAL		((2*0x128) | EEPROM_CALIB_ALL)
 
 /* temperature */
-#define EEPROM_TEMPERATURE ((2*0x12A) | EEPROM_CALIB_ALL)
+#define EEPROM_KELVIN_TEMPERATURE	((2*0x12A) | EEPROM_CALIB_ALL)
+#define EEPROM_RAW_TEMPERATURE		((2*0x12B) | EEPROM_CALIB_ALL)
+
 
 /* agn links */
 #define EEPROM_LINK_HOST             (2*0x64)
@@ -301,7 +309,6 @@ void iwl_eeprom_free(struct iwl_priv *priv);
 int  iwl_eeprom_check_version(struct iwl_priv *priv);
 int  iwl_eeprom_check_sku(struct iwl_priv *priv);
 const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset);
-int iwlcore_eeprom_verify_signature(struct iwl_priv *priv);
 u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset);
 int iwl_init_channel_map(struct iwl_priv *priv);
 void iwl_free_channel_map(struct iwl_priv *priv);

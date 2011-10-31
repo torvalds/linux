@@ -11,7 +11,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/input.h>
@@ -30,7 +30,6 @@
 
 #include <plat/io.h>
 #include <plat/board-ams-delta.h>
-#include <mach/gpio.h>
 #include <plat/keypad.h>
 #include <plat/mux.h>
 #include <plat/usb.h>
@@ -386,7 +385,7 @@ static void __init ams_delta_map_io(void)
 
 MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	/* Maintainer: Jonathan McDowell <noodles@earth.li> */
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= ams_delta_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= ams_delta_init_irq,

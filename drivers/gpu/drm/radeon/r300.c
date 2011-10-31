@@ -144,8 +144,9 @@ int rv370_pcie_gart_enable(struct radeon_device *rdev)
 	tmp |= RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_DISCARD;
 	WREG32_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp);
 	rv370_pcie_gart_tlb_flush(rdev);
-	DRM_INFO("PCIE GART of %uM enabled (table at 0x%08X).\n",
-		 (unsigned)(rdev->mc.gtt_size >> 20), table_addr);
+	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
+		 (unsigned)(rdev->mc.gtt_size >> 20),
+		 (unsigned long long)table_addr);
 	rdev->gart.ready = true;
 	return 0;
 }

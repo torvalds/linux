@@ -1053,9 +1053,6 @@ manipulate dentries:
 	and the dentry is returned. The caller must use dput()
 	to free the dentry when it finishes using it.
 
-For further information on dentry locking, please refer to the document
-Documentation/filesystems/dentry-locking.txt.
-
 Mount Options
 =============
 

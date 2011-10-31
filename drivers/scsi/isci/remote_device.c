@@ -386,6 +386,18 @@ static bool is_remote_device_ready(struct isci_remote_device *idev)
 	}
 }
 
+/*
+ * called once the remote node context has transisitioned to a ready
+ * state (after suspending RX and/or TX due to early D2H fis)
+ */
+static void atapi_remote_device_resume_done(void *_dev)
+{
+	struct isci_remote_device *idev = _dev;
+	struct isci_request *ireq = idev->working_request;
+
+	sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
+}
+
 enum sci_status sci_remote_device_event_handler(struct isci_remote_device *idev,
 						     u32 event_code)
 {
@@ -431,6 +443,16 @@ enum sci_status sci_remote_device_event_handler(struct isci_remote_device *idev,
 
 	if (status != SCI_SUCCESS)
 		return status;
+
+	if (state == SCI_STP_DEV_ATAPI_ERROR) {
+		/* For ATAPI error state resume the RNC right away. */
+		if (scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX ||
+		    scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX) {
+			return sci_remote_node_context_resume(&idev->rnc,
+							      atapi_remote_device_resume_done,
+							      idev);
+		}
+	}
 
 	if (state == SCI_STP_DEV_IDLE) {
 
@@ -625,6 +647,7 @@ enum sci_status sci_remote_device_complete_io(struct isci_host *ihost,
 	case SCI_STP_DEV_CMD:
 	case SCI_STP_DEV_NCQ:
 	case SCI_STP_DEV_NCQ_ERROR:
+	case SCI_STP_DEV_ATAPI_ERROR:
 		status = common_complete_io(iport, idev, ireq);
 		if (status != SCI_SUCCESS)
 			break;
@@ -1020,6 +1043,7 @@ static const struct sci_base_state sci_remote_device_state_table[] = {
 	[SCI_STP_DEV_NCQ_ERROR] = {
 		.enter_state = sci_stp_remote_device_ready_ncq_error_substate_enter,
 	},
+	[SCI_STP_DEV_ATAPI_ERROR] = { },
 	[SCI_STP_DEV_AWAIT_RESET] = { },
 	[SCI_SMP_DEV_IDLE] = {
 		.enter_state = sci_smp_remote_device_ready_idle_substate_enter,
