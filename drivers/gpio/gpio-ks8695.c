@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -31,7 +31,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/regs-gpio.h>
-#include <mach/gpio.h>
+#include <mach/gpio-ks8695.h>
 
 /*
  * Configure a GPIO line for either GPIO function, or its internal
