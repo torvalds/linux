@@ -173,6 +173,13 @@ struct target_type {
 #define dm_target_always_writeable(type) \
 		((type)->features & DM_TARGET_ALWAYS_WRITEABLE)
 
+/*
+ * Any device that contains a table with an instance of this target may never
+ * have tables containing any different target type.
+ */
+#define DM_TARGET_IMMUTABLE		0x00000004
+#define dm_target_is_immutable(type)	((type)->features & DM_TARGET_IMMUTABLE)
+
 struct dm_target {
 	struct dm_table *table;
 	struct target_type *type;

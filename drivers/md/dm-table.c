@@ -54,6 +54,7 @@ struct dm_table {
 	sector_t *highs;
 	struct dm_target *targets;
 
+	struct target_type *immutable_target_type;
 	unsigned integrity_supported:1;
 	unsigned singleton:1;
 
@@ -780,6 +781,21 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		return -EINVAL;
 	}
 
+	if (t->immutable_target_type) {
+		if (t->immutable_target_type != tgt->type) {
+			DMERR("%s: immutable target type %s cannot be mixed with other target types",
+			      dm_device_name(t->md), t->immutable_target_type->name);
+			return -EINVAL;
+		}
+	} else if (dm_target_is_immutable(tgt->type)) {
+		if (t->num_targets) {
+			DMERR("%s: immutable target type %s cannot be mixed with other target types",
+			      dm_device_name(t->md), tgt->type->name);
+			return -EINVAL;
+		}
+		t->immutable_target_type = tgt->type;
+	}
+
 	tgt->table = t;
 	tgt->begin = start;
 	tgt->len = len;
@@ -935,6 +951,11 @@ static int dm_table_set_type(struct dm_table *t)
 unsigned dm_table_get_type(struct dm_table *t)
 {
 	return t->type;
+}
+
+struct target_type *dm_table_get_immutable_target_type(struct dm_table *t)
+{
+	return t->immutable_target_type;
 }
 
 bool dm_table_request_based(struct dm_table *t)

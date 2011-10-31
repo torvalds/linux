@@ -140,6 +140,8 @@ struct mapped_device {
 	/* Protect queue and type against concurrent access. */
 	struct mutex type_lock;
 
+	struct target_type *immutable_target_type;
+
 	struct gendisk *disk;
 	char name[16];
 
@@ -2096,6 +2098,8 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	write_lock_irqsave(&md->map_lock, flags);
 	old_map = md->map;
 	md->map = t;
+	md->immutable_target_type = dm_table_get_immutable_target_type(t);
+
 	dm_table_set_restrictions(t, q, limits);
 	if (merge_is_optional)
 		set_bit(DMF_MERGE_IS_OPTIONAL, &md->flags);
@@ -2164,6 +2168,11 @@ void dm_set_md_type(struct mapped_device *md, unsigned type)
 unsigned dm_get_md_type(struct mapped_device *md)
 {
 	return md->type;
+}
+
+struct target_type *dm_get_immutable_target_type(struct mapped_device *md)
+{
+	return md->immutable_target_type;
 }
 
 /*
