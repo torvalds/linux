@@ -381,7 +381,7 @@ static void __init omap_h4_map_io(void)
 
 MACHINE_START(OMAP_H4, "OMAP2420 H4 board")
 	/* Maintainer: Paul Mundt <paul.mundt@nokia.com> */
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap_h4_map_io,
 	.init_early	= omap_h4_init_early,
