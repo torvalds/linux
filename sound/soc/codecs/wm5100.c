@@ -2361,13 +2361,17 @@ static int wm5100_gpio_direction_out(struct gpio_chip *chip,
 {
 	struct wm5100_priv *wm5100 = gpio_to_wm5100(chip);
 	struct snd_soc_codec *codec = wm5100->codec;
-	int val;
+	int val, ret;
 
 	val = (1 << WM5100_GP1_FN_SHIFT) | (!!value << WM5100_GP1_LVL_SHIFT);
 
-	return snd_soc_update_bits(codec, WM5100_GPIO_CTRL_1 + offset,
-				   WM5100_GP1_FN_MASK | WM5100_GP1_DIR |
-				   WM5100_GP1_LVL, val);
+	ret = snd_soc_update_bits(codec, WM5100_GPIO_CTRL_1 + offset,
+				  WM5100_GP1_FN_MASK | WM5100_GP1_DIR |
+				  WM5100_GP1_LVL, val);
+	if (ret < 0)
+		return ret;
+	else
+		return 0;
 }
 
 static int wm5100_gpio_get(struct gpio_chip *chip, unsigned offset)
