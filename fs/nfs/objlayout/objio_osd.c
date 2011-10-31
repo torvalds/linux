@@ -459,6 +459,43 @@ static void _write_done(struct ore_io_state *ios, void *private)
 	objlayout_write_done(&objios->oir, status, objios->sync);
 }
 
+static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
+{
+	struct objio_state *objios = priv;
+	struct nfs_write_data *wdata = objios->oir.rpcdata;
+	pgoff_t index = offset / PAGE_SIZE;
+	struct page *page = find_get_page(wdata->inode->i_mapping, index);
+
+	if (!page) {
+		page = find_or_create_page(wdata->inode->i_mapping,
+						index, GFP_NOFS);
+		if (unlikely(!page)) {
+			dprintk("%s: grab_cache_page Failed index=0x%lx\n",
+				__func__, index);
+			return NULL;
+		}
+		unlock_page(page);
+	}
+	if (PageDirty(page) || PageWriteback(page))
+		*uptodate = true;
+	else
+		*uptodate = PageUptodate(page);
+	dprintk("%s: index=0x%lx uptodate=%d\n", __func__, index, *uptodate);
+	return page;
+}
+
+static void __r4w_put_page(void *priv, struct page *page)
+{
+	dprintk("%s: index=0x%lx\n", __func__, page->index);
+	page_cache_release(page);
+	return;
+}
+
+static const struct _ore_r4w_op _r4w_op = {
+	.get_page = &__r4w_get_page,
+	.put_page = &__r4w_put_page,
+};
+
 int objio_write_pagelist(struct nfs_write_data *wdata, int how)
 {
 	struct objio_state *objios;
@@ -472,6 +509,7 @@ int objio_write_pagelist(struct nfs_write_data *wdata, int how)
 		return ret;
 
 	objios->sync = 0 != (how & FLUSH_SYNC);
+	objios->ios->r4w = &_r4w_op;
 
 	if (!objios->sync)
 		objios->ios->done = _write_done;
