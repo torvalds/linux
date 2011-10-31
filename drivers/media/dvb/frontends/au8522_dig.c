@@ -862,7 +862,36 @@ static int au8522_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int au8522_read_signal_strength(struct dvb_frontend *fe,
 				       u16 *signal_strength)
 {
-	return au8522_read_snr(fe, signal_strength);
+	/* borrowed from lgdt330x.c
+	 *
+	 * Calculate strength from SNR up to 35dB
+	 * Even though the SNR can go higher than 35dB,
+	 * there is some comfort factor in having a range of
+	 * strong signals that can show at 100%
+	 */
+	u16 snr;
+	u32 tmp;
+	int ret = au8522_read_snr(fe, &snr);
+
+	*signal_strength = 0;
+
+	if (0 == ret) {
+		/* The following calculation method was chosen
+		 * purely for the sake of code re-use from the
+		 * other demod drivers that use this method */
+
+		/* Convert from SNR in dB * 10 to 8.24 fixed-point */
+		tmp = (snr * ((1 << 24) / 10));
+
+		/* Convert from 8.24 fixed-point to
+		 * scale the range 0 - 35*2^24 into 0 - 65535*/
+		if (tmp >= 8960 * 0x10000)
+			*signal_strength = 0xffff;
+		else
+			*signal_strength = tmp / 8960;
+	}
+
+	return ret;
 }
 
 static int au8522_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
