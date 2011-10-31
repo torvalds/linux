@@ -18,30 +18,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#if defined(LINUX) && defined(__KERNEL__) /* linux kernel implementation */
 #include <linux/kernel.h>
 #include "as102_drv.h"
-#elif defined(WIN32)
-   #if defined(__BUILDMACHINE__) && (__BUILDMACHINE__ == WinDDK)
-      /* win32 ddk implementation */
-      #include "wdm.h"
-      #include "Device.h"
-      #include "endian_mgmt.h" /* FIXME */
-   #else /* win32 sdk implementation */
-      #include <windows.h>
-      #include "types.h"
-      #include "util.h"
-      #include "as10x_handle.h"
-      #include "endian_mgmt.h"
-   #endif
-#else /* all other cases */
-   #include <string.h>
-   #include "types.h"
-   #include "util.h"
-   #include "as10x_handle.h"
-   #include "endian_mgmt.h" /* FIXME */
-#endif /* __KERNEL__ */
-
 #include "as10x_types.h"
 #include "as10x_cmd.h"
 
