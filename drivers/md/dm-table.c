@@ -774,6 +774,12 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		t->singleton = 1;
 	}
 
+	if (dm_target_always_writeable(tgt->type) && !(t->mode & FMODE_WRITE)) {
+		DMERR("%s: target type %s may not be included in read-only tables",
+		      dm_device_name(t->md), type);
+		return -EINVAL;
+	}
+
 	tgt->table = t;
 	tgt->begin = start;
 	tgt->len = len;

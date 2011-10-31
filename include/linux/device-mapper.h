@@ -166,6 +166,13 @@ struct target_type {
 #define DM_TARGET_SINGLETON		0x00000001
 #define dm_target_needs_singleton(type)	((type)->features & DM_TARGET_SINGLETON)
 
+/*
+ * Indicates that a target does not support read-only devices.
+ */
+#define DM_TARGET_ALWAYS_WRITEABLE	0x00000002
+#define dm_target_always_writeable(type) \
+		((type)->features & DM_TARGET_ALWAYS_WRITEABLE)
+
 struct dm_target {
 	struct dm_table *table;
 	struct target_type *type;
