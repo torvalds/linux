@@ -107,28 +107,6 @@ struct omap_uart_state {
 static LIST_HEAD(uart_list);
 static u8 num_uarts;
 
-static int uart_idle_hwmod(struct omap_device *od)
-{
-	omap_hwmod_idle(od->hwmods[0]);
-
-	return 0;
-}
-
-static int uart_enable_hwmod(struct omap_device *od)
-{
-	omap_hwmod_enable(od->hwmods[0]);
-
-	return 0;
-}
-
-static struct omap_device_pm_latency omap_uart_latency[] = {
-	{
-		.deactivate_func = uart_idle_hwmod,
-		.activate_func	 = uart_enable_hwmod,
-		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
 static inline unsigned int __serial_read_reg(struct uart_port *up,
 					     int offset)
 {
@@ -711,7 +689,7 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 {
 	struct omap_uart_state *uart;
 	struct omap_hwmod *oh;
-	struct omap_device *od;
+	struct platform_device *pdev;
 	void *pdata = NULL;
 	u32 pdata_size = 0;
 	char *name;
@@ -799,20 +777,19 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 	if (WARN_ON(!oh))
 		return;
 
-	od = omap_device_build(name, uart->num, oh, pdata, pdata_size,
-			       omap_uart_latency,
-			       ARRAY_SIZE(omap_uart_latency), false);
-	WARN(IS_ERR(od), "Could not build omap_device for %s: %s.\n",
+	pdev = omap_device_build(name, uart->num, oh, pdata, pdata_size,
+				 NULL, 0, false);
+	WARN(IS_ERR(pdev), "Could not build omap_device for %s: %s.\n",
 	     name, oh->name);
 
-	omap_device_disable_idle_on_suspend(od);
+	omap_device_disable_idle_on_suspend(pdev);
 	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
 
 	uart->irq = oh->mpu_irqs[0].irq;
 	uart->regshift = 2;
 	uart->mapbase = oh->slaves[0]->addr->pa_start;
 	uart->membase = omap_hwmod_get_mpu_rt_va(oh);
-	uart->pdev = &od->pdev;
+	uart->pdev = pdev;
 
 	oh->dev_attr = uart;
 
@@ -846,8 +823,8 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 
 	if ((cpu_is_omap34xx() && uart->padconf) ||
 	    (uart->wk_en && uart->wk_mask)) {
-		device_init_wakeup(&od->pdev.dev, true);
-		DEV_CREATE_FILE(&od->pdev.dev, &dev_attr_sleep_timeout);
+		device_init_wakeup(&pdev->dev, true);
+		DEV_CREATE_FILE(&pdev->dev, &dev_attr_sleep_timeout);
 	}
 
 	/* Enable the MDR1 errata for OMAP3 */
