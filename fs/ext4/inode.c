@@ -3206,8 +3206,8 @@ int ext4_discard_partial_page_buffers_no_lock(handle_t *handle,
 		 * to be updated with the contents of the block before
 		 * we write the zeros on top of it.
 		 */
-		if (!(from & (blocksize - 1)) ||
-		    !((from + length) & (blocksize - 1))) {
+		if ((from & (blocksize - 1)) ||
+		    ((from + length) & (blocksize - 1))) {
 			create_empty_buffers(page, blocksize, 0);
 		} else {
 			/*
