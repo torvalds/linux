@@ -153,6 +153,7 @@ static const char usbhsh_hcd_name[] = "renesas_usbhs host";
 #define usbhsh_usbv_to_udev(d)	dev_get_drvdata(&(d)->dev)
 
 #define usbhsh_udev_to_usbv(h)	((h)->usbv)
+#define usbhsh_udev_is_used(h)	usbhsh_udev_to_usbv(h)
 
 #define usbhsh_pipe_info(p)	((p)->mod_private)
 
@@ -231,27 +232,34 @@ static struct usbhsh_device *usbhsh_device_alloc(struct usbhsh_hpriv *hpriv,
 	int i;
 
 	/*
-	 * device 0
+	 * find device
 	 */
 	if (0 == usb_pipedevice(urb->pipe)) {
+		/*
+		 * device0 is special case
+		 */
 		udev = usbhsh_device0(hpriv);
-		goto usbhsh_device_find;
+		if (usbhsh_udev_is_used(udev))
+			udev = NULL;
+	} else {
+		struct usbhsh_device *pos;
+
+		/*
+		 * find unused device
+		 */
+		usbhsh_for_each_udev(pos, hpriv, i) {
+			if (usbhsh_udev_is_used(pos))
+				continue;
+			udev = pos;
+			break;
+		}
 	}
 
-	/*
-	 * find unused device
-	 */
-	usbhsh_for_each_udev(udev, hpriv, i) {
-		if (usbhsh_udev_to_usbv(udev))
-			continue;
-		goto usbhsh_device_find;
+	if (!udev) {
+		dev_err(dev, "no free usbhsh_device\n");
+		return NULL;
 	}
 
-	dev_err(dev, "no free usbhsh_device\n");
-
-	return NULL;
-
-usbhsh_device_find:
 	if (usbhsh_device_has_endpoint(udev))
 		dev_warn(dev, "udev have old endpoint\n");
 
