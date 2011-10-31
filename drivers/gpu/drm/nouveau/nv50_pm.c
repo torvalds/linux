@@ -485,7 +485,8 @@ nv50_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	 * clock domains work, i suspect at least some of them can also be
 	 * tied to xpll...
 	 */
-	info->amast = info->pdivs = 0;
+	info->amast = nv_rd32(dev, 0x00c040);
+	info->pdivs = read_div(dev);
 	if (perflvl->vdec) {
 		/* see how close we can get using nvclk as a source */
 		clk = calc_div(perflvl->core, perflvl->vdec, &P1);
@@ -498,12 +499,12 @@ nv50_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		out = calc_div(out, perflvl->vdec, &P2);
 
 		/* select whichever gets us closest */
+		info->amast &= ~0x00000c00;
+		info->pdivs &= ~0x00000700;
 		if (abs((int)perflvl->vdec - clk) <=
 		    abs((int)perflvl->vdec - out)) {
 			if (dev_priv->chipset != 0x98)
 				info->amast |= 0x00000c00;
-			else
-				info->amast |= 0x00000000;
 			info->pdivs |= P1 << 8;
 		} else {
 			info->amast |= 0x00000800;
@@ -514,22 +515,21 @@ nv50_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	/* dom6: nfi what this is, but we're limited to various combinations
 	 * of the host clock frequency
 	 */
-	if (clk_same(perflvl->dom6, read_clk(dev, clk_src_href))) {
-		info->amast |= 0x00000000;
-		info->pdivs |= read_div(dev) & 0x00000007;
-	} else
-	if (clk_same(perflvl->dom6, read_clk(dev, clk_src_hclk))) {
-		info->amast |= 0x08000000;
-		info->pdivs |= read_div(dev) & 0x00000007;
-	} else
 	if (perflvl->dom6) {
-		clk = read_clk(dev, clk_src_hclk) * 3;
-		clk = calc_div(clk, perflvl->dom6, &P1);
+		info->amast &= ~0x0c000000;
+		if (clk_same(perflvl->dom6, read_clk(dev, clk_src_href))) {
+			info->amast |= 0x00000000;
+		} else
+		if (clk_same(perflvl->dom6, read_clk(dev, clk_src_hclk))) {
+			info->amast |= 0x08000000;
+		} else {
+			clk = read_clk(dev, clk_src_hclk) * 3;
+			clk = calc_div(clk, perflvl->dom6, &P1);
 
-		info->amast |= 0x0c000000;
-		info->pdivs |= P1;
+			info->amast |= 0x0c000000;
+			info->pdivs  = (info->pdivs & ~0x00000007) | P1;
+		}
 	}
-
 
 	return info;
 error:
