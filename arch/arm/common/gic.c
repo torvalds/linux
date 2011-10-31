@@ -25,7 +25,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/err.h>
-#include <linux/export.h>
+#include <linux/module.h>
 #include <linux/list.h>
 #include <linux/smp.h>
 #include <linux/cpu_pm.h>
