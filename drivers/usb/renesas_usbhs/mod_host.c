@@ -74,7 +74,6 @@ struct usbhsh_pipe_info {
 struct usbhsh_request {
 	struct urb		*urb;
 	struct usbhs_pkt	pkt;
-	struct list_head	ureq_link; /* see hpriv :: ureq_link_xxx */
 };
 
 struct usbhsh_device {
@@ -104,10 +103,6 @@ struct usbhsh_hpriv {
 	u32	port_stat;	/* USB_PORT_STAT_xxx */
 
 	struct completion	setup_ack_done;
-
-	/* see usbhsh_req_alloc/free */
-	struct list_head	ureq_link_active;
-	struct list_head	ureq_link_free;
 };
 
 
@@ -178,31 +173,6 @@ static const char usbhsh_hcd_name[] = "renesas_usbhs host";
 /*
  *		req alloc/free
  */
-static void usbhsh_ureq_list_init(struct usbhsh_hpriv *hpriv)
-{
-	INIT_LIST_HEAD(&hpriv->ureq_link_active);
-	INIT_LIST_HEAD(&hpriv->ureq_link_free);
-}
-
-static void usbhsh_ureq_list_quit(struct usbhsh_hpriv *hpriv)
-{
-	struct usb_hcd *hcd = usbhsh_hpriv_to_hcd(hpriv);
-	struct device *dev = usbhsh_hcd_to_dev(hcd);
-	struct usbhsh_request *ureq, *next;
-
-	/* kfree all active ureq */
-	list_for_each_entry_safe(ureq, next,
-				 &hpriv->ureq_link_active,
-				 ureq_link) {
-		dev_err(dev, "active ureq (%p) is force freed\n", ureq);
-		kfree(ureq);
-	}
-
-	/* kfree all free ureq */
-	list_for_each_entry_safe(ureq, next, &hpriv->ureq_link_free, ureq_link)
-		kfree(ureq);
-}
-
 static struct usbhsh_request *usbhsh_ureq_alloc(struct usbhsh_hpriv *hpriv,
 					       struct urb *urb,
 					       gfp_t mem_flags)
@@ -211,35 +181,13 @@ static struct usbhsh_request *usbhsh_ureq_alloc(struct usbhsh_hpriv *hpriv,
 	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
 	struct device *dev = usbhs_priv_to_dev(priv);
 
-	if (list_empty(&hpriv->ureq_link_free)) {
-		/*
-		 * create new one if there is no free ureq
-		 */
-		ureq = kzalloc(sizeof(struct usbhsh_request), mem_flags);
-		if (ureq)
-			INIT_LIST_HEAD(&ureq->ureq_link);
-	} else {
-		/*
-		 * reuse "free" ureq if exist
-		 */
-		ureq = list_entry(hpriv->ureq_link_free.next,
-				  struct usbhsh_request,
-				  ureq_link);
-		if (ureq)
-			list_del_init(&ureq->ureq_link);
-	}
-
+	ureq = kzalloc(sizeof(struct usbhsh_request), mem_flags);
 	if (!ureq) {
 		dev_err(dev, "ureq alloc fail\n");
 		return NULL;
 	}
 
 	usbhs_pkt_init(&ureq->pkt);
-
-	/*
-	 * push it to "active" list
-	 */
-	list_add_tail(&ureq->ureq_link, &hpriv->ureq_link_active);
 	ureq->urb = urb;
 	usbhsh_urb_to_ureq(urb) = ureq;
 
@@ -249,18 +197,10 @@ static struct usbhsh_request *usbhsh_ureq_alloc(struct usbhsh_hpriv *hpriv,
 static void usbhsh_ureq_free(struct usbhsh_hpriv *hpriv,
 			    struct usbhsh_request *ureq)
 {
-	struct usbhs_pkt *pkt = &ureq->pkt;
-
-	usbhs_pkt_init(pkt);
-
-	/*
-	 * removed from "active" list,
-	 * and push it to "free" list
-	 */
 	usbhsh_urb_to_ureq(ureq->urb) = NULL;
 	ureq->urb = NULL;
-	list_del_init(&ureq->ureq_link);
-	list_add_tail(&ureq->ureq_link, &hpriv->ureq_link_free);
+
+	kfree(ureq);
 }
 
 /*
@@ -1310,7 +1250,6 @@ int usbhs_mod_host_probe(struct usbhs_priv *priv)
 	hpriv->mod.stop		= usbhsh_stop;
 	hpriv->pipe_info	= pipe_info;
 	hpriv->pipe_size	= pipe_size;
-	usbhsh_ureq_list_init(hpriv);
 	usbhsh_port_stat_init(hpriv);
 
 	/* init all device */
@@ -1333,8 +1272,6 @@ int usbhs_mod_host_remove(struct usbhs_priv *priv)
 {
 	struct usbhsh_hpriv *hpriv = usbhsh_priv_to_hpriv(priv);
 	struct usb_hcd *hcd = usbhsh_hpriv_to_hcd(hpriv);
-
-	usbhsh_ureq_list_quit(hpriv);
 
 	usb_put_hcd(hcd);
 
