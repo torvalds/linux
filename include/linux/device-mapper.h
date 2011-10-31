@@ -128,10 +128,6 @@ void dm_put_device(struct dm_target *ti, struct dm_dev *d);
  * Information about a target type
  */
 
-/*
- * Target features
- */
-
 struct target_type {
 	uint64_t features;
 	const char *name;
@@ -159,6 +155,16 @@ struct target_type {
 	/* For internal device-mapper use. */
 	struct list_head list;
 };
+
+/*
+ * Target features
+ */
+
+/*
+ * Any table that contains an instance of this target must have only one.
+ */
+#define DM_TARGET_SINGLETON		0x00000001
+#define dm_target_needs_singleton(type)	((type)->features & DM_TARGET_SINGLETON)
 
 struct dm_target {
 	struct dm_table *table;

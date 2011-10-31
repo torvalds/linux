@@ -55,6 +55,7 @@ struct dm_table {
 	struct dm_target *targets;
 
 	unsigned integrity_supported:1;
+	unsigned singleton:1;
 
 	/*
 	 * Indicates the rw permissions for the new logical
@@ -740,6 +741,12 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	char **argv;
 	struct dm_target *tgt;
 
+	if (t->singleton) {
+		DMERR("%s: target type %s must appear alone in table",
+		      dm_device_name(t->md), t->targets->type->name);
+		return -EINVAL;
+	}
+
 	if ((r = check_space(t)))
 		return r;
 
@@ -756,6 +763,15 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		DMERR("%s: %s: unknown target type", dm_device_name(t->md),
 		      type);
 		return -EINVAL;
+	}
+
+	if (dm_target_needs_singleton(tgt->type)) {
+		if (t->num_targets) {
+			DMERR("%s: target type %s must appear alone in table",
+			      dm_device_name(t->md), type);
+			return -EINVAL;
+		}
+		t->singleton = 1;
 	}
 
 	tgt->table = t;
