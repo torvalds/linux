@@ -75,7 +75,7 @@ struct msp_state {
 	int opmode;
 	int std;
 	int mode;
-	v4l2_std_id v4l2_std;
+	v4l2_std_id v4l2_std, detected_std;
 	int nicam_on;
 	int acb;
 	int in_scart;

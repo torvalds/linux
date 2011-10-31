@@ -33,6 +33,8 @@
  * drivers.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "sq905"
 
 #include <linux/workqueue.h>
@@ -123,8 +125,7 @@ static int sq905_command(struct gspca_dev *gspca_dev, u16 index)
 			      SQ905_COMMAND, index, gspca_dev->usb_buf, 1,
 			      SQ905_CMD_TIMEOUT);
 	if (ret < 0) {
-		err("%s: usb_control_msg failed (%d)",
-			__func__, ret);
+		pr_err("%s: usb_control_msg failed (%d)\n", __func__, ret);
 		return ret;
 	}
 
@@ -135,8 +136,7 @@ static int sq905_command(struct gspca_dev *gspca_dev, u16 index)
 			      SQ905_PING, 0, gspca_dev->usb_buf, 1,
 			      SQ905_CMD_TIMEOUT);
 	if (ret < 0) {
-		err("%s: usb_control_msg failed 2 (%d)",
-			__func__, ret);
+		pr_err("%s: usb_control_msg failed 2 (%d)\n", __func__, ret);
 		return ret;
 	}
 
@@ -158,7 +158,7 @@ static int sq905_ack_frame(struct gspca_dev *gspca_dev)
 			      SQ905_READ_DONE, 0, gspca_dev->usb_buf, 1,
 			      SQ905_CMD_TIMEOUT);
 	if (ret < 0) {
-		err("%s: usb_control_msg failed (%d)", __func__, ret);
+		pr_err("%s: usb_control_msg failed (%d)\n", __func__, ret);
 		return ret;
 	}
 
@@ -186,7 +186,7 @@ sq905_read_data(struct gspca_dev *gspca_dev, u8 *data, int size, int need_lock)
 	if (need_lock)
 		mutex_unlock(&gspca_dev->usb_lock);
 	if (ret < 0) {
-		err("%s: usb_control_msg failed (%d)", __func__, ret);
+		pr_err("%s: usb_control_msg failed (%d)\n", __func__, ret);
 		return ret;
 	}
 	ret = usb_bulk_msg(gspca_dev->dev,
@@ -195,8 +195,7 @@ sq905_read_data(struct gspca_dev *gspca_dev, u8 *data, int size, int need_lock)
 
 	/* successful, it returns 0, otherwise  negative */
 	if (ret < 0 || act_len != size) {
-		err("bulk read fail (%d) len %d/%d",
-			ret, act_len, size);
+		pr_err("bulk read fail (%d) len %d/%d\n", ret, act_len, size);
 		return -EIO;
 	}
 	return 0;
@@ -226,7 +225,7 @@ static void sq905_dostream(struct work_struct *work)
 
 	buffer = kmalloc(SQ905_MAX_TRANSFER, GFP_KERNEL | GFP_DMA);
 	if (!buffer) {
-		err("Couldn't allocate USB buffer");
+		pr_err("Couldn't allocate USB buffer\n");
 		goto quit_stream;
 	}
 

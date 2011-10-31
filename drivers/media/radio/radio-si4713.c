@@ -92,10 +92,6 @@ static int radio_si4713_s_audout(struct file *file, void *priv,
 static int radio_si4713_querycap(struct file *file, void *priv,
 					struct v4l2_capability *capability)
 {
-	struct radio_si4713_device *rsdev;
-
-	rsdev = video_get_drvdata(video_devdata(file));
-
 	strlcpy(capability->driver, "radio-si4713", sizeof(capability->driver));
 	strlcpy(capability->card, "Silicon Labs Si4713 Modulator",
 				sizeof(capability->card));

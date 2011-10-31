@@ -69,7 +69,7 @@ static int cinergyt2_frontend_attach(struct dvb_usb_adapter *adap)
 	char state[3];
 	int ret;
 
-	adap->fe = cinergyt2_fe_attach(adap->dev);
+	adap->fe_adap[0].fe = cinergyt2_fe_attach(adap->dev);
 
 	ret = dvb_usb_generic_rw(adap->dev, query, sizeof(query), state,
 				sizeof(state), 0);
@@ -198,6 +198,8 @@ static struct dvb_usb_device_properties cinergyt2_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.streaming_ctrl   = cinergyt2_streaming_ctrl,
 			.frontend_attach  = cinergyt2_frontend_attach,
 
@@ -212,6 +214,7 @@ static struct dvb_usb_device_properties cinergyt2_properties = {
 					}
 				}
 			},
+		}},
 		}
 	},
 

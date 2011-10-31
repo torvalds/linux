@@ -236,6 +236,13 @@ config DVB_MB86A16
 	  A DVB-S/DSS Direct Conversion reveiver.
 	  Say Y when you want to support this frontend.
 
+config DVB_TDA10071
+	tristate "NXP TDA10071"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Say Y when you want to support this frontend.
+
 comment "DVB-T (terrestrial) frontends"
 	depends on DVB_CORE
 
@@ -600,6 +607,16 @@ config DVB_LNBP21
 	help
 	  An SEC control chips.
 
+config DVB_LNBP22
+	tristate "LNBP22 SEC controllers"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  LNB power supply and control voltage
+	  regulator chip with step-up converter
+	  and I2C interface.
+	  Say Y when you want to support this chip.
+
 config DVB_ISL6405
 	tristate "ISL6405 SEC controller"
 	depends on DVB_CORE && I2C
@@ -620,6 +637,11 @@ config DVB_ISL6423
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A SEC controller chip from Intersil
+
+config DVB_A8293
+	tristate "Allegro A8293"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
 
 config DVB_LGS8GL5
 	tristate "Silicon Legend LGS-8GL5 demodulator (OFDM)"
@@ -660,6 +682,14 @@ config DVB_IX2505V
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+config DVB_IT913X_FE
+	tristate "it913x frontend and it9137 tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-T tuner module.
+	  Say Y when you want to support this frontend.
 
 comment "Tools to develop new frontends"
 

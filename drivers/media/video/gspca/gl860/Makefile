@@ -6,5 +6,5 @@ gspca_gl860-objs := gl860.o \
 		    gl860-ov9655.o \
 		    gl860-mi2020.o
 
-EXTRA_CFLAGS += -Idrivers/media/video/gspca
+ccflags-y += -Idrivers/media/video/gspca
 

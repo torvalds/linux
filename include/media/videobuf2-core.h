@@ -75,7 +75,6 @@ struct vb2_mem_ops {
 
 struct vb2_plane {
 	void			*mem_priv;
-	int			mapped:1;
 };
 
 /**
@@ -147,7 +146,6 @@ struct vb2_queue;
  * @done_entry:		entry on the list that stores all buffers ready to
  *			be dequeued to userspace
  * @planes:		private per-plane information; do not change
- * @num_planes_mapped:	number of mapped planes; do not change
  */
 struct vb2_buffer {
 	struct v4l2_buffer	v4l2_buf;
@@ -164,7 +162,6 @@ struct vb2_buffer {
 	struct list_head	done_entry;
 
 	struct vb2_plane	planes[VIDEO_MAX_PLANES];
-	unsigned int		num_planes_mapped;
 };
 
 /**
@@ -199,19 +196,28 @@ struct vb2_buffer {
  *			before userspace accesses the buffer; optional
  * @buf_cleanup:	called once before the buffer is freed; drivers may
  *			perform any additional cleanup; optional
- * @start_streaming:	called once before entering 'streaming' state; enables
- *			driver to receive buffers over buf_queue() callback
+ * @start_streaming:	called once to enter 'streaming' state; the driver may
+ *			receive buffers with @buf_queue callback before
+ *			@start_streaming is called; the driver gets the number
+ *			of already queued buffers in count parameter; driver
+ *			can return an error if hardware fails or not enough
+ *			buffers has been queued, in such case all buffers that
+ *			have been already given by the @buf_queue callback are
+ *			invalidated.
  * @stop_streaming:	called when 'streaming' state must be disabled; driver
  *			should stop any DMA transactions or wait until they
  *			finish and give back all buffers it got from buf_queue()
  *			callback; may use vb2_wait_for_all_buffers() function
  * @buf_queue:		passes buffer vb to the driver; driver may start
  *			hardware operation on this buffer; driver should give
- *			the buffer back by calling vb2_buffer_done() function
+ *			the buffer back by calling vb2_buffer_done() function;
+ *			it is allways called after calling STREAMON ioctl;
+ *			might be called before start_streaming callback if user
+ *			pre-queued buffers before calling STREAMON
  */
 struct vb2_ops {
 	int (*queue_setup)(struct vb2_queue *q, unsigned int *num_buffers,
-			   unsigned int *num_planes, unsigned long sizes[],
+			   unsigned int *num_planes, unsigned int sizes[],
 			   void *alloc_ctxs[]);
 
 	void (*wait_prepare)(struct vb2_queue *q);
@@ -222,7 +228,7 @@ struct vb2_ops {
 	int (*buf_finish)(struct vb2_buffer *vb);
 	void (*buf_cleanup)(struct vb2_buffer *vb);
 
-	int (*start_streaming)(struct vb2_queue *q);
+	int (*start_streaming)(struct vb2_queue *q, unsigned int count);
 	int (*stop_streaming)(struct vb2_queue *q);
 
 	void (*buf_queue)(struct vb2_buffer *vb);
@@ -276,6 +282,7 @@ struct vb2_queue {
 	wait_queue_head_t		done_wq;
 
 	void				*alloc_ctx[VIDEO_MAX_PLANES];
+	unsigned int			plane_sizes[VIDEO_MAX_PLANES];
 
 	unsigned int			streaming:1;
 

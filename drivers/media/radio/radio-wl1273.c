@@ -2109,7 +2109,7 @@ static int __devinit wl1273_fm_radio_probe(struct platform_device *pdev)
 				 V4L2_CID_TUNE_ANTENNA_CAPACITOR,
 				 0, 255, 1, 255);
 	if (ctrl)
-		ctrl->is_volatile = 1;
+		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	if (radio->ctrl_handler.error) {
 		r = radio->ctrl_handler.error;

@@ -19,6 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "conex"
 
 #include "gspca.h"
@@ -129,7 +131,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 
 #ifdef GSPCA_DEBUG
 	if (len > USB_BUF_SZ) {
-		err("reg_r: buffer overflow");
+		pr_err("reg_r: buffer overflow\n");
 		return;
 	}
 #endif
@@ -169,7 +171,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 
 #ifdef GSPCA_DEBUG
 	if (len > USB_BUF_SZ) {
-		err("reg_w: buffer overflow");
+		pr_err("reg_w: buffer overflow\n");
 		return;
 	}
 	PDEBUG(D_USBO, "reg write [%02x] = %02x..", index, *buffer);

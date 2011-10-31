@@ -20,6 +20,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "nw80x"
 
 #include "gspca.h"
@@ -1571,7 +1573,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			len,
 			500);
 	if (ret < 0) {
-		err("reg_w err %d", ret);
+		pr_err("reg_w err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -1592,7 +1594,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			0x00, index,
 			gspca_dev->usb_buf, len, 500);
 	if (ret < 0) {
-		err("reg_r err %d", ret);
+		pr_err("reg_r err %d\n", ret);
 		gspca_dev->usb_err = ret;
 		return;
 	}
@@ -1802,7 +1804,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		}
 	}
 	if (webcam_chip[sd->webcam] != sd->bridge) {
-		err("Bad webcam type %d for NW80%d", sd->webcam, sd->bridge);
+		pr_err("Bad webcam type %d for NW80%d\n",
+		       sd->webcam, sd->bridge);
 		gspca_dev->usb_err = -ENODEV;
 		return gspca_dev->usb_err;
 	}

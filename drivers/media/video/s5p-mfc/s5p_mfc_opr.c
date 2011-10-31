@@ -1135,7 +1135,7 @@ static int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 	temp_vb = list_entry(ctx->src_queue.next, struct s5p_mfc_buf, list);
 	temp_vb->used = 1;
 	s5p_mfc_set_dec_stream_buffer(ctx,
-		vb2_dma_contig_plane_paddr(temp_vb->b, 0), ctx->consumed_stream,
+		vb2_dma_contig_plane_dma_addr(temp_vb->b, 0), ctx->consumed_stream,
 					temp_vb->b->v4l2_planes[0].bytesused);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 	index = temp_vb->b->v4l2_buf.index;
@@ -1172,12 +1172,12 @@ static int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	}
 	src_mb = list_entry(ctx->src_queue.next, struct s5p_mfc_buf, list);
 	src_mb->used = 1;
-	src_y_addr = vb2_dma_contig_plane_paddr(src_mb->b, 0);
-	src_c_addr = vb2_dma_contig_plane_paddr(src_mb->b, 1);
+	src_y_addr = vb2_dma_contig_plane_dma_addr(src_mb->b, 0);
+	src_c_addr = vb2_dma_contig_plane_dma_addr(src_mb->b, 1);
 	s5p_mfc_set_enc_frame_buffer(ctx, src_y_addr, src_c_addr);
 	dst_mb = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf, list);
 	dst_mb->used = 1;
-	dst_addr = vb2_dma_contig_plane_paddr(dst_mb->b, 0);
+	dst_addr = vb2_dma_contig_plane_dma_addr(dst_mb->b, 0);
 	dst_size = vb2_plane_size(dst_mb->b, 0);
 	s5p_mfc_set_enc_stream_buffer(ctx, dst_addr, dst_size);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
@@ -1200,7 +1200,7 @@ static void s5p_mfc_run_init_dec(struct s5p_mfc_ctx *ctx)
 	s5p_mfc_set_dec_desc_buffer(ctx);
 	mfc_debug(2, "Header size: %d\n", temp_vb->b->v4l2_planes[0].bytesused);
 	s5p_mfc_set_dec_stream_buffer(ctx,
-				vb2_dma_contig_plane_paddr(temp_vb->b, 0),
+				vb2_dma_contig_plane_dma_addr(temp_vb->b, 0),
 				0, temp_vb->b->v4l2_planes[0].bytesused);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 	dev->curr_ctx = ctx->num;
@@ -1219,7 +1219,7 @@ static void s5p_mfc_run_init_enc(struct s5p_mfc_ctx *ctx)
 	s5p_mfc_set_enc_ref_buffer(ctx);
 	spin_lock_irqsave(&dev->irqlock, flags);
 	dst_mb = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf, list);
-	dst_addr = vb2_dma_contig_plane_paddr(dst_mb->b, 0);
+	dst_addr = vb2_dma_contig_plane_dma_addr(dst_mb->b, 0);
 	dst_size = vb2_plane_size(dst_mb->b, 0);
 	s5p_mfc_set_enc_stream_buffer(ctx, dst_addr, dst_size);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
@@ -1255,7 +1255,7 @@ static int s5p_mfc_run_init_dec_buffers(struct s5p_mfc_ctx *ctx)
 	temp_vb = list_entry(ctx->src_queue.next, struct s5p_mfc_buf, list);
 	mfc_debug(2, "Header size: %d\n", temp_vb->b->v4l2_planes[0].bytesused);
 	s5p_mfc_set_dec_stream_buffer(ctx,
-				vb2_dma_contig_plane_paddr(temp_vb->b, 0),
+				vb2_dma_contig_plane_dma_addr(temp_vb->b, 0),
 				0, temp_vb->b->v4l2_planes[0].bytesused);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 	dev->curr_ctx = ctx->num;

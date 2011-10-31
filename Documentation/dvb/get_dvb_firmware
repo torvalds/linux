@@ -27,7 +27,8 @@ use IO::Handle;
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
 		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
-		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5");
+		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5", "tda10071",
+		"it9135" );
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -575,19 +576,10 @@ sub ngene {
 }
 
 sub az6027{
-    my $file = "AZ6027_Linux_Driver.tar.gz";
-    my $url = "http://linux.terratec.de/files/$file";
     my $firmware = "dvb-usb-az6027-03.fw";
+    my $url = "http://linux.terratec.de/files/TERRATEC_S7/$firmware";
 
-    wgetfile($file, $url);
-
-    #untar
-    if( system("tar xzvf $file $firmware")){
-        die "failed to untar firmware";
-    }
-    if( system("rm $file")){
-        die ("unable to remove unnecessary files");
-    }
+    wgetfile($firmware, $url);
 
     $firmware;
 }
@@ -663,6 +655,41 @@ sub drxk_terratec_h5 {
     verify($fwfile, $hash);
 
     "$fwfile"
+}
+
+sub it9135 {
+    my $url = "http://kworld.server261.com/kworld/CD/ITE_TiVme/V1.00/";
+    my $zipfile = "Driver_V10.323.1.0412.100412.zip";
+    my $hash = "79b597dc648698ed6820845c0c9d0d37";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 0);
+    my $drvfile = "Driver_V10.323.1.0412.100412/Data/x86/IT9135BDA.sys";
+    my $fwfile = "dvb-usb-it9137-01.fw";
+
+    checkstandard();
+
+    wgetfile($zipfile, $url . $zipfile);
+    verify($zipfile, $hash);
+    unzip($zipfile, $tmpdir);
+    extract("$tmpdir/$drvfile", 69632, 5731, "$fwfile");
+
+    "$fwfile"
+}
+
+sub tda10071 {
+    my $sourcefile = "PCTV_460e_reference.zip";
+    my $url = "ftp://ftp.pctvsystems.com/TV/driver/PCTV%2070e%2080e%20100e%20320e%20330e%20800e/";
+    my $hash = "4403de903bf2593464c8d74bbc200a57";
+    my $fwfile = "dvb-fe-tda10071.fw";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+
+    checkstandard();
+
+    wgetfile($sourcefile, $url . $sourcefile);
+    verify($sourcefile, $hash);
+    unzip($sourcefile, $tmpdir);
+    extract("$tmpdir/PCTV\ 70e\ 80e\ 100e\ 320e\ 330e\ 800e/32\ bit/emOEM.sys", 0x67d38, 40504, $fwfile);
+
+    "$fwfile";
 }
 
 # ---------------------------------------------------------------

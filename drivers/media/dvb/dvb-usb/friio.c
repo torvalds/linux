@@ -403,8 +403,8 @@ static int friio_frontend_attach(struct dvb_usb_adapter *adap)
 	if (friio_initialize(adap->dev) < 0)
 		return -EIO;
 
-	adap->fe = jdvbt90502_attach(adap->dev);
-	if (adap->fe == NULL)
+	adap->fe_adap[0].fe = jdvbt90502_attach(adap->dev);
+	if (adap->fe_adap[0].fe == NULL)
 		return -EIO;
 
 	return 0;
@@ -473,6 +473,8 @@ static struct dvb_usb_device_properties friio_properties = {
 		/* caps:0 =>  no pid filter, 188B TS packet */
 		/* GL861 has a HW pid filter, but no info available. */
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps  = 0,
 
 			.frontend_attach  = friio_frontend_attach,
@@ -490,6 +492,7 @@ static struct dvb_usb_device_properties friio_properties = {
 					}
 				}
 			},
+		}},
 		}
 	},
 	.i2c_algo = &gl861_i2c_algo,

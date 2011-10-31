@@ -744,29 +744,31 @@ static const struct af9015_rc_setup af9015_rc_setup_hashes[] = {
 };
 
 static const struct af9015_rc_setup af9015_rc_setup_usbids[] = {
-	{ (USB_VID_TERRATEC << 16) + USB_PID_TERRATEC_CINERGY_T_STICK_RC,
+	{ (USB_VID_TERRATEC << 16) | USB_PID_TERRATEC_CINERGY_T_STICK_RC,
 		RC_MAP_TERRATEC_SLIM_2 },
-	{ (USB_VID_TERRATEC << 16) + USB_PID_TERRATEC_CINERGY_T_STICK_DUAL_RC,
+	{ (USB_VID_TERRATEC << 16) | USB_PID_TERRATEC_CINERGY_T_STICK_DUAL_RC,
 		RC_MAP_TERRATEC_SLIM },
-	{ (USB_VID_VISIONPLUS << 16) + USB_PID_AZUREWAVE_AD_TU700,
+	{ (USB_VID_VISIONPLUS << 16) | USB_PID_AZUREWAVE_AD_TU700,
 		RC_MAP_AZUREWAVE_AD_TU700 },
-	{ (USB_VID_VISIONPLUS << 16) + USB_PID_TINYTWIN,
+	{ (USB_VID_VISIONPLUS << 16) | USB_PID_TINYTWIN,
 		RC_MAP_AZUREWAVE_AD_TU700 },
-	{ (USB_VID_MSI_2 << 16) + USB_PID_MSI_DIGI_VOX_MINI_III,
+	{ (USB_VID_MSI_2 << 16) | USB_PID_MSI_DIGI_VOX_MINI_III,
 		RC_MAP_MSI_DIGIVOX_III },
-	{ (USB_VID_MSI_2 << 16) + USB_PID_MSI_DIGIVOX_DUO,
+	{ (USB_VID_MSI_2 << 16) | USB_PID_MSI_DIGIVOX_DUO,
 		RC_MAP_MSI_DIGIVOX_III },
-	{ (USB_VID_LEADTEK << 16) + USB_PID_WINFAST_DTV_DONGLE_GOLD,
+	{ (USB_VID_LEADTEK << 16) | USB_PID_WINFAST_DTV_DONGLE_GOLD,
 		RC_MAP_LEADTEK_Y04G0051 },
-	{ (USB_VID_AVERMEDIA << 16) + USB_PID_AVERMEDIA_VOLAR_X,
+	{ (USB_VID_LEADTEK << 16) | USB_PID_WINFAST_DTV2000DS,
+		RC_MAP_LEADTEK_Y04G0051 },
+	{ (USB_VID_AVERMEDIA << 16) | USB_PID_AVERMEDIA_VOLAR_X,
 		RC_MAP_AVERMEDIA_M135A },
-	{ (USB_VID_AFATECH << 16) + USB_PID_TREKSTOR_DVBT,
+	{ (USB_VID_AFATECH << 16) | USB_PID_TREKSTOR_DVBT,
 		RC_MAP_TREKSTOR },
-	{ (USB_VID_KWORLD_2 << 16) + USB_PID_TINYTWIN_2,
+	{ (USB_VID_KWORLD_2 << 16) | USB_PID_TINYTWIN_2,
 		RC_MAP_DIGITALNOW_TINYTWIN },
-	{ (USB_VID_GTEK << 16) + USB_PID_TINYTWIN_3,
+	{ (USB_VID_GTEK << 16) | USB_PID_TINYTWIN_3,
 		RC_MAP_DIGITALNOW_TINYTWIN },
-	{ (USB_VID_KWORLD_2 << 16) + USB_PID_SVEON_STV22,
+	{ (USB_VID_KWORLD_2 << 16) | USB_PID_SVEON_STV22,
 		RC_MAP_MSI_DIGIVOX_III },
 	{ }
 };
@@ -859,13 +861,13 @@ static int af9015_read_config(struct usb_device *udev)
 	for (i = 0; i < af9015_properties_count; i++) {
 		/* USB1.1 set smaller buffersize and disable 2nd adapter */
 		if (udev->speed == USB_SPEED_FULL) {
-			af9015_properties[i].adapter[0].stream.u.bulk.buffersize
+			af9015_properties[i].adapter[0].fe[0].stream.u.bulk.buffersize
 				= TS_USB11_FRAME_SIZE;
 			/* disable 2nd adapter because we don't have
 			   PID-filters */
 			af9015_config.dual_mode = 0;
 		} else {
-			af9015_properties[i].adapter[0].stream.u.bulk.buffersize
+			af9015_properties[i].adapter[0].fe[0].stream.u.bulk.buffersize
 				= TS_USB20_FRAME_SIZE;
 		}
 	}
@@ -1111,10 +1113,10 @@ static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	/* attach demodulator */
-	adap->fe = dvb_attach(af9013_attach, &af9015_af9013_config[adap->id],
+	adap->fe_adap[0].fe = dvb_attach(af9013_attach, &af9015_af9013_config[adap->id],
 		&adap->dev->i2c_adap);
 
-	return adap->fe == NULL ? -ENODEV : 0;
+	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
 }
 
 static struct mt2060_config af9015_mt2060_config = {
@@ -1188,49 +1190,49 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 	switch (af9015_af9013_config[adap->id].tuner) {
 	case AF9013_TUNER_MT2060:
 	case AF9013_TUNER_MT2060_2:
-		ret = dvb_attach(mt2060_attach, adap->fe, &adap->dev->i2c_adap,
+		ret = dvb_attach(mt2060_attach, adap->fe_adap[0].fe, &adap->dev->i2c_adap,
 			&af9015_mt2060_config,
 			af9015_config.mt2060_if1[adap->id])
 			== NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_QT1010:
 	case AF9013_TUNER_QT1010A:
-		ret = dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap,
+		ret = dvb_attach(qt1010_attach, adap->fe_adap[0].fe, &adap->dev->i2c_adap,
 			&af9015_qt1010_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_TDA18271:
-		ret = dvb_attach(tda18271_attach, adap->fe, 0xc0,
+		ret = dvb_attach(tda18271_attach, adap->fe_adap[0].fe, 0xc0,
 			&adap->dev->i2c_adap,
 			&af9015_tda18271_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_TDA18218:
-		ret = dvb_attach(tda18218_attach, adap->fe,
+		ret = dvb_attach(tda18218_attach, adap->fe_adap[0].fe,
 			&adap->dev->i2c_adap,
 			&af9015_tda18218_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MXL5003D:
-		ret = dvb_attach(mxl5005s_attach, adap->fe,
+		ret = dvb_attach(mxl5005s_attach, adap->fe_adap[0].fe,
 			&adap->dev->i2c_adap,
 			&af9015_mxl5003_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MXL5005D:
 	case AF9013_TUNER_MXL5005R:
-		ret = dvb_attach(mxl5005s_attach, adap->fe,
+		ret = dvb_attach(mxl5005s_attach, adap->fe_adap[0].fe,
 			&adap->dev->i2c_adap,
 			&af9015_mxl5005_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_ENV77H11D5:
-		ret = dvb_attach(dvb_pll_attach, adap->fe, 0xc0,
+		ret = dvb_attach(dvb_pll_attach, adap->fe_adap[0].fe, 0xc0,
 			&adap->dev->i2c_adap,
 			DVB_PLL_TDA665X) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MC44S803:
-		ret = dvb_attach(mc44s803_attach, adap->fe,
+		ret = dvb_attach(mc44s803_attach, adap->fe_adap[0].fe,
 			&adap->dev->i2c_adap,
 			&af9015_mc44s803_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MXL5007T:
-		ret = dvb_attach(mxl5007t_attach, adap->fe,
+		ret = dvb_attach(mxl5007t_attach, adap->fe_adap[0].fe,
 			&adap->dev->i2c_adap,
 			0xc0, &af9015_mxl5007t_config) == NULL ? -ENODEV : 0;
 		break;
@@ -1304,6 +1306,8 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.num_adapters = 2,
 		.adapter = {
 			{
+			.num_frontends = 1,
+			.fe = {{
 				.caps = DVB_USB_ADAP_HAS_PID_FILTER |
 				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 
@@ -1319,8 +1323,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 					.count = 6,
 					.endpoint = 0x84,
 				},
+			}},
 			},
 			{
+			.num_frontends = 1,
+			.fe = {{
 				.frontend_attach =
 					af9015_af9013_frontend_attach,
 				.tuner_attach    = af9015_tuner_attach,
@@ -1335,6 +1342,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 						}
 					}
 				},
+			}},
 			}
 		},
 
@@ -1432,6 +1440,8 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.num_adapters = 2,
 		.adapter = {
 			{
+			.num_frontends = 1,
+			.fe = {{
 				.caps = DVB_USB_ADAP_HAS_PID_FILTER |
 				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 
@@ -1447,8 +1457,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 					.count = 6,
 					.endpoint = 0x84,
 				},
+			}},
 			},
 			{
+			.num_frontends = 1,
+			.fe = {{
 				.frontend_attach =
 					af9015_af9013_frontend_attach,
 				.tuner_attach    = af9015_tuner_attach,
@@ -1463,6 +1476,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 						}
 					}
 				},
+			}},
 			}
 		},
 
@@ -1549,6 +1563,8 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.num_adapters = 2,
 		.adapter = {
 			{
+			.num_frontends = 1,
+			.fe = {{
 				.caps = DVB_USB_ADAP_HAS_PID_FILTER |
 				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 
@@ -1564,8 +1580,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 					.count = 6,
 					.endpoint = 0x84,
 				},
+			}},
 			},
 			{
+			.num_frontends = 1,
+			.fe = {{
 				.frontend_attach =
 					af9015_af9013_frontend_attach,
 				.tuner_attach    = af9015_tuner_attach,
@@ -1580,6 +1599,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 						}
 					}
 				},
+			}},
 			}
 		},
 

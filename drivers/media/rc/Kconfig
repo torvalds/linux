@@ -4,8 +4,8 @@ menuconfig RC_CORE
 	default INPUT
 	---help---
 	  Enable support for Remote Controllers on Linux. This is
-	  needed in order to support several video capture adapters.
-	  Currently, all supported devices use InfraRed.
+	  needed in order to support several video capture adapters,
+	  standalone IR receivers/transmitters, and RF receivers.
 
 	  Enable this option if you have a video capture board even
 	  if you don't need IR, as otherwise, you may not be able to
@@ -107,6 +107,25 @@ config IR_LIRC_CODEC
 	---help---
 	   Enable this option to pass raw IR to and from userspace via
 	   the LIRC interface.
+
+config RC_ATI_REMOTE
+	tristate "ATI / X10 based USB RF remote controls"
+	depends on USB_ARCH_HAS_HCD
+	depends on RC_CORE
+	select USB
+	help
+	   Say Y here if you want to use an X10 based USB remote control.
+	   These are RF remotes with USB receivers.
+
+	   Such devices include the ATI remote that comes with many of ATI's
+	   All-In-Wonder video cards, the X10 "Lola" remote, NVIDIA RF remote,
+	   Medion RF remote, and SnapStream FireFly remote.
+
+	   This driver provides mouse pointer, left and right mouse buttons,
+	   and maps all the other remote buttons to keypress events.
+
+	   To compile this driver as a module, choose M here: the module will be
+	   called ati_remote.
 
 config IR_ENE
 	tristate "ENE eHome Receiver/Transceiver (pnp id: ENE0100/ENE02xxx)"

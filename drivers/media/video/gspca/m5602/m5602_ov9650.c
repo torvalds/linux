@@ -16,6 +16,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "m5602_ov9650.h"
 
 static int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
@@ -299,7 +301,7 @@ int ov9650_probe(struct sd *sd)
 
 	if (force_sensor) {
 		if (force_sensor == OV9650_SENSOR) {
-			info("Forcing an %s sensor", ov9650.name);
+			pr_info("Forcing an %s sensor\n", ov9650.name);
 			goto sensor_found;
 		}
 		/* If we want to force another sensor,
@@ -330,7 +332,7 @@ int ov9650_probe(struct sd *sd)
 		return -ENODEV;
 
 	if ((prod_id == 0x96) && (ver_id == 0x52)) {
-		info("Detected an ov9650 sensor");
+		pr_info("Detected an ov9650 sensor\n");
 		goto sensor_found;
 	}
 	return -ENODEV;
@@ -850,17 +852,16 @@ static int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val)
 static void ov9650_dump_registers(struct sd *sd)
 {
 	int address;
-	info("Dumping the ov9650 register state");
+	pr_info("Dumping the ov9650 register state\n");
 	for (address = 0; address < 0xa9; address++) {
 		u8 value;
 		m5602_read_sensor(sd, address, &value, 1);
-		info("register 0x%x contains 0x%x",
-		     address, value);
+		pr_info("register 0x%x contains 0x%x\n", address, value);
 	}
 
-	info("ov9650 register state dump complete");
+	pr_info("ov9650 register state dump complete\n");
 
-	info("Probing for which registers that are read/write");
+	pr_info("Probing for which registers that are read/write\n");
 	for (address = 0; address < 0xff; address++) {
 		u8 old_value, ctrl_value;
 		u8 test_value[2] = {0xff, 0xff};
@@ -870,9 +871,9 @@ static void ov9650_dump_registers(struct sd *sd)
 		m5602_read_sensor(sd, address, &ctrl_value, 1);
 
 		if (ctrl_value == test_value[0])
-			info("register 0x%x is writeable", address);
+			pr_info("register 0x%x is writeable\n", address);
 		else
-			info("register 0x%x is read only", address);
+			pr_info("register 0x%x is read only\n", address);
 
 		/* Restore original value */
 		m5602_write_sensor(sd, address, &old_value, 1);

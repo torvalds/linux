@@ -20,6 +20,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "vc032x"
 
 #include "gspca.h"
@@ -3169,7 +3171,7 @@ static void reg_r_i(struct gspca_dev *gspca_dev,
 			index, gspca_dev->usb_buf, len,
 			500);
 	if (ret < 0) {
-		err("reg_r err %d", ret);
+		pr_err("reg_r err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -3210,7 +3212,7 @@ static void reg_w_i(struct gspca_dev *gspca_dev,
 			value, index, NULL, 0,
 			500);
 	if (ret < 0) {
-		err("reg_w err %d", ret);
+		pr_err("reg_w err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -3235,8 +3237,7 @@ static u16 read_sensor_register(struct gspca_dev *gspca_dev,
 
 	reg_r(gspca_dev, 0xa1, 0xb33f, 1);
 	if (!(gspca_dev->usb_buf[0] & 0x02)) {
-		err("I2c Bus Busy Wait %02x",
-			gspca_dev->usb_buf[0]);
+		pr_err("I2c Bus Busy Wait %02x\n", gspca_dev->usb_buf[0]);
 		return 0;
 	}
 	reg_w(gspca_dev, 0xa0, address, 0xb33a);
@@ -3349,7 +3350,7 @@ static void i2c_write(struct gspca_dev *gspca_dev,
 		msleep(20);
 	} while (--retry > 0);
 	if (retry <= 0)
-		err("i2c_write timeout");
+		pr_err("i2c_write timeout\n");
 }
 
 static void put_tab_to_reg(struct gspca_dev *gspca_dev,
@@ -3446,7 +3447,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	switch (sensor) {
 	case -1:
-		err("Unknown sensor...");
+		pr_err("Unknown sensor...\n");
 		return -EINVAL;
 	case SENSOR_HV7131R:
 		PDEBUG(D_PROBE, "Find Sensor HV7131R");

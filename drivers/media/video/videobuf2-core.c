@@ -43,8 +43,7 @@ module_param(debug, int, 0644);
 /**
  * __vb2_buf_mem_alloc() - allocate video memory for the given buffer
  */
-static int __vb2_buf_mem_alloc(struct vb2_buffer *vb,
-				unsigned long *plane_sizes)
+static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 {
 	struct vb2_queue *q = vb->vb2_queue;
 	void *mem_priv;
@@ -53,13 +52,13 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb,
 	/* Allocate memory for all planes in this buffer */
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		mem_priv = call_memop(q, plane, alloc, q->alloc_ctx[plane],
-					plane_sizes[plane]);
+				      q->plane_sizes[plane]);
 		if (IS_ERR_OR_NULL(mem_priv))
 			goto free;
 
 		/* Associate allocator private data with this plane */
 		vb->planes[plane].mem_priv = mem_priv;
-		vb->v4l2_planes[plane].length = plane_sizes[plane];
+		vb->v4l2_planes[plane].length = q->plane_sizes[plane];
 	}
 
 	return 0;
@@ -141,8 +140,7 @@ static void __setup_offsets(struct vb2_queue *q)
  * Returns the number of buffers successfully allocated.
  */
 static int __vb2_queue_alloc(struct vb2_queue *q, enum v4l2_memory memory,
-			     unsigned int num_buffers, unsigned int num_planes,
-			     unsigned long plane_sizes[])
+			     unsigned int num_buffers, unsigned int num_planes)
 {
 	unsigned int buffer;
 	struct vb2_buffer *vb;
@@ -169,7 +167,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum v4l2_memory memory,
 
 		/* Allocate video buffer memory for the MMAP type */
 		if (memory == V4L2_MEMORY_MMAP) {
-			ret = __vb2_buf_mem_alloc(vb, plane_sizes);
+			ret = __vb2_buf_mem_alloc(vb);
 			if (ret) {
 				dprintk(1, "Failed allocating memory for "
 						"buffer %d\n", buffer);
@@ -279,6 +277,41 @@ static int __verify_planes_array(struct vb2_buffer *vb, struct v4l2_buffer *b)
 }
 
 /**
+ * __buffer_in_use() - return true if the buffer is in use and
+ * the queue cannot be freed (by the means of REQBUFS(0)) call
+ */
+static bool __buffer_in_use(struct vb2_queue *q, struct vb2_buffer *vb)
+{
+	unsigned int plane;
+	for (plane = 0; plane < vb->num_planes; ++plane) {
+		/*
+		 * If num_users() has not been provided, call_memop
+		 * will return 0, apparently nobody cares about this
+		 * case anyway. If num_users() returns more than 1,
+		 * we are not the only user of the plane's memory.
+		 */
+		if (call_memop(q, plane, num_users,
+				vb->planes[plane].mem_priv) > 1)
+			return true;
+	}
+	return false;
+}
+
+/**
+ * __buffers_in_use() - return true if any buffers on the queue are in use and
+ * the queue cannot be freed (by the means of REQBUFS(0)) call
+ */
+static bool __buffers_in_use(struct vb2_queue *q)
+{
+	unsigned int buffer;
+	for (buffer = 0; buffer < q->num_buffers; ++buffer) {
+		if (__buffer_in_use(q, q->bufs[buffer]))
+			return true;
+	}
+	return false;
+}
+
+/**
  * __fill_v4l2_buffer() - fill in a struct v4l2_buffer with information to be
  * returned to userspace
  */
@@ -337,7 +370,7 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 		break;
 	}
 
-	if (vb->num_planes_mapped == vb->num_planes)
+	if (__buffer_in_use(q, vb))
 		b->flags |= V4L2_BUF_FLAG_MAPPED;
 
 	return ret;
@@ -402,33 +435,6 @@ static int __verify_mmap_ops(struct vb2_queue *q)
 }
 
 /**
- * __buffers_in_use() - return true if any buffers on the queue are in use and
- * the queue cannot be freed (by the means of REQBUFS(0)) call
- */
-static bool __buffers_in_use(struct vb2_queue *q)
-{
-	unsigned int buffer, plane;
-	struct vb2_buffer *vb;
-
-	for (buffer = 0; buffer < q->num_buffers; ++buffer) {
-		vb = q->bufs[buffer];
-		for (plane = 0; plane < vb->num_planes; ++plane) {
-			/*
-			 * If num_users() has not been provided, call_memop
-			 * will return 0, apparently nobody cares about this
-			 * case anyway. If num_users() returns more than 1,
-			 * we are not the only user of the plane's memory.
-			 */
-			if (call_memop(q, plane, num_users,
-					vb->planes[plane].mem_priv) > 1)
-				return true;
-		}
-	}
-
-	return false;
-}
-
-/**
  * vb2_reqbufs() - Initiate streaming
  * @q:		videobuf2 queue
  * @req:	struct passed from userspace to vidioc_reqbufs handler in driver
@@ -454,7 +460,6 @@ static bool __buffers_in_use(struct vb2_queue *q)
 int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 {
 	unsigned int num_buffers, num_planes;
-	unsigned long plane_sizes[VIDEO_MAX_PLANES];
 	int ret = 0;
 
 	if (q->fileio) {
@@ -516,7 +521,7 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	 * Make sure the requested values and current defaults are sane.
 	 */
 	num_buffers = min_t(unsigned int, req->count, VIDEO_MAX_FRAME);
-	memset(plane_sizes, 0, sizeof(plane_sizes));
+	memset(q->plane_sizes, 0, sizeof(q->plane_sizes));
 	memset(q->alloc_ctx, 0, sizeof(q->alloc_ctx));
 	q->memory = req->memory;
 
@@ -525,13 +530,12 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	 * Driver also sets the size and allocator context for each plane.
 	 */
 	ret = call_qop(q, queue_setup, q, &num_buffers, &num_planes,
-		       plane_sizes, q->alloc_ctx);
+		       q->plane_sizes, q->alloc_ctx);
 	if (ret)
 		return ret;
 
 	/* Finally, allocate buffers and video memory */
-	ret = __vb2_queue_alloc(q, req->memory, num_buffers, num_planes,
-				plane_sizes);
+	ret = __vb2_queue_alloc(q, req->memory, num_buffers, num_planes);
 	if (ret == 0) {
 		dprintk(1, "Memory allocation failed\n");
 		return -ENOMEM;
@@ -545,7 +549,7 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 
 		orig_num_buffers = num_buffers = ret;
 		ret = call_qop(q, queue_setup, q, &num_buffers, &num_planes,
-			       plane_sizes, q->alloc_ctx);
+			       q->plane_sizes, q->alloc_ctx);
 		if (ret)
 			goto free_mem;
 
@@ -745,12 +749,20 @@ static int __qbuf_userptr(struct vb2_buffer *vb, struct v4l2_buffer *b)
 		dprintk(3, "qbuf: userspace address for plane %d changed, "
 				"reacquiring memory\n", plane);
 
+		/* Check if the provided plane buffer is large enough */
+		if (planes[plane].length < q->plane_sizes[plane]) {
+			ret = -EINVAL;
+			goto err;
+		}
+
 		/* Release previously acquired memory if present */
 		if (vb->planes[plane].mem_priv)
 			call_memop(q, plane, put_userptr,
 					vb->planes[plane].mem_priv);
 
 		vb->planes[plane].mem_priv = NULL;
+		vb->v4l2_planes[plane].m.userptr = 0;
+		vb->v4l2_planes[plane].length = 0;
 
 		/* Acquire each plane's memory */
 		if (q->mem_ops->get_userptr) {
@@ -788,10 +800,13 @@ static int __qbuf_userptr(struct vb2_buffer *vb, struct v4l2_buffer *b)
 	return 0;
 err:
 	/* In case of errors, release planes that were already acquired */
-	for (; plane > 0; --plane) {
-		call_memop(q, plane, put_userptr,
-				vb->planes[plane - 1].mem_priv);
-		vb->planes[plane - 1].mem_priv = NULL;
+	for (plane = 0; plane < vb->num_planes; ++plane) {
+		if (vb->planes[plane].mem_priv)
+			call_memop(q, plane, put_userptr,
+				   vb->planes[plane].mem_priv);
+		vb->planes[plane].mem_priv = NULL;
+		vb->v4l2_planes[plane].m.userptr = 0;
+		vb->v4l2_planes[plane].length = 0;
 	}
 
 	return ret;
@@ -1096,73 +1111,6 @@ int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 EXPORT_SYMBOL_GPL(vb2_dqbuf);
 
 /**
- * vb2_streamon - start streaming
- * @q:		videobuf2 queue
- * @type:	type argument passed from userspace to vidioc_streamon handler
- *
- * Should be called from vidioc_streamon handler of a driver.
- * This function:
- * 1) verifies current state
- * 2) starts streaming and passes any previously queued buffers to the driver
- *
- * The return values from this function are intended to be directly returned
- * from vidioc_streamon handler in the driver.
- */
-int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
-{
-	struct vb2_buffer *vb;
-	int ret;
-
-	if (q->fileio) {
-		dprintk(1, "streamon: file io in progress\n");
-		return -EBUSY;
-	}
-
-	if (type != q->type) {
-		dprintk(1, "streamon: invalid stream type\n");
-		return -EINVAL;
-	}
-
-	if (q->streaming) {
-		dprintk(1, "streamon: already streaming\n");
-		return -EBUSY;
-	}
-
-	/*
-	 * Cannot start streaming on an OUTPUT device if no buffers have
-	 * been queued yet.
-	 */
-	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
-		if (list_empty(&q->queued_list)) {
-			dprintk(1, "streamon: no output buffers queued\n");
-			return -EINVAL;
-		}
-	}
-
-	/*
-	 * Let driver notice that streaming state has been enabled.
-	 */
-	ret = call_qop(q, start_streaming, q);
-	if (ret) {
-		dprintk(1, "streamon: driver refused to start streaming\n");
-		return ret;
-	}
-
-	q->streaming = 1;
-
-	/*
-	 * If any buffers were queued before streamon,
-	 * we can now pass them to driver for processing.
-	 */
-	list_for_each_entry(vb, &q->queued_list, queued_entry)
-		__enqueue_in_driver(vb);
-
-	dprintk(3, "Streamon successful\n");
-	return 0;
-}
-EXPORT_SYMBOL_GPL(vb2_streamon);
-
-/**
  * __vb2_queue_cancel() - cancel and stop (pause) streaming
  *
  * Removes all queued buffers from driver's queue and all buffers queued by
@@ -1198,6 +1146,64 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	for (i = 0; i < q->num_buffers; ++i)
 		q->bufs[i]->state = VB2_BUF_STATE_DEQUEUED;
 }
+
+/**
+ * vb2_streamon - start streaming
+ * @q:		videobuf2 queue
+ * @type:	type argument passed from userspace to vidioc_streamon handler
+ *
+ * Should be called from vidioc_streamon handler of a driver.
+ * This function:
+ * 1) verifies current state
+ * 2) passes any previously queued buffers to the driver and starts streaming
+ *
+ * The return values from this function are intended to be directly returned
+ * from vidioc_streamon handler in the driver.
+ */
+int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
+{
+	struct vb2_buffer *vb;
+	int ret;
+
+	if (q->fileio) {
+		dprintk(1, "streamon: file io in progress\n");
+		return -EBUSY;
+	}
+
+	if (type != q->type) {
+		dprintk(1, "streamon: invalid stream type\n");
+		return -EINVAL;
+	}
+
+	if (q->streaming) {
+		dprintk(1, "streamon: already streaming\n");
+		return -EBUSY;
+	}
+
+	/*
+	 * If any buffers were queued before streamon,
+	 * we can now pass them to driver for processing.
+	 */
+	list_for_each_entry(vb, &q->queued_list, queued_entry)
+		__enqueue_in_driver(vb);
+
+	/*
+	 * Let driver notice that streaming state has been enabled.
+	 */
+	ret = call_qop(q, start_streaming, q, atomic_read(&q->queued_count));
+	if (ret) {
+		dprintk(1, "streamon: driver refused to start streaming\n");
+		__vb2_queue_cancel(q);
+		return ret;
+	}
+
+	q->streaming = 1;
+
+	dprintk(3, "Streamon successful\n");
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vb2_streamon);
+
 
 /**
  * vb2_streamoff - stop streaming
@@ -1335,9 +1341,6 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 	ret = q->mem_ops->mmap(vb_plane->mem_priv, vma);
 	if (ret)
 		return ret;
-
-	vb_plane->mapped = 1;
-	vb->num_planes_mapped++;
 
 	dprintk(3, "Buffer %d, plane %d successfully mapped\n", buffer, plane);
 	return 0;

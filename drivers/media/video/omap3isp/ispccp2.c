@@ -243,9 +243,9 @@ static int ccp2_phyif_config(struct isp_ccp2_device *ccp2,
 
 	val = isp_reg_readl(isp, OMAP3_ISP_IOMEM_CCP2, ISPCCP2_CTRL);
 	if (!(val & ISPCCP2_CTRL_MODE)) {
-		if (pdata->ccp2_mode)
+		if (pdata->ccp2_mode == ISP_CCP2_MODE_CCP2)
 			dev_warn(isp->dev, "OMAP3 CCP2 bus not available\n");
-		if (pdata->phy_layer == ISPCCP2_CTRL_PHY_SEL_STROBE)
+		if (pdata->phy_layer == ISP_CCP2_PHY_DATA_STROBE)
 			/* Strobe mode requires CCP2 */
 			return -EIO;
 	}

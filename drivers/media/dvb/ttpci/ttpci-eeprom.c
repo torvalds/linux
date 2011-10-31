@@ -85,6 +85,35 @@ static int getmac_tt(u8 * decodedMAC, u8 * encodedMAC)
 	return 0;
 }
 
+int ttpci_eeprom_decode_mac(u8 *decodedMAC, u8 *encodedMAC)
+{
+	u8 xor[20] = { 0x72, 0x23, 0x68, 0x19, 0x5c, 0xa8, 0x71, 0x2c,
+		       0x54, 0xd3, 0x7b, 0xf1, 0x9E, 0x23, 0x16, 0xf6,
+		       0x1d, 0x36, 0x64, 0x78};
+	u8 data[20];
+	int i;
+
+	memcpy(data, encodedMAC, 20);
+
+	for (i = 0; i < 20; i++)
+		data[i] ^= xor[i];
+	for (i = 0; i < 10; i++)
+		data[i] = ((data[2 * i + 1] << 8) | data[2 * i])
+			>> ((data[2 * i + 1] >> 6) & 3);
+
+	if (check_mac_tt(data))
+		return -ENODEV;
+
+	decodedMAC[0] = data[2];
+	decodedMAC[1] = data[1];
+	decodedMAC[2] = data[0];
+	decodedMAC[3] = data[6];
+	decodedMAC[4] = data[5];
+	decodedMAC[5] = data[4];
+	return 0;
+}
+EXPORT_SYMBOL(ttpci_eeprom_decode_mac);
+
 static int ttpci_eeprom_read_encodedMAC(struct i2c_adapter *adapter, u8 * encodedMAC)
 {
 	int ret;

@@ -33,6 +33,8 @@
  * the project's page is at http://www.linuxtv.org/ 
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "budget.h"
 #include "stv0299.h"
 #include "stb0899_drv.h"
@@ -149,7 +151,7 @@ static int ciintf_read_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int ad
 	result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, address & 0xfff, 1, 0, 1);
 	if (result == -ETIMEDOUT) {
 		ciintf_slot_shutdown(ca, slot);
-		printk(KERN_INFO "budget-av: cam ejected 1\n");
+		pr_info("cam ejected 1\n");
 	}
 	return result;
 }
@@ -168,7 +170,7 @@ static int ciintf_write_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int a
 	result = ttpci_budget_debiwrite(&budget_av->budget, DEBICICAM, address & 0xfff, 1, value, 0, 1);
 	if (result == -ETIMEDOUT) {
 		ciintf_slot_shutdown(ca, slot);
-		printk(KERN_INFO "budget-av: cam ejected 2\n");
+		pr_info("cam ejected 2\n");
 	}
 	return result;
 }
@@ -187,7 +189,7 @@ static int ciintf_read_cam_control(struct dvb_ca_en50221 *ca, int slot, u8 addre
 	result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, address & 3, 1, 0, 0);
 	if (result == -ETIMEDOUT) {
 		ciintf_slot_shutdown(ca, slot);
-		printk(KERN_INFO "budget-av: cam ejected 3\n");
+		pr_info("cam ejected 3\n");
 		return -ETIMEDOUT;
 	}
 	return result;
@@ -207,7 +209,7 @@ static int ciintf_write_cam_control(struct dvb_ca_en50221 *ca, int slot, u8 addr
 	result = ttpci_budget_debiwrite(&budget_av->budget, DEBICICAM, address & 3, 1, value, 0, 0);
 	if (result == -ETIMEDOUT) {
 		ciintf_slot_shutdown(ca, slot);
-		printk(KERN_INFO "budget-av: cam ejected 5\n");
+		pr_info("cam ejected 5\n");
 	}
 	return result;
 }
@@ -289,7 +291,7 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 		if (saa7146_read(saa, PSR) & MASK_06) {
 			if (budget_av->slot_status == SLOTSTATUS_NONE) {
 				budget_av->slot_status = SLOTSTATUS_PRESENT;
-				printk(KERN_INFO "budget-av: cam inserted A\n");
+				pr_info("cam inserted A\n");
 			}
 		}
 		saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTLO);
@@ -306,11 +308,11 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 		result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, 0, 1, 0, 1);
 		if ((result >= 0) && (budget_av->slot_status == SLOTSTATUS_NONE)) {
 			budget_av->slot_status = SLOTSTATUS_PRESENT;
-			printk(KERN_INFO "budget-av: cam inserted B\n");
+			pr_info("cam inserted B\n");
 		} else if (result < 0) {
 			if (budget_av->slot_status != SLOTSTATUS_NONE) {
 				ciintf_slot_shutdown(ca, slot);
-				printk(KERN_INFO "budget-av: cam ejected 5\n");
+				pr_info("cam ejected 5\n");
 				return 0;
 			}
 		}
@@ -365,11 +367,11 @@ static int ciintf_init(struct budget_av *budget_av)
 
 	if ((result = dvb_ca_en50221_init(&budget_av->budget.dvb_adapter,
 					  &budget_av->ca, 0, 1)) != 0) {
-		printk(KERN_ERR "budget-av: ci initialisation failed.\n");
+		pr_err("ci initialisation failed\n");
 		goto error;
 	}
 
-	printk(KERN_INFO "budget-av: ci interface initialised.\n");
+	pr_info("ci interface initialised\n");
 	return 0;
 
 error:
@@ -896,7 +898,6 @@ static const struct stb0899_s1_reg knc1_stb0899_s1_init_1[] = {
 	{ STB0899_DISRX_ST0		, 0x04 },
 	{ STB0899_DISRX_ST1		, 0x00 },
 	{ STB0899_DISPARITY		, 0x00 },
-	{ STB0899_DISFIFO		, 0x00 },
 	{ STB0899_DISSTATUS		, 0x20 },
 	{ STB0899_DISF22		, 0x8c },
 	{ STB0899_DISF22RX		, 0x9a },
@@ -1197,6 +1198,7 @@ static u8 read_pwm(struct budget_av *budget_av)
 #define SUBID_DVBC_KNC1			0x0020
 #define SUBID_DVBC_KNC1_PLUS		0x0021
 #define SUBID_DVBC_KNC1_MK3		0x0022
+#define SUBID_DVBC_KNC1_TDA10024	0x0028
 #define SUBID_DVBC_KNC1_PLUS_MK3	0x0023
 #define SUBID_DVBC_CINERGY1200		0x1156
 #define SUBID_DVBC_CINERGY1200_MK3	0x1176
@@ -1316,6 +1318,7 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBC_EASYWATCH_MK3:
 	case SUBID_DVBC_CINERGY1200_MK3:
 	case SUBID_DVBC_KNC1_MK3:
+	case SUBID_DVBC_KNC1_TDA10024:
 	case SUBID_DVBC_KNC1_PLUS_MK3:
 		budget_av->reinitialise_demod = 1;
 		budget_av->budget.dev->i2c_bitrate = SAA7146_I2C_BUS_BIT_RATE_240;
@@ -1343,8 +1346,7 @@ static void frontend_init(struct budget_av *budget_av)
 	}
 
 	if (fe == NULL) {
-		printk(KERN_ERR "budget-av: A frontend driver was not found "
-				"for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		pr_err("A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       saa->pci->vendor,
 		       saa->pci->device,
 		       saa->pci->subsystem_vendor,
@@ -1356,7 +1358,7 @@ static void frontend_init(struct budget_av *budget_av)
 
 	if (dvb_register_frontend(&budget_av->budget.dvb_adapter,
 				  budget_av->budget.dvb_frontend)) {
-		printk(KERN_ERR "budget-av: Frontend registration failed!\n");
+		pr_err("Frontend registration failed!\n");
 		dvb_frontend_detach(budget_av->budget.dvb_frontend);
 		budget_av->budget.dvb_frontend = NULL;
 	}
@@ -1414,7 +1416,7 @@ static struct v4l2_input knc1_inputs[KNC1_INPUTS] = {
 
 static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 {
-	dprintk(1, "VIDIOC_ENUMINPUT %d.\n", i->index);
+	dprintk(1, "VIDIOC_ENUMINPUT %d\n", i->index);
 	if (i->index >= KNC1_INPUTS)
 		return -EINVAL;
 	memcpy(i, &knc1_inputs[i->index], sizeof(struct v4l2_input));
@@ -1428,7 +1430,7 @@ static int vidioc_g_input(struct file *file, void *fh, unsigned int *i)
 
 	*i = budget_av->cur_input;
 
-	dprintk(1, "VIDIOC_G_INPUT %d.\n", *i);
+	dprintk(1, "VIDIOC_G_INPUT %d\n", *i);
 	return 0;
 }
 
@@ -1437,7 +1439,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct budget_av *budget_av = (struct budget_av *)dev->ext_priv;
 
-	dprintk(1, "VIDIOC_S_INPUT %d.\n", input);
+	dprintk(1, "VIDIOC_S_INPUT %d\n", input);
 	return saa7113_setinput(budget_av, input);
 }
 
@@ -1476,7 +1478,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 		if (0 != saa7146_vv_init(dev, &vv_data)) {
 			/* fixme: proper cleanup here */
-			ERR(("cannot init vv subsystem.\n"));
+			ERR("cannot init vv subsystem\n");
 			return err;
 		}
 		vv_data.ops.vidioc_enum_input = vidioc_enum_input;
@@ -1485,7 +1487,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 		if ((err = saa7146_register_device(&budget_av->vd, dev, "knc1", VFL_TYPE_GRABBER))) {
 			/* fixme: proper cleanup here */
-			ERR(("cannot register capture v4l2 device.\n"));
+			ERR("cannot register capture v4l2 device\n");
 			saa7146_vv_release(dev);
 			return err;
 		}
@@ -1502,13 +1504,12 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	mac = budget_av->budget.dvb_adapter.proposed_mac;
 	if (i2c_readregs(&budget_av->budget.i2c_adap, 0xa0, 0x30, mac, 6)) {
-		printk(KERN_ERR "KNC1-%d: Could not read MAC from KNC1 card\n",
+		pr_err("KNC1-%d: Could not read MAC from KNC1 card\n",
 		       budget_av->budget.dvb_adapter.num);
 		memset(mac, 0, 6);
 	} else {
-		printk(KERN_INFO "KNC1-%d: MAC addr = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-		       budget_av->budget.dvb_adapter.num,
-		       mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+		pr_info("KNC1-%d: MAC addr = %pM\n",
+			budget_av->budget.dvb_adapter.num, mac);
 	}
 
 	budget_av->budget.dvb_adapter.priv = budget_av;
@@ -1558,6 +1559,7 @@ MAKE_BUDGET_INFO(knc1sp, "KNC1 DVB-S Plus", BUDGET_KNC1SP);
 MAKE_BUDGET_INFO(knc1spx4, "KNC1 DVB-S Plus X4", BUDGET_KNC1SP);
 MAKE_BUDGET_INFO(knc1cp, "KNC1 DVB-C Plus", BUDGET_KNC1CP);
 MAKE_BUDGET_INFO(knc1cmk3, "KNC1 DVB-C MK3", BUDGET_KNC1C_MK3);
+MAKE_BUDGET_INFO(knc1ctda10024, "KNC1 DVB-C TDA10024", BUDGET_KNC1C_TDA10024);
 MAKE_BUDGET_INFO(knc1cpmk3, "KNC1 DVB-C Plus MK3", BUDGET_KNC1CP_MK3);
 MAKE_BUDGET_INFO(knc1tp, "KNC1 DVB-T Plus", BUDGET_KNC1TP);
 MAKE_BUDGET_INFO(cin1200s, "TerraTec Cinergy 1200 DVB-S", BUDGET_CIN1200S);
@@ -1587,6 +1589,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(knc1c, 0x1894, 0x0020),
 	MAKE_EXTENSION_PCI(knc1cp, 0x1894, 0x0021),
 	MAKE_EXTENSION_PCI(knc1cmk3, 0x1894, 0x0022),
+	MAKE_EXTENSION_PCI(knc1ctda10024, 0x1894, 0x0028),
 	MAKE_EXTENSION_PCI(knc1cpmk3, 0x1894, 0x0023),
 	MAKE_EXTENSION_PCI(knc1t, 0x1894, 0x0030),
 	MAKE_EXTENSION_PCI(knc1tp, 0x1894, 0x0031),

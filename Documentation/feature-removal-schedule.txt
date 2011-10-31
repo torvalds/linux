@@ -495,29 +495,6 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------
 
-What:	Support for UVCIOC_CTRL_ADD in the uvcvideo driver
-When:	3.2
-Why:	The information passed to the driver by this ioctl is now queried
-	dynamically from the device.
-Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-
-----------------------------
-
-What:	Support for UVCIOC_CTRL_MAP_OLD in the uvcvideo driver
-When:	3.2
-Why:	Used only by applications compiled against older driver versions.
-	Superseded by UVCIOC_CTRL_MAP which supports V4L2 menu controls.
-Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-
-----------------------------
-
-What:	Support for UVCIOC_CTRL_GET and UVCIOC_CTRL_SET in the uvcvideo driver
-When:	3.2
-Why:	Superseded by the UVCIOC_CTRL_QUERY ioctl.
-Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-
-----------------------------
-
 What:	Support for driver specific ioctls in the pwc driver (everything
 	defined in media/pwc-ioctl.h)
 When:	3.3

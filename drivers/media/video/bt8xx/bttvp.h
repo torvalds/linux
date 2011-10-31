@@ -310,9 +310,21 @@ extern unsigned int bttv_gpio;
 extern void bttv_gpio_tracking(struct bttv *btv, char *comment);
 extern int init_bttv_i2c(struct bttv *btv);
 
-#define bttv_printk if (bttv_verbose) printk
-#define dprintk  if (bttv_debug >= 1) printk
-#define d2printk if (bttv_debug >= 2) printk
+#define dprintk(fmt, ...)			\
+do {						\
+	if (bttv_debug >= 1)			\
+		pr_debug(fmt, ##__VA_ARGS__);	\
+} while (0)
+#define dprintk_cont(fmt, ...)			\
+do {						\
+	if (bttv_debug >= 1)			\
+		pr_cont(fmt, ##__VA_ARGS__);	\
+} while (0)
+#define d2printk(fmt, ...)			\
+do {						\
+	if (bttv_debug >= 2)			\
+		printk(fmt, ##__VA_ARGS__);	\
+} while (0)
 
 #define BTTV_MAX_FBUF   0x208000
 #define BTTV_TIMEOUT    msecs_to_jiffies(500)    /* 0.5 seconds */

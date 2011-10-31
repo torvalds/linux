@@ -16,6 +16,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "m5602_po1030.h"
 
 static int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
@@ -197,7 +199,7 @@ int po1030_probe(struct sd *sd)
 
 	if (force_sensor) {
 		if (force_sensor == PO1030_SENSOR) {
-			info("Forcing a %s sensor", po1030.name);
+			pr_info("Forcing a %s sensor\n", po1030.name);
 			goto sensor_found;
 		}
 		/* If we want to force another sensor, don't try to probe this
@@ -221,7 +223,7 @@ int po1030_probe(struct sd *sd)
 		return -ENODEV;
 
 	if (dev_id_h == 0x30) {
-		info("Detected a po1030 sensor");
+		pr_info("Detected a po1030 sensor\n");
 		goto sensor_found;
 	}
 	return -ENODEV;
@@ -267,7 +269,7 @@ int po1030_init(struct sd *sd)
 			break;
 
 		default:
-			info("Invalid stream command, exiting init");
+			pr_info("Invalid stream command, exiting init\n");
 			return -EINVAL;
 		}
 	}
@@ -733,16 +735,15 @@ static void po1030_dump_registers(struct sd *sd)
 	int address;
 	u8 value = 0;
 
-	info("Dumping the po1030 sensor core registers");
+	pr_info("Dumping the po1030 sensor core registers\n");
 	for (address = 0; address < 0x7f; address++) {
 		m5602_read_sensor(sd, address, &value, 1);
-		info("register 0x%x contains 0x%x",
-		     address, value);
+		pr_info("register 0x%x contains 0x%x\n", address, value);
 	}
 
-	info("po1030 register state dump complete");
+	pr_info("po1030 register state dump complete\n");
 
-	info("Probing for which registers that are read/write");
+	pr_info("Probing for which registers that are read/write\n");
 	for (address = 0; address < 0xff; address++) {
 		u8 old_value, ctrl_value;
 		u8 test_value[2] = {0xff, 0xff};
@@ -752,9 +753,9 @@ static void po1030_dump_registers(struct sd *sd)
 		m5602_read_sensor(sd, address, &ctrl_value, 1);
 
 		if (ctrl_value == test_value[0])
-			info("register 0x%x is writeable", address);
+			pr_info("register 0x%x is writeable\n", address);
 		else
-			info("register 0x%x is read only", address);
+			pr_info("register 0x%x is read only\n", address);
 
 		/* Restore original value */
 		m5602_write_sensor(sd, address, &old_value, 1);

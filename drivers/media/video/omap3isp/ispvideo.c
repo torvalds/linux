@@ -278,7 +278,8 @@ isp_video_far_end(struct isp_video *video)
  * limits reported by every block in the pipeline.
  *
  * Return 0 if all formats match, or -EPIPE if at least one link is found with
- * different formats on its two ends.
+ * different formats on its two ends or if the pipeline doesn't start with a
+ * video source (either a subdev with no input pad, or a non-subdev entity).
  */
 static int isp_video_validate_pipeline(struct isp_pipeline *pipe)
 {
@@ -329,10 +330,15 @@ static int isp_video_validate_pipeline(struct isp_pipeline *pipe)
 		 * in the middle of it. */
 		shifter_link = subdev == &isp->isp_ccdc.subdev;
 
-		/* Retrieve the source format */
+		/* Retrieve the source format. Return an error if no source
+		 * entity can be found, and stop checking the pipeline if the
+		 * source entity isn't a subdev.
+		 */
 		pad = media_entity_remote_source(pad);
-		if (pad == NULL ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (pad == NULL)
+			return -EPIPE;
+
+		if (media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 			break;
 
 		subdev = media_entity_to_v4l2_subdev(pad->entity);
@@ -1050,6 +1056,14 @@ error:
 		if (video->isp->pdata->set_constraints)
 			video->isp->pdata->set_constraints(video->isp, false);
 		media_entity_pipeline_stop(&video->video.entity);
+		/* The DMA queue must be emptied here, otherwise CCDC interrupts
+		 * that will get triggered the next time the CCDC is powered up
+		 * will try to access buffers that might have been freed but
+		 * still present in the DMA queue. This can easily get triggered
+		 * if the above omap3isp_pipeline_set_stream() call fails on a
+		 * system with a free-running sensor.
+		 */
+		INIT_LIST_HEAD(&video->dmaqueue);
 		video->queue = NULL;
 	}
 

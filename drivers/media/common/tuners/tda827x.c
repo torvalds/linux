@@ -176,7 +176,7 @@ static int tda827xo_set_params(struct dvb_frontend *fe,
 		if_freq = 5000000;
 		break;
 	}
-	tuner_freq = params->frequency + if_freq;
+	tuner_freq = params->frequency;
 
 	i = 0;
 	while (tda827x_table[i].lomax < tuner_freq) {
@@ -184,6 +184,8 @@ static int tda827xo_set_params(struct dvb_frontend *fe,
 			break;
 		i++;
 	}
+
+	tuner_freq += if_freq;
 
 	N = ((tuner_freq + 125000) / 250000) << (tda827x_table[i].spd + 2);
 	buf[0] = 0;
@@ -540,7 +542,7 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 		if_freq = 5000000;
 		break;
 	}
-	tuner_freq = params->frequency + if_freq;
+	tuner_freq = params->frequency;
 
 	if (fe->ops.info.type == FE_QAM) {
 		dprintk("%s select tda827xa_dvbc\n", __func__);
@@ -553,6 +555,8 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 			break;
 		i++;
 	}
+
+	tuner_freq += if_freq;
 
 	N = ((tuner_freq + 31250) / 62500) << frequency_map[i].spd;
 	buf[0] = 0;            // subaddress

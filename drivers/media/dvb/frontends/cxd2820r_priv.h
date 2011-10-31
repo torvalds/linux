@@ -50,7 +50,6 @@ struct cxd2820r_priv {
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe[2];
 	struct cxd2820r_config cfg;
-	struct i2c_adapter tuner_i2c_adapter;
 
 	struct mutex fe_lock; /* FE lock */
 	int active_fe:2; /* FE lock, -1=NONE, 0=DVB-T/T2, 1=DVB-C */
