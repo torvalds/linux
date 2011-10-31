@@ -99,28 +99,21 @@ int ext4_end_io_nolock(ext4_io_end_t *io)
 		   "list->prev 0x%p\n",
 		   io, inode->i_ino, io->list.next, io->list.prev);
 
-	if (!(io->flag & EXT4_IO_END_UNWRITTEN))
-		return ret;
-
 	ret = ext4_convert_unwritten_extents(inode, offset, size);
 	if (ret < 0) {
-		printk(KERN_EMERG "%s: failed to convert unwritten "
-			"extents to written extents, error is %d "
-			"io is still on inode %lu aio dio list\n",
-		       __func__, ret, inode->i_ino);
-		return ret;
+		ext4_msg(inode->i_sb, KERN_EMERG,
+			 "failed to convert unwritten extents to written "
+			 "extents -- potential data loss!  "
+			 "(inode %lu, offset %llu, size %zd, error %d)",
+			 inode->i_ino, offset, size, ret);
 	}
 
 	if (io->iocb)
 		aio_complete(io->iocb, io->result, 0);
-	/* clear the DIO AIO unwritten flag */
-	if (io->flag & EXT4_IO_END_UNWRITTEN) {
-		io->flag &= ~EXT4_IO_END_UNWRITTEN;
-		/* Wake up anyone waiting on unwritten extent conversion */
-		if (atomic_dec_and_test(&EXT4_I(inode)->i_aiodio_unwritten))
-			wake_up_all(ext4_ioend_wq(io->inode));
-	}
 
+	/* Wake up anyone waiting on unwritten extent conversion */
+	if (atomic_dec_and_test(&EXT4_I(inode)->i_aiodio_unwritten))
+		wake_up_all(ext4_ioend_wq(io->inode));
 	return ret;
 }
 
@@ -133,16 +126,15 @@ static void ext4_end_io_work(struct work_struct *work)
 	struct inode		*inode = io->inode;
 	struct ext4_inode_info	*ei = EXT4_I(inode);
 	unsigned long		flags;
-	int			ret;
 
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
 	if (list_empty(&io->list)) {
 		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 		goto free;
 	}
-	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 
 	if (!mutex_trylock(&inode->i_mutex)) {
+		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 		/*
 		 * Requeue the work instead of waiting so that the work
 		 * items queued after this can be processed.
@@ -159,16 +151,9 @@ static void ext4_end_io_work(struct work_struct *work)
 		io->flag |= EXT4_IO_END_QUEUED;
 		return;
 	}
-	ret = ext4_end_io_nolock(io);
-	if (ret < 0) {
-		mutex_unlock(&inode->i_mutex);
-		return;
-	}
-
-	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	if (!list_empty(&io->list))
-		list_del_init(&io->list);
+	list_del_init(&io->list);
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
+	(void) ext4_end_io_nolock(io);
 	mutex_unlock(&inode->i_mutex);
 free:
 	ext4_free_io_end(io);
