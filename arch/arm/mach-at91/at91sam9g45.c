@@ -11,7 +11,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/pm.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/irq.h>
@@ -20,7 +19,6 @@
 #include <mach/at91sam9g45.h>
 #include <mach/at91_pmc.h>
 #include <mach/at91_rstc.h>
-#include <mach/at91_shdwc.h>
 #include <mach/cpu.h>
 
 #include "soc.h"
@@ -323,12 +321,6 @@ static void at91sam9g45_reset(void)
 	at91_sys_write(AT91_RSTC_CR, AT91_RSTC_KEY | AT91_RSTC_PROCRST | AT91_RSTC_PERRST);
 }
 
-static void at91sam9g45_poweroff(void)
-{
-	at91_sys_write(AT91_SHDW_CR, AT91_SHDW_KEY | AT91_SHDW_SHDW);
-}
-
-
 /* --------------------------------------------------------------------
  *  AT91SAM9G45 processor initialization
  * -------------------------------------------------------------------- */
@@ -341,6 +333,7 @@ static void __init at91sam9g45_map_io(void)
 
 static void __init at91sam9g45_ioremap_registers(void)
 {
+	at91_ioremap_shdwc(AT91SAM9G45_BASE_SHDWC);
 	at91sam926x_ioremap_pit(AT91SAM9G45_BASE_PIT);
 	at91sam9_ioremap_smc(0, AT91SAM9G45_BASE_SMC);
 }
@@ -348,7 +341,6 @@ static void __init at91sam9g45_ioremap_registers(void)
 static void __init at91sam9g45_initialize(void)
 {
 	at91_arch_reset = at91sam9g45_reset;
-	pm_power_off = at91sam9g45_poweroff;
 	at91_extern_irq = (1 << AT91SAM9G45_ID_IRQ0);
 
 	/* Register GPIO subsystem */

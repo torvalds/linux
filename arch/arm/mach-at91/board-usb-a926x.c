@@ -344,7 +344,7 @@ static void __init ek_board_init(void)
 		/* I2C */
 		at91_add_device_i2c(NULL, 0);
 		/* shutdown controller, wakeup button (5 msec low) */
-		at91_sys_write(AT91_SHDW_MR, AT91_SHDW_CPTWK0_(10)
+		at91_shdwc_write(AT91_SHDW_MR, AT91_SHDW_CPTWK0_(10)
 				| AT91_SHDW_WKMODE0_LOW
 				| AT91_SHDW_RTTWKEN);
 	}

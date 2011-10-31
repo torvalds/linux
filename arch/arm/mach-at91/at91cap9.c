@@ -13,7 +13,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/pm.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -23,7 +22,6 @@
 #include <mach/at91cap9.h>
 #include <mach/at91_pmc.h>
 #include <mach/at91_rstc.h>
-#include <mach/at91_shdwc.h>
 
 #include "soc.h"
 #include "generic.h"
@@ -319,12 +317,6 @@ static void at91cap9_reset(void)
 	at91_sys_write(AT91_RSTC_CR, AT91_RSTC_KEY | AT91_RSTC_PROCRST | AT91_RSTC_PERRST);
 }
 
-static void at91cap9_poweroff(void)
-{
-	at91_sys_write(AT91_SHDW_CR, AT91_SHDW_KEY | AT91_SHDW_SHDW);
-}
-
-
 /* --------------------------------------------------------------------
  *  AT91CAP9 processor initialization
  * -------------------------------------------------------------------- */
@@ -336,6 +328,7 @@ static void __init at91cap9_map_io(void)
 
 static void __init at91cap9_ioremap_registers(void)
 {
+	at91_ioremap_shdwc(AT91CAP9_BASE_SHDWC);
 	at91sam926x_ioremap_pit(AT91CAP9_BASE_PIT);
 	at91sam9_ioremap_smc(0, AT91CAP9_BASE_SMC);
 }
@@ -343,7 +336,6 @@ static void __init at91cap9_ioremap_registers(void)
 static void __init at91cap9_initialize(void)
 {
 	at91_arch_reset = at91cap9_reset;
-	pm_power_off = at91cap9_poweroff;
 	at91_extern_irq = (1 << AT91CAP9_ID_IRQ0) | (1 << AT91CAP9_ID_IRQ1);
 
 	/* Register GPIO subsystem */

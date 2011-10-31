@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/pm.h>
 
 #include <asm/mach/map.h>
 
@@ -15,6 +16,7 @@
 #include <mach/cpu.h>
 #include <mach/at91_dbgu.h>
 #include <mach/at91_pmc.h>
+#include <mach/at91_shdwc.h>
 
 #include "soc.h"
 #include "generic.h"
@@ -283,6 +285,21 @@ void __init at91_map_io(void)
 
 	if (at91_boot_soc.map_io)
 		at91_boot_soc.map_io();
+}
+
+void __iomem *at91_shdwc_base = NULL;
+
+static void at91sam9_poweroff(void)
+{
+	at91_shdwc_write(AT91_SHDW_CR, AT91_SHDW_KEY | AT91_SHDW_SHDW);
+}
+
+void __init at91_ioremap_shdwc(u32 base_addr)
+{
+	at91_shdwc_base = ioremap(base_addr, 16);
+	if (!at91_shdwc_base)
+		panic("Impossible to ioremap at91_shdwc_base\n");
+	pm_power_off = at91sam9_poweroff;
 }
 
 void __init at91_initialize(unsigned long main_clock)
