@@ -971,9 +971,9 @@ static void ironlake_panel_vdd_work(struct work_struct *__work)
 						 struct intel_dp, panel_vdd_work);
 	struct drm_device *dev = intel_dp->base.base.dev;
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev->mode_config.mutex);
 	ironlake_panel_vdd_off_sync(intel_dp);
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->mode_config.mutex);
 }
 
 static void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
