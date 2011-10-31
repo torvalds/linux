@@ -72,6 +72,7 @@
 
 #define DP_MAIN_LINK_CHANNEL_CODING         0x006
 
+#define DP_EDP_CONFIGURATION_CAP            0x00d
 #define DP_TRAINING_AUX_RD_INTERVAL         0x00e
 
 #define DP_PSR_SUPPORT                      0x070
@@ -158,6 +159,8 @@
 # define DP_AUTOMATED_TEST_REQUEST	    (1 << 1)
 # define DP_CP_IRQ			    (1 << 2)
 # define DP_SINK_SPECIFIC_IRQ		    (1 << 6)
+
+#define DP_EDP_CONFIGURATION_SET            0x10a
 
 #define DP_LANE0_1_STATUS		    0x202
 #define DP_LANE2_3_STATUS		    0x203
