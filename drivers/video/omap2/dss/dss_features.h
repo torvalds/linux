@@ -20,16 +20,17 @@
 #ifndef __OMAP2_DSS_FEATURES_H
 #define __OMAP2_DSS_FEATURES_H
 
+#if defined(CONFIG_OMAP4_DSS_HDMI)
+#include "ti_hdmi.h"
+#endif
+
 #define MAX_DSS_MANAGERS	3
-#define MAX_DSS_OVERLAYS	3
+#define MAX_DSS_OVERLAYS	4
 #define MAX_DSS_LCD_MANAGERS	2
 #define MAX_NUM_DSI		2
 
 /* DSS has feature id */
 enum dss_feat_id {
-	FEAT_GLOBAL_ALPHA		= 1 << 0,
-	FEAT_GLOBAL_ALPHA_VID1		= 1 << 1,
-	FEAT_PRE_MULT_ALPHA		= 1 << 2,
 	FEAT_LCDENABLEPOL		= 1 << 3,
 	FEAT_LCDENABLESIGNAL		= 1 << 4,
 	FEAT_PCKFREEENABLE		= 1 << 5,
@@ -55,6 +56,8 @@ enum dss_feat_id {
 	FEAT_CPR			= 1 << 23,
 	FEAT_PRELOAD			= 1 << 24,
 	FEAT_FIR_COEF_V			= 1 << 25,
+	FEAT_ALPHA_FIXED_ZORDER		= 1 << 26,
+	FEAT_ALPHA_FREE_ZORDER		= 1 << 27,
 };
 
 /* DSS register field id */
@@ -75,12 +78,14 @@ enum dss_feat_reg_field {
 
 enum dss_range_param {
 	FEAT_PARAM_DSS_FCK,
+	FEAT_PARAM_DSS_PCD,
 	FEAT_PARAM_DSIPLL_REGN,
 	FEAT_PARAM_DSIPLL_REGM,
 	FEAT_PARAM_DSIPLL_REGM_DISPC,
 	FEAT_PARAM_DSIPLL_REGM_DSI,
 	FEAT_PARAM_DSIPLL_FINT,
 	FEAT_PARAM_DSIPLL_LPDIV,
+	FEAT_PARAM_DOWNSCALE,
 };
 
 /* DSS Feature Functions */
@@ -90,6 +95,7 @@ unsigned long dss_feat_get_param_min(enum dss_range_param param);
 unsigned long dss_feat_get_param_max(enum dss_range_param param);
 enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel);
 enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane);
+enum omap_overlay_caps dss_feat_get_overlay_caps(enum omap_plane plane);
 bool dss_feat_color_mode_supported(enum omap_plane plane,
 		enum omap_color_mode color_mode);
 const char *dss_feat_get_clk_source_name(enum omap_dss_clk_source id);
@@ -100,4 +106,7 @@ u32 dss_feat_get_burst_size_unit(void);		/* in bytes */
 bool dss_has_feature(enum dss_feat_id id);
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);
 void dss_features_init(void);
+#if defined(CONFIG_OMAP4_DSS_HDMI)
+void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data);
+#endif
 #endif

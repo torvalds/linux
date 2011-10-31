@@ -40,6 +40,9 @@
 #include <plat/dma.h>
 #include <plat/gpmc.h>
 
+#include <video/omapdss.h>
+#include <video/omap-panel-generic-dpi.h>
+
 #include "mux.h"
 #include "control.h"
 
@@ -157,15 +160,31 @@ static struct platform_device h4_kp_device = {
 	},
 };
 
-static struct platform_device h4_lcd_device = {
-	.name		= "lcd_h4",
-	.id		= -1,
-};
-
 static struct platform_device *h4_devices[] __initdata = {
 	&h4_flash_device,
 	&h4_kp_device,
+};
+
+static struct panel_generic_dpi_data h4_panel_data = {
+	.name			= "h4",
+};
+
+static struct omap_dss_device h4_lcd_device = {
+	.name			= "lcd",
+	.driver_name		= "generic_dpi_panel",
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.phy.dpi.data_lines	= 16,
+	.data			= &h4_panel_data,
+};
+
+static struct omap_dss_device *h4_dss_devices[] = {
 	&h4_lcd_device,
+};
+
+static struct omap_dss_board_info h4_dss_data = {
+	.num_devices	= ARRAY_SIZE(h4_dss_devices),
+	.devices	= h4_dss_devices,
+	.default_device	= &h4_lcd_device,
 };
 
 /* 2420 Sysboot setup (2430 is different) */
@@ -271,10 +290,6 @@ static void __init h4_init_flash(void)
 	h4_flash_resource.end	= base + SZ_64M - 1;
 }
 
-static struct omap_lcd_config h4_lcd_config __initdata = {
-	.ctrl_name	= "internal",
-};
-
 static struct omap_usb_config h4_usb_config __initdata = {
 	/* S1.10 OFF -- usb "download port"
 	 * usb0 switched to Mini-B port and isp1105 transceiver;
@@ -284,10 +299,6 @@ static struct omap_usb_config h4_usb_config __initdata = {
 	.pins[0]	= 3,
 /*	.hmc_mode	= 0x14,*/	/* 0:dev 1:host 2:disable */
 	.hmc_mode	= 0x00,		/* 0:dev|otg 1:disable 2:disable */
-};
-
-static struct omap_board_config_kernel h4_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&h4_lcd_config },
 };
 
 static struct at24_platform_data m24c01 = {
@@ -319,9 +330,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 static void __init omap_h4_init(void)
 {
 	omap2420_mux_init(board_mux, OMAP_PACKAGE_ZAF);
-
-	omap_board_config = h4_config;
-	omap_board_config_size = ARRAY_SIZE(h4_config);
 
 	/*
 	 * Make sure the serial ports are muxed on at this point.
@@ -362,6 +370,8 @@ static void __init omap_h4_init(void)
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
 	h4_init_flash();
+
+	omap_display_init(&h4_dss_data);
 }
 
 MACHINE_START(OMAP_H4, "OMAP2420 H4 board")
