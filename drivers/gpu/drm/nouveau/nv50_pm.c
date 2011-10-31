@@ -465,7 +465,7 @@ nv50_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	/* memory: use pcie refclock if possible, otherwise use mpll */
 	info->mscript = perflvl->memscript;
 	if (clk_same(perflvl->memory, read_clk(dev, clk_src_href))) {
-		info->mctrl = nv_rd32(dev, 0x4008) | 0x00000200;
+		info->mctrl = 0x00000200 | (pll.log2p_bias << 19);
 		info->mcoef = nv_rd32(dev, 0x400c);
 	} else
 	if (perflvl->memory) {
@@ -606,7 +606,7 @@ nv50_pm_clocks_set(struct drm_device *dev, void *data)
 
 	/* modify mpll */
 	nv_mask(dev, 0x00c040, 0x0000c000, 0x0000c000);
-	nv_mask(dev, 0x004008, 0x81ff0200, 0x00000200 | info->mctrl);
+	nv_mask(dev, 0x004008, 0x01ff0200, 0x00000200 | info->mctrl);
 	nv_wr32(dev, 0x00400c, info->mcoef);
 	udelay(100);
 	nv_mask(dev, 0x004008, 0x81ff0200, info->mctrl);
