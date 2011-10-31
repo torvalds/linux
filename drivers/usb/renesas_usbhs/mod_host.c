@@ -340,34 +340,24 @@ static void usbhsh_device_free(struct usbhsh_hpriv *hpriv,
 /*
  *		end-point control
  */
-struct usbhsh_ep *usbhsh_endpoint_alloc(struct usbhsh_hpriv *hpriv,
+static struct usbhsh_ep *usbhsh_endpoint_alloc(struct usbhsh_hpriv *hpriv,
 					struct usbhsh_device *udev,
 					struct usb_host_endpoint *ep,
 					int dir_in_req,
 					gfp_t mem_flags)
 {
 	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
-	struct usb_hcd *hcd = usbhsh_hpriv_to_hcd(hpriv);
 	struct usbhsh_ep *uep;
 	struct usbhsh_pipe_info *info;
-	struct usbhs_pipe *pipe, *best_pipe;
-	struct device *dev = usbhsh_hcd_to_dev(hcd);
+	struct usbhs_pipe *best_pipe = NULL;
+	struct device *dev = usbhs_priv_to_dev(priv);
 	struct usb_endpoint_descriptor *desc = &ep->desc;
-	int type, i, dir_in;
-	unsigned int min_usr;
 	unsigned long flags;
-
-	dir_in_req = !!dir_in_req;
 
 	uep = kzalloc(sizeof(struct usbhsh_ep), mem_flags);
 	if (!uep) {
 		dev_err(dev, "usbhsh_ep alloc fail\n");
 		return NULL;
-	}
-
-	if (usb_endpoint_xfer_control(desc)) {
-		best_pipe = usbhsh_hpriv_to_dcp(hpriv);
-		goto usbhsh_endpoint_alloc_find_pipe;
 	}
 
 	/********************  spin lock ********************/
@@ -378,22 +368,29 @@ struct usbhsh_ep *usbhsh_endpoint_alloc(struct usbhsh_hpriv *hpriv,
 	 * see
 	 *	HARDWARE LIMITATION
 	 */
-	type = usb_endpoint_type(desc);
-	min_usr = ~0;
-	best_pipe = NULL;
-	usbhs_for_each_pipe(pipe, priv, i) {
-		if (!usbhs_pipe_type_is(pipe, type))
-			continue;
+	if (usb_endpoint_xfer_control(desc)) {
+		/* best pipe is DCP */
+		best_pipe = usbhsh_hpriv_to_dcp(hpriv);
+	} else {
+		struct usbhs_pipe *pipe;
+		unsigned int min_usr = ~0;
+		int i, dir_in;
 
-		dir_in = !!usbhs_pipe_is_dir_in(pipe);
-		if (0 != (dir_in - dir_in_req))
-			continue;
+		dir_in_req = !!dir_in_req;
 
-		info = usbhsh_pipe_info(pipe);
+		usbhs_for_each_pipe(pipe, priv, i) {
+			if (!usbhs_pipe_type_is(pipe, usb_endpoint_type(desc)))
+				continue;
 
-		if (min_usr > info->usr_cnt) {
-			min_usr		= info->usr_cnt;
-			best_pipe	= pipe;
+			dir_in = !!usbhs_pipe_is_dir_in(pipe);
+			if (0 != (dir_in - dir_in_req))
+				continue;
+
+			info = usbhsh_pipe_info(pipe);
+			if (min_usr > info->usr_cnt) {
+				min_usr		= info->usr_cnt;
+				best_pipe	= pipe;
+			}
 		}
 	}
 
@@ -415,7 +412,7 @@ struct usbhsh_ep *usbhsh_endpoint_alloc(struct usbhsh_hpriv *hpriv,
 		kfree(uep);
 		return NULL;
 	}
-usbhsh_endpoint_alloc_find_pipe:
+
 	/*
 	 * init uep
 	 */
@@ -443,7 +440,7 @@ usbhsh_endpoint_alloc_find_pipe:
 	return uep;
 }
 
-void usbhsh_endpoint_free(struct usbhsh_hpriv *hpriv,
+static void usbhsh_endpoint_free(struct usbhsh_hpriv *hpriv,
 			  struct usb_host_endpoint *ep)
 {
 	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
