@@ -146,7 +146,7 @@ typedef int (*objio_done_fn)(struct objio_state *ios);
 
 struct objio_state {
 	/* Generic layer */
-	struct objlayout_io_state ol_state;
+	struct objlayout_io_res oir;
 
 	struct page **pages;
 	unsigned pgbase;
@@ -422,7 +422,7 @@ objio_alloc_io_state(struct pnfs_layout_hdr *pnfs_layout_type,
 	ios = &aos->objios;
 
 	ios->layout = objio_seg;
-	objlayout_init_ioerrs(&aos->objios.ol_state, objio_seg->num_comps,
+	objlayout_init_ioerrs(&aos->objios.oir, objio_seg->num_comps,
 			aos->ioerrs, rpcdata, pnfs_layout_type);
 
 	ios->pages = pages;
@@ -437,10 +437,9 @@ objio_alloc_io_state(struct pnfs_layout_hdr *pnfs_layout_type,
 	return 0;
 }
 
-void objio_free_result(struct objlayout_io_state *ol_state)
+void objio_free_result(struct objlayout_io_res *oir)
 {
-	struct objio_state *ios = container_of(ol_state, struct objio_state,
-					       ol_state);
+	struct objio_state *ios = container_of(oir, struct objio_state, oir);
 
 	kfree(ios);
 }
@@ -519,7 +518,7 @@ static int _io_check(struct objio_state *ios, bool is_write)
 
 			continue; /* we recovered */
 		}
-		objlayout_io_set_result(&ios->ol_state, i,
+		objlayout_io_set_result(&ios->oir, i,
 					&ios->layout->comps[i].oc_object_id,
 					osd_pri_2_pnfs_err(osi.osd_err_pri),
 					ios->per_dev[i].offset,
@@ -812,7 +811,7 @@ static int _read_done(struct objio_state *ios)
 	else
 		status = ret;
 
-	objlayout_read_done(&ios->ol_state, status, ios->sync);
+	objlayout_read_done(&ios->oir, status, ios->sync);
 	return ret;
 }
 
@@ -906,13 +905,13 @@ static int _write_done(struct objio_state *ios)
 	if (likely(!ret)) {
 		/* FIXME: should be based on the OSD's persistence model
 		 * See OSD2r05 Section 4.13 Data persistence model */
-		ios->ol_state.committed = NFS_FILE_SYNC;
+		ios->oir.committed = NFS_FILE_SYNC;
 		status = ios->length;
 	} else {
 		status = ret;
 	}
 
-	objlayout_write_done(&ios->ol_state, status, ios->sync);
+	objlayout_write_done(&ios->oir, status, ios->sync);
 	return ret;
 }
 

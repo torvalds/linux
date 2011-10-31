@@ -179,16 +179,16 @@ void _fix_verify_io_params(struct pnfs_layout_segment *lseg,
  * I/O done common code
  */
 static void
-objlayout_iodone(struct objlayout_io_state *state)
+objlayout_iodone(struct objlayout_io_res *oir)
 {
-	if (likely(state->status >= 0)) {
-		objio_free_result(state);
+	if (likely(oir->status >= 0)) {
+		objio_free_result(oir);
 	} else {
-		struct objlayout *objlay = state->objlay;
+		struct objlayout *objlay = oir->objlay;
 
 		spin_lock(&objlay->lock);
 		objlay->delta_space_valid = OBJ_DSU_INVALID;
-		list_add(&objlay->err_list, &state->err_list);
+		list_add(&objlay->err_list, &oir->err_list);
 		spin_unlock(&objlay->lock);
 	}
 }
@@ -200,13 +200,13 @@ objlayout_iodone(struct objlayout_io_state *state)
  * the error for later reporting at layout-return.
  */
 void
-objlayout_io_set_result(struct objlayout_io_state *state, unsigned index,
+objlayout_io_set_result(struct objlayout_io_res *oir, unsigned index,
 			struct pnfs_osd_objid *pooid, int osd_error,
 			u64 offset, u64 length, bool is_write)
 {
-	struct pnfs_osd_ioerr *ioerr = &state->ioerrs[index];
+	struct pnfs_osd_ioerr *ioerr = &oir->ioerrs[index];
 
-	BUG_ON(index >= state->num_comps);
+	BUG_ON(index >= oir->num_comps);
 	if (osd_error) {
 		ioerr->oer_component = *pooid;
 		ioerr->oer_comp_offset = offset;
@@ -247,15 +247,15 @@ static void _rpc_read_complete(struct work_struct *work)
 }
 
 void
-objlayout_read_done(struct objlayout_io_state *state, ssize_t status, bool sync)
+objlayout_read_done(struct objlayout_io_res *oir, ssize_t status, bool sync)
 {
-	struct nfs_read_data *rdata = state->rpcdata;
+	struct nfs_read_data *rdata = oir->rpcdata;
 
-	state->status = rdata->task.tk_status = status;
+	oir->status = rdata->task.tk_status = status;
 	if (status >= 0)
 		rdata->res.count = status;
-	objlayout_iodone(state);
-	/* must not use state after this point */
+	objlayout_iodone(oir);
+	/* must not use oir after this point */
 
 	dprintk("%s: Return status=%zd eof=%d sync=%d\n", __func__,
 		status, rdata->res.eof, sync);
@@ -326,17 +326,16 @@ static void _rpc_write_complete(struct work_struct *work)
 }
 
 void
-objlayout_write_done(struct objlayout_io_state *state, ssize_t status,
-		     bool sync)
+objlayout_write_done(struct objlayout_io_res *oir, ssize_t status, bool sync)
 {
-	struct nfs_write_data *wdata = state->rpcdata;
+	struct nfs_write_data *wdata = oir->rpcdata;
 
-	state->status = wdata->task.tk_status = status;
+	oir->status = wdata->task.tk_status = status;
 	if (status >= 0) {
 		wdata->res.count = status;
-		wdata->verf.committed = state->committed;
+		wdata->verf.committed = oir->committed;
 	}
-	objlayout_iodone(state);
+	objlayout_iodone(oir);
 	/* must not use oir after this point */
 
 	dprintk("%s: Return status %zd committed %d sync=%d\n", __func__,
@@ -475,14 +474,14 @@ merge_ioerr(struct pnfs_osd_ioerr *dest_err,
 static void
 encode_accumulated_error(struct objlayout *objlay, __be32 *p)
 {
-	struct objlayout_io_state *state, *tmp;
+	struct objlayout_io_res *oir, *tmp;
 	struct pnfs_osd_ioerr accumulated_err = {.oer_errno = 0};
 
-	list_for_each_entry_safe(state, tmp, &objlay->err_list, err_list) {
+	list_for_each_entry_safe(oir, tmp, &objlay->err_list, err_list) {
 		unsigned i;
 
-		for (i = 0; i < state->num_comps; i++) {
-			struct pnfs_osd_ioerr *ioerr = &state->ioerrs[i];
+		for (i = 0; i < oir->num_comps; i++) {
+			struct pnfs_osd_ioerr *ioerr = &oir->ioerrs[i];
 
 			if (!ioerr->oer_errno)
 				continue;
@@ -501,8 +500,8 @@ encode_accumulated_error(struct objlayout *objlay, __be32 *p)
 
 			merge_ioerr(&accumulated_err, ioerr);
 		}
-		list_del(&state->err_list);
-		objio_free_result(state);
+		list_del(&oir->err_list);
+		objio_free_result(oir);
 	}
 
 	pnfs_osd_xdr_encode_ioerr(p, &accumulated_err);
@@ -514,7 +513,7 @@ objlayout_encode_layoutreturn(struct pnfs_layout_hdr *pnfslay,
 			      const struct nfs4_layoutreturn_args *args)
 {
 	struct objlayout *objlay = OBJLAYOUT(pnfslay);
-	struct objlayout_io_state *state, *tmp;
+	struct objlayout_io_res *oir, *tmp;
 	__be32 *start;
 
 	dprintk("%s: Begin\n", __func__);
@@ -523,13 +522,13 @@ objlayout_encode_layoutreturn(struct pnfs_layout_hdr *pnfslay,
 
 	spin_lock(&objlay->lock);
 
-	list_for_each_entry_safe(state, tmp, &objlay->err_list, err_list) {
+	list_for_each_entry_safe(oir, tmp, &objlay->err_list, err_list) {
 		__be32 *last_xdr = NULL, *p;
 		unsigned i;
 		int res = 0;
 
-		for (i = 0; i < state->num_comps; i++) {
-			struct pnfs_osd_ioerr *ioerr = &state->ioerrs[i];
+		for (i = 0; i < oir->num_comps; i++) {
+			struct pnfs_osd_ioerr *ioerr = &oir->ioerrs[i];
 
 			if (!ioerr->oer_errno)
 				continue;
@@ -553,7 +552,7 @@ objlayout_encode_layoutreturn(struct pnfs_layout_hdr *pnfslay,
 			}
 
 			last_xdr = p;
-			pnfs_osd_xdr_encode_ioerr(p, &state->ioerrs[i]);
+			pnfs_osd_xdr_encode_ioerr(p, &oir->ioerrs[i]);
 		}
 
 		/* TODO: use xdr_write_pages */
@@ -569,8 +568,8 @@ objlayout_encode_layoutreturn(struct pnfs_layout_hdr *pnfslay,
 			encode_accumulated_error(objlay, last_xdr);
 			goto loop_done;
 		}
-		list_del(&state->err_list);
-		objio_free_result(state);
+		list_del(&oir->err_list);
+		objio_free_result(oir);
 	}
 loop_done:
 	spin_unlock(&objlay->lock);

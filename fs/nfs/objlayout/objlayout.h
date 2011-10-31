@@ -74,7 +74,7 @@ OBJLAYOUT(struct pnfs_layout_hdr *lo)
  * per-I/O operation state
  * embedded in objects provider io_state data structure
  */
-struct objlayout_io_state {
+struct objlayout_io_res {
 	struct objlayout *objlay;
 
 	void *rpcdata;
@@ -93,7 +93,7 @@ struct objlayout_io_state {
 };
 
 static inline
-void objlayout_init_ioerrs(struct objlayout_io_state *oir, unsigned num_comps,
+void objlayout_init_ioerrs(struct objlayout_io_res *oir, unsigned num_comps,
 			struct pnfs_osd_ioerr *ioerrs, void *rpcdata,
 			struct pnfs_layout_hdr *pnfs_layout_type)
 {
@@ -114,7 +114,10 @@ extern int objio_alloc_lseg(struct pnfs_layout_segment **outp,
 	gfp_t gfp_flags);
 extern void objio_free_lseg(struct pnfs_layout_segment *lseg);
 
-extern void objio_free_result(struct objlayout_io_state *state);
+/* objio_free_result will free these @oir structs recieved from
+ * objlayout_{read,write}_done
+ */
+extern void objio_free_result(struct objlayout_io_res *oir);
 
 extern int objio_read_pagelist(struct nfs_read_data *rdata);
 extern int objio_write_pagelist(struct nfs_write_data *wdata, int how);
@@ -122,7 +125,7 @@ extern int objio_write_pagelist(struct nfs_write_data *wdata, int how);
 /*
  * callback API
  */
-extern void objlayout_io_set_result(struct objlayout_io_state *state,
+extern void objlayout_io_set_result(struct objlayout_io_res *oir,
 			unsigned index, struct pnfs_osd_objid *pooid,
 			int osd_error, u64 offset, u64 length, bool is_write);
 
@@ -141,9 +144,9 @@ objlayout_add_delta_space_used(struct objlayout *objlay, s64 space_used)
 	spin_unlock(&objlay->lock);
 }
 
-extern void objlayout_read_done(struct objlayout_io_state *state,
+extern void objlayout_read_done(struct objlayout_io_res *oir,
 				ssize_t status, bool sync);
-extern void objlayout_write_done(struct objlayout_io_state *state,
+extern void objlayout_write_done(struct objlayout_io_res *oir,
 				 ssize_t status, bool sync);
 
 extern int objlayout_get_deviceinfo(struct pnfs_layout_hdr *pnfslay,
