@@ -36,6 +36,11 @@
 #define PCTV_74E_USB_VID		0x2013
 #define PCTV_74E_USB_PID		0x0246
 
+/* Elgato: EyeTV DTT Deluxe */
+#define ELGATO_EYETV_DTT_NAME		"Elgato EyeTV DTT Deluxe"
+#define ELGATO_EYETV_DTT_USB_VID	0x0fd9
+#define ELGATO_EYETV_DTT_USB_PID	0x002c
+
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 18))
 void as102_urb_stream_irq(struct urb *urb, struct pt_regs *regs);
 #else
