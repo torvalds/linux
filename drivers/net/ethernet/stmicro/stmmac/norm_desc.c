@@ -50,11 +50,12 @@ static int ndesc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 			stats->collisions += p->des01.tx.collision_count;
 		ret = -1;
 	}
-	if (unlikely(p->des01.tx.heartbeat_fail)) {
-		x->tx_heartbeat++;
-		stats->tx_heartbeat_errors++;
-		ret = -1;
+
+	if (p->des01.etx.vlan_frame) {
+		CHIP_DBG(KERN_INFO "GMAC TX status: VLAN frame\n");
+		x->tx_vlan++;
 	}
+
 	if (unlikely(p->des01.tx.deferred))
 		x->tx_deferred++;
 
@@ -68,12 +69,12 @@ static int ndesc_get_tx_len(struct dma_desc *p)
 
 /* This function verifies if each incoming frame has some errors
  * and, if required, updates the multicast statistics.
- * In case of success, it returns csum_none because the device
- * is not able to compute the csum in HW. */
+ * In case of success, it returns good_frame because the GMAC device
+ * is supposed to be able to compute the csum in HW. */
 static int ndesc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 			       struct dma_desc *p)
 {
-	int ret = csum_none;
+	int ret = good_frame;
 	struct net_device_stats *stats = (struct net_device_stats *)data;
 
 	if (unlikely(p->des01.rx.last_descriptor == 0)) {
@@ -86,12 +87,12 @@ static int ndesc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 	if (unlikely(p->des01.rx.error_summary)) {
 		if (unlikely(p->des01.rx.descriptor_error))
 			x->rx_desc++;
-		if (unlikely(p->des01.rx.partial_frame_error))
-			x->rx_partial++;
-		if (unlikely(p->des01.rx.run_frame))
-			x->rx_runt++;
-		if (unlikely(p->des01.rx.frame_too_long))
-			x->rx_toolong++;
+		if (unlikely(p->des01.rx.sa_filter_fail))
+			x->sa_filter_fail++;
+		if (unlikely(p->des01.rx.overflow_error))
+			x->overflow_error++;
+		if (unlikely(p->des01.rx.ipc_csum_error))
+			x->ipc_csum_error++;
 		if (unlikely(p->des01.rx.collision)) {
 			x->rx_collision++;
 			stats->collisions++;
@@ -113,10 +114,10 @@ static int ndesc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 		x->rx_mii++;
 		ret = discard_frame;
 	}
-	if (p->des01.rx.multicast_frame) {
-		x->rx_multicast++;
-		stats->multicast++;
-	}
+#ifdef STMMAC_VLAN_TAG_USED
+	if (p->des01.rx.vlan_tag)
+		x->vlan_tag++;
+#endif
 	return ret;
 }
 
@@ -184,6 +185,9 @@ static void ndesc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 {
 	p->des01.tx.first_segment = is_fs;
 	norm_set_tx_desc_len(p, len);
+
+	if (likely(csum_flag))
+		p->des01.tx.checksum_insertion = cic_full;
 }
 
 static void ndesc_clear_tx_ic(struct dma_desc *p)

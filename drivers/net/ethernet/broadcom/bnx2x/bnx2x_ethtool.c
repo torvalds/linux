@@ -329,6 +329,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			PORT_HW_CFG_PHY_SELECTION_FIRST_PHY;
 		break;
 	case PORT_FIBRE:
+	case PORT_DA:
 		if (bp->port.supported[cfg_idx] & SUPPORTED_FIBRE)
 			break; /* no port change */
 

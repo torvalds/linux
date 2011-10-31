@@ -222,7 +222,6 @@ struct bonding {
 			       struct slave *);
 	rwlock_t lock;
 	rwlock_t curr_slave_lock;
-	s8       kill_timers;
 	u8	 send_peer_notif;
 	s8	 setup_by_slave;
 	s8       igmp_retrans;

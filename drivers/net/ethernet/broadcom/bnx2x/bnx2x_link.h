@@ -303,6 +303,9 @@ struct link_vars {
 #define PERIODIC_FLAGS_LINK_EVENT	0x0001
 
 	u32 aeu_int_mask;
+	u8 rx_tx_asic_rst;
+	u8 turn_to_run_wc_rt;
+	u16 rsrv2;
 };
 
 /***********************************************************/

@@ -325,7 +325,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	    (interface == PHY_INTERFACE_MODE_RMII))) {
 		phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
 				      SUPPORTED_Asym_Pause);
-		priv->phydev->advertising = priv->phydev->supported;
+		phydev->advertising = phydev->supported;
 	}
 
 	/*
@@ -812,9 +812,11 @@ static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
  */
 static int stmmac_get_hw_features(struct stmmac_priv *priv)
 {
-	u32 hw_cap = priv->hw->dma->get_hw_feature(priv->ioaddr);
+	u32 hw_cap = 0;
 
-	if (likely(hw_cap)) {
+	if (priv->hw->dma->get_hw_feature) {
+		hw_cap = priv->hw->dma->get_hw_feature(priv->ioaddr);
+
 		priv->dma_cap.mbps_10_100 = (hw_cap & DMA_HW_FEAT_MIISEL);
 		priv->dma_cap.mbps_1000 = (hw_cap & DMA_HW_FEAT_GMIISEL) >> 1;
 		priv->dma_cap.half_duplex = (hw_cap & DMA_HW_FEAT_HDSEL) >> 2;
@@ -937,6 +939,7 @@ static int stmmac_open(struct net_device *dev)
 
 	stmmac_get_hw_features(priv);
 
+	priv->rx_coe = priv->hw->mac->rx_coe(priv->ioaddr);
 	if (priv->rx_coe)
 		pr_info("stmmac: Rx Checksum Offload Engine supported\n");
 	if (priv->plat->tx_coe)
@@ -1274,8 +1277,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 #endif
 			skb->protocol = eth_type_trans(skb, priv->dev);
 
-			if (unlikely(status == csum_none)) {
-				/* always for the old mac 10/100 */
+			if (unlikely(!priv->rx_coe)) {
+				/* No RX COE for old mac10/100 devices */
 				skb_checksum_none_assert(skb);
 				netif_receive_skb(skb);
 			} else {

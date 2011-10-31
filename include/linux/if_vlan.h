@@ -106,7 +106,7 @@ extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 
-extern bool vlan_do_receive(struct sk_buff **skb);
+extern bool vlan_do_receive(struct sk_buff **skb, bool last_handler);
 extern struct sk_buff *vlan_untag(struct sk_buff *skb);
 
 #else
@@ -128,9 +128,9 @@ static inline u16 vlan_dev_vlan_id(const struct net_device *dev)
 	return 0;
 }
 
-static inline bool vlan_do_receive(struct sk_buff **skb)
+static inline bool vlan_do_receive(struct sk_buff **skb, bool last_handler)
 {
-	if ((*skb)->vlan_tci & VLAN_VID_MASK)
+	if (((*skb)->vlan_tci & VLAN_VID_MASK) && last_handler)
 		(*skb)->pkt_type = PACKET_OTHERHOST;
 	return false;
 }

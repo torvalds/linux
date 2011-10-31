@@ -422,9 +422,53 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	QLCWR32(adapter, CRB_CMDPEG_STATE, 0);
 	QLCWR32(adapter, CRB_RCVPEG_STATE, 0);
 
-	qlcnic_rom_lock(adapter);
-	QLCWR32(adapter, QLCNIC_ROMUSB_GLB_SW_RESET, 0xfeffffff);
+	/* Halt all the indiviual PEGs and other blocks */
+	/* disable all I2Q */
+	QLCWR32(adapter, QLCNIC_CRB_I2Q + 0x10, 0x0);
+	QLCWR32(adapter, QLCNIC_CRB_I2Q + 0x14, 0x0);
+	QLCWR32(adapter, QLCNIC_CRB_I2Q + 0x18, 0x0);
+	QLCWR32(adapter, QLCNIC_CRB_I2Q + 0x1c, 0x0);
+	QLCWR32(adapter, QLCNIC_CRB_I2Q + 0x20, 0x0);
+	QLCWR32(adapter, QLCNIC_CRB_I2Q + 0x24, 0x0);
+
+	/* disable all niu interrupts */
+	QLCWR32(adapter, QLCNIC_CRB_NIU + 0x40, 0xff);
+	/* disable xge rx/tx */
+	QLCWR32(adapter, QLCNIC_CRB_NIU + 0x70000, 0x00);
+	/* disable xg1 rx/tx */
+	QLCWR32(adapter, QLCNIC_CRB_NIU + 0x80000, 0x00);
+	/* disable sideband mac */
+	QLCWR32(adapter, QLCNIC_CRB_NIU + 0x90000, 0x00);
+	/* disable ap0 mac */
+	QLCWR32(adapter, QLCNIC_CRB_NIU + 0xa0000, 0x00);
+	/* disable ap1 mac */
+	QLCWR32(adapter, QLCNIC_CRB_NIU + 0xb0000, 0x00);
+
+	/* halt sre */
+	val = QLCRD32(adapter, QLCNIC_CRB_SRE + 0x1000);
+	QLCWR32(adapter, QLCNIC_CRB_SRE + 0x1000, val & (~(0x1)));
+
+	/* halt epg */
+	QLCWR32(adapter, QLCNIC_CRB_EPG + 0x1300, 0x1);
+
+	/* halt timers */
+	QLCWR32(adapter, QLCNIC_CRB_TIMER + 0x0, 0x0);
+	QLCWR32(adapter, QLCNIC_CRB_TIMER + 0x8, 0x0);
+	QLCWR32(adapter, QLCNIC_CRB_TIMER + 0x10, 0x0);
+	QLCWR32(adapter, QLCNIC_CRB_TIMER + 0x18, 0x0);
+	QLCWR32(adapter, QLCNIC_CRB_TIMER + 0x100, 0x0);
+	QLCWR32(adapter, QLCNIC_CRB_TIMER + 0x200, 0x0);
+	/* halt pegs */
+	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_0 + 0x3c, 1);
+	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_1 + 0x3c, 1);
+	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_2 + 0x3c, 1);
+	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_3 + 0x3c, 1);
+	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_4 + 0x3c, 1);
+	msleep(20);
+
 	qlcnic_rom_unlock(adapter);
+	/* big hammer don't reset CAM block on reset */
+	QLCWR32(adapter, QLCNIC_ROMUSB_GLB_SW_RESET, 0xfeffffff);
 
 	/* Init HW CRB block */
 	if (qlcnic_rom_fast_read(adapter, 0, &n) != 0 || (n != 0xcafecafe) ||
@@ -522,8 +566,10 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_4 + 0x8, 0);
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_4 + 0xc, 0);
 	msleep(1);
+
 	QLCWR32(adapter, QLCNIC_PEG_HALT_STATUS1, 0);
 	QLCWR32(adapter, QLCNIC_PEG_HALT_STATUS2, 0);
+
 	return 0;
 }
 
