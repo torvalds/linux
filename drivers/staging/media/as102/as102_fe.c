@@ -31,68 +31,6 @@ static void as10x_fe_copy_tps_parameters(struct dvb_frontend_parameters *dst,
 static void as102_fe_copy_tune_parameters(struct as10x_tune_args *dst,
 					  struct dvb_frontend_parameters *src);
 
-static void as102_fe_release(struct dvb_frontend *fe)
-{
-	struct as102_dev_t *dev;
-
-	ENTER();
-
-	dev = (struct as102_dev_t *) fe->tuner_priv;
-	if (dev == NULL)
-		return;
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19))
-	if (mutex_lock_interruptible(&dev->bus_adap.lock))
-		return;
-
-	/* send abilis command: TURN_OFF */
-	as10x_cmd_turn_off(&dev->bus_adap);
-
-	mutex_unlock(&dev->bus_adap.lock);
-#endif
-
-	/* release frontend callback ops */
-	memset(&fe->ops, 0, sizeof(struct dvb_frontend_ops));
-
-	/* flush statistics */
-	memset(&dev->demod_stats, 0, sizeof(dev->demod_stats));
-	dev->signal_strength = 0;
-	dev->ber = -1;
-
-	/* reset tuner private data */
-/* 	fe->tuner_priv = NULL; */
-
-	LEAVE();
-}
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19))
-static int as102_fe_init(struct dvb_frontend *fe)
-{
-	int ret = 0;
-	struct as102_dev_t *dev;
-
-	ENTER();
-
-	dev = (struct as102_dev_t *) fe->tuner_priv;
-	if (dev == NULL)
-		return -ENODEV;
-
-	if (mutex_lock_interruptible(&dev->bus_adap.lock))
-		return -EBUSY;
-
-	if (elna_enable)
-		ret = as10x_cmd_set_context(&dev->bus_adap, 1010, 0xC0);
-
-	/* send abilis command: TURN_ON */
-	ret = as10x_cmd_turn_on(&dev->bus_adap);
-
-	mutex_unlock(&dev->bus_adap.lock);
-
-	LEAVE();
-	return (ret < 0) ? -EINVAL : 0;
-}
-#endif
-
 static int as102_fe_set_frontend(struct dvb_frontend *fe,
 				 struct dvb_frontend_parameters *params)
 {
@@ -312,7 +250,6 @@ static int as102_fe_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19))
 static int as102_fe_ts_bus_ctrl(struct dvb_frontend *fe, int acquire)
 {
 	struct as102_dev_t *dev;
@@ -341,7 +278,6 @@ static int as102_fe_ts_bus_ctrl(struct dvb_frontend *fe, int acquire)
 	LEAVE();
 	return ret;
 }
-#endif
 
 static struct dvb_frontend_ops as102_fe_ops = {
 	.info = {
@@ -366,19 +302,12 @@ static struct dvb_frontend_ops as102_fe_ops = {
 	.get_frontend		= as102_fe_get_frontend,
 	.get_tune_settings	= as102_fe_get_tune_settings,
 
-
 	.read_status		= as102_fe_read_status,
 	.read_snr		= as102_fe_read_snr,
 	.read_ber		= as102_fe_read_ber,
 	.read_signal_strength	= as102_fe_read_signal_strength,
 	.read_ucblocks		= as102_fe_read_ucblocks,
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19))
 	.ts_bus_ctrl		= as102_fe_ts_bus_ctrl,
-#else
-	.release		= as102_fe_release,
-	.init			= as102_fe_init,
-#endif
 };
 
 int as102_dvb_unregister_fe(struct dvb_frontend *fe)
@@ -386,10 +315,9 @@ int as102_dvb_unregister_fe(struct dvb_frontend *fe)
 	/* unregister frontend */
 	dvb_unregister_frontend(fe);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19))
 	/* detach frontend */
 	dvb_frontend_detach(fe);
-#endif
+
 	return 0;
 }
 

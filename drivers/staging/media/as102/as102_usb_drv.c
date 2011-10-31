@@ -205,11 +205,7 @@ static int as102_submit_urb_stream(struct as102_dev_t *dev, struct urb *urb)
 	return err;
 }
 
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 18))
-void as102_urb_stream_irq(struct urb *urb, struct pt_regs *regs)
-#else
 void as102_urb_stream_irq(struct urb *urb)
-#endif
 {
 	struct as102_dev_t *as102_dev = urb->context;
 
