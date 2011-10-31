@@ -667,7 +667,7 @@ static void __init igep_init(void)
 }
 
 MACHINE_START(IGEP0020, "IGEP v2 board")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
@@ -677,7 +677,7 @@ MACHINE_START(IGEP0020, "IGEP v2 board")
 MACHINE_END
 
 MACHINE_START(IGEP0030, "IGEP OMAP3 module")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,

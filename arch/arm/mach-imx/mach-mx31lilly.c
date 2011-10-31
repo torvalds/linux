@@ -295,7 +295,7 @@ static struct sys_timer mx31lilly_timer = {
 };
 
 MACHINE_START(LILLY1131, "INCO startec LILLY-1131")
-	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
