@@ -686,7 +686,7 @@ static void z2_power_off(void)
 	 */
 	PSPR = 0x0;
 	local_irq_disable();
-	pxa27x_cpu_suspend(PWRMODE_DEEPSLEEP, PLAT_PHYS_OFFSET - PAGE_OFFSET);
+	pxa27x_cpu_suspend(PWRMODE_DEEPSLEEP, PHYS_OFFSET - PAGE_OFFSET);
 }
 #else
 #define z2_power_off   NULL

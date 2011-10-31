@@ -55,7 +55,7 @@
 
 		bic     \irqnr, \irqstat, #0x1c00
 
-		cmp     \irqnr, #29
+		cmp     \irqnr, #15
 		cmpcc	\irqnr, \irqnr
 		cmpne	\irqnr, \tmp
 		cmpcs	\irqnr, \irqnr
@@ -75,9 +75,4 @@
 		cmp	\irqnr, #16
 		strcc	\irqstat, [\base, #GIC_CPU_EOI]
 		cmpcs	\irqnr, \irqnr
-		.endm
-
-		/* As above, this assumes that irqstat and base are preserved.. */
-
-		.macro test_for_ltirq, irqnr, irqstat, base, tmp
 		.endm
