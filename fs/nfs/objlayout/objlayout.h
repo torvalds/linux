@@ -115,8 +115,8 @@ extern int objio_alloc_io_state(
 	gfp_t gfp_flags);
 extern void objio_free_io_state(struct objlayout_io_state *state);
 
-extern ssize_t objio_read_pagelist(struct objlayout_io_state *ol_state);
-extern ssize_t objio_write_pagelist(struct objlayout_io_state *ol_state,
+extern int objio_read_pagelist(struct objlayout_io_state *ol_state);
+extern int objio_write_pagelist(struct objlayout_io_state *ol_state,
 				    bool stable);
 
 /*

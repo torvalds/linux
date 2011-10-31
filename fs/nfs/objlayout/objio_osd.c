@@ -142,7 +142,7 @@ OBJIO_LSEG(struct pnfs_layout_segment *lseg)
 }
 
 struct objio_state;
-typedef ssize_t (*objio_done_fn)(struct objio_state *ios);
+typedef int (*objio_done_fn)(struct objio_state *ios);
 
 struct objio_state {
 	/* Generic layer */
@@ -720,7 +720,7 @@ out:
 	return 0;
 }
 
-static ssize_t _sync_done(struct objio_state *ios)
+static int _sync_done(struct objio_state *ios)
 {
 	struct completion *waiting = ios->private;
 
@@ -742,10 +742,10 @@ static void _done_io(struct osd_request *or, void *p)
 	kref_put(&ios->kref, _last_io);
 }
 
-static ssize_t _io_exec(struct objio_state *ios)
+static int _io_exec(struct objio_state *ios)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
-	ssize_t status = 0; /* sync status */
+	int ret = 0;
 	unsigned i;
 	objio_done_fn saved_done_fn = ios->done;
 	bool sync = ios->ol_state.sync;
@@ -771,16 +771,16 @@ static ssize_t _io_exec(struct objio_state *ios)
 
 	if (sync) {
 		wait_for_completion(&wait);
-		status = saved_done_fn(ios);
+		ret = saved_done_fn(ios);
 	}
 
-	return status;
+	return ret;
 }
 
 /*
  * read
  */
-static ssize_t _read_done(struct objio_state *ios)
+static int _read_done(struct objio_state *ios)
 {
 	ssize_t status;
 	int ret = _io_check(ios, false);
@@ -793,7 +793,7 @@ static ssize_t _read_done(struct objio_state *ios)
 		status = ret;
 
 	objlayout_read_done(&ios->ol_state, status, ios->ol_state.sync);
-	return status;
+	return ret;
 }
 
 static int _read_mirrors(struct objio_state *ios, unsigned cur_comp)
@@ -833,7 +833,7 @@ err:
 	return ret;
 }
 
-static ssize_t _read_exec(struct objio_state *ios)
+static int _read_exec(struct objio_state *ios)
 {
 	unsigned i;
 	int ret;
@@ -847,14 +847,14 @@ static ssize_t _read_exec(struct objio_state *ios)
 	}
 
 	ios->done = _read_done;
-	return _io_exec(ios); /* In sync mode exec returns the io status */
+	return _io_exec(ios);
 
 err:
 	_io_free(ios);
 	return ret;
 }
 
-ssize_t objio_read_pagelist(struct objlayout_io_state *ol_state)
+int objio_read_pagelist(struct objlayout_io_state *ol_state)
 {
 	struct objio_state *ios = container_of(ol_state, struct objio_state,
 					       ol_state);
@@ -870,7 +870,7 @@ ssize_t objio_read_pagelist(struct objlayout_io_state *ol_state)
 /*
  * write
  */
-static ssize_t _write_done(struct objio_state *ios)
+static int _write_done(struct objio_state *ios)
 {
 	ssize_t status;
 	int ret = _io_check(ios, true);
@@ -887,7 +887,7 @@ static ssize_t _write_done(struct objio_state *ios)
 	}
 
 	objlayout_write_done(&ios->ol_state, status, ios->ol_state.sync);
-	return status;
+	return ret;
 }
 
 static int _write_mirrors(struct objio_state *ios, unsigned cur_comp)
@@ -955,7 +955,7 @@ err:
 	return ret;
 }
 
-static ssize_t _write_exec(struct objio_state *ios)
+static int _write_exec(struct objio_state *ios)
 {
 	unsigned i;
 	int ret;
@@ -969,14 +969,14 @@ static ssize_t _write_exec(struct objio_state *ios)
 	}
 
 	ios->done = _write_done;
-	return _io_exec(ios); /* In sync mode exec returns the io->status */
+	return _io_exec(ios);
 
 err:
 	_io_free(ios);
 	return ret;
 }
 
-ssize_t objio_write_pagelist(struct objlayout_io_state *ol_state, bool stable)
+int objio_write_pagelist(struct objlayout_io_state *ol_state, bool stable)
 {
 	struct objio_state *ios = container_of(ol_state, struct objio_state,
 					       ol_state);

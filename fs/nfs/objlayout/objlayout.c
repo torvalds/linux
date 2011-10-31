@@ -315,16 +315,13 @@ objlayout_read_pagelist(struct nfs_read_data *rdata)
 	loff_t offset = rdata->args.offset;
 	size_t count = rdata->args.count;
 	struct objlayout_io_state *state;
-	ssize_t status = 0;
+	int err;
 	loff_t eof;
-
-	dprintk("%s: Begin inode %p offset %llu count %d\n",
-		__func__, rdata->inode, offset, (int)count);
 
 	eof = i_size_read(rdata->inode);
 	if (unlikely(offset + count > eof)) {
 		if (offset >= eof) {
-			status = 0;
+			err = 0;
 			rdata->res.count = 0;
 			rdata->res.eof = 1;
 			/*FIXME: do we need to call pnfs_ld_read_done() */
@@ -341,14 +338,19 @@ objlayout_read_pagelist(struct nfs_read_data *rdata)
 					 rdata->lseg, rdata,
 					 GFP_KERNEL);
 	if (unlikely(!state)) {
-		status = -ENOMEM;
+		err = -ENOMEM;
 		goto out;
 	}
+	dprintk("%s: inode(%lx) offset 0x%llx count 0x%Zx eof=%d\n",
+		__func__, rdata->inode->i_ino, offset, count, rdata->res.eof);
 
-	status = objio_read_pagelist(state);
+	err = objio_read_pagelist(state);
  out:
-	dprintk("%s: Return status %Zd\n", __func__, status);
-	rdata->pnfs_error = status;
+	if (unlikely(err)) {
+		rdata->pnfs_error = err;
+		dprintk("%s: Returned Error %d\n", __func__, err);
+		return PNFS_NOT_ATTEMPTED;
+	}
 	return PNFS_ATTEMPTED;
 }
 
@@ -406,10 +408,7 @@ objlayout_write_pagelist(struct nfs_write_data *wdata,
 			 int how)
 {
 	struct objlayout_io_state *state;
-	ssize_t status;
-
-	dprintk("%s: Begin inode %p offset %llu count %u\n",
-		__func__, wdata->inode, wdata->args.offset, wdata->args.count);
+	int err;
 
 	state = objlayout_alloc_io_state(NFS_I(wdata->inode)->layout,
 					 wdata->args.pages,
@@ -419,16 +418,19 @@ objlayout_write_pagelist(struct nfs_write_data *wdata,
 					 wdata->lseg, wdata,
 					 GFP_NOFS);
 	if (unlikely(!state)) {
-		status = -ENOMEM;
+		err = -ENOMEM;
 		goto out;
 	}
 
 	state->sync = how & FLUSH_SYNC;
 
-	status = objio_write_pagelist(state, how & FLUSH_STABLE);
+	err = objio_write_pagelist(state, how & FLUSH_STABLE);
  out:
-	dprintk("%s: Return status %Zd\n", __func__, status);
-	wdata->pnfs_error = status;
+	if (unlikely(err)) {
+		wdata->pnfs_error = err;
+		dprintk("%s: Returned Error %d\n", __func__, err);
+		return PNFS_NOT_ATTEMPTED;
+	}
 	return PNFS_ATTEMPTED;
 }
 
