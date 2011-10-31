@@ -23,9 +23,10 @@
 #include <linux/dcbnl.h>
 
 struct dcb_app_type {
-	char		  name[IFNAMSIZ];
+	int	ifindex;
 	struct dcb_app	  app;
 	struct list_head  list;
+	u8	dcbx;
 };
 
 int dcb_setapp(struct net_device *, struct dcb_app *);

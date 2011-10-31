@@ -1,0 +1,69 @@
+#
+# Blackfin device configuration
+#
+
+config NET_BFIN
+	bool "Blackfin devices"
+	depends on BF516 || BF518 || BF526 || BF527 || BF536 || BF537
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+	  Make sure you know the name of your card. Read the Ethernet-HOWTO,
+	  available from <http://www.tldp.org/docs.html#howto>.
+
+	  If unsure, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the remaining Blackfin card questions. If you say Y, you will be
+	  asked for your specific card in the following questions.
+
+if NET_BFIN
+
+config BFIN_MAC
+	tristate "Blackfin on-chip MAC support"
+	depends on (BF516 || BF518 || BF526 || BF527 || BF536 || BF537)
+	select CRC32
+	select NET_CORE
+	select MII
+	select PHYLIB
+	select BFIN_MAC_USE_L1 if DMA_UNCACHED_NONE
+	---help---
+	  This is the driver for Blackfin on-chip mac device. Say Y if you want
+	  it compiled into the kernel. This driver is also available as a
+	  module ( = code which can be inserted in and removed from the running
+	  kernel whenever you want). The module will be called bfin_mac.
+
+config BFIN_MAC_USE_L1
+	bool "Use L1 memory for rx/tx packets"
+	depends on BFIN_MAC && (BF527 || BF537)
+	default y
+	---help---
+	  To get maximum network performance, you should use L1 memory as rx/tx
+	  buffers. Say N here if you want to reserve L1 memory for other uses.
+
+config BFIN_TX_DESC_NUM
+	int "Number of transmit buffer packets"
+	depends on BFIN_MAC
+	range 6 10 if BFIN_MAC_USE_L1
+	range 10 100
+	default "10"
+	---help---
+	  Set the number of buffer packets used in driver.
+
+config BFIN_RX_DESC_NUM
+	int "Number of receive buffer packets"
+	depends on BFIN_MAC
+	range 20 100 if BFIN_MAC_USE_L1
+	range 20 800
+	default "20"
+	---help---
+	  Set the number of buffer packets used in driver.
+
+config BFIN_MAC_USE_HWSTAMP
+	bool "Use IEEE 1588 hwstamp"
+	depends on BFIN_MAC && BF518
+	default y
+	---help---
+	  To support the IEEE 1588 Precision Time Protocol (PTP), select y here
+
+endif # NET_BFIN

@@ -523,7 +523,8 @@ static int adav80x_hw_params(struct snd_pcm_substream *substream,
 }
 
 static int adav80x_set_sysclk(struct snd_soc_codec *codec,
-		int clk_id, unsigned int freq, int dir)
+			      int clk_id, int source,
+			      unsigned int freq, int dir)
 {
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
 

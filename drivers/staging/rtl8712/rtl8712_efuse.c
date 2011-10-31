@@ -307,21 +307,25 @@ static u8 fix_header(struct _adapter *padapter, u8 header, u16 header_addr)
 			continue;
 		}
 		for (i = 0; i < PGPKG_MAX_WORDS; i++) {
-			if (BIT(i) & word_en)
-				continue;
-			if (!(BIT(i) & pkt.word_en)) {
-				if (efuse_one_byte_read(padapter, addr,
-				    &value) == true)
-					pkt.data[i*2] = value;
-				else
-					return false;
-				if (efuse_one_byte_read(padapter, addr + 1,
-				    &value) == true)
-					pkt.data[i*2 + 1] = value;
-				else
-					return false;
+			if (BIT(i) & word_en) {
+				if (BIT(i) & pkt.word_en) {
+					if (efuse_one_byte_read(
+							padapter, addr,
+							&value) == true)
+						pkt.data[i*2] = value;
+					else
+						return false;
+					if (efuse_one_byte_read(
+							padapter,
+							addr + 1,
+							&value) == true)
+						pkt.data[i*2 + 1] =
+							value;
+					else
+						return false;
+				}
+				addr += 2;
 			}
-			addr += 2;
 		}
 	}
 	if (addr != header_addr)
@@ -329,26 +333,29 @@ static u8 fix_header(struct _adapter *padapter, u8 header, u16 header_addr)
 	addr++;
 	/* fill original data */
 	for (i = 0; i < PGPKG_MAX_WORDS; i++) {
-		if (BIT(i) & pkt.word_en)
-			continue;
-		efuse_one_byte_write(padapter, addr, pkt.data[i*2]);
-		efuse_one_byte_write(padapter, addr+1, pkt.data[i*2 + 1]);
-		/* additional check */
-		if (efuse_one_byte_read(padapter, addr, &value) == false)
-			ret = false;
-		else if (pkt.data[i*2] != value) {
-			ret = false;
-			if (0xFF == value) /* write again */
-				efuse_one_byte_write(padapter, addr,
-						     pkt.data[i * 2]);
-		}
-		if (efuse_one_byte_read(padapter, addr+1, &value) == false)
-			ret = false;
-		else if (pkt.data[i*2 + 1] != value) {
-			ret = false;
-			if (0xFF == value) /* write again */
-				efuse_one_byte_write(padapter, addr+1,
-						     pkt.data[i*2 + 1]);
+		if (BIT(i) & pkt.word_en) {
+			efuse_one_byte_write(padapter, addr, pkt.data[i*2]);
+			efuse_one_byte_write(padapter, addr+1,
+					pkt.data[i*2 + 1]);
+			/* additional check */
+			if (efuse_one_byte_read(padapter, addr, &value)
+				== false)
+				ret = false;
+			else if (pkt.data[i*2] != value) {
+				ret = false;
+				if (0xFF == value) /* write again */
+					efuse_one_byte_write(padapter, addr,
+							pkt.data[i * 2]);
+			}
+			if (efuse_one_byte_read(padapter, addr+1, &value) ==
+				false)
+				ret = false;
+			else if (pkt.data[i*2 + 1] != value) {
+				ret = false;
+				if (0xFF == value) /* write again */
+					efuse_one_byte_write(padapter, addr+1,
+							pkt.data[i*2 + 1]);
+			}
 		}
 		addr += 2;
 	}

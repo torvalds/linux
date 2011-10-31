@@ -7,7 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
@@ -26,7 +26,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/gpio.h>
 #include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/board.h>
@@ -264,7 +263,7 @@ static void __init omap_nokia770_map_io(void)
 }
 
 MACHINE_START(NOKIA770, "Nokia 770")
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= omap_nokia770_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= omap_nokia770_init_irq,

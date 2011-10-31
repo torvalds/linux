@@ -8,7 +8,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
-#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
 
@@ -17,6 +16,7 @@
 
 #include <plat/pincfg.h>
 #include <plat/i2c.h>
+#include <plat/gpio-nomadik.h>
 
 #include <mach/hardware.h>
 #include <mach/devices.h>
@@ -118,7 +118,7 @@ static void __init u5500_init_machine(void)
 }
 
 MACHINE_START(U5500, "ST-Ericsson U5500 Platform")
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= u5500_map_io,
 	.init_irq	= ux500_init_irq,
 	.timer		= &ux500_timer,

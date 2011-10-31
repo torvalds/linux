@@ -134,7 +134,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 
 	/* Don't need to set host mode here. It will be done by tdi_reset() */
 
-	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval != 0)
 		goto err4;
 
@@ -392,7 +392,7 @@ static int ehci_fsl_mpc512x_drv_suspend(struct device *dev)
 
 	dev_dbg(dev, "suspending...\n");
 
-	hcd->state = HC_STATE_SUSPENDED;
+	ehci->rh_state = EHCI_RH_SUSPENDED;
 	dev->power.power_state = PMSG_SUSPEND;
 
 	/* ignore non-host interrupts */
@@ -481,7 +481,7 @@ static int ehci_fsl_mpc512x_drv_resume(struct device *dev)
 	ehci_writel(ehci, pdata->pm_portsc, &ehci->regs->port_status[0]);
 
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-	hcd->state = HC_STATE_RUNNING;
+	ehci->rh_state = EHCI_RH_RUNNING;
 	dev->power.power_state = PMSG_ON;
 
 	tmp = ehci_readl(ehci, &ehci->regs->command);

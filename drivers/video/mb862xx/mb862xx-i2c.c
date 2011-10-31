@@ -23,7 +23,7 @@ static int mb862xx_i2c_wait_event(struct i2c_adapter *adap)
 	u32 reg;
 
 	do {
-		udelay(1);
+		udelay(10);
 		reg = inreg(i2c, GC_I2C_BCR);
 		if (reg & (I2C_INT | I2C_BER))
 			break;

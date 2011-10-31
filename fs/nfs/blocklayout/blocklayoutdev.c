@@ -79,28 +79,6 @@ int nfs4_blkdev_put(struct block_device *bdev)
 	return blkdev_put(bdev, FMODE_READ);
 }
 
-/*
- * Shouldn't there be a rpc_generic_upcall() to do this for us?
- */
-ssize_t bl_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
-		       char __user *dst, size_t buflen)
-{
-	char *data = (char *)msg->data + msg->copied;
-	size_t mlen = min(msg->len - msg->copied, buflen);
-	unsigned long left;
-
-	left = copy_to_user(dst, data, mlen);
-	if (left == mlen) {
-		msg->errno = -EFAULT;
-		return -EFAULT;
-	}
-
-	mlen -= left;
-	msg->copied += mlen;
-	msg->errno = 0;
-	return mlen;
-}
-
 static struct bl_dev_msg bl_mount_reply;
 
 ssize_t bl_pipe_downcall(struct file *filp, const char __user *src,
@@ -131,7 +109,7 @@ struct pnfs_block_dev *
 nfs4_blk_decode_device(struct nfs_server *server,
 		       struct pnfs_device *dev)
 {
-	struct pnfs_block_dev *rv = NULL;
+	struct pnfs_block_dev *rv;
 	struct block_device *bd = NULL;
 	struct rpc_pipe_msg msg;
 	struct bl_msg_hdr bl_msg = {
@@ -141,7 +119,7 @@ nfs4_blk_decode_device(struct nfs_server *server,
 	uint8_t *dataptr;
 	DECLARE_WAITQUEUE(wq, current);
 	struct bl_dev_msg *reply = &bl_mount_reply;
-	int offset, len, i;
+	int offset, len, i, rc;
 
 	dprintk("%s CREATING PIPEFS MESSAGE\n", __func__);
 	dprintk("%s: deviceid: %s, mincount: %d\n", __func__, dev->dev_id.data,
@@ -168,8 +146,10 @@ nfs4_blk_decode_device(struct nfs_server *server,
 
 	dprintk("%s CALLING USERSPACE DAEMON\n", __func__);
 	add_wait_queue(&bl_wq, &wq);
-	if (rpc_queue_upcall(bl_device_pipe->d_inode, &msg) < 0) {
+	rc = rpc_queue_upcall(bl_device_pipe->d_inode, &msg);
+	if (rc < 0) {
 		remove_wait_queue(&bl_wq, &wq);
+		rv = ERR_PTR(rc);
 		goto out;
 	}
 
@@ -187,8 +167,9 @@ nfs4_blk_decode_device(struct nfs_server *server,
 
 	bd = nfs4_blkdev_get(MKDEV(reply->major, reply->minor));
 	if (IS_ERR(bd)) {
-		dprintk("%s failed to open device : %ld\n",
-			__func__, PTR_ERR(bd));
+		rc = PTR_ERR(bd);
+		dprintk("%s failed to open device : %d\n", __func__, rc);
+		rv = ERR_PTR(rc);
 		goto out;
 	}
 

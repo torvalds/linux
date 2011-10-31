@@ -122,7 +122,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 			goto found;
 	}
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
-		if (! obj->base.write_domain || obj->pin_count)
+		if (!obj->base.write_domain || obj->pin_count)
 			continue;
 
 		if (mark_free(obj, &unwind_list))

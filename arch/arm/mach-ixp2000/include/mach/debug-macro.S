@@ -11,7 +11,7 @@
  *
 */
 
-		.macro  addruart, rp, rv
+		.macro  addruart, rp, rv, tmp
 		mov	\rp, #0x00030000
 #ifdef	__ARMEB__
 		orr	\rp, \rp, #0x00000003

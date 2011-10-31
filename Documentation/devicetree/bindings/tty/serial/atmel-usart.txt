@@ -1,0 +1,27 @@
+* Atmel Universal Synchronous Asynchronous Receiver/Transmitter (USART)
+
+Required properties:
+- compatible: Should be "atmel,<chip>-usart"
+  The compatible <chip> indicated will be the first SoC to support an
+  additional mode or an USART new feature.
+- reg: Should contain registers location and length
+- interrupts: Should contain interrupt
+
+Optional properties:
+- atmel,use-dma-rx: use of PDC or DMA for receiving data
+- atmel,use-dma-tx: use of PDC or DMA for transmitting data
+
+<chip> compatible description:
+- at91rm9200:  legacy USART support
+- at91sam9260: generic USART implementation for SAM9 SoCs
+
+Example:
+
+	usart0: serial@fff8c000 {
+		compatible = "atmel,at91sam9260-usart";
+		reg = <0xfff8c000 0x4000>;
+		interrupts = <7>;
+		atmel,use-dma-rx;
+		atmel,use-dma-tx;
+	};
+

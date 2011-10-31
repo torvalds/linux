@@ -594,9 +594,18 @@ Why:    In 3.0, we can now autodetect internal 3G device and already have
 Who:    Lee, Chun-Yi <jlee@novell.com>
 
 ----------------------------
+
 What:	The XFS nodelaylog mount option
 When:	3.3
 Why:	The delaylog mode that has been the default since 2.6.39 has proven
 	stable, and the old code is in the way of additional improvements in
 	the log code.
 Who:	Christoph Hellwig <hch@lst.de>
+
+----------------------------
+
+What:	iwlagn alias support
+When:	3.5
+Why:	The iwlagn module has been renamed iwlwifi.  The alias will be around
+	for backward compatibility for several cycles and then dropped.
+Who:	Don Fry <donald.h.fry@intel.com>

@@ -414,12 +414,13 @@ struct nouveau_gpio_engine {
 };
 
 struct nouveau_pm_voltage_level {
-	u8 voltage;
-	u8 vid;
+	u32 voltage; /* microvolts */
+	u8  vid;
 };
 
 struct nouveau_pm_voltage {
 	bool supported;
+	u8 version;
 	u8 vid_mask;
 
 	struct nouveau_pm_voltage_level *level;
@@ -428,16 +429,47 @@ struct nouveau_pm_voltage {
 
 struct nouveau_pm_memtiming {
 	int id;
-	u32 reg_100220;
-	u32 reg_100224;
-	u32 reg_100228;
-	u32 reg_10022c;
-	u32 reg_100230;
-	u32 reg_100234;
-	u32 reg_100238;
-	u32 reg_10023c;
-	u32 reg_100240;
+	u32 reg_0; /* 0x10f290 on Fermi, 0x100220 for older */
+	u32 reg_1;
+	u32 reg_2;
+	u32 reg_3;
+	u32 reg_4;
+	u32 reg_5;
+	u32 reg_6;
+	u32 reg_7;
+	u32 reg_8;
+	/* To be written to 0x1002c0 */
+	u8 CL;
+	u8 WR;
 };
+
+struct nouveau_pm_tbl_header{
+	u8 version;
+	u8 header_len;
+	u8 entry_cnt;
+	u8 entry_len;
+};
+
+struct nouveau_pm_tbl_entry{
+	u8 tWR;
+	u8 tUNK_1;
+	u8 tCL;
+	u8 tRP;		/* Byte 3 */
+	u8 empty_4;
+	u8 tRAS;	/* Byte 5 */
+	u8 empty_6;
+	u8 tRFC;	/* Byte 7 */
+	u8 empty_8;
+	u8 tRC;		/* Byte 9 */
+	u8 tUNK_10, tUNK_11, tUNK_12, tUNK_13, tUNK_14;
+	u8 empty_15,empty_16,empty_17;
+	u8 tUNK_18, tUNK_19, tUNK_20, tUNK_21;
+};
+
+/* nouveau_mem.c */
+void nv30_mem_timing_entry(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
+							struct nouveau_pm_tbl_entry *e, uint8_t magic_number,
+							struct nouveau_pm_memtiming *timing);
 
 #define NOUVEAU_PM_MAX_LEVEL 8
 struct nouveau_pm_level {
@@ -448,11 +480,19 @@ struct nouveau_pm_level {
 	u32 core;
 	u32 memory;
 	u32 shader;
-	u32 unk05;
-	u32 unk0a;
+	u32 rop;
+	u32 copy;
+	u32 daemon;
+	u32 vdec;
+	u32 unk05;	/* nv50:nva3, roughly.. */
+	u32 unka0;	/* nva3:nvc0 */
+	u32 hub01;	/* nvc0- */
+	u32 hub06;	/* nvc0- */
+	u32 hub07;	/* nvc0- */
 
-	u8 voltage;
-	u8 fanspeed;
+	u32 volt_min; /* microvolts */
+	u32 volt_max;
+	u8  fanspeed;
 
 	u16 memscript;
 	struct nouveau_pm_memtiming *timing;
@@ -496,6 +536,11 @@ struct nouveau_pm_engine {
 	void *(*clock_pre)(struct drm_device *, struct nouveau_pm_level *,
 			   u32 id, int khz);
 	void (*clock_set)(struct drm_device *, void *);
+
+	int  (*clocks_get)(struct drm_device *, struct nouveau_pm_level *);
+	void *(*clocks_pre)(struct drm_device *, struct nouveau_pm_level *);
+	void (*clocks_set)(struct drm_device *, void *);
+
 	int (*voltage_get)(struct drm_device *);
 	int (*voltage_set)(struct drm_device *, int voltage);
 	int (*fanspeed_get)(struct drm_device *);
@@ -504,7 +549,7 @@ struct nouveau_pm_engine {
 };
 
 struct nouveau_vram_engine {
-	struct nouveau_mm *mm;
+	struct nouveau_mm mm;
 
 	int  (*init)(struct drm_device *);
 	void (*takedown)(struct drm_device *dev);
@@ -623,6 +668,7 @@ enum nouveau_card_type {
 	NV_40      = 0x40,
 	NV_50      = 0x50,
 	NV_C0      = 0xc0,
+	NV_D0      = 0xd0
 };
 
 struct drm_nouveau_private {
@@ -633,8 +679,8 @@ struct drm_nouveau_private {
 	enum nouveau_card_type card_type;
 	/* exact chipset, derived from NV_PMC_BOOT_0 */
 	int chipset;
-	int stepping;
 	int flags;
+	u32 crystal;
 
 	void __iomem *mmio;
 
@@ -721,7 +767,6 @@ struct drm_nouveau_private {
 	uint64_t vram_size;
 	uint64_t vram_sys_base;
 
-	uint64_t fb_phys;
 	uint64_t fb_available_size;
 	uint64_t fb_mappable_pages;
 	uint64_t fb_aper_free;
@@ -784,6 +829,7 @@ nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pnvbo)
 }
 
 /* nouveau_drv.c */
+extern int nouveau_modeset;
 extern int nouveau_agpmode;
 extern int nouveau_duallink;
 extern int nouveau_uscript_lvds;
@@ -824,6 +870,8 @@ extern bool nouveau_wait_eq(struct drm_device *, uint64_t timeout,
 			    uint32_t reg, uint32_t mask, uint32_t val);
 extern bool nouveau_wait_ne(struct drm_device *, uint64_t timeout,
 			    uint32_t reg, uint32_t mask, uint32_t val);
+extern bool nouveau_wait_cb(struct drm_device *, u64 timeout,
+			    bool (*cond)(void *), void *);
 extern bool nouveau_wait_for_idle(struct drm_device *);
 extern int  nouveau_card_init(struct drm_device *);
 
@@ -1006,15 +1054,15 @@ static inline int nouveau_acpi_edid(struct drm_device *dev, struct drm_connector
 
 /* nouveau_backlight.c */
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
-extern int nouveau_backlight_init(struct drm_connector *);
-extern void nouveau_backlight_exit(struct drm_connector *);
+extern int nouveau_backlight_init(struct drm_device *);
+extern void nouveau_backlight_exit(struct drm_device *);
 #else
-static inline int nouveau_backlight_init(struct drm_connector *dev)
+static inline int nouveau_backlight_init(struct drm_device *dev)
 {
 	return 0;
 }
 
-static inline void nouveau_backlight_exit(struct drm_connector *dev) { }
+static inline void nouveau_backlight_exit(struct drm_device *dev) { }
 #endif
 
 /* nouveau_bios.c */
@@ -1022,7 +1070,8 @@ extern int nouveau_bios_init(struct drm_device *);
 extern void nouveau_bios_takedown(struct drm_device *dev);
 extern int nouveau_run_vbios_init(struct drm_device *);
 extern void nouveau_bios_run_init_table(struct drm_device *, uint16_t table,
-					struct dcb_entry *);
+					struct dcb_entry *, int crtc);
+extern void nouveau_bios_init_exec(struct drm_device *, uint16_t table);
 extern struct dcb_gpio_entry *nouveau_bios_gpio_entry(struct drm_device *,
 						      enum dcb_gpio_tag);
 extern struct dcb_connector_table_entry *
@@ -1030,11 +1079,8 @@ nouveau_bios_connector_entry(struct drm_device *, int index);
 extern u32 get_pll_register(struct drm_device *, enum pll_types);
 extern int get_pll_limits(struct drm_device *, uint32_t limit_match,
 			  struct pll_lims *);
-extern int nouveau_bios_run_display_table(struct drm_device *,
-					  struct dcb_entry *,
-					  uint32_t script, int pxclk);
-extern void *nouveau_bios_dp_table(struct drm_device *, struct dcb_entry *,
-				   int *length);
+extern int nouveau_bios_run_display_table(struct drm_device *, u16 id, int clk,
+					  struct dcb_entry *, int crtc);
 extern bool nouveau_bios_fp_mode(struct drm_device *, struct drm_display_mode *);
 extern uint8_t *nouveau_bios_embedded_edid(struct drm_device *);
 extern int nouveau_bios_parse_lvds_table(struct drm_device *, int pxclk,
@@ -1043,6 +1089,7 @@ extern int run_tmds_table(struct drm_device *, struct dcb_entry *,
 			  int head, int pxclk);
 extern int call_lvds_script(struct drm_device *, struct dcb_entry *, int head,
 			    enum LVDS_script, int pxclk);
+bool bios_encoder_match(struct dcb_entry *, u32 hash);
 
 /* nouveau_ttm.c */
 int nouveau_ttm_global_init(struct drm_nouveau_private *);
@@ -1053,7 +1100,9 @@ int nouveau_ttm_mmap(struct file *, struct vm_area_struct *);
 int nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 		     uint8_t *data, int data_nr);
 bool nouveau_dp_detect(struct drm_encoder *);
-bool nouveau_dp_link_train(struct drm_encoder *);
+bool nouveau_dp_link_train(struct drm_encoder *, u32 datarate);
+void nouveau_dp_tu_update(struct drm_device *, int, int, u32, u32);
+u8 *nouveau_dp_bios_data(struct drm_device *, struct dcb_entry *, u8 **);
 
 /* nv04_fb.c */
 extern int  nv04_fb_init(struct drm_device *);
@@ -1179,8 +1228,8 @@ extern int  nva3_copy_create(struct drm_device *dev);
 /* nvc0_copy.c */
 extern int  nvc0_copy_create(struct drm_device *dev, int engine);
 
-/* nv40_mpeg.c */
-extern int  nv40_mpeg_create(struct drm_device *dev);
+/* nv31_mpeg.c */
+extern int  nv31_mpeg_create(struct drm_device *dev);
 
 /* nv50_mpeg.c */
 extern int  nv50_mpeg_create(struct drm_device *dev);
@@ -1264,6 +1313,11 @@ extern void nv04_display_late_takedown(struct drm_device *);
 extern int nv04_display_create(struct drm_device *);
 extern int nv04_display_init(struct drm_device *);
 extern void nv04_display_destroy(struct drm_device *);
+
+/* nvd0_display.c */
+extern int nvd0_display_create(struct drm_device *);
+extern int nvd0_display_init(struct drm_device *);
+extern void nvd0_display_destroy(struct drm_device *);
 
 /* nv04_crtc.c */
 extern int nv04_crtc_create(struct drm_device *, int index);
@@ -1374,6 +1428,8 @@ int nv50_gpio_init(struct drm_device *dev);
 void nv50_gpio_fini(struct drm_device *dev);
 int nv50_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
 int nv50_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
+int nvd0_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
+int nvd0_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
 int  nv50_gpio_irq_register(struct drm_device *, enum dcb_gpio_tag,
 			    void (*)(void *, int), void *);
 void nv50_gpio_irq_unregister(struct drm_device *, enum dcb_gpio_tag,
@@ -1448,6 +1504,8 @@ static inline void nv_wr08(struct drm_device *dev, unsigned reg, u8 val)
 	nouveau_wait_eq(dev, 2000000000ULL, (reg), (mask), (val))
 #define nv_wait_ne(dev, reg, mask, val) \
 	nouveau_wait_ne(dev, 2000000000ULL, (reg), (mask), (val))
+#define nv_wait_cb(dev, func, data) \
+	nouveau_wait_cb(dev, 2000000000ULL, (func), (data))
 
 /* PRAMIN access */
 static inline u32 nv_ri32(struct drm_device *dev, unsigned offset)
@@ -1514,6 +1572,7 @@ enum {
 	NOUVEAU_REG_DEBUG_RMVIO          = 0x80,
 	NOUVEAU_REG_DEBUG_VGAATTR        = 0x100,
 	NOUVEAU_REG_DEBUG_EVO            = 0x200,
+	NOUVEAU_REG_DEBUG_AUXCH          = 0x400
 };
 
 #define NV_REG_DEBUG(type, dev, fmt, arg...) do { \

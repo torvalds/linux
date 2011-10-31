@@ -18,6 +18,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/wm8994/registers.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -116,14 +117,23 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 {
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	s8 offset;
-	u16 reg, reg_l, reg_r, dcs_cfg;
+	u16 reg, reg_l, reg_r, dcs_cfg, dcs_reg;
+
+	switch (hubs->dcs_readback_mode) {
+	case 2:
+		dcs_reg = WM8994_DC_SERVO_4E;
+		break;
+	default:
+		dcs_reg = WM8993_DC_SERVO_3;
+		break;
+	}
 
 	/* If we're using a digital only path and have a previously
 	 * callibrated DC servo offset stored then use that. */
 	if (hubs->class_w && hubs->class_w_dcs) {
 		dev_dbg(codec->dev, "Using cached DC servo offset %x\n",
 			hubs->class_w_dcs);
-		snd_soc_write(codec, WM8993_DC_SERVO_3, hubs->class_w_dcs);
+		snd_soc_write(codec, dcs_reg, hubs->class_w_dcs);
 		wait_for_dc_servo(codec,
 				  WM8993_DCS_TRIG_DAC_WR_0 |
 				  WM8993_DCS_TRIG_DAC_WR_1);
@@ -154,8 +164,9 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 		reg_r = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_2)
 			& WM8993_DCS_INTEG_CHAN_1_MASK;
 		break;
+	case 2:
 	case 1:
-		reg = snd_soc_read(codec, WM8993_DC_SERVO_3);
+		reg = snd_soc_read(codec, dcs_reg);
 		reg_r = (reg & WM8993_DCS_DAC_WR_VAL_1_MASK)
 			>> WM8993_DCS_DAC_WR_VAL_1_SHIFT;
 		reg_l = reg & WM8993_DCS_DAC_WR_VAL_0_MASK;
@@ -168,24 +179,25 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 	dev_dbg(codec->dev, "DCS input: %x %x\n", reg_l, reg_r);
 
 	/* Apply correction to DC servo result */
-	if (hubs->dcs_codes) {
-		dev_dbg(codec->dev, "Applying %d code DC servo correction\n",
-			hubs->dcs_codes);
+	if (hubs->dcs_codes_l || hubs->dcs_codes_r) {
+		dev_dbg(codec->dev,
+			"Applying %d/%d code DC servo correction\n",
+			hubs->dcs_codes_l, hubs->dcs_codes_r);
 
 		/* HPOUT1R */
 		offset = reg_r;
-		offset += hubs->dcs_codes;
+		offset += hubs->dcs_codes_r;
 		dcs_cfg = (u8)offset << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
 
 		/* HPOUT1L */
 		offset = reg_l;
-		offset += hubs->dcs_codes;
+		offset += hubs->dcs_codes_l;
 		dcs_cfg |= (u8)offset;
 
 		dev_dbg(codec->dev, "DCS result: %x\n", dcs_cfg);
 
 		/* Do it */
-		snd_soc_write(codec, WM8993_DC_SERVO_3, dcs_cfg);
+		snd_soc_write(codec, dcs_reg, dcs_cfg);
 		wait_for_dc_servo(codec,
 				  WM8993_DCS_TRIG_DAC_WR_0 |
 				  WM8993_DCS_TRIG_DAC_WR_1);
@@ -210,14 +222,14 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	ret = snd_soc_put_volsw_2r(kcontrol, ucontrol);
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
 	/* Updating the analogue gains invalidates the DC servo cache */
 	hubs->class_w_dcs = 0;
 
 	/* If we're applying an offset correction then updating the
 	 * callibration would be likely to introduce further offsets. */
-	if (hubs->dcs_codes || hubs->no_series_update)
+	if (hubs->dcs_codes_l || hubs->dcs_codes_r || hubs->no_series_update)
 		return ret;
 
 	/* Only need to do this if the outputs are active */
@@ -350,19 +362,11 @@ SOC_DOUBLE_TLV("Speaker Boost Volume", WM8993_SPKOUT_BOOST, 3, 0, 7, 0,
 SOC_ENUM("Speaker Reference", speaker_ref),
 SOC_ENUM("Speaker Mode", speaker_mode),
 
-{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = "Headphone Volume",
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |
-		 SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.tlv.p = outpga_tlv,
-	.info = snd_soc_info_volsw_2r,
-	.get = snd_soc_get_volsw_2r, .put = wm8993_put_dc_servo,
-	.private_value = (unsigned long)&(struct soc_mixer_control) {
-		.reg = WM8993_LEFT_OUTPUT_VOLUME,
-		.rreg = WM8993_RIGHT_OUTPUT_VOLUME,
-		.shift = 0, .max = 63
-	},
-},
+SOC_DOUBLE_R_EXT_TLV("Headphone Volume",
+		     WM8993_LEFT_OUTPUT_VOLUME, WM8993_RIGHT_OUTPUT_VOLUME,
+		     0, 63, 0, snd_soc_get_volsw, wm8993_put_dc_servo,
+		     outpga_tlv),
+
 SOC_DOUBLE_R("Headphone Switch", WM8993_LEFT_OUTPUT_VOLUME,
 	     WM8993_RIGHT_OUTPUT_VOLUME, 6, 1, 0),
 SOC_DOUBLE_R("Headphone ZC Switch", WM8993_LEFT_OUTPUT_VOLUME,
@@ -699,6 +703,11 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "IN1L PGA", "IN1LP Switch", "IN1LP" },
 	{ "IN1L PGA", "IN1LN Switch", "IN1LN" },
 
+	{ "IN1L PGA", NULL, "VMID" },
+	{ "IN1R PGA", NULL, "VMID" },
+	{ "IN2L PGA", NULL, "VMID" },
+	{ "IN2R PGA", NULL, "VMID" },
+
 	{ "IN1R PGA", "IN1RP Switch", "IN1RP" },
 	{ "IN1R PGA", "IN1RN Switch", "IN1RN" },
 
@@ -716,12 +725,14 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "MIXINL", NULL, "Direct Voice" },
 	{ "MIXINL", NULL, "IN1LP" },
 	{ "MIXINL", NULL, "Left Output Mixer" },
+	{ "MIXINL", NULL, "VMID" },
 
 	{ "MIXINR", "IN1R Switch", "IN1R PGA" },
 	{ "MIXINR", "IN2R Switch", "IN2R PGA" },
 	{ "MIXINR", NULL, "Direct Voice" },
 	{ "MIXINR", NULL, "IN1RP" },
 	{ "MIXINR", NULL, "Right Output Mixer" },
+	{ "MIXINR", NULL, "VMID" },
 
 	{ "ADCL", NULL, "MIXINL" },
 	{ "ADCR", NULL, "MIXINR" },
@@ -752,6 +763,7 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "Earpiece Mixer", "Left Output Switch", "Left Output PGA" },
 	{ "Earpiece Mixer", "Right Output Switch", "Right Output PGA" },
 
+	{ "Earpiece Driver", NULL, "VMID" },
 	{ "Earpiece Driver", NULL, "Earpiece Mixer" },
 	{ "HPOUT2N", NULL, "Earpiece Driver" },
 	{ "HPOUT2P", NULL, "Earpiece Driver" },
@@ -774,9 +786,11 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "SPKR Boost", "SPKR Switch", "SPKR" },
 	{ "SPKR Boost", "SPKL Switch", "SPKL" },
 
+	{ "SPKL Driver", NULL, "VMID" },
 	{ "SPKL Driver", NULL, "SPKL Boost" },
 	{ "SPKL Driver", NULL, "CLK_SYS" },
 
+	{ "SPKR Driver", NULL, "VMID" },
 	{ "SPKR Driver", NULL, "SPKR Boost" },
 	{ "SPKR Driver", NULL, "CLK_SYS" },
 
@@ -790,11 +804,17 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 
 	{ "Headphone PGA", NULL, "Left Headphone Mux" },
 	{ "Headphone PGA", NULL, "Right Headphone Mux" },
+	{ "Headphone PGA", NULL, "VMID" },
 	{ "Headphone PGA", NULL, "CLK_SYS" },
 	{ "Headphone PGA", NULL, "Headphone Supply" },
 
 	{ "HPOUT1L", NULL, "Headphone PGA" },
 	{ "HPOUT1R", NULL, "Headphone PGA" },
+
+	{ "LINEOUT1N Driver", NULL, "VMID" },
+	{ "LINEOUT1P Driver", NULL, "VMID" },
+	{ "LINEOUT2N Driver", NULL, "VMID" },
+	{ "LINEOUT2P Driver", NULL, "VMID" },
 
 	{ "LINEOUT1N", NULL, "LINEOUT1N Driver" },
 	{ "LINEOUT1P", NULL, "LINEOUT1P Driver" },

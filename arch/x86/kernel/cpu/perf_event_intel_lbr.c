@@ -1,4 +1,10 @@
-#ifdef CONFIG_CPU_SUP_INTEL
+#include <linux/perf_event.h>
+#include <linux/types.h>
+
+#include <asm/perf_event.h>
+#include <asm/msr.h>
+
+#include "perf_event.h"
 
 enum {
 	LBR_FORMAT_32		= 0x00,
@@ -48,7 +54,7 @@ static void intel_pmu_lbr_reset_64(void)
 	}
 }
 
-static void intel_pmu_lbr_reset(void)
+void intel_pmu_lbr_reset(void)
 {
 	if (!x86_pmu.lbr_nr)
 		return;
@@ -59,7 +65,7 @@ static void intel_pmu_lbr_reset(void)
 		intel_pmu_lbr_reset_64();
 }
 
-static void intel_pmu_lbr_enable(struct perf_event *event)
+void intel_pmu_lbr_enable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -81,7 +87,7 @@ static void intel_pmu_lbr_enable(struct perf_event *event)
 	cpuc->lbr_users++;
 }
 
-static void intel_pmu_lbr_disable(struct perf_event *event)
+void intel_pmu_lbr_disable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -95,7 +101,7 @@ static void intel_pmu_lbr_disable(struct perf_event *event)
 		__intel_pmu_lbr_disable();
 }
 
-static void intel_pmu_lbr_enable_all(void)
+void intel_pmu_lbr_enable_all(void)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -103,7 +109,7 @@ static void intel_pmu_lbr_enable_all(void)
 		__intel_pmu_lbr_enable();
 }
 
-static void intel_pmu_lbr_disable_all(void)
+void intel_pmu_lbr_disable_all(void)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -178,7 +184,7 @@ static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 	cpuc->lbr_stack.nr = i;
 }
 
-static void intel_pmu_lbr_read(void)
+void intel_pmu_lbr_read(void)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -191,7 +197,7 @@ static void intel_pmu_lbr_read(void)
 		intel_pmu_lbr_read_64(cpuc);
 }
 
-static void intel_pmu_lbr_init_core(void)
+void intel_pmu_lbr_init_core(void)
 {
 	x86_pmu.lbr_nr     = 4;
 	x86_pmu.lbr_tos    = 0x01c9;
@@ -199,7 +205,7 @@ static void intel_pmu_lbr_init_core(void)
 	x86_pmu.lbr_to     = 0x60;
 }
 
-static void intel_pmu_lbr_init_nhm(void)
+void intel_pmu_lbr_init_nhm(void)
 {
 	x86_pmu.lbr_nr     = 16;
 	x86_pmu.lbr_tos    = 0x01c9;
@@ -207,12 +213,10 @@ static void intel_pmu_lbr_init_nhm(void)
 	x86_pmu.lbr_to     = 0x6c0;
 }
 
-static void intel_pmu_lbr_init_atom(void)
+void intel_pmu_lbr_init_atom(void)
 {
 	x86_pmu.lbr_nr	   = 8;
 	x86_pmu.lbr_tos    = 0x01c9;
 	x86_pmu.lbr_from   = 0x40;
 	x86_pmu.lbr_to     = 0x60;
 }
-
-#endif /* CONFIG_CPU_SUP_INTEL */

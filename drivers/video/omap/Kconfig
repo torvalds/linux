@@ -9,35 +9,6 @@ config FB_OMAP
 	help
           Frame buffer driver for OMAP based boards.
 
-config FB_OMAP_LCD_VGA
-        bool "Use LCD in VGA mode"
-	        depends on MACH_OMAP_3430SDP || MACH_OMAP_LDP
-		help
-		  Set LCD resolution as VGA (640 X 480).
-		  Default resolution without this option is QVGA(320 X 240).
-		  Please take a look at drivers/video/omap/lcd_ldp.c file
-		  for lcd driver code.
-choice
-	depends on FB_OMAP && MACH_OVERO
-	prompt "Screen resolution"
-	default FB_OMAP_079M3R
-	help
-	  Selected desired screen resolution
-
-config FB_OMAP_031M3R
-	boolean "640 x 480 @ 60 Hz Reduced blanking"
-
-config FB_OMAP_048M3R
-	boolean "800 x 600 @ 60 Hz Reduced blanking"
-
-config FB_OMAP_079M3R
-	boolean "1024 x 768 @ 60 Hz Reduced blanking"
-
-config FB_OMAP_092M9R
-	boolean "1280 x 720 @ 60 Hz Reduced blanking"
-
-endchoice
-
 config FB_OMAP_LCDC_EXTERNAL
 	bool "External LCD controller support"
 	depends on FB_OMAP

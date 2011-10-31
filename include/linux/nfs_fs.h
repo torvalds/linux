@@ -149,7 +149,6 @@ struct nfs_inode {
 	unsigned long		read_cache_jiffies;
 	unsigned long		attrtimeo;
 	unsigned long		attrtimeo_timestamp;
-	__u64			change_attr;		/* v4 only */
 
 	unsigned long		attr_gencount;
 	/* "Generation counter" for the attribute cache. This is

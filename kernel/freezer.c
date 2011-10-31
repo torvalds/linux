@@ -67,7 +67,7 @@ static void fake_signal_wake_up(struct task_struct *p)
 	unsigned long flags;
 
 	spin_lock_irqsave(&p->sighand->siglock, flags);
-	signal_wake_up(p, 0);
+	signal_wake_up(p, 1);
 	spin_unlock_irqrestore(&p->sighand->siglock, flags);
 }
 

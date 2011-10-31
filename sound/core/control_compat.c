@@ -83,6 +83,8 @@ struct snd_ctl_elem_info32 {
 			u32 items;
 			u32 item;
 			char name[64];
+			u64 names_ptr;
+			u32 names_length;
 		} enumerated;
 		unsigned char reserved[128];
 	} value;
@@ -372,6 +374,8 @@ static int snd_ctl_elem_add_compat(struct snd_ctl_file *file,
 				   &data32->value.enumerated,
 				   sizeof(data->value.enumerated)))
 			goto error;
+		data->value.enumerated.names_ptr =
+			(uintptr_t)compat_ptr(data->value.enumerated.names_ptr);
 		break;
 	default:
 		break;

@@ -12,13 +12,13 @@ menuconfig IIO
 	  drivers/staging/iio/Documentation for more information.
 if IIO
 
-config IIO_RING_BUFFER
+config IIO_BUFFER
 	bool "Enable buffer support within IIO"
 	help
 	  Provide core support for various buffer based data
 	  acquisition methods.
 
-if IIO_RING_BUFFER
+if IIO_BUFFER
 
 config IIO_SW_RING
        select IIO_TRIGGER
@@ -38,7 +38,7 @@ config IIO_KFIFO_BUF
 	  no buffer events so it is up to userspace to work out how
 	  often to read from the buffer.
 
-endif # IIO_RINGBUFFER
+endif # IIO_BUFFER
 
 config IIO_TRIGGER
 	boolean "Enable triggered sampling support"
@@ -59,14 +59,43 @@ config IIO_CONSUMERS_PER_TRIGGER
 source "drivers/staging/iio/accel/Kconfig"
 source "drivers/staging/iio/adc/Kconfig"
 source "drivers/staging/iio/addac/Kconfig"
+source "drivers/staging/iio/cdc/Kconfig"
 source "drivers/staging/iio/dac/Kconfig"
 source "drivers/staging/iio/dds/Kconfig"
 source "drivers/staging/iio/gyro/Kconfig"
+source "drivers/staging/iio/impedance-analyzer/Kconfig"
 source "drivers/staging/iio/imu/Kconfig"
 source "drivers/staging/iio/light/Kconfig"
 source "drivers/staging/iio/magnetometer/Kconfig"
 source "drivers/staging/iio/meter/Kconfig"
 source "drivers/staging/iio/resolver/Kconfig"
 source "drivers/staging/iio/trigger/Kconfig"
+
+config IIO_DUMMY_EVGEN
+       tristate
+
+config IIO_SIMPLE_DUMMY
+       tristate "An example driver with no hardware requirements"
+       select IIO_SIMPLE_DUMMY_EVGEN if IIO_SIMPLE_DUMMY_EVENTS
+       help
+	 Driver intended mainly as documentation for how to write
+	 a driver. May also be useful for testing userspace code
+	 without hardward.
+
+if IIO_SIMPLE_DUMMY
+
+config IIO_SIMPLE_DUMMY_EVENTS
+       boolean "Event generation support"
+       select IIO_DUMMY_EVGEN
+       help
+         Add some dummy events to the simple dummy driver.
+
+config IIO_SIMPLE_DUMMY_BUFFER
+       boolean "Buffered capture support"
+       depends on IIO_KFIFO_BUF
+       help
+         Add buffered data capture to the simple dummy driver.
+
+endif # IIO_SIMPLE_DUMMY
 
 endif # IIO

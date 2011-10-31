@@ -15,6 +15,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -32,7 +33,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/gpio.h>
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/usb.h>
@@ -341,7 +341,7 @@ omap_palmz71_map_io(void)
 }
 
 MACHINE_START(OMAP_PALMZ71, "OMAP310 based Palm Zire71")
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= omap_palmz71_map_io,
 	.reserve	= omap_reserve,
 	.init_irq	= omap_palmz71_init_irq,

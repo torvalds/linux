@@ -321,7 +321,7 @@ static int __devinit intel_sst_probe(struct pci_dev *pci,
 		if (ret) {
 			pr_err("couldn't register LPE device\n");
 			goto do_free_misc;
- 		}
+		}
 	} else if (sst_drv_ctx->pci_id == SST_MFLD_PCI_ID) {
 		u32 csr;
 
@@ -524,9 +524,11 @@ int intel_sst_resume(struct pci_dev *pci)
 	return 0;
 }
 
-/* The runtime_suspend/resume is pretty much similar to the legacy suspend/resume with the noted exception below:
- * The PCI core takes care of taking the system through D3hot and restoring it back to D0 and so there is
- * no need to duplicate that here.
+/* The runtime_suspend/resume is pretty much similar to the legacy
+ * suspend/resume with the noted exception below:
+ * The PCI core takes care of taking the system through D3hot and
+ * restoring it back to D0 and so there is no need to duplicate
+ * that here.
  */
 static int intel_sst_runtime_suspend(struct device *dev)
 {

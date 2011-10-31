@@ -55,13 +55,13 @@
 #define BURST_BASEFREQ_HZ	49152000
 
 #define SAMPLES_TO_US(rate, samples) \
-	(1000000000 / ((rate * 1000) / samples))
+	(1000000000 / (((rate) * 1000) / (samples)))
 
 #define US_TO_SAMPLES(rate, us) \
-	(rate / (1000000 / (us < 1000000 ? us : 1000000)))
+	((rate) / (1000000 / ((us) < 1000000 ? (us) : 1000000)))
 
 #define UTHR_FROM_PERIOD_SIZE(samples, playrate, burstrate) \
-	((samples * 5000) / ((burstrate * 5000) / (burstrate - playrate)))
+	(((samples)*5000) / (((burstrate)*5000) / ((burstrate) - (playrate))))
 
 static void dac33_calculate_times(struct snd_pcm_substream *substream);
 static int dac33_prepare_chip(struct snd_pcm_substream *substream);
@@ -626,18 +626,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"LEFT_LO", NULL, "Codec Power"},
 	{"RIGHT_LO", NULL, "Codec Power"},
 };
-
-static int dac33_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, dac33_dapm_widgets,
-				  ARRAY_SIZE(dac33_dapm_widgets));
-	/* set up audio path interconnects */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-}
 
 static int dac33_set_bias_level(struct snd_soc_codec *codec,
 				enum snd_soc_bias_level level)
@@ -1431,7 +1419,7 @@ static int dac33_soc_probe(struct snd_soc_codec *codec)
 	/* Check if the IRQ number is valid and request it */
 	if (dac33->irq >= 0) {
 		ret = request_irq(dac33->irq, dac33_interrupt_handler,
-				  IRQF_TRIGGER_RISING | IRQF_DISABLED,
+				  IRQF_TRIGGER_RISING,
 				  codec->name, codec);
 		if (ret < 0) {
 			dev_err(codec->dev, "Could not request IRQ%d (%d)\n",
@@ -1451,14 +1439,10 @@ static int dac33_soc_probe(struct snd_soc_codec *codec)
 		}
 	}
 
-	snd_soc_add_controls(codec, dac33_snd_controls,
-			     ARRAY_SIZE(dac33_snd_controls));
 	/* Only add the FIFO controls, if we have valid IRQ number */
 	if (dac33->irq >= 0)
 		snd_soc_add_controls(codec, dac33_mode_snd_controls,
 				     ARRAY_SIZE(dac33_mode_snd_controls));
-
-	dac33_add_widgets(codec);
 
 err_power:
 	return ret;
@@ -1502,6 +1486,13 @@ static struct snd_soc_codec_driver soc_codec_dev_tlv320dac33 = {
 	.remove = dac33_soc_remove,
 	.suspend = dac33_soc_suspend,
 	.resume = dac33_soc_resume,
+
+	.controls = dac33_snd_controls,
+	.num_controls = ARRAY_SIZE(dac33_snd_controls),
+	.dapm_widgets = dac33_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(dac33_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 #define DAC33_RATES	(SNDRV_PCM_RATE_44100 | \

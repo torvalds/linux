@@ -246,6 +246,43 @@ show_shost_active_mode(struct device *dev,
 
 static DEVICE_ATTR(active_mode, S_IRUGO | S_IWUSR, show_shost_active_mode, NULL);
 
+static int check_reset_type(char *str)
+{
+	if (strncmp(str, "adapter", 10) == 0)
+		return SCSI_ADAPTER_RESET;
+	else if (strncmp(str, "firmware", 10) == 0)
+		return SCSI_FIRMWARE_RESET;
+	else
+		return 0;
+}
+
+static ssize_t
+store_host_reset(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct scsi_host_template *sht = shost->hostt;
+	int ret = -EINVAL;
+	char str[10];
+	int type;
+
+	sscanf(buf, "%s", str);
+	type = check_reset_type(str);
+
+	if (!type)
+		goto exit_store_host_reset;
+
+	if (sht->host_reset)
+		ret = sht->host_reset(shost, type);
+
+exit_store_host_reset:
+	if (ret == 0)
+		ret = count;
+	return ret;
+}
+
+static DEVICE_ATTR(host_reset, S_IWUSR, NULL, store_host_reset);
+
 shost_rd_attr(unique_id, "%u\n");
 shost_rd_attr(host_busy, "%hu\n");
 shost_rd_attr(cmd_per_lun, "%hd\n");
@@ -272,6 +309,7 @@ static struct attribute *scsi_sysfs_shost_attrs[] = {
 	&dev_attr_active_mode.attr,
 	&dev_attr_prot_capabilities.attr,
 	&dev_attr_prot_guard_type.attr,
+	&dev_attr_host_reset.attr,
 	NULL
 };
 

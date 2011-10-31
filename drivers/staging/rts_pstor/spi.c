@@ -463,7 +463,7 @@ int spi_read_flash_id(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 
 	if (len) {
-		buf = (u8 *)kmalloc(len, GFP_KERNEL);
+		buf = kmalloc(len, GFP_KERNEL);
 		if (!buf)
 			TRACE_RET(chip, STATUS_ERROR);
 

@@ -309,6 +309,7 @@ config SCSI_FC_TGT_ATTRS
 config SCSI_ISCSI_ATTRS
 	tristate "iSCSI Transport Attributes"
 	depends on SCSI && NET
+	select BLK_DEV_BSGLIB
 	help
 	  If you wish to export transport-specific information about
 	  each attached iSCSI device to sysfs, say Y.
@@ -558,6 +559,15 @@ config SCSI_AIC7XXX_OLD
 source "drivers/scsi/aic7xxx/Kconfig.aic79xx"
 source "drivers/scsi/aic94xx/Kconfig"
 source "drivers/scsi/mvsas/Kconfig"
+
+config SCSI_MVUMI
+	tristate "Marvell UMI driver"
+	depends on SCSI && PCI
+	help
+	  Module for Marvell Universal Message Interface(UMI) driver
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mvumi.
 
 config SCSI_DPT_I2O
 	tristate "Adaptec I2O RAID support "
@@ -1871,10 +1881,6 @@ config ZFCP
           This driver is also available as a module. This module will be
           called zfcp. If you want to compile it as a module, say M here
           and read <file:Documentation/kbuild/modules.txt>.
-
-config ZFCP_DIF
-	tristate "T10 DIF/DIX support for the zfcp driver (EXPERIMENTAL)"
-	depends on ZFCP && EXPERIMENTAL
 
 config SCSI_PMCRAID
 	tristate "PMC SIERRA Linux MaxRAID adapter support"

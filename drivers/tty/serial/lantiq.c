@@ -338,21 +338,21 @@ lqasc_startup(struct uart_port *port)
 		ASCCON_ROEN, port->membase + LTQ_ASC_CON);
 
 	retval = request_irq(ltq_port->tx_irq, lqasc_tx_int,
-		IRQF_DISABLED, "asc_tx", port);
+		0, "asc_tx", port);
 	if (retval) {
 		pr_err("failed to request lqasc_tx_int\n");
 		return retval;
 	}
 
 	retval = request_irq(ltq_port->rx_irq, lqasc_rx_int,
-		IRQF_DISABLED, "asc_rx", port);
+		0, "asc_rx", port);
 	if (retval) {
 		pr_err("failed to request lqasc_rx_int\n");
 		goto err1;
 	}
 
 	retval = request_irq(ltq_port->err_irq, lqasc_err_int,
-		IRQF_DISABLED, "asc_err", port);
+		0, "asc_err", port);
 	if (retval) {
 		pr_err("failed to request lqasc_err_int\n");
 		goto err2;

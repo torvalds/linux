@@ -213,7 +213,7 @@ int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id)
 
 	/* Grab the bits from PHYIR1, and put them
 	 * in the upper half */
-	phy_reg = bus->read(bus, addr, MII_PHYSID1);
+	phy_reg = mdiobus_read(bus, addr, MII_PHYSID1);
 
 	if (phy_reg < 0)
 		return -EIO;
@@ -221,7 +221,7 @@ int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id)
 	*phy_id = (phy_reg & 0xffff) << 16;
 
 	/* Grab the bits from PHYIR2, and put them in the lower half */
-	phy_reg = bus->read(bus, addr, MII_PHYSID2);
+	phy_reg = mdiobus_read(bus, addr, MII_PHYSID2);
 
 	if (phy_reg < 0)
 		return -EIO;

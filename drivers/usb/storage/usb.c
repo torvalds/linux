@@ -831,12 +831,22 @@ static int usb_stor_scan_thread(void * __us)
 
 	dev_dbg(dev, "device found\n");
 
-	set_freezable();
-	/* Wait for the timeout to expire or for a disconnect */
+	set_freezable_with_signal();
+	/*
+	 * Wait for the timeout to expire or for a disconnect
+	 *
+	 * We can't freeze in this thread or we risk causing khubd to
+	 * fail to freeze, but we can't be non-freezable either. Nor can
+	 * khubd freeze while waiting for scanning to complete as it may
+	 * hold the device lock, causing a hang when suspending devices.
+	 * So we request a fake signal when freezing and use
+	 * interruptible sleep to kick us out of our wait early when
+	 * freezing happens.
+	 */
 	if (delay_use > 0) {
 		dev_dbg(dev, "waiting for device to settle "
 				"before scanning\n");
-		wait_event_freezable_timeout(us->delay_wait,
+		wait_event_interruptible_timeout(us->delay_wait,
 				test_bit(US_FLIDX_DONT_SCAN, &us->dflags),
 				delay_use * HZ);
 	}

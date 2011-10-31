@@ -92,15 +92,8 @@ config BCM47XX
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
-	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SSB
-	select SSB_DRIVER_MIPS
-	select SSB_DRIVER_EXTIF
-	select SSB_EMBEDDED
-	select SSB_B43_PCI_BRIDGE if PCI
-	select SSB_PCICORE_HOSTMODE if PCI
 	select GENERIC_GPIO
 	select SYS_HAS_EARLY_PRINTK
 	select CFE
@@ -791,6 +784,7 @@ endchoice
 
 source "arch/mips/alchemy/Kconfig"
 source "arch/mips/ath79/Kconfig"
+source "arch/mips/bcm47xx/Kconfig"
 source "arch/mips/bcm63xx/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/jz4740/Kconfig"

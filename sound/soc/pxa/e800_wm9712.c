@@ -80,7 +80,6 @@ static int e800_ac97_init(struct snd_soc_pcm_runtime *rtd)
 					ARRAY_SIZE(e800_dapm_widgets));
 
 	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }

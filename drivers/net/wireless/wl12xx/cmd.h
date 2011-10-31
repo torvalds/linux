@@ -36,7 +36,15 @@ int wl128x_cmd_general_parms(struct wl1271 *wl);
 int wl1271_cmd_radio_parms(struct wl1271 *wl);
 int wl128x_cmd_radio_parms(struct wl1271 *wl);
 int wl1271_cmd_ext_radio_parms(struct wl1271 *wl);
-int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type);
+int wl12xx_cmd_role_enable(struct wl1271 *wl, u8 role_type, u8 *role_id);
+int wl12xx_cmd_role_disable(struct wl1271 *wl, u8 *role_id);
+int wl12xx_cmd_role_start_dev(struct wl1271 *wl);
+int wl12xx_cmd_role_stop_dev(struct wl1271 *wl);
+int wl12xx_cmd_role_start_sta(struct wl1271 *wl);
+int wl12xx_cmd_role_stop_sta(struct wl1271 *wl);
+int wl12xx_cmd_role_start_ap(struct wl1271 *wl);
+int wl12xx_cmd_role_stop_ap(struct wl1271 *wl);
+int wl12xx_cmd_role_start_ibss(struct wl1271 *wl);
 int wl1271_cmd_test(struct wl1271 *wl, void *buf, size_t buf_len, u8 answer);
 int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len);
@@ -56,23 +64,24 @@ struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, __be32 ip_addr);
 int wl1271_build_qos_null_data(struct wl1271 *wl);
 int wl1271_cmd_build_klv_null_data(struct wl1271 *wl);
-int wl1271_cmd_set_sta_default_wep_key(struct wl1271 *wl, u8 id);
-int wl1271_cmd_set_ap_default_wep_key(struct wl1271 *wl, u8 id);
+int wl12xx_cmd_set_default_wep_key(struct wl1271 *wl, u8 id, u8 hlid);
 int wl1271_cmd_set_sta_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 			   u8 key_size, const u8 *key, const u8 *addr,
 			   u32 tx_seq_32, u16 tx_seq_16);
 int wl1271_cmd_set_ap_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 			  u8 key_size, const u8 *key, u8 hlid, u32 tx_seq_32,
 			  u16 tx_seq_16);
-int wl1271_cmd_disconnect(struct wl1271 *wl);
-int wl1271_cmd_set_sta_state(struct wl1271 *wl);
-int wl1271_cmd_start_bss(struct wl1271 *wl);
-int wl1271_cmd_stop_bss(struct wl1271 *wl);
-int wl1271_cmd_add_sta(struct wl1271 *wl, struct ieee80211_sta *sta, u8 hlid);
-int wl1271_cmd_remove_sta(struct wl1271 *wl, u8 hlid);
+int wl12xx_cmd_set_peer_state(struct wl1271 *wl, u8 hlid);
+int wl12xx_roc(struct wl1271 *wl, u8 role_id);
+int wl12xx_croc(struct wl1271 *wl, u8 role_id);
+int wl12xx_cmd_add_peer(struct wl1271 *wl, struct ieee80211_sta *sta, u8 hlid);
+int wl12xx_cmd_remove_peer(struct wl1271 *wl, u8 hlid);
 int wl12xx_cmd_config_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_start_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_stop_fwlog(struct wl1271 *wl);
+int wl12xx_cmd_channel_switch(struct wl1271 *wl,
+			      struct ieee80211_channel_switch *ch_switch);
+int wl12xx_cmd_stop_channel_switch(struct wl1271 *wl);
 
 enum wl1271_commands {
 	CMD_INTERROGATE     = 1,    /*use this to read information elements*/
@@ -83,25 +92,21 @@ enum wl1271_commands {
 	CMD_DISABLE_TX      = 6,
 	CMD_SCAN            = 8,
 	CMD_STOP_SCAN       = 9,
-	CMD_START_JOIN      = 11,
 	CMD_SET_KEYS        = 12,
 	CMD_READ_MEMORY     = 13,
 	CMD_WRITE_MEMORY    = 14,
 	CMD_SET_TEMPLATE    = 19,
 	CMD_TEST            = 23,
 	CMD_NOISE_HIST      = 28,
-	CMD_LNA_CONTROL     = 32,
+	CMD_QUIET_ELEMENT_SET_STATE  = 29,
 	CMD_SET_BCN_MODE    = 33,
 	CMD_MEASUREMENT      = 34,
 	CMD_STOP_MEASUREMENT = 35,
-	CMD_DISCONNECT       = 36,
 	CMD_SET_PS_MODE      = 37,
 	CMD_CHANNEL_SWITCH   = 38,
 	CMD_STOP_CHANNEL_SWICTH = 39,
 	CMD_AP_DISCOVERY     = 40,
 	CMD_STOP_AP_DISCOVERY = 41,
-	CMD_SPS_SCAN = 42,
-	CMD_STOP_SPS_SCAN = 43,
 	CMD_HEALTH_CHECK     = 45,
 	CMD_DEBUG            = 46,
 	CMD_TRIGGER_SCAN_TO  = 47,
@@ -109,16 +114,30 @@ enum wl1271_commands {
 	CMD_CONNECTION_SCAN_SSID_CFG = 49,
 	CMD_START_PERIODIC_SCAN      = 50,
 	CMD_STOP_PERIODIC_SCAN       = 51,
-	CMD_SET_STA_STATE            = 52,
-	CMD_CONFIG_FWLOGGER          = 53,
-	CMD_START_FWLOGGER           = 54,
-	CMD_STOP_FWLOGGER            = 55,
+	CMD_SET_PEER_STATE           = 52,
+	CMD_REMAIN_ON_CHANNEL        = 53,
+	CMD_CANCEL_REMAIN_ON_CHANNEL = 54,
 
-	/* AP mode commands */
-	CMD_BSS_START                = 60,
-	CMD_BSS_STOP                 = 61,
-	CMD_ADD_STA                  = 62,
-	CMD_REMOVE_STA               = 63,
+	CMD_CONFIG_FWLOGGER          = 55,
+	CMD_START_FWLOGGER           = 56,
+	CMD_STOP_FWLOGGER            = 57,
+
+	/* AP commands */
+	CMD_ADD_PEER                 = 62,
+	CMD_REMOVE_PEER              = 63,
+
+	/* Role API */
+	CMD_ROLE_ENABLE              = 70,
+	CMD_ROLE_DISABLE             = 71,
+	CMD_ROLE_START               = 72,
+	CMD_ROLE_STOP                = 73,
+
+	/* WIFI Direct */
+	CMD_WFD_START_DISCOVERY      = 80,
+	CMD_WFD_STOP_DISCOVERY	     = 81,
+	CMD_WFD_ATTRIBUTE_CONFIG     = 82,
+
+	CMD_NOP                      = 100,
 
 	NUM_COMMANDS,
 	MAX_COMMAND_ID = 0xFFFF,
@@ -147,21 +166,20 @@ enum cmd_templ {
 	CMD_TEMPL_CTS,           /*
 				  * For CTS-to-self (FastCTS) mechanism
 				  * for BT/WLAN coexistence (SoftGemini). */
-	CMD_TEMPL_ARP_RSP,
-	CMD_TEMPL_LINK_MEASUREMENT_REPORT,
-
-	/* AP-mode specific */
-	CMD_TEMPL_AP_BEACON = 13,
+	CMD_TEMPL_AP_BEACON,
 	CMD_TEMPL_AP_PROBE_RESPONSE,
-	CMD_TEMPL_AP_ARP_RSP,
+	CMD_TEMPL_ARP_RSP,
 	CMD_TEMPL_DEAUTH_AP,
+	CMD_TEMPL_TEMPORARY,
+	CMD_TEMPL_LINK_MEASUREMENT_REPORT,
 
 	CMD_TEMPL_MAX = 0xff
 };
 
 /* unit ms */
 #define WL1271_COMMAND_TIMEOUT     2000
-#define WL1271_CMD_TEMPL_MAX_SIZE  252
+#define WL1271_CMD_TEMPL_DFLT_SIZE 252
+#define WL1271_CMD_TEMPL_MAX_SIZE  548
 #define WL1271_EVENT_TIMEOUT       750
 
 struct wl1271_cmd_header {
@@ -193,6 +211,8 @@ enum {
 	CMD_STATUS_WRONG_NESTING		= 19,
 	CMD_STATUS_TIMEOUT		= 21, /* Driver internal use.*/
 	CMD_STATUS_FW_RESET		= 22, /* Driver internal use.*/
+	CMD_STATUS_TEMPLATE_OOM		= 23,
+	CMD_STATUS_NO_RX_BA_SESSION	= 24,
 	MAX_COMMAND_STATUS		= 0xff
 };
 
@@ -210,38 +230,114 @@ enum {
 #define WL1271_JOIN_CMD_TX_SESSION_OFFSET 1
 #define WL1271_JOIN_CMD_BSS_TYPE_5GHZ 0x10
 
-struct wl1271_cmd_join {
+struct wl12xx_cmd_role_enable {
 	struct wl1271_cmd_header header;
 
-	__le32 bssid_lsb;
-	__le16 bssid_msb;
-	__le16 beacon_interval; /* in TBTTs */
-	__le32 rx_config_options;
-	__le32 rx_filter_options;
+	u8 role_id;
+	u8 role_type;
+	u8 mac_address[ETH_ALEN];
+} __packed;
 
-	/*
-	 * The target uses this field to determine the rate at
-	 * which to transmit control frame responses (such as
-	 * ACK or CTS frames).
-	 */
-	__le32 basic_rate_set;
-	__le32 supported_rate_set;
-	u8 dtim_interval;
-	/*
-	 * bits 0-2: This bitwise field specifies the type
-	 * of BSS to start or join (BSS_TYPE_*).
-	 * bit 4: Band - The radio band in which to join
-	 * or start.
-	 *  0 - 2.4GHz band
-	 *  1 - 5GHz band
-	 * bits 3, 5-7: Reserved
-	 */
-	u8 bss_type;
+struct wl12xx_cmd_role_disable {
+	struct wl1271_cmd_header header;
+
+	u8 role_id;
+	u8 padding[3];
+} __packed;
+
+enum wl12xx_band {
+	WL12XX_BAND_2_4GHZ		= 0,
+	WL12XX_BAND_5GHZ		= 1,
+	WL12XX_BAND_JAPAN_4_9_GHZ	= 2,
+	WL12XX_BAND_DEFAULT		= WL12XX_BAND_2_4GHZ,
+	WL12XX_BAND_INVALID		= 0x7E,
+	WL12XX_BAND_MAX_RADIO		= 0x7F,
+};
+
+struct wl12xx_cmd_role_start {
+	struct wl1271_cmd_header header;
+
+	u8 role_id;
+	u8 band;
 	u8 channel;
-	u8 ssid_len;
-	u8 ssid[IW_ESSID_MAX_SIZE];
-	u8 ctrl; /* JOIN_CMD_CTRL_* */
-	u8 reserved[3];
+	u8 padding;
+
+	union {
+		struct {
+			u8 hlid;
+			u8 session;
+			u8 padding_1[54];
+		} __packed device;
+		/* sta & p2p_cli use the same struct */
+		struct {
+			u8 bssid[ETH_ALEN];
+			u8 hlid; /* data hlid */
+			u8 session;
+			__le32 remote_rates; /* remote supported rates */
+
+			/*
+			 * The target uses this field to determine the rate at
+			 * which to transmit control frame responses (such as
+			 * ACK or CTS frames).
+			 */
+			__le32 basic_rate_set;
+			__le32 local_rates; /* local supported rates */
+
+			u8 ssid_type;
+			u8 ssid_len;
+			u8 ssid[IEEE80211_MAX_SSID_LEN];
+
+			__le16 beacon_interval; /* in TBTTs */
+		} __packed sta;
+		struct {
+			u8 bssid[ETH_ALEN];
+			u8 hlid; /* data hlid */
+			u8 dtim_interval;
+			__le32 remote_rates; /* remote supported rates */
+
+			__le32 basic_rate_set;
+			__le32 local_rates; /* local supported rates */
+
+			u8 ssid_type;
+			u8 ssid_len;
+			u8 ssid[IEEE80211_MAX_SSID_LEN];
+
+			__le16 beacon_interval; /* in TBTTs */
+
+			u8 padding_1[4];
+		} __packed ibss;
+		/* ap & p2p_go use the same struct */
+		struct {
+			__le16 aging_period; /* in secs */
+			u8 beacon_expiry; /* in ms */
+			u8 bss_index;
+			/* The host link id for the AP's global queue */
+			u8 global_hlid;
+			/* The host link id for the AP's broadcast queue */
+			u8 broadcast_hlid;
+
+			__le16 beacon_interval; /* in TBTTs */
+
+			__le32 basic_rate_set;
+			__le32 local_rates; /* local supported rates */
+
+			u8 dtim_interval;
+
+			u8 ssid_type;
+			u8 ssid_len;
+			u8 ssid[IEEE80211_MAX_SSID_LEN];
+
+			u8 padding_1[5];
+		} __packed ap;
+	};
+} __packed;
+
+struct wl12xx_cmd_role_stop {
+	struct wl1271_cmd_header header;
+
+	u8 role_id;
+	u8 disc_type; /* only STA and P2P_CLI */
+	__le16 reason; /* only STA and P2P_CLI */
 } __packed;
 
 struct cmd_enabledisable_path {
@@ -287,8 +383,9 @@ enum wl1271_cmd_ps_mode {
 struct wl1271_cmd_ps_params {
 	struct wl1271_cmd_header header;
 
+	u8 role_id;
 	u8 ps_mode; /* STATION_* */
-	u8 padding[3];
+	u8 padding[2];
 } __packed;
 
 /* HW encryption keys */
@@ -301,6 +398,12 @@ enum wl1271_cmd_key_action {
 	MAX_KEY_ACTION     = 0xffff,
 };
 
+enum wl1271_cmd_lid_key_type {
+	UNICAST_LID_TYPE     = 0,
+	BROADCAST_LID_TYPE   = 1,
+	WEP_DEFAULT_LID_TYPE = 2
+};
+
 enum wl1271_cmd_key_type {
 	KEY_NONE = 0,
 	KEY_WEP  = 1,
@@ -309,44 +412,7 @@ enum wl1271_cmd_key_type {
 	KEY_GEM  = 4,
 };
 
-/* FIXME: Add description for key-types */
-
-struct wl1271_cmd_set_sta_keys {
-	struct wl1271_cmd_header header;
-
-	/* Ignored for default WEP key */
-	u8 addr[ETH_ALEN];
-
-	/* key_action_e */
-	__le16 key_action;
-
-	__le16 reserved_1;
-
-	/* key size in bytes */
-	u8 key_size;
-
-	/* key_type_e */
-	u8 key_type;
-	u8 ssid_profile;
-
-	/*
-	 * TKIP, AES: frame's key id field.
-	 * For WEP default key: key id;
-	 */
-	u8 id;
-	u8 reserved_2[6];
-	u8 key[MAX_KEY_SIZE];
-	__le16 ac_seq_num16[NUM_ACCESS_CATEGORIES_COPY];
-	__le32 ac_seq_num32[NUM_ACCESS_CATEGORIES_COPY];
-} __packed;
-
-enum wl1271_cmd_lid_key_type {
-	UNICAST_LID_TYPE     = 0,
-	BROADCAST_LID_TYPE   = 1,
-	WEP_DEFAULT_LID_TYPE = 2
-};
-
-struct wl1271_cmd_set_ap_keys {
+struct wl1271_cmd_set_keys {
 	struct wl1271_cmd_header header;
 
 	/*
@@ -496,69 +562,46 @@ enum wl1271_disconnect_type {
 	DISCONNECT_DISASSOC
 };
 
-struct wl1271_cmd_disconnect {
-	struct wl1271_cmd_header header;
-
-	__le32 rx_config_options;
-	__le32 rx_filter_options;
-
-	__le16 reason;
-	u8  type;
-
-	u8  padding;
-} __packed;
-
 #define WL1271_CMD_STA_STATE_CONNECTED  1
 
-struct wl1271_cmd_set_sta_state {
+struct wl12xx_cmd_set_peer_state {
 	struct wl1271_cmd_header header;
 
+	u8 hlid;
 	u8 state;
-	u8 padding[3];
+	u8 padding[2];
 } __packed;
 
-enum wl1271_ssid_type {
-	SSID_TYPE_PUBLIC = 0,
-	SSID_TYPE_HIDDEN = 1
+struct wl12xx_cmd_roc {
+	struct wl1271_cmd_header header;
+
+	u8 role_id;
+	u8 channel;
+	u8 band;
+	u8 padding;
 };
 
-struct wl1271_cmd_bss_start {
+struct wl12xx_cmd_croc {
 	struct wl1271_cmd_header header;
 
-	/* wl1271_ssid_type */
-	u8 ssid_type;
-	u8 ssid_len;
-	u8 ssid[IW_ESSID_MAX_SIZE];
-	u8 padding_1[2];
+	u8 role_id;
+	u8 padding[3];
+};
 
-	/* Basic rate set */
-	__le32 basic_rate_set;
-	/* Aging period in seconds*/
-	__le16 aging_period;
+enum wl12xx_ssid_type {
+	WL12XX_SSID_TYPE_PUBLIC = 0,
+	WL12XX_SSID_TYPE_HIDDEN = 1,
+	WL12XX_SSID_TYPE_ANY = 2,
+};
 
-	/*
-	 * This field specifies the time between target beacon
-	 * transmission times (TBTTs), in time units (TUs).
-	 * Valid values are 1 to 1024.
-	 */
-	__le16 beacon_interval;
-	u8 bssid[ETH_ALEN];
-	u8 bss_index;
-	/* Radio band */
-	u8 band;
-	u8 channel;
-	/* The host link id for the AP's global queue */
-	u8 global_hlid;
-	/* The host link id for the AP's broadcast queue */
-	u8 broadcast_hlid;
-	/* DTIM count */
-	u8 dtim_interval;
-	/* Beacon expiry time in ms */
-	u8 beacon_expiry;
-	u8 padding_2[3];
-} __packed;
+enum wl1271_psd_type {
+	WL1271_PSD_LEGACY = 0,
+	WL1271_PSD_UPSD_TRIGGER = 1,
+	WL1271_PSD_LEGACY_PSPOLL = 2,
+	WL1271_PSD_SAPSD = 3
+};
 
-struct wl1271_cmd_add_sta {
+struct wl12xx_cmd_add_peer {
 	struct wl1271_cmd_header header;
 
 	u8 addr[ETH_ALEN];
@@ -572,7 +615,7 @@ struct wl1271_cmd_add_sta {
 	u8 padding1;
 } __packed;
 
-struct wl1271_cmd_remove_sta {
+struct wl12xx_cmd_remove_peer {
 	struct wl1271_cmd_header header;
 
 	u8 hlid;
@@ -634,6 +677,23 @@ struct wl12xx_cmd_start_fwlog {
 } __packed;
 
 struct wl12xx_cmd_stop_fwlog {
+	struct wl1271_cmd_header header;
+} __packed;
+
+struct wl12xx_cmd_channel_switch {
+	struct wl1271_cmd_header header;
+
+	/* The new serving channel */
+	u8 channel;
+	/* Relative time of the serving channel switch in TBTT units */
+	u8 switch_time;
+	/* 1: Suspend TX till switch time; 0: Do not suspend TX */
+	u8 tx_suspend;
+	/* 1: Flush TX at switch time; 0: Do not flush */
+	u8 flush;
+} __packed;
+
+struct wl12xx_cmd_stop_channel_switch {
 	struct wl1271_cmd_header header;
 } __packed;
 

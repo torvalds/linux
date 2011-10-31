@@ -27,7 +27,6 @@
  *
  ******************************************************************************/
 
-#include <linux/version.h>
 #include <linux/string.h>
 #include <linux/parser.h>
 #include <linux/timer.h>
@@ -351,7 +350,7 @@ static struct rd_dev_sg_table *rd_get_sg_table(struct rd_dev *rd_dev, u32 page)
 static int rd_MEMCPY_read(struct rd_request *req)
 {
 	struct se_task *task = &req->rd_task;
-	struct rd_dev *dev = req->rd_task.se_dev->dev_ptr;
+	struct rd_dev *dev = req->rd_task.task_se_cmd->se_dev->dev_ptr;
 	struct rd_dev_sg_table *table;
 	struct scatterlist *sg_d, *sg_s;
 	void *dst, *src;
@@ -467,7 +466,7 @@ static int rd_MEMCPY_read(struct rd_request *req)
 static int rd_MEMCPY_write(struct rd_request *req)
 {
 	struct se_task *task = &req->rd_task;
-	struct rd_dev *dev = req->rd_task.se_dev->dev_ptr;
+	struct rd_dev *dev = req->rd_task.task_se_cmd->se_dev->dev_ptr;
 	struct rd_dev_sg_table *table;
 	struct scatterlist *sg_d, *sg_s;
 	void *dst, *src;
@@ -582,7 +581,7 @@ static int rd_MEMCPY_write(struct rd_request *req)
  */
 static int rd_MEMCPY_do_task(struct se_task *task)
 {
-	struct se_device *dev = task->se_dev;
+	struct se_device *dev = task->task_se_cmd->se_dev;
 	struct rd_request *req = RD_REQ(task);
 	unsigned long long lba;
 	int ret;
@@ -692,17 +691,6 @@ static ssize_t rd_show_configfs_dev_params(
 	return bl;
 }
 
-/*	rd_get_cdb(): (Part of se_subsystem_api_t template)
- *
- *
- */
-static unsigned char *rd_get_cdb(struct se_task *task)
-{
-	struct rd_request *req = RD_REQ(task);
-
-	return req->rd_scsi_cdb;
-}
-
 static u32 rd_get_device_rev(struct se_device *dev)
 {
 	return SCSI_SPC_2; /* Returns SPC-3 in Initiator Data */
@@ -736,7 +724,6 @@ static struct se_subsystem_api rd_mcp_template = {
 	.check_configfs_dev_params = rd_check_configfs_dev_params,
 	.set_configfs_dev_params = rd_set_configfs_dev_params,
 	.show_configfs_dev_params = rd_show_configfs_dev_params,
-	.get_cdb		= rd_get_cdb,
 	.get_device_rev		= rd_get_device_rev,
 	.get_device_type	= rd_get_device_type,
 	.get_blocks		= rd_get_blocks,

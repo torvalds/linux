@@ -454,8 +454,8 @@ static void __init poodle_init(void)
 	poodle_init_spi();
 }
 
-static void __init fixup_poodle(struct machine_desc *desc,
-		struct tag *tags, char **cmdline, struct meminfo *mi)
+static void __init fixup_poodle(struct tag *tags, char **cmdline,
+				struct meminfo *mi)
 {
 	sharpsl_save_param();
 	mi->nr_banks=1;

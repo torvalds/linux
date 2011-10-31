@@ -19,7 +19,6 @@
 
 void ar9003_paprd_enable(struct ath_hw *ah, bool val)
 {
-	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath9k_channel *chan = ah->curchan;
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
 
@@ -54,13 +53,7 @@ void ar9003_paprd_enable(struct ath_hw *ah, bool val)
 
 	if (val) {
 		ah->paprd_table_write_done = true;
-
-		ah->eep_ops->set_txpower(ah, chan,
-				ath9k_regd_get_ctl(regulatory, chan),
-				chan->chan->max_antenna_gain * 2,
-				chan->chan->max_power * 2,
-				min((u32) MAX_RATE_POWER,
-				(u32) regulatory->power_limit), false);
+		ath9k_hw_apply_txpower(ah, chan);
 	}
 
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL0_B0,
@@ -113,7 +106,7 @@ static int ar9003_get_training_power_5g(struct ath_hw *ah)
 	if (delta > scale)
 		return -1;
 
-	switch (get_streams(common->tx_chainmask)) {
+	switch (get_streams(ah->txchainmask)) {
 	case 1:
 		delta = 6;
 		break;
@@ -126,7 +119,7 @@ static int ar9003_get_training_power_5g(struct ath_hw *ah)
 	default:
 		delta = 0;
 		ath_dbg(common, ATH_DBG_CALIBRATE,
-		"Invalid tx-chainmask: %u\n", common->tx_chainmask);
+		"Invalid tx-chainmask: %u\n", ah->txchainmask);
 	}
 
 	power += delta;
@@ -147,7 +140,7 @@ static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 		AR_PHY_PAPRD_CTRL1_B2
 	};
 	int training_power;
-	int i;
+	int i, val;
 
 	if (IS_CHAN_2GHZ(ah->curchan))
 		training_power = ar9003_get_training_power_2g(ah);
@@ -207,8 +200,9 @@ static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 		      AR_PHY_PAPRD_TRAINER_CNTL1_CF_PAPRD_AGC2_SETTLING, 28);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL1,
 		      AR_PHY_PAPRD_TRAINER_CNTL1_CF_CF_PAPRD_TRAIN_ENABLE, 1);
+	val = AR_SREV_9462(ah) ? 0x91 : 147;
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL2,
-		      AR_PHY_PAPRD_TRAINER_CNTL2_CF_PAPRD_INIT_RX_BB_GAIN, 147);
+		      AR_PHY_PAPRD_TRAINER_CNTL2_CF_PAPRD_INIT_RX_BB_GAIN, val);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
 		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_FINE_CORR_LEN, 4);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
@@ -217,7 +211,7 @@ static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_NUM_CORR_STAGES, 7);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
 		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_MIN_LOOPBACK_DEL, 1);
-	if (AR_SREV_9485(ah))
+	if (AR_SREV_9485(ah) || AR_SREV_9462(ah))
 		REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
 			      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_QUICK_DROP,
 			      -3);
@@ -225,9 +219,10 @@ static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 		REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
 			      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_QUICK_DROP,
 			      -6);
+	val = AR_SREV_9462(ah) ? -10 : -15;
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
 		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_ADC_DESIRED_SIZE,
-		      -15);
+		      val);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
 		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_BBTXMIX_DISABLE, 1);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL4,
@@ -757,6 +752,7 @@ void ar9003_paprd_populate_single_table(struct ath_hw *ah,
 			      training_power);
 
 	if (ah->caps.tx_chainmask & BIT(2))
+		/* val AR_PHY_PAPRD_CTRL1_PAPRD_POWER_AT_AM2AM_CAL correct? */
 		REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL1_B2,
 			      AR_PHY_PAPRD_CTRL1_PAPRD_POWER_AT_AM2AM_CAL,
 			      training_power);

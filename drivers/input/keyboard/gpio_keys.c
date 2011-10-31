@@ -461,8 +461,7 @@ static int gpio_keys_get_devtree_pdata(struct device *dev,
 	struct device_node *node, *pp;
 	int i;
 	struct gpio_keys_button *buttons;
-	const u32 *reg;
-	int len;
+	u32 reg;
 
 	node = dev->of_node;
 	if (node == NULL)
@@ -470,7 +469,7 @@ static int gpio_keys_get_devtree_pdata(struct device *dev,
 
 	memset(pdata, 0, sizeof *pdata);
 
-	pdata->rep = !!of_get_property(node, "autorepeat", &len);
+	pdata->rep = !!of_get_property(node, "autorepeat", NULL);
 
 	/* First count the subnodes */
 	pdata->nbuttons = 0;
@@ -498,22 +497,25 @@ static int gpio_keys_get_devtree_pdata(struct device *dev,
 		buttons[i].gpio = of_get_gpio_flags(pp, 0, &flags);
 		buttons[i].active_low = flags & OF_GPIO_ACTIVE_LOW;
 
-		reg = of_get_property(pp, "linux,code", &len);
-		if (!reg) {
+		if (of_property_read_u32(pp, "linux,code", &reg)) {
 			dev_err(dev, "Button without keycode: 0x%x\n", buttons[i].gpio);
 			goto out_fail;
 		}
-		buttons[i].code = be32_to_cpup(reg);
+		buttons[i].code = reg;
 
-		buttons[i].desc = of_get_property(pp, "label", &len);
+		buttons[i].desc = of_get_property(pp, "label", NULL);
 
-		reg = of_get_property(pp, "linux,input-type", &len);
-		buttons[i].type = reg ? be32_to_cpup(reg) : EV_KEY;
+		if (of_property_read_u32(pp, "linux,input-type", &reg) == 0)
+			buttons[i].type = reg;
+		else
+			buttons[i].type = EV_KEY;
 
 		buttons[i].wakeup = !!of_get_property(pp, "gpio-key,wakeup", NULL);
 
-		reg = of_get_property(pp, "debounce-interval", &len);
-		buttons[i].debounce_interval = reg ? be32_to_cpup(reg) : 5;
+		if (of_property_read_u32(pp, "debounce-interval", &reg) == 0)
+			buttons[i].debounce_interval = reg;
+		else
+			buttons[i].debounce_interval = 5;
 
 		i++;
 	}

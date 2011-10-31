@@ -17,42 +17,10 @@
 
 #include <asm/hardware/vic.h>
 
-#include <linux/serial_core.h>
 #include <mach/map.h>
 #include <plat/regs-timer.h>
-#include <plat/regs-serial.h>
 #include <plat/cpu.h>
 #include <plat/irq-vic-timer.h>
-#include <plat/irq-uart.h>
-
-/*
- * Note, we make use of the fact that the parent IRQs, IRQ_UART[0..3]
- * are consecutive when looking up the interrupt in the demux routines.
- */
-static struct s3c_uart_irq uart_irqs[] = {
-	[0] = {
-		.regs		= S5P_VA_UART0,
-		.base_irq	= IRQ_S5P_UART_BASE0,
-		.parent_irq	= IRQ_UART0,
-	},
-	[1] = {
-		.regs		= S5P_VA_UART1,
-		.base_irq	= IRQ_S5P_UART_BASE1,
-		.parent_irq	= IRQ_UART1,
-	},
-	[2] = {
-		.regs		= S5P_VA_UART2,
-		.base_irq	= IRQ_S5P_UART_BASE2,
-		.parent_irq	= IRQ_UART2,
-	},
-#if CONFIG_SERIAL_SAMSUNG_UARTS > 3
-	[3] = {
-		.regs		= S5P_VA_UART3,
-		.base_irq	= IRQ_S5P_UART_BASE3,
-		.parent_irq	= IRQ_UART3,
-	},
-#endif
-};
 
 void __init s5p_init_irq(u32 *vic, u32 num_vic)
 {
@@ -65,6 +33,4 @@ void __init s5p_init_irq(u32 *vic, u32 num_vic)
 #endif
 
 	s3c_init_vic_timer_irq(5, IRQ_TIMER0);
-
-	s3c_init_uart_irqs(uart_irqs, ARRAY_SIZE(uart_irqs));
 }

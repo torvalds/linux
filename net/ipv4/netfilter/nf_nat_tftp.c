@@ -36,14 +36,14 @@ static unsigned int help(struct sk_buff *skb,
 
 static void __exit nf_nat_tftp_fini(void)
 {
-	rcu_assign_pointer(nf_nat_tftp_hook, NULL);
+	RCU_INIT_POINTER(nf_nat_tftp_hook, NULL);
 	synchronize_rcu();
 }
 
 static int __init nf_nat_tftp_init(void)
 {
 	BUG_ON(nf_nat_tftp_hook != NULL);
-	rcu_assign_pointer(nf_nat_tftp_hook, help);
+	RCU_INIT_POINTER(nf_nat_tftp_hook, help);
 	return 0;
 }
 

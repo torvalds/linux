@@ -287,6 +287,12 @@ static int sfb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	u32 r, slot, salt, sfbhash;
 	int ret = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 
+	if (unlikely(sch->q.qlen >= q->limit)) {
+		sch->qstats.overlimits++;
+		q->stats.queuedrop++;
+		goto drop;
+	}
+
 	if (q->rehash_interval > 0) {
 		unsigned long limit = q->rehash_time + q->rehash_interval;
 
@@ -332,12 +338,9 @@ static int sfb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	slot ^= 1;
 	sfb_skb_cb(skb)->hashes[slot] = 0;
 
-	if (unlikely(minqlen >= q->max || sch->q.qlen >= q->limit)) {
+	if (unlikely(minqlen >= q->max)) {
 		sch->qstats.overlimits++;
-		if (minqlen >= q->max)
-			q->stats.bucketdrop++;
-		else
-			q->stats.queuedrop++;
+		q->stats.bucketdrop++;
 		goto drop;
 	}
 

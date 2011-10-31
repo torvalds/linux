@@ -336,8 +336,6 @@ struct idmap {
 	struct idmap_hashtable	idmap_group_hash;
 };
 
-static ssize_t idmap_pipe_upcall(struct file *, struct rpc_pipe_msg *,
-				 char __user *, size_t);
 static ssize_t idmap_pipe_downcall(struct file *, const char __user *,
 				   size_t);
 static void idmap_pipe_destroy_msg(struct rpc_pipe_msg *);
@@ -345,7 +343,7 @@ static void idmap_pipe_destroy_msg(struct rpc_pipe_msg *);
 static unsigned int fnvhash32(const void *, size_t);
 
 static const struct rpc_pipe_ops idmap_upcall_ops = {
-	.upcall		= idmap_pipe_upcall,
+	.upcall		= rpc_pipe_generic_upcall,
 	.downcall	= idmap_pipe_downcall,
 	.destroy_msg	= idmap_pipe_destroy_msg,
 };
@@ -593,27 +591,6 @@ nfs_idmap_name(struct idmap *idmap, struct idmap_hashtable *h,
 	mutex_unlock(&idmap->idmap_im_lock);
 	mutex_unlock(&idmap->idmap_lock);
 	return ret;
-}
-
-/* RPC pipefs upcall/downcall routines */
-static ssize_t
-idmap_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
-		  char __user *dst, size_t buflen)
-{
-	char *data = (char *)msg->data + msg->copied;
-	size_t mlen = min(msg->len, buflen);
-	unsigned long left;
-
-	left = copy_to_user(dst, data, mlen);
-	if (left == mlen) {
-		msg->errno = -EFAULT;
-		return -EFAULT;
-	}
-
-	mlen -= left;
-	msg->copied += mlen;
-	msg->errno = 0;
-	return mlen;
 }
 
 static ssize_t

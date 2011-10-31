@@ -320,18 +320,7 @@ static struct platform_driver altera_spi_driver = {
 		.of_match_table = altera_spi_match,
 	},
 };
-
-static int __init altera_spi_init(void)
-{
-	return platform_driver_register(&altera_spi_driver);
-}
-module_init(altera_spi_init);
-
-static void __exit altera_spi_exit(void)
-{
-	platform_driver_unregister(&altera_spi_driver);
-}
-module_exit(altera_spi_exit);
+module_platform_driver(altera_spi_driver);
 
 MODULE_DESCRIPTION("Altera SPI driver");
 MODULE_AUTHOR("Thomas Chou <thomas@wytron.com.tw>");

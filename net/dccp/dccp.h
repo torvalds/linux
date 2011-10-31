@@ -474,6 +474,7 @@ static inline int dccp_ack_pending(const struct sock *sk)
 	return dccp_ackvec_pending(sk) || inet_csk_ack_scheduled(sk);
 }
 
+extern int  dccp_feat_signal_nn_change(struct sock *sk, u8 feat, u64 nn_val);
 extern int  dccp_feat_finalise_settings(struct dccp_sock *dp);
 extern int  dccp_feat_server_ccid_dependencies(struct dccp_request_sock *dreq);
 extern int  dccp_feat_insert_opts(struct dccp_sock*, struct dccp_request_sock*,

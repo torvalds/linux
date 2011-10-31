@@ -993,6 +993,9 @@ int r600_pcie_gart_enable(struct radeon_device *rdev)
 		WREG32(VM_CONTEXT0_CNTL + (i * 4), 0);
 
 	r600_pcie_gart_tlb_flush(rdev);
+	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
+		 (unsigned)(rdev->mc.gtt_size >> 20),
+		 (unsigned long long)rdev->gart.table_addr);
 	rdev->gart.ready = true;
 	return 0;
 }
@@ -2362,17 +2365,31 @@ int r600_copy_blit(struct radeon_device *rdev,
 
 	mutex_lock(&rdev->r600_blit.mutex);
 	rdev->r600_blit.vb_ib = NULL;
-	r = r600_blit_prepare_copy(rdev, num_gpu_pages * RADEON_GPU_PAGE_SIZE);
+	r = r600_blit_prepare_copy(rdev, num_gpu_pages);
 	if (r) {
 		if (rdev->r600_blit.vb_ib)
 			radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
 		mutex_unlock(&rdev->r600_blit.mutex);
 		return r;
 	}
-	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages * RADEON_GPU_PAGE_SIZE);
+	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages);
 	r600_blit_done_copy(rdev, fence);
 	mutex_unlock(&rdev->r600_blit.mutex);
 	return 0;
+}
+
+void r600_blit_suspend(struct radeon_device *rdev)
+{
+	int r;
+
+	/* unpin shaders bo */
+	if (rdev->r600_blit.shader_obj) {
+		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+		if (!r) {
+			radeon_bo_unpin(rdev->r600_blit.shader_obj);
+			radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+		}
+	}
 }
 
 int r600_set_surface_reg(struct radeon_device *rdev, int reg,
@@ -2494,8 +2511,6 @@ int r600_resume(struct radeon_device *rdev)
 
 int r600_suspend(struct radeon_device *rdev)
 {
-	int r;
-
 	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r600_cp_stop(rdev);
@@ -2503,14 +2518,8 @@ int r600_suspend(struct radeon_device *rdev)
 	r600_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	r600_pcie_gart_disable(rdev);
-	/* unpin shaders bo */
-	if (rdev->r600_blit.shader_obj) {
-		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-		if (!r) {
-			radeon_bo_unpin(rdev->r600_blit.shader_obj);
-			radeon_bo_unreserve(rdev->r600_blit.shader_obj);
-		}
-	}
+	r600_blit_suspend(rdev);
+
 	return 0;
 }
 
@@ -3137,7 +3146,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	return 0;
 }
 
-static inline void r600_irq_ack(struct radeon_device *rdev)
+static void r600_irq_ack(struct radeon_device *rdev)
 {
 	u32 tmp;
 
@@ -3238,7 +3247,7 @@ void r600_irq_disable(struct radeon_device *rdev)
 	r600_disable_interrupt_state(rdev);
 }
 
-static inline u32 r600_get_ih_wptr(struct radeon_device *rdev)
+static u32 r600_get_ih_wptr(struct radeon_device *rdev)
 {
 	u32 wptr, tmp;
 

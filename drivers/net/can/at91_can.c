@@ -8,8 +8,6 @@
  * Public License ("GPL") version 2 as distributed in the 'COPYING'
  * file from the main directory of the linux kernel source.
  *
- * Send feedback to <socketcan-users@lists.berlios.de>
- *
  *
  * Your platform definition file should specify something like:
  *

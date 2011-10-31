@@ -323,7 +323,7 @@ static int __devinit ep93xx_keypad_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, keypad);
 
 	err = request_irq(keypad->irq, ep93xx_keypad_irq_handler,
-			  IRQF_DISABLED, pdev->name, keypad);
+			  0, pdev->name, keypad);
 	if (err)
 		goto failed_free_dev;
 

@@ -9,16 +9,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA  02111-1307, USA.
  */
 
 #undef	VERBOSE_DEBUG
@@ -460,7 +450,7 @@ static void nuke(struct at91_ep *ep, int status)
 {
 	struct at91_request *req;
 
-	// terminer chaque requete dans la queue
+	/* terminate any request in the queue */
 	ep->stopped = 1;
 	if (list_empty(&ep->queue))
 		return;
@@ -487,7 +477,7 @@ static int at91_ep_enable(struct usb_ep *_ep,
 			|| !desc || ep->desc
 			|| _ep->name == ep0name
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
-			|| (maxpacket = le16_to_cpu(desc->wMaxPacketSize)) == 0
+			|| (maxpacket = usb_endpoint_maxp(desc)) == 0
 			|| maxpacket > ep->maxpacket) {
 		DBG("bad ep or descriptor\n");
 		return -EINVAL;
@@ -788,7 +778,7 @@ static const struct usb_ep_ops at91_ep_ops = {
 	.queue		= at91_ep_queue,
 	.dequeue	= at91_ep_dequeue,
 	.set_halt	= at91_ep_set_halt,
-	// there's only imprecise fifo status reporting
+	/* there's only imprecise fifo status reporting */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -846,7 +836,7 @@ static void udc_reinit(struct at91_udc *udc)
 		ep->fifo_bank = 0;
 		ep->ep.maxpacket = ep->maxpacket;
 		ep->creg = (void __iomem *) udc->udp_baseaddr + AT91_UDP_CSR(i);
-		// initialiser une queue par endpoint
+		/* initialize one queue per endpoint */
 		INIT_LIST_HEAD(&ep->queue);
 	}
 }
@@ -952,7 +942,7 @@ static int at91_vbus_session(struct usb_gadget *gadget, int is_active)
 	struct at91_udc	*udc = to_udc(gadget);
 	unsigned long	flags;
 
-	// VDBG("vbus %s\n", is_active ? "on" : "off");
+	/* VDBG("vbus %s\n", is_active ? "on" : "off"); */
 	spin_lock_irqsave(&udc->lock, flags);
 	udc->vbus = (is_active != 0);
 	if (udc->driver)
@@ -1003,7 +993,7 @@ static const struct usb_gadget_ops at91_udc_ops = {
 	 * VBUS-powered devices may also also want to support bigger
 	 * power budgets after an appropriate SET_CONFIGURATION.
 	 */
-	// .vbus_power		= at91_vbus_power,
+	/* .vbus_power		= at91_vbus_power, */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1072,7 +1062,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 			ep->is_in = 0;
 		}
 	} else {
-		// REVISIT this happens sometimes under load; why??
+		/* REVISIT this happens sometimes under load; why?? */
 		ERR("SETUP len %d, csr %08x\n", rxcount, csr);
 		status = -EINVAL;
 	}
@@ -1451,7 +1441,7 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 			at91_udp_write(udc, AT91_UDP_IDR, AT91_UDP_RXSUSP);
 			at91_udp_write(udc, AT91_UDP_IER, AT91_UDP_RXRSM);
 			at91_udp_write(udc, AT91_UDP_ICR, AT91_UDP_RXSUSP);
-			// VDBG("bus suspend\n");
+			/* VDBG("bus suspend\n"); */
 			if (udc->suspended)
 				continue;
 			udc->suspended = 1;
@@ -1473,7 +1463,7 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 			at91_udp_write(udc, AT91_UDP_IDR, AT91_UDP_RXRSM);
 			at91_udp_write(udc, AT91_UDP_IER, AT91_UDP_RXSUSP);
 			at91_udp_write(udc, AT91_UDP_ICR, AT91_UDP_RXRSM);
-			// VDBG("bus resume\n");
+			/* VDBG("bus resume\n"); */
 			if (!udc->suspended)
 				continue;
 			udc->suspended = 0;
@@ -1820,7 +1810,7 @@ static int __init at91udc_probe(struct platform_device *pdev)
 	/* request UDC and maybe VBUS irqs */
 	udc->udp_irq = platform_get_irq(pdev, 0);
 	retval = request_irq(udc->udp_irq, at91_udc_irq,
-			IRQF_DISABLED, driver_name, udc);
+			0, driver_name, udc);
 	if (retval < 0) {
 		DBG("request irq %d failed\n", udc->udp_irq);
 		goto fail1;
@@ -1848,7 +1838,7 @@ static int __init at91udc_probe(struct platform_device *pdev)
 				  jiffies + VBUS_POLL_TIMEOUT);
 		} else {
 			if (request_irq(udc->board.vbus_pin, at91_vbus_irq,
-					IRQF_DISABLED, driver_name, udc)) {
+					0, driver_name, udc)) {
 				DBG("request vbus irq %d failed\n",
 				    udc->board.vbus_pin);
 				retval = -EBUSY;

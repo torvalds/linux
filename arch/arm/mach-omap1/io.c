@@ -121,6 +121,7 @@ void __init omap1_map_common_io(void)
 #endif
 
 	omap_sram_init();
+	omap_init_consistent_dma_size();
 }
 
 /*

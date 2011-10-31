@@ -2932,11 +2932,11 @@ sub process {
 				}
 			}
 			if ($level == 0 && $block =~ /^\s*\{/ && !$allowed) {
-				my $herectx = $here . "\n";;
+				my $herectx = $here . "\n";
 				my $cnt = statement_rawlines($block);
 
 				for (my $n = 0; $n < $cnt; $n++) {
-					$herectx .= raw_line($linenr, $n) . "\n";;
+					$herectx .= raw_line($linenr, $n) . "\n";
 				}
 
 				WARN("BRACES",

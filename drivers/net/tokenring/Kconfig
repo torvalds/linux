@@ -4,9 +4,9 @@
 
 # So far, we only have PCI, ISA, and MCA token ring devices
 menuconfig TR
-	tristate "Token Ring driver support"
+	bool "Token Ring driver support"
 	depends on NETDEVICES && !UML
-	depends on (PCI || ISA || MCA || CCW)
+	depends on (PCI || ISA || MCA || CCW || PCMCIA)
 	select LLC
 	help
 	  Token Ring is IBM's way of communication on a local network; the
@@ -19,6 +19,17 @@ menuconfig TR
 	  say N here.
 
 if TR
+
+config PCMCIA_IBMTR
+	tristate "IBM PCMCIA tokenring adapter support"
+	depends on IBMTR!=y && PCMCIA
+	---help---
+	  Say Y here if you intend to attach this type of Token Ring PCMCIA
+	  card to your computer. You then also need to say Y to "Token Ring
+	  driver support".
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ibmtr_cs.
 
 config IBMTR
 	tristate "IBM Tropic chipset based adapter support"

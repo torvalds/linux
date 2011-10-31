@@ -42,7 +42,26 @@ static bool tomoyo_same_number_group(const struct tomoyo_acl_head *a,
 }
 
 /**
- * tomoyo_write_group - Write "struct tomoyo_path_group"/"struct tomoyo_number_group" list.
+ * tomoyo_same_address_group - Check for duplicated "struct tomoyo_address_group" entry.
+ *
+ * @a: Pointer to "struct tomoyo_acl_head".
+ * @b: Pointer to "struct tomoyo_acl_head".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
+static bool tomoyo_same_address_group(const struct tomoyo_acl_head *a,
+				      const struct tomoyo_acl_head *b)
+{
+	const struct tomoyo_address_group *p1 = container_of(a, typeof(*p1),
+							     head);
+	const struct tomoyo_address_group *p2 = container_of(b, typeof(*p2),
+							     head);
+
+	return tomoyo_same_ipaddr_union(&p1->address, &p2->address);
+}
+
+/**
+ * tomoyo_write_group - Write "struct tomoyo_path_group"/"struct tomoyo_number_group"/"struct tomoyo_address_group" list.
  *
  * @param: Pointer to "struct tomoyo_acl_param".
  * @type:  Type of this group.
@@ -77,6 +96,14 @@ int tomoyo_write_group(struct tomoyo_acl_param *param, const u8 type)
 		 * tomoyo_put_number_union() is not needed because
 		 * param->data[0] != '@'.
 		 */
+	} else {
+		struct tomoyo_address_group e = { };
+
+		if (param->data[0] == '@' ||
+		    !tomoyo_parse_ipaddr_union(param, &e.address))
+			goto out;
+		error = tomoyo_update_policy(&e.head, sizeof(e), param,
+					     tomoyo_same_address_group);
 	}
 out:
 	tomoyo_put_group(group);
@@ -131,6 +158,38 @@ bool tomoyo_number_matches_group(const unsigned long min,
 			continue;
 		if (min > member->number.values[1] ||
 		    max < member->number.values[0])
+			continue;
+		matched = true;
+		break;
+	}
+	return matched;
+}
+
+/**
+ * tomoyo_address_matches_group - Check whether the given address matches members of the given address group.
+ *
+ * @is_ipv6: True if @address is an IPv6 address.
+ * @address: An IPv4 or IPv6 address.
+ * @group:   Pointer to "struct tomoyo_address_group".
+ *
+ * Returns true if @address matches addresses in @group group, false otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
+bool tomoyo_address_matches_group(const bool is_ipv6, const __be32 *address,
+				  const struct tomoyo_group *group)
+{
+	struct tomoyo_address_group *member;
+	bool matched = false;
+	const u8 size = is_ipv6 ? 16 : 4;
+
+	list_for_each_entry_rcu(member, &group->member_list, head.list) {
+		if (member->head.is_deleted)
+			continue;
+		if (member->address.is_ipv6 != is_ipv6)
+			continue;
+		if (memcmp(&member->address.ip[0], address, size) > 0 ||
+		    memcmp(address, &member->address.ip[1], size) > 0)
 			continue;
 		matched = true;
 		break;

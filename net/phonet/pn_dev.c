@@ -276,7 +276,7 @@ static void phonet_route_autodel(struct net_device *dev)
 	mutex_lock(&pnn->routes.lock);
 	for (i = 0; i < 64; i++)
 		if (dev == pnn->routes.table[i]) {
-			rcu_assign_pointer(pnn->routes.table[i], NULL);
+			RCU_INIT_POINTER(pnn->routes.table[i], NULL);
 			set_bit(i, deleted);
 		}
 	mutex_unlock(&pnn->routes.lock);
@@ -390,7 +390,7 @@ int phonet_route_add(struct net_device *dev, u8 daddr)
 	daddr = daddr >> 2;
 	mutex_lock(&routes->lock);
 	if (routes->table[daddr] == NULL) {
-		rcu_assign_pointer(routes->table[daddr], dev);
+		RCU_INIT_POINTER(routes->table[daddr], dev);
 		dev_hold(dev);
 		err = 0;
 	}
@@ -406,7 +406,7 @@ int phonet_route_del(struct net_device *dev, u8 daddr)
 	daddr = daddr >> 2;
 	mutex_lock(&routes->lock);
 	if (dev == routes->table[daddr])
-		rcu_assign_pointer(routes->table[daddr], NULL);
+		RCU_INIT_POINTER(routes->table[daddr], NULL);
 	else
 		dev = NULL;
 	mutex_unlock(&routes->lock);

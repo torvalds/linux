@@ -107,10 +107,6 @@ static int palm27x_ac97_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "PHONE");
 	snd_soc_dapm_nc_pin(dapm, "MIC2");
 
-	err = snd_soc_dapm_sync(dapm);
-	if (err)
-		return err;
-
 	/* Jack detection API stuff */
 	err = snd_soc_jack_new(codec, "Headphone Jack",
 				SND_JACK_HEADPHONE, &hs_jack);

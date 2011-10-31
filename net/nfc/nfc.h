@@ -24,7 +24,7 @@
 #ifndef __LOCAL_NFC_H
 #define __LOCAL_NFC_H
 
-#include <net/nfc.h>
+#include <net/nfc/nfc.h>
 #include <net/sock.h>
 
 __attribute__((format (printf, 2, 3)))
@@ -100,6 +100,10 @@ static inline void nfc_device_iter_exit(struct class_dev_iter *iter)
 {
 	class_dev_iter_exit(iter);
 }
+
+int nfc_dev_up(struct nfc_dev *dev);
+
+int nfc_dev_down(struct nfc_dev *dev);
 
 int nfc_start_poll(struct nfc_dev *dev, u32 protocols);
 

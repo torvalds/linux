@@ -12,7 +12,6 @@
 #include "conf_space_quirks.h"
 
 LIST_HEAD(xen_pcibk_quirks);
-#define	DRV_NAME	"xen-pciback"
 static inline const struct pci_device_id *
 match_one_device(const struct pci_device_id *id, const struct pci_dev *dev)
 {
@@ -36,7 +35,7 @@ static struct xen_pcibk_config_quirk *xen_pcibk_find_quirk(struct pci_dev *dev)
 			goto out;
 	tmp_quirk = NULL;
 	printk(KERN_DEBUG DRV_NAME
-	       ":quirk didn't match any device xen_pciback knows about\n");
+	       ": quirk didn't match any device known\n");
 out:
 	return tmp_quirk;
 }

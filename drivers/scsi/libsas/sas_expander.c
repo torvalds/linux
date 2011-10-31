@@ -199,6 +199,8 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 	phy->virtual = dr->virtual;
 	phy->last_da_index = -1;
 
+	phy->phy->identify.sas_address = SAS_ADDR(phy->attached_sas_addr);
+	phy->phy->identify.device_type = phy->attached_dev_type;
 	phy->phy->identify.initiator_port_protocols = phy->attached_iproto;
 	phy->phy->identify.target_port_protocols = phy->attached_tproto;
 	phy->phy->identify.phy_identifier = phy_id;
@@ -329,6 +331,7 @@ static void ex_assign_report_general(struct domain_device *dev,
 	dev->ex_dev.ex_change_count = be16_to_cpu(rg->change_count);
 	dev->ex_dev.max_route_indexes = be16_to_cpu(rg->route_indexes);
 	dev->ex_dev.num_phys = min(rg->num_phys, (u8)MAX_EXPANDER_PHYS);
+	dev->ex_dev.t2t_supp = rg->t2t_supp;
 	dev->ex_dev.conf_route_table = rg->conf_route_table;
 	dev->ex_dev.configuring = rg->configuring;
 	memcpy(dev->ex_dev.enclosure_logical_id, rg->enclosure_logical_id, 8);
@@ -751,7 +754,10 @@ static struct domain_device *sas_ex_discover_end_dev(
  out_list_del:
 	sas_rphy_free(child->rphy);
 	child->rphy = NULL;
+
+	spin_lock_irq(&parent->port->dev_list_lock);
 	list_del(&child->dev_list_node);
+	spin_unlock_irq(&parent->port->dev_list_lock);
  out_free:
 	sas_port_delete(phy->port);
  out_err:
@@ -1133,15 +1139,17 @@ static void sas_print_parent_topology_bug(struct domain_device *child,
 	};
 	struct domain_device *parent = child->parent;
 
-	sas_printk("%s ex %016llx phy 0x%x <--> %s ex %016llx phy 0x%x "
-		   "has %c:%c routing link!\n",
+	sas_printk("%s ex %016llx (T2T supp:%d) phy 0x%x <--> %s ex %016llx "
+		   "(T2T supp:%d) phy 0x%x has %c:%c routing link!\n",
 
 		   ex_type[parent->dev_type],
 		   SAS_ADDR(parent->sas_addr),
+		   parent->ex_dev.t2t_supp,
 		   parent_phy->phy_id,
 
 		   ex_type[child->dev_type],
 		   SAS_ADDR(child->sas_addr),
+		   child->ex_dev.t2t_supp,
 		   child_phy->phy_id,
 
 		   ra_char[parent_phy->routing_attr],
@@ -1238,10 +1246,15 @@ static int sas_check_parent_topology(struct domain_device *child)
 					sas_print_parent_topology_bug(child, parent_phy, child_phy);
 					res = -ENODEV;
 				}
-			} else if (parent_phy->routing_attr == TABLE_ROUTING &&
-				   child_phy->routing_attr != SUBTRACTIVE_ROUTING) {
-				sas_print_parent_topology_bug(child, parent_phy, child_phy);
-				res = -ENODEV;
+			} else if (parent_phy->routing_attr == TABLE_ROUTING) {
+				if (child_phy->routing_attr == SUBTRACTIVE_ROUTING ||
+				    (child_phy->routing_attr == TABLE_ROUTING &&
+				     child_ex->t2t_supp && parent_ex->t2t_supp)) {
+					/* All good */;
+				} else {
+					sas_print_parent_topology_bug(child, parent_phy, child_phy);
+					res = -ENODEV;
+				}
 			}
 			break;
 		case FANOUT_DEV:
@@ -1729,7 +1742,7 @@ out:
 	return res;
 }
 
-static void sas_unregister_ex_tree(struct domain_device *dev)
+static void sas_unregister_ex_tree(struct asd_sas_port *port, struct domain_device *dev)
 {
 	struct expander_device *ex = &dev->ex_dev;
 	struct domain_device *child, *n;
@@ -1738,11 +1751,11 @@ static void sas_unregister_ex_tree(struct domain_device *dev)
 		child->gone = 1;
 		if (child->dev_type == EDGE_DEV ||
 		    child->dev_type == FANOUT_DEV)
-			sas_unregister_ex_tree(child);
+			sas_unregister_ex_tree(port, child);
 		else
-			sas_unregister_dev(child);
+			sas_unregister_dev(port, child);
 	}
-	sas_unregister_dev(dev);
+	sas_unregister_dev(port, dev);
 }
 
 static void sas_unregister_devs_sas_addr(struct domain_device *parent,
@@ -1759,9 +1772,9 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 				child->gone = 1;
 				if (child->dev_type == EDGE_DEV ||
 				    child->dev_type == FANOUT_DEV)
-					sas_unregister_ex_tree(child);
+					sas_unregister_ex_tree(parent->port, child);
 				else
-					sas_unregister_dev(child);
+					sas_unregister_dev(parent->port, child);
 				break;
 			}
 		}

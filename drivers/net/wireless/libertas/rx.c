@@ -15,6 +15,7 @@
 #include "radiotap.h"
 #include "decl.h"
 #include "dev.h"
+#include "mesh.h"
 
 struct eth803hdr {
 	u8 dest_addr[6];

@@ -189,6 +189,8 @@ void acpi_os_fixed_event_count(u32 fixed_event_number);
 /*
  * Threads and Scheduling
  */
+extern struct workqueue_struct *kacpi_hotplug_wq;
+
 acpi_thread_id acpi_os_get_thread_id(void);
 
 acpi_status

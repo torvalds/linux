@@ -666,9 +666,6 @@ easycap_sound_setup(struct easycap *peasycap)
 	peasycap->audio_eof = 0;
 	peasycap->audio_idle = 0;
 
-	peasycap->timeval1.tv_sec  = 0;
-	peasycap->timeval1.tv_usec = 0;
-
 	submit_audio_urbs(peasycap);
 
 	JOM(4, "finished initialization\n");
