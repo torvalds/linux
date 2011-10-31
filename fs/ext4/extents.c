@@ -3472,12 +3472,9 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		 * that this IO needs to conversion to written when IO is
 		 * completed
 		 */
-		if (io) {
-			if (!(io->flag & EXT4_IO_END_UNWRITTEN)) {
-				io->flag = EXT4_IO_END_UNWRITTEN;
-				atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
-			}
-		} else
+		if (io)
+			ext4_set_io_unwritten_flag(inode, io);
+		else
 			ext4_set_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN);
 		if (ext4_should_dioread_nolock(inode))
 			map->m_flags |= EXT4_MAP_UNINIT;
@@ -4030,12 +4027,9 @@ got_allocated_blocks:
 		 * that we need to perform conversion when IO is done.
 		 */
 		if ((flags & EXT4_GET_BLOCKS_PRE_IO)) {
-			if (io) {
-				if (!(io->flag & EXT4_IO_END_UNWRITTEN)) {
-					io->flag = EXT4_IO_END_UNWRITTEN;
-					atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
-				}
-			} else
+			if (io)
+				ext4_set_io_unwritten_flag(inode, io);
+			else
 				ext4_set_inode_state(inode,
 						     EXT4_STATE_DIO_UNWRITTEN);
 		}
