@@ -27,6 +27,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
 
+#include <plat/gpio-nomadik.h>
 #include <plat/mtu.h>
 
 #include <mach/setup.h>

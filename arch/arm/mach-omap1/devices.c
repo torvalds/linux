@@ -10,6 +10,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -24,7 +25,6 @@
 #include <plat/tc.h>
 #include <plat/board.h>
 #include <plat/mux.h>
-#include <mach/gpio.h>
 #include <plat/mmc.h>
 #include <plat/omap7xx.h>
 #include <plat/mcbsp.h>

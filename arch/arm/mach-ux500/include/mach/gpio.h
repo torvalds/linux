@@ -7,6 +7,4 @@
  */
 #define ARCH_NR_GPIOS	350
 
-#include <plat/gpio.h>
-
 #endif /* __ASM_ARCH_GPIO_H */

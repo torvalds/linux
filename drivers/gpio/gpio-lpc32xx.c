@@ -24,7 +24,7 @@
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include "common.h"
+#include <mach/gpio-lpc32xx.h>
 
 #define LPC32XX_GPIO_P3_INP_STATE		_GPREG(0x000)
 #define LPC32XX_GPIO_P3_OUTP_SET		_GPREG(0x004)
