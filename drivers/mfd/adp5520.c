@@ -109,7 +109,7 @@ int adp5520_set_bits(struct device *dev, int reg, uint8_t bit_mask)
 
 	ret = __adp5520_read(chip->client, reg, &reg_val);
 
-	if (!ret && ((reg_val & bit_mask) == 0)) {
+	if (!ret && ((reg_val & bit_mask) != bit_mask)) {
 		reg_val |= bit_mask;
 		ret = __adp5520_write(chip->client, reg, reg_val);
 	}
