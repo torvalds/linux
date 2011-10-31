@@ -1718,6 +1718,8 @@ static void r8a66597_fifo_flush(struct usb_ep *_ep)
 	if (list_empty(&ep->queue) && !ep->busy) {
 		pipe_stop(ep->r8a66597, ep->pipenum);
 		r8a66597_bclr(ep->r8a66597, BCLR, ep->fifoctr);
+		r8a66597_write(ep->r8a66597, ACLRM, ep->pipectr);
+		r8a66597_write(ep->r8a66597, 0, ep->pipectr);
 	}
 	spin_unlock_irqrestore(&ep->r8a66597->lock, flags);
 }
