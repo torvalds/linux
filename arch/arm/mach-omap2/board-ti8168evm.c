@@ -48,7 +48,7 @@ static void __init ti8168_evm_map_io(void)
 
 MACHINE_START(TI8168EVM, "ti8168evm")
 	/* Maintainer: Texas Instruments */
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.map_io		= ti8168_evm_map_io,
 	.init_early	= ti8168_init_early,
 	.init_irq	= ti816x_init_irq,

@@ -93,7 +93,7 @@ static void __init trout_map_io(void)
 }
 
 MACHINE_START(TROUT, "HTC Dream")
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.fixup		= trout_fixup,
 	.map_io		= trout_map_io,
 	.init_irq	= trout_init_irq,
