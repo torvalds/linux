@@ -220,7 +220,7 @@ static int usbhsh_device_has_endpoint(struct usbhsh_device *udev)
 	return !list_empty(&udev->ep_list_head);
 }
 
-static struct usbhsh_device *usbhsh_device_alloc(struct usbhsh_hpriv *hpriv,
+static struct usbhsh_device *usbhsh_device_attach(struct usbhsh_hpriv *hpriv,
 						 struct urb *urb)
 {
 	struct usbhsh_device *udev = NULL;
@@ -307,7 +307,7 @@ static struct usbhsh_device *usbhsh_device_alloc(struct usbhsh_hpriv *hpriv,
 	return udev;
 }
 
-static void usbhsh_device_free(struct usbhsh_hpriv *hpriv,
+static void usbhsh_device_detach(struct usbhsh_hpriv *hpriv,
 			       struct usbhsh_device *udev)
 {
 	struct usb_hcd *hcd = usbhsh_hpriv_to_hcd(hpriv);
@@ -744,7 +744,7 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	struct device *dev = usbhs_priv_to_dev(priv);
 	struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
 	struct usb_host_endpoint *ep = urb->ep;
-	struct usbhsh_device *udev, *new_udev = NULL;
+	struct usbhsh_device *new_udev = NULL;
 	int is_dir_in = usb_pipein(urb->pipe);
 
 	int ret;
@@ -756,15 +756,12 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 		goto usbhsh_urb_enqueue_error_not_linked;
 
 	/*
-	 * get udev
+	 * attach udev if needed
 	 */
-	udev = usbhsh_usbv_to_udev(usbv);
-	if (!udev) {
-		new_udev = usbhsh_device_alloc(hpriv, urb);
+	if (!usbhsh_usbv_to_udev(usbv)) {
+		new_udev = usbhsh_device_attach(hpriv, urb);
 		if (!new_udev)
 			goto usbhsh_urb_enqueue_error_not_linked;
-
-		udev = new_udev;
 	}
 
 	/*
@@ -788,7 +785,7 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 
 usbhsh_urb_enqueue_error_free_device:
 	if (new_udev)
-		usbhsh_device_free(hpriv, new_udev);
+		usbhsh_device_detach(hpriv, new_udev);
 usbhsh_urb_enqueue_error_not_linked:
 
 	dev_dbg(dev, "%s error\n", __func__);
@@ -831,7 +828,7 @@ static void usbhsh_endpoint_disable(struct usb_hcd *hcd,
 	 * free device
 	 */
 	if (!usbhsh_device_has_endpoint(udev))
-		usbhsh_device_free(hpriv, udev);
+		usbhsh_device_detach(hpriv, udev);
 }
 
 static int usbhsh_hub_status_data(struct usb_hcd *hcd, char *buf)
