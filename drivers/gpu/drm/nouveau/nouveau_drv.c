@@ -388,6 +388,21 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	return 0;
 }
 
+static const struct file_operations nouveau_driver_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_open,
+	.release = drm_release,
+	.unlocked_ioctl = drm_ioctl,
+	.mmap = nouveau_ttm_mmap,
+	.poll = drm_poll,
+	.fasync = drm_fasync,
+	.read = drm_read,
+#if defined(CONFIG_COMPAT)
+	.compat_ioctl = nouveau_compat_ioctl,
+#endif
+	.llseek = noop_llseek,
+};
+
 static struct drm_driver driver = {
 	.driver_features =
 		DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG |
@@ -413,21 +428,7 @@ static struct drm_driver driver = {
 	.disable_vblank = nouveau_vblank_disable,
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.ioctls = nouveau_ioctls,
-	.fops = {
-		.owner = THIS_MODULE,
-		.open = drm_open,
-		.release = drm_release,
-		.unlocked_ioctl = drm_ioctl,
-		.mmap = nouveau_ttm_mmap,
-		.poll = drm_poll,
-		.fasync = drm_fasync,
-		.read = drm_read,
-#if defined(CONFIG_COMPAT)
-		.compat_ioctl = nouveau_compat_ioctl,
-#endif
-		.llseek = noop_llseek,
-	},
-
+	.fops = &nouveau_driver_fops,
 	.gem_init_object = nouveau_gem_object_new,
 	.gem_free_object = nouveau_gem_object_del,
 	.gem_open_object = nouveau_gem_object_open,

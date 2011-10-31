@@ -918,7 +918,7 @@ struct drm_driver {
 	int dev_priv_size;
 	struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
-	struct file_operations fops;
+	const struct file_operations *fops;
 	union {
 		struct pci_driver *pci;
 		struct platform_device *platform_device;

@@ -205,6 +205,21 @@ static struct pci_device_id pciidlist[] = {
 MODULE_DEVICE_TABLE(pci, pciidlist);
 #endif
 
+static const struct file_operations radeon_driver_old_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_open,
+	.release = drm_release,
+	.unlocked_ioctl = drm_ioctl,
+	.mmap = drm_mmap,
+	.poll = drm_poll,
+	.fasync = drm_fasync,
+	.read = drm_read,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = radeon_compat_ioctl,
+#endif
+	.llseek = noop_llseek,
+};
+
 static struct drm_driver driver_old = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |
@@ -231,21 +246,7 @@ static struct drm_driver driver_old = {
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.ioctls = radeon_ioctls,
 	.dma_ioctl = radeon_cp_buffers,
-	.fops = {
-		 .owner = THIS_MODULE,
-		 .open = drm_open,
-		 .release = drm_release,
-		 .unlocked_ioctl = drm_ioctl,
-		 .mmap = drm_mmap,
-		 .poll = drm_poll,
-		 .fasync = drm_fasync,
-		 .read = drm_read,
-#ifdef CONFIG_COMPAT
-		 .compat_ioctl = radeon_compat_ioctl,
-#endif
-		 .llseek = noop_llseek,
-	},
-
+	.fops = &radeon_driver_old_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
@@ -303,6 +304,20 @@ radeon_pci_resume(struct pci_dev *pdev)
 	return radeon_resume_kms(dev);
 }
 
+static const struct file_operations radeon_driver_kms_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_open,
+	.release = drm_release,
+	.unlocked_ioctl = drm_ioctl,
+	.mmap = radeon_mmap,
+	.poll = drm_poll,
+	.fasync = drm_fasync,
+	.read = drm_read,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = radeon_kms_compat_ioctl,
+#endif
+};
+
 static struct drm_driver kms_driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |
@@ -338,20 +353,7 @@ static struct drm_driver kms_driver = {
 	.dumb_create = radeon_mode_dumb_create,
 	.dumb_map_offset = radeon_mode_dumb_mmap,
 	.dumb_destroy = radeon_mode_dumb_destroy,
-	.fops = {
-		 .owner = THIS_MODULE,
-		 .open = drm_open,
-		 .release = drm_release,
-		 .unlocked_ioctl = drm_ioctl,
-		 .mmap = radeon_mmap,
-		 .poll = drm_poll,
-		 .fasync = drm_fasync,
-		 .read = drm_read,
-#ifdef CONFIG_COMPAT
-		 .compat_ioctl = radeon_kms_compat_ioctl,
-#endif
-	},
-
+	.fops = &radeon_driver_kms_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
