@@ -553,6 +553,7 @@ static void radeon_dp_set_panel_mode(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	int panel_mode = DP_PANEL_MODE_EXTERNAL_DP_MODE;
 
 	if (!ASIC_IS_DCE4(rdev))
@@ -560,10 +561,20 @@ static void radeon_dp_set_panel_mode(struct drm_encoder *encoder,
 
 	if (radeon_connector_encoder_is_dp_bridge(connector))
 		panel_mode = DP_PANEL_MODE_INTERNAL_DP1_MODE;
+	else if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		u8 tmp = radeon_read_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_CAP);
+		if (tmp & 1)
+			panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
+	}
 
 	atombios_dig_encoder_setup(encoder,
 				   ATOM_ENCODER_CMD_SETUP_PANEL_MODE,
 				   panel_mode);
+
+	if ((connector->connector_type == DRM_MODE_CONNECTOR_eDP) &&
+	    (panel_mode == DP_PANEL_MODE_INTERNAL_DP2_MODE)) {
+		radeon_write_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_SET, 1);
+	}
 }
 
 void radeon_dp_set_link_config(struct drm_connector *connector,
