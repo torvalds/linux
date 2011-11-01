@@ -336,9 +336,6 @@ struct mm_struct {
 	unsigned int token_priority;
 	unsigned int last_interval;
 
-	/* How many tasks sharing this mm are OOM_DISABLE */
-	atomic_t oom_disable_count;
-
 	unsigned long flags; /* Must use atomic bitops to access the bits */
 
 	struct core_state *core_state; /* coredumping support */
