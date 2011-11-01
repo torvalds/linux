@@ -155,7 +155,7 @@ static int bq27x00_battery_read_rsoc(struct bq27x00_device_info *di)
 		rsoc = bq27x00_read(di, BQ27000_REG_RSOC, true);
 
 	if (rsoc < 0)
-		dev_err(di->dev, "error reading relative State-of-Charge\n");
+		dev_dbg(di->dev, "error reading relative State-of-Charge\n");
 
 	return rsoc;
 }
@@ -170,7 +170,8 @@ static int bq27x00_battery_read_charge(struct bq27x00_device_info *di, u8 reg)
 
 	charge = bq27x00_read(di, reg, false);
 	if (charge < 0) {
-		dev_err(di->dev, "error reading nominal available capacity\n");
+		dev_dbg(di->dev, "error reading charge register %02x: %d\n",
+			reg, charge);
 		return charge;
 	}
 
@@ -214,7 +215,7 @@ static int bq27x00_battery_read_ilmd(struct bq27x00_device_info *di)
 		ilmd = bq27x00_read(di, BQ27000_REG_ILMD, true);
 
 	if (ilmd < 0) {
-		dev_err(di->dev, "error reading initial last measured discharge\n");
+		dev_dbg(di->dev, "error reading initial last measured discharge\n");
 		return ilmd;
 	}
 
@@ -236,7 +237,7 @@ static int bq27x00_battery_read_energy(struct bq27x00_device_info *di)
 
 	ae = bq27x00_read(di, BQ27x00_REG_AE, false);
 	if (ae < 0) {
-		dev_err(di->dev, "error reading available energy\n");
+		dev_dbg(di->dev, "error reading available energy\n");
 		return ae;
 	}
 
@@ -295,7 +296,8 @@ static int bq27x00_battery_read_time(struct bq27x00_device_info *di, u8 reg)
 
 	tval = bq27x00_read(di, reg, false);
 	if (tval < 0) {
-		dev_err(di->dev, "error reading register %02x: %d\n", reg, tval);
+		dev_dbg(di->dev, "error reading time register %02x: %d\n",
+			reg, tval);
 		return tval;
 	}
 
@@ -313,6 +315,7 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 	cache.flags = bq27x00_read(di, BQ27x00_REG_FLAGS, is_bq27500);
 	if (cache.flags >= 0) {
 		if (!is_bq27500 && (cache.flags & BQ27000_FLAG_CI)) {
+			dev_info(di->dev, "battery is not calibrated! ignoring capacity values\n");
 			cache.capacity = -ENODATA;
 			cache.energy = -ENODATA;
 			cache.time_to_empty = -ENODATA;
@@ -369,8 +372,10 @@ static int bq27x00_battery_current(struct bq27x00_device_info *di,
 	int flags;
 
 	curr = bq27x00_read(di, BQ27x00_REG_AI, false);
-	if (curr < 0)
+	if (curr < 0) {
+		dev_err(di->dev, "error reading current\n");
 		return curr;
+	}
 
 	if (di->chip == BQ27500) {
 		/* bq27500 returns signed value */
@@ -460,8 +465,10 @@ static int bq27x00_battery_voltage(struct bq27x00_device_info *di,
 	int volt;
 
 	volt = bq27x00_read(di, BQ27x00_REG_VOLT, false);
-	if (volt < 0)
+	if (volt < 0) {
+		dev_err(di->dev, "error reading voltage\n");
 		return volt;
+	}
 
 	val->intval = volt * 1000;
 
