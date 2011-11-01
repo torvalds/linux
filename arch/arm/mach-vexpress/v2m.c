@@ -443,7 +443,7 @@ static void __init v2m_init(void)
 }
 
 MACHINE_START(VEXPRESS, "ARM-Versatile Express")
-	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= v2m_map_io,
 	.init_early	= v2m_init_early,
 	.init_irq	= v2m_init_irq,

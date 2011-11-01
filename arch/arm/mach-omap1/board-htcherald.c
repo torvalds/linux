@@ -604,7 +604,7 @@ static void __init htcherald_init(void)
 MACHINE_START(HERALD, "HTC Herald")
 	/* Maintainer: Cory Maccarrone <darkstar6262@gmail.com> */
 	/* Maintainer: wing-linux.sourceforge.net */
-	.boot_params    = 0x10000100,
+	.atag_offset    = 0x100,
 	.map_io         = htcherald_map_io,
 	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,

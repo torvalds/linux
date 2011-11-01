@@ -16,7 +16,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -324,6 +323,7 @@ static void __init omap_common_init_early(void)
 {
 	omap2_check_revision();
 	omap_ioremap_init();
+	omap_init_consistent_dma_size();
 }
 
 static void __init omap_hwmod_init_postsetup(void)

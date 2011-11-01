@@ -264,7 +264,7 @@ static void __init omap_palmte_init(void)
 }
 
 MACHINE_START(OMAP_PALMTE, "OMAP310 based Palm Tungsten E")
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= omap15xx_map_io,
 	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,

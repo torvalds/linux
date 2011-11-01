@@ -328,7 +328,7 @@ omap_palmz71_init(void)
 }
 
 MACHINE_START(OMAP_PALMZ71, "OMAP310 based Palm Zire71")
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= omap15xx_map_io,
 	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,

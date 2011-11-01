@@ -133,6 +133,7 @@ void omap1_init_early(void)
 	 */
 	omap1_clk_init();
 	omap1_mux_init();
+	omap_init_consistent_dma_size();
 }
 
 /*

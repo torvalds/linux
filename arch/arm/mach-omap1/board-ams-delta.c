@@ -375,7 +375,7 @@ arch_initcall(ams_delta_modem_init);
 
 MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	/* Maintainer: Jonathan McDowell <noodles@earth.li> */
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= omap15xx_map_io,
 	.init_early	= omap1_init_early,
 	.reserve	= omap_reserve,
