@@ -1682,7 +1682,7 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 	/* try to insert block into found extent and return */
 	if (ex && !(flag & EXT4_GET_BLOCKS_PRE_IO)
 		&& ext4_can_extents_be_merged(inode, ex, newext)) {
-		ext_debug("append [%d]%d block to %d:[%d]%d (from %llu)\n",
+		ext_debug("append [%d]%d block to %u:[%d]%d (from %llu)\n",
 			  ext4_ext_is_uninitialized(newext),
 			  ext4_ext_get_actual_len(newext),
 			  le32_to_cpu(ex->ee_block),
@@ -1720,7 +1720,7 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 	if (le32_to_cpu(newext->ee_block) > le32_to_cpu(fex->ee_block))
 		next = ext4_ext_next_leaf_block(path);
 	if (next != EXT_MAX_BLOCKS) {
-		ext_debug("next leaf block - %d\n", next);
+		ext_debug("next leaf block - %u\n", next);
 		BUG_ON(npath != NULL);
 		npath = ext4_ext_find_extent(inode, next, NULL);
 		if (IS_ERR(npath))
@@ -1758,7 +1758,7 @@ has_space:
 
 	if (!nearex) {
 		/* there is no extent in this leaf, create first one */
-		ext_debug("first extent in the leaf: %d:%llu:[%d]%d\n",
+		ext_debug("first extent in the leaf: %u:%llu:[%d]%d\n",
 				le32_to_cpu(newext->ee_block),
 				ext4_ext_pblock(newext),
 				ext4_ext_is_uninitialized(newext),
@@ -1768,8 +1768,8 @@ has_space:
 		if (le32_to_cpu(newext->ee_block)
 			   > le32_to_cpu(nearex->ee_block)) {
 			/* Insert after */
-			ext_debug("insert %d:%llu:[%d]%d %s before: "
-					"nearest 0x%p\n"
+			ext_debug("insert %u:%llu:[%d]%d before: "
+					"nearest %p\n",
 					le32_to_cpu(newext->ee_block),
 					ext4_ext_pblock(newext),
 					ext4_ext_is_uninitialized(newext),
@@ -1779,8 +1779,8 @@ has_space:
 		} else {
 			/* Insert before */
 			BUG_ON(newext->ee_block == nearex->ee_block);
-			ext_debug("insert %d:%llu:[%d]%d %s after: "
-					"nearest 0x%p\n"
+			ext_debug("insert %u:%llu:[%d]%d after: "
+					"nearest %p\n",
 					le32_to_cpu(newext->ee_block),
 					ext4_ext_pblock(newext),
 					ext4_ext_is_uninitialized(newext),
@@ -1789,7 +1789,7 @@ has_space:
 		}
 		len = EXT_LAST_EXTENT(eh) - nearex + 1;
 		if (len > 0) {
-			ext_debug("insert %d:%llu:[%d]%d: "
+			ext_debug("insert %u:%llu:[%d]%d: "
 					"move %d extents from 0x%p to 0x%p\n",
 					le32_to_cpu(newext->ee_block),
 					ext4_ext_pblock(newext),
