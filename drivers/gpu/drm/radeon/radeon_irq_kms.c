@@ -118,6 +118,12 @@ static bool radeon_msi_ok(struct radeon_device *rdev)
 	if (rdev->flags & RADEON_IS_AGP)
 		return false;
 
+	/* force MSI on */
+	if (radeon_msi == 1)
+		return true;
+	else if (radeon_msi == 0)
+		return false;
+
 	/* Quirks */
 	/* HP RS690 only seems to work with MSIs. */
 	if ((rdev->pdev->device == 0x791f) &&
