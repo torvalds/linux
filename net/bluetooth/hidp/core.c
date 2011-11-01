@@ -94,7 +94,6 @@ static struct hidp_session *__hidp_get_session(bdaddr_t *bdaddr)
 
 static void __hidp_link_session(struct hidp_session *session)
 {
-	__module_get(THIS_MODULE);
 	list_add(&session->list, &hidp_session_list);
 }
 
@@ -103,7 +102,6 @@ static void __hidp_unlink_session(struct hidp_session *session)
 	hci_conn_put_device(session->conn);
 
 	list_del(&session->list);
-	module_put(THIS_MODULE);
 }
 
 static void __hidp_copy_session(struct hidp_session *session, struct hidp_conninfo *ci)
@@ -703,6 +701,7 @@ static int hidp_session(void *arg)
 
 	BT_DBG("session %p", session);
 
+	__module_get(THIS_MODULE);
 	set_user_nice(current, -15);
 
 	init_waitqueue_entry(&ctrl_wait, current);
@@ -781,6 +780,7 @@ static int hidp_session(void *arg)
 
 	kfree(session->rd_data);
 	kfree(session);
+	module_put_and_exit(0);
 	return 0;
 }
 
