@@ -44,9 +44,6 @@ static struct crypto_alg *crypto_alg_match(struct crypto_user_alg *p, int exact)
 
 	down_read(&crypto_alg_sem);
 
-	if (list_empty(&crypto_alg_list))
-		return NULL;
-
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
 		int match = 0;
 
