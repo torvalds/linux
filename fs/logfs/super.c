@@ -91,28 +91,6 @@ void logfs_crash_dump(struct super_block *sb)
 }
 
 /*
- * TODO: move to lib/string.c
- */
-/**
- * memchr_inv - Find a character in an area of memory.
- * @s: The memory area
- * @c: The byte to search for
- * @n: The size of the area.
- *
- * returns the address of the first character other than @c, or %NULL
- * if the whole buffer contains just @c.
- */
-void *memchr_inv(const void *s, int c, size_t n)
-{
-	const unsigned char *p = s;
-	while (n-- != 0)
-		if ((unsigned char)c != *p++)
-			return (void *)(p - 1);
-
-	return NULL;
-}
-
-/*
  * FIXME: There should be a reserve for root, similar to ext2.
  */
 int logfs_statfs(struct dentry *dentry, struct kstatfs *stats)
