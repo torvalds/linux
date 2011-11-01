@@ -125,6 +125,12 @@ static bool radeon_msi_ok(struct radeon_device *rdev)
 	    (rdev->pdev->subsystem_device == 0x30c2))
 		return true;
 
+	/* Dell RS690 only seems to work with MSIs. */
+	if ((rdev->pdev->device == 0x791f) &&
+	    (rdev->pdev->subsystem_vendor == 0x1028) &&
+	    (rdev->pdev->subsystem_device == 0x01fd))
+		return true;
+
 	if (rdev->flags & RADEON_IS_IGP) {
 		/* APUs work fine with MSIs */
 		if (rdev->family >= CHIP_PALM)
