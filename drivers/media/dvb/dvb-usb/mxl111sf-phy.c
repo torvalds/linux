@@ -296,8 +296,7 @@ int mxl111sf_config_spi(struct mxl111sf_state *state, int onoff)
 		goto fail;
 
 	ret = mxl111sf_write_reg(state, 0x00, 0x00);
-	if (mxl_fail(ret))
-		goto fail;
+	mxl_fail(ret);
 fail:
 	return ret;
 }
