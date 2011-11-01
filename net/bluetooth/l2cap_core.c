@@ -564,6 +564,7 @@ static void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, 
 		flags = ACL_START;
 
 	bt_cb(skb)->force_active = BT_POWER_FORCE_ACTIVE_ON;
+	skb->priority = HCI_PRIO_MAX;
 
 	hci_send_acl(conn->hcon, skb, flags);
 }
@@ -1265,7 +1266,8 @@ static void l2cap_do_send(struct l2cap_chan *chan, struct sk_buff *skb)
 	struct hci_conn *hcon = chan->conn->hcon;
 	u16 flags;
 
-	BT_DBG("chan %p, skb %p len %d", chan, skb, skb->len);
+	BT_DBG("chan %p, skb %p len %d priority %u", chan, skb, skb->len,
+							skb->priority);
 
 	if (!test_bit(FLAG_FLUSHABLE, &chan->flags) &&
 					lmp_no_flush_capable(hcon->hdev))
@@ -1483,6 +1485,8 @@ static inline int l2cap_skbuff_fromiovec(struct sock *sk, struct msghdr *msg, in
 		if (memcpy_fromiovec(skb_put(*frag, count), msg->msg_iov, count))
 			return -EFAULT;
 
+		(*frag)->priority = skb->priority;
+
 		sent += count;
 		len  -= count;
 
@@ -1492,7 +1496,9 @@ static inline int l2cap_skbuff_fromiovec(struct sock *sk, struct msghdr *msg, in
 	return sent;
 }
 
-static struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
+static struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan,
+						struct msghdr *msg, size_t len,
+						u32 priority)
 {
 	struct sock *sk = chan->sk;
 	struct l2cap_conn *conn = chan->conn;
@@ -1500,13 +1506,15 @@ static struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan, struct
 	int err, count, hlen = L2CAP_HDR_SIZE + L2CAP_PSMLEN_SIZE;
 	struct l2cap_hdr *lh;
 
-	BT_DBG("sk %p len %d", sk, (int)len);
+	BT_DBG("sk %p len %d priority %u", sk, (int)len, priority);
 
 	count = min_t(unsigned int, (conn->mtu - hlen), len);
 	skb = bt_skb_send_alloc(sk, count + hlen,
 			msg->msg_flags & MSG_DONTWAIT, &err);
 	if (!skb)
 		return ERR_PTR(err);
+
+	skb->priority = priority;
 
 	/* Create L2CAP header */
 	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
@@ -1522,7 +1530,9 @@ static struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan, struct
 	return skb;
 }
 
-static struct sk_buff *l2cap_create_basic_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
+static struct sk_buff *l2cap_create_basic_pdu(struct l2cap_chan *chan,
+						struct msghdr *msg, size_t len,
+						u32 priority)
 {
 	struct sock *sk = chan->sk;
 	struct l2cap_conn *conn = chan->conn;
@@ -1537,6 +1547,8 @@ static struct sk_buff *l2cap_create_basic_pdu(struct l2cap_chan *chan, struct ms
 			msg->msg_flags & MSG_DONTWAIT, &err);
 	if (!skb)
 		return ERR_PTR(err);
+
+	skb->priority = priority;
 
 	/* Create L2CAP header */
 	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
@@ -1651,7 +1663,8 @@ static int l2cap_sar_segment_sdu(struct l2cap_chan *chan, struct msghdr *msg, si
 	return size;
 }
 
-int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
+int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
+								u32 priority)
 {
 	struct sk_buff *skb;
 	u32 control;
@@ -1659,7 +1672,7 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 
 	/* Connectionless channel */
 	if (chan->chan_type == L2CAP_CHAN_CONN_LESS) {
-		skb = l2cap_create_connless_pdu(chan, msg, len);
+		skb = l2cap_create_connless_pdu(chan, msg, len, priority);
 		if (IS_ERR(skb))
 			return PTR_ERR(skb);
 
@@ -1674,7 +1687,7 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 			return -EMSGSIZE;
 
 		/* Create a basic PDU */
-		skb = l2cap_create_basic_pdu(chan, msg, len);
+		skb = l2cap_create_basic_pdu(chan, msg, len, priority);
 		if (IS_ERR(skb))
 			return PTR_ERR(skb);
 

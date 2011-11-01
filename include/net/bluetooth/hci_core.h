@@ -32,6 +32,9 @@
 #define HCI_PROTO_L2CAP	0
 #define HCI_PROTO_SCO	1
 
+/* HCI priority */
+#define HCI_PRIO_MAX	7
+
 /* HCI Core structures */
 struct inquiry_data {
 	bdaddr_t	bdaddr;

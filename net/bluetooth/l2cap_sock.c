@@ -721,7 +721,7 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 		return -ENOTCONN;
 	}
 
-	err = l2cap_chan_send(chan, msg, len);
+	err = l2cap_chan_send(chan, msg, len, sk->sk_priority);
 
 	release_sock(sk);
 	return err;
