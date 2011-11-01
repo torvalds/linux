@@ -883,7 +883,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		goto err_iomap;
 	}
 
-	ret = request_irq(i2c->irq, s3c24xx_i2c_irq, IRQF_DISABLED,
+	ret = request_irq(i2c->irq, s3c24xx_i2c_irq, 0,
 			  dev_name(&pdev->dev), i2c);
 
 	if (ret != 0) {

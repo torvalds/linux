@@ -935,7 +935,7 @@ static int __devinit nmk_i2c_probe(struct platform_device *pdev)
 	}
 
 	dev->irq = platform_get_irq(pdev, 0);
-	ret = request_irq(dev->irq, i2c_irq_handler, IRQF_DISABLED,
+	ret = request_irq(dev->irq, i2c_irq_handler, 0,
 				DRIVER_NAME, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot claim the irq %d\n", dev->irq);
