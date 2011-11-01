@@ -4,6 +4,7 @@
  */
 
 #include <crypto/aes.h>
+#include <asm/aes.h>
 
 asmlinkage void aes_enc_blk(struct crypto_aes_ctx *ctx, u8 *out, const u8 *in);
 asmlinkage void aes_dec_blk(struct crypto_aes_ctx *ctx, u8 *out, const u8 *in);

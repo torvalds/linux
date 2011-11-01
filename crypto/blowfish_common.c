@@ -1,6 +1,9 @@
 /*
  * Cryptographic API.
  *
+ * Common Blowfish algorithm parts shared between the c and assembler
+ * implementations.
+ *
  * Blowfish Cipher Algorithm, by Bruce Schneier.
  * http://www.counterpane.com/blowfish.html
  *
@@ -22,15 +25,7 @@
 #include <asm/byteorder.h>
 #include <linux/crypto.h>
 #include <linux/types.h>
-
-#define BF_BLOCK_SIZE 8
-#define BF_MIN_KEY_SIZE 4
-#define BF_MAX_KEY_SIZE 56
-
-struct bf_ctx {
-	u32 p[18];
-	u32 s[1024];
-};
+#include <crypto/blowfish.h>
 
 static const u32 bf_pbox[16 + 2] = {
 	0x243f6a88, 0x85a308d3, 0x13198a2e, 0x03707344,
@@ -309,9 +304,9 @@ static const u32 bf_sbox[256 * 4] = {
 #define GET32_0(x) (((x) >> (24)) & (0xff))
 
 #define bf_F(x) (((S[GET32_0(x)] + S[256 + GET32_1(x)]) ^ \
-          S[512 + GET32_2(x)]) + S[768 + GET32_3(x)])
+		S[512 + GET32_2(x)]) + S[768 + GET32_3(x)])
 
-#define ROUND(a, b, n)  b ^= P[n]; a ^= bf_F (b)
+#define ROUND(a, b, n) ({ b ^= P[n]; a ^= bf_F(b); })
 
 /*
  * The blowfish encipher, processes 64-bit blocks.
@@ -348,57 +343,10 @@ static void encrypt_block(struct bf_ctx *bctx, u32 *dst, u32 *src)
 	dst[1] = yl;
 }
 
-static void bf_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
-{
-	const __be32 *in_blk = (const __be32 *)src;
-	__be32 *const out_blk = (__be32 *)dst;
-	u32 in32[2], out32[2];
-
-	in32[0] = be32_to_cpu(in_blk[0]);
-	in32[1] = be32_to_cpu(in_blk[1]);
-	encrypt_block(crypto_tfm_ctx(tfm), out32, in32);
-	out_blk[0] = cpu_to_be32(out32[0]);
-	out_blk[1] = cpu_to_be32(out32[1]);
-}
-
-static void bf_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
-{
-	struct bf_ctx *ctx = crypto_tfm_ctx(tfm);
-	const __be32 *in_blk = (const __be32 *)src;
-	__be32 *const out_blk = (__be32 *)dst;
-	const u32 *P = ctx->p;
-	const u32 *S = ctx->s;
-	u32 yl = be32_to_cpu(in_blk[0]);
-	u32 yr = be32_to_cpu(in_blk[1]);
-
-	ROUND(yr, yl, 17);
-	ROUND(yl, yr, 16);
-	ROUND(yr, yl, 15);
-	ROUND(yl, yr, 14);
-	ROUND(yr, yl, 13);
-	ROUND(yl, yr, 12);
-	ROUND(yr, yl, 11);
-	ROUND(yl, yr, 10);
-	ROUND(yr, yl, 9);
-	ROUND(yl, yr, 8);
-	ROUND(yr, yl, 7);
-	ROUND(yl, yr, 6);
-	ROUND(yr, yl, 5);
-	ROUND(yl, yr, 4);
-	ROUND(yr, yl, 3);
-	ROUND(yl, yr, 2);
-
-	yl ^= P[1];
-	yr ^= P[0];
-
-	out_blk[0] = cpu_to_be32(yr);
-	out_blk[1] = cpu_to_be32(yl);
-}
-
 /*
  * Calculates the blowfish S and P boxes for encryption and decryption.
  */
-static int bf_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
+int blowfish_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 {
 	struct bf_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 *P = ctx->p;
@@ -448,35 +396,7 @@ static int bf_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 	/* Bruce says not to bother with the weak key check. */
 	return 0;
 }
-
-static struct crypto_alg alg = {
-	.cra_name		=	"blowfish",
-	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
-	.cra_blocksize		=	BF_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct bf_ctx),
-	.cra_alignmask		=	3,
-	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(alg.cra_list),
-	.cra_u			=	{ .cipher = {
-	.cia_min_keysize	=	BF_MIN_KEY_SIZE,
-	.cia_max_keysize	=	BF_MAX_KEY_SIZE,
-	.cia_setkey   		= 	bf_setkey,
-	.cia_encrypt 		=	bf_encrypt,
-	.cia_decrypt  		=	bf_decrypt } }
-};
-
-static int __init blowfish_mod_init(void)
-{
-	return crypto_register_alg(&alg);
-}
-
-static void __exit blowfish_mod_fini(void)
-{
-	crypto_unregister_alg(&alg);
-}
-
-module_init(blowfish_mod_init);
-module_exit(blowfish_mod_fini);
+EXPORT_SYMBOL_GPL(blowfish_setkey);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Blowfish Cipher Algorithm");
+MODULE_DESCRIPTION("Blowfish Cipher common functions");
