@@ -2,6 +2,10 @@
 config ALCHEMY_GPIOINT_AU1000
 	bool
 
+# au1300-style GPIO/INT controller
+config ALCHEMY_GPIOINT_AU1300
+	bool
+
 # select this in your board config if you don't want to use the gpio
 # namespace as documented in the manuals.  In this case however you need
 # to create the necessary gpio_* functions in your board code/headers!

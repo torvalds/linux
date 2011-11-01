@@ -299,11 +299,11 @@ config I2C_AT91
 	  unless your system can cope with those limitations.
 
 config I2C_AU1550
-	tristate "Au1550/Au1200 SMBus interface"
+	tristate "Au1550/Au1200/Au1300 SMBus interface"
 	depends on MIPS_ALCHEMY
 	help
 	  If you say yes to this option, support will be included for the
-	  Au1550 and Au1200 SMBus interface.
+	  Au1550/Au1200/Au1300 SMBus interface.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-au1550.

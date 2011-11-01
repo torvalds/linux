@@ -1763,16 +1763,16 @@ config FB_AU1100
 	  au1100fb:panel=<name>.
 
 config FB_AU1200
-	bool "Au1200 LCD Driver"
+	bool "Au1200/Au1300 LCD Driver"
 	depends on (FB = y) && MIPS_ALCHEMY
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
 	help
-	  This is the framebuffer driver for the AMD Au1200 SOC.  It can drive
-	  various panels and CRTs by passing in kernel cmd line option
-	  au1200fb:panel=<name>.
+	  This is the framebuffer driver for the Au1200/Au1300 SOCs.
+	  It can drive various panels and CRTs by passing in kernel cmd line
+	  option au1200fb:panel=<name>.
 
 config FB_VT8500
 	bool "VT8500 LCD Driver"
