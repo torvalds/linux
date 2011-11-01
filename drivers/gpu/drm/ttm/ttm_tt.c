@@ -63,43 +63,6 @@ static void ttm_tt_free_page_directory(struct ttm_tt *ttm)
 	ttm->dma_address = NULL;
 }
 
-static void ttm_tt_free_user_pages(struct ttm_tt *ttm)
-{
-	int write;
-	int dirty;
-	struct page *page;
-	int i;
-	struct ttm_backend *be = ttm->be;
-
-	BUG_ON(!(ttm->page_flags & TTM_PAGE_FLAG_USER));
-	write = ((ttm->page_flags & TTM_PAGE_FLAG_WRITE) != 0);
-	dirty = ((ttm->page_flags & TTM_PAGE_FLAG_USER_DIRTY) != 0);
-
-	if (be)
-		be->func->clear(be);
-
-	for (i = 0; i < ttm->num_pages; ++i) {
-		page = ttm->pages[i];
-		if (page == NULL)
-			continue;
-
-		if (page == ttm->dummy_read_page) {
-			BUG_ON(write);
-			continue;
-		}
-
-		if (write && dirty && !PageReserved(page))
-			set_page_dirty_lock(page);
-
-		ttm->pages[i] = NULL;
-		ttm_mem_global_free(ttm->glob->mem_glob, PAGE_SIZE);
-		put_page(page);
-	}
-	ttm->state = tt_unpopulated;
-	ttm->first_himem_page = ttm->num_pages;
-	ttm->last_lomem_page = -1;
-}
-
 static struct page *__ttm_tt_get_page(struct ttm_tt *ttm, int index)
 {
 	struct page *p;
@@ -326,10 +289,7 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 	}
 
 	if (likely(ttm->pages != NULL)) {
-		if (ttm->page_flags & TTM_PAGE_FLAG_USER)
-			ttm_tt_free_user_pages(ttm);
-		else
-			ttm_tt_free_alloced_pages(ttm);
+		ttm_tt_free_alloced_pages(ttm);
 
 		ttm_tt_free_page_directory(ttm);
 	}
@@ -339,45 +299,6 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 		fput(ttm->swap_storage);
 
 	kfree(ttm);
-}
-
-int ttm_tt_set_user(struct ttm_tt *ttm,
-		    struct task_struct *tsk,
-		    unsigned long start, unsigned long num_pages)
-{
-	struct mm_struct *mm = tsk->mm;
-	int ret;
-	int write = (ttm->page_flags & TTM_PAGE_FLAG_WRITE) != 0;
-	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
-
-	BUG_ON(num_pages != ttm->num_pages);
-	BUG_ON((ttm->page_flags & TTM_PAGE_FLAG_USER) == 0);
-
-	/**
-	 * Account user pages as lowmem pages for now.
-	 */
-
-	ret = ttm_mem_global_alloc(mem_glob, num_pages * PAGE_SIZE,
-				   false, false);
-	if (unlikely(ret != 0))
-		return ret;
-
-	down_read(&mm->mmap_sem);
-	ret = get_user_pages(tsk, mm, start, num_pages,
-			     write, 0, ttm->pages, NULL);
-	up_read(&mm->mmap_sem);
-
-	if (ret != num_pages && write) {
-		ttm_tt_free_user_pages(ttm);
-		ttm_mem_global_free(mem_glob, num_pages * PAGE_SIZE);
-		return -ENOMEM;
-	}
-
-	ttm->tsk = tsk;
-	ttm->start = start;
-	ttm->state = tt_unbound;
-
-	return 0;
 }
 
 struct ttm_tt *ttm_tt_create(struct ttm_bo_device *bdev, unsigned long size,
@@ -453,8 +374,6 @@ int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 
 	ttm->state = tt_bound;
 
-	if (ttm->page_flags & TTM_PAGE_FLAG_USER)
-		ttm->page_flags |= TTM_PAGE_FLAG_USER_DIRTY;
 	return 0;
 }
 EXPORT_SYMBOL(ttm_tt_bind);
@@ -469,16 +388,6 @@ static int ttm_tt_swapin(struct ttm_tt *ttm)
 	void *to_virtual;
 	int i;
 	int ret = -ENOMEM;
-
-	if (ttm->page_flags & TTM_PAGE_FLAG_USER) {
-		ret = ttm_tt_set_user(ttm, ttm->tsk, ttm->start,
-				      ttm->num_pages);
-		if (unlikely(ret != 0))
-			return ret;
-
-		ttm->page_flags &= ~TTM_PAGE_FLAG_SWAPPED;
-		return 0;
-	}
 
 	swap_storage = ttm->swap_storage;
 	BUG_ON(swap_storage == NULL);
@@ -529,18 +438,6 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 
 	BUG_ON(ttm->state != tt_unbound && ttm->state != tt_unpopulated);
 	BUG_ON(ttm->caching_state != tt_cached);
-
-	/*
-	 * For user buffers, just unpin the pages, as there should be
-	 * vma references.
-	 */
-
-	if (ttm->page_flags & TTM_PAGE_FLAG_USER) {
-		ttm_tt_free_user_pages(ttm);
-		ttm->page_flags |= TTM_PAGE_FLAG_SWAPPED;
-		ttm->swap_storage = NULL;
-		return 0;
-	}
 
 	if (!persistent_swap_storage) {
 		swap_storage = shmem_file_setup("ttm swap",

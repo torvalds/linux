@@ -342,22 +342,6 @@ static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 		if (unlikely(bo->ttm == NULL))
 			ret = -ENOMEM;
 		break;
-	case ttm_bo_type_user:
-		bo->ttm = ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-					page_flags | TTM_PAGE_FLAG_USER,
-					glob->dummy_read_page);
-		if (unlikely(bo->ttm == NULL)) {
-			ret = -ENOMEM;
-			break;
-		}
-
-		ret = ttm_tt_set_user(bo->ttm, current,
-				      bo->buffer_start, bo->num_pages);
-		if (unlikely(ret != 0)) {
-			ttm_tt_destroy(bo->ttm);
-			bo->ttm = NULL;
-		}
-		break;
 	default:
 		printk(KERN_ERR TTM_PFX "Illegal buffer object type\n");
 		ret = -EINVAL;
@@ -907,15 +891,11 @@ static uint32_t ttm_bo_select_caching(struct ttm_mem_type_manager *man,
 }
 
 static bool ttm_bo_mt_compatible(struct ttm_mem_type_manager *man,
-				 bool disallow_fixed,
 				 uint32_t mem_type,
 				 uint32_t proposed_placement,
 				 uint32_t *masked_placement)
 {
 	uint32_t cur_flags = ttm_bo_type_flags(mem_type);
-
-	if ((man->flags & TTM_MEMTYPE_FLAG_FIXED) && disallow_fixed)
-		return false;
 
 	if ((cur_flags & proposed_placement & TTM_PL_MASK_MEM) == 0)
 		return false;
@@ -961,7 +941,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		man = &bdev->man[mem_type];
 
 		type_ok = ttm_bo_mt_compatible(man,
-						bo->type == ttm_bo_type_user,
 						mem_type,
 						placement->placement[i],
 						&cur_flags);
@@ -1009,7 +988,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		if (!man->has_type)
 			continue;
 		if (!ttm_bo_mt_compatible(man,
-						bo->type == ttm_bo_type_user,
 						mem_type,
 						placement->busy_placement[i],
 						&cur_flags))

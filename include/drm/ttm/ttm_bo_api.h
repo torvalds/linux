@@ -122,17 +122,12 @@ struct ttm_mem_reg {
  * be mmapped by user space. Each of these bos occupy a slot in the
  * device address space, that can be used for normal vm operations.
  *
- * @ttm_bo_type_user: These are user-space memory areas that are made
- * available to the GPU by mapping the buffer pages into the GPU aperture
- * space. These buffers cannot be mmaped from the device address space.
- *
  * @ttm_bo_type_kernel: These buffers are like ttm_bo_type_device buffers,
  * but they cannot be accessed from user-space. For kernel-only use.
  */
 
 enum ttm_bo_type {
 	ttm_bo_type_device,
-	ttm_bo_type_user,
 	ttm_bo_type_kernel
 };
 

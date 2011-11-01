@@ -118,8 +118,6 @@ struct ttm_backend {
 	struct ttm_backend_func *func;
 };
 
-#define TTM_PAGE_FLAG_USER            (1 << 1)
-#define TTM_PAGE_FLAG_USER_DIRTY      (1 << 2)
 #define TTM_PAGE_FLAG_WRITE           (1 << 3)
 #define TTM_PAGE_FLAG_SWAPPED         (1 << 4)
 #define TTM_PAGE_FLAG_PERSISTENT_SWAP (1 << 5)
@@ -146,8 +144,6 @@ enum ttm_caching_state {
  * @num_pages: Number of pages in the page array.
  * @bdev: Pointer to the current struct ttm_bo_device.
  * @be: Pointer to the ttm backend.
- * @tsk: The task for user ttm.
- * @start: virtual address for user ttm.
  * @swap_storage: Pointer to shmem struct file for swap storage.
  * @caching_state: The current caching state of the pages.
  * @state: The current binding state of the pages.
@@ -167,8 +163,6 @@ struct ttm_tt {
 	unsigned long num_pages;
 	struct ttm_bo_global *glob;
 	struct ttm_backend *be;
-	struct task_struct *tsk;
-	unsigned long start;
 	struct file *swap_storage;
 	enum ttm_caching_state caching_state;
 	enum {
@@ -616,24 +610,6 @@ extern struct ttm_tt *ttm_tt_create(struct ttm_bo_device *bdev,
 				    unsigned long size,
 				    uint32_t page_flags,
 				    struct page *dummy_read_page);
-
-/**
- * ttm_tt_set_user:
- *
- * @ttm: The struct ttm_tt to populate.
- * @tsk: A struct task_struct for which @start is a valid user-space address.
- * @start: A valid user-space address.
- * @num_pages: Size in pages of the user memory area.
- *
- * Populate a struct ttm_tt with a user-space memory area after first pinning
- * the pages backing it.
- * Returns:
- * !0: Error.
- */
-
-extern int ttm_tt_set_user(struct ttm_tt *ttm,
-			   struct task_struct *tsk,
-			   unsigned long start, unsigned long num_pages);
 
 /**
  * ttm_ttm_bind:
