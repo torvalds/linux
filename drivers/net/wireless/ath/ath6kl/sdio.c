@@ -757,19 +757,14 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar)
 		return ret;
 	}
 
-	ath6kl_deep_sleep_enable(ar);
+	ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_DEEPSLEEP);
 
 	return 0;
 }
 
 static int ath6kl_sdio_resume(struct ath6kl *ar)
 {
-	if (ar->wmi->pwr_mode != ar->wmi->saved_pwr_mode) {
-		if (ath6kl_wmi_powermode_cmd(ar->wmi, 0,
-			ar->wmi->saved_pwr_mode) != 0)
-			ath6kl_warn("ath6kl_sdio_resume: "
-				"wmi_powermode_cmd failed\n");
-	}
+	ath6kl_cfg80211_resume(ar);
 
 	return 0;
 }

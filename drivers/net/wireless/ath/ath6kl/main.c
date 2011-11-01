@@ -578,18 +578,6 @@ void ath6kl_disconnect(struct ath6kl_vif *vif)
 	}
 }
 
-void ath6kl_deep_sleep_enable(struct ath6kl *ar)
-{
-	ath6kl_cfg80211_stop(ar);
-
-	/* save the current power mode before enabling power save */
-	ar->wmi->saved_pwr_mode = ar->wmi->pwr_mode;
-
-	if (ath6kl_wmi_powermode_cmd(ar->wmi, 0, REC_POWER) != 0)
-		ath6kl_warn("ath6kl_deep_sleep_enable: "
-			"wmi_powermode_cmd failed\n");
-}
-
 /* WMI Event handlers */
 
 static const char *get_hw_id_string(u32 id)

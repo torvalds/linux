@@ -1653,8 +1653,46 @@ static int ath6kl_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 	return 0;
 }
 
+int ath6kl_cfg80211_suspend(struct ath6kl *ar,
+			    enum ath6kl_cfg_suspend_mode mode)
+{
+	int ret;
+
+	ath6kl_cfg80211_stop(ar);
+
+	switch (mode) {
+	case ATH6KL_CFG_SUSPEND_DEEPSLEEP:
+		/* save the current power mode before enabling power save */
+		ar->wmi->saved_pwr_mode = ar->wmi->pwr_mode;
+
+		ret = ath6kl_wmi_powermode_cmd(ar->wmi, 0, REC_POWER);
+		if (ret) {
+			ath6kl_warn("wmi powermode command failed during suspend: %d\n",
+				    ret);
+		}
+
+		break;
+	}
+
+	return 0;
+}
+
+int ath6kl_cfg80211_resume(struct ath6kl *ar)
+{
+	if (ar->wmi->pwr_mode != ar->wmi->saved_pwr_mode) {
+		if (ath6kl_wmi_powermode_cmd(ar->wmi, 0,
+			ar->wmi->saved_pwr_mode) != 0)
+			ath6kl_warn("ath6kl_sdio_resume: "
+				"wmi_powermode_cmd failed\n");
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_PM
-static int ar6k_cfg80211_suspend(struct wiphy *wiphy,
+
+/* hif layer decides what suspend mode to use */
+static int __ath6kl_cfg80211_suspend(struct wiphy *wiphy,
 				 struct cfg80211_wowlan *wow)
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
@@ -1662,7 +1700,7 @@ static int ar6k_cfg80211_suspend(struct wiphy *wiphy,
 	return ath6kl_hif_suspend(ar);
 }
 
-static int ar6k_cfg80211_resume(struct wiphy *wiphy)
+static int __ath6kl_cfg80211_resume(struct wiphy *wiphy)
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
 
@@ -2099,8 +2137,8 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.flush_pmksa = ath6kl_flush_pmksa,
 	CFG80211_TESTMODE_CMD(ath6kl_tm_cmd)
 #ifdef CONFIG_PM
-	.suspend = ar6k_cfg80211_suspend,
-	.resume = ar6k_cfg80211_resume,
+	.suspend = __ath6kl_cfg80211_suspend,
+	.resume = __ath6kl_cfg80211_resume,
 #endif
 	.set_channel = ath6kl_set_channel,
 	.add_beacon = ath6kl_add_beacon,
