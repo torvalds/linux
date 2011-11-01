@@ -140,8 +140,8 @@ void crash_save_vmcoreinfo(void);
 void crash_map_reserved_pages(void);
 void crash_unmap_reserved_pages(void);
 void arch_crash_save_vmcoreinfo(void);
-void vmcoreinfo_append_str(const char *fmt, ...)
-	__attribute__ ((format (printf, 1, 2)));
+__printf(1, 2)
+void vmcoreinfo_append_str(const char *fmt, ...);
 unsigned long paddr_vmcoreinfo_note(void);
 
 #define VMCOREINFO_OSRELEASE(value) \

@@ -240,15 +240,19 @@ our $NonptrType;
 our $Type;
 our $Declare;
 
-our $UTF8	= qr {
-	[\x09\x0A\x0D\x20-\x7E]              # ASCII
-	| [\xC2-\xDF][\x80-\xBF]             # non-overlong 2-byte
+our $NON_ASCII_UTF8	= qr{
+	[\xC2-\xDF][\x80-\xBF]               # non-overlong 2-byte
 	|  \xE0[\xA0-\xBF][\x80-\xBF]        # excluding overlongs
 	| [\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}  # straight 3-byte
 	|  \xED[\x80-\x9F][\x80-\xBF]        # excluding surrogates
 	|  \xF0[\x90-\xBF][\x80-\xBF]{2}     # planes 1-3
 	| [\xF1-\xF3][\x80-\xBF]{3}          # planes 4-15
 	|  \xF4[\x80-\x8F][\x80-\xBF]{2}     # plane 16
+}x;
+
+our $UTF8	= qr{
+	[\x09\x0A\x0D\x20-\x7E]              # ASCII
+	| $NON_ASCII_UTF8
 }x;
 
 our $typeTypedefs = qr{(?x:
@@ -1330,6 +1334,9 @@ sub process {
 	my $signoff = 0;
 	my $is_patch = 0;
 
+	my $in_header_lines = 1;
+	my $in_commit_log = 0;		#Scanning lines before patch
+
 	our @report = ();
 	our $cnt_lines = 0;
 	our $cnt_error = 0;
@@ -1497,7 +1504,6 @@ sub process {
 		if ($line =~ /^diff --git.*?(\S+)$/) {
 			$realfile = $1;
 			$realfile =~ s@^([^/]*)/@@;
-
 		} elsif ($line =~ /^\+\+\+\s+(\S+)/) {
 			$realfile = $1;
 			$realfile =~ s@^([^/]*)/@@;
@@ -1536,6 +1542,7 @@ sub process {
 # Check the patch for a signoff:
 		if ($line =~ /^\s*signed-off-by:/i) {
 			$signoff++;
+			$in_commit_log = 0;
 		}
 
 # Check signature styles
@@ -1611,6 +1618,21 @@ sub process {
 
 			CHK("INVALID_UTF8",
 			    "Invalid UTF-8, patch and commit message should be encoded in UTF-8\n" . $hereptr);
+		}
+
+# Check if it's the start of a commit log
+# (not a header line and we haven't seen the patch filename)
+		if ($in_header_lines && $realfile =~ /^$/ &&
+		    $rawline !~ /^(commit\b|from\b|\w+:).+$/i) {
+			$in_header_lines = 0;
+			$in_commit_log = 1;
+		}
+
+# Still not yet in a patch, check for any UTF-8
+		if ($in_commit_log && $realfile =~ /^$/ &&
+		    $rawline =~ /$NON_ASCII_UTF8/) {
+			CHK("UTF8_BEFORE_PATCH",
+			    "8-bit UTF-8 used in possible commit log\n" . $herecurr);
 		}
 
 # ignore non-hunk lines and lines being removed
@@ -3151,10 +3173,10 @@ sub process {
 			     "consider using a completion\n" . $herecurr);
 
 		}
-# recommend kstrto* over simple_strto*
-		if ($line =~ /\bsimple_(strto.*?)\s*\(/) {
+# recommend kstrto* over simple_strto* and strict_strto*
+		if ($line =~ /\b((simple|strict)_(strto(l|ll|ul|ull)))\s*\(/) {
 			WARN("CONSIDER_KSTRTO",
-			     "consider using kstrto* in preference to simple_$1\n" . $herecurr);
+			     "$1 is obsolete, use k$3 instead\n" . $herecurr);
 		}
 # check for __initcall(), use device_initcall() explicitly please
 		if ($line =~ /^.\s*__initcall\s*\(/) {

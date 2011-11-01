@@ -136,7 +136,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 
 	down_write(&current->mm->mmap_sem);
 
-	locked     = npages + current->mm->locked_vm;
+	locked     = npages + current->mm->pinned_vm;
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 
 	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
@@ -206,7 +206,7 @@ out:
 		__ib_umem_release(context->device, umem, 0);
 		kfree(umem);
 	} else
-		current->mm->locked_vm = locked;
+		current->mm->pinned_vm = locked;
 
 	up_write(&current->mm->mmap_sem);
 	if (vma_list)
@@ -222,7 +222,7 @@ static void ib_umem_account(struct work_struct *work)
 	struct ib_umem *umem = container_of(work, struct ib_umem, work);
 
 	down_write(&umem->mm->mmap_sem);
-	umem->mm->locked_vm -= umem->diff;
+	umem->mm->pinned_vm -= umem->diff;
 	up_write(&umem->mm->mmap_sem);
 	mmput(umem->mm);
 	kfree(umem);

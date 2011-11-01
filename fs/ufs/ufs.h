@@ -117,9 +117,12 @@ extern int ufs_getfrag_block (struct inode *inode, sector_t fragment, struct buf
 extern const struct file_operations ufs_dir_operations;
 
 /* super.c */
-extern void ufs_warning (struct super_block *, const char *, const char *, ...) __attribute__ ((format (printf, 3, 4)));
-extern void ufs_error (struct super_block *, const char *, const char *, ...) __attribute__ ((format (printf, 3, 4)));
-extern void ufs_panic (struct super_block *, const char *, const char *, ...) __attribute__ ((format (printf, 3, 4)));
+extern __printf(3, 4)
+void ufs_warning(struct super_block *, const char *, const char *, ...);
+extern __printf(3, 4)
+void ufs_error(struct super_block *, const char *, const char *, ...);
+extern __printf(3, 4)
+void ufs_panic(struct super_block *, const char *, const char *, ...);
 
 /* symlink.c */
 extern const struct inode_operations ufs_fast_symlink_inode_operations;

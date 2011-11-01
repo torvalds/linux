@@ -532,6 +532,9 @@ static int __init ignore_loglevel_setup(char *str)
 }
 
 early_param("ignore_loglevel", ignore_loglevel_setup);
+module_param_named(ignore_loglevel, ignore_loglevel, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ignore_loglevel, "ignore loglevel setting, to"
+	"print all kernel messages to the console.");
 
 /*
  * Write out chars from start to end - 1 inclusive
@@ -591,9 +594,6 @@ static size_t log_prefix(const char *p, unsigned int *level, char *special)
 	} else {
 		/* multi digit including the level and facility number */
 		char *endp = NULL;
-
-		if (p[1] < '0' && p[1] > '9')
-			return 0;
 
 		lev = (simple_strtoul(&p[1], &endp, 10) & 7);
 		if (endp == NULL || endp[0] != '>')
@@ -1108,6 +1108,10 @@ static int __init console_suspend_disable(char *str)
 	return 1;
 }
 __setup("no_console_suspend", console_suspend_disable);
+module_param_named(console_suspend, console_suspend_enabled,
+		bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(console_suspend, "suspend console during suspend"
+	" and hibernate operations");
 
 /**
  * suspend_console - suspend the console subsystem

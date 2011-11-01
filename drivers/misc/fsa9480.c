@@ -400,7 +400,8 @@ static int fsa9480_irq_init(struct fsa9480_usbsw *usbsw)
 			return ret;
 		}
 
-		device_init_wakeup(&client->dev, pdata->wakeup);
+		if (pdata)
+			device_init_wakeup(&client->dev, pdata->wakeup);
 	}
 
 	return 0;

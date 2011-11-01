@@ -29,10 +29,10 @@ trace_seq_init(struct trace_seq *s)
  * Currently only defined when tracing is enabled.
  */
 #ifdef CONFIG_TRACING
-extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)
-	__attribute__ ((format (printf, 2, 0)));
+extern __printf(2, 3)
+int trace_seq_printf(struct trace_seq *s, const char *fmt, ...);
+extern __printf(2, 0)
+int trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args);
 extern int
 trace_seq_bprintf(struct trace_seq *s, const char *fmt, const u32 *binary);
 extern int trace_print_seq(struct seq_file *m, struct trace_seq *s);

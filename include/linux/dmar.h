@@ -26,6 +26,8 @@
 #include <linux/msi.h>
 #include <linux/irqreturn.h>
 
+struct acpi_dmar_header;
+
 /* DMAR Flags */
 #define DMAR_INTR_REMAP		0x1
 #define DMAR_X2APIC_OPT_OUT	0x2

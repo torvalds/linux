@@ -79,8 +79,7 @@ static int lis3_i2c_init(struct lis3lv02d *lis3)
 	u8 reg;
 	int ret;
 
-	if (lis3->reg_ctrl)
-		lis3_reg_ctrl(lis3, LIS3_REG_ON);
+	lis3_reg_ctrl(lis3, LIS3_REG_ON);
 
 	lis3->read(lis3, WHO_AM_I, &reg);
 	if (reg != lis3->whoami)
@@ -106,10 +105,6 @@ static int __devinit lis3lv02d_i2c_probe(struct i2c_client *client,
 	struct lis3lv02d_platform_data *pdata = client->dev.platform_data;
 
 	if (pdata) {
-		/* Regulator control is optional */
-		if (pdata->driver_features & LIS3_USE_REGULATOR_CTRL)
-			lis3_dev.reg_ctrl = lis3_reg_ctrl;
-
 		if ((pdata->driver_features & LIS3_USE_BLOCK_READ) &&
 			(i2c_check_functionality(client->adapter,
 						I2C_FUNC_SMBUS_I2C_BLOCK)))
@@ -131,15 +126,13 @@ static int __devinit lis3lv02d_i2c_probe(struct i2c_client *client,
 			goto fail;
 	}
 
-	if (lis3_dev.reg_ctrl) {
-		lis3_dev.regulators[0].supply = reg_vdd;
-		lis3_dev.regulators[1].supply = reg_vdd_io;
-		ret = regulator_bulk_get(&client->dev,
-					ARRAY_SIZE(lis3_dev.regulators),
-					lis3_dev.regulators);
-		if (ret < 0)
-			goto fail;
-	}
+	lis3_dev.regulators[0].supply = reg_vdd;
+	lis3_dev.regulators[1].supply = reg_vdd_io;
+	ret = regulator_bulk_get(&client->dev,
+				 ARRAY_SIZE(lis3_dev.regulators),
+				 lis3_dev.regulators);
+	if (ret < 0)
+		goto fail;
 
 	lis3_dev.pdata	  = pdata;
 	lis3_dev.bus_priv = client;
@@ -153,16 +146,19 @@ static int __devinit lis3lv02d_i2c_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, &lis3_dev);
 
 	/* Provide power over the init call */
-	if (lis3_dev.reg_ctrl)
-		lis3_reg_ctrl(&lis3_dev, LIS3_REG_ON);
+	lis3_reg_ctrl(&lis3_dev, LIS3_REG_ON);
 
 	ret = lis3lv02d_init_device(&lis3_dev);
 
-	if (lis3_dev.reg_ctrl)
-		lis3_reg_ctrl(&lis3_dev, LIS3_REG_OFF);
+	lis3_reg_ctrl(&lis3_dev, LIS3_REG_OFF);
 
-	if (ret == 0)
-		return 0;
+	if (ret)
+		goto fail2;
+	return 0;
+
+fail2:
+	regulator_bulk_free(ARRAY_SIZE(lis3_dev.regulators),
+				lis3_dev.regulators);
 fail:
 	if (pdata && pdata->release_resources)
 		pdata->release_resources();
@@ -177,12 +173,11 @@ static int __devexit lis3lv02d_i2c_remove(struct i2c_client *client)
 	if (pdata && pdata->release_resources)
 		pdata->release_resources();
 
-	lis3lv02d_joystick_disable();
+	lis3lv02d_joystick_disable(lis3);
 	lis3lv02d_remove_fs(&lis3_dev);
 
-	if (lis3_dev.reg_ctrl)
-		regulator_bulk_free(ARRAY_SIZE(lis3->regulators),
-				lis3_dev.regulators);
+	regulator_bulk_free(ARRAY_SIZE(lis3->regulators),
+			    lis3_dev.regulators);
 	return 0;
 }
 
