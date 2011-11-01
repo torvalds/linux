@@ -206,6 +206,18 @@ static int lis3lv02d_get_odr(void)
 	return lis3_dev.odrs[(ctrl >> shift)];
 }
 
+static int lis3lv02d_get_pwron_wait(struct lis3lv02d *lis3)
+{
+	int div = lis3lv02d_get_odr();
+
+	if (WARN_ONCE(div == 0, "device returned spurious data"))
+		return -ENXIO;
+
+	/* LIS3 power on delay is quite long */
+	msleep(lis3->pwron_delay / div);
+	return 0;
+}
+
 static int lis3lv02d_set_odr(int rate)
 {
 	u8 ctrl;
@@ -266,7 +278,9 @@ static int lis3lv02d_selftest(struct lis3lv02d *lis3, s16 results[3])
 
 	lis3->read(lis3, ctlreg, &reg);
 	lis3->write(lis3, ctlreg, (reg | selftest));
-	msleep(lis3->pwron_delay / lis3lv02d_get_odr());
+	ret = lis3lv02d_get_pwron_wait(lis3);
+	if (ret)
+		goto fail;
 
 	/* Read directly to avoid axis remap */
 	x = lis3->read_data(lis3, OUTX);
@@ -275,7 +289,9 @@ static int lis3lv02d_selftest(struct lis3lv02d *lis3, s16 results[3])
 
 	/* back to normal settings */
 	lis3->write(lis3, ctlreg, reg);
-	msleep(lis3->pwron_delay / lis3lv02d_get_odr());
+	ret = lis3lv02d_get_pwron_wait(lis3);
+	if (ret)
+		goto fail;
 
 	results[0] = x - lis3->read_data(lis3, OUTX);
 	results[1] = y - lis3->read_data(lis3, OUTY);
@@ -363,8 +379,9 @@ void lis3lv02d_poweroff(struct lis3lv02d *lis3)
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_poweroff);
 
-void lis3lv02d_poweron(struct lis3lv02d *lis3)
+int lis3lv02d_poweron(struct lis3lv02d *lis3)
 {
+	int err;
 	u8 reg;
 
 	lis3->init(lis3);
@@ -384,11 +401,14 @@ void lis3lv02d_poweron(struct lis3lv02d *lis3)
 		lis3->write(lis3, CTRL_REG2, reg);
 	}
 
-	/* LIS3 power on delay is quite long */
-	msleep(lis3->pwron_delay / lis3lv02d_get_odr());
+	err = lis3lv02d_get_pwron_wait(lis3);
+	if (err)
+		return err;
 
 	if (lis3->reg_ctrl)
 		lis3_context_restore(lis3);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_poweron);
 
@@ -928,7 +948,11 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 	atomic_set(&dev->wake_thread, 0);
 
 	lis3lv02d_add_fs(dev);
-	lis3lv02d_poweron(dev);
+	err = lis3lv02d_poweron(dev);
+	if (err) {
+		lis3lv02d_remove_fs(dev);
+		return err;
+	}
 
 	if (dev->pm_dev) {
 		pm_runtime_set_active(dev->pm_dev);
