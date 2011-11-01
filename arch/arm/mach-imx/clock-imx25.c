@@ -263,6 +263,7 @@ DEFINE_CLOCK(audmux_clk, 0, CCM_CGCR1, 0, NULL, NULL, NULL);
 DEFINE_CLOCK(csi_clk,    0, CCM_CGCR1,  4, get_rate_csi, NULL,  &csi_per_clk);
 DEFINE_CLOCK(can1_clk,	 0, CCM_CGCR1,  2, get_rate_ipg, NULL, NULL);
 DEFINE_CLOCK(can2_clk,	 1, CCM_CGCR1,  3, get_rate_ipg, NULL, NULL);
+DEFINE_CLOCK(iim_clk,    0, CCM_CGCR1, 26, NULL, NULL, NULL);
 
 #define _REGISTER_CLOCK(d, n, c)	\
 	{				\
@@ -310,6 +311,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("flexcan.1", NULL, can2_clk)
 	/* i.mx25 has the i.mx35 type sdma */
 	_REGISTER_CLOCK("imx35-sdma", NULL, sdma_clk)
+	_REGISTER_CLOCK(NULL, "iim", iim_clk)
 };
 
 int __init mx25_clocks_init(void)
@@ -333,6 +335,10 @@ int __init mx25_clocks_init(void)
 
 	/* Clock source for gpt is ahb_div */
 	__raw_writel(__raw_readl(CRM_BASE+0x64) & ~(1 << 5), CRM_BASE + 0x64);
+
+	clk_enable(&iim_clk);
+	imx_print_silicon_rev("i.MX25", mx25_revision());
+	clk_disable(&iim_clk);
 
 	mxc_timer_init(&gpt_clk, MX25_IO_ADDRESS(MX25_GPT1_BASE_ADDR), 54);
 
