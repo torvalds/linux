@@ -2366,15 +2366,14 @@ static int sysclk_event(struct snd_soc_dapm_widget *w,
 
 			snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
 					    WM8962_FLL_ENA, WM8962_FLL_ENA);
-			if (wm8962->irq) {
-				timeout = msecs_to_jiffies(5);
-				timeout = wait_for_completion_timeout(&wm8962->fll_lock,
-								      timeout);
 
-				if (timeout == 0)
-					dev_err(codec->dev,
-						"Timed out starting FLL\n");
-			}
+			timeout = msecs_to_jiffies(5);
+			timeout = wait_for_completion_timeout(&wm8962->fll_lock,
+							      timeout);
+
+			if (wm8962->irq && timeout == 0)
+				dev_err(codec->dev,
+					"Timed out starting FLL\n");
 		}
 		break;
 
