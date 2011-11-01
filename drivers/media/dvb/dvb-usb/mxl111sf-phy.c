@@ -332,7 +332,7 @@ int mxl111sf_idac_config(struct mxl111sf_state *state,
 
 	ret = mxl111sf_write_reg(state, V6_IDAC_SETTINGS_REG, val);
 
-	return val;
+	return ret;
 }
 
 /*
