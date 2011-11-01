@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/page-debug-flags.h>
 #include <linux/poison.h>
@@ -64,11 +65,8 @@ static void check_poison_mem(unsigned char *mem, size_t bytes)
 	unsigned char *start;
 	unsigned char *end;
 
-	for (start = mem; start < mem + bytes; start++) {
-		if (*start != PAGE_POISON)
-			break;
-	}
-	if (start == mem + bytes)
+	start = memchr_inv(mem, PAGE_POISON, bytes);
+	if (!start)
 		return;
 
 	for (end = mem + bytes - 1; end > start; end--) {
