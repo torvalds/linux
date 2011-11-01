@@ -2339,8 +2339,35 @@ int mgmt_remote_name(u16 index, bdaddr_t *bdaddr, u8 *name)
 	return mgmt_event(MGMT_EV_REMOTE_NAME, index, &ev, sizeof(ev), NULL);
 }
 
+int mgmt_inquiry_failed(u16 index, u8 status)
+{
+	struct pending_cmd *cmd;
+	int err;
+
+	cmd = mgmt_pending_find(MGMT_OP_START_DISCOVERY, index);
+	if (!cmd)
+		return -ENOENT;
+
+	err = cmd_status(cmd->sk, index, cmd->opcode, status);
+	mgmt_pending_remove(cmd);
+
+	return err;
+}
+
 int mgmt_discovering(u16 index, u8 discovering)
 {
+	struct pending_cmd *cmd;
+
+	if (discovering)
+		cmd = mgmt_pending_find(MGMT_OP_START_DISCOVERY, index);
+	else
+		cmd = mgmt_pending_find(MGMT_OP_STOP_DISCOVERY, index);
+
+	if (cmd != NULL) {
+		cmd_complete(cmd->sk, index, cmd->opcode, NULL, 0);
+		mgmt_pending_remove(cmd);
+	}
+
 	return mgmt_event(MGMT_EV_DISCOVERING, index, &discovering,
 						sizeof(discovering), NULL);
 }
