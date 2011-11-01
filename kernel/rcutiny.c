@@ -65,10 +65,14 @@ static void rcu_idle_enter_common(long long oldval)
 	}
 	RCU_TRACE(trace_rcu_dyntick("Start", oldval, rcu_dynticks_nesting));
 	if (!idle_cpu(smp_processor_id())) {
-		WARN_ON_ONCE(1);	/* must be idle task! */
+		struct task_struct *idle = idle_task(smp_processor_id());
+
 		RCU_TRACE(trace_rcu_dyntick("Error on entry: not idle task",
 					    oldval, rcu_dynticks_nesting));
 		ftrace_dump(DUMP_ALL);
+		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
+			  current->pid, current->comm,
+			  idle->pid, idle->comm); /* must be idle task! */
 	}
 	rcu_sched_qs(0); /* implies rcu_bh_qsctr_inc(0) */
 }
@@ -115,10 +119,14 @@ static void rcu_idle_exit_common(long long oldval)
 	}
 	RCU_TRACE(trace_rcu_dyntick("End", oldval, rcu_dynticks_nesting));
 	if (!idle_cpu(smp_processor_id())) {
-		WARN_ON_ONCE(1);	/* must be idle task! */
+		struct task_struct *idle = idle_task(smp_processor_id());
+
 		RCU_TRACE(trace_rcu_dyntick("Error on exit: not idle task",
 			  oldval, rcu_dynticks_nesting));
 		ftrace_dump(DUMP_ALL);
+		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
+			  current->pid, current->comm,
+			  idle->pid, idle->comm); /* must be idle task! */
 	}
 }
 
