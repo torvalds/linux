@@ -40,4 +40,6 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl_vif *vif, u8 reason,
 void ath6kl_cfg80211_tkip_micerr_event(struct ath6kl_vif *vif, u8 keyid,
 				     bool ismcast);
 
+void ath6kl_cfg80211_stop(struct ath6kl *ar);
+
 #endif /* ATH6KL_CFG80211_H */
