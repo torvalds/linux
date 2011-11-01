@@ -4452,11 +4452,9 @@ F:	Documentation/networking/vxge.txt
 F:	drivers/net/ethernet/neterion/
 
 NETFILTER/IPTABLES/IPCHAINS
-P:	Rusty Russell
-P:	Marc Boucher
-P:	James Morris
 P:	Harald Welte
 P:	Jozsef Kadlecsik
+M:	Pablo Neira Ayuso <pablo@netfilter.org>
 M:	Patrick McHardy <kaber@trash.net>
 L:	netfilter-devel@vger.kernel.org
 L:	netfilter@vger.kernel.org
