@@ -2735,7 +2735,8 @@ int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)
 	return ret;
 }
 
-int btree_lock_page_hook(struct page *page)
+static int btree_lock_page_hook(struct page *page, void *data,
+				void (*flush_fn)(void *))
 {
 	struct inode *inode = page->mapping->host;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -2752,7 +2753,10 @@ int btree_lock_page_hook(struct page *page)
 	if (!eb)
 		goto out;
 
-	btrfs_tree_lock(eb);
+	if (!btrfs_try_tree_write_lock(eb)) {
+		flush_fn(data);
+		btrfs_tree_lock(eb);
+	}
 	btrfs_set_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN);
 
 	if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
@@ -2767,7 +2771,10 @@ int btree_lock_page_hook(struct page *page)
 	btrfs_tree_unlock(eb);
 	free_extent_buffer(eb);
 out:
-	lock_page(page);
+	if (!trylock_page(page)) {
+		flush_fn(data);
+		lock_page(page);
+	}
 	return 0;
 }
 

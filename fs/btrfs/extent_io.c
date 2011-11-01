@@ -2613,10 +2613,16 @@ retry:
 			 * swizzled back from swapper_space to tmpfs file
 			 * mapping
 			 */
-			if (tree->ops && tree->ops->write_cache_pages_lock_hook)
-				tree->ops->write_cache_pages_lock_hook(page);
-			else
-				lock_page(page);
+			if (tree->ops &&
+			    tree->ops->write_cache_pages_lock_hook) {
+				tree->ops->write_cache_pages_lock_hook(page,
+							       data, flush_fn);
+			} else {
+				if (!trylock_page(page)) {
+					flush_fn(data);
+					lock_page(page);
+				}
+			}
 
 			if (unlikely(page->mapping != mapping)) {
 				unlock_page(page);

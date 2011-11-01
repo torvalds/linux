@@ -86,7 +86,8 @@ struct extent_io_ops {
 				  struct extent_state *other);
 	void (*split_extent_hook)(struct inode *inode,
 				  struct extent_state *orig, u64 split);
-	int (*write_cache_pages_lock_hook)(struct page *page);
+	int (*write_cache_pages_lock_hook)(struct page *page, void *data,
+					   void (*flush_fn)(void *));
 };
 
 struct extent_io_tree {
