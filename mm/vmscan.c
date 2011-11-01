@@ -3520,8 +3520,8 @@ static ssize_t write_scan_unevictable_node(struct sys_device *dev,
 	unsigned long res;
 	unsigned long req = strict_strtoul(buf, 10, &res);
 
-	if (!req)
-		return 1;	/* zero is no-op */
+	if (req || !res)
+		return 1; /* Invalid input or zero is no-op */
 
 	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
 		if (!populated_zone(zone))
