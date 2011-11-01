@@ -4344,6 +4344,34 @@ int btrfs_pin_extent(struct btrfs_root *root,
 	return 0;
 }
 
+/*
+ * this function must be called within transaction
+ */
+int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,
+				    struct btrfs_root *root,
+				    u64 bytenr, u64 num_bytes)
+{
+	struct btrfs_block_group_cache *cache;
+
+	cache = btrfs_lookup_block_group(root->fs_info, bytenr);
+	BUG_ON(!cache);
+
+	/*
+	 * pull in the free space cache (if any) so that our pin
+	 * removes the free space from the cache.  We have load_only set
+	 * to one because the slow code to read in the free extents does check
+	 * the pinned extents.
+	 */
+	cache_block_group(cache, trans, root, 1);
+
+	pin_down_extent(root, cache, bytenr, num_bytes, 0);
+
+	/* remove us from the free space cache (if we're there at all) */
+	btrfs_remove_free_space(cache, bytenr, num_bytes);
+	btrfs_put_block_group(cache);
+	return 0;
+}
+
 /**
  * btrfs_update_reserved_bytes - update the block_group and space info counters
  * @cache:	The cache we are manipulating
@@ -5487,7 +5515,8 @@ again:
 	return ret;
 }
 
-int btrfs_free_reserved_extent(struct btrfs_root *root, u64 start, u64 len)
+static int __btrfs_free_reserved_extent(struct btrfs_root *root,
+					u64 start, u64 len, int pin)
 {
 	struct btrfs_block_group_cache *cache;
 	int ret = 0;
@@ -5502,13 +5531,29 @@ int btrfs_free_reserved_extent(struct btrfs_root *root, u64 start, u64 len)
 	if (btrfs_test_opt(root, DISCARD))
 		ret = btrfs_discard_extent(root, start, len, NULL);
 
-	btrfs_add_free_space(cache, start, len);
-	btrfs_update_reserved_bytes(cache, len, RESERVE_FREE);
+	if (pin)
+		pin_down_extent(root, cache, start, len, 1);
+	else {
+		btrfs_add_free_space(cache, start, len);
+		btrfs_update_reserved_bytes(cache, len, RESERVE_FREE);
+	}
 	btrfs_put_block_group(cache);
 
 	trace_btrfs_reserved_extent_free(root, start, len);
 
 	return ret;
+}
+
+int btrfs_free_reserved_extent(struct btrfs_root *root,
+					u64 start, u64 len)
+{
+	return __btrfs_free_reserved_extent(root, start, len, 0);
+}
+
+int btrfs_free_and_pin_reserved_extent(struct btrfs_root *root,
+				       u64 start, u64 len)
+{
+	return __btrfs_free_reserved_extent(root, start, len, 1);
 }
 
 static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
