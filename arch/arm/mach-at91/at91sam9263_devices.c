@@ -1205,8 +1205,8 @@ void __init at91_add_device_ssc(unsigned id, unsigned pins) {}
 
 static struct resource dbgu_resources[] = {
 	[0] = {
-		.start	= AT91_BASE_SYS + AT91_DBGU,
-		.end	= AT91_BASE_SYS + AT91_DBGU + SZ_512 - 1,
+		.start	= AT91SAM9263_BASE_DBGU,
+		.end	= AT91SAM9263_BASE_DBGU + SZ_512 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {

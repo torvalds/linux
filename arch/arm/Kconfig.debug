@@ -100,6 +100,14 @@ choice
 		  Note that the system will appear to hang during boot if there
 		  is nothing connected to read from the DCC.
 
+	config AT91_DEBUG_LL_DBGU0
+		bool "Kernel low-level debugging on rm9200, 9260/9g20, 9261/9g10 and 9rl"
+		depends on HAVE_AT91_DBGU0
+
+	config AT91_DEBUG_LL_DBGU1
+		bool "Kernel low-level debugging on 9263, 9g45 and cap9"
+		depends on HAVE_AT91_DBGU1
+
 	config DEBUG_FOOTBRIDGE_COM1
 		bool "Kernel low-level debugging messages via footbridge 8250 at PCI COM1"
 		depends on FOOTBRIDGE

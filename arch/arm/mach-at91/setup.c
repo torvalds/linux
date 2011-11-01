@@ -93,9 +93,6 @@ void at91_iounmap(volatile void __iomem *addr)
 }
 EXPORT_SYMBOL(at91_iounmap);
 
-#define AT91_DBGU0	0xfffff200
-#define AT91_DBGU1	0xffffee00
-
 static void __init soc_detect(u32 dbgu_base)
 {
 	u32 cidr, socid;
@@ -268,9 +265,9 @@ void __init at91_map_io(void)
 	at91_soc_initdata.type = AT91_SOC_NONE;
 	at91_soc_initdata.subtype = AT91_SOC_SUBTYPE_NONE;
 
-	soc_detect(AT91_DBGU0);
+	soc_detect(AT91_BASE_DBGU0);
 	if (!at91_soc_is_detected())
-		soc_detect(AT91_DBGU1);
+		soc_detect(AT91_BASE_DBGU1);
 
 	if (!at91_soc_is_detected())
 		panic("AT91: Impossible to detect the SOC type");
