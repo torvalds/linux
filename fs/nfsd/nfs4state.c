@@ -2301,7 +2301,7 @@ nfsd4_free_slabs(void)
 	nfsd4_free_slab(&deleg_slab);
 }
 
-static int
+int
 nfsd4_init_slabs(void)
 {
 	openowner_slab = kmem_cache_create("nfsd4_openowners",
@@ -4546,14 +4546,11 @@ void nfsd_recall_delegations(u64 num)
 
 /* initialization to perform at module load time: */
 
-int
+void
 nfs4_state_init(void)
 {
-	int i, status;
+	int i;
 
-	status = nfsd4_init_slabs();
-	if (status)
-		return status;
 	for (i = 0; i < CLIENT_HASH_SIZE; i++) {
 		INIT_LIST_HEAD(&conf_id_hashtbl[i]);
 		INIT_LIST_HEAD(&conf_str_hashtbl[i]);
@@ -4577,7 +4574,6 @@ nfs4_state_init(void)
 	INIT_LIST_HEAD(&client_lru);
 	INIT_LIST_HEAD(&del_recall_lru);
 	reclaim_str_hashtbl_size = 0;
-	return 0;
 }
 
 static void
