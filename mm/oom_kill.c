@@ -439,7 +439,7 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
 	task_unlock(p);
 
 	/*
-	 * Kill all processes sharing p->mm in other thread groups, if any.
+	 * Kill all user processes sharing p->mm in other thread groups, if any.
 	 * They don't get access to memory reserves or a higher scheduler
 	 * priority, though, to avoid depletion of all memory or task
 	 * starvation.  This prevents mm->mmap_sem livelock when an oom killed
@@ -449,7 +449,8 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
 	 * signal.
 	 */
 	for_each_process(q)
-		if (q->mm == mm && !same_thread_group(q, p)) {
+		if (q->mm == mm && !same_thread_group(q, p) &&
+		    !(q->flags & PF_KTHREAD)) {
 			task_lock(q);	/* Protect ->comm from prctl() */
 			pr_err("Kill process %d (%s) sharing same memory\n",
 				task_pid_nr(q), q->comm);
