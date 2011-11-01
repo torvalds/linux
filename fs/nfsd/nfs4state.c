@@ -4429,6 +4429,121 @@ nfs4_check_open_reclaim(clientid_t *clid)
 	return nfs4_find_reclaim_client(clid) ? nfs_ok : nfserr_reclaim_bad;
 }
 
+#ifdef CONFIG_NFSD_FAULT_INJECTION
+
+void nfsd_forget_clients(u64 num)
+{
+	struct nfs4_client *clp, *next;
+	int count = 0;
+
+	nfs4_lock_state();
+	list_for_each_entry_safe(clp, next, &client_lru, cl_lru) {
+		nfsd4_remove_clid_dir(clp);
+		expire_client(clp);
+		if (++count == num)
+			break;
+	}
+	nfs4_unlock_state();
+
+	printk(KERN_INFO "NFSD: Forgot %d clients", count);
+}
+
+static void release_lockowner_sop(struct nfs4_stateowner *sop)
+{
+	release_lockowner(lockowner(sop));
+}
+
+static void release_openowner_sop(struct nfs4_stateowner *sop)
+{
+	release_openowner(openowner(sop));
+}
+
+static int nfsd_release_n_owners(u64 num,
+				struct list_head hashtbl[],
+				unsigned int hashtbl_size,
+				void (*release_sop)(struct nfs4_stateowner *))
+{
+	int i, count = 0;
+	struct nfs4_stateowner *sop, *next;
+
+	for (i = 0; i < hashtbl_size; i++) {
+		list_for_each_entry_safe(sop, next, &hashtbl[i], so_strhash) {
+			release_sop(sop);
+			if (++count == num)
+				return count;
+		}
+	}
+	return count;
+}
+
+void nfsd_forget_locks(u64 num)
+{
+	int count;
+
+	nfs4_lock_state();
+	count = nfsd_release_n_owners(num, lock_ownerstr_hashtbl,
+				     LOCK_HASH_SIZE, release_lockowner_sop);
+	nfs4_unlock_state();
+
+	printk(KERN_INFO "NFSD: Forgot %d locks", count);
+}
+
+void nfsd_forget_openowners(u64 num)
+{
+	int count;
+
+	nfs4_lock_state();
+	count = nfsd_release_n_owners(num, open_ownerstr_hashtbl,
+				     OPEN_OWNER_HASH_SIZE, release_openowner_sop);
+	nfs4_unlock_state();
+
+	printk(KERN_INFO "NFSD: Forgot %d open owners", count);
+}
+
+int nfsd_process_n_delegations(u64 num, void (*deleg_func)(struct nfs4_delegation *))
+{
+	int i, count = 0;
+	struct nfs4_file *fp;
+	struct nfs4_delegation *dp, *next;
+
+	for (i = 0; i < FILE_HASH_SIZE; i++) {
+		list_for_each_entry(fp, &file_hashtbl[i], fi_hash) {
+			list_for_each_entry_safe(dp, next, &fp->fi_delegations, dl_perfile) {
+				deleg_func(dp);
+				if (++count == num)
+					return count;
+			}
+		}
+	}
+	return count;
+}
+
+void nfsd_forget_delegations(u64 num)
+{
+	unsigned int count;
+
+	nfs4_lock_state();
+	count = nfsd_process_n_delegations(num, unhash_delegation);
+	nfs4_unlock_state();
+
+	printk(KERN_INFO "NFSD: Forgot %d delegations", count);
+}
+
+void nfsd_recall_delegations(u64 num)
+{
+	unsigned int count;
+
+	nfs4_lock_state();
+	spin_lock(&recall_lock);
+	count = nfsd_process_n_delegations(num, nfsd_break_one_deleg);
+	spin_unlock(&recall_lock);
+	nfs4_unlock_state();
+
+	printk(KERN_INFO "NFSD: Recalled %d delegations", count);
+}
+
+#endif /* CONFIG_NFSD_FAULT_INJECTION */
+
 /* initialization to perform at module load time: */
 
 int
