@@ -1039,6 +1039,9 @@ static int show_numa_map(struct seq_file *m, void *v)
 		seq_printf(m, " stack");
 	}
 
+	if (is_vm_hugetlb_page(vma))
+		seq_printf(m, " huge");
+
 	walk_page_range(vma->vm_start, vma->vm_end, &walk);
 
 	if (!md->pages)
