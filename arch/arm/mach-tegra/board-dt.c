@@ -46,6 +46,7 @@
 #include "devices.h"
 
 void harmony_pinmux_init(void);
+void paz00_pinmux_init(void);
 void seaboard_pinmux_init(void);
 void trimslice_pinmux_init(void);
 void ventana_pinmux_init(void);
@@ -96,6 +97,7 @@ static struct {
 } pinmux_configs[] = {
 	{ "compulab,trimslice", trimslice_pinmux_init },
 	{ "nvidia,harmony", harmony_pinmux_init },
+	{ "compal,paz00", paz00_pinmux_init },
 	{ "nvidia,seaboard", seaboard_pinmux_init },
 	{ "nvidia,ventana", ventana_pinmux_init },
 };
@@ -133,6 +135,7 @@ static void __init tegra_dt_init(void)
 static const char * tegra_dt_board_compat[] = {
 	"compulab,trimslice",
 	"nvidia,harmony",
+	"compal,paz00",
 	"nvidia,seaboard",
 	"nvidia,ventana",
 	NULL
