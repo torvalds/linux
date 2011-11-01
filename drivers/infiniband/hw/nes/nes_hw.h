@@ -47,6 +47,11 @@
 #define NES_MULTICAST_PF_MAX 8
 #define NES_A0 3
 
+#define NES_ENABLE_PAU 0x07000001
+#define NES_DISABLE_PAU 0x07000000
+#define NES_PAU_COUNTER 10
+#define NES_CQP_OPCODE_MASK 0x3f
+
 enum pci_regs {
 	NES_INT_STAT = 0x0000,
 	NES_INT_MASK = 0x0004,
@@ -73,8 +78,10 @@ enum indexed_regs {
 	NES_IDX_QP_CONTROL = 0x0040,
 	NES_IDX_FLM_CONTROL = 0x0080,
 	NES_IDX_INT_CPU_STATUS = 0x00a0,
+	NES_IDX_GPR_TRIGGER = 0x00bc,
 	NES_IDX_GPIO_CONTROL = 0x00f0,
 	NES_IDX_GPIO_DATA = 0x00f4,
+	NES_IDX_GPR2 = 0x010c,
 	NES_IDX_TCP_CONFIG0 = 0x01e4,
 	NES_IDX_TCP_TIMER_CONFIG = 0x01ec,
 	NES_IDX_TCP_NOW = 0x01f0,
@@ -202,6 +209,7 @@ enum nes_cqp_opcodes {
 	NES_CQP_REGISTER_SHARED_STAG = 0x0c,
 	NES_CQP_DEALLOCATE_STAG = 0x0d,
 	NES_CQP_MANAGE_ARP_CACHE = 0x0f,
+	NES_CQP_DOWNLOAD_SEGMENT = 0x10,
 	NES_CQP_SUSPEND_QPS = 0x11,
 	NES_CQP_UPLOAD_CONTEXT = 0x13,
 	NES_CQP_CREATE_CEQ = 0x16,
@@ -210,7 +218,8 @@ enum nes_cqp_opcodes {
 	NES_CQP_DESTROY_AEQ = 0x1b,
 	NES_CQP_LMI_ACCESS = 0x20,
 	NES_CQP_FLUSH_WQES = 0x22,
-	NES_CQP_MANAGE_APBVT = 0x23
+	NES_CQP_MANAGE_APBVT = 0x23,
+	NES_CQP_MANAGE_QUAD_HASH = 0x25
 };
 
 enum nes_cqp_wqe_word_idx {
@@ -220,6 +229,14 @@ enum nes_cqp_wqe_word_idx {
 	NES_CQP_WQE_COMP_CTX_HIGH_IDX = 3,
 	NES_CQP_WQE_COMP_SCRATCH_LOW_IDX = 4,
 	NES_CQP_WQE_COMP_SCRATCH_HIGH_IDX = 5,
+};
+
+enum nes_cqp_wqe_word_download_idx { /* format differs from other cqp ops */
+	NES_CQP_WQE_DL_OPCODE_IDX = 0,
+	NES_CQP_WQE_DL_COMP_CTX_LOW_IDX = 1,
+	NES_CQP_WQE_DL_COMP_CTX_HIGH_IDX = 2,
+	NES_CQP_WQE_DL_LENGTH_0_TOTAL_IDX = 3
+	/* For index values 4-15 use NES_NIC_SQ_WQE_ values */
 };
 
 enum nes_cqp_cq_wqeword_idx {
@@ -242,6 +259,7 @@ enum nes_cqp_stag_wqeword_idx {
 	NES_CQP_STAG_WQE_PBL_LEN_IDX = 14
 };
 
+#define NES_CQP_OP_LOGICAL_PORT_SHIFT 26
 #define NES_CQP_OP_IWARP_STATE_SHIFT 28
 #define NES_CQP_OP_TERMLEN_SHIFT     28
 
@@ -599,6 +617,7 @@ enum nes_nic_sq_wqe_bits {
 
 enum nes_nic_cqe_word_idx {
 	NES_NIC_CQE_ACCQP_ID_IDX = 0,
+	NES_NIC_CQE_HASH_RCVNXT = 1,
 	NES_NIC_CQE_TAG_PKT_TYPE_IDX = 2,
 	NES_NIC_CQE_MISC_IDX = 3,
 };
@@ -1005,6 +1024,11 @@ struct nes_arp_entry {
 #define NES_NIC_CQ_DOWNWARD_TREND   16
 #define NES_PFT_SIZE		    48
 
+#define NES_MGT_WQ_COUNT 32
+#define NES_MGT_CTX_SIZE ((NES_NIC_CTX_RQ_SIZE_32) | (NES_NIC_CTX_SQ_SIZE_32))
+#define NES_MGT_QP_OFFSET 36
+#define NES_MGT_QP_COUNT 4
+
 struct nes_hw_tune_timer {
     /* u16 cq_count; */
     u16 threshold_low;
@@ -1118,6 +1142,7 @@ struct nes_adapter {
 	u32 et_rate_sample_interval;
 	u32 timer_int_limit;
 	u32 wqm_quanta;
+	u8 allow_unaligned_fpdus;
 
 	/* Adapter base MAC address */
 	u32 mac_addr_low;
@@ -1251,6 +1276,14 @@ struct nes_vnic {
 	enum ib_event_type delayed_event;
 	enum ib_event_type last_dispatched_event;
 	spinlock_t port_ibevent_lock;
+	u32 mgt_mem_size;
+	void *mgt_vbase;
+	dma_addr_t mgt_pbase;
+	struct nes_vnic_mgt *mgtvnic[NES_MGT_QP_COUNT];
+	struct task_struct *mgt_thread;
+	wait_queue_head_t mgt_wait_queue;
+	struct sk_buff_head mgt_skb_list;
+
 };
 
 struct nes_ib_device {
