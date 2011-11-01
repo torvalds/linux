@@ -248,6 +248,28 @@ static int bq27x00_battery_read_energy(struct bq27x00_device_info *di)
 }
 
 /*
+ * Return the battery temperature in tenths of degree Celsius
+ * Or < 0 if something fails.
+ */
+static int bq27x00_battery_read_temperature(struct bq27x00_device_info *di)
+{
+	int temp;
+
+	temp = bq27x00_read(di, BQ27x00_REG_TEMP, false);
+	if (temp < 0) {
+		dev_err(di->dev, "error reading temperature\n");
+		return temp;
+	}
+
+	if (di->chip == BQ27500)
+		temp -= 2731;
+	else
+		temp = ((temp * 5) - 5463) / 2;
+
+	return temp;
+}
+
+/*
  * Return the battery Cycle count total
  * Or < 0 if something fails.
  */
@@ -304,7 +326,7 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 			cache.time_to_full = bq27x00_battery_read_time(di, BQ27x00_REG_TTF);
 			cache.charge_full = bq27x00_battery_read_lmd(di);
 		}
-		cache.temperature = bq27x00_read(di, BQ27x00_REG_TEMP, false);
+		cache.temperature = bq27x00_battery_read_temperature(di);
 		cache.cycle_count = bq27x00_battery_read_cyct(di);
 
 		/* We only have to read charge design full once */
@@ -332,25 +354,6 @@ static void bq27x00_battery_poll(struct work_struct *work)
 		set_timer_slack(&di->work.timer, poll_interval * HZ / 4);
 		schedule_delayed_work(&di->work, poll_interval * HZ);
 	}
-}
-
-
-/*
- * Return the battery temperature in tenths of degree Celsius
- * Or < 0 if something fails.
- */
-static int bq27x00_battery_temperature(struct bq27x00_device_info *di,
-	union power_supply_propval *val)
-{
-	if (di->cache.temperature < 0)
-		return di->cache.temperature;
-
-	if (di->chip == BQ27500)
-		val->intval = di->cache.temperature - 2731;
-	else
-		val->intval = ((di->cache.temperature * 5) - 5463) / 2;
-
-	return 0;
 }
 
 /*
@@ -511,7 +514,7 @@ static int bq27x00_battery_get_property(struct power_supply *psy,
 		ret = bq27x00_battery_capacity_level(di, val);
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
-		ret = bq27x00_battery_temperature(di, val);
+		ret = bq27x00_simple_value(di->cache.temperature, val);
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
 		ret = bq27x00_simple_value(di->cache.time_to_empty, val);
