@@ -595,7 +595,7 @@ static size_t log_prefix(const char *p, unsigned int *level, char *special)
 		/* multi digit including the level and facility number */
 		char *endp = NULL;
 
-		if (p[1] < '0' && p[1] > '9')
+		if (p[1] < '0' || p[1] > '9')
 			return 0;
 
 		lev = (simple_strtoul(&p[1], &endp, 10) & 7);
