@@ -29,8 +29,6 @@
 #include <linux/freezer.h>
 #include "tpm.h"
 
-#define TPM_HEADER_SIZE 10
-
 enum tis_access {
 	TPM_ACCESS_VALID = 0x80,
 	TPM_ACCESS_ACTIVE_LOCALITY = 0x20,

@@ -438,7 +438,6 @@ out:
 }
 
 #define TPM_DIGEST_SIZE 20
-#define TPM_ERROR_SIZE 10
 #define TPM_RET_CODE_IDX 6
 
 enum tpm_capabilities {
@@ -467,12 +466,14 @@ static ssize_t transmit_cmd(struct tpm_chip *chip, struct tpm_cmd_t *cmd,
 	len = tpm_transmit(chip,(u8 *) cmd, len);
 	if (len <  0)
 		return len;
-	if (len == TPM_ERROR_SIZE) {
-		err = be32_to_cpu(cmd->header.out.return_code);
-		dev_dbg(chip->dev, "A TPM error (%d) occurred %s\n", err, desc);
-		return err;
-	}
-	return 0;
+	else if (len < TPM_HEADER_SIZE)
+		return -EFAULT;
+
+	err = be32_to_cpu(cmd->header.out.return_code);
+	if (err != 0)
+		dev_err(chip->dev, "A TPM error (%d) occurred %s\n", err, desc);
+
+	return err;
 }
 
 #define TPM_INTERNAL_RESULT_SIZE 200
