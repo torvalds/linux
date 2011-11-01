@@ -3664,6 +3664,9 @@ int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 	if (jack) {
 		snd_soc_dapm_force_enable_pin(&codec->dapm, "SYSCLK");
 		snd_soc_dapm_force_enable_pin(&codec->dapm, "MICBIAS");
+	} else {
+		snd_soc_dapm_disable_pin(&codec->dapm, "SYSCLK");
+		snd_soc_dapm_disable_pin(&codec->dapm, "MICBIAS");
 	}
 
 	return 0;
