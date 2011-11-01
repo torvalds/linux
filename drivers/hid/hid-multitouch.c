@@ -291,7 +291,6 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			td->last_slot_field = usage->hid;
 			td->last_field_index = field->index;
 			td->last_mt_collection = usage->collection_index;
-			hdev->quirks &= ~HID_QUIRK_MULTITOUCH;
 			return 1;
 		case HID_DG_WIDTH:
 			hid_map_usage(hi, usage, bit, max,
@@ -530,43 +529,11 @@ static void mt_set_input_mode(struct hid_device *hdev)
 	}
 }
 
-/* a list of devices for which there is a specialized multitouch driver */
-static const struct hid_device_id mt_have_special_driver[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_NTRIG, 0x0001) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_NTRIG, 0x0006) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_QUANTA,
-			USB_DEVICE_ID_PIXART_IMAGING_INC_OPTICAL_TOUCH_SCREEN) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_QUANTA,
-			USB_DEVICE_ID_QUANTA_OPTICAL_TOUCH) },
-	{ }
-};
-
-static bool mt_match_one_id(struct hid_device *hdev,
-		const struct hid_device_id *id)
-{
-	return id->bus == hdev->bus &&
-		(id->vendor == HID_ANY_ID || id->vendor == hdev->vendor) &&
-		(id->product == HID_ANY_ID || id->product == hdev->product);
-}
-
-static const struct hid_device_id *mt_match_id(struct hid_device *hdev,
-		const struct hid_device_id *id)
-{
-	for (; id->bus; id++)
-		if (mt_match_one_id(hdev, id))
-			return id;
-
-	return NULL;
-}
-
 static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret, i;
 	struct mt_device *td;
 	struct mt_class *mtclass = mt_classes; /* MT_CLS_DEFAULT */
-
-	if (mt_match_id(hdev, mt_have_special_driver))
-		return -ENODEV;
 
 	for (i = 0; mt_classes[i].name ; i++) {
 		if (id->driver_data == mt_classes[i].name) {
@@ -575,6 +542,10 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		}
 	}
 
+	/* This allows the driver to correctly support devices
+	 * that emit events over several HID messages.
+	 */
+	hdev->quirks |= HID_QUIRK_NO_INPUT_SYNC;
 
 	td = kzalloc(sizeof(struct mt_device), GFP_KERNEL);
 	if (!td) {
@@ -590,15 +561,9 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (ret != 0)
 		goto fail;
 
-	hdev->quirks |= HID_QUIRK_MULTITOUCH;
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret)
 		goto fail;
-
-	/* This allows the driver to correctly support devices
-	 * that emit events over several HID messages.
-	 */
-	hdev->quirks |= HID_QUIRK_NO_INPUT_SYNC;
 
 	td->slots = kzalloc(td->maxcontacts * sizeof(struct mt_slot),
 				GFP_KERNEL);
@@ -792,10 +757,6 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_DEFAULT,
 		HID_USB_DEVICE(USB_VENDOR_ID_XAT,
 			USB_DEVICE_ID_XAT_CSR) },
-
-	/* Rest of the world */
-	{ .driver_data = MT_CLS_DEFAULT,
-		HID_USB_DEVICE(HID_ANY_ID, HID_ANY_ID) },
 
 	{ }
 };
