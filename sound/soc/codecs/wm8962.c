@@ -3394,6 +3394,7 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	unsigned long timeout;
 	int ret;
 	int fll1 = snd_soc_read(codec, WM8962_FLL_CONTROL_1) & WM8962_FLL_ENA;
+	int sysclk = snd_soc_read(codec, WM8962_CLOCKING2) & WM8962_SYSCLK_ENA;
 
 	/* Any change? */
 	if (source == wm8962->fll_src && Fref == wm8962->fll_fref &&
@@ -3453,6 +3454,9 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	snd_soc_write(codec, WM8962_FLL_CONTROL_8, fll_div.n);
 
 	try_wait_for_completion(&wm8962->fll_lock);
+
+	if (sysclk)
+		fll1 |= WM8962_FLL_ENA;
 
 	snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
 			    WM8962_FLL_FRAC | WM8962_FLL_REFCLK_SRC_MASK |
