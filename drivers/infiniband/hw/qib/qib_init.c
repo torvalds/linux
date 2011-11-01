@@ -183,6 +183,9 @@ struct qib_ctxtdata *qib_create_ctxtdata(struct qib_pportdata *ppd, u32 ctxt)
 		rcd->rcvegrbuf_chunks = (rcd->rcvegrcnt +
 			rcd->rcvegrbufs_perchunk - 1) /
 			rcd->rcvegrbufs_perchunk;
+		BUG_ON(!is_power_of_2(rcd->rcvegrbufs_perchunk));
+		rcd->rcvegrbufs_perchunk_shift =
+			ilog2(rcd->rcvegrbufs_perchunk);
 	}
 	return rcd;
 }
@@ -398,6 +401,7 @@ static void enable_chip(struct qib_devdata *dd)
 		if (rcd)
 			dd->f_rcvctrl(rcd->ppd, rcvmask, i);
 	}
+	dd->freectxts = dd->cfgctxts - dd->first_user_ctxt;
 }
 
 static void verify_interrupt(unsigned long opaque)
@@ -581,10 +585,6 @@ int qib_init(struct qib_devdata *dd, int reinit)
 			continue;
 		}
 
-		/* let link come up, and enable IBC */
-		spin_lock_irqsave(&ppd->lflags_lock, flags);
-		ppd->lflags &= ~QIBL_IB_LINK_DISABLED;
-		spin_unlock_irqrestore(&ppd->lflags_lock, flags);
 		portok++;
 	}
 

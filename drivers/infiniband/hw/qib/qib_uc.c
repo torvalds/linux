@@ -51,7 +51,7 @@ int qib_make_uc_req(struct qib_qp *qp)
 	u32 hwords;
 	u32 bth0;
 	u32 len;
-	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
+	u32 pmtu = qp->pmtu;
 	int ret = 0;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
@@ -243,13 +243,12 @@ void qib_uc_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct qib_qp *qp)
 {
 	struct qib_other_headers *ohdr;
-	unsigned long flags;
 	u32 opcode;
 	u32 hdrsize;
 	u32 psn;
 	u32 pad;
 	struct ib_wc wc;
-	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
+	u32 pmtu = qp->pmtu;
 	struct ib_reth *reth;
 	int ret;
 
@@ -263,14 +262,11 @@ void qib_uc_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 	}
 
 	opcode = be32_to_cpu(ohdr->bth[0]);
-	spin_lock_irqsave(&qp->s_lock, flags);
 	if (qib_ruc_check_hdr(ibp, hdr, has_grh, qp, opcode))
-		goto sunlock;
-	spin_unlock_irqrestore(&qp->s_lock, flags);
+		return;
 
 	psn = be32_to_cpu(ohdr->bth[2]);
 	opcode >>= 24;
-	memset(&wc, 0, sizeof wc);
 
 	/* Compare the PSN verses the expected PSN. */
 	if (unlikely(qib_cmp24(psn, qp->r_psn) != 0)) {
@@ -370,7 +366,7 @@ send_first:
 		}
 		qp->r_rcv_len = 0;
 		if (opcode == OP(SEND_ONLY))
-			goto send_last;
+			goto no_immediate_data;
 		else if (opcode == OP(SEND_ONLY_WITH_IMMEDIATE))
 			goto send_last_imm;
 		/* FALLTHROUGH */
@@ -389,8 +385,11 @@ send_last_imm:
 		wc.ex.imm_data = ohdr->u.imm_data;
 		hdrsize += 4;
 		wc.wc_flags = IB_WC_WITH_IMM;
-		/* FALLTHROUGH */
+		goto send_last;
 	case OP(SEND_LAST):
+no_immediate_data:
+		wc.ex.imm_data = 0;
+		wc.wc_flags = 0;
 send_last:
 		/* Get the number of bytes the message was padded by. */
 		pad = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
@@ -418,6 +417,12 @@ last_imm:
 		wc.src_qp = qp->remote_qpn;
 		wc.slid = qp->remote_ah_attr.dlid;
 		wc.sl = qp->remote_ah_attr.sl;
+		/* zero fields that are N/A */
+		wc.vendor_err = 0;
+		wc.pkey_index = 0;
+		wc.dlid_path_bits = 0;
+		wc.port_num = 0;
+		wc.csum_ok = 0;
 		/* Signal completion event if the solicited bit is set. */
 		qib_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
 			     (ohdr->bth[0] &
@@ -546,6 +551,4 @@ op_err:
 	qib_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
 	return;
 
-sunlock:
-	spin_unlock_irqrestore(&qp->s_lock, flags);
 }

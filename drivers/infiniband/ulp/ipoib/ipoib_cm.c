@@ -84,7 +84,7 @@ static void ipoib_cm_dma_unmap_rx(struct ipoib_dev_priv *priv, int frags,
 	ib_dma_unmap_single(priv->ca, mapping[0], IPOIB_CM_HEAD_SIZE, DMA_FROM_DEVICE);
 
 	for (i = 0; i < frags; ++i)
-		ib_dma_unmap_single(priv->ca, mapping[i + 1], PAGE_SIZE, DMA_FROM_DEVICE);
+		ib_dma_unmap_page(priv->ca, mapping[i + 1], PAGE_SIZE, DMA_FROM_DEVICE);
 }
 
 static int ipoib_cm_post_receive_srq(struct net_device *dev, int id)
@@ -183,7 +183,7 @@ partial_error:
 	ib_dma_unmap_single(priv->ca, mapping[0], IPOIB_CM_HEAD_SIZE, DMA_FROM_DEVICE);
 
 	for (; i > 0; --i)
-		ib_dma_unmap_single(priv->ca, mapping[i], PAGE_SIZE, DMA_FROM_DEVICE);
+		ib_dma_unmap_page(priv->ca, mapping[i], PAGE_SIZE, DMA_FROM_DEVICE);
 
 	dev_kfree_skb_any(skb);
 	return NULL;
@@ -1497,6 +1497,7 @@ static void ipoib_cm_create_srq(struct net_device *dev, int max_sge)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_srq_init_attr srq_init_attr = {
+		.srq_type = IB_SRQT_BASIC,
 		.attr = {
 			.max_wr  = ipoib_recvq_size,
 			.max_sge = max_sge

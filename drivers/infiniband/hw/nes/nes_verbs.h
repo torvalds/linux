@@ -139,7 +139,8 @@ struct nes_qp {
 	struct nes_cq         *nesrcq;
 	struct nes_pd         *nespd;
 	void *cm_node; /* handle of the node this QP is associated with */
-	struct ietf_mpa_frame *ietf_frame;
+	void                  *ietf_frame;
+	u8                    ietf_frame_size;
 	dma_addr_t            ietf_frame_pbase;
 	struct ib_mr          *lsmm_mr;
 	struct nes_hw_qp      hwqp;
@@ -154,6 +155,7 @@ struct nes_qp {
 	u32                   mmap_sq_db_index;
 	u32                   mmap_rq_db_index;
 	spinlock_t            lock;
+	spinlock_t            pau_lock;
 	struct nes_qp_context *nesqp_context;
 	dma_addr_t            nesqp_context_pbase;
 	void	              *pbl_vbase;
@@ -161,6 +163,8 @@ struct nes_qp {
 	struct page           *page;
 	struct timer_list     terminate_timer;
 	enum ib_event_type    terminate_eventtype;
+	struct sk_buff_head   pau_list;
+	u32                   pau_rcv_nxt;
 	u16                   active_conn:1;
 	u16                   skip_lsmm:1;
 	u16                   user_mode:1;
@@ -168,7 +172,8 @@ struct nes_qp {
 	u16                   flush_issued:1;
 	u16                   destroyed:1;
 	u16                   sig_all:1;
-	u16                   rsvd:9;
+	u16                   pau_mode:1;
+	u16                   rsvd:8;
 	u16                   private_data_len;
 	u16                   term_sq_flush_code;
 	u16                   term_rq_flush_code;
@@ -176,5 +181,8 @@ struct nes_qp {
 	u8                    hw_tcp_state;
 	u8                    term_flags;
 	u8                    sq_kmapped;
+	u8                    pau_busy;
+	u8                    pau_pending;
+	u8                    pau_state;
 };
 #endif			/* NES_VERBS_H */
