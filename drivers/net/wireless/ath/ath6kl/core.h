@@ -450,9 +450,18 @@ enum ath6kl_dev_state {
 	FIRST_BOOT,
 };
 
+enum ath6kl_state {
+	ATH6KL_STATE_OFF,
+	ATH6KL_STATE_ON,
+	ATH6KL_STATE_DEEPSLEEP,
+};
+
 struct ath6kl {
 	struct device *dev;
 	struct wiphy *wiphy;
+
+	enum ath6kl_state state;
+
 	struct ath6kl_bmi bmi;
 	const struct ath6kl_hif_ops *hif_ops;
 	struct wmi *wmi;

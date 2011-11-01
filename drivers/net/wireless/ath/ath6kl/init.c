@@ -1452,6 +1452,8 @@ int ath6kl_init_hw_start(struct ath6kl *ar)
 			goto err_htc_stop;
 	}
 
+	ar->state = ATH6KL_STATE_ON;
+
 	return 0;
 
 err_htc_stop:
@@ -1479,6 +1481,8 @@ int ath6kl_init_hw_stop(struct ath6kl *ar)
 	ret = ath6kl_hif_power_off(ar);
 	if (ret)
 		ath6kl_warn("failed to power off hif: %d\n", ret);
+
+	ar->state = ATH6KL_STATE_OFF;
 
 	return 0;
 }

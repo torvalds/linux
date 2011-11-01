@@ -1671,6 +1671,8 @@ int ath6kl_cfg80211_suspend(struct ath6kl *ar,
 				    ret);
 		}
 
+		ar->state = ATH6KL_STATE_DEEPSLEEP;
+
 		break;
 	}
 
@@ -1679,11 +1681,25 @@ int ath6kl_cfg80211_suspend(struct ath6kl *ar,
 
 int ath6kl_cfg80211_resume(struct ath6kl *ar)
 {
-	if (ar->wmi->pwr_mode != ar->wmi->saved_pwr_mode) {
-		if (ath6kl_wmi_powermode_cmd(ar->wmi, 0,
-			ar->wmi->saved_pwr_mode) != 0)
-			ath6kl_warn("ath6kl_sdio_resume: "
-				"wmi_powermode_cmd failed\n");
+	int ret;
+
+	switch (ar->state) {
+	case ATH6KL_STATE_DEEPSLEEP:
+		if (ar->wmi->pwr_mode != ar->wmi->saved_pwr_mode) {
+			ret = ath6kl_wmi_powermode_cmd(ar->wmi, 0,
+						       ar->wmi->saved_pwr_mode);
+			if (ret) {
+				ath6kl_warn("wmi powermode command failed during resume: %d\n",
+					    ret);
+			}
+		}
+
+		ar->state = ATH6KL_STATE_ON;
+
+		break;
+
+	default:
+		break;
 	}
 
 	return 0;
@@ -2253,6 +2269,8 @@ struct ath6kl *ath6kl_core_alloc(struct device *dev)
 	ar->sc_params.short_scan_ratio = WMI_SHORTSCANRATIO_DEFAULT;
 	ar->sc_params.scan_ctrl_flags = DEFAULT_SCAN_CTRL_FLAGS;
 	ar->lrssi_roam_threshold = DEF_LRSSI_ROAM_THRESHOLD;
+
+	ar->state = ATH6KL_STATE_OFF;
 
 	memset((u8 *)ar->sta_list, 0,
 	       AP_MAX_NUM_STA * sizeof(struct ath6kl_sta));
