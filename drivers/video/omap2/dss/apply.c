@@ -399,7 +399,6 @@ void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 	struct manager_cache_data *mc;
 	struct overlay_cache_data *oc;
 	const int num_ovls = dss_feat_get_num_ovls();
-	const int num_mgrs = dss_feat_get_num_mgrs();
 	int i;
 
 	mc = &dss_cache.manager_cache[mgr->id];
@@ -416,13 +415,8 @@ void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 		oc->shadow_dirty = false;
 	}
 
-	for (i = 0; i < num_mgrs; ++i) {
-		mc = &dss_cache.manager_cache[i];
-		if (mgr->id != i)
-			continue;
-
-		mc->shadow_dirty = false;
-	}
+	mc = &dss_cache.manager_cache[mgr->id];
+	mc->shadow_dirty = false;
 
 	dispc_mgr_enable(mgr->id, true);
 }
