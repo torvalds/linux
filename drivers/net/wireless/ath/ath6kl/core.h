@@ -454,6 +454,7 @@ enum ath6kl_state {
 	ATH6KL_STATE_OFF,
 	ATH6KL_STATE_ON,
 	ATH6KL_STATE_DEEPSLEEP,
+	ATH6KL_STATE_CUTPOWER,
 };
 
 struct ath6kl {

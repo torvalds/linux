@@ -782,12 +782,11 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar)
 
 	flags = sdio_get_host_pm_caps(func);
 
+	ath6kl_dbg(ATH6KL_DBG_SUSPEND, "sdio suspend pm_caps 0x%x\n", flags);
+
 	if (!(flags & MMC_PM_KEEP_POWER)) {
-		/* as host doesn't support keep power we need to bail out */
-		ath6kl_dbg(ATH6KL_DBG_SDIO,
-			   "func %d doesn't support MMC_PM_KEEP_POWER\n",
-			   func->num);
-		return -EINVAL;
+		/* as host doesn't support keep power we need to cut power */
+		return ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_CUTPOWER);
 	}
 
 	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
@@ -797,13 +796,30 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar)
 		return ret;
 	}
 
-	ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_DEEPSLEEP);
-
-	return 0;
+	return ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_DEEPSLEEP);
 }
 
 static int ath6kl_sdio_resume(struct ath6kl *ar)
 {
+	switch (ar->state) {
+	case ATH6KL_STATE_OFF:
+	case ATH6KL_STATE_CUTPOWER:
+		ath6kl_dbg(ATH6KL_DBG_SUSPEND,
+			   "sdio resume configuring sdio\n");
+
+		/* need to set sdio settings after power is cut from sdio */
+		ath6kl_sdio_config(ar);
+		break;
+
+	case ATH6KL_STATE_ON:
+		/* we shouldn't be on this state during resume */
+		WARN_ON(1);
+		break;
+
+	case ATH6KL_STATE_DEEPSLEEP:
+		break;
+	}
+
 	ath6kl_cfg80211_resume(ar);
 
 	return 0;
@@ -857,6 +873,37 @@ static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.power_off = ath6kl_sdio_power_off,
 	.stop = ath6kl_sdio_stop,
 };
+
+#ifdef CONFIG_PM_SLEEP
+
+/*
+ * Empty handlers so that mmc subsystem doesn't remove us entirely during
+ * suspend. We instead follow cfg80211 suspend/resume handlers.
+ */
+static int ath6kl_sdio_pm_suspend(struct device *device)
+{
+	ath6kl_dbg(ATH6KL_DBG_SUSPEND, "sdio pm suspend\n");
+
+	return 0;
+}
+
+static int ath6kl_sdio_pm_resume(struct device *device)
+{
+	ath6kl_dbg(ATH6KL_DBG_SUSPEND, "sdio pm resume\n");
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(ath6kl_sdio_pm_ops, ath6kl_sdio_pm_suspend,
+			 ath6kl_sdio_pm_resume);
+
+#define ATH6KL_SDIO_PM_OPS (&ath6kl_sdio_pm_ops)
+
+#else
+
+#define ATH6KL_SDIO_PM_OPS NULL
+
+#endif /* CONFIG_PM_SLEEP */
 
 static int ath6kl_sdio_probe(struct sdio_func *func,
 			     const struct sdio_device_id *id)
@@ -969,6 +1016,7 @@ static struct sdio_driver ath6kl_sdio_driver = {
 	.id_table = ath6kl_sdio_devices,
 	.probe = ath6kl_sdio_probe,
 	.remove = ath6kl_sdio_remove,
+	.drv.pm = ATH6KL_SDIO_PM_OPS,
 };
 
 static int __init ath6kl_sdio_init(void)

@@ -40,6 +40,7 @@ enum ATH6K_DEBUG_MASK {
 	ATH6KL_DBG_SDIO_DUMP	= BIT(17),
 	ATH6KL_DBG_BOOT		= BIT(18),    /* driver init and fw boot */
 	ATH6KL_DBG_WMI_DUMP	= BIT(19),
+	ATH6KL_DBG_SUSPEND	= BIT(20),
 	ATH6KL_DBG_ANY	        = 0xffffffff  /* enable all logs */
 };
 

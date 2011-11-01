@@ -1674,6 +1674,28 @@ int ath6kl_cfg80211_suspend(struct ath6kl *ar,
 		ar->state = ATH6KL_STATE_DEEPSLEEP;
 
 		break;
+
+	case ATH6KL_CFG_SUSPEND_CUTPOWER:
+		if (ar->state == ATH6KL_STATE_OFF) {
+			ath6kl_dbg(ATH6KL_DBG_SUSPEND,
+				   "suspend hw off, no action for cutpower\n");
+			break;
+		}
+
+		ath6kl_dbg(ATH6KL_DBG_SUSPEND, "suspend cutting power\n");
+
+		ret = ath6kl_init_hw_stop(ar);
+		if (ret) {
+			ath6kl_warn("failed to stop hw during suspend: %d\n",
+				    ret);
+		}
+
+		ar->state = ATH6KL_STATE_CUTPOWER;
+
+		break;
+
+	default:
+		break;
 	}
 
 	return 0;
@@ -1697,6 +1719,15 @@ int ath6kl_cfg80211_resume(struct ath6kl *ar)
 		ar->state = ATH6KL_STATE_ON;
 
 		break;
+
+	case ATH6KL_STATE_CUTPOWER:
+		ath6kl_dbg(ATH6KL_DBG_SUSPEND, "resume restoring power\n");
+
+		ret = ath6kl_init_hw_start(ar);
+		if (ret) {
+			ath6kl_warn("Failed to boot hw in resume: %d\n", ret);
+			return ret;
+		}
 
 	default:
 		break;
