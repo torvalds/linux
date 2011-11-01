@@ -328,9 +328,11 @@ int mxl111sf_idac_config(struct mxl111sf_state *state,
 		/* set hysteresis value  reg: 0x0B<5:0> */
 		ret = mxl111sf_write_reg(state, V6_IDAC_HYSTERESIS_REG,
 					 (hysteresis_value & 0x3F));
+		mxl_fail(ret);
 	}
 
 	ret = mxl111sf_write_reg(state, V6_IDAC_SETTINGS_REG, val);
+	mxl_fail(ret);
 
 	return ret;
 }
