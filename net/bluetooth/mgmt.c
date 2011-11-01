@@ -123,6 +123,7 @@ static int read_index_list(struct sock *sk)
 {
 	struct mgmt_rp_read_index_list *rp;
 	struct list_head *p;
+	struct hci_dev *d;
 	size_t rp_len;
 	u16 count;
 	int i, err;
@@ -146,9 +147,7 @@ static int read_index_list(struct sock *sk)
 	put_unaligned_le16(count, &rp->num_controllers);
 
 	i = 0;
-	list_for_each(p, &hci_dev_list) {
-		struct hci_dev *d = list_entry(p, struct hci_dev, list);
-
+	list_for_each_entry(d, &hci_dev_list, list) {
 		hci_del_off_timer(d);
 
 		set_bit(HCI_MGMT, &d->flags);
@@ -277,13 +276,9 @@ static void mgmt_pending_foreach(u16 opcode, int index,
 
 static struct pending_cmd *mgmt_pending_find(u16 opcode, int index)
 {
-	struct list_head *p;
+	struct pending_cmd *cmd;
 
-	list_for_each(p, &cmd_list) {
-		struct pending_cmd *cmd;
-
-		cmd = list_entry(p, struct pending_cmd, list);
-
+	list_for_each_entry(cmd, &cmd_list, list) {
 		if (cmd->opcode != opcode)
 			continue;
 
@@ -592,7 +587,7 @@ static void create_eir(struct hci_dev *hdev, u8 *data)
 	u16 eir_len = 0;
 	u16 uuid16_list[HCI_MAX_EIR_LENGTH / sizeof(u16)];
 	int i, truncated = 0;
-	struct list_head *p;
+	struct bt_uuid *uuid;
 	size_t name_len;
 
 	name_len = strlen(hdev->dev_name);
@@ -617,8 +612,7 @@ static void create_eir(struct hci_dev *hdev, u8 *data)
 	memset(uuid16_list, 0, sizeof(uuid16_list));
 
 	/* Group all UUID16 types */
-	list_for_each(p, &hdev->uuids) {
-		struct bt_uuid *uuid = list_entry(p, struct bt_uuid, list);
+	list_for_each_entry(uuid, &hdev->uuids, list) {
 		u16 uuid16;
 
 		uuid16 = get_uuid16(uuid->uuid);
@@ -1069,6 +1063,7 @@ static int get_connections(struct sock *sk, u16 index)
 {
 	struct mgmt_rp_get_connections *rp;
 	struct hci_dev *hdev;
+	struct hci_conn *c;
 	struct list_head *p;
 	size_t rp_len;
 	u16 count;
@@ -1097,11 +1092,8 @@ static int get_connections(struct sock *sk, u16 index)
 	put_unaligned_le16(count, &rp->conn_count);
 
 	i = 0;
-	list_for_each(p, &hdev->conn_hash.list) {
-		struct hci_conn *c = list_entry(p, struct hci_conn, list);
-
+	list_for_each_entry(c, &hdev->conn_hash.list, list)
 		bacpy(&rp->conn[i++], &c->dst);
-	}
 
 	err = cmd_complete(sk, index, MGMT_OP_GET_CONNECTIONS, rp, rp_len);
 
@@ -1270,13 +1262,9 @@ static int set_io_capability(struct sock *sk, u16 index, unsigned char *data,
 static inline struct pending_cmd *find_pairing(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
-	struct list_head *p;
+	struct pending_cmd *cmd;
 
-	list_for_each(p, &cmd_list) {
-		struct pending_cmd *cmd;
-
-		cmd = list_entry(p, struct pending_cmd, list);
-
+	list_for_each_entry(cmd, &cmd_list, list) {
 		if (cmd->opcode != MGMT_OP_PAIR_DEVICE)
 			continue;
 

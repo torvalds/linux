@@ -435,17 +435,12 @@ static const struct file_operations inquiry_cache_fops = {
 static int blacklist_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
-	struct list_head *l;
+	struct bdaddr_list *b;
 
 	hci_dev_lock_bh(hdev);
 
-	list_for_each(l, &hdev->blacklist) {
-		struct bdaddr_list *b;
-
-		b = list_entry(l, struct bdaddr_list, list);
-
+	list_for_each_entry(b, &hdev->blacklist, list)
 		seq_printf(f, "%s\n", batostr(&b->bdaddr));
-	}
 
 	hci_dev_unlock_bh(hdev);
 
@@ -484,17 +479,12 @@ static void print_bt_uuid(struct seq_file *f, u8 *uuid)
 static int uuids_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
-	struct list_head *l;
+	struct bt_uuid *uuid;
 
 	hci_dev_lock_bh(hdev);
 
-	list_for_each(l, &hdev->uuids) {
-		struct bt_uuid *uuid;
-
-		uuid = list_entry(l, struct bt_uuid, list);
-
+	list_for_each_entry(uuid, &hdev->uuids, list)
 		print_bt_uuid(f, uuid->uuid);
-	}
 
 	hci_dev_unlock_bh(hdev);
 

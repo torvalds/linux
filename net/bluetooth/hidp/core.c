@@ -88,6 +88,7 @@ static struct hidp_session *__hidp_get_session(bdaddr_t *bdaddr)
 		if (!bacmp(bdaddr, &session->bdaddr))
 			return session;
 	}
+
 	return NULL;
 }
 
