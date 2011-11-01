@@ -865,15 +865,13 @@ int sysfs_rename(struct sysfs_dirent *sd,
 		sd->s_name = new_name;
 	}
 
-	/* Remove from old parent's list and insert into new parent's list. */
-	if (sd->s_parent != new_parent_sd) {
-		sysfs_unlink_sibling(sd);
-		sysfs_get(new_parent_sd);
-		sysfs_put(sd->s_parent);
-		sd->s_parent = new_parent_sd;
-		sysfs_link_sibling(sd);
-	}
+	/* Move to the appropriate place in the appropriate directories rbtree. */
+	sysfs_unlink_sibling(sd);
+	sysfs_get(new_parent_sd);
+	sysfs_put(sd->s_parent);
 	sd->s_ns = new_ns;
+	sd->s_parent = new_parent_sd;
+	sysfs_link_sibling(sd);
 
 	error = 0;
  out:
