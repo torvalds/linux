@@ -448,7 +448,7 @@ MODULE_DEVICE_TABLE(i2c, lm3530_id);
 
 static struct i2c_driver lm3530_i2c_driver = {
 	.probe = lm3530_probe,
-	.remove = lm3530_remove,
+	.remove = __devexit_p(lm3530_remove),
 	.id_table = lm3530_id,
 	.driver = {
 		.name = LM3530_NAME,
