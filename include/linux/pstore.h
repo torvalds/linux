@@ -32,15 +32,15 @@ enum pstore_type_id {
 struct pstore_info {
 	struct module	*owner;
 	char		*name;
-	struct mutex	buf_mutex;	/* serialize access to 'buf' */
+	spinlock_t	buf_lock;	/* serialize access to 'buf' */
 	char		*buf;
 	size_t		bufsize;
 	int		(*open)(struct pstore_info *psi);
 	int		(*close)(struct pstore_info *psi);
 	ssize_t		(*read)(u64 *id, enum pstore_type_id *type,
 			struct timespec *time, struct pstore_info *psi);
-	u64		(*write)(enum pstore_type_id type, unsigned int part,
-			size_t size, struct pstore_info *psi);
+	int		(*write)(enum pstore_type_id type, u64 *id,
+			unsigned int part, size_t size, struct pstore_info *psi);
 	int		(*erase)(enum pstore_type_id type, u64 id,
 			struct pstore_info *psi);
 	void		*data;

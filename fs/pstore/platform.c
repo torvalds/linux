@@ -25,10 +25,28 @@
 #include <linux/module.h>
 #include <linux/pstore.h>
 #include <linux/string.h>
+#include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/hardirq.h>
+#include <linux/workqueue.h>
 
 #include "internal.h"
+
+/*
+ * We defer making "oops" entries appear in pstore - see
+ * whether the system is actually still running well enough
+ * to let someone see the entry
+ */
+#define	PSTORE_INTERVAL	(60 * HZ)
+
+static int pstore_new_entry;
+
+static void pstore_timefunc(unsigned long);
+static DEFINE_TIMER(pstore_timer, pstore_timefunc, 0, 0);
+
+static void pstore_dowork(struct work_struct *);
+static DECLARE_WORK(pstore_work, pstore_dowork);
 
 /*
  * pstore_lock just protects "psinfo" during
@@ -69,15 +87,22 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	unsigned long	size, total = 0;
 	char		*dst, *why;
 	u64		id;
-	int		hsize;
+	int		hsize, ret;
 	unsigned int	part = 1;
+	unsigned long	flags = 0;
+	int		is_locked = 0;
 
 	if (reason < ARRAY_SIZE(reason_str))
 		why = reason_str[reason];
 	else
 		why = "Unknown";
 
-	mutex_lock(&psinfo->buf_mutex);
+	if (in_nmi()) {
+		is_locked = spin_trylock(&psinfo->buf_lock);
+		if (!is_locked)
+			pr_err("pstore dump routine blocked in NMI, may corrupt error record\n");
+	} else
+		spin_lock_irqsave(&psinfo->buf_lock, flags);
 	oopscount++;
 	while (total < kmsg_bytes) {
 		dst = psinfo->buf;
@@ -97,18 +122,20 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		memcpy(dst, s1 + s1_start, l1_cpy);
 		memcpy(dst + l1_cpy, s2 + s2_start, l2_cpy);
 
-		id = psinfo->write(PSTORE_TYPE_DMESG, part,
+		ret = psinfo->write(PSTORE_TYPE_DMESG, &id, part,
 				   hsize + l1_cpy + l2_cpy, psinfo);
-		if (reason == KMSG_DUMP_OOPS && pstore_is_mounted())
-			pstore_mkfile(PSTORE_TYPE_DMESG, psinfo->name, id,
-				      psinfo->buf, hsize + l1_cpy + l2_cpy,
-				      CURRENT_TIME, psinfo);
+		if (ret == 0 && reason == KMSG_DUMP_OOPS && pstore_is_mounted())
+			pstore_new_entry = 1;
 		l1 -= l1_cpy;
 		l2 -= l2_cpy;
 		total += l1_cpy + l2_cpy;
 		part++;
 	}
-	mutex_unlock(&psinfo->buf_mutex);
+	if (in_nmi()) {
+		if (is_locked)
+			spin_unlock(&psinfo->buf_lock);
+	} else
+		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 }
 
 static struct kmsg_dumper pstore_dumper = {
@@ -148,19 +175,24 @@ int pstore_register(struct pstore_info *psi)
 	}
 
 	if (pstore_is_mounted())
-		pstore_get_records();
+		pstore_get_records(0);
 
 	kmsg_dump_register(&pstore_dumper);
+
+	pstore_timer.expires = jiffies + PSTORE_INTERVAL;
+	add_timer(&pstore_timer);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pstore_register);
 
 /*
- * Read all the records from the persistent store. Create and
- * file files in our filesystem.
+ * Read all the records from the persistent store. Create
+ * files in our filesystem.  Don't warn about -EEXIST errors
+ * when we are re-scanning the backing store looking to add new
+ * error records.
  */
-void pstore_get_records(void)
+void pstore_get_records(int quiet)
 {
 	struct pstore_info *psi = psinfo;
 	ssize_t			size;
@@ -168,27 +200,44 @@ void pstore_get_records(void)
 	enum pstore_type_id	type;
 	struct timespec		time;
 	int			failed = 0, rc;
+	unsigned long		flags;
 
 	if (!psi)
 		return;
 
-	mutex_lock(&psinfo->buf_mutex);
+	spin_lock_irqsave(&psinfo->buf_lock, flags);
 	rc = psi->open(psi);
 	if (rc)
 		goto out;
 
 	while ((size = psi->read(&id, &type, &time, psi)) > 0) {
-		if (pstore_mkfile(type, psi->name, id, psi->buf, (size_t)size,
-				  time, psi))
+		rc = pstore_mkfile(type, psi->name, id, psi->buf, (size_t)size,
+				  time, psi);
+		if (rc && (rc != -EEXIST || !quiet))
 			failed++;
 	}
 	psi->close(psi);
 out:
-	mutex_unlock(&psinfo->buf_mutex);
+	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 
 	if (failed)
 		printk(KERN_WARNING "pstore: failed to load %d record(s) from '%s'\n",
 		       failed, psi->name);
+}
+
+static void pstore_dowork(struct work_struct *work)
+{
+	pstore_get_records(1);
+}
+
+static void pstore_timefunc(unsigned long dummy)
+{
+	if (pstore_new_entry) {
+		pstore_new_entry = 0;
+		schedule_work(&pstore_work);
+	}
+
+	mod_timer(&pstore_timer, jiffies + PSTORE_INTERVAL);
 }
 
 /*
@@ -197,7 +246,9 @@ out:
  */
 int pstore_write(enum pstore_type_id type, char *buf, size_t size)
 {
-	u64	id;
+	u64		id;
+	int		ret;
+	unsigned long	flags;
 
 	if (!psinfo)
 		return -ENODEV;
@@ -205,13 +256,13 @@ int pstore_write(enum pstore_type_id type, char *buf, size_t size)
 	if (size > psinfo->bufsize)
 		return -EFBIG;
 
-	mutex_lock(&psinfo->buf_mutex);
+	spin_lock_irqsave(&psinfo->buf_lock, flags);
 	memcpy(psinfo->buf, buf, size);
-	id = psinfo->write(type, 0, size, psinfo);
-	if (pstore_is_mounted())
+	ret = psinfo->write(type, &id, 0, size, psinfo);
+	if (ret == 0 && pstore_is_mounted())
 		pstore_mkfile(PSTORE_TYPE_DMESG, psinfo->name, id, psinfo->buf,
 			      size, CURRENT_TIME, psinfo);
-	mutex_unlock(&psinfo->buf_mutex);
+	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 
 	return 0;
 }
