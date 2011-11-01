@@ -32,7 +32,7 @@ static void arch_reset(char mode, const char *cmd)
 	unsigned int reg;
 
 	if (mode == 's')
-		cpu_reset(0);
+		soft_restart(0);
 
 	/* disable timer0 */
 	reg = __raw_readl(KS8695_TMR_VA + KS8695_TMCON);

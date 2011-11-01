@@ -92,7 +92,7 @@ static int __init hlt_setup(char *__unused)
 __setup("nohlt", nohlt_setup);
 __setup("hlt", hlt_setup);
 
-void arm_machine_restart(char mode, const char *cmd)
+void soft_restart(unsigned long addr)
 {
 	/* Disable interrupts first */
 	local_irq_disable();
@@ -114,7 +114,16 @@ void arm_machine_restart(char mode, const char *cmd)
 	/* Push out any further dirty data, and ensure cache is empty */
 	flush_cache_all();
 
-	/* Now call the architecture specific reboot code. */
+	cpu_reset(addr);
+}
+
+void arm_machine_restart(char mode, const char *cmd)
+{
+	/* Disable interrupts first */
+	local_irq_disable();
+	local_fiq_disable();
+
+	/* Call the architecture specific reboot code. */
 	arch_reset(mode, cmd);
 }
 
