@@ -787,7 +787,6 @@ struct ttm_backend *radeon_ttm_backend_create(struct radeon_device *rdev)
 		return NULL;
 	}
 	gtt->backend.bdev = &rdev->mman.bdev;
-	gtt->backend.flags = 0;
 	gtt->backend.func = &radeon_backend_func;
 	gtt->rdev = rdev;
 	gtt->pages = NULL;

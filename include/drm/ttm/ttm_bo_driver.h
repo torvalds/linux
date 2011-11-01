@@ -106,7 +106,6 @@ struct ttm_backend_func {
  * struct ttm_backend
  *
  * @bdev: Pointer to a struct ttm_bo_device.
- * @flags: For driver use.
  * @func: Pointer to a struct ttm_backend_func that describes
  * the backend methods.
  *
@@ -114,7 +113,6 @@ struct ttm_backend_func {
 
 struct ttm_backend {
 	struct ttm_bo_device *bdev;
-	uint32_t flags;
 	struct ttm_backend_func *func;
 };
 
