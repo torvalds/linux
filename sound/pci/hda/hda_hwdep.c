@@ -756,8 +756,6 @@ static int get_line_from_fw(char *buf, int size, struct firmware *fw)
 	}
 	if (!fw->size)
 		return 0;
-	if (size < fw->size)
-		size = fw->size;
 
 	for (len = 0; len < fw->size; len++) {
 		if (!*p)
