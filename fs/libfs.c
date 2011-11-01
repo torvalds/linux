@@ -510,8 +510,10 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 		if (!dentry)
 			goto out;
 		inode = new_inode(s);
-		if (!inode)
+		if (!inode) {
+			dput(dentry);
 			goto out;
+		}
 		inode->i_mode = S_IFREG | files->mode;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inode->i_fop = files->ops;
