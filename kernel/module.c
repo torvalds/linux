@@ -2878,8 +2878,7 @@ static struct module *load_module(void __user *umod,
 	}
 
 	/* This has to be done once we're sure module name is unique. */
-	if (!mod->taints || mod->taints == (1U<<TAINT_CRAP))
-		dynamic_debug_setup(info.debug, info.num_debug);
+	dynamic_debug_setup(info.debug, info.num_debug);
 
 	/* Find duplicate symbols */
 	err = verify_export_symbols(mod);
@@ -2915,8 +2914,7 @@ static struct module *load_module(void __user *umod,
 	module_bug_cleanup(mod);
 
  ddebug:
-	if (!mod->taints || mod->taints == (1U<<TAINT_CRAP))
-		dynamic_debug_remove(info.debug);
+	dynamic_debug_remove(info.debug);
  unlock:
 	mutex_unlock(&module_mutex);
 	synchronize_sched();
