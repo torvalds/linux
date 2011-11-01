@@ -350,15 +350,25 @@ config I2C_DAVINCI
 	  devices such as DaVinci NIC.
 	  For details please see http://www.ti.com/davinci
 
-config I2C_DESIGNWARE
-	tristate "Synopsys DesignWare"
+config I2C_DESIGNWARE_PLATFORM
+	tristate "Synopsys DesignWare Platfrom"
 	depends on HAVE_CLK
 	help
 	  If you say yes to this option, support will be included for the
 	  Synopsys DesignWare I2C adapter. Only master mode is supported.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-designware.
+	  will be called i2c-designware-platform.
+
+config I2C_DESIGNWARE_PCI
+	tristate "Synopsys DesignWare PCI"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the
+	  Synopsys DesignWare I2C adapter. Only master mode is supported.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-designware-pci.
 
 config I2C_GPIO
 	tristate "GPIO-based bitbanging I2C"
