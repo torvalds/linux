@@ -502,11 +502,7 @@ static struct fwnet_peer *fwnet_peer_find_by_node_id(struct fwnet_device *dev,
 static unsigned fwnet_max_payload(unsigned max_rec, unsigned speed)
 {
 	max_rec = min(max_rec, speed + 8);
-	max_rec = min(max_rec, 0xbU); /* <= 4096 */
-	if (max_rec < 8) {
-		fw_notify("max_rec %x out of range\n", max_rec);
-		max_rec = 8;
-	}
+	max_rec = clamp(max_rec, 8U, 11U); /* 512...4096 */
 
 	return (1 << (max_rec + 1)) - RFC2374_FRAG_HDR_SIZE;
 }
@@ -1125,17 +1121,12 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	unsigned u;
 
 	if (dev->local_fifo == FWNET_NO_FIFO_ADDR) {
-		/* outside OHCI posted write area? */
-		static const struct fw_address_region region = {
-			.start = 0xffff00000000ULL,
-			.end   = CSR_REGISTER_BASE,
-		};
-
 		dev->handler.length = 4096;
 		dev->handler.address_callback = fwnet_receive_packet;
 		dev->handler.callback_data = dev;
 
-		retval = fw_core_add_address_handler(&dev->handler, &region);
+		retval = fw_core_add_address_handler(&dev->handler,
+					&fw_high_memory_region);
 		if (retval < 0)
 			goto failed_initial;
 
