@@ -295,7 +295,7 @@ read_clk(struct drm_device *dev, enum clk_src src)
 			case 0x00000800:
 				return read_clk(dev, clk_src_hclkm3d2) >> P;
 			case 0x00000c00:
-				return read_pll(dev, clk_src_mclk) >> P;
+				return read_clk(dev, clk_src_mclk) >> P;
 			}
 			break;
 		}
