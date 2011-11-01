@@ -326,9 +326,9 @@ void release_and_free_resource(struct resource *res);
 /* --- */
 
 #if defined(CONFIG_SND_DEBUG) || defined(CONFIG_SND_VERBOSE_PRINTK)
+__printf(4, 5)
 void __snd_printk(unsigned int level, const char *file, int line,
-		  const char *format, ...)
-     __attribute__ ((format (printf, 4, 5)));
+		  const char *format, ...);
 #else
 #define __snd_printk(level, file, line, format, args...) \
 	printk(format, ##args)

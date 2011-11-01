@@ -61,11 +61,12 @@ struct bug_entry {
  */
 #ifndef __WARN_TAINT
 #ifndef __ASSEMBLY__
-extern void warn_slowpath_fmt(const char *file, const int line,
-		const char *fmt, ...) __attribute__((format(printf, 3, 4)));
-extern void warn_slowpath_fmt_taint(const char *file, const int line,
-				    unsigned taint, const char *fmt, ...)
-	__attribute__((format(printf, 4, 5)));
+extern __printf(3, 4)
+void warn_slowpath_fmt(const char *file, const int line,
+		       const char *fmt, ...);
+extern __printf(4, 5)
+void warn_slowpath_fmt_taint(const char *file, const int line, unsigned taint,
+			     const char *fmt, ...);
 extern void warn_slowpath_null(const char *file, const int line);
 #define WANT_WARN_ON_SLOWPATH
 #endif
