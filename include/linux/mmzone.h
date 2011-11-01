@@ -164,6 +164,14 @@ static inline int is_unevictable_lru(enum lru_list l)
 #define LRU_ALL_EVICTABLE (LRU_ALL_FILE | LRU_ALL_ANON)
 #define LRU_ALL	     ((1 << NR_LRU_LISTS) - 1)
 
+/* Isolate inactive pages */
+#define ISOLATE_INACTIVE	((__force isolate_mode_t)0x1)
+/* Isolate active pages */
+#define ISOLATE_ACTIVE		((__force isolate_mode_t)0x2)
+
+/* LRU Isolation modes. */
+typedef unsigned __bitwise__ isolate_mode_t;
+
 enum zone_watermarks {
 	WMARK_MIN,
 	WMARK_LOW,
