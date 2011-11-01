@@ -624,7 +624,7 @@ void ath6kl_deep_sleep_enable(struct ath6kl *ar)
 		printk(KERN_WARNING "ath6kl: failed to disable scan "
 		       "during suspend\n");
 
-	ath6kl_cfg80211_scan_complete_event(vif, -ECANCELED);
+	ath6kl_cfg80211_scan_complete_event(vif, true);
 
 	/* save the current power mode before enabling power save */
 	ar->wmi->saved_pwr_mode = ar->wmi->pwr_mode;
@@ -684,8 +684,12 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 void ath6kl_scan_complete_evt(struct ath6kl_vif *vif, int status)
 {
 	struct ath6kl *ar = vif->ar;
+	bool aborted = false;
 
-	ath6kl_cfg80211_scan_complete_event(vif, status);
+	if (status != WMI_SCAN_STATUS_SUCCESS)
+		aborted = true;
+
+	ath6kl_cfg80211_scan_complete_event(vif, aborted);
 
 	if (!ar->usr_bss_filter) {
 		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &vif->flags);
@@ -1149,7 +1153,7 @@ static int ath6kl_close(struct net_device *dev)
 
 	}
 
-	ath6kl_cfg80211_scan_complete_event(vif, -ECANCELED);
+	ath6kl_cfg80211_scan_complete_event(vif, true);
 
 	/* FIXME: how to handle multi vif support? */
 	ret = ath6kl_init_hw_stop(ar);

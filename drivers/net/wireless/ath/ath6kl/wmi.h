@@ -1472,6 +1472,10 @@ struct wmi_tkip_micerr_event {
 	u8 is_mcast;
 } __packed;
 
+enum wmi_scan_status {
+	WMI_SCAN_STATUS_SUCCESS = 0,
+};
+
 /* WMI_SCAN_COMPLETE_EVENTID */
 struct wmi_scan_complete_event {
 	a_sle32 status;
