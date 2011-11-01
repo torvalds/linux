@@ -235,13 +235,13 @@ static void __fsi_reg_mask_set(u32 __iomem *reg, u32 mask, u32 data)
 }
 
 #define fsi_reg_write(p, r, d)\
-	__fsi_reg_write((u32)(p->base + REG_##r), d)
+	__fsi_reg_write((p->base + REG_##r), d)
 
 #define fsi_reg_read(p, r)\
-	__fsi_reg_read((u32)(p->base + REG_##r))
+	__fsi_reg_read((p->base + REG_##r))
 
 #define fsi_reg_mask_set(p, r, m, d)\
-	__fsi_reg_mask_set((u32)(p->base + REG_##r), m, d)
+	__fsi_reg_mask_set((p->base + REG_##r), m, d)
 
 #define fsi_master_read(p, r) _fsi_master_read(p, MST_##r)
 #define fsi_core_read(p, r)   _fsi_master_read(p, p->core->r)
