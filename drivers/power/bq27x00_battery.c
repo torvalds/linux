@@ -80,8 +80,6 @@ struct bq27x00_reg_cache {
 	int cycle_count;
 	int capacity;
 	int flags;
-
-	int current_now;
 };
 
 struct bq27x00_device_info {
@@ -270,17 +268,12 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 		cache.charge_full = bq27x00_battery_read_lmd(di);
 		cache.cycle_count = bq27x00_battery_read_cyct(di);
 
-		if (!is_bq27500)
-			cache.current_now = bq27x00_read(di, BQ27x00_REG_AI, false);
-
 		/* We only have to read charge design full once */
 		if (di->charge_design_full <= 0)
 			di->charge_design_full = bq27x00_battery_read_ilmd(di);
 	}
 
-	/* Ignore current_now which is a snapshot of the current battery state
-	 * and is likely to be different even between two consecutive reads */
-	if (memcmp(&di->cache, &cache, sizeof(cache) - sizeof(int)) != 0) {
+	if (memcmp(&di->cache, &cache, sizeof(cache)) != 0) {
 		di->cache = cache;
 		power_supply_changed(&di->bat);
 	}
@@ -330,12 +323,9 @@ static int bq27x00_battery_current(struct bq27x00_device_info *di,
 	union power_supply_propval *val)
 {
 	int curr;
+	int flags;
 
-	if (di->chip == BQ27500)
-	    curr = bq27x00_read(di, BQ27x00_REG_AI, false);
-	else
-	    curr = di->cache.current_now;
-
+	curr = bq27x00_read(di, BQ27x00_REG_AI, false);
 	if (curr < 0)
 		return curr;
 
@@ -343,7 +333,8 @@ static int bq27x00_battery_current(struct bq27x00_device_info *di,
 		/* bq27500 returns signed value */
 		val->intval = (int)((s16)curr) * 1000;
 	} else {
-		if (di->cache.flags & BQ27000_FLAG_CHGS) {
+		flags = bq27x00_read(di, BQ27x00_REG_FLAGS, false);
+		if (flags & BQ27000_FLAG_CHGS) {
 			dev_dbg(di->dev, "negative current!\n");
 			curr = -curr;
 		}
