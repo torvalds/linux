@@ -26,7 +26,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/leds.h>
-#include <linux/leds-renesas-tpu.h>
+#include <linux/platform_data/leds-renesas-tpu.h>
 #include <linux/gpio.h>
 #include <linux/err.h>
 #include <linux/slab.h>
