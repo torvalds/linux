@@ -121,7 +121,7 @@ static int __devinit create_gpio_led(const struct gpio_led *template,
 	}
 	led_dat->cdev.brightness_set = gpio_led_set;
 	if (template->default_state == LEDS_GPIO_DEFSTATE_KEEP)
-		state = !!gpio_get_value(led_dat->gpio) ^ led_dat->active_low;
+		state = !!gpio_get_value_cansleep(led_dat->gpio) ^ led_dat->active_low;
 	else
 		state = (template->default_state == LEDS_GPIO_DEFSTATE_ON);
 	led_dat->cdev.brightness = state ? LED_FULL : LED_OFF;
