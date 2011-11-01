@@ -4035,6 +4035,11 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8962_CLOCKING2,
 			    WM8962_CLKREG_OVD, WM8962_CLKREG_OVD);
 
+	/* Ensure that the oscillator and PLLs are disabled */
+	snd_soc_update_bits(codec, WM8962_PLL2,
+			    WM8962_OSC_ENA | WM8962_PLL2_ENA | WM8962_PLL3_ENA,
+			    0);
+
 	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
 
 	if (pdata) {
