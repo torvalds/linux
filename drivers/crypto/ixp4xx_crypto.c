@@ -1449,6 +1449,7 @@ static int __init ixp_module_init(void)
 			/* block ciphers */
 			cra->cra_type = &crypto_ablkcipher_type;
 			cra->cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+					 CRYPTO_ALG_KERN_DRIVER_ONLY |
 					 CRYPTO_ALG_ASYNC;
 			if (!cra->cra_ablkcipher.setkey)
 				cra->cra_ablkcipher.setkey = ablk_setkey;
@@ -1461,6 +1462,7 @@ static int __init ixp_module_init(void)
 			/* authenc */
 			cra->cra_type = &crypto_aead_type;
 			cra->cra_flags = CRYPTO_ALG_TYPE_AEAD |
+					 CRYPTO_ALG_KERN_DRIVER_ONLY |
 					 CRYPTO_ALG_ASYNC;
 			cra->cra_aead.setkey = aead_setkey;
 			cra->cra_aead.setauthsize = aead_setauthsize;

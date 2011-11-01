@@ -2205,7 +2205,8 @@ static struct caam_crypto_alg *caam_alg_alloc(struct device *ctrldev,
 	alg->cra_blocksize = template->blocksize;
 	alg->cra_alignmask = 0;
 	alg->cra_ctxsize = sizeof(struct caam_ctx);
-	alg->cra_flags = CRYPTO_ALG_ASYNC | template->type;
+	alg->cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY |
+			 template->type;
 	switch (template->type) {
 	case CRYPTO_ALG_TYPE_ABLKCIPHER:
 		alg->cra_type = &crypto_ablkcipher_type;

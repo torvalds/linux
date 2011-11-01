@@ -898,7 +898,8 @@ struct crypto_alg mv_aes_alg_ecb = {
 	.cra_name		= "ecb(aes)",
 	.cra_driver_name	= "mv-ecb-aes",
 	.cra_priority	= 300,
-	.cra_flags	= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+	.cra_flags	= CRYPTO_ALG_TYPE_ABLKCIPHER |
+			  CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC,
 	.cra_blocksize	= 16,
 	.cra_ctxsize	= sizeof(struct mv_ctx),
 	.cra_alignmask	= 0,
@@ -920,7 +921,8 @@ struct crypto_alg mv_aes_alg_cbc = {
 	.cra_name		= "cbc(aes)",
 	.cra_driver_name	= "mv-cbc-aes",
 	.cra_priority	= 300,
-	.cra_flags	= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+	.cra_flags	= CRYPTO_ALG_TYPE_ABLKCIPHER |
+			  CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC,
 	.cra_blocksize	= AES_BLOCK_SIZE,
 	.cra_ctxsize	= sizeof(struct mv_ctx),
 	.cra_alignmask	= 0,
@@ -952,7 +954,8 @@ struct ahash_alg mv_sha1_alg = {
 			  .cra_driver_name = "mv-sha1",
 			  .cra_priority = 300,
 			  .cra_flags =
-			  CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
+			  CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY |
+			  CRYPTO_ALG_NEED_FALLBACK,
 			  .cra_blocksize = SHA1_BLOCK_SIZE,
 			  .cra_ctxsize = sizeof(struct mv_tfm_hash_ctx),
 			  .cra_init = mv_cra_hash_sha1_init,
@@ -976,7 +979,8 @@ struct ahash_alg mv_hmac_sha1_alg = {
 			  .cra_driver_name = "mv-hmac-sha1",
 			  .cra_priority = 300,
 			  .cra_flags =
-			  CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
+			  CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY |
+			  CRYPTO_ALG_NEED_FALLBACK,
 			  .cra_blocksize = SHA1_BLOCK_SIZE,
 			  .cra_ctxsize = sizeof(struct mv_tfm_hash_ctx),
 			  .cra_init = mv_cra_hash_hmac_sha1_init,
