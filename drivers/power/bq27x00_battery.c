@@ -56,6 +56,7 @@
 #define BQ27000_REG_ILMD		0x76 /* Initial last measured discharge */
 #define BQ27000_FLAG_EDVF		BIT(0) /* Final End-of-Discharge-Voltage flag */
 #define BQ27000_FLAG_EDV1		BIT(1) /* First End-of-Discharge-Voltage flag */
+#define BQ27000_FLAG_CI			BIT(4) /* Capacity Inaccurate flag */
 #define BQ27000_FLAG_FC			BIT(5)
 #define BQ27000_FLAG_CHGS		BIT(7) /* Charge state flag */
 
@@ -265,12 +266,20 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 
 	cache.flags = bq27x00_read(di, BQ27x00_REG_FLAGS, is_bq27500);
 	if (cache.flags >= 0) {
-		cache.capacity = bq27x00_battery_read_rsoc(di);
+		if (!is_bq27500 && (cache.flags & BQ27000_FLAG_CI)) {
+			cache.capacity = -ENODATA;
+			cache.time_to_empty = -ENODATA;
+			cache.time_to_empty_avg = -ENODATA;
+			cache.time_to_full = -ENODATA;
+			cache.charge_full = -ENODATA;
+		} else {
+			cache.capacity = bq27x00_battery_read_rsoc(di);
+			cache.time_to_empty = bq27x00_battery_read_time(di, BQ27x00_REG_TTE);
+			cache.time_to_empty_avg = bq27x00_battery_read_time(di, BQ27x00_REG_TTECP);
+			cache.time_to_full = bq27x00_battery_read_time(di, BQ27x00_REG_TTF);
+			cache.charge_full = bq27x00_battery_read_lmd(di);
+		}
 		cache.temperature = bq27x00_read(di, BQ27x00_REG_TEMP, false);
-		cache.time_to_empty = bq27x00_battery_read_time(di, BQ27x00_REG_TTE);
-		cache.time_to_empty_avg = bq27x00_battery_read_time(di, BQ27x00_REG_TTECP);
-		cache.time_to_full = bq27x00_battery_read_time(di, BQ27x00_REG_TTF);
-		cache.charge_full = bq27x00_battery_read_lmd(di);
 		cache.cycle_count = bq27x00_battery_read_cyct(di);
 
 		/* We only have to read charge design full once */
