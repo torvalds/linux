@@ -2152,6 +2152,8 @@ void ath6kl_cfg80211_stop(struct ath6kl *ar)
 		ath6kl_wmi_disconnect_cmd(ar->wmi, vif->fw_vif_idx);
 
 	vif->sme_state = SME_DISCONNECTED;
+	clear_bit(CONNECTED, &vif->flags);
+	clear_bit(CONNECT_PEND, &vif->flags);
 
 	/* disable scanning */
 	if (ath6kl_wmi_scanparams_cmd(ar->wmi, vif->fw_vif_idx, 0xFFFF, 0, 0,
