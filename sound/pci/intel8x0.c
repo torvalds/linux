@@ -43,7 +43,7 @@
 #include <asm/cacheflush.h>
 
 #ifdef CONFIG_KVM_GUEST
-#include <asm/kvm_para.h>
+#include <linux/kvm_para.h>
 #else
 #define kvm_para_available() (0)
 #endif
