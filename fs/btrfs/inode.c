@@ -2904,7 +2904,7 @@ out:
 	if (!err)
 		err = btrfs_block_rsv_migrate(trans->block_rsv,
 				&root->fs_info->global_block_rsv,
-				btrfs_calc_trans_metadata_size(root, 1));
+				trans->bytes_reserved);
 
 	if (err) {
 		btrfs_end_transaction(trans, root);
@@ -2920,6 +2920,9 @@ static void __unlink_end_trans(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root)
 {
 	if (trans->block_rsv == &root->fs_info->global_block_rsv) {
+		btrfs_block_rsv_release(root, trans->block_rsv,
+					trans->bytes_reserved);
+		trans->block_rsv = &root->fs_info->trans_block_rsv;
 		BUG_ON(!root->fs_info->enospc_unlink);
 		root->fs_info->enospc_unlink = 0;
 	}
