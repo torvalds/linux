@@ -629,7 +629,7 @@ static void __init cm_t3730_init(void)
 }
 
 MACHINE_START(CM_T35, "Compulab CM-T35")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
@@ -639,7 +639,7 @@ MACHINE_START(CM_T35, "Compulab CM-T35")
 MACHINE_END
 
 MACHINE_START(CM_T3730, "Compulab CM-T3730")
-	.boot_params    = 0x80000100,
+	.atag_offset    = 0x100,
 	.reserve        = omap_reserve,
 	.map_io         = omap3_map_io,
 	.init_early     = omap3630_init_early,

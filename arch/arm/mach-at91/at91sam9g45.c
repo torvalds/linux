@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/pm.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -319,6 +320,7 @@ static void at91sam9g45_poweroff(void)
 static void __init at91sam9g45_map_io(void)
 {
 	at91_init_sram(0, AT91SAM9G45_SRAM_BASE, AT91SAM9G45_SRAM_SIZE);
+	init_consistent_dma_size(SZ_4M);
 }
 
 static void __init at91sam9g45_initialize(void)

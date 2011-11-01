@@ -454,7 +454,7 @@ static void __init innovator_map_io(void)
 
 MACHINE_START(OMAP_INNOVATOR, "TI-Innovator")
 	/* Maintainer: MontaVista Software, Inc. */
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= innovator_map_io,
 	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,

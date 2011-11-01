@@ -92,6 +92,7 @@ static const char *omap242x_boards_compat[] __initdata = {
 };
 
 DT_MACHINE_START(OMAP242X_DT, "Generic OMAP2420 (Flattened Device Tree)")
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap242x_map_io,
 	.init_early	= omap2420_init_early,
@@ -109,6 +110,7 @@ static const char *omap243x_boards_compat[] __initdata = {
 };
 
 DT_MACHINE_START(OMAP243X_DT, "Generic OMAP2430 (Flattened Device Tree)")
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap243x_map_io,
 	.init_early	= omap2430_init_early,
@@ -126,6 +128,7 @@ static const char *omap3_boards_compat[] __initdata = {
 };
 
 DT_MACHINE_START(OMAP3_DT, "Generic OMAP3 (Flattened Device Tree)")
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap3430_init_early,
@@ -143,6 +146,7 @@ static const char *omap4_boards_compat[] __initdata = {
 };
 
 DT_MACHINE_START(OMAP4_DT, "Generic OMAP4 (Flattened Device Tree)")
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap4_map_io,
 	.init_early	= omap4430_init_early,

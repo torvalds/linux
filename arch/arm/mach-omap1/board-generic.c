@@ -83,7 +83,7 @@ static void __init omap_generic_init(void)
 
 MACHINE_START(OMAP_GENERIC, "Generic OMAP1510/1610/1710")
 	/* Maintainer: Tony Lindgren <tony@atomide.com> */
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= omap16xx_map_io,
 	.init_early	= omap1_init_early,
 	.reserve	= omap_reserve,

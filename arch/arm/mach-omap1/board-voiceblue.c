@@ -290,7 +290,7 @@ static void __init voiceblue_init(void)
 
 MACHINE_START(VOICEBLUE, "VoiceBlue OMAP5910")
 	/* Maintainer: Ladislav Michl <michl@2n.cz> */
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= omap15xx_map_io,
 	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,
