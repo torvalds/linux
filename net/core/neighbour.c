@@ -872,12 +872,8 @@ static void neigh_timer_handler(unsigned long arg)
 	now = jiffies;
 	next = now + HZ;
 
-	if (!(state & NUD_IN_TIMER)) {
-#ifndef CONFIG_SMP
-		printk(KERN_WARNING "neigh: timer & !nud_in_timer\n");
-#endif
+	if (!(state & NUD_IN_TIMER))
 		goto out;
-	}
 
 	if (state & NUD_REACHABLE) {
 		if (time_before_eq(now,
