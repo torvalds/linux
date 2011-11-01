@@ -79,7 +79,7 @@ static int __ipath_get_user_pages(unsigned long start_page, size_t num_pages,
 			goto bail_release;
 	}
 
-	current->mm->locked_vm += num_pages;
+	current->mm->pinned_vm += num_pages;
 
 	ret = 0;
 	goto bail;
@@ -178,7 +178,7 @@ void ipath_release_user_pages(struct page **p, size_t num_pages)
 
 	__ipath_release_user_pages(p, num_pages, 1);
 
-	current->mm->locked_vm -= num_pages;
+	current->mm->pinned_vm -= num_pages;
 
 	up_write(&current->mm->mmap_sem);
 }
@@ -195,7 +195,7 @@ static void user_pages_account(struct work_struct *_work)
 		container_of(_work, struct ipath_user_pages_work, work);
 
 	down_write(&work->mm->mmap_sem);
-	work->mm->locked_vm -= work->num_pages;
+	work->mm->pinned_vm -= work->num_pages;
 	up_write(&work->mm->mmap_sem);
 	mmput(work->mm);
 	kfree(work);
