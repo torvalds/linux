@@ -221,7 +221,7 @@ static int max8649_enable_time(struct regulator_dev *rdev)
 	ret = (ret & MAX8649_RAMP_MASK) >> 5;
 	rate = (32 * 1000) >> ret;	/* uV/uS */
 
-	return (voltage / rate);
+	return DIV_ROUND_UP(voltage, rate);
 }
 
 static int max8649_set_mode(struct regulator_dev *rdev, unsigned int mode)
