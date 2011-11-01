@@ -320,7 +320,7 @@ struct ttm_tt *ttm_tt_create(struct ttm_bo_device *bdev, unsigned long size,
 	ttm->dummy_read_page = dummy_read_page;
 
 	ttm_tt_alloc_page_directory(ttm);
-	if (!ttm->pages) {
+	if (!ttm->pages || !ttm->dma_address) {
 		ttm_tt_destroy(ttm);
 		printk(KERN_ERR TTM_PFX "Failed allocating page table\n");
 		return NULL;
