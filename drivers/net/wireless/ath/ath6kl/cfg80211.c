@@ -1320,9 +1320,9 @@ static int ath6kl_cfg80211_del_iface(struct wiphy *wiphy,
 	struct ath6kl *ar = wiphy_priv(wiphy);
 	struct ath6kl_vif *vif = netdev_priv(ndev);
 
-	spin_lock(&ar->list_lock);
+	spin_lock_bh(&ar->list_lock);
 	list_del(&vif->list);
-	spin_unlock(&ar->list_lock);
+	spin_unlock_bh(&ar->list_lock);
 
 	ath6kl_cleanup_vif(vif, test_bit(WMI_READY, &ar->flag));
 
@@ -2437,9 +2437,9 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	if (type == NL80211_IFTYPE_ADHOC)
 		ar->ibss_if_active = true;
 
-	spin_lock(&ar->list_lock);
+	spin_lock_bh(&ar->list_lock);
 	list_add_tail(&vif->list, &ar->vif_list);
-	spin_unlock(&ar->list_lock);
+	spin_unlock_bh(&ar->list_lock);
 
 	return ndev;
 

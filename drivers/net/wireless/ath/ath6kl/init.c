@@ -1685,17 +1685,17 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 		return;
 	}
 
-	spin_lock(&ar->list_lock);
+	spin_lock_bh(&ar->list_lock);
 	list_for_each_entry_safe(vif, tmp_vif, &ar->vif_list, list) {
 		list_del(&vif->list);
-		spin_unlock(&ar->list_lock);
+		spin_unlock_bh(&ar->list_lock);
 		ath6kl_cleanup_vif(vif, test_bit(WMI_READY, &ar->flag));
 		rtnl_lock();
 		ath6kl_deinit_if_data(vif);
 		rtnl_unlock();
-		spin_lock(&ar->list_lock);
+		spin_lock_bh(&ar->list_lock);
 	}
-	spin_unlock(&ar->list_lock);
+	spin_unlock_bh(&ar->list_lock);
 
 	clear_bit(WMI_READY, &ar->flag);
 

@@ -1046,15 +1046,15 @@ struct ath6kl_vif *ath6kl_vif_first(struct ath6kl *ar)
 {
 	struct ath6kl_vif *vif;
 
-	spin_lock(&ar->list_lock);
+	spin_lock_bh(&ar->list_lock);
 	if (list_empty(&ar->vif_list)) {
-		spin_unlock(&ar->list_lock);
+		spin_unlock_bh(&ar->list_lock);
 		return NULL;
 	}
 
 	vif = list_first_entry(&ar->vif_list, struct ath6kl_vif, list);
 
-	spin_unlock(&ar->list_lock);
+	spin_unlock_bh(&ar->list_lock);
 
 	return vif;
 }
