@@ -336,7 +336,9 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		/* if the packets are destined for AP (have a STA entry)
 		   send them with AP rate policies, otherwise use default
 		   basic rates */
-		if (control->control.sta)
+		if (control->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
+			rate_idx = wlvif->sta.p2p_rate_idx;
+		else if (control->control.sta)
 			rate_idx = wlvif->sta.ap_rate_idx;
 		else
 			rate_idx = wlvif->sta.basic_rate_idx;
