@@ -136,11 +136,6 @@ enum ttm_caching_state {
  * @dummy_read_page: Page to map where the ttm_tt page array contains a NULL
  * pointer.
  * @pages: Array of pages backing the data.
- * @first_himem_page: Himem pages are put last in the page array, which
- * enables us to run caching attribute changes on only the first part
- * of the page array containing lomem pages. This is the index of the
- * first himem page.
- * @last_lomem_page: Index of the last lomem page in the page array.
  * @num_pages: Number of pages in the page array.
  * @bdev: Pointer to the current struct ttm_bo_device.
  * @be: Pointer to the ttm backend.
@@ -157,8 +152,6 @@ enum ttm_caching_state {
 struct ttm_tt {
 	struct page *dummy_read_page;
 	struct page **pages;
-	long first_himem_page;
-	long last_lomem_page;
 	uint32_t page_flags;
 	unsigned long num_pages;
 	struct ttm_bo_global *glob;

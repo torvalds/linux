@@ -70,7 +70,7 @@ static struct page *__ttm_tt_get_page(struct ttm_tt *ttm, int index)
 	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
 	int ret;
 
-	while (NULL == (p = ttm->pages[index])) {
+	if (NULL == (p = ttm->pages[index])) {
 
 		INIT_LIST_HEAD(&h);
 
@@ -86,10 +86,7 @@ static struct page *__ttm_tt_get_page(struct ttm_tt *ttm, int index)
 		if (unlikely(ret != 0))
 			goto out_err;
 
-		if (PageHighMem(p))
-			ttm->pages[--ttm->first_himem_page] = p;
-		else
-			ttm->pages[++ttm->last_lomem_page] = p;
+		ttm->pages[index] = p;
 	}
 	return p;
 out_err:
@@ -271,8 +268,6 @@ static void ttm_tt_free_alloced_pages(struct ttm_tt *ttm)
 	ttm_put_pages(&h, count, ttm->page_flags, ttm->caching_state,
 		      ttm->dma_address);
 	ttm->state = tt_unpopulated;
-	ttm->first_himem_page = ttm->num_pages;
-	ttm->last_lomem_page = -1;
 }
 
 void ttm_tt_destroy(struct ttm_tt *ttm)
@@ -316,8 +311,6 @@ struct ttm_tt *ttm_tt_create(struct ttm_bo_device *bdev, unsigned long size,
 
 	ttm->glob = bdev->glob;
 	ttm->num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	ttm->first_himem_page = ttm->num_pages;
-	ttm->last_lomem_page = -1;
 	ttm->caching_state = tt_cached;
 	ttm->page_flags = page_flags;
 
