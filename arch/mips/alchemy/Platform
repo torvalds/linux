@@ -68,20 +68,6 @@ cflags-$(CONFIG_MIPS_DB1200)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1200)	+= 0xffffffff80100000
 
 #
-# AMD Alchemy Bosporus eval board
-#
-platform-$(CONFIG_MIPS_BOSPORUS) += alchemy/devboards/
-cflags-$(CONFIG_MIPS_BOSPORUS)	 += -I$(srctree)/arch/mips/include/asm/mach-db1x00
-load-$(CONFIG_MIPS_BOSPORUS)	 += 0xffffffff80100000
-
-#
-# AMD Alchemy Mirage eval board
-#
-platform-$(CONFIG_MIPS_MIRAGE)	+= alchemy/devboards/
-cflags-$(CONFIG_MIPS_MIRAGE)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
-load-$(CONFIG_MIPS_MIRAGE)	+= 0xffffffff80100000
-
-#
 # 4G-Systems eval board
 #
 platform-$(CONFIG_MIPS_MTX1)	+= alchemy/mtx-1/

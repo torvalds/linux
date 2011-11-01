@@ -37,7 +37,6 @@ struct pci_dev;
  * Db1550:	0/1, 21/22, 3/5
  */
 
-#define DB1XXX_HAS_PCMCIA
 #define F_SWAPPED (bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1000_SWAPBOOT)
 
 #if defined(CONFIG_MIPS_DB1000)
@@ -48,7 +47,6 @@ struct pci_dev;
 #define DB1XXX_PCMCIA_STSCHG1	AU1000_GPIO4_INT
 #define DB1XXX_PCMCIA_CARD1	AU1000_GPIO5_INT
 #define BOARD_FLASH_SIZE	0x02000000 /* 32MB */
-#define BOARD_FLASH_WIDTH	4 /* 32-bits */
 #elif defined(CONFIG_MIPS_DB1100)
 #define DB1XXX_PCMCIA_CD0	AU1100_GPIO0_INT
 #define DB1XXX_PCMCIA_STSCHG0	AU1100_GPIO1_INT
@@ -57,7 +55,6 @@ struct pci_dev;
 #define DB1XXX_PCMCIA_STSCHG1	AU1100_GPIO4_INT
 #define DB1XXX_PCMCIA_CARD1	AU1100_GPIO5_INT
 #define BOARD_FLASH_SIZE	0x02000000 /* 32MB */
-#define BOARD_FLASH_WIDTH	4 /* 32-bits */
 #elif defined(CONFIG_MIPS_DB1500)
 #define DB1XXX_PCMCIA_CD0	AU1500_GPIO0_INT
 #define DB1XXX_PCMCIA_STSCHG0	AU1500_GPIO1_INT
@@ -66,7 +63,6 @@ struct pci_dev;
 #define DB1XXX_PCMCIA_STSCHG1	AU1500_GPIO4_INT
 #define DB1XXX_PCMCIA_CARD1	AU1500_GPIO5_INT
 #define BOARD_FLASH_SIZE	0x02000000 /* 32MB */
-#define BOARD_FLASH_WIDTH	4 /* 32-bits */
 #elif defined(CONFIG_MIPS_DB1550)
 #define DB1XXX_PCMCIA_CD0	AU1550_GPIO0_INT
 #define DB1XXX_PCMCIA_STSCHG0	AU1550_GPIO21_INT
@@ -75,19 +71,6 @@ struct pci_dev;
 #define DB1XXX_PCMCIA_STSCHG1	AU1550_GPIO22_INT
 #define DB1XXX_PCMCIA_CARD1	AU1550_GPIO5_INT
 #define BOARD_FLASH_SIZE	0x08000000 /* 128MB */
-#define BOARD_FLASH_WIDTH	4 /* 32-bits */
-#else
-/* other board: no PCMCIA */
-#undef DB1XXX_HAS_PCMCIA
-#undef F_SWAPPED
-#define F_SWAPPED 0
-#if defined(CONFIG_MIPS_BOSPORUS)
-#define BOARD_FLASH_SIZE	0x01000000 /* 16MB */
-#define BOARD_FLASH_WIDTH	2 /* 16-bits */
-#elif defined(CONFIG_MIPS_MIRAGE)
-#define BOARD_FLASH_SIZE	0x04000000 /* 64MB */
-#define BOARD_FLASH_WIDTH	4 /* 32-bits */
-#endif
 #endif
 
 #ifdef CONFIG_PCI
@@ -131,52 +114,6 @@ static int db1xxx_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
 		case 2: return AU1550_PCI_INTB;
 		case 3: return AU1550_PCI_INTC;
 		case 4: return AU1550_PCI_INTD;
-		}
-	}
-	return -1;
-}
-#endif
-
-#ifdef CONFIG_MIPS_BOSPORUS
-static int db1xxx_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
-{
-	if ((slot < 11) || (slot > 13) || pin == 0)
-		return -1;
-	if (slot == 12)
-		return (pin == 1) ? AU1500_PCI_INTA : 0xff;
-	if (slot == 11) {
-		switch (pin) {
-		case 1: return AU1500_PCI_INTA;
-		case 2: return AU1500_PCI_INTB;
-		default: return 0xff;
-		}
-	}
-	if (slot == 13) {
-		switch (pin) {
-		case 1: return AU1500_PCI_INTA;
-		case 2: return AU1500_PCI_INTB;
-		case 3: return AU1500_PCI_INTC;
-		case 4: return AU1500_PCI_INTD;
-		}
-	}
-	return -1;
-}
-#endif
-
-#ifdef CONFIG_MIPS_MIRAGE
-static int db1xxx_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
-{
-	if ((slot < 11) || (slot > 13) || pin == 0)
-		return -1;
-	if (slot == 11)
-		return (pin == 1) ? AU1500_PCI_INTD : 0xff;
-	if (slot == 12)
-		return (pin == 3) ? AU1500_PCI_INTC : 0xff;
-	if (slot == 13) {
-		switch (pin) {
-		case 1: return AU1500_PCI_INTA;
-		case 2: return AU1500_PCI_INTB;
-		default: return 0xff;
 		}
 	}
 	return -1;
@@ -280,7 +217,6 @@ static struct platform_device db1x00_audio_dev = {
 
 static int __init db1xxx_dev_init(void)
 {
-#ifdef DB1XXX_HAS_PCMCIA
 	db1x_register_pcmcia_socket(
 		AU1000_PCMCIA_ATTR_PHYS_ADDR,
 		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x000400000 - 1,
@@ -300,17 +236,15 @@ static int __init db1xxx_dev_init(void)
 		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004010000 - 1,
 		DB1XXX_PCMCIA_CARD1, DB1XXX_PCMCIA_CD1,
 		/*DB1XXX_PCMCIA_STSCHG1*/0, 0, 1);
-#endif
 #ifdef CONFIG_MIPS_DB1100
 	platform_device_register(&au1100_lcd_device);
 #endif
-	db1x_register_norflash(BOARD_FLASH_SIZE, BOARD_FLASH_WIDTH, F_SWAPPED);
-
 	platform_device_register(&db1x00_codec_dev);
 	platform_device_register(&alchemy_ac97c_dma_dev);
 	platform_device_register(&alchemy_ac97c_dev);
 	platform_device_register(&db1x00_audio_dev);
 
+	db1x_register_norflash(BOARD_FLASH_SIZE, 4 /* 32bit */, F_SWAPPED);
 	return 0;
 }
 device_initcall(db1xxx_dev_init);

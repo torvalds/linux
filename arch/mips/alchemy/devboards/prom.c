@@ -35,8 +35,7 @@
 
 #if defined(CONFIG_MIPS_DB1000) || \
     defined(CONFIG_MIPS_PB1100) || defined(CONFIG_MIPS_DB1100) || \
-    defined(CONFIG_MIPS_PB1500) || defined(CONFIG_MIPS_DB1500) || \
-    defined(CONFIG_MIPS_BOSPORUS) || defined(CONFIG_MIPS_MIRAGE)
+    defined(CONFIG_MIPS_PB1500) || defined(CONFIG_MIPS_DB1500)
 #define ALCHEMY_BOARD_DEFAULT_MEMSIZE	0x04000000
 
 #else	/* Au1550/Au1200-based develboards */
