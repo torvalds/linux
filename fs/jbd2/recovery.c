@@ -89,7 +89,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 		err = jbd2_journal_bmap(journal, next, &blocknr);
 
 		if (err) {
-			printk (KERN_ERR "JBD: bad block at offset %u\n",
+			printk(KERN_ERR "JBD2: bad block at offset %u\n",
 				next);
 			goto failed;
 		}
@@ -138,14 +138,14 @@ static int jread(struct buffer_head **bhp, journal_t *journal,
 	*bhp = NULL;
 
 	if (offset >= journal->j_maxlen) {
-		printk(KERN_ERR "JBD: corrupted journal superblock\n");
+		printk(KERN_ERR "JBD2: corrupted journal superblock\n");
 		return -EIO;
 	}
 
 	err = jbd2_journal_bmap(journal, offset, &blocknr);
 
 	if (err) {
-		printk (KERN_ERR "JBD: bad block at offset %u\n",
+		printk(KERN_ERR "JBD2: bad block at offset %u\n",
 			offset);
 		return err;
 	}
@@ -163,7 +163,7 @@ static int jread(struct buffer_head **bhp, journal_t *journal,
 	}
 
 	if (!buffer_uptodate(bh)) {
-		printk (KERN_ERR "JBD: Failed to read block at offset %u\n",
+		printk(KERN_ERR "JBD2: Failed to read block at offset %u\n",
 			offset);
 		brelse(bh);
 		return -EIO;
@@ -251,10 +251,10 @@ int jbd2_journal_recover(journal_t *journal)
 	if (!err)
 		err = do_one_pass(journal, &info, PASS_REPLAY);
 
-	jbd_debug(1, "JBD: recovery, exit status %d, "
+	jbd_debug(1, "JBD2: recovery, exit status %d, "
 		  "recovered transactions %u to %u\n",
 		  err, info.start_transaction, info.end_transaction);
-	jbd_debug(1, "JBD: Replayed %d and revoked %d/%d blocks\n",
+	jbd_debug(1, "JBD2: Replayed %d and revoked %d/%d blocks\n",
 		  info.nr_replays, info.nr_revoke_hits, info.nr_revokes);
 
 	/* Restart the log at the next transaction ID, thus invalidating
@@ -293,14 +293,14 @@ int jbd2_journal_skip_recovery(journal_t *journal)
 	err = do_one_pass(journal, &info, PASS_SCAN);
 
 	if (err) {
-		printk(KERN_ERR "JBD: error %d scanning journal\n", err);
+		printk(KERN_ERR "JBD2: error %d scanning journal\n", err);
 		++journal->j_transaction_sequence;
 	} else {
 #ifdef CONFIG_JBD2_DEBUG
 		int dropped = info.end_transaction - 
 			be32_to_cpu(journal->j_superblock->s_sequence);
 		jbd_debug(1,
-			  "JBD: ignoring %d transaction%s from the journal.\n",
+			  "JBD2: ignoring %d transaction%s from the journal.\n",
 			  dropped, (dropped == 1) ? "" : "s");
 #endif
 		journal->j_transaction_sequence = ++info.end_transaction;
@@ -338,7 +338,7 @@ static int calc_chksums(journal_t *journal, struct buffer_head *bh,
 		wrap(journal, *next_log_block);
 		err = jread(&obh, journal, io_block);
 		if (err) {
-			printk(KERN_ERR "JBD: IO error %d recovering block "
+			printk(KERN_ERR "JBD2: IO error %d recovering block "
 				"%lu in log\n", err, io_block);
 			return 1;
 		} else {
@@ -411,7 +411,7 @@ static int do_one_pass(journal_t *journal,
 		 * either the next descriptor block or the final commit
 		 * record. */
 
-		jbd_debug(3, "JBD: checking block %ld\n", next_log_block);
+		jbd_debug(3, "JBD2: checking block %ld\n", next_log_block);
 		err = jread(&bh, journal, next_log_block);
 		if (err)
 			goto failed;
@@ -491,8 +491,8 @@ static int do_one_pass(journal_t *journal,
 					/* Recover what we can, but
 					 * report failure at the end. */
 					success = err;
-					printk (KERN_ERR
-						"JBD: IO error %d recovering "
+					printk(KERN_ERR
+						"JBD2: IO error %d recovering "
 						"block %ld in log\n",
 						err, io_block);
 				} else {
@@ -520,7 +520,7 @@ static int do_one_pass(journal_t *journal,
 							journal->j_blocksize);
 					if (nbh == NULL) {
 						printk(KERN_ERR
-						       "JBD: Out of memory "
+						       "JBD2: Out of memory "
 						       "during recovery.\n");
 						err = -ENOMEM;
 						brelse(bh);
@@ -689,7 +689,7 @@ static int do_one_pass(journal_t *journal,
 		/* It's really bad news if different passes end up at
 		 * different places (but possible due to IO errors). */
 		if (info->end_transaction != next_commit_ID) {
-			printk (KERN_ERR "JBD: recovery pass %d ended at "
+			printk(KERN_ERR "JBD2: recovery pass %d ended at "
 				"transaction %u, expected %u\n",
 				pass, next_commit_ID, info->end_transaction);
 			if (!success)

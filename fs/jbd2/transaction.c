@@ -125,7 +125,7 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
 	unsigned long ts = jiffies;
 
 	if (nblocks > journal->j_max_transaction_buffers) {
-		printk(KERN_ERR "JBD: %s wants too many credits (%d > %d)\n",
+		printk(KERN_ERR "JBD2: %s wants too many credits (%d > %d)\n",
 		       current->comm, nblocks,
 		       journal->j_max_transaction_buffers);
 		return -ENOSPC;
@@ -564,7 +564,7 @@ static void warn_dirty_buffer(struct buffer_head *bh)
 	char b[BDEVNAME_SIZE];
 
 	printk(KERN_WARNING
-	       "JBD: Spotted dirty metadata buffer (dev = %s, blocknr = %llu). "
+	       "JBD2: Spotted dirty metadata buffer (dev = %s, blocknr = %llu). "
 	       "There's a risk of filesystem corruption in case of system "
 	       "crash.\n",
 	       bdevname(bh->b_bdev, b), (unsigned long long)bh->b_blocknr);
