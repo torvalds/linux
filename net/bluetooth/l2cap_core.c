@@ -2237,11 +2237,10 @@ done:
 					return -ECONNREFUSED;
 
 				l2cap_add_conf_opt(&ptr, L2CAP_CONF_EFS,
-								sizeof(efs),
+							sizeof(efs),
 							(unsigned long) &efs);
 			} else {
-				/* Send PENDING Conf Rsp and mark state
-				   local PENDING */
+				/* Send PENDING Conf Rsp */
 				result = L2CAP_CONF_PENDING;
 				set_bit(CONF_LOC_CONF_PEND, &chan->conf_state);
 			}
@@ -2373,8 +2372,8 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 		case L2CAP_CONF_EWS:
 			chan->tx_win = min_t(u16, val,
 						L2CAP_DEFAULT_EXT_WINDOW);
-			l2cap_add_conf_opt(&ptr, L2CAP_CONF_EWS,
-							2, chan->tx_win);
+			l2cap_add_conf_opt(&ptr, L2CAP_CONF_EWS, 2,
+							chan->tx_win);
 			break;
 		}
 	}
@@ -2801,7 +2800,7 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 		set_bit(CONF_OUTPUT_DONE, &chan->conf_state);
 
 		l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP,
-				l2cap_build_conf_rsp(chan, rsp,
+					l2cap_build_conf_rsp(chan, rsp,
 					L2CAP_CONF_SUCCESS, 0x0000), rsp);
 	}
 
@@ -2856,7 +2855,7 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 			set_bit(CONF_OUTPUT_DONE, &chan->conf_state);
 
 			l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP,
-					l2cap_build_conf_rsp(chan, buf,
+						l2cap_build_conf_rsp(chan, buf,
 						L2CAP_CONF_SUCCESS, 0x0000), buf);
 		}
 		goto done;
