@@ -3661,6 +3661,9 @@ int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 	snd_soc_jack_report(wm8962->jack, 0,
 			    SND_JACK_MICROPHONE | SND_JACK_BTN_0);
 
+	if (jack)
+		snd_soc_dapm_force_enable_pin(&codec->dapm, "SYSCLK");
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm8962_mic_detect);
