@@ -1773,57 +1773,56 @@ protocol_check:
 				if (unlikely(l_ptr->oldest_deferred_in))
 					head = link_insert_deferred_queue(l_ptr,
 									  head);
-				if (likely(msg_is_dest(msg, tipc_own_addr))) {
-					int ret;
 deliver:
-					if (likely(msg_isdata(msg))) {
-						tipc_node_unlock(n_ptr);
-						tipc_port_recv_msg(buf);
-						continue;
+				if (likely(msg_isdata(msg))) {
+					tipc_node_unlock(n_ptr);
+					tipc_port_recv_msg(buf);
+					continue;
+				}
+				switch (msg_user(msg)) {
+					int ret;
+				case MSG_BUNDLER:
+					l_ptr->stats.recv_bundles++;
+					l_ptr->stats.recv_bundled +=
+						msg_msgcnt(msg);
+					tipc_node_unlock(n_ptr);
+					tipc_link_recv_bundle(buf);
+					continue;
+				case NAME_DISTRIBUTOR:
+					tipc_node_unlock(n_ptr);
+					tipc_named_recv(buf);
+					continue;
+				case CONN_MANAGER:
+					tipc_node_unlock(n_ptr);
+					tipc_port_recv_proto_msg(buf);
+					continue;
+				case MSG_FRAGMENTER:
+					l_ptr->stats.recv_fragments++;
+					ret = tipc_link_recv_fragment(
+						&l_ptr->defragm_buf,
+						&buf, &msg);
+					if (ret == 1) {
+						l_ptr->stats.recv_fragmented++;
+						goto deliver;
 					}
-					switch (msg_user(msg)) {
-					case MSG_BUNDLER:
-						l_ptr->stats.recv_bundles++;
-						l_ptr->stats.recv_bundled +=
-							msg_msgcnt(msg);
-						tipc_node_unlock(n_ptr);
-						tipc_link_recv_bundle(buf);
-						continue;
-					case NAME_DISTRIBUTOR:
-						tipc_node_unlock(n_ptr);
-						tipc_named_recv(buf);
-						continue;
-					case CONN_MANAGER:
-						tipc_node_unlock(n_ptr);
-						tipc_port_recv_proto_msg(buf);
-						continue;
-					case MSG_FRAGMENTER:
-						l_ptr->stats.recv_fragments++;
-						ret = tipc_link_recv_fragment(
-							&l_ptr->defragm_buf,
-							&buf, &msg);
-						if (ret == 1) {
-							l_ptr->stats.recv_fragmented++;
+					if (ret == -1)
+						l_ptr->next_in_no--;
+					break;
+				case CHANGEOVER_PROTOCOL:
+					type = msg_type(msg);
+					if (link_recv_changeover_msg(&l_ptr,
+								     &buf)) {
+						msg = buf_msg(buf);
+						seq_no = msg_seqno(msg);
+						if (type == ORIGINAL_MSG)
 							goto deliver;
-						}
-						if (ret == -1)
-							l_ptr->next_in_no--;
-						break;
-					case CHANGEOVER_PROTOCOL:
-						type = msg_type(msg);
-						if (link_recv_changeover_msg(&l_ptr, &buf)) {
-							msg = buf_msg(buf);
-							seq_no = msg_seqno(msg);
-							if (type == ORIGINAL_MSG)
-								goto deliver;
-							goto protocol_check;
-						}
-						break;
-					default:
-						buf_discard(buf);
-						buf = NULL;
-						break;
+						goto protocol_check;
 					}
+					break;
+				default:
+					buf_discard(buf);
+					buf = NULL;
+					break;
 				}
 				tipc_node_unlock(n_ptr);
 				tipc_net_route_msg(buf);
