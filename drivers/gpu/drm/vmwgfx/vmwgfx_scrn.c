@@ -36,8 +36,6 @@
 	container_of(x, struct vmw_screen_object_unit, base.connector)
 
 struct vmw_screen_object_display {
-	struct list_head active;
-
 	unsigned num_active;
 
 	struct vmw_framebuffer *fb;
@@ -53,13 +51,11 @@ struct vmw_screen_object_unit {
 	struct vmw_dma_buffer *buffer; /**< Backing store buffer */
 
 	bool defined;
-
-	struct list_head active;
+	bool active;
 };
 
 static void vmw_sou_destroy(struct vmw_screen_object_unit *sou)
 {
-	list_del_init(&sou->active);
 	vmw_display_unit_cleanup(&sou->base);
 	kfree(sou);
 }
@@ -74,48 +70,31 @@ static void vmw_sou_crtc_destroy(struct drm_crtc *crtc)
 	vmw_sou_destroy(vmw_crtc_to_sou(crtc));
 }
 
-static int vmw_sou_del_active(struct vmw_private *vmw_priv,
+static void vmw_sou_del_active(struct vmw_private *vmw_priv,
 			      struct vmw_screen_object_unit *sou)
 {
 	struct vmw_screen_object_display *ld = vmw_priv->sou_priv;
-	if (list_empty(&sou->active))
-		return 0;
 
-	/* Must init otherwise list_empty(&sou->active) will not work. */
-	list_del_init(&sou->active);
-	if (--(ld->num_active) == 0)
-		ld->fb = NULL;
-
-	return 0;
+	if (sou->active) {
+		if (--(ld->num_active) == 0)
+			ld->fb = NULL;
+		sou->active = false;
+	}
 }
 
-static int vmw_sou_add_active(struct vmw_private *vmw_priv,
+static void vmw_sou_add_active(struct vmw_private *vmw_priv,
 			      struct vmw_screen_object_unit *sou,
 			      struct vmw_framebuffer *vfb)
 {
 	struct vmw_screen_object_display *ld = vmw_priv->sou_priv;
-	struct vmw_screen_object_unit *entry;
-	struct list_head *at;
 
 	BUG_ON(!ld->num_active && ld->fb);
-	ld->fb = vfb;
 
-	if (!list_empty(&sou->active))
-		return 0;
-
-	at = &ld->active;
-	list_for_each_entry(entry, &ld->active, active) {
-		if (entry->base.unit > sou->base.unit)
-			break;
-
-		at = &entry->active;
+	if (!sou->active) {
+		ld->fb = vfb;
+		sou->active = true;
+		ld->num_active++;
 	}
-
-	list_add(&sou->active, at);
-
-	ld->num_active++;
-
-	return 0;
 }
 
 /**
@@ -303,7 +282,7 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 	/* sou only supports one fb active at the time */
 	if (dev_priv->sou_priv->fb && vfb &&
 	    !(dev_priv->sou_priv->num_active == 1 &&
-	      !list_empty(&sou->active)) &&
+	      sou->active) &&
 	    dev_priv->sou_priv->fb != vfb) {
 		DRM_ERROR("Multiple framebuffers not supported\n");
 		return -EINVAL;
@@ -460,7 +439,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	encoder = &sou->base.encoder;
 	connector = &sou->base.connector;
 
-	INIT_LIST_HEAD(&sou->active);
+	sou->active = false;
 
 	sou->base.pref_active = (unit == 0);
 	sou->base.pref_width = 800;
@@ -509,7 +488,6 @@ int vmw_kms_init_screen_object_display(struct vmw_private *dev_priv)
 	if (unlikely(!dev_priv->sou_priv))
 		goto err_no_mem;
 
-	INIT_LIST_HEAD(&dev_priv->sou_priv->active);
 	dev_priv->sou_priv->num_active = 0;
 	dev_priv->sou_priv->fb = NULL;
 
@@ -546,7 +524,7 @@ int vmw_kms_close_screen_object_display(struct vmw_private *dev_priv)
 
 	drm_vblank_cleanup(dev);
 
-	if (!list_empty(&dev_priv->sou_priv->active))
+	if (dev_priv->sou_priv->num_active > 0)
 		DRM_ERROR("Still have active outputs when unloading driver");
 
 	kfree(dev_priv->sou_priv);
