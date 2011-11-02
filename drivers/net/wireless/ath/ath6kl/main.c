@@ -442,7 +442,7 @@ static void ath6kl_install_static_wep_keys(struct ath6kl_vif *vif)
 					      WEP_CRYPT,
 					      keyusage,
 					      vif->wep_key_list[index].key_len,
-					      NULL,
+					      NULL, 0,
 					      vif->wep_key_list[index].key,
 					      KEY_OP_INIT_VAL, NULL,
 					      NO_SYNC_WMIFLAG);
@@ -477,7 +477,8 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel)
 		memset(key_rsc, 0, sizeof(key_rsc));
 		res = ath6kl_wmi_addkey_cmd(
 			ar->wmi, vif->fw_vif_idx, ik->key_index, ik->key_type,
-			GROUP_USAGE, ik->key_len, key_rsc, ik->key,
+			GROUP_USAGE, ik->key_len, key_rsc, ATH6KL_KEY_SEQ_LEN,
+			ik->key,
 			KEY_OP_INIT_VAL, NULL, SYNC_BOTH_WMIFLAG);
 		if (res) {
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delayed "

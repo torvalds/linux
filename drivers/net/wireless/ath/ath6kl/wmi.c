@@ -2000,7 +2000,8 @@ int ath6kl_wmi_disctimeout_cmd(struct wmi *wmi, u8 if_idx, u8 timeout)
 int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index,
 			  enum crypto_type key_type,
 			  u8 key_usage, u8 key_len,
-			  u8 *key_rsc, u8 *key_material,
+			  u8 *key_rsc, unsigned int key_rsc_len,
+			  u8 *key_material,
 			  u8 key_op_ctrl, u8 *mac_addr,
 			  enum wmi_sync_flag sync_flag)
 {
@@ -2013,7 +2014,7 @@ int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index,
 		   key_index, key_type, key_usage, key_len, key_op_ctrl);
 
 	if ((key_index > WMI_MAX_KEY_INDEX) || (key_len > WMI_MAX_KEY_LEN) ||
-	    (key_material == NULL))
+	    (key_material == NULL) || key_rsc_len > 8)
 		return -EINVAL;
 
 	if ((WEP_CRYPT != key_type) && (NULL == key_rsc))
@@ -2031,7 +2032,7 @@ int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index,
 	memcpy(cmd->key, key_material, key_len);
 
 	if (key_rsc != NULL)
-		memcpy(cmd->key_rsc, key_rsc, sizeof(cmd->key_rsc));
+		memcpy(cmd->key_rsc, key_rsc, key_rsc_len);
 
 	cmd->key_op_ctrl = key_op_ctrl;
 

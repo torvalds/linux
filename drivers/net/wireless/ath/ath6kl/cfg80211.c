@@ -500,7 +500,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 				      vif->prwise_crypto,
 				      GROUP_USAGE | TX_USAGE,
 				      key->key_len,
-				      NULL,
+				      NULL, 0,
 				      key->key, KEY_OP_INIT_VAL, NULL,
 				      NO_SYNC_WMIFLAG);
 	}
@@ -1014,7 +1014,8 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	status = ath6kl_wmi_addkey_cmd(ar->wmi, vif->fw_vif_idx,
 				       vif->def_txkey_index,
 				       key_type, key_usage, key->key_len,
-				       key->seq, key->key, KEY_OP_INIT_VAL,
+				       key->seq, key->seq_len, key->key,
+				       KEY_OP_INIT_VAL,
 				       (u8 *) mac_addr, SYNC_BOTH_WMIFLAG);
 
 	if (status)
@@ -1134,7 +1135,8 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	status = ath6kl_wmi_addkey_cmd(ar->wmi, vif->fw_vif_idx,
 				       vif->def_txkey_index,
 				       key_type, key_usage,
-				       key->key_len, key->seq, key->key,
+				       key->key_len, key->seq, key->seq_len,
+				       key->key,
 				       KEY_OP_INIT_VAL, NULL,
 				       SYNC_BOTH_WMIFLAG);
 	if (status)
