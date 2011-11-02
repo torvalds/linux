@@ -184,7 +184,7 @@ static inline int omap2_i2c_add_bus(int bus_id)
 			NULL, 0, 0);
 	WARN(IS_ERR(pdev), "Could not build omap_device for %s\n", name);
 
-	return PTR_ERR(pdev);
+	return PTR_RET(pdev);
 }
 #else
 static inline int omap2_i2c_add_bus(int bus_id)
