@@ -906,6 +906,19 @@ static void ironlake_wait_panel_off(struct intel_dp *intel_dp)
 	msleep(delay);
 }
 
+/* Read the current pp_control value, unlocking the register if it
+ * is locked
+ */
+
+static  u32 ironlake_get_pp_control(struct drm_i915_private *dev_priv)
+{
+	u32	control = I915_READ(PCH_PP_CONTROL);
+
+	control &= ~PANEL_UNLOCK_MASK;
+	control |= PANEL_UNLOCK_REGS;
+	return control;
+}
+
 static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
@@ -926,9 +939,7 @@ static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 	}
 
 	ironlake_wait_panel_off(intel_dp);
-	pp = I915_READ(PCH_PP_CONTROL);
-	pp &= ~PANEL_UNLOCK_MASK;
-	pp |= PANEL_UNLOCK_REGS;
+	pp = ironlake_get_pp_control(dev_priv);
 	pp |= EDP_FORCE_VDD;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
@@ -951,9 +962,7 @@ static void ironlake_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	u32 pp;
 
 	if (!intel_dp->want_panel_vdd && ironlake_edp_have_panel_vdd(intel_dp)) {
-		pp = I915_READ(PCH_PP_CONTROL);
-		pp &= ~PANEL_UNLOCK_MASK;
-		pp |= PANEL_UNLOCK_REGS;
+		pp = ironlake_get_pp_control(dev_priv);
 		pp &= ~EDP_FORCE_VDD;
 		I915_WRITE(PCH_PP_CONTROL, pp);
 		POSTING_READ(PCH_PP_CONTROL);
@@ -1012,9 +1021,7 @@ static void ironlake_edp_panel_on(struct intel_dp *intel_dp)
 		return;
 
 	ironlake_wait_panel_off(intel_dp);
-	pp = I915_READ(PCH_PP_CONTROL);
-	pp &= ~PANEL_UNLOCK_MASK;
-	pp |= PANEL_UNLOCK_REGS;
+	pp = ironlake_get_pp_control(dev_priv);
 
 	if (IS_GEN5(dev)) {
 		/* ILK workaround: disable reset around power sequence */
@@ -1049,9 +1056,7 @@ static void ironlake_edp_panel_off(struct drm_encoder *encoder)
 
 	if (!is_edp(intel_dp))
 		return;
-	pp = I915_READ(PCH_PP_CONTROL);
-	pp &= ~PANEL_UNLOCK_MASK;
-	pp |= PANEL_UNLOCK_REGS;
+	pp = ironlake_get_pp_control(dev_priv);
 
 	if (IS_GEN5(dev)) {
 		/* ILK workaround: disable reset around power sequence */
@@ -1098,9 +1103,7 @@ static void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
 	 * allowing it to appear.
 	 */
 	msleep(intel_dp->backlight_on_delay);
-	pp = I915_READ(PCH_PP_CONTROL);
-	pp &= ~PANEL_UNLOCK_MASK;
-	pp |= PANEL_UNLOCK_REGS;
+	pp = ironlake_get_pp_control(dev_priv);
 	pp |= EDP_BLC_ENABLE;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
@@ -1116,9 +1119,7 @@ static void ironlake_edp_backlight_off(struct intel_dp *intel_dp)
 		return;
 
 	DRM_DEBUG_KMS("\n");
-	pp = I915_READ(PCH_PP_CONTROL);
-	pp &= ~PANEL_UNLOCK_MASK;
-	pp |= PANEL_UNLOCK_REGS;
+	pp = ironlake_get_pp_control(dev_priv);
 	pp &= ~EDP_BLC_ENABLE;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
