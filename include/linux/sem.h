@@ -96,16 +96,21 @@ struct sem_array {
 	int			complex_count;	/* pending complex operations */
 };
 
+#ifdef CONFIG_SYSVIPC
+
 struct sysv_sem {
 	struct sem_undo_list *undo_list;
 };
-
-#ifdef CONFIG_SYSVIPC
 
 extern int copy_semundo(unsigned long clone_flags, struct task_struct *tsk);
 extern void exit_sem(struct task_struct *tsk);
 
 #else
+
+struct sysv_sem {
+	/* empty */
+};
+
 static inline int copy_semundo(unsigned long clone_flags, struct task_struct *tsk)
 {
 	return 0;
