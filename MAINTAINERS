@@ -3205,8 +3205,7 @@ IA64 (Itanium) PLATFORM
 M:	Tony Luck <tony.luck@intel.com>
 M:	Fenghua Yu <fenghua.yu@intel.com>
 L:	linux-ia64@vger.kernel.org
-W:	http://www.ia64-linux.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aegl/linux-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aegl/linux.git
 S:	Maintained
 F:	arch/ia64/
 
