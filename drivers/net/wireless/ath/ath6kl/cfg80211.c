@@ -908,7 +908,6 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	struct ath6kl_key *key = NULL;
 	u8 key_usage;
 	u8 key_type;
-	int status = 0;
 
 	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
@@ -1011,17 +1010,12 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		return 0;
 	}
 
-	status = ath6kl_wmi_addkey_cmd(ar->wmi, vif->fw_vif_idx,
-				       vif->def_txkey_index,
-				       key_type, key_usage, key->key_len,
-				       key->seq, key->seq_len, key->key,
-				       KEY_OP_INIT_VAL,
-				       (u8 *) mac_addr, SYNC_BOTH_WMIFLAG);
-
-	if (status)
-		return -EIO;
-
-	return 0;
+	return ath6kl_wmi_addkey_cmd(ar->wmi, vif->fw_vif_idx,
+				     vif->def_txkey_index,
+				     key_type, key_usage, key->key_len,
+				     key->seq, key->seq_len, key->key,
+				     KEY_OP_INIT_VAL,
+				     (u8 *) mac_addr, SYNC_BOTH_WMIFLAG);
 }
 
 static int ath6kl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
@@ -1097,7 +1091,6 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	struct ath6kl *ar = (struct ath6kl *)ath6kl_priv(ndev);
 	struct ath6kl_vif *vif = netdev_priv(ndev);
 	struct ath6kl_key *key = NULL;
-	int status = 0;
 	u8 key_usage;
 	enum crypto_type key_type = NONE_CRYPT;
 
@@ -1132,17 +1125,13 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	if (vif->next_mode == AP_NETWORK && !test_bit(CONNECTED, &vif->flags))
 		return 0; /* Delay until AP mode has been started */
 
-	status = ath6kl_wmi_addkey_cmd(ar->wmi, vif->fw_vif_idx,
-				       vif->def_txkey_index,
-				       key_type, key_usage,
-				       key->key_len, key->seq, key->seq_len,
-				       key->key,
-				       KEY_OP_INIT_VAL, NULL,
-				       SYNC_BOTH_WMIFLAG);
-	if (status)
-		return -EIO;
-
-	return 0;
+	return ath6kl_wmi_addkey_cmd(ar->wmi, vif->fw_vif_idx,
+				     vif->def_txkey_index,
+				     key_type, key_usage,
+				     key->key_len, key->seq, key->seq_len,
+				     key->key,
+				     KEY_OP_INIT_VAL, NULL,
+				     SYNC_BOTH_WMIFLAG);
 }
 
 void ath6kl_cfg80211_tkip_micerr_event(struct ath6kl_vif *vif, u8 keyid,
