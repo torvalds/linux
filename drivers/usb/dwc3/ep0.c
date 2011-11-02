@@ -48,10 +48,13 @@
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/composite.h>
 
 #include "core.h"
 #include "gadget.h"
 #include "io.h"
+
+static void dwc3_ep0_do_control_status(struct dwc3 *dwc, u32 epnum);
 
 static const char *dwc3_ep0_state_string(enum dwc3_ep0_state state)
 {
@@ -122,6 +125,8 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 		struct dwc3_request *req)
 {
+	struct dwc3		*dwc = dep->dwc;
+	u32			type;
 	int			ret = 0;
 
 	req->request.actual	= 0;
@@ -140,9 +145,7 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 	 * IRQ we were waiting for is long gone.
 	 */
 	if (dep->flags & DWC3_EP_PENDING_REQUEST) {
-		struct dwc3	*dwc = dep->dwc;
 		unsigned	direction;
-		u32		type;
 
 		direction = !!(dep->flags & DWC3_EP0_DIR_IN);
 
@@ -162,6 +165,10 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 				req->request.dma, req->request.length, type);
 		dep->flags &= ~(DWC3_EP_PENDING_REQUEST |
 				DWC3_EP0_DIR_IN);
+
+	} else if (dwc->delayed_status && (dwc->ep0state == EP0_STATUS_PHASE)) {
+		dwc->delayed_status = false;
+		dwc3_ep0_do_control_status(dwc, 1);
 	}
 
 	return ret;
@@ -211,6 +218,7 @@ static void dwc3_ep0_stall_and_restart(struct dwc3 *dwc)
 	/* stall is always issued on EP0 */
 	__dwc3_gadget_ep_set_halt(dep, 1);
 	dep->flags = DWC3_EP_ENABLED;
+	dwc->delayed_status = false;
 
 	if (!list_empty(&dep->request_list)) {
 		struct dwc3_request	*req;
@@ -472,8 +480,10 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 		if (!cfg)
 			dwc->dev_state = DWC3_ADDRESS_STATE;
 		break;
+	default:
+		ret = -EINVAL;
 	}
-	return 0;
+	return ret;
 }
 
 static int dwc3_ep0_std_request(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
@@ -535,6 +545,9 @@ static void dwc3_ep0_inspect_setup(struct dwc3 *dwc,
 		ret = dwc3_ep0_std_request(dwc, ctrl);
 	else
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
+
+	if (ret == USB_GADGET_DELAYED_STATUS)
+		dwc->delayed_status = true;
 
 	if (ret >= 0)
 		return;
@@ -801,6 +814,13 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 			dwc3_ep0_stall_and_restart(dwc);
 			return;
 		}
+
+		if (dwc->delayed_status) {
+			WARN_ON_ONCE(event->endpoint_number != 1);
+			dev_vdbg(dwc->dev, "Mass Storage delayed status\n");
+			return;
+		}
+
 		dwc3_ep0_do_control_status(dwc, event->endpoint_number);
 	}
 }
