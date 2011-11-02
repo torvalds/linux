@@ -5273,15 +5273,6 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_halt);
 
-static inline gpa_t hc_gpa(struct kvm_vcpu *vcpu, unsigned long a0,
-			   unsigned long a1)
-{
-	if (is_long_mode(vcpu))
-		return a0;
-	else
-		return a0 | ((gpa_t)a1 << 32);
-}
-
 int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 {
 	u64 param, ingpa, outgpa, ret;
@@ -5376,9 +5367,6 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 	switch (nr) {
 	case KVM_HC_VAPIC_POLL_IRQ:
 		ret = 0;
-		break;
-	case KVM_HC_MMU_OP:
-		r = kvm_pv_mmu_op(vcpu, a0, hc_gpa(vcpu, a1, a2), &ret);
 		break;
 	default:
 		ret = -KVM_ENOSYS;

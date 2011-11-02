@@ -244,13 +244,6 @@ struct kvm_mmu_page {
 	struct rcu_head rcu;
 };
 
-struct kvm_pv_mmu_op_buffer {
-	void *ptr;
-	unsigned len;
-	unsigned processed;
-	char buf[512] __aligned(sizeof(long));
-};
-
 struct kvm_pio_request {
 	unsigned long count;
 	int in;
@@ -346,10 +339,6 @@ struct kvm_vcpu_arch {
 	 * gva_to_gpa translations.
 	 */
 	struct kvm_mmu *walk_mmu;
-
-	/* only needed in kvm_pv_mmu_op() path, but it's hot so
-	 * put it here to avoid allocation */
-	struct kvm_pv_mmu_op_buffer mmu_op_buffer;
 
 	struct kvm_mmu_memory_cache mmu_pte_list_desc_cache;
 	struct kvm_mmu_memory_cache mmu_page_cache;
@@ -667,8 +656,6 @@ int load_pdptrs(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu, unsigned long cr3);
 
 int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 			  const void *val, int bytes);
-int kvm_pv_mmu_op(struct kvm_vcpu *vcpu, unsigned long bytes,
-		  gpa_t addr, unsigned long *ret);
 u8 kvm_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn);
 
 extern bool tdp_enabled;
