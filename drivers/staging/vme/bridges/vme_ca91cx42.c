@@ -876,13 +876,13 @@ static ssize_t ca91cx42_master_read(struct vme_master_resource *image,
 	 * maximal configured data cycle is used and splits it
 	 * automatically for non-aligned addresses.
 	 */
-	if ((int)addr & 0x1) {
+	if ((uintptr_t)addr & 0x1) {
 		*(u8 *)buf = ioread8(addr);
 		done += 1;
 		if (done == count)
 			goto out;
 	}
-	if ((int)addr & 0x2) {
+	if ((uintptr_t)addr & 0x2) {
 		if ((count - done) < 2) {
 			*(u8 *)(buf + done) = ioread8(addr + done);
 			done += 1;
@@ -930,13 +930,13 @@ static ssize_t ca91cx42_master_write(struct vme_master_resource *image,
 	/* Here we apply for the same strategy we do in master_read
 	 * function in order to assure D16 cycle when required.
 	 */
-	if ((int)addr & 0x1) {
+	if ((uintptr_t)addr & 0x1) {
 		iowrite8(*(u8 *)buf, addr);
 		done += 1;
 		if (done == count)
 			goto out;
 	}
-	if ((int)addr & 0x2) {
+	if ((uintptr_t)addr & 0x2) {
 		if ((count - done) < 2) {
 			iowrite8(*(u8 *)(buf + done), addr + done);
 			done += 1;
@@ -973,7 +973,8 @@ static unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 	unsigned int mask, unsigned int compare, unsigned int swap,
 	loff_t offset)
 {
-	u32 pci_addr, result;
+	u32 result;
+	uintptr_t pci_addr;
 	int i;
 	struct ca91cx42_driver *bridge;
 	struct device *dev;
@@ -990,7 +991,7 @@ static unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 	/* Lock image */
 	spin_lock(&image->lock);
 
-	pci_addr = (u32)image->kern_base + offset;
+	pci_addr = (uintptr_t)image->kern_base + offset;
 
 	/* Address must be 4-byte aligned */
 	if (pci_addr & 0x3) {
