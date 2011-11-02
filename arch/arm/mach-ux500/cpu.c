@@ -10,12 +10,12 @@
 #include <linux/clk.h>
 #include <linux/mfd/db8500-prcmu.h>
 #include <linux/mfd/db5500-prcmu.h>
+#include <linux/clksrc-dbx500-prcmu.h>
 
 #include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
 #include <asm/localtimer.h>
 
-#include <plat/mtu.h>
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
@@ -50,30 +50,3 @@ void __init ux500_init_irq(void)
 		prcmu_early_init();
 	clk_init();
 }
-
-static void __init ux500_timer_init(void)
-{
-#ifdef CONFIG_LOCAL_TIMERS
-	/* Setup the local timer base */
-	if (cpu_is_u5500())
-		twd_base = __io_address(U5500_TWD_BASE);
-	else if (cpu_is_u8500())
-		twd_base = __io_address(U8500_TWD_BASE);
-	else
-		ux500_unknown_soc();
-#endif
-	if (cpu_is_u5500())
-		mtu_base = __io_address(U5500_MTU0_BASE);
-	else if (cpu_is_u8500ed())
-		mtu_base = __io_address(U8500_MTU0_BASE_ED);
-	else if (cpu_is_u8500())
-		mtu_base = __io_address(U8500_MTU0_BASE);
-	else
-		ux500_unknown_soc();
-
-	nmdk_timer_init();
-}
-
-struct sys_timer ux500_timer = {
-	.init	= ux500_timer_init,
-};
