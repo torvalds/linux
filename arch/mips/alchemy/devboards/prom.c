@@ -33,7 +33,7 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <prom.h>
 
-#if defined(CONFIG_MIPS_PB1000) || defined(CONFIG_MIPS_DB1000) || \
+#if defined(CONFIG_MIPS_DB1000) || \
     defined(CONFIG_MIPS_PB1100) || defined(CONFIG_MIPS_DB1100) || \
     defined(CONFIG_MIPS_PB1500) || defined(CONFIG_MIPS_DB1500) || \
     defined(CONFIG_MIPS_BOSPORUS) || defined(CONFIG_MIPS_MIRAGE)

@@ -5,13 +5,6 @@ platform-$(CONFIG_MIPS_ALCHEMY)	+= alchemy/common/
 
 
 #
-# AMD Alchemy Pb1000 eval board
-#
-platform-$(CONFIG_MIPS_PB1000)	+= alchemy/devboards/
-cflags-$(CONFIG_MIPS_PB1000)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
-load-$(CONFIG_MIPS_PB1000)	+= 0xffffffff80100000
-
-#
 # AMD Alchemy Pb1100 eval board
 #
 platform-$(CONFIG_MIPS_PB1100)	+= alchemy/devboards/

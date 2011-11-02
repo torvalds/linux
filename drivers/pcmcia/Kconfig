@@ -155,10 +155,6 @@ config PCMCIA_M8XX
 
 	  This driver is also available as a module called m8xx_pcmcia.
 
-config PCMCIA_AU1X00
-	tristate "Au1x00 pcmcia support"
-	depends on MIPS_ALCHEMY && PCMCIA
-
 config PCMCIA_ALCHEMY_DEVBOARD
 	tristate "Alchemy Db/Pb1xxx PCMCIA socket services"
 	depends on MIPS_ALCHEMY && PCMCIA

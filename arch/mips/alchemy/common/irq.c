@@ -35,9 +35,6 @@
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/mach-au1x00/au1000.h>
-#ifdef CONFIG_MIPS_PB1000
-#include <asm/mach-pb1x00/pb1000.h>
-#endif
 
 /* Interrupt Controller register offsets */
 #define IC_CFG0RD	0x40
@@ -265,14 +262,6 @@ static void au1x_ic1_unmask(struct irq_data *d)
 
 	__raw_writel(1 << bit, base + IC_MASKSET);
 	__raw_writel(1 << bit, base + IC_WAKESET);
-
-/* very hacky. does the pb1000 cpld auto-disable this int?
- * nowhere in the current kernel sources is it disabled.	--mlau
- */
-#if defined(CONFIG_MIPS_PB1000)
-	if (d->irq == AU1000_GPIO15_INT)
-		__raw_writel(0x4000, (void __iomem *)PB1000_MDR); /* enable int */
-#endif
 	wmb();
 }
 

@@ -32,10 +32,7 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/au1000.h>
-#if defined(CONFIG_MIPS_PB1000) || defined(CONFIG_MIPS_PB1100)
-#include <asm/pb1000.h>
-#elif defined(CONFIG_MIPS_DB1000) || defined(CONFIG_MIPS_DB1100)
-#include <asm/db1x00.h>
+#if defined(CONFIG_MIPS_DB1000) || defined(CONFIG_MIPS_DB1100)
 #include <asm/mach-db1x00/bcsr.h>
 #else 
 #error au1k_ir: unsupported board
