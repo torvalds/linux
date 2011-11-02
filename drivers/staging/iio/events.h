@@ -56,7 +56,8 @@ enum iio_event_direction {
 		       type, chan, chan1, chan2)			\
 	(((u64)type << 56) | ((u64)diff << 55) |			\
 	 ((u64)direction << 48) | ((u64)modifier << 40) |		\
-	 ((u64)chan_type << 32) | (chan2 << 16) | chan1 | chan)
+	 ((u64)chan_type << 32) | (((u16)chan2) << 16) | ((u16)chan1) | \
+	 ((u16)chan))
 
 
 #define IIO_EV_DIR_MAX 4
@@ -95,7 +96,7 @@ enum iio_event_direction {
 
 /* Event code number extraction depends on which type of event we have.
  * Perhaps review this function in the future*/
-#define IIO_EVENT_CODE_EXTRACT_NUM(mask) (mask & 0xFFFF)
+#define IIO_EVENT_CODE_EXTRACT_NUM(mask) ((__s16)(mask & 0xFFFF))
 
 #define IIO_EVENT_CODE_EXTRACT_MODIFIER(mask) ((mask >> 40) & 0xFF)
 
