@@ -790,6 +790,9 @@ static ssize_t iio_ev_value_store(struct device *dev,
 	unsigned long val;
 	int ret;
 
+	if (!indio_dev->info->write_event_value)
+		return -EINVAL;
+
 	ret = strict_strtoul(buf, 10, &val);
 	if (ret)
 		return ret;
