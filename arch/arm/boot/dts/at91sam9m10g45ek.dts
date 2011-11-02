@@ -1,0 +1,35 @@
+/*
+ * at91sam9m10g45ek.dts - Device Tree file for AT91SAM9M10G45-EK board
+ *
+ *  Copyright (C) 2011 Atmel,
+ *                2011 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+/dts-v1/;
+/include/ "at91sam9g45.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9M10G45-EK";
+	compatible = "atmel,at91sam9m10g45ek", "atmel,at91sam9g45", "atmel,at91sam9";
+
+	chosen {
+		bootargs = "mem=64M console=ttyS0,115200 mtdparts=atmel_nand:4M(bootstrap/uboot/kernel)ro,60M(rootfs),-(data) root=/dev/mtdblock1 rw rootfstype=jffs2";
+	};
+
+	memory@70000000 {
+		reg = <0x70000000 0x4000000>;
+	};
+
+	ahb {
+		apb {
+			dbgu: serial@ffffee00 {
+				status = "okay";
+			};
+
+			usart1: serial@fff90000 {
+				status = "okay";
+			};
+		};
+	};
+};

@@ -76,6 +76,9 @@ obj-$(CONFIG_MACH_SNAPPER_9260)	+= board-snapper9260.o
 # AT91SAM9G45 board-specific support
 obj-$(CONFIG_MACH_AT91SAM9M10G45EK) += board-sam9m10g45ek.o
 
+# AT91SAM board with device-tree
+obj-$(CONFIG_MACH_AT91SAM_DT) += board-dt.o
+
 # AT91CAP9 board-specific support
 obj-$(CONFIG_MACH_AT91CAP9ADK)	+= board-cap9adk.o
 

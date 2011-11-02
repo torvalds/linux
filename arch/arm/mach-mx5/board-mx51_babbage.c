@@ -349,6 +349,12 @@ static const struct esdhc_platform_data mx51_babbage_sd2_data __initconst = {
 	.wp_type = ESDHC_WP_GPIO,
 };
 
+void __init imx51_babbage_common_init(void)
+{
+	mxc_iomux_v3_setup_multiple_pads(mx51babbage_pads,
+					 ARRAY_SIZE(mx51babbage_pads));
+}
+
 /*
  * Board specific initialization.
  */
@@ -363,8 +369,7 @@ static void __init mx51_babbage_init(void)
 #if defined(CONFIG_CPU_FREQ_IMX)
 	get_cpu_op = mx51_get_cpu_op;
 #endif
-	mxc_iomux_v3_setup_multiple_pads(mx51babbage_pads,
-					ARRAY_SIZE(mx51babbage_pads));
+	imx51_babbage_common_init();
 
 	imx51_add_imx_uart(0, &uart_pdata);
 	imx51_add_imx_uart(1, NULL);

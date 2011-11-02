@@ -24,11 +24,17 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/err.h>
+#include <linux/module.h>
 #include <linux/list.h>
 #include <linux/smp.h>
 #include <linux/cpu_pm.h>
 #include <linux/cpumask.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/irqdomain.h>
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
@@ -75,8 +81,7 @@ static inline void __iomem *gic_cpu_base(struct irq_data *d)
 
 static inline unsigned int gic_irq(struct irq_data *d)
 {
-	struct gic_chip_data *gic_data = irq_data_get_irq_chip_data(d);
-	return d->irq - gic_data->irq_offset;
+	return d->hwirq;
 }
 
 /*
@@ -84,7 +89,7 @@ static inline unsigned int gic_irq(struct irq_data *d)
  */
 static void gic_mask_irq(struct irq_data *d)
 {
-	u32 mask = 1 << (d->irq % 32);
+	u32 mask = 1 << (gic_irq(d) % 32);
 
 	raw_spin_lock(&irq_controller_lock);
 	writel_relaxed(mask, gic_dist_base(d) + GIC_DIST_ENABLE_CLEAR + (gic_irq(d) / 32) * 4);
@@ -95,7 +100,7 @@ static void gic_mask_irq(struct irq_data *d)
 
 static void gic_unmask_irq(struct irq_data *d)
 {
-	u32 mask = 1 << (d->irq % 32);
+	u32 mask = 1 << (gic_irq(d) % 32);
 
 	raw_spin_lock(&irq_controller_lock);
 	if (gic_arch_extn.irq_unmask)
@@ -176,7 +181,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 			    bool force)
 {
 	void __iomem *reg = gic_dist_base(d) + GIC_DIST_TARGET + (gic_irq(d) & ~3);
-	unsigned int shift = (d->irq % 4) * 8;
+	unsigned int shift = (gic_irq(d) % 4) * 8;
 	unsigned int cpu = cpumask_any_and(mask_val, cpu_online_mask);
 	u32 val, mask, bit;
 
@@ -227,7 +232,7 @@ static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	if (gic_irq == 1023)
 		goto out;
 
-	cascade_irq = gic_irq + chip_data->irq_offset;
+	cascade_irq = irq_domain_to_irq(&chip_data->domain, gic_irq);
 	if (unlikely(gic_irq < 32 || gic_irq > 1020 || cascade_irq >= NR_IRQS))
 		do_bad_IRQ(cascade_irq, desc);
 	else
@@ -259,14 +264,14 @@ void __init gic_cascade_irq(unsigned int gic_nr, unsigned int irq)
 	irq_set_chained_handler(irq, gic_handle_cascade_irq);
 }
 
-static void __init gic_dist_init(struct gic_chip_data *gic,
-	unsigned int irq_start)
+static void __init gic_dist_init(struct gic_chip_data *gic)
 {
-	unsigned int gic_irqs, irq_limit, i;
+	unsigned int i, irq;
 	u32 cpumask;
+	unsigned int gic_irqs = gic->gic_irqs;
+	struct irq_domain *domain = &gic->domain;
 	void __iomem *base = gic->dist_base;
 	u32 cpu = 0;
-	u32 nrppis = 0, ppi_base = 0;
 
 #ifdef CONFIG_SMP
 	cpu = cpu_logical_map(smp_processor_id());
@@ -277,34 +282,6 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 	cpumask |= cpumask << 16;
 
 	writel_relaxed(0, base + GIC_DIST_CTRL);
-
-	/*
-	 * Find out how many interrupts are supported.
-	 * The GIC only supports up to 1020 interrupt sources.
-	 */
-	gic_irqs = readl_relaxed(base + GIC_DIST_CTR) & 0x1f;
-	gic_irqs = (gic_irqs + 1) * 32;
-	if (gic_irqs > 1020)
-		gic_irqs = 1020;
-
-	gic->gic_irqs = gic_irqs;
-
-	/*
-	 * Nobody would be insane enough to use PPIs on a secondary
-	 * GIC, right?
-	 */
-	if (gic == &gic_data[0]) {
-		nrppis = (32 - irq_start) & 31;
-
-		/* The GIC only supports up to 16 PPIs. */
-		if (nrppis > 16)
-			BUG();
-
-		ppi_base = gic->irq_offset + 32 - nrppis;
-	}
-
-	pr_info("Configuring GIC with %d sources (%d PPIs)\n",
-		gic_irqs, (gic == &gic_data[0]) ? nrppis : 0);
 
 	/*
 	 * Set all global interrupts to be level triggered, active low.
@@ -332,29 +309,20 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 		writel_relaxed(0xffffffff, base + GIC_DIST_ENABLE_CLEAR + i * 4 / 32);
 
 	/*
-	 * Limit number of interrupts registered to the platform maximum
-	 */
-	irq_limit = gic->irq_offset + gic_irqs;
-	if (WARN_ON(irq_limit > NR_IRQS))
-		irq_limit = NR_IRQS;
-
-	/*
 	 * Setup the Linux IRQ subsystem.
 	 */
-	for (i = 0; i < nrppis; i++) {
-		int ppi = i + ppi_base;
-
-		irq_set_percpu_devid(ppi);
-		irq_set_chip_and_handler(ppi, &gic_chip,
-					 handle_percpu_devid_irq);
-		irq_set_chip_data(ppi, gic);
-		set_irq_flags(ppi, IRQF_VALID | IRQF_NOAUTOEN);
-	}
-
-	for (i = irq_start + nrppis; i < irq_limit; i++) {
-		irq_set_chip_and_handler(i, &gic_chip, handle_fasteoi_irq);
-		irq_set_chip_data(i, gic);
-		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
+	irq_domain_for_each_irq(domain, i, irq) {
+		if (i < 32) {
+			irq_set_percpu_devid(irq);
+			irq_set_chip_and_handler(irq, &gic_chip,
+						 handle_percpu_devid_irq);
+			set_irq_flags(irq, IRQF_VALID | IRQF_NOAUTOEN);
+		} else {
+			irq_set_chip_and_handler(irq, &gic_chip,
+						 handle_fasteoi_irq);
+			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		}
+		irq_set_chip_data(irq, gic);
 	}
 
 	writel_relaxed(1, base + GIC_DIST_CTRL);
@@ -566,23 +534,85 @@ static void __init gic_pm_init(struct gic_chip_data *gic)
 }
 #endif
 
-void __init gic_init(unsigned int gic_nr, unsigned int irq_start,
+#ifdef CONFIG_OF
+static int gic_irq_domain_dt_translate(struct irq_domain *d,
+				       struct device_node *controller,
+				       const u32 *intspec, unsigned int intsize,
+				       unsigned long *out_hwirq, unsigned int *out_type)
+{
+	if (d->of_node != controller)
+		return -EINVAL;
+	if (intsize < 3)
+		return -EINVAL;
+
+	/* Get the interrupt number and add 16 to skip over SGIs */
+	*out_hwirq = intspec[1] + 16;
+
+	/* For SPIs, we need to add 16 more to get the GIC irq ID number */
+	if (!intspec[0])
+		*out_hwirq += 16;
+
+	*out_type = intspec[2] & IRQ_TYPE_SENSE_MASK;
+	return 0;
+}
+#endif
+
+const struct irq_domain_ops gic_irq_domain_ops = {
+#ifdef CONFIG_OF
+	.dt_translate = gic_irq_domain_dt_translate,
+#endif
+};
+
+void __init gic_init(unsigned int gic_nr, int irq_start,
 	void __iomem *dist_base, void __iomem *cpu_base)
 {
 	struct gic_chip_data *gic;
+	struct irq_domain *domain;
+	int gic_irqs;
 
 	BUG_ON(gic_nr >= MAX_GIC_NR);
 
 	gic = &gic_data[gic_nr];
+	domain = &gic->domain;
 	gic->dist_base = dist_base;
 	gic->cpu_base = cpu_base;
-	gic->irq_offset = (irq_start - 1) & ~31;
 
-	if (gic_nr == 0)
+	/*
+	 * For primary GICs, skip over SGIs.
+	 * For secondary GICs, skip over PPIs, too.
+	 */
+	if (gic_nr == 0) {
 		gic_cpu_base_addr = cpu_base;
+		domain->hwirq_base = 16;
+		if (irq_start > 0)
+			irq_start = (irq_start & ~31) + 16;
+	} else
+		domain->hwirq_base = 32;
+
+	/*
+	 * Find out how many interrupts are supported.
+	 * The GIC only supports up to 1020 interrupt sources.
+	 */
+	gic_irqs = readl_relaxed(dist_base + GIC_DIST_CTR) & 0x1f;
+	gic_irqs = (gic_irqs + 1) * 32;
+	if (gic_irqs > 1020)
+		gic_irqs = 1020;
+	gic->gic_irqs = gic_irqs;
+
+	domain->nr_irq = gic_irqs - domain->hwirq_base;
+	domain->irq_base = irq_alloc_descs(irq_start, 16, domain->nr_irq,
+					   numa_node_id());
+	if (IS_ERR_VALUE(domain->irq_base)) {
+		WARN(1, "Cannot allocate irq_descs @ IRQ%d, assuming pre-allocated\n",
+		     irq_start);
+		domain->irq_base = irq_start;
+	}
+	domain->priv = gic;
+	domain->ops = &gic_irq_domain_ops;
+	irq_domain_add(domain);
 
 	gic_chip.flags |= gic_arch_extn.flags;
-	gic_dist_init(gic, irq_start);
+	gic_dist_init(gic);
 	gic_cpu_init(gic);
 	gic_pm_init(gic);
 }
@@ -612,5 +642,37 @@ void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 
 	/* this always happens on GIC0 */
 	writel_relaxed(map << 16 | irq, gic_data[0].dist_base + GIC_DIST_SOFTINT);
+}
+#endif
+
+#ifdef CONFIG_OF
+static int gic_cnt __initdata = 0;
+
+int __init gic_of_init(struct device_node *node, struct device_node *parent)
+{
+	void __iomem *cpu_base;
+	void __iomem *dist_base;
+	int irq;
+	struct irq_domain *domain = &gic_data[gic_cnt].domain;
+
+	if (WARN_ON(!node))
+		return -ENODEV;
+
+	dist_base = of_iomap(node, 0);
+	WARN(!dist_base, "unable to map gic dist registers\n");
+
+	cpu_base = of_iomap(node, 1);
+	WARN(!cpu_base, "unable to map gic cpu registers\n");
+
+	domain->of_node = of_node_get(node);
+
+	gic_init(gic_cnt, -1, dist_base, cpu_base);
+
+	if (parent) {
+		irq = irq_of_parse_and_map(node, 0);
+		gic_cascade_irq(gic_cnt, irq);
+	}
+	gic_cnt++;
+	return 0;
 }
 #endif

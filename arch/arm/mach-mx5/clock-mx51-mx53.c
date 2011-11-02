@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/clkdev.h>
+#include <linux/of.h>
 
 #include <asm/div64.h>
 
@@ -1631,4 +1632,42 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc,
 	mxc_timer_init(&gpt_clk, MX53_IO_ADDRESS(MX53_GPT1_BASE_ADDR),
 		MX53_INT_GPT);
 	return 0;
+}
+
+static void __init clk_get_freq_dt(unsigned long *ckil, unsigned long *osc,
+				   unsigned long *ckih1, unsigned long *ckih2)
+{
+	struct device_node *np;
+
+	/* retrieve the freqency of fixed clocks from device tree */
+	for_each_compatible_node(np, NULL, "fixed-clock") {
+		u32 rate;
+		if (of_property_read_u32(np, "clock-frequency", &rate))
+			continue;
+
+		if (of_device_is_compatible(np, "fsl,imx-ckil"))
+			*ckil = rate;
+		else if (of_device_is_compatible(np, "fsl,imx-osc"))
+			*osc = rate;
+		else if (of_device_is_compatible(np, "fsl,imx-ckih1"))
+			*ckih1 = rate;
+		else if (of_device_is_compatible(np, "fsl,imx-ckih2"))
+			*ckih2 = rate;
+	}
+}
+
+int __init mx51_clocks_init_dt(void)
+{
+	unsigned long ckil, osc, ckih1, ckih2;
+
+	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
+	return mx51_clocks_init(ckil, osc, ckih1, ckih2);
+}
+
+int __init mx53_clocks_init_dt(void)
+{
+	unsigned long ckil, osc, ckih1, ckih2;
+
+	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
+	return mx53_clocks_init(ckil, osc, ckih1, ckih2);
 }

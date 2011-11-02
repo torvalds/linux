@@ -64,6 +64,8 @@ extern int mx51_clocks_init(unsigned long ckil, unsigned long osc,
 			unsigned long ckih1, unsigned long ckih2);
 extern int mx53_clocks_init(unsigned long ckil, unsigned long osc,
 			unsigned long ckih1, unsigned long ckih2);
+extern int mx51_clocks_init_dt(void);
+extern int mx53_clocks_init_dt(void);
 extern struct platform_device *mxc_register_gpio(char *name, int id,
 	resource_size_t iobase, resource_size_t iosize, int irq, int irq_high);
 extern void mxc_set_cpu_type(unsigned int type);
@@ -97,4 +99,9 @@ void tzic_handle_irq(struct pt_regs *);
 #define imx51_handle_irq tzic_handle_irq
 #define imx53_handle_irq tzic_handle_irq
 
+extern void imx51_babbage_common_init(void);
+extern void imx53_ard_common_init(void);
+extern void imx53_evk_common_init(void);
+extern void imx53_qsb_common_init(void);
+extern void imx53_smd_common_init(void);
 #endif
