@@ -21,7 +21,6 @@ struct hda_jack_tbl {
 	unsigned int pin_sense;		/* cached pin-sense value */
 	unsigned int jack_detect:1;	/* capable of jack-detection? */
 	unsigned int jack_dirty:1;	/* needs to update? */
-	unsigned int need_notify:1;	/* to be notified? */
 	struct snd_kcontrol *kctl;	/* assigned kctl for jack-detection */
 };
 

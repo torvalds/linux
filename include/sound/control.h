@@ -227,4 +227,12 @@ snd_ctl_add_slave_uncached(struct snd_kcontrol *master,
 	return _snd_ctl_add_slave(master, slave, SND_CTL_SLAVE_NEED_UPDATE);
 }
 
+/*
+ * Helper functions for jack-detection controls
+ */
+struct snd_kcontrol *
+snd_kctl_jack_new(const char *name, int idx, void *private_data);
+void snd_kctl_jack_report(struct snd_card *card,
+			  struct snd_kcontrol *kctl, bool status);
+
 #endif	/* __SOUND_CONTROL_H */
