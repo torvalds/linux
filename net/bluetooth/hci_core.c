@@ -1410,13 +1410,18 @@ int hci_add_adv_entry(struct hci_dev *hdev,
 int hci_register_dev(struct hci_dev *hdev)
 {
 	struct list_head *head = &hci_dev_list, *p;
-	int i, id = 0, error;
+	int i, id, error;
 
 	BT_DBG("%p name %s bus %d owner %p", hdev, hdev->name,
 						hdev->bus, hdev->owner);
 
 	if (!hdev->open || !hdev->close || !hdev->destruct)
 		return -EINVAL;
+
+	/* Do not allow HCI_AMP devices to register at index 0,
+	 * so the index can be used as the AMP controller ID.
+	 */
+	id = (hdev->dev_type == HCI_BREDR) ? 0 : 1;
 
 	write_lock_bh(&hci_dev_list_lock);
 
