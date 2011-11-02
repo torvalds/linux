@@ -206,7 +206,7 @@ static int s3c24xx_serial_rx_fifocnt(struct s3c24xx_uart_port *ourport,
 	struct s3c24xx_uart_info *info = ourport->info;
 
 	if (ufstat & info->rx_fifofull)
-		return info->fifosize;
+		return ourport->port.fifosize;
 
 	return (ufstat & info->rx_fifomask) >> info->rx_fifoshift;
 }
@@ -1079,11 +1079,10 @@ static inline void s3c24xx_serial_cpufreq_deregister(struct s3c24xx_uart_port *p
  */
 
 static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
-				    struct s3c24xx_uart_info *info,
 				    struct platform_device *platdev)
 {
 	struct uart_port *port = &ourport->port;
-	struct s3c2410_uartcfg *cfg = platdev->dev.platform_data;
+	struct s3c2410_uartcfg *cfg = ourport->cfg;
 	struct resource *res;
 	int ret;
 
@@ -1095,31 +1094,12 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	if (port->mapbase != 0)
 		return 0;
 
-	/*
-	 * If platform data is supplied, keep a copy of the location of
-	 * platform data in the driver's private data.
-	 */
-	if (cfg)
-		ourport->cfg = cfg;
-
-	if (cfg->hwport > CONFIG_SERIAL_SAMSUNG_UARTS) {
-		printk(KERN_ERR "%s: port %d bigger than %d\n", __func__,
-		       cfg->hwport, CONFIG_SERIAL_SAMSUNG_UARTS);
-		return -ERANGE;
-	}
-
 	/* setup info for port */
 	port->dev	= &platdev->dev;
-	ourport->info	= info;
 
 	/* Startup sequence is different for s3c64xx and higher SoC's */
 	if (s3c24xx_serial_has_interrupt_mask(port))
 		s3c24xx_serial_ops.startup = s3c64xx_serial_startup;
-
-	/* copy the info in from provided structure */
-	ourport->port.fifosize = info->fifosize;
-
-	dbg("s3c24xx_serial_init_port: %p (hw %d)...\n", port, cfg->hwport);
 
 	port->uartclk = 1;
 
@@ -1187,34 +1167,46 @@ static DEVICE_ATTR(clock_source, S_IRUGO, s3c24xx_serial_show_clksrc, NULL);
 
 static int probe_index;
 
-int s3c24xx_serial_probe(struct platform_device *dev,
-			 struct s3c24xx_uart_info *info)
+static int s3c24xx_serial_probe(struct platform_device *pdev)
 {
 	struct s3c24xx_uart_port *ourport;
 	int ret;
 
-	dbg("s3c24xx_serial_probe(%p, %p) %d\n", dev, info, probe_index);
+	dbg("s3c24xx_serial_probe(%p) %d\n", pdev, probe_index);
 
 	ourport = &s3c24xx_serial_ports[probe_index];
+
+	ourport->drv_data = (struct s3c24xx_serial_drv_data *)
+			platform_get_device_id(pdev)->driver_data;
+
+	ourport->info = ourport->drv_data->info;
+	ourport->cfg = (pdev->dev.platform_data) ?
+			(struct s3c2410_uartcfg *)pdev->dev.platform_data :
+			ourport->drv_data->def_cfg;
+
+	ourport->port.fifosize = (ourport->info->fifosize) ?
+		ourport->info->fifosize :
+		ourport->drv_data->fifosize[probe_index];
+
 	probe_index++;
 
 	dbg("%s: initialising port %p...\n", __func__, ourport);
 
-	ret = s3c24xx_serial_init_port(ourport, info, dev);
+	ret = s3c24xx_serial_init_port(ourport, pdev);
 	if (ret < 0)
 		goto probe_err;
 
 	dbg("%s: adding port\n", __func__);
 	uart_add_one_port(&s3c24xx_uart_drv, &ourport->port);
-	platform_set_drvdata(dev, &ourport->port);
+	platform_set_drvdata(pdev, &ourport->port);
 
-	ret = device_create_file(&dev->dev, &dev_attr_clock_source);
+	ret = device_create_file(&pdev->dev, &dev_attr_clock_source);
 	if (ret < 0)
-		printk(KERN_ERR "%s: failed to add clksrc attr.\n", __func__);
+		dev_err(&pdev->dev, "failed to add clock source attr.\n");
 
 	ret = s3c24xx_serial_cpufreq_register(ourport);
 	if (ret < 0)
-		dev_err(&dev->dev, "failed to add cpufreq notifier\n");
+		dev_err(&pdev->dev, "failed to add cpufreq notifier\n");
 
 	return 0;
 
@@ -1222,9 +1214,7 @@ int s3c24xx_serial_probe(struct platform_device *dev,
 	return ret;
 }
 
-EXPORT_SYMBOL_GPL(s3c24xx_serial_probe);
-
-int __devexit s3c24xx_serial_remove(struct platform_device *dev)
+static int __devexit s3c24xx_serial_remove(struct platform_device *dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
 
@@ -1236,8 +1226,6 @@ int __devexit s3c24xx_serial_remove(struct platform_device *dev)
 
 	return 0;
 }
-
-EXPORT_SYMBOL_GPL(s3c24xx_serial_remove);
 
 /* UART power management code */
 #ifdef CONFIG_PM_SLEEP
@@ -1277,41 +1265,6 @@ static const struct dev_pm_ops s3c24xx_serial_pm_ops = {
 
 #define SERIAL_SAMSUNG_PM_OPS	NULL
 #endif /* CONFIG_PM_SLEEP */
-
-int s3c24xx_serial_init(struct platform_driver *drv,
-			struct s3c24xx_uart_info *info)
-{
-	dbg("s3c24xx_serial_init(%p,%p)\n", drv, info);
-
-	drv->driver.pm = SERIAL_SAMSUNG_PM_OPS;
-
-	return platform_driver_register(drv);
-}
-
-EXPORT_SYMBOL_GPL(s3c24xx_serial_init);
-
-/* module initialisation code */
-
-static int __init s3c24xx_serial_modinit(void)
-{
-	int ret;
-
-	ret = uart_register_driver(&s3c24xx_uart_drv);
-	if (ret < 0) {
-		printk(KERN_ERR "failed to register UART driver\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-static void __exit s3c24xx_serial_modexit(void)
-{
-	uart_unregister_driver(&s3c24xx_uart_drv);
-}
-
-module_init(s3c24xx_serial_modinit);
-module_exit(s3c24xx_serial_modexit);
 
 /* Console code */
 
@@ -1418,34 +1371,10 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 		else
 			rate = 1;
 
-
 		*baud = rate / (16 * (ubrdiv + 1));
 		dbg("calculated baud %d\n", *baud);
 	}
 
-}
-
-/* s3c24xx_serial_init_ports
- *
- * initialise the serial ports from the machine provided initialisation
- * data.
-*/
-
-static int s3c24xx_serial_init_ports(struct s3c24xx_uart_info **info)
-{
-	struct s3c24xx_uart_port *ptr = s3c24xx_serial_ports;
-	struct platform_device **platdev_ptr;
-	int i;
-
-	dbg("s3c24xx_serial_init_ports: initialising ports...\n");
-
-	platdev_ptr = s3c24xx_uart_devs;
-
-	for (i = 0; i < CONFIG_SERIAL_SAMSUNG_UARTS; i++, ptr++, platdev_ptr++) {
-		s3c24xx_serial_init_port(ptr, info[i], *platdev_ptr);
-	}
-
-	return 0;
 }
 
 static int __init
@@ -1491,11 +1420,6 @@ s3c24xx_serial_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-/* s3c24xx_serial_initconsole
- *
- * initialise the console from one of the uart drivers
-*/
-
 static struct console s3c24xx_serial_console = {
 	.name		= S3C24XX_SERIAL_NAME,
 	.device		= uart_console_device,
@@ -1505,34 +1429,238 @@ static struct console s3c24xx_serial_console = {
 	.setup		= s3c24xx_serial_console_setup,
 	.data		= &s3c24xx_uart_drv,
 };
-
-int s3c24xx_serial_initconsole(struct platform_driver *drv,
-			       struct s3c24xx_uart_info **info)
-
-{
-	struct platform_device *dev = s3c24xx_uart_devs[0];
-
-	dbg("s3c24xx_serial_initconsole\n");
-
-	/* select driver based on the cpu */
-
-	if (dev == NULL) {
-		printk(KERN_ERR "s3c24xx: no devices for console init\n");
-		return 0;
-	}
-
-	if (strcmp(dev->name, drv->driver.name) != 0)
-		return 0;
-
-	s3c24xx_serial_console.data = &s3c24xx_uart_drv;
-	s3c24xx_serial_init_ports(info);
-
-	register_console(&s3c24xx_serial_console);
-	return 0;
-}
-
 #endif /* CONFIG_SERIAL_SAMSUNG_CONSOLE */
 
+#ifdef CONFIG_CPU_S3C2410
+static struct s3c24xx_serial_drv_data s3c2410_serial_drv_data = {
+	.info = &(struct s3c24xx_uart_info) {
+		.name		= "Samsung S3C2410 UART",
+		.type		= PORT_S3C2410,
+		.fifosize	= 16,
+		.rx_fifomask	= S3C2410_UFSTAT_RXMASK,
+		.rx_fifoshift	= S3C2410_UFSTAT_RXSHIFT,
+		.rx_fifofull	= S3C2410_UFSTAT_RXFULL,
+		.tx_fifofull	= S3C2410_UFSTAT_TXFULL,
+		.tx_fifomask	= S3C2410_UFSTAT_TXMASK,
+		.tx_fifoshift	= S3C2410_UFSTAT_TXSHIFT,
+		.def_clk_sel	= S3C2410_UCON_CLKSEL0,
+		.num_clks	= 2,
+		.clksel_mask	= S3C2410_UCON_CLKMASK,
+		.clksel_shift	= S3C2410_UCON_CLKSHIFT,
+	},
+	.def_cfg = &(struct s3c2410_uartcfg) {
+		.ucon		= S3C2410_UCON_DEFAULT,
+		.ufcon		= S3C2410_UFCON_DEFAULT,
+	},
+};
+#define S3C2410_SERIAL_DRV_DATA ((kernel_ulong_t)&s3c2410_serial_drv_data)
+#else
+#define S3C2410_SERIAL_DRV_DATA (kernel_ulong_t)NULL
+#endif
+
+#ifdef CONFIG_CPU_S3C2412
+static struct s3c24xx_serial_drv_data s3c2412_serial_drv_data = {
+	.info = &(struct s3c24xx_uart_info) {
+		.name		= "Samsung S3C2412 UART",
+		.type		= PORT_S3C2412,
+		.fifosize	= 64,
+		.has_divslot	= 1,
+		.rx_fifomask	= S3C2440_UFSTAT_RXMASK,
+		.rx_fifoshift	= S3C2440_UFSTAT_RXSHIFT,
+		.rx_fifofull	= S3C2440_UFSTAT_RXFULL,
+		.tx_fifofull	= S3C2440_UFSTAT_TXFULL,
+		.tx_fifomask	= S3C2440_UFSTAT_TXMASK,
+		.tx_fifoshift	= S3C2440_UFSTAT_TXSHIFT,
+		.def_clk_sel	= S3C2410_UCON_CLKSEL2,
+		.num_clks	= 4,
+		.clksel_mask	= S3C2412_UCON_CLKMASK,
+		.clksel_shift	= S3C2412_UCON_CLKSHIFT,
+	},
+	.def_cfg = &(struct s3c2410_uartcfg) {
+		.ucon		= S3C2410_UCON_DEFAULT,
+		.ufcon		= S3C2410_UFCON_DEFAULT,
+	},
+};
+#define S3C2412_SERIAL_DRV_DATA ((kernel_ulong_t)&s3c2412_serial_drv_data)
+#else
+#define S3C2412_SERIAL_DRV_DATA (kernel_ulong_t)NULL
+#endif
+
+#if defined(CONFIG_CPU_S3C2440) || defined(CONFIG_CPU_S3C2416) || \
+	defined(CONFIG_CPU_S3C2443)
+static struct s3c24xx_serial_drv_data s3c2440_serial_drv_data = {
+	.info = &(struct s3c24xx_uart_info) {
+		.name		= "Samsung S3C2440 UART",
+		.type		= PORT_S3C2440,
+		.fifosize	= 64,
+		.has_divslot	= 1,
+		.rx_fifomask	= S3C2440_UFSTAT_RXMASK,
+		.rx_fifoshift	= S3C2440_UFSTAT_RXSHIFT,
+		.rx_fifofull	= S3C2440_UFSTAT_RXFULL,
+		.tx_fifofull	= S3C2440_UFSTAT_TXFULL,
+		.tx_fifomask	= S3C2440_UFSTAT_TXMASK,
+		.tx_fifoshift	= S3C2440_UFSTAT_TXSHIFT,
+		.def_clk_sel	= S3C2410_UCON_CLKSEL2,
+		.num_clks	= 4,
+		.clksel_mask	= S3C2412_UCON_CLKMASK,
+		.clksel_shift	= S3C2412_UCON_CLKSHIFT,
+	},
+	.def_cfg = &(struct s3c2410_uartcfg) {
+		.ucon		= S3C2410_UCON_DEFAULT,
+		.ufcon		= S3C2410_UFCON_DEFAULT,
+	},
+};
+#define S3C2440_SERIAL_DRV_DATA ((kernel_ulong_t)&s3c2440_serial_drv_data)
+#else
+#define S3C2440_SERIAL_DRV_DATA (kernel_ulong_t)NULL
+#endif
+
+#if defined(CONFIG_CPU_S3C6400) || defined(CONFIG_CPU_S3C6410) || \
+	defined(CONFIG_CPU_S5P6440) || defined(CONFIG_CPU_S5P6450) || \
+	defined(CONFIG_CPU_S5PC100)
+static struct s3c24xx_serial_drv_data s3c6400_serial_drv_data = {
+	.info = &(struct s3c24xx_uart_info) {
+		.name		= "Samsung S3C6400 UART",
+		.type		= PORT_S3C6400,
+		.fifosize	= 64,
+		.has_divslot	= 1,
+		.rx_fifomask	= S3C2440_UFSTAT_RXMASK,
+		.rx_fifoshift	= S3C2440_UFSTAT_RXSHIFT,
+		.rx_fifofull	= S3C2440_UFSTAT_RXFULL,
+		.tx_fifofull	= S3C2440_UFSTAT_TXFULL,
+		.tx_fifomask	= S3C2440_UFSTAT_TXMASK,
+		.tx_fifoshift	= S3C2440_UFSTAT_TXSHIFT,
+		.def_clk_sel	= S3C2410_UCON_CLKSEL2,
+		.num_clks	= 4,
+		.clksel_mask	= S3C6400_UCON_CLKMASK,
+		.clksel_shift	= S3C6400_UCON_CLKSHIFT,
+	},
+	.def_cfg = &(struct s3c2410_uartcfg) {
+		.ucon		= S3C2410_UCON_DEFAULT,
+		.ufcon		= S3C2410_UFCON_DEFAULT,
+	},
+};
+#define S3C6400_SERIAL_DRV_DATA ((kernel_ulong_t)&s3c6400_serial_drv_data)
+#else
+#define S3C6400_SERIAL_DRV_DATA (kernel_ulong_t)NULL
+#endif
+
+#ifdef CONFIG_CPU_S5PV210
+static struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
+	.info = &(struct s3c24xx_uart_info) {
+		.name		= "Samsung S5PV210 UART",
+		.type		= PORT_S3C6400,
+		.has_divslot	= 1,
+		.rx_fifomask	= S5PV210_UFSTAT_RXMASK,
+		.rx_fifoshift	= S5PV210_UFSTAT_RXSHIFT,
+		.rx_fifofull	= S5PV210_UFSTAT_RXFULL,
+		.tx_fifofull	= S5PV210_UFSTAT_TXFULL,
+		.tx_fifomask	= S5PV210_UFSTAT_TXMASK,
+		.tx_fifoshift	= S5PV210_UFSTAT_TXSHIFT,
+		.def_clk_sel	= S3C2410_UCON_CLKSEL0,
+		.num_clks	= 2,
+		.clksel_mask	= S5PV210_UCON_CLKMASK,
+		.clksel_shift	= S5PV210_UCON_CLKSHIFT,
+	},
+	.def_cfg = &(struct s3c2410_uartcfg) {
+		.ucon		= S5PV210_UCON_DEFAULT,
+		.ufcon		= S5PV210_UFCON_DEFAULT,
+	},
+	.fifosize = { 256, 64, 16, 16 },
+};
+#define S5PV210_SERIAL_DRV_DATA ((kernel_ulong_t)&s5pv210_serial_drv_data)
+#else
+#define S5PV210_SERIAL_DRV_DATA	(kernel_ulong_t)NULL
+#endif
+
+#ifdef CONFIG_CPU_EXYNOS4210
+static struct s3c24xx_serial_drv_data exynos4210_serial_drv_data = {
+	.info = &(struct s3c24xx_uart_info) {
+		.name		= "Samsung Exynos4 UART",
+		.type		= PORT_S3C6400,
+		.has_divslot	= 1,
+		.rx_fifomask	= S5PV210_UFSTAT_RXMASK,
+		.rx_fifoshift	= S5PV210_UFSTAT_RXSHIFT,
+		.rx_fifofull	= S5PV210_UFSTAT_RXFULL,
+		.tx_fifofull	= S5PV210_UFSTAT_TXFULL,
+		.tx_fifomask	= S5PV210_UFSTAT_TXMASK,
+		.tx_fifoshift	= S5PV210_UFSTAT_TXSHIFT,
+		.def_clk_sel	= S3C2410_UCON_CLKSEL0,
+		.num_clks	= 1,
+		.clksel_mask	= 0,
+		.clksel_shift	= 0,
+	},
+	.def_cfg = &(struct s3c2410_uartcfg) {
+		.ucon		= S5PV210_UCON_DEFAULT,
+		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.has_fracval	= 1,
+	},
+	.fifosize = { 256, 64, 16, 16 },
+};
+#define EXYNOS4210_SERIAL_DRV_DATA ((kernel_ulong_t)&exynos4210_serial_drv_data)
+#else
+#define EXYNOS4210_SERIAL_DRV_DATA (kernel_ulong_t)NULL
+#endif
+
+static struct platform_device_id s3c24xx_serial_driver_ids[] = {
+	{
+		.name		= "s3c2410-uart",
+		.driver_data	= S3C2410_SERIAL_DRV_DATA,
+	}, {
+		.name		= "s3c2412-uart",
+		.driver_data	= S3C2412_SERIAL_DRV_DATA,
+	}, {
+		.name		= "s3c2440-uart",
+		.driver_data	= S3C2440_SERIAL_DRV_DATA,
+	}, {
+		.name		= "s3c6400-uart",
+		.driver_data	= S3C6400_SERIAL_DRV_DATA,
+	}, {
+		.name		= "s5pv210-uart",
+		.driver_data	= S5PV210_SERIAL_DRV_DATA,
+	}, {
+		.name		= "exynos4210-uart",
+		.driver_data	= EXYNOS4210_SERIAL_DRV_DATA,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(platform, s3c24xx_serial_driver_ids);
+
+static struct platform_driver samsung_serial_driver = {
+	.probe		= s3c24xx_serial_probe,
+	.remove		= __devexit_p(s3c24xx_serial_remove),
+	.id_table	= s3c24xx_serial_driver_ids,
+	.driver		= {
+		.name	= "samsung-uart",
+		.owner	= THIS_MODULE,
+		.pm	= SERIAL_SAMSUNG_PM_OPS,
+	},
+};
+
+/* module initialisation code */
+
+static int __init s3c24xx_serial_modinit(void)
+{
+	int ret;
+
+	ret = uart_register_driver(&s3c24xx_uart_drv);
+	if (ret < 0) {
+		printk(KERN_ERR "failed to register UART driver\n");
+		return -1;
+	}
+
+	return platform_driver_register(&samsung_serial_driver);
+}
+
+static void __exit s3c24xx_serial_modexit(void)
+{
+	uart_unregister_driver(&s3c24xx_uart_drv);
+}
+
+module_init(s3c24xx_serial_modinit);
+module_exit(s3c24xx_serial_modexit);
+
+MODULE_ALIAS("platform:samsung-uart");
 MODULE_DESCRIPTION("Samsung SoC Serial port driver");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_LICENSE("GPL v2");

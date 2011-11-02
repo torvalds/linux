@@ -232,6 +232,18 @@
 #define S3C2410_UCON_CLKSEL2	(1 << 2)
 #define S3C2410_UCON_CLKSEL3	(1 << 3)
 
+/* Default values for s5pv210 UCON and UFCON uart registers */
+#define S5PV210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
+				 S3C2410_UCON_RXILEVEL |	\
+				 S3C2410_UCON_TXIRQMODE |	\
+				 S3C2410_UCON_RXIRQMODE |	\
+				 S3C2410_UCON_RXFIFO_TOI |	\
+				 S3C2443_UCON_RXERR_IRQEN)
+
+#define S5PV210_UFCON_DEFAULT	(S3C2410_UFCON_FIFOMODE |	\
+				 S5PV210_UFCON_TXTRIG4 |	\
+				 S5PV210_UFCON_RXTRIG4)
+
 #ifndef __ASSEMBLY__
 
 /* configuration structure for per-machine configurations for the

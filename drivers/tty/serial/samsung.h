@@ -32,6 +32,12 @@ struct s3c24xx_uart_info {
 	int (*reset_port)(struct uart_port *, struct s3c2410_uartcfg *);
 };
 
+struct s3c24xx_serial_drv_data {
+	struct s3c24xx_uart_info	*info;
+	struct s3c2410_uartcfg		*def_cfg;
+	unsigned int			fifosize[CONFIG_SERIAL_SAMSUNG_UARTS];
+};
+
 struct s3c24xx_uart_port {
 	unsigned char			rx_claimed;
 	unsigned char			tx_claimed;
@@ -45,6 +51,7 @@ struct s3c24xx_uart_port {
 	struct clk			*clk;
 	struct clk			*baudclk;
 	struct uart_port		port;
+	struct s3c24xx_serial_drv_data	*drv_data;
 
 	/* reference to platform data */
 	struct s3c2410_uartcfg		*cfg;
@@ -68,17 +75,6 @@ struct s3c24xx_uart_port {
 
 #define wr_regb(port, reg, val) __raw_writeb(val, portaddr(port, reg))
 #define wr_regl(port, reg, val) __raw_writel(val, portaddr(port, reg))
-
-extern int s3c24xx_serial_probe(struct platform_device *dev,
-				struct s3c24xx_uart_info *uart);
-
-extern int __devexit s3c24xx_serial_remove(struct platform_device *dev);
-
-extern int s3c24xx_serial_initconsole(struct platform_driver *drv,
-				      struct s3c24xx_uart_info **uart);
-
-extern int s3c24xx_serial_init(struct platform_driver *drv,
-			       struct s3c24xx_uart_info *info);
 
 #ifdef CONFIG_SERIAL_SAMSUNG_DEBUG
 
