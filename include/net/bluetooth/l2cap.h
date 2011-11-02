@@ -119,6 +119,10 @@ struct l2cap_conninfo {
 #define L2CAP_FCS_NONE		0x00
 #define L2CAP_FCS_CRC16		0x01
 
+/* L2CAP fixed channels */
+#define L2CAP_FC_L2CAP		0x02
+#define L2CAP_FC_A2MP		0x08
+
 /* L2CAP Control Field bit masks */
 #define L2CAP_CTRL_SAR			0xC000
 #define L2CAP_CTRL_REQSEQ		0x3F00
