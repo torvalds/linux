@@ -943,6 +943,7 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->fcs  = pchan->fcs;
 		chan->max_tx = pchan->max_tx;
 		chan->tx_win = pchan->tx_win;
+		chan->tx_win_max = pchan->tx_win_max;
 		chan->sec_level = pchan->sec_level;
 		chan->flags = pchan->flags;
 	} else {
@@ -971,6 +972,7 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->max_tx = L2CAP_DEFAULT_MAX_TX;
 		chan->fcs  = L2CAP_FCS_CRC16;
 		chan->tx_win = L2CAP_DEFAULT_TX_WINDOW;
+		chan->tx_win_max = L2CAP_DEFAULT_TX_WINDOW;
 		chan->sec_level = BT_SECURITY_LOW;
 		chan->flags = 0;
 		set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
