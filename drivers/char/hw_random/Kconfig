@@ -235,3 +235,18 @@ config HW_RANDOM_PPC4XX
 	 module will be called ppc4xx-rng.
 
 	 If unsure, say N.
+
+config UML_RANDOM
+	depends on UML
+	tristate "Hardware random number generator"
+	help
+	  This option enables UML's "hardware" random number generator.  It
+	  attaches itself to the host's /dev/random, supplying as much entropy
+	  as the host has, rather than the small amount the UML gets from its
+	  own drivers.  It registers itself as a standard hardware random number
+	  generator, major 10, minor 183, and the canonical device name is
+	  /dev/hwrng.
+	  The way to make use of this is to install the rng-tools package
+	  (check your distro, or download from
+	  http://sourceforge.net/projects/gkernel/).  rngd periodically reads
+	  /dev/hwrng and injects the entropy into /dev/random.

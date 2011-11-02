@@ -726,7 +726,7 @@ config SBC8360_WDT
 
 config SBC7240_WDT
 	tristate "SBC Nano 7240 Watchdog Timer"
-	depends on X86_32
+	depends on X86_32 && !UML
 	---help---
 	  This is the driver for the hardware watchdog found on the IEI
 	  single board computers EPIC Nano 7240 (and likely others). This
@@ -1173,6 +1173,10 @@ config XEN_WDT
 	  Say Y here to support the hypervisor watchdog capability provided
 	  by Xen 4.0 and newer.  The watchdog timeout period is normally one
 	  minute but can be changed with a boot-time parameter.
+
+config UML_WATCHDOG
+	tristate "UML watchdog"
+	depends on UML
 
 #
 # ISA-based Watchdog Cards
