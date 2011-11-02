@@ -2661,7 +2661,6 @@ static int alc_auto_fill_adc_caps(struct hda_codec *codec)
 	hda_nid_t *adc_nids = spec->private_adc_nids;
 	hda_nid_t *cap_nids = spec->private_capsrc_nids;
 	int max_nums = ARRAY_SIZE(spec->private_adc_nids);
-	bool indep_capsrc = false;
 	int i, nums = 0;
 
 	nid = codec->start_nid;
@@ -2683,13 +2682,11 @@ static int alc_auto_fill_adc_caps(struct hda_codec *codec)
 				break;
 			if (type == AC_WID_AUD_SEL) {
 				cap_nids[nums] = src;
-				indep_capsrc = true;
 				break;
 			}
 			n = snd_hda_get_conn_list(codec, src, &list);
 			if (n > 1) {
 				cap_nids[nums] = src;
-				indep_capsrc = true;
 				break;
 			} else if (n != 1)
 				break;
