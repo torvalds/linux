@@ -514,13 +514,16 @@ static int transport_cmd_check_stop(
 			 * Some fabric modules like tcm_loop can release
 			 * their internally allocated I/O reference now and
 			 * struct se_cmd now.
+			 *
+			 * Fabric modules are expected to return '1' here if the
+			 * se_cmd being passed is released at this point,
+			 * or zero if not being released.
 			 */
 			if (cmd->se_tfo->check_stop_free != NULL) {
 				spin_unlock_irqrestore(
 					&cmd->t_state_lock, flags);
 
-				cmd->se_tfo->check_stop_free(cmd);
-				return 1;
+				return cmd->se_tfo->check_stop_free(cmd);
 			}
 		}
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
