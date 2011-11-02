@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2010 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2011 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -119,16 +119,8 @@ struct dlm_member {
 	int			weight;
 	int			slot;
 	int			slot_prev;
+	int			comm_seq;
 	uint32_t		generation;
-};
-
-/*
- * low nodeid saves array of these in ls_slots
- */
-
-struct dlm_slot {
-	int			nodeid;
-	int			slot;
 };
 
 /*
@@ -137,10 +129,8 @@ struct dlm_slot {
 
 struct dlm_recover {
 	struct list_head	list;
-	int			*nodeids;   /* nodeids of all members */
-	int			node_count;
-	int			*new;       /* nodeids of new members */
-	int			new_count;
+	struct dlm_config_node	*nodes;
+	int			nodes_count;
 	uint64_t		seq;
 };
 
@@ -583,6 +573,9 @@ struct dlm_ls {
 
 	struct list_head	ls_root_list;	/* root resources */
 	struct rw_semaphore	ls_root_sem;	/* protect root_list */
+
+	const struct dlm_lockspace_ops *ls_ops;
+	void			*ls_ops_arg;
 
 	int			ls_namelen;
 	char			ls_name[1];

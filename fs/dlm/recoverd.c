@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2011 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -227,11 +227,12 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	dlm_grant_after_purge(ls);
 
-	log_debug(ls, "dlm_recover %llx done: %u ms",
-		  (unsigned long long)rv->seq,
+	log_debug(ls, "dlm_recover %llx generation %u done: %u ms",
+		  (unsigned long long)rv->seq, ls->ls_generation,
 		  jiffies_to_msecs(jiffies - start));
 	mutex_unlock(&ls->ls_recoverd_active);
 
+	dlm_lsop_recover_done(ls);
 	return 0;
 
  fail:
@@ -259,8 +260,7 @@ static void do_ls_recovery(struct dlm_ls *ls)
 
 	if (rv) {
 		ls_recover(ls, rv);
-		kfree(rv->nodeids);
-		kfree(rv->new);
+		kfree(rv->nodes);
 		kfree(rv);
 	}
 }

@@ -1,7 +1,7 @@
 /******************************************************************************
 *******************************************************************************
 **
-**  Copyright (C) 2005-2009 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2005-2011 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -27,7 +27,7 @@ int dlm_slots_version(struct dlm_header *h)
 }
 
 void dlm_slot_save(struct dlm_ls *ls, struct dlm_rcom *rc,
-		  struct dlm_member *memb)
+		   struct dlm_member *memb)
 {
 	struct rcom_config *rf = (struct rcom_config *)rc->rc_buf;
 
@@ -317,59 +317,51 @@ static void add_ordered_member(struct dlm_ls *ls, struct dlm_member *new)
 	}
 }
 
-static int dlm_add_member(struct dlm_ls *ls, int nodeid)
+static int dlm_add_member(struct dlm_ls *ls, struct dlm_config_node *node)
 {
 	struct dlm_member *memb;
-	int w, error;
+	int error;
 
 	memb = kzalloc(sizeof(struct dlm_member), GFP_NOFS);
 	if (!memb)
 		return -ENOMEM;
 
-	w = dlm_node_weight(ls->ls_name, nodeid);
-	if (w < 0) {
-		kfree(memb);
-		return w;
-	}
-
-	error = dlm_lowcomms_connect_node(nodeid);
+	error = dlm_lowcomms_connect_node(node->nodeid);
 	if (error < 0) {
 		kfree(memb);
 		return error;
 	}
 
-	memb->nodeid = nodeid;
-	memb->weight = w;
+	memb->nodeid = node->nodeid;
+	memb->weight = node->weight;
+	memb->comm_seq = node->comm_seq;
 	add_ordered_member(ls, memb);
 	ls->ls_num_nodes++;
 	return 0;
 }
 
-static void dlm_remove_member(struct dlm_ls *ls, struct dlm_member *memb)
+static struct dlm_member *find_memb(struct list_head *head, int nodeid)
 {
-	list_move(&memb->list, &ls->ls_nodes_gone);
-	ls->ls_num_nodes--;
+	struct dlm_member *memb;
+
+	list_for_each_entry(memb, head, list) {
+		if (memb->nodeid == nodeid)
+			return memb;
+	}
+	return NULL;
 }
 
 int dlm_is_member(struct dlm_ls *ls, int nodeid)
 {
-	struct dlm_member *memb;
-
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
-		if (memb->nodeid == nodeid)
-			return 1;
-	}
+	if (find_memb(&ls->ls_nodes, nodeid))
+		return 1;
 	return 0;
 }
 
 int dlm_is_removed(struct dlm_ls *ls, int nodeid)
 {
-	struct dlm_member *memb;
-
-	list_for_each_entry(memb, &ls->ls_nodes_gone, list) {
-		if (memb->nodeid == nodeid)
-			return 1;
-	}
+	if (find_memb(&ls->ls_nodes_gone, nodeid))
+		return 1;
 	return 0;
 }
 
@@ -460,10 +452,88 @@ static int ping_members(struct dlm_ls *ls)
 	return error;
 }
 
+static void dlm_lsop_recover_prep(struct dlm_ls *ls)
+{
+	if (!ls->ls_ops || !ls->ls_ops->recover_prep)
+		return;
+	ls->ls_ops->recover_prep(ls->ls_ops_arg);
+}
+
+static void dlm_lsop_recover_slot(struct dlm_ls *ls, struct dlm_member *memb)
+{
+	struct dlm_slot slot;
+	uint32_t seq;
+	int error;
+
+	if (!ls->ls_ops || !ls->ls_ops->recover_slot)
+		return;
+
+	/* if there is no comms connection with this node
+	   or the present comms connection is newer
+	   than the one when this member was added, then
+	   we consider the node to have failed (versus
+	   being removed due to dlm_release_lockspace) */
+
+	error = dlm_comm_seq(memb->nodeid, &seq);
+
+	if (!error && seq == memb->comm_seq)
+		return;
+
+	slot.nodeid = memb->nodeid;
+	slot.slot = memb->slot;
+
+	ls->ls_ops->recover_slot(ls->ls_ops_arg, &slot);
+}
+
+void dlm_lsop_recover_done(struct dlm_ls *ls)
+{
+	struct dlm_member *memb;
+	struct dlm_slot *slots;
+	int i, num;
+
+	if (!ls->ls_ops || !ls->ls_ops->recover_done)
+		return;
+
+	num = ls->ls_num_nodes;
+
+	slots = kzalloc(num * sizeof(struct dlm_slot), GFP_KERNEL);
+	if (!slots)
+		return;
+
+	i = 0;
+	list_for_each_entry(memb, &ls->ls_nodes, list) {
+		if (i == num) {
+			log_error(ls, "dlm_lsop_recover_done bad num %d", num);
+			goto out;
+		}
+		slots[i].nodeid = memb->nodeid;
+		slots[i].slot = memb->slot;
+		i++;
+	}
+
+	ls->ls_ops->recover_done(ls->ls_ops_arg, slots, num,
+				 ls->ls_slot, ls->ls_generation);
+ out:
+	kfree(slots);
+}
+
+static struct dlm_config_node *find_config_node(struct dlm_recover *rv,
+						int nodeid)
+{
+	int i;
+
+	for (i = 0; i < rv->nodes_count; i++) {
+		if (rv->nodes[i].nodeid == nodeid)
+			return &rv->nodes[i];
+	}
+	return NULL;
+}
+
 int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 {
 	struct dlm_member *memb, *safe;
-	int i, error, found, pos = 0, neg = 0, low = -1;
+	struct dlm_config_node *node;
+	int i, error, neg = 0, low = -1;
 
 	/* previously removed members that we've not finished removing need to
 	   count as a negative change so the "neg" recovery steps will happen */
@@ -476,46 +546,32 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	/* move departed members from ls_nodes to ls_nodes_gone */
 
 	list_for_each_entry_safe(memb, safe, &ls->ls_nodes, list) {
-		found = 0;
-		for (i = 0; i < rv->node_count; i++) {
-			if (memb->nodeid == rv->nodeids[i]) {
-				found = 1;
-				break;
-			}
-		}
-
-		if (!found) {
-			neg++;
-			dlm_remove_member(ls, memb);
-			log_debug(ls, "remove member %d", memb->nodeid);
-		}
-	}
-
-	/* Add an entry to ls_nodes_gone for members that were removed and
-	   then added again, so that previous state for these nodes will be
-	   cleared during recovery. */
-
-	for (i = 0; i < rv->new_count; i++) {
-		if (!dlm_is_member(ls, rv->new[i]))
+		node = find_config_node(rv, memb->nodeid);
+		if (node && !node->new)
 			continue;
-		log_debug(ls, "new nodeid %d is a re-added member", rv->new[i]);
 
-		memb = kzalloc(sizeof(struct dlm_member), GFP_NOFS);
-		if (!memb)
-			return -ENOMEM;
-		memb->nodeid = rv->new[i];
-		list_add_tail(&memb->list, &ls->ls_nodes_gone);
+		if (!node) {
+			log_debug(ls, "remove member %d", memb->nodeid);
+		} else {
+			/* removed and re-added */
+			log_debug(ls, "remove member %d comm_seq %u %u",
+				  memb->nodeid, memb->comm_seq, node->comm_seq);
+		}
+
 		neg++;
+		list_move(&memb->list, &ls->ls_nodes_gone);
+		ls->ls_num_nodes--;
+		dlm_lsop_recover_slot(ls, memb);
 	}
 
 	/* add new members to ls_nodes */
 
-	for (i = 0; i < rv->node_count; i++) {
-		if (dlm_is_member(ls, rv->nodeids[i]))
+	for (i = 0; i < rv->nodes_count; i++) {
+		node = &rv->nodes[i];
+		if (dlm_is_member(ls, node->nodeid))
 			continue;
-		dlm_add_member(ls, rv->nodeids[i]);
-		pos++;
-		log_debug(ls, "add member %d", rv->nodeids[i]);
+		dlm_add_member(ls, node);
+		log_debug(ls, "add member %d", node->nodeid);
 	}
 
 	list_for_each_entry(memb, &ls->ls_nodes, list) {
@@ -609,21 +665,22 @@ int dlm_ls_stop(struct dlm_ls *ls)
 
 	if (!ls->ls_recover_begin)
 		ls->ls_recover_begin = jiffies;
+
+	dlm_lsop_recover_prep(ls);
 	return 0;
 }
 
 int dlm_ls_start(struct dlm_ls *ls)
 {
 	struct dlm_recover *rv = NULL, *rv_old;
-	int *ids = NULL, *new = NULL;
-	int error, ids_count = 0, new_count = 0;
+	struct dlm_config_node *nodes;
+	int error, count;
 
 	rv = kzalloc(sizeof(struct dlm_recover), GFP_NOFS);
 	if (!rv)
 		return -ENOMEM;
 
-	error = dlm_nodeid_list(ls->ls_name, &ids, &ids_count,
-				&new, &new_count);
+	error = dlm_config_nodes(ls->ls_name, &nodes, &count);
 	if (error < 0)
 		goto fail;
 
@@ -638,10 +695,8 @@ int dlm_ls_start(struct dlm_ls *ls)
 		goto fail;
 	}
 
-	rv->nodeids = ids;
-	rv->node_count = ids_count;
-	rv->new = new;
-	rv->new_count = new_count;
+	rv->nodes = nodes;
+	rv->nodes_count = count;
 	rv->seq = ++ls->ls_recover_seq;
 	rv_old = ls->ls_recover_args;
 	ls->ls_recover_args = rv;
@@ -649,9 +704,8 @@ int dlm_ls_start(struct dlm_ls *ls)
 
 	if (rv_old) {
 		log_error(ls, "unused recovery %llx %d",
-			  (unsigned long long)rv_old->seq, rv_old->node_count);
-		kfree(rv_old->nodeids);
-		kfree(rv_old->new);
+			  (unsigned long long)rv_old->seq, rv_old->nodes_count);
+		kfree(rv_old->nodes);
 		kfree(rv_old);
 	}
 
@@ -660,8 +714,7 @@ int dlm_ls_start(struct dlm_ls *ls)
 
  fail:
 	kfree(rv);
-	kfree(ids);
-	kfree(new);
+	kfree(nodes);
 	return error;
 }
 

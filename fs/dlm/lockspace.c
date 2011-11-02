@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2011 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -386,12 +386,15 @@ static void threads_stop(void)
 	dlm_lowcomms_stop();
 }
 
-static int new_lockspace(const char *name, int namelen, void **lockspace,
-			 uint32_t flags, int lvblen)
+static int new_lockspace(const char *name, const char *cluster,
+			 uint32_t flags, int lvblen,
+			 const struct dlm_lockspace_ops *ops, void *ops_arg,
+			 int *ops_result, dlm_lockspace_t **lockspace)
 {
 	struct dlm_ls *ls;
 	int i, size, error;
 	int do_unreg = 0;
+	int namelen = strlen(name);
 
 	if (namelen > DLM_LOCKSPACE_LEN)
 		return -EINVAL;
@@ -403,8 +406,24 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 		return -EINVAL;
 
 	if (!dlm_user_daemon_available()) {
-		module_put(THIS_MODULE);
-		return -EUNATCH;
+		log_print("dlm user daemon not available");
+		error = -EUNATCH;
+		goto out;
+	}
+
+	if (ops && ops_result) {
+	       	if (!dlm_config.ci_recover_callbacks)
+			*ops_result = -EOPNOTSUPP;
+		else
+			*ops_result = 0;
+	}
+
+	if (dlm_config.ci_recover_callbacks && cluster &&
+	    strncmp(cluster, dlm_config.ci_cluster_name, DLM_LOCKSPACE_LEN)) {
+		log_print("dlm cluster name %s mismatch %s",
+			  dlm_config.ci_cluster_name, cluster);
+		error = -EBADR;
+		goto out;
 	}
 
 	error = 0;
@@ -441,6 +460,11 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 	ls->ls_count = 0;
 	ls->ls_flags = 0;
 	ls->ls_scan_time = jiffies;
+
+	if (ops && dlm_config.ci_recover_callbacks) {
+		ls->ls_ops = ops;
+		ls->ls_ops_arg = ops_arg;
+	}
 
 	if (flags & DLM_LSFL_TIMEWARN)
 		set_bit(LSFL_TIMEWARN, &ls->ls_flags);
@@ -619,8 +643,10 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 	return error;
 }
 
-int dlm_new_lockspace(const char *name, int namelen, void **lockspace,
-		      uint32_t flags, int lvblen)
+int dlm_new_lockspace(const char *name, const char *cluster,
+		      uint32_t flags, int lvblen,
+		      const struct dlm_lockspace_ops *ops, void *ops_arg,
+		      int *ops_result, dlm_lockspace_t **lockspace)
 {
 	int error = 0;
 
@@ -630,7 +656,8 @@ int dlm_new_lockspace(const char *name, int namelen, void **lockspace,
 	if (error)
 		goto out;
 
-	error = new_lockspace(name, namelen, lockspace, flags, lvblen);
+	error = new_lockspace(name, cluster, flags, lvblen, ops, ops_arg,
+			      ops_result, lockspace);
 	if (!error)
 		ls_count++;
 	if (error > 0)
