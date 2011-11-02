@@ -154,16 +154,12 @@ intel_edp_link_config(struct intel_encoder *intel_encoder,
 static int
 intel_dp_max_lane_count(struct intel_dp *intel_dp)
 {
-	int max_lane_count = 4;
-
-	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11) {
-		max_lane_count = intel_dp->dpcd[DP_MAX_LANE_COUNT] & 0x1f;
-		switch (max_lane_count) {
-		case 1: case 2: case 4:
-			break;
-		default:
-			max_lane_count = 4;
-		}
+	int max_lane_count = intel_dp->dpcd[DP_MAX_LANE_COUNT] & 0x1f;
+	switch (max_lane_count) {
+	case 1: case 2: case 4:
+		break;
+	default:
+		max_lane_count = 4;
 	}
 	return max_lane_count;
 }
@@ -765,11 +761,10 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			continue;
 
 		intel_dp = enc_to_intel_dp(encoder);
-		if (intel_dp->base.type == INTEL_OUTPUT_DISPLAYPORT || is_pch_edp(intel_dp)) {
+		if (intel_dp->base.type == INTEL_OUTPUT_DISPLAYPORT ||
+		    intel_dp->base.type == INTEL_OUTPUT_EDP)
+		{
 			lane_count = intel_dp->lane_count;
-			break;
-		} else if (is_cpu_edp(intel_dp)) {
-			lane_count = dev_priv->edp.lanes;
 			break;
 		}
 	}
