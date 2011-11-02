@@ -11,7 +11,10 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/device.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
 #include <linux/irqdomain.h>
@@ -20,6 +23,7 @@
 #include <mach/hardware.h>
 #include <asm/mach/arch.h>
 
+#include <plat/usb.h>
 #include <plat/board.h>
 #include <plat/common.h>
 #include <mach/omap4-common.h>

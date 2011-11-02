@@ -1,9 +1,7 @@
-/*
- * arch/arm/mach-ep93xx/include/mach/gpio.h
- */
+/* Include file for the EP93XX GPIO controller machine specifics */
 
-#ifndef __ASM_ARCH_GPIO_H
-#define __ASM_ARCH_GPIO_H
+#ifndef __GPIO_EP93XX_H
+#define __GPIO_EP93XX_H
 
 /* GPIO port A.  */
 #define EP93XX_GPIO_LINE_A(x)		((x) + 0)
@@ -99,22 +97,4 @@
 /* maximum value for irq capable line identifiers */
 #define EP93XX_GPIO_LINE_MAX_IRQ	EP93XX_GPIO_LINE_F(7)
 
-/* new generic GPIO API - see Documentation/gpio.txt */
-
-#include <asm-generic/gpio.h>
-
-#define gpio_get_value	__gpio_get_value
-#define gpio_set_value	__gpio_set_value
-#define gpio_cansleep	__gpio_cansleep
-
-/*
- * Map GPIO A0..A7  (0..7)  to irq 64..71,
- *          B0..B7  (7..15) to irq 72..79, and
- *          F0..F7 (16..24) to irq 80..87.
- */
-#define gpio_to_irq(gpio)	\
-	(((gpio) <= EP93XX_GPIO_LINE_MAX_IRQ) ? (64 + (gpio)) : -EINVAL)
-
-#define irq_to_gpio(irq)	((irq) - gpio_to_irq(0))
-
-#endif
+#endif /* __GPIO_EP93XX_H */
