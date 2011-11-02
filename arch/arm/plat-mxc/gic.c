@@ -18,7 +18,7 @@
 #include <asm/smp.h>
 #endif
 
-asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
+asmlinkage void __exception_irq_entry mxc_gic_handle_irq(struct pt_regs *regs)
 {
 	u32 irqstat, irqnr;
 
