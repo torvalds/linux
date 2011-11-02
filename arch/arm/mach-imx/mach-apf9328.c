@@ -136,6 +136,7 @@ MACHINE_START(APF9328, "Armadeus APF9328")
 	.map_io       = mx1_map_io,
 	.init_early   = imx1_init_early,
 	.init_irq     = mx1_init_irq,
+	.handle_irq   = imx1_handle_irq,
 	.timer        = &apf9328_timer,
 	.init_machine = apf9328_init,
 MACHINE_END

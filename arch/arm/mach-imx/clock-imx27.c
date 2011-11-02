@@ -751,6 +751,8 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_enable(&gpio_clk);
 	clk_enable(&emi_clk);
 	clk_enable(&iim_clk);
+	imx_print_silicon_rev("i.MX27", mx27_revision());
+	clk_disable(&iim_clk);
 
 #if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_ICEDCC)
 	clk_enable(&uart1_clk);

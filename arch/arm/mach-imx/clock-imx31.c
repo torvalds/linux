@@ -611,10 +611,10 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_enable(&gpt_clk);
 	clk_enable(&emi_clk);
 	clk_enable(&iim_clk);
+	mx31_revision();
+	clk_disable(&iim_clk);
 
 	clk_enable(&serial_pll_clk);
-
-	mx31_read_cpu_rev();
 
 	if (mx31_revision() >= IMX_CHIP_REVISION_2_0) {
 		reg = __raw_readl(MXC_CCM_PMCR1);

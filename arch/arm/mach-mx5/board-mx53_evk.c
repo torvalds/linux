@@ -167,6 +167,7 @@ MACHINE_START(MX53_EVK, "Freescale MX53 EVK Board")
 	.map_io = mx53_map_io,
 	.init_early = imx53_init_early,
 	.init_irq = mx53_init_irq,
+	.handle_irq = imx53_handle_irq,
 	.timer = &mx53_evk_timer,
 	.init_machine = mx53_evk_board_init,
 MACHINE_END

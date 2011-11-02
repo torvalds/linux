@@ -172,6 +172,7 @@ MACHINE_START(MX51_3DS, "Freescale MX51 3-Stack Board")
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
+	.handle_irq = imx51_handle_irq,
 	.timer = &mx51_3ds_timer,
 	.init_machine = mx51_3ds_init,
 MACHINE_END

@@ -54,6 +54,7 @@
 #define EFIKASB_RFKILL		IMX_GPIO_NR(3, 1)
 
 #define MX51_PAD_PWRKEY IOMUX_PAD(0x48c, 0x0f8, 1, 0x0,   0, PAD_CTL_PUS_100K_UP | PAD_CTL_PKE)
+#define MX51_PAD_SD1_CD	IOMUX_PAD(0x47c, 0x0e8, 1, __NA_, 0, MX51_ESDHC_PAD_CTRL)
 
 static iomux_v3_cfg_t mx51efikasb_pads[] = {
 	/* USB HOST2 */
@@ -95,6 +96,8 @@ static iomux_v3_cfg_t mx51efikasb_pads[] = {
 
 	/* BT */
 	MX51_PAD_EIM_A17__GPIO2_11,
+
+	MX51_PAD_SD1_CD,
 };
 
 static int initialize_usbh2_port(struct platform_device *pdev)
@@ -180,6 +183,18 @@ static const struct gpio_keys_platform_data mx51_efikasb_keys_data __initconst =
 	.nbuttons = ARRAY_SIZE(mx51_efikasb_keys),
 };
 
+static struct esdhc_platform_data sd0_pdata = {
+#define EFIKASB_SD1_CD	IMX_GPIO_NR(2, 27)
+	.cd_gpio = EFIKASB_SD1_CD,
+	.cd_type = ESDHC_CD_GPIO,
+	.wp_type = ESDHC_WP_CONTROLLER,
+};
+
+static struct esdhc_platform_data sd1_pdata = {
+	.cd_type = ESDHC_CD_CONTROLLER,
+	.wp_type = ESDHC_WP_CONTROLLER,
+};
+
 static struct regulator *pwgt1, *pwgt2;
 
 static void mx51_efikasb_power_off(void)
@@ -248,7 +263,8 @@ static void __init efikasb_board_init(void)
 
 	mx51_efikasb_board_id();
 	mx51_efikasb_usb();
-	imx51_add_sdhci_esdhc_imx(1, NULL);
+	imx51_add_sdhci_esdhc_imx(0, &sd0_pdata);
+	imx51_add_sdhci_esdhc_imx(1, &sd1_pdata);
 
 	gpio_led_register_device(-1, &mx51_efikasb_leds_data);
 	imx_add_gpio_keys(&mx51_efikasb_keys_data);
@@ -268,6 +284,7 @@ MACHINE_START(MX51_EFIKASB, "Genesi Efika Smartbook")
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
+	.handle_irq = imx51_handle_irq,
 	.init_machine =  efikasb_board_init,
 	.timer = &mx51_efikasb_timer,
 MACHINE_END

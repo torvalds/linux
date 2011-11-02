@@ -418,6 +418,7 @@ MACHINE_START(MX51_BABBAGE, "Freescale MX51 Babbage Board")
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
+	.handle_irq = imx51_handle_irq,
 	.timer = &mx51_babbage_timer,
 	.init_machine = mx51_babbage_init,
 MACHINE_END

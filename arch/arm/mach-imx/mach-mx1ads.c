@@ -144,6 +144,7 @@ MACHINE_START(MX1ADS, "Freescale MX1ADS")
 	.map_io = mx1_map_io,
 	.init_early = imx1_init_early,
 	.init_irq = mx1_init_irq,
+	.handle_irq = imx1_handle_irq,
 	.timer = &mx1ads_timer,
 	.init_machine = mx1ads_init,
 MACHINE_END
@@ -153,6 +154,7 @@ MACHINE_START(MXLADS, "Freescale MXLADS")
 	.map_io = mx1_map_io,
 	.init_early = imx1_init_early,
 	.init_irq = mx1_init_irq,
+	.handle_irq = imx1_handle_irq,
 	.timer = &mx1ads_timer,
 	.init_machine = mx1ads_init,
 MACHINE_END
