@@ -1564,8 +1564,9 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 
 	ret = intel_dp_aux_native_write(intel_dp,
 					DP_TRAINING_LANE0_SET,
-					intel_dp->train_set, 4);
-	if (ret != 4)
+					intel_dp->train_set,
+					intel_dp->lane_count);
+	if (ret != intel_dp->lane_count)
 		return false;
 
 	return true;
