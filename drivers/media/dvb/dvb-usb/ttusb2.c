@@ -75,10 +75,18 @@ static int ttusb2_msg(struct dvb_usb_device *d, u8 cmd,
 		u8 *wbuf, int wlen, u8 *rbuf, int rlen)
 {
 	struct ttusb2_state *st = d->priv;
-	u8 s[wlen+4],r[64] = { 0 };
+	u8 *s, *r = NULL;
 	int ret = 0;
 
-	memset(s,0,wlen+4);
+	s = kzalloc(wlen+4, GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	r = kzalloc(64, GFP_KERNEL);
+	if (!r) {
+		kfree(s);
+		return -ENOMEM;
+	}
 
 	s[0] = 0xaa;
 	s[1] = ++st->id;
@@ -94,11 +102,16 @@ static int ttusb2_msg(struct dvb_usb_device *d, u8 cmd,
 		r[2] != cmd ||
 		(rlen > 0 && r[3] != rlen)) {
 		warn("there might have been an error during control message transfer. (rlen = %d, was %d)",rlen,r[3]);
+		kfree(s);
+		kfree(r);
 		return -EIO;
 	}
 
 	if (rlen > 0)
 		memcpy(rbuf, &r[4], rlen);
+
+	kfree(s);
+	kfree(r);
 
 	return 0;
 }
