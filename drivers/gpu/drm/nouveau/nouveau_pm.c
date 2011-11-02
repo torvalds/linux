@@ -147,9 +147,13 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		return ret;
 
 	state = pm->clocks_pre(dev, perflvl);
-	if (IS_ERR(state))
-		return PTR_ERR(state);
-	pm->clocks_set(dev, state);
+	if (IS_ERR(state)) {
+		ret = PTR_ERR(state);
+		goto error;
+	}
+	ret = pm->clocks_set(dev, state);
+	if (ret)
+		goto error;
 
 	ret = nouveau_pm_perflvl_aux(dev, perflvl, perflvl, pm->cur);
 	if (ret)
@@ -157,6 +161,11 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 
 	pm->cur = perflvl;
 	return 0;
+
+error:
+	/* restore the fan speed and voltage before leaving */
+	nouveau_pm_perflvl_aux(dev, perflvl, perflvl, pm->cur);
+	return ret;
 }
 
 static int
@@ -165,6 +174,8 @@ nouveau_pm_profile_set(struct drm_device *dev, const char *profile)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct nouveau_pm_level *perflvl = NULL;
+	u64 start_time;
+	int ret = 0;
 	long pl;
 
 	/* safety precaution, for now */
@@ -189,8 +200,17 @@ nouveau_pm_profile_set(struct drm_device *dev, const char *profile)
 			return -EINVAL;
 	}
 
-	NV_INFO(dev, "setting performance level: %s\n", profile);
-	return nouveau_pm_perflvl_set(dev, perflvl);
+	NV_INFO(dev, "setting performance level: %s", profile);
+	start_time = nv04_timer_read(dev);
+	ret = nouveau_pm_perflvl_set(dev, perflvl);
+	if (!ret) {
+		NV_INFO(dev, "> reclocking took %lluns\n\n",
+			(nv04_timer_read(dev) - start_time));
+	} else {
+		NV_INFO(dev, "> reclocking failed\n\n");
+	}
+
+	return ret;
 }
 
 static int
