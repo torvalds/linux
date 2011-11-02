@@ -564,7 +564,6 @@ static void perf_top__sort_new_samples(void *arg)
 	hists__decay_entries_threaded(&t->sym_evsel->hists,
 				      top.hide_user_symbols,
 				      top.hide_kernel_symbols);
-	hists__output_recalc_col_len(&t->sym_evsel->hists, winsize.ws_row - 3);
 }
 
 static void *display_thread_tui(void *arg __used)
