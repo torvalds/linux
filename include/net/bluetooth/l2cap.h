@@ -367,6 +367,7 @@ struct l2cap_chan {
 	__u16		flush_to;
 	__u8		mode;
 	__u8		chan_type;
+	__u8		chan_policy;
 
 	__le16		sport;
 

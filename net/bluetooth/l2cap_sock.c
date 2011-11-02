@@ -467,6 +467,16 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 
 		break;
 
+	case BT_CHANNEL_POLICY:
+		if (!enable_hs) {
+			err = -ENOPROTOOPT;
+			break;
+		}
+
+		if (put_user(chan->chan_policy, (u32 __user *) optval))
+			err = -EFAULT;
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -688,6 +698,31 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 			set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
 		else
 			clear_bit(FLAG_FORCE_ACTIVE, &chan->flags);
+		break;
+
+	case BT_CHANNEL_POLICY:
+		if (!enable_hs) {
+			err = -ENOPROTOOPT;
+			break;
+		}
+
+		if (get_user(opt, (u32 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (opt > BT_CHANNEL_POLICY_AMP_PREFERRED) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (chan->mode != L2CAP_MODE_ERTM &&
+				chan->mode != L2CAP_MODE_STREAMING) {
+			err = -EOPNOTSUPP;
+			break;
+		}
+
+		chan->chan_policy = (u8) opt;
 		break;
 
 	default:
