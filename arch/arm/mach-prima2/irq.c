@@ -13,6 +13,8 @@
 #include <asm/mach/irq.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/irqdomain.h>
+#include <linux/syscore_ops.h>
 
 #define SIRFSOC_INT_RISC_MASK0          0x0018
 #define SIRFSOC_INT_RISC_MASK1          0x001C
@@ -66,7 +68,48 @@ void __init sirfsoc_of_irq_init(void)
 	if (!sirfsoc_intc_base)
 		panic("unable to map intc cpu registers\n");
 
+	irq_domain_add_simple(np, 0);
+
 	of_node_put(np);
 
 	sirfsoc_irq_init();
 }
+
+struct sirfsoc_irq_status {
+	u32 mask0;
+	u32 mask1;
+	u32 level0;
+	u32 level1;
+};
+
+static struct sirfsoc_irq_status sirfsoc_irq_st;
+
+static int sirfsoc_irq_suspend(void)
+{
+	sirfsoc_irq_st.mask0 = readl_relaxed(sirfsoc_intc_base + SIRFSOC_INT_RISC_MASK0);
+	sirfsoc_irq_st.mask1 = readl_relaxed(sirfsoc_intc_base + SIRFSOC_INT_RISC_MASK1);
+	sirfsoc_irq_st.level0 = readl_relaxed(sirfsoc_intc_base + SIRFSOC_INT_RISC_LEVEL0);
+	sirfsoc_irq_st.level1 = readl_relaxed(sirfsoc_intc_base + SIRFSOC_INT_RISC_LEVEL1);
+
+	return 0;
+}
+
+static void sirfsoc_irq_resume(void)
+{
+	writel_relaxed(sirfsoc_irq_st.mask0, sirfsoc_intc_base + SIRFSOC_INT_RISC_MASK0);
+	writel_relaxed(sirfsoc_irq_st.mask1, sirfsoc_intc_base + SIRFSOC_INT_RISC_MASK1);
+	writel_relaxed(sirfsoc_irq_st.level0, sirfsoc_intc_base + SIRFSOC_INT_RISC_LEVEL0);
+	writel_relaxed(sirfsoc_irq_st.level1, sirfsoc_intc_base + SIRFSOC_INT_RISC_LEVEL1);
+}
+
+static struct syscore_ops sirfsoc_irq_syscore_ops = {
+	.suspend	= sirfsoc_irq_suspend,
+	.resume		= sirfsoc_irq_resume,
+};
+
+static int __init sirfsoc_irq_pm_init(void)
+{
+	register_syscore_ops(&sirfsoc_irq_syscore_ops);
+	return 0;
+}
+device_initcall(sirfsoc_irq_pm_init);

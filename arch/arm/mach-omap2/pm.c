@@ -181,7 +181,7 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 		goto exit;
 	}
 
-	voltdm = omap_voltage_domain_lookup(vdd_name);
+	voltdm = voltdm_lookup(vdd_name);
 	if (IS_ERR(voltdm)) {
 		pr_err("%s: unable to get vdd pointer for vdd_%s\n",
 			__func__, vdd_name);
@@ -211,7 +211,7 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 		goto exit;
 	}
 
-	omap_voltage_scale_vdd(voltdm, bootup_volt);
+	voltdm_scale(voltdm, bootup_volt);
 	return 0;
 
 exit:
@@ -224,7 +224,7 @@ static void __init omap3_init_voltages(void)
 	if (!cpu_is_omap34xx())
 		return;
 
-	omap2_set_init_voltage("mpu", "dpll1_ck", mpu_dev);
+	omap2_set_init_voltage("mpu_iva", "dpll1_ck", mpu_dev);
 	omap2_set_init_voltage("core", "l3_ick", l3_dev);
 }
 
