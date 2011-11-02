@@ -198,14 +198,24 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 				    struct inode *inode)
 {
 	struct btrfs_block_rsv *rsv;
+	u64 needed_bytes;
 	loff_t oldsize;
 	int ret = 0;
 
 	rsv = trans->block_rsv;
-	trans->block_rsv = root->orphan_block_rsv;
-	ret = btrfs_block_rsv_check(root, root->orphan_block_rsv, 5);
-	if (ret)
-		return ret;
+	trans->block_rsv = &root->fs_info->global_block_rsv;
+
+	/* 1 for slack space, 1 for updating the inode */
+	needed_bytes = btrfs_calc_trunc_metadata_size(root, 1) +
+		btrfs_calc_trans_metadata_size(root, 1);
+
+	spin_lock(&trans->block_rsv->lock);
+	if (trans->block_rsv->reserved < needed_bytes) {
+		spin_unlock(&trans->block_rsv->lock);
+		trans->block_rsv = rsv;
+		return -ENOSPC;
+	}
+	spin_unlock(&trans->block_rsv->lock);
 
 	oldsize = i_size_read(inode);
 	btrfs_i_size_write(inode, 0);
@@ -218,13 +228,15 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 	ret = btrfs_truncate_inode_items(trans, root, inode,
 					 0, BTRFS_EXTENT_DATA_KEY);
 
-	trans->block_rsv = rsv;
 	if (ret) {
+		trans->block_rsv = rsv;
 		WARN_ON(1);
 		return ret;
 	}
 
 	ret = btrfs_update_inode(trans, root, inode);
+	trans->block_rsv = rsv;
+
 	return ret;
 }
 
