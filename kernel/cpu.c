@@ -15,6 +15,7 @@
 #include <linux/stop_machine.h>
 #include <linux/mutex.h>
 #include <linux/gfp.h>
+#include <linux/suspend.h>
 
 #ifdef CONFIG_SMP
 /* Serializes the updates to cpu_online_mask, cpu_present_mask */
@@ -476,6 +477,79 @@ static int alloc_frozen_cpus(void)
 	return 0;
 }
 core_initcall(alloc_frozen_cpus);
+
+/*
+ * Prevent regular CPU hotplug from racing with the freezer, by disabling CPU
+ * hotplug when tasks are about to be frozen. Also, don't allow the freezer
+ * to continue until any currently running CPU hotplug operation gets
+ * completed.
+ * To modify the 'cpu_hotplug_disabled' flag, we need to acquire the
+ * 'cpu_add_remove_lock'. And this same lock is also taken by the regular
+ * CPU hotplug path and released only after it is complete. Thus, we
+ * (and hence the freezer) will block here until any currently running CPU
+ * hotplug operation gets completed.
+ */
+void cpu_hotplug_disable_before_freeze(void)
+{
+	cpu_maps_update_begin();
+	cpu_hotplug_disabled = 1;
+	cpu_maps_update_done();
+}
+
+
+/*
+ * When tasks have been thawed, re-enable regular CPU hotplug (which had been
+ * disabled while beginning to freeze tasks).
+ */
+void cpu_hotplug_enable_after_thaw(void)
+{
+	cpu_maps_update_begin();
+	cpu_hotplug_disabled = 0;
+	cpu_maps_update_done();
+}
+
+/*
+ * When callbacks for CPU hotplug notifications are being executed, we must
+ * ensure that the state of the system with respect to the tasks being frozen
+ * or not, as reported by the notification, remains unchanged *throughout the
+ * duration* of the execution of the callbacks.
+ * Hence we need to prevent the freezer from racing with regular CPU hotplug.
+ *
+ * This synchronization is implemented by mutually excluding regular CPU
+ * hotplug and Suspend/Hibernate call paths by hooking onto the Suspend/
+ * Hibernate notifications.
+ */
+static int
+cpu_hotplug_pm_callback(struct notifier_block *nb,
+			unsigned long action, void *ptr)
+{
+	switch (action) {
+
+	case PM_SUSPEND_PREPARE:
+	case PM_HIBERNATION_PREPARE:
+		cpu_hotplug_disable_before_freeze();
+		break;
+
+	case PM_POST_SUSPEND:
+	case PM_POST_HIBERNATION:
+		cpu_hotplug_enable_after_thaw();
+		break;
+
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+
+int cpu_hotplug_pm_sync_init(void)
+{
+	pm_notifier(cpu_hotplug_pm_callback, 0);
+	return 0;
+}
+core_initcall(cpu_hotplug_pm_sync_init);
+
 #endif /* CONFIG_PM_SLEEP_SMP */
 
 /**
