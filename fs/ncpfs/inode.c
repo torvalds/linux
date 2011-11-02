@@ -228,7 +228,7 @@ static void ncp_set_attr(struct inode *inode, struct ncp_entry_info *nwinfo)
 
 	DDPRINTK("ncp_read_inode: inode->i_mode = %u\n", inode->i_mode);
 
-	inode->i_nlink = 1;
+	set_nlink(inode, 1);
 	inode->i_uid = server->m.uid;
 	inode->i_gid = server->m.gid;
 
