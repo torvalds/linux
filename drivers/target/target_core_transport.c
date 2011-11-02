@@ -1718,13 +1718,6 @@ int transport_generic_handle_tmr(
 }
 EXPORT_SYMBOL(transport_generic_handle_tmr);
 
-void transport_generic_free_cmd_intr(
-	struct se_cmd *cmd)
-{
-	transport_add_cmd_to_queue(cmd, TRANSPORT_FREE_CMD_INTR, false);
-}
-EXPORT_SYMBOL(transport_generic_free_cmd_intr);
-
 /*
  * If the task is active, request it to be stopped and sleep until it
  * has completed.
@@ -4596,9 +4589,6 @@ get_cmd:
 			break;
 		case TRANSPORT_PROCESS_WRITE:
 			transport_generic_process_write(cmd);
-			break;
-		case TRANSPORT_FREE_CMD_INTR:
-			transport_generic_free_cmd(cmd, 0);
 			break;
 		case TRANSPORT_PROCESS_TMR:
 			transport_generic_do_tmr(cmd);
