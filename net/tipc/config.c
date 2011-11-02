@@ -481,7 +481,7 @@ int tipc_cfg_init(void)
 
 	seq.type = TIPC_CFG_SRV;
 	seq.lower = seq.upper = tipc_own_addr;
-	res = tipc_nametbl_publish_rsv(config_port_ref, TIPC_ZONE_SCOPE, &seq);
+	res = tipc_publish(config_port_ref, TIPC_ZONE_SCOPE, &seq);
 	if (res)
 		goto failed;
 

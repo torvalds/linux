@@ -355,6 +355,9 @@ static int bind(struct socket *sock, struct sockaddr *uaddr, int uaddr_len)
 	else if (addr->addrtype != TIPC_ADDR_NAMESEQ)
 		return -EAFNOSUPPORT;
 
+	if (addr->addr.nameseq.type < TIPC_RESERVED_TYPES)
+		return -EACCES;
+
 	return (addr->scope > 0) ?
 		tipc_publish(portref, addr->scope, &addr->addr.nameseq) :
 		tipc_withdraw(portref, -addr->scope, &addr->addr.nameseq);

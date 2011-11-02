@@ -114,9 +114,7 @@ struct name_table {
 };
 
 static struct name_table table;
-static atomic_t rsv_publ_ok = ATOMIC_INIT(0);
 DEFINE_RWLOCK(tipc_nametbl_lock);
-
 
 static int hash(int x)
 {
@@ -665,22 +663,7 @@ exit:
 	return res;
 }
 
-/**
- * tipc_nametbl_publish_rsv - publish port name using a reserved name type
- */
-
-int tipc_nametbl_publish_rsv(u32 ref, unsigned int scope,
-			struct tipc_name_seq const *seq)
-{
-	int res;
-
-	atomic_inc(&rsv_publ_ok);
-	res = tipc_publish(ref, scope, seq);
-	atomic_dec(&rsv_publ_ok);
-	return res;
-}
-
-/**
+/*
  * tipc_nametbl_publish - add name publication to network name tables
  */
 
@@ -692,11 +675,6 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 	if (table.local_publ_count >= tipc_max_publications) {
 		warn("Publication failed, local publication limit reached (%u)\n",
 		     tipc_max_publications);
-		return NULL;
-	}
-	if ((type < TIPC_RESERVED_TYPES) && !atomic_read(&rsv_publ_ok)) {
-		warn("Publication failed, reserved name {%u,%u,%u}\n",
-		     type, lower, upper);
 		return NULL;
 	}
 
