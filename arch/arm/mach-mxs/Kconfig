@@ -64,8 +64,25 @@ config MODULE_TX28
 	select MXS_HAVE_PLATFORM_MXS_MMC
 	select MXS_HAVE_PLATFORM_MXS_PWM
 
+config MODULE_M28
+	bool
+	select SOC_IMX28
+	select LEDS_GPIO_REGISTER
+	select MXS_HAVE_AMBA_DUART
+	select MXS_HAVE_PLATFORM_AUART
+	select MXS_HAVE_PLATFORM_FEC
+	select MXS_HAVE_PLATFORM_FLEXCAN
+	select MXS_HAVE_PLATFORM_MXS_I2C
+	select MXS_HAVE_PLATFORM_MXS_MMC
+	select MXS_HAVE_PLATFORM_MXSFB
+	select MXS_OCOTP
+
 config MACH_TX28
 	bool "Ka-Ro TX28 module"
 	select MODULE_TX28
+
+config MACH_M28EVK
+	bool "Support DENX M28EVK Platform"
+	select MODULE_M28
 
 endif
