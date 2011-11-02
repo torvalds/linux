@@ -80,7 +80,10 @@ static int fixed_voltage_get_voltage(struct regulator_dev *dev)
 {
 	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
 
-	return data->microvolts;
+	if (data->microvolts)
+		return data->microvolts;
+	else
+		return -EINVAL;
 }
 
 static int fixed_voltage_list_voltage(struct regulator_dev *dev,
