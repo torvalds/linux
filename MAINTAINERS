@@ -2467,8 +2467,6 @@ L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i7core_edac.c
-F:	drivers/edac/edac_mce.c
-F:	include/linux/edac_mce.h
 
 EDAC-I82975X
 M:	Ranganathan Desikan <ravi@jetztechnologies.com>
@@ -2491,6 +2489,13 @@ L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/r82600_edac.c
+
+EDAC-SBRIDGE
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-edac@vger.kernel.org
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+F:	drivers/edac/sb_edac.c
 
 EDIROL UA-101/UA-1000 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
