@@ -1662,6 +1662,28 @@ static struct drm_display_mode vmw_kms_connector_builtin[] = {
 	{ DRM_MODE("", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) },
 };
 
+/**
+ * vmw_guess_mode_timing - Provide fake timings for a
+ * 60Hz vrefresh mode.
+ *
+ * @mode - Pointer to a struct drm_display_mode with hdisplay and vdisplay
+ * members filled in.
+ */
+static void vmw_guess_mode_timing(struct drm_display_mode *mode)
+{
+	mode->hsync_start = mode->hdisplay + 50;
+	mode->hsync_end = mode->hsync_start + 50;
+	mode->htotal = mode->hsync_end + 50;
+
+	mode->vsync_start = mode->vdisplay + 50;
+	mode->vsync_end = mode->vsync_start + 50;
+	mode->vtotal = mode->vsync_end + 50;
+
+	mode->clock = (u32)mode->htotal * (u32)mode->vtotal / 100 * 6;
+	mode->vrefresh = drm_mode_vrefresh(mode);
+}
+
+
 int vmw_du_connector_fill_modes(struct drm_connector *connector,
 				uint32_t max_width, uint32_t max_height)
 {
@@ -1684,7 +1706,7 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 			return 0;
 		mode->hdisplay = du->pref_width;
 		mode->vdisplay = du->pref_height;
-		mode->vrefresh = drm_mode_vrefresh(mode);
+		vmw_guess_mode_timing(mode);
 		if (vmw_kms_validate_mode_vram(dev_priv, mode->hdisplay * 2,
 					       mode->vdisplay)) {
 			drm_mode_probed_add(connector, mode);
