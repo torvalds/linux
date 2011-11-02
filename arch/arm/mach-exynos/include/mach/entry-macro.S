@@ -72,7 +72,6 @@
 		cmpcc	\irqnr, \irqnr
 		cmpne	\irqnr, \tmp
 		cmpcs	\irqnr, \irqnr
-		addne	\irqnr, \irqnr, #32
 
 		.endm
 
