@@ -6683,7 +6683,6 @@ F:	drivers/net/ethernet/8390/ne-h8300.c
 
 UDF FILESYSTEM
 M:	Jan Kara <jack@suse.cz>
-W:	http://linux-udf.sourceforge.net
 S:	Maintained
 F:	Documentation/filesystems/udf.txt
 F:	fs/udf/

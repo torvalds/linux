@@ -37,6 +37,7 @@
 #include <linux/writeback.h>
 #include <linux/slab.h>
 #include <linux/crc-itu-t.h>
+#include <linux/mpage.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"
@@ -83,12 +84,10 @@ void udf_evict_inode(struct inode *inode)
 	end_writeback(inode);
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB &&
 	    inode->i_size != iinfo->i_lenExtents) {
-		printk(KERN_WARNING "UDF-fs (%s): Inode %lu (mode %o) has "
-			"inode size %llu different from extent length %llu. "
-			"Filesystem need not be standards compliant.\n",
-			inode->i_sb->s_id, inode->i_ino, inode->i_mode,
-			(unsigned long long)inode->i_size,
-			(unsigned long long)iinfo->i_lenExtents);
+		udf_warn(inode->i_sb, "Inode %lu (mode %o) has inode size %llu different from extent length %llu. Filesystem need not be standards compliant.\n",
+			 inode->i_ino, inode->i_mode,
+			 (unsigned long long)inode->i_size,
+			 (unsigned long long)iinfo->i_lenExtents);
 	}
 	kfree(iinfo->i_ext.i_data);
 	iinfo->i_ext.i_data = NULL;
@@ -104,7 +103,13 @@ static int udf_writepage(struct page *page, struct writeback_control *wbc)
 
 static int udf_readpage(struct file *file, struct page *page)
 {
-	return block_read_full_page(page, udf_get_block);
+	return mpage_readpage(page, udf_get_block);
+}
+
+static int udf_readpages(struct file *file, struct address_space *mapping,
+			struct list_head *pages, unsigned nr_pages)
+{
+	return mpage_readpages(mapping, pages, nr_pages, udf_get_block);
 }
 
 static int udf_write_begin(struct file *file, struct address_space *mapping,
@@ -139,6 +144,7 @@ static sector_t udf_bmap(struct address_space *mapping, sector_t block)
 
 const struct address_space_operations udf_aops = {
 	.readpage	= udf_readpage,
+	.readpages	= udf_readpages,
 	.writepage	= udf_writepage,
 	.write_begin		= udf_write_begin,
 	.write_end		= generic_write_end,
@@ -1169,16 +1175,15 @@ static void __udf_read_inode(struct inode *inode)
 	 */
 	bh = udf_read_ptagged(inode->i_sb, &iinfo->i_location, 0, &ident);
 	if (!bh) {
-		printk(KERN_ERR "udf: udf_read_inode(ino %ld) failed !bh\n",
-		       inode->i_ino);
+		udf_err(inode->i_sb, "(ino %ld) failed !bh\n", inode->i_ino);
 		make_bad_inode(inode);
 		return;
 	}
 
 	if (ident != TAG_IDENT_FE && ident != TAG_IDENT_EFE &&
 	    ident != TAG_IDENT_USE) {
-		printk(KERN_ERR "udf: udf_read_inode(ino %ld) "
-				"failed ident=%d\n", inode->i_ino, ident);
+		udf_err(inode->i_sb, "(ino %ld) failed ident=%d\n",
+			inode->i_ino, ident);
 		brelse(bh);
 		make_bad_inode(inode);
 		return;
@@ -1218,8 +1223,8 @@ static void __udf_read_inode(struct inode *inode)
 		}
 		brelse(ibh);
 	} else if (fe->icbTag.strategyType != cpu_to_le16(4)) {
-		printk(KERN_ERR "udf: unsupported strategy type: %d\n",
-		       le16_to_cpu(fe->icbTag.strategyType));
+		udf_err(inode->i_sb, "unsupported strategy type: %d\n",
+			le16_to_cpu(fe->icbTag.strategyType));
 		brelse(bh);
 		make_bad_inode(inode);
 		return;
@@ -1413,9 +1418,8 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		udf_debug("METADATA BITMAP FILE-----\n");
 		break;
 	default:
-		printk(KERN_ERR "udf: udf_fill_inode(ino %ld) failed unknown "
-				"file type=%d\n", inode->i_ino,
-				fe->icbTag.fileType);
+		udf_err(inode->i_sb, "(ino %ld) failed unknown file type=%d\n",
+			inode->i_ino, fe->icbTag.fileType);
 		make_bad_inode(inode);
 		return;
 	}
@@ -1438,8 +1442,8 @@ static int udf_alloc_i_data(struct inode *inode, size_t size)
 	iinfo->i_ext.i_data = kmalloc(size, GFP_KERNEL);
 
 	if (!iinfo->i_ext.i_data) {
-		printk(KERN_ERR "udf:udf_alloc_i_data (ino %ld) "
-				"no free memory\n", inode->i_ino);
+		udf_err(inode->i_sb, "(ino %ld) no free memory\n",
+			inode->i_ino);
 		return -ENOMEM;
 	}
 
@@ -1689,9 +1693,8 @@ out:
 	if (do_sync) {
 		sync_dirty_buffer(bh);
 		if (buffer_write_io_error(bh)) {
-			printk(KERN_WARNING "IO error syncing udf inode "
-				"[%s:%08lx]\n", inode->i_sb->s_id,
-				inode->i_ino);
+			udf_warn(inode->i_sb, "IO error syncing udf inode [%08lx]\n",
+				 inode->i_ino);
 			err = -EIO;
 		}
 	}
@@ -1982,8 +1985,7 @@ int8_t udf_current_aext(struct inode *inode, struct extent_position *epos,
 		*elen = le32_to_cpu(lad->extLength) & UDF_EXTENT_LENGTH_MASK;
 		break;
 	default:
-		udf_debug("alloc_type = %d unsupported\n",
-				iinfo->i_alloc_type);
+		udf_debug("alloc_type = %d unsupported\n", iinfo->i_alloc_type);
 		return -1;
 	}
 
