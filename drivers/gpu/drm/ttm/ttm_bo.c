@@ -337,8 +337,8 @@ static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 		if (zero_alloc)
 			page_flags |= TTM_PAGE_FLAG_ZERO_ALLOC;
 	case ttm_bo_type_kernel:
-		bo->ttm = ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-					page_flags, glob->dummy_read_page);
+		bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
+						      page_flags, glob->dummy_read_page);
 		if (unlikely(bo->ttm == NULL))
 			ret = -ENOMEM;
 		break;
@@ -1437,10 +1437,7 @@ int ttm_bo_global_init(struct drm_global_reference *ref)
 		goto out_no_shrink;
 	}
 
-	glob->ttm_bo_extra_size =
-		ttm_round_pot(sizeof(struct ttm_tt)) +
-		ttm_round_pot(sizeof(struct ttm_backend));
-
+	glob->ttm_bo_extra_size = ttm_round_pot(sizeof(struct ttm_tt));
 	glob->ttm_bo_size = glob->ttm_bo_extra_size +
 		ttm_round_pot(sizeof(struct ttm_buffer_object));
 

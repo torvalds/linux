@@ -1000,7 +1000,10 @@ extern int nouveau_sgdma_init(struct drm_device *);
 extern void nouveau_sgdma_takedown(struct drm_device *);
 extern uint32_t nouveau_sgdma_get_physical(struct drm_device *,
 					   uint32_t offset);
-extern struct ttm_backend *nouveau_sgdma_init_ttm(struct drm_device *);
+extern struct ttm_tt *nouveau_sgdma_create_ttm(struct ttm_bo_device *bdev,
+					       unsigned long size,
+					       uint32_t page_flags,
+					       struct page *dummy_read_page);
 
 /* nouveau_debugfs.c */
 #if defined(CONFIG_DRM_NOUVEAU_DEBUG)

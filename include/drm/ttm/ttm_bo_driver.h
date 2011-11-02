@@ -43,36 +43,9 @@ struct ttm_backend;
 
 struct ttm_backend_func {
 	/**
-	 * struct ttm_backend_func member populate
-	 *
-	 * @backend: Pointer to a struct ttm_backend.
-	 * @num_pages: Number of pages to populate.
-	 * @pages: Array of pointers to ttm pages.
-	 * @dummy_read_page: Page to be used instead of NULL pages in the
-	 * array @pages.
-	 * @dma_addrs: Array of DMA (bus) address of the ttm pages.
-	 *
-	 * Populate the backend with ttm pages. Depending on the backend,
-	 * it may or may not copy the @pages array.
-	 */
-	int (*populate) (struct ttm_backend *backend,
-			 unsigned long num_pages, struct page **pages,
-			 struct page *dummy_read_page,
-			 dma_addr_t *dma_addrs);
-	/**
-	 * struct ttm_backend_func member clear
-	 *
-	 * @backend: Pointer to a struct ttm_backend.
-	 *
-	 * This is an "unpopulate" function. Release all resources
-	 * allocated with populate.
-	 */
-	void (*clear) (struct ttm_backend *backend);
-
-	/**
 	 * struct ttm_backend_func member bind
 	 *
-	 * @backend: Pointer to a struct ttm_backend.
+	 * @ttm: Pointer to a struct ttm_tt.
 	 * @bo_mem: Pointer to a struct ttm_mem_reg describing the
 	 * memory type and location for binding.
 	 *
@@ -80,40 +53,27 @@ struct ttm_backend_func {
 	 * indicated by @bo_mem. This function should be able to handle
 	 * differences between aperture and system page sizes.
 	 */
-	int (*bind) (struct ttm_backend *backend, struct ttm_mem_reg *bo_mem);
+	int (*bind) (struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
 
 	/**
 	 * struct ttm_backend_func member unbind
 	 *
-	 * @backend: Pointer to a struct ttm_backend.
+	 * @ttm: Pointer to a struct ttm_tt.
 	 *
 	 * Unbind previously bound backend pages. This function should be
 	 * able to handle differences between aperture and system page sizes.
 	 */
-	int (*unbind) (struct ttm_backend *backend);
+	int (*unbind) (struct ttm_tt *ttm);
 
 	/**
 	 * struct ttm_backend_func member destroy
 	 *
-	 * @backend: Pointer to a struct ttm_backend.
+	 * @ttm: Pointer to a struct ttm_tt.
 	 *
-	 * Destroy the backend.
+	 * Destroy the backend. This will be call back from ttm_tt_destroy so
+	 * don't call ttm_tt_destroy from the callback or infinite loop.
 	 */
-	void (*destroy) (struct ttm_backend *backend);
-};
-
-/**
- * struct ttm_backend
- *
- * @bdev: Pointer to a struct ttm_bo_device.
- * @func: Pointer to a struct ttm_backend_func that describes
- * the backend methods.
- *
- */
-
-struct ttm_backend {
-	struct ttm_bo_device *bdev;
-	struct ttm_backend_func *func;
+	void (*destroy) (struct ttm_tt *ttm);
 };
 
 #define TTM_PAGE_FLAG_WRITE           (1 << 3)
@@ -131,6 +91,9 @@ enum ttm_caching_state {
 /**
  * struct ttm_tt
  *
+ * @bdev: Pointer to a struct ttm_bo_device.
+ * @func: Pointer to a struct ttm_backend_func that describes
+ * the backend methods.
  * @dummy_read_page: Page to map where the ttm_tt page array contains a NULL
  * pointer.
  * @pages: Array of pages backing the data.
@@ -148,6 +111,8 @@ enum ttm_caching_state {
  */
 
 struct ttm_tt {
+	struct ttm_bo_device *bdev;
+	struct ttm_backend_func *func;
 	struct page *dummy_read_page;
 	struct page **pages;
 	uint32_t page_flags;
@@ -336,15 +301,22 @@ struct ttm_mem_type_manager {
 
 struct ttm_bo_driver {
 	/**
-	 * struct ttm_bo_driver member create_ttm_backend_entry
+	 * ttm_tt_create
 	 *
-	 * @bdev: The buffer object device.
+	 * @bdev: pointer to a struct ttm_bo_device:
+	 * @size: Size of the data needed backing.
+	 * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
+	 * @dummy_read_page: See struct ttm_bo_device.
 	 *
-	 * Create a driver specific struct ttm_backend.
+	 * Create a struct ttm_tt to back data with system memory pages.
+	 * No pages are actually allocated.
+	 * Returns:
+	 * NULL: Out of memory.
 	 */
-
-	struct ttm_backend *(*create_ttm_backend_entry)
-	 (struct ttm_bo_device *bdev);
+	struct ttm_tt *(*ttm_tt_create)(struct ttm_bo_device *bdev,
+					unsigned long size,
+					uint32_t page_flags,
+					struct page *dummy_read_page);
 
 	/**
 	 * struct ttm_bo_driver member invalidate_caches
@@ -585,8 +557,9 @@ ttm_flag_masked(uint32_t *old, uint32_t new, uint32_t mask)
 }
 
 /**
- * ttm_tt_create
+ * ttm_tt_init
  *
+ * @ttm: The struct ttm_tt.
  * @bdev: pointer to a struct ttm_bo_device:
  * @size: Size of the data needed backing.
  * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
@@ -597,10 +570,9 @@ ttm_flag_masked(uint32_t *old, uint32_t new, uint32_t mask)
  * Returns:
  * NULL: Out of memory.
  */
-extern struct ttm_tt *ttm_tt_create(struct ttm_bo_device *bdev,
-				    unsigned long size,
-				    uint32_t page_flags,
-				    struct page *dummy_read_page);
+extern int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
+			unsigned long size, uint32_t page_flags,
+			struct page *dummy_read_page);
 
 /**
  * ttm_ttm_bind:
@@ -626,7 +598,7 @@ extern int ttm_tt_populate(struct ttm_tt *ttm);
  *
  * @ttm: The struct ttm_tt.
  *
- * Unbind, unpopulate and destroy a struct ttm_tt.
+ * Unbind, unpopulate and destroy common struct ttm_tt.
  */
 extern void ttm_tt_destroy(struct ttm_tt *ttm);
 
@@ -1013,17 +985,23 @@ extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 #include <linux/agp_backend.h>
 
 /**
- * ttm_agp_backend_init
+ * ttm_agp_tt_create
  *
  * @bdev: Pointer to a struct ttm_bo_device.
  * @bridge: The agp bridge this device is sitting on.
+ * @size: Size of the data needed backing.
+ * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
+ * @dummy_read_page: See struct ttm_bo_device.
+ *
  *
  * Create a TTM backend that uses the indicated AGP bridge as an aperture
  * for TT memory. This function uses the linux agpgart interface to
  * bind and unbind memory backing a ttm_tt.
  */
-extern struct ttm_backend *ttm_agp_backend_init(struct ttm_bo_device *bdev,
-						struct agp_bridge_data *bridge);
+extern struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
+					struct agp_bridge_data *bridge,
+					unsigned long size, uint32_t page_flags,
+					struct page *dummy_read_page);
 #endif
 
 #endif

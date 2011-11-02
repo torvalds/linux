@@ -114,24 +114,6 @@ static void radeon_ttm_global_fini(struct radeon_device *rdev)
 	}
 }
 
-struct ttm_backend *radeon_ttm_backend_create(struct radeon_device *rdev);
-
-static struct ttm_backend*
-radeon_create_ttm_backend_entry(struct ttm_bo_device *bdev)
-{
-	struct radeon_device *rdev;
-
-	rdev = radeon_get_rdev(bdev);
-#if __OS_HAS_AGP
-	if (rdev->flags & RADEON_IS_AGP) {
-		return ttm_agp_backend_init(bdev, rdev->ddev->agp->bridge);
-	} else
-#endif
-	{
-		return radeon_ttm_backend_create(rdev);
-	}
-}
-
 static int radeon_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
 {
 	return 0;
@@ -515,8 +497,90 @@ static bool radeon_sync_obj_signaled(void *sync_obj, void *sync_arg)
 	return radeon_fence_signaled((struct radeon_fence *)sync_obj);
 }
 
+/*
+ * TTM backend functions.
+ */
+struct radeon_ttm_tt {
+	struct ttm_tt			ttm;
+	struct radeon_device		*rdev;
+	u64				offset;
+};
+
+static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
+				   struct ttm_mem_reg *bo_mem)
+{
+	struct radeon_ttm_tt *gtt;
+	int r;
+
+	gtt = container_of(ttm, struct radeon_ttm_tt, ttm);
+	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
+	if (!ttm->num_pages) {
+		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
+		     ttm->num_pages, bo_mem, ttm);
+	}
+	r = radeon_gart_bind(gtt->rdev, gtt->offset,
+			     ttm->num_pages, ttm->pages, ttm->dma_address);
+	if (r) {
+		DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
+			  ttm->num_pages, (unsigned)gtt->offset);
+		return r;
+	}
+	return 0;
+}
+
+static int radeon_ttm_backend_unbind(struct ttm_tt *ttm)
+{
+	struct radeon_ttm_tt *gtt;
+
+	gtt = container_of(ttm, struct radeon_ttm_tt, ttm);
+	radeon_gart_unbind(gtt->rdev, gtt->offset, ttm->num_pages);
+	return 0;
+}
+
+static void radeon_ttm_backend_destroy(struct ttm_tt *ttm)
+{
+	struct radeon_ttm_tt *gtt;
+
+	gtt = container_of(ttm, struct radeon_ttm_tt, ttm);
+	kfree(gtt);
+}
+
+static struct ttm_backend_func radeon_backend_func = {
+	.bind = &radeon_ttm_backend_bind,
+	.unbind = &radeon_ttm_backend_unbind,
+	.destroy = &radeon_ttm_backend_destroy,
+};
+
+struct ttm_tt *radeon_ttm_tt_create(struct ttm_bo_device *bdev,
+				    unsigned long size, uint32_t page_flags,
+				    struct page *dummy_read_page)
+{
+	struct radeon_device *rdev;
+	struct radeon_ttm_tt *gtt;
+
+	rdev = radeon_get_rdev(bdev);
+#if __OS_HAS_AGP
+	if (rdev->flags & RADEON_IS_AGP) {
+		return ttm_agp_tt_create(bdev, rdev->ddev->agp->bridge,
+					 size, page_flags, dummy_read_page);
+	}
+#endif
+
+	gtt = kzalloc(sizeof(struct radeon_ttm_tt), GFP_KERNEL);
+	if (gtt == NULL) {
+		return NULL;
+	}
+	gtt->ttm.func = &radeon_backend_func;
+	gtt->rdev = rdev;
+	if (ttm_tt_init(&gtt->ttm, bdev, size, page_flags, dummy_read_page)) {
+		return NULL;
+	}
+	return &gtt->ttm;
+}
+
+
 static struct ttm_bo_driver radeon_bo_driver = {
-	.create_ttm_backend_entry = &radeon_create_ttm_backend_entry,
+	.ttm_tt_create = &radeon_ttm_tt_create,
 	.invalidate_caches = &radeon_invalidate_caches,
 	.init_mem_type = &radeon_init_mem_type,
 	.evict_flags = &radeon_evict_flags,
@@ -679,123 +743,6 @@ int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-
-/*
- * TTM backend functions.
- */
-struct radeon_ttm_backend {
-	struct ttm_backend		backend;
-	struct radeon_device		*rdev;
-	unsigned long			num_pages;
-	struct page			**pages;
-	struct page			*dummy_read_page;
-	dma_addr_t			*dma_addrs;
-	bool				populated;
-	bool				bound;
-	unsigned			offset;
-};
-
-static int radeon_ttm_backend_populate(struct ttm_backend *backend,
-				       unsigned long num_pages,
-				       struct page **pages,
-				       struct page *dummy_read_page,
-				       dma_addr_t *dma_addrs)
-{
-	struct radeon_ttm_backend *gtt;
-
-	gtt = container_of(backend, struct radeon_ttm_backend, backend);
-	gtt->pages = pages;
-	gtt->dma_addrs = dma_addrs;
-	gtt->num_pages = num_pages;
-	gtt->dummy_read_page = dummy_read_page;
-	gtt->populated = true;
-	return 0;
-}
-
-static void radeon_ttm_backend_clear(struct ttm_backend *backend)
-{
-	struct radeon_ttm_backend *gtt;
-
-	gtt = container_of(backend, struct radeon_ttm_backend, backend);
-	gtt->pages = NULL;
-	gtt->dma_addrs = NULL;
-	gtt->num_pages = 0;
-	gtt->dummy_read_page = NULL;
-	gtt->populated = false;
-	gtt->bound = false;
-}
-
-
-static int radeon_ttm_backend_bind(struct ttm_backend *backend,
-				   struct ttm_mem_reg *bo_mem)
-{
-	struct radeon_ttm_backend *gtt;
-	int r;
-
-	gtt = container_of(backend, struct radeon_ttm_backend, backend);
-	gtt->offset = bo_mem->start << PAGE_SHIFT;
-	if (!gtt->num_pages) {
-		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
-		     gtt->num_pages, bo_mem, backend);
-	}
-	r = radeon_gart_bind(gtt->rdev, gtt->offset,
-			     gtt->num_pages, gtt->pages, gtt->dma_addrs);
-	if (r) {
-		DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
-			  gtt->num_pages, gtt->offset);
-		return r;
-	}
-	gtt->bound = true;
-	return 0;
-}
-
-static int radeon_ttm_backend_unbind(struct ttm_backend *backend)
-{
-	struct radeon_ttm_backend *gtt;
-
-	gtt = container_of(backend, struct radeon_ttm_backend, backend);
-	radeon_gart_unbind(gtt->rdev, gtt->offset, gtt->num_pages);
-	gtt->bound = false;
-	return 0;
-}
-
-static void radeon_ttm_backend_destroy(struct ttm_backend *backend)
-{
-	struct radeon_ttm_backend *gtt;
-
-	gtt = container_of(backend, struct radeon_ttm_backend, backend);
-	if (gtt->bound) {
-		radeon_ttm_backend_unbind(backend);
-	}
-	kfree(gtt);
-}
-
-static struct ttm_backend_func radeon_backend_func = {
-	.populate = &radeon_ttm_backend_populate,
-	.clear = &radeon_ttm_backend_clear,
-	.bind = &radeon_ttm_backend_bind,
-	.unbind = &radeon_ttm_backend_unbind,
-	.destroy = &radeon_ttm_backend_destroy,
-};
-
-struct ttm_backend *radeon_ttm_backend_create(struct radeon_device *rdev)
-{
-	struct radeon_ttm_backend *gtt;
-
-	gtt = kzalloc(sizeof(struct radeon_ttm_backend), GFP_KERNEL);
-	if (gtt == NULL) {
-		return NULL;
-	}
-	gtt->backend.bdev = &rdev->mman.bdev;
-	gtt->backend.func = &radeon_backend_func;
-	gtt->rdev = rdev;
-	gtt->pages = NULL;
-	gtt->num_pages = 0;
-	gtt->dummy_read_page = NULL;
-	gtt->populated = false;
-	gtt->bound = false;
-	return &gtt->backend;
-}
 
 #define RADEON_DEBUGFS_MEM_TYPES 2
 

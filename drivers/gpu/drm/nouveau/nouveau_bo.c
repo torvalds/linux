@@ -343,8 +343,10 @@ nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val)
 		*mem = val;
 }
 
-static struct ttm_backend *
-nouveau_bo_create_ttm_backend_entry(struct ttm_bo_device *bdev)
+static struct ttm_tt *
+nouveau_ttm_tt_create(struct ttm_bo_device *bdev,
+		      unsigned long size, uint32_t page_flags,
+		      struct page *dummy_read_page)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bdev);
 	struct drm_device *dev = dev_priv->dev;
@@ -352,11 +354,13 @@ nouveau_bo_create_ttm_backend_entry(struct ttm_bo_device *bdev)
 	switch (dev_priv->gart_info.type) {
 #if __OS_HAS_AGP
 	case NOUVEAU_GART_AGP:
-		return ttm_agp_backend_init(bdev, dev->agp->bridge);
+		return ttm_agp_tt_create(bdev, dev->agp->bridge,
+					 size, page_flags, dummy_read_page);
 #endif
 	case NOUVEAU_GART_PDMA:
 	case NOUVEAU_GART_HW:
-		return nouveau_sgdma_init_ttm(dev);
+		return nouveau_sgdma_create_ttm(bdev, size, page_flags,
+						dummy_read_page);
 	default:
 		NV_ERROR(dev, "Unknown GART type %d\n",
 			 dev_priv->gart_info.type);
@@ -1045,7 +1049,7 @@ nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
 }
 
 struct ttm_bo_driver nouveau_bo_driver = {
-	.create_ttm_backend_entry = nouveau_bo_create_ttm_backend_entry,
+	.ttm_tt_create = &nouveau_ttm_tt_create,
 	.invalidate_caches = nouveau_bo_invalidate_caches,
 	.init_mem_type = nouveau_bo_init_mem_type,
 	.evict_flags = nouveau_bo_evict_flags,
