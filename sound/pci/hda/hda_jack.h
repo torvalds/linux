@@ -22,6 +22,10 @@ struct hda_jack_tbl {
 	unsigned int jack_detect:1;	/* capable of jack-detection? */
 	unsigned int jack_dirty:1;	/* needs to update? */
 	struct snd_kcontrol *kctl;	/* assigned kctl for jack-detection */
+#ifdef CONFIG_SND_HDA_INPUT_JACK
+	int type;
+	struct snd_jack *jack;
+#endif
 };
 
 struct hda_jack_tbl *

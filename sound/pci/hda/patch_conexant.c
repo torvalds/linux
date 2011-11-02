@@ -475,7 +475,6 @@ static int conexant_init(struct hda_codec *codec)
 
 static void conexant_free(struct hda_codec *codec)
 {
-	snd_hda_input_jack_free(codec);
 	snd_hda_detach_beep_device(codec);
 	kfree(codec->spec);
 }

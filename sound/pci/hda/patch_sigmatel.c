@@ -4489,7 +4489,6 @@ static void stac92xx_free(struct hda_codec *codec)
 		return;
 
 	stac92xx_shutup(codec);
-	snd_hda_input_jack_free(codec);
 
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);

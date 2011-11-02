@@ -1318,7 +1318,6 @@ static void generic_hdmi_free(struct hda_codec *codec)
 		cancel_delayed_work(&per_pin->work);
 		snd_hda_eld_proc_free(codec, eld);
 	}
-	snd_hda_input_jack_free(codec);
 
 	flush_workqueue(codec->bus->workq);
 	kfree(spec);
