@@ -370,6 +370,7 @@ static const struct file_operations proc_sys_file_operations = {
 };
 
 static const struct file_operations proc_sys_dir_file_operations = {
+	.read		= generic_read_dir,
 	.readdir	= proc_sys_readdir,
 	.llseek		= generic_file_llseek,
 };
