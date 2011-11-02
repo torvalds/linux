@@ -134,12 +134,6 @@ void ams_delta_latch2_write(u16 mask, u16 value)
 	*(volatile __u16 *) AMS_DELTA_LATCH2_VIRT = ams_delta_latch2_reg;
 }
 
-static void __init ams_delta_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
-
 static struct map_desc ams_delta_io_desc[] __initdata = {
 	/* AMS_DELTA_LATCH1 */
 	{
@@ -378,17 +372,13 @@ static int __init ams_delta_modem_init(void)
 }
 arch_initcall(ams_delta_modem_init);
 
-static void __init ams_delta_map_io(void)
-{
-	omap1_map_common_io();
-}
-
 MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	/* Maintainer: Jonathan McDowell <noodles@earth.li> */
 	.atag_offset	= 0x100,
-	.map_io		= ams_delta_map_io,
+	.map_io		= omap15xx_map_io,
+	.init_early	= omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= ams_delta_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= ams_delta_init,
 	.timer		= &omap1_timer,
 MACHINE_END

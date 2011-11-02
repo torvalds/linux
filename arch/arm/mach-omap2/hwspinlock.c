@@ -23,14 +23,6 @@
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 
-struct omap_device_pm_latency omap_spinlock_latency[] = {
-	{
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func   = omap_device_enable_hwmods,
-		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	}
-};
-
 int __init hwspinlocks_init(void)
 {
 	int retval = 0;
@@ -48,9 +40,7 @@ int __init hwspinlocks_init(void)
 	if (oh == NULL)
 		return -EINVAL;
 
-	pdev = omap_device_build(dev_name, 0, oh, NULL, 0,
-				omap_spinlock_latency,
-				ARRAY_SIZE(omap_spinlock_latency), false);
+	pdev = omap_device_build(dev_name, 0, oh, NULL, 0, NULL, 0, false);
 	if (IS_ERR(pdev)) {
 		pr_err("Can't build omap_device for %s:%s\n", dev_name,
 								oh_name);

@@ -107,28 +107,6 @@ struct omap_uart_state {
 static LIST_HEAD(uart_list);
 static u8 num_uarts;
 
-static int uart_idle_hwmod(struct omap_device *od)
-{
-	omap_hwmod_idle(od->hwmods[0]);
-
-	return 0;
-}
-
-static int uart_enable_hwmod(struct omap_device *od)
-{
-	omap_hwmod_enable(od->hwmods[0]);
-
-	return 0;
-}
-
-static struct omap_device_pm_latency omap_uart_latency[] = {
-	{
-		.deactivate_func = uart_idle_hwmod,
-		.activate_func	 = uart_enable_hwmod,
-		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
 static inline unsigned int __serial_read_reg(struct uart_port *up,
 					     int offset)
 {
@@ -800,8 +778,7 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 		return;
 
 	pdev = omap_device_build(name, uart->num, oh, pdata, pdata_size,
-			       omap_uart_latency,
-			       ARRAY_SIZE(omap_uart_latency), false);
+				 NULL, 0, false);
 	WARN(IS_ERR(pdev), "Could not build omap_device for %s: %s.\n",
 	     name, oh->name);
 

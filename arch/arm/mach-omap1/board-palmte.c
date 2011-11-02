@@ -58,12 +58,6 @@
 #define PALMTE_MMC2_GPIO	OMAP_MPUIO(7)
 #define PALMTE_MMC3_GPIO	OMAP_MPUIO(11)
 
-static void __init omap_palmte_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
-
 static const unsigned int palmte_keymap[] = {
 	KEY(0, 0, KEY_F1),		/* Calendar */
 	KEY(1, 0, KEY_F2),		/* Contacts */
@@ -268,16 +262,12 @@ static void __init omap_palmte_init(void)
 	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 
-static void __init omap_palmte_map_io(void)
-{
-	omap1_map_common_io();
-}
-
 MACHINE_START(OMAP_PALMTE, "OMAP310 based Palm Tungsten E")
 	.atag_offset	= 0x100,
-	.map_io		= omap_palmte_map_io,
+	.map_io		= omap15xx_map_io,
+	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_palmte_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_palmte_init,
 	.timer		= &omap1_timer,
 MACHINE_END

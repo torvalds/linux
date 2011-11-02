@@ -27,12 +27,6 @@
 #include <plat/board.h>
 #include <plat/common.h>
 
-static void __init omap_generic_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
-
 /* assume no Mini-AB port */
 
 #ifdef CONFIG_ARCH_OMAP15XX
@@ -86,17 +80,13 @@ static void __init omap_generic_init(void)
 	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 
-static void __init omap_generic_map_io(void)
-{
-	omap1_map_common_io();
-}
-
 MACHINE_START(OMAP_GENERIC, "Generic OMAP1510/1610/1710")
 	/* Maintainer: Tony Lindgren <tony@atomide.com> */
 	.atag_offset	= 0x100,
-	.map_io		= omap_generic_map_io,
+	.map_io		= omap16xx_map_io,
+	.init_early	= omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_generic_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_generic_init,
 	.timer		= &omap1_timer,
 MACHINE_END

@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -75,6 +76,10 @@ static int __init omap4_l3_init(void)
 	struct omap_hwmod *oh[3];
 	struct platform_device *pdev;
 	char oh_name[L3_MODULES_MAX_LEN];
+
+	/* If dtb is there, the devices will be created dynamically */
+	if (of_have_populated_dt())
+		return -ENODEV;
 
 	/*
 	 * To avoid code running on other OMAPs in
@@ -220,14 +225,6 @@ static inline void omap_init_camera(void)
 #endif
 }
 
-struct omap_device_pm_latency omap_keyboard_latency[] = {
-	{
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func   = omap_device_enable_hwmods,
-		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
 int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 			*sdp4430_keypad_data, struct omap_board_data *bdata)
 {
@@ -247,9 +244,7 @@ int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 	keypad_data = sdp4430_keypad_data;
 
 	pdev = omap_device_build(name, id, oh, keypad_data,
-			sizeof(struct omap4_keypad_platform_data),
-			omap_keyboard_latency,
-			ARRAY_SIZE(omap_keyboard_latency), 0);
+			sizeof(struct omap4_keypad_platform_data), NULL, 0, 0);
 
 	if (IS_ERR(pdev)) {
 		WARN(1, "Can't build omap_device for %s:%s.\n",
@@ -262,14 +257,6 @@ int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 }
 
 #if defined(CONFIG_OMAP_MBOX_FWK) || defined(CONFIG_OMAP_MBOX_FWK_MODULE)
-static struct omap_device_pm_latency mbox_latencies[] = {
-	[0] = {
-		.activate_func = omap_device_enable_hwmods,
-		.deactivate_func = omap_device_idle_hwmods,
-		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
 static inline void omap_init_mbox(void)
 {
 	struct omap_hwmod *oh;
@@ -281,8 +268,7 @@ static inline void omap_init_mbox(void)
 		return;
 	}
 
-	pdev = omap_device_build("omap-mailbox", -1, oh, NULL, 0,
-				mbox_latencies, ARRAY_SIZE(mbox_latencies), 0);
+	pdev = omap_device_build("omap-mailbox", -1, oh, NULL, 0, NULL, 0, 0);
 	WARN(IS_ERR(pdev), "%s: could not build device, err %ld\n",
 						__func__, PTR_ERR(pdev));
 }
@@ -365,14 +351,6 @@ static inline void omap_init_mcpdm(void) {}
 
 #include <plat/mcspi.h>
 
-struct omap_device_pm_latency omap_mcspi_latency[] = {
-	[0] = {
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func   = omap_device_enable_hwmods,
-		.flags		 = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
 static int omap_mcspi_init(struct omap_hwmod *oh, void *unused)
 {
 	struct platform_device *pdev;
@@ -403,8 +381,7 @@ static int omap_mcspi_init(struct omap_hwmod *oh, void *unused)
 
 	spi_num++;
 	pdev = omap_device_build(name, spi_num, oh, pdata,
-				sizeof(*pdata),	omap_mcspi_latency,
-				ARRAY_SIZE(omap_mcspi_latency), 0);
+				sizeof(*pdata),	NULL, 0, 0);
 	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s\n",
 				name, oh->name);
 	kfree(pdata);
@@ -730,14 +707,6 @@ static int __init omap2_init_devices(void)
 arch_initcall(omap2_init_devices);
 
 #if defined(CONFIG_OMAP_WATCHDOG) || defined(CONFIG_OMAP_WATCHDOG_MODULE)
-static struct omap_device_pm_latency omap_wdt_latency[] = {
-	[0] = {
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func   = omap_device_enable_hwmods,
-		.flags		 = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
 static int __init omap_init_wdt(void)
 {
 	int id = -1;
@@ -755,9 +724,7 @@ static int __init omap_init_wdt(void)
 		return -EINVAL;
 	}
 
-	pdev = omap_device_build(dev_name, id, oh, NULL, 0,
-				omap_wdt_latency,
-				ARRAY_SIZE(omap_wdt_latency), 0);
+	pdev = omap_device_build(dev_name, id, oh, NULL, 0, NULL, 0, 0);
 	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s.\n",
 				dev_name, oh->name);
 	return 0;

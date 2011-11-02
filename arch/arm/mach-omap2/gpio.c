@@ -24,14 +24,6 @@
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 
-static struct omap_device_pm_latency omap_gpio_latency[] = {
-	[0] = {
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func   = omap_device_enable_hwmods,
-		.flags		 = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
 static int omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 {
 	struct platform_device *pdev;
@@ -108,9 +100,7 @@ static int omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 	}
 
 	pdev = omap_device_build(name, id - 1, oh, pdata,
-				sizeof(*pdata),	omap_gpio_latency,
-				ARRAY_SIZE(omap_gpio_latency),
-				false);
+				sizeof(*pdata),	NULL, 0, false);
 	kfree(pdata);
 
 	if (IS_ERR(pdev)) {
