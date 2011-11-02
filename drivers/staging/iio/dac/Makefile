@@ -3,6 +3,7 @@
 #
 
 obj-$(CONFIG_AD5360) += ad5360.o
+obj-$(CONFIG_AD5421) += ad5421.o
 obj-$(CONFIG_AD5624R_SPI) += ad5624r_spi.o
 obj-$(CONFIG_AD5064) += ad5064.o
 obj-$(CONFIG_AD5504) += ad5504.o
