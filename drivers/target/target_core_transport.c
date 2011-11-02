@@ -733,6 +733,10 @@ void transport_complete_task(struct se_task *task, int success)
 		complete(&task->task_stop_comp);
 		return;
 	}
+
+	if (!success)
+		cmd->t_tasks_failed = 1;
+
 	/*
 	 * Decrement the outstanding t_task_cdbs_left count.  The last
 	 * struct se_task from struct se_cmd will complete itself into the
@@ -743,7 +747,7 @@ void transport_complete_task(struct se_task *task, int success)
 		return;
 	}
 
-	if (!success || cmd->t_tasks_failed) {
+	if (cmd->t_tasks_failed) {
 		if (!task->task_error_status) {
 			task->task_error_status =
 				PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
