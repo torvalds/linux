@@ -81,3 +81,7 @@ extern const struct imx_spi_imx_data imx35_cspi_data[];
 	imx_add_spi_imx(&imx35_cspi_data[id], pdata)
 #define imx35_add_spi_imx0(pdata)	imx35_add_cspi(0, pdata)
 #define imx35_add_spi_imx1(pdata)	imx35_add_cspi(1, pdata)
+
+extern const struct imx_pata_imx_data imx35_pata_imx_data;
+#define imx35_add_pata_imx() \
+	imx_add_pata_imx(&imx35_pata_imx_data)
