@@ -451,6 +451,7 @@ struct l2cap_ops {
 
 struct l2cap_conn {
 	struct hci_conn	*hcon;
+	struct hci_chan	*hchan;
 
 	bdaddr_t	*dst;
 	bdaddr_t	*src;

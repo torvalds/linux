@@ -1937,23 +1937,18 @@ static void hci_add_acl_hdr(struct sk_buff *skb, __u16 handle, __u16 flags)
 	hdr->dlen   = cpu_to_le16(len);
 }
 
-void hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
+static void hci_queue_acl(struct hci_conn *conn, struct sk_buff_head *queue,
+				struct sk_buff *skb, __u16 flags)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct sk_buff *list;
-
-	BT_DBG("%s conn %p flags 0x%x", hdev->name, conn, flags);
-
-	skb->dev = (void *) hdev;
-	bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
-	hci_add_acl_hdr(skb, conn->handle, flags);
 
 	list = skb_shinfo(skb)->frag_list;
 	if (!list) {
 		/* Non fragmented */
 		BT_DBG("%s nonfrag skb %p len %d", hdev->name, skb, skb->len);
 
-		skb_queue_tail(&conn->data_q, skb);
+		skb_queue_tail(queue, skb);
 	} else {
 		/* Fragmented */
 		BT_DBG("%s frag %p len %d", hdev->name, skb, skb->len);
@@ -1961,9 +1956,9 @@ void hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
 		skb_shinfo(skb)->frag_list = NULL;
 
 		/* Queue all fragments atomically */
-		spin_lock_bh(&conn->data_q.lock);
+		spin_lock_bh(&queue->lock);
 
-		__skb_queue_tail(&conn->data_q, skb);
+		__skb_queue_tail(queue, skb);
 
 		flags &= ~ACL_START;
 		flags |= ACL_CONT;
@@ -1976,11 +1971,25 @@ void hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
 
 			BT_DBG("%s frag %p len %d", hdev->name, skb, skb->len);
 
-			__skb_queue_tail(&conn->data_q, skb);
+			__skb_queue_tail(queue, skb);
 		} while (list);
 
-		spin_unlock_bh(&conn->data_q.lock);
+		spin_unlock_bh(&queue->lock);
 	}
+}
+
+void hci_send_acl(struct hci_chan *chan, struct sk_buff *skb, __u16 flags)
+{
+	struct hci_conn *conn = chan->conn;
+	struct hci_dev *hdev = conn->hdev;
+
+	BT_DBG("%s chan %p flags 0x%x", hdev->name, chan, flags);
+
+	skb->dev = (void *) hdev;
+	bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
+	hci_add_acl_hdr(skb, conn->handle, flags);
+
+	hci_queue_acl(conn, &chan->data_q, skb, flags);
 
 	tasklet_schedule(&hdev->tx_task);
 }
@@ -2083,11 +2092,90 @@ static inline void hci_link_tx_to(struct hci_dev *hdev, __u8 type)
 	}
 }
 
+static inline struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
+						int *quote)
+{
+	struct hci_conn_hash *h = &hdev->conn_hash;
+	struct hci_chan *chan = NULL;
+	int num = 0, min = ~0, cur_prio = 0;
+	struct hci_conn *conn;
+	int cnt, q, conn_num = 0;
+
+	BT_DBG("%s", hdev->name);
+
+	list_for_each_entry(conn, &h->list, list) {
+		struct hci_chan_hash *ch;
+		struct hci_chan *tmp;
+
+		if (conn->type != type)
+			continue;
+
+		if (conn->state != BT_CONNECTED && conn->state != BT_CONFIG)
+			continue;
+
+		conn_num++;
+
+		ch = &conn->chan_hash;
+
+		list_for_each_entry(tmp, &ch->list, list) {
+			struct sk_buff *skb;
+
+			if (skb_queue_empty(&tmp->data_q))
+				continue;
+
+			skb = skb_peek(&tmp->data_q);
+			if (skb->priority < cur_prio)
+				continue;
+
+			if (skb->priority > cur_prio) {
+				num = 0;
+				min = ~0;
+				cur_prio = skb->priority;
+			}
+
+			num++;
+
+			if (conn->sent < min) {
+				min  = conn->sent;
+				chan = tmp;
+			}
+		}
+
+		if (hci_conn_num(hdev, type) == conn_num)
+			break;
+	}
+
+	if (!chan)
+		return NULL;
+
+	switch (chan->conn->type) {
+	case ACL_LINK:
+		cnt = hdev->acl_cnt;
+		break;
+	case SCO_LINK:
+	case ESCO_LINK:
+		cnt = hdev->sco_cnt;
+		break;
+	case LE_LINK:
+		cnt = hdev->le_mtu ? hdev->le_cnt : hdev->acl_cnt;
+		break;
+	default:
+		cnt = 0;
+		BT_ERR("Unknown link type");
+	}
+
+	q = cnt / num;
+	*quote = q ? q : 1;
+	BT_DBG("chan %p quote %d", chan, *quote);
+	return chan;
+}
+
 static inline void hci_sched_acl(struct hci_dev *hdev)
 {
-	struct hci_conn *conn;
+	struct hci_chan *chan;
 	struct sk_buff *skb;
 	int quote;
+	unsigned int cnt;
 
 	BT_DBG("%s", hdev->name);
 
@@ -2101,17 +2189,23 @@ static inline void hci_sched_acl(struct hci_dev *hdev)
 			hci_link_tx_to(hdev, ACL_LINK);
 	}
 
-	while (hdev->acl_cnt && (conn = hci_low_sent(hdev, ACL_LINK, &quote))) {
-		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
-			BT_DBG("skb %p len %d", skb, skb->len);
+	cnt = hdev->acl_cnt;
 
-			hci_conn_enter_active_mode(conn, bt_cb(skb)->force_active);
+	while (hdev->acl_cnt &&
+			(chan = hci_chan_sent(hdev, ACL_LINK, &quote))) {
+		while (quote-- && (skb = skb_dequeue(&chan->data_q))) {
+			BT_DBG("chan %p skb %p len %d priority %u", chan, skb,
+					skb->len, skb->priority);
+
+			hci_conn_enter_active_mode(chan->conn,
+						bt_cb(skb)->force_active);
 
 			hci_send_frame(skb);
 			hdev->acl_last_tx = jiffies;
 
 			hdev->acl_cnt--;
-			conn->sent++;
+			chan->sent++;
+			chan->conn->sent++;
 		}
 	}
 }
@@ -2165,7 +2259,7 @@ static inline void hci_sched_esco(struct hci_dev *hdev)
 
 static inline void hci_sched_le(struct hci_dev *hdev)
 {
-	struct hci_conn *conn;
+	struct hci_chan *chan;
 	struct sk_buff *skb;
 	int quote, cnt;
 
@@ -2183,17 +2277,20 @@ static inline void hci_sched_le(struct hci_dev *hdev)
 	}
 
 	cnt = hdev->le_pkts ? hdev->le_cnt : hdev->acl_cnt;
-	while (cnt && (conn = hci_low_sent(hdev, LE_LINK, &quote))) {
-		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
-			BT_DBG("skb %p len %d", skb, skb->len);
+	while (cnt && (chan = hci_chan_sent(hdev, LE_LINK, &quote))) {
+		while (quote-- && (skb = skb_dequeue(&chan->data_q))) {
+			BT_DBG("chan %p skb %p len %d priority %u", chan, skb,
+					skb->len, skb->priority);
 
 			hci_send_frame(skb);
 			hdev->le_last_tx = jiffies;
 
 			cnt--;
-			conn->sent++;
+			chan->sent++;
+			chan->conn->sent++;
 		}
 	}
+
 	if (hdev->le_pkts)
 		hdev->le_cnt = cnt;
 	else

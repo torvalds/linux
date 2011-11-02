@@ -566,7 +566,25 @@ static void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, 
 	bt_cb(skb)->force_active = BT_POWER_FORCE_ACTIVE_ON;
 	skb->priority = HCI_PRIO_MAX;
 
-	hci_send_acl(conn->hcon, skb, flags);
+	hci_send_acl(conn->hchan, skb, flags);
+}
+
+static void l2cap_do_send(struct l2cap_chan *chan, struct sk_buff *skb)
+{
+	struct hci_conn *hcon = chan->conn->hcon;
+	u16 flags;
+
+	BT_DBG("chan %p, skb %p len %d priority %u", chan, skb, skb->len,
+							skb->priority);
+
+	if (!test_bit(FLAG_FLUSHABLE, &chan->flags) &&
+					lmp_no_flush_capable(hcon->hdev))
+		flags = ACL_START_NO_FLUSH;
+	else
+		flags = ACL_START;
+
+	bt_cb(skb)->force_active = test_bit(FLAG_FORCE_ACTIVE, &chan->flags);
+	hci_send_acl(chan->conn->hchan, skb, flags);
 }
 
 static inline void l2cap_send_sframe(struct l2cap_chan *chan, u32 control)
@@ -575,7 +593,6 @@ static inline void l2cap_send_sframe(struct l2cap_chan *chan, u32 control)
 	struct l2cap_hdr *lh;
 	struct l2cap_conn *conn = chan->conn;
 	int count, hlen;
-	u8 flags;
 
 	if (chan->state != BT_CONNECTED)
 		return;
@@ -615,14 +632,8 @@ static inline void l2cap_send_sframe(struct l2cap_chan *chan, u32 control)
 		put_unaligned_le16(fcs, skb_put(skb, L2CAP_FCS_SIZE));
 	}
 
-	if (lmp_no_flush_capable(conn->hcon->hdev))
-		flags = ACL_START_NO_FLUSH;
-	else
-		flags = ACL_START;
-
-	bt_cb(skb)->force_active = test_bit(FLAG_FORCE_ACTIVE, &chan->flags);
-
-	hci_send_acl(chan->conn->hcon, skb, flags);
+	skb->priority = HCI_PRIO_MAX;
+	l2cap_do_send(chan, skb);
 }
 
 static inline void l2cap_send_rr_or_rnr(struct l2cap_chan *chan, u32 control)
@@ -1002,6 +1013,8 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 		chan->ops->close(chan->data);
 	}
 
+	hci_chan_del(conn->hchan);
+
 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT)
 		del_timer_sync(&conn->info_timer);
 
@@ -1024,18 +1037,26 @@ static void security_timeout(unsigned long arg)
 static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
+	struct hci_chan *hchan;
 
 	if (conn || status)
 		return conn;
 
-	conn = kzalloc(sizeof(struct l2cap_conn), GFP_ATOMIC);
-	if (!conn)
+	hchan = hci_chan_create(hcon);
+	if (!hchan)
 		return NULL;
+
+	conn = kzalloc(sizeof(struct l2cap_conn), GFP_ATOMIC);
+	if (!conn) {
+		hci_chan_del(hchan);
+		return NULL;
+	}
 
 	hcon->l2cap_data = conn;
 	conn->hcon = hcon;
+	conn->hchan = hchan;
 
-	BT_DBG("hcon %p conn %p", hcon, conn);
+	BT_DBG("hcon %p conn %p hchan %p", hcon, conn, hchan);
 
 	if (hcon->hdev->le_mtu && hcon->type == LE_LINK)
 		conn->mtu = hcon->hdev->le_mtu;
@@ -1259,24 +1280,6 @@ static void l2cap_drop_acked_frames(struct l2cap_chan *chan)
 
 	if (!chan->unacked_frames)
 		__clear_retrans_timer(chan);
-}
-
-static void l2cap_do_send(struct l2cap_chan *chan, struct sk_buff *skb)
-{
-	struct hci_conn *hcon = chan->conn->hcon;
-	u16 flags;
-
-	BT_DBG("chan %p, skb %p len %d priority %u", chan, skb, skb->len,
-							skb->priority);
-
-	if (!test_bit(FLAG_FLUSHABLE, &chan->flags) &&
-					lmp_no_flush_capable(hcon->hdev))
-		flags = ACL_START_NO_FLUSH;
-	else
-		flags = ACL_START;
-
-	bt_cb(skb)->force_active = test_bit(FLAG_FORCE_ACTIVE, &chan->flags);
-	hci_send_acl(hcon, skb, flags);
 }
 
 static void l2cap_streaming_send(struct l2cap_chan *chan)
