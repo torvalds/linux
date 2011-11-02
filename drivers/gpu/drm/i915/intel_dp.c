@@ -1222,17 +1222,18 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
+	ironlake_edp_backlight_off(intel_dp);
+	ironlake_edp_panel_off(intel_dp);
+
 	/* Wake up the sink first */
 	ironlake_edp_panel_vdd_on(intel_dp);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+	intel_dp_link_down(intel_dp);
 	ironlake_edp_panel_vdd_off(intel_dp, false);
 
 	/* Make sure the panel is off before trying to
 	 * change the mode
 	 */
-	ironlake_edp_backlight_off(intel_dp);
-	intel_dp_link_down(intel_dp);
-	ironlake_edp_panel_off(intel_dp);
 }
 
 static void intel_dp_commit(struct drm_encoder *encoder)
@@ -1264,16 +1265,20 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
 
 	if (mode != DRM_MODE_DPMS_ON) {
+		ironlake_edp_backlight_off(intel_dp);
+		ironlake_edp_panel_off(intel_dp);
+
 		ironlake_edp_panel_vdd_on(intel_dp);
-		if (is_edp(intel_dp))
-			ironlake_edp_backlight_off(intel_dp);
 		intel_dp_sink_dpms(intel_dp, mode);
 		intel_dp_link_down(intel_dp);
-		ironlake_edp_panel_off(intel_dp);
-		if (is_edp(intel_dp) && !is_pch_edp(intel_dp))
-			ironlake_edp_pll_off(encoder);
 		ironlake_edp_panel_vdd_off(intel_dp, false);
+
+		if (is_cpu_edp(intel_dp))
+			ironlake_edp_pll_off(encoder);
 	} else {
+		if (is_cpu_edp(intel_dp))
+			ironlake_edp_pll_on(encoder);
+
 		ironlake_edp_panel_vdd_on(intel_dp);
 		intel_dp_sink_dpms(intel_dp, mode);
 		if (!(dp_reg & DP_PORT_EN)) {
@@ -1281,7 +1286,6 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 			ironlake_edp_panel_on(intel_dp);
 			ironlake_edp_panel_vdd_off(intel_dp, true);
 			intel_dp_complete_link_train(intel_dp);
-			ironlake_edp_backlight_on(intel_dp);
 		} else
 			ironlake_edp_panel_vdd_off(intel_dp, false);
 		ironlake_edp_backlight_on(intel_dp);
