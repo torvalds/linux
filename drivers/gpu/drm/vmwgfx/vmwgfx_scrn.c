@@ -39,7 +39,6 @@ struct vmw_screen_object_display {
 	struct list_head active;
 
 	unsigned num_active;
-	unsigned last_num_active;
 
 	struct vmw_framebuffer *fb;
 };
@@ -84,12 +83,8 @@ static int vmw_sou_del_active(struct vmw_private *vmw_priv,
 
 	/* Must init otherwise list_empty(&sou->active) will not work. */
 	list_del_init(&sou->active);
-	if (--(ld->num_active) == 0) {
-		BUG_ON(!ld->fb);
-		if (ld->fb->unpin)
-			ld->fb->unpin(ld->fb);
+	if (--(ld->num_active) == 0)
 		ld->fb = NULL;
-	}
 
 	return 0;
 }
@@ -103,13 +98,7 @@ static int vmw_sou_add_active(struct vmw_private *vmw_priv,
 	struct list_head *at;
 
 	BUG_ON(!ld->num_active && ld->fb);
-	if (vfb != ld->fb) {
-		if (ld->fb && ld->fb->unpin)
-			ld->fb->unpin(ld->fb);
-		if (vfb->pin)
-			vfb->pin(vfb);
-		ld->fb = vfb;
-	}
+	ld->fb = vfb;
 
 	if (!list_empty(&sou->active))
 		return 0;
@@ -522,7 +511,6 @@ int vmw_kms_init_screen_object_display(struct vmw_private *dev_priv)
 
 	INIT_LIST_HEAD(&dev_priv->sou_priv->active);
 	dev_priv->sou_priv->num_active = 0;
-	dev_priv->sou_priv->last_num_active = 0;
 	dev_priv->sou_priv->fb = NULL;
 
 	ret = drm_vblank_init(dev, VMWGFX_NUM_DISPLAY_UNITS);
