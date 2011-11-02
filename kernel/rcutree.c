@@ -365,6 +365,7 @@ static void rcu_idle_enter_common(struct rcu_dynticks *rdtp, long long oldval)
 			  current->pid, current->comm,
 			  idle->pid, idle->comm); /* must be idle task! */
 	}
+	rcu_prepare_for_idle(smp_processor_id());
 	/* CPUs seeing atomic_inc() must see prior RCU read-side crit sects */
 	smp_mb__before_atomic_inc();  /* See above. */
 	atomic_inc(&rdtp->dynticks);
@@ -1085,6 +1086,7 @@ static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
 	 * callbacks are waiting on the grace period that just now
 	 * completed.
 	 */
+	rcu_schedule_wake_gp_end();
 	if (*rdp->nxttail[RCU_WAIT_TAIL] == NULL) {
 		raw_spin_unlock(&rnp->lock);	 /* irqs remain disabled. */
 
@@ -1670,6 +1672,7 @@ static void rcu_process_callbacks(struct softirq_action *unused)
 				&__get_cpu_var(rcu_sched_data));
 	__rcu_process_callbacks(&rcu_bh_state, &__get_cpu_var(rcu_bh_data));
 	rcu_preempt_process_callbacks();
+	rcu_wake_cpus_for_gp_end();
 	trace_rcu_utilization("End RCU core");
 }
 
@@ -1923,7 +1926,7 @@ static int rcu_pending(int cpu)
  * by the current CPU, even if none need be done immediately, returning
  * 1 if so.
  */
-static int rcu_needs_cpu_quick_check(int cpu)
+static int rcu_cpu_has_callbacks(int cpu)
 {
 	/* RCU callbacks either ready or pending? */
 	return per_cpu(rcu_sched_data, cpu).nxtlist ||
