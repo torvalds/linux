@@ -1703,6 +1703,7 @@ F:	include/linux/can.h
 F:	include/linux/can/core.h
 F:	include/linux/can/bcm.h
 F:	include/linux/can/raw.h
+F:	include/linux/can/gw.h
 
 CAN NETWORK DRIVERS
 M:	Wolfgang Grandegger <wg@grandegger.com>
