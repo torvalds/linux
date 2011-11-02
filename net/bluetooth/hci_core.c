@@ -2193,9 +2193,16 @@ static inline void hci_sched_acl(struct hci_dev *hdev)
 
 	while (hdev->acl_cnt &&
 			(chan = hci_chan_sent(hdev, ACL_LINK, &quote))) {
-		while (quote-- && (skb = skb_dequeue(&chan->data_q))) {
+		u32 priority = (skb_peek(&chan->data_q))->priority;
+		while (quote-- && (skb = skb_peek(&chan->data_q))) {
 			BT_DBG("chan %p skb %p len %d priority %u", chan, skb,
 					skb->len, skb->priority);
+
+			/* Stop if priority has changed */
+			if (skb->priority < priority)
+				break;
+
+			skb = skb_dequeue(&chan->data_q);
 
 			hci_conn_enter_active_mode(chan->conn,
 						bt_cb(skb)->force_active);
@@ -2278,9 +2285,16 @@ static inline void hci_sched_le(struct hci_dev *hdev)
 
 	cnt = hdev->le_pkts ? hdev->le_cnt : hdev->acl_cnt;
 	while (cnt && (chan = hci_chan_sent(hdev, LE_LINK, &quote))) {
-		while (quote-- && (skb = skb_dequeue(&chan->data_q))) {
+		u32 priority = (skb_peek(&chan->data_q))->priority;
+		while (quote-- && (skb = skb_peek(&chan->data_q))) {
 			BT_DBG("chan %p skb %p len %d priority %u", chan, skb,
 					skb->len, skb->priority);
+
+			/* Stop if priority has changed */
+			if (skb->priority < priority)
+				break;
+
+			skb = skb_dequeue(&chan->data_q);
 
 			hci_send_frame(skb);
 			hdev->le_last_tx = jiffies;
