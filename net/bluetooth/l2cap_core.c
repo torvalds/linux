@@ -60,7 +60,7 @@ int disable_ertm;
 int enable_hs;
 
 static u32 l2cap_feat_mask = L2CAP_FEAT_FIXED_CHAN;
-static u8 l2cap_fixed_chan[8] = { 0x02, };
+static u8 l2cap_fixed_chan[8] = { L2CAP_FC_L2CAP, };
 
 static LIST_HEAD(chan_list);
 static DEFINE_RWLOCK(chan_list_lock);
@@ -3035,6 +3035,12 @@ static inline int l2cap_information_req(struct l2cap_conn *conn, struct l2cap_cm
 	} else if (type == L2CAP_IT_FIXED_CHAN) {
 		u8 buf[12];
 		struct l2cap_info_rsp *rsp = (struct l2cap_info_rsp *) buf;
+
+		if (enable_hs)
+			l2cap_fixed_chan[0] |= L2CAP_FC_A2MP;
+		else
+			l2cap_fixed_chan[0] &= ~L2CAP_FC_A2MP;
+
 		rsp->type   = cpu_to_le16(L2CAP_IT_FIXED_CHAN);
 		rsp->result = cpu_to_le16(L2CAP_IR_SUCCESS);
 		memcpy(rsp->data, l2cap_fixed_chan, sizeof(l2cap_fixed_chan));
