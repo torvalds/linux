@@ -6,7 +6,7 @@ menu "Freescale MXC Implementations"
 
 choice
 	prompt "Freescale CPU family:"
-	default ARCH_MX3
+	default ARCH_IMX_V6_V7
 
 config ARCH_IMX_V4_V5
 	bool "i.MX1, i.MX21, i.MX25, i.MX27"
@@ -16,10 +16,13 @@ config ARCH_IMX_V4_V5
 	  This enables support for systems based on the Freescale i.MX ARMv4
 	  and ARMv5 SoCs
 
-config ARCH_MX3
-	bool "MX3-based"
+config ARCH_IMX_V6_V7
+	bool "i.MX3, i.MX6"
+	select AUTO_ZRELADDR if !ZBOOT_ROM
+	select ARM_PATCH_PHYS_VIRT
 	help
-	  This enables support for systems based on the Freescale i.MX3 family
+	  This enables support for systems based on the Freescale i.MX3 and i.MX6
+	  family.
 
 config ARCH_MX5
 	bool "i.MX50, i.MX51, i.MX53"
