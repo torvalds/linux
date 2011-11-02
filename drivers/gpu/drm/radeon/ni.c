@@ -261,8 +261,11 @@ int ni_mc_load_microcode(struct radeon_device *rdev)
 		WREG32(MC_SEQ_SUP_CNTL, 0x00000001);
 
 		/* wait for training to complete */
-		while (!(RREG32(MC_IO_PAD_CNTL_D0) & MEM_FALL_OUT_CMD))
-			udelay(10);
+		for (i = 0; i < rdev->usec_timeout; i++) {
+			if (RREG32(MC_IO_PAD_CNTL_D0) & MEM_FALL_OUT_CMD)
+				break;
+			udelay(1);
+		}
 
 		if (running)
 			WREG32(MC_SHARED_BLACKOUT_CNTL, blackout);
