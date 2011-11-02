@@ -1460,7 +1460,6 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 	 * Array removed? If yes, leave without sem_unlock().
 	 */
 	if (IS_ERR(sma)) {
-		error = -EIDRM;
 		goto out_free;
 	}
 
