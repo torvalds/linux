@@ -1581,7 +1581,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	int i;
 	uint8_t voltage;
 	bool clock_recovery = false;
-	int tries;
+	int voltage_tries, loop_tries;
 	u32 reg;
 	uint32_t DP = intel_dp->DP;
 
@@ -1608,7 +1608,8 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		DP &= ~DP_LINK_TRAIN_MASK;
 	memset(intel_dp->train_set, 0, 4);
 	voltage = 0xff;
-	tries = 0;
+	voltage_tries = 0;
+	loop_tries = 0;
 	clock_recovery = false;
 	for (;;) {
 		/* Use intel_dp->train_set[0] to set the voltage and pre emphasis values */
@@ -1651,16 +1652,26 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		for (i = 0; i < intel_dp->lane_count; i++)
 			if ((intel_dp->train_set[i] & DP_TRAIN_MAX_SWING_REACHED) == 0)
 				break;
-		if (i == intel_dp->lane_count)
-			break;
+		if (i == intel_dp->lane_count) {
+			++loop_tries;
+			if (loop_tries == 5) {
+				DRM_DEBUG_KMS("too many full retries, give up\n");
+				break;
+			}
+			memset(intel_dp->train_set, 0, 4);
+			voltage_tries = 0;
+			continue;
+		}
 
 		/* Check to see if we've tried the same voltage 5 times */
 		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) == voltage) {
-			++tries;
-			if (tries == 5)
+			++voltage_tries;
+			if (voltage_tries == 5) {
+				DRM_DEBUG_KMS("too many voltage retries, give up\n");
 				break;
+			}
 		} else
-			tries = 0;
+			voltage_tries = 0;
 		voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
 
 		/* Compute new intel_dp->train_set as requested by target */
