@@ -162,7 +162,7 @@ static struct i2c_board_info vpr200_i2c_devices[] = {
 	}, {
 		I2C_BOARD_INFO("mc13892", 0x08),
 		.platform_data = &vpr200_pmic,
-		.irq = gpio_to_irq(GPIO_PMIC_INT),
+		.irq = IMX_GPIO_TO_IRQ(GPIO_PMIC_INT),
 	}
 };
 

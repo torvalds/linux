@@ -192,12 +192,6 @@ static inline void board_smc91x_init(void)
 
 #endif
 
-static void __init omap_2430sdp_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
-}
-
 static struct regulator_consumer_supply sdp2430_vmmc1_supplies[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
@@ -284,6 +278,7 @@ static void __init omap_2430sdp_init(void)
 
 	platform_add_devices(sdp2430_devices, ARRAY_SIZE(sdp2430_devices));
 	omap_serial_init();
+	omap_sdrc_init(NULL, NULL);
 	omap2_hsmmc_init(mmc);
 	omap2_usbfs_init(&sdp2430_usb_config);
 
@@ -299,18 +294,12 @@ static void __init omap_2430sdp_init(void)
 	sdp2430_display_init();
 }
 
-static void __init omap_2430sdp_map_io(void)
-{
-	omap2_set_globals_243x();
-	omap243x_map_common_io();
-}
-
 MACHINE_START(OMAP_2430SDP, "OMAP2430 sdp2430 board")
 	/* Maintainer: Syed Khasim - Texas Instruments Inc */
 	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
-	.map_io		= omap_2430sdp_map_io,
-	.init_early	= omap_2430sdp_init_early,
+	.map_io		= omap243x_map_io,
+	.init_early	= omap2430_init_early,
 	.init_irq	= omap2_init_irq,
 	.init_machine	= omap_2430sdp_init,
 	.timer		= &omap2_timer,

@@ -16,7 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
-#include <linux/irq.h>
 #include <linux/clk.h>
 
 #include <asm/mach-types.h>
@@ -352,6 +351,11 @@ static struct mxs_mmc_platform_data mx28evk_mmc_pdata[] __initdata = {
 	},
 };
 
+static struct gpio mx28evk_lcd_gpios[] = {
+	{ MX28EVK_LCD_ENABLE, GPIOF_OUT_INIT_HIGH, "lcd-enable" },
+	{ MX28EVK_BL_ENABLE, GPIOF_OUT_INIT_HIGH, "bl-enable" },
+};
+
 static void __init mx28evk_init(void)
 {
 	int ret;
@@ -378,19 +382,12 @@ static void __init mx28evk_init(void)
 		mx28_add_flexcan(1, &mx28evk_flexcan_pdata[1]);
 	}
 
-	ret = gpio_request_one(MX28EVK_LCD_ENABLE, GPIOF_DIR_OUT, "lcd-enable");
+	ret = gpio_request_array(mx28evk_lcd_gpios,
+				 ARRAY_SIZE(mx28evk_lcd_gpios));
 	if (ret)
-		pr_warn("failed to request gpio lcd-enable: %d\n", ret);
+		pr_warn("failed to request gpio pins for lcd: %d\n", ret);
 	else
-		gpio_set_value(MX28EVK_LCD_ENABLE, 1);
-
-	ret = gpio_request_one(MX28EVK_BL_ENABLE, GPIOF_DIR_OUT, "bl-enable");
-	if (ret)
-		pr_warn("failed to request gpio bl-enable: %d\n", ret);
-	else
-		gpio_set_value(MX28EVK_BL_ENABLE, 1);
-
-	mx28_add_mxsfb(&mx28evk_mxsfb_pdata);
+		mx28_add_mxsfb(&mx28evk_mxsfb_pdata);
 
 	/* power on mmc slot by writing 0 to the gpio */
 	ret = gpio_request_one(MX28EVK_MMC0_SLOT_POWER, GPIOF_OUT_INIT_LOW,
@@ -403,7 +400,8 @@ static void __init mx28evk_init(void)
 			       "mmc1-slot-power");
 	if (ret)
 		pr_warn("failed to request gpio mmc1-slot-power: %d\n", ret);
-	mx28_add_mxs_mmc(1, &mx28evk_mmc_pdata[1]);
+	else
+		mx28_add_mxs_mmc(1, &mx28evk_mmc_pdata[1]);
 
 	gpio_led_register_device(0, &mx28evk_led_data);
 }
@@ -421,6 +419,6 @@ MACHINE_START(MX28EVK, "Freescale MX28 EVK")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.map_io		= mx28_map_io,
 	.init_irq	= mx28_init_irq,
-	.init_machine	= mx28evk_init,
 	.timer		= &mx28evk_timer,
+	.init_machine	= mx28evk_init,
 MACHINE_END

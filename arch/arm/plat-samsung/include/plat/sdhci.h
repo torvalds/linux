@@ -86,6 +86,13 @@ struct s3c_sdhci_platdata {
 			    struct mmc_card *card);
 };
 
+/* s3c_sdhci_set_platdata() - common helper for setting SDHCI platform data
+ * @pd: The default platform data for this device.
+ * @set: Pointer to the platform data to fill in.
+ */
+extern void s3c_sdhci_set_platdata(struct s3c_sdhci_platdata *pd,
+				    struct s3c_sdhci_platdata *set);
+
 /**
  * s3c_sdhci0_set_platdata - Set platform data for S3C SDHCI device.
  * @pd: Platform data to register to device.

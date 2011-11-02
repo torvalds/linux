@@ -525,13 +525,6 @@ static struct spi_board_info omap3pandora_spi_board_info[] __initdata = {
 	}
 };
 
-static void __init omap3pandora_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
-				  mt46h32m32lf6_sdrc_params);
-}
-
 static void __init pandora_wl1251_init(void)
 {
 	struct wl12xx_platform_data pandora_wl1251_pdata;
@@ -593,6 +586,8 @@ static void __init omap3pandora_init(void)
 			ARRAY_SIZE(omap3pandora_devices));
 	omap_display_init(&pandora_dss_data);
 	omap_serial_init();
+	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
+				  mt46h32m32lf6_sdrc_params);
 	spi_register_board_info(omap3pandora_spi_board_info,
 			ARRAY_SIZE(omap3pandora_spi_board_info));
 	omap_ads7846_init(1, OMAP3_PANDORA_TS_GPIO, 0, NULL);
@@ -609,7 +604,7 @@ MACHINE_START(OMAP3_PANDORA, "Pandora Handheld Console")
 	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap3pandora_init_early,
+	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= omap3pandora_init,
 	.timer		= &omap3_timer,

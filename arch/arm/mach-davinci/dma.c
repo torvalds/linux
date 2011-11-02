@@ -1435,12 +1435,11 @@ static int __init edma_probe(struct platform_device *pdev)
 			goto fail1;
 		}
 
-		edma_cc[j] = kmalloc(sizeof(struct edma), GFP_KERNEL);
+		edma_cc[j] = kzalloc(sizeof(struct edma), GFP_KERNEL);
 		if (!edma_cc[j]) {
 			status = -ENOMEM;
 			goto fail1;
 		}
-		memset(edma_cc[j], 0, sizeof(struct edma));
 
 		edma_cc[j]->num_channels = min_t(unsigned, info[j]->n_channel,
 							EDMA_MAX_DMACH);
@@ -1450,8 +1449,6 @@ static int __init edma_probe(struct platform_device *pdev)
 							EDMA_MAX_CC);
 
 		edma_cc[j]->default_queue = info[j]->default_queue;
-		if (!edma_cc[j]->default_queue)
-			edma_cc[j]->default_queue = EVENTQ_1;
 
 		dev_dbg(&pdev->dev, "DMA REG BASE ADDR=%p\n",
 			edmacc_regs_base[j]);

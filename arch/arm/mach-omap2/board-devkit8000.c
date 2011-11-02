@@ -397,19 +397,6 @@ static struct platform_device keys_gpio = {
 	},
 };
 
-
-static void __init devkit8000_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
-				  mt46h32m32lf6_sdrc_params);
-}
-
-static void __init devkit8000_init_irq(void)
-{
-	omap3_init_irq();
-}
-
 #define OMAP_DM9000_BASE	0x2c000000
 
 static struct resource omap_dm9000_resources[] = {
@@ -645,6 +632,8 @@ static void __init devkit8000_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CUS);
 	omap_serial_init();
+	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
+				  mt46h32m32lf6_sdrc_params);
 
 	omap_dm9000_init();
 
@@ -670,8 +659,8 @@ MACHINE_START(DEVKIT8000, "OMAP3 Devkit8000")
 	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= devkit8000_init_early,
-	.init_irq	= devkit8000_init_irq,
+	.init_early	= omap35xx_init_early,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= devkit8000_init,
 	.timer		= &omap3_secure_timer,
 MACHINE_END

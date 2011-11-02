@@ -555,6 +555,7 @@ static struct edma_soc_info edma_cc0_info = {
 	.n_cc			= 1,
 	.queue_tc_mapping	= dm646x_queue_tc_mapping,
 	.queue_priority_mapping	= dm646x_queue_priority_mapping,
+	.default_queue		= EVENTQ_1,
 };
 
 static struct edma_soc_info *dm646x_edma_info[EDMA_MAX_CC] = {

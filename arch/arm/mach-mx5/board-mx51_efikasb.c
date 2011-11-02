@@ -35,14 +35,12 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx51.h>
 
-#include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 #include "efika.h"
 
 #define EFIKASB_USBH2_STP	IMX_GPIO_NR(2, 20)
@@ -119,7 +117,7 @@ static int initialize_usbh2_port(struct platform_device *pdev)
 	return mx51_initialize_usb_hw(pdev->id, MXC_EHCI_ITC_NO_THRESHOLD);
 }
 
-static struct mxc_usbh_platform_data usbh2_config = {
+static struct mxc_usbh_platform_data usbh2_config __initdata = {
 	.init   = initialize_usbh2_port,
 	.portsc = MXC_EHCI_MODE_ULPI,
 };
@@ -129,7 +127,7 @@ static void __init mx51_efikasb_usb(void)
 	usbh2_config.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
 			ULPI_OTG_DRVVBUS_EXT | ULPI_OTG_EXTVBUSIND);
 	if (usbh2_config.otg)
-		mxc_register_device(&mxc_usbh2_device, &usbh2_config);
+		imx51_add_mxc_ehci_hs(2, &usbh2_config);
 }
 
 static const struct gpio_led mx51_efikasb_leds[] __initconst = {

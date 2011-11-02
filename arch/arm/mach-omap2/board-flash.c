@@ -148,11 +148,6 @@ __init board_nand_init(struct mtd_partition *nand_parts,
 	board_nand_data.gpmc_irq = OMAP_GPMC_IRQ_BASE + cs;
 	gpmc_nand_init(&board_nand_data);
 }
-#else
-void
-__init board_nand_init(struct mtd_partition *nand_parts, u8 nr_parts, u8 cs, int nand_type)
-{
-}
 #endif /* CONFIG_MTD_NAND_OMAP2 || CONFIG_MTD_NAND_OMAP2_MODULE */
 
 /**

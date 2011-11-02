@@ -95,12 +95,6 @@ static struct platform_device *panda_devices[] __initdata = {
 	&wl1271_device,
 };
 
-static void __init omap4_panda_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
-}
-
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -569,24 +563,19 @@ static void __init omap4_panda_init(void)
 	platform_add_devices(panda_devices, ARRAY_SIZE(panda_devices));
 	platform_device_register(&omap_vwlan_device);
 	board_serial_init();
+	omap_sdrc_init(NULL, NULL);
 	omap4_twl6030_hsmmc_init(mmc);
 	omap4_ehci_init();
 	usb_musb_init(&musb_board_data);
 	omap4_panda_display_init();
 }
 
-static void __init omap4_panda_map_io(void)
-{
-	omap2_set_globals_443x();
-	omap44xx_map_common_io();
-}
-
 MACHINE_START(OMAP4_PANDA, "OMAP4 Panda board")
 	/* Maintainer: David Anders - Texas Instruments Inc */
 	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
-	.map_io		= omap4_panda_map_io,
-	.init_early	= omap4_panda_init_early,
+	.map_io		= omap4_map_io,
+	.init_early	= omap4430_init_early,
 	.init_irq	= gic_init_irq,
 	.init_machine	= omap4_panda_init,
 	.timer		= &omap4_timer,

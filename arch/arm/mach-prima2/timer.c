@@ -133,14 +133,14 @@ static struct irqaction sirfsoc_timer_irq = {
 /* Overwrite weak default sched_clock with more precise one */
 unsigned long long notrace sched_clock(void)
 {
-	static int is_mapped = 0;
+	static int is_mapped;
 
 	/*
 	 * sched_clock is called earlier than .init of sys_timer
 	 * if we map timer memory in .init of sys_timer, system
 	 * will panic due to illegal memory access
 	 */
-	if(!is_mapped) {
+	if (!is_mapped) {
 		sirfsoc_of_timer_map();
 		is_mapped = 1;
 	}

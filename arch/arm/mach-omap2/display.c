@@ -127,7 +127,7 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 {
 	int r = 0;
 	struct omap_hwmod *oh;
-	struct omap_device *od;
+	struct platform_device *pdev;
 	int i, oh_count;
 	struct omap_display_platform_data pdata;
 	const struct omap_dss_hwmod_data *curr_dss_hwmod;
@@ -162,13 +162,13 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 			return -ENODEV;
 		}
 
-		od = omap_device_build(curr_dss_hwmod[i].dev_name,
+		pdev = omap_device_build(curr_dss_hwmod[i].dev_name,
 				curr_dss_hwmod[i].id, oh, &pdata,
 				sizeof(struct omap_display_platform_data),
 				omap_dss_latency,
 				ARRAY_SIZE(omap_dss_latency), 0);
 
-		if (WARN((IS_ERR(od)), "Could not build omap_device for %s\n",
+		if (WARN((IS_ERR(pdev)), "Could not build omap_device for %s\n",
 				curr_dss_hwmod[i].oh_name))
 			return -ENODEV;
 	}

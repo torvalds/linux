@@ -66,10 +66,20 @@ extern int mx53_clocks_init(unsigned long ckil, unsigned long osc,
 			unsigned long ckih1, unsigned long ckih2);
 extern struct platform_device *mxc_register_gpio(char *name, int id,
 	resource_size_t iobase, resource_size_t iosize, int irq, int irq_high);
-extern int mxc_register_device(struct platform_device *pdev, void *data);
 extern void mxc_set_cpu_type(unsigned int type);
 extern void mxc_arch_reset_init(void __iomem *);
 extern void mx51_efikamx_reset(void);
 extern int mx53_revision(void);
 extern int mx53_display_revision(void);
+
+enum mxc_cpu_pwr_mode {
+	WAIT_CLOCKED,		/* wfi only */
+	WAIT_UNCLOCKED,		/* WAIT */
+	WAIT_UNCLOCKED_POWER_OFF,	/* WAIT + SRPG */
+	STOP_POWER_ON,		/* just STOP */
+	STOP_POWER_OFF,		/* STOP + SRPG */
+};
+
+extern void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode);
+extern void (*imx_idle)(void);
 #endif

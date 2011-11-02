@@ -604,28 +604,14 @@ static void __init mop500_init_machine(void)
 {
 	int i2c0_devs;
 
-	/*
-	 * The HREFv60 board removed a GPIO expander and routed
-	 * all these GPIO pins to the internal GPIO controller
-	 * instead.
-	 */
-	if (!machine_is_snowball()) {
-		if (machine_is_hrefv60())
-			mop500_gpio_keys[0].gpio = HREFV60_PROX_SENSE_GPIO;
-		else
-			mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
-	}
+	mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
 
 	u8500_init_devices();
 
 	mop500_pins_init();
 
-	if (machine_is_snowball())
-		platform_add_devices(snowball_platform_devs,
-					ARRAY_SIZE(snowball_platform_devs));
-	else
-		platform_add_devices(mop500_platform_devs,
-					ARRAY_SIZE(mop500_platform_devs));
+	platform_add_devices(mop500_platform_devs,
+			ARRAY_SIZE(mop500_platform_devs));
 
 	mop500_i2c_init();
 	mop500_sdi_init();
@@ -633,8 +619,66 @@ static void __init mop500_init_machine(void)
 	mop500_uart_init();
 
 	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
-	if (machine_is_hrefv60())
-		i2c0_devs -= NUM_PRE_V60_I2C0_DEVICES;
+
+	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
+	i2c_register_board_info(2, mop500_i2c2_devices,
+				ARRAY_SIZE(mop500_i2c2_devices));
+
+	/* This board has full regulator constraints */
+	regulator_has_full_constraints();
+}
+
+static void __init snowball_init_machine(void)
+{
+	int i2c0_devs;
+
+	u8500_init_devices();
+
+	snowball_pins_init();
+
+	platform_add_devices(snowball_platform_devs,
+			ARRAY_SIZE(snowball_platform_devs));
+
+	mop500_i2c_init();
+	snowball_sdi_init();
+	mop500_spi_init();
+	mop500_uart_init();
+
+	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
+	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
+	i2c_register_board_info(2, mop500_i2c2_devices,
+				ARRAY_SIZE(mop500_i2c2_devices));
+
+	/* This board has full regulator constraints */
+	regulator_has_full_constraints();
+}
+
+static void __init hrefv60_init_machine(void)
+{
+	int i2c0_devs;
+
+	/*
+	 * The HREFv60 board removed a GPIO expander and routed
+	 * all these GPIO pins to the internal GPIO controller
+	 * instead.
+	 */
+	mop500_gpio_keys[0].gpio = HREFV60_PROX_SENSE_GPIO;
+
+	u8500_init_devices();
+
+	hrefv60_pins_init();
+
+	platform_add_devices(mop500_platform_devs,
+			ARRAY_SIZE(mop500_platform_devs));
+
+	mop500_i2c_init();
+	mop500_sdi_init();
+	mop500_spi_init();
+	mop500_uart_init();
+
+	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
+
+	i2c0_devs -= NUM_PRE_V60_I2C0_DEVICES;
 
 	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
 	i2c_register_board_info(2, mop500_i2c2_devices,
@@ -659,7 +703,7 @@ MACHINE_START(HREFV60, "ST-Ericsson U8500 Platform HREFv60+")
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
 	.timer		= &ux500_timer,
-	.init_machine	= mop500_init_machine,
+	.init_machine	= hrefv60_init_machine,
 MACHINE_END
 
 MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
@@ -668,5 +712,5 @@ MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
 	.init_irq	= ux500_init_irq,
 	/* we re-use nomadik timer here */
 	.timer		= &ux500_timer,
-	.init_machine	= mop500_init_machine,
+	.init_machine	= snowball_init_machine,
 MACHINE_END
