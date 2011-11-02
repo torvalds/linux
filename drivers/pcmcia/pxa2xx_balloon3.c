@@ -97,7 +97,7 @@ static void balloon3_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 static int balloon3_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 				       const socket_state_t *state)
 {
-	__raw_writew(BALLOON3_CF_RESET, BALLOON3_CF_CONTROL_REG |
+	__raw_writew(BALLOON3_CF_RESET, BALLOON3_CF_CONTROL_REG +
 			((state->flags & SS_RESET) ?
 			BALLOON3_FPGA_SETnCLR : 0));
 	return 0;

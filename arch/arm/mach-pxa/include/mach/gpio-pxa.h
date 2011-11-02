@@ -25,7 +25,7 @@
 #define GPIO_REGS_VIRT	io_p2v(0x40E00000)
 
 #define BANK_OFF(n)	(((n) < 3) ? (n) << 2 : 0x100 + (((n) - 3) << 2))
-#define GPIO_REG(x)	(*(volatile u32 *)(GPIO_REGS_VIRT + (x)))
+#define GPIO_REG(x)	(GPIO_REGS_VIRT + (x))
 
 /* GPIO Pin Level Registers */
 #define GPLR0		GPIO_REG(BANK_OFF(0) + 0x00)

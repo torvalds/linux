@@ -479,7 +479,7 @@ static void __init lpd270_init(void)
 
 static struct map_desc lpd270_io_desc[] __initdata = {
 	{
-		.virtual	= LPD270_CPLD_VIRT,
+		.virtual	= (unsigned long)LPD270_CPLD_VIRT,
 		.pfn		= __phys_to_pfn(LPD270_CPLD_PHYS),
 		.length		= LPD270_CPLD_SIZE,
 		.type		= MT_DEVICE,

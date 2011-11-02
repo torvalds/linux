@@ -86,7 +86,8 @@ static struct mfp_addr_map mmp2_addr_map[] __initdata = {
 
 void mmp2_clear_pmic_int(void)
 {
-	unsigned long mfpr_pmic, data;
+	void __iomem *mfpr_pmic;
+	unsigned long data;
 
 	mfpr_pmic = APB_VIRT_BASE + 0x1e000 + 0x2c4;
 	data = __raw_readl(mfpr_pmic);

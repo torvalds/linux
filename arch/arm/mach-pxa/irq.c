@@ -26,7 +26,7 @@
 
 #include "generic.h"
 
-#define IRQ_BASE		(void __iomem *)io_p2v(0x40d00000)
+#define IRQ_BASE		io_p2v(0x40d00000)
 
 #define ICIP			(0x000)
 #define ICMR			(0x004)
@@ -64,7 +64,7 @@ static inline void __iomem *irq_base(int i)
 		0x40d00130,
 	};
 
-	return (void __iomem *)io_p2v(phys_base[i]);
+	return io_p2v(phys_base[i]);
 }
 
 void pxa_mask_irq(struct irq_data *d)

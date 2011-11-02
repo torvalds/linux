@@ -394,7 +394,7 @@ config ARCH_EP93XX
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_USES_GETTIMEOFFSET
-	select NEED_MEMORY_H
+	select NEED_MACH_MEMORY_H
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -2044,6 +2044,7 @@ config CPU_FREQ_PXA
 	bool
 	depends on CPU_FREQ && ARCH_PXA && PXA25x
 	default y
+	select CPU_FREQ_TABLE
 	select CPU_FREQ_DEFAULT_GOV_USERSPACE
 
 config CPU_FREQ_S3C
