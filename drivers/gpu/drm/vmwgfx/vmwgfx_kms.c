@@ -176,7 +176,9 @@ err_unreserve:
 		return 0;
 	}
 
-	vmw_cursor_update_position(dev_priv, true, du->cursor_x, du->cursor_y);
+	vmw_cursor_update_position(dev_priv, true,
+				   du->cursor_x + du->hotspot_x,
+				   du->cursor_y + du->hotspot_y);
 
 	return 0;
 }
@@ -191,7 +193,8 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	du->cursor_y = y + crtc->y;
 
 	vmw_cursor_update_position(dev_priv, shown,
-				   du->cursor_x, du->cursor_y);
+				   du->cursor_x + du->hotspot_x,
+				   du->cursor_y + du->hotspot_y);
 
 	return 0;
 }
