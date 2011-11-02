@@ -692,6 +692,12 @@ F:	drivers/mtd/nand/bcm_umi_nand.c
 F:	drivers/mtd/nand/bcm_umi_bch.c
 F:	drivers/mtd/nand/nand_bcm_umi.h
 
+ARM/CALXEDA HIGHBANK ARCHITECTURE
+M:	Rob Herring <rob.herring@calxeda.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-highbank/
+
 ARM/CAVIUM NETWORKS CNS3XXX MACHINE SUPPORT
 M:	Anton Vorontsov <avorontsov@mvista.com>
 S:	Maintained
@@ -790,6 +796,13 @@ M:	Amit Kucheria <amit.kucheria@canonical.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-mx5/
+
+ARM/FREESCALE IMX6
+M:	Shawn Guo <shawn.guo@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+T:	git git://git.linaro.org/people/shawnguo/linux-2.6.git
+F:	arch/arm/mach-imx/*imx6*
 
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>

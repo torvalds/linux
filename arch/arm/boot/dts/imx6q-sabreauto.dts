@@ -1,0 +1,62 @@
+/*
+ * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "imx6q.dtsi"
+
+/ {
+	model = "Freescale i.MX6 Quad SABRE Automotive Board";
+	compatible = "fsl,imx6q-sabreauto", "fsl,imx6q";
+
+	chosen {
+		bootargs = "console=ttymxc0,115200 root=/dev/mmcblk3p3 rootwait";
+	};
+
+	memory {
+		reg = <0x10000000 0x80000000>;
+	};
+
+	soc {
+		aips-bus@02100000 { /* AIPS2 */
+			enet@02188000 {
+				phy-mode = "rgmii";
+				local-mac-address = [00 04 9F 01 1B 61];
+				status = "okay";
+			};
+
+			usdhc@02198000 { /* uSDHC3 */
+				cd-gpios = <&gpio5 11 0>; /* GPIO6_11 */
+				wp-gpios = <&gpio5 14 0>; /* GPIO6_14 */
+				status = "okay";
+			};
+
+			usdhc@0219c000 { /* uSDHC4 */
+				fsl,card-wired;
+				status = "okay";
+			};
+
+			uart3: uart@021f0000 { /* UART4 */
+				status = "okay";
+			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		debug-led {
+			label = "Heartbeat";
+			gpios = <&gpio2 25 0>; /* GPIO3_25 */
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};

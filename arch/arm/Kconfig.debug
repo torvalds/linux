@@ -128,6 +128,13 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the second serial port on these devices.
 
+	config DEBUG_HIGHBANK_UART
+		bool "Kernel low-level debugging messages via Highbank UART"
+		depends on ARCH_HIGHBANK
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the UART on Highbank based devices.
+
 	config DEBUG_IMX1_UART
 		bool "i.MX1 Debug UART"
 		depends on SOC_IMX1
@@ -183,6 +190,13 @@ choice
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX50 or i.MX53.
+
+	config DEBUG_IMX6Q_UART
+		bool "i.MX6Q Debug UART"
+		depends on SOC_IMX6Q
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX6Q.
 
 	config DEBUG_S3C_UART0
 		depends on PLAT_SAMSUNG

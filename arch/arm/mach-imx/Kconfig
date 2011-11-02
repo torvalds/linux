@@ -1,5 +1,15 @@
 config IMX_HAVE_DMA_V1
 	bool
+
+config HAVE_IMX_GPC
+	bool
+
+config HAVE_IMX_MMDC
+	bool
+
+config HAVE_IMX_SRC
+	bool
+
 #
 # ARCH_MX31 and ARCH_MX35 are left for compatibility
 # Some usages assume that having one of them implies not having (e.g.) ARCH_MX2.
@@ -64,6 +74,7 @@ config SOC_IMX31
 	select ARCH_MXC_AUDMUX_V2
 	select ARCH_MX31
 	select MXC_AVIC
+	select SMP_ON_UP if SMP
 
 config SOC_IMX35
 	bool
@@ -73,6 +84,7 @@ config SOC_IMX35
 	select HAVE_EPIT
 	select ARCH_MX35
 	select MXC_AVIC
+	select SMP_ON_UP if SMP
 
 
 if ARCH_IMX_V4_V5
@@ -341,7 +353,7 @@ config MACH_IMX27IPCAM
 
 endif
 
-if ARCH_MX3
+if ARCH_IMX_V6_V7
 
 comment "MX31 platforms:"
 
@@ -591,5 +603,21 @@ config MACH_VPR200
 	help
 	  Include support for VPR200 platform. This includes specific
 	  configurations for the board and its peripherals.
+
+comment "i.MX6 family:"
+
+config SOC_IMX6Q
+	bool "i.MX6 Quad support"
+	select ARM_GIC
+	select CACHE_L2X0
+	select CPU_V7
+	select HAVE_ARM_SCU
+	select HAVE_IMX_GPC
+	select HAVE_IMX_MMDC
+	select HAVE_IMX_SRC
+	select USE_OF
+
+	help
+	  This enables support for Freescale i.MX6 Quad processor.
 
 endif

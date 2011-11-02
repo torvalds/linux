@@ -60,3 +60,14 @@ obj-$(CONFIG_MACH_MX35_3DS) += mach-mx35_3ds.o
 obj-$(CONFIG_MACH_EUKREA_CPUIMX35) += mach-cpuimx35.o
 obj-$(CONFIG_MACH_EUKREA_MBIMXSD35_BASEBOARD) += eukrea_mbimxsd35-baseboard.o
 obj-$(CONFIG_MACH_VPR200) += mach-vpr200.o
+
+obj-$(CONFIG_DEBUG_LL) += lluart.o
+obj-$(CONFIG_HAVE_IMX_GPC) += gpc.o
+obj-$(CONFIG_HAVE_IMX_MMDC) += mmdc.o
+obj-$(CONFIG_HAVE_IMX_SRC) += src.o
+obj-$(CONFIG_CPU_V7) += head-v7.o
+AFLAGS_head-v7.o :=-Wa,-march=armv7-a
+obj-$(CONFIG_SMP) += platsmp.o
+obj-$(CONFIG_HOTPLUG_CPU) += hotplug.o
+obj-$(CONFIG_LOCAL_TIMERS) += localtimer.o
+obj-$(CONFIG_SOC_IMX6Q) += clock-imx6q.o mach-imx6q.o pm-imx6q.o
