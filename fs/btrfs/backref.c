@@ -676,14 +676,14 @@ static int inode_to_path(u64 inum, struct btrfs_inode_ref *iref,
 	bytes_left = ipath->fspath->bytes_left > s_ptr ?
 					ipath->fspath->bytes_left - s_ptr : 0;
 
-	fspath_min = (char *)ipath->fspath->str + (i + 1) * s_ptr;
+	fspath_min = (char *)ipath->fspath->val + (i + 1) * s_ptr;
 	fspath = iref_to_path(ipath->fs_root, ipath->btrfs_path, iref, eb,
 				inum, fspath_min, bytes_left);
 	if (IS_ERR(fspath))
 		return PTR_ERR(fspath);
 
 	if (fspath > fspath_min) {
-		ipath->fspath->str[i] = fspath;
+		ipath->fspath->val[i] = (u64)fspath;
 		++ipath->fspath->elem_cnt;
 		ipath->fspath->bytes_left = fspath - fspath_min;
 	} else {
@@ -698,9 +698,9 @@ static int inode_to_path(u64 inum, struct btrfs_inode_ref *iref,
 /*
  * this dumps all file system paths to the inode into the ipath struct, provided
  * is has been created large enough. each path is zero-terminated and accessed
- * from ipath->fspath->str[i].
+ * from ipath->fspath->val[i].
  * when it returns, there are ipath->fspath->elem_cnt number of paths available
- * in ipath->fspath->str[]. when the allocated space wasn't sufficient, the
+ * in ipath->fspath->val[]. when the allocated space wasn't sufficient, the
  * number of missed paths in recored in ipath->fspath->elem_missed, otherwise,
  * it's zero. ipath->fspath->bytes_missing holds the number of bytes that would
  * have been needed to return all paths.

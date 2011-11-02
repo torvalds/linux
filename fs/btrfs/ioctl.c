@@ -2895,7 +2895,7 @@ static long btrfs_ioctl_ino_to_path(struct btrfs_root *root, void __user *arg)
 {
 	int ret = 0;
 	int i;
-	unsigned long rel_ptr;
+	u64 rel_ptr;
 	int size;
 	struct btrfs_ioctl_ino_path_args *ipa = NULL;
 	struct inode_fs_paths *ipath = NULL;
@@ -2930,11 +2930,11 @@ static long btrfs_ioctl_ino_to_path(struct btrfs_root *root, void __user *arg)
 		goto out;
 
 	for (i = 0; i < ipath->fspath->elem_cnt; ++i) {
-		rel_ptr = ipath->fspath->str[i] - (char *)ipath->fspath->str;
-		ipath->fspath->str[i] = (void *)rel_ptr;
+		rel_ptr = ipath->fspath->val[i] - (u64)ipath->fspath->val;
+		ipath->fspath->val[i] = rel_ptr;
 	}
 
-	ret = copy_to_user(ipa->fspath, ipath->fspath, size);
+	ret = copy_to_user((void *)ipa->fspath, (void *)ipath->fspath, size);
 	if (ret) {
 		ret = -EFAULT;
 		goto out;
@@ -3017,7 +3017,7 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_root *root,
 	if (ret < 0)
 		goto out;
 
-	ret = copy_to_user(loi->inodes, inodes, size);
+	ret = copy_to_user((void *)loi->inodes, (void *)inodes, size);
 	if (ret)
 		ret = -EFAULT;
 

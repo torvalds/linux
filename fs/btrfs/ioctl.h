@@ -198,24 +198,23 @@ struct btrfs_data_container {
 	__u32	bytes_missing;	/* out -- additional bytes needed for result */
 	__u32	elem_cnt;	/* out */
 	__u32	elem_missed;	/* out */
-	union {
-		char	*str[0];	/* out */
-		__u64	val[0];		/* out */
-	};
+	__u64	val[0];		/* out */
 };
 
 struct btrfs_ioctl_ino_path_args {
 	__u64				inum;		/* in */
 	__u32				size;		/* in */
 	__u64				reserved[4];
-	struct btrfs_data_container	*fspath;	/* out */
+	/* struct btrfs_data_container	*fspath;	   out */
+	__u64				fspath;		/* out */
 };
 
 struct btrfs_ioctl_logical_ino_args {
 	__u64				logical;	/* in */
 	__u32				size;		/* in */
 	__u64				reserved[4];
-	struct btrfs_data_container	*inodes;	/* out */
+	/* struct btrfs_data_container	*inodes;	out   */
+	__u64				inodes;
 };
 
 #define BTRFS_IOC_SNAP_CREATE _IOW(BTRFS_IOCTL_MAGIC, 1, \
