@@ -3149,6 +3149,126 @@ static inline int l2cap_create_channel_rsp(struct l2cap_conn *conn,
 	return l2cap_connect_rsp(conn, cmd, data);
 }
 
+static void l2cap_send_move_chan_rsp(struct l2cap_conn *conn, u8 ident,
+							u16 icid, u16 result)
+{
+	struct l2cap_move_chan_rsp rsp;
+
+	BT_DBG("icid %d, result %d", icid, result);
+
+	rsp.icid = cpu_to_le16(icid);
+	rsp.result = cpu_to_le16(result);
+
+	l2cap_send_cmd(conn, ident, L2CAP_MOVE_CHAN_RSP, sizeof(rsp), &rsp);
+}
+
+static void l2cap_send_move_chan_cfm(struct l2cap_conn *conn,
+				struct l2cap_chan *chan, u16 icid, u16 result)
+{
+	struct l2cap_move_chan_cfm cfm;
+	u8 ident;
+
+	BT_DBG("icid %d, result %d", icid, result);
+
+	ident = l2cap_get_ident(conn);
+	if (chan)
+		chan->ident = ident;
+
+	cfm.icid = cpu_to_le16(icid);
+	cfm.result = cpu_to_le16(result);
+
+	l2cap_send_cmd(conn, ident, L2CAP_MOVE_CHAN_CFM, sizeof(cfm), &cfm);
+}
+
+static void l2cap_send_move_chan_cfm_rsp(struct l2cap_conn *conn, u8 ident,
+								u16 icid)
+{
+	struct l2cap_move_chan_cfm_rsp rsp;
+
+	BT_DBG("icid %d", icid);
+
+	rsp.icid = cpu_to_le16(icid);
+	l2cap_send_cmd(conn, ident, L2CAP_MOVE_CHAN_CFM_RSP, sizeof(rsp), &rsp);
+}
+
+static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
+			struct l2cap_cmd_hdr *cmd, u16 cmd_len, void *data)
+{
+	struct l2cap_move_chan_req *req = data;
+	u16 icid = 0;
+	u16 result = L2CAP_MR_NOT_ALLOWED;
+
+	if (cmd_len != sizeof(*req))
+		return -EPROTO;
+
+	icid = le16_to_cpu(req->icid);
+
+	BT_DBG("icid %d, dest_amp_id %d", icid, req->dest_amp_id);
+
+	if (!enable_hs)
+		return -EINVAL;
+
+	/* Placeholder: Always refuse */
+	l2cap_send_move_chan_rsp(conn, cmd->ident, icid, result);
+
+	return 0;
+}
+
+static inline int l2cap_move_channel_rsp(struct l2cap_conn *conn,
+			struct l2cap_cmd_hdr *cmd, u16 cmd_len, void *data)
+{
+	struct l2cap_move_chan_rsp *rsp = data;
+	u16 icid, result;
+
+	if (cmd_len != sizeof(*rsp))
+		return -EPROTO;
+
+	icid = le16_to_cpu(rsp->icid);
+	result = le16_to_cpu(rsp->result);
+
+	BT_DBG("icid %d, result %d", icid, result);
+
+	/* Placeholder: Always unconfirmed */
+	l2cap_send_move_chan_cfm(conn, NULL, icid, L2CAP_MC_UNCONFIRMED);
+
+	return 0;
+}
+
+static inline int l2cap_move_channel_confirm(struct l2cap_conn *conn,
+			struct l2cap_cmd_hdr *cmd, u16 cmd_len, void *data)
+{
+	struct l2cap_move_chan_cfm *cfm = data;
+	u16 icid, result;
+
+	if (cmd_len != sizeof(*cfm))
+		return -EPROTO;
+
+	icid = le16_to_cpu(cfm->icid);
+	result = le16_to_cpu(cfm->result);
+
+	BT_DBG("icid %d, result %d", icid, result);
+
+	l2cap_send_move_chan_cfm_rsp(conn, cmd->ident, icid);
+
+	return 0;
+}
+
+static inline int l2cap_move_channel_confirm_rsp(struct l2cap_conn *conn,
+			struct l2cap_cmd_hdr *cmd, u16 cmd_len, void *data)
+{
+	struct l2cap_move_chan_cfm_rsp *rsp = data;
+	u16 icid;
+
+	if (cmd_len != sizeof(*rsp))
+		return -EPROTO;
+
+	icid = le16_to_cpu(rsp->icid);
+
+	BT_DBG("icid %d", icid);
+
+	return 0;
+}
+
 static inline int l2cap_check_conn_param(u16 min, u16 max, u16 latency,
 							u16 to_multiplier)
 {
@@ -3267,6 +3387,22 @@ static inline int l2cap_bredr_sig_cmd(struct l2cap_conn *conn,
 
 	case L2CAP_CREATE_CHAN_RSP:
 		err = l2cap_create_channel_rsp(conn, cmd, data);
+		break;
+
+	case L2CAP_MOVE_CHAN_REQ:
+		err = l2cap_move_channel_req(conn, cmd, cmd_len, data);
+		break;
+
+	case L2CAP_MOVE_CHAN_RSP:
+		err = l2cap_move_channel_rsp(conn, cmd, cmd_len, data);
+		break;
+
+	case L2CAP_MOVE_CHAN_CFM:
+		err = l2cap_move_channel_confirm(conn, cmd, cmd_len, data);
+		break;
+
+	case L2CAP_MOVE_CHAN_CFM_RSP:
+		err = l2cap_move_channel_confirm_rsp(conn, cmd, cmd_len, data);
 		break;
 
 	default:
