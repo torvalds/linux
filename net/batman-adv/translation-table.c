@@ -190,6 +190,7 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	struct tt_local_entry *tt_local_entry = NULL;
 	struct tt_global_entry *tt_global_entry = NULL;
+	int hash_added;
 
 	tt_local_entry = tt_local_hash_find(bat_priv, addr);
 
@@ -217,15 +218,22 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	if (compare_eth(addr, soft_iface->dev_addr))
 		tt_local_entry->common.flags |= TT_CLIENT_NOPURGE;
 
+	hash_added = hash_add(bat_priv->tt_local_hash, compare_tt, choose_orig,
+			 &tt_local_entry->common,
+			 &tt_local_entry->common.hash_entry);
+
+	if (unlikely(hash_added != 0)) {
+		/* remove the reference for the hash */
+		tt_local_entry_free_ref(tt_local_entry);
+		goto out;
+	}
+
 	tt_local_event(bat_priv, addr, tt_local_entry->common.flags);
 
 	/* The local entry has to be marked as NEW to avoid to send it in
 	 * a full table response going out before the next ttvn increment
 	 * (consistency check) */
 	tt_local_entry->common.flags |= TT_CLIENT_NEW;
-
-	hash_add(bat_priv->tt_local_hash, compare_tt, choose_orig,
-		 &tt_local_entry->common, &tt_local_entry->common.hash_entry);
 
 	/* remove address from global hash if present */
 	tt_global_entry = tt_global_hash_find(bat_priv, addr);
@@ -499,6 +507,7 @@ int tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	struct tt_global_entry *tt_global_entry;
 	struct orig_node *orig_node_tmp;
 	int ret = 0;
+	int hash_added;
 
 	tt_global_entry = tt_global_hash_find(bat_priv, tt_addr);
 
@@ -518,9 +527,15 @@ int tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
 		tt_global_entry->ttvn = ttvn;
 		tt_global_entry->roam_at = 0;
 
-		hash_add(bat_priv->tt_global_hash, compare_tt,
-			 choose_orig, &tt_global_entry->common,
-			 &tt_global_entry->common.hash_entry);
+		hash_added = hash_add(bat_priv->tt_global_hash, compare_tt,
+				 choose_orig, &tt_global_entry->common,
+				 &tt_global_entry->common.hash_entry);
+
+		if (unlikely(hash_added != 0)) {
+			/* remove the reference for the hash */
+			tt_global_entry_free_ref(tt_global_entry);
+			goto out_remove;
+		}
 		atomic_inc(&orig_node->tt_size);
 	} else {
 		if (tt_global_entry->orig_node != orig_node) {
@@ -543,6 +558,7 @@ int tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
 		"Creating new global tt entry: %pM (via %pM)\n",
 		tt_global_entry->common.addr, orig_node->orig);
 
+out_remove:
 	/* remove address from local hash if present */
 	tt_local_remove(bat_priv, tt_global_entry->common.addr,
 			"global tt received", roaming);
