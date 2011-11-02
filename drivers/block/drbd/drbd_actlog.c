@@ -711,16 +711,20 @@ static void drbd_try_clear_on_disk_bm(struct drbd_conf *mdev, sector_t sector,
 			else
 				ext->rs_failed += count;
 			if (ext->rs_left < ext->rs_failed) {
-				dev_err(DEV, "BAD! sector=%llus enr=%u rs_left=%d "
-				    "rs_failed=%d count=%d\n",
+				dev_warn(DEV, "BAD! sector=%llus enr=%u rs_left=%d "
+				    "rs_failed=%d count=%d cstate=%s\n",
 				     (unsigned long long)sector,
 				     ext->lce.lc_number, ext->rs_left,
-				     ext->rs_failed, count);
-				dump_stack();
+				     ext->rs_failed, count,
+				     drbd_conn_str(mdev->state.conn));
 
-				lc_put(mdev->resync, &ext->lce);
-				drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
-				return;
+				/* We don't expect to be able to clear more bits
+				 * than have been set when we originally counted
+				 * the set bits to cache that value in ext->rs_left.
+				 * Whatever the reason (disconnect during resync,
+				 * delayed local completion of an application write),
+				 * try to fix it up by recounting here. */
+				ext->rs_left = drbd_bm_e_weight(mdev, enr);
 			}
 		} else {
 			/* Normally this element should be in the cache,
