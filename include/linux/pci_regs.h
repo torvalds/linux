@@ -537,7 +537,9 @@
 #define PCI_EXT_CAP_ID_ARI	14
 #define PCI_EXT_CAP_ID_ATS	15
 #define PCI_EXT_CAP_ID_SRIOV	16
+#define PCI_EXT_CAP_ID_PRI	19
 #define PCI_EXT_CAP_ID_LTR	24
+#define PCI_EXT_CAP_ID_PASID	27
 
 /* Advanced Error Reporting */
 #define PCI_ERR_UNCOR_STATUS	4	/* Uncorrectable Error Status */
@@ -664,7 +666,6 @@
 #define  PCI_ATS_MIN_STU	12	/* shift of minimum STU block */
 
 /* Page Request Interface */
-#define PCI_PRI_CAP		0x13    /* PRI capability ID */
 #define PCI_PRI_CONTROL_OFF	0x04	/* Offset of control register */
 #define PCI_PRI_STATUS_OFF	0x06	/* Offset of status register */
 #define PCI_PRI_ENABLE		0x0001	/* Enable mask */
@@ -676,7 +677,6 @@
 #define PCI_PRI_ALLOC_REQ_OFF	0x0c	/* Cap offset for max reqs allowed */
 
 /* PASID capability */
-#define PCI_PASID_CAP		0x1b    /* PASID capability ID */
 #define PCI_PASID_CAP_OFF	0x04    /* PASID feature register */
 #define PCI_PASID_CONTROL_OFF   0x06    /* PASID control register */
 #define PCI_PASID_ENABLE	0x01	/* Enable/Supported bit */
