@@ -58,6 +58,12 @@
 #endif
 
 /*
+ * On all at91 have the Advanced Interrupt Controller starts at address
+ * 0xfffff000
+ */
+#define AT91_AIC	0xfffff000
+
+/*
  * Peripheral identifiers/interrupts.
  */
 #define AT91_ID_FIQ		0	/* Advanced Interrupt Controller (FIQ) */

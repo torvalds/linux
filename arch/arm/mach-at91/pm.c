@@ -218,7 +218,7 @@ static int at91_pm_enter(suspend_state_t state)
 					| (1 << AT91_ID_FIQ)
 					| (1 << AT91_ID_SYS)
 					| (at91_extern_irq))
-				& at91_sys_read(AT91_AIC_IMR),
+				& at91_aic_read(AT91_AIC_IMR),
 			state);
 
 	switch (state) {
@@ -286,7 +286,7 @@ static int at91_pm_enter(suspend_state_t state)
 	}
 
 	pr_debug("AT91: PM - wakeup %08x\n",
-			at91_sys_read(AT91_AIC_IPR) & at91_sys_read(AT91_AIC_IMR));
+			at91_aic_read(AT91_AIC_IPR) & at91_aic_read(AT91_AIC_IMR));
 
 error:
 	target_state = PM_SUSPEND_ON;
