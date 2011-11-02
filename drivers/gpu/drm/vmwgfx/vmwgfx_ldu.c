@@ -337,6 +337,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	ldu->base.pref_width = 800;
 	ldu->base.pref_height = 600;
 	ldu->base.pref_mode = NULL;
+	ldu->base.is_implicit = true;
 
 	drm_connector_init(dev, connector, &vmw_legacy_connector_funcs,
 			   DRM_MODE_CONNECTOR_VIRTUAL);
