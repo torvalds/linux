@@ -351,7 +351,7 @@ static int regcache_lzo_sync(struct regmap *map)
 }
 
 struct regcache_ops regcache_lzo_ops = {
-	.type = REGCACHE_LZO,
+	.type = REGCACHE_COMPRESSED,
 	.name = "lzo",
 	.init = regcache_lzo_init,
 	.exit = regcache_lzo_exit,
