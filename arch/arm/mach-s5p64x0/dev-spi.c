@@ -25,11 +25,6 @@
 #include <plat/s3c64xx-spi.h>
 #include <plat/gpio-cfg.h>
 
-static char *s5p64x0_spi_src_clks[] = {
-	[S5P64X0_SPI_SRCCLK_PCLK] = "pclk",
-	[S5P64X0_SPI_SRCCLK_SCLK] = "sclk_spi",
-};
-
 /* SPI Controller platform_devices */
 
 /* Since we emulate multi-cs capability, we do not touch the CS.
@@ -220,5 +215,4 @@ void __init s5p64x0_spi_set_info(int cntrlr, int src_clk_nr, int num_cs)
 
 	pd->num_cs = num_cs;
 	pd->src_clk_nr = src_clk_nr;
-	pd->src_clk_name = s5p64x0_spi_src_clks[src_clk_nr];
 }
