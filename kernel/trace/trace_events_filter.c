@@ -27,6 +27,12 @@
 #include "trace.h"
 #include "trace_output.h"
 
+#define DEFAULT_SYS_FILTER_MESSAGE					\
+	"### global filter ###\n"					\
+	"# Use this to set filters for multiple events.\n"		\
+	"# Only events with the given fields will be affected.\n"	\
+	"# If no events are modified, an error message will be displayed here"
+
 enum filter_op_ids
 {
 	OP_OR,
@@ -646,7 +652,7 @@ void print_subsystem_event_filter(struct event_subsystem *system,
 	if (filter && filter->filter_string)
 		trace_seq_printf(s, "%s\n", filter->filter_string);
 	else
-		trace_seq_printf(s, "none\n");
+		trace_seq_printf(s, DEFAULT_SYS_FILTER_MESSAGE "\n");
 	mutex_unlock(&event_mutex);
 }
 
@@ -1838,7 +1844,10 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 	if (!filter)
 		goto out;
 
-	replace_filter_string(filter, filter_string);
+	/* System filters just show a default message */
+	kfree(filter->filter_string);
+	filter->filter_string = NULL;
+
 	/*
 	 * No event actually uses the system filter
 	 * we can free it without synchronize_sched().
@@ -1848,14 +1857,12 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 
 	parse_init(ps, filter_ops, filter_string);
 	err = filter_parse(ps);
-	if (err) {
-		append_filter_err(ps, system->filter);
-		goto out;
-	}
+	if (err)
+		goto err_filter;
 
 	err = replace_system_preds(system, ps, filter_string);
 	if (err)
-		append_filter_err(ps, system->filter);
+		goto err_filter;
 
 out:
 	filter_opstack_clear(ps);
@@ -1865,6 +1872,11 @@ out_unlock:
 	mutex_unlock(&event_mutex);
 
 	return err;
+
+err_filter:
+	replace_filter_string(filter, filter_string);
+	append_filter_err(ps, system->filter);
+	goto out;
 }
 
 #ifdef CONFIG_PERF_EVENTS
