@@ -53,9 +53,6 @@
 #include "gadget.h"
 #include "io.h"
 
-static void dwc3_ep0_inspect_setup(struct dwc3 *dwc,
-		const struct dwc3_event_depevt *event);
-
 static const char *dwc3_ep0_state_string(enum dwc3_ep0_state state)
 {
 	switch (state) {
@@ -639,7 +636,6 @@ static void dwc3_ep0_xfer_complete(struct dwc3 *dwc,
 static void dwc3_ep0_do_control_setup(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event)
 {
-	dwc->ep0state = EP0_SETUP_PHASE;
 	dwc3_ep0_out_start(dwc);
 }
 
@@ -651,7 +647,6 @@ static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
 	int			ret;
 
 	dep = dwc->eps[0];
-	dwc->ep0state = EP0_DATA_PHASE;
 
 	if (list_empty(&dep->request_list)) {
 		dev_vdbg(dwc->dev, "pending request for EP0 Data phase\n");
@@ -665,7 +660,6 @@ static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
 	req = next_request(&dep->request_list);
 	req->direction = !!event->endpoint_number;
 
-	dwc->ep0state = EP0_DATA_PHASE;
 	if (req->request.length == 0) {
 		ret = dwc3_ep0_start_trans(dwc, event->endpoint_number,
 				dwc->ctrl_req_addr, 0,
@@ -697,21 +691,23 @@ static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
 	WARN_ON(ret < 0);
 }
 
-static void dwc3_ep0_do_control_status(struct dwc3 *dwc,
-		const struct dwc3_event_depevt *event)
+static int dwc3_ep0_start_control_status(struct dwc3_ep *dep)
 {
+	struct dwc3		*dwc = dep->dwc;
 	u32			type;
-	int			ret;
-
-	dwc->ep0state = EP0_STATUS_PHASE;
 
 	type = dwc->three_stage_setup ? DWC3_TRBCTL_CONTROL_STATUS3
 		: DWC3_TRBCTL_CONTROL_STATUS2;
 
-	ret = dwc3_ep0_start_trans(dwc, event->endpoint_number,
+	return dwc3_ep0_start_trans(dwc, dep->number,
 			dwc->ctrl_req_addr, 0, type);
+}
 
-	WARN_ON(ret < 0);
+static void dwc3_ep0_do_control_status(struct dwc3 *dwc, u32 epnum)
+{
+	struct dwc3_ep		*dep = dwc->eps[epnum];
+
+	WARN_ON(dwc3_ep0_start_control_status(dep));
 }
 
 static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
@@ -755,11 +751,16 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 	switch (event->status) {
 	case DEPEVT_STATUS_CONTROL_SETUP:
 		dev_vdbg(dwc->dev, "Control Setup\n");
+
+		dwc->ep0state = EP0_SETUP_PHASE;
+
 		dwc3_ep0_do_control_setup(dwc, event);
 		break;
 
 	case DEPEVT_STATUS_CONTROL_DATA:
 		dev_vdbg(dwc->dev, "Control Data\n");
+
+		dwc->ep0state = EP0_DATA_PHASE;
 
 		if (dwc->ep0_next_event != DWC3_EP0_NRDY_DATA) {
 			dev_vdbg(dwc->dev, "Expected %d got %d\n",
@@ -790,6 +791,8 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 	case DEPEVT_STATUS_CONTROL_STATUS:
 		dev_vdbg(dwc->dev, "Control Status\n");
 
+		dwc->ep0state = EP0_STATUS_PHASE;
+
 		if (dwc->ep0_next_event != DWC3_EP0_NRDY_STATUS) {
 			dev_vdbg(dwc->dev, "Expected %d got %d\n",
 					dwc->ep0_next_event,
@@ -798,7 +801,7 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 			dwc3_ep0_stall_and_restart(dwc);
 			return;
 		}
-		dwc3_ep0_do_control_status(dwc, event);
+		dwc3_ep0_do_control_status(dwc, event->endpoint_number);
 	}
 }
 
