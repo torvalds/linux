@@ -736,6 +736,8 @@ source "drivers/media/video/cx88/Kconfig"
 
 source "drivers/media/video/cx23885/Kconfig"
 
+source "drivers/media/video/cx25821/Kconfig"
+
 source "drivers/media/video/au0828/Kconfig"
 
 source "drivers/media/video/ivtv/Kconfig"

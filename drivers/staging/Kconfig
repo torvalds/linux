@@ -32,8 +32,6 @@ source "drivers/staging/slicoss/Kconfig"
 
 source "drivers/staging/go7007/Kconfig"
 
-source "drivers/staging/cx25821/Kconfig"
-
 source "drivers/staging/cxd2099/Kconfig"
 
 source "drivers/staging/usbip/Kconfig"
