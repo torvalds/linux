@@ -20,6 +20,7 @@
 #include <linux/statfs.h>
 #include <linux/cdrom.h>
 #include <linux/parser.h>
+#include <linux/mpage.h>
 
 #include "isofs.h"
 #include "zisofs.h"
@@ -1148,7 +1149,13 @@ struct buffer_head *isofs_bread(struct inode *inode, sector_t block)
 
 static int isofs_readpage(struct file *file, struct page *page)
 {
-	return block_read_full_page(page,isofs_get_block);
+	return mpage_readpage(page, isofs_get_block);
+}
+
+static int isofs_readpages(struct file *file, struct address_space *mapping,
+			struct list_head *pages, unsigned nr_pages)
+{
+	return mpage_readpages(mapping, pages, nr_pages, isofs_get_block);
 }
 
 static sector_t _isofs_bmap(struct address_space *mapping, sector_t block)
@@ -1158,6 +1165,7 @@ static sector_t _isofs_bmap(struct address_space *mapping, sector_t block)
 
 static const struct address_space_operations isofs_aops = {
 	.readpage = isofs_readpage,
+	.readpages = isofs_readpages,
 	.bmap = _isofs_bmap
 };
 
