@@ -116,14 +116,99 @@ static int core_scsi2_reservation_check(struct se_cmd *cmd, u32 *pr_reg_type)
 	return ret;
 }
 
-static int core_scsi2_reservation_release(struct se_cmd *cmd)
+static struct t10_pr_registration *core_scsi3_locate_pr_reg(struct se_device *,
+					struct se_node_acl *, struct se_session *);
+static void core_scsi3_put_pr_reg(struct t10_pr_registration *);
+
+static int target_check_scsi2_reservation_conflict(struct se_cmd *cmd, int *ret)
+{
+	struct se_session *se_sess = cmd->se_sess;
+	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
+	struct t10_pr_registration *pr_reg;
+	struct t10_reservation *pr_tmpl = &su_dev->t10_pr;
+	int crh = (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS);
+	int conflict = 0;
+
+	if (!crh)
+		return false;
+
+	pr_reg = core_scsi3_locate_pr_reg(cmd->se_dev, se_sess->se_node_acl,
+			se_sess);
+	if (pr_reg) {
+		/*
+		 * From spc4r17 5.7.3 Exceptions to SPC-2 RESERVE and RELEASE
+		 * behavior
+		 *
+		 * A RESERVE(6) or RESERVE(10) command shall complete with GOOD
+		 * status, but no reservation shall be established and the
+		 * persistent reservation shall not be changed, if the command
+		 * is received from a) and b) below.
+		 *
+		 * A RELEASE(6) or RELEASE(10) command shall complete with GOOD
+		 * status, but the persistent reservation shall not be released,
+		 * if the command is received from a) and b)
+		 *
+		 * a) An I_T nexus that is a persistent reservation holder; or
+		 * b) An I_T nexus that is registered if a registrants only or
+		 *    all registrants type persistent reservation is present.
+		 *
+		 * In all other cases, a RESERVE(6) command, RESERVE(10) command,
+		 * RELEASE(6) command, or RELEASE(10) command shall be processed
+		 * as defined in SPC-2.
+		 */
+		if (pr_reg->pr_res_holder) {
+			core_scsi3_put_pr_reg(pr_reg);
+			*ret = 0;
+			return false;
+		}
+		if ((pr_reg->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_REGONLY) ||
+		    (pr_reg->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_REGONLY) ||
+		    (pr_reg->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_ALLREG) ||
+		    (pr_reg->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_ALLREG)) {
+			core_scsi3_put_pr_reg(pr_reg);
+			*ret = 0;
+			return true;
+		}
+		core_scsi3_put_pr_reg(pr_reg);
+		conflict = 1;
+	} else {
+		/*
+		 * Following spc2r20 5.5.1 Reservations overview:
+		 *
+		 * If a logical unit has executed a PERSISTENT RESERVE OUT
+		 * command with the REGISTER or the REGISTER AND IGNORE
+		 * EXISTING KEY service action and is still registered by any
+		 * initiator, all RESERVE commands and all RELEASE commands
+		 * regardless of initiator shall conflict and shall terminate
+		 * with a RESERVATION CONFLICT status.
+		 */
+		spin_lock(&pr_tmpl->registration_lock);
+		conflict = (list_empty(&pr_tmpl->registration_list)) ? 0 : 1;
+		spin_unlock(&pr_tmpl->registration_lock);
+	}
+
+	if (conflict) {
+		pr_err("Received legacy SPC-2 RESERVE/RELEASE"
+			" while active SPC-3 registrations exist,"
+			" returning RESERVATION_CONFLICT\n");
+		*ret = PYX_TRANSPORT_RESERVATION_CONFLICT;
+		return true;
+	}
+
+	return false;
+}
+
+int target_scsi2_reservation_release(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
 	struct se_portal_group *tpg = sess->se_tpg;
+	int ret;
 
 	if (!sess || !tpg)
 		return 0;
+	if (target_check_scsi2_reservation_conflict(cmd, &ret))
+		return ret;
 
 	spin_lock(&dev->dev_reservation_lock);
 	if (!dev->dev_reserved_node_acl || !sess) {
@@ -150,11 +235,12 @@ static int core_scsi2_reservation_release(struct se_cmd *cmd)
 	return 0;
 }
 
-static int core_scsi2_reservation_reserve(struct se_cmd *cmd)
+int target_scsi2_reservation_reserve(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
 	struct se_portal_group *tpg = sess->se_tpg;
+	int ret;
 
 	if ((cmd->t_task_cdb[1] & 0x01) &&
 	    (cmd->t_task_cdb[1] & 0x02)) {
@@ -168,6 +254,8 @@ static int core_scsi2_reservation_reserve(struct se_cmd *cmd)
 	 */
 	if (!sess || !tpg)
 		return 0;
+	if (target_check_scsi2_reservation_conflict(cmd, &ret))
+		return ret;
 
 	spin_lock(&dev->dev_reservation_lock);
 	if (dev->dev_reserved_node_acl &&
@@ -200,99 +288,6 @@ static int core_scsi2_reservation_reserve(struct se_cmd *cmd)
 	return 0;
 }
 
-static struct t10_pr_registration *core_scsi3_locate_pr_reg(struct se_device *,
-					struct se_node_acl *, struct se_session *);
-static void core_scsi3_put_pr_reg(struct t10_pr_registration *);
-
-/*
- * Setup in target_core_transport.c:transport_generic_cmd_sequencer()
- * and called via struct se_cmd->transport_emulate_cdb() in TCM processing
- * thread context.
- */
-int core_scsi2_emulate_crh(struct se_cmd *cmd)
-{
-	struct se_session *se_sess = cmd->se_sess;
-	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
-	struct t10_pr_registration *pr_reg;
-	struct t10_reservation *pr_tmpl = &su_dev->t10_pr;
-	unsigned char *cdb = &cmd->t_task_cdb[0];
-	int crh = (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS);
-	int conflict = 0;
-
-	if (!se_sess)
-		return 0;
-
-	if (!crh)
-		goto after_crh;
-
-	pr_reg = core_scsi3_locate_pr_reg(cmd->se_dev, se_sess->se_node_acl,
-			se_sess);
-	if (pr_reg) {
-		/*
-		 * From spc4r17 5.7.3 Exceptions to SPC-2 RESERVE and RELEASE
-		 * behavior
-		 *
-		 * A RESERVE(6) or RESERVE(10) command shall complete with GOOD
-		 * status, but no reservation shall be established and the
-		 * persistent reservation shall not be changed, if the command
-		 * is received from a) and b) below.
-		 *
-		 * A RELEASE(6) or RELEASE(10) command shall complete with GOOD
-		 * status, but the persistent reservation shall not be released,
-		 * if the command is received from a) and b)
-		 *
-		 * a) An I_T nexus that is a persistent reservation holder; or
-		 * b) An I_T nexus that is registered if a registrants only or
-		 *    all registrants type persistent reservation is present.
-		 *
-		 * In all other cases, a RESERVE(6) command, RESERVE(10) command,
-		 * RELEASE(6) command, or RELEASE(10) command shall be processed
-		 * as defined in SPC-2.
-		 */
-		if (pr_reg->pr_res_holder) {
-			core_scsi3_put_pr_reg(pr_reg);
-			return 0;
-		}
-		if ((pr_reg->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_REGONLY) ||
-		    (pr_reg->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_REGONLY) ||
-		    (pr_reg->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_ALLREG) ||
-		    (pr_reg->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_ALLREG)) {
-			core_scsi3_put_pr_reg(pr_reg);
-			return 0;
-		}
-		core_scsi3_put_pr_reg(pr_reg);
-		conflict = 1;
-	} else {
-		/*
-		 * Following spc2r20 5.5.1 Reservations overview:
-		 *
-		 * If a logical unit has executed a PERSISTENT RESERVE OUT
-		 * command with the REGISTER or the REGISTER AND IGNORE
-		 * EXISTING KEY service action and is still registered by any
-		 * initiator, all RESERVE commands and all RELEASE commands
-		 * regardless of initiator shall conflict and shall terminate
-		 * with a RESERVATION CONFLICT status.
-		 */
-		spin_lock(&pr_tmpl->registration_lock);
-		conflict = (list_empty(&pr_tmpl->registration_list)) ? 0 : 1;
-		spin_unlock(&pr_tmpl->registration_lock);
-	}
-
-	if (conflict) {
-		pr_err("Received legacy SPC-2 RESERVE/RELEASE"
-			" while active SPC-3 registrations exist,"
-			" returning RESERVATION_CONFLICT\n");
-		return PYX_TRANSPORT_RESERVATION_CONFLICT;
-	}
-
-after_crh:
-	if ((cdb[0] == RESERVE) || (cdb[0] == RESERVE_10))
-		return core_scsi2_reservation_reserve(cmd);
-	else if ((cdb[0] == RELEASE) || (cdb[0] == RELEASE_10))
-		return core_scsi2_reservation_release(cmd);
-	else
-		return PYX_TRANSPORT_INVALID_CDB_FIELD;
-}
 
 /*
  * Begin SPC-3/SPC-4 Persistent Reservations emulation support
@@ -418,12 +413,12 @@ static int core_scsi3_pr_seq_non_holder(
 		break;
 	case RELEASE:
 	case RELEASE_10:
-		/* Handled by CRH=1 in core_scsi2_emulate_crh() */
+		/* Handled by CRH=1 in target_scsi2_reservation_release() */
 		ret = 0;
 		break;
 	case RESERVE:
 	case RESERVE_10:
-		/* Handled by CRH=1 in core_scsi2_emulate_crh() */
+		/* Handled by CRH=1 in target_scsi2_reservation_reserve() */
 		ret = 0;
 		break;
 	case TEST_UNIT_READY:

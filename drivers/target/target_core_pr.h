@@ -47,7 +47,8 @@ extern struct kmem_cache *t10_pr_reg_cache;
 
 extern int core_pr_dump_initiator_port(struct t10_pr_registration *,
 			char *, u32);
-extern int core_scsi2_emulate_crh(struct se_cmd *);
+extern int target_scsi2_reservation_release(struct se_cmd *cmd);
+extern int target_scsi2_reservation_reserve(struct se_cmd *cmd);
 extern int core_scsi3_alloc_aptpl_registration(
 			struct t10_reservation *, u64,
 			unsigned char *, unsigned char *, u32,

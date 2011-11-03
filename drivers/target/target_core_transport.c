@@ -2963,10 +2963,10 @@ static int transport_generic_cmd_sequencer(
 		 * is running in SPC_PASSTHROUGH, and wants reservations
 		 * emulation disabled.
 		 */
-		cmd->transport_emulate_cdb =
-				(su_dev->t10_pr.res_type !=
-				 SPC_PASSTHROUGH) ?
-				core_scsi2_emulate_crh : NULL;
+		if (su_dev->t10_pr.res_type != SPC_PASSTHROUGH) {
+			cmd->transport_emulate_cdb =
+				target_scsi2_reservation_reserve;
+		}
 		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 		break;
 	case RELEASE:
@@ -2980,10 +2980,10 @@ static int transport_generic_cmd_sequencer(
 		else
 			size = cmd->data_length;
 
-		cmd->transport_emulate_cdb =
-				(su_dev->t10_pr.res_type !=
-				 SPC_PASSTHROUGH) ?
-				core_scsi2_emulate_crh : NULL;
+		if (su_dev->t10_pr.res_type != SPC_PASSTHROUGH) {
+			cmd->transport_emulate_cdb =
+				target_scsi2_reservation_release;
+		}
 		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 		break;
 	case SYNCHRONIZE_CACHE:
