@@ -797,7 +797,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		handled |= CSR_INT_BIT_FH_TX;
 		/* Wake up uCode load routine, now that load is complete */
 		priv->ucode_write_complete = 1;
-		wake_up_interruptible(&priv->wait_command_queue);
+		wake_up(&priv->wait_command_queue);
 	}
 
 	if (inta & ~handled) {
