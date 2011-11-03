@@ -29,12 +29,9 @@ static int rpm_suspend(struct device *dev, int rpmflags);
 void update_pm_runtime_accounting(struct device *dev)
 {
 	unsigned long now = jiffies;
-	int delta;
+	unsigned long delta;
 
 	delta = now - dev->power.accounting_timestamp;
-
-	if (delta < 0)
-		delta = 0;
 
 	dev->power.accounting_timestamp = now;
 
