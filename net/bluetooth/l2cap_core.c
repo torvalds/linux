@@ -294,6 +294,8 @@ struct l2cap_chan *l2cap_chan_create(struct sock *sk)
 
 	atomic_set(&chan->refcnt, 1);
 
+	BT_DBG("sk %p chan %p", sk, chan);
+
 	return chan;
 }
 
