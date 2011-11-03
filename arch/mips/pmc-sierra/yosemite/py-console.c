@@ -65,15 +65,11 @@ static unsigned char readb_outer_space(unsigned long long phys)
 
 	__asm__ __volatile__ (
 	"	.set	mips3		\n"
-	"	.set	push		\n"
-	"	.set	noreorder	\n"
-	"	.set	nomacro		\n"
 	"	ld	%0, %1		\n"
-	"	.set	pop		\n"
 	"	lbu	%0, (%0)	\n"
 	"	.set	mips0		\n"
 	: "=r" (res)
-	: "R" (vaddr));
+	: "m" (vaddr));
 
 	write_c0_status(sr);
 	ssnop_4();
@@ -93,15 +89,11 @@ static void writeb_outer_space(unsigned long long phys, unsigned char c)
 
 	__asm__ __volatile__ (
 	"	.set	mips3		\n"
-	"	.set	push		\n"
-	"	.set	noreorder	\n"
-	"	.set	nomacro		\n"
 	"	ld	%0, %1		\n"
-	"	.set	pop		\n"
 	"	sb	%2, (%0)	\n"
 	"	.set	mips0		\n"
 	: "=&r" (tmp)
-	: "R" (vaddr), "r" (c));
+	: "m" (vaddr), "r" (c));
 
 	write_c0_status(sr);
 	ssnop_4();

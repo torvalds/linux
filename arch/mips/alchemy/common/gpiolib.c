@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2007-2009, OpenWrt.org, Florian Fainelli <florian@openwrt.org>
- *  	GPIOLIB support for Au1000, Au1500, Au1100, Au1550 and Au12x0.
+ *	GPIOLIB support for Alchemy chips.
  *
  *  This program is free software; you can redistribute	 it and/or modify it
  *  under  the terms of	 the GNU General  Public License as published by the
@@ -23,18 +23,18 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *  Notes :
- * 	au1000 SoC have only one GPIO block : GPIO1
- * 	Au1100, Au15x0, Au12x0 have a second one : GPIO2
+ *	This file must ONLY be built when CONFIG_GPIOLIB=y and
+ *	 CONFIG_ALCHEMY_GPIO_INDIRECT=n, otherwise compilation will fail!
+ *	au1000 SoC have only one GPIO block : GPIO1
+ *	Au1100, Au15x0, Au12x0 have a second one : GPIO2
  */
 
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/platform_device.h>
 #include <linux/gpio.h>
-
-#include <asm/mach-au1x00/au1000.h>
-#include <asm/mach-au1x00/gpio.h>
+#include <asm/mach-au1x00/gpio-au1000.h>
 
 static int gpio2_get(struct gpio_chip *chip, unsigned offset)
 {
@@ -115,12 +115,19 @@ struct gpio_chip alchemy_gpio_chip[] = {
 	},
 };
 
-static int __init alchemy_gpiolib_init(void)
+static int __init alchemy_gpiochip_init(void)
 {
-	gpiochip_add(&alchemy_gpio_chip[0]);
-	if (alchemy_get_cputype() != ALCHEMY_CPU_AU1000)
-		gpiochip_add(&alchemy_gpio_chip[1]);
+	int ret = 0;
 
-	return 0;
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1000:
+		ret = gpiochip_add(&alchemy_gpio_chip[0]);
+		break;
+	case ALCHEMY_CPU_AU1500...ALCHEMY_CPU_AU1200:
+		ret = gpiochip_add(&alchemy_gpio_chip[0]);
+		ret |= gpiochip_add(&alchemy_gpio_chip[1]);
+		break;
+	}
+	return ret;
 }
-arch_initcall(alchemy_gpiolib_init);
+arch_initcall(alchemy_gpiochip_init);
