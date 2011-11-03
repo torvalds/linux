@@ -90,7 +90,10 @@ static struct page *__ttm_tt_get_page(struct ttm_tt *ttm, int index)
 	}
 	return p;
 out_err:
-	put_page(p);
+	INIT_LIST_HEAD(&h);
+	list_add(&p->lru, &h);
+	ttm_put_pages(&h, 1, ttm->page_flags,
+		      ttm->caching_state, &ttm->dma_address[index]);
 	return NULL;
 }
 
