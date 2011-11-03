@@ -1,4 +1,5 @@
-/*
+/* TILE-Gx opcode information.
+ *
  * Copyright 2011 Tilera Corporation. All Rights Reserved.
  *
  *   This program is free software; you can redistribute it and/or
@@ -10,13 +11,805 @@
  *   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
  *   NON INFRINGEMENT.  See the GNU General Public License for
  *   more details.
+ *
+ *
+ *
+ *
+ *
  */
 
-/* This file is machine-generated; DO NOT EDIT! */
+#ifndef __ARCH_OPCODE_H__
+#define __ARCH_OPCODE_H__
+
+#ifndef __ASSEMBLER__
+
+typedef unsigned long long tilegx_bundle_bits;
+
+/* These are the bits that determine if a bundle is in the X encoding. */
+#define TILEGX_BUNDLE_MODE_MASK ((tilegx_bundle_bits)3 << 62)
+
+enum
+{
+  /* Maximum number of instructions in a bundle (2 for X, 3 for Y). */
+  TILEGX_MAX_INSTRUCTIONS_PER_BUNDLE = 3,
+
+  /* How many different pipeline encodings are there? X0, X1, Y0, Y1, Y2. */
+  TILEGX_NUM_PIPELINE_ENCODINGS = 5,
+
+  /* Log base 2 of TILEGX_BUNDLE_SIZE_IN_BYTES. */
+  TILEGX_LOG2_BUNDLE_SIZE_IN_BYTES = 3,
+
+  /* Instructions take this many bytes. */
+  TILEGX_BUNDLE_SIZE_IN_BYTES = 1 << TILEGX_LOG2_BUNDLE_SIZE_IN_BYTES,
+
+  /* Log base 2 of TILEGX_BUNDLE_ALIGNMENT_IN_BYTES. */
+  TILEGX_LOG2_BUNDLE_ALIGNMENT_IN_BYTES = 3,
+
+  /* Bundles should be aligned modulo this number of bytes. */
+  TILEGX_BUNDLE_ALIGNMENT_IN_BYTES =
+    (1 << TILEGX_LOG2_BUNDLE_ALIGNMENT_IN_BYTES),
+
+  /* Number of registers (some are magic, such as network I/O). */
+  TILEGX_NUM_REGISTERS = 64,
+};
+
+/* Make a few "tile_" variables to simplify common code between
+   architectures.  */
+
+typedef tilegx_bundle_bits tile_bundle_bits;
+#define TILE_BUNDLE_SIZE_IN_BYTES TILEGX_BUNDLE_SIZE_IN_BYTES
+#define TILE_BUNDLE_ALIGNMENT_IN_BYTES TILEGX_BUNDLE_ALIGNMENT_IN_BYTES
+#define TILE_LOG2_BUNDLE_ALIGNMENT_IN_BYTES \
+  TILEGX_LOG2_BUNDLE_ALIGNMENT_IN_BYTES
+
+/* 64-bit pattern for a { bpt ; nop } bundle. */
+#define TILEGX_BPT_BUNDLE 0x286a44ae51485000ULL
+
+static __inline unsigned int
+get_BFEnd_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 12)) & 0x3f);
+}
+
+static __inline unsigned int
+get_BFOpcodeExtension_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 24)) & 0xf);
+}
+
+static __inline unsigned int
+get_BFStart_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 18)) & 0x3f);
+}
+
+static __inline unsigned int
+get_BrOff_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 31)) & 0x0000003f) |
+         (((unsigned int)(n >> 37)) & 0x0001ffc0);
+}
+
+static __inline unsigned int
+get_BrType_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 54)) & 0x1f);
+}
+
+static __inline unsigned int
+get_Dest_Imm8_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 31)) & 0x0000003f) |
+         (((unsigned int)(n >> 43)) & 0x000000c0);
+}
+
+static __inline unsigned int
+get_Dest_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 0)) & 0x3f);
+}
+
+static __inline unsigned int
+get_Dest_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 31)) & 0x3f);
+}
+
+static __inline unsigned int
+get_Dest_Y0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 0)) & 0x3f);
+}
+
+static __inline unsigned int
+get_Dest_Y1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 31)) & 0x3f);
+}
+
+static __inline unsigned int
+get_Imm16_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 12)) & 0xffff);
+}
+
+static __inline unsigned int
+get_Imm16_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 43)) & 0xffff);
+}
+
+static __inline unsigned int
+get_Imm8OpcodeExtension_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 20)) & 0xff);
+}
+
+static __inline unsigned int
+get_Imm8OpcodeExtension_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 51)) & 0xff);
+}
+
+static __inline unsigned int
+get_Imm8_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 12)) & 0xff);
+}
+
+static __inline unsigned int
+get_Imm8_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 43)) & 0xff);
+}
+
+static __inline unsigned int
+get_Imm8_Y0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 12)) & 0xff);
+}
+
+static __inline unsigned int
+get_Imm8_Y1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 43)) & 0xff);
+}
+
+static __inline unsigned int
+get_JumpOff_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 31)) & 0x7ffffff);
+}
+
+static __inline unsigned int
+get_JumpOpcodeExtension_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 58)) & 0x1);
+}
+
+static __inline unsigned int
+get_MF_Imm14_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 37)) & 0x3fff);
+}
+
+static __inline unsigned int
+get_MT_Imm14_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 31)) & 0x0000003f) |
+         (((unsigned int)(n >> 37)) & 0x00003fc0);
+}
+
+static __inline unsigned int
+get_Mode(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 62)) & 0x3);
+}
+
+static __inline unsigned int
+get_Opcode_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 28)) & 0x7);
+}
+
+static __inline unsigned int
+get_Opcode_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 59)) & 0x7);
+}
+
+static __inline unsigned int
+get_Opcode_Y0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 27)) & 0xf);
+}
+
+static __inline unsigned int
+get_Opcode_Y1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 58)) & 0xf);
+}
+
+static __inline unsigned int
+get_Opcode_Y2(tilegx_bundle_bits n)
+{
+  return (((n >> 26)) & 0x00000001) |
+         (((unsigned int)(n >> 56)) & 0x00000002);
+}
+
+static __inline unsigned int
+get_RRROpcodeExtension_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 18)) & 0x3ff);
+}
+
+static __inline unsigned int
+get_RRROpcodeExtension_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 49)) & 0x3ff);
+}
+
+static __inline unsigned int
+get_RRROpcodeExtension_Y0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 18)) & 0x3);
+}
+
+static __inline unsigned int
+get_RRROpcodeExtension_Y1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 49)) & 0x3);
+}
+
+static __inline unsigned int
+get_ShAmt_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 12)) & 0x3f);
+}
+
+static __inline unsigned int
+get_ShAmt_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 43)) & 0x3f);
+}
+
+static __inline unsigned int
+get_ShAmt_Y0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 12)) & 0x3f);
+}
+
+static __inline unsigned int
+get_ShAmt_Y1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 43)) & 0x3f);
+}
+
+static __inline unsigned int
+get_ShiftOpcodeExtension_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 18)) & 0x3ff);
+}
+
+static __inline unsigned int
+get_ShiftOpcodeExtension_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 49)) & 0x3ff);
+}
+
+static __inline unsigned int
+get_ShiftOpcodeExtension_Y0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 18)) & 0x3);
+}
+
+static __inline unsigned int
+get_ShiftOpcodeExtension_Y1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 49)) & 0x3);
+}
+
+static __inline unsigned int
+get_SrcA_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 6)) & 0x3f);
+}
+
+static __inline unsigned int
+get_SrcA_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 37)) & 0x3f);
+}
+
+static __inline unsigned int
+get_SrcA_Y0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 6)) & 0x3f);
+}
+
+static __inline unsigned int
+get_SrcA_Y1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 37)) & 0x3f);
+}
+
+static __inline unsigned int
+get_SrcA_Y2(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 20)) & 0x3f);
+}
+
+static __inline unsigned int
+get_SrcBDest_Y2(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 51)) & 0x3f);
+}
+
+static __inline unsigned int
+get_SrcB_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 12)) & 0x3f);
+}
+
+static __inline unsigned int
+get_SrcB_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 43)) & 0x3f);
+}
+
+static __inline unsigned int
+get_SrcB_Y0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 12)) & 0x3f);
+}
+
+static __inline unsigned int
+get_SrcB_Y1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 43)) & 0x3f);
+}
+
+static __inline unsigned int
+get_UnaryOpcodeExtension_X0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 12)) & 0x3f);
+}
+
+static __inline unsigned int
+get_UnaryOpcodeExtension_X1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 43)) & 0x3f);
+}
+
+static __inline unsigned int
+get_UnaryOpcodeExtension_Y0(tilegx_bundle_bits num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((n >> 12)) & 0x3f);
+}
+
+static __inline unsigned int
+get_UnaryOpcodeExtension_Y1(tilegx_bundle_bits n)
+{
+  return (((unsigned int)(n >> 43)) & 0x3f);
+}
 
 
-#ifndef _TILE_OPCODE_CONSTANTS_H
-#define _TILE_OPCODE_CONSTANTS_H
+static __inline int
+sign_extend(int n, int num_bits)
+{
+  int shift = (int)(sizeof(int) * 8 - num_bits);
+  return (n << shift) >> shift;
+}
+
+
+
+static __inline tilegx_bundle_bits
+create_BFEnd_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 12);
+}
+
+static __inline tilegx_bundle_bits
+create_BFOpcodeExtension_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0xf) << 24);
+}
+
+static __inline tilegx_bundle_bits
+create_BFStart_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 18);
+}
+
+static __inline tilegx_bundle_bits
+create_BrOff_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x0000003f)) << 31) |
+         (((tilegx_bundle_bits)(n & 0x0001ffc0)) << 37);
+}
+
+static __inline tilegx_bundle_bits
+create_BrType_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x1f)) << 54);
+}
+
+static __inline tilegx_bundle_bits
+create_Dest_Imm8_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x0000003f)) << 31) |
+         (((tilegx_bundle_bits)(n & 0x000000c0)) << 43);
+}
+
+static __inline tilegx_bundle_bits
+create_Dest_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 0);
+}
+
+static __inline tilegx_bundle_bits
+create_Dest_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3f)) << 31);
+}
+
+static __inline tilegx_bundle_bits
+create_Dest_Y0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 0);
+}
+
+static __inline tilegx_bundle_bits
+create_Dest_Y1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3f)) << 31);
+}
+
+static __inline tilegx_bundle_bits
+create_Imm16_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0xffff) << 12);
+}
+
+static __inline tilegx_bundle_bits
+create_Imm16_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0xffff)) << 43);
+}
+
+static __inline tilegx_bundle_bits
+create_Imm8OpcodeExtension_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0xff) << 20);
+}
+
+static __inline tilegx_bundle_bits
+create_Imm8OpcodeExtension_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0xff)) << 51);
+}
+
+static __inline tilegx_bundle_bits
+create_Imm8_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0xff) << 12);
+}
+
+static __inline tilegx_bundle_bits
+create_Imm8_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0xff)) << 43);
+}
+
+static __inline tilegx_bundle_bits
+create_Imm8_Y0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0xff) << 12);
+}
+
+static __inline tilegx_bundle_bits
+create_Imm8_Y1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0xff)) << 43);
+}
+
+static __inline tilegx_bundle_bits
+create_JumpOff_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x7ffffff)) << 31);
+}
+
+static __inline tilegx_bundle_bits
+create_JumpOpcodeExtension_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x1)) << 58);
+}
+
+static __inline tilegx_bundle_bits
+create_MF_Imm14_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3fff)) << 37);
+}
+
+static __inline tilegx_bundle_bits
+create_MT_Imm14_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x0000003f)) << 31) |
+         (((tilegx_bundle_bits)(n & 0x00003fc0)) << 37);
+}
+
+static __inline tilegx_bundle_bits
+create_Mode(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3)) << 62);
+}
+
+static __inline tilegx_bundle_bits
+create_Opcode_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x7) << 28);
+}
+
+static __inline tilegx_bundle_bits
+create_Opcode_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x7)) << 59);
+}
+
+static __inline tilegx_bundle_bits
+create_Opcode_Y0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0xf) << 27);
+}
+
+static __inline tilegx_bundle_bits
+create_Opcode_Y1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0xf)) << 58);
+}
+
+static __inline tilegx_bundle_bits
+create_Opcode_Y2(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x00000001) << 26) |
+         (((tilegx_bundle_bits)(n & 0x00000002)) << 56);
+}
+
+static __inline tilegx_bundle_bits
+create_RRROpcodeExtension_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3ff) << 18);
+}
+
+static __inline tilegx_bundle_bits
+create_RRROpcodeExtension_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3ff)) << 49);
+}
+
+static __inline tilegx_bundle_bits
+create_RRROpcodeExtension_Y0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3) << 18);
+}
+
+static __inline tilegx_bundle_bits
+create_RRROpcodeExtension_Y1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3)) << 49);
+}
+
+static __inline tilegx_bundle_bits
+create_ShAmt_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 12);
+}
+
+static __inline tilegx_bundle_bits
+create_ShAmt_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3f)) << 43);
+}
+
+static __inline tilegx_bundle_bits
+create_ShAmt_Y0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 12);
+}
+
+static __inline tilegx_bundle_bits
+create_ShAmt_Y1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3f)) << 43);
+}
+
+static __inline tilegx_bundle_bits
+create_ShiftOpcodeExtension_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3ff) << 18);
+}
+
+static __inline tilegx_bundle_bits
+create_ShiftOpcodeExtension_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3ff)) << 49);
+}
+
+static __inline tilegx_bundle_bits
+create_ShiftOpcodeExtension_Y0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3) << 18);
+}
+
+static __inline tilegx_bundle_bits
+create_ShiftOpcodeExtension_Y1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3)) << 49);
+}
+
+static __inline tilegx_bundle_bits
+create_SrcA_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 6);
+}
+
+static __inline tilegx_bundle_bits
+create_SrcA_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3f)) << 37);
+}
+
+static __inline tilegx_bundle_bits
+create_SrcA_Y0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 6);
+}
+
+static __inline tilegx_bundle_bits
+create_SrcA_Y1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3f)) << 37);
+}
+
+static __inline tilegx_bundle_bits
+create_SrcA_Y2(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 20);
+}
+
+static __inline tilegx_bundle_bits
+create_SrcBDest_Y2(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3f)) << 51);
+}
+
+static __inline tilegx_bundle_bits
+create_SrcB_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 12);
+}
+
+static __inline tilegx_bundle_bits
+create_SrcB_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3f)) << 43);
+}
+
+static __inline tilegx_bundle_bits
+create_SrcB_Y0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 12);
+}
+
+static __inline tilegx_bundle_bits
+create_SrcB_Y1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3f)) << 43);
+}
+
+static __inline tilegx_bundle_bits
+create_UnaryOpcodeExtension_X0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 12);
+}
+
+static __inline tilegx_bundle_bits
+create_UnaryOpcodeExtension_X1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3f)) << 43);
+}
+
+static __inline tilegx_bundle_bits
+create_UnaryOpcodeExtension_Y0(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return ((n & 0x3f) << 12);
+}
+
+static __inline tilegx_bundle_bits
+create_UnaryOpcodeExtension_Y1(int num)
+{
+  const unsigned int n = (unsigned int)num;
+  return (((tilegx_bundle_bits)(n & 0x3f)) << 43);
+}
+
+
 enum
 {
   ADDI_IMM8_OPCODE_X0 = 1,
@@ -606,4 +1399,7 @@ enum
   XOR_RRR_5_OPCODE_Y1 = 3
 };
 
-#endif /* !_TILE_OPCODE_CONSTANTS_H */
+
+#endif /* __ASSEMBLER__ */
+
+#endif /* __ARCH_OPCODE_H__ */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Tilera Corporation. All Rights Reserved.
+ * Copyright 2011 Tilera Corporation. All Rights Reserved.
  *
  *   This program is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU General Public License
@@ -12,15 +12,8 @@
  *   more details.
  */
 
-#ifndef _ASM_TILE_OPCODE_CONSTANTS_H
-#define _ASM_TILE_OPCODE_CONSTANTS_H
-
-#include <arch/chip.h>
-
-#if CHIP_WORD_SIZE() == 64
-#include <asm/opcode_constants_64.h>
+#ifndef __tilegx__
+#include <asm/tile-desc_32.h>
 #else
-#include <asm/opcode_constants_32.h>
+#include <asm/tile-desc_64.h>
 #endif
-
-#endif /* _ASM_TILE_OPCODE_CONSTANTS_H */
