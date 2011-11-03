@@ -71,6 +71,7 @@ enum crypto_type {
 	WEP_CRYPT           = 0x02,
 	TKIP_CRYPT          = 0x04,
 	AES_CRYPT           = 0x08,
+	WAPI_CRYPT          = 0x10,
 };
 
 struct htc_endpoint_credit_dist;

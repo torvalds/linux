@@ -203,6 +203,10 @@ static int ath6kl_set_cipher(struct ath6kl_vif *vif, u32 cipher, bool ucast)
 		*ar_cipher = AES_CRYPT;
 		*ar_cipher_len = 0;
 		break;
+	case WLAN_CIPHER_SUITE_SMS4:
+		*ar_cipher = WAPI_CRYPT;
+		*ar_cipher_len = 0;
+		break;
 	default:
 		ath6kl_err("cipher 0x%x not supported\n", cipher);
 		return -ENOTSUPP;
@@ -935,13 +939,19 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		key_usage = GROUP_USAGE;
 
 	if (params) {
+		int seq_len = params->seq_len;
+		if (params->cipher == WLAN_CIPHER_SUITE_SMS4 &&
+		    seq_len > ATH6KL_KEY_SEQ_LEN) {
+			/* Only first half of the WPI PN is configured */
+			seq_len = ATH6KL_KEY_SEQ_LEN;
+		}
 		if (params->key_len > WLAN_MAX_KEY_LEN ||
-		    params->seq_len > sizeof(key->seq))
+		    seq_len > sizeof(key->seq))
 			return -EINVAL;
 
 		key->key_len = params->key_len;
 		memcpy(key->key, params->key, key->key_len);
-		key->seq_len = params->seq_len;
+		key->seq_len = seq_len;
 		memcpy(key->seq, params->seq, key->seq_len);
 		key->cipher = params->cipher;
 	}
@@ -958,6 +968,9 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 
 	case WLAN_CIPHER_SUITE_CCMP:
 		key_type = AES_CRYPT;
+		break;
+	case WLAN_CIPHER_SUITE_SMS4:
+		key_type = WAPI_CRYPT;
 		break;
 
 	default:
@@ -1451,6 +1464,7 @@ static const u32 cipher_suites[] = {
 	WLAN_CIPHER_SUITE_TKIP,
 	WLAN_CIPHER_SUITE_CCMP,
 	CCKM_KRK_CIPHER_SUITE,
+	WLAN_CIPHER_SUITE_SMS4,
 };
 
 static bool is_rate_legacy(s32 rate)
