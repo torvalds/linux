@@ -1710,17 +1710,22 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 		mode->hdisplay = du->pref_width;
 		mode->vdisplay = du->pref_height;
 		vmw_guess_mode_timing(mode);
+
 		if (vmw_kms_validate_mode_vram(dev_priv, mode->hdisplay * 2,
 					       mode->vdisplay)) {
 			drm_mode_probed_add(connector, mode);
-
-			if (du->pref_mode) {
-				list_del_init(&du->pref_mode->head);
-				drm_mode_destroy(dev, du->pref_mode);
-			}
-
-			du->pref_mode = mode;
+		} else {
+			drm_mode_destroy(dev, mode);
+			mode = NULL;
 		}
+
+		if (du->pref_mode) {
+			list_del_init(&du->pref_mode->head);
+			drm_mode_destroy(dev, du->pref_mode);
+		}
+
+		/* mode might be null here, this is intended */
+		du->pref_mode = mode;
 	}
 
 	for (i = 0; vmw_kms_connector_builtin[i].type != 0; i++) {
