@@ -652,6 +652,7 @@ config ARCH_PICOXCELL
 	select GENERIC_GPIO
 	select HAVE_SCHED_CLOCK
 	select HAVE_TCM
+	select MULTI_IRQ_HANDLER
 	select NO_IOPORT
 	select USE_OF
 	help

@@ -9,11 +9,8 @@
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
-#include <mach/hardware.h>
-#include <mach/irqs.h>
-#include <mach/map.h>
+	.macro  disable_fiq
+	.endm
 
-#define VA_VIC0		IO_ADDRESS(PICOXCELL_VIC0_BASE)
-#define VA_VIC1		IO_ADDRESS(PICOXCELL_VIC1_BASE)
-
-#include <asm/entry-macro-vic2.S>
+	.macro  arch_ret_to_user, tmp1, tmp2
+	.endm
