@@ -38,6 +38,8 @@ struct mxl111sf_tuner_state {
 
 	struct mxl111sf_tuner_config *cfg;
 
+	enum mxl_if_freq if_freq;
+
 	u32 frequency;
 	u32 bandwidth;
 };
@@ -186,7 +188,10 @@ static int mxl1x1sf_tuner_set_if_output_freq(struct mxl111sf_tuner_state *state)
 	ctrl = iffcw & 0x00ff;
 #endif
 	ret = mxl111sf_tuner_write_reg(state, V6_TUNER_IF_FCW_REG, ctrl);
-	mxl_fail(ret);
+	if (mxl_fail(ret))
+		goto fail;
+
+	state->if_freq = state->cfg->if_freq;
 fail:
 	return ret;
 }
@@ -407,6 +412,54 @@ static int mxl111sf_tuner_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
+static int mxl111sf_tuner_get_if_frequency(struct dvb_frontend *fe,
+					   u32 *frequency)
+{
+	struct mxl111sf_tuner_state *state = fe->tuner_priv;
+
+	*frequency = 0;
+
+	switch (state->if_freq) {
+	case MXL_IF_4_0:   /* 4.0   MHz */
+		*frequency = 4000000;
+		break;
+	case MXL_IF_4_5:   /* 4.5   MHz */
+		*frequency = 4500000;
+		break;
+	case MXL_IF_4_57:  /* 4.57  MHz */
+		*frequency = 4570000;
+		break;
+	case MXL_IF_5_0:   /* 5.0   MHz */
+		*frequency = 5000000;
+		break;
+	case MXL_IF_5_38:  /* 5.38  MHz */
+		*frequency = 5380000;
+		break;
+	case MXL_IF_6_0:   /* 6.0   MHz */
+		*frequency = 6000000;
+		break;
+	case MXL_IF_6_28:  /* 6.28  MHz */
+		*frequency = 6280000;
+		break;
+	case MXL_IF_7_2:   /* 7.2   MHz */
+		*frequency = 7200000;
+		break;
+	case MXL_IF_35_25: /* 35.25 MHz */
+		*frequency = 35250000;
+		break;
+	case MXL_IF_36:    /* 36    MHz */
+		*frequency = 36000000;
+		break;
+	case MXL_IF_36_15: /* 36.15 MHz */
+		*frequency = 36150000;
+		break;
+	case MXL_IF_44:    /* 44    MHz */
+		*frequency = 44000000;
+		break;
+	}
+	return 0;
+}
+
 static int mxl111sf_tuner_release(struct dvb_frontend *fe)
 {
 	struct mxl111sf_tuner_state *state = fe->tuner_priv;
@@ -436,6 +489,7 @@ static struct dvb_tuner_ops mxl111sf_tuner_tuner_ops = {
 	.get_rf_strength   = mxl111sf_get_rf_strength,
 	.get_frequency     = mxl111sf_tuner_get_frequency,
 	.get_bandwidth     = mxl111sf_tuner_get_bandwidth,
+	.get_if_frequency  = mxl111sf_tuner_get_if_frequency,
 	.release           = mxl111sf_tuner_release,
 };
 
