@@ -922,6 +922,39 @@ void dispc_ovl_set_channel_out(enum omap_plane plane, enum omap_channel channel)
 	dispc_write_reg(DISPC_OVL_ATTRIBUTES(plane), val);
 }
 
+static enum omap_channel dispc_ovl_get_channel_out(enum omap_plane plane)
+{
+	int shift;
+	u32 val;
+	enum omap_channel channel;
+
+	switch (plane) {
+	case OMAP_DSS_GFX:
+		shift = 8;
+		break;
+	case OMAP_DSS_VIDEO1:
+	case OMAP_DSS_VIDEO2:
+	case OMAP_DSS_VIDEO3:
+		shift = 16;
+		break;
+	default:
+		BUG();
+	}
+
+	val = dispc_read_reg(DISPC_OVL_ATTRIBUTES(plane));
+
+	if (dss_has_feature(FEAT_MGR_LCD2)) {
+		if (FLD_GET(val, 31, 30) == 0)
+			channel = FLD_GET(val, shift, shift);
+		else
+			channel = OMAP_DSS_CHANNEL_LCD2;
+	} else {
+		channel = FLD_GET(val, shift, shift);
+	}
+
+	return channel;
+}
+
 static void dispc_ovl_set_burst_size(enum omap_plane plane,
 		enum omap_burst_size burst_size)
 {
@@ -1769,7 +1802,7 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 }
 
 int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
-		bool ilace, enum omap_channel channel, bool replication)
+		bool ilace, bool replication)
 {
 	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
 	bool five_taps = false;
@@ -1781,6 +1814,9 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	u16 frame_height = oi->height;
 	unsigned int field_offset = 0;
 	u16 outw, outh;
+	enum omap_channel channel;
+
+	channel = dispc_ovl_get_channel_out(plane);
 
 	DSSDBG("dispc_ovl_setup %d, pa %x, pa_uv %x, sw %d, %d,%d, %dx%d -> "
 		"%dx%d, cmode %x, rot %d, mir %d, ilace %d chan %d repl %d\n",
@@ -1891,8 +1927,6 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	dispc_ovl_set_zorder(plane, oi->zorder);
 	dispc_ovl_set_pre_mult_alpha(plane, oi->pre_mult_alpha);
 	dispc_ovl_setup_global_alpha(plane, oi->global_alpha);
-
-	dispc_ovl_set_channel_out(plane, channel);
 
 	dispc_ovl_enable_replication(plane, replication);
 

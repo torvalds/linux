@@ -777,7 +777,9 @@ static int configure_overlay(enum omap_plane plane)
 
 	ilace = ovl->manager->device->type == OMAP_DISPLAY_TYPE_VENC;
 
-	r = dispc_ovl_setup(plane, oi, ilace, c->channel, replication);
+	dispc_ovl_set_channel_out(plane, c->channel);
+
+	r = dispc_ovl_setup(plane, oi, ilace, replication);
 	if (r) {
 		/* this shouldn't happen */
 		DSSERR("dispc_ovl_setup failed for ovl %d\n", plane);
