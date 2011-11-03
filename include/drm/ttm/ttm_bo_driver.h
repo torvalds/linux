@@ -319,6 +319,26 @@ struct ttm_bo_driver {
 					struct page *dummy_read_page);
 
 	/**
+	 * ttm_tt_populate
+	 *
+	 * @ttm: The struct ttm_tt to contain the backing pages.
+	 *
+	 * Allocate all backing pages
+	 * Returns:
+	 * -ENOMEM: Out of memory.
+	 */
+	int (*ttm_tt_populate)(struct ttm_tt *ttm);
+
+	/**
+	 * ttm_tt_unpopulate
+	 *
+	 * @ttm: The struct ttm_tt to contain the backing pages.
+	 *
+	 * Free all backing page
+	 */
+	void (*ttm_tt_unpopulate)(struct ttm_tt *ttm);
+
+	/**
 	 * struct ttm_bo_driver member invalidate_caches
 	 *
 	 * @bdev: the buffer object device.
@@ -585,15 +605,6 @@ extern int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
 extern int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
 
 /**
- * ttm_tt_populate:
- *
- * @ttm: The struct ttm_tt to contain the backing pages.
- *
- * Add backing pages to all of @ttm
- */
-extern int ttm_tt_populate(struct ttm_tt *ttm);
-
-/**
  * ttm_ttm_destroy:
  *
  * @ttm: The struct ttm_tt.
@@ -612,19 +623,13 @@ extern void ttm_tt_destroy(struct ttm_tt *ttm);
 extern void ttm_tt_unbind(struct ttm_tt *ttm);
 
 /**
- * ttm_ttm_destroy:
+ * ttm_tt_swapin:
  *
  * @ttm: The struct ttm_tt.
- * @index: Index of the desired page.
  *
- * Return a pointer to the struct page backing @ttm at page
- * index @index. If the page is unpopulated, one will be allocated to
- * populate that index.
- *
- * Returns:
- * NULL on OOM.
+ * Swap in a previously swap out ttm_tt.
  */
-extern struct page *ttm_tt_get_page(struct ttm_tt *ttm, int index);
+extern int ttm_tt_swapin(struct ttm_tt *ttm);
 
 /**
  * ttm_tt_cache_flush:

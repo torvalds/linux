@@ -28,6 +28,7 @@
 #include "vmwgfx_drv.h"
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_placement.h"
+#include "ttm/ttm_page_alloc.h"
 
 static uint32_t vram_placement_flags = TTM_PL_FLAG_VRAM |
 	TTM_PL_FLAG_CACHED;
@@ -334,6 +335,8 @@ static int vmw_sync_obj_wait(void *sync_obj, void *sync_arg,
 
 struct ttm_bo_driver vmw_bo_driver = {
 	.ttm_tt_create = &vmw_ttm_tt_create,
+	.ttm_tt_populate = &ttm_pool_populate,
+	.ttm_tt_unpopulate = &ttm_pool_unpopulate,
 	.invalidate_caches = vmw_invalidate_caches,
 	.init_mem_type = vmw_init_mem_type,
 	.evict_flags = vmw_evict_flags,

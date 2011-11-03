@@ -855,6 +855,63 @@ void ttm_page_alloc_fini(void)
 	_manager = NULL;
 }
 
+int ttm_pool_populate(struct ttm_tt *ttm)
+{
+	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
+	unsigned i;
+	int ret;
+
+	if (ttm->state != tt_unpopulated)
+		return 0;
+
+	for (i = 0; i < ttm->num_pages; ++i) {
+		ret = ttm_get_pages(&ttm->pages[i], ttm->page_flags,
+				    ttm->caching_state, 1,
+				    &ttm->dma_address[i]);
+		if (ret != 0) {
+			ttm_pool_unpopulate(ttm);
+			return -ENOMEM;
+		}
+
+		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
+						false, false);
+		if (unlikely(ret != 0)) {
+			ttm_pool_unpopulate(ttm);
+			return -ENOMEM;
+		}
+	}
+
+	if (unlikely(ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)) {
+		ret = ttm_tt_swapin(ttm);
+		if (unlikely(ret != 0)) {
+			ttm_pool_unpopulate(ttm);
+			return ret;
+		}
+	}
+
+	ttm->state = tt_unbound;
+	return 0;
+}
+EXPORT_SYMBOL(ttm_pool_populate);
+
+void ttm_pool_unpopulate(struct ttm_tt *ttm)
+{
+	unsigned i;
+
+	for (i = 0; i < ttm->num_pages; ++i) {
+		if (ttm->pages[i]) {
+			ttm_mem_global_free_page(ttm->glob->mem_glob,
+						 ttm->pages[i]);
+			ttm_put_pages(&ttm->pages[i], 1,
+				      ttm->page_flags,
+				      ttm->caching_state,
+				      ttm->dma_address);
+		}
+	}
+	ttm->state = tt_unpopulated;
+}
+EXPORT_SYMBOL(ttm_pool_unpopulate);
+
 int ttm_page_alloc_debugfs(struct seq_file *m, void *data)
 {
 	struct ttm_page_pool *p;

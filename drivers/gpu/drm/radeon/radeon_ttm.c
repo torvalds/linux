@@ -581,6 +581,8 @@ struct ttm_tt *radeon_ttm_tt_create(struct ttm_bo_device *bdev,
 
 static struct ttm_bo_driver radeon_bo_driver = {
 	.ttm_tt_create = &radeon_ttm_tt_create,
+	.ttm_tt_populate = &ttm_pool_populate,
+	.ttm_tt_unpopulate = &ttm_pool_unpopulate,
 	.invalidate_caches = &radeon_invalidate_caches,
 	.init_mem_type = &radeon_init_mem_type,
 	.evict_flags = &radeon_evict_flags,

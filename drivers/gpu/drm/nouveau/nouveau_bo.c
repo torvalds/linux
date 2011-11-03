@@ -28,6 +28,7 @@
  */
 
 #include "drmP.h"
+#include "ttm/ttm_page_alloc.h"
 
 #include "nouveau_drm.h"
 #include "nouveau_drv.h"
@@ -1050,6 +1051,8 @@ nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
 
 struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_create = &nouveau_ttm_tt_create,
+	.ttm_tt_populate = &ttm_pool_populate,
+	.ttm_tt_unpopulate = &ttm_pool_unpopulate,
 	.invalidate_caches = nouveau_bo_invalidate_caches,
 	.init_mem_type = nouveau_bo_init_mem_type,
 	.evict_flags = nouveau_bo_evict_flags,
