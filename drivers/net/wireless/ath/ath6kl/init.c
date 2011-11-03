@@ -1613,12 +1613,6 @@ int ath6kl_core_init(struct ath6kl *ar)
 	 */
 	memcpy(ndev->dev_addr, ar->mac_addr, ETH_ALEN);
 
-	ret = ath6kl_init_hw_stop(ar);
-	if (ret) {
-		ath6kl_err("Failed to stop hardware: %d\n", ret);
-		goto err_htc_cleanup;
-	}
-
 	return ret;
 
 err_rxbuf_cleanup:

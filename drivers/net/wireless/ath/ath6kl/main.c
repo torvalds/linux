@@ -1062,12 +1062,6 @@ struct ath6kl_vif *ath6kl_vif_first(struct ath6kl *ar)
 static int ath6kl_open(struct net_device *dev)
 {
 	struct ath6kl_vif *vif = netdev_priv(dev);
-	int ret;
-
-	/* FIXME: how to handle multi vif support? */
-	ret = ath6kl_init_hw_start(vif->ar);
-	if (ret)
-		return ret;
 
 	set_bit(WLAN_ENABLED, &vif->flags);
 
@@ -1084,7 +1078,6 @@ static int ath6kl_close(struct net_device *dev)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
-	int ret;
 
 	netif_stop_queue(dev);
 
@@ -1098,11 +1091,6 @@ static int ath6kl_close(struct net_device *dev)
 	}
 
 	ath6kl_cfg80211_scan_complete_event(vif, true);
-
-	/* FIXME: how to handle multi vif support? */
-	ret = ath6kl_init_hw_stop(ar);
-	if (ret)
-		return ret;
 
 	clear_bit(WLAN_ENABLED, &vif->flags);
 
