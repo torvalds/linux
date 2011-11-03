@@ -351,8 +351,8 @@ done:
 	return ret;
 }
 
-int uvc_commit_video(struct uvc_streaming *stream,
-	struct uvc_streaming_control *probe)
+static int uvc_commit_video(struct uvc_streaming *stream,
+			    struct uvc_streaming_control *probe)
 {
 	return uvc_set_video_ctrl(stream, probe, 0);
 }
