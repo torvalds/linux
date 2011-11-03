@@ -1540,7 +1540,7 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 
 		req->if_flags_mask = req->if_flags =
 				cpu_to_le32(BE_IF_FLAGS_MULTICAST);
-		req->mcast_num = cpu_to_le16(netdev_mc_count(adapter->netdev));
+		req->mcast_num = cpu_to_le32(netdev_mc_count(adapter->netdev));
 		netdev_for_each_mc_addr(ha, adapter->netdev)
 			memcpy(req->mcast_mac[i++].byte, ha->addr, ETH_ALEN);
 	}
