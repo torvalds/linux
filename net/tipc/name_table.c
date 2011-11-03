@@ -268,6 +268,13 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 		}
 
 		info = sseq->info;
+
+		/* Check if an identical publication already exists */
+		list_for_each_entry(publ, &info->zone_list, zone_list) {
+			if ((publ->ref == port) && (publ->key == key) &&
+			    (!publ->node || (publ->node == node)))
+				return NULL;
+		}
 	} else {
 		u32 inspos;
 		struct sub_seq *freesseq;
