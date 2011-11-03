@@ -174,6 +174,12 @@ struct wm8994_pdata {
 	 * consumption will rise.
 	 */
 	bool ldo_ena_always_driven;
+
+	/*
+	 * SPKMODE must be pulled internally by the device on this
+	 * system.
+	 */
+	bool spkmode_pu;
 };
 
 #endif
