@@ -364,6 +364,18 @@ struct uvc_stats_frame {
 	unsigned int nb_empty;		/* Number of empty packets */
 	unsigned int nb_invalid;	/* Number of packets with an invalid header */
 	unsigned int nb_errors;		/* Number of packets with the error bit set */
+
+	unsigned int nb_pts;		/* Number of packets with a PTS timestamp */
+	unsigned int nb_pts_diffs;	/* Number of PTS differences inside a frame */
+	unsigned int last_pts_diff;	/* Index of the last PTS difference */
+	bool has_initial_pts;		/* Whether the first non-empty packet has a PTS */
+	bool has_early_pts;		/* Whether a PTS is present before the first non-empty packet */
+	u32 pts;			/* PTS of the last packet */
+
+	unsigned int nb_scr;		/* Number of packets with a SCR timestamp */
+	unsigned int nb_scr_diffs;	/* Number of SCR.STC differences inside a frame */
+	u16 scr_sof;			/* SCR.SOF of the last packet */
+	u32 scr_stc;			/* SCR.STC of the last packet */
 };
 
 struct uvc_stats_stream {
@@ -376,6 +388,17 @@ struct uvc_stats_stream {
 	unsigned int nb_empty;		/* Number of empty packets */
 	unsigned int nb_invalid;	/* Number of packets with an invalid header */
 	unsigned int nb_errors;		/* Number of packets with the error bit set */
+
+	unsigned int nb_pts_constant;	/* Number of frames with constant PTS */
+	unsigned int nb_pts_early;	/* Number of frames with early PTS */
+	unsigned int nb_pts_initial;	/* Number of frames with initial PTS */
+
+	unsigned int nb_scr_count_ok;	/* Number of frames with at least one SCR per non empty packet */
+	unsigned int nb_scr_diffs_ok;	/* Number of frames with varying SCR.STC */
+	unsigned int scr_sof_count;	/* STC.SOF counter accumulated since stream start */
+	unsigned int scr_sof;		/* STC.SOF of the last packet */
+	unsigned int min_sof;		/* Minimum STC.SOF value */
+	unsigned int max_sof;		/* Maximum STC.SOF value */
 };
 
 struct uvc_streaming {
