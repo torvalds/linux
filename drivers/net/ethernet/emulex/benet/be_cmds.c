@@ -1540,6 +1540,13 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 
 		req->if_flags_mask = req->if_flags =
 				cpu_to_le32(BE_IF_FLAGS_MULTICAST);
+
+		/* Reset mcast promisc mode if already set by setting mask
+		 * and not setting flags field
+		 */
+		req->if_flags_mask |=
+				cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
+
 		req->mcast_num = cpu_to_le32(netdev_mc_count(adapter->netdev));
 		netdev_for_each_mc_addr(ha, adapter->netdev)
 			memcpy(req->mcast_mac[i++].byte, ha->addr, ETH_ALEN);
