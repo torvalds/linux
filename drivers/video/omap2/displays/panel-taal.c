@@ -198,12 +198,6 @@ struct taal_data {
 	bool te_enabled;
 
 	atomic_t do_update;
-	struct {
-		u16 x;
-		u16 y;
-		u16 w;
-		u16 h;
-	} update_region;
 	int channel;
 
 	struct delayed_work te_timeout_work;
@@ -1440,16 +1434,14 @@ static int taal_update(struct omap_dss_device *dssdev,
 		goto err;
 	}
 
-	r = taal_set_update_window(td, x, y, w, h);
+	/* XXX no need to send this every frame, but dsi break if not done */
+	r = taal_set_update_window(td, 0, 0,
+			td->panel_config->timings.x_res,
+			td->panel_config->timings.y_res);
 	if (r)
 		goto err;
 
 	if (td->te_enabled && panel_data->use_ext_te) {
-		td->update_region.x = x;
-		td->update_region.y = y;
-		td->update_region.w = w;
-		td->update_region.h = h;
-		barrier();
 		schedule_delayed_work(&td->te_timeout_work,
 				msecs_to_jiffies(250));
 		atomic_set(&td->do_update, 1);
