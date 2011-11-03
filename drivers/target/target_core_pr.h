@@ -62,7 +62,9 @@ extern void core_scsi3_free_all_registrations(struct se_device *);
 extern unsigned char *core_scsi3_pr_dump_type(int);
 extern int core_scsi3_check_cdb_abort_and_preempt(struct list_head *,
 						  struct se_cmd *);
-extern int core_scsi3_emulate_pr(struct se_cmd *);
+
+extern int target_scsi3_emulate_pr_in(struct se_cmd *cmd);
+extern int target_scsi3_emulate_pr_out(struct se_cmd *cmd);
 extern int core_setup_reservations(struct se_device *, int);
 
 #endif /* TARGET_CORE_PR_H */

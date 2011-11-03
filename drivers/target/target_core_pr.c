@@ -3734,12 +3734,30 @@ static unsigned long long core_scsi3_extract_reservation_key(unsigned char *cdb)
 /*
  * See spc4r17 section 6.14 Table 170
  */
-static int core_scsi3_emulate_pr_out(struct se_cmd *cmd, unsigned char *cdb)
+int target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 {
+	unsigned char *cdb = &cmd->t_task_cdb[0];
 	unsigned char *buf;
 	u64 res_key, sa_res_key;
 	int sa, scope, type, aptpl;
 	int spec_i_pt = 0, all_tg_pt = 0, unreg = 0;
+
+	/*
+	 * Following spc2r20 5.5.1 Reservations overview:
+	 *
+	 * If a logical unit has been reserved by any RESERVE command and is
+	 * still reserved by any initiator, all PERSISTENT RESERVE IN and all
+	 * PERSISTENT RESERVE OUT commands shall conflict regardless of
+	 * initiator or service action and shall terminate with a RESERVATION
+	 * CONFLICT status.
+	 */
+	if (cmd->se_dev->dev_flags & DF_SPC2_RESERVATIONS) {
+		pr_err("Received PERSISTENT_RESERVE CDB while legacy"
+			" SPC-2 reservation is held, returning"
+			" RESERVATION_CONFLICT\n");
+		return PYX_TRANSPORT_RESERVATION_CONFLICT;
+	}
+
 	/*
 	 * FIXME: A NULL struct se_session pointer means an this is not coming from
 	 * a $FABRIC_MOD's nexus, but from internal passthrough ops.
@@ -4185,9 +4203,25 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 	return 0;
 }
 
-static int core_scsi3_emulate_pr_in(struct se_cmd *cmd, unsigned char *cdb)
+int target_scsi3_emulate_pr_in(struct se_cmd *cmd)
 {
-	switch (cdb[1] & 0x1f) {
+	/*
+	 * Following spc2r20 5.5.1 Reservations overview:
+	 *
+	 * If a logical unit has been reserved by any RESERVE command and is
+	 * still reserved by any initiator, all PERSISTENT RESERVE IN and all
+	 * PERSISTENT RESERVE OUT commands shall conflict regardless of
+	 * initiator or service action and shall terminate with a RESERVATION
+	 * CONFLICT status.
+	 */
+	if (cmd->se_dev->dev_flags & DF_SPC2_RESERVATIONS) {
+		pr_err("Received PERSISTENT_RESERVE CDB while legacy"
+			" SPC-2 reservation is held, returning"
+			" RESERVATION_CONFLICT\n");
+		return PYX_TRANSPORT_RESERVATION_CONFLICT;
+	}
+
+	switch (cmd->t_task_cdb[1] & 0x1f) {
 	case PRI_READ_KEYS:
 		return core_scsi3_pri_read_keys(cmd);
 	case PRI_READ_RESERVATION:
@@ -4198,35 +4232,9 @@ static int core_scsi3_emulate_pr_in(struct se_cmd *cmd, unsigned char *cdb)
 		return core_scsi3_pri_read_full_status(cmd);
 	default:
 		pr_err("Unknown PERSISTENT_RESERVE_IN service"
-			" action: 0x%02x\n", cdb[1] & 0x1f);
+			" action: 0x%02x\n", cmd->t_task_cdb[1] & 0x1f);
 		return PYX_TRANSPORT_INVALID_CDB_FIELD;
 	}
-
-}
-
-int core_scsi3_emulate_pr(struct se_cmd *cmd)
-{
-	unsigned char *cdb = &cmd->t_task_cdb[0];
-	struct se_device *dev = cmd->se_dev;
-	/*
-	 * Following spc2r20 5.5.1 Reservations overview:
-	 *
-	 * If a logical unit has been reserved by any RESERVE command and is
-	 * still reserved by any initiator, all PERSISTENT RESERVE IN and all
-	 * PERSISTENT RESERVE OUT commands shall conflict regardless of
-	 * initiator or service action and shall terminate with a RESERVATION
-	 * CONFLICT status.
-	 */
-	if (dev->dev_flags & DF_SPC2_RESERVATIONS) {
-		pr_err("Received PERSISTENT_RESERVE CDB while legacy"
-			" SPC-2 reservation is held, returning"
-			" RESERVATION_CONFLICT\n");
-		return PYX_TRANSPORT_RESERVATION_CONFLICT;
-	}
-
-	return (cdb[0] == PERSISTENT_RESERVE_OUT) ?
-	       core_scsi3_emulate_pr_out(cmd, cdb) :
-	       core_scsi3_emulate_pr_in(cmd, cdb);
 }
 
 static int core_pt_reservation_check(struct se_cmd *cmd, u32 *pr_res_type)

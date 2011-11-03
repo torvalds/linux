@@ -2842,11 +2842,14 @@ static int transport_generic_cmd_sequencer(
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case PERSISTENT_RESERVE_IN:
+		if (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
+			cmd->transport_emulate_cdb = target_scsi3_emulate_pr_in;
+		size = (cdb[7] << 8) + cdb[8];
+		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
+		break;
 	case PERSISTENT_RESERVE_OUT:
-		cmd->transport_emulate_cdb =
-			(su_dev->t10_pr.res_type ==
-			 SPC3_PERSISTENT_RESERVATIONS) ?
-			core_scsi3_emulate_pr : NULL;
+		if (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
+			cmd->transport_emulate_cdb = target_scsi3_emulate_pr_out;
 		size = (cdb[7] << 8) + cdb[8];
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
