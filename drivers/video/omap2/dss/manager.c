@@ -510,8 +510,6 @@ struct overlay_cache_data {
 	struct omap_overlay_info info;
 
 	enum omap_channel channel;
-	bool replication;
-	bool ilace;
 
 	u32 fifo_low;
 	u32 fifo_high;
@@ -757,8 +755,10 @@ static int overlay_enabled(struct omap_overlay *ovl)
 
 static int configure_overlay(enum omap_plane plane)
 {
+	struct omap_overlay *ovl;
 	struct overlay_cache_data *c;
 	struct omap_overlay_info *oi;
+	bool ilace, replication;
 	int r;
 
 	DSSDBGF("%d", plane);
@@ -771,8 +771,14 @@ static int configure_overlay(enum omap_plane plane)
 		return 0;
 	}
 
-	r = dispc_ovl_setup(plane, oi, c->ilace, c->channel,
-		c->replication, c->fifo_low, c->fifo_high);
+	ovl = omap_dss_get_overlay(plane);
+
+	replication = dss_use_replication(ovl->manager->device, oi->color_mode);
+
+	ilace = ovl->manager->device->type == OMAP_DISPLAY_TYPE_VENC;
+
+	r = dispc_ovl_setup(plane, oi, ilace, c->channel,
+		replication, c->fifo_low, c->fifo_high);
 	if (r) {
 		/* this shouldn't happen */
 		DSSERR("dispc_ovl_setup failed for ovl %d\n", plane);
@@ -1037,11 +1043,6 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 		ovl->info_dirty = false;
 		oc->dirty = true;
 		oc->info = ovl->info;
-
-		oc->replication =
-			dss_use_replication(dssdev, ovl->info.color_mode);
-
-		oc->ilace = dssdev->type == OMAP_DISPLAY_TYPE_VENC;
 
 		oc->channel = ovl->manager->id;
 
