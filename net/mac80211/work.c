@@ -942,10 +942,9 @@ static void ieee80211_work_work(struct work_struct *work)
 		}
 
 		if (!started && !local->tmp_channel) {
-			bool on_oper_chan;
-			bool tmp_chan_changed = false;
-			bool on_oper_chan2;
+			bool on_oper_chan, on_oper_chan2;
 			enum nl80211_channel_type wk_ct;
+
 			on_oper_chan = ieee80211_cfg_on_oper_channel(local);
 
 			/* Work with existing channel type if possible. */
@@ -953,11 +952,6 @@ static void ieee80211_work_work(struct work_struct *work)
 			if (wk->chan == local->hw.conf.channel)
 				wk_ct = ieee80211_calc_ct(wk->chan_type,
 						local->hw.conf.channel_type);
-
-			if (local->tmp_channel)
-				if ((local->tmp_channel != wk->chan) ||
-				    (local->tmp_channel_type != wk_ct))
-					tmp_chan_changed = true;
 
 			local->tmp_channel = wk->chan;
 			local->tmp_channel_type = wk_ct;
@@ -981,12 +975,7 @@ static void ieee80211_work_work(struct work_struct *work)
 								    true,
 								    false);
 				}
-			} else if (tmp_chan_changed)
-				/* Still off-channel, but on some other
-				 * channel, so update hardware.
-				 * PS should already be off-channel.
-				 */
-				ieee80211_hw_config(local, 0);
+			}
 
 			started = true;
 			wk->timeout = jiffies;
