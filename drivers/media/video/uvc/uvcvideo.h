@@ -403,6 +403,9 @@ struct uvc_streaming {
 
 	__u32 sequence;
 	__u8 last_fid;
+
+	/* debugfs */
+	struct dentry *debugfs_dir;
 };
 
 enum uvc_device_state {
@@ -605,5 +608,11 @@ extern struct usb_host_endpoint *uvc_find_endpoint(
 /* Quirks support */
 void uvc_video_decode_isight(struct urb *urb, struct uvc_streaming *stream,
 		struct uvc_buffer *buf);
+
+/* debugfs */
+int uvc_debugfs_init(void);
+void uvc_debugfs_cleanup(void);
+int uvc_debugfs_init_stream(struct uvc_streaming *stream);
+void uvc_debugfs_cleanup_stream(struct uvc_streaming *stream);
 
 #endif
