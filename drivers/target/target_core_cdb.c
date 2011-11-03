@@ -680,8 +680,9 @@ target_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
 }
 
 static int
-target_emulate_inquiry(struct se_cmd *cmd)
+target_emulate_inquiry(struct se_task *task)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *buf;
 	unsigned char *cdb = cmd->t_task_cdb;
@@ -721,8 +722,9 @@ target_emulate_inquiry(struct se_cmd *cmd)
 }
 
 static int
-target_emulate_readcapacity(struct se_cmd *cmd)
+target_emulate_readcapacity(struct se_task *task)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *buf;
 	unsigned long long blocks_long = dev->transport->get_blocks(dev);
@@ -755,8 +757,9 @@ target_emulate_readcapacity(struct se_cmd *cmd)
 }
 
 static int
-target_emulate_readcapacity_16(struct se_cmd *cmd)
+target_emulate_readcapacity_16(struct se_task *task)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *buf;
 	unsigned long long blocks = dev->transport->get_blocks(dev);
@@ -923,13 +926,15 @@ target_modesense_dpofua(unsigned char *buf, int type)
 }
 
 static int
-target_emulate_modesense(struct se_cmd *cmd, int ten)
+target_emulate_modesense(struct se_task *task)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	char *cdb = cmd->t_task_cdb;
 	unsigned char *rbuf;
 	int type = dev->transport->get_device_type(dev);
-	int offset = (ten) ? 8 : 4;
+	int ten = (cmd->t_task_cdb[0] == MODE_SENSE_10);
+	int offset = ten ? 8 : 4;
 	int length = 0;
 	unsigned char buf[SE_MODE_PAGE_BUF];
 
@@ -999,8 +1004,9 @@ target_emulate_modesense(struct se_cmd *cmd, int ten)
 }
 
 static int
-target_emulate_request_sense(struct se_cmd *cmd)
+target_emulate_request_sense(struct se_task *task)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	unsigned char *cdb = cmd->t_task_cdb;
 	unsigned char *buf;
 	u8 ua_asc = 0, ua_ascq = 0;
@@ -1079,6 +1085,12 @@ target_emulate_unmap(struct se_task *task)
 	int ret = 0, offset;
 	unsigned short dl, bd_dl;
 
+	if (!dev->transport->do_discard) {
+		pr_err("UNMAP emulation not supported for: %s\n",
+				dev->transport->name);
+		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+	}
+
 	/* First UNMAP block descriptor starts at 8 byte offset */
 	offset = 8;
 	size -= 8;
@@ -1119,13 +1131,28 @@ err:
  * Note this is not used for TCM/pSCSI passthrough
  */
 static int
-target_emulate_write_same(struct se_task *task, u32 num_blocks)
+target_emulate_write_same(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	sector_t range;
 	sector_t lba = cmd->t_task_lba;
+	u32 num_blocks;
 	int ret;
+
+	if (!dev->transport->do_discard) {
+		pr_err("WRITE_SAME emulation not supported"
+				" for: %s\n", dev->transport->name);
+		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+	}
+
+	if (cmd->t_task_cdb[0] == WRITE_SAME)
+		num_blocks = get_unaligned_be16(&cmd->t_task_cdb[7]);
+	else if (cmd->t_task_cdb[0] == WRITE_SAME_16)
+		num_blocks = get_unaligned_be32(&cmd->t_task_cdb[10]);
+	else /* WRITE_SAME_32 via VARIABLE_LENGTH_CMD */
+		num_blocks = get_unaligned_be32(&cmd->t_task_cdb[28]);
+
 	/*
 	 * Use the explicit range when non zero is supplied, otherwise calculate
 	 * the remaining range based on ->get_blocks() - starting LBA.
@@ -1147,6 +1174,21 @@ target_emulate_write_same(struct se_task *task, u32 num_blocks)
 	return 0;
 }
 
+static int
+target_emulate_synchronize_cache(struct se_task *task)
+{
+	struct se_device *dev = task->task_se_cmd->se_dev;
+
+	if (!dev->transport->do_sync_cache) {
+		pr_err("SYNCHRONIZE_CACHE emulation not supported"
+			" for: %s\n", dev->transport->name);
+		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+	}
+
+	dev->transport->do_sync_cache(task);
+	return 0;
+}
+
 int
 transport_emulate_control_cdb(struct se_task *task)
 {
@@ -1157,21 +1199,21 @@ transport_emulate_control_cdb(struct se_task *task)
 
 	switch (cmd->t_task_cdb[0]) {
 	case INQUIRY:
-		ret = target_emulate_inquiry(cmd);
+		ret = target_emulate_inquiry(task);
 		break;
 	case READ_CAPACITY:
-		ret = target_emulate_readcapacity(cmd);
+		ret = target_emulate_readcapacity(task);
 		break;
 	case MODE_SENSE:
-		ret = target_emulate_modesense(cmd, 0);
+		ret = target_emulate_modesense(task);
 		break;
 	case MODE_SENSE_10:
-		ret = target_emulate_modesense(cmd, 1);
+		ret = target_emulate_modesense(task);
 		break;
 	case SERVICE_ACTION_IN:
 		switch (cmd->t_task_cdb[1] & 0x1f) {
 		case SAI_READ_CAPACITY_16:
-			ret = target_emulate_readcapacity_16(cmd);
+			ret = target_emulate_readcapacity_16(task);
 			break;
 		default:
 			pr_err("Unsupported SA: 0x%02x\n",
@@ -1180,47 +1222,23 @@ transport_emulate_control_cdb(struct se_task *task)
 		}
 		break;
 	case REQUEST_SENSE:
-		ret = target_emulate_request_sense(cmd);
+		ret = target_emulate_request_sense(task);
 		break;
 	case UNMAP:
-		if (!dev->transport->do_discard) {
-			pr_err("UNMAP emulation not supported for: %s\n",
-					dev->transport->name);
-			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-		}
 		ret = target_emulate_unmap(task);
 		break;
 	case WRITE_SAME:
-		if (!dev->transport->do_discard) {
-			pr_err("WRITE_SAME emulation not supported"
-					" for: %s\n", dev->transport->name);
-			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-		}
-		ret = target_emulate_write_same(task,
-				get_unaligned_be16(&cmd->t_task_cdb[7]));
+		ret = target_emulate_write_same(task);
 		break;
 	case WRITE_SAME_16:
-		if (!dev->transport->do_discard) {
-			pr_err("WRITE_SAME_16 emulation not supported"
-					" for: %s\n", dev->transport->name);
-			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-		}
-		ret = target_emulate_write_same(task,
-				get_unaligned_be32(&cmd->t_task_cdb[10]));
+		ret = target_emulate_write_same(task);
 		break;
 	case VARIABLE_LENGTH_CMD:
 		service_action =
 			get_unaligned_be16(&cmd->t_task_cdb[8]);
 		switch (service_action) {
 		case WRITE_SAME_32:
-			if (!dev->transport->do_discard) {
-				pr_err("WRITE_SAME_32 SA emulation not"
-					" supported for: %s\n",
-					dev->transport->name);
-				return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-			}
-			ret = target_emulate_write_same(task,
-				get_unaligned_be32(&cmd->t_task_cdb[28]));
+			ret = target_emulate_write_same(task);
 			break;
 		default:
 			pr_err("Unsupported VARIABLE_LENGTH_CMD SA:"
@@ -1230,12 +1248,7 @@ transport_emulate_control_cdb(struct se_task *task)
 		break;
 	case SYNCHRONIZE_CACHE:
 	case 0x91: /* SYNCHRONIZE_CACHE_16: */
-		if (!dev->transport->do_sync_cache) {
-			pr_err("SYNCHRONIZE_CACHE emulation not supported"
-				" for: %s\n", dev->transport->name);
-			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-		}
-		dev->transport->do_sync_cache(task);
+		ret = target_emulate_synchronize_cache(task);
 		break;
 	case ALLOW_MEDIUM_REMOVAL:
 	case ERASE:
