@@ -1769,8 +1769,7 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 }
 
 int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
-		bool ilace, enum omap_channel channel, bool replication,
-		u32 fifo_low, u32 fifo_high)
+		bool ilace, enum omap_channel channel, bool replication)
 {
 	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
 	bool five_taps = false;
@@ -1784,11 +1783,11 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	u16 outw, outh;
 
 	DSSDBG("dispc_ovl_setup %d, pa %x, pa_uv %x, sw %d, %d,%d, %dx%d -> "
-		"%dx%d, cmode %x, rot %d, mir %d, ilace %d chan %d repl %d "
-		"fifo_low %d fifo high %d\n", plane, oi->paddr, oi->p_uv_addr,
+		"%dx%d, cmode %x, rot %d, mir %d, ilace %d chan %d repl %d\n",
+		plane, oi->paddr, oi->p_uv_addr,
 		oi->screen_width, oi->pos_x, oi->pos_y, oi->width, oi->height,
 		oi->out_width, oi->out_height, oi->color_mode, oi->rotation,
-		oi->mirror, ilace, channel, replication, fifo_low, fifo_high);
+		oi->mirror, ilace, channel, replication);
 
 	if (oi->paddr == 0)
 		return -EINVAL;
@@ -1896,7 +1895,6 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	dispc_ovl_set_channel_out(plane, channel);
 
 	dispc_ovl_enable_replication(plane, replication);
-	dispc_ovl_set_fifo_threshold(plane, fifo_low, fifo_high);
 
 	return 0;
 }

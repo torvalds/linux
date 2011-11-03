@@ -777,14 +777,15 @@ static int configure_overlay(enum omap_plane plane)
 
 	ilace = ovl->manager->device->type == OMAP_DISPLAY_TYPE_VENC;
 
-	r = dispc_ovl_setup(plane, oi, ilace, c->channel,
-		replication, c->fifo_low, c->fifo_high);
+	r = dispc_ovl_setup(plane, oi, ilace, c->channel, replication);
 	if (r) {
 		/* this shouldn't happen */
 		DSSERR("dispc_ovl_setup failed for ovl %d\n", plane);
 		dispc_ovl_enable(plane, 0);
 		return r;
 	}
+
+	dispc_ovl_set_fifo_threshold(plane, c->fifo_low, c->fifo_high);
 
 	dispc_ovl_enable(plane, 1);
 
