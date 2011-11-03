@@ -3018,6 +3018,13 @@ F:	Documentation/hw_random.txt
 F:	drivers/char/hw_random/
 F:	include/linux/hw_random.h
 
+HARDWARE SPINLOCK CORE
+M:	Ohad Ben-Cohen <ohad@wizery.com>
+S:	Maintained
+F:	Documentation/hwspinlock.txt
+F:	drivers/hwspinlock/hwspinlock_*
+F:	include/linux/hwspinlock.h
+
 HARMONY SOUND DRIVER
 M:	Kyle McMartin <kyle@mcmartin.ca>
 L:	linux-parisc@vger.kernel.org
@@ -4713,6 +4720,13 @@ L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/omap2/
 F:	Documentation/arm/OMAP/DSS
+
+OMAP HARDWARE SPINLOCK SUPPORT
+M:	Ohad Ben-Cohen <ohad@wizery.com>
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/hwspinlock/omap_hwspinlock.c
+F:	arch/arm/mach-omap2/hwspinlock.c
 
 OMAP MMC SUPPORT
 M:	Jarkko Lavinen <jarkko.lavinen@nokia.com>
