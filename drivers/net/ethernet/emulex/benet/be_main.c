@@ -1905,6 +1905,8 @@ loop_continue:
 		be_rx_stats_update(rxo, rxcp);
 	}
 
+	be_cq_notify(adapter, rx_cq->id, false, work_done);
+
 	/* Refill the queue */
 	if (work_done && atomic_read(&rxo->q.used) < RX_FRAGS_REFILL_WM)
 		be_post_rx_frags(rxo, GFP_ATOMIC);
@@ -1912,10 +1914,8 @@ loop_continue:
 	/* All consumed */
 	if (work_done < budget) {
 		napi_complete(napi);
-		be_cq_notify(adapter, rx_cq->id, true, work_done);
-	} else {
-		/* More to be consumed; continue with interrupts disabled */
-		be_cq_notify(adapter, rx_cq->id, false, work_done);
+		/* Arm CQ */
+		be_cq_notify(adapter, rx_cq->id, true, 0);
 	}
 	return work_done;
 }
