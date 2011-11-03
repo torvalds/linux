@@ -111,6 +111,7 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		if (!ret) {
 			if (!surface->snooper.image) {
 				DRM_ERROR("surface not suitable for cursor\n");
+				vmw_surface_unreference(&surface);
 				return -EINVAL;
 			}
 		} else {
