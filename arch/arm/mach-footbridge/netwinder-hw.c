@@ -645,6 +645,32 @@ fixup_netwinder(struct tag *tags, char **cmdline, struct meminfo *mi)
 #endif
 }
 
+static void netwinder_restart(char mode, const char *cmd)
+{
+	if (mode == 's') {
+		/* Jump into the ROM */
+		soft_restart(0x41000000);
+	} else {
+		local_irq_disable();
+		local_fiq_disable();
+
+		/* open up the SuperIO chip */
+		outb(0x87, 0x370);
+		outb(0x87, 0x370);
+
+		/* aux function group 1 (logical device 7) */
+		outb(0x07, 0x370);
+		outb(0x07, 0x371);
+
+		/* set GP16 for WD-TIMER output */
+		outb(0xe6, 0x370);
+		outb(0x00, 0x371);
+
+		/* set a RED LED and toggle WD_TIMER for rebooting */
+		outb(0xc4, 0x338);
+	}
+}
+
 MACHINE_START(NETWINDER, "Rebel-NetWinder")
 	/* Maintainer: Russell King/Rebel.com */
 	.atag_offset	= 0x100,
@@ -656,4 +682,5 @@ MACHINE_START(NETWINDER, "Rebel-NetWinder")
 	.map_io		= footbridge_map_io,
 	.init_irq	= footbridge_init_irq,
 	.timer		= &isa_timer,
+	.restart	= netwinder_restart,
 MACHINE_END

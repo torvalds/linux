@@ -91,4 +91,5 @@ MACHINE_START(CATS, "Chalice-CATS")
 	.map_io		= footbridge_map_io,
 	.init_irq	= footbridge_init_irq,
 	.timer		= &isa_timer,
+	.restart	= footbridge_restart,
 MACHINE_END
