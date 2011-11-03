@@ -356,6 +356,28 @@ struct uvc_video_chain {
 	struct mutex ctrl_mutex;		/* Protects ctrl.info */
 };
 
+struct uvc_stats_frame {
+	unsigned int size;		/* Number of bytes captured */
+	unsigned int first_data;	/* Index of the first non-empty packet */
+
+	unsigned int nb_packets;	/* Number of packets */
+	unsigned int nb_empty;		/* Number of empty packets */
+	unsigned int nb_invalid;	/* Number of packets with an invalid header */
+	unsigned int nb_errors;		/* Number of packets with the error bit set */
+};
+
+struct uvc_stats_stream {
+	struct timespec start_ts;	/* Stream start timestamp */
+	struct timespec stop_ts;	/* Stream stop timestamp */
+
+	unsigned int nb_frames;		/* Number of frames */
+
+	unsigned int nb_packets;	/* Number of packets */
+	unsigned int nb_empty;		/* Number of empty packets */
+	unsigned int nb_invalid;	/* Number of packets with an invalid header */
+	unsigned int nb_errors;		/* Number of packets with the error bit set */
+};
+
 struct uvc_streaming {
 	struct list_head list;
 	struct uvc_device *dev;
@@ -406,6 +428,10 @@ struct uvc_streaming {
 
 	/* debugfs */
 	struct dentry *debugfs_dir;
+	struct {
+		struct uvc_stats_frame frame;
+		struct uvc_stats_stream stream;
+	} stats;
 };
 
 enum uvc_device_state {
@@ -477,6 +503,7 @@ struct uvc_driver {
 #define UVC_TRACE_SUSPEND	(1 << 8)
 #define UVC_TRACE_STATUS	(1 << 9)
 #define UVC_TRACE_VIDEO		(1 << 10)
+#define UVC_TRACE_STATS		(1 << 11)
 
 #define UVC_WARN_MINMAX		0
 #define UVC_WARN_PROBE_DEF	1
@@ -609,10 +636,13 @@ extern struct usb_host_endpoint *uvc_find_endpoint(
 void uvc_video_decode_isight(struct urb *urb, struct uvc_streaming *stream,
 		struct uvc_buffer *buf);
 
-/* debugfs */
+/* debugfs and statistics */
 int uvc_debugfs_init(void);
 void uvc_debugfs_cleanup(void);
 int uvc_debugfs_init_stream(struct uvc_streaming *stream);
 void uvc_debugfs_cleanup_stream(struct uvc_streaming *stream);
+
+size_t uvc_video_stats_dump(struct uvc_streaming *stream, char *buf,
+			    size_t size);
 
 #endif

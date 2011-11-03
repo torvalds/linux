@@ -358,6 +358,100 @@ static int uvc_commit_video(struct uvc_streaming *stream,
 }
 
 /* ------------------------------------------------------------------------
+ * Stream statistics
+ */
+
+static void uvc_video_stats_decode(struct uvc_streaming *stream,
+		const __u8 *data, int len)
+{
+	unsigned int header_size;
+
+	if (stream->stats.stream.nb_frames == 0 &&
+	    stream->stats.frame.nb_packets == 0)
+		ktime_get_ts(&stream->stats.stream.start_ts);
+
+	switch (data[1] & (UVC_STREAM_PTS | UVC_STREAM_SCR)) {
+	case UVC_STREAM_PTS | UVC_STREAM_SCR:
+		header_size = 12;
+		break;
+	case UVC_STREAM_PTS:
+		header_size = 6;
+		break;
+	case UVC_STREAM_SCR:
+		header_size = 8;
+		break;
+	default:
+		header_size = 2;
+		break;
+	}
+
+	/* Check for invalid headers. */
+	if (len < header_size || data[0] < header_size) {
+		stream->stats.frame.nb_invalid++;
+		return;
+	}
+
+	/* Record the first non-empty packet number. */
+	if (stream->stats.frame.size == 0 && len > header_size)
+		stream->stats.frame.first_data = stream->stats.frame.nb_packets;
+
+	/* Update the frame size. */
+	stream->stats.frame.size += len - header_size;
+
+	/* Update the packets counters. */
+	stream->stats.frame.nb_packets++;
+	if (len > header_size)
+		stream->stats.frame.nb_empty++;
+
+	if (data[1] & UVC_STREAM_ERR)
+		stream->stats.frame.nb_errors++;
+}
+
+static void uvc_video_stats_update(struct uvc_streaming *stream)
+{
+	struct uvc_stats_frame *frame = &stream->stats.frame;
+
+	uvc_trace(UVC_TRACE_STATS, "frame %u stats: %u/%u/%u packets\n",
+		  stream->sequence, frame->first_data,
+		  frame->nb_packets - frame->nb_empty, frame->nb_packets);
+
+	stream->stats.stream.nb_frames++;
+	stream->stats.stream.nb_packets += stream->stats.frame.nb_packets;
+	stream->stats.stream.nb_empty += stream->stats.frame.nb_empty;
+	stream->stats.stream.nb_errors += stream->stats.frame.nb_errors;
+	stream->stats.stream.nb_invalid += stream->stats.frame.nb_invalid;
+
+	memset(&stream->stats.frame, 0, sizeof(stream->stats.frame));
+}
+
+size_t uvc_video_stats_dump(struct uvc_streaming *stream, char *buf,
+			    size_t size)
+{
+	size_t count = 0;
+
+	count += scnprintf(buf + count, size - count,
+			   "frames:  %u\npackets: %u\nempty:   %u\n"
+			   "errors:  %u\ninvalid: %u\n",
+			   stream->stats.stream.nb_frames,
+			   stream->stats.stream.nb_packets,
+			   stream->stats.stream.nb_empty,
+			   stream->stats.stream.nb_errors,
+			   stream->stats.stream.nb_invalid);
+
+	return count;
+}
+
+static void uvc_video_stats_start(struct uvc_streaming *stream)
+{
+	memset(&stream->stats, 0, sizeof(stream->stats));
+}
+
+static void uvc_video_stats_stop(struct uvc_streaming *stream)
+{
+	ktime_get_ts(&stream->stats.stream.stop_ts);
+}
+
+/* ------------------------------------------------------------------------
  * Video codecs
  */
 
@@ -406,16 +500,23 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 	 * - bHeaderLength value must be at least 2 bytes (see above)
 	 * - bHeaderLength value can't be larger than the packet size.
 	 */
-	if (len < 2 || data[0] < 2 || data[0] > len)
+	if (len < 2 || data[0] < 2 || data[0] > len) {
+		stream->stats.frame.nb_invalid++;
 		return -EINVAL;
+	}
 
 	fid = data[1] & UVC_STREAM_FID;
 
 	/* Increase the sequence number regardless of any buffer states, so
 	 * that discontinuous sequence numbers always indicate lost frames.
 	 */
-	if (stream->last_fid != fid)
+	if (stream->last_fid != fid) {
 		stream->sequence++;
+		if (stream->sequence)
+			uvc_video_stats_update(stream);
+	}
+
+	uvc_video_stats_decode(stream, data, len);
 
 	/* Store the payload FID bit and return immediately when the buffer is
 	 * NULL.
@@ -860,6 +961,8 @@ static void uvc_uninit_video(struct uvc_streaming *stream, int free_buffers)
 	struct urb *urb;
 	unsigned int i;
 
+	uvc_video_stats_stop(stream);
+
 	for (i = 0; i < UVC_URBS; ++i) {
 		urb = stream->urb[i];
 		if (urb == NULL)
@@ -998,6 +1101,8 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 	stream->bulk.header_size = 0;
 	stream->bulk.skip_payload = 0;
 	stream->bulk.payload_size = 0;
+
+	uvc_video_stats_start(stream);
 
 	if (intf->num_altsetting > 1) {
 		struct usb_host_endpoint *best_ep = NULL;

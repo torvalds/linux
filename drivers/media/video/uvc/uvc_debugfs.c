@@ -19,6 +19,57 @@
 #include "uvcvideo.h"
 
 /* -----------------------------------------------------------------------------
+ * Statistics
+ */
+
+#define UVC_DEBUGFS_BUF_SIZE	1024
+
+struct uvc_debugfs_buffer {
+	size_t count;
+	char data[UVC_DEBUGFS_BUF_SIZE];
+};
+
+static int uvc_debugfs_stats_open(struct inode *inode, struct file *file)
+{
+	struct uvc_streaming *stream = inode->i_private;
+	struct uvc_debugfs_buffer *buf;
+
+	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	buf->count = uvc_video_stats_dump(stream, buf->data, sizeof(buf->data));
+
+	file->private_data = buf;
+	return 0;
+}
+
+static ssize_t uvc_debugfs_stats_read(struct file *file, char __user *user_buf,
+				      size_t nbytes, loff_t *ppos)
+{
+	struct uvc_debugfs_buffer *buf = file->private_data;
+
+	return simple_read_from_buffer(user_buf, nbytes, ppos, buf->data,
+				       buf->count);
+}
+
+static int uvc_debugfs_stats_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	file->private_data = NULL;
+
+	return 0;
+}
+
+static const struct file_operations uvc_debugfs_stats_fops = {
+	.owner = THIS_MODULE,
+	.open = uvc_debugfs_stats_open,
+	.llseek = no_llseek,
+	.read = uvc_debugfs_stats_read,
+	.release = uvc_debugfs_stats_release,
+};
+
+/* -----------------------------------------------------------------------------
  * Global and stream initialization/cleanup
  */
 
@@ -37,12 +88,20 @@ int uvc_debugfs_init_stream(struct uvc_streaming *stream)
 
 	dent = debugfs_create_dir(dir_name, uvc_debugfs_root_dir);
 	if (IS_ERR_OR_NULL(dent)) {
-		uvc_printk(KERN_INFO, "Unable to create debugfs %s directory.\n",
-			   dir_name);
+		uvc_printk(KERN_INFO, "Unable to create debugfs %s "
+			   "directory.\n", dir_name);
 		return -ENODEV;
 	}
 
 	stream->debugfs_dir = dent;
+
+	dent = debugfs_create_file("stats", 0444, stream->debugfs_dir,
+				   stream, &uvc_debugfs_stats_fops);
+	if (IS_ERR_OR_NULL(dent)) {
+		uvc_printk(KERN_INFO, "Unable to create debugfs stats file.\n");
+		uvc_debugfs_cleanup_stream(stream);
+		return -ENODEV;
+	}
 
 	return 0;
 }
