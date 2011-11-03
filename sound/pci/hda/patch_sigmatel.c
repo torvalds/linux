@@ -3791,9 +3791,10 @@ static int is_dual_headphones(struct hda_codec *codec)
 }
 
 
-static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out, hda_nid_t dig_in)
+static int stac92xx_parse_auto_config(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
+	hda_nid_t dig_out = 0, dig_in = 0;
 	int hp_swap = 0;
 	int i, err;
 
@@ -3976,6 +3977,22 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 	if (spec->multiout.max_channels > 2)
 		spec->surr_switch = 1;
 
+	/* find digital out and in converters */
+	for (i = codec->start_nid; i < codec->start_nid + codec->num_nodes; i++) {
+		unsigned int wid_caps = get_wcaps(codec, i);
+		if (wid_caps & AC_WCAP_DIGITAL) {
+			switch (get_wcaps_type(wid_caps)) {
+			case AC_WID_AUD_OUT:
+				if (!dig_out)
+					dig_out = i;
+				break;
+			case AC_WID_AUD_IN:
+				if (!dig_in)
+					dig_in = i;
+				break;
+			}
+		}
+	}
 	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = dig_out;
 	if (dig_in && spec->autocfg.dig_in_pin)
@@ -5279,7 +5296,7 @@ static int patch_stac925x(struct hda_codec *codec)
 	spec->capvols = stac925x_capvols;
 	spec->capsws = stac925x_capsws;
 
-	err = stac92xx_parse_auto_config(codec, 0x8, 0x7);
+	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
@@ -5420,7 +5437,7 @@ again:
 	spec->num_pwrs = ARRAY_SIZE(stac92hd73xx_pwr_nids);
 	spec->pwr_nids = stac92hd73xx_pwr_nids;
 
-	err = stac92xx_parse_auto_config(codec, 0x25, 0x27);
+	err = stac92xx_parse_auto_config(codec);
 
 	if (!err) {
 		if (spec->board_config < 0) {
@@ -5657,11 +5674,7 @@ again:
 	}
 #endif	
 
-	/* 92HD65/66 series has S/PDIF-IN */
-	if (codec->vendor_id >= 0x111d76e8 && codec->vendor_id <= 0x111d76f3)
-		err = stac92xx_parse_auto_config(codec, 0x1d, 0x22);
-	else
-		err = stac92xx_parse_auto_config(codec, 0x1d, 0);
+	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
@@ -5982,7 +5995,7 @@ again:
 
 	spec->multiout.dac_nids = spec->dac_nids;
 
-	err = stac92xx_parse_auto_config(codec, 0x21, 0);
+	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
@@ -6091,7 +6104,7 @@ static int patch_stac922x(struct hda_codec *codec)
 
 	spec->multiout.dac_nids = spec->dac_nids;
 	
-	err = stac92xx_parse_auto_config(codec, 0x08, 0x09);
+	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
@@ -6216,7 +6229,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->aloopback_shift = 0;
 	spec->eapd_switch = 1;
 
-	err = stac92xx_parse_auto_config(codec, 0x1e, 0x20);
+	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
@@ -6341,7 +6354,7 @@ static int patch_stac9205(struct hda_codec *codec)
 		break;
 	}
 
-	err = stac92xx_parse_auto_config(codec, 0x1f, 0x20);
+	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
@@ -6446,7 +6459,7 @@ static int patch_stac9872(struct hda_codec *codec)
 	spec->capvols = stac9872_capvols;
 	spec->capsws = stac9872_capsws;
 
-	err = stac92xx_parse_auto_config(codec, 0x10, 0x12);
+	err = stac92xx_parse_auto_config(codec);
 	if (err < 0) {
 		stac92xx_free(codec);
 		return -EINVAL;
