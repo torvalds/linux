@@ -1,4 +1,5 @@
-/* Virtio balloon implementation, inspired by Dor Loar and Marcelo
+/*
+ * Virtio balloon implementation, inspired by Dor Laor and Marcelo
  * Tosatti's implementations.
  *
  *  Copyright 2008 Rusty Russell IBM Corporation
@@ -17,7 +18,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-//#define DEBUG
+
 #include <linux/virtio.h>
 #include <linux/virtio_balloon.h>
 #include <linux/swap.h>
@@ -148,7 +149,6 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
 		vb->pfns[vb->num_pfns] = page_to_balloon_pfn(page);
 		vb->num_pages--;
 	}
-
 
 	/*
 	 * Note that if
