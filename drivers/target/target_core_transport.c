@@ -268,6 +268,9 @@ struct se_session *transport_init_session(void)
 	}
 	INIT_LIST_HEAD(&se_sess->sess_list);
 	INIT_LIST_HEAD(&se_sess->sess_acl_list);
+	INIT_LIST_HEAD(&se_sess->sess_cmd_list);
+	INIT_LIST_HEAD(&se_sess->sess_wait_list);
+	spin_lock_init(&se_sess->sess_cmd_lock);
 
 	return se_sess;
 }
@@ -1505,11 +1508,12 @@ void transport_init_se_cmd(
 	INIT_LIST_HEAD(&cmd->se_ordered_node);
 	INIT_LIST_HEAD(&cmd->se_qf_node);
 	INIT_LIST_HEAD(&cmd->se_queue_node);
-
+	INIT_LIST_HEAD(&cmd->se_cmd_list);
 	INIT_LIST_HEAD(&cmd->t_task_list);
 	init_completion(&cmd->transport_lun_fe_stop_comp);
 	init_completion(&cmd->transport_lun_stop_comp);
 	init_completion(&cmd->t_transport_stop_comp);
+	init_completion(&cmd->cmd_wait_comp);
 	spin_lock_init(&cmd->t_state_lock);
 	atomic_set(&cmd->transport_dev_active, 1);
 
@@ -3950,6 +3954,14 @@ void transport_release_cmd(struct se_cmd *cmd)
 		core_tmr_release_req(cmd->se_tmr_req);
 	if (cmd->t_task_cdb != cmd->__t_task_cdb)
 		kfree(cmd->t_task_cdb);
+	/*
+	 * Check if target_wait_for_sess_cmds() is expecting to
+	 * release se_cmd directly here..
+	 */
+	if (cmd->check_release != 0 && cmd->se_tfo->check_release_cmd)
+		if (cmd->se_tfo->check_release_cmd(cmd) != 0)
+			return;
+
 	cmd->se_tfo->release_cmd(cmd);
 }
 EXPORT_SYMBOL(transport_release_cmd);
@@ -3976,6 +3988,114 @@ void transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 	}
 }
 EXPORT_SYMBOL(transport_generic_free_cmd);
+
+/* target_get_sess_cmd - Add command to active ->sess_cmd_list
+ * @se_sess:	session to reference
+ * @se_cmd:	command descriptor to add
+ */
+void target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
+	list_add_tail(&se_cmd->se_cmd_list, &se_sess->sess_cmd_list);
+	se_cmd->check_release = 1;
+	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+}
+EXPORT_SYMBOL(target_get_sess_cmd);
+
+/* target_put_sess_cmd - Check for active I/O shutdown or list delete
+ * @se_sess: 	session to reference
+ * @se_cmd:	command descriptor to drop
+ */
+int target_put_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
+	if (list_empty(&se_cmd->se_cmd_list)) {
+		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+		WARN_ON(1);
+		return 0;
+	}
+
+	if (se_sess->sess_tearing_down && se_cmd->cmd_wait_set) {
+		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+		complete(&se_cmd->cmd_wait_comp);
+		return 1;
+	}
+	list_del(&se_cmd->se_cmd_list);
+	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(target_put_sess_cmd);
+
+/* target_splice_sess_cmd_list - Split active cmds into sess_wait_list
+ * @se_sess:	session to split
+ */
+void target_splice_sess_cmd_list(struct se_session *se_sess)
+{
+	struct se_cmd *se_cmd;
+	unsigned long flags;
+
+	WARN_ON(!list_empty(&se_sess->sess_wait_list));
+	INIT_LIST_HEAD(&se_sess->sess_wait_list);
+
+	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
+	se_sess->sess_tearing_down = 1;
+
+	list_splice_init(&se_sess->sess_cmd_list, &se_sess->sess_wait_list);
+
+	list_for_each_entry(se_cmd, &se_sess->sess_wait_list, se_cmd_list)
+		se_cmd->cmd_wait_set = 1;
+
+	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+}
+EXPORT_SYMBOL(target_splice_sess_cmd_list);
+
+/* target_wait_for_sess_cmds - Wait for outstanding descriptors
+ * @se_sess:    session to wait for active I/O
+ * @wait_for_tasks:	Make extra transport_wait_for_tasks call
+ */
+void target_wait_for_sess_cmds(
+	struct se_session *se_sess,
+	int wait_for_tasks)
+{
+	struct se_cmd *se_cmd, *tmp_cmd;
+	bool rc = false;
+
+	list_for_each_entry_safe(se_cmd, tmp_cmd,
+				&se_sess->sess_wait_list, se_cmd_list) {
+		list_del(&se_cmd->se_cmd_list);
+
+		pr_debug("Waiting for se_cmd: %p t_state: %d, fabric state:"
+			" %d\n", se_cmd, se_cmd->t_state,
+			se_cmd->se_tfo->get_cmd_state(se_cmd));
+
+		if (wait_for_tasks) {
+			pr_debug("Calling transport_wait_for_tasks se_cmd: %p t_state: %d,"
+				" fabric state: %d\n", se_cmd, se_cmd->t_state,
+				se_cmd->se_tfo->get_cmd_state(se_cmd));
+
+			rc = transport_wait_for_tasks(se_cmd);
+
+			pr_debug("After transport_wait_for_tasks se_cmd: %p t_state: %d,"
+				" fabric state: %d\n", se_cmd, se_cmd->t_state,
+				se_cmd->se_tfo->get_cmd_state(se_cmd));
+		}
+
+		if (!rc) {
+			wait_for_completion(&se_cmd->cmd_wait_comp);
+			pr_debug("After cmd_wait_comp: se_cmd: %p t_state: %d"
+				" fabric state: %d\n", se_cmd, se_cmd->t_state,
+				se_cmd->se_tfo->get_cmd_state(se_cmd));
+		}
+
+		se_cmd->se_tfo->release_cmd(se_cmd);
+	}
+}
+EXPORT_SYMBOL(target_wait_for_sess_cmds);
 
 /*	transport_lun_wait_for_tasks():
  *
@@ -4153,14 +4273,14 @@ int transport_clear_lun_from_sessions(struct se_lun *lun)
  * Called from frontend fabric context to wait for storage engine
  * to pause and/or release frontend generated struct se_cmd.
  */
-void transport_wait_for_tasks(struct se_cmd *cmd)
+bool transport_wait_for_tasks(struct se_cmd *cmd)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD) && !(cmd->se_tmr_req)) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return;
+		return false;
 	}
 	/*
 	 * Only perform a possible wait_for_tasks if SCF_SUPPORTED_SAM_OPCODE
@@ -4168,7 +4288,7 @@ void transport_wait_for_tasks(struct se_cmd *cmd)
 	 */
 	if (!(cmd->se_cmd_flags & SCF_SUPPORTED_SAM_OPCODE) && !cmd->se_tmr_req) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return;
+		return false;
 	}
 	/*
 	 * If we are already stopped due to an external event (ie: LUN shutdown)
@@ -4211,7 +4331,7 @@ void transport_wait_for_tasks(struct se_cmd *cmd)
 	if (!atomic_read(&cmd->t_transport_active) ||
 	     atomic_read(&cmd->t_transport_aborted)) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return;
+		return false;
 	}
 
 	atomic_set(&cmd->t_transport_stop, 1);
@@ -4236,6 +4356,8 @@ void transport_wait_for_tasks(struct se_cmd *cmd)
 		cmd->se_tfo->get_task_tag(cmd));
 
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+
+	return true;
 }
 EXPORT_SYMBOL(transport_wait_for_tasks);
 

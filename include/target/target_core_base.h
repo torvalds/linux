@@ -425,6 +425,9 @@ struct se_cmd {
 	enum transport_state_table t_state;
 	/* Transport specific error status */
 	int			transport_error_status;
+	/* Used to signal cmd->se_tfo->check_release_cmd() usage per cmd */
+	int			check_release:1;
+	int			cmd_wait_set:1;
 	/* See se_cmd_flags_table */
 	u32			se_cmd_flags;
 	u32			se_ordered_id;
@@ -451,6 +454,8 @@ struct se_cmd {
 	struct se_session	*se_sess;
 	struct se_tmr_req	*se_tmr_req;
 	struct list_head	se_queue_node;
+	struct list_head	se_cmd_list;
+	struct completion	cmd_wait_comp;
 	struct target_core_fabric_ops *se_tfo;
 	int (*transport_emulate_cdb)(struct se_cmd *);
 	void (*transport_complete_callback)(struct se_cmd *);
@@ -558,12 +563,16 @@ struct se_node_acl {
 } ____cacheline_aligned;
 
 struct se_session {
+	int			sess_tearing_down:1;
 	u64			sess_bin_isid;
 	struct se_node_acl	*se_node_acl;
 	struct se_portal_group *se_tpg;
 	void			*fabric_sess_ptr;
 	struct list_head	sess_list;
 	struct list_head	sess_acl_list;
+	struct list_head	sess_cmd_list;
+	struct list_head	sess_wait_list;
+	spinlock_t		sess_cmd_lock;
 } ____cacheline_aligned;
 
 struct se_device;
