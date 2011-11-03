@@ -1,4 +1,3 @@
-
 /*
  * File Name: hostmibs.c
  *
@@ -8,6 +7,7 @@
  * the driver to the Host MIBS structure and giving the same to Application.
  *
  */
+
 #include "headers.h"
 
 INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter, S_MIBS_HOST_STATS_MIBS *pstHostMibs)
@@ -26,7 +26,7 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter, S_MIBS_HOST_STATS_MIBS *pstHostMi
 		return STATUS_FAILURE;
 	}
 
-	//Copy the classifier Table
+	/* Copy the classifier Table */
 	for(nClassifierIndex=0; nClassifierIndex < MAX_CLASSIFIERS;
 			nClassifierIndex++)
 	{
@@ -36,7 +36,7 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter, S_MIBS_HOST_STATS_MIBS *pstHostMi
 				sizeof(S_MIBS_CLASSIFIER_RULE));
 	}
 
-  //Copy the SF Table
+  /* Copy the SF Table */
 	for(nSfIndex=0; nSfIndex < NO_OF_QUEUES ; nSfIndex++)
 	{
 	if(Adapter->PackInfo[nSfIndex].bValid)
@@ -45,11 +45,14 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter, S_MIBS_HOST_STATS_MIBS *pstHostMi
 	}
 	else
 	{
-		//if index in not valid, don't process this for the PHS table. Go For the next entry.
+		/* If index in not valid,
+		 * don't process this for the PHS table.
+		 * Go For the next entry.
+		 */
 		continue ;
 	}
 
-		//Retrieve the SFID Entry Index for requested Service Flow
+		/* Retrieve the SFID Entry Index for requested Service Flow */
 		if(PHS_INVALID_TABLE_INDEX == GetServiceFlowEntry(pDeviceExtension->pstServiceFlowPhsRulesTable,
 						  Adapter->PackInfo[nSfIndex].usVCID_Value ,&pstServiceFlowEntry))
 		{
@@ -82,7 +85,7 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter, S_MIBS_HOST_STATS_MIBS *pstHostMi
 	}
 
 
-	//copy other Host Statistics parameters
+	/* Copy other Host Statistics parameters */
 	pstHostMibs->stHostInfo.GoodTransmits = Adapter->dev->stats.tx_packets;
 	pstHostMibs->stHostInfo.GoodReceives = Adapter->dev->stats.rx_packets;
 	pstHostMibs->stHostInfo.CurrNumFreeDesc =
