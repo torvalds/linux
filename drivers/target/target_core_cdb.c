@@ -688,8 +688,10 @@ target_emulate_inquiry(struct se_task *task)
 	unsigned char *cdb = cmd->t_task_cdb;
 	int p, ret;
 
-	if (!(cdb[1] & 0x1))
-		return target_emulate_inquiry_std(cmd);
+	if (!(cdb[1] & 0x1)) {
+		ret = target_emulate_inquiry_std(cmd);
+		goto out;
+	}
 
 	/*
 	 * Make sure we at least have 4 bytes of INQUIRY response
@@ -708,17 +710,25 @@ target_emulate_inquiry(struct se_task *task)
 
 	buf[0] = dev->transport->get_device_type(dev);
 
-	for (p = 0; p < ARRAY_SIZE(evpd_handlers); ++p)
+	for (p = 0; p < ARRAY_SIZE(evpd_handlers); ++p) {
 		if (cdb[2] == evpd_handlers[p].page) {
 			buf[1] = cdb[2];
 			ret = evpd_handlers[p].emulate(cmd, buf);
-			transport_kunmap_first_data_page(cmd);
-			return ret;
+			goto out_unmap;
 		}
+	}
 
-	transport_kunmap_first_data_page(cmd);
 	pr_err("Unknown VPD Code: 0x%02x\n", cdb[2]);
-	return -EINVAL;
+	ret = -EINVAL;
+
+out_unmap:
+	transport_kunmap_first_data_page(cmd);
+out:
+	if (!ret) {
+		task->task_scsi_status = GOOD;
+		transport_complete_task(task, 1);
+	}
+	return ret;
 }
 
 static int
@@ -753,6 +763,8 @@ target_emulate_readcapacity(struct se_task *task)
 
 	transport_kunmap_first_data_page(cmd);
 
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 
@@ -787,6 +799,8 @@ target_emulate_readcapacity_16(struct se_task *task)
 
 	transport_kunmap_first_data_page(cmd);
 
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 
@@ -1000,6 +1014,8 @@ target_emulate_modesense(struct se_task *task)
 	memcpy(rbuf, buf, offset);
 	transport_kunmap_first_data_page(cmd);
 
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 
@@ -1065,7 +1081,8 @@ target_emulate_request_sense(struct se_task *task)
 
 end:
 	transport_kunmap_first_data_page(cmd);
-
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 
@@ -1122,7 +1139,10 @@ target_emulate_unmap(struct se_task *task)
 
 err:
 	transport_kunmap_first_data_page(cmd);
-
+	if (!ret) {
+		task->task_scsi_status = GOOD;
+		transport_complete_task(task, 1);
+	}
 	return ret;
 }
 
@@ -1171,6 +1191,8 @@ target_emulate_write_same(struct se_task *task)
 		return ret;
 	}
 
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 
@@ -1186,6 +1208,14 @@ target_emulate_synchronize_cache(struct se_task *task)
 	}
 
 	dev->transport->do_sync_cache(task);
+	return 0;
+}
+
+static int
+target_emulate_noop(struct se_task *task)
+{
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 
@@ -1259,6 +1289,7 @@ transport_emulate_control_cdb(struct se_task *task)
 	case TEST_UNIT_READY:
 	case VERIFY:
 	case WRITE_FILEMARKS:
+		ret = target_emulate_noop(task);
 		break;
 	default:
 		pr_err("Unsupported SCSI Opcode: 0x%02x for %s\n",
@@ -1268,15 +1299,6 @@ transport_emulate_control_cdb(struct se_task *task)
 
 	if (ret < 0)
 		return ret;
-	/*
-	 * Handle the successful completion here unless a caller
-	 * has explictly requested an asychronous completion.
-	 */
-	if (!(cmd->se_cmd_flags & SCF_EMULATE_CDB_ASYNC)) {
-		task->task_scsi_status = GOOD;
-		transport_complete_task(task, 1);
-	}
-
 	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }
 

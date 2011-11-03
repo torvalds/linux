@@ -705,6 +705,8 @@ done:
 	buf[2] = ((lun_count >> 8) & 0xff);
 	buf[3] = (lun_count & 0xff);
 
+	se_task->task_scsi_status = GOOD;
+	transport_complete_task(se_task, 1);
 	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }
 

@@ -165,6 +165,8 @@ int target_emulate_report_target_port_groups(struct se_task *task)
 
 	transport_kunmap_first_data_page(cmd);
 
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 
@@ -343,7 +345,8 @@ int target_emulate_set_target_port_groups(struct se_task *task)
 
 out:
 	transport_kunmap_first_data_page(cmd);
-
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 

@@ -2162,28 +2162,6 @@ check_depth:
 	 */
 	if (cmd->execute_task) {
 		error = cmd->execute_task(task);
-		if (error != 0) {
-			cmd->transport_error_status = error;
-			spin_lock_irqsave(&cmd->t_state_lock, flags);
-			task->task_flags &= ~TF_ACTIVE;
-			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-			atomic_set(&cmd->t_transport_sent, 0);
-			transport_stop_tasks_for_cmd(cmd);
-			atomic_inc(&dev->depth_left);
-			transport_generic_request_failure(cmd, 0, 1);
-			goto check_depth;
-		}
-		/*
-		 * Handle the successful completion for execute_task()
-		 * for synchronous operation, following SCF_EMULATE_CDB_ASYNC
-		 * Otherwise the caller is expected to complete the task with
-		 * proper status.
-		 */
-		if (!(cmd->se_cmd_flags & SCF_EMULATE_CDB_ASYNC)) {
-			cmd->scsi_status = SAM_STAT_GOOD;
-			task->task_scsi_status = GOOD;
-			transport_complete_task(task, 1);
-		}
 	} else {
 		/*
 		 * Currently for all virtual TCM plugins including IBLOCK, FILEIO and
@@ -2200,17 +2178,17 @@ check_depth:
 			error = transport_emulate_control_cdb(task);
 		else
 			error = dev->transport->do_task(task);
+	}
 
-		if (error != 0) {
-			cmd->transport_error_status = error;
-			spin_lock_irqsave(&cmd->t_state_lock, flags);
-			task->task_flags &= ~TF_ACTIVE;
-			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-			atomic_set(&cmd->t_transport_sent, 0);
-			transport_stop_tasks_for_cmd(cmd);
-			atomic_inc(&dev->depth_left);
-			transport_generic_request_failure(cmd, 0, 1);
-		}
+	if (error != 0) {
+		cmd->transport_error_status = error;
+		spin_lock_irqsave(&cmd->t_state_lock, flags);
+		task->task_flags &= ~TF_ACTIVE;
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+		atomic_set(&cmd->t_transport_sent, 0);
+		transport_stop_tasks_for_cmd(cmd);
+		atomic_inc(&dev->depth_left);
+		transport_generic_request_failure(cmd, 0, 1);
 	}
 
 	goto check_depth;
@@ -3001,11 +2979,6 @@ static int transport_generic_cmd_sequencer(
 
 		if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
 			break;
-		/*
-		 * Set SCF_EMULATE_CDB_ASYNC to ensure asynchronous operation
-		 * for SYNCHRONIZE_CACHE* Immed=1 case in __transport_execute_tasks()
-		 */
-		cmd->se_cmd_flags |= SCF_EMULATE_CDB_ASYNC;
 		/*
 		 * Check to ensure that LBA + Range does not exceed past end of
 		 * device for IBLOCK and FILEIO ->do_sync_cache() backend calls
