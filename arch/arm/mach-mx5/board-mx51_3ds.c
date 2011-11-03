@@ -25,7 +25,6 @@
 #include <mach/3ds_debugboard.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 
 #define EXPIO_PARENT_INT	gpio_to_irq(IMX_GPIO_NR(1, 6))
 #define MX51_3DS_ECSPI2_CS	(GPIO_PORTC + 28)
@@ -169,10 +168,11 @@ static struct sys_timer mx51_3ds_timer = {
 
 MACHINE_START(MX51_3DS, "Freescale MX51 3-Stack Board")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.boot_params = MX51_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
+	.handle_irq = imx51_handle_irq,
 	.timer = &mx51_3ds_timer,
 	.init_machine = mx51_3ds_init,
 MACHINE_END

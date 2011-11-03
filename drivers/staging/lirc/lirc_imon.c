@@ -727,6 +727,9 @@ static int imon_probe(struct usb_interface *interface,
 	int i;
 	u16 vendor, product;
 
+	/* prevent races probing devices w/multiple interfaces */
+	mutex_lock(&driver_lock);
+
 	context = kzalloc(sizeof(struct imon_context), GFP_KERNEL);
 	if (!context) {
 		err("%s: kzalloc failed for context", __func__);
@@ -752,9 +755,6 @@ static int imon_probe(struct usb_interface *interface,
 
 	dev_dbg(dev, "%s: found iMON device (%04x:%04x, intf%d)\n",
 		__func__, vendor, product, ifnum);
-
-	/* prevent races probing devices w/multiple interfaces */
-	mutex_lock(&driver_lock);
 
 	/*
 	 * Scan the endpoint list and set:

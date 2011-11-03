@@ -406,6 +406,15 @@ flag is typically present for relative controls or action controls where
 writing a value will cause the device to carry out a given action
 (&eg; motor control) but no meaningful value can be returned.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_FLAG_VOLATILE</constant></entry>
+	    <entry>0x0080</entry>
+	    <entry>This control is volatile, which means that the value of the control
+changes continuously. A typical example would be the current gain value if the device
+is in auto-gain mode. In such a case the hardware calculates the gain value based on
+the lighting conditions which can change over time. Note that setting a new value for
+a volatile control will have no effect. The new value will just be ignored.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>

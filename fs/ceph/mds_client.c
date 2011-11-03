@@ -764,7 +764,8 @@ static struct ceph_msg *create_session_msg(u32 op, u64 seq)
 	struct ceph_msg *msg;
 	struct ceph_mds_session_head *h;
 
-	msg = ceph_msg_new(CEPH_MSG_CLIENT_SESSION, sizeof(*h), GFP_NOFS);
+	msg = ceph_msg_new(CEPH_MSG_CLIENT_SESSION, sizeof(*h), GFP_NOFS,
+			   false);
 	if (!msg) {
 		pr_err("create_session_msg ENOMEM creating msg\n");
 		return NULL;
@@ -1240,7 +1241,7 @@ int ceph_add_cap_releases(struct ceph_mds_client *mdsc,
 	while (session->s_num_cap_releases < session->s_nr_caps + extra) {
 		spin_unlock(&session->s_cap_lock);
 		msg = ceph_msg_new(CEPH_MSG_CLIENT_CAPRELEASE, PAGE_CACHE_SIZE,
-				   GFP_NOFS);
+				   GFP_NOFS, false);
 		if (!msg)
 			goto out_unlocked;
 		dout("add_cap_releases %p msg %p now %d\n", session, msg,
@@ -1652,7 +1653,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	if (req->r_old_dentry_drop)
 		len += req->r_old_dentry->d_name.len;
 
-	msg = ceph_msg_new(CEPH_MSG_CLIENT_REQUEST, len, GFP_NOFS);
+	msg = ceph_msg_new(CEPH_MSG_CLIENT_REQUEST, len, GFP_NOFS, false);
 	if (!msg) {
 		msg = ERR_PTR(-ENOMEM);
 		goto out_free2;
@@ -2518,7 +2519,7 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 		goto fail_nopagelist;
 	ceph_pagelist_init(pagelist);
 
-	reply = ceph_msg_new(CEPH_MSG_CLIENT_RECONNECT, 0, GFP_NOFS);
+	reply = ceph_msg_new(CEPH_MSG_CLIENT_RECONNECT, 0, GFP_NOFS, false);
 	if (!reply)
 		goto fail_nomsg;
 
@@ -2831,7 +2832,7 @@ void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
 	dnamelen = dentry->d_name.len;
 	len += dnamelen;
 
-	msg = ceph_msg_new(CEPH_MSG_CLIENT_LEASE, len, GFP_NOFS);
+	msg = ceph_msg_new(CEPH_MSG_CLIENT_LEASE, len, GFP_NOFS, false);
 	if (!msg)
 		return;
 	lease = msg->front.iov_base;

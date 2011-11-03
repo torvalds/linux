@@ -391,18 +391,6 @@ void bnx2fc_rec_compl(struct bnx2fc_els_cb_arg *cb_arg)
 	BNX2FC_IO_DBG(rec_req, "rec_compl: orig xid = 0x%x", orig_io_req->xid);
 	tgt = orig_io_req->tgt;
 
-	if (test_bit(BNX2FC_FLAG_IO_COMPL, &orig_io_req->req_flags)) {
-		BNX2FC_IO_DBG(rec_req, "completed"
-		       "orig_io - 0x%x\n",
-			orig_io_req->xid);
-		goto rec_compl_done;
-	}
-	if (test_bit(BNX2FC_FLAG_ISSUE_ABTS, &orig_io_req->req_flags)) {
-		BNX2FC_IO_DBG(rec_req, "abts in prog "
-		       "orig_io - 0x%x\n",
-			orig_io_req->xid);
-		goto rec_compl_done;
-	}
 	/* Handle REC timeout case */
 	if (test_and_clear_bit(BNX2FC_FLAG_ELS_TIMEOUT, &rec_req->req_flags)) {
 		BNX2FC_IO_DBG(rec_req, "timed out, abort "
@@ -433,6 +421,20 @@ void bnx2fc_rec_compl(struct bnx2fc_els_cb_arg *cb_arg)
 		}
 		goto rec_compl_done;
 	}
+
+	if (test_bit(BNX2FC_FLAG_IO_COMPL, &orig_io_req->req_flags)) {
+		BNX2FC_IO_DBG(rec_req, "completed"
+		       "orig_io - 0x%x\n",
+			orig_io_req->xid);
+		goto rec_compl_done;
+	}
+	if (test_bit(BNX2FC_FLAG_ISSUE_ABTS, &orig_io_req->req_flags)) {
+		BNX2FC_IO_DBG(rec_req, "abts in prog "
+		       "orig_io - 0x%x\n",
+			orig_io_req->xid);
+		goto rec_compl_done;
+	}
+
 	mp_req = &(rec_req->mp_req);
 	fc_hdr = &(mp_req->resp_fc_hdr);
 	resp_len = mp_req->resp_len;

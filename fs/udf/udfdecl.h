@@ -112,8 +112,8 @@ struct extent_position {
 
 /* super.c */
 
-__attribute__((format(printf, 3, 4)))
-extern void udf_warning(struct super_block *, const char *, const char *, ...);
+extern __printf(3, 4) void udf_warning(struct super_block *, const char *,
+					const char *, ...);
 static inline void udf_updated_lvid(struct super_block *sb)
 {
 	struct buffer_head *bh = UDF_SB(sb)->s_lvid_bh;

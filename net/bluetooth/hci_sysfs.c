@@ -23,6 +23,8 @@ static inline char *link_typetostr(int type)
 		return "SCO";
 	case ESCO_LINK:
 		return "eSCO";
+	case LE_LINK:
+		return "LE";
 	default:
 		return "UNKNOWN";
 	}

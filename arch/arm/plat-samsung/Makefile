@@ -11,7 +11,7 @@ obj-				:=
 
 # Objects we always build independent of SoC choice
 
-obj-y				+= init.o
+obj-y				+= init.o cpu.o
 obj-$(CONFIG_ARCH_USES_GETTIMEOFFSET)   += time.o
 obj-y				+= clock.o
 obj-y				+= pwm-clock.o
@@ -21,7 +21,6 @@ obj-y				+= dev-asocdma.o
 
 obj-$(CONFIG_SAMSUNG_CLKSRC)	+= clock-clksrc.o
 
-obj-$(CONFIG_SAMSUNG_IRQ_UART)	+= irq-uart.o
 obj-$(CONFIG_SAMSUNG_IRQ_VIC_TIMER) += irq-vic-timer.o
 
 # ADC

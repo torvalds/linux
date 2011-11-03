@@ -679,6 +679,14 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 			musb_readb(mbase, MUSB_FADDR),
 			decode_ep0stage(musb->ep0_state));
 
+	if (csr & MUSB_CSR0_P_DATAEND) {
+		/*
+		 * If DATAEND is set we should not call the callback,
+		 * hence the status stage is not complete.
+		 */
+		return IRQ_HANDLED;
+	}
+
 	/* I sent a stall.. need to acknowledge it now.. */
 	if (csr & MUSB_CSR0_P_SENTSTALL) {
 		musb_writew(regs, MUSB_CSR0,

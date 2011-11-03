@@ -133,6 +133,15 @@ static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 		v = sprom[SPOFF(SSB_SPROM8_IL0MAC) + i];
 		*(((__be16 *)bus->sprom.il0mac) + i) = cpu_to_be16(v);
 	}
+
+	bus->sprom.board_rev = sprom[SPOFF(SSB_SPROM8_BOARDREV)];
+
+	bus->sprom.boardflags_lo = sprom[SPOFF(SSB_SPROM8_BFLLO)];
+	bus->sprom.boardflags_hi = sprom[SPOFF(SSB_SPROM8_BFLHI)];
+	bus->sprom.boardflags2_lo = sprom[SPOFF(SSB_SPROM8_BFL2LO)];
+	bus->sprom.boardflags2_hi = sprom[SPOFF(SSB_SPROM8_BFL2HI)];
+
+	bus->sprom.country_code = sprom[SPOFF(SSB_SPROM8_CCODE)];
 }
 
 int bcma_sprom_get(struct bcma_bus *bus)
@@ -152,12 +161,18 @@ int bcma_sprom_get(struct bcma_bus *bus)
 	if (!sprom)
 		return -ENOMEM;
 
+	if (bus->chipinfo.id == 0x4331)
+		bcma_chipco_bcm4331_ext_pa_lines_ctl(&bus->drv_cc, false);
+
 	/* Most cards have SPROM moved by additional offset 0x30 (48 dwords).
 	 * According to brcm80211 this applies to cards with PCIe rev >= 6
 	 * TODO: understand this condition and use it */
 	offset = (bus->chipinfo.id == 0x4331) ? BCMA_CC_SPROM :
 		BCMA_CC_SPROM_PCIE6;
 	bcma_sprom_read(bus, offset, sprom);
+
+	if (bus->chipinfo.id == 0x4331)
+		bcma_chipco_bcm4331_ext_pa_lines_ctl(&bus->drv_cc, true);
 
 	err = bcma_sprom_valid(sprom);
 	if (err)

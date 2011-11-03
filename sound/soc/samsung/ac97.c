@@ -444,7 +444,7 @@ static __devinit int s3c_ac97_probe(struct platform_device *pdev)
 	}
 
 	ret = request_irq(irq_res->start, s3c_ac97_irq,
-					IRQF_DISABLED, "AC97", NULL);
+					0, "AC97", NULL);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "ac97: interrupt request failed.\n");
 		goto err4;
@@ -495,7 +495,7 @@ static __devexit int s3c_ac97_remove(struct platform_device *pdev)
 
 static struct platform_driver s3c_ac97_driver = {
 	.probe  = s3c_ac97_probe,
-	.remove = s3c_ac97_remove,
+	.remove = __devexit_p(s3c_ac97_remove),
 	.driver = {
 		.name = "samsung-ac97",
 		.owner = THIS_MODULE,

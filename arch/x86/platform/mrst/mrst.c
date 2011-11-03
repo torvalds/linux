@@ -14,6 +14,8 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/interrupt.h>
+#include <linux/scatterlist.h>
 #include <linux/sfi.h>
 #include <linux/intel_pmic_gpio.h>
 #include <linux/spi/spi.h>
@@ -392,6 +394,7 @@ static void __init *max3111_platform_data(void *info)
 	struct spi_board_info *spi_info = info;
 	int intr = get_gpio_by_name("max3111_int");
 
+	spi_info->mode = SPI_MODE_0;
 	if (intr == -1)
 		return NULL;
 	spi_info->irq = intr + MRST_IRQ_OFFSET;

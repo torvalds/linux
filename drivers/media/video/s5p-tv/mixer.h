@@ -111,8 +111,6 @@ struct mxr_buffer {
 enum mxr_layer_state {
 	/** layers is not shown */
 	MXR_LAYER_IDLE = 0,
-	/** state between STREAMON and hardware start */
-	MXR_LAYER_STREAMING_START,
 	/** layer is shown */
 	MXR_LAYER_STREAMING,
 	/** state before STREAMOFF is finished */

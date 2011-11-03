@@ -931,7 +931,6 @@ static int adjust_mute(struct easycap *peasycap, int value)
 			switch (peasycap->mute) {
 			case 1: {
 				peasycap->audio_idle = 1;
-				peasycap->timeval0.tv_sec = 0;
 				SAM("adjusting mute: %i=peasycap->audio_idle\n",
 				    peasycap->audio_idle);
 				return 0;
@@ -1317,17 +1316,12 @@ long easycap_unlocked_ioctl(struct file *file,
 		struct v4l2_control *pv4l2_control;
 
 		JOM(8, "VIDIOC_G_CTRL\n");
-		pv4l2_control = kzalloc(sizeof(struct v4l2_control), GFP_KERNEL);
-		if (!pv4l2_control) {
-			SAM("ERROR: out of memory\n");
+		pv4l2_control = memdup_user((void __user *)arg,
+					    sizeof(struct v4l2_control));
+		if (IS_ERR(pv4l2_control)) {
+			SAM("ERROR: copy from user failed\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
-			return -ENOMEM;
-		}
-		if (0 != copy_from_user(pv4l2_control, (void __user *)arg,
-				sizeof(struct v4l2_control))) {
-			kfree(pv4l2_control);
-			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
-			return -EFAULT;
+			return PTR_ERR(pv4l2_control);
 		}
 
 		switch (pv4l2_control->id) {
@@ -2338,7 +2332,6 @@ long easycap_unlocked_ioctl(struct file *file,
 
 		peasycap->video_idle = 1;
 		peasycap->audio_idle = 1;
-		peasycap->timeval0.tv_sec = 0;
 /*---------------------------------------------------------------------------*/
 /*
  *  IF THE WAIT QUEUES ARE NOT CLEARED IN RESPONSE TO THE STREAMOFF COMMAND
@@ -2356,17 +2349,12 @@ long easycap_unlocked_ioctl(struct file *file,
 		struct v4l2_streamparm *pv4l2_streamparm;
 
 		JOM(8, "VIDIOC_G_PARM\n");
-		pv4l2_streamparm = kzalloc(sizeof(struct v4l2_streamparm), GFP_KERNEL);
-		if (!pv4l2_streamparm) {
-			SAM("ERROR: out of memory\n");
+		pv4l2_streamparm = memdup_user((void __user *)arg,
+					       sizeof(struct v4l2_streamparm));
+		if (IS_ERR(pv4l2_streamparm)) {
+			SAM("ERROR: copy from user failed\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
-			return -ENOMEM;
-		}
-		if (copy_from_user(pv4l2_streamparm,
-			(void __user *)arg, sizeof(struct v4l2_streamparm))) {
-			kfree(pv4l2_streamparm);
-			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
-			return -EFAULT;
+			return PTR_ERR(pv4l2_streamparm);
 		}
 
 		if (pv4l2_streamparm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {

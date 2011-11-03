@@ -628,6 +628,7 @@ void *dm_kcopyd_prepare_callback(struct dm_kcopyd_client *kc,
 	job->kc = kc;
 	job->fn = fn;
 	job->context = context;
+	job->master_job = job;
 
 	atomic_inc(&kc->nr_jobs);
 

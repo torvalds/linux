@@ -413,6 +413,9 @@ static int carl9170_op_start(struct ieee80211_hw *hw)
 
 	carl9170_set_state_when(ar, CARL9170_IDLE, CARL9170_STARTED);
 
+	ieee80211_queue_delayed_work(ar->hw, &ar->stat_work,
+		round_jiffies(msecs_to_jiffies(CARL9170_STAT_WORK)));
+
 	ieee80211_wake_queues(ar->hw);
 	err = 0;
 
@@ -423,6 +426,7 @@ out:
 
 static void carl9170_cancel_worker(struct ar9170 *ar)
 {
+	cancel_delayed_work_sync(&ar->stat_work);
 	cancel_delayed_work_sync(&ar->tx_janitor);
 #ifdef CONFIG_CARL9170_LEDS
 	cancel_delayed_work_sync(&ar->led_work);
@@ -794,6 +798,43 @@ static void carl9170_ps_work(struct work_struct *work)
 	mutex_unlock(&ar->mutex);
 }
 
+static int carl9170_update_survey(struct ar9170 *ar, bool flush, bool noise)
+{
+	int err;
+
+	if (noise) {
+		err = carl9170_get_noisefloor(ar);
+		if (err)
+			return err;
+	}
+
+	if (ar->fw.hw_counters) {
+		err = carl9170_collect_tally(ar);
+		if (err)
+			return err;
+	}
+
+	if (flush)
+		memset(&ar->tally, 0, sizeof(ar->tally));
+
+	return 0;
+}
+
+static void carl9170_stat_work(struct work_struct *work)
+{
+	struct ar9170 *ar = container_of(work, struct ar9170, stat_work.work);
+	int err;
+
+	mutex_lock(&ar->mutex);
+	err = carl9170_update_survey(ar, false, true);
+	mutex_unlock(&ar->mutex);
+
+	if (err)
+		return;
+
+	ieee80211_queue_delayed_work(ar->hw, &ar->stat_work,
+		round_jiffies(msecs_to_jiffies(CARL9170_STAT_WORK)));
+}
 
 static int carl9170_op_config(struct ieee80211_hw *hw, u32 changed)
 {
@@ -828,8 +869,16 @@ static int carl9170_op_config(struct ieee80211_hw *hw, u32 changed)
 		if (err)
 			goto out;
 
+		err = carl9170_update_survey(ar, true, false);
+		if (err)
+			goto out;
+
 		err = carl9170_set_channel(ar, hw->conf.channel,
 			hw->conf.channel_type, CARL9170_RFI_NONE);
+		if (err)
+			goto out;
+
+		err = carl9170_update_survey(ar, false, true);
 		if (err)
 			goto out;
 
@@ -1029,7 +1078,8 @@ out:
 	mutex_unlock(&ar->mutex);
 }
 
-static u64 carl9170_op_get_tsf(struct ieee80211_hw *hw)
+static u64 carl9170_op_get_tsf(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif)
 {
 	struct ar9170 *ar = hw->priv;
 	struct carl9170_tsf_rsp tsf;
@@ -1255,7 +1305,8 @@ static int carl9170_op_sta_remove(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int carl9170_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
+static int carl9170_op_conf_tx(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif, u16 queue,
 			       const struct ieee80211_tx_queue_params *param)
 {
 	struct ar9170 *ar = hw->priv;
@@ -1421,24 +1472,159 @@ static int carl9170_register_wps_button(struct ar9170 *ar)
 }
 #endif /* CONFIG_CARL9170_WPC */
 
+#ifdef CONFIG_CARL9170_HWRNG
+static int carl9170_rng_get(struct ar9170 *ar)
+{
+
+#define RW	(CARL9170_MAX_CMD_PAYLOAD_LEN / sizeof(u32))
+#define RB	(CARL9170_MAX_CMD_PAYLOAD_LEN)
+
+	static const __le32 rng_load[RW] = {
+		[0 ... (RW - 1)] = cpu_to_le32(AR9170_RAND_REG_NUM)};
+
+	u32 buf[RW];
+
+	unsigned int i, off = 0, transfer, count;
+	int err;
+
+	BUILD_BUG_ON(RB > CARL9170_MAX_CMD_PAYLOAD_LEN);
+
+	if (!IS_ACCEPTING_CMD(ar) || !ar->rng.initialized)
+		return -EAGAIN;
+
+	count = ARRAY_SIZE(ar->rng.cache);
+	while (count) {
+		err = carl9170_exec_cmd(ar, CARL9170_CMD_RREG,
+					RB, (u8 *) rng_load,
+					RB, (u8 *) buf);
+		if (err)
+			return err;
+
+		transfer = min_t(unsigned int, count, RW);
+		for (i = 0; i < transfer; i++)
+			ar->rng.cache[off + i] = buf[i];
+
+		off += transfer;
+		count -= transfer;
+	}
+
+	ar->rng.cache_idx = 0;
+
+#undef RW
+#undef RB
+	return 0;
+}
+
+static int carl9170_rng_read(struct hwrng *rng, u32 *data)
+{
+	struct ar9170 *ar = (struct ar9170 *)rng->priv;
+	int ret = -EIO;
+
+	mutex_lock(&ar->mutex);
+	if (ar->rng.cache_idx >= ARRAY_SIZE(ar->rng.cache)) {
+		ret = carl9170_rng_get(ar);
+		if (ret) {
+			mutex_unlock(&ar->mutex);
+			return ret;
+		}
+	}
+
+	*data = ar->rng.cache[ar->rng.cache_idx++];
+	mutex_unlock(&ar->mutex);
+
+	return sizeof(u16);
+}
+
+static void carl9170_unregister_hwrng(struct ar9170 *ar)
+{
+	if (ar->rng.initialized) {
+		hwrng_unregister(&ar->rng.rng);
+		ar->rng.initialized = false;
+	}
+}
+
+static int carl9170_register_hwrng(struct ar9170 *ar)
+{
+	int err;
+
+	snprintf(ar->rng.name, ARRAY_SIZE(ar->rng.name),
+		 "%s_%s", KBUILD_MODNAME, wiphy_name(ar->hw->wiphy));
+	ar->rng.rng.name = ar->rng.name;
+	ar->rng.rng.data_read = carl9170_rng_read;
+	ar->rng.rng.priv = (unsigned long)ar;
+
+	if (WARN_ON(ar->rng.initialized))
+		return -EALREADY;
+
+	err = hwrng_register(&ar->rng.rng);
+	if (err) {
+		dev_err(&ar->udev->dev, "Failed to register the random "
+			"number generator (%d)\n", err);
+		return err;
+	}
+
+	ar->rng.initialized = true;
+
+	err = carl9170_rng_get(ar);
+	if (err) {
+		carl9170_unregister_hwrng(ar);
+		return err;
+	}
+
+	return 0;
+}
+#endif /* CONFIG_CARL9170_HWRNG */
+
 static int carl9170_op_get_survey(struct ieee80211_hw *hw, int idx,
 				struct survey_info *survey)
 {
 	struct ar9170 *ar = hw->priv;
-	int err;
+	struct ieee80211_channel *chan;
+	struct ieee80211_supported_band *band;
+	int err, b, i;
 
-	if (idx != 0)
-		return -ENOENT;
+	chan = ar->channel;
+	if (!chan)
+		return -ENODEV;
 
-	mutex_lock(&ar->mutex);
-	err = carl9170_get_noisefloor(ar);
-	mutex_unlock(&ar->mutex);
-	if (err)
-		return err;
+	if (idx == chan->hw_value) {
+		mutex_lock(&ar->mutex);
+		err = carl9170_update_survey(ar, false, true);
+		mutex_unlock(&ar->mutex);
+		if (err)
+			return err;
+	}
 
-	survey->channel = ar->channel;
+	for (b = 0; b < IEEE80211_NUM_BANDS; b++) {
+		band = ar->hw->wiphy->bands[b];
+
+		if (!band)
+			continue;
+
+		for (i = 0; i < band->n_channels; i++) {
+			if (band->channels[i].hw_value == idx) {
+				chan = &band->channels[i];
+				goto found;
+			}
+		}
+	}
+	return -ENOENT;
+
+found:
+	memcpy(survey, &ar->survey[idx], sizeof(*survey));
+
+	survey->channel = chan;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
-	survey->noise = ar->noise[0];
+
+	if (ar->channel == chan)
+		survey->filled |= SURVEY_INFO_IN_USE;
+
+	if (ar->fw.hw_counters) {
+		survey->filled |= SURVEY_INFO_CHANNEL_TIME |
+				  SURVEY_INFO_CHANNEL_TIME_BUSY |
+				  SURVEY_INFO_CHANNEL_TIME_TX;
+	}
+
 	return 0;
 }
 
@@ -1571,6 +1757,7 @@ void *carl9170_alloc(size_t priv_size)
 	INIT_WORK(&ar->ping_work, carl9170_ping_work);
 	INIT_WORK(&ar->restart_work, carl9170_restart_work);
 	INIT_WORK(&ar->ampdu_work, carl9170_ampdu_work);
+	INIT_DELAYED_WORK(&ar->stat_work, carl9170_stat_work);
 	INIT_DELAYED_WORK(&ar->tx_janitor, carl9170_tx_janitor);
 	INIT_LIST_HEAD(&ar->tx_ampdu_list);
 	rcu_assign_pointer(ar->tx_ampdu_iter,
@@ -1654,6 +1841,7 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	struct ath_regulatory *regulatory = &ar->common.regulatory;
 	unsigned int rx_streams, tx_streams, tx_params = 0;
 	int bands = 0;
+	int chans = 0;
 
 	if (ar->eeprom.length == cpu_to_le16(0xffff))
 		return -ENODATA;
@@ -1677,13 +1865,23 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	if (ar->eeprom.operating_flags & AR9170_OPFLAG_2GHZ) {
 		ar->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 			&carl9170_band_2GHz;
+		chans += carl9170_band_2GHz.n_channels;
 		bands++;
 	}
 	if (ar->eeprom.operating_flags & AR9170_OPFLAG_5GHZ) {
 		ar->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&carl9170_band_5GHz;
+		chans += carl9170_band_5GHz.n_channels;
 		bands++;
 	}
+
+	if (!bands)
+		return -EINVAL;
+
+	ar->survey = kzalloc(sizeof(struct survey_info) * chans, GFP_KERNEL);
+	if (!ar->survey)
+		return -ENOMEM;
+	ar->num_channels = chans;
 
 	/*
 	 * I measured this, a bandswitch takes roughly
@@ -1698,12 +1896,11 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 		ar->hw->channel_change_time = 80 * 1000;
 
 	regulatory->current_rd = le16_to_cpu(ar->eeprom.reg_domain[0]);
-	regulatory->current_rd_ext = le16_to_cpu(ar->eeprom.reg_domain[1]);
 
 	/* second part of wiphy init */
 	SET_IEEE80211_PERM_ADDR(ar->hw, ar->eeprom.mac_address);
 
-	return bands ? 0 : -EINVAL;
+	return 0;
 }
 
 static int carl9170_reg_notifier(struct wiphy *wiphy,
@@ -1787,6 +1984,12 @@ int carl9170_register(struct ar9170 *ar)
 		goto err_unreg;
 #endif /* CONFIG_CARL9170_WPC */
 
+#ifdef CONFIG_CARL9170_HWRNG
+	err = carl9170_register_hwrng(ar);
+	if (err)
+		goto err_unreg;
+#endif /* CONFIG_CARL9170_HWRNG */
+
 	dev_info(&ar->udev->dev, "Atheros AR9170 is registered as '%s'\n",
 		 wiphy_name(ar->hw->wiphy));
 
@@ -1819,6 +2022,10 @@ void carl9170_unregister(struct ar9170 *ar)
 	}
 #endif /* CONFIG_CARL9170_WPC */
 
+#ifdef CONFIG_CARL9170_HWRNG
+	carl9170_unregister_hwrng(ar);
+#endif /* CONFIG_CARL9170_HWRNG */
+
 	carl9170_cancel_worker(ar);
 	cancel_work_sync(&ar->restart_work);
 
@@ -1835,6 +2042,9 @@ void carl9170_free(struct ar9170 *ar)
 
 	kfree(ar->mem_bitmap);
 	ar->mem_bitmap = NULL;
+
+	kfree(ar->survey);
+	ar->survey = NULL;
 
 	mutex_destroy(&ar->mutex);
 

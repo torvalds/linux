@@ -55,6 +55,7 @@
 
 #define KBC_ROW_CFG0_0	0x8
 #define KBC_COL_CFG0_0	0x18
+#define KBC_TO_CNT_0	0x24
 #define KBC_INIT_DLY_0	0x28
 #define KBC_RPT_DLY_0	0x2c
 #define KBC_KP_ENT0_0	0x30
@@ -70,6 +71,7 @@ struct tegra_kbc {
 	spinlock_t lock;
 	unsigned int repoll_dly;
 	unsigned long cp_dly_jiffies;
+	unsigned int cp_to_wkup_dly;
 	bool use_fn_map;
 	bool use_ghost_filter;
 	const struct tegra_kbc_platform_data *pdata;
@@ -258,12 +260,10 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 	u32 val = 0;
 	unsigned int i;
 	unsigned int num_down = 0;
-	unsigned long flags;
 	bool fn_keypress = false;
 	bool key_in_same_row = false;
 	bool key_in_same_col = false;
 
-	spin_lock_irqsave(&kbc->lock, flags);
 	for (i = 0; i < KBC_MAX_KPENT; i++) {
 		if ((i % 4) == 0)
 			val = readl(kbc->mmio + KBC_KP_ENT0_0 + i);
@@ -292,7 +292,7 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 	 * any 2 of the 3 keys share a row, and any 2 of them share a column.
 	 * If so ignore the key presses for this iteration.
 	 */
-	if ((kbc->use_ghost_filter) && (num_down >= 3)) {
+	if (kbc->use_ghost_filter && num_down >= 3) {
 		for (i = 0; i < num_down; i++) {
 			unsigned int j;
 			u8 curr_col = scancodes[i] & 0x07;
@@ -325,8 +325,6 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 		}
 	}
 
-	spin_unlock_irqrestore(&kbc->lock, flags);
-
 	/* Ignore the key presses for this iteration? */
 	if (key_in_same_col && key_in_same_row)
 		return;
@@ -341,12 +339,26 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 	kbc->num_pressed_keys = num_down;
 }
 
+static void tegra_kbc_set_fifo_interrupt(struct tegra_kbc *kbc, bool enable)
+{
+	u32 val;
+
+	val = readl(kbc->mmio + KBC_CONTROL_0);
+	if (enable)
+		val |= KBC_CONTROL_FIFO_CNT_INT_EN;
+	else
+		val &= ~KBC_CONTROL_FIFO_CNT_INT_EN;
+	writel(val, kbc->mmio + KBC_CONTROL_0);
+}
+
 static void tegra_kbc_keypress_timer(unsigned long data)
 {
 	struct tegra_kbc *kbc = (struct tegra_kbc *)data;
 	unsigned long flags;
 	u32 val;
 	unsigned int i;
+
+	spin_lock_irqsave(&kbc->lock, flags);
 
 	val = (readl(kbc->mmio + KBC_INT_0) >> 4) & 0xf;
 	if (val) {
@@ -369,26 +381,19 @@ static void tegra_kbc_keypress_timer(unsigned long data)
 		kbc->num_pressed_keys = 0;
 
 		/* All keys are released so enable the keypress interrupt */
-		spin_lock_irqsave(&kbc->lock, flags);
-		val = readl(kbc->mmio + KBC_CONTROL_0);
-		val |= KBC_CONTROL_FIFO_CNT_INT_EN;
-		writel(val, kbc->mmio + KBC_CONTROL_0);
-		spin_unlock_irqrestore(&kbc->lock, flags);
+		tegra_kbc_set_fifo_interrupt(kbc, true);
 	}
+
+	spin_unlock_irqrestore(&kbc->lock, flags);
 }
 
 static irqreturn_t tegra_kbc_isr(int irq, void *args)
 {
 	struct tegra_kbc *kbc = args;
-	u32 val, ctl;
+	unsigned long flags;
+	u32 val;
 
-	/*
-	 * Until all keys are released, defer further processing to
-	 * the polling loop in tegra_kbc_keypress_timer
-	 */
-	ctl = readl(kbc->mmio + KBC_CONTROL_0);
-	ctl &= ~KBC_CONTROL_FIFO_CNT_INT_EN;
-	writel(ctl, kbc->mmio + KBC_CONTROL_0);
+	spin_lock_irqsave(&kbc->lock, flags);
 
 	/*
 	 * Quickly bail out & reenable interrupts if the fifo threshold
@@ -399,14 +404,14 @@ static irqreturn_t tegra_kbc_isr(int irq, void *args)
 
 	if (val & KBC_INT_FIFO_CNT_INT_STATUS) {
 		/*
-		 * Schedule timer to run when hardware is in continuous
-		 * polling mode.
+		 * Until all keys are released, defer further processing to
+		 * the polling loop in tegra_kbc_keypress_timer.
 		 */
+		tegra_kbc_set_fifo_interrupt(kbc, false);
 		mod_timer(&kbc->timer, jiffies + kbc->cp_dly_jiffies);
-	} else {
-		ctl |= KBC_CONTROL_FIFO_CNT_INT_EN;
-		writel(ctl, kbc->mmio + KBC_CONTROL_0);
 	}
+
+	spin_unlock_irqrestore(&kbc->lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -455,7 +460,6 @@ static void tegra_kbc_config_pins(struct tegra_kbc *kbc)
 static int tegra_kbc_start(struct tegra_kbc *kbc)
 {
 	const struct tegra_kbc_platform_data *pdata = kbc->pdata;
-	unsigned long flags;
 	unsigned int debounce_cnt;
 	u32 val = 0;
 
@@ -493,7 +497,6 @@ static int tegra_kbc_start(struct tegra_kbc *kbc)
 	 * Atomically clear out any remaining entries in the key FIFO
 	 * and enable keyboard interrupts.
 	 */
-	spin_lock_irqsave(&kbc->lock, flags);
 	while (1) {
 		val = readl(kbc->mmio + KBC_INT_0);
 		val >>= 4;
@@ -504,7 +507,6 @@ static int tegra_kbc_start(struct tegra_kbc *kbc)
 		val = readl(kbc->mmio + KBC_KP_ENT1_0);
 	}
 	writel(0x7, kbc->mmio + KBC_INT_0);
-	spin_unlock_irqrestore(&kbc->lock, flags);
 
 	enable_irq(kbc->irq);
 
@@ -734,18 +736,30 @@ static int tegra_kbc_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct tegra_kbc *kbc = platform_get_drvdata(pdev);
 
+	mutex_lock(&kbc->idev->mutex);
 	if (device_may_wakeup(&pdev->dev)) {
-		tegra_kbc_setup_wakekeys(kbc, true);
-		enable_irq_wake(kbc->irq);
+		disable_irq(kbc->irq);
+		del_timer_sync(&kbc->timer);
+		tegra_kbc_set_fifo_interrupt(kbc, false);
+
 		/* Forcefully clear the interrupt status */
 		writel(0x7, kbc->mmio + KBC_INT_0);
+		/*
+		 * Store the previous resident time of continuous polling mode.
+		 * Force the keyboard into interrupt mode.
+		 */
+		kbc->cp_to_wkup_dly = readl(kbc->mmio + KBC_TO_CNT_0);
+		writel(0, kbc->mmio + KBC_TO_CNT_0);
+
+		tegra_kbc_setup_wakekeys(kbc, true);
 		msleep(30);
+
+		enable_irq_wake(kbc->irq);
 	} else {
-		mutex_lock(&kbc->idev->mutex);
 		if (kbc->idev->users)
 			tegra_kbc_stop(kbc);
-		mutex_unlock(&kbc->idev->mutex);
 	}
+	mutex_unlock(&kbc->idev->mutex);
 
 	return 0;
 }
@@ -756,15 +770,22 @@ static int tegra_kbc_resume(struct device *dev)
 	struct tegra_kbc *kbc = platform_get_drvdata(pdev);
 	int err = 0;
 
+	mutex_lock(&kbc->idev->mutex);
 	if (device_may_wakeup(&pdev->dev)) {
 		disable_irq_wake(kbc->irq);
 		tegra_kbc_setup_wakekeys(kbc, false);
+
+		/* Restore the resident time of continuous polling mode. */
+		writel(kbc->cp_to_wkup_dly, kbc->mmio + KBC_TO_CNT_0);
+
+		tegra_kbc_set_fifo_interrupt(kbc, true);
+
+		enable_irq(kbc->irq);
 	} else {
-		mutex_lock(&kbc->idev->mutex);
 		if (kbc->idev->users)
 			err = tegra_kbc_start(kbc);
-		mutex_unlock(&kbc->idev->mutex);
 	}
+	mutex_unlock(&kbc->idev->mutex);
 
 	return err;
 }

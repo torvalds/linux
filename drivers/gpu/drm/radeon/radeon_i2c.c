@@ -81,8 +81,9 @@ bool radeon_ddc_probe(struct radeon_connector *radeon_connector, bool requires_e
 
 /* bit banging i2c */
 
-static void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
+static int pre_xfer(struct i2c_adapter *i2c_adap)
 {
+	struct radeon_i2c_chan *i2c = i2c_get_adapdata(i2c_adap);
 	struct radeon_device *rdev = i2c->dev->dev_private;
 	struct radeon_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t temp;
@@ -137,19 +138,30 @@ static void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
 	WREG32(rec->en_data_reg, temp);
 
 	/* mask the gpio pins for software use */
-	temp = RREG32(rec->mask_clk_reg);
-	if (lock_state)
-		temp |= rec->mask_clk_mask;
-	else
-		temp &= ~rec->mask_clk_mask;
+	temp = RREG32(rec->mask_clk_reg) | rec->mask_clk_mask;
 	WREG32(rec->mask_clk_reg, temp);
 	temp = RREG32(rec->mask_clk_reg);
 
+	temp = RREG32(rec->mask_data_reg) | rec->mask_data_mask;
+	WREG32(rec->mask_data_reg, temp);
 	temp = RREG32(rec->mask_data_reg);
-	if (lock_state)
-		temp |= rec->mask_data_mask;
-	else
-		temp &= ~rec->mask_data_mask;
+
+	return 0;
+}
+
+static void post_xfer(struct i2c_adapter *i2c_adap)
+{
+	struct radeon_i2c_chan *i2c = i2c_get_adapdata(i2c_adap);
+	struct radeon_device *rdev = i2c->dev->dev_private;
+	struct radeon_i2c_bus_rec *rec = &i2c->rec;
+	uint32_t temp;
+
+	/* unmask the gpio pins for software use */
+	temp = RREG32(rec->mask_clk_reg) & ~rec->mask_clk_mask;
+	WREG32(rec->mask_clk_reg, temp);
+	temp = RREG32(rec->mask_clk_reg);
+
+	temp = RREG32(rec->mask_data_reg) & ~rec->mask_data_mask;
 	WREG32(rec->mask_data_reg, temp);
 	temp = RREG32(rec->mask_data_reg);
 }
@@ -207,22 +219,6 @@ static void set_data(void *i2c_priv, int data)
 	val = RREG32(rec->en_data_reg) & ~rec->en_data_mask;
 	val |= data ? 0 : rec->en_data_mask;
 	WREG32(rec->en_data_reg, val);
-}
-
-static int pre_xfer(struct i2c_adapter *i2c_adap)
-{
-	struct radeon_i2c_chan *i2c = i2c_get_adapdata(i2c_adap);
-
-	radeon_i2c_do_lock(i2c, 1);
-
-	return 0;
-}
-
-static void post_xfer(struct i2c_adapter *i2c_adap)
-{
-	struct radeon_i2c_chan *i2c = i2c_get_adapdata(i2c_adap);
-
-	radeon_i2c_do_lock(i2c, 0);
 }
 
 /* hw i2c */

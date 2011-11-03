@@ -325,15 +325,6 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	return adjust_tjmax(c, id, dev);
 }
 
-static void __devinit get_ucode_rev_on_cpu(void *edx)
-{
-	u32 eax;
-
-	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
-	sync_core();
-	rdmsr(MSR_IA32_UCODE_REV, eax, *(u32 *)edx);
-}
-
 static int create_name_attr(struct platform_data *pdata, struct device *dev)
 {
 	sysfs_attr_init(&pdata->name_attr.attr);
@@ -380,27 +371,16 @@ exit_free:
 static int __cpuinit chk_ucode_version(unsigned int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
-	int err;
-	u32 edx;
 
 	/*
 	 * Check if we have problem with errata AE18 of Core processors:
 	 * Readings might stop update when processor visited too deep sleep,
 	 * fixed for stepping D0 (6EC).
 	 */
-	if (c->x86_model == 0xe && c->x86_mask < 0xc) {
-		/* check for microcode update */
-		err = smp_call_function_single(cpu, get_ucode_rev_on_cpu,
-					       &edx, 1);
-		if (err) {
-			pr_err("Cannot determine microcode revision of "
-			       "CPU#%u (%d)!\n", cpu, err);
-			return -ENODEV;
-		} else if (edx < 0x39) {
-			pr_err("Errata AE18 not fixed, update BIOS or "
-			       "microcode of the CPU!\n");
-			return -ENODEV;
-		}
+	if (c->x86_model == 0xe && c->x86_mask < 0xc && c->microcode < 0x39) {
+		pr_err("Errata AE18 not fixed, update BIOS or "
+		       "microcode of the CPU!\n");
+		return -ENODEV;
 	}
 	return 0;
 }

@@ -42,7 +42,7 @@
 #include <plat/board.h>
 #include <plat/common.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-dvi.h>
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
@@ -203,16 +203,16 @@ static void beagle_disable_dvi(struct omap_dss_device *dssdev)
 		gpio_set_value(dssdev->reset_gpio, 0);
 }
 
-static struct panel_generic_dpi_data dvi_panel = {
-	.name = "generic",
+static struct panel_dvi_platform_data dvi_panel = {
 	.platform_enable = beagle_enable_dvi,
 	.platform_disable = beagle_disable_dvi,
+	.i2c_bus_num = 3,
 };
 
 static struct omap_dss_device beagle_dvi_device = {
 	.type = OMAP_DISPLAY_TYPE_DPI,
 	.name = "dvi",
-	.driver_name = "generic_dpi_panel",
+	.driver_name = "dvi",
 	.data = &dvi_panel,
 	.phy.dpi.data_lines = 24,
 	.reset_gpio = -EINVAL,
@@ -444,18 +444,6 @@ static struct platform_device keys_gpio = {
 	},
 };
 
-static void __init omap3_beagle_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
-				  mt46h32m32lf6_sdrc_params);
-}
-
-static void __init omap3_beagle_init_irq(void)
-{
-	omap3_init_irq();
-}
-
 static struct platform_device *omap3_beagle_devices[] __initdata = {
 	&leds_gpio,
 	&keys_gpio,
@@ -493,8 +481,8 @@ static void __init beagle_opp_init(void)
 	if (cpu_is_omap3630()) {
 		struct device *mpu_dev, *iva_dev;
 
-		mpu_dev = omap2_get_mpuss_device();
-		iva_dev = omap2_get_iva_device();
+		mpu_dev = omap_device_get_by_hwmod_name("mpu");
+		iva_dev = omap_device_get_by_hwmod_name("iva");
 
 		if (!mpu_dev || !iva_dev) {
 			pr_err("%s: Aiee.. no mpu/dsp devices? %p %p\n",
@@ -534,6 +522,8 @@ static void __init omap3_beagle_init(void)
 			ARRAY_SIZE(omap3_beagle_devices));
 	omap_display_init(&beagle_dss_data);
 	omap_serial_init();
+	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
+				  mt46h32m32lf6_sdrc_params);
 
 	omap_mux_init_gpio(170, OMAP_PIN_INPUT);
 	/* REVISIT leave DVI powered down until it's needed ... */
@@ -557,11 +547,11 @@ static void __init omap3_beagle_init(void)
 
 MACHINE_START(OMAP3_BEAGLE, "OMAP3 Beagle Board")
 	/* Maintainer: Syed Mohammed Khasim - http://beagleboard.org */
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap3_beagle_init_early,
-	.init_irq	= omap3_beagle_init_irq,
+	.init_early	= omap3_init_early,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= omap3_beagle_init,
 	.timer		= &omap3_secure_timer,
 MACHINE_END

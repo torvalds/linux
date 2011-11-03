@@ -1068,6 +1068,12 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
 		user_shm_unlock(inode->i_size, user);
 		info->flags &= ~VM_LOCKED;
 		mapping_clear_unevictable(file->f_mapping);
+		/*
+		 * Ensure that a racing putback_lru_page() can see
+		 * the pages of this mapping are evictable when we
+		 * skip them due to !PageLRU during the scan.
+		 */
+		smp_mb__after_clear_bit();
 		scan_mapping_unevictable_pages(file->f_mapping);
 	}
 	retval = 0;
@@ -1458,7 +1464,7 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	inode = shmem_get_inode(dir->i_sb, dir, mode, dev, VM_NORESERVE);
 	if (inode) {
 		error = security_inode_init_security(inode, dir,
-						     &dentry->d_name, NULL,
+						     &dentry->d_name,
 						     NULL, NULL);
 		if (error) {
 			if (error != -EOPNOTSUPP) {
@@ -1598,7 +1604,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 	if (!inode)
 		return -ENOSPC;
 
-	error = security_inode_init_security(inode, dir, &dentry->d_name, NULL,
+	error = security_inode_init_security(inode, dir, &dentry->d_name,
 					     NULL, NULL);
 	if (error) {
 		if (error != -EOPNOTSUPP) {

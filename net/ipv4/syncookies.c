@@ -265,7 +265,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 			     struct ip_options *opt)
 {
 	struct tcp_options_received tcp_opt;
-	u8 *hash_location;
+	const u8 *hash_location;
 	struct inet_request_sock *ireq;
 	struct tcp_request_sock *treq;
 	struct tcp_sock *tp = tcp_sk(sk);

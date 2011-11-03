@@ -1457,10 +1457,9 @@ static int __devinit vcc_table_allocate(struct lanai_dev *lanai)
 	return (lanai->vccs == NULL) ? -ENOMEM : 0;
 #else
 	int bytes = (lanai->num_vci) * sizeof(struct lanai_vcc *);
-	lanai->vccs = (struct lanai_vcc **) vmalloc(bytes);
+	lanai->vccs = vzalloc(bytes);
 	if (unlikely(lanai->vccs == NULL))
 		return -ENOMEM;
-	memset(lanai->vccs, 0, bytes);
 	return 0;
 #endif
 }

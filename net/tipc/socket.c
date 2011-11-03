@@ -49,7 +49,7 @@ struct tipc_sock {
 	struct sock sk;
 	struct tipc_port *p;
 	struct tipc_portid peer_name;
-	long conn_timeout;
+	unsigned int conn_timeout;
 };
 
 #define tipc_sk(sk) ((struct tipc_sock *)(sk))
@@ -231,7 +231,7 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol,
 	sock_init_data(sock, sk);
 	sk->sk_backlog_rcv = backlog_rcv;
 	tipc_sk(sk)->p = tp_ptr;
-	tipc_sk(sk)->conn_timeout = msecs_to_jiffies(CONN_TIMEOUT_DEFAULT);
+	tipc_sk(sk)->conn_timeout = CONN_TIMEOUT_DEFAULT;
 
 	spin_unlock_bh(tp_ptr->lock);
 
@@ -525,6 +525,7 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 	struct tipc_port *tport = tipc_sk_port(sk);
 	struct sockaddr_tipc *dest = (struct sockaddr_tipc *)m->msg_name;
 	int needs_conn;
+	long timeout_val;
 	int res = -EINVAL;
 
 	if (unlikely(!dest))
@@ -564,6 +565,8 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 		reject_rx_queue(sk);
 	}
 
+	timeout_val = sock_sndtimeo(sk, m->msg_flags & MSG_DONTWAIT);
+
 	do {
 		if (dest->addrtype == TIPC_ADDR_NAME) {
 			res = dest_name_check(dest, m);
@@ -600,16 +603,14 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 				sock->state = SS_CONNECTING;
 			break;
 		}
-		if (m->msg_flags & MSG_DONTWAIT) {
-			res = -EWOULDBLOCK;
+		if (timeout_val <= 0L) {
+			res = timeout_val ? timeout_val : -EWOULDBLOCK;
 			break;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk_sleep(sk),
-					       !tport->congested);
+		timeout_val = wait_event_interruptible_timeout(*sk_sleep(sk),
+					       !tport->congested, timeout_val);
 		lock_sock(sk);
-		if (res)
-			break;
 	} while (1);
 
 exit:
@@ -636,6 +637,7 @@ static int send_packet(struct kiocb *iocb, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct tipc_port *tport = tipc_sk_port(sk);
 	struct sockaddr_tipc *dest = (struct sockaddr_tipc *)m->msg_name;
+	long timeout_val;
 	int res;
 
 	/* Handle implied connection establishment */
@@ -650,6 +652,8 @@ static int send_packet(struct kiocb *iocb, struct socket *sock,
 	if (iocb)
 		lock_sock(sk);
 
+	timeout_val = sock_sndtimeo(sk, m->msg_flags & MSG_DONTWAIT);
+
 	do {
 		if (unlikely(sock->state != SS_CONNECTED)) {
 			if (sock->state == SS_DISCONNECTING)
@@ -663,16 +667,14 @@ static int send_packet(struct kiocb *iocb, struct socket *sock,
 				total_len);
 		if (likely(res != -ELINKCONG))
 			break;
-		if (m->msg_flags & MSG_DONTWAIT) {
-			res = -EWOULDBLOCK;
+		if (timeout_val <= 0L) {
+			res = timeout_val ? timeout_val : -EWOULDBLOCK;
 			break;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk_sleep(sk),
-			(!tport->congested || !tport->connected));
+		timeout_val = wait_event_interruptible_timeout(*sk_sleep(sk),
+			(!tport->congested || !tport->connected), timeout_val);
 		lock_sock(sk);
-		if (res)
-			break;
 	} while (1);
 
 	if (iocb)
@@ -1369,7 +1371,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	struct msghdr m = {NULL,};
 	struct sk_buff *buf;
 	struct tipc_msg *msg;
-	long timeout;
+	unsigned int timeout;
 	int res;
 
 	lock_sock(sk);
@@ -1434,7 +1436,8 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	res = wait_event_interruptible_timeout(*sk_sleep(sk),
 			(!skb_queue_empty(&sk->sk_receive_queue) ||
 			(sock->state != SS_CONNECTING)),
-			timeout ? timeout : MAX_SCHEDULE_TIMEOUT);
+			timeout ? (long)msecs_to_jiffies(timeout)
+				: MAX_SCHEDULE_TIMEOUT);
 	lock_sock(sk);
 
 	if (res > 0) {
@@ -1480,9 +1483,7 @@ static int listen(struct socket *sock, int len)
 
 	lock_sock(sk);
 
-	if (sock->state == SS_READY)
-		res = -EOPNOTSUPP;
-	else if (sock->state != SS_UNCONNECTED)
+	if (sock->state != SS_UNCONNECTED)
 		res = -EINVAL;
 	else {
 		sock->state = SS_LISTENING;
@@ -1510,10 +1511,6 @@ static int accept(struct socket *sock, struct socket *new_sock, int flags)
 
 	lock_sock(sk);
 
-	if (sock->state == SS_READY) {
-		res = -EOPNOTSUPP;
-		goto exit;
-	}
 	if (sock->state != SS_LISTENING) {
 		res = -EINVAL;
 		goto exit;
@@ -1696,7 +1693,7 @@ static int setsockopt(struct socket *sock,
 		res = tipc_set_portunreturnable(tport->ref, value);
 		break;
 	case TIPC_CONN_TIMEOUT:
-		tipc_sk(sk)->conn_timeout = msecs_to_jiffies(value);
+		tipc_sk(sk)->conn_timeout = value;
 		/* no need to set "res", since already 0 at this point */
 		break;
 	default:
@@ -1752,7 +1749,7 @@ static int getsockopt(struct socket *sock,
 		res = tipc_portunreturnable(tport->ref, &value);
 		break;
 	case TIPC_CONN_TIMEOUT:
-		value = jiffies_to_msecs(tipc_sk(sk)->conn_timeout);
+		value = tipc_sk(sk)->conn_timeout;
 		/* no need to set "res", since already 0 at this point */
 		break;
 	case TIPC_NODE_RECVQ_DEPTH:
@@ -1790,11 +1787,11 @@ static const struct proto_ops msg_ops = {
 	.bind		= bind,
 	.connect	= connect,
 	.socketpair	= sock_no_socketpair,
-	.accept		= accept,
+	.accept		= sock_no_accept,
 	.getname	= get_name,
 	.poll		= poll,
 	.ioctl		= sock_no_ioctl,
-	.listen		= listen,
+	.listen		= sock_no_listen,
 	.shutdown	= shutdown,
 	.setsockopt	= setsockopt,
 	.getsockopt	= getsockopt,

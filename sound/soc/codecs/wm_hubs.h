@@ -23,7 +23,8 @@ extern const unsigned int wm_hubs_spkmix_tlv[];
 
 /* This *must* be the first element of the codec->private_data struct */
 struct wm_hubs_data {
-	int dcs_codes;
+	int dcs_codes_l;
+	int dcs_codes_r;
 	int dcs_readback_mode;
 	int hp_startup_mode;
 	int series_startup;

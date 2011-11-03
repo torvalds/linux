@@ -262,6 +262,26 @@ static inline void __kernel_param_unlock(void)
 			    .str = &__param_string_##name, 0, perm);	\
 	__MODULE_PARM_TYPE(name, "string")
 
+/**
+ * parameq - checks if two parameter names match
+ * @name1: parameter name 1
+ * @name2: parameter name 2
+ *
+ * Returns true if the two parameter names are equal.
+ * Dashes (-) are considered equal to underscores (_).
+ */
+extern bool parameq(const char *name1, const char *name2);
+
+/**
+ * parameqn - checks if two parameter names match
+ * @name1: parameter name 1
+ * @name2: parameter name 2
+ * @n: the length to compare
+ *
+ * Similar to parameq(), except it compares @n characters.
+ */
+extern bool parameqn(const char *name1, const char *name2, size_t n);
+
 /* Called on module insert or kernel boot */
 extern int parse_args(const char *name,
 		      char *args,

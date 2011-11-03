@@ -79,9 +79,21 @@ struct page {
 	};
 
 	/* Third double word block */
-	struct list_head lru;		/* Pageout list, eg. active_list
+	union {
+		struct list_head lru;	/* Pageout list, eg. active_list
 					 * protected by zone->lru_lock !
 					 */
+		struct {		/* slub per cpu partial pages */
+			struct page *next;	/* Next partial slab */
+#ifdef CONFIG_64BIT
+			int pages;	/* Nr of partial slabs left */
+			int pobjects;	/* Approximate # of objects */
+#else
+			short int pages;
+			short int pobjects;
+#endif
+		};
+	};
 
 	/* Remainder is not double word aligned */
 	union {
@@ -134,6 +146,17 @@ struct page {
 	__attribute__((__aligned__(2*sizeof(unsigned long))))
 #endif
 ;
+
+struct page_frag {
+	struct page *page;
+#if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
+	__u32 offset;
+	__u32 size;
+#else
+	__u16 offset;
+	__u16 size;
+#endif
+};
 
 typedef unsigned long __nocast vm_flags_t;
 
@@ -281,8 +304,15 @@ struct mm_struct {
 	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
 	unsigned long hiwater_vm;	/* High-water virtual memory usage */
 
-	unsigned long total_vm, locked_vm, shared_vm, exec_vm;
-	unsigned long stack_vm, reserved_vm, def_flags, nr_ptes;
+	unsigned long total_vm;		/* Total pages mapped */
+	unsigned long locked_vm;	/* Pages that have PG_mlocked set */
+	unsigned long pinned_vm;	/* Refcount permanently increased */
+	unsigned long shared_vm;	/* Shared pages (files) */
+	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE */
+	unsigned long stack_vm;		/* VM_GROWSUP/DOWN */
+	unsigned long reserved_vm;	/* VM_RESERVED|VM_IO pages */
+	unsigned long def_flags;
+	unsigned long nr_ptes;		/* Page table pages */
 	unsigned long start_code, end_code, start_data, end_data;
 	unsigned long start_brk, brk, start_stack;
 	unsigned long arg_start, arg_end, env_start, env_end;
@@ -312,9 +342,6 @@ struct mm_struct {
 	unsigned int faultstamp;
 	unsigned int token_priority;
 	unsigned int last_interval;
-
-	/* How many tasks sharing this mm are OOM_DISABLE */
-	atomic_t oom_disable_count;
 
 	unsigned long flags; /* Must use atomic bitops to access the bits */
 

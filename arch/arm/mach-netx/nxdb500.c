@@ -200,7 +200,7 @@ static void __init nxdb500_init(void)
 }
 
 MACHINE_START(NXDB500, "Hilscher nxdb500")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.map_io		= netx_map_io,
 	.init_irq	= netx_init_irq,
 	.timer		= &netx_timer,

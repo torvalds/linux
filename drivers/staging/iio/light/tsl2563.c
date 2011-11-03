@@ -31,13 +31,12 @@
 #include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
-#include <linux/platform_device.h>
 #include <linux/pm.h>
-#include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 
 #include "../iio.h"
+#include "../sysfs.h"
 #include "tsl2563.h"
 
 /* Use this many bits for fraction part. */
@@ -519,7 +518,8 @@ static int tsl2563_read_raw(struct iio_dev *indio_dev,
 		ret = IIO_VAL_INT;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error_ret;
 	}
 
 error_ret:
@@ -527,21 +527,31 @@ error_ret:
 	return ret;
 }
 
-#define INFO_MASK (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE)
-#define EVENT_MASK (IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) | \
-		    IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
-#define IIO_CHAN_2563(type, mod, proc, chan, imask, emask) \
-	IIO_CHAN(type, mod, 1, proc, NULL, chan, 0, imask, 0, 0, {}, emask)
-
 static const struct iio_chan_spec tsl2563_channels[] = {
-	IIO_CHAN_2563(IIO_LIGHT,     0, 1, 0, 0, 0),
-	IIO_CHAN_2563(IIO_INTENSITY, 1, 0, 0, INFO_MASK, EVENT_MASK),
-	IIO_CHAN_2563(IIO_INTENSITY, 1, 0, 1, INFO_MASK, 0),
+	{
+		.type = IIO_LIGHT,
+		.indexed = 1,
+		.channel = 0,
+	}, {
+		.type = IIO_INTENSITY,
+		.modified = 1,
+		.channel2 = IIO_MOD_LIGHT_BOTH,
+		.info_mask = (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE),
+		.event_mask = (IIO_EV_BIT(IIO_EV_TYPE_THRESH,
+					  IIO_EV_DIR_RISING) |
+			       IIO_EV_BIT(IIO_EV_TYPE_THRESH,
+					  IIO_EV_DIR_FALLING)),
+	}, {
+		.type = IIO_INTENSITY,
+		.modified = 1,
+		.channel2 = IIO_MOD_LIGHT_BOTH,
+		.info_mask = (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE),
+	}
 };
 
 static int tsl2563_read_thresh(struct iio_dev *indio_dev,
-				int event_code,
-				int *val)
+			       u64 event_code,
+			       int *val)
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 
@@ -559,8 +569,8 @@ static int tsl2563_read_thresh(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static ssize_t tsl2563_write_thresh(struct iio_dev *indio_dev,
-				  int event_code,
+static int tsl2563_write_thresh(struct iio_dev *indio_dev,
+				  u64 event_code,
 				  int val)
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
@@ -595,8 +605,8 @@ static irqreturn_t tsl2563_event_handler(int irq, void *private)
 	struct iio_dev *dev_info = private;
 	struct tsl2563_chip *chip = iio_priv(dev_info);
 
-	iio_push_event(dev_info, 0,
-		       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_LIGHT,
+	iio_push_event(dev_info,
+		       IIO_UNMOD_EVENT_CODE(IIO_LIGHT,
 					    0,
 					    IIO_EV_TYPE_THRESH,
 					    IIO_EV_DIR_EITHER),
@@ -608,8 +618,8 @@ static irqreturn_t tsl2563_event_handler(int irq, void *private)
 }
 
 static int tsl2563_write_interrupt_config(struct iio_dev *indio_dev,
-					int event_code,
-					int state)
+					  u64 event_code,
+					  int state)
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret = 0;
@@ -650,7 +660,7 @@ out:
 }
 
 static int tsl2563_read_interrupt_config(struct iio_dev *indio_dev,
-					   int event_code)
+					 u64 event_code)
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret;
@@ -680,7 +690,6 @@ static const struct iio_info tsl2563_info_no_irq = {
 
 static const struct iio_info tsl2563_info = {
 	.driver_module = THIS_MODULE,
-	.num_interrupt_lines = 1,
 	.read_raw = &tsl2563_read_raw,
 	.write_raw = &tsl2563_write_raw,
 	.read_event_value = &tsl2563_read_thresh,
@@ -697,7 +706,7 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 	struct tsl2563_platform_data *pdata = client->dev.platform_data;
 	int err = 0;
 	int ret;
-	u8 id;
+	u8 id = 0;
 
 	indio_dev = iio_allocate_device(sizeof(*chip));
 	if (!indio_dev)
@@ -743,9 +752,6 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 		indio_dev->info = &tsl2563_info;
 	else
 		indio_dev->info = &tsl2563_info_no_irq;
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto fail1;
 	if (client->irq) {
 		ret = request_threaded_irq(client->irq,
 					   NULL,
@@ -764,12 +770,16 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 	/* The interrupt cannot yet be enabled so this is fine without lock */
 	schedule_delayed_work(&chip->poweroff_work, 5 * HZ);
 
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto fail3;
+
 	return 0;
 fail3:
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
 fail2:
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 fail1:
 	kfree(chip);
 	return err;
@@ -779,6 +789,8 @@ static int tsl2563_remove(struct i2c_client *client)
 {
 	struct tsl2563_chip *chip = i2c_get_clientdata(client);
 	struct iio_dev *indio_dev = iio_priv_to_dev(chip);
+
+	iio_device_unregister(indio_dev);
 	if (!chip->int_enabled)
 		cancel_delayed_work(&chip->poweroff_work);
 	/* Ensure that interrupts are disabled - then flush any bottom halves */
@@ -789,7 +801,8 @@ static int tsl2563_remove(struct i2c_client *client)
 	tsl2563_set_power(chip, 0);
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
-	iio_device_unregister(indio_dev);
+
+	iio_free_device(indio_dev);
 
 	return 0;
 }

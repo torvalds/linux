@@ -22,6 +22,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -39,7 +40,6 @@
 
 #include <mach/hardware.h>
 #include <mach/board.h>
-#include <mach/gpio.h>
 #include <mach/at91rm9200_mc.h>
 
 #include "generic.h"

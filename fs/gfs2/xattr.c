@@ -332,15 +332,8 @@ static int ea_remove_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 	if (error)
 		goto out_alloc;
 
-	error = gfs2_rindex_hold(GFS2_SB(&ip->i_inode), &al->al_ri_gh);
-	if (error)
-		goto out_quota;
-
 	error = ea_dealloc_unstuffed(ip, bh, ea, prev, (leave) ? &error : NULL);
 
-	gfs2_glock_dq_uninit(&al->al_ri_gh);
-
-out_quota:
 	gfs2_quota_unhold(ip);
 out_alloc:
 	gfs2_alloc_put(ip);
@@ -734,7 +727,7 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 		goto out_gunlock_q;
 
 	error = gfs2_trans_begin(GFS2_SB(&ip->i_inode),
-				 blks + gfs2_rg_blocks(al) +
+				 blks + gfs2_rg_blocks(ip) +
 				 RES_DINODE + RES_STATFS + RES_QUOTA, 0);
 	if (error)
 		goto out_ipres;
@@ -1296,7 +1289,8 @@ fail:
 
 int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct inode *inode = &ip->i_inode;
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_ea_location el;
 	int error;
 
@@ -1319,7 +1313,7 @@ int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data)
 	if (error)
 		return error;
 
-	error = gfs2_setattr_simple(ip, attr);
+	error = gfs2_setattr_simple(inode, attr);
 	gfs2_trans_end(sdp);
 	return error;
 }
@@ -1362,14 +1356,14 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 			blen++;
 		else {
 			if (bstart)
-				gfs2_rlist_add(sdp, &rlist, bstart);
+				gfs2_rlist_add(ip, &rlist, bstart);
 			bstart = bn;
 			blen = 1;
 		}
 		blks++;
 	}
 	if (bstart)
-		gfs2_rlist_add(sdp, &rlist, bstart);
+		gfs2_rlist_add(ip, &rlist, bstart);
 	else
 		goto out;
 
@@ -1501,24 +1495,18 @@ int gfs2_ea_dealloc(struct gfs2_inode *ip)
 	if (error)
 		goto out_alloc;
 
-	error = gfs2_rindex_hold(GFS2_SB(&ip->i_inode), &al->al_ri_gh);
-	if (error)
-		goto out_quota;
-
 	error = ea_foreach(ip, ea_dealloc_unstuffed, NULL);
 	if (error)
-		goto out_rindex;
+		goto out_quota;
 
 	if (ip->i_diskflags & GFS2_DIF_EA_INDIRECT) {
 		error = ea_dealloc_indirect(ip);
 		if (error)
-			goto out_rindex;
+			goto out_quota;
 	}
 
 	error = ea_dealloc_block(ip);
 
-out_rindex:
-	gfs2_glock_dq_uninit(&al->al_ri_gh);
 out_quota:
 	gfs2_quota_unhold(ip);
 out_alloc:

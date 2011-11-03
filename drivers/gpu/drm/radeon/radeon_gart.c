@@ -142,7 +142,7 @@ void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
 	u64 page_base;
 
 	if (!rdev->gart.ready) {
-		WARN(1, "trying to unbind memory to unitialized GART !\n");
+		WARN(1, "trying to unbind memory from uninitialized GART !\n");
 		return;
 	}
 	t = offset / RADEON_GPU_PAGE_SIZE;
@@ -174,7 +174,7 @@ int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 	int i, j;
 
 	if (!rdev->gart.ready) {
-		WARN(1, "trying to bind memory to unitialized GART !\n");
+		WARN(1, "trying to bind memory to uninitialized GART !\n");
 		return -EINVAL;
 	}
 	t = offset / RADEON_GPU_PAGE_SIZE;

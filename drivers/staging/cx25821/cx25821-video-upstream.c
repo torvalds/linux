@@ -40,8 +40,8 @@ MODULE_DESCRIPTION("v4l2 driver module for cx25821 based TV cards");
 MODULE_AUTHOR("Hiep Huynh <hiep.huynh@conexant.com>");
 MODULE_LICENSE("GPL");
 
-static int _intr_msk =
-	FLD_VID_SRC_RISC1 | FLD_VID_SRC_UF | FLD_VID_SRC_SYNC | FLD_VID_SRC_OPC_ERR;
+static int _intr_msk = FLD_VID_SRC_RISC1 | FLD_VID_SRC_UF | FLD_VID_SRC_SYNC |
+			FLD_VID_SRC_OPC_ERR;
 
 int cx25821_sram_channel_setup_upstream(struct cx25821_dev *dev,
 					struct sram_channel *ch,
@@ -615,14 +615,10 @@ int cx25821_video_upstream_irq(struct cx25821_dev *dev, int chan_num,
 				    odd_risc_prog_size;
 
 				rp = cx25821_update_riscprogram(dev,
-								dev->
-								_dma_virt_start_addr,
-								TOP_OFFSET,
-								line_size_in_bytes,
-								0x0,
-								singlefield_lines,
-								FIFO_DISABLE,
-								ODD_FIELD);
+					dev->_dma_virt_start_addr, TOP_OFFSET,
+					line_size_in_bytes, 0x0,
+					singlefield_lines, FIFO_DISABLE,
+					ODD_FIELD);
 
 				/* Jump to Even Risc program of 1st Frame */
 				*(rp++) = cpu_to_le32(RISC_JUMP);
@@ -753,7 +749,7 @@ int cx25821_start_video_dma_upstream(struct cx25821_dev *dev,
 
 	err =
 	    request_irq(dev->pci->irq, cx25821_upstream_irq,
-			IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
+			IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
 		pr_err("%s: can't get upstream IRQ %d\n",
 		       dev->name, dev->pci->irq);

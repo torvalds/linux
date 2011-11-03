@@ -45,7 +45,7 @@ struct hwtstamp_config {
 };
 
 /* possible values for hwtstamp_config->tx_type */
-enum {
+enum hwtstamp_tx_types {
 	/*
 	 * No outgoing packet will need hardware time stamping;
 	 * should a packet arrive which asks for it, no hardware
@@ -60,10 +60,19 @@ enum {
 	 * before sending the packet.
 	 */
 	HWTSTAMP_TX_ON,
+
+	/*
+	 * Enables time stamping for outgoing packets just as
+	 * HWTSTAMP_TX_ON does, but also enables time stamp insertion
+	 * directly into Sync packets. In this case, transmitted Sync
+	 * packets will not received a time stamp via the socket error
+	 * queue.
+	 */
+	HWTSTAMP_TX_ONESTEP_SYNC,
 };
 
 /* possible values for hwtstamp_config->rx_filter */
-enum {
+enum hwtstamp_rx_filters {
 	/* time stamp no incoming packet at all */
 	HWTSTAMP_FILTER_NONE,
 

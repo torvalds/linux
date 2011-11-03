@@ -17,6 +17,9 @@
  * USA.
  */
 
+#ifndef __USBIP_STUB_H
+#define __USBIP_STUB_H
+
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -106,3 +109,5 @@ void stub_enqueue_ret_unlink(struct stub_device *sdev, __u32 seqnum,
 			     __u32 status);
 void stub_complete(struct urb *urb);
 int stub_tx_loop(void *data);
+
+#endif /* __USBIP_STUB_H */

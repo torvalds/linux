@@ -487,7 +487,7 @@ static int __devinit mcfqspi_probe(struct platform_device *pdev)
 		goto fail2;
 	}
 
-	status = request_irq(mcfqspi->irq, mcfqspi_irq_handler, IRQF_DISABLED,
+	status = request_irq(mcfqspi->irq, mcfqspi_irq_handler, 0,
 			     pdev->name, mcfqspi);
 	if (status) {
 		dev_dbg(&pdev->dev, "request_irq failed\n");
@@ -621,20 +621,10 @@ static struct platform_driver mcfqspi_driver = {
 	.driver.name	= DRIVER_NAME,
 	.driver.owner	= THIS_MODULE,
 	.driver.pm	= MCFQSPI_DEV_PM_OPS,
+	.probe		= mcfqspi_probe,
 	.remove		= __devexit_p(mcfqspi_remove),
 };
-
-static int __init mcfqspi_init(void)
-{
-	return platform_driver_probe(&mcfqspi_driver, mcfqspi_probe);
-}
-module_init(mcfqspi_init);
-
-static void __exit mcfqspi_exit(void)
-{
-	platform_driver_unregister(&mcfqspi_driver);
-}
-module_exit(mcfqspi_exit);
+module_platform_driver(mcfqspi_driver);
 
 MODULE_AUTHOR("Steven King <sfking@fdwdc.com>");
 MODULE_DESCRIPTION("Coldfire QSPI Controller Driver");

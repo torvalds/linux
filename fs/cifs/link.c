@@ -183,14 +183,20 @@ CIFSFormatMFSymlink(u8 *buf, unsigned int buf_len, const char *link_str)
 static int
 CIFSCreateMFSymLink(const int xid, struct cifs_tcon *tcon,
 		    const char *fromName, const char *toName,
-		    const struct nls_table *nls_codepage, int remap)
+		    struct cifs_sb_info *cifs_sb)
 {
 	int rc;
 	int oplock = 0;
+	int remap;
+	int create_options = CREATE_NOT_DIR;
 	__u16 netfid = 0;
 	u8 *buf;
 	unsigned int bytes_written = 0;
 	struct cifs_io_parms io_parms;
+	struct nls_table *nls_codepage;
+
+	nls_codepage = cifs_sb->local_nls;
+	remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
 
 	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -202,8 +208,11 @@ CIFSCreateMFSymLink(const int xid, struct cifs_tcon *tcon,
 		return rc;
 	}
 
+	if (backup_cred(cifs_sb))
+		create_options |= CREATE_OPEN_BACKUP_INTENT;
+
 	rc = CIFSSMBOpen(xid, tcon, fromName, FILE_CREATE, GENERIC_WRITE,
-			 CREATE_NOT_DIR, &netfid, &oplock, NULL,
+			 create_options, &netfid, &oplock, NULL,
 			 nls_codepage, remap);
 	if (rc != 0) {
 		kfree(buf);
@@ -559,9 +568,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 	/* BB what if DFS and this volume is on different share? BB */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
 		rc = CIFSCreateMFSymLink(xid, pTcon, full_path, symname,
-					 cifs_sb->local_nls,
-					 cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+					cifs_sb);
 	else if (pTcon->unix_ext)
 		rc = CIFSUnixCreateSymLink(xid, pTcon, full_path, symname,
 					   cifs_sb->local_nls);

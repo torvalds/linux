@@ -31,9 +31,6 @@ config ACER_WMI
 	  wireless radio and bluetooth control, and on some laptops,
 	  exposes the mail LED and LCD backlight.
 
-	  For more information about this driver see
-	  <file:Documentation/laptops/acer-wmi.txt>
-
 	  If you have an ACPI-WMI compatible Acer/ Wistron laptop, say Y or M
 	  here.
 
@@ -64,15 +61,18 @@ config ASUS_LAPTOP
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
 	select INPUT_SPARSEKMAP
+	select INPUT_POLLDEV
 	---help---
-	  This is the new Linux driver for Asus laptops. It may also support some
-	  MEDION, JVC or VICTOR laptops. It makes all the extra buttons generate
-	  standard ACPI events and input events. It also adds
-	  support for video output switching, LCD backlight control, Bluetooth and
-	  Wlan control, and most importantly, allows you to blink those fancy LEDs.
+	  This is a driver for Asus laptops, Lenovo SL and the Pegatron
+	  Lucid tablet. It may also support some MEDION, JVC or VICTOR
+	  laptops. It makes all the extra buttons generate standard
+	  ACPI events and input events, and on the Lucid the built-in
+	  accelerometer appears as an input device.  It also adds
+	  support for video output switching, LCD backlight control,
+	  Bluetooth and Wlan control, and most importantly, allows you
+	  to blink those fancy LEDs.
 
-	  For more information and a userspace daemon for handling the extra
-	  buttons see <http://acpi4asus.sf.net>.
+	  For more information see <http://acpi4asus.sf.net>.
 
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
 
@@ -164,7 +164,7 @@ config HP_ACCEL
 
 	  Support for a led indicating disk protection will be provided as
 	  hp::hddprotect. For more information on the feature, refer to
-	  Documentation/hwmon/lis3lv02d.
+	  Documentation/misc-devices/lis3lv02d.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called hp_accel.

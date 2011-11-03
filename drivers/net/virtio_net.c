@@ -143,18 +143,16 @@ static void skb_xmit_done(struct virtqueue *svq)
 static void set_skb_frag(struct sk_buff *skb, struct page *page,
 			 unsigned int offset, unsigned int *len)
 {
+	int size = min((unsigned)PAGE_SIZE - offset, *len);
 	int i = skb_shinfo(skb)->nr_frags;
-	skb_frag_t *f;
 
-	f = &skb_shinfo(skb)->frags[i];
-	f->size = min((unsigned)PAGE_SIZE - offset, *len);
-	f->page_offset = offset;
-	f->page = page;
+	__skb_fill_page_desc(skb, i, page, offset, size);
 
-	skb->data_len += f->size;
-	skb->len += f->size;
+	skb->data_len += size;
+	skb->len += size;
+	skb->truesize += PAGE_SIZE;
 	skb_shinfo(skb)->nr_frags++;
-	*len -= f->size;
+	*len -= size;
 }
 
 static struct sk_buff *page_to_skb(struct virtnet_info *vi,
@@ -194,6 +192,19 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 
 	len -= copy;
 	offset += copy;
+
+	/*
+	 * Verify that we can indeed put this data into a skb.
+	 * This is here to handle cases when the device erroneously
+	 * tries to receive more than is possible. This is usually
+	 * the case of a broken device.
+	 */
+	if (unlikely(len > MAX_SKB_FRAGS * PAGE_SIZE)) {
+		if (net_ratelimit())
+			pr_debug("%s: too much data\n", skb->dev->name);
+		dev_kfree_skb(skb);
+		return NULL;
+	}
 
 	while (len) {
 		set_skb_frag(skb, page, offset, &len);
@@ -277,7 +288,6 @@ static void receive_buf(struct net_device *dev, void *buf, unsigned int len)
 	}
 
 	hdr = skb_vnet_hdr(skb);
-	skb->truesize += skb->data_len;
 
 	u64_stats_update_begin(&stats->syncp);
 	stats->rx_bytes += skb->len;
@@ -867,8 +877,21 @@ static void virtnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 		dev_warn(&dev->dev, "Failed to kill VLAN ID %d.\n", vid);
 }
 
+static void virtnet_get_ringparam(struct net_device *dev,
+				struct ethtool_ringparam *ring)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+
+	ring->rx_max_pending = virtqueue_get_vring_size(vi->rvq);
+	ring->tx_max_pending = virtqueue_get_vring_size(vi->svq);
+	ring->rx_pending = ring->rx_max_pending;
+	ring->tx_pending = ring->tx_max_pending;
+
+}
+
 static const struct ethtool_ops virtnet_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
+	.get_ringparam = virtnet_get_ringparam,
 };
 
 #define MIN_MTU 68
@@ -949,6 +972,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 		return -ENOMEM;
 
 	/* Set up network device as normal. */
+	dev->priv_flags |= IFF_UNICAST_FLT;
 	dev->netdev_ops = &virtnet_netdev;
 	dev->features = NETIF_F_HIGHDMA;
 

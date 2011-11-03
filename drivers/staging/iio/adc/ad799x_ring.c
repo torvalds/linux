@@ -10,29 +10,26 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/i2c.h>
 #include <linux/bitops.h>
 
 #include "../iio.h"
-#include "../ring_generic.h"
+#include "../buffer_generic.h"
 #include "../ring_sw.h"
-#include "../trigger.h"
-#include "../sysfs.h"
+#include "../trigger_consumer.h"
 
 #include "ad799x.h"
 
-int ad799x_single_channel_from_ring(struct ad799x_state *st, long mask)
+int ad799x_single_channel_from_ring(struct iio_dev *indio_dev, int channum)
 {
-	struct iio_ring_buffer *ring = iio_priv_to_dev(st)->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	int count = 0, ret;
 	u16 *ring_data;
 
-	if (!(ring->scan_mask & mask)) {
+	if (!(test_bit(channum, ring->scan_mask))) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
@@ -47,13 +44,7 @@ int ad799x_single_channel_from_ring(struct ad799x_state *st, long mask)
 	if (ret)
 		goto error_free_ring_data;
 	/* Need a count of channels prior to this one */
-	mask >>= 1;
-	while (mask) {
-		if (mask & ring->scan_mask)
-			count++;
-		mask >>= 1;
-	}
-
+	count = bitmap_weight(ring->scan_mask, channum);
 	ret = be16_to_cpu(ring_data[count]);
 
 error_free_ring_data:
@@ -71,7 +62,7 @@ error_ret:
  **/
 static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 {
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	struct ad799x_state *st = iio_priv(indio_dev);
 
 	/*
@@ -80,7 +71,7 @@ static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 	 */
 
 	if (st->id == ad7997 || st->id == ad7998)
-		ad7997_8_set_scan_mode(st, ring->scan_mask);
+		ad7997_8_set_scan_mode(st, *ring->scan_mask);
 
 	st->d_size = ring->scan_count * 2;
 
@@ -91,9 +82,9 @@ static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 			st->d_size += sizeof(s64) - (st->d_size % sizeof(s64));
 	}
 
-	if (indio_dev->ring->access->set_bytes_per_datum)
-		indio_dev->ring->access->set_bytes_per_datum(indio_dev->ring,
-							    st->d_size);
+	if (indio_dev->buffer->access->set_bytes_per_datum)
+		indio_dev->buffer->access->
+			set_bytes_per_datum(indio_dev->buffer, st->d_size);
 
 	return 0;
 }
@@ -108,9 +99,9 @@ static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad799x_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	s64 time_ns;
 	__u8 *rxbuf;
 	int b_sent;
@@ -124,12 +115,12 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 	case ad7991:
 	case ad7995:
 	case ad7999:
-		cmd = st->config | (ring->scan_mask << AD799X_CHANNEL_SHIFT);
+		cmd = st->config | (*ring->scan_mask << AD799X_CHANNEL_SHIFT);
 		break;
 	case ad7992:
 	case ad7993:
 	case ad7994:
-		cmd = (ring->scan_mask << AD799X_CHANNEL_SHIFT) |
+		cmd = (*ring->scan_mask << AD799X_CHANNEL_SHIFT) |
 			AD7998_CONV_RES_REG;
 		break;
 	case ad7997:
@@ -151,7 +142,7 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 		memcpy(rxbuf + st->d_size - sizeof(s64),
 			&time_ns, sizeof(time_ns));
 
-	ring->access->store_to(indio_dev->ring, rxbuf, time_ns);
+	ring->access->store_to(indio_dev->buffer, rxbuf, time_ns);
 done:
 	kfree(rxbuf);
 	if (b_sent < 0)
@@ -162,23 +153,23 @@ out:
 	return IRQ_HANDLED;
 }
 
-static const struct iio_ring_setup_ops ad799x_buf_setup_ops = {
+static const struct iio_buffer_setup_ops ad799x_buf_setup_ops = {
 	.preenable = &ad799x_ring_preenable,
-	.postenable = &iio_triggered_ring_postenable,
-	.predisable = &iio_triggered_ring_predisable,
+	.postenable = &iio_triggered_buffer_postenable,
+	.predisable = &iio_triggered_buffer_predisable,
 };
 
 int ad799x_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
 	int ret = 0;
 
-	indio_dev->ring = iio_sw_rb_allocate(indio_dev);
-	if (!indio_dev->ring) {
+	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
 	/* Effectively select the ring buffer implementation */
-	indio_dev->ring->access = &ring_sw_access_funcs;
+	indio_dev->buffer->access = &ring_sw_access_funcs;
 	indio_dev->pollfunc = iio_alloc_pollfunc(NULL,
 						 &ad799x_trigger_handler,
 						 IRQF_ONESHOT,
@@ -192,27 +183,21 @@ int ad799x_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	}
 
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->ring->setup_ops = &ad799x_buf_setup_ops;
-	indio_dev->ring->scan_timestamp = true;
+	indio_dev->buffer->setup_ops = &ad799x_buf_setup_ops;
+	indio_dev->buffer->scan_timestamp = true;
 
 	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_RING_TRIGGERED;
+	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 
 error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 error_ret:
 	return ret;
 }
 
 void ad799x_ring_cleanup(struct iio_dev *indio_dev)
 {
-	/* ensure that the trigger has been detached */
-	if (indio_dev->trig) {
-		iio_put_trigger(indio_dev->trig);
-		iio_trigger_dettach_poll_func(indio_dev->trig,
-					      indio_dev->pollfunc);
-	}
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 }

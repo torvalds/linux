@@ -114,12 +114,14 @@
 #define X86_FEATURE_CX16	(4*32+13) /* CMPXCHG16B */
 #define X86_FEATURE_XTPR	(4*32+14) /* Send Task Priority Messages */
 #define X86_FEATURE_PDCM	(4*32+15) /* Performance Capabilities */
+#define X86_FEATURE_PCID	(4*32+17) /* Process Context Identifiers */
 #define X86_FEATURE_DCA		(4*32+18) /* Direct Cache Access */
 #define X86_FEATURE_XMM4_1	(4*32+19) /* "sse4_1" SSE-4.1 */
 #define X86_FEATURE_XMM4_2	(4*32+20) /* "sse4_2" SSE-4.2 */
 #define X86_FEATURE_X2APIC	(4*32+21) /* x2APIC */
 #define X86_FEATURE_MOVBE	(4*32+22) /* MOVBE instruction */
 #define X86_FEATURE_POPCNT      (4*32+23) /* POPCNT instruction */
+#define X86_FEATURE_TSC_DEADLINE_TIMER	(4*32+24) /* Tsc deadline timer */
 #define X86_FEATURE_AES		(4*32+25) /* AES instructions */
 #define X86_FEATURE_XSAVE	(4*32+26) /* XSAVE/XRSTOR/XSETBV/XGETBV */
 #define X86_FEATURE_OSXSAVE	(4*32+27) /* "" XSAVE enabled in the OS */
@@ -257,7 +259,9 @@ extern const char * const x86_power_flags[32];
 #define cpu_has_xmm		boot_cpu_has(X86_FEATURE_XMM)
 #define cpu_has_xmm2		boot_cpu_has(X86_FEATURE_XMM2)
 #define cpu_has_xmm3		boot_cpu_has(X86_FEATURE_XMM3)
+#define cpu_has_ssse3		boot_cpu_has(X86_FEATURE_SSSE3)
 #define cpu_has_aes		boot_cpu_has(X86_FEATURE_AES)
+#define cpu_has_avx		boot_cpu_has(X86_FEATURE_AVX)
 #define cpu_has_ht		boot_cpu_has(X86_FEATURE_HT)
 #define cpu_has_mp		boot_cpu_has(X86_FEATURE_MP)
 #define cpu_has_nx		boot_cpu_has(X86_FEATURE_NX)
@@ -285,6 +289,7 @@ extern const char * const x86_power_flags[32];
 #define cpu_has_xmm4_2		boot_cpu_has(X86_FEATURE_XMM4_2)
 #define cpu_has_x2apic		boot_cpu_has(X86_FEATURE_X2APIC)
 #define cpu_has_xsave		boot_cpu_has(X86_FEATURE_XSAVE)
+#define cpu_has_osxsave		boot_cpu_has(X86_FEATURE_OSXSAVE)
 #define cpu_has_hypervisor	boot_cpu_has(X86_FEATURE_HYPERVISOR)
 #define cpu_has_pclmulqdq	boot_cpu_has(X86_FEATURE_PCLMULQDQ)
 #define cpu_has_perfctr_core	boot_cpu_has(X86_FEATURE_PERFCTR_CORE)

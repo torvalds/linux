@@ -21,7 +21,7 @@
 #include <media/videobuf-dma-sg.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <linux/via-core.h>
 #include <linux/via-gpio.h>
 #include <linux/via_i2c.h>
@@ -69,7 +69,7 @@ struct via_camera {
 	struct mutex lock;
 	enum viacam_opstate opstate;
 	unsigned long flags;
-	struct pm_qos_request_list qos_request;
+	struct pm_qos_request qos_request;
 	/*
 	 * GPIO info for power/reset management
 	 */

@@ -191,44 +191,6 @@ static void _usb_write32_async(struct rtl_priv *rtlpriv, u32 addr, u32 val)
 	_usb_write_async(to_usb_device(dev), addr, val, 4);
 }
 
-static int _usb_nbytes_read_write(struct usb_device *udev, bool read, u32 addr,
-				  u16 len, u8 *pdata)
-{
-	int status;
-	u8 request;
-	u16 wvalue;
-	u16 index;
-
-	request = REALTEK_USB_VENQT_CMD_REQ;
-	index = REALTEK_USB_VENQT_CMD_IDX; /* n/a */
-	wvalue = (u16)addr;
-	if (read)
-		status = _usbctrl_vendorreq_sync_read(udev, request, wvalue,
-						      index, pdata, len);
-	else
-		status = _usbctrl_vendorreq_async_write(udev, request, wvalue,
-							index, pdata, len);
-	return status;
-}
-
-static int _usb_readN_sync(struct rtl_priv *rtlpriv, u32 addr, u16 len,
-			   u8 *pdata)
-{
-	struct device *dev = rtlpriv->io.dev;
-
-	return _usb_nbytes_read_write(to_usb_device(dev), true, addr, len,
-				       pdata);
-}
-
-static int _usb_writeN_async(struct rtl_priv *rtlpriv, u32 addr, u16 len,
-			     u8 *pdata)
-{
-	struct device *dev = rtlpriv->io.dev;
-
-	return _usb_nbytes_read_write(to_usb_device(dev), false, addr, len,
-				      pdata);
-}
-
 static void _rtl_usb_io_handler_init(struct device *dev,
 				     struct ieee80211_hw *hw)
 {
@@ -239,11 +201,9 @@ static void _rtl_usb_io_handler_init(struct device *dev,
 	rtlpriv->io.write8_async	= _usb_write8_async;
 	rtlpriv->io.write16_async	= _usb_write16_async;
 	rtlpriv->io.write32_async	= _usb_write32_async;
-	rtlpriv->io.writeN_async	= _usb_writeN_async;
 	rtlpriv->io.read8_sync		= _usb_read8_sync;
 	rtlpriv->io.read16_sync		= _usb_read16_sync;
 	rtlpriv->io.read32_sync		= _usb_read32_sync;
-	rtlpriv->io.readN_sync		= _usb_readN_sync;
 }
 
 static void _rtl_usb_io_handler_release(struct ieee80211_hw *hw)

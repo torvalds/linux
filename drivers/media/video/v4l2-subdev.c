@@ -173,6 +173,25 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_UNSUBSCRIBE_EVENT:
 		return v4l2_subdev_call(sd, core, unsubscribe_event, vfh, arg);
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	case VIDIOC_DBG_G_REGISTER:
+	{
+		struct v4l2_dbg_register *p = arg;
+
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		return v4l2_subdev_call(sd, core, g_register, p);
+	}
+	case VIDIOC_DBG_S_REGISTER:
+	{
+		struct v4l2_dbg_register *p = arg;
+
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		return v4l2_subdev_call(sd, core, s_register, p);
+	}
+#endif
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	case VIDIOC_SUBDEV_G_FMT: {
 		struct v4l2_subdev_format *format = arg;

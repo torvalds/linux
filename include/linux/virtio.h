@@ -61,6 +61,9 @@ struct virtqueue {
  * virtqueue_detach_unused_buf: detach first unused buffer
  * 	vq: the struct virtqueue we're talking about.
  * 	Returns NULL or the "data" token handed to add_buf
+ * virtqueue_get_vring_size: return the size of the virtqueue's vring
+ *	vq: the struct virtqueue containing the vring of interest.
+ *	Returns the size of the vring.
  *
  * Locking rules are straightforward: the driver is responsible for
  * locking.  No two operations may be invoked simultaneously, with the exception
@@ -96,6 +99,8 @@ bool virtqueue_enable_cb(struct virtqueue *vq);
 bool virtqueue_enable_cb_delayed(struct virtqueue *vq);
 
 void *virtqueue_detach_unused_buf(struct virtqueue *vq);
+
+unsigned int virtqueue_get_vring_size(struct virtqueue *vq);
 
 /**
  * virtio_device - representation of a device using virtio

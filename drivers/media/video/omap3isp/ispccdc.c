@@ -366,7 +366,7 @@ static void ccdc_lsc_free_request(struct isp_ccdc_device *ccdc,
 		dma_unmap_sg(isp->dev, req->iovm->sgt->sgl,
 			     req->iovm->sgt->nents, DMA_TO_DEVICE);
 	if (req->table)
-		iommu_vfree(isp->iommu, req->table);
+		omap_iommu_vfree(isp->domain, isp->iommu, req->table);
 	kfree(req);
 }
 
@@ -438,15 +438,15 @@ static int ccdc_lsc_config(struct isp_ccdc_device *ccdc,
 
 		req->enable = 1;
 
-		req->table = iommu_vmalloc(isp->iommu, 0, req->config.size,
-					   IOMMU_FLAG);
+		req->table = omap_iommu_vmalloc(isp->domain, isp->iommu, 0,
+					req->config.size, IOMMU_FLAG);
 		if (IS_ERR_VALUE(req->table)) {
 			req->table = 0;
 			ret = -ENOMEM;
 			goto done;
 		}
 
-		req->iovm = find_iovm_area(isp->iommu, req->table);
+		req->iovm = omap_find_iovm_area(isp->iommu, req->table);
 		if (req->iovm == NULL) {
 			ret = -ENOMEM;
 			goto done;
@@ -462,7 +462,7 @@ static int ccdc_lsc_config(struct isp_ccdc_device *ccdc,
 		dma_sync_sg_for_cpu(isp->dev, req->iovm->sgt->sgl,
 				    req->iovm->sgt->nents, DMA_TO_DEVICE);
 
-		table = da_to_va(isp->iommu, req->table);
+		table = omap_da_to_va(isp->iommu, req->table);
 		if (copy_from_user(table, config->lsc, req->config.size)) {
 			ret = -EFAULT;
 			goto done;
@@ -731,18 +731,19 @@ static int ccdc_config(struct isp_ccdc_device *ccdc,
 
 			/*
 			 * table_new must be 64-bytes aligned, but it's
-			 * already done by iommu_vmalloc().
+			 * already done by omap_iommu_vmalloc().
 			 */
 			size = ccdc->fpc.fpnum * 4;
-			table_new = iommu_vmalloc(isp->iommu, 0, size,
-						  IOMMU_FLAG);
+			table_new = omap_iommu_vmalloc(isp->domain, isp->iommu,
+							0, size, IOMMU_FLAG);
 			if (IS_ERR_VALUE(table_new))
 				return -ENOMEM;
 
-			if (copy_from_user(da_to_va(isp->iommu, table_new),
+			if (copy_from_user(omap_da_to_va(isp->iommu, table_new),
 					   (__force void __user *)
 					   ccdc->fpc.fpcaddr, size)) {
-				iommu_vfree(isp->iommu, table_new);
+				omap_iommu_vfree(isp->domain, isp->iommu,
+								table_new);
 				return -EFAULT;
 			}
 
@@ -752,7 +753,7 @@ static int ccdc_config(struct isp_ccdc_device *ccdc,
 
 		ccdc_configure_fpc(ccdc);
 		if (table_old != 0)
-			iommu_vfree(isp->iommu, table_old);
+			omap_iommu_vfree(isp->domain, isp->iommu, table_old);
 	}
 
 	return ccdc_lsc_config(ccdc, ccdc_struct);
@@ -1405,11 +1406,14 @@ static int __ccdc_handle_stopping(struct isp_ccdc_device *ccdc, u32 event)
 
 static void ccdc_hs_vs_isr(struct isp_ccdc_device *ccdc)
 {
+	struct isp_pipeline *pipe =
+		to_isp_pipeline(&ccdc->video_out.video.entity);
 	struct video_device *vdev = &ccdc->subdev.devnode;
 	struct v4l2_event event;
 
 	memset(&event, 0, sizeof(event));
-	event.type = V4L2_EVENT_OMAP3ISP_HS_VS;
+	event.type = V4L2_EVENT_FRAME_SYNC;
+	event.u.frame_sync.frame_sequence = atomic_read(&pipe->frame_number);
 
 	v4l2_event_queue(vdev, &event);
 }
@@ -1691,7 +1695,11 @@ static long ccdc_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 static int ccdc_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 				struct v4l2_event_subscription *sub)
 {
-	if (sub->type != V4L2_EVENT_OMAP3ISP_HS_VS)
+	if (sub->type != V4L2_EVENT_FRAME_SYNC)
+		return -EINVAL;
+
+	/* line number is zero at frame start */
+	if (sub->id != 0)
 		return -EINVAL;
 
 	return v4l2_event_subscribe(fh, sub, OMAP3ISP_CCDC_NEVENTS);
@@ -2287,5 +2295,5 @@ void omap3isp_ccdc_cleanup(struct isp_device *isp)
 	ccdc_lsc_free_queue(ccdc, &ccdc->lsc.free_queue);
 
 	if (ccdc->fpc.fpcaddr != 0)
-		iommu_vfree(isp->iommu, ccdc->fpc.fpcaddr);
+		omap_iommu_vfree(isp->domain, isp->iommu, ccdc->fpc.fpcaddr);
 }

@@ -11,6 +11,7 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
@@ -27,7 +28,7 @@
 #include <mach/da8xx.h>
 #include <mach/cpufreq.h>
 #include <mach/pm.h>
-#include <mach/gpio.h>
+#include <mach/gpio-davinci.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -535,6 +536,13 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, MMCSD0_DAT_3,	10,	20,	15,	2,	false)
 	MUX_CFG(DA850, MMCSD0_CLK,	10,	0,	15,	2,	false)
 	MUX_CFG(DA850, MMCSD0_CMD,	10,	4,	15,	2,	false)
+	/* MMC/SD1 function */
+	MUX_CFG(DA850, MMCSD1_DAT_0,	18,	8,	15,	2,	false)
+	MUX_CFG(DA850, MMCSD1_DAT_1,	19,	16,	15,	2,	false)
+	MUX_CFG(DA850, MMCSD1_DAT_2,	19,	12,	15,	2,	false)
+	MUX_CFG(DA850, MMCSD1_DAT_3,	19,	8,	15,	2,	false)
+	MUX_CFG(DA850, MMCSD1_CLK,	18,	12,	15,	2,	false)
+	MUX_CFG(DA850, MMCSD1_CMD,	18,	16,	15,	2,	false)
 	/* EMIF2.5/EMIFA function */
 	MUX_CFG(DA850, EMA_D_7,		9,	0,	15,	1,	false)
 	MUX_CFG(DA850, EMA_D_6,		9,	4,	15,	1,	false)
@@ -593,6 +601,8 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, GPIO3_13,	7,	8,	15,	8,	false)
 	MUX_CFG(DA850, GPIO4_0,		10,	28,	15,	8,	false)
 	MUX_CFG(DA850, GPIO4_1,		10,	24,	15,	8,	false)
+	MUX_CFG(DA850, GPIO6_9,		13,	24,	15,	8,	false)
+	MUX_CFG(DA850, GPIO6_10,	13,	20,	15,	8,	false)
 	MUX_CFG(DA850, GPIO6_13,	13,	8,	15,	8,	false)
 	MUX_CFG(DA850, RTC_ALARM,	0,	28,	15,	2,	false)
 #endif

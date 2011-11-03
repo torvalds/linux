@@ -750,14 +750,15 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	/* set DMA mask + need_dma32 flags.
 	 * PCIE - can handle 40-bits.
-	 * IGP - can handle 40-bits (in theory)
+	 * IGP - can handle 40-bits
 	 * AGP - generally dma32 is safest
-	 * PCI - only dma32
+	 * PCI - dma32 for legacy pci gart, 40 bits on newer asics
 	 */
 	rdev->need_dma32 = false;
 	if (rdev->flags & RADEON_IS_AGP)
 		rdev->need_dma32 = true;
-	if (rdev->flags & RADEON_IS_PCI)
+	if ((rdev->flags & RADEON_IS_PCI) &&
+	    (rdev->family < CHIP_RS400))
 		rdev->need_dma32 = true;
 
 	dma_bits = rdev->need_dma32 ? 32 : 40;
@@ -817,7 +818,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		radeon_test_moves(rdev);
 	}
 	if (radeon_benchmarking) {
-		radeon_benchmark(rdev);
+		radeon_benchmark(rdev, radeon_benchmarking);
 	}
 	return 0;
 }
@@ -981,7 +982,7 @@ struct radeon_debugfs {
 	struct drm_info_list	*files;
 	unsigned		num_files;
 };
-static struct radeon_debugfs _radeon_debugfs[RADEON_DEBUGFS_MAX_NUM_FILES];
+static struct radeon_debugfs _radeon_debugfs[RADEON_DEBUGFS_MAX_COMPONENTS];
 static unsigned _radeon_debugfs_count = 0;
 
 int radeon_debugfs_add_files(struct radeon_device *rdev,
@@ -996,14 +997,17 @@ int radeon_debugfs_add_files(struct radeon_device *rdev,
 			return 0;
 		}
 	}
-	if ((_radeon_debugfs_count + nfiles) > RADEON_DEBUGFS_MAX_NUM_FILES) {
-		DRM_ERROR("Reached maximum number of debugfs files.\n");
-		DRM_ERROR("Report so we increase RADEON_DEBUGFS_MAX_NUM_FILES.\n");
+
+	i = _radeon_debugfs_count + 1;
+	if (i > RADEON_DEBUGFS_MAX_COMPONENTS) {
+		DRM_ERROR("Reached maximum number of debugfs components.\n");
+		DRM_ERROR("Report so we increase "
+		          "RADEON_DEBUGFS_MAX_COMPONENTS.\n");
 		return -EINVAL;
 	}
 	_radeon_debugfs[_radeon_debugfs_count].files = files;
 	_radeon_debugfs[_radeon_debugfs_count].num_files = nfiles;
-	_radeon_debugfs_count++;
+	_radeon_debugfs_count = i;
 #if defined(CONFIG_DEBUG_FS)
 	drm_debugfs_create_files(files, nfiles,
 				 rdev->ddev->control->debugfs_root,

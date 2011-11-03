@@ -204,7 +204,7 @@ static inline struct tnode *node_parent_rcu(const struct rt_trie_node *node)
 	return (struct tnode *)(parent & ~NODE_TYPE_MASK);
 }
 
-/* Same as rcu_assign_pointer
+/* Same as RCU_INIT_POINTER
  * but that macro() assumes that value is a pointer.
  */
 static inline void node_set_parent(struct rt_trie_node *node, struct tnode *ptr)
@@ -528,7 +528,7 @@ static void tnode_put_child_reorg(struct tnode *tn, int i, struct rt_trie_node *
 	if (n)
 		node_set_parent(n, tn);
 
-	rcu_assign_pointer(tn->child[i], n);
+	RCU_INIT_POINTER(tn->child[i], n);
 }
 
 #define MAX_WORK 10
@@ -1014,7 +1014,7 @@ static void trie_rebalance(struct trie *t, struct tnode *tn)
 
 		tp = node_parent((struct rt_trie_node *) tn);
 		if (!tp)
-			rcu_assign_pointer(t->trie, (struct rt_trie_node *)tn);
+			RCU_INIT_POINTER(t->trie, (struct rt_trie_node *)tn);
 
 		tnode_free_flush();
 		if (!tp)
@@ -1026,7 +1026,7 @@ static void trie_rebalance(struct trie *t, struct tnode *tn)
 	if (IS_TNODE(tn))
 		tn = (struct tnode *)resize(t, (struct tnode *)tn);
 
-	rcu_assign_pointer(t->trie, (struct rt_trie_node *)tn);
+	RCU_INIT_POINTER(t->trie, (struct rt_trie_node *)tn);
 	tnode_free_flush();
 }
 
@@ -1163,7 +1163,7 @@ static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 			put_child(t, (struct tnode *)tp, cindex,
 				  (struct rt_trie_node *)tn);
 		} else {
-			rcu_assign_pointer(t->trie, (struct rt_trie_node *)tn);
+			RCU_INIT_POINTER(t->trie, (struct rt_trie_node *)tn);
 			tp = tn;
 		}
 	}
@@ -1621,7 +1621,7 @@ static void trie_leaf_remove(struct trie *t, struct leaf *l)
 		put_child(t, (struct tnode *)tp, cindex, NULL);
 		trie_rebalance(t, tp);
 	} else
-		rcu_assign_pointer(t->trie, NULL);
+		RCU_INIT_POINTER(t->trie, NULL);
 
 	free_leaf(l);
 }

@@ -39,6 +39,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->idx	   = idx;
 	evsel->attr	   = *attr;
 	INIT_LIST_HEAD(&evsel->node);
+	hists__init(&evsel->hists);
 }
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)

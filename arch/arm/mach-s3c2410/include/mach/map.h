@@ -14,9 +14,53 @@
 #define __ASM_ARCH_MAP_H
 
 #include <plat/map-base.h>
-#include <plat/map.h>
 
-#define S3C2410_ADDR(x)		S3C_ADDR(x)
+/*
+ * S3C2410 UART offset is 0x4000 but the other SoCs are 0x400.
+ * So need to define it, and here is to avoid redefinition warning.
+ */
+#define S3C_UART_OFFSET		(0x4000)
+
+#include <plat/map-s3c.h>
+
+/*
+ * interrupt controller is the first thing we put in, to make
+ * the assembly code for the irq detection easier
+ */
+#define S3C2410_PA_IRQ		(0x4A000000)
+#define S3C24XX_SZ_IRQ		SZ_1M
+
+/* memory controller registers */
+#define S3C2410_PA_MEMCTRL	(0x48000000)
+#define S3C24XX_SZ_MEMCTRL	SZ_1M
+
+/* UARTs */
+#define S3C_VA_UARTx(uart)	(S3C_VA_UART + ((uart * S3C_UART_OFFSET)))
+
+/* Timers */
+#define S3C2410_PA_TIMER	(0x51000000)
+#define S3C24XX_SZ_TIMER	SZ_1M
+
+/* Clock and Power management */
+#define S3C24XX_SZ_CLKPWR	SZ_1M
+
+/* USB Device port */
+#define S3C2410_PA_USBDEV	(0x52000000)
+#define S3C24XX_SZ_USBDEV	SZ_1M
+
+/* Watchdog */
+#define S3C2410_PA_WATCHDOG	(0x53000000)
+#define S3C24XX_SZ_WATCHDOG	SZ_1M
+
+/* Standard size definitions for peripheral blocks. */
+
+#define S3C24XX_SZ_UART		SZ_1M
+#define S3C24XX_SZ_IIS		SZ_1M
+#define S3C24XX_SZ_ADC		SZ_1M
+#define S3C24XX_SZ_SPI		SZ_1M
+#define S3C24XX_SZ_SDI		SZ_1M
+#define S3C24XX_SZ_NAND		SZ_1M
+#define S3C24XX_SZ_GPIO		SZ_1M
 
 /* USB host controller */
 #define S3C2410_PA_USBHOST (0x49000000)
@@ -75,10 +119,8 @@
 
 /* S3C2412 memory and IO controls */
 #define S3C2412_PA_SSMC	(0x4F000000)
-#define S3C2412_VA_SSMC	S3C_ADDR_CPU(0x00000000)
 
 #define S3C2412_PA_EBI	(0x48800000)
-#define S3C2412_VA_EBI	S3C_ADDR_CPU(0x00010000)
 
 /* physical addresses of all the chip-select areas */
 
@@ -100,12 +142,10 @@
 #define S3C24XX_PA_DMA      S3C2410_PA_DMA
 #define S3C24XX_PA_CLKPWR   S3C2410_PA_CLKPWR
 #define S3C24XX_PA_LCD      S3C2410_PA_LCD
-#define S3C24XX_PA_UART     S3C2410_PA_UART
 #define S3C24XX_PA_TIMER    S3C2410_PA_TIMER
 #define S3C24XX_PA_USBDEV   S3C2410_PA_USBDEV
 #define S3C24XX_PA_WATCHDOG S3C2410_PA_WATCHDOG
 #define S3C24XX_PA_IIS      S3C2410_PA_IIS
-#define S3C24XX_PA_GPIO     S3C2410_PA_GPIO
 #define S3C24XX_PA_RTC      S3C2410_PA_RTC
 #define S3C24XX_PA_ADC      S3C2410_PA_ADC
 #define S3C24XX_PA_SPI      S3C2410_PA_SPI

@@ -8,10 +8,8 @@
 
 struct iblock_req {
 	struct se_task ib_task;
-	unsigned char ib_scsi_cdb[TCM_MAX_COMMAND_SIZE];
 	atomic_t ib_bio_cnt;
 	atomic_t ib_bio_err_cnt;
-	struct bio *ib_bio;
 } ____cacheline_aligned;
 
 #define IBDF_HAS_UDEV_PATH		0x01

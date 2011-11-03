@@ -107,7 +107,7 @@ static __le32 *cx25821_risc_field_upstream_audio(struct cx25821_dev *dev,
 {
 	unsigned int line;
 	struct sram_channel *sram_ch =
-	   dev->channels[dev->_audio_upstream_channel_select].sram_channels;
+	   dev->channels[dev->_audio_upstream_channel].sram_channels;
 	int offset = 0;
 
 	/* scan lines */
@@ -349,10 +349,8 @@ static void cx25821_audioups_handler(struct work_struct *work)
 		return;
 	}
 
-	cx25821_get_audio_data(dev,
-			      dev->channels[dev->
-				       _audio_upstream_channel_select].
-				       sram_channels);
+	cx25821_get_audio_data(dev, dev->channels[dev->_audio_upstream_channel].
+			sram_channels);
 }
 
 int cx25821_openfile_audio(struct cx25821_dev *dev,
@@ -540,13 +538,9 @@ int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 				    AUDIO_RISC_DMA_BUF_SIZE;
 
 				rp = cx25821_risc_field_upstream_audio(dev,
-								       dev->
-								       _risc_virt_start_addr
-								       + 1,
-								       dev->
-								       _audiodata_buf_phys_addr,
-								       AUDIO_LINE_SIZE,
-								       FIFO_DISABLE);
+						dev->_risc_virt_start_addr + 1,
+						dev->_audiodata_buf_phys_addr,
+						AUDIO_LINE_SIZE, FIFO_DISABLE);
 
 				if (USE_RISC_NOOP_AUDIO) {
 					for (i = 0; i < NUM_NO_OPS; i++) {
@@ -555,8 +549,7 @@ int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 					}
 				}
 				/* Jump to 2nd Audio Frame */
-				*(rp++) =
-				    cpu_to_le32(RISC_JUMP | RISC_IRQ1 |
+				*(rp++) = cpu_to_le32(RISC_JUMP | RISC_IRQ1 |
 						RISC_CNT_RESET);
 				*(rp++) = cpu_to_le32(risc_phys_jump_addr);
 				*(rp++) = cpu_to_le32(0);
@@ -604,18 +597,15 @@ static irqreturn_t cx25821_upstream_irq_audio(int irq, void *dev_id)
 	if (!dev)
 		return -1;
 
-	sram_ch = dev->channels[dev->_audio_upstream_channel_select].sram_channels;
+	sram_ch = dev->channels[dev->_audio_upstream_channel].sram_channels;
 
 	msk_stat = cx_read(sram_ch->int_mstat);
 	audio_status = cx_read(sram_ch->int_stat);
 
 	/* Only deal with our interrupt */
 	if (audio_status) {
-		handled =
-		    cx25821_audio_upstream_irq(dev,
-					       dev->
-					       _audio_upstream_channel_select,
-					       audio_status);
+		handled = cx25821_audio_upstream_irq(dev,
+				dev->_audio_upstream_channel, audio_status);
 	}
 
 	if (handled < 0)
@@ -690,7 +680,7 @@ int cx25821_start_audio_dma_upstream(struct cx25821_dev *dev,
 
 	err =
 	    request_irq(dev->pci->irq, cx25821_upstream_irq_audio,
-			IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
+			IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
 		pr_err("%s: can't get upstream IRQ %d\n",
 		       dev->name, dev->pci->irq);
@@ -726,7 +716,7 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 		return 0;
 	}
 
-	dev->_audio_upstream_channel_select = channel_select;
+	dev->_audio_upstream_channel = channel_select;
 	sram_ch = dev->channels[channel_select].sram_channels;
 
 	/* Work queue */
@@ -770,9 +760,8 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 		memcpy(dev->_audiofilename, _defaultAudioName, str_length + 1);
 	}
 
-	retval =
-	    cx25821_sram_channel_setup_upstream_audio(dev, sram_ch, _line_size,
-						      0);
+	retval = cx25821_sram_channel_setup_upstream_audio(dev, sram_ch,
+							_line_size, 0);
 
 	dev->audio_upstream_riscbuf_size =
 	    AUDIO_RISC_DMA_BUF_SIZE * NUM_AUDIO_PROGS +
@@ -780,8 +769,8 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 	dev->audio_upstream_databuf_size = AUDIO_DATA_BUF_SZ * NUM_AUDIO_PROGS;
 
 	/* Allocating buffers and prepare RISC program */
-	retval =
-	    cx25821_audio_upstream_buffer_prepare(dev, sram_ch, _line_size);
+	retval = cx25821_audio_upstream_buffer_prepare(dev, sram_ch,
+							_line_size);
 	if (retval < 0) {
 		pr_err("%s: Failed to set up Audio upstream buffers!\n",
 		       dev->name);

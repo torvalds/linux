@@ -1104,3 +1104,6 @@ void unregister_rpc_pipefs(void)
 	kmem_cache_destroy(rpc_inode_cachep);
 	unregister_filesystem(&rpc_pipe_fs_type);
 }
+
+/* Make 'mount -t rpc_pipefs ...' autoload this module. */
+MODULE_ALIAS("rpc_pipefs");

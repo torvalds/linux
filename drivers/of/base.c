@@ -17,14 +17,39 @@
  *      as published by the Free Software Foundation; either version
  *      2 of the License, or (at your option) any later version.
  */
+#include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
 
+/**
+ * struct alias_prop - Alias property in 'aliases' node
+ * @link:	List node to link the structure in aliases_lookup list
+ * @alias:	Alias property name
+ * @np:		Pointer to device_node that the alias stands for
+ * @id:		Index value from end of alias name
+ * @stem:	Alias string without the index
+ *
+ * The structure represents one alias property of 'aliases' node as
+ * an entry in aliases_lookup list.
+ */
+struct alias_prop {
+	struct list_head link;
+	const char *alias;
+	struct device_node *np;
+	int id;
+	char stem[0];
+};
+
+static LIST_HEAD(aliases_lookup);
+
 struct device_node *allnodes;
 struct device_node *of_chosen;
+struct device_node *of_aliases;
+
+static DEFINE_MUTEX(of_aliases_mutex);
 
 /* use when traversing tree through the allnext, child, sibling,
  * or parent members of struct device_node.
@@ -632,6 +657,35 @@ int of_property_read_u32_array(const struct device_node *np,
 EXPORT_SYMBOL_GPL(of_property_read_u32_array);
 
 /**
+ * of_property_read_u64 - Find and read a 64 bit integer from a property
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ * @out_value:	pointer to return value, modified only if return value is 0.
+ *
+ * Search for a property in a device node and read a 64-bit value from
+ * it. Returns 0 on success, -EINVAL if the property does not exist,
+ * -ENODATA if property does not have a value, and -EOVERFLOW if the
+ * property data isn't large enough.
+ *
+ * The out_value is modified only if a valid u64 value can be decoded.
+ */
+int of_property_read_u64(const struct device_node *np, const char *propname,
+			 u64 *out_value)
+{
+	struct property *prop = of_find_property(np, propname, NULL);
+
+	if (!prop)
+		return -EINVAL;
+	if (!prop->value)
+		return -ENODATA;
+	if (sizeof(*out_value) > prop->length)
+		return -EOVERFLOW;
+	*out_value = of_read_number(prop->value, 2);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_property_read_u64);
+
+/**
  * of_property_read_string - Find and read a string from a property
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
@@ -660,6 +714,90 @@ int of_property_read_string(struct device_node *np, const char *propname,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_property_read_string);
+
+/**
+ * of_property_read_string_index - Find and read a string from a multiple
+ * strings property.
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ * @index:	index of the string in the list of strings
+ * @out_string:	pointer to null terminated return string, modified only if
+ *		return value is 0.
+ *
+ * Search for a property in a device tree node and retrieve a null
+ * terminated string value (pointer to data, not a copy) in the list of strings
+ * contained in that property.
+ * Returns 0 on success, -EINVAL if the property does not exist, -ENODATA if
+ * property does not have a value, and -EILSEQ if the string is not
+ * null-terminated within the length of the property data.
+ *
+ * The out_string pointer is modified only if a valid string can be decoded.
+ */
+int of_property_read_string_index(struct device_node *np, const char *propname,
+				  int index, const char **output)
+{
+	struct property *prop = of_find_property(np, propname, NULL);
+	int i = 0;
+	size_t l = 0, total = 0;
+	const char *p;
+
+	if (!prop)
+		return -EINVAL;
+	if (!prop->value)
+		return -ENODATA;
+	if (strnlen(prop->value, prop->length) >= prop->length)
+		return -EILSEQ;
+
+	p = prop->value;
+
+	for (i = 0; total < prop->length; total += l, p += l) {
+		l = strlen(p) + 1;
+		if ((*p != 0) && (i++ == index)) {
+			*output = p;
+			return 0;
+		}
+	}
+	return -ENODATA;
+}
+EXPORT_SYMBOL_GPL(of_property_read_string_index);
+
+
+/**
+ * of_property_count_strings - Find and return the number of strings from a
+ * multiple strings property.
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ *
+ * Search for a property in a device tree node and retrieve the number of null
+ * terminated string contain in it. Returns the number of strings on
+ * success, -EINVAL if the property does not exist, -ENODATA if property
+ * does not have a value, and -EILSEQ if the string is not null-terminated
+ * within the length of the property data.
+ */
+int of_property_count_strings(struct device_node *np, const char *propname)
+{
+	struct property *prop = of_find_property(np, propname, NULL);
+	int i = 0;
+	size_t l = 0, total = 0;
+	const char *p;
+
+	if (!prop)
+		return -EINVAL;
+	if (!prop->value)
+		return -ENODATA;
+	if (strnlen(prop->value, prop->length) >= prop->length)
+		return -EILSEQ;
+
+	p = prop->value;
+
+	for (i = 0; total < prop->length; total += l, p += l) {
+		l = strlen(p) + 1;
+		if (*p != 0)
+			i++;
+	}
+	return i;
+}
+EXPORT_SYMBOL_GPL(of_property_count_strings);
 
 /**
  * of_parse_phandle - Resolve a phandle property to a device_node pointer
@@ -988,3 +1126,99 @@ out_unlock:
 }
 #endif /* defined(CONFIG_OF_DYNAMIC) */
 
+static void of_alias_add(struct alias_prop *ap, struct device_node *np,
+			 int id, const char *stem, int stem_len)
+{
+	ap->np = np;
+	ap->id = id;
+	strncpy(ap->stem, stem, stem_len);
+	ap->stem[stem_len] = 0;
+	list_add_tail(&ap->link, &aliases_lookup);
+	pr_debug("adding DT alias:%s: stem=%s id=%i node=%s\n",
+		 ap->alias, ap->stem, ap->id, np ? np->full_name : NULL);
+}
+
+/**
+ * of_alias_scan - Scan all properties of 'aliases' node
+ *
+ * The function scans all the properties of 'aliases' node and populate
+ * the the global lookup table with the properties.  It returns the
+ * number of alias_prop found, or error code in error case.
+ *
+ * @dt_alloc:	An allocator that provides a virtual address to memory
+ *		for the resulting tree
+ */
+void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
+{
+	struct property *pp;
+
+	of_chosen = of_find_node_by_path("/chosen");
+	if (of_chosen == NULL)
+		of_chosen = of_find_node_by_path("/chosen@0");
+	of_aliases = of_find_node_by_path("/aliases");
+	if (!of_aliases)
+		return;
+
+	for_each_property(pp, of_aliases->properties) {
+		const char *start = pp->name;
+		const char *end = start + strlen(start);
+		struct device_node *np;
+		struct alias_prop *ap;
+		int id, len;
+
+		/* Skip those we do not want to proceed */
+		if (!strcmp(pp->name, "name") ||
+		    !strcmp(pp->name, "phandle") ||
+		    !strcmp(pp->name, "linux,phandle"))
+			continue;
+
+		np = of_find_node_by_path(pp->value);
+		if (!np)
+			continue;
+
+		/* walk the alias backwards to extract the id and work out
+		 * the 'stem' string */
+		while (isdigit(*(end-1)) && end > start)
+			end--;
+		len = end - start;
+
+		if (kstrtoint(end, 10, &id) < 0)
+			continue;
+
+		/* Allocate an alias_prop with enough space for the stem */
+		ap = dt_alloc(sizeof(*ap) + len + 1, 4);
+		if (!ap)
+			continue;
+		ap->alias = start;
+		of_alias_add(ap, np, id, start, len);
+	}
+}
+
+/**
+ * of_alias_get_id - Get alias id for the given device_node
+ * @np:		Pointer to the given device_node
+ * @stem:	Alias stem of the given device_node
+ *
+ * The function travels the lookup table to get alias id for the given
+ * device_node and alias stem.  It returns the alias id if find it.
+ */
+int of_alias_get_id(struct device_node *np, const char *stem)
+{
+	struct alias_prop *app;
+	int id = -ENODEV;
+
+	mutex_lock(&of_aliases_mutex);
+	list_for_each_entry(app, &aliases_lookup, link) {
+		if (strcmp(app->stem, stem) != 0)
+			continue;
+
+		if (np == app->np) {
+			id = app->id;
+			break;
+		}
+	}
+	mutex_unlock(&of_aliases_mutex);
+
+	return id;
+}
+EXPORT_SYMBOL_GPL(of_alias_get_id);

@@ -61,8 +61,8 @@ static int __init sclp_cmd_sync_early(sclp_cmdw_t cmd, void *sccb)
 	rc = sclp_service_call(cmd, sccb);
 	if (rc)
 		goto out;
-	__load_psw_mask(PSW_BASE_BITS | PSW_MASK_EXT |
-			PSW_MASK_WAIT | PSW_DEFAULT_KEY);
+	__load_psw_mask(PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_EA |
+			PSW_MASK_BA | PSW_MASK_EXT | PSW_MASK_WAIT);
 	local_irq_disable();
 out:
 	/* Contents of the sccb might have changed. */

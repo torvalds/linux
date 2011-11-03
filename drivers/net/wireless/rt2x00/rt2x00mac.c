@@ -494,6 +494,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct rt2x00lib_crypto crypto;
 	static const u8 bcast_addr[ETH_ALEN] =
 		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, };
+	struct rt2x00_sta *sta_priv = NULL;
 
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
@@ -504,24 +505,18 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	memset(&crypto, 0, sizeof(crypto));
 
-	/*
-	 * When in STA mode, bssidx is always 0 otherwise local_address[5]
-	 * contains the bss number, see BSS_ID_MASK comments for details.
-	 */
-	if (rt2x00dev->intf_sta_count)
-		crypto.bssidx = 0;
-	else
-		crypto.bssidx = vif->addr[5] & (rt2x00dev->ops->max_ap_intf - 1);
-
+	crypto.bssidx = rt2x00lib_get_bssidx(rt2x00dev, vif);
 	crypto.cipher = rt2x00crypto_key_to_cipher(key);
 	if (crypto.cipher == CIPHER_NONE)
 		return -EOPNOTSUPP;
 
 	crypto.cmd = cmd;
 
-	if (sta)
+	if (sta) {
 		crypto.address = sta->addr;
-	else
+		sta_priv = sta_to_rt2x00_sta(sta);
+		crypto.wcid = sta_priv->wcid;
+	} else
 		crypto.address = bcast_addr;
 
 	if (crypto.cipher == CIPHER_TKIP)
@@ -559,6 +554,39 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_set_key);
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
+
+int rt2x00mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		      struct ieee80211_sta *sta)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
+
+	/*
+	 * If there's no space left in the device table store
+	 * -1 as wcid but tell mac80211 everything went ok.
+	 */
+	if (rt2x00dev->ops->lib->sta_add(rt2x00dev, vif, sta))
+		sta_priv->wcid = -1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_sta_add);
+
+int rt2x00mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
+
+	/*
+	 * If we never sent the STA to the device no need to clean it up.
+	 */
+	if (sta_priv->wcid < 0)
+		return 0;
+
+	return rt2x00dev->ops->lib->sta_remove(rt2x00dev, sta_priv->wcid);
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_sta_remove);
 
 void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw)
 {
@@ -685,7 +713,8 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_bss_info_changed);
 
-int rt2x00mac_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
+int rt2x00mac_conf_tx(struct ieee80211_hw *hw,
+		      struct ieee80211_vif *vif, u16 queue_idx,
 		      const struct ieee80211_tx_queue_params *params)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;

@@ -814,29 +814,6 @@ static int sasem_probe(struct usb_interface *interface,
 		printk(KERN_INFO "%s: Registered Sasem driver (minor:%d)\n",
 			__func__, lirc_minor);
 
-alloc_status_switch:
-
-	switch (alloc_status) {
-
-	case 7:
-		if (vfd_ep_found)
-			usb_free_urb(tx_urb);
-	case 6:
-		usb_free_urb(rx_urb);
-	case 5:
-		lirc_buffer_free(rbuf);
-	case 4:
-		kfree(rbuf);
-	case 3:
-		kfree(driver);
-	case 2:
-		kfree(context);
-		context = NULL;
-	case 1:
-		retval = -ENOMEM;
-		goto unlock;
-	}
-
 	/* Needed while unregistering! */
 	driver->minor = lirc_minor;
 
@@ -867,6 +844,29 @@ alloc_status_switch:
 			__func__, dev->bus->busnum, dev->devnum);
 unlock:
 	mutex_unlock(&context->ctx_lock);
+
+alloc_status_switch:
+	switch (alloc_status) {
+
+	case 7:
+		if (vfd_ep_found)
+			usb_free_urb(tx_urb);
+	case 6:
+		usb_free_urb(rx_urb);
+	case 5:
+		lirc_buffer_free(rbuf);
+	case 4:
+		kfree(rbuf);
+	case 3:
+		kfree(driver);
+	case 2:
+		kfree(context);
+		context = NULL;
+	case 1:
+		if (retval == 0)
+			retval = -ENOMEM;
+	}
+
 exit:
 	return retval;
 }

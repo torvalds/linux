@@ -533,3 +533,9 @@ bool perf_evlist__sample_id_all(const struct perf_evlist *evlist)
 	first = list_entry(evlist->entries.next, struct perf_evsel, node);
 	return first->attr.sample_id_all;
 }
+
+void perf_evlist__set_selected(struct perf_evlist *evlist,
+			       struct perf_evsel *evsel)
+{
+	evlist->selected = evsel;
+}

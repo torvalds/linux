@@ -278,10 +278,8 @@ int v9fs_init_inode(struct v9fs_session_info *v9ses,
 	case S_IFSOCK:
 		if (v9fs_proto_dotl(v9ses)) {
 			inode->i_op = &v9fs_file_inode_operations_dotl;
-			inode->i_fop = &v9fs_file_operations_dotl;
 		} else if (v9fs_proto_dotu(v9ses)) {
 			inode->i_op = &v9fs_file_inode_operations;
-			inode->i_fop = &v9fs_file_operations;
 		} else {
 			P9_DPRINTK(P9_DEBUG_ERROR,
 				   "special files without extended mode\n");

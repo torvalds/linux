@@ -46,6 +46,8 @@ struct qdesfmt0 {
 	u32	 : 16;
 } __attribute__ ((packed));
 
+#define QDR_AC_MULTI_BUFFER_ENABLE 0x01
+
 /**
  * struct qdr - queue description record (QDR)
  * @qfmt: queue format
@@ -121,6 +123,40 @@ struct qib {
 struct slibe {
 	u64 parms;
 };
+
+/**
+ * struct qaob - queue asynchronous operation block
+ * @res0: reserved parameters
+ * @res1: reserved parameter
+ * @res2: reserved parameter
+ * @res3: reserved parameter
+ * @aorc: asynchronous operation return code
+ * @flags: internal flags
+ * @cbtbs: control block type
+ * @sb_count: number of storage blocks
+ * @sba: storage block element addresses
+ * @dcount: size of storage block elements
+ * @user0: user defineable value
+ * @res4: reserved paramater
+ * @user1: user defineable value
+ * @user2: user defineable value
+ */
+struct qaob {
+	u64 res0[6];
+	u8 res1;
+	u8 res2;
+	u8 res3;
+	u8 aorc;
+	u8 flags;
+	u16 cbtbs;
+	u8 sb_count;
+	u64 sba[QDIO_MAX_ELEMENTS_PER_BUFFER];
+	u16 dcount[QDIO_MAX_ELEMENTS_PER_BUFFER];
+	u64 user0;
+	u64 res4[2];
+	u64 user1;
+	u64 user2;
+} __attribute__ ((packed, aligned(256)));
 
 /**
  * struct slib - storage list information block (SLIB)
@@ -222,8 +258,45 @@ struct slsb {
 	u8 val[QDIO_MAX_BUFFERS_PER_Q];
 } __attribute__ ((packed, aligned(256)));
 
+#define CHSC_AC2_MULTI_BUFFER_AVAILABLE	0x0080
+#define CHSC_AC2_MULTI_BUFFER_ENABLED	0x0040
 #define CHSC_AC2_DATA_DIV_AVAILABLE	0x0010
 #define CHSC_AC2_DATA_DIV_ENABLED	0x0002
+
+/**
+ * struct qdio_outbuf_state - SBAL related asynchronous operation information
+ *   (for communication with upper layer programs)
+ *   (only required for use with completion queues)
+ * @flags: flags indicating state of buffer
+ * @aob: pointer to QAOB used for the particular SBAL
+ * @user: pointer to upper layer program's state information related to SBAL
+ *        (stored in user1 data of QAOB)
+ */
+struct qdio_outbuf_state {
+	u8 flags;
+	struct qaob *aob;
+	void *user;
+};
+
+#define QDIO_OUTBUF_STATE_FLAG_NONE	0x00
+#define QDIO_OUTBUF_STATE_FLAG_PENDING	0x01
+
+#define CHSC_AC1_INITIATE_INPUTQ	0x80
+
+
+/* qdio adapter-characteristics-1 flag */
+#define AC1_SIGA_INPUT_NEEDED		0x40	/* process input queues */
+#define AC1_SIGA_OUTPUT_NEEDED		0x20	/* process output queues */
+#define AC1_SIGA_SYNC_NEEDED		0x10	/* ask hypervisor to sync */
+#define AC1_AUTOMATIC_SYNC_ON_THININT	0x08	/* set by hypervisor */
+#define AC1_AUTOMATIC_SYNC_ON_OUT_PCI	0x04	/* set by hypervisor */
+#define AC1_SC_QEBSM_AVAILABLE		0x02	/* available for subchannel */
+#define AC1_SC_QEBSM_ENABLED		0x01	/* enabled for subchannel */
+
+#define CHSC_AC2_DATA_DIV_AVAILABLE	0x0010
+#define CHSC_AC2_DATA_DIV_ENABLED	0x0002
+
+#define CHSC_AC3_FORMAT2_CQ_AVAILABLE	0x8000
 
 struct qdio_ssqd_desc {
 	u8 flags;
@@ -243,8 +316,7 @@ struct qdio_ssqd_desc {
 	u64 sch_token;
 	u8 mro;
 	u8 mri;
-	u8:8;
-	u8 sbalic;
+	u16 qdioac3;
 	u16:16;
 	u8:8;
 	u8 mmwc;
@@ -280,13 +352,16 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @no_output_qs: number of output queues
  * @input_handler: handler to be called for input queues
  * @output_handler: handler to be called for output queues
+ * @queue_start_poll: polling handlers (one per input queue or NULL)
  * @int_parm: interruption parameter
  * @input_sbal_addr_array:  address of no_input_qs * 128 pointers
  * @output_sbal_addr_array: address of no_output_qs * 128 pointers
+ * @output_sbal_state_array: no_output_qs * 128 state info (for CQ or NULL)
  */
 struct qdio_initialize {
 	struct ccw_device *cdev;
 	unsigned char q_format;
+	unsigned char qdr_ac;
 	unsigned char adapter_name[8];
 	unsigned int qib_param_field_format;
 	unsigned char *qib_param_field;
@@ -297,11 +372,12 @@ struct qdio_initialize {
 	unsigned int no_output_qs;
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
-	void (*queue_start_poll) (struct ccw_device *, int, unsigned long);
+	void (**queue_start_poll) (struct ccw_device *, int, unsigned long);
 	int scan_threshold;
 	unsigned long int_parm;
 	void **input_sbal_addr_array;
 	void **output_sbal_addr_array;
+	struct qdio_outbuf_state *output_sbal_state_array;
 };
 
 #define QDIO_STATE_INACTIVE		0x00000002 /* after qdio_cleanup */
@@ -316,6 +392,7 @@ struct qdio_initialize {
 extern int qdio_allocate(struct qdio_initialize *);
 extern int qdio_establish(struct qdio_initialize *);
 extern int qdio_activate(struct ccw_device *);
+extern void qdio_release_aob(struct qaob *);
 extern int do_QDIO(struct ccw_device *, unsigned int, int, unsigned int,
 		   unsigned int);
 extern int qdio_start_irq(struct ccw_device *, int);

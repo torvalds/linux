@@ -527,7 +527,7 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 
 	DBG(DBG_GADGET, "%s: ep_enable: desc=%p\n", ep->ep.name, desc);
 
-	maxpacket = le16_to_cpu(desc->wMaxPacketSize) & 0x7ff;
+	maxpacket = usb_endpoint_maxp(desc) & 0x7ff;
 
 	if (((desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK) != ep->index)
 			|| ep->index == 0
@@ -571,7 +571,7 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		 * Bits 11:12 specify number of _additional_
 		 * transactions per microframe.
 		 */
-		nr_trans = ((le16_to_cpu(desc->wMaxPacketSize) >> 11) & 3) + 1;
+		nr_trans = ((usb_endpoint_maxp(desc) >> 11) & 3) + 1;
 		if (nr_trans > 3)
 			return -EINVAL;
 
@@ -1718,13 +1718,12 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 			spin_lock(&udc->lock);
 		}
 
-		if (status & USBA_HIGH_SPEED) {
-			DBG(DBG_BUS, "High-speed bus reset detected\n");
+		if (status & USBA_HIGH_SPEED)
 			udc->gadget.speed = USB_SPEED_HIGH;
-		} else {
-			DBG(DBG_BUS, "Full-speed bus reset detected\n");
+		else
 			udc->gadget.speed = USB_SPEED_FULL;
-		}
+		DBG(DBG_BUS, "%s bus reset detected\n",
+		    usb_speed_string(udc->gadget.speed));
 
 		ep0 = &usba_ep[0];
 		ep0->desc = &usba_ep0_desc;

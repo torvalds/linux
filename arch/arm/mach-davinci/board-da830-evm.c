@@ -676,7 +676,7 @@ static void __init da830_evm_map_io(void)
 }
 
 MACHINE_START(DAVINCI_DA830_EVM, "DaVinci DA830/OMAP-L137/AM17x EVM")
-	.boot_params	= (DA8XX_DDR_BASE + 0x100),
+	.atag_offset	= 0x100,
 	.map_io		= da830_evm_map_io,
 	.init_irq	= cp_intc_init,
 	.timer		= &davinci_timer,

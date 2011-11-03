@@ -540,7 +540,7 @@ static int qe_ep_init(struct qe_udc *udc,
 	int reval = 0;
 	u16 max = 0;
 
-	max = le16_to_cpu(desc->wMaxPacketSize);
+	max = usb_endpoint_maxp(desc);
 
 	/* check the max package size validate for this endpoint */
 	/* Refer to USB2.0 spec table 9-13,

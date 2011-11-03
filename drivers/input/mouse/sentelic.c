@@ -607,11 +607,12 @@ static void fsp_packet_debug(unsigned char packet[])
 
 	ps2_packet_cnt++;
 	jiffies_msec = jiffies_to_msecs(jiffies);
-	printk(KERN_DEBUG "%08dms PS/2 packets: %02x, %02x, %02x, %02x\n",
-		jiffies_msec, packet[0], packet[1], packet[2], packet[3]);
+	psmouse_dbg(psmouse,
+		    "%08dms PS/2 packets: %02x, %02x, %02x, %02x\n",
+		    jiffies_msec, packet[0], packet[1], packet[2], packet[3]);
 
 	if (jiffies_msec - ps2_last_second > 1000) {
-		printk(KERN_DEBUG "PS/2 packets/sec = %d\n", ps2_packet_cnt);
+		psmouse_dbg(psmouse, "PS/2 packets/sec = %d\n", ps2_packet_cnt);
 		ps2_packet_cnt = 0;
 		ps2_last_second = jiffies_msec;
 	}
@@ -820,9 +821,9 @@ int fsp_init(struct psmouse *psmouse)
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO
-		"Finger Sensing Pad, hw: %d.%d.%d, sw: %s, buttons: %d\n",
-		ver >> 4, ver & 0x0F, rev, fsp_drv_ver, buttons & 7);
+	psmouse_info(psmouse,
+		     "Finger Sensing Pad, hw: %d.%d.%d, sw: %s, buttons: %d\n",
+		     ver >> 4, ver & 0x0F, rev, fsp_drv_ver, buttons & 7);
 
 	psmouse->private = priv = kzalloc(sizeof(struct fsp_data), GFP_KERNEL);
 	if (!priv)

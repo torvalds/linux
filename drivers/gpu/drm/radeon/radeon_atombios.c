@@ -62,7 +62,7 @@ union atom_supported_devices {
 	struct _ATOM_SUPPORTED_DEVICES_INFO_2d1 info_2d1;
 };
 
-static inline struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_device *rdev,
+static struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_device *rdev,
 							       uint8_t id)
 {
 	struct atom_context *ctx = rdev->mode_info.atom_context;
@@ -228,7 +228,7 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 	}
 }
 
-static inline struct radeon_gpio_rec radeon_lookup_gpio(struct radeon_device *rdev,
+static struct radeon_gpio_rec radeon_lookup_gpio(struct radeon_device *rdev,
 							u8 id)
 {
 	struct atom_context *ctx = rdev->mode_info.atom_context;

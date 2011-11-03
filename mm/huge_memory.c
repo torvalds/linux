@@ -89,7 +89,8 @@ struct khugepaged_scan {
 	struct list_head mm_head;
 	struct mm_slot *mm_slot;
 	unsigned long address;
-} khugepaged_scan = {
+};
+static struct khugepaged_scan khugepaged_scan = {
 	.mm_head = LIST_HEAD_INIT(khugepaged_scan.mm_head),
 };
 
@@ -829,7 +830,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
 
 	for (i = 0; i < HPAGE_PMD_NR; i++) {
 		copy_user_highpage(pages[i], page + i,
-				   haddr + PAGE_SHIFT*i, vma);
+				   haddr + PAGE_SIZE * i, vma);
 		__SetPageUptodate(pages[i]);
 		cond_resched();
 	}
@@ -1049,6 +1050,51 @@ int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 	} else
 		spin_unlock(&vma->vm_mm->page_table_lock);
 
+	return ret;
+}
+
+int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
+		  unsigned long old_addr,
+		  unsigned long new_addr, unsigned long old_end,
+		  pmd_t *old_pmd, pmd_t *new_pmd)
+{
+	int ret = 0;
+	pmd_t pmd;
+
+	struct mm_struct *mm = vma->vm_mm;
+
+	if ((old_addr & ~HPAGE_PMD_MASK) ||
+	    (new_addr & ~HPAGE_PMD_MASK) ||
+	    old_end - old_addr < HPAGE_PMD_SIZE ||
+	    (new_vma->vm_flags & VM_NOHUGEPAGE))
+		goto out;
+
+	/*
+	 * The destination pmd shouldn't be established, free_pgtables()
+	 * should have release it.
+	 */
+	if (WARN_ON(!pmd_none(*new_pmd))) {
+		VM_BUG_ON(pmd_trans_huge(*new_pmd));
+		goto out;
+	}
+
+	spin_lock(&mm->page_table_lock);
+	if (likely(pmd_trans_huge(*old_pmd))) {
+		if (pmd_trans_splitting(*old_pmd)) {
+			spin_unlock(&mm->page_table_lock);
+			wait_split_huge_page(vma->anon_vma, old_pmd);
+			ret = -1;
+		} else {
+			pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
+			VM_BUG_ON(!pmd_none(*new_pmd));
+			set_pmd_at(mm, new_addr, new_pmd, pmd);
+			spin_unlock(&mm->page_table_lock);
+			ret = 1;
+		}
+	} else {
+		spin_unlock(&mm->page_table_lock);
+	}
+out:
 	return ret;
 }
 
@@ -1906,7 +1952,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	BUG_ON(!pmd_none(*pmd));
 	page_add_new_anon_rmap(new_page, vma, address);
 	set_pmd_at(mm, address, pmd, _pmd);
-	update_mmu_cache(vma, address, entry);
+	update_mmu_cache(vma, address, _pmd);
 	prepare_pmd_huge_pte(pgtable, mm);
 	mm->nr_ptes--;
 	spin_unlock(&mm->page_table_lock);
@@ -2024,6 +2070,8 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
 
 static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
 					    struct page **hpage)
+	__releases(&khugepaged_mm_lock)
+	__acquires(&khugepaged_mm_lock)
 {
 	struct mm_slot *mm_slot;
 	struct mm_struct *mm;

@@ -1310,7 +1310,7 @@ static int __init nf_nat_snmp_basic_init(void)
 	int ret = 0;
 
 	BUG_ON(nf_nat_snmp_hook != NULL);
-	rcu_assign_pointer(nf_nat_snmp_hook, help);
+	RCU_INIT_POINTER(nf_nat_snmp_hook, help);
 
 	ret = nf_conntrack_helper_register(&snmp_trap_helper);
 	if (ret < 0) {
@@ -1322,7 +1322,7 @@ static int __init nf_nat_snmp_basic_init(void)
 
 static void __exit nf_nat_snmp_basic_fini(void)
 {
-	rcu_assign_pointer(nf_nat_snmp_hook, NULL);
+	RCU_INIT_POINTER(nf_nat_snmp_hook, NULL);
 	nf_conntrack_helper_unregister(&snmp_trap_helper);
 }
 

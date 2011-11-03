@@ -11,7 +11,7 @@
 
 #include <mach/addr-map.h>
 
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 		ldr	\rp, =APB_PHYS_BASE		@ physical
 		ldr	\rv, =APB_VIRT_BASE		@ virtual
 		orr	\rp, \rp, #0x00017000
