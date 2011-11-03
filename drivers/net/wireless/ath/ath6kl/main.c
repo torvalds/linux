@@ -534,6 +534,18 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 				wpa_ie = pos; /* WPS IE */
 				break; /* overrides WPA/RSN IE */
 			}
+		} else if (pos[0] == 0x44 && wpa_ie == NULL) {
+			/*
+			 * Note: WAPI Parameter Set IE re-uses Element ID that
+			 * was officially allocated for BSS AC Access Delay. As
+			 * such, we need to be a bit more careful on when
+			 * parsing the frame. However, BSS AC Access Delay
+			 * element is not supposed to be included in
+			 * (Re)Association Request frames, so this should not
+			 * cause problems.
+			 */
+			wpa_ie = pos; /* WAPI IE */
+			break;
 		}
 		pos += 2 + pos[1];
 	}
