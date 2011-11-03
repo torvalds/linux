@@ -278,7 +278,6 @@ struct iscsi_iser_task {
 	struct iser_regd_buf         rdma_regd[ISER_DIRS_NUM];/* regd rdma buf */
 	struct iser_data_buf         data[ISER_DIRS_NUM];     /* orig. data des*/
 	struct iser_data_buf         data_copy[ISER_DIRS_NUM];/* contig. copy  */
-	int                          headers_initialized;
 };
 
 struct iser_page_vec {
