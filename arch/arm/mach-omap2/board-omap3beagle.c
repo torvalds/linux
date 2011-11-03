@@ -378,7 +378,8 @@ static struct i2c_board_info __initdata beagle_i2c_eeprom[] = {
 static int __init omap3_beagle_i2c_init(void)
 {
 	omap3_pmic_get_config(&beagle_twldata,
-			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO,
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_MADC |
+			TWL_COMMON_PDATA_AUDIO,
 			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
 
 	beagle_twldata.vpll2->constraints.name = "VDVI";
@@ -444,9 +445,15 @@ static struct platform_device keys_gpio = {
 	},
 };
 
+static struct platform_device madc_hwmon = {
+	.name	= "twl4030_madc_hwmon",
+	.id	= -1,
+};
+
 static struct platform_device *omap3_beagle_devices[] __initdata = {
 	&leds_gpio,
 	&keys_gpio,
+	&madc_hwmon,
 };
 
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {

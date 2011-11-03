@@ -134,6 +134,16 @@ config INPUT_MAX8925_ONKEY
 	  To compile this driver as a module, choose M here: the module
 	  will be called max8925_onkey.
 
+config INPUT_MC13783_PWRBUTTON
+	tristate "MC13783 ON buttons"
+	depends on MFD_MC13783
+	help
+	  Support the ON buttons of MC13783 PMIC as an input device
+	  reporting power button status.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mc13783-pwrbutton.
+
 config INPUT_MMA8450
 	tristate "MMA8450 - Freescale's 3-Axis, 8/12-bit Digital Accelerometer"
 	depends on I2C

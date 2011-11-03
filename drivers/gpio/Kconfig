@@ -189,7 +189,7 @@ config GPIO_U300
 
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
-	depends on MFD_SUPPORT && PCI
+	depends on PCI
 	select MFD_CORE
 	select MFD_VX855
 	help
@@ -428,7 +428,6 @@ config GPIO_TIMBERDALE
 config GPIO_RDC321X
 	tristate "RDC R-321x GPIO support"
 	depends on PCI
-	select MFD_SUPPORT
 	select MFD_CORE
 	select MFD_RDC321X
 	help

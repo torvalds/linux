@@ -12,7 +12,7 @@
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/mfd/db8500-prcmu.h>
+#include <linux/mfd/dbx500-prcmu.h>
 #include <mach/id.h>
 
 static struct cpufreq_frequency_table freq_table[] = {

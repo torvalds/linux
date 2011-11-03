@@ -112,8 +112,7 @@ static const struct spi_imx_master spi1_pdata __initconst = {
 };
 
 static struct mc13xxx_platform_data mc13783_pdata __initdata = {
-	.flags  = MC13XXX_USE_RTC |
-		  MC13XXX_USE_REGULATOR,
+	.flags = MC13XXX_USE_RTC,
 };
 
 static struct spi_board_info mc13783_spi_dev __initdata = {
