@@ -430,7 +430,6 @@ int __init vic_of_init(struct device_node *node, struct device_node *parent)
 }
 #endif /* CONFIG OF */
 
-#ifdef CONFIG_MULTI_IRQ_HANDLER
 /*
  * Handle each interrupt in a single VIC.  Returns non-zero if we've
  * handled at least one interrupt.  This does a single read of the
@@ -465,4 +464,3 @@ asmlinkage void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
 			handled |= handle_one_vic(&vic_devices[i], regs);
 	} while (handled);
 }
-#endif /* CONFIG_MULTI_IRQ_HANDLER */

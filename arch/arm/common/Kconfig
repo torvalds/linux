@@ -8,6 +8,7 @@ config GIC_NON_BANKED
 
 config ARM_VIC
 	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
 	bool
 
 config ARM_VIC_NR
