@@ -409,13 +409,6 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 	if (len < 2 || data[0] < 2 || data[0] > len)
 		return -EINVAL;
 
-	/* Skip payloads marked with the error bit ("error frames"). */
-	if (data[1] & UVC_STREAM_ERR) {
-		uvc_trace(UVC_TRACE_FRAME, "Dropping payload (error bit "
-			  "set).\n");
-		return -ENODATA;
-	}
-
 	fid = data[1] & UVC_STREAM_FID;
 
 	/* Increase the sequence number regardless of any buffer states, so
@@ -430,6 +423,13 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 	if (buf == NULL) {
 		stream->last_fid = fid;
 		return -ENODATA;
+	}
+
+	/* Mark the buffer as bad if the error bit is set. */
+	if (data[1] & UVC_STREAM_ERR) {
+		uvc_trace(UVC_TRACE_FRAME, "Marking buffer as bad (error bit "
+			  "set).\n");
+		buf->error = 1;
 	}
 
 	/* Synchronize to the input stream by waiting for the FID bit to be
