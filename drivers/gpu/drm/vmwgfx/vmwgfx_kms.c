@@ -1747,6 +1747,10 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 		drm_mode_probed_add(connector, mode);
 	}
 
+	/* Move the prefered mode first, help apps pick the right mode. */
+	if (du->pref_mode)
+		list_move(&du->pref_mode->head, &connector->probed_modes);
+
 	drm_mode_connector_list_update(connector);
 
 	return 1;
