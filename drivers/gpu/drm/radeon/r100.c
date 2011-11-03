@@ -577,7 +577,7 @@ int r100_pci_gart_init(struct radeon_device *rdev)
 {
 	int r;
 
-	if (rdev->gart.table.ram.ptr) {
+	if (rdev->gart.ptr) {
 		WARN(1, "R100 PCI GART already initialized\n");
 		return 0;
 	}
@@ -636,10 +636,12 @@ void r100_pci_gart_disable(struct radeon_device *rdev)
 
 int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 {
+	u32 *gtt = rdev->gart.ptr;
+
 	if (i < 0 || i > rdev->gart.num_gpu_pages) {
 		return -EINVAL;
 	}
-	rdev->gart.table.ram.ptr[i] = cpu_to_le32(lower_32_bits(addr));
+	gtt[i] = cpu_to_le32(lower_32_bits(addr));
 	return 0;
 }
 

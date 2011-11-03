@@ -935,7 +935,7 @@ int cayman_pcie_gart_enable(struct radeon_device *rdev)
 {
 	int r;
 
-	if (rdev->gart.table.vram.robj == NULL) {
+	if (rdev->gart.robj == NULL) {
 		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
@@ -980,8 +980,6 @@ int cayman_pcie_gart_enable(struct radeon_device *rdev)
 
 void cayman_pcie_gart_disable(struct radeon_device *rdev)
 {
-	int r;
-
 	/* Disable all tables */
 	WREG32(VM_CONTEXT0_CNTL, 0);
 	WREG32(VM_CONTEXT1_CNTL, 0);
@@ -997,14 +995,7 @@ void cayman_pcie_gart_disable(struct radeon_device *rdev)
 	WREG32(VM_L2_CNTL2, 0);
 	WREG32(VM_L2_CNTL3, L2_CACHE_BIGK_ASSOCIATIVITY |
 	       L2_CACHE_BIGK_FRAGMENT_SIZE(6));
-	if (rdev->gart.table.vram.robj) {
-		r = radeon_bo_reserve(rdev->gart.table.vram.robj, false);
-		if (likely(r == 0)) {
-			radeon_bo_kunmap(rdev->gart.table.vram.robj);
-			radeon_bo_unpin(rdev->gart.table.vram.robj);
-			radeon_bo_unreserve(rdev->gart.table.vram.robj);
-		}
-	}
+	radeon_gart_table_vram_unpin(rdev);
 }
 
 void cayman_pcie_gart_fini(struct radeon_device *rdev)

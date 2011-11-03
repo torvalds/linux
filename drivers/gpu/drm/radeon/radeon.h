@@ -307,30 +307,17 @@ int radeon_mode_dumb_destroy(struct drm_file *file_priv,
  */
 struct radeon_mc;
 
-struct radeon_gart_table_ram {
-	volatile uint32_t		*ptr;
-};
-
-struct radeon_gart_table_vram {
-	struct radeon_bo		*robj;
-	volatile uint32_t		*ptr;
-};
-
-union radeon_gart_table {
-	struct radeon_gart_table_ram	ram;
-	struct radeon_gart_table_vram	vram;
-};
-
 #define RADEON_GPU_PAGE_SIZE 4096
 #define RADEON_GPU_PAGE_MASK (RADEON_GPU_PAGE_SIZE - 1)
 #define RADEON_GPU_PAGE_SHIFT 12
 
 struct radeon_gart {
 	dma_addr_t			table_addr;
+	struct radeon_bo		*robj;
+	void				*ptr;
 	unsigned			num_gpu_pages;
 	unsigned			num_cpu_pages;
 	unsigned			table_size;
-	union radeon_gart_table		table;
 	struct page			**pages;
 	dma_addr_t			*pages_addr;
 	bool				*ttm_alloced;
@@ -341,6 +328,8 @@ int radeon_gart_table_ram_alloc(struct radeon_device *rdev);
 void radeon_gart_table_ram_free(struct radeon_device *rdev);
 int radeon_gart_table_vram_alloc(struct radeon_device *rdev);
 void radeon_gart_table_vram_free(struct radeon_device *rdev);
+int radeon_gart_table_vram_pin(struct radeon_device *rdev);
+void radeon_gart_table_vram_unpin(struct radeon_device *rdev);
 int radeon_gart_init(struct radeon_device *rdev);
 void radeon_gart_fini(struct radeon_device *rdev);
 void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
@@ -348,6 +337,7 @@ void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
 int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 		     int pages, struct page **pagelist,
 		     dma_addr_t *dma_addr);
+void radeon_gart_restore(struct radeon_device *rdev);
 
 
 /*
@@ -1445,8 +1435,6 @@ void radeon_ring_write(struct radeon_device *rdev, uint32_t v);
 /* AGP */
 extern int radeon_gpu_reset(struct radeon_device *rdev);
 extern void radeon_agp_disable(struct radeon_device *rdev);
-extern int radeon_gart_table_vram_pin(struct radeon_device *rdev);
-extern void radeon_gart_restore(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);
 extern void radeon_modeset_fini(struct radeon_device *rdev);
 extern bool radeon_card_posted(struct radeon_device *rdev);
