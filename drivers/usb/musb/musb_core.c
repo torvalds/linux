@@ -661,7 +661,6 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 
 		handled = IRQ_HANDLED;
 		musb->is_active = 1;
-		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 
 		musb->ep0_stage = MUSB_EP0_START;
 

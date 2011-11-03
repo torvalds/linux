@@ -271,7 +271,6 @@ static void c67x00_hcd_irq(struct c67x00_sie *sie, u16 int_status, u16 msg)
 	if (int_status & SOFEOP_FLG(sie->sie_num)) {
 		c67x00_ll_usb_clear_status(sie, SOF_EOP_IRQ_FLG);
 		c67x00_sched_kick(c67x00);
-		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 	}
 }
 
