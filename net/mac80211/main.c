@@ -126,8 +126,8 @@ bool ieee80211_cfg_on_oper_channel(struct ieee80211_local *local)
 		return false;
 
 	/* Check current hardware-config against oper_channel. */
-	if ((local->oper_channel != local->hw.conf.channel) ||
-	    (local->_oper_channel_type != local->hw.conf.channel_type))
+	if (local->oper_channel != local->hw.conf.channel ||
+	    local->_oper_channel_type != local->hw.conf.channel_type)
 		return false;
 
 	return true;
