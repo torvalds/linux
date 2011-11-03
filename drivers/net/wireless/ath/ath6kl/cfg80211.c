@@ -2093,6 +2093,9 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 		case WLAN_CIPHER_SUITE_CCMP:
 			p.prwise_crypto_type |= AES_CRYPT;
 			break;
+		case WLAN_CIPHER_SUITE_SMS4:
+			p.prwise_crypto_type |= WAPI_CRYPT;
+			break;
 		}
 	}
 	if (p.prwise_crypto_type == 0) {
@@ -2111,6 +2114,9 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		p.grp_crypto_type = AES_CRYPT;
+		break;
+	case WLAN_CIPHER_SUITE_SMS4:
+		p.grp_crypto_type = WAPI_CRYPT;
 		break;
 	default:
 		p.grp_crypto_type = NONE_CRYPT;
