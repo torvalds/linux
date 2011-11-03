@@ -200,7 +200,8 @@ static void record_precise_ip(struct hist_entry *he, int counter, u64 ip)
 	struct symbol *sym;
 
 	if (he == NULL || he->ms.sym == NULL ||
-	    (he != top.sym_filter_entry && use_browser != 1))
+	    ((top.sym_filter_entry == NULL ||
+	      top.sym_filter_entry->ms.sym != he->ms.sym) && use_browser != 1))
 		return;
 
 	sym = he->ms.sym;
