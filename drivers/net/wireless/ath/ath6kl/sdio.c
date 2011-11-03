@@ -784,7 +784,8 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar)
 
 	ath6kl_dbg(ATH6KL_DBG_SUSPEND, "sdio suspend pm_caps 0x%x\n", flags);
 
-	if (!(flags & MMC_PM_KEEP_POWER)) {
+	if (!(flags & MMC_PM_KEEP_POWER) ||
+	    (ar->conf_flags & ATH6KL_CONF_SUSPEND_CUTPOWER)) {
 		/* as host doesn't support keep power we need to cut power */
 		return ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_CUTPOWER);
 	}

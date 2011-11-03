@@ -166,6 +166,7 @@ struct ath6kl_fw_ie {
 #define ATH6KL_CONF_IGNORE_PS_FAIL_EVT_IN_SCAN  BIT(1)
 #define ATH6KL_CONF_ENABLE_11N			BIT(2)
 #define ATH6KL_CONF_ENABLE_TX_BURST		BIT(3)
+#define ATH6KL_CONF_SUSPEND_CUTPOWER		BIT(4)
 
 enum wlan_low_pwr_state {
 	WLAN_POWER_STATE_ON,
