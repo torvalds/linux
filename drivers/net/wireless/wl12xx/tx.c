@@ -201,10 +201,10 @@ u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 static unsigned int wl12xx_calc_packet_alignment(struct wl1271 *wl,
 						unsigned int packet_length)
 {
-	if (wl->quirks & WL12XX_QUIRK_BLOCKSIZE_ALIGNMENT)
-		return ALIGN(packet_length, WL12XX_BUS_BLOCK_SIZE);
-	else
+	if (wl->quirks & WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT)
 		return ALIGN(packet_length, WL1271_TX_ALIGN_TO);
+	else
+		return ALIGN(packet_length, WL12XX_BUS_BLOCK_SIZE);
 }
 
 static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,

@@ -1323,7 +1323,9 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 		ret = wl1271_setup(wl);
 		if (ret < 0)
 			goto out;
+		wl->quirks |= WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT;
 		break;
+
 	case CHIP_ID_1271_PG20:
 		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1271 PG20)",
 			     wl->chip.id);
@@ -1331,7 +1333,9 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 		ret = wl1271_setup(wl);
 		if (ret < 0)
 			goto out;
+		wl->quirks |= WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT;
 		break;
+
 	case CHIP_ID_1283_PG20:
 		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1283 PG20)",
 			     wl->chip.id);
@@ -1340,8 +1344,8 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 		if (ret < 0)
 			goto out;
 
-		if (wl1271_set_block_size(wl))
-			wl->quirks |= WL12XX_QUIRK_BLOCKSIZE_ALIGNMENT;
+		if (!wl1271_set_block_size(wl))
+			wl->quirks |= WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT;
 		break;
 	case CHIP_ID_1283_PG10:
 	default:

@@ -501,7 +501,7 @@ int wl1271_chip_specific_init(struct wl1271 *wl)
 	if (wl->chip.id == CHIP_ID_1283_PG20) {
 		u32 host_cfg_bitmap = HOST_IF_CFG_RX_FIFO_ENABLE;
 
-		if (wl->quirks & WL12XX_QUIRK_BLOCKSIZE_ALIGNMENT)
+		if (!(wl->quirks & WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT))
 			/* Enable SDIO padding */
 			host_cfg_bitmap |= HOST_IF_CFG_TX_PAD_TO_SDIO_BLK;
 
