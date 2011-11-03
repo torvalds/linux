@@ -32,6 +32,7 @@
 #include <target/target_core_transport.h>
 #include <target/target_core_fabric_ops.h>
 #include "target_core_ua.h"
+#include "target_core_cdb.h"
 
 static void
 target_fill_alua_data(struct se_port *port, unsigned char *buf)
@@ -679,8 +680,7 @@ target_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
-static int
-target_emulate_inquiry(struct se_task *task)
+int target_emulate_inquiry(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
@@ -731,8 +731,7 @@ out:
 	return ret;
 }
 
-static int
-target_emulate_readcapacity(struct se_task *task)
+int target_emulate_readcapacity(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
@@ -768,8 +767,7 @@ target_emulate_readcapacity(struct se_task *task)
 	return 0;
 }
 
-static int
-target_emulate_readcapacity_16(struct se_task *task)
+int target_emulate_readcapacity_16(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
@@ -939,8 +937,7 @@ target_modesense_dpofua(unsigned char *buf, int type)
 	}
 }
 
-static int
-target_emulate_modesense(struct se_task *task)
+int target_emulate_modesense(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
@@ -1019,8 +1016,7 @@ target_emulate_modesense(struct se_task *task)
 	return 0;
 }
 
-static int
-target_emulate_request_sense(struct se_task *task)
+int target_emulate_request_sense(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	unsigned char *cdb = cmd->t_task_cdb;
@@ -1090,8 +1086,7 @@ end:
  * Used for TCM/IBLOCK and TCM/FILEIO for block/blk-lib.c level discard support.
  * Note this is not used for TCM/pSCSI passthrough
  */
-static int
-target_emulate_unmap(struct se_task *task)
+int target_emulate_unmap(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
@@ -1150,8 +1145,7 @@ err:
  * Used for TCM/IBLOCK and TCM/FILEIO for block/blk-lib.c level discard support.
  * Note this is not used for TCM/pSCSI passthrough
  */
-static int
-target_emulate_write_same(struct se_task *task)
+int target_emulate_write_same(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
@@ -1196,8 +1190,7 @@ target_emulate_write_same(struct se_task *task)
 	return 0;
 }
 
-static int
-target_emulate_synchronize_cache(struct se_task *task)
+int target_emulate_synchronize_cache(struct se_task *task)
 {
 	struct se_device *dev = task->task_se_cmd->se_dev;
 
@@ -1211,95 +1204,11 @@ target_emulate_synchronize_cache(struct se_task *task)
 	return 0;
 }
 
-static int
-target_emulate_noop(struct se_task *task)
+int target_emulate_noop(struct se_task *task)
 {
 	task->task_scsi_status = GOOD;
 	transport_complete_task(task, 1);
 	return 0;
-}
-
-int
-transport_emulate_control_cdb(struct se_task *task)
-{
-	struct se_cmd *cmd = task->task_se_cmd;
-	struct se_device *dev = cmd->se_dev;
-	unsigned short service_action;
-	int ret = 0;
-
-	switch (cmd->t_task_cdb[0]) {
-	case INQUIRY:
-		ret = target_emulate_inquiry(task);
-		break;
-	case READ_CAPACITY:
-		ret = target_emulate_readcapacity(task);
-		break;
-	case MODE_SENSE:
-		ret = target_emulate_modesense(task);
-		break;
-	case MODE_SENSE_10:
-		ret = target_emulate_modesense(task);
-		break;
-	case SERVICE_ACTION_IN:
-		switch (cmd->t_task_cdb[1] & 0x1f) {
-		case SAI_READ_CAPACITY_16:
-			ret = target_emulate_readcapacity_16(task);
-			break;
-		default:
-			pr_err("Unsupported SA: 0x%02x\n",
-				cmd->t_task_cdb[1] & 0x1f);
-			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-		}
-		break;
-	case REQUEST_SENSE:
-		ret = target_emulate_request_sense(task);
-		break;
-	case UNMAP:
-		ret = target_emulate_unmap(task);
-		break;
-	case WRITE_SAME:
-		ret = target_emulate_write_same(task);
-		break;
-	case WRITE_SAME_16:
-		ret = target_emulate_write_same(task);
-		break;
-	case VARIABLE_LENGTH_CMD:
-		service_action =
-			get_unaligned_be16(&cmd->t_task_cdb[8]);
-		switch (service_action) {
-		case WRITE_SAME_32:
-			ret = target_emulate_write_same(task);
-			break;
-		default:
-			pr_err("Unsupported VARIABLE_LENGTH_CMD SA:"
-					" 0x%02x\n", service_action);
-			break;
-		}
-		break;
-	case SYNCHRONIZE_CACHE:
-	case 0x91: /* SYNCHRONIZE_CACHE_16: */
-		ret = target_emulate_synchronize_cache(task);
-		break;
-	case ALLOW_MEDIUM_REMOVAL:
-	case ERASE:
-	case REZERO_UNIT:
-	case SEEK_10:
-	case SPACE:
-	case START_STOP:
-	case TEST_UNIT_READY:
-	case VERIFY:
-	case WRITE_FILEMARKS:
-		ret = target_emulate_noop(task);
-		break;
-	default:
-		pr_err("Unsupported SCSI Opcode: 0x%02x for %s\n",
-			cmd->t_task_cdb[0], dev->transport->name);
-		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-	}
-
-	if (ret < 0)
-		return ret;
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }
 
 /*

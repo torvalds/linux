@@ -52,6 +52,7 @@
 #include <target/target_core_configfs.h>
 
 #include "target_core_alua.h"
+#include "target_core_cdb.h"
 #include "target_core_hba.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
@@ -2155,31 +2156,11 @@ check_depth:
 		atomic_set(&cmd->t_transport_sent, 1);
 
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-	/*
-	 * The struct se_cmd->execute_task() function pointer is used
-	 * to grab REPORT_LUNS and other CDBs we want to handle before they hit the
-	 * struct se_subsystem_api->do_task() caller below.
-	 */
-	if (cmd->execute_task) {
-		error = cmd->execute_task(task);
-	} else {
-		/*
-		 * Currently for all virtual TCM plugins including IBLOCK, FILEIO and
-		 * RAMDISK we use the internal transport_emulate_control_cdb() logic
-		 * with struct se_subsystem_api callers for the primary SPC-3 TYPE_DISK
-		 * LUN emulation code.
-		 *
-		 * For TCM/pSCSI and all other SCF_SCSI_DATA_SG_IO_CDB I/O tasks we
-		 * call ->do_task() directly and let the underlying TCM subsystem plugin
-		 * code handle the CDB emulation.
-		 */
-		if ((dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV) &&
-		    (!(task->task_se_cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB)))
-			error = transport_emulate_control_cdb(task);
-		else
-			error = dev->transport->do_task(task);
-	}
 
+	if (cmd->execute_task)
+		error = cmd->execute_task(task);
+	else
+		error = dev->transport->do_task(task);
 	if (error != 0) {
 		cmd->transport_error_status = error;
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
@@ -2622,6 +2603,13 @@ static int transport_generic_cmd_sequencer(
 		 */
 	}
 
+	/*
+	 * If we operate in passthrough mode we skip most CDB emulation and
+	 * instead hand the commands down to the physical SCSI device.
+	 */
+	passthrough =
+		(dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV);
+
 	switch (cdb[0]) {
 	case READ_6:
 		sectors = transport_get_sectors_6(cdb, cmd, &sector_ret);
@@ -2701,9 +2689,12 @@ static int transport_generic_cmd_sequencer(
 		cmd->t_task_lba = transport_lba_32(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
 
-		if (dev->transport->transport_type ==
-				TRANSPORT_PLUGIN_PHBA_PDEV)
+		/*
+		 * Do now allow BIDI commands for passthrough mode.
+		 */
+		if (passthrough)
 			goto out_unsupported_cdb;
+
 		/*
 		 * Setup BIDI XOR callback to be run after I/O completion.
 		 */
@@ -2712,13 +2703,6 @@ static int transport_generic_cmd_sequencer(
 		break;
 	case VARIABLE_LENGTH_CMD:
 		service_action = get_unaligned_be16(&cdb[8]);
-		/*
-		 * Determine if this is TCM/PSCSI device and we should disable
-		 * internal emulation for this CDB.
-		 */
-		passthrough = (dev->transport->transport_type ==
-					TRANSPORT_PLUGIN_PHBA_PDEV);
-
 		switch (service_action) {
 		case XDWRITEREAD_32:
 			sectors = transport_get_sectors_32(cdb, cmd, &sector_ret);
@@ -2732,8 +2716,12 @@ static int transport_generic_cmd_sequencer(
 			cmd->t_task_lba = transport_lba_64_ext(cdb);
 			cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
 
+			/*
+			 * Do now allow BIDI commands for passthrough mode.
+			 */
 			if (passthrough)
 				goto out_unsupported_cdb;
+
 			/*
 			 * Setup BIDI XOR callback to be run during after I/O
 			 * completion.
@@ -2759,7 +2747,8 @@ static int transport_generic_cmd_sequencer(
 
 			if (target_check_write_same_discard(&cdb[10], dev) < 0)
 				goto out_invalid_cdb_field;
-
+			if (!passthrough)
+				cmd->execute_task = target_emulate_write_same;
 			break;
 		default:
 			pr_err("VARIABLE_LENGTH_CMD service action"
@@ -2797,8 +2786,15 @@ static int transport_generic_cmd_sequencer(
 	case MODE_SENSE:
 		size = cdb[4];
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
+		if (!passthrough)
+			cmd->execute_task = target_emulate_modesense;
 		break;
 	case MODE_SENSE_10:
+		size = (cdb[7] << 8) + cdb[8];
+		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
+		if (!passthrough)
+			cmd->execute_task = target_emulate_modesense;
+		break;
 	case GPCMD_READ_BUFFER_CAPACITY:
 	case GPCMD_SEND_OPC:
 	case LOG_SELECT:
@@ -2867,6 +2863,8 @@ static int transport_generic_cmd_sequencer(
 		if (cmd->se_dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
 			cmd->sam_task_attr = MSG_HEAD_TAG;
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
+		if (!passthrough)
+			cmd->execute_task = target_emulate_inquiry;
 		break;
 	case READ_BUFFER:
 		size = (cdb[6] << 16) + (cdb[7] << 8) + cdb[8];
@@ -2875,6 +2873,8 @@ static int transport_generic_cmd_sequencer(
 	case READ_CAPACITY:
 		size = READ_CAP_LEN;
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
+		if (!passthrough)
+			cmd->execute_task = target_emulate_readcapacity;
 		break;
 	case READ_MEDIA_SERIAL_NUMBER:
 	case SECURITY_PROTOCOL_IN:
@@ -2883,6 +2883,21 @@ static int transport_generic_cmd_sequencer(
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case SERVICE_ACTION_IN:
+		switch (cmd->t_task_cdb[1] & 0x1f) {
+		case SAI_READ_CAPACITY_16:
+			if (!passthrough)
+				cmd->execute_task =
+					target_emulate_readcapacity_16;
+			break;
+		default:
+			if (passthrough)
+				break;
+
+			pr_err("Unsupported SA: 0x%02x\n",
+				cmd->t_task_cdb[1] & 0x1f);
+			goto out_unsupported_cdb;
+		}
+		/*FALLTHROUGH*/
 	case ACCESS_CONTROL_IN:
 	case ACCESS_CONTROL_OUT:
 	case EXTENDED_COPY:
@@ -2913,6 +2928,8 @@ static int transport_generic_cmd_sequencer(
 	case REQUEST_SENSE:
 		size = cdb[4];
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
+		if (!passthrough)
+			cmd->execute_task = target_emulate_request_sense;
 		break;
 	case READ_ELEMENT_STATUS:
 		size = 65536 * cdb[7] + 256 * cdb[8] + cdb[9];
@@ -2977,8 +2994,9 @@ static int transport_generic_cmd_sequencer(
 		size = transport_get_size(sectors, cdb, cmd);
 		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 
-		if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+		if (passthrough)
 			break;
+
 		/*
 		 * Check to ensure that LBA + Range does not exceed past end of
 		 * device for IBLOCK and FILEIO ->do_sync_cache() backend calls
@@ -2987,10 +3005,13 @@ static int transport_generic_cmd_sequencer(
 			if (transport_cmd_get_valid_sectors(cmd) < 0)
 				goto out_invalid_cdb_field;
 		}
+		cmd->execute_task = target_emulate_synchronize_cache;
 		break;
 	case UNMAP:
 		size = get_unaligned_be16(&cdb[7]);
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
+		if (!passthrough)
+			cmd->execute_task = target_emulate_unmap;
 		break;
 	case WRITE_SAME_16:
 		sectors = transport_get_sectors_16(cdb, cmd, &sector_ret);
@@ -3009,6 +3030,8 @@ static int transport_generic_cmd_sequencer(
 
 		if (target_check_write_same_discard(&cdb[1], dev) < 0)
 			goto out_invalid_cdb_field;
+		if (!passthrough)
+			cmd->execute_task = target_emulate_write_same;
 		break;
 	case WRITE_SAME:
 		sectors = transport_get_sectors_10(cdb, cmd, &sector_ret);
@@ -3030,20 +3053,26 @@ static int transport_generic_cmd_sequencer(
 		 */
 		if (target_check_write_same_discard(&cdb[1], dev) < 0)
 			goto out_invalid_cdb_field;
+		if (!passthrough)
+			cmd->execute_task = target_emulate_write_same;
 		break;
 	case ALLOW_MEDIUM_REMOVAL:
-	case GPCMD_CLOSE_TRACK:
 	case ERASE:
-	case INITIALIZE_ELEMENT_STATUS:
-	case GPCMD_LOAD_UNLOAD:
 	case REZERO_UNIT:
 	case SEEK_10:
-	case GPCMD_SET_SPEED:
 	case SPACE:
 	case START_STOP:
 	case TEST_UNIT_READY:
 	case VERIFY:
 	case WRITE_FILEMARKS:
+		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
+		if (!passthrough)
+			cmd->execute_task = target_emulate_noop;
+		break;
+	case GPCMD_CLOSE_TRACK:
+	case INITIALIZE_ELEMENT_STATUS:
+	case GPCMD_LOAD_UNLOAD:
+	case GPCMD_SET_SPEED:
 	case MOVE_MEDIUM:
 		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 		break;
@@ -3099,6 +3128,11 @@ static int transport_generic_cmd_sequencer(
 		}
 		cmd->data_length = size;
 	}
+
+	/* reject any command that we don't have a handler for */
+	if (!(passthrough || cmd->execute_task ||
+	     (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB)))
+		goto out_unsupported_cdb;
 
 	/* Let's limit control cdbs to a page, for simplicity's sake. */
 	if ((cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB) &&
