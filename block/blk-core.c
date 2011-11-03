@@ -407,8 +407,13 @@ void blk_cleanup_queue(struct request_queue *q)
 	spin_unlock_irq(lock);
 	mutex_unlock(&q->sysfs_lock);
 
-	/* drain all requests queued before DEAD marking */
-	blk_drain_queue(q, true);
+	/*
+	 * Drain all requests queued before DEAD marking.  The caller might
+	 * be trying to tear down @q before its elevator is initialized, in
+	 * which case we don't want to call into draining.
+	 */
+	if (q->elevator)
+		blk_drain_queue(q, true);
 
 	/* @q won't process any more request, flush async actions */
 	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
