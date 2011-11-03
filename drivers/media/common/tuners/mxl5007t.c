@@ -165,6 +165,8 @@ struct mxl5007t_state {
 	struct reg_pair_t tab_init_cable[ARRAY_SIZE(init_tab_cable)];
 	struct reg_pair_t tab_rftune[ARRAY_SIZE(reg_pair_rftune)];
 
+	enum mxl5007t_if_freq if_freq;
+
 	u32 frequency;
 	u32 bandwidth;
 };
@@ -285,6 +287,8 @@ static void mxl5007t_set_if_freq_bits(struct mxl5007t_state *state,
 
 	/* set inverted IF or normal IF */
 	set_reg_bits(state->tab_init, 0x02, 0x10, invert_if ? 0x10 : 0x00);
+
+	state->if_freq = if_freq;
 
 	return;
 }
@@ -737,6 +741,50 @@ static int mxl5007t_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
+static int mxl5007t_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	struct mxl5007t_state *state = fe->tuner_priv;
+
+	*frequency = 0;
+
+	switch (state->if_freq) {
+	case MxL_IF_4_MHZ:
+		*frequency = 4000000;
+		break;
+	case MxL_IF_4_5_MHZ:
+		*frequency = 4500000;
+		break;
+	case MxL_IF_4_57_MHZ:
+		*frequency = 4570000;
+		break;
+	case MxL_IF_5_MHZ:
+		*frequency = 5000000;
+		break;
+	case MxL_IF_5_38_MHZ:
+		*frequency = 5380000;
+		break;
+	case MxL_IF_6_MHZ:
+		*frequency = 6000000;
+		break;
+	case MxL_IF_6_28_MHZ:
+		*frequency = 6280000;
+		break;
+	case MxL_IF_9_1915_MHZ:
+		*frequency = 9191500;
+		break;
+	case MxL_IF_35_25_MHZ:
+		*frequency = 35250000;
+		break;
+	case MxL_IF_36_15_MHZ:
+		*frequency = 36150000;
+		break;
+	case MxL_IF_44_MHZ:
+		*frequency = 44000000;
+		break;
+	}
+	return 0;
+}
+
 static int mxl5007t_release(struct dvb_frontend *fe)
 {
 	struct mxl5007t_state *state = fe->tuner_priv;
@@ -766,6 +814,7 @@ static struct dvb_tuner_ops mxl5007t_tuner_ops = {
 	.get_frequency     = mxl5007t_get_frequency,
 	.get_bandwidth     = mxl5007t_get_bandwidth,
 	.release           = mxl5007t_release,
+	.get_if_frequency  = mxl5007t_get_if_frequency,
 };
 
 static int mxl5007t_get_chip_id(struct mxl5007t_state *state)
