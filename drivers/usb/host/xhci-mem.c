@@ -875,7 +875,6 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	struct xhci_virt_device *dev;
 	struct xhci_ep_ctx	*ep0_ctx;
 	struct xhci_slot_ctx    *slot_ctx;
-	struct xhci_input_control_ctx *ctrl_ctx;
 	u32			port_num;
 	struct usb_device *top_dev;
 
@@ -887,11 +886,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 		return -EINVAL;
 	}
 	ep0_ctx = xhci_get_ep_ctx(xhci, dev->in_ctx, 0);
-	ctrl_ctx = xhci_get_input_control_ctx(xhci, dev->in_ctx);
 	slot_ctx = xhci_get_slot_ctx(xhci, dev->in_ctx);
-
-	/* 2) New slot context and endpoint 0 context are valid*/
-	ctrl_ctx->add_flags = cpu_to_le32(SLOT_FLAG | EP0_FLAG);
 
 	/* 3) Only the control endpoint is valid - one endpoint context */
 	slot_ctx->dev_info |= cpu_to_le32(LAST_CTX(1) | (u32) udev->route);
