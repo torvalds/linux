@@ -262,7 +262,7 @@ static void mgmt_pending_foreach(u16 opcode, int index,
 
 		cmd = list_entry(p, struct pending_cmd, list);
 
-		if (cmd->opcode != opcode)
+		if (opcode > 0 && cmd->opcode != opcode)
 			continue;
 
 		if (index >= 0 && cmd->index != index)
@@ -1949,6 +1949,14 @@ done:
 	return err;
 }
 
+static void cmd_status_rsp(struct pending_cmd *cmd, void *data)
+{
+	u8 *status = data;
+
+	cmd_status(cmd->sk, cmd->index, cmd->opcode, *status);
+	mgmt_pending_remove(cmd);
+}
+
 int mgmt_index_added(u16 index)
 {
 	return mgmt_event(MGMT_EV_INDEX_ADDED, index, NULL, 0, NULL);
@@ -1956,6 +1964,10 @@ int mgmt_index_added(u16 index)
 
 int mgmt_index_removed(u16 index)
 {
+	u8 status = ENODEV;
+
+	mgmt_pending_foreach(0, index, cmd_status_rsp, &status);
+
 	return mgmt_event(MGMT_EV_INDEX_REMOVED, index, NULL, 0, NULL);
 }
 
@@ -1991,6 +2003,11 @@ int mgmt_powered(u16 index, u8 powered)
 	int ret;
 
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, index, mode_rsp, &match);
+
+	if (!powered) {
+		u8 status = ENETDOWN;
+		mgmt_pending_foreach(0, index, cmd_status_rsp, &status);
+	}
 
 	ev.val = powered;
 
