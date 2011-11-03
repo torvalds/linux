@@ -143,9 +143,12 @@ void ieee80211_set_qos_hdr(struct ieee80211_sub_if_data *sdata,
 	/* Fill in the QoS header if there is one. */
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		u8 *p = ieee80211_get_qos_ctl(hdr);
-		u8 ack_policy = 0, tid;
+		u8 ack_policy, tid;
 
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+
+		/* preserve EOSP bit */
+		ack_policy = *p & IEEE80211_QOS_CTL_EOSP;
 
 		if (unlikely(sdata->local->wifi_wme_noack_test))
 			ack_policy |= IEEE80211_QOS_CTL_ACK_POLICY_NOACK;
