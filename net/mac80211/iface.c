@@ -265,7 +265,7 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		break;
 	default:
 		if (coming_up) {
-			res = drv_add_interface(local, &sdata->vif);
+			res = drv_add_interface(local, sdata);
 			if (res)
 				goto err_stop;
 		}
@@ -345,7 +345,7 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 
 	return 0;
  err_del_interface:
-	drv_remove_interface(local, &sdata->vif);
+	drv_remove_interface(local, sdata);
  err_stop:
 	if (!local->open_count)
 		drv_stop(local);
@@ -520,7 +520,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		ieee80211_free_keys(sdata);
 
 		if (going_down)
-			drv_remove_interface(local, &sdata->vif);
+			drv_remove_interface(local, sdata);
 	}
 
 	sdata->bss = NULL;

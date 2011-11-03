@@ -1006,7 +1006,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
 		    sdata->vif.type != NL80211_IFTYPE_MONITOR &&
 		    ieee80211_sdata_running(sdata))
-			res = drv_add_interface(local, &sdata->vif);
+			res = drv_add_interface(local, sdata);
 	}
 
 	/* add STAs back */
