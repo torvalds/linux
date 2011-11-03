@@ -25,30 +25,6 @@
 #include <linux/gpio.h>
 #include <linux/mfd/tps65910.h>
 
-#define TPS65910_REG_VRTC		0
-#define TPS65910_REG_VIO		1
-#define TPS65910_REG_VDD1		2
-#define TPS65910_REG_VDD2		3
-#define TPS65910_REG_VDD3		4
-#define TPS65910_REG_VDIG1		5
-#define TPS65910_REG_VDIG2		6
-#define TPS65910_REG_VPLL		7
-#define TPS65910_REG_VDAC		8
-#define TPS65910_REG_VAUX1		9
-#define TPS65910_REG_VAUX2		10
-#define TPS65910_REG_VAUX33		11
-#define TPS65910_REG_VMMC		12
-
-#define TPS65911_REG_VDDCTRL		4
-#define TPS65911_REG_LDO1		5
-#define TPS65911_REG_LDO2		6
-#define TPS65911_REG_LDO3		7
-#define TPS65911_REG_LDO4		8
-#define TPS65911_REG_LDO5		9
-#define TPS65911_REG_LDO6		10
-#define TPS65911_REG_LDO7		11
-#define TPS65911_REG_LDO8		12
-
 #define TPS65910_SUPPLY_STATE_ENABLED	0x1
 
 /* supported VIO voltages in milivolts */
