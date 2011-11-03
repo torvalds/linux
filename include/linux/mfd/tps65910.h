@@ -764,6 +764,9 @@
 #define TPS65911_REG_LDO7				11
 #define TPS65911_REG_LDO8				12
 
+/* Max number of TPS65910/11 regulators */
+#define TPS65910_NUM_REGS				13
+
 /**
  * struct tps65910_board
  * Board platform data may be used to initialize regulators.
@@ -775,7 +778,7 @@ struct tps65910_board {
 	int irq_base;
 	int vmbch_threshold;
 	int vmbch2_threshold;
-	struct regulator_init_data *tps65910_pmic_init_data;
+	struct regulator_init_data *tps65910_pmic_init_data[TPS65910_NUM_REGS];
 };
 
 /**

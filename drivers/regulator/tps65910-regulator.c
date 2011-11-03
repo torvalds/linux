@@ -861,8 +861,6 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 	if (!pmic_plat_data)
 		return -EINVAL;
 
-	reg_data = pmic_plat_data->tps65910_pmic_init_data;
-
 	pmic = kzalloc(sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
@@ -913,7 +911,16 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 		goto err_free_info;
 	}
 
-	for (i = 0; i < pmic->num_regulators; i++, info++, reg_data++) {
+	for (i = 0; i < pmic->num_regulators && i < TPS65910_NUM_REGS;
+			i++, info++) {
+
+		reg_data = pmic_plat_data->tps65910_pmic_init_data[i];
+
+		/* Regulator API handles empty constraints but not NULL
+		 * constraints */
+		if (!reg_data)
+			continue;
+
 		/* Register the regulators */
 		pmic->info[i] = info;
 
