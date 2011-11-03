@@ -1308,8 +1308,10 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 
 	do {
 		req = next_request(&dep->req_queued);
-		if (!req)
-			break;
+		if (!req) {
+			WARN_ON_ONCE(1);
+			return 1;
+		}
 
 		dwc3_trb_to_nat(req->trb, &trb);
 
