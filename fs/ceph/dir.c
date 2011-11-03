@@ -108,7 +108,7 @@ static unsigned fpos_off(loff_t p)
  * falling back to a "normal" sync readdir if any dentries in the dir
  * are dropped.
  *
- * I_COMPLETE tells indicates we have all dentries in the dir.  It is
+ * D_COMPLETE tells indicates we have all dentries in the dir.  It is
  * defined IFF we hold CEPH_CAP_FILE_SHARED (which will be revoked by
  * the MDS if/when the directory is modified).
  */
@@ -199,8 +199,8 @@ more:
 	filp->f_pos++;
 
 	/* make sure a dentry wasn't dropped while we didn't have parent lock */
-	if (!ceph_i_test(dir, CEPH_I_COMPLETE)) {
-		dout(" lost I_COMPLETE on %p; falling back to mds\n", dir);
+	if (!ceph_dir_test_complete(dir)) {
+		dout(" lost D_COMPLETE on %p; falling back to mds\n", dir);
 		err = -EAGAIN;
 		goto out;
 	}
@@ -285,7 +285,7 @@ static int ceph_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if ((filp->f_pos == 2 || fi->dentry) &&
 	    !ceph_test_mount_opt(fsc, NOASYNCREADDIR) &&
 	    ceph_snap(inode) != CEPH_SNAPDIR &&
-	    (ci->i_ceph_flags & CEPH_I_COMPLETE) &&
+	    ceph_dir_test_complete(inode) &&
 	    __ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1)) {
 		spin_unlock(&inode->i_lock);
 		err = __dcache_readdir(filp, dirent, filldir);
@@ -351,7 +351,7 @@ more:
 
 		if (!req->r_did_prepopulate) {
 			dout("readdir !did_prepopulate");
-			fi->dir_release_count--;    /* preclude I_COMPLETE */
+			fi->dir_release_count--;    /* preclude D_COMPLETE */
 		}
 
 		/* note next offset and last dentry name */
@@ -430,8 +430,7 @@ more:
 	 */
 	spin_lock(&inode->i_lock);
 	if (ci->i_release_count == fi->dir_release_count) {
-		dout(" marking %p complete\n", inode);
-		/* ci->i_ceph_flags |= CEPH_I_COMPLETE; */
+		ceph_dir_set_complete(inode);
 		ci->i_max_offset = filp->f_pos;
 	}
 	spin_unlock(&inode->i_lock);
@@ -614,7 +613,7 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 			    fsc->mount_options->snapdir_name,
 			    dentry->d_name.len) &&
 		    !is_root_ceph_dentry(dir, dentry) &&
-		    (ci->i_ceph_flags & CEPH_I_COMPLETE) &&
+		    ceph_dir_test_complete(dir) &&
 		    (__ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1))) {
 			spin_unlock(&dir->i_lock);
 			dout(" dir %p complete, -ENOENT\n", dir);
@@ -934,7 +933,7 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 		 */
 
 		/* d_move screws up d_subdirs order */
-		ceph_i_clear(new_dir, CEPH_I_COMPLETE);
+		ceph_dir_clear_complete(new_dir);
 
 		d_move(old_dentry, new_dentry);
 
@@ -1090,6 +1089,48 @@ static int ceph_snapdir_d_revalidate(struct dentry *dentry,
 	 * too... probably...
 	 */
 	return 1;
+}
+
+/*
+ * Set/clear/test dir complete flag on the dir's dentry.
+ */
+static struct dentry * __d_find_any_alias(struct inode *inode)
+{
+	struct dentry *alias;
+
+	if (list_empty(&inode->i_dentry))
+		return NULL;
+	alias = list_first_entry(&inode->i_dentry, struct dentry, d_alias);
+	return alias;
+}
+
+void ceph_dir_set_complete(struct inode *inode)
+{
+	struct dentry *dentry = __d_find_any_alias(inode);
+	
+	if (dentry && ceph_dentry(dentry)) {
+		dout(" marking %p (%p) complete\n", inode, dentry);
+		set_bit(CEPH_D_COMPLETE, &ceph_dentry(dentry)->flags);
+	}
+}
+
+void ceph_dir_clear_complete(struct inode *inode)
+{
+	struct dentry *dentry = __d_find_any_alias(inode);
+
+	if (dentry && ceph_dentry(dentry)) {
+		dout(" marking %p (%p) NOT complete\n", inode, dentry);
+		clear_bit(CEPH_D_COMPLETE, &ceph_dentry(dentry)->flags);
+	}
+}
+
+bool ceph_dir_test_complete(struct inode *inode)
+{
+	struct dentry *dentry = __d_find_any_alias(inode);
+
+	if (dentry && ceph_dentry(dentry))
+		return test_bit(CEPH_D_COMPLETE, &ceph_dentry(dentry)->flags);
+	return false;
 }
 
 /*
