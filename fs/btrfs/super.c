@@ -164,7 +164,7 @@ enum {
 	Opt_notreelog, Opt_ratio, Opt_flushoncommit, Opt_discard,
 	Opt_space_cache, Opt_clear_cache, Opt_user_subvol_rm_allowed,
 	Opt_enospc_debug, Opt_subvolrootid, Opt_defrag,
-	Opt_inode_cache, Opt_no_space_cache, Opt_err,
+	Opt_inode_cache, Opt_no_space_cache, Opt_recovery, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -198,6 +198,7 @@ static match_table_t tokens = {
 	{Opt_defrag, "autodefrag"},
 	{Opt_inode_cache, "inode_cache"},
 	{Opt_no_space_cache, "no_space_cache"},
+	{Opt_recovery, "recovery"},
 	{Opt_err, NULL},
 };
 
@@ -391,6 +392,10 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_defrag:
 			printk(KERN_INFO "btrfs: enabling auto defrag");
 			btrfs_set_opt(info->mount_opt, AUTO_DEFRAG);
+			break;
+		case Opt_recovery:
+			printk(KERN_INFO "btrfs: enabling auto recovery");
+			btrfs_set_opt(info->mount_opt, RECOVERY);
 			break;
 		case Opt_err:
 			printk(KERN_INFO "btrfs: unrecognized mount option "
