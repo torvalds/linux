@@ -216,7 +216,7 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 		SVGA3dCmdHeader header;
 		SVGA3dCmdSurfaceDMA dma;
 	} *cmd;
-	int ret;
+	int i, ret;
 
 	cmd = container_of(header, struct vmw_dma_cmd, header);
 
@@ -238,16 +238,19 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	box_count = (cmd->header.size - sizeof(SVGA3dCmdSurfaceDMA)) /
 			sizeof(SVGA3dCopyBox);
 
-	if (cmd->dma.guest.pitch != (64 * 4) ||
-	    cmd->dma.guest.ptr.offset % PAGE_SIZE ||
+	if (cmd->dma.guest.ptr.offset % PAGE_SIZE ||
 	    box->x != 0    || box->y != 0    || box->z != 0    ||
 	    box->srcx != 0 || box->srcy != 0 || box->srcz != 0 ||
-	    box->w != 64   || box->h != 64   || box->d != 1    ||
-	    box_count != 1) {
+	    box->d != 1    || box_count != 1) {
 		/* TODO handle none page aligned offsets */
-		/* TODO handle partial uploads and pitch != 256 */
-		/* TODO handle more then one copy (size != 64) */
-		DRM_ERROR("lazy programmer, can't handle weird stuff\n");
+		/* TODO handle more dst & src != 0 */
+		/* TODO handle more then one copy */
+		DRM_ERROR("Cant snoop dma request for cursor!\n");
+		DRM_ERROR("(%u, %u, %u) (%u, %u, %u) (%ux%ux%u) %u %u\n",
+			  box->srcx, box->srcy, box->srcz,
+			  box->x, box->y, box->z,
+			  box->w, box->h, box->d, box_count,
+			  cmd->dma.guest.ptr.offset);
 		return;
 	}
 
@@ -266,7 +269,16 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 
 	virtual = ttm_kmap_obj_virtual(&map, &dummy);
 
-	memcpy(srf->snooper.image, virtual, 64*64*4);
+	if (box->w == 64 && cmd->dma.guest.pitch == 64*4) {
+		memcpy(srf->snooper.image, virtual, 64*64*4);
+	} else {
+		/* Image is unsigned pointer. */
+		for (i = 0; i < box->h; i++)
+			memcpy(srf->snooper.image + i * 64,
+			       virtual + i * cmd->dma.guest.pitch,
+			       box->w * 4);
+	}
+
 	srf->snooper.age++;
 
 	/* we can't call this function from this function since execbuf has
