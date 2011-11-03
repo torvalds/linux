@@ -1080,7 +1080,6 @@ EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 			       bool wake)
 {
-	return;
 }
 
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
