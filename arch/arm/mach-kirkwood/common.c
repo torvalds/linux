@@ -430,6 +430,8 @@ static char * __init kirkwood_id(void)
 	} else if (dev == MV88F6282_DEV_ID) {
 		if (rev == MV88F6282_REV_A0)
 			return "MV88F6282-Rev-A0";
+		else if (rev == MV88F6282_REV_A1)
+			return "MV88F6282-Rev-A1";
 		else
 			return "MV88F6282-Rev-Unsupported";
 	} else {
