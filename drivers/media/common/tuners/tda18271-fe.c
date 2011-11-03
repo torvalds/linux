@@ -994,6 +994,7 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 	if (tda_fail(ret))
 		goto fail;
 
+	priv->if_freq   = map->if_freq;
 	priv->frequency = freq;
 	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ?
 		params->u.ofdm.bandwidth : 0;
@@ -1050,6 +1051,7 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 	if (tda_fail(ret))
 		goto fail;
 
+	priv->if_freq   = map->if_freq;
 	priv->frequency = freq;
 	priv->bandwidth = 0;
 fail:
@@ -1083,6 +1085,13 @@ static int tda18271_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	*bandwidth = priv->bandwidth;
+	return 0;
+}
+
+static int tda18271_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	*frequency = (u32)priv->if_freq * 1000;
 	return 0;
 }
 
@@ -1245,6 +1254,7 @@ static const struct dvb_tuner_ops tda18271_tuner_ops = {
 	.set_config        = tda18271_set_config,
 	.get_frequency     = tda18271_get_frequency,
 	.get_bandwidth     = tda18271_get_bandwidth,
+	.get_if_frequency  = tda18271_get_if_frequency,
 };
 
 struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
