@@ -500,7 +500,7 @@ static struct wm831x_touch_pdata touch_pdata __initdata = {
 static struct wm831x_pdata crag_pmic_pdata __initdata = {
 	.wm831x_num = 1,
 	.irq_base = BANFF_PMIC_IRQ_BASE,
-	.gpio_base = GPIO_BOARD_START + 8,
+	.gpio_base = BANFF_PMIC_GPIO_BASE,
 
 	.backup = &banff_backup_pdata,
 
