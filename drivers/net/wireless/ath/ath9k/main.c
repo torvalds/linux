@@ -630,7 +630,8 @@ set_timer:
 	}
 }
 
-static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
+static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
+			    struct ieee80211_vif *vif)
 {
 	struct ath_node *an;
 	an = (struct ath_node *)sta->drv_priv;
@@ -640,6 +641,7 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
 	list_add(&an->list, &sc->nodes);
 	spin_unlock(&sc->nodes_lock);
 	an->sta = sta;
+	an->vif = vif;
 #endif
 	if (sc->sc_flags & SC_OP_TXAGGR) {
 		ath_tx_node_init(sc, an);
@@ -1800,7 +1802,7 @@ static int ath9k_sta_add(struct ieee80211_hw *hw,
 	struct ath_node *an = (struct ath_node *) sta->drv_priv;
 	struct ieee80211_key_conf ps_key = { };
 
-	ath_node_attach(sc, sta);
+	ath_node_attach(sc, sta, vif);
 
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_AP_VLAN)

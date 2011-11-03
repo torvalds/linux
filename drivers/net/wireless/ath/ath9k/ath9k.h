@@ -253,6 +253,7 @@ struct ath_node {
 #ifdef CONFIG_ATH9K_DEBUGFS
 	struct list_head list; /* for sc->nodes */
 	struct ieee80211_sta *sta; /* station struct we're part of */
+	struct ieee80211_vif *vif; /* interface with which we're associated */
 #endif
 	struct ath_atx_tid tid[WME_NUM_TID];
 	struct ath_atx_ac ac[WME_NUM_AC];
