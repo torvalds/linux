@@ -662,12 +662,7 @@ void omapdss_dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
 		bool enable);
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
 
-int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
-				    u16 *x, u16 *y, u16 *w, u16 *h,
-				    bool enlarge_update_area);
-int omap_dsi_update(struct omap_dss_device *dssdev,
-		int channel,
-		u16 x, u16 y, u16 w, u16 h,
+int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
 		void (*callback)(int, void *), void *data);
 int omap_dsi_request_vc(struct omap_dss_device *dssdev, int *channel);
 int omap_dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id);

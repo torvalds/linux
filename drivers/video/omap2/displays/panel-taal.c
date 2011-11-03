@@ -1394,12 +1394,8 @@ static irqreturn_t taal_te_isr(int irq, void *data)
 	if (old) {
 		cancel_delayed_work(&td->te_timeout_work);
 
-		r = omap_dsi_update(dssdev, td->channel,
-				td->update_region.x,
-				td->update_region.y,
-				td->update_region.w,
-				td->update_region.h,
-				taal_framedone_cb, dssdev);
+		r = omap_dsi_update(dssdev, td->channel, taal_framedone_cb,
+				dssdev);
 		if (r)
 			goto err;
 	}
@@ -1444,10 +1440,6 @@ static int taal_update(struct omap_dss_device *dssdev,
 		goto err;
 	}
 
-	r = omap_dsi_prepare_update(dssdev, &x, &y, &w, &h, true);
-	if (r)
-		goto err;
-
 	r = taal_set_update_window(td, x, y, w, h);
 	if (r)
 		goto err;
@@ -1462,8 +1454,8 @@ static int taal_update(struct omap_dss_device *dssdev,
 				msecs_to_jiffies(250));
 		atomic_set(&td->do_update, 1);
 	} else {
-		r = omap_dsi_update(dssdev, td->channel, x, y, w, h,
-				taal_framedone_cb, dssdev);
+		r = omap_dsi_update(dssdev, td->channel, taal_framedone_cb,
+				dssdev);
 		if (r)
 			goto err;
 	}

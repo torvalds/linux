@@ -238,11 +238,6 @@ enum dsi_vc_source {
 	DSI_VC_SOURCE_VP,
 };
 
-struct dsi_update_region {
-	u16 x, y, w, h;
-	struct omap_dss_device *device;
-};
-
 struct dsi_irq_stats {
 	unsigned long last_reset;
 	unsigned irq_count;
@@ -292,7 +287,9 @@ struct dsi_data {
 	struct dsi_isr_tables isr_tables_copy;
 
 	int update_channel;
-	struct dsi_update_region update_region;
+#ifdef DEBUG
+	unsigned update_bytes;
+#endif
 
 	bool te_enabled;
 	bool ulps_enabled;
@@ -474,7 +471,6 @@ static void dsi_perf_mark_start(struct platform_device *dsidev)
 static void dsi_perf_show(struct platform_device *dsidev, const char *name)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_dss_device *dssdev = dsi->update_region.device;
 	ktime_t t, setup_time, trans_time;
 	u32 total_bytes;
 	u32 setup_us, trans_us, total_us;
@@ -496,9 +492,7 @@ static void dsi_perf_show(struct platform_device *dsidev, const char *name)
 
 	total_us = setup_us + trans_us;
 
-	total_bytes = dsi->update_region.w *
-		dsi->update_region.h *
-		dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt) / 8;
+	total_bytes = dsi->update_bytes;
 
 	printk(KERN_INFO "DSI(%s): %u us + %u us = %u us (%uHz), "
 			"%u bytes, %u kbytes/sec\n",
@@ -4040,7 +4034,7 @@ void dsi_video_mode_disable(struct omap_dss_device *dssdev, int channel)
 EXPORT_SYMBOL(dsi_video_mode_disable);
 
 static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
-		u16 x, u16 y, u16 w, u16 h)
+		u16 w, u16 h)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -4055,8 +4049,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	const unsigned channel = dsi->update_channel;
 	const unsigned line_buf_size = dsi_get_line_buf_size(dsidev);
 
-	DSSDBG("dsi_update_screen_dispc(%d,%d %dx%d)\n",
-			x, y, w, h);
+	DSSDBG("dsi_update_screen_dispc(%dx%d)\n", w, h);
 
 	dsi_vc_config_source(dsidev, channel, DSI_VC_SOURCE_VP);
 
@@ -4180,64 +4173,27 @@ static void dsi_framedone_irq_callback(void *data, u32 mask)
 #endif
 }
 
-int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
-				    u16 *x, u16 *y, u16 *w, u16 *h,
-				    bool enlarge_update_area)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	u16 dw, dh;
-
-	dssdev->driver->get_resolution(dssdev, &dw, &dh);
-
-	if  (*x > dw || *y > dh)
-		return -EINVAL;
-
-	if (*x + *w > dw)
-		return -EINVAL;
-
-	if (*y + *h > dh)
-		return -EINVAL;
-
-	if (*w == 1)
-		return -EINVAL;
-
-	if (*w == 0 || *h == 0)
-		return -EINVAL;
-
-	dsi_perf_mark_setup(dsidev);
-
-	dispc_mgr_set_lcd_size(dssdev->manager->id, *w, *h);
-
-	return 0;
-}
-EXPORT_SYMBOL(omap_dsi_prepare_update);
-
-int omap_dsi_update(struct omap_dss_device *dssdev,
-		int channel,
-		u16 x, u16 y, u16 w, u16 h,
+int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
 		void (*callback)(int, void *), void *data)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	u16 dw, dh;
+
+	dsi_perf_mark_setup(dsidev);
 
 	dsi->update_channel = channel;
-
-	/* OMAP DSS cannot send updates of odd widths.
-	 * omap_dsi_prepare_update() makes the widths even, but add a BUG_ON
-	 * here to make sure we catch erroneous updates. Otherwise we'll only
-	 * see rather obscure HW error happening, as DSS halts. */
-	BUG_ON(x % 2 == 1);
 
 	dsi->framedone_callback = callback;
 	dsi->framedone_data = data;
 
-	dsi->update_region.x = x;
-	dsi->update_region.y = y;
-	dsi->update_region.w = w;
-	dsi->update_region.h = h;
-	dsi->update_region.device = dssdev;
+	dssdev->driver->get_resolution(dssdev, &dw, &dh);
 
-	dsi_update_screen_dispc(dssdev, x, y, w, h);
+#ifdef DEBUG
+	dsi->update_bytes = dw * dh *
+		dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt) / 8;
+#endif
+	dsi_update_screen_dispc(dssdev, dw, dh);
 
 	return 0;
 }
@@ -4250,6 +4206,7 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 	int r;
 
 	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_CMD_MODE) {
+		u16 dw, dh;
 		u32 irq;
 		struct omap_video_timings timings = {
 			.hsw		= 1,
@@ -4259,6 +4216,10 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 			.vfp		= 0,
 			.vbp		= 0,
 		};
+
+		dssdev->driver->get_resolution(dssdev, &dw, &dh);
+		timings.x_res = dw;
+		timings.y_res = dh;
 
 		irq = dssdev->manager->id == OMAP_DSS_CHANNEL_LCD ?
 			DISPC_IRQ_FRAMEDONE : DISPC_IRQ_FRAMEDONE2;
