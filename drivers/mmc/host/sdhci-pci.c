@@ -54,8 +54,7 @@ struct sdhci_pci_fixes {
 	int			(*probe_slot) (struct sdhci_pci_slot *);
 	void			(*remove_slot) (struct sdhci_pci_slot *, int);
 
-	int			(*suspend) (struct sdhci_pci_chip *,
-					pm_message_t);
+	int			(*suspend) (struct sdhci_pci_chip *);
 	int			(*resume) (struct sdhci_pci_chip *);
 };
 
@@ -549,7 +548,7 @@ static void jmicron_remove_slot(struct sdhci_pci_slot *slot, int dead)
 		jmicron_enable_mmc(slot->host, 0);
 }
 
-static int jmicron_suspend(struct sdhci_pci_chip *chip, pm_message_t state)
+static int jmicron_suspend(struct sdhci_pci_chip *chip)
 {
 	int i;
 
@@ -993,8 +992,9 @@ static struct sdhci_ops sdhci_pci_ops = {
 
 #ifdef CONFIG_PM
 
-static int sdhci_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int sdhci_pci_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sdhci_pci_chip *chip;
 	struct sdhci_pci_slot *slot;
 	mmc_pm_flag_t slot_pm_flags;
@@ -1010,7 +1010,7 @@ static int sdhci_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		if (!slot)
 			continue;
 
-		ret = sdhci_suspend_host(slot->host, state);
+		ret = sdhci_suspend_host(slot->host);
 
 		if (ret) {
 			for (i--; i >= 0; i--)
@@ -1026,7 +1026,7 @@ static int sdhci_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	}
 
 	if (chip->fixes && chip->fixes->suspend) {
-		ret = chip->fixes->suspend(chip, state);
+		ret = chip->fixes->suspend(chip);
 		if (ret) {
 			for (i = chip->num_slots - 1; i >= 0; i--)
 				sdhci_resume_host(chip->slots[i]->host);
@@ -1042,16 +1042,17 @@ static int sdhci_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		}
 		pci_set_power_state(pdev, PCI_D3hot);
 	} else {
-		pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
+		pci_enable_wake(pdev, PCI_D3hot, 0);
 		pci_disable_device(pdev);
-		pci_set_power_state(pdev, pci_choose_state(pdev, state));
+		pci_set_power_state(pdev, PCI_D3hot);
 	}
 
 	return 0;
 }
 
-static int sdhci_pci_resume(struct pci_dev *pdev)
+static int sdhci_pci_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sdhci_pci_chip *chip;
 	struct sdhci_pci_slot *slot;
 	int i, ret;
@@ -1099,7 +1100,6 @@ static int sdhci_pci_runtime_suspend(struct device *dev)
 	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
 	struct sdhci_pci_chip *chip;
 	struct sdhci_pci_slot *slot;
-	pm_message_t state = { .event = PM_EVENT_SUSPEND };
 	int i, ret;
 
 	chip = pci_get_drvdata(pdev);
@@ -1121,7 +1121,7 @@ static int sdhci_pci_runtime_suspend(struct device *dev)
 	}
 
 	if (chip->fixes && chip->fixes->suspend) {
-		ret = chip->fixes->suspend(chip, state);
+		ret = chip->fixes->suspend(chip);
 		if (ret) {
 			for (i = chip->num_slots - 1; i >= 0; i--)
 				sdhci_runtime_resume_host(chip->slots[i]->host);
@@ -1176,6 +1176,8 @@ static int sdhci_pci_runtime_idle(struct device *dev)
 #endif
 
 static const struct dev_pm_ops sdhci_pci_pm_ops = {
+	.suspend = sdhci_pci_suspend,
+	.resume = sdhci_pci_resume,
 	.runtime_suspend = sdhci_pci_runtime_suspend,
 	.runtime_resume = sdhci_pci_runtime_resume,
 	.runtime_idle = sdhci_pci_runtime_idle,
@@ -1428,8 +1430,6 @@ static struct pci_driver sdhci_driver = {
 	.id_table =	pci_ids,
 	.probe =	sdhci_pci_probe,
 	.remove =	__devexit_p(sdhci_pci_remove),
-	.suspend =	sdhci_pci_suspend,
-	.resume	=	sdhci_pci_resume,
 	.driver =	{
 		.pm =   &sdhci_pci_pm_ops
 	},
