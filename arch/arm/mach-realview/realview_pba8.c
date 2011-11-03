@@ -271,7 +271,7 @@ static struct sys_timer realview_pba8_timer = {
 	.init		= realview_pba8_timer_init,
 };
 
-static void realview_pba8_reset(char mode)
+static void realview_pba8_restart(char mode, const char *cmd)
 {
 	void __iomem *reset_ctrl = __io_address(REALVIEW_SYS_RESETCTL);
 	void __iomem *lock_ctrl = __io_address(REALVIEW_SYS_LOCK);
@@ -283,6 +283,7 @@ static void realview_pba8_reset(char mode)
 	__raw_writel(REALVIEW_SYS_LOCK_VAL, lock_ctrl);
 	__raw_writel(0x0000, reset_ctrl);
 	__raw_writel(0x0004, reset_ctrl);
+	dsb();
 }
 
 static void __init realview_pba8_init(void)
@@ -305,7 +306,6 @@ static void __init realview_pba8_init(void)
 #ifdef CONFIG_LEDS
 	leds_event = realview_leds_event;
 #endif
-	realview_reset = realview_pba8_reset;
 }
 
 MACHINE_START(REALVIEW_PBA8, "ARM-RealView PB-A8")
@@ -320,4 +320,5 @@ MACHINE_START(REALVIEW_PBA8, "ARM-RealView PB-A8")
 #ifdef CONFIG_ZONE_DMA
 	.dma_zone_size	= SZ_256M,
 #endif
+	.restart	= realview_pba8_restart,
 MACHINE_END
