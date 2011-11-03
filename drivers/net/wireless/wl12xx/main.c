@@ -1313,7 +1313,16 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 	/* 0. read chip id from CHIP_ID */
 	wl->chip.id = wl1271_read32(wl, CHIP_ID_B);
 
-	/* 1. check if chip id is valid */
+	/*
+	 * For wl127x based devices we could use the default block
+	 * size (512 bytes), but due to a bug in the sdio driver, we
+	 * need to set it explicitly after the chip is powered on.  To
+	 * simplify the code and since the performance impact is
+	 * negligible, we use the same block size for all different
+	 * chip types.
+	 */
+	if (!wl1271_set_block_size(wl))
+		wl->quirks |= WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT;
 
 	switch (wl->chip.id) {
 	case CHIP_ID_1271_PG10:
@@ -1343,9 +1352,6 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 		ret = wl1271_setup(wl);
 		if (ret < 0)
 			goto out;
-
-		if (!wl1271_set_block_size(wl))
-			wl->quirks |= WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT;
 		break;
 	case CHIP_ID_1283_PG10:
 	default:
