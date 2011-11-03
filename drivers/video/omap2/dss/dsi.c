@@ -4206,8 +4206,6 @@ int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
 
 	dsi_perf_mark_setup(dsidev);
 
-	dss_setup_partial_planes(dssdev, x, y, w, h,
-			enlarge_update_area);
 	dispc_mgr_set_lcd_size(dssdev->manager->id, *w, *h);
 
 	return 0;
