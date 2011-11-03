@@ -374,6 +374,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
 	const char *devname;
 	int ret, i;
+	int pulls = 0;
 
 	dev_set_drvdata(wm8994->dev, wm8994);
 
@@ -516,12 +517,16 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		}
 
 		wm8994->ldo_ena_always_driven = pdata->ldo_ena_always_driven;
+
+		if (pdata->spkmode_pu)
+			pulls |= WM8994_SPKMODE_PU;
 	}
 
-	/* Disable LDO pulldowns while the device is active */
+	/* Disable unneeded pulls */
 	wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
-			WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
-			0);
+			WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD |
+			WM8994_SPKMODE_PU | WM8994_CSNADDR_PD,
+			pulls);
 
 	/* In some system designs where the regulators are not in use,
 	 * we can achieve a small reduction in leakage currents by
