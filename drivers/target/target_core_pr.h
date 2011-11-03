@@ -47,8 +47,8 @@ extern struct kmem_cache *t10_pr_reg_cache;
 
 extern int core_pr_dump_initiator_port(struct t10_pr_registration *,
 			char *, u32);
-extern int target_scsi2_reservation_release(struct se_cmd *cmd);
-extern int target_scsi2_reservation_reserve(struct se_cmd *cmd);
+extern int target_scsi2_reservation_release(struct se_task *task);
+extern int target_scsi2_reservation_reserve(struct se_task *task);
 extern int core_scsi3_alloc_aptpl_registration(
 			struct t10_reservation *, u64,
 			unsigned char *, unsigned char *, u32,
@@ -63,8 +63,8 @@ extern unsigned char *core_scsi3_pr_dump_type(int);
 extern int core_scsi3_check_cdb_abort_and_preempt(struct list_head *,
 						  struct se_cmd *);
 
-extern int target_scsi3_emulate_pr_in(struct se_cmd *cmd);
-extern int target_scsi3_emulate_pr_out(struct se_cmd *cmd);
+extern int target_scsi3_emulate_pr_in(struct se_task *task);
+extern int target_scsi3_emulate_pr_out(struct se_task *task);
 extern int core_setup_reservations(struct se_device *, int);
 
 #endif /* TARGET_CORE_PR_H */

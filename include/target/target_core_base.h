@@ -457,7 +457,7 @@ struct se_cmd {
 	struct list_head	se_cmd_list;
 	struct completion	cmd_wait_comp;
 	struct target_core_fabric_ops *se_tfo;
-	int (*transport_emulate_cdb)(struct se_cmd *);
+	int (*execute_task)(struct se_task *);
 	void (*transport_complete_callback)(struct se_cmd *);
 
 	unsigned char		*t_task_cdb;

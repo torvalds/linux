@@ -58,8 +58,9 @@ struct t10_alua_lu_gp *default_lu_gp;
  *
  * See spc4r17 section 6.27
  */
-int core_emulate_report_target_port_groups(struct se_cmd *cmd)
+int target_emulate_report_target_port_groups(struct se_task *task)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
 	struct se_port *port;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
@@ -172,8 +173,9 @@ int core_emulate_report_target_port_groups(struct se_cmd *cmd)
  *
  * See spc4r17 section 6.35
  */
-int core_emulate_set_target_port_groups(struct se_cmd *cmd)
+int target_emulate_set_target_port_groups(struct se_task *task)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	struct se_subsystem_dev *su_dev = dev->se_sub_dev;
 	struct se_port *port, *l_port = cmd->se_lun->lun_sep;
