@@ -163,16 +163,13 @@ static void e1000_regdump(struct e1000_hw *hw, struct e1000_reg_info *reginfo)
 			regs[n] = __er32(hw, E1000_TARC(n));
 		break;
 	default:
-		printk(KERN_INFO "%-15s %08x\n",
-		       reginfo->name, __er32(hw, reginfo->ofs));
+		pr_info("%-15s %08x\n",
+			reginfo->name, __er32(hw, reginfo->ofs));
 		return;
 	}
 
 	snprintf(rname, 16, "%s%s", reginfo->name, "[0-1]");
-	printk(KERN_INFO "%-15s ", rname);
-	for (n = 0; n < 2; n++)
-		printk(KERN_CONT "%08x ", regs[n]);
-	printk(KERN_CONT "\n");
+	pr_info("%-15s %08x %08x\n", rname, regs[0], regs[1]);
 }
 
 /*
@@ -208,16 +205,15 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 	/* Print netdevice Info */
 	if (netdev) {
 		dev_info(&adapter->pdev->dev, "Net device Info\n");
-		printk(KERN_INFO "Device Name     state            "
-		       "trans_start      last_rx\n");
-		printk(KERN_INFO "%-15s %016lX %016lX %016lX\n",
-		       netdev->name, netdev->state, netdev->trans_start,
-		       netdev->last_rx);
+		pr_info("Device Name     state            trans_start      last_rx\n");
+		pr_info("%-15s %016lX %016lX %016lX\n",
+			netdev->name, netdev->state, netdev->trans_start,
+			netdev->last_rx);
 	}
 
 	/* Print Registers */
 	dev_info(&adapter->pdev->dev, "Register Dump\n");
-	printk(KERN_INFO " Register Name   Value\n");
+	pr_info(" Register Name   Value\n");
 	for (reginfo = (struct e1000_reg_info *)e1000_reg_info_tbl;
 	     reginfo->name; reginfo++) {
 		e1000_regdump(hw, reginfo);
@@ -228,15 +224,14 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 		goto exit;
 
 	dev_info(&adapter->pdev->dev, "Tx Ring Summary\n");
-	printk(KERN_INFO "Queue [NTU] [NTC] [bi(ntc)->dma  ]"
-	       " leng ntw timestamp\n");
+	pr_info("Queue [NTU] [NTC] [bi(ntc)->dma  ] leng ntw timestamp\n");
 	buffer_info = &tx_ring->buffer_info[tx_ring->next_to_clean];
-	printk(KERN_INFO " %5d %5X %5X %016llX %04X %3X %016llX\n",
-	       0, tx_ring->next_to_use, tx_ring->next_to_clean,
-	       (unsigned long long)buffer_info->dma,
-	       buffer_info->length,
-	       buffer_info->next_to_watch,
-	       (unsigned long long)buffer_info->time_stamp);
+	pr_info(" %5d %5X %5X %016llX %04X %3X %016llX\n",
+		0, tx_ring->next_to_use, tx_ring->next_to_clean,
+		(unsigned long long)buffer_info->dma,
+		buffer_info->length,
+		buffer_info->next_to_watch,
+		(unsigned long long)buffer_info->time_stamp);
 
 	/* Print Tx Ring */
 	if (!netif_msg_tx_done(adapter))
@@ -271,37 +266,32 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 	 *   +----------------------------------------------------------------+
 	 *   63       48 47     40 39  36 35    32 31     24 23  20 19        0
 	 */
-	printk(KERN_INFO "Tl[desc]     [address 63:0  ] [SpeCssSCmCsLen]"
-	       " [bi->dma       ] leng  ntw timestamp        bi->skb "
-	       "<-- Legacy format\n");
-	printk(KERN_INFO "Tc[desc]     [Ce CoCsIpceCoS] [MssHlRSCm0Plen]"
-	       " [bi->dma       ] leng  ntw timestamp        bi->skb "
-	       "<-- Ext Context format\n");
-	printk(KERN_INFO "Td[desc]     [address 63:0  ] [VlaPoRSCm1Dlen]"
-	       " [bi->dma       ] leng  ntw timestamp        bi->skb "
-	       "<-- Ext Data format\n");
+	pr_info("Tl[desc]     [address 63:0  ] [SpeCssSCmCsLen] [bi->dma       ] leng  ntw timestamp        bi->skb <-- Legacy format\n");
+	pr_info("Tc[desc]     [Ce CoCsIpceCoS] [MssHlRSCm0Plen] [bi->dma       ] leng  ntw timestamp        bi->skb <-- Ext Context format\n");
+	pr_info("Td[desc]     [address 63:0  ] [VlaPoRSCm1Dlen] [bi->dma       ] leng  ntw timestamp        bi->skb <-- Ext Data format\n");
 	for (i = 0; tx_ring->desc && (i < tx_ring->count); i++) {
+		const char *next_desc;
 		tx_desc = E1000_TX_DESC(*tx_ring, i);
 		buffer_info = &tx_ring->buffer_info[i];
 		u0 = (struct my_u0 *)tx_desc;
-		printk(KERN_INFO "T%c[0x%03X]    %016llX %016llX %016llX "
-		       "%04X  %3X %016llX %p",
-		       (!(le64_to_cpu(u0->b) & (1 << 29)) ? 'l' :
-			((le64_to_cpu(u0->b) & (1 << 20)) ? 'd' : 'c')), i,
-		       (unsigned long long)le64_to_cpu(u0->a),
-		       (unsigned long long)le64_to_cpu(u0->b),
-		       (unsigned long long)buffer_info->dma,
-		       buffer_info->length, buffer_info->next_to_watch,
-		       (unsigned long long)buffer_info->time_stamp,
-		       buffer_info->skb);
 		if (i == tx_ring->next_to_use && i == tx_ring->next_to_clean)
-			printk(KERN_CONT " NTC/U\n");
+			next_desc = " NTC/U";
 		else if (i == tx_ring->next_to_use)
-			printk(KERN_CONT " NTU\n");
+			next_desc = " NTU";
 		else if (i == tx_ring->next_to_clean)
-			printk(KERN_CONT " NTC\n");
+			next_desc = " NTC";
 		else
-			printk(KERN_CONT "\n");
+			next_desc = "";
+		pr_info("T%c[0x%03X]    %016llX %016llX %016llX %04X  %3X %016llX %p%s\n",
+			(!(le64_to_cpu(u0->b) & (1 << 29)) ? 'l' :
+			 ((le64_to_cpu(u0->b) & (1 << 20)) ? 'd' : 'c')),
+			i,
+			(unsigned long long)le64_to_cpu(u0->a),
+			(unsigned long long)le64_to_cpu(u0->b),
+			(unsigned long long)buffer_info->dma,
+			buffer_info->length, buffer_info->next_to_watch,
+			(unsigned long long)buffer_info->time_stamp,
+			buffer_info->skb, next_desc);
 
 		if (netif_msg_pktdata(adapter) && buffer_info->dma != 0)
 			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS,
@@ -312,9 +302,9 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 	/* Print Rx Ring Summary */
 rx_ring_summary:
 	dev_info(&adapter->pdev->dev, "Rx Ring Summary\n");
-	printk(KERN_INFO "Queue [NTU] [NTC]\n");
-	printk(KERN_INFO " %5d %5X %5X\n", 0,
-	       rx_ring->next_to_use, rx_ring->next_to_clean);
+	pr_info("Queue [NTU] [NTC]\n");
+	pr_info(" %5d %5X %5X\n",
+		0, rx_ring->next_to_use, rx_ring->next_to_clean);
 
 	/* Print Rx Ring */
 	if (!netif_msg_rx_status(adapter))
@@ -337,10 +327,7 @@ rx_ring_summary:
 		 * 24 |                Buffer Address 3 [63:0]              |
 		 *    +-----------------------------------------------------+
 		 */
-		printk(KERN_INFO "R  [desc]      [buffer 0 63:0 ] "
-		       "[buffer 1 63:0 ] "
-		       "[buffer 2 63:0 ] [buffer 3 63:0 ] [bi->dma       ] "
-		       "[bi->skb] <-- Ext Pkt Split format\n");
+		pr_info("R  [desc]      [buffer 0 63:0 ] [buffer 1 63:0 ] [buffer 2 63:0 ] [buffer 3 63:0 ] [bi->dma       ] [bi->skb] <-- Ext Pkt Split format\n");
 		/* [Extended] Receive Descriptor (Write-Back) Format
 		 *
 		 *   63       48 47    32 31     13 12    8 7    4 3        0
@@ -352,35 +339,40 @@ rx_ring_summary:
 		 *   +------------------------------------------------------+
 		 *   63       48 47    32 31            20 19               0
 		 */
-		printk(KERN_INFO "RWB[desc]      [ck ipid mrqhsh] "
-		       "[vl   l0 ee  es] "
-		       "[ l3  l2  l1 hs] [reserved      ] ---------------- "
-		       "[bi->skb] <-- Ext Rx Write-Back format\n");
+		pr_info("RWB[desc]      [ck ipid mrqhsh] [vl   l0 ee  es] [ l3  l2  l1 hs] [reserved      ] ---------------- [bi->skb] <-- Ext Rx Write-Back format\n");
 		for (i = 0; i < rx_ring->count; i++) {
+			const char *next_desc;
 			buffer_info = &rx_ring->buffer_info[i];
 			rx_desc_ps = E1000_RX_DESC_PS(*rx_ring, i);
 			u1 = (struct my_u1 *)rx_desc_ps;
 			staterr =
 			    le32_to_cpu(rx_desc_ps->wb.middle.status_error);
+
+			if (i == rx_ring->next_to_use)
+				next_desc = " NTU";
+			else if (i == rx_ring->next_to_clean)
+				next_desc = " NTC";
+			else
+				next_desc = "";
+
 			if (staterr & E1000_RXD_STAT_DD) {
 				/* Descriptor Done */
-				printk(KERN_INFO "RWB[0x%03X]     %016llX "
-				       "%016llX %016llX %016llX "
-				       "---------------- %p", i,
-				       (unsigned long long)le64_to_cpu(u1->a),
-				       (unsigned long long)le64_to_cpu(u1->b),
-				       (unsigned long long)le64_to_cpu(u1->c),
-				       (unsigned long long)le64_to_cpu(u1->d),
-				       buffer_info->skb);
+				pr_info("%s[0x%03X]     %016llX %016llX %016llX %016llX ---------------- %p%s\n",
+					"RWB", i,
+					(unsigned long long)le64_to_cpu(u1->a),
+					(unsigned long long)le64_to_cpu(u1->b),
+					(unsigned long long)le64_to_cpu(u1->c),
+					(unsigned long long)le64_to_cpu(u1->d),
+					buffer_info->skb, next_desc);
 			} else {
-				printk(KERN_INFO "R  [0x%03X]     %016llX "
-				       "%016llX %016llX %016llX %016llX %p", i,
-				       (unsigned long long)le64_to_cpu(u1->a),
-				       (unsigned long long)le64_to_cpu(u1->b),
-				       (unsigned long long)le64_to_cpu(u1->c),
-				       (unsigned long long)le64_to_cpu(u1->d),
-				       (unsigned long long)buffer_info->dma,
-				       buffer_info->skb);
+				pr_info("%s[0x%03X]     %016llX %016llX %016llX %016llX %016llX %p%s\n",
+					"R  ", i,
+					(unsigned long long)le64_to_cpu(u1->a),
+					(unsigned long long)le64_to_cpu(u1->b),
+					(unsigned long long)le64_to_cpu(u1->c),
+					(unsigned long long)le64_to_cpu(u1->d),
+					(unsigned long long)buffer_info->dma,
+					buffer_info->skb, next_desc);
 
 				if (netif_msg_pktdata(adapter))
 					print_hex_dump(KERN_INFO, "",
@@ -388,13 +380,6 @@ rx_ring_summary:
 						phys_to_virt(buffer_info->dma),
 						adapter->rx_ps_bsize0, true);
 			}
-
-			if (i == rx_ring->next_to_use)
-				printk(KERN_CONT " NTU\n");
-			else if (i == rx_ring->next_to_clean)
-				printk(KERN_CONT " NTC\n");
-			else
-				printk(KERN_CONT "\n");
 		}
 		break;
 	default:
@@ -407,9 +392,7 @@ rx_ring_summary:
 		 * 8 |                      Reserved                       |
 		 *   +-----------------------------------------------------+
 		 */
-		printk(KERN_INFO "R  [desc]      [buf addr 63:0 ] "
-		       "[reserved 63:0 ] [bi->dma       ] "
-		       "[bi->skb] <-- Ext (Read) format\n");
+		pr_info("R  [desc]      [buf addr 63:0 ] [reserved 63:0 ] [bi->dma       ] [bi->skb] <-- Ext (Read) format\n");
 		/* Extended Receive Descriptor (Write-Back) Format
 		 *
 		 *   63       48 47    32 31    24 23            4 3        0
@@ -423,29 +406,37 @@ rx_ring_summary:
 		 *   +------------------------------------------------------+
 		 *   63       48 47    32 31            20 19               0
 		 */
-		printk(KERN_INFO "RWB[desc]      [cs ipid    mrq] "
-		       "[vt   ln xe  xs] "
-		       "[bi->skb] <-- Ext (Write-Back) format\n");
+		pr_info("RWB[desc]      [cs ipid    mrq] [vt   ln xe  xs] [bi->skb] <-- Ext (Write-Back) format\n");
 
 		for (i = 0; i < rx_ring->count; i++) {
+			const char *next_desc;
+
 			buffer_info = &rx_ring->buffer_info[i];
 			rx_desc = E1000_RX_DESC_EXT(*rx_ring, i);
 			u1 = (struct my_u1 *)rx_desc;
 			staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
+
+			if (i == rx_ring->next_to_use)
+				next_desc = " NTU";
+			else if (i == rx_ring->next_to_clean)
+				next_desc = " NTC";
+			else
+				next_desc = "";
+
 			if (staterr & E1000_RXD_STAT_DD) {
 				/* Descriptor Done */
-				printk(KERN_INFO "RWB[0x%03X]     %016llX "
-				       "%016llX ---------------- %p", i,
-				       (unsigned long long)le64_to_cpu(u1->a),
-				       (unsigned long long)le64_to_cpu(u1->b),
-				       buffer_info->skb);
+				pr_info("%s[0x%03X]     %016llX %016llX ---------------- %p%s\n",
+					"RWB", i,
+					(unsigned long long)le64_to_cpu(u1->a),
+					(unsigned long long)le64_to_cpu(u1->b),
+					buffer_info->skb, next_desc);
 			} else {
-				printk(KERN_INFO "R  [0x%03X]     %016llX "
-				       "%016llX %016llX %p", i,
-				       (unsigned long long)le64_to_cpu(u1->a),
-				       (unsigned long long)le64_to_cpu(u1->b),
-				       (unsigned long long)buffer_info->dma,
-				       buffer_info->skb);
+				pr_info("%s[0x%03X]     %016llX %016llX %016llX %p%s\n",
+					"R  ", i,
+					(unsigned long long)le64_to_cpu(u1->a),
+					(unsigned long long)le64_to_cpu(u1->b),
+					(unsigned long long)buffer_info->dma,
+					buffer_info->skb, next_desc);
 
 				if (netif_msg_pktdata(adapter))
 					print_hex_dump(KERN_INFO, "",
@@ -456,13 +447,6 @@ rx_ring_summary:
 						       adapter->rx_buffer_len,
 						       true);
 			}
-
-			if (i == rx_ring->next_to_use)
-				printk(KERN_CONT " NTU\n");
-			else if (i == rx_ring->next_to_clean)
-				printk(KERN_CONT " NTC\n");
-			else
-				printk(KERN_CONT "\n");
 		}
 	}
 
@@ -1222,8 +1206,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			adapter->flags2 |= FLAG2_IS_DISCARDING;
 
 		if (adapter->flags2 & FLAG2_IS_DISCARDING) {
-			e_dbg("Packet Split buffers didn't pick up the full "
-			      "packet\n");
+			e_dbg("Packet Split buffers didn't pick up the full packet\n");
 			dev_kfree_skb_irq(skb);
 			if (staterr & E1000_RXD_STAT_EOP)
 				adapter->flags2 &= ~FLAG2_IS_DISCARDING;
@@ -1238,8 +1221,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		length = le16_to_cpu(rx_desc->wb.middle.length0);
 
 		if (!length) {
-			e_dbg("Last part of the packet spanning multiple "
-			      "descriptors\n");
+			e_dbg("Last part of the packet spanning multiple descriptors\n");
 			dev_kfree_skb_irq(skb);
 			goto next_desc;
 		}
@@ -1917,8 +1899,7 @@ void e1000e_set_interrupt_capability(struct e1000_adapter *adapter)
 					return;
 			}
 			/* MSI-X failed, so fall through and try MSI */
-			e_err("Failed to initialize MSI-X interrupts.  "
-			      "Falling back to MSI interrupts.\n");
+			e_err("Failed to initialize MSI-X interrupts.  Falling back to MSI interrupts.\n");
 			e1000e_reset_interrupt_capability(adapter);
 		}
 		adapter->int_mode = E1000E_INT_MODE_MSI;
@@ -1928,8 +1909,7 @@ void e1000e_set_interrupt_capability(struct e1000_adapter *adapter)
 			adapter->flags |= FLAG_MSI_ENABLED;
 		} else {
 			adapter->int_mode = E1000E_INT_MODE_LEGACY;
-			e_err("Failed to initialize MSI interrupts.  Falling "
-			      "back to legacy interrupts.\n");
+			e_err("Failed to initialize MSI interrupts.  Falling back to legacy interrupts.\n");
 		}
 		/* Fall through */
 	case E1000E_INT_MODE_LEGACY:
@@ -4236,16 +4216,13 @@ static void e1000_print_link_info(struct e1000_adapter *adapter)
 	u32 ctrl = er32(CTRL);
 
 	/* Link status message must follow this format for user tools */
-	printk(KERN_INFO "e1000e: %s NIC Link is Up %d Mbps %s, "
-	       "Flow Control: %s\n",
-	       adapter->netdev->name,
-	       adapter->link_speed,
-	       (adapter->link_duplex == FULL_DUPLEX) ?
-	       "Full Duplex" : "Half Duplex",
-	       ((ctrl & E1000_CTRL_TFCE) && (ctrl & E1000_CTRL_RFCE)) ?
-	       "Rx/Tx" :
-	       ((ctrl & E1000_CTRL_RFCE) ? "Rx" :
-		((ctrl & E1000_CTRL_TFCE) ? "Tx" : "None")));
+	printk(KERN_INFO "e1000e: %s NIC Link is Up %d Mbps %s Duplex, Flow Control: %s\n",
+		adapter->netdev->name,
+		adapter->link_speed,
+		adapter->link_duplex == FULL_DUPLEX ? "Full" : "Half",
+		(ctrl & E1000_CTRL_TFCE) && (ctrl & E1000_CTRL_RFCE) ? "Rx/Tx" :
+		(ctrl & E1000_CTRL_RFCE) ? "Rx" :
+		(ctrl & E1000_CTRL_TFCE) ? "Tx" : "None");
 }
 
 static bool e1000e_has_link(struct e1000_adapter *adapter)
@@ -4391,10 +4368,7 @@ static void e1000_watchdog_task(struct work_struct *work)
 				e1e_rphy(hw, PHY_AUTONEG_EXP, &autoneg_exp);
 
 				if (!(autoneg_exp & NWAY_ER_LP_NWAY_CAPS))
-					e_info("Autonegotiated half duplex but"
-					       " link partner cannot autoneg. "
-					       " Try forcing full duplex if "
-					       "link gets many collisions.\n");
+					e_info("Autonegotiated half duplex but link partner cannot autoneg.  Try forcing full duplex if link gets many collisions.\n");
 			}
 
 			/* adjust timeout factor according to speed/duplex */
@@ -5178,8 +5152,7 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	if ((adapter->hw.mac.type == e1000_pch2lan) &&
 	    !(adapter->flags2 & FLAG2_CRC_STRIPPING) &&
 	    (new_mtu > ETH_DATA_LEN)) {
-		e_err("Jumbo Frames not supported on 82579 when CRC "
-		      "stripping is disabled.\n");
+		e_err("Jumbo Frames not supported on 82579 when CRC stripping is disabled.\n");
 		return -EINVAL;
 	}
 
@@ -5595,8 +5568,8 @@ static int __e1000_resume(struct pci_dev *pdev)
 				phy_data & E1000_WUS_MC ? "Multicast Packet" :
 				phy_data & E1000_WUS_BC ? "Broadcast Packet" :
 				phy_data & E1000_WUS_MAG ? "Magic Packet" :
-				phy_data & E1000_WUS_LNKC ? "Link Status "
-				" Change" : "other");
+				phy_data & E1000_WUS_LNKC ?
+				"Link Status Change" : "other");
 		}
 		e1e_wphy(&adapter->hw, BM_WUS, ~0);
 	} else {
@@ -6017,8 +5990,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 			err = dma_set_coherent_mask(&pdev->dev,
 						    DMA_BIT_MASK(32));
 			if (err) {
-				dev_err(&pdev->dev, "No usable DMA "
-					"configuration, aborting\n");
+				dev_err(&pdev->dev, "No usable DMA configuration, aborting\n");
 				goto err_dma;
 			}
 		}
