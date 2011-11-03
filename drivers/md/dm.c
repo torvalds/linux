@@ -25,6 +25,16 @@
 
 #define DM_MSG_PREFIX "core"
 
+#ifdef CONFIG_PRINTK
+/*
+ * ratelimit state to be used in DMXXX_LIMIT().
+ */
+DEFINE_RATELIMIT_STATE(dm_ratelimit_state,
+		       DEFAULT_RATELIMIT_INTERVAL,
+		       DEFAULT_RATELIMIT_BURST);
+EXPORT_SYMBOL(dm_ratelimit_state);
+#endif
+
 /*
  * Cookies are numeric values sent with CHANGE and REMOVE
  * uevents while resuming, removing or renaming the device.
@@ -129,6 +139,8 @@ struct mapped_device {
 	unsigned type;
 	/* Protect queue and type against concurrent access. */
 	struct mutex type_lock;
+
+	struct target_type *immutable_target_type;
 
 	struct gendisk *disk;
 	char name[16];
@@ -2086,6 +2098,8 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	write_lock_irqsave(&md->map_lock, flags);
 	old_map = md->map;
 	md->map = t;
+	md->immutable_target_type = dm_table_get_immutable_target_type(t);
+
 	dm_table_set_restrictions(t, q, limits);
 	if (merge_is_optional)
 		set_bit(DMF_MERGE_IS_OPTIONAL, &md->flags);
@@ -2154,6 +2168,11 @@ void dm_set_md_type(struct mapped_device *md, unsigned type)
 unsigned dm_get_md_type(struct mapped_device *md)
 {
 	return md->type;
+}
+
+struct target_type *dm_get_immutable_target_type(struct mapped_device *md)
+{
+	return md->immutable_target_type;
 }
 
 /*
@@ -2231,6 +2250,7 @@ struct mapped_device *dm_get_md(dev_t dev)
 
 	return md;
 }
+EXPORT_SYMBOL_GPL(dm_get_md);
 
 void *dm_get_mdptr(struct mapped_device *md)
 {
@@ -2316,7 +2336,6 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 	while (1) {
 		set_current_state(interruptible);
 
-		smp_mb();
 		if (!md_in_flight(md))
 			break;
 
