@@ -538,7 +538,15 @@ static struct {
 	bool irq_enabled;
 } dss_cache;
 
+static bool ovl_manual_update(struct omap_overlay *ovl)
+{
+	return ovl->manager->device->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
+}
 
+static bool mgr_manual_update(struct omap_overlay_manager *mgr)
+{
+	return mgr->device->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
+}
 
 static int omap_dss_set_device(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dssdev)
@@ -627,7 +635,7 @@ static int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 	if (!dssdev || dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return 0;
 
-	if (dssdev->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE)
+	if (mgr_manual_update(mgr))
 		return 0;
 
 	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC
@@ -696,7 +704,7 @@ int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 	if (!dssdev || dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return 0;
 
-	if (dssdev->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE)
+	if (ovl_manual_update(ovl))
 		return 0;
 
 	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC
@@ -1047,8 +1055,6 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 	/* Configure managers */
 	list_for_each_entry(mgr, &manager_list, list) {
-		struct omap_dss_device *dssdev;
-
 		mc = &dss_cache.manager_cache[mgr->id];
 
 		if (mgr->device_changed) {
@@ -1062,14 +1068,11 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 		if (!mgr->device)
 			continue;
 
-		dssdev = mgr->device;
-
 		mgr->info_dirty = false;
 		mc->dirty = true;
 		mc->info = mgr->info;
 
-		mc->manual_update =
-			dssdev->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
+		mc->manual_update = mgr_manual_update(mgr);
 	}
 
 	/* Configure overlay fifos */
