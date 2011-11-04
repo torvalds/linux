@@ -548,11 +548,6 @@ static void dss_ovl_get_overlay_info(struct omap_overlay *ovl,
 	*info = ovl->info;
 }
 
-static int dss_ovl_wait_for_go(struct omap_overlay *ovl)
-{
-	return dss_mgr_wait_for_go_ovl(ovl);
-}
-
 static int omap_dss_set_manager(struct omap_overlay *ovl,
 		struct omap_overlay_manager *mgr)
 {
@@ -689,7 +684,7 @@ void dss_init_overlays(struct platform_device *pdev)
 		ovl->unset_manager = &omap_dss_unset_manager;
 		ovl->set_overlay_info = &dss_ovl_set_overlay_info;
 		ovl->get_overlay_info = &dss_ovl_get_overlay_info;
-		ovl->wait_for_go = &dss_ovl_wait_for_go;
+		ovl->wait_for_go = &dss_mgr_wait_for_go_ovl;
 
 		ovl->caps = dss_feat_get_overlay_caps(ovl->id);
 		ovl->supported_modes =
