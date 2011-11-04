@@ -85,15 +85,13 @@ static struct fb_ops exynos_drm_fb_ops = {
 };
 
 static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
-				     struct drm_framebuffer *fb,
-				     unsigned int fb_width,
-				     unsigned int fb_height)
+				     struct drm_framebuffer *fb)
 {
 	struct fb_info *fbi = helper->fbdev;
 	struct drm_device *dev = helper->dev;
 	struct exynos_drm_fbdev *exynos_fb = to_exynos_fbdev(helper);
 	struct exynos_drm_buf_entry *entry;
-	unsigned int size = fb_width * fb_height * (fb->bits_per_pixel >> 3);
+	unsigned int size = fb->width * fb->height * (fb->bits_per_pixel >> 3);
 	unsigned long offset;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -101,7 +99,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	exynos_fb->fb = fb;
 
 	drm_fb_helper_fill_fix(fbi, fb->pitch, fb->depth);
-	drm_fb_helper_fill_var(fbi, helper, fb_width, fb_height);
+	drm_fb_helper_fill_var(fbi, helper, fb->width, fb->height);
 
 	entry = exynos_drm_fb_get_buf(fb);
 	if (!entry) {
@@ -171,8 +169,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 		goto out;
 	}
 
-	ret = exynos_drm_fbdev_update(helper, helper->fb, sizes->fb_width,
-			sizes->fb_height);
+	ret = exynos_drm_fbdev_update(helper, helper->fb);
 	if (ret < 0)
 		fb_dealloc_cmap(&fbi->cmap);
 
@@ -235,8 +232,7 @@ static int exynos_drm_fbdev_recreate(struct drm_fb_helper *helper,
 	}
 
 	helper->fb = exynos_fbdev->fb;
-	return exynos_drm_fbdev_update(helper, helper->fb, sizes->fb_width,
-			sizes->fb_height);
+	return exynos_drm_fbdev_update(helper, helper->fb);
 }
 
 static int exynos_drm_fbdev_probe(struct drm_fb_helper *helper,
