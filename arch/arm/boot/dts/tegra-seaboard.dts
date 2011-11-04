@@ -29,4 +29,8 @@
 	sdhci@c8000600 {
 		support-8bit;
 	};
+
+	usb@c5000000 {
+		nvidia,vbus-gpio = <&gpio 24 0>; /* PD0 */
+	};
 };
