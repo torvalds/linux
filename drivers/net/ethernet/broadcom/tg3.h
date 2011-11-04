@@ -2344,9 +2344,13 @@
 #define  APE_PER_LOCK_GRANT_DRIVER	 0x00001000
 
 /* APE convenience enumerations. */
-#define TG3_APE_LOCK_GRC                1
-#define TG3_APE_LOCK_MEM                4
-#define TG3_APE_LOCK_GPIO               7
+#define TG3_APE_LOCK_PHY0		0
+#define TG3_APE_LOCK_GRC		1
+#define TG3_APE_LOCK_PHY1		2
+#define TG3_APE_LOCK_PHY2		3
+#define TG3_APE_LOCK_MEM		4
+#define TG3_APE_LOCK_PHY3		5
+#define TG3_APE_LOCK_GPIO		7
 
 #define TG3_EEPROM_SB_F1R2_MBA_OFF	0x10
 

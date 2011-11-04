@@ -628,19 +628,23 @@ static void tg3_ape_lock_init(struct tg3 *tp)
 		regbase = TG3_APE_PER_LOCK_GRANT;
 
 	/* Make sure the driver hasn't any stale locks. */
-	for (i = 0; i < 8; i++) {
-		if (i == TG3_APE_LOCK_GPIO)
-			continue;
-		tg3_ape_write32(tp, regbase + 4 * i, APE_LOCK_GRANT_DRIVER);
+	for (i = TG3_APE_LOCK_PHY0; i <= TG3_APE_LOCK_GPIO; i++) {
+		switch (i) {
+		case TG3_APE_LOCK_PHY0:
+		case TG3_APE_LOCK_PHY1:
+		case TG3_APE_LOCK_PHY2:
+		case TG3_APE_LOCK_PHY3:
+			bit = APE_LOCK_GRANT_DRIVER;
+			break;
+		default:
+			if (!tp->pci_fn)
+				bit = APE_LOCK_GRANT_DRIVER;
+			else
+				bit = 1 << tp->pci_fn;
+		}
+		tg3_ape_write32(tp, regbase + 4 * i, bit);
 	}
 
-	/* Clear the correct bit of the GPIO lock too. */
-	if (!tp->pci_fn)
-		bit = APE_LOCK_GRANT_DRIVER;
-	else
-		bit = 1 << tp->pci_fn;
-
-	tg3_ape_write32(tp, regbase + 4 * TG3_APE_LOCK_GPIO, bit);
 }
 
 static int tg3_ape_lock(struct tg3 *tp, int locknum)
@@ -658,6 +662,10 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 			return 0;
 	case TG3_APE_LOCK_GRC:
 	case TG3_APE_LOCK_MEM:
+		if (!tp->pci_fn)
+			bit = APE_LOCK_REQ_DRIVER;
+		else
+			bit = 1 << tp->pci_fn;
 		break;
 	default:
 		return -EINVAL;
@@ -672,11 +680,6 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 	}
 
 	off = 4 * locknum;
-
-	if (locknum != TG3_APE_LOCK_GPIO || !tp->pci_fn)
-		bit = APE_LOCK_REQ_DRIVER;
-	else
-		bit = 1 << tp->pci_fn;
 
 	tg3_ape_write32(tp, req + off, bit);
 
@@ -710,6 +713,10 @@ static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 			return;
 	case TG3_APE_LOCK_GRC:
 	case TG3_APE_LOCK_MEM:
+		if (!tp->pci_fn)
+			bit = APE_LOCK_GRANT_DRIVER;
+		else
+			bit = 1 << tp->pci_fn;
 		break;
 	default:
 		return;
@@ -719,11 +726,6 @@ static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 		gnt = TG3_APE_LOCK_GRANT;
 	else
 		gnt = TG3_APE_PER_LOCK_GRANT;
-
-	if (locknum != TG3_APE_LOCK_GPIO || !tp->pci_fn)
-		bit = APE_LOCK_GRANT_DRIVER;
-	else
-		bit = 1 << tp->pci_fn;
 
 	tg3_ape_write32(tp, gnt + 4 * locknum, bit);
 }
