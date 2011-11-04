@@ -644,6 +644,7 @@ static int btree_io_failed_hook(struct bio *failed_bio,
 		clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags);
 		btree_readahead_hook(root, eb, eb->start, -EIO);
 	}
+	free_extent_buffer(eb);
 
 out:
 	return -EIO;	/* we fixed nothing */
