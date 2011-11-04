@@ -554,12 +554,15 @@ static int iblock_do_task(struct se_task *task)
 	else {
 		pr_err("Unsupported SCSI -> BLOCK LBA conversion:"
 				" %u\n", dev->se_sub_dev->se_dev_attrib.block_size);
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
+		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		return -ENOSYS;
 	}
 
 	bio = iblock_get_bio(task, block_lba, sg_num);
-	if (!bio)
-		return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
+	if (!bio) {
+		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		return -ENOMEM;
+	}
 
 	bio_list_init(&list);
 	bio_list_add(&list, bio);
@@ -588,12 +591,13 @@ static int iblock_do_task(struct se_task *task)
 		submit_bio(rw, bio);
 	blk_finish_plug(&plug);
 
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
+	return 0;
 
 fail:
 	while ((bio = bio_list_pop(&list)))
 		bio_put(bio);
-	return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
+	cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	return -ENOMEM;
 }
 
 static u32 iblock_get_device_rev(struct se_device *dev)

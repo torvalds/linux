@@ -708,7 +708,7 @@ done:
 
 	se_task->task_scsi_status = GOOD;
 	transport_complete_task(se_task, 1);
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
+	return 0;
 }
 
 /*	se_release_device_for_hba():

@@ -103,7 +103,6 @@ enum se_cmd_flags_table {
 	SCF_SCSI_NON_DATA_CDB		= 0x00000040,
 	SCF_SCSI_CDB_EXCEPTION		= 0x00000080,
 	SCF_SCSI_RESERVATION_CONFLICT	= 0x00000100,
-	SCF_SE_CMD_FAILED		= 0x00000400,
 	SCF_SE_LUN_CMD			= 0x00000800,
 	SCF_SE_ALLOW_EOO		= 0x00001000,
 	SCF_SENT_CHECK_CONDITION	= 0x00004000,
@@ -154,6 +153,7 @@ enum tcm_sense_reason_table {
 	TCM_CHECK_CONDITION_ABORT_CMD		= 0x0d,
 	TCM_CHECK_CONDITION_UNIT_ATTENTION	= 0x0e,
 	TCM_CHECK_CONDITION_NOT_READY		= 0x0f,
+	TCM_RESERVATION_CONFLICT		= 0x10,
 };
 
 struct se_obj {
@@ -422,8 +422,6 @@ struct se_cmd {
 	int			sam_task_attr;
 	/* Transport protocol dependent state, see transport_state_table */
 	enum transport_state_table t_state;
-	/* Transport specific error status */
-	int			transport_error_status;
 	/* Used to signal cmd->se_tfo->check_release_cmd() usage per cmd */
 	int			check_release:1;
 	int			cmd_wait_set:1;

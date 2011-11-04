@@ -603,8 +603,7 @@ static int rd_MEMCPY_do_task(struct se_task *task)
 
 	task->task_scsi_status = GOOD;
 	transport_complete_task(task, 1);
-
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
+	return 0;
 }
 
 /*	rd_free_task(): (Part of se_subsystem_api_t template)

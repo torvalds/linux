@@ -148,22 +148,8 @@ static int tcm_loop_new_cmd_map(struct se_cmd *se_cmd)
 	 * Allocate the necessary tasks to complete the received CDB+data
 	 */
 	ret = transport_generic_allocate_tasks(se_cmd, sc->cmnd);
-	if (ret == -ENOMEM) {
-		/* Out of Resources */
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
-	} else if (ret == -EINVAL) {
-		/*
-		 * Handle case for SAM_STAT_RESERVATION_CONFLICT
-		 */
-		if (se_cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT)
-			return PYX_TRANSPORT_RESERVATION_CONFLICT;
-		/*
-		 * Otherwise, return SAM_STAT_CHECK_CONDITION and return
-		 * sense data.
-		 */
-		return PYX_TRANSPORT_USE_SENSE_REASON;
-	}
-
+	if (ret != 0)
+		return ret;
 	/*
 	 * For BIDI commands, pass in the extra READ buffer
 	 * to transport_generic_map_mem_to_cmd() below..
@@ -194,12 +180,8 @@ static int tcm_loop_new_cmd_map(struct se_cmd *se_cmd)
 	}
 
 	/* Tell the core about our preallocated memory */
-	ret = transport_generic_map_mem_to_cmd(se_cmd, scsi_sglist(sc),
+	return transport_generic_map_mem_to_cmd(se_cmd, scsi_sglist(sc),
 			scsi_sg_count(sc), sgl_bidi, sgl_bidi_count);
-	if (ret < 0)
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
-
-	return 0;
 }
 
 /*
