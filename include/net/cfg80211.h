@@ -3227,6 +3227,22 @@ bool cfg80211_rx_spurious_frame(struct net_device *dev,
 				const u8 *addr, gfp_t gfp);
 
 /**
+ * cfg80211_rx_unexpected_4addr_frame - inform about unexpected WDS frame
+ * @dev: The device the frame matched to
+ * @addr: the transmitter address
+ * @gfp: context flags
+ *
+ * This function is used in AP mode (only!) to inform userspace that
+ * an associated station sent a 4addr frame but that wasn't expected.
+ * It is allowed and desirable to send this event only once for each
+ * station to avoid event flooding.
+ * Returns %true if the frame was passed to userspace (or this failed
+ * for a reason other than not having a subscription.)
+ */
+bool cfg80211_rx_unexpected_4addr_frame(struct net_device *dev,
+					const u8 *addr, gfp_t gfp);
+
+/**
  * cfg80211_probe_status - notify userspace about probe status
  * @dev: the device the probe was sent on
  * @addr: the address of the peer

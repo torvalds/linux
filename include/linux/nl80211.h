@@ -517,7 +517,13 @@
  *	For the event, the %NL80211_ATTR_MAC attribute carries the TA and
  *	other attributes like the interface index are present.
  *	If used as the command it must have an interface index and you can
- *	only unsubscribe from the event by closing the socket.
+ *	only unsubscribe from the event by closing the socket. Subscription
+ *	is also for %NL80211_CMD_UNEXPECTED_4ADDR_FRAME events.
+ *
+ * @NL80211_CMD_UNEXPECTED_4ADDR_FRAME: Sent as an event indicating that the
+ *	associated station identified by %NL80211_ATTR_MAC sent a 4addr frame
+ *	and wasn't already in a 4-addr VLAN. The event will be sent similarly
+ *	to the %NL80211_CMD_UNEXPECTED_FRAME event, to the same listener.
  *
  * @NL80211_CMD_PROBE_CLIENT: Probe an associated station on an AP interface
  *	by sending a null data frame to it and reporting when the frame is
@@ -666,6 +672,8 @@ enum nl80211_commands {
 	NL80211_CMD_PROBE_CLIENT,
 
 	NL80211_CMD_REGISTER_BEACONS,
+
+	NL80211_CMD_UNEXPECTED_4ADDR_FRAME,
 
 	/* add new commands above here */
 

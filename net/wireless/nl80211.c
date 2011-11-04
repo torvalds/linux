@@ -7289,7 +7289,8 @@ void nl80211_send_sta_del_event(struct cfg80211_registered_device *rdev,
 	nlmsg_free(msg);
 }
 
-bool nl80211_unexpected_frame(struct net_device *dev, const u8 *addr, gfp_t gfp)
+static bool __nl80211_unexpected_frame(struct net_device *dev, u8 cmd,
+				       const u8 *addr, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -7305,7 +7306,7 @@ bool nl80211_unexpected_frame(struct net_device *dev, const u8 *addr, gfp_t gfp)
 	if (!msg)
 		return true;
 
-	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_UNEXPECTED_FRAME);
+	hdr = nl80211hdr_put(msg, 0, 0, 0, cmd);
 	if (!hdr) {
 		nlmsg_free(msg);
 		return true;
@@ -7328,6 +7329,20 @@ bool nl80211_unexpected_frame(struct net_device *dev, const u8 *addr, gfp_t gfp)
 	genlmsg_cancel(msg, hdr);
 	nlmsg_free(msg);
 	return true;
+}
+
+bool nl80211_unexpected_frame(struct net_device *dev, const u8 *addr, gfp_t gfp)
+{
+	return __nl80211_unexpected_frame(dev, NL80211_CMD_UNEXPECTED_FRAME,
+					  addr, gfp);
+}
+
+bool nl80211_unexpected_4addr_frame(struct net_device *dev,
+				    const u8 *addr, gfp_t gfp)
+{
+	return __nl80211_unexpected_frame(dev,
+					  NL80211_CMD_UNEXPECTED_4ADDR_FRAME,
+					  addr, gfp);
 }
 
 int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
