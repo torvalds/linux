@@ -702,21 +702,21 @@ static int tvp5150_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	/* First tests should be against specific std */
 
 	if (std == V4L2_STD_ALL) {
-		fmt = 0;	/* Autodetect mode */
+		fmt = VIDEO_STD_AUTO_SWITCH_BIT;	/* Autodetect mode */
 	} else if (std & V4L2_STD_NTSC_443) {
-		fmt = 0xa;
+		fmt = VIDEO_STD_NTSC_4_43_BIT;
 	} else if (std & V4L2_STD_PAL_M) {
-		fmt = 0x6;
+		fmt = VIDEO_STD_PAL_M_BIT;
 	} else if (std & (V4L2_STD_PAL_N | V4L2_STD_PAL_Nc)) {
-		fmt = 0x8;
+		fmt = VIDEO_STD_PAL_COMBINATION_N_BIT;
 	} else {
 		/* Then, test against generic ones */
 		if (std & V4L2_STD_NTSC)
-			fmt = 0x2;
+			fmt = VIDEO_STD_NTSC_MJ_BIT;
 		else if (std & V4L2_STD_PAL)
-			fmt = 0x4;
+			fmt = VIDEO_STD_PAL_BDGHIN_BIT;
 		else if (std & V4L2_STD_SECAM)
-			fmt = 0xc;
+			fmt = VIDEO_STD_SECAM_BIT;
 	}
 
 	v4l2_dbg(1, debug, sd, "Set video std register to %d.\n", fmt);
