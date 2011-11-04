@@ -855,6 +855,9 @@ struct radeon_pm {
 	struct device	        *int_hwmon_dev;
 };
 
+int radeon_pm_get_type_index(struct radeon_device *rdev,
+			     enum radeon_pm_state_type ps_type,
+			     int instance);
 
 /*
  * Benchmarking
