@@ -354,3 +354,12 @@ err:
 	kfree(ci);
 	return ret;
 }
+
+void
+brcmf_sdio_chip_detach(struct chip_info **ci_ptr)
+{
+	brcmf_dbg(TRACE, "Enter\n");
+
+	kfree(*ci_ptr);
+	*ci_ptr = NULL;
+}

@@ -3967,15 +3967,6 @@ brcmf_sdbrcm_watchdog(unsigned long data)
 	}
 }
 
-static void
-brcmf_sdbrcm_chip_detach(struct brcmf_bus *bus)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-
-	kfree(bus->ci);
-	bus->ci = NULL;
-}
-
 static void brcmf_sdbrcm_release_dongle(struct brcmf_bus *bus)
 {
 	brcmf_dbg(TRACE, "Enter\n");
@@ -3983,7 +3974,7 @@ static void brcmf_sdbrcm_release_dongle(struct brcmf_bus *bus)
 	if (bus->ci) {
 		brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
-		brcmf_sdbrcm_chip_detach(bus);
+		brcmf_sdio_chip_detach(&bus->ci);
 		if (bus->vars && bus->varsz)
 			kfree(bus->vars);
 		bus->vars = NULL;

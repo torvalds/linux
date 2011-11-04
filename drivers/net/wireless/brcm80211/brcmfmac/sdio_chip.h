@@ -141,5 +141,6 @@ extern void brcmf_sdio_chip_coredisable(struct brcmf_sdio_dev *sdiodev,
 					u32 corebase);
 extern int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 				  struct chip_info **ci_ptr, u32 regs);
+extern void brcmf_sdio_chip_detach(struct chip_info **ci_ptr);
 
 #endif		/* _BRCMFMAC_SDIO_CHIP_H_ */
