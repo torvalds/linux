@@ -2188,6 +2188,18 @@ ieee80211_rx_h_mgmt_check(struct ieee80211_rx_data *rx)
 	if (!ieee80211_is_mgmt(mgmt->frame_control))
 		return RX_DROP_MONITOR;
 
+	if (rx->sdata->vif.type == NL80211_IFTYPE_AP &&
+	    ieee80211_is_beacon(mgmt->frame_control) &&
+	    !(rx->flags & IEEE80211_RX_BEACON_REPORTED)) {
+		struct ieee80211_rx_status *status;
+
+		status = IEEE80211_SKB_RXCB(rx->skb);
+		cfg80211_report_obss_beacon(rx->local->hw.wiphy,
+					    rx->skb->data, rx->skb->len,
+					    status->freq, GFP_ATOMIC);
+		rx->flags |= IEEE80211_RX_BEACON_REPORTED;
+	}
+
 	if (!(status->rx_flags & IEEE80211_RX_RA_MATCH))
 		return RX_DROP_MONITOR;
 
