@@ -922,6 +922,9 @@ void __init setup_arch(char **cmdline_p)
 	paging_init(mdesc);
 	request_standard_resources(mdesc);
 
+	if (mdesc->restart)
+		arm_pm_restart = mdesc->restart;
+
 	unflatten_device_tree();
 
 #ifdef CONFIG_SMP
