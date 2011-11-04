@@ -135,7 +135,7 @@ static int add_grefs(struct ioctl_gntalloc_alloc_gref *op,
 		/* Grant foreign access to the page. */
 		gref->gref_id = gnttab_grant_foreign_access(op->domid,
 			pfn_to_mfn(page_to_pfn(gref->page)), readonly);
-		if (gref->gref_id < 0) {
+		if ((int)gref->gref_id < 0) {
 			rc = gref->gref_id;
 			goto undo;
 		}
