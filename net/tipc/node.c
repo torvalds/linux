@@ -270,10 +270,8 @@ static void node_established_contact(struct tipc_node *n_ptr)
 {
 	tipc_k_signal((Handler)tipc_named_node_up, n_ptr->addr);
 
-	/* Syncronize broadcast acks */
-	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
-
 	if (n_ptr->bclink.supportable) {
+		n_ptr->bclink.acked = tipc_bclink_get_last_sent();
 		tipc_bclink_add_node(n_ptr->addr);
 		n_ptr->bclink.supported = 1;
 	}
