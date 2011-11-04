@@ -1114,23 +1114,28 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	spin_lock_irqsave(&dss_cache.lock, flags);
 
 	/* Configure overlays */
-	for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
+	for (i = 0; i < mgr->num_overlays; ++i) {
 		struct omap_overlay *ovl;
 
-		ovl = omap_dss_get_overlay(i);
+		ovl = mgr->overlays[i];
+
+		if (ovl->manager != mgr)
+			continue;
 
 		omap_dss_mgr_apply_ovl(ovl);
 	}
 
-	/* Configure managers */
-	list_for_each_entry(mgr, &manager_list, list)
-		omap_dss_mgr_apply_mgr(mgr);
+	/* Configure manager */
+	omap_dss_mgr_apply_mgr(mgr);
 
 	/* Configure overlay fifos */
-	for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
+	for (i = 0; i < mgr->num_overlays; ++i) {
 		struct omap_overlay *ovl;
 
-		ovl = omap_dss_get_overlay(i);
+		ovl = mgr->overlays[i];
+
+		if (ovl->manager != mgr)
+			continue;
 
 		omap_dss_mgr_apply_ovl_fifos(ovl);
 	}
