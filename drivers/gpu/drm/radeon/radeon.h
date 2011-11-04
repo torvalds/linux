@@ -784,8 +784,7 @@ struct radeon_pm_clock_info {
 
 struct radeon_power_state {
 	enum radeon_pm_state_type type;
-	/* XXX: use a define for num clock modes */
-	struct radeon_pm_clock_info clock_info[8];
+	struct radeon_pm_clock_info *clock_info;
 	/* number of valid clock modes in this power state */
 	int num_clock_modes;
 	struct radeon_pm_clock_info *default_clock_mode;
