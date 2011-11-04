@@ -57,6 +57,18 @@ enum {
 	NVME_CSTS_SHST_CMPLT	= 2 << 2,
 };
 
+struct nvme_id_power_state {
+	__le16			max_power;	/* centiwatts */
+	__u16			rsvd2;
+	__le32			entry_lat;	/* microseconds */
+	__le32			exit_lat;	/* microseconds */
+	__u8			read_tput;
+	__u8			read_lat;
+	__u8			write_tput;
+	__u8			write_lat;
+	__u8			rsvd16[16];
+};
+
 #define NVME_VS(major, minor)	(major << 16 | minor)
 
 struct nvme_id_ctrl {
@@ -65,9 +77,11 @@ struct nvme_id_ctrl {
 	char			sn[20];
 	char			mn[40];
 	char			fr[8];
-	__le32			nn;
 	__u8			rab;
-	__u8			rsvd77[178];
+	__u8			ieee[3];
+	__u8			mic;
+	__u8			mdts;
+	__u8			rsvd78[178];
 	__le16			oacs;
 	__u8			acl;
 	__u8			aerl;
@@ -76,15 +90,18 @@ struct nvme_id_ctrl {
 	__u8			elpe;
 	__u8			npss;
 	__u8			rsvd264[248];
-	__le64			psd[32];
+	__u8			sqes;
+	__u8			cqes;
+	__u8			rsvd514[2];
+	__le32			nn;
 	__le16			oncs;
 	__le16			fuses;
 	__u8			fna;
 	__u8			vwc;
 	__le16			awun;
 	__le16			awupf;
-	__u8			rsvd778[246];
-	__u8			cmdset[2048];
+	__u8			rsvd530[1518];
+	struct nvme_id_power_state	psd[32];
 	__u8			vs[1024];
 };
 
