@@ -594,6 +594,8 @@ static int ieee80211_add_beacon(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct beacon_data *old;
+	struct ieee80211_sub_if_data *vlan;
+	int ret;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -601,7 +603,24 @@ static int ieee80211_add_beacon(struct wiphy *wiphy, struct net_device *dev,
 	if (old)
 		return -EALREADY;
 
-	return ieee80211_config_beacon(sdata, params);
+	ret = ieee80211_config_beacon(sdata, params);
+	if (ret)
+		return ret;
+
+	/*
+	 * Apply control port protocol, this allows us to
+	 * not encrypt dynamic WEP control frames.
+	 */
+	sdata->control_port_protocol = params->crypto.control_port_ethertype;
+	sdata->control_port_no_encrypt = params->crypto.control_port_no_encrypt;
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
+		vlan->control_port_protocol =
+			params->crypto.control_port_ethertype;
+		vlan->control_port_no_encrypt =
+			params->crypto.control_port_no_encrypt;
+	}
+
+	return 0;
 }
 
 static int ieee80211_set_beacon(struct wiphy *wiphy, struct net_device *dev,

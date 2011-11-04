@@ -188,11 +188,22 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		if (!is_valid_ether_addr(sdata->u.wds.remote_addr))
 			return -ENOLINK;
 		break;
-	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_AP_VLAN: {
+		struct ieee80211_sub_if_data *master;
+
 		if (!sdata->bss)
 			return -ENOLINK;
+
 		list_add(&sdata->u.vlan.list, &sdata->bss->vlans);
+
+		master = container_of(sdata->bss,
+				      struct ieee80211_sub_if_data, u.ap);
+		sdata->control_port_protocol =
+			master->control_port_protocol;
+		sdata->control_port_no_encrypt =
+			master->control_port_no_encrypt;
 		break;
+		}
 	case NL80211_IFTYPE_AP:
 		sdata->bss = &sdata->u.ap;
 		break;
