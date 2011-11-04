@@ -64,6 +64,7 @@ struct chip_info {
 	u32 ramcorebase;
 	u32 armcorebase;
 	u32 pmurev;
+	u32 pmucaps;
 	u32 ramsize;
 };
 

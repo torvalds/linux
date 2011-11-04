@@ -83,26 +83,6 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 		return -ENODEV;
 	}
 
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-		CORE_SB(ci->cccorebase, sbidhigh), 4);
-	ci->ccrev = SBCOREREV(regdata);
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-		CORE_CC_REG(ci->cccorebase, pmucapabilities), 4);
-	ci->pmurev = regdata & PCAP_REV_MASK;
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-					CORE_SB(ci->buscorebase, sbidhigh), 4);
-	ci->buscorerev = SBCOREREV(regdata);
-	ci->buscoretype = (regdata & SBIDH_CC_MASK) >> SBIDH_CC_SHIFT;
-
-	brcmf_dbg(INFO, "ccrev=%d, pmurev=%d, buscore rev/type=%d/0x%x\n",
-		  ci->ccrev, ci->pmurev, ci->buscorerev, ci->buscoretype);
-
-	/* get chipcommon capabilites */
-	ci->cccaps = brcmf_sdcard_reg_read(sdiodev,
-		CORE_CC_REG(ci->cccorebase, capabilities), 4);
-
 	return 0;
 }
 
@@ -154,6 +134,37 @@ brcmf_sdio_chip_buscoreprep(struct brcmf_sdio_dev *sdiodev)
 	return 0;
 }
 
+static void
+brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
+			     struct chip_info *ci)
+{
+	u32 regdata;
+
+	/* get chipcommon rev */
+	regdata = brcmf_sdcard_reg_read(sdiodev,
+		CORE_SB(ci->cccorebase, sbidhigh), 4);
+	ci->ccrev = SBCOREREV(regdata);
+
+	/* get chipcommon capabilites */
+	ci->cccaps = brcmf_sdcard_reg_read(sdiodev,
+		CORE_CC_REG(ci->cccorebase, capabilities), 4);
+
+	/* get pmu caps & rev */
+	if (ci->cccaps & CC_CAP_PMU) {
+		ci->pmucaps = brcmf_sdcard_reg_read(sdiodev,
+			CORE_CC_REG(ci->cccorebase, pmucapabilities), 4);
+		ci->pmurev = ci->pmucaps & PCAP_REV_MASK;
+	}
+
+	regdata = brcmf_sdcard_reg_read(sdiodev,
+					CORE_SB(ci->buscorebase, sbidhigh), 4);
+	ci->buscorerev = SBCOREREV(regdata);
+	ci->buscoretype = (regdata & SBIDH_CC_MASK) >> SBIDH_CC_SHIFT;
+
+	brcmf_dbg(INFO, "ccrev=%d, pmurev=%d, buscore rev/type=%d/0x%x\n",
+		  ci->ccrev, ci->pmurev, ci->buscorerev, ci->buscoretype);
+}
+
 int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 			   struct chip_info *ci, u32 regs)
 {
@@ -166,6 +177,8 @@ int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 	ret = brcmf_sdio_chip_recognition(sdiodev, ci, regs);
 	if (ret != 0)
 		return ret;
+
+	brcmf_sdio_chip_buscoresetup(sdiodev, ci);
 
 	return ret;
 }
