@@ -971,9 +971,8 @@ static void svc_unregister(const struct svc_serv *serv)
 /*
  * Printk the given error with the address of the client that caused it.
  */
-static int
-__attribute__ ((format (printf, 2, 3)))
-svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
+static __printf(2, 3)
+int svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 {
 	va_list args;
 	int 	r;

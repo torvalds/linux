@@ -78,6 +78,8 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 	for (i = 0; i < ARRAY_SIZE(vcpu_44x->shadow_refs); i++)
 		vcpu_44x->shadow_refs[i].gtlb_index = -1;
 
+	vcpu->arch.cpu_type = KVM_CPU_440;
+
 	return 0;
 }
 

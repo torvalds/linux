@@ -16,6 +16,16 @@ config CPU_EXYNOS4210
 	help
 	  Enable EXYNOS4210 CPU support
 
+config SOC_EXYNOS4212
+	bool
+	help
+	  Enable EXYNOS4212 SoC support
+
+config SOC_EXYNOS4412
+	bool
+	help
+	  Enable EXYNOS4412 SoC support
+
 config EXYNOS4_MCT
 	bool
 	default y
@@ -112,24 +122,11 @@ config EXYNOS4_SETUP_USB_PHY
 
 menu "EXYNOS4 Machines"
 
+comment "EXYNOS4210 Boards"
+
 config MACH_SMDKC210
 	bool "SMDKC210"
-	select CPU_EXYNOS4210
-	select S5P_DEV_FIMD0
-	select S3C_DEV_RTC
-	select S3C_DEV_WDT
-	select S3C_DEV_I2C1
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC1
-	select S3C_DEV_HSMMC2
-	select S3C_DEV_HSMMC3
-	select SAMSUNG_DEV_PWM
-	select SAMSUNG_DEV_BACKLIGHT
-	select EXYNOS4_DEV_PD
-	select EXYNOS4_DEV_SYSMMU
-	select EXYNOS4_SETUP_FIMD0
-	select EXYNOS4_SETUP_I2C1
-	select EXYNOS4_SETUP_SDHCI
+	select MACH_SMDKV310
 	help
 	  Machine support for Samsung SMDKC210
 
@@ -218,6 +215,48 @@ config MACH_NURI
 	select SAMSUNG_DEV_ADC
 	help
 	  Machine support for Samsung Mobile NURI Board.
+
+config MACH_ORIGEN
+	bool "ORIGEN"
+	select CPU_EXYNOS4210
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC2
+	select EXYNOS4_SETUP_SDHCI
+	help
+	  Machine support for ORIGEN based on Samsung EXYNOS4210
+
+comment "EXYNOS4212 Boards"
+
+config MACH_SMDK4212
+	bool "SMDK4212"
+	select SOC_EXYNOS4212
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C3
+	select S3C_DEV_I2C7
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select SAMSUNG_DEV_BACKLIGHT
+	select SAMSUNG_DEV_KEYPAD
+	select SAMSUNG_DEV_PWM
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_I2C3
+	select EXYNOS4_SETUP_I2C7
+	select EXYNOS4_SETUP_KEYPAD
+	select EXYNOS4_SETUP_SDHCI
+	help
+	  Machine support for Samsung SMDK4212
+
+comment "EXYNOS4412 Boards"
+
+config MACH_SMDK4412
+	bool "SMDK4412"
+	select SOC_EXYNOS4412
+	select MACH_SMDK4212
+	help
+	  Machine support for Samsung SMDK4412
 
 endmenu
 

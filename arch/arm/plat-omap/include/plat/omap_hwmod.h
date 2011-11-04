@@ -496,7 +496,6 @@ struct omap_hwmod_class {
  * @_state: internal-use hwmod state
  * @_postsetup_state: internal-use state to leave the hwmod in after _setup()
  * @flags: hwmod flags (documented below)
- * @omap_chip: OMAP chips this hwmod is present on
  * @_lock: spinlock serializing operations on this hwmod
  * @node: list node for hwmod list (internal use)
  *
@@ -526,7 +525,6 @@ struct omap_hwmod {
 	char				*clkdm_name;
 	struct clockdomain		*clkdm;
 	char				*vdd_name;
-	struct voltagedomain		*voltdm;
 	struct omap_hwmod_ocp_if	**masters; /* connect to *_IA */
 	struct omap_hwmod_ocp_if	**slaves;  /* connect to *_TA */
 	void				*dev_attr;
@@ -545,7 +543,6 @@ struct omap_hwmod {
 	u8				_int_flags;
 	u8				_state;
 	u8				_postsetup_state;
-	const struct omap_chip_id	omap_chip;
 };
 
 int omap_hwmod_register(struct omap_hwmod **ohs);

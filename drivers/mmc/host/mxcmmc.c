@@ -40,6 +40,7 @@
 #include <mach/mmc.h>
 
 #include <mach/dma.h>
+#include <mach/hardware.h>
 
 #define DRIVER_NAME "mxc-mmc"
 

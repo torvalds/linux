@@ -176,7 +176,9 @@ static struct platform_device *platform_devices[] __initdata = {
  * setup other stuffs to access the sram. */
 static void __init pcm038_init_sram(void)
 {
-	mx27_setup_weimcs(1, 0x0000d843, 0x22252521, 0x22220a00);
+	__raw_writel(0x0000d843, MX27_IO_ADDRESS(MX27_WEIM_CSCRxU(1)));
+	__raw_writel(0x22252521, MX27_IO_ADDRESS(MX27_WEIM_CSCRxL(1)));
+	__raw_writel(0x22220a00, MX27_IO_ADDRESS(MX27_WEIM_CSCRxA(1)));
 }
 
 static const struct imxi2c_platform_data pcm038_i2c1_data __initconst = {
@@ -353,6 +355,7 @@ MACHINE_START(PCM038, "phyCORE-i.MX27")
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
+	.handle_irq = imx27_handle_irq,
 	.timer = &pcm038_timer,
 	.init_machine = pcm038_init,
 MACHINE_END

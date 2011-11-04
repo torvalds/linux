@@ -72,25 +72,6 @@ static struct map_desc u300_io_desc[] __initdata = {
 		.length		= SZ_32K,
 		.type		= MT_DEVICE,
 	},
-	{
-		.virtual	= 0xffff2000, /* TCM memory */
-		.pfn		= __phys_to_pfn(0xffff2000),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	},
-
-	/*
-	 * This overlaps with the IRQ vectors etc at 0xffff0000, so these
-	 * may have to be moved to 0x00000000 in order to use the ROM.
-	 */
-	/*
-	{
-		.virtual	= U300_BOOTROM_VIRT_BASE,
-		.pfn		= __phys_to_pfn(U300_BOOTROM_PHYS_BASE),
-		.length		= SZ_64K,
-		.type		= MT_ROM,
-	},
-	*/
 };
 
 void __init u300_map_io(void)
@@ -365,51 +346,6 @@ static struct resource wdog_resources[] = {
 		.end   = IRQ_U300_WDOG,
 		.flags = IORESOURCE_IRQ,
 	}
-};
-
-/* TODO: These should be protected by suitable #ifdef's */
-static struct resource ave_resources[] = {
-	{
-		.name  = "AVE3e I/O Area",
-		.start = U300_VIDEOENC_BASE,
-		.end   = U300_VIDEOENC_BASE + SZ_512K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.name  = "AVE3e IRQ0",
-		.start = IRQ_U300_VIDEO_ENC_0,
-		.end   = IRQ_U300_VIDEO_ENC_0,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name  = "AVE3e IRQ1",
-		.start = IRQ_U300_VIDEO_ENC_1,
-		.end   = IRQ_U300_VIDEO_ENC_1,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name  = "AVE3e Physmem Area",
-		.start = 0, /* 0 will be remapped to reserved memory */
-		.end   = SZ_1M - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	/*
-	 * The AVE3e requires two regions of 256MB that it considers
-	 * "invisible". The hardware will not be able to access these
-	 * addresses, so they should never point to system RAM.
-	 */
-	{
-		.name  = "AVE3e Reserved 0",
-		.start = 0xd0000000,
-		.end   = 0xd0000000 + SZ_256M - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.name  = "AVE3e Reserved 1",
-		.start = 0xe0000000,
-		.end   = 0xe0000000 + SZ_256M - 1,
-		.flags = IORESOURCE_MEM,
-	},
 };
 
 static struct resource dma_resource[] = {
@@ -1650,13 +1586,6 @@ static struct platform_device nand_device = {
 	},
 };
 
-static struct platform_device ave_device = {
-	.name = "video_enc",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(ave_resources),
-	.resource = ave_resources,
-};
-
 static struct platform_device dma_device = {
 	.name		= "coh901318",
 	.id		= -1,
@@ -1747,7 +1676,6 @@ static struct platform_device *platform_devs[] __initdata = {
 	&gpio_device,
 	&nand_device,
 	&wdog_device,
-	&ave_device,
 	&pinmux_device,
 };
 
@@ -1945,17 +1873,10 @@ void __init u300_init_devices(void)
 	/* Register subdevices on the SPI bus */
 	u300_spi_register_board_devices();
 
-#ifndef CONFIG_MACH_U300_SEMI_IS_SHARED
-	/*
-	 * Enable SEMI self refresh. Self-refresh of the SDRAM is entered when
-	 * both subsystems are requesting this mode.
-	 * If we not share the Acc SDRAM, this is never the case. Therefore
-	 * enable it here from the App side.
-	 */
+	/* Enable SEMI self refresh */
 	val = readw(U300_SYSCON_VBASE + U300_SYSCON_SMCR) |
 		U300_SYSCON_SMCR_SEMI_SREFREQ_ENABLE;
 	writew(val, U300_SYSCON_VBASE + U300_SYSCON_SMCR);
-#endif /* CONFIG_MACH_U300_SEMI_IS_SHARED */
 }
 
 static int core_module_init(void)

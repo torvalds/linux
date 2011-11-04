@@ -741,10 +741,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See Documentation/block/cfq-iosched.txt and
 			Documentation/block/deadline-iosched.txt for details.
 
-	elfcorehdr=	[IA-64,PPC,SH,X86]
+	elfcorehdr=[size[KMG]@]offset[KMG] [IA64,PPC,SH,X86,S390]
 			Specifies physical address of start of kernel core
-			image elf header. Generally kexec loader will
-			pass this option to capture kernel.
+			image elf header and optionally the size. Generally
+			kexec loader will pass this option to capture kernel.
 			See Documentation/kdump/kdump.txt for details.
 
 	enable_mtrr_cleanup [X86]
@@ -973,6 +973,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ignore_loglevel	[KNL]
 			Ignore loglevel setting - this will print /all/
 			kernel messages to the console. Useful for debugging.
+			We also add it as printk module parameter, so users
+			could change it dynamically, usually by
+			/sys/module/printk/parameters/ignore_loglevel.
 
 	ihash_entries=	[KNL]
 			Set number of hash buckets for inode cache.
@@ -1200,6 +1203,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	kvm-intel.flexpriority=
 			[KVM,Intel] Disable FlexPriority feature (TPR shadow).
 			Default is 1 (enabled)
+
+	kvm-intel.nested=
+			[KVM,Intel] Enable VMX nesting (nVMX).
+			Default is 0 (disabled)
 
 	kvm-intel.unrestricted_guest=
 			[KVM,Intel] Disable unrestricted guest feature
@@ -1662,6 +1669,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			debugging driver suspend/resume hooks).  This may
 			not work reliably with all consoles, but is known
 			to work with serial and VGA consoles.
+			To facilitate more flexible debugging, we also add
+			console_suspend, a printk module parameter to control
+			it. Users could use console_suspend (usually
+			/sys/module/printk/parameters/console_suspend) to
+			turn on/off it dynamically.
 
 	noaliencache	[MM, NUMA, SLAB] Disables the allocation of alien
 			caches in the slab allocator.  Saves per-node memory,

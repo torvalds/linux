@@ -49,6 +49,8 @@
 		for max gain, 0x14 for minimal gain.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "pac7311"
 
 #include <linux/input.h>
@@ -276,8 +278,8 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 			index, gspca_dev->usb_buf, len,
 			500);
 	if (ret < 0) {
-		err("reg_w_buf() failed index 0x%02x, error %d",
-			index, ret);
+		pr_err("reg_w_buf() failed index 0x%02x, error %d\n",
+		       index, ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -299,8 +301,8 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			0, index, gspca_dev->usb_buf, 1,
 			500);
 	if (ret < 0) {
-		err("reg_w() failed index 0x%02x, value 0x%02x, error %d",
-			index, value, ret);
+		pr_err("reg_w() failed index 0x%02x, value 0x%02x, error %d\n",
+		       index, value, ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -334,9 +336,8 @@ static void reg_w_page(struct gspca_dev *gspca_dev,
 				0, index, gspca_dev->usb_buf, 1,
 				500);
 		if (ret < 0) {
-			err("reg_w_page() failed index 0x%02x, "
-			"value 0x%02x, error %d",
-				index, page[index], ret);
+			pr_err("reg_w_page() failed index 0x%02x, value 0x%02x, error %d\n",
+			       index, page[index], ret);
 			gspca_dev->usb_err = ret;
 			break;
 		}

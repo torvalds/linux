@@ -935,31 +935,49 @@ static int qlcnic_set_led(struct net_device *dev,
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	int max_sds_rings = adapter->max_sds_rings;
+	int err = -EIO, active = 1;
+
+	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
+		netdev_warn(dev, "LED test not supported for non "
+				"privilege function\n");
+		return -EOPNOTSUPP;
+	}
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
 		if (test_and_set_bit(__QLCNIC_LED_ENABLE, &adapter->state))
 			return -EBUSY;
 
-		if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
-			if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
-				return -EIO;
+		if (test_bit(__QLCNIC_RESETTING, &adapter->state))
+			break;
 
-			if (qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST)) {
-				clear_bit(__QLCNIC_RESETTING, &adapter->state);
-				return -EIO;
-			}
+		if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
+			if (qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST))
+				break;
 			set_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state);
 		}
 
-		if (adapter->nic_ops->config_led(adapter, 1, 0xf) == 0)
-			return 0;
+		if (adapter->nic_ops->config_led(adapter, 1, 0xf) == 0) {
+			err = 0;
+			break;
+		}
 
 		dev_err(&adapter->pdev->dev,
 			"Failed to set LED blink state.\n");
 		break;
 
 	case ETHTOOL_ID_INACTIVE:
+		active = 0;
+
+		if (test_bit(__QLCNIC_RESETTING, &adapter->state))
+			break;
+
+		if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
+			if (qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST))
+				break;
+			set_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state);
+		}
+
 		if (adapter->nic_ops->config_led(adapter, 0, 0xf))
 			dev_err(&adapter->pdev->dev,
 				"Failed to reset LED blink state.\n");
@@ -970,14 +988,13 @@ static int qlcnic_set_led(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state)) {
+	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state))
 		qlcnic_diag_free_res(dev, max_sds_rings);
-		clear_bit(__QLCNIC_RESETTING, &adapter->state);
-	}
 
-	clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);
+	if (!active || err)
+		clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);
 
-	return -EIO;
+	return err;
 }
 
 static void

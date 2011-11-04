@@ -280,6 +280,9 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	 * We reserve 2 extra QPs per port for the special QPs.  The
 	 * block of special QPs must be aligned to a multiple of 8, so
 	 * round up.
+	 *
+	 * We also reserve the MSB of the 24-bit QP number to indicate
+	 * that a QP is an XRC QP.
 	 */
 	dev->caps.sqp_start =
 		ALIGN(dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW], 8);

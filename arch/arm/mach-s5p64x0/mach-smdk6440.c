@@ -129,12 +129,6 @@ static struct i2c_board_info smdk6440_i2c_devs1[] __initdata = {
 	/* To be populated */
 };
 
-static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
-	.delay			= 10000,
-	.presc			= 49,
-	.oversampling_shift	= 2,
-};
-
 /* LCD Backlight data */
 static struct samsung_bl_gpio_info smdk6440_bl_gpio_info = {
 	.no = S5P6440_GPF(15),
@@ -155,7 +149,7 @@ static void __init smdk6440_map_io(void)
 
 static void __init smdk6440_machine_init(void)
 {
-	s3c24xx_ts_set_platdata(&s3c_ts_platform);
+	s3c24xx_ts_set_platdata(NULL);
 
 	s3c_i2c0_set_platdata(&s5p6440_i2c0_data);
 	s3c_i2c1_set_platdata(&s5p6440_i2c1_data);

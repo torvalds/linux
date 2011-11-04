@@ -47,7 +47,7 @@
 
 void harmony_pinmux_init(void);
 void seaboard_pinmux_init(void);
-
+void ventana_pinmux_init(void);
 
 struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", TEGRA_SDMMC1_BASE, "sdhci-tegra.0", NULL),
@@ -80,9 +80,19 @@ static struct of_device_id tegra_dt_gic_match[] __initdata = {
 	{}
 };
 
+static struct {
+	char *machine;
+	void (*init)(void);
+} pinmux_configs[] = {
+	{ "nvidia,harmony", harmony_pinmux_init },
+	{ "nvidia,seaboard", seaboard_pinmux_init },
+	{ "nvidia,ventana", ventana_pinmux_init },
+};
+
 static void __init tegra_dt_init(void)
 {
 	struct device_node *node;
+	int i;
 
 	node = of_find_matching_node_by_address(NULL, tegra_dt_gic_match,
 						TEGRA_ARM_INT_DIST_BASE);
@@ -91,10 +101,15 @@ static void __init tegra_dt_init(void)
 
 	tegra_clk_init_from_table(tegra_dt_clk_init_table);
 
-	if (of_machine_is_compatible("nvidia,harmony"))
-		harmony_pinmux_init();
-	else if (of_machine_is_compatible("nvidia,seaboard"))
-		seaboard_pinmux_init();
+	for (i = 0; i < ARRAY_SIZE(pinmux_configs); i++) {
+		if (of_machine_is_compatible(pinmux_configs[i].machine)) {
+			pinmux_configs[i].init();
+			break;
+		}
+	}
+
+	WARN(i == ARRAY_SIZE(pinmux_configs),
+		"Unknown platform! Pinmuxing not initialized\n");
 
 	/*
 	 * Finished with the static registrations now; fill in the missing
@@ -106,6 +121,7 @@ static void __init tegra_dt_init(void)
 static const char * tegra_dt_board_compat[] = {
 	"nvidia,harmony",
 	"nvidia,seaboard",
+	"nvidia,ventana",
 	NULL
 };
 

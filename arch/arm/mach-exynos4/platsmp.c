@@ -30,9 +30,13 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-pmu.h>
 
+#include <plat/cpu.h>
+
+extern unsigned int gic_bank_offset;
 extern void exynos4_secondary_startup(void);
 
-#define CPU1_BOOT_REG S5P_VA_SYSRAM
+#define CPU1_BOOT_REG		(samsung_rev() == EXYNOS4210_REV_1_1 ? \
+				S5P_INFORM5 : S5P_VA_SYSRAM)
 
 /*
  * control for which core is the next to come out of the secondary
@@ -64,9 +68,9 @@ static DEFINE_SPINLOCK(boot_lock);
 static void __cpuinit exynos4_gic_secondary_init(void)
 {
 	void __iomem *dist_base = S5P_VA_GIC_DIST +
-				 (EXYNOS4_GIC_BANK_OFFSET * smp_processor_id());
+				(gic_bank_offset * smp_processor_id());
 	void __iomem *cpu_base = S5P_VA_GIC_CPU +
-				(EXYNOS4_GIC_BANK_OFFSET * smp_processor_id());
+				(gic_bank_offset * smp_processor_id());
 	int i;
 
 	/*
@@ -128,7 +132,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * Note that "pen_release" is the hardware CPU ID, whereas
 	 * "cpu" is Linux's internal ID.
 	 */
-	write_pen_release(cpu);
+	write_pen_release(cpu_logical_map(cpu));
 
 	if (!(__raw_readl(S5P_ARM_CORE1_STATUS) & S5P_CORE_LOCAL_PWR_EN)) {
 		__raw_writel(S5P_CORE_LOCAL_PWR_EN,
@@ -216,5 +220,6 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	 * until it receives a soft interrupt, and then the
 	 * secondary CPU branches to this address.
 	 */
-	__raw_writel(BSYM(virt_to_phys(exynos4_secondary_startup)), S5P_VA_SYSRAM);
+	__raw_writel(BSYM(virt_to_phys(exynos4_secondary_startup)),
+			CPU1_BOOT_REG);
 }

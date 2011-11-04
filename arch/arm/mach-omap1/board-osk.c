@@ -278,12 +278,6 @@ static void __init osk_init_cf(void)
 	irq_set_irq_type(gpio_to_irq(62), IRQ_TYPE_EDGE_FALLING);
 }
 
-static void __init osk_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
-
 static struct omap_usb_config osk_usb_config __initdata = {
 	/* has usb host connector (A) ... for development it can also
 	 * be used, with a NONSTANDARD gender-bending cable/dongle, as
@@ -575,17 +569,13 @@ static void __init osk_init(void)
 	osk_mistral_init();
 }
 
-static void __init osk_map_io(void)
-{
-	omap1_map_common_io();
-}
-
 MACHINE_START(OMAP_OSK, "TI-OSK")
 	/* Maintainer: Dirk Behme <dirk.behme@de.bosch.com> */
 	.atag_offset	= 0x100,
-	.map_io		= osk_map_io,
+	.map_io		= omap16xx_map_io,
+	.init_early	= omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= osk_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= osk_init,
 	.timer		= &omap1_timer,
 MACHINE_END

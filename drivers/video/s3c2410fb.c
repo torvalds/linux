@@ -767,7 +767,6 @@ static irqreturn_t s3c2410fb_irq(int irq, void *dev_id)
 static int s3c2410fb_cpufreq_transition(struct notifier_block *nb,
 					unsigned long val, void *data)
 {
-	struct cpufreq_freqs *freqs = data;
 	struct s3c2410fb_info *info;
 	struct fb_info *fbinfo;
 	long delta_f;
@@ -911,7 +910,7 @@ static int __devinit s3c24xxfb_probe(struct platform_device *pdev,
 	for (i = 0; i < 256; i++)
 		info->palette_buffer[i] = PALETTE_BUFF_CLEAR;
 
-	ret = request_irq(irq, s3c2410fb_irq, IRQF_DISABLED, pdev->name, info);
+	ret = request_irq(irq, s3c2410fb_irq, 0, pdev->name, info);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot get irq %d - err %d\n", irq, ret);
 		ret = -EBUSY;

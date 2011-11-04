@@ -566,7 +566,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct clk *i2c_clk;
 	const unsigned int *prop;
-	void *base;
+	void __iomem *base;
 	int irq;
 	int ret = 0;
 

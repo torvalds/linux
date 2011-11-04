@@ -2840,8 +2840,15 @@ qlcnic_fwinit_work(struct work_struct *work)
 		goto wait_npar;
 	}
 
+	if (dev_state == QLCNIC_DEV_INITIALIZING ||
+	    dev_state == QLCNIC_DEV_READY) {
+		dev_info(&adapter->pdev->dev, "Detected state change from "
+				"DEV_NEED_RESET, skipping ack check\n");
+		goto skip_ack_check;
+	}
+
 	if (adapter->fw_wait_cnt++ > adapter->reset_ack_timeo) {
-		dev_err(&adapter->pdev->dev, "Reset:Failed to get ack %d sec\n",
+		dev_info(&adapter->pdev->dev, "Reset:Failed to get ack %d sec\n",
 					adapter->reset_ack_timeo);
 		goto skip_ack_check;
 	}
@@ -3497,10 +3504,15 @@ qlcnic_store_beacon(struct device *dev,
 {
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	int max_sds_rings = adapter->max_sds_rings;
-	int dev_down = 0;
 	u16 beacon;
 	u8 b_state, b_rate;
 	int err;
+
+	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
+		dev_warn(dev, "LED test not supported for non "
+				"privilege function\n");
+		return -EOPNOTSUPP;
+	}
 
 	if (len != sizeof(u16))
 		return QL_STATUS_INVALID_PARAM;
@@ -3513,36 +3525,40 @@ qlcnic_store_beacon(struct device *dev,
 	if (adapter->ahw->beacon_state == b_state)
 		return len;
 
+	rtnl_lock();
+
 	if (!adapter->ahw->beacon_state)
-		if (test_and_set_bit(__QLCNIC_LED_ENABLE, &adapter->state))
+		if (test_and_set_bit(__QLCNIC_LED_ENABLE, &adapter->state)) {
+			rtnl_unlock();
 			return -EBUSY;
+		}
+
+	if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
+		err = -EIO;
+		goto out;
+	}
 
 	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
-		if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
-			return -EIO;
 		err = qlcnic_diag_alloc_res(adapter->netdev, QLCNIC_LED_TEST);
-		if (err) {
-			clear_bit(__QLCNIC_RESETTING, &adapter->state);
-			clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);
-			return err;
-		}
-		dev_down = 1;
+		if (err)
+			goto out;
+		set_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state);
 	}
 
 	err = qlcnic_config_led(adapter, b_state, b_rate);
 
 	if (!err) {
-		adapter->ahw->beacon_state = b_state;
 		err = len;
+		adapter->ahw->beacon_state = b_state;
 	}
 
-	if (dev_down) {
+	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state))
 		qlcnic_diag_free_res(adapter->netdev, max_sds_rings);
-		clear_bit(__QLCNIC_RESETTING, &adapter->state);
-	}
 
-	if (!b_state)
+ out:
+	if (!adapter->ahw->beacon_state)
 		clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);
+	rtnl_unlock();
 
 	return err;
 }

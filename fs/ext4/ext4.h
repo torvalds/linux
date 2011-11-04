@@ -1878,40 +1878,40 @@ extern int ext4_group_extend(struct super_block *sb,
 extern void *ext4_kvmalloc(size_t size, gfp_t flags);
 extern void *ext4_kvzalloc(size_t size, gfp_t flags);
 extern void ext4_kvfree(void *ptr);
-extern void __ext4_error(struct super_block *, const char *, unsigned int,
-			 const char *, ...)
-	__attribute__ ((format (printf, 4, 5)));
+extern __printf(4, 5)
+void __ext4_error(struct super_block *, const char *, unsigned int,
+		  const char *, ...);
 #define ext4_error(sb, message...)	__ext4_error(sb, __func__,	\
 						     __LINE__, ## message)
-extern void ext4_error_inode(struct inode *, const char *, unsigned int,
-			     ext4_fsblk_t, const char *, ...)
-	__attribute__ ((format (printf, 5, 6)));
-extern void ext4_error_file(struct file *, const char *, unsigned int,
-			    ext4_fsblk_t, const char *, ...)
-	__attribute__ ((format (printf, 5, 6)));
+extern __printf(5, 6)
+void ext4_error_inode(struct inode *, const char *, unsigned int, ext4_fsblk_t,
+		      const char *, ...);
+extern __printf(5, 6)
+void ext4_error_file(struct file *, const char *, unsigned int, ext4_fsblk_t,
+		     const char *, ...);
 extern void __ext4_std_error(struct super_block *, const char *,
 			     unsigned int, int);
-extern void __ext4_abort(struct super_block *, const char *, unsigned int,
-		       const char *, ...)
-	__attribute__ ((format (printf, 4, 5)));
+extern __printf(4, 5)
+void __ext4_abort(struct super_block *, const char *, unsigned int,
+		  const char *, ...);
 #define ext4_abort(sb, message...)	__ext4_abort(sb, __func__, \
 						       __LINE__, ## message)
-extern void __ext4_warning(struct super_block *, const char *, unsigned int,
-			  const char *, ...)
-	__attribute__ ((format (printf, 4, 5)));
+extern __printf(4, 5)
+void __ext4_warning(struct super_block *, const char *, unsigned int,
+		    const char *, ...);
 #define ext4_warning(sb, message...)	__ext4_warning(sb, __func__, \
 						       __LINE__, ## message)
-extern void ext4_msg(struct super_block *, const char *, const char *, ...)
-	__attribute__ ((format (printf, 3, 4)));
+extern __printf(3, 4)
+void ext4_msg(struct super_block *, const char *, const char *, ...);
 extern void __dump_mmp_msg(struct super_block *, struct mmp_struct *mmp,
 			   const char *, unsigned int, const char *);
 #define dump_mmp_msg(sb, mmp, msg)	__dump_mmp_msg(sb, mmp, __func__, \
 						       __LINE__, msg)
-extern void __ext4_grp_locked_error(const char *, unsigned int, \
-				    struct super_block *, ext4_group_t, \
-				    unsigned long, ext4_fsblk_t, \
-				    const char *, ...)
-	__attribute__ ((format (printf, 7, 8)));
+extern __printf(7, 8)
+void __ext4_grp_locked_error(const char *, unsigned int,
+			     struct super_block *, ext4_group_t,
+			     unsigned long, ext4_fsblk_t,
+			     const char *, ...);
 #define ext4_grp_locked_error(sb, grp, message...) \
 	__ext4_grp_locked_error(__func__, __LINE__, (sb), (grp), ## message)
 extern void ext4_update_dynamic_rev(struct super_block *sb);

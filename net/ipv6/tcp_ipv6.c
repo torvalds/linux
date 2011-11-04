@@ -513,7 +513,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 		__tcp_v6_send_check(skb, &treq->loc_addr, &treq->rmt_addr);
 
 		ipv6_addr_copy(&fl6.daddr, &treq->rmt_addr);
-		err = ip6_xmit(sk, skb, &fl6, opt);
+		err = ip6_xmit(sk, skb, &fl6, opt, np->tclass);
 		err = net_xmit_eval(err);
 	}
 
@@ -979,7 +979,7 @@ static int tcp6_gro_complete(struct sk_buff *skb)
 }
 
 static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
-				 u32 ts, struct tcp_md5sig_key *key, int rst)
+				 u32 ts, struct tcp_md5sig_key *key, int rst, u8 tclass)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
 	struct tcphdr *t1;
@@ -1060,7 +1060,7 @@ static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 	dst = ip6_dst_lookup_flow(ctl_sk, &fl6, NULL, false);
 	if (!IS_ERR(dst)) {
 		skb_dst_set(buff, dst);
-		ip6_xmit(ctl_sk, buff, &fl6, NULL);
+		ip6_xmit(ctl_sk, buff, &fl6, NULL, tclass);
 		TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
 		if (rst)
 			TCP_INC_STATS_BH(net, TCP_MIB_OUTRSTS);
@@ -1093,13 +1093,13 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 		ack_seq = ntohl(th->seq) + th->syn + th->fin + skb->len -
 			  (th->doff << 2);
 
-	tcp_v6_send_response(skb, seq, ack_seq, 0, 0, key, 1);
+	tcp_v6_send_response(skb, seq, ack_seq, 0, 0, key, 1, 0);
 }
 
 static void tcp_v6_send_ack(struct sk_buff *skb, u32 seq, u32 ack, u32 win, u32 ts,
-			    struct tcp_md5sig_key *key)
+			    struct tcp_md5sig_key *key, u8 tclass)
 {
-	tcp_v6_send_response(skb, seq, ack, win, ts, key, 0);
+	tcp_v6_send_response(skb, seq, ack, win, ts, key, 0, tclass);
 }
 
 static void tcp_v6_timewait_ack(struct sock *sk, struct sk_buff *skb)
@@ -1109,7 +1109,8 @@ static void tcp_v6_timewait_ack(struct sock *sk, struct sk_buff *skb)
 
 	tcp_v6_send_ack(skb, tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
 			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale,
-			tcptw->tw_ts_recent, tcp_twsk_md5_key(tcptw));
+			tcptw->tw_ts_recent, tcp_twsk_md5_key(tcptw),
+			tw->tw_tclass);
 
 	inet_twsk_put(tw);
 }
@@ -1118,7 +1119,7 @@ static void tcp_v6_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
 				  struct request_sock *req)
 {
 	tcp_v6_send_ack(skb, tcp_rsk(req)->snt_isn + 1, tcp_rsk(req)->rcv_isn + 1, req->rcv_wnd, req->ts_recent,
-			tcp_v6_md5_do_lookup(sk, &ipv6_hdr(skb)->daddr));
+			tcp_v6_md5_do_lookup(sk, &ipv6_hdr(skb)->daddr), 0);
 }
 
 

@@ -345,6 +345,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			tw6 = inet6_twsk((struct sock *)tw);
 			ipv6_addr_copy(&tw6->tw_v6_daddr, &np->daddr);
 			ipv6_addr_copy(&tw6->tw_v6_rcv_saddr, &np->rcv_saddr);
+			tw->tw_tclass = np->tclass;
 			tw->tw_ipv6only = np->ipv6only;
 		}
 #endif

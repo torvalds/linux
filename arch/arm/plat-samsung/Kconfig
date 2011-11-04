@@ -362,4 +362,11 @@ config SAMSUNG_PD
 	help
 	  Say Y here if you want to control Power Domain by Runtime PM.
 
+config DEBUG_S3C_UART
+	depends on PLAT_SAMSUNG
+	int
+	default "0" if DEBUG_S3C_UART0
+	default "1" if DEBUG_S3C_UART1
+	default "2" if DEBUG_S3C_UART2
+
 endif

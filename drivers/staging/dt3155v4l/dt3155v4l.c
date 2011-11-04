@@ -193,7 +193,7 @@ dt3155_start_acq(struct dt3155_priv *pd)
 	struct vb2_buffer *vb = pd->curr_buf;
 	dma_addr_t dma_addr;
 
-	dma_addr = vb2_dma_contig_plane_paddr(vb, 0);
+	dma_addr = vb2_dma_contig_plane_dma_addr(vb, 0);
 	iowrite32(dma_addr, pd->regs + EVEN_DMA_START);
 	iowrite32(dma_addr + img_width, pd->regs + ODD_DMA_START);
 	iowrite32(img_width, pd->regs + EVEN_DMA_STRIDE);
@@ -357,7 +357,7 @@ dt3155_irq_handler_even(int irq, void *dev_id)
 	ivb = list_first_entry(&ipd->dmaq, typeof(*ivb), done_entry);
 	list_del(&ivb->done_entry);
 	ipd->curr_buf = ivb;
-	dma_addr = vb2_dma_contig_plane_paddr(ivb, 0);
+	dma_addr = vb2_dma_contig_plane_dma_addr(ivb, 0);
 	iowrite32(dma_addr, ipd->regs + EVEN_DMA_START);
 	iowrite32(dma_addr + img_width, ipd->regs + ODD_DMA_START);
 	iowrite32(img_width, ipd->regs + EVEN_DMA_STRIDE);

@@ -11,7 +11,7 @@ obj-				:=
 
 # Objects we always build independent of SoC choice
 
-obj-y				+= init.o
+obj-y				+= init.o cpu.o
 obj-$(CONFIG_ARCH_USES_GETTIMEOFFSET)   += time.o
 obj-y				+= clock.o
 obj-y				+= pwm-clock.o

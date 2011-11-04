@@ -285,8 +285,6 @@ static struct mx3fb_platform_data mx3fb_pdata __initdata = {
 static struct l4f00242t03_pdata mx31_3ds_l4f00242t03_pdata = {
 	.reset_gpio		= IOMUX_TO_GPIO(MX31_PIN_LCS1),
 	.data_enable_gpio	= IOMUX_TO_GPIO(MX31_PIN_SER_RS),
-	.core_supply		= "lcd_2v8",
-	.io_supply		= "vdd_lcdio",
 };
 
 /*
@@ -411,7 +409,7 @@ static struct regulator_init_data vmmc2_init = {
 };
 
 static struct regulator_consumer_supply vmmc1_consumers[] = {
-	REGULATOR_SUPPLY("lcd_2v8", NULL),
+	REGULATOR_SUPPLY("vcore", "spi0.0"),
 	REGULATOR_SUPPLY("cmos_2v8", "soc-camera-pdrv.0"),
 };
 
@@ -428,7 +426,7 @@ static struct regulator_init_data vmmc1_init = {
 };
 
 static struct regulator_consumer_supply vgen_consumers[] = {
-	REGULATOR_SUPPLY("vdd_lcdio", NULL),
+	REGULATOR_SUPPLY("vdd", "spi0.0"),
 };
 
 static struct regulator_init_data vgen_init = {
@@ -542,7 +540,7 @@ static const struct mxc_nand_platform_data
 mx31_3ds_nand_board_info __initconst = {
 	.width		= 1,
 	.hw_ecc		= 1,
-#ifdef MACH_MX31_3DS_MXC_NAND_USE_BBT
+#ifdef CONFIG_MACH_MX31_3DS_MXC_NAND_USE_BBT
 	.flash_bbt	= 1,
 #endif
 };
@@ -768,6 +766,7 @@ MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
+	.handle_irq = imx31_handle_irq,
 	.timer = &mx31_3ds_timer,
 	.init_machine = mx31_3ds_init,
 	.reserve = mx31_3ds_reserve,

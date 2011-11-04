@@ -24,6 +24,7 @@
 #include <mach/hardware.h>
 #include <mach/mfp.h>
 #include <mach/mfp-pxa930.h>
+#include <mach/pxa95x.h>
 
 #include "generic.h"
 

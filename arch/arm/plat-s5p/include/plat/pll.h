@@ -12,14 +12,65 @@
  * published by the Free Software Foundation.
 */
 
+#include <asm/div64.h>
+
+#define PLL35XX_MDIV_MASK	(0x3FF)
+#define PLL35XX_PDIV_MASK	(0x3F)
+#define PLL35XX_SDIV_MASK	(0x7)
+#define PLL35XX_MDIV_SHIFT	(16)
+#define PLL35XX_PDIV_SHIFT	(8)
+#define PLL35XX_SDIV_SHIFT	(0)
+
+static inline unsigned long s5p_get_pll35xx(unsigned long baseclk, u32 pll_con)
+{
+	u32 mdiv, pdiv, sdiv;
+	u64 fvco = baseclk;
+
+	mdiv = (pll_con >> PLL35XX_MDIV_SHIFT) & PLL35XX_MDIV_MASK;
+	pdiv = (pll_con >> PLL35XX_PDIV_SHIFT) & PLL35XX_PDIV_MASK;
+	sdiv = (pll_con >> PLL35XX_SDIV_SHIFT) & PLL35XX_SDIV_MASK;
+
+	fvco *= mdiv;
+	do_div(fvco, (pdiv << sdiv));
+
+	return (unsigned long)fvco;
+}
+
+#define PLL36XX_KDIV_MASK	(0xFFFF)
+#define PLL36XX_MDIV_MASK	(0x1FF)
+#define PLL36XX_PDIV_MASK	(0x3F)
+#define PLL36XX_SDIV_MASK	(0x7)
+#define PLL36XX_MDIV_SHIFT	(16)
+#define PLL36XX_PDIV_SHIFT	(8)
+#define PLL36XX_SDIV_SHIFT	(0)
+
+static inline unsigned long s5p_get_pll36xx(unsigned long baseclk,
+					    u32 pll_con0, u32 pll_con1)
+{
+	unsigned long result;
+	u32 mdiv, pdiv, sdiv, kdiv;
+	u64 tmp;
+
+	mdiv = (pll_con0 >> PLL36XX_MDIV_SHIFT) & PLL36XX_MDIV_MASK;
+	pdiv = (pll_con0 >> PLL36XX_PDIV_SHIFT) & PLL36XX_PDIV_MASK;
+	sdiv = (pll_con0 >> PLL36XX_SDIV_SHIFT) & PLL36XX_SDIV_MASK;
+	kdiv = pll_con1 & PLL36XX_KDIV_MASK;
+
+	tmp = baseclk;
+
+	tmp *= (mdiv << 16) + kdiv;
+	do_div(tmp, (pdiv << sdiv));
+	result = tmp >> 16;
+
+	return result;
+}
+
 #define PLL45XX_MDIV_MASK	(0x3FF)
 #define PLL45XX_PDIV_MASK	(0x3F)
 #define PLL45XX_SDIV_MASK	(0x7)
 #define PLL45XX_MDIV_SHIFT	(16)
 #define PLL45XX_PDIV_SHIFT	(8)
 #define PLL45XX_SDIV_SHIFT	(0)
-
-#include <asm/div64.h>
 
 enum pll45xx_type_t {
 	pll_4500,
@@ -72,7 +123,6 @@ static inline unsigned long s5p_get_pll46xx(unsigned long baseclk,
 	mdiv = (pll_con0 >> PLL46XX_MDIV_SHIFT) & PLL46XX_MDIV_MASK;
 	pdiv = (pll_con0 >> PLL46XX_PDIV_SHIFT) & PLL46XX_PDIV_MASK;
 	sdiv = (pll_con0 >> PLL46XX_SDIV_SHIFT) & PLL46XX_SDIV_MASK;
-	kdiv = pll_con1 & PLL46XX_KDIV_MASK;
 
 	if (pll_type == pll_4650c)
 		kdiv = pll_con1 & PLL4650C_KDIV_MASK;

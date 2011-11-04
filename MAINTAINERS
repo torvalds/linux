@@ -316,6 +316,10 @@ W:	http://wiki.analog.com/AD7879
 S:	Supported
 F:	drivers/input/touchscreen/ad7879.c
 
+ADDRESS SPACE LAYOUT RANDOMIZATION (ASLR)
+M:	Jiri Kosina <jkosina@suse.cz>
+S:	Maintained
+
 ADM1025 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <khali@linux-fr.org>
 L:	lm-sensors@lm-sensors.org
@@ -688,6 +692,12 @@ F:	drivers/mtd/nand/bcm_umi_nand.c
 F:	drivers/mtd/nand/bcm_umi_bch.c
 F:	drivers/mtd/nand/nand_bcm_umi.h
 
+ARM/CALXEDA HIGHBANK ARCHITECTURE
+M:	Rob Herring <rob.herring@calxeda.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-highbank/
+
 ARM/CAVIUM NETWORKS CNS3XXX MACHINE SUPPORT
 M:	Anton Vorontsov <avorontsov@mvista.com>
 S:	Maintained
@@ -786,6 +796,13 @@ M:	Amit Kucheria <amit.kucheria@canonical.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-mx5/
+
+ARM/FREESCALE IMX6
+M:	Shawn Guo <shawn.guo@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+T:	git git://git.linaro.org/people/shawnguo/linux-2.6.git
+F:	arch/arm/mach-imx/*imx6*
 
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -1084,6 +1101,24 @@ S:	Maintained
 F:	arch/arm/plat-s5p/dev-fimc*
 F:	arch/arm/plat-samsung/include/plat/*fimc*
 F:	drivers/media/video/s5p-fimc/
+
+ARM/SAMSUNG S5P SERIES Multi Format Codec (MFC) SUPPORT
+M:	Kyungmin Park <kyungmin.park@samsung.com>
+M:	Kamil Debski <k.debski@samsung.com>
+L:	linux-arm-kernel@lists.infradead.org
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	arch/arm/plat-s5p/dev-mfc.c
+F:	drivers/media/video/s5p-mfc/
+
+ARM/SAMSUNG S5P SERIES TV SUBSYSTEM SUPPORT
+M:	Kyungmin Park <kyungmin.park@samsung.com>
+M:	Tomasz Stanislawski <t.stanislaws@samsung.com>
+L:	linux-arm-kernel@lists.infradead.org
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	arch/arm/plat-s5p/dev-tv.c
+F:	drivers/media/video/s5p-tv/
 
 ARM/SHMOBILE ARM ARCHITECTURE
 M:	Paul Mundt <lethal@linux-sh.org>
@@ -3209,6 +3244,13 @@ F:	Documentation/ide/
 F:	drivers/ide/
 F:	include/linux/ide.h
 
+IDEAPAD LAPTOP EXTRAS DRIVER
+M:	Ike Panhc <ike.pan@canonical.com>
+L:	platform-driver-x86@vger.kernel.org
+W:	http://launchpad.net/ideapad-laptop
+S:	Maintained
+F:	drivers/platform/x86/ideapad-laptop.c
+
 IDE/ATAPI DRIVERS
 M:	Borislav Petkov <petkovbb@gmail.com>
 L:	linux-ide@vger.kernel.org
@@ -3995,6 +4037,7 @@ M:	Eric Piel <eric.piel@tremplin-utc.net>
 S:	Maintained
 F:	Documentation/misc-devices/lis3lv02d
 F:	drivers/misc/lis3lv02d/
+F:	drivers/platform/x86/hp_accel.c
 
 LLC (802.2)
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
@@ -4949,7 +4992,7 @@ F:	include/linux/i2c-algo-pca.h
 F:	include/linux/i2c-pca-platform.h
 
 PCI ERROR RECOVERY
-M:	Linas Vepstas <linas@austin.ibm.com>
+M:     Linas Vepstas <linasvepstas@gmail.com>
 L:	linux-pci@vger.kernel.org
 S:	Supported
 F:	Documentation/PCI/pci-error-recovery.txt
@@ -5328,6 +5371,12 @@ S:	Maintained
 F:	fs/qnx4/
 F:	include/linux/qnx4_fs.h
 F:	include/linux/qnxtypes.h
+
+QUALCOMM HEXAGON ARCHITECTURE
+M:	Richard Kuo <rkuo@codeaurora.org>
+L:	linux-hexagon@vger.kernel.org
+S:	Supported
+F:	arch/hexagon/
 
 RADOS BLOCK DEVICE (RBD)
 F:	include/linux/qnxtypes.h
@@ -5969,6 +6018,12 @@ M:	Steve Glendinning <steve.glendinning@smsc.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/smsc/smsc9420.*
+
+SMSC UFX6000 and UFX7000 USB to VGA DRIVER
+M:	Steve Glendinning <steve.glendinning@smsc.com>
+L:	linux-fbdev@vger.kernel.org
+S:	Supported
+F:	drivers/video/smscufx.c
 
 SN-IA64 (Itanium) SUB-PLATFORM
 M:	Jes Sorensen <jes@sgi.com>

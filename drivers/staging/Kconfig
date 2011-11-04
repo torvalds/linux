@@ -34,8 +34,6 @@ source "drivers/staging/go7007/Kconfig"
 
 source "drivers/staging/cx25821/Kconfig"
 
-source "drivers/staging/tm6000/Kconfig"
-
 source "drivers/staging/cxd2099/Kconfig"
 
 source "drivers/staging/usbip/Kconfig"
@@ -141,8 +139,6 @@ source "drivers/staging/cptm1217/Kconfig"
 source "drivers/staging/ste_rmi4/Kconfig"
 
 source "drivers/staging/gma500/Kconfig"
-
-source "drivers/staging/altera-stapl/Kconfig"
 
 source "drivers/staging/mei/Kconfig"
 

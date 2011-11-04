@@ -767,8 +767,8 @@ EXPORT_SYMBOL(ida_pre_get);
  * @starting_id: id to start search at
  * @p_id:	pointer to the allocated handle
  *
- * Allocate new ID above or equal to @ida.  It should be called with
- * any required locks.
+ * Allocate new ID above or equal to @starting_id.  It should be called
+ * with any required locks.
  *
  * If memory is required, it will return %-EAGAIN, you should unlock
  * and go back to the ida_pre_get() call.  If the ida is full, it will

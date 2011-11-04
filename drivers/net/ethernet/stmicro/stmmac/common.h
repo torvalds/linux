@@ -49,7 +49,7 @@ struct stmmac_extra_stats {
 	unsigned long tx_underflow ____cacheline_aligned;
 	unsigned long tx_carrier;
 	unsigned long tx_losscarrier;
-	unsigned long tx_heartbeat;
+	unsigned long vlan_tag;
 	unsigned long tx_deferred;
 	unsigned long tx_vlan;
 	unsigned long tx_jabber;
@@ -58,9 +58,9 @@ struct stmmac_extra_stats {
 	unsigned long tx_ip_header_error;
 	/* Receive errors */
 	unsigned long rx_desc;
-	unsigned long rx_partial;
-	unsigned long rx_runt;
-	unsigned long rx_toolong;
+	unsigned long sa_filter_fail;
+	unsigned long overflow_error;
+	unsigned long ipc_csum_error;
 	unsigned long rx_collision;
 	unsigned long rx_crc;
 	unsigned long rx_length;

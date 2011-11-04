@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/io.h>
-#include <linux/kernel_stat.h>
 #include <linux/atomic.h>
 #include <asm/debug.h>
 #include <asm/qdio.h>
@@ -105,9 +104,12 @@ static inline int qdio_check_ccq(struct qdio_q *q, unsigned int ccq)
 	/* all done or next buffer state different */
 	if (ccq == 0 || ccq == 32)
 		return 0;
-	/* not all buffers processed */
-	if (ccq == 96 || ccq == 97)
+	/* no buffer processed */
+	if (ccq == 97)
 		return 1;
+	/* not all buffers processed */
+	if (ccq == 96)
+		return 2;
 	/* notify devices immediately */
 	DBF_ERROR("%4x ccq:%3d", SCH_NO(q), ccq);
 	return -EIO;
@@ -127,10 +129,8 @@ static inline int qdio_check_ccq(struct qdio_q *q, unsigned int ccq)
 static int qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 			int start, int count, int auto_ack)
 {
+	int rc, tmp_count = count, tmp_start = start, nr = q->nr, retried = 0;
 	unsigned int ccq = 0;
-	int tmp_count = count, tmp_start = start;
-	int nr = q->nr;
-	int rc;
 
 	BUG_ON(!q->irq_ptr->sch_token);
 	qperf_inc(q, eqbs);
@@ -141,30 +141,34 @@ again:
 	ccq = do_eqbs(q->irq_ptr->sch_token, state, nr, &tmp_start, &tmp_count,
 		      auto_ack);
 	rc = qdio_check_ccq(q, ccq);
-
-	/* At least one buffer was processed, return and extract the remaining
-	 * buffers later.
-	 */
-	if ((ccq == 96) && (count != tmp_count)) {
-		qperf_inc(q, eqbs_partial);
-		return (count - tmp_count);
-	}
+	if (!rc)
+		return count - tmp_count;
 
 	if (rc == 1) {
 		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "EQBS again:%2d", ccq);
 		goto again;
 	}
 
-	if (rc < 0) {
-		DBF_ERROR("%4x EQBS ERROR", SCH_NO(q));
-		DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
-		q->handler(q->irq_ptr->cdev,
-			   QDIO_ERROR_ACTIVATE_CHECK_CONDITION,
-			   q->nr, q->first_to_kick, count,
-			   q->irq_ptr->int_parm);
-		return 0;
+	if (rc == 2) {
+		BUG_ON(tmp_count == count);
+		qperf_inc(q, eqbs_partial);
+		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "EQBS part:%02x",
+			tmp_count);
+		/*
+		 * Retry once, if that fails bail out and process the
+		 * extracted buffers before trying again.
+		 */
+		if (!retried++)
+			goto again;
+		else
+			return count - tmp_count;
 	}
-	return count - tmp_count;
+
+	DBF_ERROR("%4x EQBS ERROR", SCH_NO(q));
+	DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
+	q->handler(q->irq_ptr->cdev, QDIO_ERROR_ACTIVATE_CHECK_CONDITION,
+		   0, -1, -1, q->irq_ptr->int_parm);
+	return 0;
 }
 
 /**
@@ -197,22 +201,22 @@ static int qdio_do_sqbs(struct qdio_q *q, unsigned char state, int start,
 again:
 	ccq = do_sqbs(q->irq_ptr->sch_token, state, nr, &tmp_start, &tmp_count);
 	rc = qdio_check_ccq(q, ccq);
-	if (rc == 1) {
+	if (!rc) {
+		WARN_ON(tmp_count);
+		return count - tmp_count;
+	}
+
+	if (rc == 1 || rc == 2) {
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "SQBS again:%2d", ccq);
 		qperf_inc(q, sqbs_partial);
 		goto again;
 	}
-	if (rc < 0) {
-		DBF_ERROR("%4x SQBS ERROR", SCH_NO(q));
-		DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
-		q->handler(q->irq_ptr->cdev,
-			   QDIO_ERROR_ACTIVATE_CHECK_CONDITION,
-			   q->nr, q->first_to_kick, count,
-			   q->irq_ptr->int_parm);
-		return 0;
-	}
-	WARN_ON(tmp_count);
-	return count - tmp_count;
+
+	DBF_ERROR("%4x SQBS ERROR", SCH_NO(q));
+	DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
+	q->handler(q->irq_ptr->cdev, QDIO_ERROR_ACTIVATE_CHECK_CONDITION,
+		   0, -1, -1, q->irq_ptr->int_parm);
+	return 0;
 }
 
 /* returns number of examined buffers and their common state in *state */
@@ -277,7 +281,7 @@ static inline int set_buf_state(struct qdio_q *q, int bufnr,
 }
 
 /* set slsb states to initial state */
-void qdio_init_buf_states(struct qdio_irq *irq_ptr)
+static void qdio_init_buf_states(struct qdio_irq *irq_ptr)
 {
 	struct qdio_q *q;
 	int i;
@@ -446,7 +450,7 @@ static void process_buffer_error(struct qdio_q *q, int count)
 		qperf_inc(q, target_full);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x",
 			      q->first_to_check);
-		return;
+		goto set;
 	}
 
 	DBF_ERROR("%4x BUF ERROR", SCH_NO(q));
@@ -456,6 +460,7 @@ static void process_buffer_error(struct qdio_q *q, int count)
 		  q->sbal[q->first_to_check]->element[14].sflags,
 		  q->sbal[q->first_to_check]->element[15].sflags);
 
+set:
 	/*
 	 * Interrupts may be avoided as long as the error is present
 	 * so change the buffer state immediately to avoid starvation.
@@ -512,6 +517,8 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 {
 	int count, stop;
 	unsigned char state = 0;
+
+	q->timestamp = get_clock_fast();
 
 	/*
 	 * Don't check 128 buffers, as otherwise qdio_inbound_q_moved
@@ -782,6 +789,8 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 	int count, stop;
 	unsigned char state = 0;
 
+	q->timestamp = get_clock_fast();
+
 	if (need_siga_sync(q))
 		if (((queue_type(q) != QDIO_IQDIO_QFMT) &&
 		    !pci_out_supported(q)) ||
@@ -912,21 +921,13 @@ static void __qdio_outbound_processing(struct qdio_q *q)
 		if (!pci_out_supported(q) && !qdio_outbound_q_done(q))
 			goto sched;
 
-	/* bail out for HiperSockets unicast queues */
-	if (queue_type(q) == QDIO_IQDIO_QFMT && !multicast_outbound(q))
-		return;
-
-	if ((queue_type(q) == QDIO_IQDIO_QFMT) &&
-	    (atomic_read(&q->nr_buf_used)) > QDIO_IQDIO_POLL_LVL)
-		goto sched;
-
 	if (q->u.out.pci_out_enabled)
 		return;
 
 	/*
 	 * Now we know that queue type is either qeth without pci enabled
-	 * or HiperSockets multicast. Make sure buffer switch from PRIMED to
-	 * EMPTY is noticed and outbound_handler is called after some time.
+	 * or HiperSockets. Make sure buffer switch from PRIMED to EMPTY
+	 * is noticed and outbound_handler is called after some time.
 	 */
 	if (qdio_outbound_q_done(q))
 		del_timer(&q->u.out.timer);
@@ -1128,7 +1129,6 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		return;
 	}
 
-	kstat_cpu(smp_processor_id()).irqs[IOINT_QDI]++;
 	if (irq_ptr->perf_stat_enabled)
 		irq_ptr->perf_stat.qdio_int++;
 
@@ -1719,9 +1719,7 @@ int qdio_start_irq(struct ccw_device *cdev, int nr)
 
 	WARN_ON(queue_irqs_enabled(q));
 
-	if (!shared_ind(q))
-		xchg(q->irq_ptr->dsci, 0);
-
+	clear_nonshared_ind(irq_ptr);
 	qdio_stop_polling(q);
 	clear_bit(QDIO_QUEUE_IRQS_DISABLED, &q->u.in.queue_irq_state);
 
@@ -1729,7 +1727,7 @@ int qdio_start_irq(struct ccw_device *cdev, int nr)
 	 * We need to check again to not lose initiative after
 	 * resetting the ACK state.
 	 */
-	if (!shared_ind(q) && *q->irq_ptr->dsci)
+	if (test_nonshared_ind(irq_ptr))
 		goto rescan;
 	if (!qdio_inbound_q_done(q))
 		goto rescan;

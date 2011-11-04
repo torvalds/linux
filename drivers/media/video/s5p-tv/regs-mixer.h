@@ -67,6 +67,7 @@
 /* bits for MXR_CFG */
 #define MXR_CFG_OUT_YUV444		(0 << 8)
 #define MXR_CFG_OUT_RGB888		(1 << 8)
+#define MXR_CFG_OUT_MASK		(1 << 8)
 #define MXR_CFG_DST_SDO			(0 << 7)
 #define MXR_CFG_DST_HDMI		(1 << 7)
 #define MXR_CFG_DST_MASK		(1 << 7)

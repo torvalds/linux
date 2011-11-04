@@ -108,9 +108,13 @@ comment "OMAP Board Type"
 	depends on ARCH_OMAP2PLUS
 
 config MACH_OMAP_GENERIC
-	bool "Generic OMAP board"
-	depends on ARCH_OMAP2
+	bool "Generic OMAP2+ board"
+	depends on ARCH_OMAP2PLUS
+	select USE_OF
 	default y
+	help
+	  Support for generic TI OMAP2+ boards using Flattened Device Tree.
+	  More information at Documentation/devicetree
 
 config MACH_OMAP2_TUSB6010
 	bool

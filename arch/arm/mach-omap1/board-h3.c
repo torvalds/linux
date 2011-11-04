@@ -435,23 +435,13 @@ static void __init h3_init(void)
 	h3_mmc_init();
 }
 
-static void __init h3_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
-
-static void __init h3_map_io(void)
-{
-	omap1_map_common_io();
-}
-
 MACHINE_START(OMAP_H3, "TI OMAP1710 H3 board")
 	/* Maintainer: Texas Instruments, Inc. */
 	.atag_offset	= 0x100,
-	.map_io		= h3_map_io,
+	.map_io		= omap16xx_map_io,
+	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= h3_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= h3_init,
 	.timer		= &omap1_timer,
 MACHINE_END
