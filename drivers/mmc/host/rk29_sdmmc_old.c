@@ -1404,8 +1404,12 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	mmc->f_max = host->bus_hz; 
 	mmc->ocr_avail = pdata->host_ocr_avail;
 	mmc->caps = pdata->host_caps;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	mmc->max_segs = 64;
+#else
 	mmc->max_phys_segs = 64;
 	mmc->max_hw_segs = 64;
+#endif
 	mmc->max_blk_size = 4096; 
 	mmc->max_blk_count = 65535; 
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;

@@ -2373,8 +2373,13 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
 		desc->wHubCharacteristics = 0x08;
 		desc->bPwrOn2PwrGood = 1;
 		desc->bHubContrCurrent = 0;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
+		desc->u.hs.DeviceRemovable[0] = 0;
+		desc->u.hs.DeviceRemovable[1] = 0xff;
+#else
 		desc->bitmap[0] = 0;
 		desc->bitmap[1] = 0xff;
+#endif
 		break;
 	case GetHubStatus:
 		DWC_DEBUGPL (DBG_HCD, "DWC OTG HCD HUB CONTROL - "

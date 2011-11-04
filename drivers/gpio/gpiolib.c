@@ -1429,6 +1429,8 @@ int gpio_direction_output(unsigned gpio, int value)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
+	if (value !=0 && value !=1)
+		goto fail;
 	if (!gpio_is_valid(gpio))
 		goto fail;
 	chip = desc->chip;
@@ -1474,6 +1476,67 @@ fail:
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpio_direction_output);
+
+/* 
+gpio pull up or pull down
+value = 0, normal
+value = 1, pull up
+value = 2, pull down
+*/
+int gpio_pull_updown(unsigned gpio, unsigned value)
+{
+	unsigned long		flags;
+	struct gpio_chip	*chip;
+	struct gpio_desc	*desc = &gpio_desc[gpio];
+	int			status = -EINVAL;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+	
+	if (value >3)
+		goto fail;
+	if (!gpio_is_valid(gpio))
+		goto fail;
+	chip = desc->chip;
+	if (!chip || !chip->get || !chip->pull_updown)
+		goto fail;
+	gpio -= chip->base;
+	if (gpio >= chip->ngpio)
+		goto fail;
+	status = gpio_ensure_requested(desc, gpio);
+	if (status < 0)
+		goto fail;
+
+	/* now we know the gpio is valid and chip won't vanish */
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	might_sleep_if(extra_checks && chip->can_sleep);
+
+	if (status) {
+		status = chip->request(chip, gpio);
+		if (status < 0) {
+			pr_debug("GPIO-%d: chip request fail, %d\n",
+				chip->base + gpio, status);
+			/* and it's not available to anyone else ...
+			 * gpio_request() is the fully clean solution.
+			 */
+			goto lose;
+		}
+	}
+	status = chip->pull_updown(chip, gpio,value);
+	if (status == 0)
+		clear_bit(FLAG_IS_OUT, &desc->flags);
+	
+lose:
+	return status;
+fail:
+	spin_unlock_irqrestore(&gpio_lock, flags);
+	if (status)
+		pr_debug("%s: gpio-%d status %d\n",
+			__func__, gpio, status);
+	return status;
+}
+EXPORT_SYMBOL_GPL(gpio_pull_updown);
 
 /**
  * gpio_set_debounce - sets @debounce time for a @gpio
@@ -1555,6 +1618,8 @@ int __gpio_get_value(unsigned gpio)
 	struct gpio_chip	*chip;
 	int value;
 
+	if (!gpio_is_valid(gpio))
+		return -1;
 	chip = gpio_to_chip(gpio);
 	WARN_ON(chip->can_sleep);
 	value = chip->get ? chip->get(chip, gpio - chip->base) : 0;
@@ -1576,6 +1641,10 @@ void __gpio_set_value(unsigned gpio, int value)
 {
 	struct gpio_chip	*chip;
 
+	if(value !=0 && value !=1)
+		return;
+	if (!gpio_is_valid(gpio))
+		 return;
 	chip = gpio_to_chip(gpio);
 	WARN_ON(chip->can_sleep);
 	trace_gpio_value(gpio, 0, value);
@@ -1614,9 +1683,13 @@ EXPORT_SYMBOL_GPL(__gpio_cansleep);
 int __gpio_to_irq(unsigned gpio)
 {
 	struct gpio_chip	*chip;
-
+	
+	if (!gpio_is_valid(gpio))
+		 return -1;
+	
 	chip = gpio_to_chip(gpio);
-	return chip->to_irq ? chip->to_irq(chip, gpio - chip->base) : -ENXIO;
+	
+	return chip->to_irq ? chip->to_irq(chip, gpio - chip->base) : -1;
 }
 EXPORT_SYMBOL_GPL(__gpio_to_irq);
 

@@ -310,7 +310,11 @@ static int rk29xxnand_add_partitions(struct rknand_info *nand_info)
         rknand_parts[num_partitions - 1].size = rknand_mtd.size - rknand_parts[num_partitions - 1].offset;
         
 		g_num_partitions = num_partitions;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
+		return mtd_device_register(&rknand_mtd, rknand_parts, num_partitions);
+#else
 		return add_mtd_partitions(&(rknand_mtd), rknand_parts, num_partitions);
+#endif
     } 
 #endif 
 	return 0;

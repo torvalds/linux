@@ -18,12 +18,12 @@
 #include <linux/version.h>
 #include <mach/rk29_iomap.h>
 
-	/* note, for the boot process to work we have to keep the UART
-	 * virtual address aligned to an 1MiB boundary for the L1
-	 * mapping the head code makes. We keep the UART virtual address
-	 * aligned and add in the offset when we load the value here.
-	 */
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	.macro addruart, rp, rv
+		ldr	\rp, = RK29_UART1_PHYS
+		ldr	\rv, = RK29_UART1_BASE
+	.endm
+#else
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34))
 	.macro addruart, rx, tmp
 #else
@@ -34,6 +34,7 @@
 		ldreq	\rx, = RK29_UART1_PHYS
 		ldrne	\rx, = RK29_UART1_BASE
 	.endm
+#endif
 
 #define UART_SHIFT	2
 #include <asm/hardware/debug-8250.S>

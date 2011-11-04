@@ -375,6 +375,16 @@ __v7_setup:
 	ALT_SMP(orr	r8, r8, #TTB_FLAGS_SMP)
 	ALT_UP(orr	r8, r8, #TTB_FLAGS_UP)
 	mcr	p15, 0, r8, c2, c0, 1		@ load TTB1
+#ifdef CONFIG_ARCH_RK29
+	/* Setup L2 cache */
+	mrc	p15, 1, r5, c9, c0, 2
+	bic	r5, r5, #1 << 29		@ L2 data RAM read multiplexer select: 0 = two cycles
+	bic	r5, r5, #7 << 6
+	bic	r5, r5, #15
+	orr	r5, r5, #2 << 6			@ Tag RAM latency: b010 = 3 cycles
+	orr	r5, r5, #3			@ Data RAM latency: b0011 = 4 cycles
+	mcr	p15, 1, r5, c9, c0, 2
+#endif
 	ldr	r5, =PRRR			@ PRRR
 	ldr	r6, =NMRR			@ NMRR
 	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR

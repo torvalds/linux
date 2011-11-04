@@ -20,10 +20,13 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/skbuff.h>
 #include <linux/spi/spi.h>
 #include <linux/mmc/host.h>
 #include <linux/android_pmem.h>
+#ifdef CONFIG_USB_ANDROID
 #include <linux/usb/android_composite.h>
+#endif
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
@@ -2935,8 +2938,12 @@ static struct spi_board_info board_spi_devices[] = {
 
 static void __init rk29_gic_init_irq(void)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38))
+	gic_init(0, 32, (void __iomem *)RK29_GICPERI_BASE, (void __iomem *)RK29_GICCPU_BASE);
+#else
 	gic_dist_init(0, (void __iomem *)RK29_GICPERI_BASE, 32);
 	gic_cpu_init(0, (void __iomem *)RK29_GICCPU_BASE);
+#endif
 }
 
 static void __init machine_rk29_init_irq(void)
@@ -3016,9 +3023,11 @@ static void __init machine_rk29_mapio(void)
 }
 
 MACHINE_START(RK29, "RK29board")
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
 	/* UART for LL DEBUG */
 	.phys_io	= RK29_UART1_PHYS & 0xfff00000,
 	.io_pg_offst	= ((RK29_UART1_BASE) >> 18) & 0xfffc,
+#endif
 	.boot_params	= RK29_SDRAM_PHYS + 0x88000,
 	.fixup		= machine_rk29_fixup,
 	.map_io		= machine_rk29_mapio,

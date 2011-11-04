@@ -1426,8 +1426,9 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	}
 }
 EXPORT_SYMBOL(i2c_transfer);
+
 #if defined (CONFIG_I2C_RK2818) || defined(CONFIG_I2C_RK29)
-int i2c_master_send(struct i2c_client *client,const char *buf ,int count)
+int i2c_master_send(const struct i2c_client *client, const char *buf, int count)
 {
 	int ret;
 	struct i2c_adapter *adap=client->adapter;
@@ -1445,7 +1446,7 @@ int i2c_master_send(struct i2c_client *client,const char *buf ,int count)
 }
 EXPORT_SYMBOL(i2c_master_send);
 
-int i2c_master_recv(struct i2c_client *client, char *buf ,int count)
+int i2c_master_recv(const struct i2c_client *client, char *buf, int count)
 {
 	struct i2c_adapter *adap=client->adapter;
 	struct i2c_msg msg;
@@ -1464,7 +1465,7 @@ int i2c_master_recv(struct i2c_client *client, char *buf ,int count)
 }
 EXPORT_SYMBOL(i2c_master_recv);
 
-int i2c_master_normal_send(struct i2c_client *client,const char *buf ,int count, int scl_rate)
+int i2c_master_normal_send(const struct i2c_client *client, const char *buf, int count, int scl_rate)
 {
 	int ret;
 	struct i2c_adapter *adap=client->adapter;
@@ -1482,7 +1483,7 @@ int i2c_master_normal_send(struct i2c_client *client,const char *buf ,int count,
 }
 EXPORT_SYMBOL(i2c_master_normal_send);
 
-int i2c_master_normal_recv(struct i2c_client *client, char *buf ,int count, int scl_rate)
+int i2c_master_normal_recv(const struct i2c_client *client, char *buf, int count, int scl_rate)
 {
 	struct i2c_adapter *adap=client->adapter;
 	struct i2c_msg msg;
@@ -1501,7 +1502,7 @@ int i2c_master_normal_recv(struct i2c_client *client, char *buf ,int count, int 
 }
 EXPORT_SYMBOL(i2c_master_normal_recv);
 
-int i2c_master_reg8_send(struct i2c_client *client, const char reg, const char *buf, int count, int scl_rate)
+int i2c_master_reg8_send(const struct i2c_client *client, const char reg, const char *buf, int count, int scl_rate)
 {
 	struct i2c_adapter *adap=client->adapter;
 	struct i2c_msg msg;
@@ -1526,7 +1527,7 @@ int i2c_master_reg8_send(struct i2c_client *client, const char reg, const char *
 }
 EXPORT_SYMBOL(i2c_master_reg8_send);
 
-int i2c_master_reg8_recv(struct i2c_client *client, const char reg, char *buf, int count, int scl_rate)
+int i2c_master_reg8_recv(const struct i2c_client *client, const char reg, char *buf, int count, int scl_rate)
 {
 	struct i2c_adapter *adap=client->adapter;
 	struct i2c_msg msgs[2];
@@ -1554,13 +1555,13 @@ int i2c_master_reg8_recv(struct i2c_client *client, const char reg, char *buf, i
 
 EXPORT_SYMBOL(i2c_master_reg8_recv);
 
-int i2c_master_reg8_direct_send(struct i2c_client *client, const char reg, const char *buf, int count, int scl_rate)
+int i2c_master_reg8_direct_send(const struct i2c_client *client, const char reg, const char *buf, int count, int scl_rate)
 {
 	return i2c_master_reg8_send(client, reg, buf, count, scl_rate);
 }
 EXPORT_SYMBOL(i2c_master_reg8_direct_send);
 
-int i2c_master_reg8_direct_recv(struct i2c_client *client, const char reg, char *buf, int count, int scl_rate)
+int i2c_master_reg8_direct_recv(const struct i2c_client *client, const char reg, char *buf, int count, int scl_rate)
 {
 	struct i2c_adapter *adap=client->adapter;
 	struct i2c_msg msg;
@@ -1581,7 +1582,7 @@ int i2c_master_reg8_direct_recv(struct i2c_client *client, const char reg, char 
 }
 EXPORT_SYMBOL(i2c_master_reg8_direct_recv);
 
-int i2c_master_reg16_send(struct i2c_client *client, const short regs, const short *buf, int count, int scl_rate)
+int i2c_master_reg16_send(const struct i2c_client *client, const short regs, const short *buf, int count, int scl_rate)
 {
 	struct i2c_adapter *adap=client->adapter;
 	struct i2c_msg msg;
@@ -1605,7 +1606,7 @@ int i2c_master_reg16_send(struct i2c_client *client, const short regs, const sho
 }
 EXPORT_SYMBOL(i2c_master_reg16_send);
 
-int i2c_master_reg16_recv(struct i2c_client *client, const short regs, short *buf, int count, int scl_rate)
+int i2c_master_reg16_recv(const struct i2c_client *client, const short regs, short *buf, int count, int scl_rate)
 {
 	struct i2c_adapter *adap=client->adapter;
 	struct i2c_msg msgs[2];

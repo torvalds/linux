@@ -3177,8 +3177,12 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
     /*
 	 * We can do SGIO
 	*/
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	mmc->max_segs = 64;
+#else
 	mmc->max_phys_segs = 64;
 	mmc->max_hw_segs = 64; 
+#endif
 
 	/*
 	 * Block size can be up to 2048 bytes, but must be a power of two.

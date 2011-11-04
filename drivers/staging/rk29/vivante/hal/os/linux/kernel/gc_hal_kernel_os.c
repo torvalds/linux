@@ -2443,7 +2443,7 @@ gceSTATUS gckOS_CreateMutex(
     }
 
     /* Initialize the semaphore.. Come up in unlocked state. */
-    init_MUTEX(*Mutex);
+    sema_init(*Mutex, 1);
 
     /* Return status. */
     return gcvSTATUS_OK;

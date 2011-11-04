@@ -61,6 +61,17 @@ extern int i2c_master_send(const struct i2c_client *client, const char *buf,
 extern int i2c_master_recv(const struct i2c_client *client, char *buf,
 			   int count);
 
+#if defined (CONFIG_I2C_RK2818) || defined(CONFIG_I2C_RK29)
+/* If everything went ok, return 'count' transmitted, else error code. */
+extern int i2c_master_normal_send(const struct i2c_client *client, const char *buf, int count, int scl_rate);
+extern int i2c_master_normal_recv(const struct i2c_client *client, char *buf, int count, int scl_rate);
+extern int i2c_master_reg8_send(const struct i2c_client *client, const char reg, const char *buf, int count, int scl_rate);
+extern int i2c_master_reg8_recv(const struct i2c_client *client, const char reg, char *buf, int count, int scl_rate);
+extern int i2c_master_reg16_send(const struct i2c_client *client, const short regs, const short *buf, int count, int scl_rate);
+extern int i2c_master_reg16_recv(const struct i2c_client *client, const short regs, short *buf, int count, int scl_rate);
+extern int i2c_suspended(struct i2c_adapter *adap);
+#endif
+
 /* Transfer num messages.
  */
 extern int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
@@ -208,6 +219,7 @@ struct i2c_client {
 	struct i2c_driver *driver;	/* and our access routines	*/
 	struct device dev;		/* the device structure		*/
 	int irq;			/* irq issued by device		*/
+	int udelay;
 	struct list_head detected;
 };
 #define to_i2c_client(d) container_of(d, struct i2c_client, dev)
@@ -259,6 +271,7 @@ struct i2c_board_info {
 	struct dev_archdata	*archdata;
 	struct device_node *of_node;
 	int		irq;
+	int		udelay;   //add by kfx
 };
 
 /**
@@ -517,8 +530,13 @@ struct i2c_msg {
 #define I2C_M_IGNORE_NAK	0x1000	/* if I2C_FUNC_PROTOCOL_MANGLING */
 #define I2C_M_NO_RD_ACK		0x0800	/* if I2C_FUNC_PROTOCOL_MANGLING */
 #define I2C_M_RECV_LEN		0x0400	/* length will be first received byte */
+#define I2C_M_NEED_DELAY	0x0020  // add by kfx
+#define I2C_M_REG8_DIRECT	0x0040	// add by kfx
 	__u16 len;		/* msg length				*/
 	__u8 *buf;		/* pointer to msg data			*/
+	__u32 scl_rate;  // add by kfx
+	int udelay;		//add by kfx
+	__u16 read_type;
 };
 
 /* To determine what functionality is present */

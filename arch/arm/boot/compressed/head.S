@@ -177,6 +177,10 @@ not_angel:
 #endif
 
 		bl	cache_on
+#ifdef CONFIG_ARCH_RK29
+		bl	cache_off
+		bl	cache_on
+#endif
 
 restart:	adr	r0, LC0
 		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}

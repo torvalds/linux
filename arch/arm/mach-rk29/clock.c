@@ -27,7 +27,11 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+#include <linux/clkdev.h>
+#else
 #include <asm/clkdev.h>
+#endif
 #include <mach/rk29_iomap.h>
 #include <mach/cru.h>
 #include <mach/pmu.h>

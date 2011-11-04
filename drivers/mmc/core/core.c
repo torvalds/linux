@@ -215,6 +215,9 @@ static void mmc_wait_done(struct mmc_request *mrq)
  */
 void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
+	unsigned long datasize, waittime = 0xFFFF;
+	u32 multi, unit;
+
 	DECLARE_COMPLETION_ONSTACK(complete);
 
 	mrq->done_data = &complete;
@@ -222,7 +225,47 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 
 	mmc_start_request(host, mrq);
 
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+    if( strncmp( mmc_hostname(host) ,"mmc0" , strlen("mmc0")) ) 
+    {
+        multi = (mrq->cmd->retries>0)?mrq->cmd->retries:1;
+        waittime = wait_for_completion_timeout(&complete,HZ*7*multi); //sdio; for cmd dead. Modifyed by xbw at 2011-06-02
+    }
+    else
+    {   
+        //calculate the timeout value for SDMMC; added by xbw at 2011-09-27
+        if(mrq->data)
+        {
+            unit = 3*(1<<20);// unit=3MB
+            datasize = mrq->data->blksz*mrq->data->blocks;
+            multi = datasize/unit;
+            multi += (datasize%unit)?1:0;
+            multi = (multi>0) ? multi : 1;
+            multi += (mrq->cmd->retries>0)?1:0;
+            waittime = wait_for_completion_timeout(&complete,HZ*7*multi); //It should be longer than bottom driver's time,due to the sum of two cmd time.
+                                                                          //modifyed by xbw at 2011-10-08
+                                                                          //
+                                                                          //example:
+                                                                          //rk29_sdmmc_request_end..2336...   CMD12 wait busy timeout!!!!! ====xbw=[sd_mmc]====
+                                                                          //mmc_wait_for_req..236.. !!!!! wait for CMD25 timeout ===xbw[mmc0]===
+        }
+        else
+        {
+            multi = (mrq->cmd->retries>0)?mrq->cmd->retries:1;
+            waittime = wait_for_completion_timeout(&complete,HZ*7*multi);
+        }
+    }
+    
+    if(waittime <= 1)
+    {
+        host->doneflag = 0;
+        mrq->cmd->error = -EIO;
+        printk("%s..%d.. !!!!! wait for CMD%d timeout ===xbw[%s]===\n",\
+            __FUNCTION__, __LINE__, mrq->cmd->opcode, mmc_hostname(host));
+    }
+#else
 	wait_for_completion(&complete);
+#endif
 }
 
 EXPORT_SYMBOL(mmc_wait_for_req);
@@ -1869,6 +1912,11 @@ int mmc_resume_host(struct mmc_host *host)
 			}
 		}
 		BUG_ON(!host->bus_ops->resume);
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+        //panic if the card is being removed during the resume, deleted by xbw at 2011-06-20
+		host->bus_ops->resume(host);
+
+#else
 		err = host->bus_ops->resume(host);
 		if (err) {
 			printk(KERN_WARNING "%s: error %d during resume "
@@ -1876,6 +1924,7 @@ int mmc_resume_host(struct mmc_host *host)
 					    mmc_hostname(host), err);
 			err = 0;
 		}
+#endif
 	}
 	host->pm_flags &= ~MMC_PM_KEEP_POWER;
 	mmc_bus_put(host);

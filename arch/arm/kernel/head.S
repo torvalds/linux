@@ -42,7 +42,12 @@
 	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - 0x4000
 
 	.macro	pgtbl, rd, phys
+#ifdef CONFIG_ARCH_RK29
+	add	\rd, \phys, #((TEXT_OFFSET - 0x4000) & 0xffff0000)
+	add	\rd, \rd,   #((TEXT_OFFSET - 0x4000) & 0x0000ffff)
+#else
 	add	\rd, \phys, #TEXT_OFFSET - 0x4000
+#endif
 	.endm
 
 #ifdef CONFIG_XIP_KERNEL

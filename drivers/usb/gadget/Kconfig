@@ -112,6 +112,7 @@ config	USB_GADGET_SELECTED
 choice
 	prompt "USB Peripheral Controller"
 	depends on USB_GADGET
+	default USB_GADGET_DWC_OTG
 	help
 	   A USB device uses a controller to talk to its host.
 	   Systems should have only one such upstream link.
@@ -543,6 +544,19 @@ config USB_LANGWELL
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_DWC_OTG
+	boolean "Synopsys DWC OTG Controller"
+	select USB_GADGET_DUALSPEED
+	help
+	  This driver provides USB Device Controller support for the
+	  Synopsys DesignWare USB OTG Core used on the Rockchip RK28.
+
+config USB_DWC_OTG
+	tristate
+	depends on USB_GADGET_DWC_OTG
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_EG20T
 	boolean "Intel EG20T PCH/OKI SEMICONDUCTOR ML7213 IOH UDC"
 	depends on PCI
@@ -641,9 +655,9 @@ config USB_GADGET_DUALSPEED
 # USB Gadget Drivers
 #
 choice
-	tristate "USB Gadget Drivers"
+	bool "USB Gadget Drivers"
 	depends on USB_GADGET && USB_GADGET_SELECTED
-	default USB_ETH
+	default USB_G_ANDROID
 	help
 	  A Linux "Gadget Driver" talks to the USB Peripheral Controller
 	  driver through the abstract "gadget" API.  Some other operating

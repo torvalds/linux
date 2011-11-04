@@ -16,7 +16,9 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#ifdef CONFIG_USB_ANDROID
 #include <linux/usb/android_composite.h>
+#endif
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <asm/pmu.h>
@@ -746,7 +748,7 @@ struct platform_device usb_mass_storage_device = {
 };
 #endif
 
-
+#ifdef CONFIG_USB_ANDROID_RNDIS
 static struct usb_ether_platform_data rndis_pdata = {
 	/* ethaddr is filled by board_serialno_setup */
 	.ethaddr    = {0xf0, 0xde, 0xf1, 0x42, 0xe8, 0x10},
@@ -761,6 +763,7 @@ struct platform_device rk29_device_rndis = {
 		.platform_data = &rndis_pdata,
 	},
 };
+#endif
 
 #ifdef CONFIG_USB11_HOST
 static struct resource usb11_host_resource[] = {

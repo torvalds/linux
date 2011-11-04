@@ -401,16 +401,7 @@ static int __devinit hym8563_probe(struct i2c_client *client, const struct i2c_d
 		return -ENOMEM;
 	}
 		
-	rtc = rtc_device_register(client->name, &client->dev,
-				  &hym8563_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		rc = PTR_ERR(rtc);
-		rtc = NULL;
-		goto exit;
-	}
-
 	hym8563->client = client;
-	hym8563->rtc = rtc;
 	mutex_init(&hym8563->mutex);
 	wake_lock_init(&hym8563->wake_lock, WAKE_LOCK_SUSPEND, "rtc_hym8563");
 	INIT_WORK(&hym8563->work, hym8563_work_func);
@@ -447,6 +438,16 @@ static int __devinit hym8563_probe(struct i2c_client *client, const struct i2c_d
 		goto exit;
 	}	
 	enable_irq_wake(hym8563->irq);
+
+	rtc = rtc_device_register(client->name, &client->dev,
+				  &hym8563_rtc_ops, THIS_MODULE);
+	if (IS_ERR(rtc)) {
+		rc = PTR_ERR(rtc);
+		rtc = NULL;
+		goto exit;
+	}
+	hym8563->rtc = rtc;
+
 	return 0;
 
 exit:

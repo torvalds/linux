@@ -132,13 +132,6 @@ config REGULATOR_TWL4030
 	  This driver supports the voltage regulators provided by
 	  this family of companion chips.
 
-config REGULATOR_TPS65910
-	bool "TI TPS69510x PMIC"
-	depends on TPS65910_CORE
-	help
-	  This driver supports the voltage regulators provided by
-	  this family of companion chips.
- 
 config REGULATOR_WM831X
 	tristate "Wolfson Microelcronics WM831x PMIC regulators"
 	depends on MFD_WM831X

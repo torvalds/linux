@@ -117,6 +117,7 @@ static int try_to_freeze_tasks(bool sig_only)
 			printk("\n");
 			printk(KERN_ERR "Freezing of %s aborted\n",
 					sig_only ? "user space " : "tasks ");
+			print_active_wake_locks(WAKE_LOCK_SUSPEND);
 		}
 		else {
 			printk("\n");

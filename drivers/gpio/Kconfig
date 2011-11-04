@@ -268,13 +268,6 @@ config GPIO_TWL4030
 	  Say yes here to access the GPIO signals of various multi-function
 	  power management chips from Texas Instruments.
 
-config GPIO_TPS65910
-	bool "TPS65910 GPIOs"
-	depends on TPS65910_CORE
-	help
-	  Say yes here to access the GPIO signal of TPS65910x multi-function
-	  power management chips from Texas Instruments.
-
 config GPIO_WM831X
 	tristate "WM831x GPIOs"
 	depends on MFD_WM831X

@@ -14,7 +14,8 @@
  */
 #ifndef __ARCH_ARM_MACH_RK29_GPIO_H
 #define __ARCH_ARM_MACH_RK29_GPIO_H
-#include <asm/irq.h>
+
+#include <mach/irqs.h>
  
 typedef enum eGPIOPinLevel
 {
@@ -67,7 +68,7 @@ typedef enum GPIOIntType {
 #define RK29_ID_GPIO6			6
 
 #define NUM_GROUP				32
-#define PIN_BASE				0
+#define PIN_BASE				NR_AIC_IRQS
 #define MAX_BANK				7
 
 #define RK29_TOTOL_GPIO_NUM	(NUM_GROUP*MAX_BANK)
@@ -105,7 +106,7 @@ typedef enum GPIOIntType {
 #endif
 
 //定义GPIO的PIN口最大数目。CONFIG_SPI_FPGA_GPIO_NUM表示FPGA的PIN脚数。
-#define ARCH_NR_GPIOS  (RK29_TOTOL_GPIO_NUM + TCA6424_TOTOL_GPIO_NUM + WM831X_TOTOL_GPIO_NUM + CONFIG_SPI_FPGA_GPIO_NUM+CONFIG_GPIO_WM8994_NUM)
+#define ARCH_NR_GPIOS  (PIN_BASE + RK29_TOTOL_GPIO_NUM + TCA6424_TOTOL_GPIO_NUM + WM831X_TOTOL_GPIO_NUM + CONFIG_SPI_FPGA_GPIO_NUM+CONFIG_GPIO_WM8994_NUM)
 
 
 #define	RK29_PIN0_PA0		(0*NUM_GROUP + PIN_BASE + 0)
@@ -506,7 +507,6 @@ extern void __init rk29_gpio_init(void);
 
 #include <asm/errno.h>
 #include <asm-generic/gpio.h>		/* cansleep wrappers */
-#include <mach/irqs.h>
 
 #define gpio_get_value	__gpio_get_value
 #define gpio_set_value	__gpio_set_value
@@ -514,15 +514,14 @@ extern void __init rk29_gpio_init(void);
 
 static inline int gpio_to_irq(unsigned gpio)
 {
-	return (gpio + NR_AIC_IRQS);
+	return gpio - PIN_BASE + NR_AIC_IRQS;
 }
 
 static inline int irq_to_gpio(unsigned irq)
 {
-	return (irq - NR_AIC_IRQS);       
+	return irq - NR_AIC_IRQS + PIN_BASE;
 }
 
-#endif	/* __ASSEMBLY__ */     
-                                                                                                                                                             
-#endif                                                                                              
-                                                                                 
+#endif	/* __ASSEMBLY__ */
+
+#endif

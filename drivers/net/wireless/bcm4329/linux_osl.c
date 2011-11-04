@@ -247,10 +247,8 @@ void*
 osl_pktget(osl_t *osh, uint len)
 {
 	struct sk_buff *skb;
-	gfp_t flags;
 
-	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
-	if ((skb = __dev_alloc_skb(len, flags))) {
+	if ((skb = dev_alloc_skb(len))) {
 		skb_put(skb, len);
 		skb->priority = 0;
 

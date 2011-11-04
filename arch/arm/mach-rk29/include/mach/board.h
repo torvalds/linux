@@ -124,6 +124,7 @@ struct rk29_bl_info{
 	unsigned int delay_ms;	/* in milliseconds */
 };
 
+#ifndef _LINUX_WLAN_PLAT_H_
 struct wifi_platform_data {
         int (*set_power)(int val);
         int (*set_reset)(int val);
@@ -131,6 +132,7 @@ struct wifi_platform_data {
         void *(*mem_prealloc)(int section, unsigned long size);
         int (*get_mac_addr)(unsigned char *buf);
 };
+#endif
 
 struct rk29_sdmmc_platform_data {
 	unsigned int host_caps;

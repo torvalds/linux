@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
+#include <linux/irq.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
@@ -25,10 +26,13 @@
 #include <linux/mfd/wm831x/auxadc.h>
 #include <linux/mfd/wm831x/otp.h>
 #include <linux/mfd/wm831x/regulator.h>
+#include <linux/mfd/wm831x/pmu.h>
+
 
 /* Current settings - values are 2*2^(reg_val/4) microamps.  These are
  * exported since they are used by multiple drivers.
  */
+ extern int reboot_cmd_get(void);
 int wm831x_isinkv_values[WM831X_ISINK_MAX_ISEL + 1] = {
 	2,
 	2,
@@ -383,7 +387,7 @@ int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input)
 		 * the notification of the interrupt may be delayed by
 		 * threaded IRQ handling. */
 		if (!wait_for_completion_timeout(&wm831x->auxadc_done,
-						 msecs_to_jiffies(500))) {
+						 msecs_to_jiffies(2000))) {
 			dev_err(wm831x->dev, "Timed out waiting for AUXADC\n");
 			ret = -EBUSY;
 			goto disable;
@@ -997,6 +1001,20 @@ static struct mfd_cell wm8310_devs[] = {
 		.num_resources = ARRAY_SIZE(wm831x_wdt_resources),
 		.resources = wm831x_wdt_resources,
 	},
+#if defined(CONFIG_KEYBOARD_WM831X_GPIO)
+	{
+		.name		= "wm831x_gpio-keys",
+		.num_resources	= 0,
+	},
+#endif
+#if defined(CONFIG_WM831X_CHARGER_DISPLAY)
+	{
+		.name		= "wm831x_charger_display",
+		.num_resources	= 0,
+	},
+#endif
+
+
 };
 
 static struct mfd_cell wm8311_devs[] = {
@@ -1455,11 +1473,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		dev_err(wm831x->dev, "Failed to read parent ID: %d\n", ret);
 		goto err;
 	}
-	switch (ret) {
-	case 0x6204:
-	case 0x6246:
-		break;
-	default:
+	if (ret != 0x6204) {
 		dev_err(wm831x->dev, "Device is not a WM831x: ID %x\n", ret);
 		ret = -EINVAL;
 		goto err;
@@ -1489,12 +1503,15 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	switch (ret) {
 	case WM8310:
 		parent = WM8310;
-		wm831x->num_gpio = 16;
+		wm831x->num_gpio = 12;
 		wm831x->charger_irq_wake = 1;
 		if (rev > 0) {
 			wm831x->has_gpio_ena = 1;
 			wm831x->has_cs_sts = 1;
 		}
+		//ILIM = 900ma
+		ret = wm831x_reg_read(wm831x, WM831X_POWER_STATE) & 0xffff;
+		wm831x_reg_write(wm831x, WM831X_POWER_STATE, (ret&0xfff8) | 0x04);	
 
 		dev_info(wm831x->dev, "WM8310 revision %c\n", 'A' + rev);
 		break;
@@ -1541,12 +1558,15 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		dev_info(wm831x->dev, "WM8325 revision %c\n", 'A' + rev);
 		break;
 
+<<<<<<< HEAD
 	case WM8326:
 		parent = WM8326;
 		wm831x->num_gpio = 12;
 		dev_info(wm831x->dev, "WM8326 revision %c\n", 'A' + rev);
 		break;
 
+=======
+>>>>>>> parent of 15f7fab... temp revert rk change
 	default:
 		dev_err(wm831x->dev, "Unknown WM831x device %04x\n", ret);
 		ret = -EINVAL;
@@ -1632,7 +1652,13 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8326:
 		ret = mfd_add_devices(wm831x->dev, -1,
 				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
-				      NULL, wm831x->irq_base);
+				      NULL, 0);
+		break;
+
+	case WM8325:
+		ret = mfd_add_devices(wm831x->dev, -1,
+				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
+				      NULL, 0);
 		break;
 
 	default:
@@ -1658,7 +1684,11 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	wm831x_otp_init(wm831x);
 
 	if (pdata && pdata->post_init) {
+		wm831x_reg_unlock(wm831x);
+		wm831x_set_bits(wm831x, WM831X_RESET_CONTROL,0x0010,0x0000);
+		wm831x_set_bits(wm831x, WM831X_LDO_ENABLE,0Xf800,0Xf800);
 		ret = pdata->post_init(wm831x);
+		wm831x_reg_lock(wm831x);
 		if (ret != 0) {
 			dev_err(wm831x->dev, "post_init() failed: %d\n", ret);
 			goto err_irq;
@@ -1688,6 +1718,22 @@ void wm831x_device_exit(struct wm831x *wm831x)
 int wm831x_device_suspend(struct wm831x *wm831x)
 {
 	int reg, mask;
+	int i;
+	
+	//mask some intterupt avoid wakeing up system while suspending
+	for (i = 0; i < ARRAY_SIZE(wm831x->irq_masks_cur); i++) {
+		/* If there's been a change in the mask write it back
+		 * to the hardware. */
+		//printk("irq_masks_cur[%d]=0x%x\n",i,wm831x->irq_masks_cur[i]);
+
+		if (wm831x->irq_masks_cur[i] != wm831x->irq_masks_cache[i]) {
+			wm831x->irq_masks_cache[i] = wm831x->irq_masks_cur[i];
+			wm831x_reg_write(wm831x,
+					 WM831X_INTERRUPT_STATUS_1_MASK + i,
+					 wm831x->irq_masks_cur[i]);
+		}
+	
+	}
 
 	/* If the charger IRQs are a wake source then make sure we ack
 	 * them even if they're not actively being used (eg, no power
@@ -1720,6 +1766,102 @@ int wm831x_device_suspend(struct wm831x *wm831x)
 
 	return 0;
 }
+<<<<<<< HEAD
+=======
+void wm831x_enter_sleep(void){
+#if 1//def CONFIG_RK2818_SOC_PM
+	struct regulator *dcdc;
+	int i;		
+	dcdc=regulator_get(NULL, "dcdc1");
+	struct wm831x_dcdc *dc = regulator_get_drvdata(dcdc);
+	struct wm831x *wm831x = dc->wm831x;
+	if(wm831x){
+		wm831x_set_bits(wm831x, WM831X_POWER_STATE, 0x4000, 0x4000); // SYSTEM SLEEP MODE
+		for (i=0; i<5; i++)
+			wm831x_reg_write(wm831x,WM831X_INTERRUPT_STATUS_1+i, 0xffff);  // INTRUPT FLAG CLEAR 
+			
+		printk("%s:complete! \n",__func__);
+		
+	}else{
+		printk("%s:error!",__func__);
+	}
+	regulator_put(dcdc);
+#endif	
+}
+EXPORT_SYMBOL_GPL(wm831x_enter_sleep);
+
+void wm831x_exit_sleep(void){
+#if 1//def CONFIG_RK2818_SOC_PM
+	struct regulator *dcdc;
+	dcdc=regulator_get(NULL, "dcdc1");
+	struct wm831x_dcdc *dc = regulator_get_drvdata(dcdc);
+	struct wm831x *wm831x = dc->wm831x;
+	if(wm831x){
+		wm831x_set_bits(wm831x, WM831X_POWER_STATE, 0x4000, 0);  // SYSTEM ON MODE
+		printk("%s:complete! \n",__func__);
+		
+	}else{
+		printk("%s:error!",__func__);
+	}
+	regulator_put(dcdc);
+#endif	
+}
+EXPORT_SYMBOL_GPL(wm831x_exit_sleep);
+
+int wm831x_device_shutdown(struct wm831x *wm831x)
+{
+	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
+	int ret = 0;
+	
+	printk("pre WM831X_POWER_STATE = 0x%x\n", wm831x_reg_read(wm831x, WM831X_POWER_STATE));
+
+	if (pdata && pdata->last_deinit) {
+		ret = pdata->last_deinit(wm831x);
+		if (ret != 0) {
+			dev_info(wm831x->dev, "last_deinit() failed: %d\n", ret);
+			//goto err_irq;
+		}
+	}
+
+	//if(0 == reboot_cmd_get())
+	{
+		if(wm831x_set_bits(wm831x, WM831X_POWER_STATE, WM831X_CHIP_ON_MASK, 0) < 0)
+			printk("%s wm831x_set_bits err\n", __FUNCTION__);
+		//printk("post WM831X_POWER_STATE = 0x%x\n", wm831x_reg_read(wm831x, WM831X_POWER_STATE));
+	}
+
+	return 0;	
+}
+
+EXPORT_SYMBOL_GPL(wm831x_device_shutdown);
+
+
+int wm831x_read_usb(struct wm831x *wm831x)
+{
+	int ret, usb_chg = 0, wall_chg = 0;
+	
+	ret = wm831x_reg_read(wm831x, WM831X_SYSTEM_STATUS);
+	if (ret < 0)
+		return ret;
+
+	if (ret & WM831X_PWR_USB)
+		usb_chg = 1;
+	if (ret & WM831X_PWR_WALL)
+		wall_chg = 1;
+
+	return ((usb_chg | wall_chg) ? 1 : 0);
+
+}
+
+
+int wm831x_device_restart(struct wm831x *wm831x)
+{
+	wm831x_reg_write(wm831x,WM831X_RESET_ID, 0xffff); 
+
+	return 0;
+}
+
+>>>>>>> parent of 15f7fab... temp revert rk change
 
 MODULE_DESCRIPTION("Core support for the WM831X AudioPlus PMIC");
 MODULE_LICENSE("GPL");

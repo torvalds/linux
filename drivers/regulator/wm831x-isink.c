@@ -25,8 +25,9 @@
 #include <linux/mfd/wm831x/regulator.h>
 #include <linux/mfd/wm831x/pdata.h>
 
-#define WM831X_ISINK_MAX_NAME 7
+//#define WM831X_ISINK_MAX_NAME 7
 
+#if 0
 struct wm831x_isink {
 	char name[WM831X_ISINK_MAX_NAME];
 	struct regulator_desc desc;
@@ -34,13 +35,14 @@ struct wm831x_isink {
 	struct wm831x *wm831x;
 	struct regulator_dev *regulator;
 };
+#endif
 
 static int wm831x_isink_enable(struct regulator_dev *rdev)
 {
 	struct wm831x_isink *isink = rdev_get_drvdata(rdev);
 	struct wm831x *wm831x = isink->wm831x;
 	int ret;
-
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
 	/* We have a two stage enable: first start the ISINK... */
 	ret = wm831x_set_bits(wm831x, isink->reg, WM831X_CS1_ENA,
 			      WM831X_CS1_ENA);
@@ -52,7 +54,7 @@ static int wm831x_isink_enable(struct regulator_dev *rdev)
 			      WM831X_CS1_DRIVE);
 	if (ret != 0)
 		wm831x_set_bits(wm831x, isink->reg, WM831X_CS1_ENA, 0);
-
+	printk("%s:line=%d,ret=0x%x\n",__FUNCTION__,__LINE__,ret);
 	return ret;
 
 }
@@ -62,7 +64,7 @@ static int wm831x_isink_disable(struct regulator_dev *rdev)
 	struct wm831x_isink *isink = rdev_get_drvdata(rdev);
 	struct wm831x *wm831x = isink->wm831x;
 	int ret;
-
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
 	ret = wm831x_set_bits(wm831x, isink->reg, WM831X_CS1_DRIVE, 0);
 	if (ret < 0)
 		return ret;
@@ -80,11 +82,11 @@ static int wm831x_isink_is_enabled(struct regulator_dev *rdev)
 	struct wm831x_isink *isink = rdev_get_drvdata(rdev);
 	struct wm831x *wm831x = isink->wm831x;
 	int ret;
-
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
 	ret = wm831x_reg_read(wm831x, isink->reg);
 	if (ret < 0)
 		return ret;
-
+	
 	if ((ret & (WM831X_CS1_ENA | WM831X_CS1_DRIVE)) ==
 	    (WM831X_CS1_ENA | WM831X_CS1_DRIVE))
 		return 1;
@@ -158,7 +160,7 @@ static __devinit int wm831x_isink_probe(struct platform_device *pdev)
 	int ret, irq;
 
 	dev_dbg(&pdev->dev, "Probing ISINK%d\n", id + 1);
-
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
 	if (pdata == NULL || pdata->isink[id] == NULL)
 		return -ENODEV;
 
@@ -198,8 +200,15 @@ static __devinit int wm831x_isink_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
+<<<<<<< HEAD
 	ret = request_threaded_irq(irq, NULL, wm831x_isink_irq,
 				   IRQF_TRIGGER_RISING, isink->name, isink);
+=======
+	printk("%s:line=%d,irq=%d\n",__FUNCTION__,__LINE__,irq);
+	ret = wm831x_request_irq(wm831x, irq, wm831x_isink_irq,
+				 IRQF_TRIGGER_RISING, isink->name,
+				 isink);
+>>>>>>> parent of 15f7fab... temp revert rk change
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request ISINK IRQ %d: %d\n",
 			irq, ret);

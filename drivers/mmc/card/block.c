@@ -521,6 +521,13 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 	return result;
 }
 
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) //Deleted by xbw@2011-03-21
+//static u32 get_card_status(struct mmc_card *card, struct request *req)
+//{
+//   return 0;
+//}
+
+#else
 static u32 get_card_status(struct mmc_card *card, struct request *req)
 {
 	struct mmc_command cmd = {0};
@@ -532,10 +539,11 @@ static u32 get_card_status(struct mmc_card *card, struct request *req)
 	cmd.flags = MMC_RSP_SPI_R2 | MMC_RSP_R1 | MMC_CMD_AC;
 	err = mmc_wait_for_cmd(card->host, &cmd, 0);
 	if (err)
-		printk(KERN_ERR "%s: error %d sending status command",
+		printk(KERN_DEBUG "%s: error %d sending status command",
 		       req->rq_disk->disk_name, err);
 	return cmd.resp[0];
 }
+#endif
 
 static int mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
 {
@@ -689,6 +697,10 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 		brq.mrq.cmd = &brq.cmd;
 		brq.mrq.data = &brq.data;
 
+		#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+		brq.cmd.retries = 2; //suppot retry read-write; added by xbw@2011-03-21
+		#endif
+
 		brq.cmd.arg = blk_rq_pos(req);
 		if (!mmc_card_blockaddr(card))
 			brq.cmd.arg <<= 9;
@@ -799,6 +811,11 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 
 		mmc_queue_bounce_post(mq);
 
+        #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+        //not turn CMD18 to CMD17. deleted by xbw at 2011-04-21
+
+        #else
+
 		/*
 		 * Check for errors here, but don't jump to cmd_err
 		 * until later as we need to wait for the card to leave
@@ -808,7 +825,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 		    brq.data.error || brq.stop.error) {
 			if (brq.data.blocks > 1 && rq_data_dir(req) == READ) {
 				/* Redo read one sector at a time */
-				printk(KERN_WARNING "%s: retrying using single "
+				printk(KERN_DEBUG "%s: retrying using single "
 				       "block read\n", req->rq_disk->disk_name);
 				disable_multi = 1;
 				continue;
@@ -817,6 +834,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 		} else if (disable_multi == 1) {
 			disable_multi = 0;
 		}
+        #endif
 
 		if (brq.sbc.error) {
 			printk(KERN_ERR "%s: error %d sending SET_BLOCK_COUNT "
@@ -826,7 +844,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 		}
 
 		if (brq.cmd.error) {
-			printk(KERN_ERR "%s: error %d sending read/write "
+			printk(KERN_DEBUG "%s: error %d sending read/write "
 			       "command, response %#x, card status %#x\n",
 			       req->rq_disk->disk_name, brq.cmd.error,
 			       brq.cmd.resp[0], status);
@@ -836,7 +854,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 			if (brq.data.error == -ETIMEDOUT && brq.mrq.stop)
 				/* 'Stop' response contains card status */
 				status = brq.mrq.stop->resp[0];
-			printk(KERN_ERR "%s: error %d transferring data,"
+			printk(KERN_DEBUG "%s: error %d transferring data,"
 			       " sector %u, nr %u, card status %#x\n",
 			       req->rq_disk->disk_name, brq.data.error,
 			       (unsigned)blk_rq_pos(req),
@@ -844,12 +862,16 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 		}
 
 		if (brq.stop.error) {
-			printk(KERN_ERR "%s: error %d sending stop command, "
+			printk(KERN_DEBUG "%s: error %d sending stop command, "
 			       "response %#x, card status %#x\n",
 			       req->rq_disk->disk_name, brq.stop.error,
 			       brq.stop.resp[0], status);
 		}
 
+ #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+ //Deleted by xbw@2011-03-21
+
+ #else
 		if (!mmc_host_is_spi(card->host) && rq_data_dir(req) != READ) {
 			do {
 				int err;
@@ -859,7 +881,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 				cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 				err = mmc_wait_for_cmd(card->host, &cmd, 5);
 				if (err) {
-					printk(KERN_ERR "%s: error %d requesting status\n",
+					printk(KERN_DEBUG "%s: error %d requesting status\n",
 					       req->rq_disk->disk_name, err);
 					goto cmd_err;
 				}
@@ -879,6 +901,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 				goto cmd_err;
 #endif
 		}
+#endif
 
 		if (brq.cmd.error || brq.stop.error || brq.data.error) {
 			if (rq_data_dir(req) == READ) {
@@ -1062,6 +1085,11 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 
 	snprintf(md->disk->disk_name, sizeof(md->disk->disk_name),
 		 "mmcblk%d%s", md->name_idx, subname ? subname : "");
+
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+	printk("%s..%d **** devidx=%d, dev_use[0]=%lu, disk_name=%s *** ==xbw[%s]==\n",\
+	    __FUNCTION__,__LINE__, devidx, dev_use[0], md->disk->disk_name,mmc_hostname(card->host));
+#endif
 
 	blk_queue_logical_block_size(md->queue.queue, 512);
 	set_capacity(md->disk, size);

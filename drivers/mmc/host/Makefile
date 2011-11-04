@@ -2,6 +2,12 @@
 # Makefile for MMC/SD host controller drivers
 #
 
+ifeq ($(CONFIG_SDMMC_RK29_OLD),y)
+obj-$(CONFIG_SDMMC_RK29)	+= rk29_sdmmc_old.o
+else
+obj-$(CONFIG_SDMMC_RK29)	+= rk29_sdmmc.o
+endif
+
 obj-$(CONFIG_MMC_ARMMMCI)	+= mmci.o
 obj-$(CONFIG_MMC_PXA)		+= pxamci.o
 obj-$(CONFIG_MMC_IMX)		+= imxmmc.o

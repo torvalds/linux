@@ -1785,6 +1785,24 @@ out:
 }
 EXPORT_SYMBOL_GPL(regulator_set_voltage);
 
+int regulator_set_suspend_voltage(struct regulator *regulator, int uV)
+{
+        struct regulator_dev *rdev = regulator->rdev;
+        int ret = 0;
+
+        if (rdev->desc->ops->set_suspend_voltage && uV > 0) {
+                ret = rdev->desc->ops->set_suspend_voltage(rdev, uV);
+                if (ret < 0) {
+                        printk(KERN_ERR "%s: failed to set voltage\n",
+                                __func__);
+                        return ret;
+                }
+        }
+
+        return ret;
+}
+EXPORT_SYMBOL_GPL(regulator_set_suspend_voltage);
+
 /**
  * regulator_set_voltage_time - get raise/fall time
  * @regulator: regulator source
