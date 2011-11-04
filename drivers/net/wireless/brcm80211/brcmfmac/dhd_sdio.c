@@ -35,6 +35,7 @@
 #include <brcm_hw_ids.h>
 #include <soc.h>
 #include "sdio_host.h"
+#include "sdio_chip.h"
 
 #define DCMD_RESP_TIMEOUT  2000	/* In milli second */
 
@@ -367,18 +368,6 @@ struct rte_console {
 /* sbidlow */
 #define	SBIDL_INIT		0x80	/* initiator */
 
-/* sbidhigh */
-#define	SBIDH_RC_MASK		0x000f	/* revision code */
-#define	SBIDH_RCE_MASK		0x7000	/* revision code extension field */
-#define	SBIDH_RCE_SHIFT		8
-#define	SBCOREREV(sbidh) \
-	((((sbidh) & SBIDH_RCE_MASK) >> SBIDH_RCE_SHIFT) | \
-	  ((sbidh) & SBIDH_RC_MASK))
-#define	SBIDH_CC_MASK		0x8ff0	/* core code */
-#define	SBIDH_CC_SHIFT		4
-#define	SBIDH_VC_MASK		0xffff0000	/* vendor code */
-#define	SBIDH_VC_SHIFT		16
-
 /*
  * Conversion of 802.1D priority to precedence level
  */
@@ -387,17 +376,6 @@ static uint prio2prec(u32 prio)
 	return (prio == PRIO_8021D_NONE || prio == PRIO_8021D_BE) ?
 	       (prio^2) : prio;
 }
-
-/*
- * Core reg address translation.
- * Both macro's returns a 32 bits byte address on the backplane bus.
- */
-#define CORE_CC_REG(base, field) \
-		(base + offsetof(struct chipcregs, field))
-#define CORE_BUS_REG(base, field) \
-		(base + offsetof(struct sdpcmd_regs, field))
-#define CORE_SB(base, field) \
-		(base + SBCONFIGOFF + offsetof(struct sbconfig, field))
 
 /* core registers */
 struct sdpcmd_regs {
@@ -524,21 +502,6 @@ struct sdpcm_shared_le {
 
 
 /* misc chip info needed by some of the routines */
-struct chip_info {
-	u32 chip;
-	u32 chiprev;
-	u32 cccorebase;
-	u32 ccrev;
-	u32 cccaps;
-	u32 buscorebase; /* 32 bits backplane bus address */
-	u32 buscorerev;
-	u32 buscoretype;
-	u32 ramcorebase;
-	u32 armcorebase;
-	u32 pmurev;
-	u32 ramsize;
-};
-
 /* Private data for SDIO bus interaction */
 struct brcmf_bus {
 	struct brcmf_pub *drvr;
@@ -661,46 +624,6 @@ struct brcmf_bus {
 	const struct firmware *firmware;
 	const char *nv_name;
 	u32 fw_ptr;
-};
-
-struct sbconfig {
-	u32 PAD[2];
-	u32 sbipsflag;	/* initiator port ocp slave flag */
-	u32 PAD[3];
-	u32 sbtpsflag;	/* target port ocp slave flag */
-	u32 PAD[11];
-	u32 sbtmerrloga;	/* (sonics >= 2.3) */
-	u32 PAD;
-	u32 sbtmerrlog;	/* (sonics >= 2.3) */
-	u32 PAD[3];
-	u32 sbadmatch3;	/* address match3 */
-	u32 PAD;
-	u32 sbadmatch2;	/* address match2 */
-	u32 PAD;
-	u32 sbadmatch1;	/* address match1 */
-	u32 PAD[7];
-	u32 sbimstate;	/* initiator agent state */
-	u32 sbintvec;	/* interrupt mask */
-	u32 sbtmstatelow;	/* target state */
-	u32 sbtmstatehigh;	/* target state */
-	u32 sbbwa0;		/* bandwidth allocation table0 */
-	u32 PAD;
-	u32 sbimconfiglow;	/* initiator configuration */
-	u32 sbimconfighigh;	/* initiator configuration */
-	u32 sbadmatch0;	/* address match0 */
-	u32 PAD;
-	u32 sbtmconfiglow;	/* target configuration */
-	u32 sbtmconfighigh;	/* target configuration */
-	u32 sbbconfig;	/* broadcast configuration */
-	u32 PAD;
-	u32 sbbstate;	/* broadcast state */
-	u32 PAD[3];
-	u32 sbactcnfg;	/* activate configuration */
-	u32 PAD[3];
-	u32 sbflagst;	/* current sbflags */
-	u32 PAD[3];
-	u32 sbidlow;		/* identification */
-	u32 sbidhigh;	/* identification */
 };
 
 /* clkstate */
@@ -4083,62 +4006,6 @@ static void brcmf_sdbrcm_sdiod_drive_strength_init(struct brcmf_bus *bus,
 }
 
 static int
-brcmf_sdbrcm_chip_recognition(struct brcmf_sdio_dev *sdiodev,
-			      struct chip_info *ci, u32 regs)
-{
-	u32 regdata;
-
-	/*
-	 * Get CC core rev
-	 * Chipid is assume to be at offset 0 from regs arg
-	 * For different chiptypes or old sdio hosts w/o chipcommon,
-	 * other ways of recognition should be added here.
-	 */
-	ci->cccorebase = regs;
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-				CORE_CC_REG(ci->cccorebase, chipid), 4);
-	ci->chip = regdata & CID_ID_MASK;
-	ci->chiprev = (regdata & CID_REV_MASK) >> CID_REV_SHIFT;
-
-	brcmf_dbg(INFO, "chipid=0x%x chiprev=%d\n", ci->chip, ci->chiprev);
-
-	/* Address of cores for new chips should be added here */
-	switch (ci->chip) {
-	case BCM4329_CHIP_ID:
-		ci->buscorebase = BCM4329_CORE_BUS_BASE;
-		ci->ramcorebase = BCM4329_CORE_SOCRAM_BASE;
-		ci->armcorebase	= BCM4329_CORE_ARM_BASE;
-		ci->ramsize = BCM4329_RAMSIZE;
-		break;
-	default:
-		brcmf_dbg(ERROR, "chipid 0x%x is not supported\n", ci->chip);
-		return -ENODEV;
-	}
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-		CORE_SB(ci->cccorebase, sbidhigh), 4);
-	ci->ccrev = SBCOREREV(regdata);
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-		CORE_CC_REG(ci->cccorebase, pmucapabilities), 4);
-	ci->pmurev = regdata & PCAP_REV_MASK;
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-					CORE_SB(ci->buscorebase, sbidhigh), 4);
-	ci->buscorerev = SBCOREREV(regdata);
-	ci->buscoretype = (regdata & SBIDH_CC_MASK) >> SBIDH_CC_SHIFT;
-
-	brcmf_dbg(INFO, "ccrev=%d, pmurev=%d, buscore rev/type=%d/0x%x\n",
-		  ci->ccrev, ci->pmurev, ci->buscorerev, ci->buscoretype);
-
-	/* get chipcommon capabilites */
-	ci->cccaps = brcmf_sdcard_reg_read(sdiodev,
-		CORE_CC_REG(ci->cccorebase, capabilities), 4);
-
-	return 0;
-}
-
-static int
 brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
 {
 	struct chip_info *ci;
@@ -4196,7 +4063,7 @@ brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
 	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
 			       SBSDIO_FUNC1_SDIOPULLUP, 0, NULL);
 
-	err = brcmf_sdbrcm_chip_recognition(bus->sdiodev, ci, regs);
+	err = brcmf_sdio_chip_attach(bus->sdiodev, ci, regs);
 	if (err)
 		goto fail;
 

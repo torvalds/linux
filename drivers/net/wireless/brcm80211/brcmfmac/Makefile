@@ -26,7 +26,8 @@ DHDOFILES = \
 	dhd_sdio.o	\
 	dhd_linux.o \
 	bcmsdh.o \
-	bcmsdh_sdmmc.o
+	bcmsdh_sdmmc.o \
+	sdio_chip.o
 
 obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
 brcmfmac-objs += $(DHDOFILES)
