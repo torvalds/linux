@@ -3334,12 +3334,12 @@ out:
 /*
  * shrink metadata reservation for delalloc
  */
-static int shrink_delalloc(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root, u64 to_reclaim,
+static int shrink_delalloc(struct btrfs_root *root, u64 to_reclaim,
 			   bool wait_ordered)
 {
 	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_space_info *space_info;
+	struct btrfs_trans_handle *trans;
 	u64 reserved;
 	u64 max_reclaim;
 	u64 reclaimed = 0;
@@ -3348,6 +3348,7 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 	int loops = 0;
 	unsigned long progress;
 
+	trans = (struct btrfs_trans_handle *)current->journal_info;
 	block_rsv = &root->fs_info->delalloc_block_rsv;
 	space_info = block_rsv->space_info;
 
@@ -3418,6 +3419,60 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 }
 
 /**
+ * maybe_commit_transaction - possibly commit the transaction if its ok to
+ * @root - the root we're allocating for
+ * @bytes - the number of bytes we want to reserve
+ * @force - force the commit
+ *
+ * This will check to make sure that committing the transaction will actually
+ * get us somewhere and then commit the transaction if it does.  Otherwise it
+ * will return -ENOSPC.
+ */
+static int may_commit_transaction(struct btrfs_root *root,
+				  struct btrfs_space_info *space_info,
+				  u64 bytes, int force)
+{
+	struct btrfs_block_rsv *delayed_rsv = &root->fs_info->delayed_block_rsv;
+	struct btrfs_trans_handle *trans;
+
+	trans = (struct btrfs_trans_handle *)current->journal_info;
+	if (trans)
+		return -EAGAIN;
+
+	if (force)
+		goto commit;
+
+	/* See if there is enough pinned space to make this reservation */
+	spin_lock(&space_info->lock);
+	if (space_info->bytes_pinned >= bytes) {
+		spin_unlock(&space_info->lock);
+		goto commit;
+	}
+	spin_unlock(&space_info->lock);
+
+	/*
+	 * See if there is some space in the delayed insertion reservation for
+	 * this reservation.
+	 */
+	if (space_info != delayed_rsv->space_info)
+		return -ENOSPC;
+
+	spin_lock(&delayed_rsv->lock);
+	if (delayed_rsv->size < bytes) {
+		spin_unlock(&delayed_rsv->lock);
+		return -ENOSPC;
+	}
+	spin_unlock(&delayed_rsv->lock);
+
+commit:
+	trans = btrfs_join_transaction(root);
+	if (IS_ERR(trans))
+		return -ENOSPC;
+
+	return btrfs_commit_transaction(trans, root);
+}
+
+/**
  * reserve_metadata_bytes - try to reserve bytes from the block_rsv's space
  * @root - the root we're allocating for
  * @block_rsv - the block_rsv we're allocating for
@@ -3436,7 +3491,6 @@ static int reserve_metadata_bytes(struct btrfs_root *root,
 				  u64 orig_bytes, int flush)
 {
 	struct btrfs_space_info *space_info = block_rsv->space_info;
-	struct btrfs_trans_handle *trans;
 	u64 used;
 	u64 num_bytes = orig_bytes;
 	int retries = 0;
@@ -3445,7 +3499,6 @@ static int reserve_metadata_bytes(struct btrfs_root *root,
 	bool flushing = false;
 	bool wait_ordered = false;
 
-	trans = (struct btrfs_trans_handle *)current->journal_info;
 again:
 	ret = 0;
 	spin_lock(&space_info->lock);
@@ -3461,7 +3514,7 @@ again:
 		 * deadlock since we are waiting for the flusher to finish, but
 		 * hold the current transaction open.
 		 */
-		if (trans)
+		if (current->journal_info)
 			return -EAGAIN;
 		ret = wait_event_interruptible(space_info->wait,
 					       !space_info->flush);
@@ -3517,12 +3570,16 @@ again:
 		 */
 		avail = (space_info->total_bytes - space_info->bytes_used) * 8;
 		do_div(avail, 10);
-		if (space_info->bytes_pinned >= avail && flush && !trans &&
-		    !committed) {
+		if (space_info->bytes_pinned >= avail && flush && !committed) {
 			space_info->flush = 1;
 			flushing = true;
 			spin_unlock(&space_info->lock);
-			goto commit;
+			ret = may_commit_transaction(root, space_info,
+						     orig_bytes, 1);
+			if (ret)
+				goto out;
+			committed = true;
+			goto again;
 		}
 
 		spin_lock(&root->fs_info->free_chunk_lock);
@@ -3575,7 +3632,7 @@ again:
 	 * We do synchronous shrinking since we don't actually unreserve
 	 * metadata until after the IO is completed.
 	 */
-	ret = shrink_delalloc(trans, root, num_bytes, wait_ordered);
+	ret = shrink_delalloc(root, num_bytes, wait_ordered);
 	if (ret < 0)
 		goto out;
 
@@ -3592,21 +3649,12 @@ again:
 		goto again;
 	}
 
-	ret = -EAGAIN;
-	if (trans)
-		goto out;
-
-commit:
 	ret = -ENOSPC;
 	if (committed)
 		goto out;
 
-	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans))
-		goto out;
-	ret = btrfs_commit_transaction(trans, root);
+	ret = may_commit_transaction(root, space_info, orig_bytes, 0);
 	if (!ret) {
-		trans = NULL;
 		committed = true;
 		goto again;
 	}
