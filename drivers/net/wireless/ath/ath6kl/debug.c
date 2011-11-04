@@ -1252,7 +1252,7 @@ static ssize_t ath6kl_create_qos_write(struct file *file,
 
 	struct ath6kl *ar = file->private_data;
 	struct ath6kl_vif *vif;
-	char buf[100];
+	char buf[200];
 	ssize_t len;
 	char *sptr, *token;
 	struct wmi_create_pstream_cmd pstream;
