@@ -133,6 +133,8 @@ struct sbconfig {
 	u32 sbidhigh;	/* identification */
 };
 
+extern void brcmf_sdio_chip_resetcore(struct brcmf_sdio_dev *sdiodev,
+				      u32 corebase);
 extern bool brcmf_sdio_chip_iscoreup(struct brcmf_sdio_dev *sdiodev,
 				     u32 corebase);
 extern void brcmf_sdio_chip_coredisable(struct brcmf_sdio_dev *sdiodev,

@@ -3090,51 +3090,6 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_bus *bus)
 	return bcmerror;
 }
 
-static void
-brcmf_sdbrcm_chip_resetcore(struct brcmf_sdio_dev *sdiodev, u32 corebase)
-{
-	u32 regdata;
-
-	/*
-	 * Must do the disable sequence first to work for
-	 * arbitrary current core state.
-	 */
-	brcmf_sdio_chip_coredisable(sdiodev, corebase);
-
-	/*
-	 * Now do the initialization sequence.
-	 * set reset while enabling the clock and
-	 * forcing them on throughout the core
-	 */
-	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
-		((SICF_FGC | SICF_CLOCK_EN) << SBTML_SICF_SHIFT) |
-		SBTML_RESET);
-	udelay(1);
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-					CORE_SB(corebase, sbtmstatehigh), 4);
-	if (regdata & SBTMH_SERR)
-		brcmf_sdcard_reg_write(sdiodev,
-				       CORE_SB(corebase, sbtmstatehigh), 4, 0);
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-					CORE_SB(corebase, sbimstate), 4);
-	if (regdata & (SBIM_IBE | SBIM_TO))
-		brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbimstate), 4,
-			regdata & ~(SBIM_IBE | SBIM_TO));
-
-	/* clear reset and allow it to propagate throughout the core */
-	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
-		(SICF_FGC << SBTML_SICF_SHIFT) |
-		(SICF_CLOCK_EN << SBTML_SICF_SHIFT));
-	udelay(1);
-
-	/* leave clock enabled */
-	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
-		(SICF_CLOCK_EN << SBTML_SICF_SHIFT));
-	udelay(1);
-}
-
 static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 {
 	uint retries;
@@ -3149,7 +3104,7 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 		brcmf_sdio_chip_coredisable(bus->sdiodev,
 					      bus->ci->armcorebase);
 
-		brcmf_sdbrcm_chip_resetcore(bus->sdiodev, bus->ci->ramcorebase);
+		brcmf_sdio_chip_resetcore(bus->sdiodev, bus->ci->ramcorebase);
 
 		/* Clear the top bit of memory */
 		if (bus->ramsize) {
@@ -3174,7 +3129,7 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 		w_sdreg32(bus, 0xFFFFFFFF,
 			  offsetof(struct sdpcmd_regs, intstatus), &retries);
 
-		brcmf_sdbrcm_chip_resetcore(bus->sdiodev, bus->ci->armcorebase);
+		brcmf_sdio_chip_resetcore(bus->sdiodev, bus->ci->armcorebase);
 
 		/* Allow HT Clock now that the ARM is running. */
 		bus->alp_only = false;
