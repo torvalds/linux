@@ -6507,7 +6507,7 @@ static void tg3_tx_skb_unmap(struct tg3_napi *tnapi, u32 entry, int last)
 		txb = &tnapi->tx_buffers[entry];
 	}
 
-	for (i = 0; i < last; i++) {
+	for (i = 0; i <= last; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		entry = NEXT_TX(entry);
@@ -6568,7 +6568,7 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 			if (tg3_tx_frag_set(tnapi, entry, budget, new_addr,
 					    new_skb->len, base_flags,
 					    mss, vlan)) {
-				tg3_tx_skb_unmap(tnapi, save_entry, 0);
+				tg3_tx_skb_unmap(tnapi, save_entry, -1);
 				dev_kfree_skb(new_skb);
 				ret = -1;
 			}
@@ -6758,11 +6758,10 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (tg3_tx_frag_set(tnapi, &entry, &budget, mapping, len, base_flags |
 			  ((skb_shinfo(skb)->nr_frags == 0) ? TXD_FLAG_END : 0),
-			    mss, vlan))
+			    mss, vlan)) {
 		would_hit_hwbug = 1;
-
 	/* Now loop through additional data fragments, and queue them. */
-	if (skb_shinfo(skb)->nr_frags > 0) {
+	} else if (skb_shinfo(skb)->nr_frags > 0) {
 		u32 tmp_mss = mss;
 
 		if (!tg3_flag(tp, HW_TSO_1) &&
@@ -6831,7 +6830,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 
 dma_error:
-	tg3_tx_skb_unmap(tnapi, tnapi->tx_prod, i);
+	tg3_tx_skb_unmap(tnapi, tnapi->tx_prod, --i);
 	tnapi->tx_buffers[tnapi->tx_prod].skb = NULL;
 drop:
 	dev_kfree_skb(skb);
@@ -7284,7 +7283,8 @@ static void tg3_free_rings(struct tg3 *tp)
 			if (!skb)
 				continue;
 
-			tg3_tx_skb_unmap(tnapi, i, skb_shinfo(skb)->nr_frags);
+			tg3_tx_skb_unmap(tnapi, i,
+					 skb_shinfo(skb)->nr_frags - 1);
 
 			dev_kfree_skb_any(skb);
 		}
@@ -11523,7 +11523,7 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, bool tso_loopback)
 			break;
 	}
 
-	tg3_tx_skb_unmap(tnapi, tnapi->tx_prod - 1, 0);
+	tg3_tx_skb_unmap(tnapi, tnapi->tx_prod - 1, -1);
 	dev_kfree_skb(skb);
 
 	if (tx_idx != tnapi->tx_prod)
