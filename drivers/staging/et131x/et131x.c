@@ -4469,6 +4469,12 @@ static int et131x_resume(struct device *dev)
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(et131x_pm_ops, et131x_suspend, et131x_resume);
+#define ET131X_PM_OPS (&et131x_pm_ops)
+#else
+#define ET131X_PM_OPS NULL
+#endif
+
 /* ISR functions */
 
 /**
@@ -5469,12 +5475,6 @@ err_disable:
 err_out:
 	return result;
 }
-
-static SIMPLE_DEV_PM_OPS(et131x_pm_ops, et131x_suspend, et131x_resume);
-#define ET131X_PM_OPS (&et131x_pm_ops)
-#else
-#define ET131X_PM_OPS NULL
-#endif
 
 static DEFINE_PCI_DEVICE_TABLE(et131x_pci_table) = {
 	{ PCI_VDEVICE(ATT, ET131X_PCI_DEVICE_ID_GIG), 0UL},
