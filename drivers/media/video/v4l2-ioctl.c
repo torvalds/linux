@@ -273,6 +273,8 @@ static const char *v4l2_ioctls[] = {
 	[_IOC_NR(VIDIOC_DQEVENT)]	   = "VIDIOC_DQEVENT",
 	[_IOC_NR(VIDIOC_SUBSCRIBE_EVENT)]  = "VIDIOC_SUBSCRIBE_EVENT",
 	[_IOC_NR(VIDIOC_UNSUBSCRIBE_EVENT)] = "VIDIOC_UNSUBSCRIBE_EVENT",
+	[_IOC_NR(VIDIOC_CREATE_BUFS)]      = "VIDIOC_CREATE_BUFS",
+	[_IOC_NR(VIDIOC_PREPARE_BUF)]      = "VIDIOC_PREPARE_BUF",
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
@@ -2102,6 +2104,40 @@ static long __video_do_ioctl(struct file *file,
 			break;
 		}
 		dbgarg(cmd, "type=0x%8.8x", sub->type);
+		break;
+	}
+	case VIDIOC_CREATE_BUFS:
+	{
+		struct v4l2_create_buffers *create = arg;
+
+		if (!ops->vidioc_create_bufs)
+			break;
+		if (ret_prio) {
+			ret = ret_prio;
+			break;
+		}
+		ret = check_fmt(ops, create->format.type);
+		if (ret)
+			break;
+
+		ret = ops->vidioc_create_bufs(file, fh, create);
+
+		dbgarg(cmd, "count=%d @ %d\n", create->count, create->index);
+		break;
+	}
+	case VIDIOC_PREPARE_BUF:
+	{
+		struct v4l2_buffer *b = arg;
+
+		if (!ops->vidioc_prepare_buf)
+			break;
+		ret = check_fmt(ops, b->type);
+		if (ret)
+			break;
+
+		ret = ops->vidioc_prepare_buf(file, fh, b);
+
+		dbgarg(cmd, "index=%d", b->index);
 		break;
 	}
 	default:

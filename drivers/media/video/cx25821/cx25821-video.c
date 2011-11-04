@@ -1312,7 +1312,7 @@ int cx25821_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 			return err;
 	}
 
-	if (i > 2) {
+	if (i >= CX25821_NR_INPUT) {
 		dprintk(1, "%s(): -EINVAL\n", __func__);
 		return -EINVAL;
 	}
