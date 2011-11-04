@@ -85,7 +85,8 @@ static void exynos_drm_crtc_apply(struct drm_crtc *crtc)
 
 	exynos_drm_fn_encoder(crtc, overlay,
 			exynos_drm_encoder_crtc_mode_set);
-	exynos_drm_fn_encoder(crtc, NULL, exynos_drm_encoder_crtc_commit);
+	exynos_drm_fn_encoder(crtc, &exynos_crtc->pipe,
+			exynos_drm_encoder_crtc_commit);
 }
 
 static int exynos_drm_overlay_update(struct exynos_drm_overlay *overlay,
@@ -171,9 +172,26 @@ static int exynos_drm_crtc_update(struct drm_crtc *crtc)
 
 static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
-	DRM_DEBUG_KMS("%s\n", __FILE__);
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
-	/* TODO */
+	DRM_DEBUG_KMS("crtc[%d] mode[%d]\n", crtc->base.id, mode);
+
+	switch (mode) {
+	case DRM_MODE_DPMS_ON:
+		exynos_drm_fn_encoder(crtc, &exynos_crtc->pipe,
+				exynos_drm_encoder_crtc_commit);
+		break;
+	case DRM_MODE_DPMS_STANDBY:
+	case DRM_MODE_DPMS_SUSPEND:
+	case DRM_MODE_DPMS_OFF:
+		/* TODO */
+		exynos_drm_fn_encoder(crtc, NULL,
+				exynos_drm_encoder_crtc_disable);
+		break;
+	default:
+		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
+		break;
+	}
 }
 
 static void exynos_drm_crtc_prepare(struct drm_crtc *crtc)
@@ -185,9 +203,12 @@ static void exynos_drm_crtc_prepare(struct drm_crtc *crtc)
 
 static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
 {
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	/* drm framework doesn't check NULL. */
+	exynos_drm_fn_encoder(crtc, &exynos_crtc->pipe,
+			exynos_drm_encoder_crtc_commit);
 }
 
 static bool
