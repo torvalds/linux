@@ -245,8 +245,6 @@ static void aem_bmc_gone(int iface);
 static void aem_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data);
 
 static void aem_remove_sensors(struct aem_data *data);
-static int aem_init_aem1(struct aem_ipmi_data *probe);
-static int aem_init_aem2(struct aem_ipmi_data *probe);
 static int aem1_find_sensors(struct aem_data *data);
 static int aem2_find_sensors(struct aem_data *data);
 static void update_aem1_sensors(struct aem_data *data);
@@ -616,7 +614,7 @@ id_err:
 }
 
 /* Find and initialize all AEM1 instances */
-static int aem_init_aem1(struct aem_ipmi_data *probe)
+static void aem_init_aem1(struct aem_ipmi_data *probe)
 {
 	int num, i, err;
 
@@ -627,11 +625,8 @@ static int aem_init_aem1(struct aem_ipmi_data *probe)
 			dev_err(probe->bmc_device,
 				"Error %d initializing AEM1 0x%X\n",
 				err, i);
-			return err;
 		}
 	}
-
-	return 0;
 }
 
 /* Probe functions for AEM2 devices */
@@ -752,7 +747,7 @@ id_err:
 }
 
 /* Find and initialize all AEM2 instances */
-static int aem_init_aem2(struct aem_ipmi_data *probe)
+static void aem_init_aem2(struct aem_ipmi_data *probe)
 {
 	struct aem_find_instance_resp fi_resp;
 	int err;
@@ -771,12 +766,9 @@ static int aem_init_aem2(struct aem_ipmi_data *probe)
 			dev_err(probe->bmc_device,
 				"Error %d initializing AEM2 0x%X\n",
 				err, fi_resp.module_handle);
-			return err;
 		}
 		i++;
 	}
-
-	return 0;
 }
 
 /* Probe a BMC for AEM firmware instances */
