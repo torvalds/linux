@@ -150,7 +150,8 @@ void ieee80211_set_qos_hdr(struct ieee80211_sub_if_data *sdata,
 		/* preserve EOSP bit */
 		ack_policy = *p & IEEE80211_QOS_CTL_EOSP;
 
-		if (unlikely(sdata->local->wifi_wme_noack_test))
+		if (unlikely(sdata->local->wifi_wme_noack_test) ||
+		    is_multicast_ether_addr(hdr->addr1))
 			ack_policy |= IEEE80211_QOS_CTL_ACK_POLICY_NOACK;
 		/* qos header is 2 bytes */
 		*p++ = ack_policy | tid;
