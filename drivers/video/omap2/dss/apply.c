@@ -657,10 +657,12 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 void dss_mgr_enable(struct omap_overlay_manager *mgr)
 {
 	dispc_mgr_enable(mgr->id, true);
+	mgr->enabled = true;
 }
 
 void dss_mgr_disable(struct omap_overlay_manager *mgr)
 {
 	dispc_mgr_enable(mgr->id, false);
+	mgr->enabled = false;
 }
 

@@ -432,6 +432,8 @@ struct omap_overlay_manager {
 	struct omap_dss_device *device;
 	struct omap_overlay_manager_info info;
 
+	bool enabled;
+
 	bool device_changed;
 	/* if true, info has been changed but not applied() yet */
 	bool info_dirty;
