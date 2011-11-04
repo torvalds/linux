@@ -405,6 +405,18 @@ int exynos_drm_fbdev_reinit(struct drm_device *dev)
 	fb_helper = private->fb_helper;
 
 	if (fb_helper) {
+		struct list_head temp_list;
+
+		INIT_LIST_HEAD(&temp_list);
+
+		/*
+		 * fb_helper is reintialized but kernel fb is reused
+		 * so kernel_fb_list need to be backuped and restored
+		 */
+		if (!list_empty(&fb_helper->kernel_fb_list))
+			list_replace_init(&fb_helper->kernel_fb_list,
+					&temp_list);
+
 		drm_fb_helper_fini(fb_helper);
 
 		ret = drm_fb_helper_init(dev, fb_helper,
@@ -413,6 +425,9 @@ int exynos_drm_fbdev_reinit(struct drm_device *dev)
 			DRM_ERROR("failed to initialize drm fb helper\n");
 			return ret;
 		}
+
+		if (!list_empty(&temp_list))
+			list_replace(&temp_list, &fb_helper->kernel_fb_list);
 
 		ret = drm_fb_helper_single_add_all_connectors(fb_helper);
 		if (ret < 0) {
