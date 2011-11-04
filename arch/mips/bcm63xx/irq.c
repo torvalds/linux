@@ -19,19 +19,86 @@
 #include <bcm63xx_io.h>
 #include <bcm63xx_irq.h>
 
+static void __dispatch_internal(void) __maybe_unused;
+
+#ifndef BCMCPU_RUNTIME_DETECT
+#ifdef CONFIG_BCM63XX_CPU_6338
+#define irq_stat_reg		PERF_IRQSTAT_6338_REG
+#define irq_mask_reg		PERF_IRQMASK_6338_REG
+#endif
+#ifdef CONFIG_BCM63XX_CPU_6345
+#define irq_stat_reg		PERF_IRQSTAT_6345_REG
+#define irq_mask_reg		PERF_IRQMASK_6345_REG
+#endif
+#ifdef CONFIG_BCM63XX_CPU_6348
+#define irq_stat_reg		PERF_IRQSTAT_6348_REG
+#define irq_mask_reg		PERF_IRQMASK_6348_REG
+#endif
+#ifdef CONFIG_BCM63XX_CPU_6358
+#define irq_stat_reg		PERF_IRQSTAT_6358_REG
+#define irq_mask_reg		PERF_IRQMASK_6358_REG
+#endif
+
+#define dispatch_internal	__dispatch_internal
+
+#define irq_stat_addr	(bcm63xx_regset_address(RSET_PERF) + irq_stat_reg)
+#define irq_mask_addr	(bcm63xx_regset_address(RSET_PERF) + irq_mask_reg)
+
+static inline void bcm63xx_init_irq(void)
+{
+}
+#else /* ! BCMCPU_RUNTIME_DETECT */
+
+static u32 irq_stat_addr, irq_mask_addr;
+static void (*dispatch_internal)(void);
+
+static void bcm63xx_init_irq(void)
+{
+	irq_stat_addr = bcm63xx_regset_address(RSET_PERF);
+	irq_mask_addr = bcm63xx_regset_address(RSET_PERF);
+
+	switch (bcm63xx_get_cpu_id()) {
+	case BCM6338_CPU_ID:
+		irq_stat_addr += PERF_IRQSTAT_6338_REG;
+		irq_mask_addr += PERF_IRQMASK_6338_REG;
+		break;
+	case BCM6345_CPU_ID:
+		irq_stat_addr += PERF_IRQSTAT_6345_REG;
+		irq_mask_addr += PERF_IRQMASK_6345_REG;
+		break;
+	case BCM6348_CPU_ID:
+		irq_stat_addr += PERF_IRQSTAT_6348_REG;
+		irq_mask_addr += PERF_IRQMASK_6348_REG;
+		break;
+	case BCM6358_CPU_ID:
+		irq_stat_addr += PERF_IRQSTAT_6358_REG;
+		irq_mask_addr += PERF_IRQMASK_6358_REG;
+		break;
+	default:
+		BUG();
+	}
+
+	dispatch_internal = __dispatch_internal;
+}
+#endif /* ! BCMCPU_RUNTIME_DETECT */
+
+static inline void handle_internal(int intbit)
+{
+	do_IRQ(intbit + IRQ_INTERNAL_BASE);
+}
+
 /*
  * dispatch internal devices IRQ (uart, enet, watchdog, ...). do not
  * prioritize any interrupt relatively to another. the static counter
  * will resume the loop where it ended the last time we left this
  * function.
  */
-static void bcm63xx_irq_dispatch_internal(void)
+static void __dispatch_internal(void)
 {
 	u32 pending;
 	static int i;
 
-	pending = bcm_perf_readl(PERF_IRQMASK_REG) &
-		bcm_perf_readl(PERF_IRQSTAT_REG);
+	pending = bcm_readl(irq_stat_addr) & bcm_readl(irq_mask_addr);
 
 	if (!pending)
 		return ;
@@ -41,7 +108,7 @@ static void bcm63xx_irq_dispatch_internal(void)
 
 		i = (i + 1) & 0x1f;
 		if (pending & (1 << to_call)) {
-			do_IRQ(to_call + IRQ_INTERNAL_BASE);
+			handle_internal(to_call);
 			break;
 		}
 	}
@@ -60,7 +127,7 @@ asmlinkage void plat_irq_dispatch(void)
 		if (cause & CAUSEF_IP7)
 			do_IRQ(7);
 		if (cause & CAUSEF_IP2)
-			bcm63xx_irq_dispatch_internal();
+			dispatch_internal();
 		if (cause & CAUSEF_IP3)
 			do_IRQ(IRQ_EXT_0);
 		if (cause & CAUSEF_IP4)
@@ -81,9 +148,9 @@ static inline void bcm63xx_internal_irq_mask(struct irq_data *d)
 	unsigned int irq = d->irq - IRQ_INTERNAL_BASE;
 	u32 mask;
 
-	mask = bcm_perf_readl(PERF_IRQMASK_REG);
+	mask = bcm_readl(irq_mask_addr);
 	mask &= ~(1 << irq);
-	bcm_perf_writel(mask, PERF_IRQMASK_REG);
+	bcm_writel(mask, irq_mask_addr);
 }
 
 static void bcm63xx_internal_irq_unmask(struct irq_data *d)
@@ -91,9 +158,9 @@ static void bcm63xx_internal_irq_unmask(struct irq_data *d)
 	unsigned int irq = d->irq - IRQ_INTERNAL_BASE;
 	u32 mask;
 
-	mask = bcm_perf_readl(PERF_IRQMASK_REG);
+	mask = bcm_readl(irq_mask_addr);
 	mask |= (1 << irq);
-	bcm_perf_writel(mask, PERF_IRQMASK_REG);
+	bcm_writel(mask, irq_mask_addr);
 }
 
 /*
@@ -229,6 +296,7 @@ void __init arch_init_irq(void)
 {
 	int i;
 
+	bcm63xx_init_irq();
 	mips_cpu_irq_init();
 	for (i = IRQ_INTERNAL_BASE; i < NR_IRQS; ++i)
 		irq_set_chip_and_handler(i, &bcm63xx_internal_irq_chip,

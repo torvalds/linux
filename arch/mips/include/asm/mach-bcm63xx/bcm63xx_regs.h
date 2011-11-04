@@ -88,10 +88,16 @@
 #define SYS_PLL_SOFT_RESET		0x1
 
 /* Interrupt Mask register */
-#define PERF_IRQMASK_REG		0xc
+#define PERF_IRQMASK_6338_REG		0xc
+#define PERF_IRQMASK_6345_REG		0xc
+#define PERF_IRQMASK_6348_REG		0xc
+#define PERF_IRQMASK_6358_REG		0xc
 
 /* Interrupt Status register */
-#define PERF_IRQSTAT_REG		0x10
+#define PERF_IRQSTAT_6338_REG		0x10
+#define PERF_IRQSTAT_6345_REG		0x10
+#define PERF_IRQSTAT_6348_REG		0x10
+#define PERF_IRQSTAT_6358_REG		0x10
 
 /* External Interrupt Configuration register */
 #define PERF_EXTIRQ_CFG_REG		0x14
