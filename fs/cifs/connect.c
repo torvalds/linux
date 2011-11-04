@@ -3452,7 +3452,7 @@ CIFSTCon(unsigned int xid, struct cifs_ses *ses,
 		else
 #endif /* CIFS_WEAK_PW_HASH */
 		rc = SMBNTencrypt(tcon->password, ses->server->cryptkey,
-					bcc_ptr);
+					bcc_ptr, nls_codepage);
 
 		bcc_ptr += CIFS_AUTH_RESP_SIZE;
 		if (ses->capabilities & CAP_UNICODE) {
