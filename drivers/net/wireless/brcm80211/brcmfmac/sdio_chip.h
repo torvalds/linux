@@ -28,6 +28,30 @@
 #define CORE_SB(base, field) \
 		(base + SBCONFIGOFF + offsetof(struct sbconfig, field))
 
+/* SDIO function 1 register CHIPCLKCSR */
+/* Force ALP request to backplane */
+#define SBSDIO_FORCE_ALP		0x01
+/* Force HT request to backplane */
+#define SBSDIO_FORCE_HT			0x02
+/* Force ILP request to backplane */
+#define SBSDIO_FORCE_ILP		0x04
+/* Make ALP ready (power up xtal) */
+#define SBSDIO_ALP_AVAIL_REQ		0x08
+/* Make HT ready (power up PLL) */
+#define SBSDIO_HT_AVAIL_REQ		0x10
+/* Squelch clock requests from HW */
+#define SBSDIO_FORCE_HW_CLKREQ_OFF	0x20
+/* Status: ALP is ready */
+#define SBSDIO_ALP_AVAIL		0x40
+/* Status: HT is ready */
+#define SBSDIO_HT_AVAIL			0x80
+#define SBSDIO_AVBITS		(SBSDIO_HT_AVAIL | SBSDIO_ALP_AVAIL)
+#define SBSDIO_ALPAV(regval)	((regval) & SBSDIO_AVBITS)
+#define SBSDIO_HTAV(regval)	(((regval) & SBSDIO_AVBITS) == SBSDIO_AVBITS)
+#define SBSDIO_ALPONLY(regval)	(SBSDIO_ALPAV(regval) && !SBSDIO_HTAV(regval))
+#define SBSDIO_CLKAV(regval, alponly) \
+	(SBSDIO_ALPAV(regval) && (alponly ? 1 : SBSDIO_HTAV(regval)))
+
 struct chip_info {
 	u32 chip;
 	u32 chiprev;

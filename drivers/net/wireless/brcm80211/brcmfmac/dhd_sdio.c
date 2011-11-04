@@ -135,33 +135,6 @@ struct rte_console {
 /*   Force no backplane reset */
 #define SBSDIO_DEVCTL_RST_NOBPRESET	0x20
 
-/* SBSDIO_FUNC1_CHIPCLKCSR */
-
-/* Force ALP request to backplane */
-#define SBSDIO_FORCE_ALP		0x01
-/* Force HT request to backplane */
-#define SBSDIO_FORCE_HT			0x02
-/* Force ILP request to backplane */
-#define SBSDIO_FORCE_ILP		0x04
-/* Make ALP ready (power up xtal) */
-#define SBSDIO_ALP_AVAIL_REQ		0x08
-/* Make HT ready (power up PLL) */
-#define SBSDIO_HT_AVAIL_REQ		0x10
-/* Squelch clock requests from HW */
-#define SBSDIO_FORCE_HW_CLKREQ_OFF	0x20
-/* Status: ALP is ready */
-#define SBSDIO_ALP_AVAIL		0x40
-/* Status: HT is ready */
-#define SBSDIO_HT_AVAIL			0x80
-
-#define SBSDIO_AVBITS		(SBSDIO_HT_AVAIL | SBSDIO_ALP_AVAIL)
-#define SBSDIO_ALPAV(regval)	((regval) & SBSDIO_AVBITS)
-#define SBSDIO_HTAV(regval)	(((regval) & SBSDIO_AVBITS) == SBSDIO_AVBITS)
-#define SBSDIO_ALPONLY(regval)	(SBSDIO_ALPAV(regval) && !SBSDIO_HTAV(regval))
-
-#define SBSDIO_CLKAV(regval, alponly) \
-	(SBSDIO_ALPAV(regval) && (alponly ? 1 : SBSDIO_HTAV(regval)))
-
 /* direct(mapped) cis space */
 
 /* MAPPED common CIS address */
@@ -4010,7 +3983,7 @@ brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
 {
 	struct chip_info *ci;
 	int err;
-	u8 clkval, clkset;
+	u8 clkval;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -4018,50 +3991,6 @@ brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
 	ci = kzalloc(sizeof(struct chip_info), GFP_ATOMIC);
 	if (NULL == ci)
 		return -ENOMEM;
-
-	/* bus/core/clk setup for register access */
-	/* Try forcing SDIO core to do ALPAvail request only */
-	clkset = SBSDIO_FORCE_HW_CLKREQ_OFF | SBSDIO_ALP_AVAIL_REQ;
-	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-			       SBSDIO_FUNC1_CHIPCLKCSR,	clkset, &err);
-	if (err) {
-		brcmf_dbg(ERROR, "error writing for HT off\n");
-		goto fail;
-	}
-
-	/* If register supported, wait for ALPAvail and then force ALP */
-	/* This may take up to 15 milliseconds */
-	clkval = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
-			SBSDIO_FUNC1_CHIPCLKCSR, NULL);
-	if ((clkval & ~SBSDIO_AVBITS) == clkset) {
-		SPINWAIT(((clkval =
-				brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
-						SBSDIO_FUNC1_CHIPCLKCSR,
-						NULL)),
-				!SBSDIO_ALPAV(clkval)),
-				PMU_MAX_TRANSITION_DLY);
-		if (!SBSDIO_ALPAV(clkval)) {
-			brcmf_dbg(ERROR, "timeout on ALPAV wait, clkval 0x%02x\n",
-				  clkval);
-			err = -EBUSY;
-			goto fail;
-		}
-		clkset = SBSDIO_FORCE_HW_CLKREQ_OFF |
-				SBSDIO_FORCE_ALP;
-		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-				SBSDIO_FUNC1_CHIPCLKCSR,
-				clkset, &err);
-		udelay(65);
-	} else {
-		brcmf_dbg(ERROR, "ChipClkCSR access: wrote 0x%02x read 0x%02x\n",
-			  clkset, clkval);
-		err = -EACCES;
-		goto fail;
-	}
-
-	/* Also, disable the extra SDIO pull-ups */
-	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-			       SBSDIO_FUNC1_SDIOPULLUP, 0, NULL);
 
 	err = brcmf_sdio_chip_attach(bus->sdiodev, ci, regs);
 	if (err)

@@ -106,10 +106,62 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 	return 0;
 }
 
+static int
+brcmf_sdio_chip_buscoreprep(struct brcmf_sdio_dev *sdiodev)
+{
+	int err = 0;
+	u8 clkval, clkset;
+
+	/* Try forcing SDIO core to do ALPAvail request only */
+	clkset = SBSDIO_FORCE_HW_CLKREQ_OFF | SBSDIO_ALP_AVAIL_REQ;
+	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_1,
+			       SBSDIO_FUNC1_CHIPCLKCSR,	clkset, &err);
+	if (err) {
+		brcmf_dbg(ERROR, "error writing for HT off\n");
+		return err;
+	}
+
+	/* If register supported, wait for ALPAvail and then force ALP */
+	/* This may take up to 15 milliseconds */
+	clkval = brcmf_sdcard_cfg_read(sdiodev, SDIO_FUNC_1,
+				       SBSDIO_FUNC1_CHIPCLKCSR, NULL);
+
+	if ((clkval & ~SBSDIO_AVBITS) != clkset) {
+		brcmf_dbg(ERROR, "ChipClkCSR access: wrote 0x%02x read 0x%02x\n",
+			  clkset, clkval);
+		return -EACCES;
+	}
+
+	SPINWAIT(((clkval = brcmf_sdcard_cfg_read(sdiodev, SDIO_FUNC_1,
+				SBSDIO_FUNC1_CHIPCLKCSR, NULL)),
+			!SBSDIO_ALPAV(clkval)),
+			PMU_MAX_TRANSITION_DLY);
+	if (!SBSDIO_ALPAV(clkval)) {
+		brcmf_dbg(ERROR, "timeout on ALPAV wait, clkval 0x%02x\n",
+			  clkval);
+		return -EBUSY;
+	}
+
+	clkset = SBSDIO_FORCE_HW_CLKREQ_OFF | SBSDIO_FORCE_ALP;
+	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_1,
+			       SBSDIO_FUNC1_CHIPCLKCSR, clkset, &err);
+	udelay(65);
+
+	/* Also, disable the extra SDIO pull-ups */
+	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_1,
+			       SBSDIO_FUNC1_SDIOPULLUP, 0, NULL);
+
+	return 0;
+}
+
 int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 			   struct chip_info *ci, u32 regs)
 {
 	int ret = 0;
+
+	ret = brcmf_sdio_chip_buscoreprep(sdiodev);
+	if (ret != 0)
+		return ret;
 
 	ret = brcmf_sdio_chip_recognition(sdiodev, ci, regs);
 	if (ret != 0)
