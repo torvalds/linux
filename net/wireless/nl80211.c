@@ -196,6 +196,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_TDLS_OPERATION] = { .type = NLA_U8 },
 	[NL80211_ATTR_TDLS_SUPPORT] = { .type = NLA_FLAG },
 	[NL80211_ATTR_TDLS_EXTERNAL_SETUP] = { .type = NLA_FLAG },
+	[NL80211_ATTR_DONT_WAIT_FOR_ACK] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -5282,10 +5283,11 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	int err;
 	void *hdr;
 	u64 cookie;
-	struct sk_buff *msg;
+	struct sk_buff *msg = NULL;
 	unsigned int wait = 0;
-	bool offchan;
-	bool no_cck;
+	bool offchan, no_cck, dont_wait_for_ack;
+
+	dont_wait_for_ack = info->attrs[NL80211_ATTR_DONT_WAIT_FOR_ACK];
 
 	if (!info->attrs[NL80211_ATTR_FRAME] ||
 	    !info->attrs[NL80211_ATTR_WIPHY_FREQ])
@@ -5329,29 +5331,36 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	if (chan == NULL)
 		return -EINVAL;
 
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
+	if (!dont_wait_for_ack) {
+		msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+		if (!msg)
+			return -ENOMEM;
 
-	hdr = nl80211hdr_put(msg, info->snd_pid, info->snd_seq, 0,
-			     NL80211_CMD_FRAME);
+		hdr = nl80211hdr_put(msg, info->snd_pid, info->snd_seq, 0,
+				     NL80211_CMD_FRAME);
 
-	if (IS_ERR(hdr)) {
-		err = PTR_ERR(hdr);
-		goto free_msg;
+		if (IS_ERR(hdr)) {
+			err = PTR_ERR(hdr);
+			goto free_msg;
+		}
 	}
+
 	err = cfg80211_mlme_mgmt_tx(rdev, dev, chan, offchan, channel_type,
 				    channel_type_valid, wait,
 				    nla_data(info->attrs[NL80211_ATTR_FRAME]),
 				    nla_len(info->attrs[NL80211_ATTR_FRAME]),
-				    no_cck, &cookie);
+				    no_cck, dont_wait_for_ack, &cookie);
 	if (err)
 		goto free_msg;
 
-	NLA_PUT_U64(msg, NL80211_ATTR_COOKIE, cookie);
+	if (msg) {
+		NLA_PUT_U64(msg, NL80211_ATTR_COOKIE, cookie);
 
-	genlmsg_end(msg, hdr);
-	return genlmsg_reply(msg, info);
+		genlmsg_end(msg, hdr);
+		return genlmsg_reply(msg, info);
+	}
+
+	return 0;
 
  nla_put_failure:
 	err = -ENOBUFS;
