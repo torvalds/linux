@@ -51,7 +51,7 @@ void
 nv50_vram_del(struct drm_device *dev, struct nouveau_mem **pmem)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_mm *mm = dev_priv->engine.vram.mm;
+	struct nouveau_mm *mm = &dev_priv->engine.vram.mm;
 	struct nouveau_mm_node *this;
 	struct nouveau_mem *mem;
 
@@ -82,7 +82,7 @@ nv50_vram_new(struct drm_device *dev, u64 size, u32 align, u32 size_nc,
 	      u32 memtype, struct nouveau_mem **pmem)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_mm *mm = dev_priv->engine.vram.mm;
+	struct nouveau_mm *mm = &dev_priv->engine.vram.mm;
 	struct nouveau_mm_node *r;
 	struct nouveau_mem *mem;
 	int comp = (memtype & 0x300) >> 8;

@@ -122,12 +122,12 @@ struct drm_device;
  * using the DRM_DEBUG_KMS and DRM_DEBUG.
  */
 
-extern __attribute__((format (printf, 4, 5)))
+extern __printf(4, 5)
 void drm_ut_debug_printk(unsigned int request_level,
-				const char *prefix,
-				const char *function_name,
-				const char *format, ...);
-extern __attribute__((format (printf, 2, 3)))
+			 const char *prefix,
+			 const char *function_name,
+			 const char *format, ...);
+extern __printf(2, 3)
 int drm_err(const char *func, const char *format, ...);
 
 /***********************************************************************/
@@ -1623,6 +1623,9 @@ drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 		drm_gem_object_handle_free(obj);
 	drm_gem_object_unreference_unlocked(obj);
 }
+
+void drm_gem_free_mmap_offset(struct drm_gem_object *obj);
+int drm_gem_create_mmap_offset(struct drm_gem_object *obj);
 
 struct drm_gem_object *drm_gem_object_lookup(struct drm_device *dev,
 					     struct drm_file *filp,

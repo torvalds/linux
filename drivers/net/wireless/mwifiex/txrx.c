@@ -78,7 +78,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 				(struct txpd *) (head_ptr + INTF_HEADER_LEN);
 
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
-					     skb->data, skb->len, tx_param);
+						   skb, tx_param);
 	}
 
 	switch (ret) {
@@ -87,7 +87,8 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 			(adapter->pps_uapsd_mode) &&
 			(adapter->tx_lock_flag)) {
 				priv->adapter->tx_lock_flag = false;
-				local_tx_pd->flags = 0;
+				if (local_tx_pd)
+					local_tx_pd->flags = 0;
 		}
 		dev_dbg(adapter->dev, "data: -EBUSY is returned\n");
 		break;
@@ -160,43 +161,3 @@ done:
 	return 0;
 }
 
-/*
- * Packet receive completion callback handler.
- *
- * This function calls another completion callback handler which
- * updates the statistics, and optionally updates the parent buffer
- * use count before freeing the received packet.
- */
-int mwifiex_recv_packet_complete(struct mwifiex_adapter *adapter,
-				 struct sk_buff *skb, int status)
-{
-	struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
-	struct mwifiex_rxinfo *rx_info_parent;
-	struct mwifiex_private *priv;
-	struct sk_buff *skb_parent;
-	unsigned long flags;
-
-	priv = adapter->priv[rx_info->bss_index];
-
-	if (priv && (status == -1))
-		priv->stats.rx_dropped++;
-
-	if (rx_info->parent) {
-		skb_parent = rx_info->parent;
-		rx_info_parent = MWIFIEX_SKB_RXCB(skb_parent);
-
-		spin_lock_irqsave(&priv->rx_pkt_lock, flags);
-		--rx_info_parent->use_count;
-
-		if (!rx_info_parent->use_count) {
-			spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-			dev_kfree_skb_any(skb_parent);
-		} else {
-			spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-		}
-	} else {
-		dev_kfree_skb_any(skb);
-	}
-
-	return 0;
-}

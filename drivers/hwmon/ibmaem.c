@@ -88,8 +88,7 @@
 #define AEM_MIN_POWER_INTERVAL	200
 #define UJ_PER_MJ		1000L
 
-static DEFINE_IDR(aem_idr);
-static DEFINE_SPINLOCK(aem_idr_lock);
+static DEFINE_IDA(aem_ida);
 
 static struct platform_driver aem_driver = {
 	.driver = {
@@ -356,38 +355,6 @@ static void aem_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 	complete(&data->read_complete);
 }
 
-/* ID functions */
-
-/* Obtain an id */
-static int aem_idr_get(int *id)
-{
-	int i, err;
-
-again:
-	if (unlikely(!idr_pre_get(&aem_idr, GFP_KERNEL)))
-		return -ENOMEM;
-
-	spin_lock(&aem_idr_lock);
-	err = idr_get_new(&aem_idr, NULL, &i);
-	spin_unlock(&aem_idr_lock);
-
-	if (unlikely(err == -EAGAIN))
-		goto again;
-	else if (unlikely(err))
-		return err;
-
-	*id = i & MAX_ID_MASK;
-	return 0;
-}
-
-/* Release an object ID */
-static void aem_idr_put(int id)
-{
-	spin_lock(&aem_idr_lock);
-	idr_remove(&aem_idr, id);
-	spin_unlock(&aem_idr_lock);
-}
-
 /* Sensor support functions */
 
 /* Read a sensor value */
@@ -530,7 +497,7 @@ static void aem_delete(struct aem_data *data)
 	ipmi_destroy_user(data->ipmi.user);
 	platform_set_drvdata(data->pdev, NULL);
 	platform_device_unregister(data->pdev);
-	aem_idr_put(data->id);
+	ida_simple_remove(&aem_ida, data->id);
 	kfree(data);
 }
 
@@ -587,7 +554,8 @@ static int aem_init_aem1_inst(struct aem_ipmi_data *probe, u8 module_handle)
 		data->power_period[i] = AEM_DEFAULT_POWER_INTERVAL;
 
 	/* Create sub-device for this fw instance */
-	if (aem_idr_get(&data->id))
+	data->id = ida_simple_get(&aem_ida, 0, 0, GFP_KERNEL);
+	if (data->id < 0)
 		goto id_err;
 
 	data->pdev = platform_device_alloc(DRVNAME, data->id);
@@ -638,7 +606,7 @@ ipmi_err:
 	platform_set_drvdata(data->pdev, NULL);
 	platform_device_unregister(data->pdev);
 dev_err:
-	aem_idr_put(data->id);
+	ida_simple_remove(&aem_ida, data->id);
 id_err:
 	kfree(data);
 
@@ -720,7 +688,8 @@ static int aem_init_aem2_inst(struct aem_ipmi_data *probe,
 		data->power_period[i] = AEM_DEFAULT_POWER_INTERVAL;
 
 	/* Create sub-device for this fw instance */
-	if (aem_idr_get(&data->id))
+	data->id = ida_simple_get(&aem_ida, 0, 0, GFP_KERNEL);
+	if (data->id < 0)
 		goto id_err;
 
 	data->pdev = platform_device_alloc(DRVNAME, data->id);
@@ -771,7 +740,7 @@ ipmi_err:
 	platform_set_drvdata(data->pdev, NULL);
 	platform_device_unregister(data->pdev);
 dev_err:
-	aem_idr_put(data->id);
+	ida_simple_remove(&aem_ida, data->id);
 id_err:
 	kfree(data);
 

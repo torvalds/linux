@@ -382,6 +382,9 @@ static void sdc_disable_channel(struct mx3fb_info *mx3_fbi)
 	uint32_t enabled;
 	unsigned long flags;
 
+	if (mx3_fbi->txd == NULL)
+		return;
+
 	spin_lock_irqsave(&mx3fb->lock, flags);
 
 	enabled = sdc_fb_uninit(mx3_fbi);
@@ -986,8 +989,18 @@ static void __blank(int blank, struct fb_info *fbi)
 {
 	struct mx3fb_info *mx3_fbi = fbi->par;
 	struct mx3fb_data *mx3fb = mx3_fbi->mx3fb;
+	int was_blank = mx3_fbi->blank;
 
 	mx3_fbi->blank = blank;
+
+	/* Attention!
+	 * Do not call sdc_disable_channel() for a channel that is disabled
+	 * already! This will result in a kernel NULL pointer dereference
+	 * (mx3_fbi->txd is NULL). Hide the fact, that all blank modes are
+	 * handled equally by this driver.
+	 */
+	if (blank > FB_BLANK_UNBLANK && was_blank > FB_BLANK_UNBLANK)
+		return;
 
 	switch (blank) {
 	case FB_BLANK_POWERDOWN:
@@ -1062,15 +1075,15 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
 	y_bottom = var->yoffset;
 
 	if (!(var->vmode & FB_VMODE_YWRAP))
-		y_bottom += var->yres;
+		y_bottom += fbi->var.yres;
 
 	if (y_bottom > fbi->var.yres_virtual)
 		return -EINVAL;
 
 	mutex_lock(&mx3_fbi->mutex);
 
-	offset = (var->yoffset * var->xres_virtual + var->xoffset) *
-		(var->bits_per_pixel / 8);
+	offset = var->yoffset * fbi->fix.line_length
+	       + var->xoffset * (fbi->var.bits_per_pixel / 8);
 	base = fbi->fix.smem_start + offset;
 
 	dev_dbg(fbi->device, "Updating SDC BG buf %d address=0x%08lX\n",

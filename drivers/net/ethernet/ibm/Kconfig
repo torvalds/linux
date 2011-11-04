@@ -1,0 +1,48 @@
+#
+# IBM device configuration.
+#
+
+config NET_VENDOR_IBM
+	bool "IBM devices"
+	default y
+	depends on MCA || PPC_PSERIES || PPC_PSERIES || PPC_DCR || \
+		   (IBMEBUS && INET && SPARSEMEM)
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about IBM devices. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if NET_VENDOR_IBM
+
+config IBMVETH
+	tristate "IBM LAN Virtual Ethernet support"
+	depends on PPC_PSERIES
+	---help---
+	  This driver supports virtual ethernet adapters on newer IBM iSeries
+	  and pSeries systems.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called ibmveth.
+
+config ISERIES_VETH
+	tristate "iSeries Virtual Ethernet driver support"
+	depends on PPC_ISERIES
+
+source "drivers/net/ethernet/ibm/emac/Kconfig"
+
+config EHEA
+	tristate "eHEA Ethernet support"
+	depends on IBMEBUS && INET && SPARSEMEM
+	select INET_LRO
+	---help---
+	  This driver supports the IBM pSeries eHEA ethernet adapter.
+
+	  To compile the driver as a module, choose M here. The module
+	  will be called ehea.
+
+endif # NET_VENDOR_IBM

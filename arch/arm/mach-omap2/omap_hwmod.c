@@ -1954,9 +1954,6 @@ int __init omap_hwmod_register(struct omap_hwmod **ohs)
 
 	i = 0;
 	do {
-		if (!omap_chip_is(ohs[i]->omap_chip))
-			continue;
-
 		r = _register(ohs[i]);
 		WARN(r, "omap_hwmod: %s: _register returned %d\n", ohs[i]->name,
 		     r);

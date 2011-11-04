@@ -193,7 +193,6 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		skb_src = skb_dequeue(&pra_list->skb_head);
 
 		pra_list->total_pkts_size -= skb_src->len;
-		pra_list->total_pkts--;
 
 		atomic_dec(&priv->wmm.tx_pkts_queued);
 
@@ -247,8 +246,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	tx_param.next_pkt_len = 0;
 
 	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
-					     skb_aggr->data,
-					     skb_aggr->len, &tx_param);
+					   skb_aggr, &tx_param);
 	switch (ret) {
 	case -EBUSY:
 		spin_lock_irqsave(&priv->wmm.ra_list_spinlock, ra_list_flags);
@@ -269,7 +267,6 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		skb_queue_tail(&pra_list->skb_head, skb_aggr);
 
 		pra_list->total_pkts_size += skb_aggr->len;
-		pra_list->total_pkts++;
 
 		atomic_inc(&priv->wmm.tx_pkts_queued);
 

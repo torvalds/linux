@@ -16,4 +16,11 @@ config R8712_AP
 	---help---
 	This option allows the Realtek RTL8712 USB device to be an Access Point.
 
+config R8712_TX_AGGR
+	bool "Realtek RTL8712U Transmit Aggregation code"
+	depends on R8712U && BROKEN
+	default N
+	---help---
+	This option provides transmit aggregation for the Realtek RTL8712 USB device.
+
 

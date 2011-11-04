@@ -65,11 +65,6 @@ config SAMSUNG_IRQ_VIC_TIMER
        help
          Internal configuration to build the VIC timer interrupt code.
 
-config SAMSUNG_IRQ_UART
-       bool
-       help
-         Internal configuration to build the IRQ UART demux code.
-
 # options for gpio configuration support
 
 config SAMSUNG_GPIOLIB_4BIT
@@ -366,5 +361,12 @@ config SAMSUNG_PD
 	depends on PM_RUNTIME
 	help
 	  Say Y here if you want to control Power Domain by Runtime PM.
+
+config DEBUG_S3C_UART
+	depends on PLAT_SAMSUNG
+	int
+	default "0" if DEBUG_S3C_UART0
+	default "1" if DEBUG_S3C_UART1
+	default "2" if DEBUG_S3C_UART2
 
 endif

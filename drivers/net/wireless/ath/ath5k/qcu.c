@@ -23,7 +23,6 @@ Queue Control Unit, DFS Control Unit Functions
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
-#include "base.h"
 
 
 /******************\
@@ -184,13 +183,6 @@ int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
 			break;
 		case AR5K_TX_QUEUE_CAB:
 			queue = AR5K_TX_QUEUE_ID_CAB;
-			break;
-		case AR5K_TX_QUEUE_XR_DATA:
-			if (ah->ah_version != AR5K_AR5212)
-				ATH5K_ERR(ah,
-					"XR data queues only supported in"
-					" 5212!\n");
-			queue = AR5K_TX_QUEUE_ID_XR_DATA;
 			break;
 		default:
 			return -EINVAL;
@@ -544,7 +536,7 @@ int ath5k_hw_set_ifs_intervals(struct ath5k_hw *ah, unsigned int slot_time)
 	 *
 	 * Also we have different lowest rate for 802.11a
 	 */
-	if (channel->hw_value & CHANNEL_5GHZ)
+	if (channel->band == IEEE80211_BAND_5GHZ)
 		rate = &ah->sbands[IEEE80211_BAND_5GHZ].bitrates[0];
 	else
 		rate = &ah->sbands[IEEE80211_BAND_2GHZ].bitrates[0];

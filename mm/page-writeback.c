@@ -305,7 +305,9 @@ static unsigned long task_min_dirty_limit(unsigned long bdi_dirty)
 }
 
 /*
- *
+ * bdi_min_ratio keeps the sum of the minimum dirty shares of all
+ * registered backing devices, which, for obvious reasons, can not
+ * exceed 100%.
  */
 static unsigned int bdi_min_ratio;
 

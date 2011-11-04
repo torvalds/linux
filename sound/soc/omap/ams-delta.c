@@ -569,7 +569,6 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_disable_pin(dapm, "Speaker");
 	snd_soc_dapm_disable_pin(dapm, "AGCIN");
 	snd_soc_dapm_disable_pin(dapm, "AGCOUT");
-	snd_soc_dapm_sync(dapm);
 
 	/* Add virtual switch */
 	ret = snd_soc_add_controls(codec, ams_delta_audio_controls,

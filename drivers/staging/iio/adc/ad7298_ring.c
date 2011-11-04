@@ -7,27 +7,24 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 #include <linux/spi/spi.h>
 
 #include "../iio.h"
-#include "../ring_generic.h"
+#include "../buffer_generic.h"
 #include "../ring_sw.h"
-#include "../trigger.h"
-#include "../sysfs.h"
+#include "../trigger_consumer.h"
 
 #include "ad7298.h"
 
-int ad7298_scan_from_ring(struct iio_dev *dev_info, long ch)
+int ad7298_scan_from_ring(struct iio_dev *indio_dev, long ch)
 {
-	struct iio_ring_buffer *ring = dev_info->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	int ret;
 	u16 *ring_data;
 
-	if (!(ring->scan_mask & (1 << ch))) {
+	if (!(test_bit(ch, ring->scan_mask))) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
@@ -60,7 +57,7 @@ error_ret:
 static int ad7298_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7298_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	size_t d_size;
 	int i, m;
 	unsigned short command;
@@ -82,7 +79,7 @@ static int ad7298_ring_preenable(struct iio_dev *indio_dev)
 	command = AD7298_WRITE | st->ext_ref;
 
 	for (i = 0, m = AD7298_CH(0); i < AD7298_MAX_CHAN; i++, m >>= 1)
-		if (ring->scan_mask & (1 << i))
+		if (test_bit(i, ring->scan_mask))
 			command |= m;
 
 	st->tx_buf[0] = cpu_to_be16(command);
@@ -120,9 +117,9 @@ static int ad7298_ring_preenable(struct iio_dev *indio_dev)
 static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad7298_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	s64 time_ns;
 	__u16 buf[16];
 	int b_sent, i;
@@ -140,29 +137,29 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 	for (i = 0; i < ring->scan_count; i++)
 		buf[i] = be16_to_cpu(st->rx_buf[i]);
 
-	indio_dev->ring->access->store_to(ring, (u8 *)buf, time_ns);
+	indio_dev->buffer->access->store_to(ring, (u8 *)buf, time_ns);
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
 
-static const struct iio_ring_setup_ops ad7298_ring_setup_ops = {
+static const struct iio_buffer_setup_ops ad7298_ring_setup_ops = {
 	.preenable = &ad7298_ring_preenable,
-	.postenable = &iio_triggered_ring_postenable,
-	.predisable = &iio_triggered_ring_predisable,
+	.postenable = &iio_triggered_buffer_postenable,
+	.predisable = &iio_triggered_buffer_predisable,
 };
 
 int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
 	int ret;
 
-	indio_dev->ring = iio_sw_rb_allocate(indio_dev);
-	if (!indio_dev->ring) {
+	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
 	/* Effectively select the ring buffer implementation */
-	indio_dev->ring->access = &ring_sw_access_funcs;
+	indio_dev->buffer->access = &ring_sw_access_funcs;
 
 	indio_dev->pollfunc = iio_alloc_pollfunc(NULL,
 						 &ad7298_trigger_handler,
@@ -177,26 +174,21 @@ int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	}
 
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->ring->setup_ops = &ad7298_ring_setup_ops;
-	indio_dev->ring->scan_timestamp = true;
+	indio_dev->buffer->setup_ops = &ad7298_ring_setup_ops;
+	indio_dev->buffer->scan_timestamp = true;
 
 	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_RING_TRIGGERED;
+	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 
 error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 error_ret:
 	return ret;
 }
 
 void ad7298_ring_cleanup(struct iio_dev *indio_dev)
 {
-	if (indio_dev->trig) {
-		iio_put_trigger(indio_dev->trig);
-		iio_trigger_dettach_poll_func(indio_dev->trig,
-					      indio_dev->pollfunc);
-	}
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 }

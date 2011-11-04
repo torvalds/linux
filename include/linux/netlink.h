@@ -1,7 +1,7 @@
 #ifndef __LINUX_NETLINK_H
 #define __LINUX_NETLINK_H
 
-#include <linux/socket.h> /* for sa_family_t */
+#include <linux/socket.h> /* for __kernel_sa_family_t */
 #include <linux/types.h>
 
 #define NETLINK_ROUTE		0	/* Routing/device hook				*/
@@ -25,6 +25,7 @@
 #define NETLINK_SCSITRANSPORT	18	/* SCSI Transports */
 #define NETLINK_ECRYPTFS	19
 #define NETLINK_RDMA		20
+#define NETLINK_CRYPTO		21	/* Crypto layer */
 
 #define MAX_LINKS 32		
 

@@ -29,7 +29,93 @@
 #include <mach/iomap.h>
 #include <mach/dma.h>
 #include <mach/usb_phy.h>
+
 #include "gpio-names.h"
+#include "devices.h"
+
+static struct resource gpio_resource[] = {
+	[0] = {
+		.start	= TEGRA_GPIO_BASE,
+		.end	= TEGRA_GPIO_BASE + TEGRA_GPIO_SIZE-1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= INT_GPIO1,
+		.end	= INT_GPIO1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= INT_GPIO2,
+		.end	= INT_GPIO2,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= INT_GPIO3,
+		.end	= INT_GPIO3,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[4] = {
+		.start	= INT_GPIO4,
+		.end	= INT_GPIO4,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[5] = {
+		.start	= INT_GPIO5,
+		.end	= INT_GPIO5,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[6] = {
+		.start	= INT_GPIO6,
+		.end	= INT_GPIO6,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[7] = {
+		.start	= INT_GPIO7,
+		.end	= INT_GPIO7,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device tegra_gpio_device = {
+	.name		= "tegra-gpio",
+	.id		= -1,
+	.resource	= gpio_resource,
+	.num_resources	= ARRAY_SIZE(gpio_resource),
+};
+
+static struct resource pinmux_resource[] = {
+	[0] = {
+		/* Tri-state registers */
+		.start	= TEGRA_APB_MISC_BASE + 0x14,
+		.end	= TEGRA_APB_MISC_BASE + 0x20 + 3,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* Mux registers */
+		.start	= TEGRA_APB_MISC_BASE + 0x80,
+		.end	= TEGRA_APB_MISC_BASE + 0x9c + 3,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		/* Pull-up/down registers */
+		.start	= TEGRA_APB_MISC_BASE + 0xa0,
+		.end	= TEGRA_APB_MISC_BASE + 0xb0 + 3,
+		.flags	= IORESOURCE_MEM,
+	},
+	[3] = {
+		/* Pad control registers */
+		.start	= TEGRA_APB_MISC_BASE + 0x868,
+		.end	= TEGRA_APB_MISC_BASE + 0x90c + 3,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device tegra_pinmux_device = {
+	.name		= "tegra-pinmux",
+	.id		= -1,
+	.resource	= pinmux_resource,
+	.num_resources	= ARRAY_SIZE(pinmux_resource),
+};
 
 static struct resource i2c_resource1[] = {
 	[0] = {

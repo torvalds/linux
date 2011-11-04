@@ -13,4 +13,6 @@ menuconfig NFC
 	  To compile this support as a module, choose M here: the module will
 	  be called nfc.
 
+source "net/nfc/nci/Kconfig"
+
 source "drivers/nfc/Kconfig"

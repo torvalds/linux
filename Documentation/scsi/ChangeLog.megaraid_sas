@@ -1,3 +1,18 @@
+Release Date    : Wed. Oct 5, 2011 17:00:00 PST 2010 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 00.00.06.12-rc1
+Old Version     : 00.00.05.40-rc1
+    1. Continue booting immediately if FW in FAULT at driver load time.
+    2. Increase default cmds per lun to 256.
+    3. Fix mismatch in megasas_reset_fusion() mutex lock-unlock.
+    4. Remove some un-necessary code.
+    5. Clear state change interrupts for Fusion/Invader.
+    6. Clear FUSION_IN_RESET before enabling interrupts.
+    7. Add support for MegaRAID 9360/9380 12GB/s controllers.
+    8. Add multiple MSI-X vector/multiple reply queue support.
+    9. Add driver workaround for PERC5/1068 kdump kernel panic.
+-------------------------------------------------------------------------------
 Release Date    : Tue. Jul 26, 2011 17:00:00 PST 2010 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford

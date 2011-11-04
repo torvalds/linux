@@ -422,13 +422,7 @@ void intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 
-	/* speed:
-	 * 0x0 = 100 KHz
-	 * 0x1 = 50 KHz
-	 * 0x2 = 400 KHz
-	 * 0x3 = 1000 Khz
-	 */
-	bus->reg0 = (bus->reg0 & ~(0x3 << 8)) | (speed << 8);
+	bus->reg0 = (bus->reg0 & ~(0x3 << 8)) | speed;
 }
 
 void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)

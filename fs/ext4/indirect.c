@@ -699,6 +699,13 @@ int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
 	/*
 	 * Okay, we need to do block allocation.
 	*/
+	if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
+				       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
+		EXT4_ERROR_INODE(inode, "Can't allocate blocks for "
+				 "non-extent mapped inodes with bigalloc");
+		return -ENOSPC;
+	}
+
 	goal = ext4_find_goal(inode, map->m_lblk, partial);
 
 	/* the number of blocks need to allocate for [d,t]indirect blocks */
@@ -1343,7 +1350,9 @@ void ext4_ind_truncate(struct inode *inode)
 	__le32 nr = 0;
 	int n = 0;
 	ext4_lblk_t last_block, max_block;
+	loff_t page_len;
 	unsigned blocksize = inode->i_sb->s_blocksize;
+	int err;
 
 	handle = start_transaction(inode);
 	if (IS_ERR(handle))
@@ -1354,9 +1363,16 @@ void ext4_ind_truncate(struct inode *inode)
 	max_block = (EXT4_SB(inode->i_sb)->s_bitmap_maxbytes + blocksize-1)
 					>> EXT4_BLOCK_SIZE_BITS(inode->i_sb);
 
-	if (inode->i_size & (blocksize - 1))
-		if (ext4_block_truncate_page(handle, mapping, inode->i_size))
+	if (inode->i_size % PAGE_CACHE_SIZE != 0) {
+		page_len = PAGE_CACHE_SIZE -
+			(inode->i_size & (PAGE_CACHE_SIZE - 1));
+
+		err = ext4_discard_partial_page_buffers(handle,
+			mapping, inode->i_size, page_len, 0);
+
+		if (err)
 			goto out_stop;
+	}
 
 	if (last_block != max_block) {
 		n = ext4_block_to_path(inode, last_block, offsets, NULL);

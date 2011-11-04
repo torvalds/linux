@@ -449,10 +449,28 @@ ENTRY(start)
 #
 	.org	0x10000
 ENTRY(startup)
+	j	.Lep_startup_normal
+	.org	0x10008
+#
+# This is a list of s390 kernel entry points. At address 0x1000f the number of
+# valid entry points is stored.
+#
+# IMPORTANT: Do not change this table, it is s390 kernel ABI!
+#
+	.ascii	"S390EP"
+	.byte	0x00,0x01
+#
+# kdump startup-code at 0x10010, running in 64 bit absolute addressing mode
+#
+	.org	0x10010
+ENTRY(startup_kdump)
+	j	.Lep_startup_kdump
+.Lep_startup_normal:
 	basr	%r13,0			# get base
 .LPG0:
 	xc	0x200(256),0x200	# partially clear lowcore
 	xc	0x300(256),0x300
+	xc	0xe00(256),0xe00
 	stck	__LC_LAST_UPDATE_CLOCK
 	spt	5f-.LPG0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),5f-.LPG0(%r13)
@@ -534,6 +552,8 @@ ENTRY(startup)
 	.align	8
 5:	.long	0x7fffffff,0xffffffff
 
+#include "head_kdump.S"
+
 #
 # params at 10400 (setup.h)
 #
@@ -541,6 +561,8 @@ ENTRY(startup)
 	.long	0,0			# IPL_DEVICE
 	.long	0,0			# INITRD_START
 	.long	0,0			# INITRD_SIZE
+	.long	0,0			# OLDMEM_BASE
+	.long	0,0			# OLDMEM_SIZE
 
 	.org	COMMAND_LINE
 	.byte	"root=/dev/ram0 ro"

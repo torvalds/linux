@@ -24,6 +24,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 
@@ -154,6 +155,37 @@ target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
+static void
+target_parse_naa_6h_vendor_specific(struct se_device *dev, unsigned char *buf)
+{
+	unsigned char *p = &dev->se_sub_dev->t10_wwn.unit_serial[0];
+	int cnt;
+	bool next = true;
+
+	/*
+	 * Generate up to 36 bits of VENDOR SPECIFIC IDENTIFIER starting on
+	 * byte 3 bit 3-0 for NAA IEEE Registered Extended DESIGNATOR field
+	 * format, followed by 64 bits of VENDOR SPECIFIC IDENTIFIER EXTENSION
+	 * to complete the payload.  These are based from VPD=0x80 PRODUCT SERIAL
+	 * NUMBER set via vpd_unit_serial in target_core_configfs.c to ensure
+	 * per device uniqeness.
+	 */
+	for (cnt = 0; *p && cnt < 13; p++) {
+		int val = hex_to_bin(*p);
+
+		if (val < 0)
+			continue;
+
+		if (next) {
+			next = false;
+			buf[cnt++] |= val;
+		} else {
+			next = true;
+			buf[cnt] = val << 4;
+		}
+	}
+}
+
 /*
  * Device identification VPD, for a complete list of
  * DESIGNATOR TYPEs see spc4r17 Table 459.
@@ -219,8 +251,7 @@ target_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	 * VENDOR_SPECIFIC_IDENTIFIER and
 	 * VENDOR_SPECIFIC_IDENTIFIER_EXTENTION
 	 */
-	buf[off++] |= hex_to_bin(dev->se_sub_dev->t10_wwn.unit_serial[0]);
-	hex2bin(&buf[off], &dev->se_sub_dev->t10_wwn.unit_serial[1], 12);
+	target_parse_naa_6h_vendor_specific(dev, &buf[off]);
 
 	len = 20;
 	off = (len + 4);
@@ -1235,3 +1266,52 @@ transport_emulate_control_cdb(struct se_task *task)
 
 	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }
+
+/*
+ * Write a CDB into @cdb that is based on the one the intiator sent us,
+ * but updated to only cover the sectors that the current task handles.
+ */
+void target_get_task_cdb(struct se_task *task, unsigned char *cdb)
+{
+	struct se_cmd *cmd = task->task_se_cmd;
+	unsigned int cdb_len = scsi_command_size(cmd->t_task_cdb);
+
+	memcpy(cdb, cmd->t_task_cdb, cdb_len);
+	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
+		unsigned long long lba = task->task_lba;
+		u32 sectors = task->task_sectors;
+
+		switch (cdb_len) {
+		case 6:
+			/* 21-bit LBA and 8-bit sectors */
+			cdb[1] = (lba >> 16) & 0x1f;
+			cdb[2] = (lba >> 8) & 0xff;
+			cdb[3] = lba & 0xff;
+			cdb[4] = sectors & 0xff;
+			break;
+		case 10:
+			/* 32-bit LBA and 16-bit sectors */
+			put_unaligned_be32(lba, &cdb[2]);
+			put_unaligned_be16(sectors, &cdb[7]);
+			break;
+		case 12:
+			/* 32-bit LBA and 32-bit sectors */
+			put_unaligned_be32(lba, &cdb[2]);
+			put_unaligned_be32(sectors, &cdb[6]);
+			break;
+		case 16:
+			/* 64-bit LBA and 32-bit sectors */
+			put_unaligned_be64(lba, &cdb[2]);
+			put_unaligned_be32(sectors, &cdb[10]);
+			break;
+		case 32:
+			/* 64-bit LBA and 32-bit sectors, extended CDB */
+			put_unaligned_be64(lba, &cdb[12]);
+			put_unaligned_be32(sectors, &cdb[28]);
+			break;
+		default:
+			BUG();
+		}
+	}
+}
+EXPORT_SYMBOL(target_get_task_cdb);

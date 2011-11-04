@@ -970,8 +970,8 @@ static void __init spitz_init(void)
 	spitz_i2c_init();
 }
 
-static void __init spitz_fixup(struct machine_desc *desc,
-		struct tag *tags, char **cmdline, struct meminfo *mi)
+static void __init spitz_fixup(struct tag *tags, char **cmdline,
+			       struct meminfo *mi)
 {
 	sharpsl_save_param();
 	mi->nr_banks = 1;

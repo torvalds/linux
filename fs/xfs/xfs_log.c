@@ -880,8 +880,8 @@ xlog_iodone(xfs_buf_t *bp)
 	 */
 	if (XFS_TEST_ERROR((xfs_buf_geterror(bp)), l->l_mp,
 			XFS_ERRTAG_IODONE_IOERR, XFS_RANDOM_IODONE_IOERR)) {
-		xfs_ioerror_alert("xlog_iodone", l->l_mp, bp, XFS_BUF_ADDR(bp));
-		XFS_BUF_STALE(bp);
+		xfs_buf_ioerror_alert(bp, __func__);
+		xfs_buf_stale(bp);
 		xfs_force_shutdown(l->l_mp, SHUTDOWN_LOG_IO_ERROR);
 		/*
 		 * This flag will be propagated to the trans-committed
@@ -1047,7 +1047,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	xlog_get_iclog_buffer_size(mp, log);
 
 	error = ENOMEM;
-	bp = xfs_buf_get_empty(log->l_iclog_size, mp->m_logdev_targp);
+	bp = xfs_buf_alloc(mp->m_logdev_targp, 0, log->l_iclog_size, 0);
 	if (!bp)
 		goto out_free_log;
 	bp->b_iodone = xlog_iodone;
@@ -1247,7 +1247,7 @@ xlog_bdstrat(
 
 	if (iclog->ic_state & XLOG_STATE_IOERROR) {
 		xfs_buf_ioerror(bp, EIO);
-		XFS_BUF_STALE(bp);
+		xfs_buf_stale(bp);
 		xfs_buf_ioend(bp, 0);
 		/*
 		 * It would seem logical to return EIO here, but we rely on
@@ -1387,9 +1387,9 @@ xlog_sync(xlog_t		*log,
 	 */
 	XFS_BUF_WRITE(bp);
 
-	if ((error = xlog_bdstrat(bp))) {
-		xfs_ioerror_alert("xlog_sync", log->l_mp, bp,
-				  XFS_BUF_ADDR(bp));
+	error = xlog_bdstrat(bp);
+	if (error) {
+		xfs_buf_ioerror_alert(bp, "xlog_sync");
 		return error;
 	}
 	if (split) {
@@ -1423,9 +1423,9 @@ xlog_sync(xlog_t		*log,
 		/* account for internal log which doesn't start at block #0 */
 		XFS_BUF_SET_ADDR(bp, XFS_BUF_ADDR(bp) + log->l_logBBstart);
 		XFS_BUF_WRITE(bp);
-		if ((error = xlog_bdstrat(bp))) {
-			xfs_ioerror_alert("xlog_sync (split)", log->l_mp,
-					  bp, XFS_BUF_ADDR(bp));
+		error = xlog_bdstrat(bp);
+		if (error) {
+			xfs_buf_ioerror_alert(bp, "xlog_sync (split)");
 			return error;
 		}
 	}

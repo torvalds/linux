@@ -106,7 +106,7 @@ static int __devexit ad7606_par_remove(struct platform_device *pdev)
 	struct resource *res;
 	struct ad7606_state *st = iio_priv(indio_dev);
 
-	ad7606_remove(indio_dev);
+	ad7606_remove(indio_dev, platform_get_irq(pdev, 0));
 
 	iounmap(st->base_address);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

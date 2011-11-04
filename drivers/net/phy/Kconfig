@@ -3,7 +3,7 @@
 #
 
 menuconfig PHYLIB
-	tristate "PHY Device support and infrastructure"
+	bool "PHY Device support and infrastructure"
 	depends on !S390
 	depends on NETDEVICES
 	help

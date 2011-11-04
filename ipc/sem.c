@@ -90,6 +90,52 @@
 #include <asm/uaccess.h>
 #include "util.h"
 
+/* One semaphore structure for each semaphore in the system. */
+struct sem {
+	int	semval;		/* current value */
+	int	sempid;		/* pid of last operation */
+	struct list_head sem_pending; /* pending single-sop operations */
+};
+
+/* One queue for each sleeping process in the system. */
+struct sem_queue {
+	struct list_head	simple_list; /* queue of pending operations */
+	struct list_head	list;	 /* queue of pending operations */
+	struct task_struct	*sleeper; /* this process */
+	struct sem_undo		*undo;	 /* undo structure */
+	int			pid;	 /* process id of requesting process */
+	int			status;	 /* completion status of operation */
+	struct sembuf		*sops;	 /* array of pending operations */
+	int			nsops;	 /* number of operations */
+	int			alter;	 /* does *sops alter the array? */
+};
+
+/* Each task has a list of undo requests. They are executed automatically
+ * when the process exits.
+ */
+struct sem_undo {
+	struct list_head	list_proc;	/* per-process list: *
+						 * all undos from one process
+						 * rcu protected */
+	struct rcu_head		rcu;		/* rcu struct for sem_undo */
+	struct sem_undo_list	*ulp;		/* back ptr to sem_undo_list */
+	struct list_head	list_id;	/* per semaphore array list:
+						 * all undos for one array */
+	int			semid;		/* semaphore set identifier */
+	short			*semadj;	/* array of adjustments */
+						/* one per semaphore */
+};
+
+/* sem_undo_list controls shared access to the list of sem_undo structures
+ * that may be shared among all a CLONE_SYSVSEM task group.
+ */
+struct sem_undo_list {
+	atomic_t		refcnt;
+	spinlock_t		lock;
+	struct list_head	list_proc;
+};
+
+
 #define sem_ids(ns)	((ns)->ids[IPC_SEM_IDS])
 
 #define sem_unlock(sma)		ipc_unlock(&(sma)->sem_perm)
@@ -1426,6 +1472,8 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 
 	queue.status = -EINTR;
 	queue.sleeper = current;
+
+sleep_again:
 	current->state = TASK_INTERRUPTIBLE;
 	sem_unlock(sma);
 
@@ -1460,7 +1508,6 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 	 * Array removed? If yes, leave without sem_unlock().
 	 */
 	if (IS_ERR(sma)) {
-		error = -EIDRM;
 		goto out_free;
 	}
 
@@ -1479,6 +1526,13 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 	 */
 	if (timeout && jiffies_left == 0)
 		error = -EAGAIN;
+
+	/*
+	 * If the wakeup was spurious, just retry
+	 */
+	if (error == -EINTR && !signal_pending(current))
+		goto sleep_again;
+
 	unlink_queue(sma, &queue);
 
 out_unlock_free:

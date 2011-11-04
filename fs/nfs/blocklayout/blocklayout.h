@@ -150,7 +150,7 @@ BLK_LSEG2EXT(struct pnfs_layout_segment *lseg)
 }
 
 struct bl_dev_msg {
-	int status;
+	int32_t status;
 	uint32_t major, minor;
 };
 
@@ -169,8 +169,6 @@ extern wait_queue_head_t bl_wq;
 #define BL_DEVICE_REQUEST_ERR          0x2 /* User level process fails */
 
 /* blocklayoutdev.c */
-ssize_t bl_pipe_upcall(struct file *, struct rpc_pipe_msg *,
-		       char __user *, size_t);
 ssize_t bl_pipe_downcall(struct file *, const char __user *, size_t);
 void bl_pipe_destroy_msg(struct rpc_pipe_msg *);
 struct block_device *nfs4_blkdev_get(dev_t dev);

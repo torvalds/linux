@@ -1036,11 +1036,13 @@ out:
  * on error we return an unlocked page and the error value
  * on success we return a locked page and 0
  */
-static int prepare_uptodate_page(struct page *page, u64 pos)
+static int prepare_uptodate_page(struct page *page, u64 pos,
+				 bool force_uptodate)
 {
 	int ret = 0;
 
-	if ((pos & (PAGE_CACHE_SIZE - 1)) && !PageUptodate(page)) {
+	if (((pos & (PAGE_CACHE_SIZE - 1)) || force_uptodate) &&
+	    !PageUptodate(page)) {
 		ret = btrfs_readpage(NULL, page);
 		if (ret)
 			return ret;
@@ -1061,7 +1063,7 @@ static int prepare_uptodate_page(struct page *page, u64 pos)
 static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 			 struct page **pages, size_t num_pages,
 			 loff_t pos, unsigned long first_index,
-			 size_t write_bytes)
+			 size_t write_bytes, bool force_uptodate)
 {
 	struct extent_state *cached_state = NULL;
 	int i;
@@ -1075,12 +1077,6 @@ static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 	start_pos = pos & ~((u64)root->sectorsize - 1);
 	last_pos = ((u64)index + num_pages) << PAGE_CACHE_SHIFT;
 
-	if (start_pos > inode->i_size) {
-		err = btrfs_cont_expand(inode, i_size_read(inode), start_pos);
-		if (err)
-			return err;
-	}
-
 again:
 	for (i = 0; i < num_pages; i++) {
 		pages[i] = find_or_create_page(inode->i_mapping, index + i,
@@ -1092,10 +1088,11 @@ again:
 		}
 
 		if (i == 0)
-			err = prepare_uptodate_page(pages[i], pos);
+			err = prepare_uptodate_page(pages[i], pos,
+						    force_uptodate);
 		if (i == num_pages - 1)
 			err = prepare_uptodate_page(pages[i],
-						    pos + write_bytes);
+						    pos + write_bytes, false);
 		if (err) {
 			page_cache_release(pages[i]);
 			faili = i - 1;
@@ -1164,6 +1161,7 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 	size_t num_written = 0;
 	int nrptrs;
 	int ret = 0;
+	bool force_page_uptodate = false;
 
 	nrptrs = min((iov_iter_count(i) + PAGE_CACHE_SIZE - 1) /
 		     PAGE_CACHE_SIZE, PAGE_CACHE_SIZE /
@@ -1206,7 +1204,8 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		 * contents of pages from loop to loop
 		 */
 		ret = prepare_pages(root, file, pages, num_pages,
-				    pos, first_index, write_bytes);
+				    pos, first_index, write_bytes,
+				    force_page_uptodate);
 		if (ret) {
 			btrfs_delalloc_release_space(inode,
 					num_pages << PAGE_CACHE_SHIFT);
@@ -1223,12 +1222,15 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		if (copied < write_bytes)
 			nrptrs = 1;
 
-		if (copied == 0)
+		if (copied == 0) {
+			force_page_uptodate = true;
 			dirty_pages = 0;
-		else
+		} else {
+			force_page_uptodate = false;
 			dirty_pages = (copied + offset +
 				       PAGE_CACHE_SIZE - 1) >>
 				       PAGE_CACHE_SHIFT;
+		}
 
 		/*
 		 * If we had a short copy we need to release the excess delaloc
@@ -1338,6 +1340,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	loff_t *ppos = &iocb->ki_pos;
+	u64 start_pos;
 	ssize_t num_written = 0;
 	ssize_t err = 0;
 	size_t count, ocount;
@@ -1385,6 +1388,15 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 
 	file_update_time(file);
 	BTRFS_I(inode)->sequence++;
+
+	start_pos = round_down(pos, root->sectorsize);
+	if (start_pos > i_size_read(inode)) {
+		err = btrfs_cont_expand(inode, i_size_read(inode), start_pos);
+		if (err) {
+			mutex_unlock(&inode->i_mutex);
+			goto out;
+		}
+	}
 
 	if (unlikely(file->f_flags & O_DIRECT)) {
 		num_written = __btrfs_direct_write(iocb, iov, nr_segs,
@@ -1809,10 +1821,15 @@ static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int origin)
 	switch (origin) {
 	case SEEK_END:
 	case SEEK_CUR:
-		offset = generic_file_llseek_unlocked(file, offset, origin);
+		offset = generic_file_llseek(file, offset, origin);
 		goto out;
 	case SEEK_DATA:
 	case SEEK_HOLE:
+		if (offset >= i_size_read(inode)) {
+			mutex_unlock(&inode->i_mutex);
+			return -ENXIO;
+		}
+
 		ret = find_desired_extent(inode, &offset, origin);
 		if (ret) {
 			mutex_unlock(&inode->i_mutex);
@@ -1821,11 +1838,11 @@ static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int origin)
 	}
 
 	if (offset < 0 && !(file->f_mode & FMODE_UNSIGNED_OFFSET)) {
-		ret = -EINVAL;
+		offset = -EINVAL;
 		goto out;
 	}
 	if (offset > inode->i_sb->s_maxbytes) {
-		ret = -EINVAL;
+		offset = -EINVAL;
 		goto out;
 	}
 

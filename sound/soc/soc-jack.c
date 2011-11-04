@@ -105,7 +105,7 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 
 	snd_soc_dapm_sync(dapm);
 
-	snd_jack_report(jack->jack, status);
+	snd_jack_report(jack->jack, jack->status);
 
 out:
 	mutex_unlock(&codec->mutex);
@@ -187,6 +187,8 @@ int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 		INIT_LIST_HEAD(&pins[i].list);
 		list_add(&(pins[i].list), &jack->pins);
 	}
+
+	snd_soc_dapm_new_widgets(&jack->codec->card->dapm);
 
 	/* Update to reflect the last reported status; canned jack
 	 * implementations are likely to set their state before the

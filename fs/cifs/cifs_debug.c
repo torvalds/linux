@@ -511,7 +511,7 @@ static const struct file_operations cifsFYI_proc_fops = {
 
 static int cifs_oplock_proc_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "%d\n", oplockEnabled);
+	seq_printf(m, "%d\n", enable_oplocks);
 	return 0;
 }
 
@@ -526,13 +526,16 @@ static ssize_t cifs_oplock_proc_write(struct file *file,
 	char c;
 	int rc;
 
+	printk(KERN_WARNING "CIFS: The /proc/fs/cifs/OplockEnabled interface "
+	       "will be removed in kernel version 3.4. Please migrate to "
+	       "using the 'enable_oplocks' module parameter in cifs.ko.\n");
 	rc = get_user(c, buffer);
 	if (rc)
 		return rc;
 	if (c == '0' || c == 'n' || c == 'N')
-		oplockEnabled = 0;
+		enable_oplocks = false;
 	else if (c == '1' || c == 'y' || c == 'Y')
-		oplockEnabled = 1;
+		enable_oplocks = true;
 
 	return count;
 }

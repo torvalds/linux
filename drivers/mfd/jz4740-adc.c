@@ -273,7 +273,7 @@ static int __devinit jz4740_adc_probe(struct platform_device *pdev)
 	ct->regs.ack = JZ_REG_ADC_STATUS;
 	ct->chip.irq_mask = irq_gc_mask_set_bit;
 	ct->chip.irq_unmask = irq_gc_mask_clr_bit;
-	ct->chip.irq_ack = irq_gc_ack;
+	ct->chip.irq_ack = irq_gc_ack_set_bit;
 
 	irq_setup_generic_chip(gc, IRQ_MSK(5), 0, 0, IRQ_NOPROBE | IRQ_LEVEL);
 
@@ -328,7 +328,7 @@ static int __devexit jz4740_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver jz4740_adc_driver = {
+static struct platform_driver jz4740_adc_driver = {
 	.probe	= jz4740_adc_probe,
 	.remove = __devexit_p(jz4740_adc_remove),
 	.driver = {

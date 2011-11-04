@@ -73,14 +73,6 @@ nobarrier	(*)	This also requires an IO stack which can support
 			also be used to enable or disable barriers, for
 			consistency with other ext3 mount options.
 
-orlov		(*)	This enables the new Orlov block allocator. It is
-			enabled by default.
-
-oldalloc		This disables the Orlov block allocator and enables
-			the old block allocator.  Orlov should have better
-			performance - we'd like to get some feedback if it's
-			the contrary for you.
-
 user_xattr		Enables Extended User Attributes.  Additionally, you
 			need to have extended attribute support enabled in the
 			kernel configuration (CONFIG_EXT3_FS_XATTR).  See the

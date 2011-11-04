@@ -70,6 +70,7 @@
 #include <asm/i387.h>
 #include <asm/stackprotector.h>
 #include <asm/reboot.h>		/* for struct machine_ops */
+#include <asm/kvm_para.h>
 
 /*G:010
  * Welcome to the Guest!
@@ -455,6 +456,15 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
 		*ax &= 0xFFFFF0FF;
 		*ax |= 0x00000500;
 		break;
+
+	/*
+	 * This is used to detect if we're running under KVM.  We might be,
+	 * but that's a Host matter, not us.  So say we're not.
+	 */
+	case KVM_CPUID_SIGNATURE:
+		*bx = *cx = *dx = 0;
+		break;
+
 	/*
 	 * 0x80000000 returns the highest Extended Function, so we futureproof
 	 * like we do above by limiting it to known fields.

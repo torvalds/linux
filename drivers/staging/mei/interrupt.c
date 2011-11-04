@@ -396,6 +396,18 @@ static void mei_client_connect_response(struct mei_device *dev,
 		dev->wd_due_counter = (dev->wd_timeout) ? 1 : 0;
 
 		dev_dbg(&dev->pdev->dev, "successfully connected to WD client.\n");
+
+		/* Registering watchdog interface device once we got connection
+		   to the WD Client
+		*/
+		if (watchdog_register_device(&amt_wd_dev)) {
+			printk(KERN_ERR "mei: unable to register watchdog device.\n");
+			dev->wd_interface_reg = false;
+		} else {
+			dev_dbg(&dev->pdev->dev, "successfully register watchdog interface.\n");
+			dev->wd_interface_reg = true;
+		}
+
 		mei_host_init_iamthif(dev);
 		return;
 	}
@@ -641,6 +653,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 	struct hbm_host_enum_response *enum_res;
 	struct hbm_client_disconnect_request *disconnect_req;
 	struct hbm_host_stop_request *host_stop_req;
+	int res;
 
 	unsigned char *buffer;
 
@@ -734,7 +747,38 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 					MEI_CLIENT_PROPERTIES_MESSAGE) {
 				dev->me_client_index++;
 				dev->me_client_presentation_num++;
-				mei_host_client_properties(dev);
+
+				/** Send Client Propeties request **/
+				res = mei_host_client_properties(dev);
+				if (res < 0) {
+					dev_dbg(&dev->pdev->dev, "mei_host_client_properties() failed");
+					return;
+				} else if (!res) {
+					/*
+					 * No more clients to send to.
+					 * Clear Map for indicating now ME clients
+					 * with associated host client
+					 */
+					bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
+					dev->open_handle_count = 0;
+
+					/*
+					 * Reserving the first three client IDs
+					 * Client Id 0 - Reserved for MEI Bus Message communications
+					 * Client Id 1 - Reserved for Watchdog
+					 * Client ID 2 - Reserved for AMTHI
+					 */
+					bitmap_set(dev->host_clients_map, 0, 3);
+					dev->mei_state = MEI_ENABLED;
+
+					/* if wd initialization fails, initialization the AMTHI client,
+					 * otherwise the AMTHI client will be initialized after the WD client connect response
+					 * will be received
+					 */
+					if (mei_wd_host_init(dev))
+						mei_host_init_iamthif(dev);
+				}
+
 			} else {
 				dev_dbg(&dev->pdev->dev, "reset due to received host client properties response bus message");
 				mei_reset(dev, 1);
@@ -1381,7 +1425,7 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
  *
  * NOTE: This function is called by timer interrupt work
  */
-void mei_wd_timer(struct work_struct *work)
+void mei_timer(struct work_struct *work)
 {
 	unsigned long timeout;
 	struct mei_cl *cl_pos = NULL;
@@ -1391,7 +1435,7 @@ void mei_wd_timer(struct work_struct *work)
 	struct mei_cl_cb  *cb_next = NULL;
 
 	struct mei_device *dev = container_of(work,
-					struct mei_device, wd_work.work);
+					struct mei_device, timer_work.work);
 
 
 	mutex_lock(&dev->device_lock);
@@ -1418,33 +1462,6 @@ void mei_wd_timer(struct work_struct *work)
 		}
 	}
 
-	if (dev->wd_cl.state != MEI_FILE_CONNECTED)
-		goto out;
-
-	/* Watchdog */
-	if (dev->wd_due_counter && !dev->wd_bypass) {
-		if (--dev->wd_due_counter == 0) {
-			if (dev->mei_host_buffer_is_empty &&
-			    mei_flow_ctrl_creds(dev, &dev->wd_cl) > 0) {
-				dev->mei_host_buffer_is_empty = false;
-				dev_dbg(&dev->pdev->dev, "send watchdog.\n");
-
-				if (mei_wd_send(dev))
-					dev_dbg(&dev->pdev->dev, "wd send failed.\n");
-				else
-					if (mei_flow_ctrl_reduce(dev, &dev->wd_cl))
-						goto out;
-
-				if (dev->wd_timeout)
-					dev->wd_due_counter = 2;
-				else
-					dev->wd_due_counter = 0;
-
-			} else
-				dev->wd_pending = true;
-
-		}
-	}
 	if (dev->iamthif_stall_timer) {
 		if (--dev->iamthif_stall_timer == 0) {
 			dev_dbg(&dev->pdev->dev, "reseting because of hang to amthi.\n");
@@ -1510,7 +1527,7 @@ void mei_wd_timer(struct work_struct *work)
 		}
 	}
 out:
-	 schedule_delayed_work(&dev->wd_work, 2 * HZ);
+	 schedule_delayed_work(&dev->timer_work, 2 * HZ);
 	 mutex_unlock(&dev->device_lock);
 }
 
@@ -1540,6 +1557,12 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 	mutex_lock(&dev->device_lock);
 	mei_io_list_init(&complete_list);
 	dev->host_hw_state = mei_hcsr_read(dev);
+
+	/* Ack the interrupt here
+	 * In case of MSI we don't go throuhg the quick handler */
+	if (pci_dev_msi_enabled(dev->pdev))
+		mei_reg_write(dev, H_CSR, dev->host_hw_state);
+
 	dev->me_hw_state = mei_mecsr_read(dev);
 
 	/* check if ME wants a reset */

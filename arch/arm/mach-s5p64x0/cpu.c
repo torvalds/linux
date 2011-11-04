@@ -20,6 +20,7 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -111,6 +112,7 @@ void __init s5p6440_map_io(void)
 
 	iotable_init(s5p64x0_iodesc, ARRAY_SIZE(s5p64x0_iodesc));
 	iotable_init(s5p6440_iodesc, ARRAY_SIZE(s5p6440_iodesc));
+	init_consistent_dma_size(SZ_8M);
 }
 
 void __init s5p6450_map_io(void)
@@ -120,6 +122,7 @@ void __init s5p6450_map_io(void)
 
 	iotable_init(s5p64x0_iodesc, ARRAY_SIZE(s5p64x0_iodesc));
 	iotable_init(s5p6450_iodesc, ARRAY_SIZE(s5p6450_iodesc));
+	init_consistent_dma_size(SZ_8M);
 }
 
 /*

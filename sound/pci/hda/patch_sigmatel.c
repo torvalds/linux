@@ -2972,8 +2972,9 @@ static int check_all_dac_nids(struct sigmatel_spec *spec, hda_nid_t nid)
 static hda_nid_t get_unassigned_dac(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct sigmatel_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int j, conn_len;
-	hda_nid_t conn[HDA_MAX_CONNECTIONS];
+	hda_nid_t conn[HDA_MAX_CONNECTIONS], fallback_dac;
 	unsigned int wcaps, wtype;
 
 	conn_len = snd_hda_get_connections(codec, nid, conn,
@@ -3001,10 +3002,21 @@ static hda_nid_t get_unassigned_dac(struct hda_codec *codec, hda_nid_t nid)
 			return conn[j];
 		}
 	}
-	/* if all DACs are already assigned, connect to the primary DAC */
+
+	/* if all DACs are already assigned, connect to the primary DAC,
+	   unless we're assigning a secondary headphone */
+	fallback_dac = spec->multiout.dac_nids[0];
+	if (spec->multiout.hp_nid) {
+		for (j = 0; j < cfg->hp_outs; j++)
+			if (cfg->hp_pins[j] == nid) {
+				fallback_dac = spec->multiout.hp_nid;
+				break;
+			}
+	}
+
 	if (conn_len > 1) {
 		for (j = 0; j < conn_len; j++) {
-			if (conn[j] == spec->multiout.dac_nids[0]) {
+			if (conn[j] == fallback_dac) {
 				snd_hda_codec_write_cache(codec, nid, 0,
 						  AC_VERB_SET_CONNECT_SEL, j);
 				break;
@@ -4130,22 +4142,14 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 #ifdef CONFIG_SND_HDA_INPUT_JACK
 	int def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	int connectivity = get_defcfg_connect(def_conf);
-	char name[32];
-	int err;
 
 	if (connectivity && connectivity != AC_JACK_PORT_FIXED)
 		return 0;
 
-	snprintf(name, sizeof(name), "%s at %s %s Jack",
-		snd_hda_get_jack_type(def_conf),
-		snd_hda_get_jack_connectivity(def_conf),
-		snd_hda_get_jack_location(def_conf));
-
-	err = snd_hda_input_jack_add(codec, nid, type, name);
-	if (err < 0)
-		return err;
-#endif /* CONFIG_SND_HDA_INPUT_JACK */
+	return snd_hda_input_jack_add(codec, nid, type, NULL);
+#else
 	return 0;
+#endif /* CONFIG_SND_HDA_INPUT_JACK */
 }
 
 static int stac_add_event(struct sigmatel_spec *spec, hda_nid_t nid,
@@ -5585,9 +5589,7 @@ static void stac92hd8x_fill_auto_spec(struct hda_codec *codec)
 static int patch_stac92hd83xxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
-	hda_nid_t conn[STAC92HD83_DAC_COUNT + 1];
 	int err;
-	int num_dacs;
 
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -5630,6 +5632,7 @@ again:
 	switch (codec->vendor_id) {
 	case 0x111d76d1:
 	case 0x111d76d9:
+	case 0x111d76df:
 	case 0x111d76e5:
 	case 0x111d7666:
 	case 0x111d7667:
@@ -5686,22 +5689,6 @@ again:
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
-	}
-
-	/* docking output support */
-	num_dacs = snd_hda_get_connections(codec, 0xF,
-				conn, STAC92HD83_DAC_COUNT + 1) - 1;
-	/* skip non-DAC connections */
-	while (num_dacs >= 0 &&
-			(get_wcaps_type(get_wcaps(codec, conn[num_dacs]))
-					!= AC_WID_AUD_OUT))
-		num_dacs--;
-	/* set port E and F to select the last DAC */
-	if (num_dacs >= 0) {
-		snd_hda_codec_write_cache(codec, 0xE, 0,
-			AC_VERB_SET_CONNECT_SEL, num_dacs);
-		snd_hda_codec_write_cache(codec, 0xF, 0,
-			AC_VERB_SET_CONNECT_SEL, num_dacs);
 	}
 
 	codec->proc_widget_hook = stac92hd_proc_hook;
@@ -6573,6 +6560,7 @@ static const struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x111d76cc, .name = "92HD89F3", .patch = patch_stac92hd73xx },
 	{ .id = 0x111d76cd, .name = "92HD89F2", .patch = patch_stac92hd73xx },
 	{ .id = 0x111d76ce, .name = "92HD89F1", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76df, .name = "92HD93BXX", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d76e0, .name = "92HD91BXX", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d76e3, .name = "92HD98BXX", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d76e5, .name = "92HD99BXX", .patch = patch_stac92hd83xxx},

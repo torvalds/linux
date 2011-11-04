@@ -49,6 +49,8 @@
 #define GPIO_INT_LEV_MASK	(1 << 0)
 #define GPIO_INT_POL_MASK	(1 << 1)
 
+#define irq_to_gpio(irq)	((irq) - MXS_GPIO_IRQ_START)
+
 struct mxs_gpio_port {
 	void __iomem *base;
 	int id;

@@ -385,6 +385,7 @@ int p54_setup_mac(struct p54_common *priv)
 		setup->v2.osc_start_delay = cpu_to_le16(65535);
 	}
 	p54_tx(priv, skb);
+	priv->phy_idle = mode == P54_FILTER_TYPE_HIBERNATE;
 	return 0;
 }
 
@@ -626,6 +627,7 @@ int p54_set_ps(struct p54_common *priv)
 	psm->exclude[0] = WLAN_EID_TIM;
 
 	p54_tx(priv, skb);
+	priv->phy_ps = mode != P54_PSM_CAM;
 	return 0;
 }
 

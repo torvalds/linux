@@ -1,0 +1,24 @@
+#
+# Davicom device configuration
+#
+
+config DM9000
+	tristate "DM9000 support"
+	depends on ARM || BLACKFIN || MIPS
+	select CRC32
+	select NET_CORE
+	select MII
+	---help---
+	  Support for DM9000 chipset.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called dm9000.
+
+config DM9000_FORCE_SIMPLE_PHY_POLL
+	bool "Force simple NSR based PHY polling"
+	depends on DM9000
+	---help---
+	  This configuration forces the DM9000 to use the NSR's LinkStatus
+	  bit to determine if the link is up or down instead of the more
+	  costly MII PHY reads. Note, this will not work if the chip is
+	  operating with an external PHY.

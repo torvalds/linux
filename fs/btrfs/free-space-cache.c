@@ -190,9 +190,11 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 				    struct btrfs_path *path,
 				    struct inode *inode)
 {
+	struct btrfs_block_rsv *rsv;
 	loff_t oldsize;
 	int ret = 0;
 
+	rsv = trans->block_rsv;
 	trans->block_rsv = root->orphan_block_rsv;
 	ret = btrfs_block_rsv_check(trans, root,
 				    root->orphan_block_rsv,
@@ -210,6 +212,8 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 	 */
 	ret = btrfs_truncate_inode_items(trans, root, inode,
 					 0, BTRFS_EXTENT_DATA_KEY);
+
+	trans->block_rsv = rsv;
 	if (ret) {
 		WARN_ON(1);
 		return ret;

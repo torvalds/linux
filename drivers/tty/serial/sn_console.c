@@ -39,6 +39,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/console.h>
 #include <linux/module.h>
@@ -737,7 +738,7 @@ static void __init sn_sal_switch_to_interrupts(struct sn_cons_port *port)
 		DPRINTF("sn_console: switching to interrupt driven console\n");
 
 		if (request_irq(SGI_UART_VECTOR, sn_sal_interrupt,
-				IRQF_DISABLED | IRQF_SHARED,
+				IRQF_SHARED,
 				"SAL console driver", port) >= 0) {
 			spin_lock_irqsave(&port->sc_port.lock, flags);
 			port->sc_port.irq = SGI_UART_VECTOR;

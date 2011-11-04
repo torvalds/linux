@@ -98,8 +98,7 @@ struct ft_tpg {
 	struct list_head list;		/* linkage in ft_lport_acl tpg_list */
 	struct list_head lun_list;	/* head of LUNs */
 	struct se_portal_group se_tpg;
-	struct task_struct *thread;	/* processing thread */
-	struct se_queue_obj qobj;	/* queue for processing thread */
+	struct workqueue_struct *workqueue;
 };
 
 struct ft_lport_acl {
@@ -110,16 +109,10 @@ struct ft_lport_acl {
 	struct se_wwn fc_lport_wwn;
 };
 
-enum ft_cmd_state {
-	FC_CMD_ST_NEW = 0,
-	FC_CMD_ST_REJ
-};
-
 /*
  * Commands
  */
 struct ft_cmd {
-	enum ft_cmd_state state;
 	u32 lun;                        /* LUN from request */
 	struct ft_sess *sess;		/* session held for cmd */
 	struct fc_seq *seq;		/* sequence in exchange mgr */
@@ -127,7 +120,7 @@ struct ft_cmd {
 	struct fc_frame *req_frame;
 	unsigned char *cdb;		/* pointer to CDB inside frame */
 	u32 write_data_len;		/* data received on writes */
-	struct se_queue_req se_req;
+	struct work_struct work;
 	/* Local sense buffer */
 	unsigned char ft_sense_buffer[TRANSPORT_SENSE_BUFFER];
 	u32 was_ddp_setup:1;		/* Set only if ddp is setup */
@@ -177,7 +170,6 @@ int ft_is_state_remove(struct se_cmd *);
 /*
  * other internal functions.
  */
-int ft_thread(void *);
 void ft_recv_req(struct ft_sess *, struct fc_frame *);
 struct ft_tpg *ft_lport_find_tpg(struct fc_lport *);
 struct ft_node_acl *ft_acl_get(struct ft_tpg *, struct fc_rport_priv *);

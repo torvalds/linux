@@ -71,14 +71,14 @@ int dma_skb_copy_datagram_iovec(struct dma_chan *chan,
 	/* Copy paged appendix. Hmm... why does this look so complicated? */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		WARN_ON(start > offset + len);
 
-		end = start + skb_shinfo(skb)->frags[i].size;
+		end = start + skb_frag_size(frag);
 		copy = end - offset;
 		if (copy > 0) {
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-			struct page *page = frag->page;
+			struct page *page = skb_frag_page(frag);
 
 			if (copy > len)
 				copy = len;

@@ -159,7 +159,7 @@ int squashfs_read_inode(struct inode *inode, long long ino)
 			frag_offset = 0;
 		}
 
-		inode->i_nlink = 1;
+		set_nlink(inode, 1);
 		inode->i_size = le32_to_cpu(sqsh_ino->file_size);
 		inode->i_fop = &generic_ro_fops;
 		inode->i_mode |= S_IFREG;
@@ -203,7 +203,7 @@ int squashfs_read_inode(struct inode *inode, long long ino)
 		}
 
 		xattr_id = le32_to_cpu(sqsh_ino->xattr);
-		inode->i_nlink = le32_to_cpu(sqsh_ino->nlink);
+		set_nlink(inode, le32_to_cpu(sqsh_ino->nlink));
 		inode->i_size = le64_to_cpu(sqsh_ino->file_size);
 		inode->i_op = &squashfs_inode_ops;
 		inode->i_fop = &generic_ro_fops;
@@ -232,7 +232,7 @@ int squashfs_read_inode(struct inode *inode, long long ino)
 		if (err < 0)
 			goto failed_read;
 
-		inode->i_nlink = le32_to_cpu(sqsh_ino->nlink);
+		set_nlink(inode, le32_to_cpu(sqsh_ino->nlink));
 		inode->i_size = le16_to_cpu(sqsh_ino->file_size);
 		inode->i_op = &squashfs_dir_inode_ops;
 		inode->i_fop = &squashfs_dir_ops;
@@ -257,7 +257,7 @@ int squashfs_read_inode(struct inode *inode, long long ino)
 			goto failed_read;
 
 		xattr_id = le32_to_cpu(sqsh_ino->xattr);
-		inode->i_nlink = le32_to_cpu(sqsh_ino->nlink);
+		set_nlink(inode, le32_to_cpu(sqsh_ino->nlink));
 		inode->i_size = le32_to_cpu(sqsh_ino->file_size);
 		inode->i_op = &squashfs_dir_inode_ops;
 		inode->i_fop = &squashfs_dir_ops;
@@ -284,7 +284,7 @@ int squashfs_read_inode(struct inode *inode, long long ino)
 		if (err < 0)
 			goto failed_read;
 
-		inode->i_nlink = le32_to_cpu(sqsh_ino->nlink);
+		set_nlink(inode, le32_to_cpu(sqsh_ino->nlink));
 		inode->i_size = le32_to_cpu(sqsh_ino->symlink_size);
 		inode->i_op = &squashfs_symlink_inode_ops;
 		inode->i_data.a_ops = &squashfs_symlink_aops;
@@ -325,7 +325,7 @@ int squashfs_read_inode(struct inode *inode, long long ino)
 			inode->i_mode |= S_IFCHR;
 		else
 			inode->i_mode |= S_IFBLK;
-		inode->i_nlink = le32_to_cpu(sqsh_ino->nlink);
+		set_nlink(inode, le32_to_cpu(sqsh_ino->nlink));
 		rdev = le32_to_cpu(sqsh_ino->rdev);
 		init_special_inode(inode, inode->i_mode, new_decode_dev(rdev));
 
@@ -349,7 +349,7 @@ int squashfs_read_inode(struct inode *inode, long long ino)
 			inode->i_mode |= S_IFBLK;
 		xattr_id = le32_to_cpu(sqsh_ino->xattr);
 		inode->i_op = &squashfs_inode_ops;
-		inode->i_nlink = le32_to_cpu(sqsh_ino->nlink);
+		set_nlink(inode, le32_to_cpu(sqsh_ino->nlink));
 		rdev = le32_to_cpu(sqsh_ino->rdev);
 		init_special_inode(inode, inode->i_mode, new_decode_dev(rdev));
 
@@ -370,7 +370,7 @@ int squashfs_read_inode(struct inode *inode, long long ino)
 			inode->i_mode |= S_IFIFO;
 		else
 			inode->i_mode |= S_IFSOCK;
-		inode->i_nlink = le32_to_cpu(sqsh_ino->nlink);
+		set_nlink(inode, le32_to_cpu(sqsh_ino->nlink));
 		init_special_inode(inode, inode->i_mode, 0);
 		break;
 	}
@@ -389,7 +389,7 @@ int squashfs_read_inode(struct inode *inode, long long ino)
 			inode->i_mode |= S_IFSOCK;
 		xattr_id = le32_to_cpu(sqsh_ino->xattr);
 		inode->i_op = &squashfs_inode_ops;
-		inode->i_nlink = le32_to_cpu(sqsh_ino->nlink);
+		set_nlink(inode, le32_to_cpu(sqsh_ino->nlink));
 		init_special_inode(inode, inode->i_mode, 0);
 		break;
 	}

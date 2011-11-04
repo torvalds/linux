@@ -394,31 +394,26 @@ ENTRY(cpu_arm926_set_pte_ext)
 
 /* Suspend/resume support: taken from arch/arm/plat-s3c24xx/sleep.S */
 .globl	cpu_arm926_suspend_size
-.equ	cpu_arm926_suspend_size, 4 * 4
+.equ	cpu_arm926_suspend_size, 4 * 3
 #ifdef CONFIG_PM_SLEEP
 ENTRY(cpu_arm926_do_suspend)
-	stmfd	sp!, {r4 - r7, lr}
+	stmfd	sp!, {r4 - r6, lr}
 	mrc	p15, 0, r4, c13, c0, 0	@ PID
 	mrc	p15, 0, r5, c3, c0, 0	@ Domain ID
-	mrc	p15, 0, r6, c2, c0, 0	@ TTB address
-	mrc	p15, 0, r7, c1, c0, 0	@ Control register
-	stmia	r0, {r4 - r7}
-	ldmfd	sp!, {r4 - r7, pc}
+	mrc	p15, 0, r6, c1, c0, 0	@ Control register
+	stmia	r0, {r4 - r6}
+	ldmfd	sp!, {r4 - r6, pc}
 ENDPROC(cpu_arm926_do_suspend)
 
 ENTRY(cpu_arm926_do_resume)
 	mov	ip, #0
 	mcr	p15, 0, ip, c8, c7, 0	@ invalidate I+D TLBs
 	mcr	p15, 0, ip, c7, c7, 0	@ invalidate I+D caches
-	ldmia	r0, {r4 - r7}
+	ldmia	r0, {r4 - r6}
 	mcr	p15, 0, r4, c13, c0, 0	@ PID
 	mcr	p15, 0, r5, c3, c0, 0	@ Domain ID
-	mcr	p15, 0, r6, c2, c0, 0	@ TTB address
-	mov	r0, r7			@ control register
-	mov	r2, r6, lsr #14		@ get TTB0 base
-	mov	r2, r2, lsl #14
-	ldr	r3, =PMD_TYPE_SECT | PMD_SECT_BUFFERABLE | \
-		     PMD_SECT_CACHEABLE | PMD_BIT4 | PMD_SECT_AP_WRITE
+	mcr	p15, 0, r1, c2, c0, 0	@ TTB address
+	mov	r0, r6			@ control register
 	b	cpu_resume_mmu
 ENDPROC(cpu_arm926_do_resume)
 #endif

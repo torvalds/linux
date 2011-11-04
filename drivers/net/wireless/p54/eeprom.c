@@ -145,6 +145,7 @@ static int p54_fill_band_bitrates(struct ieee80211_hw *dev,
 
 static int p54_generate_band(struct ieee80211_hw *dev,
 			     struct p54_channel_list *list,
+			     unsigned int *chan_num,
 			     enum ieee80211_band band)
 {
 	struct p54_common *priv = dev->priv;
@@ -190,7 +191,14 @@ static int p54_generate_band(struct ieee80211_hw *dev,
 
 		tmp->channels[j].band = chan->band;
 		tmp->channels[j].center_freq = chan->freq;
+		priv->survey[*chan_num].channel = &tmp->channels[j];
+		priv->survey[*chan_num].filled = SURVEY_INFO_NOISE_DBM |
+			SURVEY_INFO_CHANNEL_TIME |
+			SURVEY_INFO_CHANNEL_TIME_BUSY |
+			SURVEY_INFO_CHANNEL_TIME_TX;
+		tmp->channels[j].hw_value = (*chan_num);
 		j++;
+		(*chan_num)++;
 	}
 
 	if (j == 0) {
@@ -263,7 +271,7 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
 	struct p54_channel_list *list;
-	unsigned int i, j, max_channel_num;
+	unsigned int i, j, k, max_channel_num;
 	int ret = 0;
 	u16 freq;
 
@@ -280,6 +288,13 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 
 	list = kzalloc(sizeof(*list), GFP_KERNEL);
 	if (!list) {
+		ret = -ENOMEM;
+		goto free;
+	}
+	priv->chan_num = max_channel_num;
+	priv->survey = kzalloc(sizeof(struct survey_info) * max_channel_num,
+			       GFP_KERNEL);
+	if (!priv->survey) {
 		ret = -ENOMEM;
 		goto free;
 	}
@@ -321,8 +336,9 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 	sort(list->channels, list->entries, sizeof(struct p54_channel_entry),
 	     p54_compare_channels, NULL);
 
+	k = 0;
 	for (i = 0, j = 0; i < IEEE80211_NUM_BANDS; i++) {
-		if (p54_generate_band(dev, list, i) == 0)
+		if (p54_generate_band(dev, list, &k, i) == 0)
 			j++;
 	}
 	if (j == 0) {
@@ -334,6 +350,10 @@ free:
 	if (list) {
 		kfree(list->channels);
 		kfree(list);
+	}
+	if (ret) {
+		kfree(priv->survey);
+		priv->survey = NULL;
 	}
 
 	return ret;
@@ -853,10 +873,12 @@ err:
 	kfree(priv->output_limit);
 	kfree(priv->curve_data);
 	kfree(priv->rssi_db);
+	kfree(priv->survey);
 	priv->iq_autocal = NULL;
 	priv->output_limit = NULL;
 	priv->curve_data = NULL;
 	priv->rssi_db = NULL;
+	priv->survey = NULL;
 
 	wiphy_err(dev->wiphy, "eeprom parse failed!\n");
 	return err;

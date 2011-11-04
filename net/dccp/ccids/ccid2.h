@@ -43,6 +43,12 @@ struct ccid2_seq {
 #define CCID2_SEQBUF_LEN 1024
 #define CCID2_SEQBUF_MAX 128
 
+/*
+ * Multiple of congestion window to keep the sequence window at
+ * (RFC 4340 7.5.2)
+ */
+#define CCID2_WIN_CHANGE_FACTOR 5
+
 /**
  * struct ccid2_hc_tx_sock - CCID2 TX half connection
  * @tx_{cwnd,ssthresh,pipe}: as per RFC 4341, section 5

@@ -69,11 +69,11 @@
 #define MPT2SAS_DRIVER_NAME		"mpt2sas"
 #define MPT2SAS_AUTHOR	"LSI Corporation <DL-MPTFusionLinux@lsi.com>"
 #define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
-#define MPT2SAS_DRIVER_VERSION		"09.100.00.00"
+#define MPT2SAS_DRIVER_VERSION		"09.100.00.01"
 #define MPT2SAS_MAJOR_VERSION		09
 #define MPT2SAS_MINOR_VERSION		100
 #define MPT2SAS_BUILD_VERSION		00
-#define MPT2SAS_RELEASE_VERSION		00
+#define MPT2SAS_RELEASE_VERSION		01
 
 /*
  * Set MPT2SAS_SG_DEPTH value based on user input.
@@ -544,6 +544,28 @@ struct _tr_list {
 
 typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
 
+/**
+ * struct adapter_reply_queue - the reply queue struct
+ * @ioc: per adapter object
+ * @msix_index: msix index into vector table
+ * @vector: irq vector
+ * @reply_post_host_index: head index in the pool where FW completes IO
+ * @reply_post_free: reply post base virt address
+ * @name: the name registered to request_irq()
+ * @busy: isr is actively processing replies on another cpu
+ * @list: this list
+*/
+struct adapter_reply_queue {
+	struct MPT2SAS_ADAPTER	*ioc;
+	u8			msix_index;
+	unsigned int		vector;
+	u32			reply_post_host_index;
+	Mpi2ReplyDescriptorsUnion_t *reply_post_free;
+	char			name[MPT_NAME_LENGTH];
+	atomic_t		busy;
+	struct list_head	list;
+};
+
 /* IOC Facts and Port Facts converted from little endian to cpu */
 union mpi2_version_union {
 	MPI2_VERSION_STRUCT		Struct;
@@ -606,7 +628,7 @@ enum mutex_type {
  * @list: ioc_list
  * @shost: shost object
  * @id: unique adapter id
- * @pci_irq: irq number
+ * @cpu_count: number online cpus
  * @name: generic ioc string
  * @tmp_string: tmp string used for logging
  * @pdev: pci pdev object
@@ -636,8 +658,8 @@ enum mutex_type {
  * @wait_for_port_enable_to_complete:
  * @msix_enable: flag indicating msix is enabled
  * @msix_vector_count: number msix vectors
- * @msix_table: virt address to the msix table
- * @msix_table_backup: backup msix table
+ * @cpu_msix_table: table for mapping cpus to msix index
+ * @cpu_msix_table_sz: table size
  * @scsi_io_cb_idx: shost generated commands
  * @tm_cb_idx: task management commands
  * @scsih_cb_idx: scsih internal commands
@@ -728,7 +750,8 @@ enum mutex_type {
  * @reply_post_queue_depth: reply post queue depth
  * @reply_post_free: pool for reply post (64bit descriptor)
  * @reply_post_free_dma:
- * @reply_post_free_dma_pool:
+ * @reply_queue_count: number of reply queue's
+ * @reply_queue_list: link list contaning the reply queue info
  * @reply_post_host_index: head index in the pool where FW completes IO
  * @delayed_tr_list: target reset link list
  * @delayed_tr_volume_list: volume target reset link list
@@ -737,7 +760,7 @@ struct MPT2SAS_ADAPTER {
 	struct list_head list;
 	struct Scsi_Host *shost;
 	u8		id;
-	u32		pci_irq;
+	int		cpu_count;
 	char		name[MPT_NAME_LENGTH];
 	char		tmp_string[MPT_STRING_LENGTH];
 	struct pci_dev	*pdev;
@@ -779,8 +802,9 @@ struct MPT2SAS_ADAPTER {
 
 	u8		msix_enable;
 	u16		msix_vector_count;
-	u32		*msix_table;
-	u32		*msix_table_backup;
+	u8		*cpu_msix_table;
+	resource_size_t	**reply_post_host_index;
+	u16		cpu_msix_table_sz;
 	u32		ioc_reset_count;
 
 	/* internal commands, callback index */
@@ -911,7 +935,8 @@ struct MPT2SAS_ADAPTER {
 	Mpi2ReplyDescriptorsUnion_t *reply_post_free;
 	dma_addr_t	reply_post_free_dma;
 	struct dma_pool *reply_post_free_dma_pool;
-	u32		reply_post_host_index;
+	u8		reply_queue_count;
+	struct list_head reply_queue_list;
 
 	struct list_head delayed_tr_list;
 	struct list_head delayed_tr_volume_list;
@@ -955,6 +980,7 @@ void *mpt2sas_base_get_sense_buffer(struct MPT2SAS_ADAPTER *ioc, u16 smid);
 void mpt2sas_base_build_zero_len_sge(struct MPT2SAS_ADAPTER *ioc, void *paddr);
 __le32 mpt2sas_base_get_sense_buffer_dma(struct MPT2SAS_ADAPTER *ioc,
     u16 smid);
+void mpt2sas_base_flush_reply_queues(struct MPT2SAS_ADAPTER *ioc);
 
 /* hi-priority queue */
 u16 mpt2sas_base_get_smid_hpr(struct MPT2SAS_ADAPTER *ioc, u8 cb_idx);

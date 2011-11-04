@@ -25,9 +25,12 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 
+#include <sound/wm8903.h>
+
 #include <mach/iomap.h>
 #include <mach/irqs.h>
 #include <mach/sdhci.h>
+#include <mach/tegra_wm8903_pdata.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -41,7 +44,8 @@
 static struct plat_serial8250_port debug_uart_platform_data[] = {
 	{
 		/* Memory and IRQ filled in before registration */
-		.flags		= UPF_BOOT_AUTOCONF,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_TYPE,
+		.type		= PORT_TEGRA,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= 216000000,
@@ -62,6 +66,12 @@ static __initdata struct tegra_clk_init_table seaboard_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "uartb",	"pll_p",	216000000,	true},
 	{ "uartd",	"pll_p",	216000000,	true},
+	{ "pll_a",	"pll_p_out1",	56448000,	true },
+	{ "pll_a_out0",	"pll_a",	11289600,	true },
+	{ "cdev1",	NULL,		0,		true },
+	{ "i2s1",	"pll_a_out0",	11289600,	false},
+	{ "usbd",	"clk_m",	12000000,	true},
+	{ "usb3",	"clk_m",	12000000,	true},
 	{ NULL,		NULL,		0,		0},
 };
 
@@ -117,6 +127,22 @@ static struct tegra_sdhci_platform_data sdhci_pdata4 = {
 	.is_8bit	= 1,
 };
 
+static struct tegra_wm8903_platform_data seaboard_audio_pdata = {
+	.gpio_spkr_en		= TEGRA_GPIO_SPKR_EN,
+	.gpio_hp_det		= TEGRA_GPIO_HP_DET,
+	.gpio_hp_mute		= -1,
+	.gpio_int_mic_en	= -1,
+	.gpio_ext_mic_en	= -1,
+};
+
+static struct platform_device seaboard_audio_device = {
+	.name	= "tegra-snd-wm8903",
+	.id	= 0,
+	.dev	= {
+		.platform_data  = &seaboard_audio_pdata,
+	},
+};
+
 static struct platform_device *seaboard_devices[] __initdata = {
 	&debug_uart,
 	&tegra_pmu_device,
@@ -124,6 +150,10 @@ static struct platform_device *seaboard_devices[] __initdata = {
 	&tegra_sdhci_device3,
 	&tegra_sdhci_device1,
 	&seaboard_gpio_keys_device,
+	&tegra_i2s_device1,
+	&tegra_das_device,
+	&tegra_pcm_device,
+	&seaboard_audio_device,
 };
 
 static struct i2c_board_info __initdata isl29018_device = {
@@ -135,12 +165,56 @@ static struct i2c_board_info __initdata adt7461_device = {
 	I2C_BOARD_INFO("adt7461", 0x4c),
 };
 
+static struct wm8903_platform_data wm8903_pdata = {
+	.irq_active_low = 0,
+	.micdet_cfg = 0,
+	.micdet_delay = 100,
+	.gpio_base = SEABOARD_GPIO_WM8903(0),
+	.gpio_cfg = {
+		WM8903_GPIO_NO_CONFIG,
+		WM8903_GPIO_NO_CONFIG,
+		0,
+		WM8903_GPIO_NO_CONFIG,
+		WM8903_GPIO_NO_CONFIG,
+	},
+};
+
+static struct i2c_board_info __initdata wm8903_device = {
+	I2C_BOARD_INFO("wm8903", 0x1a),
+	.platform_data = &wm8903_pdata,
+	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ),
+};
+
+static int seaboard_ehci_init(void)
+{
+	int gpio_status;
+
+	gpio_status = gpio_request(TEGRA_GPIO_USB1, "VBUS_USB1");
+	if (gpio_status < 0) {
+		pr_err("VBUS_USB1 request GPIO FAILED\n");
+		WARN_ON(1);
+	}
+
+	gpio_status = gpio_direction_output(TEGRA_GPIO_USB1, 1);
+	if (gpio_status < 0) {
+		pr_err("VBUS_USB1 request GPIO DIRECTION FAILED\n");
+		WARN_ON(1);
+	}
+	gpio_set_value(TEGRA_GPIO_USB1, 1);
+
+	platform_device_register(&tegra_ehci1_device);
+	platform_device_register(&tegra_ehci3_device);
+
+	return 0;
+}
+
 static void __init seaboard_i2c_init(void)
 {
 	gpio_request(TEGRA_GPIO_ISL29018_IRQ, "isl29018");
 	gpio_direction_input(TEGRA_GPIO_ISL29018_IRQ);
 
 	i2c_register_board_info(0, &isl29018_device, 1);
+	i2c_register_board_info(0, &wm8903_device, 1);
 
 	i2c_register_board_info(3, &adt7461_device, 1);
 
@@ -161,6 +235,8 @@ static void __init seaboard_common_init(void)
 	tegra_sdhci_device4.dev.platform_data = &sdhci_pdata4;
 
 	platform_add_devices(seaboard_devices, ARRAY_SIZE(seaboard_devices));
+
+	seaboard_ehci_init();
 }
 
 static void __init tegra_seaboard_init(void)
@@ -182,6 +258,9 @@ static void __init tegra_kaen_init(void)
 	debug_uart_platform_data[0].mapbase = TEGRA_UARTB_BASE;
 	debug_uart_platform_data[0].irq = INT_UARTB;
 
+	seaboard_audio_pdata.gpio_hp_mute = TEGRA_GPIO_KAEN_HP_MUTE;
+	tegra_gpio_enable(TEGRA_GPIO_KAEN_HP_MUTE);
+
 	seaboard_common_init();
 
 	seaboard_i2c_init();
@@ -201,7 +280,7 @@ static void __init tegra_wario_init(void)
 
 
 MACHINE_START(SEABOARD, "seaboard")
-	.boot_params    = 0x00000100,
+	.atag_offset    = 0x100,
 	.map_io         = tegra_map_common_io,
 	.init_early     = tegra_init_early,
 	.init_irq       = tegra_init_irq,
@@ -210,7 +289,7 @@ MACHINE_START(SEABOARD, "seaboard")
 MACHINE_END
 
 MACHINE_START(KAEN, "kaen")
-	.boot_params    = 0x00000100,
+	.atag_offset    = 0x100,
 	.map_io         = tegra_map_common_io,
 	.init_early     = tegra_init_early,
 	.init_irq       = tegra_init_irq,
@@ -219,7 +298,7 @@ MACHINE_START(KAEN, "kaen")
 MACHINE_END
 
 MACHINE_START(WARIO, "wario")
-	.boot_params    = 0x00000100,
+	.atag_offset    = 0x100,
 	.map_io         = tegra_map_common_io,
 	.init_early     = tegra_init_early,
 	.init_irq       = tegra_init_irq,

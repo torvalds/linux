@@ -54,7 +54,8 @@ static struct resource dm9000_resources[] = {
 	[2] = {
 		.start	= IRQ_PF10,
 		.end	= IRQ_PF10,
-		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE | IRQF_SHARED | IRQF_TRIGGER_HIGH),
+		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
+		           IORESOURCE_IRQ_SHAREABLE),
 	},
 };
 

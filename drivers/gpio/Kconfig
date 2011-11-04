@@ -178,9 +178,18 @@ config GPIO_SCH
 	  The Intel Tunnel Creek processor has 5 GPIOs powered by the
 	  core power rail and 9 from suspend power supply.
 
+config GPIO_U300
+	bool "ST-Ericsson U300 COH 901 335/571 GPIO"
+	depends on GPIOLIB && ARCH_U300
+	help
+	  Say yes here to support GPIO interface on ST-Ericsson U300.
+	  The names of the two IP block variants supported are
+	  COH 901 335 and COH 901 571/3. They contain 3, 5 or 7
+	  ports of 8 GPIO pins each.
+
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
-	depends on MFD_SUPPORT && PCI
+	depends on PCI
 	select MFD_CORE
 	select MFD_VX855
 	help
@@ -388,6 +397,7 @@ config GPIO_LANGWELL
 config GPIO_PCH
 	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR ML7223 IOH GPIO"
 	depends on PCI && X86
+	select GENERIC_IRQ_CHIP
 	help
 	  This driver is for PCH(Platform controller Hub) GPIO of Intel Topcliff
 	  which is an IOH(Input/Output Hub) for x86 embedded processor.
@@ -402,6 +412,7 @@ config GPIO_PCH
 config GPIO_ML_IOH
 	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"
 	depends on PCI
+	select GENERIC_IRQ_CHIP
 	help
 	  ML7213 is companion chip for Intel Atom E6xx series.
 	  This driver can be used for OKI SEMICONDUCTOR ML7213 IOH(Input/Output
@@ -417,7 +428,6 @@ config GPIO_TIMBERDALE
 config GPIO_RDC321X
 	tristate "RDC R-321x GPIO support"
 	depends on PCI
-	select MFD_SUPPORT
 	select MFD_CORE
 	select MFD_RDC321X
 	help

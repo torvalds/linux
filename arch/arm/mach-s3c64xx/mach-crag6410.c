@@ -329,9 +329,6 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&s3c_device_fb,
 	&s3c_device_ohci,
 	&s3c_device_usb_hsotg,
-	&s3c_device_adc,
-	&s3c_device_rtc,
-	&s3c_device_ts,
 	&s3c_device_timer[0],
 	&s3c64xx_device_iis0,
 	&s3c64xx_device_iis1,
@@ -766,7 +763,7 @@ static void __init crag6410_machine_init(void)
 
 MACHINE_START(WLF_CRAGG_6410, "Wolfson Cragganmore 6410")
 	/* Maintainer: Mark Brown <broonie@opensource.wolfsonmicro.com> */
-	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= crag6410_map_io,
 	.init_machine	= crag6410_machine_init,

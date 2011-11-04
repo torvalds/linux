@@ -107,7 +107,7 @@ int mesh_init(struct net_device *soft_iface)
 	if (tt_init(bat_priv) < 1)
 		goto err;
 
-	tt_local_add(soft_iface, soft_iface->dev_addr);
+	tt_local_add(soft_iface, soft_iface->dev_addr, NULL_IFINDEX);
 
 	if (vis_init(bat_priv) < 1)
 		goto err;
@@ -117,8 +117,6 @@ int mesh_init(struct net_device *soft_iface)
 	goto end;
 
 err:
-	pr_err("Unable to allocate memory for mesh information structures: "
-	       "out of mem ?\n");
 	mesh_free(soft_iface);
 	return -1;
 

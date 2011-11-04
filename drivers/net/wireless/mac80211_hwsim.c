@@ -612,6 +612,12 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	rx_status.freq = data->channel->center_freq;
 	rx_status.band = data->channel->band;
 	rx_status.rate_idx = info->control.rates[0].idx;
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS)
+		rx_status.flag |= RX_FLAG_HT;
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+		rx_status.flag |= RX_FLAG_40MHZ;
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
+		rx_status.flag |= RX_FLAG_SHORT_GI;
 	/* TODO: simulate real signal strength (and optional packet loss) */
 	rx_status.signal = data->power_level - 50;
 
@@ -964,7 +970,8 @@ static int mac80211_hwsim_set_tim(struct ieee80211_hw *hw,
 }
 
 static int mac80211_hwsim_conf_tx(
-	struct ieee80211_hw *hw, u16 queue,
+	struct ieee80211_hw *hw,
+	struct ieee80211_vif *vif, u16 queue,
 	const struct ieee80211_tx_queue_params *params)
 {
 	wiphy_debug(hw->wiphy,

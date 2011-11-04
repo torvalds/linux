@@ -22,8 +22,6 @@ void rd_module_exit(void);
 struct rd_request {
 	struct se_task	rd_task;
 
-	/* SCSI CDB from iSCSI Command PDU */
-	unsigned char	rd_scsi_cdb[TCM_MAX_COMMAND_SIZE];
 	/* Offset from start of page */
 	u32		rd_offset;
 	/* Starting page in Ramdisk for request */

@@ -180,8 +180,6 @@ force_reval:
 
 static loff_t nfs_file_llseek(struct file *filp, loff_t offset, int origin)
 {
-	loff_t loff;
-
 	dprintk("NFS: llseek file(%s/%s, %lld, %d)\n",
 			filp->f_path.dentry->d_parent->d_name.name,
 			filp->f_path.dentry->d_name.name,
@@ -197,13 +195,9 @@ static loff_t nfs_file_llseek(struct file *filp, loff_t offset, int origin)
 		int retval = nfs_revalidate_file_size(inode, filp);
 		if (retval < 0)
 			return (loff_t)retval;
+	}
 
-		spin_lock(&inode->i_lock);
-		loff = generic_file_llseek_unlocked(filp, offset, origin);
-		spin_unlock(&inode->i_lock);
-	} else
-		loff = generic_file_llseek_unlocked(filp, offset, origin);
-	return loff;
+	return generic_file_llseek(filp, offset, origin);
 }
 
 /*

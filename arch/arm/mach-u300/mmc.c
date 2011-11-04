@@ -13,15 +13,14 @@
 #include <linux/device.h>
 #include <linux/amba/bus.h>
 #include <linux/mmc/host.h>
-#include <linux/gpio.h>
 #include <linux/dmaengine.h>
 #include <linux/amba/mmci.h>
 #include <linux/slab.h>
 #include <mach/coh901318.h>
 #include <mach/dma_channels.h>
+#include <mach/gpio-u300.h>
 
 #include "mmc.h"
-#include "padmux.h"
 
 static struct mmci_platform_data mmc0_plat_data = {
 	/*
@@ -45,24 +44,9 @@ static struct mmci_platform_data mmc0_plat_data = {
 int __devinit mmc_init(struct amba_device *adev)
 {
 	struct device *mmcsd_device = &adev->dev;
-	struct pmx *pmx;
 	int ret = 0;
 
 	mmcsd_device->platform_data = &mmc0_plat_data;
-
-	/*
-	 * Setup padmuxing for MMC. Since this must always be
-	 * compiled into the kernel, pmx is never released.
-	 */
-	pmx = pmx_get(mmcsd_device, U300_APP_PMX_MMC_SETTING);
-
-	if (IS_ERR(pmx))
-		pr_warning("Could not get padmux handle\n");
-	else {
-		ret = pmx_activate(mmcsd_device, pmx);
-		if (IS_ERR_VALUE(ret))
-			pr_warning("Could not activate padmuxing\n");
-	}
 
 	return ret;
 }

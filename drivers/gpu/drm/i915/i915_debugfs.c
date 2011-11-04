@@ -98,12 +98,12 @@ static const char *get_pin_flag(struct drm_i915_gem_object *obj)
 
 static const char *get_tiling_flag(struct drm_i915_gem_object *obj)
 {
-    switch (obj->tiling_mode) {
-    default:
-    case I915_TILING_NONE: return " ";
-    case I915_TILING_X: return "X";
-    case I915_TILING_Y: return "Y";
-    }
+	switch (obj->tiling_mode) {
+	default:
+	case I915_TILING_NONE: return " ";
+	case I915_TILING_X: return "X";
+	case I915_TILING_Y: return "Y";
+	}
 }
 
 static const char *cache_level_str(int type)
@@ -217,7 +217,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 			++mappable_count; \
 		} \
 	} \
-} while(0)
+} while (0)
 
 static int i915_gem_object_info(struct seq_file *m, void* data)
 {
@@ -1293,12 +1293,12 @@ i915_wedged_read(struct file *filp,
 	char buf[80];
 	int len;
 
-	len = snprintf(buf, sizeof (buf),
+	len = snprintf(buf, sizeof(buf),
 		       "wedged :  %d\n",
 		       atomic_read(&dev_priv->mm.wedged));
 
-	if (len > sizeof (buf))
-		len = sizeof (buf);
+	if (len > sizeof(buf))
+		len = sizeof(buf);
 
 	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
 }
@@ -1314,7 +1314,7 @@ i915_wedged_write(struct file *filp,
 	int val = 1;
 
 	if (cnt > 0) {
-		if (cnt > sizeof (buf) - 1)
+		if (cnt > sizeof(buf) - 1)
 			return -EINVAL;
 
 		if (copy_from_user(buf, ubuf, cnt))
@@ -1357,11 +1357,11 @@ i915_max_freq_read(struct file *filp,
 	char buf[80];
 	int len;
 
-	len = snprintf(buf, sizeof (buf),
+	len = snprintf(buf, sizeof(buf),
 		       "max freq: %d\n", dev_priv->max_delay * 50);
 
-	if (len > sizeof (buf))
-		len = sizeof (buf);
+	if (len > sizeof(buf))
+		len = sizeof(buf);
 
 	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
 }
@@ -1378,7 +1378,7 @@ i915_max_freq_write(struct file *filp,
 	int val = 1;
 
 	if (cnt > 0) {
-		if (cnt > sizeof (buf) - 1)
+		if (cnt > sizeof(buf) - 1)
 			return -EINVAL;
 
 		if (copy_from_user(buf, ubuf, cnt))
@@ -1432,12 +1432,12 @@ i915_cache_sharing_read(struct file *filp,
 	snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 
-	len = snprintf(buf, sizeof (buf),
+	len = snprintf(buf, sizeof(buf),
 		       "%d\n", (snpcr & GEN6_MBC_SNPCR_MASK) >>
 		       GEN6_MBC_SNPCR_SHIFT);
 
-	if (len > sizeof (buf))
-		len = sizeof (buf);
+	if (len > sizeof(buf))
+		len = sizeof(buf);
 
 	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
 }
@@ -1455,7 +1455,7 @@ i915_cache_sharing_write(struct file *filp,
 	int val = 1;
 
 	if (cnt > 0) {
-		if (cnt > sizeof (buf) - 1)
+		if (cnt > sizeof(buf) - 1)
 			return -EINVAL;
 
 		if (copy_from_user(buf, ubuf, cnt))

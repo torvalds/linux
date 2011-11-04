@@ -168,20 +168,19 @@ ENTRY(cpu_sa1100_set_pte_ext)
 	mov	pc, lr
 
 .globl	cpu_sa1100_suspend_size
-.equ	cpu_sa1100_suspend_size, 4*4
+.equ	cpu_sa1100_suspend_size, 4 * 3
 #ifdef CONFIG_PM_SLEEP
 ENTRY(cpu_sa1100_do_suspend)
-	stmfd	sp!, {r4 - r7, lr}
+	stmfd	sp!, {r4 - r6, lr}
 	mrc	p15, 0, r4, c3, c0, 0		@ domain ID
-	mrc	p15, 0, r5, c2, c0, 0		@ translation table base addr
-	mrc	p15, 0, r6, c13, c0, 0		@ PID
-	mrc	p15, 0, r7, c1, c0, 0		@ control reg
-	stmia	r0, {r4 - r7}			@ store cp regs
-	ldmfd	sp!, {r4 - r7, pc}
+	mrc	p15, 0, r5, c13, c0, 0		@ PID
+	mrc	p15, 0, r6, c1, c0, 0		@ control reg
+	stmia	r0, {r4 - r6}			@ store cp regs
+	ldmfd	sp!, {r4 - r6, pc}
 ENDPROC(cpu_sa1100_do_suspend)
 
 ENTRY(cpu_sa1100_do_resume)
-	ldmia	r0, {r4 - r7}			@ load cp regs
+	ldmia	r0, {r4 - r6}			@ load cp regs
 	mov	ip, #0
 	mcr	p15, 0, ip, c8, c7, 0		@ flush I+D TLBs
 	mcr	p15, 0, ip, c7, c7, 0		@ flush I&D cache
@@ -189,13 +188,9 @@ ENTRY(cpu_sa1100_do_resume)
 	mcr	p15, 0, ip, c9, c0, 5		@ allow user space to use RB
 
 	mcr	p15, 0, r4, c3, c0, 0		@ domain ID
-	mcr	p15, 0, r5, c2, c0, 0		@ translation table base addr
-	mcr	p15, 0, r6, c13, c0, 0		@ PID
-	mov	r0, r7				@ control register
-	mov	r2, r5, lsr #14			@ get TTB0 base
-	mov	r2, r2, lsl #14
-	ldr	r3, =PMD_TYPE_SECT | PMD_SECT_BUFFERABLE | \
-		     PMD_SECT_CACHEABLE | PMD_SECT_AP_WRITE
+	mcr	p15, 0, r1, c2, c0, 0		@ translation table base addr
+	mcr	p15, 0, r5, c13, c0, 0		@ PID
+	mov	r0, r6				@ control register
 	b	cpu_resume_mmu
 ENDPROC(cpu_sa1100_do_resume)
 #endif

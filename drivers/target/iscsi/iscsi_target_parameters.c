@@ -1430,7 +1430,7 @@ static int iscsi_enforce_integrity_rules(
 	u8 DataSequenceInOrder = 0;
 	u8 ErrorRecoveryLevel = 0, SessionType = 0;
 	u8 IFMarker = 0, OFMarker = 0;
-	u8 IFMarkInt_Reject = 0, OFMarkInt_Reject = 0;
+	u8 IFMarkInt_Reject = 1, OFMarkInt_Reject = 1;
 	u32 FirstBurstLength = 0, MaxBurstLength = 0;
 	struct iscsi_param *param = NULL;
 

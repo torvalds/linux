@@ -682,7 +682,7 @@ next_desc:
 	if (!ep || !usb_endpoint_is_int_in(ep))
 		goto err;
 
-	desc->wMaxPacketSize = le16_to_cpu(ep->wMaxPacketSize);
+	desc->wMaxPacketSize = usb_endpoint_maxp(ep);
 	desc->bMaxPacketSize0 = udev->descriptor.bMaxPacketSize0;
 
 	desc->orq = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL);
@@ -798,11 +798,11 @@ static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 	dev_dbg(&desc->intf->dev, "wdm%d_suspend\n", intf->minor);
 
 	/* if this is an autosuspend the caller does the locking */
-	if (!(message.event & PM_EVENT_AUTO))
+	if (!PMSG_IS_AUTO(message))
 		mutex_lock(&desc->lock);
 	spin_lock_irq(&desc->iuspin);
 
-	if ((message.event & PM_EVENT_AUTO) &&
+	if (PMSG_IS_AUTO(message) &&
 			(test_bit(WDM_IN_USE, &desc->flags)
 			|| test_bit(WDM_RESPONDING, &desc->flags))) {
 		spin_unlock_irq(&desc->iuspin);
@@ -815,7 +815,7 @@ static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 		kill_urbs(desc);
 		cancel_work_sync(&desc->rxwork);
 	}
-	if (!(message.event & PM_EVENT_AUTO))
+	if (!PMSG_IS_AUTO(message))
 		mutex_unlock(&desc->lock);
 
 	return rv;

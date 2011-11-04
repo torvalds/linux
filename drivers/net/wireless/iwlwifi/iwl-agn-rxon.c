@@ -26,11 +26,10 @@
 
 #include "iwl-dev.h"
 #include "iwl-agn.h"
-#include "iwl-sta.h"
 #include "iwl-core.h"
 #include "iwl-agn-calib.h"
-#include "iwl-helpers.h"
 #include "iwl-trans.h"
+#include "iwl-shared.h"
 
 static int iwlagn_disable_bss(struct iwl_priv *priv,
 			      struct iwl_rxon_context *ctx,
@@ -40,7 +39,7 @@ static int iwlagn_disable_bss(struct iwl_priv *priv,
 	int ret;
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	ret = trans_send_cmd_pdu(&priv->trans, ctx->rxon_cmd,
+	ret = iwl_trans_send_cmd_pdu(trans(priv), ctx->rxon_cmd,
 				CMD_SYNC, sizeof(*send), send);
 
 	send->filter_flags = old_filter;
@@ -66,7 +65,7 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	send->dev_type = RXON_DEV_TYPE_P2P;
-	ret = trans_send_cmd_pdu(&priv->trans, ctx->rxon_cmd,
+	ret = iwl_trans_send_cmd_pdu(trans(priv), ctx->rxon_cmd,
 				CMD_SYNC, sizeof(*send), send);
 
 	send->filter_flags = old_filter;
@@ -92,7 +91,7 @@ static int iwlagn_disconn_pan(struct iwl_priv *priv,
 	int ret;
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	ret = trans_send_cmd_pdu(&priv->trans, ctx->rxon_cmd, CMD_SYNC,
+	ret = iwl_trans_send_cmd_pdu(trans(priv), ctx->rxon_cmd, CMD_SYNC,
 				sizeof(*send), send);
 
 	send->filter_flags = old_filter;
@@ -121,7 +120,7 @@ static void iwlagn_update_qos(struct iwl_priv *priv,
 		      ctx->qos_data.qos_active,
 		      ctx->qos_data.def_qos_parm.qos_flags);
 
-	ret = trans_send_cmd_pdu(&priv->trans, ctx->qos_cmd, CMD_SYNC,
+	ret = iwl_trans_send_cmd_pdu(trans(priv), ctx->qos_cmd, CMD_SYNC,
 			       sizeof(struct iwl_qosparam_cmd),
 			       &ctx->qos_data.def_qos_parm);
 	if (ret)
@@ -131,7 +130,7 @@ static void iwlagn_update_qos(struct iwl_priv *priv,
 static int iwlagn_update_beacon(struct iwl_priv *priv,
 				struct ieee80211_vif *vif)
 {
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = ieee80211_beacon_get(priv->hw, vif);
@@ -180,7 +179,7 @@ static int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
 		 ctx->staging.ofdm_ht_triple_stream_basic_rates;
 	rxon_assoc.acquisition_data = ctx->staging.acquisition_data;
 
-	ret = trans_send_cmd_pdu(&priv->trans, ctx->rxon_assoc_cmd,
+	ret = iwl_trans_send_cmd_pdu(trans(priv), ctx->rxon_assoc_cmd,
 				CMD_ASYNC, sizeof(rxon_assoc), &rxon_assoc);
 	return ret;
 }
@@ -266,7 +265,7 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 	 * Associated RXON doesn't clear the station table in uCode,
 	 * so we don't need to restore stations etc. after this.
 	 */
-	ret = trans_send_cmd_pdu(&priv->trans, ctx->rxon_cmd, CMD_SYNC,
+	ret = iwl_trans_send_cmd_pdu(trans(priv), ctx->rxon_cmd, CMD_SYNC,
 		      sizeof(struct iwl_rxon_cmd), &ctx->staging);
 	if (ret) {
 		IWL_ERR(priv, "Error setting new RXON (%d)\n", ret);
@@ -295,8 +294,8 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 		return ret;
 	}
 
-	if ((ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION) &&
-	    priv->cfg->ht_params->smps_mode)
+	if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION &&
+	    priv->cfg->ht_params && priv->cfg->ht_params->smps_mode)
 		ieee80211_request_smps(ctx->vif,
 				       priv->cfg->ht_params->smps_mode);
 
@@ -310,12 +309,12 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	int slot0 = 300, slot1 = 0;
 	int ret;
 
-	if (priv->valid_contexts == BIT(IWL_RXON_CTX_BSS))
+	if (priv->shrd->valid_contexts == BIT(IWL_RXON_CTX_BSS))
 		return 0;
 
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	ctx_bss = &priv->contexts[IWL_RXON_CTX_BSS];
 	ctx_pan = &priv->contexts[IWL_RXON_CTX_PAN];
@@ -337,10 +336,10 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	cmd.slots[0].type = 0; /* BSS */
 	cmd.slots[1].type = 1; /* PAN */
 
-	if (priv->hw_roc_channel) {
+	if (priv->hw_roc_setup) {
 		/* both contexts must be used for this to happen */
-		slot1 = priv->hw_roc_duration;
-		slot0 = IWL_MIN_SLOT_TIME;
+		slot1 = IWL_MIN_SLOT_TIME;
+		slot0 = 3000;
 	} else if (ctx_bss->vif && ctx_pan->vif) {
 		int bcnint = ctx_pan->beacon_int;
 		int dtim = ctx_pan->vif->bss_conf.dtim_period ?: 1;
@@ -362,14 +361,14 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 		slot0 = bcnint / 2;
 		slot1 = bcnint - slot0;
 
-		if (test_bit(STATUS_SCAN_HW, &priv->status) ||
+		if (test_bit(STATUS_SCAN_HW, &priv->shrd->status) ||
 		    (!ctx_bss->vif->bss_conf.idle &&
 		     !ctx_bss->vif->bss_conf.assoc)) {
 			slot0 = dtim * bcnint * 3 - IWL_MIN_SLOT_TIME;
 			slot1 = IWL_MIN_SLOT_TIME;
 		} else if (!ctx_pan->vif->bss_conf.idle &&
 			   !ctx_pan->vif->bss_conf.assoc) {
-			slot1 = bcnint * 3 - IWL_MIN_SLOT_TIME;
+			slot1 = dtim * bcnint * 3 - IWL_MIN_SLOT_TIME;
 			slot0 = IWL_MIN_SLOT_TIME;
 		}
 	} else if (ctx_pan->vif) {
@@ -378,7 +377,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 					ctx_pan->beacon_int;
 		slot1 = max_t(int, DEFAULT_BEACON_INTERVAL, slot1);
 
-		if (test_bit(STATUS_SCAN_HW, &priv->status)) {
+		if (test_bit(STATUS_SCAN_HW, &priv->shrd->status)) {
 			slot0 = slot1 * 3 - IWL_MIN_SLOT_TIME;
 			slot1 = IWL_MIN_SLOT_TIME;
 		}
@@ -387,7 +386,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	cmd.slots[0].width = cpu_to_le16(slot0);
 	cmd.slots[1].width = cpu_to_le16(slot1);
 
-	ret = trans_send_cmd_pdu(&priv->trans, REPLY_WIPAN_PARAMS, CMD_SYNC,
+	ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_WIPAN_PARAMS, CMD_SYNC,
 			sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(priv, "Error setting PAN parameters (%d)\n", ret);
@@ -420,12 +419,12 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	bool new_assoc = !!(ctx->staging.filter_flags & RXON_FILTER_ASSOC_MSK);
 	int ret;
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return -EINVAL;
 
-	if (!iwl_is_alive(priv))
+	if (!iwl_is_alive(priv->shrd))
 		return -EBUSY;
 
 	/* This function hardcodes a bunch of dual-mode assumptions */
@@ -434,25 +433,12 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (!ctx->is_active)
 		return 0;
 
+	/* override BSSID if necessary due to preauth */
+	if (ctx->preauth_bssid)
+		memcpy(ctx->staging.bssid_addr, ctx->bssid, ETH_ALEN);
+
 	/* always get timestamp with Rx frame */
 	ctx->staging.flags |= RXON_FLG_TSF2HOST_MSK;
-
-	if (ctx->ctxid == IWL_RXON_CTX_PAN && priv->hw_roc_channel) {
-		struct ieee80211_channel *chan = priv->hw_roc_channel;
-
-		iwl_set_rxon_channel(priv, chan, ctx);
-		iwl_set_flags_for_band(priv, ctx, chan->band, NULL);
-		ctx->staging.filter_flags |=
-			RXON_FILTER_ASSOC_MSK |
-			RXON_FILTER_PROMISC_MSK |
-			RXON_FILTER_CTL2HOST_MSK;
-		ctx->staging.dev_type = RXON_DEV_TYPE_P2P;
-		new_assoc = true;
-
-		if (memcmp(&ctx->staging, &ctx->active,
-			   sizeof(ctx->staging)) == 0)
-			return 0;
-	}
 
 	/*
 	 * force CTS-to-self frames protection if RTS-CTS is not preferred
@@ -468,7 +454,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	else
 		ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 
-	iwl_print_rx_config_cmd(priv, ctx);
+	iwl_print_rx_config_cmd(priv, ctx->ctxid);
 	ret = iwl_check_rxon_cmd(priv, ctx);
 	if (ret) {
 		IWL_ERR(priv, "Invalid RXON configuration. Not committing.\n");
@@ -479,7 +465,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 * receive commit_rxon request
 	 * abort any previous channel switch if still in process
 	 */
-	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status) &&
+	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->shrd->status) &&
 	    (priv->switch_channel != ctx->staging.channel)) {
 		IWL_DEBUG_11H(priv, "abort channel switch on %d\n",
 			      le16_to_cpu(priv->switch_channel));
@@ -551,16 +537,16 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	const struct iwl_channel_info *ch_info;
 	int ret = 0;
 
-	IWL_DEBUG_MAC80211(priv, "changed %#x", changed);
+	IWL_DEBUG_MAC80211(priv, "enter: changed %#x", changed);
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
-	if (unlikely(test_bit(STATUS_SCANNING, &priv->status))) {
+	if (unlikely(test_bit(STATUS_SCANNING, &priv->shrd->status))) {
 		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
 		goto out;
 	}
 
-	if (!iwl_is_ready(priv)) {
+	if (!iwl_is_ready(priv->shrd)) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
 		goto out;
 	}
@@ -592,7 +578,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 			goto out;
 		}
 
-		spin_lock_irqsave(&priv->lock, flags);
+		spin_lock_irqsave(&priv->shrd->lock, flags);
 
 		for_each_context(priv, ctx) {
 			/* Configure HT40 channels */
@@ -636,7 +622,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 					       ctx->vif);
 		}
 
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 		iwl_update_bcast_stations(priv);
 
@@ -668,7 +654,9 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 		iwlagn_commit_rxon(priv, ctx);
 	}
  out:
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+
 	return ret;
 }
 
@@ -683,7 +671,7 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 	struct ieee80211_sta_ht_cap *ht_cap;
 	bool need_multiple;
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -787,7 +775,7 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 		memset(&cmd, 0, sizeof(cmd));
 		iwl_set_calib_hdr(&cmd.hdr,
 			priv->phy_calib_chain_noise_reset_cmd);
-		ret = trans_send_cmd_pdu(&priv->trans,
+		ret = iwl_trans_send_cmd_pdu(trans(priv),
 					REPLY_PHY_CALIBRATION_CMD,
 					CMD_SYNC, sizeof(cmd), &cmd);
 		if (ret)
@@ -808,17 +796,17 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 	int ret;
 	bool force = false;
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
-	if (unlikely(!iwl_is_ready(priv))) {
+	if (unlikely(!iwl_is_ready(priv->shrd))) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
-		mutex_unlock(&priv->mutex);
+		mutex_unlock(&priv->shrd->mutex);
 		return;
         }
 
 	if (unlikely(!ctx->vif)) {
 		IWL_DEBUG_MAC80211(priv, "leave - vif is NULL\n");
-		mutex_unlock(&priv->mutex);
+		mutex_unlock(&priv->shrd->mutex);
 		return;
 	}
 
@@ -851,7 +839,8 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			 */
 			if (ctx->last_tx_rejected) {
 				ctx->last_tx_rejected = false;
-				iwl_wake_any_queue(priv, ctx);
+				iwl_trans_wake_any_queue(trans(priv),
+							 ctx->ctxid);
 			}
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
@@ -912,6 +901,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 		if (!priv->disable_chain_noise_cal)
 			iwlagn_chain_noise_reset(priv);
 		priv->start_calib = 1;
+		WARN_ON(ctx->preauth_bssid);
 	}
 
 	if (changes & BSS_CHANGED_IBSS) {
@@ -929,7 +919,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			IWL_ERR(priv, "Error sending IBSS beacon\n");
 	}
 
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 void iwlagn_post_scan(struct iwl_priv *priv)

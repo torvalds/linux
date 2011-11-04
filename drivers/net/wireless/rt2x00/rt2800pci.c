@@ -200,13 +200,6 @@ static void rt2800pci_start_queue(struct data_queue *queue)
 		rt2x00pci_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 		break;
 	case QID_BEACON:
-		/*
-		 * Allow beacon tasklets to be scheduled for periodic
-		 * beacon updates.
-		 */
-		tasklet_enable(&rt2x00dev->tbtt_tasklet);
-		tasklet_enable(&rt2x00dev->pretbtt_tasklet);
-
 		rt2x00pci_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
@@ -269,10 +262,13 @@ static void rt2800pci_stop_queue(struct data_queue *queue)
 		rt2x00pci_register_write(rt2x00dev, INT_TIMER_EN, reg);
 
 		/*
-		 * Wait for tbtt tasklets to finish.
+		 * Wait for current invocation to finish. The tasklet
+		 * won't be scheduled anymore afterwards since we disabled
+		 * the TBTT and PRE TBTT timer.
 		 */
-		tasklet_disable(&rt2x00dev->tbtt_tasklet);
-		tasklet_disable(&rt2x00dev->pretbtt_tasklet);
+		tasklet_kill(&rt2x00dev->tbtt_tasklet);
+		tasklet_kill(&rt2x00dev->pretbtt_tasklet);
+
 		break;
 	default:
 		break;
@@ -437,14 +433,6 @@ static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	if (state == STATE_RADIO_IRQ_ON) {
 		rt2x00pci_register_read(rt2x00dev, INT_SOURCE_CSR, &reg);
 		rt2x00pci_register_write(rt2x00dev, INT_SOURCE_CSR, reg);
-
-		/*
-		 * Enable tasklets. The beacon related tasklets are
-		 * enabled when the beacon queue is started.
-		 */
-		tasklet_enable(&rt2x00dev->txstatus_tasklet);
-		tasklet_enable(&rt2x00dev->rxdone_tasklet);
-		tasklet_enable(&rt2x00dev->autowake_tasklet);
 	}
 
 	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
@@ -472,12 +460,13 @@ static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 
 	if (state == STATE_RADIO_IRQ_OFF) {
 		/*
-		 * Ensure that all tasklets are finished before
-		 * disabling the interrupts.
+		 * Wait for possibly running tasklets to finish.
 		 */
-		tasklet_disable(&rt2x00dev->txstatus_tasklet);
-		tasklet_disable(&rt2x00dev->rxdone_tasklet);
-		tasklet_disable(&rt2x00dev->autowake_tasklet);
+		tasklet_kill(&rt2x00dev->txstatus_tasklet);
+		tasklet_kill(&rt2x00dev->rxdone_tasklet);
+		tasklet_kill(&rt2x00dev->autowake_tasklet);
+		tasklet_kill(&rt2x00dev->tbtt_tasklet);
+		tasklet_kill(&rt2x00dev->pretbtt_tasklet);
 	}
 }
 
@@ -630,11 +619,11 @@ static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 	/*
 	 * Initialize TX descriptor
 	 */
-	rt2x00_desc_read(txd, 0, &word);
+	word = 0;
 	rt2x00_set_field32(&word, TXD_W0_SD_PTR0, skbdesc->skb_dma);
 	rt2x00_desc_write(txd, 0, word);
 
-	rt2x00_desc_read(txd, 1, &word);
+	word = 0;
 	rt2x00_set_field32(&word, TXD_W1_SD_LEN1, entry->skb->len);
 	rt2x00_set_field32(&word, TXD_W1_LAST_SEC1,
 			   !test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
@@ -645,12 +634,12 @@ static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 	rt2x00_set_field32(&word, TXD_W1_DMA_DONE, 0);
 	rt2x00_desc_write(txd, 1, word);
 
-	rt2x00_desc_read(txd, 2, &word);
+	word = 0;
 	rt2x00_set_field32(&word, TXD_W2_SD_PTR1,
 			   skbdesc->skb_dma + TXWI_DESC_SIZE);
 	rt2x00_desc_write(txd, 2, word);
 
-	rt2x00_desc_read(txd, 3, &word);
+	word = 0;
 	rt2x00_set_field32(&word, TXD_W3_WIV,
 			   !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W3_QSEL, 2);
@@ -771,7 +760,7 @@ static bool rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 		}
 
 		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-		rt2800_txdone_entry(entry, status);
+		rt2800_txdone_entry(entry, status, rt2800pci_get_txwi(entry));
 
 		if (--max_tx_done == 0)
 			break;
@@ -813,14 +802,16 @@ static void rt2800pci_pretbtt_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
 	rt2x00lib_pretbtt(rt2x00dev);
-	rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_PRE_TBTT);
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_PRE_TBTT);
 }
 
 static void rt2800pci_tbtt_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
 	rt2x00lib_beacondone(rt2x00dev);
-	rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_TBTT);
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_TBTT);
 }
 
 static void rt2800pci_rxdone_tasklet(unsigned long data)
@@ -828,7 +819,7 @@ static void rt2800pci_rxdone_tasklet(unsigned long data)
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
 	if (rt2x00pci_rxdone(rt2x00dev))
 		tasklet_schedule(&rt2x00dev->rxdone_tasklet);
-	else
+	else if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_RX_DONE);
 }
 
@@ -836,7 +827,8 @@ static void rt2800pci_autowake_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
 	rt2800pci_wakeup(rt2x00dev);
-	rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_AUTO_WAKEUP);
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_AUTO_WAKEUP);
 }
 
 static void rt2800pci_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
@@ -1023,6 +1015,8 @@ static const struct ieee80211_ops rt2800pci_mac80211_ops = {
 	.get_stats		= rt2x00mac_get_stats,
 	.get_tkip_seq		= rt2800_get_tkip_seq,
 	.set_rts_threshold	= rt2800_set_rts_threshold,
+	.sta_add		= rt2x00mac_sta_add,
+	.sta_remove		= rt2x00mac_sta_remove,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2800_conf_tx,
 	.get_tsf		= rt2800_get_tsf,
@@ -1084,6 +1078,8 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.config_erp		= rt2800_config_erp,
 	.config_ant		= rt2800_config_ant,
 	.config			= rt2800_config,
+	.sta_add		= rt2800_sta_add,
+	.sta_remove		= rt2800_sta_remove,
 };
 
 static const struct data_queue_desc rt2800pci_queue_rx = {
@@ -1161,6 +1157,7 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 #endif
 #ifdef CONFIG_RT2800PCI_RT53XX
 	{ PCI_DEVICE(0x1814, 0x5390) },
+	{ PCI_DEVICE(0x1814, 0x539a) },
 	{ PCI_DEVICE(0x1814, 0x539f) },
 #endif
 	{ 0, }

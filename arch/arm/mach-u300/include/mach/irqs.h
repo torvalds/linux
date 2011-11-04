@@ -72,7 +72,7 @@
 
 /* DB3150 and DB3200 have only 45 IRQs */
 #if defined(CONFIG_MACH_U300_BS2X) || defined(CONFIG_MACH_U300_BS330)
-#define U300_NR_IRQS			45
+#define U300_VIC_IRQS_END		45
 #endif
 
 /* The DB3350-specific interrupt lines */
@@ -88,7 +88,7 @@
 #define IRQ_U300_GPIO_PORT4		53
 #define IRQ_U300_GPIO_PORT5		54
 #define IRQ_U300_GPIO_PORT6		55
-#define U300_NR_IRQS			56
+#define U300_VIC_IRQS_END		56
 #endif
 
 /* The DB3210-specific interrupt lines */
@@ -106,16 +106,17 @@
 #define IRQ_U300_NFIF			45
 #define IRQ_U300_NFIF2			46
 #define IRQ_U300_SYSCON_PLL_LOCK	47
-#define U300_NR_IRQS			48
+#define U300_VIC_IRQS_END		48
 #endif
 
-#ifdef CONFIG_AB3550_CORE
-#define IRQ_AB3550_BASE			(U300_NR_IRQS)
-#define IRQ_AB3550_END			(IRQ_AB3550_BASE + 37)
-
-#define NR_IRQS				(IRQ_AB3550_END + 1)
+/* Maximum 8*7 GPIO lines */
+#ifdef CONFIG_GPIO_U300
+#define IRQ_U300_GPIO_BASE		(U300_VIC_IRQS_END)
+#define IRQ_U300_GPIO_END		(IRQ_U300_GPIO_BASE + 56)
 #else
-#define NR_IRQS U300_NR_IRQS
+#define IRQ_U300_GPIO_END		(U300_VIC_IRQS_END)
 #endif
+
+#define NR_IRQS				(IRQ_U300_GPIO_END)
 
 #endif

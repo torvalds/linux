@@ -71,13 +71,39 @@ config HT_IRQ
 
 	   If unsure say Y.
 
+config PCI_ATS
+	bool
+
 config PCI_IOV
 	bool "PCI IOV support"
 	depends on PCI
+	select PCI_ATS
 	help
 	  I/O Virtualization is a PCI feature supported by some devices
 	  which allows them to create virtual devices which share their
 	  physical resources.
+
+	  If unsure, say N.
+
+config PCI_PRI
+	bool "PCI PRI support"
+	select PCI_ATS
+	help
+	  PRI is the PCI Page Request Interface. It allows PCI devices that are
+	  behind an IOMMU to recover from page faults.
+
+	  If unsure, say N.
+
+config PCI_PASID
+	bool "PCI PASID support"
+	depends on PCI
+	select PCI_ATS
+	help
+	  Process Address Space Identifiers (PASIDs) can be used by PCI devices
+	  to access more than one IO address space at the same time. To make
+	  use of this feature an IOMMU is required which also supports PASIDs.
+	  Select this option if you have such an IOMMU and want to compile the
+	  driver for it into your kernel.
 
 	  If unsure, say N.
 

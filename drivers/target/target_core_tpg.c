@@ -593,7 +593,7 @@ int core_tpg_set_initiator_node_queue_depth(
 	if (init_sess)
 		tpg->se_tpg_tfo->close_session(init_sess);
 
-	pr_debug("Successfuly changed queue depth to: %d for Initiator"
+	pr_debug("Successfully changed queue depth to: %d for Initiator"
 		" Node: %s on %s Target Portal Group: %u\n", queue_depth,
 		initiatorname, tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg));
