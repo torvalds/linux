@@ -512,8 +512,6 @@ static void giveback(struct pl022 *pl022)
 	msg->state = NULL;
 	if (msg->complete)
 		msg->complete(msg->context);
-	/* This message is completed, so let's turn off the clocks & power */
-	pm_runtime_put(&pl022->adev->dev);
 }
 
 /**
@@ -1509,14 +1507,18 @@ static void pump_messages(struct work_struct *work)
 	struct pl022 *pl022 =
 		container_of(work, struct pl022, pump_messages);
 	unsigned long flags;
+	bool was_busy = false;
 
 	/* Lock queue and check for queue work */
 	spin_lock_irqsave(&pl022->queue_lock, flags);
 	if (list_empty(&pl022->queue) || !pl022->running) {
+		if (pl022->busy)
+			pm_runtime_put(&pl022->adev->dev);
 		pl022->busy = false;
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
 		return;
 	}
+
 	/* Make sure we are not already running a message */
 	if (pl022->cur_msg) {
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
@@ -1527,7 +1529,10 @@ static void pump_messages(struct work_struct *work)
 	    list_entry(pl022->queue.next, struct spi_message, queue);
 
 	list_del_init(&pl022->cur_msg->queue);
-	pl022->busy = true;
+	if (pl022->busy)
+		was_busy = true;
+	else
+		pl022->busy = true;
 	spin_unlock_irqrestore(&pl022->queue_lock, flags);
 
 	/* Initial message state */
@@ -1537,12 +1542,14 @@ static void pump_messages(struct work_struct *work)
 
 	/* Setup the SPI using the per chip configuration */
 	pl022->cur_chip = spi_get_ctldata(pl022->cur_msg->spi);
-	/*
-	 * We enable the core voltage and clocks here, then the clocks
-	 * and core will be disabled when giveback() is called in each method
-	 * (poll/interrupt/DMA)
-	 */
-	pm_runtime_get_sync(&pl022->adev->dev);
+	if (!was_busy)
+		/*
+		 * We enable the core voltage and clocks here, then the clocks
+		 * and core will be disabled when this workqueue is run again
+		 * and there is no more work to be done.
+		 */
+		pm_runtime_get_sync(&pl022->adev->dev);
+
 	restore_state(pl022);
 	flush(pl022);
 
