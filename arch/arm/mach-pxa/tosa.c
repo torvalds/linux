@@ -905,7 +905,7 @@ static struct platform_device *devices[] __initdata = {
 
 static void tosa_poweroff(void)
 {
-	arm_machine_restart('g', NULL);
+	pxa_restart('g', NULL);
 }
 
 static void tosa_restart(char mode, const char *cmd)
@@ -935,7 +935,6 @@ static void __init tosa_init(void)
 	init_gpio_reset(TOSA_GPIO_ON_RESET, 0, 0);
 
 	pm_power_off = tosa_poweroff;
-	arm_pm_restart = tosa_restart;
 
 	PCFR |= PCFR_OPDE;
 
@@ -978,4 +977,5 @@ MACHINE_START(TOSA, "SHARP Tosa")
 	.handle_irq       = pxa25x_handle_irq,
 	.init_machine   = tosa_init,
 	.timer          = &pxa_timer,
+	.restart	= tosa_restart,
 MACHINE_END
