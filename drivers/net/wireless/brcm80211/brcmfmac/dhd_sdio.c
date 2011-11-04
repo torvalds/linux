@@ -3138,7 +3138,6 @@ brcmf_sdbrcm_chip_resetcore(struct brcmf_sdio_dev *sdiodev, u32 corebase)
 static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 {
 	uint retries;
-	u32 regdata;
 	int bcmerror = 0;
 
 	/* To enter download state, disable ARM and reset SOCRAM.
@@ -3159,11 +3158,8 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 					 (u8 *)&zeros, 4);
 		}
 	} else {
-		regdata = brcmf_sdcard_reg_read(bus->sdiodev,
-			CORE_SB(bus->ci->ramcorebase, sbtmstatelow), 4);
-		regdata &= (SBTML_RESET | SBTML_REJ_MASK |
-			(SICF_CLOCK_EN << SBTML_SICF_SHIFT));
-		if ((SICF_CLOCK_EN << SBTML_SICF_SHIFT) != regdata) {
+		if (!brcmf_sdio_chip_iscoreup(bus->sdiodev,
+					      bus->ci->ramcorebase)) {
 			brcmf_dbg(ERROR, "SOCRAM core is down after reset?\n");
 			bcmerror = -EBADE;
 			goto fail;

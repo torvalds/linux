@@ -52,6 +52,19 @@
 #define	SBIDH_VC_MASK		0xffff0000	/* vendor code */
 #define	SBIDH_VC_SHIFT		16
 
+bool
+brcmf_sdio_chip_iscoreup(struct brcmf_sdio_dev *sdiodev,
+			 u32 corebase)
+{
+	u32 regdata;
+
+	regdata = brcmf_sdcard_reg_read(sdiodev,
+			CORE_SB(corebase, sbtmstatelow), 4);
+	regdata &= (SBTML_RESET | SBTML_REJ_MASK |
+			(SICF_CLOCK_EN << SBTML_SICF_SHIFT));
+	return ((SICF_CLOCK_EN << SBTML_SICF_SHIFT) == regdata);
+}
+
 void
 brcmf_sdio_chip_coredisable(struct brcmf_sdio_dev *sdiodev, u32 corebase)
 {
