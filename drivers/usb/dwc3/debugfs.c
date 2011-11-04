@@ -44,8 +44,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
-
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "core.h"
 #include "gadget.h"
@@ -481,7 +480,7 @@ int __devinit dwc3_debugfs_init(struct dwc3 *dwc)
 	int			ret;
 
 	root = debugfs_create_dir(dev_name(dwc->dev), NULL);
-	if (IS_ERR(root)){
+	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		goto err0;
 	}

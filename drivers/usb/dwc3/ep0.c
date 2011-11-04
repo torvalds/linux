@@ -258,7 +258,8 @@ static void dwc3_ep0_status_cmpl(struct usb_ep *ep, struct usb_request *req)
 /*
  * ch 9.4.5
  */
-static int dwc3_ep0_handle_status(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
+static int dwc3_ep0_handle_status(struct dwc3 *dwc,
+		struct usb_ctrlrequest *ctrl)
 {
 	struct dwc3_ep		*dep;
 	u32			recip;
@@ -285,7 +286,7 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl
 	case USB_RECIP_ENDPOINT:
 		dep = dwc3_wIndex_to_dep(dwc, ctrl->wIndex);
 		if (!dep)
-		       return -EINVAL;
+			return -EINVAL;
 
 		if (dep->flags & DWC3_EP_STALL)
 			usb_status = 1 << USB_ENDPOINT_HALT;

@@ -745,8 +745,9 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param,
 	dep->flags |= DWC3_EP_BUSY;
 	dep->res_trans_idx = dwc3_gadget_ep_get_transfer_index(dwc,
 			dep->number);
-	if (!dep->res_trans_idx)
-		printk_once(KERN_ERR "%s() res_trans_idx is invalid\n", __func__);
+
+	WARN_ON_ONCE(!dep->res_trans_idx);
+
 	return 0;
 }
 
@@ -1264,11 +1265,10 @@ static int __devinit dwc3_gadget_init_endpoints(struct dwc3 *dwc)
 					&dwc->gadget.ep_list);
 
 			ret = dwc3_alloc_trb_pool(dep);
-			if (ret) {
-				dev_err(dwc->dev, "%s: failed to allocate TRB pool\n", dep->name);
+			if (ret)
 				return ret;
-			}
 		}
+
 		INIT_LIST_HEAD(&dep->request_list);
 		INIT_LIST_HEAD(&dep->req_queued);
 	}
