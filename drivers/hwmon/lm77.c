@@ -365,7 +365,7 @@ static u16 lm77_read_value(struct i2c_client *client, u8 reg)
 	if (reg == LM77_REG_CONF)
 		return i2c_smbus_read_byte_data(client, reg);
 	else
-		return swab16(i2c_smbus_read_word_data(client, reg));
+		return i2c_smbus_read_word_swapped(client, reg);
 }
 
 static int lm77_write_value(struct i2c_client *client, u8 reg, u16 value)
@@ -373,7 +373,7 @@ static int lm77_write_value(struct i2c_client *client, u8 reg, u16 value)
 	if (reg == LM77_REG_CONF)
 		return i2c_smbus_write_byte_data(client, reg, value);
 	else
-		return i2c_smbus_write_word_data(client, reg, swab16(value));
+		return i2c_smbus_write_word_swapped(client, reg, value);
 }
 
 static void lm77_init_client(struct i2c_client *client)
