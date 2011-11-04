@@ -629,23 +629,26 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	}
 
 	r = 0;
-	if (!dss_cache.irq_enabled) {
-		u32 mask;
+	if (!mgr_manual_update(mgr)) {
+		if (!dss_cache.irq_enabled) {
+			u32 mask;
 
-		mask = DISPC_IRQ_VSYNC	| DISPC_IRQ_EVSYNC_ODD |
-			DISPC_IRQ_EVSYNC_EVEN;
-		if (dss_has_feature(FEAT_MGR_LCD2))
-			mask |= DISPC_IRQ_VSYNC2;
+			mask = DISPC_IRQ_VSYNC	| DISPC_IRQ_EVSYNC_ODD |
+				DISPC_IRQ_EVSYNC_EVEN;
+			if (dss_has_feature(FEAT_MGR_LCD2))
+				mask |= DISPC_IRQ_VSYNC2;
 
-		r = omap_dispc_register_isr(dss_apply_irq_handler, NULL, mask);
+			r = omap_dispc_register_isr(dss_apply_irq_handler,
+					NULL, mask);
 
-		if (r)
-			DSSERR("failed to register apply isr\n");
+			if (r)
+				DSSERR("failed to register apply isr\n");
 
-		dss_cache.irq_enabled = true;
+			dss_cache.irq_enabled = true;
+		}
+
+		configure_dispc();
 	}
-
-	configure_dispc();
 
 	spin_unlock_irqrestore(&dss_cache.lock, flags);
 
