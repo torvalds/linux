@@ -100,16 +100,29 @@
 #define PERF_IRQSTAT_6358_REG		0x10
 
 /* External Interrupt Configuration register */
-#define PERF_EXTIRQ_CFG_REG		0x14
-#define EXTIRQ_CFG_SENSE(x)		(1 << (x))
-#define EXTIRQ_CFG_STAT(x)		(1 << (x + 5))
-#define EXTIRQ_CFG_CLEAR(x)		(1 << (x + 10))
-#define EXTIRQ_CFG_MASK(x)		(1 << (x + 15))
-#define EXTIRQ_CFG_BOTHEDGE(x)		(1 << (x + 20))
-#define EXTIRQ_CFG_LEVELSENSE(x)	(1 << (x + 25))
+#define PERF_EXTIRQ_CFG_REG_6338	0x14
+#define PERF_EXTIRQ_CFG_REG_6348	0x14
+#define PERF_EXTIRQ_CFG_REG_6358	0x14
 
-#define EXTIRQ_CFG_CLEAR_ALL		(0xf << 10)
-#define EXTIRQ_CFG_MASK_ALL		(0xf << 15)
+/* for 6348 only */
+#define EXTIRQ_CFG_SENSE_6348(x)	(1 << (x))
+#define EXTIRQ_CFG_STAT_6348(x)		(1 << (x + 5))
+#define EXTIRQ_CFG_CLEAR_6348(x)	(1 << (x + 10))
+#define EXTIRQ_CFG_MASK_6348(x)		(1 << (x + 15))
+#define EXTIRQ_CFG_BOTHEDGE_6348(x)	(1 << (x + 20))
+#define EXTIRQ_CFG_LEVELSENSE_6348(x)	(1 << (x + 25))
+#define EXTIRQ_CFG_CLEAR_ALL_6348	(0xf << 10)
+#define EXTIRQ_CFG_MASK_ALL_6348	(0xf << 15)
+
+/* for all others */
+#define EXTIRQ_CFG_SENSE(x)		(1 << (x))
+#define EXTIRQ_CFG_STAT(x)		(1 << (x + 4))
+#define EXTIRQ_CFG_CLEAR(x)		(1 << (x + 8))
+#define EXTIRQ_CFG_MASK(x)		(1 << (x + 12))
+#define EXTIRQ_CFG_BOTHEDGE(x)		(1 << (x + 16))
+#define EXTIRQ_CFG_LEVELSENSE(x)	(1 << (x + 20))
+#define EXTIRQ_CFG_CLEAR_ALL		(0xf << 8)
+#define EXTIRQ_CFG_MASK_ALL		(0xf << 12)
 
 /* Soft Reset register */
 #define PERF_SOFTRESET_REG		0x28
