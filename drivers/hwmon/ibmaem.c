@@ -570,24 +570,26 @@ static int aem_init_aem1_inst(struct aem_ipmi_data *probe, u8 module_handle)
 	platform_set_drvdata(data->pdev, data);
 
 	/* Set up IPMI interface */
-	if (aem_init_ipmi_data(&data->ipmi, probe->interface,
-			       probe->bmc_device))
+	res = aem_init_ipmi_data(&data->ipmi, probe->interface,
+				 probe->bmc_device);
+	if (res)
 		goto ipmi_err;
 
 	/* Register with hwmon */
 	data->hwmon_dev = hwmon_device_register(&data->pdev->dev);
-
 	if (IS_ERR(data->hwmon_dev)) {
 		dev_err(&data->pdev->dev, "Unable to register hwmon "
 			"device for IPMI interface %d\n",
 			probe->interface);
+		res = PTR_ERR(data->hwmon_dev);
 		goto hwmon_reg_err;
 	}
 
 	data->update = update_aem1_sensors;
 
 	/* Find sensors */
-	if (aem1_find_sensors(data))
+	res = aem1_find_sensors(data);
+	if (res)
 		goto sensor_err;
 
 	/* Add to our list of AEM devices */
@@ -704,24 +706,26 @@ static int aem_init_aem2_inst(struct aem_ipmi_data *probe,
 	platform_set_drvdata(data->pdev, data);
 
 	/* Set up IPMI interface */
-	if (aem_init_ipmi_data(&data->ipmi, probe->interface,
-			       probe->bmc_device))
+	res = aem_init_ipmi_data(&data->ipmi, probe->interface,
+				 probe->bmc_device);
+	if (res)
 		goto ipmi_err;
 
 	/* Register with hwmon */
 	data->hwmon_dev = hwmon_device_register(&data->pdev->dev);
-
 	if (IS_ERR(data->hwmon_dev)) {
 		dev_err(&data->pdev->dev, "Unable to register hwmon "
 			"device for IPMI interface %d\n",
 			probe->interface);
+		res = PTR_ERR(data->hwmon_dev);
 		goto hwmon_reg_err;
 	}
 
 	data->update = update_aem2_sensors;
 
 	/* Find sensors */
-	if (aem2_find_sensors(data))
+	res = aem2_find_sensors(data);
+	if (res)
 		goto sensor_err;
 
 	/* Add to our list of AEM devices */
