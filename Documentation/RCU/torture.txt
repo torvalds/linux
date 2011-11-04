@@ -66,6 +66,11 @@ shuffle_interval
 		to a particular subset of the CPUs, defaults to 3 seconds.
 		Used in conjunction with test_no_idle_hz.
 
+shutdown_secs	The number of seconds to run the test before terminating
+		the test and powering off the system.  The default is
+		zero, which disables test termination and system shutdown.
+		This capability is useful for automated testing.
+
 stat_interval	The number of seconds between output of torture
 		statistics (via printk()).  Regardless of the interval,
 		statistics are printed when the module is unloaded.

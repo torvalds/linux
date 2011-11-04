@@ -61,9 +61,10 @@ static int test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
 static int shuffle_interval = 3; /* Interval between shuffles (in sec)*/
 static int stutter = 5;		/* Start/stop testing interval (in sec) */
 static int irqreader = 1;	/* RCU readers from irq (timers). */
-static int fqs_duration = 0;	/* Duration of bursts (us), 0 to disable. */
-static int fqs_holdoff = 0;	/* Hold time within burst (us). */
+static int fqs_duration;	/* Duration of bursts (us), 0 to disable. */
+static int fqs_holdoff;		/* Hold time within burst (us). */
 static int fqs_stutter = 3;	/* Wait time between bursts (s). */
+static int shutdown_secs;	/* Shutdown time (s).  <=0 for no shutdown. */
 static int test_boost = 1;	/* Test RCU prio boost: 0=no, 1=maybe, 2=yes. */
 static int test_boost_interval = 7; /* Interval between boost tests, seconds. */
 static int test_boost_duration = 4; /* Duration of each boost test, seconds. */
@@ -91,6 +92,8 @@ module_param(fqs_holdoff, int, 0444);
 MODULE_PARM_DESC(fqs_holdoff, "Holdoff time within fqs bursts (us)");
 module_param(fqs_stutter, int, 0444);
 MODULE_PARM_DESC(fqs_stutter, "Wait time between fqs bursts (s)");
+module_param(shutdown_secs, int, 0444);
+MODULE_PARM_DESC(shutdown_secs, "Shutdown time (s), zero to disable.");
 module_param(test_boost, int, 0444);
 MODULE_PARM_DESC(test_boost, "Test RCU prio boost: 0=no, 1=maybe, 2=yes.");
 module_param(test_boost_interval, int, 0444);
@@ -119,6 +122,7 @@ static struct task_struct *shuffler_task;
 static struct task_struct *stutter_task;
 static struct task_struct *fqs_task;
 static struct task_struct *boost_tasks[NR_CPUS];
+static struct task_struct *shutdown_task;
 
 #define RCU_TORTURE_PIPE_LEN 10
 
@@ -167,6 +171,7 @@ int rcutorture_runnable = RCUTORTURE_RUNNABLE_INIT;
 #define rcu_can_boost() 0
 #endif /* #else #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU) */
 
+static unsigned long shutdown_time;	/* jiffies to system shutdown. */
 static unsigned long boost_starttime;	/* jiffies of next boost test start. */
 DEFINE_MUTEX(boost_mutex);		/* protect setting boost_starttime */
 					/*  and boost task create/destroy. */
@@ -181,6 +186,9 @@ static int fullstop = FULLSTOP_RMMOD;
  * Protect fullstop transitions and spawning of kthreads.
  */
 static DEFINE_MUTEX(fullstop_mutex);
+
+/* Forward reference. */
+static void rcu_torture_cleanup(void);
 
 /*
  * Detect and respond to a system shutdown.
@@ -1250,12 +1258,12 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, char *tag)
 		"shuffle_interval=%d stutter=%d irqreader=%d "
 		"fqs_duration=%d fqs_holdoff=%d fqs_stutter=%d "
 		"test_boost=%d/%d test_boost_interval=%d "
-		"test_boost_duration=%d\n",
+		"test_boost_duration=%d shutdown_secs=%d\n",
 		torture_type, tag, nrealreaders, nfakewriters,
 		stat_interval, verbose, test_no_idle_hz, shuffle_interval,
 		stutter, irqreader, fqs_duration, fqs_holdoff, fqs_stutter,
 		test_boost, cur_ops->can_boost,
-		test_boost_interval, test_boost_duration);
+		test_boost_interval, test_boost_duration, shutdown_secs);
 }
 
 static struct notifier_block rcutorture_shutdown_nb = {
@@ -1302,6 +1310,43 @@ static int rcutorture_booster_init(int cpu)
 	kthread_bind(boost_tasks[cpu], cpu);
 	wake_up_process(boost_tasks[cpu]);
 	mutex_unlock(&boost_mutex);
+	return 0;
+}
+
+/*
+ * Cause the rcutorture test to shutdown the system after the test has
+ * run for the time specified by the shutdown_secs module parameter.
+ */
+static int
+rcu_torture_shutdown(void *arg)
+{
+	long delta;
+	unsigned long jiffies_snap;
+
+	VERBOSE_PRINTK_STRING("rcu_torture_shutdown task started");
+	jiffies_snap = ACCESS_ONCE(jiffies);
+	while (ULONG_CMP_LT(jiffies_snap, shutdown_time) &&
+	       !kthread_should_stop()) {
+		delta = shutdown_time - jiffies_snap;
+		if (verbose)
+			printk(KERN_ALERT "%s" TORTURE_FLAG
+			       "rcu_torture_shutdown task: %lu "
+			       "jiffies remaining\n",
+			       torture_type, delta);
+		schedule_timeout_interruptible(delta);
+		jiffies_snap = ACCESS_ONCE(jiffies);
+	}
+	if (ULONG_CMP_LT(jiffies, shutdown_time)) {
+		VERBOSE_PRINTK_STRING("rcu_torture_shutdown task stopping");
+		return 0;
+	}
+
+	/* OK, shut down the system. */
+
+	VERBOSE_PRINTK_STRING("rcu_torture_shutdown task shutting down system");
+	shutdown_task = NULL;	/* Avoid self-kill deadlock. */
+	rcu_torture_cleanup();	/* Get the success/failure message. */
+	kernel_power_off();	/* Shut down the system. */
 	return 0;
 }
 
@@ -1408,6 +1453,10 @@ rcu_torture_cleanup(void)
 		unregister_cpu_notifier(&rcutorture_cpu_nb);
 		for_each_possible_cpu(i)
 			rcutorture_booster_cleanup(i);
+	}
+	if (shutdown_task != NULL) {
+		VERBOSE_PRINTK_STRING("Stopping rcu_torture_shutdown task");
+		kthread_stop(shutdown_task);
 	}
 
 	/* Wait for all RCU callbacks to fire.  */
@@ -1623,6 +1672,17 @@ rcu_torture_init(void)
 				firsterr = retval;
 				goto unwind;
 			}
+		}
+	}
+	if (shutdown_secs > 0) {
+		shutdown_time = jiffies + shutdown_secs * HZ;
+		shutdown_task = kthread_run(rcu_torture_shutdown, NULL,
+					    "rcu_torture_shutdown");
+		if (IS_ERR(shutdown_task)) {
+			firsterr = PTR_ERR(shutdown_task);
+			VERBOSE_PRINTK_ERRSTRING("Failed to create shutdown");
+			shutdown_task = NULL;
+			goto unwind;
 		}
 	}
 	register_reboot_notifier(&rcutorture_shutdown_nb);
