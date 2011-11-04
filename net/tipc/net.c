@@ -117,7 +117,7 @@ static void net_route_named_msg(struct sk_buff *buf)
 	u32 dport;
 
 	if (!msg_named(msg)) {
-		buf_discard(buf);
+		kfree_skb(buf);
 		return;
 	}
 
@@ -161,7 +161,7 @@ void tipc_net_route_msg(struct sk_buff *buf)
 			tipc_port_recv_proto_msg(buf);
 			break;
 		default:
-			buf_discard(buf);
+			kfree_skb(buf);
 		}
 		return;
 	}

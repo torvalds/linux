@@ -353,12 +353,12 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		while (n_ptr->bclink.deferred_head) {
 			struct sk_buff *buf = n_ptr->bclink.deferred_head;
 			n_ptr->bclink.deferred_head = buf->next;
-			buf_discard(buf);
+			kfree_skb(buf);
 		}
 		n_ptr->bclink.deferred_size = 0;
 
 		if (n_ptr->bclink.defragm) {
-			buf_discard(n_ptr->bclink.defragm);
+			kfree_skb(n_ptr->bclink.defragm);
 			n_ptr->bclink.defragm = NULL;
 		}
 

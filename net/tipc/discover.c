@@ -135,7 +135,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 
 	media_addr.broadcast = 1;
 	b_ptr->media->msg2addr(&media_addr, msg_media_addr(msg));
-	buf_discard(buf);
+	kfree_skb(buf);
 
 	/* Ensure message from node is valid and communication is permitted */
 	if (net_id != tipc_net_id)
@@ -250,7 +250,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, orig, b_ptr);
 		if (rbuf) {
 			b_ptr->media->send_msg(rbuf, b_ptr, &media_addr);
-			buf_discard(rbuf);
+			kfree_skb(rbuf);
 		}
 	}
 
@@ -396,7 +396,7 @@ void tipc_disc_delete(struct tipc_link_req *req)
 {
 	k_cancel_timer(&req->timer);
 	k_term_timer(&req->timer);
-	buf_discard(req->buf);
+	kfree_skb(req->buf);
 	kfree(req);
 }
 

@@ -116,13 +116,13 @@ int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
 			ibuf = skb_copy(buf, GFP_ATOMIC);
 			if (ibuf == NULL) {
 				tipc_port_list_free(&dports);
-				buf_discard(buf);
+				kfree_skb(buf);
 				return -ENOMEM;
 			}
 		}
 		res = tipc_bclink_send_msg(buf);
 		if ((res < 0) && (dports.count != 0))
-			buf_discard(ibuf);
+			kfree_skb(ibuf);
 	} else {
 		ibuf = buf;
 	}
@@ -187,7 +187,7 @@ void tipc_port_recv_mcast(struct sk_buff *buf, struct tipc_port_list *dp)
 		}
 	}
 exit:
-	buf_discard(buf);
+	kfree_skb(buf);
 	tipc_port_list_free(dp);
 }
 
@@ -420,7 +420,7 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	else
 		tipc_link_send(rbuf, src_node, msg_link_selector(rmsg));
 exit:
-	buf_discard(buf);
+	kfree_skb(buf);
 	return data_sz;
 }
 
@@ -568,7 +568,7 @@ void tipc_port_recv_proto_msg(struct sk_buff *buf)
 	tipc_port_unlock(p_ptr);
 exit:
 	tipc_net_route_msg(r_buf);
-	buf_discard(buf);
+	kfree_skb(buf);
 }
 
 static void port_print(struct tipc_port *p_ptr, struct print_buf *buf, int full_id)
@@ -759,7 +759,7 @@ static void port_dispatcher_sigh(void *dummy)
 			}
 		}
 		if (buf)
-			buf_discard(buf);
+			kfree_skb(buf);
 		buf = next;
 		continue;
 err:
@@ -813,7 +813,7 @@ err:
 			}
 		}
 		if (buf)
-			buf_discard(buf);
+			kfree_skb(buf);
 		buf = next;
 		continue;
 reject:
