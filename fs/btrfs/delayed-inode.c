@@ -591,7 +591,7 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 		return 0;
 
 	src_rsv = trans->block_rsv;
-	dst_rsv = &root->fs_info->global_block_rsv;
+	dst_rsv = &root->fs_info->delayed_block_rsv;
 
 	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
 	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
@@ -609,7 +609,7 @@ static void btrfs_delayed_item_release_metadata(struct btrfs_root *root,
 	if (!item->bytes_reserved)
 		return;
 
-	rsv = &root->fs_info->global_block_rsv;
+	rsv = &root->fs_info->delayed_block_rsv;
 	btrfs_block_rsv_release(root, rsv,
 				item->bytes_reserved);
 }
@@ -628,7 +628,7 @@ static int btrfs_delayed_inode_reserve_metadata(
 		return 0;
 
 	src_rsv = trans->block_rsv;
-	dst_rsv = &root->fs_info->global_block_rsv;
+	dst_rsv = &root->fs_info->delayed_block_rsv;
 
 	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
 	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
@@ -646,7 +646,7 @@ static void btrfs_delayed_inode_release_metadata(struct btrfs_root *root,
 	if (!node->bytes_reserved)
 		return;
 
-	rsv = &root->fs_info->global_block_rsv;
+	rsv = &root->fs_info->delayed_block_rsv;
 	btrfs_block_rsv_release(root, rsv,
 				node->bytes_reserved);
 	node->bytes_reserved = 0;
@@ -1026,7 +1026,7 @@ int btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
 	path->leave_spinning = 1;
 
 	block_rsv = trans->block_rsv;
-	trans->block_rsv = &root->fs_info->global_block_rsv;
+	trans->block_rsv = &root->fs_info->delayed_block_rsv;
 
 	delayed_root = btrfs_get_delayed_root(root);
 
@@ -1069,7 +1069,7 @@ static int __btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 	path->leave_spinning = 1;
 
 	block_rsv = trans->block_rsv;
-	trans->block_rsv = &node->root->fs_info->global_block_rsv;
+	trans->block_rsv = &node->root->fs_info->delayed_block_rsv;
 
 	ret = btrfs_insert_delayed_items(trans, path, node->root, node);
 	if (!ret)
@@ -1149,7 +1149,7 @@ static void btrfs_async_run_delayed_node_done(struct btrfs_work *work)
 		goto free_path;
 
 	block_rsv = trans->block_rsv;
-	trans->block_rsv = &root->fs_info->global_block_rsv;
+	trans->block_rsv = &root->fs_info->delayed_block_rsv;
 
 	ret = btrfs_insert_delayed_items(trans, path, root, delayed_node);
 	if (!ret)

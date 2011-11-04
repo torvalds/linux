@@ -3914,6 +3914,7 @@ static void init_global_block_rsv(struct btrfs_fs_info *fs_info)
 	fs_info->delalloc_block_rsv.space_info = space_info;
 	fs_info->trans_block_rsv.space_info = space_info;
 	fs_info->empty_block_rsv.space_info = space_info;
+	fs_info->delayed_block_rsv.space_info = space_info;
 
 	fs_info->extent_root->block_rsv = &fs_info->global_block_rsv;
 	fs_info->csum_root->block_rsv = &fs_info->global_block_rsv;
@@ -3933,6 +3934,8 @@ static void release_global_block_rsv(struct btrfs_fs_info *fs_info)
 	WARN_ON(fs_info->trans_block_rsv.reserved > 0);
 	WARN_ON(fs_info->chunk_block_rsv.size > 0);
 	WARN_ON(fs_info->chunk_block_rsv.reserved > 0);
+	WARN_ON(fs_info->delayed_block_rsv.size > 0);
+	WARN_ON(fs_info->delayed_block_rsv.reserved > 0);
 }
 
 void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
