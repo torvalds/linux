@@ -1342,15 +1342,20 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 
 		/*
 		 * If we receive a 4-addr nullfunc frame from a STA
-		 * that was not moved to a 4-addr STA vlan yet, drop
-		 * the frame to the monitor interface, to make sure
-		 * that hostapd sees it
+		 * that was not moved to a 4-addr STA vlan yet send
+		 * the event to userspace and for older hostapd drop
+		 * the frame to the monitor interface.
 		 */
 		if (ieee80211_has_a4(hdr->frame_control) &&
 		    (rx->sdata->vif.type == NL80211_IFTYPE_AP ||
 		     (rx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
-		      !rx->sdata->u.vlan.sta)))
+		      !rx->sdata->u.vlan.sta))) {
+			if (!test_and_set_sta_flag(sta, WLAN_STA_4ADDR_EVENT))
+				cfg80211_rx_unexpected_4addr_frame(
+					rx->sdata->dev, sta->sta.addr,
+					GFP_ATOMIC);
 			return RX_DROP_MONITOR;
+		}
 		/*
 		 * Update counter and free packet here to avoid
 		 * counting this as a dropped packed.
@@ -2028,12 +2033,17 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 		return RX_DROP_MONITOR;
 
 	/*
-	 * Allow the cooked monitor interface of an AP to see 4-addr frames so
-	 * that a 4-addr station can be detected and moved into a separate VLAN
+	 * Send unexpected-4addr-frame event to hostapd. For older versions,
+	 * also drop the frame to cooked monitor interfaces.
 	 */
 	if (ieee80211_has_a4(hdr->frame_control) &&
-	    sdata->vif.type == NL80211_IFTYPE_AP)
+	    sdata->vif.type == NL80211_IFTYPE_AP) {
+		if (rx->sta &&
+		    !test_and_set_sta_flag(rx->sta, WLAN_STA_4ADDR_EVENT))
+			cfg80211_rx_unexpected_4addr_frame(
+				rx->sdata->dev, rx->sta->sta.addr, GFP_ATOMIC);
 		return RX_DROP_MONITOR;
+	}
 
 	err = __ieee80211_data_to_8023(rx, &port_control);
 	if (unlikely(err))
