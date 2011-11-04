@@ -670,6 +670,11 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 		goto error;
 	}
 
+	if (sizeof(struct comedi_insn) * insnlist.n_insns < insnlist.n_insns) {
+		ret = -EINVAL;
+		goto error;
+	}
+
 	insns =
 	    kmalloc(sizeof(struct comedi_insn) * insnlist.n_insns, GFP_KERNEL);
 	if (!insns) {
