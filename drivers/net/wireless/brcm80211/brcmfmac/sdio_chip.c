@@ -52,6 +52,17 @@
 #define	SBIDH_VC_MASK		0xffff0000	/* vendor code */
 #define	SBIDH_VC_SHIFT		16
 
+static u32
+brcmf_sdio_chip_corerev(struct brcmf_sdio_dev *sdiodev,
+			u32 corebase)
+{
+	u32 regdata;
+
+	regdata = brcmf_sdcard_reg_read(sdiodev,
+			CORE_SB(corebase, sbidhigh), 4);
+	return SBCOREREV(regdata);
+}
+
 bool
 brcmf_sdio_chip_iscoreup(struct brcmf_sdio_dev *sdiodev,
 			 u32 corebase)
@@ -234,9 +245,7 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 	u32 regdata;
 
 	/* get chipcommon rev */
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-		CORE_SB(ci->cccorebase, sbidhigh), 4);
-	ci->ccrev = SBCOREREV(regdata);
+	ci->ccrev = brcmf_sdio_chip_corerev(sdiodev, ci->cccorebase);
 
 	/* get chipcommon capabilites */
 	ci->cccaps = brcmf_sdcard_reg_read(sdiodev,
@@ -249,9 +258,10 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 		ci->pmurev = ci->pmucaps & PCAP_REV_MASK;
 	}
 
+
+	ci->buscorerev = brcmf_sdio_chip_corerev(sdiodev, ci->buscorebase);
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 					CORE_SB(ci->buscorebase, sbidhigh), 4);
-	ci->buscorerev = SBCOREREV(regdata);
 	ci->buscoretype = (regdata & SBIDH_CC_MASK) >> SBIDH_CC_SHIFT;
 
 	brcmf_dbg(INFO, "ccrev=%d, pmurev=%d, buscore rev/type=%d/0x%x\n",
