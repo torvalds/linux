@@ -271,13 +271,9 @@ int qib_make_rc_req(struct qib_qp *qp)
 			goto bail;
 		}
 		wqe = get_swqe_ptr(qp, qp->s_last);
-		while (qp->s_last != qp->s_acked) {
-			qib_send_complete(qp, wqe, IB_WC_SUCCESS);
-			if (++qp->s_last >= qp->s_size)
-				qp->s_last = 0;
-			wqe = get_swqe_ptr(qp, qp->s_last);
-		}
-		qib_send_complete(qp, wqe, IB_WC_WR_FLUSH_ERR);
+		qib_send_complete(qp, wqe, qp->s_last != qp->s_acked ?
+			IB_WC_SUCCESS : IB_WC_WR_FLUSH_ERR);
+		/* will get called again */
 		goto done;
 	}
 
