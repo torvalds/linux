@@ -812,10 +812,6 @@ static int brcmf_sdbrcm_htclk(struct brcmf_bus *bus, bool on, bool pendok)
 		clkreq =
 		    bus->alp_only ? SBSDIO_ALP_AVAIL_REQ : SBSDIO_HT_AVAIL_REQ;
 
-		if ((bus->ci->chip == BCM4329_CHIP_ID)
-		    && (bus->ci->chiprev == 0))
-			clkreq |= SBSDIO_FORCE_ALP;
-
 		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
 				       SBSDIO_FUNC1_CHIPCLKCSR, clkreq, &err);
 		if (err) {
@@ -1034,11 +1030,9 @@ static int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 			SBSDIO_FORCE_HW_CLKREQ_OFF, NULL);
 
 		/* Isolate the bus */
-		if (bus->ci->chip != BCM4329_CHIP_ID) {
-			brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-				SBSDIO_DEVICE_CTL,
-				SBSDIO_DEVCTL_PADS_ISO, NULL);
-		}
+		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
+			SBSDIO_DEVICE_CTL,
+			SBSDIO_DEVCTL_PADS_ISO, NULL);
 
 		/* Change state */
 		bus->sleeping = true;
