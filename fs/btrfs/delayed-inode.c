@@ -624,13 +624,36 @@ static int btrfs_delayed_inode_reserve_metadata(
 	u64 num_bytes;
 	int ret;
 
-	if (!trans->bytes_reserved)
-		return 0;
-
 	src_rsv = trans->block_rsv;
 	dst_rsv = &root->fs_info->delayed_block_rsv;
 
 	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
+
+	/*
+	 * btrfs_dirty_inode will update the inode under btrfs_join_transaction
+	 * which doesn't reserve space for speed.  This is a problem since we
+	 * still need to reserve space for this update, so try to reserve the
+	 * space.
+	 *
+	 * Now if src_rsv == delalloc_block_rsv we'll let it just steal since
+	 * we're accounted for.
+	 */
+	if (!trans->bytes_reserved &&
+	    src_rsv != &root->fs_info->delalloc_block_rsv) {
+		ret = btrfs_block_rsv_add_noflush(root, dst_rsv, num_bytes);
+		/*
+		 * Since we're under a transaction reserve_metadata_bytes could
+		 * try to commit the transaction which will make it return
+		 * EAGAIN to make us stop the transaction we have, so return
+		 * ENOSPC instead so that btrfs_dirty_inode knows what to do.
+		 */
+		if (ret == -EAGAIN)
+			ret = -ENOSPC;
+		if (!ret)
+			node->bytes_reserved = num_bytes;
+		return ret;
+	}
+
 	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
 	if (!ret)
 		node->bytes_reserved = num_bytes;
@@ -1686,11 +1709,8 @@ int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 	}
 
 	ret = btrfs_delayed_inode_reserve_metadata(trans, root, delayed_node);
-	/*
-	 * we must reserve enough space when we start a new transaction,
-	 * so reserving metadata failure is impossible
-	 */
-	BUG_ON(ret);
+	if (ret)
+		goto release_node;
 
 	fill_stack_inode_item(trans, &delayed_node->inode_item, inode);
 	delayed_node->inode_dirty = 1;

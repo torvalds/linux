@@ -2353,6 +2353,9 @@ void btrfs_free_block_rsv(struct btrfs_root *root,
 int btrfs_block_rsv_add(struct btrfs_root *root,
 			struct btrfs_block_rsv *block_rsv,
 			u64 num_bytes);
+int btrfs_block_rsv_add_noflush(struct btrfs_root *root,
+				struct btrfs_block_rsv *block_rsv,
+				u64 num_bytes);
 int btrfs_block_rsv_check(struct btrfs_root *root,
 			  struct btrfs_block_rsv *block_rsv, int min_factor);
 int btrfs_block_rsv_refill(struct btrfs_root *root,

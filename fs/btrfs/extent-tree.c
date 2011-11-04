@@ -3814,6 +3814,24 @@ int btrfs_block_rsv_add(struct btrfs_root *root,
 	return ret;
 }
 
+int btrfs_block_rsv_add_noflush(struct btrfs_root *root,
+				struct btrfs_block_rsv *block_rsv,
+				u64 num_bytes)
+{
+	int ret;
+
+	if (num_bytes == 0)
+		return 0;
+
+	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, 0);
+	if (!ret) {
+		block_rsv_add_bytes(block_rsv, num_bytes, 1);
+		return 0;
+	}
+
+	return ret;
+}
+
 int btrfs_block_rsv_check(struct btrfs_root *root,
 			  struct btrfs_block_rsv *block_rsv, int min_factor)
 {
