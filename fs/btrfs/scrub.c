@@ -655,6 +655,7 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 		       "scrub_fixup: btrfs_map_block failed us for %llu\n",
 		       (unsigned long long)logical);
 		WARN_ON(1);
+		kfree(bbio);
 		return;
 	}
 
