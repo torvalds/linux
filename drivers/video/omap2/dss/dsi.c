@@ -4010,7 +4010,7 @@ int dsi_video_mode_enable(struct omap_dss_device *dssdev, int channel)
 	dsi_vc_enable(dsidev, channel, true);
 	dsi_if_enable(dsidev, true);
 
-	dssdev->manager->enable(dssdev->manager);
+	dss_mgr_enable(dssdev->manager);
 
 	return 0;
 }
@@ -4029,7 +4029,7 @@ void dsi_video_mode_disable(struct omap_dss_device *dssdev, int channel)
 	dsi_vc_enable(dsidev, channel, true);
 	dsi_if_enable(dsidev, true);
 
-	dssdev->manager->disable(dssdev->manager);
+	dss_mgr_disable(dssdev->manager);
 }
 EXPORT_SYMBOL(dsi_video_mode_disable);
 

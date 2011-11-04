@@ -123,7 +123,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 		goto err_sdi_enable;
 	mdelay(2);
 
-	dssdev->manager->enable(dssdev->manager);
+	dss_mgr_enable(dssdev->manager);
 
 	return 0;
 
@@ -145,7 +145,7 @@ EXPORT_SYMBOL(omapdss_sdi_display_enable);
 
 void omapdss_sdi_display_disable(struct omap_dss_device *dssdev)
 {
-	dssdev->manager->disable(dssdev->manager);
+	dss_mgr_disable(dssdev->manager);
 
 	dss_sdi_disable();
 

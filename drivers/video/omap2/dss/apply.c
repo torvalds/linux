@@ -424,7 +424,7 @@ void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 		mc->shadow_dirty = false;
 	}
 
-	mgr->enable(mgr);
+	dispc_mgr_enable(mgr->id, true);
 }
 
 static void dss_apply_irq_handler(void *data, u32 mask)
@@ -652,5 +652,15 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	dispc_runtime_put();
 
 	return r;
+}
+
+void dss_mgr_enable(struct omap_overlay_manager *mgr)
+{
+	dispc_mgr_enable(mgr->id, true);
+}
+
+void dss_mgr_disable(struct omap_overlay_manager *mgr)
+{
+	dispc_mgr_enable(mgr->id, false);
 }
 

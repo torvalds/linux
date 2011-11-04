@@ -585,18 +585,6 @@ static void omap_dss_mgr_get_info(struct omap_overlay_manager *mgr,
 	*info = mgr->info;
 }
 
-static int dss_mgr_enable(struct omap_overlay_manager *mgr)
-{
-	dispc_mgr_enable(mgr->id, 1);
-	return 0;
-}
-
-static int dss_mgr_disable(struct omap_overlay_manager *mgr)
-{
-	dispc_mgr_enable(mgr->id, 0);
-	return 0;
-}
-
 static void omap_dss_add_overlay_manager(struct omap_overlay_manager *manager)
 {
 	++num_managers;
@@ -639,9 +627,6 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 		mgr->get_manager_info = &omap_dss_mgr_get_info;
 		mgr->wait_for_go = &dss_mgr_wait_for_go;
 		mgr->wait_for_vsync = &dss_mgr_wait_for_vsync;
-
-		mgr->enable = &dss_mgr_enable;
-		mgr->disable = &dss_mgr_disable;
 
 		mgr->caps = 0;
 		mgr->supported_displays =
