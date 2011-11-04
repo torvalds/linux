@@ -801,7 +801,7 @@ static void efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 	 * error message.  FRM_TRUNC indicates RXDP dropped the packet due
 	 * to a FIFO overflow.
 	 */
-#ifdef EFX_ENABLE_DEBUG
+#ifdef DEBUG
 	if (rx_ev_other_err && net_ratelimit()) {
 		netif_dbg(efx, rx_err, efx->net_dev,
 			  " RX queue %d unexpected RX event "

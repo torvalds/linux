@@ -315,7 +315,7 @@ void efx_loopback_rx_packet(struct efx_nic *efx,
 	return;
 
  err:
-#ifdef EFX_ENABLE_DEBUG
+#ifdef DEBUG
 	if (atomic_read(&state->rx_bad) == 0) {
 		netif_err(efx, drv, efx->net_dev, "received packet:\n");
 		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 0x10, 1,
