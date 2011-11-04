@@ -24,6 +24,7 @@
 #include <asm/elf.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
+#include <asm/hardware/iomd.h>
 #include <asm/page.h>
 #include <asm/domain.h>
 #include <asm/setup.h>
@@ -214,6 +215,16 @@ static int __init rpc_init(void)
 
 arch_initcall(rpc_init);
 
+static void rpc_restart(char mode, const char *cmd)
+{
+	iomd_writeb(0, IOMD_ROMCR0);
+
+	/*
+	 * Jump into the ROM
+	 */
+	soft_restart(0);
+}
+
 extern struct sys_timer ioc_timer;
 
 MACHINE_START(RISCPC, "Acorn-RiscPC")
@@ -224,4 +235,5 @@ MACHINE_START(RISCPC, "Acorn-RiscPC")
 	.map_io		= rpc_map_io,
 	.init_irq	= rpc_init_irq,
 	.timer		= &ioc_timer,
+	.restart	= rpc_restart,
 MACHINE_END
