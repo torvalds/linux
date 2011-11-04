@@ -1117,14 +1117,12 @@ static int lm90_detect(struct i2c_client *new_client,
 		return -ENODEV;
 
 	/* detection and identification */
-	if ((man_id = i2c_smbus_read_byte_data(new_client,
-						LM90_REG_R_MAN_ID)) < 0
-	 || (chip_id = i2c_smbus_read_byte_data(new_client,
-						LM90_REG_R_CHIP_ID)) < 0
-	 || (reg_config1 = i2c_smbus_read_byte_data(new_client,
-						LM90_REG_R_CONFIG1)) < 0
-	 || (reg_convrate = i2c_smbus_read_byte_data(new_client,
-						LM90_REG_R_CONVRATE)) < 0)
+	man_id = i2c_smbus_read_byte_data(new_client, LM90_REG_R_MAN_ID);
+	chip_id = i2c_smbus_read_byte_data(new_client, LM90_REG_R_CHIP_ID);
+	reg_config1 = i2c_smbus_read_byte_data(new_client, LM90_REG_R_CONFIG1);
+	reg_convrate = i2c_smbus_read_byte_data(new_client,
+						LM90_REG_R_CONVRATE);
+	if (man_id < 0 || chip_id < 0 || reg_config1 < 0 || reg_convrate < 0)
 		return -ENODEV;
 
 	if (man_id == 0x01 || man_id == 0x5C || man_id == 0x41) {
@@ -1192,13 +1190,16 @@ static int lm90_detect(struct i2c_client *new_client,
 		 * exists, both readings will reflect the same value. Otherwise,
 		 * the readings will be different.
 		 */
-		if ((reg_emerg = i2c_smbus_read_byte_data(new_client,
-						MAX6659_REG_R_REMOTE_EMERG)) < 0
-		 || i2c_smbus_read_byte_data(new_client, LM90_REG_R_MAN_ID) < 0
-		 || (reg_emerg2 = i2c_smbus_read_byte_data(new_client,
-						MAX6659_REG_R_REMOTE_EMERG)) < 0
-		 || (reg_status2 = i2c_smbus_read_byte_data(new_client,
-						MAX6696_REG_R_STATUS2)) < 0)
+		reg_emerg = i2c_smbus_read_byte_data(new_client,
+						  MAX6659_REG_R_REMOTE_EMERG);
+		man_id = i2c_smbus_read_byte_data(new_client,
+						  LM90_REG_R_MAN_ID);
+		reg_emerg2 = i2c_smbus_read_byte_data(new_client,
+						  MAX6659_REG_R_REMOTE_EMERG);
+		reg_status2 = i2c_smbus_read_byte_data(new_client,
+						       MAX6696_REG_R_STATUS2);
+		if (reg_emerg < 0 || man_id < 0 || reg_emerg2 < 0
+		 || reg_status2 < 0)
 			return -ENODEV;
 
 		/*
