@@ -1043,6 +1043,7 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 			skb_to_free = skb_dequeue(&mpath->frame_queue);
 
 		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
+		ieee80211_set_qos_hdr(sdata, skb);
 		skb_queue_tail(&mpath->frame_queue, skb);
 		if (skb_to_free)
 			mesh_path_discard_frame(skb_to_free, sdata);
