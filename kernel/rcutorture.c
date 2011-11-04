@@ -164,6 +164,8 @@ static int stutter_pause_test;
 #define RCUTORTURE_RUNNABLE_INIT 0
 #endif
 int rcutorture_runnable = RCUTORTURE_RUNNABLE_INIT;
+module_param(rcutorture_runnable, int, 0444);
+MODULE_PARM_DESC(rcutorture_runnable, "Start rcutorture at boot");
 
 #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU)
 #define rcu_can_boost() 1
