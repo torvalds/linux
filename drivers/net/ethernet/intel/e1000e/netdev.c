@@ -3113,78 +3113,146 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 }
 
 /**
- *  e1000_update_mc_addr_list - Update Multicast addresses
- *  @hw: pointer to the HW structure
- *  @mc_addr_list: array of multicast addresses to program
- *  @mc_addr_count: number of multicast addresses to program
- *
- *  Updates the Multicast Table Array.
- *  The caller must have a packed mc_addr_list of multicast addresses.
- **/
-static void e1000_update_mc_addr_list(struct e1000_hw *hw, u8 *mc_addr_list,
-				      u32 mc_addr_count)
-{
-	hw->mac.ops.update_mc_addr_list(hw, mc_addr_list, mc_addr_count);
-}
-
-/**
- * e1000_set_multi - Multicast and Promiscuous mode set
+ * e1000e_write_mc_addr_list - write multicast addresses to MTA
  * @netdev: network interface device structure
  *
- * The set_multi entry point is called whenever the multicast address
- * list or the network interface flags are updated.  This routine is
- * responsible for configuring the hardware for proper multicast,
- * promiscuous mode, and all-multi behavior.
- **/
-static void e1000_set_multi(struct net_device *netdev)
+ * Writes multicast address list to the MTA hash table.
+ * Returns: -ENOMEM on failure
+ *                0 on no addresses written
+ *                X on writing X addresses to MTA
+ */
+static int e1000e_write_mc_addr_list(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	struct netdev_hw_addr *ha;
-	u8  *mta_list;
+	u8 *mta_list;
+	int i;
+
+	if (netdev_mc_empty(netdev)) {
+		/* nothing to program, so clear mc list */
+		hw->mac.ops.update_mc_addr_list(hw, NULL, 0);
+		return 0;
+	}
+
+	mta_list = kzalloc(netdev_mc_count(netdev) * ETH_ALEN, GFP_ATOMIC);
+	if (!mta_list)
+		return -ENOMEM;
+
+	/* update_mc_addr_list expects a packed array of only addresses. */
+	i = 0;
+	netdev_for_each_mc_addr(ha, netdev)
+		memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
+
+	hw->mac.ops.update_mc_addr_list(hw, mta_list, i);
+	kfree(mta_list);
+
+	return netdev_mc_count(netdev);
+}
+
+/**
+ * e1000e_write_uc_addr_list - write unicast addresses to RAR table
+ * @netdev: network interface device structure
+ *
+ * Writes unicast address list to the RAR table.
+ * Returns: -ENOMEM on failure/insufficient address space
+ *                0 on no addresses written
+ *                X on writing X addresses to the RAR table
+ **/
+static int e1000e_write_uc_addr_list(struct net_device *netdev)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	unsigned int rar_entries = hw->mac.rar_entry_count;
+	int count = 0;
+
+	/* save a rar entry for our hardware address */
+	rar_entries--;
+
+	/* save a rar entry for the LAA workaround */
+	if (adapter->flags & FLAG_RESET_OVERWRITES_LAA)
+		rar_entries--;
+
+	/* return ENOMEM indicating insufficient memory for addresses */
+	if (netdev_uc_count(netdev) > rar_entries)
+		return -ENOMEM;
+
+	if (!netdev_uc_empty(netdev) && rar_entries) {
+		struct netdev_hw_addr *ha;
+
+		/*
+		 * write the addresses in reverse order to avoid write
+		 * combining
+		 */
+		netdev_for_each_uc_addr(ha, netdev) {
+			if (!rar_entries)
+				break;
+			e1000e_rar_set(hw, ha->addr, rar_entries--);
+			count++;
+		}
+	}
+
+	/* zero out the remaining RAR entries not used above */
+	for (; rar_entries > 0; rar_entries--) {
+		ew32(RAH(rar_entries), 0);
+		ew32(RAL(rar_entries), 0);
+	}
+	e1e_flush();
+
+	return count;
+}
+
+/**
+ * e1000e_set_rx_mode - secondary unicast, Multicast and Promiscuous mode set
+ * @netdev: network interface device structure
+ *
+ * The ndo_set_rx_mode entry point is called whenever the unicast or multicast
+ * address list or the network interface flags are updated.  This routine is
+ * responsible for configuring the hardware for proper unicast, multicast,
+ * promiscuous mode, and all-multi behavior.
+ **/
+static void e1000e_set_rx_mode(struct net_device *netdev)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl;
 
 	/* Check for Promiscuous and All Multicast modes */
-
 	rctl = er32(RCTL);
+
+	/* clear the affected bits */
+	rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
 
 	if (netdev->flags & IFF_PROMISC) {
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
-		rctl &= ~E1000_RCTL_VFE;
 		/* Do not hardware filter VLANs in promisc mode */
 		e1000e_vlan_filter_disable(adapter);
 	} else {
+		int count;
 		if (netdev->flags & IFF_ALLMULTI) {
 			rctl |= E1000_RCTL_MPE;
-			rctl &= ~E1000_RCTL_UPE;
 		} else {
-			rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
+			/*
+			 * Write addresses to the MTA, if the attempt fails
+			 * then we should just turn on promiscuous mode so
+			 * that we can at least receive multicast traffic
+			 */
+			count = e1000e_write_mc_addr_list(netdev);
+			if (count < 0)
+				rctl |= E1000_RCTL_MPE;
 		}
 		e1000e_vlan_filter_enable(adapter);
+		/*
+		 * Write addresses to available RAR registers, if there is not
+		 * sufficient space to store all the addresses then enable
+		 * unicast promiscuous mode
+		 */
+		count = e1000e_write_uc_addr_list(netdev);
+		if (count < 0)
+			rctl |= E1000_RCTL_UPE;
 	}
 
 	ew32(RCTL, rctl);
-
-	if (!netdev_mc_empty(netdev)) {
-		int i = 0;
-
-		mta_list = kmalloc(netdev_mc_count(netdev) * 6, GFP_ATOMIC);
-		if (!mta_list)
-			return;
-
-		/* prepare a packed array of only addresses. */
-		netdev_for_each_mc_addr(ha, netdev)
-			memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
-
-		e1000_update_mc_addr_list(hw, mta_list, i);
-		kfree(mta_list);
-	} else {
-		/*
-		 * if we're called from probe, we might not have
-		 * anything to do here, so clear out the list
-		 */
-		e1000_update_mc_addr_list(hw, NULL, 0);
-	}
 
 	if (netdev->features & NETIF_F_HW_VLAN_RX)
 		e1000e_vlan_strip_enable(adapter);
@@ -3198,7 +3266,7 @@ static void e1000_set_multi(struct net_device *netdev)
  **/
 static void e1000_configure(struct e1000_adapter *adapter)
 {
-	e1000_set_multi(adapter->netdev);
+	e1000e_set_rx_mode(adapter->netdev);
 
 	e1000_restore_vlan(adapter);
 	e1000_init_manageability_pt(adapter);
@@ -5331,7 +5399,7 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake,
 
 	if (wufc) {
 		e1000_setup_rctl(adapter);
-		e1000_set_multi(netdev);
+		e1000e_set_rx_mode(netdev);
 
 		/* turn on all-multi mode if wake on multicast is enabled */
 		if (wufc & E1000_WUFC_MC) {
@@ -5884,7 +5952,7 @@ static const struct net_device_ops e1000e_netdev_ops = {
 	.ndo_stop		= e1000_close,
 	.ndo_start_xmit		= e1000_xmit_frame,
 	.ndo_get_stats64	= e1000e_get_stats64,
-	.ndo_set_rx_mode	= e1000_set_multi,
+	.ndo_set_rx_mode	= e1000e_set_rx_mode,
 	.ndo_set_mac_address	= e1000_set_mac,
 	.ndo_change_mtu		= e1000_change_mtu,
 	.ndo_do_ioctl		= e1000_ioctl,
@@ -6075,6 +6143,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 				  NETIF_F_TSO |
 				  NETIF_F_TSO6 |
 				  NETIF_F_HW_CSUM);
+
+	netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
