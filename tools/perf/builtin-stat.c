@@ -1107,22 +1107,13 @@ static const struct option options[] = {
  */
 static int add_default_attributes(void)
 {
-	struct perf_evsel *pos;
-	size_t attr_nr = 0;
-	size_t c;
-
 	/* Set attrs if no event is selected and !null_run: */
 	if (null_run)
 		return 0;
 
 	if (!evsel_list->nr_entries) {
-		for (c = 0; c < ARRAY_SIZE(default_attrs); c++) {
-			pos = perf_evsel__new(default_attrs + c, c + attr_nr);
-			if (pos == NULL)
-				return -1;
-			perf_evlist__add(evsel_list, pos);
-		}
-		attr_nr += c;
+		if (perf_evlist__add_attrs_array(evsel_list, default_attrs) < 0)
+			return -1;
 	}
 
 	/* Detailed events get appended to the event list: */
@@ -1131,38 +1122,21 @@ static int add_default_attributes(void)
 		return 0;
 
 	/* Append detailed run extra attributes: */
-	for (c = 0; c < ARRAY_SIZE(detailed_attrs); c++) {
-		pos = perf_evsel__new(detailed_attrs + c, c + attr_nr);
-		if (pos == NULL)
-			return -1;
-		perf_evlist__add(evsel_list, pos);
-	}
-	attr_nr += c;
+	if (perf_evlist__add_attrs_array(evsel_list, detailed_attrs) < 0)
+		return -1;
 
 	if (detailed_run < 2)
 		return 0;
 
 	/* Append very detailed run extra attributes: */
-	for (c = 0; c < ARRAY_SIZE(very_detailed_attrs); c++) {
-		pos = perf_evsel__new(very_detailed_attrs + c, c + attr_nr);
-		if (pos == NULL)
-			return -1;
-		perf_evlist__add(evsel_list, pos);
-	}
+	if (perf_evlist__add_attrs_array(evsel_list, very_detailed_attrs) < 0)
+		return -1;
 
 	if (detailed_run < 3)
 		return 0;
 
 	/* Append very, very detailed run extra attributes: */
-	for (c = 0; c < ARRAY_SIZE(very_very_detailed_attrs); c++) {
-		pos = perf_evsel__new(very_very_detailed_attrs + c, c + attr_nr);
-		if (pos == NULL)
-			return -1;
-		perf_evlist__add(evsel_list, pos);
-	}
-
-
-	return 0;
+	return perf_evlist__add_attrs_array(evsel_list, very_very_detailed_attrs);
 }
 
 int cmd_stat(int argc, const char **argv, const char *prefix __used)

@@ -13,6 +13,8 @@
 #include "evsel.h"
 #include "util.h"
 
+#include "parse-events.h"
+
 #include <sys/mman.h>
 
 #include <linux/bitops.h>
@@ -76,6 +78,14 @@ void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry)
 	++evlist->nr_entries;
 }
 
+static void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
+					  struct list_head *list,
+					  int nr_entries)
+{
+	list_splice_tail(list, &evlist->entries);
+	evlist->nr_entries += nr_entries;
+}
+
 int perf_evlist__add_default(struct perf_evlist *evlist)
 {
 	struct perf_event_attr attr = {
@@ -98,6 +108,30 @@ error_free:
 	perf_evsel__delete(evsel);
 error:
 	return -ENOMEM;
+}
+
+int perf_evlist__add_attrs(struct perf_evlist *evlist,
+			   struct perf_event_attr *attrs, size_t nr_attrs)
+{
+	struct perf_evsel *evsel, *n;
+	LIST_HEAD(head);
+	size_t i;
+
+	for (i = 0; i < nr_attrs; i++) {
+		evsel = perf_evsel__new(attrs + i, evlist->nr_entries + i);
+		if (evsel == NULL)
+			goto out_delete_partial_list;
+		list_add_tail(&evsel->node, &head);
+	}
+
+	perf_evlist__splice_list_tail(evlist, &head, nr_attrs);
+
+	return 0;
+
+out_delete_partial_list:
+	list_for_each_entry_safe(evsel, n, &head, node)
+		perf_evsel__delete(evsel);
+	return -1;
 }
 
 void perf_evlist__disable(struct perf_evlist *evlist)

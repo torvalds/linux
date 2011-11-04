@@ -2,8 +2,10 @@
 #define __PERF_EVLIST_H 1
 
 #include <linux/list.h>
+#include <stdio.h>
 #include "../perf.h"
 #include "event.h"
+#include "util.h"
 
 struct pollfd;
 struct thread_map;
@@ -39,6 +41,11 @@ void perf_evlist__delete(struct perf_evlist *evlist);
 
 void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry);
 int perf_evlist__add_default(struct perf_evlist *evlist);
+int perf_evlist__add_attrs(struct perf_evlist *evlist,
+			   struct perf_event_attr *attrs, size_t nr_attrs);
+
+#define perf_evlist__add_attrs_array(evlist, array) \
+	perf_evlist__add_attrs(evlist, array, ARRAY_SIZE(array))
 
 void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
 			 int cpu, int thread, u64 id);
