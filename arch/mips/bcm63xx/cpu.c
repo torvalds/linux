@@ -63,6 +63,15 @@ static const int bcm6358_irqs[] = {
 
 };
 
+static const unsigned long bcm6368_regs_base[] = {
+	__GEN_CPU_REGS_TABLE(6368)
+};
+
+static const int bcm6368_irqs[] = {
+	__GEN_CPU_IRQ_TABLE(6368)
+
+};
+
 u16 __bcm63xx_get_cpu_id(void)
 {
 	return bcm63xx_cpu_id;
@@ -89,20 +98,19 @@ unsigned int bcm63xx_get_memory_size(void)
 
 static unsigned int detect_cpu_clock(void)
 {
-	unsigned int tmp, n1 = 0, n2 = 0, m1 = 0;
-
-	/* BCM6338 has a fixed 240 Mhz frequency */
-	if (BCMCPU_IS_6338())
+	switch (bcm63xx_get_cpu_id()) {
+	case BCM6338_CPU_ID:
+		/* BCM6338 has a fixed 240 Mhz frequency */
 		return 240000000;
 
-	/* BCM6345 has a fixed 140Mhz frequency */
-	if (BCMCPU_IS_6345())
+	case BCM6345_CPU_ID:
+		/* BCM6345 has a fixed 140Mhz frequency */
 		return 140000000;
 
-	/*
-	 * frequency depends on PLL configuration:
-	 */
-	if (BCMCPU_IS_6348()) {
+	case BCM6348_CPU_ID:
+	{
+		unsigned int tmp, n1, n2, m1;
+
 		/* 16MHz * (N1 + 1) * (N2 + 2) / (M1_CPU + 1) */
 		tmp = bcm_perf_readl(PERF_MIPSPLLCTL_REG);
 		n1 = (tmp & MIPSPLLCTL_N1_MASK) >> MIPSPLLCTL_N1_SHIFT;
@@ -111,17 +119,47 @@ static unsigned int detect_cpu_clock(void)
 		n1 += 1;
 		n2 += 2;
 		m1 += 1;
+		return (16 * 1000000 * n1 * n2) / m1;
 	}
 
-	if (BCMCPU_IS_6358()) {
+	case BCM6358_CPU_ID:
+	{
+		unsigned int tmp, n1, n2, m1;
+
 		/* 16MHz * N1 * N2 / M1_CPU */
 		tmp = bcm_ddr_readl(DDR_DMIPSPLLCFG_REG);
 		n1 = (tmp & DMIPSPLLCFG_N1_MASK) >> DMIPSPLLCFG_N1_SHIFT;
 		n2 = (tmp & DMIPSPLLCFG_N2_MASK) >> DMIPSPLLCFG_N2_SHIFT;
 		m1 = (tmp & DMIPSPLLCFG_M1_MASK) >> DMIPSPLLCFG_M1_SHIFT;
+		return (16 * 1000000 * n1 * n2) / m1;
 	}
 
-	return (16 * 1000000 * n1 * n2) / m1;
+	case BCM6368_CPU_ID:
+	{
+		unsigned int tmp, p1, p2, ndiv, m1;
+
+		/* (64MHz / P1) * P2 * NDIV / M1_CPU */
+		tmp = bcm_ddr_readl(DDR_DMIPSPLLCFG_6368_REG);
+
+		p1 = (tmp & DMIPSPLLCFG_6368_P1_MASK) >>
+			DMIPSPLLCFG_6368_P1_SHIFT;
+
+		p2 = (tmp & DMIPSPLLCFG_6368_P2_MASK) >>
+			DMIPSPLLCFG_6368_P2_SHIFT;
+
+		ndiv = (tmp & DMIPSPLLCFG_6368_NDIV_MASK) >>
+			DMIPSPLLCFG_6368_NDIV_SHIFT;
+
+		tmp = bcm_ddr_readl(DDR_DMIPSPLLDIV_6368_REG);
+		m1 = (tmp & DMIPSPLLDIV_6368_MDIV_MASK) >>
+			DMIPSPLLDIV_6368_MDIV_SHIFT;
+
+		return (((64 * 1000000) / p1) * p2 * ndiv) / m1;
+	}
+
+	default:
+		BUG();
+	}
 }
 
 /*
@@ -143,7 +181,7 @@ static unsigned int detect_memory_size(void)
 		banks = (val & SDRAM_CFG_BANK_MASK) ? 2 : 1;
 	}
 
-	if (BCMCPU_IS_6358()) {
+	if (BCMCPU_IS_6358() || BCMCPU_IS_6368()) {
 		val = bcm_memc_readl(MEMC_CFG_REG);
 		rows = (val & MEMC_CFG_ROW_MASK) >> MEMC_CFG_ROW_SHIFT;
 		cols = (val & MEMC_CFG_COL_MASK) >> MEMC_CFG_COL_SHIFT;
@@ -188,9 +226,18 @@ void __init bcm63xx_cpu_init(void)
 		bcm63xx_irqs = bcm6345_irqs;
 		break;
 	case CPU_BMIPS4350:
-		expected_cpu_id = BCM6358_CPU_ID;
-		bcm63xx_regs_base = bcm6358_regs_base;
-		bcm63xx_irqs = bcm6358_irqs;
+		switch (read_c0_prid() & 0xf0) {
+		case 0x10:
+			expected_cpu_id = BCM6358_CPU_ID;
+			bcm63xx_regs_base = bcm6358_regs_base;
+			bcm63xx_irqs = bcm6358_irqs;
+			break;
+		case 0x30:
+			expected_cpu_id = BCM6368_CPU_ID;
+			bcm63xx_regs_base = bcm6368_regs_base;
+			bcm63xx_irqs = bcm6368_irqs;
+			break;
+		}
 		break;
 	}
 
