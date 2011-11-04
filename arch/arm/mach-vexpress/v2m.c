@@ -437,7 +437,6 @@ static void __init v2m_init(void)
 		amba_device_register(v2m_amba_devs[i], &iomem_resource);
 
 	pm_power_off = v2m_power_off;
-	arm_pm_restart = v2m_restart;
 
 	ct_desc->init_tile();
 }
@@ -449,4 +448,5 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express")
 	.init_irq	= v2m_init_irq,
 	.timer		= &v2m_timer,
 	.init_machine	= v2m_init,
+	.restart	= v2m_restart,
 MACHINE_END
