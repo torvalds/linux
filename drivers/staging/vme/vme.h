@@ -97,7 +97,7 @@ extern struct bus_type vme_bus_type;
 
 /**
  * Structure representing a VME device
- * @id: The ID of the device (currently the bus and slot number)
+ * @num: The device number
  * @bridge: Pointer to the bridge device this device is on
  * @dev: Internal device structure
  * @drv_list: List of devices (per driver)
