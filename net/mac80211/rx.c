@@ -866,6 +866,13 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 			    rx->sdata->control_port_protocol)
 				return RX_CONTINUE;
 		}
+
+		if (rx->sdata->vif.type == NL80211_IFTYPE_AP &&
+		    cfg80211_rx_spurious_frame(rx->sdata->dev,
+					       hdr->addr2,
+					       GFP_ATOMIC))
+			return RX_DROP_UNUSABLE;
+
 		return RX_DROP_MONITOR;
 	}
 
