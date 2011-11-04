@@ -163,6 +163,13 @@ struct bus_type *dss_get_bus(void);
 struct regulator *dss_get_vdds_dsi(void);
 struct regulator *dss_get_vdds_sdi(void);
 
+/* apply */
+void dss_apply_init(void);
+int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr);
+int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl);
+void dss_mgr_start_update(struct omap_overlay_manager *mgr);
+int omap_dss_mgr_apply(struct omap_overlay_manager *mgr);
+
 /* display */
 int dss_suspend_all_devices(void);
 int dss_resume_all_devices(void);
@@ -181,8 +188,6 @@ void default_get_overlay_fifo_thresholds(enum omap_plane plane,
 /* manager */
 int dss_init_overlay_managers(struct platform_device *pdev);
 void dss_uninit_overlay_managers(struct platform_device *pdev);
-int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl);
-void dss_mgr_start_update(struct omap_overlay_manager *mgr);
 
 /* overlay */
 void dss_init_overlays(struct platform_device *pdev);
