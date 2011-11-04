@@ -309,38 +309,6 @@ struct rte_console {
 /* Flags for SDH calls */
 #define F2SYNC	(SDIO_REQ_4BYTE | SDIO_REQ_FIXED)
 
-/* sbimstate */
-#define	SBIM_IBE		0x20000	/* inbanderror */
-#define	SBIM_TO			0x40000	/* timeout */
-#define	SBIM_BY			0x01800000	/* busy (sonics >= 2.3) */
-#define	SBIM_RJ			0x02000000	/* reject (sonics >= 2.3) */
-
-/* sbtmstatelow */
-
-/* reset */
-#define	SBTML_RESET		0x0001
-/* reject field */
-#define	SBTML_REJ_MASK		0x0006
-/* reject */
-#define	SBTML_REJ		0x0002
-/* temporary reject, for error recovery */
-#define	SBTML_TMPREJ		0x0004
-
-/* Shift to locate the SI control flags in sbtml */
-#define	SBTML_SICF_SHIFT	16
-
-/* sbtmstatehigh */
-#define	SBTMH_SERR		0x0001	/* serror */
-#define	SBTMH_INT		0x0002	/* interrupt */
-#define	SBTMH_BUSY		0x0004	/* busy */
-#define	SBTMH_TO		0x0020	/* timeout (sonics >= 2.3) */
-
-/* Shift to locate the SI status flags in sbtmh */
-#define	SBTMH_SISF_SHIFT	16
-
-/* sbidlow */
-#define	SBIDL_INIT		0x80	/* initiator */
-
 /*
  * Conversion of 802.1D priority to precedence level
  */
@@ -3123,85 +3091,6 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_bus *bus)
 }
 
 static void
-brcmf_sdbrcm_chip_disablecore(struct brcmf_sdio_dev *sdiodev, u32 corebase)
-{
-	u32 regdata;
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-		CORE_SB(corebase, sbtmstatelow), 4);
-	if (regdata & SBTML_RESET)
-		return;
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-		CORE_SB(corebase, sbtmstatelow), 4);
-	if ((regdata & (SICF_CLOCK_EN << SBTML_SICF_SHIFT)) != 0) {
-		/*
-		 * set target reject and spin until busy is clear
-		 * (preserve core-specific bits)
-		 */
-		regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbtmstatelow), 4);
-		brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow),
-				       4, regdata | SBTML_REJ);
-
-		regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbtmstatelow), 4);
-		udelay(1);
-		SPINWAIT((brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbtmstatehigh), 4) &
-			SBTMH_BUSY), 100000);
-
-		regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbtmstatehigh), 4);
-		if (regdata & SBTMH_BUSY)
-			brcmf_dbg(ERROR, "ARM core still busy\n");
-
-		regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbidlow), 4);
-		if (regdata & SBIDL_INIT) {
-			regdata = brcmf_sdcard_reg_read(sdiodev,
-				CORE_SB(corebase, sbimstate), 4) |
-				SBIM_RJ;
-			brcmf_sdcard_reg_write(sdiodev,
-				CORE_SB(corebase, sbimstate), 4,
-				regdata);
-			regdata = brcmf_sdcard_reg_read(sdiodev,
-				CORE_SB(corebase, sbimstate), 4);
-			udelay(1);
-			SPINWAIT((brcmf_sdcard_reg_read(sdiodev,
-				CORE_SB(corebase, sbimstate), 4) &
-				SBIM_BY), 100000);
-		}
-
-		/* set reset and reject while enabling the clocks */
-		brcmf_sdcard_reg_write(sdiodev,
-			CORE_SB(corebase, sbtmstatelow), 4,
-			(((SICF_FGC | SICF_CLOCK_EN) << SBTML_SICF_SHIFT) |
-			SBTML_REJ | SBTML_RESET));
-		regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbtmstatelow), 4);
-		udelay(10);
-
-		/* clear the initiator reject bit */
-		regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbidlow), 4);
-		if (regdata & SBIDL_INIT) {
-			regdata = brcmf_sdcard_reg_read(sdiodev,
-				CORE_SB(corebase, sbimstate), 4) &
-				~SBIM_RJ;
-			brcmf_sdcard_reg_write(sdiodev,
-				CORE_SB(corebase, sbimstate), 4,
-				regdata);
-		}
-	}
-
-	/* leave reset and reject asserted */
-	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
-		(SBTML_REJ | SBTML_RESET));
-	udelay(1);
-}
-
-static void
 brcmf_sdbrcm_chip_resetcore(struct brcmf_sdio_dev *sdiodev, u32 corebase)
 {
 	u32 regdata;
@@ -3210,7 +3099,7 @@ brcmf_sdbrcm_chip_resetcore(struct brcmf_sdio_dev *sdiodev, u32 corebase)
 	 * Must do the disable sequence first to work for
 	 * arbitrary current core state.
 	 */
-	brcmf_sdbrcm_chip_disablecore(sdiodev, corebase);
+	brcmf_sdio_chip_coredisable(sdiodev, corebase);
 
 	/*
 	 * Now do the initialization sequence.
@@ -3258,7 +3147,7 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 	if (enter) {
 		bus->alp_only = true;
 
-		brcmf_sdbrcm_chip_disablecore(bus->sdiodev,
+		brcmf_sdio_chip_coredisable(bus->sdiodev,
 					      bus->ci->armcorebase);
 
 		brcmf_sdbrcm_chip_resetcore(bus->sdiodev, bus->ci->ramcorebase);
@@ -4000,7 +3889,7 @@ brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
 	 * Make sure any on-chip ARM is off (in case strapping is wrong),
 	 * or downloaded code was already running.
 	 */
-	brcmf_sdbrcm_chip_disablecore(bus->sdiodev, ci->armcorebase);
+	brcmf_sdio_chip_coredisable(bus->sdiodev, ci->armcorebase);
 
 	brcmf_sdcard_reg_write(bus->sdiodev,
 		CORE_CC_REG(ci->cccorebase, gpiopullup), 4, 0);

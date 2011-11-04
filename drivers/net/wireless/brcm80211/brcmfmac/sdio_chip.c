@@ -22,6 +22,7 @@
 #include <brcm_hw_ids.h>
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
+#include <soc.h>
 #include "dhd.h"
 #include "dhd_dbg.h"
 #include "sdio_host.h"
@@ -50,6 +51,85 @@
 #define	SBIDH_CC_SHIFT		4
 #define	SBIDH_VC_MASK		0xffff0000	/* vendor code */
 #define	SBIDH_VC_SHIFT		16
+
+void
+brcmf_sdio_chip_coredisable(struct brcmf_sdio_dev *sdiodev, u32 corebase)
+{
+	u32 regdata;
+
+	regdata = brcmf_sdcard_reg_read(sdiodev,
+		CORE_SB(corebase, sbtmstatelow), 4);
+	if (regdata & SBTML_RESET)
+		return;
+
+	regdata = brcmf_sdcard_reg_read(sdiodev,
+		CORE_SB(corebase, sbtmstatelow), 4);
+	if ((regdata & (SICF_CLOCK_EN << SBTML_SICF_SHIFT)) != 0) {
+		/*
+		 * set target reject and spin until busy is clear
+		 * (preserve core-specific bits)
+		 */
+		regdata = brcmf_sdcard_reg_read(sdiodev,
+			CORE_SB(corebase, sbtmstatelow), 4);
+		brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow),
+				       4, regdata | SBTML_REJ);
+
+		regdata = brcmf_sdcard_reg_read(sdiodev,
+			CORE_SB(corebase, sbtmstatelow), 4);
+		udelay(1);
+		SPINWAIT((brcmf_sdcard_reg_read(sdiodev,
+			CORE_SB(corebase, sbtmstatehigh), 4) &
+			SBTMH_BUSY), 100000);
+
+		regdata = brcmf_sdcard_reg_read(sdiodev,
+			CORE_SB(corebase, sbtmstatehigh), 4);
+		if (regdata & SBTMH_BUSY)
+			brcmf_dbg(ERROR, "core state still busy\n");
+
+		regdata = brcmf_sdcard_reg_read(sdiodev,
+			CORE_SB(corebase, sbidlow), 4);
+		if (regdata & SBIDL_INIT) {
+			regdata = brcmf_sdcard_reg_read(sdiodev,
+				CORE_SB(corebase, sbimstate), 4) |
+				SBIM_RJ;
+			brcmf_sdcard_reg_write(sdiodev,
+				CORE_SB(corebase, sbimstate), 4,
+				regdata);
+			regdata = brcmf_sdcard_reg_read(sdiodev,
+				CORE_SB(corebase, sbimstate), 4);
+			udelay(1);
+			SPINWAIT((brcmf_sdcard_reg_read(sdiodev,
+				CORE_SB(corebase, sbimstate), 4) &
+				SBIM_BY), 100000);
+		}
+
+		/* set reset and reject while enabling the clocks */
+		brcmf_sdcard_reg_write(sdiodev,
+			CORE_SB(corebase, sbtmstatelow), 4,
+			(((SICF_FGC | SICF_CLOCK_EN) << SBTML_SICF_SHIFT) |
+			SBTML_REJ | SBTML_RESET));
+		regdata = brcmf_sdcard_reg_read(sdiodev,
+			CORE_SB(corebase, sbtmstatelow), 4);
+		udelay(10);
+
+		/* clear the initiator reject bit */
+		regdata = brcmf_sdcard_reg_read(sdiodev,
+			CORE_SB(corebase, sbidlow), 4);
+		if (regdata & SBIDL_INIT) {
+			regdata = brcmf_sdcard_reg_read(sdiodev,
+				CORE_SB(corebase, sbimstate), 4) &
+				~SBIM_RJ;
+			brcmf_sdcard_reg_write(sdiodev,
+				CORE_SB(corebase, sbimstate), 4,
+				regdata);
+		}
+	}
+
+	/* leave reset and reject asserted */
+	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
+		(SBTML_REJ | SBTML_RESET));
+	udelay(1);
+}
 
 static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 				       struct chip_info *ci, u32 regs)
