@@ -266,8 +266,14 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 
 	if (test_bit(WMI_ENABLED, &ar->flag)) {
 		if (skb_headroom(skb) < dev->needed_headroom) {
-			WARN_ON(1);
-			goto fail_tx;
+			struct sk_buff *tmp_skb = skb;
+
+			skb = skb_realloc_headroom(skb, dev->needed_headroom);
+			kfree_skb(tmp_skb);
+			if (skb == NULL) {
+				vif->net_stats.tx_dropped++;
+				return 0;
+			}
 		}
 
 		if (ath6kl_wmi_dix_2_dot3(ar->wmi, skb)) {
