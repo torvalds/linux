@@ -515,6 +515,11 @@
  *	up the event with the request. The event includes the same data and
  *	has %NL80211_ATTR_ACK set if the frame was ACKed.
  *
+ * @NL80211_CMD_REGISTER_BEACONS: Register this socket to receive beacons from
+ *	other BSSes when any interfaces are in AP mode. This helps implement
+ *	OLBC handling in hostapd. Beacons are reported in %NL80211_CMD_FRAME
+ *	messages. Note that per PHY only one application may register.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -647,6 +652,8 @@ enum nl80211_commands {
 	NL80211_CMD_UNEXPECTED_FRAME,
 
 	NL80211_CMD_PROBE_CLIENT,
+
+	NL80211_CMD_REGISTER_BEACONS,
 
 	/* add new commands above here */
 
