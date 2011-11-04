@@ -1744,7 +1744,8 @@ dhd_dpc_thread(void *data)
 					DHD_OS_WAKE_UNLOCK(&dhd->pub);
 				}
 			} else {
-				dhd_bus_stop(dhd->pub.bus, TRUE);
+				if (dhd->pub.up)
+					dhd_bus_stop(dhd->pub.bus, TRUE);
 				DHD_OS_WAKE_UNLOCK(&dhd->pub);
 			}
 		}
