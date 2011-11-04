@@ -3946,10 +3946,15 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		 * lock stateid.
 		 */
 		struct nfs4_ol_stateid *open_stp = NULL;
-		
+
+		if (nfsd4_has_session(cstate))
+			/* See rfc 5661 18.10.3: given clientid is ignored: */
+			memcpy(&lock->v.new.clientid,
+				&cstate->session->se_client->cl_clientid,
+				sizeof(clientid_t));
+
 		status = nfserr_stale_clientid;
-		if (!nfsd4_has_session(cstate) &&
-		    STALE_CLIENTID(&lock->lk_new_clientid))
+		if (STALE_CLIENTID(&lock->lk_new_clientid))
 			goto out;
 
 		/* validate and update open stateid and open seqid */
@@ -3961,8 +3966,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			goto out;
 		open_sop = openowner(open_stp->st_stateowner);
 		status = nfserr_bad_stateid;
-		if (!nfsd4_has_session(cstate) &&
-			!same_clid(&open_sop->oo_owner.so_client->cl_clientid,
+		if (!same_clid(&open_sop->oo_owner.so_client->cl_clientid,
 						&lock->v.new.clientid))
 			goto out;
 		/* create lockowner and lock stateid */
