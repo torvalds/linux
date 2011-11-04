@@ -404,10 +404,6 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 			      &tests->eventq_int[channel->channel],
 			      EFX_CHANNEL_NAME(channel),
 			      "eventq.int", NULL);
-		efx_fill_test(n++, strings, data,
-			      &tests->eventq_poll[channel->channel],
-			      EFX_CHANNEL_NAME(channel),
-			      "eventq.poll", NULL);
 	}
 
 	efx_fill_test(n++, strings, data, &tests->registers,

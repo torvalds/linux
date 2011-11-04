@@ -161,11 +161,8 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 			       struct efx_self_tests *tests)
 {
 	struct efx_nic *efx = channel->efx;
-	unsigned int read_ptr, count;
-
-	tests->eventq_dma[channel->channel] = -1;
-	tests->eventq_int[channel->channel] = -1;
-	tests->eventq_poll[channel->channel] = -1;
+	unsigned int read_ptr;
+	bool napi_ran, dma_seen, int_seen;
 
 	read_ptr = channel->eventq_read_ptr;
 	channel->efx->last_irq_cpu = -1;
@@ -173,44 +170,48 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 
 	efx_nic_generate_test_event(channel);
 
-	/* Wait for arrival of interrupt */
-	count = 0;
-	do {
-		schedule_timeout_uninterruptible(HZ / 100);
-
-		if (ACCESS_ONCE(channel->eventq_read_ptr) != read_ptr)
-			goto eventq_ok;
-	} while (++count < 2);
-
-	netif_err(efx, drv, efx->net_dev,
-		  "channel %d timed out waiting for event queue\n",
-		  channel->channel);
-
-	/* See if interrupt arrived */
-	if (channel->efx->last_irq_cpu >= 0) {
-		netif_err(efx, drv, efx->net_dev,
-			  "channel %d saw interrupt on CPU%d "
-			  "during event queue test\n", channel->channel,
-			  raw_smp_processor_id());
-		tests->eventq_int[channel->channel] = 1;
+	/* Wait for arrival of interrupt.  NAPI processing may or may
+	 * not complete in time, but we can cope in any case.
+	 */
+	msleep(10);
+	napi_disable(&channel->napi_str);
+	if (channel->eventq_read_ptr != read_ptr) {
+		napi_ran = true;
+		dma_seen = true;
+		int_seen = true;
+	} else {
+		napi_ran = false;
+		dma_seen = efx_nic_event_present(channel);
+		int_seen = efx->last_irq_cpu >= 0;
 	}
+	napi_enable(&channel->napi_str);
+	efx_nic_eventq_read_ack(channel);
 
-	/* Check to see if event was received even if interrupt wasn't */
-	if (efx_nic_event_present(channel)) {
+	tests->eventq_dma[channel->channel] = dma_seen ? 1 : -1;
+	tests->eventq_int[channel->channel] = int_seen ? 1 : -1;
+
+	if (dma_seen && int_seen) {
+		netif_dbg(efx, drv, efx->net_dev,
+			  "channel %d event queue passed (with%s NAPI)\n",
+			  channel->channel, napi_ran ? "" : "out");
+		return 0;
+	} else {
+		/* Report failure and whether either interrupt or DMA worked */
 		netif_err(efx, drv, efx->net_dev,
-			  "channel %d event was generated, but "
-			  "failed to trigger an interrupt\n", channel->channel);
-		tests->eventq_dma[channel->channel] = 1;
+			  "channel %d timed out waiting for event queue\n",
+			  channel->channel);
+		if (int_seen)
+			netif_err(efx, drv, efx->net_dev,
+				  "channel %d saw interrupt "
+				  "during event queue test\n",
+				  channel->channel);
+		if (dma_seen)
+			netif_err(efx, drv, efx->net_dev,
+				  "channel %d event was generated, but "
+				  "failed to trigger an interrupt\n",
+				  channel->channel);
+		return -ETIMEDOUT;
 	}
-
-	return -ETIMEDOUT;
- eventq_ok:
-	netif_dbg(efx, drv, efx->net_dev, "channel %d event queue passed\n",
-		  channel->channel);
-	tests->eventq_dma[channel->channel] = 1;
-	tests->eventq_int[channel->channel] = 1;
-	tests->eventq_poll[channel->channel] = 1;
-	return 0;
 }
 
 static int efx_test_phy(struct efx_nic *efx, struct efx_self_tests *tests,
