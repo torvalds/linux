@@ -2679,6 +2679,8 @@ SND_SOC_DAPM_SUPPLY("TOCLK", WM8962_ADDITIONAL_CONTROL_1, 0, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("DSP2", 1, WM8962_DSP2_POWER_MANAGEMENT,
 		      WM8962_DSP2_ENA_SHIFT, 0, dsp2_event,
 		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_SUPPLY("TEMP_HP", WM8962_ADDITIONAL_CONTROL_4, 2, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("TEMP_SPK", WM8962_ADDITIONAL_CONTROL_4, 1, 0, NULL, 0),
 
 SND_SOC_DAPM_MIXER("INPGAL", WM8962_LEFT_INPUT_PGA_CONTROL, 4, 0,
 		   inpgal, ARRAY_SIZE(inpgal)),
@@ -2834,6 +2836,9 @@ static const struct snd_soc_dapm_route wm8962_intercon[] = {
 
 	{ "HPOUTL", NULL, "HPOUT" },
 	{ "HPOUTR", NULL, "HPOUT" },
+
+	{ "HPOUTL", NULL, "TEMP_HP" },
+	{ "HPOUTR", NULL, "TEMP_HP" },
 };
 
 static const struct snd_soc_dapm_route wm8962_spk_mono_intercon[] = {
@@ -2850,6 +2855,7 @@ static const struct snd_soc_dapm_route wm8962_spk_mono_intercon[] = {
 	{ "Speaker Output", NULL, "Speaker PGA" },
 	{ "Speaker Output", NULL, "SYSCLK" },
 	{ "Speaker Output", NULL, "TOCLK" },
+	{ "Speaker Output", NULL, "TEMP_SPK" },
 
 	{ "SPKOUT", NULL, "Speaker Output" },
 };
@@ -2878,10 +2884,12 @@ static const struct snd_soc_dapm_route wm8962_spk_stereo_intercon[] = {
 	{ "SPKOUTL Output", NULL, "SPKOUTL PGA" },
 	{ "SPKOUTL Output", NULL, "SYSCLK" },
 	{ "SPKOUTL Output", NULL, "TOCLK" },
+	{ "SPKOUTL Output", NULL, "TEMP_SPK" },
 
 	{ "SPKOUTR Output", NULL, "SPKOUTR PGA" },
 	{ "SPKOUTR Output", NULL, "SYSCLK" },
 	{ "SPKOUTR Output", NULL, "TOCLK" },
+	{ "SPKOUTR Output", NULL, "TEMP_SPK" },
 
 	{ "SPKOUTL", NULL, "SPKOUTL Output" },
 	{ "SPKOUTR", NULL, "SPKOUTR Output" },
