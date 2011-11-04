@@ -548,6 +548,56 @@
 
 
 /*************************************************************************
+ * _REG relative to RSET_ENETDMAC
+ *************************************************************************/
+
+/* Channel Configuration register */
+#define ENETDMAC_CHANCFG_REG(x)		((x) * 0x10)
+#define ENETDMAC_CHANCFG_EN_SHIFT	0
+#define ENETDMAC_CHANCFG_EN_MASK	(1 << ENETDMA_CHANCFG_EN_SHIFT)
+#define ENETDMAC_CHANCFG_PKTHALT_SHIFT	1
+#define ENETDMAC_CHANCFG_PKTHALT_MASK	(1 << ENETDMA_CHANCFG_PKTHALT_SHIFT)
+
+/* Interrupt Control/Status register */
+#define ENETDMAC_IR_REG(x)		(0x4 + (x) * 0x10)
+#define ENETDMAC_IR_BUFDONE_MASK	(1 << 0)
+#define ENETDMAC_IR_PKTDONE_MASK	(1 << 1)
+#define ENETDMAC_IR_NOTOWNER_MASK	(1 << 2)
+
+/* Interrupt Mask register */
+#define ENETDMAC_IRMASK_REG(x)		(0x8 + (x) * 0x10)
+
+/* Maximum Burst Length */
+#define ENETDMAC_MAXBURST_REG(x)	(0xc + (x) * 0x10)
+
+
+/*************************************************************************
+ * _REG relative to RSET_ENETDMAS
+ *************************************************************************/
+
+/* Ring Start Address register */
+#define ENETDMAS_RSTART_REG(x)		((x) * 0x10)
+
+/* State Ram Word 2 */
+#define ENETDMAS_SRAM2_REG(x)		(0x4 + (x) * 0x10)
+
+/* State Ram Word 3 */
+#define ENETDMAS_SRAM3_REG(x)		(0x8 + (x) * 0x10)
+
+/* State Ram Word 4 */
+#define ENETDMAS_SRAM4_REG(x)		(0xc + (x) * 0x10)
+
+
+/*************************************************************************
+ * _REG relative to RSET_ENETSW
+ *************************************************************************/
+
+/* MIB register */
+#define ENETSW_MIB_REG(x)		(0x2800 + (x) * 4)
+#define ENETSW_MIB_REG_COUNT		47
+
+
+/*************************************************************************
  * _REG relative to RSET_OHCI_PRIV
  *************************************************************************/
 
@@ -767,5 +817,33 @@
 #define DMIPSPLLCFG_N1_MASK		(0x3f << DMIPSPLLCFG_N1_SHIFT)
 #define DMIPSPLLCFG_N2_SHIFT		29
 #define DMIPSPLLCFG_N2_MASK		(0x7 << DMIPSPLLCFG_N2_SHIFT)
+
+/*************************************************************************
+ * _REG relative to RSET_M2M
+ *************************************************************************/
+
+#define M2M_RX				0
+#define M2M_TX				1
+
+#define M2M_SRC_REG(x)			((x) * 0x40 + 0x00)
+#define M2M_DST_REG(x)			((x) * 0x40 + 0x04)
+#define M2M_SIZE_REG(x)			((x) * 0x40 + 0x08)
+
+#define M2M_CTRL_REG(x)			((x) * 0x40 + 0x0c)
+#define M2M_CTRL_ENABLE_MASK		(1 << 0)
+#define M2M_CTRL_IRQEN_MASK		(1 << 1)
+#define M2M_CTRL_ERROR_CLR_MASK		(1 << 6)
+#define M2M_CTRL_DONE_CLR_MASK		(1 << 7)
+#define M2M_CTRL_NOINC_MASK		(1 << 8)
+#define M2M_CTRL_PCMCIASWAP_MASK	(1 << 9)
+#define M2M_CTRL_SWAPBYTE_MASK		(1 << 10)
+#define M2M_CTRL_ENDIAN_MASK		(1 << 11)
+
+#define M2M_STAT_REG(x)			((x) * 0x40 + 0x10)
+#define M2M_STAT_DONE			(1 << 0)
+#define M2M_STAT_ERROR			(1 << 1)
+
+#define M2M_SRCID_REG(x)		((x) * 0x40 + 0x14)
+#define M2M_DSTID_REG(x)		((x) * 0x40 + 0x18)
 
 #endif /* BCM63XX_REGS_H_ */
