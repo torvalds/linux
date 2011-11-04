@@ -993,107 +993,92 @@ end:
 	spin_unlock(&dss_cache.lock);
 }
 
-static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
+static int omap_dss_mgr_apply_ovl(struct omap_overlay *ovl)
 {
 	struct overlay_cache_data *oc;
+	struct omap_dss_device *dssdev;
+
+	oc = &dss_cache.overlay_cache[ovl->id];
+
+	if (ovl->manager_changed) {
+		ovl->manager_changed = false;
+		ovl->info_dirty  = true;
+	}
+
+	if (!overlay_enabled(ovl)) {
+		if (oc->enabled) {
+			oc->enabled = false;
+			oc->dirty = true;
+		}
+		return 0;
+	}
+
+	if (!ovl->info_dirty)
+		return 0;
+
+	dssdev = ovl->manager->device;
+
+	if (dss_check_overlay(ovl, dssdev)) {
+		if (oc->enabled) {
+			oc->enabled = false;
+			oc->dirty = true;
+		}
+		return -EINVAL;
+	}
+
+	ovl->info_dirty = false;
+	oc->dirty = true;
+	oc->info = ovl->info;
+
+	oc->channel = ovl->manager->id;
+
+	oc->enabled = true;
+
+	return 0;
+}
+
+static void omap_dss_mgr_apply_mgr(struct omap_overlay_manager *mgr)
+{
 	struct manager_cache_data *mc;
-	int i;
-	struct omap_overlay *ovl;
-	unsigned long flags;
-	int r;
 
-	DSSDBG("omap_dss_mgr_apply(%s)\n", mgr->name);
+	mc = &dss_cache.manager_cache[mgr->id];
 
-	r = dispc_runtime_get();
-	if (r)
-		return r;
-
-	spin_lock_irqsave(&dss_cache.lock, flags);
-
-	/* Configure overlays */
-	for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
-		struct omap_dss_device *dssdev;
-
-		ovl = omap_dss_get_overlay(i);
-
-		oc = &dss_cache.overlay_cache[ovl->id];
-
-		if (ovl->manager_changed) {
-			ovl->manager_changed = false;
-			ovl->info_dirty  = true;
-		}
-
-		if (!overlay_enabled(ovl)) {
-			if (oc->enabled) {
-				oc->enabled = false;
-				oc->dirty = true;
-			}
-			continue;
-		}
-
-		if (!ovl->info_dirty)
-			continue;
-
-		dssdev = ovl->manager->device;
-
-		if (dss_check_overlay(ovl, dssdev)) {
-			if (oc->enabled) {
-				oc->enabled = false;
-				oc->dirty = true;
-			}
-			continue;
-		}
-
-		ovl->info_dirty = false;
-		oc->dirty = true;
-		oc->info = ovl->info;
-
-		oc->channel = ovl->manager->id;
-
-		oc->enabled = true;
+	if (mgr->device_changed) {
+		mgr->device_changed = false;
+		mgr->info_dirty  = true;
 	}
 
-	/* Configure managers */
-	list_for_each_entry(mgr, &manager_list, list) {
-		mc = &dss_cache.manager_cache[mgr->id];
+	if (!mgr->info_dirty)
+		return;
 
-		if (mgr->device_changed) {
-			mgr->device_changed = false;
-			mgr->info_dirty  = true;
-		}
+	if (!mgr->device)
+		return;
 
-		if (!mgr->info_dirty)
-			continue;
+	mgr->info_dirty = false;
+	mc->dirty = true;
+	mc->info = mgr->info;
 
-		if (!mgr->device)
-			continue;
+	mc->manual_update = mgr_manual_update(mgr);
+}
 
-		mgr->info_dirty = false;
-		mc->dirty = true;
-		mc->info = mgr->info;
+static void omap_dss_mgr_apply_ovl_fifos(struct omap_overlay *ovl)
+{
+	struct overlay_cache_data *oc;
+	struct omap_dss_device *dssdev;
+	u32 size, burst_size;
 
-		mc->manual_update = mgr_manual_update(mgr);
-	}
+	oc = &dss_cache.overlay_cache[ovl->id];
 
-	/* Configure overlay fifos */
-	for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
-		struct omap_dss_device *dssdev;
-		u32 size, burst_size;
+	if (!oc->enabled)
+		return;
 
-		ovl = omap_dss_get_overlay(i);
+	dssdev = ovl->manager->device;
 
-		oc = &dss_cache.overlay_cache[ovl->id];
+	size = dispc_ovl_get_fifo_size(ovl->id);
 
-		if (!oc->enabled)
-			continue;
+	burst_size = dispc_ovl_get_burst_size(ovl->id);
 
-		dssdev = ovl->manager->device;
-
-		size = dispc_ovl_get_fifo_size(ovl->id);
-
-		burst_size = dispc_ovl_get_burst_size(ovl->id);
-
-		switch (dssdev->type) {
+	switch (dssdev->type) {
 		case OMAP_DISPLAY_TYPE_DPI:
 		case OMAP_DISPLAY_TYPE_DBI:
 		case OMAP_DISPLAY_TYPE_SDI:
@@ -1112,7 +1097,42 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 #endif
 		default:
 			BUG();
-		}
+	}
+}
+
+static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
+{
+	int i, r;
+	unsigned long flags;
+
+	DSSDBG("omap_dss_mgr_apply(%s)\n", mgr->name);
+
+	r = dispc_runtime_get();
+	if (r)
+		return r;
+
+	spin_lock_irqsave(&dss_cache.lock, flags);
+
+	/* Configure overlays */
+	for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
+		struct omap_overlay *ovl;
+
+		ovl = omap_dss_get_overlay(i);
+
+		omap_dss_mgr_apply_ovl(ovl);
+	}
+
+	/* Configure managers */
+	list_for_each_entry(mgr, &manager_list, list)
+		omap_dss_mgr_apply_mgr(mgr);
+
+	/* Configure overlay fifos */
+	for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
+		struct omap_overlay *ovl;
+
+		ovl = omap_dss_get_overlay(i);
+
+		omap_dss_mgr_apply_ovl_fifos(ovl);
 	}
 
 	r = 0;
