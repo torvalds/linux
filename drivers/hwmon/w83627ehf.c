@@ -1756,7 +1756,14 @@ static inline void __devinit w83627ehf_init_device(struct w83627ehf_data *data,
 		diode = 0x70;
 	}
 	for (i = 0; i < 3; i++) {
-		if ((tmp & (0x02 << i)))
+		const char *label = data->temp_label[data->temp_src[i]];
+
+		/* Digital source overrides analog type */
+		if (strncmp(label, "PECI", 4) == 0)
+			data->temp_type[i] = 6;
+		else if (strncmp(label, "AMD", 3) == 0)
+			data->temp_type[i] = 5;
+		else if ((tmp & (0x02 << i)))
 			data->temp_type[i] = (diode & (0x10 << i)) ? 1 : 3;
 		else
 			data->temp_type[i] = 4; /* thermistor */
