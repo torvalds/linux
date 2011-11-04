@@ -252,17 +252,25 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 }
 
 int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
-			   struct chip_info *ci, u32 regs)
+			   struct chip_info **ci_ptr, u32 regs)
 {
-	int ret = 0;
+	int ret;
+	struct chip_info *ci;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	/* alloc chip_info_t */
+	ci = kzalloc(sizeof(struct chip_info), GFP_ATOMIC);
+	if (!ci)
+		return -ENOMEM;
 
 	ret = brcmf_sdio_chip_buscoreprep(sdiodev);
 	if (ret != 0)
-		return ret;
+		goto err;
 
 	ret = brcmf_sdio_chip_recognition(sdiodev, ci, regs);
 	if (ret != 0)
-		return ret;
+		goto err;
 
 	brcmf_sdio_chip_buscoresetup(sdiodev, ci);
 
@@ -271,5 +279,10 @@ int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 	brcmf_sdcard_reg_write(sdiodev,
 		CORE_CC_REG(ci->cccorebase, gpiopulldown), 4, 0);
 
+	*ci_ptr = ci;
+	return 0;
+
+err:
+	kfree(ci);
 	return ret;
 }

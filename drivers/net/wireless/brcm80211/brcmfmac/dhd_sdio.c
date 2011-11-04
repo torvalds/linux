@@ -3867,31 +3867,6 @@ static void brcmf_sdbrcm_sdiod_drive_strength_init(struct brcmf_bus *bus,
 	}
 }
 
-static int
-brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
-{
-	struct chip_info *ci;
-	int err;
-
-	brcmf_dbg(TRACE, "Enter\n");
-
-	/* alloc chip_info_t */
-	ci = kzalloc(sizeof(struct chip_info), GFP_ATOMIC);
-	if (NULL == ci)
-		return -ENOMEM;
-
-	err = brcmf_sdio_chip_attach(bus->sdiodev, ci, regs);
-	if (err)
-		goto fail;
-
-	bus->ci = ci;
-	return 0;
-fail:
-	bus->ci = NULL;
-	kfree(ci);
-	return err;
-}
-
 static bool
 brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 {
@@ -3913,7 +3888,7 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 #endif				/* BCMDBG */
 
 	/*
-	 * Force PLL off until brcmf_sdbrcm_chip_attach()
+	 * Force PLL off until brcmf_sdio_chip_attach()
 	 * programs PLL control regs
 	 */
 
@@ -3931,8 +3906,8 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 		goto fail;
 	}
 
-	if (brcmf_sdbrcm_chip_attach(bus, regsva)) {
-		brcmf_dbg(ERROR, "brcmf_sdbrcm_chip_attach failed!\n");
+	if (brcmf_sdio_chip_attach(bus->sdiodev, &bus->ci, regsva)) {
+		brcmf_dbg(ERROR, "brcmf_sdio_chip_attach failed!\n");
 		goto fail;
 	}
 

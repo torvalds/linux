@@ -137,7 +137,6 @@ struct sbconfig {
 extern void brcmf_sdio_chip_coredisable(struct brcmf_sdio_dev *sdiodev,
 					u32 corebase);
 extern int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
-				  struct chip_info *ci, u32 regs);
-
+				  struct chip_info **ci_ptr, u32 regs);
 
 #endif		/* _BRCMFMAC_SDIO_CHIP_H_ */
