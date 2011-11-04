@@ -1307,7 +1307,12 @@ EXPORT_SYMBOL(vme_slot_get);
 
 /* - Bridge Registration --------------------------------------------------- */
 
-static int vme_add_bus(struct vme_bridge *bridge)
+static void vme_dev_release(struct device *dev)
+{
+	kfree(dev_to_vme_dev(dev));
+}
+
+int vme_register_bridge(struct vme_bridge *bridge)
 {
 	int i;
 	int ret = -1;
@@ -1327,8 +1332,9 @@ static int vme_add_bus(struct vme_bridge *bridge)
 
 	return ret;
 }
+EXPORT_SYMBOL(vme_register_bridge);
 
-static void vme_remove_bus(struct vme_bridge *bridge)
+void vme_unregister_bridge(struct vme_bridge *bridge)
 {
 	struct vme_dev *vdev;
 	struct vme_dev *tmp;
@@ -1342,22 +1348,6 @@ static void vme_remove_bus(struct vme_bridge *bridge)
 	}
 	list_del(&bridge->bus_list);
 	mutex_unlock(&vme_buses_lock);
-}
-
-static void vme_dev_release(struct device *dev)
-{
-	kfree(dev_to_vme_dev(dev));
-}
-
-int vme_register_bridge(struct vme_bridge *bridge)
-{
-	return vme_add_bus(bridge);
-}
-EXPORT_SYMBOL(vme_register_bridge);
-
-void vme_unregister_bridge(struct vme_bridge *bridge)
-{
-	vme_remove_bus(bridge);
 }
 EXPORT_SYMBOL(vme_unregister_bridge);
 
