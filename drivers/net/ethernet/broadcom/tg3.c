@@ -9677,14 +9677,13 @@ static int tg3_open(struct net_device *dev)
 		struct tg3_napi *tnapi = &tp->napi[i];
 		err = tg3_request_irq(tp, i);
 		if (err) {
-			for (i--; i >= 0; i--)
+			for (i--; i >= 0; i--) {
+				tnapi = &tp->napi[i];
 				free_irq(tnapi->irq_vec, tnapi);
-			break;
+			}
+			goto err_out2;
 		}
 	}
-
-	if (err)
-		goto err_out2;
 
 	tg3_full_lock(tp, 0);
 
