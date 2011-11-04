@@ -634,7 +634,12 @@ int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
 
 	ret = btrfs_write_marked_extents(root, dirty_pages, mark);
 	ret2 = btrfs_wait_marked_extents(root, dirty_pages, mark);
-	return ret || ret2;
+
+	if (ret)
+		return ret;
+	if (ret2)
+		return ret2;
+	return 0;
 }
 
 int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,

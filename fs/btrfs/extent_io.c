@@ -2334,6 +2334,9 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	trace___extent_writepage(page, inode, wbc);
 
 	WARN_ON(!PageLocked(page));
+
+	ClearPageError(page);
+
 	pg_offset = i_size & (PAGE_CACHE_SIZE - 1);
 	if (page->index > end_index ||
 	   (page->index == end_index && !pg_offset)) {
@@ -3402,6 +3405,7 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 						PAGECACHE_TAG_DIRTY);
 		}
 		spin_unlock_irq(&page->mapping->tree_lock);
+		ClearPageError(page);
 		unlock_page(page);
 	}
 	return 0;
