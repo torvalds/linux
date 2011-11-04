@@ -55,7 +55,8 @@ static irqreturn_t irqhandler(int irq, struct uio_info *info)
 	BUILD_BUG_ON(PCI_COMMAND % 4);
 	BUILD_BUG_ON(PCI_COMMAND + 2 != PCI_STATUS);
 
-	pci_block_user_cfg_access(pdev);
+	if (!pci_cfg_access_trylock(pdev))
+		goto error;
 
 	/* Read both command and status registers in a single 32-bit operation.
 	 * Note: we could cache the value for command and move the status read
@@ -79,7 +80,7 @@ static irqreturn_t irqhandler(int irq, struct uio_info *info)
 	ret = IRQ_HANDLED;
 done:
 
-	pci_unblock_user_cfg_access(pdev);
+	pci_cfg_access_lock(pdev);
 	return ret;
 }
 
@@ -91,7 +92,7 @@ static int __devinit verify_pci_2_3(struct pci_dev *pdev)
 	u16 orig, new;
 	int err = 0;
 
-	pci_block_user_cfg_access(pdev);
+	pci_cfg_access_lock(pdev);
 	pci_read_config_word(pdev, PCI_COMMAND, &orig);
 	pci_write_config_word(pdev, PCI_COMMAND,
 			      orig ^ PCI_COMMAND_INTX_DISABLE);
@@ -114,7 +115,7 @@ static int __devinit verify_pci_2_3(struct pci_dev *pdev)
 	/* Now restore the original value. */
 	pci_write_config_word(pdev, PCI_COMMAND, orig);
 err:
-	pci_unblock_user_cfg_access(pdev);
+	pci_cfg_access_unlock(pdev);
 	return err;
 }
 
