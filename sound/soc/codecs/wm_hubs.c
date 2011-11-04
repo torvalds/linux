@@ -654,6 +654,7 @@ SND_SOC_DAPM_MIXER("SPKL Boost", SND_SOC_NOPM, 0, 0,
 SND_SOC_DAPM_MIXER("SPKR Boost", SND_SOC_NOPM, 0, 0,
 		   right_speaker_boost, ARRAY_SIZE(right_speaker_boost)),
 
+SND_SOC_DAPM_SUPPLY("TSHUT", WM8993_POWER_MANAGEMENT_2, 14, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SPKL Driver", WM8993_POWER_MANAGEMENT_1, 12, 0,
 		 NULL, 0),
 SND_SOC_DAPM_PGA("SPKR Driver", WM8993_POWER_MANAGEMENT_1, 13, 0,
@@ -789,10 +790,12 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "SPKL Driver", NULL, "VMID" },
 	{ "SPKL Driver", NULL, "SPKL Boost" },
 	{ "SPKL Driver", NULL, "CLK_SYS" },
+	{ "SPKL Driver", NULL, "TSHUT" },
 
 	{ "SPKR Driver", NULL, "VMID" },
 	{ "SPKR Driver", NULL, "SPKR Boost" },
 	{ "SPKR Driver", NULL, "CLK_SYS" },
+	{ "SPKR Driver", NULL, "TSHUT" },
 
 	{ "SPKOUTLP", NULL, "SPKL Driver" },
 	{ "SPKOUTLN", NULL, "SPKL Driver" },
