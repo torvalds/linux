@@ -136,6 +136,8 @@ static inline void pci_remove_legacy_files(struct pci_bus *bus) { return; }
 /* Lock for read/write access to pci device and bus lists */
 extern struct rw_semaphore pci_bus_sem;
 
+extern raw_spinlock_t pci_lock;
+
 extern unsigned int pci_pm_d3_delay;
 
 #ifdef CONFIG_PCI_MSI
