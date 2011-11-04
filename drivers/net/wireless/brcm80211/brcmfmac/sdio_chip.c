@@ -19,6 +19,7 @@
 #include <linux/netdevice.h>
 #include <linux/mmc/card.h>
 #include <linux/ssb/ssb_regs.h>
+#include <linux/bcma/bcma.h>
 
 #include <chipcommon.h>
 #include <brcm_hw_ids.h>
@@ -81,6 +82,18 @@ static const struct sdiod_drive_str sdiod_drive_strength_tab3[] = {
 	4, 0x1}, {
 	0, 0x0}
 	};
+
+u8
+brcmf_sdio_chip_getinfidx(struct chip_info *ci, u16 coreid)
+{
+	u8 idx;
+
+	for (idx = 0; idx < BRCMF_MAX_CORENUM; idx++)
+		if (coreid == ci->c_inf[idx].id)
+			return idx;
+
+	return BRCMF_MAX_CORENUM;
+}
 
 static u32
 brcmf_sdio_chip_corerev(struct brcmf_sdio_dev *sdiodev,
@@ -239,9 +252,10 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 	 * For different chiptypes or old sdio hosts w/o chipcommon,
 	 * other ways of recognition should be added here.
 	 */
-	ci->cccorebase = regs;
+	ci->c_inf[0].id = BCMA_CORE_CHIPCOMMON;
+	ci->c_inf[0].base = regs;
 	regdata = brcmf_sdcard_reg_read(sdiodev,
-				CORE_CC_REG(ci->cccorebase, chipid), 4);
+			CORE_CC_REG(ci->c_inf[0].base, chipid), 4);
 	ci->chip = regdata & CID_ID_MASK;
 	ci->chiprev = (regdata & CID_REV_MASK) >> CID_REV_SHIFT;
 
@@ -250,9 +264,12 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 	/* Address of cores for new chips should be added here */
 	switch (ci->chip) {
 	case BCM4329_CHIP_ID:
-		ci->buscorebase = BCM4329_CORE_BUS_BASE;
-		ci->ramcorebase = BCM4329_CORE_SOCRAM_BASE;
-		ci->armcorebase	= BCM4329_CORE_ARM_BASE;
+		ci->c_inf[1].id = BCMA_CORE_SDIO_DEV;
+		ci->c_inf[1].base = BCM4329_CORE_BUS_BASE;
+		ci->c_inf[2].id = BCMA_CORE_INTERNAL_MEM;
+		ci->c_inf[2].base = BCM4329_CORE_SOCRAM_BASE;
+		ci->c_inf[3].id = BCMA_CORE_ARM_CM3;
+		ci->c_inf[3].base = BCM4329_CORE_ARM_BASE;
 		ci->ramsize = BCM4329_RAMSIZE;
 		break;
 	default:
@@ -316,35 +333,39 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 			     struct chip_info *ci)
 {
 	u32 regdata;
+	u8 idx;
 
 	/* get chipcommon rev */
-	ci->ccrev = brcmf_sdio_chip_corerev(sdiodev, ci->cccorebase);
+	ci->c_inf[0].rev =
+		brcmf_sdio_chip_corerev(sdiodev, ci->c_inf[0].base);
 
 	/* get chipcommon capabilites */
-	ci->cccaps = brcmf_sdcard_reg_read(sdiodev,
-		CORE_CC_REG(ci->cccorebase, capabilities), 4);
+	ci->c_inf[0].caps =
+		brcmf_sdcard_reg_read(sdiodev,
+		CORE_CC_REG(ci->c_inf[0].base, capabilities), 4);
 
 	/* get pmu caps & rev */
-	if (ci->cccaps & CC_CAP_PMU) {
+	if (ci->c_inf[0].caps & CC_CAP_PMU) {
 		ci->pmucaps = brcmf_sdcard_reg_read(sdiodev,
-			CORE_CC_REG(ci->cccorebase, pmucapabilities), 4);
+			CORE_CC_REG(ci->c_inf[0].base, pmucapabilities), 4);
 		ci->pmurev = ci->pmucaps & PCAP_REV_MASK;
 	}
 
-
-	ci->buscorerev = brcmf_sdio_chip_corerev(sdiodev, ci->buscorebase);
+	ci->c_inf[1].rev = brcmf_sdio_chip_corerev(sdiodev, ci->c_inf[1].base);
 	regdata = brcmf_sdcard_reg_read(sdiodev,
-					CORE_SB(ci->buscorebase, sbidhigh), 4);
-	ci->buscoretype = (regdata & SSB_IDHIGH_CC) >> SSB_IDHIGH_CC_SHIFT;
+				CORE_SB(ci->c_inf[1].base, sbidhigh), 4);
+	ci->c_inf[1].id = (regdata & SSB_IDHIGH_CC) >> SSB_IDHIGH_CC_SHIFT;
 
 	brcmf_dbg(INFO, "ccrev=%d, pmurev=%d, buscore rev/type=%d/0x%x\n",
-		  ci->ccrev, ci->pmurev, ci->buscorerev, ci->buscoretype);
+		  ci->c_inf[0].rev, ci->pmurev,
+		  ci->c_inf[1].rev, ci->c_inf[1].id);
 
 	/*
 	 * Make sure any on-chip ARM is off (in case strapping is wrong),
 	 * or downloaded code was already running.
 	 */
-	brcmf_sdio_chip_coredisable(sdiodev, ci->armcorebase);
+	idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_ARM_CM3);
+	brcmf_sdio_chip_coredisable(sdiodev, ci->c_inf[idx].base);
 }
 
 int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
@@ -371,9 +392,9 @@ int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 	brcmf_sdio_chip_buscoresetup(sdiodev, ci);
 
 	brcmf_sdcard_reg_write(sdiodev,
-		CORE_CC_REG(ci->cccorebase, gpiopullup), 4, 0);
+		CORE_CC_REG(ci->c_inf[0].base, gpiopullup), 4, 0);
 	brcmf_sdcard_reg_write(sdiodev,
-		CORE_CC_REG(ci->cccorebase, gpiopulldown), 4, 0);
+		CORE_CC_REG(ci->c_inf[0].base, gpiopulldown), 4, 0);
 
 	*ci_ptr = ci;
 	return 0;
@@ -410,7 +431,7 @@ brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 	u32 str_shift = 0;
 	char chn[8];
 
-	if (!(ci->cccaps & CC_CAP_PMU))
+	if (!(ci->c_inf[0].caps & CC_CAP_PMU))
 		return;
 
 	switch (SDIOD_DRVSTR_KEY(ci->chip, ci->pmurev)) {
@@ -450,15 +471,15 @@ brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 		}
 
 		brcmf_sdcard_reg_write(sdiodev,
-			CORE_CC_REG(ci->cccorebase, chipcontrol_addr),
+			CORE_CC_REG(ci->c_inf[0].base, chipcontrol_addr),
 			4, 1);
 		cc_data_temp = brcmf_sdcard_reg_read(sdiodev,
-			CORE_CC_REG(ci->cccorebase, chipcontrol_addr), 4);
+			CORE_CC_REG(ci->c_inf[0].base, chipcontrol_addr), 4);
 		cc_data_temp &= ~str_mask;
 		drivestrength_sel <<= str_shift;
 		cc_data_temp |= drivestrength_sel;
 		brcmf_sdcard_reg_write(sdiodev,
-			CORE_CC_REG(ci->cccorebase, chipcontrol_addr),
+			CORE_CC_REG(ci->c_inf[0].base, chipcontrol_addr),
 			4, cc_data_temp);
 
 		brcmf_dbg(INFO, "SDIO: %dmA drive strength selected, set to 0x%08x\n",

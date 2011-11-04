@@ -28,6 +28,7 @@
 #include <linux/semaphore.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/bcma/bcma.h>
 #include <asm/unaligned.h>
 #include <defs.h>
 #include <brcmu_wifi.h>
@@ -614,10 +615,12 @@ static bool data_ok(struct brcmf_bus *bus)
 static void
 r_sdreg32(struct brcmf_bus *bus, u32 *regvar, u32 reg_offset, u32 *retryvar)
 {
+	u8 idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
 	*retryvar = 0;
 	do {
 		*regvar = brcmf_sdcard_reg_read(bus->sdiodev,
-				bus->ci->buscorebase + reg_offset, sizeof(u32));
+				bus->ci->c_inf[idx].base + reg_offset,
+				sizeof(u32));
 	} while (brcmf_sdcard_regfail(bus->sdiodev) &&
 		 (++(*retryvar) <= retry_limit));
 	if (*retryvar) {
@@ -632,10 +635,11 @@ r_sdreg32(struct brcmf_bus *bus, u32 *regvar, u32 reg_offset, u32 *retryvar)
 static void
 w_sdreg32(struct brcmf_bus *bus, u32 regval, u32 reg_offset, u32 *retryvar)
 {
+	u8 idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
 	*retryvar = 0;
 	do {
 		brcmf_sdcard_reg_write(bus->sdiodev,
-				       bus->ci->buscorebase + reg_offset,
+				       bus->ci->c_inf[idx].base + reg_offset,
 				       sizeof(u32), regval);
 	} while (brcmf_sdcard_regfail(bus->sdiodev) &&
 		 (++(*retryvar) <= retry_limit));
@@ -683,8 +687,8 @@ static int brcmf_sdbrcm_htclk(struct brcmf_bus *bus, bool on, bool pendok)
 			return -EBADE;
 		}
 
-		if (pendok && ((bus->ci->buscoretype == PCMCIA_CORE_ID)
-			       && (bus->ci->buscorerev == 9))) {
+		if (pendok && ((bus->ci->c_inf[1].id == PCMCIA_CORE_ID)
+			       && (bus->ci->c_inf[1].rev == 9))) {
 			u32 dummy, retries;
 			r_sdreg32(bus, &dummy,
 				  offsetof(struct sdpcmd_regs, clockctlstatus),
@@ -909,8 +913,8 @@ static int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 
 		/* Force pad isolation off if possible
 			 (in case power never toggled) */
-		if ((bus->ci->buscoretype == PCMCIA_CORE_ID)
-		    && (bus->ci->buscorerev >= 10))
+		if ((bus->ci->c_inf[1].id == PCMCIA_CORE_ID)
+		    && (bus->ci->c_inf[1].rev >= 10))
 			brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
 				SBSDIO_DEVICE_CTL, 0, NULL);
 
@@ -3094,6 +3098,8 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 {
 	uint retries;
 	int bcmerror = 0;
+	u8 idx;
+	struct chip_info *ci = bus->ci;
 
 	/* To enter download state, disable ARM and reset SOCRAM.
 	 * To exit download state, simply reset ARM (default is RAM boot).
@@ -3101,10 +3107,11 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 	if (enter) {
 		bus->alp_only = true;
 
-		brcmf_sdio_chip_coredisable(bus->sdiodev,
-					      bus->ci->armcorebase);
+		idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_ARM_CM3);
+		brcmf_sdio_chip_coredisable(bus->sdiodev, ci->c_inf[idx].base);
 
-		brcmf_sdio_chip_resetcore(bus->sdiodev, bus->ci->ramcorebase);
+		idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_INTERNAL_MEM);
+		brcmf_sdio_chip_resetcore(bus->sdiodev, ci->c_inf[idx].base);
 
 		/* Clear the top bit of memory */
 		if (bus->ramsize) {
@@ -3113,8 +3120,9 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 					 (u8 *)&zeros, 4);
 		}
 	} else {
+		idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_INTERNAL_MEM);
 		if (!brcmf_sdio_chip_iscoreup(bus->sdiodev,
-					      bus->ci->ramcorebase)) {
+					      ci->c_inf[idx].base)) {
 			brcmf_dbg(ERROR, "SOCRAM core is down after reset?\n");
 			bcmerror = -EBADE;
 			goto fail;
@@ -3129,7 +3137,8 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 		w_sdreg32(bus, 0xFFFFFFFF,
 			  offsetof(struct sdpcmd_regs, intstatus), &retries);
 
-		brcmf_sdio_chip_resetcore(bus->sdiodev, bus->ci->armcorebase);
+		idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_ARM_CM3);
+		brcmf_sdio_chip_resetcore(bus->sdiodev, ci->c_inf[idx].base);
 
 		/* Allow HT Clock now that the ARM is running. */
 		bus->alp_only = false;
@@ -3711,6 +3720,7 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 	int err = 0;
 	int reg_addr;
 	u32 reg_val;
+	u8 idx;
 
 	bus->alp_only = true;
 
@@ -3764,7 +3774,8 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 	}
 
 	/* Set core control so an SDIO reset does a backplane reset */
-	reg_addr = bus->ci->buscorebase +
+	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
+	reg_addr = bus->ci->c_inf[idx].base +
 		   offsetof(struct sdpcmd_regs, corecontrol);
 	reg_val = brcmf_sdcard_reg_read(bus->sdiodev, reg_addr, sizeof(u32));
 	brcmf_sdcard_reg_write(bus->sdiodev, reg_addr, sizeof(u32),

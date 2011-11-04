@@ -52,17 +52,22 @@
 #define SBSDIO_CLKAV(regval, alponly) \
 	(SBSDIO_ALPAV(regval) && (alponly ? 1 : SBSDIO_HTAV(regval)))
 
+#define BRCMF_MAX_CORENUM	6
+
+struct chip_core_info {
+	u16 id;
+	u16 rev;
+	u32 base;
+	u32 wrapbase;
+	u32 caps;
+};
+
 struct chip_info {
 	u32 chip;
 	u32 chiprev;
-	u32 cccorebase;
-	u32 ccrev;
-	u32 cccaps;
-	u32 buscorebase; /* 32 bits backplane bus address */
-	u32 buscorerev;
-	u32 buscoretype;
-	u32 ramcorebase;
-	u32 armcorebase;
+	/* core info */
+	/* always put chipcommon core at 0, bus core at 1 */
+	struct chip_core_info c_inf[BRCMF_MAX_CORENUM];
 	u32 pmurev;
 	u32 pmucaps;
 	u32 ramsize;
@@ -120,5 +125,7 @@ extern void brcmf_sdio_chip_detach(struct chip_info **ci_ptr);
 extern void brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 					      struct chip_info *ci,
 					      u32 drivestrength);
+extern u8 brcmf_sdio_chip_getinfidx(struct chip_info *ci, u16 coreid);
+
 
 #endif		/* _BRCMFMAC_SDIO_CHIP_H_ */
