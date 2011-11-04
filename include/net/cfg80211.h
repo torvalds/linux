@@ -2115,6 +2115,8 @@ struct wireless_dev {
 
 	int beacon_interval;
 
+	u32 ap_unexpected_nlpid;
+
 #ifdef CONFIG_CFG80211_WEXT
 	/* wext data */
 	struct {
@@ -3143,6 +3145,21 @@ void cfg80211_gtk_rekey_notify(struct net_device *dev, const u8 *bssid,
  */
 void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
 				     const u8 *bssid, bool preauth, gfp_t gfp);
+
+/**
+ * cfg80211_rx_spurious_frame - inform userspace about a spurious frame
+ * @dev: The device the frame matched to
+ * @addr: the transmitter address
+ * @gfp: context flags
+ *
+ * This function is used in AP mode (only!) to inform userspace that
+ * a spurious class 3 frame was received, to be able to deauth the
+ * sender.
+ * Returns %true if the frame was passed to userspace (or this failed
+ * for a reason other than not having a subscription.)
+ */
+bool cfg80211_rx_spurious_frame(struct net_device *dev,
+				const u8 *addr, gfp_t gfp);
 
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 
