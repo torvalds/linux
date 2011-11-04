@@ -1421,10 +1421,7 @@ static int __vme_register_driver(struct vme_driver *drv, unsigned int ndevs)
 		 * and if the bridge is removed, it will have to go through
 		 * vme_unregister_bridge() to do it (which calls remove() on
 		 * the bridge which in turn tries to acquire vme_buses_lock and
-		 * will have to wait). The probe() called after device
-		 * registration in __vme_register_driver below will also fail
-		 * as the bridge is being removed (since the probe() calls
-		 * vme_bridge_get()).
+		 * will have to wait).
 		 */
 		err = __vme_register_driver_bus(drv, bridge, ndevs);
 		if (err)
