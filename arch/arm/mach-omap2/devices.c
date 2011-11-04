@@ -84,7 +84,7 @@ static int __init omap4_l3_init(void)
 	 * To avoid code running on other OMAPs in
 	 * multi-omap builds
 	 */
-	if (!(cpu_is_omap44xx()))
+	if (!cpu_is_omap44xx() && !soc_is_omap54xx())
 		return -ENODEV;
 
 	for (i = 0; i < L3_MODULES; i++) {
