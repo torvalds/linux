@@ -737,6 +737,7 @@ SND_SOC_DAPM_SUPPLY("CLK_SYS", WM9081_CLOCK_CONTROL_3, 0, 0, clk_sys_event,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("CLK_DSP", WM9081_CLOCK_CONTROL_3, 1, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("TOCLK", WM9081_CLOCK_CONTROL_3, 2, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("TSENSE", WM9081_POWER_MANAGEMENT, 7, 0, NULL, 0),
 };
 
 
@@ -759,6 +760,7 @@ static const struct snd_soc_dapm_route wm9081_audio_paths[] = {
 	{ "Speaker PGA", NULL, "CLK_SYS" },
 
 	{ "Speaker", NULL, "Speaker PGA" },
+	{ "Speaker", NULL, "TSENSE" },
 
 	{ "SPKN", NULL, "Speaker" },
 	{ "SPKP", NULL, "Speaker" },
