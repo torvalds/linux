@@ -2169,19 +2169,6 @@ static void dispc_mgr_set_default_color(enum omap_channel channel, u32 color)
 	dispc_write_reg(DISPC_DEFAULT_COLOR(channel), color);
 }
 
-u32 dispc_mgr_get_default_color(enum omap_channel channel)
-{
-	u32 l;
-
-	BUG_ON(channel != OMAP_DSS_CHANNEL_DIGIT &&
-		channel != OMAP_DSS_CHANNEL_LCD &&
-		channel != OMAP_DSS_CHANNEL_LCD2);
-
-	l = dispc_read_reg(DISPC_DEFAULT_COLOR(channel));
-
-	return l;
-}
-
 static void dispc_mgr_set_trans_key(enum omap_channel ch,
 		enum omap_dss_trans_key_type type,
 		u32 trans_key)
@@ -2194,25 +2181,6 @@ static void dispc_mgr_set_trans_key(enum omap_channel ch,
 		REG_FLD_MOD(DISPC_CONFIG2, type, 11, 11);
 
 	dispc_write_reg(DISPC_TRANS_COLOR(ch), trans_key);
-}
-
-void dispc_mgr_get_trans_key(enum omap_channel ch,
-		enum omap_dss_trans_key_type *type,
-		u32 *trans_key)
-{
-	if (type) {
-		if (ch == OMAP_DSS_CHANNEL_LCD)
-			*type = REG_GET(DISPC_CONFIG, 11, 11);
-		else if (ch == OMAP_DSS_CHANNEL_DIGIT)
-			*type = REG_GET(DISPC_CONFIG, 13, 13);
-		else if (ch == OMAP_DSS_CHANNEL_LCD2)
-			*type = REG_GET(DISPC_CONFIG2, 11, 11);
-		else
-			BUG();
-	}
-
-	if (trans_key)
-		*trans_key = dispc_read_reg(DISPC_TRANS_COLOR(ch));
 }
 
 static void dispc_mgr_enable_trans_key(enum omap_channel ch, bool enable)
@@ -2235,39 +2203,6 @@ static void dispc_mgr_enable_alpha_fixed_zorder(enum omap_channel ch,
 		REG_FLD_MOD(DISPC_CONFIG, enable, 18, 18);
 	else if (ch == OMAP_DSS_CHANNEL_DIGIT)
 		REG_FLD_MOD(DISPC_CONFIG, enable, 19, 19);
-}
-
-bool dispc_mgr_alpha_fixed_zorder_enabled(enum omap_channel ch)
-{
-	bool enabled;
-
-	if (!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER))
-		return false;
-
-	if (ch == OMAP_DSS_CHANNEL_LCD)
-		enabled = REG_GET(DISPC_CONFIG, 18, 18);
-	else if (ch == OMAP_DSS_CHANNEL_DIGIT)
-		enabled = REG_GET(DISPC_CONFIG, 19, 19);
-	else
-		BUG();
-
-	return enabled;
-}
-
-bool dispc_mgr_trans_key_enabled(enum omap_channel ch)
-{
-	bool enabled;
-
-	if (ch == OMAP_DSS_CHANNEL_LCD)
-		enabled = REG_GET(DISPC_CONFIG, 10, 10);
-	else if (ch == OMAP_DSS_CHANNEL_DIGIT)
-		enabled = REG_GET(DISPC_CONFIG, 12, 12);
-	else if (ch == OMAP_DSS_CHANNEL_LCD2)
-		enabled = REG_GET(DISPC_CONFIG2, 10, 10);
-	else
-		BUG();
-
-	return enabled;
 }
 
 void dispc_mgr_setup(enum omap_channel channel,
