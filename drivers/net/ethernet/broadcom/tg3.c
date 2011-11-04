@@ -6352,7 +6352,6 @@ static void tg3_reset_task(struct work_struct *work)
 {
 	struct tg3 *tp = container_of(work, struct tg3, reset_task);
 	int err;
-	unsigned int restart_timer;
 
 	tg3_full_lock(tp, 0);
 
@@ -6370,9 +6369,6 @@ static void tg3_reset_task(struct work_struct *work)
 
 	tg3_full_lock(tp, 1);
 
-	restart_timer = tg3_flag(tp, RESTART_TIMER);
-	tg3_flag_clear(tp, RESTART_TIMER);
-
 	if (tg3_flag(tp, TX_RECOVERY_PENDING)) {
 		tp->write32_tx_mbox = tg3_write32_tx_mbox;
 		tp->write32_rx_mbox = tg3_write_flush_reg32;
@@ -6386,9 +6382,6 @@ static void tg3_reset_task(struct work_struct *work)
 		goto out;
 
 	tg3_netif_start(tp);
-
-	if (restart_timer)
-		mod_timer(&tp->timer, jiffies + 1);
 
 out:
 	tg3_full_unlock(tp);
@@ -9218,7 +9211,7 @@ static void tg3_timer(unsigned long __opaque)
 {
 	struct tg3 *tp = (struct tg3 *) __opaque;
 
-	if (tp->irq_sync)
+	if (tp->irq_sync || tg3_flag(tp, RESET_TASK_PENDING))
 		goto restart_timer;
 
 	spin_lock(&tp->lock);
@@ -9241,10 +9234,9 @@ static void tg3_timer(unsigned long __opaque)
 		}
 
 		if (!(tr32(WDMAC_MODE) & WDMAC_MODE_ENABLE)) {
-			tg3_flag_set(tp, RESTART_TIMER);
 			spin_unlock(&tp->lock);
 			tg3_reset_task_schedule(tp);
-			return;
+			goto restart_timer;
 		}
 	}
 
@@ -15847,12 +15839,10 @@ static pci_ers_result_t tg3_io_error_detected(struct pci_dev *pdev,
 	tg3_netif_stop(tp);
 
 	del_timer_sync(&tp->timer);
-	tg3_flag_clear(tp, RESTART_TIMER);
 
 	/* Want to make sure that the reset task doesn't run */
 	tg3_reset_task_cancel(tp);
 	tg3_flag_clear(tp, TX_RECOVERY_PENDING);
-	tg3_flag_clear(tp, RESTART_TIMER);
 
 	netif_device_detach(netdev);
 
