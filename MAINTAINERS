@@ -1716,6 +1716,7 @@ F:	include/linux/can.h
 F:	include/linux/can/core.h
 F:	include/linux/can/bcm.h
 F:	include/linux/can/raw.h
+F:	include/linux/can/gw.h
 
 CAN NETWORK DRIVERS
 M:	Wolfgang Grandegger <wg@grandegger.com>
@@ -4476,11 +4477,9 @@ F:	Documentation/networking/vxge.txt
 F:	drivers/net/ethernet/neterion/
 
 NETFILTER/IPTABLES/IPCHAINS
-P:	Rusty Russell
-P:	Marc Boucher
-P:	James Morris
 P:	Harald Welte
 P:	Jozsef Kadlecsik
+M:	Pablo Neira Ayuso <pablo@netfilter.org>
 M:	Patrick McHardy <kaber@trash.net>
 L:	netfilter-devel@vger.kernel.org
 L:	netfilter@vger.kernel.org
