@@ -18,6 +18,8 @@
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/mmc/card.h>
+#include <linux/ssb/ssb_regs.h>
+
 #include <chipcommon.h>
 #include <brcm_hw_ids.h>
 #include <brcmu_wifi.h>
@@ -38,19 +40,9 @@
 #define BCM4329_CORE_ARM_BASE		0x18002000
 #define BCM4329_RAMSIZE			0x48000
 
-
-/* SB regs */
-/* sbidhigh */
-#define	SBIDH_RC_MASK		0x000f	/* revision code */
-#define	SBIDH_RCE_MASK		0x7000	/* revision code extension field */
-#define	SBIDH_RCE_SHIFT		8
 #define	SBCOREREV(sbidh) \
-	((((sbidh) & SBIDH_RCE_MASK) >> SBIDH_RCE_SHIFT) | \
-	  ((sbidh) & SBIDH_RC_MASK))
-#define	SBIDH_CC_MASK		0x8ff0	/* core code */
-#define	SBIDH_CC_SHIFT		4
-#define	SBIDH_VC_MASK		0xffff0000	/* vendor code */
-#define	SBIDH_VC_SHIFT		16
+	((((sbidh) & SSB_IDHIGH_RCHI) >> SSB_IDHIGH_RCHI_SHIFT) | \
+	  ((sbidh) & SSB_IDHIGH_RCLO))
 
 #define SDIOD_DRVSTR_KEY(chip, pmu)     (((chip) << 16) | (pmu))
 /* SDIO Pad drive strength to select value mappings */
@@ -109,9 +101,9 @@ brcmf_sdio_chip_iscoreup(struct brcmf_sdio_dev *sdiodev,
 
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 			CORE_SB(corebase, sbtmstatelow), 4);
-	regdata &= (SBTML_RESET | SBTML_REJ_MASK |
-			(SICF_CLOCK_EN << SBTML_SICF_SHIFT));
-	return ((SICF_CLOCK_EN << SBTML_SICF_SHIFT) == regdata);
+	regdata &= (SSB_TMSLOW_RESET | SSB_TMSLOW_REJECT |
+		    SSB_IMSTATE_REJECT | SSB_TMSLOW_CLOCK);
+	return (SSB_TMSLOW_CLOCK == regdata);
 }
 
 void
@@ -121,12 +113,12 @@ brcmf_sdio_chip_coredisable(struct brcmf_sdio_dev *sdiodev, u32 corebase)
 
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 		CORE_SB(corebase, sbtmstatelow), 4);
-	if (regdata & SBTML_RESET)
+	if (regdata & SSB_TMSLOW_RESET)
 		return;
 
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 		CORE_SB(corebase, sbtmstatelow), 4);
-	if ((regdata & (SICF_CLOCK_EN << SBTML_SICF_SHIFT)) != 0) {
+	if ((regdata & SSB_TMSLOW_CLOCK) != 0) {
 		/*
 		 * set target reject and spin until busy is clear
 		 * (preserve core-specific bits)
@@ -134,26 +126,26 @@ brcmf_sdio_chip_coredisable(struct brcmf_sdio_dev *sdiodev, u32 corebase)
 		regdata = brcmf_sdcard_reg_read(sdiodev,
 			CORE_SB(corebase, sbtmstatelow), 4);
 		brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow),
-				       4, regdata | SBTML_REJ);
+				       4, regdata | SSB_TMSLOW_REJECT);
 
 		regdata = brcmf_sdcard_reg_read(sdiodev,
 			CORE_SB(corebase, sbtmstatelow), 4);
 		udelay(1);
 		SPINWAIT((brcmf_sdcard_reg_read(sdiodev,
 			CORE_SB(corebase, sbtmstatehigh), 4) &
-			SBTMH_BUSY), 100000);
+			SSB_TMSHIGH_BUSY), 100000);
 
 		regdata = brcmf_sdcard_reg_read(sdiodev,
 			CORE_SB(corebase, sbtmstatehigh), 4);
-		if (regdata & SBTMH_BUSY)
+		if (regdata & SSB_TMSHIGH_BUSY)
 			brcmf_dbg(ERROR, "core state still busy\n");
 
 		regdata = brcmf_sdcard_reg_read(sdiodev,
 			CORE_SB(corebase, sbidlow), 4);
-		if (regdata & SBIDL_INIT) {
+		if (regdata & SSB_IDLOW_INITIATOR) {
 			regdata = brcmf_sdcard_reg_read(sdiodev,
 				CORE_SB(corebase, sbimstate), 4) |
-				SBIM_RJ;
+				SSB_IMSTATE_REJECT;
 			brcmf_sdcard_reg_write(sdiodev,
 				CORE_SB(corebase, sbimstate), 4,
 				regdata);
@@ -162,14 +154,14 @@ brcmf_sdio_chip_coredisable(struct brcmf_sdio_dev *sdiodev, u32 corebase)
 			udelay(1);
 			SPINWAIT((brcmf_sdcard_reg_read(sdiodev,
 				CORE_SB(corebase, sbimstate), 4) &
-				SBIM_BY), 100000);
+				SSB_IMSTATE_BUSY), 100000);
 		}
 
 		/* set reset and reject while enabling the clocks */
 		brcmf_sdcard_reg_write(sdiodev,
 			CORE_SB(corebase, sbtmstatelow), 4,
-			(((SICF_FGC | SICF_CLOCK_EN) << SBTML_SICF_SHIFT) |
-			SBTML_REJ | SBTML_RESET));
+			(SSB_TMSLOW_FGC | SSB_TMSLOW_CLOCK |
+			SSB_TMSLOW_REJECT | SSB_TMSLOW_RESET));
 		regdata = brcmf_sdcard_reg_read(sdiodev,
 			CORE_SB(corebase, sbtmstatelow), 4);
 		udelay(10);
@@ -177,10 +169,10 @@ brcmf_sdio_chip_coredisable(struct brcmf_sdio_dev *sdiodev, u32 corebase)
 		/* clear the initiator reject bit */
 		regdata = brcmf_sdcard_reg_read(sdiodev,
 			CORE_SB(corebase, sbidlow), 4);
-		if (regdata & SBIDL_INIT) {
+		if (regdata & SSB_IDLOW_INITIATOR) {
 			regdata = brcmf_sdcard_reg_read(sdiodev,
 				CORE_SB(corebase, sbimstate), 4) &
-				~SBIM_RJ;
+				~SSB_IMSTATE_REJECT;
 			brcmf_sdcard_reg_write(sdiodev,
 				CORE_SB(corebase, sbimstate), 4,
 				regdata);
@@ -189,7 +181,7 @@ brcmf_sdio_chip_coredisable(struct brcmf_sdio_dev *sdiodev, u32 corebase)
 
 	/* leave reset and reject asserted */
 	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
-		(SBTML_REJ | SBTML_RESET));
+		(SSB_TMSLOW_REJECT | SSB_TMSLOW_RESET));
 	udelay(1);
 }
 
@@ -210,31 +202,29 @@ brcmf_sdio_chip_resetcore(struct brcmf_sdio_dev *sdiodev, u32 corebase)
 	 * forcing them on throughout the core
 	 */
 	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
-		((SICF_FGC | SICF_CLOCK_EN) << SBTML_SICF_SHIFT) |
-		SBTML_RESET);
+		SSB_TMSLOW_FGC | SSB_TMSLOW_CLOCK | SSB_TMSLOW_RESET);
 	udelay(1);
 
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 					CORE_SB(corebase, sbtmstatehigh), 4);
-	if (regdata & SBTMH_SERR)
+	if (regdata & SSB_TMSHIGH_SERR)
 		brcmf_sdcard_reg_write(sdiodev,
 				       CORE_SB(corebase, sbtmstatehigh), 4, 0);
 
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 					CORE_SB(corebase, sbimstate), 4);
-	if (regdata & (SBIM_IBE | SBIM_TO))
+	if (regdata & (SSB_IMSTATE_IBE | SSB_IMSTATE_TO))
 		brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbimstate), 4,
-			regdata & ~(SBIM_IBE | SBIM_TO));
+			regdata & ~(SSB_IMSTATE_IBE | SSB_IMSTATE_TO));
 
 	/* clear reset and allow it to propagate throughout the core */
 	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
-		(SICF_FGC << SBTML_SICF_SHIFT) |
-		(SICF_CLOCK_EN << SBTML_SICF_SHIFT));
+		SSB_TMSLOW_FGC | SSB_TMSLOW_CLOCK);
 	udelay(1);
 
 	/* leave clock enabled */
-	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
-		(SICF_CLOCK_EN << SBTML_SICF_SHIFT));
+	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow),
+			       4, SSB_TMSLOW_CLOCK);
 	udelay(1);
 }
 
@@ -345,7 +335,7 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 	ci->buscorerev = brcmf_sdio_chip_corerev(sdiodev, ci->buscorebase);
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 					CORE_SB(ci->buscorebase, sbidhigh), 4);
-	ci->buscoretype = (regdata & SBIDH_CC_MASK) >> SBIDH_CC_SHIFT;
+	ci->buscoretype = (regdata & SSB_IDHIGH_CC) >> SSB_IDHIGH_CC_SHIFT;
 
 	brcmf_dbg(INFO, "ccrev=%d, pmurev=%d, buscore rev/type=%d/0x%x\n",
 		  ci->ccrev, ci->pmurev, ci->buscorerev, ci->buscoretype);

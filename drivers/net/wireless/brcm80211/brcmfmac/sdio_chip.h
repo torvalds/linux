@@ -52,31 +52,6 @@
 #define SBSDIO_CLKAV(regval, alponly) \
 	(SBSDIO_ALPAV(regval) && (alponly ? 1 : SBSDIO_HTAV(regval)))
 
-/* sbimstate */
-#define	SBIM_IBE		0x20000	/* inbanderror */
-#define	SBIM_TO			0x40000	/* timeout */
-#define	SBIM_BY			0x01800000	/* busy (sonics >= 2.3) */
-#define	SBIM_RJ			0x02000000	/* reject (sonics >= 2.3) */
-
-/* sbtmstatelow */
-#define	SBTML_RESET		0x0001	/* reset */
-#define	SBTML_REJ_MASK		0x0006	/* reject field */
-#define	SBTML_REJ		0x0002	/* reject */
-#define	SBTML_TMPREJ		0x0004	/* temporary reject(error recovery) */
-/* Shift to locate the SI control flags in sbtml */
-#define	SBTML_SICF_SHIFT	16
-
-/* sbtmstatehigh */
-#define	SBTMH_SERR		0x0001	/* serror */
-#define	SBTMH_INT		0x0002	/* interrupt */
-#define	SBTMH_BUSY		0x0004	/* busy */
-#define	SBTMH_TO		0x0020	/* timeout (sonics >= 2.3) */
-/* Shift to locate the SI status flags in sbtmh */
-#define	SBTMH_SISF_SHIFT	16
-
-/* sbidlow */
-#define	SBIDL_INIT		0x80	/* initiator */
-
 struct chip_info {
 	u32 chip;
 	u32 chiprev;
