@@ -403,6 +403,8 @@ void rs780_pm_init_profile(struct radeon_device *rdev)
 
 void r600_pm_init_profile(struct radeon_device *rdev)
 {
+	int idx;
+
 	if (rdev->family == CHIP_R600) {
 		/* XXX */
 		/* default */
@@ -484,81 +486,43 @@ void r600_pm_init_profile(struct radeon_device *rdev)
 			rdev->pm.profiles[PM_PROFILE_DEFAULT_IDX].dpms_off_cm_idx = 0;
 			rdev->pm.profiles[PM_PROFILE_DEFAULT_IDX].dpms_on_cm_idx = 2;
 			/* low sh */
-			if (rdev->flags & RADEON_IS_MOBILITY) {
-				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 0);
-				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 0);
-				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 0;
-			} else {
-				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
-				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
-				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 0;
-			}
+			if (rdev->flags & RADEON_IS_MOBILITY)
+				idx = radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 0);
+			else
+				idx = radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
+			rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_ps_idx = idx;
+			rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_ps_idx = idx;
+			rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_cm_idx = 0;
+			rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 0;
 			/* mid sh */
-			if (rdev->flags & RADEON_IS_MOBILITY) {
-				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 0);
-				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 0);
-				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_cm_idx = 1;
-			} else {
-				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
-				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
-				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_cm_idx = 1;
-			}
+			rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_ps_idx = idx;
+			rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_ps_idx = idx;
+			rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_cm_idx = 0;
+			rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_cm_idx = 1;
 			/* high sh */
-			rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_off_ps_idx =
-				radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
-			rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_on_ps_idx =
-				radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
+			idx = radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
+			rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_off_ps_idx = idx;
+			rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_on_ps_idx = idx;
 			rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_off_cm_idx = 0;
 			rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_on_cm_idx = 2;
 			/* low mh */
-			if (rdev->flags & RADEON_IS_MOBILITY) {
-				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 1);
-				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 1);
-				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 0;
-			} else {
-				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 1);
-				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 1);
-				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 0;
-			}
+			if (rdev->flags & RADEON_IS_MOBILITY)
+				idx = radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 1);
+			else
+				idx = radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 1);
+			rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_ps_idx = idx;
+			rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_ps_idx = idx;
+			rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_cm_idx = 0;
+			rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 0;
 			/* mid mh */
-			if (rdev->flags & RADEON_IS_MOBILITY) {
-				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 1);
-				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 1);
-				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_cm_idx = 1;
-			} else {
-				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 1);
-				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_ps_idx =
-					radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 1);
-				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_cm_idx = 1;
-			}
+			rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_ps_idx = idx;
+			rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_ps_idx = idx;
+			rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_cm_idx = 0;
+			rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_cm_idx = 1;
 			/* high mh */
-			rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_off_ps_idx =
-				radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 1);
-			rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_ps_idx =
-				radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 1);
+			idx = radeon_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 1);
+			rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_off_ps_idx = idx;
+			rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_ps_idx = idx;
 			rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_off_cm_idx = 0;
 			rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_cm_idx = 2;
 		}
