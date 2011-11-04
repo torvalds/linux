@@ -996,7 +996,7 @@ void dispc_enable_gamma_table(bool enable)
 	REG_FLD_MOD(DISPC_CONFIG, enable, 9, 9);
 }
 
-void dispc_mgr_enable_cpr(enum omap_channel channel, bool enable)
+static void dispc_mgr_enable_cpr(enum omap_channel channel, bool enable)
 {
 	u16 reg;
 
@@ -1010,7 +1010,7 @@ void dispc_mgr_enable_cpr(enum omap_channel channel, bool enable)
 	REG_FLD_MOD(reg, enable, 15, 15);
 }
 
-void dispc_mgr_set_cpr_coef(enum omap_channel channel,
+static void dispc_mgr_set_cpr_coef(enum omap_channel channel,
 		struct omap_dss_cpr_coefs *coefs)
 {
 	u32 coef_r, coef_g, coef_b;
@@ -2164,7 +2164,7 @@ void dispc_set_loadmode(enum omap_dss_load_mode mode)
 }
 
 
-void dispc_mgr_set_default_color(enum omap_channel channel, u32 color)
+static void dispc_mgr_set_default_color(enum omap_channel channel, u32 color)
 {
 	dispc_write_reg(DISPC_DEFAULT_COLOR(channel), color);
 }
@@ -2182,7 +2182,7 @@ u32 dispc_mgr_get_default_color(enum omap_channel channel)
 	return l;
 }
 
-void dispc_mgr_set_trans_key(enum omap_channel ch,
+static void dispc_mgr_set_trans_key(enum omap_channel ch,
 		enum omap_dss_trans_key_type type,
 		u32 trans_key)
 {
@@ -2215,7 +2215,7 @@ void dispc_mgr_get_trans_key(enum omap_channel ch,
 		*trans_key = dispc_read_reg(DISPC_TRANS_COLOR(ch));
 }
 
-void dispc_mgr_enable_trans_key(enum omap_channel ch, bool enable)
+static void dispc_mgr_enable_trans_key(enum omap_channel ch, bool enable)
 {
 	if (ch == OMAP_DSS_CHANNEL_LCD)
 		REG_FLD_MOD(DISPC_CONFIG, enable, 10, 10);
@@ -2225,7 +2225,8 @@ void dispc_mgr_enable_trans_key(enum omap_channel ch, bool enable)
 		REG_FLD_MOD(DISPC_CONFIG2, enable, 10, 10);
 }
 
-void dispc_mgr_enable_alpha_fixed_zorder(enum omap_channel ch, bool enable)
+static void dispc_mgr_enable_alpha_fixed_zorder(enum omap_channel ch,
+		bool enable)
 {
 	if (!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER))
 		return;
@@ -2269,6 +2270,19 @@ bool dispc_mgr_trans_key_enabled(enum omap_channel ch)
 	return enabled;
 }
 
+void dispc_mgr_setup(enum omap_channel channel,
+		struct omap_overlay_manager_info *info)
+{
+	dispc_mgr_set_default_color(channel, info->default_color);
+	dispc_mgr_set_trans_key(channel, info->trans_key_type, info->trans_key);
+	dispc_mgr_enable_trans_key(channel, info->trans_enabled);
+	dispc_mgr_enable_alpha_fixed_zorder(channel,
+			info->partial_alpha_enabled);
+	if (dss_has_feature(FEAT_CPR)) {
+		dispc_mgr_enable_cpr(channel, info->cpr_enable);
+		dispc_mgr_set_cpr_coef(channel, &info->cpr_coefs);
+	}
+}
 
 void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines)
 {

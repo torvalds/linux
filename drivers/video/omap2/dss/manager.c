@@ -803,14 +803,7 @@ static void configure_manager(enum omap_channel channel)
 	/* picking info from the cache */
 	mi = &dss_cache.manager_cache[channel].info;
 
-	dispc_mgr_set_default_color(channel, mi->default_color);
-	dispc_mgr_set_trans_key(channel, mi->trans_key_type, mi->trans_key);
-	dispc_mgr_enable_trans_key(channel, mi->trans_enabled);
-	dispc_mgr_enable_alpha_fixed_zorder(channel, mi->partial_alpha_enabled);
-	if (dss_has_feature(FEAT_CPR)) {
-		dispc_mgr_enable_cpr(channel, mi->cpr_enable);
-		dispc_mgr_set_cpr_coef(channel, &mi->cpr_coefs);
-	}
+	dispc_mgr_setup(channel, mi);
 }
 
 /* configure_dispc() tries to write values from cache to shadow registers.
