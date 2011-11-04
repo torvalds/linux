@@ -803,7 +803,7 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 }
 
 void dwc3_ep0_interrupt(struct dwc3 *dwc,
-		const const struct dwc3_event_depevt *event)
+		const struct dwc3_event_depevt *event)
 {
 	u8			epnum = event->endpoint_number;
 

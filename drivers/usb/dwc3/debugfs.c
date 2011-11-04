@@ -49,6 +49,7 @@
 #include "core.h"
 #include "gadget.h"
 #include "io.h"
+#include "debug.h"
 
 struct dwc3_register {
 	const char	*name;
