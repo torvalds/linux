@@ -159,10 +159,14 @@ static void cpufreq_interactive_timer(unsigned long data)
 	if (load_since_change > cpu_load)
 		cpu_load = load_since_change;
 
-	if (cpu_load >= go_maxspeed_load)
-		new_freq = pcpu->policy->max;
-	else
+	if (cpu_load >= go_maxspeed_load) {
+		if (pcpu->policy->cur == pcpu->policy->min)
+			new_freq = pcpu->policy->max;
+		else
+			new_freq = pcpu->policy->max * cpu_load / 100;
+	} else {
 		new_freq = pcpu->policy->cur * cpu_load / 100;
+	}
 
 	if (cpufreq_frequency_table_target(pcpu->policy, pcpu->freq_table,
 					   new_freq, CPUFREQ_RELATION_H,
