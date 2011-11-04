@@ -247,7 +247,7 @@ int btree_readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 
 static struct reada_zone *reada_find_zone(struct btrfs_fs_info *fs_info,
 					  struct btrfs_device *dev, u64 logical,
-					  struct btrfs_bio *multi)
+					  struct btrfs_bio *bbio)
 {
 	int ret;
 	int looped = 0;
@@ -297,11 +297,11 @@ again:
 	kref_init(&zone->refcnt);
 	zone->elems = 0;
 	zone->device = dev; /* our device always sits at index 0 */
-	for (i = 0; i < multi->num_stripes; ++i) {
+	for (i = 0; i < bbio->num_stripes; ++i) {
 		/* bounds have already been checked */
-		zone->devs[i] = multi->stripes[i].dev;
+		zone->devs[i] = bbio->stripes[i].dev;
 	}
-	zone->ndevs = multi->num_stripes;
+	zone->ndevs = bbio->num_stripes;
 
 	spin_lock(&fs_info->reada_lock);
 	ret = radix_tree_insert(&dev->reada_zones,
@@ -327,7 +327,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	struct reada_extent *re = NULL;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
-	struct btrfs_bio *multi = NULL;
+	struct btrfs_bio *bbio = NULL;
 	struct btrfs_device *dev;
 	u32 blocksize;
 	u64 length;
@@ -361,21 +361,21 @@ again:
 	 * map block
 	 */
 	length = blocksize;
-	ret = btrfs_map_block(map_tree, REQ_WRITE, logical, &length, &multi, 0);
-	if (ret || !multi || length < blocksize)
+	ret = btrfs_map_block(map_tree, REQ_WRITE, logical, &length, &bbio, 0);
+	if (ret || !bbio || length < blocksize)
 		goto error;
 
-	if (multi->num_stripes > MAX_MIRRORS) {
+	if (bbio->num_stripes > MAX_MIRRORS) {
 		printk(KERN_ERR "btrfs readahead: more than %d copies not "
 				"supported", MAX_MIRRORS);
 		goto error;
 	}
 
-	for (nzones = 0; nzones < multi->num_stripes; ++nzones) {
+	for (nzones = 0; nzones < bbio->num_stripes; ++nzones) {
 		struct reada_zone *zone;
 
-		dev = multi->stripes[nzones].dev;
-		zone = reada_find_zone(fs_info, dev, logical, multi);
+		dev = bbio->stripes[nzones].dev;
+		zone = reada_find_zone(fs_info, dev, logical, bbio);
 		if (!zone)
 			break;
 
@@ -407,11 +407,11 @@ again:
 		goto error;
 	}
 	for (i = 0; i < nzones; ++i) {
-		dev = multi->stripes[i].dev;
+		dev = bbio->stripes[i].dev;
 		ret = radix_tree_insert(&dev->reada_extents, index, re);
 		if (ret) {
 			while (--i >= 0) {
-				dev = multi->stripes[i].dev;
+				dev = bbio->stripes[i].dev;
 				BUG_ON(dev == NULL);
 				radix_tree_delete(&dev->reada_extents, index);
 			}
@@ -423,7 +423,7 @@ again:
 	}
 	spin_unlock(&fs_info->reada_lock);
 
-	kfree(multi);
+	kfree(bbio);
 	return re;
 
 error:
@@ -448,7 +448,7 @@ error:
 		kref_put(&zone->refcnt, reada_zone_release);
 		spin_unlock(&fs_info->reada_lock);
 	}
-	kfree(multi);
+	kfree(bbio);
 	kfree(re);
 	if (looped)
 		goto again;
