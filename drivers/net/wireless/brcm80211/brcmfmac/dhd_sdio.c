@@ -3885,12 +3885,6 @@ brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
 	if (err)
 		goto fail;
 
-	/*
-	 * Make sure any on-chip ARM is off (in case strapping is wrong),
-	 * or downloaded code was already running.
-	 */
-	brcmf_sdio_chip_coredisable(bus->sdiodev, ci->armcorebase);
-
 	brcmf_sdcard_reg_write(bus->sdiodev,
 		CORE_CC_REG(ci->cccorebase, gpiopullup), 4, 0);
 	brcmf_sdcard_reg_write(bus->sdiodev,
