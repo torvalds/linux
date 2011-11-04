@@ -266,5 +266,10 @@ int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 
 	brcmf_sdio_chip_buscoresetup(sdiodev, ci);
 
+	brcmf_sdcard_reg_write(sdiodev,
+		CORE_CC_REG(ci->cccorebase, gpiopullup), 4, 0);
+	brcmf_sdcard_reg_write(sdiodev,
+		CORE_CC_REG(ci->cccorebase, gpiopulldown), 4, 0);
+
 	return ret;
 }

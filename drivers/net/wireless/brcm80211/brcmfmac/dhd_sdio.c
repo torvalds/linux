@@ -3885,11 +3885,6 @@ brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
 	if (err)
 		goto fail;
 
-	brcmf_sdcard_reg_write(bus->sdiodev,
-		CORE_CC_REG(ci->cccorebase, gpiopullup), 4, 0);
-	brcmf_sdcard_reg_write(bus->sdiodev,
-		CORE_CC_REG(ci->cccorebase, gpiopulldown), 4, 0);
-
 	/* Disable F2 to clear any intermediate frame state on the dongle */
 	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_0, SDIO_CCCR_IOEx,
 		SDIO_FUNC_ENABLE_1, NULL);
