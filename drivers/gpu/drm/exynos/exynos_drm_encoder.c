@@ -283,7 +283,8 @@ void exynos_drm_encoder_crtc_mode_set(struct drm_encoder *encoder, void *data)
 	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
 	struct exynos_drm_overlay *overlay = data;
 
-	overlay_ops->mode_set(manager->dev, overlay);
+	if (overlay_ops && overlay_ops->mode_set)
+		overlay_ops->mode_set(manager->dev, overlay);
 }
 
 void exynos_drm_encoder_crtc_disable(struct drm_encoder *encoder, void *data)
@@ -294,7 +295,8 @@ void exynos_drm_encoder_crtc_disable(struct drm_encoder *encoder, void *data)
 
 	DRM_DEBUG_KMS("\n");
 
-	overlay_ops->disable(manager->dev);
+	if (overlay_ops && overlay_ops->disable)
+		overlay_ops->disable(manager->dev);
 
 	/*
 	 * crtc is already detached from encoder and last
