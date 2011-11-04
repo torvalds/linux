@@ -14230,12 +14230,30 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	val = tr32(MEMARB_MODE);
 	tw32(MEMARB_MODE, val | MEMARB_MODE_ENABLE);
 
-	if (tg3_flag(tp, PCIX_MODE)) {
-		pci_read_config_dword(tp->pdev,
-				      tp->pcix_cap + PCI_X_STATUS, &val);
-		tp->pci_fn = val & 0x7;
-	} else {
-		tp->pci_fn = PCI_FUNC(tp->pdev->devfn) & 3;
+	tp->pci_fn = PCI_FUNC(tp->pdev->devfn) & 3;
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
+	    tg3_flag(tp, 5780_CLASS)) {
+		if (tg3_flag(tp, PCIX_MODE)) {
+			pci_read_config_dword(tp->pdev,
+					      tp->pcix_cap + PCI_X_STATUS,
+					      &val);
+			tp->pci_fn = val & 0x7;
+		}
+	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717) {
+		tg3_read_mem(tp, NIC_SRAM_CPMU_STATUS, &val);
+		if ((val & NIC_SRAM_CPMUSTAT_SIG_MSK) ==
+		    NIC_SRAM_CPMUSTAT_SIG) {
+			tp->pci_fn = val & TG3_CPMU_STATUS_FMSK_5717;
+			tp->pci_fn = tp->pci_fn ? 1 : 0;
+		}
+	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
+		   GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720) {
+		tg3_read_mem(tp, NIC_SRAM_CPMU_STATUS, &val);
+		if ((val & NIC_SRAM_CPMUSTAT_SIG_MSK) ==
+		    NIC_SRAM_CPMUSTAT_SIG) {
+			tp->pci_fn = (val & TG3_CPMU_STATUS_FMSK_5719) >>
+				     TG3_CPMU_STATUS_FSHFT_5719;
+		}
 	}
 
 	/* Get eeprom hw config before calling tg3_set_power_state().
