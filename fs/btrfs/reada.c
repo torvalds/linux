@@ -423,6 +423,7 @@ again:
 	}
 	spin_unlock(&fs_info->reada_lock);
 
+	kfree(multi);
 	return re;
 
 error:
@@ -447,6 +448,7 @@ error:
 		kref_put(&zone->refcnt, reada_zone_release);
 		spin_unlock(&fs_info->reada_lock);
 	}
+	kfree(multi);
 	kfree(re);
 	if (looped)
 		goto again;
