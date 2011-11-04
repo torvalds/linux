@@ -1457,6 +1457,7 @@ static s32 ixgbe_clock_out_i2c_byte(struct ixgbe_hw *hw, u8 data)
 	i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
 	i2cctl |= IXGBE_I2C_DATA_OUT;
 	IXGBE_WRITE_REG(hw, IXGBE_I2CCTL, i2cctl);
+	IXGBE_WRITE_FLUSH(hw);
 
 	return status;
 }
