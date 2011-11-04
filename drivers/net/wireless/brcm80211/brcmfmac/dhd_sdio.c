@@ -3872,7 +3872,6 @@ brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
 {
 	struct chip_info *ci;
 	int err;
-	u8 clkval;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3884,18 +3883,6 @@ brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
 	err = brcmf_sdio_chip_attach(bus->sdiodev, ci, regs);
 	if (err)
 		goto fail;
-
-	/* Disable F2 to clear any intermediate frame state on the dongle */
-	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_0, SDIO_CCCR_IOEx,
-		SDIO_FUNC_ENABLE_1, NULL);
-
-	/* WAR: cmd52 backplane read so core HW will drop ALPReq */
-	clkval = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
-			0, NULL);
-
-	/* Done with backplane-dependent accesses, can drop clock... */
-	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-			       SBSDIO_FUNC1_CHIPCLKCSR, 0, NULL);
 
 	bus->ci = ci;
 	return 0;
