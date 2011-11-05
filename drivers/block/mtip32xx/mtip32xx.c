@@ -2984,10 +2984,8 @@ static const struct block_device_operations mtip_block_ops = {
  *              the driver data structure.
  * @bio   Pointer to the BIO.
  *
- * return value
- *	0
  */
-static int mtip_make_request(struct request_queue *queue, struct bio *bio)
+static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 {
 	struct driver_data *dd = queue->queuedata;
 	struct scatterlist *sg;
@@ -2998,12 +2996,12 @@ static int mtip_make_request(struct request_queue *queue, struct bio *bio)
 	if (unlikely(!bio_has_data(bio))) {
 		blk_queue_flush(queue, 0);
 		bio_endio(bio, 0);
-		return 0;
+		return;
 	}
 
 	if (unlikely(atomic_read(&dd->eh_active))) {
 		bio_endio(bio, -EBUSY);
-		return 0;
+		return;
 	}
 
 	sg = mtip_hw_get_scatterlist(dd, &tag);
@@ -3015,7 +3013,7 @@ static int mtip_make_request(struct request_queue *queue, struct bio *bio)
 				"Maximum number of SGL entries exceeded");
 			bio_io_error(bio);
 			mtip_hw_release_scatterlist(dd, tag);
-			return 0;
+			return;
 		}
 
 		/* Create the scatter list for this bio. */
@@ -3036,11 +3034,8 @@ static int mtip_make_request(struct request_queue *queue, struct bio *bio)
 				bio,
 				bio->bi_rw & REQ_FLUSH,
 				bio_data_dir(bio));
-	} else {
+	} else
 		bio_io_error(bio);
-	}
-
-	return 0;
 }
 
 /*
