@@ -150,7 +150,7 @@ main:
    mov $r1 0x400
    movw $r2 0xfff3
    sethi $r2 0
-   iowr I[$r2 + 0x300] $r2
+   iowr I[$r1 + 0x300] $r2
 
    // enable interrupts
    or $r2 0xc
