@@ -177,26 +177,13 @@ static ssize_t wacom_store_speed(struct device *dev,
 static DEVICE_ATTR(speed, S_IRUGO | S_IWUSR | S_IWGRP,
 		wacom_show_speed, wacom_store_speed);
 
-static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
-		u8 *raw_data, int size)
+static int wacom_gr_parse_report(struct hid_device *hdev,
+			struct wacom_data *wdata,
+			struct input_dev *input, unsigned char *data)
 {
-	struct wacom_data *wdata = hid_get_drvdata(hdev);
-	struct hid_input *hidinput;
-	struct input_dev *input;
-	unsigned char *data = (unsigned char *) raw_data;
 	int tool, x, y, rw;
 
-	if (!(hdev->claimed & HID_CLAIMED_INPUT))
-		return 0;
-
 	tool = 0;
-	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
-	input = hidinput->input;
-
-	/* Check if this is a tablet report */
-	if (data[0] != 0x03)
-		return 0;
-
 	/* Get X & Y positions */
 	x = le16_to_cpu(*(__le16 *) &data[2]);
 	y = le16_to_cpu(*(__le16 *) &data[4]);
@@ -302,6 +289,26 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 		wdata->battery_capacity = rw;
 #endif
 	return 1;
+}
+static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
+		u8 *raw_data, int size)
+{
+	struct wacom_data *wdata = hid_get_drvdata(hdev);
+	struct hid_input *hidinput;
+	struct input_dev *input;
+	unsigned char *data = (unsigned char *) raw_data;
+
+	if (!(hdev->claimed & HID_CLAIMED_INPUT))
+		return 0;
+
+	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
+	input = hidinput->input;
+
+	/* Check if this is a tablet report */
+	if (data[0] != 0x03)
+		return 0;
+
+	return wacom_gr_parse_report(hdev, wdata, input, data);
 }
 
 static int wacom_input_mapped(struct hid_device *hdev, struct hid_input *hi,
