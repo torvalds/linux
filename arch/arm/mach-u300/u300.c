@@ -51,4 +51,5 @@ MACHINE_START(U300, MACH_U300_STRING)
 	.init_irq	= u300_init_irq,
 	.timer		= &u300_timer,
 	.init_machine	= u300_init_machine,
+	.restart	= u300_restart,
 MACHINE_END
