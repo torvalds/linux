@@ -48,4 +48,5 @@ MACHINE_START(SPEAR600, "ST-SPEAR600-EVB")
 	.init_irq	=	spear6xx_init_irq,
 	.timer		=	&spear6xx_timer,
 	.init_machine	=	spear600_evb_init,
+	.restart	=	spear_restart,
 MACHINE_END

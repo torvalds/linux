@@ -73,4 +73,5 @@ MACHINE_START(SPEAR320, "ST-SPEAR320-EVB")
 	.init_irq	=	spear3xx_init_irq,
 	.timer		=	&spear3xx_timer,
 	.init_machine	=	spear320_evb_init,
+	.restart	=	spear_restart,
 MACHINE_END
