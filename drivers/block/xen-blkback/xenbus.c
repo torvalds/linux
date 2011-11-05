@@ -114,6 +114,8 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	spin_lock_init(&blkif->blk_ring_lock);
 	atomic_set(&blkif->refcnt, 1);
 	init_waitqueue_head(&blkif->wq);
+	init_completion(&blkif->drain_complete);
+	atomic_set(&blkif->drain, 0);
 	blkif->st_print = jiffies;
 	init_waitqueue_head(&blkif->waiting_to_free);
 
@@ -272,6 +274,7 @@ VBD_SHOW(oo_req,  "%d\n", be->blkif->st_oo_req);
 VBD_SHOW(rd_req,  "%d\n", be->blkif->st_rd_req);
 VBD_SHOW(wr_req,  "%d\n", be->blkif->st_wr_req);
 VBD_SHOW(f_req,  "%d\n", be->blkif->st_f_req);
+VBD_SHOW(ds_req,  "%d\n", be->blkif->st_ds_req);
 VBD_SHOW(rd_sect, "%d\n", be->blkif->st_rd_sect);
 VBD_SHOW(wr_sect, "%d\n", be->blkif->st_wr_sect);
 
@@ -280,6 +283,7 @@ static struct attribute *xen_vbdstat_attrs[] = {
 	&dev_attr_rd_req.attr,
 	&dev_attr_wr_req.attr,
 	&dev_attr_f_req.attr,
+	&dev_attr_ds_req.attr,
 	&dev_attr_rd_sect.attr,
 	&dev_attr_wr_sect.attr,
 	NULL
@@ -415,6 +419,73 @@ int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
 			    "%d", state);
 	if (err)
 		xenbus_dev_fatal(dev, err, "writing feature-flush-cache");
+
+	return err;
+}
+
+int xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info *be)
+{
+	struct xenbus_device *dev = be->dev;
+	struct xen_blkif *blkif = be->blkif;
+	char *type;
+	int err;
+	int state = 0;
+
+	type = xenbus_read(XBT_NIL, dev->nodename, "type", NULL);
+	if (!IS_ERR(type)) {
+		if (strncmp(type, "file", 4) == 0) {
+			state = 1;
+			blkif->blk_backend_type = BLKIF_BACKEND_FILE;
+		}
+		if (strncmp(type, "phy", 3) == 0) {
+			struct block_device *bdev = be->blkif->vbd.bdev;
+			struct request_queue *q = bdev_get_queue(bdev);
+			if (blk_queue_discard(q)) {
+				err = xenbus_printf(xbt, dev->nodename,
+					"discard-granularity", "%u",
+					q->limits.discard_granularity);
+				if (err) {
+					xenbus_dev_fatal(dev, err,
+						"writing discard-granularity");
+					goto kfree;
+				}
+				err = xenbus_printf(xbt, dev->nodename,
+					"discard-alignment", "%u",
+					q->limits.discard_alignment);
+				if (err) {
+					xenbus_dev_fatal(dev, err,
+						"writing discard-alignment");
+					goto kfree;
+				}
+				state = 1;
+				blkif->blk_backend_type = BLKIF_BACKEND_PHY;
+			}
+		}
+	} else {
+		err = PTR_ERR(type);
+		xenbus_dev_fatal(dev, err, "reading type");
+		goto out;
+	}
+
+	err = xenbus_printf(xbt, dev->nodename, "feature-discard",
+			    "%d", state);
+	if (err)
+		xenbus_dev_fatal(dev, err, "writing feature-discard");
+kfree:
+	kfree(type);
+out:
+	return err;
+}
+int xen_blkbk_barrier(struct xenbus_transaction xbt,
+		      struct backend_info *be, int state)
+{
+	struct xenbus_device *dev = be->dev;
+	int err;
+
+	err = xenbus_printf(xbt, dev->nodename, "feature-barrier",
+			    "%d", state);
+	if (err)
+		xenbus_dev_fatal(dev, err, "writing feature-barrier");
 
 	return err;
 }
@@ -649,6 +720,11 @@ again:
 	err = xen_blkbk_flush_diskcache(xbt, be, be->blkif->vbd.flush_support);
 	if (err)
 		goto abort;
+
+	err = xen_blkbk_discard(xbt, be);
+
+	/* If we can't advertise it is OK. */
+	err = xen_blkbk_barrier(xbt, be, be->blkif->vbd.flush_support);
 
 	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(&be->blkif->vbd));
