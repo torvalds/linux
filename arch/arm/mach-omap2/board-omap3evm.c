@@ -683,4 +683,5 @@ MACHINE_START(OMAP3EVM, "OMAP3 EVM")
 	.init_irq	= omap3_init_irq,
 	.init_machine	= omap3_evm_init,
 	.timer		= &omap3_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END
