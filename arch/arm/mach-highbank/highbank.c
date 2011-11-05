@@ -146,4 +146,5 @@ DT_MACHINE_START(HIGHBANK, "Highbank")
 	.timer		= &highbank_timer,
 	.init_machine	= highbank_init,
 	.dt_compat	= highbank_match,
+	.restart	= highbank_restart,
 MACHINE_END
