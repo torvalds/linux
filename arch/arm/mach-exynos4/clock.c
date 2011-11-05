@@ -1286,11 +1286,8 @@ void __init exynos4_register_clocks(void)
 	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 
-<<<<<<< HEAD
 	register_syscore_ops(&exynos4_clock_syscore_ops);
-=======
 	s3c24xx_register_clock(&dummy_apb_pclk);
 
->>>>>>> 4598fc2c94b68740e0269db03c98a1e7ad5af773
 	s3c_pwmclk_init();
 }
