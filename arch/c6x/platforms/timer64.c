@@ -215,8 +215,16 @@ void __init timer64_init(void)
 
 	/* If there is a device state control, save the ID. */
 	err = of_property_read_u32(np, "ti,dscr-dev-enable", &val);
-	if (!err)
+	if (!err) {
 		timer64_devstate_id = val;
+
+		/*
+		 * It is necessary to enable the timer block here because
+		 * the TIMER_DIVISOR macro needs to read a timer register
+		 * to get the divisor.
+		 */
+		dscr_set_devstate(timer64_devstate_id, DSCR_DEVSTATE_ENABLED);
+	}
 
 	pr_debug("%s: Timer irq=%d.\n", np->full_name, cd->irq);
 
