@@ -317,8 +317,6 @@ void lpc23xx_restart(char mode, const char *cmd)
 	switch (mode) {
 	case 's':
 	case 'h':
-		printk(KERN_CRIT "RESET: Rebooting system\n");
-
 		lpc32xx_watchdog_reset();
 		break;
 

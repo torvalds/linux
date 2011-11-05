@@ -1897,7 +1897,6 @@ void u300_restart(char mode, const char *cmd)
 	switch (mode) {
 	case 's':
 	case 'h':
-		printk(KERN_CRIT "RESET: shutting down/rebooting system\n");
 #ifdef CONFIG_COH901327_WATCHDOG
 		coh901327_watchdog_reset();
 #endif
