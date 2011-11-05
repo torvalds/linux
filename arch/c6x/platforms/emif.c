@@ -22,7 +22,6 @@ struct emifa_regs {
 	u32	reserved1[6];
 	u32	bprio;
 	u32	reserved2[23];
-	u32	ce_config;
 	u32	cecfg[NUM_EMIFA_CHIP_ENABLES];
 	u32	reserved3[4];
 	u32	awcc;
