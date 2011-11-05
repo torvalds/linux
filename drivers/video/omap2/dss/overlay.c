@@ -566,6 +566,7 @@ static int omap_dss_set_manager(struct omap_overlay *ovl,
 	}
 
 	ovl->manager = mgr;
+	list_add_tail(&ovl->list, &mgr->overlays);
 	ovl->manager_changed = true;
 
 	/* XXX: When there is an overlay on a DSI manual update display, and
@@ -597,6 +598,7 @@ static int omap_dss_unset_manager(struct omap_overlay *ovl)
 	}
 
 	ovl->manager = NULL;
+	list_del(&ovl->list);
 	ovl->manager_changed = true;
 
 	return 0;
@@ -616,14 +618,6 @@ struct omap_overlay *omap_dss_get_overlay(int num)
 	return &overlays[num];
 }
 EXPORT_SYMBOL(omap_dss_get_overlay);
-
-static struct omap_overlay *dispc_overlays[MAX_DSS_OVERLAYS];
-
-void dss_overlay_setup_dispc_manager(struct omap_overlay_manager *mgr)
-{
-	mgr->num_overlays = dss_feat_get_num_ovls();
-	mgr->overlays = dispc_overlays;
-}
 
 void dss_init_overlays(struct platform_device *pdev)
 {
@@ -684,8 +678,6 @@ void dss_init_overlays(struct platform_device *pdev)
 
 		if (r)
 			DSSERR("failed to create sysfs file\n");
-
-		dispc_overlays[i] = ovl;
 	}
 }
 

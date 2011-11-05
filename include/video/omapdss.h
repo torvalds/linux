@@ -423,8 +423,7 @@ struct omap_overlay_manager {
 	const char *name;
 	enum omap_channel id;
 	enum omap_overlay_manager_caps caps;
-	int num_overlays;
-	struct omap_overlay **overlays;
+	struct list_head overlays;
 	enum omap_display_type supported_displays;
 
 	/* dynamic fields */

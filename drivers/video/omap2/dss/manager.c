@@ -470,8 +470,8 @@ static struct kobj_type manager_ktype = {
 static int omap_dss_set_device(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dssdev)
 {
-	int i;
 	int r;
+	struct omap_overlay *ovl;
 
 	if (dssdev->manager) {
 		DSSERR("display '%s' already has a manager '%s'\n",
@@ -485,10 +485,8 @@ static int omap_dss_set_device(struct omap_overlay_manager *mgr,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < mgr->num_overlays; i++) {
-		struct omap_overlay *ovl = mgr->overlays[i];
-
-		if (ovl->manager != mgr || !ovl->info.enabled)
+	list_for_each_entry(ovl, &mgr->overlays, list) {
+		if (!ovl->info.enabled)
 			continue;
 
 		r = dss_check_overlay(ovl, dssdev);
@@ -626,7 +624,7 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 		mgr->supported_displays =
 			dss_feat_get_supported_displays(mgr->id);
 
-		dss_overlay_setup_dispc_manager(mgr);
+		INIT_LIST_HEAD(&mgr->overlays);
 
 		r = kobject_init_and_add(&mgr->kobj, &manager_ktype,
 				&pdev->dev.kobj, "manager%d", i);
