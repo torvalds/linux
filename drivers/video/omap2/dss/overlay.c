@@ -38,7 +38,7 @@
 #include "dss_features.h"
 
 static int num_overlays;
-static struct list_head overlay_list;
+static struct omap_overlay *overlays;
 
 static ssize_t overlay_name_show(struct omap_overlay *ovl, char *buf)
 {
@@ -610,23 +610,12 @@ EXPORT_SYMBOL(omap_dss_get_num_overlays);
 
 struct omap_overlay *omap_dss_get_overlay(int num)
 {
-	int i = 0;
-	struct omap_overlay *ovl;
+	if (num >= num_overlays)
+		return NULL;
 
-	list_for_each_entry(ovl, &overlay_list, list) {
-		if (i++ == num)
-			return ovl;
-	}
-
-	return NULL;
+	return &overlays[num];
 }
 EXPORT_SYMBOL(omap_dss_get_overlay);
-
-static void omap_dss_add_overlay(struct omap_overlay *overlay)
-{
-	++num_overlays;
-	list_add_tail(&overlay->list, &overlay_list);
-}
 
 static struct omap_overlay *dispc_overlays[MAX_DSS_OVERLAYS];
 
@@ -640,15 +629,15 @@ void dss_init_overlays(struct platform_device *pdev)
 {
 	int i, r;
 
-	INIT_LIST_HEAD(&overlay_list);
+	num_overlays = dss_feat_get_num_ovls();
 
-	num_overlays = 0;
+	overlays = kzalloc(sizeof(struct omap_overlay) * num_overlays,
+			GFP_KERNEL);
 
-	for (i = 0; i < dss_feat_get_num_ovls(); ++i) {
-		struct omap_overlay *ovl;
-		ovl = kzalloc(sizeof(*ovl), GFP_KERNEL);
+	BUG_ON(overlays == NULL);
 
-		BUG_ON(ovl == NULL);
+	for (i = 0; i < num_overlays; ++i) {
+		struct omap_overlay *ovl = &overlays[i];
 
 		switch (i) {
 		case 0:
@@ -690,15 +679,11 @@ void dss_init_overlays(struct platform_device *pdev)
 		ovl->supported_modes =
 			dss_feat_get_supported_color_modes(ovl->id);
 
-		omap_dss_add_overlay(ovl);
-
 		r = kobject_init_and_add(&ovl->kobj, &overlay_ktype,
 				&pdev->dev.kobj, "overlay%d", i);
 
-		if (r) {
+		if (r)
 			DSSERR("failed to create sysfs file\n");
-			continue;
-		}
 
 		dispc_overlays[i] = ovl;
 	}
@@ -765,17 +750,17 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 
 void dss_uninit_overlays(struct platform_device *pdev)
 {
-	struct omap_overlay *ovl;
+	int i;
 
-	while (!list_empty(&overlay_list)) {
-		ovl = list_first_entry(&overlay_list,
-				struct omap_overlay, list);
-		list_del(&ovl->list);
+	for (i = 0; i < num_overlays; ++i) {
+		struct omap_overlay *ovl = &overlays[i];
+
 		kobject_del(&ovl->kobj);
 		kobject_put(&ovl->kobj);
-		kfree(ovl);
 	}
 
+	kfree(overlays);
+	overlays = NULL;
 	num_overlays = 0;
 }
 
