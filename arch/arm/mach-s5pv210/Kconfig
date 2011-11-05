@@ -11,7 +11,7 @@ if ARCH_S5PV210
 
 config CPU_S5PV210
 	bool
-	select S3C_PL330_DMA
+	select SAMSUNG_DMADEV
 	select S5P_EXT_INT
 	select S5P_HRT
 	help

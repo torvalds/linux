@@ -62,9 +62,9 @@ obj-$(CONFIG_SAMSUNG_DEV_BACKLIGHT)	+= dev-backlight.o
 
 # DMA support
 
-obj-$(CONFIG_S3C_DMA)		+= dma.o
+obj-$(CONFIG_S3C_DMA)		+= dma.o s3c-dma-ops.o
 
-obj-$(CONFIG_S3C_PL330_DMA)	+= s3c-pl330.o
+obj-$(CONFIG_SAMSUNG_DMADEV)	+= dma-ops.o
 
 # PM support
 

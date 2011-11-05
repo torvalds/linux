@@ -131,8 +131,6 @@ struct plat_sci_port {
 
 	struct plat_sci_port_ops	*ops;
 
-	struct device	*dma_dev;
-
 	unsigned int	dma_slave_tx;
 	unsigned int	dma_slave_rx;
 };

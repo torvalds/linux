@@ -295,11 +295,14 @@ config S3C_DMA
 	help
 	  Internal configuration for S3C DMA core
 
-config S3C_PL330_DMA
+config SAMSUNG_DMADEV
 	bool
-	select PL330
+	select DMADEVICES
+	select PL330_DMA if (CPU_EXYNOS4210 || CPU_S5PV210 || CPU_S5PC100 || \
+					CPU_S5P6450 || CPU_S5P6440)
+	select ARM_AMBA
 	help
-	  S3C DMA API Driver for PL330 DMAC.
+	  Use DMA device engine for PL330 DMAC.
 
 comment "Power management"
 
