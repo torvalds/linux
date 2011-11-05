@@ -11,7 +11,6 @@
 #ifndef __MACH_SYSTEM_H
 #define __MACH_SYSTEM_H
 
-#include <linux/io.h>
 #include <asm/proc-fns.h>
 
 static inline void arch_idle(void)
@@ -23,6 +22,8 @@ static inline void arch_idle(void)
 	cpu_do_idle();
 }
 
-void arch_reset(char mode, const char *cmd);
+static inline void arch_reset(char mode, const char *cmd)
+{
+}
 
 #endif
