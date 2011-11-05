@@ -178,4 +178,5 @@ MACHINE_START(TRIMSLICE, "trimslice")
 	.init_irq       = tegra_init_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_trimslice_init,
+	.restart	= tegra_assert_system_reset,
 MACHINE_END

@@ -286,6 +286,7 @@ MACHINE_START(SEABOARD, "seaboard")
 	.init_irq       = tegra_init_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_seaboard_init,
+	.restart	= tegra_assert_system_reset,
 MACHINE_END
 
 MACHINE_START(KAEN, "kaen")
@@ -295,6 +296,7 @@ MACHINE_START(KAEN, "kaen")
 	.init_irq       = tegra_init_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_kaen_init,
+	.restart	= tegra_assert_system_reset,
 MACHINE_END
 
 MACHINE_START(WARIO, "wario")
@@ -304,4 +306,5 @@ MACHINE_START(WARIO, "wario")
 	.init_irq       = tegra_init_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_wario_init,
+	.restart	= tegra_assert_system_reset,
 MACHINE_END
