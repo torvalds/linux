@@ -418,7 +418,6 @@ struct omap_overlay_manager_info {
 
 struct omap_overlay_manager {
 	struct kobject kobj;
-	struct list_head list;
 
 	/* static fields */
 	const char *name;
