@@ -25,7 +25,6 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(int mode, const char *cmd)
 {
-	/* Watchdog reset to go here. */
 }
 
 #endif /* __ASM_ARCH_SYSTEM_H */

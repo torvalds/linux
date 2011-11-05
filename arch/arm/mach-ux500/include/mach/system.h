@@ -19,7 +19,6 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode, const char *cmd)
 {
-	/* yet to be implemented - TODO */
 }
 
 #endif
