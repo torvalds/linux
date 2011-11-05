@@ -24,8 +24,4 @@ static void arch_idle(void)
 	nop();
 }
 
-static inline void arch_reset(char mode, const char *cmd)
-{
-}
-
 #endif

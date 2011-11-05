@@ -21,10 +21,6 @@
 #ifndef __MACH_TEGRA_SYSTEM_H
 #define __MACH_TEGRA_SYSTEM_H
 
-static inline void arch_reset(char mode, const char *cmd)
-{
-}
-
 static inline void arch_idle(void)
 {
 }

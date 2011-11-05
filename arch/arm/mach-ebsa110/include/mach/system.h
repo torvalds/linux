@@ -34,8 +34,4 @@ static inline void arch_idle(void)
 	asm volatile ("mcr p15, 0, ip, c15, c1, 2" : : : "cc");
 }
 
-static inline void arch_reset(char mode, const char *cmd)
-{
-}
-
 #endif

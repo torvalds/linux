@@ -14,10 +14,6 @@
  */
 void arch_idle(void);
 
-static inline void arch_reset(char mode, const char *cmd)
-{
-}
-
 /* low level hardware reset hook -- for example, hitting the
  * PSHOLD line on the PMIC to hard reset the system
  */

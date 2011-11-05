@@ -16,8 +16,4 @@ static void arch_idle(void)
 	/* nothing here yet */
 }
 
-static void arch_reset(char mode, const char *cmd)
-{
-}
-
 #endif /* __ASM_ARCH_IRQ_H */

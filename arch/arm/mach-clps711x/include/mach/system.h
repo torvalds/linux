@@ -32,8 +32,4 @@ static inline void arch_idle(void)
 	mov	r0, r0");
 }
 
-static inline void arch_reset(char mode, const char *cmd)
-{
-}
-
 #endif
