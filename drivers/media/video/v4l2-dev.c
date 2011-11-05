@@ -701,8 +701,8 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 	    vdev->vfl_type != VFL_TYPE_SUBDEV) {
 		vdev->entity.type = MEDIA_ENT_T_DEVNODE_V4L;
 		vdev->entity.name = vdev->name;
-		vdev->entity.v4l.major = VIDEO_MAJOR;
-		vdev->entity.v4l.minor = vdev->minor;
+		vdev->entity.info.v4l.major = VIDEO_MAJOR;
+		vdev->entity.info.v4l.minor = vdev->minor;
 		ret = media_device_register_entity(vdev->v4l2_dev->mdev,
 			&vdev->entity);
 		if (ret < 0)
