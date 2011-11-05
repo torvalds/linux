@@ -625,8 +625,13 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 
 		chan->sec_level = sec.level;
 
+		if (!chan->conn)
+			break;
+
 		conn = chan->conn;
-		if (conn && chan->scid == L2CAP_CID_LE_DATA) {
+
+		/*change security for LE channels */
+		if (chan->scid == L2CAP_CID_LE_DATA) {
 			if (!conn->hcon->out) {
 				err = -EINVAL;
 				break;
@@ -634,9 +639,14 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 
 			if (smp_conn_security(conn, sec.level))
 				break;
-
-			err = 0;
 			sk->sk_state = BT_CONFIG;
+
+		/* or for ACL link, under defer_setup time */
+		} else if (sk->sk_state == BT_CONNECT2 &&
+					bt_sk(sk)->defer_setup) {
+			err = l2cap_chan_check_security(chan);
+		} else {
+			err = -EINVAL;
 		}
 		break;
 
