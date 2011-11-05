@@ -6,12 +6,13 @@
  *
  * Released under the GPL v2. (and only v2, not any later version)
  */
+#include "util.h"
+#include "debugfs.h"
 #include <poll.h>
 #include "cpumap.h"
 #include "thread_map.h"
 #include "evlist.h"
 #include "evsel.h"
-#include "util.h"
 
 #include "parse-events.h"
 
@@ -132,6 +133,60 @@ out_delete_partial_list:
 	list_for_each_entry_safe(evsel, n, &head, node)
 		perf_evsel__delete(evsel);
 	return -1;
+}
+
+static int trace_event__id(const char *evname)
+{
+	char *filename, *colon;
+	int err = -1, fd;
+
+	if (asprintf(&filename, "%s/%s/id", tracing_events_path, evname) < 0)
+		return -1;
+
+	colon = strrchr(filename, ':');
+	if (colon != NULL)
+		*colon = '/';
+
+	fd = open(filename, O_RDONLY);
+	if (fd >= 0) {
+		char id[16];
+		if (read(fd, id, sizeof(id)) > 0)
+			err = atoi(id);
+		close(fd);
+	}
+
+	free(filename);
+	return err;
+}
+
+int perf_evlist__add_tracepoints(struct perf_evlist *evlist,
+				 const char *tracepoints[],
+				 size_t nr_tracepoints)
+{
+	int err;
+	size_t i;
+	struct perf_event_attr *attrs = zalloc(nr_tracepoints * sizeof(*attrs));
+
+	if (attrs == NULL)
+		return -1;
+
+	for (i = 0; i < nr_tracepoints; i++) {
+		err = trace_event__id(tracepoints[i]);
+
+		if (err < 0)
+			goto out_free_attrs;
+
+		attrs[i].type	       = PERF_TYPE_TRACEPOINT;
+		attrs[i].config	       = err;
+	        attrs[i].sample_type   = (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME |
+					  PERF_SAMPLE_CPU);
+		attrs[i].sample_period = 1;
+	}
+
+	err = perf_evlist__add_attrs(evlist, attrs, nr_tracepoints);
+out_free_attrs:
+	free(attrs);
+	return err;
 }
 
 void perf_evlist__disable(struct perf_evlist *evlist)
