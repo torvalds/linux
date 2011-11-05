@@ -411,7 +411,8 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 				BIT(NL80211_STA_FLAG_SHORT_PREAMBLE) |
 				BIT(NL80211_STA_FLAG_WME) |
 				BIT(NL80211_STA_FLAG_MFP) |
-				BIT(NL80211_STA_FLAG_AUTHENTICATED);
+				BIT(NL80211_STA_FLAG_AUTHENTICATED) |
+				BIT(NL80211_STA_FLAG_TDLS_PEER);
 	if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_AUTHORIZED);
 	if (test_sta_flag(sta, WLAN_STA_SHORT_PREAMBLE))
@@ -422,6 +423,8 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_MFP);
 	if (test_sta_flag(sta, WLAN_STA_AUTH))
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_AUTHENTICATED);
+	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_TDLS_PEER);
 }
 
 
