@@ -939,11 +939,6 @@ static void mos7720_bulk_in_callback(struct urb *urb)
 	}
 	tty_kref_put(tty);
 
-	if (!port->read_urb) {
-		dbg("URB KILLED !!!");
-		return;
-	}
-
 	if (port->read_urb->status != -EINPROGRESS) {
 		port->read_urb->dev = port->serial->dev;
 
@@ -1785,11 +1780,6 @@ static void mos7720_set_termios(struct tty_struct *tty,
 
 	/* change the port settings to the new ones specified */
 	change_port_settings(tty, mos7720_port, old_termios);
-
-	if (!port->read_urb) {
-		dbg("%s", "URB KILLED !!!!!");
-		return;
-	}
 
 	if (port->read_urb->status != -EINPROGRESS) {
 		port->read_urb->dev = serial->dev;
