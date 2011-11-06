@@ -232,7 +232,7 @@ out:
 }
 
 /**
- * send get TPS command to AS10x
+ * as10x_cmd_get_tps - send get TPS command to AS10x
  * @phandle:   pointer to AS10x handle
  * @ptps:      pointer to TPS parameters structure
  *

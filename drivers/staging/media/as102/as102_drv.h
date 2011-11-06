@@ -32,13 +32,13 @@ extern struct usb_driver as102_usb_driver;
 
 #define dprintk(debug, args...) \
 	do { if (debug) {	\
-		printk(KERN_DEBUG "%s: ",__FUNCTION__);	\
+		pr_debug("%s: ", __func__);	\
 		printk(args);	\
 	} } while (0)
 
 #ifdef TRACE
-#define ENTER()                 printk(">> enter %s\n", __FUNCTION__)
-#define LEAVE()                 printk("<< leave %s\n", __FUNCTION__)
+#define ENTER()	pr_debug(">> enter %s\n", __func__)
+#define LEAVE()	pr_debug("<< leave %s\n", __func__)
 #else
 #define ENTER()
 #define LEAVE()

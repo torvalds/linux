@@ -56,16 +56,16 @@ static const char *as102_device_names[] = {
 };
 
 struct usb_driver as102_usb_driver = {
-	.name       =  DRIVER_FULL_NAME,
-	.probe      =  as102_usb_probe,
-	.disconnect =  as102_usb_disconnect,
-	.id_table   =  as102_usb_id_table
+	.name		= DRIVER_FULL_NAME,
+	.probe		= as102_usb_probe,
+	.disconnect	= as102_usb_disconnect,
+	.id_table	= as102_usb_id_table
 };
 
 static const struct file_operations as102_dev_fops = {
-	.owner   = THIS_MODULE,
-	.open    = as102_open,
-	.release = as102_release,
+	.owner		= THIS_MODULE,
+	.open		= as102_open,
+	.release	= as102_release,
 };
 
 static struct usb_class_driver as102_usb_class_driver = {

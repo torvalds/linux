@@ -121,22 +121,22 @@ static int as10x_pid_filter(struct as102_dev_t *dev,
 
 	switch (onoff) {
 	case 0:
-	    ret = as10x_cmd_del_PID_filter(bus_adap, (uint16_t) pid);
-	    dprintk(debug, "DEL_PID_FILTER([%02d] 0x%04x) ret = %d\n",
-		    index, pid, ret);
-	    break;
+		ret = as10x_cmd_del_PID_filter(bus_adap, (uint16_t) pid);
+		dprintk(debug, "DEL_PID_FILTER([%02d] 0x%04x) ret = %d\n",
+			index, pid, ret);
+		break;
 	case 1:
 	{
-	    struct as10x_ts_filter filter;
+		struct as10x_ts_filter filter;
 
-	    filter.type = TS_PID_TYPE_TS;
-	    filter.idx = 0xFF;
-	    filter.pid = pid;
+		filter.type = TS_PID_TYPE_TS;
+		filter.idx = 0xFF;
+		filter.pid = pid;
 
-	    ret = as10x_cmd_add_PID_filter(bus_adap, &filter);
-	    dprintk(debug, "ADD_PID_FILTER([%02d -> %02d], 0x%04x) ret = %d\n",
-		    index, filter.idx, filter.pid, ret);
-	    break;
+		ret = as10x_cmd_add_PID_filter(bus_adap, &filter);
+		dprintk(debug, "ADD_PID_FILTER([%02d -> %02d], 0x%04x) ret = %d\n",
+			index, filter.idx, filter.pid, ret);
+		break;
 	}
 	}
 
@@ -157,10 +157,9 @@ static int as102_dvb_dmx_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (mutex_lock_interruptible(&as102_dev->sem))
 		return -ERESTARTSYS;
 
-	if (pid_filtering) {
-		as10x_pid_filter(as102_dev,
-				dvbdmxfeed->index, dvbdmxfeed->pid, 1);
-	}
+	if (pid_filtering)
+		as10x_pid_filter(as102_dev, dvbdmxfeed->index,
+				 dvbdmxfeed->pid, 1);
 
 	if (as102_dev->streaming++ == 0)
 		ret = as102_start_stream(as102_dev);
@@ -183,10 +182,9 @@ static int as102_dvb_dmx_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (--as102_dev->streaming == 0)
 		as102_stop_stream(as102_dev);
 
-	if (pid_filtering) {
-		as10x_pid_filter(as102_dev,
-				dvbdmxfeed->index, dvbdmxfeed->pid, 0);
-	}
+	if (pid_filtering)
+		as10x_pid_filter(as102_dev, dvbdmxfeed->index,
+				 dvbdmxfeed->pid, 0);
 
 	mutex_unlock(&as102_dev->sem);
 	LEAVE();
