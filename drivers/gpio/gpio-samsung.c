@@ -318,6 +318,7 @@ static unsigned samsung_gpio_getcfg_4bit(struct samsung_gpio_chip *chip,
 	return S3C_GPIO_SPECIAL(con);
 }
 
+#ifdef CONFIG_PLAT_S3C24XX
 /*
  * s3c24xx_gpio_setcfg_abank - S3C24XX style GPIO configuration (Bank A)
  * @chip: The gpio chip that is being configured.
@@ -379,7 +380,9 @@ static unsigned s3c24xx_gpio_getcfg_abank(struct samsung_gpio_chip *chip,
 
 	return S3C_GPIO_SFN(con);
 }
+#endif
 
+#if defined(CONFIG_CPU_S5P6440) || defined(CONFIG_CPU_S5P6450)
 static int s5p64x0_gpio_setcfg_rbank(struct samsung_gpio_chip *chip,
 				     unsigned int off, unsigned int cfg)
 {
@@ -417,6 +420,7 @@ static int s5p64x0_gpio_setcfg_rbank(struct samsung_gpio_chip *chip,
 
 	return 0;
 }
+#endif
 
 static void __init samsung_gpiolib_set_cfg(struct samsung_gpio_cfg *chipcfg,
 					   int nr_chips)
@@ -438,10 +442,12 @@ struct samsung_gpio_cfg s3c24xx_gpiocfg_default = {
 	.get_config	= samsung_gpio_getcfg_2bit,
 };
 
+#ifdef CONFIG_PLAT_S3C24XX
 static struct samsung_gpio_cfg s3c24xx_gpiocfg_banka = {
 	.set_config	= s3c24xx_gpio_setcfg_abank,
 	.get_config	= s3c24xx_gpio_getcfg_abank,
 };
+#endif
 
 static struct samsung_gpio_cfg exynos4_gpio_cfg = {
 	.set_pull	= exynos4_gpio_setpull,
@@ -450,6 +456,7 @@ static struct samsung_gpio_cfg exynos4_gpio_cfg = {
 	.get_config	= samsung_gpio_getcfg_4bit,
 };
 
+#if defined(CONFIG_CPU_S5P6440) || defined(CONFIG_CPU_S5P6450)
 static struct samsung_gpio_cfg s5p64x0_gpio_cfg_rbank = {
 	.cfg_eint	= 0x3,
 	.set_config	= s5p64x0_gpio_setcfg_rbank,
@@ -457,6 +464,7 @@ static struct samsung_gpio_cfg s5p64x0_gpio_cfg_rbank = {
 	.set_pull	= samsung_gpio_setpull_updown,
 	.get_pull	= samsung_gpio_getpull_updown,
 };
+#endif
 
 static struct samsung_gpio_cfg samsung_gpio_cfgs[] = {
 	{
@@ -482,7 +490,14 @@ static struct samsung_gpio_cfg samsung_gpio_cfgs[] = {
 	}, {
 		.set_config	= samsung_gpio_setcfg_2bit,
 		.get_config	= samsung_gpio_getcfg_2bit,
-	},
+	}, {
+		.set_pull	= exynos4_gpio_setpull,
+		.get_pull	= exynos4_gpio_getpull,
+	}, {
+		.cfg_eint	= 0x3,
+		.set_pull	= exynos4_gpio_setpull,
+		.get_pull	= exynos4_gpio_getpull,
+	}
 };
 
 /*
@@ -682,6 +697,7 @@ static int samsung_gpiolib_4bit2_output(struct gpio_chip *chip,
 	return 0;
 }
 
+#ifdef CONFIG_PLAT_S3C24XX
 /* The next set of routines are for the case of s3c24xx bank a */
 
 static int s3c24xx_gpiolib_banka_input(struct gpio_chip *chip, unsigned offset)
@@ -717,6 +733,7 @@ static int s3c24xx_gpiolib_banka_output(struct gpio_chip *chip,
 	local_irq_restore(flags);
 	return 0;
 }
+#endif
 
 /* The next set of routines are for the case of s5p64x0 bank r */
 
@@ -914,6 +931,10 @@ static void __init s3c24xx_gpiolib_add_chips(struct samsung_gpio_chip *chip,
 	struct gpio_chip *gc = &chip->chip;
 
 	for (i = 0 ; i < nr_chips; i++, chip++) {
+		/* skip banks not present on SoC */
+		if (chip->chip.base >= S3C_GPIO_END)
+			continue;
+
 		if (!chip->config)
 			chip->config = &s3c24xx_gpiocfg_default;
 		if (!chip->pm)
@@ -2249,49 +2270,49 @@ static struct samsung_gpio_chip exynos4_gpios_2[] = {
 			.label	= "GPL2",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[0],
+		.config	= &samsung_gpio_cfgs[8],
 		.chip	= {
 			.base	= EXYNOS4_GPY0(0),
 			.ngpio	= EXYNOS4_GPIO_Y0_NR,
 			.label	= "GPY0",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[0],
+		.config	= &samsung_gpio_cfgs[8],
 		.chip	= {
 			.base	= EXYNOS4_GPY1(0),
 			.ngpio	= EXYNOS4_GPIO_Y1_NR,
 			.label	= "GPY1",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[0],
+		.config	= &samsung_gpio_cfgs[8],
 		.chip	= {
 			.base	= EXYNOS4_GPY2(0),
 			.ngpio	= EXYNOS4_GPIO_Y2_NR,
 			.label	= "GPY2",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[0],
+		.config	= &samsung_gpio_cfgs[8],
 		.chip	= {
 			.base	= EXYNOS4_GPY3(0),
 			.ngpio	= EXYNOS4_GPIO_Y3_NR,
 			.label	= "GPY3",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[0],
+		.config	= &samsung_gpio_cfgs[8],
 		.chip	= {
 			.base	= EXYNOS4_GPY4(0),
 			.ngpio	= EXYNOS4_GPIO_Y4_NR,
 			.label	= "GPY4",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[0],
+		.config	= &samsung_gpio_cfgs[8],
 		.chip	= {
 			.base	= EXYNOS4_GPY5(0),
 			.ngpio	= EXYNOS4_GPIO_Y5_NR,
 			.label	= "GPY5",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[0],
+		.config	= &samsung_gpio_cfgs[8],
 		.chip	= {
 			.base	= EXYNOS4_GPY6(0),
 			.ngpio	= EXYNOS4_GPIO_Y6_NR,
@@ -2299,7 +2320,7 @@ static struct samsung_gpio_chip exynos4_gpios_2[] = {
 		},
 	}, {
 		.base	= (S5P_VA_GPIO2 + 0xC00),
-		.config	= &samsung_gpio_cfgs[3],
+		.config	= &samsung_gpio_cfgs[9],
 		.irq_base = IRQ_EINT(0),
 		.chip	= {
 			.base	= EXYNOS4_GPX0(0),
@@ -2309,7 +2330,7 @@ static struct samsung_gpio_chip exynos4_gpios_2[] = {
 		},
 	}, {
 		.base	= (S5P_VA_GPIO2 + 0xC20),
-		.config	= &samsung_gpio_cfgs[3],
+		.config	= &samsung_gpio_cfgs[9],
 		.irq_base = IRQ_EINT(8),
 		.chip	= {
 			.base	= EXYNOS4_GPX1(0),
@@ -2319,7 +2340,7 @@ static struct samsung_gpio_chip exynos4_gpios_2[] = {
 		},
 	}, {
 		.base	= (S5P_VA_GPIO2 + 0xC40),
-		.config	= &samsung_gpio_cfgs[3],
+		.config	= &samsung_gpio_cfgs[9],
 		.irq_base = IRQ_EINT(16),
 		.chip	= {
 			.base	= EXYNOS4_GPX2(0),
@@ -2329,7 +2350,7 @@ static struct samsung_gpio_chip exynos4_gpios_2[] = {
 		},
 	}, {
 		.base	= (S5P_VA_GPIO2 + 0xC60),
-		.config	= &samsung_gpio_cfgs[3],
+		.config	= &samsung_gpio_cfgs[9],
 		.irq_base = IRQ_EINT(24),
 		.chip	= {
 			.base	= EXYNOS4_GPX3(0),
@@ -2465,6 +2486,9 @@ static __init int samsung_gpiolib_init(void)
 		s5p_register_gpioint_bank(IRQ_GPIO_XA, 0, IRQ_GPIO1_NR_GROUPS);
 		s5p_register_gpioint_bank(IRQ_GPIO_XB, IRQ_GPIO1_NR_GROUPS, IRQ_GPIO2_NR_GROUPS);
 #endif
+	} else {
+		WARN(1, "Unknown SoC in gpio-samsung, no GPIOs added\n");
+		return -ENODEV;
 	}
 
 	return 0;

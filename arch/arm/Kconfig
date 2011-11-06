@@ -595,6 +595,7 @@ config ARCH_MMP
 	select TICK_ONESHOT
 	select PLAT_PXA
 	select SPARSE_IRQ
+	select GENERIC_ALLOCATOR
 	help
 	  Support for Marvell's PXA168/PXA910(MMP) and MMP2 processor line.
 
@@ -769,6 +770,7 @@ config ARCH_S3C64XX
 	select CPU_V6
 	select ARM_VIC
 	select HAVE_CLK
+	select HAVE_TCM
 	select CLKDEV_LOOKUP
 	select NO_IOPORT
 	select ARCH_USES_GETTIMEOFFSET

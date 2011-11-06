@@ -28,6 +28,14 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-s3c2443-clock.h>
 
+/* armdiv
+ *
+ * this clock is sourced from msysclk and can have a number of
+ * divider values applied to it to then be fed into armclk.
+ * The real clock definition is done in s3c2443-clock.c,
+ * only the armdiv divisor table must be defined here.
+*/
+
 static unsigned int armdiv[8] = {
 	[0] = 1,
 	[1] = 2,
@@ -125,16 +133,9 @@ static struct clk hsmmc0_clk = {
 	.ctrlbit	= S3C2416_HCLKCON_HSMMC0,
 };
 
-static inline unsigned int s3c2416_fclk_div(unsigned long clkcon0)
-{
-	clkcon0 &= 7 << S3C2443_CLKDIV0_ARMDIV_SHIFT;
-
-	return armdiv[clkcon0 >> S3C2443_CLKDIV0_ARMDIV_SHIFT];
-}
-
 void __init_or_cpufreq s3c2416_setup_clocks(void)
 {
-	s3c2443_common_setup_clocks(s3c2416_get_pll, s3c2416_fclk_div);
+	s3c2443_common_setup_clocks(s3c2416_get_pll);
 }
 
 
@@ -158,7 +159,9 @@ void __init s3c2416_init_clocks(int xtal)
 
 	clk_epll.parent = &clk_epllref.clk;
 
-	s3c2443_common_init_clocks(xtal, s3c2416_get_pll, s3c2416_fclk_div);
+	s3c2443_common_init_clocks(xtal, s3c2416_get_pll,
+				   armdiv, ARRAY_SIZE(armdiv),
+				   S3C2416_CLKDIV0_ARMDIV_MASK);
 
 	for (ptr = 0; ptr < ARRAY_SIZE(clksrcs); ptr++)
 		s3c_register_clksrc(clksrcs[ptr], 1);
