@@ -19,7 +19,6 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/module.h>
-#include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
@@ -242,14 +241,10 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 		return 0;
 	}
 
-	spin_lock_bh(&wport->lock);
-	if (wport->write_urb_busy) {
-		spin_unlock_bh(&wport->lock);
+	if (!test_and_clear_bit(0, &port->write_urbs_free)) {
 		dbg("%s - already writing", __func__);
 		return 0;
 	}
-	wport->write_urb_busy = 1;
-	spin_unlock_bh(&wport->lock);
 
 	count = (count > OMNINET_BULKOUTSIZE) ? OMNINET_BULKOUTSIZE : count;
 
@@ -270,7 +265,7 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 	wport->write_urb->dev = serial->dev;
 	result = usb_submit_urb(wport->write_urb, GFP_ATOMIC);
 	if (result) {
-		wport->write_urb_busy = 0;
+		set_bit(0, &wport->write_urbs_free);
 		dev_err(&port->dev,
 			"%s - failed submitting write urb, error %d\n",
 			__func__, result);
@@ -289,8 +284,7 @@ static int omninet_write_room(struct tty_struct *tty)
 
 	int room = 0; /* Default: no room */
 
-	/* FIXME: no consistent locking for write_urb_busy */
-	if (!wport->write_urb_busy)
+	if (test_bit(0, &wport->write_urbs_free))
 		room = wport->bulk_out_size - OMNINET_HEADERLEN;
 
 	dbg("%s - returns %d", __func__, room);
@@ -307,7 +301,7 @@ static void omninet_write_bulk_callback(struct urb *urb)
 
 	dbg("%s - port %0x", __func__, port->number);
 
-	port->write_urb_busy = 0;
+	set_bit(0, &port->write_urbs_free);
 	if (status) {
 		dbg("%s - nonzero write bulk status received: %d",
 		    __func__, status);
