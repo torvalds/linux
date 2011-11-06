@@ -79,15 +79,6 @@ static struct cpuidle_params rx51_cpuidle_params[] = {
 	{7505 + 15274, 484329, 1},
 };
 
-static void __init rx51_init_early(void)
-{
-	struct omap_sdrc_params *sdrc_params;
-
-	omap2_init_common_infrastructure();
-	sdrc_params = nokia_get_sdram_timings();
-	omap2_init_common_devices(sdrc_params, sdrc_params);
-}
-
 extern void __init rx51_peripherals_init(void);
 
 #ifdef CONFIG_OMAP_MUX
@@ -104,9 +95,15 @@ static struct omap_musb_board_data musb_board_data = {
 
 static void __init rx51_init(void)
 {
+	struct omap_sdrc_params *sdrc_params;
+
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap3_pm_init_cpuidle(rx51_cpuidle_params);
 	omap_serial_init();
+
+	sdrc_params = nokia_get_sdram_timings();
+	omap_sdrc_init(sdrc_params, sdrc_params);
+
 	usb_musb_init(&musb_board_data);
 	rx51_peripherals_init();
 
@@ -115,12 +112,6 @@ static void __init rx51_init(void)
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
 
 	platform_device_register(&leds_gpio);
-}
-
-static void __init rx51_map_io(void)
-{
-	omap2_set_globals_3xxx();
-	omap34xx_map_common_io();
 }
 
 static void __init rx51_reserve(void)
@@ -133,8 +124,8 @@ MACHINE_START(NOKIA_RX51, "Nokia RX-51 board")
 	/* Maintainer: Lauri Leukkunen <lauri.leukkunen@nokia.com> */
 	.atag_offset	= 0x100,
 	.reserve	= rx51_reserve,
-	.map_io		= rx51_map_io,
-	.init_early	= rx51_init_early,
+	.map_io		= omap3_map_io,
+	.init_early	= omap3430_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= rx51_init,
 	.timer		= &omap3_timer,

@@ -83,7 +83,7 @@ static int __devinit lis302dl_spi_probe(struct spi_device *spi)
 static int __devexit lis302dl_spi_remove(struct spi_device *spi)
 {
 	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
-	lis3lv02d_joystick_disable();
+	lis3lv02d_joystick_disable(lis3);
 	lis3lv02d_poweroff(lis3);
 
 	return lis3lv02d_remove_fs(&lis3_dev);

@@ -1641,7 +1641,7 @@ int btrfs_fill_inode(struct inode *inode, u32 *rdev)
 	inode->i_gid = btrfs_stack_inode_gid(inode_item);
 	btrfs_i_size_write(inode, btrfs_stack_inode_size(inode_item));
 	inode->i_mode = btrfs_stack_inode_mode(inode_item);
-	inode->i_nlink = btrfs_stack_inode_nlink(inode_item);
+	set_nlink(inode, btrfs_stack_inode_nlink(inode_item));
 	inode_set_bytes(inode, btrfs_stack_inode_nbytes(inode_item));
 	BTRFS_I(inode)->generation = btrfs_stack_inode_generation(inode_item);
 	BTRFS_I(inode)->sequence = btrfs_stack_inode_sequence(inode_item);

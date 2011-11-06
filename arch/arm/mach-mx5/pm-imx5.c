@@ -14,14 +14,19 @@
 #include <linux/err.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
-#include <mach/system.h>
+#include <mach/common.h>
+#include <mach/hardware.h>
 #include "crm_regs.h"
 
 static struct clk *gpc_dvfs_clk;
 
+static int mx5_suspend_prepare(void)
+{
+	return clk_enable(gpc_dvfs_clk);
+}
+
 static int mx5_suspend_enter(suspend_state_t state)
 {
-	clk_enable(gpc_dvfs_clk);
 	switch (state) {
 	case PM_SUSPEND_MEM:
 		mx5_cpu_lp_set(STOP_POWER_OFF);
@@ -42,9 +47,12 @@ static int mx5_suspend_enter(suspend_state_t state)
 		__raw_writel(0, MXC_SRPG_EMPGC1_SRPGCR);
 	}
 	cpu_do_idle();
-	clk_disable(gpc_dvfs_clk);
-
 	return 0;
+}
+
+static void mx5_suspend_finish(void)
+{
+	clk_disable(gpc_dvfs_clk);
 }
 
 static int mx5_pm_valid(suspend_state_t state)
@@ -54,7 +62,9 @@ static int mx5_pm_valid(suspend_state_t state)
 
 static const struct platform_suspend_ops mx5_suspend_ops = {
 	.valid = mx5_pm_valid,
+	.prepare = mx5_suspend_prepare,
 	.enter = mx5_suspend_enter,
+	.finish = mx5_suspend_finish,
 };
 
 static int __init mx5_pm_init(void)

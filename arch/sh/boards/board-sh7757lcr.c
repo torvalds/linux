@@ -18,8 +18,8 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
+#include <linux/sh_eth.h>
 #include <cpu/sh7757.h>
-#include <asm/sh_eth.h>
 #include <asm/heartbeat.h>
 
 static struct resource heartbeat_resource = {

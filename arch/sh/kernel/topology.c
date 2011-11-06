@@ -11,6 +11,7 @@
 #include <linux/cpumask.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
+#include <linux/topology.h>
 #include <linux/node.h>
 #include <linux/nodemask.h>
 

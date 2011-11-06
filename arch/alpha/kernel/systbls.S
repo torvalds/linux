@@ -520,6 +520,8 @@ sys_call_table:
 	.quad sys_clock_adjtime
 	.quad sys_syncfs			/* 500 */
 	.quad sys_setns
+	.quad sys_accept4
+	.quad sys_sendmmsg
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object

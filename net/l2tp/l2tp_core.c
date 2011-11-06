@@ -397,6 +397,7 @@ static void l2tp_recv_dequeue(struct l2tp_session *session)
 	 * expect to send up next, dequeue it and any other
 	 * in-sequence packets behind it.
 	 */
+start:
 	spin_lock_bh(&session->reorder_q.lock);
 	skb_queue_walk_safe(&session->reorder_q, skb, tmp) {
 		if (time_after(jiffies, L2TP_SKB_CB(skb)->expires)) {
@@ -433,7 +434,7 @@ static void l2tp_recv_dequeue(struct l2tp_session *session)
 		 */
 		spin_unlock_bh(&session->reorder_q.lock);
 		l2tp_recv_dequeue_skb(session, skb);
-		spin_lock_bh(&session->reorder_q.lock);
+		goto start;
 	}
 
 out:

@@ -860,25 +860,25 @@ static void __init zeus_init(void)
 
 static struct map_desc zeus_io_desc[] __initdata = {
 	{
-		.virtual = ZEUS_CPLD_VERSION,
+		.virtual = (unsigned long)ZEUS_CPLD_VERSION,
 		.pfn     = __phys_to_pfn(ZEUS_CPLD_VERSION_PHYS),
 		.length  = 0x1000,
 		.type    = MT_DEVICE,
 	},
 	{
-		.virtual = ZEUS_CPLD_ISA_IRQ,
+		.virtual = (unsigned long)ZEUS_CPLD_ISA_IRQ,
 		.pfn     = __phys_to_pfn(ZEUS_CPLD_ISA_IRQ_PHYS),
 		.length  = 0x1000,
 		.type    = MT_DEVICE,
 	},
 	{
-		.virtual = ZEUS_CPLD_CONTROL,
+		.virtual = (unsigned long)ZEUS_CPLD_CONTROL,
 		.pfn     = __phys_to_pfn(ZEUS_CPLD_CONTROL_PHYS),
 		.length  = 0x1000,
 		.type    = MT_DEVICE,
 	},
 	{
-		.virtual = ZEUS_PC104IO,
+		.virtual = (unsigned long)ZEUS_PC104IO,
 		.pfn     = __phys_to_pfn(ZEUS_PC104IO_PHYS),
 		.length  = 0x00800000,
 		.type    = MT_DEVICE,

@@ -520,7 +520,7 @@ fail_host_msg:
 /**
  * iscsi_bsg_host_add - Create and add the bsg hooks to receive requests
  * @shost: shost for iscsi_host
- * @cls_host: iscsi_cls_host adding the structures to
+ * @ihost: iscsi_cls_host adding the structures to
  */
 static int
 iscsi_bsg_host_add(struct Scsi_Host *shost, struct iscsi_cls_host *ihost)

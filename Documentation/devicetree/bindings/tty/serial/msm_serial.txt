@@ -1,0 +1,27 @@
+* Qualcomm MSM UART
+
+Required properties:
+- compatible :
+	- "qcom,msm-uart", and one of "qcom,msm-hsuart" or
+	  "qcom,msm-lsuart".
+- reg : offset and length of the register set for the device
+	for the hsuart operating in compatible mode, there should be a
+	second pair describing the gsbi registers.
+- interrupts : should contain the uart interrupt.
+
+There are two different UART blocks used in MSM devices,
+"qcom,msm-hsuart" and "qcom,msm-lsuart".  The msm-serial driver is
+able to handle both of these, and matches against the "qcom,msm-uart"
+as the compatibility.
+
+The registers for the "qcom,msm-hsuart" device need to specify both
+register blocks, even for the common driver.
+
+Example:
+
+	uart@19c400000 {
+		compatible = "qcom,msm-hsuart", "qcom,msm-uart";
+		reg = <0x19c40000 0x1000>,
+		      <0x19c00000 0x1000>;
+		interrupts = <195>;
+	};

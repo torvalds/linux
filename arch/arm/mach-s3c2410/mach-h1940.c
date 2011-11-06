@@ -696,9 +696,9 @@ static void __init h1940_init(void)
 			      S3C2410_MISCCR_USBSUSPND0 |
 			      S3C2410_MISCCR_USBSUSPND1, 0x0);
 
-	tmp =   (0x78 << S3C24XX_PLLCON_MDIVSHIFT)
-	      | (0x02 << S3C24XX_PLLCON_PDIVSHIFT)
-	      | (0x03 << S3C24XX_PLLCON_SDIVSHIFT);
+	tmp =   (0x78 << S3C24XX_PLL_MDIV_SHIFT)
+	      | (0x02 << S3C24XX_PLL_PDIV_SHIFT)
+	      | (0x03 << S3C24XX_PLL_SDIV_SHIFT);
 	writel(tmp, S3C2410_UPLLCON);
 
 	gpio_request(S3C2410_GPC(0), "LCD power");

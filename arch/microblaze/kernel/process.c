@@ -179,6 +179,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 
 	ti->cpu_context.msr = (childregs->msr|MSR_VM);
 	ti->cpu_context.msr &= ~MSR_UMS; /* switch_to to kernel mode */
+	ti->cpu_context.msr &= ~MSR_IE;
 #endif
 	ti->cpu_context.r15 = (unsigned long)ret_from_fork - 8;
 

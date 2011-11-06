@@ -85,7 +85,7 @@ config APRICOT
 
 config BVME6000_NET
 	tristate "BVME6000 Ethernet support"
-	depends on BVME6000MVME16x
+	depends on BVME6000
 	---help---
 	  This is the driver for the Ethernet interface on BVME4000 and
 	  BVME6000 VME boards.  Say Y here to include the driver for this chip

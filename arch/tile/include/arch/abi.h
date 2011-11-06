@@ -15,13 +15,78 @@
 /**
  * @file
  *
- * ABI-related register definitions helpful when writing assembly code.
+ * ABI-related register definitions.
  */
 
 #ifndef __ARCH_ABI_H__
-#define __ARCH_ABI_H__
 
-#include <arch/chip.h>
+#if !defined __need_int_reg_t && !defined __DOXYGEN__
+# define __ARCH_ABI_H__
+# include <arch/chip.h>
+#endif
+
+/* Provide the basic machine types. */
+#ifndef __INT_REG_BITS
+
+/** Number of bits in a register. */
+#if defined __tilegx__
+# define __INT_REG_BITS 64
+#elif defined __tilepro__
+# define __INT_REG_BITS 32
+#elif !defined __need_int_reg_t
+# include <arch/chip.h>
+# define __INT_REG_BITS CHIP_WORD_SIZE()
+#else
+# error Unrecognized architecture with __need_int_reg_t
+#endif
+
+#if __INT_REG_BITS == 64
+
+#ifndef __ASSEMBLER__
+/** Unsigned type that can hold a register. */
+typedef unsigned long long __uint_reg_t;
+
+/** Signed type that can hold a register. */
+typedef long long __int_reg_t;
+#endif
+
+/** String prefix to use for printf(). */
+#define __INT_REG_FMT "ll"
+
+#else
+
+#ifndef __ASSEMBLER__
+/** Unsigned type that can hold a register. */
+typedef unsigned long __uint_reg_t;
+
+/** Signed type that can hold a register. */
+typedef long __int_reg_t;
+#endif
+
+/** String prefix to use for printf(). */
+#define __INT_REG_FMT "l"
+
+#endif
+#endif /* __INT_REG_BITS */
+
+
+#ifndef __need_int_reg_t
+
+
+#ifndef __ASSEMBLER__
+/** Unsigned type that can hold a register. */
+typedef __uint_reg_t uint_reg_t;
+
+/** Signed type that can hold a register. */
+typedef __int_reg_t int_reg_t;
+#endif
+
+/** String prefix to use for printf(). */
+#define INT_REG_FMT __INT_REG_FMT
+
+/** Number of bits in a register. */
+#define INT_REG_BITS __INT_REG_BITS
+
 
 /* Registers 0 - 55 are "normal", but some perform special roles. */
 
@@ -59,7 +124,7 @@
  * The ABI requires callers to allocate a caller state save area of
  * this many bytes at the bottom of each stack frame.
  */
-#define C_ABI_SAVE_AREA_SIZE (2 * (CHIP_WORD_SIZE() / 8))
+#define C_ABI_SAVE_AREA_SIZE (2 * (INT_REG_BITS / 8))
 
 /**
  * The operand to an 'info' opcode directing the backtracer to not
@@ -67,30 +132,10 @@
  */
 #define INFO_OP_CANNOT_BACKTRACE 2
 
-#ifndef __ASSEMBLER__
-#if CHIP_WORD_SIZE() > 32
 
-/** Unsigned type that can hold a register. */
-typedef unsigned long long uint_reg_t;
+#endif /* !__need_int_reg_t */
 
-/** Signed type that can hold a register. */
-typedef long long int_reg_t;
-
-/** String prefix to use for printf(). */
-#define INT_REG_FMT "ll"
-
-#elif !defined(__LP64__)   /* avoid confusion with LP64 cross-build tools */
-
-/** Unsigned type that can hold a register. */
-typedef unsigned long uint_reg_t;
-
-/** Signed type that can hold a register. */
-typedef long int_reg_t;
-
-/** String prefix to use for printf(). */
-#define INT_REG_FMT "l"
-
-#endif
-#endif /* __ASSEMBLER__ */
+/* Make sure we later can get all the definitions and declarations.  */
+#undef __need_int_reg_t
 
 #endif /* !__ARCH_ABI_H__ */

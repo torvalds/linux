@@ -978,7 +978,10 @@ static inline void cpu_probe_cavium(struct cpuinfo_mips *c, unsigned int cpu)
 platform:
 		set_elf_platform(cpu, "octeon");
 		break;
+	case PRID_IMP_CAVIUM_CN61XX:
 	case PRID_IMP_CAVIUM_CN63XX:
+	case PRID_IMP_CAVIUM_CN66XX:
+	case PRID_IMP_CAVIUM_CN68XX:
 		c->cputype = CPU_CAVIUM_OCTEON2;
 		__cpu_name[cpu] = "Cavium Octeon II";
 		set_elf_platform(cpu, "octeon2");

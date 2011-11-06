@@ -112,8 +112,7 @@ static const struct spi_imx_master spi1_pdata __initconst = {
 };
 
 static struct mc13xxx_platform_data mc13783_pdata __initdata = {
-	.flags  = MC13XXX_USE_RTC |
-		  MC13XXX_USE_REGULATOR,
+	.flags = MC13XXX_USE_RTC,
 };
 
 static struct spi_board_info mc13783_spi_dev __initdata = {
@@ -284,6 +283,7 @@ MACHINE_START(MX31LITE, "LogicPD i.MX31 SOM")
 	.map_io = mx31lite_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
+	.handle_irq = imx31_handle_irq,
 	.timer = &mx31lite_timer,
 	.init_machine = mx31lite_init,
 MACHINE_END

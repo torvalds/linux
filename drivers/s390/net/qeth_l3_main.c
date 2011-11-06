@@ -1415,7 +1415,7 @@ static int qeth_l3_send_checksum_command(struct qeth_card *card)
 	return 0;
 }
 
-int qeth_l3_set_rx_csum(struct qeth_card *card, int on)
+static int qeth_l3_set_rx_csum(struct qeth_card *card, int on)
 {
 	int rc = 0;
 

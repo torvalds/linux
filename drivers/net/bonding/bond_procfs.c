@@ -157,8 +157,16 @@ static void bond_info_show_slave(struct seq_file *seq,
 	seq_printf(seq, "\nSlave Interface: %s\n", slave->dev->name);
 	seq_printf(seq, "MII Status: %s\n",
 		   (slave->link == BOND_LINK_UP) ?  "up" : "down");
-	seq_printf(seq, "Speed: %d Mbps\n", slave->speed);
-	seq_printf(seq, "Duplex: %s\n", slave->duplex ? "full" : "half");
+	if (slave->speed == -1)
+		seq_printf(seq, "Speed: %s\n", "Unknown");
+	else
+		seq_printf(seq, "Speed: %d Mbps\n", slave->speed);
+
+	if (slave->duplex == -1)
+		seq_printf(seq, "Duplex: %s\n", "Unknown");
+	else
+		seq_printf(seq, "Duplex: %s\n", slave->duplex ? "full" : "half");
+
 	seq_printf(seq, "Link Failure Count: %u\n",
 		   slave->link_failure_count);
 

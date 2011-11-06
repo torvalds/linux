@@ -34,7 +34,7 @@
 #include "regs.h"
 #include "reg_bits.h"
 
-static unsigned long virt_base_2700;
+static void __iomem *virt_base_2700;
 
 #define write_reg(val, reg) do { writel((val), (reg)); } while(0)
 
@@ -850,7 +850,7 @@ static int mbxfb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	/* make frame buffer memory enter self-refresh mode */
 	write_reg_dly(LMPWR_MC_PWR_SRM, LMPWR);
-	while (LMPWRSTAT != LMPWRSTAT_MC_PWR_SRM)
+	while (readl(LMPWRSTAT) != LMPWRSTAT_MC_PWR_SRM)
 		; /* empty statement */
 
 	/* reset the device, since it's initial state is 'mostly sleeping' */
@@ -946,7 +946,7 @@ static int __devinit mbxfb_probe(struct platform_device *dev)
 		ret = -EINVAL;
 		goto err3;
 	}
-	virt_base_2700 = (unsigned long)mfbi->reg_virt_addr;
+	virt_base_2700 = mfbi->reg_virt_addr;
 
 	mfbi->fb_virt_addr = ioremap_nocache(mfbi->fb_phys_addr,
 					     res_size(mfbi->fb_req));

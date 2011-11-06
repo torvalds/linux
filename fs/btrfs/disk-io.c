@@ -1705,7 +1705,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	sb->s_bdi = &fs_info->bdi;
 
 	fs_info->btree_inode->i_ino = BTRFS_BTREE_INODE_OBJECTID;
-	fs_info->btree_inode->i_nlink = 1;
+	set_nlink(fs_info->btree_inode, 1);
 	/*
 	 * we set the i_size on the btree inode to the max possible int.
 	 * the real end of the address space is determined by all of

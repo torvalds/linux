@@ -32,7 +32,6 @@
 
 #include <mach/iomap.h>
 #include <mach/sdhci.h>
-#include <mach/gpio.h>
 
 #include "board.h"
 #include "clock.h"
@@ -46,7 +45,8 @@ static struct plat_serial8250_port debug_uart_platform_data[] = {
 		.membase	= IO_ADDRESS(TEGRA_UARTA_BASE),
 		.mapbase	= TEGRA_UARTA_BASE,
 		.irq		= INT_UARTA,
-		.flags		= UPF_BOOT_AUTOCONF,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_TYPE,
+		.type		= PORT_TEGRA,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= 216000000,

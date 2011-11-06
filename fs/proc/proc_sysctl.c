@@ -3,6 +3,7 @@
  */
 #include <linux/init.h>
 #include <linux/sysctl.h>
+#include <linux/poll.h>
 #include <linux/proc_fs.h>
 #include <linux/security.h>
 #include <linux/namei.h>
@@ -13,6 +14,15 @@ static const struct file_operations proc_sys_file_operations;
 static const struct inode_operations proc_sys_inode_operations;
 static const struct file_operations proc_sys_dir_file_operations;
 static const struct inode_operations proc_sys_dir_operations;
+
+void proc_sys_poll_notify(struct ctl_table_poll *poll)
+{
+	if (!poll)
+		return;
+
+	atomic_inc(&poll->event);
+	wake_up_interruptible(&poll->wait);
+}
 
 static struct inode *proc_sys_make_inode(struct super_block *sb,
 		struct ctl_table_header *head, struct ctl_table *table)
@@ -39,7 +49,7 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 		inode->i_fop = &proc_sys_file_operations;
 	} else {
 		inode->i_mode |= S_IFDIR;
-		inode->i_nlink = 0;
+		clear_nlink(inode);
 		inode->i_op = &proc_sys_dir_operations;
 		inode->i_fop = &proc_sys_dir_file_operations;
 	}
@@ -176,6 +186,39 @@ static ssize_t proc_sys_write(struct file *filp, const char __user *buf,
 	return proc_sys_call_handler(filp, (void __user *)buf, count, ppos, 1);
 }
 
+static int proc_sys_open(struct inode *inode, struct file *filp)
+{
+	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+
+	if (table->poll)
+		filp->private_data = proc_sys_poll_event(table->poll);
+
+	return 0;
+}
+
+static unsigned int proc_sys_poll(struct file *filp, poll_table *wait)
+{
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	unsigned long event = (unsigned long)filp->private_data;
+	unsigned int ret = DEFAULT_POLLMASK;
+
+	if (!table->proc_handler)
+		goto out;
+
+	if (!table->poll)
+		goto out;
+
+	poll_wait(filp, &table->poll->wait, wait);
+
+	if (event != atomic_read(&table->poll->event)) {
+		filp->private_data = proc_sys_poll_event(table->poll);
+		ret = POLLIN | POLLRDNORM | POLLERR | POLLPRI;
+	}
+
+out:
+	return ret;
+}
 
 static int proc_sys_fill_cache(struct file *filp, void *dirent,
 				filldir_t filldir,
@@ -364,12 +407,15 @@ static int proc_sys_getattr(struct vfsmount *mnt, struct dentry *dentry, struct 
 }
 
 static const struct file_operations proc_sys_file_operations = {
+	.open		= proc_sys_open,
+	.poll		= proc_sys_poll,
 	.read		= proc_sys_read,
 	.write		= proc_sys_write,
 	.llseek		= default_llseek,
 };
 
 static const struct file_operations proc_sys_dir_file_operations = {
+	.read		= generic_read_dir,
 	.readdir	= proc_sys_readdir,
 	.llseek		= generic_file_llseek,
 };

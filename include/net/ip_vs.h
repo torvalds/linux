@@ -425,9 +425,9 @@ struct ip_vs_protocol {
 
 	const char *(*state_name)(int state);
 
-	int (*state_transition)(struct ip_vs_conn *cp, int direction,
-				const struct sk_buff *skb,
-				struct ip_vs_proto_data *pd);
+	void (*state_transition)(struct ip_vs_conn *cp, int direction,
+				 const struct sk_buff *skb,
+				 struct ip_vs_proto_data *pd);
 
 	int (*register_app)(struct net *net, struct ip_vs_app *inc);
 
@@ -1378,7 +1378,7 @@ static inline int ip_vs_conntrack_enabled(struct netns_ipvs *ipvs)
 
 extern void ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp,
 				   int outin);
-extern int ip_vs_confirm_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp);
+extern int ip_vs_confirm_conntrack(struct sk_buff *skb);
 extern void ip_vs_nfct_expect_related(struct sk_buff *skb, struct nf_conn *ct,
 				      struct ip_vs_conn *cp, u_int8_t proto,
 				      const __be16 port, int from_rs);
@@ -1396,8 +1396,7 @@ static inline void ip_vs_update_conntrack(struct sk_buff *skb,
 {
 }
 
-static inline int ip_vs_confirm_conntrack(struct sk_buff *skb,
-					  struct ip_vs_conn *cp)
+static inline int ip_vs_confirm_conntrack(struct sk_buff *skb)
 {
 	return NF_ACCEPT;
 }

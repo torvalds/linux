@@ -363,12 +363,15 @@ SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
 	}
 
 	sb = quotactl_block(special);
-	if (IS_ERR(sb))
-		return PTR_ERR(sb);
+	if (IS_ERR(sb)) {
+		ret = PTR_ERR(sb);
+		goto out;
+	}
 
 	ret = do_quotactl(sb, type, cmds, id, addr, pathp);
 
 	drop_super(sb);
+out:
 	if (pathp && !IS_ERR(pathp))
 		path_put(pathp);
 	return ret;

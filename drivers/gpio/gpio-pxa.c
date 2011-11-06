@@ -122,7 +122,7 @@ static int __init pxa_init_gpio_chip(int gpio_end)
 		struct gpio_chip *c = &chips[i].chip;
 
 		sprintf(chips[i].label, "gpio-%d", i);
-		chips[i].regbase = (void __iomem *)GPIO_BANK(i);
+		chips[i].regbase = GPIO_BANK(i);
 
 		c->base  = gpio;
 		c->label = chips[i].label;
