@@ -535,7 +535,6 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 			status = -EINVAL;
 			goto release_lock;
 		}
-		urb->complete = ti_interrupt_callback;
 		urb->context = tdev;
 		status = usb_submit_urb(urb, GFP_KERNEL);
 		if (status) {
@@ -618,7 +617,6 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto unlink_int_urb;
 	}
 	tport->tp_read_urb_state = TI_READ_URB_RUNNING;
-	urb->complete = ti_bulk_in_callback;
 	urb->context = tport;
 	status = usb_submit_urb(urb, GFP_KERNEL);
 	if (status) {
@@ -1571,7 +1569,6 @@ static int ti_restart_read(struct ti_port *tport, struct tty_struct *tty)
 		tport->tp_read_urb_state = TI_READ_URB_RUNNING;
 		urb = tport->tp_port->read_urb;
 		spin_unlock_irqrestore(&tport->tp_lock, flags);
-		urb->complete = ti_bulk_in_callback;
 		urb->context = tport;
 		status = usb_submit_urb(urb, GFP_KERNEL);
 	} else  {
