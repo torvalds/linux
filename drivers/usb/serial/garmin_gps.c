@@ -1276,7 +1276,6 @@ static void garmin_read_int_callback(struct urb *urb)
 	unsigned long flags;
 	int retval;
 	struct usb_serial_port *port = urb->context;
-	struct usb_serial *serial = port->serial;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
@@ -1310,12 +1309,6 @@ static void garmin_read_int_callback(struct urb *urb)
 		if (0 == (garmin_data_p->flags & FLAGS_BULK_IN_ACTIVE)) {
 
 			/* bulk data available */
-			usb_fill_bulk_urb(port->read_urb, serial->dev,
-					usb_rcvbulkpipe(serial->dev,
-						port->bulk_in_endpointAddress),
-					port->read_urb->transfer_buffer,
-					port->read_urb->transfer_buffer_length,
-					garmin_read_bulk_callback, port);
 			retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 			if (retval) {
 				dev_err(&port->dev,

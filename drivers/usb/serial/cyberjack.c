@@ -207,7 +207,6 @@ static void cyberjack_close(struct usb_serial_port *port)
 static int cyberjack_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
-	struct usb_serial *serial = port->serial;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	int result;
@@ -260,13 +259,7 @@ static int cyberjack_write(struct tty_struct *tty,
 		priv->wrsent = length;
 
 		/* set up our urb */
-		usb_fill_bulk_urb(port->write_urb, serial->dev,
-			      usb_sndbulkpipe(serial->dev, port->bulk_out_endpointAddress),
-			      port->write_urb->transfer_buffer, length,
-			      ((serial->type->write_bulk_callback) ?
-			       serial->type->write_bulk_callback :
-			       cyberjack_write_bulk_callback),
-			      port);
+		port->write_urb->transfer_buffer_length = length;
 
 		/* send the data out the bulk port */
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
@@ -447,13 +440,7 @@ static void cyberjack_write_bulk_callback(struct urb *urb)
 		priv->wrsent += length;
 
 		/* set up our urb */
-		usb_fill_bulk_urb(port->write_urb, port->serial->dev,
-			      usb_sndbulkpipe(port->serial->dev, port->bulk_out_endpointAddress),
-			      port->write_urb->transfer_buffer, length,
-			      ((port->serial->type->write_bulk_callback) ?
-			       port->serial->type->write_bulk_callback :
-			       cyberjack_write_bulk_callback),
-			      port);
+		port->write_urb->transfer_buffer_length = length;
 
 		/* send the data out the bulk port */
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);

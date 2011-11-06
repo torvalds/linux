@@ -2106,12 +2106,7 @@ static void edge_send(struct tty_struct *tty)
 				port->write_urb->transfer_buffer);
 
 	/* set up our urb */
-	usb_fill_bulk_urb(port->write_urb, port->serial->dev,
-			   usb_sndbulkpipe(port->serial->dev,
-					    port->bulk_out_endpointAddress),
-			   port->write_urb->transfer_buffer, count,
-			   edge_bulk_out_callback,
-			   port);
+	port->write_urb->transfer_buffer_length = count;
 
 	/* send the data out the bulk port */
 	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);

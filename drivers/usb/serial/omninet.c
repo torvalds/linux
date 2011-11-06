@@ -148,13 +148,6 @@ static int omninet_open(struct tty_struct *tty, struct usb_serial_port *port)
 	tty_port_tty_set(&wport->port, tty);
 
 	/* Start reading from the device */
-	usb_fill_bulk_urb(port->read_urb, serial->dev,
-			usb_rcvbulkpipe(serial->dev,
-				port->bulk_in_endpointAddress),
-			port->read_urb->transfer_buffer,
-			port->read_urb->transfer_buffer_length,
-			omninet_read_bulk_callback, port);
-
 	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (result)
 		dev_err(&port->dev,
@@ -211,11 +204,6 @@ static void omninet_read_bulk_callback(struct urb *urb)
 	}
 
 	/* Continue trying to always read  */
-	usb_fill_bulk_urb(urb, port->serial->dev,
-			usb_rcvbulkpipe(port->serial->dev,
-					port->bulk_in_endpointAddress),
-			urb->transfer_buffer, urb->transfer_buffer_length,
-			omninet_read_bulk_callback, port);
 	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result)
 		dev_err(&port->dev,
