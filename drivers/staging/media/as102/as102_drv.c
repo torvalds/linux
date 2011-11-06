@@ -195,19 +195,16 @@ static int as102_dvb_dmx_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 int as102_dvb_register(struct as102_dev_t *as102_dev)
 {
-	int ret = 0;
-	ENTER();
+	struct device *dev = &as102_dev->bus_adap.usb_dev->dev;
+	int ret;
 
 	ret = dvb_register_adapter(&as102_dev->dvb_adap,
-				   as102_dev->name,
-				   THIS_MODULE,
-				   &as102_dev->bus_adap.usb_dev->dev,
-				   adapter_nr
-				   );
+			   as102_dev->name, THIS_MODULE,
+			   dev, adapter_nr);
 	if (ret < 0) {
-		err("%s: dvb_register_adapter() failed (errno = %d)",
-		    __func__, ret);
-		goto failed;
+		dev_err(dev, "%s: dvb_register_adapter() failed: %d\n",
+			__func__, ret);
+		return ret;
 	}
 
 	as102_dev->dvb_dmx.priv = as102_dev;
@@ -225,22 +222,22 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 
 	ret = dvb_dmx_init(&as102_dev->dvb_dmx);
 	if (ret < 0) {
-		err("%s: dvb_dmx_init() failed (errno = %d)", __func__, ret);
-		goto failed;
+		dev_err("%s: dvb_dmx_init() failed: %d\n", __func__, ret);
+		goto edmxinit;
 	}
 
 	ret = dvb_dmxdev_init(&as102_dev->dvb_dmxdev, &as102_dev->dvb_adap);
 	if (ret < 0) {
-		err("%s: dvb_dmxdev_init() failed (errno = %d)", __func__,
-		    ret);
-		goto failed;
+		dev_err(dev, "%s: dvb_dmxdev_init() failed: %d\n",
+			__func__, ret);
+		goto edmxdinit;
 	}
 
 	ret = as102_dvb_register_fe(as102_dev, &as102_dev->dvb_fe);
 	if (ret < 0) {
-		err("%s: as102_dvb_register_frontend() failed (errno = %d)",
+		dev_err(dev, "%s: as102_dvb_register_frontend() failed: %d",
 		    __func__, ret);
-		goto failed;
+		goto efereg;
 	}
 
 	/* init bus mutex for token locking */
@@ -256,16 +253,21 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 	if (fw_upload)
 		try_then_request_module(as102_fw_upload(&as102_dev->bus_adap),
 				"firmware_class");
-failed:
-	LEAVE();
-	/* FIXME: free dvb_XXX */
+
+	pr_info("Registered device %s", as102_dev->name);
+	return 0;
+
+efereg:
+	dvb_dmxdev_release(&as102_dev->dvb_dmxdev);
+edmxdinit:
+	dvb_dmx_release(&as102_dev->dvb_dmx);
+edmxinit:
+	dvb_unregister_adapter(&as102_dev->dvb_adap);
 	return ret;
 }
 
 void as102_dvb_unregister(struct as102_dev_t *as102_dev)
 {
-	ENTER();
-
 	/* unregister as102 frontend */
 	as102_dvb_unregister_fe(&as102_dev->dvb_fe);
 
@@ -276,7 +278,7 @@ void as102_dvb_unregister(struct as102_dev_t *as102_dev)
 	/* unregister dvb adapter */
 	dvb_unregister_adapter(&as102_dev->dvb_adap);
 
-	LEAVE();
+	pr_info("Unregistered device %s", as102_dev->name);
 }
 
 static int __init as102_driver_init(void)
