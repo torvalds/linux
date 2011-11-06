@@ -55,6 +55,7 @@ static noinline int join_transaction(struct btrfs_root *root, int nofail)
 	struct btrfs_transaction *cur_trans;
 
 	spin_lock(&root->fs_info->trans_lock);
+loop:
 	if (root->fs_info->trans_no_join) {
 		if (!nofail) {
 			spin_unlock(&root->fs_info->trans_lock);
@@ -75,16 +76,18 @@ static noinline int join_transaction(struct btrfs_root *root, int nofail)
 	cur_trans = kmem_cache_alloc(btrfs_transaction_cachep, GFP_NOFS);
 	if (!cur_trans)
 		return -ENOMEM;
+
 	spin_lock(&root->fs_info->trans_lock);
 	if (root->fs_info->running_transaction) {
+		/*
+		 * someone started a transaction after we unlocked.  Make sure
+		 * to redo the trans_no_join checks above
+		 */
 		kmem_cache_free(btrfs_transaction_cachep, cur_trans);
 		cur_trans = root->fs_info->running_transaction;
-		atomic_inc(&cur_trans->use_count);
-		atomic_inc(&cur_trans->num_writers);
-		cur_trans->num_joined++;
-		spin_unlock(&root->fs_info->trans_lock);
-		return 0;
+		goto loop;
 	}
+
 	atomic_set(&cur_trans->num_writers, 1);
 	cur_trans->num_joined = 0;
 	init_waitqueue_head(&cur_trans->writer_wait);
