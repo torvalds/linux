@@ -511,7 +511,7 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return result;
 	}
 
-	result = usb_serial_generic_submit_read_urb(port, GFP_KERNEL);
+	result = usb_serial_generic_open(tty, port);
 	if (result) {
 		usb_kill_urb(port->interrupt_in_urb);
 		return result;
