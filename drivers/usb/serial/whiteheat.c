@@ -14,57 +14,6 @@
  *
  * See Documentation/usb/usb-serial.txt for more information on using this
  * driver
- *
- * (10/09/2002) Stuart MacDonald (stuartm@connecttech.com)
- *	Upgrade to full working driver
- *
- * (05/30/2001) gkh
- *	switched from using spinlock to a semaphore, which fixes lots of
- *	problems.
- *
- * (04/08/2001) gb
- *	Identify version on module load.
- *
- * 2001_Mar_19 gkh
- *	Fixed MOD_INC and MOD_DEC logic, the ability to open a port more
- *	than once, and the got the proper usb_device_id table entries so
- *	the driver works again.
- *
- * (11/01/2000) Adam J. Richter
- *	usb_device_id table support
- *
- * (10/05/2000) gkh
- *	Fixed bug with urb->dev not being set properly, now that the usb
- *	core needs it.
- *
- * (10/03/2000) smd
- *	firmware is improved to guard against crap sent to device
- *	firmware now replies CMD_FAILURE on bad things
- *	read_callback fix you provided for private info struct
- *	command_finished now indicates success or fail
- *	setup_port struct now packed to avoid gcc padding
- *	firmware uses 1 based port numbering, driver now handles that
- *
- * (09/11/2000) gkh
- *	Removed DEBUG #ifdefs with call to usb_serial_debug_data
- *
- * (07/19/2000) gkh
- *	Added module_init and module_exit functions to handle the fact that this
- *	driver is a loadable module now.
- *	Fixed bug with port->minor that was found by Al Borchers
- *
- * (07/04/2000) gkh
- *	Added support for port settings. Baud rate can now be changed. Line
- *	signals are not transferred to and from the tty layer yet, but things
- *	seem to be working well now.
- *
- * (05/04/2000) gkh
- *	First cut at open and close commands. Data can flow through the ports at
- *	default speeds now.
- *
- * (03/26/2000) gkh
- *	Split driver up into device specific pieces.
- *
  */
 
 #include <linux/kernel.h>

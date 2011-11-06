@@ -20,18 +20,6 @@
  *
  * Supported readers: USB TWIN, KAAN Standard Plus and SecOVID Reader Plus
  * (Adapter K), B1 Professional and KAAN Professional (Adapter B)
- *
- * (21/05/2004) tw
- *      Fix bug with P'n'P readers
- *
- * (28/05/2003) tw
- *      Add support for KAAN SIM
- *
- * (12/09/2002) tw
- *      Adapted to 2.5.
- *
- * (11/08/2002) tw
- *      Initial version.
  */
 
 

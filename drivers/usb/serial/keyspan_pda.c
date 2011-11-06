@@ -12,59 +12,6 @@
  *
  * See Documentation/usb/usb-serial.txt for more information on using this
  * driver
- *
- * (09/07/2001) gkh
- *	cleaned up the Xircom support.  Added ids for Entregra device which is
- *	the same as the Xircom device.  Enabled the code to be compiled for
- *	either Xircom or Keyspan devices.
- *
- * (08/11/2001) Cristian M. Craciunescu
- *	support for Xircom PGSDB9
- *
- * (05/31/2001) gkh
- *	switched from using spinlock to a semaphore, which fixes lots of
- *	problems.
- *
- * (04/08/2001) gb
- *	Identify version on module load.
- *
- * (11/01/2000) Adam J. Richter
- *	usb_device_id table support
- *
- * (10/05/2000) gkh
- *	Fixed bug with urb->dev not being set properly, now that the usb
- *	core needs it.
- *
- * (08/28/2000) gkh
- *	Added locks for SMP safeness.
- *	Fixed MOD_INC and MOD_DEC logic and the ability to open a port more
- *	than once.
- *
- * (07/20/2000) borchers
- *	- keyspan_pda_write no longer sleeps if it is called on interrupt time;
- *	  PPP and the line discipline with stty echo on can call write on
- *	  interrupt time and this would cause an oops if write slept
- *	- if keyspan_pda_write is in an interrupt, it will not call
- *	  usb_control_msg (which sleeps) to query the room in the device
- *	  buffer, it simply uses the current room value it has
- *	- if the urb is busy or if it is throttled keyspan_pda_write just
- *	  returns 0, rather than sleeping to wait for this to change; the
- *	  write_chan code in n_tty.c will sleep if needed before calling
- *	  keyspan_pda_write again
- *	- if the device needs to be unthrottled, write now queues up the
- *	  call to usb_control_msg (which sleeps) to unthrottle the device
- *	- the wakeups from keyspan_pda_write_bulk_callback are queued rather
- *	  than done directly from the callback to avoid the race in write_chan
- *	- keyspan_pda_chars_in_buffer also indicates its buffer is full if the
- *	  urb status is -EINPROGRESS, meaning it cannot write at the moment
- *
- * (07/19/2000) gkh
- *	Added module_init and module_exit functions to handle the fact that this
- *	driver is a loadable module now.
- *
- * (03/26/2000) gkh
- *	Split driver up into device specific pieces.
- *
  */
 
 

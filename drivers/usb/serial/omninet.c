@@ -9,31 +9,6 @@
  * driver
  *
  * Please report both successes and troubles to the author at omninet@kroah.com
- *
- * (05/30/2001) gkh
- *	switched from using spinlock to a semaphore, which fixes lots of
- *	problems.
- *
- * (04/08/2001) gb
- *	Identify version on module load.
- *
- * (11/01/2000) Adam J. Richter
- *	usb_device_id table support
- *
- * (10/05/2000) gkh
- *	Fixed bug with urb->dev not being set properly, now that the usb
- *	core needs it.
- *
- * (08/28/2000) gkh
- *	Added locks for SMP safeness.
- *	Fixed MOD_INC and MOD_DEC logic and the ability to open a port more
- *	than once.
- *	Fixed potential race in omninet_write_bulk_callback
- *
- * (07/19/2000) gkh
- *	Added module_init and module_exit functions to handle the fact that this
- *	driver is a loadable module now.
- *
  */
 
 #include <linux/kernel.h>

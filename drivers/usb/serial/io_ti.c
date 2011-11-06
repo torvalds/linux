@@ -15,13 +15,6 @@
  * For questions or problems with this driver, contact Inside Out
  * Networks technical support, or Peter Berger <pberger@brimson.com>,
  * or Al Borchers <alborchers@steinerpoint.com>.
- *
- * Version history:
- *
- *	July 11, 2002 	Removed 4 port device structure since all TI UMP
- *			chips have only 2 ports
- *			David Iacovelli (davidi@ionetworks.com)
- *
  */
 
 #include <linux/kernel.h>

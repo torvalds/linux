@@ -16,32 +16,6 @@
  *
  * See http://geocities.com/i0xox0i for information on this driver and the
  * earthmate usb device.
- *
- *  Lonnie Mendez <dignome@gmail.com>
- *  4-29-2005
- *	Fixed problem where setting or retreiving the serial config would fail
- *	with EPIPE.  Removed CRTS toggling so the driver behaves more like
- *	other usbserial adapters.  Issued new interval of 1ms instead of the
- *	default 10ms.  As a result, transfer speed has been substantially
- *	increased from avg. 850bps to avg. 3300bps.  initial termios has also
- *	been modified.  Cleaned up code and formatting issues so it is more
- *	readable.  Replaced the C++ style comments.
- *
- *  Lonnie Mendez <dignome@gmail.com>
- *  12-15-2004
- *	Incorporated write buffering from pl2303 driver.  Fixed bug with line
- *	handling so both lines are raised in cypress_open. (was dropping rts)
- *      Various code cleanups made as well along with other misc bug fixes.
- *
- *  Lonnie Mendez <dignome@gmail.com>
- *  04-10-2004
- *	Driver modified to support dynamic line settings.  Various improvements
- *      and features.
- *
- *  Neil Whelchel
- *  10-2003
- *	Driver first released.
- *
  */
 
 /* Thanks to Neil Whelchel for writing the first cypress m8 implementation
