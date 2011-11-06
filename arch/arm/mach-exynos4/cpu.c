@@ -28,6 +28,7 @@
 #include <plat/fimc-core.h>
 #include <plat/iic-core.h>
 #include <plat/reset.h>
+#include <plat/tv-core.h>
 
 #include <mach/regs-irq.h>
 #include <mach/regs-pmu.h>
@@ -182,6 +183,7 @@ void __init exynos4_map_io(void)
 	s3c_i2c2_setname("s3c2440-i2c");
 
 	s5p_fb_setname(0, "exynos4-fb");
+	s5p_hdmi_setname("exynos4-hdmi");
 }
 
 void __init exynos4_init_clocks(int xtal)

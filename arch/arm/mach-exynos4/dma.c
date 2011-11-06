@@ -243,6 +243,7 @@ struct amba_device exynos4_device_pdma1 = {
 static int __init exynos4_dma_init(void)
 {
 	amba_device_register(&exynos4_device_pdma0, &iomem_resource);
+	amba_device_register(&exynos4_device_pdma1, &iomem_resource);
 
 	return 0;
 }

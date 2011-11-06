@@ -14,6 +14,10 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
+
+#ifndef __ASM_ARCH_PM_CORE_H
+#define __ASM_ARCH_PM_CORE_H __FILE__
+
 #include <mach/regs-pmu.h>
 
 static inline void s3c_pm_debug_init_uart(void)
@@ -53,7 +57,9 @@ static inline void s3c_pm_restored_gpios(void)
 	/* nothing here yet */
 }
 
-static inline void s3c_pm_saved_gpios(void)
+static inline void samsung_pm_saved_gpios(void)
 {
 	/* nothing here yet */
 }
+
+#endif /* __ASM_ARCH_PM_CORE_H */

@@ -13,11 +13,16 @@ config CPU_EXYNOS4210
 	bool
 	select SAMSUNG_DMADEV
 	select ARM_CPU_SUSPEND if PM
+	select S5P_PM if PM
+	select S5P_SLEEP if PM
 	help
 	  Enable EXYNOS4210 CPU support
 
 config SOC_EXYNOS4212
 	bool
+	select ARM_CPU_SUSPEND if PM
+	select S5P_PM if PM
+	select S5P_SLEEP if PM
 	help
 	  Enable EXYNOS4212 SoC support
 
@@ -137,6 +142,14 @@ config MACH_SMDKV310
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
 	select S3C_DEV_I2C1
+	select S5P_DEV_FIMC0
+	select S5P_DEV_FIMC1
+	select S5P_DEV_FIMC2
+	select S5P_DEV_FIMC3
+	select S5P_DEV_I2C_HDMIPHY
+	select S5P_DEV_MFC
+	select S5P_DEV_TV
+	select S5P_DEV_USB_EHCI
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
@@ -151,6 +164,7 @@ config MACH_SMDKV310
 	select EXYNOS4_SETUP_I2C1
 	select EXYNOS4_SETUP_KEYPAD
 	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_USB_PHY
 	help
 	  Machine support for Samsung SMDKV310
 
@@ -176,19 +190,26 @@ config MACH_UNIVERSAL_C210
 	select S5P_DEV_FIMC1
 	select S5P_DEV_FIMC2
 	select S5P_DEV_FIMC3
+	select S5P_DEV_CSIS0
+	select S5P_DEV_FIMD0
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
 	select S3C_DEV_I2C1
 	select S3C_DEV_I2C3
 	select S3C_DEV_I2C5
+	select S5P_DEV_I2C_HDMIPHY
 	select S5P_DEV_MFC
 	select S5P_DEV_ONENAND
+	select S5P_DEV_TV
 	select EXYNOS4_DEV_PD
+	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_I2C1
 	select EXYNOS4_SETUP_I2C3
 	select EXYNOS4_SETUP_I2C5
 	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_FIMC
+	select S5P_SETUP_MIPIPHY
 	help
 	  Machine support for Samsung Mobile Universal S5PC210 Reference
 	  Board.
@@ -197,6 +218,8 @@ config MACH_NURI
 	bool "Mobile NURI Board"
 	select CPU_EXYNOS4210
 	select S3C_DEV_WDT
+	select S3C_DEV_RTC
+	select S5P_DEV_FIMD0
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
@@ -206,6 +229,7 @@ config MACH_NURI
 	select S5P_DEV_MFC
 	select S5P_DEV_USB_EHCI
 	select EXYNOS4_DEV_PD
+	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_I2C1
 	select EXYNOS4_SETUP_I2C3
 	select EXYNOS4_SETUP_I2C5
@@ -221,8 +245,22 @@ config MACH_ORIGEN
 	select CPU_EXYNOS4210
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
+	select S5P_DEV_FIMC0
+	select S5P_DEV_FIMC1
+	select S5P_DEV_FIMC2
+	select S5P_DEV_FIMC3
+	select S5P_DEV_FIMD0
+	select S5P_DEV_I2C_HDMIPHY
+	select S5P_DEV_TV
+	select S5P_DEV_USB_EHCI
+	select EXYNOS4_DEV_PD
+	select SAMSUNG_DEV_BACKLIGHT
+	select SAMSUNG_DEV_PWM
+	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_USB_PHY
 	help
 	  Machine support for ORIGEN based on Samsung EXYNOS4210
 

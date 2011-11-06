@@ -260,6 +260,7 @@ struct amba_device s5pc100_device_pdma1 = {
 static int __init s5pc100_dma_init(void)
 {
 	amba_device_register(&s5pc100_device_pdma0, &iomem_resource);
+	amba_device_register(&s5pc100_device_pdma1, &iomem_resource);
 
 	return 0;
 }

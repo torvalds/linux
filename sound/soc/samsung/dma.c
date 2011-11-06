@@ -198,10 +198,10 @@ static int dma_hw_free(struct snd_pcm_substream *substream)
 
 	pr_debug("Entered %s\n", __func__);
 
-	/* TODO - do we need to ensure DMA flushed */
 	snd_pcm_set_runtime_buffer(substream, NULL);
 
 	if (prtd->params) {
+		prtd->params->ops->flush(prtd->params->ch);
 		prtd->params->ops->release(prtd->params->ch,
 					prtd->params->client);
 		prtd->params = NULL;
