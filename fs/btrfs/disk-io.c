@@ -366,7 +366,8 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 	clear_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
 	io_tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
 	while (1) {
-		ret = read_extent_buffer_pages(io_tree, eb, start, 1,
+		ret = read_extent_buffer_pages(io_tree, eb, start,
+					       WAIT_COMPLETE,
 					       btree_get_extent, mirror_num);
 		if (!ret &&
 		    !verify_parent_transid(io_tree, eb, parent_transid))
@@ -607,9 +608,45 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	end = min_t(u64, eb->len, PAGE_CACHE_SIZE);
 	end = eb->start + end - 1;
 err:
+	if (test_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags)) {
+		clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags);
+		btree_readahead_hook(root, eb, eb->start, ret);
+	}
+
 	free_extent_buffer(eb);
 out:
 	return ret;
+}
+
+static int btree_io_failed_hook(struct bio *failed_bio,
+			 struct page *page, u64 start, u64 end,
+			 struct extent_state *state)
+{
+	struct extent_io_tree *tree;
+	unsigned long len;
+	struct extent_buffer *eb;
+	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
+
+	tree = &BTRFS_I(page->mapping->host)->io_tree;
+	if (page->private == EXTENT_PAGE_PRIVATE)
+		goto out;
+	if (!page->private)
+		goto out;
+
+	len = page->private >> 2;
+	WARN_ON(len == 0);
+
+	eb = alloc_extent_buffer(tree, start, len, page);
+	if (eb == NULL)
+		goto out;
+
+	if (test_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags)) {
+		clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags);
+		btree_readahead_hook(root, eb, eb->start, -EIO);
+	}
+
+out:
+	return -EIO;	/* we fixed nothing */
 }
 
 static void end_workqueue_bio(struct bio *bio, int err)
@@ -973,9 +1010,41 @@ int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize,
 	if (!buf)
 		return 0;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
-				 buf, 0, 0, btree_get_extent, 0);
+				 buf, 0, WAIT_NONE, btree_get_extent, 0);
 	free_extent_buffer(buf);
 	return ret;
+}
+
+int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr, u32 blocksize,
+			 int mirror_num, struct extent_buffer **eb)
+{
+	struct extent_buffer *buf = NULL;
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	struct extent_io_tree *io_tree = &BTRFS_I(btree_inode)->io_tree;
+	int ret;
+
+	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
+	if (!buf)
+		return 0;
+
+	set_bit(EXTENT_BUFFER_READAHEAD, &buf->bflags);
+
+	ret = read_extent_buffer_pages(io_tree, buf, 0, WAIT_PAGE_LOCK,
+				       btree_get_extent, mirror_num);
+	if (ret) {
+		free_extent_buffer(buf);
+		return ret;
+	}
+
+	if (test_bit(EXTENT_BUFFER_CORRUPT, &buf->bflags)) {
+		free_extent_buffer(buf);
+		return -EIO;
+	} else if (extent_buffer_uptodate(io_tree, buf, NULL)) {
+		*eb = buf;
+	} else {
+		free_extent_buffer(buf);
+	}
+	return 0;
 }
 
 struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
@@ -1904,6 +1973,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->trans_no_join = 0;
 	fs_info->free_chunk_space = 0;
 
+	/* readahead state */
+	INIT_RADIX_TREE(&fs_info->reada_tree, GFP_NOFS & ~__GFP_WAIT);
+	spin_lock_init(&fs_info->reada_lock);
+
 	fs_info->thread_pool_size = min_t(unsigned long,
 					  num_online_cpus() + 2, 8);
 
@@ -2103,6 +2176,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_init_workers(&fs_info->delayed_workers, "delayed-meta",
 			   fs_info->thread_pool_size,
 			   &fs_info->generic_worker);
+	btrfs_init_workers(&fs_info->readahead_workers, "readahead",
+			   fs_info->thread_pool_size,
+			   &fs_info->generic_worker);
 
 	/*
 	 * endios are largely parallel and should have a very
@@ -2113,6 +2189,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	fs_info->endio_write_workers.idle_thresh = 2;
 	fs_info->endio_meta_write_workers.idle_thresh = 2;
+	fs_info->readahead_workers.idle_thresh = 2;
 
 	btrfs_start_workers(&fs_info->workers, 1);
 	btrfs_start_workers(&fs_info->generic_worker, 1);
@@ -2126,6 +2203,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_start_workers(&fs_info->endio_freespace_worker, 1);
 	btrfs_start_workers(&fs_info->delayed_workers, 1);
 	btrfs_start_workers(&fs_info->caching_workers, 1);
+	btrfs_start_workers(&fs_info->readahead_workers, 1);
 
 	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
 	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
@@ -2855,6 +2933,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_stop_workers(&fs_info->submit_workers);
 	btrfs_stop_workers(&fs_info->delayed_workers);
 	btrfs_stop_workers(&fs_info->caching_workers);
+	btrfs_stop_workers(&fs_info->readahead_workers);
 
 	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
@@ -3363,6 +3442,7 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 static struct extent_io_ops btree_extent_io_ops = {
 	.write_cache_pages_lock_hook = btree_lock_page_hook,
 	.readpage_end_io_hook = btree_readpage_end_io_hook,
+	.readpage_io_failed_hook = btree_io_failed_hook,
 	.submit_bio_hook = btree_submit_bio_hook,
 	/* note we're sharing with inode.c for the merge bio hook */
 	.merge_bio_hook = btrfs_merge_bio_hook,

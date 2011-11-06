@@ -1074,6 +1074,7 @@ struct btrfs_fs_info {
 	struct btrfs_workers endio_freespace_worker;
 	struct btrfs_workers submit_workers;
 	struct btrfs_workers caching_workers;
+	struct btrfs_workers readahead_workers;
 
 	/*
 	 * fixup workers take dirty pages that didn't properly go through
@@ -1157,6 +1158,10 @@ struct btrfs_fs_info {
 	u64 fs_state;
 
 	struct btrfs_delayed_root *delayed_root;
+
+	/* readahead tree */
+	spinlock_t reada_lock;
+	struct radix_tree_root reada_tree;
 
 	/* next backup root to be overwritten */
 	int backup_root_index;
@@ -2811,5 +2816,21 @@ int btrfs_scrub_cancel_dev(struct btrfs_root *root, struct btrfs_device *dev);
 int btrfs_scrub_cancel_devid(struct btrfs_root *root, u64 devid);
 int btrfs_scrub_progress(struct btrfs_root *root, u64 devid,
 			 struct btrfs_scrub_progress *progress);
+
+/* reada.c */
+struct reada_control {
+	struct btrfs_root	*root;		/* tree to prefetch */
+	struct btrfs_key	key_start;
+	struct btrfs_key	key_end;	/* exclusive */
+	atomic_t		elems;
+	struct kref		refcnt;
+	wait_queue_head_t	wait;
+};
+struct reada_control *btrfs_reada_add(struct btrfs_root *root,
+			      struct btrfs_key *start, struct btrfs_key *end);
+int btrfs_reada_wait(void *handle);
+void btrfs_reada_detach(void *handle);
+int btree_readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
+			 u64 start, int err);
 
 #endif
