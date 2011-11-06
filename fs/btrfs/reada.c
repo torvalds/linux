@@ -247,7 +247,7 @@ int btree_readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 
 static struct reada_zone *reada_find_zone(struct btrfs_fs_info *fs_info,
 					  struct btrfs_device *dev, u64 logical,
-					  struct btrfs_multi_bio *multi)
+					  struct btrfs_bio *multi)
 {
 	int ret;
 	int looped = 0;
@@ -327,7 +327,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	struct reada_extent *re = NULL;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
-	struct btrfs_multi_bio *multi = NULL;
+	struct btrfs_bio *multi = NULL;
 	struct btrfs_device *dev;
 	u32 blocksize;
 	u64 length;

@@ -18,6 +18,7 @@
 #define EXTENT_DO_ACCOUNTING (1 << 11)
 #define EXTENT_FIRST_DELALLOC (1 << 12)
 #define EXTENT_NEED_WAIT (1 << 13)
+#define EXTENT_DAMAGED (1 << 14)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
 #define EXTENT_CTLBITS (EXTENT_DO_ACCOUNTING | EXTENT_FIRST_DELALLOC)
 
@@ -69,7 +70,7 @@ struct extent_io_ops {
 			      unsigned long bio_flags);
 	int (*readpage_io_hook)(struct page *page, u64 start, u64 end);
 	int (*readpage_io_failed_hook)(struct bio *bio, struct page *page,
-				       u64 start, u64 end,
+				       u64 start, u64 end, u64 failed_mirror,
 				       struct extent_state *state);
 	int (*writepage_io_failed_hook)(struct bio *bio, struct page *page,
 					u64 start, u64 end,
@@ -188,7 +189,7 @@ int unlock_extent_cached(struct extent_io_tree *tree, u64 start, u64 end,
 int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 		    gfp_t mask);
 int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
-			  get_extent_t *get_extent);
+			  get_extent_t *get_extent, int mirror_num);
 int __init extent_io_init(void);
 void extent_io_exit(void);
 
@@ -259,6 +260,8 @@ void free_extent_buffer(struct extent_buffer *eb);
 int read_extent_buffer_pages(struct extent_io_tree *tree,
 			     struct extent_buffer *eb, u64 start, int wait,
 			     get_extent_t *get_extent, int mirror_num);
+unsigned long num_extent_pages(u64 start, u64 len);
+struct page *extent_buffer_page(struct extent_buffer *eb, unsigned long i);
 
 static inline void extent_buffer_get(struct extent_buffer *eb)
 {
@@ -308,4 +311,10 @@ int extent_clear_unlock_delalloc(struct inode *inode,
 struct bio *
 btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 		gfp_t gfp_flags);
+
+struct btrfs_mapping_tree;
+
+int repair_io_failure(struct btrfs_mapping_tree *map_tree, u64 start,
+			u64 length, u64 logical, struct page *page,
+			int mirror_num);
 #endif

@@ -45,10 +45,10 @@
 #include "btrfs_inode.h"
 #include "ioctl.h"
 #include "print-tree.h"
-#include "volumes.h"
 #include "ordered-data.h"
 #include "xattr.h"
 #include "tree-log.h"
+#include "volumes.h"
 #include "compression.h"
 #include "locking.h"
 #include "free-space-cache.h"
@@ -1823,153 +1823,9 @@ static int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 }
 
 /*
- * When IO fails, either with EIO or csum verification fails, we
- * try other mirrors that might have a good copy of the data.  This
- * io_failure_record is used to record state as we go through all the
- * mirrors.  If another mirror has good data, the page is set up to date
- * and things continue.  If a good mirror can't be found, the original
- * bio end_io callback is called to indicate things have failed.
- */
-struct io_failure_record {
-	struct page *page;
-	u64 start;
-	u64 len;
-	u64 logical;
-	unsigned long bio_flags;
-	int last_mirror;
-};
-
-static int btrfs_io_failed_hook(struct bio *failed_bio,
-			 struct page *page, u64 start, u64 end,
-			 struct extent_state *state)
-{
-	struct io_failure_record *failrec = NULL;
-	u64 private;
-	struct extent_map *em;
-	struct inode *inode = page->mapping->host;
-	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
-	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
-	struct bio *bio;
-	int num_copies;
-	int ret;
-	int rw;
-	u64 logical;
-
-	ret = get_state_private(failure_tree, start, &private);
-	if (ret) {
-		failrec = kmalloc(sizeof(*failrec), GFP_NOFS);
-		if (!failrec)
-			return -ENOMEM;
-		failrec->start = start;
-		failrec->len = end - start + 1;
-		failrec->last_mirror = 0;
-		failrec->bio_flags = 0;
-
-		read_lock(&em_tree->lock);
-		em = lookup_extent_mapping(em_tree, start, failrec->len);
-		if (em->start > start || em->start + em->len < start) {
-			free_extent_map(em);
-			em = NULL;
-		}
-		read_unlock(&em_tree->lock);
-
-		if (IS_ERR_OR_NULL(em)) {
-			kfree(failrec);
-			return -EIO;
-		}
-		logical = start - em->start;
-		logical = em->block_start + logical;
-		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
-			logical = em->block_start;
-			failrec->bio_flags = EXTENT_BIO_COMPRESSED;
-			extent_set_compress_type(&failrec->bio_flags,
-						 em->compress_type);
-		}
-		failrec->logical = logical;
-		free_extent_map(em);
-		set_extent_bits(failure_tree, start, end, EXTENT_LOCKED |
-				EXTENT_DIRTY, GFP_NOFS);
-		set_state_private(failure_tree, start,
-				 (u64)(unsigned long)failrec);
-	} else {
-		failrec = (struct io_failure_record *)(unsigned long)private;
-	}
-	num_copies = btrfs_num_copies(
-			      &BTRFS_I(inode)->root->fs_info->mapping_tree,
-			      failrec->logical, failrec->len);
-	failrec->last_mirror++;
-	if (!state) {
-		spin_lock(&BTRFS_I(inode)->io_tree.lock);
-		state = find_first_extent_bit_state(&BTRFS_I(inode)->io_tree,
-						    failrec->start,
-						    EXTENT_LOCKED);
-		if (state && state->start != failrec->start)
-			state = NULL;
-		spin_unlock(&BTRFS_I(inode)->io_tree.lock);
-	}
-	if (!state || failrec->last_mirror > num_copies) {
-		set_state_private(failure_tree, failrec->start, 0);
-		clear_extent_bits(failure_tree, failrec->start,
-				  failrec->start + failrec->len - 1,
-				  EXTENT_LOCKED | EXTENT_DIRTY, GFP_NOFS);
-		kfree(failrec);
-		return -EIO;
-	}
-	bio = bio_alloc(GFP_NOFS, 1);
-	bio->bi_private = state;
-	bio->bi_end_io = failed_bio->bi_end_io;
-	bio->bi_sector = failrec->logical >> 9;
-	bio->bi_bdev = failed_bio->bi_bdev;
-	bio->bi_size = 0;
-
-	bio_add_page(bio, page, failrec->len, start - page_offset(page));
-	if (failed_bio->bi_rw & REQ_WRITE)
-		rw = WRITE;
-	else
-		rw = READ;
-
-	ret = BTRFS_I(inode)->io_tree.ops->submit_bio_hook(inode, rw, bio,
-						      failrec->last_mirror,
-						      failrec->bio_flags, 0);
-	return ret;
-}
-
-/*
- * each time an IO finishes, we do a fast check in the IO failure tree
- * to see if we need to process or clean up an io_failure_record
- */
-static int btrfs_clean_io_failures(struct inode *inode, u64 start)
-{
-	u64 private;
-	u64 private_failure;
-	struct io_failure_record *failure;
-	int ret;
-
-	private = 0;
-	if (count_range_bits(&BTRFS_I(inode)->io_failure_tree, &private,
-			     (u64)-1, 1, EXTENT_DIRTY, 0)) {
-		ret = get_state_private(&BTRFS_I(inode)->io_failure_tree,
-					start, &private_failure);
-		if (ret == 0) {
-			failure = (struct io_failure_record *)(unsigned long)
-				   private_failure;
-			set_state_private(&BTRFS_I(inode)->io_failure_tree,
-					  failure->start, 0);
-			clear_extent_bits(&BTRFS_I(inode)->io_failure_tree,
-					  failure->start,
-					  failure->start + failure->len - 1,
-					  EXTENT_DIRTY | EXTENT_LOCKED,
-					  GFP_NOFS);
-			kfree(failure);
-		}
-	}
-	return 0;
-}
-
-/*
  * when reads are done, we need to check csums to verify the data is correct
- * if there's a match, we allow the bio to finish.  If not, we go through
- * the io_failure_record routines to find good copies
+ * if there's a match, we allow the bio to finish.  If not, the code in
+ * extent_io.c will try to find good copies for us.
  */
 static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 			       struct extent_state *state)
@@ -2015,10 +1871,6 @@ static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 
 	kunmap_atomic(kaddr, KM_USER0);
 good:
-	/* if the io failure tree for this inode is non-empty,
-	 * check to see if we've recovered from a failed IO
-	 */
-	btrfs_clean_io_failures(inode, start);
 	return 0;
 
 zeroit:
@@ -6273,7 +6125,7 @@ int btrfs_readpage(struct file *file, struct page *page)
 {
 	struct extent_io_tree *tree;
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
-	return extent_read_full_page(tree, page, btrfs_get_extent);
+	return extent_read_full_page(tree, page, btrfs_get_extent, 0);
 }
 
 static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
@@ -7406,7 +7258,6 @@ static struct extent_io_ops btrfs_extent_io_ops = {
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
 	.writepage_end_io_hook = btrfs_writepage_end_io_hook,
 	.writepage_start_hook = btrfs_writepage_start_hook,
-	.readpage_io_failed_hook = btrfs_io_failed_hook,
 	.set_bit_hook = btrfs_set_bit_hook,
 	.clear_bit_hook = btrfs_clear_bit_hook,
 	.merge_extent_hook = btrfs_merge_extent_hook,

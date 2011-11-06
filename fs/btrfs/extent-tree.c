@@ -1788,18 +1788,18 @@ static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 {
 	int ret;
 	u64 discarded_bytes = 0;
-	struct btrfs_multi_bio *multi = NULL;
+	struct btrfs_bio *bbio = NULL;
 
 
 	/* Tell the block device(s) that the sectors can be discarded */
 	ret = btrfs_map_block(&root->fs_info->mapping_tree, REQ_DISCARD,
-			      bytenr, &num_bytes, &multi, 0);
+			      bytenr, &num_bytes, &bbio, 0);
 	if (!ret) {
-		struct btrfs_bio_stripe *stripe = multi->stripes;
+		struct btrfs_bio_stripe *stripe = bbio->stripes;
 		int i;
 
 
-		for (i = 0; i < multi->num_stripes; i++, stripe++) {
+		for (i = 0; i < bbio->num_stripes; i++, stripe++) {
 			if (!stripe->dev->can_discard)
 				continue;
 
@@ -1818,7 +1818,7 @@ static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 			 */
 			ret = 0;
 		}
-		kfree(multi);
+		kfree(bbio);
 	}
 
 	if (actual_bytes)

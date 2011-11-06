@@ -620,7 +620,7 @@ out:
 
 static int btree_io_failed_hook(struct bio *failed_bio,
 			 struct page *page, u64 start, u64 end,
-			 struct extent_state *state)
+			 u64 mirror_num, struct extent_state *state)
 {
 	struct extent_io_tree *tree;
 	unsigned long len;
@@ -944,7 +944,7 @@ static int btree_readpage(struct file *file, struct page *page)
 {
 	struct extent_io_tree *tree;
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
-	return extent_read_full_page(tree, page, btree_get_extent);
+	return extent_read_full_page(tree, page, btree_get_extent, 0);
 }
 
 static int btree_releasepage(struct page *page, gfp_t gfp_flags)
