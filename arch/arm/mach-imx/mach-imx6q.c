@@ -83,4 +83,5 @@ DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad (Device Tree)")
 	.timer		= &imx6q_timer,
 	.init_machine	= imx6q_init_machine,
 	.dt_compat	= imx6q_dt_compat,
+	.restart	= mxc_restart,
 MACHINE_END

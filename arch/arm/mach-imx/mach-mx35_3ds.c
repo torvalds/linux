@@ -224,4 +224,5 @@ MACHINE_START(MX35_3DS, "Freescale MX35PDK")
 	.handle_irq = imx35_handle_irq,
 	.timer = &mx35pdk_timer,
 	.init_machine = mx35_3ds_init,
+	.restart	= mxc_restart,
 MACHINE_END
