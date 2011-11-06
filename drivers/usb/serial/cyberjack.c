@@ -221,22 +221,18 @@ static int cyberjack_write(struct tty_struct *tty,
 		return 0;
 	}
 
-	spin_lock_bh(&port->lock);
-	if (port->write_urb_busy) {
-		spin_unlock_bh(&port->lock);
+	if (!test_and_clear_bit(0, &port->write_urbs_free)) {
 		dbg("%s - already writing", __func__);
 		return 0;
 	}
-	port->write_urb_busy = 1;
-	spin_unlock_bh(&port->lock);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
 	if (count+priv->wrfilled > sizeof(priv->wrbuf)) {
 		/* To much data for buffer. Reset buffer. */
 		priv->wrfilled = 0;
-		port->write_urb_busy = 0;
 		spin_unlock_irqrestore(&priv->lock, flags);
+		set_bit(0, &port->write_urbs_free);
 		return 0;
 	}
 
@@ -283,7 +279,7 @@ static int cyberjack_write(struct tty_struct *tty,
 			priv->wrfilled = 0;
 			priv->wrsent = 0;
 			spin_unlock_irqrestore(&priv->lock, flags);
-			port->write_urb_busy = 0;
+			set_bit(0, &port->write_urbs_free);
 			return 0;
 		}
 
@@ -432,7 +428,7 @@ static void cyberjack_write_bulk_callback(struct urb *urb)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	port->write_urb_busy = 0;
+	set_bit(0, &port->write_urbs_free);
 	if (status) {
 		dbg("%s - nonzero write bulk status received: %d",
 		    __func__, status);
