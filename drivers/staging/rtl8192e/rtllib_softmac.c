@@ -28,9 +28,9 @@ short rtllib_is_54g(struct rtllib_network *net)
 	return (net->rates_ex_len > 0) || (net->rates_len > 4);
 }
 
-short rtllib_is_shortslot(struct rtllib_network net)
+short rtllib_is_shortslot(const struct rtllib_network *net)
 {
-	return net.capability & WLAN_CAPABILITY_SHORT_SLOT_TIME;
+	return net->capability & WLAN_CAPABILITY_SHORT_SLOT_TIME;
 }
 
 /* returns the total length needed for pleacing the RATE MFIE
