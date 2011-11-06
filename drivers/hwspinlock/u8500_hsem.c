@@ -21,6 +21,7 @@
  * General Public License for more details.
  */
 
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
