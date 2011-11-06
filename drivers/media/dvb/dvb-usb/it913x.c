@@ -577,6 +577,7 @@ static int it913x_probe(struct usb_interface *intf,
 static struct usb_device_id it913x_table[] = {
 	{ USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_UB499_2T_T09) },
 	{ USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135) },
+	{ USB_DEVICE(USB_VID_KWORLD_2, USB_PID_SVEON_STV22_IT9137) },
 	{}		/* Terminating entry */
 };
 
@@ -652,13 +653,16 @@ static struct dvb_usb_device_properties it913x_properties = {
 		.rc_codes	= RC_MAP_KWORLD_315U,
 	},
 	.i2c_algo         = &it913x_i2c_algo,
-	.num_device_descs = 2,
+	.num_device_descs = 3,
 	.devices = {
 		{   "Kworld UB499-2T T09(IT9137)",
 			{ &it913x_table[0], NULL },
 			},
 		{   "ITE 9135 Generic",
 			{ &it913x_table[1], NULL },
+			},
+		{   "Sveon STV22 Dual DVB-T HDTV(IT9137)",
+			{ &it913x_table[2], NULL },
 			},
 	}
 };
