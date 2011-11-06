@@ -467,7 +467,7 @@ static int add_bridge(acpi_handle handle)
 	 * granted by the BIOS for it.
 	 */
 	root = acpi_pci_find_root(handle);
-	if (root && (root->osc_control_set & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL))
+	if (root && (root->osc_control_set & OSC_PCI_NATIVE_HOTPLUG))
 		return -ENODEV;
 
 	/* if the bridge doesn't have _STA, we assume it is always there */
@@ -1395,7 +1395,7 @@ find_root_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
 	if (!root)
 		return AE_OK;
 
-	if (root->osc_control_set & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL)
+	if (root->osc_control_set & OSC_PCI_NATIVE_HOTPLUG)
 		return AE_OK;
 
 	(*count)++;
