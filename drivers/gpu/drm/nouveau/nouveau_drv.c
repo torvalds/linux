@@ -222,7 +222,7 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 
 		ret = dev_priv->eng[e]->fini(dev, e, true);
 		if (ret) {
-			NV_ERROR(dev, "... engine %d failed: %d\n", i, ret);
+			NV_ERROR(dev, "... engine %d failed: %d\n", e, ret);
 			goto out_abort;
 		}
 	}
