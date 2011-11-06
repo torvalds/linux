@@ -173,8 +173,7 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry);
 void ath_hw_cycle_counters_update(struct ath_common *common);
 int32_t ath_hw_get_listen_time(struct ath_common *common);
 
-extern __attribute__((format (printf, 2, 3)))
-void ath_printk(const char *level, const char *fmt, ...);
+extern __printf(2, 3) void ath_printk(const char *level, const char *fmt, ...);
 
 #define _ath_printk(level, common, fmt, ...)			\
 do {								\
@@ -258,7 +257,7 @@ do {									\
 
 #else
 
-static inline  __attribute__((format (printf, 3, 4)))
+static inline  __attribute__ ((format (printf, 3, 4)))
 void ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
 	     const char *fmt, ...)
 {

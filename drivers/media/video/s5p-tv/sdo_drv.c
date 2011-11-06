@@ -170,6 +170,7 @@ static int sdo_g_mbus_fmt(struct v4l2_subdev *sd,
 	fmt->height = sdev->fmt->height;
 	fmt->code = V4L2_MBUS_FMT_FIXED;
 	fmt->field = V4L2_FIELD_INTERLACED;
+	fmt->colorspace = V4L2_COLORSPACE_JPEG;
 	return 0;
 }
 

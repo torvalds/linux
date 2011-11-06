@@ -139,7 +139,7 @@ static int mlx4_buddy_init(struct mlx4_buddy *buddy, int max_order)
 
 	buddy->bits = kzalloc((buddy->max_order + 1) * sizeof (long *),
 			      GFP_KERNEL);
-	buddy->num_free = kzalloc((buddy->max_order + 1) * sizeof (int *),
+	buddy->num_free = kcalloc((buddy->max_order + 1), sizeof *buddy->num_free,
 				  GFP_KERNEL);
 	if (!buddy->bits || !buddy->num_free)
 		goto err_out;

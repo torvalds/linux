@@ -135,7 +135,69 @@ static struct platform_device mtx1_mtd = {
 	.resource	= &mtx1_mtd_resource,
 };
 
+static struct resource alchemy_pci_host_res[] = {
+	[0] = {
+		.start	= AU1500_PCI_PHYS_ADDR,
+		.end	= AU1500_PCI_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static int mtx1_pci_idsel(unsigned int devsel, int assert)
+{
+	/* This function is only necessary to support a proprietary Cardbus
+	 * adapter on the mtx-1 "singleboard" variant. It triggers a custom
+	 * logic chip connected to EXT_IO3 (GPIO1) to suppress IDSEL signals.
+	 */
+	if (assert && devsel != 0)
+		/* Suppress signal to Cardbus */
+		alchemy_gpio_set_value(1, 0);	/* set EXT_IO3 OFF */
+	else
+		alchemy_gpio_set_value(1, 1);	/* set EXT_IO3 ON */
+
+	udelay(1);
+	return 1;
+}
+
+static const char mtx1_irqtab[][5] = {
+	[0] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTA, 0xff, 0xff }, /* IDSEL 00 - AdapterA-Slot0 (top) */
+	[1] = { -1, AU1500_PCI_INTB, AU1500_PCI_INTA, 0xff, 0xff }, /* IDSEL 01 - AdapterA-Slot1 (bottom) */
+	[2] = { -1, AU1500_PCI_INTC, AU1500_PCI_INTD, 0xff, 0xff }, /* IDSEL 02 - AdapterB-Slot0 (top) */
+	[3] = { -1, AU1500_PCI_INTD, AU1500_PCI_INTC, 0xff, 0xff }, /* IDSEL 03 - AdapterB-Slot1 (bottom) */
+	[4] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, 0xff, 0xff }, /* IDSEL 04 - AdapterC-Slot0 (top) */
+	[5] = { -1, AU1500_PCI_INTB, AU1500_PCI_INTA, 0xff, 0xff }, /* IDSEL 05 - AdapterC-Slot1 (bottom) */
+	[6] = { -1, AU1500_PCI_INTC, AU1500_PCI_INTD, 0xff, 0xff }, /* IDSEL 06 - AdapterD-Slot0 (top) */
+	[7] = { -1, AU1500_PCI_INTD, AU1500_PCI_INTC, 0xff, 0xff }, /* IDSEL 07 - AdapterD-Slot1 (bottom) */
+};
+
+static int mtx1_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
+{
+	return mtx1_irqtab[slot][pin];
+}
+
+static struct alchemy_pci_platdata mtx1_pci_pd = {
+	.board_map_irq	 = mtx1_map_pci_irq,
+	.board_pci_idsel = mtx1_pci_idsel,
+	.pci_cfg_set	 = PCI_CONFIG_AEN | PCI_CONFIG_R2H | PCI_CONFIG_R1H |
+			   PCI_CONFIG_CH |
+#if defined(__MIPSEB__)
+			   PCI_CONFIG_SIC_HWA_DAT | PCI_CONFIG_SM,
+#else
+			   0,
+#endif
+};
+
+static struct platform_device mtx1_pci_host = {
+	.dev.platform_data = &mtx1_pci_pd,
+	.name		= "alchemy-pci",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(alchemy_pci_host_res),
+	.resource	= alchemy_pci_host_res,
+};
+
+
 static struct __initdata platform_device * mtx1_devs[] = {
+	&mtx1_pci_host,
 	&mtx1_gpio_leds,
 	&mtx1_wdt,
 	&mtx1_button,

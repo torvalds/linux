@@ -30,8 +30,14 @@
 /* Not more than 2GB */
 #define KEXEC_CONTROL_MEMORY_LIMIT (1UL<<31)
 
+/* Maximum address we can use for the crash control pages */
+#define KEXEC_CRASH_CONTROL_MEMORY_LIMIT (-1UL)
+
 /* Allocate one page for the pdp and the second for the code */
 #define KEXEC_CONTROL_PAGE_SIZE 4096
+
+/* Alignment of crashkernel memory */
+#define KEXEC_CRASH_MEM_ALIGN HPAGE_SIZE
 
 /* The native architecture */
 #define KEXEC_ARCH KEXEC_ARCH_S390

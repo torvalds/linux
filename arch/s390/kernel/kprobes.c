@@ -635,7 +635,7 @@ void __kprobes jprobe_return(void)
 	asm volatile(".word 0x0002");
 }
 
-void __kprobes jprobe_return_end(void)
+static void __used __kprobes jprobe_return_end(void)
 {
 	asm volatile("bcr 0,0");
 }

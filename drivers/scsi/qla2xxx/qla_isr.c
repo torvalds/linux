@@ -2279,7 +2279,7 @@ qla25xx_msix_rsp_q(int irq, void *dev_id)
 	ha = rsp->hw;
 
 	/* Clear the interrupt, if enabled, for this response queue */
-	if (rsp->options & ~BIT_6) {
+	if (!ha->flags.disable_msix_handshake) {
 		reg = &ha->iobase->isp24;
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);

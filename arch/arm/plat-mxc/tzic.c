@@ -42,7 +42,7 @@
 #define TZIC_SRCCLAR0	0x0280	/* Source Clear Register 0 */
 #define TZIC_PRIORITY0	0x0400	/* Priority Register 0 */
 #define TZIC_PND0	0x0D00	/* Pending Register 0 */
-#define TZIC_HIPND0	0x0D80	/* High Priority Pending Register */
+#define TZIC_HIPND(i)	(0x0D80+ ((i) << 2))	/* High Priority Pending Register */
 #define TZIC_WAKEUP0(i)	(0x0E00 + ((i) << 2))	/* Wakeup Config Register */
 #define TZIC_SWINT	0x0F00	/* Software Interrupt Rigger Register */
 #define TZIC_ID0	0x0FD0	/* Indentification Register 0 */
@@ -74,6 +74,12 @@ static int tzic_set_irq_fiq(unsigned int irq, unsigned int type)
 
 static unsigned int *wakeup_intr[4];
 
+static struct mxc_extra_irq tzic_extra_irq = {
+#ifdef CONFIG_FIQ
+	.set_irq_fiq = tzic_set_irq_fiq,
+#endif
+};
+
 static __init void tzic_init_gc(unsigned int irq_start)
 {
 	struct irq_chip_generic *gc;
@@ -82,7 +88,7 @@ static __init void tzic_init_gc(unsigned int irq_start)
 
 	gc = irq_alloc_generic_chip("tzic", 1, irq_start, tzic_base,
 				    handle_level_irq);
-	gc->private = tzic_set_irq_fiq;
+	gc->private = &tzic_extra_irq;
 	gc->wake_enabled = IRQ_MSK(32);
 	wakeup_intr[idx] = &gc->wake_active;
 
@@ -94,6 +100,28 @@ static __init void tzic_init_gc(unsigned int irq_start)
 	ct->regs.enable = TZIC_ENSET0(idx);
 
 	irq_setup_generic_chip(gc, IRQ_MSK(32), 0, IRQ_NOREQUEST, 0);
+}
+
+asmlinkage void __exception_irq_entry tzic_handle_irq(struct pt_regs *regs)
+{
+	u32 stat;
+	int i, irqofs, handled;
+
+	do {
+		handled = 0;
+
+		for (i = 0; i < 4; i++) {
+			stat = __raw_readl(tzic_base + TZIC_HIPND(i)) &
+				__raw_readl(tzic_base + TZIC_INTSEC0(i));
+
+			while (stat) {
+				handled = 1;
+				irqofs = fls(stat) - 1;
+				handle_IRQ(irqofs + i * 32, regs);
+				stat &= ~(1 << irqofs);
+			}
+		}
+	} while (handled);
 }
 
 /*

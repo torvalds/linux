@@ -159,17 +159,6 @@ static struct omap_usb_config voiceblue_usb_config __initdata = {
 static struct omap_board_config_kernel voiceblue_config[] = {
 };
 
-static void __init voiceblue_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
-
-static void __init voiceblue_map_io(void)
-{
-	omap1_map_common_io();
-}
-
 #define MACHINE_PANICED		1
 #define MACHINE_REBOOTING	2
 #define MACHINE_REBOOT		4
@@ -302,9 +291,10 @@ static void __init voiceblue_init(void)
 MACHINE_START(VOICEBLUE, "VoiceBlue OMAP5910")
 	/* Maintainer: Ladislav Michl <michl@2n.cz> */
 	.atag_offset	= 0x100,
-	.map_io		= voiceblue_map_io,
+	.map_io		= omap15xx_map_io,
+	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= voiceblue_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= voiceblue_init,
 	.timer		= &omap1_timer,
 MACHINE_END

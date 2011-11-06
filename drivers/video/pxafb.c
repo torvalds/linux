@@ -1309,16 +1309,6 @@ static int pxafb_smart_init(struct pxafb_info *fbi)
 	return 0;
 }
 #else
-int pxafb_smart_queue(struct fb_info *info, uint16_t *cmds, int n_cmds)
-{
-	return 0;
-}
-
-int pxafb_smart_flush(struct fb_info *info)
-{
-	return 0;
-}
-
 static inline int pxafb_smart_init(struct pxafb_info *fbi) { return 0; }
 #endif /* CONFIG_FB_PXA_SMARTPANEL */
 

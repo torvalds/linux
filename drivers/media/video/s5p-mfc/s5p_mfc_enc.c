@@ -599,8 +599,8 @@ static void cleanup_ref_queue(struct s5p_mfc_ctx *ctx)
 	while (!list_empty(&ctx->ref_queue)) {
 		mb_entry = list_entry((&ctx->ref_queue)->next,
 						struct s5p_mfc_buf, list);
-		mb_y_addr = vb2_dma_contig_plane_paddr(mb_entry->b, 0);
-		mb_c_addr = vb2_dma_contig_plane_paddr(mb_entry->b, 1);
+		mb_y_addr = vb2_dma_contig_plane_dma_addr(mb_entry->b, 0);
+		mb_c_addr = vb2_dma_contig_plane_dma_addr(mb_entry->b, 1);
 		list_del(&mb_entry->list);
 		ctx->ref_queue_cnt--;
 		list_add_tail(&mb_entry->list, &ctx->src_queue);
@@ -622,7 +622,7 @@ static int enc_pre_seq_start(struct s5p_mfc_ctx *ctx)
 
 	spin_lock_irqsave(&dev->irqlock, flags);
 	dst_mb = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf, list);
-	dst_addr = vb2_dma_contig_plane_paddr(dst_mb->b, 0);
+	dst_addr = vb2_dma_contig_plane_dma_addr(dst_mb->b, 0);
 	dst_size = vb2_plane_size(dst_mb->b, 0);
 	s5p_mfc_set_enc_stream_buffer(ctx, dst_addr, dst_size);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
@@ -668,14 +668,14 @@ static int enc_pre_frame_start(struct s5p_mfc_ctx *ctx)
 
 	spin_lock_irqsave(&dev->irqlock, flags);
 	src_mb = list_entry(ctx->src_queue.next, struct s5p_mfc_buf, list);
-	src_y_addr = vb2_dma_contig_plane_paddr(src_mb->b, 0);
-	src_c_addr = vb2_dma_contig_plane_paddr(src_mb->b, 1);
+	src_y_addr = vb2_dma_contig_plane_dma_addr(src_mb->b, 0);
+	src_c_addr = vb2_dma_contig_plane_dma_addr(src_mb->b, 1);
 	s5p_mfc_set_enc_frame_buffer(ctx, src_y_addr, src_c_addr);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 
 	spin_lock_irqsave(&dev->irqlock, flags);
 	dst_mb = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf, list);
-	dst_addr = vb2_dma_contig_plane_paddr(dst_mb->b, 0);
+	dst_addr = vb2_dma_contig_plane_dma_addr(dst_mb->b, 0);
 	dst_size = vb2_plane_size(dst_mb->b, 0);
 	s5p_mfc_set_enc_stream_buffer(ctx, dst_addr, dst_size);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
@@ -703,8 +703,8 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 	if (slice_type >= 0) {
 		s5p_mfc_get_enc_frame_buffer(ctx, &enc_y_addr, &enc_c_addr);
 		list_for_each_entry(mb_entry, &ctx->src_queue, list) {
-			mb_y_addr = vb2_dma_contig_plane_paddr(mb_entry->b, 0);
-			mb_c_addr = vb2_dma_contig_plane_paddr(mb_entry->b, 1);
+			mb_y_addr = vb2_dma_contig_plane_dma_addr(mb_entry->b, 0);
+			mb_c_addr = vb2_dma_contig_plane_dma_addr(mb_entry->b, 1);
 			if ((enc_y_addr == mb_y_addr) &&
 						(enc_c_addr == mb_c_addr)) {
 				list_del(&mb_entry->list);
@@ -715,8 +715,8 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 			}
 		}
 		list_for_each_entry(mb_entry, &ctx->ref_queue, list) {
-			mb_y_addr = vb2_dma_contig_plane_paddr(mb_entry->b, 0);
-			mb_c_addr = vb2_dma_contig_plane_paddr(mb_entry->b, 1);
+			mb_y_addr = vb2_dma_contig_plane_dma_addr(mb_entry->b, 0);
+			mb_c_addr = vb2_dma_contig_plane_dma_addr(mb_entry->b, 1);
 			if ((enc_y_addr == mb_y_addr) &&
 						(enc_c_addr == mb_c_addr)) {
 				list_del(&mb_entry->list);
@@ -1501,20 +1501,21 @@ static int check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 	for (i = 0; i < fmt->num_planes; i++) {
-		if (!vb2_dma_contig_plane_paddr(vb, i)) {
+		if (!vb2_dma_contig_plane_dma_addr(vb, i)) {
 			mfc_err("failed to get plane cookie\n");
 			return -EINVAL;
 		}
 		mfc_debug(2, "index: %d, plane[%d] cookie: 0x%08zx",
 				vb->v4l2_buf.index, i,
-				vb2_dma_contig_plane_paddr(vb, i));
+				vb2_dma_contig_plane_dma_addr(vb, i));
 	}
 	return 0;
 }
 
 static int s5p_mfc_queue_setup(struct vb2_queue *vq,
-		       unsigned int *buf_count, unsigned int *plane_count,
-		       unsigned long psize[], void *allocators[])
+			const struct v4l2_format *fmt,
+			unsigned int *buf_count, unsigned int *plane_count,
+			unsigned int psize[], void *allocators[])
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(vq->drv_priv);
 
@@ -1584,7 +1585,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 		i = vb->v4l2_buf.index;
 		ctx->dst_bufs[i].b = vb;
 		ctx->dst_bufs[i].cookie.stream =
-					vb2_dma_contig_plane_paddr(vb, 0);
+					vb2_dma_contig_plane_dma_addr(vb, 0);
 		ctx->dst_bufs_cnt++;
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		ret = check_vb_with_fmt(ctx->src_fmt, vb);
@@ -1593,9 +1594,9 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 		i = vb->v4l2_buf.index;
 		ctx->src_bufs[i].b = vb;
 		ctx->src_bufs[i].cookie.raw.luma =
-					vb2_dma_contig_plane_paddr(vb, 0);
+					vb2_dma_contig_plane_dma_addr(vb, 0);
 		ctx->src_bufs[i].cookie.raw.chroma =
-					vb2_dma_contig_plane_paddr(vb, 1);
+					vb2_dma_contig_plane_dma_addr(vb, 1);
 		ctx->src_bufs_cnt++;
 	} else {
 		mfc_err("inavlid queue type: %d\n", vq->type);
@@ -1640,7 +1641,7 @@ static int s5p_mfc_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int s5p_mfc_start_streaming(struct vb2_queue *q)
+static int s5p_mfc_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(q->drv_priv);
 	struct s5p_mfc_dev *dev = ctx->dev;
@@ -1814,7 +1815,7 @@ int s5p_mfc_enc_ctrls_setup(struct s5p_mfc_ctx *ctx)
 			return ctx->ctrl_handler.error;
 		}
 		if (controls[i].is_volatile && ctx->ctrls[i])
-			ctx->ctrls[i]->is_volatile = 1;
+			ctx->ctrls[i]->flags |= V4L2_CTRL_FLAG_VOLATILE;
 	}
 	return 0;
 }

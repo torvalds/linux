@@ -299,7 +299,7 @@ static void gfs2_set_nlink(struct inode *inode, u32 nlink)
 		if (nlink == 0)
 			clear_nlink(inode);
 		else
-			inode->i_nlink = nlink;
+			set_nlink(inode, nlink);
 	}
 }
 

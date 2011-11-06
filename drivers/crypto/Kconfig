@@ -200,6 +200,7 @@ config CRYPTO_DEV_HIFN_795X
 	select CRYPTO_BLKCIPHER
 	select HW_RANDOM if CRYPTO_DEV_HIFN_795X_RNG
 	depends on PCI
+	depends on !ARCH_DMA_ADDR_T_64BIT
 	help
 	  This option allows you to have support for HIFN 795x crypto adapters.
 
@@ -266,7 +267,7 @@ config CRYPTO_DEV_OMAP_AES
 
 config CRYPTO_DEV_PICOXCELL
 	tristate "Support for picoXcell IPSEC and Layer2 crypto engines"
-	depends on ARCH_PICOXCELL
+	depends on ARCH_PICOXCELL && HAVE_CLK
 	select CRYPTO_AES
 	select CRYPTO_AUTHENC
 	select CRYPTO_ALGAPI

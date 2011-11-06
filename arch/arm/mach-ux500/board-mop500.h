@@ -40,10 +40,13 @@
 struct i2c_board_info;
 
 extern void mop500_sdi_init(void);
+extern void snowball_sdi_init(void);
 extern void mop500_sdi_tc35892_init(void);
 void __init mop500_u8500uib_init(void);
 void __init mop500_stuib_init(void);
 void __init mop500_pins_init(void);
+void __init hrefv60_pins_init(void);
+void __init snowball_pins_init(void);
 
 void mop500_uib_i2c_add(int busnum, struct i2c_board_info *info,
 		unsigned n);

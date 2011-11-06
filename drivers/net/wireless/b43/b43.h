@@ -1011,14 +1011,10 @@ static inline bool b43_using_pio_transfers(struct b43_wldev *dev)
 }
 
 /* Message printing */
-void b43info(struct b43_wl *wl, const char *fmt, ...)
-    __attribute__ ((format(printf, 2, 3)));
-void b43err(struct b43_wl *wl, const char *fmt, ...)
-    __attribute__ ((format(printf, 2, 3)));
-void b43warn(struct b43_wl *wl, const char *fmt, ...)
-    __attribute__ ((format(printf, 2, 3)));
-void b43dbg(struct b43_wl *wl, const char *fmt, ...)
-    __attribute__ ((format(printf, 2, 3)));
+__printf(2, 3) void b43info(struct b43_wl *wl, const char *fmt, ...);
+__printf(2, 3) void b43err(struct b43_wl *wl, const char *fmt, ...);
+__printf(2, 3) void b43warn(struct b43_wl *wl, const char *fmt, ...);
+__printf(2, 3) void b43dbg(struct b43_wl *wl, const char *fmt, ...);
 
 
 /* A WARN_ON variant that vanishes when b43 debugging is disabled.

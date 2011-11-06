@@ -59,6 +59,8 @@ struct wm8994 {
 	struct device *dev;
 	struct regmap *regmap;
 
+	bool ldo_ena_always_driven;
+
 	int gpio_base;
 	int irq_base;
 

@@ -266,7 +266,7 @@
 
       <para>When satisfied with the try results, applications can set the active
       formats by setting the <structfield>which</structfield> argument to
-      <constant>V4L2_SUBDEV_FORMAT_TRY</constant>. Active formats are changed
+      <constant>V4L2_SUBDEV_FORMAT_ACTIVE</constant>. Active formats are changed
       exactly as try formats by drivers. To avoid modifying the hardware state
       during format negotiation, applications should negotiate try formats first
       and then modify the active settings using the try formats returned during

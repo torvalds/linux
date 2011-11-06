@@ -372,12 +372,6 @@ static struct i2c_board_info __initdata h2_i2c_board_info[] = {
 	},
 };
 
-static void __init h2_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
-
 static struct omap_usb_config h2_usb_config __initdata = {
 	/* usb1 has a Mini-AB port and external isp1301 transceiver */
 	.otg		= 2,
@@ -453,17 +447,13 @@ static void __init h2_init(void)
 	h2_mmc_init();
 }
 
-static void __init h2_map_io(void)
-{
-	omap1_map_common_io();
-}
-
 MACHINE_START(OMAP_H2, "TI-H2")
 	/* Maintainer: Imre Deak <imre.deak@nokia.com> */
 	.atag_offset	= 0x100,
-	.map_io		= h2_map_io,
+	.map_io		= omap16xx_map_io,
+	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= h2_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= h2_init,
 	.timer		= &omap1_timer,
 MACHINE_END

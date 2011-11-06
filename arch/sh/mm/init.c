@@ -287,6 +287,8 @@ static void __init do_init_bootmem(void)
 static void __init early_reserve_mem(void)
 {
 	unsigned long start_pfn;
+	u32 zero_base = (u32)__MEMORY_START + (u32)PHYSICAL_OFFSET;
+	u32 start = zero_base + (u32)CONFIG_ZERO_PAGE_OFFSET;
 
 	/*
 	 * Partially used pages are not usable - thus
@@ -300,15 +302,13 @@ static void __init early_reserve_mem(void)
 	 * this catches the (definitely buggy) case of us accidentally
 	 * initializing the bootmem allocator with an invalid RAM area.
 	 */
-	memblock_reserve(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
-		    (PFN_PHYS(start_pfn) + PAGE_SIZE - 1) -
-		    (__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET));
+	memblock_reserve(start, (PFN_PHYS(start_pfn) + PAGE_SIZE - 1) - start);
 
 	/*
 	 * Reserve physical pages below CONFIG_ZERO_PAGE_OFFSET.
 	 */
 	if (CONFIG_ZERO_PAGE_OFFSET != 0)
-		memblock_reserve(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET);
+		memblock_reserve(zero_base, CONFIG_ZERO_PAGE_OFFSET);
 
 	/*
 	 * Handle additional early reservations
