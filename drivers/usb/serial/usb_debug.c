@@ -54,7 +54,7 @@ static void usb_debug_break_ctl(struct tty_struct *tty, int break_state)
 	usb_serial_generic_write(tty, port, USB_DEBUG_BRK, USB_DEBUG_BRK_SIZE);
 }
 
-static void usb_debug_read_bulk_callback(struct urb *urb)
+static void usb_debug_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 
@@ -62,11 +62,10 @@ static void usb_debug_read_bulk_callback(struct urb *urb)
 		memcmp(urb->transfer_buffer, USB_DEBUG_BRK,
 						USB_DEBUG_BRK_SIZE) == 0) {
 		usb_serial_handle_break(port);
-		usb_serial_generic_submit_read_urb(port, GFP_ATOMIC);
 		return;
 	}
 
-	usb_serial_generic_read_bulk_callback(urb);
+	usb_serial_generic_process_read_urb(urb);
 }
 
 static struct usb_serial_driver debug_device = {
@@ -79,7 +78,7 @@ static struct usb_serial_driver debug_device = {
 	.num_ports =		1,
 	.bulk_out_size =	USB_DEBUG_MAX_PACKET_SIZE,
 	.break_ctl =		usb_debug_break_ctl,
-	.read_bulk_callback =	usb_debug_read_bulk_callback,
+	.process_read_urb =	usb_debug_process_read_urb,
 };
 
 static int __init debug_init(void)
