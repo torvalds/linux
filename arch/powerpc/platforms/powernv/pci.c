@@ -416,6 +416,13 @@ static void __devinit pnv_pci_dma_dev_setup(struct pci_dev *pdev)
 		pnv_pci_dma_fallback_setup(hose, pdev);
 }
 
+/* Fixup wrong class code in p7ioc root complex */
+static void __devinit pnv_p7ioc_rc_quirk(struct pci_dev *dev)
+{
+	dev->class = PCI_CLASS_BRIDGE_PCI << 8;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_IBM, 0x3b9, pnv_p7ioc_rc_quirk);
+
 static int pnv_pci_probe_mode(struct pci_bus *bus)
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
