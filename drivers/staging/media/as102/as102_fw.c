@@ -26,7 +26,6 @@
 #include "as102_drv.h"
 #include "as102_fw.h"
 
-#if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
 char as102_st_fw1[] = "as102_data1_st.hex";
 char as102_st_fw2[] = "as102_data2_st.hex";
 char as102_dt_fw1[] = "as102_data1_dt.hex";
@@ -182,7 +181,6 @@ int as102_fw_upload(struct as102_bus_adapter_t *bus_adap)
 		fw2 = as102_st_fw2;
 	}
 
-#if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
 	/* allocate buffer to store firmware upload command and data */
 	cmd_buf = kzalloc(MAX_FW_PKT_SIZE, GFP_KERNEL);
 	if (cmd_buf == NULL) {
@@ -237,8 +235,7 @@ error:
 	/* release firmware if needed */
 	if (firmware != NULL)
 		release_firmware(firmware);
-#endif
+
 	LEAVE();
 	return errno;
 }
-#endif

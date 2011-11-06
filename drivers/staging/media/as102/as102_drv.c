@@ -249,7 +249,6 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 	/* init start / stop stream mutex */
 	mutex_init(&as102_dev->sem);
 
-#if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
 	/*
 	 * try to load as102 firmware. If firmware upload failed, we'll be
 	 * able to upload it later.
@@ -257,8 +256,6 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 	if (fw_upload)
 		try_then_request_module(as102_fw_upload(&as102_dev->bus_adap),
 				"firmware_class");
-#endif
-
 failed:
 	LEAVE();
 	/* FIXME: free dvb_XXX */
