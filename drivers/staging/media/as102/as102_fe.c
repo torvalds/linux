@@ -23,8 +23,6 @@
 #include "as10x_types.h"
 #include "as10x_cmd.h"
 
-extern int elna_enable;
-
 static void as10x_fe_copy_tps_parameters(struct dvb_frontend_parameters *dst,
 					 struct as10x_tps *src);
 
