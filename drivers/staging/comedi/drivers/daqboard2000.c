@@ -325,9 +325,8 @@ static const struct daq200_boardtype boardtypes[] = {
 #define this_board ((const struct daq200_boardtype *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
-	{
-	0x1616, 0x0409, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(0x1616, 0x0409) },
+	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, daqboard2000_pci_table);
