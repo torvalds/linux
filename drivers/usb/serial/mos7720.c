@@ -940,8 +940,6 @@ static void mos7720_bulk_in_callback(struct urb *urb)
 	tty_kref_put(tty);
 
 	if (port->read_urb->status != -EINPROGRESS) {
-		port->read_urb->dev = port->serial->dev;
-
 		retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 		if (retval)
 			dbg("usb_submit_urb(read bulk) failed, retval = %d",
@@ -1727,8 +1725,6 @@ static void change_port_settings(struct tty_struct *tty,
 	write_mos_reg(serial, port_number, IER, 0x0c);
 
 	if (port->read_urb->status != -EINPROGRESS) {
-		port->read_urb->dev = serial->dev;
-
 		status = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 		if (status)
 			dbg("usb_submit_urb(read bulk) failed, status = %d",
@@ -1779,7 +1775,6 @@ static void mos7720_set_termios(struct tty_struct *tty,
 	change_port_settings(tty, mos7720_port, old_termios);
 
 	if (port->read_urb->status != -EINPROGRESS) {
-		port->read_urb->dev = serial->dev;
 		status = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 		if (status)
 			dbg("usb_submit_urb(read bulk) failed, status = %d",

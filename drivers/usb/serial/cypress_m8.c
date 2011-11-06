@@ -1136,8 +1136,6 @@ static void cypress_unthrottle(struct tty_struct *tty)
 		return;
 
 	if (actually_throttled) {
-		port->interrupt_in_urb->dev = port->serial->dev;
-
 		result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 		if (result) {
 			dev_err(&port->dev, "%s - failed submitting read urb, "
@@ -1326,7 +1324,6 @@ static void cypress_write_int_callback(struct urb *urb)
 		dbg("%s - nonzero write bulk status received: %d",
 			__func__, status);
 		port->interrupt_out_urb->transfer_buffer_length = 1;
-		port->interrupt_out_urb->dev = port->serial->dev;
 		result = usb_submit_urb(port->interrupt_out_urb, GFP_ATOMIC);
 		if (!result)
 			return;

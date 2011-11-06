@@ -901,7 +901,6 @@ static int garmin_init_session(struct usb_serial_port *port)
 		usb_kill_urb(port->interrupt_in_urb);
 
 		dbg("%s - adding interrupt input", __func__);
-		port->interrupt_in_urb->dev = serial->dev;
 		status = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 		if (status)
 			dev_err(&serial->dev->dev,
@@ -1353,7 +1352,6 @@ static void garmin_read_int_callback(struct urb *urb)
 
 	garmin_read_process(garmin_data_p, data, urb->actual_length, 0);
 
-	port->interrupt_in_urb->dev = port->serial->dev;
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		dev_err(&urb->dev->dev,

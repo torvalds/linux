@@ -1770,12 +1770,11 @@ static void edge_bulk_in_callback(struct urb *urb)
 exit:
 	/* continue read unless stopped */
 	spin_lock(&edge_port->ep_lock);
-	if (edge_port->ep_read_urb_state == EDGE_READ_URB_RUNNING) {
-		urb->dev = edge_port->port->serial->dev;
+	if (edge_port->ep_read_urb_state == EDGE_READ_URB_RUNNING)
 		retval = usb_submit_urb(urb, GFP_ATOMIC);
-	} else if (edge_port->ep_read_urb_state == EDGE_READ_URB_STOPPING) {
+	else if (edge_port->ep_read_urb_state == EDGE_READ_URB_STOPPING)
 		edge_port->ep_read_urb_state = EDGE_READ_URB_STOPPED;
-	}
+
 	spin_unlock(&edge_port->ep_lock);
 	if (retval)
 		dev_err(&urb->dev->dev,
@@ -1954,7 +1953,6 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 		}
 		urb->complete = edge_interrupt_callback;
 		urb->context = edge_serial;
-		urb->dev = dev;
 		status = usb_submit_urb(urb, GFP_KERNEL);
 		if (status) {
 			dev_err(&port->dev,
@@ -1982,7 +1980,6 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 	edge_port->ep_read_urb_state = EDGE_READ_URB_RUNNING;
 	urb->complete = edge_bulk_in_callback;
 	urb->context = edge_port;
-	urb->dev = dev;
 	status = usb_submit_urb(urb, GFP_KERNEL);
 	if (status) {
 		dev_err(&port->dev,
@@ -2262,7 +2259,6 @@ static int restart_read(struct edgeport_port *edge_port)
 		urb = edge_port->port->read_urb;
 		urb->complete = edge_bulk_in_callback;
 		urb->context = edge_port;
-		urb->dev = edge_port->port->serial->dev;
 		status = usb_submit_urb(urb, GFP_ATOMIC);
 	}
 	edge_port->ep_read_urb_state = EDGE_READ_URB_RUNNING;

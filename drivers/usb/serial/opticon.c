@@ -384,7 +384,6 @@ static void opticon_unthrottle(struct tty_struct *tty)
 	priv->actually_throttled = false;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	priv->bulk_read_urb->dev = port->serial->dev;
 	if (was_throttled) {
 		result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
 		if (result)

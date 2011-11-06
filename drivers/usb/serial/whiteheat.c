@@ -702,7 +702,6 @@ static void whiteheat_close(struct usb_serial_port *port)
 static int whiteheat_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
-	struct usb_serial *serial = port->serial;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
 	struct whiteheat_urb_wrap *wrap;
 	struct urb *urb;
@@ -738,7 +737,6 @@ static int whiteheat_write(struct tty_struct *tty,
 		usb_serial_debug_data(debug, &port->dev,
 				__func__, bytes, urb->transfer_buffer);
 
-		urb->dev = serial->dev;
 		urb->transfer_buffer_length = bytes;
 		result = usb_submit_urb(urb, GFP_ATOMIC);
 		if (result) {
@@ -984,7 +982,6 @@ static void command_port_read_callback(struct urb *urb)
 		dbg("%s - bad reply from firmware", __func__);
 
 	/* Continue trying to always read */
-	command_port->read_urb->dev = command_port->serial->dev;
 	result = usb_submit_urb(command_port->read_urb, GFP_ATOMIC);
 	if (result)
 		dbg("%s - failed resubmitting read urb, error %d",
@@ -1090,7 +1087,6 @@ static int firm_send_command(struct usb_serial_port *port, __u8 command,
 	transfer_buffer[0] = command;
 	memcpy(&transfer_buffer[1], data, datasize);
 	command_port->write_urb->transfer_buffer_length = datasize + 1;
-	command_port->write_urb->dev = port->serial->dev;
 	retval = usb_submit_urb(command_port->write_urb, GFP_NOIO);
 	if (retval) {
 		dbg("%s - submit urb failed", __func__);
@@ -1311,7 +1307,6 @@ static int start_command_port(struct usb_serial *serial)
 		/* Work around HCD bugs */
 		usb_clear_halt(serial->dev, command_port->read_urb->pipe);
 
-		command_port->read_urb->dev = serial->dev;
 		retval = usb_submit_urb(command_port->read_urb, GFP_KERNEL);
 		if (retval) {
 			dev_err(&serial->dev->dev,
@@ -1359,7 +1354,6 @@ static int start_port_read(struct usb_serial_port *port)
 		list_del(tmp);
 		wrap = list_entry(tmp, struct whiteheat_urb_wrap, list);
 		urb = wrap->urb;
-		urb->dev = port->serial->dev;
 		spin_unlock_irqrestore(&info->lock, flags);
 		retval = usb_submit_urb(urb, GFP_KERNEL);
 		if (retval) {
@@ -1439,7 +1433,6 @@ static void rx_data_softint(struct work_struct *work)
 			sent += tty_insert_flip_string(tty,
 				urb->transfer_buffer, urb->actual_length);
 
-		urb->dev = port->serial->dev;
 		result = usb_submit_urb(urb, GFP_ATOMIC);
 		if (result) {
 			dev_err(&port->dev,

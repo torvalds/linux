@@ -482,7 +482,6 @@ static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 	mct_u232_msr_to_state(&priv->control_state, priv->last_msr);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	port->read_urb->dev = port->serial->dev;
 	retval = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (retval) {
 		dev_err(&port->dev,
@@ -491,7 +490,6 @@ static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto error;
 	}
 
-	port->interrupt_in_urb->dev = port->serial->dev;
 	retval = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (retval) {
 		usb_kill_urb(port->read_urb);

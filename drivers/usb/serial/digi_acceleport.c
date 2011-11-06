@@ -438,7 +438,6 @@ static int digi_write_oob_command(struct usb_serial_port *port,
 			len &= ~3;
 		memcpy(oob_port->write_urb->transfer_buffer, buf, len);
 		oob_port->write_urb->transfer_buffer_length = len;
-		oob_port->write_urb->dev = port->serial->dev;
 		ret = usb_submit_urb(oob_port->write_urb, GFP_ATOMIC);
 		if (ret == 0) {
 			oob_priv->dp_write_urb_in_use = 1;
@@ -516,7 +515,6 @@ static int digi_write_inb_command(struct usb_serial_port *port,
 			memcpy(data, buf, len);
 			port->write_urb->transfer_buffer_length = len;
 		}
-		port->write_urb->dev = port->serial->dev;
 
 		ret = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (ret == 0) {
@@ -587,7 +585,6 @@ static int digi_set_modem_signals(struct usb_serial_port *port,
 	data[7] = 0;
 
 	oob_port->write_urb->transfer_buffer_length = 8;
-	oob_port->write_urb->dev = port->serial->dev;
 
 	ret = usb_submit_urb(oob_port->write_urb, GFP_ATOMIC);
 	if (ret == 0) {
@@ -683,10 +680,8 @@ static void digi_rx_unthrottle(struct tty_struct *tty)
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 
 	/* restart read chain */
-	if (priv->dp_throttle_restart) {
-		port->read_urb->dev = port->serial->dev;
+	if (priv->dp_throttle_restart)
 		ret = usb_submit_urb(port->read_urb, GFP_ATOMIC);
-	}
 
 	/* turn throttle off */
 	priv->dp_throttled = 0;
@@ -979,7 +974,6 @@ static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 
 	port->write_urb->transfer_buffer_length = data_len+2;
-	port->write_urb->dev = port->serial->dev;
 
 	*data++ = DIGI_CMD_SEND_DATA;
 	*data++ = data_len;
@@ -1055,7 +1049,6 @@ static void digi_write_bulk_callback(struct urb *urb)
 			= (unsigned char)priv->dp_out_buf_len;
 		port->write_urb->transfer_buffer_length =
 						priv->dp_out_buf_len + 2;
-		port->write_urb->dev = serial->dev;
 		memcpy(port->write_urb->transfer_buffer + 2, priv->dp_out_buf,
 			priv->dp_out_buf_len);
 		ret = usb_submit_urb(port->write_urb, GFP_ATOMIC);
@@ -1257,7 +1250,6 @@ static int digi_startup_device(struct usb_serial *serial)
 	/* set USB_DISABLE_SPD flag for write bulk urbs */
 	for (i = 0; i < serial->type->num_ports + 1; i++) {
 		port = serial->port[i];
-		port->write_urb->dev = port->serial->dev;
 		ret = usb_submit_urb(port->read_urb, GFP_KERNEL);
 		if (ret != 0) {
 			dev_err(&port->dev,
@@ -1400,7 +1392,6 @@ static void digi_read_bulk_callback(struct urb *urb)
 	}
 
 	/* continue read */
-	urb->dev = port->serial->dev;
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret != 0 && ret != -EPERM) {
 		dev_err(&port->dev,

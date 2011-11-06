@@ -537,7 +537,6 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 		}
 		urb->complete = ti_interrupt_callback;
 		urb->context = tdev;
-		urb->dev = dev;
 		status = usb_submit_urb(urb, GFP_KERNEL);
 		if (status) {
 			dev_err(&port->dev,
@@ -621,7 +620,6 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	tport->tp_read_urb_state = TI_READ_URB_RUNNING;
 	urb->complete = ti_bulk_in_callback;
 	urb->context = tport;
-	urb->dev = dev;
 	status = usb_submit_urb(urb, GFP_KERNEL);
 	if (status) {
 		dev_err(&port->dev, "%s - submit read urb failed, %d\n",
@@ -1236,12 +1234,11 @@ static void ti_bulk_in_callback(struct urb *urb)
 exit:
 	/* continue to read unless stopping */
 	spin_lock(&tport->tp_lock);
-	if (tport->tp_read_urb_state == TI_READ_URB_RUNNING) {
-		urb->dev = port->serial->dev;
+	if (tport->tp_read_urb_state == TI_READ_URB_RUNNING)
 		retval = usb_submit_urb(urb, GFP_ATOMIC);
-	} else if (tport->tp_read_urb_state == TI_READ_URB_STOPPING) {
+	else if (tport->tp_read_urb_state == TI_READ_URB_STOPPING)
 		tport->tp_read_urb_state = TI_READ_URB_STOPPED;
-	}
+
 	spin_unlock(&tport->tp_lock);
 	if (retval)
 		dev_err(dev, "%s - resubmit read urb failed, %d\n",
@@ -1576,7 +1573,6 @@ static int ti_restart_read(struct ti_port *tport, struct tty_struct *tty)
 		spin_unlock_irqrestore(&tport->tp_lock, flags);
 		urb->complete = ti_bulk_in_callback;
 		urb->context = tport;
-		urb->dev = tport->tp_port->serial->dev;
 		status = usb_submit_urb(urb, GFP_KERNEL);
 	} else  {
 		tport->tp_read_urb_state = TI_READ_URB_RUNNING;

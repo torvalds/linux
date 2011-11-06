@@ -154,6 +154,7 @@ static int omninet_open(struct tty_struct *tty, struct usb_serial_port *port)
 			port->read_urb->transfer_buffer,
 			port->read_urb->transfer_buffer_length,
 			omninet_read_bulk_callback, port);
+
 	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (result)
 		dev_err(&port->dev,
@@ -262,7 +263,6 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 	/* send the data out the bulk port, always 64 bytes */
 	wport->write_urb->transfer_buffer_length = 64;
 
-	wport->write_urb->dev = serial->dev;
 	result = usb_submit_urb(wport->write_urb, GFP_ATOMIC);
 	if (result) {
 		set_bit(0, &wport->write_urbs_free);

@@ -681,7 +681,6 @@ static void sierra_instat_callback(struct urb *urb)
 	/* Resubmit urb so we continue receiving IRQ data */
 	if (status != -ESHUTDOWN && status != -ENOENT) {
 		usb_mark_last_busy(serial->dev);
-		urb->dev = serial->dev;
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err && err != -EPERM)
 			dev_err(&port->dev, "%s: resubmit intr urb "

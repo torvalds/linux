@@ -138,7 +138,6 @@ static int cyberjack_startup(struct usb_serial *serial)
 
 	for (i = 0; i < serial->num_ports; ++i) {
 		int result;
-		serial->port[i]->interrupt_in_urb->dev = serial->dev;
 		result = usb_submit_urb(serial->port[i]->interrupt_in_urb,
 					GFP_KERNEL);
 		if (result)
@@ -347,7 +346,6 @@ static void cyberjack_read_int_callback(struct urb *urb)
 		spin_unlock(&priv->lock);
 
 		if (!old_rdtodo) {
-			port->read_urb->dev = port->serial->dev;
 			result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 			if (result)
 				dev_err(&port->dev, "%s - failed resubmitting "
@@ -358,7 +356,6 @@ static void cyberjack_read_int_callback(struct urb *urb)
 	}
 
 resubmit:
-	port->interrupt_in_urb->dev = port->serial->dev;
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 	if (result)
 		dev_err(&port->dev, "usb_submit_urb(read int) failed\n");
@@ -411,7 +408,6 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 
 	/* Continue to read if we have still urbs to do. */
 	if (todo /* || (urb->actual_length==port->bulk_in_endpointAddress)*/) {
-		port->read_urb->dev = port->serial->dev;
 		result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 		if (result)
 			dev_err(&port->dev, "%s - failed resubmitting read "
