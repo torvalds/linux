@@ -183,6 +183,7 @@
 #define BTTV_BOARD_GEOVISION_GV800S	   0x9d
 #define BTTV_BOARD_GEOVISION_GV800S_SL	   0x9e
 #define BTTV_BOARD_PV183                   0x9f
+#define BTTV_BOARD_TVT_TD3116		   0xa0
 
 
 /* more card-specific defines */
