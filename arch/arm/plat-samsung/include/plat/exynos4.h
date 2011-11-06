@@ -18,8 +18,8 @@ extern void exynos4210_register_clocks(void);
 extern void exynos4212_register_clocks(void);
 extern void exynos4_setup_clocks(void);
 
-#ifdef CONFIG_ARCH_EXYNOS4
-extern  int exynos4_init(void);
+#ifdef CONFIG_ARCH_EXYNOS
+extern  int exynos_init(void);
 extern void exynos4_init_irq(void);
 extern void exynos4_map_io(void);
 extern void exynos4_init_clocks(int xtal);
@@ -31,5 +31,5 @@ extern struct sys_timer exynos4_timer;
 #define exynos4_init_clocks NULL
 #define exynos4_init_uarts NULL
 #define exynos4_map_io NULL
-#define exynos4_init NULL
+#define exynos_init NULL
 #endif

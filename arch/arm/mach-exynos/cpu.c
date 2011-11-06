@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-exynos4/cpu.c
+/* linux/arch/arm/mach-exynos/cpu.c
  *
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -40,26 +40,45 @@ extern int combiner_init(unsigned int combiner_nr, void __iomem *base,
 extern void combiner_cascade_irq(unsigned int combiner_nr, unsigned int irq);
 
 /* Initial IO mappings */
-static struct map_desc exynos4_iodesc[] __initdata = {
+static struct map_desc exynos_iodesc[] __initdata = {
 	{
 		.virtual	= (unsigned long)S5P_VA_SYSTIMER,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_SYSTIMER),
+		.pfn		= __phys_to_pfn(EXYNOS_PA_SYSTIMER),
 		.length		= SZ_4K,
-		.type	 	= MT_DEVICE,
-	}, {
-		.virtual	= (unsigned long)S5P_VA_CMU,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_CMU),
-		.length		= SZ_128K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_PMU,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_PMU),
+		.pfn		= __phys_to_pfn(EXYNOS_PA_PMU),
 		.length		= SZ_64K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_COMBINER_BASE,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_COMBINER),
+		.pfn		= __phys_to_pfn(EXYNOS_PA_COMBINER),
 		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_GIC_CPU,
+		.pfn		= __phys_to_pfn(EXYNOS_PA_GIC_CPU),
+		.length		= SZ_64K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_GIC_DIST,
+		.pfn		= __phys_to_pfn(EXYNOS_PA_GIC_DIST),
+		.length		= SZ_64K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_UART,
+		.pfn		= __phys_to_pfn(S3C_PA_UART),
+		.length		= SZ_512K,
+		.type		= MT_DEVICE,
+	},
+};
+
+static struct map_desc exynos4_iodesc[] __initdata = {
+	{
+		.virtual	= (unsigned long)S5P_VA_CMU,
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_CMU),
+		.length		= SZ_128K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_COREPERI_BASE,
@@ -92,11 +111,6 @@ static struct map_desc exynos4_iodesc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= (unsigned long)S3C_VA_UART,
-		.pfn		= __phys_to_pfn(S3C_PA_UART),
-		.length		= SZ_512K,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= (unsigned long)S5P_VA_SROMC,
 		.pfn		= __phys_to_pfn(EXYNOS4_PA_SROMC),
 		.length		= SZ_4K,
@@ -105,16 +119,6 @@ static struct map_desc exynos4_iodesc[] __initdata = {
 		.virtual	= (unsigned long)S3C_VA_USB_HSPHY,
 		.pfn		= __phys_to_pfn(EXYNOS4_PA_HSPHY),
 		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= (unsigned long)S5P_VA_GIC_CPU,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_GIC_CPU),
-		.length		= SZ_64K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= (unsigned long)S5P_VA_GIC_DIST,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_GIC_DIST),
-		.length		= SZ_64K,
 		.type		= MT_DEVICE,
 	},
 };
@@ -137,7 +141,7 @@ static struct map_desc exynos4_iodesc1[] __initdata = {
 	},
 };
 
-static void exynos4_idle(void)
+static void exynos_idle(void)
 {
 	if (!need_resched())
 		cpu_do_idle();
@@ -151,12 +155,13 @@ static void exynos4_sw_reset(void)
 }
 
 /*
- * exynos4_map_io
+ * exynos_map_io
  *
  * register the standard cpu IO areas
  */
 void __init exynos4_map_io(void)
 {
+	iotable_init(exynos_iodesc, ARRAY_SIZE(exynos_iodesc));
 	iotable_init(exynos4_iodesc, ARRAY_SIZE(exynos4_iodesc));
 
 	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_0)
@@ -250,7 +255,6 @@ static int __init exynos4_core_init(void)
 {
 	return sysdev_class_register(&exynos4_sysclass);
 }
-
 core_initcall(exynos4_core_init);
 
 #ifdef CONFIG_CACHE_L2X0
@@ -279,15 +283,16 @@ static int __init exynos4_l2x0_cache_init(void)
 early_initcall(exynos4_l2x0_cache_init);
 #endif
 
-int __init exynos4_init(void)
+int __init exynos_init(void)
 {
-	printk(KERN_INFO "EXYNOS4: Initializing architecture\n");
+	printk(KERN_INFO "EXYNOS: Initializing architecture\n");
 
 	/* set idle function */
-	pm_idle = exynos4_idle;
+	pm_idle = exynos_idle;
 
 	/* set sw_reset function */
-	s5p_reset_hook = exynos4_sw_reset;
+	if (soc_is_exynos4210() || soc_is_exynos4212() || soc_is_exynos4412())
+		s5p_reset_hook = exynos4_sw_reset;
 
 	return sysdev_register(&exynos4_sysdev);
 }
