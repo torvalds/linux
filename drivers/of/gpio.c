@@ -198,8 +198,6 @@ int of_mm_gpiochip_add(struct device_node *np,
 	if (ret)
 		goto err2;
 
-	pr_debug("%s: registered as generic GPIO chip, base is %d\n",
-		 np->full_name, gc->base);
 	return 0;
 err2:
 	iounmap(mm_gc->regs);

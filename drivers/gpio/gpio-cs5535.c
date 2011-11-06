@@ -347,7 +347,6 @@ static int __devinit cs5535_gpio_probe(struct platform_device *pdev)
 	if (err)
 		goto release_region;
 
-	dev_info(&pdev->dev, "GPIO support successfully loaded.\n");
 	return 0;
 
 release_region:

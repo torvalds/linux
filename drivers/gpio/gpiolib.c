@@ -1089,6 +1089,10 @@ unlock:
 	if (status)
 		goto fail;
 
+	pr_info("gpiochip_add: registered GPIOs %d to %d on device: %s\n",
+		chip->base, chip->base + chip->ngpio - 1,
+		chip->label ? : "generic");
+
 	return 0;
 fail:
 	/* failures here can mean systems won't boot... */

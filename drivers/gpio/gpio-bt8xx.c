@@ -223,9 +223,6 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 		goto err_release_mem;
 	}
 
-	printk(KERN_INFO "bt8xxgpio: Abusing BT8xx card for GPIOs %d to %d\n",
-	       bg->gpio.base, bg->gpio.base + BT8XXGPIO_NR_GPIOS - 1);
-
 	return 0;
 
 err_release_mem:

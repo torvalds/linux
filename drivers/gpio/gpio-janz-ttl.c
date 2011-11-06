@@ -201,8 +201,6 @@ static int __devinit ttl_probe(struct platform_device *pdev)
 		goto out_iounmap_regs;
 	}
 
-	dev_info(&pdev->dev, "module %d: registered GPIO device\n",
-			     pdata->modno);
 	return 0;
 
 out_iounmap_regs:
