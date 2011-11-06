@@ -111,7 +111,6 @@
 #define CFG_MODE_OFF    1
 #define CFG_MODE_AUTO   2
 
-#pragma pack(1)
 struct as10x_tps {
    uint8_t constellation;
    uint8_t hierarchy;
@@ -123,7 +122,7 @@ struct as10x_tps {
    uint8_t DVBH_mask_HP;
    uint8_t DVBH_mask_LP;
    uint16_t cell_ID;
-};
+} __packed;
 
 struct as10x_tune_args {
    /* frequency */
@@ -144,7 +143,7 @@ struct as10x_tune_args {
    uint8_t guard_interval;
    /* transmission mode */
    uint8_t transmission_mode;
-};
+} __packed;
 
 struct as10x_tune_status {
    /* tune status */
@@ -155,7 +154,7 @@ struct as10x_tune_status {
    uint16_t PER;
    /* bit error rate 10^-4 */
    uint16_t BER;
-};
+} __packed;
 
 struct as10x_demod_stats {
    /* frame counter */
@@ -168,13 +167,13 @@ struct as10x_demod_stats {
    uint16_t mer;
    /* statistics calculation state indicator (started or not) */
    uint8_t has_started;
-};
+} __packed;
 
 struct as10x_ts_filter {
    uint16_t pid;  /** valid PID value 0x00 : 0x2000 */
    uint8_t  type; /** Red TS_PID_TYPE_<N> values */
    uint8_t  idx;  /** index in filtering table */
-};
+} __packed;
 
 struct as10x_register_value {
    uint8_t       mode;
@@ -183,9 +182,7 @@ struct as10x_register_value {
       uint16_t   value16;   /* 16 bit value */
       uint32_t   value32;   /* 32 bit value */
    }u;
-};
-
-#pragma pack()
+} __packed;
 
 struct as10x_register_addr {
    /* register addr */

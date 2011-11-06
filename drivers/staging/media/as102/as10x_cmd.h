@@ -94,8 +94,6 @@ enum control_proc {
    CONTROL_PROC_TURNOFF_RSP          = 0xFF00
 };
 
-
-#pragma pack(1)
 union as10x_turn_on {
    /* request */
    struct {
@@ -109,7 +107,7 @@ union as10x_turn_on {
       /* error */
       uint8_t error;
    } rsp;
-};
+} __packed;
 
 union as10x_turn_off {
    /* request */
@@ -124,7 +122,7 @@ union as10x_turn_off {
       /* error */
       uint8_t err;
    } rsp;
-};
+} __packed;
 
 union as10x_set_tune {
    /* request */
@@ -141,7 +139,7 @@ union as10x_set_tune {
       /* response error */
       uint8_t error;
    } rsp;
-};
+} __packed;
 
 union as10x_get_tune_status {
    /* request */
@@ -158,7 +156,7 @@ union as10x_get_tune_status {
       /* tune status */
       struct as10x_tune_status sts;
    } rsp;
-};
+} __packed;
 
 union as10x_get_tps {
    /* request */
@@ -175,7 +173,7 @@ union as10x_get_tps {
       /* tps details */
       struct as10x_tps tps;
    } rsp;
-};
+} __packed;
 
 union as10x_common {
    /* request */
@@ -190,7 +188,7 @@ union as10x_common {
       /* response error */
       uint8_t error;
    } rsp;
-};
+} __packed;
 
 union as10x_add_pid_filter {
    /* request */
@@ -213,7 +211,7 @@ union as10x_add_pid_filter {
       /* Filter id */
       uint8_t filter_id;
    } rsp;
-};
+} __packed;
 
 union as10x_del_pid_filter {
    /* request */
@@ -230,7 +228,7 @@ union as10x_del_pid_filter {
       /* response error */
       uint8_t error;
    } rsp;
-};
+} __packed;
 
 union as10x_start_streaming {
    /* request */
@@ -245,7 +243,7 @@ union as10x_start_streaming {
       /* error */
       uint8_t error;
    } rsp;
-};
+} __packed;
 
 union as10x_stop_streaming {
    /* request */
@@ -260,7 +258,7 @@ union as10x_stop_streaming {
       /* error */
       uint8_t error;
    } rsp;
-};
+} __packed;
 
 union as10x_get_demod_stats {
    /* request */
@@ -277,7 +275,7 @@ union as10x_get_demod_stats {
       /* demod stats */
       struct as10x_demod_stats stats;
    } rsp;
-};
+} __packed;
 
 union as10x_get_impulse_resp {
    /* request */
@@ -294,7 +292,7 @@ union as10x_get_impulse_resp {
       /* impulse response ready */
       uint8_t is_ready;
    } rsp;
-};
+} __packed;
 
 union as10x_fw_context {
    /* request */
@@ -319,7 +317,7 @@ union as10x_fw_context {
       /* error */
       uint8_t error;
    } rsp;
-};
+} __packed;
 
 union as10x_set_register {
    /* request */
@@ -338,7 +336,7 @@ union as10x_set_register {
       /* error */
       uint8_t error;
    } rsp;
-};
+} __packed;
 
 union as10x_get_register {
    /* request */
@@ -357,7 +355,7 @@ union as10x_get_register {
       /* register content */
       struct as10x_register_value reg_val;
    } rsp;
-};
+} __packed;
 
 union as10x_cfg_change_mode {
    /* request */
@@ -374,14 +372,14 @@ union as10x_cfg_change_mode {
       /* error */
       uint8_t error;
    } rsp;
-};
+} __packed;
 
 struct as10x_cmd_header_t {
    uint16_t req_id;
    uint16_t prog;
    uint16_t version;
    uint16_t data_len;
-};
+} __packed;
 
 #define DUMP_BLOCK_SIZE 16
 
@@ -412,7 +410,7 @@ union as10x_dump_memory {
 	 uint32_t data32[DUMP_BLOCK_SIZE / sizeof(uint32_t)];
       } u;
    } rsp;
-};
+} __packed;
 
 union as10x_dumplog_memory {
    struct {
@@ -431,7 +429,7 @@ union as10x_dumplog_memory {
       /* dump data */
       uint8_t data[DUMP_BLOCK_SIZE];
    } rsp;
-};
+} __packed;
 
 union as10x_raw_data {
    /* request */
@@ -446,7 +444,7 @@ union as10x_raw_data {
       uint8_t data[64 - sizeof(struct as10x_cmd_header_t) /* header */
 		      - 2 /* proc_id */ - 1 /* rc */];
    } rsp;
-};
+} __packed;
 
 struct as10x_cmd_t {
 	struct as10x_cmd_header_t header;
@@ -471,15 +469,14 @@ struct as10x_cmd_t {
 		union as10x_dumplog_memory	dumplog_memory;
 		union as10x_raw_data		raw_data;
 	} body;
-};
+} __packed;
 
 struct as10x_token_cmd_t {
    /* token cmd */
    struct as10x_cmd_t c;
    /* token response */
    struct as10x_cmd_t r;
-};
-#pragma pack()
+} __packed;
 
 
 /**************************/
