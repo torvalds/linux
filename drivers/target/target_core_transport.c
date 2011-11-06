@@ -4599,8 +4599,6 @@ static int transport_processing_thread(void *param)
 	struct se_cmd *cmd;
 	struct se_device *dev = (struct se_device *) param;
 
-	set_user_nice(current, -20);
-
 	while (!kthread_should_stop()) {
 		ret = wait_event_interruptible(dev->dev_queue_obj.thread_wq,
 				atomic_read(&dev->dev_queue_obj.queue_cnt) ||
