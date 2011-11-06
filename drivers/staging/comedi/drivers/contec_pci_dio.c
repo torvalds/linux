@@ -57,10 +57,9 @@ static const struct contec_board contec_boards[] = {
 
 #define PCI_DEVICE_ID_PIO1616L 0x8172
 static DEFINE_PCI_DEVICE_TABLE(contec_pci_table) = {
-	{
-	PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L, PCI_ANY_ID,
-		    PCI_ANY_ID, 0, 0, PIO1616L}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L),
+		.driver_data = PIO1616L },
+	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, contec_pci_table);
