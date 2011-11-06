@@ -563,7 +563,6 @@ static void kill_traffic(struct usb_serial_port *port)
 	int i;
 
 	usb_kill_urb(port->read_urb);
-	usb_kill_urb(port->write_urb);
 	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
 		usb_kill_urb(port->write_urbs[i]);
 	/*
@@ -596,7 +595,6 @@ static void port_release(struct device *dev)
 	cancel_work_sync(&port->work);
 
 	usb_free_urb(port->read_urb);
-	usb_free_urb(port->write_urb);
 	usb_free_urb(port->interrupt_in_urb);
 	usb_free_urb(port->interrupt_out_urb);
 	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i) {
@@ -605,7 +603,6 @@ static void port_release(struct device *dev)
 	}
 	kfifo_free(&port->write_fifo);
 	kfree(port->bulk_in_buffer);
-	kfree(port->bulk_out_buffer);
 	kfree(port->interrupt_in_buffer);
 	kfree(port->interrupt_out_buffer);
 	kfree(port);
@@ -933,11 +930,6 @@ int usb_serial_probe(struct usb_interface *interface,
 
 		endpoint = bulk_out_endpoint[i];
 		port = serial->port[i];
-		port->write_urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!port->write_urb) {
-			dev_err(&interface->dev, "No free urbs available\n");
-			goto probe_error;
-		}
 		if (kfifo_alloc(&port->write_fifo, PAGE_SIZE, GFP_KERNEL))
 			goto probe_error;
 		buffer_size = serial->type->bulk_out_size;
@@ -945,17 +937,7 @@ int usb_serial_probe(struct usb_interface *interface,
 			buffer_size = usb_endpoint_maxp(endpoint);
 		port->bulk_out_size = buffer_size;
 		port->bulk_out_endpointAddress = endpoint->bEndpointAddress;
-		port->bulk_out_buffer = kmalloc(buffer_size, GFP_KERNEL);
-		if (!port->bulk_out_buffer) {
-			dev_err(&interface->dev,
-					"Couldn't allocate bulk_out_buffer\n");
-			goto probe_error;
-		}
-		usb_fill_bulk_urb(port->write_urb, dev,
-				usb_sndbulkpipe(dev,
-					endpoint->bEndpointAddress),
-				port->bulk_out_buffer, buffer_size,
-				serial->type->write_bulk_callback, port);
+
 		for (j = 0; j < ARRAY_SIZE(port->write_urbs); ++j) {
 			set_bit(j, &port->write_urbs_free);
 			port->write_urbs[j] = usb_alloc_urb(0, GFP_KERNEL);
@@ -978,6 +960,9 @@ int usb_serial_probe(struct usb_interface *interface,
 					serial->type->write_bulk_callback,
 					port);
 		}
+
+		port->write_urb = port->write_urbs[0];
+		port->bulk_out_buffer = port->bulk_out_buffers[0];
 	}
 
 	if (serial->type->read_int_callback) {
