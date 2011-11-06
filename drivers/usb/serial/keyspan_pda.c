@@ -479,11 +479,11 @@ static int keyspan_pda_write(struct tty_struct *tty,
 	   the device is full (wait until it says there is room)
 	*/
 	spin_lock_bh(&port->lock);
-	if (port->write_urb_busy || priv->tx_throttled) {
+	if (!test_bit(0, &port->write_urbs_free) || priv->tx_throttled) {
 		spin_unlock_bh(&port->lock);
 		return 0;
 	}
-	port->write_urb_busy = 1;
+	clear_bit(0, &port->write_urbs_free);
 	spin_unlock_bh(&port->lock);
 
 	/* At this point the URB is in our control, nobody else can submit it
@@ -565,7 +565,7 @@ static int keyspan_pda_write(struct tty_struct *tty,
 	rc = count;
 exit:
 	if (rc < 0)
-		port->write_urb_busy = 0;
+		set_bit(0, &port->write_urbs_free);
 	return rc;
 }
 
@@ -575,7 +575,7 @@ static void keyspan_pda_write_bulk_callback(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	struct keyspan_pda_private *priv;
 
-	port->write_urb_busy = 0;
+	set_bit(0, &port->write_urbs_free);
 	priv = usb_get_serial_port_data(port);
 
 	/* queue up a wakeup at scheduler time */
@@ -608,7 +608,7 @@ static int keyspan_pda_chars_in_buffer(struct tty_struct *tty)
 	   n_tty.c:normal_poll() ) that we're not writeable. */
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (port->write_urb_busy || priv->tx_throttled)
+	if (!test_bit(0, &port->write_urbs_free) || priv->tx_throttled)
 		ret = 256;
 	spin_unlock_irqrestore(&port->lock, flags);
 	return ret;
