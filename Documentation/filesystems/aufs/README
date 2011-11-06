@@ -203,6 +203,10 @@ Note: The haeder file aufs_type.h is necessary to build aufs-util
 
 And then,
 - read README in aufs-util, build and install it
+- note that your distribution may contain an obsoleted version of
+  aufs_type.h in /usr/include/linux or something. When you build aufs
+  utilities, make sure that your compiler refers the correct aufs header
+  file which is built by "make headers_install."
 - if you want to use readdir(3) in userspace or pathconf(3) wrapper,
   then run "make install_ulib" too. And refer to the aufs manual in
   detail.
