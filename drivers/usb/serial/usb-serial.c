@@ -562,7 +562,8 @@ static void kill_traffic(struct usb_serial_port *port)
 {
 	int i;
 
-	usb_kill_urb(port->read_urb);
+	for (i = 0; i < ARRAY_SIZE(port->read_urbs); ++i)
+		usb_kill_urb(port->read_urbs[i]);
 	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
 		usb_kill_urb(port->write_urbs[i]);
 	/*
@@ -594,15 +595,17 @@ static void port_release(struct device *dev)
 	kill_traffic(port);
 	cancel_work_sync(&port->work);
 
-	usb_free_urb(port->read_urb);
 	usb_free_urb(port->interrupt_in_urb);
 	usb_free_urb(port->interrupt_out_urb);
+	for (i = 0; i < ARRAY_SIZE(port->read_urbs); ++i) {
+		usb_free_urb(port->read_urbs[i]);
+		kfree(port->bulk_in_buffers[i]);
+	}
 	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i) {
 		usb_free_urb(port->write_urbs[i]);
 		kfree(port->bulk_out_buffers[i]);
 	}
 	kfifo_free(&port->write_fifo);
-	kfree(port->bulk_in_buffer);
 	kfree(port->interrupt_in_buffer);
 	kfree(port->interrupt_out_buffer);
 	kfree(port);
@@ -721,6 +724,7 @@ int usb_serial_probe(struct usb_interface *interface,
 	unsigned int minor;
 	int buffer_size;
 	int i;
+	int j;
 	int num_interrupt_in = 0;
 	int num_interrupt_out = 0;
 	int num_bulk_in = 0;
@@ -903,31 +907,39 @@ int usb_serial_probe(struct usb_interface *interface,
 	for (i = 0; i < num_bulk_in; ++i) {
 		endpoint = bulk_in_endpoint[i];
 		port = serial->port[i];
-		port->read_urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!port->read_urb) {
-			dev_err(&interface->dev, "No free urbs available\n");
-			goto probe_error;
-		}
 		buffer_size = max_t(int, serial->type->bulk_in_size,
 				usb_endpoint_maxp(endpoint));
 		port->bulk_in_size = buffer_size;
 		port->bulk_in_endpointAddress = endpoint->bEndpointAddress;
-		port->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
-		if (!port->bulk_in_buffer) {
-			dev_err(&interface->dev,
+
+		for (j = 0; j < ARRAY_SIZE(port->read_urbs); ++j) {
+			set_bit(j, &port->read_urbs_free);
+			port->read_urbs[j] = usb_alloc_urb(0, GFP_KERNEL);
+			if (!port->read_urbs[j]) {
+				dev_err(&interface->dev,
+						"No free urbs available\n");
+				goto probe_error;
+			}
+			port->bulk_in_buffers[j] = kmalloc(buffer_size,
+								GFP_KERNEL);
+			if (!port->bulk_in_buffers[j]) {
+				dev_err(&interface->dev,
 					"Couldn't allocate bulk_in_buffer\n");
-			goto probe_error;
-		}
-		usb_fill_bulk_urb(port->read_urb, dev,
-				usb_rcvbulkpipe(dev,
+				goto probe_error;
+			}
+			usb_fill_bulk_urb(port->read_urbs[j], dev,
+					usb_rcvbulkpipe(dev,
 						endpoint->bEndpointAddress),
-				port->bulk_in_buffer, buffer_size,
-				serial->type->read_bulk_callback, port);
+					port->bulk_in_buffers[j], buffer_size,
+					serial->type->read_bulk_callback,
+					port);
+		}
+
+		port->read_urb = port->read_urbs[0];
+		port->bulk_in_buffer = port->bulk_in_buffers[0];
 	}
 
 	for (i = 0; i < num_bulk_out; ++i) {
-		int j;
-
 		endpoint = bulk_out_endpoint[i];
 		port = serial->port[i];
 		if (kfifo_alloc(&port->write_fifo, PAGE_SIZE, GFP_KERNEL))

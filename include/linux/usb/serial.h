@@ -58,6 +58,9 @@ enum port_dev_state {
  * @read_urb: pointer to the bulk in struct urb for this port.
  * @bulk_in_endpointAddress: endpoint address for the bulk in pipe for this
  *	port.
+ * @bulk_in_buffers: pointers to the bulk in buffers for this port
+ * @read_urbs: pointers to the bulk in urbs for this port
+ * @read_urbs_free: status bitmap the for bulk in urbs
  * @bulk_out_buffer: pointer to the bulk out buffer for this port.
  * @bulk_out_size: the size of the bulk_out_buffer, in bytes.
  * @write_urb: pointer to the bulk out struct urb for this port.
@@ -97,6 +100,10 @@ struct usb_serial_port {
 	int			bulk_in_size;
 	struct urb		*read_urb;
 	__u8			bulk_in_endpointAddress;
+
+	unsigned char		*bulk_in_buffers[2];
+	struct urb		*read_urbs[2];
+	unsigned long		read_urbs_free;
 
 	unsigned char		*bulk_out_buffer;
 	int			bulk_out_size;
@@ -338,7 +345,7 @@ extern void usb_serial_generic_disconnect(struct usb_serial *serial);
 extern void usb_serial_generic_release(struct usb_serial *serial);
 extern int usb_serial_generic_register(int debug);
 extern void usb_serial_generic_deregister(void);
-extern int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
+extern int usb_serial_generic_submit_read_urbs(struct usb_serial_port *port,
 						 gfp_t mem_flags);
 extern void usb_serial_generic_process_read_urb(struct urb *urb);
 extern int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
