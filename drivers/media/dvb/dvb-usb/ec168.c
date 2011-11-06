@@ -200,9 +200,9 @@ static struct ec100_config ec168_ec100_config = {
 static int ec168_ec100_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb_info("%s:\n", __func__);
-	adap->fe = dvb_attach(ec100_attach, &ec168_ec100_config,
+	adap->fe_adap[0].fe = dvb_attach(ec100_attach, &ec168_ec100_config,
 		&adap->dev->i2c_adap);
-	if (adap->fe == NULL)
+	if (adap->fe_adap[0].fe == NULL)
 		return -ENODEV;
 
 	return 0;
@@ -228,7 +228,7 @@ static struct mxl5005s_config ec168_mxl5003s_config = {
 static int ec168_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	deb_info("%s:\n", __func__);
-	return dvb_attach(mxl5005s_attach, adap->fe, &adap->dev->i2c_adap,
+	return dvb_attach(mxl5005s_attach, adap->fe_adap[0].fe, &adap->dev->i2c_adap,
 		&ec168_mxl5003s_config) == NULL ? -ENODEV : 0;
 }
 
@@ -382,6 +382,8 @@ static struct dvb_usb_device_properties ec168_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.streaming_ctrl   = ec168_streaming_ctrl,
 			.frontend_attach  = ec168_ec100_frontend_attach,
 			.tuner_attach     = ec168_mxl5003s_tuner_attach,
@@ -395,6 +397,7 @@ static struct dvb_usb_device_properties ec168_properties = {
 					}
 				}
 			},
+		}},
 		}
 	},
 

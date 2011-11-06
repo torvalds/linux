@@ -1,3 +1,23 @@
+/* TILE-Gx opcode information.
+ *
+ * Copyright 2011 Tilera Corporation. All Rights Reserved.
+ *
+ *   This program is free software; you can redistribute it and/or
+ *   modify it under the terms of the GNU General Public License
+ *   as published by the Free Software Foundation, version 2.
+ *
+ *   This program is distributed in the hope that it will be useful, but
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
+ *   NON INFRINGEMENT.  See the GNU General Public License for
+ *   more details.
+ *
+ *
+ *
+ *
+ *
+ */
+
 /* This define is BFD_RELOC_##x for real bfd, or -1 for everyone else. */
 #define BFD_RELOC(x) -1
 
@@ -6,10 +26,8 @@
 #define TREG_SN 56
 #define TREG_ZERO 63
 
-/* FIXME: Rename this. */
-#include <asm/opcode-tile_64.h>
-
 #include <linux/stddef.h>
+#include <asm/tile-desc.h>
 
 const struct tilegx_opcode tilegx_opcodes[334] =
 {
@@ -2040,12 +2058,12 @@ const struct tilegx_operand tilegx_operands[35] =
     create_BrOff_X1, get_BrOff_X1
   },
   {
-    TILEGX_OP_TYPE_IMMEDIATE, BFD_RELOC(NONE),
+    TILEGX_OP_TYPE_IMMEDIATE, BFD_RELOC(TILEGX_MMSTART_X0),
     6, 0, 0, 0, 0, 0,
     create_BFStart_X0, get_BFStart_X0
   },
   {
-    TILEGX_OP_TYPE_IMMEDIATE, BFD_RELOC(NONE),
+    TILEGX_OP_TYPE_IMMEDIATE, BFD_RELOC(TILEGX_MMEND_X0),
     6, 0, 0, 0, 0, 0,
     create_BFEnd_X0, get_BFEnd_X0
   },

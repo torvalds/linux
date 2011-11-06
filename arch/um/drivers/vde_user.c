@@ -6,10 +6,8 @@
 #include <stddef.h>
 #include <errno.h>
 #include <libvdeplug.h>
-#include "kern_constants.h"
 #include "net_user.h"
 #include "um_malloc.h"
-#include "user.h"
 #include "vde.h"
 
 static int vde_user_init(void *data, void *dev)

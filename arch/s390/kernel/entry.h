@@ -5,11 +5,16 @@
 #include <linux/signal.h>
 #include <asm/ptrace.h>
 
+
+extern void (*pgm_check_table[128])(struct pt_regs *, long, unsigned long);
+extern void *restart_stack;
+
+asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
+asmlinkage void do_syscall_trace_exit(struct pt_regs *regs);
+
 void do_protection_exception(struct pt_regs *, long, unsigned long);
 void do_dat_exception(struct pt_regs *, long, unsigned long);
 void do_asce_exception(struct pt_regs *, long, unsigned long);
-
-extern int sysctl_userprocess_debug;
 
 void do_per_trap(struct pt_regs *regs);
 void syscall_trace(struct pt_regs *regs, int entryexit);
@@ -17,11 +22,15 @@ void kernel_stack_overflow(struct pt_regs * regs);
 void do_signal(struct pt_regs *regs);
 int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		    siginfo_t *info, sigset_t *oldset, struct pt_regs *regs);
+void do_notify_resume(struct pt_regs *regs);
 
 void do_extint(struct pt_regs *regs, unsigned int, unsigned int, unsigned long);
+void do_restart(void);
 int __cpuinit start_secondary(void *cpuvoid);
 void __init startup_init(void);
 void die(const char * str, struct pt_regs * regs, long err);
+
+void __init time_init(void);
 
 struct s390_mmap_arg_struct;
 struct fadvise64_64_args;

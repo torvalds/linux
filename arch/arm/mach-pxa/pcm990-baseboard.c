@@ -394,9 +394,9 @@ static int pcm990_camera_set_bus_param(struct soc_camera_link *link,
 	}
 
 	if (flags & SOCAM_DATAWIDTH_8)
-		gpio_set_value(gpio_bus_switch, 1);
+		gpio_set_value_cansleep(gpio_bus_switch, 1);
 	else
-		gpio_set_value(gpio_bus_switch, 0);
+		gpio_set_value_cansleep(gpio_bus_switch, 0);
 
 	return 0;
 }

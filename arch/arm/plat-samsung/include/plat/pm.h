@@ -165,20 +165,20 @@ extern void s3c_pm_check_store(void);
 extern void s3c_pm_configure_extint(void);
 
 /**
- * s3c_pm_restore_gpios() - restore the state of the gpios after sleep.
+ * samsung_pm_restore_gpios() - restore the state of the gpios after sleep.
  *
  * Restore the state of the GPIO pins after sleep, which may involve ensuring
  * that we do not glitch the state of the pins from that the bootloader's
  * resume code has done.
 */
-extern void s3c_pm_restore_gpios(void);
+extern void samsung_pm_restore_gpios(void);
 
 /**
- * s3c_pm_save_gpios() - save the state of the GPIOs for restoring after sleep.
+ * samsung_pm_save_gpios() - save the state of the GPIOs for restoring after sleep.
  *
- * Save the GPIO states for resotration on resume. See s3c_pm_restore_gpios().
+ * Save the GPIO states for resotration on resume. See samsung_pm_restore_gpios().
  */
-extern void s3c_pm_save_gpios(void);
+extern void samsung_pm_save_gpios(void);
 
 extern void s3c_pm_save_core(void);
 extern void s3c_pm_restore_core(void);

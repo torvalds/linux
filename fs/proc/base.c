@@ -1107,13 +1107,6 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 		goto err_sighand;
 	}
 
-	if (oom_adjust != task->signal->oom_adj) {
-		if (oom_adjust == OOM_DISABLE)
-			atomic_inc(&task->mm->oom_disable_count);
-		if (task->signal->oom_adj == OOM_DISABLE)
-			atomic_dec(&task->mm->oom_disable_count);
-	}
-
 	/*
 	 * Warn that /proc/pid/oom_adj is deprecated, see
 	 * Documentation/feature-removal-schedule.txt.
@@ -1215,12 +1208,6 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 		goto err_sighand;
 	}
 
-	if (oom_score_adj != task->signal->oom_score_adj) {
-		if (oom_score_adj == OOM_SCORE_ADJ_MIN)
-			atomic_inc(&task->mm->oom_disable_count);
-		if (task->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-			atomic_dec(&task->mm->oom_disable_count);
-	}
 	task->signal->oom_score_adj = oom_score_adj;
 	if (has_capability_noaudit(current, CAP_SYS_RESOURCE))
 		task->signal->oom_score_adj_min = oom_score_adj;
@@ -1665,10 +1652,44 @@ out:
 	return error;
 }
 
+static int proc_pid_fd_link_getattr(struct vfsmount *mnt, struct dentry *dentry,
+		struct kstat *stat)
+{
+	struct inode *inode = dentry->d_inode;
+	struct task_struct *task = get_proc_task(inode);
+	int rc;
+
+	if (task == NULL)
+		return -ESRCH;
+
+	rc = -EACCES;
+	if (lock_trace(task))
+		goto out_task;
+
+	generic_fillattr(inode, stat);
+	unlock_trace(task);
+	rc = 0;
+out_task:
+	put_task_struct(task);
+	return rc;
+}
+
 static const struct inode_operations proc_pid_link_inode_operations = {
 	.readlink	= proc_pid_readlink,
 	.follow_link	= proc_pid_follow_link,
 	.setattr	= proc_setattr,
+};
+
+static const struct inode_operations proc_fdinfo_link_inode_operations = {
+	.setattr	= proc_setattr,
+	.getattr	= proc_pid_fd_link_getattr,
+};
+
+static const struct inode_operations proc_fd_link_inode_operations = {
+	.readlink	= proc_pid_readlink,
+	.follow_link	= proc_pid_follow_link,
+	.setattr	= proc_setattr,
+	.getattr	= proc_pid_fd_link_getattr,
 };
 
 
@@ -1902,49 +1923,61 @@ out:
 
 static int proc_fd_info(struct inode *inode, struct path *path, char *info)
 {
-	struct task_struct *task = get_proc_task(inode);
-	struct files_struct *files = NULL;
+	struct task_struct *task;
+	struct files_struct *files;
 	struct file *file;
 	int fd = proc_fd(inode);
+	int rc;
 
-	if (task) {
-		files = get_files_struct(task);
-		put_task_struct(task);
-	}
-	if (files) {
-		/*
-		 * We are not taking a ref to the file structure, so we must
-		 * hold ->file_lock.
-		 */
-		spin_lock(&files->file_lock);
-		file = fcheck_files(files, fd);
-		if (file) {
-			unsigned int f_flags;
-			struct fdtable *fdt;
+	task = get_proc_task(inode);
+	if (!task)
+		return -ENOENT;
 
-			fdt = files_fdtable(files);
-			f_flags = file->f_flags & ~O_CLOEXEC;
-			if (FD_ISSET(fd, fdt->close_on_exec))
-				f_flags |= O_CLOEXEC;
+	rc = -EACCES;
+	if (lock_trace(task))
+		goto out_task;
 
-			if (path) {
-				*path = file->f_path;
-				path_get(&file->f_path);
-			}
-			if (info)
-				snprintf(info, PROC_FDINFO_MAX,
-					 "pos:\t%lli\n"
-					 "flags:\t0%o\n",
-					 (long long) file->f_pos,
-					 f_flags);
-			spin_unlock(&files->file_lock);
-			put_files_struct(files);
-			return 0;
+	rc = -ENOENT;
+	files = get_files_struct(task);
+	if (files == NULL)
+		goto out_unlock;
+
+	/*
+	 * We are not taking a ref to the file structure, so we must
+	 * hold ->file_lock.
+	 */
+	spin_lock(&files->file_lock);
+	file = fcheck_files(files, fd);
+	if (file) {
+		unsigned int f_flags;
+		struct fdtable *fdt;
+
+		fdt = files_fdtable(files);
+		f_flags = file->f_flags & ~O_CLOEXEC;
+		if (FD_ISSET(fd, fdt->close_on_exec))
+			f_flags |= O_CLOEXEC;
+
+		if (path) {
+			*path = file->f_path;
+			path_get(&file->f_path);
 		}
-		spin_unlock(&files->file_lock);
-		put_files_struct(files);
-	}
-	return -ENOENT;
+		if (info)
+			snprintf(info, PROC_FDINFO_MAX,
+				 "pos:\t%lli\n"
+				 "flags:\t0%o\n",
+				 (long long) file->f_pos,
+				 f_flags);
+		rc = 0;
+	} else
+		rc = -ENOENT;
+	spin_unlock(&files->file_lock);
+	put_files_struct(files);
+
+out_unlock:
+	unlock_trace(task);
+out_task:
+	put_task_struct(task);
+	return rc;
 }
 
 static int proc_fd_link(struct inode *inode, struct path *path)
@@ -2039,7 +2072,7 @@ static struct dentry *proc_fd_instantiate(struct inode *dir,
 	spin_unlock(&files->file_lock);
 	put_files_struct(files);
 
-	inode->i_op = &proc_pid_link_inode_operations;
+	inode->i_op = &proc_fd_link_inode_operations;
 	inode->i_size = 64;
 	ei->op.proc_get_link = proc_fd_link;
 	d_set_d_op(dentry, &tid_fd_dentry_operations);
@@ -2071,7 +2104,12 @@ static struct dentry *proc_lookupfd_common(struct inode *dir,
 	if (fd == ~0U)
 		goto out;
 
+	result = ERR_PTR(-EACCES);
+	if (lock_trace(task))
+		goto out;
+
 	result = instantiate(dir, dentry, task, &fd);
+	unlock_trace(task);
 out:
 	put_task_struct(task);
 out_no_task:
@@ -2091,23 +2129,28 @@ static int proc_readfd_common(struct file * filp, void * dirent,
 	retval = -ENOENT;
 	if (!p)
 		goto out_no_task;
+
+	retval = -EACCES;
+	if (lock_trace(p))
+		goto out;
+
 	retval = 0;
 
 	fd = filp->f_pos;
 	switch (fd) {
 		case 0:
 			if (filldir(dirent, ".", 1, 0, inode->i_ino, DT_DIR) < 0)
-				goto out;
+				goto out_unlock;
 			filp->f_pos++;
 		case 1:
 			ino = parent_ino(dentry);
 			if (filldir(dirent, "..", 2, 1, ino, DT_DIR) < 0)
-				goto out;
+				goto out_unlock;
 			filp->f_pos++;
 		default:
 			files = get_files_struct(p);
 			if (!files)
-				goto out;
+				goto out_unlock;
 			rcu_read_lock();
 			for (fd = filp->f_pos-2;
 			     fd < files_fdtable(files)->max_fds;
@@ -2131,6 +2174,9 @@ static int proc_readfd_common(struct file * filp, void * dirent,
 			rcu_read_unlock();
 			put_files_struct(files);
 	}
+
+out_unlock:
+	unlock_trace(p);
 out:
 	put_task_struct(p);
 out_no_task:
@@ -2208,6 +2254,7 @@ static struct dentry *proc_fdinfo_instantiate(struct inode *dir,
 	ei->fd = fd;
 	inode->i_mode = S_IFREG | S_IRUSR;
 	inode->i_fop = &proc_fdinfo_file_operations;
+	inode->i_op = &proc_fdinfo_link_inode_operations;
 	d_set_d_op(dentry, &tid_fd_dentry_operations);
 	d_add(dentry, inode);
 	/* Close the race of the process dying before we return the dentry */
@@ -2261,7 +2308,7 @@ static struct dentry *proc_pident_instantiate(struct inode *dir,
 	ei = PROC_I(inode);
 	inode->i_mode = p->mode;
 	if (S_ISDIR(inode->i_mode))
-		inode->i_nlink = 2;	/* Use getattr to fix if necessary */
+		set_nlink(inode, 2);	/* Use getattr to fix if necessary */
 	if (p->iop)
 		inode->i_op = p->iop;
 	if (p->fop)
@@ -2655,7 +2702,7 @@ static struct dentry *proc_base_instantiate(struct inode *dir,
 
 	inode->i_mode = p->mode;
 	if (S_ISDIR(inode->i_mode))
-		inode->i_nlink = 2;
+		set_nlink(inode, 2);
 	if (S_ISLNK(inode->i_mode))
 		inode->i_size = 64;
 	if (p->iop)
@@ -2994,8 +3041,8 @@ static struct dentry *proc_pid_instantiate(struct inode *dir,
 	inode->i_fop = &proc_tgid_base_operations;
 	inode->i_flags|=S_IMMUTABLE;
 
-	inode->i_nlink = 2 + pid_entry_count_dirs(tgid_base_stuff,
-		ARRAY_SIZE(tgid_base_stuff));
+	set_nlink(inode, 2 + pid_entry_count_dirs(tgid_base_stuff,
+						  ARRAY_SIZE(tgid_base_stuff)));
 
 	d_set_d_op(dentry, &pid_dentry_operations);
 
@@ -3246,8 +3293,8 @@ static struct dentry *proc_task_instantiate(struct inode *dir,
 	inode->i_fop = &proc_tid_base_operations;
 	inode->i_flags|=S_IMMUTABLE;
 
-	inode->i_nlink = 2 + pid_entry_count_dirs(tid_base_stuff,
-		ARRAY_SIZE(tid_base_stuff));
+	set_nlink(inode, 2 + pid_entry_count_dirs(tid_base_stuff,
+						  ARRAY_SIZE(tid_base_stuff)));
 
 	d_set_d_op(dentry, &pid_dentry_operations);
 

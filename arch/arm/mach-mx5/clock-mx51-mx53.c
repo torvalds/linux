@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/clkdev.h>
+#include <linux/of.h>
 
 #include <asm/div64.h>
 
@@ -1401,6 +1402,22 @@ static struct clk esdhc4_mx53_clk = {
 	.secondary = &esdhc4_ipg_clk,
 };
 
+static struct clk sata_clk = {
+	.parent = &ipg_clk,
+	.enable = _clk_max_enable,
+	.enable_reg = MXC_CCM_CCGR4,
+	.enable_shift = MXC_CCM_CCGRx_CG1_OFFSET,
+	.disable = _clk_max_disable,
+};
+
+static struct clk ahci_phy_clk = {
+	.parent = &usb_phy1_clk,
+};
+
+static struct clk ahci_dma_clk = {
+	.parent = &ahb_clk,
+};
+
 DEFINE_CLOCK(mipi_esc_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG5_OFFSET, NULL, NULL, NULL, &pll2_sw_clk);
 DEFINE_CLOCK(mipi_hsc2_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG4_OFFSET, NULL, NULL, &mipi_esc_clk, &pll2_sw_clk);
 DEFINE_CLOCK(mipi_hsc1_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG3_OFFSET, NULL, NULL, &mipi_hsc2_clk, &pll2_sw_clk);
@@ -1417,6 +1434,10 @@ DEFINE_CLOCK(ipu_di0_clk, 0, MXC_CCM_CCGR6, MXC_CCM_CCGRx_CG5_OFFSET,
 		NULL, NULL, &pll3_sw_clk, NULL);
 DEFINE_CLOCK(ipu_di1_clk, 0, MXC_CCM_CCGR6, MXC_CCM_CCGRx_CG6_OFFSET,
 		NULL, NULL, &pll3_sw_clk, NULL);
+
+/* PATA */
+DEFINE_CLOCK(pata_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG0_OFFSET,
+		NULL, NULL, &ipg_clk, &spba_clk);
 
 #define _REGISTER_CLOCK(d, n, c) \
        { \
@@ -1474,6 +1495,7 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("imx-ipuv3", "di0", ipu_di0_clk)
 	_REGISTER_CLOCK("imx-ipuv3", "di1", ipu_di1_clk)
 	_REGISTER_CLOCK(NULL, "gpc_dvfs", gpc_dvfs_clk)
+	_REGISTER_CLOCK("pata_imx", NULL, pata_clk)
 };
 
 static struct clk_lookup mx53_lookups[] = {
@@ -1507,6 +1529,10 @@ static struct clk_lookup mx53_lookups[] = {
 	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
 	_REGISTER_CLOCK("imx-ssi.2", NULL, ssi3_clk)
 	_REGISTER_CLOCK("imx-keypad", NULL, dummy_clk)
+	_REGISTER_CLOCK("pata_imx", NULL, pata_clk)
+	_REGISTER_CLOCK("imx53-ahci.0", "ahci", sata_clk)
+	_REGISTER_CLOCK("imx53-ahci.0", "ahci_phy", ahci_phy_clk)
+	_REGISTER_CLOCK("imx53-ahci.0", "ahci_dma", ahci_dma_clk)
 };
 
 static void clk_tree_init(void)
@@ -1548,9 +1574,8 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&main_bus_clk);
 
 	clk_enable(&iim_clk);
-	mx51_revision();
+	imx_print_silicon_rev("i.MX51", mx51_revision());
 	clk_disable(&iim_clk);
-	mx51_display_revision();
 
 	/* move usb_phy_clk to 24MHz */
 	clk_set_parent(&usb_phy1_clk, &osc_clk);
@@ -1568,7 +1593,7 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 
 	/* System timer */
 	mxc_timer_init(&gpt_clk, MX51_IO_ADDRESS(MX51_GPT1_BASE_ADDR),
-		MX51_MXC_INT_GPT);
+		MX51_INT_GPT);
 	return 0;
 }
 
@@ -1592,9 +1617,8 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&main_bus_clk);
 
 	clk_enable(&iim_clk);
-	mx53_revision();
+	imx_print_silicon_rev("i.MX53", mx53_revision());
 	clk_disable(&iim_clk);
-	mx53_display_revision();
 
 	/* Set SDHC parents to be PLL2 */
 	clk_set_parent(&esdhc1_clk, &pll2_sw_clk);
@@ -1608,4 +1632,42 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc,
 	mxc_timer_init(&gpt_clk, MX53_IO_ADDRESS(MX53_GPT1_BASE_ADDR),
 		MX53_INT_GPT);
 	return 0;
+}
+
+static void __init clk_get_freq_dt(unsigned long *ckil, unsigned long *osc,
+				   unsigned long *ckih1, unsigned long *ckih2)
+{
+	struct device_node *np;
+
+	/* retrieve the freqency of fixed clocks from device tree */
+	for_each_compatible_node(np, NULL, "fixed-clock") {
+		u32 rate;
+		if (of_property_read_u32(np, "clock-frequency", &rate))
+			continue;
+
+		if (of_device_is_compatible(np, "fsl,imx-ckil"))
+			*ckil = rate;
+		else if (of_device_is_compatible(np, "fsl,imx-osc"))
+			*osc = rate;
+		else if (of_device_is_compatible(np, "fsl,imx-ckih1"))
+			*ckih1 = rate;
+		else if (of_device_is_compatible(np, "fsl,imx-ckih2"))
+			*ckih2 = rate;
+	}
+}
+
+int __init mx51_clocks_init_dt(void)
+{
+	unsigned long ckil, osc, ckih1, ckih2;
+
+	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
+	return mx51_clocks_init(ckil, osc, ckih1, ckih2);
+}
+
+int __init mx53_clocks_init_dt(void)
+{
+	unsigned long ckil, osc, ckih1, ckih2;
+
+	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
+	return mx53_clocks_init(ckil, osc, ckih1, ckih2);
 }

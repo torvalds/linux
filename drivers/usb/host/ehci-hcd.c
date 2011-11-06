@@ -1224,7 +1224,7 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_hcd_sh_driver
 #endif
 
-#ifdef CONFIG_SOC_AU1200
+#ifdef CONFIG_MIPS_ALCHEMY
 #include "ehci-au1xxx.c"
 #define	PLATFORM_DRIVER		ehci_hcd_au1xxx_driver
 #endif

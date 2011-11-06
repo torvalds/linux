@@ -102,8 +102,11 @@ void __init smp_init_cpus(void)
 {
 	unsigned int i, ncores;
 
-	/* Never released */
-	scu_base = ioremap(OMAP44XX_SCU_BASE, SZ_256);
+	/*
+	 * Currently we can't call ioremap here because
+	 * SoC detection won't work until after init_early.
+	 */
+	scu_base =  OMAP2_L4_IO_ADDRESS(OMAP44XX_SCU_BASE);
 	BUG_ON(!scu_base);
 
 	ncores = scu_get_core_count(scu_base);

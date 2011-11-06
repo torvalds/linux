@@ -182,7 +182,7 @@ ltq_mtd_probe(struct platform_device *pdev)
 		parts = ltq_mtd_data->parts;
 	}
 
-	err = add_mtd_partitions(ltq_mtd->mtd, parts, nr_parts);
+	err = mtd_device_register(ltq_mtd->mtd, parts, nr_parts);
 	if (err) {
 		dev_err(&pdev->dev, "failed to add partitions\n");
 		goto err_destroy;
@@ -208,7 +208,7 @@ ltq_mtd_remove(struct platform_device *pdev)
 
 	if (ltq_mtd) {
 		if (ltq_mtd->mtd) {
-			del_mtd_partitions(ltq_mtd->mtd);
+			mtd_device_unregister(ltq_mtd->mtd);
 			map_destroy(ltq_mtd->mtd);
 		}
 		if (ltq_mtd->map->virt)

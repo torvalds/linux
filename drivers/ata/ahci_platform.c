@@ -202,11 +202,18 @@ static int __devexit ahci_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id ahci_of_match[] = {
+	{ .compatible = "calxeda,hb-ahci", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ahci_of_match);
+
 static struct platform_driver ahci_driver = {
 	.remove = __devexit_p(ahci_remove),
 	.driver = {
 		.name = "ahci",
 		.owner = THIS_MODULE,
+		.of_match_table = ahci_of_match,
 	},
 	.id_table	= ahci_devtype,
 };

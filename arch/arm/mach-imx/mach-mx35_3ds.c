@@ -221,6 +221,7 @@ MACHINE_START(MX35_3DS, "Freescale MX35PDK")
 	.map_io = mx35_map_io,
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
+	.handle_irq = imx35_handle_irq,
 	.timer = &mx35pdk_timer,
 	.init_machine = mx35_3ds_init,
 MACHINE_END

@@ -378,7 +378,8 @@ static struct i2c_board_info __initdata beagle_i2c_eeprom[] = {
 static int __init omap3_beagle_i2c_init(void)
 {
 	omap3_pmic_get_config(&beagle_twldata,
-			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO,
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_MADC |
+			TWL_COMMON_PDATA_AUDIO,
 			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
 
 	beagle_twldata.vpll2->constraints.name = "VDVI";
@@ -444,21 +445,15 @@ static struct platform_device keys_gpio = {
 	},
 };
 
-static void __init omap3_beagle_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
-				  mt46h32m32lf6_sdrc_params);
-}
-
-static void __init omap3_beagle_init_irq(void)
-{
-	omap3_init_irq();
-}
+static struct platform_device madc_hwmon = {
+	.name	= "twl4030_madc_hwmon",
+	.id	= -1,
+};
 
 static struct platform_device *omap3_beagle_devices[] __initdata = {
 	&leds_gpio,
 	&keys_gpio,
+	&madc_hwmon,
 };
 
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
@@ -493,8 +488,8 @@ static void __init beagle_opp_init(void)
 	if (cpu_is_omap3630()) {
 		struct device *mpu_dev, *iva_dev;
 
-		mpu_dev = omap2_get_mpuss_device();
-		iva_dev = omap2_get_iva_device();
+		mpu_dev = omap_device_get_by_hwmod_name("mpu");
+		iva_dev = omap_device_get_by_hwmod_name("iva");
 
 		if (!mpu_dev || !iva_dev) {
 			pr_err("%s: Aiee.. no mpu/dsp devices? %p %p\n",
@@ -534,6 +529,8 @@ static void __init omap3_beagle_init(void)
 			ARRAY_SIZE(omap3_beagle_devices));
 	omap_display_init(&beagle_dss_data);
 	omap_serial_init();
+	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
+				  mt46h32m32lf6_sdrc_params);
 
 	omap_mux_init_gpio(170, OMAP_PIN_INPUT);
 	/* REVISIT leave DVI powered down until it's needed ... */
@@ -560,8 +557,8 @@ MACHINE_START(OMAP3_BEAGLE, "OMAP3 Beagle Board")
 	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap3_beagle_init_early,
-	.init_irq	= omap3_beagle_init_irq,
+	.init_early	= omap3_init_early,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= omap3_beagle_init,
 	.timer		= &omap3_secure_timer,
 MACHINE_END

@@ -8,10 +8,13 @@
 #include <linux/scatterlist.h>
 #include <linux/string_helpers.h>
 #include <scsi/scsi_cmnd.h>
+#include <linux/idr.h>
 
 #define PART_BITS 4
 
-static int major, index;
+static int major;
+static DEFINE_IDA(vd_index_ida);
+
 struct workqueue_struct *virtblk_wq;
 
 struct virtio_blk
@@ -34,6 +37,9 @@ struct virtio_blk
 
 	/* What host tells us, plus 2 for header & tailer. */
 	unsigned int sg_elems;
+
+	/* Ida index - used to track minor number allocations. */
+	int index;
 
 	/* Scatterlist: can be too big for stack. */
 	struct scatterlist sg[/*sg_elems*/];
@@ -276,6 +282,11 @@ static int index_to_minor(int index)
 	return index << PART_BITS;
 }
 
+static int minor_to_index(int minor)
+{
+	return minor >> PART_BITS;
+}
+
 static ssize_t virtblk_serial_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -341,14 +352,17 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk;
 	struct request_queue *q;
-	int err;
+	int err, index;
 	u64 cap;
 	u32 v, blk_size, sg_elems, opt_io_size;
 	u16 min_io_size;
 	u8 physical_block_exp, alignment_offset;
 
-	if (index_to_minor(index) >= 1 << MINORBITS)
-		return -ENOSPC;
+	err = ida_simple_get(&vd_index_ida, 0, minor_to_index(1 << MINORBITS),
+			     GFP_KERNEL);
+	if (err < 0)
+		goto out;
+	index = err;
 
 	/* We need to know how many segments before we allocate. */
 	err = virtio_config_val(vdev, VIRTIO_BLK_F_SEG_MAX,
@@ -365,7 +379,7 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 				    sizeof(vblk->sg[0]) * sg_elems, GFP_KERNEL);
 	if (!vblk) {
 		err = -ENOMEM;
-		goto out;
+		goto out_free_index;
 	}
 
 	INIT_LIST_HEAD(&vblk->reqs);
@@ -421,7 +435,7 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	vblk->disk->private_data = vblk;
 	vblk->disk->fops = &virtblk_fops;
 	vblk->disk->driverfs_dev = &vdev->dev;
-	index++;
+	vblk->index = index;
 
 	/* configure queue flush support */
 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH))
@@ -516,6 +530,8 @@ out_free_vq:
 	vdev->config->del_vqs(vdev);
 out_free_vblk:
 	kfree(vblk);
+out_free_index:
+	ida_simple_remove(&vd_index_ida, index);
 out:
 	return err;
 }
@@ -523,6 +539,7 @@ out:
 static void __devexit virtblk_remove(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
+	int index = vblk->index;
 
 	flush_work(&vblk->config_work);
 
@@ -538,6 +555,7 @@ static void __devexit virtblk_remove(struct virtio_device *vdev)
 	mempool_destroy(vblk->pool);
 	vdev->config->del_vqs(vdev);
 	kfree(vblk);
+	ida_simple_remove(&vd_index_ida, index);
 }
 
 static const struct virtio_device_id id_table[] = {

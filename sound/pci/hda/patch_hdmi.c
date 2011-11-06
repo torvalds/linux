@@ -1006,7 +1006,6 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 	unsigned int caps, config;
 	int pin_idx;
 	struct hdmi_spec_per_pin *per_pin;
-	struct hdmi_eld *eld;
 	int err;
 
 	caps = snd_hda_param_read(codec, pin_nid, AC_PAR_PIN_CAP);
@@ -1023,7 +1022,6 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 
 	pin_idx = spec->num_pins;
 	per_pin = &spec->pins[pin_idx];
-	eld = &per_pin->sink_eld;
 
 	per_pin->pin_nid = pin_nid;
 
@@ -1576,7 +1574,7 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 				     struct snd_pcm_substream *substream)
 {
 	int chs;
-	unsigned int dataDCC1, dataDCC2, channel_id;
+	unsigned int dataDCC2, channel_id;
 	int i;
 	struct hdmi_spec *spec = codec->spec;
 	struct hda_spdif_out *spdif =
@@ -1586,7 +1584,6 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	chs = substream->runtime->channels;
 
-	dataDCC1 = AC_DIG1_ENABLE | AC_DIG1_COPYRIGHT;
 	dataDCC2 = 0x2;
 
 	/* turn off SPDIF once; otherwise the IEC958 bits won't be updated */
