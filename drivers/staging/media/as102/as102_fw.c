@@ -58,7 +58,7 @@ static int parse_hex_line(unsigned char *fw_data, unsigned char *addr,
 	unsigned char *src, dst;
 
 	if (*fw_data++ != ':') {
-		printk(KERN_ERR "invalid firmware file\n");
+		pr_err("invalid firmware file\n");
 		return -EFAULT;
 	}
 
@@ -191,21 +191,21 @@ int as102_fw_upload(struct as102_bus_adapter_t *bus_adap)
 	/* request kernel to locate firmware file: part1 */
 	errno = request_firmware(&firmware, fw1, &dev->dev);
 	if (errno < 0) {
-		printk(KERN_ERR "%s: unable to locate firmware file: %s\n",
-				 DRIVER_NAME, fw1);
+		pr_err("%s: unable to locate firmware file: %s\n",
+		       DRIVER_NAME, fw1);
 		goto error;
 	}
 
 	/* initiate firmware upload */
 	errno = as102_firmware_upload(bus_adap, cmd_buf, firmware);
 	if (errno < 0) {
-		printk(KERN_ERR "%s: error during firmware upload part1\n",
-				 DRIVER_NAME);
+		pr_err("%s: error during firmware upload part1\n",
+		       DRIVER_NAME);
 		goto error;
 	}
 
-	printk(KERN_INFO "%s: fimrware: %s loaded with success\n",
-			 DRIVER_NAME, fw1);
+	pr_info("%s: firmware: %s loaded with success\n",
+		DRIVER_NAME, fw1);
 	release_firmware(firmware);
 
 	/* wait for boot to complete */
@@ -214,21 +214,21 @@ int as102_fw_upload(struct as102_bus_adapter_t *bus_adap)
 	/* request kernel to locate firmware file: part2 */
 	errno = request_firmware(&firmware, fw2, &dev->dev);
 	if (errno < 0) {
-		printk(KERN_ERR "%s: unable to locate firmware file: %s\n",
-				 DRIVER_NAME, fw2);
+		pr_err("%s: unable to locate firmware file: %s\n",
+		       DRIVER_NAME, fw2);
 		goto error;
 	}
 
 	/* initiate firmware upload */
 	errno = as102_firmware_upload(bus_adap, cmd_buf, firmware);
 	if (errno < 0) {
-		printk(KERN_ERR "%s: error during firmware upload part2\n",
-				 DRIVER_NAME);
+		pr_err("%s: error during firmware upload part2\n",
+		       DRIVER_NAME);
 		goto error;
 	}
 
-	printk(KERN_INFO "%s: fimrware: %s loaded with success\n",
-			DRIVER_NAME, fw2);
+	pr_info("%s: firmware: %s loaded with success\n",
+		DRIVER_NAME, fw2);
 error:
 	/* free data buffer */
 	kfree(cmd_buf);

@@ -337,7 +337,7 @@ static void as102_usb_disconnect(struct usb_interface *intf)
 	/* decrement usage counter */
 	kref_put(&as102_dev->kref, as102_usb_release);
 
-	printk(KERN_INFO "%s: device has been disconnected\n", DRIVER_NAME);
+	pr_info("%s: device has been disconnected\n", DRIVER_NAME);
 
 	LEAVE();
 }
@@ -360,7 +360,7 @@ static int as102_usb_probe(struct usb_interface *intf,
 	/* This should never actually happen */
 	if ((sizeof(as102_usb_id_table) / sizeof(struct usb_device_id)) !=
 	    (sizeof(as102_device_names) / sizeof(const char *))) {
-		printk(KERN_ERR "Device names table invalid size");
+		pr_err("Device names table invalid size");
 		return -EINVAL;
 	}
 
@@ -399,7 +399,7 @@ static int as102_usb_probe(struct usb_interface *intf,
 		goto failed;
 	}
 
-	printk(KERN_INFO "%s: device has been detected\n", DRIVER_NAME);
+	pr_info("%s: device has been detected\n", DRIVER_NAME);
 
 	/* request buffer allocation for streaming */
 	ret = as102_alloc_usb_stream_buffer(as102_dev);
@@ -432,8 +432,8 @@ static int as102_open(struct inode *inode, struct file *file)
 	/* fetch device from usb interface */
 	intf = usb_find_interface(&as102_usb_driver, minor);
 	if (intf == NULL) {
-		printk(KERN_ERR "%s: can't find device for minor %d\n",
-				__func__, minor);
+		pr_err("%s: can't find device for minor %d\n",
+		       __func__, minor);
 		ret = -ENODEV;
 		goto exit;
 	}
