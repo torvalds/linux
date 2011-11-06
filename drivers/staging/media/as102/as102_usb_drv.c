@@ -47,7 +47,7 @@ static struct usb_device_id as102_usb_id_table[] = {
 
 /* Note that this table must always have the same number of entries as the
    as102_usb_id_table struct */
-static const char *as102_device_names[] = {
+static const char * const as102_device_names[] = {
 	AS102_REFERENCE_DESIGN,
 	AS102_PCTV_74E,
 	AS102_ELGATO_EYETV_DTT_NAME,
