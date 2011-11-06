@@ -56,9 +56,7 @@ int elna_enable = 1;
 module_param_named(elna_enable, elna_enable, int, 0644);
 MODULE_PARM_DESC(elna_enable, "Activate eLNA (default: on)");
 
-#ifdef DVB_DEFINE_MOD_OPT_ADAPTER_NR
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
-#endif
 
 static void as102_stop_stream(struct as102_dev_t *dev)
 {
@@ -203,16 +201,8 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 	ret = dvb_register_adapter(&as102_dev->dvb_adap,
 				   as102_dev->name,
 				   THIS_MODULE,
-#if defined(CONFIG_AS102_USB)
-				   &as102_dev->bus_adap.usb_dev->dev
-#elif defined(CONFIG_AS102_SPI)
-				   &as102_dev->bus_adap.spi_dev->dev
-#else
-#error >>> dvb_register_adapter <<<
-#endif
-#ifdef DVB_DEFINE_MOD_OPT_ADAPTER_NR
-				   , adapter_nr
-#endif
+				   &as102_dev->bus_adap.usb_dev->dev,
+				   adapter_nr
 				   );
 	if (ret < 0) {
 		err("%s: dvb_register_adapter() failed (errno = %d)",
@@ -294,23 +284,13 @@ void as102_dvb_unregister(struct as102_dev_t *as102_dev)
 
 static int __init as102_driver_init(void)
 {
-	int ret = 0;
-
-	ENTER();
+	int ret;
 
 	/* register this driver with the low level subsystem */
-#if defined(CONFIG_AS102_USB)
 	ret = usb_register(&as102_usb_driver);
 	if (ret)
 		err("usb_register failed (ret = %d)", ret);
-#endif
-#if defined(CONFIG_AS102_SPI)
-	ret = spi_register_driver(&as102_spi_driver);
-	if (ret)
-		printk(KERN_ERR "spi_register failed (ret = %d)", ret);
-#endif
 
-	LEAVE();
 	return ret;
 }
 
@@ -327,15 +307,8 @@ module_init(as102_driver_init);
  */
 static void __exit as102_driver_exit(void)
 {
-	ENTER();
 	/* deregister this driver with the low level bus subsystem */
-#if defined(CONFIG_AS102_USB)
 	usb_deregister(&as102_usb_driver);
-#endif
-#if defined(CONFIG_AS102_SPI)
-	spi_unregister_driver(&as102_spi_driver);
-#endif
-	LEAVE();
 }
 
 /*

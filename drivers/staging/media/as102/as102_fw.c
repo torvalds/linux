@@ -169,13 +169,8 @@ int as102_fw_upload(struct as102_bus_adapter_t *bus_adap)
 	const struct firmware *firmware;
 	unsigned char *cmd_buf = NULL;
 	char *fw1, *fw2;
-
-#if defined(CONFIG_AS102_USB)
 	struct usb_device *dev = bus_adap->usb_dev;
-#endif
-#if defined(CONFIG_AS102_SPI)
-	struct spi_device *dev = bus_adap->spi_dev;
-#endif
+
 	ENTER();
 
 	/* select fw file to upload */
