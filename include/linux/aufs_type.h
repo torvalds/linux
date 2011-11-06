@@ -22,7 +22,12 @@
 #include <linux/ioctl.h>
 #include <linux/kernel.h>
 #include <linux/limits.h>
+#ifdef __KERNEL__
 #include <linux/types.h>
+#else
+#include <stdint.h>
+#include <sys/types.h>
+#endif
 
 #define AUFS_VERSION	"3.1"
 
@@ -32,10 +37,10 @@
 /* ---------------------------------------------------------------------- */
 
 #ifdef CONFIG_AUFS_BRANCH_MAX_127
-typedef __s8 aufs_bindex_t;
+typedef int8_t aufs_bindex_t;
 #define AUFS_BRANCH_MAX 127
 #else
-typedef __s16 aufs_bindex_t;
+typedef int16_t aufs_bindex_t;
 #ifdef CONFIG_AUFS_BRANCH_MAX_511
 #define AUFS_BRANCH_MAX 511
 #elif defined(CONFIG_AUFS_BRANCH_MAX_1023)
@@ -139,19 +144,19 @@ enum {
 #endif
 
 struct au_rdu_cookie {
-	__u64		h_pos;
-	__s16		bindex;
-	__u8		flags;
-	__u8		pad;
-	__u32		generation;
+	uint64_t	h_pos;
+	int16_t		bindex;
+	uint8_t		flags;
+	uint8_t		pad;
+	uint32_t	generation;
 } __aligned(8);
 
 struct au_rdu_ent {
-	__u64		ino;
-	__s16		bindex;
-	__u8		type;
-	__u8		nlen;
-	__u8		wh;
+	uint64_t	ino;
+	int16_t		bindex;
+	uint8_t		type;
+	uint8_t		nlen;
+	uint8_t		wh;
 	char		name[0];
 } __aligned(8);
 
@@ -159,12 +164,12 @@ static inline int au_rdu_len(int nlen)
 {
 	/* include the terminating NULL */
 	return ALIGN(sizeof(struct au_rdu_ent) + nlen + 1,
-		     sizeof(__u64));
+		     sizeof(uint64_t));
 }
 
 union au_rdu_ent_ul {
 	struct au_rdu_ent __user	*e;
-	__u64				ul;
+	uint64_t			ul;
 };
 
 enum {
@@ -175,21 +180,21 @@ enum {
 struct aufs_rdu {
 	/* input */
 	union {
-		__u64		sz;	/* AuCtl_RDU */
-		__u64		nent;	/* AuCtl_RDU_INO */
+		uint64_t	sz;	/* AuCtl_RDU */
+		uint64_t	nent;	/* AuCtl_RDU_INO */
 	};
 	union au_rdu_ent_ul	ent;
-	__u16			verify[AufsCtlRduV_End];
+	uint16_t		verify[AufsCtlRduV_End];
 
 	/* input/output */
-	__u32			blk;
+	uint32_t		blk;
 
 	/* output */
 	union au_rdu_ent_ul	tail;
 	/* number of entries which were added in a single call */
-	__u64			rent;
-	__u8			full;
-	__u8			shwh;
+	uint64_t		rent;
+	uint8_t			full;
+	uint8_t			shwh;
 
 	struct au_rdu_cookie	cookie;
 } __aligned(8);
@@ -197,15 +202,15 @@ struct aufs_rdu {
 /* ---------------------------------------------------------------------- */
 
 struct aufs_wbr_fd {
-	__u32	oflags;
-	__s16	brid;
+	uint32_t	oflags;
+	int16_t		brid;
 } __aligned(8);
 
 /* ---------------------------------------------------------------------- */
 
 struct aufs_ibusy {
-	__u64	ino, h_ino;
-	__s16	bindex;
+	uint64_t	ino, h_ino;
+	int16_t		bindex;
 } __aligned(8);
 
 /* ---------------------------------------------------------------------- */
