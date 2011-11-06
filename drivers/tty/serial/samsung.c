@@ -42,6 +42,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
+#include <linux/of.h>
 
 #include <asm/irq.h>
 
@@ -1163,9 +1164,25 @@ static ssize_t s3c24xx_serial_show_clksrc(struct device *dev,
 
 static DEVICE_ATTR(clock_source, S_IRUGO, s3c24xx_serial_show_clksrc, NULL);
 
+
 /* Device driver serial port probe */
 
+static const struct of_device_id s3c24xx_uart_dt_match[];
 static int probe_index;
+
+static inline struct s3c24xx_serial_drv_data *s3c24xx_get_driver_data(
+			struct platform_device *pdev)
+{
+#ifdef CONFIG_OF
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(s3c24xx_uart_dt_match, pdev->dev.of_node);
+		return (struct s3c24xx_serial_drv_data *)match->data;
+	}
+#endif
+	return (struct s3c24xx_serial_drv_data *)
+			platform_get_device_id(pdev)->driver_data;
+}
 
 static int s3c24xx_serial_probe(struct platform_device *pdev)
 {
@@ -1176,8 +1193,11 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 
 	ourport = &s3c24xx_serial_ports[probe_index];
 
-	ourport->drv_data = (struct s3c24xx_serial_drv_data *)
-			platform_get_device_id(pdev)->driver_data;
+	ourport->drv_data = s3c24xx_get_driver_data(pdev);
+	if (!ourport->drv_data) {
+		dev_err(&pdev->dev, "could not find driver data\n");
+		return -ENODEV;
+	}
 
 	ourport->info = ourport->drv_data->info;
 	ourport->cfg = (pdev->dev.platform_data) ?
@@ -1626,6 +1646,17 @@ static struct platform_device_id s3c24xx_serial_driver_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, s3c24xx_serial_driver_ids);
 
+#ifdef CONFIG_OF
+static const struct of_device_id s3c24xx_uart_dt_match[] = {
+	{ .compatible = "samsung,exynos4210-uart",
+		.data = &exynos4210_serial_drv_data },
+	{},
+};
+MODULE_DEVICE_TABLE(of, s3c24xx_uart_dt_match);
+#else
+#define s3c24xx_uart_dt_match NULL
+#endif
+
 static struct platform_driver samsung_serial_driver = {
 	.probe		= s3c24xx_serial_probe,
 	.remove		= __devexit_p(s3c24xx_serial_remove),
@@ -1634,6 +1665,7 @@ static struct platform_driver samsung_serial_driver = {
 		.name	= "samsung-uart",
 		.owner	= THIS_MODULE,
 		.pm	= SERIAL_SAMSUNG_PM_OPS,
+		.of_match_table	= s3c24xx_uart_dt_match,
 	},
 };
 
