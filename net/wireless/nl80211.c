@@ -1017,6 +1017,8 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		NLA_PUT_U32(msg, NL80211_ATTR_DEVICE_AP_SME,
 			    dev->wiphy.ap_sme_capa);
 
+	NLA_PUT_U32(msg, NL80211_ATTR_FEATURE_FLAGS, dev->wiphy.features);
+
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
