@@ -1009,7 +1009,6 @@ static int mos77xx_calc_num_ports(struct usb_serial *serial)
 static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial;
-	struct usb_serial_port *port0;
 	struct urb *urb;
 	struct moschip_port *mos7720_port;
 	int response;
@@ -1023,8 +1022,6 @@ static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
 	mos7720_port = usb_get_serial_port_data(port);
 	if (mos7720_port == NULL)
 		return -ENODEV;
-
-	port0 = serial->port[0];
 
 	usb_clear_halt(serial->dev, port->write_urb->pipe);
 	usb_clear_halt(serial->dev, port->read_urb->pipe);
