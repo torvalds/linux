@@ -40,7 +40,7 @@ static struct usb_driver debug_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
-	.no_dynamic_id = 	1,
+	.no_dynamic_id =	1,
 };
 
 /* This HW really does not support a serial break, so one will be
@@ -59,8 +59,8 @@ static void usb_debug_read_bulk_callback(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 
 	if (urb->actual_length == USB_DEBUG_BRK_SIZE &&
-	    memcmp(urb->transfer_buffer, USB_DEBUG_BRK,
-		   USB_DEBUG_BRK_SIZE) == 0) {
+		memcmp(urb->transfer_buffer, USB_DEBUG_BRK,
+						USB_DEBUG_BRK_SIZE) == 0) {
 		usb_serial_handle_break(port);
 		usb_serial_generic_submit_read_urb(port, GFP_ATOMIC);
 		return;
