@@ -488,10 +488,6 @@ void as10x_cmd_build(struct as10x_cmd_t *pcmd, uint16_t proc_id,
 		      uint16_t cmd_len);
 int as10x_rsp_parse(struct as10x_cmd_t *r, uint16_t proc_id);
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* as10x cmd */
 int as10x_cmd_turn_on(as10x_handle_t *phandle);
 int as10x_cmd_turn_off(as10x_handle_t *phandle);
@@ -530,7 +526,4 @@ int as10x_cmd_get_context(as10x_handle_t *phandle,
 
 int as10x_cmd_eLNA_change_mode(as10x_handle_t *phandle, uint8_t mode);
 int as10x_context_rsp_parse(struct as10x_cmd_t *prsp, uint16_t proc_id);
-#ifdef __cplusplus
-}
-#endif
 #endif
