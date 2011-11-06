@@ -108,10 +108,8 @@ static int __devinit u8500_hsem_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	io_base = ioremap(res->start, resource_size(res));
-	if (!io_base) {
-		ret = -ENOMEM;
-		goto free_state;
-	}
+	if (!io_base)
+		return -ENOMEM;
 
 	/* make sure protocol 1 is selected */
 	val = readl(io_base + HSEM_CTRL_REG);
