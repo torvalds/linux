@@ -507,7 +507,7 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 	result = usb_serial_generic_submit_read_urb(port, GFP_KERNEL);
 	if (result) {
 		pl2303_close(port);
-		return -EPROTO;
+		return result;
 	}
 
 	dbg("%s - submitting interrupt urb", __func__);
@@ -516,7 +516,7 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev, "%s - failed submitting interrupt urb,"
 			" error %d\n", __func__, result);
 		pl2303_close(port);
-		return -EPROTO;
+		return result;
 	}
 	port->port.drain_delay = 256;
 	return 0;
