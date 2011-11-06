@@ -1732,6 +1732,12 @@ void __devinit pcibios_scan_phb(struct pci_controller *hose)
 	if (mode == PCI_PROBE_NORMAL)
 		hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
 
+	/* Platform gets a chance to do some global fixups before
+	 * we proceed to resource allocation
+	 */
+	if (ppc_md.pcibios_fixup_phb)
+		ppc_md.pcibios_fixup_phb(hose);
+
 	/* Configure PCI Express settings */
 	if (bus && !pci_has_flag(PCI_PROBE_ONLY)) {
 		struct pci_bus *child;
