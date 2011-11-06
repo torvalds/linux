@@ -56,4 +56,3 @@ struct as10x_usb_token_cmd_t {
 	struct as10x_cmd_t r;
 };
 #endif
-/* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */

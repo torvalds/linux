@@ -137,5 +137,3 @@ void as102_dvb_unregister(struct as102_dev_t *dev);
 
 int as102_dvb_register_fe(struct as102_dev_t *dev, struct dvb_frontend *fe);
 int as102_dvb_unregister_fe(struct dvb_frontend *dev);
-
-/* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */

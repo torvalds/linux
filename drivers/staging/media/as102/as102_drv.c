@@ -347,5 +347,3 @@ module_exit(as102_driver_exit);
 MODULE_DESCRIPTION(DRIVER_FULL_NAME);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pierrick Hascoet <pierrick.hascoet@abilis.com>");
-
-/* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */

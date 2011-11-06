@@ -247,5 +247,3 @@ error:
 	return errno;
 }
 #endif
-
-/* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */

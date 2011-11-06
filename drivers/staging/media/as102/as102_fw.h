@@ -38,5 +38,3 @@ struct as10x_fw_pkt_t {
 #ifdef __KERNEL__
 int as102_fw_upload(struct as102_bus_adapter_t *bus_adap);
 #endif
-
-/* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */

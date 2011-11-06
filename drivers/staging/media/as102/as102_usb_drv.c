@@ -474,5 +474,3 @@ static int as102_release(struct inode *inode, struct file *file)
 }
 
 MODULE_DEVICE_TABLE(usb, as102_usb_id_table);
-
-/* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */
