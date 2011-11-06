@@ -75,7 +75,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.map_io		= exynos4_map_io,
 		.init_clocks	= exynos4_init_clocks,
 		.init_uarts	= exynos4_init_uarts,
-		.init		= exynos4_init,
+		.init		= exynos_init,
 		.name		= name_exynos4210,
 	}, {
 		.idcode		= EXYNOS4212_CPU_ID,
@@ -83,7 +83,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.map_io		= exynos4_map_io,
 		.init_clocks	= exynos4_init_clocks,
 		.init_uarts	= exynos4_init_uarts,
-		.init		= exynos4_init,
+		.init		= exynos_init,
 		.name		= name_exynos4212,
 	}, {
 		.idcode		= EXYNOS4412_CPU_ID,
@@ -91,7 +91,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.map_io		= exynos4_map_io,
 		.init_clocks	= exynos4_init_clocks,
 		.init_uarts	= exynos4_init_uarts,
-		.init		= exynos4_init,
+		.init		= exynos_init,
 		.name		= name_exynos4412,
 	},
 };
