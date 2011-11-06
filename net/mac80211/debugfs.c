@@ -190,7 +190,7 @@ static ssize_t uapsd_max_sp_len_write(struct file *file,
 		return -EFAULT;
 	buf[len] = '\0';
 
-	ret = strict_strtoul(buf, 0, &val);
+	ret = kstrtoul(buf, 0, &val);
 
 	if (ret)
 		return -EINVAL;
