@@ -350,6 +350,19 @@ static int it913x_identify_state(struct usb_device *udev,
 	/* checnk for dual mode */
 	it913x_config.dual_mode =  it913x_read_reg(udev, 0x49c5);
 
+	if (udev->speed != USB_SPEED_HIGH) {
+		props->adapter[0].fe[0].pid_filter_count = 5;
+		info("USB 1 low speed mode - connect to USB 2 port");
+		if (pid_filter > 0)
+			pid_filter = 0;
+		if (it913x_config.dual_mode) {
+			it913x_config.dual_mode = 0;
+			info("Dual mode not supported in USB 1");
+		}
+	} else /* For replugging */
+		if(props->adapter[0].fe[0].pid_filter_count == 5)
+			props->adapter[0].fe[0].pid_filter_count = 31;
+
 	/* TODO different remotes */
 	remote = it913x_read_reg(udev, 0x49ac); /* Remote */
 	if (remote == 0)
@@ -499,6 +512,10 @@ static int it913x_frontend_attach(struct dvb_usb_adapter *adap)
 	int ret = 0;
 	u8 adap_addr = I2C_BASE_ADDR + (adap->id << 5);
 	u16 ep_size = adap->props.fe[0].stream.u.bulk.buffersize;
+	u8 pkt_size = 0x80;
+
+	if (adap->dev->udev->speed != USB_SPEED_HIGH)
+		pkt_size = 0x10;
 
 	it913x_config.adf = it913x_read_reg(udev, IO_MUX_POWER_CLK);
 
@@ -514,13 +531,13 @@ static int it913x_frontend_attach(struct dvb_usb_adapter *adap)
 		ret = it913x_wr_reg(udev, DEV_0, EP4_TX_LEN_LSB,
 					ep_size & 0xff);
 		ret = it913x_wr_reg(udev, DEV_0, EP4_TX_LEN_MSB, ep_size >> 8);
-		ret = it913x_wr_reg(udev, DEV_0, EP4_MAX_PKT, 0x80);
+		ret = it913x_wr_reg(udev, DEV_0, EP4_MAX_PKT, pkt_size);
 	} else if (adap->id == 1 && adap->fe_adap[0].fe) {
 		ret = it913x_wr_reg(udev, DEV_0, EP0_TX_EN, 0x6f);
 		ret = it913x_wr_reg(udev, DEV_0, EP5_TX_LEN_LSB,
 					ep_size & 0xff);
 		ret = it913x_wr_reg(udev, DEV_0, EP5_TX_LEN_MSB, ep_size >> 8);
-		ret = it913x_wr_reg(udev, DEV_0, EP5_MAX_PKT, 0x80);
+		ret = it913x_wr_reg(udev, DEV_0, EP5_MAX_PKT, pkt_size);
 		ret = it913x_wr_reg(udev, DEV_0_DMOD, MP2IF2_EN, 0x1);
 		ret = it913x_wr_reg(udev, DEV_1_DMOD, MP2IF_SERIAL, 0x1);
 		ret = it913x_wr_reg(udev, DEV_1, TOP_HOSTB_SER_MODE, 0x1);
@@ -676,5 +693,5 @@ module_exit(it913x_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.08");
+MODULE_VERSION("1.09");
 MODULE_LICENSE("GPL");
