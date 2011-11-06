@@ -1754,11 +1754,18 @@ static void backup_super_roots(struct btrfs_fs_info *info)
 	btrfs_set_backup_extent_root_level(root_backup,
 			       btrfs_header_level(info->extent_root->node));
 
-	btrfs_set_backup_fs_root(root_backup, info->fs_root->node->start);
-	btrfs_set_backup_fs_root_gen(root_backup,
+	/*
+	 * we might commit during log recovery, which happens before we set
+	 * the fs_root.  Make sure it is valid before we fill it in.
+	 */
+	if (info->fs_root && info->fs_root->node) {
+		btrfs_set_backup_fs_root(root_backup,
+					 info->fs_root->node->start);
+		btrfs_set_backup_fs_root_gen(root_backup,
 			       btrfs_header_generation(info->fs_root->node));
-	btrfs_set_backup_fs_root_level(root_backup,
+		btrfs_set_backup_fs_root_level(root_backup,
 			       btrfs_header_level(info->fs_root->node));
+	}
 
 	btrfs_set_backup_dev_root(root_backup, info->dev_root->node->start);
 	btrfs_set_backup_dev_root_gen(root_backup,
