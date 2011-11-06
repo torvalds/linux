@@ -161,6 +161,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	INT Status = STATUS_FAILURE;
 	int timeout = 0;
 	IOCTL_BUFFER IoBuffer;
+	int bytes;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Parameters Passed to control IOCTL cmd=0x%X arg=0x%lX", cmd, arg);
 
@@ -230,11 +231,14 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		if (!temp_buff)
 			return -ENOMEM;
 
-		Status = rdmalt(Adapter, (UINT)sRdmBuffer.Register,
+		bytes = rdmalt(Adapter, (UINT)sRdmBuffer.Register,
 				(PUINT)temp_buff, Bufflen);
-		if (Status == STATUS_SUCCESS) {
-			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, IoBuffer.OutputLength))
+		if (bytes > 0) {
+			Status = STATUS_SUCCESS;
+			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, bytes))
 				Status = -EFAULT;
+		} else {
+			Status = bytes;
 		}
 
 		kfree(temp_buff);
@@ -318,11 +322,15 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		}
 
 		uiTempVar = sRdmBuffer.Register & EEPROM_REJECT_MASK;
-		Status = rdmaltWithLock(Adapter, (UINT)sRdmBuffer.Register, (PUINT)temp_buff, IoBuffer.OutputLength);
+		bytes = rdmaltWithLock(Adapter, (UINT)sRdmBuffer.Register, (PUINT)temp_buff, IoBuffer.OutputLength);
 
-		if (Status == STATUS_SUCCESS)
-			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, IoBuffer.OutputLength))
+		if (bytes > 0) {
+			Status = STATUS_SUCCESS;
+			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, bytes))
 				Status = -EFAULT;
+		} else {
+			Status = bytes;
+		}
 
 		kfree(temp_buff);
 		break;
@@ -437,12 +445,14 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			}
 		}
 
-		Status = rdmaltWithLock(Adapter, (UINT)GPIO_MODE_REGISTER, (PUINT)ucResetValue, sizeof(UINT));
-
-		if (STATUS_SUCCESS != Status) {
+		bytes = rdmaltWithLock(Adapter, (UINT)GPIO_MODE_REGISTER, (PUINT)ucResetValue, sizeof(UINT));
+		if (bytes < 0) {
+			Status = bytes;
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 					"GPIO_MODE_REGISTER read failed");
 			break;
+		} else {
+			Status = STATUS_SUCCESS;
 		}
 
 		/* Set the gpio mode register to output */
@@ -519,12 +529,15 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		uiBit = gpio_info.uiGpioNumber;
 
 		/* Set the gpio output register */
-		Status = rdmaltWithLock(Adapter, (UINT)GPIO_PIN_STATE_REGISTER,
+		bytes = rdmaltWithLock(Adapter, (UINT)GPIO_PIN_STATE_REGISTER,
 					(PUINT)ucRead, sizeof(UINT));
 
-		if (Status != STATUS_SUCCESS) {
+		if (bytes < 0) {
+			Status = bytes;
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "RDM Failed\n");
 			return Status;
+		} else {
+			Status = STATUS_SUCCESS;
 		}
 	}
 	break;
@@ -590,11 +603,14 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		}
 
 		if (pgpio_multi_info[WIMAX_IDX].uiGPIOMask) {
-			Status = rdmaltWithLock(Adapter, (UINT)GPIO_PIN_STATE_REGISTER, (PUINT)ucResetValue, sizeof(UINT));
+			bytes = rdmaltWithLock(Adapter, (UINT)GPIO_PIN_STATE_REGISTER, (PUINT)ucResetValue, sizeof(UINT));
 
-			if (Status != STATUS_SUCCESS) {
+			if (bytes < 0) {
+				Status = bytes;
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "RDM to GPIO_PIN_STATE_REGISTER Failed.");
 				return Status;
+			} else {
+				Status = STATUS_SUCCESS;
 			}
 
 			pgpio_multi_info[WIMAX_IDX].uiGPIOValue = (*(UINT *)ucResetValue &
@@ -629,11 +645,14 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		if (copy_from_user(&gpio_multi_mode, IoBuffer.InputBuffer, IoBuffer.InputLength))
 			return -EFAULT;
 
-		Status = rdmaltWithLock(Adapter, (UINT)GPIO_MODE_REGISTER, (PUINT)ucResetValue, sizeof(UINT));
+		bytes = rdmaltWithLock(Adapter, (UINT)GPIO_MODE_REGISTER, (PUINT)ucResetValue, sizeof(UINT));
 
-		if (STATUS_SUCCESS != Status) {
+		if (bytes < 0) {
+			Status = bytes;
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Read of GPIO_MODE_REGISTER failed");
 			return Status;
+		} else {
+			Status = STATUS_SUCCESS;
 		}
 
 		/* Validating the request */
