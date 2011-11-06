@@ -53,6 +53,8 @@ struct it913x_fe_state {
 	struct ite_config *config;
 	u8 i2c_addr;
 	u32 frequency;
+	fe_modulation_t constellation;
+	fe_transmit_mode_t transmission_mode;
 	u32 crystalFrequency;
 	u32 adcFrequency;
 	u8 tuner_type;
@@ -496,14 +498,50 @@ static int it913x_fe_read_signal_strength(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int it913x_fe_read_snr(struct dvb_frontend *fe, u16* snr)
+static int it913x_fe_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct it913x_fe_state *state = fe->demodulator_priv;
-	int ret = it913x_read_reg_u8(state, SIGNAL_QUALITY);
-	ret = (ret * 0xff) / 0x64;
-	ret |= (ret << 0x8);
-	*snr = ~ret;
-	return 0;
+	int ret;
+	u8 reg[3];
+	u32 snr_val, snr_min, snr_max;
+	u32 temp;
+
+	ret = it913x_read_reg(state, 0x2c, reg, sizeof(reg));
+
+	snr_val = (u32)(reg[2] << 16) | (reg[1] < 8) | reg[0];
+
+	ret |= it913x_read_reg(state, 0xf78b, reg, 1);
+	if (reg[0])
+		snr_val /= reg[0];
+
+	if (state->transmission_mode == TRANSMISSION_MODE_2K)
+		snr_val *= 4;
+	else if (state->transmission_mode == TRANSMISSION_MODE_4K)
+		snr_val *= 2;
+
+	if (state->constellation == QPSK) {
+		snr_min = 0xb4711;
+		snr_max = 0x191451;
+	} else if (state->constellation == QAM_16) {
+		snr_min = 0x4f0d5;
+		snr_max = 0xc7925;
+	} else if (state->constellation == QAM_64) {
+		snr_min = 0x256d0;
+		snr_max = 0x626be;
+	} else
+		return -EINVAL;
+
+	if (snr_val < snr_min)
+		*snr = 0;
+	else if (snr_val < snr_max) {
+		temp = (snr_val - snr_min) >> 5;
+		temp *= 0xffff;
+		temp /= (snr_max - snr_min) >> 5;
+		*snr = (u16)temp;
+	} else
+		*snr = 0xffff;
+
+	return (ret < 0) ? -ENODEV : 0;
 }
 
 static int it913x_fe_read_ber(struct dvb_frontend *fe, u32 *ber)
@@ -530,8 +568,12 @@ static int it913x_fe_get_frontend(struct dvb_frontend *fe,
 	if (reg[3] < 3)
 		p->u.ofdm.constellation = fe_con[reg[3]];
 
+	state->constellation = p->u.ofdm.constellation;
+
 	if (reg[0] < 3)
 		p->u.ofdm.transmission_mode = fe_mode[reg[0]];
+
+	state->transmission_mode = p->u.ofdm.transmission_mode;
 
 	if (reg[1] < 4)
 		p->u.ofdm.guard_interval = fe_gi[reg[1]];
@@ -888,5 +930,5 @@ static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
 
 MODULE_DESCRIPTION("it913x Frontend and it9137 tuner");
 MODULE_AUTHOR("Malcolm Priestley tvboxspy@gmail.com");
-MODULE_VERSION("1.09");
+MODULE_VERSION("1.10");
 MODULE_LICENSE("GPL");
