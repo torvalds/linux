@@ -596,6 +596,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 			WIPHY_FLAG_4ADDR_STATION |
 			WIPHY_FLAG_REPORTS_OBSS;
 
+	wiphy->features = NL80211_FEATURE_SK_TX_STATUS;
+
 	if (!ops->set_key)
 		wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
@@ -668,6 +670,11 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	INIT_WORK(&local->sched_scan_stopped_work,
 		  ieee80211_sched_scan_stopped_work);
+
+	spin_lock_init(&local->ack_status_lock);
+	idr_init(&local->ack_status_frames);
+	/* preallocate at least one entry */
+	idr_pre_get(&local->ack_status_frames, GFP_KERNEL);
 
 	sta_info_init(local);
 
@@ -1044,6 +1051,13 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(ieee80211_unregister_hw);
 
+static int ieee80211_free_ack_frame(int id, void *p, void *data)
+{
+	WARN_ONCE(1, "Have pending ack frames!\n");
+	kfree_skb(p);
+	return 0;
+}
+
 void ieee80211_free_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -1053,6 +1067,10 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 
 	if (local->wiphy_ciphers_allocated)
 		kfree(local->hw.wiphy->cipher_suites);
+
+	idr_for_each(&local->ack_status_frames,
+		     ieee80211_free_ack_frame, NULL);
+	idr_destroy(&local->ack_status_frames);
 
 	wiphy_free(local->hw.wiphy);
 }

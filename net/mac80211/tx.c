@@ -1684,8 +1684,10 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	int nh_pos, h_pos;
 	struct sta_info *sta = NULL;
 	bool wme_sta = false, authorized = false, tdls_auth = false;
-	struct sk_buff *tmp_skb;
 	bool tdls_direct = false;
+	bool multicast;
+	u32 info_flags = 0;
+	u16 info_id = 0;
 
 	if (unlikely(skb->len < ETH_HLEN)) {
 		ret = NETDEV_TX_OK;
@@ -1872,7 +1874,8 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 * if it is a multicast address (which can only happen
 	 * in AP mode)
 	 */
-	if (!is_multicast_ether_addr(hdr.addr1)) {
+	multicast = is_multicast_ether_addr(hdr.addr1);
+	if (!multicast) {
 		rcu_read_lock();
 		sta = sta_info_get(sdata, hdr.addr1);
 		if (sta) {
@@ -1913,11 +1916,54 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		goto fail;
 	}
 
+	if (unlikely(!multicast && skb->sk &&
+		     skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS)) {
+		struct sk_buff *orig_skb = skb;
+
+		skb = skb_clone(skb, GFP_ATOMIC);
+		if (skb) {
+			unsigned long flags;
+			int id, r;
+
+			spin_lock_irqsave(&local->ack_status_lock, flags);
+			r = idr_get_new_above(&local->ack_status_frames,
+					      orig_skb, 1, &id);
+			if (r == -EAGAIN) {
+				idr_pre_get(&local->ack_status_frames,
+					    GFP_ATOMIC);
+				r = idr_get_new_above(&local->ack_status_frames,
+						      orig_skb, 1, &id);
+			}
+			if (WARN_ON(!id) || id > 0xffff) {
+				idr_remove(&local->ack_status_frames, id);
+				r = -ERANGE;
+			}
+			spin_unlock_irqrestore(&local->ack_status_lock, flags);
+
+			if (!r) {
+				info_id = id;
+				info_flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
+			} else if (skb_shared(skb)) {
+				kfree_skb(orig_skb);
+			} else {
+				kfree_skb(skb);
+				skb = orig_skb;
+			}
+		} else {
+			/* couldn't clone -- lose tx status ... */
+			skb = orig_skb;
+		}
+	}
+
 	/*
 	 * If the skb is shared we need to obtain our own copy.
 	 */
 	if (skb_shared(skb)) {
-		tmp_skb = skb;
+		struct sk_buff *tmp_skb = skb;
+
+		/* can't happen -- skb is a clone if info_id != 0 */
+		WARN_ON(info_id);
+
 		skb = skb_clone(skb, GFP_ATOMIC);
 		kfree_skb(tmp_skb);
 
@@ -2018,6 +2064,10 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	memset(info, 0, sizeof(*info));
 
 	dev->trans_start = jiffies;
+
+	info->flags = info_flags;
+	info->ack_frame_id = info_id;
+
 	ieee80211_xmit(sdata, skb);
 
 	return NETDEV_TX_OK;
