@@ -4,7 +4,7 @@
 
 config BATMAN_ADV
 	tristate "B.A.T.M.A.N. Advanced Meshing Protocol"
-	depends on NET && INET
+	depends on NET
 	select CRC16
         default n
 	help
@@ -16,7 +16,7 @@ config BATMAN_ADV
 
 config BATMAN_ADV_BLA
 	bool "Bridge Loop Avoidance"
-	depends on BATMAN_ADV
+	depends on BATMAN_ADV && INET
 	default y
 	help
 	  This option enables BLA (Bridge Loop Avoidance), a mechanism
@@ -24,6 +24,16 @@ config BATMAN_ADV_BLA
 	  to both the same LAN and the same mesh. If you will never use
 	  more than one mesh node in the same LAN, you can safely remove
 	  this feature and save some space.
+
+config BATMAN_ADV_DAT
+	bool "Distributed ARP Table"
+	depends on BATMAN_ADV && INET
+	default n
+	help
+	  This option enables DAT (Distributed ARP Table), a DHT based
+	  mechanism that increases ARP reliability on sparse wireless
+	  mesh networks. If you think that your network does not need
+	  this option you can safely remove it and save some space.
 
 config BATMAN_ADV_DEBUG
 	bool "B.A.T.M.A.N. debugging"

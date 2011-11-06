@@ -20,6 +20,8 @@
 #ifndef _NET_BATMAN_ADV_ARP_H_
 #define _NET_BATMAN_ADV_ARP_H_
 
+#ifdef CONFIG_BATMAN_ADV_DAT
+
 #include "types.h"
 #include "originator.h"
 
@@ -71,5 +73,68 @@ batadv_dat_init_own_addr(struct batadv_priv *bat_priv,
 int batadv_dat_init(struct batadv_priv *bat_priv);
 void batadv_dat_free(struct batadv_priv *bat_priv);
 int batadv_dat_cache_seq_print_text(struct seq_file *seq, void *offset);
+
+#else
+
+static inline bool
+batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
+				      struct sk_buff *skb)
+{
+	return false;
+}
+
+static inline bool
+batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
+				      struct sk_buff *skb, int hdr_size)
+{
+	return false;
+}
+
+static inline bool
+batadv_dat_snoop_outgoing_arp_reply(struct batadv_priv *bat_priv,
+				    struct sk_buff *skb)
+{
+	return false;
+}
+
+static inline bool
+batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
+				    struct sk_buff *skb, int hdr_size)
+{
+	return false;
+}
+
+static inline bool
+batadv_dat_drop_broadcast_packet(struct batadv_priv *bat_priv,
+				 struct batadv_forw_packet *forw_packet)
+{
+	return false;
+}
+
+static inline void
+batadv_dat_init_orig_node_addr(struct batadv_orig_node *orig_node)
+{
+}
+
+static inline void batadv_dat_init_own_addr(struct batadv_priv *bat_priv,
+					    struct batadv_hard_iface *iface)
+{
+}
+
+static inline void batadv_arp_change_timeout(struct net_device *soft_iface,
+					     const char *name)
+{
+}
+
+static inline int batadv_dat_init(struct batadv_priv *bat_priv)
+{
+	return 0;
+}
+
+static inline void batadv_dat_free(struct batadv_priv *bat_priv)
+{
+}
+
+#endif /* CONFIG_BATMAN_ADV_DAT */
 
 #endif /* _NET_BATMAN_ADV_ARP_H_ */
