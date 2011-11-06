@@ -257,12 +257,54 @@ struct pci_ops pnv_pci_ops = {
 	.write = pnv_pci_write_config,
 };
 
+
+static void pnv_tce_invalidate(struct iommu_table *tbl,
+			       u64 *startp, u64 *endp)
+{
+	u64 __iomem *invalidate = (u64 __iomem *)tbl->it_index;
+	unsigned long start, end, inc;
+
+	start = __pa(startp);
+	end = __pa(endp);
+
+
+	/* BML uses this case for p6/p7/galaxy2: Shift addr and put in node */
+	if (tbl->it_busno) {
+		start <<= 12;
+		end <<= 12;
+		inc = 128 << 12;
+		start |= tbl->it_busno;
+		end |= tbl->it_busno;
+	}
+	/* p7ioc-style invalidation, 2 TCEs per write */
+	else if (tbl->it_type & TCE_PCI_SWINV_PAIR) {
+		start |= (1ull << 63);
+		end |= (1ull << 63);
+		inc = 16;
+	}
+	/* Default (older HW) */
+	else
+		inc = 128;
+
+	end |= inc - 1;		/* round up end to be different than start */
+
+	mb(); /* Ensure above stores are visible */
+	while (start <= end) {
+		__raw_writeq(start, invalidate);
+		start += inc;
+	}
+	/* The iommu layer will do another mb() for us on build() and
+	 * we don't care on free()
+	 */
+}
+
+
 static int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 			 unsigned long uaddr, enum dma_data_direction direction,
 			 struct dma_attrs *attrs)
 {
 	u64 proto_tce;
-	u64 *tcep;
+	u64 *tcep, *tces;
 	u64 rpn;
 
 	proto_tce = TCE_PCI_READ; // Read allowed
@@ -270,25 +312,33 @@ static int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 	if (direction != DMA_TO_DEVICE)
 		proto_tce |= TCE_PCI_WRITE;
 
-	tcep = ((u64 *)tbl->it_base) + index;
+	tces = tcep = ((u64 *)tbl->it_base) + index - tbl->it_offset;
+	rpn = __pa(uaddr) >> TCE_SHIFT;
 
-	while (npages--) {
-		/* can't move this out since we might cross LMB boundary */
-		rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
-		*tcep = proto_tce | (rpn & TCE_RPN_MASK) << TCE_RPN_SHIFT;
+	while (npages--)
+		*(tcep++) = proto_tce | (rpn++ << TCE_RPN_SHIFT);
 
-		uaddr += TCE_PAGE_SIZE;
-		tcep++;
-	}
+	/* Some implementations won't cache invalid TCEs and thus may not
+	 * need that flush. We'll probably turn it_type into a bit mask
+	 * of flags if that becomes the case
+	 */
+	if (tbl->it_type & TCE_PCI_SWINV_CREATE)
+		pnv_tce_invalidate(tbl, tces, tcep - 1);
+
 	return 0;
 }
 
 static void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
 {
-	u64 *tcep = ((u64 *)tbl->it_base) + index;
+	u64 *tcep, *tces;
+
+	tces = tcep = ((u64 *)tbl->it_base) + index - tbl->it_offset;
 
 	while (npages--)
 		*(tcep++) = 0;
+
+	if (tbl->it_type & TCE_PCI_SWINV_FREE)
+		pnv_tce_invalidate(tbl, tces, tcep - 1);
 }
 
 void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
@@ -308,13 +358,14 @@ static struct iommu_table * __devinit
 pnv_pci_setup_bml_iommu(struct pci_controller *hose)
 {
 	struct iommu_table *tbl;
-	const __be64 *basep;
+	const __be64 *basep, *swinvp;
 	const __be32 *sizep;
 
 	basep = of_get_property(hose->dn, "linux,tce-base", NULL);
 	sizep = of_get_property(hose->dn, "linux,tce-size", NULL);
 	if (basep == NULL || sizep == NULL) {
-		pr_err("PCI: %s has missing tce entries !\n", hose->dn->full_name);
+		pr_err("PCI: %s has missing tce entries !\n",
+		       hose->dn->full_name);
 		return NULL;
 	}
 	tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL, hose->node);
@@ -323,6 +374,15 @@ pnv_pci_setup_bml_iommu(struct pci_controller *hose)
 	pnv_pci_setup_iommu_table(tbl, __va(be64_to_cpup(basep)),
 				  be32_to_cpup(sizep), 0);
 	iommu_init_table(tbl, hose->node);
+
+	/* Deal with SW invalidated TCEs when needed (BML way) */
+	swinvp = of_get_property(hose->dn, "linux,tce-sw-invalidate-info",
+				 NULL);
+	if (swinvp) {
+		tbl->it_busno = swinvp[1];
+		tbl->it_index = (unsigned long)ioremap(swinvp[0], 8);
+		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
+	}
 	return tbl;
 }
 

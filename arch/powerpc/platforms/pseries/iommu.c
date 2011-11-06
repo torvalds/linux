@@ -106,7 +106,7 @@ static int tce_build_pSeries(struct iommu_table *tbl, long index,
 		tcep++;
 	}
 
-	if (tbl->it_type == TCE_PCI_SW_INVAL)
+	if (tbl->it_type == TCE_PCI_SWINV_CREATE)
 		tce_invalidate_pSeries_sw(tbl, tces, tcep - 1);
 	return 0;
 }
@@ -121,7 +121,7 @@ static void tce_free_pSeries(struct iommu_table *tbl, long index, long npages)
 	while (npages--)
 		*(tcep++) = 0;
 
-	if (tbl->it_type == TCE_PCI_SW_INVAL)
+	if (tbl->it_type == TCE_PCI_SWINV_FREE)
 		tce_invalidate_pSeries_sw(tbl, tces, tcep - 1);
 }
 
@@ -511,7 +511,7 @@ static void iommu_table_setparms(struct pci_controller *phb,
 		 */
 		tbl->it_index = (unsigned long) ioremap(sw_inval[0], 8);
 		tbl->it_busno = sw_inval[1]; /* overload this with magic */
-		tbl->it_type = TCE_PCI_SW_INVAL;
+		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
 	}
 }
 
