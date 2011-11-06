@@ -74,7 +74,7 @@ static struct usb_class_driver as102_usb_class_driver = {
 	.minor_base	= AS102_DEVICE_MAJOR,
 };
 
-static int as102_usb_xfer_cmd(struct as102_bus_adapter_t *bus_adap,
+static int as102_usb_xfer_cmd(struct as10x_bus_adapter_t *bus_adap,
 			      unsigned char *send_buf, int send_buf_len,
 			      unsigned char *recv_buf, int recv_buf_len)
 {
@@ -131,7 +131,7 @@ static int as102_usb_xfer_cmd(struct as102_bus_adapter_t *bus_adap,
 	return ret;
 }
 
-static int as102_send_ep1(struct as102_bus_adapter_t *bus_adap,
+static int as102_send_ep1(struct as10x_bus_adapter_t *bus_adap,
 			  unsigned char *send_buf,
 			  int send_buf_len,
 			  int swap32)
@@ -154,7 +154,7 @@ static int as102_send_ep1(struct as102_bus_adapter_t *bus_adap,
 	return ret ? ret : actual_len;
 }
 
-static int as102_read_ep2(struct as102_bus_adapter_t *bus_adap,
+static int as102_read_ep2(struct as10x_bus_adapter_t *bus_adap,
 		   unsigned char *recv_buf, int recv_buf_len)
 {
 	int ret = 0, actual_len;

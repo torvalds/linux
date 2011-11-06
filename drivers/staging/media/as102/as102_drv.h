@@ -50,7 +50,7 @@ extern int elna_enable;
 #define AS102_USB_BUF_SIZE	512
 #define MAX_STREAM_URB		32
 
-struct as102_bus_adapter_t {
+struct as10x_bus_adapter_t {
 	struct usb_device *usb_dev;
 	/* bus token lock */
 	struct mutex lock;
@@ -72,7 +72,7 @@ struct as102_bus_adapter_t {
 
 struct as102_dev_t {
 	const char *name;
-	struct as102_bus_adapter_t bus_adap;
+	struct as10x_bus_adapter_t bus_adap;
 	struct list_head device_entry;
 	struct kref kref;
 	unsigned long minor;

@@ -101,7 +101,7 @@ static int parse_hex_line(unsigned char *fw_data, unsigned char *addr,
 	return (count * 2) + 2;
 }
 
-static int as102_firmware_upload(struct as102_bus_adapter_t *bus_adap,
+static int as102_firmware_upload(struct as10x_bus_adapter_t *bus_adap,
 				 unsigned char *cmd,
 				 const struct firmware *firmware) {
 
@@ -162,7 +162,7 @@ error:
 	return (errno == 0) ? total_read_bytes : errno;
 }
 
-int as102_fw_upload(struct as102_bus_adapter_t *bus_adap)
+int as102_fw_upload(struct as10x_bus_adapter_t *bus_adap)
 {
 	int errno = -EFAULT;
 	const struct firmware *firmware;

@@ -489,41 +489,41 @@ void as10x_cmd_build(struct as10x_cmd_t *pcmd, uint16_t proc_id,
 int as10x_rsp_parse(struct as10x_cmd_t *r, uint16_t proc_id);
 
 /* as10x cmd */
-int as10x_cmd_turn_on(as10x_handle_t *phandle);
-int as10x_cmd_turn_off(as10x_handle_t *phandle);
+int as10x_cmd_turn_on(struct as10x_bus_adapter_t *adap);
+int as10x_cmd_turn_off(struct as10x_bus_adapter_t *adap);
 
-int as10x_cmd_set_tune(as10x_handle_t *phandle,
+int as10x_cmd_set_tune(struct as10x_bus_adapter_t *adap,
 		       struct as10x_tune_args *ptune);
 
-int as10x_cmd_get_tune_status(as10x_handle_t *phandle,
+int as10x_cmd_get_tune_status(struct as10x_bus_adapter_t *adap,
 			      struct as10x_tune_status *pstatus);
 
-int as10x_cmd_get_tps(as10x_handle_t *phandle,
+int as10x_cmd_get_tps(struct as10x_bus_adapter_t *adap,
 		      struct as10x_tps *ptps);
 
-int as10x_cmd_get_demod_stats(as10x_handle_t  *phandle,
+int as10x_cmd_get_demod_stats(struct as10x_bus_adapter_t  *adap,
 			      struct as10x_demod_stats *pdemod_stats);
 
-int as10x_cmd_get_impulse_resp(as10x_handle_t *phandle,
+int as10x_cmd_get_impulse_resp(struct as10x_bus_adapter_t *adap,
 			       uint8_t *is_ready);
 
 /* as10x cmd stream */
-int as10x_cmd_add_PID_filter(as10x_handle_t *phandle,
+int as10x_cmd_add_PID_filter(struct as10x_bus_adapter_t *adap,
 			     struct as10x_ts_filter *filter);
-int as10x_cmd_del_PID_filter(as10x_handle_t *phandle,
+int as10x_cmd_del_PID_filter(struct as10x_bus_adapter_t *adap,
 			     uint16_t pid_value);
 
-int as10x_cmd_start_streaming(as10x_handle_t *phandle);
-int as10x_cmd_stop_streaming(as10x_handle_t *phandle);
+int as10x_cmd_start_streaming(struct as10x_bus_adapter_t *adap);
+int as10x_cmd_stop_streaming(struct as10x_bus_adapter_t *adap);
 
 /* as10x cmd cfg */
-int as10x_cmd_set_context(as10x_handle_t *phandle,
+int as10x_cmd_set_context(struct as10x_bus_adapter_t *adap,
 			  uint16_t tag,
 			  uint32_t value);
-int as10x_cmd_get_context(as10x_handle_t *phandle,
+int as10x_cmd_get_context(struct as10x_bus_adapter_t *adap,
 			  uint16_t tag,
 			  uint32_t *pvalue);
 
-int as10x_cmd_eLNA_change_mode(as10x_handle_t *phandle, uint8_t mode);
+int as10x_cmd_eLNA_change_mode(struct as10x_bus_adapter_t *adap, uint8_t mode);
 int as10x_context_rsp_parse(struct as10x_cmd_t *prsp, uint16_t proc_id);
 #endif

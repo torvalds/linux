@@ -60,7 +60,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static void as102_stop_stream(struct as102_dev_t *dev)
 {
-	struct as102_bus_adapter_t *bus_adap;
+	struct as10x_bus_adapter_t *bus_adap;
 
 	if (dev != NULL)
 		bus_adap = &dev->bus_adap;
@@ -83,7 +83,7 @@ static void as102_stop_stream(struct as102_dev_t *dev)
 
 static int as102_start_stream(struct as102_dev_t *dev)
 {
-	struct as102_bus_adapter_t *bus_adap;
+	struct as10x_bus_adapter_t *bus_adap;
 	int ret = -EFAULT;
 
 	if (dev != NULL)
@@ -109,7 +109,7 @@ static int as102_start_stream(struct as102_dev_t *dev)
 static int as10x_pid_filter(struct as102_dev_t *dev,
 			    int index, u16 pid, int onoff) {
 
-	struct as102_bus_adapter_t *bus_adap = &dev->bus_adap;
+	struct as10x_bus_adapter_t *bus_adap = &dev->bus_adap;
 	int ret = -EFAULT;
 
 	ENTER();
