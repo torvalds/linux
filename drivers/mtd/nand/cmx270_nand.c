@@ -22,6 +22,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

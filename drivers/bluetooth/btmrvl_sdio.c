@@ -23,6 +23,7 @@
 
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/module.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>

@@ -10,6 +10,7 @@
 #include <linux/dma-debug.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
+#include <linux/export.h>
 #include <asm/bug.h>
 #include <asm/abs_addr.h>
 #include <asm/machdep.h>

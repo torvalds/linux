@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/semaphore.h>
 #include <linux/iscsi_boot_sysfs.h>
+#include <linux/module.h>
 
 #include <scsi/libiscsi.h>
 #include <scsi/scsi_transport_iscsi.h>

@@ -19,6 +19,7 @@
 #include <linux/cpuidle.h>
 #include <asm/proc-fns.h>
 #include <linux/io.h>
+#include <linux/export.h>
 
 #include "pm.h"
 

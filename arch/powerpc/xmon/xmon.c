@@ -18,7 +18,7 @@
 #include <linux/delay.h>
 #include <linux/kallsyms.h>
 #include <linux/cpumask.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sysrq.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>

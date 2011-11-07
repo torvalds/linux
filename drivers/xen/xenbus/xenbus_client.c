@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
+#include <linux/export.h>
 #include <asm/xen/hypervisor.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/event_channel.h>

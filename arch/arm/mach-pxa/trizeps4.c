@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/bitops.h>
 #include <linux/fb.h>

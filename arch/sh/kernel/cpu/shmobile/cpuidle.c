@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/suspend.h>
 #include <linux/cpuidle.h>
+#include <linux/export.h>
 #include <asm/suspend.h>
 #include <asm/uaccess.h>
 #include <asm/hwblk.h>

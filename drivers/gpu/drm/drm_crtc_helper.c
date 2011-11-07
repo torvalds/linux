@@ -29,6 +29,9 @@
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
 
+#include <linux/export.h>
+#include <linux/moduleparam.h>
+
 #include "drmP.h"
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"

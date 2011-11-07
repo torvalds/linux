@@ -36,6 +36,7 @@
 #include <linux/kthread.h>
 #include <linux/in.h>
 #include <linux/cdrom.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 #include <net/sock.h>
 #include <net/tcp.h>

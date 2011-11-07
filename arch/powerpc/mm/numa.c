@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/nodemask.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>

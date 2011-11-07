@@ -513,11 +513,15 @@ static inline void __hci_dev_put(struct hci_dev *d)
 		d->destruct(d);
 }
 
-static inline void hci_dev_put(struct hci_dev *d)
-{
-	__hci_dev_put(d);
-	module_put(d->owner);
-}
+/*
+ * hci_dev_put and hci_dev_hold are macros to avoid dragging all the
+ * overhead of all the modular infrastructure into this header.
+ */
+#define hci_dev_put(d)		\
+do {				\
+	__hci_dev_put(d);	\
+	module_put(d->owner);	\
+} while (0)
 
 static inline struct hci_dev *__hci_dev_hold(struct hci_dev *d)
 {
@@ -525,12 +529,10 @@ static inline struct hci_dev *__hci_dev_hold(struct hci_dev *d)
 	return d;
 }
 
-static inline struct hci_dev *hci_dev_hold(struct hci_dev *d)
-{
-	if (try_module_get(d->owner))
-		return __hci_dev_hold(d);
-	return NULL;
-}
+#define hci_dev_hold(d)						\
+({								\
+	try_module_get(d->owner) ? __hci_dev_hold(d) : NULL;	\
+})
 
 #define hci_dev_lock(d)		spin_lock(&d->lock)
 #define hci_dev_unlock(d)	spin_unlock(&d->lock)

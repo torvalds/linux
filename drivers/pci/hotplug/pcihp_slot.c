@@ -24,6 +24,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/export.h>
 #include <linux/pci_hotplug.h>
 
 static struct hpp_type0 pci_default_type0 = {

@@ -21,7 +21,7 @@
 
 #include <linux/hardirq.h>
 #include <linux/interrupt.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
 #include <linux/list.h>

@@ -43,6 +43,7 @@
 #include <linux/jiffies.h>
 #include <asm/pgtable.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 
 #include "qib.h"
 #include "qib_common.h"

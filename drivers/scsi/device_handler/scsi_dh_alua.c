@@ -21,6 +21,7 @@
  */
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dh.h>

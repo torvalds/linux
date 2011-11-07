@@ -25,6 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/spinlock.h>
 #include <linux/tty.h>
+#include <linux/module.h>
 
 #include <sound/soc.h>
 #include <sound/jack.h>

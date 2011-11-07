@@ -22,6 +22,7 @@
 #include <linux/kthread.h>
 #include <linux/crypto.h>
 #include <linux/completion.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi_device.h>
 #include <scsi/iscsi_proto.h>

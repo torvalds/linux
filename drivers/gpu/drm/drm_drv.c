@@ -48,6 +48,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include "drmP.h"
 #include "drm_core.h"
 

@@ -34,6 +34,7 @@
 
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/errno.h>
 

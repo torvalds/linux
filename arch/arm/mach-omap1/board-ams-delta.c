@@ -19,6 +19,7 @@
 #include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
+#include <linux/export.h>
 
 #include <media/soc_camera.h>
 

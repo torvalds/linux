@@ -15,11 +15,12 @@
  */
 
 #include <linux/types.h>
+#include <linux/stat.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/console.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/kobject.h>

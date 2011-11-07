@@ -63,6 +63,7 @@
 
 #define MaxFault	50
 #include <linux/blkdev.h>
+#include <linux/module.h>
 #include <linux/raid/md_u.h>
 #include <linux/slab.h>
 #include "md.h"

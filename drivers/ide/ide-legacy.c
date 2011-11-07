@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/ide.h>
 
 static void ide_legacy_init_one(struct ide_hw **hws, struct ide_hw *hw,

@@ -3,6 +3,7 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
+#include <linux/module.h>
 #include <linux/virtio.h>
 #include <linux/virtio_blk.h>
 #include <linux/scatterlist.h>

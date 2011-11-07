@@ -1,4 +1,5 @@
 #include <linux/proc_fs.h>
+#include <linux/export.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include "bonding.h"
