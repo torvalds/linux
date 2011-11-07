@@ -58,12 +58,18 @@
 
 #define MSR_SAVE_FLAGS		UART_MSR_ANY_DELTA
 
+#define UART_ERRATA_i202_MDR1_ACCESS	BIT(0)
+#define UART_ERRATA_i291_DMA_FORCEIDLE	BIT(1)
+
 struct omap_uart_port_info {
 	bool			dma_enabled;	/* To specify DMA Mode */
 	unsigned int		uartclk;	/* UART clock rate */
 	upf_t			flags;		/* UPF_* flags */
+	u32			errata;
 
 	int (*get_context_loss_count)(struct device *);
+	void (*set_forceidle)(struct platform_device *);
+	void (*set_noidle)(struct platform_device *);
 };
 
 struct uart_omap_dma {
@@ -117,6 +123,7 @@ struct uart_omap_port {
 	char			name[20];
 	unsigned long		port_activity;
 	u32			context_loss_cnt;
+	u32			errata;
 };
 
 #endif /* __OMAP_SERIAL_H__ */

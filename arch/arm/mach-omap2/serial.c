@@ -42,8 +42,6 @@
 #include "control.h"
 #include "mux.h"
 
-#define UART_ERRATA_i202_MDR1_ACCESS	(0x1 << 1)
-
 /*
  * NOTE: By default the serial timeout is disabled as it causes lost characters
  * over the serial ports. This means that the UART clocks will stay on until
@@ -61,58 +59,16 @@ struct omap_uart_state {
 	void __iomem *wk_st;
 	void __iomem *wk_en;
 	u32 wk_mask;
-	u32 dma_enabled;
 
 	int clocked;
 
 	struct list_head node;
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
-
-	u32 errata;
 };
 
 static LIST_HEAD(uart_list);
 static u8 num_uarts;
-
-#if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3)
-
-/*
- * Work Around for Errata i202 (3430 - 1.12, 3630 - 1.6)
- * The access to uart register after MDR1 Access
- * causes UART to corrupt data.
- *
- * Need a delay =
- * 5 L4 clock cycles + 5 UART functional clock cycle (@48MHz = ~0.2uS)
- * give 10 times as much
- */
-static void omap_uart_mdr1_errataset(struct omap_uart_state *uart, u8 mdr1_val,
-		u8 fcr_val)
-{
-	u8 timeout = 255;
-
-	serial_write_reg(uart, UART_OMAP_MDR1, mdr1_val);
-	udelay(2);
-	serial_write_reg(uart, UART_FCR, fcr_val | UART_FCR_CLEAR_XMIT |
-			UART_FCR_CLEAR_RCVR);
-	/*
-	 * Wait for FIFO to empty: when empty, RX_FIFO_E bit is 0 and
-	 * TX_FIFO_E bit is 1.
-	 */
-	while (UART_LSR_THRE != (serial_read_reg(uart, UART_LSR) &
-				(UART_LSR_THRE | UART_LSR_DR))) {
-		timeout--;
-		if (!timeout) {
-			/* Should *never* happen. we warn and carry on */
-			dev_crit(&uart->pdev->dev, "Errata i202: timedout %x\n",
-			serial_read_reg(uart, UART_LSR));
-			break;
-		}
-		udelay(1);
-	}
-}
-
-#endif /* CONFIG_PM && CONFIG_ARCH_OMAP3 */
 
 static inline void omap_uart_enable_clocks(struct omap_uart_state *uart)
 {
@@ -154,27 +110,6 @@ static void omap_uart_disable_wakeup(struct omap_uart_state *uart)
 		v &= ~uart->wk_mask;
 		__raw_writel(v, uart->wk_en);
 	}
-}
-
-static void omap_uart_smart_idle_enable(struct omap_uart_state *uart,
-					       int enable)
-{
-	u8 idlemode;
-
-	if (enable) {
-		/**
-		 * Errata 2.15: [UART]:Cannot Acknowledge Idle Requests
-		 * in Smartidle Mode When Configured for DMA Operations.
-		 */
-		if (uart->dma_enabled)
-			idlemode = HWMOD_IDLEMODE_FORCE;
-		else
-			idlemode = HWMOD_IDLEMODE_SMART;
-	} else {
-		idlemode = HWMOD_IDLEMODE_NO;
-	}
-
-	omap_hwmod_set_slave_idlemode(uart->oh, idlemode);
 }
 
 static void omap_uart_block_sleep(struct omap_uart_state *uart)
@@ -267,7 +202,28 @@ static void omap_uart_idle_init(struct omap_uart_state *uart)
 	}
 }
 
+/*
+ * Errata i291: [UART]:Cannot Acknowledge Idle Requests
+ * in Smartidle Mode When Configured for DMA Operations.
+ * WA: configure uart in force idle mode.
+ */
+static void omap_uart_set_noidle(struct platform_device *pdev)
+{
+	struct omap_device *od = to_omap_device(pdev);
+
+	omap_hwmod_set_slave_idlemode(od->hwmods[0], HWMOD_IDLEMODE_NO);
+}
+
+static void omap_uart_set_forceidle(struct platform_device *pdev)
+{
+	struct omap_device *od = to_omap_device(pdev);
+
+	omap_hwmod_set_slave_idlemode(od->hwmods[0], HWMOD_IDLEMODE_FORCE);
+}
+
 #else
+static void omap_uart_set_noidle(struct platform_device *pdev) {}
+static void omap_uart_set_forceidle(struct platform_device *pdev) {}
 static void omap_uart_block_sleep(struct omap_uart_state *uart)
 {
 	/* Needed to enable UART clocks when built without CONFIG_PM */
@@ -473,13 +429,22 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 			break;
 
 	oh = uart->oh;
-	uart->dma_enabled = 0;
 	name = DRIVER_NAME;
 
 	omap_up.dma_enabled = uart->dma_enabled;
 	omap_up.uartclk = OMAP24XX_BASE_BAUD * 16;
 	omap_up.flags = UPF_BOOT_AUTOCONF;
 	omap_up.get_context_loss_count = omap_pm_get_dev_context_loss_count;
+	omap_up.set_forceidle = omap_uart_set_forceidle;
+	omap_up.set_noidle = omap_uart_set_noidle;
+
+	/* Enable the MDR1 Errata i202 for OMAP2430/3xxx/44xx */
+	if (!cpu_is_omap2420() && !cpu_is_ti816x())
+		omap_up.errata |= UART_ERRATA_i202_MDR1_ACCESS;
+
+	/* Enable DMA Mode Force Idle Errata i291 for omap34xx/3630 */
+	if (cpu_is_omap34xx() || cpu_is_omap3630())
+		omap_up.errata |= UART_ERRATA_i291_DMA_FORCEIDLE;
 
 	pdata = &omap_up;
 	pdata_size = sizeof(struct omap_uart_port_info);
@@ -519,10 +484,6 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 	if (((cpu_is_omap34xx() || cpu_is_omap44xx()) && bdata->pads) ||
 		(pdata->wk_en && pdata->wk_mask))
 		device_init_wakeup(&pdev->dev, true);
-
-	/* Enable the MDR1 errata for OMAP3 */
-	if (cpu_is_omap34xx() && !(cpu_is_ti81xx() || cpu_is_am33xx()))
-		uart->errata |= UART_ERRATA_i202_MDR1_ACCESS;
 }
 
 /**
