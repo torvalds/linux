@@ -47,7 +47,7 @@ struct ar7_bin_rec {
 
 static int create_mtd_partitions(struct mtd_info *master,
 				 struct mtd_partition **pparts,
-				 unsigned long origin)
+				 struct mtd_part_parser_data *data)
 {
 	struct ar7_bin_rec header;
 	unsigned int offset;

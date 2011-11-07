@@ -340,7 +340,7 @@ u16 mtd_Read_Page_Main_Spare(u8 *read_data, u32 Block,
 		struct mtd_oob_ops ops;
 		int ret;
 
-		ops.mode = MTD_OOB_AUTO;
+		ops.mode = MTD_OPS_AUTO_OOB;
 		ops.datbuf = read_data;
 		ops.len = DeviceInfo.wPageDataSize;
 		ops.oobbuf = read_data + DeviceInfo.wPageDataSize + BTSIG_OFFSET;
@@ -400,7 +400,7 @@ u16 mtd_Write_Page_Main_Spare(u8 *write_data, u32 Block,
 		struct mtd_oob_ops ops;
 		int ret;
 
-		ops.mode = MTD_OOB_AUTO;
+		ops.mode = MTD_OPS_AUTO_OOB;
 		ops.datbuf = write_data;
 		ops.len = DeviceInfo.wPageDataSize;
 		ops.oobbuf = write_data + DeviceInfo.wPageDataSize + BTSIG_OFFSET;
@@ -473,7 +473,7 @@ u16 mtd_Read_Page_Spare(u8 *read_data, u32 Block,
 		struct mtd_oob_ops ops;
 		int ret;
 
-		ops.mode = MTD_OOB_AUTO;
+		ops.mode = MTD_OPS_AUTO_OOB;
 		ops.datbuf = NULL;
 		ops.len = 0;
 		ops.oobbuf = read_data;

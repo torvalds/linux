@@ -275,7 +275,7 @@ static struct platform_nand_data ts78xx_ts_nand_data = {
 		.partitions		= ts78xx_ts_nand_parts,
 		.nr_partitions		= ARRAY_SIZE(ts78xx_ts_nand_parts),
 		.chip_delay		= 15,
-		.options		= NAND_USE_FLASH_BBT,
+		.bbt_options		= NAND_BBT_USE_FLASH,
 	},
 	.ctrl	= {
 		/*
