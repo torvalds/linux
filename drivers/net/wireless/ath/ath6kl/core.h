@@ -439,6 +439,9 @@ struct ath6kl_vif {
 	struct target_stats target_stats;
 };
 
+#define WOW_LIST_ID		0
+#define WOW_HOST_REQ_DELAY	500 /* ms */
+
 /* Flag info */
 enum ath6kl_dev_state {
 	WMI_ENABLED,
