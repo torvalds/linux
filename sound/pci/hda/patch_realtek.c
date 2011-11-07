@@ -183,6 +183,7 @@ struct alc_spec {
 	unsigned int single_input_src:1;
 	unsigned int vol_in_capsrc:1; /* use capsrc volume (ADC has no vol) */
 	unsigned int parse_flags; /* passed to snd_hda_parse_pin_defcfg() */
+	unsigned int shared_mic_hp:1; /* HP/Mic-in sharing */
 
 	/* auto-mute control */
 	int automute_mode;
@@ -277,6 +278,8 @@ static bool alc_dyn_adc_pcm_resetup(struct hda_codec *codec, int cur)
 	return false;
 }
 
+static void call_update_outputs(struct hda_codec *codec);
+
 /* select the given imux item; either unmute exclusively or select the route */
 static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 			  unsigned int idx, bool force)
@@ -297,6 +300,19 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 	if (spec->cur_mux[adc_idx] == idx && !force)
 		return 0;
 	spec->cur_mux[adc_idx] = idx;
+
+	/* for shared I/O, change the pin-control accordingly */
+	if (spec->shared_mic_hp) {
+		/* NOTE: this assumes that there are only two inputs, the
+		 * first is the real internal mic and the second is HP jack.
+		 */
+		snd_hda_codec_write(codec, spec->autocfg.inputs[1].pin, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    spec->cur_mux[adc_idx] ?
+				    PIN_VREF80 : PIN_HP);
+		spec->automute_speaker = !spec->cur_mux[adc_idx];
+		call_update_outputs(codec);
+	}
 
 	if (spec->dyn_adc_switch) {
 		alc_dyn_adc_pcm_resetup(codec, idx);
@@ -547,7 +563,8 @@ static void update_outputs(struct hda_codec *codec)
 	 * in general, HP pins/amps control should be enabled in all cases,
 	 * but currently set only for master_mute, just to be safe
 	 */
-	do_automute(codec, ARRAY_SIZE(spec->autocfg.hp_pins),
+	if (!spec->shared_mic_hp) /* don't change HP-pin when shared with mic */
+		do_automute(codec, ARRAY_SIZE(spec->autocfg.hp_pins),
 		    spec->autocfg.hp_pins, spec->master_mute, true);
 
 	if (!spec->automute_speaker)
@@ -1114,6 +1131,9 @@ static void alc_init_auto_mic(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	hda_nid_t fixed, ext, dock;
 	int i;
+
+	if (spec->shared_mic_hp)
+		return; /* no auto-mic for the shared I/O */
 
 	spec->ext_mic_idx = spec->int_mic_idx = spec->dock_mic_idx = -1;
 
@@ -2667,6 +2687,9 @@ static int alc_auto_fill_adc_caps(struct hda_codec *codec)
 	int max_nums = ARRAY_SIZE(spec->private_adc_nids);
 	int i, nums = 0;
 
+	if (spec->shared_mic_hp)
+		max_nums = 1; /* no multi streams with the shared HP/mic */
+
 	nid = codec->start_nid;
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
 		hda_nid_t src;
@@ -2729,6 +2752,8 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec)
 			continue;
 
 		label = hda_get_autocfg_input_label(codec, cfg, i);
+		if (spec->shared_mic_hp && !strcmp(label, "Misc"))
+			label = "Headphone Mic";
 		if (prev_label && !strcmp(label, prev_label))
 			type_idx++;
 		else
@@ -2761,6 +2786,39 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = imux;
 
+	return 0;
+}
+
+/* create a shared input with the headphone out */
+static int alc_auto_create_shared_input(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	unsigned int defcfg;
+	hda_nid_t nid;
+
+	/* only one internal input pin? */
+	if (cfg->num_inputs != 1)
+		return 0;
+	defcfg = snd_hda_codec_get_pincfg(codec, cfg->inputs[0].pin);
+	if (snd_hda_get_input_pin_attr(defcfg) != INPUT_PIN_ATTR_INT)
+		return 0;
+
+	if (cfg->hp_outs == 1 && cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
+		nid = cfg->hp_pins[0]; /* OK, we have a single HP-out */
+	else if (cfg->line_outs == 1 && cfg->line_out_type == AUTO_PIN_HP_OUT)
+		nid = cfg->line_out_pins[0]; /* OK, we have a single line-out */
+	else
+		return 0; /* both not available */
+
+	if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_IN))
+		return 0; /* no input */
+
+	cfg->inputs[1].pin = nid;
+	cfg->inputs[1].type = AUTO_PIN_MIC;
+	cfg->num_inputs = 2;
+	spec->shared_mic_hp = 1;
+	snd_printdd("realtek: Enable shared I/O jack on NID 0x%x\n", nid);
 	return 0;
 }
 
@@ -3654,6 +3712,8 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 			char boost_label[32];
 
 			label = hda_get_autocfg_input_label(codec, cfg, i);
+			if (spec->shared_mic_hp && !strcmp(label, "Misc"))
+				label = "Headphone Mic";
 			if (prev_label && !strcmp(label, prev_label))
 				type_idx++;
 			else
@@ -3857,6 +3917,9 @@ static int alc_parse_auto_config(struct hda_codec *codec,
 	if (err < 0)
 		return err;
 	err = alc_auto_create_speaker_out(codec);
+	if (err < 0)
+		return err;
+	err = alc_auto_create_shared_input(codec);
 	if (err < 0)
 		return err;
 	err = alc_auto_create_input_ctls(codec);
