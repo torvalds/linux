@@ -1069,6 +1069,18 @@ failed:
 	return err;
 }
 
+static u8 link_to_mgmt(u8 link_type)
+{
+	switch (link_type) {
+	case LE_LINK:
+		return MGMT_ADDR_LE;
+	case ACL_LINK:
+		return MGMT_ADDR_BREDR;
+	default:
+		return MGMT_ADDR_INVALID;
+	}
+}
+
 static int get_connections(struct sock *sk, u16 index)
 {
 	struct mgmt_rp_get_connections *rp;
@@ -1092,7 +1104,7 @@ static int get_connections(struct sock *sk, u16 index)
 		count++;
 	}
 
-	rp_len = sizeof(*rp) + (count * sizeof(bdaddr_t));
+	rp_len = sizeof(*rp) + (count * sizeof(struct mgmt_addr_info));
 	rp = kmalloc(rp_len, GFP_ATOMIC);
 	if (!rp) {
 		err = -ENOMEM;
@@ -1102,8 +1114,16 @@ static int get_connections(struct sock *sk, u16 index)
 	put_unaligned_le16(count, &rp->conn_count);
 
 	i = 0;
-	list_for_each_entry(c, &hdev->conn_hash.list, list)
-		bacpy(&rp->conn[i++], &c->dst);
+	list_for_each_entry(c, &hdev->conn_hash.list, list) {
+		bacpy(&rp->addr[i].bdaddr, &c->dst);
+		rp->addr[i].type = link_to_mgmt(c->type);
+		if (rp->addr[i].type == MGMT_ADDR_INVALID)
+			continue;
+		i++;
+	}
+
+	/* Recalculate length in case of filtered SCO connections, etc */
+	rp_len = sizeof(*rp) + (i * sizeof(struct mgmt_addr_info));
 
 	err = cmd_complete(sk, index, MGMT_OP_GET_CONNECTIONS, rp, rp_len);
 
@@ -2075,10 +2095,10 @@ int mgmt_new_link_key(u16 index, struct link_key *key, u8 persistent)
 
 int mgmt_connected(u16 index, bdaddr_t *bdaddr, u8 link_type)
 {
-	struct mgmt_ev_connected ev;
+	struct mgmt_addr_info ev;
 
 	bacpy(&ev.bdaddr, bdaddr);
-	ev.link_type = link_type;
+	ev.type = link_to_mgmt(link_type);
 
 	return mgmt_event(MGMT_EV_CONNECTED, index, &ev, sizeof(ev), NULL);
 }
@@ -2099,15 +2119,16 @@ static void disconnect_rsp(struct pending_cmd *cmd, void *data)
 	mgmt_pending_remove(cmd);
 }
 
-int mgmt_disconnected(u16 index, bdaddr_t *bdaddr)
+int mgmt_disconnected(u16 index, bdaddr_t *bdaddr, u8 type)
 {
-	struct mgmt_ev_disconnected ev;
+	struct mgmt_addr_info ev;
 	struct sock *sk = NULL;
 	int err;
 
 	mgmt_pending_foreach(MGMT_OP_DISCONNECT, index, disconnect_rsp, &sk);
 
 	bacpy(&ev.bdaddr, bdaddr);
+	ev.type = link_to_mgmt(type);
 
 	err = mgmt_event(MGMT_EV_DISCONNECTED, index, &ev, sizeof(ev), sk);
 
@@ -2133,11 +2154,12 @@ int mgmt_disconnect_failed(u16 index)
 	return err;
 }
 
-int mgmt_connect_failed(u16 index, bdaddr_t *bdaddr, u8 status)
+int mgmt_connect_failed(u16 index, bdaddr_t *bdaddr, u8 type, u8 status)
 {
 	struct mgmt_ev_connect_failed ev;
 
-	bacpy(&ev.bdaddr, bdaddr);
+	bacpy(&ev.addr.bdaddr, bdaddr);
+	ev.addr.type = link_to_mgmt(type);
 	ev.status = status;
 
 	return mgmt_event(MGMT_EV_CONNECT_FAILED, index, &ev, sizeof(ev), NULL);
@@ -2325,14 +2347,15 @@ int mgmt_read_local_oob_data_reply_complete(u16 index, u8 *hash, u8 *randomizer,
 	return err;
 }
 
-int mgmt_device_found(u16 index, bdaddr_t *bdaddr, u8 *dev_class, s8 rssi,
-								u8 *eir)
+int mgmt_device_found(u16 index, bdaddr_t *bdaddr, u8 type, u8 *dev_class,
+							s8 rssi, u8 *eir)
 {
 	struct mgmt_ev_device_found ev;
 
 	memset(&ev, 0, sizeof(ev));
 
-	bacpy(&ev.bdaddr, bdaddr);
+	bacpy(&ev.addr.bdaddr, bdaddr);
+	ev.addr.type = link_to_mgmt(type);
 	ev.rssi = rssi;
 
 	if (eir)
