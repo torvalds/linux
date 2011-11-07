@@ -68,6 +68,9 @@ static inline int apei_exec_run_optional(struct apei_exec_context *ctx, u8 actio
 /* IP has been set in instruction function */
 #define APEI_EXEC_SET_IP	1
 
+int apei_read(u64 *val, struct acpi_generic_address *reg);
+int apei_write(u64 val, struct acpi_generic_address *reg);
+
 int __apei_exec_read_register(struct acpi_whea_header *entry, u64 *val);
 int __apei_exec_write_register(struct acpi_whea_header *entry, u64 val);
 int apei_exec_read_register(struct apei_exec_context *ctx,
