@@ -15,6 +15,8 @@
 
 #include <asm-generic/gpio.h>
 
+#define __ARM_GPIOLIB_COMPLEX
+
 /* The inline versions use the static inlines in the driver header */
 #include "gpio-davinci.h"
 
