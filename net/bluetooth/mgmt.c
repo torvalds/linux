@@ -32,6 +32,8 @@
 #define MGMT_VERSION	0
 #define MGMT_REVISION	1
 
+#define INQUIRY_LEN_BREDR 0x08 /* TGAP(100) */
+
 struct pending_cmd {
 	struct list_head list;
 	__u16 opcode;
@@ -1598,8 +1600,6 @@ static int remove_remote_oob_data(struct sock *sk, u16 index,
 
 static int start_discovery(struct sock *sk, u16 index)
 {
-	u8 lap[3] = { 0x33, 0x8b, 0x9e };
-	struct hci_cp_inquiry cp;
 	struct pending_cmd *cmd;
 	struct hci_dev *hdev;
 	int err;
@@ -1618,12 +1618,7 @@ static int start_discovery(struct sock *sk, u16 index)
 		goto failed;
 	}
 
-	memset(&cp, 0, sizeof(cp));
-	memcpy(&cp.lap, lap, 3);
-	cp.length  = 0x08;
-	cp.num_rsp = 0x00;
-
-	err = hci_send_cmd(hdev, HCI_OP_INQUIRY, sizeof(cp), &cp);
+	err = hci_do_inquiry(hdev, INQUIRY_LEN_BREDR);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 
