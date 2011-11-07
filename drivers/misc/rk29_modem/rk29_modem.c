@@ -39,7 +39,11 @@ int rk29_modem_change_status(struct rk29_modem_t *rk29_modem, int status)
     return ret;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static ssize_t modem_status_write(struct class *cls, struct class_attribute *attr, const char *_buf, size_t _count)
+#else
 static ssize_t modem_status_write(struct class *cls, const char *_buf, size_t _count)
+#endif
 {
     struct rk29_modem_t *rk29_modem = g_rk29_modem;
     int ret = 0;
@@ -92,7 +96,11 @@ static ssize_t modem_status_write(struct class *cls, const char *_buf, size_t _c
     return _count;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static ssize_t modem_status_read(struct class *cls, struct class_attribute *attr, char *_buf)
+#else
 static ssize_t modem_status_read(struct class *cls, char *_buf)
+#endif
 {
     struct rk29_modem_t *rk29_modem = g_rk29_modem;
 
@@ -133,9 +141,9 @@ int __devinit rk29_modem_resume(struct platform_device *pdev)
 
 static irqreturn_t irq_bbwakeupap_handler(int irq, void *dev_id)
 {
+    irqreturn_t irqret = IRQ_NONE;
     printk("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
 
-    irqreturn_t irqret = IRQ_NONE;
     if( g_rk29_modem->irq_handler )
     {
         irqret = g_rk29_modem->irq_handler(irq, dev_id);
@@ -161,11 +169,11 @@ static int install_irq(struct rk29_irq_t *rk29_irq, const char* label)
     printk("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
 
 	irq = gpio_to_irq(rk29_irq->irq_addr);
-    printk("%s: %d ==> %d\n", __func__, rk29_irq->irq_addr, irq);
+    printk("%s: %ld ==> %d\n", __func__, rk29_irq->irq_addr, irq);
 
 	ret = gpio_request(rk29_irq->irq_addr, label);
 	if (ret < 0) {
-		pr_err("%s: gpio_request(%d) failed\n", __func__, rk29_irq->irq_addr);
+		pr_err("%s: gpio_request(%ld) failed\n", __func__, rk29_irq->irq_addr);
 		return ret;
 	}
 
