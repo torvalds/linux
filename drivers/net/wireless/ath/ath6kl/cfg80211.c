@@ -1760,6 +1760,21 @@ int ath6kl_cfg80211_suspend(struct ath6kl *ar,
 	int ret;
 
 	switch (mode) {
+	case ATH6KL_CFG_SUSPEND_WOW:
+
+		ath6kl_dbg(ATH6KL_DBG_SUSPEND, "wow mode suspend\n");
+
+		/* Flush all non control pkts in TX path */
+		ath6kl_tx_data_cleanup(ar);
+
+		ret = ath6kl_wow_suspend(ar, wow);
+		if (ret) {
+			ath6kl_err("wow suspend failed: %d\n", ret);
+			return ret;
+		}
+		ar->state = ATH6KL_STATE_WOW;
+		break;
+
 	case ATH6KL_CFG_SUSPEND_DEEPSLEEP:
 
 		ath6kl_cfg80211_stop(ar);
@@ -1811,6 +1826,18 @@ int ath6kl_cfg80211_resume(struct ath6kl *ar)
 	int ret;
 
 	switch (ar->state) {
+	case  ATH6KL_STATE_WOW:
+		ath6kl_dbg(ATH6KL_DBG_SUSPEND, "wow mode resume\n");
+
+		ret = ath6kl_wow_resume(ar);
+		if (ret) {
+			ath6kl_warn("wow mode resume failed: %d\n", ret);
+			return ret;
+		}
+
+		ar->state = ATH6KL_STATE_ON;
+		break;
+
 	case ATH6KL_STATE_DEEPSLEEP:
 		if (ar->wmi->pwr_mode != ar->wmi->saved_pwr_mode) {
 			ret = ath6kl_wmi_powermode_cmd(ar->wmi, 0,
@@ -1833,6 +1860,7 @@ int ath6kl_cfg80211_resume(struct ath6kl *ar)
 			ath6kl_warn("Failed to boot hw in resume: %d\n", ret);
 			return ret;
 		}
+		break;
 
 	default:
 		break;
