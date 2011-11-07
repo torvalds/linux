@@ -2056,6 +2056,19 @@ int mgmt_connectable(u16 index, u8 connectable)
 	return ret;
 }
 
+int mgmt_write_scan_failed(u16 index, u8 scan, u8 status)
+{
+	if (scan & SCAN_PAGE)
+		mgmt_pending_foreach(MGMT_OP_SET_CONNECTABLE, index,
+						cmd_status_rsp, &status);
+
+	if (scan & SCAN_INQUIRY)
+		mgmt_pending_foreach(MGMT_OP_SET_DISCOVERABLE, index,
+						cmd_status_rsp, &status);
+
+	return 0;
+}
+
 int mgmt_new_key(u16 index, struct link_key *key, u8 persistent)
 {
 	struct mgmt_ev_new_key ev;

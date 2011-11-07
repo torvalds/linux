@@ -280,10 +280,13 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!sent)
 		return;
 
-	if (status != 0)
-		goto done;
-
 	param = *((__u8 *) sent);
+
+	if (status != 0) {
+		mgmt_write_scan_failed(hdev->id, param, status);
+		hdev->discov_timeout = 0;
+		goto done;
+	}
 
 	old_pscan = test_and_clear_bit(HCI_PSCAN, &hdev->flags);
 	old_iscan = test_and_clear_bit(HCI_ISCAN, &hdev->flags);
