@@ -539,10 +539,17 @@ struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower,
 }
 
 /*
- * tipc_nametbl_translate - translate name to port id
+ * tipc_nametbl_translate - perform name translation
  *
- * Note: on entry 'destnode' is the search domain used during translation;
- *       on exit it passes back the node address of the matching port (if any)
+ * On entry, 'destnode' is the search domain used during translation.
+ *
+ * On exit:
+ * - if name translation is deferred to another node/cluster/zone,
+ *   leaves 'destnode' unchanged (will be non-zero) and returns 0
+ * - if name translation is attempted and succeeds, sets 'destnode'
+ *   to publishing node and returns port reference (will be non-zero)
+ * - if name translation is attempted and fails, sets 'destnode' to 0
+ *   and returns 0
  */
 
 u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *destnode)
@@ -552,6 +559,7 @@ u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *destnode)
 	struct publication *publ;
 	struct name_seq *seq;
 	u32 ref = 0;
+	u32 node = 0;
 
 	if (!tipc_in_scope(*destnode, tipc_own_addr))
 		return 0;
@@ -609,11 +617,12 @@ u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *destnode)
 	}
 
 	ref = publ->ref;
-	*destnode = publ->node;
+	node = publ->node;
 no_match:
 	spin_unlock_bh(&seq->lock);
 not_found:
 	read_unlock_bh(&tipc_nametbl_lock);
+	*destnode = node;
 	return ref;
 }
 
