@@ -714,7 +714,30 @@ struct drm_mode_group {
 
 /**
  * drm_mode_config - Mode configuration control structure
+ * @mutex: mutex protecting KMS related lists and structures
+ * @idr_mutex: mutex for KMS ID allocation and management
+ * @crtc_idr: main KMS ID tracking object
+ * @num_fb: number of fbs available
+ * @fb_list: list of framebuffers available
+ * @num_connector: number of connectors on this device
+ * @connector_list: list of connector objects
+ * @num_encoder: number of encoders on this device
+ * @encoder_list: list of encoder objects
+ * @num_crtc: number of CRTCs on this device
+ * @crtc_list: list of CRTC objects
+ * @min_width: minimum pixel width on this device
+ * @min_height: minimum pixel height on this device
+ * @max_width: maximum pixel width on this device
+ * @max_height: maximum pixel height on this device
+ * @funcs: core driver provided mode setting functions
+ * @fb_base: base address of the framebuffer
+ * @poll_enabled: track polling status for this device
+ * @output_poll_work: delayed work for polling in process context
+ * @*_property: core property tracking
  *
+ * Core mode resource tracking structure.  All CRTC, encoders, and connectors
+ * enumerated by the driver are added here, as are global properties.  Some
+ * global restrictions are also here, e.g. dimension restrictions.
  */
 struct drm_mode_config {
 	struct mutex mutex; /* protects configuration (mode lists etc.) */
