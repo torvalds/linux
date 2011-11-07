@@ -1754,7 +1754,8 @@ static int ath6kl_wow_resume(struct ath6kl *ar)
 }
 
 int ath6kl_cfg80211_suspend(struct ath6kl *ar,
-			    enum ath6kl_cfg_suspend_mode mode)
+			    enum ath6kl_cfg_suspend_mode mode,
+			    struct cfg80211_wowlan *wow)
 {
 	int ret;
 
@@ -1844,7 +1845,7 @@ static int __ath6kl_cfg80211_suspend(struct wiphy *wiphy,
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
 
-	return ath6kl_hif_suspend(ar);
+	return ath6kl_hif_suspend(ar, wow);
 }
 
 static int __ath6kl_cfg80211_resume(struct wiphy *wiphy)

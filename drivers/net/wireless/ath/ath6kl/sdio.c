@@ -773,7 +773,7 @@ out:
 	return ret;
 }
 
-static int ath6kl_sdio_suspend(struct ath6kl *ar)
+static int ath6kl_sdio_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 {
 	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
 	struct sdio_func *func = ar_sdio->func;
@@ -787,7 +787,8 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar)
 	if (!(flags & MMC_PM_KEEP_POWER) ||
 	    (ar->conf_flags & ATH6KL_CONF_SUSPEND_CUTPOWER)) {
 		/* as host doesn't support keep power we need to cut power */
-		return ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_CUTPOWER);
+		return ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_CUTPOWER,
+					       NULL);
 	}
 
 	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
@@ -797,7 +798,7 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar)
 		return ret;
 	}
 
-	return ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_DEEPSLEEP);
+	return ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_DEEPSLEEP, NULL);
 }
 
 static int ath6kl_sdio_resume(struct ath6kl *ar)

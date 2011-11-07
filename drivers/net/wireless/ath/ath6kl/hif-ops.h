@@ -83,11 +83,12 @@ static inline void ath6kl_hif_cleanup_scatter(struct ath6kl *ar)
 	return ar->hif_ops->cleanup_scatter(ar);
 }
 
-static inline int ath6kl_hif_suspend(struct ath6kl *ar)
+static inline int ath6kl_hif_suspend(struct ath6kl *ar,
+				     struct cfg80211_wowlan *wow)
 {
 	ath6kl_dbg(ATH6KL_DBG_HIF, "hif suspend\n");
 
-	return ar->hif_ops->suspend(ar);
+	return ar->hif_ops->suspend(ar, wow);
 }
 
 static inline int ath6kl_hif_resume(struct ath6kl *ar)

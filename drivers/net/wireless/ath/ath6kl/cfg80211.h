@@ -46,7 +46,9 @@ void ath6kl_cfg80211_tkip_micerr_event(struct ath6kl_vif *vif, u8 keyid,
 				     bool ismcast);
 
 int ath6kl_cfg80211_suspend(struct ath6kl *ar,
-			    enum ath6kl_cfg_suspend_mode mode);
+			    enum ath6kl_cfg_suspend_mode mode,
+			    struct cfg80211_wowlan *wow);
+
 int ath6kl_cfg80211_resume(struct ath6kl *ar);
 
 void ath6kl_cfg80211_stop(struct ath6kl *ar);
