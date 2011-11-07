@@ -22,6 +22,8 @@
  * Authors: Ben Skeggs
  */
 
+#include <linux/acpi.h>
+
 #include "drmP.h"
 #include "nouveau_drv.h"
 
@@ -469,34 +471,71 @@ mxm_dcb_sanitise(struct drm_device *dev)
 }
 
 static bool
-mxm_shadow_rom(struct drm_device *dev)
+mxm_shadow_rom(struct drm_device *dev, u8 version)
 {
 	return false;
 }
 
 static bool
-mxm_shadow_dsm(struct drm_device *dev)
+mxm_shadow_dsm(struct drm_device *dev, u8 version)
 {
 	return false;
 }
 
+#if defined(CONFIG_ACPI_WMI) || defined(CONFIG_ACPI_WMI_MODULE)
+
+#define WMI_WMMX_GUID "F6CB5C3C-9CAE-4EBD-B577-931EA32A2CC0"
+
+static bool
+mxm_shadow_wmi(struct drm_device *dev, u8 version)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u32 mxms_args[] = { 0x534D584D /* MXMS */, version, 0 };
+	struct acpi_buffer args = { sizeof(mxms_args), mxms_args };
+	struct acpi_buffer retn = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	acpi_status status;
+
+	if (!wmi_has_guid(WMI_WMMX_GUID))
+		return false;
+
+	status = wmi_evaluate_method(WMI_WMMX_GUID, 0, 0, &args, &retn);
+	if (ACPI_FAILURE(status)) {
+		MXM_DBG(dev, "WMMX MXMS returned %d\n", status);
+		return false;
+	}
+
+	obj = retn.pointer;
+	if (obj->type == ACPI_TYPE_BUFFER) {
+		dev_priv->mxms = kmemdup(obj->buffer.pointer,
+					 obj->buffer.length, GFP_KERNEL);
+	}
+
+	kfree(obj);
+	return dev_priv->mxms != NULL;
+}
+#endif
+
 struct mxm_shadow_h {
 	const char *name;
-	bool (*exec)(struct drm_device *);
+	bool (*exec)(struct drm_device *, u8 version);
 } _mxm_shadow[] = {
 	{ "ROM", mxm_shadow_rom },
 	{ "DSM", mxm_shadow_dsm },
+#if defined(CONFIG_ACPI_WMI) || defined(CONFIG_ACPI_WMI_MODULE)
+	{ "WMI", mxm_shadow_wmi },
+#endif
 	{}
 };
 
 static int
-mxm_shadow(struct drm_device *dev)
+mxm_shadow(struct drm_device *dev, u8 version)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct mxm_shadow_h *shadow = _mxm_shadow;
 	do {
 		MXM_DBG(dev, "checking %s\n", shadow->name);
-		if (shadow->exec(dev)) {
+		if (shadow->exec(dev, version)) {
 			if (mxms_valid(dev))
 				return 0;
 			kfree(dev_priv->mxms);
@@ -517,7 +556,7 @@ nouveau_mxm_init(struct drm_device *dev)
 
 	MXM_MSG(dev, "BIOS version %d.%d\n", mxm[0] >> 4, mxm[0] & 0x0f);
 
-	if (mxm_shadow(dev)) {
+	if (mxm_shadow(dev, mxm[0])) {
 		MXM_MSG(dev, "failed to locate valid SIS\n");
 		return -EINVAL;
 	}
