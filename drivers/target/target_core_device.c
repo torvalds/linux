@@ -651,22 +651,14 @@ void core_dev_unexport(
 	lun->lun_se_dev = NULL;
 }
 
-int transport_core_report_lun_response(struct se_cmd *se_cmd)
+int target_report_luns(struct se_task *se_task)
 {
+	struct se_cmd *se_cmd = se_task->task_se_cmd;
 	struct se_dev_entry *deve;
 	struct se_lun *se_lun;
 	struct se_session *se_sess = se_cmd->se_sess;
-	struct se_task *se_task;
 	unsigned char *buf;
 	u32 cdb_offset = 0, lun_count = 0, offset = 8, i;
-
-	list_for_each_entry(se_task, &se_cmd->t_task_list, t_list)
-		break;
-
-	if (!se_task) {
-		pr_err("Unable to locate struct se_task for struct se_cmd\n");
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
-	}
 
 	buf = transport_kmap_first_data_page(se_cmd);
 
@@ -713,6 +705,8 @@ done:
 	buf[2] = ((lun_count >> 8) & 0xff);
 	buf[3] = (lun_count & 0xff);
 
+	se_task->task_scsi_status = GOOD;
+	transport_complete_task(se_task, 1);
 	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }
 
