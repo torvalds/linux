@@ -2351,6 +2351,7 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 	int type, olen;
 	unsigned long val;
 	struct l2cap_conf_rfc rfc;
+	struct l2cap_conf_efs efs;
 
 	BT_DBG("chan %p, rsp %p, len %d, req %p", chan, rsp, len, data);
 
@@ -2393,6 +2394,19 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 			l2cap_add_conf_opt(&ptr, L2CAP_CONF_EWS, 2,
 							chan->tx_win);
 			break;
+
+		case L2CAP_CONF_EFS:
+			if (olen == sizeof(efs))
+				memcpy(&efs, (void *)val, olen);
+
+			if (chan->local_stype != L2CAP_SERV_NOTRAFIC &&
+					efs.stype != L2CAP_SERV_NOTRAFIC &&
+					efs.stype != chan->local_stype)
+				return -ECONNREFUSED;
+
+			l2cap_add_conf_opt(&ptr, L2CAP_CONF_EFS,
+					sizeof(efs), (unsigned long) &efs);
+			break;
 		}
 	}
 
@@ -2407,7 +2421,17 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 			chan->retrans_timeout = le16_to_cpu(rfc.retrans_timeout);
 			chan->monitor_timeout = le16_to_cpu(rfc.monitor_timeout);
 			chan->mps    = le16_to_cpu(rfc.max_pdu_size);
+
+			if (test_bit(FLAG_EFS_ENABLE, &chan->flags)) {
+				chan->local_msdu = le16_to_cpu(efs.msdu);
+				chan->local_sdu_itime =
+						le32_to_cpu(efs.sdu_itime);
+				chan->local_acc_lat = le32_to_cpu(efs.acc_lat);
+				chan->local_flush_to =
+						le32_to_cpu(efs.flush_to);
+			}
 			break;
+
 		case L2CAP_MODE_STREAMING:
 			chan->mps    = le16_to_cpu(rfc.max_pdu_size);
 		}
