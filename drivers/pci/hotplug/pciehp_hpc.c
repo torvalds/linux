@@ -294,6 +294,8 @@ int pciehp_check_link_status(struct controller *ctrl)
 		return retval;
 	}
 
+	pcie_update_link_speed(ctrl->pcie->port->subordinate, lnk_status);
+
 	return retval;
 }
 
@@ -484,7 +486,6 @@ int pciehp_power_on_slot(struct slot * slot)
 	u16 slot_cmd;
 	u16 cmd_mask;
 	u16 slot_status;
-	u16 lnk_status;
 	int retval = 0;
 
 	/* Clear sticky power-fault bit from previous power failures */
@@ -515,14 +516,6 @@ int pciehp_power_on_slot(struct slot * slot)
 	}
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
-
-	retval = pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status);
-	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot read LNKSTA register\n",
-				__func__);
-		return retval;
-	}
-	pcie_update_link_speed(ctrl->pcie->port->subordinate, lnk_status);
 
 	return retval;
 }
