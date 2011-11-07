@@ -910,7 +910,7 @@ static int follow_managed(struct path *path, unsigned flags)
 		mntput(path->mnt);
 	if (ret == -EISDIR)
 		ret = 0;
-	return ret;
+	return ret < 0 ? ret : need_mntput;
 }
 
 int follow_down_one(struct path *path)
@@ -958,6 +958,7 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 			break;
 		path->mnt = mounted;
 		path->dentry = mounted->mnt_root;
+		nd->flags |= LOOKUP_JUMPED;
 		nd->seq = read_seqcount_begin(&path->dentry->d_seq);
 		/*
 		 * Update the inode too. We don't need to re-check the
@@ -1232,6 +1233,8 @@ retry:
 		path_put_conditional(path, nd);
 		return err;
 	}
+	if (err)
+		nd->flags |= LOOKUP_JUMPED;
 	*inode = path->dentry->d_inode;
 	return 0;
 }
@@ -2118,6 +2121,10 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	}
 
 	/* create side of things */
+	/*
+	 * This will *only* deal with leaving RCU mode - LOOKUP_JUMPED has been
+	 * cleared when we got to the last component we are about to look up
+	 */
 	error = complete_walk(nd);
 	if (error)
 		return ERR_PTR(error);
@@ -2186,6 +2193,9 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	if (error < 0)
 		goto exit_dput;
 
+	if (error)
+		nd->flags |= LOOKUP_JUMPED;
+
 	error = -ENOENT;
 	if (!path->dentry->d_inode)
 		goto exit_dput;
@@ -2195,6 +2205,10 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 
 	path_to_nameidata(path, nd);
 	nd->inode = path->dentry->d_inode;
+	/* Why this, you ask?  _Now_ we might have grown LOOKUP_JUMPED... */
+	error = complete_walk(nd);
+	if (error)
+		goto exit;
 	error = -EISDIR;
 	if (S_ISDIR(nd->inode->i_mode))
 		goto exit;
