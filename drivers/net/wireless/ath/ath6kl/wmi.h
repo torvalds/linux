@@ -1795,7 +1795,6 @@ struct wmi_set_appie_cmd {
 #define WSC_REG_ACTIVE     1
 #define WSC_REG_INACTIVE   0
 
-#define WOW_MAX_FILTER_LISTS	 1
 #define WOW_MAX_FILTERS_PER_LIST 4
 #define WOW_PATTERN_SIZE	 64
 #define WOW_MASK_SIZE		 64
@@ -1864,19 +1863,6 @@ struct wmi_add_wow_pattern_cmd {
 struct wmi_del_wow_pattern_cmd {
 	__le16 filter_list_id;
 	__le16 filter_id;
-} __packed;
-
-/* WMI_GET_WOW_LIST_CMD reply  */
-struct wmi_get_wow_list_reply {
-	/* number of patterns in reply */
-	u8 num_filters;
-
-	/* this is filter # x of total num_filters */
-	u8 this_filter_num;
-
-	u8 wow_mode;
-	u8 host_mode;
-	struct wow_filter wow_filters[1];
 } __packed;
 
 /* WMI_SET_AKMP_PARAMS_CMD */

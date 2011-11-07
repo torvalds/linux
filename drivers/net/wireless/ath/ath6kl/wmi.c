@@ -2576,15 +2576,6 @@ int ath6kl_wmi_del_wow_pattern_cmd(struct wmi *wmi, u8 if_idx,
 	return ret;
 }
 
-static int ath6kl_wmi_get_wow_list_event_rx(struct wmi *wmi, u8 * datap,
-					    int len)
-{
-	if (len < sizeof(struct wmi_get_wow_list_reply))
-		return -EINVAL;
-
-	return 0;
-}
-
 static int ath6kl_wmi_cmd_send_xtnd(struct wmi *wmi, struct sk_buff *skb,
 				    enum wmix_command_id cmd_id,
 				    enum wmi_sync_flag sync_flag)
@@ -3295,7 +3286,6 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 		break;
 	case WMI_GET_WOW_LIST_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_GET_WOW_LIST_EVENTID\n");
-		ret = ath6kl_wmi_get_wow_list_event_rx(wmi, datap, len);
 		break;
 	case WMI_GET_PMKID_LIST_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_GET_PMKID_LIST_EVENTID\n");
