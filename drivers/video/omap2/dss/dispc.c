@@ -438,6 +438,20 @@ static struct omap_dss_device *dispc_mgr_get_device(enum omap_channel channel)
 	return mgr ? mgr->device : NULL;
 }
 
+u32 dispc_mgr_get_vsync_irq(enum omap_channel channel)
+{
+	switch (channel) {
+	case OMAP_DSS_CHANNEL_LCD:
+		return DISPC_IRQ_VSYNC;
+	case OMAP_DSS_CHANNEL_LCD2:
+		return DISPC_IRQ_VSYNC2;
+	case OMAP_DSS_CHANNEL_DIGIT:
+		return DISPC_IRQ_EVSYNC_ODD | DISPC_IRQ_EVSYNC_EVEN;
+	default:
+		BUG();
+	}
+}
+
 bool dispc_mgr_go_busy(enum omap_channel channel)
 {
 	int bit;
