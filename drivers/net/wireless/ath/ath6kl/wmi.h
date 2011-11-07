@@ -1818,6 +1818,18 @@ struct wmi_set_ip_cmd {
 	__le32 ips[MAX_IP_ADDRS];
 } __packed;
 
+struct wmi_add_wow_pattern_cmd {
+	u8 filter_list_id;
+	u8 filter_size;
+	u8 filter_offset;
+	u8 filter[0];
+} __packed;
+
+struct wmi_del_wow_pattern_cmd {
+	__le16 filter_list_id;
+	__le16 filter_id;
+} __packed;
+
 /* WMI_GET_WOW_LIST_CMD reply  */
 struct wmi_get_wow_list_reply {
 	/* number of patterns in reply */
@@ -2273,6 +2285,11 @@ int ath6kl_wmi_test_cmd(struct wmi *wmi, void *buf, size_t len);
 s32 ath6kl_wmi_get_rate(s8 rate_index);
 
 int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, struct wmi_set_ip_cmd *ip_cmd);
+int ath6kl_wmi_add_wow_pattern_cmd(struct wmi *wmi, u8 if_idx,
+				   u8 list_id, u8 filter_size,
+				   u8 filter_offset, u8 *filter, u8 *mask);
+int ath6kl_wmi_del_wow_pattern_cmd(struct wmi *wmi, u8 if_idx,
+				   u16 list_id, u16 filter_id);
 int ath6kl_wmi_set_roam_lrssi_cmd(struct wmi *wmi, u8 lrssi);
 int ath6kl_wmi_force_roam_cmd(struct wmi *wmi, const u8 *bssid);
 int ath6kl_wmi_set_roam_mode_cmd(struct wmi *wmi, enum wmi_roam_mode mode);
