@@ -4344,6 +4344,8 @@ enum {
 	ALC262_FIXUP_TYAN,
 	ALC262_FIXUP_TOSHIBA_RX1,
 	ALC262_FIXUP_LENOVO_3000,
+	ALC262_FIXUP_BENQ,
+	ALC262_FIXUP_BENQ_T31,
 };
 
 static const struct alc_fixup alc262_fixups[] = {
@@ -4384,12 +4386,27 @@ static const struct alc_fixup alc262_fixups[] = {
 		.type = ALC_FIXUP_VERBS,
 		.v.verbs = (const struct hda_verb[]) {
 			{ 0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50 },
+			{}
+		},
+		.chained = true,
+		.chain_id = ALC262_FIXUP_BENQ,
+	},
+	[ALC262_FIXUP_BENQ] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
 			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x07 },
 			{ 0x20, AC_VERB_SET_PROC_COEF, 0x3070 },
 			{}
 		}
 	},
-
+	[ALC262_FIXUP_BENQ_T31] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x07 },
+			{ 0x20, AC_VERB_SET_PROC_COEF, 0x3050 },
+			{}
+		}
+	},
 };
 
 static const struct snd_pci_quirk alc262_fixup_tbl[] = {
@@ -4399,6 +4416,8 @@ static const struct snd_pci_quirk alc262_fixup_tbl[] = {
 		      ALC262_FIXUP_TOSHIBA_RX1),
 	SND_PCI_QUIRK(0x1734, 0x1147, "FSC Celsius H270", ALC262_FIXUP_FSC_H270),
 	SND_PCI_QUIRK(0x17aa, 0x384e, "Lenovo 3000", ALC262_FIXUP_LENOVO_3000),
+	SND_PCI_QUIRK(0x17ff, 0x0560, "Benq ED8", ALC262_FIXUP_BENQ),
+	SND_PCI_QUIRK(0x17ff, 0x058d, "Benq T31-16", ALC262_FIXUP_BENQ_T31),
 	{}
 };
 

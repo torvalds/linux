@@ -10,8 +10,6 @@ enum {
 	ALC262_HIPPO,
 	ALC262_HIPPO_1,
 	ALC262_FUJITSU,
-	ALC262_BENQ_ED8,
-	ALC262_BENQ_T31,
 	ALC262_ULTRA,
 	ALC262_MODEL_LAST /* last tag */
 };
@@ -154,17 +152,6 @@ static void alc262_hippo1_setup(struct hda_codec *codec)
 static const struct snd_kcontrol_new alc262_sony_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	ALC262_HIPPO_MASTER_SWITCH,
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("ATAPI Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
-	HDA_CODEC_MUTE("ATAPI Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct snd_kcontrol_new alc262_benq_t31_mixer[] = {
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	ALC262_HIPPO_MASTER_SWITCH,
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("ATAPI Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
@@ -356,15 +343,6 @@ static const struct hda_verb alc262_EAPD_verbs[] = {
 	{}
 };
 
-static const struct hda_verb alc262_benq_t31_EAPD_verbs[] = {
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
-
-	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
-	{0x20, AC_VERB_SET_PROC_COEF,  0x3050},
-	{}
-};
-
 /* Samsung Q1 Ultra Vista model setup */
 static const struct snd_kcontrol_new alc262_ultra_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
@@ -491,8 +469,6 @@ static const char * const alc262_models[ALC262_MODEL_LAST] = {
 	[ALC262_HIPPO]		= "hippo",
 	[ALC262_HIPPO_1]	= "hippo_1",
 	[ALC262_FUJITSU]	= "fujitsu",
-	[ALC262_BENQ_ED8]	= "benq",
-	[ALC262_BENQ_T31]	= "benq-t31",
 	[ALC262_ULTRA]		= "ultra",
 	[ALC262_AUTO]		= "auto",
 };
@@ -504,8 +480,6 @@ static const struct snd_pci_quirk alc262_cfg_tbl[] = {
 	SND_PCI_QUIRK_MASK(0x144d, 0xff00, 0xc032, "Samsung Q1",
 			   ALC262_ULTRA),
 	SND_PCI_QUIRK(0x144d, 0xc510, "Samsung Q45", ALC262_HIPPO),
-	SND_PCI_QUIRK(0x17ff, 0x0560, "Benq ED8", ALC262_BENQ_ED8),
-	SND_PCI_QUIRK(0x17ff, 0x058d, "Benq T31-16", ALC262_BENQ_T31),
 	SND_PCI_QUIRK(0x17ff, 0x058f, "Benq Hippo", ALC262_HIPPO_1),
 	{}
 };
@@ -562,30 +536,6 @@ static const struct alc_config_preset alc262_presets[] = {
 		.input_mux = &alc262_fujitsu_capture_source,
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc262_fujitsu_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC262_BENQ_ED8] = {
-		.mixers = { alc262_base_mixer },
-		.init_verbs = { alc262_init_verbs, alc262_EAPD_verbs },
-		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
-		.dac_nids = alc262_dac_nids,
-		.hp_nid = 0x03,
-		.num_channel_mode = ARRAY_SIZE(alc262_modes),
-		.channel_mode = alc262_modes,
-		.input_mux = &alc262_capture_source,
-	},
-	[ALC262_BENQ_T31] = {
-		.mixers = { alc262_benq_t31_mixer },
-		.init_verbs = { alc262_init_verbs, alc262_benq_t31_EAPD_verbs,
-				alc_hp15_unsol_verbs },
-		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
-		.dac_nids = alc262_dac_nids,
-		.hp_nid = 0x03,
-		.num_channel_mode = ARRAY_SIZE(alc262_modes),
-		.channel_mode = alc262_modes,
-		.input_mux = &alc262_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc262_hippo_setup,
 		.init_hook = alc_inithook,
 	},
 	[ALC262_ULTRA] = {
