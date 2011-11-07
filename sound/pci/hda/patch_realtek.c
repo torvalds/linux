@@ -4483,14 +4483,6 @@ static int patch_alc262(struct hda_codec *codec)
 		err = alc262_parse_auto_config(codec);
 		if (err < 0)
 			goto error;
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-		else if (!err) {
-			printk(KERN_INFO
-			       "hda_codec: Cannot set up configuration "
-			       "from BIOS.  Using base mode...\n");
-			board_config = ALC262_BASIC;
-		}
-#endif
 	}
 
 	if (board_config != ALC_MODEL_AUTO)

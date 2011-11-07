@@ -6,7 +6,6 @@
 /* ALC262 models */
 enum {
 	ALC262_AUTO,
-	ALC262_BASIC,
 	ALC262_ULTRA,
 	ALC262_MODEL_LAST /* last tag */
 };
@@ -23,114 +22,8 @@ enum {
 #define alc262_modes		alc260_modes
 #define alc262_capture_source	alc882_capture_source
 
-static const hda_nid_t alc262_dmic_adc_nids[1] = {
-	/* ADC0 */
-	0x09
-};
-
-static const hda_nid_t alc262_dmic_capsrc_nids[1] = { 0x22 };
-
-static const struct snd_kcontrol_new alc262_base_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
-	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0D, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_MONO("Mono Playback Volume", 0x0e, 2, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE_MONO("Mono Playback Switch", 0x16, 2, 0x0, HDA_OUTPUT),
-	{ } /* end */
-};
-
 #define alc262_capture_mixer		alc882_capture_mixer
 #define alc262_capture_alt_mixer	alc882_capture_alt_mixer
-
-/*
- * generic initialization of ADC, input mixers and output mixers
- */
-static const struct hda_verb alc262_init_verbs[] = {
-	/*
-	 * Unmute ADC0-2 and set the default input to mic-in
-	 */
-	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-	/* Mute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
-	 * mixer widget
-	 * Note: PASD motherboards uses the Line In 2 as the input for
-	 * front panel mic (mic 2)
-	 */
-	/* Amp Indices: Mic1 = 0, Mic2 = 1, Line1 = 2, Line2 = 3, CD = 4 */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
-
-	/*
-	 * Set up output mixers (0x0c - 0x0e)
-	 */
-	/* set vol=0 to output mixers */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	/* set up input amps for analog loopback */
-	/* Amp Indices: DAC = 0, mixer = 1 */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0},
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
-	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
-
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-
-	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x01},
-
-	/* FIXME: use matrix-type input source selection */
-	/* Mixer elements: 0x18, 19, 1a, 1b, 1c, 1d, 14, 15, 16, 17, 0b */
-	/* Input mixer1: unmute Mic, F-Mic, Line, CD inputs */
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x03 << 8))},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x02 << 8))},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},
-	/* Input mixer2 */
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x03 << 8))},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x02 << 8))},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},
-	/* Input mixer3 */
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x03 << 8))},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x02 << 8))},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},
-
-	{ }
-};
 
 /* Samsung Q1 Ultra Vista model setup */
 static const struct snd_kcontrol_new alc262_ultra_mixer[] = {
@@ -254,7 +147,6 @@ static const struct snd_kcontrol_new alc262_ultra_capture_mixer[] = {
  * configuration and preset
  */
 static const char * const alc262_models[ALC262_MODEL_LAST] = {
-	[ALC262_BASIC]		= "basic",
 	[ALC262_ULTRA]		= "ultra",
 	[ALC262_AUTO]		= "auto",
 };
@@ -266,16 +158,6 @@ static const struct snd_pci_quirk alc262_cfg_tbl[] = {
 };
 
 static const struct alc_config_preset alc262_presets[] = {
-	[ALC262_BASIC] = {
-		.mixers = { alc262_base_mixer },
-		.init_verbs = { alc262_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
-		.dac_nids = alc262_dac_nids,
-		.hp_nid = 0x03,
-		.num_channel_mode = ARRAY_SIZE(alc262_modes),
-		.channel_mode = alc262_modes,
-		.input_mux = &alc262_capture_source,
-	},
 	[ALC262_ULTRA] = {
 		.mixers = { alc262_ultra_mixer },
 		.cap_mixer = alc262_ultra_capture_mixer,
