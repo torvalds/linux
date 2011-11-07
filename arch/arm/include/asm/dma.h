@@ -11,6 +11,8 @@
 #else
 #define MAX_DMA_ADDRESS	(PAGE_OFFSET + ARM_DMA_ZONE_SIZE)
 #endif
+
+#ifdef CONFIG_ISA_DMA_API
 /*
  * This is used to support drivers written for the x86 ISA DMA API.
  * It should not be re-used except for that purpose.
@@ -19,28 +21,7 @@
 #include <asm/system.h>
 #include <asm/scatterlist.h>
 
-
-#define RK28_DMA_CH0      0
-#define RK28_DMA_CH1      1
-#define RK28_DMA_CH2      2
-#define RK28_DMA_CH3      3
-#define RK28_DMA_CH4      4
-#define RK28_DMA_CH5      5
-
-#define MAX_DMA_CHANNELS      6
-
-
-/*
-"sd_mmc",
-"uart_2",
-"uart_3",
-"sdio",
-"i2s",
-"spi_m",
-"spi_s",
-"uart_0",
-"uart_1",
-*/
+#include <mach/isa-dma.h>
 
 /*
  * The DMA modes reflect the settings for the ISA DMA controller
@@ -52,13 +33,31 @@
 #define DMA_MODE_CASCADE 0xc0
 #define DMA_AUTOINIT	 0x10
 
+extern spinlock_t  dma_spin_lock;
 
-/*
- * The DMA irq modes 
+static inline unsigned long claim_dma_lock(void)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&dma_spin_lock, flags);
+	return flags;
+}
+
+static inline void release_dma_lock(unsigned long flags)
+{
+	spin_unlock_irqrestore(&dma_spin_lock, flags);
+}
+
+/* Clear the 'DMA Pointer Flip Flop'.
+ * Write 0 for LSB/MSB, 1 for MSB/LSB access.
  */
-#define DMA_IRQ_DELAY_MODE	     0x00   /*performan in software irq handleer*/
-#define DMA_IRQ_RIGHTNOW_MODE	 0x01   /*performan in dwdma irq handleer*/
+#define clear_dma_ff(chan)
 
+/* Set only the page register bits of the transfer address.
+ *
+ * NOTE: This is an architecture specific function, and should
+ *       be hidden from the drivers
+ */
+extern void set_dma_page(unsigned int chan, char pagenr);
 
 /* Request a DMA channel
  *
@@ -70,21 +69,21 @@ extern int  request_dma(unsigned int chan, const char * device_id);
  *
  * Some architectures may need to do free an interrupt
  */
-extern int free_dma(unsigned int chan);
+extern void free_dma(unsigned int chan);
 
 /* Enable DMA for this channel
  *
  * On some architectures, this may have other side effects like
  * enabling an interrupt and setting the DMA registers.
  */
-extern int enable_dma(unsigned int chan);
+extern void enable_dma(unsigned int chan);
 
 /* Disable DMA for this channel
  *
  * On some architectures, this may have other side effects like
  * disabling an interrupt or whatever.
  */
-extern int disable_dma(unsigned int chan);
+extern void disable_dma(unsigned int chan);
 
 /* Test whether the specified channel has an active DMA transfer
  */
@@ -105,8 +104,8 @@ extern void set_dma_sg(unsigned int chan, struct scatterlist *sg, int nr_sg);
  * DMA address immediately, but defer it to the enable_dma().
  */
 extern void __set_dma_addr(unsigned int chan, void *addr);
-
-#define set_dma_addr(chan, addr)	__set_dma_addr(chan, addr)//__set_dma_addr(chan, bus_to_virt(addr))
+#define set_dma_addr(chan, addr)				\
+	__set_dma_addr(chan, bus_to_virt(addr))
 
 /* Set the DMA byte count for this channel
  *
@@ -124,7 +123,7 @@ extern void set_dma_count(unsigned int chan, unsigned long count);
  * enable_dma().
  */
 extern void set_dma_mode(unsigned int chan, unsigned int mode);
-#if 0
+
 /* Set the transfer speed for this channel
  */
 extern void set_dma_speed(unsigned int chan, int cycle_ns);
@@ -136,15 +135,12 @@ extern void set_dma_speed(unsigned int chan, int cycle_ns);
  * Otherwise, it returns the number of _bytes_ left to transfer.
  */
 extern int  get_dma_residue(unsigned int chan);
-#endif
-/* Set dam irq callback that perform when dma transfer has completed
- */
-extern void set_dma_handler (unsigned int chan, void (*irq_handler) (int, void *), void *data, unsigned int irq_mode);
 
-/*
- * get dma transfer position
- */
-extern void get_dma_position(unsigned int chan, dma_addr_t *src_pos, dma_addr_t *dst_pos);
+#ifndef NO_DMA
+#define NO_DMA	255
+#endif
+
+#endif /* CONFIG_ISA_DMA_API */
 
 #ifdef CONFIG_PCI
 extern int isa_dma_bridge_buggy;
