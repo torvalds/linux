@@ -457,9 +457,7 @@ static int mma8452_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-//static int mma8452_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-//	   unsigned long arg)
-static int mma8452_ioctl( struct file *file, unsigned int cmd,unsigned long arg)
+static long mma8452_ioctl( struct file *file, unsigned int cmd,unsigned long arg)
 {
 
 	void __user *argp = (void __user *)arg;
