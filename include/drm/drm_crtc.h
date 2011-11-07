@@ -690,6 +690,19 @@ struct drm_mode_config_funcs {
 	void (*output_poll_changed)(struct drm_device *dev);
 };
 
+/**
+ * drm_mode_group - group of mode setting resources for potential sub-grouping
+ * @num_crtcs: CRTC count
+ * @num_encoders: encoder count
+ * @num_connectors: connector count
+ * @id_list: list of KMS object IDs in this group
+ *
+ * Currently this simply tracks the global mode setting state.  But in the
+ * future it could allow groups of objects to be set aside into independent
+ * control groups for use by different user level processes (e.g. two X servers
+ * running simultaneously on different heads, each with their own mode
+ * configuration and freedom of mode setting).
+ */
 struct drm_mode_group {
 	uint32_t num_crtcs;
 	uint32_t num_encoders;
