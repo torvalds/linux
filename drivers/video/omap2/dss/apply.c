@@ -629,7 +629,7 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	}
 
 	r = 0;
-	if (!mgr_manual_update(mgr)) {
+	if (mgr->enabled && !mgr_manual_update(mgr)) {
 		if (!dss_cache.irq_enabled) {
 			u32 mask;
 
