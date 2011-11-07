@@ -1497,9 +1497,14 @@ long arch_ptrace(struct task_struct *child, long request,
 		if (index < PT_FPR0) {
 			tmp = ptrace_get_reg(child, (int) index);
 		} else {
+			unsigned int fpidx = index - PT_FPR0;
+
 			flush_fp_to_thread(child);
-			tmp = ((unsigned long *)child->thread.fpr)
-				[TS_FPRWIDTH * (index - PT_FPR0)];
+			if (fpidx < (PT_FPSCR - PT_FPR0))
+				tmp = ((unsigned long *)child->thread.fpr)
+					[fpidx * TS_FPRWIDTH];
+			else
+				tmp = child->thread.fpscr.val;
 		}
 		ret = put_user(tmp, datalp);
 		break;
@@ -1525,9 +1530,14 @@ long arch_ptrace(struct task_struct *child, long request,
 		if (index < PT_FPR0) {
 			ret = ptrace_put_reg(child, index, data);
 		} else {
+			unsigned int fpidx = index - PT_FPR0;
+
 			flush_fp_to_thread(child);
-			((unsigned long *)child->thread.fpr)
-				[TS_FPRWIDTH * (index - PT_FPR0)] = data;
+			if (fpidx < (PT_FPSCR - PT_FPR0))
+				((unsigned long *)child->thread.fpr)
+					[fpidx * TS_FPRWIDTH] = data;
+			else
+				child->thread.fpscr.val = data;
 			ret = 0;
 		}
 		break;

@@ -105,9 +105,6 @@ int mmu_kernel_ssize = MMU_SEGSIZE_256M;
 int mmu_highuser_ssize = MMU_SEGSIZE_256M;
 u16 mmu_slb_size = 64;
 EXPORT_SYMBOL_GPL(mmu_slb_size);
-#ifdef CONFIG_HUGETLB_PAGE
-unsigned int HPAGE_SHIFT;
-#endif
 #ifdef CONFIG_PPC_64K_PAGES
 int mmu_ci_restrictions;
 #endif
@@ -534,11 +531,11 @@ static unsigned long __init htab_get_table_size(void)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-void create_section_mapping(unsigned long start, unsigned long end)
+int create_section_mapping(unsigned long start, unsigned long end)
 {
-	BUG_ON(htab_bolt_mapping(start, end, __pa(start),
+	return htab_bolt_mapping(start, end, __pa(start),
 				 pgprot_val(PAGE_KERNEL), mmu_linear_psize,
-				 mmu_kernel_ssize));
+				 mmu_kernel_ssize);
 }
 
 int remove_section_mapping(unsigned long start, unsigned long end)

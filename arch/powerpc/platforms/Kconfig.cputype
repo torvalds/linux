@@ -69,6 +69,7 @@ config PPC_BOOK3S_64
 	bool "Server processors"
 	select PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
+	select SYS_SUPPORTS_HUGETLBFS
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
@@ -173,6 +174,7 @@ config BOOKE
 config FSL_BOOKE
 	bool
 	depends on (E200 || E500) && PPC32
+	select SYS_SUPPORTS_HUGETLBFS if PHYS_64BIT
 	default y
 
 # this is for common code between PPC32 & PPC64 FSL BOOKE
@@ -296,7 +298,7 @@ config PPC_BOOK3E_MMU
 
 config PPC_MM_SLICES
 	bool
-	default y if HUGETLB_PAGE || (PPC_STD_MMU_64 && PPC_64K_PAGES)
+	default y if (PPC64 && HUGETLB_PAGE) || (PPC_STD_MMU_64 && PPC_64K_PAGES)
 	default n
 
 config VIRT_CPU_ACCOUNTING
