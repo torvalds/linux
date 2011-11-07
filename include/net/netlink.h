@@ -192,8 +192,15 @@ enum {
  *    NLA_NUL_STRING       Maximum length of string (excluding NUL)
  *    NLA_FLAG             Unused
  *    NLA_BINARY           Maximum length of attribute payload
- *    NLA_NESTED_COMPAT    Exact length of structure payload
- *    All other            Exact length of attribute payload
+ *    NLA_NESTED           Don't use `len' field -- length verification is
+ *                         done by checking len of nested header (or empty)
+ *    NLA_NESTED_COMPAT    Minimum length of structure payload
+ *    NLA_U8, NLA_U16,
+ *    NLA_U32, NLA_U64,
+ *    NLA_MSECS            Leaving the length field zero will verify the
+ *                         given type fits, using it verifies minimum length
+ *                         just like "All other"
+ *    All other            Minimum length of attribute payload
  *
  * Example:
  * static const struct nla_policy my_policy[ATTR_MAX+1] = {

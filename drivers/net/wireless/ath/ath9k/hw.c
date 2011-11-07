@@ -1725,6 +1725,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (!ath9k_hw_init_cal(ah, chan))
 		return -EIO;
 
+	ath9k_hw_loadnf(ah, chan);
+	ath9k_hw_start_nfcal(ah, true);
+
 	ENABLE_REGWRITE_BUFFER(ah);
 
 	ath9k_hw_restore_chainmask(ah);
