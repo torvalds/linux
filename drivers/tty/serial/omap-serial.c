@@ -1408,6 +1408,25 @@ static int serial_omap_remove(struct platform_device *dev)
 	return 0;
 }
 
+static void serial_omap_restore_context(struct uart_omap_port *up)
+{
+	serial_out(up, UART_OMAP_MDR1, UART_OMAP_MDR1_DISABLE);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B); /* Config B mode */
+	serial_out(up, UART_EFR, UART_EFR_ECB);
+	serial_out(up, UART_LCR, 0x0); /* Operational mode */
+	serial_out(up, UART_IER, 0x0);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B); /* Config B mode */
+	serial_out(up, UART_LCR, 0x0); /* Operational mode */
+	serial_out(up, UART_IER, up->ier);
+	serial_out(up, UART_FCR, up->fcr);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
+	serial_out(up, UART_MCR, up->mcr);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B); /* Config B mode */
+	serial_out(up, UART_EFR, up->efr);
+	serial_out(up, UART_LCR, up->lcr);
+	serial_out(up, UART_OMAP_MDR1, UART_OMAP_MDR1_16X_MODE);
+}
+
 #ifdef CONFIG_PM_RUNTIME
 static int serial_omap_runtime_suspend(struct device *dev)
 {
@@ -1416,6 +1435,11 @@ static int serial_omap_runtime_suspend(struct device *dev)
 
 static int serial_omap_runtime_resume(struct device *dev)
 {
+	struct uart_omap_port *up = dev_get_drvdata(dev);
+
+	if (up)
+		serial_omap_restore_context(up);
+
 	return 0;
 }
 #endif
