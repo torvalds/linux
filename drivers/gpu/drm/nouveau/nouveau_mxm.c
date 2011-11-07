@@ -471,8 +471,47 @@ mxm_dcb_sanitise(struct drm_device *dev)
 }
 
 static bool
+mxm_shadow_rom_fetch(struct nouveau_i2c_chan *i2c, u8 addr,
+		     u8 offset, u8 size, u8 *data)
+{
+	struct i2c_msg msgs[] = {
+		{ .addr = addr, .flags = 0, .len = 1, .buf = &offset },
+		{ .addr = addr, .flags = I2C_M_RD, .len = size, .buf = data, },
+	};
+
+	return i2c_transfer(&i2c->adapter, msgs, 2) == 2;
+}
+
+static bool
 mxm_shadow_rom(struct drm_device *dev, u8 version)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_i2c_chan *i2c = NULL;
+	u8 i2cidx, mxms[6], addr, size;
+
+	i2cidx = mxm_ddc_map(dev, 1 /* LVDS_DDC */) & 0x0f;
+	if (i2cidx < 0x0f)
+		i2c = nouveau_i2c_find(dev, i2cidx);
+	if (!i2c)
+		return false;
+
+	addr = 0x54;
+	if (!mxm_shadow_rom_fetch(i2c, addr, 0, 6, mxms)) {
+		addr = 0x56;
+		if (!mxm_shadow_rom_fetch(i2c, addr, 0, 6, mxms))
+			return false;
+	}
+
+	dev_priv->mxms = mxms;
+	size = mxms_headerlen(dev) + mxms_structlen(dev);
+	dev_priv->mxms = kmalloc(size, GFP_KERNEL);
+
+	if (dev_priv->mxms &&
+	    mxm_shadow_rom_fetch(i2c, addr, 0, size, dev_priv->mxms))
+		return true;
+
+	kfree(dev_priv->mxms);
+	dev_priv->mxms = NULL;
 	return false;
 }
 
