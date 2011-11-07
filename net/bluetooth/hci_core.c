@@ -595,6 +595,11 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	tasklet_kill(&hdev->rx_task);
 	tasklet_kill(&hdev->tx_task);
 
+	if (hdev->discov_timeout > 0) {
+		cancel_delayed_work_sync(&hdev->discov_off);
+		hdev->discov_timeout = 0;
+	}
+
 	hci_dev_lock_bh(hdev);
 	inquiry_cache_flush(hdev);
 	hci_conn_hash_flush(hdev);
@@ -966,6 +971,24 @@ void hci_del_off_timer(struct hci_dev *hdev)
 
 	clear_bit(HCI_AUTO_OFF, &hdev->flags);
 	del_timer(&hdev->off_timer);
+}
+
+static void hci_discov_off(struct work_struct *work)
+{
+	struct hci_dev *hdev;
+	u8 scan = SCAN_PAGE;
+
+	hdev = container_of(work, struct hci_dev, discov_off.work);
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_lock_bh(hdev);
+
+	hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, sizeof(scan), &scan);
+
+	hdev->discov_timeout = 0;
+
+	hci_dev_unlock_bh(hdev);
 }
 
 int hci_uuids_clear(struct hci_dev *hdev)
@@ -1484,6 +1507,8 @@ int hci_register_dev(struct hci_dev *hdev)
 	INIT_WORK(&hdev->power_on, hci_power_on);
 	INIT_WORK(&hdev->power_off, hci_power_off);
 	setup_timer(&hdev->off_timer, hci_auto_off, (unsigned long) hdev);
+
+	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
 
 	memset(&hdev->stat, 0, sizeof(struct hci_dev_stats));
 

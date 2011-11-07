@@ -196,6 +196,9 @@ struct hci_dev {
 	struct work_struct	power_off;
 	struct timer_list	off_timer;
 
+	__u16			discov_timeout;
+	struct delayed_work	discov_off;
+
 	struct timer_list	cmd_timer;
 	struct tasklet_struct	cmd_task;
 	struct tasklet_struct	rx_task;

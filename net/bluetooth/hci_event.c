@@ -292,6 +292,11 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 		set_bit(HCI_ISCAN, &hdev->flags);
 		if (!old_iscan)
 			mgmt_discoverable(hdev->id, 1);
+		if (hdev->discov_timeout > 0) {
+			int to = msecs_to_jiffies(hdev->discov_timeout * 1000);
+			queue_delayed_work(hdev->workqueue, &hdev->discov_off,
+									to);
+		}
 	} else if (old_iscan)
 		mgmt_discoverable(hdev->id, 0);
 

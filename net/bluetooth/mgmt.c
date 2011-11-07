@@ -350,7 +350,7 @@ failed:
 static int set_discoverable(struct sock *sk, u16 index, unsigned char *data,
 									u16 len)
 {
-	struct mgmt_mode *cp;
+	struct mgmt_cp_set_discoverable *cp;
 	struct hci_dev *hdev;
 	struct pending_cmd *cmd;
 	u8 scan;
@@ -396,10 +396,15 @@ static int set_discoverable(struct sock *sk, u16 index, unsigned char *data,
 
 	if (cp->val)
 		scan |= SCAN_INQUIRY;
+	else
+		cancel_delayed_work_sync(&hdev->discov_off);
 
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
+
+	if (cp->val)
+		hdev->discov_timeout = get_unaligned_le16(&cp->timeout);
 
 failed:
 	hci_dev_unlock_bh(hdev);
