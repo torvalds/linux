@@ -28,6 +28,7 @@
 #include <linux/console.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/export.h>
 
 #include <asm/hvconsole.h>
 #include <asm/prom.h>
