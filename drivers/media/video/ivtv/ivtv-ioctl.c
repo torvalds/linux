@@ -754,12 +754,15 @@ static int ivtv_s_register(struct file *file, void *fh, struct v4l2_dbg_register
 
 static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vcap)
 {
-	struct ivtv *itv = fh2id(fh)->itv;
+	struct ivtv_open_id *id = fh2id(file->private_data);
+	struct ivtv *itv = id->itv;
+	struct ivtv_stream *s = &itv->streams[id->type];
 
 	strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->pdev));
-	vcap->capabilities = itv->v4l2_cap; 	    /* capabilities */
+	vcap->capabilities = itv->v4l2_cap | V4L2_CAP_DEVICE_CAPS;
+	vcap->device_caps = s->caps;
 	return 0;
 }
 
