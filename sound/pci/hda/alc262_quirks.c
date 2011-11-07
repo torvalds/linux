@@ -8,7 +8,6 @@ enum {
 	ALC262_AUTO,
 	ALC262_BASIC,
 	ALC262_HIPPO,
-	ALC262_HIPPO_1,
 	ALC262_ULTRA,
 	ALC262_MODEL_LAST /* last tag */
 };
@@ -112,22 +111,6 @@ static const struct snd_kcontrol_new alc262_hippo_mixer[] = {
 	{ } /* end */
 };
 
-static const struct snd_kcontrol_new alc262_hippo1_mixer[] = {
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	ALC262_HIPPO_MASTER_SWITCH,
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
-	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	{ } /* end */
-};
-
 /* mute/unmute internal speaker according to the hp jack and mute state */
 static void alc262_hippo_setup(struct hda_codec *codec)
 {
@@ -137,16 +120,6 @@ static void alc262_hippo_setup(struct hda_codec *codec)
 	spec->autocfg.speaker_pins[0] = 0x14;
 	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
 }
-
-static void alc262_hippo1_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x1b;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
-
 
 static const struct snd_kcontrol_new alc262_sony_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
@@ -244,26 +217,6 @@ static const struct hda_verb alc262_eapd_verbs[] = {
 	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
 	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 2},
 	{ }
-};
-
-static const struct hda_verb alc262_hippo1_unsol_verbs[] = {
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0},
-	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{}
-};
-
-static const struct hda_verb alc262_sony_unsol_verbs[] = {
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0},
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},	// Front Mic
-
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{}
 };
 
 /* Samsung Q1 Ultra Vista model setup */
@@ -390,7 +343,6 @@ static const struct snd_kcontrol_new alc262_ultra_capture_mixer[] = {
 static const char * const alc262_models[ALC262_MODEL_LAST] = {
 	[ALC262_BASIC]		= "basic",
 	[ALC262_HIPPO]		= "hippo",
-	[ALC262_HIPPO_1]	= "hippo_1",
 	[ALC262_ULTRA]		= "ultra",
 	[ALC262_AUTO]		= "auto",
 };
@@ -400,7 +352,6 @@ static const struct snd_pci_quirk alc262_cfg_tbl[] = {
 	SND_PCI_QUIRK_MASK(0x144d, 0xff00, 0xc032, "Samsung Q1",
 			   ALC262_ULTRA),
 	SND_PCI_QUIRK(0x144d, 0xc510, "Samsung Q45", ALC262_HIPPO),
-	SND_PCI_QUIRK(0x17ff, 0x058f, "Benq Hippo", ALC262_HIPPO_1),
 	{}
 };
 
@@ -427,20 +378,6 @@ static const struct alc_config_preset alc262_presets[] = {
 		.input_mux = &alc262_capture_source,
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc262_hippo_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC262_HIPPO_1] = {
-		.mixers = { alc262_hippo1_mixer },
-		.init_verbs = { alc262_init_verbs, alc262_hippo1_unsol_verbs},
-		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
-		.dac_nids = alc262_dac_nids,
-		.hp_nid = 0x02,
-		.dig_out_nid = ALC262_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc262_modes),
-		.channel_mode = alc262_modes,
-		.input_mux = &alc262_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc262_hippo1_setup,
 		.init_hook = alc_inithook,
 	},
 	[ALC262_ULTRA] = {
