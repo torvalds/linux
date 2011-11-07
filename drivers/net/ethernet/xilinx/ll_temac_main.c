@@ -203,6 +203,9 @@ static void temac_dma_bd_release(struct net_device *ndev)
 	struct temac_local *lp = netdev_priv(ndev);
 	int i;
 
+	/* Reset Local Link (DMA) */
+	lp->dma_out(lp, DMA_CONTROL_REG, DMA_CONTROL_RST);
+
 	for (i = 0; i < RX_BD_NUM; i++) {
 		if (!lp->rx_skb[i])
 			break;
@@ -860,6 +863,8 @@ static int temac_open(struct net_device *ndev)
 		phy_start(lp->phy_dev);
 	}
 
+	temac_device_reset(ndev);
+
 	rc = request_irq(lp->tx_irq, ll_temac_tx_irq, 0, ndev->name, ndev);
 	if (rc)
 		goto err_tx_irq;
@@ -867,7 +872,6 @@ static int temac_open(struct net_device *ndev)
 	if (rc)
 		goto err_rx_irq;
 
-	temac_device_reset(ndev);
 	return 0;
 
  err_rx_irq:
