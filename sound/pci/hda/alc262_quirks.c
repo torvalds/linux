@@ -16,7 +16,6 @@ enum {
 	ALC262_LENOVO_3000,
 	ALC262_NEC,
 	ALC262_TOSHIBA_S06,
-	ALC262_TOSHIBA_RX1,
 	ALC262_MODEL_LAST /* last tag */
 };
 
@@ -465,18 +464,6 @@ static const struct snd_kcontrol_new alc262_lenovo_3000_mixer[] = {
 	{ } /* end */
 };
 
-static const struct snd_kcontrol_new alc262_toshiba_rx1_mixer[] = {
-	HDA_BIND_VOL("Master Playback Volume", &alc262_fujitsu_bind_master_vol),
-	ALC262_HIPPO_MASTER_SWITCH,
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
-	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	{ } /* end */
-};
-
 /* additional init verbs for Benq laptops */
 static const struct hda_verb alc262_EAPD_verbs[] = {
 	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
@@ -611,23 +598,6 @@ static const struct snd_kcontrol_new alc262_ultra_capture_mixer[] = {
 	{ } /* end */
 };
 
-static const struct hda_verb alc262_toshiba_rx1_unsol_verbs[] = {
-
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },	/* Front Speaker */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{0x14, AC_VERB_SET_CONNECT_SEL, 0x01},
-
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },	/* MIC jack */
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },	/* Front MIC */
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) },
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) },
-
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },	/* HP  jack */
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
 /*
  * configuration and preset
  */
@@ -639,7 +609,6 @@ static const char * const alc262_models[ALC262_MODEL_LAST] = {
 	[ALC262_BENQ_ED8]	= "benq",
 	[ALC262_BENQ_T31]	= "benq-t31",
 	[ALC262_TOSHIBA_S06]	= "toshiba-s06",
-	[ALC262_TOSHIBA_RX1]	= "toshiba-rx1",
 	[ALC262_ULTRA]		= "ultra",
 	[ALC262_LENOVO_3000]	= "lenovo-3000",
 	[ALC262_NEC]		= "nec",
@@ -649,8 +618,6 @@ static const char * const alc262_models[ALC262_MODEL_LAST] = {
 static const struct snd_pci_quirk alc262_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1002, 0x437b, "Hippo", ALC262_HIPPO),
 	SND_PCI_QUIRK(0x1033, 0x8895, "NEC Versa S9100", ALC262_NEC),
-	SND_PCI_QUIRK(0x1179, 0x0001, "Toshiba dynabook SS RX1",
-		      ALC262_TOSHIBA_RX1),
 	SND_PCI_QUIRK(0x1179, 0xff7b, "Toshiba S06", ALC262_TOSHIBA_S06),
 	SND_PCI_QUIRK(0x10cf, 0x1397, "Fujitsu", ALC262_FUJITSU),
 	SND_PCI_QUIRK(0x10cf, 0x142d, "Fujitsu Lifebook E8410", ALC262_FUJITSU),
@@ -797,19 +764,6 @@ static const struct alc_config_preset alc262_presets[] = {
 		.channel_mode = alc262_modes,
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc262_toshiba_s06_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC262_TOSHIBA_RX1] = {
-		.mixers = { alc262_toshiba_rx1_mixer },
-		.init_verbs = { alc262_init_verbs, alc262_toshiba_rx1_unsol_verbs },
-		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
-		.dac_nids = alc262_dac_nids,
-		.hp_nid = 0x03,
-		.num_channel_mode = ARRAY_SIZE(alc262_modes),
-		.channel_mode = alc262_modes,
-		.input_mux = &alc262_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc262_hippo_setup,
 		.init_hook = alc_inithook,
 	},
 };
