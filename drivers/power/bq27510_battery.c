@@ -91,7 +91,7 @@ static enum power_supply_property rk29_ac_props[] = {
 };
 
 static ssize_t battery_proc_write(struct file *file,const char __user *buffer,
-			 unsigned long count,void *data)
+			 size_t count, loff_t *ppos)
 {
 	char c;
 	int rc;
