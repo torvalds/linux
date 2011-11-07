@@ -1134,6 +1134,8 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		return;
 	}
 
+	ath6kl_check_wow_status(ar);
+
 	if (ept == ar->ctrl_ep) {
 		ath6kl_wmi_control_rx(ar->wmi, skb);
 		return;

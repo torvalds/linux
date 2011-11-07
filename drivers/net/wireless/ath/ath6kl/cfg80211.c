@@ -1886,6 +1886,34 @@ static int __ath6kl_cfg80211_resume(struct wiphy *wiphy)
 
 	return ath6kl_hif_resume(ar);
 }
+
+/*
+ * FIXME: WOW suspend mode is selected if the host sdio controller supports
+ * both sdio irq wake up and keep power. The target pulls sdio data line to
+ * wake up the host when WOW pattern matches. This causes sdio irq handler
+ * is being called in the host side which internally hits ath6kl's RX path.
+ *
+ * Since sdio interrupt is not disabled, RX path executes even before
+ * the host executes the actual resume operation from PM module.
+ *
+ * In the current scenario, WOW resume should happen before start processing
+ * any data from the target. So It's required to perform WOW resume in RX path.
+ * Ideally we should perform WOW resume only in the actual platform
+ * resume path. This area needs bit rework to avoid WOW resume in RX path.
+ *
+ * ath6kl_check_wow_status() is called from ath6kl_rx().
+ */
+void ath6kl_check_wow_status(struct ath6kl *ar)
+{
+	if (ar->state == ATH6KL_STATE_WOW)
+		ath6kl_cfg80211_resume(ar);
+}
+
+#else
+
+void ath6kl_check_wow_status(struct ath6kl *ar)
+{
+}
 #endif
 
 static int ath6kl_set_channel(struct wiphy *wiphy, struct net_device *dev,
