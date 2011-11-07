@@ -344,10 +344,21 @@ struct drm_crtc_funcs {
 
 /**
  * drm_crtc - central CRTC control structure
+ * @dev: parent DRM device
+ * @head: list management
+ * @base: base KMS object for ID tracking etc.
  * @enabled: is this CRTC enabled?
+ * @mode: current mode timings
+ * @hwmode: mode timings as programmed to hw regs
  * @x: x position on screen
  * @y: y position on screen
  * @funcs: CRTC control functions
+ * @gamma_size: size of gamma ramp
+ * @gamma_store: gamma ramp values
+ * @framedur_ns: precise frame timing
+ * @framedur_ns: precise line timing
+ * @pixeldur_ns: precise pixel timing
+ * @helper_private: mid-layer private data
  *
  * Each CRTC may have one or more connectors associated with it.  This structure
  * allows the CRTC to be controlled.
