@@ -933,8 +933,12 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	 * then open_ctree will properly initialize everything later.
 	 */
 	fs_info = kzalloc(sizeof(struct btrfs_fs_info), GFP_NOFS);
+	if (!fs_info) {
+		error = -ENOMEM;
+		goto error_close_devices;
+	}
 	tree_root = kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
-	if (!fs_info || !tree_root) {
+	if (!tree_root) {
 		error = -ENOMEM;
 		goto error_close_devices;
 	}
@@ -964,7 +968,6 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 
 		btrfs_close_devices(fs_devices);
 		free_fs_info(fs_info);
-		kfree(tree_root);
 	} else {
 		char b[BDEVNAME_SIZE];
 
@@ -992,7 +995,6 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 error_close_devices:
 	btrfs_close_devices(fs_devices);
 	free_fs_info(fs_info);
-	kfree(tree_root);
 	return ERR_PTR(error);
 }
 
