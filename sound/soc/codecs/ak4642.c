@@ -18,7 +18,7 @@
  * This is very simple driver.
  * It can use headphone output / stereo input only
  *
- * AK4642 is not tested.
+ * AK4642 is tested.
  * AK4643 is tested.
  */
 
