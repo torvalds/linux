@@ -1759,10 +1759,11 @@ int ath6kl_cfg80211_suspend(struct ath6kl *ar,
 {
 	int ret;
 
-	ath6kl_cfg80211_stop(ar);
-
 	switch (mode) {
 	case ATH6KL_CFG_SUSPEND_DEEPSLEEP:
+
+		ath6kl_cfg80211_stop(ar);
+
 		/* save the current power mode before enabling power save */
 		ar->wmi->saved_pwr_mode = ar->wmi->pwr_mode;
 
@@ -1777,6 +1778,9 @@ int ath6kl_cfg80211_suspend(struct ath6kl *ar,
 		break;
 
 	case ATH6KL_CFG_SUSPEND_CUTPOWER:
+
+		ath6kl_cfg80211_stop(ar);
+
 		if (ar->state == ATH6KL_STATE_OFF) {
 			ath6kl_dbg(ATH6KL_DBG_SUSPEND,
 				   "suspend hw off, no action for cutpower\n");
