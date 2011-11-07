@@ -733,6 +733,7 @@ void tt_global_del_orig(struct bat_priv *bat_priv,
 		spin_unlock_bh(list_lock);
 	}
 	atomic_set(&orig_node->tt_size, 0);
+	orig_node->tt_initialised = false;
 }
 
 static void tt_global_roam_purge(struct bat_priv *bat_priv)
@@ -1450,6 +1451,7 @@ static void _tt_update_changes(struct bat_priv *bat_priv,
 				 */
 				return;
 	}
+	orig_node->tt_initialised = true;
 }
 
 static void tt_fill_gtable(struct bat_priv *bat_priv,
@@ -1854,8 +1856,10 @@ void tt_update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	uint8_t orig_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
 	bool full_table = true;
 
-	/* the ttvn increased by one -> we can apply the attached changes */
-	if (ttvn - orig_ttvn == 1) {
+	/* orig table not initialised AND first diff is in the OGM OR the ttvn
+	 * increased by one -> we can apply the attached changes */
+	if ((!orig_node->tt_initialised && ttvn == 1) ||
+	    ttvn - orig_ttvn == 1) {
 		/* the OGM could not contain the changes due to their size or
 		 * because they have already been sent TT_OGM_APPEND_MAX times.
 		 * In this case send a tt request */
@@ -1889,7 +1893,8 @@ void tt_update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	} else {
 		/* if we missed more than one change or our tables are not
 		 * in sync anymore -> request fresh tt data */
-		if (ttvn != orig_ttvn || orig_node->tt_crc != tt_crc) {
+		if (!orig_node->tt_initialised || ttvn != orig_ttvn ||
+		    orig_node->tt_crc != tt_crc) {
 request_table:
 			bat_dbg(DBG_TT, bat_priv, "TT inconsistency for %pM. "
 				"Need to retrieve the correct information "
