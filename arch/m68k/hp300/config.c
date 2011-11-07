@@ -24,7 +24,8 @@
 
 unsigned long hp300_model;
 unsigned long hp300_uart_scode = -1;
-unsigned char ledstate;
+unsigned char hp300_ledstate;
+EXPORT_SYMBOL(hp300_ledstate);
 
 static char s_hp330[] __initdata = "330";
 static char s_hp340[] __initdata = "340";
