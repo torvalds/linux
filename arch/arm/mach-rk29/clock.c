@@ -146,7 +146,7 @@ static int clksel_set_rate_div(struct clk *clk, unsigned long rate)
 static long clksel_round_rate_div_by_parent(struct clk *clk, unsigned long rate, struct clk *parent, unsigned long max_rate)
 {
 	u32 div;
-	unsigned long prev = ULONG_MAX, actual;
+	unsigned long prev = ULONG_MAX, actual = parent->rate;
 
 	if (max_rate < rate)
 		max_rate = rate;
