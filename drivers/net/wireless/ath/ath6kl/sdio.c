@@ -831,8 +831,6 @@ static int ath6kl_sdio_resume(struct ath6kl *ar)
 		break;
 
 	case ATH6KL_STATE_ON:
-		/* we shouldn't be on this state during resume */
-		WARN_ON(1);
 		break;
 
 	case ATH6KL_STATE_DEEPSLEEP:
