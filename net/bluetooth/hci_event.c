@@ -1559,7 +1559,7 @@ static inline void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *sk
 		struct hci_cp_reject_conn_req cp;
 
 		bacpy(&cp.bdaddr, &ev->bdaddr);
-		cp.reason = 0x0f;
+		cp.reason = HCI_ERROR_REJ_BAD_ADDR;
 		hci_send_cmd(hdev, HCI_OP_REJECT_CONN_REQ, sizeof(cp), &cp);
 	}
 }
@@ -2646,7 +2646,7 @@ static inline void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff 
 		struct hci_cp_io_capability_neg_reply cp;
 
 		bacpy(&cp.bdaddr, &ev->bdaddr);
-		cp.reason = 0x18; /* Pairing not allowed */
+		cp.reason = HCI_ERROR_PAIRING_NOT_ALLOWED;
 
 		hci_send_cmd(hdev, HCI_OP_IO_CAPABILITY_NEG_REPLY,
 							sizeof(cp), &cp);

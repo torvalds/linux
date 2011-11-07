@@ -730,7 +730,7 @@ static inline void hci_proto_connect_cfm(struct hci_conn *conn, __u8 status)
 static inline int hci_proto_disconn_ind(struct hci_conn *conn)
 {
 	register struct hci_proto *hp;
-	int reason = 0x13;
+	int reason = HCI_ERROR_REMOTE_USER_TERM;
 
 	hp = hci_proto[HCI_PROTO_L2CAP];
 	if (hp && hp->disconn_ind)
