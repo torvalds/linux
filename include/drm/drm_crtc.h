@@ -646,7 +646,15 @@ struct drm_plane {
 };
 
 /**
- * struct drm_mode_set
+ * drm_mode_set - new values for a CRTC config change
+ * @head: list management
+ * @fb: framebuffer to use for new config
+ * @crtc: CRTC whose configuration we're about to change
+ * @mode: mode timings to use
+ * @x: position of this CRTC relative to @fb
+ * @y: position of this CRTC relative to @fb
+ * @connectors: array of connectors to drive with this CRTC if possible
+ * @num_connectors: size of @connectors array
  *
  * Represents a single crtc the connectors that it drives with what mode
  * and from which framebuffer it scans out from.
