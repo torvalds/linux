@@ -426,7 +426,7 @@ static int extra_mon_dispatch(struct ceph_client *client, struct ceph_msg *msg)
 /*
  * create a new fs client
  */
-struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
+static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 					struct ceph_options *opt)
 {
 	struct ceph_fs_client *fsc;
@@ -502,7 +502,7 @@ fail:
 	return ERR_PTR(err);
 }
 
-void destroy_fs_client(struct ceph_fs_client *fsc)
+static void destroy_fs_client(struct ceph_fs_client *fsc)
 {
 	dout("destroy_fs_client %p\n", fsc);
 
