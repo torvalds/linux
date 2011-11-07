@@ -600,6 +600,9 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 		hdev->discov_timeout = 0;
 	}
 
+	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->flags))
+		cancel_delayed_work_sync(&hdev->power_off);
+
 	hci_dev_lock_bh(hdev);
 	inquiry_cache_flush(hdev);
 	hci_conn_hash_flush(hdev);
@@ -819,7 +822,8 @@ int hci_get_dev_list(void __user *arg)
 
 	read_lock_bh(&hci_dev_list_lock);
 	list_for_each_entry(hdev, &hci_dev_list, list) {
-		hci_del_off_timer(hdev);
+		if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->flags))
+			cancel_delayed_work_sync(&hdev->power_off);
 
 		if (!test_bit(HCI_MGMT, &hdev->flags))
 			set_bit(HCI_PAIRABLE, &hdev->flags);
@@ -854,7 +858,8 @@ int hci_get_dev_info(void __user *arg)
 	if (!hdev)
 		return -ENODEV;
 
-	hci_del_off_timer(hdev);
+	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->flags))
+		cancel_delayed_work_sync(&hdev->power_off);
 
 	if (!test_bit(HCI_MGMT, &hdev->flags))
 		set_bit(HCI_PAIRABLE, &hdev->flags);
@@ -938,8 +943,8 @@ static void hci_power_on(struct work_struct *work)
 		return;
 
 	if (test_bit(HCI_AUTO_OFF, &hdev->flags))
-		mod_timer(&hdev->off_timer,
-				jiffies + msecs_to_jiffies(AUTO_OFF_TIMEOUT));
+		queue_delayed_work(hdev->workqueue, &hdev->power_off,
+					msecs_to_jiffies(AUTO_OFF_TIMEOUT));
 
 	if (test_and_clear_bit(HCI_SETUP, &hdev->flags))
 		mgmt_index_added(hdev->id);
@@ -947,30 +952,14 @@ static void hci_power_on(struct work_struct *work)
 
 static void hci_power_off(struct work_struct *work)
 {
-	struct hci_dev *hdev = container_of(work, struct hci_dev, power_off);
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+							power_off.work);
 
 	BT_DBG("%s", hdev->name);
+
+	clear_bit(HCI_AUTO_OFF, &hdev->flags);
 
 	hci_dev_close(hdev->id);
-}
-
-static void hci_auto_off(unsigned long data)
-{
-	struct hci_dev *hdev = (struct hci_dev *) data;
-
-	BT_DBG("%s", hdev->name);
-
-	clear_bit(HCI_AUTO_OFF, &hdev->flags);
-
-	queue_work(hdev->workqueue, &hdev->power_off);
-}
-
-void hci_del_off_timer(struct hci_dev *hdev)
-{
-	BT_DBG("%s", hdev->name);
-
-	clear_bit(HCI_AUTO_OFF, &hdev->flags);
-	del_timer(&hdev->off_timer);
 }
 
 static void hci_discov_off(struct work_struct *work)
@@ -1505,8 +1494,7 @@ int hci_register_dev(struct hci_dev *hdev)
 						(unsigned long) hdev);
 
 	INIT_WORK(&hdev->power_on, hci_power_on);
-	INIT_WORK(&hdev->power_off, hci_power_off);
-	setup_timer(&hdev->off_timer, hci_auto_off, (unsigned long) hdev);
+	INIT_DELAYED_WORK(&hdev->power_off, hci_power_off);
 
 	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
 
@@ -1583,7 +1571,6 @@ void hci_unregister_dev(struct hci_dev *hdev)
 
 	hci_del_sysfs(hdev);
 
-	hci_del_off_timer(hdev);
 	del_timer(&hdev->adv_timer);
 
 	destroy_workqueue(hdev->workqueue);

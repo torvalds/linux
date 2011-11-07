@@ -193,8 +193,7 @@ struct hci_dev {
 	struct workqueue_struct	*workqueue;
 
 	struct work_struct	power_on;
-	struct work_struct	power_off;
-	struct timer_list	off_timer;
+	struct delayed_work	power_off;
 
 	__u16			discov_timeout;
 	struct delayed_work	discov_off;

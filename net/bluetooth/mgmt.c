@@ -150,7 +150,8 @@ static int read_index_list(struct sock *sk)
 
 	i = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
-		hci_del_off_timer(d);
+		if (test_and_clear_bit(HCI_AUTO_OFF, &d->flags))
+			cancel_delayed_work_sync(&d->power_off);
 
 		if (test_bit(HCI_SETUP, &d->flags))
 			continue;
@@ -180,7 +181,8 @@ static int read_controller_info(struct sock *sk, u16 index)
 	if (!hdev)
 		return cmd_status(sk, index, MGMT_OP_READ_INFO, ENODEV);
 
-	hci_del_off_timer(hdev);
+	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->flags))
+		cancel_delayed_work_sync(&hdev->power_off);
 
 	hci_dev_lock_bh(hdev);
 
@@ -337,7 +339,7 @@ static int set_powered(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	if (cp->val)
 		queue_work(hdev->workqueue, &hdev->power_on);
 	else
-		queue_work(hdev->workqueue, &hdev->power_off);
+		queue_work(hdev->workqueue, &hdev->power_off.work);
 
 	err = 0;
 
