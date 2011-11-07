@@ -310,8 +310,7 @@ void xenbus_unregister_driver(struct xenbus_driver *drv)
 }
 EXPORT_SYMBOL_GPL(xenbus_unregister_driver);
 
-struct xb_find_info
-{
+struct xb_find_info {
 	struct xenbus_device *dev;
 	const char *nodename;
 };
@@ -640,7 +639,7 @@ int xenbus_dev_cancel(struct device *dev)
 EXPORT_SYMBOL_GPL(xenbus_dev_cancel);
 
 /* A flag to determine if xenstored is 'ready' (i.e. has started) */
-int xenstored_ready = 0;
+int xenstored_ready;
 
 
 int register_xenstore_notifier(struct notifier_block *nb)
@@ -771,7 +770,7 @@ static int __init xenbus_init(void)
 	proc_mkdir("xen", NULL);
 #endif
 
- out_error:
+out_error:
 	return err;
 }
 
