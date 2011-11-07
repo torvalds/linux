@@ -1077,6 +1077,13 @@ static snd_pcm_uframes_t snd_intel8x0_pcm_pointer(struct snd_pcm_substream *subs
 		}
 		if (civ != igetbyte(chip, ichdev->reg_offset + ICH_REG_OFF_CIV))
 			continue;
+
+		/* IO read operation is very expensive inside virtual machine
+		 * as it is emulated. The probability that subsequent PICB read
+		 * will return different result is high enough to loop till
+		 * timeout here.
+		 * Same CIV is strict enough condition to be sure that PICB
+		 * is valid inside VM on emulated card. */
 		if (chip->inside_vm)
 			break;
 		if (ptr1 == igetword(chip, ichdev->reg_offset + ichdev->roff_picb))
