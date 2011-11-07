@@ -4493,14 +4493,9 @@ static const struct snd_pci_quirk alc262_fixup_tbl[] = {
 
 /*
  */
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-#include "alc262_quirks.c"
-#endif
-
 static int patch_alc262(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int board_config;
 	int err;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -4527,29 +4522,13 @@ static int patch_alc262(struct hda_codec *codec)
 
 	alc_fix_pll_init(codec, 0x20, 0x0a, 10);
 
-	board_config = alc_board_config(codec, ALC262_MODEL_LAST,
-					alc262_models, alc262_cfg_tbl);
+	alc_pick_fixup(codec, NULL, alc262_fixup_tbl, alc262_fixups);
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
 
-	if (board_config < 0) {
-		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
-		       codec->chip_name);
-		board_config = ALC_MODEL_AUTO;
-	}
-
-	if (board_config == ALC_MODEL_AUTO) {
-		alc_pick_fixup(codec, NULL, alc262_fixup_tbl, alc262_fixups);
-		alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
-	}
-
-	if (board_config == ALC_MODEL_AUTO) {
-		/* automatic parse from the BIOS config */
-		err = alc262_parse_auto_config(codec);
-		if (err < 0)
-			goto error;
-	}
-
-	if (board_config != ALC_MODEL_AUTO)
-		setup_preset(codec, &alc262_presets[board_config]);
+	/* automatic parse from the BIOS config */
+	err = alc262_parse_auto_config(codec);
+	if (err < 0)
+		goto error;
 
 	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
@@ -4572,8 +4551,7 @@ static int patch_alc262(struct hda_codec *codec)
 	spec->vmaster_nid = 0x0c;
 
 	codec->patch_ops = alc_patch_ops;
-	if (board_config == ALC_MODEL_AUTO)
-		spec->init_hook = alc_auto_init_std;
+	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
 
 	alc_init_jacks(codec);
