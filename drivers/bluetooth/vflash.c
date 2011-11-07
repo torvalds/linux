@@ -34,11 +34,10 @@ static struct miscdevice vflash_miscdev;
 extern char GetSNSectorInfo(char * pbuf);
 extern unsigned char wlan_mac_addr[6];
 
-static int vflash_ioctl(struct inode *inode, struct file *file,
+static long vflash_ioctl(struct file *file,
 					unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-    unsigned long n = 0;
     
     DBG("%s---cmd=0x%x---arg=0x%x\n", __FUNCTION__, cmd, arg);
 
@@ -49,7 +48,7 @@ static int vflash_ioctl(struct inode *inode, struct file *file,
     {
         case READ_BDADDR_FROM_FLASH:
         {   
-#if CONFIG_WIFI_MAC
+#ifdef CONFIG_WIFI_MAC
             unsigned char bd_addr[6] = {0};
             int i;
 
