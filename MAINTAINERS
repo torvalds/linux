@@ -5471,7 +5471,7 @@ S:	Maintained
 F:	drivers/net/ethernet/rdc/r6040.c
 
 RDS - RELIABLE DATAGRAM SOCKETS
-M:	Andy Grover <andy.grover@oracle.com>
+M:	Venkat Venkatsubra <venkat.x.venkatsubra@oracle.com>
 L:	rds-devel@oss.oracle.com (moderated for non-subscribers)
 S:	Supported
 F:	net/rds/
