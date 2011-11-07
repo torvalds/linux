@@ -456,6 +456,18 @@ struct drm_encoder_funcs {
 
 /**
  * drm_encoder - central DRM encoder structure
+ * @dev: parent DRM device
+ * @head: list management
+ * @base: base KMS object
+ * @encoder_type: one of the %DRM_MODE_ENCODER_<foo> types in drm_mode.h
+ * @possible_crtcs: bitmask of potential CRTC bindings
+ * @possible_clones: bitmask of potential sibling encoders for cloning
+ * @crtc: currently bound CRTC
+ * @funcs: control functions
+ * @helper_private: mid-layer private data
+ *
+ * CRTCs drive pixels to encoders, which convert them into signals
+ * appropriate for a given connector or set of connectors.
  */
 struct drm_encoder {
 	struct drm_device *dev;
