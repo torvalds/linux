@@ -28,6 +28,7 @@
 #include <linux/skbuff.h>
 #include <linux/usb.h>
 #include <linux/workqueue.h>
+#include <linux/module.h>
 #include <net/mac80211.h>
 #include <asm/unaligned.h>
 

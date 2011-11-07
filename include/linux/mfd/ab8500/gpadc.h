@@ -27,6 +27,9 @@
 struct ab8500_gpadc;
 
 struct ab8500_gpadc *ab8500_gpadc_get(char *name);
-int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 input);
+int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 channel);
+int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel);
+int ab8500_gpadc_ad_to_voltage(struct ab8500_gpadc *gpadc,
+    u8 channel, int ad_value);
 
 #endif /* _AB8500_GPADC_H */

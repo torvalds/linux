@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/export.h>
 #include "drmP.h"
 #include "drm_edid.h"
 #include "drm_edid_modes.h"

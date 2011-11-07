@@ -23,6 +23,7 @@
 
 #include <net/tcp_states.h>
 #include <linux/nfc.h>
+#include <linux/export.h>
 
 #include "nfc.h"
 

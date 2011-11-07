@@ -57,6 +57,7 @@
 #include <linux/scatterlist.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <net/sock.h>
 
@@ -151,7 +152,6 @@ int iser_initialize_task_headers(struct iscsi_task *task,
 	tx_desc->tx_sg[0].length = ISER_HEADERS_LEN;
 	tx_desc->tx_sg[0].lkey   = device->mr->lkey;
 
-	iser_task->headers_initialized	= 1;
 	iser_task->iser_conn		= iser_conn;
 	return 0;
 }
@@ -166,8 +166,7 @@ iscsi_iser_task_init(struct iscsi_task *task)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
 
-	if (!iser_task->headers_initialized)
-		if (iser_initialize_task_headers(task, &iser_task->desc))
+	if (iser_initialize_task_headers(task, &iser_task->desc))
 			return -ENOMEM;
 
 	/* mgmt task */
@@ -278,6 +277,13 @@ iscsi_iser_task_xmit(struct iscsi_task *task)
 static void iscsi_iser_cleanup_task(struct iscsi_task *task)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
+	struct iser_tx_desc	*tx_desc = &iser_task->desc;
+
+	struct iscsi_iser_conn *iser_conn = task->conn->dd_data;
+	struct iser_device     *device    = iser_conn->ib_conn->device;
+
+	ib_dma_unmap_single(device->ib_device,
+		tx_desc->dma_addr, ISER_HEADERS_LEN, DMA_TO_DEVICE);
 
 	/* mgmt tasks do not need special cleanup */
 	if (!task->sc)

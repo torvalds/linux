@@ -30,12 +30,6 @@ source "drivers/staging/et131x/Kconfig"
 
 source "drivers/staging/slicoss/Kconfig"
 
-source "drivers/staging/go7007/Kconfig"
-
-source "drivers/staging/cx25821/Kconfig"
-
-source "drivers/staging/cxd2099/Kconfig"
-
 source "drivers/staging/usbip/Kconfig"
 
 source "drivers/staging/winbond/Kconfig"
@@ -104,19 +98,11 @@ source "drivers/staging/wlags49_h25/Kconfig"
 
 source "drivers/staging/sm7xx/Kconfig"
 
-source "drivers/staging/dt3155v4l/Kconfig"
-
 source "drivers/staging/crystalhd/Kconfig"
 
 source "drivers/staging/cxt1e1/Kconfig"
 
 source "drivers/staging/xgifb/Kconfig"
-
-source "drivers/staging/lirc/Kconfig"
-
-source "drivers/staging/easycap/Kconfig"
-
-source "drivers/staging/solo6x10/Kconfig"
 
 source "drivers/staging/tidspbridge/Kconfig"
 
@@ -143,5 +129,7 @@ source "drivers/staging/gma500/Kconfig"
 source "drivers/staging/mei/Kconfig"
 
 source "drivers/staging/nvec/Kconfig"
+
+source "drivers/staging/media/Kconfig"
 
 endif # STAGING

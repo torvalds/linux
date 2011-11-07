@@ -32,7 +32,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/ac97_codec.h>
@@ -41,6 +41,12 @@
 /* for 440MX workaround */
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
+
+#ifdef CONFIG_KVM_GUEST
+#include <linux/kvm_para.h>
+#else
+#define kvm_para_available() (0)
+#endif
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Intel 82801AA,82901AB,i810,i820,i830,i840,i845,MX440; SiS 7012; Ali 5455");
@@ -77,6 +83,7 @@ static int buggy_semaphore;
 static int buggy_irq = -1; /* auto-check */
 static int xbox;
 static int spdif_aclink = -1;
+static int inside_vm = -1;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel i8x0 soundcard.");
@@ -94,6 +101,8 @@ module_param(xbox, bool, 0444);
 MODULE_PARM_DESC(xbox, "Set to 1 for Xbox, if you have problems with the AC'97 codec detection.");
 module_param(spdif_aclink, int, 0444);
 MODULE_PARM_DESC(spdif_aclink, "S/PDIF over AC-link.");
+module_param(inside_vm, bool, 0444);
+MODULE_PARM_DESC(inside_vm, "KVM/Parallels optimization.");
 
 /* just for backward compatibility */
 static int enable;
@@ -400,6 +409,7 @@ struct intel8x0 {
 	unsigned buggy_irq: 1;		/* workaround for buggy mobos */
 	unsigned xbox: 1;		/* workaround for Xbox AC'97 detection */
 	unsigned buggy_semaphore: 1;	/* workaround for buggy codec semaphore */
+	unsigned inside_vm: 1;		/* enable VM optimization */
 
 	int spdif_idx;	/* SPDIF BAR index; *_SPBAR or -1 if use PCMOUT */
 	unsigned int sdm_saved;	/* SDM reg value */
@@ -1065,8 +1075,11 @@ static snd_pcm_uframes_t snd_intel8x0_pcm_pointer(struct snd_pcm_substream *subs
 			udelay(10);
 			continue;
 		}
-		if (civ == igetbyte(chip, ichdev->reg_offset + ICH_REG_OFF_CIV) &&
-		    ptr1 == igetword(chip, ichdev->reg_offset + ichdev->roff_picb))
+		if (civ != igetbyte(chip, ichdev->reg_offset + ICH_REG_OFF_CIV))
+			continue;
+		if (chip->inside_vm)
+			break;
+		if (ptr1 == igetword(chip, ichdev->reg_offset + ichdev->roff_picb))
 			break;
 	} while (timeout--);
 	ptr = ichdev->last_pos;
@@ -2984,6 +2997,10 @@ static int __devinit snd_intel8x0_create(struct snd_card *card,
 	if (xbox)
 		chip->xbox = 1;
 
+	chip->inside_vm = inside_vm;
+	if (inside_vm)
+		printk(KERN_INFO "intel8x0: enable KVM optimization\n");
+
 	if (pci->vendor == PCI_VENDOR_ID_INTEL &&
 	    pci->device == PCI_DEVICE_ID_INTEL_440MX)
 		chip->fix_nocache = 1; /* enable workaround */
@@ -3224,6 +3241,14 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 			buggy_irq = 1;
 		else
 			buggy_irq = 0;
+	}
+
+	if (inside_vm < 0) {
+		/* detect KVM and Parallels virtual environments */
+		inside_vm = kvm_para_available();
+#if defined(__i386__) || defined(__x86_64__)
+		inside_vm = inside_vm || boot_cpu_has(X86_FEATURE_HYPERVISOR);
+#endif
 	}
 
 	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data,

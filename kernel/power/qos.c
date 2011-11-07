@@ -43,6 +43,7 @@
 #include <linux/kernel.h>
 
 #include <linux/uaccess.h>
+#include <linux/export.h>
 
 /*
  * locking rule: all changes to constraints or notifiers lists
@@ -386,8 +387,7 @@ static int pm_qos_power_open(struct inode *inode, struct file *filp)
 		pm_qos_add_request(req, pm_qos_class, PM_QOS_DEFAULT_VALUE);
 		filp->private_data = req;
 
-		if (filp->private_data)
-			return 0;
+		return 0;
 	}
 	return -EPERM;
 }

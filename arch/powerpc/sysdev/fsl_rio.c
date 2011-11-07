@@ -23,7 +23,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
@@ -1608,6 +1608,7 @@ int fsl_rio_setup(struct platform_device *dev)
 	return 0;
 err:
 	iounmap(priv->regs_win);
+	release_resource(&port->iores);
 err_res:
 	kfree(priv);
 err_priv:

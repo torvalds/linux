@@ -19,7 +19,11 @@
 #include <linux/mtd/partitions.h>
 #include <asm/io.h>
 
-#include <asm/mach-au1x00/au1xxx.h>
+#ifdef CONFIG_MIPS_PB1550
+#include <asm/mach-pb1x00/pb1550.h>
+#elif defined(CONFIG_MIPS_DB1550)
+#include <asm/mach-db1x00/db1x00.h>
+#endif
 #include <asm/mach-db1x00/bcsr.h>
 
 /*

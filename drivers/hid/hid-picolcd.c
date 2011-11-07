@@ -36,6 +36,7 @@
 
 #include <linux/completion.h>
 #include <linux/uaccess.h>
+#include <linux/module.h>
 
 #define PICOLCD_NAME "PicoLCD (graphic)"
 

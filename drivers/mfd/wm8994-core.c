@@ -217,6 +217,47 @@ static int wm8994_suspend(struct device *dev)
 		return 0;
 	}
 
+	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_4);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read power status: %d\n", ret);
+	} else if (ret & (WM8994_AIF2ADCL_ENA | WM8994_AIF2ADCR_ENA |
+			  WM8994_AIF1ADC2L_ENA | WM8994_AIF1ADC2R_ENA |
+			  WM8994_AIF1ADC1L_ENA | WM8994_AIF1ADC1R_ENA)) {
+		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+		return 0;
+	}
+
+	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_5);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read power status: %d\n", ret);
+	} else if (ret & (WM8994_AIF2DACL_ENA | WM8994_AIF2DACR_ENA |
+			  WM8994_AIF1DAC2L_ENA | WM8994_AIF1DAC2R_ENA |
+			  WM8994_AIF1DAC1L_ENA | WM8994_AIF1DAC1R_ENA)) {
+		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+		return 0;
+	}
+
+	switch (wm8994->type) {
+	case WM8958:
+		ret = wm8994_reg_read(wm8994, WM8958_MIC_DETECT_1);
+		if (ret < 0) {
+			dev_err(dev, "Failed to read power status: %d\n", ret);
+		} else if (ret & WM8958_MICD_ENA) {
+			dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+			return 0;
+		}
+		break;
+	default:
+		break;
+	}
+
+	/* Disable LDO pulldowns while the device is suspended if we
+	 * don't know that something will be driving them. */
+	if (!wm8994->ldo_ena_always_driven)
+		wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
+				WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
+				WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD);
+
 	/* GPIO configuration state is saved here since we may be configuring
 	 * the GPIO alternate functions even if we're not using the gpiolib
 	 * driver for them.
@@ -285,6 +326,11 @@ static int wm8994_resume(struct device *dev)
 			   &wm8994->gpio_regs);
 	if (ret < 0)
 		dev_err(dev, "Failed to restore GPIO registers: %d\n", ret);
+
+	/* Disable LDO pulldowns while the device is active */
+	wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
+			WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
+			0);
 
 	wm8994->suspended = false;
 
@@ -467,7 +513,14 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 						pdata->gpio_defaults[i]);
 			}
 		}
+
+		wm8994->ldo_ena_always_driven = pdata->ldo_ena_always_driven;
 	}
+
+	/* Disable LDO pulldowns while the device is active */
+	wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
+			WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
+			0);
 
 	/* In some system designs where the regulators are not in use,
 	 * we can achieve a small reduction in leakage currents by

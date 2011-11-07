@@ -63,7 +63,7 @@
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
 
-#include <mach/s3c6410.h>
+#include <plat/s3c6410.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>

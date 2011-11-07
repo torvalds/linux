@@ -130,11 +130,11 @@ static struct s3c24xx_dma_map __initdata s3c2412_dma_mappings[] = {
 
 static void s3c2412_dma_direction(struct s3c2410_dma_chan *chan,
 				  struct s3c24xx_dma_map *map,
-				  enum s3c2410_dmasrc dir)
+				  enum dma_data_direction dir)
 {
 	unsigned long chsel;
 
-	if (dir == S3C2410_DMASRC_HW)
+	if (dir == DMA_FROM_DEVICE)
 		chsel = map->channels_rx[0];
 	else
 		chsel = map->channels[0];

@@ -47,6 +47,7 @@
 #include <linux/kthread.h>
 #include <linux/raid/pq.h>
 #include <linux/async_tx.h>
+#include <linux/module.h>
 #include <linux/async.h>
 #include <linux/seq_file.h>
 #include <linux/cpu.h>
@@ -3688,7 +3689,7 @@ static struct stripe_head *__get_priority_stripe(struct r5conf *conf)
 	return sh;
 }
 
-static int make_request(struct mddev *mddev, struct bio * bi)
+static void make_request(struct mddev *mddev, struct bio * bi)
 {
 	struct r5conf *conf = mddev->private;
 	int dd_idx;
@@ -3701,7 +3702,7 @@ static int make_request(struct mddev *mddev, struct bio * bi)
 
 	if (unlikely(bi->bi_rw & REQ_FLUSH)) {
 		md_flush_request(mddev, bi);
-		return 0;
+		return;
 	}
 
 	md_write_start(mddev, bi);
@@ -3709,7 +3710,7 @@ static int make_request(struct mddev *mddev, struct bio * bi)
 	if (rw == READ &&
 	     mddev->reshape_position == MaxSector &&
 	     chunk_aligned_read(mddev,bi))
-		return 0;
+		return;
 
 	logical_sector = bi->bi_sector & ~((sector_t)STRIPE_SECTORS-1);
 	last_sector = bi->bi_sector + (bi->bi_size>>9);
@@ -3844,8 +3845,6 @@ static int make_request(struct mddev *mddev, struct bio * bi)
 
 		bio_endio(bi, 0);
 	}
-
-	return 0;
 }
 
 static sector_t raid5_size(struct mddev *mddev, sector_t sectors, int raid_disks);

@@ -35,6 +35,7 @@
 #include "intel_drv.h"
 
 #include <linux/console.h>
+#include <linux/module.h>
 #include "drm_crtc_helper.h"
 
 static int i915_modeset __read_mostly = -1;

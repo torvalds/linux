@@ -19,9 +19,14 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/hwspinlock.h>
 
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
+
+static struct hwspinlock_pdata omap_hwspinlock_pdata __initdata = {
+	.base_id = 0,
+};
 
 int __init hwspinlocks_init(void)
 {
@@ -40,7 +45,9 @@ int __init hwspinlocks_init(void)
 	if (oh == NULL)
 		return -EINVAL;
 
-	pdev = omap_device_build(dev_name, 0, oh, NULL, 0, NULL, 0, false);
+	pdev = omap_device_build(dev_name, 0, oh, &omap_hwspinlock_pdata,
+				sizeof(struct hwspinlock_pdata),
+				NULL, 0, false);
 	if (IS_ERR(pdev)) {
 		pr_err("Can't build omap_device for %s:%s\n", dev_name,
 								oh_name);

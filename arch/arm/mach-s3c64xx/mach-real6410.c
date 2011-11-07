@@ -33,8 +33,8 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-modem.h>
 #include <mach/regs-srom.h>
-#include <mach/s3c6410.h>
 
+#include <plat/s3c6410.h>
 #include <plat/adc.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>

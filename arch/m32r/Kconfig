@@ -323,13 +323,6 @@ config NODES_SHIFT
 	default "1"
 	depends on NEED_MULTIPLE_NODES
 
-# turning this on wastes a bunch of space.
-# Summit needs it only when NUMA is on
-config BOOT_IOREMAP
-	bool
-	depends on NUMA
-	default n
-
 endmenu
 
 

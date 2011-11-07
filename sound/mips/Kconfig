@@ -24,7 +24,7 @@ config SND_SGI_HAL2
 
 config SND_AU1X00
 	tristate "Au1x00 AC97 Port Driver (DEPRECATED)"
-	depends on SOC_AU1000 || SOC_AU1100 || SOC_AU1500
+	depends on MIPS_ALCHEMY
 	select SND_PCM
 	select SND_AC97_CODEC
 	help
