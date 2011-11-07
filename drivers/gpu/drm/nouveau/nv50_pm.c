@@ -27,6 +27,7 @@
 #include "nouveau_bios.h"
 #include "nouveau_hw.h"
 #include "nouveau_pm.h"
+#include "nouveau_hwsq.h"
 
 enum clk_src {
 	clk_src_crystal,
@@ -351,6 +352,9 @@ nv50_pm_clocks_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 }
 
 struct nv50_pm_state {
+	struct hwsq_ucode mclk_hwsq;
+	u32 mscript;
+
 	u32 emast;
 	u32 nctrl;
 	u32 ncoef;
@@ -359,10 +363,6 @@ struct nv50_pm_state {
 
 	u32 amast;
 	u32 pdivs;
-
-	u32 mscript;
-	u32 mctrl;
-	u32 mcoef;
 };
 
 static u32
@@ -415,6 +415,80 @@ clk_same(u32 a, u32 b)
 	return ((a / 1000) == (b / 1000));
 }
 
+static int
+calc_mclk(struct drm_device *dev, u32 freq, struct hwsq_ucode *hwsq)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct pll_lims pll;
+	u32 mast = nv_rd32(dev, 0x00c040);
+	u32 ctrl = nv_rd32(dev, 0x004008);
+	u32 coef = nv_rd32(dev, 0x00400c);
+	u32 orig = ctrl;
+	u32 crtc_mask = 0;
+	int N, M, P;
+	int ret, i;
+
+	/* use pcie refclock if possible, otherwise use mpll */
+	ctrl &= ~0x81ff0200;
+	if (clk_same(freq, read_clk(dev, clk_src_href))) {
+		ctrl |= 0x00000200 | (pll.log2p_bias << 19);
+	} else {
+		ret = calc_pll(dev, 0x4008, &pll, freq, &N, &M, &P);
+		if (ret == 0)
+			return -EINVAL;
+
+		ctrl |= 0x80000000 | (P << 22) | (P << 16);
+		ctrl |= pll.log2p_bias << 19;
+		coef  = (N << 8) | M;
+	}
+
+	mast &= ~0xc0000000; /* get MCLK_2 from HREF */
+	mast |=  0x0000c000; /* use MCLK_2 as MPLL_BYPASS clock */
+
+	/* determine active crtcs */
+	for (i = 0; i < 2; i++) {
+		if (nv_rd32(dev, NV50_PDISPLAY_CRTC_C(i, CLOCK)))
+			crtc_mask |= (1 << i);
+	}
+
+	/* build the ucode which will reclock the memory for us */
+	hwsq_init(hwsq);
+	if (crtc_mask) {
+		hwsq_op5f(hwsq, crtc_mask, 0x00); /* wait for scanout */
+		hwsq_op5f(hwsq, crtc_mask, 0x01); /* wait for vblank */
+	}
+	if (dev_priv->chipset >= 0x92)
+		hwsq_wr32(hwsq, 0x611200, 0x00003300); /* disable scanout */
+	hwsq_unkn(hwsq, 0xb0); /* disable bus access */
+	hwsq_op5f(hwsq, 0x00, 0x01); /* no idea :s */
+
+	/* prepare memory controller */
+	hwsq_wr32(hwsq, 0x1002d4, 0x00000001); /* precharge banks and idle */
+	hwsq_wr32(hwsq, 0x1002d0, 0x00000001); /* force refresh */
+	hwsq_wr32(hwsq, 0x100210, 0x00000000); /* stop the automatic refresh */
+	hwsq_wr32(hwsq, 0x1002dc, 0x00000001); /* start self refresh mode */
+
+	/* reclock memory */
+	hwsq_wr32(hwsq, 0xc040, mast);
+	hwsq_wr32(hwsq, 0x4008, orig | 0x00000200); /* bypass MPLL */
+	hwsq_wr32(hwsq, 0x400c, coef);
+	hwsq_wr32(hwsq, 0x4008, ctrl);
+
+	/* restart memory controller */
+	hwsq_wr32(hwsq, 0x1002d4, 0x00000001); /* precharge banks and idle */
+	hwsq_wr32(hwsq, 0x1002dc, 0x00000000); /* stop self refresh mode */
+	hwsq_wr32(hwsq, 0x100210, 0x80000000); /* restart automatic refresh */
+	hwsq_unkn(hwsq, 0x07); /* wait for the PLL to stabilize (12us) */
+
+	hwsq_unkn(hwsq, 0x0b); /* may be unnecessary: causes flickering */
+	hwsq_unkn(hwsq, 0xd0); /* enable bus access again */
+	hwsq_op5f(hwsq, 0x00, 0x00); /* no idea, reverse of 0x00, 0x01? */
+	if (dev_priv->chipset >= 0x92)
+		hwsq_wr32(hwsq, 0x611200, 0x00003330); /* enable scanout */
+	hwsq_fini(hwsq);
+	return 0;
+}
+
 void *
 nv50_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 {
@@ -462,23 +536,16 @@ nv50_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		info->scoef  = (N << 8) | M;
 	}
 
-	/* memory: use pcie refclock if possible, otherwise use mpll */
-	info->mscript = perflvl->memscript;
-	if (clk_same(perflvl->memory, read_clk(dev, clk_src_href))) {
-		info->mctrl = 0x00000200 | (pll.log2p_bias << 19);
-		info->mcoef = nv_rd32(dev, 0x400c);
-	} else
+	/* memory: build hwsq ucode which we'll use to reclock memory */
+	info->mclk_hwsq.len = 0;
 	if (perflvl->memory) {
-		clk = calc_pll(dev, 0x4008, &pll, perflvl->memory,
-			       &N, &M, &P1);
-		if (clk == 0)
+		clk = calc_mclk(dev, perflvl->memory, &info->mclk_hwsq);
+		if (clk < 0) {
+			ret = clk;
 			goto error;
+		}
 
-		info->mctrl  = 0x80000000 | (P1 << 22) | (P1 << 16);
-		info->mctrl |= pll.log2p_bias << 19;
-		info->mcoef  = (N << 8) | M;
-	} else {
-		info->mctrl = 0x00000000;
+		info->mscript = perflvl->memscript;
 	}
 
 	/* vdec: avoid modifying xpll until we know exactly how the other
@@ -537,6 +604,44 @@ error:
 	return ERR_PTR(ret);
 }
 
+static int
+prog_mclk(struct drm_device *dev, struct hwsq_ucode *hwsq)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u32 hwsq_data, hwsq_kick;
+	int i;
+
+	if (dev_priv->chipset < 0x90) {
+		hwsq_data = 0x001400;
+		hwsq_kick = 0x00000003;
+	} else {
+		hwsq_data = 0x080000;
+		hwsq_kick = 0x00000001;
+	}
+
+	/* upload hwsq ucode */
+	nv_mask(dev, 0x001098, 0x00000008, 0x00000000);
+	nv_wr32(dev, 0x001304, 0x00000000);
+	for (i = 0; i < hwsq->len / 4; i++)
+		nv_wr32(dev, hwsq_data + (i * 4), hwsq->ptr.u32[i]);
+	nv_mask(dev, 0x001098, 0x00000018, 0x00000018);
+
+	/* launch, and wait for completion */
+	nv_wr32(dev, 0x00130c, hwsq_kick);
+	if (!nv_wait(dev, 0x001308, 0x00000100, 0x00000000)) {
+		NV_ERROR(dev, "hwsq ucode exec timed out\n");
+		NV_ERROR(dev, "0x001308: 0x%08x\n", nv_rd32(dev, 0x001308));
+		for (i = 0; i < hwsq->len / 4; i++) {
+			NV_ERROR(dev, "0x%06x: 0x%08x\n", 0x1400 + (i * 4),
+				 nv_rd32(dev, 0x001400 + (i * 4)));
+		}
+
+		return -EIO;
+	}
+
+	return 0;
+}
+
 int
 nv50_pm_clocks_set(struct drm_device *dev, void *data)
 {
@@ -549,6 +654,28 @@ nv50_pm_clocks_set(struct drm_device *dev, void *data)
 	nv_mask(dev, 0x002504, 0x00000001, 0x00000001);
 	if (!nv_wait(dev, 0x002504, 0x00000010, 0x00000010))
 		goto error;
+
+	/* memory: it is *very* important we change this first, the ucode
+	 * we build in pre() now has hardcoded 0xc040 values, which can't
+	 * change before we execute it or the engine clocks may end up
+	 * messed up.
+	 */
+	if (info->mclk_hwsq.len) {
+		/* execute some scripts that do ??? from the vbios.. */
+		if (!bit_table(dev, 'M', &M) && M.version == 1) {
+			if (M.length >= 6)
+				nouveau_bios_init_exec(dev, ROM16(M.data[5]));
+			if (M.length >= 8)
+				nouveau_bios_init_exec(dev, ROM16(M.data[7]));
+			if (M.length >= 10)
+				nouveau_bios_init_exec(dev, ROM16(M.data[9]));
+			nouveau_bios_init_exec(dev, info->mscript);
+		}
+
+		ret = prog_mclk(dev, &info->mclk_hwsq);
+		if (ret)
+			goto resume;
+	}
 
 	/* reclock vdec/dom6 */
 	nv_mask(dev, 0x00c040, 0x00000c00, 0x00000000);
@@ -577,50 +704,6 @@ nv50_pm_clocks_set(struct drm_device *dev, void *data)
 	nv_mask(dev, 0x004028, 0xc03f0100, info->nctrl);
 	nv_wr32(dev, 0x00402c, info->ncoef);
 	nv_mask(dev, 0x00c040, 0x00100033, info->emast);
-
-	/* memory */
-	if (!info->mctrl)
-		goto resume;
-
-	/* execute some scripts that do ??? from the vbios.. */
-	if (!bit_table(dev, 'M', &M) && M.version == 1) {
-		if (M.length >= 6)
-			nouveau_bios_init_exec(dev, ROM16(M.data[5]));
-		if (M.length >= 8)
-			nouveau_bios_init_exec(dev, ROM16(M.data[7]));
-		if (M.length >= 10)
-			nouveau_bios_init_exec(dev, ROM16(M.data[9]));
-		nouveau_bios_init_exec(dev, info->mscript);
-	}
-
-	/* disable display */
-	if (dev_priv->chipset >= 0x92) {
-		nv_wr32(dev, 0x611200, 0x00003300);
-		udelay(100);
-	}
-
-	/* prepare ram for reclocking */
-	nv_wr32(dev, 0x1002d4, 0x00000001); /* precharge */
-	nv_wr32(dev, 0x1002d0, 0x00000001); /* refresh */
-	nv_wr32(dev, 0x1002d0, 0x00000001); /* refresh */
-	nv_mask(dev, 0x100210, 0x80000000, 0x00000000); /* no auto-refresh */
-	nv_wr32(dev, 0x1002dc, 0x00000001); /* enable self-refresh */
-
-	/* modify mpll */
-	nv_mask(dev, 0x00c040, 0x0000c000, 0x0000c000);
-	nv_mask(dev, 0x004008, 0x01ff0200, 0x00000200 | info->mctrl);
-	nv_wr32(dev, 0x00400c, info->mcoef);
-	udelay(100);
-	nv_mask(dev, 0x004008, 0x81ff0200, info->mctrl);
-
-	/* re-enable normal operation of memory controller */
-	nv_wr32(dev, 0x1002dc, 0x00000000);
-	nv_mask(dev, 0x100210, 0x80000000, 0x80000000);
-	udelay(100);
-
-	/* re-enable display */
-	if (dev_priv->chipset >= 0x92)
-		nv_wr32(dev, 0x611200, 0x00003330);
 
 	goto resume;
 error:
