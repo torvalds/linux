@@ -437,6 +437,13 @@ struct drm_connector_funcs {
 	void (*force)(struct drm_connector *connector);
 };
 
+/**
+ * drm_encoder_funcs - encoder controls
+ * @reset: reset state (e.g. at init or resume time)
+ * @destroy: cleanup and free associated data
+ *
+ * Encoders sit between CRTCs and connectors.
+ */
 struct drm_encoder_funcs {
 	void (*reset)(struct drm_encoder *encoder);
 	void (*destroy)(struct drm_encoder *encoder);
