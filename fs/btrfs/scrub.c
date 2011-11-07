@@ -17,10 +17,14 @@
  */
 
 #include <linux/blkdev.h>
+#include <linux/ratelimit.h>
 #include "ctree.h"
 #include "volumes.h"
 #include "disk-io.h"
 #include "ordered-data.h"
+#include "transaction.h"
+#include "backref.h"
+#include "extent_io.h"
 
 /*
  * This is only the first step towards a full-features scrub. It reads all
@@ -29,15 +33,12 @@
  * any can be found.
  *
  * Future enhancements:
- *  - To enhance the performance, better read-ahead strategies for the
- *    extent-tree can be employed.
  *  - In case an unrepairable extent is encountered, track which files are
  *    affected and report them
  *  - In case of a read error on files with nodatasum, map the file and read
  *    the extent to trigger a writeback of the good copy
  *  - track and record media errors, throw out bad devices
  *  - add a mode to also read unallocated space
- *  - make the prefetch cancellable
  */
 
 struct scrub_bio;
@@ -63,7 +64,7 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix);
 struct scrub_page {
 	u64			flags;  /* extent flags */
 	u64			generation;
-	u64			mirror_num;
+	int			mirror_num;
 	int			have_csum;
 	u8			csum[BTRFS_CSUM_SIZE];
 };
@@ -87,6 +88,7 @@ struct scrub_dev {
 	int			first_free;
 	int			curr;
 	atomic_t		in_flight;
+	atomic_t		fixup_cnt;
 	spinlock_t		list_lock;
 	wait_queue_head_t	list_wait;
 	u16			csum_size;
@@ -98,6 +100,27 @@ struct scrub_dev {
 	 */
 	struct btrfs_scrub_progress stat;
 	spinlock_t		stat_lock;
+};
+
+struct scrub_fixup_nodatasum {
+	struct scrub_dev	*sdev;
+	u64			logical;
+	struct btrfs_root	*root;
+	struct btrfs_work	work;
+	int			mirror_num;
+};
+
+struct scrub_warning {
+	struct btrfs_path	*path;
+	u64			extent_item_size;
+	char			*scratch_buf;
+	char			*msg_buf;
+	const char		*errstr;
+	sector_t		sector;
+	u64			logical;
+	struct btrfs_device	*dev;
+	int			msg_bufsize;
+	int			scratch_bufsize;
 };
 
 static void scrub_free_csums(struct scrub_dev *sdev)
@@ -175,14 +198,15 @@ struct scrub_dev *scrub_setup_dev(struct btrfs_device *dev)
 
 		if (i != SCRUB_BIOS_PER_DEV-1)
 			sdev->bios[i]->next_free = i + 1;
-		 else
+		else
 			sdev->bios[i]->next_free = -1;
 	}
 	sdev->first_free = 0;
 	sdev->curr = -1;
 	atomic_set(&sdev->in_flight, 0);
+	atomic_set(&sdev->fixup_cnt, 0);
 	atomic_set(&sdev->cancel_req, 0);
-	sdev->csum_size = btrfs_super_csum_size(&fs_info->super_copy);
+	sdev->csum_size = btrfs_super_csum_size(fs_info->super_copy);
 	INIT_LIST_HEAD(&sdev->csum_list);
 
 	spin_lock_init(&sdev->list_lock);
@@ -195,24 +219,361 @@ nomem:
 	return ERR_PTR(-ENOMEM);
 }
 
+static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root, void *ctx)
+{
+	u64 isize;
+	u32 nlink;
+	int ret;
+	int i;
+	struct extent_buffer *eb;
+	struct btrfs_inode_item *inode_item;
+	struct scrub_warning *swarn = ctx;
+	struct btrfs_fs_info *fs_info = swarn->dev->dev_root->fs_info;
+	struct inode_fs_paths *ipath = NULL;
+	struct btrfs_root *local_root;
+	struct btrfs_key root_key;
+
+	root_key.objectid = root;
+	root_key.type = BTRFS_ROOT_ITEM_KEY;
+	root_key.offset = (u64)-1;
+	local_root = btrfs_read_fs_root_no_name(fs_info, &root_key);
+	if (IS_ERR(local_root)) {
+		ret = PTR_ERR(local_root);
+		goto err;
+	}
+
+	ret = inode_item_info(inum, 0, local_root, swarn->path);
+	if (ret) {
+		btrfs_release_path(swarn->path);
+		goto err;
+	}
+
+	eb = swarn->path->nodes[0];
+	inode_item = btrfs_item_ptr(eb, swarn->path->slots[0],
+					struct btrfs_inode_item);
+	isize = btrfs_inode_size(eb, inode_item);
+	nlink = btrfs_inode_nlink(eb, inode_item);
+	btrfs_release_path(swarn->path);
+
+	ipath = init_ipath(4096, local_root, swarn->path);
+	ret = paths_from_inode(inum, ipath);
+
+	if (ret < 0)
+		goto err;
+
+	/*
+	 * we deliberately ignore the bit ipath might have been too small to
+	 * hold all of the paths here
+	 */
+	for (i = 0; i < ipath->fspath->elem_cnt; ++i)
+		printk(KERN_WARNING "btrfs: %s at logical %llu on dev "
+			"%s, sector %llu, root %llu, inode %llu, offset %llu, "
+			"length %llu, links %u (path: %s)\n", swarn->errstr,
+			swarn->logical, swarn->dev->name,
+			(unsigned long long)swarn->sector, root, inum, offset,
+			min(isize - offset, (u64)PAGE_SIZE), nlink,
+			(char *)ipath->fspath->val[i]);
+
+	free_ipath(ipath);
+	return 0;
+
+err:
+	printk(KERN_WARNING "btrfs: %s at logical %llu on dev "
+		"%s, sector %llu, root %llu, inode %llu, offset %llu: path "
+		"resolving failed with ret=%d\n", swarn->errstr,
+		swarn->logical, swarn->dev->name,
+		(unsigned long long)swarn->sector, root, inum, offset, ret);
+
+	free_ipath(ipath);
+	return 0;
+}
+
+static void scrub_print_warning(const char *errstr, struct scrub_bio *sbio,
+				int ix)
+{
+	struct btrfs_device *dev = sbio->sdev->dev;
+	struct btrfs_fs_info *fs_info = dev->dev_root->fs_info;
+	struct btrfs_path *path;
+	struct btrfs_key found_key;
+	struct extent_buffer *eb;
+	struct btrfs_extent_item *ei;
+	struct scrub_warning swarn;
+	u32 item_size;
+	int ret;
+	u64 ref_root;
+	u8 ref_level;
+	unsigned long ptr = 0;
+	const int bufsize = 4096;
+	u64 extent_offset;
+
+	path = btrfs_alloc_path();
+
+	swarn.scratch_buf = kmalloc(bufsize, GFP_NOFS);
+	swarn.msg_buf = kmalloc(bufsize, GFP_NOFS);
+	swarn.sector = (sbio->physical + ix * PAGE_SIZE) >> 9;
+	swarn.logical = sbio->logical + ix * PAGE_SIZE;
+	swarn.errstr = errstr;
+	swarn.dev = dev;
+	swarn.msg_bufsize = bufsize;
+	swarn.scratch_bufsize = bufsize;
+
+	if (!path || !swarn.scratch_buf || !swarn.msg_buf)
+		goto out;
+
+	ret = extent_from_logical(fs_info, swarn.logical, path, &found_key);
+	if (ret < 0)
+		goto out;
+
+	extent_offset = swarn.logical - found_key.objectid;
+	swarn.extent_item_size = found_key.offset;
+
+	eb = path->nodes[0];
+	ei = btrfs_item_ptr(eb, path->slots[0], struct btrfs_extent_item);
+	item_size = btrfs_item_size_nr(eb, path->slots[0]);
+
+	if (ret & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
+		do {
+			ret = tree_backref_for_extent(&ptr, eb, ei, item_size,
+							&ref_root, &ref_level);
+			printk(KERN_WARNING "%s at logical %llu on dev %s, "
+				"sector %llu: metadata %s (level %d) in tree "
+				"%llu\n", errstr, swarn.logical, dev->name,
+				(unsigned long long)swarn.sector,
+				ref_level ? "node" : "leaf",
+				ret < 0 ? -1 : ref_level,
+				ret < 0 ? -1 : ref_root);
+		} while (ret != 1);
+	} else {
+		swarn.path = path;
+		iterate_extent_inodes(fs_info, path, found_key.objectid,
+					extent_offset,
+					scrub_print_warning_inode, &swarn);
+	}
+
+out:
+	btrfs_free_path(path);
+	kfree(swarn.scratch_buf);
+	kfree(swarn.msg_buf);
+}
+
+static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *ctx)
+{
+	struct page *page = NULL;
+	unsigned long index;
+	struct scrub_fixup_nodatasum *fixup = ctx;
+	int ret;
+	int corrected = 0;
+	struct btrfs_key key;
+	struct inode *inode = NULL;
+	u64 end = offset + PAGE_SIZE - 1;
+	struct btrfs_root *local_root;
+
+	key.objectid = root;
+	key.type = BTRFS_ROOT_ITEM_KEY;
+	key.offset = (u64)-1;
+	local_root = btrfs_read_fs_root_no_name(fixup->root->fs_info, &key);
+	if (IS_ERR(local_root))
+		return PTR_ERR(local_root);
+
+	key.type = BTRFS_INODE_ITEM_KEY;
+	key.objectid = inum;
+	key.offset = 0;
+	inode = btrfs_iget(fixup->root->fs_info->sb, &key, local_root, NULL);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
+
+	index = offset >> PAGE_CACHE_SHIFT;
+
+	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
+	if (!page) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	if (PageUptodate(page)) {
+		struct btrfs_mapping_tree *map_tree;
+		if (PageDirty(page)) {
+			/*
+			 * we need to write the data to the defect sector. the
+			 * data that was in that sector is not in memory,
+			 * because the page was modified. we must not write the
+			 * modified page to that sector.
+			 *
+			 * TODO: what could be done here: wait for the delalloc
+			 *       runner to write out that page (might involve
+			 *       COW) and see whether the sector is still
+			 *       referenced afterwards.
+			 *
+			 * For the meantime, we'll treat this error
+			 * incorrectable, although there is a chance that a
+			 * later scrub will find the bad sector again and that
+			 * there's no dirty page in memory, then.
+			 */
+			ret = -EIO;
+			goto out;
+		}
+		map_tree = &BTRFS_I(inode)->root->fs_info->mapping_tree;
+		ret = repair_io_failure(map_tree, offset, PAGE_SIZE,
+					fixup->logical, page,
+					fixup->mirror_num);
+		unlock_page(page);
+		corrected = !ret;
+	} else {
+		/*
+		 * we need to get good data first. the general readpage path
+		 * will call repair_io_failure for us, we just have to make
+		 * sure we read the bad mirror.
+		 */
+		ret = set_extent_bits(&BTRFS_I(inode)->io_tree, offset, end,
+					EXTENT_DAMAGED, GFP_NOFS);
+		if (ret) {
+			/* set_extent_bits should give proper error */
+			WARN_ON(ret > 0);
+			if (ret > 0)
+				ret = -EFAULT;
+			goto out;
+		}
+
+		ret = extent_read_full_page(&BTRFS_I(inode)->io_tree, page,
+						btrfs_get_extent,
+						fixup->mirror_num);
+		wait_on_page_locked(page);
+
+		corrected = !test_range_bit(&BTRFS_I(inode)->io_tree, offset,
+						end, EXTENT_DAMAGED, 0, NULL);
+		if (!corrected)
+			clear_extent_bits(&BTRFS_I(inode)->io_tree, offset, end,
+						EXTENT_DAMAGED, GFP_NOFS);
+	}
+
+out:
+	if (page)
+		put_page(page);
+	if (inode)
+		iput(inode);
+
+	if (ret < 0)
+		return ret;
+
+	if (ret == 0 && corrected) {
+		/*
+		 * we only need to call readpage for one of the inodes belonging
+		 * to this extent. so make iterate_extent_inodes stop
+		 */
+		return 1;
+	}
+
+	return -EIO;
+}
+
+static void scrub_fixup_nodatasum(struct btrfs_work *work)
+{
+	int ret;
+	struct scrub_fixup_nodatasum *fixup;
+	struct scrub_dev *sdev;
+	struct btrfs_trans_handle *trans = NULL;
+	struct btrfs_fs_info *fs_info;
+	struct btrfs_path *path;
+	int uncorrectable = 0;
+
+	fixup = container_of(work, struct scrub_fixup_nodatasum, work);
+	sdev = fixup->sdev;
+	fs_info = fixup->root->fs_info;
+
+	path = btrfs_alloc_path();
+	if (!path) {
+		spin_lock(&sdev->stat_lock);
+		++sdev->stat.malloc_errors;
+		spin_unlock(&sdev->stat_lock);
+		uncorrectable = 1;
+		goto out;
+	}
+
+	trans = btrfs_join_transaction(fixup->root);
+	if (IS_ERR(trans)) {
+		uncorrectable = 1;
+		goto out;
+	}
+
+	/*
+	 * the idea is to trigger a regular read through the standard path. we
+	 * read a page from the (failed) logical address by specifying the
+	 * corresponding copynum of the failed sector. thus, that readpage is
+	 * expected to fail.
+	 * that is the point where on-the-fly error correction will kick in
+	 * (once it's finished) and rewrite the failed sector if a good copy
+	 * can be found.
+	 */
+	ret = iterate_inodes_from_logical(fixup->logical, fixup->root->fs_info,
+						path, scrub_fixup_readpage,
+						fixup);
+	if (ret < 0) {
+		uncorrectable = 1;
+		goto out;
+	}
+	WARN_ON(ret != 1);
+
+	spin_lock(&sdev->stat_lock);
+	++sdev->stat.corrected_errors;
+	spin_unlock(&sdev->stat_lock);
+
+out:
+	if (trans && !IS_ERR(trans))
+		btrfs_end_transaction(trans, fixup->root);
+	if (uncorrectable) {
+		spin_lock(&sdev->stat_lock);
+		++sdev->stat.uncorrectable_errors;
+		spin_unlock(&sdev->stat_lock);
+		printk_ratelimited(KERN_ERR "btrfs: unable to fixup "
+					"(nodatasum) error at logical %llu\n",
+					fixup->logical);
+	}
+
+	btrfs_free_path(path);
+	kfree(fixup);
+
+	/* see caller why we're pretending to be paused in the scrub counters */
+	mutex_lock(&fs_info->scrub_lock);
+	atomic_dec(&fs_info->scrubs_running);
+	atomic_dec(&fs_info->scrubs_paused);
+	mutex_unlock(&fs_info->scrub_lock);
+	atomic_dec(&sdev->fixup_cnt);
+	wake_up(&fs_info->scrub_pause_wait);
+	wake_up(&sdev->list_wait);
+}
+
 /*
  * scrub_recheck_error gets called when either verification of the page
  * failed or the bio failed to read, e.g. with EIO. In the latter case,
  * recheck_error gets called for every page in the bio, even though only
  * one may be bad
  */
-static void scrub_recheck_error(struct scrub_bio *sbio, int ix)
+static int scrub_recheck_error(struct scrub_bio *sbio, int ix)
 {
+	struct scrub_dev *sdev = sbio->sdev;
+	u64 sector = (sbio->physical + ix * PAGE_SIZE) >> 9;
+	static DEFINE_RATELIMIT_STATE(_rs, DEFAULT_RATELIMIT_INTERVAL,
+					DEFAULT_RATELIMIT_BURST);
+
 	if (sbio->err) {
-		if (scrub_fixup_io(READ, sbio->sdev->dev->bdev,
-				   (sbio->physical + ix * PAGE_SIZE) >> 9,
+		if (scrub_fixup_io(READ, sbio->sdev->dev->bdev, sector,
 				   sbio->bio->bi_io_vec[ix].bv_page) == 0) {
 			if (scrub_fixup_check(sbio, ix) == 0)
-				return;
+				return 0;
 		}
+		if (__ratelimit(&_rs))
+			scrub_print_warning("i/o error", sbio, ix);
+	} else {
+		if (__ratelimit(&_rs))
+			scrub_print_warning("checksum error", sbio, ix);
 	}
 
+	spin_lock(&sdev->stat_lock);
+	++sdev->stat.read_errors;
+	spin_unlock(&sdev->stat_lock);
+
 	scrub_fixup(sbio, ix);
+	return 1;
 }
 
 static int scrub_fixup_check(struct scrub_bio *sbio, int ix)
@@ -250,7 +611,8 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 	struct scrub_dev *sdev = sbio->sdev;
 	struct btrfs_fs_info *fs_info = sdev->dev->dev_root->fs_info;
 	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
-	struct btrfs_multi_bio *multi = NULL;
+	struct btrfs_bio *bbio = NULL;
+	struct scrub_fixup_nodatasum *fixup;
 	u64 logical = sbio->logical + ix * PAGE_SIZE;
 	u64 length;
 	int i;
@@ -259,38 +621,57 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 
 	if ((sbio->spag[ix].flags & BTRFS_EXTENT_FLAG_DATA) &&
 	    (sbio->spag[ix].have_csum == 0)) {
+		fixup = kzalloc(sizeof(*fixup), GFP_NOFS);
+		if (!fixup)
+			goto uncorrectable;
+		fixup->sdev = sdev;
+		fixup->logical = logical;
+		fixup->root = fs_info->extent_root;
+		fixup->mirror_num = sbio->spag[ix].mirror_num;
 		/*
-		 * nodatasum, don't try to fix anything
-		 * FIXME: we can do better, open the inode and trigger a
-		 * writeback
+		 * increment scrubs_running to prevent cancel requests from
+		 * completing as long as a fixup worker is running. we must also
+		 * increment scrubs_paused to prevent deadlocking on pause
+		 * requests used for transactions commits (as the worker uses a
+		 * transaction context). it is safe to regard the fixup worker
+		 * as paused for all matters practical. effectively, we only
+		 * avoid cancellation requests from completing.
 		 */
-		goto uncorrectable;
+		mutex_lock(&fs_info->scrub_lock);
+		atomic_inc(&fs_info->scrubs_running);
+		atomic_inc(&fs_info->scrubs_paused);
+		mutex_unlock(&fs_info->scrub_lock);
+		atomic_inc(&sdev->fixup_cnt);
+		fixup->work.func = scrub_fixup_nodatasum;
+		btrfs_queue_worker(&fs_info->scrub_workers, &fixup->work);
+		return;
 	}
 
 	length = PAGE_SIZE;
 	ret = btrfs_map_block(map_tree, REQ_WRITE, logical, &length,
-			      &multi, 0);
-	if (ret || !multi || length < PAGE_SIZE) {
+			      &bbio, 0);
+	if (ret || !bbio || length < PAGE_SIZE) {
 		printk(KERN_ERR
 		       "scrub_fixup: btrfs_map_block failed us for %llu\n",
 		       (unsigned long long)logical);
 		WARN_ON(1);
+		kfree(bbio);
 		return;
 	}
 
-	if (multi->num_stripes == 1)
+	if (bbio->num_stripes == 1)
 		/* there aren't any replicas */
 		goto uncorrectable;
 
 	/*
 	 * first find a good copy
 	 */
-	for (i = 0; i < multi->num_stripes; ++i) {
-		if (i == sbio->spag[ix].mirror_num)
+	for (i = 0; i < bbio->num_stripes; ++i) {
+		if (i + 1 == sbio->spag[ix].mirror_num)
 			continue;
 
-		if (scrub_fixup_io(READ, multi->stripes[i].dev->bdev,
-				   multi->stripes[i].physical >> 9,
+		if (scrub_fixup_io(READ, bbio->stripes[i].dev->bdev,
+				   bbio->stripes[i].physical >> 9,
 				   sbio->bio->bi_io_vec[ix].bv_page)) {
 			/* I/O-error, this is not a good copy */
 			continue;
@@ -299,7 +680,7 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 		if (scrub_fixup_check(sbio, ix) == 0)
 			break;
 	}
-	if (i == multi->num_stripes)
+	if (i == bbio->num_stripes)
 		goto uncorrectable;
 
 	if (!sdev->readonly) {
@@ -314,25 +695,23 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 		}
 	}
 
-	kfree(multi);
+	kfree(bbio);
 	spin_lock(&sdev->stat_lock);
 	++sdev->stat.corrected_errors;
 	spin_unlock(&sdev->stat_lock);
 
-	if (printk_ratelimit())
-		printk(KERN_ERR "btrfs: fixed up at %llu\n",
-		       (unsigned long long)logical);
+	printk_ratelimited(KERN_ERR "btrfs: fixed up error at logical %llu\n",
+			       (unsigned long long)logical);
 	return;
 
 uncorrectable:
-	kfree(multi);
+	kfree(bbio);
 	spin_lock(&sdev->stat_lock);
 	++sdev->stat.uncorrectable_errors;
 	spin_unlock(&sdev->stat_lock);
 
-	if (printk_ratelimit())
-		printk(KERN_ERR "btrfs: unable to fixup at %llu\n",
-			 (unsigned long long)logical);
+	printk_ratelimited(KERN_ERR "btrfs: unable to fixup (regular) error at "
+				"logical %llu\n", (unsigned long long)logical);
 }
 
 static int scrub_fixup_io(int rw, struct block_device *bdev, sector_t sector,
@@ -382,8 +761,14 @@ static void scrub_checksum(struct btrfs_work *work)
 	int ret;
 
 	if (sbio->err) {
+		ret = 0;
 		for (i = 0; i < sbio->count; ++i)
-			scrub_recheck_error(sbio, i);
+			ret |= scrub_recheck_error(sbio, i);
+		if (!ret) {
+			spin_lock(&sdev->stat_lock);
+			++sdev->stat.unverified_errors;
+			spin_unlock(&sdev->stat_lock);
+		}
 
 		sbio->bio->bi_flags &= ~(BIO_POOL_MASK - 1);
 		sbio->bio->bi_flags |= 1 << BIO_UPTODATE;
@@ -396,10 +781,6 @@ static void scrub_checksum(struct btrfs_work *work)
 			bi->bv_offset = 0;
 			bi->bv_len = PAGE_SIZE;
 		}
-
-		spin_lock(&sdev->stat_lock);
-		++sdev->stat.read_errors;
-		spin_unlock(&sdev->stat_lock);
 		goto out;
 	}
 	for (i = 0; i < sbio->count; ++i) {
@@ -420,8 +801,14 @@ static void scrub_checksum(struct btrfs_work *work)
 			WARN_ON(1);
 		}
 		kunmap_atomic(buffer, KM_USER0);
-		if (ret)
-			scrub_recheck_error(sbio, i);
+		if (ret) {
+			ret = scrub_recheck_error(sbio, i);
+			if (!ret) {
+				spin_lock(&sdev->stat_lock);
+				++sdev->stat.unverified_errors;
+				spin_unlock(&sdev->stat_lock);
+			}
+		}
 	}
 
 out:
@@ -604,7 +991,7 @@ nomem:
 }
 
 static int scrub_page(struct scrub_dev *sdev, u64 logical, u64 len,
-		      u64 physical, u64 flags, u64 gen, u64 mirror_num,
+		      u64 physical, u64 flags, u64 gen, int mirror_num,
 		      u8 *csum, int force)
 {
 	struct scrub_bio *sbio;
@@ -701,7 +1088,7 @@ static int scrub_find_csum(struct scrub_dev *sdev, u64 logical, u64 len,
 
 /* scrub extent tries to collect up to 64 kB for each bio */
 static int scrub_extent(struct scrub_dev *sdev, u64 logical, u64 len,
-			u64 physical, u64 flags, u64 gen, u64 mirror_num)
+			u64 physical, u64 flags, u64 gen, int mirror_num)
 {
 	int ret;
 	u8 csum[BTRFS_CSUM_SIZE];
@@ -741,13 +1128,16 @@ static noinline_for_stack int scrub_stripe(struct scrub_dev *sdev,
 	int slot;
 	int i;
 	u64 nstripes;
-	int start_stripe;
 	struct extent_buffer *l;
 	struct btrfs_key key;
 	u64 physical;
 	u64 logical;
 	u64 generation;
-	u64 mirror_num;
+	int mirror_num;
+	struct reada_control *reada1;
+	struct reada_control *reada2;
+	struct btrfs_key key_start;
+	struct btrfs_key key_end;
 
 	u64 increment = map->stripe_len;
 	u64 offset;
@@ -758,102 +1148,88 @@ static noinline_for_stack int scrub_stripe(struct scrub_dev *sdev,
 	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
 		offset = map->stripe_len * num;
 		increment = map->stripe_len * map->num_stripes;
-		mirror_num = 0;
+		mirror_num = 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
 		int factor = map->num_stripes / map->sub_stripes;
 		offset = map->stripe_len * (num / map->sub_stripes);
 		increment = map->stripe_len * factor;
-		mirror_num = num % map->sub_stripes;
+		mirror_num = num % map->sub_stripes + 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID1) {
 		increment = map->stripe_len;
-		mirror_num = num % map->num_stripes;
+		mirror_num = num % map->num_stripes + 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
 		increment = map->stripe_len;
-		mirror_num = num % map->num_stripes;
+		mirror_num = num % map->num_stripes + 1;
 	} else {
 		increment = map->stripe_len;
-		mirror_num = 0;
+		mirror_num = 1;
 	}
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
-	path->reada = 2;
 	path->search_commit_root = 1;
 	path->skip_locking = 1;
 
 	/*
-	 * find all extents for each stripe and just read them to get
-	 * them into the page cache
-	 * FIXME: we can do better. build a more intelligent prefetching
+	 * trigger the readahead for extent tree csum tree and wait for
+	 * completion. During readahead, the scrub is officially paused
+	 * to not hold off transaction commits
 	 */
 	logical = base + offset;
-	physical = map->stripes[num].physical;
-	ret = 0;
-	for (i = 0; i < nstripes; ++i) {
-		key.objectid = logical;
-		key.type = BTRFS_EXTENT_ITEM_KEY;
-		key.offset = (u64)0;
 
-		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-		if (ret < 0)
-			goto out_noplug;
+	wait_event(sdev->list_wait,
+		   atomic_read(&sdev->in_flight) == 0);
+	atomic_inc(&fs_info->scrubs_paused);
+	wake_up(&fs_info->scrub_pause_wait);
 
-		/*
-		 * we might miss half an extent here, but that doesn't matter,
-		 * as it's only the prefetch
-		 */
-		while (1) {
-			l = path->nodes[0];
-			slot = path->slots[0];
-			if (slot >= btrfs_header_nritems(l)) {
-				ret = btrfs_next_leaf(root, path);
-				if (ret == 0)
-					continue;
-				if (ret < 0)
-					goto out_noplug;
+	/* FIXME it might be better to start readahead at commit root */
+	key_start.objectid = logical;
+	key_start.type = BTRFS_EXTENT_ITEM_KEY;
+	key_start.offset = (u64)0;
+	key_end.objectid = base + offset + nstripes * increment;
+	key_end.type = BTRFS_EXTENT_ITEM_KEY;
+	key_end.offset = (u64)0;
+	reada1 = btrfs_reada_add(root, &key_start, &key_end);
 
-				break;
-			}
-			btrfs_item_key_to_cpu(l, &key, slot);
+	key_start.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
+	key_start.type = BTRFS_EXTENT_CSUM_KEY;
+	key_start.offset = logical;
+	key_end.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
+	key_end.type = BTRFS_EXTENT_CSUM_KEY;
+	key_end.offset = base + offset + nstripes * increment;
+	reada2 = btrfs_reada_add(csum_root, &key_start, &key_end);
 
-			if (key.objectid >= logical + map->stripe_len)
-				break;
+	if (!IS_ERR(reada1))
+		btrfs_reada_wait(reada1);
+	if (!IS_ERR(reada2))
+		btrfs_reada_wait(reada2);
 
-			path->slots[0]++;
-		}
-		btrfs_release_path(path);
-		logical += increment;
-		physical += map->stripe_len;
-		cond_resched();
+	mutex_lock(&fs_info->scrub_lock);
+	while (atomic_read(&fs_info->scrub_pause_req)) {
+		mutex_unlock(&fs_info->scrub_lock);
+		wait_event(fs_info->scrub_pause_wait,
+		   atomic_read(&fs_info->scrub_pause_req) == 0);
+		mutex_lock(&fs_info->scrub_lock);
 	}
+	atomic_dec(&fs_info->scrubs_paused);
+	mutex_unlock(&fs_info->scrub_lock);
+	wake_up(&fs_info->scrub_pause_wait);
 
 	/*
 	 * collect all data csums for the stripe to avoid seeking during
 	 * the scrub. This might currently (crc32) end up to be about 1MB
 	 */
-	start_stripe = 0;
 	blk_start_plug(&plug);
-again:
-	logical = base + offset + start_stripe * increment;
-	for (i = start_stripe; i < nstripes; ++i) {
-		ret = btrfs_lookup_csums_range(csum_root, logical,
-					       logical + map->stripe_len - 1,
-					       &sdev->csum_list, 1);
-		if (ret)
-			goto out;
 
-		logical += increment;
-		cond_resched();
-	}
 	/*
 	 * now find all extents for each stripe and scrub them
 	 */
-	logical = base + offset + start_stripe * increment;
-	physical = map->stripes[num].physical + start_stripe * map->stripe_len;
+	logical = base + offset;
+	physical = map->stripes[num].physical;
 	ret = 0;
-	for (i = start_stripe; i < nstripes; ++i) {
+	for (i = 0; i < nstripes; ++i) {
 		/*
 		 * canceled?
 		 */
@@ -882,10 +1258,13 @@ again:
 			atomic_dec(&fs_info->scrubs_paused);
 			mutex_unlock(&fs_info->scrub_lock);
 			wake_up(&fs_info->scrub_pause_wait);
-			scrub_free_csums(sdev);
-			start_stripe = i;
-			goto again;
 		}
+
+		ret = btrfs_lookup_csums_range(csum_root, logical,
+					       logical + map->stripe_len - 1,
+					       &sdev->csum_list, 1);
+		if (ret)
+			goto out;
 
 		key.objectid = logical;
 		key.type = BTRFS_EXTENT_ITEM_KEY;
@@ -982,7 +1361,6 @@ next:
 
 out:
 	blk_finish_plug(&plug);
-out_noplug:
 	btrfs_free_path(path);
 	return ret < 0 ? ret : 0;
 }
@@ -1253,9 +1631,10 @@ int btrfs_scrub_dev(struct btrfs_root *root, u64 devid, u64 start, u64 end,
 		ret = scrub_enumerate_chunks(sdev, start, end);
 
 	wait_event(sdev->list_wait, atomic_read(&sdev->in_flight) == 0);
-
 	atomic_dec(&fs_info->scrubs_running);
 	wake_up(&fs_info->scrub_pause_wait);
+
+	wait_event(sdev->list_wait, atomic_read(&sdev->fixup_cnt) == 0);
 
 	if (progress)
 		memcpy(progress, &sdev->stat, sizeof(*progress));
