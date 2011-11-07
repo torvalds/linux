@@ -27,10 +27,16 @@
 
 #if !defined(__ASSEMBLY__) && defined(CONFIG_ZONE_DMA)
 
+/*
+ * Restrict DMA-able region to workaround silicon bug. The bug
+ * restricts memory available for GPU hardware to be below 512M.
+ */
+#define ARM_DMA_ZONE_SIZE	SZ_512M
+
 static inline void
 __arch_adjust_zones(int node, unsigned long *zone_size, unsigned long *zhole_size)
 {
-	unsigned long dma_size = SZ_512M >> PAGE_SHIFT;
+	unsigned long dma_size = ARM_DMA_ZONE_SIZE >> PAGE_SHIFT;
 
 	if (node || (zone_size[0] <= dma_size))
 		return;
