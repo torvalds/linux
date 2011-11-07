@@ -88,6 +88,9 @@ obj-$(CONFIG_DVB_USB_FRIIO) += dvb-usb-friio.o
 dvb-usb-ec168-objs = ec168.o
 obj-$(CONFIG_DVB_USB_EC168) += dvb-usb-ec168.o
 
+dvb-usb-hdic-objs = hdic.o
+obj-$(CONFIG_DVB_USB_HDIC) += dvb-usb-hdic.o
+
 dvb-usb-az6027-objs = az6027.o
 obj-$(CONFIG_DVB_USB_AZ6027) += dvb-usb-az6027.o
 
