@@ -571,8 +571,6 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 		if (!skb || !skb->data)
 			goto fatal;
 
-		packet->buf = skb->data;
-
 		__skb_queue_tail(&skb_queue, skb);
 
 		if (!status && (packet->act_len != skb->len))
@@ -593,10 +591,10 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 
 		if (eid == ar->ctrl_ep) {
 			if_idx = wmi_cmd_hdr_get_if_idx(
-				(struct wmi_cmd_hdr *) skb->data);
+				(struct wmi_cmd_hdr *) packet->buf);
 		} else {
 			if_idx = wmi_data_hdr_get_if_idx(
-				(struct wmi_data_hdr *) skb->data);
+				(struct wmi_data_hdr *) packet->buf);
 		}
 
 		vif = ath6kl_get_vif_by_index(ar, if_idx);
