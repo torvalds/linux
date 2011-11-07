@@ -9,7 +9,6 @@ enum {
 	ALC262_BASIC,
 	ALC262_HIPPO,
 	ALC262_HIPPO_1,
-	ALC262_FUJITSU,
 	ALC262_ULTRA,
 	ALC262_MODEL_LAST /* last tag */
 };
@@ -267,82 +266,6 @@ static const struct hda_verb alc262_sony_unsol_verbs[] = {
 	{}
 };
 
-/*
- * fujitsu model
- *  0x14 = headphone/spdif-out, 0x15 = internal speaker,
- *  0x1b = port replicator headphone out
- */
-
-static const struct hda_verb alc262_fujitsu_unsol_verbs[] = {
-	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{}
-};
-
-static const struct hda_input_mux alc262_fujitsu_capture_source = {
-	.num_items = 3,
-	.items = {
-		{ "Mic", 0x0 },
-		{ "Internal Mic", 0x1 },
-		{ "CD", 0x4 },
-	},
-};
-
-static void alc262_fujitsu_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x14;
-	spec->autocfg.hp_pins[1] = 0x1b;
-	spec->autocfg.speaker_pins[0] = 0x15;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
-
-/* bind volumes of both NID 0x0c and 0x0d */
-static const struct hda_bind_ctls alc262_fujitsu_bind_master_vol = {
-	.ops = &snd_hda_bind_vol,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x0d, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-static const struct snd_kcontrol_new alc262_fujitsu_mixer[] = {
-	HDA_BIND_VOL("Master Playback Volume", &alc262_fujitsu_bind_master_vol),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.subdevice = HDA_SUBDEV_NID_FLAG | 0x14,
-		.info = snd_ctl_boolean_mono_info,
-		.get = alc262_hp_master_sw_get,
-		.put = alc262_hp_master_sw_put,
-	},
-	{
-		.iface = NID_MAPPING,
-		.name = "Master Playback Switch",
-		.private_value = 0x1b,
-	},
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	{ } /* end */
-};
-
-/* additional init verbs for Benq laptops */
-static const struct hda_verb alc262_EAPD_verbs[] = {
-	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
-	{0x20, AC_VERB_SET_PROC_COEF,  0x3070},
-	{}
-};
-
 /* Samsung Q1 Ultra Vista model setup */
 static const struct snd_kcontrol_new alc262_ultra_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
@@ -468,15 +391,12 @@ static const char * const alc262_models[ALC262_MODEL_LAST] = {
 	[ALC262_BASIC]		= "basic",
 	[ALC262_HIPPO]		= "hippo",
 	[ALC262_HIPPO_1]	= "hippo_1",
-	[ALC262_FUJITSU]	= "fujitsu",
 	[ALC262_ULTRA]		= "ultra",
 	[ALC262_AUTO]		= "auto",
 };
 
 static const struct snd_pci_quirk alc262_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1002, 0x437b, "Hippo", ALC262_HIPPO),
-	SND_PCI_QUIRK(0x10cf, 0x1397, "Fujitsu", ALC262_FUJITSU),
-	SND_PCI_QUIRK(0x10cf, 0x142d, "Fujitsu Lifebook E8410", ALC262_FUJITSU),
 	SND_PCI_QUIRK_MASK(0x144d, 0xff00, 0xc032, "Samsung Q1",
 			   ALC262_ULTRA),
 	SND_PCI_QUIRK(0x144d, 0xc510, "Samsung Q45", ALC262_HIPPO),
@@ -521,21 +441,6 @@ static const struct alc_config_preset alc262_presets[] = {
 		.input_mux = &alc262_capture_source,
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc262_hippo1_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC262_FUJITSU] = {
-		.mixers = { alc262_fujitsu_mixer },
-		.init_verbs = { alc262_init_verbs, alc262_EAPD_verbs,
-				alc262_fujitsu_unsol_verbs },
-		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
-		.dac_nids = alc262_dac_nids,
-		.hp_nid = 0x03,
-		.dig_out_nid = ALC262_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc262_modes),
-		.channel_mode = alc262_modes,
-		.input_mux = &alc262_fujitsu_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc262_fujitsu_setup,
 		.init_hook = alc_inithook,
 	},
 	[ALC262_ULTRA] = {
