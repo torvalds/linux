@@ -33,6 +33,8 @@
 
 #define OMAP_MODE13X_SPEED	230400
 
+#define OMAP_UART_SCR_TX_EMPTY	0x08
+
 /* WER = 0x7F
  * Enable module level wakeup in WER reg
  */

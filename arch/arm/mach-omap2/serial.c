@@ -74,19 +74,6 @@ struct omap_uart_state {
 static LIST_HEAD(uart_list);
 static u8 num_uarts;
 
-/*
- * Internal UARTs need to be initialized for the 8250 autoconfig to work
- * properly. Note that the TX watermark initialization may not be needed
- * once the 8250.c watermark handling code is merged.
- */
-
-static inline void __init omap_uart_reset(struct omap_uart_state *uart)
-{
-	serial_write_reg(uart, UART_OMAP_MDR1, UART_OMAP_MDR1_DISABLE);
-	serial_write_reg(uart, UART_OMAP_SCR, 0x08);
-	serial_write_reg(uart, UART_OMAP_MDR1, UART_OMAP_MDR1_16X_MODE);
-}
-
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3)
 
 /*
@@ -521,7 +508,6 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 
 	omap_device_enable(uart->pdev);
 	omap_uart_idle_init(uart);
-	omap_uart_reset(uart);
 	omap_hwmod_enable_wakeup(uart->oh);
 	omap_device_idle(uart->pdev);
 
