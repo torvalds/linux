@@ -366,9 +366,9 @@ static int __init pcied_init(void)
 static void __exit pcied_cleanup(void)
 {
 	dbg("unload_pciehpd()\n");
+	pcie_port_service_unregister(&hpdriver_portdrv);
 	destroy_workqueue(pciehp_ordered_wq);
 	destroy_workqueue(pciehp_wq);
-	pcie_port_service_unregister(&hpdriver_portdrv);
 	info(DRIVER_DESC " version: " DRIVER_VERSION " unloaded\n");
 }
 
