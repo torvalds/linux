@@ -676,10 +676,17 @@ struct drm_mode_set {
 };
 
 /**
- * struct drm_mode_config_funcs - configure CRTCs for a given screen layout
+ * struct drm_mode_config_funcs - basic driver provided mode setting functions
+ * @fb_create: create a new framebuffer object
+ * @output_poll_changed: function to handle output configuration changes
+ *
+ * Some global (i.e. not per-CRTC, connector, etc) mode setting functions that
+ * involve drivers.
  */
 struct drm_mode_config_funcs {
-	struct drm_framebuffer *(*fb_create)(struct drm_device *dev, struct drm_file *file_priv, struct drm_mode_fb_cmd2 *mode_cmd);
+	struct drm_framebuffer *(*fb_create)(struct drm_device *dev,
+					     struct drm_file *file_priv,
+					     struct drm_mode_fb_cmd2 *mode_cmd);
 	void (*output_poll_changed)(struct drm_device *dev);
 };
 
