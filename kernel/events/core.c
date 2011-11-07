@@ -4528,7 +4528,6 @@ static void perf_swevent_overflow(struct perf_event *event, u64 overflow,
 	struct hw_perf_event *hwc = &event->hw;
 	int throttle = 0;
 
-	data->period = event->hw.last_period;
 	if (!overflow)
 		overflow = perf_swevent_set_period(event);
 
@@ -4561,6 +4560,12 @@ static void perf_swevent_event(struct perf_event *event, u64 nr,
 
 	if (!is_sampling_event(event))
 		return;
+
+	if ((event->attr.sample_type & PERF_SAMPLE_PERIOD) && !event->attr.freq) {
+		data->period = nr;
+		return perf_swevent_overflow(event, 1, data, regs);
+	} else
+		data->period = event->hw.last_period;
 
 	if (nr == 1 && hwc->sample_period == 1 && !event->attr.freq)
 		return perf_swevent_overflow(event, 1, data, regs);
