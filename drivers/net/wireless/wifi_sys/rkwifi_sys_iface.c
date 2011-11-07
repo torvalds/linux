@@ -5,7 +5,11 @@
 #include <linux/device.h>
 #include <linux/err.h>
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static ssize_t wifi_chip_read(struct class *cls, struct class_attribute *attr, char *_buf)
+#else
 static ssize_t wifi_chip_read(struct class *cls, char *_buf)
+#endif
 {
     int count;
 
