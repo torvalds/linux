@@ -17,7 +17,6 @@ enum {
 	ALC262_NEC,
 	ALC262_TOSHIBA_S06,
 	ALC262_TOSHIBA_RX1,
-	ALC262_TYAN,
 	ALC262_MODEL_LAST /* last tag */
 };
 
@@ -176,48 +175,6 @@ static const struct snd_kcontrol_new alc262_benq_t31_mixer[] = {
 	HDA_CODEC_MUTE("ATAPI Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
 	{ } /* end */
 };
-
-static const struct snd_kcontrol_new alc262_tyan_mixer[] = {
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Master Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Aux Playback Volume", 0x0b, 0x06, HDA_INPUT),
-	HDA_CODEC_MUTE("Aux Playback Switch", 0x0b, 0x06, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
-	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct hda_verb alc262_tyan_verbs[] = {
-	/* Headphone automute */
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
-
-	/* P11 AUX_IN, white 4-pin connector */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x14, AC_VERB_SET_CONFIG_DEFAULT_BYTES_1, 0xe1},
-	{0x14, AC_VERB_SET_CONFIG_DEFAULT_BYTES_2, 0x93},
-	{0x14, AC_VERB_SET_CONFIG_DEFAULT_BYTES_3, 0x19},
-
-	{}
-};
-
-/* unsolicited event for HP jack sensing */
-static void alc262_tyan_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x1b;
-	spec->autocfg.speaker_pins[0] = 0x15;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
-
 
 #define alc262_capture_mixer		alc882_capture_mixer
 #define alc262_capture_alt_mixer	alc882_capture_alt_mixer
@@ -686,7 +643,6 @@ static const char * const alc262_models[ALC262_MODEL_LAST] = {
 	[ALC262_ULTRA]		= "ultra",
 	[ALC262_LENOVO_3000]	= "lenovo-3000",
 	[ALC262_NEC]		= "nec",
-	[ALC262_TYAN]		= "tyan",
 	[ALC262_AUTO]		= "auto",
 };
 
@@ -698,7 +654,6 @@ static const struct snd_pci_quirk alc262_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1179, 0xff7b, "Toshiba S06", ALC262_TOSHIBA_S06),
 	SND_PCI_QUIRK(0x10cf, 0x1397, "Fujitsu", ALC262_FUJITSU),
 	SND_PCI_QUIRK(0x10cf, 0x142d, "Fujitsu Lifebook E8410", ALC262_FUJITSU),
-	SND_PCI_QUIRK(0x10f1, 0x2915, "Tyan Thunder n6650W", ALC262_TYAN),
 	SND_PCI_QUIRK_MASK(0x144d, 0xff00, 0xc032, "Samsung Q1",
 			   ALC262_ULTRA),
 	SND_PCI_QUIRK(0x144d, 0xc510, "Samsung Q45", ALC262_HIPPO),
@@ -856,20 +811,6 @@ static const struct alc_config_preset alc262_presets[] = {
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc262_hippo_setup,
 		.init_hook = alc_inithook,
-	},
-	[ALC262_TYAN] = {
-		.mixers = { alc262_tyan_mixer },
-		.init_verbs = { alc262_init_verbs, alc262_tyan_verbs},
-		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
-		.dac_nids = alc262_dac_nids,
-		.hp_nid = 0x02,
-		.dig_out_nid = ALC262_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc262_modes),
-		.channel_mode = alc262_modes,
-		.input_mux = &alc262_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc262_tyan_setup,
-		.init_hook = alc_hp_automute,
 	},
 };
 

@@ -4339,12 +4339,13 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
  * Pin config fixes
  */
 enum {
-	PINFIX_FSC_H270,
-	PINFIX_HP_Z200,
+	ALC262_FIXUP_FSC_H270,
+	ALC262_FIXUP_HP_Z200,
+	ALC262_FIXUP_TYAN,
 };
 
 static const struct alc_fixup alc262_fixups[] = {
-	[PINFIX_FSC_H270] = {
+	[ALC262_FIXUP_FSC_H270] = {
 		.type = ALC_FIXUP_PINS,
 		.v.pins = (const struct alc_pincfg[]) {
 			{ 0x14, 0x99130110 }, /* speaker */
@@ -4353,18 +4354,26 @@ static const struct alc_fixup alc262_fixups[] = {
 			{ }
 		}
 	},
-	[PINFIX_HP_Z200] = {
+	[ALC262_FIXUP_HP_Z200] = {
 		.type = ALC_FIXUP_PINS,
 		.v.pins = (const struct alc_pincfg[]) {
 			{ 0x16, 0x99130120 }, /* internal speaker */
 			{ }
 		}
 	},
+	[ALC262_FIXUP_TYAN] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x14, 0x1993e1f0 }, /* int AUX */
+			{ }
+		}
+	},
 };
 
 static const struct snd_pci_quirk alc262_fixup_tbl[] = {
-	SND_PCI_QUIRK(0x103c, 0x170b, "HP Z200", PINFIX_HP_Z200),
-	SND_PCI_QUIRK(0x1734, 0x1147, "FSC Celsius H270", PINFIX_FSC_H270),
+	SND_PCI_QUIRK(0x103c, 0x170b, "HP Z200", ALC262_FIXUP_HP_Z200),
+	SND_PCI_QUIRK(0x10f1, 0x2915, "Tyan Thunder n6650W", ALC262_FIXUP_TYAN),
+	SND_PCI_QUIRK(0x1734, 0x1147, "FSC Celsius H270", ALC262_FIXUP_FSC_H270),
 	{}
 };
 
