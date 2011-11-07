@@ -503,14 +503,37 @@ enum drm_connector_force {
 
 /**
  * drm_connector - central DRM connector control structure
- * @crtc: CRTC this connector is currently connected to, NULL if none
+ * @dev: parent DRM device
+ * @kdev: kernel device for sysfs attributes
+ * @attr: sysfs attributes
+ * @head: list management
+ * @base: base KMS object
+ * @connector_type: one of the %DRM_MODE_CONNECTOR_<foo> types from drm_mode.h
+ * @connector_type_id: index into connector type enum
  * @interlace_allowed: can this connector handle interlaced modes?
  * @doublescan_allowed: can this connector handle doublescan?
- * @available_modes: modes available on this connector (from get_modes() + user)
- * @initial_x: initial x position for this connector
- * @initial_y: initial y position for this connector
- * @status: connector connected?
+ * @modes: modes available on this connector (from fill_modes() + user)
+ * @status: one of the drm_connector_status enums (connected, not, or unknown)
+ * @probed_modes: list of modes derived directly from the display
+ * @display_info: information about attached display (e.g. from EDID)
  * @funcs: connector control functions
+ * @user_modes: user added mode list
+ * @edid_blob_ptr: DRM property containing EDID if present
+ * @property_ids: property tracking for this connector
+ * @property_values: value pointers or data for properties
+ * @polled: a %DRM_CONNECTOR_POLL_<foo> value for core driven polling
+ * @dpms: current dpms state
+ * @helper_private: mid-layer private data
+ * @force: a %DRM_FORCE_<foo> state for forced mode sets
+ * @encoder_ids: valid encoders for this connector
+ * @encoder: encoder driving this connector, if any
+ * @eld: EDID-like data, if present
+ * @dvi_dual: dual link DVI, if found
+ * @max_tmds_clock: max clock rate, if found
+ * @latency_present: AV delay info from ELD, if found
+ * @video_latency: video latency info from ELD, if found
+ * @audio_latency: audio latency info from ELD, if found
+ * @null_edid_counter: track sinks that give us all zeros for the EDID
  *
  * Each connector may be connected to one or more CRTCs, or may be clonable by
  * another connector if they can share a CRTC.  Each connector also has a specific
@@ -531,7 +554,6 @@ struct drm_connector {
 	bool doublescan_allowed;
 	struct list_head modes; /* list of modes on this connector */
 
-	int initial_x, initial_y;
 	enum drm_connector_status status;
 
 	/* these are modes added by probing with DDC or the BIOS */
@@ -555,7 +577,6 @@ struct drm_connector {
 	/* forced on connector */
 	enum drm_connector_force force;
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
-	uint32_t force_encoder_id;
 	struct drm_encoder *encoder; /* currently active encoder */
 
 	/* EDID bits */
