@@ -4343,6 +4343,7 @@ enum {
 	ALC262_FIXUP_HP_Z200,
 	ALC262_FIXUP_TYAN,
 	ALC262_FIXUP_TOSHIBA_RX1,
+	ALC262_FIXUP_LENOVO_3000,
 };
 
 static const struct alc_fixup alc262_fixups[] = {
@@ -4379,6 +4380,16 @@ static const struct alc_fixup alc262_fixups[] = {
 			{ 0x1e, 0x40f000f0 }, /* N/A */
 		}
 	},
+	[ALC262_FIXUP_LENOVO_3000] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			{ 0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50 },
+			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x07 },
+			{ 0x20, AC_VERB_SET_PROC_COEF, 0x3070 },
+			{}
+		}
+	},
+
 };
 
 static const struct snd_pci_quirk alc262_fixup_tbl[] = {
@@ -4387,6 +4398,7 @@ static const struct snd_pci_quirk alc262_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1179, 0x0001, "Toshiba dynabook SS RX1",
 		      ALC262_FIXUP_TOSHIBA_RX1),
 	SND_PCI_QUIRK(0x1734, 0x1147, "FSC Celsius H270", ALC262_FIXUP_FSC_H270),
+	SND_PCI_QUIRK(0x17aa, 0x384e, "Lenovo 3000", ALC262_FIXUP_LENOVO_3000),
 	{}
 };
 

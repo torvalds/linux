@@ -13,7 +13,6 @@ enum {
 	ALC262_BENQ_ED8,
 	ALC262_BENQ_T31,
 	ALC262_ULTRA,
-	ALC262_LENOVO_3000,
 	ALC262_MODEL_LAST /* last tag */
 };
 
@@ -295,19 +294,6 @@ static const struct hda_verb alc262_fujitsu_unsol_verbs[] = {
 	{}
 };
 
-static const struct hda_verb alc262_lenovo_3000_unsol_verbs[] = {
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{}
-};
-
-static const struct hda_verb alc262_lenovo_3000_init_verbs[] = {
-	/* Front Mic pin: input vref at 50% */
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{}
-};
-
 static const struct hda_input_mux alc262_fujitsu_capture_source = {
 	.num_items = 3,
 	.items = {
@@ -351,37 +337,6 @@ static const struct snd_kcontrol_new alc262_fujitsu_mixer[] = {
 		.iface = NID_MAPPING,
 		.name = "Master Playback Switch",
 		.private_value = 0x1b,
-	},
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	{ } /* end */
-};
-
-static void alc262_lenovo_3000_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x1b;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[1] = 0x16;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
-
-static const struct snd_kcontrol_new alc262_lenovo_3000_mixer[] = {
-	HDA_BIND_VOL("Master Playback Volume", &alc262_fujitsu_bind_master_vol),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.subdevice = HDA_SUBDEV_NID_FLAG | 0x1b,
-		.info = snd_ctl_boolean_mono_info,
-		.get = alc262_hp_master_sw_get,
-		.put = alc262_hp_master_sw_put,
 	},
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
@@ -539,7 +494,6 @@ static const char * const alc262_models[ALC262_MODEL_LAST] = {
 	[ALC262_BENQ_ED8]	= "benq",
 	[ALC262_BENQ_T31]	= "benq-t31",
 	[ALC262_ULTRA]		= "ultra",
-	[ALC262_LENOVO_3000]	= "lenovo-3000",
 	[ALC262_AUTO]		= "auto",
 };
 
@@ -550,7 +504,6 @@ static const struct snd_pci_quirk alc262_cfg_tbl[] = {
 	SND_PCI_QUIRK_MASK(0x144d, 0xff00, 0xc032, "Samsung Q1",
 			   ALC262_ULTRA),
 	SND_PCI_QUIRK(0x144d, 0xc510, "Samsung Q45", ALC262_HIPPO),
-	SND_PCI_QUIRK(0x17aa, 0x384e, "Lenovo 3000 y410", ALC262_LENOVO_3000),
 	SND_PCI_QUIRK(0x17ff, 0x0560, "Benq ED8", ALC262_BENQ_ED8),
 	SND_PCI_QUIRK(0x17ff, 0x058d, "Benq T31-16", ALC262_BENQ_T31),
 	SND_PCI_QUIRK(0x17ff, 0x058f, "Benq Hippo", ALC262_HIPPO_1),
@@ -649,22 +602,6 @@ static const struct alc_config_preset alc262_presets[] = {
 		.num_adc_nids = 1, /* single ADC */
 		.unsol_event = alc262_ultra_unsol_event,
 		.init_hook = alc262_ultra_automute,
-	},
-	[ALC262_LENOVO_3000] = {
-		.mixers = { alc262_lenovo_3000_mixer },
-		.init_verbs = { alc262_init_verbs, alc262_EAPD_verbs,
-				alc262_lenovo_3000_unsol_verbs,
-				alc262_lenovo_3000_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
-		.dac_nids = alc262_dac_nids,
-		.hp_nid = 0x03,
-		.dig_out_nid = ALC262_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc262_modes),
-		.channel_mode = alc262_modes,
-		.input_mux = &alc262_fujitsu_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc262_lenovo_3000_setup,
-		.init_hook = alc_inithook,
 	},
 };
 
