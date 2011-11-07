@@ -1,5 +1,7 @@
 /*
- * arch/arm/mach-w90x900/nuc950.h
+ * arch/arm/mach-w90x900/nuc9xx.h
+ *
+ * Copied from nuc910.h, which had:
  *
  * Copyright (c) 2008 Nuvoton corporation
  *
@@ -12,10 +14,10 @@
  * published by the Free Software Foundation.
  *
  */
-#include "nuc9xx.h"
+struct map_desc;
+struct sys_timer;
 
-/* extern file from nuc950.c */
+/* core initialisation functions */
 
-extern void nuc950_board_init(void);
-extern void nuc950_init_clocks(void);
-extern void nuc950_map_io(void);
+extern void nuc900_init_irq(void);
+extern struct sys_timer nuc900_timer;
