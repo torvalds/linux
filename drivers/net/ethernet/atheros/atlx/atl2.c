@@ -2049,10 +2049,12 @@ static void atl2_get_drvinfo(struct net_device *netdev,
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 
-	strncpy(drvinfo->driver,  atl2_driver_name, 32);
-	strncpy(drvinfo->version, atl2_driver_version, 32);
-	strncpy(drvinfo->fw_version, "L2", 32);
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	strlcpy(drvinfo->driver,  atl2_driver_name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, atl2_driver_version,
+		sizeof(drvinfo->version));
+	strlcpy(drvinfo->fw_version, "L2", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = 0;
 	drvinfo->testinfo_len = 0;
 	drvinfo->regdump_len = atl2_get_regs_len(netdev);

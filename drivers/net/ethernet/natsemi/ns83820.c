@@ -1364,9 +1364,9 @@ static int ns83820_set_settings(struct net_device *ndev,
 static void ns83820_get_drvinfo(struct net_device *ndev, struct ethtool_drvinfo *info)
 {
 	struct ns83820 *dev = PRIV(ndev);
-	strcpy(info->driver, "ns83820");
-	strcpy(info->version, VERSION);
-	strcpy(info->bus_info, pci_name(dev->pci_dev));
+	strlcpy(info->driver, "ns83820", sizeof(info->driver));
+	strlcpy(info->version, VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(dev->pci_dev), sizeof(info->bus_info));
 }
 
 static u32 ns83820_get_link(struct net_device *ndev)

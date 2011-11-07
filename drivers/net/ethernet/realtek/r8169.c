@@ -1404,12 +1404,12 @@ static void rtl8169_get_drvinfo(struct net_device *dev,
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct rtl_fw *rtl_fw = tp->rtl_fw;
 
-	strcpy(info->driver, MODULENAME);
-	strcpy(info->version, RTL8169_VERSION);
-	strcpy(info->bus_info, pci_name(tp->pci_dev));
+	strlcpy(info->driver, MODULENAME, sizeof(info->driver));
+	strlcpy(info->version, RTL8169_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(tp->pci_dev), sizeof(info->bus_info));
 	BUILD_BUG_ON(sizeof(info->fw_version) < sizeof(rtl_fw->version));
-	strcpy(info->fw_version, IS_ERR_OR_NULL(rtl_fw) ? "N/A" :
-	       rtl_fw->version);
+	strlcpy(info->fw_version, IS_ERR_OR_NULL(rtl_fw) ? "N/A" :
+	       rtl_fw->version, sizeof(info->fw_version));
 }
 
 static int rtl8169_get_regs_len(struct net_device *dev)

@@ -5391,10 +5391,10 @@ static void s2io_ethtool_gdrvinfo(struct net_device *dev,
 {
 	struct s2io_nic *sp = netdev_priv(dev);
 
-	strncpy(info->driver, s2io_driver_name, sizeof(info->driver));
-	strncpy(info->version, s2io_driver_version, sizeof(info->version));
-	strncpy(info->fw_version, "", sizeof(info->fw_version));
-	strncpy(info->bus_info, pci_name(sp->pdev), sizeof(info->bus_info));
+	strlcpy(info->driver, s2io_driver_name, sizeof(info->driver));
+	strlcpy(info->version, s2io_driver_version, sizeof(info->version));
+	strlcpy(info->fw_version, "", sizeof(info->fw_version));
+	strlcpy(info->bus_info, pci_name(sp->pdev), sizeof(info->bus_info));
 	info->regdump_len = XENA_REG_SPACE;
 	info->eedump_len = XENA_EEPROM_SPACE;
 }

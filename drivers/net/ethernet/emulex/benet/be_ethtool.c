@@ -127,8 +127,8 @@ static void be_get_drvinfo(struct net_device *netdev,
 	memset(fw_on_flash, 0 , sizeof(fw_on_flash));
 	be_cmd_get_fw_ver(adapter, adapter->fw_ver, fw_on_flash);
 
-	strcpy(drvinfo->driver, DRV_NAME);
-	strcpy(drvinfo->version, DRV_VER);
+	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, DRV_VER, sizeof(drvinfo->version));
 	strncpy(drvinfo->fw_version, adapter->fw_ver, FW_VER_LEN);
 	if (memcmp(adapter->fw_ver, fw_on_flash, FW_VER_LEN) != 0) {
 		strcat(drvinfo->fw_version, " [");
@@ -136,7 +136,8 @@ static void be_get_drvinfo(struct net_device *netdev,
 		strcat(drvinfo->fw_version, "]");
 	}
 
-	strcpy(drvinfo->bus_info, pci_name(adapter->pdev));
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info));
 	drvinfo->testinfo_len = 0;
 	drvinfo->regdump_len = 0;
 	drvinfo->eedump_len = 0;

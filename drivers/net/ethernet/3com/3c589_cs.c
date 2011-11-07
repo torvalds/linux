@@ -468,9 +468,10 @@ static void tc589_reset(struct net_device *dev)
 static void netdev_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	sprintf(info->bus_info, "PCMCIA 0x%lx", dev->base_addr);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	snprintf(info->bus_info, sizeof(info->bus_info),
+		"PCMCIA 0x%lx", dev->base_addr);
 }
 
 static const struct ethtool_ops netdev_ethtool_ops = {

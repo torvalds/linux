@@ -3900,9 +3900,9 @@ static void nv_do_stats_poll(unsigned long data)
 static void nv_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct fe_priv *np = netdev_priv(dev);
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, FORCEDETH_VERSION);
-	strcpy(info->bus_info, pci_name(np->pci_dev));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, FORCEDETH_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
 static void nv_get_wol(struct net_device *dev, struct ethtool_wolinfo *wolinfo)

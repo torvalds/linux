@@ -3623,10 +3623,11 @@ static void sky2_get_drvinfo(struct net_device *dev,
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->fw_version, "N/A");
-	strcpy(info->bus_info, pci_name(sky2->hw->pdev));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strlcpy(info->bus_info, pci_name(sky2->hw->pdev),
+		sizeof(info->bus_info));
 }
 
 static const struct sky2_stat {
