@@ -1083,8 +1083,10 @@ static int mt9t112_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(&priv->subdev, client, &mt9t112_subdev_ops);
 
 	ret = mt9t112_camera_probe(client);
-	if (ret)
+	if (ret) {
 		kfree(priv);
+		return ret;
+	}
 
 	/* Cannot fail: using the default supported pixel code */
 	mt9t112_set_params(priv, &rect, V4L2_MBUS_FMT_UYVY8_2X8);
