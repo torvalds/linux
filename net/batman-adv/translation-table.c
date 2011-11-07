@@ -1695,19 +1695,19 @@ void tt_free(struct bat_priv *bat_priv)
 	kfree(bat_priv->tt_buff);
 }
 
-/* This function will reset the specified flags from all the entries in
- * the given hash table and will increment num_local_tt for each involved
- * entry */
-static void tt_local_reset_flags(struct bat_priv *bat_priv, uint16_t flags)
+/* This function will enable or disable the specified flags for all the entries
+ * in the given hash table and returns the number of modified entries */
+static uint16_t tt_set_flags(struct hashtable_t *hash, uint16_t flags,
+			     bool enable)
 {
 	uint32_t i;
-	struct hashtable_t *hash = bat_priv->tt_local_hash;
+	uint16_t changed_num = 0;
 	struct hlist_head *head;
 	struct hlist_node *node;
 	struct tt_common_entry *tt_common_entry;
 
 	if (!hash)
-		return;
+		goto out;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
@@ -1715,14 +1715,21 @@ static void tt_local_reset_flags(struct bat_priv *bat_priv, uint16_t flags)
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(tt_common_entry, node,
 					 head, hash_entry) {
-			if (!(tt_common_entry->flags & flags))
-				continue;
-			tt_common_entry->flags &= ~flags;
-			atomic_inc(&bat_priv->num_local_tt);
+			if (enable) {
+				if ((tt_common_entry->flags & flags) == flags)
+					continue;
+				tt_common_entry->flags |= flags;
+			} else {
+				if (!(tt_common_entry->flags & flags))
+					continue;
+				tt_common_entry->flags &= ~flags;
+			}
+			changed_num++;
 		}
 		rcu_read_unlock();
 	}
-
+out:
+	return changed_num;
 }
 
 /* Purge out all the tt local entries marked with TT_CLIENT_PENDING */
@@ -1766,7 +1773,11 @@ static void tt_local_purge_pending_clients(struct bat_priv *bat_priv)
 
 void tt_commit_changes(struct bat_priv *bat_priv)
 {
-	tt_local_reset_flags(bat_priv, TT_CLIENT_NEW);
+	uint16_t changed_num = tt_set_flags(bat_priv->tt_local_hash,
+					    TT_CLIENT_NEW, false);
+	/* all the reset entries have now to be effectively counted as local
+	 * entries */
+	atomic_add(changed_num, &bat_priv->num_local_tt);
 	tt_local_purge_pending_clients(bat_priv);
 
 	/* Increment the TTVN only once per OGM interval */
