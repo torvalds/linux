@@ -379,10 +379,6 @@ config PHYP_DUMP
 
 	  If unsure, say "N"
 
-config PPCBUG_NVRAM
-	bool "Enable reading PPCBUG NVRAM during boot" if PPLUS || LOPEC
-	default y if PPC_PREP
-
 config IRQ_ALL_CPUS
 	bool "Distribute interrupts on all CPUs by default"
 	depends on SMP && !MV64360
@@ -744,24 +740,6 @@ config 8260_PCI9
 	bool "Enable workaround for MPC826x erratum PCI 9"
 	depends on PCI_8260 && !8272
 	default y
-
-choice
-	prompt "IDMA channel for PCI 9 workaround"
-	depends on 8260_PCI9
-
-config 8260_PCI9_IDMA1
-	bool "IDMA1"
-
-config 8260_PCI9_IDMA2
-	bool "IDMA2"
-
-config 8260_PCI9_IDMA3
-	bool "IDMA3"
-
-config 8260_PCI9_IDMA4
-	bool "IDMA4"
-
-endchoice
 
 source "drivers/pci/pcie/Kconfig"
 

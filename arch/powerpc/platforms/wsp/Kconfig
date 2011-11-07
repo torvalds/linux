@@ -24,8 +24,3 @@ endmenu
 config PPC_A2_DD2
 	bool "Support for DD2 based A2/WSP systems"
 	depends on PPC_A2
-
-config WORKAROUND_ERRATUM_463
-	depends on PPC_A2_DD2
-	bool "Workaround erratum 463"
-	default y
