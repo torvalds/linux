@@ -289,7 +289,7 @@ static int wakeup_controller(int gpio)
 	return ret;
 }
 
-static int egalax_cdev_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long args)
+static long egalax_cdev_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 {	
 	//struct egalax_char_dev *cdev = file->private_data;
 	int ret=0;
