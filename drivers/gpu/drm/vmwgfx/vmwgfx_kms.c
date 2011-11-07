@@ -111,6 +111,7 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		if (!ret) {
 			if (!surface->snooper.image) {
 				DRM_ERROR("surface not suitable for cursor\n");
+				vmw_surface_unreference(&surface);
 				return -EINVAL;
 			}
 		} else {
@@ -176,7 +177,9 @@ err_unreserve:
 		return 0;
 	}
 
-	vmw_cursor_update_position(dev_priv, true, du->cursor_x, du->cursor_y);
+	vmw_cursor_update_position(dev_priv, true,
+				   du->cursor_x + du->hotspot_x,
+				   du->cursor_y + du->hotspot_y);
 
 	return 0;
 }
@@ -191,7 +194,8 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	du->cursor_y = y + crtc->y;
 
 	vmw_cursor_update_position(dev_priv, shown,
-				   du->cursor_x, du->cursor_y);
+				   du->cursor_x + du->hotspot_x,
+				   du->cursor_y + du->hotspot_y);
 
 	return 0;
 }
@@ -212,7 +216,7 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 		SVGA3dCmdHeader header;
 		SVGA3dCmdSurfaceDMA dma;
 	} *cmd;
-	int ret;
+	int i, ret;
 
 	cmd = container_of(header, struct vmw_dma_cmd, header);
 
@@ -234,16 +238,19 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	box_count = (cmd->header.size - sizeof(SVGA3dCmdSurfaceDMA)) /
 			sizeof(SVGA3dCopyBox);
 
-	if (cmd->dma.guest.pitch != (64 * 4) ||
-	    cmd->dma.guest.ptr.offset % PAGE_SIZE ||
+	if (cmd->dma.guest.ptr.offset % PAGE_SIZE ||
 	    box->x != 0    || box->y != 0    || box->z != 0    ||
 	    box->srcx != 0 || box->srcy != 0 || box->srcz != 0 ||
-	    box->w != 64   || box->h != 64   || box->d != 1    ||
-	    box_count != 1) {
+	    box->d != 1    || box_count != 1) {
 		/* TODO handle none page aligned offsets */
-		/* TODO handle partial uploads and pitch != 256 */
-		/* TODO handle more then one copy (size != 64) */
-		DRM_ERROR("lazy programmer, can't handle weird stuff\n");
+		/* TODO handle more dst & src != 0 */
+		/* TODO handle more then one copy */
+		DRM_ERROR("Cant snoop dma request for cursor!\n");
+		DRM_ERROR("(%u, %u, %u) (%u, %u, %u) (%ux%ux%u) %u %u\n",
+			  box->srcx, box->srcy, box->srcz,
+			  box->x, box->y, box->z,
+			  box->w, box->h, box->d, box_count,
+			  cmd->dma.guest.ptr.offset);
 		return;
 	}
 
@@ -262,7 +269,16 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 
 	virtual = ttm_kmap_obj_virtual(&map, &dummy);
 
-	memcpy(srf->snooper.image, virtual, 64*64*4);
+	if (box->w == 64 && cmd->dma.guest.pitch == 64*4) {
+		memcpy(srf->snooper.image, virtual, 64*64*4);
+	} else {
+		/* Image is unsigned pointer. */
+		for (i = 0; i < box->h; i++)
+			memcpy(srf->snooper.image + i * 64,
+			       virtual + i * cmd->dma.guest.pitch,
+			       box->w * 4);
+	}
+
 	srf->snooper.age++;
 
 	/* we can't call this function from this function since execbuf has
@@ -994,7 +1010,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	required_size = mode_cmd->pitch * mode_cmd->height;
 	if (unlikely(required_size > (u64) dev_priv->vram_size)) {
 		DRM_ERROR("VRAM size is too small for requested mode.\n");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	/*
@@ -1517,6 +1533,8 @@ int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
 			du->pref_width = rects[du->unit].w;
 			du->pref_height = rects[du->unit].h;
 			du->pref_active = true;
+			du->gui_x = rects[du->unit].x;
+			du->gui_y = rects[du->unit].y;
 		} else {
 			du->pref_width = 800;
 			du->pref_height = 600;
@@ -1572,12 +1590,14 @@ vmw_du_connector_detect(struct drm_connector *connector, bool force)
 	uint32_t num_displays;
 	struct drm_device *dev = connector->dev;
 	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct vmw_display_unit *du = vmw_connector_to_du(connector);
 
 	mutex_lock(&dev_priv->hw_mutex);
 	num_displays = vmw_read(dev_priv, SVGA_REG_NUM_DISPLAYS);
 	mutex_unlock(&dev_priv->hw_mutex);
 
-	return ((vmw_connector_to_du(connector)->unit < num_displays) ?
+	return ((vmw_connector_to_du(connector)->unit < num_displays &&
+		 du->pref_active) ?
 		connector_status_connected : connector_status_disconnected);
 }
 
@@ -1658,6 +1678,28 @@ static struct drm_display_mode vmw_kms_connector_builtin[] = {
 	{ DRM_MODE("", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) },
 };
 
+/**
+ * vmw_guess_mode_timing - Provide fake timings for a
+ * 60Hz vrefresh mode.
+ *
+ * @mode - Pointer to a struct drm_display_mode with hdisplay and vdisplay
+ * members filled in.
+ */
+static void vmw_guess_mode_timing(struct drm_display_mode *mode)
+{
+	mode->hsync_start = mode->hdisplay + 50;
+	mode->hsync_end = mode->hsync_start + 50;
+	mode->htotal = mode->hsync_end + 50;
+
+	mode->vsync_start = mode->vdisplay + 50;
+	mode->vsync_end = mode->vsync_start + 50;
+	mode->vtotal = mode->vsync_end + 50;
+
+	mode->clock = (u32)mode->htotal * (u32)mode->vtotal / 100 * 6;
+	mode->vrefresh = drm_mode_vrefresh(mode);
+}
+
+
 int vmw_du_connector_fill_modes(struct drm_connector *connector,
 				uint32_t max_width, uint32_t max_height)
 {
@@ -1680,18 +1722,23 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 			return 0;
 		mode->hdisplay = du->pref_width;
 		mode->vdisplay = du->pref_height;
-		mode->vrefresh = drm_mode_vrefresh(mode);
+		vmw_guess_mode_timing(mode);
+
 		if (vmw_kms_validate_mode_vram(dev_priv, mode->hdisplay * 2,
 					       mode->vdisplay)) {
 			drm_mode_probed_add(connector, mode);
-
-			if (du->pref_mode) {
-				list_del_init(&du->pref_mode->head);
-				drm_mode_destroy(dev, du->pref_mode);
-			}
-
-			du->pref_mode = mode;
+		} else {
+			drm_mode_destroy(dev, mode);
+			mode = NULL;
 		}
+
+		if (du->pref_mode) {
+			list_del_init(&du->pref_mode->head);
+			drm_mode_destroy(dev, du->pref_mode);
+		}
+
+		/* mode might be null here, this is intended */
+		du->pref_mode = mode;
 	}
 
 	for (i = 0; vmw_kms_connector_builtin[i].type != 0; i++) {
@@ -1712,6 +1759,10 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 		drm_mode_probed_add(connector, mode);
 	}
 
+	/* Move the prefered mode first, help apps pick the right mode. */
+	if (du->pref_mode)
+		list_move(&du->pref_mode->head, &connector->probed_modes);
+
 	drm_mode_connector_list_update(connector);
 
 	return 1;
@@ -1722,4 +1773,64 @@ int vmw_du_connector_set_property(struct drm_connector *connector,
 				  uint64_t val)
 {
 	return 0;
+}
+
+
+int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv)
+{
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct drm_vmw_update_layout_arg *arg =
+		(struct drm_vmw_update_layout_arg *)data;
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
+	void __user *user_rects;
+	struct drm_vmw_rect *rects;
+	unsigned rects_size;
+	int ret;
+	int i;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		return ret;
+
+	if (!arg->num_outputs) {
+		struct drm_vmw_rect def_rect = {0, 0, 800, 600};
+		vmw_du_update_layout(dev_priv, 1, &def_rect);
+		goto out_unlock;
+	}
+
+	rects_size = arg->num_outputs * sizeof(struct drm_vmw_rect);
+	rects = kzalloc(rects_size, GFP_KERNEL);
+	if (unlikely(!rects)) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
+
+	user_rects = (void __user *)(unsigned long)arg->rects;
+	ret = copy_from_user(rects, user_rects, rects_size);
+	if (unlikely(ret != 0)) {
+		DRM_ERROR("Failed to get rects.\n");
+		ret = -EFAULT;
+		goto out_free;
+	}
+
+	for (i = 0; i < arg->num_outputs; ++i) {
+		if (rects->x < 0 ||
+		    rects->y < 0 ||
+		    rects->x + rects->w > mode_config->max_width ||
+		    rects->y + rects->h > mode_config->max_height) {
+			DRM_ERROR("Invalid GUI layout.\n");
+			ret = -EINVAL;
+			goto out_free;
+		}
+	}
+
+	vmw_du_update_layout(dev_priv, arg->num_outputs, rects);
+
+out_free:
+	kfree(rects);
+out_unlock:
+	ttm_read_unlock(&vmaster->lock);
+	return ret;
 }
