@@ -264,8 +264,7 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 		/* Double check: it may have been committed by someone else,
 		 * while we have been waiting for the lock. */
 		if (mdev->act_log->pending_changes) {
-			int err;
-			err = al_write_transaction(mdev);
+			al_write_transaction(mdev);
 			mdev->al_writ_cnt++;
 
 			spin_lock_irq(&mdev->al_lock);
@@ -290,7 +289,6 @@ void drbd_al_complete_io(struct drbd_conf *mdev, struct drbd_interval *i)
 	unsigned enr;
 	struct lc_element *extent;
 	unsigned long flags;
-	bool wake = false;
 
 	spin_lock_irqsave(&mdev->al_lock, flags);
 
@@ -300,8 +298,7 @@ void drbd_al_complete_io(struct drbd_conf *mdev, struct drbd_interval *i)
 			dev_err(DEV, "al_complete_io() called on inactive extent %u\n", enr);
 			continue;
 		}
-		if (lc_put(mdev->act_log, extent) == 0)
-			wake = true;
+		lc_put(mdev->act_log, extent);
 	}
 	spin_unlock_irqrestore(&mdev->al_lock, flags);
 	wake_up(&mdev->al_wait);
@@ -730,7 +727,7 @@ void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector, int size,
 int __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector, int size,
 			    const char *file, const unsigned int line)
 {
-	unsigned long sbnr, ebnr, lbnr, flags;
+	unsigned long sbnr, ebnr, flags;
 	sector_t esector, nr_sectors;
 	unsigned int enr, count = 0;
 	struct lc_element *e;
@@ -751,8 +748,6 @@ int __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector, int size,
 		goto out;
 	if (!expect(esector < nr_sectors))
 		esector = nr_sectors - 1;
-
-	lbnr = BM_SECT_TO_BIT(nr_sectors-1);
 
 	/* we set it out of sync,
 	 * we do not need to round anything here */

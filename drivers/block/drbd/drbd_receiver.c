@@ -4324,7 +4324,7 @@ static void conn_disconnect(struct drbd_tconn *tconn)
 {
 	struct drbd_conf *mdev;
 	enum drbd_conns oc;
-	int vnr, rv = SS_UNKNOWN_ERROR;
+	int vnr;
 
 	if (tconn->cstate == C_STANDALONE)
 		return;
@@ -4351,7 +4351,7 @@ static void conn_disconnect(struct drbd_tconn *tconn)
 	spin_lock_irq(&tconn->req_lock);
 	oc = tconn->cstate;
 	if (oc >= C_UNCONNECTED)
-		rv = _conn_request_state(tconn, NS(conn, C_UNCONNECTED), CS_VERBOSE);
+		_conn_request_state(tconn, NS(conn, C_UNCONNECTED), CS_VERBOSE);
 
 	spin_unlock_irq(&tconn->req_lock);
 
@@ -4361,7 +4361,6 @@ static void conn_disconnect(struct drbd_tconn *tconn)
 
 static int drbd_disconnected(struct drbd_conf *mdev)
 {
-	enum drbd_fencing_p fp;
 	unsigned int i;
 
 	/* wait for current activity to cease. */
@@ -4404,14 +4403,6 @@ static int drbd_disconnected(struct drbd_conf *mdev)
 		tl_clear(mdev->tconn);
 
 	drbd_md_sync(mdev);
-
-	fp = FP_DONT_CARE;
-	if (get_ldev(mdev)) {
-		rcu_read_lock();
-		fp = rcu_dereference(mdev->ldev->disk_conf)->fencing;
-		rcu_read_unlock();
-		put_ldev(mdev);
-	}
 
 	/* serialize with bitmap writeout triggered by the state change,
 	 * if any. */

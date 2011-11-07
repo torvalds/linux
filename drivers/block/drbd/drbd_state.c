@@ -1143,7 +1143,6 @@ int drbd_bitmap_io_from_worker(struct drbd_conf *mdev,
 static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags)
 {
-	enum drbd_fencing_p fp;
 	struct sib_info sib;
 
 	sib.sib_reason = SIB_STATE_CHANGE;
@@ -1154,14 +1153,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		clear_bit(CRASHED_PRIMARY, &mdev->flags);
 		if (mdev->p_uuid)
 			mdev->p_uuid[UI_FLAGS] &= ~((u64)2);
-	}
-
-	fp = FP_DONT_CARE;
-	if (get_ldev(mdev)) {
-		rcu_read_lock();
-		fp = rcu_dereference(mdev->ldev->disk_conf)->fencing;
-		rcu_read_unlock();
-		put_ldev(mdev);
 	}
 
 	/* Inform userspace about the change... */
