@@ -120,7 +120,6 @@ struct drm_display_mode {
 
 	char name[DRM_DISPLAY_MODE_LEN];
 
-	int connector_count;
 	enum drm_mode_status status;
 	int type;
 
