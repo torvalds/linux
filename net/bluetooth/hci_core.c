@@ -1140,7 +1140,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 
 	persistent = hci_persistent_key(hdev, conn, type, old_key_type);
 
-	mgmt_new_key(hdev->id, key, persistent);
+	mgmt_new_link_key(hdev->id, key, persistent);
 
 	if (!persistent) {
 		list_del(&key->list);
@@ -1183,7 +1183,7 @@ int hci_add_ltk(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
 	memcpy(id->rand, rand, sizeof(id->rand));
 
 	if (new_key)
-		mgmt_new_key(hdev->id, key, old_key_type);
+		mgmt_new_link_key(hdev->id, key, old_key_type);
 
 	return 0;
 }

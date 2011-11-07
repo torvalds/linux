@@ -100,22 +100,22 @@ struct mgmt_cp_set_service_cache {
 	__u8 enable;
 } __packed;
 
-struct mgmt_key_info {
+struct mgmt_link_key_info {
 	bdaddr_t bdaddr;
 	u8 type;
 	u8 val[16];
 	u8 pin_len;
 } __packed;
 
-#define MGMT_OP_LOAD_KEYS		0x000D
-struct mgmt_cp_load_keys {
+#define MGMT_OP_LOAD_LINK_KEYS		0x000D
+struct mgmt_cp_load_link_keys {
 	__u8 debug_keys;
 	__le16 key_count;
-	struct mgmt_key_info keys[0];
+	struct mgmt_link_key_info keys[0];
 } __packed;
 
-#define MGMT_OP_REMOVE_KEY		0x000E
-struct mgmt_cp_remove_key {
+#define MGMT_OP_REMOVE_KEYS		0x000E
+struct mgmt_cp_remove_keys {
 	bdaddr_t bdaddr;
 	__u8 disconnect;
 } __packed;
@@ -247,10 +247,10 @@ struct mgmt_ev_controller_error {
 
 #define MGMT_EV_PAIRABLE		0x0009
 
-#define MGMT_EV_NEW_KEY			0x000A
-struct mgmt_ev_new_key {
+#define MGMT_EV_NEW_LINK_KEY		0x000A
+struct mgmt_ev_new_link_key {
 	__u8 store_hint;
-	struct mgmt_key_info key;
+	struct mgmt_link_key_info key;
 } __packed;
 
 #define MGMT_EV_CONNECTED		0x000B

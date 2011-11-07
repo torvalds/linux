@@ -908,30 +908,32 @@ static int set_service_cache(struct sock *sk, u16 index,  unsigned char *data,
 	return err;
 }
 
-static int load_keys(struct sock *sk, u16 index, unsigned char *data, u16 len)
+static int load_link_keys(struct sock *sk, u16 index, unsigned char *data,
+								u16 len)
 {
 	struct hci_dev *hdev;
-	struct mgmt_cp_load_keys *cp;
+	struct mgmt_cp_load_link_keys *cp;
 	u16 key_count, expected_len;
 	int i;
 
 	cp = (void *) data;
 
 	if (len < sizeof(*cp))
-		return cmd_status(sk, index, MGMT_OP_LOAD_KEYS, EINVAL);
+		return cmd_status(sk, index, MGMT_OP_LOAD_LINK_KEYS, EINVAL);
 
 	key_count = get_unaligned_le16(&cp->key_count);
 
-	expected_len = sizeof(*cp) + key_count * sizeof(struct mgmt_key_info);
+	expected_len = sizeof(*cp) + key_count *
+					sizeof(struct mgmt_link_key_info);
 	if (expected_len != len) {
-		BT_ERR("load_keys: expected %u bytes, got %u bytes",
+		BT_ERR("load_link_keys: expected %u bytes, got %u bytes",
 							len, expected_len);
-		return cmd_status(sk, index, MGMT_OP_LOAD_KEYS, EINVAL);
+		return cmd_status(sk, index, MGMT_OP_LOAD_LINK_KEYS, EINVAL);
 	}
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
-		return cmd_status(sk, index, MGMT_OP_LOAD_KEYS, ENODEV);
+		return cmd_status(sk, index, MGMT_OP_LOAD_LINK_KEYS, ENODEV);
 
 	BT_DBG("hci%u debug_keys %u key_count %u", index, cp->debug_keys,
 								key_count);
@@ -948,7 +950,7 @@ static int load_keys(struct sock *sk, u16 index, unsigned char *data, u16 len)
 		clear_bit(HCI_DEBUG_KEYS, &hdev->flags);
 
 	for (i = 0; i < key_count; i++) {
-		struct mgmt_key_info *key = &cp->keys[i];
+		struct mgmt_link_key_info *key = &cp->keys[i];
 
 		hci_add_link_key(hdev, NULL, 0, &key->bdaddr, key->val, key->type,
 								key->pin_len);
@@ -960,27 +962,28 @@ static int load_keys(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	return 0;
 }
 
-static int remove_key(struct sock *sk, u16 index, unsigned char *data, u16 len)
+static int remove_keys(struct sock *sk, u16 index, unsigned char *data,
+								u16 len)
 {
 	struct hci_dev *hdev;
-	struct mgmt_cp_remove_key *cp;
+	struct mgmt_cp_remove_keys *cp;
 	struct hci_conn *conn;
 	int err;
 
 	cp = (void *) data;
 
 	if (len != sizeof(*cp))
-		return cmd_status(sk, index, MGMT_OP_REMOVE_KEY, EINVAL);
+		return cmd_status(sk, index, MGMT_OP_REMOVE_KEYS, EINVAL);
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
-		return cmd_status(sk, index, MGMT_OP_REMOVE_KEY, ENODEV);
+		return cmd_status(sk, index, MGMT_OP_REMOVE_KEYS, ENODEV);
 
 	hci_dev_lock_bh(hdev);
 
 	err = hci_remove_link_key(hdev, &cp->bdaddr);
 	if (err < 0) {
-		err = cmd_status(sk, index, MGMT_OP_REMOVE_KEY, -err);
+		err = cmd_status(sk, index, MGMT_OP_REMOVE_KEYS, -err);
 		goto unlock;
 	}
 
@@ -1860,11 +1863,11 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	case MGMT_OP_SET_SERVICE_CACHE:
 		err = set_service_cache(sk, index, buf + sizeof(*hdr), len);
 		break;
-	case MGMT_OP_LOAD_KEYS:
-		err = load_keys(sk, index, buf + sizeof(*hdr), len);
+	case MGMT_OP_LOAD_LINK_KEYS:
+		err = load_link_keys(sk, index, buf + sizeof(*hdr), len);
 		break;
-	case MGMT_OP_REMOVE_KEY:
-		err = remove_key(sk, index, buf + sizeof(*hdr), len);
+	case MGMT_OP_REMOVE_KEYS:
+		err = remove_keys(sk, index, buf + sizeof(*hdr), len);
 		break;
 	case MGMT_OP_DISCONNECT:
 		err = disconnect(sk, index, buf + sizeof(*hdr), len);
@@ -2055,9 +2058,9 @@ int mgmt_write_scan_failed(u16 index, u8 scan, u8 status)
 	return 0;
 }
 
-int mgmt_new_key(u16 index, struct link_key *key, u8 persistent)
+int mgmt_new_link_key(u16 index, struct link_key *key, u8 persistent)
 {
-	struct mgmt_ev_new_key ev;
+	struct mgmt_ev_new_link_key ev;
 
 	memset(&ev, 0, sizeof(ev));
 
@@ -2067,7 +2070,7 @@ int mgmt_new_key(u16 index, struct link_key *key, u8 persistent)
 	memcpy(ev.key.val, key->val, 16);
 	ev.key.pin_len = key->pin_len;
 
-	return mgmt_event(MGMT_EV_NEW_KEY, index, &ev, sizeof(ev), NULL);
+	return mgmt_event(MGMT_EV_NEW_LINK_KEY, index, &ev, sizeof(ev), NULL);
 }
 
 int mgmt_connected(u16 index, bdaddr_t *bdaddr, u8 link_type)
