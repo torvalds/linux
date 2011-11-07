@@ -114,6 +114,7 @@ void temac_indirect_out32(struct temac_local *lp, int reg, u32 value)
 		return;
 	temac_iow(lp, XTE_LSW0_OFFSET, value);
 	temac_iow(lp, XTE_CTL0_OFFSET, CNTLREG_WRITE_ENABLE_MASK | reg);
+	temac_indirect_busywait(lp);
 }
 
 /**
