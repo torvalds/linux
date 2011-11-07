@@ -476,11 +476,68 @@ mxm_shadow_rom(struct drm_device *dev, u8 version)
 	return false;
 }
 
+#if defined(CONFIG_ACPI)
 static bool
 mxm_shadow_dsm(struct drm_device *dev, u8 version)
 {
-	return false;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	static char muid[] = {
+		0x00, 0xA4, 0x04, 0x40, 0x7D, 0x91, 0xF2, 0x4C,
+		0xB8, 0x9C, 0x79, 0xB6, 0x2F, 0xD5, 0x56, 0x65
+	};
+	u32 mxms_args[] = { 0x00000000 };
+	union acpi_object args[4] = {
+		/* _DSM MUID */
+		{ .buffer.type = 3,
+		  .buffer.length = sizeof(muid),
+		  .buffer.pointer = muid,
+		},
+		/* spec says this can be zero to mean "highest revision", but
+		 * of course there's at least one bios out there which fails
+		 * unless you pass in exactly the version it supports..
+		 */
+		{ .integer.type = ACPI_TYPE_INTEGER,
+		  .integer.value = (version & 0xf0) << 4 | (version & 0x0f),
+		},
+		/* MXMS function */
+		{ .integer.type = ACPI_TYPE_INTEGER,
+		  .integer.value = 0x00000010,
+		},
+		/* Pointer to MXMS arguments */
+		{ .buffer.type = ACPI_TYPE_BUFFER,
+		  .buffer.length = sizeof(mxms_args),
+		  .buffer.pointer = (char *)mxms_args,
+		},
+	};
+	struct acpi_object_list list = { ARRAY_SIZE(args), args };
+	struct acpi_buffer retn = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	acpi_handle handle;
+	int ret;
+
+	handle = DEVICE_ACPI_HANDLE(&dev->pdev->dev);
+	if (!handle)
+		return false;
+
+	ret = acpi_evaluate_object(handle, "_DSM", &list, &retn);
+	if (ret) {
+		MXM_DBG(dev, "DSM MXMS failed: %d\n", ret);
+		return false;
+	}
+
+	obj = retn.pointer;
+	if (obj->type == ACPI_TYPE_BUFFER) {
+		dev_priv->mxms = kmemdup(obj->buffer.pointer,
+					 obj->buffer.length, GFP_KERNEL);
+	} else
+	if (obj->type == ACPI_TYPE_INTEGER) {
+		MXM_DBG(dev, "DSM MXMS returned 0x%llx\n", obj->integer.value);
+	}
+
+	kfree(obj);
+	return dev_priv->mxms != NULL;
 }
+#endif
 
 #if defined(CONFIG_ACPI_WMI) || defined(CONFIG_ACPI_WMI_MODULE)
 
@@ -521,7 +578,9 @@ struct mxm_shadow_h {
 	bool (*exec)(struct drm_device *, u8 version);
 } _mxm_shadow[] = {
 	{ "ROM", mxm_shadow_rom },
+#if defined(CONFIG_ACPI)
 	{ "DSM", mxm_shadow_dsm },
+#endif
 #if defined(CONFIG_ACPI_WMI) || defined(CONFIG_ACPI_WMI_MODULE)
 	{ "WMI", mxm_shadow_wmi },
 #endif
