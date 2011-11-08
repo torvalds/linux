@@ -93,11 +93,6 @@ static struct of_dev_auxdata msm_auxdata_lookup[] __initdata = {
 
 static void __init msm8x60_dt_init(void)
 {
-	if (of_machine_is_compatible("qcom,msm8660-surf")) {
-		printk(KERN_INFO "Init surf UART registers\n");
-		msm8x60_init_uart12dm();
-	}
-
 	of_platform_populate(NULL, of_default_bus_match_table,
 			msm_auxdata_lookup, NULL);
 }
