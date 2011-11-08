@@ -289,7 +289,8 @@ static int wl1271_suspend(struct device *dev)
 	/* Tell MMC/SDIO core it's OK to power down the card
 	 * (if it isn't already), but not to remove it completely */
 	struct sdio_func *func = dev_to_sdio_func(dev);
-	struct wl1271 *wl = sdio_get_drvdata(func);
+	struct wl12xx_sdio_glue *glue = sdio_get_drvdata(func);
+	struct wl1271 *wl = platform_get_drvdata(glue->core);
 	mmc_pm_flag_t sdio_flags;
 	int ret = 0;
 
@@ -324,7 +325,8 @@ out:
 static int wl1271_resume(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
-	struct wl1271 *wl = sdio_get_drvdata(func);
+	struct wl12xx_sdio_glue *glue = sdio_get_drvdata(func);
+	struct wl1271 *wl = platform_get_drvdata(glue->core);
 
 	dev_dbg(dev, "wl1271 resume\n");
 	if (wl->wow_enabled) {
