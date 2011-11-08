@@ -4038,6 +4038,12 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	/* Stereo control for EQ */
 	snd_soc_update_bits(codec, WM8962_EQ1, WM8962_EQ_SHARED_COEFF, 0);
 
+	/* Don't debouce interrupts so we don't need SYSCLK */
+	snd_soc_update_bits(codec, WM8962_IRQ_DEBOUNCE,
+			    WM8962_FLL_LOCK_DB | WM8962_PLL3_LOCK_DB |
+			    WM8962_PLL2_LOCK_DB | WM8962_TEMP_SHUT_DB,
+			    0);
+
 	wm8962_add_widgets(codec);
 
 	/* Save boards having to disable DMIC when not in use */
