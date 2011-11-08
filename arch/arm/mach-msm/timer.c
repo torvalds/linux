@@ -81,11 +81,20 @@ enum {
 
 static struct msm_clock msm_clocks[];
 
+static struct msm_clock *clockevent_to_clock(struct clock_event_device *evt);
+
 static irqreturn_t msm_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = *(struct clock_event_device **)dev_id;
 	if (evt->event_handler == NULL)
 		return IRQ_HANDLED;
+	/* Stop the timer tick */
+	if (evt->mode == CLOCK_EVT_MODE_ONESHOT) {
+		struct msm_clock *clock = clockevent_to_clock(evt);
+		u32 ctrl = readl_relaxed(clock->regbase + TIMER_ENABLE);
+		ctrl &= ~TIMER_ENABLE_EN;
+		writel_relaxed(ctrl, clock->regbase + TIMER_ENABLE);
+	}
 	evt->event_handler(evt);
 	return IRQ_HANDLED;
 }
@@ -118,10 +127,12 @@ static int msm_timer_set_next_event(unsigned long cycles,
 				    struct clock_event_device *evt)
 {
 	struct msm_clock *clock = clockevent_to_clock(evt);
-	uint32_t now = readl(clock->local_counter);
-	uint32_t alarm = now + (cycles << clock->shift);
+	u32 match = cycles << clock->shift;
+	u32 ctrl = readl_relaxed(clock->regbase + TIMER_ENABLE);
 
-	writel(alarm, clock->regbase + TIMER_MATCH_VAL);
+	writel_relaxed(0, clock->regbase + TIMER_CLEAR);
+	writel_relaxed(match, clock->regbase + TIMER_MATCH_VAL);
+	writel_relaxed(ctrl | TIMER_ENABLE_EN, clock->regbase + TIMER_ENABLE);
 	return 0;
 }
 
@@ -129,19 +140,23 @@ static void msm_timer_set_mode(enum clock_event_mode mode,
 			      struct clock_event_device *evt)
 {
 	struct msm_clock *clock = clockevent_to_clock(evt);
+	u32 ctrl;
+
+	ctrl = readl_relaxed(clock->regbase + TIMER_ENABLE);
+	ctrl &= ~(TIMER_ENABLE_EN | TIMER_ENABLE_CLR_ON_MATCH_EN);
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_RESUME:
 	case CLOCK_EVT_MODE_PERIODIC:
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
-		writel(TIMER_ENABLE_EN, clock->regbase + TIMER_ENABLE);
+		/* Timer is enabled in set_next_event */
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
-		writel(0, clock->regbase + TIMER_ENABLE);
 		break;
 	}
+	writel_relaxed(ctrl, clock->regbase + TIMER_ENABLE);
 }
 
 static struct msm_clock msm_clocks[] = {
