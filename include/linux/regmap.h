@@ -143,5 +143,6 @@ int regmap_update_bits(struct regmap *map, unsigned int reg,
 int regcache_sync(struct regmap *map);
 void regcache_cache_only(struct regmap *map, bool enable);
 void regcache_cache_bypass(struct regmap *map, bool enable);
+void regcache_mark_dirty(struct regmap *map);
 
 #endif
