@@ -127,7 +127,7 @@ struct psmouse_protocol {
  * relevant events to the input module once full packet has arrived.
  */
 
-static psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse)
+psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse)
 {
 	struct input_dev *dev = psmouse->dev;
 	unsigned char *packet = psmouse->packet;
@@ -818,6 +818,13 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.alias		= "synaptics",
 		.detect		= synaptics_detect,
 		.init		= synaptics_init,
+	},
+	{
+		.type		= PSMOUSE_SYNAPTICS_RELATIVE,
+		.name		= "SynRelPS/2",
+		.alias		= "synaptics-relative",
+		.detect		= synaptics_detect,
+		.init		= synaptics_init_relative,
 	},
 #endif
 #ifdef CONFIG_MOUSE_PS2_ALPS
