@@ -503,7 +503,6 @@ static struct resource twi_resources[] = {
 };
 
 static struct platform_device at91sam9260_twi_device = {
-	.name		= "at91_i2c",
 	.id		= -1,
 	.resource	= twi_resources,
 	.num_resources	= ARRAY_SIZE(twi_resources),
@@ -511,6 +510,13 @@ static struct platform_device at91sam9260_twi_device = {
 
 void __init at91_add_device_i2c(struct i2c_board_info *devices, int nr_devices)
 {
+	/* IP version is not the same on 9260 and g20 */
+	if (cpu_is_at91sam9g20()) {
+		at91sam9260_twi_device.name = "i2c-at91sam9g20";
+	} else {
+		at91sam9260_twi_device.name = "i2c-at91sam9260";
+	}
+
 	/* pins used for TWI interface */
 	at91_set_A_periph(AT91_PIN_PA23, 0);		/* TWD */
 	at91_set_multi_drive(AT91_PIN_PA23, 1);
