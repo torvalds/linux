@@ -430,7 +430,7 @@ int lg4ff_init(struct hid_device *hid)
 	}
 
 	/* Add the device to device_list */
-	entry = (struct lg4ff_device_entry *)kzalloc(sizeof(struct lg4ff_device_entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(struct lg4ff_device_entry), GFP_KERNEL);
 	if (!entry) {
 		hid_err(hid, "Cannot add device, insufficient memory.\n");
 		return -ENOMEM;
