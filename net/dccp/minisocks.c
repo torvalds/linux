@@ -100,7 +100,7 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 	 *   (* Generate a new socket and switch to that socket *)
 	 *   Set S := new socket for this port pair
 	 */
-	struct sock *newsk = inet_csk_clone(sk, req, GFP_ATOMIC);
+	struct sock *newsk = inet_csk_clone_lock(sk, req, GFP_ATOMIC);
 
 	if (newsk != NULL) {
 		struct dccp_request_sock *dreq = dccp_rsk(req);

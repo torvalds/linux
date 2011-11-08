@@ -1089,8 +1089,8 @@ extern struct sock		*sk_alloc(struct net *net, int family,
 					  struct proto *prot);
 extern void			sk_free(struct sock *sk);
 extern void			sk_release_kernel(struct sock *sk);
-extern struct sock		*sk_clone(const struct sock *sk,
-					  const gfp_t priority);
+extern struct sock		*sk_clone_lock(const struct sock *sk,
+					       const gfp_t priority);
 
 extern struct sk_buff		*sock_wmalloc(struct sock *sk,
 					      unsigned long size, int force,

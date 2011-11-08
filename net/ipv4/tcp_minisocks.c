@@ -425,7 +425,7 @@ static inline void TCP_ECN_openreq_child(struct tcp_sock *tp,
  */
 struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req, struct sk_buff *skb)
 {
-	struct sock *newsk = inet_csk_clone(sk, req, GFP_ATOMIC);
+	struct sock *newsk = inet_csk_clone_lock(sk, req, GFP_ATOMIC);
 
 	if (newsk != NULL) {
 		const struct inet_request_sock *ireq = inet_rsk(req);

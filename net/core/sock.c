@@ -1204,7 +1204,14 @@ void sk_release_kernel(struct sock *sk)
 }
 EXPORT_SYMBOL(sk_release_kernel);
 
-struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
+/**
+ *	sk_clone_lock - clone a socket, and lock its clone
+ *	@sk: the socket to clone
+ *	@priority: for allocation (%GFP_KERNEL, %GFP_ATOMIC, etc)
+ *
+ *	Caller must unlock socket even in error path (bh_unlock_sock(newsk))
+ */
+struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 {
 	struct sock *newsk;
 
@@ -1297,7 +1304,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 out:
 	return newsk;
 }
-EXPORT_SYMBOL_GPL(sk_clone);
+EXPORT_SYMBOL_GPL(sk_clone_lock);
 
 void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 {
