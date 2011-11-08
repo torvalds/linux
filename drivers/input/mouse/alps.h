@@ -12,8 +12,12 @@
 #ifndef _ALPS_H
 #define _ALPS_H
 
+#define ALPS_PROTO_V1	0
+#define ALPS_PROTO_V2	1
+
 struct alps_model_info {
         unsigned char signature[3];
+	unsigned char proto_version;
         unsigned char byte0, mask0;
         unsigned char flags;
 };
