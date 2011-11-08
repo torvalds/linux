@@ -60,7 +60,7 @@ static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb)
 
 	clear_bit(HCI_INQUIRY, &hdev->flags);
 
-	mgmt_discovering(hdev->id, 0);
+	mgmt_discovering(hdev, 0);
 
 	hci_req_complete(hdev, HCI_OP_INQUIRY_CANCEL, status);
 
@@ -202,7 +202,7 @@ static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)
 		return;
 
 	if (test_bit(HCI_MGMT, &hdev->flags))
-		mgmt_set_local_name_complete(hdev->id, sent, status);
+		mgmt_set_local_name_complete(hdev, sent, status);
 
 	if (status)
 		return;
@@ -283,7 +283,7 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	param = *((__u8 *) sent);
 
 	if (status != 0) {
-		mgmt_write_scan_failed(hdev->id, param, status);
+		mgmt_write_scan_failed(hdev, param, status);
 		hdev->discov_timeout = 0;
 		goto done;
 	}
@@ -294,21 +294,21 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	if (param & SCAN_INQUIRY) {
 		set_bit(HCI_ISCAN, &hdev->flags);
 		if (!old_iscan)
-			mgmt_discoverable(hdev->id, 1);
+			mgmt_discoverable(hdev, 1);
 		if (hdev->discov_timeout > 0) {
 			int to = msecs_to_jiffies(hdev->discov_timeout * 1000);
 			queue_delayed_work(hdev->workqueue, &hdev->discov_off,
 									to);
 		}
 	} else if (old_iscan)
-		mgmt_discoverable(hdev->id, 0);
+		mgmt_discoverable(hdev, 0);
 
 	if (param & SCAN_PAGE) {
 		set_bit(HCI_PSCAN, &hdev->flags);
 		if (!old_pscan)
-			mgmt_connectable(hdev->id, 1);
+			mgmt_connectable(hdev, 1);
 	} else if (old_pscan)
-		mgmt_connectable(hdev->id, 0);
+		mgmt_connectable(hdev, 0);
 
 done:
 	hci_req_complete(hdev, HCI_OP_WRITE_SCAN_ENABLE, status);
@@ -835,7 +835,7 @@ static void hci_cc_pin_code_reply(struct hci_dev *hdev, struct sk_buff *skb)
 	BT_DBG("%s status 0x%x", hdev->name, rp->status);
 
 	if (test_bit(HCI_MGMT, &hdev->flags))
-		mgmt_pin_code_reply_complete(hdev->id, &rp->bdaddr, rp->status);
+		mgmt_pin_code_reply_complete(hdev, &rp->bdaddr, rp->status);
 
 	if (rp->status != 0)
 		return;
@@ -856,7 +856,7 @@ static void hci_cc_pin_code_neg_reply(struct hci_dev *hdev, struct sk_buff *skb)
 	BT_DBG("%s status 0x%x", hdev->name, rp->status);
 
 	if (test_bit(HCI_MGMT, &hdev->flags))
-		mgmt_pin_code_neg_reply_complete(hdev->id, &rp->bdaddr,
+		mgmt_pin_code_neg_reply_complete(hdev, &rp->bdaddr,
 								rp->status);
 }
 static void hci_cc_le_read_buffer_size(struct hci_dev *hdev,
@@ -886,7 +886,7 @@ static void hci_cc_user_confirm_reply(struct hci_dev *hdev, struct sk_buff *skb)
 	BT_DBG("%s status 0x%x", hdev->name, rp->status);
 
 	if (test_bit(HCI_MGMT, &hdev->flags))
-		mgmt_user_confirm_reply_complete(hdev->id, &rp->bdaddr,
+		mgmt_user_confirm_reply_complete(hdev, &rp->bdaddr,
 								rp->status);
 }
 
@@ -898,7 +898,7 @@ static void hci_cc_user_confirm_neg_reply(struct hci_dev *hdev,
 	BT_DBG("%s status 0x%x", hdev->name, rp->status);
 
 	if (test_bit(HCI_MGMT, &hdev->flags))
-		mgmt_user_confirm_neg_reply_complete(hdev->id, &rp->bdaddr,
+		mgmt_user_confirm_neg_reply_complete(hdev, &rp->bdaddr,
 								rp->status);
 }
 
@@ -909,7 +909,7 @@ static void hci_cc_read_local_oob_data_reply(struct hci_dev *hdev,
 
 	BT_DBG("%s status 0x%x", hdev->name, rp->status);
 
-	mgmt_read_local_oob_data_reply_complete(hdev->id, rp->hash,
+	mgmt_read_local_oob_data_reply_complete(hdev, rp->hash,
 						rp->randomizer, rp->status);
 }
 
@@ -986,13 +986,13 @@ static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 		hci_req_complete(hdev, HCI_OP_INQUIRY, status);
 		hci_conn_check_pending(hdev);
 		if (test_bit(HCI_MGMT, &hdev->flags))
-			mgmt_inquiry_failed(hdev->id, status);
+			mgmt_inquiry_failed(hdev, status);
 		return;
 	}
 
 	set_bit(HCI_INQUIRY, &hdev->flags);
 
-	mgmt_discovering(hdev->id, 1);
+	mgmt_discovering(hdev, 1);
 }
 
 static inline void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
@@ -1378,7 +1378,7 @@ static inline void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff
 	if (!test_and_clear_bit(HCI_INQUIRY, &hdev->flags))
 		return;
 
-	mgmt_discovering(hdev->id, 0);
+	mgmt_discovering(hdev, 0);
 }
 
 static inline void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1404,7 +1404,7 @@ static inline void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *
 		data.rssi		= 0x00;
 		data.ssp_mode		= 0x00;
 		hci_inquiry_cache_update(hdev, &data);
-		mgmt_device_found(hdev->id, &info->bdaddr, ACL_LINK,
+		mgmt_device_found(hdev, &info->bdaddr, ACL_LINK,
 						info->dev_class, 0, NULL);
 	}
 
@@ -1439,7 +1439,7 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			conn->state = BT_CONFIG;
 			hci_conn_hold(conn);
 			conn->disc_timeout = HCI_DISCONN_TIMEOUT;
-			mgmt_connected(hdev->id, &ev->bdaddr, conn->type);
+			mgmt_connected(hdev, &ev->bdaddr, conn->type);
 		} else
 			conn->state = BT_CONNECTED;
 
@@ -1471,7 +1471,7 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 	} else {
 		conn->state = BT_CLOSED;
 		if (conn->type == ACL_LINK)
-			mgmt_connect_failed(hdev->id, &ev->bdaddr, conn->type,
+			mgmt_connect_failed(hdev, &ev->bdaddr, conn->type,
 								ev->status);
 	}
 
@@ -1572,7 +1572,7 @@ static inline void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff
 	BT_DBG("%s status %d", hdev->name, ev->status);
 
 	if (ev->status) {
-		mgmt_disconnect_failed(hdev->id);
+		mgmt_disconnect_failed(hdev);
 		return;
 	}
 
@@ -1585,7 +1585,7 @@ static inline void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff
 	conn->state = BT_CLOSED;
 
 	if (conn->type == ACL_LINK || conn->type == LE_LINK)
-		mgmt_disconnected(hdev->id, &conn->dst, conn->type);
+		mgmt_disconnected(hdev, &conn->dst, conn->type);
 
 	hci_proto_disconn_cfm(conn, ev->reason);
 	hci_conn_del(conn);
@@ -1616,7 +1616,7 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			conn->sec_level = conn->pending_sec_level;
 		}
 	} else {
-		mgmt_auth_failed(hdev->id, &conn->dst, ev->status);
+		mgmt_auth_failed(hdev, &conn->dst, ev->status);
 	}
 
 	clear_bit(HCI_CONN_AUTH_PEND, &conn->pend);
@@ -1671,7 +1671,7 @@ static inline void hci_remote_name_evt(struct hci_dev *hdev, struct sk_buff *skb
 	hci_dev_lock(hdev);
 
 	if (ev->status == 0 && test_bit(HCI_MGMT, &hdev->flags))
-		mgmt_remote_name(hdev->id, &ev->bdaddr, ev->name);
+		mgmt_remote_name(hdev, &ev->bdaddr, ev->name);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (!conn)
@@ -2061,7 +2061,7 @@ static inline void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_DISCONNECT:
 		if (ev->status != 0)
-			mgmt_disconnect_failed(hdev->id);
+			mgmt_disconnect_failed(hdev);
 		break;
 
 	case HCI_OP_LE_CREATE_CONN:
@@ -2226,7 +2226,7 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 		else
 			secure = 0;
 
-		mgmt_pin_code_request(hdev->id, &ev->bdaddr, secure);
+		mgmt_pin_code_request(hdev, &ev->bdaddr, secure);
 	}
 
 unlock:
@@ -2409,7 +2409,7 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 			data.rssi		= info->rssi;
 			data.ssp_mode		= 0x00;
 			hci_inquiry_cache_update(hdev, &data);
-			mgmt_device_found(hdev->id, &info->bdaddr, ACL_LINK,
+			mgmt_device_found(hdev, &info->bdaddr, ACL_LINK,
 						info->dev_class, info->rssi,
 						NULL);
 		}
@@ -2426,7 +2426,7 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 			data.rssi		= info->rssi;
 			data.ssp_mode		= 0x00;
 			hci_inquiry_cache_update(hdev, &data);
-			mgmt_device_found(hdev->id, &info->bdaddr, ACL_LINK,
+			mgmt_device_found(hdev, &info->bdaddr, ACL_LINK,
 						info->dev_class, info->rssi,
 						NULL);
 		}
@@ -2569,7 +2569,7 @@ static inline void hci_extended_inquiry_result_evt(struct hci_dev *hdev, struct 
 		data.rssi		= info->rssi;
 		data.ssp_mode		= 0x01;
 		hci_inquiry_cache_update(hdev, &data);
-		mgmt_device_found(hdev->id, &info->bdaddr, ACL_LINK,
+		mgmt_device_found(hdev, &info->bdaddr, ACL_LINK,
 				info->dev_class, info->rssi, info->data);
 	}
 
@@ -2726,7 +2726,7 @@ static inline void hci_user_confirm_request_evt(struct hci_dev *hdev,
 	}
 
 confirm:
-	mgmt_user_confirm_request(hdev->id, &ev->bdaddr, ev->passkey,
+	mgmt_user_confirm_request(hdev, &ev->bdaddr, ev->passkey,
 								confirm_hint);
 
 unlock:
@@ -2752,7 +2752,7 @@ static inline void hci_simple_pair_complete_evt(struct hci_dev *hdev, struct sk_
 	 * event gets always produced as initiator and is also mapped to
 	 * the mgmt_auth_failed event */
 	if (!test_bit(HCI_CONN_AUTH_PEND, &conn->pend) && ev->status != 0)
-		mgmt_auth_failed(hdev->id, &conn->dst, ev->status);
+		mgmt_auth_failed(hdev, &conn->dst, ev->status);
 
 	hci_conn_put(conn);
 
@@ -2833,15 +2833,14 @@ static inline void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff
 	}
 
 	if (ev->status) {
-		mgmt_connect_failed(hdev->id, &ev->bdaddr, conn->type,
-								ev->status);
+		mgmt_connect_failed(hdev, &ev->bdaddr, conn->type, ev->status);
 		hci_proto_connect_cfm(conn, ev->status);
 		conn->state = BT_CLOSED;
 		hci_conn_del(conn);
 		goto unlock;
 	}
 
-	mgmt_connected(hdev->id, &ev->bdaddr, conn->type);
+	mgmt_connected(hdev, &ev->bdaddr, conn->type);
 
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->handle = __le16_to_cpu(ev->handle);

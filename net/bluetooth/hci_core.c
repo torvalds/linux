@@ -550,7 +550,7 @@ int hci_dev_open(__u16 dev)
 		set_bit(HCI_UP, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_UP);
 		if (!test_bit(HCI_SETUP, &hdev->flags))
-			mgmt_powered(hdev->id, 1);
+			mgmt_powered(hdev, 1);
 	} else {
 		/* Init failed, cleanup */
 		tasklet_kill(&hdev->rx_task);
@@ -642,7 +642,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	 * and no tasks are scheduled. */
 	hdev->close(hdev);
 
-	mgmt_powered(hdev->id, 0);
+	mgmt_powered(hdev, 0);
 
 	/* Clear flags */
 	hdev->flags = 0;
@@ -947,7 +947,7 @@ static void hci_power_on(struct work_struct *work)
 					msecs_to_jiffies(AUTO_OFF_TIMEOUT));
 
 	if (test_and_clear_bit(HCI_SETUP, &hdev->flags))
-		mgmt_index_added(hdev->id);
+		mgmt_index_added(hdev);
 }
 
 static void hci_power_off(struct work_struct *work)
@@ -1140,7 +1140,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 
 	persistent = hci_persistent_key(hdev, conn, type, old_key_type);
 
-	mgmt_new_link_key(hdev->id, key, persistent);
+	mgmt_new_link_key(hdev, key, persistent);
 
 	if (!persistent) {
 		list_del(&key->list);
@@ -1183,7 +1183,7 @@ int hci_add_ltk(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
 	memcpy(id->rand, rand, sizeof(id->rand));
 
 	if (new_key)
-		mgmt_new_link_key(hdev->id, key, old_key_type);
+		mgmt_new_link_key(hdev, key, old_key_type);
 
 	return 0;
 }
@@ -1324,7 +1324,7 @@ int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr)
 
 	list_add(&entry->list, &hdev->blacklist);
 
-	return mgmt_device_blocked(hdev->id, bdaddr);
+	return mgmt_device_blocked(hdev, bdaddr);
 }
 
 int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr)
@@ -1343,7 +1343,7 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	list_del(&entry->list);
 	kfree(entry);
 
-	return mgmt_device_unblocked(hdev->id, bdaddr);
+	return mgmt_device_unblocked(hdev, bdaddr);
 }
 
 static void hci_clear_adv_cache(unsigned long arg)
@@ -1560,7 +1560,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 
 	if (!test_bit(HCI_INIT, &hdev->flags) &&
 					!test_bit(HCI_SETUP, &hdev->flags))
-		mgmt_index_removed(hdev->id);
+		mgmt_index_removed(hdev);
 
 	hci_notify(hdev, HCI_DEV_UNREG);
 
