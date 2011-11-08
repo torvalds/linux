@@ -599,12 +599,12 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	tasklet_kill(&hdev->tx_task);
 
 	if (hdev->discov_timeout > 0) {
-		cancel_delayed_work_sync(&hdev->discov_off);
+		cancel_delayed_work(&hdev->discov_off);
 		hdev->discov_timeout = 0;
 	}
 
 	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->flags))
-		cancel_delayed_work_sync(&hdev->power_off);
+		cancel_delayed_work(&hdev->power_off);
 
 	hci_dev_lock_bh(hdev);
 	inquiry_cache_flush(hdev);
@@ -828,7 +828,7 @@ int hci_get_dev_list(void __user *arg)
 	read_lock_bh(&hci_dev_list_lock);
 	list_for_each_entry(hdev, &hci_dev_list, list) {
 		if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->flags))
-			cancel_delayed_work_sync(&hdev->power_off);
+			cancel_delayed_work(&hdev->power_off);
 
 		if (!test_bit(HCI_MGMT, &hdev->flags))
 			set_bit(HCI_PAIRABLE, &hdev->flags);

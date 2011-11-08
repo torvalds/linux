@@ -149,7 +149,7 @@ static int read_index_list(struct sock *sk)
 	i = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (test_and_clear_bit(HCI_AUTO_OFF, &d->flags))
-			cancel_delayed_work_sync(&d->power_off);
+			cancel_delayed_work(&d->power_off);
 
 		if (test_bit(HCI_SETUP, &d->flags))
 			continue;
@@ -398,7 +398,7 @@ static int set_discoverable(struct sock *sk, u16 index, unsigned char *data,
 	if (cp->val)
 		scan |= SCAN_INQUIRY;
 	else
-		cancel_delayed_work_sync(&hdev->discov_off);
+		cancel_delayed_work(&hdev->discov_off);
 
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 	if (err < 0)
