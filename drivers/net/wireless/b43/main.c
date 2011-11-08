@@ -2401,6 +2401,13 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 		b43_print_fw_helptext(dev->wl, 1);
 		err = -EOPNOTSUPP;
 		goto error;
+	} else if (fwrev >= 598) {
+		b43err(dev->wl, "YOUR FIRMWARE IS TOO NEW. Support for "
+		       "firmware 598 and up requires kernel 3.2 or newer. You "
+		       "have to install older firmware or upgrade kernel.\n");
+		b43_print_fw_helptext(dev->wl, 1);
+		err = -EOPNOTSUPP;
+		goto error;
 	}
 	dev->fw.rev = fwrev;
 	dev->fw.patch = fwpatch;
