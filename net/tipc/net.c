@@ -175,14 +175,10 @@ int tipc_net_start(u32 addr)
 {
 	char addr_string[16];
 
-	if (tipc_mode != TIPC_NODE_MODE)
-		return -ENOPROTOOPT;
-
 	tipc_subscr_stop();
 	tipc_cfg_stop();
 
 	tipc_own_addr = addr;
-	tipc_mode = TIPC_NET_MODE;
 	tipc_named_reinit();
 	tipc_port_reinit();
 
@@ -201,10 +197,9 @@ void tipc_net_stop(void)
 {
 	struct tipc_node *node, *t_node;
 
-	if (tipc_mode != TIPC_NET_MODE)
+	if (!tipc_own_addr)
 		return;
 	write_lock_bh(&tipc_net_lock);
-	tipc_mode = TIPC_NODE_MODE;
 	tipc_bearer_stop();
 	tipc_bclink_stop();
 	list_for_each_entry_safe(node, t_node, &tipc_node_list, list)

@@ -435,7 +435,7 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 	u32 i;
 	int res = -EINVAL;
 
-	if (tipc_mode != TIPC_NET_MODE) {
+	if (!tipc_own_addr) {
 		warn("Bearer <%s> rejected, not supported in standalone mode\n",
 		     name);
 		return -ENOPROTOOPT;

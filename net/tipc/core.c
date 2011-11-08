@@ -53,7 +53,6 @@
 
 /* global variables used by multiple sub-systems within TIPC */
 
-int tipc_mode;
 int tipc_random;
 
 const char tipc_alphabet[] =
@@ -144,7 +143,6 @@ static int tipc_core_start(void)
 	int res;
 
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
-	tipc_mode = TIPC_NODE_MODE;
 
 	res = tipc_handler_start();
 	if (!res)

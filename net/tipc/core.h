@@ -130,13 +130,6 @@ void tipc_msg_dbg(struct print_buf *, struct tipc_msg *, const char *);
 #define ELINKCONG EAGAIN	/* link congestion <=> resource unavailable */
 
 /*
- * TIPC operating mode routines
- */
-
-#define TIPC_NODE_MODE    1
-#define TIPC_NET_MODE     2
-
-/*
  * Global configuration variables
  */
 
@@ -151,7 +144,6 @@ extern int tipc_remote_management;
  * Other global variables
  */
 
-extern int tipc_mode;
 extern int tipc_random;
 extern const char tipc_alphabet[];
 
