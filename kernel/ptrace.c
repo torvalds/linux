@@ -744,20 +744,17 @@ int ptrace_request(struct task_struct *child, long request,
 			break;
 
 		si = child->last_siginfo;
-		if (unlikely(!si || si->si_code >> 8 != PTRACE_EVENT_STOP))
-			break;
-
-		child->jobctl |= JOBCTL_LISTENING;
-
-		/*
-		 * If NOTIFY is set, it means event happened between start
-		 * of this trap and now.  Trigger re-trap immediately.
-		 */
-		if (child->jobctl & JOBCTL_TRAP_NOTIFY)
-			signal_wake_up(child, true);
-
+		if (likely(si && (si->si_code >> 8) == PTRACE_EVENT_STOP)) {
+			child->jobctl |= JOBCTL_LISTENING;
+			/*
+			 * If NOTIFY is set, it means event happened between
+			 * start of this trap and now.  Trigger re-trap.
+			 */
+			if (child->jobctl & JOBCTL_TRAP_NOTIFY)
+				signal_wake_up(child, true);
+			ret = 0;
+		}
 		unlock_task_sighand(child, &flags);
-		ret = 0;
 		break;
 
 	case PTRACE_DETACH:	 /* detach a process that was attached. */

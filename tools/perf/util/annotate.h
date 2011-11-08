@@ -100,4 +100,6 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 			 int refresh);
 #endif
 
+extern const char	*disassembler_style;
+
 #endif	/* __PERF_ANNOTATE_H */

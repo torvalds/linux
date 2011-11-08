@@ -3479,31 +3479,6 @@ int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 }
 EXPORT_SYMBOL_GPL(wm8962_mic_detect);
 
-#ifdef CONFIG_PM
-static int wm8962_resume(struct snd_soc_codec *codec)
-{
-	u16 *reg_cache = codec->reg_cache;
-	int i;
-
-	/* Restore the registers */
-	for (i = 1; i < codec->driver->reg_cache_size; i++) {
-		switch (i) {
-		case WM8962_SOFTWARE_RESET:
-			continue;
-		default:
-			break;
-		}
-
-		if (reg_cache[i] != wm8962_reg[i])
-			snd_soc_write(codec, i, reg_cache[i]);
-	}
-
-	return 0;
-}
-#else
-#define wm8962_resume NULL
-#endif
-
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 static int beep_rates[] = {
 	500, 1000, 2000, 4000,
@@ -4015,7 +3990,6 @@ static int wm8962_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_wm8962 = {
 	.probe =	wm8962_probe,
 	.remove =	wm8962_remove,
-	.resume =	wm8962_resume,
 	.set_bias_level = wm8962_set_bias_level,
 	.reg_cache_size = WM8962_MAX_REGISTER + 1,
 	.reg_word_size = sizeof(u16),

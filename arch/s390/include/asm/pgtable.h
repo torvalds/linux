@@ -658,12 +658,14 @@ static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste)
  * struct gmap_struct - guest address space
  * @mm: pointer to the parent mm_struct
  * @table: pointer to the page directory
+ * @asce: address space control element for gmap page table
  * @crst_list: list of all crst tables used in the guest address space
  */
 struct gmap {
 	struct list_head list;
 	struct mm_struct *mm;
 	unsigned long *table;
+	unsigned long asce;
 	struct list_head crst_list;
 };
 

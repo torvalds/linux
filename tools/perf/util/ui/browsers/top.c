@@ -11,10 +11,12 @@
 #include "../helpline.h"
 #include "../libslang.h"
 #include "../util.h"
+#include "../ui.h"
 #include "../../evlist.h"
 #include "../../hist.h"
 #include "../../sort.h"
 #include "../../symbol.h"
+#include "../../session.h"
 #include "../../top.h"
 
 struct perf_top_browser {
@@ -43,10 +45,10 @@ static void perf_top_browser__write(struct ui_browser *browser, void *entry, int
 
 	if (top->evlist->nr_entries == 1 || !top->display_weighted) {
 		slsmg_printf("%20.2f ", syme->weight);
-		width -= 24;
+		width -= 21;
 	} else {
 		slsmg_printf("%9.1f %10ld ", syme->weight, syme->snap_count);
-		width -= 23;
+		width -= 20;
 	}
 
 	slsmg_printf("%4.1f%%", pcnt);
@@ -143,6 +145,25 @@ do_annotation:
 	symbol__tui_annotate(sym, syme->map, 0, top->delay_secs * 1000);
 }
 
+static void perf_top_browser__warn_lost(struct perf_top_browser *browser)
+{
+	struct perf_top *top = browser->b.priv;
+	char msg[128];
+	int len;
+
+	top->total_lost_warned = top->session->hists.stats.total_lost;
+	pthread_mutex_lock(&ui__lock);
+	ui_browser__set_color(&browser->b, HE_COLORSET_TOP);
+	len = snprintf(msg, sizeof(msg),
+		      " WARNING: LOST %" PRIu64 " events, Check IO/CPU overload",
+		      top->total_lost_warned);
+	if (len > browser->b.width)
+		len = browser->b.width;
+	SLsmg_gotorc(0, browser->b.width - len);
+	slsmg_write_nstring(msg, len);
+	pthread_mutex_unlock(&ui__lock);
+}
+
 static int perf_top_browser__run(struct perf_top_browser *browser)
 {
 	int key;
@@ -174,6 +195,9 @@ static int perf_top_browser__run(struct perf_top_browser *browser)
 			ui_browser__set_color(&browser->b, NEWT_COLORSET_ROOT);
 			SLsmg_gotorc(0, 0);
 			slsmg_write_nstring(title, browser->b.width);
+
+			if (top->total_lost_warned != top->session->hists.stats.total_lost)
+				perf_top_browser__warn_lost(browser);
 			break;
 		case 'a':
 		case NEWT_KEY_RIGHT:

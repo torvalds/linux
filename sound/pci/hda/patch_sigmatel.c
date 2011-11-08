@@ -5630,6 +5630,7 @@ again:
 	switch (codec->vendor_id) {
 	case 0x111d76d1:
 	case 0x111d76d9:
+	case 0x111d76df:
 	case 0x111d76e5:
 	case 0x111d7666:
 	case 0x111d7667:

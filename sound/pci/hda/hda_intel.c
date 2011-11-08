@@ -1924,7 +1924,8 @@ static unsigned int azx_via_get_position(struct azx *chip,
 }
 
 static unsigned int azx_get_position(struct azx *chip,
-				     struct azx_dev *azx_dev)
+				     struct azx_dev *azx_dev,
+				     bool with_check)
 {
 	unsigned int pos;
 	int stream = azx_dev->substream->stream;
@@ -1940,7 +1941,7 @@ static unsigned int azx_get_position(struct azx *chip,
 	default:
 		/* use the position buffer */
 		pos = le32_to_cpu(*azx_dev->posbuf);
-		if (chip->position_fix[stream] == POS_FIX_AUTO) {
+		if (with_check && chip->position_fix[stream] == POS_FIX_AUTO) {
 			if (!pos || pos == (u32)-1) {
 				printk(KERN_WARNING
 				       "hda-intel: Invalid position buffer, "
@@ -1964,7 +1965,7 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	return bytes_to_frames(substream->runtime,
-			       azx_get_position(chip, azx_dev));
+			       azx_get_position(chip, azx_dev, false));
 }
 
 /*
@@ -1987,7 +1988,7 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 		return -1;	/* bogus (too early) interrupt */
 
 	stream = azx_dev->substream->stream;
-	pos = azx_get_position(chip, azx_dev);
+	pos = azx_get_position(chip, azx_dev, true);
 
 	if (WARN_ONCE(!azx_dev->period_bytes,
 		      "hda-intel: zero azx_dev->period_bytes"))

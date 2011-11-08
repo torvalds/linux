@@ -81,8 +81,6 @@ int vfs_fstatat(int dfd, const char __user *filename, struct kstat *stat,
 
 	if (!(flag & AT_SYMLINK_NOFOLLOW))
 		lookup_flags |= LOOKUP_FOLLOW;
-	if (flag & AT_NO_AUTOMOUNT)
-		lookup_flags |= LOOKUP_NO_AUTOMOUNT;
 	if (flag & AT_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
 

@@ -536,55 +536,6 @@ static u32 r700_get_tile_pipe_to_backend_map(struct radeon_device *rdev,
 	return backend_map;
 }
 
-static void rv770_program_channel_remap(struct radeon_device *rdev)
-{
-	u32 tcp_chan_steer, mc_shared_chremap, tmp;
-	bool force_no_swizzle;
-
-	switch (rdev->family) {
-	case CHIP_RV770:
-	case CHIP_RV730:
-		force_no_swizzle = false;
-		break;
-	case CHIP_RV710:
-	case CHIP_RV740:
-	default:
-		force_no_swizzle = true;
-		break;
-	}
-
-	tmp = RREG32(MC_SHARED_CHMAP);
-	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
-	case 0:
-	case 1:
-	default:
-		/* default mapping */
-		mc_shared_chremap = 0x00fac688;
-		break;
-	case 2:
-	case 3:
-		if (force_no_swizzle)
-			mc_shared_chremap = 0x00fac688;
-		else
-			mc_shared_chremap = 0x00bbc298;
-		break;
-	}
-
-	if (rdev->family == CHIP_RV740)
-		tcp_chan_steer = 0x00ef2a60;
-	else
-		tcp_chan_steer = 0x00fac688;
-
-	/* RV770 CE has special chremap setup */
-	if (rdev->pdev->device == 0x944e) {
-		tcp_chan_steer = 0x00b08b08;
-		mc_shared_chremap = 0x00b08b08;
-	}
-
-	WREG32(TCP_CHAN_STEER, tcp_chan_steer);
-	WREG32(MC_SHARED_CHREMAP, mc_shared_chremap);
-}
-
 static void rv770_gpu_init(struct radeon_device *rdev)
 {
 	int i, j, num_qd_pipes;
@@ -784,8 +735,6 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	WREG32(GB_TILING_CONFIG, gb_tiling_config);
 	WREG32(DCP_TILING_CONFIG, (gb_tiling_config & 0xffff));
 	WREG32(HDP_TILING_CONFIG, (gb_tiling_config & 0xffff));
-
-	rv770_program_channel_remap(rdev);
 
 	WREG32(CC_RB_BACKEND_DISABLE,      cc_rb_backend_disable);
 	WREG32(CC_GC_SHADER_PIPE_CONFIG,   cc_gc_shader_pipe_config);

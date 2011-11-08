@@ -477,14 +477,10 @@ static int hpwdt_time_left(void)
 /*
  *	NMI Handler
  */
-static int hpwdt_pretimeout(struct notifier_block *nb, unsigned long ulReason,
-				void *data)
+static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 {
 	unsigned long rom_pl;
 	static int die_nmi_called;
-
-	if (ulReason != DIE_NMIUNKNOWN)
-		goto out;
 
 	if (!hpwdt_nmi_decoding)
 		goto out;
@@ -508,7 +504,7 @@ static int hpwdt_pretimeout(struct notifier_block *nb, unsigned long ulReason,
 		"Management Log for details.\n");
 
 out:
-	return NOTIFY_OK;
+	return NMI_DONE;
 }
 #endif /* CONFIG_HPWDT_NMI_DECODING */
 
@@ -648,13 +644,6 @@ static struct miscdevice hpwdt_miscdev = {
 	.fops = &hpwdt_fops,
 };
 
-#ifdef CONFIG_HPWDT_NMI_DECODING
-static struct notifier_block die_notifier = {
-	.notifier_call = hpwdt_pretimeout,
-	.priority = 0,
-};
-#endif /* CONFIG_HPWDT_NMI_DECODING */
-
 /*
  *	Init & Exit
  */
@@ -740,10 +729,9 @@ static int __devinit hpwdt_init_nmi_decoding(struct pci_dev *dev)
 	 * die notify list to handle a critical NMI. The default is to
 	 * be last so other users of the NMI signal can function.
 	 */
-	if (priority)
-		die_notifier.priority = 0x7FFFFFFF;
-
-	retval = register_die_notifier(&die_notifier);
+	retval = register_nmi_handler(NMI_UNKNOWN, hpwdt_pretimeout,
+					(priority) ? NMI_FLAG_FIRST : 0,
+					"hpwdt");
 	if (retval != 0) {
 		dev_warn(&dev->dev,
 			"Unable to register a die notifier (err=%d).\n",
@@ -763,7 +751,7 @@ static int __devinit hpwdt_init_nmi_decoding(struct pci_dev *dev)
 
 static void hpwdt_exit_nmi_decoding(void)
 {
-	unregister_die_notifier(&die_notifier);
+	unregister_nmi_handler(NMI_UNKNOWN, "hpwdt");
 	if (cru_rom_addr)
 		iounmap(cru_rom_addr);
 }

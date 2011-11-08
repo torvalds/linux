@@ -1458,12 +1458,24 @@ static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
  */
 void pcie_bus_configure_settings(struct pci_bus *bus, u8 mpss)
 {
-	u8 smpss = mpss;
+	u8 smpss;
 
 	if (!pci_is_pcie(bus->self))
 		return;
 
+	if (pcie_bus_config == PCIE_BUS_TUNE_OFF)
+		return;
+
+	/* FIXME - Peer to peer DMA is possible, though the endpoint would need
+	 * to be aware to the MPS of the destination.  To work around this,
+	 * simply force the MPS of the entire system to the smallest possible.
+	 */
+	if (pcie_bus_config == PCIE_BUS_PEER2PEER)
+		smpss = 0;
+
 	if (pcie_bus_config == PCIE_BUS_SAFE) {
+		smpss = mpss;
+
 		pcie_find_smpss(bus->self, &smpss);
 		pci_walk_bus(bus, pcie_find_smpss, &smpss);
 	}

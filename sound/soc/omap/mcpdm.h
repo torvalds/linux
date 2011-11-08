@@ -150,4 +150,4 @@ extern int omap_mcpdm_request(void);
 extern void omap_mcpdm_free(void);
 extern int omap_mcpdm_set_offset(int offset1, int offset2);
 int __devinit omap_mcpdm_probe(struct platform_device *pdev);
-int __devexit omap_mcpdm_remove(struct platform_device *pdev);
+int omap_mcpdm_remove(struct platform_device *pdev);

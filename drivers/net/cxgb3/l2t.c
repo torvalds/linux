@@ -300,13 +300,20 @@ static inline void reuse_entry(struct l2t_entry *e, struct neighbour *neigh)
 struct l2t_entry *t3_l2t_get(struct t3cdev *cdev, struct neighbour *neigh,
 			     struct net_device *dev)
 {
-	struct l2t_entry *e;
-	struct l2t_data *d = L2DATA(cdev);
+	struct l2t_entry *e = NULL;
+	struct l2t_data *d;
+	int hash;
 	u32 addr = *(u32 *) neigh->primary_key;
 	int ifidx = neigh->dev->ifindex;
-	int hash = arp_hash(addr, ifidx, d);
 	struct port_info *p = netdev_priv(dev);
 	int smt_idx = p->port_id;
+
+	rcu_read_lock();
+	d = L2DATA(cdev);
+	if (!d)
+		goto done_rcu;
+
+	hash = arp_hash(addr, ifidx, d);
 
 	write_lock_bh(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next)
@@ -338,6 +345,8 @@ struct l2t_entry *t3_l2t_get(struct t3cdev *cdev, struct neighbour *neigh,
 	}
 done:
 	write_unlock_bh(&d->lock);
+done_rcu:
+	rcu_read_unlock();
 	return e;
 }
 

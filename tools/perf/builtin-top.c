@@ -191,7 +191,8 @@ static void __zero_source_counters(struct sym_entry *syme)
 	symbol__annotate_zero_histograms(sym);
 }
 
-static void record_precise_ip(struct sym_entry *syme, int counter, u64 ip)
+static void record_precise_ip(struct sym_entry *syme, struct map *map,
+			      int counter, u64 ip)
 {
 	struct annotation *notes;
 	struct symbol *sym;
@@ -205,8 +206,8 @@ static void record_precise_ip(struct sym_entry *syme, int counter, u64 ip)
 	if (pthread_mutex_trylock(&notes->lock))
 		return;
 
-	ip = syme->map->map_ip(syme->map, ip);
-	symbol__inc_addr_samples(sym, syme->map, counter, ip);
+	ip = map->map_ip(map, ip);
+	symbol__inc_addr_samples(sym, map, counter, ip);
 
 	pthread_mutex_unlock(&notes->lock);
 }
@@ -250,7 +251,7 @@ static void __list_insert_active_sym(struct sym_entry *syme)
 	list_add(&syme->node, &top.active_symbols);
 }
 
-static void print_sym_table(struct perf_session *session)
+static void print_sym_table(void)
 {
 	char bf[160];
 	int printed = 0;
@@ -270,10 +271,11 @@ static void print_sym_table(struct perf_session *session)
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
 
-	if (session->hists.stats.total_lost != 0) {
+	if (top.total_lost_warned != top.session->hists.stats.total_lost) {
+		top.total_lost_warned = top.session->hists.stats.total_lost;
 		color_fprintf(stdout, PERF_COLOR_RED, "WARNING:");
 		printf(" LOST %" PRIu64 " events, Check IO/CPU overload\n",
-		       session->hists.stats.total_lost);
+		       top.total_lost_warned);
 	}
 
 	if (top.sym_filter_entry) {
@@ -474,7 +476,7 @@ static int key_mapped(int c)
 	return 0;
 }
 
-static void handle_keypress(struct perf_session *session, int c)
+static void handle_keypress(int c)
 {
 	if (!key_mapped(c)) {
 		struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
@@ -550,7 +552,7 @@ static void handle_keypress(struct perf_session *session, int c)
 		case 'Q':
 			printf("exiting.\n");
 			if (dump_symtab)
-				perf_session__fprintf_dsos(session, stderr);
+				perf_session__fprintf_dsos(top.session, stderr);
 			exit(0);
 		case 's':
 			prompt_symbol(&top.sym_filter_entry, "Enter details symbol");
@@ -602,7 +604,6 @@ static void *display_thread(void *arg __used)
 	struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
 	struct termios tc, save;
 	int delay_msecs, c;
-	struct perf_session *session = (struct perf_session *) arg;
 
 	tcgetattr(0, &save);
 	tc = save;
@@ -617,13 +618,13 @@ repeat:
 	getc(stdin);
 
 	do {
-		print_sym_table(session);
+		print_sym_table();
 	} while (!poll(&stdin_poll, 1, delay_msecs) == 1);
 
 	c = getc(stdin);
 	tcsetattr(0, TCSAFLUSH, &save);
 
-	handle_keypress(session, c);
+	handle_keypress(c);
 	goto repeat;
 
 	return NULL;
@@ -810,7 +811,7 @@ static void perf_event__process_sample(const union perf_event *event,
 		evsel = perf_evlist__id2evsel(top.evlist, sample->id);
 		assert(evsel != NULL);
 		syme->count[evsel->idx]++;
-		record_precise_ip(syme, evsel->idx, ip);
+		record_precise_ip(syme, al.map, evsel->idx, ip);
 		pthread_mutex_lock(&top.active_symbols_lock);
 		if (list_empty(&syme->node) || !syme->node.next) {
 			static bool first = true;
@@ -935,27 +936,27 @@ static int __cmd_top(void)
 	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
 	 * mmap reading, etc is encapsulated in it. Use O_WRONLY for now.
 	 */
-	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false, false, NULL);
-	if (session == NULL)
+	top.session = perf_session__new(NULL, O_WRONLY, false, false, NULL);
+	if (top.session == NULL)
 		return -ENOMEM;
 
 	if (top.target_tid != -1)
 		perf_event__synthesize_thread_map(top.evlist->threads,
-						  perf_event__process, session);
+						  perf_event__process, top.session);
 	else
-		perf_event__synthesize_threads(perf_event__process, session);
+		perf_event__synthesize_threads(perf_event__process, top.session);
 
 	start_counters(top.evlist);
-	session->evlist = top.evlist;
-	perf_session__update_sample_type(session);
+	top.session->evlist = top.evlist;
+	perf_session__update_sample_type(top.session);
 
 	/* Wait for a minimal set of events before starting the snapshot */
 	poll(top.evlist->pollfd, top.evlist->nr_fds, 100);
 
-	perf_session__mmap_read(session);
+	perf_session__mmap_read(top.session);
 
 	if (pthread_create(&thread, NULL, (use_browser > 0 ? display_thread_tui :
-							     display_thread), session)) {
+							     display_thread), NULL)) {
 		printf("Could not create display thread.\n");
 		exit(-1);
 	}
@@ -973,7 +974,7 @@ static int __cmd_top(void)
 	while (1) {
 		u64 hits = top.samples;
 
-		perf_session__mmap_read(session);
+		perf_session__mmap_read(top.session);
 
 		if (hits == top.samples)
 			ret = poll(top.evlist->pollfd, top.evlist->nr_fds, 100);

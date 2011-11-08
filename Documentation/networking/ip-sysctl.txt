@@ -1042,7 +1042,7 @@ conf/interface/*:
 	The functional behaviour for certain settings is different
 	depending on whether local forwarding is enabled or not.
 
-accept_ra - BOOLEAN
+accept_ra - INTEGER
 	Accept Router Advertisements; autoconfigure using them.
 
 	Possible values are:
@@ -1106,7 +1106,7 @@ dad_transmits - INTEGER
 	The amount of Duplicate Address Detection probes to send.
 	Default: 1
 
-forwarding - BOOLEAN
+forwarding - INTEGER
 	Configure interface-specific Host/Router behaviour.
 
 	Note: It is recommended to have the same setting on all

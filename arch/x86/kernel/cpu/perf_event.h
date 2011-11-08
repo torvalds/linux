@@ -131,6 +131,13 @@ struct cpu_hw_events {
 	struct perf_branch_entry	lbr_entries[MAX_LBR_ENTRIES];
 
 	/*
+	 * Intel host/guest exclude bits
+	 */
+	u64				intel_ctrl_guest_mask;
+	u64				intel_ctrl_host_mask;
+	struct perf_guest_switch_msr	guest_switch_msrs[X86_PMC_IDX_MAX];
+
+	/*
 	 * manage shared (per-core, per-cpu) registers
 	 * used on Intel NHM/WSM/SNB
 	 */
@@ -295,6 +302,11 @@ struct x86_pmu {
 	 */
 	struct extra_reg *extra_regs;
 	unsigned int er_flags;
+
+	/*
+	 * Intel host/guest support (KVM)
+	 */
+	struct perf_guest_switch_msr *(*guest_get_msrs)(int *nr);
 };
 
 #define ERF_NO_HT_SHARING	1

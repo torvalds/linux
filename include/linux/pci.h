@@ -621,8 +621,9 @@ struct pci_driver {
 extern void pcie_bus_configure_settings(struct pci_bus *bus, u8 smpss);
 
 enum pcie_bus_config_types {
-	PCIE_BUS_PERFORMANCE,
+	PCIE_BUS_TUNE_OFF,
 	PCIE_BUS_SAFE,
+	PCIE_BUS_PERFORMANCE,
 	PCIE_BUS_PEER2PEER,
 };
 

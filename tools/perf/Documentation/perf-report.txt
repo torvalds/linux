@@ -134,6 +134,9 @@ OPTIONS
 	CPUs are specified with -: 0-2. Default is to report samples on all
 	CPUs.
 
+-M::
+--disassembler-style=:: Set disassembler style for objdump.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1]

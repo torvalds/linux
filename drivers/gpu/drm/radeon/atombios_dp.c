@@ -115,6 +115,7 @@ static int radeon_dp_aux_native_write(struct radeon_connector *radeon_connector,
 	u8 msg[20];
 	int msg_bytes = send_bytes + 4;
 	u8 ack;
+	unsigned retry;
 
 	if (send_bytes > 16)
 		return -1;
@@ -125,20 +126,20 @@ static int radeon_dp_aux_native_write(struct radeon_connector *radeon_connector,
 	msg[3] = (msg_bytes << 4) | (send_bytes - 1);
 	memcpy(&msg[4], send, send_bytes);
 
-	while (1) {
+	for (retry = 0; retry < 4; retry++) {
 		ret = radeon_process_aux_ch(dig_connector->dp_i2c_bus,
 					    msg, msg_bytes, NULL, 0, delay, &ack);
 		if (ret < 0)
 			return ret;
 		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
-			break;
+			return send_bytes;
 		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
 			udelay(400);
 		else
 			return -EIO;
 	}
 
-	return send_bytes;
+	return -EIO;
 }
 
 static int radeon_dp_aux_native_read(struct radeon_connector *radeon_connector,
@@ -149,26 +150,29 @@ static int radeon_dp_aux_native_read(struct radeon_connector *radeon_connector,
 	int msg_bytes = 4;
 	u8 ack;
 	int ret;
+	unsigned retry;
 
 	msg[0] = address;
 	msg[1] = address >> 8;
 	msg[2] = AUX_NATIVE_READ << 4;
 	msg[3] = (msg_bytes << 4) | (recv_bytes - 1);
 
-	while (1) {
+	for (retry = 0; retry < 4; retry++) {
 		ret = radeon_process_aux_ch(dig_connector->dp_i2c_bus,
 					    msg, msg_bytes, recv, recv_bytes, delay, &ack);
-		if (ret == 0)
-			return -EPROTO;
 		if (ret < 0)
 			return ret;
 		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
 			return ret;
 		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
 			udelay(400);
+		else if (ret == 0)
+			return -EPROTO;
 		else
 			return -EIO;
 	}
+
+	return -EIO;
 }
 
 static void radeon_write_dpcd_reg(struct radeon_connector *radeon_connector,
