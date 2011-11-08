@@ -1335,16 +1335,19 @@ static void pairing_complete(struct pending_cmd *cmd, u8 status)
 static void pairing_complete_cb(struct hci_conn *conn, u8 status)
 {
 	struct pending_cmd *cmd;
+	struct hci_dev *hdev = conn->hdev;
 
 	BT_DBG("status %u", status);
 
-	cmd = find_pairing(conn);
-	if (!cmd) {
-		BT_DBG("Unable to find a pending command");
-		return;
-	}
+	hci_dev_lock_bh(hdev);
 
-	pairing_complete(cmd, status);
+	cmd = find_pairing(conn);
+	if (!cmd)
+		BT_DBG("Unable to find a pending command");
+	else
+		pairing_complete(cmd, status);
+
+	hci_dev_unlock_bh(hdev);
 }
 
 static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
@@ -2302,9 +2305,7 @@ int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 		goto failed;
 	}
 
-	hci_dev_lock_bh(hdev);
 	update_eir(hdev);
-	hci_dev_unlock_bh(hdev);
 
 	err = cmd_complete(cmd->sk, hdev->id, MGMT_OP_SET_LOCAL_NAME, &ev,
 								sizeof(ev));

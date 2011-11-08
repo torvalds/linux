@@ -549,8 +549,11 @@ int hci_dev_open(__u16 dev)
 		hci_dev_hold(hdev);
 		set_bit(HCI_UP, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_UP);
-		if (!test_bit(HCI_SETUP, &hdev->flags))
+		if (!test_bit(HCI_SETUP, &hdev->flags)) {
+			hci_dev_lock_bh(hdev);
 			mgmt_powered(hdev, 1);
+			hci_dev_unlock_bh(hdev);
+		}
 	} else {
 		/* Init failed, cleanup */
 		tasklet_kill(&hdev->rx_task);
@@ -642,7 +645,9 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	 * and no tasks are scheduled. */
 	hdev->close(hdev);
 
+	hci_dev_lock_bh(hdev);
 	mgmt_powered(hdev, 0);
+	hci_dev_unlock_bh(hdev);
 
 	/* Clear flags */
 	hdev->flags = 0;
@@ -1561,8 +1566,11 @@ void hci_unregister_dev(struct hci_dev *hdev)
 		kfree_skb(hdev->reassembly[i]);
 
 	if (!test_bit(HCI_INIT, &hdev->flags) &&
-					!test_bit(HCI_SETUP, &hdev->flags))
+					!test_bit(HCI_SETUP, &hdev->flags)) {
+		hci_dev_lock_bh(hdev);
 		mgmt_index_removed(hdev);
+		hci_dev_unlock_bh(hdev);
+	}
 
 	/* mgmt_index_removed should take care of emptying the
 	 * pending list */
