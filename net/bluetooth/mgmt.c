@@ -1671,7 +1671,6 @@ static int block_device(struct sock *sk, u16 index, unsigned char *data,
 								u16 len)
 {
 	struct hci_dev *hdev;
-	struct pending_cmd *cmd;
 	struct mgmt_cp_block_device *cp = (void *) data;
 	int err;
 
@@ -1688,23 +1687,13 @@ static int block_device(struct sock *sk, u16 index, unsigned char *data,
 
 	hci_dev_lock_bh(hdev);
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_BLOCK_DEVICE, index, NULL, 0);
-	if (!cmd) {
-		err = -ENOMEM;
-		goto failed;
-	}
-
 	err = hci_blacklist_add(hdev, &cp->bdaddr);
-
 	if (err < 0)
 		err = cmd_status(sk, index, MGMT_OP_BLOCK_DEVICE, -err);
 	else
 		err = cmd_complete(sk, index, MGMT_OP_BLOCK_DEVICE,
 							NULL, 0);
 
-	mgmt_pending_remove(cmd);
-
-failed:
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
 
@@ -1715,7 +1704,6 @@ static int unblock_device(struct sock *sk, u16 index, unsigned char *data,
 								u16 len)
 {
 	struct hci_dev *hdev;
-	struct pending_cmd *cmd;
 	struct mgmt_cp_unblock_device *cp = (void *) data;
 	int err;
 
@@ -1732,12 +1720,6 @@ static int unblock_device(struct sock *sk, u16 index, unsigned char *data,
 
 	hci_dev_lock_bh(hdev);
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_UNBLOCK_DEVICE, index, NULL, 0);
-	if (!cmd) {
-		err = -ENOMEM;
-		goto failed;
-	}
-
 	err = hci_blacklist_del(hdev, &cp->bdaddr);
 
 	if (err < 0)
@@ -1746,9 +1728,6 @@ static int unblock_device(struct sock *sk, u16 index, unsigned char *data,
 		err = cmd_complete(sk, index, MGMT_OP_UNBLOCK_DEVICE,
 								NULL, 0);
 
-	mgmt_pending_remove(cmd);
-
-failed:
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
 
