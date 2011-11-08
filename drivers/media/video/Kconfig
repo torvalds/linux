@@ -816,6 +816,14 @@ config VIDEO_W9966
 
 endif # V4L_ISA_PARPORT_DRIVERS
 
+menuconfig V4L_PLATFORM_DRIVERS
+	bool "V4L platform devices"
+	default n
+	---help---
+	  Say Y here to enable support for platform-specific V4L drivers.
+
+if V4L_PLATFORM_DRIVERS
+
 source "drivers/media/video/marvell-ccic/Kconfig"
 
 config VIDEO_VIA_CAMERA
@@ -1110,6 +1118,7 @@ config VIDEO_S5P_MIPI_CSIS
 
 source "drivers/media/video/s5p-tv/Kconfig"
 
+endif # V4L_PLATFORM_DRIVERS
 endif # VIDEO_CAPTURE_DRIVERS
 
 menuconfig V4L_MEM2MEM_DRIVERS
