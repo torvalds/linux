@@ -5,6 +5,7 @@
  * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
  */
 
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -877,9 +878,10 @@ static int __devinit stmpe_devices_init(struct stmpe *stmpe)
 static int stmpe_suspend(struct device *dev)
 {
 	struct i2c_client *i2c = to_i2c_client(dev);
+	struct stmpe *stmpe = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(&i2c->dev))
-		enable_irq_wake(i2c->irq);
+		enable_irq_wake(stmpe->irq);
 
 	return 0;
 }
@@ -887,9 +889,10 @@ static int stmpe_suspend(struct device *dev)
 static int stmpe_resume(struct device *dev)
 {
 	struct i2c_client *i2c = to_i2c_client(dev);
+	struct stmpe *stmpe = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(&i2c->dev))
-		disable_irq_wake(i2c->irq);
+		disable_irq_wake(stmpe->irq);
 
 	return 0;
 }
@@ -925,15 +928,28 @@ static int __devinit stmpe_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, stmpe);
 
+	if (pdata->irq_over_gpio) {
+		ret = gpio_request_one(pdata->irq_gpio, GPIOF_DIR_IN, "stmpe");
+		if (ret) {
+			dev_err(stmpe->dev, "failed to request IRQ GPIO: %d\n",
+					ret);
+			goto out_free;
+		}
+
+		stmpe->irq = gpio_to_irq(pdata->irq_gpio);
+	} else {
+		stmpe->irq = i2c->irq;
+	}
+
 	ret = stmpe_chip_init(stmpe);
 	if (ret)
-		goto out_free;
+		goto free_gpio;
 
 	ret = stmpe_irq_init(stmpe);
 	if (ret)
-		goto out_free;
+		goto free_gpio;
 
-	ret = request_threaded_irq(stmpe->i2c->irq, NULL, stmpe_irq,
+	ret = request_threaded_irq(stmpe->irq, NULL, stmpe_irq,
 				   pdata->irq_trigger | IRQF_ONESHOT,
 				   "stmpe", stmpe);
 	if (ret) {
@@ -951,9 +967,12 @@ static int __devinit stmpe_probe(struct i2c_client *i2c,
 
 out_removedevs:
 	mfd_remove_devices(stmpe->dev);
-	free_irq(stmpe->i2c->irq, stmpe);
+	free_irq(stmpe->irq, stmpe);
 out_removeirq:
 	stmpe_irq_remove(stmpe);
+free_gpio:
+	if (pdata->irq_over_gpio)
+		gpio_free(pdata->irq_gpio);
 out_free:
 	kfree(stmpe);
 	return ret;
@@ -965,8 +984,11 @@ static int __devexit stmpe_remove(struct i2c_client *client)
 
 	mfd_remove_devices(stmpe->dev);
 
-	free_irq(stmpe->i2c->irq, stmpe);
+	free_irq(stmpe->irq, stmpe);
 	stmpe_irq_remove(stmpe);
+
+	if (stmpe->pdata->irq_over_gpio)
+		gpio_free(stmpe->pdata->irq_gpio);
 
 	kfree(stmpe);
 
