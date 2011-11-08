@@ -1,0 +1,75 @@
+ALPS Touchpad Protocol
+----------------------
+
+Introduction
+------------
+
+Currently the ALPS touchpad driver supports two protocol versions in use by
+ALPS touchpads, the "old" and "new" protocol versions. Fundamentally these
+differ only in the format of their event packets (in reality many features may
+be found on new protocol devices that aren't found on the old protocol
+devices, but these are handled transparently as feature differences rather
+than protocol differences).
+
+Detection
+---------
+
+All ALPS touchpads should respond to the "E6 report" command sequence:
+E8-E6-E6-E6-E9. An ALPS touchpad should respond with either 00-00-0A or
+00-00-64.
+
+If the E6 report is successful, the touchpad model is identified using the "E7
+report" sequence: E8-E7-E7-E7-E9. The response is the model signature and is
+matched against known models in the alps_model_data_array.
+
+Packet Format
+-------------
+
+In the following tables, the following notation us used.
+
+ CAPITALS = stick, miniscules = touchpad
+
+?'s can have different meanings on different models, such as wheel rotation,
+extra buttons, stick buttons on a dualpoint, etc.
+
+PS/2 packet format
+------------------
+
+ byte 0:  0    0 YSGN XSGN    1    M    R    L
+ byte 1: X7   X6   X5   X4   X3   X2   X1   X0
+ byte 2: Y7   Y6   Y5   Y4   Y3   Y2   Y1   Y0
+
+Note that the device never signals overflow condition.
+
+ALPS Absolute Mode - Old Format
+-------------------------------
+
+ byte 0:  1    0    0    0    1   x9   x8   x7
+ byte 1:  0   x6   x5   x4   x3   x2   x1   x0
+ byte 2:  0    ?    ?    l    r    ?  fin  ges
+ byte 3:  0    ?    ?    ?    ?   y9   y8   y7
+ byte 4:  0   y6   y5   y4   y3   y2   y1   y0
+ byte 5:  0   z6   z5   z4   z3   z2   z1   z0
+
+ALPS Absolute Mode - New Format
+-------------------------------
+
+ byte 0:  1    ?    ?    ?    1    ?    ?    ?
+ byte 1:  0   x6   x5   x4   x3   x2   x1   x0
+ byte 2:  0  x10   x9   x8   x7    ?  fin  ges
+ byte 3:  0   y9   y8   y7    1    M    R    L
+ byte 4:  0   y6   y5   y4   y3   y2   y1   y0
+ byte 5:  0   z6   z5   z4   z3   z2   z1   z0
+
+Dualpoint device -- interleaved packet format
+---------------------------------------------
+
+ byte 0:    1    1    0    0    1    1    1    1
+ byte 1:    0   x6   x5   x4   x3   x2   x1   x0
+ byte 2:    0  x10   x9   x8   x7    0  fin  ges
+ byte 3:    0    0 YSGN XSGN    1    1    1    1
+ byte 4:   X7   X6   X5   X4   X3   X2   X1   X0
+ byte 5:   Y7   Y6   Y5   Y4   Y3   Y2   Y1   Y0
+ byte 6:    0   y9   y8   y7    1    m    r    l
+ byte 7:    0   y6   y5   y4   y3   y2   y1   y0
+ byte 8:    0   z6   z5   z4   z3   z2   z1   z0

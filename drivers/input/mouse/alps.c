@@ -67,42 +67,7 @@ static const struct alps_model_info alps_model_data[] = {
  * isn't valid per PS/2 spec.
  */
 
-/*
- * PS/2 packet format
- *
- * byte 0:  0    0 YSGN XSGN    1    M    R    L
- * byte 1: X7   X6   X5   X4   X3   X2   X1   X0
- * byte 2: Y7   Y6   Y5   Y4   Y3   Y2   Y1   Y0
- *
- * Note that the device never signals overflow condition.
- *
- * ALPS absolute Mode - new format
- *
- * byte 0:  1    ?    ?    ?    1    ?    ?    ?
- * byte 1:  0   x6   x5   x4   x3   x2   x1   x0
- * byte 2:  0  x10   x9   x8   x7    ?  fin  ges
- * byte 3:  0   y9   y8   y7    1    M    R    L
- * byte 4:  0   y6   y5   y4   y3   y2   y1   y0
- * byte 5:  0   z6   z5   z4   z3   z2   z1   z0
- *
- * Dualpoint device -- interleaved packet format
- *
- * byte 0:    1    1    0    0    1    1    1    1
- * byte 1:    0   x6   x5   x4   x3   x2   x1   x0
- * byte 2:    0  x10   x9   x8   x7    0  fin  ges
- * byte 3:    0    0 YSGN XSGN    1    1    1    1
- * byte 4:   X7   X6   X5   X4   X3   X2   X1   X0
- * byte 5:   Y7   Y6   Y5   Y4   Y3   Y2   Y1   Y0
- * byte 6:    0   y9   y8   y7    1    m    r    l
- * byte 7:    0   y6   y5   y4   y3   y2   y1   y0
- * byte 8:    0   z6   z5   z4   z3   z2   z1   z0
- *
- * CAPITALS = stick, miniscules = touchpad
- *
- * ?'s can have different meanings on different models,
- * such as wheel rotation, extra buttons, stick buttons
- * on a dualpoint, etc.
- */
+/* Packet formats are described in Documentation/input/alps.txt */
 
 static bool alps_is_valid_first_byte(const struct alps_model_info *model,
 				     unsigned char data)
