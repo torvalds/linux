@@ -1388,17 +1388,14 @@ static int storvsc_probe(struct hv_device *device,
 						host_dev->request_pool);
 
 	if (!host_dev->request_mempool) {
-		kmem_cache_destroy(host_dev->request_pool);
-		scsi_host_put(host);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_out0;
 	}
 
 	stor_device = kzalloc(sizeof(struct storvsc_device), GFP_KERNEL);
 	if (!stor_device) {
-		mempool_destroy(host_dev->request_mempool);
-		kmem_cache_destroy(host_dev->request_pool);
-		scsi_host_put(host);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_out1;
 	}
 
 	stor_device->destroy = false;
@@ -1409,13 +1406,8 @@ static int storvsc_probe(struct hv_device *device,
 
 	stor_device->port_number = host->host_no;
 	ret = storvsc_connect_to_vsp(device, storvsc_ringbuffer_size);
-	if (ret) {
-		mempool_destroy(host_dev->request_mempool);
-		kmem_cache_destroy(host_dev->request_pool);
-		scsi_host_put(host);
-		kfree(stor_device);
-		return ret;
-	}
+	if (ret)
+		goto err_out2;
 
 	if (dev_is_ide)
 		storvsc_get_ide_info(device, &target, &path);
@@ -1435,7 +1427,7 @@ static int storvsc_probe(struct hv_device *device,
 	/* Register the HBA and start the scsi bus scan */
 	ret = scsi_add_host(host, &device->device);
 	if (ret != 0)
-		goto err_out;
+		goto err_out3;
 
 	if (!dev_is_ide) {
 		scsi_scan_host(host);
@@ -1444,16 +1436,30 @@ static int storvsc_probe(struct hv_device *device,
 	ret = scsi_add_device(host, 0, target, 0);
 	if (ret) {
 		scsi_remove_host(host);
-		goto err_out;
+		goto err_out3;
 	}
 	return 0;
 
-err_out:
+err_out3:
+	/*
+	 * Once we have connected with the host, we would need to
+	 * to invoke storvsc_dev_remove() to rollback this state and
+	 * this call also frees up the stor_device; hence the jump around
+	 * err_out2 label.
+	 */
 	storvsc_dev_remove(device);
+	goto err_out1;
+
+err_out2:
+	kfree(stor_device);
+
+err_out1:
 	mempool_destroy(host_dev->request_mempool);
+
+err_out0:
 	kmem_cache_destroy(host_dev->request_pool);
 	scsi_host_put(host);
-	return -ENODEV;
+	return ret;
 }
 
 /* The one and only one */
