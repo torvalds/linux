@@ -1535,11 +1535,6 @@ done:
 	return 0;
 }
 
-static void mwifiex_free_bss_priv(struct cfg80211_bss *bss)
-{
-	kfree(bss->priv);
-}
-
 /*
  * This function handles the command response of scan.
  *
@@ -1765,7 +1760,6 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 					      cap_info_bitmap, beacon_period,
 					      ie_buf, ie_len, rssi, GFP_KERNEL);
 				*(u8 *)bss->priv = band;
-				bss->free_priv = mwifiex_free_bss_priv;
 
 				if (priv->media_connected && !memcmp(bssid,
 					priv->curr_bss_params.bss_descriptor
