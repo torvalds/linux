@@ -389,9 +389,11 @@ EXPORT_SYMBOL_GPL(regmap_write);
 int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len)
 {
+	size_t val_count = val_len / map->format.val_bytes;
 	int ret;
 
-	WARN_ON(map->cache_type != REGCACHE_NONE);
+	WARN_ON(!regmap_volatile_range(map, reg, val_count) &&
+		map->cache_type != REGCACHE_NONE);
 
 	mutex_lock(&map->lock);
 
