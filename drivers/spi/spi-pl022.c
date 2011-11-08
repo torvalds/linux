@@ -1516,7 +1516,13 @@ static void pump_messages(struct work_struct *work)
 			/* nothing more to do - disable spi/ssp and power off */
 			writew((readw(SSP_CR1(pl022->virtbase)) &
 				(~SSP_CR1_MASK_SSE)), SSP_CR1(pl022->virtbase));
-			pm_runtime_put(&pl022->adev->dev);
+
+			if (pl022->master_info->autosuspend_delay > 0) {
+				pm_runtime_mark_last_busy(&pl022->adev->dev);
+				pm_runtime_put_autosuspend(&pl022->adev->dev);
+			} else {
+				pm_runtime_put(&pl022->adev->dev);
+			}
 		}
 		pl022->busy = false;
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
@@ -2247,7 +2253,17 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	dev_dbg(dev, "probe succeeded\n");
 
 	/* let runtime pm put suspend */
-	pm_runtime_put(dev);
+	if (platform_info->autosuspend_delay > 0) {
+		dev_info(&adev->dev,
+			"will use autosuspend for runtime pm, delay %dms\n",
+			platform_info->autosuspend_delay);
+		pm_runtime_set_autosuspend_delay(dev,
+			platform_info->autosuspend_delay);
+		pm_runtime_use_autosuspend(dev);
+		pm_runtime_put_autosuspend(dev);
+	} else {
+		pm_runtime_put(dev);
+	}
 	return 0;
 
  err_spi_register:
