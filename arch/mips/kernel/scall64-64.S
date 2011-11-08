@@ -430,4 +430,6 @@ sys_call_table:
 	PTR	sys_syncfs
 	PTR	sys_sendmmsg
 	PTR	sys_setns
+	PTR	sys_process_vm_readv
+	PTR	sys_process_vm_writev		/* 5305 */
 	.size	sys_call_table,.-sys_call_table
