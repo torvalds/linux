@@ -47,8 +47,6 @@ static void __iomem *event_base;
 static irqreturn_t msm_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = *(struct clock_event_device **)dev_id;
-	if (evt->event_handler == NULL)
-		return IRQ_HANDLED;
 	/* Stop the timer tick */
 	if (evt->mode == CLOCK_EVT_MODE_ONESHOT) {
 		u32 ctrl = readl_relaxed(event_base + TIMER_ENABLE);
@@ -174,6 +172,7 @@ static void __init msm_timer_init(void)
 	ce->cpumask = cpumask_of(0);
 
 	ce->irq = INT_GP_TIMER_EXP;
+	clockevents_register_device(ce);
 	if (cpu_is_msm8x60() || cpu_is_msm8960()) {
 		msm_evt.percpu_evt = alloc_percpu(struct clock_event_device *);
 		if (!msm_evt.percpu_evt) {
@@ -194,7 +193,6 @@ static void __init msm_timer_init(void)
 
 	if (res)
 		pr_err("request_irq failed for %s\n", ce->name);
-	clockevents_register_device(ce);
 err:
 	writel_relaxed(TIMER_ENABLE_EN, source_base + TIMER_ENABLE);
 	res = clocksource_register_hz(cs, dgt_hz);
@@ -224,8 +222,8 @@ int __cpuinit local_timer_setup(struct clock_event_device *evt)
 	evt->min_delta_ns = clockevent_delta2ns(4, evt);
 
 	*__this_cpu_ptr(msm_evt.percpu_evt) = evt;
-	enable_percpu_irq(evt->irq, 0);
 	clockevents_register_device(evt);
+	enable_percpu_irq(evt->irq, 0);
 	return 0;
 }
 
