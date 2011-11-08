@@ -67,7 +67,7 @@ struct icmp_mib {
 
 #define ICMPMSG_MIB_MAX	__ICMPMSG_MIB_MAX
 struct icmpmsg_mib {
-	unsigned long	mibs[ICMPMSG_MIB_MAX];
+	atomic_long_t	mibs[ICMPMSG_MIB_MAX];
 };
 
 /* ICMP6 (IPv6-ICMP) */

@@ -288,7 +288,7 @@ static void icmpmsg_put(struct seq_file *seq)
 
 	count = 0;
 	for (i = 0; i < ICMPMSG_MIB_MAX; i++) {
-		val = snmp_fold_field((void __percpu **) net->mib.icmpmsg_statistics, i);
+		val = atomic_long_read(&net->mib.icmpmsg_statistics->mibs[i]);
 		if (val) {
 			type[count] = i;
 			vals[count++] = val;
@@ -307,6 +307,7 @@ static void icmp_put(struct seq_file *seq)
 {
 	int i;
 	struct net *net = seq->private;
+	atomic_long_t *ptr = net->mib.icmpmsg_statistics->mibs;
 
 	seq_puts(seq, "\nIcmp: InMsgs InErrors");
 	for (i=0; icmpmibmap[i].name != NULL; i++)
@@ -319,15 +320,13 @@ static void icmp_put(struct seq_file *seq)
 		snmp_fold_field((void __percpu **) net->mib.icmp_statistics, ICMP_MIB_INERRORS));
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			snmp_fold_field((void __percpu **) net->mib.icmpmsg_statistics,
-				icmpmibmap[i].index));
+			   atomic_long_read(ptr + icmpmibmap[i].index));
 	seq_printf(seq, " %lu %lu",
 		snmp_fold_field((void __percpu **) net->mib.icmp_statistics, ICMP_MIB_OUTMSGS),
 		snmp_fold_field((void __percpu **) net->mib.icmp_statistics, ICMP_MIB_OUTERRORS));
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			snmp_fold_field((void __percpu **) net->mib.icmpmsg_statistics,
-				icmpmibmap[i].index | 0x100));
+			   atomic_long_read(ptr + (icmpmibmap[i].index | 0x100)));
 }
 
 /*
