@@ -448,6 +448,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_subvol:
+			kfree(*subvol_name);
 			*subvol_name = match_strdup(&args[0]);
 			break;
 		case Opt_subvolid:
