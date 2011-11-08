@@ -93,8 +93,6 @@
 #define GAFR(x)		GPIO_REG(0x54 + (((x) & 0x70) >> 2))
 
 
-#define NR_BUILTIN_GPIO		PXA_GPIO_IRQ_NUM
-
 #define gpio_to_bank(gpio)	((gpio) >> 5)
 
 #ifdef CONFIG_CPU_PXA26x

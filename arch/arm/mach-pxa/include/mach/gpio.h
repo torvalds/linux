@@ -28,5 +28,4 @@
 /* The defines for the driver are needed for the accelerated accessors */
 #include "gpio-pxa.h"
 
-#include <plat/gpio.h>
 #endif

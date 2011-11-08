@@ -88,7 +88,7 @@
 #define IRQ_U2P		PXA_IRQ(93)	/* USB PHY D+/D- Lines (PXA935) */
 
 #define PXA_GPIO_IRQ_BASE	PXA_IRQ(96)
-#define PXA_GPIO_IRQ_NUM	(192)
+#define PXA_NR_BUILTIN_GPIO	(192)
 #define PXA_GPIO_TO_IRQ(x)	(PXA_GPIO_IRQ_BASE + (x))
 
 /*
@@ -98,7 +98,7 @@
  * By default, no board IRQ is reserved. It should be finished in
  * custom board since sparse IRQ is already enabled.
  */
-#define IRQ_BOARD_START		(PXA_GPIO_IRQ_BASE + PXA_GPIO_IRQ_NUM)
+#define IRQ_BOARD_START		(PXA_GPIO_IRQ_BASE + PXA_NR_BUILTIN_GPIO)
 
 #define NR_IRQS			(IRQ_BOARD_START)
 

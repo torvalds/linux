@@ -10,8 +10,6 @@
 #define BANK_OFF(n)	(((n) < 3) ? (n) << 2 : 0x100 + (((n) - 3) << 2))
 #define GPIO_REG(x)	(GPIO_REGS_VIRT + (x))
 
-#define NR_BUILTIN_GPIO		IRQ_GPIO_NUM
-
 #define gpio_to_bank(gpio)	((gpio) >> 5)
 
 /* NOTE: these macros are defined here to make optimization of

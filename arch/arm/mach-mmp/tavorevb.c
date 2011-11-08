@@ -19,6 +19,7 @@
 #include <mach/addr-map.h>
 #include <mach/mfp-pxa910.h>
 #include <mach/pxa910.h>
+#include <mach/irqs.h>
 
 #include "common.h"
 
