@@ -845,10 +845,9 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 
 			ieee->wps_ie_len = (len < MAX_WZC_IE_LEN) ? (len) :
 					   (MAX_WZC_IE_LEN);
-			buf = kmalloc(ieee->wps_ie_len, GFP_KERNEL);
+			buf = kmemdup(ie, ieee->wps_ie_len, GFP_KERNEL);
 			if (buf == NULL)
 				return -ENOMEM;
-			memcpy(buf, ie, ieee->wps_ie_len);
 			ieee->wps_ie = buf;
 			return 0;
 		}
@@ -859,10 +858,9 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 	if (len) {
 		if (len != ie[1]+2)
 			return -EINVAL;
-		buf = kmalloc(len, GFP_KERNEL);
+		buf = kmemdup(ie, len, GFP_KERNEL);
 		if (buf == NULL)
 			return -ENOMEM;
-		memcpy(buf, ie, len);
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = len;
