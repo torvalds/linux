@@ -283,7 +283,7 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 		}
 	}
 
-	DRM_ERROR("aux i2c too many retries, giving up\n");
+	DRM_DEBUG_KMS("aux i2c too many retries, giving up\n");
 	return -EREMOTEIO;
 }
 
