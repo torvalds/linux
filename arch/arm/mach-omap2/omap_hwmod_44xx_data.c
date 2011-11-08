@@ -30,6 +30,7 @@
 #include <plat/mmc.h>
 #include <plat/i2c.h>
 #include <plat/dmtimer.h>
+#include <plat/common.h>
 
 #include "omap_hwmod_common_data.h"
 
@@ -1187,6 +1188,7 @@ static struct omap_hwmod_class_sysconfig omap44xx_dss_sysc = {
 static struct omap_hwmod_class omap44xx_dss_hwmod_class = {
 	.name	= "dss",
 	.sysc	= &omap44xx_dss_sysc,
+	.reset	= omap_dss_reset,
 };
 
 /* dss */
