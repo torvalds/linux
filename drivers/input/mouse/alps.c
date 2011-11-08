@@ -308,7 +308,7 @@ static void alps_flush_packet(unsigned long data)
 
 	serio_pause_rx(psmouse->ps2dev.serio);
 
-	if (psmouse->pktcnt == 6) {
+	if (psmouse->pktcnt == psmouse->pktsize) {
 
 		/*
 		 * We did not any more data in reasonable amount of time.
@@ -359,8 +359,8 @@ static psmouse_ret_t alps_process_byte(struct psmouse *psmouse)
 		return PSMOUSE_BAD_DATA;
 	}
 
-	/* Bytes 2 - 6 should have 0 in the highest bit */
-	if (psmouse->pktcnt >= 2 && psmouse->pktcnt <= 6 &&
+	/* Bytes 2 - pktsize should have 0 in the highest bit */
+	if (psmouse->pktcnt >= 2 && psmouse->pktcnt <= psmouse->pktsize &&
 	    (psmouse->packet[psmouse->pktcnt - 1] & 0x80)) {
 		psmouse_dbg(psmouse, "refusing packet[%i] = %x\n",
 			    psmouse->pktcnt - 1,
@@ -368,7 +368,7 @@ static psmouse_ret_t alps_process_byte(struct psmouse *psmouse)
 		return PSMOUSE_BAD_DATA;
 	}
 
-	if (psmouse->pktcnt == 6) {
+	if (psmouse->pktcnt == psmouse->pktsize) {
 		alps_process_packet(psmouse);
 		return PSMOUSE_FULL_PACKET;
 	}
@@ -529,7 +529,7 @@ static int alps_tap_mode(struct psmouse *psmouse, int enable)
 static int alps_poll(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
-	unsigned char buf[6];
+	unsigned char buf[sizeof(psmouse->packet)];
 	bool poll_failed;
 
 	if (priv->i->flags & ALPS_PASS)
