@@ -1121,9 +1121,6 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 		return 0;
 	}
 
-	IWL_DEBUG_TX_REPLY(trans, "reclaim: [%d, %d, %d]\n", txq_id,
-			   q->read_ptr, index);
-
 	if (WARN_ON(!skb_queue_empty(skbs)))
 		return 0;
 
