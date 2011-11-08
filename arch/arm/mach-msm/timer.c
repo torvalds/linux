@@ -93,7 +93,6 @@ static void msm_timer_set_mode(enum clock_event_mode mode,
 static struct clock_event_device msm_clockevent = {
 	.name		= "gp_timer",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
 	.rating		= 200,
 	.set_next_event	= msm_timer_set_next_event,
 	.set_mode	= msm_timer_set_mode,
@@ -161,18 +160,10 @@ static void __init msm_timer_init(void)
 	writel_relaxed(0, event_base + TIMER_ENABLE);
 	writel_relaxed(0, event_base + TIMER_CLEAR);
 	writel_relaxed(~0, event_base + TIMER_MATCH_VAL);
-	ce->mult = div_sc(GPT_HZ, NSEC_PER_SEC, ce->shift);
-	/*
-	 * allow at least 10 seconds to notice that the timer
-	 * wrapped
-	 */
-	ce->max_delta_ns = clockevent_delta2ns(0xf0000000, ce);
-	/* 4 gets rounded down to 3 */
-	ce->min_delta_ns = clockevent_delta2ns(4, ce);
 	ce->cpumask = cpumask_of(0);
 
 	ce->irq = INT_GP_TIMER_EXP;
-	clockevents_register_device(ce);
+	clockevents_config_and_register(ce, GPT_HZ, 4, 0xffffffff);
 	if (cpu_is_msm8x60() || cpu_is_msm8960()) {
 		msm_evt.percpu_evt = alloc_percpu(struct clock_event_device *);
 		if (!msm_evt.percpu_evt) {
