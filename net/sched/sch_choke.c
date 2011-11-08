@@ -152,15 +152,14 @@ static bool choke_match_flow(struct sk_buff *skb1,
 {
 	int off1, off2, poff;
 	const u32 *ports1, *ports2;
+	u32 _ports1, _ports2;
 	u8 ip_proto;
 	__u32 hash1;
 
 	if (skb1->protocol != skb2->protocol)
 		return false;
 
-	/* Use hash value as quick check
-	 * Assumes that __skb_get_rxhash makes IP header and ports linear
-	 */
+	/* Use rxhash value as quick check */
 	hash1 = skb_get_rxhash(skb1);
 	if (!hash1 || hash1 != skb_get_rxhash(skb2))
 		return false;
@@ -172,10 +171,12 @@ static bool choke_match_flow(struct sk_buff *skb1,
 	switch (skb1->protocol) {
 	case __constant_htons(ETH_P_IP): {
 		const struct iphdr *ip1, *ip2;
+		struct iphdr _ip1, _ip2;
 
-		ip1 = (const struct iphdr *) (skb1->data + off1);
-		ip2 = (const struct iphdr *) (skb2->data + off2);
-
+		ip1 = skb_header_pointer(skb1, off1, sizeof(_ip1), &_ip1);
+		ip2 = skb_header_pointer(skb2, off2, sizeof(_ip2), &_ip2);
+		if (!ip1 || !ip2)
+			return false;
 		ip_proto = ip1->protocol;
 		if (ip_proto != ip2->protocol ||
 		    ip1->saddr != ip2->saddr || ip1->daddr != ip2->daddr)
@@ -190,9 +191,12 @@ static bool choke_match_flow(struct sk_buff *skb1,
 
 	case __constant_htons(ETH_P_IPV6): {
 		const struct ipv6hdr *ip1, *ip2;
+		struct ipv6hdr _ip1, _ip2;
 
-		ip1 = (const struct ipv6hdr *) (skb1->data + off1);
-		ip2 = (const struct ipv6hdr *) (skb2->data + off2);
+		ip1 = skb_header_pointer(skb1, off1, sizeof(_ip1), &_ip1);
+		ip2 = skb_header_pointer(skb2, off2, sizeof(_ip2), &_ip2);
+		if (!ip1 || !ip2)
+			return false;
 
 		ip_proto = ip1->nexthdr;
 		if (ip_proto != ip2->nexthdr ||
@@ -214,8 +218,11 @@ static bool choke_match_flow(struct sk_buff *skb1,
 	off1 += poff;
 	off2 += poff;
 
-	ports1 = (__force u32 *)(skb1->data + off1);
-	ports2 = (__force u32 *)(skb2->data + off2);
+	ports1 = skb_header_pointer(skb1, off1, sizeof(_ports1), &_ports1);
+	ports2 = skb_header_pointer(skb2, off2, sizeof(_ports2), &_ports2);
+	if (!ports1 || !ports2)
+		return false;
+
 	return *ports1 == *ports2;
 }
 
