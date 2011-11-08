@@ -1630,14 +1630,14 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	card->mpa_tx.pkt_cnt = 0;
 	card->mpa_tx.start_port = 0;
 
-	card->mpa_tx.enabled = 0;
+	card->mpa_tx.enabled = 1;
 	card->mpa_tx.pkt_aggr_limit = SDIO_MP_AGGR_DEF_PKT_LIMIT;
 
 	card->mpa_rx.buf_len = 0;
 	card->mpa_rx.pkt_cnt = 0;
 	card->mpa_rx.start_port = 0;
 
-	card->mpa_rx.enabled = 0;
+	card->mpa_rx.enabled = 1;
 	card->mpa_rx.pkt_aggr_limit = SDIO_MP_AGGR_DEF_PKT_LIMIT;
 
 	/* Allocate buffers for SDIO MP-A */
