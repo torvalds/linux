@@ -556,8 +556,6 @@ static int tty_ldisc_wait_idle(struct tty_struct *tty)
 	int ret;
 	ret = wait_event_timeout(tty_ldisc_idle,
 			atomic_read(&tty->ldisc->users) == 1, 5 * HZ);
-	if (ret < 0)
-		return ret;
 	return ret > 0 ? 0 : -EBUSY;
 }
 
