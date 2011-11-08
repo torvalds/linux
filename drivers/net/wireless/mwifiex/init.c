@@ -187,8 +187,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	struct mwifiex_opt_sleep_confirm *sleep_cfm_buf = NULL;
 
 	skb_put(adapter->sleep_cfm, sizeof(struct mwifiex_opt_sleep_confirm));
-	sleep_cfm_buf = (struct mwifiex_opt_sleep_confirm *)
-						(adapter->sleep_cfm->data);
 
 	adapter->cmd_sent = false;
 
@@ -254,6 +252,8 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	mwifiex_wmm_init(adapter);
 
 	if (adapter->sleep_cfm) {
+		sleep_cfm_buf = (struct mwifiex_opt_sleep_confirm *)
+						adapter->sleep_cfm->data;
 		memset(sleep_cfm_buf, 0, adapter->sleep_cfm->len);
 		sleep_cfm_buf->command =
 				cpu_to_le16(HostCmd_CMD_802_11_PS_MODE_ENH);
