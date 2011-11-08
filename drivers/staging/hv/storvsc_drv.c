@@ -304,6 +304,30 @@ struct storvsc_cmd_request {
 	struct hv_storvsc_request request;
 };
 
+struct storvsc_scan_work {
+	struct work_struct work;
+	struct Scsi_Host *host;
+	uint lun;
+};
+
+static void storvsc_bus_scan(struct work_struct *work)
+{
+	struct storvsc_scan_work *wrk;
+	int id, order_id;
+
+	wrk = container_of(work, struct storvsc_scan_work, work);
+	for (id = 0; id < wrk->host->max_id; ++id) {
+		if (wrk->host->reverse_ordering)
+			order_id = wrk->host->max_id - id - 1;
+		else
+			order_id = id;
+
+		scsi_scan_target(&wrk->host->shost_gendev, 0,
+				order_id, SCAN_WILD_CARD, 1);
+	}
+	kfree(wrk);
+}
+
 static inline struct storvsc_device *get_out_stor_device(
 					struct hv_device *device)
 {
@@ -551,11 +575,25 @@ static void storvsc_on_receive(struct hv_device *device,
 			     struct vstor_packet *vstor_packet,
 			     struct hv_storvsc_request *request)
 {
+	struct storvsc_scan_work *work;
+	struct storvsc_device *stor_device;
+
 	switch (vstor_packet->operation) {
 	case VSTOR_OPERATION_COMPLETE_IO:
 		storvsc_on_io_completion(device, vstor_packet, request);
 		break;
+
 	case VSTOR_OPERATION_REMOVE_DEVICE:
+	case VSTOR_OPERATION_ENUMERATE_BUS:
+		stor_device = get_in_stor_device(device);
+		work = kmalloc(sizeof(struct storvsc_scan_work), GFP_ATOMIC);
+		if (!work)
+			return;
+
+		INIT_WORK(&work->work, storvsc_bus_scan);
+		work->host = stor_device->host;
+		schedule_work(&work->work);
+		break;
 
 	default:
 		break;
