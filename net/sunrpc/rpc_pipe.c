@@ -554,7 +554,6 @@ static int __rpc_mkpipe(struct inode *dir, struct dentry *dentry,
 	if (err)
 		return err;
 	rpci = RPC_I(dentry->d_inode);
-	rpci->nkern_readwriters = 1;
 	rpci->private = private;
 	rpci->flags = flags;
 	rpci->ops = ops;
@@ -587,32 +586,9 @@ static int __rpc_unlink(struct inode *dir, struct dentry *dentry)
 static int __rpc_rmpipe(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
-	struct rpc_inode *rpci = RPC_I(inode);
 
-	rpci->nkern_readwriters--;
-	if (rpci->nkern_readwriters != 0)
-		return 0;
 	rpc_close_pipes(inode);
 	return __rpc_unlink(dir, dentry);
-}
-
-static struct dentry *__rpc_lookup_create(struct dentry *parent,
-					  struct qstr *name)
-{
-	struct dentry *dentry;
-
-	dentry = d_lookup(parent, name);
-	if (!dentry) {
-		dentry = d_alloc(parent, name);
-		if (!dentry) {
-			dentry = ERR_PTR(-ENOMEM);
-			goto out_err;
-		}
-	}
-	if (!dentry->d_inode)
-		d_set_d_op(dentry, &rpc_dentry_operations);
-out_err:
-	return dentry;
 }
 
 static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
@@ -620,11 +596,16 @@ static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
 {
 	struct dentry *dentry;
 
-	dentry = __rpc_lookup_create(parent, name);
-	if (IS_ERR(dentry))
+	dentry = d_lookup(parent, name);
+	if (!dentry) {
+		dentry = d_alloc(parent, name);
+		if (!dentry)
+			return ERR_PTR(-ENOMEM);
+	}
+	if (dentry->d_inode == NULL) {
+		d_set_d_op(dentry, &rpc_dentry_operations);
 		return dentry;
-	if (dentry->d_inode == NULL)
-		return dentry;
+	}
 	dput(dentry);
 	return ERR_PTR(-EEXIST);
 }
@@ -812,22 +793,9 @@ struct dentry *rpc_mkpipe(struct dentry *parent, const char *name,
 	q.hash = full_name_hash(q.name, q.len),
 
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	dentry = __rpc_lookup_create(parent, &q);
+	dentry = __rpc_lookup_create_exclusive(parent, &q);
 	if (IS_ERR(dentry))
 		goto out;
-	if (dentry->d_inode) {
-		struct rpc_inode *rpci = RPC_I(dentry->d_inode);
-		if (rpci->private != private ||
-				rpci->ops != ops ||
-				rpci->flags != flags) {
-			dput (dentry);
-			err = -EBUSY;
-			goto out_err;
-		}
-		rpci->nkern_readwriters++;
-		goto out;
-	}
-
 	err = __rpc_mkpipe(dir, dentry, umode, &rpc_pipe_fops,
 			   private, ops, flags);
 	if (err)
