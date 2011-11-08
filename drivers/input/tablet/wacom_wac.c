@@ -799,6 +799,9 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 	unsigned char *data = wacom->data;
 	int i;
 
+	if (data[0] != 0x02)
+	    return 0;
+
 	for (i = 0; i < 2; i++) {
 		int p = data[9 * i + 2];
 		bool touch = p && !wacom->shared->stylus_in_proximity;
@@ -875,6 +878,9 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 	int count = data[1] & 0x03;
 	int i;
 
+	if (data[0] != 0x02)
+	    return 0;
+
 	/* data has up to 7 fixed sized 8-byte messages starting at data[2] */
 	for (i = 0; i < count; i++) {
 		int offset = (8 * i) + 2;
@@ -899,6 +905,9 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
 	int prox = 0, x = 0, y = 0, p = 0, d = 0, pen = 0, btn1 = 0, btn2 = 0;
+
+	if (data[0] != 0x02)
+	    return 0;
 
 	prox = (data[1] & 0x20) == 0x20;
 
