@@ -1872,7 +1872,7 @@ static void intel_update_fbc(struct drm_device *dev)
 	if (enable_fbc < 0) {
 		DRM_DEBUG_KMS("fbc set to per-chip default\n");
 		enable_fbc = 1;
-		if (INTEL_INFO(dev)->gen <= 5)
+		if (INTEL_INFO(dev)->gen <= 6)
 			enable_fbc = 0;
 	}
 	if (!enable_fbc) {
