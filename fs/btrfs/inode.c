@@ -6529,14 +6529,16 @@ end_trans:
 		ret = btrfs_orphan_del(NULL, inode);
 	}
 
-	trans->block_rsv = &root->fs_info->trans_block_rsv;
-	ret = btrfs_update_inode(trans, root, inode);
-	if (ret && !err)
-		err = ret;
+	if (trans) {
+		trans->block_rsv = &root->fs_info->trans_block_rsv;
+		ret = btrfs_update_inode(trans, root, inode);
+		if (ret && !err)
+			err = ret;
 
-	nr = trans->blocks_used;
-	ret = btrfs_end_transaction_throttle(trans, root);
-	btrfs_btree_balance_dirty(root, nr);
+		nr = trans->blocks_used;
+		ret = btrfs_end_transaction_throttle(trans, root);
+		btrfs_btree_balance_dirty(root, nr);
+	}
 
 out:
 	btrfs_free_block_rsv(root, rsv);
