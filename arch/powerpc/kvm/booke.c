@@ -322,11 +322,19 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	}
 
 	local_irq_disable();
+
+	if (signal_pending(current)) {
+		kvm_run->exit_reason = KVM_EXIT_INTR;
+		ret = -EINTR;
+		goto out;
+	}
+
 	kvm_guest_enter();
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 	kvm_guest_exit();
-	local_irq_enable();
 
+out:
+	local_irq_enable();
 	return ret;
 }
 
