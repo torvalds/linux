@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/hyperv.h>
+#include <linux/mempool.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
@@ -42,6 +43,7 @@
 #include <scsi/scsi_dbg.h>
 
 
+#define STORVSC_MIN_BUF_NR				64
 #define STORVSC_RING_BUFFER_SIZE			(20*PAGE_SIZE)
 static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
 
@@ -287,6 +289,7 @@ struct storvsc_device {
 struct hv_host_device {
 	struct hv_device *dev;
 	struct kmem_cache *request_pool;
+	mempool_t *request_mempool;
 	unsigned int port;
 	unsigned char path;
 	unsigned char target;
@@ -974,8 +977,10 @@ static int storvsc_remove(struct hv_device *dev)
 
 	storvsc_dev_remove(dev);
 	if (host_dev->request_pool) {
+		mempool_destroy(host_dev->request_mempool);
 		kmem_cache_destroy(host_dev->request_pool);
 		host_dev->request_pool = NULL;
+		host_dev->request_mempool = NULL;
 	}
 	return 0;
 }
@@ -1120,7 +1125,7 @@ static void storvsc_command_completion(struct hv_storvsc_request *request)
 
 	scsi_done_fn(scmnd);
 
-	kmem_cache_free(host_dev->request_pool, cmd_request);
+	mempool_free(cmd_request, host_dev->request_mempool);
 }
 
 static bool storvsc_check_scsi_cmd(struct scsi_cmnd *scmnd)
@@ -1176,12 +1181,13 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 
 	request_size = sizeof(struct storvsc_cmd_request);
 
-	cmd_request = kmem_cache_zalloc(host_dev->request_pool,
+	cmd_request = mempool_alloc(host_dev->request_mempool,
 				       GFP_ATOMIC);
 	if (!cmd_request) {
 		scmnd->scsi_done = NULL;
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
+	memset(cmd_request, 0, sizeof(struct storvsc_cmd_request));
 
 	/* Setup the cmd request */
 	cmd_request->bounce_sgl_count = 0;
@@ -1235,8 +1241,8 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 			if (!cmd_request->bounce_sgl) {
 				scmnd->scsi_done = NULL;
 				scmnd->host_scribble = NULL;
-				kmem_cache_free(host_dev->request_pool,
-						cmd_request);
+				mempool_free(cmd_request,
+						host_dev->request_mempool);
 
 				return SCSI_MLQUEUE_HOST_BUSY;
 			}
@@ -1278,7 +1284,7 @@ retry_request:
 			destroy_bounce_buffer(cmd_request->bounce_sgl,
 					cmd_request->bounce_sgl_count);
 
-		kmem_cache_free(host_dev->request_pool, cmd_request);
+		mempool_free(cmd_request, host_dev->request_mempool);
 
 		scmnd->scsi_done = NULL;
 		scmnd->host_scribble = NULL;
@@ -1348,6 +1354,7 @@ static int storvsc_probe(struct hv_device *device,
 			const struct hv_vmbus_device_id *dev_id)
 {
 	int ret;
+	int number = STORVSC_MIN_BUF_NR;
 	struct Scsi_Host *host;
 	struct hv_host_device *host_dev;
 	bool dev_is_ide = ((dev_id->driver_data == IDE_GUID) ? true : false);
@@ -1376,8 +1383,19 @@ static int storvsc_probe(struct hv_device *device,
 		return -ENOMEM;
 	}
 
+	host_dev->request_mempool = mempool_create(number, mempool_alloc_slab,
+						mempool_free_slab,
+						host_dev->request_pool);
+
+	if (!host_dev->request_mempool) {
+		kmem_cache_destroy(host_dev->request_pool);
+		scsi_host_put(host);
+		return -ENOMEM;
+	}
+
 	stor_device = kzalloc(sizeof(struct storvsc_device), GFP_KERNEL);
 	if (!stor_device) {
+		mempool_destroy(host_dev->request_mempool);
 		kmem_cache_destroy(host_dev->request_pool);
 		scsi_host_put(host);
 		return -ENOMEM;
@@ -1392,6 +1410,7 @@ static int storvsc_probe(struct hv_device *device,
 	stor_device->port_number = host->host_no;
 	ret = storvsc_connect_to_vsp(device, storvsc_ringbuffer_size);
 	if (ret) {
+		mempool_destroy(host_dev->request_mempool);
 		kmem_cache_destroy(host_dev->request_pool);
 		scsi_host_put(host);
 		kfree(stor_device);
@@ -1431,6 +1450,7 @@ static int storvsc_probe(struct hv_device *device,
 
 err_out:
 	storvsc_dev_remove(device);
+	mempool_destroy(host_dev->request_mempool);
 	kmem_cache_destroy(host_dev->request_pool);
 	scsi_host_put(host);
 	return -ENODEV;
