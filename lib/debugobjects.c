@@ -571,6 +571,44 @@ out_unlock:
 }
 
 /**
+ * debug_object_assert_init - debug checks when object should be init-ed
+ * @addr:	address of the object
+ * @descr:	pointer to an object specific debug description structure
+ */
+void debug_object_assert_init(void *addr, struct debug_obj_descr *descr)
+{
+	struct debug_bucket *db;
+	struct debug_obj *obj;
+	unsigned long flags;
+
+	if (!debug_objects_enabled)
+		return;
+
+	db = get_bucket((unsigned long) addr);
+
+	raw_spin_lock_irqsave(&db->lock, flags);
+
+	obj = lookup_object(addr, db);
+	if (!obj) {
+		struct debug_obj o = { .object = addr,
+				       .state = ODEBUG_STATE_NOTAVAILABLE,
+				       .descr = descr };
+
+		raw_spin_unlock_irqrestore(&db->lock, flags);
+		/*
+		 * Maybe the object is static.  Let the type specific
+		 * code decide what to do.
+		 */
+		if (debug_object_fixup(descr->fixup_assert_init, addr,
+				       ODEBUG_STATE_NOTAVAILABLE))
+			debug_print_object(&o, "assert_init");
+		return;
+	}
+
+	raw_spin_unlock_irqrestore(&db->lock, flags);
+}
+
+/**
  * debug_object_active_state - debug checks object usage state machine
  * @addr:	address of the object
  * @descr:	pointer to an object specific debug description structure
