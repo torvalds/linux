@@ -1671,9 +1671,8 @@ static int mwifiex_pcie_host_to_card(struct mwifiex_adapter *adapter, u8 type,
 				     struct sk_buff *skb,
 				     struct mwifiex_tx_param *tx_param)
 {
-	if (!adapter || !skb) {
-		dev_err(adapter->dev, "Invalid parameter in %s <%p, %p>\n",
-				__func__, adapter, skb);
+	if (!skb) {
+		dev_err(adapter->dev, "Passed NULL skb to %s\n", __func__);
 		return -1;
 	}
 
