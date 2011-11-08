@@ -113,6 +113,30 @@ insn_ok:
 	return 0;
 }
 
+/*
+ * insn_has_ll_or_sc function checks whether instruction is ll or sc
+ * one; putting breakpoint on top of atomic ll/sc pair is bad idea;
+ * so we need to prevent it and refuse kprobes insertion for such
+ * instructions; cannot do much about breakpoint in the middle of
+ * ll/sc pair; it is upto user to avoid those places
+ */
+static int __kprobes insn_has_ll_or_sc(union mips_instruction insn)
+{
+	int ret = 0;
+
+	switch (insn.i_format.opcode) {
+	case ll_op:
+	case lld_op:
+	case sc_op:
+	case scd_op:
+		ret = 1;
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	union mips_instruction insn;
@@ -120,6 +144,13 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	int ret = 0;
 
 	insn = p->addr[0];
+
+	if (insn_has_ll_or_sc(insn)) {
+		pr_notice("Kprobes for ll and sc instructions are not"
+			  "supported\n");
+		ret = -EINVAL;
+		goto out;
+	}
 
 	if (insn_has_delayslot(insn)) {
 		pr_notice("Kprobes for branch and jump instructions are not"
