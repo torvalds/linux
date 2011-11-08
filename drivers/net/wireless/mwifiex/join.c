@@ -837,8 +837,8 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 		bss_desc->privacy = MWIFIEX_802_11_PRIV_FILTER_ACCEPT_ALL;
 	}
 
-	memset(adhoc_start->DataRate, 0, sizeof(adhoc_start->DataRate));
-	mwifiex_get_active_data_rates(priv, adhoc_start->DataRate);
+	memset(adhoc_start->data_rate, 0, sizeof(adhoc_start->data_rate));
+	mwifiex_get_active_data_rates(priv, adhoc_start->data_rate);
 	if ((adapter->adhoc_start_band & BAND_G) &&
 	    (priv->curr_pkt_filter & HostCmd_ACT_MAC_ADHOC_G_PROTECTION_ON)) {
 		if (mwifiex_send_cmd_async(priv, HostCmd_CMD_MAC_CONTROL,
@@ -850,20 +850,19 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 		}
 	}
 	/* Find the last non zero */
-	for (i = 0; i < sizeof(adhoc_start->DataRate) &&
-			adhoc_start->DataRate[i];
-			i++)
-			;
+	for (i = 0; i < sizeof(adhoc_start->data_rate); i++)
+		if (!adhoc_start->data_rate[i])
+			break;
 
 	priv->curr_bss_params.num_of_rates = i;
 
 	/* Copy the ad-hoc creating rates into Current BSS rate structure */
 	memcpy(&priv->curr_bss_params.data_rates,
-	       &adhoc_start->DataRate, priv->curr_bss_params.num_of_rates);
+	       &adhoc_start->data_rate, priv->curr_bss_params.num_of_rates);
 
 	dev_dbg(adapter->dev, "info: ADHOC_S_CMD: rates=%02x %02x %02x %02x\n",
-	       adhoc_start->DataRate[0], adhoc_start->DataRate[1],
-	       adhoc_start->DataRate[2], adhoc_start->DataRate[3]);
+	       adhoc_start->data_rate[0], adhoc_start->data_rate[1],
+	       adhoc_start->data_rate[2], adhoc_start->data_rate[3]);
 
 	dev_dbg(adapter->dev, "info: ADHOC_S_CMD: AD-HOC Start command is ready\n");
 

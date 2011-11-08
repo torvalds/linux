@@ -673,7 +673,7 @@ struct host_cmd_ds_802_11_ad_hoc_start {
 	union ieee_types_phy_param_set phy_param_set;
 	u16 reserved1;
 	__le16 cap_info_bitmap;
-	u8 DataRate[HOSTCMD_SUPPORTED_RATES];
+	u8 data_rate[HOSTCMD_SUPPORTED_RATES];
 } __packed;
 
 struct host_cmd_ds_802_11_ad_hoc_result {
