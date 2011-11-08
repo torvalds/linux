@@ -236,8 +236,6 @@ struct vstor_packet {
 #define STORVSC_MAX_CHANNELS				1
 #define STORVSC_MAX_CMD_LEN				16
 
-struct hv_storvsc_request;
-
 /* Matches Windows-end */
 enum storvsc_request_type {
 	WRITE_TYPE,
