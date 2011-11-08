@@ -1,4 +1,4 @@
-/* arch/arm/mach-msm7200/include/mach/debug-macro.S
+/*
  *
  * Copyright (C) 2007 Google, Inc.
  * Author: Brian Swetland <swetland@google.com>
@@ -14,15 +14,14 @@
  *
  */
 
-
-
 #include <mach/hardware.h>
 #include <mach/msm_iomap.h>
 
-#if defined(CONFIG_HAS_MSM_DEBUG_UART_PHYS) && !defined(CONFIG_MSM_DEBUG_UART_NONE)
 	.macro	addruart, rp, rv, tmp
+#ifdef MSM_DEBUG_UART_PHYS
 	ldr	\rp, =MSM_DEBUG_UART_PHYS
 	ldr	\rv, =MSM_DEBUG_UART_BASE
+#endif
 	.endm
 
 	.macro	senduart,rd,rx
@@ -36,18 +35,6 @@
 	tst	\rd, #0x04
 	beq	1001b
 	.endm
-#else
-	.macro  addruart, rp, rv, tmp
-	mov	\rv, #0xff000000
-	orr	\rv, \rv, #0x00f00000
-	.endm
-
-	.macro	senduart,rd,rx
-	.endm
-
-	.macro	waituart,rd,rx
-	.endm
-#endif
 
 	.macro	busyuart,rd,rx
 	.endm
