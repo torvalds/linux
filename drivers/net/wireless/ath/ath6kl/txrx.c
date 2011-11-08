@@ -453,11 +453,11 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 		set_bit(WMI_CTRL_EP_FULL, &ar->flag);
 		spin_unlock_bh(&ar->lock);
 		ath6kl_err("wmi ctrl ep is full\n");
-		goto stop_adhoc_netq;
+		return action;
 	}
 
 	if (packet->info.tx.tag == ATH6KL_CONTROL_PKT_TAG)
-		goto stop_adhoc_netq;
+		return action;
 
 	/*
 	 * The last MAX_HI_COOKIE_NUM "batch" of cookies are reserved for
@@ -465,20 +465,18 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 	 */
 	if (ar->ac_stream_pri_map[ar->ep2ac_map[endpoint]] <
 	    ar->hiac_stream_active_pri &&
-	    ar->cookie_count <= MAX_HI_COOKIE_NUM) {
+	    ar->cookie_count <= MAX_HI_COOKIE_NUM)
 		/*
 		 * Give preference to the highest priority stream by
 		 * dropping the packets which overflowed.
 		 */
 		action = HTC_SEND_FULL_DROP;
-		goto stop_adhoc_netq;
-	}
 
-stop_adhoc_netq:
 	/* FIXME: Locking */
 	spin_lock_bh(&ar->list_lock);
 	list_for_each_entry(vif, &ar->vif_list, list) {
-		if (vif->nw_type == ADHOC_NETWORK) {
+		if (vif->nw_type == ADHOC_NETWORK ||
+		    action != HTC_SEND_FULL_DROP) {
 			spin_unlock_bh(&ar->list_lock);
 
 			spin_lock_bh(&vif->if_lock);
