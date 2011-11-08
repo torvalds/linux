@@ -135,7 +135,7 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 	line6_write_hexdump(line6, 'S', data, length);
 #endif
 
-	transfer_buffer = kmalloc(length, GFP_ATOMIC);
+	transfer_buffer = kmemdup(data, length, GFP_ATOMIC);
 
 	if (transfer_buffer == NULL) {
 		usb_free_urb(urb);
@@ -143,7 +143,6 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 		return -ENOMEM;
 	}
 
-	memcpy(transfer_buffer, data, length);
 	usb_fill_int_urb(urb, line6->usbdev,
 			 usb_sndbulkpipe(line6->usbdev,
 					 line6->ep_control_write),
