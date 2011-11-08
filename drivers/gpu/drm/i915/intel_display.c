@@ -7411,8 +7411,13 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	 * some amount of runtime in the Mesa "fire" demo, and Unigine
 	 * Sanctuary and Tropics, and apparently anything else with
 	 * alpha test or pixel discard.
+	 *
+	 * According to the spec, bit 11 (RCCUNIT) must also be set,
+	 * but we didn't debug actual testcases to find it out.
 	 */
-	I915_WRITE(GEN6_UCGCTL2, GEN6_RCPBUNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(GEN6_UCGCTL2,
+		   GEN6_RCPBUNIT_CLOCK_GATE_DISABLE |
+		   GEN6_RCCUNIT_CLOCK_GATE_DISABLE);
 
 	/*
 	 * According to the spec the following bits should be
