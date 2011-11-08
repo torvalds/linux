@@ -220,7 +220,7 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 
 	ret = dvb_dmx_init(&as102_dev->dvb_dmx);
 	if (ret < 0) {
-		dev_err("%s: dvb_dmx_init() failed: %d\n", __func__, ret);
+		dev_err(dev, "%s: dvb_dmx_init() failed: %d\n", __func__, ret);
 		goto edmxinit;
 	}
 
