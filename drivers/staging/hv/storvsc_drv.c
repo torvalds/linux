@@ -1019,7 +1019,7 @@ static int storvsc_host_reset(struct hv_device *device)
 
 	stor_device = get_out_stor_device(device);
 	if (!stor_device)
-		return -ENODEV;
+		return FAILED;
 
 	request = &stor_device->reset_request;
 	vstor_packet = &request->vstor_packet;
@@ -1036,13 +1036,11 @@ static int storvsc_host_reset(struct hv_device *device)
 			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0)
-		goto cleanup;
+		return FAILED;
 
 	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
-	if (t == 0) {
-		ret = -ETIMEDOUT;
-		goto cleanup;
-	}
+	if (t == 0)
+		return TIMEOUT_ERROR;
 
 
 	/*
@@ -1050,8 +1048,7 @@ static int storvsc_host_reset(struct hv_device *device)
 	 * should have been flushed out and return to us
 	 */
 
-cleanup:
-	return ret;
+	return SUCCESS;
 }
 
 
@@ -1060,16 +1057,11 @@ cleanup:
  */
 static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 {
-	int ret;
 	struct hv_host_device *host_dev =
 		(struct hv_host_device *)scmnd->device->host->hostdata;
 	struct hv_device *dev = host_dev->dev;
 
-	ret = storvsc_host_reset(dev);
-	if (ret != 0)
-		return ret;
-
-	return ret;
+	return storvsc_host_reset(dev);
 }
 
 
