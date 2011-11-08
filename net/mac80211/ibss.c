@@ -97,6 +97,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	/* if merging, indicate to driver that we leave the old IBSS */
 	if (sdata->vif.bss_conf.ibss_joined) {
 		sdata->vif.bss_conf.ibss_joined = false;
+		netif_carrier_off(sdata->dev);
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IBSS);
 	}
 
@@ -207,6 +208,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	bss = cfg80211_inform_bss_frame(local->hw.wiphy, local->hw.conf.channel,
 					mgmt, skb->len, 0, GFP_KERNEL);
 	cfg80211_put_bss(bss);
+	netif_carrier_on(sdata->dev);
 	cfg80211_ibss_joined(sdata->dev, ifibss->bssid, GFP_KERNEL);
 }
 
@@ -990,6 +992,7 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	}
 
 	sta_info_flush(sdata->local, sdata);
+	netif_carrier_off(sdata->dev);
 
 	/* remove beacon */
 	kfree(sdata->u.ibss.ie);
