@@ -25,6 +25,7 @@
 
 #include <linux/kprobes.h>
 #include <linux/preempt.h>
+#include <linux/uaccess.h>
 #include <linux/kdebug.h>
 #include <linux/slab.h>
 
@@ -118,11 +119,19 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	union mips_instruction prev_insn;
 	int ret = 0;
 
-	prev_insn = p->addr[-1];
 	insn = p->addr[0];
 
-	if (insn_has_delayslot(insn) || insn_has_delayslot(prev_insn)) {
-		pr_notice("Kprobes for branch and jump instructions are not supported\n");
+	if (insn_has_delayslot(insn)) {
+		pr_notice("Kprobes for branch and jump instructions are not"
+			  "supported\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if ((probe_kernel_read(&prev_insn, p->addr - 1,
+				sizeof(mips_instruction)) == 0) &&
+				insn_has_delayslot(prev_insn)) {
+		pr_notice("Kprobes for branch delayslot are not supported\n");
 		ret = -EINVAL;
 		goto out;
 	}
