@@ -35,32 +35,24 @@ enum write_mode_t {
 	WRITE_APPEND
 };
 
-static u64			user_interval			= ULLONG_MAX;
-static u64			default_interval		=      0;
+static struct perf_record_opts record_opts = {
+	.target_pid	     = -1,
+	.target_tid	     = -1,
+	.user_freq	     = UINT_MAX,
+	.user_interval	     = ULLONG_MAX,
+	.freq		     = 1000,
+	.sample_id_all_avail = true,
+};
 
 static unsigned int		page_size;
 static unsigned int		mmap_pages			= UINT_MAX;
-static unsigned int		user_freq 			= UINT_MAX;
-static int			freq				=   1000;
 static int			output;
 static int			pipe_output			=      0;
 static const char		*output_name			= NULL;
 static bool			group				=  false;
 static int			realtime_prio			=      0;
-static bool			nodelay				=  false;
-static bool			raw_samples			=  false;
-static bool			sample_id_all_avail		=   true;
-static bool			system_wide			=  false;
-static pid_t			target_pid			=     -1;
-static pid_t			target_tid			=     -1;
 static pid_t			child_pid			=     -1;
-static bool			no_inherit			=  false;
 static enum write_mode_t	write_mode			= WRITE_FORCE;
-static bool			call_graph			=  false;
-static bool			inherit_stat			=  false;
-static bool			no_samples			=  false;
-static bool			sample_address			=  false;
-static bool			sample_time			=  false;
 static bool			no_buildid			=  false;
 static bool			no_buildid_cache		=  false;
 static struct perf_evlist	*evsel_list;
@@ -72,7 +64,6 @@ static int			file_new			=      1;
 static off_t			post_processing_offset;
 
 static struct perf_session	*session;
-static const char		*cpu_list;
 static const char               *progname;
 
 static void advance_output(size_t size)
@@ -169,78 +160,6 @@ static void sig_atexit(void)
 	kill(getpid(), signr);
 }
 
-static void config_attr(struct perf_evsel *evsel, struct perf_evlist *evlist)
-{
-	struct perf_event_attr *attr = &evsel->attr;
-	int track = !evsel->idx; /* only the first counter needs these */
-
-	attr->disabled		= 1;
-	attr->inherit		= !no_inherit;
-	attr->read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
-				  PERF_FORMAT_TOTAL_TIME_RUNNING |
-				  PERF_FORMAT_ID;
-
-	attr->sample_type	|= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
-
-	if (evlist->nr_entries > 1)
-		attr->sample_type |= PERF_SAMPLE_ID;
-
-	/*
-	 * We default some events to a 1 default interval. But keep
-	 * it a weak assumption overridable by the user.
-	 */
-	if (!attr->sample_period || (user_freq != UINT_MAX &&
-				     user_interval != ULLONG_MAX)) {
-		if (freq) {
-			attr->sample_type	|= PERF_SAMPLE_PERIOD;
-			attr->freq		= 1;
-			attr->sample_freq	= freq;
-		} else {
-			attr->sample_period = default_interval;
-		}
-	}
-
-	if (no_samples)
-		attr->sample_freq = 0;
-
-	if (inherit_stat)
-		attr->inherit_stat = 1;
-
-	if (sample_address) {
-		attr->sample_type	|= PERF_SAMPLE_ADDR;
-		attr->mmap_data = track;
-	}
-
-	if (call_graph)
-		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
-
-	if (system_wide)
-		attr->sample_type	|= PERF_SAMPLE_CPU;
-
-	if (sample_id_all_avail &&
-	    (sample_time || system_wide || !no_inherit || cpu_list))
-		attr->sample_type	|= PERF_SAMPLE_TIME;
-
-	if (raw_samples) {
-		attr->sample_type	|= PERF_SAMPLE_TIME;
-		attr->sample_type	|= PERF_SAMPLE_RAW;
-		attr->sample_type	|= PERF_SAMPLE_CPU;
-	}
-
-	if (nodelay) {
-		attr->watermark = 0;
-		attr->wakeup_events = 1;
-	}
-
-	attr->mmap		= track;
-	attr->comm		= track;
-
-	if (target_pid == -1 && target_tid == -1 && !system_wide) {
-		attr->disabled = 1;
-		attr->enable_on_exec = 1;
-	}
-}
-
 static bool perf_evlist__equal(struct perf_evlist *evlist,
 			       struct perf_evlist *other)
 {
@@ -264,10 +183,9 @@ static void open_counters(struct perf_evlist *evlist)
 {
 	struct perf_evsel *pos, *first;
 
-	if (evlist->cpus->map[0] < 0)
-		no_inherit = true;
-
 	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+
+	perf_evlist__config_attrs(evlist, &record_opts);
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		struct perf_event_attr *attr = &pos->attr;
@@ -288,10 +206,8 @@ static void open_counters(struct perf_evlist *evlist)
 
 		if (group && pos != first)
 			group_fd = first->fd;
-
-		config_attr(pos, evlist);
 retry_sample_id:
-		attr->sample_id_all = sample_id_all_avail ? 1 : 0;
+		attr->sample_id_all = record_opts.sample_id_all_avail ? 1 : 0;
 try_again:
 		if (perf_evsel__open(pos, evlist->cpus, evlist->threads, group,
 				     group_fd) < 0) {
@@ -300,15 +216,15 @@ try_again:
 			if (err == EPERM || err == EACCES) {
 				ui__error_paranoid();
 				exit(EXIT_FAILURE);
-			} else if (err ==  ENODEV && cpu_list) {
+			} else if (err ==  ENODEV && record_opts.cpu_list) {
 				die("No such device - did you specify"
 					" an out-of-range profile CPU?\n");
-			} else if (err == EINVAL && sample_id_all_avail) {
+			} else if (err == EINVAL && record_opts.sample_id_all_avail) {
 				/*
 				 * Old kernel, no attr->sample_id_type_all field
 				 */
-				sample_id_all_avail = false;
-				if (!sample_time && !raw_samples && !time_needed)
+				record_opts.sample_id_all_avail = false;
+				if (!record_opts.sample_time && !record_opts.raw_samples && !time_needed)
 					attr->sample_type &= ~PERF_SAMPLE_TIME;
 
 				goto retry_sample_id;
@@ -482,13 +398,13 @@ static int __cmd_record(int argc, const char **argv)
 
 	if (!output_name) {
 		if (!fstat(STDOUT_FILENO, &st) && S_ISFIFO(st.st_mode))
-			pipe_output = 1;
+			pipe_output = true;
 		else
 			output_name = "perf.data";
 	}
 	if (output_name) {
 		if (!strcmp(output_name, "-"))
-			pipe_output = 1;
+			pipe_output = true;
 		else if (!stat(output_name, &st) && st.st_size) {
 			if (write_mode == WRITE_FORCE) {
 				char oldname[PATH_MAX];
@@ -592,7 +508,7 @@ static int __cmd_record(int argc, const char **argv)
 			exit(-1);
 		}
 
-		if (!system_wide && target_tid == -1 && target_pid == -1)
+		if (!record_opts.system_wide && record_opts.target_tid == -1 && record_opts.target_pid == -1)
 			evsel_list->threads->map[0] = child_pid;
 
 		close(child_ready_pipe[1]);
@@ -689,7 +605,7 @@ static int __cmd_record(int argc, const char **argv)
 		perf_session__process_machines(session,
 					       perf_event__synthesize_guest_os);
 
-	if (!system_wide)
+	if (!record_opts.system_wide)
 		perf_event__synthesize_thread_map(evsel_list->threads,
 						  process_synthesized_event,
 						  session);
@@ -766,44 +682,44 @@ const struct option record_options[] = {
 		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &evsel_list, "filter",
 		     "event filter", parse_filter),
-	OPT_INTEGER('p', "pid", &target_pid,
+	OPT_INTEGER('p', "pid", &record_opts.target_pid,
 		    "record events on existing process id"),
-	OPT_INTEGER('t', "tid", &target_tid,
+	OPT_INTEGER('t', "tid", &record_opts.target_tid,
 		    "record events on existing thread id"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
-	OPT_BOOLEAN('D', "no-delay", &nodelay,
+	OPT_BOOLEAN('D', "no-delay", &record_opts.no_delay,
 		    "collect data without buffering"),
-	OPT_BOOLEAN('R', "raw-samples", &raw_samples,
+	OPT_BOOLEAN('R', "raw-samples", &record_opts.raw_samples,
 		    "collect raw sample records from all opened counters"),
-	OPT_BOOLEAN('a', "all-cpus", &system_wide,
+	OPT_BOOLEAN('a', "all-cpus", &record_opts.system_wide,
 			    "system-wide collection from all CPUs"),
 	OPT_BOOLEAN('A', "append", &append_file,
 			    "append to the output file to do incremental profiling"),
-	OPT_STRING('C', "cpu", &cpu_list, "cpu",
+	OPT_STRING('C', "cpu", &record_opts.cpu_list, "cpu",
 		    "list of cpus to monitor"),
 	OPT_BOOLEAN('f', "force", &force,
 			"overwrite existing data file (deprecated)"),
-	OPT_U64('c', "count", &user_interval, "event period to sample"),
+	OPT_U64('c', "count", &record_opts.user_interval, "event period to sample"),
 	OPT_STRING('o', "output", &output_name, "file",
 		    "output file name"),
-	OPT_BOOLEAN('i', "no-inherit", &no_inherit,
+	OPT_BOOLEAN('i', "no-inherit", &record_opts.no_inherit,
 		    "child tasks do not inherit counters"),
-	OPT_UINTEGER('F', "freq", &user_freq, "profile at this frequency"),
+	OPT_UINTEGER('F', "freq", &record_opts.user_freq, "profile at this frequency"),
 	OPT_UINTEGER('m', "mmap-pages", &mmap_pages, "number of mmap data pages"),
 	OPT_BOOLEAN(0, "group", &group,
 		    "put the counters into a counter group"),
-	OPT_BOOLEAN('g', "call-graph", &call_graph,
+	OPT_BOOLEAN('g', "call-graph", &record_opts.call_graph,
 		    "do call-graph (stack chain/backtrace) recording"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('q', "quiet", &quiet, "don't print any message"),
-	OPT_BOOLEAN('s', "stat", &inherit_stat,
+	OPT_BOOLEAN('s', "stat", &record_opts.inherit_stat,
 		    "per thread counts"),
-	OPT_BOOLEAN('d', "data", &sample_address,
+	OPT_BOOLEAN('d', "data", &record_opts.sample_address,
 		    "Sample addresses"),
-	OPT_BOOLEAN('T', "timestamp", &sample_time, "Sample timestamps"),
-	OPT_BOOLEAN('n', "no-samples", &no_samples,
+	OPT_BOOLEAN('T', "timestamp", &record_opts.sample_time, "Sample timestamps"),
+	OPT_BOOLEAN('n', "no-samples", &record_opts.no_samples,
 		    "don't sample"),
 	OPT_BOOLEAN('N', "no-buildid-cache", &no_buildid_cache,
 		    "do not update the buildid cache"),
@@ -828,8 +744,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && target_pid == -1 && target_tid == -1 &&
-		!system_wide && !cpu_list)
+	if (!argc && record_opts.target_pid == -1 && record_opts.target_tid == -1 &&
+		!record_opts.system_wide && !record_opts.cpu_list)
 		usage_with_options(record_usage, record_options);
 
 	if (force && append_file) {
@@ -842,7 +758,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		write_mode = WRITE_FORCE;
 	}
 
-	if (nr_cgroups && !system_wide) {
+	if (nr_cgroups && !record_opts.system_wide) {
 		fprintf(stderr, "cgroup monitoring only available in"
 			" system-wide mode\n");
 		usage_with_options(record_usage, record_options);
@@ -869,11 +785,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		goto out_symbol_exit;
 	}
 
-	if (target_pid != -1)
-		target_tid = target_pid;
+	if (record_opts.target_pid != -1)
+		record_opts.target_tid = record_opts.target_pid;
 
-	if (perf_evlist__create_maps(evsel_list, target_pid,
-				     target_tid, cpu_list) < 0)
+	if (perf_evlist__create_maps(evsel_list, record_opts.target_pid,
+				     record_opts.target_tid, record_opts.cpu_list) < 0)
 		usage_with_options(record_usage, record_options);
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {
@@ -887,18 +803,18 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	if (perf_evlist__alloc_pollfd(evsel_list) < 0)
 		goto out_free_fd;
 
-	if (user_interval != ULLONG_MAX)
-		default_interval = user_interval;
-	if (user_freq != UINT_MAX)
-		freq = user_freq;
+	if (record_opts.user_interval != ULLONG_MAX)
+		record_opts.default_interval = record_opts.user_interval;
+	if (record_opts.user_freq != UINT_MAX)
+		record_opts.freq = record_opts.user_freq;
 
 	/*
 	 * User specified count overrides default frequency.
 	 */
-	if (default_interval)
-		freq = 0;
-	else if (freq) {
-		default_interval = freq;
+	if (record_opts.default_interval)
+		record_opts.freq = 0;
+	else if (record_opts.freq) {
+		record_opts.default_interval = record_opts.freq;
 	} else {
 		fprintf(stderr, "frequency and count are zero, aborting\n");
 		err = -EINVAL;

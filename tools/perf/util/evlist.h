@@ -10,6 +10,7 @@
 struct pollfd;
 struct thread_map;
 struct cpu_map;
+struct perf_record_opts;
 
 #define PERF_EVLIST__HLIST_BITS 8
 #define PERF_EVLIST__HLIST_SIZE (1 << PERF_EVLIST__HLIST_BITS)
@@ -63,6 +64,9 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *self, int idx);
 
 int perf_evlist__open(struct perf_evlist *evlist, bool group);
+
+void perf_evlist__config_attrs(struct perf_evlist *evlist,
+			       struct perf_record_opts *opts);
 
 int perf_evlist__alloc_mmap(struct perf_evlist *evlist);
 int perf_evlist__mmap(struct perf_evlist *evlist, int pages, bool overwrite);

@@ -46,6 +46,22 @@ struct perf_evlist *perf_evlist__new(struct cpu_map *cpus,
 	return evlist;
 }
 
+void perf_evlist__config_attrs(struct perf_evlist *evlist,
+			       struct perf_record_opts *opts)
+{
+	struct perf_evsel *evsel;
+
+	if (evlist->cpus->map[0] < 0)
+		opts->no_inherit = true;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		perf_evsel__config(evsel, opts);
+
+		if (evlist->nr_entries > 1)
+			evsel->attr.sample_type |= PERF_SAMPLE_ID;
+	}
+}
+
 static void perf_evlist__purge(struct perf_evlist *evlist)
 {
 	struct perf_evsel *pos, *n;
