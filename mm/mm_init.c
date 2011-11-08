@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/kobject.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include "internal.h"
 
 #ifdef CONFIG_DEBUG_MEMORY_INIT

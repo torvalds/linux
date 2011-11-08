@@ -82,7 +82,7 @@ config EVENT_POWER_TRACING_DEPRECATED
 	  power:power_frequency
 	  This is for userspace compatibility
 	  and will vanish after 5 kernel iterations,
-	  namely 2.6.41.
+	  namely 3.1.
 
 config CONTEXT_SWITCH_TRACER
 	bool

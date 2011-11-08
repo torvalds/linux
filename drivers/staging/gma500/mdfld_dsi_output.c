@@ -32,6 +32,7 @@
 #include <asm/intel_scu_ipc.h>
 #include "mdfld_dsi_pkg_sender.h"
 #include <linux/pm_runtime.h>
+#include <linux/moduleparam.h>
 
 #define MDFLD_DSI_BRIGHTNESS_MAX_LEVEL 100
 
@@ -955,7 +956,9 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 	psb_output->type = (pipe == 0) ? INTEL_OUTPUT_MIPI : INTEL_OUTPUT_MIPI2;
 
 	connector = &psb_output->base;
-	drm_connector_init(dev, connector, &mdfld_dsi_connector_funcs, DRM_MODE_CONNECTOR_MIPI);
+	/* Revisit type if MIPI/HDMI bridges ever appear on Medfield */
+	drm_connector_init(dev, connector, &mdfld_dsi_connector_funcs,
+						DRM_MODE_CONNECTOR_LVDS);
 	drm_connector_helper_add(connector, &mdfld_dsi_connector_helper_funcs);
 	
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;

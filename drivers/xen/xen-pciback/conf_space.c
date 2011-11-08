@@ -10,12 +10,12 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include "pciback.h"
 #include "conf_space.h"
 #include "conf_space_quirks.h"
 
-#define DRV_NAME	"xen-pciback"
 static int permissive;
 module_param(permissive, bool, 0644);
 

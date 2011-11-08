@@ -2,7 +2,7 @@
 #define _ASM_X86_DMA_MAPPING_H
 
 /*
- * IOMMU interface. See Documentation/PCI/PCI-DMA-mapping.txt and
+ * IOMMU interface. See Documentation/DMA-API-HOWTO.txt and
  * Documentation/DMA-API.txt for documentation.
  */
 

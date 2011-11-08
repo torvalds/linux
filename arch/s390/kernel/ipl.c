@@ -16,6 +16,7 @@
 #include <linux/ctype.h>
 #include <linux/fs.h>
 #include <linux/gfp.h>
+#include <linux/crash_dump.h>
 #include <asm/ipl.h>
 #include <asm/smp.h>
 #include <asm/setup.h>
@@ -26,6 +27,7 @@
 #include <asm/sclp.h>
 #include <asm/sigp.h>
 #include <asm/checksum.h>
+#include "entry.h"
 
 #define IPL_PARM_BLOCK_VERSION 0
 
@@ -275,8 +277,8 @@ static ssize_t ipl_type_show(struct kobject *kobj, struct kobj_attribute *attr,
 static struct kobj_attribute sys_ipl_type_attr = __ATTR_RO(ipl_type);
 
 /* VM IPL PARM routines */
-size_t reipl_get_ascii_vmparm(char *dest, size_t size,
-				   const struct ipl_parameter_block *ipb)
+static size_t reipl_get_ascii_vmparm(char *dest, size_t size,
+				     const struct ipl_parameter_block *ipb)
 {
 	int i;
 	size_t len;
@@ -338,8 +340,8 @@ static size_t scpdata_length(const char* buf, size_t count)
 	return count;
 }
 
-size_t reipl_append_ascii_scpdata(char *dest, size_t size,
-				  const struct ipl_parameter_block *ipb)
+static size_t reipl_append_ascii_scpdata(char *dest, size_t size,
+					 const struct ipl_parameter_block *ipb)
 {
 	size_t count;
 	size_t i;
@@ -1220,7 +1222,7 @@ static int __init reipl_fcp_init(void)
 	/* sysfs: create fcp kset for mixing attr group and bin attrs */
 	reipl_fcp_kset = kset_create_and_add(IPL_FCP_STR, NULL,
 					     &reipl_kset->kobj);
-	if (!reipl_kset) {
+	if (!reipl_fcp_kset) {
 		free_page((unsigned long) reipl_block_fcp);
 		return -ENOMEM;
 	}
@@ -1618,7 +1620,8 @@ static struct shutdown_action vmcmd_action = {SHUTDOWN_ACTION_VMCMD_STR,
 
 static void stop_run(struct shutdown_trigger *trigger)
 {
-	if (strcmp(trigger->name, ON_PANIC_STR) == 0)
+	if (strcmp(trigger->name, ON_PANIC_STR) == 0 ||
+	    strcmp(trigger->name, ON_RESTART_STR) == 0)
 		disabled_wait((unsigned long) __builtin_return_address(0));
 	while (sigp(smp_processor_id(), sigp_stop) == sigp_busy)
 		cpu_relax();
@@ -1717,7 +1720,7 @@ static void do_panic(void)
 /* on restart */
 
 static struct shutdown_trigger on_restart_trigger = {ON_RESTART_STR,
-	&reipl_action};
+	&stop_action};
 
 static ssize_t on_restart_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *page)
@@ -1737,7 +1740,11 @@ static struct kobj_attribute on_restart_attr =
 
 void do_restart(void)
 {
+	smp_restart_with_online_cpu();
 	smp_send_stop();
+#ifdef CONFIG_CRASH_DUMP
+	crash_kexec(NULL);
+#endif
 	on_restart_trigger.action->fn(&on_restart_trigger);
 	stop_run(&on_restart_trigger);
 }
@@ -2008,7 +2015,7 @@ static void do_reset_calls(void)
 
 u32 dump_prefix_page;
 
-void s390_reset_system(void)
+void s390_reset_system(void (*func)(void *), void *data)
 {
 	struct _lowcore *lc;
 
@@ -2027,15 +2034,19 @@ void s390_reset_system(void)
 	__ctl_clear_bit(0,28);
 
 	/* Set new machine check handler */
-	S390_lowcore.mcck_new_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
+	S390_lowcore.mcck_new_psw.mask = psw_kernel_bits | PSW_MASK_DAT;
 	S390_lowcore.mcck_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) s390_base_mcck_handler;
 
 	/* Set new program check handler */
-	S390_lowcore.program_new_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
+	S390_lowcore.program_new_psw.mask = psw_kernel_bits | PSW_MASK_DAT;
 	S390_lowcore.program_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) s390_base_pgm_handler;
 
-	do_reset_calls();
-}
+	/* Store status at absolute zero */
+	store_status();
 
+	do_reset_calls();
+	if (func)
+		func(data);
+}

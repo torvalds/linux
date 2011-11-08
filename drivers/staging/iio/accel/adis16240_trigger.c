@@ -1,14 +1,9 @@
 #include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/mutex.h>
-#include <linux/device.h>
 #include <linux/kernel.h>
-#include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/spi/spi.h>
+#include <linux/export.h>
 
 #include "../iio.h"
-#include "../sysfs.h"
 #include "../trigger.h"
 #include "adis16240.h"
 
@@ -33,6 +28,11 @@ static int adis16240_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	return adis16240_set_irq(indio_dev, state);
 }
 
+static const struct iio_trigger_ops adis16240_trigger_ops = {
+	.owner = THIS_MODULE,
+	.set_trigger_state = &adis16240_data_rdy_trigger_set_state,
+};
+
 int adis16240_probe_trigger(struct iio_dev *indio_dev)
 {
 	int ret;
@@ -53,9 +53,8 @@ int adis16240_probe_trigger(struct iio_dev *indio_dev)
 		goto error_free_trig;
 
 	st->trig->dev.parent = &st->us->dev;
-	st->trig->owner = THIS_MODULE;
+	st->trig->ops = &adis16240_trigger_ops;
 	st->trig->private_data = indio_dev;
-	st->trig->set_trigger_state = &adis16240_data_rdy_trigger_set_state;
 	ret = iio_trigger_register(st->trig);
 
 	/* select default trigger */

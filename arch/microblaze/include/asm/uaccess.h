@@ -95,7 +95,7 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
  *  - "addr", "addr + size" and "size" are all below the limit
  */
 #define access_ok(type, addr, size) \
-	(get_fs().seg > (((unsigned long)(addr)) | \
+	(get_fs().seg >= (((unsigned long)(addr)) | \
 		(size) | ((unsigned long)(addr) + (size))))
 
 /* || printk("access_ok failed for %s at 0x%08lx (size %d), seg 0x%08x\n",

@@ -11,7 +11,7 @@
  * published by the Free Software Foundation.
  */
 
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 		mov	\rp, #0x00ff0000
 		orr	\rp, \rp, #0x0000f700
 		orr	\rv, #0xfe000000	@ virtual

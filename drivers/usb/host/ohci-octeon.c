@@ -164,7 +164,7 @@ static int ohci_octeon_drv_probe(struct platform_device *pdev)
 
 	ohci_hcd_init(ohci);
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret) {
 		dev_dbg(&pdev->dev, "failed to add hcd with err %d\n", ret);
 		goto err3;

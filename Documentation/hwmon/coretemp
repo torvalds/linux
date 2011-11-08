@@ -35,13 +35,6 @@ the Out-Of-Spec bit. Following table summarizes the exported sysfs files:
 All Sysfs entries are named with their core_id (represented here by 'X').
 tempX_input	 - Core temperature (in millidegrees Celsius).
 tempX_max	 - All cooling devices should be turned on (on Core2).
-		   Initialized with IA32_THERM_INTERRUPT. When the CPU
-		   temperature reaches this temperature, an interrupt is
-		   generated and tempX_max_alarm is set.
-tempX_max_hyst   - If the CPU temperature falls below than temperature,
-		   an interrupt is generated and tempX_max_alarm is reset.
-tempX_max_alarm  - Set if the temperature reaches or exceeds tempX_max.
-		   Reset if the temperature drops to or below tempX_max_hyst.
 tempX_crit	 - Maximum junction temperature (in millidegrees Celsius).
 tempX_crit_alarm - Set when Out-of-spec bit is set, never clears.
 		   Correct CPU operation is no longer guaranteed.
@@ -49,9 +42,10 @@ tempX_label	 - Contains string "Core X", where X is processor
 		   number. For Package temp, this will be "Physical id Y",
 		   where Y is the package number.
 
-The TjMax temperature is set to 85 degrees C if undocumented model specific
-register (UMSR) 0xee has bit 30 set. If not the TjMax is 100 degrees C as
-(sometimes) documented in processor datasheet.
+On CPU models which support it, TjMax is read from a model-specific register.
+On other models, it is set to an arbitrary value based on weak heuristics.
+If these heuristics don't work for you, you can pass the correct TjMax value
+as a module parameter (tjmax).
 
 Appendix A. Known TjMax lists (TBD):
 Some information comes from ark.intel.com

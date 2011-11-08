@@ -61,7 +61,7 @@ enosys:
 	bra	1f
 
 ENTRY(system_call)
-	SAVE_ALL
+	SAVE_ALL_SYS
 	move	#0x2000,%sr		/* enable intrs again */
 
 	cmpl	#NR_syscalls,%d0
@@ -165,9 +165,7 @@ Lsignal_return:
  * sources). Calls up to high level code to do all the work.
  */
 ENTRY(inthandler)
-	SAVE_ALL
-	moveq	#-1,%d0
-	movel	%d0,%sp@(PT_OFF_ORIG_D0)
+	SAVE_ALL_INT
 
 	movew	%sp@(PT_OFF_FORMATVEC),%d0 /* put exception # in d0 */
 	andl	#0x03fc,%d0		/* mask out vector only */

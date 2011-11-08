@@ -32,14 +32,6 @@ config EP405
 	help
 	  This option enables support for the EP405/EP405PC boards.
 
-config HCU4
-	bool "Hcu4"
-	depends on 40x
-	default n
-	select 405GPR
-	help
-	  This option enables support for the Nestal Maschinen HCU4 board.
-
 config HOTFOOT
         bool "Hotfoot"
 	depends on 40x
@@ -115,11 +107,6 @@ config PPC40x_SIMPLE
 	help
 	  This option enables the simple PowerPC 40x platform support.
 
-# 40x specific CPU modules, selected based on the board above.
-config NP405H
-	bool
-	#depends on ASH
-
 # OAK doesn't exist but wanted to keep this around for any future 403GCX boards
 config 403GCX
 	bool
@@ -130,21 +117,21 @@ config 405GP
 	bool
 	select IBM405_ERR77
 	select IBM405_ERR51
-	select IBM_NEW_EMAC_ZMII
+	select IBM_EMAC_ZMII
 
 config 405EP
 	bool
 
 config 405EX
 	bool
-	select IBM_NEW_EMAC_EMAC4
-	select IBM_NEW_EMAC_RGMII
+	select IBM_EMAC_EMAC4
+	select IBM_EMAC_RGMII
 
 config 405EZ
 	bool
-	select IBM_NEW_EMAC_NO_FLOW_CTRL
-	select IBM_NEW_EMAC_MAL_CLR_ICINTSTAT
-	select IBM_NEW_EMAC_MAL_COMMON_ERR
+	select IBM_EMAC_NO_FLOW_CTRL
+	select IBM_EMAC_MAL_CLR_ICINTSTAT
+	select IBM_EMAC_MAL_COMMON_ERR
 
 config 405GPR
 	bool

@@ -33,6 +33,11 @@ static struct clk s5p_clk_otgphy = {
 	.name		= "otg_phy",
 };
 
+static struct clk dummy_apb_pclk = {
+	.name		= "apb_pclk",
+	.id		= -1,
+};
+
 static struct clk *clk_src_mout_href_list[] = {
 	[0] = &s5p_clk_27m,
 	[1] = &clk_fin_hpll,
@@ -454,14 +459,14 @@ static struct clk init_clocks_off[] = {
 		.enable		= s5pc100_d1_0_ctrl,
 		.ctrlbit	= (1 << 2),
 	}, {
-		.name		= "pdma",
-		.devname	= "s3c-pl330.1",
+		.name		= "dma",
+		.devname	= "dma-pl330.1",
 		.parent		= &clk_div_d1_bus.clk,
 		.enable		= s5pc100_d1_0_ctrl,
 		.ctrlbit	= (1 << 1),
 	}, {
-		.name		= "pdma",
-		.devname	= "s3c-pl330.0",
+		.name		= "dma",
+		.devname	= "dma-pl330.0",
 		.parent		= &clk_div_d1_bus.clk,
 		.enable		= s5pc100_d1_0_ctrl,
 		.ctrlbit	= (1 << 0),
@@ -1275,6 +1280,8 @@ void __init s5pc100_register_clocks(void)
 
 	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
+
+	s3c24xx_register_clock(&dummy_apb_pclk);
 
 	s3c_pwmclk_init();
 }

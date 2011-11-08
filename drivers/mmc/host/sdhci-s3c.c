@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 
 #include <linux/mmc/host.h>
 
@@ -202,17 +203,23 @@ static void sdhci_s3c_set_clock(struct sdhci_host *host, unsigned int clock)
 		writel(ctrl, host->ioaddr + S3C_SDHCI_CONTROL2);
 	}
 
-	/* reconfigure the hardware for new clock rate */
+	/* reprogram default hardware configuration */
+	writel(S3C64XX_SDHCI_CONTROL4_DRIVE_9mA,
+		host->ioaddr + S3C64XX_SDHCI_CONTROL4);
 
-	{
-		struct mmc_ios ios;
+	ctrl = readl(host->ioaddr + S3C_SDHCI_CONTROL2);
+	ctrl |= (S3C64XX_SDHCI_CTRL2_ENSTAASYNCCLR |
+		  S3C64XX_SDHCI_CTRL2_ENCMDCNFMSK |
+		  S3C_SDHCI_CTRL2_ENFBCLKRX |
+		  S3C_SDHCI_CTRL2_DFCNT_NONE |
+		  S3C_SDHCI_CTRL2_ENCLKOUTHOLD);
+	writel(ctrl, host->ioaddr + S3C_SDHCI_CONTROL2);
 
-		ios.clock = clock;
-
-		if (ourhost->pdata->cfg_card)
-			(ourhost->pdata->cfg_card)(ourhost->pdev, host->ioaddr,
-						   &ios, NULL);
-	}
+	/* reconfigure the controller for new clock rate */
+	ctrl = (S3C_SDHCI_CTRL3_FCSEL1 | S3C_SDHCI_CTRL3_FCSEL0);
+	if (clock < 25 * 1000000)
+		ctrl |= (S3C_SDHCI_CTRL3_FCSEL3 | S3C_SDHCI_CTRL3_FCSEL2);
+	writel(ctrl, host->ioaddr + S3C_SDHCI_CONTROL3);
 }
 
 /**
@@ -301,6 +308,8 @@ static int sdhci_s3c_platform_8bit_width(struct sdhci_host *host, int width)
 		ctrl &= ~SDHCI_CTRL_8BITBUS;
 		break;
 	default:
+		ctrl &= ~SDHCI_CTRL_4BITBUS;
+		ctrl &= ~SDHCI_CTRL_8BITBUS;
 		break;
 	}
 
@@ -502,6 +511,9 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	/* This host supports the Auto CMD12 */
 	host->quirks |= SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12;
 
+	/* Samsung SoCs need BROKEN_ADMA_ZEROLEN_DESC */
+	host->quirks |= SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC;
+
 	if (pdata->cd_type == S3C_SDHCI_CD_NONE ||
 	    pdata->cd_type == S3C_SDHCI_CD_PERMANENT)
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
@@ -555,8 +567,10 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 
  err_req_regs:
 	for (ptr = 0; ptr < MAX_BUS_CLK; ptr++) {
-		clk_disable(sc->clk_bus[ptr]);
-		clk_put(sc->clk_bus[ptr]);
+		if (sc->clk_bus[ptr]) {
+			clk_disable(sc->clk_bus[ptr]);
+			clk_put(sc->clk_bus[ptr]);
+		}
 	}
 
  err_no_busclks:

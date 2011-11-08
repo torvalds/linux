@@ -26,6 +26,8 @@
 #include <linux/pda_power.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
+#include <linux/gpio.h>
+#include <linux/rfkill-gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -35,7 +37,6 @@
 #include <mach/iomap.h>
 #include <mach/irqs.h>
 #include <mach/sdhci.h>
-#include <mach/gpio.h>
 
 #include "board.h"
 #include "board-paz00.h"
@@ -45,10 +46,22 @@
 
 static struct plat_serial8250_port debug_uart_platform_data[] = {
 	{
+		/* serial port on JP1 */
+		.membase	= IO_ADDRESS(TEGRA_UARTA_BASE),
+		.mapbase	= TEGRA_UARTA_BASE,
+		.irq		= INT_UARTA,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_TYPE,
+		.type		= PORT_TEGRA,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+		.uartclk	= 216000000,
+	}, {
+		/* serial port on mini-pcie */
 		.membase	= IO_ADDRESS(TEGRA_UARTD_BASE),
 		.mapbase	= TEGRA_UARTD_BASE,
 		.irq		= INT_UARTD,
-		.flags		= UPF_BOOT_AUTOCONF,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_TYPE,
+		.type		= PORT_TEGRA,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= 216000000,
@@ -65,10 +78,48 @@ static struct platform_device debug_uart = {
 	},
 };
 
+static struct rfkill_gpio_platform_data wifi_rfkill_platform_data = {
+	.name		= "wifi_rfkill",
+	.reset_gpio	= TEGRA_WIFI_RST,
+	.shutdown_gpio	= TEGRA_WIFI_PWRN,
+	.type	= RFKILL_TYPE_WLAN,
+};
+
+static struct platform_device wifi_rfkill_device = {
+	.name	= "rfkill_gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &wifi_rfkill_platform_data,
+	},
+};
+
+static struct gpio_led gpio_leds[] = {
+	{
+		.name			= "wifi-led",
+		.default_trigger	= "rfkill0",
+		.gpio			= TEGRA_WIFI_LED,
+	},
+};
+
+static struct gpio_led_platform_data gpio_led_info = {
+	.leds		= gpio_leds,
+	.num_leds	= ARRAY_SIZE(gpio_leds),
+};
+
+static struct platform_device leds_gpio = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &gpio_led_info,
+        },
+};
+
 static struct platform_device *paz00_devices[] __initdata = {
 	&debug_uart,
-	&tegra_sdhci_device1,
 	&tegra_sdhci_device4,
+	&tegra_sdhci_device1,
+	&wifi_rfkill_device,
+	&leds_gpio,
 };
 
 static void paz00_i2c_init(void)
@@ -84,8 +135,8 @@ static void paz00_usb_init(void)
 	platform_device_register(&tegra_ehci3_device);
 }
 
-static void __init tegra_paz00_fixup(struct machine_desc *desc,
-	struct tag *tags, char **cmdline, struct meminfo *mi)
+static void __init tegra_paz00_fixup(struct tag *tags, char **cmdline,
+	struct meminfo *mi)
 {
 	mi->nr_banks = 1;
 	mi->bank[0].start = PHYS_OFFSET;
@@ -94,7 +145,14 @@ static void __init tegra_paz00_fixup(struct machine_desc *desc,
 
 static __initdata struct tegra_clk_init_table paz00_clk_init_table[] = {
 	/* name		parent		rate		enabled */
+	{ "uarta",	"pll_p",	216000000,	true },
 	{ "uartd",	"pll_p",	216000000,	true },
+
+	{ "pll_p_out4",	"pll_p",	24000000,	true },
+	{ "usbd",	"clk_m",	12000000,	false },
+	{ "usb2",	"clk_m",	12000000,	false },
+	{ "usb3",	"clk_m",	12000000,	false },
+
 	{ NULL,		NULL,		0,		0},
 };
 
@@ -127,7 +185,7 @@ static void __init tegra_paz00_init(void)
 }
 
 MACHINE_START(PAZ00, "Toshiba AC100 / Dynabook AZ")
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.fixup		= tegra_paz00_fixup,
 	.map_io         = tegra_map_common_io,
 	.init_early	= tegra_init_early,

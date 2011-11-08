@@ -22,6 +22,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -43,7 +44,6 @@
 
 #include <mach/hardware.h>
 #include <mach/board.h>
-#include <mach/gpio.h>
 #include <mach/at91rm9200_mc.h>
 #include <mach/cpu.h>
 
@@ -172,19 +172,14 @@ static struct mtd_partition __initdata yl9200_nand_partition[] = {
 	}
 };
 
-static struct mtd_partition * __init nand_partitions(int size, int *num_partitions)
-{
-	*num_partitions = ARRAY_SIZE(yl9200_nand_partition);
-	return yl9200_nand_partition;
-}
-
 static struct atmel_nand_data __initdata yl9200_nand_data = {
 	.ale		= 6,
 	.cle		= 7,
 	// .det_pin	= ... not connected
 	.rdy_pin	= AT91_PIN_PC14,	/* R/!B (Sheet10) */
 	.enable_pin	= AT91_PIN_PC15,	/* !CE  (Sheet10) */
-	.partition_info	= nand_partitions,
+	.parts		= yl9200_nand_partition,
+	.num_parts	= ARRAY_SIZE(yl9200_nand_partition),
 };
 
 /*

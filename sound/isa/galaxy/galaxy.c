@@ -585,8 +585,7 @@ static int __devinit snd_galaxy_probe(struct device *dev, unsigned int n)
 
 	if (mpu_port[n] >= 0) {
 		err = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
-					  mpu_port[n], 0, mpu_irq[n],
-					  IRQF_DISABLED, NULL);
+					  mpu_port[n], 0, mpu_irq[n], NULL);
 		if (err < 0)
 			goto error;
 	}

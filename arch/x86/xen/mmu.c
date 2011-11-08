@@ -495,41 +495,6 @@ static pte_t xen_make_pte(pteval_t pte)
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pte);
 
-#ifdef CONFIG_XEN_DEBUG
-pte_t xen_make_pte_debug(pteval_t pte)
-{
-	phys_addr_t addr = (pte & PTE_PFN_MASK);
-	phys_addr_t other_addr;
-	bool io_page = false;
-	pte_t _pte;
-
-	if (pte & _PAGE_IOMAP)
-		io_page = true;
-
-	_pte = xen_make_pte(pte);
-
-	if (!addr)
-		return _pte;
-
-	if (io_page &&
-	    (xen_initial_domain() || addr >= ISA_END_ADDRESS)) {
-		other_addr = pfn_to_mfn(addr >> PAGE_SHIFT) << PAGE_SHIFT;
-		WARN_ONCE(addr != other_addr,
-			"0x%lx is using VM_IO, but it is 0x%lx!\n",
-			(unsigned long)addr, (unsigned long)other_addr);
-	} else {
-		pteval_t iomap_set = (_pte.pte & PTE_FLAGS_MASK) & _PAGE_IOMAP;
-		other_addr = (_pte.pte & PTE_PFN_MASK);
-		WARN_ONCE((addr == other_addr) && (!io_page) && (!iomap_set),
-			"0x%lx is missing VM_IO (and wasn't fixed)!\n",
-			(unsigned long)addr);
-	}
-
-	return _pte;
-}
-PV_CALLEE_SAVE_REGS_THUNK(xen_make_pte_debug);
-#endif
-
 static pgd_t xen_make_pgd(pgdval_t pgd)
 {
 	pgd = pte_pfn_to_mfn(pgd);
@@ -1713,15 +1678,17 @@ static void __init xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 void __init xen_setup_machphys_mapping(void)
 {
 	struct xen_machphys_mapping mapping;
-	unsigned long machine_to_phys_nr_ents;
 
 	if (HYPERVISOR_memory_op(XENMEM_machphys_mapping, &mapping) == 0) {
 		machine_to_phys_mapping = (unsigned long *)mapping.v_start;
-		machine_to_phys_nr_ents = mapping.max_mfn + 1;
+		machine_to_phys_nr = mapping.max_mfn + 1;
 	} else {
-		machine_to_phys_nr_ents = MACH2PHYS_NR_ENTRIES;
+		machine_to_phys_nr = MACH2PHYS_NR_ENTRIES;
 	}
-	machine_to_phys_order = fls(machine_to_phys_nr_ents - 1);
+#ifdef CONFIG_X86_32
+	WARN_ON((machine_to_phys_mapping + (machine_to_phys_nr - 1))
+		< machine_to_phys_mapping);
+#endif
 }
 
 #ifdef CONFIG_X86_64
@@ -1916,6 +1883,7 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 # endif
 #else
 	case VSYSCALL_LAST_PAGE ... VSYSCALL_FIRST_PAGE:
+	case VVAR_PAGE:
 #endif
 	case FIX_TEXT_POKE0:
 	case FIX_TEXT_POKE1:
@@ -1956,7 +1924,8 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 #ifdef CONFIG_X86_64
 	/* Replicate changes to map the vsyscall page into the user
 	   pagetable vsyscall mapping. */
-	if (idx >= VSYSCALL_LAST_PAGE && idx <= VSYSCALL_FIRST_PAGE) {
+	if ((idx >= VSYSCALL_LAST_PAGE && idx <= VSYSCALL_FIRST_PAGE) ||
+	    idx == VVAR_PAGE) {
 		unsigned long vaddr = __fix_to_virt(idx);
 		set_pte_vaddr_pud(level3_user_vsyscall, vaddr, pte);
 	}
@@ -1988,9 +1957,6 @@ void __init xen_ident_map_ISA(void)
 
 static void __init xen_post_allocator_init(void)
 {
-#ifdef CONFIG_XEN_DEBUG
-	pv_mmu_ops.make_pte = PV_CALLEE_SAVE(xen_make_pte_debug);
-#endif
 	pv_mmu_ops.set_pte = xen_set_pte;
 	pv_mmu_ops.set_pmd = xen_set_pmd;
 	pv_mmu_ops.set_pud = xen_set_pud;
@@ -2400,17 +2366,3 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
-
-#ifdef CONFIG_XEN_DEBUG_FS
-static int p2m_dump_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, p2m_dump_show, NULL);
-}
-
-static const struct file_operations p2m_dump_fops = {
-	.open		= p2m_dump_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#endif /* CONFIG_XEN_DEBUG_FS */

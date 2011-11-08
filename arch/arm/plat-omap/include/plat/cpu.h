@@ -44,13 +44,6 @@
 
 int omap_type(void);
 
-struct omap_chip_id {
-	u16 oc;
-	u8 type;
-};
-
-#define OMAP_CHIP_INIT(x)	{ .oc = x }
-
 /*
  * omap_rev bits:
  * CPU id bits	(0730, 1510, 1710, 2422...)	[31:16]
@@ -58,19 +51,6 @@ struct omap_chip_id {
  * CPU class bits (15xx, 16xx, 24xx, 34xx...)	[07:00]
  */
 unsigned int omap_rev(void);
-
-/*
- * Define CPU revision bits
- *
- * Verbose meaning of the revision bits may be different for a silicon
- * family. This difference can be handled separately.
- */
-#define OMAP_REVBITS_00		0x00
-#define OMAP_REVBITS_01		0x01
-#define OMAP_REVBITS_02		0x02
-#define OMAP_REVBITS_03		0x03
-#define OMAP_REVBITS_04		0x04
-#define OMAP_REVBITS_05		0x05
 
 /*
  * Get the CPU revision for OMAP devices
@@ -262,7 +242,7 @@ IS_OMAP_TYPE(2422, 0x2422)
 IS_OMAP_TYPE(2423, 0x2423)
 IS_OMAP_TYPE(2430, 0x2430)
 IS_OMAP_TYPE(3430, 0x3430)
-IS_OMAP_TYPE(3505, 0x3505)
+IS_OMAP_TYPE(3505, 0x3517)
 IS_OMAP_TYPE(3517, 0x3517)
 
 #define cpu_is_omap310()		0
@@ -354,8 +334,9 @@ IS_OMAP_TYPE(3517, 0x3517)
 						(!omap3_has_sgx()) &&	\
 						(omap3_has_iva()))
 # define cpu_is_omap3530()		(cpu_is_omap3430())
-# define cpu_is_omap3505()		is_omap3505()
 # define cpu_is_omap3517()		is_omap3517()
+# define cpu_is_omap3505()		(cpu_is_omap3517() &&		\
+						!omap3_has_sgx())
 # undef cpu_is_omap3630
 # define cpu_is_omap3630()		is_omap363x()
 # define cpu_is_ti816x()		is_ti816x()
@@ -379,35 +360,31 @@ IS_OMAP_TYPE(3517, 0x3517)
 /* Various silicon revisions for omap2 */
 #define OMAP242X_CLASS		0x24200024
 #define OMAP2420_REV_ES1_0	OMAP242X_CLASS
-#define OMAP2420_REV_ES2_0	(OMAP242X_CLASS | (OMAP_REVBITS_01 << 8))
+#define OMAP2420_REV_ES2_0	(OMAP242X_CLASS | (0x1 << 8))
 
 #define OMAP243X_CLASS		0x24300024
 #define OMAP2430_REV_ES1_0	OMAP243X_CLASS
 
 #define OMAP343X_CLASS		0x34300034
 #define OMAP3430_REV_ES1_0	OMAP343X_CLASS
-#define OMAP3430_REV_ES2_0	(OMAP343X_CLASS | (OMAP_REVBITS_01 << 8))
-#define OMAP3430_REV_ES2_1	(OMAP343X_CLASS | (OMAP_REVBITS_02 << 8))
-#define OMAP3430_REV_ES3_0	(OMAP343X_CLASS | (OMAP_REVBITS_03 << 8))
-#define OMAP3430_REV_ES3_1	(OMAP343X_CLASS | (OMAP_REVBITS_04 << 8))
-#define OMAP3430_REV_ES3_1_2	(OMAP343X_CLASS | (OMAP_REVBITS_05 << 8))
+#define OMAP3430_REV_ES2_0	(OMAP343X_CLASS | (0x1 << 8))
+#define OMAP3430_REV_ES2_1	(OMAP343X_CLASS | (0x2 << 8))
+#define OMAP3430_REV_ES3_0	(OMAP343X_CLASS | (0x3 << 8))
+#define OMAP3430_REV_ES3_1	(OMAP343X_CLASS | (0x4 << 8))
+#define OMAP3430_REV_ES3_1_2	(OMAP343X_CLASS | (0x5 << 8))
 
 #define OMAP363X_CLASS		0x36300034
 #define OMAP3630_REV_ES1_0	OMAP363X_CLASS
-#define OMAP3630_REV_ES1_1	(OMAP363X_CLASS | (OMAP_REVBITS_01 << 8))
-#define OMAP3630_REV_ES1_2	(OMAP363X_CLASS | (OMAP_REVBITS_02 << 8))
+#define OMAP3630_REV_ES1_1	(OMAP363X_CLASS | (0x1 << 8))
+#define OMAP3630_REV_ES1_2	(OMAP363X_CLASS | (0x2 << 8))
 
-#define OMAP35XX_CLASS		0x35000034
-#define OMAP3503_REV(v)		(OMAP35XX_CLASS | (0x3503 << 16) | (v << 8))
-#define OMAP3515_REV(v)		(OMAP35XX_CLASS | (0x3515 << 16) | (v << 8))
-#define OMAP3525_REV(v)		(OMAP35XX_CLASS | (0x3525 << 16) | (v << 8))
-#define OMAP3530_REV(v)		(OMAP35XX_CLASS | (0x3530 << 16) | (v << 8))
-#define OMAP3505_REV(v)		(OMAP35XX_CLASS | (0x3505 << 16) | (v << 8))
-#define OMAP3517_REV(v)		(OMAP35XX_CLASS | (0x3517 << 16) | (v << 8))
+#define OMAP3517_CLASS		0x35170034
+#define OMAP3517_REV_ES1_0	OMAP3517_CLASS
+#define OMAP3517_REV_ES1_1	(OMAP3517_CLASS | (0x1 << 8))
 
 #define TI816X_CLASS		0x81600034
 #define TI8168_REV_ES1_0	TI816X_CLASS
-#define TI8168_REV_ES1_1	(TI816X_CLASS | (OMAP_REVBITS_01 << 8))
+#define TI8168_REV_ES1_1	(TI816X_CLASS | (0x1 << 8))
 
 #define OMAP443X_CLASS		0x44300044
 #define OMAP4430_REV_ES1_0	(OMAP443X_CLASS | (0x10 << 8))
@@ -418,65 +395,17 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define OMAP446X_CLASS		0x44600044
 #define OMAP4460_REV_ES1_0	(OMAP446X_CLASS | (0x10 << 8))
 
-/*
- * omap_chip bits
- *
- * CHIP_IS_OMAP{2420,2430,3430} indicate that a particular structure is
- * valid on all chips of that type.  CHIP_IS_OMAP3430ES{1,2} indicates
- * something that is only valid on that particular ES revision.
- *
- * These bits may be ORed together to indicate structures that are
- * available on multiple chip types.
- *
- * To test whether a particular structure matches the current OMAP chip type,
- * use omap_chip_is().
- *
- */
-#define CHIP_IS_OMAP2420		(1 << 0)
-#define CHIP_IS_OMAP2430		(1 << 1)
-#define CHIP_IS_OMAP3430		(1 << 2)
-#define CHIP_IS_OMAP3430ES1		(1 << 3)
-#define CHIP_IS_OMAP3430ES2		(1 << 4)
-#define CHIP_IS_OMAP3430ES3_0		(1 << 5)
-#define CHIP_IS_OMAP3430ES3_1		(1 << 6)
-#define CHIP_IS_OMAP3630ES1		(1 << 7)
-#define CHIP_IS_OMAP4430ES1		(1 << 8)
-#define CHIP_IS_OMAP3630ES1_1           (1 << 9)
-#define CHIP_IS_OMAP3630ES1_2           (1 << 10)
-#define CHIP_IS_OMAP4430ES2		(1 << 11)
-#define CHIP_IS_OMAP4430ES2_1		(1 << 12)
-#define CHIP_IS_OMAP4430ES2_2		(1 << 13)
-#define CHIP_IS_TI816X			(1 << 14)
-#define CHIP_IS_OMAP4460ES1_0		(1 << 15)
-
-#define CHIP_IS_OMAP24XX		(CHIP_IS_OMAP2420 | CHIP_IS_OMAP2430)
-
-#define CHIP_IS_OMAP4430		(CHIP_IS_OMAP4430ES1 |		\
-					 CHIP_IS_OMAP4430ES2 |		\
-					 CHIP_IS_OMAP4430ES2_1 |	\
-					 CHIP_IS_OMAP4430ES2_2 |	\
-					 CHIP_IS_OMAP4460ES1_0)
-
-/*
- * "GE" here represents "greater than or equal to" in terms of ES
- * levels.  So CHIP_GE_OMAP3430ES2 is intended to match all OMAP3430
- * chips at ES2 and beyond, but not, for example, any OMAP lines after
- * OMAP3.
- */
-#define CHIP_GE_OMAP3430ES2		(CHIP_IS_OMAP3430ES2 | \
-					 CHIP_IS_OMAP3430ES3_0 | \
-					 CHIP_GE_OMAP3430ES3_1)
-#define CHIP_GE_OMAP3430ES3_1		(CHIP_IS_OMAP3430ES3_1 | \
-					 CHIP_IS_OMAP3630ES1 | \
-					 CHIP_GE_OMAP3630ES1_1)
-#define CHIP_GE_OMAP3630ES1_1		(CHIP_IS_OMAP3630ES1_1 | \
-					 CHIP_IS_OMAP3630ES1_2)
-
-int omap_chip_is(struct omap_chip_id oci);
 void omap2_check_revision(void);
 
 /*
  * Runtime detection of OMAP3 features
+ *
+ * OMAP3_HAS_IO_CHAIN_CTRL: Some later members of the OMAP3 chip
+ *    family have OS-level control over the I/O chain clock.  This is
+ *    to avoid a window during which wakeups could potentially be lost
+ *    during powerdomain transitions.  If this bit is set, it
+ *    indicates that the chip does support OS-level control of this
+ *    feature.
  */
 extern u32 omap_features;
 
@@ -488,9 +417,10 @@ extern u32 omap_features;
 #define OMAP3_HAS_192MHZ_CLK		BIT(5)
 #define OMAP3_HAS_IO_WAKEUP		BIT(6)
 #define OMAP3_HAS_SDRC			BIT(7)
-#define OMAP4_HAS_MPU_1GHZ		BIT(8)
-#define OMAP4_HAS_MPU_1_2GHZ		BIT(9)
-#define OMAP4_HAS_MPU_1_5GHZ		BIT(10)
+#define OMAP3_HAS_IO_CHAIN_CTRL		BIT(8)
+#define OMAP4_HAS_MPU_1GHZ		BIT(9)
+#define OMAP4_HAS_MPU_1_2GHZ		BIT(10)
+#define OMAP4_HAS_MPU_1_5GHZ		BIT(11)
 
 
 #define OMAP3_HAS_FEATURE(feat,flag)			\
@@ -507,12 +437,11 @@ OMAP3_HAS_FEATURE(isp, ISP)
 OMAP3_HAS_FEATURE(192mhz_clk, 192MHZ_CLK)
 OMAP3_HAS_FEATURE(io_wakeup, IO_WAKEUP)
 OMAP3_HAS_FEATURE(sdrc, SDRC)
+OMAP3_HAS_FEATURE(io_chain_ctrl, IO_CHAIN_CTRL)
 
 /*
  * Runtime detection of OMAP4 features
  */
-extern u32 omap_features;
-
 #define OMAP4_HAS_FEATURE(feat, flag)			\
 static inline unsigned int omap4_has_ ##feat(void)	\
 {							\

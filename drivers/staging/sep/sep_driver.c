@@ -2420,10 +2420,11 @@ static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				(sep->pid_doing_transaction != 0)) {
 		dev_dbg(&sep->pdev->dev, "ioctl pid is not owner\n");
 		error = -EACCES;
-		goto end_function;
 	}
-
 	mutex_unlock(&sep->sep_mutex);
+
+	if (error)
+		return error;
 
 	if (_IOC_TYPE(cmd) != SEP_IOC_MAGIC_NUMBER)
 		return -ENOTTY;
@@ -2461,7 +2462,6 @@ static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
-end_function:
 	mutex_unlock(&sep->ioctl_mutex);
 	return error;
 }

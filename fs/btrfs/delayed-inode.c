@@ -591,7 +591,7 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 		return 0;
 
 	src_rsv = trans->block_rsv;
-	dst_rsv = &root->fs_info->global_block_rsv;
+	dst_rsv = &root->fs_info->delayed_block_rsv;
 
 	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
 	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
@@ -609,7 +609,7 @@ static void btrfs_delayed_item_release_metadata(struct btrfs_root *root,
 	if (!item->bytes_reserved)
 		return;
 
-	rsv = &root->fs_info->global_block_rsv;
+	rsv = &root->fs_info->delayed_block_rsv;
 	btrfs_block_rsv_release(root, rsv,
 				item->bytes_reserved);
 }
@@ -624,13 +624,36 @@ static int btrfs_delayed_inode_reserve_metadata(
 	u64 num_bytes;
 	int ret;
 
-	if (!trans->bytes_reserved)
-		return 0;
-
 	src_rsv = trans->block_rsv;
-	dst_rsv = &root->fs_info->global_block_rsv;
+	dst_rsv = &root->fs_info->delayed_block_rsv;
 
 	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
+
+	/*
+	 * btrfs_dirty_inode will update the inode under btrfs_join_transaction
+	 * which doesn't reserve space for speed.  This is a problem since we
+	 * still need to reserve space for this update, so try to reserve the
+	 * space.
+	 *
+	 * Now if src_rsv == delalloc_block_rsv we'll let it just steal since
+	 * we're accounted for.
+	 */
+	if (!trans->bytes_reserved &&
+	    src_rsv != &root->fs_info->delalloc_block_rsv) {
+		ret = btrfs_block_rsv_add_noflush(root, dst_rsv, num_bytes);
+		/*
+		 * Since we're under a transaction reserve_metadata_bytes could
+		 * try to commit the transaction which will make it return
+		 * EAGAIN to make us stop the transaction we have, so return
+		 * ENOSPC instead so that btrfs_dirty_inode knows what to do.
+		 */
+		if (ret == -EAGAIN)
+			ret = -ENOSPC;
+		if (!ret)
+			node->bytes_reserved = num_bytes;
+		return ret;
+	}
+
 	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
 	if (!ret)
 		node->bytes_reserved = num_bytes;
@@ -646,7 +669,7 @@ static void btrfs_delayed_inode_release_metadata(struct btrfs_root *root,
 	if (!node->bytes_reserved)
 		return;
 
-	rsv = &root->fs_info->global_block_rsv;
+	rsv = &root->fs_info->delayed_block_rsv;
 	btrfs_block_rsv_release(root, rsv,
 				node->bytes_reserved);
 	node->bytes_reserved = 0;
@@ -1026,7 +1049,7 @@ int btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
 	path->leave_spinning = 1;
 
 	block_rsv = trans->block_rsv;
-	trans->block_rsv = &root->fs_info->global_block_rsv;
+	trans->block_rsv = &root->fs_info->delayed_block_rsv;
 
 	delayed_root = btrfs_get_delayed_root(root);
 
@@ -1069,7 +1092,7 @@ static int __btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 	path->leave_spinning = 1;
 
 	block_rsv = trans->block_rsv;
-	trans->block_rsv = &node->root->fs_info->global_block_rsv;
+	trans->block_rsv = &node->root->fs_info->delayed_block_rsv;
 
 	ret = btrfs_insert_delayed_items(trans, path, node->root, node);
 	if (!ret)
@@ -1149,7 +1172,7 @@ static void btrfs_async_run_delayed_node_done(struct btrfs_work *work)
 		goto free_path;
 
 	block_rsv = trans->block_rsv;
-	trans->block_rsv = &root->fs_info->global_block_rsv;
+	trans->block_rsv = &root->fs_info->delayed_block_rsv;
 
 	ret = btrfs_insert_delayed_items(trans, path, root, delayed_node);
 	if (!ret)
@@ -1641,7 +1664,7 @@ int btrfs_fill_inode(struct inode *inode, u32 *rdev)
 	inode->i_gid = btrfs_stack_inode_gid(inode_item);
 	btrfs_i_size_write(inode, btrfs_stack_inode_size(inode_item));
 	inode->i_mode = btrfs_stack_inode_mode(inode_item);
-	inode->i_nlink = btrfs_stack_inode_nlink(inode_item);
+	set_nlink(inode, btrfs_stack_inode_nlink(inode_item));
 	inode_set_bytes(inode, btrfs_stack_inode_nbytes(inode_item));
 	BTRFS_I(inode)->generation = btrfs_stack_inode_generation(inode_item);
 	BTRFS_I(inode)->sequence = btrfs_stack_inode_sequence(inode_item);
@@ -1686,11 +1709,8 @@ int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 	}
 
 	ret = btrfs_delayed_inode_reserve_metadata(trans, root, delayed_node);
-	/*
-	 * we must reserve enough space when we start a new transaction,
-	 * so reserving metadata failure is impossible
-	 */
-	BUG_ON(ret);
+	if (ret)
+		goto release_node;
 
 	fill_stack_inode_item(trans, &delayed_node->inode_item, inode);
 	delayed_node->inode_dirty = 1;

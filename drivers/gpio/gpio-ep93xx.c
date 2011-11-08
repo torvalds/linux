@@ -15,6 +15,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
@@ -23,6 +24,9 @@
 #include <linux/basic_mmio_gpio.h>
 
 #include <mach/hardware.h>
+#include <mach/gpio-ep93xx.h>
+
+#define irq_to_gpio(irq)	((irq) - gpio_to_irq(0))
 
 struct ep93xx_gpio {
 	void __iomem		*mmio_base;
@@ -307,6 +311,21 @@ static int ep93xx_gpio_set_debounce(struct gpio_chip *chip,
 	return 0;
 }
 
+/*
+ * Map GPIO A0..A7  (0..7)  to irq 64..71,
+ *          B0..B7  (7..15) to irq 72..79, and
+ *          F0..F7 (16..24) to irq 80..87.
+ */
+static int ep93xx_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	int gpio = chip->base + offset;
+
+	if (gpio > EP93XX_GPIO_LINE_MAX_IRQ)
+		return -EINVAL;
+
+	return 64 + gpio;
+}
+
 static int ep93xx_gpio_add_bank(struct bgpio_chip *bgc, struct device *dev,
 	void __iomem *mmio_base, struct ep93xx_gpio_bank *bank)
 {
@@ -321,8 +340,10 @@ static int ep93xx_gpio_add_bank(struct bgpio_chip *bgc, struct device *dev,
 	bgc->gc.label = bank->label;
 	bgc->gc.base = bank->base;
 
-	if (bank->has_debounce)
+	if (bank->has_debounce) {
 		bgc->gc.set_debounce = ep93xx_gpio_set_debounce;
+		bgc->gc.to_irq = ep93xx_gpio_to_irq;
+	}
 
 	return gpiochip_add(&bgc->gc);
 }

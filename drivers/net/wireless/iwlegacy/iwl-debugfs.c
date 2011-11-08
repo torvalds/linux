@@ -26,6 +26,7 @@
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 #include <linux/ieee80211.h>
+#include <linux/export.h>
 #include <net/mac80211.h>
 
 

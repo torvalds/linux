@@ -784,7 +784,8 @@ i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
 	}
 
 	from->sync_seqno[idx] = seqno;
-	return intel_ring_sync(to, from, seqno - 1);
+
+	return to->sync_to(to, from, seqno - 1);
 }
 
 static int

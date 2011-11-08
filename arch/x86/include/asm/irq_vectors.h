@@ -17,7 +17,6 @@
  *  Vectors   0 ...  31 : system traps and exceptions - hardcoded events
  *  Vectors  32 ... 127 : device interrupts
  *  Vector  128         : legacy int80 syscall interface
- *  Vector  204         : legacy x86_64 vsyscall emulation
  *  Vectors 129 ... INVALIDATE_TLB_VECTOR_START-1 except 204 : device interrupts
  *  Vectors INVALIDATE_TLB_VECTOR_START ... 255 : special interrupts
  *
@@ -50,9 +49,6 @@
 #define IA32_SYSCALL_VECTOR		0x80
 #ifdef CONFIG_X86_32
 # define SYSCALL_VECTOR			0x80
-#endif
-#ifdef CONFIG_X86_64
-# define VSYSCALL_EMU_VECTOR		0xcc
 #endif
 
 /*
@@ -164,19 +160,11 @@ static inline int invalid_vm86_irq(int irq)
 #define IO_APIC_VECTOR_LIMIT		( 32 * MAX_IO_APICS )
 
 #ifdef CONFIG_X86_IO_APIC
-# ifdef CONFIG_SPARSE_IRQ
-#  define CPU_VECTOR_LIMIT		(64 * NR_CPUS)
-#  define NR_IRQS					\
+# define CPU_VECTOR_LIMIT		(64 * NR_CPUS)
+# define NR_IRQS					\
 	(CPU_VECTOR_LIMIT > IO_APIC_VECTOR_LIMIT ?	\
 		(NR_VECTORS + CPU_VECTOR_LIMIT)  :	\
 		(NR_VECTORS + IO_APIC_VECTOR_LIMIT))
-# else
-#  define CPU_VECTOR_LIMIT		(32 * NR_CPUS)
-#  define NR_IRQS					\
-	(CPU_VECTOR_LIMIT < IO_APIC_VECTOR_LIMIT ?	\
-		(NR_VECTORS + CPU_VECTOR_LIMIT)  :	\
-		(NR_VECTORS + IO_APIC_VECTOR_LIMIT))
-# endif
 #else /* !CONFIG_X86_IO_APIC: */
 # define NR_IRQS			NR_IRQS_LEGACY
 #endif

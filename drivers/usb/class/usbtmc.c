@@ -186,8 +186,7 @@ static int usbtmc_ioctl_abort_bulk_in(struct usbtmc_device_data *data)
 	for (n = 0; n < current_setting->desc.bNumEndpoints; n++)
 		if (current_setting->endpoint[n].desc.bEndpointAddress ==
 			data->bulk_in)
-			max_size = le16_to_cpu(current_setting->endpoint[n].
-						desc.wMaxPacketSize);
+			max_size = usb_endpoint_maxp(&current_setting->endpoint[n].desc);
 
 	if (max_size == 0) {
 		dev_err(dev, "Couldn't get wMaxPacketSize\n");
@@ -268,7 +267,7 @@ usbtmc_abort_bulk_in_status:
 				dev_err(dev, "usb_bulk_msg returned %d\n", rv);
 				goto exit;
 			}
-		} while ((actual = max_size) &&
+		} while ((actual == max_size) &&
 			 (n < USBTMC_MAX_READS_TO_CLEAR_BULK_IN));
 
 	if (actual == max_size) {
@@ -636,7 +635,7 @@ static int usbtmc_ioctl_clear(struct usbtmc_device_data *data)
 	for (n = 0; n < current_setting->desc.bNumEndpoints; n++) {
 		desc = &current_setting->endpoint[n].desc;
 		if (desc->bEndpointAddress == data->bulk_in)
-			max_size = le16_to_cpu(desc->wMaxPacketSize);
+			max_size = usb_endpoint_maxp(desc);
 	}
 
 	if (max_size == 0) {

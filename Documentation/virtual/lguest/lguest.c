@@ -436,7 +436,7 @@ static unsigned long load_bzimage(int fd)
 
 	/*
 	 * Go back to the start of the file and read the header.  It should be
-	 * a Linux boot header (see Documentation/x86/i386/boot.txt)
+	 * a Linux boot header (see Documentation/x86/boot.txt)
 	 */
 	lseek(fd, 0, SEEK_SET);
 	read(fd, &boot, sizeof(boot));
@@ -1995,6 +1995,9 @@ int main(int argc, char *argv[])
 	boot->hdr.cmd_line_ptr = to_guest_phys(boot + 1);
 	/* We use a simple helper to copy the arguments separated by spaces. */
 	concat((char *)(boot + 1), argv+optind+2);
+
+	/* Set kernel alignment to 16M (CONFIG_PHYSICAL_ALIGN) */
+	boot->hdr.kernel_alignment = 0x1000000;
 
 	/* Boot protocol version: 2.07 supports the fields for lguest. */
 	boot->hdr.version = 0x207;

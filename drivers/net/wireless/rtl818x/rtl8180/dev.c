@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/module.h>
 #include <net/mac80211.h>
 
 #include "rtl8180.h"
@@ -669,7 +670,8 @@ static void rtl8180_stop(struct ieee80211_hw *dev)
 		rtl8180_free_tx_ring(dev, i);
 }
 
-static u64 rtl8180_get_tsf(struct ieee80211_hw *dev)
+static u64 rtl8180_get_tsf(struct ieee80211_hw *dev,
+			   struct ieee80211_vif *vif)
 {
 	struct rtl8180_priv *priv = dev->priv;
 
@@ -701,7 +703,7 @@ static void rtl8180_beacon_work(struct work_struct *work)
 	 * TODO: make hardware update beacon timestamp
 	 */
 	mgmt = (struct ieee80211_mgmt *)skb->data;
-	mgmt->u.beacon.timestamp = cpu_to_le64(rtl8180_get_tsf(dev));
+	mgmt->u.beacon.timestamp = cpu_to_le64(rtl8180_get_tsf(dev, vif));
 
 	/* TODO: use actual beacon queue */
 	skb_set_queue_mapping(skb, 0);

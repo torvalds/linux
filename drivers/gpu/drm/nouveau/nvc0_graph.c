@@ -23,6 +23,7 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/module.h>
 
 #include "drmP.h"
 
@@ -390,7 +391,7 @@ nvc0_graph_init_gpc_0(struct drm_device *dev)
 	}
 
 	nv_wr32(dev, GPC_BCAST(0x1bd4), magicgpc918);
-	nv_wr32(dev, GPC_BCAST(0x08ac), priv->rop_nr);
+	nv_wr32(dev, GPC_BCAST(0x08ac), nv_rd32(dev, 0x100800));
 }
 
 static void
@@ -700,22 +701,6 @@ nvc0_graph_isr(struct drm_device *dev)
 	nv_wr32(dev, 0x400500, 0x00010001);
 }
 
-static void
-nvc0_runk140_isr(struct drm_device *dev)
-{
-	u32 units = nv_rd32(dev, 0x00017c) & 0x1f;
-
-	while (units) {
-		u32 unit = ffs(units) - 1;
-		u32 reg = 0x140000 + unit * 0x2000;
-		u32 st0 = nv_mask(dev, reg + 0x1020, 0, 0);
-		u32 st1 = nv_mask(dev, reg + 0x1420, 0, 0);
-
-		NV_DEBUG(dev, "PRUNK140: %d 0x%08x 0x%08x\n", unit, st0, st1);
-		units &= ~(1 << unit);
-	}
-}
-
 static int
 nvc0_graph_create_fw(struct drm_device *dev, const char *fwname,
 		     struct nvc0_graph_fuc *fuc)
@@ -764,7 +749,6 @@ nvc0_graph_destroy(struct drm_device *dev, int engine)
 	}
 
 	nouveau_irq_unregister(dev, 12);
-	nouveau_irq_unregister(dev, 25);
 
 	nouveau_gpuobj_ref(NULL, &priv->unk4188b8);
 	nouveau_gpuobj_ref(NULL, &priv->unk4188b4);
@@ -803,7 +787,6 @@ nvc0_graph_create(struct drm_device *dev)
 
 	NVOBJ_ENGINE_ADD(dev, GR, &priv->base);
 	nouveau_irq_register(dev, 12, nvc0_graph_isr);
-	nouveau_irq_register(dev, 25, nvc0_runk140_isr);
 
 	if (nouveau_ctxfw) {
 		NV_INFO(dev, "PGRAPH: using external firmware\n");
@@ -864,6 +847,9 @@ nvc0_graph_create(struct drm_device *dev)
 	case 0xce: /* 4/4/0/0, 4 */
 		priv->magic_not_rop_nr = 0x03;
 		break;
+	case 0xcf: /* 4/0/0/0, 3 */
+		priv->magic_not_rop_nr = 0x03;
+		break;
 	}
 
 	if (!priv->magic_not_rop_nr) {
@@ -889,20 +875,3 @@ error:
 	nvc0_graph_destroy(dev, NVOBJ_ENGINE_GR);
 	return ret;
 }
-
-MODULE_FIRMWARE("nouveau/nvc0_fuc409c");
-MODULE_FIRMWARE("nouveau/nvc0_fuc409d");
-MODULE_FIRMWARE("nouveau/nvc0_fuc41ac");
-MODULE_FIRMWARE("nouveau/nvc0_fuc41ad");
-MODULE_FIRMWARE("nouveau/nvc3_fuc409c");
-MODULE_FIRMWARE("nouveau/nvc3_fuc409d");
-MODULE_FIRMWARE("nouveau/nvc3_fuc41ac");
-MODULE_FIRMWARE("nouveau/nvc3_fuc41ad");
-MODULE_FIRMWARE("nouveau/nvc4_fuc409c");
-MODULE_FIRMWARE("nouveau/nvc4_fuc409d");
-MODULE_FIRMWARE("nouveau/nvc4_fuc41ac");
-MODULE_FIRMWARE("nouveau/nvc4_fuc41ad");
-MODULE_FIRMWARE("nouveau/fuc409c");
-MODULE_FIRMWARE("nouveau/fuc409d");
-MODULE_FIRMWARE("nouveau/fuc41ac");
-MODULE_FIRMWARE("nouveau/fuc41ad");

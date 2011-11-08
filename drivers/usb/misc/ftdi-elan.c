@@ -2777,7 +2777,7 @@ static int ftdi_elan_probe(struct usb_interface *interface,
                 endpoint = &iface_desc->endpoint[i].desc;
                 if (!ftdi->bulk_in_endpointAddr &&
 		    usb_endpoint_is_bulk_in(endpoint)) {
-                        buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
+                        buffer_size = usb_endpoint_maxp(endpoint);
                         ftdi->bulk_in_size = buffer_size;
                         ftdi->bulk_in_endpointAddr = endpoint->bEndpointAddress;
                         ftdi->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);

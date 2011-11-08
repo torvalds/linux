@@ -268,7 +268,7 @@ static int nuc900_dma_open(struct snd_pcm_substream *substream)
 	nuc900_audio = nuc900_ac97_data;
 
 	if (request_irq(nuc900_audio->irq_num, nuc900_dma_interrupt,
-			IRQF_DISABLED, "nuc900-dma", substream))
+			0, "nuc900-dma", substream))
 		return -EBUSY;
 
 	runtime->private_data = nuc900_audio;

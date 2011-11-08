@@ -7,7 +7,7 @@
  * Copyright (C) 2001 MIPS Technologies, Inc.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/pm.h>
 #include <linux/types.h>
 #include <linux/reboot.h>

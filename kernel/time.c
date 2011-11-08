@@ -27,7 +27,7 @@
  *	with nanosecond accuracy
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/timex.h>
 #include <linux/capability.h>
 #include <linux/clocksource.h>
@@ -575,7 +575,7 @@ EXPORT_SYMBOL(jiffies_to_timeval);
 /*
  * Convert jiffies/jiffies_64 to clock_t and back.
  */
-clock_t jiffies_to_clock_t(long x)
+clock_t jiffies_to_clock_t(unsigned long x)
 {
 #if (TICK_NSEC % (NSEC_PER_SEC / USER_HZ)) == 0
 # if HZ < USER_HZ

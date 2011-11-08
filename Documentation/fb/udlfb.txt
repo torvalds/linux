@@ -87,23 +87,38 @@ Special configuration for udlfb is usually unnecessary. There are a few
 options, however.
 
 From the command line, pass options to modprobe
-modprobe udlfb defio=1 console=1
+modprobe udlfb fb_defio=0 console=1 shadow=1
 
-Or for permanent option, create file like /etc/modprobe.d/options with text
-options udlfb defio=1 console=1
+Or modify options on the fly at /sys/module/udlfb/parameters directory via
+sudo nano fb_defio
+change the parameter in place, and save the file.
 
-Accepted options:
+Unplug/replug USB device to apply with new settings
+
+Or for permanent option, create file like /etc/modprobe.d/udlfb.conf with text
+options udlfb fb_defio=0 console=1 shadow=1
+
+Accepted boolean options:
 
 fb_defio	Make use of the fb_defio (CONFIG_FB_DEFERRED_IO) kernel
 		module to track changed areas of the framebuffer by page faults.
-        	Standard fbdev applications that use mmap but that do not
-		report damage, may be able to work with this enabled.
-		Disabled by default because of overhead and other issues.
+		Standard fbdev applications that use mmap but that do not
+		report damage, should be able to work with this enabled.
+		Disable when running with X server that supports reporting
+		changed regions via ioctl, as this method is simpler,
+		more stable, and higher performance.
+		default: fb_defio=1
 
-console		Allow fbcon to attach to udlfb provided framebuffers. This
-		is disabled by default because fbcon will aggressively consume
-		the first framebuffer it finds, which isn't usually what the
-		user wants in the case of USB displays.
+console	Allow fbcon to attach to udlfb provided framebuffers.
+		Can be disabled if fbcon and other clients
+		(e.g. X with --shared-vt) are in conflict.
+		default: console=1
+
+shadow		Allocate a 2nd framebuffer to shadow what's currently across
+		the USB bus in device memory. If any pixels are unchanged,
+		do not transmit. Spends host memory to save USB transfers.
+		Enabled by default. Only disable on very low memory systems.
+		default: shadow=1
 
 Sysfs Attributes
 ================

@@ -8,6 +8,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <asm/qdio.h>
 
 #include "cio.h"
@@ -19,6 +20,22 @@
 #include "qdio_debug.h"
 
 static struct kmem_cache *qdio_q_cache;
+static struct kmem_cache *qdio_aob_cache;
+
+struct qaob *qdio_allocate_aob()
+{
+	struct qaob *aob;
+
+	aob = kmem_cache_zalloc(qdio_aob_cache, GFP_ATOMIC);
+	return aob;
+}
+EXPORT_SYMBOL_GPL(qdio_allocate_aob);
+
+void qdio_release_aob(struct qaob *aob)
+{
+	kmem_cache_free(qdio_aob_cache, aob);
+}
+EXPORT_SYMBOL_GPL(qdio_release_aob);
 
 /*
  * qebsm is only available under 64bit but the adapter sets the feature
@@ -154,28 +171,35 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 	struct qdio_q *q;
 	void **input_sbal_array = qdio_init->input_sbal_addr_array;
 	void **output_sbal_array = qdio_init->output_sbal_addr_array;
+	struct qdio_outbuf_state *output_sbal_state_array =
+				  qdio_init->output_sbal_state_array;
 	int i;
 
 	for_each_input_queue(irq_ptr, q, i) {
-		DBF_EVENT("in-q:%1d", i);
+		DBF_EVENT("inq:%1d", i);
 		setup_queues_misc(q, irq_ptr, qdio_init->input_handler, i);
 
 		q->is_input_q = 1;
-		q->u.in.queue_start_poll = qdio_init->queue_start_poll;
+		q->u.in.queue_start_poll = qdio_init->queue_start_poll[i];
+
 		setup_storage_lists(q, irq_ptr, input_sbal_array, i);
 		input_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
 
-		if (is_thinint_irq(irq_ptr))
+		if (is_thinint_irq(irq_ptr)) {
 			tasklet_init(&q->tasklet, tiqdio_inbound_processing,
 				     (unsigned long) q);
-		else
+		} else {
 			tasklet_init(&q->tasklet, qdio_inbound_processing,
 				     (unsigned long) q);
+		}
 	}
 
 	for_each_output_queue(irq_ptr, q, i) {
 		DBF_EVENT("outq:%1d", i);
 		setup_queues_misc(q, irq_ptr, qdio_init->output_handler, i);
+
+		q->u.out.sbal_state = output_sbal_state_array;
+		output_sbal_state_array += QDIO_MAX_BUFFERS_PER_Q;
 
 		q->is_input_q = 0;
 		q->u.out.scan_threshold = qdio_init->scan_threshold;
@@ -311,6 +335,19 @@ void qdio_release_memory(struct qdio_irq *irq_ptr)
 	for (i = 0; i < QDIO_MAX_QUEUES_PER_IRQ; i++) {
 		q = irq_ptr->output_qs[i];
 		if (q) {
+			if (q->u.out.use_cq) {
+				int n;
+
+				for (n = 0; n < QDIO_MAX_BUFFERS_PER_Q; ++n) {
+					struct qaob *aob = q->u.out.aobs[n];
+					if (aob) {
+						qdio_release_aob(aob);
+						q->u.out.aobs[n] = NULL;
+					}
+				}
+
+				qdio_disable_async_operation(&q->u.out);
+			}
 			free_page((unsigned long) q->slib);
 			kmem_cache_free(qdio_q_cache, q);
 		}
@@ -345,6 +382,7 @@ static void setup_qdr(struct qdio_irq *irq_ptr,
 	int i;
 
 	irq_ptr->qdr->qfmt = qdio_init->q_format;
+	irq_ptr->qdr->ac = qdio_init->qdr_ac;
 	irq_ptr->qdr->iqdcnt = qdio_init->no_input_qs;
 	irq_ptr->qdr->oqdcnt = qdio_init->no_output_qs;
 	irq_ptr->qdr->iqdsz = sizeof(struct qdesfmt0) / 4; /* size in words */
@@ -465,12 +503,43 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 	printk(KERN_INFO "%s", s);
 }
 
+int qdio_enable_async_operation(struct qdio_output_q *outq)
+{
+	outq->aobs = kzalloc(sizeof(struct qaob *) * QDIO_MAX_BUFFERS_PER_Q,
+			     GFP_ATOMIC);
+	if (!outq->aobs) {
+		outq->use_cq = 0;
+		return -ENOMEM;
+	}
+	outq->use_cq = 1;
+	return 0;
+}
+
+void qdio_disable_async_operation(struct qdio_output_q *q)
+{
+	kfree(q->aobs);
+	q->aobs = NULL;
+	q->use_cq = 0;
+}
+
 int __init qdio_setup_init(void)
 {
+	int rc;
+
 	qdio_q_cache = kmem_cache_create("qdio_q", sizeof(struct qdio_q),
 					 256, 0, NULL);
 	if (!qdio_q_cache)
 		return -ENOMEM;
+
+	qdio_aob_cache = kmem_cache_create("qdio_aob",
+					sizeof(struct qaob),
+					sizeof(struct qaob),
+					0,
+					NULL);
+	if (!qdio_aob_cache) {
+		rc = -ENOMEM;
+		goto free_qdio_q_cache;
+	}
 
 	/* Check for OSA/FCP thin interrupts (bit 67). */
 	DBF_EVENT("thinint:%1d",
@@ -478,10 +547,16 @@ int __init qdio_setup_init(void)
 
 	/* Check for QEBSM support in general (bit 58). */
 	DBF_EVENT("cssQEBSM:%1d", (qebsm_possible()) ? 1 : 0);
-	return 0;
+	rc = 0;
+out:
+	return rc;
+free_qdio_q_cache:
+	kmem_cache_destroy(qdio_q_cache);
+	goto out;
 }
 
 void qdio_setup_exit(void)
 {
+	kmem_cache_destroy(qdio_aob_cache);
 	kmem_cache_destroy(qdio_q_cache);
 }

@@ -427,16 +427,6 @@ slb_miss_user_pseries:
 	b	.				/* prevent spec. execution */
 #endif /* __DISABLED__ */
 
-/* KVM's trampoline code needs to be close to the interrupt handlers */
-
-#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-#ifdef CONFIG_KVM_BOOK3S_PR
-#include "../kvm/book3s_rmhandlers.S"
-#else
-#include "../kvm/book3s_hv_rmhandlers.S"
-#endif
-#endif
-
 	.align	7
 	.globl	__end_interrupts
 __end_interrupts:
@@ -1143,7 +1133,7 @@ _GLOBAL(do_stab_bolted)
 	rfid
 	b	.	/* prevent speculative execution */
 
-#ifdef CONFIG_PPC_PSERIES
+#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 /*
  * Data area reserved for FWNMI option.
  * This address (0x7000) is fixed by the RPA.
@@ -1151,7 +1141,7 @@ _GLOBAL(do_stab_bolted)
 	.= 0x7000
 	.globl fwnmi_data_area
 fwnmi_data_area:
-#endif /* CONFIG_PPC_PSERIES */
+#endif /* defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV) */
 
 	/* iSeries does not use the FWNMI stuff, so it is safe to put
 	 * this here, even if we later allow kernels that will boot on
@@ -1176,9 +1166,12 @@ xLparMap:
 
 #endif /* CONFIG_PPC_ISERIES */
 
-#ifdef CONFIG_PPC_PSERIES
+#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
+	/* pseries and powernv need to keep the whole page from
+	 * 0x7000 to 0x8000 free for use by the firmware
+	 */
         . = 0x8000
-#endif /* CONFIG_PPC_PSERIES */
+#endif /* defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV) */
 
 /*
  * Space for CPU0's segment table.
@@ -1193,3 +1186,19 @@ xLparMap:
 	.globl initial_stab
 initial_stab:
 	.space	4096
+#ifdef CONFIG_PPC_POWERNV
+_GLOBAL(opal_mc_secondary_handler)
+	HMT_MEDIUM
+	SET_SCRATCH0(r13)
+	GET_PACA(r13)
+	clrldi	r3,r3,2
+	tovirt(r3,r3)
+	std	r3,PACA_OPAL_MC_EVT(r13)
+	ld	r13,OPAL_MC_SRR0(r3)
+	mtspr	SPRN_SRR0,r13
+	ld	r13,OPAL_MC_SRR1(r3)
+	mtspr	SPRN_SRR1,r13
+	ld	r3,OPAL_MC_GPR3(r3)
+	GET_SCRATCH0(r13)
+	b	machine_check_pSeries
+#endif /* CONFIG_PPC_POWERNV */

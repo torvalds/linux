@@ -22,6 +22,7 @@ static u64			last_timestamp;
 static u64			nr_unordered;
 extern const struct option	record_options[];
 static bool			no_callchain;
+static bool			show_full_info;
 static const char		*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 
@@ -1083,7 +1084,8 @@ static const struct option options[] = {
 		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace,raw. Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,addr",
 		     parse_output_fields),
 	OPT_STRING('c', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
-
+	OPT_BOOLEAN('I', "show-info", &show_full_info,
+		    "display extended information from perf.data file"),
 	OPT_END()
 };
 
@@ -1267,6 +1269,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 		if (perf_session__cpu_bitmap(session, cpu_list, cpu_bitmap))
 			return -1;
 	}
+
+	perf_session__fprintf_info(session, stdout, show_full_info);
 
 	if (!no_callchain)
 		symbol_conf.use_callchain = true;

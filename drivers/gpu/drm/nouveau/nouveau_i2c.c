@@ -22,6 +22,8 @@
  * Authors: Ben Skeggs
  */
 
+#include <linux/module.h>
+
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_i2c.h"
@@ -107,6 +109,13 @@ nv4e_i2c_getsda(void *data)
 	return !!((nv_rd32(dev, i2c->rd) >> 16) & 8);
 }
 
+static const uint32_t nv50_i2c_port[] = {
+	0x00e138, 0x00e150, 0x00e168, 0x00e180,
+	0x00e254, 0x00e274, 0x00e764, 0x00e780,
+	0x00e79c, 0x00e7b8
+};
+#define NV50_I2C_PORTS ARRAY_SIZE(nv50_i2c_port)
+
 static int
 nv50_i2c_getscl(void *data)
 {
@@ -130,28 +139,32 @@ static void
 nv50_i2c_setscl(void *data, int state)
 {
 	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
 
-	nv_wr32(dev, i2c->wr, 4 | (i2c->data ? 2 : 0) | (state ? 1 : 0));
+	nv_wr32(i2c->dev, i2c->wr, 4 | (i2c->data ? 2 : 0) | (state ? 1 : 0));
 }
 
 static void
 nv50_i2c_setsda(void *data, int state)
 {
 	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
 
-	nv_wr32(dev, i2c->wr,
-			(nv_rd32(dev, i2c->rd) & 1) | 4 | (state ? 2 : 0));
+	nv_mask(i2c->dev, i2c->wr, 0x00000006, 4 | (state ? 2 : 0));
 	i2c->data = state;
 }
 
-static const uint32_t nv50_i2c_port[] = {
-	0x00e138, 0x00e150, 0x00e168, 0x00e180,
-	0x00e254, 0x00e274, 0x00e764, 0x00e780,
-	0x00e79c, 0x00e7b8
-};
-#define NV50_I2C_PORTS ARRAY_SIZE(nv50_i2c_port)
+static int
+nvd0_i2c_getscl(void *data)
+{
+	struct nouveau_i2c_chan *i2c = data;
+	return !!(nv_rd32(i2c->dev, i2c->rd) & 0x10);
+}
+
+static int
+nvd0_i2c_getsda(void *data)
+{
+	struct nouveau_i2c_chan *i2c = data;
+	return !!(nv_rd32(i2c->dev, i2c->rd) & 0x20);
+}
 
 int
 nouveau_i2c_init(struct drm_device *dev, struct dcb_i2c_entry *entry, int index)
@@ -163,7 +176,8 @@ nouveau_i2c_init(struct drm_device *dev, struct dcb_i2c_entry *entry, int index)
 	if (entry->chan)
 		return -EEXIST;
 
-	if (dev_priv->card_type >= NV_50 && entry->read >= NV50_I2C_PORTS) {
+	if (dev_priv->card_type >= NV_50 &&
+	    dev_priv->card_type <= NV_C0 && entry->read >= NV50_I2C_PORTS) {
 		NV_ERROR(dev, "unknown i2c port %d\n", entry->read);
 		return -EINVAL;
 	}
@@ -192,10 +206,17 @@ nouveau_i2c_init(struct drm_device *dev, struct dcb_i2c_entry *entry, int index)
 	case 5:
 		i2c->bit.setsda = nv50_i2c_setsda;
 		i2c->bit.setscl = nv50_i2c_setscl;
-		i2c->bit.getsda = nv50_i2c_getsda;
-		i2c->bit.getscl = nv50_i2c_getscl;
-		i2c->rd = nv50_i2c_port[entry->read];
-		i2c->wr = i2c->rd;
+		if (dev_priv->card_type < NV_D0) {
+			i2c->bit.getsda = nv50_i2c_getsda;
+			i2c->bit.getscl = nv50_i2c_getscl;
+			i2c->rd = nv50_i2c_port[entry->read];
+			i2c->wr = i2c->rd;
+		} else {
+			i2c->bit.getsda = nvd0_i2c_getsda;
+			i2c->bit.getscl = nvd0_i2c_getscl;
+			i2c->rd = 0x00d014 + (entry->read * 0x20);
+			i2c->wr = i2c->rd;
+		}
 		break;
 	case 6:
 		i2c->rd = entry->read;
@@ -267,7 +288,10 @@ nouveau_i2c_find(struct drm_device *dev, int index)
 			val  = 0xe001;
 		}
 
-		nv_wr32(dev, reg, (nv_rd32(dev, reg) & ~0xf003) | val);
+		/* nfi, but neither auxch or i2c work if it's 1 */
+		nv_mask(dev, reg + 0x0c, 0x00000001, 0x00000000);
+		/* nfi, but switches auxch vs normal i2c */
+		nv_mask(dev, reg + 0x00, 0x0000f003, val);
 	}
 
 	if (!i2c->chan && nouveau_i2c_init(dev, i2c, index))

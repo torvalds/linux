@@ -16,7 +16,7 @@
 #define _ASM_MICROBLAZE_DMA_MAPPING_H
 
 /*
- * See Documentation/PCI/PCI-DMA-mapping.txt and
+ * See Documentation/DMA-API-HOWTO.txt and
  * Documentation/DMA-API.txt for documentation.
  */
 
@@ -28,12 +28,12 @@
 #include <linux/dma-attrs.h>
 #include <asm/io.h>
 #include <asm-generic/dma-coherent.h>
+#include <asm/cacheflush.h>
 
 #define DMA_ERROR_CODE		(~(dma_addr_t)0x0)
 
 #define __dma_alloc_coherent(dev, gfp, size, handle)	NULL
 #define __dma_free_coherent(size, addr)		((void)0)
-#define __dma_sync(addr, size, rw)		((void)0)
 
 static inline unsigned long device_to_mask(struct device *dev)
 {
@@ -95,6 +95,22 @@ static inline int dma_set_mask(struct device *dev, u64 dma_mask)
 
 #include <asm-generic/dma-mapping-common.h>
 
+static inline void __dma_sync(unsigned long paddr,
+			      size_t size, enum dma_data_direction direction)
+{
+	switch (direction) {
+	case DMA_TO_DEVICE:
+	case DMA_BIDIRECTIONAL:
+		flush_dcache_range(paddr, paddr + size);
+		break;
+	case DMA_FROM_DEVICE:
+		invalidate_dcache_range(paddr, paddr + size);
+		break;
+	default:
+		BUG();
+	}
+}
+
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	struct dma_map_ops *ops = get_dma_ops(dev);
@@ -135,7 +151,7 @@ static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		enum dma_data_direction direction)
 {
 	BUG_ON(direction == DMA_NONE);
-	__dma_sync(vaddr, size, (int)direction);
+	__dma_sync(virt_to_phys(vaddr), size, (int)direction);
 }
 
 #endif	/* _ASM_MICROBLAZE_DMA_MAPPING_H */

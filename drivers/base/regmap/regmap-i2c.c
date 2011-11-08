@@ -90,11 +90,9 @@ static int regmap_i2c_read(struct device *dev,
 }
 
 static struct regmap_bus regmap_i2c = {
-	.type = &i2c_bus_type,
 	.write = regmap_i2c_write,
 	.gather_write = regmap_i2c_gather_write,
 	.read = regmap_i2c_read,
-	.owner = THIS_MODULE,
 };
 
 /**
@@ -113,3 +111,4 @@ struct regmap *regmap_init_i2c(struct i2c_client *i2c,
 }
 EXPORT_SYMBOL_GPL(regmap_init_i2c);
 
+MODULE_LICENSE("GPL");

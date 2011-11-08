@@ -20,17 +20,18 @@ config SENSORS_PMBUS
 	help
 	  If you say yes here you get hardware monitoring support for generic
 	  PMBus devices, including but not limited to ADP4000, BMR450, BMR451,
-	  BMR453, BMR454, LTC2978, NCP4200, and NCP4208.
+	  BMR453, BMR454, NCP4200, and NCP4208.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called pmbus.
 
 config SENSORS_ADM1275
-	tristate "Analog Devices ADM1275"
+	tristate "Analog Devices ADM1275 and compatibles"
 	default n
 	help
 	  If you say yes here you get hardware monitoring support for Analog
-	  Devices ADM1275 Hot-Swap Controller and Digital Power Monitor.
+	  Devices ADM1275 and ADM1276 Hot-Swap Controller and Digital Power
+	  Monitor.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called adm1275.
@@ -44,6 +45,16 @@ config SENSORS_LM25066
 
 	  This driver can also be built as a module. If so, the module will
 	  be called lm25066.
+
+config SENSORS_LTC2978
+	tristate "Linear Technologies LTC2978 and LTC3880"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Linear
+	  Technology LTC2978 and LTC3880.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2978.
 
 config SENSORS_MAX16064
 	tristate "Maxim MAX16064"
@@ -96,5 +107,16 @@ config SENSORS_UCD9200
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ucd9200.
+
+config SENSORS_ZL6100
+	tristate "Intersil ZL6100 and compatibles"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Intersil
+	  ZL2004, ZL2006, ZL2008, ZL2105, ZL2106, ZL6100, and ZL6105 Digital
+	  DC/DC Controllers.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called zl6100.
 
 endif # PMBUS

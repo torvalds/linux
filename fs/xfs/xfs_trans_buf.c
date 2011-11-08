@@ -54,7 +54,7 @@ xfs_trans_buf_item_match(
 	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
 		blip = (struct xfs_buf_log_item *)lidp->lid_item;
 		if (blip->bli_item.li_type == XFS_LI_BUF &&
-		    XFS_BUF_TARGET(blip->bli_buf) == target &&
+		    blip->bli_buf->b_target == target &&
 		    XFS_BUF_ADDR(blip->bli_buf) == blkno &&
 		    XFS_BUF_COUNT(blip->bli_buf) == len)
 			return blip->bli_buf;
@@ -80,7 +80,6 @@ _xfs_trans_bjoin(
 {
 	struct xfs_buf_log_item	*bip;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == NULL);
 
 	/*
@@ -161,8 +160,10 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 	bp = xfs_trans_buf_item_match(tp, target_dev, blkno, len);
 	if (bp != NULL) {
 		ASSERT(xfs_buf_islocked(bp));
-		if (XFS_FORCED_SHUTDOWN(tp->t_mountp))
-			XFS_BUF_SUPER_STALE(bp);
+		if (XFS_FORCED_SHUTDOWN(tp->t_mountp)) {
+			xfs_buf_stale(bp);
+			XFS_BUF_DONE(bp);
+		}
 
 		/*
 		 * If the buffer is stale then it was binval'ed
@@ -194,7 +195,7 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 		return NULL;
 	}
 
-	ASSERT(!XFS_BUF_GETERROR(bp));
+	ASSERT(!bp->b_error);
 
 	_xfs_trans_bjoin(tp, bp, 1);
 	trace_xfs_trans_get_buf(bp->b_fspriv);
@@ -293,10 +294,9 @@ xfs_trans_read_buf(
 			return (flags & XBF_TRYLOCK) ?
 					EAGAIN : XFS_ERROR(ENOMEM);
 
-		if (XFS_BUF_GETERROR(bp) != 0) {
-			xfs_ioerror_alert("xfs_trans_read_buf", mp,
-					  bp, blkno);
-			error = XFS_BUF_GETERROR(bp);
+		if (bp->b_error) {
+			error = bp->b_error;
+			xfs_buf_ioerror_alert(bp, __func__);
 			xfs_buf_relse(bp);
 			return error;
 		}
@@ -330,7 +330,7 @@ xfs_trans_read_buf(
 		ASSERT(xfs_buf_islocked(bp));
 		ASSERT(bp->b_transp == tp);
 		ASSERT(bp->b_fspriv != NULL);
-		ASSERT((XFS_BUF_ISERROR(bp)) == 0);
+		ASSERT(!bp->b_error);
 		if (!(XFS_BUF_ISDONE(bp))) {
 			trace_xfs_trans_read_buf_io(bp, _RET_IP_);
 			ASSERT(!XFS_BUF_ISASYNC(bp));
@@ -338,8 +338,7 @@ xfs_trans_read_buf(
 			xfsbdstrat(tp->t_mountp, bp);
 			error = xfs_buf_iowait(bp);
 			if (error) {
-				xfs_ioerror_alert("xfs_trans_read_buf", mp,
-						  bp, blkno);
+				xfs_buf_ioerror_alert(bp, __func__);
 				xfs_buf_relse(bp);
 				/*
 				 * We can gracefully recover from most read
@@ -386,12 +385,11 @@ xfs_trans_read_buf(
 		return (flags & XBF_TRYLOCK) ?
 					0 : XFS_ERROR(ENOMEM);
 	}
-	if (XFS_BUF_GETERROR(bp) != 0) {
-	    XFS_BUF_SUPER_STALE(bp);
-		error = XFS_BUF_GETERROR(bp);
-
-		xfs_ioerror_alert("xfs_trans_read_buf", mp,
-				  bp, blkno);
+	if (bp->b_error) {
+		error = bp->b_error;
+		xfs_buf_stale(bp);
+		XFS_BUF_DONE(bp);
+		xfs_buf_ioerror_alert(bp, __func__);
 		if (tp->t_flags & XFS_TRANS_DIRTY)
 			xfs_force_shutdown(tp->t_mountp, SHUTDOWN_META_IO_ERROR);
 		xfs_buf_relse(bp);
@@ -430,7 +428,7 @@ shutdown_abort:
 	if (XFS_BUF_ISSTALE(bp) && XFS_BUF_ISDELAYWRITE(bp))
 		xfs_notice(mp, "about to pop assert, bp == 0x%p", bp);
 #endif
-	ASSERT((XFS_BUF_BFLAGS(bp) & (XBF_STALE|XBF_DELWRI)) !=
+	ASSERT((bp->b_flags & (XBF_STALE|XBF_DELWRI)) !=
 				     (XBF_STALE|XBF_DELWRI));
 
 	trace_xfs_trans_read_buf_shut(bp, _RET_IP_);
@@ -581,7 +579,6 @@ xfs_trans_bhold(xfs_trans_t	*tp,
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
@@ -602,7 +599,6 @@ xfs_trans_bhold_release(xfs_trans_t	*tp,
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
@@ -631,7 +627,6 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT((first <= last) && (last < XFS_BUF_COUNT(bp)));
@@ -648,12 +643,13 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 	 * inside the b_bdstrat callback so that this won't get written to
 	 * disk.
 	 */
-	XFS_BUF_DELAYWRITE(bp);
 	XFS_BUF_DONE(bp);
 
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 	bp->b_iodone = xfs_buf_iodone_callbacks;
 	bip->bli_item.li_cb = xfs_buf_iodone;
+
+	xfs_buf_delwri_queue(bp);
 
 	trace_xfs_trans_log_buf(bip);
 
@@ -702,7 +698,6 @@ xfs_trans_binval(
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
@@ -744,8 +739,7 @@ xfs_trans_binval(
 	 * We set the stale bit in the buffer as well since we're getting
 	 * rid of it.
 	 */
-	XFS_BUF_UNDELAYWRITE(bp);
-	XFS_BUF_STALE(bp);
+	xfs_buf_stale(bp);
 	bip->bli_flags |= XFS_BLI_STALE;
 	bip->bli_flags &= ~(XFS_BLI_INODE_BUF | XFS_BLI_LOGGED | XFS_BLI_DIRTY);
 	bip->bli_format.blf_flags &= ~XFS_BLF_INODE_BUF;
@@ -774,7 +768,6 @@ xfs_trans_inode_buf(
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
@@ -798,7 +791,6 @@ xfs_trans_stale_inode_buf(
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
@@ -823,7 +815,6 @@ xfs_trans_inode_alloc_buf(
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
@@ -851,7 +842,6 @@ xfs_trans_dquot_buf(
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(type == XFS_BLF_UDQUOT_BUF ||

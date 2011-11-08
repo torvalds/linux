@@ -11,6 +11,7 @@
 
 #include <linux/clk.h>
 #include <linux/errno.h>
+#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/debugfs.h>
@@ -22,9 +23,6 @@
 
 #include <mach/hardware.h>
 #include <mach/at91_pio.h>
-#include <mach/gpio.h>
-
-#include <asm/gpio.h>
 
 #include "generic.h"
 

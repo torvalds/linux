@@ -24,6 +24,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/perf_event.h>
 #include <asm/bfin_pfmon.h>

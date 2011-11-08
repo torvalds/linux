@@ -3,7 +3,7 @@
  * Copyright (C) 2009 Hong H. Pham <hong.pham@windriver.com>
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -325,6 +325,8 @@ static int iterate_cpu(struct cpuinfo_tree *t, unsigned int root_index)
 	case SUN4V_CHIP_NIAGARA1:
 	case SUN4V_CHIP_NIAGARA2:
 	case SUN4V_CHIP_NIAGARA3:
+	case SUN4V_CHIP_NIAGARA4:
+	case SUN4V_CHIP_NIAGARA5:
 		rover_inc_table = niagara_iterate_method;
 		break;
 	default:

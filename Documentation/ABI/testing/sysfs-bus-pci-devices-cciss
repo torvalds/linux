@@ -71,3 +71,10 @@ Description:	Value of 1 indicates the controller can honor the reset_devices
 		a dump device, as kdump requires resetting the device in order
 		to work reliably.
 
+Where:		/sys/bus/pci/devices/<dev>/ccissX/transport_mode
+Date:		July 2011
+Kernel Version:	3.0
+Contact:	iss_storagedev@hp.com
+Description:	Value of "simple" indicates that the controller has been placed
+		in "simple mode". Value of "performant" indicates that the
+		controller has been placed in "performant mode".

@@ -36,7 +36,7 @@ struct ntc_thermistor_platform_data {
 	 * read_uV()
 	 *
 	 * How to setup pullup_ohm, pulldown_ohm, and connect is
-	 * described at Documentation/hwmon/ntc
+	 * described at Documentation/hwmon/ntc_thermistor
 	 *
 	 * pullup/down_ohm: 0 for infinite / not-connected
 	 */

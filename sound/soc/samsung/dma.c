@@ -16,6 +16,7 @@
 
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
+#include <linux/module.h>
 
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
@@ -54,7 +55,6 @@ struct runtime_data {
 	spinlock_t lock;
 	int state;
 	unsigned int dma_loaded;
-	unsigned int dma_limit;
 	unsigned int dma_period;
 	dma_addr_t dma_start;
 	dma_addr_t dma_pos;
@@ -62,77 +62,79 @@ struct runtime_data {
 	struct s3c_dma_params *params;
 };
 
+static void audio_buffdone(void *data);
+
 /* dma_enqueue
  *
  * place a dma buffer onto the queue for the dma system
  * to handle.
-*/
+ */
 static void dma_enqueue(struct snd_pcm_substream *substream)
 {
 	struct runtime_data *prtd = substream->runtime->private_data;
 	dma_addr_t pos = prtd->dma_pos;
 	unsigned int limit;
-	int ret;
+	struct samsung_dma_prep_info dma_info;
 
 	pr_debug("Entered %s\n", __func__);
 
-	if (s3c_dma_has_circular())
-		limit = (prtd->dma_end - prtd->dma_start) / prtd->dma_period;
-	else
-		limit = prtd->dma_limit;
+	limit = (prtd->dma_end - prtd->dma_start) / prtd->dma_period;
 
 	pr_debug("%s: loaded %d, limit %d\n",
 				__func__, prtd->dma_loaded, limit);
 
-	while (prtd->dma_loaded < limit) {
-		unsigned long len = prtd->dma_period;
+	dma_info.cap = (samsung_dma_has_circular() ? DMA_CYCLIC : DMA_SLAVE);
+	dma_info.direction =
+		(substream->stream == SNDRV_PCM_STREAM_PLAYBACK
+		? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	dma_info.fp = audio_buffdone;
+	dma_info.fp_param = substream;
+	dma_info.period = prtd->dma_period;
+	dma_info.len = prtd->dma_period*limit;
 
+	while (prtd->dma_loaded < limit) {
 		pr_debug("dma_loaded: %d\n", prtd->dma_loaded);
 
-		if ((pos + len) > prtd->dma_end) {
-			len  = prtd->dma_end - pos;
-			pr_debug("%s: corrected dma len %ld\n", __func__, len);
+		if ((pos + dma_info.period) > prtd->dma_end) {
+			dma_info.period  = prtd->dma_end - pos;
+			pr_debug("%s: corrected dma len %ld\n",
+					__func__, dma_info.period);
 		}
 
-		ret = s3c2410_dma_enqueue(prtd->params->channel,
-			substream, pos, len);
+		dma_info.buf = pos;
+		prtd->params->ops->prepare(prtd->params->ch, &dma_info);
 
-		if (ret == 0) {
-			prtd->dma_loaded++;
-			pos += prtd->dma_period;
-			if (pos >= prtd->dma_end)
-				pos = prtd->dma_start;
-		} else
-			break;
+		prtd->dma_loaded++;
+		pos += prtd->dma_period;
+		if (pos >= prtd->dma_end)
+			pos = prtd->dma_start;
 	}
 
 	prtd->dma_pos = pos;
 }
 
-static void audio_buffdone(struct s3c2410_dma_chan *channel,
-				void *dev_id, int size,
-				enum s3c2410_dma_buffresult result)
+static void audio_buffdone(void *data)
 {
-	struct snd_pcm_substream *substream = dev_id;
-	struct runtime_data *prtd;
+	struct snd_pcm_substream *substream = data;
+	struct runtime_data *prtd = substream->runtime->private_data;
 
 	pr_debug("Entered %s\n", __func__);
 
-	if (result == S3C2410_RES_ABORT || result == S3C2410_RES_ERR)
-		return;
+	if (prtd->state & ST_RUNNING) {
+		prtd->dma_pos += prtd->dma_period;
+		if (prtd->dma_pos >= prtd->dma_end)
+			prtd->dma_pos = prtd->dma_start;
 
-	prtd = substream->runtime->private_data;
+		if (substream)
+			snd_pcm_period_elapsed(substream);
 
-	if (substream)
-		snd_pcm_period_elapsed(substream);
-
-	spin_lock(&prtd->lock);
-	if (prtd->state & ST_RUNNING && !s3c_dma_has_circular()) {
-		prtd->dma_loaded--;
-		dma_enqueue(substream);
+		spin_lock(&prtd->lock);
+		if (!samsung_dma_has_circular()) {
+			prtd->dma_loaded--;
+			dma_enqueue(substream);
+		}
+		spin_unlock(&prtd->lock);
 	}
-
-	spin_unlock(&prtd->lock);
 }
 
 static int dma_hw_params(struct snd_pcm_substream *substream,
@@ -144,8 +146,7 @@ static int dma_hw_params(struct snd_pcm_substream *substream,
 	unsigned long totbytes = params_buffer_bytes(params);
 	struct s3c_dma_params *dma =
 		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-	int ret = 0;
-
+	struct samsung_dma_info dma_info;
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -163,22 +164,19 @@ static int dma_hw_params(struct snd_pcm_substream *substream,
 		pr_debug("params %p, client %p, channel %d\n", prtd->params,
 			prtd->params->client, prtd->params->channel);
 
-		ret = s3c2410_dma_request(prtd->params->channel,
-					  prtd->params->client, NULL);
+		prtd->params->ops = samsung_dma_get_ops();
 
-		if (ret < 0) {
-			printk(KERN_ERR "failed to get dma channel\n");
-			return ret;
-		}
-
-		/* use the circular buffering if we have it available. */
-		if (s3c_dma_has_circular())
-			s3c2410_dma_setflags(prtd->params->channel,
-					     S3C2410_DMAF_CIRCULAR);
+		dma_info.cap = (samsung_dma_has_circular() ?
+			DMA_CYCLIC : DMA_SLAVE);
+		dma_info.client = prtd->params->client;
+		dma_info.direction =
+			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK
+			? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+		dma_info.width = prtd->params->dma_size;
+		dma_info.fifo = prtd->params->dma_addr;
+		prtd->params->ch = prtd->params->ops->request(
+				prtd->params->channel, &dma_info);
 	}
-
-	s3c2410_dma_set_buffdone_fn(prtd->params->channel,
-				    audio_buffdone);
 
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
@@ -186,7 +184,6 @@ static int dma_hw_params(struct snd_pcm_substream *substream,
 
 	spin_lock_irq(&prtd->lock);
 	prtd->dma_loaded = 0;
-	prtd->dma_limit = runtime->hw.periods_min;
 	prtd->dma_period = params_period_bytes(params);
 	prtd->dma_start = runtime->dma_addr;
 	prtd->dma_pos = prtd->dma_start;
@@ -202,11 +199,12 @@ static int dma_hw_free(struct snd_pcm_substream *substream)
 
 	pr_debug("Entered %s\n", __func__);
 
-	/* TODO - do we need to ensure DMA flushed */
 	snd_pcm_set_runtime_buffer(substream, NULL);
 
 	if (prtd->params) {
-		s3c2410_dma_free(prtd->params->channel, prtd->params->client);
+		prtd->params->ops->flush(prtd->params->ch);
+		prtd->params->ops->release(prtd->params->ch,
+					prtd->params->client);
 		prtd->params = NULL;
 	}
 
@@ -225,23 +223,9 @@ static int dma_prepare(struct snd_pcm_substream *substream)
 	if (!prtd->params)
 		return 0;
 
-	/* channel needs configuring for mem=>device, increment memory addr,
-	 * sync to pclk, half-word transfers to the IIS-FIFO. */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		s3c2410_dma_devconfig(prtd->params->channel,
-				      S3C2410_DMASRC_MEM,
-				      prtd->params->dma_addr);
-	} else {
-		s3c2410_dma_devconfig(prtd->params->channel,
-				      S3C2410_DMASRC_HW,
-				      prtd->params->dma_addr);
-	}
-
-	s3c2410_dma_config(prtd->params->channel,
-			   prtd->params->dma_size);
-
 	/* flush the DMA channel */
-	s3c2410_dma_ctrl(prtd->params->channel, S3C2410_DMAOP_FLUSH);
+	prtd->params->ops->flush(prtd->params->ch);
+
 	prtd->dma_loaded = 0;
 	prtd->dma_pos = prtd->dma_start;
 
@@ -265,14 +249,14 @@ static int dma_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		prtd->state |= ST_RUNNING;
-		s3c2410_dma_ctrl(prtd->params->channel, S3C2410_DMAOP_START);
+		prtd->params->ops->trigger(prtd->params->ch);
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		prtd->state &= ~ST_RUNNING;
-		s3c2410_dma_ctrl(prtd->params->channel, S3C2410_DMAOP_STOP);
+		prtd->params->ops->stop(prtd->params->ch);
 		break;
 
 	default:
@@ -291,21 +275,12 @@ dma_pointer(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct runtime_data *prtd = runtime->private_data;
 	unsigned long res;
-	dma_addr_t src, dst;
 
 	pr_debug("Entered %s\n", __func__);
 
-	spin_lock(&prtd->lock);
-	s3c2410_dma_getposition(prtd->params->channel, &src, &dst);
+	res = prtd->dma_pos - prtd->dma_start;
 
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		res = dst - prtd->dma_start;
-	else
-		res = src - prtd->dma_start;
-
-	spin_unlock(&prtd->lock);
-
-	pr_debug("Pointer %x %x\n", src, dst);
+	pr_debug("Pointer offset: %lu\n", res);
 
 	/* we seem to be getting the odd error from the pcm library due
 	 * to out-of-bounds pointers. this is maybe due to the dma engine

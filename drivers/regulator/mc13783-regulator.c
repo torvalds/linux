@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include "mc13xxx.h"
 
 #define MC13783_REG_SWITCHERS5			29
@@ -336,9 +337,9 @@ static int __devinit mc13783_regulator_probe(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv;
 	struct mc13xxx *mc13783 = dev_get_drvdata(pdev->dev.parent);
-	struct mc13783_regulator_platform_data *pdata =
+	struct mc13xxx_regulator_platform_data *pdata =
 		dev_get_platdata(&pdev->dev);
-	struct mc13783_regulator_init_data *init_data;
+	struct mc13xxx_regulator_init_data *init_data;
 	int i, ret;
 
 	dev_dbg(&pdev->dev, "%s id %d\n", __func__, pdev->id);
@@ -381,7 +382,7 @@ err:
 static int __devexit mc13783_regulator_remove(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv = platform_get_drvdata(pdev);
-	struct mc13783_regulator_platform_data *pdata =
+	struct mc13xxx_regulator_platform_data *pdata =
 		dev_get_platdata(&pdev->dev);
 	int i;
 

@@ -658,8 +658,7 @@ static int __devinit snd_sc6000_probe(struct device *devptr, unsigned int dev)
 		if (snd_mpu401_uart_new(card, 0,
 					MPU401_HW_MPU401,
 					mpu_port[dev], 0,
-					mpu_irq[dev], IRQF_DISABLED,
-					NULL) < 0)
+					mpu_irq[dev], NULL) < 0)
 			snd_printk(KERN_ERR "no MPU-401 device at 0x%lx ?\n",
 					mpu_port[dev]);
 	}

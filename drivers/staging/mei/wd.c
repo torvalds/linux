@@ -19,21 +19,12 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
+#include <linux/watchdog.h>
 
 #include "mei_dev.h"
 #include "hw.h"
 #include "interface.h"
 #include "mei.h"
-
-/*
- * MEI Watchdog Module Parameters
- */
-static u16 watchdog_timeout = AMT_WD_VALUE;
-module_param(watchdog_timeout, ushort, 0);
-MODULE_PARM_DESC(watchdog_timeout,
-		"Intel(R) AMT Watchdog timeout value in seconds. (default="
-					__MODULE_STRING(AMT_WD_VALUE)
-					", disable=0)");
 
 static const u8 mei_start_wd_params[] = { 0x02, 0x12, 0x13, 0x10 };
 static const u8 mei_stop_wd_params[] = { 0x02, 0x02, 0x14, 0x10 };
@@ -50,12 +41,12 @@ const uuid_le mei_wd_guid = UUID_LE(0x05B79A6F, 0x4628, 0x4D7F, 0x89,
 						0x32, 0xAB);
 
 
-void mei_wd_start_setup(struct mei_device *dev)
+void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
 {
-	dev_dbg(&dev->pdev->dev, "dev->wd_timeout=%d.\n", dev->wd_timeout);
+	dev_dbg(&dev->pdev->dev, "timeout=%d.\n", timeout);
 	memcpy(dev->wd_data, mei_start_wd_params, MEI_WD_PARAMS_SIZE);
 	memcpy(dev->wd_data + MEI_WD_PARAMS_SIZE,
-		&dev->wd_timeout, sizeof(u16));
+			&timeout, sizeof(u16));
 }
 
 /**
@@ -63,39 +54,39 @@ void mei_wd_start_setup(struct mei_device *dev)
  *
  * @dev: the device structure
  */
-void mei_wd_host_init(struct mei_device *dev)
+bool mei_wd_host_init(struct mei_device *dev)
 {
+	bool ret = false;
+
 	mei_cl_init(&dev->wd_cl, dev);
 
 	/* look for WD client and connect to it */
 	dev->wd_cl.state = MEI_FILE_DISCONNECTED;
-	dev->wd_timeout = watchdog_timeout;
+	dev->wd_timeout = AMT_WD_DEFAULT_TIMEOUT;
 
-	if (dev->wd_timeout > 0) {
-		mei_wd_start_setup(dev);
-		/* find ME WD client */
-		mei_find_me_client_update_filext(dev, &dev->wd_cl,
-					&mei_wd_guid, MEI_WD_HOST_CLIENT_ID);
+	/* find ME WD client */
+	mei_find_me_client_update_filext(dev, &dev->wd_cl,
+				&mei_wd_guid, MEI_WD_HOST_CLIENT_ID);
 
-		dev_dbg(&dev->pdev->dev, "check wd_cl\n");
-		if (MEI_FILE_CONNECTING == dev->wd_cl.state) {
-			if (!mei_connect(dev, &dev->wd_cl)) {
-				dev_dbg(&dev->pdev->dev, "Failed to connect to WD client\n");
-				dev->wd_cl.state = MEI_FILE_DISCONNECTED;
-				dev->wd_cl.host_client_id = 0;
-				mei_host_init_iamthif(dev) ;
-			} else {
-				dev->wd_cl.timer_count = CONNECT_TIMEOUT;
-			}
+	dev_dbg(&dev->pdev->dev, "check wd_cl\n");
+	if (MEI_FILE_CONNECTING == dev->wd_cl.state) {
+		if (!mei_connect(dev, &dev->wd_cl)) {
+			dev_dbg(&dev->pdev->dev, "Failed to connect to WD client\n");
+			dev->wd_cl.state = MEI_FILE_DISCONNECTED;
+			dev->wd_cl.host_client_id = 0;
+			ret = false;
+			goto end;
 		} else {
-			dev_dbg(&dev->pdev->dev, "Failed to find WD client\n");
-			mei_host_init_iamthif(dev) ;
+			dev->wd_cl.timer_count = CONNECT_TIMEOUT;
 		}
 	} else {
-		dev->wd_bypass = true;
-		dev_dbg(&dev->pdev->dev, "WD requested to be disabled\n");
-		mei_host_init_iamthif(dev) ;
+		dev_dbg(&dev->pdev->dev, "Failed to find WD client\n");
+		ret = false;
+		goto end;
 	}
+
+end:
+	return ret;
 }
 
 /**
@@ -129,12 +120,22 @@ int mei_wd_send(struct mei_device *dev)
 	return -EIO;
 }
 
+/**
+ * mei_wd_stop - sends watchdog stop message to fw.
+ *
+ * @dev: the device structure
+ * @preserve: indicate if to keep the timeout value
+ *
+ * returns 0 if success,
+ *	-EIO when message send fails
+ *	-EINVAL when invalid message is to be sent
+ */
 int mei_wd_stop(struct mei_device *dev, bool preserve)
 {
 	int ret;
 	u16 wd_timeout = dev->wd_timeout;
 
-	cancel_delayed_work(&dev->wd_work);
+	cancel_delayed_work(&dev->timer_work);
 	if (dev->wd_cl.state != MEI_FILE_CONNECTED || !dev->wd_timeout)
 		return 0;
 
@@ -185,4 +186,169 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 out:
 	return ret;
 }
+
+/*
+ * mei_wd_ops_start - wd start command from the watchdog core.
+ *
+ * @wd_dev - watchdog device struct
+ *
+ * returns 0 if success, negative errno code for failure
+ */
+static int mei_wd_ops_start(struct watchdog_device *wd_dev)
+{
+	int err = -ENODEV;
+	struct mei_device *dev;
+
+	dev = pci_get_drvdata(mei_device);
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&dev->device_lock);
+
+	if (dev->mei_state != MEI_ENABLED) {
+		dev_dbg(&dev->pdev->dev, "mei_state != MEI_ENABLED  mei_state= %d\n",
+		    dev->mei_state);
+		goto end_unlock;
+	}
+
+	if (dev->wd_cl.state != MEI_FILE_CONNECTED)	{
+		dev_dbg(&dev->pdev->dev, "MEI Driver is not connected to Watchdog Client\n");
+		goto end_unlock;
+	}
+
+	mei_wd_set_start_timeout(dev, dev->wd_timeout);
+
+	err = 0;
+end_unlock:
+	mutex_unlock(&dev->device_lock);
+	return err;
+}
+
+/*
+ * mei_wd_ops_stop -  wd stop command from the watchdog core.
+ *
+ * @wd_dev - watchdog device struct
+ *
+ * returns 0 if success, negative errno code for failure
+ */
+static int mei_wd_ops_stop(struct watchdog_device *wd_dev)
+{
+	struct mei_device *dev;
+	dev = pci_get_drvdata(mei_device);
+
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&dev->device_lock);
+	mei_wd_stop(dev, false);
+	mutex_unlock(&dev->device_lock);
+
+	return 0;
+}
+
+/*
+ * mei_wd_ops_ping - wd ping command from the watchdog core.
+ *
+ * @wd_dev - watchdog device struct
+ *
+ * returns 0 if success, negative errno code for failure
+ */
+static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
+{
+	int ret = 0;
+	struct mei_device *dev;
+	dev = pci_get_drvdata(mei_device);
+
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&dev->device_lock);
+
+	if (dev->wd_cl.state != MEI_FILE_CONNECTED) {
+		dev_dbg(&dev->pdev->dev, "wd is not connected.\n");
+		ret = -ENODEV;
+		goto end;
+	}
+
+	/* Check if we can send the ping to HW*/
+	if (dev->mei_host_buffer_is_empty &&
+		mei_flow_ctrl_creds(dev, &dev->wd_cl) > 0) {
+
+		dev->mei_host_buffer_is_empty = false;
+		dev_dbg(&dev->pdev->dev, "sending watchdog ping\n");
+
+		if (mei_wd_send(dev)) {
+			dev_dbg(&dev->pdev->dev, "wd send failed.\n");
+			ret = -EIO;
+			goto end;
+		}
+
+		if (mei_flow_ctrl_reduce(dev, &dev->wd_cl)) {
+			dev_dbg(&dev->pdev->dev, "mei_flow_ctrl_reduce() failed.\n");
+			ret = -EIO;
+			goto end;
+		}
+
+	} else {
+		dev->wd_pending = true;
+	}
+
+end:
+	mutex_unlock(&dev->device_lock);
+	return ret;
+}
+
+/*
+ * mei_wd_ops_set_timeout - wd set timeout command from the watchdog core.
+ *
+ * @wd_dev - watchdog device struct
+ * @timeout - timeout value to set
+ *
+ * returns 0 if success, negative errno code for failure
+ */
+static int mei_wd_ops_set_timeout(struct watchdog_device *wd_dev, unsigned int timeout)
+{
+	struct mei_device *dev;
+	dev = pci_get_drvdata(mei_device);
+
+	if (!dev)
+		return -ENODEV;
+
+	/* Check Timeout value */
+	if (timeout < AMT_WD_MIN_TIMEOUT || timeout > AMT_WD_MAX_TIMEOUT)
+		return -EINVAL;
+
+	mutex_lock(&dev->device_lock);
+
+	dev->wd_timeout = timeout;
+	mei_wd_set_start_timeout(dev, dev->wd_timeout);
+
+	mutex_unlock(&dev->device_lock);
+
+	return 0;
+}
+
+/*
+ * Watchdog Device structs
+ */
+const struct watchdog_ops wd_ops = {
+		.owner = THIS_MODULE,
+		.start = mei_wd_ops_start,
+		.stop = mei_wd_ops_stop,
+		.ping = mei_wd_ops_ping,
+		.set_timeout = mei_wd_ops_set_timeout,
+};
+const struct watchdog_info wd_info = {
+		.identity = INTEL_AMT_WATCHDOG_ID,
+		.options = WDIOF_KEEPALIVEPING,
+};
+
+struct watchdog_device amt_wd_dev = {
+		.info = &wd_info,
+		.ops = &wd_ops,
+		.timeout = AMT_WD_DEFAULT_TIMEOUT,
+		.min_timeout = AMT_WD_MIN_TIMEOUT,
+		.max_timeout = AMT_WD_MAX_TIMEOUT,
+};
+
 

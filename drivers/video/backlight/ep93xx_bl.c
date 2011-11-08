@@ -11,8 +11,9 @@
  * BRIGHT, on the Cirrus EP9307, EP9312, and EP9315 processors.
  */
 
-
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>

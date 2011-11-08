@@ -8,16 +8,6 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/mm.h>
@@ -434,6 +424,7 @@ static int pn_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			    config_ep_by_speed(gadget, f, fp->out_ep)) {
 				fp->in_ep->desc = NULL;
 				fp->out_ep->desc = NULL;
+				spin_unlock(&port->lock);
 				return -EINVAL;
 			}
 			usb_ep_enable(fp->out_ep);

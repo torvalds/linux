@@ -165,7 +165,7 @@ static struct mfc_control controls[] = {
 		.maximum = 32,
 		.step = 1,
 		.default_value = 1,
-		.is_volatile = 1,
+		.flags = V4L2_CTRL_FLAG_VOLATILE,
 	},
 };
 
@@ -744,9 +744,10 @@ static const struct v4l2_ioctl_ops s5p_mfc_dec_ioctl_ops = {
 	.vidioc_g_crop = vidioc_g_crop,
 };
 
-static int s5p_mfc_queue_setup(struct vb2_queue *vq, unsigned int *buf_count,
-			       unsigned int *plane_count, unsigned long psize[],
-			       void *allocators[])
+static int s5p_mfc_queue_setup(struct vb2_queue *vq,
+			const struct v4l2_format *fmt, unsigned int *buf_count,
+			unsigned int *plane_count, unsigned int psize[],
+			void *allocators[])
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(vq->drv_priv);
 
@@ -824,7 +825,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 			return 0;
 		for (i = 0; i <= ctx->src_fmt->num_planes ; i++) {
 			if (IS_ERR_OR_NULL(ERR_PTR(
-					vb2_dma_contig_plane_paddr(vb, i)))) {
+					vb2_dma_contig_plane_dma_addr(vb, i)))) {
 				mfc_err("Plane mem not allocated\n");
 				return -EINVAL;
 			}
@@ -837,13 +838,13 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 		i = vb->v4l2_buf.index;
 		ctx->dst_bufs[i].b = vb;
 		ctx->dst_bufs[i].cookie.raw.luma =
-					vb2_dma_contig_plane_paddr(vb, 0);
+					vb2_dma_contig_plane_dma_addr(vb, 0);
 		ctx->dst_bufs[i].cookie.raw.chroma =
-					vb2_dma_contig_plane_paddr(vb, 1);
+					vb2_dma_contig_plane_dma_addr(vb, 1);
 		ctx->dst_bufs_cnt++;
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		if (IS_ERR_OR_NULL(ERR_PTR(
-					vb2_dma_contig_plane_paddr(vb, 0)))) {
+					vb2_dma_contig_plane_dma_addr(vb, 0)))) {
 			mfc_err("Plane memory not allocated\n");
 			return -EINVAL;
 		}
@@ -855,7 +856,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 		i = vb->v4l2_buf.index;
 		ctx->src_bufs[i].b = vb;
 		ctx->src_bufs[i].cookie.stream =
-					vb2_dma_contig_plane_paddr(vb, 0);
+					vb2_dma_contig_plane_dma_addr(vb, 0);
 		ctx->src_bufs_cnt++;
 	} else {
 		mfc_err("s5p_mfc_buf_init: unknown queue type\n");
@@ -864,7 +865,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int s5p_mfc_start_streaming(struct vb2_queue *q)
+static int s5p_mfc_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(q->drv_priv);
 	struct s5p_mfc_dev *dev = ctx->dev;
@@ -1020,7 +1021,7 @@ int s5p_mfc_dec_ctrls_setup(struct s5p_mfc_ctx *ctx)
 			return ctx->ctrl_handler.error;
 		}
 		if (controls[i].is_volatile && ctx->ctrls[i])
-			ctx->ctrls[i]->is_volatile = 1;
+			ctx->ctrls[i]->flags |= V4L2_CTRL_FLAG_VOLATILE;
 	}
 	return 0;
 }

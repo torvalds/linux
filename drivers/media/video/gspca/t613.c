@@ -26,6 +26,8 @@
  *			Costantino Leandro
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "t613"
 
 #include <linux/slab.h>
@@ -572,7 +574,7 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 
 		tmpbuf = kmemdup(buffer, len, GFP_KERNEL);
 		if (!tmpbuf) {
-			err("Out of memory");
+			pr_err("Out of memory\n");
 			return;
 		}
 		usb_control_msg(gspca_dev->dev,
@@ -598,7 +600,7 @@ static void reg_w_ixbuf(struct gspca_dev *gspca_dev,
 	} else {
 		p = tmpbuf = kmalloc(len * 2, GFP_KERNEL);
 		if (!tmpbuf) {
-			err("Out of memory");
+			pr_err("Out of memory\n");
 			return;
 		}
 	}
@@ -652,7 +654,7 @@ static void om6802_sensor_init(struct gspca_dev *gspca_dev)
 	}
 	byte = reg_r(gspca_dev, 0x0063);
 	if (byte != 0x17) {
-		err("Bad sensor reset %02x", byte);
+		pr_err("Bad sensor reset %02x\n", byte);
 		/* continue? */
 	}
 
@@ -890,7 +892,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		sd->sensor = SENSOR_OM6802;
 		break;
 	default:
-		err("unknown sensor %04x", sensor_id);
+		pr_err("unknown sensor %04x\n", sensor_id);
 		return -EINVAL;
 	}
 
@@ -905,7 +907,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				break;		/* OK */
 		}
 		if (i < 0) {
-			err("Bad sensor reset %02x", test_byte);
+			pr_err("Bad sensor reset %02x\n", test_byte);
 			return -EIO;
 		}
 		reg_w_buf(gspca_dev, n2, sizeof n2);

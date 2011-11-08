@@ -158,7 +158,7 @@ sys_call_table:
 	.long	sys_sched_rr_get_interval
 	.long	sys_nanosleep
 	.long	sys_poll
-	.long	sys_nfsservctl		/* 145 */
+	.long	sys_ni_syscall		/* 145 was nfsservctl */
 	.long	sys_setresgid
 	.long	sys_getresgid
 	.long	sys_prctl

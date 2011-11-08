@@ -80,16 +80,16 @@ static int rionet_capable = 1;
  */
 static struct rio_dev **rionet_active;
 
-#define is_rionet_capable(pef, src_ops, dst_ops)		\
-			((pef & RIO_PEF_INB_MBOX) &&		\
-			 (pef & RIO_PEF_INB_DOORBELL) &&	\
+#define is_rionet_capable(src_ops, dst_ops)			\
+			((src_ops & RIO_SRC_OPS_DATA_MSG) &&	\
+			 (dst_ops & RIO_DST_OPS_DATA_MSG) &&	\
 			 (src_ops & RIO_SRC_OPS_DOORBELL) &&	\
 			 (dst_ops & RIO_DST_OPS_DOORBELL))
 #define dev_rionet_capable(dev) \
-	is_rionet_capable(dev->pef, dev->src_ops, dev->dst_ops)
+	is_rionet_capable(dev->src_ops, dev->dst_ops)
 
-#define RIONET_MAC_MATCH(x)	(*(u32 *)x == 0x00010001)
-#define RIONET_GET_DESTID(x)	(*(u16 *)(x + 4))
+#define RIONET_MAC_MATCH(x)	(!memcmp((x), "\00\01\00\01", 4))
+#define RIONET_GET_DESTID(x)	((*((u8 *)x + 4) << 8) | *((u8 *)x + 5))
 
 static int rionet_rx_clean(struct net_device *ndev)
 {
@@ -282,7 +282,6 @@ static int rionet_open(struct net_device *ndev)
 {
 	int i, rc = 0;
 	struct rionet_peer *peer, *tmp;
-	u32 pwdcsr;
 	struct rionet_private *rnet = netdev_priv(ndev);
 
 	if (netif_msg_ifup(rnet))
@@ -332,13 +331,8 @@ static int rionet_open(struct net_device *ndev)
 			continue;
 		}
 
-		/*
-		 * If device has initialized inbound doorbells,
-		 * send a join message
-		 */
-		rio_read_config_32(peer->rdev, RIO_WRITE_PORT_CSR, &pwdcsr);
-		if (pwdcsr & RIO_DOORBELL_AVAIL)
-			rio_send_doorbell(peer->rdev, RIONET_DOORBELL_JOIN);
+		/* Send a join message */
+		rio_send_doorbell(peer->rdev, RIONET_DOORBELL_JOIN);
 	}
 
       out:
@@ -492,7 +486,7 @@ static int rionet_setup_netdev(struct rio_mport *mport, struct net_device *ndev)
 static int rionet_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 {
 	int rc = -ENODEV;
-	u32 lpef, lsrc_ops, ldst_ops;
+	u32 lsrc_ops, ldst_ops;
 	struct rionet_peer *peer;
 	struct net_device *ndev = NULL;
 
@@ -515,12 +509,11 @@ static int rionet_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 	 * on later probes
 	 */
 	if (!rionet_check) {
-		rio_local_read_config_32(rdev->net->hport, RIO_PEF_CAR, &lpef);
 		rio_local_read_config_32(rdev->net->hport, RIO_SRC_OPS_CAR,
 					 &lsrc_ops);
 		rio_local_read_config_32(rdev->net->hport, RIO_DST_OPS_CAR,
 					 &ldst_ops);
-		if (!is_rionet_capable(lpef, lsrc_ops, ldst_ops)) {
+		if (!is_rionet_capable(lsrc_ops, ldst_ops)) {
 			printk(KERN_ERR
 			       "%s: local device is not network capable\n",
 			       DRV_NAME);

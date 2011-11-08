@@ -658,12 +658,14 @@ static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste)
  * struct gmap_struct - guest address space
  * @mm: pointer to the parent mm_struct
  * @table: pointer to the page directory
+ * @asce: address space control element for gmap page table
  * @crst_list: list of all crst tables used in the guest address space
  */
 struct gmap {
 	struct list_head list;
 	struct mm_struct *mm;
 	unsigned long *table;
+	unsigned long asce;
 	struct list_head crst_list;
 };
 
@@ -694,7 +696,9 @@ void gmap_disable(struct gmap *gmap);
 int gmap_map_segment(struct gmap *gmap, unsigned long from,
 		     unsigned long to, unsigned long length);
 int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len);
+unsigned long __gmap_fault(unsigned long address, struct gmap *);
 unsigned long gmap_fault(unsigned long address, struct gmap *);
+void gmap_discard(unsigned long from, unsigned long to, struct gmap *);
 
 /*
  * Certain architectures need to do special things when PTEs

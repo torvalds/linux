@@ -206,15 +206,16 @@ static struct init_tab {
 static struct pll_tab {
 	u32	clk_freq_khz;
 	u32	if_freq_khz;
-	u8	m, n, p;
 } pll_tab[] = {
-	{ TDA10048_CLK_4000,  TDA10048_IF_36130, 10, 0, 0 },
-	{ TDA10048_CLK_16000, TDA10048_IF_3300,  10, 3, 0 },
-	{ TDA10048_CLK_16000, TDA10048_IF_3500,  10, 3, 0 },
-	{ TDA10048_CLK_16000, TDA10048_IF_3800,  10, 3, 0 },
-	{ TDA10048_CLK_16000, TDA10048_IF_4000,  10, 3, 0 },
-	{ TDA10048_CLK_16000, TDA10048_IF_4300,  10, 3, 0 },
-	{ TDA10048_CLK_16000, TDA10048_IF_36130, 10, 3, 0 },
+	{ TDA10048_CLK_4000,  TDA10048_IF_36130 },
+	{ TDA10048_CLK_16000, TDA10048_IF_3300 },
+	{ TDA10048_CLK_16000, TDA10048_IF_3500 },
+	{ TDA10048_CLK_16000, TDA10048_IF_3800 },
+	{ TDA10048_CLK_16000, TDA10048_IF_4000 },
+	{ TDA10048_CLK_16000, TDA10048_IF_4300 },
+	{ TDA10048_CLK_16000, TDA10048_IF_4500 },
+	{ TDA10048_CLK_16000, TDA10048_IF_5000 },
+	{ TDA10048_CLK_16000, TDA10048_IF_36130 },
 };
 
 static int tda10048_writereg(struct tda10048_state *state, u8 reg, u8 data)
@@ -460,9 +461,6 @@ static int tda10048_set_if(struct dvb_frontend *fe, enum fe_bandwidth bw)
 
 			state->freq_if_hz = pll_tab[i].if_freq_khz * 1000;
 			state->xtal_hz = pll_tab[i].clk_freq_khz * 1000;
-			state->pll_mfactor = pll_tab[i].m;
-			state->pll_nfactor = pll_tab[i].n;
-			state->pll_pfactor = pll_tab[i].p;
 			break;
 		}
 	}
@@ -780,6 +778,10 @@ static int tda10048_init(struct dvb_frontend *fe)
 	int ret = 0, i;
 
 	dprintk(1, "%s()\n", __func__);
+
+	/* PLL */
+	init_tab[4].data = (u8)(state->pll_mfactor);
+	init_tab[5].data = (u8)(state->pll_nfactor) | 0x40;
 
 	/* Apply register defaults */
 	for (i = 0; i < ARRAY_SIZE(init_tab); i++)
@@ -1123,7 +1125,7 @@ struct dvb_frontend *tda10048_attach(const struct tda10048_config *config,
 	/* setup the state and clone the config */
 	memcpy(&state->config, config, sizeof(*config));
 	state->i2c = i2c;
-	state->fwloaded = 0;
+	state->fwloaded = config->no_firmware;
 	state->bandwidth = BANDWIDTH_8_MHZ;
 
 	/* check if the demod is present */
@@ -1134,6 +1136,17 @@ struct dvb_frontend *tda10048_attach(const struct tda10048_config *config,
 	memcpy(&state->frontend.ops, &tda10048_ops,
 		sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
+
+	/* set pll */
+	if (config->set_pll) {
+		state->pll_mfactor = config->pll_m;
+		state->pll_nfactor = config->pll_n;
+		state->pll_pfactor = config->pll_p;
+	} else {
+		state->pll_mfactor = 10;
+		state->pll_nfactor = 3;
+		state->pll_pfactor = 0;
+	}
 
 	/* Establish any defaults the the user didn't pass */
 	tda10048_establish_defaults(&state->frontend);
