@@ -1137,11 +1137,10 @@ static bool storvsc_check_scsi_cmd(struct scsi_cmnd *scmnd)
 /*
  * storvsc_queuecommand - Initiate command processing
  */
-static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
-				void (*done)(struct scsi_cmnd *))
+static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 {
 	int ret;
-	struct hv_host_device *host_dev = shost_priv(scmnd->device->host);
+	struct hv_host_device *host_dev = shost_priv(host);
 	struct hv_device *dev = host_dev->dev;
 	struct hv_storvsc_request *request;
 	struct storvsc_cmd_request *cmd_request;
@@ -1152,7 +1151,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	struct vmscsi_request *vm_srb;
 
 	if (storvsc_check_scsi_cmd(scmnd) == false) {
-		done(scmnd);
+		scmnd->scsi_done(scmnd);
 		return 0;
 	}
 
@@ -1165,16 +1164,13 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 		goto retry_request;
 	}
 
-	scmnd->scsi_done = done;
-
 	request_size = sizeof(struct storvsc_cmd_request);
 
 	cmd_request = mempool_alloc(host_dev->request_mempool,
 				       GFP_ATOMIC);
-	if (!cmd_request) {
-		scmnd->scsi_done = NULL;
+	if (!cmd_request)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
-	}
+
 	memset(cmd_request, 0, sizeof(struct storvsc_cmd_request));
 
 	/* Setup the cmd request */
@@ -1227,7 +1223,6 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 				create_bounce_buffer(sgl, scsi_sg_count(scmnd),
 						     scsi_bufflen(scmnd));
 			if (!cmd_request->bounce_sgl) {
-				scmnd->scsi_done = NULL;
 				scmnd->host_scribble = NULL;
 				mempool_free(cmd_request,
 						host_dev->request_mempool);
@@ -1274,7 +1269,6 @@ retry_request:
 
 		mempool_free(cmd_request, host_dev->request_mempool);
 
-		scmnd->scsi_done = NULL;
 		scmnd->host_scribble = NULL;
 
 		ret = SCSI_MLQUEUE_DEVICE_BUSY;
@@ -1282,9 +1276,6 @@ retry_request:
 
 	return ret;
 }
-
-static DEF_SCSI_QCMD(storvsc_queuecommand)
-
 
 /* Scsi driver */
 static struct scsi_host_template scsi_driver = {
