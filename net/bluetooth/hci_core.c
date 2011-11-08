@@ -1481,6 +1481,8 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	hci_conn_hash_init(hdev);
 
+	INIT_LIST_HEAD(&hdev->mgmt_pending);
+
 	INIT_LIST_HEAD(&hdev->blacklist);
 
 	INIT_LIST_HEAD(&hdev->uuids);
@@ -1561,6 +1563,10 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	if (!test_bit(HCI_INIT, &hdev->flags) &&
 					!test_bit(HCI_SETUP, &hdev->flags))
 		mgmt_index_removed(hdev);
+
+	/* mgmt_index_removed should take care of emptying the
+	 * pending list */
+	BUG_ON(!list_empty(&hdev->mgmt_pending));
 
 	hci_notify(hdev, HCI_DEV_UNREG);
 

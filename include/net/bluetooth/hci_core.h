@@ -217,6 +217,8 @@ struct hci_dev {
 
 	__u16			init_last_cmd;
 
+	struct list_head	mgmt_pending;
+
 	struct inquiry_cache	inq_cache;
 	struct hci_conn_hash	conn_hash;
 	struct list_head	blacklist;
