@@ -60,6 +60,9 @@ config ARCH_MSM8960
 
 endchoice
 
+config MSM_HAS_DEBUG_UART_HS
+	bool
+
 config MSM_SOC_REV_A
 	bool
 config  ARCH_MSM_SCORPIONMP
