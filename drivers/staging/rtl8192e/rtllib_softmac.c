@@ -3206,11 +3206,11 @@ static int rtllib_wpa_set_wpa_ie(struct rtllib_device *ieee,
 		return -EINVAL;
 
 	if (param->u.wpa_ie.len) {
-		buf = kmalloc(param->u.wpa_ie.len, GFP_KERNEL);
+		buf = kmemdup(param->u.wpa_ie.data, param->u.wpa_ie.len,
+			      GFP_KERNEL);
 		if (buf == NULL)
 			return -ENOMEM;
 
-		memcpy(buf, param->u.wpa_ie.data, param->u.wpa_ie.len);
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = param->u.wpa_ie.len;
