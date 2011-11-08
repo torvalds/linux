@@ -386,7 +386,6 @@ static int mwifiex_pcie_create_txbd_ring(struct mwifiex_adapter *adapter)
 	card->txbd_ring_vbase = kzalloc(card->txbd_ring_size, GFP_KERNEL);
 	if (!card->txbd_ring_vbase) {
 		dev_err(adapter->dev, "Unable to allocate buffer for txbd ring.\n");
-		kfree(card->txbd_ring_vbase);
 		return -1;
 	}
 	card->txbd_ring_pbase = virt_to_phys(card->txbd_ring_vbase);
