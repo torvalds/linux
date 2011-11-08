@@ -743,9 +743,6 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	else if (ip->i_depth)
 		revokes = sdp->sd_inptrs;
 
-	if (error)
-		return error;
-
 	memset(&rlist, 0, sizeof(struct gfs2_rgrp_list));
 	bstart = 0;
 	blen = 0;

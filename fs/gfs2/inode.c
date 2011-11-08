@@ -1037,12 +1037,14 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 	struct buffer_head *bh;
 	struct gfs2_holder ghs[3];
 	struct gfs2_rgrpd *rgd;
-	int error;
+	int error = -EROFS;
 
 	gfs2_holder_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
 	gfs2_holder_init(ip->i_gl,  LM_ST_EXCLUSIVE, 0, ghs + 1);
 
 	rgd = gfs2_blk2rgrpd(sdp, ip->i_no_addr);
+	if (!rgd)
+		goto out_inodes;
 	gfs2_holder_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, ghs + 2);
 
 
@@ -1088,12 +1090,13 @@ out_end_trans:
 out_gunlock:
 	gfs2_glock_dq(ghs + 2);
 out_rgrp:
-	gfs2_holder_uninit(ghs + 2);
 	gfs2_glock_dq(ghs + 1);
 out_child:
-	gfs2_holder_uninit(ghs + 1);
 	gfs2_glock_dq(ghs);
 out_parent:
+	gfs2_holder_uninit(ghs + 2);
+out_inodes:
+	gfs2_holder_uninit(ghs + 1);
 	gfs2_holder_uninit(ghs);
 	return error;
 }

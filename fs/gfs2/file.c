@@ -609,7 +609,7 @@ static int gfs2_fsync(struct file *file, loff_t start, loff_t end,
 	struct inode *inode = mapping->host;
 	int sync_state = inode->i_state & (I_DIRTY_SYNC|I_DIRTY_DATASYNC);
 	struct gfs2_inode *ip = GFS2_I(inode);
-	int ret, ret1 = 0;
+	int ret = 0, ret1 = 0;
 
 	if (mapping->nrpages) {
 		ret1 = filemap_fdatawrite_range(mapping, start, end);
