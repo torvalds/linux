@@ -13,43 +13,31 @@
  *
  */
 
+#include <linux/clocksource.h>
+#include <linux/clockchips.h>
 #include <linux/init.h>
-#include <linux/time.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/clk.h>
-#include <linux/clockchips.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 
 #include <asm/mach/time.h>
 #include <asm/hardware/gic.h>
+#include <asm/localtimer.h>
 
 #include <mach/msm_iomap.h>
 #include <mach/cpu.h>
+#include <mach/board.h>
 
 #define TIMER_MATCH_VAL         0x0000
 #define TIMER_COUNT_VAL         0x0004
 #define TIMER_ENABLE            0x0008
-#define TIMER_ENABLE_CLR_ON_MATCH_EN    2
-#define TIMER_ENABLE_EN                 1
+#define TIMER_ENABLE_CLR_ON_MATCH_EN    BIT(1)
+#define TIMER_ENABLE_EN                 BIT(0)
 #define TIMER_CLEAR             0x000C
 #define DGT_CLK_CTL             0x0034
-enum {
-	DGT_CLK_CTL_DIV_1 = 0,
-	DGT_CLK_CTL_DIV_2 = 1,
-	DGT_CLK_CTL_DIV_3 = 2,
-	DGT_CLK_CTL_DIV_4 = 3,
-};
-#define CSR_PROTECTION          0x0020
-#define CSR_PROTECTION_EN               1
+#define DGT_CLK_CTL_DIV_4	0x3
 
 #define GPT_HZ 32768
-
-enum timer_location {
-	LOCAL_TIMER = 0,
-	GLOBAL_TIMER = 1,
-};
 
 #define MSM_GLOBAL_TIMER MSM_CLOCK_DGT
 
