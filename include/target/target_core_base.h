@@ -423,8 +423,8 @@ struct se_cmd {
 	/* Transport protocol dependent state, see transport_state_table */
 	enum transport_state_table t_state;
 	/* Used to signal cmd->se_tfo->check_release_cmd() usage per cmd */
-	int			check_release:1;
-	int			cmd_wait_set:1;
+	unsigned		check_release:1;
+	unsigned		cmd_wait_set:1;
 	/* See se_cmd_flags_table */
 	u32			se_cmd_flags;
 	u32			se_ordered_id;
@@ -560,7 +560,7 @@ struct se_node_acl {
 } ____cacheline_aligned;
 
 struct se_session {
-	int			sess_tearing_down:1;
+	unsigned		sess_tearing_down:1;
 	u64			sess_bin_isid;
 	struct se_node_acl	*se_node_acl;
 	struct se_portal_group *se_tpg;
