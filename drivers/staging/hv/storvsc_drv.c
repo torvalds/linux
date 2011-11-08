@@ -1136,7 +1136,7 @@ static bool storvsc_check_scsi_cmd(struct scsi_cmnd *scmnd)
 	switch (scsi_op) {
 	/* smartd sends this command, which will offline the device */
 	case SET_WINDOW:
-		scmnd->result = DID_ERROR << 16;
+		scmnd->result = ILLEGAL_REQUEST << 16;
 		allowed = false;
 		break;
 	default:
