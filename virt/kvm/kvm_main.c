@@ -775,10 +775,10 @@ skip_lpage:
 
 	if (!npages) {
 		r = -ENOMEM;
-		slots = kzalloc(sizeof(struct kvm_memslots), GFP_KERNEL);
+		slots = kmemdup(kvm->memslots, sizeof(struct kvm_memslots),
+				GFP_KERNEL);
 		if (!slots)
 			goto out_free;
-		memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
 		if (mem->slot >= slots->nmemslots)
 			slots->nmemslots = mem->slot + 1;
 		slots->generation++;
@@ -810,10 +810,10 @@ skip_lpage:
 	}
 
 	r = -ENOMEM;
-	slots = kzalloc(sizeof(struct kvm_memslots), GFP_KERNEL);
+	slots = kmemdup(kvm->memslots, sizeof(struct kvm_memslots),
+			GFP_KERNEL);
 	if (!slots)
 		goto out_free;
-	memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
 	if (mem->slot >= slots->nmemslots)
 		slots->nmemslots = mem->slot + 1;
 	slots->generation++;
@@ -2520,10 +2520,9 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 	if (bus->dev_count > NR_IOBUS_DEVS-1)
 		return -ENOSPC;
 
-	new_bus = kzalloc(sizeof(struct kvm_io_bus), GFP_KERNEL);
+	new_bus = kmemdup(bus, sizeof(struct kvm_io_bus), GFP_KERNEL);
 	if (!new_bus)
 		return -ENOMEM;
-	memcpy(new_bus, bus, sizeof(struct kvm_io_bus));
 	kvm_io_bus_insert_dev(new_bus, dev, addr, len);
 	rcu_assign_pointer(kvm->buses[bus_idx], new_bus);
 	synchronize_srcu_expedited(&kvm->srcu);
