@@ -427,15 +427,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	}
 	hlid = wl12xx_tx_get_hlid(wl, wlvif, skb);
 	if (hlid == WL12XX_INVALID_LINK_ID) {
-		if (wlvif->bss_type == BSS_TYPE_IBSS &&
-		    !test_bit(WLVIF_FLAG_IBSS_JOINED, &wlvif->flags)) {
-			/* It's ok to drop packets when not joined to IBSS */
-			wl1271_debug(DEBUG_TX, "dropping skb while IBSS not "
-				     " joined");
-		} else {
-			wl1271_error("invalid hlid. dropping skb 0x%p", skb);
-		}
-
+		wl1271_error("invalid hlid. dropping skb 0x%p", skb);
 		return -EINVAL;
 	}
 
