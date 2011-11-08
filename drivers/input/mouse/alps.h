@@ -38,6 +38,7 @@ struct alps_data {
 	int addr_command;		/* Command to set register address */
 	int prev_fin;			/* Finger bit from previous packet */
 	int multi_packet;		/* Multi-packet data in progress */
+	unsigned char multi_data[6];	/* Saved multi-packet data */
 	u8 quirks;
 	struct timer_list timer;
 };
