@@ -252,11 +252,8 @@ static struct sk_buff *cfg_set_max_ports(void)
 	if (value < 127 || value > 65535)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max ports must be 127-65535)");
-	if (tipc_mode != TIPC_NOT_RUNNING)
-		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-			" (cannot change max ports while TIPC is active)");
-	tipc_max_ports = value;
-	return tipc_cfg_reply_none();
+	return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+		" (cannot change max ports while TIPC is active)");
 }
 
 static struct sk_buff *cfg_set_netid(void)

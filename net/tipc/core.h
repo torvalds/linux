@@ -132,7 +132,7 @@ void tipc_msg_dbg(struct print_buf *, struct tipc_msg *, const char *);
 /*
  * TIPC operating mode routines
  */
-#define TIPC_NOT_RUNNING  0
+
 #define TIPC_NODE_MODE    1
 #define TIPC_NET_MODE     2
 

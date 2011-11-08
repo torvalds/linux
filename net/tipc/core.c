@@ -53,7 +53,7 @@
 
 /* global variables used by multiple sub-systems within TIPC */
 
-int tipc_mode = TIPC_NOT_RUNNING;
+int tipc_mode;
 int tipc_random;
 
 const char tipc_alphabet[] =
@@ -125,11 +125,6 @@ int tipc_core_start_net(unsigned long addr)
 
 static void tipc_core_stop(void)
 {
-	if (tipc_mode != TIPC_NODE_MODE)
-		return;
-
-	tipc_mode = TIPC_NOT_RUNNING;
-
 	tipc_netlink_stop();
 	tipc_handler_stop();
 	tipc_cfg_stop();
@@ -147,9 +142,6 @@ static void tipc_core_stop(void)
 static int tipc_core_start(void)
 {
 	int res;
-
-	if (tipc_mode != TIPC_NOT_RUNNING)
-		return -ENOPROTOOPT;
 
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
 	tipc_mode = TIPC_NODE_MODE;
