@@ -74,6 +74,8 @@ struct prev_kprobe {
 		: MAX_JPROBES_STACK_SIZE)
 
 
+#define SKIP_DELAYSLOT 0x0001
+
 /* per-cpu kprobe control block */
 struct kprobe_ctlblk {
 	unsigned long kprobe_status;
@@ -82,6 +84,9 @@ struct kprobe_ctlblk {
 	unsigned long kprobe_saved_epc;
 	unsigned long jprobe_saved_sp;
 	struct pt_regs jprobe_saved_regs;
+	/* Per-thread fields, used while emulating branches */
+	unsigned long flags;
+	unsigned long target_epc;
 	u8 jprobes_stack[MAX_JPROBES_STACK_SIZE];
 	struct prev_kprobe prev_kprobe;
 };
