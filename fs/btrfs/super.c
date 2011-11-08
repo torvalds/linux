@@ -905,8 +905,10 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	error = btrfs_parse_early_options(data, mode, fs_type,
 					  &subvol_name, &subvol_objectid,
 					  &subvol_rootid, &fs_devices);
-	if (error)
+	if (error) {
+		kfree(subvol_name);
 		return ERR_PTR(error);
+	}
 
 	if (subvol_name) {
 		root = mount_subvol(subvol_name, flags, device_name, data);
