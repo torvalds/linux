@@ -22,7 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <plat/keypad.h>
+#include <linux/input/samsung-keypad.h>
 
 #define SAMSUNG_KEYIFCON			0x00
 #define SAMSUNG_KEYIFSTSCLR			0x04

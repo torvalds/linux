@@ -441,9 +441,10 @@ config KEYBOARD_PMIC8XXX
 
 config KEYBOARD_SAMSUNG
 	tristate "Samsung keypad support"
-	depends on SAMSUNG_DEV_KEYPAD
+	depends on HAVE_CLK
 	help
-	  Say Y here if you want to use the Samsung keypad.
+	  Say Y here if you want to use the keypad on your Samsung mobile
+	  device.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called samsung-keypad.
