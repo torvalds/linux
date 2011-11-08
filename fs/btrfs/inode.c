@@ -6607,6 +6607,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->orphan_meta_reserved = 0;
 	ei->dummy_inode = 0;
 	ei->in_defrag = 0;
+	ei->delalloc_meta_reserved = 0;
 	ei->force_compress = BTRFS_COMPRESS_NONE;
 
 	ei->delayed_node = NULL;

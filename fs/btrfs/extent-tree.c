@@ -4063,10 +4063,17 @@ int btrfs_snap_reserve_metadata(struct btrfs_trans_handle *trans,
  */
 static unsigned drop_outstanding_extent(struct inode *inode)
 {
+	unsigned drop_inode_space = 0;
 	unsigned dropped_extents = 0;
 
 	BUG_ON(!BTRFS_I(inode)->outstanding_extents);
 	BTRFS_I(inode)->outstanding_extents--;
+
+	if (BTRFS_I(inode)->outstanding_extents == 0 &&
+	    BTRFS_I(inode)->delalloc_meta_reserved) {
+		drop_inode_space = 1;
+		BTRFS_I(inode)->delalloc_meta_reserved = 0;
+	}
 
 	/*
 	 * If we have more or the same amount of outsanding extents than we have
@@ -4074,12 +4081,12 @@ static unsigned drop_outstanding_extent(struct inode *inode)
 	 */
 	if (BTRFS_I(inode)->outstanding_extents >=
 	    BTRFS_I(inode)->reserved_extents)
-		return 0;
+		return drop_inode_space;
 
 	dropped_extents = BTRFS_I(inode)->reserved_extents -
 		BTRFS_I(inode)->outstanding_extents;
 	BTRFS_I(inode)->reserved_extents -= dropped_extents;
-	return dropped_extents;
+	return dropped_extents + drop_inode_space;
 }
 
 /**
@@ -4165,9 +4172,18 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 		nr_extents = BTRFS_I(inode)->outstanding_extents -
 			BTRFS_I(inode)->reserved_extents;
 		BTRFS_I(inode)->reserved_extents += nr_extents;
-
-		to_reserve = btrfs_calc_trans_metadata_size(root, nr_extents);
 	}
+
+	/*
+	 * Add an item to reserve for updating the inode when we complete the
+	 * delalloc io.
+	 */
+	if (!BTRFS_I(inode)->delalloc_meta_reserved) {
+		nr_extents++;
+		BTRFS_I(inode)->delalloc_meta_reserved = 1;
+	}
+
+	to_reserve = btrfs_calc_trans_metadata_size(root, nr_extents);
 	to_reserve += calc_csum_metadata_size(inode, num_bytes, 1);
 	spin_unlock(&BTRFS_I(inode)->lock);
 
