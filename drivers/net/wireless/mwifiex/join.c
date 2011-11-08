@@ -922,15 +922,15 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 				cpu_to_le16(WLAN_EID_HT_CAPABILITY);
 			ht_cap->header.len =
 			       cpu_to_le16(sizeof(struct ieee80211_ht_cap));
-			ht_cap_info = le16_to_cpu(ht_cap->ht_cap.cap_info);
 
-			ht_cap_info |= IEEE80211_HT_CAP_SGI_20;
+			ht_cap_info = IEEE80211_HT_CAP_SGI_20;
 			if (adapter->chan_offset) {
 				ht_cap_info |= IEEE80211_HT_CAP_SGI_40;
 				ht_cap_info |= IEEE80211_HT_CAP_DSSSCCK40;
 				ht_cap_info |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 				SETHT_MCS32(ht_cap->ht_cap.mcs.rx_mask);
 			}
+			ht_cap->ht_cap.cap_info = cpu_to_le16(ht_cap_info);
 
 			ht_cap->ht_cap.ampdu_params_info
 					= IEEE80211_HT_MAX_AMPDU_64K;
