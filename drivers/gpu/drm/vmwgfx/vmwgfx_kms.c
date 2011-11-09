@@ -410,8 +410,9 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 	top = clips->y1;
 	bottom = clips->y2;
 
-	clips_ptr = clips;
-	for (i = 1; i < num_clips; i++, clips_ptr += inc) {
+	/* skip the first clip rect */
+	for (i = 1, clips_ptr = clips + inc;
+	     i < num_clips; i++, clips_ptr += inc) {
 		left = min_t(int, left, (int)clips_ptr->x1);
 		right = max_t(int, right, (int)clips_ptr->x2);
 		top = min_t(int, top, (int)clips_ptr->y1);
