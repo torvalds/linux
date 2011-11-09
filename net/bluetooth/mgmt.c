@@ -268,9 +268,6 @@ static void mgmt_pending_foreach(u16 opcode, struct hci_dev *hdev,
 		if (opcode > 0 && cmd->opcode != opcode)
 			continue;
 
-		if (hdev && cmd->index != hdev->id)
-			continue;
-
 		cb(cmd, data);
 	}
 }
@@ -280,13 +277,8 @@ static struct pending_cmd *mgmt_pending_find(u16 opcode, struct hci_dev *hdev)
 	struct pending_cmd *cmd;
 
 	list_for_each_entry(cmd, &hdev->mgmt_pending, list) {
-		if (cmd->opcode != opcode)
-			continue;
-
-		if (hdev && cmd->index != hdev->id)
-			continue;
-
-		return cmd;
+		if (cmd->opcode == opcode)
+			return cmd;
 	}
 
 	return NULL;
@@ -1298,9 +1290,6 @@ static inline struct pending_cmd *find_pairing(struct hci_conn *conn)
 
 	list_for_each_entry(cmd, &hdev->mgmt_pending, list) {
 		if (cmd->opcode != MGMT_OP_PAIR_DEVICE)
-			continue;
-
-		if (cmd->index != hdev->id)
 			continue;
 
 		if (cmd->user_data != conn)
