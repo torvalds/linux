@@ -1014,7 +1014,7 @@ static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 		hci_conn_check_pending(hdev);
 		hci_dev_lock(hdev);
 		if (test_bit(HCI_MGMT, &hdev->flags))
-			mgmt_inquiry_failed(hdev, status);
+			mgmt_start_discovery_failed(hdev, status);
 		hci_dev_unlock(hdev);
 		return;
 	}
