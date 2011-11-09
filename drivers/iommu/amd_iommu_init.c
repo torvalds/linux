@@ -584,18 +584,18 @@ static void __init free_event_buffer(struct amd_iommu *iommu)
 /* sets a specific bit in the device table entry. */
 static void set_dev_entry_bit(u16 devid, u8 bit)
 {
-	int i = (bit >> 5) & 0x07;
-	int _bit = bit & 0x1f;
+	int i = (bit >> 6) & 0x03;
+	int _bit = bit & 0x3f;
 
-	amd_iommu_dev_table[devid].data[i] |= (1 << _bit);
+	amd_iommu_dev_table[devid].data[i] |= (1UL << _bit);
 }
 
 static int get_dev_entry_bit(u16 devid, u8 bit)
 {
-	int i = (bit >> 5) & 0x07;
-	int _bit = bit & 0x1f;
+	int i = (bit >> 6) & 0x03;
+	int _bit = bit & 0x3f;
 
-	return (amd_iommu_dev_table[devid].data[i] & (1 << _bit)) >> _bit;
+	return (amd_iommu_dev_table[devid].data[i] & (1UL << _bit)) >> _bit;
 }
 
 

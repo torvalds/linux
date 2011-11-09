@@ -230,7 +230,7 @@
 #define IOMMU_PTE_IR (1ULL << 61)
 #define IOMMU_PTE_IW (1ULL << 62)
 
-#define DTE_FLAG_IOTLB	0x01
+#define DTE_FLAG_IOTLB	(0x01UL << 32)
 
 #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
 #define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_P)
@@ -484,7 +484,7 @@ extern struct list_head amd_iommu_pd_list;
  * Structure defining one entry in the device table
  */
 struct dev_table_entry {
-	u32 data[8];
+	u64 data[4];
 };
 
 /*

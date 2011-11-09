@@ -365,8 +365,8 @@ static void dump_dte_entry(u16 devid)
 {
 	int i;
 
-	for (i = 0; i < 8; ++i)
-		pr_err("AMD-Vi: DTE[%d]: %08x\n", i,
+	for (i = 0; i < 4; ++i)
+		pr_err("AMD-Vi: DTE[%d]: %016llx\n", i,
 			amd_iommu_dev_table[devid].data[i]);
 }
 
@@ -1583,19 +1583,22 @@ static bool dma_ops_domain(struct protection_domain *domain)
 static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
 {
 	u64 pte_root = virt_to_phys(domain->pt_root);
-	u32 flags = 0;
+	u64 flags = 0;
 
 	pte_root |= (domain->mode & DEV_ENTRY_MODE_MASK)
 		    << DEV_ENTRY_MODE_SHIFT;
 	pte_root |= IOMMU_PTE_IR | IOMMU_PTE_IW | IOMMU_PTE_P | IOMMU_PTE_TV;
 
+	flags = amd_iommu_dev_table[devid].data[1];
+
 	if (ats)
 		flags |= DTE_FLAG_IOTLB;
 
-	amd_iommu_dev_table[devid].data[3] |= flags;
-	amd_iommu_dev_table[devid].data[2]  = domain->id;
-	amd_iommu_dev_table[devid].data[1]  = upper_32_bits(pte_root);
-	amd_iommu_dev_table[devid].data[0]  = lower_32_bits(pte_root);
+	flags &= ~(0xffffUL);
+	flags |= domain->id;
+
+	amd_iommu_dev_table[devid].data[1]  = flags;
+	amd_iommu_dev_table[devid].data[0]  = pte_root;
 }
 
 static void clear_dte_entry(u16 devid)
@@ -1603,7 +1606,6 @@ static void clear_dte_entry(u16 devid)
 	/* remove entry from the device table seen by the hardware */
 	amd_iommu_dev_table[devid].data[0] = IOMMU_PTE_P | IOMMU_PTE_TV;
 	amd_iommu_dev_table[devid].data[1] = 0;
-	amd_iommu_dev_table[devid].data[2] = 0;
 
 	amd_iommu_apply_erratum_63(devid);
 }
