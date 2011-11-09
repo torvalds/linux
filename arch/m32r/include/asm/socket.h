@@ -62,4 +62,7 @@
 
 #define SO_RXQ_OVFL             40
 
+#define SO_WIFI_STATUS		41
+#define SCM_WIFI_STATUS		SO_WIFI_STATUS
+
 #endif /* _ASM_M32R_SOCKET_H */
