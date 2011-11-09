@@ -871,8 +871,6 @@ int tipc_link_send_buf(struct tipc_link *l_ptr, struct sk_buff *buf)
 	u32 queue_limit = l_ptr->queue_limit[imp];
 	u32 max_packet = l_ptr->max_pkt;
 
-	msg_set_prevnode(msg, tipc_own_addr);	/* If routed message */
-
 	/* Match msg importance against queue limits: */
 
 	if (unlikely(queue_size >= queue_limit)) {
