@@ -347,7 +347,7 @@ nv50_display_create(struct drm_device *dev)
 	struct dcb_table *dcb = &dev_priv->vbios.dcb;
 	struct drm_connector *connector, *ct;
 	struct nv50_display *priv;
-	int i;
+	int ret, i;
 
 	NV_DEBUG_KMS(dev, "\n");
 
@@ -400,6 +400,13 @@ nv50_display_create(struct drm_device *dev)
 
 	tasklet_init(&priv->tasklet, nv50_display_bh, (unsigned long)dev);
 	nouveau_irq_register(dev, 26, nv50_display_isr);
+
+	ret = nv50_evo_create(dev);
+	if (ret) {
+		nv50_display_destroy(dev);
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -410,6 +417,7 @@ nv50_display_destroy(struct drm_device *dev)
 
 	NV_DEBUG_KMS(dev, "\n");
 
+	nv50_evo_destroy(dev);
 	nouveau_irq_unregister(dev, 26);
 	kfree(disp);
 }
