@@ -67,7 +67,7 @@ module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
 MODULE_PARM_DESC(i915_enable_rc6,
 		"Enable power-saving render C-state 6 (default: true)");
 
-unsigned int i915_enable_fbc __read_mostly = -1;
+int i915_enable_fbc __read_mostly = -1;
 module_param_named(i915_enable_fbc, i915_enable_fbc, int, 0600);
 MODULE_PARM_DESC(i915_enable_fbc,
 		"Enable frame buffer compression for power savings "
@@ -79,7 +79,7 @@ MODULE_PARM_DESC(lvds_downclock,
 		"Use panel (LVDS/eDP) downclocking for power savings "
 		"(default: false)");
 
-unsigned int i915_panel_use_ssc __read_mostly = -1;
+int i915_panel_use_ssc __read_mostly = -1;
 module_param_named(lvds_use_ssc, i915_panel_use_ssc, int, 0600);
 MODULE_PARM_DESC(lvds_use_ssc,
 		"Use Spread Spectrum Clock with panels [LVDS/eDP] "
