@@ -55,20 +55,13 @@
 /*
  *	SOL_IP control messages.
  */
+#define PKTINFO_SKB_CB(__skb) ((struct in_pktinfo *)((__skb)->cb))
 
 static void ip_cmsg_recv_pktinfo(struct msghdr *msg, struct sk_buff *skb)
 {
-	struct in_pktinfo info;
-	struct rtable *rt = skb_rtable(skb);
+	struct in_pktinfo info = *PKTINFO_SKB_CB(skb);
 
 	info.ipi_addr.s_addr = ip_hdr(skb)->daddr;
-	if (rt) {
-		info.ipi_ifindex = rt->rt_iif;
-		info.ipi_spec_dst.s_addr = rt->rt_spec_dst;
-	} else {
-		info.ipi_ifindex = 0;
-		info.ipi_spec_dst.s_addr = 0;
-	}
 
 	put_cmsg(msg, SOL_IP, IP_PKTINFO, sizeof(info), &info);
 }
@@ -992,20 +985,28 @@ e_inval:
 }
 
 /**
- * ip_queue_rcv_skb - Queue an skb into sock receive queue
+ * ipv4_pktinfo_prepare - transfert some info from rtable to skb
  * @sk: socket
  * @skb: buffer
  *
- * Queues an skb into socket receive queue. If IP_CMSG_PKTINFO option
- * is not set, we drop skb dst entry now, while dst cache line is hot.
+ * To support IP_CMSG_PKTINFO option, we store rt_iif and rt_spec_dst
+ * in skb->cb[] before dst drop.
+ * This way, receiver doesnt make cache line misses to read rtable.
  */
-int ip_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+void ipv4_pktinfo_prepare(struct sk_buff *skb)
 {
-	if (!(inet_sk(sk)->cmsg_flags & IP_CMSG_PKTINFO))
-		skb_dst_drop(skb);
-	return sock_queue_rcv_skb(sk, skb);
+	struct in_pktinfo *pktinfo = PKTINFO_SKB_CB(skb);
+	const struct rtable *rt = skb_rtable(skb);
+
+	if (rt) {
+		pktinfo->ipi_ifindex = rt->rt_iif;
+		pktinfo->ipi_spec_dst.s_addr = rt->rt_spec_dst;
+	} else {
+		pktinfo->ipi_ifindex = 0;
+		pktinfo->ipi_spec_dst.s_addr = 0;
+	}
+	skb_dst_drop(skb);
 }
-EXPORT_SYMBOL(ip_queue_rcv_skb);
 
 int ip_setsockopt(struct sock *sk, int level,
 		int optname, char __user *optval, unsigned int optlen)
