@@ -30,6 +30,7 @@ struct sh_mobile_lcdc_chan_cfg;
 #define SH_MIPI_DSI_HSABM	(1 << 0)
 #define SH_MIPI_DSI_HBPBM	(1 << 1)
 #define SH_MIPI_DSI_HFPBM	(1 << 2)
+#define SH_MIPI_DSI_BL2E	(1 << 3)
 
 struct sh_mipi_dsi_info {
 	enum sh_mipi_dsi_data_fmt	data_format;
