@@ -124,12 +124,6 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 	vcpu->arch.shared->msr = new_msr;
 
 	kvmppc_mmu_msr_notify(vcpu, old_msr);
-
-	if (vcpu->arch.shared->msr & MSR_WE) {
-		kvm_vcpu_block(vcpu);
-		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
-	};
-
 	kvmppc_vcpu_sync_spe(vcpu);
 }
 
@@ -288,14 +282,11 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	return allowed;
 }
 
-/* Check pending exceptions and deliver one, if possible. */
-void kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
+static void kvmppc_core_check_exceptions(struct kvm_vcpu *vcpu)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
 	unsigned long old_pending = vcpu->arch.pending_exceptions;
 	unsigned int priority;
-
-	WARN_ON_ONCE(!irqs_disabled());
 
 	priority = __ffs(*pending);
 	while (priority <= BOOKE_IRQPRIO_MAX) {
@@ -312,6 +303,23 @@ void kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 		vcpu->arch.shared->int_pending = 1;
 	else if (old_pending)
 		vcpu->arch.shared->int_pending = 0;
+}
+
+/* Check pending exceptions and deliver one, if possible. */
+void kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
+{
+	WARN_ON_ONCE(!irqs_disabled());
+
+	kvmppc_core_check_exceptions(vcpu);
+
+	if (vcpu->arch.shared->msr & MSR_WE) {
+		local_irq_enable();
+		kvm_vcpu_block(vcpu);
+		local_irq_disable();
+
+		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
+		kvmppc_core_check_exceptions(vcpu);
+	};
 }
 
 int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
