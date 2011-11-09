@@ -24,7 +24,6 @@ enum {
 	ALC883_TARGA_DIG,
 	ALC883_TARGA_2ch_DIG,
 	ALC883_TARGA_8ch_DIG,
-	ALC883_ACER_ASPIRE,
 	ALC888_ACER_ASPIRE_4930G,
 	ALC888_ACER_ASPIRE_6530G,
 	ALC888_ACER_ASPIRE_8930G,
@@ -1881,18 +1880,6 @@ static const struct snd_kcontrol_new alc883_targa_8ch_mixer[] = {
 	{ } /* end */
 };
 
-static const struct snd_kcontrol_new alc883_acer_aspire_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	{ } /* end */
-};
-
 static const struct snd_kcontrol_new alc888_acer_aspire_6530_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("LFE Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
@@ -1994,35 +1981,6 @@ static const struct hda_verb alc883_targa_verbs[] = {
 #define alc883_targa_init_hook		alc882_targa_init_hook
 #define alc883_targa_unsol_event	alc882_targa_unsol_event
 
-/* toggle speaker-output according to the hp-jack state */
-static void alc883_acer_aspire_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[0] = 0x15;
-	spec->autocfg.speaker_pins[1] = 0x16;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
-
-static const struct hda_verb alc883_acer_eapd_verbs[] = {
-	/* HP Pin: output 0 (0x0c) */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* Front Pin: output 0 (0x0c) */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x16, AC_VERB_SET_CONNECT_SEL, 0x00},
-        /* eanable EAPD on medion laptop */
-	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
-	{0x20, AC_VERB_SET_PROC_COEF, 0x3050},
-	/* enable unsolicited event */
-	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	{ }
-};
-
 static const struct hda_verb alc889A_mb31_verbs[] = {
 	/* Init rear pin (used as headphone output) */
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc4},    /* Apple Headphones */
@@ -2088,7 +2046,6 @@ static const char * const alc882_models[ALC882_MODEL_LAST] = {
 	[ALC883_TARGA_DIG]	= "targa-dig",
 	[ALC883_TARGA_2ch_DIG]	= "targa-2ch-dig",
 	[ALC883_TARGA_8ch_DIG]	= "targa-8ch-dig",
-	[ALC883_ACER_ASPIRE]	= "acer-aspire",
 	[ALC888_ACER_ASPIRE_4930G]	= "acer-aspire-4930g",
 	[ALC888_ACER_ASPIRE_6530G]	= "acer-aspire-6530g",
 	[ALC888_ACER_ASPIRE_8930G]	= "acer-aspire-8930g",
@@ -2103,12 +2060,6 @@ static const char * const alc882_models[ALC882_MODEL_LAST] = {
 static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1019, 0x6668, "ECS", ALC882_6ST_DIG),
 
-	SND_PCI_QUIRK(0x1025, 0x006c, "Acer Aspire 9810", ALC883_ACER_ASPIRE),
-	SND_PCI_QUIRK(0x1025, 0x0090, "Acer Aspire", ALC883_ACER_ASPIRE),
-	SND_PCI_QUIRK(0x1025, 0x010a, "Acer Ferrari 5000", ALC883_ACER_ASPIRE),
-	SND_PCI_QUIRK(0x1025, 0x0110, "Acer Aspire", ALC883_ACER_ASPIRE),
-	SND_PCI_QUIRK(0x1025, 0x0112, "Acer Aspire 9303", ALC883_ACER_ASPIRE),
-	SND_PCI_QUIRK(0x1025, 0x0121, "Acer Aspire 5920G", ALC883_ACER_ASPIRE),
 	SND_PCI_QUIRK(0x1025, 0x013e, "Acer Aspire 4930G",
 		ALC888_ACER_ASPIRE_4930G),
 	SND_PCI_QUIRK(0x1025, 0x013f, "Acer Aspire 5930G",
@@ -2517,19 +2468,6 @@ static const struct alc_config_preset alc882_presets[] = {
 		.unsol_event = alc883_targa_unsol_event,
 		.setup = alc882_targa_setup,
 		.init_hook = alc882_targa_automute,
-	},
-	[ALC883_ACER_ASPIRE] = {
-		.mixers = { alc883_acer_aspire_mixer },
-		.init_verbs = { alc883_init_verbs, alc883_acer_eapd_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.dig_out_nid = ALC883_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
-		.channel_mode = alc883_3ST_2ch_modes,
-		.input_mux = &alc883_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc883_acer_aspire_setup,
-		.init_hook = alc_hp_automute,
 	},
 	[ALC888_ACER_ASPIRE_4930G] = {
 		.mixers = { alc888_acer_aspire_4930g_mixer,
