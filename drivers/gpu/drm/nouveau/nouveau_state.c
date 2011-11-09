@@ -80,8 +80,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.early_init	= nv04_display_early_init;
 		engine->display.late_takedown	= nv04_display_late_takedown;
 		engine->display.create		= nv04_display_create;
-		engine->display.init		= nv04_display_init;
 		engine->display.destroy		= nv04_display_destroy;
+		engine->display.init		= nv04_display_init;
+		engine->display.fini		= nv04_display_fini;
 		engine->gpio.init		= nouveau_stub_init;
 		engine->gpio.takedown		= nouveau_stub_takedown;
 		engine->gpio.get		= NULL;
@@ -129,8 +130,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.early_init	= nv04_display_early_init;
 		engine->display.late_takedown	= nv04_display_late_takedown;
 		engine->display.create		= nv04_display_create;
-		engine->display.init		= nv04_display_init;
 		engine->display.destroy		= nv04_display_destroy;
+		engine->display.init		= nv04_display_init;
+		engine->display.fini		= nv04_display_fini;
 		engine->gpio.init		= nouveau_stub_init;
 		engine->gpio.takedown		= nouveau_stub_takedown;
 		engine->gpio.get		= nv10_gpio_get;
@@ -178,8 +180,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.early_init	= nv04_display_early_init;
 		engine->display.late_takedown	= nv04_display_late_takedown;
 		engine->display.create		= nv04_display_create;
-		engine->display.init		= nv04_display_init;
 		engine->display.destroy		= nv04_display_destroy;
+		engine->display.init		= nv04_display_init;
+		engine->display.fini		= nv04_display_fini;
 		engine->gpio.init		= nouveau_stub_init;
 		engine->gpio.takedown		= nouveau_stub_takedown;
 		engine->gpio.get		= nv10_gpio_get;
@@ -227,8 +230,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.early_init	= nv04_display_early_init;
 		engine->display.late_takedown	= nv04_display_late_takedown;
 		engine->display.create		= nv04_display_create;
-		engine->display.init		= nv04_display_init;
 		engine->display.destroy		= nv04_display_destroy;
+		engine->display.init		= nv04_display_init;
+		engine->display.fini		= nv04_display_fini;
 		engine->gpio.init		= nouveau_stub_init;
 		engine->gpio.takedown		= nouveau_stub_takedown;
 		engine->gpio.get		= nv10_gpio_get;
@@ -279,8 +283,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.early_init	= nv04_display_early_init;
 		engine->display.late_takedown	= nv04_display_late_takedown;
 		engine->display.create		= nv04_display_create;
-		engine->display.init		= nv04_display_init;
 		engine->display.destroy		= nv04_display_destroy;
+		engine->display.init		= nv04_display_init;
+		engine->display.fini		= nv04_display_fini;
 		engine->gpio.init		= nouveau_stub_init;
 		engine->gpio.takedown		= nouveau_stub_takedown;
 		engine->gpio.get		= nv10_gpio_get;
@@ -336,8 +341,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.early_init	= nv50_display_early_init;
 		engine->display.late_takedown	= nv50_display_late_takedown;
 		engine->display.create		= nv50_display_create;
-		engine->display.init		= nv50_display_init;
 		engine->display.destroy		= nv50_display_destroy;
+		engine->display.init		= nv50_display_init;
+		engine->display.fini		= nv50_display_fini;
 		engine->gpio.init		= nv50_gpio_init;
 		engine->gpio.takedown		= nv50_gpio_fini;
 		engine->gpio.get		= nv50_gpio_get;
@@ -411,8 +417,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.early_init	= nv50_display_early_init;
 		engine->display.late_takedown	= nv50_display_late_takedown;
 		engine->display.create		= nv50_display_create;
-		engine->display.init		= nv50_display_init;
 		engine->display.destroy		= nv50_display_destroy;
+		engine->display.init		= nv50_display_init;
+		engine->display.fini		= nv50_display_fini;
 		engine->gpio.init		= nv50_gpio_init;
 		engine->gpio.takedown		= nouveau_stub_takedown;
 		engine->gpio.get		= nv50_gpio_get;
@@ -463,8 +470,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.early_init	= nouveau_stub_init;
 		engine->display.late_takedown	= nouveau_stub_takedown;
 		engine->display.create		= nvd0_display_create;
-		engine->display.init		= nvd0_display_init;
 		engine->display.destroy		= nvd0_display_destroy;
+		engine->display.init		= nvd0_display_init;
+		engine->display.fini		= nvd0_display_fini;
 		engine->gpio.init		= nv50_gpio_init;
 		engine->gpio.takedown		= nouveau_stub_takedown;
 		engine->gpio.get		= nvd0_gpio_get;

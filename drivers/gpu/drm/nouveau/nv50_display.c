@@ -264,7 +264,8 @@ nv50_display_init(struct drm_device *dev)
 	return nv50_display_sync(dev);
 }
 
-static int nv50_display_disable(struct drm_device *dev)
+void
+nv50_display_fini(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_display *disp = nv50_display(dev);
@@ -337,16 +338,16 @@ static int nv50_display_disable(struct drm_device *dev)
 		nv_wr32(dev, 0xe074, 0xffffffff);
 		nv_wr32(dev, 0xe070, 0x00000000);
 	}
-	return 0;
 }
 
-int nv50_display_create(struct drm_device *dev)
+int
+nv50_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct dcb_table *dcb = &dev_priv->vbios.dcb;
 	struct drm_connector *connector, *ct;
 	struct nv50_display *priv;
-	int ret, i;
+	int i;
 
 	NV_DEBUG_KMS(dev, "\n");
 
@@ -399,13 +400,6 @@ int nv50_display_create(struct drm_device *dev)
 
 	tasklet_init(&priv->tasklet, nv50_display_bh, (unsigned long)dev);
 	nouveau_irq_register(dev, 26, nv50_display_isr);
-
-	ret = nv50_display_init(dev);
-	if (ret) {
-		nv50_display_destroy(dev);
-		return ret;
-	}
-
 	return 0;
 }
 
@@ -416,7 +410,6 @@ nv50_display_destroy(struct drm_device *dev)
 
 	NV_DEBUG_KMS(dev, "\n");
 
-	nv50_display_disable(dev);
 	nouveau_irq_unregister(dev, 26);
 	kfree(disp);
 }

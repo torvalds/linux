@@ -1341,7 +1341,7 @@ nvd0_display_intr(struct drm_device *dev)
 /******************************************************************************
  * Init
  *****************************************************************************/
-static void
+void
 nvd0_display_fini(struct drm_device *dev)
 {
 	int i;
@@ -1460,8 +1460,6 @@ nvd0_display_destroy(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvd0_display *disp = nvd0_display(dev);
 	struct pci_dev *pdev = dev->pdev;
-
-	nvd0_display_fini(dev);
 
 	pci_free_consistent(pdev, PAGE_SIZE, disp->evo[0].ptr, disp->evo[0].handle);
 	nouveau_gpuobj_ref(NULL, &disp->mem);
@@ -1587,10 +1585,6 @@ nvd0_display_create(struct drm_device *dev)
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	ret = nvd0_display_init(dev);
-	if (ret)
-		goto out;
 
 out:
 	if (ret)

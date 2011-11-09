@@ -396,8 +396,9 @@ struct nouveau_display_engine {
 	int (*early_init)(struct drm_device *);
 	void (*late_takedown)(struct drm_device *);
 	int (*create)(struct drm_device *);
-	int (*init)(struct drm_device *);
 	void (*destroy)(struct drm_device *);
+	int (*init)(struct drm_device *);
+	void (*fini)(struct drm_device *);
 
 	struct drm_property *dithering_mode;
 	struct drm_property *dithering_depth;
@@ -1343,13 +1344,15 @@ extern int nv17_tv_create(struct drm_connector *, struct dcb_entry *);
 extern int nv04_display_early_init(struct drm_device *);
 extern void nv04_display_late_takedown(struct drm_device *);
 extern int nv04_display_create(struct drm_device *);
-extern int nv04_display_init(struct drm_device *);
 extern void nv04_display_destroy(struct drm_device *);
+extern int nv04_display_init(struct drm_device *);
+extern void nv04_display_fini(struct drm_device *);
 
 /* nvd0_display.c */
 extern int nvd0_display_create(struct drm_device *);
-extern int nvd0_display_init(struct drm_device *);
 extern void nvd0_display_destroy(struct drm_device *);
+extern int nvd0_display_init(struct drm_device *);
+extern void nvd0_display_fini(struct drm_device *);
 
 /* nv04_crtc.c */
 extern int nv04_crtc_create(struct drm_device *, int index);

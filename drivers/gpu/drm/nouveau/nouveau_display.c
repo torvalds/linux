@@ -262,7 +262,10 @@ nouveau_display_create(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	return 0;
+	ret = disp->init(dev);
+	if (ret)
+		disp->destroy(dev);
+	return ret;
 }
 
 void
@@ -271,6 +274,7 @@ nouveau_display_destroy(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_display_engine *disp = &dev_priv->engine.display;
 
+	disp->fini(dev);
 	disp->destroy(dev);
 	drm_mode_config_cleanup(dev);
 }
