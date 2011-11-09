@@ -40,6 +40,7 @@
 
 #include "easycap.h"
 
+
 #define GET(X, Y, Z) do { \
 	int __rc; \
 	*(Z) = (u16)0; \
@@ -355,101 +356,6 @@ static int wait_i2c(struct usb_device *p)
 }
 
 /****************************************************************************/
-int confirm_resolution(struct usb_device *p)
-{
-	u8 get0, get1, get2, get3, get4, get5, get6, get7;
-
-	if (!p)
-		return -ENODEV;
-	GET(p, 0x0110, &get0);
-	GET(p, 0x0111, &get1);
-	GET(p, 0x0112, &get2);
-	GET(p, 0x0113, &get3);
-	GET(p, 0x0114, &get4);
-	GET(p, 0x0115, &get5);
-	GET(p, 0x0116, &get6);
-	GET(p, 0x0117, &get7);
-	JOT(8,  "0x%03X, 0x%03X, "
-		"0x%03X, 0x%03X, "
-		"0x%03X, 0x%03X, "
-		"0x%03X, 0x%03X\n",
-		get0, get1, get2, get3, get4, get5, get6, get7);
-	JOT(8,  "....cf PAL_720x526: "
-		"0x%03X, 0x%03X, "
-		"0x%03X, 0x%03X, "
-		"0x%03X, 0x%03X, "
-		"0x%03X, 0x%03X\n",
-		0x000, 0x000, 0x001, 0x000, 0x5A0, 0x005, 0x121, 0x001);
-	JOT(8,  "....cf PAL_704x526: "
-		"0x%03X, 0x%03X, "
-		"0x%03X, 0x%03X, "
-		"0x%03X, 0x%03X, "
-		"0x%03X, 0x%03X\n",
-		0x004, 0x000, 0x001, 0x000, 0x584, 0x005, 0x121, 0x001);
-	JOT(8,  "....cf VGA_640x480: "
-		"0x%03X, 0x%03X, "
-		"0x%03X, 0x%03X, "
-		"0x%03X, 0x%03X, "
-		"0x%03X, 0x%03X\n",
-		0x008, 0x000, 0x020, 0x000, 0x508, 0x005, 0x110, 0x001);
-	return 0;
-}
-/****************************************************************************/
-int confirm_stream(struct usb_device *p)
-{
-	u16 get2;
-	u8 igot;
-
-	if (!p)
-		return -ENODEV;
-	GET(p, 0x0100, &igot);  get2 = 0x80 & igot;
-	if (0x80 == get2)
-		JOT(8, "confirm_stream:  OK\n");
-	else
-		JOT(8, "confirm_stream:  STUCK\n");
-	return 0;
-}
-/****************************************************************************/
-int setup_stk(struct usb_device *p, bool ntsc)
-{
-	int i;
-	const struct stk1160config *cfg;
-	if (!p)
-		return -ENODEV;
-	cfg = (ntsc) ? stk1160configNTSC : stk1160configPAL;
-	for (i = 0; cfg[i].reg != 0xFFF; i++)
-		SET(p, cfg[i].reg, cfg[i].set);
-
-	write_300(p);
-
-	return 0;
-}
-/****************************************************************************/
-int setup_saa(struct usb_device *p, bool ntsc)
-{
-	int i, ir;
-	const struct saa7113config *cfg;
-	if (!p)
-		return -ENODEV;
-	cfg = (ntsc) ?  saa7113configNTSC : saa7113configPAL;
-	for (i = 0; cfg[i].reg != 0xFF; i++)
-		ir = write_saa(p, cfg[i].reg, cfg[i].set);
-	return 0;
-}
-/****************************************************************************/
-int write_000(struct usb_device *p, u16 set2, u16 set0)
-{
-	u8 igot0, igot2;
-
-	if (!p)
-		return -ENODEV;
-	GET(p, 0x0002, &igot2);
-	GET(p, 0x0000, &igot0);
-	SET(p, 0x0002, set2);
-	SET(p, 0x0000, set0);
-	return 0;
-}
-/****************************************************************************/
 int write_saa(struct usb_device *p, u16 reg0, u16 set0)
 {
 	if (!p)
@@ -470,8 +376,7 @@ int write_saa(struct usb_device *p, u16 reg0, u16 set0)
  *  REGISTER 504:  TARGET ADDRESS ON VT1612A
  */
 /*--------------------------------------------------------------------------*/
-int
-write_vt(struct usb_device *p, u16 reg0, u16 set0)
+static int write_vt(struct usb_device *p, u16 reg0, u16 set0)
 {
 	u8 igot;
 	u16 got502, got503;
@@ -508,7 +413,7 @@ write_vt(struct usb_device *p, u16 reg0, u16 set0)
  *  REGISTER 504:  TARGET ADDRESS ON VT1612A
  */
 /*--------------------------------------------------------------------------*/
-int read_vt(struct usb_device *p, u16 reg0)
+static int read_vt(struct usb_device *p, u16 reg0)
 {
 	u8 igot;
 	u16 got502, got503;
@@ -532,7 +437,7 @@ int read_vt(struct usb_device *p, u16 reg0)
  *  THESE APPEAR TO HAVE NO EFFECT ON EITHER VIDEO OR AUDIO.
  */
 /*--------------------------------------------------------------------------*/
-int write_300(struct usb_device *p)
+static int write_300(struct usb_device *p)
 {
 	if (!p)
 		return -ENODEV;
@@ -545,32 +450,32 @@ int write_300(struct usb_device *p)
 	return 0;
 }
 /****************************************************************************/
-/*--------------------------------------------------------------------------*/
-/*
- *  NOTE: THE FOLLOWING IS NOT CHECKED:
- *  REGISTER 0x0F, WHICH IS INVOLVED IN CHROMINANCE AUTOMATIC GAIN CONTROL.
- */
-/*--------------------------------------------------------------------------*/
-int check_saa(struct usb_device *p, bool ntsc)
+/****************************************************************************/
+int setup_stk(struct usb_device *p, bool ntsc)
 {
-	int i, ir, rc = 0;
-	struct saa7113config const *cfg;
+	int i;
+	const struct stk1160config *cfg;
 	if (!p)
 		return -ENODEV;
+	cfg = (ntsc) ? stk1160configNTSC : stk1160configPAL;
+	for (i = 0; cfg[i].reg != 0xFFF; i++)
+		SET(p, cfg[i].reg, cfg[i].set);
 
-	cfg = (ntsc) ? saa7113configNTSC : saa7113configPAL;
-	for (i = 0; cfg[i].reg != 0xFF; i++) {
-		if (0x0F == cfg[i].reg)
-			continue;
-		ir = read_saa(p, cfg[i].reg);
-		if (ir != cfg[i].set) {
-			SAY("SAA register 0x%02X has 0x%02X, expected 0x%02X\n",
-				cfg[i].reg, ir, cfg[i].set);
-				rc--;
-		}
-	}
+	write_300(p);
 
-	return (rc < -8) ? rc : 0;
+	return 0;
+}
+/****************************************************************************/
+int setup_saa(struct usb_device *p, bool ntsc)
+{
+	int i, ir;
+	const struct saa7113config *cfg;
+	if (!p)
+		return -ENODEV;
+	cfg = (ntsc) ?  saa7113configNTSC : saa7113configPAL;
+	for (i = 0; cfg[i].reg != 0xFF; i++)
+		ir = write_saa(p, cfg[i].reg, cfg[i].set);
+	return 0;
 }
 /****************************************************************************/
 int merit_saa(struct usb_device *p)
@@ -629,44 +534,6 @@ int ready_saa(struct usb_device *p)
 	return 0;
 }
 /****************************************************************************/
-/*--------------------------------------------------------------------------*/
-/*
- *  NOTE: THE FOLLOWING ARE NOT CHECKED:
- *  REGISTERS 0x000, 0x002:  FUNCTIONALITY IS NOT KNOWN
- *  REGISTER  0x100:  ACCEPT ALSO (0x80 | stk1160config....[.].set)
- */
-/*--------------------------------------------------------------------------*/
-int check_stk(struct usb_device *p, bool ntsc)
-{
-	int i, ir;
-	const struct stk1160config *cfg;
-
-	if (!p)
-		return -ENODEV;
-	cfg = (ntsc) ? stk1160configNTSC : stk1160configPAL;
-
-	for (i = 0; 0xFFF != cfg[i].reg; i++) {
-		if (0x000 == cfg[i].reg || 0x002 == cfg[i].reg)
-			continue;
-
-
-		ir = read_stk(p, cfg[i].reg);
-		if (0x100 == cfg[i].reg) {
-			if ((ir != (0xFF & cfg[i].set)) &&
-			    (ir != (0x80 | (0xFF & cfg[i].set))) &&
-			    (0xFFFF != cfg[i].set)) {
-				SAY("STK reg[0x%03X]=0x%02X expected 0x%02X\n",
-					cfg[i].reg, ir, cfg[i].set);
-			}
-			continue;
-		}
-		if ((ir != (0xFF & cfg[i].set)) && (0xFFFF != cfg[i].set))
-			SAY("STK register 0x%03X has 0x%02X,expected 0x%02X\n",
-				cfg[i].reg, ir, cfg[i].set);
-	}
-	return 0;
-}
-/****************************************************************************/
 int read_saa(struct usb_device *p, u16 reg0)
 {
 	u8 igot;
@@ -682,7 +549,7 @@ int read_saa(struct usb_device *p, u16 reg0)
 	return igot;
 }
 /****************************************************************************/
-int read_stk(struct usb_device *p, u32 reg0)
+static int read_stk(struct usb_device *p, u32 reg0)
 {
 	u8 igot;
 
@@ -692,27 +559,7 @@ int read_stk(struct usb_device *p, u32 reg0)
 	GET(p, reg0, &igot);
 	return igot;
 }
-/****************************************************************************/
-/*--------------------------------------------------------------------------*/
-/*
- *    HARDWARE    USERSPACE INPUT NUMBER   PHYSICAL INPUT   DRIVER input VALUE
- *
- *  CVBS+S-VIDEO           0 or 1              CVBS                 1
- *   FOUR-CVBS             0 or 1              CVBS1                1
- *   FOUR-CVBS                2                CVBS2                2
- *   FOUR-CVBS                3                CVBS3                3
- *   FOUR-CVBS                4                CVBS4                4
- *  CVBS+S-VIDEO              5               S-VIDEO               5
- *
- *  WHEN 5==input THE ARGUMENT mode MUST ALSO BE SUPPLIED:
- *
- *     mode  7   => GAIN TO BE SET EXPLICITLY USING REGISTER 0x05 (UNTESTED)
- *     mode  9   => USE AUTOMATIC GAIN CONTROL (DEFAULT)
- *
-*/
-/*---------------------------------------------------------------------------*/
-int
-select_input(struct usb_device *p, int input, int mode)
+int select_input(struct usb_device *p, int input, int mode)
 {
 	int ir;
 
@@ -1113,17 +960,5 @@ int audio_gainset(struct usb_device *pusb_device, s8 loud)
 	write_vt(pusb_device, 0x001A, 0x0404);
 	write_vt(pusb_device, 0x0002, 0x0000);
 	return 0;
-}
-/*****************************************************************************/
-int audio_gainget(struct usb_device *pusb_device)
-{
-	int igot;
-
-	if (!pusb_device)
-		return -ENODEV;
-	igot = read_vt(pusb_device, 0x001C);
-	if (0 > igot)
-		SAY("ERROR: failed to read VT1612A register 0x1C\n");
-	return igot;
 }
 /*****************************************************************************/

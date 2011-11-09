@@ -854,7 +854,7 @@ int adjust_hue(struct easycap *peasycap, int value)
 	return -ENOENT;
 }
 /*****************************************************************************/
-int adjust_volume(struct easycap *peasycap, int value)
+static int adjust_volume(struct easycap *peasycap, int value)
 {
 	s8 mood;
 	int i1;

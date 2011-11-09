@@ -470,71 +470,49 @@ struct easycap {
  */
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 long easycap_unlocked_ioctl(struct file *, unsigned int, unsigned long);
-int              easycap_dqbuf(struct easycap *, int);
-int              submit_video_urbs(struct easycap *);
-int              kill_video_urbs(struct easycap *);
-int              field2frame(struct easycap *);
-int              redaub(struct easycap *, void *, void *,
-						int, int, u8, u8, bool);
-void             easycap_testcard(struct easycap *, int);
-int              fillin_formats(void);
-int              newinput(struct easycap *, int);
-int              adjust_standard(struct easycap *, v4l2_std_id);
-int              adjust_format(struct easycap *, u32, u32, u32,
-								int, bool);
-int              adjust_brightness(struct easycap *, int);
-int              adjust_contrast(struct easycap *, int);
-int              adjust_saturation(struct easycap *, int);
-int              adjust_hue(struct easycap *, int);
-int              adjust_volume(struct easycap *, int);
+int easycap_dqbuf(struct easycap *, int);
+int submit_video_urbs(struct easycap *);
+int kill_video_urbs(struct easycap *);
+void easycap_testcard(struct easycap *, int);
+int fillin_formats(void);
+int newinput(struct easycap *, int);
+
+int adjust_standard(struct easycap *, v4l2_std_id);
+int adjust_format(struct easycap *, u32, u32, u32, int, bool);
+int adjust_brightness(struct easycap *, int);
+int adjust_contrast(struct easycap *, int);
+int adjust_saturation(struct easycap *, int);
+int adjust_hue(struct easycap *, int);
 /*---------------------------------------------------------------------------*/
 /*
  *  AUDIO FUNCTION PROTOTYPES
  */
 /*---------------------------------------------------------------------------*/
-int		easycap_alsa_probe(struct easycap *);
-void            easycap_alsa_complete(struct urb *);
-
-int              easycap_sound_setup(struct easycap *);
-int              submit_audio_urbs(struct easycap *);
-int              kill_audio_urbs(struct easycap *);
-void             easyoss_testtone(struct easycap *, int);
-int              audio_setup(struct easycap *);
+int easycap_alsa_probe(struct easycap *);
+void easycap_alsa_complete(struct urb *);
+int audio_setup(struct easycap *);
 /*---------------------------------------------------------------------------*/
 /*
  *  LOW-LEVEL FUNCTION PROTOTYPES
  */
 /*---------------------------------------------------------------------------*/
-int              audio_gainget(struct usb_device *);
-int              audio_gainset(struct usb_device *, s8);
+int audio_gainset(struct usb_device *, s8);
 
-int              set_interface(struct usb_device *, u16);
-int              wakeup_device(struct usb_device *);
-int              confirm_resolution(struct usb_device *);
-int              confirm_stream(struct usb_device *);
+int wakeup_device(struct usb_device *);
 
-int              setup_stk(struct usb_device *, bool);
-int              setup_saa(struct usb_device *, bool);
-int              setup_vt(struct usb_device *);
-int              check_stk(struct usb_device *, bool);
-int              check_saa(struct usb_device *, bool);
-int              ready_saa(struct usb_device *);
-int              merit_saa(struct usb_device *);
-int              check_vt(struct usb_device *);
-int              select_input(struct usb_device *, int, int);
-int              set_resolution(struct usb_device *,
-						u16, u16, u16, u16);
+int setup_stk(struct usb_device *, bool);
+int setup_saa(struct usb_device *, bool);
+int ready_saa(struct usb_device *);
+int merit_saa(struct usb_device *);
+int check_vt(struct usb_device *);
+int select_input(struct usb_device *, int, int);
+int set_resolution(struct usb_device *, u16, u16, u16, u16);
 
-int              read_saa(struct usb_device *, u16);
-int              read_stk(struct usb_device *, u32);
-int              write_saa(struct usb_device *, u16, u16);
-int              write_000(struct usb_device *, u16, u16);
-int              start_100(struct usb_device *);
-int              stop_100(struct usb_device *);
-int              write_300(struct usb_device *);
-int              read_vt(struct usb_device *, u16);
-int              write_vt(struct usb_device *, u16, u16);
-int		isdongle(struct easycap *);
+int read_saa(struct usb_device *, u16);
+int write_saa(struct usb_device *, u16, u16);
+int start_100(struct usb_device *);
+int stop_100(struct usb_device *);
+int isdongle(struct easycap *);
 /*---------------------------------------------------------------------------*/
 
 

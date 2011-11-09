@@ -66,6 +66,10 @@ struct easycap_dongle easycapdc60_dongle[DONGLE_MANY];
 static struct mutex mutex_dongle;
 static void easycap_complete(struct urb *purb);
 static int reset(struct easycap *peasycap);
+static int field2frame(struct easycap *peasycap);
+static int redaub(struct easycap *peasycap,
+		void *pad, void *pex, int much, int more,
+		u8 mask, u8 margin, bool isuy);
 
 const char *strerror(int err)
 {
@@ -1211,8 +1215,7 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
  *  CHOOSES THE OPTION V4L2_FIELD_INTERLACED.
  */
 /*---------------------------------------------------------------------------*/
-int
-field2frame(struct easycap *peasycap)
+static int field2frame(struct easycap *peasycap)
 {
 
 	void *pex, *pad;
@@ -1601,9 +1604,9 @@ field2frame(struct easycap *peasycap)
  *  REDUCE CODE LENGTH WILL GENERALLY IMPAIR RUNTIME PERFORMANCE.  BEWARE.
  */
 /*---------------------------------------------------------------------------*/
-int
-redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
-					u8 mask, u8 margin, bool isuy)
+static int redaub(struct easycap *peasycap,
+		void *pad, void *pex, int much, int more,
+		u8 mask, u8 margin, bool isuy)
 {
 	static s32 ay[256], bu[256], rv[256], gu[256], gv[256];
 	u8 *pcache;
