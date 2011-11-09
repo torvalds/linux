@@ -722,7 +722,10 @@ static void nci_tx_work(struct work_struct *work)
 		if (!skb)
 			return;
 
-		atomic_dec(&ndev->credits_cnt);
+		/* Check if data flow control is used */
+		if (atomic_read(&ndev->credits_cnt) !=
+				NCI_DATA_FLOW_CONTROL_NOT_USED)
+			atomic_dec(&ndev->credits_cnt);
 
 		nfc_dbg("NCI TX: MT=data, PBF=%d, conn_id=%d, plen=%d",
 				nci_pbf(skb->data),

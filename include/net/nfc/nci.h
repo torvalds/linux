@@ -108,6 +108,9 @@
 /* NCI Static RF connection ID */
 #define NCI_STATIC_RF_CONN_ID					0x00
 
+/* NCI Data Flow Control */
+#define NCI_DATA_FLOW_CONTROL_NOT_USED				0xff
+
 /* NCI RF_DISCOVER_MAP_CMD modes */
 #define NCI_DISC_MAP_MODE_POLL					0x01
 #define NCI_DISC_MAP_MODE_LISTEN				0x02
