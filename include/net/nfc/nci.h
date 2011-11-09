@@ -193,16 +193,6 @@ struct nci_core_reset_cmd {
 
 #define NCI_OP_CORE_INIT_CMD		nci_opcode_pack(NCI_GID_CORE, 0x01)
 
-#define NCI_OP_CORE_SET_CONFIG_CMD	nci_opcode_pack(NCI_GID_CORE, 0x02)
-
-#define NCI_OP_CORE_CONN_CREATE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x04)
-struct nci_core_conn_create_cmd {
-	__u8	target_handle;
-	__u8	num_target_specific_params;
-} __packed;
-
-#define NCI_OP_CORE_CONN_CLOSE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x06)
-
 #define NCI_OP_RF_DISCOVER_MAP_CMD	nci_opcode_pack(NCI_GID_RF_MGMT, 0x00)
 struct disc_map_config {
 	__u8	rf_protocol;
@@ -262,18 +252,6 @@ struct nci_core_init_rsp_2 {
 	__le32	manufact_specific_info;
 } __packed;
 
-#define NCI_OP_CORE_SET_CONFIG_RSP	nci_opcode_pack(NCI_GID_CORE, 0x02)
-
-#define NCI_OP_CORE_CONN_CREATE_RSP	nci_opcode_pack(NCI_GID_CORE, 0x04)
-struct nci_core_conn_create_rsp {
-	__u8	status;
-	__u8	max_pkt_payload_size;
-	__u8	initial_num_credits;
-	__u8	conn_id;
-} __packed;
-
-#define NCI_OP_CORE_CONN_CLOSE_RSP	nci_opcode_pack(NCI_GID_CORE, 0x06)
-
 #define NCI_OP_RF_DISCOVER_MAP_RSP	nci_opcode_pack(NCI_GID_RF_MGMT, 0x00)
 
 #define NCI_OP_RF_DISCOVER_RSP		nci_opcode_pack(NCI_GID_RF_MGMT, 0x03)
@@ -292,11 +270,6 @@ struct conn_credit_entry {
 struct nci_core_conn_credit_ntf {
 	__u8				num_entries;
 	struct conn_credit_entry	conn_entries[NCI_MAX_NUM_CONN];
-} __packed;
-
-#define NCI_OP_RF_FIELD_INFO_NTF	nci_opcode_pack(NCI_GID_CORE, 0x08)
-struct nci_rf_field_info_ntf {
-	__u8	rf_field_status;
 } __packed;
 
 #define NCI_OP_RF_INTF_ACTIVATED_NTF	nci_opcode_pack(NCI_GID_RF_MGMT, 0x05)

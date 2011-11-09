@@ -116,10 +116,6 @@ struct nci_dev {
 	__u8			manufact_id;
 	__u32			manufact_specific_info;
 
-	/* received during NCI_OP_CORE_CONN_CREATE_RSP for static conn 0 */
-	__u8			max_pkt_payload_size;
-	__u8			conn_id;
-
 	/* stored during nci_data_exchange */
 	data_exchange_cb_t	data_exchange_cb;
 	void			*data_exchange_cb_context;

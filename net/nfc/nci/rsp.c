@@ -128,27 +128,6 @@ exit:
 	nci_req_complete(ndev, rsp_1->status);
 }
 
-static void nci_core_conn_create_rsp_packet(struct nci_dev *ndev,
-						struct sk_buff *skb)
-{
-	struct nci_core_conn_create_rsp *rsp = (void *) skb->data;
-
-	nfc_dbg("entry, status 0x%x", rsp->status);
-
-	if (rsp->status != NCI_STATUS_OK)
-		return;
-
-	ndev->max_pkt_payload_size = rsp->max_pkt_payload_size;
-	ndev->initial_num_credits = rsp->initial_num_credits;
-	ndev->conn_id = rsp->conn_id;
-
-	atomic_set(&ndev->credits_cnt, ndev->initial_num_credits);
-
-	nfc_dbg("max_pkt_payload_size %d", ndev->max_pkt_payload_size);
-	nfc_dbg("initial_num_credits %d", ndev->initial_num_credits);
-	nfc_dbg("conn_id %d", ndev->conn_id);
-}
-
 static void nci_rf_disc_map_rsp_packet(struct nci_dev *ndev,
 					struct sk_buff *skb)
 {
@@ -206,10 +185,6 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 
 	case NCI_OP_CORE_INIT_RSP:
 		nci_core_init_rsp_packet(ndev, skb);
-		break;
-
-	case NCI_OP_CORE_CONN_CREATE_RSP:
-		nci_core_conn_create_rsp_packet(ndev, skb);
 		break;
 
 	case NCI_OP_RF_DISCOVER_MAP_RSP:

@@ -138,16 +138,10 @@ static void nci_init_req(struct nci_dev *ndev, unsigned long opt)
 
 static void nci_init_complete_req(struct nci_dev *ndev, unsigned long opt)
 {
-	struct nci_core_conn_create_cmd conn_cmd;
 	struct nci_rf_disc_map_cmd cmd;
 	struct disc_map_config *cfg = cmd.mapping_configs;
 	__u8 *num = &cmd.num_mapping_configs;
 	int i;
-
-	/* create static rf connection */
-	conn_cmd.target_handle = 0;
-	conn_cmd.num_target_specific_params = 0;
-	nci_send_cmd(ndev, NCI_OP_CORE_CONN_CREATE_CMD, 2, &conn_cmd);
 
 	/* set rf mapping configurations */
 	*num = 0;
