@@ -60,6 +60,14 @@ config AMD_IOMMU_STATS
 	  information to userspace via debugfs.
 	  If unsure, say N.
 
+config AMD_IOMMU_V2
+	tristate "AMD IOMMU Version 2 driver (EXPERIMENTAL)"
+	depends on AMD_IOMMU && EXPERIMENTAL
+	---help---
+	  This option enables support for the AMD IOMMUv2 features of the IOMMU
+	  hardware. Select this option if you want to use devices that support
+	  the the PCI PRI and PASID interface.
+
 # Intel IOMMU support
 config DMAR_TABLE
 	bool
