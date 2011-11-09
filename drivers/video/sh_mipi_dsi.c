@@ -42,6 +42,7 @@
 #define VMCTR1		0x0020
 #define VMCTR2		0x0024
 #define VMLEN1		0x0028
+#define VMLEN2		0x002c
 #define CMTSRTREQ	0x0070
 #define CMTSRTCTR	0x00d0
 
@@ -153,8 +154,9 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	void __iomem *base = mipi->base;
 	struct sh_mobile_lcdc_chan_cfg *ch = pdata->lcd_chan;
 	u32 pctype, datatype, pixfmt, linelength, vmctr2;
+	u32 tmp, top, bottom, delay;
 	bool yuv;
-	u32 tmp;
+	int bpp;
 
 	/*
 	 * Select data format. MIPI DSI is not hot-pluggable, so, we just use
@@ -342,11 +344,44 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	iowrite32(vmctr2, mipi->linkbase + VMCTR2);
 
 	/*
-	 * 0x660 = 1632 bytes per line (RGB24, 544 pixels: see
-	 * sh_mobile_lcdc_info.ch[0].lcd_cfg[0].xres), HSALEN = 1 - default
-	 * (unused if VMCTR2[HSABM] = 0)
+	 * VMLEN1 = RGBLEN | HSALEN
+	 *
+	 * see
+	 *  Video mode - Blanking Packet setting
 	 */
-	iowrite32(1 | (linelength << 16), mipi->linkbase + VMLEN1);
+	top = linelength << 16; /* RGBLEN */
+	bottom = 0x00000001;
+	if (pdata->flags & SH_MIPI_DSI_HSABM) /* HSALEN */
+		bottom = (pdata->lane * ch->lcd_cfg[0].hsync_len) - 10;
+	iowrite32(top | bottom , mipi->linkbase + VMLEN1);
+
+	/*
+	 * VMLEN2 = HBPLEN | HFPLEN
+	 *
+	 * see
+	 *  Video mode - Blanking Packet setting
+	 */
+	top	= 0x00010000;
+	bottom	= 0x00000001;
+	delay	= 0;
+
+	if (pdata->flags & SH_MIPI_DSI_HFPBM) {	/* HBPLEN */
+		top = ch->lcd_cfg[0].hsync_len + ch->lcd_cfg[0].left_margin;
+		top = ((pdata->lane * top) - 10) << 16;
+	}
+	if (pdata->flags & SH_MIPI_DSI_HBPBM) { /* HFPLEN */
+		bottom = ch->lcd_cfg[0].right_margin;
+		bottom = (pdata->lane * bottom) - 12;
+	}
+
+	bpp = linelength / ch->lcd_cfg[0].xres; /* byte / pixel */
+	if (pdata->lane > bpp) {
+		tmp = ch->lcd_cfg[0].xres / bpp; /* output cycle */
+		tmp = ch->lcd_cfg[0].xres - tmp; /* (input - output) cycle */
+		delay = (pdata->lane * tmp);
+	}
+
+	iowrite32(top | (bottom + delay) , mipi->linkbase + VMLEN2);
 
 	msleep(5);
 
