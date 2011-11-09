@@ -129,7 +129,7 @@ const char *strerror(int err)
  *  THIS ROUTINE DOES NOT DETECT DUPLICATE OCCURRENCES OF POINTER peasycap
 */
 /*---------------------------------------------------------------------------*/
-int isdongle(struct easycap *peasycap)
+int easycap_isdongle(struct easycap *peasycap)
 {
 	int k;
 	if (!peasycap)
@@ -170,7 +170,7 @@ static int easycap_open(struct inode *inode, struct file *file)
 	JOM(16, "peasycap->pusb_device=%p\n", peasycap->pusb_device);
 
 	file->private_data = peasycap;
-	rc = wakeup_device(peasycap->pusb_device);
+	rc = easycap_wakeup_device(peasycap->pusb_device);
 	if (rc) {
 		SAM("ERROR: wakeup_device() rc = %i\n", rc);
 		if (-ENODEV == rc)
@@ -307,7 +307,7 @@ static int reset(struct easycap *peasycap)
 	peasycap->saturation = -8192;
 	peasycap->hue = -8192;
 
-	rc = newinput(peasycap, input);
+	rc = easycap_newinput(peasycap, input);
 
 	if (rc) {
 		SAM("ERROR: newinput(.,%i) rc = %i\n", rc, input);
@@ -368,8 +368,7 @@ static int reset(struct easycap *peasycap)
  *      SO IT SHOULD WRITE ONLY SPARINGLY TO THE LOGFILE.
 */
 /*---------------------------------------------------------------------------*/
-int
-newinput(struct easycap *peasycap, int input)
+int easycap_newinput(struct easycap *peasycap, int input)
 {
 	int rc, k, m, mood, off;
 	int inputnow, video_idlenow, audio_idlenow;
@@ -536,7 +535,7 @@ newinput(struct easycap *peasycap, int input)
 		return -EFAULT;
 	}
 	if (resubmit)
-		submit_video_urbs(peasycap);
+		easycap_video_submit_urbs(peasycap);
 
 	peasycap->video_isoc_sequence = VIDEO_ISOC_BUFFER_MANY - 1;
 	peasycap->video_idle = video_idlenow;
@@ -546,7 +545,7 @@ newinput(struct easycap *peasycap, int input)
 	return 0;
 }
 /*****************************************************************************/
-int submit_video_urbs(struct easycap *peasycap)
+int easycap_video_submit_urbs(struct easycap *peasycap)
 {
 	struct data_urb *pdata_urb;
 	struct urb *purb;
@@ -741,7 +740,7 @@ static void easycap_delete(struct kref *pkref)
 		SAM("ERROR: peasycap is NULL: cannot perform deletions\n");
 		return;
 	}
-	kd = isdongle(peasycap);
+	kd = easycap_isdongle(peasycap);
 /*---------------------------------------------------------------------------*/
 /*
  *  FREE VIDEO.
@@ -943,7 +942,7 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 		return -EFAULT;
 	}
 /*---------------------------------------------------------------------------*/
-	kd = isdongle(peasycap);
+	kd = easycap_isdongle(peasycap);
 	if (0 <= kd && DONGLE_MANY > kd) {
 		if (mutex_lock_interruptible(&easycapdc60_dongle[kd].mutex_video)) {
 			SAY("ERROR: cannot down dongle[%i].mutex_video\n", kd);
@@ -955,7 +954,7 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 	 *  peasycap, IN WHICH CASE A REPEAT CALL TO isdongle() WILL FAIL.
 	 *  IF NECESSARY, BAIL OUT.
 	 */
-		if (kd != isdongle(peasycap)) {
+		if (kd != easycap_isdongle(peasycap)) {
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
 		}
@@ -983,7 +982,7 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 	*/
 		return -ERESTARTSYS;
 /*---------------------------------------------------------------------------*/
-	rc = easycap_dqbuf(peasycap, 0);
+	rc = easycap_video_dqbuf(peasycap, 0);
 	peasycap->polled = 1;
 	mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 	if (rc)
@@ -997,7 +996,7 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
  *  IF mode IS NONZERO THIS ROUTINE RETURNS -EAGAIN RATHER THAN BLOCKING.
  */
 /*---------------------------------------------------------------------------*/
-int easycap_dqbuf(struct easycap *peasycap, int mode)
+int easycap_video_dqbuf(struct easycap *peasycap, int mode)
 {
 	int input, ifield, miss, rc;
 
@@ -3036,7 +3035,7 @@ static int easycap_usb_probe(struct usb_interface *intf,
  *  DYNAMICALLY FILL IN THE AVAILABLE FORMATS ...
  */
 /*---------------------------------------------------------------------------*/
-		rc = fillin_formats();
+		rc = easycap_video_fillin_formats();
 		if (0 > rc) {
 			SAM("ERROR: fillin_formats() rc = %i\n", rc);
 			return -EFAULT;
@@ -4025,7 +4024,7 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
  *  AN EasyCAP IS UNPLUGGED WHILE THE URBS ARE RUNNING.  BEWARE.
  */
 /*--------------------------------------------------------------------------*/
-	kd = isdongle(peasycap);
+	kd = easycap_isdongle(peasycap);
 	switch (bInterfaceNumber) {
 	case 0: {
 		if (0 <= kd && DONGLE_MANY > kd) {

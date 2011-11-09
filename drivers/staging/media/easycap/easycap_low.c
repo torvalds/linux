@@ -724,10 +724,11 @@ int stop_100(struct usb_device *p)
 /****************************************************************************/
 /****************************************************************************/
 /*****************************************************************************/
-int wakeup_device(struct usb_device *pusb_device)
+int easycap_wakeup_device(struct usb_device *pusb_device)
 {
 	if (!pusb_device)
 		return -ENODEV;
+
 	return usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0),
 			USB_REQ_SET_FEATURE,
 			USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
@@ -735,8 +736,7 @@ int wakeup_device(struct usb_device *pusb_device)
 			0, NULL, 0, 50000);
 }
 /*****************************************************************************/
-int
-audio_setup(struct easycap *peasycap)
+int easycap_audio_setup(struct easycap *peasycap)
 {
 	struct usb_device *pusb_device;
 	u8 buffer[1];
@@ -817,7 +817,7 @@ audio_setup(struct easycap *peasycap)
  *  SELECT AUDIO SOURCE "LINE IN" AND SET THE AUDIO GAIN.
 */
 /*---------------------------------------------------------------------------*/
-	if (0 != audio_gainset(pusb_device, peasycap->gain))
+	if (easycap_audio_gainset(pusb_device, peasycap->gain))
 		SAY("ERROR: audio_gainset() failed\n");
 	check_vt(pusb_device);
 	return 0;
@@ -894,7 +894,7 @@ int check_vt(struct usb_device *pusb_device)
  *        31                12.0                  22.5            34.5
 */
 /*---------------------------------------------------------------------------*/
-int audio_gainset(struct usb_device *pusb_device, s8 loud)
+int easycap_audio_gainset(struct usb_device *pusb_device, s8 loud)
 {
 	int igot;
 	u8 tmp;

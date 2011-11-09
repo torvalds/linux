@@ -463,13 +463,16 @@ struct easycap {
  *  VIDEO FUNCTION PROTOTYPES
  */
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-long easycap_unlocked_ioctl(struct file *, unsigned int, unsigned long);
-int easycap_dqbuf(struct easycap *, int);
-int submit_video_urbs(struct easycap *);
-int easycap_video_kill_urbs(struct easycap *);
+int easycap_newinput(struct easycap *, int);
 void easycap_testcard(struct easycap *, int);
-int fillin_formats(void);
-int newinput(struct easycap *, int);
+int easycap_isdongle(struct easycap *);
+
+long easycap_unlocked_ioctl(struct file *, unsigned int, unsigned long);
+
+int easycap_video_dqbuf(struct easycap *, int);
+int easycap_video_submit_urbs(struct easycap *);
+int easycap_video_kill_urbs(struct easycap *);
+int easycap_video_fillin_formats(void);
 
 int adjust_standard(struct easycap *, v4l2_std_id);
 int adjust_format(struct easycap *, u32, u32, u32, int, bool);
@@ -485,15 +488,15 @@ int adjust_hue(struct easycap *, int);
 int easycap_alsa_probe(struct easycap *);
 int easycap_audio_kill_urbs(struct easycap *);
 void easycap_alsa_complete(struct urb *);
-int audio_setup(struct easycap *);
 /*---------------------------------------------------------------------------*/
 /*
  *  LOW-LEVEL FUNCTION PROTOTYPES
  */
 /*---------------------------------------------------------------------------*/
-int audio_gainset(struct usb_device *, s8);
+int easycap_audio_gainset(struct usb_device *, s8);
+int easycap_audio_setup(struct easycap *);
 
-int wakeup_device(struct usb_device *);
+int easycap_wakeup_device(struct usb_device *);
 
 int setup_stk(struct usb_device *, bool);
 int setup_saa(struct usb_device *, bool);
@@ -507,7 +510,6 @@ int read_saa(struct usb_device *, u16);
 int write_saa(struct usb_device *, u16, u16);
 int start_100(struct usb_device *);
 int stop_100(struct usb_device *);
-int isdongle(struct easycap *);
 /*---------------------------------------------------------------------------*/
 
 

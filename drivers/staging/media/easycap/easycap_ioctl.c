@@ -330,7 +330,7 @@ int adjust_standard(struct easycap *peasycap, v4l2_std_id std_id)
 			    "from 0x%02X to 0x%02X\n", reg, itwas, isnow);
 	}
 	if (resubmit)
-		submit_video_urbs(peasycap);
+		easycap_video_submit_urbs(peasycap);
 	return 0;
 }
 /*****************************************************************************/
@@ -621,7 +621,7 @@ int adjust_format(struct easycap *peasycap,
 	}
 /*---------------------------------------------------------------------------*/
 	if (resubmit)
-		submit_video_urbs(peasycap);
+		easycap_video_submit_urbs(peasycap);
 
 	return peasycap_best_format - easycap_format;
 }
@@ -879,7 +879,7 @@ static int adjust_volume(struct easycap *peasycap, int value)
 			mood = (16 > peasycap->volume) ? 16 :
 				((31 < peasycap->volume) ? 31 :
 				  (s8) peasycap->volume);
-			if (!audio_gainset(peasycap->pusb_device, mood)) {
+			if (!easycap_audio_gainset(peasycap->pusb_device, mood)) {
 				SAM("WARNING: failed to adjust volume to "
 				    "0x%2X\n", mood);
 				return -ENOENT;
@@ -963,7 +963,7 @@ long easycap_unlocked_ioctl(struct file *file,
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
-	kd = isdongle(peasycap);
+	kd = easycap_isdongle(peasycap);
 	if (0 <= kd && DONGLE_MANY > kd) {
 		if (mutex_lock_interruptible(&easycapdc60_dongle[kd].mutex_video)) {
 			SAY("ERROR: cannot lock "
@@ -978,7 +978,7 @@ long easycap_unlocked_ioctl(struct file *file,
  *  IF NECESSARY, BAIL OUT.
  */
 /*---------------------------------------------------------------------------*/
-		if (kd != isdongle(peasycap))
+		if (kd != easycap_isdongle(peasycap))
 			return -ERESTARTSYS;
 		if (!file) {
 			SAY("ERROR:  file is NULL\n");
@@ -1218,7 +1218,7 @@ long easycap_unlocked_ioctl(struct file *file,
 			return -EINVAL;
 		}
 
-		rc = newinput(peasycap, (int)index);
+		rc = easycap_newinput(peasycap, (int)index);
 		if (0 == rc) {
 			JOM(8, "newinput(.,%i) OK\n", (int)index);
 		} else {
@@ -2201,7 +2201,7 @@ long easycap_unlocked_ioctl(struct file *file,
 
 		if (!peasycap->polled) {
 			do {
-				rcdq = easycap_dqbuf(peasycap, 0);
+				rcdq = easycap_video_dqbuf(peasycap, 0);
 				if (-EIO == rcdq) {
 					JOM(8, "returning -EIO because "
 					    "dqbuf() returned -EIO\n");
@@ -2305,7 +2305,7 @@ long easycap_unlocked_ioctl(struct file *file,
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -EFAULT;
 		}
-		submit_video_urbs(peasycap);
+		easycap_video_submit_urbs(peasycap);
 		peasycap->video_idle = 0;
 		peasycap->audio_idle = 0;
 		peasycap->video_eof = 0;

@@ -61,7 +61,7 @@ static const struct snd_pcm_hardware alsa_hardware = {
  *  SUBMIT ALL AUDIO URBS.
  */
 /*---------------------------------------------------------------------------*/
-static int submit_audio_urbs(struct easycap *peasycap)
+static int easycap_audio_submit_urbs(struct easycap *peasycap)
 {
 	struct data_urb *pdata_urb;
 	struct urb *purb;
@@ -69,10 +69,6 @@ static int submit_audio_urbs(struct easycap *peasycap)
 	int j, isbad, nospc, m, rc;
 	int isbuf;
 
-	if (!peasycap) {
-		SAY("ERROR: peasycap is NULL\n");
-		return -EFAULT;
-	}
 	if (!peasycap->purb_audio_head) {
 		SAM("ERROR: peasycap->urb_audio_head uninitialized\n");
 		return -EFAULT;
@@ -167,7 +163,7 @@ static int easycap_sound_setup(struct easycap *peasycap)
 	}
 	JOM(16, "0x%08lX=peasycap->pusb_device\n", (long int)peasycap->pusb_device);
 
-	rc = audio_setup(peasycap);
+	rc = easycap_audio_setup(peasycap);
 	JOM(8, "audio_setup() returned %i\n", rc);
 
 	if (!peasycap->pusb_device) {
@@ -184,13 +180,13 @@ static int easycap_sound_setup(struct easycap *peasycap)
 	JOM(8, "usb_set_interface(.,%i,%i) returned %i\n", peasycap->audio_interface,
 	    peasycap->audio_altsetting_on, rc);
 
-	rc = wakeup_device(peasycap->pusb_device);
+	rc = easycap_wakeup_device(peasycap->pusb_device);
 	JOM(8, "wakeup_device() returned %i\n", rc);
 
 	peasycap->audio_eof = 0;
 	peasycap->audio_idle = 0;
 
-	submit_audio_urbs(peasycap);
+	easycap_audio_submit_urbs(peasycap);
 
 	JOM(4, "finished initialization\n");
 	return 0;
@@ -203,8 +199,7 @@ static int easycap_sound_setup(struct easycap *peasycap)
  *  IT IS RESUBMITTED PROVIDED peasycap->audio_isoc_streaming IS NOT ZERO.
  */
 /*---------------------------------------------------------------------------*/
-void
-easycap_alsa_complete(struct urb *purb)
+void easycap_alsa_complete(struct urb *purb)
 {
 	struct easycap *peasycap;
 	struct snd_pcm_substream *pss;
