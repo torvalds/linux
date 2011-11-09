@@ -1824,6 +1824,53 @@ static struct tty_struct *tty_open_current_tty(dev_t device, struct file *filp)
 }
 
 /**
+ *	tty_lookup_driver - lookup a tty driver for a given device file
+ *	@device: device number
+ *	@filp: file pointer to tty
+ *	@noctty: set if the device should not become a controlling tty
+ *	@index: index for the device in the @return driver
+ *	@return: driver for this inode (with increased refcount)
+ *
+ * 	If @return is not erroneous, the caller is responsible to decrement the
+ * 	refcount by tty_driver_kref_put.
+ *
+ *	Locking: tty_mutex protects get_tty_driver
+ */
+static struct tty_driver *tty_lookup_driver(dev_t device, struct file *filp,
+		int *noctty, int *index)
+{
+	struct tty_driver *driver;
+
+#ifdef CONFIG_VT
+	if (device == MKDEV(TTY_MAJOR, 0)) {
+		extern struct tty_driver *console_driver;
+		driver = tty_driver_kref_get(console_driver);
+		*index = fg_console;
+		*noctty = 1;
+		return driver;
+	}
+#endif
+	if (device == MKDEV(TTYAUX_MAJOR, 1)) {
+		struct tty_driver *console_driver = console_device(index);
+		if (console_driver) {
+			driver = tty_driver_kref_get(console_driver);
+			if (driver) {
+				/* Don't let /dev/console block */
+				filp->f_flags |= O_NONBLOCK;
+				*noctty = 1;
+				return driver;
+			}
+		}
+		return ERR_PTR(-ENODEV);
+	}
+
+	driver = get_tty_driver(device, index);
+	if (!driver)
+		return ERR_PTR(-ENODEV);
+	return driver;
+}
+
+/**
  *	tty_open		-	open a tty device
  *	@inode: inode of device file
  *	@filp: file pointer to tty
@@ -1839,7 +1886,7 @@ static struct tty_struct *tty_open_current_tty(dev_t device, struct file *filp)
  *	The termios state of a pty is reset on first open so that
  *	settings don't persist across reuse.
  *
- *	Locking: tty_mutex protects tty, get_tty_driver and tty_init_dev work.
+ *	Locking: tty_mutex protects tty, tty_lookup_driver and tty_init_dev.
  *		 tty->count should protect the rest.
  *		 ->siglock protects ->signal/->sighand
  */
@@ -1873,47 +1920,17 @@ retry_open:
 		mutex_unlock(&tty_mutex);
 		tty_free_file(filp);
 		return PTR_ERR(tty);
-	} else if (tty)
-		goto got_driver;
-
-#ifdef CONFIG_VT
-	if (device == MKDEV(TTY_MAJOR, 0)) {
-		extern struct tty_driver *console_driver;
-		driver = tty_driver_kref_get(console_driver);
-		index = fg_console;
-		noctty = 1;
-		goto got_driver;
-	}
-#endif
-	if (device == MKDEV(TTYAUX_MAJOR, 1)) {
-		struct tty_driver *console_driver = console_device(&index);
-		if (console_driver) {
-			driver = tty_driver_kref_get(console_driver);
-			if (driver) {
-				/* Don't let /dev/console block */
-				filp->f_flags |= O_NONBLOCK;
-				noctty = 1;
-				goto got_driver;
-			}
+	} else if (!tty) {
+		driver = tty_lookup_driver(device, filp, &noctty, &index);
+		if (IS_ERR(driver)) {
+			tty_unlock();
+			mutex_unlock(&tty_mutex);
+			tty_free_file(filp);
+			return PTR_ERR(driver);
 		}
-		tty_unlock();
-		mutex_unlock(&tty_mutex);
-		tty_free_file(filp);
-		return -ENODEV;
-	}
 
-	driver = get_tty_driver(device, &index);
-	if (!driver) {
-		tty_unlock();
-		mutex_unlock(&tty_mutex);
-		tty_free_file(filp);
-		return -ENODEV;
-	}
-got_driver:
-	if (!tty) {
 		/* check whether we're reopening an existing tty */
 		tty = tty_driver_lookup_tty(driver, inode, index);
-
 		if (IS_ERR(tty)) {
 			tty_unlock();
 			mutex_unlock(&tty_mutex);
