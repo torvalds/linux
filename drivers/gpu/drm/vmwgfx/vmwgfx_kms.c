@@ -1323,7 +1323,10 @@ int vmw_kms_close(struct vmw_private *dev_priv)
 	 * drm_encoder_cleanup which takes the lock we deadlock.
 	 */
 	drm_mode_config_cleanup(dev_priv->dev);
-	vmw_kms_close_legacy_display_system(dev_priv);
+	if (dev_priv->sou_priv)
+		vmw_kms_close_screen_object_display(dev_priv);
+	else
+		vmw_kms_close_legacy_display_system(dev_priv);
 	return 0;
 }
 
