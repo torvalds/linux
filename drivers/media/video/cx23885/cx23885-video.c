@@ -492,7 +492,8 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 	dev->input = input;
 
 	if (dev->board == CX23885_BOARD_MYGICA_X8506 ||
-		dev->board == CX23885_BOARD_MAGICPRO_PROHDTVE2) {
+		dev->board == CX23885_BOARD_MAGICPRO_PROHDTVE2 ||
+		dev->board == CX23885_BOARD_MYGICA_X8507) {
 		/* Select Analog TV */
 		if (INPUT(input)->type == CX23885_VMUX_TELEVISION)
 			cx23885_gpio_clear(dev, GPIO_0);

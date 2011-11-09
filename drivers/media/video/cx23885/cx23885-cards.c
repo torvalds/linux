@@ -438,6 +438,36 @@ struct cx23885_board cx23885_boards[] = {
 			.gpio0  = 0,
 		} },
 	},
+	[CX23885_BOARD_MYGICA_X8507] = {
+		.name		= "Mygica X8507",
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
+		.tuner_bus	= 1,
+		.porta		= CX23885_ANALOG_VIDEO,
+		.input		= {
+			{
+				.type   = CX23885_VMUX_TELEVISION,
+				.vmux   = CX25840_COMPOSITE2,
+				.amux   = CX25840_AUDIO8,
+			},
+			{
+				.type   = CX23885_VMUX_COMPOSITE1,
+				.vmux   = CX25840_COMPOSITE8,
+			},
+			{
+				.type   = CX23885_VMUX_SVIDEO,
+				.vmux   = CX25840_SVIDEO_LUMA3 |
+						CX25840_SVIDEO_CHROMA4,
+			},
+			{
+				.type   = CX23885_VMUX_COMPONENT,
+				.vmux   = CX25840_COMPONENT_ON |
+					CX25840_VIN1_CH1 |
+					CX25840_VIN6_CH2 |
+					CX25840_VIN7_CH3,
+			},
+		},
+	}
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -637,6 +667,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x1b55,
 		.subdevice = 0xe2e4,
 		.card      = CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF,
+	}, {
+		.subvendor = 0x14f1,
+		.subdevice = 0x8502,
+		.card      = CX23885_BOARD_MYGICA_X8507,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -1068,6 +1102,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		break;
 	case CX23885_BOARD_MYGICA_X8506:
 	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
+	case CX23885_BOARD_MYGICA_X8507:
 		/* GPIO-0 (0)Analog / (1)Digital TV */
 		/* GPIO-1 reset XC5000 */
 		/* GPIO-2 reset LGS8GL5 / LGS8G75 */
@@ -1468,6 +1503,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_GOTVIEW_X5_3D_HYBRID:
 	case CX23885_BOARD_HAUPPAUGE_HVR1500:
 	case CX23885_BOARD_MPX885:
+	case CX23885_BOARD_MYGICA_X8507:
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[2].i2c_adap,
 				"cx25840", 0x88 >> 1, NULL);
