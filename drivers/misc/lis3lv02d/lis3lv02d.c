@@ -375,12 +375,14 @@ void lis3lv02d_poweron(struct lis3lv02d *lis3)
 	 *      both have been read. So the value read will always be correct.
 	 * Set BOOT bit to refresh factory tuning values.
 	 */
-	lis3->read(lis3, CTRL_REG2, &reg);
-	if (lis3->whoami ==  WAI_12B)
-		reg |= CTRL2_BDU | CTRL2_BOOT;
-	else
-		reg |= CTRL2_BOOT_8B;
-	lis3->write(lis3, CTRL_REG2, reg);
+	if (lis3->pdata) {
+		lis3->read(lis3, CTRL_REG2, &reg);
+		if (lis3->whoami ==  WAI_12B)
+			reg |= CTRL2_BDU | CTRL2_BOOT;
+		else
+			reg |= CTRL2_BOOT_8B;
+		lis3->write(lis3, CTRL_REG2, reg);
+	}
 
 	/* LIS3 power on delay is quite long */
 	msleep(lis3->pwron_delay / lis3lv02d_get_odr());

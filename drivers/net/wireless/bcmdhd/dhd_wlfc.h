@@ -201,6 +201,14 @@ typedef struct athost_wl_stat_counters {
 #define WLFC_FCMODE_IMPLIED_CREDIT		1
 #define WLFC_FCMODE_EXPLICIT_CREDIT		2
 
+#define WLFC_BORROW_DEFER_PERIOD_MS 100
+
+/* Mask to represent available ACs (note: BC/MC is ignored */
+#define WLFC_AC_MASK 0xF
+
+/* Mask to check for only on-going AC_BE traffic */
+#define WLFC_AC_BE_TRAFFIC_ONLY 0xD
+
 typedef struct athost_wl_status_info {
 	uint8	last_seqid_to_wlc;
 
@@ -213,7 +221,11 @@ typedef struct athost_wl_status_info {
 	athost_wl_stat_counters_t stats;
 
 	/* the additional ones are for bc/mc and ATIM FIFO */
-	int     FIFO_credit[AC_COUNT + 2];
+	int		FIFO_credit[AC_COUNT + 2];
+
+	/* Credit borrow counts for each FIFO from each of the other FIFOs */
+	int		credits_borrowed[AC_COUNT + 2][AC_COUNT + 2];
+
 	struct  pktq SENDQ;
 
 	/* packet hanger and MAC->handle lookup table */
@@ -228,7 +240,7 @@ typedef struct athost_wl_status_info {
 		wlfc_mac_descriptor_t	other;
 	} destination_entries;
 	/* token position for different priority packets */
-	uint8   token_pos[AC_COUNT];
+	uint8   token_pos[AC_COUNT+1];
 	/* ON/OFF state for flow control to the host network interface */
 	uint8	hostif_flow_state[WLFC_MAX_IFNUM];
 	uint8	host_ifidx;
@@ -243,6 +255,12 @@ typedef struct athost_wl_status_info {
 	2 - Use explicit credit
 	*/
 	uint8	proptxstatus_mode;
+
+	/* To borrow credits */
+	uint8   allow_credit_borrow;
+
+	/* Timestamp to compute how long to defer borrowing for */
+	uint32  borrow_defer_timestamp;
 } athost_wl_status_info_t;
 
 #endif /* __wlfc_host_driver_definitions_h__ */

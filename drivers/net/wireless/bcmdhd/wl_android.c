@@ -36,7 +36,9 @@
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <bcmsdbus.h>
-
+#ifdef WL_CFG80211
+#include <wl_cfg80211.h>
+#endif
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
 #include <linux/platform_device.h>
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
@@ -51,25 +53,30 @@
  * so they can be updated easily in the future (if needed)
  */
 
-#define CMD_START		"START"
-#define CMD_STOP		"STOP"
-#define	CMD_SCAN_ACTIVE		"SCAN-ACTIVE"
-#define	CMD_SCAN_PASSIVE	"SCAN-PASSIVE"
-#define CMD_RSSI		"RSSI"
-#define CMD_LINKSPEED		"LINKSPEED"
-#define CMD_RXFILTER_START	"RXFILTER-START"
-#define CMD_RXFILTER_STOP	"RXFILTER-STOP"
-#define CMD_RXFILTER_ADD	"RXFILTER-ADD"
-#define CMD_RXFILTER_REMOVE	"RXFILTER-REMOVE"
+#define CMD_START				"START"
+#define CMD_STOP				"STOP"
+#define CMD_SCAN_ACTIVE			"SCAN-ACTIVE"
+#define CMD_SCAN_PASSIVE		"SCAN-PASSIVE"
+#define CMD_RSSI				"RSSI"
+#define CMD_LINKSPEED			"LINKSPEED"
+#define CMD_RXFILTER_START		"RXFILTER-START"
+#define CMD_RXFILTER_STOP		"RXFILTER-STOP"
+#define CMD_RXFILTER_ADD		"RXFILTER-ADD"
+#define CMD_RXFILTER_REMOVE		"RXFILTER-REMOVE"
 #define CMD_BTCOEXSCAN_START	"BTCOEXSCAN-START"
-#define CMD_BTCOEXSCAN_STOP	"BTCOEXSCAN-STOP"
-#define CMD_BTCOEXMODE		"BTCOEXMODE"
-#define CMD_SETSUSPENDOPT	"SETSUSPENDOPT"
-#define CMD_P2P_DEV_ADDR	"P2P_DEV_ADDR"
-#define CMD_SETFWPATH		"SETFWPATH"
-#define CMD_SETBAND		"SETBAND"
-#define CMD_GETBAND		"GETBAND"
-#define CMD_COUNTRY		"COUNTRY"
+#define CMD_BTCOEXSCAN_STOP		"BTCOEXSCAN-STOP"
+#define CMD_BTCOEXMODE			"BTCOEXMODE"
+#define CMD_SETSUSPENDOPT		"SETSUSPENDOPT"
+#define CMD_P2P_DEV_ADDR		"P2P_DEV_ADDR"
+#define CMD_SETFWPATH			"SETFWPATH"
+#define CMD_SETBAND				"SETBAND"
+#define CMD_GETBAND				"GETBAND"
+#define CMD_COUNTRY				"COUNTRY"
+#define CMD_P2P_SET_NOA			"P2P_SET_NOA"
+#define CMD_P2P_GET_NOA			"P2P_GET_NOA"
+#define CMD_P2P_SET_PS			"P2P_SET_PS"
+#define CMD_SET_AP_WPS_P2P_IE	"SET_AP_WPS_P2P_IE"
+
 
 #ifdef PNO_SUPPORT
 #define CMD_PNOSSIDCLR_SET	"PNOSSIDCLR"
@@ -108,9 +115,19 @@ uint dhd_dev_reset(struct net_device *dev, uint8 flag);
 void dhd_dev_init_ioctl(struct net_device *dev);
 #ifdef WL_CFG80211
 int wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr);
+int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, char *command);
 #else
-int wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr) { return 0; }
+int wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr)
+{ return 0; }
+int wl_cfg80211_set_p2p_noa(struct net_device *net, char* buf, int len)
+{ return 0; }
+int wl_cfg80211_get_p2p_noa(struct net_device *net, char* buf, int len)
+{ return 0; }
+int wl_cfg80211_set_p2p_ps(struct net_device *net, char* buf, int len)
+{ return 0; }
 #endif
+extern int dhd_os_check_if_up(void *dhdp);
+extern void *bcmsdh_get_drvdata(void);
 
 extern bool ap_fw_loaded;
 #ifdef CUSTOMER_HW2
@@ -157,6 +174,7 @@ static int wl_android_get_rssi(struct net_device *net, char *command, int total_
 	error = wldev_get_rssi(net, &rssi);
 	if (error)
 		return -1;
+
 	error = wldev_get_ssid(net, &ssid);
 	if (error)
 		return -1;
@@ -186,7 +204,7 @@ static int wl_android_set_suspendopt(struct net_device *dev, char *command, int 
 	if (ret_now != suspend_flag) {
 		if (!(ret = net_os_set_suspend(dev, ret_now)))
 			DHD_INFO(("%s: Suspend Flag %d -> %d\n",
-					__FUNCTION__, ret_now, suspend_flag));
+				__FUNCTION__, ret_now, suspend_flag));
 		else
 			DHD_ERROR(("%s: failed %d\n", __FUNCTION__, ret));
 	}
@@ -219,12 +237,41 @@ static int wl_android_set_pno_setup(struct net_device *dev, char *command, int t
 	int pno_repeat = 0;
 	int pno_freq_expo_max = 0;
 
+#ifdef PNO_SET_DEBUG
+	int i;
+	char pno_in_example[] = {
+		'P', 'N', 'O', 'S', 'E', 'T', 'U', 'P', ' ',
+		'S', '1', '2', '0',
+		'S',
+		0x05,
+		'd', 'l', 'i', 'n', 'k',
+		'S',
+		0x04,
+		'G', 'O', 'O', 'G',
+		'T',
+		'0', 'B',
+		'R',
+		'2',
+		'M',
+		'2',
+		0x00
+		};
+#endif /* PNO_SET_DEBUG */
+
 	DHD_INFO(("%s: command=%s, len=%d\n", __FUNCTION__, command, total_len));
 
 	if (total_len < (strlen(CMD_PNOSETUP_SET) + sizeof(cmd_tlv_t))) {
 		DHD_ERROR(("%s argument=%d less min size\n", __FUNCTION__, total_len));
 		goto exit_proc;
 	}
+
+#ifdef PNO_SET_DEBUG
+	memcpy(command, pno_in_example, sizeof(pno_in_example));
+	for (i = 0; i < sizeof(pno_in_example); i++)
+		printf("%02X ", command[i]);
+	printf("\n");
+	total_len = sizeof(pno_in_example);
+#endif
 
 	str_ptr = command + strlen(CMD_PNOSETUP_SET);
 	tlv_size_left = total_len - strlen(CMD_PNOSETUP_SET);
@@ -339,8 +386,6 @@ int wl_android_wifi_off(struct net_device *dev)
 	if (g_wifi_on) {
 		dhd_dev_reset(dev, 1);
 		sdioh_stop(NULL);
-		/* clean up dtim_skip setting */
-		net_os_set_dtim_skip(dev, TRUE);
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
 		g_wifi_on = 0;
 	}
@@ -447,7 +492,15 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		/* TBD: BTCOEXSCAN-STOP */
 	}
 	else if (strnicmp(command, CMD_BTCOEXMODE, strlen(CMD_BTCOEXMODE)) == 0) {
-		/* TBD: BTCOEXMODE */
+		uint mode = *(command + strlen(CMD_BTCOEXMODE) + 1) - '0';
+
+		if (mode == 1)
+			net_os_set_packet_filter(net, 0); /* DHCP starts */
+		else
+			net_os_set_packet_filter(net, 1); /* DHCP ends */
+#ifdef WL_CFG80211
+		bytes_written = wl_cfg80211_set_btcoex_dhcp(net, command);
+#endif
 	}
 	else if (strnicmp(command, CMD_SETSUSPENDOPT, strlen(CMD_SETSUSPENDOPT)) == 0) {
 		bytes_written = wl_android_set_suspendopt(net, command, priv_cmd.total_len);
@@ -477,7 +530,29 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 #endif
 	else if (strnicmp(command, CMD_P2P_DEV_ADDR, strlen(CMD_P2P_DEV_ADDR)) == 0) {
 		bytes_written = wl_android_get_p2p_dev_addr(net, command, priv_cmd.total_len);
-	} else {
+	}
+	else if (strnicmp(command, CMD_P2P_SET_NOA, strlen(CMD_P2P_SET_NOA)) == 0) {
+		int skip = strlen(CMD_P2P_SET_NOA) + 1;
+		bytes_written = wl_cfg80211_set_p2p_noa(net, command + skip,
+			priv_cmd.total_len - skip);
+	}
+	else if (strnicmp(command, CMD_P2P_GET_NOA, strlen(CMD_P2P_GET_NOA)) == 0) {
+		bytes_written = wl_cfg80211_get_p2p_noa(net, command, priv_cmd.total_len);
+	}
+	else if (strnicmp(command, CMD_P2P_SET_PS, strlen(CMD_P2P_SET_PS)) == 0) {
+		int skip = strlen(CMD_P2P_SET_PS) + 1;
+		bytes_written = wl_cfg80211_set_p2p_ps(net, command + skip,
+			priv_cmd.total_len - skip);
+	}
+#ifdef WL_CFG80211
+	else if (strnicmp(command, CMD_SET_AP_WPS_P2P_IE,
+		strlen(CMD_SET_AP_WPS_P2P_IE)) == 0) {
+		int skip = strlen(CMD_SET_AP_WPS_P2P_IE) + 3;
+		bytes_written = wl_cfg80211_set_wps_p2p_ie(net, command + skip,
+			priv_cmd.total_len - skip, *(command + skip - 2) - '0');
+	}
+#endif /* WL_CFG80211 */
+	else {
 		DHD_ERROR(("Unknown PRIVATE command %s - ignored\n", command));
 		snprintf(command, 3, "OK");
 		bytes_written = strlen("OK");
@@ -517,8 +592,10 @@ int wl_android_init(void)
 	dhd_download_fw_on_driverload = FALSE;
 #endif /* ENABLE_INSMOD_NO_FW_LOAD */
 #ifdef CUSTOMER_HW2
-	if (!iface_name[0])
+	if (!iface_name[0]) {
+		memset(iface_name, 0, IFNAMSIZ);
 		bcm_strncpy_s(iface_name, IFNAMSIZ, "wlan", IFNAMSIZ);
+	}
 #endif /* CUSTOMER_HW2 */
 	return ret;
 }
@@ -532,12 +609,24 @@ int wl_android_exit(void)
 
 int wl_android_post_init(void)
 {
+	struct net_device *ndev;
 	int ret = 0;
+	char buf[IFNAMSIZ];
 	if (!dhd_download_fw_on_driverload) {
 		/* Call customer gpio to turn off power with WL_REG_ON signal */
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
 		g_wifi_on = 0;
-
+	} else {
+		memset(buf, 0, IFNAMSIZ);
+#ifdef CUSTOMER_HW2
+		snprintf(buf, IFNAMSIZ, "%s%d", iface_name, 0);
+#else
+		snprintf(buf, IFNAMSIZ, "%s%d", "eth", 0);
+#endif
+		if ((ndev = dev_get_by_name (&init_net, buf)) != NULL) {
+			dhd_dev_init_ioctl(ndev);
+			dev_put(ndev);
+		}
 	}
 	return ret;
 }
@@ -621,7 +710,7 @@ int wifi_set_power(int on, unsigned long msec)
 		wifi_control_data->set_power(on);
 	}
 	if (msec)
-		mdelay(msec);
+		msleep(msec);
 	return 0;
 }
 
@@ -697,18 +786,19 @@ static int wifi_remove(struct platform_device *pdev)
 static int wifi_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	DHD_TRACE(("##> %s\n", __FUNCTION__));
-#if defined(OOB_INTR_ONLY)
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY)
 	bcmsdh_oob_intr_set(0);
-#endif /* (OOB_INTR_ONLY) */
+#endif
 	return 0;
 }
 
 static int wifi_resume(struct platform_device *pdev)
 {
 	DHD_TRACE(("##> %s\n", __FUNCTION__));
-#if defined(OOB_INTR_ONLY)
-	bcmsdh_oob_intr_set(1);
-#endif /* (OOB_INTR_ONLY) */
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY)
+	if (dhd_os_check_if_up(bcmsdh_get_drvdata()))
+		bcmsdh_oob_intr_set(1);
+#endif
 	return 0;
 }
 

@@ -170,15 +170,8 @@ struct lpfc_sli_intf {
 #define LPFC_PCI_FUNC3		3
 #define LPFC_PCI_FUNC4		4
 
-/* SLI4 interface type-2 control register offsets */
-#define LPFC_CTL_PORT_SEM_OFFSET	0x400
-#define LPFC_CTL_PORT_STA_OFFSET	0x404
-#define LPFC_CTL_PORT_CTL_OFFSET	0x408
-#define LPFC_CTL_PORT_ER1_OFFSET	0x40C
-#define LPFC_CTL_PORT_ER2_OFFSET	0x410
+/* SLI4 interface type-2 PDEV_CTL register */
 #define LPFC_CTL_PDEV_CTL_OFFSET	0x414
-
-/* Some SLI4 interface type-2 PDEV_CTL register bits */
 #define LPFC_CTL_PDEV_CTL_DRST		0x00000001
 #define LPFC_CTL_PDEV_CTL_FRST		0x00000002
 #define LPFC_CTL_PDEV_CTL_DD		0x00000004
@@ -337,6 +330,7 @@ struct lpfc_cqe {
 #define CQE_CODE_RELEASE_WQE		0x2
 #define CQE_CODE_RECEIVE		0x4
 #define CQE_CODE_XRI_ABORTED		0x5
+#define CQE_CODE_RECEIVE_V1		0x9
 
 /* completion queue entry for wqe completions */
 struct lpfc_wcqe_complete {
@@ -440,7 +434,10 @@ struct lpfc_rcqe {
 #define FC_STATUS_RQ_BUF_LEN_EXCEEDED 	0x11 /* payload truncated */
 #define FC_STATUS_INSUFF_BUF_NEED_BUF 	0x12 /* Insufficient buffers */
 #define FC_STATUS_INSUFF_BUF_FRM_DISC 	0x13 /* Frame Discard */
-	uint32_t reserved1;
+	uint32_t word1;
+#define lpfc_rcqe_fcf_id_v1_SHIFT	0
+#define lpfc_rcqe_fcf_id_v1_MASK	0x0000003F
+#define lpfc_rcqe_fcf_id_v1_WORD	word1
 	uint32_t word2;
 #define lpfc_rcqe_length_SHIFT		16
 #define lpfc_rcqe_length_MASK		0x0000FFFF
@@ -451,6 +448,9 @@ struct lpfc_rcqe {
 #define lpfc_rcqe_fcf_id_SHIFT		0
 #define lpfc_rcqe_fcf_id_MASK		0x0000003F
 #define lpfc_rcqe_fcf_id_WORD		word2
+#define lpfc_rcqe_rq_id_v1_SHIFT	0
+#define lpfc_rcqe_rq_id_v1_MASK		0x0000FFFF
+#define lpfc_rcqe_rq_id_v1_WORD		word2
 	uint32_t word3;
 #define lpfc_rcqe_valid_SHIFT		lpfc_cqe_valid_SHIFT
 #define lpfc_rcqe_valid_MASK		lpfc_cqe_valid_MASK
@@ -515,7 +515,7 @@ struct lpfc_register {
 /* The following BAR0 register sets are defined for if_type 0 and 2 UCNAs. */
 #define LPFC_SLI_INTF			0x0058
 
-#define LPFC_SLIPORT_IF2_SMPHR		0x0400
+#define LPFC_CTL_PORT_SEM_OFFSET	0x400
 #define lpfc_port_smphr_perr_SHIFT	31
 #define lpfc_port_smphr_perr_MASK	0x1
 #define lpfc_port_smphr_perr_WORD	word0
@@ -575,7 +575,7 @@ struct lpfc_register {
 #define LPFC_POST_STAGE_PORT_READY			0xC000
 #define LPFC_POST_STAGE_PORT_UE 			0xF000
 
-#define LPFC_SLIPORT_STATUS		0x0404
+#define LPFC_CTL_PORT_STA_OFFSET	0x404
 #define lpfc_sliport_status_err_SHIFT	31
 #define lpfc_sliport_status_err_MASK	0x1
 #define lpfc_sliport_status_err_WORD	word0
@@ -593,7 +593,7 @@ struct lpfc_register {
 #define lpfc_sliport_status_rdy_WORD	word0
 #define MAX_IF_TYPE_2_RESETS	1000
 
-#define LPFC_SLIPORT_CNTRL		0x0408
+#define LPFC_CTL_PORT_CTL_OFFSET	0x408
 #define lpfc_sliport_ctrl_end_SHIFT	30
 #define lpfc_sliport_ctrl_end_MASK	0x1
 #define lpfc_sliport_ctrl_end_WORD	word0
@@ -604,8 +604,8 @@ struct lpfc_register {
 #define lpfc_sliport_ctrl_ip_WORD	word0
 #define LPFC_SLIPORT_INIT_PORT	1
 
-#define LPFC_SLIPORT_ERR_1		0x040C
-#define LPFC_SLIPORT_ERR_2		0x0410
+#define LPFC_CTL_PORT_ER1_OFFSET	0x40C
+#define LPFC_CTL_PORT_ER2_OFFSET	0x410
 
 /* The following Registers apply to SLI4 if_type 0 UCNAs. They typically
  * reside in BAR 2.
@@ -3198,6 +3198,8 @@ struct lpfc_grp_hdr {
 #define lpfc_grp_hdr_id_MASK		0x000000FF
 #define lpfc_grp_hdr_id_WORD		word2
 	uint8_t rev_name[128];
+	uint8_t date[12];
+	uint8_t revision[32];
 };
 
 #define FCP_COMMAND 0x0

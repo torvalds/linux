@@ -635,13 +635,13 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		ttm_bo_free_old_node(bo);
 		if ((man->flags & TTM_MEMTYPE_FLAG_FIXED) &&
 		    (bo->ttm != NULL)) {
 			ttm_tt_unbind(bo->ttm);
 			ttm_tt_destroy(bo->ttm);
 			bo->ttm = NULL;
 		}
+		ttm_bo_free_old_node(bo);
 	} else {
 		/**
 		 * This should help pipeline ordinary buffer moves.

@@ -32,17 +32,17 @@
  * radeon_ddc_probe
  *
  */
-bool radeon_ddc_probe(struct radeon_connector *radeon_connector)
+bool radeon_ddc_probe(struct radeon_connector *radeon_connector, bool requires_extended_probe)
 {
-	u8 out_buf[] = { 0x0, 0x0};
-	u8 buf[2];
+	u8 out = 0x0;
+	u8 buf[8];
 	int ret;
 	struct i2c_msg msgs[] = {
 		{
 			.addr = 0x50,
 			.flags = 0,
 			.len = 1,
-			.buf = out_buf,
+			.buf = &out,
 		},
 		{
 			.addr = 0x50,
@@ -52,15 +52,31 @@ bool radeon_ddc_probe(struct radeon_connector *radeon_connector)
 		}
 	};
 
+	/* Read 8 bytes from i2c for extended probe of EDID header */
+	if (requires_extended_probe)
+		msgs[1].len = 8;
+
 	/* on hw with routers, select right port */
 	if (radeon_connector->router.ddc_valid)
 		radeon_router_select_ddc_port(radeon_connector);
 
 	ret = i2c_transfer(&radeon_connector->ddc_bus->adapter, msgs, 2);
-	if (ret == 2)
-		return true;
-
-	return false;
+	if (ret != 2)
+		/* Couldn't find an accessible DDC on this connector */
+		return false;
+	if (requires_extended_probe) {
+		/* Probe also for valid EDID header
+		 * EDID header starts with:
+		 * 0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x00.
+		 * Only the first 6 bytes must be valid as
+		 * drm_edid_block_valid() can fix the last 2 bytes */
+		if (drm_edid_header_is_valid(buf) < 6) {
+			/* Couldn't find an accessible EDID on this
+			 * connector */
+			return false;
+		}
+	}
+	return true;
 }
 
 /* bit banging i2c */

@@ -226,8 +226,10 @@ static int cppi_controller_stop(struct dma_controller *c)
 	struct cppi		*controller;
 	void __iomem		*tibase;
 	int			i;
+	struct musb		*musb;
 
 	controller = container_of(c, struct cppi, controller);
+	musb = controller->musb;
 
 	tibase = controller->tibase;
 	/* DISABLE INDIVIDUAL CHANNEL Interrupts */
@@ -289,9 +291,11 @@ cppi_channel_allocate(struct dma_controller *c,
 	u8			index;
 	struct cppi_channel	*cppi_ch;
 	void __iomem		*tibase;
+	struct musb		*musb;
 
 	controller = container_of(c, struct cppi, controller);
 	tibase = controller->tibase;
+	musb = controller->musb;
 
 	/* ep0 doesn't use DMA; remember cppi indices are 0..N-1 */
 	index = ep->epnum - 1;
@@ -339,7 +343,8 @@ static void cppi_channel_release(struct dma_channel *channel)
 	c = container_of(channel, struct cppi_channel, channel);
 	tibase = c->controller->tibase;
 	if (!c->hw_ep)
-		dev_dbg(musb->controller, "releasing idle DMA channel %p\n", c);
+		dev_dbg(c->controller->musb->controller,
+			"releasing idle DMA channel %p\n", c);
 	else if (!c->transmit)
 		core_rxirq_enable(tibase, c->index + 1);
 
@@ -357,10 +362,11 @@ cppi_dump_rx(int level, struct cppi_channel *c, const char *tag)
 
 	musb_ep_select(base, c->index + 1);
 
-	DBG(level, "RX DMA%d%s: %d left, csr %04x, "
-			"%08x H%08x S%08x C%08x, "
-			"B%08x L%08x %08x .. %08x"
-			"\n",
+	dev_dbg(c->controller->musb->controller,
+		"RX DMA%d%s: %d left, csr %04x, "
+		"%08x H%08x S%08x C%08x, "
+		"B%08x L%08x %08x .. %08x"
+		"\n",
 		c->index, tag,
 		musb_readl(c->controller->tibase,
 			DAVINCI_RXCPPI_BUFCNT0_REG + 4 * c->index),
@@ -387,10 +393,11 @@ cppi_dump_tx(int level, struct cppi_channel *c, const char *tag)
 
 	musb_ep_select(base, c->index + 1);
 
-	DBG(level, "TX DMA%d%s: csr %04x, "
-			"H%08x S%08x C%08x %08x, "
-			"F%08x L%08x .. %08x"
-			"\n",
+	dev_dbg(c->controller->musb->controller,
+		"TX DMA%d%s: csr %04x, "
+		"H%08x S%08x C%08x %08x, "
+		"F%08x L%08x .. %08x"
+		"\n",
 		c->index, tag,
 		musb_readw(c->hw_ep->regs, MUSB_TXCSR),
 
@@ -1022,6 +1029,7 @@ static bool cppi_rx_scan(struct cppi *cppi, unsigned ch)
 	int				i;
 	dma_addr_t			safe2ack;
 	void __iomem			*regs = rx->hw_ep->regs;
+	struct musb			*musb = cppi->musb;
 
 	cppi_dump_rx(6, rx, "/K");
 

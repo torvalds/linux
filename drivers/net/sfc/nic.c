@@ -1935,13 +1935,6 @@ void efx_nic_get_regs(struct efx_nic *efx, void *buf)
 
 		size = min_t(size_t, table->step, 16);
 
-		if (table->offset >= efx->type->mem_map_size) {
-			/* No longer mapped; return dummy data */
-			memcpy(buf, "\xde\xc0\xad\xde", 4);
-			buf += table->rows * size;
-			continue;
-		}
-
 		for (i = 0; i < table->rows; i++) {
 			switch (table->step) {
 			case 4: /* 32-bit register or SRAM */

@@ -95,15 +95,18 @@ static int unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
 /**
  * p9mode2unixmode- convert plan9 mode bits to unix mode bits
  * @v9ses: v9fs session information
- * @mode: mode to convert
+ * @stat: p9_wstat from which mode need to be derived
+ * @rdev: major number, minor number in case of device files.
  *
  */
-
-static int p9mode2unixmode(struct v9fs_session_info *v9ses, int mode)
+static int p9mode2unixmode(struct v9fs_session_info *v9ses,
+			   struct p9_wstat *stat, dev_t *rdev)
 {
 	int res;
+	int mode = stat->mode;
 
-	res = mode & 0777;
+	res = mode & S_IALLUGO;
+	*rdev = 0;
 
 	if ((mode & P9_DMDIR) == P9_DMDIR)
 		res |= S_IFDIR;
@@ -116,9 +119,26 @@ static int p9mode2unixmode(struct v9fs_session_info *v9ses, int mode)
 		 && (v9ses->nodev == 0))
 		res |= S_IFIFO;
 	else if ((mode & P9_DMDEVICE) && (v9fs_proto_dotu(v9ses))
-		 && (v9ses->nodev == 0))
-		res |= S_IFBLK;
-	else
+		 && (v9ses->nodev == 0)) {
+		char type = 0, ext[32];
+		int major = -1, minor = -1;
+
+		strncpy(ext, stat->extension, sizeof(ext));
+		sscanf(ext, "%c %u %u", &type, &major, &minor);
+		switch (type) {
+		case 'c':
+			res |= S_IFCHR;
+			break;
+		case 'b':
+			res |= S_IFBLK;
+			break;
+		default:
+			P9_DPRINTK(P9_DEBUG_ERROR,
+				"Unknown special type %c %s\n", type,
+				stat->extension);
+		};
+		*rdev = MKDEV(major, minor);
+	} else
 		res |= S_IFREG;
 
 	if (v9fs_proto_dotu(v9ses)) {
@@ -131,7 +151,6 @@ static int p9mode2unixmode(struct v9fs_session_info *v9ses, int mode)
 		if ((mode & P9_DMSETVTX) == P9_DMSETVTX)
 			res |= S_ISVTX;
 	}
-
 	return res;
 }
 
@@ -216,7 +235,6 @@ struct inode *v9fs_alloc_inode(struct super_block *sb)
 		return NULL;
 #ifdef CONFIG_9P_FSCACHE
 	v9inode->fscache = NULL;
-	v9inode->fscache_key = NULL;
 	spin_lock_init(&v9inode->fscache_lock);
 #endif
 	v9inode->writeback_fid = NULL;
@@ -243,13 +261,13 @@ void v9fs_destroy_inode(struct inode *inode)
 }
 
 int v9fs_init_inode(struct v9fs_session_info *v9ses,
-		    struct inode *inode, int mode)
+		    struct inode *inode, int mode, dev_t rdev)
 {
 	int err = 0;
 
 	inode_init_owner(inode, NULL, mode);
 	inode->i_blocks = 0;
-	inode->i_rdev = 0;
+	inode->i_rdev = rdev;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	inode->i_mapping->a_ops = &v9fs_addr_operations;
 
@@ -336,7 +354,7 @@ error:
  *
  */
 
-struct inode *v9fs_get_inode(struct super_block *sb, int mode)
+struct inode *v9fs_get_inode(struct super_block *sb, int mode, dev_t rdev)
 {
 	int err;
 	struct inode *inode;
@@ -349,7 +367,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 		P9_EPRINTK(KERN_WARNING, "Problem allocating inode\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	err = v9fs_init_inode(v9ses, inode, mode);
+	err = v9fs_init_inode(v9ses, inode, mode, rdev);
 	if (err) {
 		iput(inode);
 		return ERR_PTR(err);
@@ -433,17 +451,62 @@ void v9fs_evict_inode(struct inode *inode)
 	}
 }
 
+static int v9fs_test_inode(struct inode *inode, void *data)
+{
+	int umode;
+	dev_t rdev;
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct p9_wstat *st = (struct p9_wstat *)data;
+	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
+
+	umode = p9mode2unixmode(v9ses, st, &rdev);
+	/* don't match inode of different type */
+	if ((inode->i_mode & S_IFMT) != (umode & S_IFMT))
+		return 0;
+
+	/* compare qid details */
+	if (memcmp(&v9inode->qid.version,
+		   &st->qid.version, sizeof(v9inode->qid.version)))
+		return 0;
+
+	if (v9inode->qid.type != st->qid.type)
+		return 0;
+	return 1;
+}
+
+static int v9fs_test_new_inode(struct inode *inode, void *data)
+{
+	return 0;
+}
+
+static int v9fs_set_inode(struct inode *inode,  void *data)
+{
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct p9_wstat *st = (struct p9_wstat *)data;
+
+	memcpy(&v9inode->qid, &st->qid, sizeof(st->qid));
+	return 0;
+}
+
 static struct inode *v9fs_qid_iget(struct super_block *sb,
 				   struct p9_qid *qid,
-				   struct p9_wstat *st)
+				   struct p9_wstat *st,
+				   int new)
 {
+	dev_t rdev;
 	int retval, umode;
 	unsigned long i_ino;
 	struct inode *inode;
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
+	int (*test)(struct inode *, void *);
+
+	if (new)
+		test = v9fs_test_new_inode;
+	else
+		test = v9fs_test_inode;
 
 	i_ino = v9fs_qid2ino(qid);
-	inode = iget_locked(sb, i_ino);
+	inode = iget5_locked(sb, i_ino, test, v9fs_set_inode, st);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	if (!(inode->i_state & I_NEW))
@@ -453,14 +516,14 @@ static struct inode *v9fs_qid_iget(struct super_block *sb,
 	 * FIXME!! we may need support for stale inodes
 	 * later.
 	 */
-	umode = p9mode2unixmode(v9ses, st->mode);
-	retval = v9fs_init_inode(v9ses, inode, umode);
+	inode->i_ino = i_ino;
+	umode = p9mode2unixmode(v9ses, st, &rdev);
+	retval = v9fs_init_inode(v9ses, inode, umode, rdev);
 	if (retval)
 		goto error;
 
 	v9fs_stat2inode(st, inode, sb);
 #ifdef CONFIG_9P_FSCACHE
-	v9fs_fscache_set_key(inode, &st->qid);
 	v9fs_cache_inode_get_cookie(inode);
 #endif
 	unlock_new_inode(inode);
@@ -474,7 +537,7 @@ error:
 
 struct inode *
 v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
-		    struct super_block *sb)
+		    struct super_block *sb, int new)
 {
 	struct p9_wstat *st;
 	struct inode *inode = NULL;
@@ -483,7 +546,7 @@ v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 	if (IS_ERR(st))
 		return ERR_CAST(st);
 
-	inode = v9fs_qid_iget(sb, &st->qid, st);
+	inode = v9fs_qid_iget(sb, &st->qid, st, new);
 	p9stat_free(st);
 	kfree(st);
 	return inode;
@@ -585,19 +648,17 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	}
 
 	/* instantiate inode and assign the unopened fid to the dentry */
-	inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+	inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n", err);
 		goto error;
 	}
-	d_instantiate(dentry, inode);
 	err = v9fs_fid_add(dentry, fid);
 	if (err < 0)
 		goto error;
-
+	d_instantiate(dentry, inode);
 	return ofid;
-
 error:
 	if (ofid)
 		p9_client_clunk(ofid);
@@ -738,6 +799,7 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 				      struct nameidata *nameidata)
 {
+	struct dentry *res;
 	struct super_block *sb;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *dfid, *fid;
@@ -769,22 +831,35 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 		return ERR_PTR(result);
 	}
-
-	inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+	/*
+	 * Make sure we don't use a wrong inode due to parallel
+	 * unlink. For cached mode create calls request for new
+	 * inode. But with cache disabled, lookup should do this.
+	 */
+	if (v9ses->cache)
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+	else
+		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 	if (IS_ERR(inode)) {
 		result = PTR_ERR(inode);
 		inode = NULL;
 		goto error;
 	}
-
 	result = v9fs_fid_add(dentry, fid);
 	if (result < 0)
 		goto error_iput;
-
 inst_out:
-	d_add(dentry, inode);
-	return NULL;
-
+	/*
+	 * If we had a rename on the server and a parallel lookup
+	 * for the new name, then make sure we instantiate with
+	 * the new name. ie look up for a/b, while on server somebody
+	 * moved b under k and client parallely did a lookup for
+	 * k/b.
+	 */
+	res = d_materialise_unique(dentry, inode);
+	if (!IS_ERR(res))
+		return res;
+	result = PTR_ERR(res);
 error_iput:
 	iput(inode);
 error:
@@ -950,7 +1025,7 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		return PTR_ERR(st);
 
 	v9fs_stat2inode(st, dentry->d_inode, dentry->d_inode->i_sb);
-		generic_fillattr(dentry->d_inode, stat);
+	generic_fillattr(dentry->d_inode, stat);
 
 	p9stat_free(st);
 	kfree(st);
@@ -1034,6 +1109,7 @@ void
 v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 	struct super_block *sb)
 {
+	mode_t mode;
 	char ext[32];
 	char tag_name[14];
 	unsigned int i_nlink;
@@ -1069,31 +1145,9 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 				inode->i_nlink = i_nlink;
 		}
 	}
-	inode->i_mode = p9mode2unixmode(v9ses, stat->mode);
-	if ((S_ISBLK(inode->i_mode)) || (S_ISCHR(inode->i_mode))) {
-		char type = 0;
-		int major = -1;
-		int minor = -1;
-
-		strncpy(ext, stat->extension, sizeof(ext));
-		sscanf(ext, "%c %u %u", &type, &major, &minor);
-		switch (type) {
-		case 'c':
-			inode->i_mode &= ~S_IFBLK;
-			inode->i_mode |= S_IFCHR;
-			break;
-		case 'b':
-			break;
-		default:
-			P9_DPRINTK(P9_DEBUG_ERROR,
-				"Unknown special type %c %s\n", type,
-				stat->extension);
-		};
-		inode->i_rdev = MKDEV(major, minor);
-		init_special_inode(inode, inode->i_mode, inode->i_rdev);
-	} else
-		inode->i_rdev = 0;
-
+	mode = stat->mode & S_IALLUGO;
+	mode |= inode->i_mode & ~S_IALLUGO;
+	inode->i_mode = mode;
 	i_size_write(inode, stat->length);
 
 	/* not real number of blocks, but 512 byte ones ... */
@@ -1359,6 +1413,8 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 
 int v9fs_refresh_inode(struct p9_fid *fid, struct inode *inode)
 {
+	int umode;
+	dev_t rdev;
 	loff_t i_size;
 	struct p9_wstat *st;
 	struct v9fs_session_info *v9ses;
@@ -1367,6 +1423,12 @@ int v9fs_refresh_inode(struct p9_fid *fid, struct inode *inode)
 	st = p9_client_stat(fid);
 	if (IS_ERR(st))
 		return PTR_ERR(st);
+	/*
+	 * Don't update inode if the file type is different
+	 */
+	umode = p9mode2unixmode(v9ses, st, &rdev);
+	if ((inode->i_mode & S_IFMT) != (umode & S_IFMT))
+		goto out;
 
 	spin_lock(&inode->i_lock);
 	/*
@@ -1378,6 +1440,7 @@ int v9fs_refresh_inode(struct p9_fid *fid, struct inode *inode)
 	if (v9ses->cache)
 		inode->i_size = i_size;
 	spin_unlock(&inode->i_lock);
+out:
 	p9stat_free(st);
 	kfree(st);
 	return 0;

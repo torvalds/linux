@@ -1856,6 +1856,9 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 
 	perf_callchain_store(entry, regs->ip);
 
+	if (!current->mm)
+		return;
+
 	if (perf_callchain_user32(regs, entry))
 		return;
 

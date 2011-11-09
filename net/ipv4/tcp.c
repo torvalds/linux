@@ -273,6 +273,8 @@
 #include <net/xfrm.h>
 #include <net/ip.h>
 #include <net/ip6_route.h>
+#include <net/ipv6.h>
+#include <net/transp_v6.h>
 #include <net/netdma.h>
 #include <net/sock.h>
 
@@ -3374,8 +3376,16 @@ restart:
 		sk_nulls_for_each(sk, node, &tcp_hashinfo.ehash[bucket].chain) {
 			struct inet_sock *inet = inet_sk(sk);
 
+			if (sysctl_ip_dynaddr && sk->sk_state == TCP_SYN_SENT)
+				continue;
+			if (sock_flag(sk, SOCK_DEAD))
+				continue;
+
 			if (family == AF_INET) {
 				__be32 s4 = inet->inet_rcv_saddr;
+				if (s4 == LOOPBACK4_IPV6)
+					continue;
+
 				if (in->s_addr != s4 &&
 				    !(in->s_addr == INADDR_ANY &&
 				      !tcp_is_local(net, s4)))
@@ -3387,18 +3397,17 @@ restart:
 				struct in6_addr *s6;
 				if (!inet->pinet6)
 					continue;
+
 				s6 = &inet->pinet6->rcv_saddr;
+				if (ipv6_addr_type(s6) == IPV6_ADDR_MAPPED)
+					continue;
+
 				if (!ipv6_addr_equal(in6, s6) &&
 				    !(ipv6_addr_equal(in6, &in6addr_any) &&
 				      !tcp_is_local6(net, s6)))
 				continue;
 			}
 #endif
-
-			if (sysctl_ip_dynaddr && sk->sk_state == TCP_SYN_SENT)
-				continue;
-			if (sock_flag(sk, SOCK_DEAD))
-				continue;
 
 			sock_hold(sk);
 			spin_unlock_bh(lock);

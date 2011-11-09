@@ -52,5 +52,7 @@ int otg_id_register_notifier(struct otg_id_notifier_block *otg_id_nb);
 void otg_id_unregister_notifier(struct otg_id_notifier_block *otg_id_nb);
 
 void otg_id_notify(void);
+int otg_id_suspend(void);
+void otg_id_resume(void);
 
 #endif /* __LINUX_USB_OTG_ID_H */

@@ -394,7 +394,7 @@ static inline struct sk_buff *ibmveth_rxq_get_buffer(struct ibmveth_adapter *ada
 }
 
 /* recycle the current buffer on the rx queue */
-static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
+static int ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 {
 	u32 q_index = adapter->rx_queue.index;
 	u64 correlator = adapter->rx_queue.queue_addr[q_index].correlator;
@@ -402,6 +402,7 @@ static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 	unsigned int index = correlator & 0xffffffffUL;
 	union ibmveth_buf_desc desc;
 	unsigned long lpar_rc;
+	int ret = 1;
 
 	BUG_ON(pool >= IBMVETH_NUM_BUFF_POOLS);
 	BUG_ON(index >= adapter->rx_buff_pool[pool].size);
@@ -409,7 +410,7 @@ static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 	if (!adapter->rx_buff_pool[pool].active) {
 		ibmveth_rxq_harvest_buffer(adapter);
 		ibmveth_free_buffer_pool(adapter, &adapter->rx_buff_pool[pool]);
-		return;
+		goto out;
 	}
 
 	desc.fields.flags_len = IBMVETH_BUF_VALID |
@@ -422,12 +423,16 @@ static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 		netdev_dbg(adapter->netdev, "h_add_logical_lan_buffer failed "
 			   "during recycle rc=%ld", lpar_rc);
 		ibmveth_remove_buffer_from_pool(adapter, adapter->rx_queue.queue_addr[adapter->rx_queue.index].correlator);
+		ret = 0;
 	}
 
 	if (++adapter->rx_queue.index == adapter->rx_queue.num_slots) {
 		adapter->rx_queue.index = 0;
 		adapter->rx_queue.toggle = !adapter->rx_queue.toggle;
 	}
+
+out:
+	return ret;
 }
 
 static void ibmveth_rxq_harvest_buffer(struct ibmveth_adapter *adapter)
@@ -806,7 +811,7 @@ static int ibmveth_set_csum_offload(struct net_device *dev, u32 data)
 		} else
 			adapter->fw_ipv6_csum_support = data;
 
-		if (ret != H_SUCCESS || ret6 != H_SUCCESS)
+		if (ret == H_SUCCESS || ret6 == H_SUCCESS)
 			adapter->rx_csum = data;
 		else
 			rc1 = -EIO;
@@ -924,6 +929,7 @@ static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
 	union ibmveth_buf_desc descs[6];
 	int last, i;
 	int force_bounce = 0;
+	dma_addr_t dma_addr;
 
 	/*
 	 * veth handles a maximum of 6 segments including the header, so
@@ -988,17 +994,16 @@ retry_bounce:
 	}
 
 	/* Map the header */
-	descs[0].fields.address = dma_map_single(&adapter->vdev->dev, skb->data,
-						 skb_headlen(skb),
-						 DMA_TO_DEVICE);
-	if (dma_mapping_error(&adapter->vdev->dev, descs[0].fields.address))
+	dma_addr = dma_map_single(&adapter->vdev->dev, skb->data,
+				  skb_headlen(skb), DMA_TO_DEVICE);
+	if (dma_mapping_error(&adapter->vdev->dev, dma_addr))
 		goto map_failed;
 
 	descs[0].fields.flags_len = desc_flags | skb_headlen(skb);
+	descs[0].fields.address = dma_addr;
 
 	/* Map the frags */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		unsigned long dma_addr;
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		dma_addr = dma_map_page(&adapter->vdev->dev, frag->page,
@@ -1020,7 +1025,12 @@ retry_bounce:
 		netdev->stats.tx_bytes += skb->len;
 	}
 
-	for (i = 0; i < skb_shinfo(skb)->nr_frags + 1; i++)
+	dma_unmap_single(&adapter->vdev->dev,
+			 descs[0].fields.address,
+			 descs[0].fields.flags_len & IBMVETH_BUF_LEN_MASK,
+			 DMA_TO_DEVICE);
+
+	for (i = 1; i < skb_shinfo(skb)->nr_frags + 1; i++)
 		dma_unmap_page(&adapter->vdev->dev, descs[i].fields.address,
 			       descs[i].fields.flags_len & IBMVETH_BUF_LEN_MASK,
 			       DMA_TO_DEVICE);
@@ -1083,8 +1093,9 @@ restart_poll:
 				if (rx_flush)
 					ibmveth_flush_buffer(skb->data,
 						length + offset);
+				if (!ibmveth_rxq_recycle_buffer(adapter))
+					kfree_skb(skb);
 				skb = new_skb;
-				ibmveth_rxq_recycle_buffer(adapter);
 			} else {
 				ibmveth_rxq_harvest_buffer(adapter);
 				skb_reserve(skb, offset);

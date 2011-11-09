@@ -158,7 +158,7 @@ static int sync_serial_open(struct inode *inode, struct file *file);
 static int sync_serial_release(struct inode *inode, struct file *file);
 static unsigned int sync_serial_poll(struct file *filp, poll_table *wait);
 
-static int sync_serial_ioctl(struct file *file,
+static long sync_serial_ioctl(struct file *file,
 	unsigned int cmd, unsigned long arg);
 static ssize_t sync_serial_write(struct file *file, const char *buf,
 	size_t count, loff_t *ppos);
@@ -625,11 +625,11 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 			*R_IRQ_MASK1_SET = 1 << port->data_avail_bit;
 		DEBUG(printk(KERN_DEBUG "sser%d rec started\n", dev));
 	}
-	ret = 0;
+	err = 0;
 	
 out:
 	mutex_unlock(&sync_serial_mutex);
-	return ret;
+	return err;
 }
 
 static int sync_serial_release(struct inode *inode, struct file *file)

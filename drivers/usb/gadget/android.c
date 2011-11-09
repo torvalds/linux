@@ -87,8 +87,7 @@ struct android_usb_function {
 
 	/* Optional: called when the configuration is removed */
 	void (*unbind_config)(struct android_usb_function *, struct usb_configuration *);
-	/* Optional: handle ctrl requests before the device is configured
-	 *	and/or before the function is enabled */
+	/* Optional: handle ctrl requests before the device is configured */
 	int (*ctrlrequest)(struct android_usb_function *,
 					struct usb_composite_dev *,
 					const struct usb_ctrlrequest *);
@@ -164,22 +163,23 @@ static void android_work(struct work_struct *data)
 	char *disconnected[2] = { "USB_STATE=DISCONNECTED", NULL };
 	char *connected[2]    = { "USB_STATE=CONNECTED", NULL };
 	char *configured[2]   = { "USB_STATE=CONFIGURED", NULL };
+	char **uevent_envp = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cdev->lock, flags);
-        if (cdev->config) {
-		spin_unlock_irqrestore(&cdev->lock, flags);
-		kobject_uevent_env(&dev->dev->kobj, KOBJ_CHANGE,
-							configured);
-		return;
-	}
-	if (dev->connected != dev->sw_connected) {
-		dev->sw_connected = dev->connected;
-		spin_unlock_irqrestore(&cdev->lock, flags);
-		kobject_uevent_env(&dev->dev->kobj, KOBJ_CHANGE,
-				dev->sw_connected ? connected : disconnected);
+        if (cdev->config)
+		uevent_envp = configured;
+	else if (dev->connected != dev->sw_connected)
+		uevent_envp = dev->connected ? connected : disconnected;
+	dev->sw_connected = dev->connected;
+	spin_unlock_irqrestore(&cdev->lock, flags);
+
+	if (uevent_envp) {
+		kobject_uevent_env(&dev->dev->kobj, KOBJ_CHANGE, uevent_envp);
+		pr_info("%s: sent uevent %s\n", __func__, uevent_envp[0]);
 	} else {
-		spin_unlock_irqrestore(&cdev->lock, flags);
+		pr_info("%s: did not send uevent (%d %d %p)\n", __func__,
+			 dev->connected, dev->sw_connected, cdev->config);
 	}
 }
 
@@ -1057,6 +1057,12 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
 		}
 	}
 
+	/* Special case the accessory function.
+	 * It needs to handle control requests before it is enabled.
+	 */
+	if (value < 0)
+		value = acc_ctrlrequest(cdev, c);
+
 	if (value < 0)
 		value = composite_setup(gadget, c);
 
@@ -1076,9 +1082,15 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
 static void android_disconnect(struct usb_gadget *gadget)
 {
 	struct android_dev *dev = _android_dev;
+	struct usb_composite_dev *cdev = get_gadget_data(gadget);
+	unsigned long flags;
+
+	composite_disconnect(gadget);
+
+	spin_lock_irqsave(&cdev->lock, flags);
 	dev->connected = 0;
 	schedule_work(&dev->work);
-	composite_disconnect(gadget);
+	spin_unlock_irqrestore(&cdev->lock, flags);
 }
 
 static int android_create_device(struct android_dev *dev)

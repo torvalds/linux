@@ -913,7 +913,7 @@ static void l2t_put(struct cxgbi_sock *csk)
 	struct t3cdev *t3dev = (struct t3cdev *)csk->cdev->lldev;
 
 	if (csk->l2t) {
-		l2t_release(L2DATA(t3dev), csk->l2t);
+		l2t_release(t3dev, csk->l2t);
 		csk->l2t = NULL;
 		cxgbi_sock_put(csk);
 	}

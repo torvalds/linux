@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.c,v 1.14.64.3 2010-12-23 01:13:15 Exp $
+ * $Id: bcmsdh_sdmmc.c 282820 2011-09-09 15:40:35Z $
  */
 #include <typedefs.h>
 
@@ -30,7 +30,7 @@
 #include <bcmutils.h>
 #include <osl.h>
 #include <sdio.h>	/* SDIO Device and Protocol Specs */
-#include <sdioh.h>	/* SDIO Host Controller Specification */
+#include <sdioh.h>	/* Standard SDIO Host Controller Specification */
 #include <bcmsdbus.h>	/* bcmsdh to/from specific controller APIs */
 #include <sdiovar.h>	/* ioctl/iovars */
 
@@ -198,9 +198,14 @@ sdioh_detach(osl_t *osh, sdioh_info_t *sd)
 		sdio_release_host(gInstance->func[2]);
 
 		/* Disable Function 1 */
-		sdio_claim_host(gInstance->func[1]);
-		sdio_disable_func(gInstance->func[1]);
-		sdio_release_host(gInstance->func[1]);
+		if (gInstance->func[1]) {
+			sdio_claim_host(gInstance->func[1]);
+			sdio_disable_func(gInstance->func[1]);
+			sdio_release_host(gInstance->func[1]);
+		}
+
+		gInstance->func[1] = NULL;
+		gInstance->func[2] = NULL;
 
 		/* deregister irq */
 		sdioh_sdmmc_osfree(sd);

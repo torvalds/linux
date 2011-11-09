@@ -26,7 +26,7 @@
 
 #include <typedefs.h>
 #include <bcmutils.h>
-#include <sdio.h>	/* SDIO Specs */
+#include <sdio.h>	/* SDIO Device and Protocol Specs */
 #include <bcmsdbus.h>	/* bcmsdh to/from specific controller APIs */
 #include <sdiovar.h>	/* to get msglevel bit values */
 
@@ -66,6 +66,9 @@ extern void wl_cfg80211_set_sdio_func(void *func);
 
 extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
 extern void sdioh_sdmmc_devintr_on(sdioh_info_t *sd);
+extern int dhd_os_check_wakelock(void *dhdp);
+extern int dhd_os_check_if_up(void *dhdp);
+extern void *bcmsdh_get_drvdata(void);
 
 int sdio_function_init(void);
 void sdio_function_cleanup(void);
@@ -86,6 +89,8 @@ PBCMSDH_SDMMC_INSTANCE gInstance;
 
 extern int bcmsdh_probe(struct device *dev);
 extern int bcmsdh_remove(struct device *dev);
+
+extern volatile bool dhd_mmc_suspend;
 
 static int bcmsdh_sdmmc_probe(struct sdio_func *func,
                               const struct sdio_device_id *id)
@@ -133,6 +138,11 @@ static void bcmsdh_sdmmc_remove(struct sdio_func *func)
 	if (func->num == 2) {
 		sd_trace(("F2 found, calling bcmsdh_remove...\n"));
 		bcmsdh_remove(&func->dev);
+	} else if (func->num == 1) {
+		sdio_claim_host(func);
+		sdio_disable_func(func);
+		sdio_release_host(func);
+		gInstance->func[1] = NULL;
 	}
 }
 
@@ -149,12 +159,56 @@ static const struct sdio_device_id bcmsdh_sdmmc_ids[] = {
 
 MODULE_DEVICE_TABLE(sdio, bcmsdh_sdmmc_ids);
 
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) && defined(CONFIG_PM)
+static int bcmsdh_sdmmc_suspend(struct device *pdev)
+{
+	struct sdio_func *func = dev_to_sdio_func(pdev);
+
+	if (func->num != 2)
+		return 0;
+	if (dhd_os_check_wakelock(bcmsdh_get_drvdata()))
+		return -EBUSY;
+#if defined(OOB_INTR_ONLY)
+	bcmsdh_oob_intr_set(0);
+#endif
+	dhd_mmc_suspend = TRUE;
+	smp_mb();
+
+	return 0;
+}
+
+static int bcmsdh_sdmmc_resume(struct device *pdev)
+{
+	struct sdio_func *func = dev_to_sdio_func(pdev);
+
+	if (func->num != 2)
+		return 0;
+	dhd_mmc_suspend = FALSE;
+#if defined(OOB_INTR_ONLY)
+	if (dhd_os_check_if_up(bcmsdh_get_drvdata()))
+		bcmsdh_oob_intr_set(1);
+#endif
+	smp_mb();
+	return 0;
+}
+
+static const struct dev_pm_ops bcmsdh_sdmmc_pm_ops = {
+	.suspend	= bcmsdh_sdmmc_suspend,
+	.resume		= bcmsdh_sdmmc_resume,
+};
+#endif
+
 static struct sdio_driver bcmsdh_sdmmc_driver = {
 	.probe		= bcmsdh_sdmmc_probe,
 	.remove		= bcmsdh_sdmmc_remove,
 	.name		= "bcmsdh_sdmmc",
 	.id_table	= bcmsdh_sdmmc_ids,
-	};
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) && defined(CONFIG_PM)
+	.drv = {
+		.pm	= &bcmsdh_sdmmc_pm_ops,
+	},
+#endif
+};
 
 struct sdos_info {
 	sdioh_info_t *sd;
@@ -258,7 +312,6 @@ int sdio_function_init(void)
 		return -ENOMEM;
 
 	error = sdio_register_driver(&bcmsdh_sdmmc_driver);
-
 
 	return error;
 }

@@ -227,13 +227,25 @@ static int gpio_event_input_request_irqs(struct gpio_input_state *ds)
 				ds->info->keymap[i].gpio, irq);
 			goto err_request_irq_failed;
 		}
-		enable_irq_wake(irq);
+		if (ds->info->info.no_suspend) {
+			err = enable_irq_wake(irq);
+			if (err) {
+				pr_err("gpio_event_input_request_irqs: "
+					"enable_irq_wake failed for input %d, "
+					"irq %d\n",
+					ds->info->keymap[i].gpio, irq);
+				goto err_enable_irq_wake_failed;
+			}
+		}
 	}
 	return 0;
 
 	for (i = ds->info->keymap_size - 1; i >= 0; i--) {
-		free_irq(gpio_to_irq(ds->info->keymap[i].gpio),
-			 &ds->key_state[i]);
+		irq = gpio_to_irq(ds->info->keymap[i].gpio);
+		if (ds->info->info.no_suspend)
+			disable_irq_wake(irq);
+err_enable_irq_wake_failed:
+		free_irq(irq, &ds->key_state[i]);
 err_request_irq_failed:
 err_gpio_get_irq_num_failed:
 		;
@@ -341,8 +353,10 @@ int gpio_event_input_func(struct gpio_event_input_devs *input_devs,
 	hrtimer_cancel(&ds->timer);
 	if (ds->use_irq) {
 		for (i = di->keymap_size - 1; i >= 0; i--) {
-			free_irq(gpio_to_irq(di->keymap[i].gpio),
-				 &ds->key_state[i]);
+			int irq = gpio_to_irq(di->keymap[i].gpio);
+			if (ds->info->info.no_suspend)
+				disable_irq_wake(irq);
+			free_irq(irq, &ds->key_state[i]);
 		}
 	}
 	spin_unlock_irqrestore(&ds->irq_lock, irqflags);

@@ -301,6 +301,8 @@ static int sdhci_s3c_platform_8bit_width(struct sdhci_host *host, int width)
 		ctrl &= ~SDHCI_CTRL_8BITBUS;
 		break;
 	default:
+		ctrl &= ~SDHCI_CTRL_4BITBUS;
+		ctrl &= ~SDHCI_CTRL_8BITBUS;
 		break;
 	}
 

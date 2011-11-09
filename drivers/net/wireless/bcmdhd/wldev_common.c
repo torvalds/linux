@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wldev_common.c,v 1.1.4.1.2.14 2011-02-09 01:40:07 Exp $
+ * $Id: wldev_common.c,v 1.1.4.1.2.14 2011-02-09 01:40:07 $
  */
 
 #include <linux/module.h>
@@ -37,7 +37,6 @@
 #define dtoh16(i) i
 #define htodchanspec(i) i
 #define dtohchanspec(i) i
-
 extern int dhd_ioctl_entry_local(struct net_device *net, wl_ioctl_t *ioc, int cmd);
 
 s32 wldev_ioctl(
@@ -78,7 +77,7 @@ s32 wldev_iovar_getbuf(
 	s32 iovar_len = 0;
 
 	iovar_len = wldev_mkiovar(iovar_name, param, paramlen, buf, buflen);
-	ret = wldev_ioctl(dev, WLC_GET_VAR, buf, iovar_len, FALSE);
+	ret = wldev_ioctl(dev, WLC_GET_VAR, buf, buflen, FALSE);
 	return ret;
 }
 
@@ -184,7 +183,7 @@ s32 wldev_iovar_getbuf_bsscfg(
 	s32 iovar_len = 0;
 
 	iovar_len = wldev_mkiovar_bsscfg(iovar_name, param, paramlen, buf, buflen, bsscfg_idx);
-	ret = wldev_ioctl(dev, WLC_GET_VAR, buf, iovar_len, FALSE);
+	ret = wldev_ioctl(dev, WLC_GET_VAR, buf, buflen, FALSE);
 	return ret;
 
 }
@@ -309,18 +308,27 @@ int wldev_set_country(
 	if (!country_code)
 		return error;
 
-	bzero(&scbval, sizeof(scb_val_t));
-	error = wldev_ioctl(dev, WLC_DISASSOC, &scbval, sizeof(scb_val_t), 1);
-	if (error < 0) {
-		DHD_ERROR(("%s: set country failed due to Disassoc error\n", __FUNCTION__));
-		return error;
+	error = wldev_iovar_getbuf(dev, "country", &cspec, sizeof(cspec),
+		smbuf, sizeof(smbuf));
+	if (error < 0)
+		DHD_ERROR(("%s: get country failed = %d\n", __FUNCTION__, error));
+
+	if ((error < 0) ||
+	    (strncmp(country_code, smbuf, WLC_CNTRY_BUF_SZ) != 0)) {
+		bzero(&scbval, sizeof(scb_val_t));
+		error = wldev_ioctl(dev, WLC_DISASSOC, &scbval, sizeof(scb_val_t), 1);
+		if (error < 0) {
+			DHD_ERROR(("%s: set country failed due to Disassoc error %d\n",
+				__FUNCTION__, error));
+			return error;
+		}
 	}
 	cspec.rev = -1;
 	memcpy(cspec.country_abbrev, country_code, WLC_CNTRY_BUF_SZ);
 	memcpy(cspec.ccode, country_code, WLC_CNTRY_BUF_SZ);
 	get_customized_country_code((char *)&cspec.country_abbrev, &cspec);
 	error = wldev_iovar_setbuf(dev, "country", &cspec, sizeof(cspec),
-					smbuf, sizeof(smbuf));
+		smbuf, sizeof(smbuf));
 	if (error < 0) {
 		DHD_ERROR(("%s: set country for %s as %s rev %d failed\n",
 			__FUNCTION__, country_code, cspec.ccode, cspec.rev));

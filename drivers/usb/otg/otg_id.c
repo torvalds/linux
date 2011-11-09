@@ -26,6 +26,8 @@ static struct plist_head otg_id_plist =
 static struct otg_id_notifier_block *otg_id_active;
 static bool otg_id_cancelling;
 static bool otg_id_inited;
+static int otg_id_suspended;
+static bool otg_id_pending;
 
 static void otg_id_cancel(void)
 {
@@ -139,8 +141,65 @@ void otg_id_notify(void)
 	if (otg_id_cancelling)
 		goto out;
 
-	__otg_id_notify();
+	if (otg_id_suspended != 0) {
+		otg_id_pending = true;
+		goto out;
+	}
 
+	__otg_id_notify();
+out:
+	mutex_unlock(&otg_id_lock);
+}
+
+/**
+ * otg_id_suspend
+ *
+ * Mark the otg_id subsystem as going into suspend. From here on out,
+ * any notifications will be deferred until the last otg_id client resumes.
+ * If there is a pending notification when calling this function, it will
+ * return a negative errno and expects that the caller will abort suspend.
+ * Returs 0 on success.
+ */
+int otg_id_suspend(void)
+{
+	int ret = 0;
+
+	mutex_lock(&otg_id_lock);
+
+	/*
+	 * if there's a pending notification, tell the caller to abort suspend
+	 */
+	if (otg_id_suspended != 0 && otg_id_pending) {
+		pr_info("otg_id: pending notification, should abort suspend\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	otg_id_suspended++;
+out:
+	mutex_unlock(&otg_id_lock);
+	return ret;
+}
+
+/**
+ * otg_id_resume
+ *
+ * Inform the otg_id subsystem that a client is resuming. If this is the
+ * last client to be resumed and there's a pending notification,
+ * otg_id_notify() is called.
+ */
+void otg_id_resume(void)
+{
+	mutex_lock(&otg_id_lock);
+	if (WARN(!otg_id_suspended, "unbalanced otg_id_resume\n"))
+		goto out;
+	if (--otg_id_suspended == 0) {
+		if (otg_id_pending) {
+			pr_info("otg_id: had pending notification\n");
+			otg_id_pending = false;
+			__otg_id_notify();
+		}
+	}
 out:
 	mutex_unlock(&otg_id_lock);
 }

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_dbg.h,v 1.9.6.1 2010-12-22 23:47:24 Exp $
+ * $Id: dhd_dbg.h 285933 2011-09-23 21:45:31Z $
  */
 
 #ifndef _dhd_dbg_
@@ -95,6 +95,7 @@
 
 #define DHD_LOG(args)
 
+#define DHD_BLOG(cp, size)
 #define DHD_NONE(args)
 extern int dhd_msg_level;
 

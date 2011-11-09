@@ -500,6 +500,9 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 			fs_devices->rw_devices--;
 		}
 
+		if (device->can_discard)
+			fs_devices->num_can_discard--;
+
 		new_device = kmalloc(sizeof(*new_device), GFP_NOFS);
 		BUG_ON(!new_device);
 		memcpy(new_device, device, sizeof(*new_device));
@@ -508,6 +511,7 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 		new_device->bdev = NULL;
 		new_device->writeable = 0;
 		new_device->in_fs_metadata = 0;
+		new_device->can_discard = 0;
 		list_replace_rcu(&device->dev_list, &new_device->dev_list);
 
 		call_rcu(&device->rcu, free_device);
@@ -547,6 +551,7 @@ int btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 				fmode_t flags, void *holder)
 {
+	struct request_queue *q;
 	struct block_device *bdev;
 	struct list_head *head = &fs_devices->devices;
 	struct btrfs_device *device;
@@ -601,6 +606,12 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		} else {
 			device->writeable = !bdev_read_only(bdev);
 			seeding = 0;
+		}
+
+		q = bdev_get_queue(bdev);
+		if (blk_queue_discard(q)) {
+			device->can_discard = 1;
+			fs_devices->num_can_discard++;
 		}
 
 		device->bdev = bdev;
@@ -1542,6 +1553,7 @@ error:
 
 int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 {
+	struct request_queue *q;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_device *device;
 	struct block_device *bdev;
@@ -1611,6 +1623,9 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 
 	lock_chunks(root);
 
+	q = bdev_get_queue(bdev);
+	if (blk_queue_discard(q))
+		device->can_discard = 1;
 	device->writeable = 1;
 	device->work.func = pending_bios_fn;
 	generate_random_uuid(device->uuid);
@@ -1646,6 +1661,8 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	root->fs_info->fs_devices->num_devices++;
 	root->fs_info->fs_devices->open_devices++;
 	root->fs_info->fs_devices->rw_devices++;
+	if (device->can_discard)
+		root->fs_info->fs_devices->num_can_discard++;
 	root->fs_info->fs_devices->total_rw_bytes += device->total_bytes;
 
 	if (!blk_queue_nonrot(bdev_get_queue(bdev)))

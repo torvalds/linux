@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h,v 1.60.4.17 2011-01-09 08:11:56 Exp $
+ * $Id: dhd.h 290844 2011-10-20 08:54:39Z $
  */
 
 /****************
@@ -52,6 +52,9 @@
 #include <linux/wakelock.h>
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined (CONFIG_HAS_WAKELOCK) */
 /* The kernel threading is sdio-specific */
+struct task_struct;
+struct sched_param;
+int setScheduler(struct task_struct *p, int policy, struct sched_param *param);
 
 #define ALL_INTERFACES	0xff
 
@@ -77,6 +80,9 @@ enum dhd_bus_state {
 #define WFD_MASK			0x0004
 #define SOFTAP_FW_MASK			0x0008
 
+/* max sequential rxcntl timeouts to set HANG event */
+#define MAX_CNTL_TIMEOUT  2
+
 enum dhd_bus_wake_state {
 	WAKE_LOCK_OFF,
 	WAKE_LOCK_PRIV,
@@ -93,12 +99,22 @@ enum dhd_bus_wake_state {
 	WAKE_LOCK_SOFTAP_THREAD,
 	WAKE_LOCK_MAX
 };
+
 enum dhd_prealloc_index {
 	DHD_PREALLOC_PROT = 0,
 	DHD_PREALLOC_RXBUF,
 	DHD_PREALLOC_DATABUF,
 	DHD_PREALLOC_OSL_BUF
 };
+
+typedef enum  {
+	DHD_IF_NONE = 0,
+	DHD_IF_ADD,
+	DHD_IF_DEL,
+	DHD_IF_CHANGE,
+	DHD_IF_DELETING
+} dhd_if_state_t;
+
 
 #if defined(DHD_USE_STATIC_BUF)
 
@@ -113,6 +129,11 @@ void dhd_os_prefree(void *osh, void *addr, uint size);
 #define DHD_OS_PREFREE(osh, addr, size) MFREE(osh, addr, size)
 
 #endif /* defined(DHD_USE_STATIC_BUF) */
+
+/* Packet alignment for most efficient SDIO (can change based on platform) */
+#ifndef DHD_SDALIGN
+#define DHD_SDALIGN	32
+#endif
 
 /* Common structure for module and instance linkage */
 typedef struct dhd_pub {
@@ -195,7 +216,9 @@ typedef struct dhd_pub {
 	void* wlfc_state;
 #endif
 	bool	dongle_isolation;
-
+	int   hang_was_sent;
+	int   rxcnt_timeout;		/* counter rxcnt timeout to send HANG */
+	int   txcnt_timeout;		/* counter txcnt timeout to send HANG */
 #ifdef WLMEDIA_HTSF
 	uint8 htsfdlystat_sz; /* Size of delay stats, max 255B */
 #endif
@@ -212,11 +235,12 @@ typedef struct dhd_cmn {
 	#define DHD_PM_RESUME_WAIT_INIT(a) DECLARE_WAIT_QUEUE_HEAD(a);
 	#define _DHD_PM_RESUME_WAIT(a, b) do {\
 			int retry = 0; \
-			smp_mb(); \
+			SMP_RD_BARRIER_DEPENDS(); \
 			while (dhd_mmc_suspend && retry++ != b) { \
-				wait_event_interruptible_timeout(a, FALSE, HZ/100); \
+				SMP_RD_BARRIER_DEPENDS(); \
+				wait_event_interruptible_timeout(a, !dhd_mmc_suspend, HZ/100); \
 			} \
-		} 	while (0)
+		} while (0)
 	#define DHD_PM_RESUME_WAIT(a) 		_DHD_PM_RESUME_WAIT(a, 200)
 	#define DHD_PM_RESUME_WAIT_FOREVER(a) 	_DHD_PM_RESUME_WAIT(a, ~0)
 	#define DHD_PM_RESUME_RETURN_ERROR(a)	do { if (dhd_mmc_suspend) return a; } while (0)
@@ -262,7 +286,7 @@ void dhd_os_spin_unlock(dhd_pub_t *pub, unsigned long flags);
 extern int dhd_os_wake_lock(dhd_pub_t *pub);
 extern int dhd_os_wake_unlock(dhd_pub_t *pub);
 extern int dhd_os_wake_lock_timeout(dhd_pub_t *pub);
-extern int dhd_os_wake_lock_timeout_enable(dhd_pub_t *pub);
+extern int dhd_os_wake_lock_timeout_enable(dhd_pub_t *pub, int val);
 
 inline static void MUTEX_LOCK_SOFTAP_SET_INIT(dhd_pub_t * dhdp)
 {
@@ -288,8 +312,10 @@ inline static void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t * dhdp)
 #define DHD_OS_WAKE_LOCK(pub) 			dhd_os_wake_lock(pub)
 #define DHD_OS_WAKE_UNLOCK(pub) 		dhd_os_wake_unlock(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT(pub)		dhd_os_wake_lock_timeout(pub)
-#define DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(pub)	dhd_os_wake_lock_timeout_enable(pub)
+#define DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(pub, val)	dhd_os_wake_lock_timeout_enable(pub, val)
 
+#define DHD_PACKET_TIMEOUT	1
+#define DHD_EVENT_TIMEOUT	2
 
 /* interface operations (register, remove) should be atomic, use this lock to prevent race
  * condition among wifi on/off and interface operation functions
@@ -381,7 +407,7 @@ extern void dhd_os_sdlock_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdunlock_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_sndup_rxq(dhd_pub_t * pub);
 extern void dhd_customer_gpio_wlan_ctrl(int onoff);
-extern int  dhd_custom_get_mac_address(unsigned char *buf);
+extern int dhd_custom_get_mac_address(unsigned char *buf);
 extern void dhd_os_sdunlock_sndup_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_eventq(dhd_pub_t * pub);
 extern void dhd_os_sdunlock_eventq(dhd_pub_t * pub);
@@ -396,6 +422,8 @@ extern int dhd_dev_pno_set(struct net_device *dev, wlc_ssid_t* ssids_local,
 extern int dhd_dev_pno_enable(struct net_device *dev,  int pfn_enabled);
 extern int dhd_dev_get_pno_status(struct net_device *dev);
 extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
+extern bool dhd_check_ap_wfd_mode_set(dhd_pub_t *dhd);
+extern bool dhd_os_check_hang(dhd_pub_t *dhdp, int ifidx, int ret);
 
 #define DHD_UNICAST_FILTER_NUM		0
 #define DHD_BROADCAST_FILTER_NUM	1
@@ -412,12 +440,6 @@ extern int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr);
 #endif /* defined(OOB_INTR_ONLY) */
 extern void dhd_os_sdtxlock(dhd_pub_t * pub);
 extern void dhd_os_sdtxunlock(dhd_pub_t * pub);
-
-#if defined(DHDTHREAD)
-struct task_struct;
-struct sched_param;
-int setScheduler(struct task_struct *p, int policy, struct sched_param *param);
-#endif /* DHDTHREAD && DHD_GPL */
 
 typedef struct {
 	uint32 limit;		/* Expiration time (usec) */
@@ -466,6 +488,16 @@ extern uint dhd_bus_status(dhd_pub_t *dhdp);
 extern int  dhd_bus_start(dhd_pub_t *dhdp);
 extern int dhd_bus_membytes(dhd_pub_t *dhdp, bool set, uint32 address, uint8 *data, uint size);
 extern void dhd_print_buf(void *pbuf, int len, int bytes_per_line);
+extern bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf);
+
+#if defined(KEEP_ALIVE)
+extern int dhd_keep_alive_onoff(dhd_pub_t *dhd);
+#endif /* KEEP_ALIVE */
+
+#ifdef ARP_OFFLOAD_SUPPORT
+extern void dhd_arp_offload_set(dhd_pub_t * dhd, int arp_mode);
+extern void dhd_arp_offload_enable(dhd_pub_t * dhd, int arp_enable);
+#endif /* ARP_OFFLOAD_SUPPORT */
 
 
 typedef enum cust_gpio_modes {
@@ -697,4 +729,5 @@ void dhd_aoe_arp_clr(dhd_pub_t *dhd);
 int dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen);
 void dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr);
 #endif /* ARP_OFFLOAD_SUPPORT */
+
 #endif /* _dhd_h_ */
