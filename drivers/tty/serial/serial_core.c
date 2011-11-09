@@ -1429,33 +1429,6 @@ static void uart_dtr_rts(struct tty_port *port, int onoff)
 		uart_clear_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
 }
 
-static struct uart_state *uart_get(struct uart_driver *drv, int line)
-{
-	struct uart_state *state;
-	struct tty_port *port;
-	int ret = 0;
-
-	state = drv->state + line;
-	port = &state->port;
-	if (mutex_lock_interruptible(&port->mutex)) {
-		ret = -ERESTARTSYS;
-		goto err;
-	}
-
-	port->count++;
-	if (!state->uart_port || state->uart_port->flags & UPF_DEAD) {
-		ret = -ENXIO;
-		goto err_unlock;
-	}
-	return state;
-
- err_unlock:
-	port->count--;
-	mutex_unlock(&port->mutex);
- err:
-	return ERR_PTR(ret);
-}
-
 /*
  * calls to uart_open are serialised by the BKL in
  *   fs/char_dev.c:chrdev_open()
@@ -1469,26 +1442,29 @@ static struct uart_state *uart_get(struct uart_driver *drv, int line)
 static int uart_open(struct tty_struct *tty, struct file *filp)
 {
 	struct uart_driver *drv = (struct uart_driver *)tty->driver->driver_state;
-	struct uart_state *state;
-	struct tty_port *port;
 	int retval, line = tty->index;
+	struct uart_state *state = drv->state + line;
+	struct tty_port *port = &state->port;
 
 	pr_debug("uart_open(%d) called\n", line);
 
 	/*
-	 * We take the semaphore inside uart_get to guarantee that we won't
-	 * be re-entered while allocating the state structure, or while we
-	 * request any IRQs that the driver may need.  This also has the nice
-	 * side-effect that it delays the action of uart_hangup, so we can
-	 * guarantee that state->port.tty will always contain something
-	 * reasonable.
+	 * We take the semaphore here to guarantee that we won't be re-entered
+	 * while allocating the state structure, or while we request any IRQs
+	 * that the driver may need.  This also has the nice side-effect that
+	 * it delays the action of uart_hangup, so we can guarantee that
+	 * state->port.tty will always contain something reasonable.
 	 */
-	state = uart_get(drv, line);
-	if (IS_ERR(state)) {
-		retval = PTR_ERR(state);
-		goto fail;
+	if (mutex_lock_interruptible(&port->mutex)) {
+		retval = -ERESTARTSYS;
+		goto end;
 	}
-	port = &state->port;
+
+	port->count++;
+	if (!state->uart_port || state->uart_port->flags & UPF_DEAD) {
+		retval = -ENXIO;
+		goto err_dec_count;
+	}
 
 	/*
 	 * Once we set tty->driver_data here, we are guaranteed that
@@ -1505,9 +1481,7 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	 */
 	if (tty_hung_up_p(filp)) {
 		retval = -EAGAIN;
-		port->count--;
-		mutex_unlock(&port->mutex);
-		goto fail;
+		goto err_dec_count;
 	}
 
 	/*
@@ -1528,8 +1502,12 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	if (retval == 0)
 		retval = tty_port_block_til_ready(port, tty, filp);
 
-fail:
+end:
 	return retval;
+err_dec_count:
+	port->count--;
+	mutex_unlock(&port->mutex);
+	goto end;
 }
 
 static const char *uart_type(struct uart_port *port)
