@@ -1031,15 +1031,12 @@ static ssize_t elantech_set_int_attr(struct psmouse *psmouse,
 	struct elantech_data *etd = psmouse->private;
 	struct elantech_attr_data *attr = data;
 	unsigned char *reg = (unsigned char *) etd + attr->field_offset;
-	unsigned long value;
+	unsigned char value;
 	int err;
 
-	err = strict_strtoul(buf, 16, &value);
+	err = kstrtou8(buf, 16, &value);
 	if (err)
 		return err;
-
-	if (value > 0xff)
-		return -EINVAL;
 
 	/* Do we need to preserve some bits for version 2 hardware too? */
 	if (etd->hw_version == 1) {

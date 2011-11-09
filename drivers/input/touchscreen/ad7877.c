@@ -487,10 +487,10 @@ static ssize_t ad7877_disable_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct ad7877 *ts = dev_get_drvdata(dev);
-	unsigned long val;
+	unsigned int val;
 	int error;
 
-	error = strict_strtoul(buf, 10, &val);
+	error = kstrtouint(buf, 10, &val);
 	if (error)
 		return error;
 
@@ -517,10 +517,10 @@ static ssize_t ad7877_dac_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct ad7877 *ts = dev_get_drvdata(dev);
-	unsigned long val;
+	unsigned int val;
 	int error;
 
-	error = strict_strtoul(buf, 10, &val);
+	error = kstrtouint(buf, 10, &val);
 	if (error)
 		return error;
 
@@ -547,10 +547,10 @@ static ssize_t ad7877_gpio3_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct ad7877 *ts = dev_get_drvdata(dev);
-	unsigned long val;
+	unsigned int val;
 	int error;
 
-	error = strict_strtoul(buf, 10, &val);
+	error = kstrtouint(buf, 10, &val);
 	if (error)
 		return error;
 
@@ -578,10 +578,10 @@ static ssize_t ad7877_gpio4_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct ad7877 *ts = dev_get_drvdata(dev);
-	unsigned long val;
+	unsigned int val;
 	int error;
 
-	error = strict_strtoul(buf, 10, &val);
+	error = kstrtouint(buf, 10, &val);
 	if (error)
 		return error;
 

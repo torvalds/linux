@@ -1558,13 +1558,12 @@ static ssize_t psmouse_show_int_attr(struct psmouse *psmouse, void *offset, char
 static ssize_t psmouse_set_int_attr(struct psmouse *psmouse, void *offset, const char *buf, size_t count)
 {
 	unsigned int *field = (unsigned int *)((char *)psmouse + (size_t)offset);
-	unsigned long value;
+	unsigned int value;
+	int err;
 
-	if (strict_strtoul(buf, 10, &value))
-		return -EINVAL;
-
-	if ((unsigned int)value != value)
-		return -EINVAL;
+	err = kstrtouint(buf, 10, &value);
+	if (err)
+		return err;
 
 	*field = value;
 
@@ -1671,10 +1670,12 @@ static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, void *data, co
 
 static ssize_t psmouse_attr_set_rate(struct psmouse *psmouse, void *data, const char *buf, size_t count)
 {
-	unsigned long value;
+	unsigned int value;
+	int err;
 
-	if (strict_strtoul(buf, 10, &value))
-		return -EINVAL;
+	err = kstrtouint(buf, 10, &value);
+	if (err)
+		return err;
 
 	psmouse->set_rate(psmouse, value);
 	return count;
@@ -1682,10 +1683,12 @@ static ssize_t psmouse_attr_set_rate(struct psmouse *psmouse, void *data, const 
 
 static ssize_t psmouse_attr_set_resolution(struct psmouse *psmouse, void *data, const char *buf, size_t count)
 {
-	unsigned long value;
+	unsigned int value;
+	int err;
 
-	if (strict_strtoul(buf, 10, &value))
-		return -EINVAL;
+	err = kstrtouint(buf, 10, &value);
+	if (err)
+		return err;
 
 	psmouse->set_resolution(psmouse, value);
 	return count;
