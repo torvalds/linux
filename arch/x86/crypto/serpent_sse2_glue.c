@@ -554,6 +554,7 @@ static int lrw_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	};
 	int ret;
 
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 	ret = lrw_crypt(desc, dst, src, nbytes, &req);
 	serpent_fpu_end(crypt_ctx.fpu_enabled);
 
@@ -579,6 +580,7 @@ static int lrw_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	};
 	int ret;
 
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 	ret = lrw_crypt(desc, dst, src, nbytes, &req);
 	serpent_fpu_end(crypt_ctx.fpu_enabled);
 
@@ -671,6 +673,7 @@ static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	};
 	int ret;
 
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 	ret = xts_crypt(desc, dst, src, nbytes, &req);
 	serpent_fpu_end(crypt_ctx.fpu_enabled);
 
@@ -697,6 +700,7 @@ static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	};
 	int ret;
 
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 	ret = xts_crypt(desc, dst, src, nbytes, &req);
 	serpent_fpu_end(crypt_ctx.fpu_enabled);
 
