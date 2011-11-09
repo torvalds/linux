@@ -65,7 +65,7 @@ int wl1271_init_templates_config(struct wl1271 *wl)
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, NULL,
 				      sizeof
-				      (struct wl12xx_qos_null_data_template),
+				      (struct ieee80211_qos_hdr),
 				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
@@ -114,8 +114,8 @@ int wl1271_init_templates_config(struct wl1271 *wl)
 
 	for (i = 0; i < CMD_TEMPL_KLV_IDX_MAX; i++) {
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_KLV, NULL,
-					      WL1271_CMD_TEMPL_DFLT_SIZE, i,
-					      WL1271_RATE_AUTOMATIC);
+					      sizeof(struct ieee80211_qos_hdr),
+					      i, WL1271_RATE_AUTOMATIC);
 		if (ret < 0)
 			return ret;
 	}
