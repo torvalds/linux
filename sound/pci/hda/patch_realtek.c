@@ -1526,6 +1526,7 @@ static void alc_pick_fixup(struct hda_codec *codec,
 			   const struct alc_fixup *fixlist)
 {
 	struct alc_spec *spec = codec->spec;
+	const struct snd_pci_quirk *q;
 	int id = -1;
 	const char *name = NULL;
 
@@ -1540,12 +1541,25 @@ static void alc_pick_fixup(struct hda_codec *codec,
 		}
 	}
 	if (id < 0) {
-		quirk = snd_pci_quirk_lookup(codec->bus->pci, quirk);
-		if (quirk) {
-			id = quirk->value;
+		q = snd_pci_quirk_lookup(codec->bus->pci, quirk);
+		if (q) {
+			id = q->value;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
-			name = quirk->name;
+			name = q->name;
 #endif
+		}
+	}
+	if (id < 0) {
+		for (q = quirk; q->subvendor; q++) {
+			unsigned int vendorid =
+				q->subdevice | (q->subvendor << 16);
+			if (vendorid == codec->subsystem_id) {
+				id = q->value;
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+				name = q->name;
+#endif
+				break;
+			}
 		}
 	}
 
