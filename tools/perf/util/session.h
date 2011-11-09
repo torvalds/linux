@@ -30,9 +30,6 @@ struct perf_session {
 	struct perf_header	header;
 	unsigned long		size;
 	unsigned long		mmap_window;
-	struct rb_root		threads;
-	struct list_head	dead_threads;
-	struct thread		*last_match;
 	struct machine		host_machine;
 	struct rb_root		machines;
 	struct perf_evlist	*evlist;

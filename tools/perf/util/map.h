@@ -62,6 +62,9 @@ struct machine {
 	struct rb_node	  rb_node;
 	pid_t		  pid;
 	char		  *root_dir;
+	struct rb_root	  threads;
+	struct list_head  dead_threads;
+	struct thread	  *last_match;
 	struct list_head  user_dsos;
 	struct list_head  kernel_dsos;
 	struct map_groups kmaps;
@@ -189,6 +192,12 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
 					       const char *name,
 					       struct map **mapp,
 					       symbol_filter_t filter);
+
+
+struct thread *machine__findnew_thread(struct machine *machine, pid_t pid);
+void machine__remove_thread(struct machine *machine, struct thread *th);
+
+size_t machine__fprintf(struct machine *machine, FILE *fp);
 
 static inline
 struct symbol *machine__find_kernel_symbol(struct machine *self,

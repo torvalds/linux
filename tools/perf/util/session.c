@@ -139,9 +139,6 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 		goto out;
 
 	memcpy(self->filename, filename, len);
-	self->threads = RB_ROOT;
-	INIT_LIST_HEAD(&self->dead_threads);
-	self->last_match = NULL;
 	/*
 	 * On 64bit we can mmap the data file in one go. No need for tiny mmap
 	 * slices. On 32bit we use 32MB.
@@ -184,17 +181,22 @@ out_delete:
 	return NULL;
 }
 
-static void perf_session__delete_dead_threads(struct perf_session *self)
+static void machine__delete_dead_threads(struct machine *machine)
 {
 	struct thread *n, *t;
 
-	list_for_each_entry_safe(t, n, &self->dead_threads, node) {
+	list_for_each_entry_safe(t, n, &machine->dead_threads, node) {
 		list_del(&t->node);
 		thread__delete(t);
 	}
 }
 
-static void perf_session__delete_threads(struct perf_session *self)
+static void perf_session__delete_dead_threads(struct perf_session *session)
+{
+	machine__delete_dead_threads(&session->host_machine);
+}
+
+static void machine__delete_threads(struct machine *self)
 {
 	struct rb_node *nd = rb_first(&self->threads);
 
@@ -207,6 +209,11 @@ static void perf_session__delete_threads(struct perf_session *self)
 	}
 }
 
+static void perf_session__delete_threads(struct perf_session *session)
+{
+	machine__delete_threads(&session->host_machine);
+}
+
 void perf_session__delete(struct perf_session *self)
 {
 	perf_session__destroy_kernel_maps(self);
@@ -217,7 +224,7 @@ void perf_session__delete(struct perf_session *self)
 	free(self);
 }
 
-void perf_session__remove_thread(struct perf_session *self, struct thread *th)
+void machine__remove_thread(struct machine *self, struct thread *th)
 {
 	self->last_match = NULL;
 	rb_erase(&th->rb_node, &self->threads);
@@ -884,6 +891,11 @@ void perf_event_header__bswap(struct perf_event_header *self)
 	self->size = bswap_16(self->size);
 }
 
+struct thread *perf_session__findnew(struct perf_session *session, pid_t pid)
+{
+	return machine__findnew_thread(&session->host_machine, pid);
+}
+
 static struct thread *perf_session__register_idle_thread(struct perf_session *self)
 {
 	struct thread *thread = perf_session__findnew(self, 0);
@@ -1222,6 +1234,27 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 	}
 
 	return ret;
+}
+
+size_t perf_session__fprintf(struct perf_session *session, FILE *fp)
+{
+	/*
+	 * FIXME: Here we have to actually print all the machines in this
+	 * session, not just the host...
+	 */
+	return machine__fprintf(&session->host_machine, fp);
+}
+
+void perf_session__remove_thread(struct perf_session *session,
+				 struct thread *th)
+{
+	/*
+	 * FIXME: This one makes no sense, we need to remove the thread from
+	 * the machine it belongs to, perf_session can have many machines, so
+	 * doing it always on ->host_machine is wrong.  Fix when auditing all
+	 * the 'perf kvm' code.
+	 */
+	machine__remove_thread(&session->host_machine, th);
 }
 
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,

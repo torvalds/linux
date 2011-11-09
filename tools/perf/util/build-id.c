@@ -48,8 +48,8 @@ static int perf_event__exit_del_thread(union perf_event *event,
 		    event->fork.ppid, event->fork.ptid);
 
 	if (thread) {
-		rb_erase(&thread->rb_node, &session->threads);
-		session->last_match = NULL;
+		rb_erase(&thread->rb_node, &session->host_machine.threads);
+		session->host_machine.last_match = NULL;
 		thread__delete(thread);
 	}
 
