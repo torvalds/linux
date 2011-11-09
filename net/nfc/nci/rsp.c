@@ -42,10 +42,11 @@ static void nci_core_reset_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 
 	nfc_dbg("entry, status 0x%x", rsp->status);
 
-	if (rsp->status == NCI_STATUS_OK)
+	if (rsp->status == NCI_STATUS_OK) {
 		ndev->nci_ver = rsp->nci_ver;
-
-	nfc_dbg("nci_ver 0x%x", ndev->nci_ver);
+		nfc_dbg("nci_ver 0x%x, config_status 0x%x",
+			rsp->nci_ver, rsp->config_status);
+	}
 
 	nci_req_complete(ndev, rsp->status);
 }
@@ -58,13 +59,13 @@ static void nci_core_init_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	nfc_dbg("entry, status 0x%x", rsp_1->status);
 
 	if (rsp_1->status != NCI_STATUS_OK)
-		return;
+		goto exit;
 
 	ndev->nfcc_features = __le32_to_cpu(rsp_1->nfcc_features);
 	ndev->num_supported_rf_interfaces = rsp_1->num_supported_rf_interfaces;
 
 	if (ndev->num_supported_rf_interfaces >
-		NCI_MAX_SUPPORTED_RF_INTERFACES) {
+			NCI_MAX_SUPPORTED_RF_INTERFACES) {
 		ndev->num_supported_rf_interfaces =
 			NCI_MAX_SUPPORTED_RF_INTERFACES;
 	}
@@ -73,20 +74,26 @@ static void nci_core_init_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		rsp_1->supported_rf_interfaces,
 		ndev->num_supported_rf_interfaces);
 
-	rsp_2 = (void *) (skb->data + 6 + ndev->num_supported_rf_interfaces);
+	rsp_2 = (void *) (skb->data + 6 + rsp_1->num_supported_rf_interfaces);
 
 	ndev->max_logical_connections =
 		rsp_2->max_logical_connections;
 	ndev->max_routing_table_size =
 		__le16_to_cpu(rsp_2->max_routing_table_size);
-	ndev->max_control_packet_payload_length =
-		rsp_2->max_control_packet_payload_length;
-	ndev->rf_sending_buffer_size =
-		__le16_to_cpu(rsp_2->rf_sending_buffer_size);
-	ndev->rf_receiving_buffer_size =
-		__le16_to_cpu(rsp_2->rf_receiving_buffer_size);
-	ndev->manufacturer_id =
-		__le16_to_cpu(rsp_2->manufacturer_id);
+	ndev->max_ctrl_pkt_payload_len =
+		rsp_2->max_ctrl_pkt_payload_len;
+	ndev->max_size_for_large_params =
+		__le16_to_cpu(rsp_2->max_size_for_large_params);
+	ndev->max_data_pkt_payload_size =
+		rsp_2->max_data_pkt_payload_size;
+	ndev->initial_num_credits =
+		rsp_2->initial_num_credits;
+	ndev->manufact_id =
+		rsp_2->manufact_id;
+	ndev->manufact_specific_info =
+		__le32_to_cpu(rsp_2->manufact_specific_info);
+
+	atomic_set(&ndev->credits_cnt, ndev->initial_num_credits);
 
 	nfc_dbg("nfcc_features 0x%x",
 		ndev->nfcc_features);
@@ -104,15 +111,20 @@ static void nci_core_init_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		ndev->max_logical_connections);
 	nfc_dbg("max_routing_table_size %d",
 		ndev->max_routing_table_size);
-	nfc_dbg("max_control_packet_payload_length %d",
-		ndev->max_control_packet_payload_length);
-	nfc_dbg("rf_sending_buffer_size %d",
-		ndev->rf_sending_buffer_size);
-	nfc_dbg("rf_receiving_buffer_size %d",
-		ndev->rf_receiving_buffer_size);
-	nfc_dbg("manufacturer_id 0x%x",
-		ndev->manufacturer_id);
+	nfc_dbg("max_ctrl_pkt_payload_len %d",
+		ndev->max_ctrl_pkt_payload_len);
+	nfc_dbg("max_size_for_large_params %d",
+		ndev->max_size_for_large_params);
+	nfc_dbg("max_data_pkt_payload_size %d",
+		ndev->max_data_pkt_payload_size);
+	nfc_dbg("initial_num_credits %d",
+		ndev->initial_num_credits);
+	nfc_dbg("manufact_id 0x%x",
+		ndev->manufact_id);
+	nfc_dbg("manufact_specific_info 0x%x",
+		ndev->manufact_specific_info);
 
+exit:
 	nci_req_complete(ndev, rsp_1->status);
 }
 

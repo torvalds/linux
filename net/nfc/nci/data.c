@@ -95,7 +95,8 @@ static int nci_queue_tx_data_frags(struct nci_dev *ndev,
 	__skb_queue_head_init(&frags_q);
 
 	while (total_len) {
-		frag_len = min_t(int, total_len, ndev->max_pkt_payload_size);
+		frag_len =
+			min_t(int, total_len, ndev->max_data_pkt_payload_size);
 
 		skb_frag = nci_skb_alloc(ndev,
 					(NCI_DATA_HDR_SIZE + frag_len),
@@ -151,7 +152,7 @@ int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb)
 	nfc_dbg("entry, conn_id 0x%x, plen %d", conn_id, skb->len);
 
 	/* check if the packet need to be fragmented */
-	if (skb->len <= ndev->max_pkt_payload_size) {
+	if (skb->len <= ndev->max_data_pkt_payload_size) {
 		/* no need to fragment packet */
 		nci_push_data_hdr(ndev, conn_id, skb, NCI_PBF_LAST);
 

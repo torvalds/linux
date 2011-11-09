@@ -125,7 +125,10 @@ static inline int nci_request(struct nci_dev *ndev,
 
 static void nci_reset_req(struct nci_dev *ndev, unsigned long opt)
 {
-	nci_send_cmd(ndev, NCI_OP_CORE_RESET_CMD, 0, NULL);
+	struct nci_core_reset_cmd cmd;
+
+	cmd.reset_type = NCI_RESET_TYPE_RESET_CONFIG;
+	nci_send_cmd(ndev, NCI_OP_CORE_RESET_CMD, 1, &cmd);
 }
 
 static void nci_init_req(struct nci_dev *ndev, unsigned long opt)
@@ -469,7 +472,7 @@ static int nci_data_exchange(struct nfc_dev *nfc_dev, __u32 target_idx,
 	ndev->data_exchange_cb = cb;
 	ndev->data_exchange_cb_context = cb_context;
 
-	rc = nci_send_data(ndev, ndev->conn_id, skb);
+	rc = nci_send_data(ndev, NCI_STATIC_RF_CONN_ID, skb);
 	if (rc)
 		clear_bit(NCI_DATA_EXCHANGE, &ndev->flags);
 
