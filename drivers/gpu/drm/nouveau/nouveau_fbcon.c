@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/screen_info.h>
 #include <linux/vga_switcheroo.h>
+#include <linux/console.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -548,7 +549,13 @@ void nouveau_fbcon_restore_accel(struct drm_device *dev)
 void nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	console_lock();
+	if (state == 0)
+		nouveau_fbcon_save_disable_accel(dev);
 	fb_set_suspend(dev_priv->nfbdev->helper.fbdev, state);
+	if (state == 1)
+		nouveau_fbcon_restore_accel(dev);
+	console_unlock();
 }
 
 void nouveau_fbcon_zfill_all(struct drm_device *dev)

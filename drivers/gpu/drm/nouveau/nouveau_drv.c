@@ -180,8 +180,8 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 
 	drm_kms_helper_poll_disable(dev);
 
-	NV_INFO(dev, "Disabling fbcon acceleration...\n");
-	nouveau_fbcon_save_disable_accel(dev);
+	NV_INFO(dev, "Disabling fbcon...\n");
+	nouveau_fbcon_set_suspend(dev, 1);
 
 	NV_INFO(dev, "Unpinning framebuffer(s)...\n");
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -248,10 +248,6 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 
-	console_lock();
-	nouveau_fbcon_set_suspend(dev, 1);
-	console_unlock();
-	nouveau_fbcon_restore_accel(dev);
 	return 0;
 
 out_abort:
@@ -276,8 +272,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
-
-	nouveau_fbcon_save_disable_accel(dev);
 
 	NV_INFO(dev, "We're back, enabling device...\n");
 	pci_set_power_state(pdev, PCI_D0);
@@ -360,7 +354,11 @@ nouveau_pci_resume(struct pci_dev *pdev)
 			NV_ERROR(dev, "Could not pin/map cursor.\n");
 	}
 
+	nouveau_fbcon_set_suspend(dev, 0);
+	nouveau_fbcon_zfill_all(dev);
+
 	engine->display.init(dev);
+	drm_kms_helper_poll_enable(dev);
 
 	/* Force CLUT to get re-loaded during modeset */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -368,12 +366,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 
 		nv_crtc->lut.depth = 0;
 	}
-
-	console_lock();
-	nouveau_fbcon_set_suspend(dev, 0);
-	console_unlock();
-
-	nouveau_fbcon_zfill_all(dev);
 
 	drm_helper_resume_force_mode(dev);
 
@@ -386,8 +378,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 						 nv_crtc->cursor_saved_y);
 	}
 
-	nouveau_fbcon_restore_accel(dev);
-	drm_kms_helper_poll_enable(dev);
 	return 0;
 }
 
