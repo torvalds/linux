@@ -8,7 +8,6 @@ enum {
 	ALC882_AUTO,
 	ALC882_3ST_DIG,
 	ALC882_6ST_DIG,
-	ALC882_ARIMA,
 	ALC882_W2JC,
 	ALC882_TARGA,
 	ALC885_MACPRO,
@@ -31,9 +30,6 @@ enum {
 	ALC888_ACER_ASPIRE_6530G,
 	ALC888_ACER_ASPIRE_8930G,
 	ALC888_ACER_ASPIRE_7730G,
-	ALC883_MEDION,
-	ALC883_MEDION_WIM2160,
-	ALC883_LAPTOP_EAPD,
 	ALC888_3ST_HP,
 	ALC888_6ST_DELL,
 	ALC883_CLEVO_M540R,
@@ -1731,13 +1727,6 @@ static const struct hda_channel_mode alc889A_mb31_6ch_modes[4] = {
 	{ 6, alc889A_mb31_ch6_init },
 };
 
-static const struct hda_verb alc883_medion_eapd_verbs[] = {
-        /* eanable EAPD on medion laptop */
-	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
-	{0x20, AC_VERB_SET_PROC_COEF, 0x3070},
-	{ }
-};
-
 #define alc883_base_mixer	alc882_base_mixer
 
 static const struct snd_kcontrol_new alc883_clevo_m720_mixer[] = {
@@ -1910,43 +1899,6 @@ static const struct snd_kcontrol_new alc883_targa_8ch_mixer[] = {
 	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
 	{ } /* end */
 };
-
-static const struct snd_kcontrol_new alc883_medion_wim2160_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_MUTE("Speaker Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1a, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x08, 0x0, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct hda_verb alc883_medion_wim2160_verbs[] = {
-	/* Unmute front mixer */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-
-	/* Set speaker pin to front mixer */
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
-
-	/* Init headphone pin */
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x1a, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-
-	{ } /* end */
-};
-
-/* toggle speaker-output according to the hp-jack state */
-static void alc883_medion_wim2160_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x1a;
-	spec->autocfg.speaker_pins[0] = 0x15;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
 
 static const struct snd_kcontrol_new alc883_acer_aspire_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
@@ -2276,7 +2228,6 @@ static const hda_nid_t alc1200_slave_dig_outs[] = {
 static const char * const alc882_models[ALC882_MODEL_LAST] = {
 	[ALC882_3ST_DIG]	= "3stack-dig",
 	[ALC882_6ST_DIG]	= "6stack-dig",
-	[ALC882_ARIMA]		= "arima",
 	[ALC882_W2JC]		= "w2jc",
 	[ALC882_TARGA]		= "targa",
 	[ALC885_MACPRO]		= "macpro",
@@ -2299,9 +2250,6 @@ static const char * const alc882_models[ALC882_MODEL_LAST] = {
 	[ALC888_ACER_ASPIRE_6530G]	= "acer-aspire-6530g",
 	[ALC888_ACER_ASPIRE_8930G]	= "acer-aspire-8930g",
 	[ALC888_ACER_ASPIRE_7730G]	= "acer-aspire-7730g",
-	[ALC883_MEDION]		= "medion",
-	[ALC883_MEDION_WIM2160]	= "medion-wim2160",
-	[ALC883_LAPTOP_EAPD]	= "laptop-eapd",
 	[ALC888_3ST_HP]		= "3stack-hp",
 	[ALC888_6ST_DELL]	= "6stack-dell",
 	[ALC883_CLEVO_M540R]	= "clevo-m540r",
@@ -2360,7 +2308,6 @@ static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 
 	SND_PCI_QUIRK(0x105b, 0x0ce8, "Foxconn P35AX-S", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x105b, 0x6668, "Foxconn", ALC882_6ST_DIG),
-	SND_PCI_QUIRK(0x1071, 0x8258, "Evesham Voyaeger", ALC883_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x10f1, 0x2350, "TYAN-S2350", ALC888_6ST_DELL),
 	SND_PCI_QUIRK(0x108e, 0x534d, NULL, ALC883_3ST_6ch),
 	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte P35 DS3R", ALC882_6ST_DIG),
@@ -2402,10 +2349,7 @@ static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1558, 0x0721, "Clevo laptop M720R", ALC883_CLEVO_M720),
 	SND_PCI_QUIRK(0x1558, 0x0722, "Clevo laptop M720SR", ALC883_CLEVO_M720),
 	SND_PCI_QUIRK(0x1558, 0x5409, "Clevo laptop M540R", ALC883_CLEVO_M540R),
-	SND_PCI_QUIRK_VENDOR(0x1558, "Clevo laptop", ALC883_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x15d9, 0x8780, "Supermicro PDSBA", ALC883_3ST_6ch),
-	/* SND_PCI_QUIRK(0x161f, 0x2054, "Arima W820", ALC882_ARIMA), */
-	SND_PCI_QUIRK(0x161f, 0x2054, "Medion laptop", ALC883_MEDION),
 	SND_PCI_QUIRK(0x17f2, 0x5000, "Albatron KI690-AM2", ALC883_6ST_DIG),
 
 	SND_PCI_QUIRK(0x8086, 0x0001, "DG33BUC", ALC883_3ST_6ch_INTEL),
@@ -2467,16 +2411,6 @@ static const struct alc_config_preset alc882_presets[] = {
 		.dac_nids = alc882_dac_nids,
 		.dig_out_nid = ALC882_DIGOUT_NID,
 		.dig_in_nid = ALC882_DIGIN_NID,
-		.num_channel_mode = ARRAY_SIZE(alc882_sixstack_modes),
-		.channel_mode = alc882_sixstack_modes,
-		.input_mux = &alc882_capture_source,
-	},
-	[ALC882_ARIMA] = {
-		.mixers = { alc882_base_mixer, alc882_chmode_mixer },
-		.init_verbs = { alc882_base_init_verbs, alc882_adc1_init_verbs,
-				alc882_eapd_verbs },
-		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
-		.dac_nids = alc882_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc882_sixstack_modes),
 		.channel_mode = alc882_sixstack_modes,
 		.input_mux = &alc882_capture_source,
@@ -2872,44 +2806,6 @@ static const struct alc_config_preset alc882_presets[] = {
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc888_acer_aspire_7730g_setup,
 		.init_hook = alc_hp_automute,
-	},
-	[ALC883_MEDION] = {
-		.mixers = { alc883_fivestack_mixer,
-			    alc883_chmode_mixer },
-		.init_verbs = { alc883_init_verbs,
-				alc883_medion_eapd_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.adc_nids = alc883_adc_nids_alt,
-		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids_alt),
-		.capsrc_nids = alc883_capsrc_nids,
-		.num_channel_mode = ARRAY_SIZE(alc883_sixstack_modes),
-		.channel_mode = alc883_sixstack_modes,
-		.input_mux = &alc883_capture_source,
-	},
-	[ALC883_MEDION_WIM2160] = {
-		.mixers = { alc883_medion_wim2160_mixer },
-		.init_verbs = { alc883_init_verbs, alc883_medion_wim2160_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.dig_out_nid = ALC883_DIGOUT_NID,
-		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids),
-		.adc_nids = alc883_adc_nids,
-		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
-		.channel_mode = alc883_3ST_2ch_modes,
-		.input_mux = &alc883_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc883_medion_wim2160_setup,
-		.init_hook = alc_hp_automute,
-	},
-	[ALC883_LAPTOP_EAPD] = {
-		.mixers = { alc883_base_mixer },
-		.init_verbs = { alc883_init_verbs, alc882_eapd_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
-		.channel_mode = alc883_3ST_2ch_modes,
-		.input_mux = &alc883_capture_source,
 	},
 	[ALC883_CLEVO_M540R] = {
 		.mixers = { alc883_3ST_6ch_mixer, alc883_chmode_mixer },
