@@ -36,7 +36,7 @@
 
 struct pending_cmd {
 	struct list_head list;
-	__u16 opcode;
+	u16 opcode;
 	int index;
 	void *param;
 	struct sock *sk;
