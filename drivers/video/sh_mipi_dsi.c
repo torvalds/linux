@@ -317,9 +317,9 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	 * HSA period allowed, no commands in LP
 	 */
 	if (pdata->flags & SH_MIPI_DSI_HSABM)
-		vmctr2 |= 0x20;
+		vmctr2 |= 1 << 5;
 	if (pdata->flags & SH_MIPI_DSI_HBPBM)
-		vmctr2 |= 0x10;
+		vmctr2 |= 1 << 4;
 	iowrite32(vmctr2, mipi->linkbase + VMCTR2);
 
 	/*
