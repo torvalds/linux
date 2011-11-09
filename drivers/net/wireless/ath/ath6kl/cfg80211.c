@@ -565,17 +565,28 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
-static int ath6kl_add_bss_if_needed(struct ath6kl_vif *vif, const u8 *bssid,
+static int ath6kl_add_bss_if_needed(struct ath6kl_vif *vif,
+				    enum network_type nw_type,
+				    const u8 *bssid,
 				    struct ieee80211_channel *chan,
 				    const u8 *beacon_ie, size_t beacon_ie_len)
 {
 	struct ath6kl *ar = vif->ar;
 	struct cfg80211_bss *bss;
+	u16 cap_mask, cap_val;
 	u8 *ie;
 
+	if (nw_type & ADHOC_NETWORK) {
+		cap_mask = WLAN_CAPABILITY_IBSS;
+		cap_val = WLAN_CAPABILITY_IBSS;
+	} else {
+		cap_mask = WLAN_CAPABILITY_ESS;
+		cap_val = WLAN_CAPABILITY_ESS;
+	}
+
 	bss = cfg80211_get_bss(ar->wiphy, chan, bssid,
-			       vif->ssid, vif->ssid_len, WLAN_CAPABILITY_ESS,
-			       WLAN_CAPABILITY_ESS);
+			       vif->ssid, vif->ssid_len,
+			       cap_mask, cap_val);
 	if (bss == NULL) {
 		/*
 		 * Since cfg80211 may not yet know about the BSS,
@@ -593,13 +604,12 @@ static int ath6kl_add_bss_if_needed(struct ath6kl_vif *vif, const u8 *bssid,
 		memcpy(ie + 2, vif->ssid, vif->ssid_len);
 		memcpy(ie + 2 + vif->ssid_len, beacon_ie, beacon_ie_len);
 		bss = cfg80211_inform_bss(ar->wiphy, chan,
-					  bssid, 0, WLAN_CAPABILITY_ESS, 100,
+					  bssid, 0, cap_val, 100,
 					  ie, 2 + vif->ssid_len + beacon_ie_len,
 					  0, GFP_KERNEL);
 		if (bss)
-			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "added dummy bss for "
-				   "%pM prior to indicating connect/roamed "
-				   "event\n", bssid);
+			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "added bss %pM to "
+				   "cfg80211\n", bssid);
 		kfree(ie);
 	} else
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "cfg80211 already has a bss "
@@ -662,16 +672,16 @@ void ath6kl_cfg80211_connect_event(struct ath6kl_vif *vif, u16 channel,
 
 	chan = ieee80211_get_channel(ar->wiphy, (int) channel);
 
-
-	if (nw_type & ADHOC_NETWORK) {
-		cfg80211_ibss_joined(vif->ndev, bssid, GFP_KERNEL);
+	if (ath6kl_add_bss_if_needed(vif, nw_type, bssid, chan, assoc_info,
+				     beacon_ie_len) < 0) {
+		ath6kl_err("could not add cfg80211 bss entry\n");
 		return;
 	}
 
-	if (ath6kl_add_bss_if_needed(vif, bssid, chan, assoc_info,
-				     beacon_ie_len) < 0) {
-		ath6kl_err("could not add cfg80211 bss entry for "
-			   "connect/roamed notification\n");
+	if (nw_type & ADHOC_NETWORK) {
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "ad-hoc %s selected\n",
+			   nw_type & ADHOC_CREATOR ? "creator" : "joiner");
+		cfg80211_ibss_joined(vif->ndev, bssid, GFP_KERNEL);
 		return;
 	}
 
