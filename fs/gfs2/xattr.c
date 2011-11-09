@@ -549,9 +549,10 @@ int gfs2_xattr_acl_get(struct gfs2_inode *ip, const char *name, char **ppdata)
 		goto out;
 
 	error = gfs2_ea_get_copy(ip, &el, data, len);
-	if (error == 0)
-		error = len;
-	*ppdata = data;
+	if (error < 0)
+		kfree(data);
+	else
+		*ppdata = data;
 out:
 	brelse(el.el_bh);
 	return error;
