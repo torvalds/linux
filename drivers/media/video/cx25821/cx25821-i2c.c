@@ -300,7 +300,7 @@ static struct i2c_client cx25821_i2c_client_template = {
 	.name = "cx25821 internal",
 };
 
-/* init + register i2c algo-bit adapter */
+/* init + register i2c adapter */
 int cx25821_i2c_register(struct cx25821_i2c *bus)
 {
 	struct cx25821_dev *dev = bus->dev;

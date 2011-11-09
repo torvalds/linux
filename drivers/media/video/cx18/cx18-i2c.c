@@ -232,7 +232,7 @@ static struct i2c_algo_bit_data cx18_i2c_algo_template = {
 	.timeout	= CX18_ALGO_BIT_TIMEOUT*HZ /* jiffies */
 };
 
-/* init + register i2c algo-bit adapter */
+/* init + register i2c adapter */
 int init_cx18_i2c(struct cx18 *cx)
 {
 	int i, err;
