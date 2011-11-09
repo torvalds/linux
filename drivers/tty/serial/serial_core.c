@@ -61,6 +61,8 @@ static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
 static void uart_wait_until_sent(struct tty_struct *tty, int timeout);
 static void uart_change_pm(struct uart_state *state, int pm_state);
 
+static void uart_port_shutdown(struct tty_port *port);
+
 /*
  * This routine is used by the interrupt handler to schedule processing in
  * the software interrupt portion of the driver.
@@ -228,24 +230,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 		if (!tty || (tty->termios->c_cflag & HUPCL))
 			uart_clear_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
 
-		/*
-		 * clear delta_msr_wait queue to avoid mem leaks: we may free
-		 * the irq here so the queue might never be woken up.  Note
-		 * that we won't end up waiting on delta_msr_wait again since
-		 * any outstanding file descriptors should be pointing at
-		 * hung_up_tty_fops now.
-		 */
-		wake_up_interruptible(&port->delta_msr_wait);
-
-		/*
-		 * Free the IRQ and disable the port.
-		 */
-		uport->ops->shutdown(uport);
-
-		/*
-		 * Ensure that the IRQ handler isn't running on another CPU.
-		 */
-		synchronize_irq(uport->irq);
+		uart_port_shutdown(port);
 	}
 
 	/*
@@ -1411,6 +1396,27 @@ static int uart_port_activate(struct tty_port *port, struct tty_struct *tty)
 
 static void uart_port_shutdown(struct tty_port *port)
 {
+	struct uart_state *state = container_of(port, struct uart_state, port);
+	struct uart_port *uport = state->uart_port;
+
+	/*
+	 * clear delta_msr_wait queue to avoid mem leaks: we may free
+	 * the irq here so the queue might never be woken up.  Note
+	 * that we won't end up waiting on delta_msr_wait again since
+	 * any outstanding file descriptors should be pointing at
+	 * hung_up_tty_fops now.
+	 */
+	wake_up_interruptible(&port->delta_msr_wait);
+
+	/*
+	 * Free the IRQ and disable the port.
+	 */
+	uport->ops->shutdown(uport);
+
+	/*
+	 * Ensure that the IRQ handler isn't running on another CPU.
+	 */
+	synchronize_irq(uport->irq);
 }
 
 static int uart_carrier_raised(struct tty_port *port)
