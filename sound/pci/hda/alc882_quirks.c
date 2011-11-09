@@ -52,7 +52,6 @@ enum {
 	ALC889A_INTEL,
 	ALC889_INTEL,
 	ALC888_ASUS_M90V,
-	ALC888_ASUS_EEE1601,
 	ALC889A_MB31,
 	ALC882_MODEL_LAST,
 };
@@ -622,14 +621,6 @@ static const struct hda_input_mux alc883_lenovo_sky_capture_source = {
 		{ "Mic", 0x0 },
 		{ "Front Mic", 0x1 },
 		{ "Line", 0x4 },
-	},
-};
-
-static const struct hda_input_mux alc883_asus_eee1601_capture_source = {
-	.num_items = 2,
-	.items = {
-		{ "Mic", 0x0 },
-		{ "Line", 0x2 },
 	},
 };
 
@@ -2271,33 +2262,6 @@ static const struct hda_bind_ctls alc883_bind_cap_switch = {
 	},
 };
 
-static const struct snd_kcontrol_new alc883_asus_eee1601_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct snd_kcontrol_new alc883_asus_eee1601_cap_mixer[] = {
-	HDA_BIND_VOL("Capture Volume", &alc883_bind_cap_vol),
-	HDA_BIND_SW("Capture Switch", &alc883_bind_cap_switch),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 1,
-		.info = alc_mux_enum_info,
-		.get = alc_mux_enum_get,
-		.put = alc_mux_enum_put,
-	},
-	{ } /* end */
-};
-
 static const struct snd_kcontrol_new alc883_chmode_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -2683,28 +2647,6 @@ static void alc883_mode2_setup(struct hda_codec *codec)
 	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
 }
 
-static const struct hda_verb alc888_asus_eee1601_verbs[] = {
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x20, AC_VERB_SET_COEF_INDEX, 0x0b},
-	{0x20, AC_VERB_SET_PROC_COEF,  0x0838},
-	/* enable unsolicited event */
-	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	{ } /* end */
-};
-
-static void alc883_eee1601_inithook(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[0] = 0x1b;
-	alc_hp_automute(codec);
-}
-
 static const struct hda_verb alc889A_mb31_verbs[] = {
 	/* Init rear pin (used as headphone output) */
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc4},    /* Apple Headphones */
@@ -2849,7 +2791,6 @@ static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x81d8, "Asus P5WD", ALC882_6ST_DIG),
 	SND_PCI_QUIRK(0x1043, 0x8249, "Asus M2A-VM HDMI", ALC883_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x1043, 0x8284, "Asus Z37E", ALC883_6ST_DIG),
-	SND_PCI_QUIRK(0x1043, 0x835f, "Asus Eee 1601", ALC888_ASUS_EEE1601),
 
 	SND_PCI_QUIRK(0x105b, 0x0ce8, "Foxconn P35AX-S", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x105b, 0x6668, "Foxconn", ALC882_6ST_DIG),
@@ -3630,21 +3571,6 @@ static const struct alc_config_preset alc882_presets[] = {
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc883_mode2_setup,
 		.init_hook = alc_inithook,
-	},
-	[ALC888_ASUS_EEE1601] = {
-		.mixers = { alc883_asus_eee1601_mixer },
-		.cap_mixer = alc883_asus_eee1601_cap_mixer,
-		.init_verbs = { alc883_init_verbs, alc888_asus_eee1601_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.dig_out_nid = ALC883_DIGOUT_NID,
-		.dig_in_nid = ALC883_DIGIN_NID,
-		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
-		.channel_mode = alc883_3ST_2ch_modes,
-		.need_dac_fix = 1,
-		.input_mux = &alc883_asus_eee1601_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.init_hook = alc883_eee1601_inithook,
 	},
 	[ALC889A_MB31] = {
 		.mixers = { alc889A_mb31_mixer, alc883_chmode_mixer},
