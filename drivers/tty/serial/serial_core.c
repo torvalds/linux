@@ -141,8 +141,7 @@ static int uart_startup(struct tty_struct *tty, struct uart_state *state, int in
 
 	/*
 	 * Set the TTY IO error marker - we will only clear this
-	 * once we have successfully opened the port.  Also set
-	 * up the tty->alt_speed kludge
+	 * once we have successfully opened the port.
 	 */
 	set_bit(TTY_IO_ERROR, &tty->flags);
 
@@ -1499,7 +1498,6 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	tty->driver_data = state;
 	state->uart_port->state = state;
 	tty->low_latency = (state->uart_port->flags & UPF_LOW_LATENCY) ? 1 : 0;
-	tty->alt_speed = 0;
 	tty_port_tty_set(port, tty);
 
 	/*
