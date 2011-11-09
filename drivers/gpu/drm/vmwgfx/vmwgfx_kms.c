@@ -105,6 +105,10 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	struct vmw_dma_buffer *dmabuf = NULL;
 	int ret;
 
+	/* A lot of the code assumes this */
+	if (handle && (width != 64 || height != 64))
+		return -EINVAL;
+
 	if (handle) {
 		ret = vmw_user_surface_lookup_handle(dev_priv, tfile,
 						     handle, &surface);
