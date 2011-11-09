@@ -1916,27 +1916,20 @@ retry_open:
 
 	tty = tty_open_current_tty(device, filp);
 	if (IS_ERR(tty)) {
-		tty_unlock();
-		mutex_unlock(&tty_mutex);
-		tty_free_file(filp);
-		return PTR_ERR(tty);
+		retval = PTR_ERR(tty);
+		goto err_unlock;
 	} else if (!tty) {
 		driver = tty_lookup_driver(device, filp, &noctty, &index);
 		if (IS_ERR(driver)) {
-			tty_unlock();
-			mutex_unlock(&tty_mutex);
-			tty_free_file(filp);
-			return PTR_ERR(driver);
+			retval = PTR_ERR(driver);
+			goto err_unlock;
 		}
 
 		/* check whether we're reopening an existing tty */
 		tty = tty_driver_lookup_tty(driver, inode, index);
 		if (IS_ERR(tty)) {
-			tty_unlock();
-			mutex_unlock(&tty_mutex);
-			tty_driver_kref_put(driver);
-			tty_free_file(filp);
-			return PTR_ERR(tty);
+			retval = PTR_ERR(tty);
+			goto err_unlock;
 		}
 	}
 
@@ -1952,8 +1945,8 @@ retry_open:
 		tty_driver_kref_put(driver);
 	if (IS_ERR(tty)) {
 		tty_unlock();
-		tty_free_file(filp);
-		return PTR_ERR(tty);
+		retval = PTR_ERR(tty);
+		goto err_file;
 	}
 
 	tty_add_file(tty, filp);
@@ -2013,6 +2006,15 @@ retry_open:
 	tty_unlock();
 	mutex_unlock(&tty_mutex);
 	return 0;
+err_unlock:
+	tty_unlock();
+	mutex_unlock(&tty_mutex);
+	/* after locks to avoid deadlock */
+	if (!IS_ERR_OR_NULL(driver))
+		tty_driver_kref_put(driver);
+err_file:
+	tty_free_file(filp);
+	return retval;
 }
 
 
