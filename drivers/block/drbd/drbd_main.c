@@ -2082,7 +2082,6 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 
 	spin_lock_init(&mdev->al_lock);
 	spin_lock_init(&mdev->peer_seq_lock);
-	spin_lock_init(&mdev->epoch_lock);
 
 	INIT_LIST_HEAD(&mdev->active_ee);
 	INIT_LIST_HEAD(&mdev->sync_ee);
@@ -2142,9 +2141,6 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 		dev_err(DEV, "ASSERT FAILED: receiver t_state == %d expected 0.\n",
 				mdev->tconn->receiver.t_state);
 
-	/* no need to lock it, I'm the only thread alive */
-	if (atomic_read(&mdev->current_epoch->epoch_size) !=  0)
-		dev_err(DEV, "epoch_size:%d\n", atomic_read(&mdev->current_epoch->epoch_size));
 	mdev->al_writ_cnt  =
 	mdev->bm_writ_cnt  =
 	mdev->read_cnt     =
@@ -2377,7 +2373,6 @@ void drbd_minor_destroy(struct kref *kref)
 	kfree(mdev->p_uuid);
 	/* mdev->p_uuid = NULL; */
 
-	kfree(mdev->current_epoch);
 	if (mdev->bitmap) /* should no longer be there. */
 		drbd_bm_cleanup(mdev);
 	__free_page(mdev->md_io_page);
@@ -2624,6 +2619,12 @@ struct drbd_tconn *conn_create(const char *name, struct res_opts *res_opts)
 	if (!tl_init(tconn))
 		goto fail;
 
+	tconn->current_epoch = kzalloc(sizeof(struct drbd_epoch), GFP_KERNEL);
+	if (!tconn->current_epoch)
+		goto fail;
+	INIT_LIST_HEAD(&tconn->current_epoch->list);
+	tconn->epochs = 1;
+	spin_lock_init(&tconn->epoch_lock);
 	tconn->write_ordering = WO_bdev_flush;
 
 	tconn->cstate = C_STANDALONE;
@@ -2649,6 +2650,7 @@ struct drbd_tconn *conn_create(const char *name, struct res_opts *res_opts)
 	return tconn;
 
 fail:
+	kfree(tconn->current_epoch);
 	tl_cleanup(tconn);
 	free_cpumask_var(tconn->cpu_mask);
 	drbd_free_socket(&tconn->meta);
@@ -2662,6 +2664,10 @@ fail:
 void conn_destroy(struct kref *kref)
 {
 	struct drbd_tconn *tconn = container_of(kref, struct drbd_tconn, kref);
+
+	if (atomic_read(&tconn->current_epoch->epoch_size) !=  0)
+		conn_err(tconn, "epoch_size:%d\n", atomic_read(&tconn->current_epoch->epoch_size));
+	kfree(tconn->current_epoch);
 
 	idr_destroy(&tconn->volumes);
 
@@ -2744,13 +2750,6 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, 
 	mdev->read_requests = RB_ROOT;
 	mdev->write_requests = RB_ROOT;
 
-	mdev->current_epoch = kzalloc(sizeof(struct drbd_epoch), GFP_KERNEL);
-	if (!mdev->current_epoch)
-		goto out_no_epoch;
-
-	INIT_LIST_HEAD(&mdev->current_epoch->list);
-	mdev->epochs = 1;
-
 	if (!idr_pre_get(&minors, GFP_KERNEL))
 		goto out_no_minor_idr;
 	if (idr_get_new_above(&minors, mdev, minor, &minor_got))
@@ -2786,8 +2785,6 @@ out_idr_remove_minor:
 	idr_remove(&minors, minor_got);
 	synchronize_rcu();
 out_no_minor_idr:
-	kfree(mdev->current_epoch);
-out_no_epoch:
 	drbd_bm_cleanup(mdev);
 out_no_bitmap:
 	__free_page(mdev->md_io_page);

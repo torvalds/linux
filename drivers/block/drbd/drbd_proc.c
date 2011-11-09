@@ -271,7 +271,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			   atomic_read(&mdev->rs_pending_cnt),
 			   atomic_read(&mdev->unacked_cnt),
 			   atomic_read(&mdev->ap_bio_cnt),
-			   mdev->epochs,
+			   mdev->tconn->epochs,
 			   write_ordering_chars[mdev->tconn->write_ordering]
 			);
 			seq_printf(seq, " oos:%llu\n",

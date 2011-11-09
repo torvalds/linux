@@ -1128,8 +1128,9 @@ static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *mdev,
 	int epoch_size;
 	struct drbd_epoch *next_epoch;
 	enum finish_epoch rv = FE_STILL_LIVE;
+	struct drbd_tconn *tconn = mdev->tconn;
 
-	spin_lock(&mdev->epoch_lock);
+	spin_lock(&tconn->epoch_lock);
 	do {
 		next_epoch = NULL;
 
@@ -1151,18 +1152,18 @@ static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *mdev,
 		    atomic_read(&epoch->active) == 0 &&
 		    (test_bit(DE_HAVE_BARRIER_NUMBER, &epoch->flags) || ev & EV_CLEANUP)) {
 			if (!(ev & EV_CLEANUP)) {
-				spin_unlock(&mdev->epoch_lock);
+				spin_unlock(&tconn->epoch_lock);
 				drbd_send_b_ack(epoch->mdev, epoch->barrier_nr, epoch_size);
-				spin_lock(&mdev->epoch_lock);
+				spin_lock(&tconn->epoch_lock);
 			}
 			if (test_bit(DE_HAVE_BARRIER_NUMBER, &epoch->flags))
 				dec_unacked(epoch->mdev);
 
-			if (mdev->current_epoch != epoch) {
+			if (tconn->current_epoch != epoch) {
 				next_epoch = list_entry(epoch->list.next, struct drbd_epoch, list);
 				list_del(&epoch->list);
 				ev = EV_BECAME_LAST | (ev & EV_CLEANUP);
-				mdev->epochs--;
+				tconn->epochs--;
 				kfree(epoch);
 
 				if (rv == FE_STILL_LIVE)
@@ -1183,7 +1184,7 @@ static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *mdev,
 		epoch = next_epoch;
 	} while (1);
 
-	spin_unlock(&mdev->epoch_lock);
+	spin_unlock(&tconn->epoch_lock);
 
 	return rv;
 }
@@ -1348,9 +1349,9 @@ static int receive_Barrier(struct drbd_tconn *tconn, struct packet_info *pi)
 
 	inc_unacked(mdev);
 
-	mdev->current_epoch->barrier_nr = p->barrier;
-	mdev->current_epoch->mdev = mdev;
-	rv = drbd_may_finish_epoch(mdev, mdev->current_epoch, EV_GOT_BARRIER_NR);
+	tconn->current_epoch->barrier_nr = p->barrier;
+	tconn->current_epoch->mdev = mdev;
+	rv = drbd_may_finish_epoch(mdev, tconn->current_epoch, EV_GOT_BARRIER_NR);
 
 	/* P_BARRIER_ACK may imply that the corresponding extent is dropped from
 	 * the activity log, which means it would not be resynced in case the
@@ -1376,13 +1377,13 @@ static int receive_Barrier(struct drbd_tconn *tconn, struct packet_info *pi)
 		drbd_wait_ee_list_empty(mdev, &mdev->active_ee);
 		drbd_flush(tconn);
 
-		if (atomic_read(&mdev->current_epoch->epoch_size)) {
+		if (atomic_read(&tconn->current_epoch->epoch_size)) {
 			epoch = kmalloc(sizeof(struct drbd_epoch), GFP_NOIO);
 			if (epoch)
 				break;
 		}
 
-		epoch = mdev->current_epoch;
+		epoch = tconn->current_epoch;
 		wait_event(mdev->ee_wait, atomic_read(&epoch->epoch_size) == 0);
 
 		D_ASSERT(atomic_read(&epoch->active) == 0);
@@ -1398,16 +1399,16 @@ static int receive_Barrier(struct drbd_tconn *tconn, struct packet_info *pi)
 	atomic_set(&epoch->epoch_size, 0);
 	atomic_set(&epoch->active, 0);
 
-	spin_lock(&mdev->epoch_lock);
-	if (atomic_read(&mdev->current_epoch->epoch_size)) {
-		list_add(&epoch->list, &mdev->current_epoch->list);
-		mdev->current_epoch = epoch;
-		mdev->epochs++;
+	spin_lock(&tconn->epoch_lock);
+	if (atomic_read(&tconn->current_epoch->epoch_size)) {
+		list_add(&epoch->list, &tconn->current_epoch->list);
+		tconn->current_epoch = epoch;
+		tconn->epochs++;
 	} else {
 		/* The current_epoch got recycled while we allocated this one... */
 		kfree(epoch);
 	}
-	spin_unlock(&mdev->epoch_lock);
+	spin_unlock(&tconn->epoch_lock);
 
 	return 0;
 }
@@ -2103,7 +2104,7 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 
 		err = wait_for_and_update_peer_seq(mdev, peer_seq);
 		drbd_send_ack_dp(mdev, P_NEG_ACK, p, pi->size);
-		atomic_inc(&mdev->current_epoch->epoch_size);
+		atomic_inc(&tconn->current_epoch->epoch_size);
 		err2 = drbd_drain_block(mdev, pi->size);
 		if (!err)
 			err = err2;
@@ -2131,11 +2132,11 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 	if (dp_flags & DP_MAY_SET_IN_SYNC)
 		peer_req->flags |= EE_MAY_SET_IN_SYNC;
 
-	spin_lock(&mdev->epoch_lock);
-	peer_req->epoch = mdev->current_epoch;
+	spin_lock(&tconn->epoch_lock);
+	peer_req->epoch = tconn->current_epoch;
 	atomic_inc(&peer_req->epoch->epoch_size);
 	atomic_inc(&peer_req->epoch->active);
-	spin_unlock(&mdev->epoch_lock);
+	spin_unlock(&tconn->epoch_lock);
 
 	rcu_read_lock();
 	tp = rcu_dereference(mdev->tconn->net_conf)->two_primaries;
@@ -4359,6 +4360,11 @@ static void conn_disconnect(struct drbd_tconn *tconn)
 	}
 	rcu_read_unlock();
 
+	if (!list_empty(&tconn->current_epoch->list))
+		conn_err(tconn, "ASSERTION FAILED: tconn->current_epoch->list not empty\n");
+	/* ok, no more ee's on the fly, it is safe to reset the epoch_size */
+	atomic_set(&tconn->current_epoch->epoch_size, 0);
+
 	conn_info(tconn, "Connection closed\n");
 
 	if (conn_highest_role(tconn) == R_PRIMARY && conn_highest_pdsk(tconn) >= D_UNKNOWN)
@@ -4445,10 +4451,6 @@ static int drbd_disconnected(struct drbd_conf *mdev)
 	D_ASSERT(list_empty(&mdev->active_ee));
 	D_ASSERT(list_empty(&mdev->sync_ee));
 	D_ASSERT(list_empty(&mdev->done_ee));
-
-	/* ok, no more ee's on the fly, it is safe to reset the epoch_size */
-	atomic_set(&mdev->current_epoch->epoch_size, 0);
-	D_ASSERT(list_empty(&mdev->current_epoch->list));
 
 	return 0;
 }
