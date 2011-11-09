@@ -746,7 +746,7 @@ int w_start_resync(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	}
 
 	drbd_start_resync(mdev, C_SYNC_SOURCE);
-	clear_bit(AHEAD_TO_SYNC_SOURCE, &mdev->current_epoch->flags);
+	clear_bit(AHEAD_TO_SYNC_SOURCE, &mdev->flags);
 	return 1;
 }
 
