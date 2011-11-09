@@ -501,7 +501,7 @@ static bool radeon_sync_obj_signaled(void *sync_obj, void *sync_arg)
  * TTM backend functions.
  */
 struct radeon_ttm_tt {
-	struct ttm_tt			ttm;
+	struct ttm_dma_tt		ttm;
 	struct radeon_device		*rdev;
 	u64				offset;
 };
@@ -509,17 +509,16 @@ struct radeon_ttm_tt {
 static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
 				   struct ttm_mem_reg *bo_mem)
 {
-	struct radeon_ttm_tt *gtt;
+	struct radeon_ttm_tt *gtt = (void*)ttm;
 	int r;
 
-	gtt = container_of(ttm, struct radeon_ttm_tt, ttm);
 	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
 	if (!ttm->num_pages) {
 		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
 	}
 	r = radeon_gart_bind(gtt->rdev, gtt->offset,
-			     ttm->num_pages, ttm->pages, ttm->dma_address);
+			     ttm->num_pages, ttm->pages, gtt->ttm.dma_address);
 	if (r) {
 		DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
 			  ttm->num_pages, (unsigned)gtt->offset);
@@ -530,18 +529,17 @@ static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
 
 static int radeon_ttm_backend_unbind(struct ttm_tt *ttm)
 {
-	struct radeon_ttm_tt *gtt;
+	struct radeon_ttm_tt *gtt = (void *)ttm;
 
-	gtt = container_of(ttm, struct radeon_ttm_tt, ttm);
 	radeon_gart_unbind(gtt->rdev, gtt->offset, ttm->num_pages);
 	return 0;
 }
 
 static void radeon_ttm_backend_destroy(struct ttm_tt *ttm)
 {
-	struct radeon_ttm_tt *gtt;
+	struct radeon_ttm_tt *gtt = (void *)ttm;
 
-	gtt = container_of(ttm, struct radeon_ttm_tt, ttm);
+	ttm_dma_tt_fini(&gtt->ttm);
 	kfree(gtt);
 }
 
@@ -570,17 +568,19 @@ struct ttm_tt *radeon_ttm_tt_create(struct ttm_bo_device *bdev,
 	if (gtt == NULL) {
 		return NULL;
 	}
-	gtt->ttm.func = &radeon_backend_func;
+	gtt->ttm.ttm.func = &radeon_backend_func;
 	gtt->rdev = rdev;
-	if (ttm_tt_init(&gtt->ttm, bdev, size, page_flags, dummy_read_page)) {
+	if (ttm_dma_tt_init(&gtt->ttm, bdev, size, page_flags, dummy_read_page)) {
+		kfree(gtt);
 		return NULL;
 	}
-	return &gtt->ttm;
+	return &gtt->ttm.ttm;
 }
 
 static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
 {
 	struct radeon_device *rdev;
+	struct radeon_ttm_tt *gtt = (void *)ttm;
 	unsigned i;
 	int r;
 
@@ -591,7 +591,7 @@ static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
 
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl()) {
-		return ttm_dma_populate(ttm, rdev->dev);
+		return ttm_dma_populate(&gtt->ttm, rdev->dev);
 	}
 #endif
 
@@ -601,14 +601,14 @@ static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
 	}
 
 	for (i = 0; i < ttm->num_pages; i++) {
-		ttm->dma_address[i] = pci_map_page(rdev->pdev, ttm->pages[i],
-						   0, PAGE_SIZE,
-						   PCI_DMA_BIDIRECTIONAL);
-		if (pci_dma_mapping_error(rdev->pdev, ttm->dma_address[i])) {
+		gtt->ttm.dma_address[i] = pci_map_page(rdev->pdev, ttm->pages[i],
+						       0, PAGE_SIZE,
+						       PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(rdev->pdev, gtt->ttm.dma_address[i])) {
 			while (--i) {
-				pci_unmap_page(rdev->pdev, ttm->dma_address[i],
+				pci_unmap_page(rdev->pdev, gtt->ttm.dma_address[i],
 					       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-				ttm->dma_address[i] = 0;
+				gtt->ttm.dma_address[i] = 0;
 			}
 			ttm_pool_unpopulate(ttm);
 			return -EFAULT;
@@ -620,20 +620,21 @@ static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
 static void radeon_ttm_tt_unpopulate(struct ttm_tt *ttm)
 {
 	struct radeon_device *rdev;
+	struct radeon_ttm_tt *gtt = (void *)ttm;
 	unsigned i;
 
 	rdev = radeon_get_rdev(ttm->bdev);
 
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl()) {
-		ttm_dma_unpopulate(ttm, rdev->dev);
+		ttm_dma_unpopulate(&gtt->ttm, rdev->dev);
 		return;
 	}
 #endif
 
 	for (i = 0; i < ttm->num_pages; i++) {
-		if (ttm->dma_address[i]) {
-			pci_unmap_page(rdev->pdev, ttm->dma_address[i],
+		if (gtt->ttm.dma_address[i]) {
+			pci_unmap_page(rdev->pdev, gtt->ttm.dma_address[i],
 				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 		}
 	}

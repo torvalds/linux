@@ -103,8 +103,6 @@ enum ttm_caching_state {
  * @swap_storage: Pointer to shmem struct file for swap storage.
  * @caching_state: The current caching state of the pages.
  * @state: The current binding state of the pages.
- * @dma_address: The DMA (bus) addresses of the pages (if TTM_PAGE_FLAG_DMA32)
- * @alloc_list: used by some page allocation backend
  *
  * This is a structure holding the pages, caching- and aperture binding
  * status for a buffer object that isn't backed by fixed (VRAM / AGP)
@@ -127,8 +125,23 @@ struct ttm_tt {
 		tt_unbound,
 		tt_unpopulated,
 	} state;
+};
+
+/**
+ * struct ttm_dma_tt
+ *
+ * @ttm: Base ttm_tt struct.
+ * @dma_address: The DMA (bus) addresses of the pages
+ * @pages_list: used by some page allocation backend
+ *
+ * This is a structure holding the pages, caching- and aperture binding
+ * status for a buffer object that isn't backed by fixed (VRAM / AGP)
+ * memory.
+ */
+struct ttm_dma_tt {
+	struct ttm_tt ttm;
 	dma_addr_t *dma_address;
-	struct list_head alloc_list;
+	struct list_head pages_list;
 };
 
 #define TTM_MEMTYPE_FLAG_FIXED         (1 << 0)	/* Fixed (on-card) PCI memory */
@@ -595,6 +608,19 @@ ttm_flag_masked(uint32_t *old, uint32_t new, uint32_t mask)
 extern int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
 			unsigned long size, uint32_t page_flags,
 			struct page *dummy_read_page);
+extern int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
+			   unsigned long size, uint32_t page_flags,
+			   struct page *dummy_read_page);
+
+/**
+ * ttm_tt_fini
+ *
+ * @ttm: the ttm_tt structure.
+ *
+ * Free memory of ttm_tt structure
+ */
+extern void ttm_tt_fini(struct ttm_tt *ttm);
+extern void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma);
 
 /**
  * ttm_ttm_bind:

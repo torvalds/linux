@@ -789,7 +789,7 @@ out:
 
 /*
  * @return count of pages still required to fulfill the request.
-*/
+ */
 static int ttm_dma_page_pool_fill_locked(struct dma_pool *pool,
 					 unsigned long *irq_flags)
 {
@@ -838,10 +838,11 @@ static int ttm_dma_page_pool_fill_locked(struct dma_pool *pool,
  * allocates one page at a time.
  */
 static int ttm_dma_pool_get_pages(struct dma_pool *pool,
-				  struct ttm_tt *ttm,
+				  struct ttm_dma_tt *ttm_dma,
 				  unsigned index)
 {
 	struct dma_page *d_page;
+	struct ttm_tt *ttm = &ttm_dma->ttm;
 	unsigned long irq_flags;
 	int count, r = -ENOMEM;
 
@@ -850,8 +851,8 @@ static int ttm_dma_pool_get_pages(struct dma_pool *pool,
 	if (count) {
 		d_page = list_first_entry(&pool->free_list, struct dma_page, page_list);
 		ttm->pages[index] = d_page->p;
-		ttm->dma_address[index] = d_page->dma;
-		list_move_tail(&d_page->page_list, &ttm->alloc_list);
+		ttm_dma->dma_address[index] = d_page->dma;
+		list_move_tail(&d_page->page_list, &ttm_dma->pages_list);
 		r = 0;
 		pool->npages_in_use += 1;
 		pool->npages_free -= 1;
@@ -864,8 +865,9 @@ static int ttm_dma_pool_get_pages(struct dma_pool *pool,
  * On success pages list will hold count number of correctly
  * cached pages. On failure will hold the negative return value (-ENOMEM, etc).
  */
-int ttm_dma_populate(struct ttm_tt *ttm, struct device *dev)
+int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 {
+	struct ttm_tt *ttm = &ttm_dma->ttm;
 	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
 	struct dma_pool *pool;
 	enum pool_type type;
@@ -892,18 +894,18 @@ int ttm_dma_populate(struct ttm_tt *ttm, struct device *dev)
 		}
 	}
 
-	INIT_LIST_HEAD(&ttm->alloc_list);
+	INIT_LIST_HEAD(&ttm_dma->pages_list);
 	for (i = 0; i < ttm->num_pages; ++i) {
-		ret = ttm_dma_pool_get_pages(pool, ttm, i);
+		ret = ttm_dma_pool_get_pages(pool, ttm_dma, i);
 		if (ret != 0) {
-			ttm_dma_unpopulate(ttm, dev);
+			ttm_dma_unpopulate(ttm_dma, dev);
 			return -ENOMEM;
 		}
 
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
 						false, false);
 		if (unlikely(ret != 0)) {
-			ttm_dma_unpopulate(ttm, dev);
+			ttm_dma_unpopulate(ttm_dma, dev);
 			return -ENOMEM;
 		}
 	}
@@ -911,7 +913,7 @@ int ttm_dma_populate(struct ttm_tt *ttm, struct device *dev)
 	if (unlikely(ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)) {
 		ret = ttm_tt_swapin(ttm);
 		if (unlikely(ret != 0)) {
-			ttm_dma_unpopulate(ttm, dev);
+			ttm_dma_unpopulate(ttm_dma, dev);
 			return ret;
 		}
 	}
@@ -937,8 +939,9 @@ static int ttm_dma_pool_get_num_unused_pages(void)
 }
 
 /* Put all pages in pages list to correct pool to wait for reuse */
-void ttm_dma_unpopulate(struct ttm_tt *ttm, struct device *dev)
+void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 {
+	struct ttm_tt *ttm = &ttm_dma->ttm;
 	struct dma_pool *pool;
 	struct dma_page *d_page, *next;
 	enum pool_type type;
@@ -956,7 +959,7 @@ void ttm_dma_unpopulate(struct ttm_tt *ttm, struct device *dev)
 		     ttm_to_type(ttm->page_flags, tt_cached)) == pool);
 
 	/* make sure pages array match list and count number of pages */
-	list_for_each_entry(d_page, &ttm->alloc_list, page_list) {
+	list_for_each_entry(d_page, &ttm_dma->pages_list, page_list) {
 		ttm->pages[count] = d_page->p;
 		count++;
 	}
@@ -967,7 +970,7 @@ void ttm_dma_unpopulate(struct ttm_tt *ttm, struct device *dev)
 		pool->nfrees += count;
 	} else {
 		pool->npages_free += count;
-		list_splice(&ttm->alloc_list, &pool->free_list);
+		list_splice(&ttm_dma->pages_list, &pool->free_list);
 		if (pool->npages_free > _manager->options.max_size) {
 			count = pool->npages_free - _manager->options.max_size;
 		}
@@ -975,7 +978,7 @@ void ttm_dma_unpopulate(struct ttm_tt *ttm, struct device *dev)
 	spin_unlock_irqrestore(&pool->lock, irq_flags);
 
 	if (is_cached) {
-		list_for_each_entry_safe(d_page, next, &ttm->alloc_list, page_list) {
+		list_for_each_entry_safe(d_page, next, &ttm_dma->pages_list, page_list) {
 			ttm_mem_global_free_page(ttm->glob->mem_glob,
 						 d_page->p);
 			ttm_dma_page_put(pool, d_page);
@@ -987,10 +990,10 @@ void ttm_dma_unpopulate(struct ttm_tt *ttm, struct device *dev)
 		}
 	}
 
-	INIT_LIST_HEAD(&ttm->alloc_list);
+	INIT_LIST_HEAD(&ttm_dma->pages_list);
 	for (i = 0; i < ttm->num_pages; i++) {
 		ttm->pages[i] = NULL;
-		ttm->dma_address[i] = 0;
+		ttm_dma->dma_address[i] = 0;
 	}
 
 	/* shrink pool if necessary */

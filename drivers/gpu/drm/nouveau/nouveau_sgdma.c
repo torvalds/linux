@@ -8,7 +8,10 @@
 #define NV_CTXDMA_PAGE_MASK  (NV_CTXDMA_PAGE_SIZE - 1)
 
 struct nouveau_sgdma_be {
-	struct ttm_tt ttm;
+	/* this has to be the first field so populate/unpopulated in
+	 * nouve_bo.c works properly, otherwise have to move them here
+	 */
+	struct ttm_dma_tt ttm;
 	struct drm_device *dev;
 	u64 offset;
 };
@@ -20,6 +23,7 @@ nouveau_sgdma_destroy(struct ttm_tt *ttm)
 
 	if (ttm) {
 		NV_DEBUG(nvbe->dev, "\n");
+		ttm_dma_tt_fini(&nvbe->ttm);
 		kfree(nvbe);
 	}
 }
@@ -38,7 +42,7 @@ nv04_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *mem)
 	nvbe->offset = mem->start << PAGE_SHIFT;
 	pte = (nvbe->offset >> NV_CTXDMA_PAGE_SHIFT) + 2;
 	for (i = 0; i < ttm->num_pages; i++) {
-		dma_addr_t dma_offset = ttm->dma_address[i];
+		dma_addr_t dma_offset = nvbe->ttm.dma_address[i];
 		uint32_t offset_l = lower_32_bits(dma_offset);
 
 		for (j = 0; j < PAGE_SIZE / NV_CTXDMA_PAGE_SIZE; j++, pte++) {
@@ -97,7 +101,7 @@ nv41_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *mem)
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
 	struct drm_nouveau_private *dev_priv = nvbe->dev->dev_private;
 	struct nouveau_gpuobj *pgt = dev_priv->gart_info.sg_ctxdma;
-	dma_addr_t *list = ttm->dma_address;
+	dma_addr_t *list = nvbe->ttm.dma_address;
 	u32 pte = mem->start << 2;
 	u32 cnt = ttm->num_pages;
 
@@ -206,7 +210,7 @@ nv44_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *mem)
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
 	struct drm_nouveau_private *dev_priv = nvbe->dev->dev_private;
 	struct nouveau_gpuobj *pgt = dev_priv->gart_info.sg_ctxdma;
-	dma_addr_t *list = ttm->dma_address;
+	dma_addr_t *list = nvbe->ttm.dma_address;
 	u32 pte = mem->start << 2, tmp[4];
 	u32 cnt = ttm->num_pages;
 	int i;
@@ -282,10 +286,11 @@ static struct ttm_backend_func nv44_sgdma_backend = {
 static int
 nv50_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *mem)
 {
+	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
 	struct nouveau_mem *node = mem->mm_node;
 
 	/* noop: bound in move_notify() */
-	node->pages = ttm->dma_address;
+	node->pages = nvbe->ttm.dma_address;
 	return 0;
 }
 
@@ -316,12 +321,13 @@ nouveau_sgdma_create_ttm(struct ttm_bo_device *bdev,
 		return NULL;
 
 	nvbe->dev = dev;
-	nvbe->ttm.func = dev_priv->gart_info.func;
+	nvbe->ttm.ttm.func = dev_priv->gart_info.func;
 
-	if (ttm_tt_init(&nvbe->ttm, bdev, size, page_flags, dummy_read_page)) {
+	if (ttm_dma_tt_init(&nvbe->ttm, bdev, size, page_flags, dummy_read_page)) {
+		kfree(nvbe);
 		return NULL;
 	}
-	return &nvbe->ttm;
+	return &nvbe->ttm.ttm;
 }
 
 int

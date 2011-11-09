@@ -168,6 +168,7 @@ static void vmw_ttm_destroy(struct ttm_tt *ttm)
 {
 	struct vmw_ttm_tt *vmw_be = container_of(ttm, struct vmw_ttm_tt, ttm);
 
+	ttm_tt_fini(ttm);
 	kfree(vmw_be);
 }
 
@@ -191,6 +192,7 @@ struct ttm_tt *vmw_ttm_tt_create(struct ttm_bo_device *bdev,
 	vmw_be->dev_priv = container_of(bdev, struct vmw_private, bdev);
 
 	if (ttm_tt_init(&vmw_be->ttm, bdev, size, page_flags, dummy_read_page)) {
+		kfree(vmw_be);
 		return NULL;
 	}
 
