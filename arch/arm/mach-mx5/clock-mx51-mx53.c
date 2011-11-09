@@ -1634,6 +1634,7 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc,
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static void __init clk_get_freq_dt(unsigned long *ckil, unsigned long *osc,
 				   unsigned long *ckih1, unsigned long *ckih2)
 {
@@ -1671,3 +1672,4 @@ int __init mx53_clocks_init_dt(void)
 	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
 	return mx53_clocks_init(ckil, osc, ckih1, ckih2);
 }
+#endif
