@@ -722,7 +722,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 
 	class = look_up_lock_class(lock, subclass);
 	if (likely(class))
-		return class;
+		goto out_set_class_cache;
 
 	/*
 	 * Debug-check: all keys must be persistent!
@@ -807,6 +807,7 @@ out_unlock_set:
 	graph_unlock();
 	raw_local_irq_restore(flags);
 
+out_set_class_cache:
 	if (!subclass || force)
 		lock->class_cache[0] = class;
 	else if (subclass < NR_LOCKDEP_CACHING_CLASSES)
