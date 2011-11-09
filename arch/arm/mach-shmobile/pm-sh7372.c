@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/bitrev.h>
+#include <linux/console.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
@@ -468,6 +469,11 @@ void __init sh7372_pm_init(void)
 
 	/* do not convert A3SM, A3SP, A3SG, A4R power down into A4S */
 	__raw_writel(0, PDNSEL);
+
+	/* serial consoles make use of SCIF hardware located in A3SP,
+	 * keep such power domain on if "no_console_suspend" is set.
+	 */
+	sh7372_a3sp.stay_on = !console_suspend_enabled;
 
 	sh7372_suspend_init();
 	sh7372_cpuidle_init();
