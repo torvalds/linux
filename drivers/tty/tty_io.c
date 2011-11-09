@@ -790,19 +790,24 @@ static void session_clear_tty(struct pid *session)
 void disassociate_ctty(int on_exit)
 {
 	struct tty_struct *tty;
-	struct pid *tty_pgrp = NULL;
 
 	if (!current->signal->leader)
 		return;
 
 	tty = get_current_tty();
 	if (tty) {
-		tty_pgrp = get_pid(tty->pgrp);
+		struct pid *tty_pgrp = get_pid(tty->pgrp);
 		if (on_exit) {
 			if (tty->driver->type != TTY_DRIVER_TYPE_PTY)
 				tty_vhangup(tty);
 		}
 		tty_kref_put(tty);
+		if (tty_pgrp) {
+			kill_pgrp(tty_pgrp, SIGHUP, on_exit);
+			if (!on_exit)
+				kill_pgrp(tty_pgrp, SIGCONT, on_exit);
+			put_pid(tty_pgrp);
+		}
 	} else if (on_exit) {
 		struct pid *old_pgrp;
 		spin_lock_irq(&current->sighand->siglock);
@@ -815,12 +820,6 @@ void disassociate_ctty(int on_exit)
 			put_pid(old_pgrp);
 		}
 		return;
-	}
-	if (tty_pgrp) {
-		kill_pgrp(tty_pgrp, SIGHUP, on_exit);
-		if (!on_exit)
-			kill_pgrp(tty_pgrp, SIGCONT, on_exit);
-		put_pid(tty_pgrp);
 	}
 
 	spin_lock_irq(&current->sighand->siglock);
