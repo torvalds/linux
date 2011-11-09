@@ -582,6 +582,7 @@ static struct sh_mipi_dsi_info mipidsi0_info = {
 	.lcd_chan	= &lcdc_info.ch[0],
 	.lane		= 2,
 	.vsynw_offset	= 17,
+	.flags		= SH_MIPI_DSI_SYNC_PULSES_MODE,
 };
 
 static struct platform_device mipidsi0_device = {

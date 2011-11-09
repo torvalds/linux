@@ -327,7 +327,8 @@ static struct sh_mipi_dsi_info mipidsi0_info = {
 	.lane		= 2,
 	.vsynw_offset	= 20,
 	.clksrc		= 1,
-	.flags		= SH_MIPI_DSI_HSABM,
+	.flags		= SH_MIPI_DSI_HSABM |
+			  SH_MIPI_DSI_SYNC_PULSES_MODE,
 };
 
 static struct platform_device mipidsi0_device = {

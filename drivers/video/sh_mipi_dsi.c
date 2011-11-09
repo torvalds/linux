@@ -152,7 +152,7 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 {
 	void __iomem *base = mipi->base;
 	struct sh_mobile_lcdc_chan_cfg *ch = pdata->lcd_chan;
-	u32 pctype, datatype, pixfmt, linelength, vmctr2 = 0x00e00000;
+	u32 pctype, datatype, pixfmt, linelength, vmctr2;
 	bool yuv;
 	u32 tmp;
 
@@ -324,6 +324,13 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	 * Non-burst mode with sync pulses: VSE and HSE are output,
 	 * HSA period allowed, no commands in LP
 	 */
+	vmctr2 = 0;
+	if (pdata->flags & SH_MIPI_DSI_VSEE)
+		vmctr2 |= 1 << 23;
+	if (pdata->flags & SH_MIPI_DSI_HSEE)
+		vmctr2 |= 1 << 22;
+	if (pdata->flags & SH_MIPI_DSI_HSAE)
+		vmctr2 |= 1 << 21;
 	if (pdata->flags & SH_MIPI_DSI_BL2E)
 		vmctr2 |= 1 << 17;
 	if (pdata->flags & SH_MIPI_DSI_HSABM)

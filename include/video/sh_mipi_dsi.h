@@ -31,6 +31,15 @@ struct sh_mobile_lcdc_chan_cfg;
 #define SH_MIPI_DSI_HBPBM	(1 << 1)
 #define SH_MIPI_DSI_HFPBM	(1 << 2)
 #define SH_MIPI_DSI_BL2E	(1 << 3)
+#define SH_MIPI_DSI_VSEE	(1 << 4)
+#define SH_MIPI_DSI_HSEE	(1 << 5)
+#define SH_MIPI_DSI_HSAE	(1 << 6)
+
+#define SH_MIPI_DSI_SYNC_PULSES_MODE	(SH_MIPI_DSI_VSEE | \
+					 SH_MIPI_DSI_HSEE | \
+					 SH_MIPI_DSI_HSAE)
+#define SH_MIPI_DSI_SYNC_EVENTS_MODE	(0)
+#define SH_MIPI_DSI_SYNC_BURST_MODE	(SH_MIPI_DSI_BL2E)
 
 struct sh_mipi_dsi_info {
 	enum sh_mipi_dsi_data_fmt	data_format;
