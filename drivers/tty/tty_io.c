@@ -1797,6 +1797,33 @@ int tty_release(struct inode *inode, struct file *filp)
 }
 
 /**
+ *	tty_open_current_tty - get tty of current task for open
+ *	@device: device number
+ *	@filp: file pointer to tty
+ *	@return: tty of the current task iff @device is /dev/tty
+ *
+ *	We cannot return driver and index like for the other nodes because
+ *	devpts will not work then. It expects inodes to be from devpts FS.
+ */
+static struct tty_struct *tty_open_current_tty(dev_t device, struct file *filp)
+{
+	struct tty_struct *tty;
+
+	if (device != MKDEV(TTYAUX_MAJOR, 0))
+		return NULL;
+
+	tty = get_current_tty();
+	if (!tty)
+		return ERR_PTR(-ENXIO);
+
+	filp->f_flags |= O_NONBLOCK; /* Don't let /dev/tty block */
+	/* noctty = 1; */
+	tty_kref_put(tty);
+	/* FIXME: we put a reference and return a TTY! */
+	return tty;
+}
+
+/**
  *	tty_open		-	open a tty device
  *	@inode: inode of device file
  *	@filp: file pointer to tty
@@ -1819,9 +1846,9 @@ int tty_release(struct inode *inode, struct file *filp)
 
 static int tty_open(struct inode *inode, struct file *filp)
 {
-	struct tty_struct *tty = NULL;
+	struct tty_struct *tty;
 	int noctty, retval;
-	struct tty_driver *driver;
+	struct tty_driver *driver = NULL;
 	int index;
 	dev_t device = inode->i_rdev;
 	unsigned saved_flags = filp->f_flags;
@@ -1840,22 +1867,15 @@ retry_open:
 	mutex_lock(&tty_mutex);
 	tty_lock();
 
-	if (device == MKDEV(TTYAUX_MAJOR, 0)) {
-		tty = get_current_tty();
-		if (!tty) {
-			tty_unlock();
-			mutex_unlock(&tty_mutex);
-			tty_free_file(filp);
-			return -ENXIO;
-		}
-		driver = tty_driver_kref_get(tty->driver);
-		index = tty->index;
-		filp->f_flags |= O_NONBLOCK; /* Don't let /dev/tty block */
-		/* noctty = 1; */
-		/* FIXME: Should we take a driver reference ? */
-		tty_kref_put(tty);
+	tty = tty_open_current_tty(device, filp);
+	if (IS_ERR(tty)) {
+		tty_unlock();
+		mutex_unlock(&tty_mutex);
+		tty_free_file(filp);
+		return PTR_ERR(tty);
+	} else if (tty)
 		goto got_driver;
-	}
+
 #ifdef CONFIG_VT
 	if (device == MKDEV(TTY_MAJOR, 0)) {
 		extern struct tty_driver *console_driver;
@@ -1911,7 +1931,8 @@ got_driver:
 		tty = tty_init_dev(driver, index, 0);
 
 	mutex_unlock(&tty_mutex);
-	tty_driver_kref_put(driver);
+	if (driver)
+		tty_driver_kref_put(driver);
 	if (IS_ERR(tty)) {
 		tty_unlock();
 		tty_free_file(filp);
