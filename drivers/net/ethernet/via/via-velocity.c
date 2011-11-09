@@ -3270,9 +3270,9 @@ static int velocity_set_settings(struct net_device *dev,
 static void velocity_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
-	strcpy(info->driver, VELOCITY_NAME);
-	strcpy(info->version, VELOCITY_VERSION);
-	strcpy(info->bus_info, pci_name(vptr->pdev));
+	strlcpy(info->driver, VELOCITY_NAME, sizeof(info->driver));
+	strlcpy(info->version, VELOCITY_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(vptr->pdev), sizeof(info->bus_info));
 }
 
 static void velocity_ethtool_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)

@@ -2457,11 +2457,11 @@ static void hme_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 {
 	struct happy_meal *hp = netdev_priv(dev);
 
-	strcpy(info->driver, "sunhme");
-	strcpy(info->version, "2.02");
+	strlcpy(info->driver, "sunhme", sizeof(info->driver));
+	strlcpy(info->version, "2.02", sizeof(info->version));
 	if (hp->happy_flags & HFLAG_PCI) {
 		struct pci_dev *pdev = hp->happy_dev;
-		strcpy(info->bus_info, pci_name(pdev));
+		strlcpy(info->bus_info, pci_name(pdev), sizeof(info->bus_info));
 	}
 #ifdef CONFIG_SBUS
 	else {
@@ -2469,7 +2469,8 @@ static void hme_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 		struct platform_device *op = hp->happy_dev;
 		regs = of_get_property(op->dev.of_node, "regs", NULL);
 		if (regs)
-			sprintf(info->bus_info, "SBUS:%d",
+			snprintf(info->bus_info, sizeof(info->bus_info),
+				"SBUS:%d",
 				regs->which_io);
 	}
 #endif

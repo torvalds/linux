@@ -1412,10 +1412,11 @@ static void amd8111e_get_drvinfo(struct net_device* dev, struct ethtool_drvinfo 
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	struct pci_dev *pci_dev = lp->pci_dev;
-	strcpy (info->driver, MODULE_NAME);
-	strcpy (info->version, MODULE_VERS);
-	sprintf(info->fw_version,"%u",chip_version);
-	strcpy (info->bus_info, pci_name(pci_dev));
+	strlcpy(info->driver, MODULE_NAME, sizeof(info->driver));
+	strlcpy(info->version, MODULE_VERS, sizeof(info->version));
+	snprintf(info->fw_version, sizeof(info->fw_version),
+		"%u", chip_version);
+	strlcpy(info->bus_info, pci_name(pci_dev), sizeof(info->bus_info));
 }
 
 static int amd8111e_get_regs_len(struct net_device *dev)
