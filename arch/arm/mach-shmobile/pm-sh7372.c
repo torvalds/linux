@@ -123,13 +123,13 @@ static int pd_power_up(struct generic_pm_domain *genpd)
 
 	for (retry_count = 2 * PSTR_RETRIES; retry_count; retry_count--) {
 		if (!(__raw_readl(SWUCR) & mask))
-			goto out;
+			break;
 		if (retry_count > PSTR_RETRIES)
 			udelay(PSTR_DELAY_US);
 		else
 			cpu_relax();
 	}
-	if (__raw_readl(SWUCR) & mask)
+	if (!retry_count)
 		ret = -EIO;
 
 	if (!sh7372_pd->no_debug)
