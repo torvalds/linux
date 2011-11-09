@@ -1404,6 +1404,15 @@ static void uart_hangup(struct tty_struct *tty)
 	mutex_unlock(&port->mutex);
 }
 
+static int uart_port_activate(struct tty_port *port, struct tty_struct *tty)
+{
+	return 0;
+}
+
+static void uart_port_shutdown(struct tty_port *port)
+{
+}
+
 static int uart_carrier_raised(struct tty_port *port)
 {
 	struct uart_state *state = container_of(port, struct uart_state, port);
@@ -2162,6 +2171,8 @@ static const struct tty_operations uart_ops = {
 };
 
 static const struct tty_port_operations uart_port_ops = {
+	.activate	= uart_port_activate,
+	.shutdown	= uart_port_shutdown,
 	.carrier_raised = uart_carrier_raised,
 	.dtr_rts	= uart_dtr_rts,
 };
