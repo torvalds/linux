@@ -1400,7 +1400,7 @@ static int wm5100_set_bias_level(struct snd_soc_codec *codec,
 				break;
 			}
 
-			snd_soc_cache_sync(codec);
+			regcache_sync(wm5100->regmap);
 		}
 		break;
 
