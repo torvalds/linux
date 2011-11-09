@@ -659,10 +659,10 @@ static int uart_get_info(struct uart_state *state,
 	tmp.flags	    = uport->flags;
 	tmp.xmit_fifo_size  = uport->fifosize;
 	tmp.baud_base	    = uport->uartclk / 16;
-	tmp.close_delay	    = port->close_delay / 10;
+	tmp.close_delay	    = jiffies_to_msecs(port->close_delay) / 10;
 	tmp.closing_wait    = port->closing_wait == ASYNC_CLOSING_WAIT_NONE ?
 				ASYNC_CLOSING_WAIT_NONE :
-				port->closing_wait / 10;
+				jiffies_to_msecs(port->closing_wait) / 10;
 	tmp.custom_divisor  = uport->custom_divisor;
 	tmp.hub6	    = uport->hub6;
 	tmp.io_type         = uport->iotype;
@@ -696,9 +696,10 @@ static int uart_set_info(struct tty_struct *tty, struct uart_state *state,
 		new_port += (unsigned long) new_serial.port_high << HIGH_BITS_OFFSET;
 
 	new_serial.irq = irq_canonicalize(new_serial.irq);
-	close_delay = new_serial.close_delay * 10;
+	close_delay = msecs_to_jiffies(new_serial.close_delay * 10);
 	closing_wait = new_serial.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
-			ASYNC_CLOSING_WAIT_NONE : new_serial.closing_wait * 10;
+			ASYNC_CLOSING_WAIT_NONE :
+			msecs_to_jiffies(new_serial.closing_wait * 10);
 
 	/*
 	 * This semaphore protects port->count.  It is also
@@ -1305,8 +1306,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	if (port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent_from_close(tty,
-				msecs_to_jiffies(port->closing_wait));
+		tty_wait_until_sent_from_close(tty, port->closing_wait);
 
 	/*
 	 * At this point, we stop accepting input.  To do this, we
@@ -1338,7 +1338,8 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	if (port->blocked_open) {
 		spin_unlock_irqrestore(&port->lock, flags);
 		if (port->close_delay)
-			msleep_interruptible(port->close_delay);
+			msleep_interruptible(
+					jiffies_to_msecs(port->close_delay));
 		spin_lock_irqsave(&port->lock, flags);
 	} else if (!uart_console(uport)) {
 		spin_unlock_irqrestore(&port->lock, flags);
@@ -2276,8 +2277,8 @@ int uart_register_driver(struct uart_driver *drv)
 
 		tty_port_init(port);
 		port->ops = &uart_port_ops;
-		port->close_delay     = 500;	/* .5 seconds */
-		port->closing_wait    = 30000;	/* 30 seconds */
+		port->close_delay     = HZ / 2;	/* .5 seconds */
+		port->closing_wait    = 30 * HZ;/* 30 seconds */
 	}
 
 	retval = tty_register_driver(normal);
