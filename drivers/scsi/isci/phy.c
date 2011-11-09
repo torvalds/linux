@@ -708,7 +708,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 				 __func__,
 				 event_code);
 
-			return SCI_FAILURE;;
+			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
 	case SCI_PHY_SUB_AWAIT_SATA_SPEED_EN:

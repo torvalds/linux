@@ -106,8 +106,7 @@ config SMSC911X
 	  Say Y here if you want support for SMSC LAN911x and LAN921x families
 	  of ethernet controllers.
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>. The module
+	  To compile this driver as a module, choose M here. The module
 	  will be called smsc911x.
 
 config SMSC911X_ARCH_HOOKS

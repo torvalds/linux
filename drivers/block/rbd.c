@@ -192,7 +192,7 @@ static ssize_t rbd_snap_add(struct device *dev,
 			    const char *buf,
 			    size_t count);
 static void __rbd_remove_snap_dev(struct rbd_device *rbd_dev,
-				  struct rbd_snap *snap);;
+				  struct rbd_snap *snap);
 
 
 static struct rbd_device *dev_to_rbd(struct device *dev)

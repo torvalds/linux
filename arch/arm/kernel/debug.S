@@ -151,6 +151,8 @@ printhex:	adr	r2, hexbuf
 		b	printascii
 ENDPROC(printhex2)
 
+hexbuf:		.space 16
+
 		.ltorg
 
 ENTRY(printascii)
@@ -175,5 +177,3 @@ ENTRY(printch)
 		mov	r0, #0
 		b	1b
 ENDPROC(printch)
-
-hexbuf:		.space 16

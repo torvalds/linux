@@ -177,4 +177,5 @@ void perf_session__print_ip(union perf_event *event,
 int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap);
 
+void perf_session__fprintf_info(struct perf_session *s, FILE *fp, bool full);
 #endif /* __PERF_SESSION_H */

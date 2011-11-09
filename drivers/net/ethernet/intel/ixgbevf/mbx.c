@@ -276,7 +276,7 @@ out_no_write:
  *  @msg: The message buffer
  *  @size: Length of buffer
  *
- *  returns 0 if it successfuly read message from buffer
+ *  returns 0 if it successfully read message from buffer
  **/
 static s32 ixgbevf_read_mbx_vf(struct ixgbe_hw *hw, u32 *msg, u16 size)
 {

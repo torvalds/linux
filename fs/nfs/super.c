@@ -733,18 +733,22 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 
 	return 0;
 }
+
+#ifdef CONFIG_NFS_V4
 #ifdef CONFIG_NFS_V4_1
-void show_sessions(struct seq_file *m, struct nfs_server *server)
+static void show_sessions(struct seq_file *m, struct nfs_server *server)
 {
 	if (nfs4_has_session(server->nfs_client))
 		seq_printf(m, ",sessions");
 }
 #else
-void show_sessions(struct seq_file *m, struct nfs_server *server) {}
+static void show_sessions(struct seq_file *m, struct nfs_server *server) {}
+#endif
 #endif
 
+#ifdef CONFIG_NFS_V4
 #ifdef CONFIG_NFS_V4_1
-void show_pnfs(struct seq_file *m, struct nfs_server *server)
+static void show_pnfs(struct seq_file *m, struct nfs_server *server)
 {
 	seq_printf(m, ",pnfs=");
 	if (server->pnfs_curr_ld)
@@ -752,9 +756,10 @@ void show_pnfs(struct seq_file *m, struct nfs_server *server)
 	else
 		seq_printf(m, "not configured");
 }
-#else  /* CONFIG_NFS_V4_1 */
-void show_pnfs(struct seq_file *m, struct nfs_server *server) {}
-#endif /* CONFIG_NFS_V4_1 */
+#else
+static void show_pnfs(struct seq_file *m, struct nfs_server *server) {}
+#endif
+#endif
 
 static int nfs_show_devname(struct seq_file *m, struct vfsmount *mnt)
 {

@@ -156,6 +156,12 @@ void __init smp_init_cpus(void)
 {
 	unsigned int i, ncores = get_core_count();
 
+	if (ncores > nr_cpu_ids) {
+		pr_warn("SMP: %u cores greater than maximum (%u), clipping\n",
+			ncores, nr_cpu_ids);
+		ncores = nr_cpu_ids;
+	}
+
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
 

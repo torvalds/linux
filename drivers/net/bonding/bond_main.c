@@ -395,7 +395,6 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 			struct net_device *slave_dev)
 {
 	skb->dev = slave_dev;
-	skb->priority = 1;
 
 	skb->queue_mapping = bond_queue_mapping(skb);
 
@@ -774,9 +773,6 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 
 	read_lock(&bond->lock);
 
-	if (bond->kill_timers)
-		goto out;
-
 	/* rejoin all groups on bond device */
 	__bond_resend_igmp_join_requests(bond->dev);
 
@@ -790,9 +786,9 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 			__bond_resend_igmp_join_requests(vlan_dev);
 	}
 
-	if ((--bond->igmp_retrans > 0) && !bond->kill_timers)
+	if (--bond->igmp_retrans > 0)
 		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
-out:
+
 	read_unlock(&bond->lock);
 }
 
@@ -2518,10 +2514,11 @@ void bond_mii_monitor(struct work_struct *work)
 	struct bonding *bond = container_of(work, struct bonding,
 					    mii_work.work);
 	bool should_notify_peers = false;
+	unsigned long delay;
 
 	read_lock(&bond->lock);
-	if (bond->kill_timers)
-		goto out;
+
+	delay = msecs_to_jiffies(bond->params.miimon);
 
 	if (bond->slave_cnt == 0)
 		goto re_arm;
@@ -2530,7 +2527,15 @@ void bond_mii_monitor(struct work_struct *work)
 
 	if (bond_miimon_inspect(bond)) {
 		read_unlock(&bond->lock);
-		rtnl_lock();
+
+		/* Race avoidance with bond_close cancel of workqueue */
+		if (!rtnl_trylock()) {
+			read_lock(&bond->lock);
+			delay = 1;
+			should_notify_peers = false;
+			goto re_arm;
+		}
+
 		read_lock(&bond->lock);
 
 		bond_miimon_commit(bond);
@@ -2541,14 +2546,18 @@ void bond_mii_monitor(struct work_struct *work)
 	}
 
 re_arm:
-	if (bond->params.miimon && !bond->kill_timers)
-		queue_delayed_work(bond->wq, &bond->mii_work,
-				   msecs_to_jiffies(bond->params.miimon));
-out:
+	if (bond->params.miimon)
+		queue_delayed_work(bond->wq, &bond->mii_work, delay);
+
 	read_unlock(&bond->lock);
 
 	if (should_notify_peers) {
-		rtnl_lock();
+		if (!rtnl_trylock()) {
+			read_lock(&bond->lock);
+			bond->send_peer_notif++;
+			read_unlock(&bond->lock);
+			return;
+		}
 		netdev_bonding_change(bond->dev, NETDEV_NOTIFY_PEERS);
 		rtnl_unlock();
 	}
@@ -2790,9 +2799,6 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 
 	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
 
-	if (bond->kill_timers)
-		goto out;
-
 	if (bond->slave_cnt == 0)
 		goto re_arm;
 
@@ -2889,9 +2895,9 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 	}
 
 re_arm:
-	if (bond->params.arp_interval && !bond->kill_timers)
+	if (bond->params.arp_interval)
 		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
-out:
+
 	read_unlock(&bond->lock);
 }
 
@@ -3132,9 +3138,6 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 
 	read_lock(&bond->lock);
 
-	if (bond->kill_timers)
-		goto out;
-
 	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
 
 	if (bond->slave_cnt == 0)
@@ -3144,7 +3147,15 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 
 	if (bond_ab_arp_inspect(bond, delta_in_ticks)) {
 		read_unlock(&bond->lock);
-		rtnl_lock();
+
+		/* Race avoidance with bond_close flush of workqueue */
+		if (!rtnl_trylock()) {
+			read_lock(&bond->lock);
+			delta_in_ticks = 1;
+			should_notify_peers = false;
+			goto re_arm;
+		}
+
 		read_lock(&bond->lock);
 
 		bond_ab_arp_commit(bond, delta_in_ticks);
@@ -3157,13 +3168,18 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 	bond_ab_arp_probe(bond);
 
 re_arm:
-	if (bond->params.arp_interval && !bond->kill_timers)
+	if (bond->params.arp_interval)
 		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
-out:
+
 	read_unlock(&bond->lock);
 
 	if (should_notify_peers) {
-		rtnl_lock();
+		if (!rtnl_trylock()) {
+			read_lock(&bond->lock);
+			bond->send_peer_notif++;
+			read_unlock(&bond->lock);
+			return;
+		}
 		netdev_bonding_change(bond->dev, NETDEV_NOTIFY_PEERS);
 		rtnl_unlock();
 	}
@@ -3425,8 +3441,6 @@ static int bond_open(struct net_device *bond_dev)
 	struct slave *slave;
 	int i;
 
-	bond->kill_timers = 0;
-
 	/* reset slave->backup and slave->inactive */
 	read_lock(&bond->lock);
 	if (bond->slave_cnt > 0) {
@@ -3495,33 +3509,30 @@ static int bond_close(struct net_device *bond_dev)
 
 	bond->send_peer_notif = 0;
 
-	/* signal timers not to re-arm */
-	bond->kill_timers = 1;
-
 	write_unlock_bh(&bond->lock);
 
 	if (bond->params.miimon) {  /* link check interval, in milliseconds. */
-		cancel_delayed_work(&bond->mii_work);
+		cancel_delayed_work_sync(&bond->mii_work);
 	}
 
 	if (bond->params.arp_interval) {  /* arp interval, in milliseconds. */
-		cancel_delayed_work(&bond->arp_work);
+		cancel_delayed_work_sync(&bond->arp_work);
 	}
 
 	switch (bond->params.mode) {
 	case BOND_MODE_8023AD:
-		cancel_delayed_work(&bond->ad_work);
+		cancel_delayed_work_sync(&bond->ad_work);
 		break;
 	case BOND_MODE_TLB:
 	case BOND_MODE_ALB:
-		cancel_delayed_work(&bond->alb_work);
+		cancel_delayed_work_sync(&bond->alb_work);
 		break;
 	default:
 		break;
 	}
 
 	if (delayed_work_pending(&bond->mcast_work))
-		cancel_delayed_work(&bond->mcast_work);
+		cancel_delayed_work_sync(&bond->mcast_work);
 
 	if (bond_is_lb(bond)) {
 		/* Must be called only after all
@@ -4368,26 +4379,22 @@ static void bond_setup(struct net_device *bond_dev)
 
 static void bond_work_cancel_all(struct bonding *bond)
 {
-	write_lock_bh(&bond->lock);
-	bond->kill_timers = 1;
-	write_unlock_bh(&bond->lock);
-
 	if (bond->params.miimon && delayed_work_pending(&bond->mii_work))
-		cancel_delayed_work(&bond->mii_work);
+		cancel_delayed_work_sync(&bond->mii_work);
 
 	if (bond->params.arp_interval && delayed_work_pending(&bond->arp_work))
-		cancel_delayed_work(&bond->arp_work);
+		cancel_delayed_work_sync(&bond->arp_work);
 
 	if (bond->params.mode == BOND_MODE_ALB &&
 	    delayed_work_pending(&bond->alb_work))
-		cancel_delayed_work(&bond->alb_work);
+		cancel_delayed_work_sync(&bond->alb_work);
 
 	if (bond->params.mode == BOND_MODE_8023AD &&
 	    delayed_work_pending(&bond->ad_work))
-		cancel_delayed_work(&bond->ad_work);
+		cancel_delayed_work_sync(&bond->ad_work);
 
 	if (delayed_work_pending(&bond->mcast_work))
-		cancel_delayed_work(&bond->mcast_work);
+		cancel_delayed_work_sync(&bond->mcast_work);
 }
 
 /*

@@ -102,37 +102,38 @@ xfs_mark_inode_dirty(
 
 }
 
+
+int xfs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+		   void *fs_info)
+{
+	const struct xattr *xattr;
+	struct xfs_inode *ip = XFS_I(inode);
+	int error = 0;
+
+	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
+		error = xfs_attr_set(ip, xattr->name, xattr->value,
+				     xattr->value_len, ATTR_SECURE);
+		if (error < 0)
+			break;
+	}
+	return error;
+}
+
 /*
  * Hook in SELinux.  This is not quite correct yet, what we really need
  * here (as we do for default ACLs) is a mechanism by which creation of
  * these attrs can be journalled at inode creation time (along with the
  * inode, of course, such that log replay can't cause these to be lost).
  */
+
 STATIC int
 xfs_init_security(
 	struct inode	*inode,
 	struct inode	*dir,
 	const struct qstr *qstr)
 {
-	struct xfs_inode *ip = XFS_I(inode);
-	size_t		length;
-	void		*value;
-	unsigned char	*name;
-	int		error;
-
-	error = security_inode_init_security(inode, dir, qstr, (char **)&name,
-					     &value, &length);
-	if (error) {
-		if (error == -EOPNOTSUPP)
-			return 0;
-		return -error;
-	}
-
-	error = xfs_attr_set(ip, name, value, length, ATTR_SECURE);
-
-	kfree(name);
-	kfree(value);
-	return error;
+	return security_inode_init_security(inode, dir, qstr,
+					    &xfs_initxattrs, NULL);
 }
 
 static void

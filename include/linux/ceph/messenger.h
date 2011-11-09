@@ -6,7 +6,6 @@
 #include <linux/net.h>
 #include <linux/radix-tree.h>
 #include <linux/uio.h>
-#include <linux/version.h>
 #include <linux/workqueue.h>
 
 #include "types.h"

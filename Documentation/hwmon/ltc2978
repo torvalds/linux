@@ -1,0 +1,103 @@
+Kernel driver ltc2978
+=====================
+
+Supported chips:
+  * Linear Technology LTC2978
+    Prefix: 'ltc2978'
+    Addresses scanned: -
+    Datasheet: http://cds.linear.com/docs/Datasheet/2978fa.pdf
+  * Linear Technology LTC3880
+    Prefix: 'ltc3880'
+    Addresses scanned: -
+    Datasheet: http://cds.linear.com/docs/Datasheet/3880f.pdf
+
+Author: Guenter Roeck <guenter.roeck@ericsson.com>
+
+
+Description
+-----------
+
+The LTC2978 is an octal power supply monitor, supervisor, sequencer and
+margin controller. The LTC3880 is a dual, PolyPhase DC/DC synchronous
+step-down switching regulator controller.
+
+
+Usage Notes
+-----------
+
+This driver does not probe for PMBus devices. You will have to instantiate
+devices explicitly.
+
+Example: the following commands will load the driver for an LTC2978 at address
+0x60 on I2C bus #1:
+
+# modprobe ltc2978
+# echo ltc2978 0x60 > /sys/bus/i2c/devices/i2c-1/new_device
+
+
+Sysfs attributes
+----------------
+
+in1_label		"vin"
+in1_input		Measured input voltage.
+in1_min			Minimum input voltage.
+in1_max			Maximum input voltage.
+in1_lcrit		Critical minimum input voltage.
+in1_crit		Critical maximum input voltage.
+in1_min_alarm		Input voltage low alarm.
+in1_max_alarm		Input voltage high alarm.
+in1_lcrit_alarm		Input voltage critical low alarm.
+in1_crit_alarm		Input voltage critical high alarm.
+in1_lowest		Lowest input voltage. LTC2978 only.
+in1_highest		Highest input voltage.
+in1_reset_history	Reset history. Writing into this attribute will reset
+			history for all attributes.
+
+in[2-9]_label		"vout[1-8]". Channels 3 to 9 on LTC2978 only.
+in[2-9]_input		Measured output voltage.
+in[2-9]_min		Minimum output voltage.
+in[2-9]_max		Maximum output voltage.
+in[2-9]_lcrit		Critical minimum output voltage.
+in[2-9]_crit		Critical maximum output voltage.
+in[2-9]_min_alarm	Output voltage low alarm.
+in[2-9]_max_alarm	Output voltage high alarm.
+in[2-9]_lcrit_alarm	Output voltage critical low alarm.
+in[2-9]_crit_alarm	Output voltage critical high alarm.
+in[2-9]_lowest		Lowest output voltage. LTC2978 only.
+in[2-9]_highest		Lowest output voltage.
+in[2-9]_reset_history	Reset history. Writing into this attribute will reset
+			history for all attributes.
+
+temp[1-3]_input		Measured temperature.
+			On LTC2978, only one temperature measurement is
+			supported and reflects the internal temperature.
+			On LTC3880, temp1 and temp2 report external
+			temperatures, and temp3 reports the internal
+			temperature.
+temp[1-3]_min		Mimimum temperature.
+temp[1-3]_max		Maximum temperature.
+temp[1-3]_lcrit		Critical low temperature.
+temp[1-3]_crit		Critical high temperature.
+temp[1-3]_min_alarm	Chip temperature low alarm.
+temp[1-3]_max_alarm	Chip temperature high alarm.
+temp[1-3]_lcrit_alarm	Chip temperature critical low alarm.
+temp[1-3]_crit_alarm	Chip temperature critical high alarm.
+temp[1-3]_lowest	Lowest measured temperature. LTC2978 only.
+temp[1-3]_highest	Highest measured temperature.
+temp[1-3]_reset_history	Reset history. Writing into this attribute will reset
+			history for all attributes.
+
+power[1-2]_label	"pout[1-2]". LTC3880 only.
+power[1-2]_input	Measured power.
+
+curr1_label		"iin". LTC3880 only.
+curr1_input		Measured input current.
+curr1_max		Maximum input current.
+curr1_max_alarm		Input current high alarm.
+
+curr[2-3]_label		"iout[1-2]". LTC3880 only.
+curr[2-3]_input		Measured input current.
+curr[2-3]_max		Maximum input current.
+curr[2-3]_crit		Critical input current.
+curr[2-3]_max_alarm	Input current high alarm.
+curr[2-3]_crit_alarm	Input current critical high alarm.

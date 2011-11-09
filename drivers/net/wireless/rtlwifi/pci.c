@@ -475,7 +475,7 @@ static void _rtl_pci_tx_chk_waitq(struct ieee80211_hw *hw)
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct sk_buff *skb = NULL;
 	struct ieee80211_tx_info *info = NULL;
-	int tid; /* should be int */
+	int tid;
 
 	if (!rtlpriv->rtlhal.earlymode_enable)
 		return;
@@ -1525,7 +1525,7 @@ static int rtl_pci_start(struct ieee80211_hw *hw)
 
 	rtl_init_rx_config(hw);
 
-	/*should after adapter start and interrupt enable. */
+	/*should be after adapter start and interrupt enable. */
 	set_hal_start(rtlhal);
 
 	RT_CLEAR_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC);
@@ -1546,7 +1546,7 @@ static void rtl_pci_stop(struct ieee80211_hw *hw)
 	u8 RFInProgressTimeOut = 0;
 
 	/*
-	 *should before disable interrrupt&adapter
+	 *should be before disable interrupt&adapter
 	 *and will do it immediately.
 	 */
 	set_hal_stop(rtlhal);

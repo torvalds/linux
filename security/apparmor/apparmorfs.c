@@ -200,7 +200,7 @@ void __init aa_destroy_aafs(void)
  *
  * Returns: error on failure
  */
-int __init aa_create_aafs(void)
+static int __init aa_create_aafs(void)
 {
 	int error;
 

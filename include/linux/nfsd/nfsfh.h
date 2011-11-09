@@ -14,11 +14,14 @@
 #ifndef _LINUX_NFSD_FH_H
 #define _LINUX_NFSD_FH_H
 
-# include <linux/types.h>
+#include <linux/types.h>
+#include <linux/nfs.h>
+#include <linux/nfs2.h>
+#include <linux/nfs3.h>
+#include <linux/nfs4.h>
 #ifdef __KERNEL__
 # include <linux/sunrpc/svc.h>
 #endif
-#include <linux/nfsd/const.h>
 
 /*
  * This is the old "dentry style" Linux NFSv2 file handle.

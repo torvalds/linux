@@ -123,8 +123,8 @@ static struct platform_device *harmony_devices[] __initdata = {
 	&harmony_audio_device,
 };
 
-static void __init tegra_harmony_fixup(struct machine_desc *desc,
-	struct tag *tags, char **cmdline, struct meminfo *mi)
+static void __init tegra_harmony_fixup(struct tag *tags, char **cmdline,
+	struct meminfo *mi)
 {
 	mi->nr_banks = 2;
 	mi->bank[0].start = PHYS_OFFSET;

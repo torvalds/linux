@@ -16,7 +16,7 @@
 #define _ASM_MICROBLAZE_DMA_MAPPING_H
 
 /*
- * See Documentation/PCI/PCI-DMA-mapping.txt and
+ * See Documentation/DMA-API-HOWTO.txt and
  * Documentation/DMA-API.txt for documentation.
  */
 

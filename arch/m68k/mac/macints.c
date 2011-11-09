@@ -370,7 +370,7 @@ int mac_irq_pending(unsigned int irq)
 		break;
 	case 4:
 		if (psc_present)
-			psc_irq_pending(irq);
+			return psc_irq_pending(irq);
 		break;
 	}
 	return 0;

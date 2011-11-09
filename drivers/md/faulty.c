@@ -81,16 +81,16 @@ static void faulty_fail(struct bio *bio, int error)
 	bio_io_error(b);
 }
 
-typedef struct faulty_conf {
+struct faulty_conf {
 	int period[Modes];
 	atomic_t counters[Modes];
 	sector_t faults[MaxFault];
 	int	modes[MaxFault];
 	int nfaults;
-	mdk_rdev_t *rdev;
-} conf_t;
+	struct md_rdev *rdev;
+};
 
-static int check_mode(conf_t *conf, int mode)
+static int check_mode(struct faulty_conf *conf, int mode)
 {
 	if (conf->period[mode] == 0 &&
 	    atomic_read(&conf->counters[mode]) <= 0)
@@ -105,7 +105,7 @@ static int check_mode(conf_t *conf, int mode)
 	return 0;
 }
 
-static int check_sector(conf_t *conf, sector_t start, sector_t end, int dir)
+static int check_sector(struct faulty_conf *conf, sector_t start, sector_t end, int dir)
 {
 	/* If we find a ReadFixable sector, we fix it ... */
 	int i;
@@ -129,7 +129,7 @@ static int check_sector(conf_t *conf, sector_t start, sector_t end, int dir)
 	return 0;
 }
 
-static void add_sector(conf_t *conf, sector_t start, int mode)
+static void add_sector(struct faulty_conf *conf, sector_t start, int mode)
 {
 	int i;
 	int n = conf->nfaults;
@@ -169,9 +169,9 @@ static void add_sector(conf_t *conf, sector_t start, int mode)
 		conf->nfaults = n+1;
 }
 
-static int make_request(mddev_t *mddev, struct bio *bio)
+static int make_request(struct mddev *mddev, struct bio *bio)
 {
-	conf_t *conf = mddev->private;
+	struct faulty_conf *conf = mddev->private;
 	int failit = 0;
 
 	if (bio_data_dir(bio) == WRITE) {
@@ -222,9 +222,9 @@ static int make_request(mddev_t *mddev, struct bio *bio)
 	}
 }
 
-static void status(struct seq_file *seq, mddev_t *mddev)
+static void status(struct seq_file *seq, struct mddev *mddev)
 {
-	conf_t *conf = mddev->private;
+	struct faulty_conf *conf = mddev->private;
 	int n;
 
 	if ((n=atomic_read(&conf->counters[WriteTransient])) != 0)
@@ -255,11 +255,11 @@ static void status(struct seq_file *seq, mddev_t *mddev)
 }
 
 
-static int reshape(mddev_t *mddev)
+static int reshape(struct mddev *mddev)
 {
 	int mode = mddev->new_layout & ModeMask;
 	int count = mddev->new_layout >> ModeShift;
-	conf_t *conf = mddev->private;
+	struct faulty_conf *conf = mddev->private;
 
 	if (mddev->new_layout < 0)
 		return 0;
@@ -284,7 +284,7 @@ static int reshape(mddev_t *mddev)
 	return 0;
 }
 
-static sector_t faulty_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+static sector_t faulty_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 {
 	WARN_ONCE(raid_disks,
 		  "%s does not support generic reshape\n", __func__);
@@ -295,11 +295,11 @@ static sector_t faulty_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 	return sectors;
 }
 
-static int run(mddev_t *mddev)
+static int run(struct mddev *mddev)
 {
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	int i;
-	conf_t *conf;
+	struct faulty_conf *conf;
 
 	if (md_check_no_bitmap(mddev))
 		return -EINVAL;
@@ -325,16 +325,16 @@ static int run(mddev_t *mddev)
 	return 0;
 }
 
-static int stop(mddev_t *mddev)
+static int stop(struct mddev *mddev)
 {
-	conf_t *conf = mddev->private;
+	struct faulty_conf *conf = mddev->private;
 
 	kfree(conf);
 	mddev->private = NULL;
 	return 0;
 }
 
-static struct mdk_personality faulty_personality =
+static struct md_personality faulty_personality =
 {
 	.name		= "faulty",
 	.level		= LEVEL_FAULTY,

@@ -39,7 +39,7 @@ config ARCH_MX503
 	select ARCH_MX50_SUPPORTED
 	select ARCH_MX53_SUPPORTED
 	help
-	  This enables support for machines using Freescale's i.MX50 and i.MX51
+	  This enables support for machines using Freescale's i.MX50 and i.MX53
 	  processors.
 
 config ARCH_MX51

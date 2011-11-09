@@ -638,6 +638,11 @@ static inline void set_dev_node(struct device *dev, int node)
 }
 #endif
 
+static inline struct pm_subsys_data *dev_to_psd(struct device *dev)
+{
+	return dev ? dev->power.subsys_data : NULL;
+}
+
 static inline unsigned int dev_get_uevent_suppress(const struct device *dev)
 {
 	return dev->kobj.uevent_suppress;
@@ -787,6 +792,8 @@ extern const char *dev_driver_string(const struct device *dev);
 
 #ifdef CONFIG_PRINTK
 
+extern int __dev_printk(const char *level, const struct device *dev,
+			struct va_format *vaf);
 extern int dev_printk(const char *level, const struct device *dev,
 		      const char *fmt, ...)
 	__attribute__ ((format (printf, 3, 4)));
@@ -807,6 +814,9 @@ extern int _dev_info(const struct device *dev, const char *fmt, ...)
 
 #else
 
+static inline int __dev_printk(const char *level, const struct device *dev,
+			       struct va_format *vaf)
+	 { return 0; }
 static inline int dev_printk(const char *level, const struct device *dev,
 		      const char *fmt, ...)
 	__attribute__ ((format (printf, 3, 4)));

@@ -24,6 +24,10 @@ void percpu_timer_setup(void);
  */
 asmlinkage void do_local_timer(struct pt_regs *);
 
+/*
+ * Called from C code
+ */
+void handle_local_timer(struct pt_regs *);
 
 #ifdef CONFIG_LOCAL_TIMERS
 

@@ -59,6 +59,8 @@
  * IRQF_NO_SUSPEND - Do not disable this IRQ during suspend
  * IRQF_FORCE_RESUME - Force enable it on resume even if IRQF_NO_SUSPEND is set
  * IRQF_NO_THREAD - Interrupt cannot be threaded
+ * IRQF_EARLY_RESUME - Resume IRQ early during syscore instead of at device
+ *                resume time.
  */
 #define IRQF_DISABLED		0x00000020
 #define IRQF_SAMPLE_RANDOM	0x00000040
@@ -72,6 +74,7 @@
 #define IRQF_NO_SUSPEND		0x00004000
 #define IRQF_FORCE_RESUME	0x00008000
 #define IRQF_NO_THREAD		0x00010000
+#define IRQF_EARLY_RESUME	0x00020000
 
 #define IRQF_TIMER		(__IRQF_TIMER | IRQF_NO_SUSPEND | IRQF_NO_THREAD)
 
@@ -95,6 +98,7 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
  * @flags:	flags (see IRQF_* above)
  * @name:	name of the device
  * @dev_id:	cookie to identify the device
+ * @percpu_dev_id:	cookie to identify the device
  * @next:	pointer to the next irqaction for shared interrupts
  * @irq:	interrupt number
  * @dir:	pointer to the proc/irq/NN/name entry
@@ -104,17 +108,18 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
  * @thread_mask:	bitmask for keeping track of @thread activity
  */
 struct irqaction {
-	irq_handler_t handler;
-	unsigned long flags;
-	void *dev_id;
-	struct irqaction *next;
-	int irq;
-	irq_handler_t thread_fn;
-	struct task_struct *thread;
-	unsigned long thread_flags;
-	unsigned long thread_mask;
-	const char *name;
-	struct proc_dir_entry *dir;
+	irq_handler_t		handler;
+	unsigned long		flags;
+	void			*dev_id;
+	void __percpu		*percpu_dev_id;
+	struct irqaction	*next;
+	int			irq;
+	irq_handler_t		thread_fn;
+	struct task_struct	*thread;
+	unsigned long		thread_flags;
+	unsigned long		thread_mask;
+	const char		*name;
+	struct proc_dir_entry	*dir;
 } ____cacheline_internodealigned_in_smp;
 
 extern irqreturn_t no_action(int cpl, void *dev_id);
@@ -135,6 +140,10 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 extern int __must_check
 request_any_context_irq(unsigned int irq, irq_handler_t handler,
 			unsigned long flags, const char *name, void *dev_id);
+
+extern int __must_check
+request_percpu_irq(unsigned int irq, irq_handler_t handler,
+		   const char *devname, void __percpu *percpu_dev_id);
 
 extern void exit_irq_thread(void);
 #else
@@ -164,10 +173,18 @@ request_any_context_irq(unsigned int irq, irq_handler_t handler,
 	return request_irq(irq, handler, flags, name, dev_id);
 }
 
+static inline int __must_check
+request_percpu_irq(unsigned int irq, irq_handler_t handler,
+		   const char *devname, void __percpu *percpu_dev_id)
+{
+	return request_irq(irq, handler, 0, devname, percpu_dev_id);
+}
+
 static inline void exit_irq_thread(void) { }
 #endif
 
 extern void free_irq(unsigned int, void *);
+extern void free_percpu_irq(unsigned int, void __percpu *);
 
 struct device;
 
@@ -207,7 +224,9 @@ extern void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id);
 
 extern void disable_irq_nosync(unsigned int irq);
 extern void disable_irq(unsigned int irq);
+extern void disable_percpu_irq(unsigned int irq);
 extern void enable_irq(unsigned int irq);
+extern void enable_percpu_irq(unsigned int irq, unsigned int type);
 
 /* The following three functions are for the core kernel use only. */
 #ifdef CONFIG_GENERIC_HARDIRQS

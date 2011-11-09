@@ -45,7 +45,7 @@ static int max8688_read_word_data(struct i2c_client *client, int page, int reg)
 	int ret;
 
 	if (page)
-		return -EINVAL;
+		return -ENXIO;
 
 	switch (reg) {
 	case PMBUS_VIRT_READ_VOUT_MAX:
@@ -101,8 +101,8 @@ static int max8688_read_byte_data(struct i2c_client *client, int page, int reg)
 	int ret = 0;
 	int mfg_status;
 
-	if (page)
-		return -EINVAL;
+	if (page > 0)
+		return -ENXIO;
 
 	switch (reg) {
 	case PMBUS_STATUS_VOUT:
@@ -182,7 +182,8 @@ static int max8688_probe(struct i2c_client *client,
 
 static int max8688_remove(struct i2c_client *client)
 {
-	return pmbus_do_remove(client);
+	pmbus_do_remove(client);
+	return 0;
 }
 
 static const struct i2c_device_id max8688_id[] = {

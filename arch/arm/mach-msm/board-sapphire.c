@@ -77,8 +77,8 @@ static struct map_desc sapphire_io_desc[] __initdata = {
 	}
 };
 
-static void __init sapphire_fixup(struct machine_desc *desc, struct tag *tags,
-				  char **cmdline, struct meminfo *mi)
+static void __init sapphire_fixup(struct tag *tags, char **cmdline,
+				  struct meminfo *mi)
 {
 	int smi_sz = parse_tag_smi((const struct tag *)tags);
 

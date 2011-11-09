@@ -2082,7 +2082,7 @@ static void sky2_hw_down(struct sky2_port *sky2)
 
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
 
-	/* Force any delayed status interrrupt and NAPI */
+	/* Force any delayed status interrupt and NAPI */
 	sky2_write32(hw, STAT_LEV_TIMER_CNT, 0);
 	sky2_write32(hw, STAT_TX_TIMER_CNT, 0);
 	sky2_write32(hw, STAT_ISR_TIMER_CNT, 0);

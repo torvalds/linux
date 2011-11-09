@@ -611,16 +611,9 @@ static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 
         // if exist SW network address, use SW network address.
 
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Network address = %02x-%02x-%02x=%02x-%02x-%02x\n",
-            pDevice->abyCurrentNetAddr[0],
-            pDevice->abyCurrentNetAddr[1],
-            pDevice->abyCurrentNetAddr[2],
-            pDevice->abyCurrentNetAddr[3],
-            pDevice->abyCurrentNetAddr[4],
-            pDevice->abyCurrentNetAddr[5]);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Network address = %pM\n",
+		pDevice->abyCurrentNetAddr);
     }
-
-
 
     // Set BB and packet type at the same time.
     // Set Short Slot Time, xIFS, and RSPINF.

@@ -24,8 +24,8 @@
 #ifndef __REALTEK_RTSX_H
 #define __REALTEK_RTSX_H
 
-#include <asm/io.h>
-#include <asm/bitops.h>
+#include <linux/io.h>
+#include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -80,7 +80,7 @@
 
 #define wait_timeout_x(task_state, msecs)		\
 do {							\
-		set_current_state((task_state)); 	\
+		set_current_state((task_state));	\
 		schedule_timeout((msecs) * HZ / 1000);	\
 } while (0)
 #define wait_timeout(msecs)	wait_timeout_x(TASK_INTERRUPTIBLE, (msecs))
@@ -102,12 +102,12 @@ typedef unsigned long DELAY_PARA_T;
 struct rtsx_chip;
 
 struct rtsx_dev {
-	struct pci_dev 		*pci;
+	struct pci_dev *pci;
 
 	/* pci resources */
 	unsigned long 		addr;
 	void __iomem 		*remap_addr;
-	int 			irq;
+	int irq;
 
 	/* locks */
 	spinlock_t 		reg_lock;

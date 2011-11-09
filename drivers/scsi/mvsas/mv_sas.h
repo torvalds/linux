@@ -43,7 +43,6 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/sas_ata.h>
-#include <linux/version.h>
 #include "mv_defs.h"
 
 #define DRV_NAME		"mvsas"

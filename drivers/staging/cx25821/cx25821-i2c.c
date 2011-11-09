@@ -370,16 +370,16 @@ int cx25821_i2c_read(struct cx25821_i2c *bus, u16 reg_addr, int *value)
 
 	struct i2c_msg msgs[2] = {
 		{
-		 .addr = client->addr,
-		 .flags = 0,
-		 .len = 2,
-		 .buf = addr,
-		 }, {
-		     .addr = client->addr,
-		     .flags = I2C_M_RD,
-		     .len = 4,
-		     .buf = buf,
-		     }
+			.addr = client->addr,
+			.flags = 0,
+			.len = 2,
+			.buf = addr,
+		}, {
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 4,
+			.buf = buf,
+		}
 	};
 
 	addr[0] = (reg_addr >> 8);
@@ -403,11 +403,11 @@ int cx25821_i2c_write(struct cx25821_i2c *bus, u16 reg_addr, int value)
 
 	struct i2c_msg msgs[1] = {
 		{
-		 .addr = client->addr,
-		 .flags = 0,
-		 .len = 6,
-		 .buf = buf,
-		 }
+			.addr = client->addr,
+			.flags = 0,
+			.len = 6,
+			.buf = buf,
+		}
 	};
 
 	buf[0] = reg_addr >> 8;

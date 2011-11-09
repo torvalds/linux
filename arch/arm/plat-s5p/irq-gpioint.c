@@ -163,9 +163,9 @@ static __init int s5p_gpioint_add(struct s3c_gpio_chip *chip)
 	ct->chip.irq_mask = irq_gc_mask_set_bit;
 	ct->chip.irq_unmask = irq_gc_mask_clr_bit;
 	ct->chip.irq_set_type = s5p_gpioint_set_type,
-	ct->regs.ack = PEND_OFFSET + REG_OFFSET(chip->group);
-	ct->regs.mask = MASK_OFFSET + REG_OFFSET(chip->group);
-	ct->regs.type = CON_OFFSET + REG_OFFSET(chip->group);
+	ct->regs.ack = PEND_OFFSET + REG_OFFSET(group - bank->start);
+	ct->regs.mask = MASK_OFFSET + REG_OFFSET(group - bank->start);
+	ct->regs.type = CON_OFFSET + REG_OFFSET(group - bank->start);
 	irq_setup_generic_chip(gc, IRQ_MSK(chip->chip.ngpio),
 			       IRQ_GC_INIT_MASK_CACHE,
 			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);

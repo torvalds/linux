@@ -315,7 +315,7 @@ static int altera_uart_startup(struct uart_port *port)
 		return 0;
 	}
 
-	ret = request_irq(port->irq, altera_uart_interrupt, IRQF_DISABLED,
+	ret = request_irq(port->irq, altera_uart_interrupt, 0,
 			DRV_NAME, port);
 	if (ret) {
 		pr_err(DRV_NAME ": unable to attach Altera UART %d "

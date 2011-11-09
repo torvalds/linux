@@ -31,7 +31,7 @@
 #include <linux/if_link.h>
 
 #ifdef __KERNEL__
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
@@ -969,7 +969,7 @@ struct net_device {
 	 */
 	char			name[IFNAMSIZ];
 
-	struct pm_qos_request_list pm_qos_req;
+	struct pm_qos_request	pm_qos_req;
 
 	/* device name hash chain */
 	struct hlist_node	name_hlist;
@@ -2619,6 +2619,9 @@ static inline const char *netdev_name(const struct net_device *dev)
 	return dev->name;
 }
 
+extern int __netdev_printk(const char *level, const struct net_device *dev,
+			struct va_format *vaf);
+
 extern int netdev_printk(const char *level, const struct net_device *dev,
 			 const char *format, ...)
 	__attribute__ ((format (printf, 3, 4)));
@@ -2646,8 +2649,7 @@ extern int netdev_info(const struct net_device *dev, const char *format, ...)
 #elif defined(CONFIG_DYNAMIC_DEBUG)
 #define netdev_dbg(__dev, format, args...)			\
 do {								\
-	dynamic_dev_dbg((__dev)->dev.parent, "%s: " format,	\
-			netdev_name(__dev), ##args);		\
+	dynamic_netdev_dbg(__dev, format, ##args);		\
 } while (0)
 #else
 #define netdev_dbg(__dev, format, args...)			\
@@ -2714,9 +2716,7 @@ do {								\
 #define netif_dbg(priv, type, netdev, format, args...)		\
 do {								\
 	if (netif_msg_##type(priv))				\
-		dynamic_dev_dbg((netdev)->dev.parent,		\
-				"%s: " format,			\
-				netdev_name(netdev), ##args);	\
+		dynamic_netdev_dbg(netdev, format, ##args);	\
 } while (0)
 #else
 #define netif_dbg(priv, type, dev, format, args...)			\

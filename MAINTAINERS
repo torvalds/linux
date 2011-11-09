@@ -2144,6 +2144,14 @@ M:	Matthew Garrett <mjg59@srcf.ucam.org>
 S:	Maintained
 F:	drivers/platform/x86/dell-wmi.c
 
+DESIGNWARE USB3 DRD IP DRIVER
+M:	Felipe Balbi <balbi@ti.com>
+L:	linux-usb@vger.kernel.org
+L:	linux-omap@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
+S:	Maintained
+F:	drivers/usb/dwc3/
+
 DEVICE NUMBER REGISTRY
 M:	Torben Mathiasen <device@lanana.org>
 W:	http://lanana.org/docs/device-list/index.html
@@ -2301,6 +2309,12 @@ M:	Francois Romieu <romieu@fr.zoreil.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wan/dscc4.c
+
+DYNAMIC DEBUG
+M:	Jason Baron <jbaron@redhat.com>
+S:	Maintained
+F:	lib/dynamic_debug.c
+F:	include/linux/dynamic_debug.h
 
 DZ DECSTATION DZ11 SERIAL DRIVER
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
@@ -2560,6 +2574,11 @@ S:	Maintained
 F:	Documentation/filesystems/ext4.txt
 F:	fs/ext4/
 
+Extended Verification Module (EVM)
+M:	Mimi Zohar <zohar@us.ibm.com>
+S:	Supported
+F:	security/integrity/evm/
+
 F71805F HARDWARE MONITORING DRIVER
 M:	Jean Delvare <khali@linux-fr.org>
 L:	lm-sensors@lm-sensors.org
@@ -2741,7 +2760,7 @@ F:	fs/freevxfs/
 FREEZER
 M:	Pavel Machek <pavel@ucw.cz>
 M:	"Rafael J. Wysocki" <rjw@sisk.pl>
-L:	linux-pm@lists.linux-foundation.org
+L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	Documentation/power/freezing-of-tasks.txt
 F:	include/linux/freezer.h
@@ -3003,7 +3022,7 @@ F:	drivers/video/hgafb.c
 HIBERNATION (aka Software Suspend, aka swsusp)
 M:	Pavel Machek <pavel@ucw.cz>
 M:	"Rafael J. Wysocki" <rjw@sisk.pl>
-L:	linux-pm@lists.linux-foundation.org
+L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	arch/x86/power/
 F:	drivers/base/power/
@@ -3198,7 +3217,7 @@ F:	drivers/ide/ide-cd*
 
 IDLE-I7300
 M:	Andy Henroid <andrew.d.henroid@intel.com>
-L:	linux-pm@lists.linux-foundation.org
+L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	drivers/idle/i7300_idle.c
 
@@ -3281,7 +3300,7 @@ F:	firmware/isci/
 
 INTEL IDLE DRIVER
 M:	Len Brown <lenb@kernel.org>
-L:	linux-pm@lists.linux-foundation.org
+L:	linux-pm@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux-idle-2.6.git
 S:	Supported
 F:	drivers/idle/intel_idle.c
@@ -3322,7 +3341,7 @@ M:	David Woodhouse <dwmw2@infradead.org>
 L:	iommu@lists.linux-foundation.org
 T:	git git://git.infradead.org/iommu-2.6.git
 S:	Supported
-F:	drivers/pci/intel-iommu.c
+F:	drivers/iommu/intel-iommu.c
 F:	include/linux/intel-iommu.h
 
 INTEL IOP-ADMA DMA DRIVER
@@ -3378,7 +3397,7 @@ F:	drivers/net/ethernet/intel/
 
 INTEL MRST PMU DRIVER
 M:	Len Brown <len.brown@intel.com>
-L:	linux-pm@lists.linux-foundation.org
+L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	arch/x86/platform/mrst/pmu.*
 
@@ -4069,7 +4088,7 @@ S:	Maintained
 
 M32R ARCHITECTURE
 M:	Hirokazu Takata <takata@linux-m32r.org>
-L:	linux-m32r@ml.linux-m32r.org
+L:	linux-m32r@ml.linux-m32r.org (moderated for non-subscribers)
 L:	linux-m32r-ja@ml.linux-m32r.org (in Japanese)
 W:	http://www.linux-m32r.org/
 S:	Maintained
@@ -4238,7 +4257,7 @@ F:	include/mtd/
 
 MICROBLAZE ARCHITECTURE
 M:	Michal Simek <monstr@monstr.eu>
-L:	microblaze-uclinux@itee.uq.edu.au
+L:	microblaze-uclinux@itee.uq.edu.au (moderated for non-subscribers)
 W:	http://www.monstr.eu/fdt/
 T:	git git://git.monstr.eu/linux-2.6-microblaze.git
 S:	Supported
@@ -4753,7 +4772,7 @@ K:	of_match_table
 OPENRISC ARCHITECTURE
 M:	Jonas Bonn <jonas@southpole.se>
 W:	http://openrisc.net
-L:	linux@lists.openrisc.net
+L:	linux@lists.openrisc.net (moderated for non-subscribers)
 S:	Maintained
 T:	git git://openrisc.net/~jonas/linux
 F:	arch/openrisc
@@ -5022,6 +5041,11 @@ M:	Joern Engel <joern@lazybastard.org>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
 F:	drivers/mtd/devices/phram.c
+
+PIN CONTROL SUBSYSTEM
+M:	Linus Walleij <linus.walleij@linaro.org>
+S:	Maintained
+F:	drivers/pinmux/
 
 PKTCDVD DRIVER
 M:	Peter Osterlund <petero2@telia.com>
@@ -6147,7 +6171,7 @@ S:	Maintained
 
 STAGING SUBSYSTEM
 M:	Greg Kroah-Hartman <gregkh@suse.de>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging.git
 L:	devel@driverdev.osuosl.org
 S:	Maintained
 F:	drivers/staging/
@@ -6188,6 +6212,11 @@ M:	David Rowe <david@rowetel.com>
 S:	Odd Fixes
 F:	drivers/staging/echo/
 
+STAGING - ET131X NETWORK DRIVER
+M:	Mark Einon <mark.einon@gmail.com>
+S:	Odd Fixes
+F:	drivers/staging/et131x/
+
 STAGING - FLARION FT1000 DRIVERS
 M:	Marek Belisko <marek.belisko@gmail.com>
 S:	Odd Fixes
@@ -6215,6 +6244,13 @@ M:	Jarod Wilson <jarod@wilsonet.com>
 W:	http://www.lirc.org/
 S:	Odd Fixes
 F:	drivers/staging/lirc/
+
+STAGING - NVIDIA COMPLIANT EMBEDDED CONTROLLER INTERFACE (nvec)
+M:	Julian Andres Klode <jak@jak-linux.org>
+M:	Marc Dietrich <marvin24@gmx.de>
+L:	ac100@lists.launchpad.net (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/staging/nvec/
 
 STAGING - OLPC SECONDARY DISPLAY CONTROLLER (DCON)
 M:	Andres Salomon <dilinger@queued.net>
@@ -6314,7 +6350,7 @@ SUSPEND TO RAM
 M:	Len Brown <len.brown@intel.com>
 M:	Pavel Machek <pavel@ucw.cz>
 M:	"Rafael J. Wysocki" <rjw@sisk.pl>
-L:	linux-pm@lists.linux-foundation.org
+L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	Documentation/power/
 F:	arch/x86/kernel/acpi/
@@ -6455,7 +6491,7 @@ L:	tomoyo-users-en@lists.sourceforge.jp (subscribers-only, for users in English)
 L:	tomoyo-dev@lists.sourceforge.jp (subscribers-only, for developers in Japanese)
 L:	tomoyo-users@lists.sourceforge.jp (subscribers-only, for users in Japanese)
 W:	http://tomoyo.sourceforge.jp/
-T:	quilt http://svn.sourceforge.jp/svnroot/tomoyo/trunk/2.4.x/tomoyo-lsm/patches/
+T:	quilt http://svn.sourceforge.jp/svnroot/tomoyo/trunk/2.5.x/tomoyo-lsm/patches/
 S:	Maintained
 F:	security/tomoyo/
 
@@ -7149,6 +7185,12 @@ M:	Miroslav Zagorac <zaga@fly.cc.fer.hr>
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	drivers/scsi/wd7000.c
+
+WIIMOTE HID DRIVER
+M:	David Herrmann <dh.herrmann@googlemail.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/hid/hid-wiimote*
 
 WINBOND CIR DRIVER
 M:	David Härdeman <david@hardeman.nu>

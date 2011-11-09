@@ -1689,7 +1689,7 @@ static inline void write_swqe2_data(struct sk_buff *skb, struct net_device *dev,
 			sgentry = &sg_list[i - sg1entry_contains_frag_data];
 
 			sgentry->l_key = lkey;
-			sgentry->len = frag_size(frag);
+			sgentry->len = skb_frag_size(frag);
 			sgentry->vaddr = ehea_map_vaddr(skb_frag_address(frag));
 			swqe->descriptors++;
 		}

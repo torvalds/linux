@@ -8,15 +8,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -971,23 +962,15 @@ printer_set_config(struct printer_dev *dev, unsigned number)
 		usb_gadget_vbus_draw(dev->gadget,
 				dev->gadget->is_otg ? 8 : 100);
 	} else {
-		char *speed;
 		unsigned power;
 
 		power = 2 * config_desc.bMaxPower;
 		usb_gadget_vbus_draw(dev->gadget, power);
 
-		switch (gadget->speed) {
-		case USB_SPEED_FULL:	speed = "full"; break;
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-		case USB_SPEED_HIGH:	speed = "high"; break;
-#endif
-		default:		speed = "?"; break;
-		}
-
 		dev->config = number;
-		INFO(dev, "%s speed config #%d: %d mA, %s\n",
-				speed, number, power, driver_desc);
+		INFO(dev, "%s config #%d: %d mA, %s\n",
+		     usb_speed_string(gadget->speed),
+		     number, power, driver_desc);
 	}
 	return result;
 }
@@ -1611,7 +1594,7 @@ cleanup(void)
 	if (status)
 		ERROR(dev, "usb_gadget_unregister_driver %x\n", status);
 
-	unregister_chrdev_region(g_printer_devno, 2);
+	unregister_chrdev_region(g_printer_devno, 1);
 	class_destroy(usb_gadget_class);
 	mutex_unlock(&usb_printer_gadget.lock_printer_io);
 }

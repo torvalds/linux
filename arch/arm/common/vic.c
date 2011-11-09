@@ -346,7 +346,8 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 
 	/* Identify which VIC cell this one is, by reading the ID */
 	for (i = 0; i < 4; i++) {
-		u32 addr = ((u32)base & PAGE_MASK) + 0xfe0 + (i * 4);
+		void __iomem *addr;
+		addr = (void __iomem *)((u32)base & PAGE_MASK) + 0xfe0 + (i * 4);
 		cellid |= (readl(addr) & 0xff) << (8 * i);
 	}
 	vendor = (cellid >> 12) & 0xff;

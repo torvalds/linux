@@ -1,0 +1,43 @@
+#
+# PINCTRL infrastructure and drivers
+#
+
+menuconfig PINCTRL
+	bool "PINCTRL Support"
+	depends on EXPERIMENTAL
+	help
+	  This enables the PINCTRL subsystem for controlling pins
+	  on chip packages, for example multiplexing pins on primarily
+	  PGA and BGA packages for systems on chip.
+
+	  If unsure, say N.
+
+if PINCTRL
+
+config PINMUX
+	bool "Support pinmux controllers"
+	help
+	  Say Y here if you want the pincontrol subsystem to handle pin
+	  multiplexing drivers.
+
+config DEBUG_PINCTRL
+	bool "Debug PINCTRL calls"
+	depends on DEBUG_KERNEL
+	help
+	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
+
+config PINMUX_SIRF
+	bool "CSR SiRFprimaII pinmux driver"
+	depends on ARCH_PRIMA2
+	select PINMUX
+	help
+	  Say Y here to enable the SiRFprimaII pinmux driver
+
+config PINMUX_U300
+	bool "U300 pinmux driver"
+	depends on ARCH_U300
+	select PINMUX
+	help
+	  Say Y here to enable the U300 pinmux driver
+
+endif

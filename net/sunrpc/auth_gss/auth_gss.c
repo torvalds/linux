@@ -603,26 +603,6 @@ out:
 	return err;
 }
 
-static ssize_t
-gss_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
-		char __user *dst, size_t buflen)
-{
-	char *data = (char *)msg->data + msg->copied;
-	size_t mlen = min(msg->len, buflen);
-	unsigned long left;
-
-	left = copy_to_user(dst, data, mlen);
-	if (left == mlen) {
-		msg->errno = -EFAULT;
-		return -EFAULT;
-	}
-
-	mlen -= left;
-	msg->copied += mlen;
-	msg->errno = 0;
-	return mlen;
-}
-
 #define MSG_BUF_MAXSIZE 1024
 
 static ssize_t
@@ -1590,7 +1570,7 @@ static const struct rpc_credops gss_nullops = {
 };
 
 static const struct rpc_pipe_ops gss_upcall_ops_v0 = {
-	.upcall		= gss_pipe_upcall,
+	.upcall		= rpc_pipe_generic_upcall,
 	.downcall	= gss_pipe_downcall,
 	.destroy_msg	= gss_pipe_destroy_msg,
 	.open_pipe	= gss_pipe_open_v0,
@@ -1598,7 +1578,7 @@ static const struct rpc_pipe_ops gss_upcall_ops_v0 = {
 };
 
 static const struct rpc_pipe_ops gss_upcall_ops_v1 = {
-	.upcall		= gss_pipe_upcall,
+	.upcall		= rpc_pipe_generic_upcall,
 	.downcall	= gss_pipe_downcall,
 	.destroy_msg	= gss_pipe_destroy_msg,
 	.open_pipe	= gss_pipe_open_v1,

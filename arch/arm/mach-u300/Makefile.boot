@@ -4,10 +4,10 @@
 #   INITRD_PHYS must be in RAM
 
 ifdef CONFIG_MACH_U300_SINGLE_RAM
-     zreladdr-y	:= 0x28E08000
+     zreladdr-y	+= 0x28E08000
   params_phys-y	:= 0x28E00100
 else
-     zreladdr-y	:= 0x48008000
+     zreladdr-y	+= 0x48008000
   params_phys-y	:= 0x48000100
 endif
 

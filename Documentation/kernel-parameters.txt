@@ -49,6 +49,7 @@ parameter is applicable:
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
 	EFI	EFI Partitioning (GPT) is enabled
 	EIDE	EIDE/ATAPI support is enabled.
+	EVM	Extended Verification Module
 	FB	The frame buffer device is enabled.
 	FTRACE	Function tracing enabled.
 	GCOV	GCOV profiling is enabled.
@@ -163,7 +164,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			rsdt -- prefer RSDT over (default) XSDT
 			copy_dsdt -- copy DSDT to memory
 
-			See also Documentation/power/pm.txt, pci=noacpi
+			See also Documentation/power/runtime_pm.txt, pci=noacpi
 
 	acpi_rsdp=	[ACPI,EFI,KEXEC]
 			Pass the RSDP address to the kernel, mostly used
@@ -319,7 +320,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
 			Format: <a>,<b>
-			See also Documentation/kernel/input/joystick.txt
+			See also Documentation/input/joystick.txt
 
 	analog.map=	[HW,JOY] Analog joystick and gamepad support
 			Specifies type or capabilities of an analog joystick
@@ -408,7 +409,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	bttv.radio=	Most important insmod options are available as
 			kernel args too.
 	bttv.pll=	See Documentation/video4linux/bttv/Insmod-options
-	bttv.tuner=	and Documentation/video4linux/bttv/CARDLIST
+	bttv.tuner=
 
 	bulk_remove=off	[PPC]  This parameter disables the use of the pSeries
 			firmware feature for flushing multiple hpte entries
@@ -724,7 +725,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	elevator=	[IOSCHED]
 			Format: {"cfq" | "deadline" | "noop"}
-			See Documentation/block/as-iosched.txt and
+			See Documentation/block/cfq-iosched.txt and
 			Documentation/block/deadline-iosched.txt for details.
 
 	elfcorehdr=	[IA-64,PPC,SH,X86]
@@ -760,12 +761,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			This option is obsoleted by the "netdev=" option, which
 			has equivalent usage. See its documentation for details.
 
+	evm=		[EVM]
+			Format: { "fix" }
+			Permit 'security.evm' to be updated regardless of
+			current integrity status.
+
 	failslab=
 	fail_page_alloc=
 	fail_make_request=[KNL]
 			General fault injection mechanism.
 			Format: <interval>,<probability>,<space>,<times>
-			See also /Documentation/fault-injection/.
+			See also Documentation/fault-injection/.
 
 	floppy=		[HW]
 			See Documentation/blockdev/floppy.txt.
@@ -1014,10 +1020,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			has the capability. With this option, super page will
 			not be supported.
 	intremap=	[X86-64, Intel-IOMMU]
-			Format: { on (default) | off | nosid }
 			on	enable Interrupt Remapping (default)
 			off	disable Interrupt Remapping
 			nosid	disable Source ID checking
+			no_x2apic_optout
+				BIOS x2APIC opt-out request will be ignored
 
 	inttest=	[IA-64]
 
@@ -2240,6 +2247,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			in <PAGE_SIZE> units (needed only for swap files).
 			See  Documentation/power/swsusp-and-swap-files.txt
 
+	resumedelay=	[HIBERNATION] Delay (in seconds) to pause before attempting to
+			read the resume files
+
+	resumewait	[HIBERNATION] Wait (indefinitely) for resume device to show up.
+			Useful for devices that are detected asynchronously
+			(e.g. USB and MMC devices).
+
 	hibernate=	[HIBERNATION]
 		noresume	Don't check if there's a hibernation image
 				present during boot.
@@ -2375,7 +2389,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: <integer>
 
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver
-			See Documentation/sonypi.txt
+			See Documentation/laptops/sonypi.txt
 
 	specialix=	[HW,SERIAL] Specialix multi-serial port adapter
 			See Documentation/serial/specialix.txt.
