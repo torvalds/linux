@@ -324,8 +324,6 @@ struct easycap {
 	int lost[INPUT_MANY];
 	int merit[180];
 
-	long long int dnbydt;
-
 	int    video_interface;
 	int    video_altsetting_on;
 	int    video_altsetting_off;
@@ -353,7 +351,6 @@ struct easycap {
 	u8 *pcache;
 	int video_mt;
 	int audio_mt;
-	long long audio_bytes;
 	u32 isequence;
 
 	int vma_many;
@@ -450,9 +447,6 @@ struct easycap {
  *  SOUND PROPERTIES
  */
 /*---------------------------------------------------------------------------*/
-
-	int audio_buffer_many;
-
 	int allocation_audio_urb;
 	int allocation_audio_page;
 	int allocation_audio_struct;
