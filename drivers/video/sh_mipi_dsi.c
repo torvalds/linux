@@ -246,18 +246,6 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	/* setup DSI link */
 
 	/*
-	 * Default = ULPS enable |
-	 *	Contention detection enabled |
-	 *	EoT packet transmission enable |
-	 *	CRC check enable |
-	 *	ECC check enable
-	 * additionally enable first two lanes
-	 */
-	bitmap_fill((unsigned long *)&tmp, pdata->lane);
-	tmp |= 0x00003700;
-	iowrite32(tmp, base + SYSCONF);
-
-	/*
 	 * T_wakeup = 0x7000
 	 * T_hs-trail = 3
 	 * T_hs-prepare = 3
@@ -286,6 +274,17 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	udelay(200);
 	/* Deassert resets, power on */
 	iowrite32(0x03070001, base + PHYCTRL);
+
+	/*
+	 * Default = ULPS enable |
+	 *	Contention detection enabled |
+	 *	EoT packet transmission enable |
+	 *	CRC check enable |
+	 *	ECC check enable
+	 */
+	bitmap_fill((unsigned long *)&tmp, pdata->lane);
+	tmp |= 0x00003700;
+	iowrite32(tmp, base + SYSCONF);
 
 	/* setup l-bridge */
 
