@@ -695,11 +695,12 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 	}
 
 	write_lock_bh(&tipc_nametbl_lock);
-	table.local_publ_count++;
 	publ = tipc_nametbl_insert_publ(type, lower, upper, scope,
 				   tipc_own_addr, port_ref, key);
-	if (likely(publ))
+	if (likely(publ)) {
+		table.local_publ_count++;
 		tipc_named_publish(publ);
+	}
 	write_unlock_bh(&tipc_nametbl_lock);
 	return publ;
 }
