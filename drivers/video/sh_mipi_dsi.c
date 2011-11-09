@@ -318,7 +318,7 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	 */
 	if (pdata->flags & SH_MIPI_DSI_HSABM)
 		vmctr2 |= 0x20;
-	if (pdata->flags & SH_MIPI_DSI_HSPBM)
+	if (pdata->flags & SH_MIPI_DSI_HBPBM)
 		vmctr2 |= 0x10;
 	iowrite32(vmctr2, mipi->linkbase + VMCTR2);
 
