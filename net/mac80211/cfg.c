@@ -2590,6 +2590,14 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+static struct ieee80211_channel *
+ieee80211_wiphy_get_channel(struct wiphy *wiphy)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	return local->oper_channel;
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -2656,4 +2664,5 @@ struct cfg80211_ops mac80211_config_ops = {
 	.tdls_oper = ieee80211_tdls_oper,
 	.tdls_mgmt = ieee80211_tdls_mgmt,
 	.probe_client = ieee80211_probe_client,
+	.get_channel = ieee80211_wiphy_get_channel,
 };

@@ -1342,6 +1342,9 @@ struct cfg80211_gtk_rekey_data {
  *	doesn't verify much. Note, however, that the passed netdev may be
  *	%NULL as well if the user requested changing the channel for the
  *	device itself, or for a monitor interface.
+ * @get_channel: Get the current operating channel, should return %NULL if
+ *	there's no single defined operating channel if for example the
+ *	device implements channel hopping for multi-channel virtual interfaces.
  *
  * @scan: Request to do a scan. If returning zero, the scan request is given
  *	the driver, and will be valid until passed to cfg80211_scan_done().
@@ -1627,6 +1630,8 @@ struct cfg80211_ops {
 
 	int	(*probe_client)(struct wiphy *wiphy, struct net_device *dev,
 				const u8 *peer, u64 *cookie);
+
+	struct ieee80211_channel *(*get_channel)(struct wiphy *wiphy);
 };
 
 /*
