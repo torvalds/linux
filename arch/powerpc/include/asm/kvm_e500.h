@@ -71,14 +71,6 @@ struct kvmppc_vcpu_e500 {
 	u32 pid[E500_PID_NUM];
 	u32 svr;
 
-	u32 mas0;
-	u32 mas1;
-	u32 mas2;
-	u64 mas7_3;
-	u32 mas4;
-	u32 mas5;
-	u32 mas6;
-
 	/* vcpu id table */
 	struct vcpu_id_table *idt;
 

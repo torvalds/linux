@@ -66,7 +66,7 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 		vcpu->arch.magic_page_pa = param1;
 		vcpu->arch.magic_page_ea = param2;
 
-		r2 = KVM_MAGIC_FEAT_SR;
+		r2 = KVM_MAGIC_FEAT_SR | KVM_MAGIC_FEAT_MAS0_TO_SPRG7;
 
 		r = HC_EV_SUCCESS;
 		break;

@@ -270,7 +270,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		vcpu->arch.shared->srr1 = vcpu->arch.shared->msr;
 		vcpu->arch.pc = vcpu->arch.ivpr | vcpu->arch.ivor[priority];
 		if (update_esr == true)
-			vcpu->arch.esr = vcpu->arch.queued_esr;
+			vcpu->arch.shared->esr = vcpu->arch.queued_esr;
 		if (update_dear == true)
 			vcpu->arch.shared->dar = vcpu->arch.queued_dear;
 		kvmppc_set_msr(vcpu, vcpu->arch.shared->msr & msr_mask);
@@ -644,6 +644,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.pc = 0;
 	vcpu->arch.shared->msr = 0;
 	vcpu->arch.shadow_msr = MSR_USER | MSR_DE | MSR_IS | MSR_DS;
+	vcpu->arch.shared->pir = vcpu->vcpu_id;
 	kvmppc_set_gpr(vcpu, 1, (16<<20) - 8); /* -8 for the callee-save LR slot */
 
 	vcpu->arch.shadow_pid = 1;
@@ -678,10 +679,10 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->sprg1 = vcpu->arch.shared->sprg1;
 	regs->sprg2 = vcpu->arch.shared->sprg2;
 	regs->sprg3 = vcpu->arch.shared->sprg3;
-	regs->sprg4 = vcpu->arch.sprg4;
-	regs->sprg5 = vcpu->arch.sprg5;
-	regs->sprg6 = vcpu->arch.sprg6;
-	regs->sprg7 = vcpu->arch.sprg7;
+	regs->sprg4 = vcpu->arch.shared->sprg4;
+	regs->sprg5 = vcpu->arch.shared->sprg5;
+	regs->sprg6 = vcpu->arch.shared->sprg6;
+	regs->sprg7 = vcpu->arch.shared->sprg7;
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		regs->gpr[i] = kvmppc_get_gpr(vcpu, i);
@@ -706,10 +707,10 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	vcpu->arch.shared->sprg1 = regs->sprg1;
 	vcpu->arch.shared->sprg2 = regs->sprg2;
 	vcpu->arch.shared->sprg3 = regs->sprg3;
-	vcpu->arch.sprg4 = regs->sprg4;
-	vcpu->arch.sprg5 = regs->sprg5;
-	vcpu->arch.sprg6 = regs->sprg6;
-	vcpu->arch.sprg7 = regs->sprg7;
+	vcpu->arch.shared->sprg4 = regs->sprg4;
+	vcpu->arch.shared->sprg5 = regs->sprg5;
+	vcpu->arch.shared->sprg6 = regs->sprg6;
+	vcpu->arch.shared->sprg7 = regs->sprg7;
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		kvmppc_set_gpr(vcpu, i, regs->gpr[i]);
@@ -727,7 +728,7 @@ static void get_sregs_base(struct kvm_vcpu *vcpu,
 	sregs->u.e.csrr0 = vcpu->arch.csrr0;
 	sregs->u.e.csrr1 = vcpu->arch.csrr1;
 	sregs->u.e.mcsr = vcpu->arch.mcsr;
-	sregs->u.e.esr = vcpu->arch.esr;
+	sregs->u.e.esr = vcpu->arch.shared->esr;
 	sregs->u.e.dear = vcpu->arch.shared->dar;
 	sregs->u.e.tsr = vcpu->arch.tsr;
 	sregs->u.e.tcr = vcpu->arch.tcr;
@@ -745,7 +746,7 @@ static int set_sregs_base(struct kvm_vcpu *vcpu,
 	vcpu->arch.csrr0 = sregs->u.e.csrr0;
 	vcpu->arch.csrr1 = sregs->u.e.csrr1;
 	vcpu->arch.mcsr = sregs->u.e.mcsr;
-	vcpu->arch.esr = sregs->u.e.esr;
+	vcpu->arch.shared->esr = sregs->u.e.esr;
 	vcpu->arch.shared->dar = sregs->u.e.dear;
 	vcpu->arch.vrsave = sregs->u.e.vrsave;
 	vcpu->arch.tcr = sregs->u.e.tcr;

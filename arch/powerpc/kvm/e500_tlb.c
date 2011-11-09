@@ -428,13 +428,14 @@ static int htlb0_set_base(gva_t addr)
 			     host_tlb_params[0].ways);
 }
 
-static unsigned int get_tlb_esel(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel)
+static unsigned int get_tlb_esel(struct kvm_vcpu *vcpu, int tlbsel)
 {
-	unsigned int esel = get_tlb_esel_bit(vcpu_e500);
+	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
+	int esel = get_tlb_esel_bit(vcpu);
 
 	if (tlbsel == 0) {
 		esel &= vcpu_e500->gtlb_params[0].ways - 1;
-		esel += gtlb0_set_base(vcpu_e500, vcpu_e500->mas2);
+		esel += gtlb0_set_base(vcpu_e500, vcpu->arch.shared->mas2);
 	} else {
 		esel &= vcpu_e500->gtlb_params[tlbsel].entries - 1;
 	}
@@ -545,20 +546,20 @@ static inline void kvmppc_e500_deliver_tlb_miss(struct kvm_vcpu *vcpu,
 	int tlbsel;
 
 	/* since we only have two TLBs, only lower bit is used. */
-	tlbsel = (vcpu_e500->mas4 >> 28) & 0x1;
+	tlbsel = (vcpu->arch.shared->mas4 >> 28) & 0x1;
 	victim = (tlbsel == 0) ? gtlb0_get_next_victim(vcpu_e500) : 0;
-	pidsel = (vcpu_e500->mas4 >> 16) & 0xf;
-	tsized = (vcpu_e500->mas4 >> 7) & 0x1f;
+	pidsel = (vcpu->arch.shared->mas4 >> 16) & 0xf;
+	tsized = (vcpu->arch.shared->mas4 >> 7) & 0x1f;
 
-	vcpu_e500->mas0 = MAS0_TLBSEL(tlbsel) | MAS0_ESEL(victim)
+	vcpu->arch.shared->mas0 = MAS0_TLBSEL(tlbsel) | MAS0_ESEL(victim)
 		| MAS0_NV(vcpu_e500->gtlb_nv[tlbsel]);
-	vcpu_e500->mas1 = MAS1_VALID | (as ? MAS1_TS : 0)
+	vcpu->arch.shared->mas1 = MAS1_VALID | (as ? MAS1_TS : 0)
 		| MAS1_TID(vcpu_e500->pid[pidsel])
 		| MAS1_TSIZE(tsized);
-	vcpu_e500->mas2 = (eaddr & MAS2_EPN)
-		| (vcpu_e500->mas4 & MAS2_ATTRIB_MASK);
-	vcpu_e500->mas7_3 &= MAS3_U0 | MAS3_U1 | MAS3_U2 | MAS3_U3;
-	vcpu_e500->mas6 = (vcpu_e500->mas6 & MAS6_SPID1)
+	vcpu->arch.shared->mas2 = (eaddr & MAS2_EPN)
+		| (vcpu->arch.shared->mas4 & MAS2_ATTRIB_MASK);
+	vcpu->arch.shared->mas7_3 &= MAS3_U0 | MAS3_U1 | MAS3_U2 | MAS3_U3;
+	vcpu->arch.shared->mas6 = (vcpu->arch.shared->mas6 & MAS6_SPID1)
 		| (get_cur_pid(vcpu) << 16)
 		| (as ? MAS6_SAS : 0);
 }
@@ -844,15 +845,15 @@ int kvmppc_e500_emul_tlbre(struct kvm_vcpu *vcpu)
 	int tlbsel, esel;
 	struct kvm_book3e_206_tlb_entry *gtlbe;
 
-	tlbsel = get_tlb_tlbsel(vcpu_e500);
-	esel = get_tlb_esel(vcpu_e500, tlbsel);
+	tlbsel = get_tlb_tlbsel(vcpu);
+	esel = get_tlb_esel(vcpu, tlbsel);
 
 	gtlbe = get_entry(vcpu_e500, tlbsel, esel);
-	vcpu_e500->mas0 &= ~MAS0_NV(~0);
-	vcpu_e500->mas0 |= MAS0_NV(vcpu_e500->gtlb_nv[tlbsel]);
-	vcpu_e500->mas1 = gtlbe->mas1;
-	vcpu_e500->mas2 = gtlbe->mas2;
-	vcpu_e500->mas7_3 = gtlbe->mas7_3;
+	vcpu->arch.shared->mas0 &= ~MAS0_NV(~0);
+	vcpu->arch.shared->mas0 |= MAS0_NV(vcpu_e500->gtlb_nv[tlbsel]);
+	vcpu->arch.shared->mas1 = gtlbe->mas1;
+	vcpu->arch.shared->mas2 = gtlbe->mas2;
+	vcpu->arch.shared->mas7_3 = gtlbe->mas7_3;
 
 	return EMULATE_DONE;
 }
@@ -860,8 +861,8 @@ int kvmppc_e500_emul_tlbre(struct kvm_vcpu *vcpu)
 int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
-	int as = !!get_cur_sas(vcpu_e500);
-	unsigned int pid = get_cur_spid(vcpu_e500);
+	int as = !!get_cur_sas(vcpu);
+	unsigned int pid = get_cur_spid(vcpu);
 	int esel, tlbsel;
 	struct kvm_book3e_206_tlb_entry *gtlbe = NULL;
 	gva_t ea;
@@ -879,26 +880,30 @@ int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb)
 	if (gtlbe) {
 		esel &= vcpu_e500->gtlb_params[tlbsel].ways - 1;
 
-		vcpu_e500->mas0 = MAS0_TLBSEL(tlbsel) | MAS0_ESEL(esel)
+		vcpu->arch.shared->mas0 = MAS0_TLBSEL(tlbsel) | MAS0_ESEL(esel)
 			| MAS0_NV(vcpu_e500->gtlb_nv[tlbsel]);
-		vcpu_e500->mas1 = gtlbe->mas1;
-		vcpu_e500->mas2 = gtlbe->mas2;
-		vcpu_e500->mas7_3 = gtlbe->mas7_3;
+		vcpu->arch.shared->mas1 = gtlbe->mas1;
+		vcpu->arch.shared->mas2 = gtlbe->mas2;
+		vcpu->arch.shared->mas7_3 = gtlbe->mas7_3;
 	} else {
 		int victim;
 
 		/* since we only have two TLBs, only lower bit is used. */
-		tlbsel = vcpu_e500->mas4 >> 28 & 0x1;
+		tlbsel = vcpu->arch.shared->mas4 >> 28 & 0x1;
 		victim = (tlbsel == 0) ? gtlb0_get_next_victim(vcpu_e500) : 0;
 
-		vcpu_e500->mas0 = MAS0_TLBSEL(tlbsel) | MAS0_ESEL(victim)
+		vcpu->arch.shared->mas0 = MAS0_TLBSEL(tlbsel)
+			| MAS0_ESEL(victim)
 			| MAS0_NV(vcpu_e500->gtlb_nv[tlbsel]);
-		vcpu_e500->mas1 = (vcpu_e500->mas6 & MAS6_SPID0)
-			| (vcpu_e500->mas6 & (MAS6_SAS ? MAS1_TS : 0))
-			| (vcpu_e500->mas4 & MAS4_TSIZED(~0));
-		vcpu_e500->mas2 &= MAS2_EPN;
-		vcpu_e500->mas2 |= vcpu_e500->mas4 & MAS2_ATTRIB_MASK;
-		vcpu_e500->mas7_3 &= MAS3_U0 | MAS3_U1 | MAS3_U2 | MAS3_U3;
+		vcpu->arch.shared->mas1 =
+			  (vcpu->arch.shared->mas6 & MAS6_SPID0)
+			| (vcpu->arch.shared->mas6 & (MAS6_SAS ? MAS1_TS : 0))
+			| (vcpu->arch.shared->mas4 & MAS4_TSIZED(~0));
+		vcpu->arch.shared->mas2 &= MAS2_EPN;
+		vcpu->arch.shared->mas2 |= vcpu->arch.shared->mas4 &
+					   MAS2_ATTRIB_MASK;
+		vcpu->arch.shared->mas7_3 &= MAS3_U0 | MAS3_U1 |
+					     MAS3_U2 | MAS3_U3;
 	}
 
 	kvmppc_set_exit_type(vcpu, EMULATED_TLBSX_EXITS);
@@ -929,19 +934,19 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 	struct kvm_book3e_206_tlb_entry *gtlbe;
 	int tlbsel, esel;
 
-	tlbsel = get_tlb_tlbsel(vcpu_e500);
-	esel = get_tlb_esel(vcpu_e500, tlbsel);
+	tlbsel = get_tlb_tlbsel(vcpu);
+	esel = get_tlb_esel(vcpu, tlbsel);
 
 	gtlbe = get_entry(vcpu_e500, tlbsel, esel);
 
 	if (get_tlb_v(gtlbe))
 		inval_gtlbe_on_host(vcpu_e500, tlbsel, esel);
 
-	gtlbe->mas1 = vcpu_e500->mas1;
-	gtlbe->mas2 = vcpu_e500->mas2;
-	gtlbe->mas7_3 = vcpu_e500->mas7_3;
+	gtlbe->mas1 = vcpu->arch.shared->mas1;
+	gtlbe->mas2 = vcpu->arch.shared->mas2;
+	gtlbe->mas7_3 = vcpu->arch.shared->mas7_3;
 
-	trace_kvm_gtlb_write(vcpu_e500->mas0, gtlbe->mas1, gtlbe->mas2,
+	trace_kvm_gtlb_write(vcpu->arch.shared->mas0, gtlbe->mas1, gtlbe->mas2,
 			     (u32)gtlbe->mas7_3, (u32)(gtlbe->mas7_3 >> 32));
 
 	/* Invalidate shadow mappings for the about-to-be-clobbered TLBE. */

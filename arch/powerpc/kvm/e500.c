@@ -115,12 +115,12 @@ void kvmppc_core_get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 	sregs->u.e.impl.fsl.hid0 = vcpu_e500->hid0;
 	sregs->u.e.impl.fsl.mcar = vcpu_e500->mcar;
 
-	sregs->u.e.mas0 = vcpu_e500->mas0;
-	sregs->u.e.mas1 = vcpu_e500->mas1;
-	sregs->u.e.mas2 = vcpu_e500->mas2;
-	sregs->u.e.mas7_3 = vcpu_e500->mas7_3;
-	sregs->u.e.mas4 = vcpu_e500->mas4;
-	sregs->u.e.mas6 = vcpu_e500->mas6;
+	sregs->u.e.mas0 = vcpu->arch.shared->mas0;
+	sregs->u.e.mas1 = vcpu->arch.shared->mas1;
+	sregs->u.e.mas2 = vcpu->arch.shared->mas2;
+	sregs->u.e.mas7_3 = vcpu->arch.shared->mas7_3;
+	sregs->u.e.mas4 = vcpu->arch.shared->mas4;
+	sregs->u.e.mas6 = vcpu->arch.shared->mas6;
 
 	sregs->u.e.mmucfg = mfspr(SPRN_MMUCFG);
 	sregs->u.e.tlbcfg[0] = vcpu_e500->tlb0cfg;
@@ -148,12 +148,12 @@ int kvmppc_core_set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 	}
 
 	if (sregs->u.e.features & KVM_SREGS_E_ARCH206_MMU) {
-		vcpu_e500->mas0 = sregs->u.e.mas0;
-		vcpu_e500->mas1 = sregs->u.e.mas1;
-		vcpu_e500->mas2 = sregs->u.e.mas2;
-		vcpu_e500->mas7_3 = sregs->u.e.mas7_3;
-		vcpu_e500->mas4 = sregs->u.e.mas4;
-		vcpu_e500->mas6 = sregs->u.e.mas6;
+		vcpu->arch.shared->mas0 = sregs->u.e.mas0;
+		vcpu->arch.shared->mas1 = sregs->u.e.mas1;
+		vcpu->arch.shared->mas2 = sregs->u.e.mas2;
+		vcpu->arch.shared->mas7_3 = sregs->u.e.mas7_3;
+		vcpu->arch.shared->mas4 = sregs->u.e.mas4;
+		vcpu->arch.shared->mas6 = sregs->u.e.mas6;
 	}
 
 	if (!(sregs->u.e.features & KVM_SREGS_E_IVOR))

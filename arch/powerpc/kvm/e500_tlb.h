@@ -121,38 +121,33 @@ static inline unsigned int get_cur_pr(struct kvm_vcpu *vcpu)
 	return !!(vcpu->arch.shared->msr & MSR_PR);
 }
 
-static inline unsigned int get_cur_spid(
-		const struct kvmppc_vcpu_e500 *vcpu_e500)
+static inline unsigned int get_cur_spid(const struct kvm_vcpu *vcpu)
 {
-	return (vcpu_e500->mas6 >> 16) & 0xff;
+	return (vcpu->arch.shared->mas6 >> 16) & 0xff;
 }
 
-static inline unsigned int get_cur_sas(
-		const struct kvmppc_vcpu_e500 *vcpu_e500)
+static inline unsigned int get_cur_sas(const struct kvm_vcpu *vcpu)
 {
-	return vcpu_e500->mas6 & 0x1;
+	return vcpu->arch.shared->mas6 & 0x1;
 }
 
-static inline unsigned int get_tlb_tlbsel(
-		const struct kvmppc_vcpu_e500 *vcpu_e500)
+static inline unsigned int get_tlb_tlbsel(const struct kvm_vcpu *vcpu)
 {
 	/*
 	 * Manual says that tlbsel has 2 bits wide.
 	 * Since we only have two TLBs, only lower bit is used.
 	 */
-	return (vcpu_e500->mas0 >> 28) & 0x1;
+	return (vcpu->arch.shared->mas0 >> 28) & 0x1;
 }
 
-static inline unsigned int get_tlb_nv_bit(
-		const struct kvmppc_vcpu_e500 *vcpu_e500)
+static inline unsigned int get_tlb_nv_bit(const struct kvm_vcpu *vcpu)
 {
-	return vcpu_e500->mas0 & 0xfff;
+	return vcpu->arch.shared->mas0 & 0xfff;
 }
 
-static inline unsigned int get_tlb_esel_bit(
-		const struct kvmppc_vcpu_e500 *vcpu_e500)
+static inline unsigned int get_tlb_esel_bit(const struct kvm_vcpu *vcpu)
 {
-	return (vcpu_e500->mas0 >> 16) & 0xfff;
+	return (vcpu->arch.shared->mas0 >> 16) & 0xfff;
 }
 
 static inline int tlbe_is_host_safe(const struct kvm_vcpu *vcpu,
