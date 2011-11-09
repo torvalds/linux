@@ -1132,12 +1132,36 @@ static int k8_dbam_to_chip_select(struct amd64_pvt *pvt, u8 dct,
 		return ddr2_cs_size(cs_mode, dclr & WIDTH_128);
 	}
 	else if (pvt->ext_model >= K8_REV_D) {
+		unsigned diff;
 		WARN_ON(cs_mode > 10);
 
-		if (cs_mode == 3 || cs_mode == 8)
-			return 32 << (cs_mode - 1);
-		else
-			return 32 << cs_mode;
+		/*
+		 * the below calculation, besides trying to win an obfuscated C
+		 * contest, maps cs_mode values to DIMM chip select sizes. The
+		 * mappings are:
+		 *
+		 * cs_mode	CS size (mb)
+		 * =======	============
+		 * 0		32
+		 * 1		64
+		 * 2		128
+		 * 3		128
+		 * 4		256
+		 * 5		512
+		 * 6		256
+		 * 7		512
+		 * 8		1024
+		 * 9		1024
+		 * 10		2048
+		 *
+		 * Basically, it calculates a value with which to shift the
+		 * smallest CS size of 32MB.
+		 *
+		 * ddr[23]_cs_size have a similar purpose.
+		 */
+		diff = cs_mode/3 + (unsigned)(cs_mode > 5);
+
+		return 32 << (cs_mode - diff);
 	}
 	else {
 		WARN_ON(cs_mode > 6);
