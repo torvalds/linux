@@ -285,7 +285,6 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 static void kvmppc_core_check_exceptions(struct kvm_vcpu *vcpu)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
-	unsigned long old_pending = vcpu->arch.pending_exceptions;
 	unsigned int priority;
 
 	priority = __ffs(*pending);
@@ -299,10 +298,7 @@ static void kvmppc_core_check_exceptions(struct kvm_vcpu *vcpu)
 	}
 
 	/* Tell the guest about our interrupt status */
-	if (*pending)
-		vcpu->arch.shared->int_pending = 1;
-	else if (old_pending)
-		vcpu->arch.shared->int_pending = 0;
+	vcpu->arch.shared->int_pending = !!*pending;
 }
 
 /* Check pending exceptions and deliver one, if possible. */
