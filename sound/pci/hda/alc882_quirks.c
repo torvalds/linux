@@ -54,7 +54,6 @@ enum {
 	ALC888_ASUS_M90V,
 	ALC888_ASUS_EEE1601,
 	ALC889A_MB31,
-	ALC1200_ASUS_P5Q,
 	ALC882_MODEL_LAST,
 };
 
@@ -2798,7 +2797,6 @@ static const char * const alc882_models[ALC882_MODEL_LAST] = {
 	[ALC883_3ST_6ch_INTEL]	= "3stack-6ch-intel",
 	[ALC889A_INTEL]		= "intel-alc889a",
 	[ALC889_INTEL]		= "intel-x58",
-	[ALC1200_ASUS_P5Q]	= "asus-p5q",
 	[ALC889A_MB31]		= "mb31",
 	[ALC882_AUTO]		= "auto",
 };
@@ -2851,7 +2849,6 @@ static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x81d8, "Asus P5WD", ALC882_6ST_DIG),
 	SND_PCI_QUIRK(0x1043, 0x8249, "Asus M2A-VM HDMI", ALC883_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x1043, 0x8284, "Asus Z37E", ALC883_6ST_DIG),
-	SND_PCI_QUIRK(0x1043, 0x82fe, "Asus P5Q-EM HDMI", ALC1200_ASUS_P5Q),
 	SND_PCI_QUIRK(0x1043, 0x835f, "Asus Eee 1601", ALC888_ASUS_EEE1601),
 
 	SND_PCI_QUIRK(0x105b, 0x0ce8, "Foxconn P35AX-S", ALC883_6ST_DIG),
@@ -3648,18 +3645,6 @@ static const struct alc_config_preset alc882_presets[] = {
 		.input_mux = &alc883_asus_eee1601_capture_source,
 		.unsol_event = alc_sku_unsol_event,
 		.init_hook = alc883_eee1601_inithook,
-	},
-	[ALC1200_ASUS_P5Q] = {
-		.mixers = { alc883_base_mixer, alc883_chmode_mixer },
-		.init_verbs = { alc883_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.dig_out_nid = ALC1200_DIGOUT_NID,
-		.dig_in_nid = ALC883_DIGIN_NID,
-		.slave_dig_outs = alc1200_slave_dig_outs,
-		.num_channel_mode = ARRAY_SIZE(alc883_sixstack_modes),
-		.channel_mode = alc883_sixstack_modes,
-		.input_mux = &alc883_capture_source,
 	},
 	[ALC889A_MB31] = {
 		.mixers = { alc889A_mb31_mixer, alc883_chmode_mixer},
