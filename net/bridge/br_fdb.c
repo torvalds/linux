@@ -556,7 +556,7 @@ skip:
 	return skb->len;
 }
 
-/* Create new static fdb entry */
+/* Update (create or replace) forwarding database entry */
 static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 			 __u16 state, __u16 flags)
 {
@@ -575,16 +575,21 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 	} else {
 		if (flags & NLM_F_EXCL)
 			return -EEXIST;
-
-		if (flags & NLM_F_REPLACE)
-			fdb->updated = fdb->used = jiffies;
-		fdb->is_local = fdb->is_static = 0;
 	}
 
-	if (state & NUD_PERMANENT)
-		fdb->is_local = fdb->is_static = 1;
-	else if (state & NUD_NOARP)
-		fdb->is_static = 1;
+	if (fdb_to_nud(fdb) != state) {
+		if (state & NUD_PERMANENT)
+			fdb->is_local = fdb->is_static = 1;
+		else if (state & NUD_NOARP) {
+			fdb->is_local = 0;
+			fdb->is_static = 1;
+		} else
+			fdb->is_local = fdb->is_static = 0;
+
+		fdb->updated = fdb->used = jiffies;
+		fdb_notify(fdb, RTM_NEWNEIGH);
+	}
+
 	return 0;
 }
 
@@ -627,6 +632,11 @@ int br_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		return -EINVAL;
 	}
 
+	if (!(ndm->ndm_state & (NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE))) {
+		pr_info("bridge: RTM_NEWNEIGH with invalid state %#x\n", ndm->ndm_state);
+		return -EINVAL;
+	}
+
 	p = br_port_get_rtnl(dev);
 	if (p == NULL) {
 		pr_info("bridge: RTM_NEWNEIGH %s not a bridge port\n",
@@ -634,9 +644,15 @@ int br_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		return -EINVAL;
 	}
 
-	spin_lock_bh(&p->br->hash_lock);
-	err = fdb_add_entry(p, addr, ndm->ndm_state, nlh->nlmsg_flags);
-	spin_unlock_bh(&p->br->hash_lock);
+	if (ndm->ndm_flags & NTF_USE) {
+		rcu_read_lock();
+		br_fdb_update(p->br, p, addr);
+		rcu_read_unlock();
+	} else {
+		spin_lock_bh(&p->br->hash_lock);
+		err = fdb_add_entry(p, addr, ndm->ndm_state, nlh->nlmsg_flags);
+		spin_unlock_bh(&p->br->hash_lock);
+	}
 
 	return err;
 }
