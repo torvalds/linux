@@ -43,6 +43,7 @@
 #include "tree-log.h"
 #include "free-space-cache.h"
 #include "inode-map.h"
+#include "check-integrity.h"
 
 static struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
@@ -2001,6 +2002,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	init_waitqueue_head(&fs_info->scrub_pause_wait);
 	init_rwsem(&fs_info->scrub_super_lock);
 	fs_info->scrub_workers_refcnt = 0;
+#ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
+	fs_info->check_integrity_print_mask = 0;
+#endif
 
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = blksize_bits(4096);
@@ -2356,6 +2360,19 @@ retry_root_backup:
 		btrfs_set_opt(fs_info->mount_opt, SSD);
 	}
 
+#ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
+	if (btrfs_test_opt(tree_root, CHECK_INTEGRITY)) {
+		ret = btrfsic_mount(tree_root, fs_devices,
+				    btrfs_test_opt(tree_root,
+					CHECK_INTEGRITY_INCLUDING_EXTENT_DATA) ?
+				    1 : 0,
+				    fs_info->check_integrity_print_mask);
+		if (ret)
+			printk(KERN_WARNING "btrfs: failed to initialize"
+			       " integrity check module %s\n", sb->s_id);
+	}
+#endif
+
 	/* do not make disk changes in broken FS */
 	if (btrfs_super_log_root(disk_super) != 0 &&
 	    !(fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)) {
@@ -2634,7 +2651,7 @@ static int write_dev_supers(struct btrfs_device *device,
 		 * we fua the first super.  The others we allow
 		 * to go down lazy.
 		 */
-		ret = submit_bh(WRITE_FUA, bh);
+		ret = btrfsic_submit_bh(WRITE_FUA, bh);
 		if (ret)
 			errors++;
 	}
@@ -2711,7 +2728,7 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 	device->flush_bio = bio;
 
 	bio_get(bio);
-	submit_bio(WRITE_FLUSH, bio);
+	btrfsic_submit_bio(WRITE_FLUSH, bio);
 
 	return 0;
 }
@@ -3056,6 +3073,11 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_stop_workers(&fs_info->delayed_workers);
 	btrfs_stop_workers(&fs_info->caching_workers);
 	btrfs_stop_workers(&fs_info->readahead_workers);
+
+#ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
+	if (btrfs_test_opt(root, CHECK_INTEGRITY))
+		btrfsic_unmount(root, fs_info->fs_devices);
+#endif
 
 	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);

@@ -32,6 +32,7 @@
 #include "print-tree.h"
 #include "volumes.h"
 #include "async-thread.h"
+#include "check-integrity.h"
 
 static int init_first_rw_device(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
@@ -246,7 +247,7 @@ loop_lock:
 			sync_pending = 0;
 		}
 
-		submit_bio(cur->bi_rw, cur);
+		btrfsic_submit_bio(cur->bi_rw, cur);
 		num_run++;
 		batch_run++;
 		if (need_resched())
@@ -3304,7 +3305,7 @@ static noinline int schedule_bio(struct btrfs_root *root,
 	/* don't bother with additional async steps for reads, right now */
 	if (!(rw & REQ_WRITE)) {
 		bio_get(bio);
-		submit_bio(rw, bio);
+		btrfsic_submit_bio(rw, bio);
 		bio_put(bio);
 		return 0;
 	}
@@ -3399,7 +3400,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 			if (async_submit)
 				schedule_bio(root, dev, rw, bio);
 			else
-				submit_bio(rw, bio);
+				btrfsic_submit_bio(rw, bio);
 		} else {
 			bio->bi_bdev = root->fs_info->fs_devices->latest_bdev;
 			bio->bi_sector = logical >> 9;

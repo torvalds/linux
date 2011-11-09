@@ -25,6 +25,7 @@
 #include "transaction.h"
 #include "backref.h"
 #include "extent_io.h"
+#include "check-integrity.h"
 
 /*
  * This is only the first step towards a full-features scrub. It reads all
@@ -732,7 +733,7 @@ static int scrub_fixup_io(int rw, struct block_device *bdev, sector_t sector,
 	bio_add_page(bio, page, PAGE_SIZE, 0);
 	bio->bi_end_io = scrub_fixup_end_io;
 	bio->bi_private = &complete;
-	submit_bio(rw, bio);
+	btrfsic_submit_bio(rw, bio);
 
 	/* this will also unplug the queue */
 	wait_for_completion(&complete);
@@ -958,7 +959,7 @@ static int scrub_submit(struct scrub_dev *sdev)
 	sdev->curr = -1;
 	atomic_inc(&sdev->in_flight);
 
-	submit_bio(READ, sbio->bio);
+	btrfsic_submit_bio(READ, sbio->bio);
 
 	return 0;
 }
