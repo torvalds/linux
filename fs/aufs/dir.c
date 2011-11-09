@@ -354,7 +354,7 @@ static int aufs_readdir(struct file *file, void *dirent, filldir_t filldir)
 {
 	int err;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct inode *inode, *h_inode;
 	struct super_block *sb;
 
 	dentry = file->f_dentry;
@@ -373,22 +373,22 @@ static int aufs_readdir(struct file *file, void *dirent, filldir_t filldir)
 	if (unlikely(err))
 		goto out_unlock;
 
+	h_inode = au_h_iptr(inode, au_ibstart(inode));
 	if (!au_test_nfsd()) {
 		err = au_vdir_fill_de(file, dirent, filldir);
-		fsstack_copy_attr_atime(inode,
-					au_h_iptr(inode, au_ibstart(inode)));
+		fsstack_copy_attr_atime(inode, h_inode);
 	} else {
 		/*
 		 * nfsd filldir may call lookup_one_len(), vfs_getattr(),
 		 * encode_fh() and others.
 		 */
-		struct inode *h_inode = au_h_iptr(inode, au_ibstart(inode));
-
+		atomic_inc(&h_inode->i_count);
 		di_read_unlock(dentry, AuLock_IR);
 		si_read_unlock(sb);
 		err = au_vdir_fill_de(file, dirent, filldir);
 		fsstack_copy_attr_atime(inode, h_inode);
 		fi_write_unlock(file);
+		iput(h_inode);
 
 		AuTraceErr(err);
 		return err;
