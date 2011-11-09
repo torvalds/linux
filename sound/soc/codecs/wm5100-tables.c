@@ -85,6 +85,7 @@ bool wm5100_readable_register(struct device *dev, unsigned int reg)
 	case WM5100_MIC_DETECT_1:
 	case WM5100_MIC_DETECT_2:
 	case WM5100_MIC_DETECT_3:
+	case WM5100_MISC_CONTROL:
 	case WM5100_INPUT_ENABLES:
 	case WM5100_INPUT_ENABLES_STATUS:
 	case WM5100_IN1L_CONTROL:
