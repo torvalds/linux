@@ -35,6 +35,10 @@ struct sh_mobile_lcdc_chan_cfg;
 #define SH_MIPI_DSI_HSEE	(1 << 5)
 #define SH_MIPI_DSI_HSAE	(1 << 6)
 
+#define SH_MIPI_DSI_HSbyteCLK	(1 << 24)
+#define SH_MIPI_DSI_HS6divCLK	(1 << 25)
+#define SH_MIPI_DSI_HS4divCLK	(1 << 26)
+
 #define SH_MIPI_DSI_SYNC_PULSES_MODE	(SH_MIPI_DSI_VSEE | \
 					 SH_MIPI_DSI_HSEE | \
 					 SH_MIPI_DSI_HSAE)

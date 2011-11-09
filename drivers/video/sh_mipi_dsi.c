@@ -153,7 +153,7 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	void __iomem *base = mipi->base;
 	struct sh_mobile_lcdc_chan_cfg *ch = pdata->lcd_chan;
 	u32 pctype, datatype, pixfmt, linelength, vmctr2;
-	u32 tmp, top, bottom, delay;
+	u32 tmp, top, bottom, delay, div;
 	bool yuv;
 	int bpp;
 
@@ -364,17 +364,23 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	bottom	= 0x00000001;
 	delay	= 0;
 
+	div = 1;	/* HSbyteCLK is calculation base
+			 * HS4divCLK = HSbyteCLK/2
+			 * HS6divCLK is not supported for now */
+	if (pdata->flags & SH_MIPI_DSI_HS4divCLK)
+		div = 2;
+
 	if (pdata->flags & SH_MIPI_DSI_HFPBM) {	/* HBPLEN */
 		top = ch->lcd_cfg[0].hsync_len + ch->lcd_cfg[0].left_margin;
-		top = ((pdata->lane * top) - 10) << 16;
+		top = ((pdata->lane * top / div) - 10) << 16;
 	}
 	if (pdata->flags & SH_MIPI_DSI_HBPBM) { /* HFPLEN */
 		bottom = ch->lcd_cfg[0].right_margin;
-		bottom = (pdata->lane * bottom) - 12;
+		bottom = (pdata->lane * bottom / div) - 12;
 	}
 
 	bpp = linelength / ch->lcd_cfg[0].xres; /* byte / pixel */
-	if (pdata->lane > bpp) {
+	if ((pdata->lane / div) > bpp) {
 		tmp = ch->lcd_cfg[0].xres / bpp; /* output cycle */
 		tmp = ch->lcd_cfg[0].xres - tmp; /* (input - output) cycle */
 		delay = (pdata->lane * tmp);

@@ -606,7 +606,8 @@ static struct sh_mipi_dsi_info mipidsi0_info = {
 	.lcd_chan	= &lcdc_info.ch[0],
 	.lane		= 2,
 	.vsynw_offset	= 17,
-	.flags		= SH_MIPI_DSI_SYNC_PULSES_MODE,
+	.flags		= SH_MIPI_DSI_SYNC_PULSES_MODE |
+			  SH_MIPI_DSI_HSbyteCLK,
 	.set_dot_clock	= sh_mipi_set_dot_clock,
 };
 
