@@ -3005,11 +3005,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 		mutex_unlock(&mutex_dongle);
 
 		peasycap->allocation_video_struct = sizeof(struct easycap);
-		peasycap->allocation_video_page = 0;
-		peasycap->allocation_video_urb = 0;
-		peasycap->allocation_audio_struct = 0;
-		peasycap->allocation_audio_page = 0;
-		peasycap->allocation_audio_urb = 0;
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -3019,7 +3014,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 		peasycap->pusb_device = usbdev;
 		peasycap->pusb_interface = intf;
 
-		peasycap->ilk = 0;
 		peasycap->microphone = false;
 
 		peasycap->video_interface = -1;
@@ -3038,11 +3032,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 
 		peasycap->frame_buffer_many = FRAME_BUFFER_MANY;
 
-		for (k = 0; k < INPUT_MANY; k++)
-			peasycap->lost[k] = 0;
-		peasycap->skip = 0;
-		peasycap->skipped = 0;
-		peasycap->offerfields = 0;
 /*---------------------------------------------------------------------------*/
 /*
  *  DYNAMICALLY FILL IN THE AVAILABLE FORMATS ...
@@ -3054,22 +3043,10 @@ static int easycap_usb_probe(struct usb_interface *intf,
 			return -EFAULT;
 		}
 		JOM(4, "%i formats available\n", rc);
-/*---------------------------------------------------------------------------*/
-/*
- *  ... AND POPULATE easycap.inputset[]
-*/
-/*---------------------------------------------------------------------------*/
-		/* FIXME: maybe we just use memset 0 */
+
+		/*  ... AND POPULATE easycap.inputset[] */
+
 		inputset = peasycap->inputset;
-		for (k = 0; k < INPUT_MANY; k++) {
-			inputset[k].input_ok = 0;
-			inputset[k].standard_offset_ok = 0;
-			inputset[k].format_offset_ok = 0;
-			inputset[k].brightness_ok = 0;
-			inputset[k].contrast_ok = 0;
-			inputset[k].saturation_ok = 0;
-			inputset[k].hue_ok = 0;
-		}
 
 		fmtidx = peasycap->ntsc ? NTSC_M : PAL_BGHIN;
 		m = 0;
