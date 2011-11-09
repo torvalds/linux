@@ -567,7 +567,6 @@ extern bool easycap_readback;
 extern const struct easycap_standard easycap_standard[];
 extern struct easycap_format easycap_format[];
 extern struct v4l2_queryctrl easycap_control[];
-extern struct usb_driver easycap_usb_driver;
 extern struct easycap_dongle easycapdc60_dongle[];
 
 #endif /* !__EASYCAP_H__  */

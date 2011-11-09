@@ -4150,7 +4150,7 @@ static struct usb_device_id easycap_usb_device_id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(usb, easycap_usb_device_id_table);
-struct usb_driver easycap_usb_driver = {
+static struct usb_driver easycap_usb_driver = {
 	.name = "easycap",
 	.id_table = easycap_usb_device_id_table,
 	.probe = easycap_usb_probe,
