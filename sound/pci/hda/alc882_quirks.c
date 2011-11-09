@@ -24,7 +24,6 @@ enum {
 	ALC883_TARGA_DIG,
 	ALC883_TARGA_2ch_DIG,
 	ALC883_TARGA_8ch_DIG,
-	ALC883_ACER,
 	ALC883_ACER_ASPIRE,
 	ALC888_ACER_ASPIRE_4930G,
 	ALC888_ACER_ASPIRE_6530G,
@@ -2089,7 +2088,6 @@ static const char * const alc882_models[ALC882_MODEL_LAST] = {
 	[ALC883_TARGA_DIG]	= "targa-dig",
 	[ALC883_TARGA_2ch_DIG]	= "targa-2ch-dig",
 	[ALC883_TARGA_8ch_DIG]	= "targa-8ch-dig",
-	[ALC883_ACER]		= "acer",
 	[ALC883_ACER_ASPIRE]	= "acer-aspire",
 	[ALC888_ACER_ASPIRE_4930G]	= "acer-aspire-4930g",
 	[ALC888_ACER_ASPIRE_6530G]	= "acer-aspire-6530g",
@@ -2127,10 +2125,6 @@ static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 		ALC888_ACER_ASPIRE_6530G),
 	SND_PCI_QUIRK(0x1025, 0x0142, "Acer Aspire 7730G",
 		ALC888_ACER_ASPIRE_7730G),
-	/* default Acer -- disabled as it causes more problems.
-	 *    model=auto should work fine now
-	 */
-	/* SND_PCI_QUIRK_VENDOR(0x1025, "Acer laptop", ALC883_ACER), */
 
 	SND_PCI_QUIRK(0x103c, 0x2a3d, "HP Pavilion", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x103c, 0x2a61, "HP Nettle", ALC883_6ST_DIG),
@@ -2523,20 +2517,6 @@ static const struct alc_config_preset alc882_presets[] = {
 		.unsol_event = alc883_targa_unsol_event,
 		.setup = alc882_targa_setup,
 		.init_hook = alc882_targa_automute,
-	},
-	[ALC883_ACER] = {
-		.mixers = { alc883_base_mixer },
-		/* On TravelMate laptops, GPIO 0 enables the internal speaker
-		 * and the headphone jack.  Turn this on and rely on the
-		 * standard mute methods whenever the user wants to turn
-		 * these outputs off.
-		 */
-		.init_verbs = { alc883_init_verbs, alc880_gpio1_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
-		.channel_mode = alc883_3ST_2ch_modes,
-		.input_mux = &alc883_capture_source,
 	},
 	[ALC883_ACER_ASPIRE] = {
 		.mixers = { alc883_acer_aspire_mixer },
