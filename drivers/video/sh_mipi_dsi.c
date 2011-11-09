@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/bitmap.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -153,6 +154,7 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	struct sh_mobile_lcdc_chan_cfg *ch = pdata->lcd_chan;
 	u32 pctype, datatype, pixfmt, linelength, vmctr2 = 0x00e00000;
 	bool yuv;
+	u32 tmp;
 
 	/*
 	 * Select data format. MIPI DSI is not hot-pluggable, so, we just use
@@ -253,6 +255,9 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	    (!yuv && ch->interface_type != RGB24))
 		return -EINVAL;
 
+	if (!pdata->lane)
+		return -EINVAL;
+
 	/* reset DSI link */
 	iowrite32(0x00000001, base + SYSCTRL);
 	/* Hold reset for 100 cycles of the slowest of bus, HS byte and LP clock */
@@ -269,7 +274,10 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	 *	ECC check enable
 	 * additionally enable first two lanes
 	 */
-	iowrite32(0x00003703, base + SYSCONF);
+	bitmap_fill((unsigned long *)&tmp, pdata->lane);
+	tmp |= 0x00003700;
+	iowrite32(tmp, base + SYSCONF);
+
 	/*
 	 * T_wakeup = 0x7000
 	 * T_hs-trail = 3
