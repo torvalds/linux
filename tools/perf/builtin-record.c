@@ -456,10 +456,6 @@ static int __cmd_record(int argc, const char **argv)
 	perf_header__set_feat(&session->header, HEADER_NUMA_TOPOLOGY);
 	perf_header__set_feat(&session->header, HEADER_CPUID);
 
-	/* 512 kiB: default amount of unprivileged mlocked memory */
-	if (mmap_pages == UINT_MAX)
-		mmap_pages = (512 * 1024) / page_size;
-
 	if (forks) {
 		err = perf_evlist__prepare_workload(evsel_list, &record_opts, argv);
 		if (err < 0) {

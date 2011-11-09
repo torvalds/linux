@@ -507,14 +507,20 @@ out_unmap:
  *
  * Using perf_evlist__read_on_cpu does this automatically.
  */
-int perf_evlist__mmap(struct perf_evlist *evlist, int pages, bool overwrite)
+int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
+		      bool overwrite)
 {
 	unsigned int page_size = sysconf(_SC_PAGE_SIZE);
-	int mask = pages * page_size - 1;
 	struct perf_evsel *evsel;
 	const struct cpu_map *cpus = evlist->cpus;
 	const struct thread_map *threads = evlist->threads;
-	int prot = PROT_READ | (overwrite ? 0 : PROT_WRITE);
+	int prot = PROT_READ | (overwrite ? 0 : PROT_WRITE), mask;
+
+        /* 512 kiB: default amount of unprivileged mlocked memory */
+        if (pages == UINT_MAX)
+                pages = (512 * 1024) / page_size;
+
+	mask = pages * page_size - 1;
 
 	if (evlist->mmap == NULL && perf_evlist__alloc_mmap(evlist) < 0)
 		return -ENOMEM;

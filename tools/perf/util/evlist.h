@@ -79,7 +79,8 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 int perf_evlist__start_workload(struct perf_evlist *evlist);
 
 int perf_evlist__alloc_mmap(struct perf_evlist *evlist);
-int perf_evlist__mmap(struct perf_evlist *evlist, int pages, bool overwrite);
+int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
+		      bool overwrite);
 void perf_evlist__munmap(struct perf_evlist *evlist);
 
 void perf_evlist__disable(struct perf_evlist *evlist);
