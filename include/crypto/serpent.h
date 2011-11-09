@@ -17,6 +17,8 @@ struct serpent_ctx {
 	u32 expkey[SERPENT_EXPKEY_WORDS];
 };
 
+int __serpent_setkey(struct serpent_ctx *ctx, const u8 *key,
+		     unsigned int keylen);
 int serpent_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen);
 
 void __serpent_encrypt(struct serpent_ctx *ctx, u8 *dst, const u8 *src);

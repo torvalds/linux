@@ -39,11 +39,16 @@
 #include <crypto/cryptd.h>
 #include <crypto/b128ops.h>
 #include <crypto/ctr.h>
+#include <crypto/lrw.h>
 #include <asm/i387.h>
 #include <asm/serpent.h>
 #include <crypto/scatterwalk.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
+
+#if defined(CONFIG_CRYPTO_LRW) || defined(CONFIG_CRYPTO_LRW_MODULE)
+#define HAS_LRW
+#endif
 
 struct async_serpent_ctx {
 	struct cryptd_ablkcipher *cryptd_tfm;
@@ -460,6 +465,152 @@ static struct crypto_alg blk_ctr_alg = {
 	},
 };
 
+#ifdef HAS_LRW
+
+struct crypt_priv {
+	struct serpent_ctx *ctx;
+	bool fpu_enabled;
+};
+
+static void encrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
+{
+	const unsigned int bsize = SERPENT_BLOCK_SIZE;
+	struct crypt_priv *ctx = priv;
+	int i;
+
+	ctx->fpu_enabled = serpent_fpu_begin(ctx->fpu_enabled, nbytes);
+
+	if (nbytes == bsize * SERPENT_PARALLEL_BLOCKS) {
+		serpent_enc_blk_xway(ctx->ctx, srcdst, srcdst);
+		return;
+	}
+
+	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
+		__serpent_encrypt(ctx->ctx, srcdst, srcdst);
+}
+
+static void decrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
+{
+	const unsigned int bsize = SERPENT_BLOCK_SIZE;
+	struct crypt_priv *ctx = priv;
+	int i;
+
+	ctx->fpu_enabled = serpent_fpu_begin(ctx->fpu_enabled, nbytes);
+
+	if (nbytes == bsize * SERPENT_PARALLEL_BLOCKS) {
+		serpent_dec_blk_xway(ctx->ctx, srcdst, srcdst);
+		return;
+	}
+
+	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
+		__serpent_decrypt(ctx->ctx, srcdst, srcdst);
+}
+
+struct serpent_lrw_ctx {
+	struct lrw_table_ctx lrw_table;
+	struct serpent_ctx serpent_ctx;
+};
+
+static int lrw_serpent_setkey(struct crypto_tfm *tfm, const u8 *key,
+			      unsigned int keylen)
+{
+	struct serpent_lrw_ctx *ctx = crypto_tfm_ctx(tfm);
+	int err;
+
+	err = __serpent_setkey(&ctx->serpent_ctx, key, keylen -
+							SERPENT_BLOCK_SIZE);
+	if (err)
+		return err;
+
+	return lrw_init_table(&ctx->lrw_table, key + keylen -
+						SERPENT_BLOCK_SIZE);
+}
+
+static int lrw_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
+		       struct scatterlist *src, unsigned int nbytes)
+{
+	struct serpent_lrw_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	be128 buf[SERPENT_PARALLEL_BLOCKS];
+	struct crypt_priv crypt_ctx = {
+		.ctx = &ctx->serpent_ctx,
+		.fpu_enabled = false,
+	};
+	struct lrw_crypt_req req = {
+		.tbuf = buf,
+		.tbuflen = sizeof(buf),
+
+		.table_ctx = &ctx->lrw_table,
+		.crypt_ctx = &crypt_ctx,
+		.crypt_fn = encrypt_callback,
+	};
+	int ret;
+
+	ret = lrw_crypt(desc, dst, src, nbytes, &req);
+	serpent_fpu_end(crypt_ctx.fpu_enabled);
+
+	return ret;
+}
+
+static int lrw_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
+		       struct scatterlist *src, unsigned int nbytes)
+{
+	struct serpent_lrw_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	be128 buf[SERPENT_PARALLEL_BLOCKS];
+	struct crypt_priv crypt_ctx = {
+		.ctx = &ctx->serpent_ctx,
+		.fpu_enabled = false,
+	};
+	struct lrw_crypt_req req = {
+		.tbuf = buf,
+		.tbuflen = sizeof(buf),
+
+		.table_ctx = &ctx->lrw_table,
+		.crypt_ctx = &crypt_ctx,
+		.crypt_fn = decrypt_callback,
+	};
+	int ret;
+
+	ret = lrw_crypt(desc, dst, src, nbytes, &req);
+	serpent_fpu_end(crypt_ctx.fpu_enabled);
+
+	return ret;
+}
+
+static void lrw_exit_tfm(struct crypto_tfm *tfm)
+{
+	struct serpent_lrw_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	lrw_free_table(&ctx->lrw_table);
+}
+
+static struct crypto_alg blk_lrw_alg = {
+	.cra_name		= "__lrw-serpent-sse2",
+	.cra_driver_name	= "__driver-lrw-serpent-sse2",
+	.cra_priority		= 0,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_blocksize		= SERPENT_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct serpent_lrw_ctx),
+	.cra_alignmask		= 0,
+	.cra_type		= &crypto_blkcipher_type,
+	.cra_module		= THIS_MODULE,
+	.cra_list		= LIST_HEAD_INIT(blk_lrw_alg.cra_list),
+	.cra_exit		= lrw_exit_tfm,
+	.cra_u = {
+		.blkcipher = {
+			.min_keysize	= SERPENT_MIN_KEY_SIZE +
+					  SERPENT_BLOCK_SIZE,
+			.max_keysize	= SERPENT_MAX_KEY_SIZE +
+					  SERPENT_BLOCK_SIZE,
+			.ivsize		= SERPENT_BLOCK_SIZE,
+			.setkey		= lrw_serpent_setkey,
+			.encrypt	= lrw_encrypt,
+			.decrypt	= lrw_decrypt,
+		},
+	},
+};
+
+#endif
+
 static int ablk_set_key(struct crypto_ablkcipher *tfm, const u8 *key,
 			unsigned int key_len)
 {
@@ -658,6 +809,48 @@ static struct crypto_alg ablk_ctr_alg = {
 	},
 };
 
+#ifdef HAS_LRW
+
+static int ablk_lrw_init(struct crypto_tfm *tfm)
+{
+	struct cryptd_ablkcipher *cryptd_tfm;
+
+	cryptd_tfm = cryptd_alloc_ablkcipher("__driver-lrw-serpent-sse2", 0, 0);
+	if (IS_ERR(cryptd_tfm))
+		return PTR_ERR(cryptd_tfm);
+	ablk_init_common(tfm, cryptd_tfm);
+	return 0;
+}
+
+static struct crypto_alg ablk_lrw_alg = {
+	.cra_name		= "lrw(serpent)",
+	.cra_driver_name	= "lrw-serpent-sse2",
+	.cra_priority		= 400,
+	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+	.cra_blocksize		= SERPENT_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct async_serpent_ctx),
+	.cra_alignmask		= 0,
+	.cra_type		= &crypto_ablkcipher_type,
+	.cra_module		= THIS_MODULE,
+	.cra_list		= LIST_HEAD_INIT(ablk_lrw_alg.cra_list),
+	.cra_init		= ablk_lrw_init,
+	.cra_exit		= ablk_exit,
+	.cra_u = {
+		.ablkcipher = {
+			.min_keysize	= SERPENT_MIN_KEY_SIZE +
+					  SERPENT_BLOCK_SIZE,
+			.max_keysize	= SERPENT_MAX_KEY_SIZE +
+					  SERPENT_BLOCK_SIZE,
+			.ivsize		= SERPENT_BLOCK_SIZE,
+			.setkey		= ablk_set_key,
+			.encrypt	= ablk_encrypt,
+			.decrypt	= ablk_decrypt,
+		},
+	},
+};
+
+#endif
+
 static int __init serpent_sse2_init(void)
 {
 	int err;
@@ -685,8 +878,22 @@ static int __init serpent_sse2_init(void)
 	err = crypto_register_alg(&ablk_ctr_alg);
 	if (err)
 		goto ablk_ctr_err;
+#ifdef HAS_LRW
+	err = crypto_register_alg(&blk_lrw_alg);
+	if (err)
+		goto blk_lrw_err;
+	err = crypto_register_alg(&ablk_lrw_alg);
+	if (err)
+		goto ablk_lrw_err;
+#endif
 	return err;
 
+#ifdef HAS_LRW
+ablk_lrw_err:
+	crypto_unregister_alg(&blk_lrw_alg);
+blk_lrw_err:
+	crypto_unregister_alg(&ablk_ctr_alg);
+#endif
 ablk_ctr_err:
 	crypto_unregister_alg(&ablk_cbc_alg);
 ablk_cbc_err:
@@ -703,6 +910,10 @@ blk_ecb_err:
 
 static void __exit serpent_sse2_exit(void)
 {
+#ifdef HAS_LRW
+	crypto_unregister_alg(&ablk_lrw_alg);
+	crypto_unregister_alg(&blk_lrw_alg);
+#endif
 	crypto_unregister_alg(&ablk_ctr_alg);
 	crypto_unregister_alg(&ablk_cbc_alg);
 	crypto_unregister_alg(&ablk_ecb_alg);

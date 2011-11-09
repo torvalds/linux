@@ -206,9 +206,9 @@
 	x1 ^= x4;	x3 ^= x4;	x4 &= x0;	\
 	x4 ^= x2;
 
-int serpent_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
+int __serpent_setkey(struct serpent_ctx *ctx, const u8 *key,
+		     unsigned int keylen)
 {
-	struct serpent_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 *k = ctx->expkey;
 	u8  *k8 = (u8 *)k;
 	u32 r0,r1,r2,r3,r4;
@@ -348,6 +348,12 @@ int serpent_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 	S3(r3,r4,r0,r1,r2); storekeys(r1,r2,r4,r3,  0);
 
 	return 0;
+}
+EXPORT_SYMBOL_GPL(__serpent_setkey);
+
+int serpent_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
+{
+	return __serpent_setkey(crypto_tfm_ctx(tfm), key, keylen);
 }
 EXPORT_SYMBOL_GPL(serpent_setkey);
 
