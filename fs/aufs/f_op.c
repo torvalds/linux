@@ -115,6 +115,13 @@ static int aufs_flush_nondir(struct file *file, fl_owner_t id)
 }
 
 /* ---------------------------------------------------------------------- */
+/*
+ * read and write functions acquire [fdi]_rwsem once, but release before
+ * mmap_sem. This is because to stop a race condition between mmap(2).
+ * Releasing these aufs-rwsem should be safe, no branch-mamagement (by keeping
+ * si_rwsem), no harmful copy-up should happen. Actually copy-up may happen in
+ * read functions after [fdi]_rwsem are released, but it should be harmless.
+ */
 
 static ssize_t aufs_read(struct file *file, char __user *buf, size_t count,
 			 loff_t *ppos)
@@ -132,13 +139,18 @@ static ssize_t aufs_read(struct file *file, char __user *buf, size_t count,
 		goto out;
 
 	h_file = au_hf_top(file);
+	get_file(h_file);
+	di_read_unlock(dentry, AuLock_IR);
+	fi_read_unlock(file);
+
+	/* filedata may be obsoleted by concurrent copyup, but no problem */
 	err = vfsub_read_u(h_file, buf, count, ppos);
 	/* todo: necessary? */
 	/* file->f_ra = h_file->f_ra; */
+	/* update without lock, I don't think it a problem */
 	fsstack_copy_attr_atime(dentry->d_inode, h_file->f_dentry->d_inode);
+	fput(h_file);
 
-	di_read_unlock(dentry, AuLock_IR);
-	fi_read_unlock(file);
 out:
 	si_read_unlock(sb);
 	return err;
@@ -172,11 +184,13 @@ static ssize_t aufs_write(struct file *file, const char __user *ubuf,
 	ssize_t err;
 	struct au_pin pin;
 	struct dentry *dentry;
+	struct super_block *sb;
 	struct inode *inode;
 	struct file *h_file;
 	char __user *buf = (char __user *)ubuf;
 
 	dentry = file->f_dentry;
+	sb = dentry->d_sb;
 	inode = dentry->d_inode;
 	au_mtx_and_read_lock(inode);
 
@@ -186,20 +200,27 @@ static ssize_t aufs_write(struct file *file, const char __user *ubuf,
 
 	err = au_ready_to_write(file, -1, &pin);
 	di_downgrade_lock(dentry, AuLock_IR);
-	if (unlikely(err))
-		goto out_unlock;
+	if (unlikely(err)) {
+		di_read_unlock(dentry, AuLock_IR);
+		fi_write_unlock(file);
+		goto out;
+	}
 
 	h_file = au_hf_top(file);
+	get_file(h_file);
 	au_unpin(&pin);
-	err = vfsub_write_u(h_file, buf, count, ppos);
-	au_cpup_attr_timesizes(inode);
-	inode->i_mode = h_file->f_dentry->d_inode->i_mode;
-
-out_unlock:
 	di_read_unlock(dentry, AuLock_IR);
 	fi_write_unlock(file);
+
+	err = vfsub_write_u(h_file, buf, count, ppos);
+	ii_write_lock_child(inode);
+	au_cpup_attr_timesizes(inode);
+	inode->i_mode = h_file->f_dentry->d_inode->i_mode;
+	ii_write_unlock(inode);
+	fput(h_file);
+
 out:
-	si_read_unlock(inode->i_sb);
+	si_read_unlock(sb);
 	mutex_unlock(&inode->i_mutex);
 	return err;
 }
@@ -254,12 +275,16 @@ static ssize_t aufs_aio_read(struct kiocb *kio, const struct iovec *iov,
 		goto out;
 
 	h_file = au_hf_top(file);
+	get_file(h_file);
+	di_read_unlock(dentry, AuLock_IR);
+	fi_read_unlock(file);
+
 	err = au_do_aio(h_file, MAY_READ, kio, iov, nv, pos);
 	/* todo: necessary? */
 	/* file->f_ra = h_file->f_ra; */
+	/* update without lock, I don't think it a problem */
 	fsstack_copy_attr_atime(dentry->d_inode, h_file->f_dentry->d_inode);
-	di_read_unlock(dentry, AuLock_IR);
-	fi_read_unlock(file);
+	fput(h_file);
 
 out:
 	si_read_unlock(sb);
@@ -274,9 +299,11 @@ static ssize_t aufs_aio_write(struct kiocb *kio, const struct iovec *iov,
 	struct dentry *dentry;
 	struct inode *inode;
 	struct file *file, *h_file;
+	struct super_block *sb;
 
 	file = kio->ki_filp;
 	dentry = file->f_dentry;
+	sb = dentry->d_sb;
 	inode = dentry->d_inode;
 	au_mtx_and_read_lock(inode);
 
@@ -286,20 +313,27 @@ static ssize_t aufs_aio_write(struct kiocb *kio, const struct iovec *iov,
 
 	err = au_ready_to_write(file, -1, &pin);
 	di_downgrade_lock(dentry, AuLock_IR);
-	if (unlikely(err))
-		goto out_unlock;
+	if (unlikely(err)) {
+		di_read_unlock(dentry, AuLock_IR);
+		fi_write_unlock(file);
+		goto out;
+	}
 
-	au_unpin(&pin);
 	h_file = au_hf_top(file);
-	err = au_do_aio(h_file, MAY_WRITE, kio, iov, nv, pos);
-	au_cpup_attr_timesizes(inode);
-	inode->i_mode = h_file->f_dentry->d_inode->i_mode;
-
-out_unlock:
+	get_file(h_file);
+	au_unpin(&pin);
 	di_read_unlock(dentry, AuLock_IR);
 	fi_write_unlock(file);
+
+	err = au_do_aio(h_file, MAY_WRITE, kio, iov, nv, pos);
+	ii_write_lock_child(inode);
+	au_cpup_attr_timesizes(inode);
+	inode->i_mode = h_file->f_dentry->d_inode->i_mode;
+	ii_write_unlock(inode);
+	fput(h_file);
+
 out:
-	si_read_unlock(inode->i_sb);
+	si_read_unlock(sb);
 	mutex_unlock(&inode->i_mutex);
 	return err;
 }
@@ -322,6 +356,7 @@ static ssize_t aufs_splice_read(struct file *file, loff_t *ppos,
 
 	err = -EINVAL;
 	h_file = au_hf_top(file);
+	get_file(h_file);
 	if (au_test_loopback_kthread()) {
 		au_warn_loopback(h_file->f_dentry->d_sb);
 		if (file->f_mapping != h_file->f_mapping) {
@@ -329,13 +364,15 @@ static ssize_t aufs_splice_read(struct file *file, loff_t *ppos,
 			smp_mb(); /* unnecessary? */
 		}
 	}
+	di_read_unlock(dentry, AuLock_IR);
+	fi_read_unlock(file);
+
 	err = vfsub_splice_to(h_file, ppos, pipe, len, flags);
 	/* todo: necessasry? */
 	/* file->f_ra = h_file->f_ra; */
+	/* update without lock, I don't think it a problem */
 	fsstack_copy_attr_atime(dentry->d_inode, h_file->f_dentry->d_inode);
-
-	di_read_unlock(dentry, AuLock_IR);
-	fi_read_unlock(file);
+	fput(h_file);
 
 out:
 	si_read_unlock(sb);
@@ -351,30 +388,40 @@ aufs_splice_write(struct pipe_inode_info *pipe, struct file *file, loff_t *ppos,
 	struct dentry *dentry;
 	struct inode *inode;
 	struct file *h_file;
+	struct super_block *sb;
 
 	dentry = file->f_dentry;
+	sb = dentry->d_sb;
 	inode = dentry->d_inode;
 	au_mtx_and_read_lock(inode);
+
 	err = au_reval_and_lock_fdi(file, au_reopen_nondir, /*wlock*/1);
 	if (unlikely(err))
 		goto out;
 
 	err = au_ready_to_write(file, -1, &pin);
 	di_downgrade_lock(dentry, AuLock_IR);
-	if (unlikely(err))
-		goto out_unlock;
+	if (unlikely(err)) {
+		di_read_unlock(dentry, AuLock_IR);
+		fi_write_unlock(file);
+		goto out;
+	}
 
 	h_file = au_hf_top(file);
+	get_file(h_file);
 	au_unpin(&pin);
-	err = vfsub_splice_from(pipe, h_file, ppos, len, flags);
-	au_cpup_attr_timesizes(inode);
-	inode->i_mode = h_file->f_dentry->d_inode->i_mode;
-
-out_unlock:
 	di_read_unlock(dentry, AuLock_IR);
 	fi_write_unlock(file);
+
+	err = vfsub_splice_from(pipe, h_file, ppos, len, flags);
+	ii_write_lock_child(inode);
+	au_cpup_attr_timesizes(inode);
+	inode->i_mode = h_file->f_dentry->d_inode->i_mode;
+	ii_write_unlock(inode);
+	fput(h_file);
+
 out:
-	si_read_unlock(inode->i_sb);
+	si_read_unlock(sb);
 	mutex_unlock(&inode->i_mutex);
 	return err;
 }
