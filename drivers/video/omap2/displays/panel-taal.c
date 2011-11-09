@@ -1182,6 +1182,10 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	if (r)
 		goto err;
 
+	r = dsi_enable_video_output(dssdev, td->channel);
+	if (r)
+		goto err;
+
 	td->enabled = 1;
 
 	if (!td->intro_printed) {
@@ -1210,6 +1214,8 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	int r;
+
+	dsi_disable_video_output(dssdev, td->channel);
 
 	r = taal_dcs_write_0(td, MIPI_DCS_SET_DISPLAY_OFF);
 	if (!r)

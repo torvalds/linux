@@ -294,8 +294,8 @@ int dsi_vc_set_max_rx_packet_size(struct omap_dss_device *dssdev, int channel,
 		u16 len);
 int dsi_vc_send_null(struct omap_dss_device *dssdev, int channel);
 int dsi_vc_send_bta_sync(struct omap_dss_device *dssdev, int channel);
-int dsi_video_mode_enable(struct omap_dss_device *dssdev, int channel);
-void dsi_video_mode_disable(struct omap_dss_device *dssdev, int channel);
+int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel);
+void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel);
 
 /* Board specific data */
 struct omap_dss_board_info {

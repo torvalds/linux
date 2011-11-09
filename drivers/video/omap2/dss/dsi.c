@@ -3973,65 +3973,70 @@ static void dsi_proto_timings(struct omap_dss_device *dssdev)
 	}
 }
 
-int dsi_video_mode_enable(struct omap_dss_device *dssdev, int channel)
+int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	int bpp = dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
 	u8 data_type;
 	u16 word_count;
 
-	switch (dssdev->panel.dsi_pix_fmt) {
-	case OMAP_DSS_DSI_FMT_RGB888:
-		data_type = MIPI_DSI_PACKED_PIXEL_STREAM_24;
-		break;
-	case OMAP_DSS_DSI_FMT_RGB666:
-		data_type = MIPI_DSI_PIXEL_STREAM_3BYTE_18;
-		break;
-	case OMAP_DSS_DSI_FMT_RGB666_PACKED:
-		data_type = MIPI_DSI_PACKED_PIXEL_STREAM_18;
-		break;
-	case OMAP_DSS_DSI_FMT_RGB565:
-		data_type = MIPI_DSI_PACKED_PIXEL_STREAM_16;
-		break;
-	default:
-		BUG();
-	};
+	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
+		switch (dssdev->panel.dsi_pix_fmt) {
+		case OMAP_DSS_DSI_FMT_RGB888:
+			data_type = MIPI_DSI_PACKED_PIXEL_STREAM_24;
+			break;
+		case OMAP_DSS_DSI_FMT_RGB666:
+			data_type = MIPI_DSI_PIXEL_STREAM_3BYTE_18;
+			break;
+		case OMAP_DSS_DSI_FMT_RGB666_PACKED:
+			data_type = MIPI_DSI_PACKED_PIXEL_STREAM_18;
+			break;
+		case OMAP_DSS_DSI_FMT_RGB565:
+			data_type = MIPI_DSI_PACKED_PIXEL_STREAM_16;
+			break;
+		default:
+			BUG();
+		};
 
-	dsi_if_enable(dsidev, false);
-	dsi_vc_enable(dsidev, channel, false);
+		dsi_if_enable(dsidev, false);
+		dsi_vc_enable(dsidev, channel, false);
 
-	/* MODE, 1 = video mode */
-	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 1, 4, 4);
+		/* MODE, 1 = video mode */
+		REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 1, 4, 4);
 
-	word_count = DIV_ROUND_UP(dssdev->panel.timings.x_res * bpp, 8);
+		word_count = DIV_ROUND_UP(dssdev->panel.timings.x_res * bpp, 8);
 
-	dsi_vc_write_long_header(dsidev, channel, data_type, word_count, 0);
+		dsi_vc_write_long_header(dsidev, channel, data_type,
+				word_count, 0);
 
-	dsi_vc_enable(dsidev, channel, true);
-	dsi_if_enable(dsidev, true);
+		dsi_vc_enable(dsidev, channel, true);
+		dsi_if_enable(dsidev, true);
+	}
 
 	dss_mgr_enable(dssdev->manager);
 
 	return 0;
 }
-EXPORT_SYMBOL(dsi_video_mode_enable);
+EXPORT_SYMBOL(dsi_enable_video_output);
 
-void dsi_video_mode_disable(struct omap_dss_device *dssdev, int channel)
+void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 
-	dsi_if_enable(dsidev, false);
-	dsi_vc_enable(dsidev, channel, false);
+	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
+		dsi_if_enable(dsidev, false);
+		dsi_vc_enable(dsidev, channel, false);
 
-	/* MODE, 0 = command mode */
-	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 0, 4, 4);
+		/* MODE, 0 = command mode */
+		REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 0, 4, 4);
 
-	dsi_vc_enable(dsidev, channel, true);
-	dsi_if_enable(dsidev, true);
+		dsi_vc_enable(dsidev, channel, true);
+		dsi_if_enable(dsidev, true);
+	}
 
 	dss_mgr_disable(dssdev->manager);
 }
-EXPORT_SYMBOL(dsi_video_mode_disable);
+EXPORT_SYMBOL(dsi_disable_video_output);
 
 static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 		u16 w, u16 h)

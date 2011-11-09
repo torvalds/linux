@@ -648,7 +648,8 @@ void dss_mgr_enable(struct omap_overlay_manager *mgr)
 {
 	mutex_lock(&apply_lock);
 
-	dispc_mgr_enable(mgr->id, true);
+	if (!mgr_manual_update(mgr))
+		dispc_mgr_enable(mgr->id, true);
 	mgr->enabled = true;
 
 	mutex_unlock(&apply_lock);
@@ -658,7 +659,8 @@ void dss_mgr_disable(struct omap_overlay_manager *mgr)
 {
 	mutex_lock(&apply_lock);
 
-	dispc_mgr_enable(mgr->id, false);
+	if (!mgr_manual_update(mgr))
+		dispc_mgr_enable(mgr->id, false);
 	mgr->enabled = false;
 
 	mutex_unlock(&apply_lock);
