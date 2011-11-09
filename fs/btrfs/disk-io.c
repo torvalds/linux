@@ -2460,21 +2460,20 @@ fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->caching_workers);
 fail_alloc:
 fail_iput:
+	btrfs_mapping_tree_free(&fs_info->mapping_tree);
+
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	iput(fs_info->btree_inode);
-
-	btrfs_close_devices(fs_info->fs_devices);
-	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 fail_bdi:
 	bdi_destroy(&fs_info->bdi);
 fail_srcu:
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
 fail:
+	btrfs_close_devices(fs_info->fs_devices);
 	free_fs_info(fs_info);
 	return ERR_PTR(err);
 
 recovery_tree_root:
-
 	if (!btrfs_test_opt(tree_root, RECOVERY))
 		goto fail_tree_roots;
 
