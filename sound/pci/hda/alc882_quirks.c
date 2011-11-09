@@ -36,10 +36,8 @@ enum {
 	ALC883_LAPTOP_EAPD,
 	ALC888_3ST_HP,
 	ALC888_6ST_DELL,
-	ALC883_MITAC,
 	ALC883_CLEVO_M540R,
 	ALC883_CLEVO_M720,
-	ALC888_FUJITSU_XA3530,
 	ALC883_3ST_6ch_INTEL,
 	ALC889A_INTEL,
 	ALC889_INTEL,
@@ -114,43 +112,6 @@ static const struct hda_channel_mode alc888_4ST_8ch_intel_modes[4] = {
 	{ 8, alc888_4ST_ch8_intel_init },
 };
 
-/*
- * ALC888 Fujitsu Siemens Amillo xa3530
- */
-
-static const struct hda_verb alc888_fujitsu_xa3530_verbs[] = {
-/* Front Mic: set to PIN_IN (empty by default) */
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-/* Connect Internal HP to Front */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00},
-/* Connect Bass HP to Front */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
-/* Connect Line-Out side jack (SPDIF) to Side */
-	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x17, AC_VERB_SET_CONNECT_SEL, 0x03},
-/* Connect Mic jack to CLFE */
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x18, AC_VERB_SET_CONNECT_SEL, 0x02},
-/* Connect Line-in jack to Surround */
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x01},
-/* Connect HP out jack to Front */
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00},
-/* Enable unsolicited event for HP jack and Line-out jack */
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	{0x17, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	{}
-};
-
 static void alc889_automute_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -168,17 +129,6 @@ static void alc889_intel_init_hook(struct hda_codec *codec)
 {
 	alc889_coef_init(codec);
 	alc_hp_automute(codec);
-}
-
-static void alc888_fujitsu_xa3530_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x17; /* line-out */
-	spec->autocfg.hp_pins[1] = 0x1b; /* hp */
-	spec->autocfg.speaker_pins[0] = 0x14; /* speaker */
-	spec->autocfg.speaker_pins[1] = 0x15; /* bass */
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
 }
 
 /*
@@ -1790,23 +1740,6 @@ static const struct hda_verb alc883_medion_eapd_verbs[] = {
 
 #define alc883_base_mixer	alc882_base_mixer
 
-static const struct snd_kcontrol_new alc883_mitac_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x0e, 1, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0e, 2, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE_MONO("Center Playback Switch", 0x0e, 1, 2, HDA_INPUT),
-	HDA_BIND_MUTE_MONO("LFE Playback Switch", 0x0e, 2, 2, HDA_INPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	{ } /* end */
-};
-
 static const struct snd_kcontrol_new alc883_clevo_m720_mixer[] = {
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Headphone Playback Switch", 0x0c, 2, HDA_INPUT),
@@ -2095,32 +2028,6 @@ static const struct snd_kcontrol_new alc883_chmode_mixer[] = {
 	{ } /* end */
 };
 
-/* toggle speaker-output according to the hp-jack state */
-static void alc883_mitac_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x15;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[1] = 0x17;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
-
-static const struct hda_verb alc883_mitac_verbs[] = {
-	/* HP */
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	/* Subwoofer */
-	{0x17, AC_VERB_SET_CONNECT_SEL, 0x02},
-	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-
-	/* enable unsolicited event */
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	/* {0x18, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_MIC_EVENT | AC_USRSP_EN}, */
-
-	{ } /* end */
-};
-
 static const struct hda_verb alc883_clevo_m540r_verbs[] = {
 	/* HP */
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
@@ -2397,10 +2304,8 @@ static const char * const alc882_models[ALC882_MODEL_LAST] = {
 	[ALC883_LAPTOP_EAPD]	= "laptop-eapd",
 	[ALC888_3ST_HP]		= "3stack-hp",
 	[ALC888_6ST_DELL]	= "6stack-dell",
-	[ALC883_MITAC]		= "mitac",
 	[ALC883_CLEVO_M540R]	= "clevo-m540r",
 	[ALC883_CLEVO_M720]	= "clevo-m720",
-	[ALC888_FUJITSU_XA3530] = "fujitsu-xa3530",
 	[ALC883_3ST_6ch_INTEL]	= "3stack-6ch-intel",
 	[ALC889A_INTEL]		= "intel-alc889a",
 	[ALC889_INTEL]		= "intel-x58",
@@ -2455,8 +2360,6 @@ static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 
 	SND_PCI_QUIRK(0x105b, 0x0ce8, "Foxconn P35AX-S", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x105b, 0x6668, "Foxconn", ALC882_6ST_DIG),
-	SND_PCI_QUIRK(0x1071, 0x8227, "Mitac 82801H", ALC883_MITAC),
-	SND_PCI_QUIRK(0x1071, 0x8253, "Mitac 8252d", ALC883_MITAC),
 	SND_PCI_QUIRK(0x1071, 0x8258, "Evesham Voyaeger", ALC883_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x10f1, 0x2350, "TYAN-S2350", ALC888_6ST_DELL),
 	SND_PCI_QUIRK(0x108e, 0x534d, NULL, ALC883_3ST_6ch),
@@ -2503,13 +2406,10 @@ static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x15d9, 0x8780, "Supermicro PDSBA", ALC883_3ST_6ch),
 	/* SND_PCI_QUIRK(0x161f, 0x2054, "Arima W820", ALC882_ARIMA), */
 	SND_PCI_QUIRK(0x161f, 0x2054, "Medion laptop", ALC883_MEDION),
-	SND_PCI_QUIRK_MASK(0x1734, 0xfff0, 0x1130, "Fujitsu AMILO Xa35xx",
-		ALC888_FUJITSU_XA3530),
 	SND_PCI_QUIRK(0x17f2, 0x5000, "Albatron KI690-AM2", ALC883_6ST_DIG),
 
 	SND_PCI_QUIRK(0x8086, 0x0001, "DG33BUC", ALC883_3ST_6ch_INTEL),
 	SND_PCI_QUIRK(0x8086, 0x0002, "DG33FBC", ALC883_3ST_6ch_INTEL),
-	SND_PCI_QUIRK(0x8086, 0x2503, "82801H", ALC883_MITAC),
 	SND_PCI_QUIRK(0x8086, 0x0022, "DX58SO", ALC889_INTEL),
 	SND_PCI_QUIRK(0x8086, 0x0021, "Intel IbexPeak", ALC889A_INTEL),
 	SND_PCI_QUIRK(0x8086, 0x3b56, "Intel IbexPeak", ALC889A_INTEL),
@@ -3064,37 +2964,6 @@ static const struct alc_config_preset alc882_presets[] = {
 		.input_mux = &alc883_capture_source,
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc888_6st_dell_setup,
-		.init_hook = alc_hp_automute,
-	},
-	[ALC883_MITAC] = {
-		.mixers = { alc883_mitac_mixer },
-		.init_verbs = { alc883_init_verbs, alc883_mitac_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
-		.channel_mode = alc883_3ST_2ch_modes,
-		.input_mux = &alc883_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc883_mitac_setup,
-		.init_hook = alc_hp_automute,
-	},
-	[ALC888_FUJITSU_XA3530] = {
-		.mixers = { alc888_base_mixer, alc883_chmode_mixer },
-		.init_verbs = { alc883_init_verbs,
-			alc888_fujitsu_xa3530_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids_rev),
-		.adc_nids = alc883_adc_nids_rev,
-		.capsrc_nids = alc883_capsrc_nids_rev,
-		.dig_out_nid = ALC883_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc888_4ST_8ch_intel_modes),
-		.channel_mode = alc888_4ST_8ch_intel_modes,
-		.num_mux_defs =
-			ARRAY_SIZE(alc888_2_capture_sources),
-		.input_mux = alc888_2_capture_sources,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc888_fujitsu_xa3530_setup,
 		.init_hook = alc_hp_automute,
 	},
 	[ALC889A_MB31] = {
