@@ -60,9 +60,9 @@
 
 /*--------------------------------------------------------------------------*/
 static const struct stk1160config {
-	int reg;
-	int set;
-} stk1160configPAL[256] = {
+	u16 reg;
+	u16 set;
+} stk1160configPAL[] = {
 		{0x000, 0x0098},
 		{0x002, 0x0093},
 
@@ -104,7 +104,7 @@ static const struct stk1160config {
 		{0xFFF, 0xFFFF}
 };
 /*--------------------------------------------------------------------------*/
-static const struct stk1160config stk1160configNTSC[256] = {
+static const struct stk1160config stk1160configNTSC[] = {
 		{0x000, 0x0098},
 		{0x002, 0x0093},
 
@@ -147,9 +147,9 @@ static const struct stk1160config stk1160configNTSC[256] = {
 };
 /*--------------------------------------------------------------------------*/
 static const struct saa7113config {
-	int reg;
-	int set;
-} saa7113configPAL[256] = {
+	u8 reg;
+	u8 set;
+} saa7113configPAL[] = {
 		{0x01, 0x08},
 		{0x02, 0x80},
 		{0x03, 0x33},
@@ -203,7 +203,7 @@ static const struct saa7113config {
 		{0xFF, 0xFF}
 };
 /*--------------------------------------------------------------------------*/
-static const struct saa7113config saa7113configNTSC[256] = {
+static const struct saa7113config saa7113configNTSC[] = {
 		{0x01, 0x08},
 		{0x02, 0x80},
 		{0x03, 0x33},
