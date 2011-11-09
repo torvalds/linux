@@ -2307,19 +2307,11 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 		SYM_LSB(IBCCtrlA_0, MaxPktLen);
 	ppd->cpspec->ibcctrl_a = ibc; /* without linkcmd or linkinitcmd! */
 
-	/* initially come up waiting for TS1, without sending anything. */
-	val = ppd->cpspec->ibcctrl_a | (QLOGIC_IB_IBCC_LINKINITCMD_DISABLE <<
-		QLOGIC_IB_IBCC_LINKINITCMD_SHIFT);
-
-	ppd->cpspec->ibcctrl_a = val;
 	/*
 	 * Reset the PCS interface to the serdes (and also ibc, which is still
 	 * in reset from above).  Writes new value of ibcctrl_a as last step.
 	 */
 	qib_7322_mini_pcs_reset(ppd);
-	qib_write_kreg(dd, kr_scratch, 0ULL);
-	/* clear the linkinit cmds */
-	ppd->cpspec->ibcctrl_a &= ~SYM_MASK(IBCCtrlA_0, LinkInitCmd);
 
 	if (!ppd->cpspec->ibcctrl_b) {
 		unsigned lse = ppd->link_speed_enabled;
@@ -2384,6 +2376,14 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 	/* Enable port */
 	ppd->cpspec->ibcctrl_a |= SYM_MASK(IBCCtrlA_0, IBLinkEn);
 	set_vls(ppd);
+
+	/* initially come up DISABLED, without sending anything. */
+	val = ppd->cpspec->ibcctrl_a | (QLOGIC_IB_IBCC_LINKINITCMD_DISABLE <<
+					QLOGIC_IB_IBCC_LINKINITCMD_SHIFT);
+	qib_write_kreg_port(ppd, krp_ibcctrl_a, val);
+	qib_write_kreg(dd, kr_scratch, 0ULL);
+	/* clear the linkinit cmds */
+	ppd->cpspec->ibcctrl_a = val & ~SYM_MASK(IBCCtrlA_0, LinkInitCmd);
 
 	/* be paranoid against later code motion, etc. */
 	spin_lock_irqsave(&dd->cspec->rcvmod_lock, flags);
