@@ -129,8 +129,8 @@ struct mgmt_rp_disconnect {
 } __packed;
 
 #define MGMT_ADDR_BREDR			0x00
-#define MGMT_ADDR_LE			0x01
-#define MGMT_ADDR_BREDR_LE		0x02
+#define MGMT_ADDR_LE_PUBLIC		0x01
+#define MGMT_ADDR_LE_RANDOM		0x02
 #define MGMT_ADDR_INVALID		0xff
 
 struct mgmt_addr_info {
