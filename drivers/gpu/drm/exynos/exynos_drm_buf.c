@@ -29,8 +29,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_buf.h"
 
-static DEFINE_MUTEX(exynos_drm_buf_lock);
-
 static int lowlevel_buffer_allocate(struct drm_device *dev,
 		struct exynos_drm_buf_entry *entry)
 {
