@@ -1378,12 +1378,14 @@ out:
 	return error;
 }
 
-/* gfs2_dir_readahead - Issue read-ahead requests for leaf blocks.
+/**
+ * gfs2_dir_readahead - Issue read-ahead requests for leaf blocks.
  *
  * Note: we can't calculate each index like dir_e_read can because we don't
  * have the leaf, and therefore we don't have the depth, and therefore we
  * don't have the length. So we have to just read enough ahead to make up
- * for the loss of information. */
+ * for the loss of information.
+ */
 static void gfs2_dir_readahead(struct inode *inode, unsigned hsize, u32 index,
 			       struct file_ra_state *f_ra)
 {
@@ -1394,7 +1396,7 @@ static void gfs2_dir_readahead(struct inode *inode, unsigned hsize, u32 index,
 	unsigned count;
 
 	/* First check if we've already read-ahead for the whole range. */
-	if (!f_ra || index + MAX_RA_BLOCKS < f_ra->start)
+	if (index + MAX_RA_BLOCKS < f_ra->start)
 		return;
 
 	f_ra->start = max((pgoff_t)index, f_ra->start);
@@ -1448,7 +1450,7 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 	hash = gfs2_dir_offset2hash(*offset);
 	index = hash >> (32 - dip->i_depth);
 
-	if (f_ra && dip->i_hash_cache == NULL)
+	if (dip->i_hash_cache == NULL)
 		f_ra->start = 0;
 	lp = gfs2_dir_get_hash_table(dip);
 	if (IS_ERR(lp))
