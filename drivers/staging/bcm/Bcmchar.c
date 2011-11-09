@@ -306,7 +306,11 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		if (copy_from_user(&sRdmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
 			return -EFAULT;
 
-		/* FIXME: don't trust user supplied length */
+		if (IoBuffer.OutputLength > USHRT_MAX ||
+			IoBuffer.OutputLength == 0) {
+			return -EINVAL;
+		}
+
 		temp_buff = kmalloc(IoBuffer.OutputLength, GFP_KERNEL);
 		if (!temp_buff)
 			return STATUS_FAILURE;
