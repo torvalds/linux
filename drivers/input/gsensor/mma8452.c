@@ -724,6 +724,17 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 	INIT_WORK(&mma8452->work, mma8452_work_func);
 	INIT_DELAYED_WORK(&mma8452->delaywork, mma8452_delaywork_func);
 
+	memset(&(mma8452->sense_data), 0, sizeof(struct mma8452_axis) );
+	mutex_init(&(mma8452->sense_data_mutex) );
+
+	atomic_set(&(mma8452->data_ready), 0);
+	init_waitqueue_head(&(mma8452->data_ready_wq) );
+
+	mma8452->start_count = 0;
+	mutex_init(&(mma8452->operation_mutex) );
+
+	mma8452->status = MMA8452_CLOSE;
+
 	mma8452->client = client;
 	i2c_set_clientdata(client, mma8452);
 
@@ -794,17 +805,6 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 #endif
 
 	printk(KERN_INFO "mma8452 probe ok\n");
-    memset(&(mma8452->sense_data), 0, sizeof(struct mma8452_axis) );
-    mutex_init(&(mma8452->sense_data_mutex) );
-    
-	atomic_set(&(mma8452->data_ready), 0);
-    init_waitqueue_head(&(mma8452->data_ready_wq) );
-
-    mma8452->start_count = 0;
-    mutex_init(&(mma8452->operation_mutex) );
-    
-	// mma8452->status = -1;
-	mma8452->status = MMA8452_CLOSE;
 #if  0	
 //	mma8452_start_test(this_client);
 	mma8452_start(client, MMA8452_RATE_12P5);
