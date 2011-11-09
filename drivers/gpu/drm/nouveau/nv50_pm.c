@@ -459,7 +459,7 @@ calc_mclk(struct drm_device *dev, u32 freq, struct hwsq_ucode *hwsq)
 	}
 	if (dev_priv->chipset >= 0x92)
 		hwsq_wr32(hwsq, 0x611200, 0x00003300); /* disable scanout */
-	hwsq_unkn(hwsq, 0xb0); /* disable bus access */
+	hwsq_setf(hwsq, 0x10, 0); /* disable bus access */
 	hwsq_op5f(hwsq, 0x00, 0x01); /* no idea :s */
 
 	/* prepare memory controller */
@@ -478,10 +478,10 @@ calc_mclk(struct drm_device *dev, u32 freq, struct hwsq_ucode *hwsq)
 	hwsq_wr32(hwsq, 0x1002d4, 0x00000001); /* precharge banks and idle */
 	hwsq_wr32(hwsq, 0x1002dc, 0x00000000); /* stop self refresh mode */
 	hwsq_wr32(hwsq, 0x100210, 0x80000000); /* restart automatic refresh */
-	hwsq_unkn(hwsq, 0x07); /* wait for the PLL to stabilize (12us) */
+	hwsq_usec(hwsq, 12); /* wait for the PLL to stabilize */
 
-	hwsq_unkn(hwsq, 0x0b); /* may be unnecessary: causes flickering */
-	hwsq_unkn(hwsq, 0xd0); /* enable bus access again */
+	hwsq_usec(hwsq, 48); /* may be unnecessary: causes flickering */
+	hwsq_setf(hwsq, 0x10, 1); /* enable bus access */
 	hwsq_op5f(hwsq, 0x00, 0x00); /* no idea, reverse of 0x00, 0x01? */
 	if (dev_priv->chipset >= 0x92)
 		hwsq_wr32(hwsq, 0x611200, 0x00003330); /* enable scanout */

@@ -57,9 +57,26 @@ hwsq_fini(struct hwsq_ucode *hwsq)
 }
 
 static inline void
-hwsq_unkn(struct hwsq_ucode *hwsq, u8 v0)
+hwsq_usec(struct hwsq_ucode *hwsq, u8 usec)
 {
-	*hwsq->ptr.u08++ = v0;
+	u32 shift = 0;
+	while (usec & ~3) {
+		usec >>= 2;
+		shift++;
+	}
+
+	*hwsq->ptr.u08++ = (shift << 2) | usec;
+}
+
+static inline void
+hwsq_setf(struct hwsq_ucode *hwsq, u8 flag, int val)
+{
+	flag += 0x80;
+	if (val >= 0)
+		flag += 0x20;
+	if (val >= 1)
+		flag += 0x20;
+	*hwsq->ptr.u08++ = flag;
 }
 
 static inline void
