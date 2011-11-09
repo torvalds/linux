@@ -22,6 +22,7 @@
  */
 #include <linux/module.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/console.h>
@@ -2466,6 +2467,87 @@ int uart_match_port(struct uart_port *port1, struct uart_port *port2)
 	return 0;
 }
 EXPORT_SYMBOL(uart_match_port);
+
+/**
+ *	uart_handle_dcd_change - handle a change of carrier detect state
+ *	@uport: uart_port structure for the open port
+ *	@status: new carrier detect status, nonzero if active
+ */
+void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
+{
+	struct uart_state *state = uport->state;
+	struct tty_port *port = &state->port;
+	struct tty_ldisc *ld = tty_ldisc_ref(port->tty);
+	struct pps_event_time ts;
+
+	if (ld && ld->ops->dcd_change)
+		pps_get_ts(&ts);
+
+	uport->icount.dcd++;
+#ifdef CONFIG_HARD_PPS
+	if ((uport->flags & UPF_HARDPPS_CD) && status)
+		hardpps();
+#endif
+
+	if (port->flags & ASYNC_CHECK_CD) {
+		if (status)
+			wake_up_interruptible(&port->open_wait);
+		else if (port->tty)
+			tty_hangup(port->tty);
+	}
+
+	if (ld && ld->ops->dcd_change)
+		ld->ops->dcd_change(port->tty, status, &ts);
+	if (ld)
+		tty_ldisc_deref(ld);
+}
+EXPORT_SYMBOL_GPL(uart_handle_dcd_change);
+
+/**
+ *	uart_handle_cts_change - handle a change of clear-to-send state
+ *	@uport: uart_port structure for the open port
+ *	@status: new clear to send status, nonzero if active
+ */
+void uart_handle_cts_change(struct uart_port *uport, unsigned int status)
+{
+	struct tty_port *port = &uport->state->port;
+	struct tty_struct *tty = port->tty;
+
+	uport->icount.cts++;
+
+	if (port->flags & ASYNC_CTS_FLOW) {
+		if (tty->hw_stopped) {
+			if (status) {
+				tty->hw_stopped = 0;
+				uport->ops->start_tx(uport);
+				uart_write_wakeup(uport);
+			}
+		} else {
+			if (!status) {
+				tty->hw_stopped = 1;
+				uport->ops->stop_tx(uport);
+			}
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(uart_handle_cts_change);
+
+void uart_insert_char(struct uart_port *port, unsigned int status,
+		 unsigned int overrun, unsigned int ch, unsigned int flag)
+{
+	struct tty_struct *tty = port->state->port.tty;
+
+	if ((status & port->ignore_status_mask & ~overrun) == 0)
+		tty_insert_flip_char(tty, ch, flag);
+
+	/*
+	 * Overrun is special.  Since it's reported immediately,
+	 * it doesn't affect the current character.
+	 */
+	if (status & ~port->ignore_status_mask & overrun)
+		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+}
+EXPORT_SYMBOL_GPL(uart_insert_char);
 
 EXPORT_SYMBOL(uart_write_wakeup);
 EXPORT_SYMBOL(uart_register_driver);
