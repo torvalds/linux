@@ -5021,23 +5021,6 @@ out:
 	return ret;
 }
 
-/*
- * Reset the forechannel and backchannel slot tables
- */
-static int nfs4_reset_slot_tables(struct nfs4_session *session)
-{
-	int status;
-
-	status = nfs4_reset_slot_table(&session->fc_slot_table,
-			session->fc_attrs.max_reqs, 1);
-	if (status)
-		return status;
-
-	status = nfs4_reset_slot_table(&session->bc_slot_table,
-			session->bc_attrs.max_reqs, 0);
-	return status;
-}
-
 /* Destroy the slot table */
 static void nfs4_destroy_slot_tables(struct nfs4_session *session)
 {
@@ -5083,29 +5066,35 @@ out:
 }
 
 /*
- * Initialize the forechannel and backchannel tables
+ * Initialize or reset the forechannel and backchannel tables
  */
-static int nfs4_init_slot_tables(struct nfs4_session *session)
+static int nfs4_setup_session_slot_tables(struct nfs4_session *ses)
 {
 	struct nfs4_slot_table *tbl;
-	int status = 0;
+	int status;
 
-	tbl = &session->fc_slot_table;
+	dprintk("--> %s\n", __func__);
+	/* Fore channel */
+	tbl = &ses->fc_slot_table;
 	if (tbl->slots == NULL) {
-		status = nfs4_init_slot_table(tbl,
-				session->fc_attrs.max_reqs, 1);
+		status = nfs4_init_slot_table(tbl, ses->fc_attrs.max_reqs, 1);
+		if (status) /* -ENOMEM */
+			return status;
+	} else {
+		status = nfs4_reset_slot_table(tbl, ses->fc_attrs.max_reqs, 1);
 		if (status)
 			return status;
 	}
-
-	tbl = &session->bc_slot_table;
+	/* Back channel */
+	tbl = &ses->bc_slot_table;
 	if (tbl->slots == NULL) {
-		status = nfs4_init_slot_table(tbl,
-				session->bc_attrs.max_reqs, 0);
+		status = nfs4_init_slot_table(tbl, ses->bc_attrs.max_reqs, 0);
 		if (status)
-			nfs4_destroy_slot_tables(session);
-	}
-
+			/* Fore and back channel share a connection so get
+			 * both slot tables or neither */
+			nfs4_destroy_slot_tables(ses);
+	} else
+		status = nfs4_reset_slot_table(tbl, ses->bc_attrs.max_reqs, 0);
 	return status;
 }
 
@@ -5293,13 +5282,9 @@ int nfs4_proc_create_session(struct nfs_client *clp)
 	if (status)
 		goto out;
 
-	/* Init and reset the fore channel */
-	status = nfs4_init_slot_tables(session);
-	dprintk("slot table initialization returned %d\n", status);
-	if (status)
-		goto out;
-	status = nfs4_reset_slot_tables(session);
-	dprintk("slot table reset returned %d\n", status);
+	/* Init or reset the session slot tables */
+	status = nfs4_setup_session_slot_tables(session);
+	dprintk("slot table setup returned %d\n", status);
 	if (status)
 		goto out;
 
