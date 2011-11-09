@@ -53,7 +53,6 @@
 
 #define OMAP_UART_DMA_CH_FREE	-1
 
-#define RX_TIMEOUT		(3 * HZ)
 #define OMAP_MAX_HSUART_PORTS	4
 
 #define MSR_SAVE_FLAGS		UART_MSR_ANY_DELTA
@@ -69,6 +68,7 @@ struct omap_uart_port_info {
 	unsigned int		dma_rx_buf_size;
 	unsigned int		dma_rx_timeout;
 	unsigned int		autosuspend_timeout;
+	unsigned int		dma_rx_poll_rate;
 
 	int (*get_context_loss_count)(struct device *);
 	void (*set_forceidle)(struct platform_device *);
@@ -98,6 +98,7 @@ struct uart_omap_dma {
 	/* timer to poll activity on rx dma */
 	struct timer_list	rx_timer;
 	unsigned int		rx_buf_size;
+	unsigned int		rx_poll_rate;
 	unsigned int		rx_timeout;
 };
 
