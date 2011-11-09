@@ -3024,8 +3024,12 @@ int ath6kl_wmi_send_probe_response_cmd(struct wmi *wmi, u8 if_idx, u32 freq,
 {
 	struct sk_buff *skb;
 	struct wmi_p2p_probe_response_cmd *p;
+	size_t cmd_len = sizeof(*p) + data_len;
 
-	skb = ath6kl_wmi_get_new_buf(sizeof(*p) + data_len);
+	if (data_len == 0)
+		cmd_len++; /* work around target minimum length requirement */
+
+	skb = ath6kl_wmi_get_new_buf(cmd_len);
 	if (!skb)
 		return -ENOMEM;
 
