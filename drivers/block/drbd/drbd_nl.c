@@ -1497,8 +1497,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	new_disk_conf = NULL;
 	new_plan = NULL;
 
-	mdev->write_ordering = WO_bdev_flush;
-	drbd_bump_write_ordering(mdev, WO_bdev_flush);
+	drbd_bump_write_ordering(mdev->tconn, WO_bdev_flush);
 
 	if (drbd_md_test_flag(mdev->ldev, MDF_CRASHED_PRIMARY))
 		set_bit(CRASHED_PRIMARY, &mdev->flags);

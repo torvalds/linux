@@ -858,6 +858,8 @@ struct drbd_tconn {			/* is a resource from the config file */
 	void *int_dig_in;
 	void *int_dig_vv;
 
+	enum write_ordering_e write_ordering;
+
 	struct drbd_thread receiver;
 	struct drbd_thread worker;
 	struct drbd_thread asender;
@@ -962,7 +964,7 @@ struct drbd_conf {
 	struct drbd_epoch *current_epoch;
 	spinlock_t epoch_lock;
 	unsigned int epochs;
-	enum write_ordering_e write_ordering;
+
 	struct list_head active_ee; /* IO in progress (P_DATA gets written to disk) */
 	struct list_head sync_ee;   /* IO in progress (P_RS_DATA_REPLY gets written to disk) */
 	struct list_head done_ee;   /* need to send P_WRITE_ACK */
@@ -1539,7 +1541,7 @@ static inline void drbd_tcp_quickack(struct socket *sock)
 			(char*)&val, sizeof(val));
 }
 
-void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo);
+void drbd_bump_write_ordering(struct drbd_tconn *tconn, enum write_ordering_e wo);
 
 /* drbd_proc.c */
 extern struct proc_dir_entry *drbd_proc;

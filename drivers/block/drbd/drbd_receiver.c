@@ -1089,21 +1089,29 @@ static int drbd_recv_header(struct drbd_tconn *tconn, struct packet_info *pi)
 	return err;
 }
 
-static void drbd_flush(struct drbd_conf *mdev)
+static void drbd_flush(struct drbd_tconn *tconn)
 {
 	int rv;
+	struct drbd_conf *mdev;
+	int vnr;
 
-	if (mdev->write_ordering >= WO_bdev_flush && get_ldev(mdev)) {
-		rv = blkdev_issue_flush(mdev->ldev->backing_bdev, GFP_KERNEL,
-					NULL);
-		if (rv) {
-			dev_info(DEV, "local disk flush failed with status %d\n", rv);
-			/* would rather check on EOPNOTSUPP, but that is not reliable.
-			 * don't try again for ANY return value != 0
-			 * if (rv == -EOPNOTSUPP) */
-			drbd_bump_write_ordering(mdev, WO_drain_io);
+	if (tconn->write_ordering >= WO_bdev_flush) {
+		idr_for_each_entry(&tconn->volumes, mdev, vnr) {
+			if (get_ldev(mdev)) {
+				rv = blkdev_issue_flush(mdev->ldev->backing_bdev, GFP_KERNEL,
+							NULL);
+				put_ldev(mdev);
+
+				if (rv) {
+					dev_info(DEV, "local disk flush failed with status %d\n", rv);
+					/* would rather check on EOPNOTSUPP, but that is not reliable.
+					 * don't try again for ANY return value != 0
+					 * if (rv == -EOPNOTSUPP) */
+					drbd_bump_write_ordering(tconn, WO_drain_io);
+					break;
+				}
+			}
 		}
-		put_ldev(mdev);
 	}
 }
 
@@ -1182,32 +1190,39 @@ static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *mdev,
 
 /**
  * drbd_bump_write_ordering() - Fall back to an other write ordering method
- * @mdev:	DRBD device.
+ * @tconn:	DRBD connection.
  * @wo:		Write ordering method to try.
  */
-void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo) __must_hold(local)
+void drbd_bump_write_ordering(struct drbd_tconn *tconn, enum write_ordering_e wo)
 {
 	struct disk_conf *dc;
+	struct drbd_conf *mdev;
 	enum write_ordering_e pwo;
+	int vnr;
 	static char *write_ordering_str[] = {
 		[WO_none] = "none",
 		[WO_drain_io] = "drain",
 		[WO_bdev_flush] = "flush",
 	};
 
-	pwo = mdev->write_ordering;
+	pwo = tconn->write_ordering;
 	wo = min(pwo, wo);
 	rcu_read_lock();
-	dc = rcu_dereference(mdev->ldev->disk_conf);
+	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
+		if (!get_ldev(mdev))
+			continue;
+		dc = rcu_dereference(mdev->ldev->disk_conf);
 
-	if (wo == WO_bdev_flush && !dc->disk_flushes)
-		wo = WO_drain_io;
-	if (wo == WO_drain_io && !dc->disk_drain)
-		wo = WO_none;
+		if (wo == WO_bdev_flush && !dc->disk_flushes)
+			wo = WO_drain_io;
+		if (wo == WO_drain_io && !dc->disk_drain)
+			wo = WO_none;
+		put_ldev(mdev);
+	}
 	rcu_read_unlock();
-	mdev->write_ordering = wo;
-	if (pwo != mdev->write_ordering || wo == WO_bdev_flush)
-		dev_info(DEV, "Method to ensure write ordering: %s\n", write_ordering_str[mdev->write_ordering]);
+	tconn->write_ordering = wo;
+	if (pwo != tconn->write_ordering || wo == WO_bdev_flush)
+		conn_info(tconn, "Method to ensure write ordering: %s\n", write_ordering_str[tconn->write_ordering]);
 }
 
 /**
@@ -1341,7 +1356,7 @@ static int receive_Barrier(struct drbd_tconn *tconn, struct packet_info *pi)
 	 * R_PRIMARY crashes now.
 	 * Therefore we must send the barrier_ack after the barrier request was
 	 * completed. */
-	switch (mdev->write_ordering) {
+	switch (tconn->write_ordering) {
 	case WO_none:
 		if (rv == FE_RECYCLED)
 			return 0;
@@ -1358,7 +1373,7 @@ static int receive_Barrier(struct drbd_tconn *tconn, struct packet_info *pi)
 	case WO_bdev_flush:
 	case WO_drain_io:
 		drbd_wait_ee_list_empty(mdev, &mdev->active_ee);
-		drbd_flush(mdev);
+		drbd_flush(tconn);
 
 		if (atomic_read(&mdev->current_epoch->epoch_size)) {
 			epoch = kmalloc(sizeof(struct drbd_epoch), GFP_NOIO);
@@ -1374,7 +1389,7 @@ static int receive_Barrier(struct drbd_tconn *tconn, struct packet_info *pi)
 
 		return 0;
 	default:
-		dev_err(DEV, "Strangeness in mdev->write_ordering %d\n", mdev->write_ordering);
+		dev_err(DEV, "Strangeness in tconn->write_ordering %d\n", tconn->write_ordering);
 		return -EIO;
 	}
 
