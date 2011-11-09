@@ -207,6 +207,31 @@ static struct drm_prop_enum_list dither_depth[] = {
 } while(0)
 
 int
+nouveau_display_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_display_engine *disp = &dev_priv->engine.display;
+	int ret;
+
+	ret = disp->init(dev);
+	if (ret == 0) {
+		drm_kms_helper_poll_enable(dev);
+	}
+
+	return ret;
+}
+
+void
+nouveau_display_fini(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_display_engine *disp = &dev_priv->engine.display;
+
+	drm_kms_helper_poll_disable(dev);
+	disp->fini(dev);
+}
+
+int
 nouveau_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -258,13 +283,19 @@ nouveau_display_create(struct drm_device *dev)
 		dev->mode_config.max_height = 8192;
 	}
 
+	drm_kms_helper_poll_init(dev);
+	drm_kms_helper_poll_disable(dev);
+
 	ret = disp->create(dev);
 	if (ret)
 		return ret;
 
-	ret = disp->init(dev);
-	if (ret)
-		disp->destroy(dev);
+	if (dev->mode_config.num_crtc) {
+		ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
+		if (ret)
+			return ret;
+	}
+
 	return ret;
 }
 
@@ -274,8 +305,11 @@ nouveau_display_destroy(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_display_engine *disp = &dev_priv->engine.display;
 
-	disp->fini(dev);
+	drm_vblank_cleanup(dev);
+
 	disp->destroy(dev);
+
+	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
 }
 

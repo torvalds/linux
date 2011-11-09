@@ -763,12 +763,11 @@ nouveau_card_init(struct drm_device *dev)
 	}
 
 	if (dev->mode_config.num_crtc) {
-		ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
+		ret = nouveau_display_init(dev);
 		if (ret)
 			goto out_chan;
 
 		nouveau_fbcon_init(dev);
-		drm_kms_helper_poll_init(dev);
 	}
 
 	return 0;
@@ -829,9 +828,8 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	int e;
 
 	if (dev->mode_config.num_crtc) {
-		drm_kms_helper_poll_fini(dev);
 		nouveau_fbcon_fini(dev);
-		drm_vblank_cleanup(dev);
+		nouveau_display_fini(dev);
 	}
 
 	if (dev_priv->channel) {

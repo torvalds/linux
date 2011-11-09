@@ -178,7 +178,8 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	drm_kms_helper_poll_disable(dev);
+	NV_INFO(dev, "Disabling display...\n");
+	nouveau_display_fini(dev);
 
 	NV_INFO(dev, "Disabling fbcon...\n");
 	nouveau_fbcon_set_suspend(dev, 1);
@@ -357,8 +358,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	nouveau_fbcon_set_suspend(dev, 0);
 	nouveau_fbcon_zfill_all(dev);
 
-	engine->display.init(dev);
-	drm_kms_helper_poll_enable(dev);
+	nouveau_display_init(dev);
 
 	/* Force CLUT to get re-loaded during modeset */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
