@@ -30,7 +30,6 @@ enum {
 	ALC888_ACER_ASPIRE_6530G,
 	ALC888_ACER_ASPIRE_8930G,
 	ALC888_ACER_ASPIRE_7730G,
-	ALC883_CLEVO_M720,
 	ALC883_3ST_6ch_INTEL,
 	ALC889A_INTEL,
 	ALC889_INTEL,
@@ -1726,20 +1725,6 @@ static const struct hda_channel_mode alc889A_mb31_6ch_modes[4] = {
 
 #define alc883_base_mixer	alc882_base_mixer
 
-static const struct snd_kcontrol_new alc883_clevo_m720_mixer[] = {
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Headphone Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Speaker Playback Switch", 0x0d, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	{ } /* end */
-};
-
 static const struct snd_kcontrol_new alc883_3ST_2ch_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
@@ -1977,21 +1962,6 @@ static const struct snd_kcontrol_new alc883_chmode_mixer[] = {
 	{ } /* end */
 };
 
-static const struct hda_verb alc883_clevo_m720_verbs[] = {
-	/* HP */
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	/* Int speaker */
-	{0x14, AC_VERB_SET_CONNECT_SEL, 0x01},
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-
-	/* enable unsolicited event */
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_MIC_EVENT | AC_USRSP_EN},
-
-	{ } /* end */
-};
-
 static const struct hda_verb alc883_targa_verbs[] = {
 	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
@@ -2024,34 +1994,6 @@ static const struct hda_verb alc883_targa_verbs[] = {
 /* toggle speaker-output according to the hp-jack state */
 #define alc883_targa_init_hook		alc882_targa_init_hook
 #define alc883_targa_unsol_event	alc882_targa_unsol_event
-
-static void alc883_clevo_m720_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x15;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
-
-static void alc883_clevo_m720_init_hook(struct hda_codec *codec)
-{
-	alc_hp_automute(codec);
-	alc88x_simple_mic_automute(codec);
-}
-
-static void alc883_clevo_m720_unsol_event(struct hda_codec *codec,
-					   unsigned int res)
-{
-	switch (res >> 26) {
-	case ALC_MIC_EVENT:
-		alc88x_simple_mic_automute(codec);
-		break;
-	default:
-		alc_sku_unsol_event(codec, res);
-		break;
-	}
-}
 
 /* toggle speaker-output according to the hp-jack state */
 static void alc883_acer_aspire_setup(struct hda_codec *codec)
@@ -2153,7 +2095,6 @@ static const char * const alc882_models[ALC882_MODEL_LAST] = {
 	[ALC888_ACER_ASPIRE_6530G]	= "acer-aspire-6530g",
 	[ALC888_ACER_ASPIRE_8930G]	= "acer-aspire-8930g",
 	[ALC888_ACER_ASPIRE_7730G]	= "acer-aspire-7730g",
-	[ALC883_CLEVO_M720]	= "clevo-m720",
 	[ALC883_3ST_6ch_INTEL]	= "3stack-6ch-intel",
 	[ALC889A_INTEL]		= "intel-alc889a",
 	[ALC889_INTEL]		= "intel-x58",
@@ -2239,8 +2180,6 @@ static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 
 	SND_PCI_QUIRK(0x147b, 0x1083, "Abit IP35-PRO", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1558, 0x0571, "Clevo laptop M570U", ALC883_3ST_6ch_DIG),
-	SND_PCI_QUIRK(0x1558, 0x0721, "Clevo laptop M720R", ALC883_CLEVO_M720),
-	SND_PCI_QUIRK(0x1558, 0x0722, "Clevo laptop M720SR", ALC883_CLEVO_M720),
 	SND_PCI_QUIRK(0x15d9, 0x8780, "Supermicro PDSBA", ALC883_3ST_6ch),
 	SND_PCI_QUIRK(0x17f2, 0x5000, "Albatron KI690-AM2", ALC883_6ST_DIG),
 
@@ -2698,19 +2637,6 @@ static const struct alc_config_preset alc882_presets[] = {
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc888_acer_aspire_7730g_setup,
 		.init_hook = alc_hp_automute,
-	},
-	[ALC883_CLEVO_M720] = {
-		.mixers = { alc883_clevo_m720_mixer },
-		.init_verbs = { alc883_init_verbs, alc883_clevo_m720_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.dig_out_nid = ALC883_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
-		.channel_mode = alc883_3ST_2ch_modes,
-		.input_mux = &alc883_capture_source,
-		.unsol_event = alc883_clevo_m720_unsol_event,
-		.setup = alc883_clevo_m720_setup,
-		.init_hook = alc883_clevo_m720_init_hook,
 	},
 	[ALC889A_MB31] = {
 		.mixers = { alc889A_mb31_mixer, alc883_chmode_mixer},
