@@ -482,7 +482,7 @@ static void kvmppc_set_timer(struct kvm_vcpu *vcpu)
 	if (now > vcpu->arch.dec_expires) {
 		/* decrementer has already gone negative */
 		kvmppc_core_queue_dec(vcpu);
-		kvmppc_core_deliver_interrupts(vcpu);
+		kvmppc_core_prepare_to_enter(vcpu);
 		return;
 	}
 	dec_nsec = (vcpu->arch.dec_expires - now) * NSEC_PER_SEC
@@ -797,7 +797,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 		list_for_each_entry_safe(v, vn, &vc->runnable_threads,
 					 arch.run_list) {
-			kvmppc_core_deliver_interrupts(v);
+			kvmppc_core_prepare_to_enter(v);
 			if (signal_pending(v->arch.run_task)) {
 				kvmppc_remove_runnable(vc, v);
 				v->stat.signal_exits++;
@@ -857,7 +857,7 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		if (run->exit_reason == KVM_EXIT_PAPR_HCALL &&
 		    !(vcpu->arch.shregs.msr & MSR_PR)) {
 			r = kvmppc_pseries_do_hcall(vcpu);
-			kvmppc_core_deliver_interrupts(vcpu);
+			kvmppc_core_prepare_to_enter(vcpu);
 		}
 	} while (r == RESUME_GUEST);
 	return r;

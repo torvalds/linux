@@ -289,7 +289,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 }
 
 /* Check pending exceptions and deliver one, if possible. */
-void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
+void kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
 	unsigned long old_pending = vcpu->arch.pending_exceptions;
@@ -611,7 +611,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	local_irq_disable();
 
-	kvmppc_core_deliver_interrupts(vcpu);
+	kvmppc_core_prepare_to_enter(vcpu);
 
 	if (!(r & RESUME_HOST)) {
 		/* To avoid clobbering exit_reason, only check for signals if

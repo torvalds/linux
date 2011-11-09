@@ -764,7 +764,7 @@ program_interrupt:
 			/* In case an interrupt came in that was triggered
 			 * from userspace (like DEC), we need to check what
 			 * to inject now! */
-			kvmppc_core_deliver_interrupts(vcpu);
+			kvmppc_core_prepare_to_enter(vcpu);
 		}
 	}
 
