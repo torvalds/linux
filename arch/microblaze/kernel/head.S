@@ -63,9 +63,7 @@ ENTRY(_start)
 real_start:
 #endif
 
-	mfs	r1, rmsr
-	andi	r1, r1, ~2
-	mts	rmsr, r1
+	mts	rmsr, r0
 /*
  * According to Xilinx, msrclr instruction behaves like 'mfs rX,rpc'
  * if the msrclr instruction is not enabled. We use this to detect
@@ -73,6 +71,7 @@ real_start:
  * r8 == 0 - msr instructions are implemented
  * r8 != 0 - msr instructions are not implemented
  */
+	mfs	r1, rmsr
 	msrclr	r8, 0 /* clear nothing - just read msr for test */
 	cmpu	r8, r8, r1 /* r1 must contain msr reg content */
 
