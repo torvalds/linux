@@ -1093,6 +1093,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 	}
 
+	ieee80211_recalc_ps(local, -1);
+
 	/*
 	 * Clear the WLAN_STA_BLOCK_BA flag so new aggregation
 	 * sessions can be established after a resume.
