@@ -363,7 +363,6 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 	struct resource *res2 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	unsigned long rate, f_current;
 	int idx = pdev->id, ret;
-	char dsip_clk[] = "dsi.p_clk";
 
 	if (!res || !res2 || idx >= ARRAY_SIZE(mipi_dsi) || !pdata)
 		return -ENODEV;
@@ -428,8 +427,7 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "DSI-T clk %lu -> %lu\n", f_current, rate);
 
-	sprintf(dsip_clk, "dsi%1.1dp_clk", idx);
-	mipi->dsip_clk = clk_get(&pdev->dev, dsip_clk);
+	mipi->dsip_clk = clk_get(&pdev->dev, "dsip_clk");
 	if (IS_ERR(mipi->dsip_clk)) {
 		ret = PTR_ERR(mipi->dsip_clk);
 		goto eclkpget;
