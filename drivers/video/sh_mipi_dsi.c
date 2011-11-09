@@ -320,6 +320,8 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 		vmctr2 |= 1 << 5;
 	if (pdata->flags & SH_MIPI_DSI_HBPBM)
 		vmctr2 |= 1 << 4;
+	if (pdata->flags & SH_MIPI_DSI_HFPBM)
+		vmctr2 |= 1 << 3;
 	iowrite32(vmctr2, mipi->linkbase + VMCTR2);
 
 	/*
