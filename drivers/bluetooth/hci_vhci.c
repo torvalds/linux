@@ -264,10 +264,7 @@ static int vhci_release(struct inode *inode, struct file *file)
 	struct vhci_data *data = file->private_data;
 	struct hci_dev *hdev = data->hdev;
 
-	if (hci_unregister_dev(hdev) < 0) {
-		BT_ERR("Can't unregister HCI device %s", hdev->name);
-	}
-
+	hci_unregister_dev(hdev);
 	hci_free_dev(hdev);
 
 	file->private_data = NULL;

@@ -69,6 +69,10 @@ struct mgmt_mode {
 #define MGMT_OP_SET_POWERED		0x0005
 
 #define MGMT_OP_SET_DISCOVERABLE	0x0006
+struct mgmt_cp_set_discoverable {
+	__u8 val;
+	__u16 timeout;
+} __packed;
 
 #define MGMT_OP_SET_CONNECTABLE		0x0007
 
@@ -96,24 +100,22 @@ struct mgmt_cp_set_service_cache {
 	__u8 enable;
 } __packed;
 
-struct mgmt_key_info {
+struct mgmt_link_key_info {
 	bdaddr_t bdaddr;
 	u8 type;
 	u8 val[16];
 	u8 pin_len;
-	u8 dlen;
-	u8 data[0];
 } __packed;
 
-#define MGMT_OP_LOAD_KEYS		0x000D
-struct mgmt_cp_load_keys {
+#define MGMT_OP_LOAD_LINK_KEYS		0x000D
+struct mgmt_cp_load_link_keys {
 	__u8 debug_keys;
 	__le16 key_count;
-	struct mgmt_key_info keys[0];
+	struct mgmt_link_key_info keys[0];
 } __packed;
 
-#define MGMT_OP_REMOVE_KEY		0x000E
-struct mgmt_cp_remove_key {
+#define MGMT_OP_REMOVE_KEYS		0x000E
+struct mgmt_cp_remove_keys {
 	bdaddr_t bdaddr;
 	__u8 disconnect;
 } __packed;
@@ -126,10 +128,20 @@ struct mgmt_rp_disconnect {
 	bdaddr_t bdaddr;
 } __packed;
 
+#define MGMT_ADDR_BREDR			0x00
+#define MGMT_ADDR_LE			0x01
+#define MGMT_ADDR_BREDR_LE		0x02
+#define MGMT_ADDR_INVALID		0xff
+
+struct mgmt_addr_info {
+	bdaddr_t bdaddr;
+	__u8 type;
+} __packed;
+
 #define MGMT_OP_GET_CONNECTIONS		0x0010
 struct mgmt_rp_get_connections {
 	__le16 conn_count;
-	bdaddr_t conn[0];
+	struct mgmt_addr_info addr[0];
 } __packed;
 
 #define MGMT_OP_PIN_CODE_REPLY		0x0011
@@ -245,26 +257,19 @@ struct mgmt_ev_controller_error {
 
 #define MGMT_EV_PAIRABLE		0x0009
 
-#define MGMT_EV_NEW_KEY			0x000A
-struct mgmt_ev_new_key {
+#define MGMT_EV_NEW_LINK_KEY		0x000A
+struct mgmt_ev_new_link_key {
 	__u8 store_hint;
-	struct mgmt_key_info key;
+	struct mgmt_link_key_info key;
 } __packed;
 
 #define MGMT_EV_CONNECTED		0x000B
-struct mgmt_ev_connected {
-	bdaddr_t bdaddr;
-	__u8 link_type;
-} __packed;
 
 #define MGMT_EV_DISCONNECTED		0x000C
-struct mgmt_ev_disconnected {
-	bdaddr_t bdaddr;
-} __packed;
 
 #define MGMT_EV_CONNECT_FAILED		0x000D
 struct mgmt_ev_connect_failed {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	__u8 status;
 } __packed;
 
@@ -294,7 +299,7 @@ struct mgmt_ev_local_name_changed {
 
 #define MGMT_EV_DEVICE_FOUND		0x0012
 struct mgmt_ev_device_found {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	__u8 dev_class[3];
 	__s8 rssi;
 	__u8 eir[HCI_MAX_EIR_LENGTH];

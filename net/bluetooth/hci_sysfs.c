@@ -435,17 +435,12 @@ static const struct file_operations inquiry_cache_fops = {
 static int blacklist_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
-	struct list_head *l;
+	struct bdaddr_list *b;
 
 	hci_dev_lock_bh(hdev);
 
-	list_for_each(l, &hdev->blacklist) {
-		struct bdaddr_list *b;
-
-		b = list_entry(l, struct bdaddr_list, list);
-
+	list_for_each_entry(b, &hdev->blacklist, list)
 		seq_printf(f, "%s\n", batostr(&b->bdaddr));
-	}
 
 	hci_dev_unlock_bh(hdev);
 
@@ -484,17 +479,12 @@ static void print_bt_uuid(struct seq_file *f, u8 *uuid)
 static int uuids_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
-	struct list_head *l;
+	struct bt_uuid *uuid;
 
 	hci_dev_lock_bh(hdev);
 
-	list_for_each(l, &hdev->uuids) {
-		struct bt_uuid *uuid;
-
-		uuid = list_entry(l, struct bt_uuid, list);
-
+	list_for_each_entry(uuid, &hdev->uuids, list)
 		print_bt_uuid(f, uuid->uuid);
-	}
 
 	hci_dev_unlock_bh(hdev);
 
@@ -542,22 +532,28 @@ static int auto_accept_delay_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(auto_accept_delay_fops, auto_accept_delay_get,
 					auto_accept_delay_set, "%llu\n");
 
-int hci_register_sysfs(struct hci_dev *hdev)
+void hci_init_sysfs(struct hci_dev *hdev)
+{
+	struct device *dev = &hdev->dev;
+
+	dev->type = &bt_host;
+	dev->class = bt_class;
+
+	dev_set_drvdata(dev, hdev);
+	device_initialize(dev);
+}
+
+int hci_add_sysfs(struct hci_dev *hdev)
 {
 	struct device *dev = &hdev->dev;
 	int err;
 
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
-	dev->type = &bt_host;
-	dev->class = bt_class;
 	dev->parent = hdev->parent;
-
 	dev_set_name(dev, "%s", hdev->name);
 
-	dev_set_drvdata(dev, hdev);
-
-	err = device_register(dev);
+	err = device_add(dev);
 	if (err < 0)
 		return err;
 
@@ -581,7 +577,7 @@ int hci_register_sysfs(struct hci_dev *hdev)
 	return 0;
 }
 
-void hci_unregister_sysfs(struct hci_dev *hdev)
+void hci_del_sysfs(struct hci_dev *hdev)
 {
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
