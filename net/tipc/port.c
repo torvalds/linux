@@ -1133,6 +1133,49 @@ int tipc_shutdown(u32 ref)
 	return tipc_disconnect(ref);
 }
 
+/**
+ * tipc_port_recv_msg - receive message from lower layer and deliver to port user
+ */
+
+int tipc_port_recv_msg(struct sk_buff *buf)
+{
+	struct tipc_port *p_ptr;
+	struct tipc_msg *msg = buf_msg(buf);
+	u32 destport = msg_destport(msg);
+	u32 dsz = msg_data_sz(msg);
+	u32 err;
+
+	/* forward unresolved named message */
+	if (unlikely(!destport)) {
+		tipc_net_route_msg(buf);
+		return dsz;
+	}
+
+	/* validate destination & pass to port, otherwise reject message */
+	p_ptr = tipc_port_lock(destport);
+	if (likely(p_ptr)) {
+		if (likely(p_ptr->connected)) {
+			if ((unlikely(msg_origport(msg) !=
+				      tipc_peer_port(p_ptr))) ||
+			    (unlikely(msg_orignode(msg) !=
+				      tipc_peer_node(p_ptr))) ||
+			    (unlikely(!msg_connected(msg)))) {
+				err = TIPC_ERR_NO_PORT;
+				tipc_port_unlock(p_ptr);
+				goto reject;
+			}
+		}
+		err = p_ptr->dispatcher(p_ptr, buf);
+		tipc_port_unlock(p_ptr);
+		if (likely(!err))
+			return dsz;
+	} else {
+		err = TIPC_ERR_NO_PORT;
+	}
+reject:
+	return tipc_reject_msg(buf, err);
+}
+
 /*
  *  tipc_port_recv_sections(): Concatenate and deliver sectioned
  *                        message for this node.
