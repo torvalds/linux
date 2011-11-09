@@ -53,7 +53,7 @@ struct sh_mipi {
 	void __iomem	*base;
 	void __iomem	*linkbase;
 	struct clk	*dsit_clk;
-	struct device	*dev;
+	struct platform_device *pdev;
 
 	void	*next_board_data;
 	void	(*next_display_on)(void *board_data, struct fb_info *info);
@@ -129,7 +129,7 @@ static void mipi_display_on(void *arg, struct fb_info *info)
 {
 	struct sh_mipi *mipi = arg;
 
-	pm_runtime_get_sync(mipi->dev);
+	pm_runtime_get_sync(&mipi->pdev->dev);
 	sh_mipi_dsi_enable(mipi, true);
 
 	if (mipi->next_display_on)
@@ -144,7 +144,7 @@ static void mipi_display_off(void *arg)
 		mipi->next_display_off(mipi->next_board_data);
 
 	sh_mipi_dsi_enable(mipi, false);
-	pm_runtime_put(mipi->dev);
+	pm_runtime_put(&mipi->pdev->dev);
 }
 
 static int __init sh_mipi_setup(struct sh_mipi *mipi,
@@ -469,7 +469,7 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 		goto emap2;
 	}
 
-	mipi->dev = &pdev->dev;
+	mipi->pdev = pdev;
 
 	mipi->dsit_clk = clk_get(&pdev->dev, "dsit_clk");
 	if (IS_ERR(mipi->dsit_clk)) {
