@@ -401,7 +401,7 @@ newinput(struct easycap *peasycap, int input)
 	peasycap->audio_idle = 1;
 	if (peasycap->video_isoc_streaming) {
 		resubmit = true;
-		kill_video_urbs(peasycap);
+		easycap_video_kill_urbs(peasycap);
 	} else {
 		resubmit = false;
 	}
@@ -620,43 +620,53 @@ int submit_video_urbs(struct easycap *peasycap)
 			peasycap->video_eof = 1;
 		}
 
-		if (isbad) {
-			JOM(4, "attempting cleanup instead of submitting\n");
-			list_for_each(plist_head, (peasycap->purb_video_head)) {
-				pdata_urb = list_entry(plist_head,
-						struct data_urb, list_head);
-				if (pdata_urb) {
-					purb = pdata_urb->purb;
-					if (purb)
-						usb_kill_urb(purb);
-				}
-			}
-			peasycap->video_isoc_streaming = 0;
-		} else {
+		if (isbad)
+			easycap_video_kill_urbs(peasycap);
+		else
 			peasycap->video_isoc_streaming = 1;
-			JOM(4, "submitted %i video urbs\n", m);
-		}
 	} else {
 		JOM(4, "already streaming video urbs\n");
 	}
 	return 0;
 }
 /*****************************************************************************/
-int kill_video_urbs(struct easycap *peasycap)
+int easycap_audio_kill_urbs(struct easycap *peasycap)
 {
 	int m;
 	struct list_head *plist_head;
 	struct data_urb *pdata_urb;
 
-	if (!peasycap) {
-		SAY("ERROR: peasycap is NULL\n");
+	if (!peasycap->audio_isoc_streaming)
+		return 0;
+
+	if (!peasycap->purb_audio_head) {
+		SAM("ERROR: peasycap->purb_audio_head is NULL\n");
 		return -EFAULT;
 	}
-	if (!peasycap->video_isoc_streaming) {
-		JOM(8, "%i=video_isoc_streaming, no video urbs killed\n",
-			peasycap->video_isoc_streaming);
-		return 0;
+
+	peasycap->audio_isoc_streaming = 0;
+	m = 0;
+	list_for_each(plist_head, peasycap->purb_audio_head) {
+		pdata_urb = list_entry(plist_head, struct data_urb, list_head);
+		if (pdata_urb && pdata_urb->purb) {
+			usb_kill_urb(pdata_urb->purb);
+			m++;
+		}
 	}
+
+	JOM(4, "%i audio urbs killed\n", m);
+
+	return 0;
+}
+int easycap_video_kill_urbs(struct easycap *peasycap)
+{
+	int m;
+	struct list_head *plist_head;
+	struct data_urb *pdata_urb;
+
+	if (!peasycap->video_isoc_streaming)
+		return 0;
+
 	if (!peasycap->purb_video_head) {
 		SAM("ERROR: peasycap->purb_video_head is NULL\n");
 		return -EFAULT;
@@ -694,8 +704,8 @@ static int videodev_release(struct video_device *pvideo_device)
 		SAY("ending unsuccessfully\n");
 		return -EFAULT;
 	}
-	if (0 != kill_video_urbs(peasycap)) {
-		SAM("ERROR: kill_video_urbs() failed\n");
+	if (easycap_video_kill_urbs(peasycap)) {
+		SAM("ERROR: easycap_video_kill_urbs() failed\n");
 		return -EFAULT;
 	}
 	JOM(4, "ending successfully\n");
@@ -738,20 +748,15 @@ static void easycap_delete(struct kref *pkref)
  */
 /*---------------------------------------------------------------------------*/
 	if (peasycap->purb_video_head) {
-		JOM(4, "freeing video urbs\n");
 		m = 0;
-		list_for_each(plist_head, (peasycap->purb_video_head)) {
+		list_for_each(plist_head, peasycap->purb_video_head) {
 			pdata_urb = list_entry(plist_head,
 						struct data_urb, list_head);
-			if (!pdata_urb) {
-				JOM(4, "ERROR: pdata_urb is NULL\n");
-			} else {
-				if (pdata_urb->purb) {
-					usb_free_urb(pdata_urb->purb);
-					pdata_urb->purb = NULL;
-					peasycap->allocation_video_urb -= 1;
-					m++;
-				}
+			if (pdata_urb && pdata_urb->purb) {
+				usb_free_urb(pdata_urb->purb);
+				pdata_urb->purb = NULL;
+				peasycap->allocation_video_urb--;
+				m++;
 			}
 		}
 
@@ -767,7 +772,6 @@ static void easycap_delete(struct kref *pkref)
 				peasycap->allocation_video_struct -=
 						sizeof(struct data_urb);
 				kfree(pdata_urb);
-				pdata_urb = NULL;
 				m++;
 			}
 		}
@@ -832,15 +836,11 @@ static void easycap_delete(struct kref *pkref)
 		list_for_each(plist_head, (peasycap->purb_audio_head)) {
 			pdata_urb = list_entry(plist_head,
 					struct data_urb, list_head);
-			if (!pdata_urb)
-				JOM(4, "ERROR: pdata_urb is NULL\n");
-			else {
-				if (pdata_urb->purb) {
-					usb_free_urb(pdata_urb->purb);
-					pdata_urb->purb = NULL;
-					peasycap->allocation_audio_urb -= 1;
-					m++;
-				}
+			if (pdata_urb && pdata_urb->purb) {
+				usb_free_urb(pdata_urb->purb);
+				pdata_urb->purb = NULL;
+				peasycap->allocation_audio_urb--;
+				m++;
 			}
 		}
 		JOM(4, "%i audio urbs freed\n", m);
@@ -855,7 +855,6 @@ static void easycap_delete(struct kref *pkref)
 				peasycap->allocation_audio_struct -=
 							sizeof(struct data_urb);
 				kfree(pdata_urb);
-				pdata_urb = NULL;
 				m++;
 			}
 		}
@@ -1084,7 +1083,7 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
 					JOM(8, " ... failed  returning -EIO\n");
 					peasycap->video_eof = 1;
 					peasycap->audio_eof = 1;
-					kill_video_urbs(peasycap);
+					easycap_video_kill_urbs(peasycap);
 					return -EIO;
 				}
 				peasycap->status = 0;
@@ -1094,7 +1093,7 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
 			#endif /*PERSEVERE*/
 			peasycap->video_eof = 1;
 			peasycap->audio_eof = 1;
-			kill_video_urbs(peasycap);
+			easycap_video_kill_urbs(peasycap);
 			JOM(8, "returning -EIO\n");
 			return -EIO;
 		}
@@ -1147,7 +1146,7 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
 					JOM(8, " ... failed returning -EIO\n");
 					peasycap->video_eof = 1;
 					peasycap->audio_eof = 1;
-					kill_video_urbs(peasycap);
+					easycap_video_kill_urbs(peasycap);
 					return -EIO;
 				}
 				peasycap->status = 0;
@@ -1157,7 +1156,7 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
 #endif /*PERSEVERE*/
 			peasycap->video_eof = 1;
 			peasycap->audio_eof = 1;
-			kill_video_urbs(peasycap);
+			easycap_video_kill_urbs(peasycap);
 			JOM(8, "returning -EIO\n");
 			return -EIO;
 		}
@@ -3969,12 +3968,9 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 {
 	struct usb_host_interface *pusb_host_interface;
 	struct usb_interface_descriptor *pusb_interface_descriptor;
-	u8 bInterfaceNumber;
 	struct easycap *peasycap;
-
-	struct list_head *plist_head;
-	struct data_urb *pdata_urb;
-	int minor, m, kd;
+	int minor, kd;
+	u8 bInterfaceNumber;
 
 	JOT(4, "\n");
 
@@ -4009,45 +4005,14 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 	peasycap->audio_eof = 1;
 	wake_up_interruptible(&(peasycap->wq_video));
 	wake_up_interruptible(&(peasycap->wq_audio));
-/*---------------------------------------------------------------------------*/
+
 	switch (bInterfaceNumber) {
-	case 0: {
-		if (peasycap->purb_video_head) {
-			JOM(4, "killing video urbs\n");
-			m = 0;
-			list_for_each(plist_head, peasycap->purb_video_head) {
-				pdata_urb = list_entry(plist_head,
-						struct data_urb, list_head);
-				if (pdata_urb) {
-					if (pdata_urb->purb) {
-						usb_kill_urb(pdata_urb->purb);
-						m++;
-					}
-				}
-			}
-			JOM(4, "%i video urbs killed\n", m);
-		}
+	case 0:
+		easycap_video_kill_urbs(peasycap);
 		break;
-	}
-/*---------------------------------------------------------------------------*/
-	case 2: {
-		if (peasycap->purb_audio_head) {
-			JOM(4, "killing audio urbs\n");
-			m = 0;
-			list_for_each(plist_head, peasycap->purb_audio_head) {
-				pdata_urb = list_entry(plist_head,
-						struct data_urb, list_head);
-				if (pdata_urb) {
-					if (pdata_urb->purb) {
-						usb_kill_urb(pdata_urb->purb);
-						m++;
-					}
-				}
-			}
-			JOM(4, "%i audio urbs killed\n", m);
-		}
+	case 2:
+		easycap_audio_kill_urbs(peasycap);
 		break;
-	}
 	default:
 		break;
 	}

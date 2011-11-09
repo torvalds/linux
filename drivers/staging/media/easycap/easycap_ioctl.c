@@ -124,7 +124,7 @@ int adjust_standard(struct easycap *peasycap, v4l2_std_id std_id)
 	}
 	if (peasycap->video_isoc_streaming) {
 		resubmit = true;
-		kill_video_urbs(peasycap);
+		easycap_video_kill_urbs(peasycap);
 	} else
 		resubmit = false;
 /*--------------------------------------------------------------------------*/
@@ -557,7 +557,7 @@ int adjust_format(struct easycap *peasycap,
 		peasycap->bytesperpixel * peasycap->width * peasycap->height;
 	if (peasycap->video_isoc_streaming) {
 		resubmit = true;
-		kill_video_urbs(peasycap);
+		easycap_video_kill_urbs(peasycap);
 	} else
 		resubmit = false;
 /*---------------------------------------------------------------------------*/

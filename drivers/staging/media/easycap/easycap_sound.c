@@ -138,18 +138,11 @@ static int submit_audio_urbs(struct easycap *peasycap)
 		SAM(".....  possibly inadequate USB bandwidth\n");
 		peasycap->audio_eof = 1;
 	}
-	if (isbad) {
-		JOM(4, "attempting cleanup instead of submitting\n");
-		list_for_each(plist_head, (peasycap->purb_audio_head)) {
-			pdata_urb = list_entry(plist_head, struct data_urb, list_head);
-			if (pdata_urb && pdata_urb->purb)
-				usb_kill_urb(pdata_urb->purb);
-		}
-		peasycap->audio_isoc_streaming = 0;
-	} else {
+
+	if (isbad)
+		easycap_audio_kill_urbs(peasycap);
+	else
 		peasycap->audio_isoc_streaming = m;
-		JOM(4, "submitted %i audio urbs\n", m);
-	}
 
 	return 0;
 }

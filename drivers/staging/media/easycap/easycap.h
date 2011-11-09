@@ -472,7 +472,7 @@ struct easycap {
 long easycap_unlocked_ioctl(struct file *, unsigned int, unsigned long);
 int easycap_dqbuf(struct easycap *, int);
 int submit_video_urbs(struct easycap *);
-int kill_video_urbs(struct easycap *);
+int easycap_video_kill_urbs(struct easycap *);
 void easycap_testcard(struct easycap *, int);
 int fillin_formats(void);
 int newinput(struct easycap *, int);
@@ -489,6 +489,7 @@ int adjust_hue(struct easycap *, int);
  */
 /*---------------------------------------------------------------------------*/
 int easycap_alsa_probe(struct easycap *);
+int easycap_audio_kill_urbs(struct easycap *);
 void easycap_alsa_complete(struct urb *);
 int audio_setup(struct easycap *);
 /*---------------------------------------------------------------------------*/
