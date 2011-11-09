@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010 SUSE Linux Products GmbH. All rights reserved.
+ * Copyright 2010-2011 Freescale Semiconductor, Inc.
  *
  * Authors:
  *     Alexander Graf <agraf@suse.de>
@@ -29,6 +30,7 @@
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 #include <asm/disassemble.h>
+#include <asm/ppc-opcode.h>
 
 #define KVM_MAGIC_PAGE		(-4096L)
 #define magic_var(x) KVM_MAGIC_PAGE + offsetof(struct kvm_vcpu_arch_shared, x)
@@ -41,6 +43,7 @@
 #define KVM_INST_B		0x48000000
 #define KVM_INST_B_MASK		0x03ffffff
 #define KVM_INST_B_MAX		0x01ffffff
+#define KVM_INST_LI		0x38000000
 
 #define KVM_MASK_RT		0x03e00000
 #define KVM_RT_30		0x03c00000
@@ -69,6 +72,7 @@
 #define KVM_INST_MTMSRD_L1	0x7c010164
 #define KVM_INST_MTMSR		0x7c000124
 
+#define KVM_INST_WRTEE		0x7c000106
 #define KVM_INST_WRTEEI_0	0x7c000146
 #define KVM_INST_WRTEEI_1	0x7c008146
 
@@ -270,26 +274,27 @@ static void kvm_patch_ins_mtmsr(u32 *inst, u32 rt)
 
 #ifdef CONFIG_BOOKE
 
-extern u32 kvm_emulate_wrteei_branch_offs;
-extern u32 kvm_emulate_wrteei_ee_offs;
-extern u32 kvm_emulate_wrteei_len;
-extern u32 kvm_emulate_wrteei[];
+extern u32 kvm_emulate_wrtee_branch_offs;
+extern u32 kvm_emulate_wrtee_reg_offs;
+extern u32 kvm_emulate_wrtee_orig_ins_offs;
+extern u32 kvm_emulate_wrtee_len;
+extern u32 kvm_emulate_wrtee[];
 
-static void kvm_patch_ins_wrteei(u32 *inst)
+static void kvm_patch_ins_wrtee(u32 *inst, u32 rt, int imm_one)
 {
 	u32 *p;
 	int distance_start;
 	int distance_end;
 	ulong next_inst;
 
-	p = kvm_alloc(kvm_emulate_wrteei_len * 4);
+	p = kvm_alloc(kvm_emulate_wrtee_len * 4);
 	if (!p)
 		return;
 
 	/* Find out where we are and put everything there */
 	distance_start = (ulong)p - (ulong)inst;
 	next_inst = ((ulong)inst + 4);
-	distance_end = next_inst - (ulong)&p[kvm_emulate_wrteei_branch_offs];
+	distance_end = next_inst - (ulong)&p[kvm_emulate_wrtee_branch_offs];
 
 	/* Make sure we only write valid b instructions */
 	if (distance_start > KVM_INST_B_MAX) {
@@ -298,10 +303,65 @@ static void kvm_patch_ins_wrteei(u32 *inst)
 	}
 
 	/* Modify the chunk to fit the invocation */
-	memcpy(p, kvm_emulate_wrteei, kvm_emulate_wrteei_len * 4);
-	p[kvm_emulate_wrteei_branch_offs] |= distance_end & KVM_INST_B_MASK;
-	p[kvm_emulate_wrteei_ee_offs] |= (*inst & MSR_EE);
-	flush_icache_range((ulong)p, (ulong)p + kvm_emulate_wrteei_len * 4);
+	memcpy(p, kvm_emulate_wrtee, kvm_emulate_wrtee_len * 4);
+	p[kvm_emulate_wrtee_branch_offs] |= distance_end & KVM_INST_B_MASK;
+
+	if (imm_one) {
+		p[kvm_emulate_wrtee_reg_offs] =
+			KVM_INST_LI | __PPC_RT(30) | MSR_EE;
+	} else {
+		/* Make clobbered registers work too */
+		switch (get_rt(rt)) {
+		case 30:
+			kvm_patch_ins_ll(&p[kvm_emulate_wrtee_reg_offs],
+					 magic_var(scratch2), KVM_RT_30);
+			break;
+		case 31:
+			kvm_patch_ins_ll(&p[kvm_emulate_wrtee_reg_offs],
+					 magic_var(scratch1), KVM_RT_30);
+			break;
+		default:
+			p[kvm_emulate_wrtee_reg_offs] |= rt;
+			break;
+		}
+	}
+
+	p[kvm_emulate_wrtee_orig_ins_offs] = *inst;
+	flush_icache_range((ulong)p, (ulong)p + kvm_emulate_wrtee_len * 4);
+
+	/* Patch the invocation */
+	kvm_patch_ins_b(inst, distance_start);
+}
+
+extern u32 kvm_emulate_wrteei_0_branch_offs;
+extern u32 kvm_emulate_wrteei_0_len;
+extern u32 kvm_emulate_wrteei_0[];
+
+static void kvm_patch_ins_wrteei_0(u32 *inst)
+{
+	u32 *p;
+	int distance_start;
+	int distance_end;
+	ulong next_inst;
+
+	p = kvm_alloc(kvm_emulate_wrteei_0_len * 4);
+	if (!p)
+		return;
+
+	/* Find out where we are and put everything there */
+	distance_start = (ulong)p - (ulong)inst;
+	next_inst = ((ulong)inst + 4);
+	distance_end = next_inst - (ulong)&p[kvm_emulate_wrteei_0_branch_offs];
+
+	/* Make sure we only write valid b instructions */
+	if (distance_start > KVM_INST_B_MAX) {
+		kvm_patching_worked = false;
+		return;
+	}
+
+	memcpy(p, kvm_emulate_wrteei_0, kvm_emulate_wrteei_0_len * 4);
+	p[kvm_emulate_wrteei_0_branch_offs] |= distance_end & KVM_INST_B_MASK;
+	flush_icache_range((ulong)p, (ulong)p + kvm_emulate_wrteei_0_len * 4);
 
 	/* Patch the invocation */
 	kvm_patch_ins_b(inst, distance_start);
@@ -444,6 +504,11 @@ static void kvm_check_ins(u32 *inst, u32 features)
 	case KVM_INST_MTMSRD_L0:
 		kvm_patch_ins_mtmsr(inst, inst_rt);
 		break;
+#ifdef CONFIG_BOOKE
+	case KVM_INST_WRTEE:
+		kvm_patch_ins_wrtee(inst, inst_rt, 0);
+		break;
+#endif
 	}
 
 	switch (inst_no_rt & ~KVM_MASK_RB) {
@@ -461,8 +526,11 @@ static void kvm_check_ins(u32 *inst, u32 features)
 	switch (_inst) {
 #ifdef CONFIG_BOOKE
 	case KVM_INST_WRTEEI_0:
+		kvm_patch_ins_wrteei_0(inst);
+		break;
+
 	case KVM_INST_WRTEEI_1:
-		kvm_patch_ins_wrteei(inst);
+		kvm_patch_ins_wrtee(inst, 0, 1);
 		break;
 #endif
 	}
