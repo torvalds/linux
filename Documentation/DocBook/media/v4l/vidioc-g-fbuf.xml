@@ -340,8 +340,8 @@ blending makes no sense for destructive overlays.</entry>
 	  <row>
 	    <entry><constant>V4L2_FBUF_CAP_SRC_CHROMAKEY</constant></entry>
 	    <entry>0x0080</entry>
-	    <entry>The device supports Source Chroma-keying. Framebuffer pixels
-with the chroma-key colors are replaced by video pixels, which is exactly opposite of
+	    <entry>The device supports Source Chroma-keying. Video pixels
+with the chroma-key colors are replaced by framebuffer pixels, which is exactly opposite of
 <constant>V4L2_FBUF_CAP_CHROMAKEY</constant></entry>
 	  </row>
 	</tbody>
