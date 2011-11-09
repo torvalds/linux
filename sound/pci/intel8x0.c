@@ -2937,6 +2937,24 @@ static unsigned int sis_codec_bits[3] = {
 	ICH_PCR, ICH_SCR, ICH_SIS_TCR
 };
 
+static int __devinit snd_intel8x0_inside_vm(void)
+{
+	int result = inside_vm;
+
+	if (result < 0) {
+		/* detect KVM and Parallels virtual environments */
+		result = kvm_para_available();
+#if defined(__i386__) || defined(__x86_64__)
+		result = result || boot_cpu_has(X86_FEATURE_HYPERVISOR);
+#endif
+	}
+
+	if (result)
+		printk(KERN_INFO "intel8x0: enable KVM optimization\n");
+
+	return result;
+}
+
 static int __devinit snd_intel8x0_create(struct snd_card *card,
 					 struct pci_dev *pci,
 					 unsigned long device_type,
@@ -3004,9 +3022,7 @@ static int __devinit snd_intel8x0_create(struct snd_card *card,
 	if (xbox)
 		chip->xbox = 1;
 
-	chip->inside_vm = inside_vm;
-	if (inside_vm)
-		printk(KERN_INFO "intel8x0: enable KVM optimization\n");
+	chip->inside_vm = snd_intel8x0_inside_vm();
 
 	if (pci->vendor == PCI_VENDOR_ID_INTEL &&
 	    pci->device == PCI_DEVICE_ID_INTEL_440MX)
@@ -3248,14 +3264,6 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 			buggy_irq = 1;
 		else
 			buggy_irq = 0;
-	}
-
-	if (inside_vm < 0) {
-		/* detect KVM and Parallels virtual environments */
-		inside_vm = kvm_para_available();
-#if defined(__i386__) || defined(__x86_64__)
-		inside_vm = inside_vm || boot_cpu_has(X86_FEATURE_HYPERVISOR);
-#endif
 	}
 
 	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data,
