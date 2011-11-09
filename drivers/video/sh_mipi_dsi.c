@@ -265,8 +265,6 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	iowrite32(0x0fffffff, base + TATOVSET);
 	/* Peripheral reset timeout, default 0xffffffff */
 	iowrite32(0x0fffffff, base + PRTOVSET);
-	/* Enable timeout counters */
-	iowrite32(0x00000f00, base + DSICTRL);
 	/* Interrupts not used, disable all */
 	iowrite32(0, base + DSIINTE);
 	/* DSI-Tx bias on */
@@ -387,6 +385,9 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	sh_mipi_dcs_param(ch->chan, MIPI_DCS_SET_PIXEL_FORMAT,
 			  pixfmt << 4);
 	sh_mipi_dcs(ch->chan, MIPI_DCS_SET_DISPLAY_ON);
+
+	/* Enable timeout counters */
+	iowrite32(0x00000f00, base + DSICTRL);
 
 	return 0;
 }
