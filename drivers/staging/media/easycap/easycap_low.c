@@ -514,22 +514,22 @@ int ready_saa(struct usb_device *p)
 		msleep(marktime);
 		j++;
 	}
+
 	if (max == j)
 		return -1;
+
+	if (0x20 & rc) {
+		rate = 2;
+		JOT(8, "hardware detects 60 Hz\n");
+	} else {
+		rate = 0;
+		JOT(8, "hardware detects 50 Hz\n");
+	}
+	if (0x80 & rc)
+		JOT(8, "hardware detects interlacing\n");
 	else {
-		if (0x20 & rc) {
-			rate = 2;
-			JOT(8, "hardware detects 60 Hz\n");
-		} else {
-			rate = 0;
-			JOT(8, "hardware detects 50 Hz\n");
-		}
-		if (0x80 & rc)
-			JOT(8, "hardware detects interlacing\n");
-		else {
-			rate++;
-			JOT(8, "hardware detects no interlacing\n");
-		}
+		rate++;
+		JOT(8, "hardware detects no interlacing\n");
 	}
 	return 0;
 }

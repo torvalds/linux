@@ -666,16 +666,15 @@ int adjust_brightness(struct easycap *peasycap, int value)
 				peasycap->inputset[peasycap->input].brightness_ok = 1;
 			} else
 				JOM(8, "%i=peasycap->input\n", peasycap->input);
+
 			mood = 0x00FF & (unsigned int)peasycap->brightness;
-			if (!write_saa(peasycap->pusb_device, 0x0A, mood)) {
-				SAM("adjusting brightness to  0x%02X\n", mood);
-				return 0;
-			} else {
+			if (write_saa(peasycap->pusb_device, 0x0A, mood)) {
 				SAM("WARNING: failed to adjust brightness "
 				    "to 0x%02X\n", mood);
 				return -ENOENT;
 			}
-			break;
+			SAM("adjusting brightness to  0x%02X\n", mood);
+			return 0;
 		}
 		i1++;
 	}
@@ -725,15 +724,13 @@ int adjust_contrast(struct easycap *peasycap, int value)
 				JOM(8, "%i=peasycap->input\n", peasycap->input);
 
 			mood = 0x00FF & (unsigned int) (peasycap->contrast - 128);
-			if (!write_saa(peasycap->pusb_device, 0x0B, mood)) {
-				SAM("adjusting contrast to  0x%02X\n", mood);
-				return 0;
-			} else {
+			if (write_saa(peasycap->pusb_device, 0x0B, mood)) {
 				SAM("WARNING: failed to adjust contrast to "
 				    "0x%02X\n", mood);
 				return -ENOENT;
 			}
-			break;
+			SAM("adjusting contrast to  0x%02X\n", mood);
+			return 0;
 		}
 		i1++;
 	}
@@ -783,14 +780,13 @@ int adjust_saturation(struct easycap *peasycap, int value)
 			} else
 				JOM(8, "%i=peasycap->input\n", peasycap->input);
 			mood = 0x00FF & (unsigned int) (peasycap->saturation - 128);
-			if (!write_saa(peasycap->pusb_device, 0x0C, mood)) {
-				SAM("adjusting saturation to  0x%02X\n", mood);
-				return 0;
-			} else {
+			if (write_saa(peasycap->pusb_device, 0x0C, mood)) {
 				SAM("WARNING: failed to adjust saturation to "
 				    "0x%02X\n", mood);
 				return -ENOENT;
 			}
+			SAM("adjusting saturation to  0x%02X\n", mood);
+			return 0;
 			break;
 		}
 		i1++;
@@ -838,13 +834,12 @@ int adjust_hue(struct easycap *peasycap, int value)
 				JOM(8, "%i=peasycap->input\n", peasycap->input);
 			i2 = peasycap->hue - 128;
 			mood = 0x00FF & ((int) i2);
-			if (!write_saa(peasycap->pusb_device, 0x0D, mood)) {
-				SAM("adjusting hue to  0x%02X\n", mood);
-				return 0;
-			} else {
+			if (write_saa(peasycap->pusb_device, 0x0D, mood)) {
 				SAM("WARNING: failed to adjust hue to 0x%02X\n", mood);
 				return -ENOENT;
 			}
+			SAM("adjusting hue to  0x%02X\n", mood);
+			return 0;
 			break;
 		}
 		i1++;
@@ -885,14 +880,12 @@ static int adjust_volume(struct easycap *peasycap, int value)
 				((31 < peasycap->volume) ? 31 :
 				  (s8) peasycap->volume);
 			if (!audio_gainset(peasycap->pusb_device, mood)) {
-				SAM("adjusting volume to 0x%02X\n", mood);
-				return 0;
-			} else {
 				SAM("WARNING: failed to adjust volume to "
 				    "0x%2X\n", mood);
 				return -ENOENT;
 			}
-			break;
+			SAM("adjusting volume to 0x%02X\n", mood);
+			return 0;
 		}
 		i1++;
 	}
