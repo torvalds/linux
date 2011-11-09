@@ -559,8 +559,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		vcpu->arch.hcall_needed = 0;
 	}
 
-	kvmppc_core_prepare_to_enter(vcpu);
-
 	r = kvmppc_vcpu_run(run, vcpu);
 
 	if (vcpu->sigset_active)

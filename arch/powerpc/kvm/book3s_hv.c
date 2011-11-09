@@ -836,6 +836,8 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		return -EINVAL;
 	}
 
+	kvmppc_core_prepare_to_enter(vcpu);
+
 	/* No need to go into the guest when all we'll do is come back out */
 	if (signal_pending(current)) {
 		run->exit_reason = KVM_EXIT_INTR;

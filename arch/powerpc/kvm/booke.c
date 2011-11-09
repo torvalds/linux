@@ -295,6 +295,8 @@ void kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 	unsigned long old_pending = vcpu->arch.pending_exceptions;
 	unsigned int priority;
 
+	WARN_ON_ONCE(!irqs_disabled());
+
 	priority = __ffs(*pending);
 	while (priority <= BOOKE_IRQPRIO_MAX) {
 		if (kvmppc_booke_irqprio_deliver(vcpu, priority))
@@ -322,6 +324,8 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	}
 
 	local_irq_disable();
+
+	kvmppc_core_prepare_to_enter(vcpu);
 
 	if (signal_pending(current)) {
 		kvm_run->exit_reason = KVM_EXIT_INTR;
