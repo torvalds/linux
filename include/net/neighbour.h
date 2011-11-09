@@ -59,7 +59,7 @@ struct neigh_parms {
 	int	reachable_time;
 	int	delay_probe_time;
 
-	int	queue_len;
+	int	queue_len_bytes;
 	int	ucast_probes;
 	int	app_probes;
 	int	mcast_probes;
@@ -99,6 +99,7 @@ struct neighbour {
 	rwlock_t		lock;
 	atomic_t		refcnt;
 	struct sk_buff_head	arp_queue;
+	unsigned int		arp_queue_len_bytes;
 	struct timer_list	timer;
 	unsigned long		used;
 	atomic_t		probes;
