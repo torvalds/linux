@@ -131,24 +131,16 @@ uart_update_mctrl(struct uart_port *port, unsigned int set, unsigned int clear)
  * Startup the port.  This will be called once per open.  All calls
  * will be serialised by the per-port mutex.
  */
-static int uart_startup(struct tty_struct *tty, struct uart_state *state, int init_hw)
+static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
+		int init_hw)
 {
 	struct uart_port *uport = state->uart_port;
 	struct tty_port *port = &state->port;
 	unsigned long page;
 	int retval = 0;
 
-	if (port->flags & ASYNC_INITIALIZED)
-		return 0;
-
-	/*
-	 * Set the TTY IO error marker - we will only clear this
-	 * once we have successfully opened the port.
-	 */
-	set_bit(TTY_IO_ERROR, &tty->flags);
-
 	if (uport->type == PORT_UNKNOWN)
-		return 0;
+		return 1;
 
 	/*
 	 * Initialise and allocate the transmit and temporary
@@ -190,10 +182,6 @@ static int uart_startup(struct tty_struct *tty, struct uart_state *state, int in
 				tty->hw_stopped = 1;
 			spin_unlock_irq(&uport->lock);
 		}
-
-		set_bit(ASYNCB_INITIALIZED, &port->flags);
-
-		clear_bit(TTY_IO_ERROR, &tty->flags);
 	}
 
 	/*
@@ -202,6 +190,31 @@ static int uart_startup(struct tty_struct *tty, struct uart_state *state, int in
 	 * now.
 	 */
 	if (retval && capable(CAP_SYS_ADMIN))
+		return 1;
+
+	return retval;
+}
+
+static int uart_startup(struct tty_struct *tty, struct uart_state *state,
+		int init_hw)
+{
+	struct tty_port *port = &state->port;
+	int retval;
+
+	if (port->flags & ASYNC_INITIALIZED)
+		return 0;
+
+	/*
+	 * Set the TTY IO error marker - we will only clear this
+	 * once we have successfully opened the port.
+	 */
+	set_bit(TTY_IO_ERROR, &tty->flags);
+
+	retval = uart_port_startup(tty, state, init_hw);
+	if (!retval) {
+		set_bit(ASYNCB_INITIALIZED, &port->flags);
+		clear_bit(TTY_IO_ERROR, &tty->flags);
+	} else if (retval > 0)
 		retval = 0;
 
 	return retval;
