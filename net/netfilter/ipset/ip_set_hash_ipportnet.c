@@ -184,7 +184,7 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct ip_set_hash *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportnet4_elem data = { .cidr = HOST_MASK };
-	u32 ip, ip_to, p = 0, port, port_to;
+	u32 ip, ip_to = 0, p = 0, port, port_to;
 	u32 ip2_from = 0, ip2_to, ip2_last, ip2;
 	u32 timeout = h->timeout;
 	bool with_ports = false;
