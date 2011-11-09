@@ -35,9 +35,10 @@ enum write_mode_t {
 	WRITE_APPEND
 };
 
-static struct perf_record_opts record_opts = {
+struct perf_record_opts record_opts = {
 	.target_pid	     = -1,
 	.target_tid	     = -1,
+	.mmap_pages	     = UINT_MAX,
 	.user_freq	     = UINT_MAX,
 	.user_interval	     = ULLONG_MAX,
 	.freq		     = 1000,
@@ -45,7 +46,6 @@ static struct perf_record_opts record_opts = {
 };
 
 static unsigned int		page_size;
-static unsigned int		mmap_pages			= UINT_MAX;
 static int			output;
 static const char		*output_name			= NULL;
 static bool			group				=  false;
@@ -272,7 +272,7 @@ try_again:
 		exit(-1);
 	}
 
-	if (perf_evlist__mmap(evlist, mmap_pages, false) < 0)
+	if (perf_evlist__mmap(evlist, record_opts.mmap_pages, false) < 0)
 		die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 
 	if (file_new)
@@ -647,7 +647,8 @@ const struct option record_options[] = {
 	OPT_BOOLEAN('i', "no-inherit", &record_opts.no_inherit,
 		    "child tasks do not inherit counters"),
 	OPT_UINTEGER('F', "freq", &record_opts.user_freq, "profile at this frequency"),
-	OPT_UINTEGER('m', "mmap-pages", &mmap_pages, "number of mmap data pages"),
+	OPT_UINTEGER('m', "mmap-pages", &record_opts.mmap_pages,
+		     "number of mmap data pages"),
 	OPT_BOOLEAN(0, "group", &group,
 		    "put the counters into a counter group"),
 	OPT_BOOLEAN('g', "call-graph", &record_opts.call_graph,

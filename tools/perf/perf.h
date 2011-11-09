@@ -200,6 +200,7 @@ struct perf_record_opts {
 	bool	     sample_id_all_avail;
 	bool	     system_wide;
 	unsigned int freq;
+	unsigned int mmap_pages;
 	unsigned int user_freq;
 	u64	     default_interval;
 	u64	     user_interval;
