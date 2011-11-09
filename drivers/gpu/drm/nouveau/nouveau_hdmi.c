@@ -219,6 +219,8 @@ nouveau_hdmi_mode_set(struct drm_encoder *encoder,
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_connector *nv_connector;
+	struct drm_device *dev = encoder->dev;
+	u32 max_ac_packet, rekey;
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	if (!mode || !nv_connector || !nv_connector->edid ||
@@ -227,11 +229,30 @@ nouveau_hdmi_mode_set(struct drm_encoder *encoder,
 		return;
 	}
 
-	/* enable hdmi */
-	hdmi_mask(encoder, 0x0a4, 0x40000000, 0x40000000);
-
 	nouveau_hdmi_video_infoframe(encoder, mode);
 	nouveau_hdmi_audio_infoframe(encoder, mode);
+
+	hdmi_mask(encoder, 0x0d0, 0x00070001, 0x00010001); /* SPARE, HW_CTS */
+	hdmi_mask(encoder, 0x068, 0x00010101, 0x00000000); /* ACR_CTRL, ?? */
+	hdmi_mask(encoder, 0x078, 0x80000000, 0x80000000); /* ACR_0441_ENABLE */
+
+	nv_mask(dev, 0x61733c, 0x00100000, 0x00100000); /* RESETF */
+	nv_mask(dev, 0x61733c, 0x10000000, 0x10000000); /* LOOKUP_EN */
+	nv_mask(dev, 0x61733c, 0x00100000, 0x00000000); /* !RESETF */
+
+	/* value matches nvidia binary driver, and tegra constant */
+	rekey = 56;
+
+	max_ac_packet  = mode->htotal - mode->hdisplay;
+	max_ac_packet -= rekey;
+	max_ac_packet -= 18; /* constant from tegra */
+	max_ac_packet /= 32;
+
+	/* enable hdmi */
+	hdmi_mask(encoder, 0x0a4, 0x5f1f003f, 0x40000000 | /* enable */
+					      0x1f000000 | /* unknown */
+					      max_ac_packet << 16 |
+					      rekey);
 
 	nouveau_audio_mode_set(encoder, mode);
 }
