@@ -592,7 +592,6 @@ static int easycap_alsa_ack(struct snd_pcm_substream *pss)
 static int easycap_alsa_trigger(struct snd_pcm_substream *pss, int cmd)
 {
 	struct easycap *peasycap;
-	int retval;
 
 	JOT(4, "%i=cmd cf %i=START %i=STOP\n", cmd, SNDRV_PCM_TRIGGER_START,
 	    SNDRV_PCM_TRIGGER_STOP);
@@ -615,7 +614,7 @@ static int easycap_alsa_trigger(struct snd_pcm_substream *pss, int cmd)
 		break;
 	}
 	default:
-		retval = -EINVAL;
+		return -EINVAL;
 	}
 	return 0;
 }

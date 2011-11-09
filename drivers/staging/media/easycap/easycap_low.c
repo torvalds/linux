@@ -468,13 +468,17 @@ int setup_stk(struct usb_device *p, bool ntsc)
 /****************************************************************************/
 int setup_saa(struct usb_device *p, bool ntsc)
 {
-	int i, ir;
+	int i, rc;
 	const struct saa7113config *cfg;
 	if (!p)
 		return -ENODEV;
 	cfg = (ntsc) ?  saa7113configNTSC : saa7113configPAL;
-	for (i = 0; cfg[i].reg != 0xFF; i++)
-		ir = write_saa(p, cfg[i].reg, cfg[i].set);
+	for (i = 0; cfg[i].reg != 0xFF; i++) {
+		rc = write_saa(p, cfg[i].reg, cfg[i].set);
+		if (rc)
+			dev_err(&p->dev,
+				"Failed to set SAA register %d", cfg[i].reg);
+	}
 	return 0;
 }
 /****************************************************************************/

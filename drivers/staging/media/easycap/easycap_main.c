@@ -1199,8 +1199,6 @@ int easycap_video_dqbuf(struct easycap *peasycap, int mode)
  *  WHEN BOOLEAN PARAMETER decimatepixel IS true, ONLY THE FIELD FOR WHICH
  *  odd==false IS TRANSFERRED TO THE FRAME BUFFER.
  *
- *  THE BOOLEAN PARAMETER offerfields IS true ONLY WHEN THE USER PROGRAM
- *  CHOOSES THE OPTION V4L2_FIELD_INTERLACED.
  */
 /*---------------------------------------------------------------------------*/
 static int field2frame(struct easycap *peasycap)
@@ -1212,7 +1210,7 @@ static int field2frame(struct easycap *peasycap)
 	int rc, bytesperpixel, multiplier;
 	int  much, more, over, rump, caches, input;
 	u8 mask, margin;
-	bool odd, isuy, decimatepixel, offerfields, badinput;
+	bool odd, isuy, decimatepixel, badinput;
 
 	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
@@ -1228,8 +1226,6 @@ static int field2frame(struct easycap *peasycap)
 			peasycap->field_buffer[peasycap->field_read][0].input,
 			peasycap->field_read, peasycap->frame_fill);
 	JOM(8, "=====  %i=bytesperpixel\n", peasycap->bytesperpixel);
-	if (peasycap->offerfields)
-		JOM(8, "===== offerfields\n");
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -1251,7 +1247,6 @@ static int field2frame(struct easycap *peasycap)
 #endif /*EASYCAP_TESTCARD*/
 /*---------------------------------------------------------------------------*/
 
-	offerfields = peasycap->offerfields;
 	bytesperpixel = peasycap->bytesperpixel;
 	decimatepixel = peasycap->decimatepixel;
 
