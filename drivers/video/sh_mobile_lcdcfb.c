@@ -420,7 +420,7 @@ static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 	tmp = ((display_var->xres & 7) << 24) |
 		((display_h_total & 7) << 16) |
 		((display_var->hsync_len & 7) << 8) |
-		hsync_pos;
+		(hsync_pos & 7);
 	lcdc_write_chan(ch, LDHAJR, tmp);
 }
 
