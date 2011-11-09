@@ -113,16 +113,6 @@ const char *strerror(int err)
 #undef ERRNOSTR
 }
 
-/*---------------------------------------------------------------------------*/
-/*
- *  PARAMETERS USED WHEN REGISTERING THE VIDEO INTERFACE
- *
- *  NOTE: SOME KERNELS IGNORE usb_class_driver.minor_base, AS MENTIONED BY
- *        CORBET ET AL. "LINUX DEVICE DRIVERS", 3rd EDITION, PAGE 253.
- *        THIS IS THE CASE FOR OpenSUSE.
- */
-/*---------------------------------------------------------------------------*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 /****************************************************************************/
 /*---------------------------------------------------------------------------*/
 /*
@@ -2856,20 +2846,7 @@ static void easycap_complete(struct urb *purb)
 	}
 	return;
 }
-static const struct file_operations easycap_fops = {
-	.owner		= THIS_MODULE,
-	.open		= easycap_open,
-	.unlocked_ioctl	= easycap_unlocked_ioctl,
-	.poll		= easycap_poll,
-	.mmap		= easycap_mmap,
-	.llseek		= no_llseek,
-};
-static const struct usb_class_driver easycap_class = {
-	.name = "usb/easycap%d",
-	.fops = &easycap_fops,
-	.minor_base = USB_SKEL_MINOR_BASE,
-};
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+
 static const struct v4l2_file_operations v4l2_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easycap_open_noinode,

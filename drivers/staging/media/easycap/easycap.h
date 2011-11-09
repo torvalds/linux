@@ -98,7 +98,6 @@
 #define EASYCAP_DRIVER_VERSION "0.9.01"
 #define EASYCAP_DRIVER_DESCRIPTION "easycapdc60"
 
-#define USB_SKEL_MINOR_BASE     192
 #define DONGLE_MANY 8
 #define INPUT_MANY 6
 /*---------------------------------------------------------------------------*/
