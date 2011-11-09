@@ -19,6 +19,7 @@
 
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/pm_qos.h>
 
 #include <plat/mux.h>
 
@@ -130,6 +131,11 @@ struct uart_omap_port {
 	u32			context_loss_cnt;
 	u32			errata;
 	u8			wakeups_enabled;
+
+	struct pm_qos_request	pm_qos_request;
+	u32			latency;
+	u32			calc_latency;
+	struct work_struct	qos_work;
 };
 
 #endif /* __OMAP_SERIAL_H__ */

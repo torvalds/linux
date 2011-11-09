@@ -82,28 +82,6 @@ static struct omap_uart_port_info omap_serial_default_info[] __initdata = {
 };
 
 #ifdef CONFIG_PM
-
-int omap_uart_can_sleep(void)
-{
-	struct omap_uart_state *uart;
-	int can_sleep = 1;
-
-	list_for_each_entry(uart, &uart_list, node) {
-		if (!uart->clocked)
-			continue;
-
-		if (!uart->can_sleep) {
-			can_sleep = 0;
-			continue;
-		}
-
-		/* This UART can now safely sleep. */
-		omap_uart_allow_sleep(uart);
-	}
-
-	return can_sleep;
-}
-
 static void omap_uart_enable_wakeup(struct platform_device *pdev, bool enable)
 {
 	struct omap_device *od = to_omap_device(pdev);
