@@ -13,6 +13,7 @@
 #include "thread_map.h"
 #include "evlist.h"
 #include "evsel.h"
+#include <unistd.h>
 
 #include "parse-events.h"
 
@@ -33,6 +34,7 @@ void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 		INIT_HLIST_HEAD(&evlist->heads[i]);
 	INIT_LIST_HEAD(&evlist->entries);
 	perf_evlist__set_maps(evlist, cpus, threads);
+	evlist->workload.pid = -1;
 }
 
 struct perf_evlist *perf_evlist__new(struct cpu_map *cpus,
@@ -673,4 +675,98 @@ out_err:
 		perf_evsel__close(evsel, ncpus, nthreads);
 
 	return err;
+}
+
+int perf_evlist__prepare_workload(struct perf_evlist *evlist,
+				  struct perf_record_opts *opts,
+				  const char *argv[])
+{
+	int child_ready_pipe[2], go_pipe[2];
+	char bf;
+
+	if (pipe(child_ready_pipe) < 0) {
+		perror("failed to create 'ready' pipe");
+		return -1;
+	}
+
+	if (pipe(go_pipe) < 0) {
+		perror("failed to create 'go' pipe");
+		goto out_close_ready_pipe;
+	}
+
+	evlist->workload.pid = fork();
+	if (evlist->workload.pid < 0) {
+		perror("failed to fork");
+		goto out_close_pipes;
+	}
+
+	if (!evlist->workload.pid) {
+		if (opts->pipe_output)
+			dup2(2, 1);
+
+		close(child_ready_pipe[0]);
+		close(go_pipe[1]);
+		fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
+
+		/*
+		 * Do a dummy execvp to get the PLT entry resolved,
+		 * so we avoid the resolver overhead on the real
+		 * execvp call.
+		 */
+		execvp("", (char **)argv);
+
+		/*
+		 * Tell the parent we're ready to go
+		 */
+		close(child_ready_pipe[1]);
+
+		/*
+		 * Wait until the parent tells us to go.
+		 */
+		if (read(go_pipe[0], &bf, 1) == -1)
+			perror("unable to read pipe");
+
+		execvp(argv[0], (char **)argv);
+
+		perror(argv[0]);
+		kill(getppid(), SIGUSR1);
+		exit(-1);
+	}
+
+	if (!opts->system_wide && opts->target_tid == -1 && opts->target_pid == -1)
+		evlist->threads->map[0] = evlist->workload.pid;
+
+	close(child_ready_pipe[1]);
+	close(go_pipe[0]);
+	/*
+	 * wait for child to settle
+	 */
+	if (read(child_ready_pipe[0], &bf, 1) == -1) {
+		perror("unable to read pipe");
+		goto out_close_pipes;
+	}
+
+	evlist->workload.cork_fd = go_pipe[1];
+	close(child_ready_pipe[0]);
+	return 0;
+
+out_close_pipes:
+	close(go_pipe[0]);
+	close(go_pipe[1]);
+out_close_ready_pipe:
+	close(child_ready_pipe[0]);
+	close(child_ready_pipe[1]);
+	return -1;
+}
+
+int perf_evlist__start_workload(struct perf_evlist *evlist)
+{
+	if (evlist->workload.cork_fd > 0) {
+		/*
+		 * Remove the cork, let it rip!
+		 */
+		return close(evlist->workload.cork_fd);
+	}
+
+	return 0;
 }

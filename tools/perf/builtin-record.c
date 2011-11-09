@@ -47,11 +47,9 @@ static struct perf_record_opts record_opts = {
 static unsigned int		page_size;
 static unsigned int		mmap_pages			= UINT_MAX;
 static int			output;
-static int			pipe_output			=      0;
 static const char		*output_name			= NULL;
 static bool			group				=  false;
 static int			realtime_prio			=      0;
-static pid_t			child_pid			=     -1;
 static enum write_mode_t	write_mode			= WRITE_FORCE;
 static bool			no_buildid			=  false;
 static bool			no_buildid_cache		=  false;
@@ -144,9 +142,9 @@ static void sig_atexit(void)
 {
 	int status;
 
-	if (child_pid > 0) {
+	if (evsel_list->workload.pid > 0) {
 		if (!child_finished)
-			kill(child_pid, SIGTERM);
+			kill(evsel_list->workload.pid, SIGTERM);
 
 		wait(&status);
 		if (WIFSIGNALED(status))
@@ -304,7 +302,7 @@ static int process_buildids(void)
 
 static void atexit_header(void)
 {
-	if (!pipe_output) {
+	if (!record_opts.pipe_output) {
 		session->header.data_size += bytes_written;
 
 		if (!no_buildid)
@@ -377,9 +375,7 @@ static int __cmd_record(int argc, const char **argv)
 	int flags;
 	int err;
 	unsigned long waking = 0;
-	int child_ready_pipe[2], go_pipe[2];
 	const bool forks = argc > 0;
-	char buf;
 	struct machine *machine;
 
 	progname = argv[0];
@@ -391,20 +387,15 @@ static int __cmd_record(int argc, const char **argv)
 	signal(SIGINT, sig_handler);
 	signal(SIGUSR1, sig_handler);
 
-	if (forks && (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0)) {
-		perror("failed to create pipes");
-		exit(-1);
-	}
-
 	if (!output_name) {
 		if (!fstat(STDOUT_FILENO, &st) && S_ISFIFO(st.st_mode))
-			pipe_output = true;
+			record_opts.pipe_output = true;
 		else
 			output_name = "perf.data";
 	}
 	if (output_name) {
 		if (!strcmp(output_name, "-"))
-			pipe_output = true;
+			record_opts.pipe_output = true;
 		else if (!stat(output_name, &st) && st.st_size) {
 			if (write_mode == WRITE_FORCE) {
 				char oldname[PATH_MAX];
@@ -424,7 +415,7 @@ static int __cmd_record(int argc, const char **argv)
 	else
 		flags |= O_TRUNC;
 
-	if (pipe_output)
+	if (record_opts.pipe_output)
 		output = STDOUT_FILENO;
 	else
 		output = open(output_name, flags, S_IRUSR | S_IWUSR);
@@ -470,57 +461,11 @@ static int __cmd_record(int argc, const char **argv)
 		mmap_pages = (512 * 1024) / page_size;
 
 	if (forks) {
-		child_pid = fork();
-		if (child_pid < 0) {
-			perror("failed to fork");
-			exit(-1);
+		err = perf_evlist__prepare_workload(evsel_list, &record_opts, argv);
+		if (err < 0) {
+			pr_err("Couldn't run the workload!\n");
+			goto out_delete_session;
 		}
-
-		if (!child_pid) {
-			if (pipe_output)
-				dup2(2, 1);
-			close(child_ready_pipe[0]);
-			close(go_pipe[1]);
-			fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
-
-			/*
-			 * Do a dummy execvp to get the PLT entry resolved,
-			 * so we avoid the resolver overhead on the real
-			 * execvp call.
-			 */
-			execvp("", (char **)argv);
-
-			/*
-			 * Tell the parent we're ready to go
-			 */
-			close(child_ready_pipe[1]);
-
-			/*
-			 * Wait until the parent tells us to go.
-			 */
-			if (read(go_pipe[0], &buf, 1) == -1)
-				perror("unable to read pipe");
-
-			execvp(argv[0], (char **)argv);
-
-			perror(argv[0]);
-			kill(getppid(), SIGUSR1);
-			exit(-1);
-		}
-
-		if (!record_opts.system_wide && record_opts.target_tid == -1 && record_opts.target_pid == -1)
-			evsel_list->threads->map[0] = child_pid;
-
-		close(child_ready_pipe[1]);
-		close(go_pipe[0]);
-		/*
-		 * wait for child to settle
-		 */
-		if (read(child_ready_pipe[0], &buf, 1) == -1) {
-			perror("unable to read pipe");
-			exit(-1);
-		}
-		close(child_ready_pipe[0]);
 	}
 
 	open_counters(evsel_list);
@@ -530,7 +475,7 @@ static int __cmd_record(int argc, const char **argv)
 	 */
 	atexit(atexit_header);
 
-	if (pipe_output) {
+	if (record_opts.pipe_output) {
 		err = perf_header__write_pipe(output);
 		if (err < 0)
 			return err;
@@ -543,7 +488,7 @@ static int __cmd_record(int argc, const char **argv)
 
 	post_processing_offset = lseek(output, 0, SEEK_CUR);
 
-	if (pipe_output) {
+	if (record_opts.pipe_output) {
 		err = perf_session__synthesize_attrs(session,
 						     process_synthesized_event);
 		if (err < 0) {
@@ -629,7 +574,7 @@ static int __cmd_record(int argc, const char **argv)
 	 * Let the child rip
 	 */
 	if (forks)
-		close(go_pipe[1]);
+		perf_evlist__start_workload(evsel_list);
 
 	for (;;) {
 		int hits = samples;

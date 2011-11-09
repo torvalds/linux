@@ -193,6 +193,7 @@ struct perf_record_opts {
 	bool	     no_delay;
 	bool	     no_inherit;
 	bool	     no_samples;
+	bool	     pipe_output;
 	bool	     raw_samples;
 	bool	     sample_address;
 	bool	     sample_time;

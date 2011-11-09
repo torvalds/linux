@@ -6,6 +6,7 @@
 #include "../perf.h"
 #include "event.h"
 #include "util.h"
+#include <unistd.h>
 
 struct pollfd;
 struct thread_map;
@@ -22,6 +23,10 @@ struct perf_evlist {
 	int		 nr_fds;
 	int		 nr_mmaps;
 	int		 mmap_len;
+	struct {
+		int	cork_fd;
+		pid_t	pid;
+	} workload;
 	bool		 overwrite;
 	union perf_event event_copy;
 	struct perf_mmap *mmap;
@@ -67,6 +72,11 @@ int perf_evlist__open(struct perf_evlist *evlist, bool group);
 
 void perf_evlist__config_attrs(struct perf_evlist *evlist,
 			       struct perf_record_opts *opts);
+
+int perf_evlist__prepare_workload(struct perf_evlist *evlist,
+				  struct perf_record_opts *opts,
+				  const char *argv[]);
+int perf_evlist__start_workload(struct perf_evlist *evlist);
 
 int perf_evlist__alloc_mmap(struct perf_evlist *evlist);
 int perf_evlist__mmap(struct perf_evlist *evlist, int pages, bool overwrite);
