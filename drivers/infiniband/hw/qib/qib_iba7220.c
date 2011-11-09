@@ -1051,7 +1051,7 @@ static void reenable_7220_chase(unsigned long opaque)
 static void handle_7220_chase(struct qib_pportdata *ppd, u64 ibcst)
 {
 	u8 ibclt;
-	u64 tnow;
+	unsigned long tnow;
 
 	ibclt = (u8)SYM_FIELD(ibcst, IBCStatus, LinkTrainingState);
 
@@ -1066,9 +1066,9 @@ static void handle_7220_chase(struct qib_pportdata *ppd, u64 ibcst)
 	case IB_7220_LT_STATE_CFGWAITRMT:
 	case IB_7220_LT_STATE_TXREVLANES:
 	case IB_7220_LT_STATE_CFGENH:
-		tnow = get_jiffies_64();
+		tnow = jiffies;
 		if (ppd->cpspec->chase_end &&
-		    time_after64(tnow, ppd->cpspec->chase_end)) {
+		    time_after(tnow, ppd->cpspec->chase_end)) {
 			ppd->cpspec->chase_end = 0;
 			qib_set_ib_7220_lstate(ppd,
 				QLOGIC_IB_IBCC_LINKCMD_DOWN,
