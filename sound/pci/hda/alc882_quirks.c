@@ -30,9 +30,6 @@ enum {
 	ALC888_ACER_ASPIRE_6530G,
 	ALC888_ACER_ASPIRE_8930G,
 	ALC888_ACER_ASPIRE_7730G,
-	ALC888_3ST_HP,
-	ALC888_6ST_DELL,
-	ALC883_CLEVO_M540R,
 	ALC883_CLEVO_M720,
 	ALC883_3ST_6ch_INTEL,
 	ALC889A_INTEL,
@@ -1980,22 +1977,6 @@ static const struct snd_kcontrol_new alc883_chmode_mixer[] = {
 	{ } /* end */
 };
 
-static const struct hda_verb alc883_clevo_m540r_verbs[] = {
-	/* HP */
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	/* Int speaker */
-	/*{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},*/
-
-	/* enable unsolicited event */
-	/*
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_MIC_EVENT | AC_USRSP_EN},
-	*/
-
-	{ } /* end */
-};
-
 static const struct hda_verb alc883_clevo_m720_verbs[] = {
 	/* HP */
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
@@ -2038,72 +2019,6 @@ static const struct hda_verb alc883_targa_verbs[] = {
 	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
 
 	{ } /* end */
-};
-
-static const struct hda_verb alc888_6st_dell_verbs[] = {
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	{ }
-};
-
-static void alc888_3st_hp_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x1b;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[1] = 0x16;
-	spec->autocfg.speaker_pins[2] = 0x18;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
-
-static const struct hda_verb alc888_3st_hp_verbs[] = {
-	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00},	/* Front: output 0 (0x0c) */
-	{0x16, AC_VERB_SET_CONNECT_SEL, 0x01},	/* Rear : output 1 (0x0d) */
-	{0x18, AC_VERB_SET_CONNECT_SEL, 0x02},	/* CLFE : output 2 (0x0e) */
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	{ } /* end */
-};
-
-/*
- * 2ch mode
- */
-static const struct hda_verb alc888_3st_hp_2ch_init[] = {
-	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
-	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
-	{ 0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
-	{ 0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
-	{ } /* end */
-};
-
-/*
- * 4ch mode
- */
-static const struct hda_verb alc888_3st_hp_4ch_init[] = {
-	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
-	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
-	{ 0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x16, AC_VERB_SET_CONNECT_SEL, 0x01 },
-	{ } /* end */
-};
-
-/*
- * 6ch mode
- */
-static const struct hda_verb alc888_3st_hp_6ch_init[] = {
-	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x18, AC_VERB_SET_CONNECT_SEL, 0x02 },
-	{ 0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x16, AC_VERB_SET_CONNECT_SEL, 0x01 },
-	{ } /* end */
-};
-
-static const struct hda_channel_mode alc888_3st_hp_modes[3] = {
-	{ 2, alc888_3st_hp_2ch_init },
-	{ 4, alc888_3st_hp_4ch_init },
-	{ 6, alc888_3st_hp_6ch_init },
 };
 
 /* toggle speaker-output according to the hp-jack state */
@@ -2166,18 +2081,6 @@ static const struct hda_verb alc883_acer_eapd_verbs[] = {
 	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
 	{ }
 };
-
-static void alc888_6st_dell_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x1b;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[1] = 0x15;
-	spec->autocfg.speaker_pins[2] = 0x16;
-	spec->autocfg.speaker_pins[3] = 0x17;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
 
 static const struct hda_verb alc889A_mb31_verbs[] = {
 	/* Init rear pin (used as headphone output) */
@@ -2250,9 +2153,6 @@ static const char * const alc882_models[ALC882_MODEL_LAST] = {
 	[ALC888_ACER_ASPIRE_6530G]	= "acer-aspire-6530g",
 	[ALC888_ACER_ASPIRE_8930G]	= "acer-aspire-8930g",
 	[ALC888_ACER_ASPIRE_7730G]	= "acer-aspire-7730g",
-	[ALC888_3ST_HP]		= "3stack-hp",
-	[ALC888_6ST_DELL]	= "6stack-dell",
-	[ALC883_CLEVO_M540R]	= "clevo-m540r",
 	[ALC883_CLEVO_M720]	= "clevo-m720",
 	[ALC883_3ST_6ch_INTEL]	= "3stack-6ch-intel",
 	[ALC889A_INTEL]		= "intel-alc889a",
@@ -2291,14 +2191,8 @@ static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 	 */
 	/* SND_PCI_QUIRK_VENDOR(0x1025, "Acer laptop", ALC883_ACER), */
 
-	SND_PCI_QUIRK(0x1028, 0x020d, "Dell Inspiron 530", ALC888_6ST_DELL),
-
 	SND_PCI_QUIRK(0x103c, 0x2a3d, "HP Pavilion", ALC883_6ST_DIG),
-	SND_PCI_QUIRK(0x103c, 0x2a4f, "HP Samba", ALC888_3ST_HP),
-	SND_PCI_QUIRK(0x103c, 0x2a60, "HP Lucknow", ALC888_3ST_HP),
 	SND_PCI_QUIRK(0x103c, 0x2a61, "HP Nettle", ALC883_6ST_DIG),
-	SND_PCI_QUIRK(0x103c, 0x2a66, "HP Acacia", ALC888_3ST_HP),
-	SND_PCI_QUIRK(0x103c, 0x2a72, "HP Educ.ar", ALC888_3ST_HP),
 
 	SND_PCI_QUIRK(0x1043, 0x1971, "Asus W2JC", ALC882_W2JC),
 	SND_PCI_QUIRK(0x1043, 0x817f, "Asus P5LD2", ALC882_6ST_DIG),
@@ -2308,7 +2202,6 @@ static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 
 	SND_PCI_QUIRK(0x105b, 0x0ce8, "Foxconn P35AX-S", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x105b, 0x6668, "Foxconn", ALC882_6ST_DIG),
-	SND_PCI_QUIRK(0x10f1, 0x2350, "TYAN-S2350", ALC888_6ST_DELL),
 	SND_PCI_QUIRK(0x108e, 0x534d, NULL, ALC883_3ST_6ch),
 	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte P35 DS3R", ALC882_6ST_DIG),
 
@@ -2348,7 +2241,6 @@ static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1558, 0x0571, "Clevo laptop M570U", ALC883_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x1558, 0x0721, "Clevo laptop M720R", ALC883_CLEVO_M720),
 	SND_PCI_QUIRK(0x1558, 0x0722, "Clevo laptop M720SR", ALC883_CLEVO_M720),
-	SND_PCI_QUIRK(0x1558, 0x5409, "Clevo laptop M540R", ALC883_CLEVO_M540R),
 	SND_PCI_QUIRK(0x15d9, 0x8780, "Supermicro PDSBA", ALC883_3ST_6ch),
 	SND_PCI_QUIRK(0x17f2, 0x5000, "Albatron KI690-AM2", ALC883_6ST_DIG),
 
@@ -2807,21 +2699,6 @@ static const struct alc_config_preset alc882_presets[] = {
 		.setup = alc888_acer_aspire_7730g_setup,
 		.init_hook = alc_hp_automute,
 	},
-	[ALC883_CLEVO_M540R] = {
-		.mixers = { alc883_3ST_6ch_mixer, alc883_chmode_mixer },
-		.init_verbs = { alc883_init_verbs, alc883_clevo_m540r_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.dig_out_nid = ALC883_DIGOUT_NID,
-		.dig_in_nid = ALC883_DIGIN_NID,
-		.num_channel_mode = ARRAY_SIZE(alc883_3ST_6ch_clevo_modes),
-		.channel_mode = alc883_3ST_6ch_clevo_modes,
-		.need_dac_fix = 1,
-		.input_mux = &alc883_capture_source,
-		/* This machine has the hardware HP auto-muting, thus
-		 * we need no software mute via unsol event
-		 */
-	},
 	[ALC883_CLEVO_M720] = {
 		.mixers = { alc883_clevo_m720_mixer },
 		.init_verbs = { alc883_init_verbs, alc883_clevo_m720_verbs },
@@ -2834,33 +2711,6 @@ static const struct alc_config_preset alc882_presets[] = {
 		.unsol_event = alc883_clevo_m720_unsol_event,
 		.setup = alc883_clevo_m720_setup,
 		.init_hook = alc883_clevo_m720_init_hook,
-	},
-	[ALC888_3ST_HP] = {
-		.mixers = { alc883_3ST_6ch_mixer, alc883_chmode_mixer },
-		.init_verbs = { alc883_init_verbs, alc888_3st_hp_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.num_channel_mode = ARRAY_SIZE(alc888_3st_hp_modes),
-		.channel_mode = alc888_3st_hp_modes,
-		.need_dac_fix = 1,
-		.input_mux = &alc883_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc888_3st_hp_setup,
-		.init_hook = alc_hp_automute,
-	},
-	[ALC888_6ST_DELL] = {
-		.mixers = { alc883_base_mixer, alc883_chmode_mixer },
-		.init_verbs = { alc883_init_verbs, alc888_6st_dell_verbs },
-		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
-		.dac_nids = alc883_dac_nids,
-		.dig_out_nid = ALC883_DIGOUT_NID,
-		.dig_in_nid = ALC883_DIGIN_NID,
-		.num_channel_mode = ARRAY_SIZE(alc883_sixstack_modes),
-		.channel_mode = alc883_sixstack_modes,
-		.input_mux = &alc883_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc888_6st_dell_setup,
-		.init_hook = alc_hp_automute,
 	},
 	[ALC889A_MB31] = {
 		.mixers = { alc889A_mb31_mixer, alc883_chmode_mixer},
