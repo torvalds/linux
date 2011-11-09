@@ -2443,6 +2443,21 @@ int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status)
 	return err;
 }
 
+int mgmt_stop_discovery_failed(struct hci_dev *hdev, u8 status)
+{
+	struct pending_cmd *cmd;
+	int err;
+
+	cmd = mgmt_pending_find(MGMT_OP_STOP_DISCOVERY, hdev);
+	if (!cmd)
+		return -ENOENT;
+
+	err = cmd_status(cmd->sk, hdev->id, cmd->opcode, status);
+	mgmt_pending_remove(cmd);
+
+	return err;
+}
+
 int mgmt_discovering(struct hci_dev *hdev, u8 discovering)
 {
 	struct pending_cmd *cmd;
