@@ -520,18 +520,13 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 		cflag |= PARENB;
 		break;
 	case BITS_PARITY_MARK:
-		dbg("%s - parity = MARK (not supported, disabling parity)",
-				__func__);
-		cflag &= ~PARENB;
-		bits &= ~BITS_PARITY_MASK;
-		cp210x_set_config(port, CP210X_SET_LINE_CTL, &bits, 2);
+		dbg("%s - parity = MARK", __func__);
+		cflag |= (PARENB|PARODD|CMSPAR);
 		break;
 	case BITS_PARITY_SPACE:
-		dbg("%s - parity = SPACE (not supported, disabling parity)",
-				__func__);
-		cflag &= ~PARENB;
-		bits &= ~BITS_PARITY_MASK;
-		cp210x_set_config(port, CP210X_SET_LINE_CTL, &bits, 2);
+		dbg("%s - parity = SPACE", __func__);
+		cflag &= ~PARODD;
+		cflag |= (PARENB|CMSPAR);
 		break;
 	default:
 		dbg("%s - Unknown parity mode, disabling parity", __func__);
@@ -588,7 +583,6 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	if (!tty)
 		return;
 
-	tty->termios->c_cflag &= ~CMSPAR;
 	cflag = tty->termios->c_cflag;
 	old_cflag = old_termios->c_cflag;
 	baud = cp210x_quantise_baudrate(tty_get_baud_rate(tty));
@@ -643,16 +637,27 @@ static void cp210x_set_termios(struct tty_struct *tty,
 					"not supported by device\n");
 	}
 
-	if ((cflag & (PARENB|PARODD)) != (old_cflag & (PARENB|PARODD))) {
+	if ((cflag     & (PARENB|PARODD|CMSPAR)) !=
+	    (old_cflag & (PARENB|PARODD|CMSPAR))) {
 		cp210x_get_config(port, CP210X_GET_LINE_CTL, &bits, 2);
 		bits &= ~BITS_PARITY_MASK;
 		if (cflag & PARENB) {
-			if (cflag & PARODD) {
-				bits |= BITS_PARITY_ODD;
-				dbg("%s - parity = ODD", __func__);
+			if (cflag & CMSPAR) {
+			    if (cflag & PARODD) {
+				    bits |= BITS_PARITY_MARK;
+				    dbg("%s - parity = MARK", __func__);
+			    } else {
+				    bits |= BITS_PARITY_SPACE;
+				    dbg("%s - parity = SPACE", __func__);
+			    }
 			} else {
-				bits |= BITS_PARITY_EVEN;
-				dbg("%s - parity = EVEN", __func__);
+			    if (cflag & PARODD) {
+				    bits |= BITS_PARITY_ODD;
+				    dbg("%s - parity = ODD", __func__);
+			    } else {
+				    bits |= BITS_PARITY_EVEN;
+				    dbg("%s - parity = EVEN", __func__);
+			    }
 			}
 		}
 		if (cp210x_set_config(port, CP210X_SET_LINE_CTL, &bits, 2))
