@@ -564,6 +564,30 @@ static struct platform_device keysc_device = {
 };
 
 /* MIPI-DSI */
+#define PHYCTRL		0x0070
+static int sh_mipi_set_dot_clock(struct platform_device *pdev,
+				 void __iomem *base,
+				 int enable)
+{
+	struct clk *pck = clk_get(&pdev->dev, "dsip_clk");
+	void __iomem *phy =  base + PHYCTRL;
+
+	if (IS_ERR(pck))
+		return PTR_ERR(pck);
+
+	if (enable) {
+		clk_set_rate(pck, clk_round_rate(pck, 24000000));
+		iowrite32(ioread32(phy) | (0xb << 8), phy);
+		clk_enable(pck);
+	} else {
+		clk_disable(pck);
+	}
+
+	clk_put(pck);
+
+	return 0;
+}
+
 static struct resource mipidsi0_resources[] = {
 	[0] = {
 		.start  = 0xffc60000,
@@ -583,6 +607,7 @@ static struct sh_mipi_dsi_info mipidsi0_info = {
 	.lane		= 2,
 	.vsynw_offset	= 17,
 	.flags		= SH_MIPI_DSI_SYNC_PULSES_MODE,
+	.set_dot_clock	= sh_mipi_set_dot_clock,
 };
 
 static struct platform_device mipidsi0_device = {

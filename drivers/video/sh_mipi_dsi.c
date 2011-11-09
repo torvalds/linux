@@ -53,7 +53,6 @@ struct sh_mipi {
 	void __iomem	*base;
 	void __iomem	*linkbase;
 	struct clk	*dsit_clk;
-	struct clk	*dsip_clk;
 	struct device	*dev;
 
 	void	*next_board_data;
@@ -307,8 +306,8 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	/* DSI-Tx bias on */
 	iowrite32(0x00000001, base + PHYCTRL);
 	udelay(200);
-	/* Deassert resets, power on, set multiplier */
-	iowrite32(0x03070b01, base + PHYCTRL);
+	/* Deassert resets, power on */
+	iowrite32(0x03070001, base + PHYCTRL);
 
 	/* setup l-bridge */
 
@@ -421,6 +420,9 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 	if (!res || !res2 || idx >= ARRAY_SIZE(mipi_dsi) || !pdata)
 		return -ENODEV;
 
+	if (!pdata->set_dot_clock)
+		return -EINVAL;
+
 	mutex_lock(&array_lock);
 	if (idx < 0)
 		for (idx = 0; idx < ARRAY_SIZE(mipi_dsi) && mipi_dsi[idx]; idx++)
@@ -481,33 +483,9 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "DSI-T clk %lu -> %lu\n", f_current, rate);
 
-	mipi->dsip_clk = clk_get(&pdev->dev, "dsip_clk");
-	if (IS_ERR(mipi->dsip_clk)) {
-		ret = PTR_ERR(mipi->dsip_clk);
-		goto eclkpget;
-	}
-
-	f_current = clk_get_rate(mipi->dsip_clk);
-	/* Between 10 and 50MHz */
-	rate = clk_round_rate(mipi->dsip_clk, 24000000);
-	if (rate > 0 && rate != f_current)
-		ret = clk_set_rate(mipi->dsip_clk, rate);
-	else
-		ret = rate;
-	if (ret < 0)
-		goto esetprate;
-
-	dev_dbg(&pdev->dev, "DSI-P clk %lu -> %lu\n", f_current, rate);
-
-	msleep(10);
-
 	ret = clk_enable(mipi->dsit_clk);
 	if (ret < 0)
 		goto eclkton;
-
-	ret = clk_enable(mipi->dsip_clk);
-	if (ret < 0)
-		goto eclkpon;
 
 	mipi_dsi[idx] = mipi;
 
@@ -515,6 +493,10 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 	pm_runtime_resume(&pdev->dev);
 
 	ret = sh_mipi_setup(mipi, pdata);
+	if (ret < 0)
+		goto emipisetup;
+
+	ret = pdata->set_dot_clock(pdev, mipi->base, 1);
 	if (ret < 0)
 		goto emipisetup;
 
@@ -537,13 +519,8 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 emipisetup:
 	mipi_dsi[idx] = NULL;
 	pm_runtime_disable(&pdev->dev);
-	clk_disable(mipi->dsip_clk);
-eclkpon:
 	clk_disable(mipi->dsit_clk);
 eclkton:
-esetprate:
-	clk_put(mipi->dsip_clk);
-eclkpget:
 esettrate:
 	clk_put(mipi->dsit_clk);
 eclktget:
@@ -594,10 +571,10 @@ static int __exit sh_mipi_remove(struct platform_device *pdev)
 	pdata->lcd_chan->board_cfg.board_data = NULL;
 
 	pm_runtime_disable(&pdev->dev);
-	clk_disable(mipi->dsip_clk);
 	clk_disable(mipi->dsit_clk);
 	clk_put(mipi->dsit_clk);
-	clk_put(mipi->dsip_clk);
+	pdata->set_dot_clock(pdev, mipi->base, 0);
+
 	iounmap(mipi->linkbase);
 	if (res2)
 		release_mem_region(res2->start, resource_size(res2));

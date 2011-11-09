@@ -48,6 +48,9 @@ struct sh_mipi_dsi_info {
 	unsigned long			flags;
 	u32				clksrc;
 	unsigned int			vsynw_offset;
+	int	(*set_dot_clock)(struct platform_device *pdev,
+				 void __iomem *base,
+				 int enable);
 };
 
 #endif
