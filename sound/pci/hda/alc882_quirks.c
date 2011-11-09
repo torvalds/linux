@@ -11,8 +11,6 @@ enum {
 	ALC882_ARIMA,
 	ALC882_W2JC,
 	ALC882_TARGA,
-	ALC882_ASUS_A7J,
-	ALC882_ASUS_A7M,
 	ALC885_MACPRO,
 	ALC885_MBA21,
 	ALC885_MBP3,
@@ -1140,40 +1138,6 @@ static const struct snd_kcontrol_new alc882_targa_mixer[] = {
 	{ } /* end */
 };
 
-/* Pin assignment: Front=0x14, HP = 0x15, Front = 0x16, ???
- *                 Front Mic=0x18, Line In = 0x1a, Line In = 0x1b, CD = 0x1c
- */
-static const struct snd_kcontrol_new alc882_asus_a7j_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Mobile Front Playback Switch", 0x16, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mobile Line Playback Volume", 0x0b, 0x03, HDA_INPUT),
-	HDA_CODEC_MUTE("Mobile Line Playback Switch", 0x0b, 0x03, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct snd_kcontrol_new alc882_asus_a7m_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	{ } /* end */
-};
-
 static const struct snd_kcontrol_new alc882_chmode_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1769,42 +1733,6 @@ static void alc882_targa_unsol_event(struct hda_codec *codec, unsigned int res)
 	if ((res >> 26) == ALC_HP_EVENT)
 		alc882_targa_automute(codec);
 }
-
-static const struct hda_verb alc882_asus_a7j_verbs[] = {
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-
-	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00}, /* Front */
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
-	{0x16, AC_VERB_SET_CONNECT_SEL, 0x00}, /* Front */
-
-	{0x18, AC_VERB_SET_CONNECT_SEL, 0x02}, /* mic/clfe */
-	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x01}, /* line/surround */
-	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
-	{ } /* end */
-};
-
-static const struct hda_verb alc882_asus_a7m_verbs[] = {
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-
-	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00}, /* Front */
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
-	{0x16, AC_VERB_SET_CONNECT_SEL, 0x00}, /* Front */
-
-	{0x18, AC_VERB_SET_CONNECT_SEL, 0x02}, /* mic/clfe */
-	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x01}, /* line/surround */
-	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
- 	{ } /* end */
-};
 
 static void alc882_gpio_mute(struct hda_codec *codec, int pin, int muted)
 {
@@ -2699,8 +2627,6 @@ static const char * const alc882_models[ALC882_MODEL_LAST] = {
 	[ALC882_ARIMA]		= "arima",
 	[ALC882_W2JC]		= "w2jc",
 	[ALC882_TARGA]		= "targa",
-	[ALC882_ASUS_A7J]	= "asus-a7j",
-	[ALC882_ASUS_A7M]	= "asus-a7m",
 	[ALC885_MACPRO]		= "macpro",
 	[ALC885_MB5]		= "mb5",
 	[ALC885_MACMINI3]	= "macmini3",
@@ -2782,9 +2708,6 @@ static const struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x2a66, "HP Acacia", ALC888_3ST_HP),
 	SND_PCI_QUIRK(0x103c, 0x2a72, "HP Educ.ar", ALC888_3ST_HP),
 
-	SND_PCI_QUIRK(0x1043, 0x060d, "Asus A7J", ALC882_ASUS_A7J),
-	SND_PCI_QUIRK(0x1043, 0x1243, "Asus A7J", ALC882_ASUS_A7J),
-	SND_PCI_QUIRK(0x1043, 0x13c2, "Asus A7M", ALC882_ASUS_A7M),
 	SND_PCI_QUIRK(0x1043, 0x1873, "Asus M90V", ALC888_ASUS_M90V),
 	SND_PCI_QUIRK(0x1043, 0x1971, "Asus W2JC", ALC882_W2JC),
 	SND_PCI_QUIRK(0x1043, 0x817f, "Asus P5LD2", ALC882_6ST_DIG),
@@ -2876,7 +2799,6 @@ static const struct snd_pci_quirk alc882_ssid_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x2800, "AppleTV", ALC885_IMAC24),
 	SND_PCI_QUIRK(0x106b, 0x2c00, "MacbookPro rev3", ALC885_MBP3),
 	SND_PCI_QUIRK(0x106b, 0x3000, "iMac", ALC889A_MB31),
-	SND_PCI_QUIRK(0x106b, 0x3200, "iMac 7,1 Aluminum", ALC882_ASUS_A7M),
 	SND_PCI_QUIRK(0x106b, 0x3400, "MacBookAir 1,1", ALC885_MBP3),
 	SND_PCI_QUIRK(0x106b, 0x3500, "MacBookAir 2,1", ALC885_MBA21),
 	SND_PCI_QUIRK(0x106b, 0x3600, "Macbook 3,1", ALC889A_MB31),
@@ -3058,34 +2980,6 @@ static const struct alc_config_preset alc882_presets[] = {
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc882_targa_setup,
 		.init_hook = alc882_targa_automute,
-	},
-	[ALC882_ASUS_A7J] = {
-		.mixers = { alc882_asus_a7j_mixer, alc882_chmode_mixer },
-		.init_verbs = { alc882_base_init_verbs, alc882_adc1_init_verbs,
-				alc882_asus_a7j_verbs},
-		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
-		.dac_nids = alc882_dac_nids,
-		.dig_out_nid = ALC882_DIGOUT_NID,
-		.num_adc_nids = ARRAY_SIZE(alc882_adc_nids),
-		.adc_nids = alc882_adc_nids,
-		.capsrc_nids = alc882_capsrc_nids,
-		.num_channel_mode = ARRAY_SIZE(alc882_3ST_6ch_modes),
-		.channel_mode = alc882_3ST_6ch_modes,
-		.need_dac_fix = 1,
-		.input_mux = &alc882_capture_source,
-	},
-	[ALC882_ASUS_A7M] = {
-		.mixers = { alc882_asus_a7m_mixer, alc882_chmode_mixer },
-		.init_verbs = { alc882_base_init_verbs, alc882_adc1_init_verbs,
-				alc882_eapd_verbs, alc880_gpio1_init_verbs,
-				alc882_asus_a7m_verbs },
-		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
-		.dac_nids = alc882_dac_nids,
-		.dig_out_nid = ALC882_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
-		.channel_mode = alc880_threestack_modes,
-		.need_dac_fix = 1,
-		.input_mux = &alc882_capture_source,
 	},
 	[ALC883_3ST_2ch_DIG] = {
 		.mixers = { alc883_3ST_2ch_mixer },
