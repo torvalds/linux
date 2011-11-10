@@ -670,7 +670,6 @@ enum {
 
 /* flag bits per mdev */
 enum {
-	CREATE_BARRIER,		/* next P_DATA is preceded by a P_BARRIER */
 	UNPLUG_QUEUED,		/* only relevant with kernel 2.4 */
 	UNPLUG_REMOTE,		/* sending a "UnplugRemote" could help */
 	MD_DIRTY,		/* current uuids and flags not yet on disk */
@@ -813,6 +812,7 @@ enum {
 	CONN_WD_ST_CHG_OKAY,
 	CONN_WD_ST_CHG_FAIL,
 	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
+	CREATE_BARRIER,		/* next P_DATA is preceded by a P_BARRIER */
 };
 
 struct drbd_tconn {			/* is a resource from the config file */

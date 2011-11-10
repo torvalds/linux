@@ -320,7 +320,7 @@ void tl_release(struct drbd_tconn *tconn, unsigned int barrier_nr,
 	mdev = b->w.mdev;
 
 	nob = b->next;
-	if (test_and_clear_bit(CREATE_BARRIER, &mdev->flags)) {
+	if (test_and_clear_bit(CREATE_BARRIER, &tconn->flags)) {
 		_tl_add_barrier(tconn, b);
 		if (nob)
 			tconn->oldest_tle = nob;
@@ -381,7 +381,7 @@ void _tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what)
 				if (b->w.cb == NULL) {
 					b->w.cb = w_send_barrier;
 					inc_ap_pending(b->w.mdev);
-					set_bit(CREATE_BARRIER, &b->w.mdev->flags);
+					set_bit(CREATE_BARRIER, &tconn->flags);
 				}
 
 				drbd_queue_work(&tconn->data.work, &b->w);
@@ -448,10 +448,8 @@ void _tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what)
  */
 void tl_clear(struct drbd_tconn *tconn)
 {
-	struct drbd_conf *mdev;
 	struct list_head *le, *tle;
 	struct drbd_request *r;
-	int vnr;
 
 	spin_lock_irq(&tconn->req_lock);
 
@@ -470,10 +468,7 @@ void tl_clear(struct drbd_tconn *tconn)
 	}
 
 	/* ensure bit indicating barrier is required is clear */
-	rcu_read_lock();
-	idr_for_each_entry(&tconn->volumes, mdev, vnr)
-		clear_bit(CREATE_BARRIER, &mdev->flags);
-	rcu_read_unlock();
+	clear_bit(CREATE_BARRIER, &tconn->flags);
 
 	spin_unlock_irq(&tconn->req_lock);
 }
