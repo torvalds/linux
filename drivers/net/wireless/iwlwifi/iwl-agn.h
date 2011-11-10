@@ -210,9 +210,6 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   struct ieee80211_sta *sta, u8 *sta_id_r);
 int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 		       const u8 *addr);
-int iwlagn_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta);
-
 u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		    const u8 *addr, bool is_ap, struct ieee80211_sta *sta);
 
@@ -330,10 +327,6 @@ void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
 int iwl_update_bcast_station(struct iwl_priv *priv,
 			     struct iwl_rxon_context *ctx);
 int iwl_update_bcast_stations(struct iwl_priv *priv);
-void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
-			   struct ieee80211_vif *vif,
-			   enum sta_notify_cmd cmd,
-			   struct ieee80211_sta *sta);
 
 /* rate */
 static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)

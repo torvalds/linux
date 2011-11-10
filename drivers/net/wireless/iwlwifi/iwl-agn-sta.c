@@ -829,28 +829,6 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	return ret;
 }
 
-int iwlagn_mac_sta_remove(struct ieee80211_hw *hw,
-		       struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta)
-{
-	struct iwl_priv *priv = hw->priv;
-	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
-	int ret;
-
-	IWL_DEBUG_MAC80211(priv, "enter: received request to remove "
-			   "station %pM\n", sta->addr);
-	mutex_lock(&priv->shrd->mutex);
-	IWL_DEBUG_INFO(priv, "proceeding to remove station %pM\n",
-			sta->addr);
-	ret = iwl_remove_station(priv, sta_priv->sta_id, sta->addr);
-	if (ret)
-		IWL_DEBUG_QUIET_RFKILL(priv, "Error removing station %pM\n",
-			sta->addr);
-	mutex_unlock(&priv->shrd->mutex);
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	return ret;
-}
 
 void iwl_sta_fill_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		     u8 sta_id, struct iwl_link_quality_cmd *link_cmd)
@@ -1468,20 +1446,7 @@ int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
 	return iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 }
 
-static void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id)
-{
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
-	priv->stations[sta_id].sta.station_flags &= ~STA_FLG_PWR_SAVE_MSK;
-	priv->stations[sta_id].sta.station_flags_msk = STA_FLG_PWR_SAVE_MSK;
-	priv->stations[sta_id].sta.sta.modify_mask = 0;
-	priv->stations[sta_id].sta.sleep_tx_count = 0;
-	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
-	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
-	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
-
-}
 
 void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt)
 {
@@ -1497,37 +1462,4 @@ void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt)
 	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 
-}
-
-void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
-			   struct ieee80211_vif *vif,
-			   enum sta_notify_cmd cmd,
-			   struct ieee80211_sta *sta)
-{
-	struct iwl_priv *priv = hw->priv;
-	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
-	int sta_id;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	switch (cmd) {
-	case STA_NOTIFY_SLEEP:
-		WARN_ON(!sta_priv->client);
-		sta_priv->asleep = true;
-		if (atomic_read(&sta_priv->pending_frames) > 0)
-			ieee80211_sta_block_awake(hw, sta, true);
-		break;
-	case STA_NOTIFY_AWAKE:
-		WARN_ON(!sta_priv->client);
-		if (!sta_priv->asleep)
-			break;
-		sta_priv->asleep = false;
-		sta_id = iwl_sta_id(sta);
-		if (sta_id != IWL_INVALID_STATION)
-			iwl_sta_modify_ps_wake(priv, sta_id);
-		break;
-	default:
-		break;
-	}
-	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
