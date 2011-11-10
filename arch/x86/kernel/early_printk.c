@@ -247,7 +247,7 @@ static int __init setup_early_printk(char *buf)
 		}
 
 		if (!strncmp(buf, "hsu", 3)) {
-			hsu_early_console_init();
+			hsu_early_console_init(buf + 3);
 			early_console_register(&early_hsu_console, keep);
 		}
 #endif
