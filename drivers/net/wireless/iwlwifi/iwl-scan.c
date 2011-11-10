@@ -939,51 +939,6 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 	return 0;
 }
 
-int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
-		    struct ieee80211_vif *vif,
-		    struct cfg80211_scan_request *req)
-{
-	struct iwl_priv *priv = hw->priv;
-	int ret;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	if (req->n_channels == 0)
-		return -EINVAL;
-
-	mutex_lock(&priv->shrd->mutex);
-
-	/*
-	 * If an internal scan is in progress, just set
-	 * up the scan_request as per above.
-	 */
-	if (priv->scan_type != IWL_SCAN_NORMAL) {
-		IWL_DEBUG_SCAN(priv,
-			       "SCAN request during internal scan - defer\n");
-		priv->scan_request = req;
-		priv->scan_vif = vif;
-		ret = 0;
-	} else {
-		priv->scan_request = req;
-		priv->scan_vif = vif;
-		/*
-		 * mac80211 will only ask for one band at a time
-		 * so using channels[0] here is ok
-		 */
-		ret = iwl_scan_initiate(priv, vif, IWL_SCAN_NORMAL,
-					req->channels[0]->band);
-		if (ret) {
-			priv->scan_request = NULL;
-			priv->scan_vif = NULL;
-		}
-	}
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	mutex_unlock(&priv->shrd->mutex);
-
-	return ret;
-}
 
 /*
  * internal short scan, this function should only been called while associated.
