@@ -65,9 +65,7 @@
 #define ETHER_ADDR_STR_LEN	18
 
 struct pktq_prec {
-	struct sk_buff *head;	/* first packet to dequeue */
-	struct sk_buff *tail;	/* last packet to dequeue */
-	u16 len;		/* number of queued packets */
+	struct sk_buff_head skblist;
 	u16 max;		/* maximum number of queued packets */
 };
 
@@ -88,32 +86,32 @@ struct pktq {
 
 static inline int pktq_plen(struct pktq *pq, int prec)
 {
-	return pq->q[prec].len;
+	return pq->q[prec].skblist.qlen;
 }
 
 static inline int pktq_pavail(struct pktq *pq, int prec)
 {
-	return pq->q[prec].max - pq->q[prec].len;
+	return pq->q[prec].max - pq->q[prec].skblist.qlen;
 }
 
 static inline bool pktq_pfull(struct pktq *pq, int prec)
 {
-	return pq->q[prec].len >= pq->q[prec].max;
+	return pq->q[prec].skblist.qlen >= pq->q[prec].max;
 }
 
 static inline bool pktq_pempty(struct pktq *pq, int prec)
 {
-	return pq->q[prec].len == 0;
+	return skb_queue_empty(&pq->q[prec].skblist);
 }
 
 static inline struct sk_buff *pktq_ppeek(struct pktq *pq, int prec)
 {
-	return pq->q[prec].head;
+	return skb_peek(&pq->q[prec].skblist);
 }
 
 static inline struct sk_buff *pktq_ppeek_tail(struct pktq *pq, int prec)
 {
-	return pq->q[prec].tail;
+	return skb_peek_tail(&pq->q[prec].skblist);
 }
 
 extern struct sk_buff *brcmu_pktq_penq(struct pktq *pq, int prec,
