@@ -843,7 +843,7 @@ struct snd_soc_card {
 };
 
 /* SoC machine DAI configuration, glues a codec and cpu DAI together */
-struct snd_soc_pcm_runtime  {
+struct snd_soc_pcm_runtime {
 	struct device dev;
 	struct snd_soc_card *card;
 	struct snd_soc_dai_link *dai_link;
