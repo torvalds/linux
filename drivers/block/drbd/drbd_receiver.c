@@ -1334,6 +1334,22 @@ static void drbd_remove_epoch_entry_interval(struct drbd_conf *mdev,
 		wake_up(&mdev->misc_wait);
 }
 
+void conn_wait_active_ee_empty(struct drbd_tconn *tconn)
+{
+	struct drbd_conf *mdev;
+	int vnr;
+
+	rcu_read_lock();
+	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
+		kref_get(&mdev->kref);
+		rcu_read_unlock();
+		drbd_wait_ee_list_empty(mdev, &mdev->active_ee);
+		kref_put(&mdev->kref, &drbd_minor_destroy);
+		rcu_read_lock();
+	}
+	rcu_read_unlock();
+}
+
 static int receive_Barrier(struct drbd_tconn *tconn, struct packet_info *pi)
 {
 	struct drbd_conf *mdev;
@@ -1372,7 +1388,7 @@ static int receive_Barrier(struct drbd_tconn *tconn, struct packet_info *pi)
 
 	case WO_bdev_flush:
 	case WO_drain_io:
-		drbd_wait_ee_list_empty(mdev, &mdev->active_ee);
+		conn_wait_active_ee_empty(tconn);
 		drbd_flush(tconn);
 
 		if (atomic_read(&tconn->current_epoch->epoch_size)) {
