@@ -41,28 +41,17 @@ EXPORT_SYMBOL(brcmu_pkt_buf_get_skb);
 /* Free the driver packet. Free the tag if present */
 void brcmu_pkt_buf_free_skb(struct sk_buff *skb)
 {
-	struct sk_buff *nskb;
-	int nest = 0;
-
-	/* perversion: we use skb->next to chain multi-skb packets */
-	while (skb) {
-		nskb = skb->next;
-		skb->next = NULL;
-
-		if (skb->destructor)
-			/* cannot kfree_skb() on hard IRQ (net/core/skbuff.c) if
-			 * destructor exists
-			 */
-			dev_kfree_skb_any(skb);
-		else
-			/* can free immediately (even in_irq()) if destructor
-			 * does not exist
-			 */
-			dev_kfree_skb(skb);
-
-		nest++;
-		skb = nskb;
-	}
+	WARN_ON(skb->next);
+	if (skb->destructor)
+		/* cannot kfree_skb() on hard IRQ (net/core/skbuff.c) if
+		 * destructor exists
+		 */
+		dev_kfree_skb_any(skb);
+	else
+		/* can free immediately (even in_irq()) if destructor
+		 * does not exist
+		 */
+		dev_kfree_skb(skb);
 }
 EXPORT_SYMBOL(brcmu_pkt_buf_free_skb);
 
