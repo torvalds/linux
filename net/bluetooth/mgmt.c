@@ -1331,19 +1331,14 @@ static void pairing_complete(struct pending_cmd *cmd, u8 status)
 static void pairing_complete_cb(struct hci_conn *conn, u8 status)
 {
 	struct pending_cmd *cmd;
-	struct hci_dev *hdev = conn->hdev;
 
 	BT_DBG("status %u", status);
-
-	hci_dev_lock_bh(hdev);
 
 	cmd = find_pairing(conn);
 	if (!cmd)
 		BT_DBG("Unable to find a pending command");
 	else
 		pairing_complete(cmd, status);
-
-	hci_dev_unlock_bh(hdev);
 }
 
 static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
