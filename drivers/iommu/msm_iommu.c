@@ -42,6 +42,9 @@ __asm__ __volatile__ (							\
 #define RCP15_PRRR(reg)		MRC(reg, p15, 0, c10, c2, 0)
 #define RCP15_NMRR(reg)		MRC(reg, p15, 0, c10, c2, 1)
 
+/* bitmap of the page sizes currently supported */
+#define MSM_IOMMU_PGSIZES	(SZ_4K | SZ_64K | SZ_1M | SZ_16M)
+
 static int msm_iommu_tex_class[4];
 
 DEFINE_SPINLOCK(msm_iommu_lock);
@@ -679,7 +682,8 @@ static struct iommu_ops msm_iommu_ops = {
 	.map = msm_iommu_map,
 	.unmap = msm_iommu_unmap,
 	.iova_to_phys = msm_iommu_iova_to_phys,
-	.domain_has_cap = msm_iommu_domain_has_cap
+	.domain_has_cap = msm_iommu_domain_has_cap,
+	.pgsize_bitmap = MSM_IOMMU_PGSIZES,
 };
 
 static int __init get_tex_class(int icp, int ocp, int mt, int nos)
