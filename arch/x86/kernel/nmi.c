@@ -29,6 +29,7 @@
 #include <asm/traps.h>
 #include <asm/mach_traps.h>
 #include <asm/nmi.h>
+#include <asm/x86_init.h>
 
 #define NMI_MAX_NAMELEN	16
 struct nmiaction {
