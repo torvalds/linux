@@ -3979,12 +3979,11 @@ static void intel_iommu_detach_device(struct iommu_domain *domain,
 
 static int intel_iommu_map(struct iommu_domain *domain,
 			   unsigned long iova, phys_addr_t hpa,
-			   int gfp_order, int iommu_prot)
+			   size_t size, int iommu_prot)
 {
 	struct dmar_domain *dmar_domain = domain->priv;
 	u64 max_addr;
 	int prot = 0;
-	size_t size;
 	int ret;
 
 	if (iommu_prot & IOMMU_READ)
@@ -3994,7 +3993,6 @@ static int intel_iommu_map(struct iommu_domain *domain,
 	if ((iommu_prot & IOMMU_CACHE) && dmar_domain->iommu_snooping)
 		prot |= DMA_PTE_SNP;
 
-	size     = PAGE_SIZE << gfp_order;
 	max_addr = iova + size;
 	if (dmar_domain->max_addr < max_addr) {
 		u64 end;
@@ -4017,11 +4015,10 @@ static int intel_iommu_map(struct iommu_domain *domain,
 	return ret;
 }
 
-static int intel_iommu_unmap(struct iommu_domain *domain,
-			     unsigned long iova, int gfp_order)
+static size_t intel_iommu_unmap(struct iommu_domain *domain,
+			     unsigned long iova, size_t size)
 {
 	struct dmar_domain *dmar_domain = domain->priv;
-	size_t size = PAGE_SIZE << gfp_order;
 	int order;
 
 	order = dma_pte_clear_range(dmar_domain, iova >> VTD_PAGE_SHIFT,
@@ -4030,7 +4027,7 @@ static int intel_iommu_unmap(struct iommu_domain *domain,
 	if (dmar_domain->max_addr == iova + size)
 		dmar_domain->max_addr = iova;
 
-	return order;
+	return PAGE_SIZE << order;
 }
 
 static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,

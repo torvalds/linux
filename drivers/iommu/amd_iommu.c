@@ -2702,9 +2702,8 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 }
 
 static int amd_iommu_map(struct iommu_domain *dom, unsigned long iova,
-			 phys_addr_t paddr, int gfp_order, int iommu_prot)
+			 phys_addr_t paddr, size_t page_size, int iommu_prot)
 {
-	unsigned long page_size = 0x1000UL << gfp_order;
 	struct protection_domain *domain = dom->priv;
 	int prot = 0;
 	int ret;
@@ -2721,13 +2720,11 @@ static int amd_iommu_map(struct iommu_domain *dom, unsigned long iova,
 	return ret;
 }
 
-static int amd_iommu_unmap(struct iommu_domain *dom, unsigned long iova,
-			   int gfp_order)
+static size_t amd_iommu_unmap(struct iommu_domain *dom, unsigned long iova,
+			   size_t page_size)
 {
 	struct protection_domain *domain = dom->priv;
-	unsigned long page_size, unmap_size;
-
-	page_size  = 0x1000UL << gfp_order;
+	size_t unmap_size;
 
 	mutex_lock(&domain->api_lock);
 	unmap_size = iommu_unmap_page(domain, iova, page_size);
@@ -2735,7 +2732,7 @@ static int amd_iommu_unmap(struct iommu_domain *dom, unsigned long iova,
 
 	domain_flush_tlb_pde(domain);
 
-	return get_order(unmap_size);
+	return unmap_size;
 }
 
 static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
