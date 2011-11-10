@@ -95,6 +95,15 @@ union cpuid10_edx {
 	unsigned int full;
 };
 
+struct x86_pmu_capability {
+	int		version;
+	int		num_counters_gp;
+	int		num_counters_fixed;
+	int		bit_width_gp;
+	int		bit_width_fixed;
+	unsigned int	events_mask;
+	int		events_mask_len;
+};
 
 /*
  * Fixed-purpose performance events:
@@ -216,11 +225,17 @@ struct perf_guest_switch_msr {
 };
 
 extern struct perf_guest_switch_msr *perf_guest_get_msrs(int *nr);
+extern void perf_get_x86_pmu_capability(struct x86_pmu_capability *cap);
 #else
 static inline perf_guest_switch_msr *perf_guest_get_msrs(int *nr)
 {
 	*nr = 0;
 	return NULL;
+}
+
+static inline void perf_get_x86_pmu_capability(struct x86_pmu_capability *cap)
+{
+	memset(cap, 0, sizeof(*cap));
 }
 
 static inline void perf_events_lapic_init(void)	{ }
