@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/dma-mapping.h>
 
 #include "iwl-dev.h"
 #include "iwl-core.h"
@@ -71,6 +72,52 @@ static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
 	{COEX_CU_RSRVD1_RP, COEX_CU_RSRVD1_WP, 0, COEX_RSRVD1_FLAGS},
 	{COEX_CU_RSRVD2_RP, COEX_CU_RSRVD2_WP, 0, COEX_RSRVD2_FLAGS}
 };
+
+/******************************************************************************
+ *
+ * uCode download functions
+ *
+ ******************************************************************************/
+
+static void iwl_free_fw_desc(struct iwl_bus *bus, struct fw_desc *desc)
+{
+	if (desc->v_addr)
+		dma_free_coherent(bus->dev, desc->len,
+				  desc->v_addr, desc->p_addr);
+	desc->v_addr = NULL;
+	desc->len = 0;
+}
+
+static void iwl_free_fw_img(struct iwl_bus *bus, struct fw_img *img)
+{
+	iwl_free_fw_desc(bus, &img->code);
+	iwl_free_fw_desc(bus, &img->data);
+}
+
+void iwl_dealloc_ucode(struct iwl_trans *trans)
+{
+	iwl_free_fw_img(bus(trans), &trans->ucode_rt);
+	iwl_free_fw_img(bus(trans), &trans->ucode_init);
+	iwl_free_fw_img(bus(trans), &trans->ucode_wowlan);
+}
+
+int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
+		      const void *data, size_t len)
+{
+	if (!len) {
+		desc->v_addr = NULL;
+		return -EINVAL;
+	}
+
+	desc->v_addr = dma_alloc_coherent(bus->dev, len,
+					  &desc->p_addr, GFP_KERNEL);
+	if (!desc->v_addr)
+		return -ENOMEM;
+
+	desc->len = len;
+	memcpy(desc->v_addr, data, len);
+	return 0;
+}
 
 /*
  * ucode
@@ -125,40 +172,41 @@ static int iwlagn_load_section(struct iwl_trans *trans, const char *name,
 	return 0;
 }
 
-static inline struct fw_img *iwl_get_ucode_image(struct iwl_priv *priv,
-					enum iwlagn_ucode_type ucode_type)
+static inline struct fw_img *iwl_get_ucode_image(struct iwl_trans *trans,
+					enum iwl_ucode_type ucode_type)
 {
 	switch (ucode_type) {
 	case IWL_UCODE_INIT:
-		return &priv->ucode_init;
+		return &trans->ucode_init;
 	case IWL_UCODE_WOWLAN:
-		return &priv->ucode_wowlan;
+		return &trans->ucode_wowlan;
 	case IWL_UCODE_REGULAR:
-		return &priv->ucode_rt;
+		return &trans->ucode_rt;
 	case IWL_UCODE_NONE:
 		break;
 	}
 	return NULL;
 }
 
-static int iwlagn_load_given_ucode(struct iwl_priv *priv,
-				   enum iwlagn_ucode_type ucode_type)
+static int iwlagn_load_given_ucode(struct iwl_trans *trans,
+				   enum iwl_ucode_type ucode_type)
 {
 	int ret = 0;
-	struct fw_img *image = iwl_get_ucode_image(priv, ucode_type);
+	struct fw_img *image = iwl_get_ucode_image(trans, ucode_type);
 
 
 	if (!image) {
-		IWL_ERR(priv, "Invalid ucode requested (%d)\n", ucode_type);
+		IWL_ERR(trans, "Invalid ucode requested (%d)\n",
+			ucode_type);
 		return -EINVAL;
 	}
 
-	ret = iwlagn_load_section(trans(priv), "INST", &image->code,
+	ret = iwlagn_load_section(trans, "INST", &image->code,
 				   IWLAGN_RTC_INST_LOWER_BOUND);
 	if (ret)
 		return ret;
 
-	return iwlagn_load_section(trans(priv), "DATA", &image->data,
+	return iwlagn_load_section(trans, "DATA", &image->data,
 				    IWLAGN_RTC_DATA_LOWER_BOUND);
 }
 
@@ -498,24 +546,24 @@ static void iwl_print_mismatch_inst(struct iwl_bus *bus,
  * iwl_verify_ucode - determine which instruction image is in SRAM,
  *    and verify its contents
  */
-static int iwl_verify_ucode(struct iwl_priv *priv,
-			    enum iwlagn_ucode_type ucode_type)
+static int iwl_verify_ucode(struct iwl_trans *trans,
+			    enum iwl_ucode_type ucode_type)
 {
-	struct fw_img *img = iwl_get_ucode_image(priv, ucode_type);
+	struct fw_img *img = iwl_get_ucode_image(trans, ucode_type);
 
 	if (!img) {
-		IWL_ERR(priv, "Invalid ucode requested (%d)\n", ucode_type);
+		IWL_ERR(trans, "Invalid ucode requested (%d)\n", ucode_type);
 		return -EINVAL;
 	}
 
-	if (!iwl_verify_inst_sparse(bus(priv), &img->code)) {
-		IWL_DEBUG_FW(priv, "uCode is good in inst SRAM\n");
+	if (!iwl_verify_inst_sparse(bus(trans), &img->code)) {
+		IWL_DEBUG_FW(trans, "uCode is good in inst SRAM\n");
 		return 0;
 	}
 
-	IWL_ERR(priv, "UCODE IMAGE IN INSTRUCTION SRAM NOT VALID!!\n");
+	IWL_ERR(trans, "UCODE IMAGE IN INSTRUCTION SRAM NOT VALID!!\n");
 
-	iwl_print_mismatch_inst(bus(priv), &img->code);
+	iwl_print_mismatch_inst(bus(trans), &img->code);
 	return -EIO;
 }
 
@@ -551,12 +599,12 @@ static void iwlagn_alive_fn(struct iwl_priv *priv,
 #define UCODE_CALIB_TIMEOUT	(2*HZ)
 
 int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
-				 enum iwlagn_ucode_type ucode_type)
+				 enum iwl_ucode_type ucode_type)
 {
 	struct iwl_notification_wait alive_wait;
 	struct iwlagn_alive_data alive_data;
 	int ret;
-	enum iwlagn_ucode_type old_type;
+	enum iwl_ucode_type old_type;
 
 	ret = iwl_trans_start_device(trans(priv));
 	if (ret)
@@ -568,7 +616,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 	old_type = priv->ucode_type;
 	priv->ucode_type = ucode_type;
 
-	ret = iwlagn_load_given_ucode(priv, ucode_type);
+	ret = iwlagn_load_given_ucode(trans(priv), ucode_type);
 	if (ret) {
 		priv->ucode_type = old_type;
 		iwlagn_remove_notification(priv, &alive_wait);
@@ -599,7 +647,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 	 * skip it for WoWLAN.
 	 */
 	if (ucode_type != IWL_UCODE_WOWLAN) {
-		ret = iwl_verify_ucode(priv, ucode_type);
+		ret = iwl_verify_ucode(trans(priv), ucode_type);
 		if (ret) {
 			priv->ucode_type = old_type;
 			return ret;
@@ -628,7 +676,7 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 	lockdep_assert_held(&priv->shrd->mutex);
 
 	/* No init ucode required? Curious, but maybe ok */
-	if (!priv->ucode_init.code.len)
+	if (!trans(priv)->ucode_init.code.len)
 		return 0;
 
 	if (priv->ucode_type != IWL_UCODE_NONE)

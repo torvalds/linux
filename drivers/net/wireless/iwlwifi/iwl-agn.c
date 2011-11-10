@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/skbuff.h>
@@ -450,52 +449,6 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 
 	IWL_DEBUG_INFO(priv, "device request: flush all tx frames\n");
 	iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
-}
-
-/******************************************************************************
- *
- * uCode download functions
- *
- ******************************************************************************/
-
-static void iwl_free_fw_desc(struct iwl_priv *priv, struct fw_desc *desc)
-{
-	if (desc->v_addr)
-		dma_free_coherent(bus(priv)->dev, desc->len,
-				  desc->v_addr, desc->p_addr);
-	desc->v_addr = NULL;
-	desc->len = 0;
-}
-
-static void iwl_free_fw_img(struct iwl_priv *priv, struct fw_img *img)
-{
-	iwl_free_fw_desc(priv, &img->code);
-	iwl_free_fw_desc(priv, &img->data);
-}
-
-static void iwl_dealloc_ucode(struct iwl_priv *priv)
-{
-	iwl_free_fw_img(priv, &priv->ucode_rt);
-	iwl_free_fw_img(priv, &priv->ucode_init);
-	iwl_free_fw_img(priv, &priv->ucode_wowlan);
-}
-
-static int iwl_alloc_fw_desc(struct iwl_priv *priv, struct fw_desc *desc,
-			     const void *data, size_t len)
-{
-	if (!len) {
-		desc->v_addr = NULL;
-		return -EINVAL;
-	}
-
-	desc->v_addr = dma_alloc_coherent(bus(priv)->dev, len,
-					  &desc->p_addr, GFP_KERNEL);
-	if (!desc->v_addr)
-		return -ENOMEM;
-
-	desc->len = len;
-	memcpy(desc->v_addr, data, len);
-	return 0;
 }
 
 static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
@@ -1040,30 +993,32 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	/* Runtime instructions and 2 copies of data:
 	 * 1) unmodified from disk
 	 * 2) backup cache for save/restore during power-downs */
-	if (iwl_alloc_fw_desc(priv, &priv->ucode_rt.code,
+	if (iwl_alloc_fw_desc(bus(priv), &trans(priv)->ucode_rt.code,
 			      pieces.inst, pieces.inst_size))
 		goto err_pci_alloc;
-	if (iwl_alloc_fw_desc(priv, &priv->ucode_rt.data,
+	if (iwl_alloc_fw_desc(bus(priv), &trans(priv)->ucode_rt.data,
 			      pieces.data, pieces.data_size))
 		goto err_pci_alloc;
 
 	/* Initialization instructions and data */
 	if (pieces.init_size && pieces.init_data_size) {
-		if (iwl_alloc_fw_desc(priv, &priv->ucode_init.code,
+		if (iwl_alloc_fw_desc(bus(priv), &trans(priv)->ucode_init.code,
 				      pieces.init, pieces.init_size))
 			goto err_pci_alloc;
-		if (iwl_alloc_fw_desc(priv, &priv->ucode_init.data,
+		if (iwl_alloc_fw_desc(bus(priv), &trans(priv)->ucode_init.data,
 				      pieces.init_data, pieces.init_data_size))
 			goto err_pci_alloc;
 	}
 
 	/* WoWLAN instructions and data */
 	if (pieces.wowlan_inst_size && pieces.wowlan_data_size) {
-		if (iwl_alloc_fw_desc(priv, &priv->ucode_wowlan.code,
+		if (iwl_alloc_fw_desc(bus(priv),
+				      &trans(priv)->ucode_wowlan.code,
 				      pieces.wowlan_inst,
 				      pieces.wowlan_inst_size))
 			goto err_pci_alloc;
-		if (iwl_alloc_fw_desc(priv, &priv->ucode_wowlan.data,
+		if (iwl_alloc_fw_desc(bus(priv),
+				      &trans(priv)->ucode_wowlan.data,
 				      pieces.wowlan_data,
 				      pieces.wowlan_data_size))
 			goto err_pci_alloc;
@@ -1156,7 +1111,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 
  err_pci_alloc:
 	IWL_ERR(priv, "failed to allocate pci memory\n");
-	iwl_dealloc_ucode(priv);
+	iwl_dealloc_ucode(trans(priv));
  out_unbind:
 	complete(&priv->firmware_loading_complete);
 	device_release_driver(bus(priv)->dev);
@@ -1697,7 +1652,8 @@ static int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
 			    WIPHY_FLAG_IBSS_RSN;
 
-	if (priv->ucode_wowlan.code.len && device_can_wakeup(bus(priv)->dev)) {
+	if (trans(priv)->ucode_wowlan.code.len &&
+	    device_can_wakeup(bus(priv)->dev)) {
 		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					  WIPHY_WOWLAN_DISCONNECT |
 					  WIPHY_WOWLAN_EAP_IDENTITY_REQ |
@@ -2241,15 +2197,16 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (ret == 0) {
+			struct iwl_trans *trans = trans(priv);
 			if (!priv->wowlan_sram)
 				priv->wowlan_sram =
-					kzalloc(priv->ucode_wowlan.data.len,
+					kzalloc(trans->ucode_wowlan.data.len,
 						GFP_KERNEL);
 
 			if (priv->wowlan_sram)
 				_iwl_read_targ_mem_words(
 					bus(priv), 0x800000, priv->wowlan_sram,
-					priv->ucode_wowlan.data.len / 4);
+					trans->ucode_wowlan.data.len / 4);
 		}
 #endif
 	}
@@ -3400,7 +3357,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	/*This will stop the queues, move the device to low power state */
 	iwl_trans_stop_device(trans(priv));
 
-	iwl_dealloc_ucode(priv);
+	iwl_dealloc_ucode(trans(priv));
 
 	iwl_eeprom_free(priv);
 
