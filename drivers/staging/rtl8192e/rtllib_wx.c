@@ -368,11 +368,10 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		struct rtllib_crypt_data *new_crypt;
 
 		/* take WEP into use */
-		new_crypt = kmalloc(sizeof(struct rtllib_crypt_data),
+		new_crypt = kzalloc(sizeof(struct rtllib_crypt_data),
 				    GFP_KERNEL);
 		if (new_crypt == NULL)
 			return -ENOMEM;
-		memset(new_crypt, 0, sizeof(struct rtllib_crypt_data));
 		new_crypt->ops = rtllib_get_crypto_ops("WEP");
 		if (!new_crypt->ops) {
 			request_module("rtllib_crypt_wep");
