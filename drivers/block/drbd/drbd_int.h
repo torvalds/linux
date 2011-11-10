@@ -1062,8 +1062,8 @@ extern void drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev);
 extern int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags flags);
 extern int _conn_send_state_req(struct drbd_tconn *, int vnr, enum drbd_packet cmd,
 				union drbd_state, union drbd_state);
-extern int _drbd_send_state(struct drbd_conf *mdev);
-extern int drbd_send_state(struct drbd_conf *mdev);
+extern int drbd_send_state(struct drbd_conf *mdev, union drbd_state s);
+extern int drbd_send_current_state(struct drbd_conf *mdev);
 extern int drbd_send_sync_param(struct drbd_conf *mdev);
 extern void drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
 			    u32 set_size);

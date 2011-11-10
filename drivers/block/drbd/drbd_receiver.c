@@ -825,7 +825,7 @@ int drbd_connected(struct drbd_conf *mdev)
 	if (!err)
 		err = drbd_send_uuids(mdev);
 	if (!err)
-		err = drbd_send_state(mdev);
+		err = drbd_send_current_state(mdev);
 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
 	clear_bit(RESIZE_PENDING, &mdev->flags);
 	mod_timer(&mdev->request_timer, jiffies + HZ); /* just start it here. */
@@ -3873,7 +3873,7 @@ static int receive_state(struct drbd_tconn *tconn, struct packet_info *pi)
 			/* Nowadays only used when forcing a node into primary role and
 			   setting its disk to UpToDate with that */
 			drbd_send_uuids(mdev);
-			drbd_send_state(mdev);
+			drbd_send_current_state(mdev);
 		}
 	}
 

@@ -1148,10 +1148,10 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 }
 
 /**
- * drbd_send_state() - Sends the drbd state to the peer
+ * drbd_send_current_state() - Sends the drbd state to the peer
  * @mdev:	DRBD device.
  */
-int drbd_send_state(struct drbd_conf *mdev)
+int drbd_send_current_state(struct drbd_conf *mdev)
 {
 	struct drbd_socket *sock;
 	struct p_state *p;
@@ -1161,6 +1161,29 @@ int drbd_send_state(struct drbd_conf *mdev)
 	if (!p)
 		return -EIO;
 	p->state = cpu_to_be32(mdev->state.i); /* Within the send mutex */
+	return drbd_send_command(mdev, sock, P_STATE, sizeof(*p), NULL, 0);
+}
+
+/**
+ * drbd_send_state() - After a state change, sends the new state to the peer
+ * @mdev:      DRBD device.
+ * @state:     the state to send, not necessarily the current state.
+ *
+ * Each state change queues an "after_state_ch" work, which will eventually
+ * send the resulting new state to the peer. If more state changes happen
+ * between queuing and processing of the after_state_ch work, we still
+ * want to send each intermediary state in the order it occurred.
+ */
+int drbd_send_state(struct drbd_conf *mdev, union drbd_state state)
+{
+	struct drbd_socket *sock;
+	struct p_state *p;
+
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
+	p->state = cpu_to_be32(state.i); /* Within the send mutex */
 	return drbd_send_command(mdev, sock, P_STATE, sizeof(*p), NULL, 0);
 }
 
@@ -1176,7 +1199,6 @@ int drbd_send_state_req(struct drbd_conf *mdev, union drbd_state mask, union drb
 	p->mask = cpu_to_be32(mask.i);
 	p->val = cpu_to_be32(val.i);
 	return drbd_send_command(mdev, sock, P_STATE_CHG_REQ, sizeof(*p), NULL, 0);
-
 }
 
 int conn_send_state_req(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val)
@@ -3003,7 +3025,7 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 		goto err;
 	}
 	if (magic != DRBD_MD_MAGIC_08) {
-		if (magic == DRBD_MD_MAGIC_07) 
+		if (magic == DRBD_MD_MAGIC_07)
 			dev_err(DEV, "Found old (0.7) meta data magic. Did you \"drbdadm create-md\"?\n");
 		else
 			dev_err(DEV, "Meta data magic not found. Did you \"drbdadm create-md\"?\n");

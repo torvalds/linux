@@ -1198,7 +1198,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	if (os.pdsk == D_DISKLESS &&
 	    ns.pdsk > D_DISKLESS && ns.pdsk != D_UNKNOWN) {      /* attach on the peer */
 		drbd_send_uuids(mdev);
-		drbd_send_state(mdev);
+		drbd_send_state(mdev, ns);
 	}
 	/* No point in queuing send_bitmap if we don't have a connection
 	 * anymore, so check also the _current_ state, not only the new state
@@ -1263,14 +1263,14 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	    os.disk == D_ATTACHING && ns.disk == D_NEGOTIATING) {
 		drbd_send_sizes(mdev, 0, 0);  /* to start sync... */
 		drbd_send_uuids(mdev);
-		drbd_send_state(mdev);
+		drbd_send_state(mdev, ns);
 	}
 
 	/* We want to pause/continue resync, tell peer. */
 	if (ns.conn >= C_CONNECTED &&
 	     ((os.aftr_isp != ns.aftr_isp) ||
 	      (os.user_isp != ns.user_isp)))
-		drbd_send_state(mdev);
+		drbd_send_state(mdev, ns);
 
 	/* In case one of the isp bits got set, suspend other devices. */
 	if ((!os.aftr_isp && !os.peer_isp && !os.user_isp) &&
@@ -1280,10 +1280,10 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	/* Make sure the peer gets informed about eventual state
 	   changes (ISP bits) while we were in WFReportParams. */
 	if (os.conn == C_WF_REPORT_PARAMS && ns.conn >= C_CONNECTED)
-		drbd_send_state(mdev);
+		drbd_send_state(mdev, ns);
 
 	if (os.conn != C_AHEAD && ns.conn == C_AHEAD)
-		drbd_send_state(mdev);
+		drbd_send_state(mdev, ns);
 
 	/* We are in the progress to start a full sync... */
 	if ((os.conn != C_STARTING_SYNC_T && ns.conn == C_STARTING_SYNC_T) ||
@@ -1325,7 +1325,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 				"ASSERT FAILED: disk is %s during detach\n",
 				drbd_disk_str(mdev->state.disk));
 
-		drbd_send_state(mdev);
+		drbd_send_state(mdev, ns);
 		drbd_rs_cancel_all(mdev);
 
 		/* In case we want to get something to stable storage still,
@@ -1353,7 +1353,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
                 mdev->rs_failed = 0;
                 atomic_set(&mdev->rs_pending_cnt, 0);
 
-		drbd_send_state(mdev);
+		drbd_send_state(mdev, ns);
 		/* corresponding get_ldev in __drbd_set_state
 		 * this may finally trigger drbd_ldev_destroy. */
 		put_ldev(mdev);
@@ -1361,7 +1361,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 	/* Notify peer that I had a local IO error, and did not detached.. */
 	if (os.disk == D_UP_TO_DATE && ns.disk == D_INCONSISTENT)
-		drbd_send_state(mdev);
+		drbd_send_state(mdev, ns);
 
 	/* Disks got bigger while they were detached */
 	if (ns.disk > D_NEGOTIATING && ns.pdsk > D_NEGOTIATING &&
@@ -1379,7 +1379,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	/* sync target done with resync.  Explicitly notify peer, even though
 	 * it should (at least for non-empty resyncs) already know itself. */
 	if (os.disk < D_UP_TO_DATE && os.conn >= C_SYNC_SOURCE && ns.conn == C_CONNECTED)
-		drbd_send_state(mdev);
+		drbd_send_state(mdev, ns);
 
 	/* This triggers bitmap writeout of potentially still unwritten pages
 	 * if the resync finished cleanly, or aborted because of peer disk
