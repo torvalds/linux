@@ -23,10 +23,14 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/leds.h>
+#include <linux/mmc/host.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1000_dma.h>
+#include <asm/mach-au1x00/au1100_mmc.h>
 #include <asm/mach-db1x00/bcsr.h>
 #include <asm/reboot.h>
 #include <prom.h>
@@ -194,6 +198,198 @@ static struct platform_device db1x00_audio_dev = {
 	.name		= "db1000-audio",
 };
 
+/******************************************************************************/
+
+static irqreturn_t db1100_mmc_cd(int irq, void *ptr)
+{
+	void (*mmc_cd)(struct mmc_host *, unsigned long);
+	/* link against CONFIG_MMC=m */
+	mmc_cd = symbol_get(mmc_detect_change);
+	mmc_cd(ptr, msecs_to_jiffies(500));
+	symbol_put(mmc_detect_change);
+
+	return IRQ_HANDLED;
+}
+
+static int db1100_mmc_cd_setup(void *mmc_host, int en)
+{
+	int ret = 0;
+
+	if (en) {
+		irq_set_irq_type(AU1100_GPIO19_INT, IRQ_TYPE_EDGE_BOTH);
+		ret = request_irq(AU1100_GPIO19_INT, db1100_mmc_cd, 0,
+				  "sd0_cd", mmc_host);
+	} else
+		free_irq(AU1100_GPIO19_INT, mmc_host);
+	return ret;
+}
+
+static int db1100_mmc1_cd_setup(void *mmc_host, int en)
+{
+	int ret = 0;
+
+	if (en) {
+		irq_set_irq_type(AU1100_GPIO20_INT, IRQ_TYPE_EDGE_BOTH);
+		ret = request_irq(AU1100_GPIO20_INT, db1100_mmc_cd, 0,
+				  "sd1_cd", mmc_host);
+	} else
+		free_irq(AU1100_GPIO20_INT, mmc_host);
+	return ret;
+}
+
+static int db1100_mmc_card_readonly(void *mmc_host)
+{
+	/* testing suggests that this bit is inverted */
+	return (bcsr_read(BCSR_STATUS) & BCSR_STATUS_SD0WP) ? 0 : 1;
+}
+
+static int db1100_mmc_card_inserted(void *mmc_host)
+{
+	return !alchemy_gpio_get_value(19);
+}
+
+static void db1100_mmc_set_power(void *mmc_host, int state)
+{
+	if (state) {
+		bcsr_mod(BCSR_BOARD, 0, BCSR_BOARD_SD0PWR);
+		msleep(400);	/* stabilization time */
+	} else
+		bcsr_mod(BCSR_BOARD, BCSR_BOARD_SD0PWR, 0);
+}
+
+static void db1100_mmcled_set(struct led_classdev *led, enum led_brightness b)
+{
+	if (b != LED_OFF)
+		bcsr_mod(BCSR_LEDS, BCSR_LEDS_LED0, 0);
+	else
+		bcsr_mod(BCSR_LEDS, 0, BCSR_LEDS_LED0);
+}
+
+static struct led_classdev db1100_mmc_led = {
+	.brightness_set	= db1100_mmcled_set,
+};
+
+static int db1100_mmc1_card_readonly(void *mmc_host)
+{
+	return (bcsr_read(BCSR_BOARD) & BCSR_BOARD_SD1WP) ? 1 : 0;
+}
+
+static int db1100_mmc1_card_inserted(void *mmc_host)
+{
+	return !alchemy_gpio_get_value(20);
+}
+
+static void db1100_mmc1_set_power(void *mmc_host, int state)
+{
+	if (state) {
+		bcsr_mod(BCSR_BOARD, 0, BCSR_BOARD_SD1PWR);
+		msleep(400);	/* stabilization time */
+	} else
+		bcsr_mod(BCSR_BOARD, BCSR_BOARD_SD1PWR, 0);
+}
+
+static void db1100_mmc1led_set(struct led_classdev *led, enum led_brightness b)
+{
+	if (b != LED_OFF)
+		bcsr_mod(BCSR_LEDS, BCSR_LEDS_LED1, 0);
+	else
+		bcsr_mod(BCSR_LEDS, 0, BCSR_LEDS_LED1);
+}
+
+static struct led_classdev db1100_mmc1_led = {
+	.brightness_set	= db1100_mmc1led_set,
+};
+
+static struct au1xmmc_platform_data db1100_mmc_platdata[2] = {
+	[0] = {
+		.cd_setup	= db1100_mmc_cd_setup,
+		.set_power	= db1100_mmc_set_power,
+		.card_inserted	= db1100_mmc_card_inserted,
+		.card_readonly	= db1100_mmc_card_readonly,
+		.led		= &db1100_mmc_led,
+	},
+	[1] = {
+		.cd_setup	= db1100_mmc1_cd_setup,
+		.set_power	= db1100_mmc1_set_power,
+		.card_inserted	= db1100_mmc1_card_inserted,
+		.card_readonly	= db1100_mmc1_card_readonly,
+		.led		= &db1100_mmc1_led,
+	},
+};
+
+static struct resource au1100_mmc0_resources[] = {
+	[0] = {
+		.start	= AU1100_SD0_PHYS_ADDR,
+		.end	= AU1100_SD0_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AU1100_SD_INT,
+		.end	= AU1100_SD_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= DMA_ID_SD0_TX,
+		.end	= DMA_ID_SD0_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= DMA_ID_SD0_RX,
+		.end	= DMA_ID_SD0_RX,
+		.flags	= IORESOURCE_DMA,
+	}
+};
+
+static u64 au1xxx_mmc_dmamask =  DMA_BIT_MASK(32);
+
+static struct platform_device db1100_mmc0_dev = {
+	.name		= "au1xxx-mmc",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &au1xxx_mmc_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &db1100_mmc_platdata[0],
+	},
+	.num_resources	= ARRAY_SIZE(au1100_mmc0_resources),
+	.resource	= au1100_mmc0_resources,
+};
+
+static struct resource au1100_mmc1_res[] = {
+	[0] = {
+		.start	= AU1100_SD1_PHYS_ADDR,
+		.end	= AU1100_SD1_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AU1100_SD_INT,
+		.end	= AU1100_SD_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= DMA_ID_SD1_TX,
+		.end	= DMA_ID_SD1_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= DMA_ID_SD1_RX,
+		.end	= DMA_ID_SD1_RX,
+		.flags	= IORESOURCE_DMA,
+	}
+};
+
+static struct platform_device db1100_mmc1_dev = {
+	.name		= "au1xxx-mmc",
+	.id		= 1,
+	.dev = {
+		.dma_mask		= &au1xxx_mmc_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &db1100_mmc_platdata[1],
+	},
+	.num_resources	= ARRAY_SIZE(au1100_mmc1_res),
+	.resource	= au1100_mmc1_res,
+};
+
+
 static struct platform_device *db1x00_devs[] = {
 	&db1x00_codec_dev,
 	&alchemy_ac97c_dma_dev,
@@ -203,6 +399,8 @@ static struct platform_device *db1x00_devs[] = {
 
 static struct platform_device *db1100_devs[] = {
 	&au1100_lcd_device,
+	&db1100_mmc0_dev,
+	&db1100_mmc1_dev,
 };
 
 static int __init db1000_dev_init(void)
@@ -224,6 +422,10 @@ static int __init db1000_dev_init(void)
 		d1 = AU1100_GPIO3_INT;
 		s0 = AU1100_GPIO1_INT;
 		s1 = AU1100_GPIO4_INT;
+
+		gpio_direction_input(19);	/* sd0 cd# */
+		gpio_direction_input(20);	/* sd1 cd# */
+
 		platform_add_devices(db1100_devs, ARRAY_SIZE(db1100_devs));
 	} else if (board == BCSR_WHOAMI_DB1000) {
 		c0 = AU1000_GPIO2_INT;
