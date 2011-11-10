@@ -619,13 +619,6 @@ brcms_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	wl->pub->global_ampdu->scb = scb;
 	wl->pub->global_ampdu->max_pdu = 16;
 
-	sta->ht_cap.ht_supported = true;
-	sta->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
-	sta->ht_cap.ampdu_density = AMPDU_DEF_MPDU_DENSITY;
-	sta->ht_cap.cap = IEEE80211_HT_CAP_GRN_FLD |
-	    IEEE80211_HT_CAP_SGI_20 |
-	    IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_40MHZ_INTOLERANT;
-
 	/*
 	 * minstrel_ht initiates addBA on our behalf by calling
 	 * ieee80211_start_tx_ba_session()
