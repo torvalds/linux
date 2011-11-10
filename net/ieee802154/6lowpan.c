@@ -973,13 +973,12 @@ static void lowpan_setup(struct net_device *dev)
 	dev->addr_len		= IEEE802154_ADDR_LEN;
 	memset(dev->broadcast, 0xff, IEEE802154_ADDR_LEN);
 	dev->type		= ARPHRD_IEEE802154;
-	dev->features		= NETIF_F_NO_CSUM;
 	/* Frame Control + Sequence Number + Address fields + Security Header */
 	dev->hard_header_len	= 2 + 1 + 20 + 14;
 	dev->needed_tailroom	= 2; /* FCS */
 	dev->mtu		= 1281;
 	dev->tx_queue_len	= 0;
-	dev->flags		= IFF_NOARP | IFF_BROADCAST;
+	dev->flags		= IFF_BROADCAST | IFF_MULTICAST;
 	dev->watchdog_timeo	= 0;
 
 	dev->netdev_ops		= &lowpan_netdev_ops;
