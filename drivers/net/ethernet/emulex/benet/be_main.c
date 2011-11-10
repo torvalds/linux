@@ -3569,6 +3569,8 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 
 	dev_info(&adapter->pdev->dev, "EEH reset\n");
 	adapter->eeh_err = false;
+	adapter->ue_detected = false;
+	adapter->fw_timeout = false;
 
 	status = pci_enable_device(pdev);
 	if (status)
