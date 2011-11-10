@@ -86,6 +86,7 @@ struct fiq_debugger_state {
 	struct tty_struct *tty;
 	int tty_open_count;
 	struct fiq_debugger_ringbuf *tty_rbuf;
+	bool syslog_dumping;
 #endif
 
 	unsigned int last_irqs[NR_IRQS];
@@ -496,14 +497,29 @@ static void do_ps(struct fiq_debugger_state *state)
 	read_unlock(&tasklist_lock);
 }
 
+#ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
+static void begin_syslog_dump(struct fiq_debugger_state *state)
+{
+	state->syslog_dumping = true;
+}
+
+static void end_syslog_dump(struct fiq_debugger_state *state)
+{
+	state->syslog_dumping = false;
+}
+#else
 extern int do_syslog(int type, char __user *bug, int count);
-static void do_sysrq(struct fiq_debugger_state *state, char rq)
+static void begin_syslog_dump(struct fiq_debugger_state *state)
+{
+	do_syslog(5 /* clear */, NULL, 0);
+}
+
+static void end_syslog_dump(struct fiq_debugger_state *state)
 {
 	char buf[128];
 	int ret;
 	int idx = 0;
-	do_syslog(5 /* clear */, NULL, 0);
-	handle_sysrq(rq);
+
 	while (1) {
 		ret = log_buf_copy(buf, idx, sizeof(buf) - 1);
 		if (ret <= 0)
@@ -512,6 +528,14 @@ static void do_sysrq(struct fiq_debugger_state *state, char rq)
 		debug_printf(state, "%s", buf);
 		idx += ret;
 	}
+}
+#endif
+
+static void do_sysrq(struct fiq_debugger_state *state, char rq)
+{
+	begin_syslog_dump(state);
+	handle_sysrq(rq);
+	end_syslog_dump(state);
 }
 
 /* This function CANNOT be called in FIQ context */
@@ -871,7 +895,7 @@ static void debug_console_write(struct console *co,
 
 	state = container_of(co, struct fiq_debugger_state, console);
 
-	if (!state->console_enable)
+	if (!state->console_enable && !state->syslog_dumping)
 		return;
 
 	debug_uart_enable(state);
