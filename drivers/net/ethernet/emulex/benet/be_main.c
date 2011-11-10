@@ -2007,7 +2007,8 @@ void be_detect_dump_ue(struct be_adapter *adapter)
 		sliport_status & SLIPORT_STATUS_ERR_MASK) {
 		adapter->ue_detected = true;
 		adapter->eeh_err = true;
-		dev_err(&adapter->pdev->dev, "UE Detected!!\n");
+		dev_err(&adapter->pdev->dev,
+			"Unrecoverable error in the card\n");
 	}
 
 	if (ue_lo) {
