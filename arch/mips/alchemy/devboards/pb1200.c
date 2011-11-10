@@ -20,17 +20,97 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/smc91x.h>
-
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
 #include <asm/mach-db1x00/bcsr.h>
 #include <asm/mach-pb1x00/pb1200.h>
+#include <prom.h>
+#include "platform.h"
 
-#include "../platform.h"
+
+const char *get_system_type(void)
+{
+	return "PB1200";
+}
+
+void __init board_setup(void)
+{
+	printk(KERN_INFO "AMD Alchemy Pb1200 Board\n");
+	bcsr_init(PB1200_BCSR_PHYS_ADDR,
+		  PB1200_BCSR_PHYS_ADDR + PB1200_BCSR_HEXLED_OFS);
+
+#if 0
+	{
+		u32 pin_func;
+
+		/*
+		 * Enable PSC1 SYNC for AC97.  Normaly done in audio driver,
+		 * but it is board specific code, so put it here.
+		 */
+		pin_func = au_readl(SYS_PINFUNC);
+		au_sync();
+		pin_func |= SYS_PF_MUST_BE_SET | SYS_PF_PSC1_S1;
+		au_writel(pin_func, SYS_PINFUNC);
+
+		au_writel(0, (u32)bcsr | 0x10); /* turn off PCMCIA power */
+		au_sync();
+	}
+#endif
+
+#if defined(CONFIG_I2C_AU1550)
+	{
+		u32 freq0, clksrc;
+		u32 pin_func;
+
+		/* Select SMBus in CPLD */
+		bcsr_mod(BCSR_RESETS, BCSR_RESETS_PSC0MUX, 0);
+
+		pin_func = au_readl(SYS_PINFUNC);
+		au_sync();
+		pin_func &= ~(SYS_PINFUNC_P0A | SYS_PINFUNC_P0B);
+		/* Set GPIOs correctly */
+		pin_func |= 2 << 17;
+		au_writel(pin_func, SYS_PINFUNC);
+		au_sync();
+
+		/* The I2C driver depends on 50 MHz clock */
+		freq0 = au_readl(SYS_FREQCTRL0);
+		au_sync();
+		freq0 &= ~(SYS_FC_FRDIV1_MASK | SYS_FC_FS1 | SYS_FC_FE1);
+		freq0 |= 3 << SYS_FC_FRDIV1_BIT;
+		/* 396 MHz / (3 + 1) * 2 == 49.5 MHz */
+		au_writel(freq0, SYS_FREQCTRL0);
+		au_sync();
+		freq0 |= SYS_FC_FE1;
+		au_writel(freq0, SYS_FREQCTRL0);
+		au_sync();
+
+		clksrc = au_readl(SYS_CLKSRC);
+		au_sync();
+		clksrc &= ~(SYS_CS_CE0 | SYS_CS_DE0 | SYS_CS_ME0_MASK);
+		/* Bit 22 is EXTCLK0 for PSC0 */
+		clksrc |= SYS_CS_MUX_FQ1 << SYS_CS_ME0_BIT;
+		au_writel(clksrc, SYS_CLKSRC);
+		au_sync();
+	}
+#endif
+
+	/*
+	 * The Pb1200 development board uses external MUX for PSC0 to
+	 * support SMB/SPI. bcsr_resets bit 12: 0=SMB 1=SPI
+	 */
+#ifdef CONFIG_I2C_AU1550
+	bcsr_mod(BCSR_RESETS, BCSR_RESETS_PSC0MUX, 0);
+#endif
+	au_sync();
+}
+
+/******************************************************************************/
 
 static int mmc_activity;
 
@@ -183,7 +263,7 @@ static struct platform_device pb1200_mmc1_dev = {
 static struct resource ide_resources[] = {
 	[0] = {
 		.start	= IDE_PHYS_ADDR,
-		.end 	= IDE_PHYS_ADDR + IDE_PHYS_LEN - 1,
+		.end	= IDE_PHYS_ADDR + IDE_PHYS_LEN - 1,
 		.flags	= IORESOURCE_MEM
 	},
 	[1] = {
@@ -198,13 +278,13 @@ static struct resource ide_resources[] = {
 	},
 };
 
-static u64 ide_dmamask = DMA_BIT_MASK(32);
+static u64 au1200_ide_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device ide_device = {
 	.name		= "au1200-ide",
 	.id		= 0,
 	.dev = {
-		.dma_mask 		= &ide_dmamask,
+		.dma_mask		= &au1200_ide_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(ide_resources),
@@ -310,6 +390,29 @@ static int __init board_register_devices(void)
 {
 	int swapped;
 
+	/* We have a problem with CPLD rev 3. */
+	if (BCSR_WHOAMI_CPLD(bcsr_read(BCSR_WHOAMI)) <= 3) {
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "Pb1200 must be at CPLD rev 4. Please have Pb1200\n");
+		printk(KERN_ERR "updated to latest revision. This software will\n");
+		printk(KERN_ERR "not work on anything less than CPLD rev 4.\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		panic("Game over.  Your score is 0.");
+	}
+
+	irq_set_irq_type(AU1200_GPIO7_INT, IRQF_TRIGGER_LOW);
+	bcsr_init_irq(PB1200_INT_BEGIN, PB1200_INT_END, AU1200_GPIO7_INT);
+
 	db1x_register_pcmcia_socket(
 		AU1000_PCMCIA_ATTR_PHYS_ADDR,
 		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x000400000 - 1,
@@ -337,3 +440,25 @@ static int __init board_register_devices(void)
 				    ARRAY_SIZE(board_platform_devices));
 }
 device_initcall(board_register_devices);
+
+
+int board_au1200fb_panel(void)
+{
+	return (bcsr_read(BCSR_SWITCHES) >> 8) & 0x0f;
+}
+
+int board_au1200fb_panel_init(void)
+{
+	/* Apply power */
+	bcsr_mod(BCSR_BOARD, 0, BCSR_BOARD_LCDVEE | BCSR_BOARD_LCDVDD |
+				BCSR_BOARD_LCDBL);
+	return 0;
+}
+
+int board_au1200fb_panel_shutdown(void)
+{
+	/* Remove power */
+	bcsr_mod(BCSR_BOARD, BCSR_BOARD_LCDVEE | BCSR_BOARD_LCDVDD |
+			     BCSR_BOARD_LCDBL, 0);
+	return 0;
+}

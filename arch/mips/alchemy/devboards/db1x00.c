@@ -1,7 +1,8 @@
 /*
- * DBAu1xxx board platform device registration
+ * DBAu1000/1500/1100 board support
  *
- * Copyright (C) 2009 Manuel Lauss
+ * Copyright 2000, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,20 +19,61 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/dma-mapping.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-
+#include <linux/pm.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1000_dma.h>
 #include <asm/mach-db1x00/bcsr.h>
-#include "../platform.h"
+#include <asm/reboot.h>
+#include <prom.h>
+#include "platform.h"
 
 struct pci_dev;
 
+const char *get_system_type(void)
+{
+	return "Alchemy Db1x00";
+}
+
+void __init board_setup(void)
+{
+#ifdef CONFIG_MIPS_DB1000
+	printk(KERN_INFO "AMD Alchemy Au1000/Db1000 Board\n");
+#endif
+#ifdef CONFIG_MIPS_DB1500
+	printk(KERN_INFO "AMD Alchemy Au1500/Db1500 Board\n");
+#endif
+#ifdef CONFIG_MIPS_DB1100
+	printk(KERN_INFO "AMD Alchemy Au1100/Db1100 Board\n");
+#endif
+	/* initialize board register space */
+	bcsr_init(DB1000_BCSR_PHYS_ADDR,
+		  DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS);
+
+#if defined(CONFIG_IRDA) && defined(CONFIG_AU1000_FIR)
+	{
+		u32 pin_func;
+
+		/* Set IRFIRSEL instead of GPIO15 */
+		pin_func = au_readl(SYS_PINFUNC) | SYS_PF_IRF;
+		au_writel(pin_func, SYS_PINFUNC);
+		/* Power off until the driver is in use */
+		bcsr_mod(BCSR_RESETS, BCSR_RESETS_IRDA_MODE_MASK,
+			 BCSR_RESETS_IRDA_MODE_OFF);
+	}
+#endif
+	bcsr_write(BCSR_PCMCIA, 0);	/* turn off PCMCIA power */
+
+	/* Enable GPIO[31:0] inputs */
+	alchemy_gpio1_input_enable();
+}
+
 /* DB1xxx PCMCIA interrupt sources:
- * CD0/1 	GPIO0/3
+ * CD0/1	GPIO0/3
  * STSCHG0/1	GPIO1/4
  * CARD0/1	GPIO2/5
  */
@@ -174,6 +216,13 @@ static struct platform_device db1x00_audio_dev = {
 
 static int __init db1xxx_dev_init(void)
 {
+	irq_set_irq_type(DB1XXX_PCMCIA_CD0, IRQ_TYPE_EDGE_BOTH);
+	irq_set_irq_type(DB1XXX_PCMCIA_CD1, IRQ_TYPE_EDGE_BOTH);
+	irq_set_irq_type(DB1XXX_PCMCIA_CARD0, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(DB1XXX_PCMCIA_CARD1, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(DB1XXX_PCMCIA_STSCHG0, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(DB1XXX_PCMCIA_STSCHG1, IRQ_TYPE_LEVEL_LOW);
+
 	db1x_register_pcmcia_socket(
 		AU1000_PCMCIA_ATTR_PHYS_ADDR,
 		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x000400000 - 1,
@@ -201,7 +250,7 @@ static int __init db1xxx_dev_init(void)
 	platform_device_register(&alchemy_ac97c_dev);
 	platform_device_register(&db1x00_audio_dev);
 
-	db1x_register_norflash(0x02000000, 4 /* 32bit */, F_SWAPPED);
+	db1x_register_norflash(32 << 20, 4 /* 32bit */, F_SWAPPED);
 	return 0;
 }
 device_initcall(db1xxx_dev_init);

@@ -1,7 +1,7 @@
 /*
  * DBAu1200 board platform device registration
  *
- * Copyright (C) 2008-2009 Manuel Lauss
+ * Copyright (C) 2008-2011 Manuel Lauss
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/leds.h>
 #include <linux/mmc/host.h>
@@ -33,14 +34,64 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/smc91x.h>
-
+#include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
 #include <asm/mach-au1x00/au1550_spi.h>
 #include <asm/mach-db1x00/bcsr.h>
 #include <asm/mach-db1x00/db1200.h>
 
-#include "../platform.h"
+#include "platform.h"
+
+
+const char *get_system_type(void)
+{
+	return "DB1200";
+}
+
+void __init board_setup(void)
+{
+	unsigned long freq0, clksrc, div, pfc;
+	unsigned short whoami;
+
+	bcsr_init(DB1200_BCSR_PHYS_ADDR,
+		  DB1200_BCSR_PHYS_ADDR + DB1200_BCSR_HEXLED_OFS);
+
+	whoami = bcsr_read(BCSR_WHOAMI);
+	printk(KERN_INFO "Alchemy/AMD/RMI DB1200 Board, CPLD Rev %d"
+		"  Board-ID %d  Daughtercard ID %d\n",
+		(whoami >> 4) & 0xf, (whoami >> 8) & 0xf, whoami & 0xf);
+
+	/* SMBus/SPI on PSC0, Audio on PSC1 */
+	pfc = __raw_readl((void __iomem *)SYS_PINFUNC);
+	pfc &= ~(SYS_PINFUNC_P0A | SYS_PINFUNC_P0B);
+	pfc &= ~(SYS_PINFUNC_P1A | SYS_PINFUNC_P1B | SYS_PINFUNC_FS3);
+	pfc |= SYS_PINFUNC_P1C;	/* SPI is configured later */
+	__raw_writel(pfc, (void __iomem *)SYS_PINFUNC);
+	wmb();
+
+	/* Clock configurations: PSC0: ~50MHz via Clkgen0, derived from
+	 * CPU clock; all other clock generators off/unused.
+	 */
+	div = (get_au1x00_speed() + 25000000) / 50000000;
+	if (div & 1)
+		div++;
+	div = ((div >> 1) - 1) & 0xff;
+
+	freq0 = div << SYS_FC_FRDIV0_BIT;
+	__raw_writel(freq0, (void __iomem *)SYS_FREQCTRL0);
+	wmb();
+	freq0 |= SYS_FC_FE0;	/* enable F0 */
+	__raw_writel(freq0, (void __iomem *)SYS_FREQCTRL0);
+	wmb();
+
+	/* psc0_intclk comes 1:1 from F0 */
+	clksrc = SYS_CS_MUX_FQ0 << SYS_CS_ME0_BIT;
+	__raw_writel(clksrc, (void __iomem *)SYS_CLKSRC);
+	wmb();
+}
+
+/******************************************************************************/
 
 static struct mtd_partition db1200_spiflash_parts[] = {
 	{
@@ -78,18 +129,9 @@ static struct spi_board_info db1200_spi_devs[] __initdata = {
 };
 
 static struct i2c_board_info db1200_i2c_devs[] __initdata = {
-	{
-		/* AT24C04-10 I2C eeprom */
-		I2C_BOARD_INFO("24c04", 0x52),
-	},
-	{
-		/* Philips NE1619 temp/voltage sensor (adm1025 drv) */
-		I2C_BOARD_INFO("ne1619", 0x2d),
-	},
-	{
-		/* I2S audio codec WM8731 */
-		I2C_BOARD_INFO("wm8731", 0x1b),
-	},
+	{ I2C_BOARD_INFO("24c04", 0x52),  }, /* AT24C04-10 I2C eeprom */
+	{ I2C_BOARD_INFO("ne1619", 0x2d), }, /* adm1025-compat hwmon */
+	{ I2C_BOARD_INFO("wm8731", 0x1b), }, /* I2S audio codec WM8731 */
 };
 
 /**********************************************************************/
@@ -206,7 +248,7 @@ static struct platform_device db1200_eth_dev = {
 static struct resource db1200_ide_res[] = {
 	[0] = {
 		.start	= DB1200_IDE_PHYS_ADDR,
-		.end 	= DB1200_IDE_PHYS_ADDR + DB1200_IDE_PHYS_LEN - 1,
+		.end	= DB1200_IDE_PHYS_ADDR + DB1200_IDE_PHYS_LEN - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -221,13 +263,13 @@ static struct resource db1200_ide_res[] = {
 	},
 };
 
-static u64 ide_dmamask = DMA_BIT_MASK(32);
+static u64 au1200_ide_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device db1200_ide_dev = {
 	.name		= "au1200-ide",
 	.id		= 0,
 	.dev = {
-		.dma_mask 		= &ide_dmamask,
+		.dma_mask		= &au1200_ide_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(db1200_ide_res),
@@ -533,6 +575,21 @@ static int __init db1200_dev_init(void)
 	unsigned short sw;
 	int swapped;
 
+	/* GPIO7 is low-level triggered CPLD cascade */
+	irq_set_irq_type(AU1200_GPIO7_INT, IRQF_TRIGGER_LOW);
+	bcsr_init_irq(DB1200_INT_BEGIN, DB1200_INT_END, AU1200_GPIO7_INT);
+
+	/* insert/eject pairs: one of both is always screaming.  To avoid
+	 * issues they must not be automatically enabled when initially
+	 * requested.
+	 */
+	irq_set_status_flags(DB1200_SD0_INSERT_INT, IRQ_NOAUTOEN);
+	irq_set_status_flags(DB1200_SD0_EJECT_INT, IRQ_NOAUTOEN);
+	irq_set_status_flags(DB1200_PC0_INSERT_INT, IRQ_NOAUTOEN);
+	irq_set_status_flags(DB1200_PC0_EJECT_INT, IRQ_NOAUTOEN);
+	irq_set_status_flags(DB1200_PC1_INSERT_INT, IRQ_NOAUTOEN);
+	irq_set_status_flags(DB1200_PC1_EJECT_INT, IRQ_NOAUTOEN);
+
 	i2c_register_board_info(0, db1200_i2c_devs,
 				ARRAY_SIZE(db1200_i2c_devs));
 	spi_register_board_info(db1200_spi_devs,
@@ -595,7 +652,7 @@ static int __init db1200_dev_init(void)
 
 	/* Audio PSC clock is supplied externally. (FIXME: platdata!!) */
 	__raw_writel(PSC_SEL_CLK_SERCLK,
-		(void __iomem *)KSEG1ADDR(AU1550_PSC1_PHYS_ADDR) + PSC_SEL_OFFSET);
+	    (void __iomem *)KSEG1ADDR(AU1550_PSC1_PHYS_ADDR) + PSC_SEL_OFFSET);
 	wmb();
 
 	db1x_register_pcmcia_socket(
