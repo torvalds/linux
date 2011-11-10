@@ -1119,6 +1119,16 @@ static uint brcmf_sdbrcm_glom_len(struct brcmf_bus *bus)
 	return total;
 }
 
+static void brcmf_sdbrcm_free_glom(struct brcmf_bus *bus)
+{
+	struct sk_buff *cur, *next;
+
+	skb_queue_walk_safe(&bus->glom, cur, next) {
+		skb_unlink(cur, &bus->glom);
+		brcmu_pkt_buf_free_skb(cur);
+	}
+}
+
 static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 {
 	u16 dlen, totlen;
@@ -1203,11 +1213,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 			}
 			pfirst = pnext = NULL;
 		} else {
-			if (!skb_queue_empty(&bus->glom))
-				skb_queue_walk_safe(&bus->glom, pfirst, pnext) {
-					skb_unlink(pfirst, &bus->glom);
-					brcmu_pkt_buf_free_skb(pfirst);
-				}
+			brcmf_sdbrcm_free_glom(bus);
 			num = 0;
 		}
 
@@ -1274,10 +1280,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 				bus->glomerr = 0;
 				brcmf_sdbrcm_rxfail(bus, true, false);
 				bus->rxglomfail++;
-				skb_queue_walk_safe(&bus->glom, pfirst, pnext) {
-					skb_unlink(pfirst, &bus->glom);
-					brcmu_pkt_buf_free_skb(pfirst);
-				}
+				brcmf_sdbrcm_free_glom(bus);
 			}
 			return 0;
 		}
@@ -1399,10 +1402,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 				bus->glomerr = 0;
 				brcmf_sdbrcm_rxfail(bus, true, false);
 				bus->rxglomfail++;
-				skb_queue_walk_safe(&bus->glom, pfirst, pnext) {
-					skb_unlink(pfirst, &bus->glom);
-					brcmu_pkt_buf_free_skb(pfirst);
-				}
+				brcmf_sdbrcm_free_glom(bus);
 			}
 			bus->nextlen = 0;
 			return 0;
@@ -3369,8 +3369,6 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus)
 	u8 saveclk;
 	uint retries;
 	int err;
-	struct sk_buff *cur;
-	struct sk_buff *next;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3430,11 +3428,7 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus)
 	/* Clear any held glomming stuff */
 	if (bus->glomd)
 		brcmu_pkt_buf_free_skb(bus->glomd);
-	if (!skb_queue_empty(&bus->glom))
-		skb_queue_walk_safe(&bus->glom, cur, next) {
-			skb_unlink(cur, &bus->glom);
-			brcmu_pkt_buf_free_skb(cur);
-		}
+	brcmf_sdbrcm_free_glom(bus);
 
 	/* Clear rx control and wake any waiters */
 	bus->rxlen = 0;
