@@ -581,8 +581,6 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 		if (err == -EINPROGRESS)
 			goto out;
 
-		if (err == -EBUSY)
-			err = NET_XMIT_DROP;
 		goto out_free;
 	}
 
