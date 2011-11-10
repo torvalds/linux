@@ -340,7 +340,7 @@ static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev, "%s - failed submitting interrupt urb,"
 			" error %d\n", __func__, r);
 		ch341_close(port);
-		return -EPROTO;
+		goto out;
 	}
 
 	r = usb_serial_generic_open(tty, port);
