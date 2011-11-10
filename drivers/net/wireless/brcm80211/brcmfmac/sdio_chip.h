@@ -80,6 +80,8 @@ struct chip_info {
 			 u16 coreid);
 	void (*coredisable)(struct brcmf_sdio_dev *sdiodev,
 			struct chip_info *ci, u16 coreid);
+	void (*resetcore)(struct brcmf_sdio_dev *sdiodev,
+			struct chip_info *ci, u16 coreid);
 };
 
 struct sbconfig {
@@ -122,8 +124,6 @@ struct sbconfig {
 	u32 sbidhigh;	/* identification */
 };
 
-extern void brcmf_sdio_chip_resetcore(struct brcmf_sdio_dev *sdiodev,
-				      struct chip_info *ci, u16 coreid);
 extern int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 				  struct chip_info **ci_ptr, u32 regs);
 extern void brcmf_sdio_chip_detach(struct chip_info **ci_ptr);

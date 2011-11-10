@@ -3108,8 +3108,7 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 
 		ci->coredisable(bus->sdiodev, ci, BCMA_CORE_ARM_CM3);
 
-		brcmf_sdio_chip_resetcore(bus->sdiodev, ci,
-					  BCMA_CORE_INTERNAL_MEM);
+		ci->resetcore(bus->sdiodev, ci, BCMA_CORE_INTERNAL_MEM);
 
 		/* Clear the top bit of memory */
 		if (bus->ramsize) {
@@ -3133,7 +3132,7 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 		w_sdreg32(bus, 0xFFFFFFFF,
 			  offsetof(struct sdpcmd_regs, intstatus), &retries);
 
-		brcmf_sdio_chip_resetcore(bus->sdiodev, ci, BCMA_CORE_ARM_CM3);
+		ci->resetcore(bus->sdiodev, ci, BCMA_CORE_ARM_CM3);
 
 		/* Allow HT Clock now that the ARM is running. */
 		bus->alp_only = false;
