@@ -474,8 +474,6 @@ static void
 brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 			     struct chip_info *ci)
 {
-	u32 regdata;
-
 	/* get chipcommon rev */
 	ci->c_inf[0].rev = ci->corerev(sdiodev, ci, ci->c_inf[0].id);
 
@@ -492,9 +490,6 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 	}
 
 	ci->c_inf[1].rev = ci->corerev(sdiodev, ci, ci->c_inf[1].id);
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-				CORE_SB(ci->c_inf[1].base, sbidhigh), 4);
-	ci->c_inf[1].id = (regdata & SSB_IDHIGH_CC) >> SSB_IDHIGH_CC_SHIFT;
 
 	brcmf_dbg(INFO, "ccrev=%d, pmurev=%d, buscore rev/type=%d/0x%x\n",
 		  ci->c_inf[0].rev, ci->pmurev,
