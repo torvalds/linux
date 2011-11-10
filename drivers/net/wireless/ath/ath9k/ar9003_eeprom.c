@@ -5059,6 +5059,8 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 			regulatory->max_power_level = targetPowerValT2[i];
 	}
 
+	ath9k_hw_update_regulatory_maxpower(ah);
+
 	if (test)
 		return;
 
