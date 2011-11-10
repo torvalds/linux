@@ -37,7 +37,6 @@
 #define EVK_ECSPI1_CS1		IMX_GPIO_NR(3, 19)
 #define MX53EVK_LED		IMX_GPIO_NR(7, 7)
 
-#include "crm_regs.h"
 #include "devices-imx53.h"
 
 static iomux_v3_cfg_t mx53_evk_pads[] = {
