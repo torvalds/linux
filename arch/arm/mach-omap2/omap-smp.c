@@ -24,7 +24,8 @@
 #include <asm/hardware/gic.h>
 #include <asm/smp_scu.h>
 #include <mach/hardware.h>
-#include <mach/omap4-common.h>
+
+#include "common.h"
 
 /* SCU base address */
 static void __iomem *scu_base;

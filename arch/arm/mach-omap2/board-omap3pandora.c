@@ -41,7 +41,7 @@
 #include <asm/mach/map.h>
 
 #include <plat/board.h>
-#include <plat/common.h>
+#include "common.h"
 #include <mach/hardware.h>
 #include <plat/mcspi.h>
 #include <plat/usb.h>

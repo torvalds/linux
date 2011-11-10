@@ -37,7 +37,7 @@
 #include <plat/led.h>
 #include <plat/usb.h>
 #include <plat/board.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/gpmc.h>
 
 #include <video/omapdss.h>
