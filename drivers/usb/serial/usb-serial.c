@@ -260,6 +260,10 @@ static int serial_activate(struct tty_port *tport, struct tty_struct *tty)
 	else
 		retval = port->serial->type->open(tty, port);
 	mutex_unlock(&serial->disc_mutex);
+
+	if (retval < 0)
+		retval = usb_translate_errors(retval);
+
 	return retval;
 }
 
