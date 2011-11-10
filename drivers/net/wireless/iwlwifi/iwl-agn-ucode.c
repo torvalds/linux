@@ -125,6 +125,22 @@ static int iwlagn_load_section(struct iwl_trans *trans, const char *name,
 	return 0;
 }
 
+static inline struct fw_img *iwl_get_ucode_image(struct iwl_priv *priv,
+					enum iwlagn_ucode_type ucode_type)
+{
+	switch (ucode_type) {
+	case IWL_UCODE_INIT:
+		return &priv->ucode_init;
+	case IWL_UCODE_WOWLAN:
+		return &priv->ucode_wowlan;
+	case IWL_UCODE_REGULAR:
+		return &priv->ucode_rt;
+	case IWL_UCODE_NONE:
+		break;
+	}
+	return NULL;
+}
+
 static int iwlagn_load_given_ucode(struct iwl_priv *priv,
 				   struct fw_img *image)
 {
@@ -520,13 +536,18 @@ static void iwlagn_alive_fn(struct iwl_priv *priv,
 #define UCODE_CALIB_TIMEOUT	(2*HZ)
 
 int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
-				 struct fw_img *image,
 				 enum iwlagn_ucode_type ucode_type)
 {
 	struct iwl_notification_wait alive_wait;
 	struct iwlagn_alive_data alive_data;
 	int ret;
 	enum iwlagn_ucode_type old_type;
+	struct fw_img *image = iwl_get_ucode_image(priv, ucode_type);
+
+	if (!image) {
+		IWL_ERR(priv, "Invalid ucode requested (%d)\n", ucode_type);
+		return -EINVAL;
+	}
 
 	ret = iwl_trans_start_device(trans(priv));
 	if (ret)
@@ -609,8 +630,7 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 				      NULL, NULL);
 
 	/* Will also start the device */
-	ret = iwlagn_load_ucode_wait_alive(priv, &priv->ucode_init,
-					   IWL_UCODE_INIT);
+	ret = iwlagn_load_ucode_wait_alive(priv, IWL_UCODE_INIT);
 	if (ret)
 		goto error;
 

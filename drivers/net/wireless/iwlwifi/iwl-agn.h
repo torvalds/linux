@@ -95,7 +95,6 @@ int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
 void iwlagn_send_prio_tbl(struct iwl_priv *priv);
 int iwlagn_run_init_ucode(struct iwl_priv *priv);
 int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
-				 struct fw_img *image,
 				 enum iwlagn_ucode_type ucode_type);
 
 /* lib */

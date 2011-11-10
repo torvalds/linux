@@ -1452,9 +1452,7 @@ static int __iwl_up(struct iwl_priv *priv)
 		goto error;
 	}
 
-	ret = iwlagn_load_ucode_wait_alive(priv,
-					   &priv->ucode_rt,
-					   IWL_UCODE_REGULAR);
+	ret = iwlagn_load_ucode_wait_alive(priv, IWL_UCODE_REGULAR);
 	if (ret) {
 		IWL_ERR(priv, "Failed to start RT ucode: %d\n", ret);
 		goto error;
@@ -2102,8 +2100,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 
 	priv->shrd->wowlan = true;
 
-	ret = iwlagn_load_ucode_wait_alive(priv, &priv->ucode_wowlan,
-					   IWL_UCODE_WOWLAN);
+	ret = iwlagn_load_ucode_wait_alive(priv, IWL_UCODE_WOWLAN);
 	if (ret)
 		goto error;
 
