@@ -248,7 +248,6 @@ enum brcms_srom_id {
 };
 
 #define	BRCMS_NUMRATES	16	/* max # of rates in a rateset */
-#define	D11_PHY_HDR_LEN	6	/* Phy header length - 6 bytes */
 
 /* phy types */
 #define	PHY_TYPE_A	0	/* Phy type A */
