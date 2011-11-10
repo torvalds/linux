@@ -2645,6 +2645,17 @@ static int em_rdtsc(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_rdpmc(struct x86_emulate_ctxt *ctxt)
+{
+	u64 pmc;
+
+	if (ctxt->ops->read_pmc(ctxt, ctxt->regs[VCPU_REGS_RCX], &pmc))
+		return emulate_gp(ctxt, 0);
+	ctxt->regs[VCPU_REGS_RAX] = (u32)pmc;
+	ctxt->regs[VCPU_REGS_RDX] = pmc >> 32;
+	return X86EMUL_CONTINUE;
+}
+
 static int em_mov(struct x86_emulate_ctxt *ctxt)
 {
 	ctxt->dst.val = ctxt->src.val;
@@ -3411,7 +3422,7 @@ static struct opcode twobyte_table[256] = {
 	II(ImplicitOps | Priv, em_wrmsr, wrmsr),
 	IIP(ImplicitOps, em_rdtsc, rdtsc, check_rdtsc),
 	II(ImplicitOps | Priv, em_rdmsr, rdmsr),
-	DIP(ImplicitOps, rdpmc, check_rdpmc),
+	IIP(ImplicitOps, em_rdpmc, rdpmc, check_rdpmc),
 	I(ImplicitOps | VendorSpecific, em_sysenter),
 	I(ImplicitOps | Priv | VendorSpecific, em_sysexit),
 	N, N,
