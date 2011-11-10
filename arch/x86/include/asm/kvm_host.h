@@ -16,10 +16,12 @@
 #include <linux/mmu_notifier.h>
 #include <linux/tracepoint.h>
 #include <linux/cpumask.h>
+#include <linux/irq_work.h>
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
 #include <linux/kvm_types.h>
+#include <linux/perf_event.h>
 
 #include <asm/pvclock-abi.h>
 #include <asm/desc.h>
@@ -291,6 +293,37 @@ struct kvm_mmu {
 	u64 pdptrs[4]; /* pae */
 };
 
+enum pmc_type {
+	KVM_PMC_GP = 0,
+	KVM_PMC_FIXED,
+};
+
+struct kvm_pmc {
+	enum pmc_type type;
+	u8 idx;
+	u64 counter;
+	u64 eventsel;
+	struct perf_event *perf_event;
+	struct kvm_vcpu *vcpu;
+};
+
+struct kvm_pmu {
+	unsigned nr_arch_gp_counters;
+	unsigned nr_arch_fixed_counters;
+	unsigned available_event_types;
+	u64 fixed_ctr_ctrl;
+	u64 global_ctrl;
+	u64 global_status;
+	u64 global_ovf_ctrl;
+	u64 counter_bitmask[2];
+	u64 global_ctrl_mask;
+	u8 version;
+	struct kvm_pmc gp_counters[X86_PMC_MAX_GENERIC];
+	struct kvm_pmc fixed_counters[X86_PMC_MAX_FIXED];
+	struct irq_work irq_work;
+	u64 reprogram_pmi;
+};
+
 struct kvm_vcpu_arch {
 	/*
 	 * rip and regs accesses must go through
@@ -423,6 +456,8 @@ struct kvm_vcpu_arch {
 	u64 mmio_gva;
 	unsigned access;
 	gfn_t mmio_gfn;
+
+	struct kvm_pmu pmu;
 
 	/* used for guest single stepping over the given code position */
 	unsigned long singlestep_rip;
@@ -890,5 +925,18 @@ bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu);
 extern bool kvm_find_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
 
 void kvm_complete_insn_gp(struct kvm_vcpu *vcpu, int err);
+
+int kvm_is_in_guest(void);
+
+void kvm_pmu_init(struct kvm_vcpu *vcpu);
+void kvm_pmu_destroy(struct kvm_vcpu *vcpu);
+void kvm_pmu_reset(struct kvm_vcpu *vcpu);
+void kvm_pmu_cpuid_update(struct kvm_vcpu *vcpu);
+bool kvm_pmu_msr(struct kvm_vcpu *vcpu, u32 msr);
+int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data);
+int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data);
+int kvm_pmu_read_pmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data);
+void kvm_handle_pmu_event(struct kvm_vcpu *vcpu);
+void kvm_deliver_pmi(struct kvm_vcpu *vcpu);
 
 #endif /* _ASM_X86_KVM_HOST_H */

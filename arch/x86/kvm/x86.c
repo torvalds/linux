@@ -1602,8 +1602,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	 * which we perfectly emulate ;-). Any other value should be at least
 	 * reported, some guests depend on them.
 	 */
-	case MSR_P6_EVNTSEL0:
-	case MSR_P6_EVNTSEL1:
 	case MSR_K7_EVNTSEL0:
 	case MSR_K7_EVNTSEL1:
 	case MSR_K7_EVNTSEL2:
@@ -1615,8 +1613,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	/* at least RHEL 4 unconditionally writes to the perfctr registers,
 	 * so we ignore writes to make it happy.
 	 */
-	case MSR_P6_PERFCTR0:
-	case MSR_P6_PERFCTR1:
 	case MSR_K7_PERFCTR0:
 	case MSR_K7_PERFCTR1:
 	case MSR_K7_PERFCTR2:
@@ -1653,6 +1649,8 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	default:
 		if (msr && (msr == vcpu->kvm->arch.xen_hvm_config.msr))
 			return xen_hvm_config(vcpu, data);
+		if (kvm_pmu_msr(vcpu, msr))
+			return kvm_pmu_set_msr(vcpu, msr, data);
 		if (!ignore_msrs) {
 			pr_unimpl(vcpu, "unhandled wrmsr: 0x%x data %llx\n",
 				msr, data);
@@ -1815,10 +1813,6 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_K8_SYSCFG:
 	case MSR_K7_HWCR:
 	case MSR_VM_HSAVE_PA:
-	case MSR_P6_PERFCTR0:
-	case MSR_P6_PERFCTR1:
-	case MSR_P6_EVNTSEL0:
-	case MSR_P6_EVNTSEL1:
 	case MSR_K7_EVNTSEL0:
 	case MSR_K7_PERFCTR0:
 	case MSR_K8_INT_PENDING_MSG:
@@ -1929,6 +1923,8 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		data = 0xbe702111;
 		break;
 	default:
+		if (kvm_pmu_msr(vcpu, msr))
+			return kvm_pmu_get_msr(vcpu, msr, pdata);
 		if (!ignore_msrs) {
 			pr_unimpl(vcpu, "unhandled rdmsr: 0x%x\n", msr);
 			return 1;
@@ -4650,7 +4646,7 @@ static void kvm_timer_init(void)
 
 static DEFINE_PER_CPU(struct kvm_vcpu *, current_vcpu);
 
-static int kvm_is_in_guest(void)
+int kvm_is_in_guest(void)
 {
 	return __this_cpu_read(current_vcpu) != NULL;
 }
@@ -5114,6 +5110,10 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			process_nmi(vcpu);
 		req_immediate_exit =
 			kvm_check_request(KVM_REQ_IMMEDIATE_EXIT, vcpu);
+		if (kvm_check_request(KVM_REQ_PMU, vcpu))
+			kvm_handle_pmu_event(vcpu);
+		if (kvm_check_request(KVM_REQ_PMI, vcpu))
+			kvm_deliver_pmi(vcpu);
 	}
 
 	r = kvm_mmu_reload(vcpu);
@@ -5850,6 +5850,8 @@ int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
 	kvm_async_pf_hash_reset(vcpu);
 	vcpu->arch.apf.halted = false;
 
+	kvm_pmu_reset(vcpu);
+
 	return kvm_x86_ops->vcpu_reset(vcpu);
 }
 
@@ -5934,6 +5936,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 		goto fail_free_mce_banks;
 
 	kvm_async_pf_hash_reset(vcpu);
+	kvm_pmu_init(vcpu);
 
 	return 0;
 fail_free_mce_banks:
@@ -5952,6 +5955,7 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
 	int idx;
 
+	kvm_pmu_destroy(vcpu);
 	kfree(vcpu->arch.mce_banks);
 	kvm_free_lapic(vcpu);
 	idx = srcu_read_lock(&vcpu->kvm->srcu);

@@ -35,6 +35,7 @@ config KVM
 	select KVM_MMIO
 	select TASKSTATS
 	select TASK_DELAY_ACCT
+	select PERF_EVENTS
 	---help---
 	  Support hosting fully virtualized guest machines using hardware
 	  virtualization extensions.  You will need a fairly recent
