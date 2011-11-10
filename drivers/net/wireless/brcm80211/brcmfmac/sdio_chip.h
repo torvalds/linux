@@ -60,6 +60,7 @@ struct chip_core_info {
 	u32 base;
 	u32 wrapbase;
 	u32 caps;
+	u32 cib;
 };
 
 struct chip_info {
@@ -74,6 +75,8 @@ struct chip_info {
 	u32 ramsize;
 
 	bool (*iscoreup)(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
+			 u16 coreid);
+	u32 (*corerev)(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
 			 u16 coreid);
 };
 

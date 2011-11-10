@@ -49,6 +49,10 @@
 #define SOCI_SB		0
 #define SOCI_AI		1
 
+/* EROM CompIdentB */
+#define CIB_REV_MASK		0xff000000
+#define CIB_REV_SHIFT		24
+
 #define SDIOD_DRVSTR_KEY(chip, pmu)     (((chip) << 16) | (pmu))
 /* SDIO Pad drive strength to select value mappings */
 struct sdiod_drive_str {
@@ -100,14 +104,28 @@ brcmf_sdio_chip_getinfidx(struct chip_info *ci, u16 coreid)
 }
 
 static u32
-brcmf_sdio_chip_corerev(struct brcmf_sdio_dev *sdiodev,
-			u32 corebase)
+brcmf_sdio_sb_corerev(struct brcmf_sdio_dev *sdiodev,
+		      struct chip_info *ci, u16 coreid)
 {
 	u32 regdata;
+	u8 idx;
+
+	idx = brcmf_sdio_chip_getinfidx(ci, coreid);
 
 	regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbidhigh), 4);
+			CORE_SB(ci->c_inf[idx].base, sbidhigh), 4);
 	return SBCOREREV(regdata);
+}
+
+static u32
+brcmf_sdio_ai_corerev(struct brcmf_sdio_dev *sdiodev,
+		      struct chip_info *ci, u16 coreid)
+{
+	u8 idx;
+
+	idx = brcmf_sdio_chip_getinfidx(ci, coreid);
+
+	return (ci->c_inf[idx].cib & CIB_REV_MASK) >> CIB_REV_SHIFT;
 }
 
 static bool
@@ -310,9 +328,11 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 	switch (ci->socitype) {
 	case SOCI_SB:
 		ci->iscoreup = brcmf_sdio_sb_iscoreup;
+		ci->corerev = brcmf_sdio_sb_corerev;
 		break;
 	case SOCI_AI:
 		ci->iscoreup = brcmf_sdio_ai_iscoreup;
+		ci->corerev = brcmf_sdio_ai_corerev;
 		break;
 	default:
 		brcmf_dbg(ERROR, "socitype %u not supported\n", ci->socitype);
@@ -378,8 +398,7 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 	u8 idx;
 
 	/* get chipcommon rev */
-	ci->c_inf[0].rev =
-		brcmf_sdio_chip_corerev(sdiodev, ci->c_inf[0].base);
+	ci->c_inf[0].rev = ci->corerev(sdiodev, ci, ci->c_inf[0].id);
 
 	/* get chipcommon capabilites */
 	ci->c_inf[0].caps =
@@ -393,7 +412,7 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 		ci->pmurev = ci->pmucaps & PCAP_REV_MASK;
 	}
 
-	ci->c_inf[1].rev = brcmf_sdio_chip_corerev(sdiodev, ci->c_inf[1].base);
+	ci->c_inf[1].rev = ci->corerev(sdiodev, ci, ci->c_inf[1].id);
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 				CORE_SB(ci->c_inf[1].base, sbidhigh), 4);
 	ci->c_inf[1].id = (regdata & SSB_IDHIGH_CC) >> SSB_IDHIGH_CC_SHIFT;
