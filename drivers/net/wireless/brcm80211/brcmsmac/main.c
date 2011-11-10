@@ -109,11 +109,6 @@
 #define BPHY_PLCP_TIME			192
 #define RIFS_11N_TIME			2
 
-#define AC_BE				0
-#define AC_BK				1
-#define AC_VI				2
-#define AC_VO				3
-
 /* length of the BCN template area */
 #define BCN_TMPL_LEN			512
 
@@ -305,10 +300,22 @@ uint brcm_msg_level =
 #endif				/* BCMDBG */
 
 /* TX FIFO number to WME/802.1E Access Category */
-static const u8 wme_fifo2ac[] = { AC_BK, AC_BE, AC_VI, AC_VO, AC_BE, AC_BE };
+static const u8 wme_fifo2ac[] = {
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BE,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_VO,
+	IEEE80211_AC_BE,
+	IEEE80211_AC_BE
+};
 
-/* WME/802.1E Access Category to TX FIFO number */
-static const u8 wme_ac2fifo[] = { 1, 0, 2, 3 };
+/* ieee80211 Access Category to TX FIFO number */
+static const u8 wme_ac2fifo[] = {
+	TX_AC_VO_FIFO,
+	TX_AC_VI_FIFO,
+	TX_AC_BE_FIFO,
+	TX_AC_BK_FIFO
+};
 
 /* 802.1D Priority to precedence queue mapping */
 const u8 wlc_prio2prec_map[] = {
@@ -893,7 +900,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 		    lfbl,	/* Long Frame Rate Fallback Limit */
 		    fbl;
 
-		if (queue < AC_COUNT) {
+		if (queue < IEEE80211_NUM_ACS) {
 			sfbl = GFIELD(wlc->wme_retries[wme_fifo2ac[queue]],
 				      EDCF_SFB);
 			lfbl = GFIELD(wlc->wme_retries[wme_fifo2ac[queue]],
@@ -4125,7 +4132,7 @@ void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 	    EDCF_TXOP2USEC(acp_shm.txop);
 	acp_shm.aifs = (params->aifs & EDCF_AIFSN_MASK);
 
-	if (aci == AC_VI && acp_shm.txop == 0
+	if (aci == IEEE80211_AC_VI && acp_shm.txop == 0
 	    && acp_shm.aifs < EDCF_AIFSN_MAX)
 		acp_shm.aifs++;
 
@@ -4175,7 +4182,7 @@ static void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
 	}; /* ucode needs these parameters during its initialization */
 	const struct edcf_acparam *edcf_acp = &default_edcf_acparams[0];
 
-	for (i_ac = 0; i_ac < AC_COUNT; i_ac++, edcf_acp++) {
+	for (i_ac = 0; i_ac < IEEE80211_NUM_ACS; i_ac++, edcf_acp++) {
 		/* find out which ac this set of params applies to */
 		aci = (edcf_acp->ACI & EDCF_ACI_MASK) >> EDCF_ACI_SHIFT;
 
@@ -5172,7 +5179,7 @@ static void brcms_c_wme_retries_write(struct brcms_c_info *wlc)
 	if (!wlc->clk)
 		return;
 
-	for (ac = 0; ac < AC_COUNT; ac++)
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 		brcms_b_write_shm(wlc->hw, M_AC_TXLMT_ADDR(ac),
 				  wlc->wme_retries[ac]);
 }
@@ -5647,7 +5654,7 @@ int brcms_c_set_rate_limit(struct brcms_c_info *wlc, u16 srl, u16 lrl)
 
 	brcms_b_retrylimit_upd(wlc->hw, wlc->SRL, wlc->LRL);
 
-	for (ac = 0; ac < AC_COUNT; ac++) {
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		wlc->wme_retries[ac] =	SFIELD(wlc->wme_retries[ac],
 					       EDCF_SHORT,  wlc->SRL);
 		wlc->wme_retries[ac] =	SFIELD(wlc->wme_retries[ac],
@@ -8358,7 +8365,7 @@ void brcms_c_init(struct brcms_c_info *wlc, bool mute_tx)
 		/* Uninitialized; read from HW */
 		int ac;
 
-		for (ac = 0; ac < AC_COUNT; ac++)
+		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			wlc->wme_retries[ac] =
 			    brcms_b_read_shm(wlc->hw, M_AC_TXLMT_ADDR(ac));
 	}
