@@ -585,6 +585,7 @@ struct drbd_tl_epoch {
 };
 
 struct drbd_epoch {
+	struct drbd_conf *mdev;
 	struct list_head list;
 	unsigned int barrier_nr;
 	atomic_t epoch_size; /* increased on every request added. */

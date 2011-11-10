@@ -1152,11 +1152,11 @@ static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *mdev,
 		    (test_bit(DE_HAVE_BARRIER_NUMBER, &epoch->flags) || ev & EV_CLEANUP)) {
 			if (!(ev & EV_CLEANUP)) {
 				spin_unlock(&mdev->epoch_lock);
-				drbd_send_b_ack(mdev, epoch->barrier_nr, epoch_size);
+				drbd_send_b_ack(epoch->mdev, epoch->barrier_nr, epoch_size);
 				spin_lock(&mdev->epoch_lock);
 			}
 			if (test_bit(DE_HAVE_BARRIER_NUMBER, &epoch->flags))
-				dec_unacked(mdev);
+				dec_unacked(epoch->mdev);
 
 			if (mdev->current_epoch != epoch) {
 				next_epoch = list_entry(epoch->list.next, struct drbd_epoch, list);
@@ -1349,6 +1349,7 @@ static int receive_Barrier(struct drbd_tconn *tconn, struct packet_info *pi)
 	inc_unacked(mdev);
 
 	mdev->current_epoch->barrier_nr = p->barrier;
+	mdev->current_epoch->mdev = mdev;
 	rv = drbd_may_finish_epoch(mdev, mdev->current_epoch, EV_GOT_BARRIER_NR);
 
 	/* P_BARRIER_ACK may imply that the corresponding extent is dropped from
