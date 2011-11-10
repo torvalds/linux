@@ -1075,7 +1075,7 @@ cancel:
 		trans_pcie->txq[trans->shrd->cmd_queue].meta[cmd_idx].flags &=
 							~CMD_WANT_SKB;
 	}
-fail:
+
 	if (cmd->reply_page) {
 		iwl_free_pages(trans->shrd, cmd->reply_page);
 		cmd->reply_page = 0;
