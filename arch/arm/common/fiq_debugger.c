@@ -22,7 +22,6 @@
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
-#include <linux/kernel_debugger.h>
 #include <linux/kernel_stat.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
@@ -474,7 +473,59 @@ void dump_stacktrace(struct fiq_debugger_state *state,
 		tail = user_backtrace(state, tail);
 }
 
-static bool debug_help(struct fiq_debugger_state *state)
+static void do_ps(struct fiq_debugger_state *state)
+{
+	struct task_struct *g;
+	struct task_struct *p;
+	unsigned task_state;
+	static const char stat_nam[] = "RSDTtZX";
+
+	debug_printf(state, "pid   ppid  prio task            pc\n");
+	read_lock(&tasklist_lock);
+	do_each_thread(g, p) {
+		task_state = p->state ? __ffs(p->state) + 1 : 0;
+		debug_printf(state,
+			     "%5d %5d %4d ", p->pid, p->parent->pid, p->prio);
+		debug_printf(state, "%-13.13s %c", p->comm,
+			     task_state >= sizeof(stat_nam) ? '?' : stat_nam[task_state]);
+		if (task_state == TASK_RUNNING)
+			debug_printf(state, " running\n");
+		else
+			debug_printf(state, " %08lx\n", thread_saved_pc(p));
+	} while_each_thread(g, p);
+	read_unlock(&tasklist_lock);
+}
+
+extern int do_syslog(int type, char __user *bug, int count);
+static void do_sysrq(struct fiq_debugger_state *state, char rq)
+{
+	char buf[128];
+	int ret;
+	int idx = 0;
+	do_syslog(5 /* clear */, NULL, 0);
+	handle_sysrq(rq);
+	while (1) {
+		ret = log_buf_copy(buf, idx, sizeof(buf) - 1);
+		if (ret <= 0)
+			break;
+		buf[ret] = 0;
+		debug_printf(state, "%s", buf);
+		idx += ret;
+	}
+}
+
+/* This function CANNOT be called in FIQ context */
+static void debug_irq_exec(struct fiq_debugger_state *state, char *cmd)
+{
+	if (!strcmp(cmd, "ps"))
+		do_ps(state);
+	if (!strcmp(cmd, "sysrq"))
+		do_sysrq(state, 'h');
+	if (!strncmp(cmd, "sysrq ", 6))
+		do_sysrq(state, cmd[6]);
+}
+
+static void debug_help(struct fiq_debugger_state *state)
 {
 	debug_printf(state,	"FIQ Debugger commands:\n"
 				" pc            PC status\n"
@@ -490,13 +541,9 @@ static bool debug_help(struct fiq_debugger_state *state)
 				" console       Switch terminal to console\n"
 				" cpu           Current CPU\n"
 				" cpu <number>  Switch to CPU<number>\n");
-	if (!state->debug_busy) {
-		strcpy(state->debug_cmd, "help");
-		state->debug_busy = 1;
-		return true;
-	}
-
-	return false;
+	debug_printf(state,	" ps            Process list\n"
+				" sysrq         sysrq options\n"
+				" sysrq <param> Execute sysrq with <param>\n");
 }
 
 static void take_affinity(void *info)
@@ -517,13 +564,13 @@ static void switch_cpu(struct fiq_debugger_state *state, int cpu)
 	state->current_cpu = cpu;
 }
 
-static bool debug_exec(struct fiq_debugger_state *state,
+static bool debug_fiq_exec(struct fiq_debugger_state *state,
 			const char *cmd, unsigned *regs, void *svc_sp)
 {
 	bool signal_helper = false;
 
 	if (!strcmp(cmd, "help") || !strcmp(cmd, "?")) {
-		signal_helper |= debug_help(state);
+		debug_help(state);
 	} else if (!strcmp(cmd, "pc")) {
 		debug_printf(state, " pc %08x cpsr %08x mode %s\n",
 			regs[15], regs[16], mode_name(regs[16]));
@@ -650,13 +697,8 @@ static void debug_handle_irq_context(struct fiq_debugger_state *state)
 	}
 #endif
 	if (state->debug_busy) {
-		struct kdbg_ctxt ctxt;
-
-		ctxt.printf = debug_printf_nfiq;
-		ctxt.cookie = state;
-		kernel_debugger(&ctxt, state->debug_cmd);
+		debug_irq_exec(state, state->debug_cmd);
 		debug_prompt(state);
-
 		state->debug_busy = 0;
 	}
 }
@@ -732,8 +774,8 @@ static bool debug_handle_uart_interrupt(struct fiq_debugger_state *state,
 				state->debug_buf[state->debug_count] = 0;
 				state->debug_count = 0;
 				signal_helper |=
-					debug_exec(state, state->debug_buf,
-						   regs, svc_sp);
+					debug_fiq_exec(state, state->debug_buf,
+						       regs, svc_sp);
 			} else {
 				debug_prompt(state);
 			}
