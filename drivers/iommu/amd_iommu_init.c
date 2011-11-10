@@ -583,6 +583,46 @@ static void __init free_event_buffer(struct amd_iommu *iommu)
 	free_pages((unsigned long)iommu->evt_buf, get_order(EVT_BUFFER_SIZE));
 }
 
+/* allocates the memory where the IOMMU will log its events to */
+static u8 * __init alloc_ppr_log(struct amd_iommu *iommu)
+{
+	iommu->ppr_log = (u8 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+						get_order(PPR_LOG_SIZE));
+
+	if (iommu->ppr_log == NULL)
+		return NULL;
+
+	return iommu->ppr_log;
+}
+
+static void iommu_enable_ppr_log(struct amd_iommu *iommu)
+{
+	u64 entry;
+
+	if (iommu->ppr_log == NULL)
+		return;
+
+	entry = (u64)virt_to_phys(iommu->ppr_log) | PPR_LOG_SIZE_512;
+
+	memcpy_toio(iommu->mmio_base + MMIO_PPR_LOG_OFFSET,
+		    &entry, sizeof(entry));
+
+	/* set head and tail to zero manually */
+	writel(0x00, iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
+	writel(0x00, iommu->mmio_base + MMIO_PPR_TAIL_OFFSET);
+
+	iommu_feature_enable(iommu, CONTROL_PPFLOG_EN);
+	iommu_feature_enable(iommu, CONTROL_PPR_EN);
+}
+
+static void __init free_ppr_log(struct amd_iommu *iommu)
+{
+	if (iommu->ppr_log == NULL)
+		return;
+
+	free_pages((unsigned long)iommu->ppr_log, get_order(PPR_LOG_SIZE));
+}
+
 /* sets a specific bit in the device table entry. */
 static void set_dev_entry_bit(u16 devid, u8 bit)
 {
@@ -914,6 +954,7 @@ static void __init free_iommu_one(struct amd_iommu *iommu)
 {
 	free_command_buffer(iommu);
 	free_event_buffer(iommu);
+	free_ppr_log(iommu);
 	iommu_unmap_mmio_space(iommu);
 }
 
@@ -976,6 +1017,12 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	init_iommu_from_pci(iommu);
 	init_iommu_from_acpi(iommu, h);
 	init_iommu_devices(iommu);
+
+	if (iommu_feature(iommu, FEATURE_PPR)) {
+		iommu->ppr_log = alloc_ppr_log(iommu);
+		if (!iommu->ppr_log)
+			return -ENOMEM;
+	}
 
 	if (iommu->cap & (1UL << IOMMU_CAP_NPCACHE))
 		amd_iommu_np_cache = true;
@@ -1062,6 +1109,9 @@ static int iommu_setup_msi(struct amd_iommu *iommu)
 
 	iommu->int_enabled = true;
 	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
+
+	if (iommu->ppr_log != NULL)
+		iommu_feature_enable(iommu, CONTROL_PPFINT_EN);
 
 	return 0;
 }
@@ -1287,6 +1337,7 @@ static void enable_iommus(void)
 		iommu_set_device_table(iommu);
 		iommu_enable_command_buffer(iommu);
 		iommu_enable_event_buffer(iommu);
+		iommu_enable_ppr_log(iommu);
 		iommu_set_exclusion_range(iommu);
 		iommu_init_msi(iommu);
 		iommu_enable(iommu);

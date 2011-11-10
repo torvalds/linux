@@ -69,11 +69,14 @@
 #define MMIO_EXCL_BASE_OFFSET   0x0020
 #define MMIO_EXCL_LIMIT_OFFSET  0x0028
 #define MMIO_EXT_FEATURES	0x0030
+#define MMIO_PPR_LOG_OFFSET	0x0038
 #define MMIO_CMD_HEAD_OFFSET	0x2000
 #define MMIO_CMD_TAIL_OFFSET	0x2008
 #define MMIO_EVT_HEAD_OFFSET	0x2010
 #define MMIO_EVT_TAIL_OFFSET	0x2018
 #define MMIO_STATUS_OFFSET	0x2020
+#define MMIO_PPR_HEAD_OFFSET	0x2030
+#define MMIO_PPR_TAIL_OFFSET	0x2038
 
 
 /* Extended Feature Bits */
@@ -125,6 +128,7 @@
 #define CONTROL_CMDBUF_EN       0x0cULL
 #define CONTROL_PPFLOG_EN       0x0dULL
 #define CONTROL_PPFINT_EN       0x0eULL
+#define CONTROL_PPR_EN          0x0fULL
 
 /* command specific defines */
 #define CMD_COMPL_WAIT          0x01
@@ -167,6 +171,13 @@
 /* constants for event buffer handling */
 #define EVT_BUFFER_SIZE		8192 /* 512 entries */
 #define EVT_LEN_MASK		(0x9ULL << 56)
+
+/* Constants for PPR Log handling */
+#define PPR_LOG_ENTRIES		512
+#define PPR_LOG_SIZE_SHIFT	56
+#define PPR_LOG_SIZE_512	(0x9ULL << PPR_LOG_SIZE_SHIFT)
+#define PPR_ENTRY_SIZE		16
+#define PPR_LOG_SIZE		(PPR_ENTRY_SIZE * PPR_LOG_ENTRIES)
 
 #define PAGE_MODE_NONE    0x00
 #define PAGE_MODE_1_LEVEL 0x01
@@ -433,6 +444,9 @@ struct amd_iommu {
 	u8 *evt_buf;
 	/* MSI number for event interrupt */
 	u16 evt_msi_num;
+
+	/* Base of the PPR log, if present */
+	u8 *ppr_log;
 
 	/* true if interrupts for this IOMMU are already enabled */
 	bool int_enabled;
