@@ -1125,9 +1125,13 @@ int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
 		    const struct ieee80211_tx_queue_params *params)
 {
 	struct iwl_priv *priv = hw->priv;
-	struct iwl_rxon_context *ctx;
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+	struct iwl_rxon_context *ctx = vif_priv->ctx;
 	unsigned long flags;
 	int q;
+
+	if (WARN_ON(!ctx))
+		return -EINVAL;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
@@ -1145,21 +1149,15 @@ int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&priv->shrd->lock, flags);
 
-	/*
-	 * MULTI-FIXME
-	 * This may need to be done per interface in nl80211/cfg80211/mac80211.
-	 */
-	for_each_context(priv, ctx) {
-		ctx->qos_data.def_qos_parm.ac[q].cw_min =
-			cpu_to_le16(params->cw_min);
-		ctx->qos_data.def_qos_parm.ac[q].cw_max =
-			cpu_to_le16(params->cw_max);
-		ctx->qos_data.def_qos_parm.ac[q].aifsn = params->aifs;
-		ctx->qos_data.def_qos_parm.ac[q].edca_txop =
-				cpu_to_le16((params->txop * 32));
+	ctx->qos_data.def_qos_parm.ac[q].cw_min =
+		cpu_to_le16(params->cw_min);
+	ctx->qos_data.def_qos_parm.ac[q].cw_max =
+		cpu_to_le16(params->cw_max);
+	ctx->qos_data.def_qos_parm.ac[q].aifsn = params->aifs;
+	ctx->qos_data.def_qos_parm.ac[q].edca_txop =
+			cpu_to_le16((params->txop * 32));
 
-		ctx->qos_data.def_qos_parm.ac[q].reserved1 = 0;
-	}
+	ctx->qos_data.def_qos_parm.ac[q].reserved1 = 0;
 
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
