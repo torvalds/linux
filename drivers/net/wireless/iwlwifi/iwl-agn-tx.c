@@ -283,6 +283,19 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		IWL_DEBUG_TX(priv, "Sending REASSOC frame\n");
 #endif
 
+	if (unlikely(ieee80211_is_probe_resp(fc))) {
+		struct iwl_wipan_noa_data *noa_data =
+			rcu_dereference(priv->noa_data);
+
+		if (noa_data &&
+		    pskb_expand_head(skb, 0, noa_data->length,
+				     GFP_ATOMIC) == 0) {
+			memcpy(skb_put(skb, noa_data->length),
+			       noa_data->data, noa_data->length);
+			hdr = (struct ieee80211_hdr *)skb->data;
+		}
+	}
+
 	hdr_len = ieee80211_hdrlen(fc);
 
 	/* For management frames use broadcast id to do not break aggregation */

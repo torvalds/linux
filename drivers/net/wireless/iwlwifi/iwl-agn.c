@@ -3069,6 +3069,7 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 		kmem_cache_destroy(priv->tx_cmd_pool);
 	kfree(priv->scan_cmd);
 	kfree(priv->beacon_cmd);
+	kfree(rcu_dereference_raw(priv->noa_data));
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	kfree(priv->wowlan_sram);
 #endif

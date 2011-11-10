@@ -824,6 +824,12 @@ struct iwl_testmode_trace {
 };
 #endif
 
+struct iwl_wipan_noa_data {
+	struct rcu_head rcu_head;
+	u32 length;
+	u8 data[];
+};
+
 struct iwl_priv {
 
 	/*data shared among all the driver's layers */
@@ -882,6 +888,8 @@ struct iwl_priv {
 
 	/* init calibration results */
 	struct iwl_calib_result calib_results[IWL_CALIB_MAX];
+
+	struct iwl_wipan_noa_data __rcu *noa_data;
 
 	/* Scan related variables */
 	unsigned long scan_start;
