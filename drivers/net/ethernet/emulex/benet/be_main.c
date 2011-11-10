@@ -848,15 +848,11 @@ static int be_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (!is_valid_ether_addr(mac) || (vf >= num_vfs))
 		return -EINVAL;
 
-	if (adapter->vf_cfg[vf].vf_pmac_id != BE_INVALID_PMAC_ID)
-		status = be_cmd_pmac_del(adapter,
-					adapter->vf_cfg[vf].vf_if_handle,
-					adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
+	status = be_cmd_pmac_del(adapter, adapter->vf_cfg[vf].vf_if_handle,
+				adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
 
-	status = be_cmd_pmac_add(adapter, mac,
-				adapter->vf_cfg[vf].vf_if_handle,
+	status = be_cmd_pmac_add(adapter, mac, adapter->vf_cfg[vf].vf_if_handle,
 				&adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
-
 	if (status)
 		dev_err(&adapter->pdev->dev, "MAC %pM set on VF %d Failed\n",
 				mac, vf);
@@ -2488,17 +2484,13 @@ static void be_vf_clear(struct be_adapter *adapter)
 {
 	u32 vf;
 
-	for (vf = 0; vf < num_vfs; vf++) {
-		if (adapter->vf_cfg[vf].vf_pmac_id != BE_INVALID_PMAC_ID)
-			be_cmd_pmac_del(adapter,
-					adapter->vf_cfg[vf].vf_if_handle,
-					adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
-	}
+	for (vf = 0; vf < num_vfs; vf++)
+		be_cmd_pmac_del(adapter, adapter->vf_cfg[vf].vf_if_handle,
+				adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
 
 	for (vf = 0; vf < num_vfs; vf++)
-		if (adapter->vf_cfg[vf].vf_if_handle)
-			be_cmd_if_destroy(adapter,
-				adapter->vf_cfg[vf].vf_if_handle, vf + 1);
+		be_cmd_if_destroy(adapter, adapter->vf_cfg[vf].vf_if_handle,
+				vf + 1);
 }
 
 static int be_clear(struct be_adapter *adapter)
@@ -2511,14 +2503,20 @@ static int be_clear(struct be_adapter *adapter)
 	be_mcc_queues_destroy(adapter);
 	be_rx_queues_destroy(adapter);
 	be_tx_queues_destroy(adapter);
-	adapter->eq_next_idx = 0;
-
-	adapter->be3_native = false;
-	adapter->promiscuous = false;
 
 	/* tell fw we're done with firing cmds */
 	be_cmd_fw_clean(adapter);
 	return 0;
+}
+
+static void be_vf_setup_init(struct be_adapter *adapter)
+{
+	int vf;
+
+	for (vf = 0; vf < num_vfs; vf++) {
+		adapter->vf_cfg[vf].vf_if_handle = -1;
+		adapter->vf_cfg[vf].vf_pmac_id = -1;
+	}
 }
 
 static int be_vf_setup(struct be_adapter *adapter)
@@ -2527,6 +2525,8 @@ static int be_vf_setup(struct be_adapter *adapter)
 	u16 lnk_speed;
 	int status;
 
+	be_vf_setup_init(adapter);
+
 	cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST;
 	for (vf = 0; vf < num_vfs; vf++) {
 		status = be_cmd_if_create(adapter, cap_flags, en_flags, NULL,
@@ -2534,7 +2534,6 @@ static int be_vf_setup(struct be_adapter *adapter)
 					NULL, vf+1);
 		if (status)
 			goto err;
-		adapter->vf_cfg[vf].vf_pmac_id = BE_INVALID_PMAC_ID;
 	}
 
 	if (!lancer_chip(adapter)) {
@@ -2555,6 +2554,16 @@ err:
 	return status;
 }
 
+static void be_setup_init(struct be_adapter *adapter)
+{
+	adapter->vlan_prio_bmap = 0xff;
+	adapter->link_speed = -1;
+	adapter->if_handle = -1;
+	adapter->be3_native = false;
+	adapter->promiscuous = false;
+	adapter->eq_next_idx = 0;
+}
+
 static int be_setup(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -2563,9 +2572,7 @@ static int be_setup(struct be_adapter *adapter)
 	int status;
 	u8 mac[ETH_ALEN];
 
-	/* Allow all priorities by default. A GRP5 evt may modify this */
-	adapter->vlan_prio_bmap = 0xff;
-	adapter->link_speed = -1;
+	be_setup_init(adapter);
 
 	be_cmd_req_native_mode(adapter);
 

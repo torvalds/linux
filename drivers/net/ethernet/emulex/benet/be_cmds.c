@@ -695,11 +695,14 @@ err:
 }
 
 /* Uses synchronous MCCQ */
-int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id, u32 pmac_id, u32 dom)
+int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id, int pmac_id, u32 dom)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_pmac_del *req;
 	int status;
+
+	if (pmac_id == -1)
+		return 0;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
@@ -1136,7 +1139,7 @@ err:
 }
 
 /* Uses MCCQ */
-int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id, u32 domain)
+int be_cmd_if_destroy(struct be_adapter *adapter, int interface_id, u32 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_if_destroy *req;
@@ -1145,7 +1148,7 @@ int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id, u32 domain)
 	if (adapter->eeh_err)
 		return -EIO;
 
-	if (!interface_id)
+	if (interface_id == -1)
 		return 0;
 
 	spin_lock_bh(&adapter->mcc_lock);
