@@ -65,6 +65,12 @@
 
 #include "iwl-dev.h"
 
+struct iwlagn_ucode_capabilities {
+	u32 max_probe_length;
+	u32 standard_phy_calibration_size;
+	u32 flags;
+};
+
 extern struct ieee80211_ops iwlagn_hw_ops;
 
 int iwl_reset_ict(struct iwl_trans *trans);
@@ -76,6 +82,15 @@ static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 	hdr->groups_num = 1;
 	hdr->data_valid = 1;
 }
+
+void __iwl_down(struct iwl_priv *priv);
+void iwl_down(struct iwl_priv *priv);
+void iwlagn_prepare_restart(struct iwl_priv *priv);
+
+/* MAC80211 */
+struct ieee80211_hw *iwl_alloc_all(void);
+int iwlagn_mac_setup_register(struct iwl_priv *priv,
+			      struct iwlagn_ucode_capabilities *capa);
 
 /* RXON */
 int iwlagn_set_pan_params(struct iwl_priv *priv);
