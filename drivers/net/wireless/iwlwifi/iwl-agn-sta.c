@@ -647,7 +647,7 @@ void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	int ret;
 	struct iwl_addsta_cmd sta_cmd;
 	struct iwl_link_quality_cmd lq;
-	bool active;
+	bool active, have_lq = false;
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE)) {
@@ -657,7 +657,10 @@ void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(sta_cmd));
 	sta_cmd.mode = 0;
-	memcpy(&lq, priv->stations[sta_id].lq, sizeof(lq));
+	if (priv->stations[sta_id].lq) {
+		memcpy(&lq, priv->stations[sta_id].lq, sizeof(lq));
+		have_lq = true;
+	}
 
 	active = priv->stations[sta_id].used & IWL_STA_UCODE_ACTIVE;
 	priv->stations[sta_id].used &= ~IWL_STA_DRIVER_ACTIVE;
@@ -679,7 +682,8 @@ void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (ret)
 		IWL_ERR(priv, "failed to re-add STA %pM (%d)\n",
 			priv->stations[sta_id].sta.sta.addr, ret);
-	iwl_send_lq_cmd(priv, ctx, &lq, CMD_SYNC, true);
+	if (have_lq)
+		iwl_send_lq_cmd(priv, ctx, &lq, CMD_SYNC, true);
 }
 
 int iwl_get_free_ucode_key_offset(struct iwl_priv *priv)
