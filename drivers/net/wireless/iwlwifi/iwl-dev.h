@@ -920,7 +920,6 @@ struct iwl_priv {
 	struct fw_img ucode_wowlan;
 
 	enum iwlagn_ucode_type ucode_type;
-	u8 ucode_write_complete;	/* the image write is complete */
 	char firmware_name[25];
 
 	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];

@@ -212,11 +212,14 @@ struct iwl_trans_ops {
  * @ops - pointer to iwl_trans_ops
  * @shrd - pointer to iwl_shared which holds shared data from the upper layer
  * @hcmd_lock: protects HCMD
+ * @ucode_write_complete: indicates that the ucode has been copied.
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
 	struct iwl_shared *shrd;
 	spinlock_t hcmd_lock;
+
+	u8 ucode_write_complete;	/* the image write is complete */
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
