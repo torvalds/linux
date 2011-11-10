@@ -1333,7 +1333,8 @@ static void pairing_complete(struct pending_cmd *cmd, u8 status)
 	struct mgmt_rp_pair_device rp;
 	struct hci_conn *conn = cmd->user_data;
 
-	bacpy(&rp.bdaddr, &conn->dst);
+	bacpy(&rp.addr.bdaddr, &conn->dst);
+	rp.addr.type = link_to_mgmt(conn->type, conn->dst_type);
 	rp.status = status;
 
 	cmd_complete(cmd->sk, cmd->index, MGMT_OP_PAIR_DEVICE, &rp, sizeof(rp));
@@ -1366,7 +1367,6 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	struct hci_dev *hdev;
 	struct mgmt_cp_pair_device *cp;
 	struct pending_cmd *cmd;
-	struct adv_entry *entry;
 	u8 sec_level, auth_type;
 	struct hci_conn *conn;
 	int err;
@@ -1390,12 +1390,11 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	else
 		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
 
-	entry = hci_find_adv_entry(hdev, &cp->bdaddr);
-	if (entry)
-		conn = hci_connect(hdev, LE_LINK, &cp->bdaddr, sec_level,
+	if (cp->addr.type == MGMT_ADDR_BREDR)
+		conn = hci_connect(hdev, ACL_LINK, &cp->addr.bdaddr, sec_level,
 								auth_type);
 	else
-		conn = hci_connect(hdev, ACL_LINK, &cp->bdaddr, sec_level,
+		conn = hci_connect(hdev, LE_LINK, &cp->addr.bdaddr, sec_level,
 								auth_type);
 
 	if (IS_ERR(conn)) {
@@ -1417,7 +1416,7 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	}
 
 	/* For LE, just connecting isn't a proof that the pairing finished */
-	if (!entry)
+	if (cp->addr.type == MGMT_ADDR_BREDR)
 		conn->connect_cfm_cb = pairing_complete_cb;
 
 	conn->security_cfm_cb = pairing_complete_cb;
