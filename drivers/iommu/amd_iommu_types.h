@@ -87,6 +87,9 @@
 #define FEATURE_HE		(1ULL<<8)
 #define FEATURE_PC		(1ULL<<9)
 
+#define FEATURE_PASID_SHIFT	32
+#define FEATURE_PASID_MASK	(0x1fULL << FEATURE_PASID_SHIFT)
+
 /* MMIO status bits */
 #define MMIO_STATUS_COM_WAIT_INT_MASK	0x04
 
@@ -548,6 +551,9 @@ extern unsigned long *amd_iommu_pd_alloc_bitmap;
  * they are reused
  */
 extern bool amd_iommu_unmap_flush;
+
+/* Smallest number of PASIDs supported by any IOMMU in the system */
+extern u32 amd_iommu_max_pasids;
 
 /* takes bus and device/function and returns the device id
  * FIXME: should that be in generic PCI code? */

@@ -141,6 +141,8 @@ int amd_iommus_present;
 bool amd_iommu_np_cache __read_mostly;
 bool amd_iommu_iotlb_sup __read_mostly = true;
 
+u32 amd_iommu_max_pasids __read_mostly = ~0;
+
 /*
  * The ACPI table parsing functions set this variable on an error
  */
@@ -698,6 +700,17 @@ static void __init init_iommu_from_pci(struct amd_iommu *iommu)
 	high = readl(iommu->mmio_base + MMIO_EXT_FEATURES + 4);
 
 	iommu->features = ((u64)high << 32) | low;
+
+	if (iommu_feature(iommu, FEATURE_GT)) {
+		u32 pasids;
+		u64 shift;
+
+		shift   = iommu->features & FEATURE_PASID_MASK;
+		shift >>= FEATURE_PASID_SHIFT;
+		pasids  = (1 << shift);
+
+		amd_iommu_max_pasids = min(amd_iommu_max_pasids, pasids);
+	}
 
 	if (!is_rd890_iommu(iommu->dev))
 		return;
