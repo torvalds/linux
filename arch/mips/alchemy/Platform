@@ -68,6 +68,13 @@ cflags-$(CONFIG_MIPS_DB1200)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1200)	+= 0xffffffff80100000
 
 #
+# NetLogic DBAu1300 development platform
+#
+platform-$(CONFIG_MIPS_DB1300)	+= alchemy/devboards/
+cflags-$(CONFIG_MIPS_DB1300)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
+load-$(CONFIG_MIPS_DB1300)	+= 0xffffffff80100000
+
+#
 # 4G-Systems eval board
 #
 platform-$(CONFIG_MIPS_MTX1)	+= alchemy/mtx-1/

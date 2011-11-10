@@ -51,12 +51,14 @@ config SND_SOC_DB1000
 	  of boards (DB1000/DB1500/DB1100).
 
 config SND_SOC_DB1200
-	tristate "DB1200 AC97+I2S audio support"
+	tristate "DB1200/DB1300 Audio support"
 	depends on SND_SOC_AU1XPSC
 	select SND_SOC_AU1XPSC_AC97
 	select SND_SOC_AC97_CODEC
+	select SND_SOC_WM9712
 	select SND_SOC_AU1XPSC_I2S
 	select SND_SOC_WM8731
 	help
-	  Select this option to enable audio (AC97 or I2S) on the
-	  Alchemy/AMD/RMI DB1200 demoboard.
+	  Select this option to enable audio (AC97 and I2S) on the
+	  Alchemy/AMD/RMI/NetLogic Db1200 and Db1300 evaluation boards.
+	  If you need Db1300 touchscreen support, you definitely want to say Y.

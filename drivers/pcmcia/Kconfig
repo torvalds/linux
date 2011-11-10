@@ -161,8 +161,8 @@ config PCMCIA_ALCHEMY_DEVBOARD
 	select 64BIT_PHYS_ADDR
 	help
 	  Enable this driver of you want PCMCIA support on your Alchemy
-	  Db1000, Db/Pb1100, Db/Pb1500, Db/Pb1550, Db/Pb1200 board.
-	  NOT suitable for the PB1000!
+	  Db1000, Db/Pb1100, Db/Pb1500, Db/Pb1550, Db/Pb1200, DB1300
+	  board.  NOT suitable for the PB1000!
 
 	  This driver is also available as a module called db1xxx_ss.ko
 

@@ -639,6 +639,42 @@ static struct panel_settings known_lcd_panels[] =
 		856, 856,
 		480, 480,
 	},
+	[9] = {
+		.name = "DB1300_800x480",
+		.monspecs = {
+			.modedb = NULL,
+			.modedb_len = 0,
+			.hfmin = 30000,
+			.hfmax = 70000,
+			.vfmin = 60,
+			.vfmax = 60,
+			.dclkmin = 6000000,
+			.dclkmax = 28000000,
+			.input = FB_DISP_RGB,
+		},
+		.mode_screen		= LCD_SCREEN_SX_N(800) |
+					  LCD_SCREEN_SY_N(480),
+		.mode_horztiming	= LCD_HORZTIMING_HPW_N(5) |
+					  LCD_HORZTIMING_HND1_N(16) |
+					  LCD_HORZTIMING_HND2_N(8),
+		.mode_verttiming	= LCD_VERTTIMING_VPW_N(4) |
+					  LCD_VERTTIMING_VND1_N(8) |
+					  LCD_VERTTIMING_VND2_N(5),
+		.mode_clkcontrol	= LCD_CLKCONTROL_PCD_N(1) |
+					  LCD_CLKCONTROL_IV |
+					  LCD_CLKCONTROL_IH,
+		.mode_pwmdiv		= 0x00000000,
+		.mode_pwmhi		= 0x00000000,
+		.mode_outmask		= 0x00FFFFFF,
+		.mode_fifoctrl		= 0x2f2f2f2f,
+		.mode_toyclksrc		= 0x00000004, /* AUXPLL directly */
+		.mode_backlight		= 0x00000000,
+		.mode_auxpll		= (48/12) * 2,
+		.device_init		= board_au1200fb_panel_init,
+		.device_shutdown	= board_au1200fb_panel_shutdown,
+		800, 800,
+		480, 480,
+	},
 };
 
 #define NUM_PANELS (ARRAY_SIZE(known_lcd_panels))
