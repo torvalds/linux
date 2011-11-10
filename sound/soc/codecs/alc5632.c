@@ -964,27 +964,6 @@ static int alc5632_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-#define ALC5632_REC_UNMUTE (ALC5632_ADC_REC_MIC2 \
-		| ALC5632_ADC_REC_LINE_IN | ALC5632_ADC_REC_AUX \
-		| ALC5632_ADC_REC_HP | ALC5632_ADC_REC_SPK \
-		| ALC5632_ADC_REC_MONOMIX)
-
-#define ALC5632_MIC_ROUTE (ALC5632_MIC_ROUTE_HP \
-		| ALC5632_MIC_ROUTE_SPK \
-		| ALC5632_MIC_ROUTE_MONOMIX)
-
-#define ALC5632_PWR_DEFAULT (ALC5632_PWR_ADC_STATUS \
-		| ALC5632_PWR_DAC_STATUS \
-		| ALC5632_PWR_AMIX_STATUS \
-		| ALC5632_PWR_VREF_STATUS)
-
-#define ALC5632_ADC_REC_GAIN_COMP(x) (int)((x - ALC5632_ADC_REC_GAIN_BASE) \
-		/ ALC5632_ADC_REC_GAIN_STEP)
-
-#define ALC5632_MIC_BOOST_COMP(x) (int)(x / ALC5632_MIC_BOOST_STEP)
-
-#define ALC5632_SPK_OUT_VOL_COMP(x) (int)(x / ALC5632_SPK_OUT_VOL_STEP)
-
 static int alc5632_probe(struct snd_soc_codec *codec)
 {
 	struct alc5632_priv *alc5632 = snd_soc_codec_get_drvdata(codec);
