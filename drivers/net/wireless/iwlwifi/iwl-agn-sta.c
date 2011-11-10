@@ -840,7 +840,7 @@ int iwlagn_mac_sta_remove(struct ieee80211_hw *hw,
 			sta->addr);
 	ret = iwl_remove_station(priv, sta_priv->sta_id, sta->addr);
 	if (ret)
-		IWL_ERR(priv, "Error removing station %pM\n",
+		IWL_DEBUG_QUIET_RFKILL(priv, "Error removing station %pM\n",
 			sta->addr);
 	mutex_unlock(&priv->shrd->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");

@@ -45,7 +45,8 @@ static int iwlagn_disable_bss(struct iwl_priv *priv,
 	send->filter_flags = old_filter;
 
 	if (ret)
-		IWL_ERR(priv, "Error clearing ASSOC_MSK on BSS (%d)\n", ret);
+		IWL_DEBUG_QUIET_RFKILL(priv,
+			"Error clearing ASSOC_MSK on BSS (%d)\n", ret);
 
 	return ret;
 }
@@ -124,7 +125,7 @@ static void iwlagn_update_qos(struct iwl_priv *priv,
 			       sizeof(struct iwl_qosparam_cmd),
 			       &ctx->qos_data.def_qos_parm);
 	if (ret)
-		IWL_ERR(priv, "Failed to update QoS\n");
+		IWL_DEBUG_QUIET_RFKILL(priv, "Failed to update QoS\n");
 }
 
 static int iwlagn_update_beacon(struct iwl_priv *priv,
