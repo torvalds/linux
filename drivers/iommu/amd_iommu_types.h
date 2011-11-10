@@ -94,7 +94,8 @@
 #define FEATURE_PASID_MASK	(0x1fULL << FEATURE_PASID_SHIFT)
 
 /* MMIO status bits */
-#define MMIO_STATUS_COM_WAIT_INT_MASK	0x04
+#define MMIO_STATUS_COM_WAIT_INT_MASK	(1 << 2)
+#define MMIO_STATUS_PPR_INT_MASK	(1 << 6)
 
 /* event logging constants */
 #define EVENT_ENTRY_SIZE	0x10
@@ -179,6 +180,16 @@
 #define PPR_LOG_SIZE_512	(0x9ULL << PPR_LOG_SIZE_SHIFT)
 #define PPR_ENTRY_SIZE		16
 #define PPR_LOG_SIZE		(PPR_ENTRY_SIZE * PPR_LOG_ENTRIES)
+
+#define PPR_REQ_TYPE(x)		(((x) >> 60) & 0xfULL)
+#define PPR_FLAGS(x)		(((x) >> 48) & 0xfffULL)
+#define PPR_DEVID(x)		((x) & 0xffffULL)
+#define PPR_TAG(x)		(((x) >> 32) & 0x3ffULL)
+#define PPR_PASID1(x)		(((x) >> 16) & 0xffffULL)
+#define PPR_PASID2(x)		(((x) >> 42) & 0xfULL)
+#define PPR_PASID(x)		((PPR_PASID2(x) << 16) | PPR_PASID1(x))
+
+#define PPR_REQ_FAULT		0x01
 
 #define PAGE_MODE_NONE    0x00
 #define PAGE_MODE_1_LEVEL 0x01
@@ -299,6 +310,27 @@ extern bool amd_iommu_iotlb_sup;
 #define APERTURE_MAX_RANGES	32	/* allows 4GB of DMA address space */
 #define APERTURE_RANGE_INDEX(a)	((a) >> APERTURE_RANGE_SHIFT)
 #define APERTURE_PAGE_INDEX(a)	(((a) >> 21) & 0x3fULL)
+
+
+/*
+ * This struct is used to pass information about
+ * incoming PPR faults around.
+ */
+struct amd_iommu_fault {
+	u64 address;    /* IO virtual address of the fault*/
+	u32 pasid;      /* Address space identifier */
+	u16 device_id;  /* Originating PCI device id */
+	u16 tag;        /* PPR tag */
+	u16 flags;      /* Fault flags */
+
+};
+
+#define PPR_FAULT_EXEC	(1 << 1)
+#define PPR_FAULT_READ  (1 << 2)
+#define PPR_FAULT_WRITE (1 << 5)
+#define PPR_FAULT_USER  (1 << 6)
+#define PPR_FAULT_RSVD  (1 << 7)
+#define PPR_FAULT_GN    (1 << 8)
 
 /*
  * This structure contains generic data for  IOMMU protection domains

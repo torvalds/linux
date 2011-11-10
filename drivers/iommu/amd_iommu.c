@@ -17,6 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <linux/ratelimit.h>
 #include <linux/pci.h>
 #include <linux/pci-ats.h>
 #include <linux/bitmap.h>
@@ -28,6 +29,8 @@
 #include <linux/iommu.h>
 #include <linux/delay.h>
 #include <linux/amd-iommu.h>
+#include <linux/notifier.h>
+#include <linux/export.h>
 #include <asm/msidef.h>
 #include <asm/proto.h>
 #include <asm/iommu.h>
@@ -58,6 +61,8 @@ static DEFINE_SPINLOCK(dev_data_list_lock);
 static struct protection_domain *pt_domain;
 
 static struct iommu_ops amd_iommu_ops;
+
+static ATOMIC_NOTIFIER_HEAD(ppr_notifier);
 
 /*
  * general struct to manage commands send to an IOMMU
@@ -488,12 +493,82 @@ static void iommu_poll_events(struct amd_iommu *iommu)
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
+static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u32 head)
+{
+	struct amd_iommu_fault fault;
+	volatile u64 *raw;
+	int i;
+
+	raw = (u64 *)(iommu->ppr_log + head);
+
+	/*
+	 * Hardware bug: Interrupt may arrive before the entry is written to
+	 * memory. If this happens we need to wait for the entry to arrive.
+	 */
+	for (i = 0; i < LOOP_TIMEOUT; ++i) {
+		if (PPR_REQ_TYPE(raw[0]) != 0)
+			break;
+		udelay(1);
+	}
+
+	if (PPR_REQ_TYPE(raw[0]) != PPR_REQ_FAULT) {
+		pr_err_ratelimited("AMD-Vi: Unknown PPR request received\n");
+		return;
+	}
+
+	fault.address   = raw[1];
+	fault.pasid     = PPR_PASID(raw[0]);
+	fault.device_id = PPR_DEVID(raw[0]);
+	fault.tag       = PPR_TAG(raw[0]);
+	fault.flags     = PPR_FLAGS(raw[0]);
+
+	/*
+	 * To detect the hardware bug we need to clear the entry
+	 * to back to zero.
+	 */
+	raw[0] = raw[1] = 0;
+
+	atomic_notifier_call_chain(&ppr_notifier, 0, &fault);
+}
+
+static void iommu_poll_ppr_log(struct amd_iommu *iommu)
+{
+	unsigned long flags;
+	u32 head, tail;
+
+	if (iommu->ppr_log == NULL)
+		return;
+
+	spin_lock_irqsave(&iommu->lock, flags);
+
+	head = readl(iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
+	tail = readl(iommu->mmio_base + MMIO_PPR_TAIL_OFFSET);
+
+	while (head != tail) {
+
+		/* Handle PPR entry */
+		iommu_handle_ppr_entry(iommu, head);
+
+		/* Update and refresh ring-buffer state*/
+		head = (head + PPR_ENTRY_SIZE) % PPR_LOG_SIZE;
+		writel(head, iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
+		tail = readl(iommu->mmio_base + MMIO_PPR_TAIL_OFFSET);
+	}
+
+	/* enable ppr interrupts again */
+	writel(MMIO_STATUS_PPR_INT_MASK, iommu->mmio_base + MMIO_STATUS_OFFSET);
+
+	spin_unlock_irqrestore(&iommu->lock, flags);
+}
+
 irqreturn_t amd_iommu_int_thread(int irq, void *data)
 {
 	struct amd_iommu *iommu;
 
-	for_each_iommu(iommu)
+	for_each_iommu(iommu) {
 		iommu_poll_events(iommu);
+		iommu_poll_ppr_log(iommu);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -2888,3 +2963,16 @@ int __init amd_iommu_init_passthrough(void)
 
 	return 0;
 }
+
+/* IOMMUv2 specific functions */
+int amd_iommu_register_ppr_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&ppr_notifier, nb);
+}
+EXPORT_SYMBOL(amd_iommu_register_ppr_notifier);
+
+int amd_iommu_unregister_ppr_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&ppr_notifier, nb);
+}
+EXPORT_SYMBOL(amd_iommu_unregister_ppr_notifier);

@@ -32,7 +32,10 @@ extern void amd_iommu_uninit_devices(void);
 extern void amd_iommu_init_notifier(void);
 extern void amd_iommu_init_api(void);
 
+/* IOMMUv2 specific functions */
 extern bool amd_iommu_v2_supported(void);
+extern int amd_iommu_register_ppr_notifier(struct notifier_block *nb);
+extern int amd_iommu_unregister_ppr_notifier(struct notifier_block *nb);
 
 #ifndef CONFIG_AMD_IOMMU_STATS
 
