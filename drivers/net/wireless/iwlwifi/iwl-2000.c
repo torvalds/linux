@@ -270,11 +270,6 @@ struct iwl_cfg iwl2000_2bgn_cfg = {
 	.ht_params = &iwl2000_ht_params,
 };
 
-struct iwl_cfg iwl2000_2bg_cfg = {
-	.name = "2000 Series 2x2 BG",
-	IWL_DEVICE_2000,
-};
-
 struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.name = "2000D Series 2x2 BGN",
 	IWL_DEVICE_2000,
@@ -304,11 +299,6 @@ struct iwl_cfg iwl2030_2bgn_cfg = {
 	.ht_params = &iwl2000_ht_params,
 };
 
-struct iwl_cfg iwl2030_2bg_cfg = {
-	.name = "2000 Series 2x2 BG/BT",
-	IWL_DEVICE_2030,
-};
-
 #define IWL_DEVICE_105						\
 	.fw_name_pre = IWL105_FW_PRE,				\
 	.ucode_api_max = IWL105_UCODE_API_MAX,			\
@@ -325,11 +315,6 @@ struct iwl_cfg iwl2030_2bg_cfg = {
 	.adv_pm = true,						\
 	.rx_with_siso_diversity = true,				\
 	.iq_invert = true					\
-
-struct iwl_cfg iwl105_bg_cfg = {
-	.name = "105 Series 1x1 BG",
-	IWL_DEVICE_105,
-};
 
 struct iwl_cfg iwl105_bgn_cfg = {
 	.name = "105 Series 1x1 BGN",
@@ -360,11 +345,6 @@ struct iwl_cfg iwl105_bgn_d_cfg = {
 	.adv_pm = true,						\
 	.rx_with_siso_diversity = true,				\
 	.iq_invert = true					\
-
-struct iwl_cfg iwl135_bg_cfg = {
-	.name = "135 Series 1x1 BG/BT",
-	IWL_DEVICE_135,
-};
 
 struct iwl_cfg iwl135_bgn_cfg = {
 	.name = "135 Series 1x1 BGN/BT",
