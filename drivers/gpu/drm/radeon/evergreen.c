@@ -1219,7 +1219,7 @@ void evergreen_mc_program(struct radeon_device *rdev)
 		WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
 			rdev->mc.vram_end >> 12);
 	}
-	WREG32(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR, 0);
+	WREG32(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR, rdev->vram_scratch.gpu_addr >> 12);
 	if (rdev->flags & RADEON_IS_IGP) {
 		tmp = RREG32(MC_FUS_VM_FB_OFFSET) & 0x000FFFFF;
 		tmp |= ((rdev->mc.vram_end >> 20) & 0xF) << 24;
