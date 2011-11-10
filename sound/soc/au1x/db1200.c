@@ -1,5 +1,5 @@
 /*
- * DB1200/DB1300 ASoC audio fabric support code.
+ * DB1200/DB1300/DB1550 ASoC audio fabric support code.
  *
  * (c) 2008-2011 Manuel Lauss <manuel.lauss@googlemail.com>
  *
@@ -34,6 +34,12 @@ static struct platform_device_id db1200_pids[] = {
 	}, {
 		.name		= "db1300-i2s",
 		.driver_data	= 3,
+	}, {
+		.name		= "db1550-ac97",
+		.driver_data	= 4,
+	}, {
+		.name		= "db1550-i2s",
+		.driver_data	= 5,
 	},
 	{},
 };
@@ -67,6 +73,12 @@ static struct snd_soc_dai_link db1300_ac97_dai = {
 static struct snd_soc_card db1300_ac97_machine = {
 	.name		= "DB1300_AC97",
 	.dai_link	= &db1300_ac97_dai,
+	.num_links	= 1,
+};
+
+static struct snd_soc_card db1550_ac97_machine = {
+	.name		= "DB1550_AC97",
+	.dai_link	= &db1200_ac97_dai,
 	.num_links	= 1,
 };
 
@@ -135,6 +147,22 @@ static struct snd_soc_card db1300_i2s_machine = {
 	.num_links	= 1,
 };
 
+static struct snd_soc_dai_link db1550_i2s_dai = {
+	.name		= "WM8731",
+	.stream_name	= "WM8731 PCM",
+	.codec_dai_name	= "wm8731-hifi",
+	.cpu_dai_name	= "au1xpsc_i2s.3",
+	.platform_name	= "au1xpsc-pcm.3",
+	.codec_name	= "wm8731.0-001b",
+	.ops		= &db1200_i2s_wm8731_ops,
+};
+
+static struct snd_soc_card db1550_i2s_machine = {
+	.name		= "DB1550_I2S",
+	.dai_link	= &db1550_i2s_dai,
+	.num_links	= 1,
+};
+
 /*-------------------------  COMMON PART  ---------------------------*/
 
 static struct snd_soc_card *db1200_cards[] __devinitdata = {
@@ -142,6 +170,8 @@ static struct snd_soc_card *db1200_cards[] __devinitdata = {
 	&db1200_i2s_machine,
 	&db1300_ac97_machine,
 	&db1300_i2s_machine,
+	&db1550_ac97_machine,
+	&db1550_i2s_machine,
 };
 
 static int __devinit db1200_audio_probe(struct platform_device *pdev)
@@ -186,5 +216,5 @@ module_init(db1200_audio_load);
 module_exit(db1200_audio_unload);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("DB1200/DB1300 ASoC audio support");
+MODULE_DESCRIPTION("DB1200/DB1300/DB1550 ASoC audio support");
 MODULE_AUTHOR("Manuel Lauss");

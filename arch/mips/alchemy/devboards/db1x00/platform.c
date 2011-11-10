@@ -34,7 +34,6 @@ struct pci_dev;
  * CD0/1 	GPIO0/3
  * STSCHG0/1	GPIO1/4
  * CARD0/1	GPIO2/5
- * Db1550:	0/1, 21/22, 3/5
  */
 
 #define F_SWAPPED (bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1000_SWAPBOOT)
@@ -46,7 +45,6 @@ struct pci_dev;
 #define DB1XXX_PCMCIA_CD1	AU1000_GPIO3_INT
 #define DB1XXX_PCMCIA_STSCHG1	AU1000_GPIO4_INT
 #define DB1XXX_PCMCIA_CARD1	AU1000_GPIO5_INT
-#define BOARD_FLASH_SIZE	0x02000000 /* 32MB */
 #elif defined(CONFIG_MIPS_DB1100)
 #define DB1XXX_PCMCIA_CD0	AU1100_GPIO0_INT
 #define DB1XXX_PCMCIA_STSCHG0	AU1100_GPIO1_INT
@@ -54,7 +52,6 @@ struct pci_dev;
 #define DB1XXX_PCMCIA_CD1	AU1100_GPIO3_INT
 #define DB1XXX_PCMCIA_STSCHG1	AU1100_GPIO4_INT
 #define DB1XXX_PCMCIA_CARD1	AU1100_GPIO5_INT
-#define BOARD_FLASH_SIZE	0x02000000 /* 32MB */
 #elif defined(CONFIG_MIPS_DB1500)
 #define DB1XXX_PCMCIA_CD0	AU1500_GPIO0_INT
 #define DB1XXX_PCMCIA_STSCHG0	AU1500_GPIO1_INT
@@ -62,20 +59,8 @@ struct pci_dev;
 #define DB1XXX_PCMCIA_CD1	AU1500_GPIO3_INT
 #define DB1XXX_PCMCIA_STSCHG1	AU1500_GPIO4_INT
 #define DB1XXX_PCMCIA_CARD1	AU1500_GPIO5_INT
-#define BOARD_FLASH_SIZE	0x02000000 /* 32MB */
-#elif defined(CONFIG_MIPS_DB1550)
-#define DB1XXX_PCMCIA_CD0	AU1550_GPIO0_INT
-#define DB1XXX_PCMCIA_STSCHG0	AU1550_GPIO21_INT
-#define DB1XXX_PCMCIA_CARD0	AU1550_GPIO3_INT
-#define DB1XXX_PCMCIA_CD1	AU1550_GPIO1_INT
-#define DB1XXX_PCMCIA_STSCHG1	AU1550_GPIO22_INT
-#define DB1XXX_PCMCIA_CARD1	AU1550_GPIO5_INT
-#define BOARD_FLASH_SIZE	0x08000000 /* 128MB */
-#endif
 
-#ifdef CONFIG_PCI
-#ifdef CONFIG_MIPS_DB1500
-static int db1xxx_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
+static int db1500_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
 {
 	if ((slot < 12) || (slot > 13) || pin == 0)
 		return -1;
@@ -91,34 +76,6 @@ static int db1xxx_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
 	}
 	return -1;
 }
-#endif
-
-#ifdef CONFIG_MIPS_DB1550
-static int db1xxx_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
-{
-	if ((slot < 11) || (slot > 13) || pin == 0)
-		return -1;
-	if (slot == 11)
-		return (pin == 1) ? AU1550_PCI_INTC : 0xff;
-	if (slot == 12) {
-		switch (pin) {
-		case 1: return AU1550_PCI_INTB;
-		case 2: return AU1550_PCI_INTC;
-		case 3: return AU1550_PCI_INTD;
-		case 4: return AU1550_PCI_INTA;
-		}
-	}
-	if (slot == 13) {
-		switch (pin) {
-		case 1: return AU1550_PCI_INTA;
-		case 2: return AU1550_PCI_INTB;
-		case 3: return AU1550_PCI_INTC;
-		case 4: return AU1550_PCI_INTD;
-		}
-	}
-	return -1;
-}
-#endif
 
 static struct resource alchemy_pci_host_res[] = {
 	[0] = {
@@ -128,24 +85,24 @@ static struct resource alchemy_pci_host_res[] = {
 	},
 };
 
-static struct alchemy_pci_platdata db1xxx_pci_pd = {
-	.board_map_irq	= db1xxx_map_pci_irq,
+static struct alchemy_pci_platdata db1500_pci_pd = {
+	.board_map_irq	= db1500_map_pci_irq,
 };
 
-static struct platform_device db1xxx_pci_host_dev = {
-	.dev.platform_data = &db1xxx_pci_pd,
+static struct platform_device db1500_pci_host_dev = {
+	.dev.platform_data = &db1500_pci_pd,
 	.name		= "alchemy-pci",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(alchemy_pci_host_res),
 	.resource	= alchemy_pci_host_res,
 };
 
-static int __init db15x0_pci_init(void)
+static int __init db1500_pci_init(void)
 {
-	return platform_device_register(&db1xxx_pci_host_dev);
+	return platform_device_register(&db1500_pci_host_dev);
 }
 /* must be arch_initcall; MIPS PCI scans busses in a subsys_initcall */
-arch_initcall(db15x0_pci_init);
+arch_initcall(db1500_pci_init);
 #endif
 
 #ifdef CONFIG_MIPS_DB1100
@@ -244,7 +201,7 @@ static int __init db1xxx_dev_init(void)
 	platform_device_register(&alchemy_ac97c_dev);
 	platform_device_register(&db1x00_audio_dev);
 
-	db1x_register_norflash(BOARD_FLASH_SIZE, 4 /* 32bit */, F_SWAPPED);
+	db1x_register_norflash(0x02000000, 4 /* 32bit */, F_SWAPPED);
 	return 0;
 }
 device_initcall(db1xxx_dev_init);

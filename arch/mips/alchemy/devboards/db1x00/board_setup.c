@@ -48,11 +48,6 @@ const char *get_system_type(void)
 
 void __init board_setup(void)
 {
-	unsigned long bcsr1, bcsr2;
-
-	bcsr1 = DB1000_BCSR_PHYS_ADDR;
-	bcsr2 = DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS;
-
 #ifdef CONFIG_MIPS_DB1000
 	printk(KERN_INFO "AMD Alchemy Au1000/Db1000 Board\n");
 #endif
@@ -62,15 +57,9 @@ void __init board_setup(void)
 #ifdef CONFIG_MIPS_DB1100
 	printk(KERN_INFO "AMD Alchemy Au1100/Db1100 Board\n");
 #endif
-#ifdef CONFIG_MIPS_DB1550
-	printk(KERN_INFO "AMD Alchemy Au1550/Db1550 Board\n");
-
-	bcsr1 = DB1550_BCSR_PHYS_ADDR;
-	bcsr2 = DB1550_BCSR_PHYS_ADDR + DB1550_BCSR_HEXLED_OFS;
-#endif
-
 	/* initialize board register space */
-	bcsr_init(bcsr1, bcsr2);
+	bcsr_init(DB1000_BCSR_PHYS_ADDR,
+		  DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS);
 
 #if defined(CONFIG_IRDA) && defined(CONFIG_AU1000_FIR)
 	{
@@ -92,14 +81,7 @@ void __init board_setup(void)
 
 static int __init db1x00_init_irq(void)
 {
-#if defined(CONFIG_MIPS_DB1550)
-	irq_set_irq_type(AU1550_GPIO0_INT, IRQF_TRIGGER_LOW);  /* CD0# */
-	irq_set_irq_type(AU1550_GPIO1_INT, IRQF_TRIGGER_LOW);  /* CD1# */
-	irq_set_irq_type(AU1550_GPIO3_INT, IRQF_TRIGGER_LOW);  /* CARD0# */
-	irq_set_irq_type(AU1550_GPIO5_INT, IRQF_TRIGGER_LOW);  /* CARD1# */
-	irq_set_irq_type(AU1550_GPIO21_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
-	irq_set_irq_type(AU1550_GPIO22_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
-#elif defined(CONFIG_MIPS_DB1500)
+#if defined(CONFIG_MIPS_DB1500)
 	irq_set_irq_type(AU1500_GPIO0_INT, IRQF_TRIGGER_LOW); /* CD0# */
 	irq_set_irq_type(AU1500_GPIO3_INT, IRQF_TRIGGER_LOW); /* CD1# */
 	irq_set_irq_type(AU1500_GPIO2_INT, IRQF_TRIGGER_LOW); /* CARD0# */
