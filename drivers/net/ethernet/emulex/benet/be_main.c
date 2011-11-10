@@ -1978,6 +1978,9 @@ void be_detect_dump_ue(struct be_adapter *adapter)
 	u32 sliport_status = 0, sliport_err1 = 0, sliport_err2 = 0;
 	u32 i;
 
+	if (adapter->eeh_err || adapter->ue_detected)
+		return;
+
 	if (lancer_chip(adapter)) {
 		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
 		if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
@@ -2039,8 +2042,7 @@ static void be_worker(struct work_struct *work)
 	struct be_rx_obj *rxo;
 	int i;
 
-	if (!adapter->ue_detected)
-		be_detect_dump_ue(adapter);
+	be_detect_dump_ue(adapter);
 
 	/* when interrupts are not yet enabled, just reap any pending
 	* mcc completions */
