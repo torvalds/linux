@@ -585,7 +585,7 @@ static int oti6858_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev, "%s(): usb_submit_urb() failed"
 			       " with error %d\n", __func__, result);
 		oti6858_close(port);
-		return -EPROTO;
+		return result;
 	}
 
 	/* setup termios */
