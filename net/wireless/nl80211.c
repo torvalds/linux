@@ -5283,7 +5283,7 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	bool channel_type_valid = false;
 	u32 freq;
 	int err;
-	void *hdr;
+	void *hdr = NULL;
 	u64 cookie;
 	struct sk_buff *msg = NULL;
 	unsigned int wait = 0;
