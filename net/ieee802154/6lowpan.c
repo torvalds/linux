@@ -246,6 +246,50 @@ lowpan_uncompress_addr(struct sk_buff *skb, struct in6_addr *ipaddr,
 	return 0;
 }
 
+static void
+lowpan_compress_udp_header(u8 **hc06_ptr, struct sk_buff *skb)
+{
+	struct udphdr *uh = udp_hdr(skb);
+
+	pr_debug("(%s): UDP header compression\n", __func__);
+
+	if (((uh->source & LOWPAN_NHC_UDP_4BIT_MASK) ==
+				LOWPAN_NHC_UDP_4BIT_PORT) &&
+	    ((uh->dest & LOWPAN_NHC_UDP_4BIT_MASK) ==
+				LOWPAN_NHC_UDP_4BIT_PORT)) {
+		pr_debug("(%s): both ports compression to 4 bits\n", __func__);
+		**hc06_ptr = LOWPAN_NHC_UDP_CS_P_11;
+		**(hc06_ptr + 1) = /* subtraction is faster */
+		   (u8)((uh->dest - LOWPAN_NHC_UDP_4BIT_PORT) +
+		       ((uh->source & LOWPAN_NHC_UDP_4BIT_PORT) << 4));
+		*hc06_ptr += 2;
+	} else if ((uh->dest & LOWPAN_NHC_UDP_8BIT_MASK) ==
+			LOWPAN_NHC_UDP_8BIT_PORT) {
+		pr_debug("(%s): remove 8 bits of dest\n", __func__);
+		**hc06_ptr = LOWPAN_NHC_UDP_CS_P_01;
+		memcpy(*hc06_ptr + 1, &uh->source, 2);
+		**(hc06_ptr + 3) = (u8)(uh->dest - LOWPAN_NHC_UDP_8BIT_PORT);
+		*hc06_ptr += 4;
+	} else if ((uh->source & LOWPAN_NHC_UDP_8BIT_MASK) ==
+			LOWPAN_NHC_UDP_8BIT_PORT) {
+		pr_debug("(%s): remove 8 bits of source\n", __func__);
+		**hc06_ptr = LOWPAN_NHC_UDP_CS_P_10;
+		memcpy(*hc06_ptr + 1, &uh->dest, 2);
+		**(hc06_ptr + 3) = (u8)(uh->source - LOWPAN_NHC_UDP_8BIT_PORT);
+		*hc06_ptr += 4;
+	} else {
+		pr_debug("(%s): can't compress header\n", __func__);
+		**hc06_ptr = LOWPAN_NHC_UDP_CS_P_00;
+		memcpy(*hc06_ptr + 1, &uh->source, 2);
+		memcpy(*hc06_ptr + 3, &uh->dest, 2);
+		*hc06_ptr += 5;
+	}
+
+	/* checksum is always inline */
+	memcpy(*hc06_ptr, &uh->check, 2);
+	*hc06_ptr += 2;
+}
+
 static u8 lowpan_fetch_skb_u8(struct sk_buff *skb)
 {
 	u8 ret;
@@ -365,8 +409,6 @@ static int lowpan_header_create(struct sk_buff *skb,
 	if (hdr->nexthdr == UIP_PROTO_UDP)
 		iphc0 |= LOWPAN_IPHC_NH_C;
 
-/* TODO: next header compression */
-
 	if ((iphc0 & LOWPAN_IPHC_NH_C) == 0) {
 		*hc06_ptr = hdr->nexthdr;
 		hc06_ptr += 1;
@@ -454,8 +496,9 @@ static int lowpan_header_create(struct sk_buff *skb,
 		}
 	}
 
-	/* TODO: UDP header compression */
-	/* TODO: Next Header compression */
+	/* UDP header compression */
+	if (hdr->nexthdr == UIP_PROTO_UDP)
+		lowpan_compress_udp_header(&hc06_ptr, skb);
 
 	head[0] = iphc0;
 	head[1] = iphc1;

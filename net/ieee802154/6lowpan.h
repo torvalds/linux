@@ -219,6 +219,11 @@
 #define LOWPAN_NHC_UDP_CHECKSUMC	0x04
 #define LOWPAN_NHC_UDP_CHECKSUMI	0x00
 
+#define LOWPAN_NHC_UDP_4BIT_PORT	0xF0B0
+#define LOWPAN_NHC_UDP_4BIT_MASK	0xFFF0
+#define LOWPAN_NHC_UDP_8BIT_PORT	0xF000
+#define LOWPAN_NHC_UDP_8BIT_MASK	0xFF00
+
 /* values for port compression, _with checksum_ ie bit 5 set to 0 */
 #define LOWPAN_NHC_UDP_CS_P_00	0xF0 /* all inline */
 #define LOWPAN_NHC_UDP_CS_P_01	0xF1 /* source 16bit inline,
