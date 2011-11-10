@@ -280,7 +280,10 @@ static int cp210x_get_config(struct usb_serial_port *port, u8 request,
 		dbg("%s - Unable to send config request, "
 				"request=0x%x size=%d result=%d\n",
 				__func__, request, size, result);
-		return -EPROTO;
+		if (result > 0)
+			result = -EPROTO;
+
+		return result;
 	}
 
 	return 0;
@@ -331,7 +334,10 @@ static int cp210x_set_config(struct usb_serial_port *port, u8 request,
 		dbg("%s - Unable to send request, "
 				"request=0x%x size=%d result=%d\n",
 				__func__, request, size, result);
-		return -EPROTO;
+		if (result > 0)
+			result = -EPROTO;
+
+		return result;
 	}
 
 	return 0;
@@ -395,10 +401,11 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (cp210x_set_config_single(port, CP210X_IFC_ENABLE, UART_ENABLE)) {
-		dev_err(&port->dev, "%s - Unable to enable UART\n",
-				__func__);
-		return -EPROTO;
+	result = cp210x_set_config_single(port, CP210X_IFC_ENABLE,
+								UART_ENABLE);
+	if (result) {
+		dev_err(&port->dev, "%s - Unable to enable UART\n", __func__);
+		return result;
 	}
 
 	result = usb_serial_generic_open(tty, port);
