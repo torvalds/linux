@@ -26,13 +26,6 @@ cflags-$(CONFIG_MIPS_PB1550)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1550)	+= 0xffffffff80100000
 
 #
-# AMD Alchemy Pb1200 eval board
-#
-platform-$(CONFIG_MIPS_PB1200)	+= alchemy/devboards/
-cflags-$(CONFIG_MIPS_PB1200)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
-load-$(CONFIG_MIPS_PB1200)	+= 0xffffffff80100000
-
-#
 # AMD Alchemy Db1000 eval board
 #
 platform-$(CONFIG_MIPS_DB1000)	+= alchemy/devboards/
@@ -61,7 +54,7 @@ cflags-$(CONFIG_MIPS_DB1550)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1550)	+= 0xffffffff80100000
 
 #
-# AMD Alchemy Db1200 eval board
+# AMD Alchemy Db1200/Pb1200 eval boards
 #
 platform-$(CONFIG_MIPS_DB1200)	+= alchemy/devboards/
 cflags-$(CONFIG_MIPS_DB1200)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00

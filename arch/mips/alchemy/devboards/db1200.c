@@ -1,5 +1,5 @@
 /*
- * DBAu1200 board platform device registration
+ * DBAu1200/PBAu1200 board platform device registration
  *
  * Copyright (C) 2008-2011 Manuel Lauss
  *
@@ -44,10 +44,41 @@
 
 #include "platform.h"
 
+static const char *board_type_str(void)
+{
+	switch (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI))) {
+	case BCSR_WHOAMI_PB1200_DDR1:
+	case BCSR_WHOAMI_PB1200_DDR2:
+		return "PB1200";
+	case BCSR_WHOAMI_DB1200:
+		return "DB1200";
+	default:
+		return "(unknown)";
+	}
+}
 
 const char *get_system_type(void)
 {
-	return "DB1200";
+	return board_type_str();
+}
+
+static int __init detect_board(void)
+{
+	int bid;
+
+	/* try the PB1200 first */
+	bcsr_init(PB1200_BCSR_PHYS_ADDR,
+		  PB1200_BCSR_PHYS_ADDR + PB1200_BCSR_HEXLED_OFS);
+	bid = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
+	if ((bid == BCSR_WHOAMI_PB1200_DDR1) ||
+	    (bid == BCSR_WHOAMI_PB1200_DDR2))
+		return 0;
+
+	/* okay, try the DB1200 then */
+	bcsr_init(DB1200_BCSR_PHYS_ADDR,
+		  DB1200_BCSR_PHYS_ADDR + DB1200_BCSR_HEXLED_OFS);
+	bid = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
+	return bid == BCSR_WHOAMI_DB1200 ? 0 : 1;
 }
 
 void __init board_setup(void)
@@ -55,12 +86,14 @@ void __init board_setup(void)
 	unsigned long freq0, clksrc, div, pfc;
 	unsigned short whoami;
 
-	bcsr_init(DB1200_BCSR_PHYS_ADDR,
-		  DB1200_BCSR_PHYS_ADDR + DB1200_BCSR_HEXLED_OFS);
+	if (detect_board()) {
+		printk(KERN_ERR "NOT running on a DB1200/PB1200 board!\n");
+		return;
+	}
 
 	whoami = bcsr_read(BCSR_WHOAMI);
-	printk(KERN_INFO "Alchemy/AMD/RMI DB1200 Board, CPLD Rev %d"
-		"  Board-ID %d  Daughtercard ID %d\n",
+	printk(KERN_INFO "Alchemy/AMD/RMI %s Board, CPLD Rev %d"
+		"  Board-ID %d  Daughtercard ID %d\n", board_type_str(),
 		(whoami >> 4) & 0xf, (whoami >> 8) & 0xf, whoami & 0xf);
 
 	/* SMBus/SPI on PSC0, Audio on PSC1 */
@@ -96,7 +129,7 @@ void __init board_setup(void)
 
 static struct mtd_partition db1200_spiflash_parts[] = {
 	{
-		.name	= "DB1200 SPI flash",
+		.name	= "spi_flash",
 		.offset	= 0,
 		.size	= MTDPART_SIZ_FULL,
 	},
@@ -376,12 +409,109 @@ static struct led_classdev db1200_mmc_led = {
 	.brightness_set	= db1200_mmcled_set,
 };
 
-static struct au1xmmc_platform_data db1200mmc_platdata = {
-	.cd_setup	= db1200_mmc_cd_setup,
-	.set_power	= db1200_mmc_set_power,
-	.card_inserted	= db1200_mmc_card_inserted,
-	.card_readonly	= db1200_mmc_card_readonly,
-	.led		= &db1200_mmc_led,
+/* -- */
+
+static irqreturn_t pb1200_mmc1_cd(int irq, void *ptr)
+{
+	void(*mmc_cd)(struct mmc_host *, unsigned long);
+
+	if (irq == PB1200_SD1_INSERT_INT) {
+		disable_irq_nosync(PB1200_SD1_INSERT_INT);
+		enable_irq(PB1200_SD1_EJECT_INT);
+	} else {
+		disable_irq_nosync(PB1200_SD1_EJECT_INT);
+		enable_irq(PB1200_SD1_INSERT_INT);
+	}
+
+	/* link against CONFIG_MMC=m */
+	mmc_cd = symbol_get(mmc_detect_change);
+	if (mmc_cd) {
+		mmc_cd(ptr, msecs_to_jiffies(500));
+		symbol_put(mmc_detect_change);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static int pb1200_mmc1_cd_setup(void *mmc_host, int en)
+{
+	int ret;
+
+	if (en) {
+		ret = request_irq(PB1200_SD1_INSERT_INT, pb1200_mmc1_cd, 0,
+				  "sd1_insert", mmc_host);
+		if (ret)
+			goto out;
+
+		ret = request_irq(PB1200_SD1_EJECT_INT, pb1200_mmc1_cd, 0,
+				  "sd1_eject", mmc_host);
+		if (ret) {
+			free_irq(PB1200_SD1_INSERT_INT, mmc_host);
+			goto out;
+		}
+
+		if (bcsr_read(BCSR_SIGSTAT) & BCSR_INT_SD1INSERT)
+			enable_irq(PB1200_SD1_EJECT_INT);
+		else
+			enable_irq(PB1200_SD1_INSERT_INT);
+
+	} else {
+		free_irq(PB1200_SD1_INSERT_INT, mmc_host);
+		free_irq(PB1200_SD1_EJECT_INT, mmc_host);
+	}
+	ret = 0;
+out:
+	return ret;
+}
+
+static void pb1200_mmc1led_set(struct led_classdev *led,
+			enum led_brightness brightness)
+{
+	if (brightness != LED_OFF)
+			bcsr_mod(BCSR_LEDS, BCSR_LEDS_LED1, 0);
+	else
+			bcsr_mod(BCSR_LEDS, 0, BCSR_LEDS_LED1);
+}
+
+static struct led_classdev pb1200_mmc1_led = {
+	.brightness_set	= pb1200_mmc1led_set,
+};
+
+static void pb1200_mmc1_set_power(void *mmc_host, int state)
+{
+	if (state) {
+		bcsr_mod(BCSR_BOARD, 0, BCSR_BOARD_SD1PWR);
+		msleep(400);	/* stabilization time */
+	} else
+		bcsr_mod(BCSR_BOARD, BCSR_BOARD_SD1PWR, 0);
+}
+
+static int pb1200_mmc1_card_readonly(void *mmc_host)
+{
+	return (bcsr_read(BCSR_STATUS) & BCSR_STATUS_SD1WP) ? 1 : 0;
+}
+
+static int pb1200_mmc1_card_inserted(void *mmc_host)
+{
+	return (bcsr_read(BCSR_SIGSTAT) & BCSR_INT_SD1INSERT) ? 1 : 0;
+}
+
+
+static struct au1xmmc_platform_data db1200_mmc_platdata[2] = {
+	[0] = {
+		.cd_setup	= db1200_mmc_cd_setup,
+		.set_power	= db1200_mmc_set_power,
+		.card_inserted	= db1200_mmc_card_inserted,
+		.card_readonly	= db1200_mmc_card_readonly,
+		.led		= &db1200_mmc_led,
+	},
+	[1] = {
+		.cd_setup	= pb1200_mmc1_cd_setup,
+		.set_power	= pb1200_mmc1_set_power,
+		.card_inserted	= pb1200_mmc1_card_inserted,
+		.card_readonly	= pb1200_mmc1_card_readonly,
+		.led		= &pb1200_mmc1_led,
+	},
 };
 
 static struct resource au1200_mmc0_resources[] = {
@@ -415,10 +545,45 @@ static struct platform_device db1200_mmc0_dev = {
 	.dev = {
 		.dma_mask		= &au1xxx_mmc_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &db1200mmc_platdata,
+		.platform_data		= &db1200_mmc_platdata[0],
 	},
 	.num_resources	= ARRAY_SIZE(au1200_mmc0_resources),
 	.resource	= au1200_mmc0_resources,
+};
+
+static struct resource au1200_mmc1_res[] = {
+	[0] = {
+		.start	= AU1100_SD1_PHYS_ADDR,
+		.end	= AU1100_SD1_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AU1200_SD_INT,
+		.end	= AU1200_SD_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= AU1200_DSCR_CMD0_SDMS_TX1,
+		.end	= AU1200_DSCR_CMD0_SDMS_TX1,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= AU1200_DSCR_CMD0_SDMS_RX1,
+		.end	= AU1200_DSCR_CMD0_SDMS_RX1,
+		.flags	= IORESOURCE_DMA,
+	}
+};
+
+static struct platform_device pb1200_mmc1_dev = {
+	.name		= "au1xxx-mmc",
+	.id		= 1,
+	.dev = {
+		.dma_mask		= &au1xxx_mmc_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &db1200_mmc_platdata[1],
+	},
+	.num_resources	= ARRAY_SIZE(au1200_mmc1_res),
+	.resource	= au1200_mmc1_res,
 };
 
 /**********************************************************************/
@@ -598,14 +763,50 @@ static struct platform_device *db1200_devs[] __initdata = {
 	&db1200_sound_dev,
 };
 
+static struct platform_device *pb1200_devs[] __initdata = {
+	&pb1200_mmc1_dev,
+};
+
+/* Some peripheral base addresses differ on the PB1200 */
+static int __init pb1200_res_fixup(void)
+{
+	/* CPLD Revs earlier than 4 cause problems */
+	if (BCSR_WHOAMI_CPLD(bcsr_read(BCSR_WHOAMI)) <= 3) {
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "PB1200 must be at CPLD rev 4. Please have\n");
+		printk(KERN_ERR "the board updated to latest revisions.\n");
+		printk(KERN_ERR "This software will not work reliably\n");
+		printk(KERN_ERR "on anything older than CPLD rev 4.!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		return 1;
+	}
+
+	db1200_nand_res[0].start = PB1200_NAND_PHYS_ADDR;
+	db1200_nand_res[0].end   = PB1200_NAND_PHYS_ADDR + 0xff;
+	db1200_ide_res[0].start = PB1200_IDE_PHYS_ADDR;
+	db1200_ide_res[0].end   = PB1200_IDE_PHYS_ADDR + DB1200_IDE_PHYS_LEN - 1;
+	db1200_eth_res[0].start = PB1200_ETH_PHYS_ADDR;
+	db1200_eth_res[0].end   = PB1200_ETH_PHYS_ADDR + 0xff;
+	return 0;
+}
+
 static int __init db1200_dev_init(void)
 {
 	unsigned long pfc;
 	unsigned short sw;
-	int swapped;
+	int swapped, bid;
+
+	bid = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
+	if ((bid == BCSR_WHOAMI_PB1200_DDR1) ||
+	    (bid == BCSR_WHOAMI_PB1200_DDR2)) {
+		if (pb1200_res_fixup())
+			return -ENODEV;
+	}
 
 	/* GPIO7 is low-level triggered CPLD cascade */
-	irq_set_irq_type(AU1200_GPIO7_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1200_GPIO7_INT, IRQ_TYPE_LEVEL_LOW);
 	bcsr_init_irq(DB1200_INT_BEGIN, DB1200_INT_END, AU1200_GPIO7_INT);
 
 	/* insert/eject pairs: one of both is always screaming.  To avoid
@@ -626,6 +827,7 @@ static int __init db1200_dev_init(void)
 
 	/* SWITCHES:	S6.8 I2C/SPI selector  (OFF=I2C  ON=SPI)
 	 *		S6.7 AC97/I2S selector (OFF=AC97 ON=I2S)
+	 *		or S12 on the PB1200.
 	 */
 
 	/* NOTE: GPIO215 controls OTG VBUS supply.  In SPI mode however
@@ -640,7 +842,7 @@ static int __init db1200_dev_init(void)
 	gpio_request(215, "otg-vbus");
 	gpio_direction_output(215, 1);
 
-	printk(KERN_INFO "DB1200 device configuration:\n");
+	printk(KERN_INFO "%s device configuration:\n", board_type_str());
 
 	sw = bcsr_read(BCSR_SWITCHES);
 	if (sw & BCSR_SWITCHES_DIP_8) {
@@ -707,6 +909,13 @@ static int __init db1200_dev_init(void)
 	swapped = bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1200_SWAPBOOT;
 	db1x_register_norflash(64 << 20, 2, swapped);
 
-	return platform_add_devices(db1200_devs, ARRAY_SIZE(db1200_devs));
+	platform_add_devices(db1200_devs, ARRAY_SIZE(db1200_devs));
+
+	/* PB1200 is a DB1200 with a 2nd MMC and Camera connector */
+	if ((bid == BCSR_WHOAMI_PB1200_DDR1) ||
+	    (bid == BCSR_WHOAMI_PB1200_DDR2))
+		platform_add_devices(pb1200_devs, ARRAY_SIZE(pb1200_devs));
+
+	return 0;
 }
 device_initcall(db1200_dev_init);
