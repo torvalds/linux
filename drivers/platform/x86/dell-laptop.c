@@ -236,9 +236,7 @@ static void __init find_tokens(const struct dmi_header *dm, void *dummy)
 {
 	switch (dm->type) {
 	case 0xd4: /* Indexed IO */
-		break;
 	case 0xd5: /* Protected Area Type 1 */
-		break;
 	case 0xd6: /* Protected Area Type 2 */
 		break;
 	case 0xda: /* Calling interface */
