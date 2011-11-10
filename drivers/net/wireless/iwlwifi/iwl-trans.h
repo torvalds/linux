@@ -247,6 +247,9 @@ struct iwl_trans {
 	struct fw_img ucode_init;
 	struct fw_img ucode_wowlan;
 
+	/* eeprom related variables */
+	int    nvm_device_type;
+
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
 	char trans_specific[0] __attribute__((__aligned__(sizeof(void *))));

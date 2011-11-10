@@ -944,7 +944,6 @@ struct iwl_priv {
 
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
-	int    nvm_device_type;
 	struct iwl_eeprom_calib_info *calib_info;
 
 	enum nl80211_iftype iw_mode;

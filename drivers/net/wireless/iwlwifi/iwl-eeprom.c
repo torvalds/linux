@@ -182,32 +182,32 @@ static void iwl_eeprom_release_semaphore(struct iwl_bus *bus)
 
 }
 
-static int iwl_eeprom_verify_signature(struct iwl_priv *priv)
+static int iwl_eeprom_verify_signature(struct iwl_trans *trans)
 {
-	u32 gp = iwl_read32(bus(priv), CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
+	u32 gp = iwl_read32(bus(trans), CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
 	int ret = 0;
 
-	IWL_DEBUG_EEPROM(priv, "EEPROM signature=0x%08x\n", gp);
+	IWL_DEBUG_EEPROM(trans, "EEPROM signature=0x%08x\n", gp);
 	switch (gp) {
 	case CSR_EEPROM_GP_BAD_SIG_EEP_GOOD_SIG_OTP:
-		if (priv->nvm_device_type != NVM_DEVICE_TYPE_OTP) {
-			IWL_ERR(priv, "EEPROM with bad signature: 0x%08x\n",
+		if (trans->nvm_device_type != NVM_DEVICE_TYPE_OTP) {
+			IWL_ERR(trans, "EEPROM with bad signature: 0x%08x\n",
 				gp);
 			ret = -ENOENT;
 		}
 		break;
 	case CSR_EEPROM_GP_GOOD_SIG_EEP_LESS_THAN_4K:
 	case CSR_EEPROM_GP_GOOD_SIG_EEP_MORE_THAN_4K:
-		if (priv->nvm_device_type != NVM_DEVICE_TYPE_EEPROM) {
-			IWL_ERR(priv, "OTP with bad signature: 0x%08x\n", gp);
+		if (trans->nvm_device_type != NVM_DEVICE_TYPE_EEPROM) {
+			IWL_ERR(trans, "OTP with bad signature: 0x%08x\n", gp);
 			ret = -ENOENT;
 		}
 		break;
 	case CSR_EEPROM_GP_BAD_SIGNATURE_BOTH_EEP_AND_OTP:
 	default:
-		IWL_ERR(priv, "bad EEPROM/OTP signature, type=%s, "
+		IWL_ERR(trans, "bad EEPROM/OTP signature, type=%s, "
 			"EEPROM_GP=0x%08x\n",
-			(priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+			(trans->nvm_device_type == NVM_DEVICE_TYPE_OTP)
 			? "OTP" : "EEPROM", gp);
 		ret = -ENOENT;
 		break;
@@ -660,8 +660,8 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 	u16 validblockaddr = 0;
 	u16 cache_addr = 0;
 
-	priv->nvm_device_type = iwl_get_nvm_type(bus(priv), hw_rev);
-	if (priv->nvm_device_type == -ENOENT)
+	trans(priv)->nvm_device_type = iwl_get_nvm_type(bus(priv), hw_rev);
+	if (trans(priv)->nvm_device_type == -ENOENT)
 		return -ENOENT;
 	/* allocate eeprom */
 	sz = priv->cfg->base_params->eeprom_size;
@@ -675,7 +675,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 
 	iwl_apm_init(priv);
 
-	ret = iwl_eeprom_verify_signature(priv);
+	ret = iwl_eeprom_verify_signature(trans(priv));
 	if (ret < 0) {
 		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
 		ret = -ENOENT;
@@ -690,7 +690,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 		goto err;
 	}
 
-	if (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP) {
+	if (trans(priv)->nvm_device_type == NVM_DEVICE_TYPE_OTP) {
 
 		ret = iwl_init_otp_access(bus(priv));
 		if (ret) {
@@ -744,7 +744,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 	}
 
 	IWL_DEBUG_EEPROM(priv, "NVM Type: %s, version: 0x%x\n",
-		       (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+		       (trans(priv)->nvm_device_type == NVM_DEVICE_TYPE_OTP)
 		       ? "OTP" : "EEPROM",
 		       iwl_eeprom_query16(priv, EEPROM_VERSION));
 
