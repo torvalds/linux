@@ -50,7 +50,7 @@ static struct usb_driver usb_serial_driver = {
 	.disconnect =	usb_serial_disconnect,
 	.suspend =	usb_serial_suspend,
 	.resume =	usb_serial_resume,
-	.no_dynamic_id = 	1,
+	.no_dynamic_id =	1,
 	.supports_autosuspend =	1,
 };
 
@@ -364,7 +364,6 @@ static int serial_write(struct tty_struct *tty, const unsigned char *buf,
 
 	/* pass on to the driver specific version of this function */
 	retval = port->serial->type->write(tty, port, buf, count);
-
 exit:
 	return retval;
 }
@@ -690,16 +689,18 @@ static int serial_carrier_raised(struct tty_port *port)
 {
 	struct usb_serial_port *p = container_of(port, struct usb_serial_port, port);
 	struct usb_serial_driver *drv = p->serial->type;
+
 	if (drv->carrier_raised)
 		return drv->carrier_raised(p);
 	/* No carrier control - don't block */
-	return 1;	
+	return 1;
 }
 
 static void serial_dtr_rts(struct tty_port *port, int on)
 {
 	struct usb_serial_port *p = container_of(port, struct usb_serial_port, port);
 	struct usb_serial_driver *drv = p->serial->type;
+
 	if (drv->dtr_rts)
 		drv->dtr_rts(p, on);
 }
@@ -1197,7 +1198,7 @@ static const struct tty_operations serial_ops = {
 	.open =			serial_open,
 	.close =		serial_close,
 	.write =		serial_write,
-	.hangup = 		serial_hangup,
+	.hangup =		serial_hangup,
 	.write_room =		serial_write_room,
 	.ioctl =		serial_ioctl,
 	.set_termios =		serial_set_termios,
@@ -1207,9 +1208,9 @@ static const struct tty_operations serial_ops = {
 	.chars_in_buffer =	serial_chars_in_buffer,
 	.tiocmget =		serial_tiocmget,
 	.tiocmset =		serial_tiocmset,
-	.get_icount = 		serial_get_icount,
-	.cleanup = 		serial_cleanup,
-	.install = 		serial_install,
+	.get_icount =		serial_get_icount,
+	.cleanup =		serial_cleanup,
+	.install =		serial_install,
 	.proc_fops =		&serial_proc_fops,
 };
 
@@ -1238,7 +1239,7 @@ static int __init usb_serial_init(void)
 
 	usb_serial_tty_driver->owner = THIS_MODULE;
 	usb_serial_tty_driver->driver_name = "usbserial";
-	usb_serial_tty_driver->name = 	"ttyUSB";
+	usb_serial_tty_driver->name = "ttyUSB";
 	usb_serial_tty_driver->major = SERIAL_TTY_MAJOR;
 	usb_serial_tty_driver->minor_start = 0;
 	usb_serial_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
