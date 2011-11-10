@@ -39,9 +39,6 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
-#include <linux/loop.h>
-#include <linux/falloc.h>
-#include <linux/fs.h>
 
 #include <xen/events.h>
 #include <xen/page.h>
@@ -426,27 +423,15 @@ static int dispatch_discard_io(struct xen_blkif *blkif,
 	blkif->st_ds_req++;
 
 	xen_blkif_get(blkif);
-	if (blkif->blk_backend_type == BLKIF_BACKEND_PHY) {
+	if (blkif->blk_backend_type == BLKIF_BACKEND_PHY ||
+	    blkif->blk_backend_type == BLKIF_BACKEND_FILE) {
 		unsigned long secure = (blkif->vbd.discard_secure &&
 			(req->u.discard.flag & BLKIF_DISCARD_SECURE)) ?
 			BLKDEV_DISCARD_SECURE : 0;
-		/* just forward the discard request */
 		err = blkdev_issue_discard(bdev,
 				req->u.discard.sector_number,
 				req->u.discard.nr_sectors,
 				GFP_KERNEL, secure);
-	} else if (blkif->blk_backend_type == BLKIF_BACKEND_FILE) {
-		/* punch a hole in the backing file */
-		struct loop_device *lo = bdev->bd_disk->private_data;
-		struct file *file = lo->lo_backing_file;
-
-		if (file->f_op->fallocate)
-			err = file->f_op->fallocate(file,
-				FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE,
-				req->u.discard.sector_number << 9,
-				req->u.discard.nr_sectors << 9);
-		else
-			err = -EOPNOTSUPP;
 	} else
 		err = -EOPNOTSUPP;
 
