@@ -1366,6 +1366,7 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 {
 	struct hci_dev *hdev;
 	struct mgmt_cp_pair_device *cp;
+	struct mgmt_rp_pair_device rp;
 	struct pending_cmd *cmd;
 	u8 sec_level, auth_type;
 	struct hci_conn *conn;
@@ -1397,14 +1398,22 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 		conn = hci_connect(hdev, LE_LINK, &cp->addr.bdaddr, sec_level,
 								auth_type);
 
+	memset(&rp, 0, sizeof(rp));
+	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
+	rp.addr.type = cp->addr.type;
+
 	if (IS_ERR(conn)) {
-		err = PTR_ERR(conn);
+		rp.status = -PTR_ERR(conn);
+		err = cmd_complete(sk, index, MGMT_OP_PAIR_DEVICE,
+							&rp, sizeof(rp));
 		goto unlock;
 	}
 
 	if (conn->connect_cfm_cb) {
 		hci_conn_put(conn);
-		err = cmd_status(sk, index, MGMT_OP_PAIR_DEVICE, EBUSY);
+		rp.status = EBUSY;
+		err = cmd_complete(sk, index, MGMT_OP_PAIR_DEVICE,
+							&rp, sizeof(rp));
 		goto unlock;
 	}
 
