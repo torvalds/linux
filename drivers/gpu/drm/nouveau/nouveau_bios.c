@@ -6048,6 +6048,109 @@ parse_dcb_connector_table(struct nvbios *bios)
 	}
 }
 
+void *
+dcb_table(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u8 *dcb = NULL;
+
+	if (dev_priv->card_type > NV_04)
+		dcb = ROMPTR(dev, dev_priv->vbios.data[0x36]);
+	if (!dcb) {
+		NV_WARNONCE(dev, "No DCB data found in VBIOS\n");
+		return NULL;
+	}
+
+	if (dcb[0] >= 0x41) {
+		NV_WARNONCE(dev, "DCB version 0x%02x unknown\n", dcb[0]);
+		return NULL;
+	} else
+	if (dcb[0] >= 0x30) {
+		if (ROM32(dcb[6]) == 0x4edcbdcb)
+			return dcb;
+	} else
+	if (dcb[0] >= 0x20) {
+		if (ROM32(dcb[4]) == 0x4edcbdcb)
+			return dcb;
+	} else
+	if (dcb[0] >= 0x15) {
+		if (!memcmp(&dcb[-7], "DEV_REC", 7))
+			return dcb;
+	} else {
+		/*
+		 * v1.4 (some NV15/16, NV11+) seems the same as v1.5, but
+		 * always has the same single (crt) entry, even when tv-out
+		 * present, so the conclusion is this version cannot really
+		 * be used.
+		 *
+		 * v1.2 tables (some NV6/10, and NV15+) normally have the
+		 * same 5 entries, which are not specific to the card and so
+		 * no use.
+		 *
+		 * v1.2 does have an I2C table that read_dcb_i2c_table can
+		 * handle, but cards exist (nv11 in #14821) with a bad i2c
+		 * table pointer, so use the indices parsed in
+		 * parse_bmp_structure.
+		 *
+		 * v1.1 (NV5+, maybe some NV4) is entirely unhelpful
+		 */
+		NV_WARNONCE(dev, "No useful DCB data in VBIOS\n");
+		return NULL;
+	}
+
+	NV_WARNONCE(dev, "DCB header validation failed\n");
+	return NULL;
+}
+
+u8 *
+dcb_outp(struct drm_device *dev, u8 idx)
+{
+	u8 *dcb = dcb_table(dev);
+	if (dcb && dcb[0] >= 0x30) {
+		if (idx < dcb[2])
+			return dcb + dcb[1] + (idx * dcb[3]);
+	} else
+	if (dcb && dcb[0] >= 0x20) {
+		u8 *i2c = ROMPTR(dev, dcb[2]);
+		u8 *ent = dcb + 8 + (idx * 8);
+		if (i2c && ent < i2c)
+			return ent;
+	} else
+	if (dcb && dcb[0] >= 0x15) {
+		u8 *i2c = ROMPTR(dev, dcb[2]);
+		u8 *ent = dcb + 4 + (idx * 10);
+		if (i2c && ent < i2c)
+			return ent;
+	}
+
+	return NULL;
+}
+
+int
+dcb_outp_foreach(struct drm_device *dev, void *data,
+		 int (*exec)(struct drm_device *, void *, int idx, u8 *outp))
+{
+	int ret, idx = -1;
+	u8 *outp = NULL;
+	while ((outp = dcb_outp(dev, ++idx))) {
+		if (ROM32(outp[0]) == 0x00000000)
+			break; /* seen on an NV11 with DCB v1.5 */
+		if (ROM32(outp[0]) == 0xffffffff)
+			break; /* seen on an NV17 with DCB v2.0 */
+
+		if ((outp[0] & 0x0f) == OUTPUT_UNUSED)
+			continue;
+		if ((outp[0] & 0x0f) == OUTPUT_EOL)
+			break;
+
+		ret = exec(dev, data, idx, outp);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static struct dcb_entry *new_dcb_entry(struct dcb_table *dcb)
 {
 	struct dcb_entry *entry = &dcb->entry[dcb->entries];
@@ -6251,25 +6354,6 @@ parse_dcb15_entry(struct drm_device *dev, struct dcb_table *dcb,
 	return true;
 }
 
-static bool parse_dcb_entry(struct drm_device *dev, struct dcb_table *dcb,
-			    uint32_t conn, uint32_t conf)
-{
-	struct dcb_entry *entry = new_dcb_entry(dcb);
-	bool ret;
-
-	if (dcb->version >= 0x20)
-		ret = parse_dcb20_entry(dev, dcb, conn, conf, entry);
-	else
-		ret = parse_dcb15_entry(dev, dcb, conn, conf, entry);
-	if (!ret)
-		return ret;
-
-	read_dcb_i2c_entry(dev, dcb->version, dcb->i2c_table,
-			   entry->i2c_index, &dcb->i2c[entry->i2c_index]);
-
-	return true;
-}
-
 static
 void merge_like_dcb_entries(struct drm_device *dev, struct dcb_table *dcb)
 {
@@ -6446,88 +6530,62 @@ fabricate_dcb_encoder_table(struct drm_device *dev, struct nvbios *bios)
 }
 
 static int
-parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
+parse_dcb_entry(struct drm_device *dev, void *data, int idx, u8 *outp)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct dcb_table *dcb = &dev_priv->vbios.dcb;
+	u32 conf = (dcb->version >= 0x20) ? ROM32(outp[4]) : ROM32(outp[6]);
+	u32 conn = ROM32(outp[0]);
+	bool ret;
+
+	if (apply_dcb_encoder_quirks(dev, idx, &conn, &conf)) {
+		struct dcb_entry *entry = new_dcb_entry(dcb);
+
+		NV_TRACEWARN(dev, "DCB entry %02d: %08x %08x\n", idx, conn, conf);
+
+		if (dcb->version >= 0x20)
+			ret = parse_dcb20_entry(dev, dcb, conn, conf, entry);
+		else
+			ret = parse_dcb15_entry(dev, dcb, conn, conf, entry);
+		if (!ret)
+			return 1; /* stop parsing */
+
+		read_dcb_i2c_entry(dev, dcb->version, dcb->i2c_table,
+				   entry->i2c_index,
+				   &dcb->i2c[entry->i2c_index]);
+	}
+
+	return 0;
+}
+
+static int
+parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
+{
 	struct dcb_table *dcb = &bios->dcb;
-	uint16_t dcbptr = 0, i2ctabptr = 0;
-	uint8_t *dcbtable;
-	uint8_t headerlen = 0x4, entries = DCB_MAX_NUM_ENTRIES;
-	bool configblock = true;
-	int recordlength = 8, confofs = 4;
-	int i;
+	u16 i2ctabptr = 0x0000;
+	u8 *dcbt;
 
-	/* get the offset from 0x36 */
-	if (dev_priv->card_type > NV_04) {
-		dcbptr = ROM16(bios->data[0x36]);
-		if (dcbptr == 0x0000)
-			NV_WARN(dev, "No output data (DCB) found in BIOS\n");
+	dcbt = dcb_table(dev);
+	if (!dcbt) {
+		/* handle pre-DCB boards */
+		if (bios->type == NVBIOS_BMP) {
+			fabricate_dcb_encoder_table(dev, bios);
+			return 0;
+		}
+
+		return -EINVAL;
 	}
 
-	/* this situation likely means a really old card, pre DCB */
-	if (dcbptr == 0x0) {
-		fabricate_dcb_encoder_table(dev, bios);
-		return 0;
-	}
+	NV_TRACE(dev, "DCB version %d.%d\n", dcbt[0] >> 4, dcbt[0] & 0xf);
 
-	dcbtable = &bios->data[dcbptr];
-
-	/* get DCB version */
-	dcb->version = dcbtable[0];
-	NV_TRACE(dev, "Found Display Configuration Block version %d.%d\n",
-		 dcb->version >> 4, dcb->version & 0xf);
-
-	if (dcb->version >= 0x20) { /* NV17+ */
-		uint32_t sig;
-
-		if (dcb->version >= 0x30) { /* NV40+ */
-			headerlen = dcbtable[1];
-			entries = dcbtable[2];
-			recordlength = dcbtable[3];
-			i2ctabptr = ROM16(dcbtable[4]);
-			sig = ROM32(dcbtable[6]);
-			dcb->gpio_table_ptr = ROM16(dcbtable[10]);
-			dcb->connector_table_ptr = ROM16(dcbtable[20]);
-		} else {
-			i2ctabptr = ROM16(dcbtable[2]);
-			sig = ROM32(dcbtable[4]);
-			headerlen = 8;
-		}
-
-		if (sig != 0x4edcbdcb) {
-			NV_ERROR(dev, "Bad Display Configuration Block "
-					"signature (%08X)\n", sig);
-			return -EINVAL;
-		}
-	} else if (dcb->version >= 0x15) { /* some NV11 and NV20 */
-		char sig[8] = { 0 };
-
-		strncpy(sig, (char *)&dcbtable[-7], 7);
-		i2ctabptr = ROM16(dcbtable[2]);
-		recordlength = 10;
-		confofs = 6;
-
-		if (strcmp(sig, "DEV_REC")) {
-			NV_ERROR(dev, "Bad Display Configuration Block "
-					"signature (%s)\n", sig);
-			return -EINVAL;
-		}
-	} else {
-		/*
-		 * v1.4 (some NV15/16, NV11+) seems the same as v1.5, but always
-		 * has the same single (crt) entry, even when tv-out present, so
-		 * the conclusion is this version cannot really be used.
-		 * v1.2 tables (some NV6/10, and NV15+) normally have the same
-		 * 5 entries, which are not specific to the card and so no use.
-		 * v1.2 does have an I2C table that read_dcb_i2c_table can
-		 * handle, but cards exist (nv11 in #14821) with a bad i2c table
-		 * pointer, so use the indices parsed in parse_bmp_structure.
-		 * v1.1 (NV5+, maybe some NV4) is entirely unhelpful
-		 */
-		NV_TRACEWARN(dev, "No useful information in BIOS output table; "
-				  "adding all possible outputs\n");
-		fabricate_dcb_encoder_table(dev, bios);
-		return 0;
+	dcb->version = dcbt[0];
+	if (dcb->version >= 0x30) {
+		i2ctabptr = ROM16(dcbt[4]);
+		dcb->gpio_table_ptr = ROM16(dcbt[10]);
+		dcb->connector_table_ptr = ROM16(dcbt[20]);
+	} else
+	if (dcb->version >= 0x15) {
+		i2ctabptr = ROM16(dcbt[2]);
 	}
 
 	if (!i2ctabptr)
@@ -6543,44 +6601,14 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 		 */
 		if (dcb->version >= 0x22) {
 			int idx = (dcb->version >= 0x40 ?
-				   dcb->i2c_default_indices & 0xf :
-				   2);
+				   dcb->i2c_default_indices & 0xf : 2);
 
 			read_dcb_i2c_entry(dev, dcb->version, dcb->i2c_table,
 					   idx, &dcb->i2c[idx]);
 		}
 	}
 
-	if (entries > DCB_MAX_NUM_ENTRIES)
-		entries = DCB_MAX_NUM_ENTRIES;
-
-	for (i = 0; i < entries; i++) {
-		uint32_t connection, config = 0;
-
-		connection = ROM32(dcbtable[headerlen + recordlength * i]);
-		if (configblock)
-			config = ROM32(dcbtable[headerlen + confofs + recordlength * i]);
-
-		/* seen on an NV11 with DCB v1.5 */
-		if (connection == 0x00000000)
-			break;
-
-		/* seen on an NV17 with DCB v2.0 */
-		if (connection == 0xffffffff)
-			break;
-
-		if ((connection & 0x0000000f) == 0x0000000f)
-			continue;
-
-		if (!apply_dcb_encoder_quirks(dev, i, &connection, &config))
-			continue;
-
-		NV_TRACEWARN(dev, "Raw DCB entry %d: %08x %08x\n",
-			     dcb->entries, connection, config);
-
-		if (!parse_dcb_entry(dev, dcb, connection, config))
-			break;
-	}
+	dcb_outp_foreach(dev, NULL, parse_dcb_entry);
 
 	/*
 	 * apart for v2.1+ not being known for requiring merging, this

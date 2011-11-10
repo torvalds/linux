@@ -117,6 +117,7 @@ enum dcb_type {
 	OUTPUT_LVDS = 3,
 	OUTPUT_DP = 6,
 	OUTPUT_EOL = 14, /* DCB 4.0+, appears to be end-of-list */
+	OUTPUT_UNUSED = 15,
 	OUTPUT_ANY = -1
 };
 
@@ -338,5 +339,10 @@ struct nvbios {
 		uint16_t lvds_single_a_script_ptr;
 	} legacy;
 };
+
+void *dcb_table(struct drm_device *);
+u8 *dcb_outp(struct drm_device *, u8 idx);
+int dcb_outp_foreach(struct drm_device *, void *data,
+		     int (*)(struct drm_device *, void *, int idx, u8 *outp));
 
 #endif

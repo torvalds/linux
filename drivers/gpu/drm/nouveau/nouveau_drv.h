@@ -1608,6 +1608,13 @@ extern void nv_wo32(struct nouveau_gpuobj *, u32 offset, u32 val);
 #define NV_TRACEWARN(d, fmt, arg...) NV_PRINTK(KERN_NOTICE, d, fmt, ##arg)
 #define NV_TRACE(d, fmt, arg...) NV_PRINTK(KERN_INFO, d, fmt, ##arg)
 #define NV_WARN(d, fmt, arg...) NV_PRINTK(KERN_WARNING, d, fmt, ##arg)
+#define NV_WARNONCE(d, fmt, arg...) do {                                       \
+	static int _warned = 0;                                                \
+	if (!_warned) {                                                        \
+		NV_WARN(d, fmt, ##arg);                                        \
+		_warned = 1;                                                   \
+	}                                                                      \
+} while(0)
 
 /* nouveau_reg_debug bitmask */
 enum {
