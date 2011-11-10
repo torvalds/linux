@@ -32,27 +32,36 @@
 #include <prom.h>
 #include "platform.h"
 
+#define F_SWAPPED (bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1000_SWAPBOOT)
+
 struct pci_dev;
+
+static const char *board_type_str(void)
+{
+	switch (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI))) {
+	case BCSR_WHOAMI_DB1000:
+		return "DB1000";
+	case BCSR_WHOAMI_DB1500:
+		return "DB1500";
+	case BCSR_WHOAMI_DB1100:
+		return "DB1100";
+	default:
+		return "(unknown)";
+	}
+}
 
 const char *get_system_type(void)
 {
-	return "Alchemy Db1x00";
+	return board_type_str();
 }
 
 void __init board_setup(void)
 {
-#ifdef CONFIG_MIPS_DB1000
-	printk(KERN_INFO "AMD Alchemy Au1000/Db1000 Board\n");
-#endif
-#ifdef CONFIG_MIPS_DB1500
-	printk(KERN_INFO "AMD Alchemy Au1500/Db1500 Board\n");
-#endif
-#ifdef CONFIG_MIPS_DB1100
-	printk(KERN_INFO "AMD Alchemy Au1100/Db1100 Board\n");
-#endif
 	/* initialize board register space */
 	bcsr_init(DB1000_BCSR_PHYS_ADDR,
 		  DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS);
+
+	printk(KERN_INFO "AMD Alchemy %s Board\n", board_type_str());
 
 #if defined(CONFIG_IRDA) && defined(CONFIG_AU1000_FIR)
 	{
@@ -72,35 +81,6 @@ void __init board_setup(void)
 	alchemy_gpio1_input_enable();
 }
 
-/* DB1xxx PCMCIA interrupt sources:
- * CD0/1	GPIO0/3
- * STSCHG0/1	GPIO1/4
- * CARD0/1	GPIO2/5
- */
-
-#define F_SWAPPED (bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1000_SWAPBOOT)
-
-#if defined(CONFIG_MIPS_DB1000)
-#define DB1XXX_PCMCIA_CD0	AU1000_GPIO0_INT
-#define DB1XXX_PCMCIA_STSCHG0	AU1000_GPIO1_INT
-#define DB1XXX_PCMCIA_CARD0	AU1000_GPIO2_INT
-#define DB1XXX_PCMCIA_CD1	AU1000_GPIO3_INT
-#define DB1XXX_PCMCIA_STSCHG1	AU1000_GPIO4_INT
-#define DB1XXX_PCMCIA_CARD1	AU1000_GPIO5_INT
-#elif defined(CONFIG_MIPS_DB1100)
-#define DB1XXX_PCMCIA_CD0	AU1100_GPIO0_INT
-#define DB1XXX_PCMCIA_STSCHG0	AU1100_GPIO1_INT
-#define DB1XXX_PCMCIA_CARD0	AU1100_GPIO2_INT
-#define DB1XXX_PCMCIA_CD1	AU1100_GPIO3_INT
-#define DB1XXX_PCMCIA_STSCHG1	AU1100_GPIO4_INT
-#define DB1XXX_PCMCIA_CARD1	AU1100_GPIO5_INT
-#elif defined(CONFIG_MIPS_DB1500)
-#define DB1XXX_PCMCIA_CD0	AU1500_GPIO0_INT
-#define DB1XXX_PCMCIA_STSCHG0	AU1500_GPIO1_INT
-#define DB1XXX_PCMCIA_CARD0	AU1500_GPIO2_INT
-#define DB1XXX_PCMCIA_CD1	AU1500_GPIO3_INT
-#define DB1XXX_PCMCIA_STSCHG1	AU1500_GPIO4_INT
-#define DB1XXX_PCMCIA_CARD1	AU1500_GPIO5_INT
 
 static int db1500_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
 {
@@ -141,13 +121,14 @@ static struct platform_device db1500_pci_host_dev = {
 
 static int __init db1500_pci_init(void)
 {
-	return platform_device_register(&db1500_pci_host_dev);
+	if (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI)) == BCSR_WHOAMI_DB1500)
+		return platform_device_register(&db1500_pci_host_dev);
+	return 0;
 }
 /* must be arch_initcall; MIPS PCI scans busses in a subsys_initcall */
 arch_initcall(db1500_pci_init);
-#endif
 
-#ifdef CONFIG_MIPS_DB1100
+
 static struct resource au1100_lcd_resources[] = {
 	[0] = {
 		.start	= AU1100_LCD_PHYS_ADDR,
@@ -173,7 +154,6 @@ static struct platform_device au1100_lcd_device = {
 	.num_resources	= ARRAY_SIZE(au1100_lcd_resources),
 	.resource	= au1100_lcd_resources,
 };
-#endif
 
 static struct resource alchemy_ac97c_res[] = {
 	[0] = {
@@ -214,14 +194,53 @@ static struct platform_device db1x00_audio_dev = {
 	.name		= "db1000-audio",
 };
 
-static int __init db1xxx_dev_init(void)
+static struct platform_device *db1x00_devs[] = {
+	&db1x00_codec_dev,
+	&alchemy_ac97c_dma_dev,
+	&alchemy_ac97c_dev,
+	&db1x00_audio_dev,
+};
+
+static struct platform_device *db1100_devs[] = {
+	&au1100_lcd_device,
+};
+
+static int __init db1000_dev_init(void)
 {
-	irq_set_irq_type(DB1XXX_PCMCIA_CD0, IRQ_TYPE_EDGE_BOTH);
-	irq_set_irq_type(DB1XXX_PCMCIA_CD1, IRQ_TYPE_EDGE_BOTH);
-	irq_set_irq_type(DB1XXX_PCMCIA_CARD0, IRQ_TYPE_LEVEL_LOW);
-	irq_set_irq_type(DB1XXX_PCMCIA_CARD1, IRQ_TYPE_LEVEL_LOW);
-	irq_set_irq_type(DB1XXX_PCMCIA_STSCHG0, IRQ_TYPE_LEVEL_LOW);
-	irq_set_irq_type(DB1XXX_PCMCIA_STSCHG1, IRQ_TYPE_LEVEL_LOW);
+	int board = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
+	int c0, c1, d0, d1, s0, s1;
+
+	if (board == BCSR_WHOAMI_DB1500) {
+		c0 = AU1500_GPIO2_INT;
+		c1 = AU1500_GPIO5_INT;
+		d0 = AU1500_GPIO0_INT;
+		d1 = AU1500_GPIO3_INT;
+		s0 = AU1500_GPIO1_INT;
+		s1 = AU1500_GPIO4_INT;
+	} else if (board == BCSR_WHOAMI_DB1100) {
+		c0 = AU1100_GPIO2_INT;
+		c1 = AU1100_GPIO5_INT;
+		d0 = AU1100_GPIO0_INT;
+		d1 = AU1100_GPIO3_INT;
+		s0 = AU1100_GPIO1_INT;
+		s1 = AU1100_GPIO4_INT;
+		platform_add_devices(db1100_devs, ARRAY_SIZE(db1100_devs));
+	} else if (board == BCSR_WHOAMI_DB1000) {
+		c0 = AU1000_GPIO2_INT;
+		c1 = AU1000_GPIO5_INT;
+		d0 = AU1000_GPIO0_INT;
+		d1 = AU1000_GPIO3_INT;
+		s0 = AU1000_GPIO1_INT;
+		s1 = AU1000_GPIO4_INT;
+	} else
+		return 0; /* unknown board, no further dev setup to do */
+
+	irq_set_irq_type(d0, IRQ_TYPE_EDGE_BOTH);
+	irq_set_irq_type(d1, IRQ_TYPE_EDGE_BOTH);
+	irq_set_irq_type(c0, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(c1, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(s0, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(s1, IRQ_TYPE_LEVEL_LOW);
 
 	db1x_register_pcmcia_socket(
 		AU1000_PCMCIA_ATTR_PHYS_ADDR,
@@ -230,8 +249,7 @@ static int __init db1xxx_dev_init(void)
 		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x000400000 - 1,
 		AU1000_PCMCIA_IO_PHYS_ADDR,
 		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x000010000 - 1,
-		DB1XXX_PCMCIA_CARD0, DB1XXX_PCMCIA_CD0,
-		/*DB1XXX_PCMCIA_STSCHG0*/0, 0, 0);
+		c0, d0,	/*s0*/0, 0, 0);
 
 	db1x_register_pcmcia_socket(
 		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x004000000,
@@ -240,17 +258,10 @@ static int __init db1xxx_dev_init(void)
 		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x004400000 - 1,
 		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004000000,
 		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004010000 - 1,
-		DB1XXX_PCMCIA_CARD1, DB1XXX_PCMCIA_CD1,
-		/*DB1XXX_PCMCIA_STSCHG1*/0, 0, 1);
-#ifdef CONFIG_MIPS_DB1100
-	platform_device_register(&au1100_lcd_device);
-#endif
-	platform_device_register(&db1x00_codec_dev);
-	platform_device_register(&alchemy_ac97c_dma_dev);
-	platform_device_register(&alchemy_ac97c_dev);
-	platform_device_register(&db1x00_audio_dev);
+		c1, d1,	/*s1*/0, 0, 1);
 
+	platform_add_devices(db1x00_devs, ARRAY_SIZE(db1x00_devs));
 	db1x_register_norflash(32 << 20, 4 /* 32bit */, F_SWAPPED);
 	return 0;
 }
-device_initcall(db1xxx_dev_init);
+device_initcall(db1000_dev_init);
