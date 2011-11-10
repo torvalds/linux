@@ -1305,7 +1305,35 @@ static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
 	cancel_delayed_work(&priv->hw_roc_disable_work);
 
 	if (!ctx->is_active) {
+		static const struct iwl_qos_info default_qos_data = {
+			.def_qos_parm = {
+				.ac[0] = {
+					.cw_min = cpu_to_le16(3),
+					.cw_max = cpu_to_le16(7),
+					.aifsn = 2,
+					.edca_txop = cpu_to_le16(1504),
+				},
+				.ac[1] = {
+					.cw_min = cpu_to_le16(7),
+					.cw_max = cpu_to_le16(15),
+					.aifsn = 2,
+					.edca_txop = cpu_to_le16(3008),
+				},
+				.ac[2] = {
+					.cw_min = cpu_to_le16(15),
+					.cw_max = cpu_to_le16(1023),
+					.aifsn = 3,
+				},
+				.ac[3] = {
+					.cw_min = cpu_to_le16(15),
+					.cw_max = cpu_to_le16(1023),
+					.aifsn = 7,
+				},
+			},
+		};
+
 		ctx->is_active = true;
+		ctx->qos_data = default_qos_data;
 		ctx->staging.dev_type = RXON_DEV_TYPE_P2P;
 		memcpy(ctx->staging.node_addr,
 		       priv->contexts[IWL_RXON_CTX_BSS].staging.node_addr,
