@@ -174,6 +174,10 @@ out:
  * @pin: the pin to free
  * @gpio_range: the range matching the GPIO pin if this is a request for a
  *	single GPIO pin
+ *
+ * This function returns a pointer to the function name in use. This is used
+ * for callers that dynamically allocate a function name so it can be freed
+ * once the pin is free. This is done for GPIO request functions.
  */
 static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 			    struct pinctrl_gpio_range *gpio_range)
@@ -919,7 +923,7 @@ int pinmux_hog_maps(struct pinctrl_dev *pctldev)
 }
 
 /**
- * pinmux_hog_maps() - unhog specific map entries on controller device
+ * pinmux_unhog_maps() - unhog specific map entries on controller device
  * @pctldev: the pin control device to unhog entries on
  */
 void pinmux_unhog_maps(struct pinctrl_dev *pctldev)
