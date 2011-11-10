@@ -2467,24 +2467,6 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 		snd_soc_update_bits(codec, wm5100_dig_vu[i], WM5100_OUT_VU,
 				    WM5100_OUT_VU);
 
-	for (i = 0; i < ARRAY_SIZE(wm5100->pdata.in_mode); i++) {
-		snd_soc_update_bits(codec, WM5100_IN1L_CONTROL,
-				    WM5100_IN1_MODE_MASK |
-				    WM5100_IN1_DMIC_SUP_MASK,
-				    (wm5100->pdata.in_mode[i] <<
-				     WM5100_IN1_MODE_SHIFT) |
-				    (wm5100->pdata.dmic_sup[i] <<
-				     WM5100_IN1_DMIC_SUP_SHIFT));
-	}
-
-	for (i = 0; i < ARRAY_SIZE(wm5100->pdata.gpio_defaults); i++) {
-		if (!wm5100->pdata.gpio_defaults[i])
-			continue;
-
-		snd_soc_write(codec, WM5100_GPIO_CTRL_1 + i,
-			      wm5100->pdata.gpio_defaults[i]);
-	}
-
 	/* Don't debounce interrupts to support use of SYSCLK only */
 	snd_soc_write(codec, WM5100_IRQ_DEBOUNCE_1, 0);
 	snd_soc_write(codec, WM5100_IRQ_DEBOUNCE_2, 0);
@@ -2738,6 +2720,24 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	}
 
 	wm5100_init_gpio(i2c);
+
+	for (i = 0; i < ARRAY_SIZE(wm5100->pdata.gpio_defaults); i++) {
+		if (!wm5100->pdata.gpio_defaults[i])
+			continue;
+
+		regmap_write(wm5100->regmap, WM5100_GPIO_CTRL_1 + i,
+			     wm5100->pdata.gpio_defaults[i]);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(wm5100->pdata.in_mode); i++) {
+		regmap_update_bits(wm5100->regmap, WM5100_IN1L_CONTROL,
+				   WM5100_IN1_MODE_MASK |
+				   WM5100_IN1_DMIC_SUP_MASK,
+				   (wm5100->pdata.in_mode[i] <<
+				    WM5100_IN1_MODE_SHIFT) |
+				   (wm5100->pdata.dmic_sup[i] <<
+				    WM5100_IN1_DMIC_SUP_SHIFT));
+	}
 
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_wm5100, wm5100_dai,
