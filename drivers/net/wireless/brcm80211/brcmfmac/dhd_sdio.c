@@ -687,14 +687,6 @@ static int brcmf_sdbrcm_htclk(struct brcmf_bus *bus, bool on, bool pendok)
 			return -EBADE;
 		}
 
-		if (pendok && ((bus->ci->c_inf[1].id == PCMCIA_CORE_ID)
-			       && (bus->ci->c_inf[1].rev == 9))) {
-			u32 dummy, retries;
-			r_sdreg32(bus, &dummy,
-				  offsetof(struct sdpcmd_regs, clockctlstatus),
-				  &retries);
-		}
-
 		/* Check current status */
 		clkctl = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
 					       SBSDIO_FUNC1_CHIPCLKCSR, &err);
@@ -910,13 +902,6 @@ static int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 
 		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
 			SBSDIO_FUNC1_CHIPCLKCSR, 0, NULL);
-
-		/* Force pad isolation off if possible
-			 (in case power never toggled) */
-		if ((bus->ci->c_inf[1].id == PCMCIA_CORE_ID)
-		    && (bus->ci->c_inf[1].rev >= 10))
-			brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-				SBSDIO_DEVICE_CTL, 0, NULL);
 
 		/* Make sure the controller has the bus up */
 		brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
