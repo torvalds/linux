@@ -844,7 +844,8 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			if (ctx->last_tx_rejected) {
 				ctx->last_tx_rejected = false;
 				iwl_trans_wake_any_queue(trans(priv),
-							 ctx->ctxid);
+							 ctx->ctxid,
+							 "Disassoc: flush queue");
 			}
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 

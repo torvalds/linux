@@ -171,7 +171,8 @@ struct iwl_trans_ops {
 	void (*tx_start)(struct iwl_trans *trans);
 
 	void (*wake_any_queue)(struct iwl_trans *trans,
-			       enum iwl_rxon_context_id ctx);
+			       enum iwl_rxon_context_id ctx,
+			       const char *msg);
 
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
@@ -196,7 +197,7 @@ struct iwl_trans_ops {
 
 	void (*free)(struct iwl_trans *trans);
 
-	void (*stop_queue)(struct iwl_trans *trans, int q);
+	void (*stop_queue)(struct iwl_trans *trans, int q, const char *msg);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*check_stuck_queue)(struct iwl_trans *trans, int q);
@@ -277,9 +278,10 @@ static inline void iwl_trans_tx_start(struct iwl_trans *trans)
 }
 
 static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans,
-					    enum iwl_rxon_context_id ctx)
+					    enum iwl_rxon_context_id ctx,
+					    const char *msg)
 {
-	trans->ops->wake_any_queue(trans, ctx);
+	trans->ops->wake_any_queue(trans, ctx, msg);
 }
 
 
@@ -339,9 +341,10 @@ static inline void iwl_trans_free(struct iwl_trans *trans)
 	trans->ops->free(trans);
 }
 
-static inline void iwl_trans_stop_queue(struct iwl_trans *trans, int q)
+static inline void iwl_trans_stop_queue(struct iwl_trans *trans, int q,
+					const char *msg)
 {
-	trans->ops->stop_queue(trans, q);
+	trans->ops->stop_queue(trans, q, msg);
 }
 
 static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)

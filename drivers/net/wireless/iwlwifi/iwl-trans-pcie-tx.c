@@ -430,7 +430,7 @@ void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
 
 	txq->sched_retry = scd_retry;
 
-	IWL_DEBUG_INFO(trans, "%s %s Queue %d on FIFO %d\n",
+	IWL_DEBUG_TX_QUEUES(trans, "%s %s Queue %d on FIFO %d\n",
 		       active ? "Activate" : "Deactivate",
 		       scd_retry ? "BA" : "AC/CMD", txq_id, tx_fifo_id);
 }
@@ -561,12 +561,13 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 
 	tid_data = &trans->shrd->tid_data[sta_id][tid];
 	if (tid_data->tfds_in_queue == 0) {
-		IWL_DEBUG_HT(trans, "HW queue is empty\n");
+		IWL_DEBUG_TX_QUEUES(trans, "HW queue is empty\n");
 		tid_data->agg.state = IWL_AGG_ON;
 		iwl_start_tx_ba_trans_ready(priv(trans), ctx, sta_id, tid);
 	} else {
-		IWL_DEBUG_HT(trans, "HW queue is NOT empty: %d packets in HW"
-			     "queue\n", tid_data->tfds_in_queue);
+		IWL_DEBUG_TX_QUEUES(trans,
+				    "HW queue is NOT empty: %d packets in HW"
+				    " queue\n", tid_data->tfds_in_queue);
 		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
 	}
 	spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
@@ -643,14 +644,15 @@ int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans,
 
 	/* The queue is not empty */
 	if (write_ptr != read_ptr) {
-		IWL_DEBUG_HT(trans, "Stopping a non empty AGG HW QUEUE\n");
+		IWL_DEBUG_TX_QUEUES(trans,
+				    "Stopping a non empty AGG HW QUEUE\n");
 		trans->shrd->tid_data[sta_id][tid].agg.state =
 			IWL_EMPTYING_HW_QUEUE_DELBA;
 		spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
 		return 0;
 	}
 
-	IWL_DEBUG_HT(trans, "HW queue is empty\n");
+	IWL_DEBUG_TX_QUEUES(trans, "HW queue is empty\n");
 turn_off:
 	trans->shrd->tid_data[sta_id][tid].agg.state = IWL_AGG_OFF;
 
