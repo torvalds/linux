@@ -21,8 +21,6 @@
 #define dev_to_part(device)	container_of((device), struct hd_struct, __dev)
 #define disk_to_dev(disk)	(&(disk)->part0.__dev)
 #define part_to_dev(part)	(&((part)->__dev))
-#define alias_name(disk)	((disk)->alias ? (disk)->alias : \
-						 (disk)->disk_name)
 
 extern struct device_type part_type;
 extern struct kobject *block_depr;
@@ -60,7 +58,6 @@ enum {
 
 #define DISK_MAX_PARTS			256
 #define DISK_NAME_LEN			32
-#define ALIAS_LEN			256
 
 #include <linux/major.h>
 #include <linux/device.h>
@@ -166,7 +163,6 @@ struct gendisk {
                                          * disks that can't be partitioned. */
 
 	char disk_name[DISK_NAME_LEN];	/* name of major driver */
-	char *alias;			/* alias name of disk */
 	char *(*devnode)(struct gendisk *gd, mode_t *mode);
 
 	unsigned int events;		/* supported events */
