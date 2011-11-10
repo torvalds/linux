@@ -38,10 +38,10 @@
  * @count: number of pages to allocate.
  * @dma_address: The DMA (bus) address of pages (if TTM_PAGE_FLAG_DMA32 set).
  */
-int ttm_get_pages(struct list_head *pages,
+int ttm_get_pages(struct page **pages,
 		  int flags,
 		  enum ttm_caching_state cstate,
-		  unsigned count,
+		  unsigned npages,
 		  dma_addr_t *dma_address);
 /**
  * Put linked list of pages to pool.
@@ -53,8 +53,8 @@ int ttm_get_pages(struct list_head *pages,
  * @cstate: ttm caching state.
  * @dma_address: The DMA (bus) address of pages (if TTM_PAGE_FLAG_DMA32 set).
  */
-void ttm_put_pages(struct list_head *pages,
-		   unsigned page_count,
+void ttm_put_pages(struct page **pages,
+		   unsigned npages,
 		   int flags,
 		   enum ttm_caching_state cstate,
 		   dma_addr_t *dma_address);

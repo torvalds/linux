@@ -66,21 +66,15 @@ static void ttm_tt_free_page_directory(struct ttm_tt *ttm)
 static struct page *__ttm_tt_get_page(struct ttm_tt *ttm, int index)
 {
 	struct page *p;
-	struct list_head h;
 	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
 	int ret;
 
 	if (NULL == (p = ttm->pages[index])) {
 
-		INIT_LIST_HEAD(&h);
-
-		ret = ttm_get_pages(&h, ttm->page_flags, ttm->caching_state, 1,
+		ret = ttm_get_pages(&p, ttm->page_flags, ttm->caching_state, 1,
 				    &ttm->dma_address[index]);
-
 		if (ret != 0)
 			return NULL;
-
-		p = list_first_entry(&h, struct page, lru);
 
 		ret = ttm_mem_global_alloc_page(mem_glob, p, false, false);
 		if (unlikely(ret != 0))
@@ -90,9 +84,7 @@ static struct page *__ttm_tt_get_page(struct ttm_tt *ttm, int index)
 	}
 	return p;
 out_err:
-	INIT_LIST_HEAD(&h);
-	list_add(&p->lru, &h);
-	ttm_put_pages(&h, 1, ttm->page_flags,
+	ttm_put_pages(&p, 1, ttm->page_flags,
 		      ttm->caching_state, &ttm->dma_address[index]);
 	return NULL;
 }
@@ -243,33 +235,19 @@ EXPORT_SYMBOL(ttm_tt_set_placement_caching);
 
 static void ttm_tt_free_alloced_pages(struct ttm_tt *ttm)
 {
-	int i;
-	unsigned count = 0;
-	struct list_head h;
-	struct page *cur_page;
 	struct ttm_backend *be = ttm->be;
-
-	INIT_LIST_HEAD(&h);
+	unsigned i;
 
 	if (be)
 		be->func->clear(be);
 	for (i = 0; i < ttm->num_pages; ++i) {
-
-		cur_page = ttm->pages[i];
-		ttm->pages[i] = NULL;
-		if (cur_page) {
-			if (page_count(cur_page) != 1)
-				printk(KERN_ERR TTM_PFX
-				       "Erroneous page count. "
-				       "Leaking pages.\n");
+		if (ttm->pages[i]) {
 			ttm_mem_global_free_page(ttm->glob->mem_glob,
-						 cur_page);
-			list_add(&cur_page->lru, &h);
-			count++;
+						 ttm->pages[i]);
+			ttm_put_pages(&ttm->pages[i], 1, ttm->page_flags,
+				      ttm->caching_state, &ttm->dma_address[i]);
 		}
 	}
-	ttm_put_pages(&h, count, ttm->page_flags, ttm->caching_state,
-		      ttm->dma_address);
 	ttm->state = tt_unpopulated;
 }
 
