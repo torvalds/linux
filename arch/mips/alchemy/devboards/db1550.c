@@ -372,13 +372,6 @@ static struct platform_device db1550_sndi2s_dev = {
 
 /**********************************************************************/
 
-static struct platform_device db1550_rtc_dev = {
-	.name	= "rtc-au1xxx",
-	.id	= -1,
-};
-
-/**********************************************************************/
-
 static int db1550_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
 {
 	if ((slot < 11) || (slot > 13) || pin == 0)
@@ -427,7 +420,6 @@ static struct platform_device db1550_pci_host_dev = {
 /**********************************************************************/
 
 static struct platform_device *db1550_devs[] __initdata = {
-	&db1550_rtc_dev,
 	&db1550_nand_dev,
 	&db1550_i2c_dev,
 	&db1550_ac97_dev,

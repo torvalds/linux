@@ -386,13 +386,6 @@ static struct platform_device db1300_5waysw_dev = {
 
 /**********************************************************************/
 
-static struct platform_device db1300_rtc_dev = {
-	.name	= "rtc-au1xxx",
-	.id	= -1,
-};
-
-/**********************************************************************/
-
 static struct pata_platform_info db1300_ide_info = {
 	.ioport_shift	= DB1300_IDE_REG_SHIFT,
 };
@@ -697,7 +690,6 @@ static struct platform_device *db1300_dev[] __initdata = {
 	&db1300_eth_dev,
 	&db1300_i2c_dev,
 	&db1300_5waysw_dev,
-	&db1300_rtc_dev,
 	&db1300_nand_dev,
 	&db1300_ide_dev,
 	&db1300_sd0_dev,

@@ -312,13 +312,6 @@ static struct platform_device db1200_ide_dev = {
 
 /**********************************************************************/
 
-static struct platform_device db1200_rtc_dev = {
-	.name	= "rtc-au1xxx",
-	.id	= -1,
-};
-
-/**********************************************************************/
-
 /* SD carddetects:  they're supposed to be edge-triggered, but ack
  * doesn't seem to work (CPLD Rev 2).  Instead, the screaming one
  * is disabled and its counterpart enabled.  The 500ms timeout is
@@ -755,7 +748,6 @@ static struct platform_device *db1200_devs[] __initdata = {
 	&db1200_mmc0_dev,
 	&au1200_lcd_dev,
 	&db1200_eth_dev,
-	&db1200_rtc_dev,
 	&db1200_nand_dev,
 	&db1200_audiodma_dev,
 	&db1200_audio_dev,
