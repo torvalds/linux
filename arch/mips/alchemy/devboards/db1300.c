@@ -23,6 +23,7 @@
 
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
+#include <asm/mach-au1x00/au1200fb.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
 #include <asm/mach-au1x00/au1xxx_psc.h>
 #include <asm/mach-db1x00/db1300.h>
@@ -636,6 +637,33 @@ static struct platform_device db1300_sndi2s_dev = {
 
 /**********************************************************************/
 
+static int db1300fb_panel_index(void)
+{
+	return 9;	/* DB1300_800x480 */
+}
+
+static int db1300fb_panel_init(void)
+{
+	/* Apply power (Vee/Vdd logic is inverted on Panel DB1300_800x480) */
+	bcsr_mod(BCSR_BOARD, BCSR_BOARD_LCDVEE | BCSR_BOARD_LCDVDD,
+			     BCSR_BOARD_LCDBL);
+	return 0;
+}
+
+static int db1300fb_panel_shutdown(void)
+{
+	/* Remove power (Vee/Vdd logic is inverted on Panel DB1300_800x480) */
+	bcsr_mod(BCSR_BOARD, BCSR_BOARD_LCDBL,
+			     BCSR_BOARD_LCDVEE | BCSR_BOARD_LCDVDD);
+	return 0;
+}
+
+static struct au1200fb_platdata db1300fb_pd = {
+	.panel_index	= db1300fb_panel_index,
+	.panel_init	= db1300fb_panel_init,
+	.panel_shutdown	= db1300fb_panel_shutdown,
+};
+
 static struct resource au1300_lcd_res[] = {
 	[0] = {
 		.start	= AU1200_LCD_PHYS_ADDR,
@@ -657,6 +685,7 @@ static struct platform_device db1300_lcd_dev = {
 	.dev = {
 		.dma_mask		= &au1300_lcd_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &db1300fb_pd,
 	},
 	.num_resources	= ARRAY_SIZE(au1300_lcd_res),
 	.resource	= au1300_lcd_res,
@@ -761,27 +790,4 @@ void __init board_setup(void)
 	alchemy_uart_enable(AU1300_UART0_PHYS_ADDR);
 	alchemy_uart_enable(AU1300_UART1_PHYS_ADDR);
 	alchemy_uart_enable(AU1300_UART3_PHYS_ADDR);
-}
-
-
-/* au1200fb calls these: STERBT EINEN TRAGISCHEN TOD!!! */
-int board_au1200fb_panel(void)
-{
-	return 9;	/* DB1300_800x480 */
-}
-
-int board_au1200fb_panel_init(void)
-{
-	/* Apply power (Vee/Vdd logic is inverted on Panel DB1300_800x480) */
-	bcsr_mod(BCSR_BOARD, BCSR_BOARD_LCDVEE | BCSR_BOARD_LCDVDD,
-			     BCSR_BOARD_LCDBL);
-	return 0;
-}
-
-int board_au1200fb_panel_shutdown(void)
-{
-	/* Remove power (Vee/Vdd logic is inverted on Panel DB1300_800x480) */
-	bcsr_mod(BCSR_BOARD, BCSR_BOARD_LCDBL,
-			     BCSR_BOARD_LCDVEE | BCSR_BOARD_LCDVDD);
-	return 0;
 }
