@@ -119,6 +119,12 @@ u16 iwlagn_eeprom_calib_version(struct iwl_priv *priv);
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
+#ifdef CONFIG_PM_SLEEP
+int iwlagn_send_patterns(struct iwl_priv *priv,
+			 struct cfg80211_wowlan *wowlan);
+int iwlagn_suspend(struct iwl_priv *priv,
+		   struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
+#endif
 
 /* rx */
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
