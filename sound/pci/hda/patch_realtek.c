@@ -4280,6 +4280,9 @@ enum {
 	ALC882_FIXUP_GPIO3,
 	ALC889_FIXUP_COEF,
 	ALC882_FIXUP_ASUS_W2JC,
+	ALC882_FIXUP_ACER_ASPIRE_4930G,
+	ALC882_FIXUP_ACER_ASPIRE_8930G,
+	ALC882_FIXUP_ASPIRE_8930G_VERBS,
 };
 
 static void alc889_fixup_coef(struct hda_codec *codec,
@@ -4382,6 +4385,57 @@ static const struct alc_fixup alc882_fixups[] = {
 		.type = ALC_FIXUP_FUNC,
 		.v.func = alc889_fixup_coef,
 	},
+	[ALC882_FIXUP_ACER_ASPIRE_4930G] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x16, 0x99130111 }, /* CLFE speaker */
+			{ 0x17, 0x99130112 }, /* surround speaker */
+			{ }
+		}
+	},
+	[ALC882_FIXUP_ACER_ASPIRE_8930G] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x16, 0x99130111 }, /* CLFE speaker */
+			{ 0x1b, 0x99130112 }, /* surround speaker */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC882_FIXUP_ASPIRE_8930G_VERBS,
+	},
+	[ALC882_FIXUP_ASPIRE_8930G_VERBS] = {
+		/* additional init verbs for Acer Aspire 8930G */
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			/* Enable all DACs */
+			/* DAC DISABLE/MUTE 1? */
+			/*  setting bits 1-5 disables DAC nids 0x02-0x06
+			 *  apparently. Init=0x38 */
+			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x03 },
+			{ 0x20, AC_VERB_SET_PROC_COEF, 0x0000 },
+			/* DAC DISABLE/MUTE 2? */
+			/*  some bit here disables the other DACs.
+			 *  Init=0x4900 */
+			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x08 },
+			{ 0x20, AC_VERB_SET_PROC_COEF, 0x0000 },
+			/* DMIC fix
+			 * This laptop has a stereo digital microphone.
+			 * The mics are only 1cm apart which makes the stereo
+			 * useless. However, either the mic or the ALC889
+			 * makes the signal become a difference/sum signal
+			 * instead of standard stereo, which is annoying.
+			 * So instead we flip this bit which makes the
+			 * codec replicate the sum signal to both channels,
+			 * turning it into a normal mono mic.
+			 */
+			/* DMIC_CONTROL? Init value = 0x0001 */
+			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x0b },
+			{ 0x20, AC_VERB_SET_PROC_COEF, 0x0003 },
+			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x07 },
+			{ 0x20, AC_VERB_SET_PROC_COEF, 0x3050 },
+			{ }
+		}
+	},
 };
 
 static const struct snd_pci_quirk alc882_fixup_tbl[] = {
@@ -4391,6 +4445,20 @@ static const struct snd_pci_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0110, "Acer Aspire", ALC883_FIXUP_ACER_EAPD),
 	SND_PCI_QUIRK(0x1025, 0x0112, "Acer Aspire 9303", ALC883_FIXUP_ACER_EAPD),
 	SND_PCI_QUIRK(0x1025, 0x0121, "Acer Aspire 5920G", ALC883_FIXUP_ACER_EAPD),
+	SND_PCI_QUIRK(0x1025, 0x013e, "Acer Aspire 4930G",
+		      ALC882_FIXUP_ACER_ASPIRE_4930G),
+	SND_PCI_QUIRK(0x1025, 0x013f, "Acer Aspire 5930G",
+		      ALC882_FIXUP_ACER_ASPIRE_4930G),
+	SND_PCI_QUIRK(0x1025, 0x0145, "Acer Aspire 8930G",
+		      ALC882_FIXUP_ACER_ASPIRE_8930G),
+	SND_PCI_QUIRK(0x1025, 0x0146, "Acer Aspire 6935G",
+		      ALC882_FIXUP_ACER_ASPIRE_8930G),
+	SND_PCI_QUIRK(0x1025, 0x015e, "Acer Aspire 6930G",
+		      ALC882_FIXUP_ACER_ASPIRE_4930G),
+	SND_PCI_QUIRK(0x1025, 0x0166, "Acer Aspire 6530G",
+		      ALC882_FIXUP_ACER_ASPIRE_4930G),
+	SND_PCI_QUIRK(0x1025, 0x0142, "Acer Aspire 7730G",
+		      ALC882_FIXUP_ACER_ASPIRE_4930G),
 	SND_PCI_QUIRK(0x1025, 0x0155, "Packard-Bell M5120", ALC882_FIXUP_PB_M5210),
 	SND_PCI_QUIRK(0x1025, 0x0296, "Acer Aspire 7736z", ALC882_FIXUP_ACER_ASPIRE_7736),
 	SND_PCI_QUIRK(0x1043, 0x13c2, "Asus A7M", ALC882_FIXUP_EAPD),
@@ -4453,11 +4521,7 @@ static int patch_alc882(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	board_config = alc_board_config(codec, ALC882_MODEL_LAST,
-					alc882_models, alc882_cfg_tbl);
-
-	if (board_config < 0)
-		board_config = alc_board_codec_sid_config(codec,
+	board_config = alc_board_codec_sid_config(codec,
 			ALC882_MODEL_LAST, alc882_models, alc882_ssid_cfg_tbl);
 
 	if (board_config < 0) {
