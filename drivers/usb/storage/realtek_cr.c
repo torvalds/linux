@@ -398,10 +398,9 @@ static int rts51x_write_mem(struct us_data *us, u16 addr, u8 *data, u16 len)
 	u8 cmnd[12] = { 0 };
 	u8 *buf;
 
-	buf = kmalloc(len, GFP_NOIO);
+	buf = kmemdup(data, len, GFP_NOIO);
 	if (buf == NULL)
 		return USB_STOR_TRANSPORT_ERROR;
-	memcpy(buf, data, len);
 
 	US_DEBUGP("%s, addr = 0x%x, len = %d\n", __func__, addr, len);
 
