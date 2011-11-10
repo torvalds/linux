@@ -61,7 +61,6 @@
 static int sub_api_initialized;
 
 static struct workqueue_struct *target_completion_wq;
-static struct kmem_cache *se_cmd_cache;
 static struct kmem_cache *se_sess_cache;
 struct kmem_cache *se_tmr_req_cache;
 struct kmem_cache *se_ua_cache;
@@ -87,19 +86,13 @@ static void target_complete_ok_work(struct work_struct *work);
 
 int init_se_kmem_caches(void)
 {
-	se_cmd_cache = kmem_cache_create("se_cmd_cache",
-			sizeof(struct se_cmd), __alignof__(struct se_cmd), 0, NULL);
-	if (!se_cmd_cache) {
-		pr_err("kmem_cache_create for struct se_cmd failed\n");
-		goto out;
-	}
 	se_tmr_req_cache = kmem_cache_create("se_tmr_cache",
 			sizeof(struct se_tmr_req), __alignof__(struct se_tmr_req),
 			0, NULL);
 	if (!se_tmr_req_cache) {
 		pr_err("kmem_cache_create() for struct se_tmr_req"
 				" failed\n");
-		goto out_free_cmd_cache;
+		goto out;
 	}
 	se_sess_cache = kmem_cache_create("se_sess_cache",
 			sizeof(struct se_session), __alignof__(struct se_session),
@@ -182,8 +175,6 @@ out_free_sess_cache:
 	kmem_cache_destroy(se_sess_cache);
 out_free_tmr_req_cache:
 	kmem_cache_destroy(se_tmr_req_cache);
-out_free_cmd_cache:
-	kmem_cache_destroy(se_cmd_cache);
 out:
 	return -ENOMEM;
 }
@@ -191,7 +182,6 @@ out:
 void release_se_kmem_caches(void)
 {
 	destroy_workqueue(target_completion_wq);
-	kmem_cache_destroy(se_cmd_cache);
 	kmem_cache_destroy(se_tmr_req_cache);
 	kmem_cache_destroy(se_sess_cache);
 	kmem_cache_destroy(se_ua_cache);
