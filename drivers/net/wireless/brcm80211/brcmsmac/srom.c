@@ -835,6 +835,8 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint nwords)
 		 */
 		return -ENODATA;
 
+	/* fixup the endianness so crc8 will pass */
+	cpu_to_le16_buf(buf, sz);
 	if (crc8(brcms_srom_crc8_table, (u8 *) buf, sz * 2,
 		 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(brcms_srom_crc8_table))
 		err = -EIO;
