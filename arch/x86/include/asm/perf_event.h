@@ -57,6 +57,7 @@
 		(1 << (ARCH_PERFMON_UNHALTED_CORE_CYCLES_INDEX))
 
 #define ARCH_PERFMON_BRANCH_MISSES_RETIRED		6
+#define ARCH_PERFMON_EVENTS_COUNT			7
 
 /*
  * Intel "Architectural Performance Monitoring" CPUID
@@ -68,6 +69,19 @@ union cpuid10_eax {
 		unsigned int num_counters:8;
 		unsigned int bit_width:8;
 		unsigned int mask_length:8;
+	} split;
+	unsigned int full;
+};
+
+union cpuid10_ebx {
+	struct {
+		unsigned int no_unhalted_core_cycles:1;
+		unsigned int no_instructions_retired:1;
+		unsigned int no_unhalted_reference_cycles:1;
+		unsigned int no_llc_reference:1;
+		unsigned int no_llc_misses:1;
+		unsigned int no_branch_instruction_retired:1;
+		unsigned int no_branch_misses_retired:1;
 	} split;
 	unsigned int full;
 };

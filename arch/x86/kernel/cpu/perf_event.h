@@ -285,6 +285,11 @@ struct x86_pmu {
 	int		num_counters_fixed;
 	int		cntval_bits;
 	u64		cntval_mask;
+	union {
+			unsigned long events_maskl;
+			unsigned long events_mask[BITS_TO_LONGS(ARCH_PERFMON_EVENTS_COUNT)];
+	};
+	int		events_mask_len;
 	int		apic;
 	u64		max_period;
 	struct event_constraint *
