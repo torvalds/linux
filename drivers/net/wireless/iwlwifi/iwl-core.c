@@ -1434,6 +1434,7 @@ int iwl_cmd_echo_test(struct iwl_priv *priv)
 	int ret;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_ECHO,
+		.len = { 0 },
 		.flags = CMD_SYNC,
 	};
 
