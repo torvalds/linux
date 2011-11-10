@@ -34,9 +34,6 @@
 #define NV_CIO_CRE_44_HEADA 0x0
 #define NV_CIO_CRE_44_HEADB 0x3
 #define FEATURE_MOBILE 0x10	/* also FEATURE_QUADRO for BMP */
-#define LEGACY_I2C_CRT 0x80
-#define LEGACY_I2C_PANEL 0x81
-#define LEGACY_I2C_TV 0x82
 
 #define EDID1_LEN 128
 
@@ -6433,15 +6430,18 @@ fabricate_dcb_encoder_table(struct drm_device *dev, struct nvbios *bios)
 #endif
 
 	/* Make up some sane defaults */
-	fabricate_dcb_output(dcb, OUTPUT_ANALOG, LEGACY_I2C_CRT, 1, 1);
+	fabricate_dcb_output(dcb, OUTPUT_ANALOG,
+			     bios->legacy.i2c_indices.crt, 1, 1);
 
 	if (nv04_tv_identify(dev, bios->legacy.i2c_indices.tv) >= 0)
-		fabricate_dcb_output(dcb, OUTPUT_TV, LEGACY_I2C_TV,
+		fabricate_dcb_output(dcb, OUTPUT_TV,
+				     bios->legacy.i2c_indices.tv,
 				     all_heads, 0);
 
 	else if (bios->tmds.output0_script_ptr ||
 		 bios->tmds.output1_script_ptr)
-		fabricate_dcb_output(dcb, OUTPUT_TMDS, LEGACY_I2C_PANEL,
+		fabricate_dcb_output(dcb, OUTPUT_TMDS,
+				     bios->legacy.i2c_indices.panel,
 				     all_heads, 1);
 }
 
@@ -6646,22 +6646,6 @@ fixup_legacy_connector(struct nvbios *bios)
 		dcb->connector.entry[i].index = i;
 		dcb->connector.entry[i].type = divine_connector_type(bios, i);
 		dcb->connector.entry[i].gpio_tag = 0xff;
-	}
-}
-
-static void
-fixup_legacy_i2c(struct nvbios *bios)
-{
-	struct dcb_table *dcb = &bios->dcb;
-	int i;
-
-	for (i = 0; i < dcb->entries; i++) {
-		if (dcb->entry[i].i2c_index == LEGACY_I2C_CRT)
-			dcb->entry[i].i2c_index = bios->legacy.i2c_indices.crt;
-		if (dcb->entry[i].i2c_index == LEGACY_I2C_PANEL)
-			dcb->entry[i].i2c_index = bios->legacy.i2c_indices.panel;
-		if (dcb->entry[i].i2c_index == LEGACY_I2C_TV)
-			dcb->entry[i].i2c_index = bios->legacy.i2c_indices.tv;
 	}
 }
 
@@ -6934,7 +6918,6 @@ nouveau_bios_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	fixup_legacy_i2c(bios);
 	fixup_legacy_connector(bios);
 
 	if (!bios->major_version)	/* we don't run version 0 bios */
