@@ -1451,6 +1451,14 @@ unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 
 	diff1 = now - dev_priv->last_time1;
 
+	/* Prevent division-by-zero if we are asking too fast.
+	 * Also, we don't get interesting results if we are polling
+	 * faster than once in 10ms, so just return the saved value
+	 * in such cases.
+	 */
+	if (diff1 <= 10)
+		return dev_priv->chipset_power;
+
 	count1 = I915_READ(DMIEC);
 	count2 = I915_READ(DDREC);
 	count3 = I915_READ(CSIEC);
@@ -1480,6 +1488,8 @@ unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 
 	dev_priv->last_count1 = total_count;
 	dev_priv->last_time1 = now;
+
+	dev_priv->chipset_power = ret;
 
 	return ret;
 }

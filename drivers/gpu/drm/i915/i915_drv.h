@@ -702,6 +702,7 @@ typedef struct drm_i915_private {
 
 	u64 last_count1;
 	unsigned long last_time1;
+	unsigned long chipset_power;
 	u64 last_count2;
 	struct timespec last_time2;
 	unsigned long gfx_power;
