@@ -2633,22 +2633,22 @@ static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
 	/*
 	 * we must limit the number of descriptors so that the
 	 * total size of max desc * buf_len is not greater
-	 * than 65535
+	 * than 65536
 	 */
 	if (ring_is_ps_enabled(ring)) {
-#if (MAX_SKB_FRAGS > 16)
+#if (PAGE_SIZE < 8192)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
-#elif (MAX_SKB_FRAGS > 8)
+#elif (PAGE_SIZE < 16384)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
-#elif (MAX_SKB_FRAGS > 4)
+#elif (PAGE_SIZE < 32768)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
 #else
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_1;
 #endif
 	} else {
-		if (rx_buf_len < IXGBE_RXBUFFER_4K)
+		if (rx_buf_len <= IXGBE_RXBUFFER_4K)
 			rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
-		else if (rx_buf_len < IXGBE_RXBUFFER_8K)
+		else if (rx_buf_len <= IXGBE_RXBUFFER_8K)
 			rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
 		else
 			rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
