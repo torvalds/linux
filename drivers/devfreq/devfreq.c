@@ -15,7 +15,9 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/stat.h>
 #include <linux/opp.h>
 #include <linux/devfreq.h>
 #include <linux/workqueue.h>
