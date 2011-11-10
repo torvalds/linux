@@ -4984,7 +4984,7 @@ static int got_BarrierAck(struct drbd_tconn *tconn, struct packet_info *pi)
 
 	if (mdev->state.conn == C_AHEAD &&
 	    atomic_read(&mdev->ap_in_flight) == 0 &&
-	    !test_and_set_bit(AHEAD_TO_SYNC_SOURCE, &mdev->current_epoch->flags)) {
+	    !test_and_set_bit(AHEAD_TO_SYNC_SOURCE, &mdev->flags)) {
 		mdev->start_resync_timer.expires = jiffies + HZ;
 		add_timer(&mdev->start_resync_timer);
 	}
