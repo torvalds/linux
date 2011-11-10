@@ -50,8 +50,6 @@
  * SUCH DAMAGE.
  */
 
-#define DEBUG
-
 #include <linux/bitops.h>
 #include <linux/if_arp.h>
 #include <linux/module.h>
