@@ -267,7 +267,7 @@ void __init time_init(void)
 	timer_num = be32_to_cpup(of_get_property(timer,
 						"xlnx,one-timer-only", NULL));
 	if (timer_num) {
-		eprintk(KERN_EMERG "Please enable two timers in HW\n");
+		printk(KERN_EMERG "Please enable two timers in HW\n");
 		BUG();
 	}
 
