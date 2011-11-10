@@ -3583,42 +3583,30 @@ static void brcms_c_bandinit_ordered(struct brcms_c_info *wlc,
 	brcms_c_set_phy_chanspec(wlc, chanspec);
 }
 
-static void brcms_c_mac_bcn_promisc(struct brcms_c_info *wlc)
+/*
+ * Set or clear maccontrol bits MCTL_PROMISC, MCTL_BCNS_PROMISC and
+ * MCTL_KEEPCONTROL
+ */
+static void brcms_c_mac_promisc(struct brcms_c_info *wlc)
 {
+	u32 promisc_bits = 0;
+
 	if (wlc->bcnmisc_monitor)
-		brcms_b_mctrl(wlc->hw, MCTL_BCNS_PROMISC, MCTL_BCNS_PROMISC);
-	else
-		brcms_b_mctrl(wlc->hw, MCTL_BCNS_PROMISC, 0);
+		promisc_bits |= MCTL_BCNS_PROMISC;
+
+	if (wlc->monitor)
+		promisc_bits |=
+			MCTL_PROMISC | MCTL_BCNS_PROMISC | MCTL_KEEPCONTROL;
+
+	brcms_b_mctrl(wlc->hw,
+			MCTL_PROMISC | MCTL_BCNS_PROMISC | MCTL_KEEPCONTROL,
+			promisc_bits);
 }
 
 void brcms_c_mac_bcn_promisc_change(struct brcms_c_info *wlc, bool promisc)
 {
 	wlc->bcnmisc_monitor = promisc;
-	brcms_c_mac_bcn_promisc(wlc);
-}
-
-/* set or clear maccontrol bits MCTL_PROMISC and MCTL_KEEPCONTROL */
-static void brcms_c_mac_promisc(struct brcms_c_info *wlc)
-{
-	u32 promisc_bits = 0;
-
-	/*
-	 * promiscuous mode just sets MCTL_PROMISC
-	 * Note: APs get all BSS traffic without the need to set
-	 * the MCTL_PROMISC bit since all BSS data traffic is
-	 * directed at the AP
-	 */
-	if (wlc->pub->promisc)
-		promisc_bits |= MCTL_PROMISC;
-
-	/* monitor mode needs both MCTL_PROMISC and MCTL_KEEPCONTROL
-	 * Note: monitor mode also needs MCTL_BCNS_PROMISC, but that is
-	 * handled in brcms_c_mac_bcn_promisc()
-	 */
-	if (wlc->monitor)
-		promisc_bits |= MCTL_PROMISC | MCTL_KEEPCONTROL;
-
-	brcms_b_mctrl(wlc->hw, MCTL_PROMISC | MCTL_KEEPCONTROL, promisc_bits);
+	brcms_c_mac_promisc(wlc);
 }
 
 /*
@@ -3650,7 +3638,6 @@ static void brcms_c_ucode_mac_upd(struct brcms_c_info *wlc)
 	}
 
 	/* update the various promisc bits */
-	brcms_c_mac_bcn_promisc(wlc);
 	brcms_c_mac_promisc(wlc);
 }
 

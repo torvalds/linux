@@ -381,7 +381,6 @@ struct brcms_pub {
 	uint _nbands;		/* # bands supported */
 	uint now;		/* # elapsed seconds */
 
-	bool promisc;		/* promiscuous destination address */
 	bool delayed_down;	/* down delayed */
 	bool associated;	/* true:part of [I]BSS, false: not */
 	/* (union of stas_associated, aps_associated) */
