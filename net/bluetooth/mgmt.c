@@ -961,6 +961,9 @@ static int remove_keys(struct sock *sk, u16 index, unsigned char *data,
 {
 	struct hci_dev *hdev;
 	struct mgmt_cp_remove_keys *cp;
+	struct mgmt_rp_remove_keys rp;
+	struct hci_cp_disconnect dc;
+	struct pending_cmd *cmd;
 	struct hci_conn *conn;
 	int err;
 
@@ -975,27 +978,44 @@ static int remove_keys(struct sock *sk, u16 index, unsigned char *data,
 
 	hci_dev_lock_bh(hdev);
 
+	memset(&rp, 0, sizeof(rp));
+	bacpy(&rp.bdaddr, &cp->bdaddr);
+
 	err = hci_remove_link_key(hdev, &cp->bdaddr);
-	if (err < 0) {
-		err = cmd_status(sk, index, MGMT_OP_REMOVE_KEYS, -err);
+	if (err < 0)
+		goto unlock;
+
+	if (!test_bit(HCI_UP, &hdev->flags) || !cp->disconnect) {
+		err = cmd_complete(sk, index, MGMT_OP_REMOVE_KEYS, &rp,
+								sizeof(rp));
 		goto unlock;
 	}
-
-	err = 0;
-
-	if (!test_bit(HCI_UP, &hdev->flags) || !cp->disconnect)
-		goto unlock;
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
-	if (conn) {
-		struct hci_cp_disconnect dc;
-
-		put_unaligned_le16(conn->handle, &dc.handle);
-		dc.reason = 0x13; /* Remote User Terminated Connection */
-		err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, sizeof(dc), &dc);
+	if (!conn) {
+		err = cmd_complete(sk, index, MGMT_OP_REMOVE_KEYS, &rp,
+								sizeof(rp));
+		goto unlock;
 	}
 
+	cmd = mgmt_pending_add(sk, MGMT_OP_REMOVE_KEYS, hdev, cp, sizeof(*cp));
+	if (!cmd) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	put_unaligned_le16(conn->handle, &dc.handle);
+	dc.reason = 0x13; /* Remote User Terminated Connection */
+	err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, sizeof(dc), &dc);
+	if (err < 0)
+		mgmt_pending_remove(cmd);
+
 unlock:
+	if (err < 0) {
+		rp.status = -err;
+		err = cmd_complete(sk, index, MGMT_OP_REMOVE_KEYS, &rp,
+								sizeof(rp));
+	}
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
 
@@ -2117,6 +2137,23 @@ static void disconnect_rsp(struct pending_cmd *cmd, void *data)
 	mgmt_pending_remove(cmd);
 }
 
+static void remove_keys_rsp(struct pending_cmd *cmd, void *data)
+{
+	u8 *status = data;
+	struct mgmt_cp_remove_keys *cp = cmd->param;
+	struct mgmt_rp_remove_keys rp;
+
+	memset(&rp, 0, sizeof(rp));
+	bacpy(&rp.bdaddr, &cp->bdaddr);
+	if (status != NULL)
+		rp.status = *status;
+
+	cmd_complete(cmd->sk, cmd->index, MGMT_OP_REMOVE_KEYS, &rp,
+								sizeof(rp));
+
+	mgmt_pending_remove(cmd);
+}
+
 int mgmt_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 								u8 addr_type)
 {
@@ -2133,6 +2170,8 @@ int mgmt_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	if (sk)
 		sock_put(sk);
+
+	mgmt_pending_foreach(MGMT_OP_REMOVE_KEYS, hdev, remove_keys_rsp, NULL);
 
 	return err;
 }
