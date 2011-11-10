@@ -888,18 +888,6 @@ static void oti6858_read_bulk_callback(struct urb *urb)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (status != 0) {
-		/*
-		if (status == -EPROTO) {
-			* PL2303 mysteriously fails with -EPROTO reschedule
-			   the read *
-			dbg("%s - caught -EPROTO, resubmitting the urb",
-								__func__);
-			result = usb_submit_urb(urb, GFP_ATOMIC);
-			if (result)
-				dev_err(&urb->dev->dev, "%s - failed resubmitting read urb, error %d\n", __func__, result);
-			return;
-		}
-		*/
 		dbg("%s(): unable to handle the error, exiting", __func__);
 		return;
 	}
