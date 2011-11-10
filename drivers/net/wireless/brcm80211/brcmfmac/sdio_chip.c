@@ -45,6 +45,10 @@
 	((((sbidh) & SSB_IDHIGH_RCHI) >> SSB_IDHIGH_RCHI_SHIFT) | \
 	  ((sbidh) & SSB_IDHIGH_RCLO))
 
+/* SOC Interconnect types (aka chip types) */
+#define SOCI_SB		0
+#define SOCI_AI		1
+
 #define SDIOD_DRVSTR_KEY(chip, pmu)     (((chip) << 16) | (pmu))
 /* SDIO Pad drive strength to select value mappings */
 struct sdiod_drive_str {
@@ -106,17 +110,42 @@ brcmf_sdio_chip_corerev(struct brcmf_sdio_dev *sdiodev,
 	return SBCOREREV(regdata);
 }
 
-bool
-brcmf_sdio_chip_iscoreup(struct brcmf_sdio_dev *sdiodev,
-			 u32 corebase)
+static bool
+brcmf_sdio_sb_iscoreup(struct brcmf_sdio_dev *sdiodev,
+		       struct chip_info *ci, u16 coreid)
 {
 	u32 regdata;
+	u8 idx;
+
+	idx = brcmf_sdio_chip_getinfidx(ci, coreid);
 
 	regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbtmstatelow), 4);
+			CORE_SB(ci->c_inf[idx].base, sbtmstatelow), 4);
 	regdata &= (SSB_TMSLOW_RESET | SSB_TMSLOW_REJECT |
 		    SSB_IMSTATE_REJECT | SSB_TMSLOW_CLOCK);
 	return (SSB_TMSLOW_CLOCK == regdata);
+}
+
+static bool
+brcmf_sdio_ai_iscoreup(struct brcmf_sdio_dev *sdiodev,
+		       struct chip_info *ci, u16 coreid)
+{
+	u32 regdata;
+	u8 idx;
+	bool ret;
+
+	idx = brcmf_sdio_chip_getinfidx(ci, coreid);
+
+	regdata = brcmf_sdcard_reg_read(sdiodev,
+					ci->c_inf[idx].wrapbase+BCMA_IOCTL, 4);
+	ret = (regdata & (BCMA_IOCTL_FGC | BCMA_IOCTL_CLK)) == BCMA_IOCTL_CLK;
+
+	regdata = brcmf_sdcard_reg_read(sdiodev,
+					ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
+					4);
+	ret = ret && ((regdata & BCMA_RESET_CTL_RESET) == 0);
+
+	return ret;
 }
 
 void
@@ -258,6 +287,7 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 			CORE_CC_REG(ci->c_inf[0].base, chipid), 4);
 	ci->chip = regdata & CID_ID_MASK;
 	ci->chiprev = (regdata & CID_REV_MASK) >> CID_REV_SHIFT;
+	ci->socitype = (regdata & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
 
 	brcmf_dbg(INFO, "chipid=0x%x chiprev=%d\n", ci->chip, ci->chiprev);
 
@@ -274,6 +304,18 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 		break;
 	default:
 		brcmf_dbg(ERROR, "chipid 0x%x is not supported\n", ci->chip);
+		return -ENODEV;
+	}
+
+	switch (ci->socitype) {
+	case SOCI_SB:
+		ci->iscoreup = brcmf_sdio_sb_iscoreup;
+		break;
+	case SOCI_AI:
+		ci->iscoreup = brcmf_sdio_ai_iscoreup;
+		break;
+	default:
+		brcmf_dbg(ERROR, "socitype %u not supported\n", ci->socitype);
 		return -ENODEV;
 	}
 
