@@ -957,7 +957,8 @@ static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
 
 	priv->hw_roc_channel = channel;
 	priv->hw_roc_chantype = channel_type;
-	priv->hw_roc_duration = duration;
+	/* convert from ms to TU */
+	priv->hw_roc_duration = DIV_ROUND_UP(1000 * duration, 1024);
 	priv->hw_roc_start_notified = false;
 	cancel_delayed_work(&priv->hw_roc_disable_work);
 
