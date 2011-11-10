@@ -277,6 +277,17 @@ static void mrst_reboot(void)
 }
 
 /*
+ * Moorestown does not have external NMI source nor port 0x61 to report
+ * NMI status. The possible NMI sources are from pmu as a result of NMI
+ * watchdog or lock debug. Reading io port 0x61 results in 0xff which
+ * misled NMI handler.
+ */
+static unsigned char mrst_get_nmi_reason(void)
+{
+	return 0;
+}
+
+/*
  * Moorestown specific x86_init function overrides and early setup
  * calls.
  */
@@ -297,6 +308,8 @@ void __init x86_mrst_early_setup(void)
 	x86_platform.calibrate_tsc = mrst_calibrate_tsc;
 	x86_platform.i8042_detect = mrst_i8042_detect;
 	x86_init.timers.wallclock_init = mrst_rtc_init;
+	x86_platform.get_nmi_reason = mrst_get_nmi_reason;
+
 	x86_init.pci.init = pci_mrst_init;
 	x86_init.pci.fixup_irqs = x86_init_noop;
 

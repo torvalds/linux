@@ -167,6 +167,7 @@ struct x86_platform_ops {
 	void (*iommu_shutdown)(void);
 	bool (*is_untracked_pat_range)(u64 start, u64 end);
 	void (*nmi_init)(void);
+	unsigned char (*get_nmi_reason)(void);
 	int (*i8042_detect)(void);
 };
 

@@ -21,6 +21,7 @@
 #include <asm/pat.h>
 #include <asm/tsc.h>
 #include <asm/iommu.h>
+#include <asm/mach_traps.h>
 
 void __cpuinit x86_init_noop(void) { }
 void __init x86_init_uint_noop(unsigned int unused) { }
@@ -104,6 +105,7 @@ struct x86_platform_ops x86_platform = {
 	.iommu_shutdown			= iommu_shutdown_noop,
 	.is_untracked_pat_range		= is_ISA_range,
 	.nmi_init			= default_nmi_init,
+	.get_nmi_reason			= default_get_nmi_reason,
 	.i8042_detect			= default_i8042_detect
 };
 
