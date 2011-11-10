@@ -649,7 +649,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 		len = roundup(len, 4);
 		ampdu_len += (len + (ndelim + 1) * AMPDU_DELIMITER_LEN);
 
-		dma_len += (u16) brcmu_pkttotlen(p);
+		dma_len += (u16) p->len;
 
 		BCMMSG(wlc->wiphy, "wl%d: ampdu_len %d"
 			" seg_cnt %d null delim %d\n",
@@ -741,9 +741,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 		if (p) {
 			if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) &&
 			    ((u8) (p->priority) == tid)) {
-
-				plen = brcmu_pkttotlen(p) +
-				       AMPDU_MAX_MPDU_OVERHEAD;
+				plen = p->len + AMPDU_MAX_MPDU_OVERHEAD;
 				plen = max(scb_ampdu->min_len, plen);
 
 				if ((plen + ampdu_len) > max_ampdu_bytes) {

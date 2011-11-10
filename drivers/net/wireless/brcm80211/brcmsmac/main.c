@@ -949,7 +949,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	}
 
-	totlen = brcmu_pkttotlen(p);
+	totlen = p->len;
 	free_pdu = true;
 
 	brcms_c_txfifo_complete(wlc, queue, 1);
@@ -6716,7 +6716,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	qos = ieee80211_is_data_qos(h->frame_control);
 
 	/* compute length of frame in bytes for use in PLCP computations */
-	len = brcmu_pkttotlen(p);
+	len = p->len;
 	phylen = len + FCS_LEN;
 
 	/* Get tx_info */
