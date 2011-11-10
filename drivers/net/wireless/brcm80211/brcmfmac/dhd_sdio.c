@@ -1107,6 +1107,18 @@ static uint brcmf_sdbrcm_glom_from_buf(struct brcmf_bus *bus, uint len)
 	return ret;
 }
 
+/* return total length of buffer chain */
+static uint brcmf_sdbrcm_glom_len(struct brcmf_bus *bus)
+{
+	struct sk_buff *p;
+	uint total;
+
+	total = 0;
+	skb_queue_walk(&bus->glom, p)
+		total += p->len;
+	return total;
+}
+
 static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 {
 	u16 dlen, totlen;
@@ -1218,7 +1230,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 		}
 
 		pfirst = skb_peek(&bus->glom);
-		dlen = (u16) brcmu_pkttotlen(pfirst);
+		dlen = (u16) brcmf_sdbrcm_glom_len(bus);
 
 		/* Do an SDIO read for the superframe.  Configurable iovar to
 		 * read directly into the chained packet, or allocate a large

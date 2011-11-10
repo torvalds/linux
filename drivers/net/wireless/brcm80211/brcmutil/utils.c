@@ -66,19 +66,6 @@ void brcmu_pkt_buf_free_skb(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(brcmu_pkt_buf_free_skb);
 
-
-/* return total length of buffer chain */
-uint brcmu_pkttotlen(struct sk_buff *p)
-{
-	uint total;
-
-	total = 0;
-	for (; p; p = p->next)
-		total += p->len;
-	return total;
-}
-EXPORT_SYMBOL(brcmu_pkttotlen);
-
 /*
  * osl multiple-precedence packet queue
  * hi_prec is always >= the number of the highest non-empty precedence

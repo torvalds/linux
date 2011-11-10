@@ -170,9 +170,6 @@ extern void brcmu_pktq_flush(struct pktq *pq, bool dir,
 		bool (*fn)(struct sk_buff *, void *), void *arg);
 
 /* externs */
-/* packet */
-extern uint brcmu_pkttotlen(struct sk_buff *p);
-
 /* ip address */
 struct ipv4_addr;
 
