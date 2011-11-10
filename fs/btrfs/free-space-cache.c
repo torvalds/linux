@@ -2346,6 +2346,8 @@ again:
 				 &entry->offset_index, 1);
 	BUG_ON(ret);
 
+	trace_btrfs_setup_cluster(block_group, cluster,
+				  total_found * block_group->sectorsize, 1);
 	return 0;
 }
 
@@ -2368,6 +2370,7 @@ setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
 	u64 window_start;
 	u64 window_free;
 	u64 max_extent;
+	u64 total_size = 0;
 
 	entry = tree_search_offset(ctl, offset, 0, 1);
 	if (!entry)
@@ -2433,11 +2436,12 @@ setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
 		rb_erase(&entry->offset_index, &ctl->free_space_offset);
 		ret = tree_insert_offset(&cluster->root, entry->offset,
 					 &entry->offset_index, 0);
+		total_size += entry->bytes;
 		BUG_ON(ret);
 	} while (node && entry != last);
 
 	cluster->max_size = max_extent;
-
+	trace_btrfs_setup_cluster(block_group, cluster, total_size, 0);
 	return 0;
 }
 
@@ -2542,6 +2546,10 @@ int btrfs_find_space_cluster(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
+	trace_btrfs_find_cluster(block_group, offset, bytes, empty_size,
+				 min_bytes);
+
+	INIT_LIST_HEAD(&bitmaps);
 	ret = setup_cluster_no_bitmap(block_group, cluster, &bitmaps, offset,
 				      bytes + empty_size,
 				      cont1_bytes, min_bytes);
@@ -2559,6 +2567,8 @@ int btrfs_find_space_cluster(struct btrfs_trans_handle *trans,
 		list_add_tail(&cluster->block_group_list,
 			      &block_group->cluster_list);
 		cluster->block_group = block_group;
+	} else {
+		trace_btrfs_failed_cluster_setup(block_group);
 	}
 out:
 	spin_unlock(&cluster->lock);

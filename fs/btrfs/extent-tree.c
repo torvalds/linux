@@ -5256,6 +5256,8 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	ins->objectid = 0;
 	ins->offset = 0;
 
+	trace_find_free_extent(orig_root, num_bytes, empty_size, data);
+
 	space_info = __find_space_info(root->fs_info, data);
 	if (!space_info) {
 		printk(KERN_ERR "No space info for %llu\n", data);
@@ -5432,6 +5434,8 @@ alloc:
 			if (offset) {
 				/* we have a block, we're done */
 				spin_unlock(&last_ptr->refill_lock);
+				trace_btrfs_reserve_extent_cluster(root,
+					block_group, search_start, num_bytes);
 				goto checks;
 			}
 
@@ -5490,6 +5494,9 @@ refill_cluster:
 				if (offset) {
 					/* we found one, proceed */
 					spin_unlock(&last_ptr->refill_lock);
+					trace_btrfs_reserve_extent_cluster(root,
+						block_group, search_start,
+						num_bytes);
 					goto checks;
 				}
 			} else if (!cached && loop > LOOP_CACHING_NOWAIT
@@ -5576,6 +5583,8 @@ checks:
 		ins->objectid = search_start;
 		ins->offset = num_bytes;
 
+		trace_btrfs_reserve_extent(orig_root, block_group,
+					   search_start, num_bytes);
 		if (offset < search_start)
 			btrfs_add_free_space(used_block_group, offset,
 					     search_start - offset);
