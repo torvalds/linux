@@ -22,6 +22,7 @@
 #include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/tick.h>
+#include <linux/time.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
@@ -68,13 +69,13 @@ static unsigned long go_hispeed_load;
 /*
  * The minimum amount of time to spend at a frequency before we can ramp down.
  */
-#define DEFAULT_MIN_SAMPLE_TIME 20000;
+#define DEFAULT_MIN_SAMPLE_TIME 20 * USEC_PER_MSEC
 static unsigned long min_sample_time;
 
 /*
  * The sample rate of the timer used to increase frequency
  */
-#define DEFAULT_TIMER_RATE 10000;
+#define DEFAULT_TIMER_RATE 20 * USEC_PER_MSEC
 static unsigned long timer_rate;
 
 static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
