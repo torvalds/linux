@@ -416,6 +416,8 @@ static u16 iwl_limit_dwell(struct iwl_priv *priv, u16 dwell_time)
 
 		if (!iwl_is_associated_ctx(ctx))
 			continue;
+		if (ctx->staging.dev_type == RXON_DEV_TYPE_P2P)
+			continue;
 		value = ctx->beacon_int;
 		if (!value)
 			value = IWL_PASSIVE_DWELL_BASE;
