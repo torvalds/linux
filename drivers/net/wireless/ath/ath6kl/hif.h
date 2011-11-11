@@ -244,6 +244,8 @@ struct ath6kl_hif_ops {
 	void (*cleanup_scatter)(struct ath6kl *ar);
 	int (*suspend)(struct ath6kl *ar, struct cfg80211_wowlan *wow);
 	int (*resume)(struct ath6kl *ar);
+	int (*bmi_read)(struct ath6kl *ar, u8 *buf, u32 len);
+	int (*bmi_write)(struct ath6kl *ar, u8 *buf, u32 len);
 	int (*power_on)(struct ath6kl *ar);
 	int (*power_off)(struct ath6kl *ar);
 	void (*stop)(struct ath6kl *ar);

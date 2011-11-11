@@ -845,6 +845,166 @@ static int ath6kl_sdio_resume(struct ath6kl *ar)
 	return 0;
 }
 
+static int ath6kl_sdio_bmi_credits(struct ath6kl *ar)
+{
+	u32 addr;
+	unsigned long timeout;
+	int ret;
+
+	ar->bmi.cmd_credits = 0;
+
+	/* Read the counter register to get the command credits */
+	addr = COUNT_DEC_ADDRESS + (HTC_MAILBOX_NUM_MAX + ENDPOINT1) * 4;
+
+	timeout = jiffies + msecs_to_jiffies(BMI_COMMUNICATION_TIMEOUT);
+	while (time_before(jiffies, timeout) && !ar->bmi.cmd_credits) {
+
+		/*
+		 * Hit the credit counter with a 4-byte access, the first byte
+		 * read will hit the counter and cause a decrement, while the
+		 * remaining 3 bytes has no effect. The rationale behind this
+		 * is to make all HIF accesses 4-byte aligned.
+		 */
+		ret = ath6kl_sdio_read_write_sync(ar, addr,
+					 (u8 *)&ar->bmi.cmd_credits, 4,
+					 HIF_RD_SYNC_BYTE_INC);
+		if (ret) {
+			ath6kl_err("Unable to decrement the command credit "
+						"count register: %d\n", ret);
+			return ret;
+		}
+
+		/* The counter is only 8 bits.
+		 * Ignore anything in the upper 3 bytes
+		 */
+		ar->bmi.cmd_credits &= 0xFF;
+	}
+
+	if (!ar->bmi.cmd_credits) {
+		ath6kl_err("bmi communication timeout\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static int ath6kl_bmi_get_rx_lkahd(struct ath6kl *ar)
+{
+	unsigned long timeout;
+	u32 rx_word = 0;
+	int ret = 0;
+
+	timeout = jiffies + msecs_to_jiffies(BMI_COMMUNICATION_TIMEOUT);
+	while ((time_before(jiffies, timeout)) && !rx_word) {
+		ret = ath6kl_sdio_read_write_sync(ar,
+					RX_LOOKAHEAD_VALID_ADDRESS,
+					(u8 *)&rx_word, sizeof(rx_word),
+					HIF_RD_SYNC_BYTE_INC);
+		if (ret) {
+			ath6kl_err("unable to read RX_LOOKAHEAD_VALID\n");
+			return ret;
+		}
+
+		 /* all we really want is one bit */
+		rx_word &= (1 << ENDPOINT1);
+	}
+
+	if (!rx_word) {
+		ath6kl_err("bmi_recv_buf FIFO empty\n");
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int ath6kl_sdio_bmi_write(struct ath6kl *ar, u8 *buf, u32 len)
+{
+	int ret;
+	u32 addr;
+
+	ret = ath6kl_sdio_bmi_credits(ar);
+	if (ret)
+		return ret;
+
+	addr = ar->mbox_info.htc_addr;
+
+	ret = ath6kl_sdio_read_write_sync(ar, addr, buf, len,
+					  HIF_WR_SYNC_BYTE_INC);
+	if (ret)
+		ath6kl_err("unable to send the bmi data to the device\n");
+
+	return ret;
+}
+
+static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
+{
+	int ret;
+	u32 addr;
+
+	/*
+	 * During normal bootup, small reads may be required.
+	 * Rather than issue an HIF Read and then wait as the Target
+	 * adds successive bytes to the FIFO, we wait here until
+	 * we know that response data is available.
+	 *
+	 * This allows us to cleanly timeout on an unexpected
+	 * Target failure rather than risk problems at the HIF level.
+	 * In particular, this avoids SDIO timeouts and possibly garbage
+	 * data on some host controllers.  And on an interconnect
+	 * such as Compact Flash (as well as some SDIO masters) which
+	 * does not provide any indication on data timeout, it avoids
+	 * a potential hang or garbage response.
+	 *
+	 * Synchronization is more difficult for reads larger than the
+	 * size of the MBOX FIFO (128B), because the Target is unable
+	 * to push the 129th byte of data until AFTER the Host posts an
+	 * HIF Read and removes some FIFO data.  So for large reads the
+	 * Host proceeds to post an HIF Read BEFORE all the data is
+	 * actually available to read.  Fortunately, large BMI reads do
+	 * not occur in practice -- they're supported for debug/development.
+	 *
+	 * So Host/Target BMI synchronization is divided into these cases:
+	 *  CASE 1: length < 4
+	 *        Should not happen
+	 *
+	 *  CASE 2: 4 <= length <= 128
+	 *        Wait for first 4 bytes to be in FIFO
+	 *        If CONSERVATIVE_BMI_READ is enabled, also wait for
+	 *        a BMI command credit, which indicates that the ENTIRE
+	 *        response is available in the the FIFO
+	 *
+	 *  CASE 3: length > 128
+	 *        Wait for the first 4 bytes to be in FIFO
+	 *
+	 * For most uses, a small timeout should be sufficient and we will
+	 * usually see a response quickly; but there may be some unusual
+	 * (debug) cases of BMI_EXECUTE where we want an larger timeout.
+	 * For now, we use an unbounded busy loop while waiting for
+	 * BMI_EXECUTE.
+	 *
+	 * If BMI_EXECUTE ever needs to support longer-latency execution,
+	 * especially in production, this code needs to be enhanced to sleep
+	 * and yield.  Also note that BMI_COMMUNICATION_TIMEOUT is currently
+	 * a function of Host processor speed.
+	 */
+	if (len >= 4) { /* NB: Currently, always true */
+		ret = ath6kl_bmi_get_rx_lkahd(ar);
+		if (ret)
+			return ret;
+	}
+
+	addr = ar->mbox_info.htc_addr;
+	ret = ath6kl_sdio_read_write_sync(ar, addr, buf, len,
+				  HIF_RD_SYNC_BYTE_INC);
+	if (ret) {
+		ath6kl_err("Unable to read the bmi data from the device: %d\n",
+			   ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void ath6kl_sdio_stop(struct ath6kl *ar)
 {
 	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
@@ -889,6 +1049,8 @@ static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.cleanup_scatter = ath6kl_sdio_cleanup_scatter,
 	.suspend = ath6kl_sdio_suspend,
 	.resume = ath6kl_sdio_resume,
+	.bmi_read = ath6kl_sdio_bmi_read,
+	.bmi_write = ath6kl_sdio_bmi_write,
 	.power_on = ath6kl_sdio_power_on,
 	.power_off = ath6kl_sdio_power_off,
 	.stop = ath6kl_sdio_stop,

@@ -91,6 +91,16 @@ static inline int ath6kl_hif_suspend(struct ath6kl *ar,
 	return ar->hif_ops->suspend(ar, wow);
 }
 
+static inline int ath6kl_hif_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
+{
+	return ar->hif_ops->bmi_read(ar, buf, len);
+}
+
+static inline int ath6kl_hif_bmi_write(struct ath6kl *ar, u8 *buf, u32 len)
+{
+	return ar->hif_ops->bmi_write(ar, buf, len);
+}
+
 static inline int ath6kl_hif_resume(struct ath6kl *ar)
 {
 	ath6kl_dbg(ATH6KL_DBG_HIF, "hif resume\n");
