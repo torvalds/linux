@@ -94,6 +94,7 @@ int ab8500_sysctrl_read(u16 reg, u8 *value)
 	return abx500_get_register_interruptible(sysctrl_dev, bank,
 		(u8)(reg & 0xFF), value);
 }
+EXPORT_SYMBOL(ab8500_sysctrl_read);
 
 int ab8500_sysctrl_write(u16 reg, u8 mask, u8 value)
 {
@@ -109,6 +110,7 @@ int ab8500_sysctrl_write(u16 reg, u8 mask, u8 value)
 	return abx500_mask_and_set_register_interruptible(sysctrl_dev, bank,
 		(u8)(reg & 0xFF), mask, value);
 }
+EXPORT_SYMBOL(ab8500_sysctrl_write);
 
 static int ab8500_sysctrl_probe(struct platform_device *pdev)
 {
