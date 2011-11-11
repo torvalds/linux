@@ -25,27 +25,13 @@
 #include <linux/gpio.h>
 #include <mach/sh7372.h>
 
-#define _1(fn, pfx, sfx) fn(pfx, sfx)
-
-#define _10(fn, pfx, sfx)				\
-	_1(fn, pfx##0, sfx), _1(fn, pfx##1, sfx),	\
-	_1(fn, pfx##2, sfx), _1(fn, pfx##3, sfx),	\
-	_1(fn, pfx##4, sfx), _1(fn, pfx##5, sfx),	\
-	_1(fn, pfx##6, sfx), _1(fn, pfx##7, sfx),	\
-	_1(fn, pfx##8, sfx), _1(fn, pfx##9, sfx)
-
-#define _80(fn, pfx, sfx)				\
-	_10(fn, pfx##1, sfx),	_10(fn, pfx##2, sfx),	\
-	_10(fn, pfx##3, sfx),	_10(fn, pfx##4, sfx),	\
-	_10(fn, pfx##5, sfx),	_10(fn, pfx##6, sfx),	\
-	_10(fn, pfx##7, sfx),	_10(fn, pfx##8, sfx)
-
-#define _190(fn, pfx, sfx) \
-	_10(fn, pfx, sfx), _80(fn, pfx, sfx), _10(fn, pfx##9, sfx), \
-	_10(fn, pfx##10, sfx), _80(fn, pfx##1, sfx), _1(fn, pfx##190, sfx)
-
-#define _PORT(pfx, sfx) pfx##_##sfx
-#define PORT_ALL(str) _190(_PORT, PORT, str)
+#define CPU_ALL_PORT(fn, pfx, sfx) \
+	PORT_10(fn, pfx, sfx),		PORT_90(fn, pfx, sfx), \
+	PORT_10(fn, pfx##10, sfx),	PORT_10(fn, pfx##11, sfx), \
+	PORT_10(fn, pfx##12, sfx),	PORT_10(fn, pfx##13, sfx), \
+	PORT_10(fn, pfx##14, sfx),	PORT_10(fn, pfx##15, sfx), \
+	PORT_10(fn, pfx##16, sfx),	PORT_10(fn, pfx##17, sfx), \
+	PORT_10(fn, pfx##18, sfx),	PORT_1(fn, pfx##190, sfx)
 
 enum {
 	PINMUX_RESERVED = 0,
@@ -941,10 +927,6 @@ static pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(MFIv6_MARK,		MSEL4CR_6_0),
 	PINMUX_DATA(MFIv4_MARK,		MSEL4CR_6_1),
 };
-
-#define _GPIO_PORT(pfx, sfx) PINMUX_GPIO(GPIO_PORT##pfx, PORT##pfx##_DATA)
-#define GPIO_PORT_ALL() _190(_GPIO_PORT, , unused)
-#define GPIO_FN(str) PINMUX_GPIO(GPIO_FN_##str, str##_MARK)
 
 static struct pinmux_gpio pinmux_gpios[] = {
 
