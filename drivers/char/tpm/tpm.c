@@ -627,7 +627,7 @@ static struct tpm_input_header continue_selftest_header = {
  * Returns 0 on success, < 0 in case of fatal error or a value > 0 representing
  * a TPM error code.
  */
-int tpm_continue_selftest(struct tpm_chip *chip)
+static int tpm_continue_selftest(struct tpm_chip *chip)
 {
 	int rc;
 	struct tpm_cmd_t cmd;
@@ -637,7 +637,6 @@ int tpm_continue_selftest(struct tpm_chip *chip)
 			  "continue selftest");
 	return rc;
 }
-EXPORT_SYMBOL_GPL(tpm_continue_selftest);
 
 ssize_t tpm_show_enabled(struct device * dev, struct device_attribute * attr,
 			char *buf)
@@ -732,7 +731,7 @@ static struct tpm_input_header pcrread_header = {
 	.ordinal = TPM_ORDINAL_PCRREAD
 };
 
-int __tpm_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
+static int __tpm_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
 {
 	int rc;
 	struct tpm_cmd_t cmd;
@@ -811,6 +810,45 @@ int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_pcr_extend);
+
+/**
+ * tpm_do_selftest - have the TPM continue its selftest and wait until it
+ *                   can receive further commands
+ * @chip: TPM chip to use
+ *
+ * Returns 0 on success, < 0 in case of fatal error or a value > 0 representing
+ * a TPM error code.
+ */
+int tpm_do_selftest(struct tpm_chip *chip)
+{
+	int rc;
+	u8 digest[TPM_DIGEST_SIZE];
+	unsigned int loops;
+	unsigned int delay_msec = 1000;
+	unsigned long duration;
+
+	duration = tpm_calc_ordinal_duration(chip,
+	                                     TPM_ORD_CONTINUE_SELFTEST);
+
+	loops = jiffies_to_msecs(duration) / delay_msec;
+
+	rc = tpm_continue_selftest(chip);
+	/* This may fail if there was no TPM driver during a suspend/resume
+	 * cycle; some may return 10 (BAD_ORDINAL), others 28 (FAILEDSELFTEST)
+	 */
+	if (rc)
+		return rc;
+
+	do {
+		rc = __tpm_pcr_read(chip, 0, digest);
+		if (rc != TPM_WARN_DOING_SELFTEST)
+			return rc;
+		msleep(delay_msec);
+	} while (--loops > 0);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_do_selftest);
 
 int tpm_send(u32 chip_num, void *cmd, size_t buflen)
 {
