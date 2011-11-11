@@ -766,6 +766,61 @@ nvd0_dac_create(struct drm_connector *connector, struct dcb_entry *dcbe)
 }
 
 /******************************************************************************
+ * Audio
+ *****************************************************************************/
+static void
+nvd0_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_connector *nv_connector;
+	struct drm_device *dev = encoder->dev;
+	int i, or = nv_encoder->or * 0x30;
+
+	nv_connector = nouveau_encoder_connector_get(nv_encoder);
+	if (!drm_detect_monitor_audio(nv_connector->edid))
+		return;
+
+	nv_mask(dev, 0x10ec10 + or, 0x80000003, 0x80000001);
+
+	drm_edid_to_eld(&nv_connector->base, nv_connector->edid);
+	if (nv_connector->base.eld[0]) {
+		u8 *eld = nv_connector->base.eld;
+
+		for (i = 0; i < eld[2] * 4; i++)
+			nv_wr32(dev, 0x10ec00 + or, (i << 8) | eld[i]);
+		for (i = eld[2] * 4; i < 0x60; i++)
+			nv_wr32(dev, 0x10ec00 + or, (i << 8) | 0x00);
+
+		nv_mask(dev, 0x10ec10 + or, 0x80000002, 0x80000002);
+	}
+}
+
+static void
+nvd0_audio_disconnect(struct drm_encoder *encoder)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
+	int or = nv_encoder->or * 0x30;
+
+	nv_mask(dev, 0x10ec10 + or, 0x80000003, 0x80000000);
+}
+
+/******************************************************************************
+ * HDMI
+ *****************************************************************************/
+static void
+nvd0_hdmi_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
+{
+	nvd0_audio_mode_set(encoder, mode);
+}
+
+static void
+nvd0_hdmi_disconnect(struct drm_encoder *encoder)
+{
+	nvd0_audio_disconnect(encoder);
+}
+
+/******************************************************************************
  * SOR
  *****************************************************************************/
 static void
@@ -835,7 +890,8 @@ static void
 nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		  struct drm_display_mode *mode)
 {
-	struct drm_nouveau_private *dev_priv = encoder->dev->dev_private;
+	struct drm_device *dev = encoder->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
@@ -858,6 +914,8 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		or_config = (mode_ctrl & 0x00000f00) >> 8;
 		if (mode->clock >= 165000)
 			or_config |= 0x0100;
+
+		nvd0_hdmi_mode_set(encoder, mode);
 		break;
 	case OUTPUT_LVDS:
 		or_config = (mode_ctrl & 0x00000f00) >> 8;
@@ -895,12 +953,12 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 	nvd0_sor_dpms(encoder, DRM_MODE_DPMS_ON);
 
-	push = evo_wait(encoder->dev, 0, 4);
+	push = evo_wait(dev, 0, 4);
 	if (push) {
 		evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 2);
 		evo_data(push, mode_ctrl);
 		evo_data(push, or_config);
-		evo_kick(push, encoder->dev, 0);
+		evo_kick(push, dev, 0);
 	}
 
 	nv_encoder->crtc = encoder->crtc;
@@ -924,6 +982,8 @@ nvd0_sor_disconnect(struct drm_encoder *encoder)
 			evo_data(push, 0x00000000);
 			evo_kick(push, dev, 0);
 		}
+
+		nvd0_hdmi_disconnect(encoder);
 
 		nv_encoder->crtc = NULL;
 		nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
