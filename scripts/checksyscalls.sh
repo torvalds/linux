@@ -198,11 +198,16 @@ EOF
 }
 
 syscall_list() {
-sed -n -e '/^\#define/ s/[^_]*__NR_\([^[:space:]]*\).*/\
-\#if !defined \(__NR_\1\) \&\& !defined \(__IGNORE_\1\)\
-\#warning syscall \1 not implemented\
-\#endif/p' $1
+    grep '^[0-9]' "$1" | sort -n | (
+	while read nr abi name entry ; do
+	    echo <<EOF
+#if !defined(__NR_${name}) && !defined(__IGNORE_${name})
+#warning syscall ${name} not implemented
+#endif
+EOF
+	done
+    )
 }
 
-(ignore_list && syscall_list $(dirname $0)/../arch/x86/include/asm/unistd_32.h) | \
+(ignore_list && syscall_list $(dirname $0)/../arch/x86/syscalls/syscall_32.tbl) | \
 $* -E -x c - > /dev/null
