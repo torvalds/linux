@@ -37,6 +37,22 @@ extern int sysaufs_brs;
 
 extern int au_dir_roflags;
 
+enum {
+	AuLcNonDir_FIINFO,
+	AuLcNonDir_DIINFO,
+	AuLcNonDir_IIINFO,
+
+	AuLcDir_FIINFO,
+	AuLcDir_DIINFO,
+	AuLcDir_IIINFO,
+
+	AuLcSymlink_DIINFO,
+	AuLcSymlink_IIINFO,
+
+	AuLcKey_Last
+};
+extern struct lock_class_key au_lc_key[AuLcKey_Last];
+
 void *au_kzrealloc(void *p, unsigned int nused, unsigned int new_sz, gfp_t gfp);
 int au_seq_path(struct seq_file *seq, struct path *path);
 
