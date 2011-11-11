@@ -33,6 +33,7 @@
 #include <asm/mach/time.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <mach/r8a7740.h>
+#include <video/sh_mobile_lcdc.h>
 
 /*
  * CS	Address		device			note
@@ -65,6 +66,13 @@
  */
 
 /*
+ * LCDC0 (CN3/CN4/CN7)
+ *
+ * S38.1 = OFF
+ * S38.2 = OFF
+ */
+
+/*
  * FPGA
  */
 #define BUSSWMR1	0x0070
@@ -72,6 +80,7 @@
 #define BUSSWMR3	0x0074
 #define BUSSWMR4	0x0076
 
+#define LCDCR		0x10B4
 #define A1MDSR		0x10E0
 #define BVERR		0x1100
 static u16 bonito_fpga_read(u32 offset)
@@ -135,6 +144,63 @@ static int __init pmic_init(void)
 device_initcall(pmic_init);
 
 /*
+ * LCDC0
+ */
+static const struct fb_videomode lcdc0_mode = {
+	.name		= "WVGA Panel",
+	.xres		= 800,
+	.yres		= 480,
+	.left_margin	= 88,
+	.right_margin	= 40,
+	.hsync_len	= 128,
+	.upper_margin	= 20,
+	.lower_margin	= 5,
+	.vsync_len	= 5,
+	.sync		= 0,
+};
+
+static struct sh_mobile_lcdc_info lcdc0_info = {
+	.clock_source	= LCDC_CLK_BUS,
+	.ch[0] = {
+		.chan			= LCDC_CHAN_MAINLCD,
+		.bpp			= 16,
+		.interface_type		= RGB24,
+		.clock_divider		= 5,
+		.flags			= 0,
+		.lcd_cfg		= &lcdc0_mode,
+		.num_cfg		= 1,
+		.lcd_size_cfg = {
+			.width	= 152,
+			.height = 91,
+		},
+	},
+};
+
+static struct resource lcdc0_resources[] = {
+	[0] = {
+		.name	= "LCDC0",
+		.start	= 0xfe940000,
+		.end	= 0xfe943fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= intcs_evt2irq(0x0580),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device lcdc0_device = {
+	.name		= "sh_mobile_lcdc_fb",
+	.id		= 0,
+	.resource	= lcdc0_resources,
+	.num_resources	= ARRAY_SIZE(lcdc0_resources),
+	.dev	= {
+		.platform_data	= &lcdc0_info,
+		.coherent_dma_mask = ~0,
+	},
+};
+
+/*
  * core board devices
  */
 static struct platform_device *bonito_core_devices[] __initdata = {
@@ -144,6 +210,7 @@ static struct platform_device *bonito_core_devices[] __initdata = {
  * base board devices
  */
 static struct platform_device *bonito_base_devices[] __initdata = {
+	&lcdc0_device,
 };
 
 /*
@@ -198,6 +265,9 @@ static void __init bonito_map_io(void)
  */
 #define BIT_ON(sw, bit)		(sw & (1 << bit))
 #define BIT_OFF(sw, bit)	(!(sw & (1 << bit)))
+
+#define VCCQ1CR		0xE6058140
+#define VCCQ1LCDCR	0xE6058186
 
 static void __init bonito_init(void)
 {
@@ -256,6 +326,53 @@ static void __init bonito_init(void)
 		    BIT_OFF(bsw4, 4)) {	/* S43.1 = ON */
 			gpio_request(GPIO_FN_SCIFA5_TXD_PORT91,	NULL);
 			gpio_request(GPIO_FN_SCIFA5_RXD_PORT92,	NULL);
+		}
+
+		/*
+		 * LCDC0 (CN3)
+		 */
+		if (BIT_ON(bsw2, 3) &&	/* S38.1 = OFF */
+		    BIT_ON(bsw2, 2)) {	/* S38.2 = OFF */
+			gpio_request(GPIO_FN_LCDC0_SELECT,	NULL);
+			gpio_request(GPIO_FN_LCD0_D0,		NULL);
+			gpio_request(GPIO_FN_LCD0_D1,		NULL);
+			gpio_request(GPIO_FN_LCD0_D2,		NULL);
+			gpio_request(GPIO_FN_LCD0_D3,		NULL);
+			gpio_request(GPIO_FN_LCD0_D4,		NULL);
+			gpio_request(GPIO_FN_LCD0_D5,		NULL);
+			gpio_request(GPIO_FN_LCD0_D6,		NULL);
+			gpio_request(GPIO_FN_LCD0_D7,		NULL);
+			gpio_request(GPIO_FN_LCD0_D8,		NULL);
+			gpio_request(GPIO_FN_LCD0_D9,		NULL);
+			gpio_request(GPIO_FN_LCD0_D10,		NULL);
+			gpio_request(GPIO_FN_LCD0_D11,		NULL);
+			gpio_request(GPIO_FN_LCD0_D12,		NULL);
+			gpio_request(GPIO_FN_LCD0_D13,		NULL);
+			gpio_request(GPIO_FN_LCD0_D14,		NULL);
+			gpio_request(GPIO_FN_LCD0_D15,		NULL);
+			gpio_request(GPIO_FN_LCD0_D16,		NULL);
+			gpio_request(GPIO_FN_LCD0_D17,		NULL);
+			gpio_request(GPIO_FN_LCD0_D18_PORT163,	NULL);
+			gpio_request(GPIO_FN_LCD0_D19_PORT162,	NULL);
+			gpio_request(GPIO_FN_LCD0_D20_PORT161,	NULL);
+			gpio_request(GPIO_FN_LCD0_D21_PORT158,	NULL);
+			gpio_request(GPIO_FN_LCD0_D22_PORT160,	NULL);
+			gpio_request(GPIO_FN_LCD0_D23_PORT159,	NULL);
+			gpio_request(GPIO_FN_LCD0_DCK,		NULL);
+			gpio_request(GPIO_FN_LCD0_VSYN,		NULL);
+			gpio_request(GPIO_FN_LCD0_HSYN,		NULL);
+			gpio_request(GPIO_FN_LCD0_DISP,		NULL);
+			gpio_request(GPIO_FN_LCD0_LCLK_PORT165,	NULL);
+
+			gpio_request(GPIO_PORT61, NULL); /* LCDDON */
+			gpio_direction_output(GPIO_PORT61, 1);
+
+			/* backlight on */
+			bonito_fpga_write(LCDCR, 1);
+
+			/*  drivability Max */
+			__raw_writew(0x00FF , VCCQ1LCDCR);
+			__raw_writew(0xFFFF , VCCQ1CR);
 		}
 
 		platform_add_devices(bonito_base_devices,
