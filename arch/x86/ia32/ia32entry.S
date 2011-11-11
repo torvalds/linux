@@ -453,9 +453,6 @@ ia32_badsys:
 	movq $-ENOSYS,%rax
 	jmp ia32_sysret
 
-quiet_ni_syscall:
-	movq $-ENOSYS,%rax
-	ret
 	CFI_ENDPROC
 	
 	.macro PTREGSCALL label, func, arg
