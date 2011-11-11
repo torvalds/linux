@@ -133,12 +133,23 @@ $ git clone git://aufs.git.sourceforge.net/gitroot/aufs/aufs-util.git \
 $ cd aufs-util.git
 $ git checkout origin/aufs3.0
 
-You may not be able to find the GIT branch in aufs-util for your
-version. In this case, you should git-checkout the branch for the
+Note: The 3.x-rcN branch is to be used with `rc' kernel versions ONLY.
+The minor version number, 'x' in '3.x', of aufs may not always
+follow the minor version number of the kernel.
+Because changes in the kernel that cause the use of a new
+minor version number do not always require changes to aufs-util.
+
+Since aufs-util has its own minor version number, you may not be
+able to find a GIT branch in aufs-util for your kernel's
+exact minor version number.
+In this case, you should git-checkout the branch for the
 nearest lower number.
-If you are using linux-3.10 and aufs3.10 (which are not released yet),
-but the "aufs3.10" branch doesn't exit in this repository, then
-"aufs3.9", "aufs3.8", ... or something is the branch for you.
+
+For (an unreleased) example:
+If you are using "linux-3.10" and the "aufs3.10" branch
+does not exit in aufs-util repository, then "aufs3.9", "aufs3.8"
+or something numerically smaller is the branch for your kernel.
+
 Also you can view all branches by
 	$ git branch -a
 
