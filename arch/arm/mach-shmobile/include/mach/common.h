@@ -53,4 +53,10 @@ extern void sh73a0_secondary_init(unsigned int cpu);
 extern int sh73a0_boot_secondary(unsigned int cpu);
 extern void sh73a0_smp_prepare_cpus(void);
 
+extern void r8a7740_init_irq(void);
+extern void r8a7740_add_early_devices(void);
+extern void r8a7740_add_standard_devices(void);
+extern void r8a7740_clock_init(u8 md_ck);
+extern void r8a7740_pinmux_init(void);
+
 #endif /* __ARCH_MACH_COMMON_H */
