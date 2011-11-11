@@ -95,6 +95,7 @@
 #define FPGA_IRQ_BASE		(512)
 #define FPGA_IRQ0		(FPGA_IRQ_BASE)
 #define FPGA_IRQ1		(FPGA_IRQ_BASE + 16)
+#define FPGA_ETH_IRQ		(FPGA_IRQ0 + 15)
 static u16 bonito_fpga_read(u32 offset)
 {
 	return __raw_readw(0xf0003000 + offset);
@@ -278,6 +279,37 @@ static struct platform_device lcdc0_device = {
 };
 
 /*
+ * SMSC 9221
+ */
+static struct resource smsc_resources[] = {
+	[0] = {
+		.start		= 0x18010000,
+		.end		= 0x18011000 - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= FPGA_ETH_IRQ,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct smsc911x_platform_config smsc_platdata = {
+	.flags		= SMSC911X_USE_16BIT,
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_PUSH_PULL,
+};
+
+static struct platform_device smsc_device = {
+	.name		= "smsc911x",
+	.dev  = {
+		.platform_data = &smsc_platdata,
+	},
+	.resource	= smsc_resources,
+	.num_resources	= ARRAY_SIZE(smsc_resources),
+};
+
+/*
  * core board devices
  */
 static struct platform_device *bonito_core_devices[] __initdata = {
@@ -288,6 +320,7 @@ static struct platform_device *bonito_core_devices[] __initdata = {
  */
 static struct platform_device *bonito_base_devices[] __initdata = {
 	&lcdc0_device,
+	&smsc_device,
 };
 
 /*
