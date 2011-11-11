@@ -720,115 +720,19 @@ static int dcb_entry_idx_from_crtchead(struct drm_device *dev)
 	return dcb_entry;
 }
 
-static int
-read_dcb_i2c_entry(struct drm_device *dev, int dcb_version, uint8_t *i2ctable, int index, struct dcb_i2c_entry *i2c)
-{
-	uint8_t dcb_i2c_ver = dcb_version, headerlen = 0, entry_len = 4;
-	int i2c_entries = DCB_MAX_NUM_I2C_ENTRIES;
-	int recordoffset = 0, rdofs = 1, wrofs = 0;
-	uint8_t port_type = 0;
-
-	if (!i2ctable)
-		return -EINVAL;
-
-	if (dcb_version >= 0x30) {
-		if (i2ctable[0] != dcb_version) /* necessary? */
-			NV_WARN(dev,
-				"DCB I2C table version mismatch (%02X vs %02X)\n",
-				i2ctable[0], dcb_version);
-		dcb_i2c_ver = i2ctable[0];
-		headerlen = i2ctable[1];
-		if (i2ctable[2] <= DCB_MAX_NUM_I2C_ENTRIES)
-			i2c_entries = i2ctable[2];
-		else
-			NV_WARN(dev,
-				"DCB I2C table has more entries than indexable "
-				"(%d entries, max %d)\n", i2ctable[2],
-				DCB_MAX_NUM_I2C_ENTRIES);
-		entry_len = i2ctable[3];
-		/* [4] is i2c_default_indices, read in parse_dcb_table() */
-	}
-	/*
-	 * It's your own fault if you call this function on a DCB 1.1 BIOS --
-	 * the test below is for DCB 1.2
-	 */
-	if (dcb_version < 0x14) {
-		recordoffset = 2;
-		rdofs = 0;
-		wrofs = 1;
-	}
-
-	if (index == 0xf)
-		return 0;
-	if (index >= i2c_entries) {
-		NV_ERROR(dev, "DCB I2C index too big (%d >= %d)\n",
-			 index, i2ctable[2]);
-		return -ENOENT;
-	}
-	if (i2ctable[headerlen + entry_len * index + 3] == 0xff) {
-		NV_ERROR(dev, "DCB I2C entry invalid\n");
-		return -EINVAL;
-	}
-
-	if (dcb_i2c_ver >= 0x30) {
-		port_type = i2ctable[headerlen + recordoffset + 3 + entry_len * index];
-
-		/*
-		 * Fixup for chips using same address offset for read and
-		 * write.
-		 */
-		if (port_type == 4)	/* seen on C51 */
-			rdofs = wrofs = 1;
-		if (port_type >= 5)	/* G80+ */
-			rdofs = wrofs = 0;
-	}
-
-	if (dcb_i2c_ver >= 0x40) {
-		if (port_type != 5 && port_type != 6)
-			NV_WARN(dev, "DCB I2C table has port type %d\n", port_type);
-
-		i2c->entry = ROM32(i2ctable[headerlen + recordoffset + entry_len * index]);
-	}
-
-	i2c->port_type = port_type;
-	i2c->read = i2ctable[headerlen + recordoffset + rdofs + entry_len * index];
-	i2c->write = i2ctable[headerlen + recordoffset + wrofs + entry_len * index];
-
-	return 0;
-}
-
 static struct nouveau_i2c_chan *
 init_i2c_device_find(struct drm_device *dev, int i2c_index)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct dcb_table *dcb = &dev_priv->vbios.dcb;
-
 	if (i2c_index == 0xff) {
+		struct drm_nouveau_private *dev_priv = dev->dev_private;
+		struct dcb_table *dcb = &dev_priv->vbios.dcb;
 		/* note: dcb_entry_idx_from_crtchead needs pre-script set-up */
-		int idx = dcb_entry_idx_from_crtchead(dev), shift = 0;
-		int default_indices = dcb->i2c_default_indices;
+		int idx = dcb_entry_idx_from_crtchead(dev);
 
+		i2c_index = NV_I2C_DEFAULT(0);
 		if (idx != 0x7f && dcb->entry[idx].i2c_upper_default)
-			shift = 4;
-
-		i2c_index = (default_indices >> shift) & 0xf;
+			i2c_index = NV_I2C_DEFAULT(1);
 	}
-	if (i2c_index == 0x80)	/* g80+ */
-		i2c_index = dcb->i2c_default_indices & 0xf;
-	else
-	if (i2c_index == 0x81)
-		i2c_index = (dcb->i2c_default_indices & 0xf0) >> 4;
-
-	if (i2c_index >= DCB_MAX_NUM_I2C_ENTRIES) {
-		NV_ERROR(dev, "invalid i2c_index 0x%x\n", i2c_index);
-		return NULL;
-	}
-
-	/* Make sure i2c table entry has been parsed, it may not
-	 * have been if this is a bus not referenced by a DCB encoder
-	 */
-	read_dcb_i2c_entry(dev, dcb->version, dcb->i2c_table,
-			   i2c_index, &dcb->i2c[i2c_index]);
 
 	return nouveau_i2c_find(dev, i2c_index);
 }
@@ -5595,10 +5499,6 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	uint16_t legacy_scripts_offset, legacy_i2c_offset;
 
 	/* load needed defaults in case we can't parse this info */
-	bios->dcb.i2c[0].write = NV_CIO_CRE_DDC_WR__INDEX;
-	bios->dcb.i2c[0].read = NV_CIO_CRE_DDC_STATUS__INDEX;
-	bios->dcb.i2c[1].write = NV_CIO_CRE_DDC0_WR__INDEX;
-	bios->dcb.i2c[1].read = NV_CIO_CRE_DDC0_STATUS__INDEX;
 	bios->digital_min_front_porch = 0x4b;
 	bios->fmaxvco = 256000;
 	bios->fminvco = 128000;
@@ -5706,14 +5606,6 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	bios->legacy.i2c_indices.crt = bios->data[legacy_i2c_offset];
 	bios->legacy.i2c_indices.tv = bios->data[legacy_i2c_offset + 1];
 	bios->legacy.i2c_indices.panel = bios->data[legacy_i2c_offset + 2];
-	if (bios->data[legacy_i2c_offset + 4])
-		bios->dcb.i2c[0].write = bios->data[legacy_i2c_offset + 4];
-	if (bios->data[legacy_i2c_offset + 5])
-		bios->dcb.i2c[0].read = bios->data[legacy_i2c_offset + 5];
-	if (bios->data[legacy_i2c_offset + 6])
-		bios->dcb.i2c[1].write = bios->data[legacy_i2c_offset + 6];
-	if (bios->data[legacy_i2c_offset + 7])
-		bios->dcb.i2c[1].read = bios->data[legacy_i2c_offset + 7];
 
 	if (bmplength > 74) {
 		bios->fmaxvco = ROM32(bmp[67]);
@@ -6549,10 +6441,6 @@ parse_dcb_entry(struct drm_device *dev, void *data, int idx, u8 *outp)
 			ret = parse_dcb15_entry(dev, dcb, conn, conf, entry);
 		if (!ret)
 			return 1; /* stop parsing */
-
-		read_dcb_i2c_entry(dev, dcb->version, dcb->i2c_table,
-				   entry->i2c_index,
-				   &dcb->i2c[entry->i2c_index]);
 	}
 
 	return 0;
@@ -6562,7 +6450,6 @@ static int
 parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 {
 	struct dcb_table *dcb = &bios->dcb;
-	u16 i2ctabptr = 0x0000;
 	u8 *dcbt;
 
 	dcbt = dcb_table(dev);
@@ -6580,32 +6467,8 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 
 	dcb->version = dcbt[0];
 	if (dcb->version >= 0x30) {
-		i2ctabptr = ROM16(dcbt[4]);
 		dcb->gpio_table_ptr = ROM16(dcbt[10]);
 		dcb->connector_table_ptr = ROM16(dcbt[20]);
-	} else
-	if (dcb->version >= 0x15) {
-		i2ctabptr = ROM16(dcbt[2]);
-	}
-
-	if (!i2ctabptr)
-		NV_WARN(dev, "No pointer to DCB I2C port table\n");
-	else {
-		dcb->i2c_table = &bios->data[i2ctabptr];
-		if (dcb->version >= 0x30)
-			dcb->i2c_default_indices = dcb->i2c_table[4];
-
-		/*
-		 * Parse the "management" I2C bus, used for hardware
-		 * monitoring and some external TMDS transmitters.
-		 */
-		if (dcb->version >= 0x22) {
-			int idx = (dcb->version >= 0x40 ?
-				   dcb->i2c_default_indices & 0xf : 2);
-
-			read_dcb_i2c_entry(dev, dcb->version, dcb->i2c_table,
-					   idx, &dcb->i2c[idx]);
-		}
 	}
 
 	dcb_outp_foreach(dev, NULL, parse_dcb_entry);
@@ -6893,19 +6756,6 @@ nouveau_run_vbios_init(struct drm_device *dev)
 	return ret;
 }
 
-static void
-nouveau_bios_i2c_devices_takedown(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
-	struct dcb_i2c_entry *entry;
-	int i;
-
-	entry = &bios->dcb.i2c[0];
-	for (i = 0; i < DCB_MAX_NUM_I2C_ENTRIES; i++, entry++)
-		nouveau_i2c_fini(dev, entry);
-}
-
 static bool
 nouveau_bios_posted(struct drm_device *dev)
 {
@@ -6939,6 +6789,10 @@ nouveau_bios_init(struct drm_device *dev)
 		return -ENODEV;
 
 	ret = nouveau_parse_vbios_struct(dev);
+	if (ret)
+		return ret;
+
+	ret = nouveau_i2c_init(dev);
 	if (ret)
 		return ret;
 
@@ -6984,5 +6838,5 @@ nouveau_bios_init(struct drm_device *dev)
 void
 nouveau_bios_takedown(struct drm_device *dev)
 {
-	nouveau_bios_i2c_devices_takedown(dev);
+	nouveau_i2c_fini(dev);
 }

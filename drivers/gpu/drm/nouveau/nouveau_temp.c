@@ -286,8 +286,6 @@ probe_monitoring_device(struct nouveau_i2c_chan *i2c,
 static void
 nouveau_temp_probe_i2c(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct dcb_table *dcb = &dev_priv->vbios.dcb;
 	struct i2c_board_info info[] = {
 		{ I2C_BOARD_INFO("w83l785ts", 0x2d) },
 		{ I2C_BOARD_INFO("w83781d", 0x2d) },
@@ -296,11 +294,9 @@ nouveau_temp_probe_i2c(struct drm_device *dev)
 		{ I2C_BOARD_INFO("lm99", 0x4c) },
 		{ }
 	};
-	int idx = (dcb->version >= 0x40 ?
-		   dcb->i2c_default_indices & 0xf : 2);
 
 	nouveau_i2c_identify(dev, "monitoring device", info,
-			     probe_monitoring_device, idx);
+			     probe_monitoring_device, NV_I2C_DEFAULT(0));
 }
 
 void

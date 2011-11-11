@@ -53,13 +53,6 @@ struct bit_entry {
 
 int bit_table(struct drm_device *, u8 id, struct bit_entry *);
 
-struct dcb_i2c_entry {
-	uint32_t entry;
-	uint8_t port_type;
-	uint8_t read, write;
-	struct nouveau_i2c_chan *chan;
-};
-
 enum dcb_gpio_tag {
 	DCB_GPIO_TVDAC0 = 0xc,
 	DCB_GPIO_TVDAC1 = 0x2d,
@@ -165,10 +158,6 @@ struct dcb_table {
 
 	int entries;
 	struct dcb_entry entry[DCB_MAX_NUM_ENTRIES];
-
-	uint8_t *i2c_table;
-	uint8_t i2c_default_indices;
-	struct dcb_i2c_entry i2c[DCB_MAX_NUM_I2C_ENTRIES];
 
 	uint16_t gpio_table_ptr;
 	struct dcb_gpio_table gpio;
