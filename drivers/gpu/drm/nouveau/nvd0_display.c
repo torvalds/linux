@@ -859,6 +859,9 @@ nvd0_hdmi_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	nv_mask(dev, 0x616798 + head, 0x401f007f, 0x40000000 | rekey |
 						  max_ac_packet << 16);
 
+	/* NFI, audio doesn't work without it though.. */
+	nv_mask(dev, 0x616548 + head, 0x00000070, 0x00000000);
+
 	nvd0_audio_mode_set(encoder, mode);
 }
 
