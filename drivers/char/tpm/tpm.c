@@ -611,15 +611,31 @@ duration:
 }
 EXPORT_SYMBOL_GPL(tpm_get_timeouts);
 
-void tpm_continue_selftest(struct tpm_chip *chip)
-{
-	u8 data[] = {
-		0, 193,			/* TPM_TAG_RQU_COMMAND */
-		0, 0, 0, 10,		/* length */
-		0, 0, 0, 83,		/* TPM_ORD_ContinueSelfTest */
-	};
+#define TPM_ORD_CONTINUE_SELFTEST 83
+#define CONTINUE_SELFTEST_RESULT_SIZE 10
 
-	tpm_transmit(chip, data, sizeof(data));
+static struct tpm_input_header continue_selftest_header = {
+	.tag = TPM_TAG_RQU_COMMAND,
+	.length = cpu_to_be32(10),
+	.ordinal = cpu_to_be32(TPM_ORD_CONTINUE_SELFTEST),
+};
+
+/**
+ * tpm_continue_selftest -- run TPM's selftest
+ * @chip: TPM chip to use
+ *
+ * Returns 0 on success, < 0 in case of fatal error or a value > 0 representing
+ * a TPM error code.
+ */
+int tpm_continue_selftest(struct tpm_chip *chip)
+{
+	int rc;
+	struct tpm_cmd_t cmd;
+
+	cmd.header.in = continue_selftest_header;
+	rc = transmit_cmd(chip, &cmd, CONTINUE_SELFTEST_RESULT_SIZE,
+			  "continue selftest");
+	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_continue_selftest);
 
