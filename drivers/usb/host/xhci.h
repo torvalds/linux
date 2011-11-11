@@ -362,8 +362,10 @@ struct xhci_op_regs {
  * Timeout can be up to 127us.  0xFF means an infinite timeout.
  */
 #define PORT_U1_TIMEOUT(p)	((p) & 0xff)
+#define PORT_U1_TIMEOUT_MASK	0xff
 /* Inactivity timer value for transitions into U2 */
 #define PORT_U2_TIMEOUT(p)	(((p) & 0xff) << 8)
+#define PORT_U2_TIMEOUT_MASK	(0xff << 8)
 /* Bits 24:31 for port testing */
 
 /* USB2 Protocol PORTSPMSC */
