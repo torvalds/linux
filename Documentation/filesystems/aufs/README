@@ -133,6 +133,7 @@ $ git clone git://aufs.git.sourceforge.net/gitroot/aufs/aufs-util.git \
 $ cd aufs-util.git
 $ git checkout origin/aufs3.0
 
+Note: The 3.x-rcN branch is to be used with `rc' kernel versions ONLY.
 You may not be able to find the GIT branch in aufs-util for your
 version. In this case, you should git-checkout the branch for the
 nearest lower number.
