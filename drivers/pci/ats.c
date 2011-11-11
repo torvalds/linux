@@ -348,7 +348,7 @@ int pci_enable_pasid(struct pci_dev *pdev, int features)
 	pci_read_config_word(pdev, pos + PCI_PASID_CONTROL_OFF, &control);
 	pci_read_config_word(pdev, pos + PCI_PASID_CAP_OFF,     &supported);
 
-	if (!(supported & PCI_PASID_ENABLE))
+	if (control & PCI_PASID_ENABLE)
 		return -EINVAL;
 
 	supported &= PCI_PASID_EXEC | PCI_PASID_PRIV;
@@ -390,7 +390,6 @@ EXPORT_SYMBOL_GPL(pci_disable_pasid);
  * Returns a negative value when no PASI capability is present.
  * Otherwise is returns a bitmask with supported features. Current
  * features reported are:
- * PCI_PASID_ENABLE - PASID capability can be enabled
  * PCI_PASID_EXEC - Execute permission supported
  * PCI_PASID_PRIV - Priviledged mode supported
  */
@@ -405,7 +404,7 @@ int pci_pasid_features(struct pci_dev *pdev)
 
 	pci_read_config_word(pdev, pos + PCI_PASID_CAP_OFF, &supported);
 
-	supported &= PCI_PASID_ENABLE | PCI_PASID_EXEC | PCI_PASID_PRIV;
+	supported &= PCI_PASID_EXEC | PCI_PASID_PRIV;
 
 	return supported;
 }
