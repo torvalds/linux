@@ -156,7 +156,7 @@ ssize_t sysaufs_si_show(struct kobject *kobj, struct attribute *attr,
 	bend = au_sbend(sb);
 	if (!strncmp(name, SysaufsBr_PREFIX, sizeof(SysaufsBr_PREFIX) - 1)) {
 		name += sizeof(SysaufsBr_PREFIX) - 1;
-		err = strict_strtol(name, 10, &l);
+		err = kstrtol(name, 10, &l);
 		if (!err) {
 			if (l <= bend)
 				err = sysaufs_si_br(seq, sb, (aufs_bindex_t)l);
