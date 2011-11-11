@@ -81,6 +81,8 @@ int au_dir_roflags;
 struct au_splhead au_sbilist;
 #endif
 
+struct lock_class_key au_lc_key[AuLcKey_Last];
+
 /*
  * functions for module interface.
  */
