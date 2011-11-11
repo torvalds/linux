@@ -352,20 +352,34 @@ nvd0_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_connector *nv_connector;
-	u32 htotal = mode->htotal;
-	u32 vtotal = mode->vtotal;
-	u32 hsyncw = mode->hsync_end - mode->hsync_start - 1;
-	u32 vsyncw = mode->vsync_end - mode->vsync_start - 1;
-	u32 hfrntp = mode->hsync_start - mode->hdisplay;
-	u32 vfrntp = mode->vsync_start - mode->vdisplay;
-	u32 hbackp = mode->htotal - mode->hsync_end;
-	u32 vbackp = mode->vtotal - mode->vsync_end;
-	u32 hss2be = hsyncw + hbackp;
-	u32 vss2be = vsyncw + vbackp;
-	u32 hss2de = htotal - hfrntp;
-	u32 vss2de = vtotal - vfrntp;
+	u32 ilace = (mode->flags & DRM_MODE_FLAG_INTERLACE) ? 2 : 1;
+	u32 vscan = (mode->flags & DRM_MODE_FLAG_DBLSCAN) ? 2 : 1;
+	u32 hactive, hsynce, hbackp, hfrontp, hblanke, hblanks;
+	u32 vactive, vsynce, vbackp, vfrontp, vblanke, vblanks;
+	u32 vblan2e = 0, vblan2s = 1;
+	u32 magic = 0x31ec6000;
 	u32 syncs, *push;
 	int ret;
+
+	hactive = mode->htotal;
+	hsynce  = mode->hsync_end - mode->hsync_start - 1;
+	hbackp  = mode->htotal - mode->hsync_end;
+	hblanke = hsynce + hbackp;
+	hfrontp = mode->hsync_start - mode->hdisplay;
+	hblanks = mode->htotal - hfrontp - 1;
+
+	vactive = mode->vtotal * vscan / ilace;
+	vsynce  = ((mode->vsync_end - mode->vsync_start) * vscan / ilace) - 1;
+	vbackp  = (mode->vtotal - mode->vsync_end) * vscan / ilace;
+	vblanke = vsynce + vbackp;
+	vfrontp = (mode->vsync_start - mode->vdisplay) * vscan / ilace;
+	vblanks = vactive - vfrontp - 1;
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		vblan2e = vactive + vsynce + vbackp;
+		vblan2s = vblan2e + (mode->vdisplay * vscan / ilace);
+		vactive = (vactive * 2) + 1;
+		magic  |= 0x00000001;
+	}
 
 	syncs = 0x00000001;
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
@@ -379,20 +393,22 @@ nvd0_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 
 	push = evo_wait(crtc->dev, 0, 64);
 	if (push) {
-		evo_mthd(push, 0x0410 + (nv_crtc->index * 0x300), 5);
+		evo_mthd(push, 0x0410 + (nv_crtc->index * 0x300), 6);
 		evo_data(push, 0x00000000);
-		evo_data(push, (vtotal << 16) | htotal);
-		evo_data(push, (vsyncw << 16) | hsyncw);
-		evo_data(push, (vss2be << 16) | hss2be);
-		evo_data(push, (vss2de << 16) | hss2de);
+		evo_data(push, (vactive << 16) | hactive);
+		evo_data(push, ( vsynce << 16) | hsynce);
+		evo_data(push, (vblanke << 16) | hblanke);
+		evo_data(push, (vblanks << 16) | hblanks);
+		evo_data(push, (vblan2e << 16) | vblan2s);
 		evo_mthd(push, 0x042c + (nv_crtc->index * 0x300), 1);
 		evo_data(push, 0x00000000); /* ??? */
 		evo_mthd(push, 0x0450 + (nv_crtc->index * 0x300), 3);
 		evo_data(push, mode->clock * 1000);
 		evo_data(push, 0x00200000); /* ??? */
 		evo_data(push, mode->clock * 1000);
-		evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 1);
+		evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
 		evo_data(push, syncs);
+		evo_data(push, magic);
 		evo_kick(push, crtc->dev, 0);
 	}
 
