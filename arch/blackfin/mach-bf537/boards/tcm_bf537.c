@@ -9,6 +9,7 @@
 
 #include <linux/device.h>
 #include <linux/etherdevice.h>
+#include <linux/export.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -546,7 +547,6 @@ static struct platform_device bfin_sport1_uart_device = {
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 #include <linux/bfin_mac.h>
-#include <linux/export.h>
 static const unsigned short bfin_mac_peripherals[] = P_MII0;
 
 static struct bfin_phydev_platform_data bfin_phydev_data[] = {
