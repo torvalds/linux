@@ -150,6 +150,8 @@ static const struct snd_kcontrol_new ak4642_snd_controls[] = {
 
 	SOC_DOUBLE_R_TLV("Digital Playback Volume", L_DVC, R_DVC,
 			 0, 0xFF, 1, out_tlv),
+
+	SOC_SINGLE("Headphone Switch", PW_MGMT2, 6, 1, 0),
 };
 
 static const struct snd_kcontrol_new ak4642_hpout_mixer_controls[] = {
@@ -225,7 +227,6 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 */
 		snd_soc_write(codec, L_IVC, 0x91); /* volume */
 		snd_soc_write(codec, R_IVC, 0x91); /* volume */
-		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	HPMTN);
 	} else {
 		/*
 		 * start stereo input
@@ -257,8 +258,6 @@ static void ak4642_dai_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 
 	if (is_play) {
-		/* stop headphone output */
-		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	0);
 	} else {
 		/* stop stereo input */
 		snd_soc_update_bits(codec, PW_MGMT1, PMADL, 0);
