@@ -25,6 +25,7 @@
 #include <linux/uaccess.h>
 #include "aufs.h"
 
+/* todo: unnecessary to support mmap_sem since kernel-space? */
 ssize_t xino_fread(au_readf_t func, struct file *file, void *kbuf, size_t size,
 		   loff_t *pos)
 {

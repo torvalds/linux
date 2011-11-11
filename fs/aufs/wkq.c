@@ -24,23 +24,9 @@
 #include <linux/module.h>
 #include "aufs.h"
 
-/* internal workqueue named AUFS_WKQ_NAME and AUFS_WKQ_PRE_NAME */
-enum {
-	AuWkq_INORMAL,
-	AuWkq_IPRE
-};
+/* internal workqueue named AUFS_WKQ_NAME */
 
-static struct {
-	char *name;
-	struct workqueue_struct *wkq;
-} au_wkq[] = {
-	[AuWkq_INORMAL] = {
-		.name = AUFS_WKQ_NAME
-	},
-	[AuWkq_IPRE] = {
-		.name = AUFS_WKQ_PRE_NAME
-	}
-};
+static struct workqueue_struct *au_wkq;
 
 struct au_wkinfo {
 	struct work_struct wk;
@@ -68,7 +54,7 @@ static void wkq_func(struct work_struct *wk)
 		complete(wkinfo->comp);
 	else {
 		kobject_put(wkinfo->kobj);
-		module_put(THIS_MODULE);
+		module_put(THIS_MODULE); /* todo: ?? */
 		kfree(wkinfo);
 	}
 }
@@ -116,8 +102,6 @@ static void au_wkq_comp_free(struct completion *comp __maybe_unused)
 
 static void au_wkq_run(struct au_wkinfo *wkinfo)
 {
-	struct workqueue_struct *wkq;
-
 	if (au_ftest_wkq(wkinfo->flags, NEST)) {
 		if (au_wkq_test()) {
 			AuWarn1("wkq from wkq, due to a dead dir by UDBA?\n");
@@ -128,10 +112,7 @@ static void au_wkq_run(struct au_wkinfo *wkinfo)
 
 	if (au_ftest_wkq(wkinfo->flags, WAIT)) {
 		INIT_WORK_ONSTACK(&wkinfo->wk, wkq_func);
-		wkq = au_wkq[AuWkq_INORMAL].wkq;
-		if (au_ftest_wkq(wkinfo->flags, PRE))
-			wkq = au_wkq[AuWkq_IPRE].wkq;
-		queue_work(wkq, &wkinfo->wk);
+		queue_work(au_wkq, &wkinfo->wk);
 	} else {
 		INIT_WORK(&wkinfo->wk, wkq_func);
 		schedule_work(&wkinfo->wk);
@@ -192,7 +173,7 @@ int au_wkq_nowait(au_wkq_func_t func, void *args, struct super_block *sb,
 		wkinfo->args = args;
 		wkinfo->comp = NULL;
 		kobject_get(wkinfo->kobj);
-		__module_get(THIS_MODULE);
+		__module_get(THIS_MODULE); /* todo: ?? */
 
 		au_wkq_run(wkinfo);
 	} else {
@@ -214,31 +195,20 @@ void au_nwt_init(struct au_nowait_tasks *nwt)
 
 void au_wkq_fin(void)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(au_wkq); i++)
-		if (au_wkq[i].wkq)
-			destroy_workqueue(au_wkq[i].wkq);
+	destroy_workqueue(au_wkq);
 }
 
 int __init au_wkq_init(void)
 {
-	int err, i;
+	int err;
 
 	err = 0;
-	for (i = 0; !err && i < ARRAY_SIZE(au_wkq); i++) {
-		BUILD_BUG_ON(!WQ_RESCUER);
-		au_wkq[i].wkq = alloc_workqueue(au_wkq[i].name, !WQ_RESCUER,
-						WQ_DFL_ACTIVE);
-		if (IS_ERR(au_wkq[i].wkq))
-			err = PTR_ERR(au_wkq[i].wkq);
-		else if (!au_wkq[i].wkq)
-			err = -ENOMEM;
-		if (unlikely(err))
-			au_wkq[i].wkq = NULL;
-	}
-	if (unlikely(err))
-		au_wkq_fin();
+	BUILD_BUG_ON(!WQ_RESCUER);
+	au_wkq = alloc_workqueue(AUFS_WKQ_NAME, !WQ_RESCUER, WQ_DFL_ACTIVE);
+	if (IS_ERR(au_wkq))
+		err = PTR_ERR(au_wkq);
+	else if (!au_wkq)
+		err = -ENOMEM;
 
 	return err;
 }
