@@ -161,9 +161,9 @@ struct drm_prop_enum_list {
 };
 
 static struct drm_prop_enum_list underscan[] = {
-	{ 2, UNDERSCAN_AUTO, "auto" },
-	{ 2, UNDERSCAN_OFF, "off" },
-	{ 2, UNDERSCAN_ON, "on" },
+	{ 6, UNDERSCAN_AUTO, "auto" },
+	{ 6, UNDERSCAN_OFF, "off" },
+	{ 6, UNDERSCAN_ON, "on" },
 	{}
 };
 

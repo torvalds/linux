@@ -160,49 +160,83 @@ nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 static int
 nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 {
-	struct drm_display_mode *mode = &nv_crtc->base.mode;
+	struct drm_display_mode *omode, *umode = &nv_crtc->base.mode;
 	struct drm_device *dev = nv_crtc->base.dev;
 	struct nouveau_connector *nv_connector;
-	u32 *push, outX, outY;
+	int mode = DRM_MODE_SCALE_NONE;
+	u32 oX, oY, *push;
 
-	outX = mode->hdisplay;
-	outY = mode->vdisplay;
-
+	/* start off at the resolution we programmed the crtc for, this
+	 * effectively handles NONE/FULL scaling
+	 */
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
-	if (nv_connector && nv_connector->native_mode) {
-		struct drm_display_mode *native = nv_connector->native_mode;
-		u32 xratio = (native->hdisplay << 19) / mode->hdisplay;
-		u32 yratio = (native->vdisplay << 19) / mode->vdisplay;
+	if (nv_connector && nv_connector->native_mode)
+		mode = nv_connector->scaling_mode;
 
-		switch (nv_connector->scaling_mode) {
-		case DRM_MODE_SCALE_ASPECT:
-			if (xratio > yratio) {
-				outX = (mode->hdisplay * yratio) >> 19;
-				outY = (mode->vdisplay * yratio) >> 19;
-			} else {
-				outX = (mode->hdisplay * xratio) >> 19;
-				outY = (mode->vdisplay * xratio) >> 19;
-			}
-			break;
-		case DRM_MODE_SCALE_FULLSCREEN:
-			outX = native->hdisplay;
-			outY = native->vdisplay;
-			break;
-		default:
-			break;
+	if (mode != DRM_MODE_SCALE_NONE)
+		omode = nv_connector->native_mode;
+	else
+		omode = umode;
+
+	oX = omode->hdisplay;
+	oY = omode->vdisplay;
+	if (omode->flags & DRM_MODE_FLAG_DBLSCAN)
+		oY *= 2;
+
+	/* add overscan compensation if necessary, will keep the aspect
+	 * ratio the same as the backend mode unless overridden by the
+	 * user setting both hborder and vborder properties.
+	 */
+	if (nv_connector && ( nv_connector->underscan == UNDERSCAN_ON ||
+			     (nv_connector->underscan == UNDERSCAN_AUTO &&
+			      nv_connector->edid &&
+			      drm_detect_hdmi_monitor(nv_connector->edid)))) {
+		u32 bX = nv_connector->underscan_hborder;
+		u32 bY = nv_connector->underscan_vborder;
+		u32 aspect = (oY << 19) / oX;
+
+		if (bX) {
+			oX -= (bX * 2);
+			if (bY) oY -= (bY * 2);
+			else    oY  = ((oX * aspect) + (aspect / 2)) >> 19;
+		} else {
+			oX -= (oX >> 4) + 32;
+			if (bY) oY -= (bY * 2);
+			else    oY  = ((oX * aspect) + (aspect / 2)) >> 19;
 		}
+	}
+
+	/* handle CENTER/ASPECT scaling, taking into account the areas
+	 * removed already for overscan compensation
+	 */
+	switch (mode) {
+	case DRM_MODE_SCALE_CENTER:
+		oX = min((u32)umode->hdisplay, oX);
+		oY = min((u32)umode->vdisplay, oY);
+		/* fall-through */
+	case DRM_MODE_SCALE_ASPECT:
+		if (oY < oX) {
+			u32 aspect = (umode->hdisplay << 19) / umode->vdisplay;
+			oX = ((oY * aspect) + (aspect / 2)) >> 19;
+		} else {
+			u32 aspect = (umode->vdisplay << 19) / umode->hdisplay;
+			oY = ((oX * aspect) + (aspect / 2)) >> 19;
+		}
+		break;
+	default:
+		break;
 	}
 
 	push = evo_wait(dev, 0, 16);
 	if (push) {
 		evo_mthd(push, 0x04c0 + (nv_crtc->index * 0x300), 3);
-		evo_data(push, (outY << 16) | outX);
-		evo_data(push, (outY << 16) | outX);
-		evo_data(push, (outY << 16) | outX);
+		evo_data(push, (oY << 16) | oX);
+		evo_data(push, (oY << 16) | oX);
+		evo_data(push, (oY << 16) | oX);
 		evo_mthd(push, 0x0494 + (nv_crtc->index * 0x300), 1);
 		evo_data(push, 0x00000000);
 		evo_mthd(push, 0x04b8 + (nv_crtc->index * 0x300), 1);
-		evo_data(push, (mode->vdisplay << 16) | mode->hdisplay);
+		evo_data(push, (umode->vdisplay << 16) | umode->hdisplay);
 		if (update) {
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
