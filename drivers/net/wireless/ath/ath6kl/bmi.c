@@ -117,8 +117,8 @@ int ath6kl_bmi_read(struct ath6kl *ar, u32 addr, u8 *buf, u32 len)
 		return -EACCES;
 	}
 
-	size = BMI_DATASZ_MAX + sizeof(cid) + sizeof(addr) + sizeof(len);
-	if (size > MAX_BMI_CMDBUF_SZ) {
+	size = ar->bmi.max_data_size + sizeof(cid) + sizeof(addr) + sizeof(len);
+	if (size > ar->bmi.max_cmd_size) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
@@ -131,8 +131,8 @@ int ath6kl_bmi_read(struct ath6kl *ar, u32 addr, u8 *buf, u32 len)
 	len_remain = len;
 
 	while (len_remain) {
-		rx_len = (len_remain < BMI_DATASZ_MAX) ?
-					len_remain : BMI_DATASZ_MAX;
+		rx_len = (len_remain < ar->bmi.max_data_size) ?
+					len_remain : ar->bmi.max_data_size;
 		offset = 0;
 		memcpy(&(ar->bmi.cmd_buf[offset]), &cid, sizeof(cid));
 		offset += sizeof(cid);
@@ -167,7 +167,7 @@ int ath6kl_bmi_write(struct ath6kl *ar, u32 addr, u8 *buf, u32 len)
 	u32 offset;
 	u32 len_remain, tx_len;
 	const u32 header = sizeof(cid) + sizeof(addr) + sizeof(len);
-	u8 aligned_buf[BMI_DATASZ_MAX];
+	u8 aligned_buf[400];
 	u8 *src;
 
 	if (ar->bmi.done_sent) {
@@ -175,12 +175,15 @@ int ath6kl_bmi_write(struct ath6kl *ar, u32 addr, u8 *buf, u32 len)
 		return -EACCES;
 	}
 
-	if ((BMI_DATASZ_MAX + header) > MAX_BMI_CMDBUF_SZ) {
+	if ((ar->bmi.max_data_size + header) > ar->bmi.max_cmd_size) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
 
-	memset(ar->bmi.cmd_buf, 0, BMI_DATASZ_MAX + header);
+	if (WARN_ON(ar->bmi.max_data_size > sizeof(aligned_buf)))
+		return -E2BIG;
+
+	memset(ar->bmi.cmd_buf, 0, ar->bmi.max_data_size + header);
 
 	ath6kl_dbg(ATH6KL_DBG_BMI,
 		  "bmi write memory: addr: 0x%x, len: %d\n", addr, len);
@@ -189,7 +192,7 @@ int ath6kl_bmi_write(struct ath6kl *ar, u32 addr, u8 *buf, u32 len)
 	while (len_remain) {
 		src = &buf[len - len_remain];
 
-		if (len_remain < (BMI_DATASZ_MAX - header)) {
+		if (len_remain < (ar->bmi.max_data_size - header)) {
 			if (len_remain & 3) {
 				/* align it with 4 bytes */
 				len_remain = len_remain +
@@ -199,7 +202,7 @@ int ath6kl_bmi_write(struct ath6kl *ar, u32 addr, u8 *buf, u32 len)
 			}
 			tx_len = len_remain;
 		} else {
-			tx_len = (BMI_DATASZ_MAX - header);
+			tx_len = (ar->bmi.max_data_size - header);
 		}
 
 		offset = 0;
@@ -237,7 +240,7 @@ int ath6kl_bmi_execute(struct ath6kl *ar, u32 addr, u32 *param)
 	}
 
 	size = sizeof(cid) + sizeof(addr) + sizeof(param);
-	if (size > MAX_BMI_CMDBUF_SZ) {
+	if (size > ar->bmi.max_cmd_size) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
@@ -284,7 +287,7 @@ int ath6kl_bmi_set_app_start(struct ath6kl *ar, u32 addr)
 	}
 
 	size = sizeof(cid) + sizeof(addr);
-	if (size > MAX_BMI_CMDBUF_SZ) {
+	if (size > ar->bmi.max_cmd_size) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
@@ -320,7 +323,7 @@ int ath6kl_bmi_reg_read(struct ath6kl *ar, u32 addr, u32 *param)
 	}
 
 	size = sizeof(cid) + sizeof(addr);
-	if (size > MAX_BMI_CMDBUF_SZ) {
+	if (size > ar->bmi.max_cmd_size) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
@@ -363,7 +366,7 @@ int ath6kl_bmi_reg_write(struct ath6kl *ar, u32 addr, u32 param)
 	}
 
 	size = sizeof(cid) + sizeof(addr) + sizeof(param);
-	if (size > MAX_BMI_CMDBUF_SZ) {
+	if (size > ar->bmi.max_cmd_size) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
@@ -404,8 +407,8 @@ int ath6kl_bmi_lz_data(struct ath6kl *ar, u8 *buf, u32 len)
 		return -EACCES;
 	}
 
-	size = BMI_DATASZ_MAX + header;
-	if (size > MAX_BMI_CMDBUF_SZ) {
+	size = ar->bmi.max_data_size + header;
+	if (size > ar->bmi.max_cmd_size) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
@@ -416,8 +419,8 @@ int ath6kl_bmi_lz_data(struct ath6kl *ar, u8 *buf, u32 len)
 
 	len_remain = len;
 	while (len_remain) {
-		tx_len = (len_remain < (BMI_DATASZ_MAX - header)) ?
-			  len_remain : (BMI_DATASZ_MAX - header);
+		tx_len = (len_remain < (ar->bmi.max_data_size - header)) ?
+			  len_remain : (ar->bmi.max_data_size - header);
 
 		offset = 0;
 		memcpy(&(ar->bmi.cmd_buf[offset]), &cid, sizeof(cid));
@@ -454,7 +457,7 @@ int ath6kl_bmi_lz_stream_start(struct ath6kl *ar, u32 addr)
 	}
 
 	size = sizeof(cid) + sizeof(addr);
-	if (size > MAX_BMI_CMDBUF_SZ) {
+	if (size > ar->bmi.max_cmd_size) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
@@ -518,8 +521,13 @@ void ath6kl_bmi_reset(struct ath6kl *ar)
 
 int ath6kl_bmi_init(struct ath6kl *ar)
 {
-	ar->bmi.cmd_buf = kzalloc(MAX_BMI_CMDBUF_SZ, GFP_ATOMIC);
+	if (WARN_ON(ar->bmi.max_data_size == 0))
+		return -EINVAL;
 
+	/* cmd + addr + len + data_size */
+	ar->bmi.max_cmd_size = ar->bmi.max_data_size + (sizeof(u32) * 3);
+
+	ar->bmi.cmd_buf = kzalloc(ar->bmi.max_cmd_size, GFP_ATOMIC);
 	if (!ar->bmi.cmd_buf)
 		return -ENOMEM;
 

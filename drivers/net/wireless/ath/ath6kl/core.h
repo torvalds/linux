@@ -272,6 +272,8 @@ struct ath6kl_bmi {
 	u32 cmd_credits;
 	bool done_sent;
 	u8 *cmd_buf;
+	u32 max_data_size;
+	u32 max_cmd_size;
 };
 
 struct target_stats {
