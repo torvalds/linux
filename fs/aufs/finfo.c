@@ -128,7 +128,7 @@ void au_fi_init_once(void *_finfo)
 
 int au_finfo_init(struct file *file, struct au_fidir *fidir)
 {
-	int err;
+	int err, lc_idx;
 	struct au_finfo *finfo;
 	struct dentry *dentry;
 
@@ -140,6 +140,10 @@ int au_finfo_init(struct file *file, struct au_fidir *fidir)
 
 	err = 0;
 	au_nfiles_inc(dentry->d_sb);
+	lc_idx = AuLcNonDir_FIINFO;
+	if (fidir)
+		lc_idx = AuLcDir_FIINFO;
+	au_rw_class(&finfo->fi_rwsem, au_lc_key + lc_idx);
 	au_rw_write_lock(&finfo->fi_rwsem);
 	finfo->fi_btop = -1;
 	finfo->fi_hdir = fidir;

@@ -423,6 +423,7 @@ static int au_do_cpup_symlink(struct path *h_path, struct dentry *h_src,
 	if (unlikely(!sym.k))
 		goto out;
 
+	/* unnecessary to support mmap_sem since symlink is not mmap-able */
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 	symlen = h_src->d_inode->i_op->readlink(h_src, sym.u, PATH_MAX);
