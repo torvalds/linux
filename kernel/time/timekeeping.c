@@ -850,6 +850,13 @@ static void timekeeping_adjust(s64 offset)
 	} else /* No adjustment needed */
 		return;
 
+	WARN_ONCE(timekeeper.clock->maxadj &&
+			(timekeeper.mult + adj > timekeeper.clock->mult +
+						timekeeper.clock->maxadj),
+			"Adjusting %s more then 11%% (%ld vs %ld)\n",
+			timekeeper.clock->name, (long)timekeeper.mult + adj,
+			(long)timekeeper.clock->mult +
+				timekeeper.clock->maxadj);
 	/*
 	 * So the following can be confusing.
 	 *
