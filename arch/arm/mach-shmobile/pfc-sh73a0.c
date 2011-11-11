@@ -2221,18 +2221,6 @@ static struct pinmux_gpio pinmux_gpios[] = {
 	GPIO_FN(FSIAISLD_PU),
 };
 
-#define PORTCR(nr, reg)	\
-	{ PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) { \
-		0, \
-		/*0001*/ PORT##nr##_OUT , \
-		/*0010*/ PORT##nr##_IN , 0, 0, 0, 0, 0, 0, 0, \
-		/*1010*/ PORT##nr##_IN_PD, 0, 0, 0, \
-		/*1110*/ PORT##nr##_IN_PU, 0, \
-		PORT##nr##_FN0, PORT##nr##_FN1,	PORT##nr##_FN2, \
-		PORT##nr##_FN3,	PORT##nr##_FN4, PORT##nr##_FN5, \
-		PORT##nr##_FN6, PORT##nr##_FN7, 0, 0, 0, 0, 0, 0, 0, 0 } \
-	}
-
 static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0, 0xe6050000), /* PORT0CR */
 	PORTCR(1, 0xe6050001), /* PORT1CR */

@@ -1199,22 +1199,6 @@ static struct pinmux_gpio pinmux_gpios[] = {
 	GPIO_FN(SDENC_DV_CLKI),
 };
 
-/* helper for top 4 bits in PORTnCR */
-#define PCRH(in, in_pd, in_pu, out)		\
-	0, (out), (in), 0,			\
-	0, 0, 0, 0,				\
-	0, 0, (in_pd), 0,			\
-	0, 0, (in_pu), 0
-
-#define PORTCR(nr, reg)						\
-	{ PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
-		PCRH(PORT##nr##_IN, PORT##nr##_IN_PD,		\
-		     PORT##nr##_IN_PU, PORT##nr##_OUT),		\
-		PORT##nr##_FN0, PORT##nr##_FN1, PORT##nr##_FN2,	\
-		PORT##nr##_FN3,	PORT##nr##_FN4, PORT##nr##_FN5,	\
-		PORT##nr##_FN6, PORT##nr##_FN7 }		\
-	}
-
 static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0,	0xE6051000), /* PORT0CR */
 	PORTCR(1,	0xE6051001), /* PORT1CR */
