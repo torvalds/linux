@@ -391,6 +391,11 @@ struct ath6kl_req_key {
 	u8 key_len;
 };
 
+enum ath6kl_hif_type {
+	ATH6KL_HIF_TYPE_SDIO,
+	ATH6KL_HIF_TYPE_USB,
+};
+
 #define MAX_NUM_VIF	1
 
 /* vif flags info */
@@ -484,6 +489,7 @@ struct ath6kl {
 	int tx_pending[ENDPOINT_MAX];
 	int total_tx_data_pend;
 	struct htc_target *htc_target;
+	enum ath6kl_hif_type hif_type;
 	void *hif_priv;
 	struct list_head vif_list;
 	/* Lock to avoid race in vif_list entries among add/del/traverse */
