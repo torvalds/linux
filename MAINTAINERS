@@ -6484,6 +6484,13 @@ W:	http://tcp-lp-mod.sourceforge.net/
 S:	Maintained
 F:	net/ipv4/tcp_lp.c
 
+TEAM DRIVER
+M:	Jiri Pirko <jpirko@redhat.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/team/
+F:	include/linux/if_team.h
+
 TEGRA SUPPORT
 M:	Colin Cross <ccross@android.com>
 M:	Olof Johansson <olof@lixom.net>

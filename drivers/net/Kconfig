@@ -125,6 +125,8 @@ config IFB
 	  'ifb1' etc.
 	  Look at the iproute2 documentation directory for usage etc
 
+source "drivers/net/team/Kconfig"
+
 config MACVLAN
 	tristate "MAC-VLAN support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
