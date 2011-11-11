@@ -107,9 +107,8 @@ static int pd_power_down(struct generic_pm_domain *genpd)
 	return 0;
 }
 
-static int pd_power_up(struct generic_pm_domain *genpd)
+static int __pd_power_up(struct sh7372_pm_domain *sh7372_pd, bool do_resume)
 {
-	struct sh7372_pm_domain *sh7372_pd = to_sh7372_pd(genpd);
 	unsigned int mask = 1 << sh7372_pd->bit_shift;
 	unsigned int retry_count;
 	int ret = 0;
@@ -138,10 +137,15 @@ static int pd_power_up(struct generic_pm_domain *genpd)
 			 mask, __raw_readl(PSTR));
 
  out:
-	if (ret == 0 && sh7372_pd->resume)
+	if (ret == 0 && sh7372_pd->resume && do_resume)
 		sh7372_pd->resume();
 
 	return ret;
+}
+
+static int pd_power_up(struct generic_pm_domain *genpd)
+{
+	 return __pd_power_up(to_sh7372_pd(genpd), true);
 }
 
 static void sh7372_a4r_suspend(void)
@@ -175,7 +179,7 @@ void sh7372_init_pm_domain(struct sh7372_pm_domain *sh7372_pd)
 	genpd->active_wakeup = pd_active_wakeup;
 	genpd->power_off = pd_power_down;
 	genpd->power_on = pd_power_up;
-	genpd->power_on(&sh7372_pd->genpd);
+	__pd_power_up(sh7372_pd, false);
 }
 
 void sh7372_add_device_to_domain(struct sh7372_pm_domain *sh7372_pd,
