@@ -52,7 +52,6 @@ struct clk {
 
 	unsigned long		arch_flags;
 	void			*priv;
-	struct dentry		*dentry;
 	struct clk_mapping	*mapping;
 	struct cpufreq_frequency_table *freq_table;
 	unsigned int		nr_freqs;
