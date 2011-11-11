@@ -1052,6 +1052,8 @@ static int load_link_keys(struct sock *sk, u16 index, unsigned char *data,
 								key->pin_len);
 	}
 
+	cmd_complete(sk, index, MGMT_OP_LOAD_LINK_KEYS, NULL, 0);
+
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
 
