@@ -189,6 +189,7 @@ struct perf_record_opts {
 	pid_t	     target_pid;
 	pid_t	     target_tid;
 	bool	     call_graph;
+	bool	     group;
 	bool	     inherit_stat;
 	bool	     no_delay;
 	bool	     no_inherit;

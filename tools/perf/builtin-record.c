@@ -48,7 +48,6 @@ struct perf_record_opts record_opts = {
 static unsigned int		page_size;
 static int			output;
 static const char		*output_name			= NULL;
-static bool			group				=  false;
 static int			realtime_prio			=      0;
 static enum write_mode_t	write_mode			= WRITE_FORCE;
 static bool			no_buildid			=  false;
@@ -202,13 +201,13 @@ static void open_counters(struct perf_evlist *evlist)
 		 */
 		bool time_needed = attr->sample_type & PERF_SAMPLE_TIME;
 
-		if (group && pos != first)
+		if (record_opts.group && pos != first)
 			group_fd = first->fd;
 retry_sample_id:
 		attr->sample_id_all = record_opts.sample_id_all_avail ? 1 : 0;
 try_again:
-		if (perf_evsel__open(pos, evlist->cpus, evlist->threads, group,
-				     group_fd) < 0) {
+		if (perf_evsel__open(pos, evlist->cpus, evlist->threads,
+				     record_opts.group, group_fd) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES) {
@@ -649,7 +648,7 @@ const struct option record_options[] = {
 	OPT_UINTEGER('F', "freq", &record_opts.user_freq, "profile at this frequency"),
 	OPT_UINTEGER('m', "mmap-pages", &record_opts.mmap_pages,
 		     "number of mmap data pages"),
-	OPT_BOOLEAN(0, "group", &group,
+	OPT_BOOLEAN(0, "group", &record_opts.group,
 		    "put the counters into a counter group"),
 	OPT_BOOLEAN('g', "call-graph", &record_opts.call_graph,
 		    "do call-graph (stack chain/backtrace) recording"),
