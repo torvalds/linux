@@ -537,6 +537,13 @@ static int io_ctl_read_entry(struct io_ctl *io_ctl,
 			    struct btrfs_free_space *entry, u8 *type)
 {
 	struct btrfs_free_space_entry *e;
+	int ret;
+
+	if (!io_ctl->cur) {
+		ret = io_ctl_check_crc(io_ctl, io_ctl->index);
+		if (ret)
+			return ret;
+	}
 
 	e = io_ctl->cur;
 	entry->offset = le64_to_cpu(e->offset);
@@ -550,19 +557,13 @@ static int io_ctl_read_entry(struct io_ctl *io_ctl,
 
 	io_ctl_unmap_page(io_ctl);
 
-	if (io_ctl->index >= io_ctl->num_pages)
-		return 0;
-
-	return io_ctl_check_crc(io_ctl, io_ctl->index);
+	return 0;
 }
 
 static int io_ctl_read_bitmap(struct io_ctl *io_ctl,
 			      struct btrfs_free_space *entry)
 {
 	int ret;
-
-	if (io_ctl->cur && io_ctl->cur != io_ctl->orig)
-		io_ctl_unmap_page(io_ctl);
 
 	ret = io_ctl_check_crc(io_ctl, io_ctl->index);
 	if (ret)
@@ -698,6 +699,8 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 
 		num_entries--;
 	}
+
+	io_ctl_unmap_page(&io_ctl);
 
 	/*
 	 * We add the bitmaps at the end of the entries in order that
