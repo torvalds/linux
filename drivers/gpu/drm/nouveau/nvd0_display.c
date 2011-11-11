@@ -84,6 +84,9 @@ evo_wait(struct drm_device *dev, int id, int nr)
 		put = 0;
 	}
 
+	if (nouveau_reg_debug & NOUVEAU_REG_DEBUG_EVO)
+		NV_INFO(dev, "Evo%d: %p START\n", id, disp->evo[id].ptr + put);
+
 	return disp->evo[id].ptr + put;
 }
 
@@ -91,6 +94,16 @@ static void
 evo_kick(u32 *push, struct drm_device *dev, int id)
 {
 	struct nvd0_display *disp = nvd0_display(dev);
+
+	if (nouveau_reg_debug & NOUVEAU_REG_DEBUG_EVO) {
+		u32 curp = nv_rd32(dev, 0x640000 + (id * 0x1000)) >> 2;
+		u32 *cur = disp->evo[id].ptr + curp;
+
+		while (cur < push)
+			NV_INFO(dev, "Evo%d: 0x%08x\n", id, *cur++);
+		NV_INFO(dev, "Evo%d: %p KICK!\n", id, push);
+	}
+
 	nv_wr32(dev, 0x640000 + (id * 0x1000), (push - disp->evo[id].ptr) << 2);
 }
 
