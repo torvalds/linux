@@ -345,6 +345,7 @@ int snd_hda_input_jack_add(struct hda_codec *codec, hda_nid_t nid, int type,
 	err = snd_jack_new(codec->bus->card, name, type, &jack->jack);
 	if (err < 0)
 		return err;
+	jack->type = type;
 	jack->jack->private_data = jack;
 	jack->jack->private_free = hda_free_jack_priv;
 	return 0;
