@@ -20,6 +20,7 @@
  *
  * AK4642 is tested.
  * AK4643 is tested.
+ * AK4648 is tested.
  */
 
 #include <linux/delay.h>
@@ -70,8 +71,6 @@
 #define LO_MS		0x22
 #define HP_MS		0x23
 #define SPK_MS		0x24
-
-#define AK4642_CACHEREGNUM 	0x25
 
 /* PW_MGMT1*/
 #define PMVCM		(1 << 6) /* VCOM Power Management */
@@ -206,7 +205,7 @@ struct ak4642_priv {
 /*
  * ak4642 register cache
  */
-static const u8 ak4642_reg[AK4642_CACHEREGNUM] = {
+static const u8 ak4642_reg[] = {
 	0x00, 0x00, 0x01, 0x00,
 	0x02, 0x00, 0x00, 0x00,
 	0xe1, 0xe1, 0x18, 0x00,
@@ -217,6 +216,19 @@ static const u8 ak4642_reg[AK4642_CACHEREGNUM] = {
 	0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,
 	0x00,
+};
+
+static const u8 ak4648_reg[] = {
+	0x00, 0x00, 0x01, 0x00,
+	0x02, 0x00, 0x00, 0x00,
+	0xe1, 0xe1, 0x18, 0x00,
+	0xe1, 0x18, 0x11, 0xb8,
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x88, 0x88, 0x08,
 };
 
 static int ak4642_dai_startup(struct snd_pcm_substream *substream,
@@ -488,9 +500,23 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4642 = {
 	.remove			= ak4642_remove,
 	.resume			= ak4642_resume,
 	.set_bias_level		= ak4642_set_bias_level,
-	.reg_cache_size		= ARRAY_SIZE(ak4642_reg),
+	.reg_cache_default	= ak4642_reg,			/* ak4642 reg */
+	.reg_cache_size		= ARRAY_SIZE(ak4642_reg),	/* ak4642 reg */
 	.reg_word_size		= sizeof(u8),
-	.reg_cache_default	= ak4642_reg,
+	.dapm_widgets		= ak4642_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ak4642_dapm_widgets),
+	.dapm_routes		= ak4642_intercon,
+	.num_dapm_routes	= ARRAY_SIZE(ak4642_intercon),
+};
+
+static struct snd_soc_codec_driver soc_codec_dev_ak4648 = {
+	.probe			= ak4642_probe,
+	.remove			= ak4642_remove,
+	.resume			= ak4642_resume,
+	.set_bias_level		= ak4642_set_bias_level,
+	.reg_cache_default	= ak4648_reg,			/* ak4648 reg */
+	.reg_cache_size		= ARRAY_SIZE(ak4648_reg),	/* ak4648 reg */
+	.reg_word_size		= sizeof(u8),
 	.dapm_widgets		= ak4642_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(ak4642_dapm_widgets),
 	.dapm_routes		= ak4642_intercon,
@@ -512,7 +538,8 @@ static __devinit int ak4642_i2c_probe(struct i2c_client *i2c,
 	ak4642->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_ak4642, &ak4642_dai, 1);
+				(struct snd_soc_codec_driver *)id->driver_data,
+				&ak4642_dai, 1);
 	if (ret < 0)
 		kfree(ak4642);
 	return ret;
@@ -526,8 +553,9 @@ static __devexit int ak4642_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ak4642_i2c_id[] = {
-	{ "ak4642", 0 },
-	{ "ak4643", 0 },
+	{ "ak4642", (kernel_ulong_t)&soc_codec_dev_ak4642 },
+	{ "ak4643", (kernel_ulong_t)&soc_codec_dev_ak4642 },
+	{ "ak4648", (kernel_ulong_t)&soc_codec_dev_ak4648 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ak4642_i2c_id);
