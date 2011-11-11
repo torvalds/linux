@@ -845,6 +845,104 @@ static int ath6kl_sdio_resume(struct ath6kl *ar)
 	return 0;
 }
 
+/* set the window address register (using 4-byte register access ). */
+static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
+{
+	int status;
+	u8 addr_val[4];
+	s32 i;
+
+	/*
+	 * Write bytes 1,2,3 of the register to set the upper address bytes,
+	 * the LSB is written last to initiate the access cycle
+	 */
+
+	for (i = 1; i <= 3; i++) {
+		/*
+		 * Fill the buffer with the address byte value we want to
+		 * hit 4 times.
+		 */
+		memset(addr_val, ((u8 *)&addr)[i], 4);
+
+		/*
+		 * Hit each byte of the register address with a 4-byte
+		 * write operation to the same address, this is a harmless
+		 * operation.
+		 */
+		status = ath6kl_sdio_read_write_sync(ar, reg_addr + i, addr_val,
+					     4, HIF_WR_SYNC_BYTE_FIX);
+		if (status)
+			break;
+	}
+
+	if (status) {
+		ath6kl_err("%s: failed to write initial bytes of 0x%x "
+			   "to window reg: 0x%X\n", __func__,
+			   addr, reg_addr);
+		return status;
+	}
+
+	/*
+	 * Write the address register again, this time write the whole
+	 * 4-byte value. The effect here is that the LSB write causes the
+	 * cycle to start, the extra 3 byte write to bytes 1,2,3 has no
+	 * effect since we are writing the same values again
+	 */
+	status = ath6kl_sdio_read_write_sync(ar, reg_addr, (u8 *)(&addr),
+				     4, HIF_WR_SYNC_BYTE_INC);
+
+	if (status) {
+		ath6kl_err("%s: failed to write 0x%x to window reg: 0x%X\n",
+			   __func__, addr, reg_addr);
+		return status;
+	}
+
+	return 0;
+}
+
+static int ath6kl_sdio_diag_read32(struct ath6kl *ar, u32 address, u32 *data)
+{
+	int status;
+
+	/* set window register to start read cycle */
+	status = ath6kl_set_addrwin_reg(ar, WINDOW_READ_ADDR_ADDRESS,
+					address);
+
+	if (status)
+		return status;
+
+	/* read the data */
+	status = ath6kl_sdio_read_write_sync(ar, WINDOW_DATA_ADDRESS,
+				(u8 *)data, sizeof(u32), HIF_RD_SYNC_BYTE_INC);
+	if (status) {
+		ath6kl_err("%s: failed to read from window data addr\n",
+			__func__);
+		return status;
+	}
+
+	return status;
+}
+
+static int ath6kl_sdio_diag_write32(struct ath6kl *ar, u32 address,
+				    __le32 data)
+{
+	int status;
+	u32 val = (__force u32) data;
+
+	/* set write data */
+	status = ath6kl_sdio_read_write_sync(ar, WINDOW_DATA_ADDRESS,
+				(u8 *) &val, sizeof(u32), HIF_WR_SYNC_BYTE_INC);
+	if (status) {
+		ath6kl_err("%s: failed to write 0x%x to window data addr\n",
+			   __func__, data);
+		return status;
+	}
+
+	/* set window register, which starts the write cycle */
+	return ath6kl_set_addrwin_reg(ar, WINDOW_WRITE_ADDR_ADDRESS,
+				      address);
+}
+
 static int ath6kl_sdio_bmi_credits(struct ath6kl *ar)
 {
 	u32 addr;
@@ -1049,6 +1147,8 @@ static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.cleanup_scatter = ath6kl_sdio_cleanup_scatter,
 	.suspend = ath6kl_sdio_suspend,
 	.resume = ath6kl_sdio_resume,
+	.diag_read32 = ath6kl_sdio_diag_read32,
+	.diag_write32 = ath6kl_sdio_diag_write32,
 	.bmi_read = ath6kl_sdio_bmi_read,
 	.bmi_write = ath6kl_sdio_bmi_write,
 	.power_on = ath6kl_sdio_power_on,
