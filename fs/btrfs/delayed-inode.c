@@ -692,11 +692,6 @@ static int btrfs_delayed_inode_reserve_metadata(
 
 migrate:
 	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
-	if (unlikely(ret)) {
-		/* This shouldn't happen */
-		BUG_ON(release);
-		return ret;
-	}
 
 out:
 	/*
@@ -712,9 +707,11 @@ out:
 	 * reservation here.  I think it may be time for a documentation page on
 	 * how block rsvs. work.
 	 */
+	if (!ret)
+		node->bytes_reserved = num_bytes;
+
 	if (release)
 		btrfs_block_rsv_release(root, src_rsv, num_bytes);
-	node->bytes_reserved = num_bytes;
 
 	return ret;
 }

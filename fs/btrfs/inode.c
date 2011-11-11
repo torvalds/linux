@@ -93,6 +93,8 @@ static noinline int cow_file_range(struct inode *inode,
 				   struct page *locked_page,
 				   u64 start, u64 end, int *page_started,
 				   unsigned long *nr_written, int unlock);
+static noinline int btrfs_update_inode_fallback(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root, struct inode *inode);
 
 static int btrfs_init_inode_security(struct btrfs_trans_handle *trans,
 				     struct inode *inode,  struct inode *dir,
@@ -1741,7 +1743,7 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 				trans = btrfs_join_transaction(root);
 			BUG_ON(IS_ERR(trans));
 			trans->block_rsv = &root->fs_info->delalloc_block_rsv;
-			ret = btrfs_update_inode(trans, root, inode);
+			ret = btrfs_update_inode_fallback(trans, root, inode);
 			BUG_ON(ret);
 		}
 		goto out;
@@ -1791,7 +1793,7 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 
 	ret = btrfs_ordered_update_i_size(inode, 0, ordered_extent);
 	if (!ret || !test_bit(BTRFS_ORDERED_PREALLOC, &ordered_extent->flags)) {
-		ret = btrfs_update_inode(trans, root, inode);
+		ret = btrfs_update_inode_fallback(trans, root, inode);
 		BUG_ON(ret);
 	}
 	ret = 0;
@@ -2426,28 +2428,13 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 /*
  * copy everything in the in-memory inode into the btree.
  */
-noinline int btrfs_update_inode(struct btrfs_trans_handle *trans,
+static noinline int btrfs_update_inode_item(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root, struct inode *inode)
 {
 	struct btrfs_inode_item *inode_item;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	int ret;
-
-	/*
-	 * If the inode is a free space inode, we can deadlock during commit
-	 * if we put it into the delayed code.
-	 *
-	 * The data relocation inode should also be directly updated
-	 * without delay
-	 */
-	if (!btrfs_is_free_space_inode(root, inode)
-	    && root->root_key.objectid != BTRFS_DATA_RELOC_TREE_OBJECTID) {
-		ret = btrfs_delayed_update_inode(trans, root, inode);
-		if (!ret)
-			btrfs_set_inode_last_trans(trans, inode);
-		return ret;
-	}
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -2473,6 +2460,43 @@ noinline int btrfs_update_inode(struct btrfs_trans_handle *trans,
 	ret = 0;
 failed:
 	btrfs_free_path(path);
+	return ret;
+}
+
+/*
+ * copy everything in the in-memory inode into the btree.
+ */
+noinline int btrfs_update_inode(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root, struct inode *inode)
+{
+	int ret;
+
+	/*
+	 * If the inode is a free space inode, we can deadlock during commit
+	 * if we put it into the delayed code.
+	 *
+	 * The data relocation inode should also be directly updated
+	 * without delay
+	 */
+	if (!btrfs_is_free_space_inode(root, inode)
+	    && root->root_key.objectid != BTRFS_DATA_RELOC_TREE_OBJECTID) {
+		ret = btrfs_delayed_update_inode(trans, root, inode);
+		if (!ret)
+			btrfs_set_inode_last_trans(trans, inode);
+		return ret;
+	}
+
+	return btrfs_update_inode_item(trans, root, inode);
+}
+
+static noinline int btrfs_update_inode_fallback(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root, struct inode *inode)
+{
+	int ret;
+
+	ret = btrfs_update_inode(trans, root, inode);
+	if (ret == -ENOSPC)
+		return btrfs_update_inode_item(trans, root, inode);
 	return ret;
 }
 
@@ -5632,7 +5656,7 @@ again:
 	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags)) {
 		ret = btrfs_ordered_update_i_size(inode, 0, ordered);
 		if (!ret)
-			err = btrfs_update_inode(trans, root, inode);
+			err = btrfs_update_inode_fallback(trans, root, inode);
 		goto out;
 	}
 
@@ -5670,7 +5694,7 @@ again:
 	add_pending_csums(trans, inode, ordered->file_offset, &ordered->list);
 	ret = btrfs_ordered_update_i_size(inode, 0, ordered);
 	if (!ret || !test_bit(BTRFS_ORDERED_PREALLOC, &ordered->flags))
-		btrfs_update_inode(trans, root, inode);
+		btrfs_update_inode_fallback(trans, root, inode);
 	ret = 0;
 out_unlock:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, ordered->file_offset,
