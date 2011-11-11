@@ -628,20 +628,12 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 	dprintk(1, "*** Quality (0:<8dB, 7:>56dB) = %d\n", quality);
 }
 
-/*
- * As defined on EN 300 429, the DVB-C roll-off factor is 0.15.
- * So, the amount of the needed bandwith is given by:
- * 	Bw = Symbol_rate * (1 + 0.15)
- * As such, the maximum symbol rate supported by 6 MHz is given by:
- *	max_symbol_rate = 6 MHz / 1.15 = 5217391 Bauds
- */
-#define MAX_SYMBOL_RATE_6MHz	5217391
-
 static int xc5000_set_params(struct dvb_frontend *fe,
 	struct dvb_frontend_parameters *params)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
+	u32 bw;
 
 	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
 		if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
@@ -707,11 +699,19 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 			dprintk(1, "%s() QAM modulation\n", __func__);
 			priv->rf_mode = XC_RF_MODE_CABLE;
 			/*
-			 * Using a 8MHz bandwidth sometimes fail
-			 * with 6MHz-spaced channels, due to inter-carrier
-			 * interference. So, use DTV6 firmware
+			 * Using a higher bandwidth at the tuner filter may
+			 * allow inter-carrier interference.
+			 * So, determine the minimal channel spacing, in order
+			 * to better adjust the tuner filter.
+			 * According with ITU-T J.83, the bandwidth is given by:
+			 * bw = Simbol Rate * (1 + roll_off), where the roll_off
+			 * is equal to 0.15 for Annex A, and 0.13 for annex C
 			 */
-			if (params->u.qam.symbol_rate <= MAX_SYMBOL_RATE_6MHz) {
+			if (fe->dtv_property_cache.rolloff == ROLLOFF_13)
+				bw = (params->u.qam.symbol_rate * 13) / 10;
+			else
+				bw = (params->u.qam.symbol_rate * 15) / 10;
+			if (bw <= 6000000) {
 				priv->bandwidth = BANDWIDTH_6_MHZ;
 				priv->video_standard = DTV6;
 				priv->freq_hz = params->frequency - 1750000;

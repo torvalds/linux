@@ -1123,20 +1123,6 @@ static int release(struct dvb_frontend *fe)
 	return 0;
 }
 
-/*
- * As defined on EN 300 429 Annex A and on ITU-T J.83 annex A, the DVB-C
- * roll-off factor is 0.15.
- * According with the specs, the amount of the needed bandwith is given by:
- *	Bw = Symbol_rate * (1 + 0.15)
- * As such, the maximum symbol rate supported by 6 MHz is
- *	max_symbol_rate = 6 MHz / 1.15 = 5217391 Bauds
- *NOTE: For ITU-T J.83 Annex C, the roll-off factor is 0.13. So:
- *	max_symbol_rate = 6 MHz / 1.13 = 5309735 Baud
- *	That means that an adjustment is needed for Japan,
- *	but, as currently DRX-K is hardcoded to Annex A, let's stick
- *	with 0.15 roll-off factor.
- */
-#define MAX_SYMBOL_RATE_6MHz	5217391
 
 static int set_params(struct dvb_frontend *fe,
 		      struct dvb_frontend_parameters *params)
@@ -1144,6 +1130,7 @@ static int set_params(struct dvb_frontend *fe,
 	struct tda_state *state = fe->tuner_priv;
 	int status = 0;
 	int Standard;
+	u32 bw;
 
 	state->m_Frequency = params->frequency;
 
@@ -1161,8 +1148,23 @@ static int set_params(struct dvb_frontend *fe,
 			break;
 		}
 	else if (fe->ops.info.type == FE_QAM) {
-		if (params->u.qam.symbol_rate <= MAX_SYMBOL_RATE_6MHz)
+		/*
+		 * Using a higher bandwidth at the tuner filter may
+		 * allow inter-carrier interference.
+		 * So, determine the minimal channel spacing, in order
+		 * to better adjust the tuner filter.
+		 * According with ITU-T J.83, the bandwidth is given by:
+		 * bw = Simbol Rate * (1 + roll_off), where the roll_off
+		 * is equal to 0.15 for Annex A, and 0.13 for annex C
+		 */
+		if (fe->dtv_property_cache.rolloff == ROLLOFF_13)
+			bw = (params->u.qam.symbol_rate * 13) / 10;
+		else
+			bw = (params->u.qam.symbol_rate * 15) / 10;
+		if (bw <= 6000000)
 			Standard = HF_DVBC_6MHZ;
+		else if (bw <= 7000000)
+			Standard = HF_DVBC_7MHZ;
 		else
 			Standard = HF_DVBC_8MHZ;
 	} else

@@ -6218,6 +6218,13 @@ static int drxk_set_parameters(struct dvb_frontend *fe,
 		return -EINVAL;
 	}
 
+	if (state->m_OperationMode == OM_QAM_ITU_A ||
+	    state->m_OperationMode == OM_QAM_ITU_C) {
+		if (fe->dtv_property_cache.rolloff == ROLLOFF_13)
+			state->m_OperationMode = OM_QAM_ITU_C;
+		else
+			state->m_OperationMode = OM_QAM_ITU_A;
+	}
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
