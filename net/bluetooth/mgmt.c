@@ -290,6 +290,15 @@ static void mgmt_pending_remove(struct pending_cmd *cmd)
 	mgmt_pending_free(cmd);
 }
 
+static int send_mode_rsp(struct sock *sk, u16 opcode, u16 index, u8 val)
+{
+	struct mgmt_mode rp;
+
+	rp.val = val;
+
+	return cmd_complete(sk, index, opcode, &rp, sizeof(rp));
+}
+
 static int set_powered(struct sock *sk, u16 index, unsigned char *data, u16 len)
 {
 	struct mgmt_mode *cp;
@@ -312,7 +321,7 @@ static int set_powered(struct sock *sk, u16 index, unsigned char *data, u16 len)
 
 	up = test_bit(HCI_UP, &hdev->flags);
 	if ((cp->val && up) || (!cp->val && !up)) {
-		err = cmd_status(sk, index, MGMT_OP_SET_POWERED, EALREADY);
+		err = send_mode_rsp(sk, index, MGMT_OP_SET_POWERED, cp->val);
 		goto failed;
 	}
 
@@ -375,7 +384,8 @@ static int set_discoverable(struct sock *sk, u16 index, unsigned char *data,
 
 	if (cp->val == test_bit(HCI_ISCAN, &hdev->flags) &&
 					test_bit(HCI_PSCAN, &hdev->flags)) {
-		err = cmd_status(sk, index, MGMT_OP_SET_DISCOVERABLE, EALREADY);
+		err = send_mode_rsp(sk, index, MGMT_OP_SET_DISCOVERABLE,
+								cp->val);
 		goto failed;
 	}
 
@@ -440,7 +450,8 @@ static int set_connectable(struct sock *sk, u16 index, unsigned char *data,
 	}
 
 	if (cp->val == test_bit(HCI_PSCAN, &hdev->flags)) {
-		err = cmd_status(sk, index, MGMT_OP_SET_CONNECTABLE, EALREADY);
+		err = send_mode_rsp(sk, index, MGMT_OP_SET_CONNECTABLE,
+								cp->val);
 		goto failed;
 	}
 
@@ -493,15 +504,6 @@ static int mgmt_event(u16 event, struct hci_dev *hdev, void *data,
 	kfree_skb(skb);
 
 	return 0;
-}
-
-static int send_mode_rsp(struct sock *sk, u16 opcode, u16 index, u8 val)
-{
-	struct mgmt_mode rp;
-
-	rp.val = val;
-
-	return cmd_complete(sk, index, opcode, &rp, sizeof(rp));
 }
 
 static int set_pairable(struct sock *sk, u16 index, unsigned char *data,
