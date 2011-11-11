@@ -1,4 +1,5 @@
 #include <linux/proc_fs.h>
+#include <linux/export.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include "bonding.h"
@@ -157,12 +158,12 @@ static void bond_info_show_slave(struct seq_file *seq,
 	seq_printf(seq, "\nSlave Interface: %s\n", slave->dev->name);
 	seq_printf(seq, "MII Status: %s\n",
 		   (slave->link == BOND_LINK_UP) ?  "up" : "down");
-	if (slave->speed == -1)
+	if (slave->speed == SPEED_UNKNOWN)
 		seq_printf(seq, "Speed: %s\n", "Unknown");
 	else
 		seq_printf(seq, "Speed: %d Mbps\n", slave->speed);
 
-	if (slave->duplex == -1)
+	if (slave->duplex == DUPLEX_UNKNOWN)
 		seq_printf(seq, "Duplex: %s\n", "Unknown");
 	else
 		seq_printf(seq, "Duplex: %s\n", slave->duplex ? "full" : "half");

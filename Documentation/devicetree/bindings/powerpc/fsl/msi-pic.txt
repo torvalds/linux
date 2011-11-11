@@ -25,6 +25,16 @@ Required properties:
   are routed to IPIC, and for 85xx/86xx cpu the interrupts are routed
   to MPIC.
 
+Optional properties:
+- msi-address-64: 64-bit PCI address of the MSIIR register. The MSIIR register
+  is used for MSI messaging.  The address of MSIIR in PCI address space is
+  the MSI message address.
+
+  This property may be used in virtualized environments where the hypervisor
+  has created an alternate mapping for the MSIR block.  See below for an
+  explanation.
+
+
 Example:
 	msi@41600 {
 		compatible = "fsl,mpc8610-msi", "fsl,mpic-msi";
@@ -41,3 +51,35 @@ Example:
 			0xe7 0>;
 		interrupt-parent = <&mpic>;
 	};
+
+The Freescale hypervisor and msi-address-64
+-------------------------------------------
+Normally, PCI devices have access to all of CCSR via an ATMU mapping.  The
+Freescale MSI driver calculates the address of MSIIR (in the MSI register
+block) and sets that address as the MSI message address.
+
+In a virtualized environment, the hypervisor may need to create an IOMMU
+mapping for MSIIR.  The Freescale ePAPR hypervisor has this requirement
+because of hardware limitations of the Peripheral Access Management Unit
+(PAMU), which is currently the only IOMMU that the hypervisor supports.
+The ATMU is programmed with the guest physical address, and the PAMU
+intercepts transactions and reroutes them to the true physical address.
+
+In the PAMU, each PCI controller is given only one primary window.  The
+PAMU restricts DMA operations so that they can only occur within a window.
+Because PCI devices must be able to DMA to memory, the primary window must
+be used to cover all of the guest's memory space.
+
+PAMU primary windows can be divided into 256 subwindows, and each
+subwindow can have its own address mapping ("guest physical" to "true
+physical").  However, each subwindow has to have the same alignment, which
+means they cannot be located at just any address.  Because of these
+restrictions, it is usually impossible to create a 4KB subwindow that
+covers MSIIR where it's normally located.
+
+Therefore, the hypervisor has to create a subwindow inside the same
+primary window used for memory, but mapped to the MSIR block (where MSIIR
+lives).  The first subwindow after the end of guest memory is used for
+this.  The address specified in the msi-address-64 property is the PCI
+address of MSIIR.  The hypervisor configures the PAMU to map that address to
+the true physical address of MSIIR.

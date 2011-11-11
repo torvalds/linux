@@ -8,6 +8,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/libata.h>
 #include <linux/slab.h>
 #include "libata.h"

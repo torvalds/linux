@@ -1407,12 +1407,11 @@ static int __init dw_probe(struct platform_device *pdev)
 	dw->all_chan_mask = (1 << pdata->nr_channels) - 1;
 
 	INIT_LIST_HEAD(&dw->dma.channels);
-	for (i = 0; i < pdata->nr_channels; i++, dw->dma.chancnt++) {
+	for (i = 0; i < pdata->nr_channels; i++) {
 		struct dw_dma_chan	*dwc = &dw->chan[i];
 
 		dwc->chan.device = &dw->dma;
 		dwc->chan.cookie = dwc->completed = 1;
-		dwc->chan.chan_id = i;
 		if (pdata->chan_allocation_order == CHAN_ALLOCATION_ASCENDING)
 			list_add_tail(&dwc->chan.device_node,
 					&dw->dma.channels);
@@ -1468,7 +1467,7 @@ static int __init dw_probe(struct platform_device *pdev)
 	dma_writel(dw, CFG, DW_CFG_DMA_EN);
 
 	printk(KERN_INFO "%s: DesignWare DMA Controller, %d channels\n",
-			dev_name(&pdev->dev), dw->dma.chancnt);
+			dev_name(&pdev->dev), pdata->nr_channels);
 
 	dma_async_device_register(&dw->dma);
 

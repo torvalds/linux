@@ -40,6 +40,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
+#include <linux/module.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_smi.h>
 

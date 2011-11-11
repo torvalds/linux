@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/interrupt.h>

@@ -22,6 +22,8 @@
  * Authors: Ben Skeggs
  */
 
+#include <linux/module.h>
+
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_i2c.h"

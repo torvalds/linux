@@ -9,6 +9,7 @@
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <asm/debug.h>

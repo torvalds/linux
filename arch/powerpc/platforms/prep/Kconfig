@@ -21,12 +21,3 @@ config PREP_RESIDUAL
 	  or pass the 'noresidual' option to the kernel.
 
 	  If you are running a PReP system, say Y here, otherwise say N.
-
-config PROC_PREPRESIDUAL
-	bool "Support for reading of PReP Residual Data in /proc"
-	depends on PREP_RESIDUAL && PROC_FS
-	help
-	  Enabling this option will create a /proc/residual file which allows
-	  you to get at the residual data on PReP systems.  You will need a tool
-	  (lsresidual) to parse it.  If you aren't on a PReP system, you don't
-	  want this.

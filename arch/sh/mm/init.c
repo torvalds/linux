@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/memblock.h>
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
 #include <asm/mmu_context.h>
 #include <asm/mmzone.h>
 #include <asm/kexec.h>

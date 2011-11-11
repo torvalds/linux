@@ -205,7 +205,7 @@ static struct platform_driver ppc4xx_edac_driver = {
 	.remove			= ppc4xx_edac_remove,
 	.driver = {
 		.owner = THIS_MODULE,
-		.name = PPC4XX_EDAC_MODULE_NAME
+		.name = PPC4XX_EDAC_MODULE_NAME,
 		.of_match_table = ppc4xx_edac_match,
 	},
 };

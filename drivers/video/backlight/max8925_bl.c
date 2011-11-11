@@ -17,6 +17,7 @@
 #include <linux/backlight.h>
 #include <linux/mfd/max8925.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #define MAX_BRIGHTNESS		(0xff)
 #define MIN_BRIGHTNESS		(0)

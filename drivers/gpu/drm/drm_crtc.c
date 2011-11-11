@@ -31,6 +31,7 @@
  */
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include "drm.h"
 #include "drmP.h"
 #include "drm_crtc.h"
@@ -162,6 +163,7 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] =
 	{ DRM_MODE_CONNECTOR_HDMIB, "HDMI-B", 0 },
 	{ DRM_MODE_CONNECTOR_TV, "TV", 0 },
 	{ DRM_MODE_CONNECTOR_eDP, "eDP", 0 },
+	{ DRM_MODE_CONNECTOR_VIRTUAL, "Virtual", 0},
 };
 
 static struct drm_prop_enum_list drm_encoder_enum_list[] =
@@ -170,6 +172,7 @@ static struct drm_prop_enum_list drm_encoder_enum_list[] =
 	{ DRM_MODE_ENCODER_TMDS, "TMDS" },
 	{ DRM_MODE_ENCODER_LVDS, "LVDS" },
 	{ DRM_MODE_ENCODER_TVDAC, "TV" },
+	{ DRM_MODE_ENCODER_VIRTUAL, "Virtual" },
 };
 
 char *drm_get_encoder_name(struct drm_encoder *encoder)
@@ -463,8 +466,10 @@ void drm_connector_init(struct drm_device *dev,
 	list_add_tail(&connector->head, &dev->mode_config.connector_list);
 	dev->mode_config.num_connector++;
 
-	drm_connector_attach_property(connector,
-				      dev->mode_config.edid_property, 0);
+	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL)
+		drm_connector_attach_property(connector,
+					      dev->mode_config.edid_property,
+					      0);
 
 	drm_connector_attach_property(connector,
 				      dev->mode_config.dpms_property, 0);

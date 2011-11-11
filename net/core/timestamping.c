@@ -21,6 +21,7 @@
 #include <linux/phy.h>
 #include <linux/ptp_classify.h>
 #include <linux/skbuff.h>
+#include <linux/export.h>
 
 static struct sock_filter ptp_filter[] = {
 	PTP_FILTER

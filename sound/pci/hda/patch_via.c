@@ -49,6 +49,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/asoundef.h>
 #include "hda_codec.h"
@@ -3700,13 +3701,8 @@ static const struct hda_verb vt1812_init_verbs[] = {
 static void set_widgets_power_state_vt1812(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
-	int imux_is_smixer =
-	snd_hda_codec_read(codec, 0x13, 0, AC_VERB_GET_CONNECT_SEL, 0x00) == 3;
 	unsigned int parm;
 	unsigned int present;
-	/* MUX10 (1eh) = stereo mixer */
-	imux_is_smixer =
-	snd_hda_codec_read(codec, 0x1e, 0, AC_VERB_GET_CONNECT_SEL, 0x00) == 5;
 	/* inputs */
 	/* PW 5/6/7 (29h/2ah/2bh) */
 	parm = AC_PWRST_D3;

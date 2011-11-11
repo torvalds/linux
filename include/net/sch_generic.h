@@ -4,7 +4,6 @@
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/rcupdate.h>
-#include <linux/module.h>
 #include <linux/pkt_sched.h>
 #include <linux/pkt_cls.h>
 #include <net/gen_stats.h>

@@ -23,6 +23,7 @@
 #include <linux/workqueue.h>
 #include <linux/fs.h>
 #include <linux/syscalls.h>
+#include <linux/export.h>
 #include <linux/ctype.h>
 #include <linux/memblock.h>
 #include <linux/of.h>

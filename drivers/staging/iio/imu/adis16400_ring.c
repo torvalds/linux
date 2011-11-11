@@ -4,6 +4,7 @@
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
+#include <linux/export.h>
 
 #include "../iio.h"
 #include "../ring_sw.h"

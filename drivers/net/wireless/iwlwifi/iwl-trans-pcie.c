@@ -407,6 +407,7 @@ static void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
 	struct iwl_queue *q = &txq->q;
 	enum dma_data_direction dma_dir;
 	unsigned long flags;
+	spinlock_t *lock;
 
 	if (!q->n_bd)
 		return;
@@ -414,19 +415,22 @@ static void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
 	/* In the command queue, all the TBs are mapped as BIDI
 	 * so unmap them as such.
 	 */
-	if (txq_id == trans->shrd->cmd_queue)
+	if (txq_id == trans->shrd->cmd_queue) {
 		dma_dir = DMA_BIDIRECTIONAL;
-	else
+		lock = &trans->hcmd_lock;
+	} else {
 		dma_dir = DMA_TO_DEVICE;
+		lock = &trans->shrd->sta_lock;
+	}
 
-	spin_lock_irqsave(&trans->shrd->sta_lock, flags);
+	spin_lock_irqsave(lock, flags);
 	while (q->write_ptr != q->read_ptr) {
 		/* The read_ptr needs to bound by q->n_window */
 		iwlagn_txq_free_tfd(trans, txq, get_cmd_index(q, q->read_ptr),
 				    dma_dir);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
-	spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
+	spin_unlock_irqrestore(lock, flags);
 }
 
 /**

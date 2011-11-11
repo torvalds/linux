@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/export.h>
 #include <asm/dma-mapping.h>
 
 #include <asm/cputype.h>

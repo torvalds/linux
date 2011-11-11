@@ -443,7 +443,7 @@ retry:
 		if (err == UBI_IO_BITFLIPS) {
 			scrub = 1;
 			err = 0;
-		} else if (err == -EBADMSG) {
+		} else if (mtd_is_eccerr(err)) {
 			if (vol->vol_type == UBI_DYNAMIC_VOLUME)
 				goto out_unlock;
 			scrub = 1;

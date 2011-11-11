@@ -744,9 +744,10 @@ static const struct v4l2_ioctl_ops s5p_mfc_dec_ioctl_ops = {
 	.vidioc_g_crop = vidioc_g_crop,
 };
 
-static int s5p_mfc_queue_setup(struct vb2_queue *vq, unsigned int *buf_count,
-			       unsigned int *plane_count, unsigned int psize[],
-			       void *allocators[])
+static int s5p_mfc_queue_setup(struct vb2_queue *vq,
+			const struct v4l2_format *fmt, unsigned int *buf_count,
+			unsigned int *plane_count, unsigned int psize[],
+			void *allocators[])
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(vq->drv_priv);
 

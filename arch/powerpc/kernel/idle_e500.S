@@ -26,7 +26,7 @@ _GLOBAL(e500_idle)
 	ori	r4,r4,_TLF_NAPPING	/* so when we take an exception */
 	stw	r4,TI_LOCAL_FLAGS(r3)	/* it will return to our caller */
 
-#ifdef CONFIG_E500MC
+#ifdef CONFIG_PPC_E500MC
 	wrteei	1
 1:	wait
 

@@ -366,17 +366,6 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 				gm_phy_write(hw, port, PHY_MARV_FE_SPEC_2, spec);
 			}
 		} else {
-			if (hw->chip_id >= CHIP_ID_YUKON_OPT) {
-				u16 ctrl2 = gm_phy_read(hw, port, PHY_MARV_EXT_CTRL_2);
-
-				/* enable PHY Reverse Auto-Negotiation */
-				ctrl2 |= 1u << 13;
-
-				/* Write PHY changes (SW-reset must follow) */
-				gm_phy_write(hw, port, PHY_MARV_EXT_CTRL_2, ctrl2);
-			}
-
-
 			/* disable energy detect */
 			ctrl &= ~PHY_M_PC_EN_DET_MSK;
 

@@ -13,7 +13,7 @@
  *	to resolve timer interrupt livelocks, William Irwin, Oracle, 2004
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/profile.h>
 #include <linux/bootmem.h>
 #include <linux/notifier.h>

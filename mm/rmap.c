@@ -51,7 +51,7 @@
 #include <linux/ksm.h>
 #include <linux/rmap.h>
 #include <linux/rcupdate.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/memcontrol.h>
 #include <linux/mmu_notifier.h>
 #include <linux/migrate.h>

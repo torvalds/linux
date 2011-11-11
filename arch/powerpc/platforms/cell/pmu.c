@@ -24,6 +24,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/types.h>
+#include <linux/export.h>
 #include <asm/io.h>
 #include <asm/irq_regs.h>
 #include <asm/machdep.h>

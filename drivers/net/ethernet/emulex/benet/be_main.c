@@ -16,6 +16,7 @@
  */
 
 #include <linux/prefetch.h>
+#include <linux/module.h>
 #include "be.h"
 #include "be_cmds.h"
 #include <asm/div64.h>

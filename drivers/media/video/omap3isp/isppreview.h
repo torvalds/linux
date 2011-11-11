@@ -45,11 +45,6 @@
 #define ISPPRV_CONTRAST_HIGH		0xFF
 #define ISPPRV_CONTRAST_UNITS		0x1
 
-#define NO_AVE				0x0
-#define AVE_2_PIX			0x1
-#define AVE_4_PIX			0x2
-#define AVE_8_PIX			0x3
-
 /* Features list */
 #define PREV_LUMA_ENHANCE		OMAP3ISP_PREV_LUMAENH
 #define PREV_INVERSE_ALAW		OMAP3ISP_PREV_INVALAW
@@ -106,7 +101,6 @@ enum preview_ycpos_mode {
  * @rgb2ycbcr: RGB to ycbcr parameters.
  * @hmed: Horizontal median filter.
  * @yclimit: YC limits parameters.
- * @average: Downsampling rate for averager.
  * @contrast: Contrast.
  * @brightness: Brightness.
  */
@@ -124,7 +118,6 @@ struct prev_params {
 	struct omap3isp_prev_csc rgb2ycbcr;
 	struct omap3isp_prev_hmed hmed;
 	struct omap3isp_prev_yclimit yclimit;
-	u8 average;
 	u8 contrast;
 	u8 brightness;
 };
@@ -159,6 +152,7 @@ struct isptables_update {
  * @subdev: V4L2 subdevice
  * @pads: Media entity pads
  * @formats: Active formats at the subdev pad
+ * @crop: Active crop rectangle
  * @input: Module currently connected to the input pad
  * @output: Bitmask of the active output
  * @video_in: Input video entity
@@ -177,6 +171,7 @@ struct isp_prev_device {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[PREV_PADS_NUM];
 	struct v4l2_mbus_framefmt formats[PREV_PADS_NUM];
+	struct v4l2_rect crop;
 
 	struct v4l2_ctrl_handler ctrls;
 

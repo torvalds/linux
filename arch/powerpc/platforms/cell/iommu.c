@@ -1159,6 +1159,26 @@ static int __init setup_iommu_fixed(char *str)
 }
 __setup("iommu_fixed=", setup_iommu_fixed);
 
+static u64 cell_dma_get_required_mask(struct device *dev)
+{
+	struct dma_map_ops *dma_ops;
+
+	if (!dev->dma_mask)
+		return 0;
+
+	if (!iommu_fixed_disabled &&
+			cell_iommu_get_fixed_address(dev) != OF_BAD_ADDR)
+		return DMA_BIT_MASK(64);
+
+	dma_ops = get_dma_ops(dev);
+	if (dma_ops->get_required_mask)
+		return dma_ops->get_required_mask(dev);
+
+	WARN_ONCE(1, "no get_required_mask in %p ops", dma_ops);
+
+	return DMA_BIT_MASK(64);
+}
+
 static int __init cell_iommu_init(void)
 {
 	struct device_node *np;
@@ -1175,6 +1195,7 @@ static int __init cell_iommu_init(void)
 
 	/* Setup various ppc_md. callbacks */
 	ppc_md.pci_dma_dev_setup = cell_pci_dma_dev_setup;
+	ppc_md.dma_get_required_mask = cell_dma_get_required_mask;
 	ppc_md.tce_build = tce_build_cell;
 	ppc_md.tce_free = tce_free_cell;
 

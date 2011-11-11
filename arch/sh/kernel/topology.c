@@ -14,6 +14,7 @@
 #include <linux/topology.h>
 #include <linux/node.h>
 #include <linux/nodemask.h>
+#include <linux/export.h>
 
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 

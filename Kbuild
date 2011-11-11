@@ -88,11 +88,13 @@ $(obj)/$(offsets-file): arch/$(SRCARCH)/kernel/asm-offsets.s Kbuild
 # 3) Check for missing system calls
 #
 
+always += missing-syscalls
+targets += missing-syscalls
+
 quiet_cmd_syscalls = CALL    $<
       cmd_syscalls = $(CONFIG_SHELL) $< $(CC) $(c_flags)
 
-PHONY += missing-syscalls
-missing-syscalls: scripts/checksyscalls.sh FORCE
+missing-syscalls: scripts/checksyscalls.sh $(offsets-file) FORCE
 	$(call cmd,syscalls)
 
 # Keep these two files during make clean

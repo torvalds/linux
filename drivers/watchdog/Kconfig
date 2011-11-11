@@ -66,6 +66,7 @@ config SOFT_WATCHDOG
 config WM831X_WATCHDOG
 	tristate "WM831x watchdog"
 	depends on MFD_WM831X
+	select WATCHDOG_CORE
 	help
 	  Support for the watchdog in the WM831x AudioPlus PMICs.  When
 	  the watchdog triggers the system will be reset.
@@ -170,6 +171,7 @@ config HAVE_S3C2410_WATCHDOG
 config S3C2410_WATCHDOG
 	tristate "S3C2410 Watchdog"
 	depends on ARCH_S3C2410 || HAVE_S3C2410_WATCHDOG
+	select WATCHDOG_CORE
 	help
 	  Watchdog timer block in the Samsung SoCs. This will reboot
 	  the system when the timer expires with the watchdog enabled.
