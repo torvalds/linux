@@ -694,6 +694,7 @@ static void prepare_set(void) __acquires(set_atomicity_lock)
 
 	/* Disable MTRRs, and set the default type to uncached */
 	mtrr_wrmsr(MSR_MTRRdefType, deftype_lo & ~0xcff, deftype_hi);
+	wbinvd();
 }
 
 static void post_set(void) __releases(set_atomicity_lock)
