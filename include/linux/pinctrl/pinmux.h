@@ -52,7 +52,7 @@ struct pinctrl_dev;
  * @disable: disable a certain muxing selector with a certain pin group
  * @gpio_request_enable: requests and enables GPIO on a certain pin.
  *	Implement this only if you can mux every pin individually as GPIO. The
- *	affected GPIO range is passed along with an offset into that
+ *	affected GPIO range is passed along with an offset(pin number) into that
  *	specific GPIO range - function selectors and pin groups are orthogonal
  *	to this, the core will however make sure the pins do not collide
  */

@@ -229,7 +229,7 @@ int pinmux_request_gpio(unsigned gpio)
 		return -EINVAL;
 
 	/* Convert to the pin controllers number space */
-	pin = gpio - range->base;
+	pin = gpio - range->base + range->pin_base;
 
 	/* Conjure some name stating what chip and pin this is taken by */
 	snprintf(gpiostr, 15, "%s:%d", range->name, gpio);
@@ -263,7 +263,7 @@ void pinmux_free_gpio(unsigned gpio)
 		return;
 
 	/* Convert to the pin controllers number space */
-	pin = gpio - range->base;
+	pin = gpio - range->base + range->pin_base;
 
 	func = pin_free(pctldev, pin, range);
 	kfree(func);

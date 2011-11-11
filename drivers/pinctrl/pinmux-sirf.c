@@ -1067,7 +1067,7 @@ static int sirfsoc_pinmux_request_gpio(struct pinctrl_dev *pmxdev,
 	spmx = pinctrl_dev_get_drvdata(pmxdev);
 
 	muxval = readl(spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(group));
-	muxval = muxval | (1 << offset);
+	muxval = muxval | (1 << (offset - range->pin_base));
 	writel(muxval, spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(group));
 
 	return 0;
@@ -1100,21 +1100,25 @@ static struct pinctrl_gpio_range sirfsoc_gpio_ranges[] = {
 		.name = "sirfsoc-gpio*",
 		.id = 0,
 		.base = 0,
+		.pin_base = 0,
 		.npins = 32,
 	}, {
 		.name = "sirfsoc-gpio*",
 		.id = 1,
 		.base = 32,
+		.pin_base = 32,
 		.npins = 32,
 	}, {
 		.name = "sirfsoc-gpio*",
 		.id = 2,
 		.base = 64,
+		.pin_base = 64,
 		.npins = 32,
 	}, {
 		.name = "sirfsoc-gpio*",
 		.id = 3,
 		.base = 96,
+		.pin_base = 96,
 		.npins = 19,
 	},
 };

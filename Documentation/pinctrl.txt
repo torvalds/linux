@@ -214,18 +214,19 @@ static struct pinctrl_gpio_range gpio_range_a = {
 	.name = "chip a",
 	.id = 0,
 	.base = 32,
+	.pin_base = 32,
 	.npins = 16,
 	.gc = &chip_a;
 };
 
-static struct pinctrl_gpio_range gpio_range_a = {
+static struct pinctrl_gpio_range gpio_range_b = {
 	.name = "chip b",
 	.id = 0,
 	.base = 48,
+	.pin_base = 64,
 	.npins = 8,
 	.gc = &chip_b;
 };
-
 
 {
 	struct pinctrl_dev *pctl;
@@ -235,11 +236,24 @@ static struct pinctrl_gpio_range gpio_range_a = {
 }
 
 So this complex system has one pin controller handling two different
-GPIO chips. Chip a has 16 pins and chip b has 8 pins. They are mapped in
-the global GPIO pin space at:
+GPIO chips. "chip a" has 16 pins and "chip b" has 8 pins. The "chip a" and
+"chip b" have different .pin_base, which means a start pin number of the
+GPIO range.
 
-chip a: [32 .. 47]
-chip b: [48 .. 55]
+The GPIO range of "chip a" starts from the GPIO base of 32 and actual
+pin range also starts from 32. However "chip b" has different starting
+offset for the GPIO range and pin range. The GPIO range of "chip b" starts
+from GPIO number 48, while the pin range of "chip b" starts from 64.
+
+We can convert a gpio number to actual pin number using this "pin_base".
+They are mapped in the global GPIO pin space at:
+
+chip a:
+ - GPIO range : [32 .. 47]
+ - pin range  : [32 .. 47]
+chip b:
+ - GPIO range : [48 .. 55]
+ - pin range  : [64 .. 71]
 
 When GPIO-specific functions in the pin control subsystem are called, these
 ranges will be used to look up the appropriate pin controller by inspecting
@@ -249,27 +263,11 @@ will be called on that specific pin controller.
 
 For all functionalities dealing with pin biasing, pin muxing etc, the pin
 controller subsystem will subtract the range's .base offset from the passed
-in gpio pin number, and pass that on to the pin control driver, so the driver
-will get an offset into its handled number range. Further it is also passed
+in gpio number, and add the ranges's .pin_base offset to retrive a pin number.
+After that, the subsystem passes it on to the pin control driver, so the driver
+will get an pin number into its handled number range. Further it is also passed
 the range ID value, so that the pin controller knows which range it should
 deal with.
-
-For example: if a user issues pinctrl_gpio_set_foo(50), the pin control
-subsystem will find that the second range on this pin controller matches,
-subtract the base 48 and call the
-pinctrl_driver_gpio_set_foo(pinctrl, range, 2) where the latter function has
-this signature:
-
-int pinctrl_driver_gpio_set_foo(struct pinctrl_dev *pctldev,
-    struct pinctrl_gpio_range *rangeid,
-    unsigned offset);
-
-Now the driver knows that we want to do some GPIO-specific operation on the
-second GPIO range handled by "chip b", at offset 2 in that specific range.
-
-(If the GPIO subsystem is ever refactored to use a local per-GPIO controller
-pin space, this mapping will need to be augmented accordingly.)
-
 
 PINMUX interfaces
 =================
