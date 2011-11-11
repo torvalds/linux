@@ -1901,11 +1901,14 @@ static void unfreeze_partials(struct kmem_cache *s)
 			}
 
 			if (l != m) {
-				if (l == M_PARTIAL)
+				if (l == M_PARTIAL) {
 					remove_partial(n, page);
-				else
+					stat(s, FREE_REMOVE_PARTIAL);
+				} else {
 					add_partial(n, page,
 						DEACTIVATE_TO_TAIL);
+					stat(s, FREE_ADD_PARTIAL);
+				}
 
 				l = m;
 			}
