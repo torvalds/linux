@@ -28,6 +28,13 @@ config ARCH_SH73A0
 	select ARM_GIC
 	select I2C
 
+config ARCH_R8A7740
+	bool "R-Mobile A1 (R8A77400)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_GIC
+
 comment "SH-Mobile Board Type"
 
 config MACH_G3EVM

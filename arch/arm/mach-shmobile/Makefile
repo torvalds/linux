@@ -10,6 +10,7 @@ obj-$(CONFIG_ARCH_SH7367)	+= setup-sh7367.o clock-sh7367.o intc-sh7367.o
 obj-$(CONFIG_ARCH_SH7377)	+= setup-sh7377.o clock-sh7377.o intc-sh7377.o
 obj-$(CONFIG_ARCH_SH7372)	+= setup-sh7372.o clock-sh7372.o intc-sh7372.o
 obj-$(CONFIG_ARCH_SH73A0)	+= setup-sh73a0.o clock-sh73a0.o intc-sh73a0.o
+obj-$(CONFIG_ARCH_R8A7740)	+= setup-r8a7740.o clock-r8a7740.o intc-r8a7740.o
 
 # SMP objects
 smp-y				:= platsmp.o headsmp.o
@@ -29,6 +30,7 @@ obj-$(CONFIG_ARCH_SH7367)	+= entry-intc.o
 obj-$(CONFIG_ARCH_SH7377)	+= entry-intc.o
 obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o
 obj-$(CONFIG_ARCH_SH73A0)	+= entry-gic.o
+obj-$(CONFIG_ARCH_R8A7740)	+= entry-gic.o
 
 # PM objects
 obj-$(CONFIG_SUSPEND)		+= suspend.o
