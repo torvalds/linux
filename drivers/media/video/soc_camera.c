@@ -484,29 +484,17 @@ static int soc_camera_open(struct file *file)
 					icd->current_fmt->host_fmt->fourcc,
 			},
 		};
-<<<<<<< HEAD
 
-		ret = soc_camera_power_set(icd, icl, 1);
-		if (ret < 0)
-			goto epower;
-
-		/* The camera could have been already on, try to reset */
-		if (icl->reset)
-			icl->reset(icd->pdev);
-=======
         /* ddl@rock-chips.com : accelerate device open  */
         if ((file->f_flags & O_ACCMODE) == O_RDWR) {
-    		if (icl->power) {
-    			ret = icl->power(icd->pdev, 1);
-    			if (ret < 0)
-    				goto epower;
-    		}
+            ret = soc_camera_power_set(icd, icl, 1);
+    		if (ret < 0)
+    			goto epower;
 
     		/* The camera could have been already on, try to reset */
     		if (icl->reset)
     			icl->reset(icd->pdev);
-       }
->>>>>>> parent of 15f7fab... temp revert rk change
+        }
 
 		ret = ici->ops->add(icd);
 		if (ret < 0) {
@@ -518,29 +506,26 @@ static int soc_camera_open(struct file *file)
 		ret = pm_runtime_resume(&icd->vdev->dev);
 		if (ret < 0 && ret != -ENOSYS)
 			goto eresume;
-
+        /* ddl@rock-chips.com : accelerate device open  */
         if ((file->f_flags & O_ACCMODE) == O_RDWR) {
-		/*
-		 * Try to configure with default parameters. Notice: this is the
-		 * very first open, so, we cannot race against other calls,
-		 * apart from someone else calling open() simultaneously, but
-		 * .video_lock is protecting us against it.
-		 */
-		ret = soc_camera_set_fmt(icd, &f);
-		if (ret < 0)
-			goto esfmt;
-<<<<<<< HEAD
+    		/*
+    		 * Try to configure with default parameters. Notice: this is the
+    		 * very first open, so, we cannot race against other calls,
+    		 * apart from someone else calling open() simultaneously, but
+    		 * .video_lock is protecting us against it.
+    		 */
+    		ret = soc_camera_set_fmt(icd, &f);
+    		if (ret < 0)
+    			goto esfmt;
+        }
 
-		if (ici->ops->init_videobuf) {
+        if (ici->ops->init_videobuf) {
 			ici->ops->init_videobuf(&icd->vb_vidq, icd);
 		} else {
 			ret = ici->ops->init_videobuf2(&icd->vb2_vidq, icd);
 			if (ret < 0)
 				goto einitvb;
 		}
-=======
-        }
->>>>>>> parent of 15f7fab... temp revert rk change
 	}
 
 	file->private_data = icd;
@@ -582,14 +567,9 @@ static int soc_camera_close(struct file *file)
 		if (ici->ops->init_videobuf2)
 			vb2_queue_release(&icd->vb2_vidq);
 
-<<<<<<< HEAD
-		soc_camera_power_set(icd, icl, 0);
-=======
-        if ((file->f_flags & O_ACCMODE) == O_RDWR) {
-		if (icl->power)
-			icl->power(icd->pdev, 0);
+        if ((file->f_flags & O_ACCMODE) == O_RDWR) {   /* ddl@rock-chips.com : accelerate device open  */
+            soc_camera_power_set(icd, icl, 0);	
         }
->>>>>>> parent of 15f7fab... temp revert rk change
 	}
 
 	if (icd->streamer == file)
@@ -680,14 +660,8 @@ static struct v4l2_file_operations soc_camera_fops = {
 static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 				    struct v4l2_format *f)
 {
-<<<<<<< HEAD
 	struct soc_camera_device *icd = file->private_data;
 	int ret;
-=======
-	struct soc_camera_file *icf = file->private_data;
-	struct soc_camera_device *icd = icf->icd;
-	int ret,i;
->>>>>>> parent of 15f7fab... temp revert rk change
 
 	WARN_ON(priv != file->private_data);
 
@@ -699,31 +673,10 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 	if (icd->streamer && icd->streamer != file)
 		return -EBUSY;
 
-<<<<<<< HEAD
 	if (is_streaming(to_soc_camera_host(icd->dev.parent), icd)) {
-=======
-	#if 1
-	if (icf->vb_vidq.bufs[0]) {
->>>>>>> parent of 15f7fab... temp revert rk change
 		dev_err(&icd->dev, "S_FMT denied: queue initialised\n");
 		return -EBUSY;
 	}
-	#else
-
-	/* ddl@rock-chips.com :
-	     Judge queue  initialised by Judge icf->vb_vidq.bufs[0] whether is NULL , it is error.    */
-
-	i = 0;
-	while (icf->vb_vidq.bufs[i] && (i<VIDEO_MAX_FRAME)) {
-		if (icf->vb_vidq.bufs[i]->state != VIDEOBUF_NEEDS_INIT) {
-			dev_err(&icd->dev, "S_FMT denied: queue initialised, icf->vb_vidq.bufs[%d]->state:0x%x\n",i,icf->vb_vidq.bufs[i]->state);
-			ret = -EBUSY;
-			goto unlock;
-		}
-		i++;
-	}
-
-	#endif
 
 	ret = soc_camera_set_fmt(icd, f);
 
@@ -732,12 +685,11 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 
 	return ret;
 }
+/* ddl@rock-chips.com : Add ioctrl - VIDIOC_ENUM_FRAMEINTERVALS for soc-camera */
 static int soc_camera_enum_frameintervals (struct file *file, void  *priv,
 					   struct v4l2_frmivalenum *fival)
 {
-    struct soc_camera_file *icf = file->private_data;
-	struct soc_camera_device *icd = icf->icd;
-	const struct soc_camera_data_format *format;
+    struct soc_camera_device *icd = file->private_data;
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
     int ret;
@@ -745,11 +697,12 @@ static int soc_camera_enum_frameintervals (struct file *file, void  *priv,
 	WARN_ON(priv != file->private_data);
 
     ret = v4l2_subdev_call(sd, video, enum_frameintervals, fival);
-    if (ret == -ENOIOCTLCMD) 
+    if (ret == -ENOIOCTLCMD) {
         if (ici->ops->enum_frameinervals)
            ret = ici->ops->enum_frameinervals(icd, fival); 
         else 
            ret = -ENOIOCTLCMD;
+    }
 
     return ret;
 }
@@ -813,8 +766,6 @@ static int soc_camera_streamon(struct file *file, void *priv,
 	struct soc_camera_device *icd = file->private_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct soc_camera_host *ici =
-                    to_soc_camera_host(icd->dev.parent);
 	int ret;
 
 	WARN_ON(priv != file->private_data);
@@ -822,25 +773,20 @@ static int soc_camera_streamon(struct file *file, void *priv,
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-<<<<<<< HEAD
 	if (icd->streamer != file)
-		return -EBUSY;
+		return -EBUSY;    
 
-=======
-	mutex_lock(&icd->video_lock);
-
-	v4l2_subdev_call(sd, video, s_stream, 1);
-    if (ici->ops->s_stream)
-	    ici->ops->s_stream(icd, 1);				/* ddl@rock-chips.com : Add stream control for host */
->>>>>>> parent of 15f7fab... temp revert rk change
 	/* This calls buf_queue from host driver's videobuf_queue_ops */
 	if (ici->ops->init_videobuf)
 		ret = videobuf_streamon(&icd->vb_vidq);
 	else
 		ret = vb2_streamon(&icd->vb2_vidq, i);
 
-	if (!ret)
+	if (!ret) {
 		v4l2_subdev_call(sd, video, s_stream, 1);
+        if (ici->ops->s_stream)
+	        ici->ops->s_stream(icd, 1);				/* ddl@rock-chips.com : Add stream control for host */
+	}
 
 	return ret;
 }
@@ -850,25 +796,15 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-<<<<<<< HEAD
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-=======
-    struct soc_camera_host *ici =
-                    to_soc_camera_host(icd->dev.parent);
->>>>>>> parent of 15f7fab... temp revert rk change
 
 	WARN_ON(priv != file->private_data);
 
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-<<<<<<< HEAD
 
 	if (icd->streamer != file)
 		return -EBUSY;
-=======
-    
-	mutex_lock(&icd->video_lock);
->>>>>>> parent of 15f7fab... temp revert rk change
 
 	/*
 	 * This calls buf_release from host driver's videobuf_queue_ops for all
@@ -883,12 +819,8 @@ static int soc_camera_streamoff(struct file *file, void *priv,
     if (ici->ops->s_stream)
 		ici->ops->s_stream(icd, 0);				/* ddl@rock-chips.com : Add stream control for host */
 
-<<<<<<< HEAD
-=======
-    videobuf_mmap_free(&icf->vb_vidq);          /* ddl@rock-chips.com : free video buf */
-	mutex_unlock(&icd->video_lock);
-
->>>>>>> parent of 15f7fab... temp revert rk change
+    videobuf_mmap_free(&icd->vb_vidq);          /* ddl@rock-chips.com : free video buf */
+	
 	return 0;
 }
 
@@ -927,8 +859,7 @@ static int soc_camera_queryctrl(struct file *file, void *priv,
 static int soc_camera_querymenu(struct file *file, void *priv,
                                 struct v4l2_querymenu *qm)
 {
-    struct soc_camera_file *icf = file->private_data;
-    struct soc_camera_device *icd = icf->icd;
+    struct soc_camera_device *icd = file->private_data;
     struct v4l2_queryctrl qctrl;
     int i,j;
 
@@ -1000,8 +931,7 @@ static int soc_camera_s_ctrl(struct file *file, void *priv,
 static int soc_camera_try_ext_ctrl(struct file *file, void *priv,
                              struct v4l2_ext_controls *ctrl)
 {
-    struct soc_camera_file *icf = file->private_data;
-    struct soc_camera_device *icd = icf->icd;
+    struct soc_camera_device *icd = file->private_data;
     const struct v4l2_queryctrl *qctrl;
     int i;
 
@@ -1025,8 +955,7 @@ static int soc_camera_try_ext_ctrl(struct file *file, void *priv,
 static int soc_camera_g_ext_ctrl(struct file *file, void *priv,
                              struct v4l2_ext_controls *ctrl)
 {
-    struct soc_camera_file *icf = file->private_data;
-    struct soc_camera_device *icd = icf->icd;
+    struct soc_camera_device *icd = file->private_data;
     struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
     WARN_ON(priv != file->private_data);
@@ -1040,8 +969,7 @@ static int soc_camera_g_ext_ctrl(struct file *file, void *priv,
 static int soc_camera_s_ext_ctrl(struct file *file, void *priv,
                              struct v4l2_ext_controls *ctrl)
 {
-    struct soc_camera_file *icf = file->private_data;
-    struct soc_camera_device *icd = icf->icd;
+    struct soc_camera_device *icd = file->private_data;
     struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
     WARN_ON(priv != file->private_data);

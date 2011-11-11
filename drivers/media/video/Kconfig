@@ -1143,6 +1143,18 @@ config VIDEO_RK29_WORK_NOT_IPP
 	bool "VIP don't work with IPP"
 
 endchoice
+choice
+	prompt "RK29XX camera digital zoom with IPP "
+	depends on VIDEO_RK29 && RK29_IPP && VIDEO_RK29_WORK_IPP
+	default VIDEO_RK29_DIGITALZOOM_IPP_ON
+	---help---
+		RK29 Camera digital zoom with IPP
+config VIDEO_RK29_DIGITALZOOM_IPP_ON
+	bool "Digital zoom with IPP on"
+
+config VIDEO_RK29_DIGITALZOOM_IPP_OFF
+	bool "Digital zoom with IPP off"
+endchoice
 
 config VIDEO_MX2_HOSTSUPPORT
 	bool
