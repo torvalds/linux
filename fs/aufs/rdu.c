@@ -66,6 +66,7 @@ static int au_rdu_fill(void *__arg, const char *name, int nlen,
 		if (unlikely(nlen > AUFS_MAX_NAMELEN))
 			ent.type = DT_UNKNOWN;
 
+		/* unnecessary to support mmap_sem since this is a dir */
 		err = -EFAULT;
 		if (copy_to_user(arg->ent.e, &ent, sizeof(ent)))
 			goto out;
@@ -239,6 +240,7 @@ static int au_rdu_ino(struct file *file, struct aufs_rdu *rdu)
 	sb = file->f_dentry->d_sb;
 	si_read_lock(sb, AuLock_FLUSH);
 	while (nent-- > 0) {
+		/* unnecessary to support mmap_sem since this is a dir */
 		err = copy_from_user(&ent, u->e, sizeof(ent));
 		if (!err)
 			err = !access_ok(VERIFY_WRITE, &u->e->ino, sizeof(ino));
