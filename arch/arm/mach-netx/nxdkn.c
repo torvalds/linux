@@ -98,4 +98,5 @@ MACHINE_START(NXDKN, "Hilscher nxdkn")
 	.init_irq	= netx_init_irq,
 	.timer		= &netx_timer,
 	.init_machine	= nxdkn_init,
+	.restart	= netx_restart,
 MACHINE_END

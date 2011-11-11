@@ -205,4 +205,5 @@ MACHINE_START(NXDB500, "Hilscher nxdb500")
 	.init_irq	= netx_init_irq,
 	.timer		= &netx_timer,
 	.init_machine	= nxdb500_init,
+	.restart	= netx_restart,
 MACHINE_END

@@ -182,4 +182,5 @@ MACHINE_START(NXEB500HMI, "Hilscher nxeb500hmi")
 	.init_irq	= netx_init_irq,
 	.timer		= &netx_timer,
 	.init_machine	= nxeb500hmi_init,
+	.restart	= netx_restart,
 MACHINE_END
