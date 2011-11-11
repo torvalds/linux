@@ -3796,16 +3796,16 @@ void btrfs_free_block_rsv(struct btrfs_root *root,
 	kfree(rsv);
 }
 
-int btrfs_block_rsv_add(struct btrfs_root *root,
-			struct btrfs_block_rsv *block_rsv,
-			u64 num_bytes)
+static inline int __block_rsv_add(struct btrfs_root *root,
+				  struct btrfs_block_rsv *block_rsv,
+				  u64 num_bytes, int flush)
 {
 	int ret;
 
 	if (num_bytes == 0)
 		return 0;
 
-	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, 1);
+	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, flush);
 	if (!ret) {
 		block_rsv_add_bytes(block_rsv, num_bytes, 1);
 		return 0;
@@ -3814,22 +3814,18 @@ int btrfs_block_rsv_add(struct btrfs_root *root,
 	return ret;
 }
 
+int btrfs_block_rsv_add(struct btrfs_root *root,
+			struct btrfs_block_rsv *block_rsv,
+			u64 num_bytes)
+{
+	return __block_rsv_add(root, block_rsv, num_bytes, 1);
+}
+
 int btrfs_block_rsv_add_noflush(struct btrfs_root *root,
 				struct btrfs_block_rsv *block_rsv,
 				u64 num_bytes)
 {
-	int ret;
-
-	if (num_bytes == 0)
-		return 0;
-
-	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, 0);
-	if (!ret) {
-		block_rsv_add_bytes(block_rsv, num_bytes, 1);
-		return 0;
-	}
-
-	return ret;
+	return __block_rsv_add(root, block_rsv, num_bytes, 0);
 }
 
 int btrfs_block_rsv_check(struct btrfs_root *root,
