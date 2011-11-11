@@ -1237,6 +1237,24 @@ static unsigned int find_faked_portnum_from_hw_portnum(struct usb_hcd *hcd,
 	return num_similar_speed_ports;
 }
 
+static void handle_device_notification(struct xhci_hcd *xhci,
+		union xhci_trb *event)
+{
+	u32 slot_id;
+
+	slot_id = TRB_TO_SLOT_ID(event->generic.field[3]);
+	if (!xhci->devs[slot_id])
+		xhci_warn(xhci, "Device Notification event for "
+				"unused slot %u\n", slot_id);
+	else
+		xhci_dbg(xhci, "Device Notification event for slot ID %u\n",
+				slot_id);
+	/* XXX should we kick khubd for the parent hub?  It should have send an
+	 * interrupt transfer when the port started signaling resume, so there's
+	 * probably no need to do so.
+	 */
+}
+
 static void handle_port_status(struct xhci_hcd *xhci,
 		union xhci_trb *event)
 {
@@ -2281,6 +2299,9 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 			xhci->error_bitmask |= 1 << 9;
 		else
 			update_ptrs = 0;
+		break;
+	case TRB_TYPE(TRB_DEV_NOTE):
+		handle_device_notification(xhci, event);
 		break;
 	default:
 		if ((le32_to_cpu(event->event_cmd.flags) & TRB_TYPE_BITMASK) >=

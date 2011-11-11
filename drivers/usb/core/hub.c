@@ -2421,11 +2421,26 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	 * we don't explicitly enable it here.
 	 */
 	if (udev->do_remote_wakeup) {
-		status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				USB_REQ_SET_FEATURE, USB_RECIP_DEVICE,
-				USB_DEVICE_REMOTE_WAKEUP, 0,
-				NULL, 0,
-				USB_CTRL_SET_TIMEOUT);
+		if (!hub_is_superspeed(hub->hdev)) {
+			status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+					USB_REQ_SET_FEATURE, USB_RECIP_DEVICE,
+					USB_DEVICE_REMOTE_WAKEUP, 0,
+					NULL, 0,
+					USB_CTRL_SET_TIMEOUT);
+		} else {
+			/* Assume there's only one function on the USB 3.0
+			 * device and enable remote wake for the first
+			 * interface. FIXME if the interface association
+			 * descriptor shows there's more than one function.
+			 */
+			status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+					USB_REQ_SET_FEATURE,
+					USB_RECIP_INTERFACE,
+					USB_INTRF_FUNC_SUSPEND,
+					USB_INTRF_FUNC_SUSPEND_RW,
+					NULL, 0,
+					USB_CTRL_SET_TIMEOUT);
+		}
 		if (status) {
 			dev_dbg(&udev->dev, "won't remote wakeup, status %d\n",
 					status);
