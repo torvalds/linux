@@ -432,6 +432,9 @@ static int probe_itpm(struct tpm_chip *chip)
 out:
 	itpm = rem_itpm;
 	tpm_tis_ready(chip);
+	/* some TPMs need a break here otherwise they will not work
+	 * correctly on the immediately subsequent command */
+	msleep(chip->vendor.timeout_b);
 	release_locality(chip, chip->vendor.locality, 0);
 
 	return rc;
