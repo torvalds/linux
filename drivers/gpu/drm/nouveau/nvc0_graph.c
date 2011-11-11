@@ -381,6 +381,8 @@ nvc0_graph_init_gpc_0(struct drm_device *dev)
 	u8  tpnr[GPC_MAX];
 	int i, gpc, tpc;
 
+	nv_wr32(dev, TP_UNIT(0, 0, 0x5c), 1); /* affects TFB offset queries */
+
 	/*
 	 *      TP      ROP UNKVAL(magic_not_rop_nr)
 	 * 450: 4/0/0/0 2        3
