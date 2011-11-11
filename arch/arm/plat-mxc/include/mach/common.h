@@ -85,7 +85,6 @@ enum mxc_cpu_pwr_mode {
 };
 
 extern void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode);
-extern void (*imx_idle)(void);
 extern void imx_print_silicon_rev(const char *cpu, int srev);
 
 void avic_handle_irq(struct pt_regs *);
