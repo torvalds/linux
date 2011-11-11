@@ -761,7 +761,6 @@ config NLM_XLR_BOARD
 	depends on EXPERIMENTAL
 	select BOOT_ELF32
 	select NLM_COMMON
-	select NLM_XLR
 	select SYS_HAS_CPU_XLR
 	select SYS_SUPPORTS_SMP
 	select HW_HAS_PCI

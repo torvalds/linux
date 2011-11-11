@@ -7,10 +7,10 @@ cflags-$(CONFIG_NLM_COMMON)	+= -I$(srctree)/arch/mips/include/asm/netlogic
 #
 # use mips64 if xlr is not available
 #
-cflags-$(CONFIG_NLM_XLR)	+= $(call cc-option,-march=xlr,-march=mips64)
+cflags-$(CONFIG_CPU_XLR)	+= $(call cc-option,-march=xlr,-march=mips64)
 
 #
 # NETLOGIC processor support
 #
-platform-$(CONFIG_NLM_XLR)  	+= netlogic/xlr
+platform-$(CONFIG_CPU_XLR)  	+= netlogic/xlr
 load-$(CONFIG_NLM_COMMON)  	+= 0xffffffff80100000
