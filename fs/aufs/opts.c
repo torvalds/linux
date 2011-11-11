@@ -353,7 +353,7 @@ static match_table_t au_wbr_create_policy = {
 /*
  * cf. linux/lib/parser.c and cmdline.c
  * gave up calling memparse() since it uses simple_strtoull() instead of
- * strict_...().
+ * kstrto...().
  */
 static int noinline_for_stack
 au_match_ull(substring_t *s, unsigned long long *result)
@@ -367,7 +367,7 @@ au_match_ull(substring_t *s, unsigned long long *result)
 	if (len + 1 <= sizeof(a)) {
 		memcpy(a, s->from, len);
 		a[len] = '\0';
-		err = strict_strtoull(a, 0, result);
+		err = kstrtoull(a, 0, result);
 	}
 	return err;
 }

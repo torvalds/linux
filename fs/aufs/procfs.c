@@ -114,7 +114,7 @@ static ssize_t au_procfs_plm_write(struct file *file, const char __user *ubuf,
 	} else if (unlikely(strncmp("si=", buf, 3)))
 		goto out;
 
-	err = strict_strtoul(buf + 3, 16, &id);
+	err = kstrtoul(buf + 3, 16, &id);
 	if (unlikely(err))
 		goto out;
 
