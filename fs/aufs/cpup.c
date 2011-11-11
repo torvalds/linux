@@ -60,7 +60,7 @@ void au_cpup_attr_nlink(struct inode *inode, int force)
 	    && au_plink_test(inode))
 		return;
 
-	inode->i_nlink = h_inode->i_nlink;
+	set_nlink(inode, h_inode->i_nlink);
 
 	/*
 	 * fewer nlink makes find(1) noisy, but larger nlink doesn't.

@@ -26,20 +26,28 @@
 
 void au_add_nlink(struct inode *dir, struct inode *h_dir)
 {
+	unsigned int nlink;
+
 	AuDebugOn(!S_ISDIR(dir->i_mode) || !S_ISDIR(h_dir->i_mode));
 
-	dir->i_nlink += h_dir->i_nlink - 2;
+	nlink = dir->i_nlink;
+	nlink += h_dir->i_nlink - 2;
 	if (h_dir->i_nlink < 2)
-		dir->i_nlink += 2;
+		nlink += 2;
+	set_nlink(dir, nlink);
 }
 
 void au_sub_nlink(struct inode *dir, struct inode *h_dir)
 {
+	unsigned int nlink;
+
 	AuDebugOn(!S_ISDIR(dir->i_mode) || !S_ISDIR(h_dir->i_mode));
 
-	dir->i_nlink -= h_dir->i_nlink - 2;
+	nlink = dir->i_nlink;
+	nlink -= h_dir->i_nlink - 2;
 	if (h_dir->i_nlink < 2)
-		dir->i_nlink -= 2;
+		nlink -= 2;
+	set_nlink(dir, nlink);
 }
 
 loff_t au_dir_size(struct file *file, struct dentry *dentry)

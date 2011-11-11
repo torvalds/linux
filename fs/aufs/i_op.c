@@ -752,6 +752,8 @@ out:
 static void au_refresh_iattr(struct inode *inode, struct kstat *st,
 			     unsigned int nlink)
 {
+	unsigned int n;
+
 	inode->i_mode = st->mode;
 	inode->i_uid = st->uid;
 	inode->i_gid = st->gid;
@@ -761,8 +763,10 @@ static void au_refresh_iattr(struct inode *inode, struct kstat *st,
 
 	au_cpup_attr_nlink(inode, /*force*/0);
 	if (S_ISDIR(inode->i_mode)) {
-		inode->i_nlink -= nlink;
-		inode->i_nlink += st->nlink;
+		n = inode->i_nlink;
+		n -= nlink;
+		n += st->nlink;
+		set_nlink(inode, n);
 	}
 
 	spin_lock(&inode->i_lock);
