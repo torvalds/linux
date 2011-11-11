@@ -137,7 +137,7 @@ static int dbgaufs_xino_open(struct inode *inode, struct file *file)
 		     || memcmp(name->name, DbgaufsXi_PREFIX,
 			       sizeof(DbgaufsXi_PREFIX) - 1)))
 		goto out;
-	err = strict_strtol(name->name + sizeof(DbgaufsXi_PREFIX) - 1, 10, &l);
+	err = kstrtol(name->name + sizeof(DbgaufsXi_PREFIX) - 1, 10, &l);
 	if (unlikely(err))
 		goto out;
 
