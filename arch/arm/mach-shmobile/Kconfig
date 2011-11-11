@@ -33,7 +33,6 @@ config ARCH_R8A7740
 	select CPU_V7
 	select SH_CLK_CPG
 	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
 
 comment "SH-Mobile Board Type"
 

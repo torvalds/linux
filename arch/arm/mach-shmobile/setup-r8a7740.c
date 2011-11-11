@@ -35,7 +35,7 @@ static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(100)),
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0c00)),
 };
 
 static struct platform_device scif0_device = {
@@ -53,7 +53,7 @@ static struct plat_sci_port scif1_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(101)),
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0c20)),
 };
 
 static struct platform_device scif1_device = {
@@ -71,7 +71,7 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(102)),
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0c40)),
 };
 
 static struct platform_device scif2_device = {
@@ -89,7 +89,7 @@ static struct plat_sci_port scif3_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(103)),
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0c60)),
 };
 
 static struct platform_device scif3_device = {
@@ -107,7 +107,7 @@ static struct plat_sci_port scif4_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(104)),
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0d20)),
 };
 
 static struct platform_device scif4_device = {
@@ -125,7 +125,7 @@ static struct plat_sci_port scif5_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(105)),
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0d40)),
 };
 
 static struct platform_device scif5_device = {
@@ -143,7 +143,7 @@ static struct plat_sci_port scif6_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(106)),
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x04c0)),
 };
 
 static struct platform_device scif6_device = {
@@ -161,7 +161,7 @@ static struct plat_sci_port scif7_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(107)),
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x04e0)),
 };
 
 static struct platform_device scif7_device = {
@@ -179,7 +179,7 @@ static struct plat_sci_port scifb_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFB,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(108)),
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0d60)),
 };
 
 static struct platform_device scifb_device = {
@@ -207,7 +207,7 @@ static struct resource cmt10_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gic_spi(58),
+		.start	= evt2irq(0x0b00),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -244,8 +244,8 @@ static struct resource i2c0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gic_spi(201),
-		.end	= gic_spi(204),
+		.start	= intcs_evt2irq(0xe00),
+		.end	= intcs_evt2irq(0xe60),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -258,8 +258,8 @@ static struct resource i2c1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gic_spi(70),
-		.end	= gic_spi(73),
+		.start  = evt2irq(0x780), /* IIC1_ALI1 */
+		.end    = evt2irq(0x7e0), /* IIC1_DTEI1 */
 		.flags	= IORESOURCE_IRQ,
 	},
 };
