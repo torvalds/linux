@@ -196,8 +196,8 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		snd_soc_update_bits(codec, MD_CTL3, BST1, BST1);
 		snd_soc_write(codec, L_IVC, 0x91); /* volume */
 		snd_soc_write(codec, R_IVC, 0x91); /* volume */
-		snd_soc_update_bits(codec, PW_MGMT1, PMVCM | PMMIN | PMDAC,
-						     PMVCM | PMMIN | PMDAC);
+		snd_soc_update_bits(codec, PW_MGMT1, PMMIN | PMDAC,
+						     PMMIN | PMDAC);
 		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	PMHP);
 		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	HPMTN);
 	} else {
@@ -217,8 +217,7 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		snd_soc_write(codec, SG_SL1, PMMP | MGAIN0);
 		snd_soc_write(codec, TIMER, ZTM(0x3) | WTM(0x3));
 		snd_soc_write(codec, ALC_CTL1, ALC | LMTH0);
-		snd_soc_update_bits(codec, PW_MGMT1, PMVCM | PMADL,
-						     PMVCM | PMADL);
+		snd_soc_update_bits(codec, PW_MGMT1, PMADL, PMADL);
 		snd_soc_update_bits(codec, PW_MGMT3, PMADR, PMADR);
 	}
 
@@ -376,6 +375,22 @@ static int ak4642_dai_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int ak4642_set_bias_level(struct snd_soc_codec *codec,
+				 enum snd_soc_bias_level level)
+{
+	switch (level) {
+	case SND_SOC_BIAS_OFF:
+		snd_soc_write(codec, PW_MGMT1, 0x00);
+		break;
+	default:
+		snd_soc_update_bits(codec, PW_MGMT1, PMVCM, PMVCM);
+		break;
+	}
+	codec->dapm.bias_level = level;
+
+	return 0;
+}
+
 static struct snd_soc_dai_ops ak4642_dai_ops = {
 	.startup	= ak4642_dai_startup,
 	.shutdown	= ak4642_dai_shutdown,
@@ -425,12 +440,22 @@ static int ak4642_probe(struct snd_soc_codec *codec)
 	snd_soc_add_controls(codec, ak4642_snd_controls,
 			     ARRAY_SIZE(ak4642_snd_controls));
 
+	ak4642_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	return 0;
+}
+
+static int ak4642_remove(struct snd_soc_codec *codec)
+{
+	ak4642_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_ak4642 = {
 	.probe			= ak4642_probe,
+	.remove			= ak4642_remove,
 	.resume			= ak4642_resume,
+	.set_bias_level		= ak4642_set_bias_level,
 	.reg_cache_size		= ARRAY_SIZE(ak4642_reg),
 	.reg_word_size		= sizeof(u8),
 	.reg_cache_default	= ak4642_reg,
