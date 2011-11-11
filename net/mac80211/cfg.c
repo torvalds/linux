@@ -2570,12 +2570,13 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 
 	rcu_read_lock();
 	sta = sta_info_get(sdata, peer);
-	if (sta)
+	if (sta) {
 		qos = test_sta_flag(sta, WLAN_STA_WME);
-	rcu_read_unlock();
-
-	if (!sta)
+		rcu_read_unlock();
+	} else {
+		rcu_read_unlock();
 		return -ENOLINK;
+	}
 
 	if (qos) {
 		fc = cpu_to_le16(IEEE80211_FTYPE_DATA |
