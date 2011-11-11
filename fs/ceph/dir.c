@@ -973,7 +973,7 @@ static int dentry_lease_is_valid(struct dentry *dentry)
 
 	spin_lock(&dentry->d_lock);
 	di = ceph_dentry(dentry);
-	if (di && di->lease_session) {
+	if (di->lease_session) {
 		s = di->lease_session;
 		spin_lock(&s->s_cap_lock);
 		gen = s->s_cap_gen;
@@ -1072,13 +1072,11 @@ static void ceph_d_release(struct dentry *dentry)
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 
 	dout("d_release %p\n", dentry);
-	if (di) {
-		ceph_dentry_lru_del(dentry);
-		if (di->lease_session)
-			ceph_put_mds_session(di->lease_session);
-		kmem_cache_free(ceph_dentry_cachep, di);
-		dentry->d_fsdata = NULL;
-	}
+	ceph_dentry_lru_del(dentry);
+	if (di->lease_session)
+		ceph_put_mds_session(di->lease_session);
+	kmem_cache_free(ceph_dentry_cachep, di);
+	dentry->d_fsdata = NULL;
 }
 
 static int ceph_snapdir_d_revalidate(struct dentry *dentry,
@@ -1259,13 +1257,11 @@ void ceph_dentry_lru_add(struct dentry *dn)
 
 	dout("dentry_lru_add %p %p '%.*s'\n", di, dn,
 	     dn->d_name.len, dn->d_name.name);
-	if (di) {
-		mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
-		spin_lock(&mdsc->dentry_lru_lock);
-		list_add_tail(&di->lru, &mdsc->dentry_lru);
-		mdsc->num_dentry++;
-		spin_unlock(&mdsc->dentry_lru_lock);
-	}
+	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
+	spin_lock(&mdsc->dentry_lru_lock);
+	list_add_tail(&di->lru, &mdsc->dentry_lru);
+	mdsc->num_dentry++;
+	spin_unlock(&mdsc->dentry_lru_lock);
 }
 
 void ceph_dentry_lru_touch(struct dentry *dn)
@@ -1275,12 +1271,10 @@ void ceph_dentry_lru_touch(struct dentry *dn)
 
 	dout("dentry_lru_touch %p %p '%.*s' (offset %lld)\n", di, dn,
 	     dn->d_name.len, dn->d_name.name, di->offset);
-	if (di) {
-		mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
-		spin_lock(&mdsc->dentry_lru_lock);
-		list_move_tail(&di->lru, &mdsc->dentry_lru);
-		spin_unlock(&mdsc->dentry_lru_lock);
-	}
+	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
+	spin_lock(&mdsc->dentry_lru_lock);
+	list_move_tail(&di->lru, &mdsc->dentry_lru);
+	spin_unlock(&mdsc->dentry_lru_lock);
 }
 
 void ceph_dentry_lru_del(struct dentry *dn)
@@ -1290,13 +1284,11 @@ void ceph_dentry_lru_del(struct dentry *dn)
 
 	dout("dentry_lru_del %p %p '%.*s'\n", di, dn,
 	     dn->d_name.len, dn->d_name.name);
-	if (di) {
-		mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
-		spin_lock(&mdsc->dentry_lru_lock);
-		list_del_init(&di->lru);
-		mdsc->num_dentry--;
-		spin_unlock(&mdsc->dentry_lru_lock);
-	}
+	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
+	spin_lock(&mdsc->dentry_lru_lock);
+	list_del_init(&di->lru);
+	mdsc->num_dentry--;
+	spin_unlock(&mdsc->dentry_lru_lock);
 }
 
 /*
