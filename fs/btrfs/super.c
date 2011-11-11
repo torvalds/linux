@@ -197,7 +197,7 @@ static match_table_t tokens = {
 	{Opt_subvolrootid, "subvolrootid=%d"},
 	{Opt_defrag, "autodefrag"},
 	{Opt_inode_cache, "inode_cache"},
-	{Opt_no_space_cache, "no_space_cache"},
+	{Opt_no_space_cache, "nospace_cache"},
 	{Opt_recovery, "recovery"},
 	{Opt_err, NULL},
 };
@@ -711,7 +711,7 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (btrfs_test_opt(root, SPACE_CACHE))
 		seq_puts(seq, ",space_cache");
 	else
-		seq_puts(seq, ",no_space_cache");
+		seq_puts(seq, ",nospace_cache");
 	if (btrfs_test_opt(root, CLEAR_CACHE))
 		seq_puts(seq, ",clear_cache");
 	if (btrfs_test_opt(root, USER_SUBVOL_RM_ALLOWED))
