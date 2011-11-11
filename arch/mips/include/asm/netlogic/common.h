@@ -32,69 +32,25 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/init.h>
-
-#include <asm/asm.h>
-#include <asm/asm-offsets.h>
-#include <asm/regdef.h>
-#include <asm/mipsregs.h>
+#ifndef _NETLOGIC_COMMON_H_
+#define _NETLOGIC_COMMON_H_
 
 /*
- * Early code for secondary CPUs. This will get them out of the bootloader
- * code and into linux. Needed because the bootloader area will be taken
- * and initialized by linux.
+ * Common SMP definitions
  */
-	__CPUINIT
-NESTED(prom_pre_boot_secondary_cpus, 16, sp)
-	.set	mips64
-	mfc0	t0, $15, 1	# read ebase
-	andi	t0, 0x1f	# t0 has the processor_id()
-	sll	t0, 2		# offset in cpu array
-
-	PTR_LA	t1, nlm_cpu_ready # mark CPU ready
-	PTR_ADDU t1, t0
-	li	t2, 1
-	sw	t2, 0(t1)
-
-	PTR_LA	t1, nlm_cpu_unblock
-	PTR_ADDU t1, t0
-1:	lw	t2, 0(t1)	# wait till unblocked
-	beqz	t2, 1b
-	nop
-
-	PTR_LA	t1, nlm_next_sp
-	PTR_L	sp, 0(t1)
-	PTR_LA	t1, nlm_next_gp
-	PTR_L	gp, 0(t1)
-
-	PTR_LA	t0, nlm_early_init_secondary
-	jalr	t0
-	nop
-
-	PTR_LA	t0, smp_bootstrap
-	jr	t0
-	nop
-END(prom_pre_boot_secondary_cpus)
+struct irq_desc;
+extern struct plat_smp_ops nlm_smp_ops;
+extern char nlm_reset_entry[], nlm_reset_entry_end[];
+void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc);
+void nlm_smp_resched_ipi_handler(unsigned int irq, struct irq_desc *desc);
+void nlm_smp_irq_init(void);
+void prom_pre_boot_secondary_cpus(void);
+int nlm_wakeup_secondary_cpus(u32 wakeup_mask);
+void nlm_boot_smp_nmi(void);
 
 /*
- * NMI code, used for CPU wakeup, copied to reset entry
+ * Misc.
  */
-EXPORT(nlm_reset_entry)
-	.set push
-	.set noat
-	.set mips64
-	.set noreorder
-
-	/* Clear the  NMI and BEV bits */
-	MFC0	k0, CP0_STATUS
-	li 	k1, 0xffb7ffff
-	and	k0, k0, k1
-	MTC0	k0, CP0_STATUS
-
-	PTR_LA  k1, secondary_entry_point
-	PTR_L	k0, 0(k1)
-	jr	k0
-	nop
-	.set pop
-EXPORT(nlm_reset_entry_end)
-	__FINIT
+extern unsigned long nlm_common_ebase;
+unsigned int	 nlm_get_cpu_frequency(void);
+#endif /* _NETLOGIC_COMMON_H_ */

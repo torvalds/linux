@@ -42,31 +42,20 @@
 
 #include <asm/netlogic/interrupt.h>
 #include <asm/netlogic/mips-extns.h>
+#include <asm/netlogic/haldefs.h>
+#include <asm/netlogic/common.h>
 
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
-#include <asm/netlogic/xlr/xlr.h>
 
-void core_send_ipi(int logical_cpu, unsigned int action)
+void nlm_send_ipi_single(int logical_cpu, unsigned int action)
 {
 	int cpu = cpu_logical_map(logical_cpu);
-	u32 tid = cpu & 0x3;
-	u32 pid = (cpu >> 2) & 0x07;
-	u32 ipi = (tid << 16) | (pid << 20);
 
 	if (action & SMP_CALL_FUNCTION)
-		ipi |= IRQ_IPI_SMP_FUNCTION;
-	else if (action & SMP_RESCHEDULE_YOURSELF)
-		ipi |= IRQ_IPI_SMP_RESCHEDULE;
-	else
-		return;
-
-	pic_send_ipi(ipi);
-}
-
-void nlm_send_ipi_single(int cpu, unsigned int action)
-{
-	core_send_ipi(cpu, action);
+		nlm_pic_send_ipi(nlm_pic_base, cpu, IRQ_IPI_SMP_FUNCTION, 0);
+	if (action & SMP_RESCHEDULE_YOURSELF)
+		nlm_pic_send_ipi(nlm_pic_base, cpu, IRQ_IPI_SMP_RESCHEDULE, 0);
 }
 
 void nlm_send_ipi_mask(const struct cpumask *mask, unsigned int action)
@@ -74,7 +63,7 @@ void nlm_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 	int cpu;
 
 	for_each_cpu(cpu, mask) {
-		core_send_ipi(cpu, action);
+		nlm_send_ipi_single(cpu, action);
 	}
 }
 
@@ -82,21 +71,26 @@ void nlm_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc)
 {
 	smp_call_function_interrupt();
+	write_c0_eirr(1ull << irq);
 }
 
 /* IRQ_IPI_SMP_RESCHEDULE  handler */
 void nlm_smp_resched_ipi_handler(unsigned int irq, struct irq_desc *desc)
 {
 	scheduler_ipi();
+	write_c0_eirr(1ull << irq);
 }
 
 /*
  * Called before going into mips code, early cpu init
  */
-void nlm_early_init_secondary(void)
+void nlm_early_init_secondary(int cpu)
 {
 	write_c0_ebase((uint32_t)nlm_common_ebase);
-	/* TLB partition here later */
+#ifdef NLM_XLP
+	if (cpu % 4 == 0)
+		xlp_mmu_init();
+#endif
 }
 
 /*
@@ -159,8 +153,8 @@ void __init nlm_smp_setup(void)
 	num_cpus = 1;
 	for (i = 0; i < NR_CPUS; i++) {
 		/*
-		 * BSP is not set in nlm_cpu_ready array, it is only for
-		 * ASPs (goto see smpboot.S)
+		 * nlm_cpu_ready array is not set for the boot_cpu,
+		 * it is only set for ASPs (see smpboot.S)
 		 */
 		if (nlm_cpu_ready[i]) {
 			cpu_set(i, phys_cpu_present_map);
@@ -192,29 +186,3 @@ struct plat_smp_ops nlm_smp_ops = {
 	.smp_setup		= nlm_smp_setup,
 	.prepare_cpus		= nlm_prepare_cpus,
 };
-
-unsigned long secondary_entry_point;
-
-int __cpuinit nlm_wakeup_secondary_cpus(u32 wakeup_mask)
-{
-	unsigned int tid, pid, ipi, i, boot_cpu;
-	void *reset_vec;
-
-	secondary_entry_point = (unsigned long)prom_pre_boot_secondary_cpus;
-	reset_vec = (void *)CKSEG1ADDR(0x1fc00000);
-	memcpy(reset_vec, nlm_boot_smp_nmi, 0x80);
-	boot_cpu = hard_smp_processor_id();
-
-	for (i = 0; i < NR_CPUS; i++) {
-		if (i == boot_cpu)
-			continue;
-		if (wakeup_mask & (1u << i)) {
-			tid = i & 0x3;
-			pid = (i >> 2) & 0x7;
-			ipi = (tid << 16) | (pid << 20) | (1 << 8);
-			pic_send_ipi(ipi);
-		}
-	}
-
-	return 0;
-}

@@ -34,67 +34,18 @@
 
 #include <linux/init.h>
 
-#include <asm/asm.h>
-#include <asm/asm-offsets.h>
-#include <asm/regdef.h>
-#include <asm/mipsregs.h>
+#include <asm/time.h>
+#include <asm/netlogic/interrupt.h>
+#include <asm/netlogic/common.h>
 
-/*
- * Early code for secondary CPUs. This will get them out of the bootloader
- * code and into linux. Needed because the bootloader area will be taken
- * and initialized by linux.
- */
-	__CPUINIT
-NESTED(prom_pre_boot_secondary_cpus, 16, sp)
-	.set	mips64
-	mfc0	t0, $15, 1	# read ebase
-	andi	t0, 0x1f	# t0 has the processor_id()
-	sll	t0, 2		# offset in cpu array
+unsigned int __cpuinit get_c0_compare_int(void)
+{
+	return IRQ_TIMER;
+}
 
-	PTR_LA	t1, nlm_cpu_ready # mark CPU ready
-	PTR_ADDU t1, t0
-	li	t2, 1
-	sw	t2, 0(t1)
-
-	PTR_LA	t1, nlm_cpu_unblock
-	PTR_ADDU t1, t0
-1:	lw	t2, 0(t1)	# wait till unblocked
-	beqz	t2, 1b
-	nop
-
-	PTR_LA	t1, nlm_next_sp
-	PTR_L	sp, 0(t1)
-	PTR_LA	t1, nlm_next_gp
-	PTR_L	gp, 0(t1)
-
-	PTR_LA	t0, nlm_early_init_secondary
-	jalr	t0
-	nop
-
-	PTR_LA	t0, smp_bootstrap
-	jr	t0
-	nop
-END(prom_pre_boot_secondary_cpus)
-
-/*
- * NMI code, used for CPU wakeup, copied to reset entry
- */
-EXPORT(nlm_reset_entry)
-	.set push
-	.set noat
-	.set mips64
-	.set noreorder
-
-	/* Clear the  NMI and BEV bits */
-	MFC0	k0, CP0_STATUS
-	li 	k1, 0xffb7ffff
-	and	k0, k0, k1
-	MTC0	k0, CP0_STATUS
-
-	PTR_LA  k1, secondary_entry_point
-	PTR_L	k0, 0(k1)
-	jr	k0
-	nop
-	.set pop
-EXPORT(nlm_reset_entry_end)
-	__FINIT
+void __init plat_time_init(void)
+{
+	mips_hpt_frequency = nlm_get_cpu_frequency();
+	pr_info("MIPS counter frequency [%ld]\n",
+			(unsigned long)mips_hpt_frequency);
+}

@@ -32,20 +32,20 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/init.h>
+#include <linux/types.h>
+#include <linux/serial_reg.h>
 
-#include <asm/time.h>
-#include <asm/netlogic/interrupt.h>
-#include <asm/netlogic/psb-bootinfo.h>
+#include <asm/mipsregs.h>
+#include <asm/netlogic/haldefs.h>
 
-unsigned int __cpuinit get_c0_compare_int(void)
+#include <asm/netlogic/xlr/iomap.h>
+
+void prom_putchar(char c)
 {
-	return IRQ_TIMER;
-}
+	uint64_t uartbase;
 
-void __init plat_time_init(void)
-{
-	mips_hpt_frequency = nlm_prom_info.cpu_frequency;
-	pr_info("MIPS counter frequency [%ld]\n",
-		(unsigned long)mips_hpt_frequency);
+	uartbase = nlm_mmio_base(NETLOGIC_IO_UART_0_OFFSET);
+	while (nlm_read_reg(uartbase, UART_LSR) == 0)
+		;
+	nlm_write_reg(uartbase, UART_TX, c);
 }
