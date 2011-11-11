@@ -2201,6 +2201,9 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		if (ret)
 			goto out;
 	}
+	/* release the path since we're done with it */
+	btrfs_release_path(path);
+
 	root->orphan_cleanup_state = ORPHAN_CLEANUP_DONE;
 
 	if (root->orphan_block_rsv)
