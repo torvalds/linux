@@ -158,11 +158,16 @@ static const struct snd_kcontrol_new ak4642_hpout_mixer_controls[] = {
 	SOC_DAPM_SINGLE("DACH", MD_CTL4, 0, 1, 0),
 };
 
+static const struct snd_kcontrol_new ak4642_lout_mixer_controls[] = {
+	SOC_DAPM_SINGLE("DACL", SG_SL1, 4, 1, 0),
+};
+
 static const struct snd_soc_dapm_widget ak4642_dapm_widgets[] = {
 
 	/* Outputs */
 	SND_SOC_DAPM_OUTPUT("HPOUTL"),
 	SND_SOC_DAPM_OUTPUT("HPOUTR"),
+	SND_SOC_DAPM_OUTPUT("LINEOUT"),
 
 	SND_SOC_DAPM_MIXER("HPOUTL Mixer", PW_MGMT2, 5, 0,
 			   &ak4642_hpout_mixer_controls[0],
@@ -171,6 +176,10 @@ static const struct snd_soc_dapm_widget ak4642_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("HPOUTR Mixer", PW_MGMT2, 4, 0,
 			   &ak4642_hpout_mixer_controls[0],
 			   ARRAY_SIZE(ak4642_hpout_mixer_controls)),
+
+	SND_SOC_DAPM_MIXER("LINEOUT Mixer", PW_MGMT1, 3, 0,
+			   &ak4642_lout_mixer_controls[0],
+			   ARRAY_SIZE(ak4642_lout_mixer_controls)),
 
 	/* DAC */
 	SND_SOC_DAPM_DAC("DAC", "HiFi Playback", PW_MGMT1, 2, 0),
@@ -181,9 +190,11 @@ static const struct snd_soc_dapm_route ak4642_intercon[] = {
 	/* Outputs */
 	{"HPOUTL", NULL, "HPOUTL Mixer"},
 	{"HPOUTR", NULL, "HPOUTR Mixer"},
+	{"LINEOUT", NULL, "LINEOUT Mixer"},
 
 	{"HPOUTL Mixer", "DACH", "DAC"},
 	{"HPOUTR Mixer", "DACH", "DAC"},
+	{"LINEOUT Mixer", "DACL", "DAC"},
 };
 
 /* codec private data */
