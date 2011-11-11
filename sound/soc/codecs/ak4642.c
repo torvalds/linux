@@ -152,6 +152,37 @@ static const struct snd_kcontrol_new ak4642_snd_controls[] = {
 			 0, 0xFF, 1, out_tlv),
 };
 
+static const struct snd_kcontrol_new ak4642_hpout_mixer_controls[] = {
+	SOC_DAPM_SINGLE("DACH", MD_CTL4, 0, 1, 0),
+};
+
+static const struct snd_soc_dapm_widget ak4642_dapm_widgets[] = {
+
+	/* Outputs */
+	SND_SOC_DAPM_OUTPUT("HPOUTL"),
+	SND_SOC_DAPM_OUTPUT("HPOUTR"),
+
+	SND_SOC_DAPM_MIXER("HPOUTL Mixer", PW_MGMT2, 5, 0,
+			   &ak4642_hpout_mixer_controls[0],
+			   ARRAY_SIZE(ak4642_hpout_mixer_controls)),
+
+	SND_SOC_DAPM_MIXER("HPOUTR Mixer", PW_MGMT2, 4, 0,
+			   &ak4642_hpout_mixer_controls[0],
+			   ARRAY_SIZE(ak4642_hpout_mixer_controls)),
+
+	/* DAC */
+	SND_SOC_DAPM_DAC("DAC", "HiFi Playback", PW_MGMT1, 2, 0),
+};
+
+static const struct snd_soc_dapm_route ak4642_intercon[] = {
+
+	/* Outputs */
+	{"HPOUTL", NULL, "HPOUTL Mixer"},
+	{"HPOUTR", NULL, "HPOUTR Mixer"},
+
+	{"HPOUTL Mixer", "DACH", "DAC"},
+	{"HPOUTR Mixer", "DACH", "DAC"},
+};
 
 /* codec private data */
 struct ak4642_priv {
@@ -192,13 +223,8 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 * This operation came from example code of
 		 * "ASAHI KASEI AK4642" (japanese) manual p97.
 		 */
-		snd_soc_update_bits(codec, MD_CTL4, DACH, DACH);
-		snd_soc_update_bits(codec, MD_CTL3, BST1, BST1);
 		snd_soc_write(codec, L_IVC, 0x91); /* volume */
 		snd_soc_write(codec, R_IVC, 0x91); /* volume */
-		snd_soc_update_bits(codec, PW_MGMT1, PMMIN | PMDAC,
-						     PMMIN | PMDAC);
-		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	PMHP);
 		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	HPMTN);
 	} else {
 		/*
@@ -233,10 +259,6 @@ static void ak4642_dai_shutdown(struct snd_pcm_substream *substream,
 	if (is_play) {
 		/* stop headphone output */
 		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	0);
-		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	0);
-		snd_soc_update_bits(codec, PW_MGMT1, PMMIN | PMDAC, 0);
-		snd_soc_update_bits(codec, MD_CTL3, BST1, 0);
-		snd_soc_update_bits(codec, MD_CTL4, DACH, 0);
 	} else {
 		/* stop stereo input */
 		snd_soc_update_bits(codec, PW_MGMT1, PMADL, 0);
@@ -459,6 +481,10 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4642 = {
 	.reg_cache_size		= ARRAY_SIZE(ak4642_reg),
 	.reg_word_size		= sizeof(u8),
 	.reg_cache_default	= ak4642_reg,
+	.dapm_widgets		= ak4642_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ak4642_dapm_widgets),
+	.dapm_routes		= ak4642_intercon,
+	.num_dapm_routes	= ARRAY_SIZE(ak4642_intercon),
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
