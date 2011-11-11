@@ -35,12 +35,16 @@
 #include "nouveau_fb.h"
 #include "nv50_display.h"
 
+#define EVO_MASTER  (0x00)
+#define EVO_SYNC(c) (0x01 + (c))
+#define EVO_CURS(c) (0x0d + (c))
+
 struct nvd0_display {
 	struct nouveau_gpuobj *mem;
 	struct {
 		dma_addr_t handle;
 		u32 *ptr;
-	} evo[1];
+	} evo[3];
 
 	struct tasklet_struct tasklet;
 	u32 modeset;
@@ -53,6 +57,15 @@ nvd0_display(struct drm_device *dev)
 	return dev_priv->engine.display.priv;
 }
 
+static struct drm_crtc *
+nvd0_display_crtc_get(struct drm_encoder *encoder)
+{
+	return nouveau_encoder(encoder)->crtc;
+}
+
+/******************************************************************************
+ * EVO channel helpers
+ *****************************************************************************/
 static inline int
 evo_icmd(struct drm_device *dev, int id, u32 mthd, u32 data)
 {
@@ -110,10 +123,72 @@ evo_kick(u32 *push, struct drm_device *dev, int id)
 #define evo_mthd(p,m,s) *((p)++) = (((s) << 18) | (m))
 #define evo_data(p,d)   *((p)++) = (d)
 
-static struct drm_crtc *
-nvd0_display_crtc_get(struct drm_encoder *encoder)
+static int
+evo_init_dma(struct drm_device *dev, int ch)
 {
-	return nouveau_encoder(encoder)->crtc;
+	struct nvd0_display *disp = nvd0_display(dev);
+	u32 flags;
+
+	flags = 0x00000000;
+	if (ch == EVO_MASTER)
+		flags |= 0x01000000;
+
+	nv_wr32(dev, 0x610494 + (ch * 0x0010), (disp->evo[ch].handle >> 8) | 3);
+	nv_wr32(dev, 0x610498 + (ch * 0x0010), 0x00010000);
+	nv_wr32(dev, 0x61049c + (ch * 0x0010), 0x00000001);
+	nv_mask(dev, 0x610490 + (ch * 0x0010), 0x00000010, 0x00000010);
+	nv_wr32(dev, 0x640000 + (ch * 0x1000), 0x00000000);
+	nv_wr32(dev, 0x610490 + (ch * 0x0010), 0x00000013 | flags);
+	if (!nv_wait(dev, 0x610490 + (ch * 0x0010), 0x80000000, 0x00000000)) {
+		NV_ERROR(dev, "PDISP: ch%d 0x%08x\n", ch,
+			      nv_rd32(dev, 0x610490 + (ch * 0x0010)));
+		return -EBUSY;
+	}
+
+	nv_mask(dev, 0x610090, (1 << ch), (1 << ch));
+	nv_mask(dev, 0x6100a0, (1 << ch), (1 << ch));
+	return 0;
+}
+
+static void
+evo_fini_dma(struct drm_device *dev, int ch)
+{
+	if (!(nv_rd32(dev, 0x610490 + (ch * 0x0010)) & 0x00000010))
+		return;
+
+	nv_mask(dev, 0x610490 + (ch * 0x0010), 0x00000010, 0x00000000);
+	nv_mask(dev, 0x610490 + (ch * 0x0010), 0x00000003, 0x00000000);
+	nv_wait(dev, 0x610490 + (ch * 0x0010), 0x80000000, 0x00000000);
+	nv_mask(dev, 0x610090, (1 << ch), 0x00000000);
+	nv_mask(dev, 0x6100a0, (1 << ch), 0x00000000);
+}
+
+static int
+evo_init_pio(struct drm_device *dev, int ch)
+{
+	nv_wr32(dev, 0x610490 + (ch * 0x0010), 0x00000001);
+	if (!nv_wait(dev, 0x610490 + (ch * 0x0010), 0x00010000, 0x00010000)) {
+		NV_ERROR(dev, "PDISP: ch%d 0x%08x\n", ch,
+			      nv_rd32(dev, 0x610490 + (ch * 0x0010)));
+		return -EBUSY;
+	}
+
+	nv_mask(dev, 0x610090, (1 << ch), (1 << ch));
+	nv_mask(dev, 0x6100a0, (1 << ch), (1 << ch));
+	return 0;
+}
+
+static void
+evo_fini_pio(struct drm_device *dev, int ch)
+{
+	if (!(nv_rd32(dev, 0x610490 + (ch * 0x0010)) & 0x00000001))
+		return;
+
+	nv_mask(dev, 0x610490 + (ch * 0x0010), 0x00000010, 0x00000010);
+	nv_mask(dev, 0x610490 + (ch * 0x0010), 0x00000001, 0x00000000);
+	nv_wait(dev, 0x610490 + (ch * 0x0010), 0x00010000, 0x00000000);
+	nv_mask(dev, 0x610090, (1 << ch), 0x00000000);
+	nv_mask(dev, 0x6100a0, (1 << ch), 0x00000000);
 }
 
 /******************************************************************************
@@ -1396,33 +1471,22 @@ nvd0_display_fini(struct drm_device *dev)
 {
 	int i;
 
-	/* fini cursors */
-	for (i = 14; i >= 13; i--) {
-		if (!(nv_rd32(dev, 0x610490 + (i * 0x10)) & 0x00000001))
-			continue;
-
-		nv_mask(dev, 0x610490 + (i * 0x10), 0x00000001, 0x00000000);
-		nv_wait(dev, 0x610490 + (i * 0x10), 0x00010000, 0x00000000);
-		nv_mask(dev, 0x610090, 1 << i, 0x00000000);
-		nv_mask(dev, 0x6100a0, 1 << i, 0x00000000);
+	/* fini cursors + syncs */
+	for (i = 1; i >= 0; i--) {
+		evo_fini_pio(dev, EVO_CURS(i));
+		evo_fini_dma(dev, EVO_SYNC(i));
 	}
 
 	/* fini master */
-	if (nv_rd32(dev, 0x610490) & 0x00000010) {
-		nv_mask(dev, 0x610490, 0x00000010, 0x00000000);
-		nv_mask(dev, 0x610490, 0x00000003, 0x00000000);
-		nv_wait(dev, 0x610490, 0x80000000, 0x00000000);
-		nv_mask(dev, 0x610090, 0x00000001, 0x00000000);
-		nv_mask(dev, 0x6100a0, 0x00000001, 0x00000000);
-	}
+	evo_fini_dma(dev, EVO_MASTER);
 }
 
 int
 nvd0_display_init(struct drm_device *dev)
 {
 	struct nvd0_display *disp = nvd0_display(dev);
+	int ret, i;
 	u32 *push;
-	int i;
 
 	if (nv_rd32(dev, 0x6100ac) & 0x00000100) {
 		nv_wr32(dev, 0x6100ac, 0x00000100);
@@ -1447,7 +1511,7 @@ nvd0_display_init(struct drm_device *dev)
 		nv_wr32(dev, 0x6301c4 + (i * 0x800), sor);
 	}
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < dev->mode_config.num_crtc; i++) {
 		u32 crtc0 = nv_rd32(dev, 0x616104 + (i * 0x800));
 		u32 crtc1 = nv_rd32(dev, 0x616108 + (i * 0x800));
 		u32 crtc2 = nv_rd32(dev, 0x61610c + (i * 0x800));
@@ -1461,36 +1525,22 @@ nvd0_display_init(struct drm_device *dev)
 	nv_mask(dev, 0x6100b0, 0x00000307, 0x00000307);
 
 	/* init master */
-	nv_wr32(dev, 0x610494, (disp->evo[0].handle >> 8) | 3);
-	nv_wr32(dev, 0x610498, 0x00010000);
-	nv_wr32(dev, 0x61049c, 0x00000001);
-	nv_mask(dev, 0x610490, 0x00000010, 0x00000010);
-	nv_wr32(dev, 0x640000, 0x00000000);
-	nv_wr32(dev, 0x610490, 0x01000013);
-	if (!nv_wait(dev, 0x610490, 0x80000000, 0x00000000)) {
-		NV_ERROR(dev, "PDISP: master 0x%08x\n",
-			 nv_rd32(dev, 0x610490));
-		return -EBUSY;
-	}
-	nv_mask(dev, 0x610090, 0x00000001, 0x00000001);
-	nv_mask(dev, 0x6100a0, 0x00000001, 0x00000001);
+	ret = evo_init_dma(dev, EVO_MASTER);
+	if (ret)
+		goto error;
 
-	/* init cursors */
-	for (i = 13; i <= 14; i++) {
-		nv_wr32(dev, 0x610490 + (i * 0x10), 0x00000001);
-		if (!nv_wait(dev, 0x610490 + (i * 0x10), 0x00010000, 0x00010000)) {
-			NV_ERROR(dev, "PDISP: curs%d 0x%08x\n", i,
-				 nv_rd32(dev, 0x610490 + (i * 0x10)));
-			return -EBUSY;
-		}
-
-		nv_mask(dev, 0x610090, 1 << i, 1 << i);
-		nv_mask(dev, 0x6100a0, 1 << i, 1 << i);
+	/* init syncs + cursors */
+	for (i = 0; i < dev->mode_config.num_crtc; i++) {
+		if ((ret = evo_init_dma(dev, EVO_SYNC(i))) ||
+		    (ret = evo_init_pio(dev, EVO_CURS(i))))
+			goto error;
 	}
 
 	push = evo_wait(dev, 0, 32);
-	if (!push)
-		return -EBUSY;
+	if (!push) {
+		ret = -EBUSY;
+		goto error;
+	}
 	evo_mthd(push, 0x0088, 1);
 	evo_data(push, NvEvoSync);
 	evo_mthd(push, 0x0084, 1);
@@ -1501,7 +1551,10 @@ nvd0_display_init(struct drm_device *dev)
 	evo_data(push, 0x00000000);
 	evo_kick(push, dev, 0);
 
-	return 0;
+error:
+	if (ret)
+		nvd0_display_fini(dev);
+	return ret;
 }
 
 void
@@ -1510,8 +1563,13 @@ nvd0_display_destroy(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvd0_display *disp = nvd0_display(dev);
 	struct pci_dev *pdev = dev->pdev;
+	int i;
 
-	pci_free_consistent(pdev, PAGE_SIZE, disp->evo[0].ptr, disp->evo[0].handle);
+	for (i = 0; i < 3; i++) {
+		pci_free_consistent(pdev, PAGE_SIZE, disp->evo[i].ptr,
+				    disp->evo[i].handle);
+	}
+
 	nouveau_gpuobj_ref(NULL, &disp->mem);
 	nouveau_irq_unregister(dev, 26);
 
@@ -1629,11 +1687,13 @@ nvd0_display_create(struct drm_device *dev)
 	pinstmem->flush(dev);
 
 	/* push buffers for evo channels */
-	disp->evo[0].ptr =
-		pci_alloc_consistent(pdev, PAGE_SIZE, &disp->evo[0].handle);
-	if (!disp->evo[0].ptr) {
-		ret = -ENOMEM;
-		goto out;
+	for (i = 0; i < 3; i++) {
+		disp->evo[i].ptr = pci_alloc_consistent(pdev, PAGE_SIZE,
+							&disp->evo[i].handle);
+		if (!disp->evo[i].ptr) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
 
 out:
