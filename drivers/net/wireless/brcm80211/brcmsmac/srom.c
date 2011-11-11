@@ -638,7 +638,7 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, struct list_head *var_list)
 	struct brcms_srom_list_head *entry;
 	enum brcms_srom_id id;
 	u16 w;
-	u32 val;
+	u32 val = 0;
 	const struct brcms_sromvar *srv;
 	uint width;
 	uint flags;
