@@ -698,6 +698,7 @@ enum {
 	AHEAD_TO_SYNC_SOURCE,   /* Ahead -> SyncSource queued */
 	B_RS_H_DONE,		/* Before resync handler done (already executed) */
 	DISCARD_MY_DATA,	/* discard_my_data flag per volume */
+	READ_BALANCE_RR,
 };
 
 struct drbd_bitmap; /* opaque for drbd_conf */

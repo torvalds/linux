@@ -4974,7 +4974,7 @@ static int got_NegDReply(struct drbd_tconn *tconn, struct packet_info *pi)
 
 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
 
-	dev_err(DEV, "Got NegDReply; Sector %llus, len %u; Fail original request.\n",
+	dev_err(DEV, "Got NegDReply; Sector %llus, len %u.\n",
 	    (unsigned long long)sector, be32_to_cpu(p->blksize));
 
 	return validate_req_change_req_state(mdev, p->block_id, sector,

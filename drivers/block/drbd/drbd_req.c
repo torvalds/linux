@@ -563,6 +563,11 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		if (req->rq_state & RQ_NET_SENT && req->rq_state & RQ_WRITE)
 			atomic_sub(req->i.size >> 9, &mdev->ap_in_flight);
 
+		if (!(req->rq_state & RQ_WRITE) &&
+		    mdev->state.disk == D_UP_TO_DATE &&
+		    !IS_ERR_OR_NULL(req->private_bio))
+			goto goto_read_retry_local;
+
 		/* if it is still queued, we may not complete it here.
 		 * it will be canceled soon. */
 		if (!(req->rq_state & RQ_NET_QUEUED))
@@ -625,8 +630,20 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state &= ~(RQ_NET_OK|RQ_NET_PENDING);
 
 		req->rq_state |= RQ_NET_DONE;
+
+		if (!(req->rq_state & RQ_WRITE) &&
+		    mdev->state.disk == D_UP_TO_DATE &&
+		    !IS_ERR_OR_NULL(req->private_bio))
+			goto goto_read_retry_local;
+
 		_req_may_be_done_not_susp(req, m);
 		/* else: done by HANDED_OVER_TO_NETWORK */
+		break;
+
+	goto_read_retry_local:
+		req->rq_state |= RQ_LOCAL_PENDING;
+		req->private_bio->bi_bdev = mdev->ldev->backing_bdev;
+		generic_make_request(req->private_bio);
 		break;
 
 	case FAIL_FROZEN_DISK_IO:
@@ -689,6 +706,11 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		dec_ap_pending(mdev);
 		req->rq_state &= ~RQ_NET_PENDING;
 		req->rq_state |= (RQ_NET_OK|RQ_NET_DONE);
+		if (!IS_ERR_OR_NULL(req->private_bio)) {
+			bio_put(req->private_bio);
+			req->private_bio = NULL;
+			put_ldev(mdev);
+		}
 		_req_may_be_done_not_susp(req, m);
 		break;
 	};
@@ -721,6 +743,35 @@ static bool drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int 
 	ebnr = BM_SECT_TO_BIT(esector);
 
 	return drbd_bm_count_bits(mdev, sbnr, ebnr) == 0;
+}
+
+static bool remote_due_to_read_balancing(struct drbd_conf *mdev)
+{
+	enum drbd_read_balancing rbm;
+	struct backing_dev_info *bdi;
+
+	if (mdev->state.pdsk < D_UP_TO_DATE)
+		return false;
+
+	rcu_read_lock();
+	rbm = rcu_dereference(mdev->ldev->disk_conf)->read_balancing;
+	rcu_read_unlock();
+
+	switch (rbm) {
+	case RB_CONGESTED_REMOTE:
+		bdi = &mdev->ldev->backing_bdev->bd_disk->queue->backing_dev_info;
+		return bdi_read_congested(bdi);
+	case RB_LEAST_PENDING:
+		return atomic_read(&mdev->local_cnt) >
+			atomic_read(&mdev->ap_pending_cnt) + atomic_read(&mdev->rs_pending_cnt);
+	case RB_ROUND_ROBIN:
+		return test_and_change_bit(READ_BALANCE_RR, &mdev->flags);
+	case RB_PREFER_REMOTE:
+		return true;
+	case RB_PREFER_LOCAL:
+	default:
+		return false;
+	}
 }
 
 /*
@@ -790,6 +841,10 @@ int __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long s
 				bio_put(req->private_bio);
 				req->private_bio = NULL;
 				put_ldev(mdev);
+			} else if (remote_due_to_read_balancing(mdev)) {
+				/* Keep the private bio in case we need it
+				   for a local retry */
+				local = 0;
 			}
 		}
 		remote = !local && mdev->state.pdsk >= D_UP_TO_DATE;
@@ -1017,7 +1072,7 @@ fail_free_complete:
 	if (req->rq_state & RQ_IN_ACT_LOG)
 		drbd_al_complete_io(mdev, &req->i);
 fail_and_free_req:
-	if (local) {
+	if (!IS_ERR_OR_NULL(req->private_bio)) {
 		bio_put(req->private_bio);
 		req->private_bio = NULL;
 		put_ldev(mdev);

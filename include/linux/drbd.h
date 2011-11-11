@@ -102,6 +102,14 @@ enum drbd_on_congestion {
 	OC_DISCONNECT,
 };
 
+enum drbd_read_balancing {
+	RB_PREFER_LOCAL,
+	RB_PREFER_REMOTE,
+	RB_ROUND_ROBIN,
+	RB_LEAST_PENDING,
+	RB_CONGESTED_REMOTE,
+};
+
 /* KEEP the order, do not delete or insert. Only append. */
 enum drbd_ret_code {
 	ERR_CODE_BASE		= 100,
