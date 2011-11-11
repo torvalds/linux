@@ -882,8 +882,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_reloc_pre_snapshot(trans, pending, &to_reserve);
 
 	if (to_reserve > 0) {
-		ret = btrfs_block_rsv_add(root, &pending->block_rsv,
-					  to_reserve);
+		ret = btrfs_block_rsv_add_noflush(root, &pending->block_rsv,
+						  to_reserve);
 		if (ret) {
 			pending->error = ret;
 			goto fail;
