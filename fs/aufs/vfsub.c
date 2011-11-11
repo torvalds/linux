@@ -453,6 +453,7 @@ out:
 
 /* ---------------------------------------------------------------------- */
 
+/* todo: support mmap_sem? */
 ssize_t vfsub_read_u(struct file *file, char __user *ubuf, size_t count,
 		     loff_t *ppos)
 {
