@@ -2006,7 +2006,7 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	int ies_len;
 	struct wmi_connect_cmd p;
 	int res;
-	int i;
+	int i, ret;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: add=%d\n", __func__, add);
 
@@ -2064,7 +2064,9 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	if (info->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE)
 		return -EOPNOTSUPP; /* TODO */
 
-	vif->dot11_auth_mode = OPEN_AUTH;
+	ret = ath6kl_set_auth_type(vif, info->auth_type);
+	if (ret)
+		return ret;
 
 	memset(&p, 0, sizeof(p));
 
