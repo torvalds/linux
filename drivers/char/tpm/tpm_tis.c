@@ -614,7 +614,11 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 		dev_dbg(dev, "\tData Avail Int Support\n");
 
 	/* get the timeouts before testing for irqs */
-	tpm_get_timeouts(chip);
+	if (tpm_get_timeouts(chip)) {
+		dev_err(dev, "Could not get TPM timeouts and durations\n");
+		rc = -ENODEV;
+		goto out_err;
+	}
 
 	if (tpm_do_selftest(chip)) {
 		dev_err(dev, "TPM self test failed\n");
