@@ -876,6 +876,7 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 	c->symbol_rate = QAM_AUTO;
 	c->code_rate_HP = FEC_AUTO;
 	c->code_rate_LP = FEC_AUTO;
+	c->rolloff = ROLLOFF_AUTO;
 
 	c->isdbt_partial_reception = -1;
 	c->isdbt_sb_mode = -1;
@@ -1030,6 +1031,7 @@ static void dtv_property_cache_init(struct dvb_frontend *fe,
 		break;
 	case FE_QAM:
 		c->delivery_system = SYS_DVBC_ANNEX_AC;
+		c->rolloff = ROLLOFF_15; /* implied for Annex A */
 		break;
 	case FE_OFDM:
 		c->delivery_system = SYS_DVBT;
