@@ -997,8 +997,6 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		   __func__, key_index, key->key_len, key_type,
 		   key_usage, key->seq_len);
 
-	vif->def_txkey_index = key_index;
-
 	if (vif->nw_type == AP_NETWORK && !pairwise &&
 	    (key_type == TKIP_CRYPT || key_type == AES_CRYPT) && params) {
 		ar->ap_mode_bkey.valid = true;
@@ -1033,8 +1031,7 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		return 0;
 	}
 
-	return ath6kl_wmi_addkey_cmd(ar->wmi, vif->fw_vif_idx,
-				     vif->def_txkey_index,
+	return ath6kl_wmi_addkey_cmd(ar->wmi, vif->fw_vif_idx, key_index,
 				     key_type, key_usage, key->key_len,
 				     key->seq, key->seq_len, key->key,
 				     KEY_OP_INIT_VAL,
