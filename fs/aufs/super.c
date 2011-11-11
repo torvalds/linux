@@ -773,7 +773,7 @@ static int alloc_root(struct super_block *sb)
 	inode->i_op = &aufs_dir_iop;
 	inode->i_fop = &aufs_dir_fop;
 	inode->i_mode = S_IFDIR;
-	inode->i_nlink = 2;
+	set_nlink(inode, 2);
 	unlock_new_inode(inode);
 
 	root = d_alloc_root(inode);
