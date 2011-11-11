@@ -445,6 +445,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	kref_init(&fbo->list_kref);
 	kref_init(&fbo->kref);
 	fbo->destroy = &ttm_transfered_destroy;
+	fbo->acc_size = 0;
 
 	*new_obj = fbo;
 	return 0;

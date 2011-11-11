@@ -137,6 +137,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	struct ttm_buffer_object *bo =
 	    container_of(list_kref, struct ttm_buffer_object, list_kref);
 	struct ttm_bo_device *bdev = bo->bdev;
+	size_t acc_size = bo->acc_size;
 
 	BUG_ON(atomic_read(&bo->list_kref.refcount));
 	BUG_ON(atomic_read(&bo->kref.refcount));
@@ -152,9 +153,9 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	if (bo->destroy)
 		bo->destroy(bo);
 	else {
-		ttm_mem_global_free(bdev->glob->mem_glob, bo->acc_size);
 		kfree(bo);
 	}
+	ttm_mem_global_free(bdev->glob->mem_glob, acc_size);
 }
 
 int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo, bool interruptible)
@@ -1157,6 +1158,17 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 {
 	int ret = 0;
 	unsigned long num_pages;
+	struct ttm_mem_global *mem_glob = bdev->glob->mem_glob;
+
+	ret = ttm_mem_global_alloc(mem_glob, acc_size, false, false);
+	if (ret) {
+		printk(KERN_ERR TTM_PFX "Out of kernel memory.\n");
+		if (destroy)
+			(*destroy)(bo);
+		else
+			kfree(bo);
+		return -ENOMEM;
+	}
 
 	size += buffer_start & ~PAGE_MASK;
 	num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -1227,14 +1239,34 @@ out_err:
 }
 EXPORT_SYMBOL(ttm_bo_init);
 
-static inline size_t ttm_bo_size(struct ttm_bo_global *glob,
-				 unsigned long num_pages)
+size_t ttm_bo_acc_size(struct ttm_bo_device *bdev,
+		       unsigned long bo_size,
+		       unsigned struct_size)
 {
-	size_t page_array_size = (num_pages * sizeof(void *) + PAGE_SIZE - 1) &
-	    PAGE_MASK;
+	unsigned npages = (PAGE_ALIGN(bo_size)) >> PAGE_SHIFT;
+	size_t size = 0;
 
-	return glob->ttm_bo_size + 2 * page_array_size;
+	size += ttm_round_pot(struct_size);
+	size += PAGE_ALIGN(npages * sizeof(void *));
+	size += ttm_round_pot(sizeof(struct ttm_tt));
+	return size;
 }
+EXPORT_SYMBOL(ttm_bo_acc_size);
+
+size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
+			   unsigned long bo_size,
+			   unsigned struct_size)
+{
+	unsigned npages = (PAGE_ALIGN(bo_size)) >> PAGE_SHIFT;
+	size_t size = 0;
+
+	size += ttm_round_pot(struct_size);
+	size += PAGE_ALIGN(npages * sizeof(void *));
+	size += PAGE_ALIGN(npages * sizeof(dma_addr_t));
+	size += ttm_round_pot(sizeof(struct ttm_dma_tt));
+	return size;
+}
+EXPORT_SYMBOL(ttm_bo_dma_acc_size);
 
 int ttm_bo_create(struct ttm_bo_device *bdev,
 			unsigned long size,
@@ -1248,10 +1280,10 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 {
 	struct ttm_buffer_object *bo;
 	struct ttm_mem_global *mem_glob = bdev->glob->mem_glob;
+	size_t acc_size;
 	int ret;
 
-	size_t acc_size =
-	    ttm_bo_size(bdev->glob, (size + PAGE_SIZE - 1) >> PAGE_SHIFT);
+	acc_size = ttm_bo_acc_size(bdev, size, sizeof(struct ttm_buffer_object));
 	ret = ttm_mem_global_alloc(mem_glob, acc_size, false, false);
 	if (unlikely(ret != 0))
 		return ret;
@@ -1436,10 +1468,6 @@ int ttm_bo_global_init(struct drm_global_reference *ref)
 		       "Could not register buffer object swapout.\n");
 		goto out_no_shrink;
 	}
-
-	glob->ttm_bo_extra_size = ttm_round_pot(sizeof(struct ttm_tt));
-	glob->ttm_bo_size = glob->ttm_bo_extra_size +
-		ttm_round_pot(sizeof(struct ttm_buffer_object));
 
 	atomic_set(&glob->bo_count, 0);
 

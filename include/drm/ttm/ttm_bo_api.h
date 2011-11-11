@@ -429,9 +429,9 @@ extern void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev,
  * -EBUSY if the buffer is busy and no_wait is true.
  * -ERESTARTSYS if interrupted by a signal.
  */
-
 extern int
 ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait);
+
 /**
  * ttm_bo_synccpu_write_release:
  *
@@ -440,6 +440,22 @@ ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait);
  * Releases a synccpu lock.
  */
 extern void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo);
+
+/**
+ * ttm_bo_acc_size
+ *
+ * @bdev: Pointer to a ttm_bo_device struct.
+ * @bo_size: size of the buffer object in byte.
+ * @struct_size: size of the structure holding buffer object datas
+ *
+ * Returns size to account for a buffer object
+ */
+size_t ttm_bo_acc_size(struct ttm_bo_device *bdev,
+		       unsigned long bo_size,
+		       unsigned struct_size);
+size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
+			   unsigned long bo_size,
+			   unsigned struct_size);
 
 /**
  * ttm_bo_init
@@ -488,6 +504,7 @@ extern int ttm_bo_init(struct ttm_bo_device *bdev,
 			struct file *persistent_swap_storage,
 			size_t acc_size,
 			void (*destroy) (struct ttm_buffer_object *));
+
 /**
  * ttm_bo_synccpu_object_init
  *

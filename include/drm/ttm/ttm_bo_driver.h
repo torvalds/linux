@@ -469,9 +469,6 @@ struct ttm_bo_global_ref {
  * @dummy_read_page: Pointer to a dummy page used for mapping requests
  * of unpopulated pages.
  * @shrink: A shrink callback object used for buffer object swap.
- * @ttm_bo_extra_size: Extra size (sizeof(struct ttm_buffer_object) excluded)
- * used by a buffer object. This is excluding page arrays and backing pages.
- * @ttm_bo_size: This is @ttm_bo_extra_size + sizeof(struct ttm_buffer_object).
  * @device_list_mutex: Mutex protecting the device list.
  * This mutex is held while traversing the device list for pm options.
  * @lru_lock: Spinlock protecting the bo subsystem lru lists.
@@ -489,8 +486,6 @@ struct ttm_bo_global {
 	struct ttm_mem_global *mem_glob;
 	struct page *dummy_read_page;
 	struct ttm_mem_shrink shrink;
-	size_t ttm_bo_extra_size;
-	size_t ttm_bo_size;
 	struct mutex device_list_mutex;
 	spinlock_t lru_lock;
 

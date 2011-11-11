@@ -93,6 +93,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *nvbo;
+	size_t acc_size;
 	int ret;
 
 	nvbo = kzalloc(sizeof(struct nouveau_bo), GFP_KERNEL);
@@ -115,9 +116,12 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	nvbo->bo.mem.num_pages = size >> PAGE_SHIFT;
 	nouveau_bo_placement_set(nvbo, flags, 0);
 
+	acc_size = ttm_bo_dma_acc_size(&dev_priv->ttm.bdev, size,
+				       sizeof(struct nouveau_bo));
+
 	ret = ttm_bo_init(&dev_priv->ttm.bdev, &nvbo->bo, size,
 			  ttm_bo_type_device, &nvbo->placement,
-			  align >> PAGE_SHIFT, 0, false, NULL, size,
+			  align >> PAGE_SHIFT, 0, false, NULL, acc_size,
 			  nouveau_bo_del_ttm);
 	if (ret) {
 		/* ttm will call nouveau_bo_del_ttm if it fails.. */
