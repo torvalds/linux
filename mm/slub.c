@@ -1904,7 +1904,8 @@ static void unfreeze_partials(struct kmem_cache *s)
 				if (l == M_PARTIAL)
 					remove_partial(n, page);
 				else
-					add_partial(n, page, 1);
+					add_partial(n, page,
+						DEACTIVATE_TO_TAIL);
 
 				l = m;
 			}
