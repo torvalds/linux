@@ -21,9 +21,9 @@ extern void sys_ni_syscall(void);
 
 const sys_call_ptr_t sys_call_table[__NR_syscall_max+1] = {
 	/*
-	*Smells like a like a compiler bug -- it doesn't work
-	*when the & below is removed.
-	*/
+	 * Smells like a compiler bug -- it doesn't work
+	 * when the & below is removed.
+	 */
 	[0 ... __NR_syscall_max] = &sys_ni_syscall,
 #include <asm/unistd_64.h>
 };
