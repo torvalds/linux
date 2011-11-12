@@ -1585,6 +1585,12 @@ nvd0_display_intr(struct drm_device *dev)
 	struct nvd0_display *disp = nvd0_display(dev);
 	u32 intr = nv_rd32(dev, 0x610088);
 
+	if (intr & 0x00000001) {
+		u32 stat = nv_rd32(dev, 0x61008c);
+		nv_wr32(dev, 0x61008c, stat);
+		intr &= ~0x00000001;
+	}
+
 	if (intr & 0x00000002) {
 		u32 stat = nv_rd32(dev, 0x61009c);
 		int chid = ffs(stat) - 1;
