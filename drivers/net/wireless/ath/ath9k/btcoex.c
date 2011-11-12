@@ -268,8 +268,6 @@ static void ar9003_btcoex_bt_stomp(struct ath_hw *ah,
 				"Invalid Stomptype\n");
 		break;
 	}
-
-	ath9k_hw_btcoex_enable(ah);
 }
 
 /*
@@ -301,7 +299,5 @@ void ath9k_hw_btcoex_bt_stomp(struct ath_hw *ah,
 				"Invalid Stomptype\n");
 		break;
 	}
-
-	ath9k_hw_btcoex_enable(ah);
 }
 EXPORT_SYMBOL(ath9k_hw_btcoex_bt_stomp);
