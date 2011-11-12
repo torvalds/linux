@@ -541,6 +541,7 @@ struct se_cmd {
 	struct list_head	se_queue_node;
 	struct list_head	se_cmd_list;
 	struct completion	cmd_wait_comp;
+	struct kref		cmd_kref;
 	struct target_core_fabric_ops *se_tfo;
 	int (*execute_task)(struct se_task *);
 	void (*transport_complete_callback)(struct se_cmd *);

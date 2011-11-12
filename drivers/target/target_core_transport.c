@@ -3349,13 +3349,13 @@ static void transport_release_cmd(struct se_cmd *cmd)
 	if (cmd->t_task_cdb != cmd->__t_task_cdb)
 		kfree(cmd->t_task_cdb);
 	/*
-	 * Check if target_wait_for_sess_cmds() is expecting to
-	 * release se_cmd directly here..
+	 * If this cmd has been setup with target_get_sess_cmd(), drop
+	 * the kref and call ->release_cmd() in kref callback.
 	 */
-	if (cmd->check_release != 0 && cmd->se_tfo->check_release_cmd)
-		if (cmd->se_tfo->check_release_cmd(cmd) != 0)
-			return;
-
+	 if (cmd->check_release != 0) {
+		target_put_sess_cmd(cmd->se_sess, cmd);
+		return;
+	}
 	cmd->se_tfo->release_cmd(cmd);
 }
 
@@ -3915,6 +3915,9 @@ void target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd)
 {
 	unsigned long flags;
 
+	kref_init(&se_cmd->cmd_kref);
+	kref_get(&se_cmd->cmd_kref);
+
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 	list_add_tail(&se_cmd->se_cmd_list, &se_sess->sess_cmd_list);
 	se_cmd->check_release = 1;
@@ -3922,30 +3925,36 @@ void target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd)
 }
 EXPORT_SYMBOL(target_get_sess_cmd);
 
-/* target_put_sess_cmd - Check for active I/O shutdown or list delete
- * @se_sess: 	session to reference
- * @se_cmd:	command descriptor to drop
- */
-int target_put_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd)
+static void target_release_cmd_kref(struct kref *kref)
 {
+	struct se_cmd *se_cmd = container_of(kref, struct se_cmd, cmd_kref);
+	struct se_session *se_sess = se_cmd->se_sess;
 	unsigned long flags;
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 	if (list_empty(&se_cmd->se_cmd_list)) {
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 		WARN_ON(1);
-		return 0;
+		return;
 	}
-
 	if (se_sess->sess_tearing_down && se_cmd->cmd_wait_set) {
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 		complete(&se_cmd->cmd_wait_comp);
-		return 1;
+		return;
 	}
 	list_del(&se_cmd->se_cmd_list);
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 
-	return 0;
+	se_cmd->se_tfo->release_cmd(se_cmd);
+}
+
+/* target_put_sess_cmd - Check for active I/O shutdown via kref_put
+ * @se_sess:	session to reference
+ * @se_cmd:	command descriptor to drop
+ */
+int target_put_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd)
+{
+	return kref_put(&se_cmd->cmd_kref, target_release_cmd_kref);
 }
 EXPORT_SYMBOL(target_put_sess_cmd);
 
