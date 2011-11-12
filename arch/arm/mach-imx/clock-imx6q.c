@@ -1139,7 +1139,7 @@ static int _clk_set_rate(struct clk *clk, unsigned long rate)
 		return -EINVAL;
 
 	max_div = ((d->bm_pred >> d->bp_pred) + 1) *
-		  ((d->bm_pred >> d->bp_pred) + 1);
+		  ((d->bm_podf >> d->bp_podf) + 1);
 
 	div = parent_rate / rate;
 	if (div == 0)
@@ -2001,6 +2001,21 @@ int __init mx6q_clocks_init(void)
 	clk_set_parent(&asrc_serial_clk, &pll3_usb_otg);
 	clk_set_rate(&asrc_serial_clk, 1500000);
 	clk_set_rate(&enfc_clk, 11000000);
+
+	/*
+	 * Before pinctrl API is available, we have to rely on the pad
+	 * configuration set up by bootloader.  For usdhc example here,
+	 * u-boot sets up the pads for 49.5 MHz case, and we have to lower
+	 * the usdhc clock from 198 to 49.5 MHz to match the pad configuration.
+	 *
+	 * FIXME: This is should be removed after pinctrl API is available.
+	 * At that time, usdhc driver can call pinctrl API to change pad
+	 * configuration dynamically per different usdhc clock settings.
+	 */
+	clk_set_rate(&usdhc1_clk, 49500000);
+	clk_set_rate(&usdhc2_clk, 49500000);
+	clk_set_rate(&usdhc3_clk, 49500000);
+	clk_set_rate(&usdhc4_clk, 49500000);
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpt");
 	base = of_iomap(np, 0);
