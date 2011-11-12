@@ -92,8 +92,7 @@ static int perf_session__add_hist_entry(struct perf_session *session,
 		assert(evsel != NULL);
 
 		err = -ENOMEM;
-		if (notes->src == NULL &&
-		    symbol__alloc_hist(he->ms.sym, session->evlist->nr_entries) < 0)
+		if (notes->src == NULL && symbol__alloc_hist(he->ms.sym) < 0)
 			goto out;
 
 		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);

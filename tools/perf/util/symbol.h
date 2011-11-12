@@ -68,6 +68,7 @@ struct strlist;
 
 struct symbol_conf {
 	unsigned short	priv_size;
+	unsigned short	nr_events;
 	bool		try_vmlinux_path,
 			use_modules,
 			sort_by_name,

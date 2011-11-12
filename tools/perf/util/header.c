@@ -2041,6 +2041,8 @@ int perf_session__read_header(struct perf_session *session, int fd)
 		lseek(fd, tmp, SEEK_SET);
 	}
 
+	symbol_conf.nr_events = nr_attrs;
+
 	if (f_header.event_types.size) {
 		lseek(fd, f_header.event_types.offset, SEEK_SET);
 		events = malloc(f_header.event_types.size);

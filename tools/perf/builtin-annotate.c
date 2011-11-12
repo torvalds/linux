@@ -43,10 +43,9 @@ static const char *sym_hist_filter;
 static const char	*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 
-static int perf_evlist__add_sample(struct perf_evlist *evlist,
-				   struct perf_sample *sample,
-				   struct perf_evsel *evsel,
-				   struct addr_location *al)
+static int perf_evsel__add_sample(struct perf_evsel *evsel,
+				  struct perf_sample *sample,
+				  struct addr_location *al)
 {
 	struct hist_entry *he;
 	int ret;
@@ -69,8 +68,7 @@ static int perf_evlist__add_sample(struct perf_evlist *evlist,
 	ret = 0;
 	if (he->ms.sym != NULL) {
 		struct annotation *notes = symbol__annotation(he->ms.sym);
-		if (notes->src == NULL &&
-		    symbol__alloc_hist(he->ms.sym, evlist->nr_entries) < 0)
+		if (notes->src == NULL && symbol__alloc_hist(he->ms.sym) < 0)
 			return -ENOMEM;
 
 		ret = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
@@ -98,8 +96,7 @@ static int process_sample_event(union perf_event *event,
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
 		return 0;
 
-	if (!al.filtered &&
-	    perf_evlist__add_sample(session->evlist, sample, evsel, &al)) {
+	if (!al.filtered && perf_evsel__add_sample(evsel, sample, &al)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
 		return -1;
@@ -114,8 +111,7 @@ static int hist_entry__tty_annotate(struct hist_entry *he, int evidx)
 				    print_line, full_paths, 0, 0);
 }
 
-static void hists__find_annotations(struct hists *self, int evidx,
-				    int nr_events)
+static void hists__find_annotations(struct hists *self, int evidx)
 {
 	struct rb_node *nd = rb_first(&self->entries), *next;
 	int key = K_RIGHT;
@@ -138,8 +134,7 @@ find_next:
 		}
 
 		if (use_browser > 0) {
-			key = hist_entry__tui_annotate(he, evidx, nr_events,
-						       NULL, NULL, 0);
+			key = hist_entry__tui_annotate(he, evidx, NULL, NULL, 0);
 			switch (key) {
 			case K_RIGHT:
 				next = rb_next(nd);
@@ -217,8 +212,7 @@ static int __cmd_annotate(void)
 			total_nr_samples += nr_samples;
 			hists__collapse_resort(hists);
 			hists__output_resort(hists);
-			hists__find_annotations(hists, pos->idx,
-						session->evlist->nr_entries);
+			hists__find_annotations(hists, pos->idx);
 		}
 	}
 

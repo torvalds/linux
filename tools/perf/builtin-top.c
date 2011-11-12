@@ -170,7 +170,7 @@ static int parse_source(struct hist_entry *he)
 
 	pthread_mutex_lock(&notes->lock);
 
-	if (symbol__alloc_hist(sym, top.evlist->nr_entries) < 0) {
+	if (symbol__alloc_hist(sym) < 0) {
 		pthread_mutex_unlock(&notes->lock);
 		pr_err("Not enough memory for annotating '%s' symbol!\n",
 		       sym->name);
@@ -210,8 +210,7 @@ static void record_precise_ip(struct hist_entry *he, int counter, u64 ip)
 	if (pthread_mutex_trylock(&notes->lock))
 		return;
 
-	if (notes->src == NULL &&
-	    symbol__alloc_hist(sym, top.evlist->nr_entries) < 0) {
+	if (notes->src == NULL && symbol__alloc_hist(sym) < 0) {
 		pthread_mutex_unlock(&notes->lock);
 		pr_err("Not enough memory for annotating '%s' symbol!\n",
 		       sym->name);
@@ -1214,6 +1213,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		pr_err("Not enough memory for event selector list\n");
 		return -ENOMEM;
 	}
+
+	symbol_conf.nr_events = top.evlist->nr_entries;
 
 	if (top.delay_secs < 1)
 		top.delay_secs = 1;
