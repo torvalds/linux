@@ -163,6 +163,12 @@ evo_fini_dma(struct drm_device *dev, int ch)
 	nv_mask(dev, 0x6100a0, (1 << ch), 0x00000000);
 }
 
+static inline void
+evo_piow(struct drm_device *dev, int ch, u16 mthd, u32 data)
+{
+	nv_wr32(dev, 0x640000 + (ch * 0x1000) + mthd, data);
+}
+
 static int
 evo_init_pio(struct drm_device *dev, int ch)
 {
@@ -616,10 +622,10 @@ static int
 nvd0_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	const u32 data = (y << 16) | x;
+	int ch = EVO_CURS(nv_crtc->index);
 
-	nv_wr32(crtc->dev, 0x64d084 + (nv_crtc->index * 0x1000), data);
-	nv_wr32(crtc->dev, 0x64d080 + (nv_crtc->index * 0x1000), 0x00000000);
+	evo_piow(crtc->dev, ch, 0x0084, (y << 16) | x);
+	evo_piow(crtc->dev, ch, 0x0080, 0x00000000);
 	return 0;
 }
 
