@@ -218,7 +218,7 @@ nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 		mode |= nv_connector->dithering_depth;
 	}
 
-	push = evo_wait(dev, 0, 4);
+	push = evo_wait(dev, EVO_MASTER, 4);
 	if (push) {
 		evo_mthd(push, 0x0490 + (nv_crtc->index * 0x300), 1);
 		evo_data(push, mode);
@@ -226,7 +226,7 @@ nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
 		}
-		evo_kick(push, dev, 0);
+		evo_kick(push, dev, EVO_MASTER);
 	}
 
 	return 0;
@@ -302,7 +302,7 @@ nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 		break;
 	}
 
-	push = evo_wait(dev, 0, 16);
+	push = evo_wait(dev, EVO_MASTER, 16);
 	if (push) {
 		evo_mthd(push, 0x04c0 + (nv_crtc->index * 0x300), 3);
 		evo_data(push, (oY << 16) | oX);
@@ -316,7 +316,7 @@ nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
 		}
-		evo_kick(push, dev, 0);
+		evo_kick(push, dev, EVO_MASTER);
 	}
 
 	return 0;
@@ -329,7 +329,7 @@ nvd0_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 	struct nouveau_framebuffer *nvfb = nouveau_framebuffer(fb);
 	u32 *push;
 
-	push = evo_wait(fb->dev, 0, 16);
+	push = evo_wait(fb->dev, EVO_MASTER, 16);
 	if (push) {
 		evo_mthd(push, 0x0460 + (nv_crtc->index * 0x300), 1);
 		evo_data(push, nvfb->nvbo->bo.offset >> 8);
@@ -344,7 +344,7 @@ nvd0_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
 		}
-		evo_kick(push, fb->dev, 0);
+		evo_kick(push, fb->dev, EVO_MASTER);
 	}
 
 	nv_crtc->fb.tile_flags = nvfb->r_dma;
@@ -355,7 +355,7 @@ static void
 nvd0_crtc_cursor_show(struct nouveau_crtc *nv_crtc, bool show, bool update)
 {
 	struct drm_device *dev = nv_crtc->base.dev;
-	u32 *push = evo_wait(dev, 0, 16);
+	u32 *push = evo_wait(dev, EVO_MASTER, 16);
 	if (push) {
 		if (show) {
 			evo_mthd(push, 0x0480 + (nv_crtc->index * 0x300), 2);
@@ -375,7 +375,7 @@ nvd0_crtc_cursor_show(struct nouveau_crtc *nv_crtc, bool show, bool update)
 			evo_data(push, 0x00000000);
 		}
 
-		evo_kick(push, dev, 0);
+		evo_kick(push, dev, EVO_MASTER);
 	}
 }
 
@@ -390,7 +390,7 @@ nvd0_crtc_prepare(struct drm_crtc *crtc)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	u32 *push;
 
-	push = evo_wait(crtc->dev, 0, 2);
+	push = evo_wait(crtc->dev, EVO_MASTER, 2);
 	if (push) {
 		evo_mthd(push, 0x0474 + (nv_crtc->index * 0x300), 1);
 		evo_data(push, 0x00000000);
@@ -398,7 +398,7 @@ nvd0_crtc_prepare(struct drm_crtc *crtc)
 		evo_data(push, 0x03000000);
 		evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
 		evo_data(push, 0x00000000);
-		evo_kick(push, crtc->dev, 0);
+		evo_kick(push, crtc->dev, EVO_MASTER);
 	}
 
 	nvd0_crtc_cursor_show(nv_crtc, false, false);
@@ -410,7 +410,7 @@ nvd0_crtc_commit(struct drm_crtc *crtc)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	u32 *push;
 
-	push = evo_wait(crtc->dev, 0, 32);
+	push = evo_wait(crtc->dev, EVO_MASTER, 32);
 	if (push) {
 		evo_mthd(push, 0x0474 + (nv_crtc->index * 0x300), 1);
 		evo_data(push, nv_crtc->fb.tile_flags);
@@ -423,7 +423,7 @@ nvd0_crtc_commit(struct drm_crtc *crtc)
 		evo_data(push, NvEvoVRAM);
 		evo_mthd(push, 0x0430 + (nv_crtc->index * 0x300), 1);
 		evo_data(push, 0xffffff00);
-		evo_kick(push, crtc->dev, 0);
+		evo_kick(push, crtc->dev, EVO_MASTER);
 	}
 
 	nvd0_crtc_cursor_show(nv_crtc, nv_crtc->cursor.visible, true);
@@ -500,7 +500,7 @@ nvd0_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	if (ret)
 		return ret;
 
-	push = evo_wait(crtc->dev, 0, 64);
+	push = evo_wait(crtc->dev, EVO_MASTER, 64);
 	if (push) {
 		evo_mthd(push, 0x0410 + (nv_crtc->index * 0x300), 6);
 		evo_data(push, 0x00000000);
@@ -518,7 +518,7 @@ nvd0_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 		evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
 		evo_data(push, syncs);
 		evo_data(push, magic);
-		evo_kick(push, crtc->dev, 0);
+		evo_kick(push, crtc->dev, EVO_MASTER);
 	}
 
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
@@ -803,12 +803,12 @@ nvd0_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 	nvd0_dac_dpms(encoder, DRM_MODE_DPMS_ON);
 
-	push = evo_wait(encoder->dev, 0, 4);
+	push = evo_wait(encoder->dev, EVO_MASTER, 4);
 	if (push) {
 		evo_mthd(push, 0x0180 + (nv_encoder->or * 0x20), 2);
 		evo_data(push, 1 << nv_crtc->index);
 		evo_data(push, 0x00ff);
-		evo_kick(push, encoder->dev, 0);
+		evo_kick(push, encoder->dev, EVO_MASTER);
 	}
 
 	nv_encoder->crtc = encoder->crtc;
@@ -824,13 +824,13 @@ nvd0_dac_disconnect(struct drm_encoder *encoder)
 	if (nv_encoder->crtc) {
 		nvd0_crtc_prepare(nv_encoder->crtc);
 
-		push = evo_wait(dev, 0, 4);
+		push = evo_wait(dev, EVO_MASTER, 4);
 		if (push) {
 			evo_mthd(push, 0x0180 + (nv_encoder->or * 0x20), 1);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
-			evo_kick(push, dev, 0);
+			evo_kick(push, dev, EVO_MASTER);
 		}
 
 		nv_encoder->crtc = NULL;
@@ -1138,12 +1138,12 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 	nvd0_sor_dpms(encoder, DRM_MODE_DPMS_ON);
 
-	push = evo_wait(dev, 0, 4);
+	push = evo_wait(dev, EVO_MASTER, 4);
 	if (push) {
 		evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 2);
 		evo_data(push, mode_ctrl);
 		evo_data(push, or_config);
-		evo_kick(push, dev, 0);
+		evo_kick(push, dev, EVO_MASTER);
 	}
 
 	nv_encoder->crtc = encoder->crtc;
@@ -1159,13 +1159,13 @@ nvd0_sor_disconnect(struct drm_encoder *encoder)
 	if (nv_encoder->crtc) {
 		nvd0_crtc_prepare(nv_encoder->crtc);
 
-		push = evo_wait(dev, 0, 4);
+		push = evo_wait(dev, EVO_MASTER, 4);
 		if (push) {
 			evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 1);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
-			evo_kick(push, dev, 0);
+			evo_kick(push, dev, EVO_MASTER);
 		}
 
 		nvd0_hdmi_disconnect(encoder);
@@ -1536,7 +1536,7 @@ nvd0_display_init(struct drm_device *dev)
 			goto error;
 	}
 
-	push = evo_wait(dev, 0, 32);
+	push = evo_wait(dev, EVO_MASTER, 32);
 	if (!push) {
 		ret = -EBUSY;
 		goto error;
@@ -1549,7 +1549,7 @@ nvd0_display_init(struct drm_device *dev)
 	evo_data(push, 0x80000000);
 	evo_mthd(push, 0x008c, 1);
 	evo_data(push, 0x00000000);
-	evo_kick(push, dev, 0);
+	evo_kick(push, dev, EVO_MASTER);
 
 error:
 	if (ret)
