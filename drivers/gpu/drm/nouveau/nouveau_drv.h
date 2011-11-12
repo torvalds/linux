@@ -1353,6 +1353,10 @@ extern int nvd0_display_create(struct drm_device *);
 extern void nvd0_display_destroy(struct drm_device *);
 extern int nvd0_display_init(struct drm_device *);
 extern void nvd0_display_fini(struct drm_device *);
+struct nouveau_bo *nvd0_display_crtc_sema(struct drm_device *, int crtc);
+void nvd0_display_flip_stop(struct drm_crtc *);
+int nvd0_display_flip_next(struct drm_crtc *, struct drm_framebuffer *,
+			   struct nouveau_channel *, u32 swap_interval);
 
 /* nv04_crtc.c */
 extern int nv04_crtc_create(struct drm_device *, int index);

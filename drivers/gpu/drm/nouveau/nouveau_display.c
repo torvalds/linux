@@ -466,7 +466,10 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Emit a page flip */
 	if (dev_priv->card_type >= NV_50) {
-		ret = nv50_display_flip_next(crtc, fb, chan);
+		if (dev_priv->card_type >= NV_D0)
+			ret = nvd0_display_flip_next(crtc, fb, chan, 0);
+		else
+			ret = nv50_display_flip_next(crtc, fb, chan);
 		if (ret) {
 			nouveau_channel_put(&chan);
 			goto fail_unreserve;

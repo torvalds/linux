@@ -39,12 +39,20 @@
 #define EVO_SYNC(c) (0x01 + (c))
 #define EVO_CURS(c) (0x0d + (c))
 
+struct evo {
+	int idx;
+	dma_addr_t handle;
+	u32 *ptr;
+	struct {
+		struct nouveau_bo *bo;
+		u32 offset;
+		u16 value;
+	} sem;
+};
+
 struct nvd0_display {
 	struct nouveau_gpuobj *mem;
-	struct {
-		dma_addr_t handle;
-		u32 *ptr;
-	} evo[3];
+	struct evo evo[3];
 
 	struct tasklet_struct tasklet;
 	u32 modeset;
@@ -197,6 +205,152 @@ evo_fini_pio(struct drm_device *dev, int ch)
 	nv_mask(dev, 0x6100a0, (1 << ch), 0x00000000);
 }
 
+static bool
+evo_sync_wait(void *data)
+{
+	return nouveau_bo_rd32(data, 0) != 0x00000000;
+}
+
+static int
+evo_sync(struct drm_device *dev, int ch)
+{
+	struct nvd0_display *disp = nvd0_display(dev);
+	struct evo *evo = &disp->evo[ch];
+	u32 *push;
+
+	nouveau_bo_wr32(evo->sem.bo, 0, 0x00000000);
+
+	push = evo_wait(dev, ch, 8);
+	if (push) {
+		evo_mthd(push, 0x0084, 1);
+		evo_data(push, 0x80000000);
+		evo_mthd(push, 0x0080, 2);
+		evo_data(push, 0x00000000);
+		evo_data(push, 0x00000000);
+		evo_kick(push, dev, ch);
+		if (nv_wait_cb(dev, evo_sync_wait, evo->sem.bo))
+			return 0;
+	}
+
+	return -EBUSY;
+}
+
+/******************************************************************************
+ * Sync channel (aka. page flipping)
+ *****************************************************************************/
+struct nouveau_bo *
+nvd0_display_crtc_sema(struct drm_device *dev, int crtc)
+{
+	struct nvd0_display *disp = nvd0_display(dev);
+	struct evo *evo = &disp->evo[EVO_SYNC(crtc)];
+	return evo->sem.bo;
+}
+
+void
+nvd0_display_flip_stop(struct drm_crtc *crtc)
+{
+	struct nvd0_display *disp = nvd0_display(crtc->dev);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct evo *evo = &disp->evo[EVO_SYNC(nv_crtc->index)];
+	u32 *push;
+
+	push = evo_wait(crtc->dev, evo->idx, 8);
+	if (push) {
+		evo_mthd(push, 0x0084, 1);
+		evo_data(push, 0x00000000);
+		evo_mthd(push, 0x0094, 1);
+		evo_data(push, 0x00000000);
+		evo_mthd(push, 0x00c0, 1);
+		evo_data(push, 0x00000000);
+		evo_mthd(push, 0x0080, 1);
+		evo_data(push, 0x00000000);
+		evo_kick(push, crtc->dev, evo->idx);
+	}
+}
+
+int
+nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
+		       struct nouveau_channel *chan, u32 swap_interval)
+{
+	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
+	struct nvd0_display *disp = nvd0_display(crtc->dev);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct evo *evo = &disp->evo[EVO_SYNC(nv_crtc->index)];
+	u64 offset;
+	u32 *push;
+	int ret;
+
+	swap_interval <<= 4;
+	if (swap_interval == 0)
+		swap_interval |= 0x100;
+
+	push = evo_wait(crtc->dev, evo->idx, 128);
+	if (unlikely(push == NULL))
+		return -EBUSY;
+
+	/* synchronise with the rendering channel, if necessary */
+	if (likely(chan)) {
+		ret = RING_SPACE(chan, 10);
+		if (ret)
+			return ret;
+
+		offset  = chan->dispc_vma[nv_crtc->index].offset;
+		offset += evo->sem.offset;
+
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0010, 4);
+		OUT_RING  (chan, upper_32_bits(offset));
+		OUT_RING  (chan, lower_32_bits(offset));
+		OUT_RING  (chan, 0xf00d0000 | evo->sem.value);
+		OUT_RING  (chan, 0x1002);
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0010, 4);
+		OUT_RING  (chan, upper_32_bits(offset));
+		OUT_RING  (chan, lower_32_bits(offset ^ 0x10));
+		OUT_RING  (chan, 0x74b1e000);
+		OUT_RING  (chan, 0x1001);
+		FIRE_RING (chan);
+	} else {
+		nouveau_bo_wr32(evo->sem.bo, evo->sem.offset / 4,
+				0xf00d0000 | evo->sem.value);
+		evo_sync(crtc->dev, EVO_MASTER);
+	}
+
+	/* queue the flip */
+	evo_mthd(push, 0x0100, 1);
+	evo_data(push, 0xfffe0000);
+	evo_mthd(push, 0x0084, 1);
+	evo_data(push, swap_interval);
+	if (!(swap_interval & 0x00000100)) {
+		evo_mthd(push, 0x00e0, 1);
+		evo_data(push, 0x40000000);
+	}
+	evo_mthd(push, 0x0088, 4);
+	evo_data(push, evo->sem.offset);
+	evo_data(push, 0xf00d0000 | evo->sem.value);
+	evo_data(push, 0x74b1e000);
+	evo_data(push, NvEvoSync);
+	evo_mthd(push, 0x00a0, 2);
+	evo_data(push, 0x00000000);
+	evo_data(push, 0x00000000);
+	evo_mthd(push, 0x00c0, 1);
+	evo_data(push, nv_fb->r_dma);
+	evo_mthd(push, 0x0110, 2);
+	evo_data(push, 0x00000000);
+	evo_data(push, 0x00000000);
+	evo_mthd(push, 0x0400, 5);
+	evo_data(push, nv_fb->nvbo->bo.offset >> 8);
+	evo_data(push, 0);
+	evo_data(push, (fb->height << 16) | fb->width);
+	evo_data(push, nv_fb->r_pitch);
+	evo_data(push, nv_fb->r_format);
+	evo_mthd(push, 0x0080, 1);
+	evo_data(push, 0x00000000);
+	evo_kick(push, crtc->dev, evo->idx);
+
+	evo->sem.offset ^= 0x10;
+	evo->sem.value++;
+	return 0;
+}
+
 /******************************************************************************
  * CRTC
  *****************************************************************************/
@@ -243,6 +397,7 @@ nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 {
 	struct drm_display_mode *omode, *umode = &nv_crtc->base.mode;
 	struct drm_device *dev = nv_crtc->base.dev;
+	struct drm_crtc *crtc = &nv_crtc->base;
 	struct nouveau_connector *nv_connector;
 	int mode = DRM_MODE_SCALE_NONE;
 	u32 oX, oY, *push;
@@ -308,7 +463,7 @@ nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 		break;
 	}
 
-	push = evo_wait(dev, EVO_MASTER, 16);
+	push = evo_wait(dev, EVO_MASTER, 8);
 	if (push) {
 		evo_mthd(push, 0x04c0 + (nv_crtc->index * 0x300), 3);
 		evo_data(push, (oY << 16) | oX);
@@ -318,11 +473,11 @@ nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 		evo_data(push, 0x00000000);
 		evo_mthd(push, 0x04b8 + (nv_crtc->index * 0x300), 1);
 		evo_data(push, (umode->vdisplay << 16) | umode->hdisplay);
-		if (update) {
-			evo_mthd(push, 0x0080, 1);
-			evo_data(push, 0x00000000);
-		}
 		evo_kick(push, dev, EVO_MASTER);
+		if (update) {
+			nvd0_display_flip_stop(crtc);
+			nvd0_display_flip_next(crtc, crtc->fb, NULL, 1);
+		}
 	}
 
 	return 0;
@@ -396,6 +551,8 @@ nvd0_crtc_prepare(struct drm_crtc *crtc)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	u32 *push;
 
+	nvd0_display_flip_stop(crtc);
+
 	push = evo_wait(crtc->dev, EVO_MASTER, 2);
 	if (push) {
 		evo_mthd(push, 0x0474 + (nv_crtc->index * 0x300), 1);
@@ -432,7 +589,8 @@ nvd0_crtc_commit(struct drm_crtc *crtc)
 		evo_kick(push, crtc->dev, EVO_MASTER);
 	}
 
-	nvd0_crtc_cursor_show(nv_crtc, nv_crtc->cursor.visible, true);
+	nvd0_crtc_cursor_show(nv_crtc, nv_crtc->cursor.visible, false);
+	nvd0_display_flip_next(crtc, crtc->fb, NULL, 1);
 }
 
 static bool
@@ -524,6 +682,9 @@ nvd0_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 		evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
 		evo_data(push, syncs);
 		evo_data(push, magic);
+		evo_mthd(push, 0x04d0 + (nv_crtc->index * 0x300), 2);
+		evo_data(push, 0x00000311);
+		evo_data(push, 0x00000100);
 		evo_kick(push, crtc->dev, EVO_MASTER);
 	}
 
@@ -550,7 +711,9 @@ nvd0_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	if (ret)
 		return ret;
 
+	nvd0_display_flip_stop(crtc);
 	nvd0_crtc_set_image(nv_crtc, crtc->fb, x, y, true);
+	nvd0_display_flip_next(crtc, crtc->fb, NULL, 1);
 	return 0;
 }
 
@@ -560,6 +723,7 @@ nvd0_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
 			       enum mode_set_atomic state)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	nvd0_display_flip_stop(crtc);
 	nvd0_crtc_set_image(nv_crtc, fb, x, y, true);
 	return 0;
 }
@@ -675,6 +839,7 @@ static const struct drm_crtc_funcs nvd0_crtc_func = {
 	.gamma_set = nvd0_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = nvd0_crtc_destroy,
+	.page_flip = nouveau_crtc_page_flip,
 };
 
 static void
@@ -1572,8 +1737,10 @@ nvd0_display_destroy(struct drm_device *dev)
 	int i;
 
 	for (i = 0; i < 3; i++) {
-		pci_free_consistent(pdev, PAGE_SIZE, disp->evo[i].ptr,
-				    disp->evo[i].handle);
+		struct evo *evo = &disp->evo[i];
+		nouveau_bo_unmap(evo->sem.bo);
+		nouveau_bo_ref(NULL, &evo->sem.bo);
+		pci_free_consistent(pdev, PAGE_SIZE, evo->ptr, evo->handle);
 	}
 
 	nouveau_gpuobj_ref(NULL, &disp->mem);
@@ -1654,53 +1821,76 @@ nvd0_display_create(struct drm_device *dev)
 	if (ret)
 		goto out;
 
-	nv_wo32(disp->mem, 0x1000, 0x00000049);
-	nv_wo32(disp->mem, 0x1004, (disp->mem->vinst + 0x2000) >> 8);
-	nv_wo32(disp->mem, 0x1008, (disp->mem->vinst + 0x2fff) >> 8);
-	nv_wo32(disp->mem, 0x100c, 0x00000000);
-	nv_wo32(disp->mem, 0x1010, 0x00000000);
-	nv_wo32(disp->mem, 0x1014, 0x00000000);
-	nv_wo32(disp->mem, 0x0000, NvEvoSync);
-	nv_wo32(disp->mem, 0x0004, (0x1000 << 9) | 0x00000001);
-
-	nv_wo32(disp->mem, 0x1020, 0x00000049);
-	nv_wo32(disp->mem, 0x1024, 0x00000000);
-	nv_wo32(disp->mem, 0x1028, (dev_priv->vram_size - 1) >> 8);
-	nv_wo32(disp->mem, 0x102c, 0x00000000);
-	nv_wo32(disp->mem, 0x1030, 0x00000000);
-	nv_wo32(disp->mem, 0x1034, 0x00000000);
-	nv_wo32(disp->mem, 0x0008, NvEvoVRAM);
-	nv_wo32(disp->mem, 0x000c, (0x1020 << 9) | 0x00000001);
-
-	nv_wo32(disp->mem, 0x1040, 0x00000009);
-	nv_wo32(disp->mem, 0x1044, 0x00000000);
-	nv_wo32(disp->mem, 0x1048, (dev_priv->vram_size - 1) >> 8);
-	nv_wo32(disp->mem, 0x104c, 0x00000000);
-	nv_wo32(disp->mem, 0x1050, 0x00000000);
-	nv_wo32(disp->mem, 0x1054, 0x00000000);
-	nv_wo32(disp->mem, 0x0010, NvEvoVRAM_LP);
-	nv_wo32(disp->mem, 0x0014, (0x1040 << 9) | 0x00000001);
-
-	nv_wo32(disp->mem, 0x1060, 0x0fe00009);
-	nv_wo32(disp->mem, 0x1064, 0x00000000);
-	nv_wo32(disp->mem, 0x1068, (dev_priv->vram_size - 1) >> 8);
-	nv_wo32(disp->mem, 0x106c, 0x00000000);
-	nv_wo32(disp->mem, 0x1070, 0x00000000);
-	nv_wo32(disp->mem, 0x1074, 0x00000000);
-	nv_wo32(disp->mem, 0x0018, NvEvoFB32);
-	nv_wo32(disp->mem, 0x001c, (0x1060 << 9) | 0x00000001);
-
-	pinstmem->flush(dev);
-
-	/* push buffers for evo channels */
+	/* create evo dma channels */
 	for (i = 0; i < 3; i++) {
-		disp->evo[i].ptr = pci_alloc_consistent(pdev, PAGE_SIZE,
-							&disp->evo[i].handle);
-		if (!disp->evo[i].ptr) {
+		struct evo *evo = &disp->evo[i];
+		u32 dmao = 0x1000 + (i * 0x100);
+		u32 hash = 0x0000 + (i * 0x040);
+		u64 offset;
+
+		evo->idx = i;
+		evo->ptr = pci_alloc_consistent(pdev, PAGE_SIZE, &evo->handle);
+		if (!evo->ptr) {
 			ret = -ENOMEM;
 			goto out;
 		}
+
+		ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
+				     0, 0x0000, &evo->sem.bo);
+		if (!ret) {
+			ret = nouveau_bo_pin(evo->sem.bo, TTM_PL_FLAG_VRAM);
+			if (!ret)
+				ret = nouveau_bo_map(evo->sem.bo);
+			if (ret)
+				nouveau_bo_ref(NULL, &evo->sem.bo);
+			offset = evo->sem.bo->bo.offset;
+		}
+
+		if (ret)
+			goto out;
+
+		nv_wo32(disp->mem, dmao + 0x00, 0x00000049);
+		nv_wo32(disp->mem, dmao + 0x04, (offset + 0x0000) >> 8);
+		nv_wo32(disp->mem, dmao + 0x08, (offset + 0x0fff) >> 8);
+		nv_wo32(disp->mem, dmao + 0x0c, 0x00000000);
+		nv_wo32(disp->mem, dmao + 0x10, 0x00000000);
+		nv_wo32(disp->mem, dmao + 0x14, 0x00000000);
+		nv_wo32(disp->mem, hash + 0x00, NvEvoSync);
+		nv_wo32(disp->mem, hash + 0x04, 0x00000001 | (i << 27) |
+						((dmao + 0x00) << 9));
+
+		nv_wo32(disp->mem, dmao + 0x20, 0x00000049);
+		nv_wo32(disp->mem, dmao + 0x24, 0x00000000);
+		nv_wo32(disp->mem, dmao + 0x28, (dev_priv->vram_size - 1) >> 8);
+		nv_wo32(disp->mem, dmao + 0x2c, 0x00000000);
+		nv_wo32(disp->mem, dmao + 0x30, 0x00000000);
+		nv_wo32(disp->mem, dmao + 0x34, 0x00000000);
+		nv_wo32(disp->mem, hash + 0x08, NvEvoVRAM);
+		nv_wo32(disp->mem, hash + 0x0c, 0x00000001 | (i << 27) |
+						((dmao + 0x20) << 9));
+
+		nv_wo32(disp->mem, dmao + 0x40, 0x00000009);
+		nv_wo32(disp->mem, dmao + 0x44, 0x00000000);
+		nv_wo32(disp->mem, dmao + 0x48, (dev_priv->vram_size - 1) >> 8);
+		nv_wo32(disp->mem, dmao + 0x4c, 0x00000000);
+		nv_wo32(disp->mem, dmao + 0x50, 0x00000000);
+		nv_wo32(disp->mem, dmao + 0x54, 0x00000000);
+		nv_wo32(disp->mem, hash + 0x10, NvEvoVRAM_LP);
+		nv_wo32(disp->mem, hash + 0x14, 0x00000001 | (i << 27) |
+						((dmao + 0x40) << 9));
+
+		nv_wo32(disp->mem, dmao + 0x60, 0x0fe00009);
+		nv_wo32(disp->mem, dmao + 0x64, 0x00000000);
+		nv_wo32(disp->mem, dmao + 0x68, (dev_priv->vram_size - 1) >> 8);
+		nv_wo32(disp->mem, dmao + 0x6c, 0x00000000);
+		nv_wo32(disp->mem, dmao + 0x70, 0x00000000);
+		nv_wo32(disp->mem, dmao + 0x74, 0x00000000);
+		nv_wo32(disp->mem, hash + 0x18, NvEvoFB32);
+		nv_wo32(disp->mem, hash + 0x1c, 0x00000001 | (i << 27) |
+						((dmao + 0x60) << 9));
 	}
+
+	pinstmem->flush(dev);
 
 out:
 	if (ret)
