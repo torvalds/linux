@@ -45,7 +45,6 @@
 #define RIO_PORT1_IECSR		0x10130
 #define RIO_PORT2_IECSR		0x101B0
 
-#define RIO_ATMU_REGS_OFFSET	0x10c00
 #define RIO_GCCSR		0x13c
 #define RIO_ESCSR		0x158
 #define ESCSR_CLEAR		0x07120204
@@ -74,6 +73,11 @@
 		: "b" (addr), "i" (-EFAULT), "0" (err))
 
 void __iomem *rio_regs_win;
+void __iomem *rmu_regs_win;
+resource_size_t rio_law_start;
+
+struct fsl_rio_dbell *dbell;
+struct fsl_rio_pw *pw;
 
 #ifdef CONFIG_E500
 int fsl_rio_mcheck_exception(struct pt_regs *regs)
@@ -120,7 +124,7 @@ static int fsl_local_config_read(struct rio_mport *mport,
 {
 	struct rio_priv *priv = mport->priv;
 	pr_debug("fsl_local_config_read: index %d offset %8.8x\n", index,
-		offset);
+		 offset);
 	*data = in_be32(priv->regs_win + offset);
 
 	return 0;
@@ -173,7 +177,7 @@ fsl_rio_config_read(struct rio_mport *mport, int index, u16 destid,
 	pr_debug
 		("fsl_rio_config_read:"
 		" index %d destid %d hopcount %d offset %8.8x len %d\n",
-	     index, destid, hopcount, offset, len);
+		index, destid, hopcount, offset, len);
 
 	/* 16MB maintenance window possible */
 	/* allow only aligned access to maintenance registers */
@@ -230,8 +234,8 @@ fsl_rio_config_write(struct rio_mport *mport, int index, u16 destid,
 	u8 *data;
 	pr_debug
 		("fsl_rio_config_write:"
-		"index %d destid %d hopcount %d offset %8.8x len %d val %8.8x\n",
-	     index, destid, hopcount, offset, len, val);
+		" index %d destid %d hopcount %d offset %8.8x len %d val %8.8x\n",
+		index, destid, hopcount, offset, len, val);
 
 	/* 16MB maintenance windows possible */
 	/* allow only aligned access to maintenance registers */
@@ -260,7 +264,7 @@ fsl_rio_config_write(struct rio_mport *mport, int index, u16 destid,
 	return 0;
 }
 
-void fsl_rio_port_error_handler(struct rio_mport *port, int offset)
+void fsl_rio_port_error_handler(int offset)
 {
 	/*XXX: Error recovery is not implemented, we just clear errors */
 	out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR), 0);
@@ -331,16 +335,21 @@ int fsl_rio_setup(struct platform_device *dev)
 	struct rio_mport *port;
 	struct rio_priv *priv;
 	int rc = 0;
-	const u32 *dt_range, *cell;
-	struct resource regs;
+	const u32 *dt_range, *cell, *port_index;
+	u32 active_ports = 0;
+	struct resource regs, rmu_regs;
+	struct device_node *np, *rmu_node;
 	int rlen;
 	u32 ccsr;
-	u64 law_start, law_size;
+	u64 range_start, range_size;
 	int paw, aw, sw;
+	u32 i;
+	static int tmp;
+	struct device_node *rmu_np[MAX_MSG_UNIT_NUM] = {NULL};
 
 	if (!dev->dev.of_node) {
 		dev_err(&dev->dev, "Device OF-Node is NULL");
-		return -EFAULT;
+		return -ENODEV;
 	}
 
 	rc = of_address_to_resource(dev->dev.of_node, 0, &regs);
@@ -353,33 +362,12 @@ int fsl_rio_setup(struct platform_device *dev)
 			dev->dev.of_node->full_name);
 	dev_info(&dev->dev, "Regs: %pR\n", &regs);
 
-	dt_range = of_get_property(dev->dev.of_node, "ranges", &rlen);
-	if (!dt_range) {
-		dev_err(&dev->dev, "Can't get %s property 'ranges'\n",
-				dev->dev.of_node->full_name);
-		return -EFAULT;
+	rio_regs_win = ioremap(regs.start, resource_size(&regs));
+	if (!rio_regs_win) {
+		dev_err(&dev->dev, "Unable to map rio register window\n");
+		rc = -ENOMEM;
+		goto err_rio_regs;
 	}
-
-	/* Get node address wide */
-	cell = of_get_property(dev->dev.of_node, "#address-cells", NULL);
-	if (cell)
-		aw = *cell;
-	else
-		aw = of_n_addr_cells(dev->dev.of_node);
-	/* Get node size wide */
-	cell = of_get_property(dev->dev.of_node, "#size-cells", NULL);
-	if (cell)
-		sw = *cell;
-	else
-		sw = of_n_size_cells(dev->dev.of_node);
-	/* Get parent address wide wide */
-	paw = of_n_addr_cells(dev->dev.of_node);
-
-	law_start = of_read_number(dt_range + aw, paw);
-	law_size = of_read_number(dt_range + aw + paw, sw);
-
-	dev_info(&dev->dev, "LAW start 0x%016llx, size 0x%016llx.\n",
-			law_start, law_size);
 
 	ops = kzalloc(sizeof(struct rio_ops), GFP_KERNEL);
 	if (!ops) {
@@ -390,130 +378,267 @@ int fsl_rio_setup(struct platform_device *dev)
 	ops->lcwrite = fsl_local_config_write;
 	ops->cread = fsl_rio_config_read;
 	ops->cwrite = fsl_rio_config_write;
+	ops->dsend = fsl_rio_doorbell_send;
 	ops->pwenable = fsl_rio_pw_enable;
+	ops->open_outb_mbox = fsl_open_outb_mbox;
+	ops->open_inb_mbox = fsl_open_inb_mbox;
+	ops->close_outb_mbox = fsl_close_outb_mbox;
+	ops->close_inb_mbox = fsl_close_inb_mbox;
+	ops->add_outb_message = fsl_add_outb_message;
+	ops->add_inb_buffer = fsl_add_inb_buffer;
+	ops->get_inb_message = fsl_get_inb_message;
 
-	port = kzalloc(sizeof(struct rio_mport), GFP_KERNEL);
-	if (!port) {
+	rmu_node = of_parse_phandle(dev->dev.of_node, "fsl,srio-rmu-handle", 0);
+	if (!rmu_node)
+		goto err_rmu;
+	rc = of_address_to_resource(rmu_node, 0, &rmu_regs);
+	if (rc) {
+		dev_err(&dev->dev, "Can't get %s property 'reg'\n",
+				rmu_node->full_name);
+		goto err_rmu;
+	}
+	rmu_regs_win = ioremap(rmu_regs.start, resource_size(&rmu_regs));
+	if (!rmu_regs_win) {
+		dev_err(&dev->dev, "Unable to map rmu register window\n");
 		rc = -ENOMEM;
-		goto err_port;
+		goto err_rmu;
 	}
-	port->index = 0;
+	for_each_compatible_node(np, NULL, "fsl,srio-msg-unit") {
+		rmu_np[tmp] = np;
+		tmp++;
+	}
 
-	priv = kzalloc(sizeof(struct rio_priv), GFP_KERNEL);
-	if (!priv) {
-		printk(KERN_ERR "Can't alloc memory for 'priv'\n");
+	/*set up doobell node*/
+	np = of_find_compatible_node(NULL, NULL, "fsl,srio-dbell-unit");
+	if (!np) {
+		rc = -ENODEV;
+		goto err_dbell;
+	}
+	dbell = kzalloc(sizeof(struct fsl_rio_dbell), GFP_KERNEL);
+	if (!(dbell)) {
+		dev_err(&dev->dev, "Can't alloc memory for 'fsl_rio_dbell'\n");
 		rc = -ENOMEM;
-		goto err_priv;
+		goto err_dbell;
 	}
+	dbell->dev = &dev->dev;
+	dbell->bellirq = irq_of_parse_and_map(np, 1);
+	dev_info(&dev->dev, "bellirq: %d\n", dbell->bellirq);
 
-	INIT_LIST_HEAD(&port->dbells);
-	port->iores.start = law_start;
-	port->iores.end = law_start + law_size - 1;
-	port->iores.flags = IORESOURCE_MEM;
-	port->iores.name = "rio_io_win";
-
-	if (request_resource(&iomem_resource, &port->iores) < 0) {
-		dev_err(&dev->dev, "RIO: Error requesting master port region"
-			" 0x%016llx-0x%016llx\n",
-			(u64)port->iores.start, (u64)port->iores.end);
-			rc = -ENOMEM;
-			goto err_res;
+	aw = of_n_addr_cells(np);
+	dt_range = of_get_property(np, "reg", &rlen);
+	if (!dt_range) {
+		pr_err("%s: unable to find 'reg' property\n",
+			np->full_name);
+		rc = -ENOMEM;
+		goto err_pw;
 	}
+	range_start = of_read_number(dt_range, aw);
+	dbell->dbell_regs = (struct rio_dbell_regs *)(rmu_regs_win +
+				(u32)range_start);
 
-	priv->pwirq = irq_of_parse_and_map(dev->dev.of_node, 0);
-	dev_info(&dev->dev, "pwirq: %d\n", priv->pwirq);
-	strcpy(port->name, "RIO0 mport");
-
-	priv->dev = &dev->dev;
-
-	port->ops = ops;
-	port->priv = priv;
-	port->phys_efptr = 0x100;
-
-	priv->regs_win = ioremap(regs.start, resource_size(&regs));
-	rio_regs_win = priv->regs_win;
-
-	/* Probe the master port phy type */
-	ccsr = in_be32(priv->regs_win + RIO_CCSR);
-	port->phy_type = (ccsr & 1) ? RIO_PHY_SERIAL : RIO_PHY_PARALLEL;
-	dev_info(&dev->dev, "RapidIO PHY type: %s\n",
-			(port->phy_type == RIO_PHY_PARALLEL) ? "parallel" :
-			((port->phy_type == RIO_PHY_SERIAL) ? "serial" :
-			 "unknown"));
-	/* Checking the port training status */
-	if (in_be32((priv->regs_win + RIO_ESCSR)) & 1) {
-		dev_err(&dev->dev, "Port is not ready. "
-			"Try to restart connection...\n");
-		switch (port->phy_type) {
-		case RIO_PHY_SERIAL:
-			/* Disable ports */
-			out_be32(priv->regs_win + RIO_CCSR, 0);
-			/* Set 1x lane */
-			setbits32(priv->regs_win + RIO_CCSR, 0x02000000);
-			/* Enable ports */
-			setbits32(priv->regs_win + RIO_CCSR, 0x00600000);
-			break;
-		case RIO_PHY_PARALLEL:
-			/* Disable ports */
-			out_be32(priv->regs_win + RIO_CCSR, 0x22000000);
-			/* Enable ports */
-			out_be32(priv->regs_win + RIO_CCSR, 0x44000000);
-			break;
-		}
-		msleep(100);
-		if (in_be32((priv->regs_win + RIO_ESCSR)) & 1) {
-			dev_err(&dev->dev, "Port restart failed.\n");
-			rc = -ENOLINK;
-			goto err;
-		}
-		dev_info(&dev->dev, "Port restart success!\n");
+	/*set up port write node*/
+	np = of_find_compatible_node(NULL, NULL, "fsl,srio-port-write-unit");
+	if (!np) {
+		rc = -ENODEV;
+		goto err_pw;
 	}
-	fsl_rio_info(&dev->dev, ccsr);
-
-	port->sys_size = (in_be32((priv->regs_win + RIO_PEF_CAR))
-					& RIO_PEF_CTLS) >> 4;
-	dev_info(&dev->dev, "RapidIO Common Transport System size: %d\n",
-			port->sys_size ? 65536 : 256);
-
-	if (rio_register_mport(port))
+	pw = kzalloc(sizeof(struct fsl_rio_pw), GFP_KERNEL);
+	if (!(pw)) {
+		dev_err(&dev->dev, "Can't alloc memory for 'fsl_rio_pw'\n");
+		rc = -ENOMEM;
+		goto err_pw;
+	}
+	pw->dev = &dev->dev;
+	pw->pwirq = irq_of_parse_and_map(np, 0);
+	dev_info(&dev->dev, "pwirq: %d\n", pw->pwirq);
+	aw = of_n_addr_cells(np);
+	dt_range = of_get_property(np, "reg", &rlen);
+	if (!dt_range) {
+		pr_err("%s: unable to find 'reg' property\n",
+			np->full_name);
+		rc = -ENOMEM;
 		goto err;
+	}
+	range_start = of_read_number(dt_range, aw);
+	pw->pw_regs = (struct rio_pw_regs *)(rmu_regs_win + (u32)range_start);
 
-	if (port->host_deviceid >= 0)
-		out_be32(priv->regs_win + RIO_GCCSR, RIO_PORT_GEN_HOST |
-			RIO_PORT_GEN_MASTER | RIO_PORT_GEN_DISCOVERED);
-	else
-		out_be32(priv->regs_win + RIO_GCCSR, 0x00000000);
+	/*set up ports node*/
+	for_each_child_of_node(dev->dev.of_node, np) {
+		port_index = of_get_property(np, "cell-index", NULL);
+		if (!port_index) {
+			dev_err(&dev->dev, "Can't get %s property 'cell-index'\n",
+					np->full_name);
+			continue;
+		}
 
-	priv->atmu_regs = (struct rio_atmu_regs *)(priv->regs_win
-					+ RIO_ATMU_REGS_OFFSET);
-	priv->maint_atmu_regs = priv->atmu_regs + 1;
+		dt_range = of_get_property(np, "ranges", &rlen);
+		if (!dt_range) {
+			dev_err(&dev->dev, "Can't get %s property 'ranges'\n",
+					np->full_name);
+			continue;
+		}
 
-	/* Set to receive any dist ID for serial RapidIO controller. */
-	if (port->phy_type == RIO_PHY_SERIAL)
-		out_be32((priv->regs_win + RIO_ISR_AACR), RIO_ISR_AACR_AA);
+		/* Get node address wide */
+		cell = of_get_property(np, "#address-cells", NULL);
+		if (cell)
+			aw = *cell;
+		else
+			aw = of_n_addr_cells(np);
+		/* Get node size wide */
+		cell = of_get_property(np, "#size-cells", NULL);
+		if (cell)
+			sw = *cell;
+		else
+			sw = of_n_size_cells(np);
+		/* Get parent address wide wide */
+		paw = of_n_addr_cells(np);
+		range_start = of_read_number(dt_range + aw, paw);
+		range_size = of_read_number(dt_range + aw + paw, sw);
 
-	/* Configure maintenance transaction window */
-	out_be32(&priv->maint_atmu_regs->rowbar, law_start >> 12);
-	out_be32(&priv->maint_atmu_regs->rowar,
-		 0x80077000 | (ilog2(RIO_MAINT_WIN_SIZE) - 1));
+		dev_info(&dev->dev, "%s: LAW start 0x%016llx, size 0x%016llx.\n",
+				np->full_name, range_start, range_size);
 
-	priv->maint_win = ioremap(law_start, RIO_MAINT_WIN_SIZE);
+		port = kzalloc(sizeof(struct rio_mport), GFP_KERNEL);
+		if (!port)
+			continue;
 
-	fsl_rio_setup_rmu(port, dev->dev.of_node);
+		i = *port_index - 1;
+		port->index = (unsigned char)i;
 
-	fsl_rio_port_write_init(port);
+		priv = kzalloc(sizeof(struct rio_priv), GFP_KERNEL);
+		if (!priv) {
+			dev_err(&dev->dev, "Can't alloc memory for 'priv'\n");
+			kfree(port);
+			continue;
+		}
+
+		INIT_LIST_HEAD(&port->dbells);
+		port->iores.start = range_start;
+		port->iores.end = port->iores.start + range_size - 1;
+		port->iores.flags = IORESOURCE_MEM;
+		port->iores.name = "rio_io_win";
+
+		if (request_resource(&iomem_resource, &port->iores) < 0) {
+			dev_err(&dev->dev, "RIO: Error requesting master port region"
+				" 0x%016llx-0x%016llx\n",
+				(u64)port->iores.start, (u64)port->iores.end);
+				kfree(priv);
+				kfree(port);
+				continue;
+		}
+		sprintf(port->name, "RIO mport %d", i);
+
+		priv->dev = &dev->dev;
+		port->ops = ops;
+		port->priv = priv;
+		port->phys_efptr = 0x100;
+		priv->regs_win = rio_regs_win;
+
+		/* Probe the master port phy type */
+		ccsr = in_be32(priv->regs_win + RIO_CCSR + i*0x20);
+		port->phy_type = (ccsr & 1) ? RIO_PHY_SERIAL : RIO_PHY_PARALLEL;
+		if (port->phy_type == RIO_PHY_PARALLEL) {
+			dev_err(&dev->dev, "RIO: Parallel PHY type, unsupported port type!\n");
+			release_resource(&port->iores);
+			kfree(priv);
+			kfree(port);
+			continue;
+		}
+		dev_info(&dev->dev, "RapidIO PHY type: Serial\n");
+		/* Checking the port training status */
+		if (in_be32((priv->regs_win + RIO_ESCSR + i*0x20)) & 1) {
+			dev_err(&dev->dev, "Port %d is not ready. "
+			"Try to restart connection...\n", i);
+			/* Disable ports */
+			out_be32(priv->regs_win
+				+ RIO_CCSR + i*0x20, 0);
+			/* Set 1x lane */
+			setbits32(priv->regs_win
+				+ RIO_CCSR + i*0x20, 0x02000000);
+			/* Enable ports */
+			setbits32(priv->regs_win
+				+ RIO_CCSR + i*0x20, 0x00600000);
+			msleep(100);
+			if (in_be32((priv->regs_win
+					+ RIO_ESCSR + i*0x20)) & 1) {
+				dev_err(&dev->dev,
+					"Port %d restart failed.\n", i);
+				release_resource(&port->iores);
+				kfree(priv);
+				kfree(port);
+				continue;
+			}
+			dev_info(&dev->dev, "Port %d restart success!\n", i);
+		}
+		fsl_rio_info(&dev->dev, ccsr);
+
+		port->sys_size = (in_be32((priv->regs_win + RIO_PEF_CAR))
+					& RIO_PEF_CTLS) >> 4;
+		dev_info(&dev->dev, "RapidIO Common Transport System size: %d\n",
+				port->sys_size ? 65536 : 256);
+
+		if (rio_register_mport(port)) {
+			release_resource(&port->iores);
+			kfree(priv);
+			kfree(port);
+			continue;
+		}
+		if (port->host_deviceid >= 0)
+			out_be32(priv->regs_win + RIO_GCCSR, RIO_PORT_GEN_HOST |
+				RIO_PORT_GEN_MASTER | RIO_PORT_GEN_DISCOVERED);
+		else
+			out_be32(priv->regs_win + RIO_GCCSR,
+				RIO_PORT_GEN_MASTER);
+
+		priv->atmu_regs = (struct rio_atmu_regs *)(priv->regs_win
+			+ ((i == 0) ? RIO_ATMU_REGS_PORT1_OFFSET :
+			RIO_ATMU_REGS_PORT2_OFFSET));
+
+		priv->maint_atmu_regs = priv->atmu_regs + 1;
+
+		/* Set to receive any dist ID for serial RapidIO controller. */
+		if (port->phy_type == RIO_PHY_SERIAL)
+			out_be32((priv->regs_win
+				+ RIO_ISR_AACR + i*0x80), RIO_ISR_AACR_AA);
+
+		/* Configure maintenance transaction window */
+		out_be32(&priv->maint_atmu_regs->rowbar,
+			port->iores.start >> 12);
+		out_be32(&priv->maint_atmu_regs->rowar,
+			 0x80077000 | (ilog2(RIO_MAINT_WIN_SIZE) - 1));
+
+		priv->maint_win = ioremap(port->iores.start,
+				RIO_MAINT_WIN_SIZE);
+
+		rio_law_start = range_start;
+
+		fsl_rio_setup_rmu(port, rmu_np[i]);
+
+		dbell->mport[i] = port;
+
+		active_ports++;
+	}
+
+	if (!active_ports) {
+		rc = -ENOLINK;
+		goto err;
+	}
+
+	fsl_rio_doorbell_init(dbell);
+	fsl_rio_port_write_init(pw);
 
 	return 0;
 err:
-	iounmap(priv->regs_win);
-	release_resource(&port->iores);
-err_res:
-	kfree(priv);
-err_priv:
-	kfree(port);
-err_port:
+	kfree(pw);
+err_pw:
+	kfree(dbell);
+err_dbell:
+	iounmap(rmu_regs_win);
+err_rmu:
 	kfree(ops);
 err_ops:
+	iounmap(rio_regs_win);
+err_rio_regs:
 	return rc;
 }
 
@@ -529,7 +654,7 @@ static int __devinit fsl_of_rio_rpn_probe(struct platform_device *dev)
 
 static const struct of_device_id fsl_of_rio_rpn_ids[] = {
 	{
-		.compatible = "fsl,rapidio-delta",
+		.compatible = "fsl,srio",
 	},
 	{},
 };
