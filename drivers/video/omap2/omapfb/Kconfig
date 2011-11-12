@@ -1,6 +1,6 @@
 menuconfig FB_OMAP2
         tristate "OMAP2+ frame buffer support"
-        depends on FB && OMAP2_DSS
+        depends on FB && OMAP2_DSS && !DRM_OMAP
 
 	select OMAP2_VRAM
 	select OMAP2_VRFB if ARCH_OMAP2 || ARCH_OMAP3
