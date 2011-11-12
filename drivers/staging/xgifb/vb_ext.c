@@ -13,8 +13,7 @@
  *********************** Dynamic Sense ************************
  *************************************************************/
 
-static unsigned char
-XGINew_GetLCDDDCInfo(struct xgi_hw_device_info *HwDeviceExtension,
+unsigned short XGINew_SenseLCD(struct xgi_hw_device_info *HwDeviceExtension,
 		     struct vb_device_info *pVBInfo)
 {
 	unsigned short temp;
@@ -55,15 +54,4 @@ XGINew_GetLCDDDCInfo(struct xgi_hw_device_info *HwDeviceExtension,
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x36, 0xF0, temp);
 		return 1;
 	}
-}
-
-unsigned short XGINew_SenseLCD(struct xgi_hw_device_info *HwDeviceExtension,
-			       struct vb_device_info *pVBInfo)
-{
-	/* unsigned short SoftSetting ; */
-	unsigned short temp;
-
-	temp = XGINew_GetLCDDDCInfo(HwDeviceExtension, pVBInfo);
-
-	return temp;
 }
