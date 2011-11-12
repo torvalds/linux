@@ -177,6 +177,16 @@ config TOUCHSCREEN_EETI
 	  To compile this driver as a module, choose M here: the
 	  module will be called eeti_ts.
 
+config TOUCHSCREEN_EGALAX
+	tristate "EETI eGalax multi-touch panel support"
+	depends on I2C
+	help
+	  Say Y here to enable support for I2C connected EETI
+	  eGalax multi-touch panels.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called egalax_ts.
+
 config TOUCHSCREEN_FUJITSU
 	tristate "Fujitsu serial touchscreen"
 	select SERIO
