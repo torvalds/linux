@@ -1389,15 +1389,12 @@ static int __synaptics_init(struct psmouse *psmouse, bool absolute_mode)
 	int err = -1;
 
 	/*
-	 * The OLPC XO has issues with Synaptics' absolute mode; similarly to
-	 * the HGPK, it quickly degrades and the hardware becomes jumpy and
-	 * overly sensitive.  Not only that, but the constant packet spew
-	 * (even at a lowered 40pps rate) overloads the EC such that key
-	 * presses on the keyboard are missed.  Given all of that, don't
-	 * even attempt to use Synaptics mode.  Relative mode seems to work
-	 * just fine.
+	 * The OLPC XO has issues with Synaptics' absolute mode; the constant
+	 * packet spew overloads the EC such that key presses on the keyboard
+	 * are missed.  Given that, don't even attempt to use Absolute mode.
+	 * Relative mode seems to work just fine.
 	 */
-	if (broken_olpc_ec) {
+	if (absolute_mode && broken_olpc_ec) {
 		psmouse_info(psmouse,
 			     "OLPC XO detected, not enabling Synaptics protocol.\n");
 		return -ENODEV;
