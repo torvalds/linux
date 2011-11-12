@@ -35,8 +35,12 @@
 #include "nouveau_fb.h"
 #include "nv50_display.h"
 
+#define EVO_DMA_NR 9
+
 #define EVO_MASTER  (0x00)
 #define EVO_SYNC(c) (0x01 + (c))
+#define EVO_OVLY(c) (0x05 + (c))
+#define EVO_OIMM(c) (0x09 + (c))
 #define EVO_CURS(c) (0x0d + (c))
 
 struct evo {
@@ -52,7 +56,7 @@ struct evo {
 
 struct nvd0_display {
 	struct nouveau_gpuobj *mem;
-	struct evo evo[3];
+	struct evo evo[9];
 
 	struct tasklet_struct tasklet;
 	u32 modeset;
@@ -1642,9 +1646,11 @@ nvd0_display_fini(struct drm_device *dev)
 {
 	int i;
 
-	/* fini cursors + syncs */
+	/* fini cursors + overlays + syncs */
 	for (i = 1; i >= 0; i--) {
 		evo_fini_pio(dev, EVO_CURS(i));
+		evo_fini_pio(dev, EVO_OIMM(i));
+		evo_fini_dma(dev, EVO_OVLY(i));
 		evo_fini_dma(dev, EVO_SYNC(i));
 	}
 
@@ -1700,9 +1706,11 @@ nvd0_display_init(struct drm_device *dev)
 	if (ret)
 		goto error;
 
-	/* init syncs + cursors */
+	/* init syncs + overlays + cursors */
 	for (i = 0; i < dev->mode_config.num_crtc; i++) {
 		if ((ret = evo_init_dma(dev, EVO_SYNC(i))) ||
+		    (ret = evo_init_dma(dev, EVO_OVLY(i))) ||
+		    (ret = evo_init_pio(dev, EVO_OIMM(i))) ||
 		    (ret = evo_init_pio(dev, EVO_CURS(i))))
 			goto error;
 	}
@@ -1736,7 +1744,7 @@ nvd0_display_destroy(struct drm_device *dev)
 	struct pci_dev *pdev = dev->pdev;
 	int i;
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < EVO_DMA_NR; i++) {
 		struct evo *evo = &disp->evo[i];
 		nouveau_bo_unmap(evo->sem.bo);
 		nouveau_bo_ref(NULL, &evo->sem.bo);
@@ -1822,7 +1830,7 @@ nvd0_display_create(struct drm_device *dev)
 		goto out;
 
 	/* create evo dma channels */
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < EVO_DMA_NR; i++) {
 		struct evo *evo = &disp->evo[i];
 		u32 dmao = 0x1000 + (i * 0x100);
 		u32 hash = 0x0000 + (i * 0x040);
