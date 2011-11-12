@@ -277,6 +277,13 @@ static int process_event_synth_stub(union perf_event *event __used,
 	return 0;
 }
 
+static int process_event_synth_attr_stub(union perf_event *event __used,
+					 struct perf_evlist **pevlist __used)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
 static int process_event_sample_stub(union perf_event *event __used,
 				     struct perf_sample *sample __used,
 				     struct perf_evsel *evsel __used,
@@ -327,7 +334,7 @@ static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 	if (handler->unthrottle == NULL)
 		handler->unthrottle = process_event_stub;
 	if (handler->attr == NULL)
-		handler->attr = process_event_synth_stub;
+		handler->attr = process_event_synth_attr_stub;
 	if (handler->event_type == NULL)
 		handler->event_type = process_event_synth_stub;
 	if (handler->tracing_data == NULL)
@@ -794,12 +801,17 @@ static int perf_session__preprocess_sample(struct perf_session *session,
 static int perf_session__process_user_event(struct perf_session *session, union perf_event *event,
 					    struct perf_event_ops *ops, u64 file_offset)
 {
+	int err;
+
 	dump_event(session, event, file_offset, NULL);
 
 	/* These events are processed right away */
 	switch (event->header.type) {
 	case PERF_RECORD_HEADER_ATTR:
-		return ops->attr(event, session);
+		err = ops->attr(event, &session->evlist);
+		if (err == 0)
+			perf_session__update_sample_type(session);
+		return err;
 	case PERF_RECORD_HEADER_EVENT_TYPE:
 		return ops->event_type(event, session);
 	case PERF_RECORD_HEADER_TRACING_DATA:

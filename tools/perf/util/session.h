@@ -63,6 +63,8 @@ typedef int (*event_op)(union perf_event *self, struct perf_sample *sample,
 			struct perf_session *session);
 typedef int (*event_synth_op)(union perf_event *self,
 			      struct perf_session *session);
+typedef int (*event_attr_op)(union perf_event *event,
+			     struct perf_evlist **pevlist);
 typedef int (*event_op2)(union perf_event *self, struct perf_session *session,
 			 struct perf_event_ops *ops);
 
@@ -76,8 +78,8 @@ struct perf_event_ops {
 			read,
 			throttle,
 			unthrottle;
-	event_synth_op	attr,
-			event_type,
+	event_attr_op	attr;
+	event_synth_op	event_type,
 			tracing_data,
 			build_id;
 	event_op2	finished_round;

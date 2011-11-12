@@ -2120,23 +2120,23 @@ int perf_session__synthesize_attrs(struct perf_session *session,
 }
 
 int perf_event__process_attr(union perf_event *event,
-			     struct perf_session *session)
+			     struct perf_evlist **pevlist)
 {
 	unsigned int i, ids, n_ids;
 	struct perf_evsel *evsel;
+	struct perf_evlist *evlist = *pevlist;
 
-	if (session->evlist == NULL) {
-		session->evlist = perf_evlist__new(NULL, NULL);
-		if (session->evlist == NULL)
+	if (evlist == NULL) {
+		*pevlist = evlist = perf_evlist__new(NULL, NULL);
+		if (evlist == NULL)
 			return -ENOMEM;
 	}
 
-	evsel = perf_evsel__new(&event->attr.attr,
-				session->evlist->nr_entries);
+	evsel = perf_evsel__new(&event->attr.attr, evlist->nr_entries);
 	if (evsel == NULL)
 		return -ENOMEM;
 
-	perf_evlist__add(session->evlist, evsel);
+	perf_evlist__add(evlist, evsel);
 
 	ids = event->header.size;
 	ids -= (void *)&event->attr.id - (void *)event;
@@ -2150,11 +2150,8 @@ int perf_event__process_attr(union perf_event *event,
 		return -ENOMEM;
 
 	for (i = 0; i < n_ids; i++) {
-		perf_evlist__id_add(session->evlist, evsel, 0, i,
-				    event->attr.id[i]);
+		perf_evlist__id_add(evlist, evsel, 0, i, event->attr.id[i]);
 	}
-
-	perf_session__update_sample_type(session);
 
 	return 0;
 }

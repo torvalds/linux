@@ -101,7 +101,7 @@ int perf_event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
 				struct perf_session *session);
 int perf_session__synthesize_attrs(struct perf_session *session,
 				   perf_event__handler_t process);
-int perf_event__process_attr(union perf_event *event, struct perf_session *session);
+int perf_event__process_attr(union perf_event *event, struct perf_evlist **pevlist);
 
 int perf_event__synthesize_event_type(u64 event_id, char *name,
 				      perf_event__handler_t process,

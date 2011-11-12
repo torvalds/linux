@@ -36,6 +36,12 @@ static int perf_event__repipe_synth(union perf_event *event,
 	return 0;
 }
 
+static int perf_event__repipe_attr(union perf_event *event,
+				   struct perf_evlist **pevlist __used)
+{
+	return perf_event__repipe_synth(event, NULL);
+}
+
 static int perf_event__repipe(union perf_event *event,
 			      struct perf_sample *sample __used,
 			      struct perf_session *session)
@@ -182,7 +188,7 @@ struct perf_event_ops inject_ops = {
 	.read		= perf_event__repipe,
 	.throttle	= perf_event__repipe,
 	.unthrottle	= perf_event__repipe,
-	.attr		= perf_event__repipe_synth,
+	.attr		= perf_event__repipe_attr,
 	.event_type 	= perf_event__repipe_synth,
 	.tracing_data 	= perf_event__repipe_synth,
 	.build_id 	= perf_event__repipe_synth,
