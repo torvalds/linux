@@ -43,6 +43,7 @@ enum ath_stomp_type {
 	ATH_BTCOEX_STOMP_ALL,
 	ATH_BTCOEX_STOMP_LOW,
 	ATH_BTCOEX_STOMP_NONE,
+	ATH_BTCOEX_STOMP_LOW_FTP,
 	ATH_BTCOEX_STOMP_MAX
 };
 
@@ -50,6 +51,7 @@ enum ath_btcoex_scheme {
 	ATH_BTCOEX_CFG_NONE,
 	ATH_BTCOEX_CFG_2WIRE,
 	ATH_BTCOEX_CFG_3WIRE,
+	ATH_BTCOEX_CFG_MCI,
 };
 
 struct ath_btcoex_hw {

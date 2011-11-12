@@ -1752,7 +1752,7 @@ enum {
 
 #define AR_BT_COEX_WL_WEIGHTS0     0x8174
 #define AR_BT_COEX_WL_WEIGHTS1     0x81c4
-
+#define AR_MCI_COEX_WL_WEIGHTS(_i) (0x18b0 + (_i << 2))
 #define AR_BT_COEX_BT_WEIGHTS(_i)  (0x83ac + (_i << 2))
 
 #define AR9300_BT_WGHT             0xcccc4444

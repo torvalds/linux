@@ -42,6 +42,14 @@ static const u32 ar9003_wlan_weights[ATH_BTCOEX_STOMP_MAX]
 	{ 0x00000000, 0x00000000, 0x00000000, 0x00000000 }, /* STOMP_NONE */
 };
 
+static const u32 ar9462_wlan_weights[ATH_BTCOEX_STOMP_MAX]
+				    [AR9300_NUM_WLAN_WEIGHTS] = {
+	{ 0x01017d01, 0x41414101, 0x41414101, 0x41414141 }, /* STOMP_ALL */
+	{ 0x01017d01, 0x3b3b3b01, 0x3b3b3b01, 0x3b3b3b3b }, /* STOMP_LOW */
+	{ 0x01017d01, 0x01010101, 0x01010101, 0x01010101 }, /* STOMP_NONE */
+	{ 0x01017d01, 0x013b0101, 0x3b3b0101, 0x3b3b013b }, /* STOMP_LOW_FTP */
+};
+
 void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum)
 {
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
@@ -193,6 +201,19 @@ static void ath9k_hw_btcoex_enable_3wire(struct ath_hw *ah)
 			    AR_GPIO_OUTPUT_MUX_AS_RX_CLEAR_EXTERNAL);
 }
 
+static void ath9k_hw_btcoex_enable_mci(struct ath_hw *ah)
+{
+	struct ath_btcoex_hw *btcoex = &ah->btcoex_hw;
+	int i;
+
+	for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
+		REG_WRITE(ah, AR_MCI_COEX_WL_WEIGHTS(i),
+			  btcoex->wlan_weight[i]);
+
+	REG_RMW_FIELD(ah, AR_QUIET1, AR_QUIET1_QUIET_ACK_CTS_ENABLE, 1);
+	btcoex->enabled = true;
+}
+
 void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 {
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
@@ -206,6 +227,9 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 	case ATH_BTCOEX_CFG_3WIRE:
 		ath9k_hw_btcoex_enable_3wire(ah);
 		break;
+	case ATH_BTCOEX_CFG_MCI:
+		ath9k_hw_btcoex_enable_mci(ah);
+		return;
 	}
 
 	REG_RMW(ah, AR_GPIO_PDPU,
@@ -221,6 +245,13 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 	int i;
 
+	btcoex_hw->enabled = false;
+	if (btcoex_hw->scheme == ATH_BTCOEX_CFG_MCI) {
+		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_NONE);
+		for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
+			REG_WRITE(ah, AR_MCI_COEX_WL_WEIGHTS(i),
+				  btcoex_hw->wlan_weight[i]);
+	}
 	ath9k_hw_set_gpio(ah, btcoex_hw->wlanactive_gpio, 0);
 
 	ath9k_hw_cfg_output(ah, btcoex_hw->wlanactive_gpio,
@@ -239,8 +270,6 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 			REG_WRITE(ah, AR_BT_COEX_WEIGHT, 0);
 
 	}
-
-	ah->btcoex_hw.enabled = false;
 }
 EXPORT_SYMBOL(ath9k_hw_btcoex_disable);
 
@@ -248,11 +277,13 @@ static void ar9003_btcoex_bt_stomp(struct ath_hw *ah,
 			 enum ath_stomp_type stomp_type)
 {
 	struct ath_btcoex_hw *btcoex = &ah->btcoex_hw;
+	const u32 *weight = AR_SREV_9462(ah) ? ar9003_wlan_weights[stomp_type] :
+					       ar9462_wlan_weights[stomp_type];
 	int i;
 
 	for (i = 0; i < AR9300_NUM_WLAN_WEIGHTS; i++) {
 		btcoex->bt_weight[i] = AR9300_BT_WGHT;
-		btcoex->wlan_weight[i] = ar9003_wlan_weights[stomp_type][i];
+		btcoex->wlan_weight[i] = weight[i];
 	}
 }
 
