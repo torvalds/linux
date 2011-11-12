@@ -49,9 +49,9 @@ struct exynos_drm_gem_obj {
 };
 
 /* create a new buffer and get a new gem handle. */
-struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_file *file_priv,
-		struct drm_device *dev, unsigned int size,
-		unsigned int *handle);
+struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
+		struct drm_file *file_priv,
+		unsigned int *handle, unsigned long size);
 
 /*
  * request gem object creation and buffer allocation as the size

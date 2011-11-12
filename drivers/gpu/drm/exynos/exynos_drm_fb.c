@@ -165,9 +165,9 @@ exynos_drm_fb_init(struct drm_file *file_priv, struct drm_device *dev,
 
 			goto out;
 		} else {
-			exynos_gem_obj = exynos_drm_gem_create(file_priv, dev,
-							size,
-							&mode_cmd->handle);
+			exynos_gem_obj = exynos_drm_gem_create(dev, file_priv,
+							&mode_cmd->handle,
+							size);
 			if (IS_ERR(exynos_gem_obj)) {
 				ret = PTR_ERR(exynos_gem_obj);
 				goto err_buffer;

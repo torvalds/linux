@@ -62,18 +62,14 @@ static unsigned int get_gem_mmap_offset(struct drm_gem_object *obj)
 	return (unsigned int)obj->map_list.hash.key << PAGE_SHIFT;
 }
 
-struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_file *file_priv,
-		struct drm_device *dev, unsigned int size,
-		unsigned int *handle)
+static struct exynos_drm_gem_obj
+		*exynos_drm_gem_init(struct drm_device *drm_dev,
+			struct drm_file *file_priv, unsigned int *handle,
+			unsigned int size)
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj;
-	struct exynos_drm_buf_entry *entry;
 	struct drm_gem_object *obj;
 	int ret;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	size = roundup(size, PAGE_SIZE);
 
 	exynos_gem_obj = kzalloc(sizeof(*exynos_gem_obj), GFP_KERNEL);
 	if (!exynos_gem_obj) {
@@ -81,21 +77,13 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_file *file_priv,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	/* allocate the new buffer object and memory region. */
-	entry = exynos_drm_buf_create(dev, size);
-	if (!entry) {
-		kfree(exynos_gem_obj);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	exynos_gem_obj->entry = entry;
-
 	obj = &exynos_gem_obj->base;
 
-	ret = drm_gem_object_init(dev, obj, size);
+	ret = drm_gem_object_init(drm_dev, obj, size);
 	if (ret < 0) {
-		DRM_ERROR("failed to initailize gem object.\n");
-		goto err_obj_init;
+		DRM_ERROR("failed to initialize gem object.\n");
+		ret = -EINVAL;
+		goto err_object_init;
 	}
 
 	DRM_DEBUG_KMS("created file object = 0x%x\n", (unsigned int)obj->filp);
@@ -127,24 +115,55 @@ err_handle_create:
 err_create_mmap_offset:
 	drm_gem_object_release(obj);
 
-err_obj_init:
-	exynos_drm_buf_destroy(dev, exynos_gem_obj->entry);
-
+err_object_init:
 	kfree(exynos_gem_obj);
 
 	return ERR_PTR(ret);
 }
 
+struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
+				struct drm_file *file_priv,
+				unsigned int *handle, unsigned long size)
+{
+
+	struct exynos_drm_gem_obj *exynos_gem_obj = NULL;
+	struct exynos_drm_buf_entry *entry;
+	int ret;
+
+	size = roundup(size, PAGE_SIZE);
+
+	DRM_DEBUG_KMS("%s: size = 0x%lx\n", __FILE__, size);
+
+	entry = exynos_drm_buf_create(dev, size);
+	if (!entry)
+		return ERR_PTR(-ENOMEM);
+
+	exynos_gem_obj = exynos_drm_gem_init(dev, file_priv, handle, size);
+	if (IS_ERR(exynos_gem_obj)) {
+		ret = PTR_ERR(exynos_gem_obj);
+		goto err_gem_init;
+	}
+
+	exynos_gem_obj->entry = entry;
+
+	return exynos_gem_obj;
+
+err_gem_init:
+	exynos_drm_buf_destroy(dev, exynos_gem_obj->entry);
+
+	return ERR_PTR(ret);
+}
+
 int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
-		struct drm_file *file_priv)
+					struct drm_file *file_priv)
 {
 	struct drm_exynos_gem_create *args = data;
-	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct exynos_drm_gem_obj *exynos_gem_obj = NULL;
 
-	DRM_DEBUG_KMS("%s : size = 0x%x\n", __FILE__, args->size);
+	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	exynos_gem_obj = exynos_drm_gem_create(file_priv, dev, args->size,
-			&args->handle);
+	exynos_gem_obj = exynos_drm_gem_create(dev, file_priv,
+						&args->handle, args->size);
 	if (IS_ERR(exynos_gem_obj))
 		return PTR_ERR(exynos_gem_obj);
 
@@ -302,8 +321,8 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	args->pitch = args->width * args->bpp >> 3;
 	args->size = args->pitch * args->height;
 
-	exynos_gem_obj = exynos_drm_gem_create(file_priv, dev, args->size,
-							&args->handle);
+	exynos_gem_obj = exynos_drm_gem_create(dev, file_priv, &args->handle,
+							args->size);
 	if (IS_ERR(exynos_gem_obj))
 		return PTR_ERR(exynos_gem_obj);
 
