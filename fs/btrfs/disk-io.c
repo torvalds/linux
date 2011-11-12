@@ -1890,31 +1890,32 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	u64 features;
 	struct btrfs_key location;
 	struct buffer_head *bh;
-	struct btrfs_root *extent_root = kzalloc(sizeof(struct btrfs_root),
-						 GFP_NOFS);
-	struct btrfs_root *csum_root = kzalloc(sizeof(struct btrfs_root),
-						 GFP_NOFS);
+	struct btrfs_super_block *disk_super;
 	struct btrfs_root *tree_root = btrfs_sb(sb);
-	struct btrfs_fs_info *fs_info = NULL;
-	struct btrfs_root *chunk_root = kzalloc(sizeof(struct btrfs_root),
-						GFP_NOFS);
-	struct btrfs_root *dev_root = kzalloc(sizeof(struct btrfs_root),
-					      GFP_NOFS);
+	struct btrfs_fs_info *fs_info = tree_root->fs_info;
+	struct btrfs_root *extent_root;
+	struct btrfs_root *csum_root;
+	struct btrfs_root *chunk_root;
+	struct btrfs_root *dev_root;
 	struct btrfs_root *log_tree_root;
-
 	int ret;
 	int err = -EINVAL;
 	int num_backups_tried = 0;
 	int backup_index = 0;
 
-	struct btrfs_super_block *disk_super;
+	extent_root = fs_info->extent_root =
+		kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
+	csum_root = fs_info->csum_root =
+		kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
+	chunk_root = fs_info->chunk_root =
+		kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
+	dev_root = fs_info->dev_root =
+		kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
 
-	if (!extent_root || !tree_root || !tree_root->fs_info ||
-	    !chunk_root || !dev_root || !csum_root) {
+	if (!extent_root || !csum_root || !chunk_root || !dev_root) {
 		err = -ENOMEM;
 		goto fail;
 	}
-	fs_info = tree_root->fs_info;
 
 	ret = init_srcu_struct(&fs_info->subvol_srcu);
 	if (ret) {
@@ -1954,12 +1955,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->reloc_mutex);
 
 	init_completion(&fs_info->kobj_unregister);
-	fs_info->tree_root = tree_root;
-	fs_info->extent_root = extent_root;
-	fs_info->csum_root = csum_root;
-	fs_info->chunk_root = chunk_root;
-	fs_info->dev_root = dev_root;
-	fs_info->fs_devices = fs_devices;
 	INIT_LIST_HEAD(&fs_info->dirty_cowonly_roots);
 	INIT_LIST_HEAD(&fs_info->space_info);
 	btrfs_mapping_init(&fs_info->mapping_tree);
@@ -2465,21 +2460,20 @@ fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->caching_workers);
 fail_alloc:
 fail_iput:
+	btrfs_mapping_tree_free(&fs_info->mapping_tree);
+
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	iput(fs_info->btree_inode);
-
-	btrfs_close_devices(fs_info->fs_devices);
-	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 fail_bdi:
 	bdi_destroy(&fs_info->bdi);
 fail_srcu:
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
 fail:
+	btrfs_close_devices(fs_info->fs_devices);
 	free_fs_info(fs_info);
 	return ERR_PTR(err);
 
 recovery_tree_root:
-
 	if (!btrfs_test_opt(tree_root, RECOVERY))
 		goto fail_tree_roots;
 
