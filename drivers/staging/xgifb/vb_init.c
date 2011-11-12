@@ -10,7 +10,6 @@
 #include "vb_util.h"
 #include "vb_setmode.h"
 #include "vb_init.h"
-#include "vb_ext.h"
 
 
 #include <linux/io.h>

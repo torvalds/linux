@@ -1,4 +1,4 @@
 obj-$(CONFIG_FB_XGI)  += xgifb.o
 
-xgifb-y := XGI_main_26.o vb_init.o vb_setmode.o vb_util.o vb_ext.o
+xgifb-y := XGI_main_26.o vb_init.o vb_setmode.o vb_util.o
 
