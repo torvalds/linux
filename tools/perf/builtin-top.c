@@ -777,7 +777,7 @@ static void perf_event__process_sample(const union perf_event *event,
 
 		if ((sort__has_parent || symbol_conf.use_callchain) &&
 		    sample->callchain) {
-			err = perf_session__resolve_callchain(session, al.thread,
+			err = perf_session__resolve_callchain(session, evsel, al.thread,
 							      sample->callchain, &parent);
 			if (err)
 				return;
@@ -790,7 +790,7 @@ static void perf_event__process_sample(const union perf_event *event,
 		}
 
 		if (symbol_conf.use_callchain) {
-			err = callchain_append(he->callchain, &session->callchain_cursor,
+			err = callchain_append(he->callchain, &evsel->hists.callchain_cursor,
 					       sample->period);
 			if (err)
 				return;

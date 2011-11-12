@@ -65,7 +65,7 @@ static int perf_session__add_hist_entry(struct perf_session *session,
 	struct hist_entry *he;
 
 	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
-		err = perf_session__resolve_callchain(session, al->thread,
+		err = perf_session__resolve_callchain(session, evsel, al->thread,
 						      sample->callchain, &parent);
 		if (err)
 			return err;
@@ -76,7 +76,8 @@ static int perf_session__add_hist_entry(struct perf_session *session,
 		return -ENOMEM;
 
 	if (symbol_conf.use_callchain) {
-		err = callchain_append(he->callchain, &session->callchain_cursor,
+		err = callchain_append(he->callchain,
+				       &evsel->hists.callchain_cursor,
 				       sample->period);
 		if (err)
 			return err;

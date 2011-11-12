@@ -384,7 +384,7 @@ static void process_event(union perf_event *event __unused,
 			printf(" ");
 		else
 			printf("\n");
-		perf_session__print_ip(event, sample, session,
+		perf_session__print_ip(event, evsel, sample, session,
 					      PRINT_FIELD(SYM), PRINT_FIELD(DSO));
 	}
 

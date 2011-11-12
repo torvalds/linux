@@ -216,7 +216,7 @@ static bool symbol__match_parent_regex(struct symbol *sym)
 	return 0;
 }
 
-int perf_session__resolve_callchain(struct perf_session *self,
+int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel *evsel,
 				    struct thread *thread,
 				    struct ip_callchain *chain,
 				    struct symbol **parent)
@@ -225,7 +225,7 @@ int perf_session__resolve_callchain(struct perf_session *self,
 	unsigned int i;
 	int err;
 
-	callchain_cursor_reset(&self->callchain_cursor);
+	callchain_cursor_reset(&evsel->hists.callchain_cursor);
 
 	for (i = 0; i < chain->nr; i++) {
 		u64 ip;
@@ -261,7 +261,7 @@ int perf_session__resolve_callchain(struct perf_session *self,
 				break;
 		}
 
-		err = callchain_cursor_append(&self->callchain_cursor,
+		err = callchain_cursor_append(&evsel->hists.callchain_cursor,
 					      ip, al.map, al.sym);
 		if (err)
 			return err;
@@ -1254,14 +1254,14 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 	return NULL;
 }
 
-void perf_session__print_ip(union perf_event *event,
+void perf_session__print_ip(union perf_event *event, struct perf_evsel *evsel,
 			    struct perf_sample *sample,
 			    struct perf_session *session,
 			    int print_sym, int print_dso)
 {
 	struct addr_location al;
 	const char *symname, *dsoname;
-	struct callchain_cursor *cursor = &session->callchain_cursor;
+	struct callchain_cursor *cursor = &evsel->hists.callchain_cursor;
 	struct callchain_cursor_node *node;
 
 	if (perf_event__preprocess_sample(event, session, &al, sample,
@@ -1273,7 +1273,7 @@ void perf_session__print_ip(union perf_event *event,
 
 	if (symbol_conf.use_callchain && sample->callchain) {
 
-		if (perf_session__resolve_callchain(session, al.thread,
+		if (perf_session__resolve_callchain(session, evsel, al.thread,
 						sample->callchain, NULL) != 0) {
 			if (verbose)
 				error("Failed to resolve callchain. Skipping\n");

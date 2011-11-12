@@ -50,7 +50,6 @@ struct perf_session {
 	int			cwdlen;
 	char			*cwd;
 	struct ordered_samples	ordered_samples;
-	struct callchain_cursor	callchain_cursor;
 	char			filename[0];
 };
 
@@ -100,7 +99,7 @@ int __perf_session__process_events(struct perf_session *self,
 int perf_session__process_events(struct perf_session *self,
 				 struct perf_event_ops *event_ops);
 
-int perf_session__resolve_callchain(struct perf_session *self,
+int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel *evsel,
 				    struct thread *thread,
 				    struct ip_callchain *chain,
 				    struct symbol **parent);
@@ -169,7 +168,7 @@ static inline int perf_session__parse_sample(struct perf_session *session,
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 
-void perf_session__print_ip(union perf_event *event,
+void perf_session__print_ip(union perf_event *event, struct perf_evsel *evsel,
 				 struct perf_sample *sample,
 				 struct perf_session *session,
 				 int print_sym, int print_dso);
