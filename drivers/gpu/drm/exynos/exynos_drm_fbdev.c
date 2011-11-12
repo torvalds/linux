@@ -33,6 +33,7 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
+#include "exynos_drm_gem.h"
 #include "exynos_drm_buf.h"
 
 #define MAX_CONNECTOR		4
@@ -90,7 +91,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	struct fb_info *fbi = helper->fbdev;
 	struct drm_device *dev = helper->dev;
 	struct exynos_drm_fbdev *exynos_fb = to_exynos_fbdev(helper);
-	struct exynos_drm_buf_entry *entry;
+	struct exynos_drm_gem_buf *buffer;
 	unsigned int size = fb->width * fb->height * (fb->bits_per_pixel >> 3);
 	unsigned long offset;
 
@@ -101,18 +102,18 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	drm_fb_helper_fill_fix(fbi, fb->pitch, fb->depth);
 	drm_fb_helper_fill_var(fbi, helper, fb->width, fb->height);
 
-	entry = exynos_drm_fb_get_buf(fb);
-	if (!entry) {
-		DRM_LOG_KMS("entry is null.\n");
+	buffer = exynos_drm_fb_get_buf(fb);
+	if (!buffer) {
+		DRM_LOG_KMS("buffer is null.\n");
 		return -EFAULT;
 	}
 
 	offset = fbi->var.xoffset * (fb->bits_per_pixel >> 3);
 	offset += fbi->var.yoffset * fb->pitch;
 
-	dev->mode_config.fb_base = entry->paddr;
-	fbi->screen_base = entry->vaddr + offset;
-	fbi->fix.smem_start = entry->paddr + offset;
+	dev->mode_config.fb_base = (resource_size_t)buffer->dma_addr;
+	fbi->screen_base = buffer->kvaddr + offset;
+	fbi->fix.smem_start = (unsigned long)(buffer->dma_addr + offset);
 	fbi->screen_size = size;
 	fbi->fix.smem_len = size;
 

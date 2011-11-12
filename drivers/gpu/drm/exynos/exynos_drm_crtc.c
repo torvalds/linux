@@ -29,34 +29,15 @@
 #include "drmP.h"
 #include "drm_crtc_helper.h"
 
+#include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_encoder.h"
+#include "exynos_drm_gem.h"
 #include "exynos_drm_buf.h"
 
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc,\
 				drm_crtc)
-
-/*
- * Exynos specific crtc postion structure.
- *
- * @fb_x: offset x on a framebuffer to be displyed
- *	- the unit is screen coordinates.
- * @fb_y: offset y on a framebuffer to be displayed
- *	- the unit is screen coordinates.
- * @crtc_x: offset x on hardware screen.
- * @crtc_y: offset y on hardware screen.
- * @crtc_w: width of hardware screen.
- * @crtc_h: height of hardware screen.
- */
-struct exynos_drm_crtc_pos {
-	unsigned int fb_x;
-	unsigned int fb_y;
-	unsigned int crtc_x;
-	unsigned int crtc_y;
-	unsigned int crtc_w;
-	unsigned int crtc_h;
-};
 
 /*
  * Exynos specific crtc structure.
@@ -89,27 +70,27 @@ static void exynos_drm_crtc_apply(struct drm_crtc *crtc)
 			exynos_drm_encoder_crtc_commit);
 }
 
-static int exynos_drm_overlay_update(struct exynos_drm_overlay *overlay,
-				       struct drm_framebuffer *fb,
-				       struct drm_display_mode *mode,
-				       struct exynos_drm_crtc_pos *pos)
+int exynos_drm_overlay_update(struct exynos_drm_overlay *overlay,
+			      struct drm_framebuffer *fb,
+			      struct drm_display_mode *mode,
+			      struct exynos_drm_crtc_pos *pos)
 {
-	struct exynos_drm_buf_entry *entry;
+	struct exynos_drm_gem_buf *buffer;
 	unsigned int actual_w;
 	unsigned int actual_h;
 
-	entry = exynos_drm_fb_get_buf(fb);
-	if (!entry) {
-		DRM_LOG_KMS("entry is null.\n");
+	buffer = exynos_drm_fb_get_buf(fb);
+	if (!buffer) {
+		DRM_LOG_KMS("buffer is null.\n");
 		return -EFAULT;
 	}
 
-	overlay->paddr = entry->paddr;
-	overlay->vaddr = entry->vaddr;
+	overlay->dma_addr = buffer->dma_addr;
+	overlay->vaddr = buffer->kvaddr;
 
-	DRM_DEBUG_KMS("vaddr = 0x%lx, paddr = 0x%lx\n",
+	DRM_DEBUG_KMS("vaddr = 0x%lx, dma_addr = 0x%lx\n",
 			(unsigned long)overlay->vaddr,
-			(unsigned long)overlay->paddr);
+			(unsigned long)overlay->dma_addr);
 
 	actual_w = min((mode->hdisplay - pos->crtc_x), pos->crtc_w);
 	actual_h = min((mode->vdisplay - pos->crtc_y), pos->crtc_h);

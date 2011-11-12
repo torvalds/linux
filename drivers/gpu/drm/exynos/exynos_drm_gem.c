@@ -127,15 +127,15 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
 {
 
 	struct exynos_drm_gem_obj *exynos_gem_obj = NULL;
-	struct exynos_drm_buf_entry *entry;
+	struct exynos_drm_gem_buf *buffer;
 	int ret;
 
 	size = roundup(size, PAGE_SIZE);
 
 	DRM_DEBUG_KMS("%s: size = 0x%lx\n", __FILE__, size);
 
-	entry = exynos_drm_buf_create(dev, size);
-	if (!entry)
+	buffer = exynos_drm_buf_create(dev, size);
+	if (!buffer)
 		return ERR_PTR(-ENOMEM);
 
 	exynos_gem_obj = exynos_drm_gem_init(dev, file_priv, handle, size);
@@ -144,12 +144,12 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
 		goto err_gem_init;
 	}
 
-	exynos_gem_obj->entry = entry;
+	exynos_gem_obj->buffer = buffer;
 
 	return exynos_gem_obj;
 
 err_gem_init:
-	exynos_drm_buf_destroy(dev, exynos_gem_obj->entry);
+	exynos_drm_buf_destroy(dev, exynos_gem_obj->buffer);
 
 	return ERR_PTR(ret);
 }
@@ -194,7 +194,7 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 {
 	struct drm_gem_object *obj = filp->private_data;
 	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
-	struct exynos_drm_buf_entry *entry;
+	struct exynos_drm_gem_buf *buffer;
 	unsigned long pfn, vm_size;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -206,20 +206,20 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 
 	vm_size = vma->vm_end - vma->vm_start;
 	/*
-	 * a entry contains information to physically continuous memory
+	 * a buffer contains information to physically continuous memory
 	 * allocated by user request or at framebuffer creation.
 	 */
-	entry = exynos_gem_obj->entry;
+	buffer = exynos_gem_obj->buffer;
 
 	/* check if user-requested size is valid. */
-	if (vm_size > entry->size)
+	if (vm_size > buffer->size)
 		return -EINVAL;
 
 	/*
 	 * get page frame number to physical memory to be mapped
 	 * to user space.
 	 */
-	pfn = exynos_gem_obj->entry->paddr >> PAGE_SHIFT;
+	pfn = ((unsigned long)exynos_gem_obj->buffer->dma_addr) >> PAGE_SHIFT;
 
 	DRM_DEBUG_KMS("pfn = 0x%lx\n", pfn);
 
@@ -300,7 +300,7 @@ void exynos_drm_gem_free_object(struct drm_gem_object *gem_obj)
 
 	exynos_gem_obj = to_exynos_gem_obj(gem_obj);
 
-	exynos_drm_buf_destroy(gem_obj->dev, exynos_gem_obj->entry);
+	exynos_drm_buf_destroy(gem_obj->dev, exynos_gem_obj->buffer);
 
 	kfree(exynos_gem_obj);
 }
@@ -379,7 +379,8 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	mutex_lock(&dev->struct_mutex);
 
-	pfn = (exynos_gem_obj->entry->paddr >> PAGE_SHIFT) + page_offset;
+	pfn = (((unsigned long)exynos_gem_obj->buffer->dma_addr) >>
+			PAGE_SHIFT) + page_offset;
 
 	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address, pfn);
 

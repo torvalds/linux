@@ -43,14 +43,14 @@
  *
  * @fb: drm framebuffer obejct.
  * @exynos_gem_obj: exynos specific gem object containing a gem object.
- * @entry: pointer to exynos drm buffer entry object.
- *	- containing only the information to physically continuous memory
- *	region allocated at default framebuffer creation.
+ * @buffer: pointer to exynos_drm_gem_buffer object.
+ *	- contain the memory information to memory region allocated
+ *	at default framebuffer creation.
  */
 struct exynos_drm_fb {
 	struct drm_framebuffer		fb;
 	struct exynos_drm_gem_obj	*exynos_gem_obj;
-	struct exynos_drm_buf_entry	*entry;
+	struct exynos_drm_gem_buf	*buffer;
 };
 
 static void exynos_drm_fb_destroy(struct drm_framebuffer *fb)
@@ -65,8 +65,8 @@ static void exynos_drm_fb_destroy(struct drm_framebuffer *fb)
 	 * default framebuffer has no gem object so
 	 * a buffer of the default framebuffer should be released at here.
 	 */
-	if (!exynos_fb->exynos_gem_obj && exynos_fb->entry)
-		exynos_drm_buf_destroy(fb->dev, exynos_fb->entry);
+	if (!exynos_fb->exynos_gem_obj && exynos_fb->buffer)
+		exynos_drm_buf_destroy(fb->dev, exynos_fb->buffer);
 
 	kfree(exynos_fb);
 	exynos_fb = NULL;
@@ -145,23 +145,23 @@ exynos_drm_fb_init(struct drm_file *file_priv, struct drm_device *dev,
 	 */
 	if (!mode_cmd->handle) {
 		if (!file_priv) {
-			struct exynos_drm_buf_entry *entry;
+			struct exynos_drm_gem_buf *buffer;
 
 			/*
 			 * in case that file_priv is NULL, it allocates
 			 * only buffer and this buffer would be used
 			 * for default framebuffer.
 			 */
-			entry = exynos_drm_buf_create(dev, size);
-			if (IS_ERR(entry)) {
-				ret = PTR_ERR(entry);
+			buffer = exynos_drm_buf_create(dev, size);
+			if (IS_ERR(buffer)) {
+				ret = PTR_ERR(buffer);
 				goto err_buffer;
 			}
 
-			exynos_fb->entry = entry;
+			exynos_fb->buffer = buffer;
 
-			DRM_LOG_KMS("default fb: paddr = 0x%lx, size = 0x%x\n",
-					(unsigned long)entry->paddr, size);
+			DRM_LOG_KMS("default: dma_addr = 0x%lx, size = 0x%x\n",
+					(unsigned long)buffer->dma_addr, size);
 
 			goto out;
 		} else {
@@ -191,10 +191,10 @@ exynos_drm_fb_init(struct drm_file *file_priv, struct drm_device *dev,
 	 * so that default framebuffer has no its own gem object,
 	 * only its own buffer object.
 	 */
-	exynos_fb->entry = exynos_gem_obj->entry;
+	exynos_fb->buffer = exynos_gem_obj->buffer;
 
-	DRM_LOG_KMS("paddr = 0x%lx, size = 0x%x, gem object = 0x%x\n",
-			(unsigned long)exynos_fb->entry->paddr, size,
+	DRM_LOG_KMS("dma_addr = 0x%lx, size = 0x%x, gem object = 0x%x\n",
+			(unsigned long)exynos_fb->buffer->dma_addr, size,
 			(unsigned int)&exynos_gem_obj->base);
 
 out:
@@ -222,22 +222,22 @@ struct drm_framebuffer *exynos_drm_fb_create(struct drm_device *dev,
 	return exynos_drm_fb_init(file_priv, dev, mode_cmd);
 }
 
-struct exynos_drm_buf_entry *exynos_drm_fb_get_buf(struct drm_framebuffer *fb)
+struct exynos_drm_gem_buf *exynos_drm_fb_get_buf(struct drm_framebuffer *fb)
 {
 	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
-	struct exynos_drm_buf_entry *entry;
+	struct exynos_drm_gem_buf *buffer;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	entry = exynos_fb->entry;
-	if (!entry)
+	buffer = exynos_fb->buffer;
+	if (!buffer)
 		return NULL;
 
-	DRM_DEBUG_KMS("vaddr = 0x%lx, paddr = 0x%lx\n",
-			(unsigned long)entry->vaddr,
-			(unsigned long)entry->paddr);
+	DRM_DEBUG_KMS("vaddr = 0x%lx, dma_addr = 0x%lx\n",
+			(unsigned long)buffer->kvaddr,
+			(unsigned long)buffer->dma_addr);
 
-	return entry;
+	return buffer;
 }
 
 static void exynos_drm_output_poll_changed(struct drm_device *dev)

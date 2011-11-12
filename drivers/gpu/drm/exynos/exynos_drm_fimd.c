@@ -64,7 +64,7 @@ struct fimd_win_data {
 	unsigned int		fb_width;
 	unsigned int		fb_height;
 	unsigned int		bpp;
-	dma_addr_t		paddr;
+	dma_addr_t		dma_addr;
 	void __iomem		*vaddr;
 	unsigned int		buf_offsize;
 	unsigned int		line_size;	/* bytes */
@@ -251,7 +251,7 @@ static void fimd_win_mode_set(struct device *dev,
 	win_data->ovl_height = overlay->crtc_height;
 	win_data->fb_width = overlay->fb_width;
 	win_data->fb_height = overlay->fb_height;
-	win_data->paddr = overlay->paddr + offset;
+	win_data->dma_addr = overlay->dma_addr + offset;
 	win_data->vaddr = overlay->vaddr + offset;
 	win_data->bpp = overlay->bpp;
 	win_data->buf_offsize = (overlay->fb_width - overlay->crtc_width) *
@@ -263,7 +263,7 @@ static void fimd_win_mode_set(struct device *dev,
 	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
 			win_data->ovl_width, win_data->ovl_height);
 	DRM_DEBUG_KMS("paddr = 0x%lx, vaddr = 0x%lx\n",
-			(unsigned long)win_data->paddr,
+			(unsigned long)win_data->dma_addr,
 			(unsigned long)win_data->vaddr);
 	DRM_DEBUG_KMS("fb_width = %d, crtc_width = %d\n",
 			overlay->fb_width, overlay->crtc_width);
@@ -376,16 +376,16 @@ static void fimd_win_commit(struct device *dev)
 	writel(val, ctx->regs + SHADOWCON);
 
 	/* buffer start address */
-	val = win_data->paddr;
+	val = (unsigned long)win_data->dma_addr;
 	writel(val, ctx->regs + VIDWx_BUF_START(win, 0));
 
 	/* buffer end address */
 	size = win_data->fb_width * win_data->ovl_height * (win_data->bpp >> 3);
-	val = win_data->paddr + size;
+	val = (unsigned long)(win_data->dma_addr + size);
 	writel(val, ctx->regs + VIDWx_BUF_END(win, 0));
 
 	DRM_DEBUG_KMS("start addr = 0x%lx, end addr = 0x%lx, size = 0x%lx\n",
-			(unsigned long)win_data->paddr, val, size);
+			(unsigned long)win_data->dma_addr, val, size);
 	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
 			win_data->ovl_width, win_data->ovl_height);
 

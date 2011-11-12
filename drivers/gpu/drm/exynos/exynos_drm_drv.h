@@ -79,8 +79,8 @@ struct exynos_drm_overlay_ops {
  * @scan_flag: interlace or progressive way.
  *	(it could be DRM_MODE_FLAG_*)
  * @bpp: pixel size.(in bit)
- * @paddr: bus(accessed by dma) physical memory address to this overlay
- *		and this is physically continuous.
+ * @dma_addr: bus(accessed by dma) address to the memory region allocated
+ *	for a overlay.
  * @vaddr: virtual memory addresss to this overlay.
  * @default_win: a window to be enabled.
  * @color_key: color key on or off.
@@ -108,7 +108,7 @@ struct exynos_drm_overlay {
 	unsigned int scan_flag;
 	unsigned int bpp;
 	unsigned int pitch;
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 	void __iomem *vaddr;
 
 	bool default_win;
