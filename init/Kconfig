@@ -91,8 +91,8 @@ config ZEN_CUSTOM
 	  This option sets tunables to optimal desktop values.
 	  Changes to these values can be adjusted in include/linux/zentune.h
 
-	    DIRTY_RATIO: 1
-	    BACKGROUND_DIRTY_RATIO: 10
+	    DIRTY_RATIO: 50
+	    BACKGROUND_DIRTY_RATIO: 20
 	   *BFS ONLY*
 	    ISO_CPU: 25
 	    RR_INTERVAL: 3

@@ -19,8 +19,8 @@
 #endif
 
 /* MM Related */
-#define vm_dirty_ratio_custom 1;
-#define dirty_background_ratio_custom 10;
+#define vm_dirty_ratio_custom 50;
+#define dirty_background_ratio_custom 20;
 
 
 #endif /* __KERNEL__ */
