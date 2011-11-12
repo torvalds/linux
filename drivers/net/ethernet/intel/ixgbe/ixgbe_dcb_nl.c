@@ -158,10 +158,6 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	/* Abort a bad configuration */
-	if (ffs(up_map) > adapter->dcb_cfg.num_tcs.pg_tcs)
-		return;
-
 	if (prio != DCB_ATTR_VALUE_UNDEFINED)
 		adapter->temp_dcb_cfg.tc_config[tc].path[0].prio_type = prio;
 	if (bwg_id != DCB_ATTR_VALUE_UNDEFINED)
@@ -185,7 +181,7 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 
 	if (adapter->temp_dcb_cfg.tc_config[tc].path[0].up_to_tc_bitmap !=
 	     adapter->dcb_cfg.tc_config[tc].path[0].up_to_tc_bitmap)
-		adapter->dcb_set_bitmap |= BIT_PFC;
+		adapter->dcb_set_bitmap |= BIT_PFC | BIT_APP_UPCHG;
 }
 
 static void ixgbe_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
@@ -205,10 +201,6 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev, int tc,
                                          u8 up_map)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-
-	/* Abort bad configurations */
-	if (ffs(up_map) > adapter->dcb_cfg.num_tcs.pg_tcs)
-		return;
 
 	if (prio != DCB_ATTR_VALUE_UNDEFINED)
 		adapter->temp_dcb_cfg.tc_config[tc].path[1].prio_type = prio;
@@ -434,7 +426,12 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		adapter->hw.fc.current_mode = ixgbe_fc_pfc;
 
 #ifdef IXGBE_FCOE
-	if (up && !(up & (1 << adapter->fcoe.up))) {
+	/* Reprogam FCoE hardware offloads when the traffic class
+	 * FCoE is using changes. This happens if the APP info
+	 * changes or the up2tc mapping is updated.
+	 */
+	if ((up && !(up & (1 << adapter->fcoe.up))) ||
+	    (adapter->dcb_set_bitmap & BIT_APP_UPCHG)) {
 		adapter->fcoe.up = ffs(up) - 1;
 		ixgbe_dcbnl_devreset(netdev);
 		ret = DCB_HW_CHG_RST;
@@ -742,7 +739,9 @@ static u8 ixgbe_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 		ixgbe_dcbnl_ieee_setets(dev, &ets);
 		ixgbe_dcbnl_ieee_setpfc(dev, &pfc);
 	} else if (mode & DCB_CAP_DCBX_VER_CEE) {
-		adapter->dcb_set_bitmap |= (BIT_PFC & BIT_PG_TX & BIT_PG_RX);
+		u8 mask = BIT_PFC | BIT_PG_TX | BIT_PG_RX | BIT_APP_UPCHG;
+
+		adapter->dcb_set_bitmap |= mask;
 		ixgbe_dcbnl_set_all(dev);
 	} else {
 		/* Drop into single TC mode strict priority as this
