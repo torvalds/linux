@@ -201,12 +201,10 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 	desc = &device_info->hid_descriptor;
 	WARN_ON(desc->bLength == 0);
 
-	input_device->hid_desc = kzalloc(desc->bLength, GFP_ATOMIC);
+	input_device->hid_desc = kmemdup(desc, desc->bLength, GFP_ATOMIC);
 
 	if (!input_device->hid_desc)
 		goto cleanup;
-
-	memcpy(input_device->hid_desc, desc, desc->bLength);
 
 	input_device->report_desc_size = desc->desc[0].wDescriptorLength;
 	if (input_device->report_desc_size == 0)

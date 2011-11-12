@@ -230,18 +230,13 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 	net_device->recv_section_cnt = init_packet->msg.
 		v1_msg.send_recv_buf_complete.num_sections;
 
-	net_device->recv_section = kmalloc(net_device->recv_section_cnt
-		* sizeof(struct nvsp_1_receive_buffer_section), GFP_KERNEL);
+	net_device->recv_section = kmemdup(init_packet->msg.v1_msg.send_recv_buf_complete.sections,
+					   net_device->recv_section_cnt * sizeof(struct nvsp_1_receive_buffer_section),
+					   GFP_KERNEL);
 	if (net_device->recv_section == NULL) {
 		ret = -EINVAL;
 		goto cleanup;
 	}
-
-	memcpy(net_device->recv_section,
-		init_packet->msg.v1_msg.
-	       send_recv_buf_complete.sections,
-		net_device->recv_section_cnt *
-	       sizeof(struct nvsp_1_receive_buffer_section));
 
 	/*
 	 * For 1st release, there should only be 1 section that represents the
