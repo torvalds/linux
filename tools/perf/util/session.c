@@ -78,39 +78,12 @@ out_close:
 	return -1;
 }
 
-static void perf_session__id_header_size(struct perf_session *session)
-{
-       struct perf_sample *data;
-       u64 sample_type = session->sample_type;
-       u16 size = 0;
-
-	if (!session->sample_id_all)
-		goto out;
-
-       if (sample_type & PERF_SAMPLE_TID)
-               size += sizeof(data->tid) * 2;
-
-       if (sample_type & PERF_SAMPLE_TIME)
-               size += sizeof(data->time);
-
-       if (sample_type & PERF_SAMPLE_ID)
-               size += sizeof(data->id);
-
-       if (sample_type & PERF_SAMPLE_STREAM_ID)
-               size += sizeof(data->stream_id);
-
-       if (sample_type & PERF_SAMPLE_CPU)
-               size += sizeof(data->cpu) * 2;
-out:
-       session->id_hdr_size = size;
-}
-
 void perf_session__update_sample_type(struct perf_session *self)
 {
 	self->sample_type = perf_evlist__sample_type(self->evlist);
 	self->sample_size = __perf_evsel__sample_size(self->sample_type);
 	self->sample_id_all = perf_evlist__sample_id_all(self->evlist);
-	perf_session__id_header_size(self);
+	self->id_hdr_size = perf_evlist__id_hdr_size(self->evlist);
 }
 
 int perf_session__create_kernel_maps(struct perf_session *self)

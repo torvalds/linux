@@ -625,6 +625,38 @@ u64 perf_evlist__sample_type(const struct perf_evlist *evlist)
 	return first->attr.sample_type;
 }
 
+u16 perf_evlist__id_hdr_size(const struct perf_evlist *evlist)
+{
+	struct perf_evsel *first;
+	struct perf_sample *data;
+	u64 sample_type;
+	u16 size = 0;
+
+	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+
+	if (!first->attr.sample_id_all)
+		goto out;
+
+	sample_type = first->attr.sample_type;
+
+	if (sample_type & PERF_SAMPLE_TID)
+		size += sizeof(data->tid) * 2;
+
+       if (sample_type & PERF_SAMPLE_TIME)
+		size += sizeof(data->time);
+
+	if (sample_type & PERF_SAMPLE_ID)
+		size += sizeof(data->id);
+
+	if (sample_type & PERF_SAMPLE_STREAM_ID)
+		size += sizeof(data->stream_id);
+
+	if (sample_type & PERF_SAMPLE_CPU)
+		size += sizeof(data->cpu) * 2;
+out:
+	return size;
+}
+
 bool perf_evlist__valid_sample_id_all(const struct perf_evlist *evlist)
 {
 	struct perf_evsel *pos, *first;
