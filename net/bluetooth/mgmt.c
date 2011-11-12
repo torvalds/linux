@@ -1779,13 +1779,19 @@ static int remove_remote_oob_data(struct sock *sk, u16 index,
 	return err;
 }
 
-static int start_discovery(struct sock *sk, u16 index)
+static int start_discovery(struct sock *sk, u16 index,
+						unsigned char *data, u16 len)
 {
+	struct mgmt_cp_start_discovery *cp = (void *) data;
 	struct pending_cmd *cmd;
 	struct hci_dev *hdev;
 	int err;
 
 	BT_DBG("hci%u", index);
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_START_DISCOVERY,
+						MGMT_STATUS_INVALID_PARAMS);
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
@@ -2083,7 +2089,7 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 									len);
 		break;
 	case MGMT_OP_START_DISCOVERY:
-		err = start_discovery(sk, index);
+		err = start_discovery(sk, index, buf + sizeof(*hdr), len);
 		break;
 	case MGMT_OP_STOP_DISCOVERY:
 		err = stop_discovery(sk, index);
