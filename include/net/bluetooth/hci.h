@@ -453,6 +453,14 @@ struct hci_rp_user_confirm_reply {
 
 #define HCI_OP_USER_CONFIRM_NEG_REPLY	0x042d
 
+#define HCI_OP_USER_PASSKEY_REPLY		0x042e
+struct hci_cp_user_passkey_reply {
+	bdaddr_t bdaddr;
+	__le32	passkey;
+} __packed;
+
+#define HCI_OP_USER_PASSKEY_NEG_REPLY	0x042f
+
 #define HCI_OP_REMOTE_OOB_DATA_REPLY	0x0430
 struct hci_cp_remote_oob_data_reply {
 	bdaddr_t bdaddr;
@@ -1074,6 +1082,11 @@ struct hci_ev_io_capa_reply {
 struct hci_ev_user_confirm_req {
 	bdaddr_t	bdaddr;
 	__le32		passkey;
+} __packed;
+
+#define HCI_EV_USER_PASSKEY_REQUEST	0x34
+struct hci_ev_user_passkey_req {
+	bdaddr_t	bdaddr;
 } __packed;
 
 #define HCI_EV_REMOTE_OOB_DATA_REQUEST	0x35
