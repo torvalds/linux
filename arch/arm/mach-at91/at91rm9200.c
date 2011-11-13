@@ -196,6 +196,10 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("pclk", "ssc.2", &ssc2_clk),
 	/* fake hclk clock */
 	CLKDEV_CON_DEV_ID("hclk", "at91_ohci", &ohci_clk),
+	CLKDEV_CON_ID("pioA", &pioA_clk),
+	CLKDEV_CON_ID("pioB", &pioB_clk),
+	CLKDEV_CON_ID("pioC", &pioC_clk),
+	CLKDEV_CON_ID("pioD", &pioD_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
@@ -273,19 +277,15 @@ static struct at91_gpio_bank at91rm9200_gpio[] = {
 	{
 		.id		= AT91RM9200_ID_PIOA,
 		.regbase	= AT91RM9200_BASE_PIOA,
-		.clock		= &pioA_clk,
 	}, {
 		.id		= AT91RM9200_ID_PIOB,
 		.regbase	= AT91RM9200_BASE_PIOB,
-		.clock		= &pioB_clk,
 	}, {
 		.id		= AT91RM9200_ID_PIOC,
 		.regbase	= AT91RM9200_BASE_PIOC,
-		.clock		= &pioC_clk,
 	}, {
 		.id		= AT91RM9200_ID_PIOD,
 		.regbase	= AT91RM9200_BASE_PIOD,
-		.clock		= &pioD_clk,
 	}
 };
 

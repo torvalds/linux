@@ -31,6 +31,7 @@ struct at91_gpio_chip {
 	struct at91_gpio_chip	*next;		/* Bank sharing same clock */
 	struct at91_gpio_bank	*bank;		/* Bank definition */
 	void __iomem		*regbase;	/* Base of register bank */
+	struct clk		*clock;		/* associated clock */
 };
 
 #define to_at91_gpio_chip(c) container_of(c, struct at91_gpio_chip, chip)
@@ -58,11 +59,11 @@ static int at91_gpiolib_direction_input(struct gpio_chip *chip,
 	}
 
 static struct at91_gpio_chip gpio_chip[] = {
-	AT91_GPIO_CHIP("A", 0x00 + PIN_BASE, 32),
-	AT91_GPIO_CHIP("B", 0x20 + PIN_BASE, 32),
-	AT91_GPIO_CHIP("C", 0x40 + PIN_BASE, 32),
-	AT91_GPIO_CHIP("D", 0x60 + PIN_BASE, 32),
-	AT91_GPIO_CHIP("E", 0x80 + PIN_BASE, 32),
+	AT91_GPIO_CHIP("pioA", 0x00 + PIN_BASE, 32),
+	AT91_GPIO_CHIP("pioB", 0x20 + PIN_BASE, 32),
+	AT91_GPIO_CHIP("pioC", 0x40 + PIN_BASE, 32),
+	AT91_GPIO_CHIP("pioD", 0x60 + PIN_BASE, 32),
+	AT91_GPIO_CHIP("pioE", 0x80 + PIN_BASE, 32),
 };
 
 static int gpio_banks;
@@ -302,7 +303,7 @@ void at91_gpio_suspend(void)
 		__raw_writel(wakeups[i], pio + PIO_IER);
 
 		if (!wakeups[i])
-			clk_disable(gpio_chip[i].bank->clock);
+			clk_disable(gpio_chip[i].clock);
 		else {
 #ifdef CONFIG_PM_DEBUG
 			printk(KERN_DEBUG "GPIO-%c may wake for %08x\n", 'A'+i, wakeups[i]);
@@ -319,7 +320,7 @@ void at91_gpio_resume(void)
 		void __iomem	*pio = gpio_chip[i].regbase;
 
 		if (!wakeups[i])
-			clk_enable(gpio_chip[i].bank->clock);
+			clk_enable(gpio_chip[i].clock);
 
 		__raw_writel(wakeups[i], pio + PIO_IDR);
 		__raw_writel(backups[i], pio + PIO_IER);
@@ -621,8 +622,14 @@ void __init at91_gpio_init(struct at91_gpio_bank *data, int nr_banks)
 			continue;
 		}
 
+		at91_gpio->clock = clk_get_sys(NULL, at91_gpio->chip.label);
+		if (!at91_gpio->clock) {
+			pr_err("at91_gpio.%d, failed to get clock, ignoring.\n", i);
+			continue;
+		}
+
 		/* enable PIO controller's clock */
-		clk_enable(at91_gpio->bank->clock);
+		clk_enable(at91_gpio->clock);
 
 		/* AT91SAM9263_ID_PIOCDE groups PIOC, PIOD, PIOE */
 		if (last && last->bank->id == at91_gpio->bank->id)

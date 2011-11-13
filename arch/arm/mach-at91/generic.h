@@ -70,7 +70,6 @@ extern void at91_ioremap_shdwc(u32 base_addr);
 struct at91_gpio_bank {
 	unsigned short id;		/* peripheral ID */
 	unsigned long regbase;		/* offset from system peripheral base */
-	struct clk *clock;		/* associated clock */
 };
 extern void __init at91_gpio_init(struct at91_gpio_bank *, int nr_banks);
 extern void __init at91_gpio_irq_setup(void);
