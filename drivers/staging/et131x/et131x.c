@@ -177,9 +177,7 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver "
 
 /* RX defines */
 #define USE_FBR0 1
-
 #define FBR_CHUNKS 32
-
 #define MAX_DESC_PER_RING_RX         1024
 
 /* number of RFDs - default and min */
@@ -194,7 +192,6 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver "
 #endif
 
 #define NIC_MIN_NUM_RFD		64
-
 #define NUM_PACKETS_HANDLED	256
 
 #define ALCATEL_MULTICAST_PKT	0x01000000
@@ -426,7 +423,6 @@ struct tx_ring {
 	int since_irq;
 };
 
-/* ADAPTER defines */
 /*
  * Do not change these values: if changed, then change also in respective
  * TXdma and Rxdma engines
@@ -574,8 +570,6 @@ struct et131x_adapter {
 
 	struct net_device_stats net_stats;
 };
-
-/* EEPROM functions */
 
 static int eeprom_wait_ready(struct pci_dev *pdev, u32 *status)
 {
@@ -945,19 +939,6 @@ static inline void add_12bit(u32 *v, int n)
 {
 	*v = INDEX12(*v + n) | (*v & ET_DMA12_WRAP);
 }
-
-/**
- * nic_rx_pkts - Checks the hardware for available packets
- * @adapter: pointer to our adapter
- *
- * Returns rfd, a pointer to our MPRFD.
- *
- * Checks the hardware for available packets, using completion ring
- * If packets are available, it gets an RFD from the recv_list, attaches
- * the packet to it, puts the RFD in the RecvPendList, and also returns
- * the pointer to the RFD.
- */
-/* MAC functions */
 
 /**
  * et1310_config_mac_regs1 - Initialize the first part of MAC regs
@@ -1715,8 +1696,6 @@ static void et1310_handle_macstat_interrupt(struct et131x_adapter *adapter)
 		adapter->stats.tx_collisions	+= COUNTER_WRAP_12_BIT;
 }
 
-/* PHY functions */
-
 static int et131x_mdio_read(struct mii_bus *bus, int phy_addr, int reg)
 {
 	struct net_device *netdev = bus->priv;
@@ -1863,8 +1842,6 @@ static void et131x_configure_global_regs(struct et131x_adapter *adapter)
 	 */
 	writel(0, &regs->watchdog_timer);
 }
-
-/* PM functions */
 
 /**
  * et131x_config_rx_dma_regs - Start of Rx_DMA init sequence
@@ -2271,8 +2248,6 @@ static void et1310_disable_phy_coma(struct et131x_adapter *adapter)
 
 	et131x_enable_txrx(adapter->netdev);
 }
-
-/* RX functions */
 
 static inline u32 bump_free_buff_ring(u32 *free_buff_ring, u32 limit)
 {
@@ -2919,6 +2894,17 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 	WARN_ON(rx_local->num_ready_recv > rx_local->num_rfd);
 }
 
+/**
+ * nic_rx_pkts - Checks the hardware for available packets
+ * @adapter: pointer to our adapter
+ *
+ * Returns rfd, a pointer to our MPRFD.
+ *
+ * Checks the hardware for available packets, using completion ring
+ * If packets are available, it gets an RFD from the recv_list, attaches
+ * the packet to it, puts the RFD in the RecvPendList, and also returns
+ * the pointer to the RFD.
+ */
 static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 {
 	struct rx_ring *rx_local = &adapter->rx_ring;
@@ -3188,8 +3174,6 @@ static void et131x_handle_recv_interrupt(struct et131x_adapter *adapter)
 		/* Watchdog timer will disable itself if appropriate. */
 		adapter->rx_ring.unfinished_receives = false;
 }
-
-/* TX functions */
 
 /**
  * et131x_tx_dma_memory_alloc
@@ -3799,8 +3783,6 @@ static void et131x_handle_send_interrupt(struct et131x_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->tcb_send_qlock, flags);
 }
 
-/* ETHTOOL functions */
-
 static int et131x_get_settings(struct net_device *netdev,
 			       struct ethtool_cmd *cmd)
 {
@@ -3970,8 +3952,6 @@ static void et131x_set_ethtool_ops(struct net_device *netdev)
 {
 	SET_ETHTOOL_OPS(netdev, &et131x_ethtool_ops);
 }
-
-/* PCI functions */
 
 /**
  * et131x_hwaddr_init - set up the MAC Address on the ET1310
@@ -4483,8 +4463,6 @@ static SIMPLE_DEV_PM_OPS(et131x_pm_ops, et131x_suspend, et131x_resume);
 #define ET131X_PM_OPS NULL
 #endif
 
-/* ISR functions */
-
 /**
  * et131x_isr - The Interrupt Service Routine for the driver.
  * @irq: the IRQ on which the interrupt was received.
@@ -4781,8 +4759,6 @@ static void et131x_isr_handler(struct work_struct *work)
 	}
 	et131x_enable_interrupts(adapter);
 }
-
-/* NETDEV functions */
 
 /**
  * et131x_stats - Return the current device statistics.
