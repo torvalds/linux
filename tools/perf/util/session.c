@@ -1333,6 +1333,10 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 	}
 
 	map = cpu_map__new(cpu_list);
+	if (map == NULL) {
+		pr_err("Invalid cpu_list\n");
+		return -1;
+	}
 
 	for (i = 0; i < map->nr; i++) {
 		int cpu = map->map[i];
