@@ -141,18 +141,20 @@ static int tda18218_set_params(struct dvb_frontend *fe,
 	switch (params->u.ofdm.bandwidth) {
 	case BANDWIDTH_6_MHZ:
 		LP_Fc = 0;
-		LO_Frac = params->frequency + 4000000;
+		priv->if_frequency = 4000000;
 		break;
 	case BANDWIDTH_7_MHZ:
 		LP_Fc = 1;
-		LO_Frac = params->frequency + 3500000;
+		priv->if_frequency = 3500000;
 		break;
 	case BANDWIDTH_8_MHZ:
 	default:
 		LP_Fc = 2;
-		LO_Frac = params->frequency + 4000000;
+		priv->if_frequency = 4000000;
 		break;
 	}
+
+	LO_Frac = params->frequency + priv->if_frequency;
 
 	/* band-pass filter */
 	if (LO_Frac < 188000000)
@@ -204,6 +206,14 @@ error:
 		dbg("%s: failed ret:%d", __func__, ret);
 
 	return ret;
+}
+
+static int tda18218_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	struct tda18218_priv *priv = fe->tuner_priv;
+	*frequency = priv->if_frequency;
+	dbg("%s: if=%d", __func__, *frequency);
+	return 0;
 }
 
 static int tda18218_sleep(struct dvb_frontend *fe)
@@ -268,6 +278,8 @@ static const struct dvb_tuner_ops tda18218_tuner_ops = {
 	.sleep         = tda18218_sleep,
 
 	.set_params    = tda18218_set_params,
+
+	.get_if_frequency = tda18218_get_if_frequency,
 };
 
 struct dvb_frontend *tda18218_attach(struct dvb_frontend *fe,
