@@ -3582,8 +3582,7 @@ F:	net/netfilter/ipvs/
 IPWIRELESS DRIVER
 M:	Jiri Kosina <jkosina@suse.cz>
 M:	David Sterba <dsterba@suse.cz>
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/ipwireless_cs.git
+S:	Odd Fixes
 F:	drivers/tty/ipwireless/
 
 IPX NETWORK LAYER
