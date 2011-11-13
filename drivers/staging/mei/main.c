@@ -228,8 +228,9 @@ static struct mei_cl_cb *find_read_list_entry(
 static int mei_open(struct inode *inode, struct file *file)
 {
 	struct mei_cl *cl;
-	int err;
 	struct mei_device *dev;
+	unsigned long cl_id;
+	int err;
 
 	err = -ENODEV;
 	if (!mei_device)
@@ -255,14 +256,16 @@ static int mei_open(struct inode *inode, struct file *file)
 	if (dev->open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT)
 		goto out_unlock;
 
-	cl->host_client_id = find_first_zero_bit(dev->host_clients_map,
-							MEI_CLIENTS_MAX);
-	if (cl->host_client_id > MEI_CLIENTS_MAX)
+	cl_id = find_first_zero_bit(dev->host_clients_map, MEI_CLIENTS_MAX);
+	if (cl_id >= MEI_CLIENTS_MAX)
 		goto out_unlock;
+
+	cl->host_client_id  = cl_id;
 
 	dev_dbg(&dev->pdev->dev, "client_id = %d\n", cl->host_client_id);
 
 	dev->open_handle_count++;
+
 	list_add_tail(&cl->link, &dev->file_list);
 
 	set_bit(cl->host_client_id, dev->host_clients_map);
