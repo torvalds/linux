@@ -172,17 +172,26 @@ static inline s64 timekeeping_get_ns_raw(void)
 	return clocksource_cyc2ns(cycle_delta, clock->mult, clock->shift);
 }
 
+/* must hold write on timekeeper.lock */
+static void timekeeping_update(bool clearntp)
+{
+	if (clearntp) {
+		timekeeper.ntp_error = 0;
+		ntp_clear();
+	}
+	update_vsyscall(&timekeeper.xtime, &timekeeper.wall_to_monotonic,
+			 timekeeper.clock, timekeeper.mult);
+}
+
+
 void timekeeping_leap_insert(int leapsecond)
 {
 	unsigned long flags;
 
 	write_seqlock_irqsave(&timekeeper.lock, flags);
-
 	timekeeper.xtime.tv_sec += leapsecond;
 	timekeeper.wall_to_monotonic.tv_sec -= leapsecond;
-	update_vsyscall(&timekeeper.xtime, &timekeeper.wall_to_monotonic,
-			 timekeeper.clock, timekeeper.mult);
-
+	timekeeping_update(false);
 	write_sequnlock_irqrestore(&timekeeper.lock, flags);
 
 }
@@ -386,12 +395,7 @@ int do_settimeofday(const struct timespec *tv)
 			timespec_sub(timekeeper.wall_to_monotonic, ts_delta);
 
 	timekeeper.xtime = *tv;
-
-	timekeeper.ntp_error = 0;
-	ntp_clear();
-
-	update_vsyscall(&timekeeper.xtime, &timekeeper.wall_to_monotonic,
-			timekeeper.clock, timekeeper.mult);
+	timekeeping_update(true);
 
 	write_sequnlock_irqrestore(&timekeeper.lock, flags);
 
@@ -425,11 +429,7 @@ int timekeeping_inject_offset(struct timespec *ts)
 	timekeeper.wall_to_monotonic =
 				timespec_sub(timekeeper.wall_to_monotonic, *ts);
 
-	timekeeper.ntp_error = 0;
-	ntp_clear();
-
-	update_vsyscall(&timekeeper.xtime, &timekeeper.wall_to_monotonic,
-			timekeeper.clock, timekeeper.mult);
+	timekeeping_update(true);
 
 	write_sequnlock_irqrestore(&timekeeper.lock, flags);
 
@@ -668,10 +668,7 @@ void timekeeping_inject_sleeptime(struct timespec *delta)
 
 	__timekeeping_inject_sleeptime(delta);
 
-	timekeeper.ntp_error = 0;
-	ntp_clear();
-	update_vsyscall(&timekeeper.xtime, &timekeeper.wall_to_monotonic,
-			timekeeper.clock, timekeeper.mult);
+	timekeeping_update(true);
 
 	write_sequnlock_irqrestore(&timekeeper.lock, flags);
 
@@ -1083,9 +1080,7 @@ static void update_wall_time(void)
 		second_overflow();
 	}
 
-	/* check to see if there is a new clocksource to use */
-	update_vsyscall(&timekeeper.xtime, &timekeeper.wall_to_monotonic,
-			timekeeper.clock, timekeeper.mult);
+	timekeeping_update(false);
 
 out:
 	write_sequnlock_irqrestore(&timekeeper.lock, flags);
