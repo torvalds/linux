@@ -9268,21 +9268,38 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 }
 
 #ifdef BCM_CNIC
-static void __devinit bnx2x_get_cnic_info(struct bnx2x *bp)
+void bnx2x_get_iscsi_info(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
-	int func = BP_ABS_FUNC(bp);
 
 	u32 max_iscsi_conn = FW_ENCODE_32BIT_PATTERN ^ SHMEM_RD(bp,
 				drv_lic_key[port].max_iscsi_conn);
-	u32 max_fcoe_conn = FW_ENCODE_32BIT_PATTERN ^ SHMEM_RD(bp,
-				drv_lic_key[port].max_fcoe_conn);
 
-	/* Get the number of maximum allowed iSCSI and FCoE connections */
+	/* Get the number of maximum allowed iSCSI connections */
 	bp->cnic_eth_dev.max_iscsi_conn =
 		(max_iscsi_conn & BNX2X_MAX_ISCSI_INIT_CONN_MASK) >>
 		BNX2X_MAX_ISCSI_INIT_CONN_SHIFT;
 
+	BNX2X_DEV_INFO("max_iscsi_conn 0x%x\n",
+		       bp->cnic_eth_dev.max_iscsi_conn);
+
+	/*
+	 * If maximum allowed number of connections is zero -
+	 * disable the feature.
+	 */
+	if (!bp->cnic_eth_dev.max_iscsi_conn)
+		bp->flags |= NO_ISCSI_FLAG;
+}
+
+static void __devinit bnx2x_get_fcoe_info(struct bnx2x *bp)
+{
+	int port = BP_PORT(bp);
+	int func = BP_ABS_FUNC(bp);
+
+	u32 max_fcoe_conn = FW_ENCODE_32BIT_PATTERN ^ SHMEM_RD(bp,
+				drv_lic_key[port].max_fcoe_conn);
+
+	/* Get the number of maximum allowed FCoE connections */
 	bp->cnic_eth_dev.max_fcoe_conn =
 		(max_fcoe_conn & BNX2X_MAX_FCOE_INIT_CONN_MASK) >>
 		BNX2X_MAX_FCOE_INIT_CONN_SHIFT;
@@ -9334,19 +9351,25 @@ static void __devinit bnx2x_get_cnic_info(struct bnx2x *bp)
 		}
 	}
 
-	BNX2X_DEV_INFO("max_iscsi_conn 0x%x max_fcoe_conn 0x%x\n",
-		       bp->cnic_eth_dev.max_iscsi_conn,
-		       bp->cnic_eth_dev.max_fcoe_conn);
+	BNX2X_DEV_INFO("max_fcoe_conn 0x%x\n", bp->cnic_eth_dev.max_fcoe_conn);
 
 	/*
 	 * If maximum allowed number of connections is zero -
 	 * disable the feature.
 	 */
-	if (!bp->cnic_eth_dev.max_iscsi_conn)
-		bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
-
 	if (!bp->cnic_eth_dev.max_fcoe_conn)
 		bp->flags |= NO_FCOE_FLAG;
+}
+
+static void __devinit bnx2x_get_cnic_info(struct bnx2x *bp)
+{
+	/*
+	 * iSCSI may be dynamically disabled but reading
+	 * info here we will decrease memory usage by driver
+	 * if the feature is disabled for good
+	 */
+	bnx2x_get_iscsi_info(bp);
+	bnx2x_get_fcoe_info(bp);
 }
 #endif
 

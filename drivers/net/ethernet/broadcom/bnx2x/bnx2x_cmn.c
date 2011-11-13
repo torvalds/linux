@@ -1934,6 +1934,8 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 
 #ifdef BCM_CNIC
+	/* re-read iscsi info */
+	bnx2x_get_iscsi_info(bp);
 	bnx2x_setup_cnic_irq_info(bp);
 	if (bp->state == BNX2X_STATE_OPEN)
 		bnx2x_cnic_notify(bp, CNIC_CTL_START_CMD);
