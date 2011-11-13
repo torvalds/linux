@@ -366,13 +366,6 @@ static struct isl6423_config anysee_isl6423_config = {
 static struct cxd2820r_config anysee_cxd2820r_config = {
 	.i2c_address = 0x6d, /* (0xda >> 1) */
 	.ts_mode = 0x38,
-	.if_dvbt_6 = 3550,
-	.if_dvbt_7 = 3700,
-	.if_dvbt_8 = 4150,
-	.if_dvbt2_6 = 3250,
-	.if_dvbt2_7 = 4000,
-	.if_dvbt2_8 = 4000,
-	.if_dvbc = 5000,
 };
 
 /*

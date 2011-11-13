@@ -500,13 +500,6 @@ static struct tda10023_config em28xx_tda10023_config = {
 static struct cxd2820r_config em28xx_cxd2820r_config = {
 	.i2c_address = (0xd8 >> 1),
 	.ts_mode = CXD2820R_TS_SERIAL,
-	.if_dvbt_6  = 3300,
-	.if_dvbt_7  = 3500,
-	.if_dvbt_8  = 4000,
-	.if_dvbt2_6 = 3300,
-	.if_dvbt2_7 = 3500,
-	.if_dvbt2_8 = 4000,
-	.if_dvbc    = 5000,
 
 	/* enable LNA for DVB-T2 and DVB-C */
 	.gpio_dvbt2[0] = CXD2820R_GPIO_E | CXD2820R_GPIO_O | CXD2820R_GPIO_L,
