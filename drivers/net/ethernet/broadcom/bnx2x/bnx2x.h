@@ -1141,6 +1141,7 @@ struct bnx2x_fw_stats_data {
 enum {
 	BNX2X_SP_RTNL_SETUP_TC,
 	BNX2X_SP_RTNL_TX_TIMEOUT,
+	BNX2X_SP_RTNL_FAN_FAILURE,
 };
 
 
@@ -2047,6 +2048,8 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 #define BNX2X_VPD_LEN			128
 #define VENDOR_ID_LEN			4
+
+int bnx2x_close(struct net_device *dev);
 
 /* Congestion management fairness mode */
 #define CMNG_FNS_NONE		0
