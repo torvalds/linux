@@ -303,7 +303,8 @@ error:
 	return ret;
 }
 
-static int af9013_set_freq_ctrl(struct af9013_state *state, fe_bandwidth_t bw)
+static int af9013_set_freq_ctrl(struct af9013_state *state,
+	struct dvb_frontend *fe)
 {
 	int ret;
 	u16 addr;
@@ -324,37 +325,13 @@ static int af9013_set_freq_ctrl(struct af9013_state *state, fe_bandwidth_t bw)
 			bfs_spec_inv = state->config.rf_spec_inv ? 1 : -1;
 		}
 
-		adc_freq       = state->config.adc_clock * 1000;
-		if_sample_freq = state->config.tuner_if * 1000;
+		adc_freq = state->config.adc_clock * 1000;
 
-		/* TDA18271 uses different sampling freq for every bw */
-		if (state->config.tuner == AF9013_TUNER_TDA18271) {
-			switch (bw) {
-			case BANDWIDTH_6_MHZ:
-				if_sample_freq = 3300000; /* 3.3 MHz */
-				break;
-			case BANDWIDTH_7_MHZ:
-				if_sample_freq = 3500000; /* 3.5 MHz */
-				break;
-			case BANDWIDTH_8_MHZ:
-			default:
-				if_sample_freq = 4000000; /* 4.0 MHz */
-				break;
-			}
-		} else if (state->config.tuner == AF9013_TUNER_TDA18218) {
-			switch (bw) {
-			case BANDWIDTH_6_MHZ:
-				if_sample_freq = 3000000; /* 3 MHz */
-				break;
-			case BANDWIDTH_7_MHZ:
-				if_sample_freq = 3500000; /* 3.5 MHz */
-				break;
-			case BANDWIDTH_8_MHZ:
-			default:
-				if_sample_freq = 4000000; /* 4 MHz */
-				break;
-			}
-		}
+		/* get used IF frequency */
+		if (fe->ops.tuner_ops.get_if_frequency)
+			fe->ops.tuner_ops.get_if_frequency(fe, &if_sample_freq);
+		else
+			if_sample_freq = state->config.tuner_if * 1000;
 
 		while (if_sample_freq > (adc_freq / 2))
 			if_sample_freq = if_sample_freq - adc_freq;
@@ -639,7 +616,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe,
 		goto error;
 
 	/* program frequency control */
-	ret = af9013_set_freq_ctrl(state, params->u.ofdm.bandwidth);
+	ret = af9013_set_freq_ctrl(state, fe);
 	if (ret)
 		goto error;
 
