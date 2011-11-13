@@ -174,8 +174,7 @@ config SPI_LM70_LLP
 
 config SPI_MPC52xx
 	tristate "Freescale MPC52xx SPI (non-PSC) controller support"
-	depends on PPC_MPC52xx && SPI
-	select SPI_MASTER_OF
+	depends on PPC_MPC52xx
 	help
 	  This drivers supports the MPC52xx SPI controller in master SPI
 	  mode.
