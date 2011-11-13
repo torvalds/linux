@@ -686,7 +686,8 @@ static void z2_power_off(void)
 	 */
 	PSPR = 0x0;
 	local_irq_disable();
-	pxa27x_cpu_suspend(PWRMODE_DEEPSLEEP, PLAT_PHYS_OFFSET - PAGE_OFFSET);
+	pxa27x_set_pwrmode(PWRMODE_DEEPSLEEP);
+	pxa27x_cpu_pm_enter(PM_SUSPEND_MEM);
 }
 #else
 #define z2_power_off   NULL
@@ -718,7 +719,7 @@ static void __init z2_init(void)
 }
 
 MACHINE_START(ZIPIT2, "Zipit Z2")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,

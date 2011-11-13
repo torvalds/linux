@@ -28,6 +28,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/module.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/regulator.h>
@@ -1425,7 +1426,7 @@ int regulator_enable(struct regulator *regulator)
 	ret = _regulator_enable(rdev);
 	mutex_unlock(&rdev->mutex);
 
-	if (ret != 0)
+	if (ret != 0 && rdev->supply)
 		regulator_disable(rdev->supply);
 
 	return ret;
@@ -1551,6 +1552,68 @@ int regulator_force_disable(struct regulator *regulator)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_force_disable);
+
+static void regulator_disable_work(struct work_struct *work)
+{
+	struct regulator_dev *rdev = container_of(work, struct regulator_dev,
+						  disable_work.work);
+	int count, i, ret;
+
+	mutex_lock(&rdev->mutex);
+
+	BUG_ON(!rdev->deferred_disables);
+
+	count = rdev->deferred_disables;
+	rdev->deferred_disables = 0;
+
+	for (i = 0; i < count; i++) {
+		ret = _regulator_disable(rdev);
+		if (ret != 0)
+			rdev_err(rdev, "Deferred disable failed: %d\n", ret);
+	}
+
+	mutex_unlock(&rdev->mutex);
+
+	if (rdev->supply) {
+		for (i = 0; i < count; i++) {
+			ret = regulator_disable(rdev->supply);
+			if (ret != 0) {
+				rdev_err(rdev,
+					 "Supply disable failed: %d\n", ret);
+			}
+		}
+	}
+}
+
+/**
+ * regulator_disable_deferred - disable regulator output with delay
+ * @regulator: regulator source
+ * @ms: miliseconds until the regulator is disabled
+ *
+ * Execute regulator_disable() on the regulator after a delay.  This
+ * is intended for use with devices that require some time to quiesce.
+ *
+ * NOTE: this will only disable the regulator output if no other consumer
+ * devices have it enabled, the regulator device supports disabling and
+ * machine constraints permit this operation.
+ */
+int regulator_disable_deferred(struct regulator *regulator, int ms)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+	int ret;
+
+	mutex_lock(&rdev->mutex);
+	rdev->deferred_disables++;
+	mutex_unlock(&rdev->mutex);
+
+	ret = schedule_delayed_work(&rdev->disable_work,
+				    msecs_to_jiffies(ms));
+	if (ret < 0)
+		return ret;
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(regulator_disable_deferred);
 
 static int _regulator_is_enabled(struct regulator_dev *rdev)
 {
@@ -2622,6 +2685,7 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	INIT_LIST_HEAD(&rdev->consumer_list);
 	INIT_LIST_HEAD(&rdev->list);
 	BLOCKING_INIT_NOTIFIER_HEAD(&rdev->notifier);
+	INIT_DELAYED_WORK(&rdev->disable_work, regulator_disable_work);
 
 	/* preform any regulator specific init */
 	if (init_data->regulator_init) {
@@ -2729,6 +2793,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(rdev->debugfs);
 #endif
+	flush_work_sync(&rdev->disable_work.work);
 	WARN_ON(rdev->open_count);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
@@ -2907,6 +2972,43 @@ void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data)
 }
 EXPORT_SYMBOL_GPL(regulator_get_init_drvdata);
 
+#ifdef CONFIG_DEBUG_FS
+static ssize_t supply_map_read_file(struct file *file, char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	ssize_t len, ret = 0;
+	struct regulator_map *map;
+
+	if (!buf)
+		return -ENOMEM;
+
+	list_for_each_entry(map, &regulator_map_list, list) {
+		len = snprintf(buf + ret, PAGE_SIZE - ret,
+			       "%s -> %s.%s\n",
+			       rdev_get_name(map->regulator), map->dev_name,
+			       map->supply);
+		if (len >= 0)
+			ret += len;
+		if (ret > PAGE_SIZE) {
+			ret = PAGE_SIZE;
+			break;
+		}
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+
+	kfree(buf);
+
+	return ret;
+}
+
+static const struct file_operations supply_map_fops = {
+	.read = supply_map_read_file,
+	.llseek = default_llseek,
+};
+#endif
+
 static int __init regulator_init(void)
 {
 	int ret;
@@ -2919,6 +3021,10 @@ static int __init regulator_init(void)
 		pr_warn("regulator: Failed to create debugfs directory\n");
 		debugfs_root = NULL;
 	}
+
+	if (IS_ERR(debugfs_create_file("supply_map", 0444, debugfs_root,
+				       NULL, &supply_map_fops)))
+		pr_warn("regulator: Failed to create supplies debugfs\n");
 #endif
 
 	regulator_dummy_init();

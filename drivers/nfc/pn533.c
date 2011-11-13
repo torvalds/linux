@@ -28,7 +28,7 @@
 #include <linux/usb.h>
 #include <linux/nfc.h>
 #include <linux/netdevice.h>
-#include <net/nfc.h>
+#include <net/nfc/nfc.h>
 
 #define VERSION "0.1"
 
@@ -1246,7 +1246,6 @@ static int pn533_data_exchange_tx_frame(struct pn533 *dev, struct sk_buff *skb)
 {
 	int payload_len = skb->len;
 	struct pn533_frame *out_frame;
-	struct sk_buff *discarded;
 	u8 tg;
 
 	nfc_dev_dbg(&dev->interface->dev, "%s - Sending %d bytes", __func__,
@@ -1258,18 +1257,6 @@ static int pn533_data_exchange_tx_frame(struct pn533 *dev, struct sk_buff *skb)
 						" max allowed: %d",
 						PN533_CMD_DATAEXCH_DATA_MAXLEN);
 		return -ENOSYS;
-	}
-
-	/* Reserving header space */
-	if (skb_cow_head(skb, PN533_CMD_DATAEXCH_HEAD_LEN)) {
-		nfc_dev_err(&dev->interface->dev, "Error to add header data");
-		return -ENOMEM;
-	}
-
-	/* Reserving tail space, see pn533_tx_frame_finish */
-	if (skb_cow_data(skb, PN533_FRAME_TAIL_SIZE, &discarded) < 0) {
-		nfc_dev_err(&dev->interface->dev, "Error to add tail data");
-		return -ENOMEM;
 	}
 
 	skb_push(skb, PN533_CMD_DATAEXCH_HEAD_LEN);
@@ -1445,6 +1432,8 @@ static int pn533_set_configuration(struct pn533 *dev, u8 cfgitem, u8 *cfgdata,
 }
 
 struct nfc_ops pn533_nfc_ops = {
+	.dev_up = NULL,
+	.dev_down = NULL,
 	.start_poll = pn533_start_poll,
 	.stop_poll = pn533_stop_poll,
 	.activate_target = pn533_activate_target,
@@ -1536,7 +1525,9 @@ static int pn533_probe(struct usb_interface *interface,
 			| NFC_PROTO_ISO14443_MASK
 			| NFC_PROTO_NFC_DEP_MASK;
 
-	dev->nfc_dev = nfc_allocate_device(&pn533_nfc_ops, protocols);
+	dev->nfc_dev = nfc_allocate_device(&pn533_nfc_ops, protocols,
+					   PN533_CMD_DATAEXCH_HEAD_LEN,
+					   PN533_FRAME_TAIL_SIZE);
 	if (!dev->nfc_dev)
 		goto kill_tasklet;
 

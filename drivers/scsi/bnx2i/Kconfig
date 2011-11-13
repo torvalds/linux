@@ -4,7 +4,8 @@ config SCSI_BNX2_ISCSI
 	depends on PCI
 	select SCSI_ISCSI_ATTRS
 	select NETDEVICES
-	select NETDEV_1000
+	select ETHERNET
+	select NET_VENDOR_BROADCOM
 	select CNIC
 	---help---
 	This driver supports iSCSI offload for the Broadcom NetXtreme II

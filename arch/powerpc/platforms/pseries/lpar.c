@@ -25,6 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
 #include <linux/console.h>
+#include <linux/export.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/page.h>

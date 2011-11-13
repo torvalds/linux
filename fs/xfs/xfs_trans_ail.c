@@ -26,6 +26,7 @@
 #include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_trans_priv.h"
+#include "xfs_trace.h"
 #include "xfs_error.h"
 
 #ifdef DEBUG
@@ -364,12 +365,24 @@ xfsaild_push(
 	xfs_lsn_t		lsn;
 	xfs_lsn_t		target;
 	long			tout = 10;
-	int			flush_log = 0;
 	int			stuck = 0;
 	int			count = 0;
 	int			push_xfsbufd = 0;
 
+	/*
+	 * If last time we ran we encountered pinned items, force the log first
+	 * and wait for it before pushing again.
+	 */
 	spin_lock(&ailp->xa_lock);
+	if (ailp->xa_last_pushed_lsn == 0 && ailp->xa_log_flush &&
+	    !list_empty(&ailp->xa_ail)) {
+		ailp->xa_log_flush = 0;
+		spin_unlock(&ailp->xa_lock);
+		XFS_STATS_INC(xs_push_ail_flush);
+		xfs_log_force(mp, XFS_LOG_SYNC);
+		spin_lock(&ailp->xa_lock);
+	}
+
 	target = ailp->xa_target;
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, ailp->xa_last_pushed_lsn);
 	if (!lip || XFS_FORCED_SHUTDOWN(mp)) {
@@ -413,16 +426,20 @@ xfsaild_push(
 		switch (lock_result) {
 		case XFS_ITEM_SUCCESS:
 			XFS_STATS_INC(xs_push_ail_success);
+			trace_xfs_ail_push(lip);
+
 			IOP_PUSH(lip);
 			ailp->xa_last_pushed_lsn = lsn;
 			break;
 
 		case XFS_ITEM_PUSHBUF:
 			XFS_STATS_INC(xs_push_ail_pushbuf);
+			trace_xfs_ail_pushbuf(lip);
 
 			if (!IOP_PUSHBUF(lip)) {
+				trace_xfs_ail_pushbuf_pinned(lip);
 				stuck++;
-				flush_log = 1;
+				ailp->xa_log_flush++;
 			} else {
 				ailp->xa_last_pushed_lsn = lsn;
 			}
@@ -431,12 +448,15 @@ xfsaild_push(
 
 		case XFS_ITEM_PINNED:
 			XFS_STATS_INC(xs_push_ail_pinned);
+			trace_xfs_ail_pinned(lip);
+
 			stuck++;
-			flush_log = 1;
+			ailp->xa_log_flush++;
 			break;
 
 		case XFS_ITEM_LOCKED:
 			XFS_STATS_INC(xs_push_ail_locked);
+			trace_xfs_ail_locked(lip);
 			stuck++;
 			break;
 
@@ -476,16 +496,6 @@ xfsaild_push(
 	xfs_trans_ail_cursor_done(ailp, &cur);
 	spin_unlock(&ailp->xa_lock);
 
-	if (flush_log) {
-		/*
-		 * If something we need to push out was pinned, then
-		 * push out the log so it will become unpinned and
-		 * move forward in the AIL.
-		 */
-		XFS_STATS_INC(xs_push_ail_flush);
-		xfs_log_force(mp, 0);
-	}
-
 	if (push_xfsbufd) {
 		/* we've got delayed write buffers to flush */
 		wake_up_process(mp->m_ddev_targp->bt_task);
@@ -496,6 +506,7 @@ out_done:
 	if (!count) {
 		/* We're past our target or empty, so idle */
 		ailp->xa_last_pushed_lsn = 0;
+		ailp->xa_log_flush = 0;
 
 		tout = 50;
 	} else if (XFS_LSN_CMP(lsn, target) >= 0) {
@@ -514,9 +525,13 @@ out_done:
 		 * were stuck.
 		 *
 		 * Backoff a bit more to allow some I/O to complete before
-		 * continuing from where we were.
+		 * restarting from the start of the AIL. This prevents us
+		 * from spinning on the same items, and if they are pinned will
+		 * all the restart to issue a log force to unpin the stuck
+		 * items.
 		 */
 		tout = 20;
+		ailp->xa_last_pushed_lsn = 0;
 	}
 
 	return tout;

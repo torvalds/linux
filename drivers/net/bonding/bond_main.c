@@ -395,7 +395,6 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 			struct net_device *slave_dev)
 {
 	skb->dev = slave_dev;
-	skb->priority = 1;
 
 	skb->queue_mapping = bond_queue_mapping(skb);
 
@@ -551,32 +550,28 @@ down:
 /*
  * Get link speed and duplex from the slave's base driver
  * using ethtool. If for some reason the call fails or the
- * values are invalid, fake speed and duplex to 100/Full
+ * values are invalid, set speed and duplex to -1,
  * and return error.
  */
 static int bond_update_speed_duplex(struct slave *slave)
 {
 	struct net_device *slave_dev = slave->dev;
-	struct ethtool_cmd etool = { .cmd = ETHTOOL_GSET };
+	struct ethtool_cmd ecmd;
 	u32 slave_speed;
 	int res;
 
-	/* Fake speed and duplex */
-	slave->speed = SPEED_100;
-	slave->duplex = DUPLEX_FULL;
+	slave->speed = SPEED_UNKNOWN;
+	slave->duplex = DUPLEX_UNKNOWN;
 
-	if (!slave_dev->ethtool_ops || !slave_dev->ethtool_ops->get_settings)
-		return -1;
-
-	res = slave_dev->ethtool_ops->get_settings(slave_dev, &etool);
+	res = __ethtool_get_settings(slave_dev, &ecmd);
 	if (res < 0)
 		return -1;
 
-	slave_speed = ethtool_cmd_speed(&etool);
+	slave_speed = ethtool_cmd_speed(&ecmd);
 	if (slave_speed == 0 || slave_speed == ((__u32) -1))
 		return -1;
 
-	switch (etool.duplex) {
+	switch (ecmd.duplex) {
 	case DUPLEX_FULL:
 	case DUPLEX_HALF:
 		break;
@@ -585,7 +580,7 @@ static int bond_update_speed_duplex(struct slave *slave)
 	}
 
 	slave->speed = slave_speed;
-	slave->duplex = etool.duplex;
+	slave->duplex = ecmd.duplex;
 
 	return 0;
 }
@@ -777,9 +772,6 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 
 	read_lock(&bond->lock);
 
-	if (bond->kill_timers)
-		goto out;
-
 	/* rejoin all groups on bond device */
 	__bond_resend_igmp_join_requests(bond->dev);
 
@@ -793,9 +785,9 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 			__bond_resend_igmp_join_requests(vlan_dev);
 	}
 
-	if ((--bond->igmp_retrans > 0) && !bond->kill_timers)
+	if (--bond->igmp_retrans > 0)
 		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
-out:
+
 	read_unlock(&bond->lock);
 }
 
@@ -1758,16 +1750,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		new_slave->link  = BOND_LINK_DOWN;
 	}
 
-	if (bond_update_speed_duplex(new_slave) &&
-	    (new_slave->link != BOND_LINK_DOWN)) {
-		pr_warning("%s: Warning: failed to get speed and duplex from %s, assumed to be 100Mb/sec and Full.\n",
-			   bond_dev->name, new_slave->dev->name);
-
-		if (bond->params.mode == BOND_MODE_8023AD) {
-			pr_warning("%s: Warning: Operation of 802.3ad mode requires ETHTOOL support in base driver for proper aggregator selection.\n",
-				   bond_dev->name);
-		}
-	}
+	bond_update_speed_duplex(new_slave);
 
 	if (USES_PRIMARY(bond->params.mode) && bond->params.primary[0]) {
 		/* if there is a primary slave, remember it */
@@ -2521,10 +2504,11 @@ void bond_mii_monitor(struct work_struct *work)
 	struct bonding *bond = container_of(work, struct bonding,
 					    mii_work.work);
 	bool should_notify_peers = false;
+	unsigned long delay;
 
 	read_lock(&bond->lock);
-	if (bond->kill_timers)
-		goto out;
+
+	delay = msecs_to_jiffies(bond->params.miimon);
 
 	if (bond->slave_cnt == 0)
 		goto re_arm;
@@ -2533,7 +2517,15 @@ void bond_mii_monitor(struct work_struct *work)
 
 	if (bond_miimon_inspect(bond)) {
 		read_unlock(&bond->lock);
-		rtnl_lock();
+
+		/* Race avoidance with bond_close cancel of workqueue */
+		if (!rtnl_trylock()) {
+			read_lock(&bond->lock);
+			delay = 1;
+			should_notify_peers = false;
+			goto re_arm;
+		}
+
 		read_lock(&bond->lock);
 
 		bond_miimon_commit(bond);
@@ -2544,14 +2536,18 @@ void bond_mii_monitor(struct work_struct *work)
 	}
 
 re_arm:
-	if (bond->params.miimon && !bond->kill_timers)
-		queue_delayed_work(bond->wq, &bond->mii_work,
-				   msecs_to_jiffies(bond->params.miimon));
-out:
+	if (bond->params.miimon)
+		queue_delayed_work(bond->wq, &bond->mii_work, delay);
+
 	read_unlock(&bond->lock);
 
 	if (should_notify_peers) {
-		rtnl_lock();
+		if (!rtnl_trylock()) {
+			read_lock(&bond->lock);
+			bond->send_peer_notif++;
+			read_unlock(&bond->lock);
+			return;
+		}
 		netdev_bonding_change(bond->dev, NETDEV_NOTIFY_PEERS);
 		rtnl_unlock();
 	}
@@ -2793,9 +2789,6 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 
 	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
 
-	if (bond->kill_timers)
-		goto out;
-
 	if (bond->slave_cnt == 0)
 		goto re_arm;
 
@@ -2892,9 +2885,9 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 	}
 
 re_arm:
-	if (bond->params.arp_interval && !bond->kill_timers)
+	if (bond->params.arp_interval)
 		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
-out:
+
 	read_unlock(&bond->lock);
 }
 
@@ -3135,9 +3128,6 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 
 	read_lock(&bond->lock);
 
-	if (bond->kill_timers)
-		goto out;
-
 	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
 
 	if (bond->slave_cnt == 0)
@@ -3147,7 +3137,15 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 
 	if (bond_ab_arp_inspect(bond, delta_in_ticks)) {
 		read_unlock(&bond->lock);
-		rtnl_lock();
+
+		/* Race avoidance with bond_close flush of workqueue */
+		if (!rtnl_trylock()) {
+			read_lock(&bond->lock);
+			delta_in_ticks = 1;
+			should_notify_peers = false;
+			goto re_arm;
+		}
+
 		read_lock(&bond->lock);
 
 		bond_ab_arp_commit(bond, delta_in_ticks);
@@ -3160,13 +3158,18 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 	bond_ab_arp_probe(bond);
 
 re_arm:
-	if (bond->params.arp_interval && !bond->kill_timers)
+	if (bond->params.arp_interval)
 		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
-out:
+
 	read_unlock(&bond->lock);
 
 	if (should_notify_peers) {
-		rtnl_lock();
+		if (!rtnl_trylock()) {
+			read_lock(&bond->lock);
+			bond->send_peer_notif++;
+			read_unlock(&bond->lock);
+			return;
+		}
 		netdev_bonding_change(bond->dev, NETDEV_NOTIFY_PEERS);
 		rtnl_unlock();
 	}
@@ -3207,6 +3210,7 @@ static int bond_slave_netdev_event(unsigned long event,
 {
 	struct net_device *bond_dev = slave_dev->master;
 	struct bonding *bond = netdev_priv(bond_dev);
+	struct slave *slave = NULL;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -3217,20 +3221,16 @@ static int bond_slave_netdev_event(unsigned long event,
 				bond_release(bond_dev, slave_dev);
 		}
 		break;
+	case NETDEV_UP:
 	case NETDEV_CHANGE:
-		if (bond->params.mode == BOND_MODE_8023AD || bond_is_lb(bond)) {
-			struct slave *slave;
+		slave = bond_get_slave_by_dev(bond, slave_dev);
+		if (slave) {
+			u32 old_speed = slave->speed;
+			u8  old_duplex = slave->duplex;
 
-			slave = bond_get_slave_by_dev(bond, slave_dev);
-			if (slave) {
-				u32 old_speed = slave->speed;
-				u8  old_duplex = slave->duplex;
+			bond_update_speed_duplex(slave);
 
-				bond_update_speed_duplex(slave);
-
-				if (bond_is_lb(bond))
-					break;
-
+			if (bond->params.mode == BOND_MODE_8023AD) {
 				if (old_speed != slave->speed)
 					bond_3ad_adapter_speed_changed(slave);
 				if (old_duplex != slave->duplex)
@@ -3428,8 +3428,6 @@ static int bond_open(struct net_device *bond_dev)
 	struct slave *slave;
 	int i;
 
-	bond->kill_timers = 0;
-
 	/* reset slave->backup and slave->inactive */
 	read_lock(&bond->lock);
 	if (bond->slave_cnt > 0) {
@@ -3498,33 +3496,30 @@ static int bond_close(struct net_device *bond_dev)
 
 	bond->send_peer_notif = 0;
 
-	/* signal timers not to re-arm */
-	bond->kill_timers = 1;
-
 	write_unlock_bh(&bond->lock);
 
 	if (bond->params.miimon) {  /* link check interval, in milliseconds. */
-		cancel_delayed_work(&bond->mii_work);
+		cancel_delayed_work_sync(&bond->mii_work);
 	}
 
 	if (bond->params.arp_interval) {  /* arp interval, in milliseconds. */
-		cancel_delayed_work(&bond->arp_work);
+		cancel_delayed_work_sync(&bond->arp_work);
 	}
 
 	switch (bond->params.mode) {
 	case BOND_MODE_8023AD:
-		cancel_delayed_work(&bond->ad_work);
+		cancel_delayed_work_sync(&bond->ad_work);
 		break;
 	case BOND_MODE_TLB:
 	case BOND_MODE_ALB:
-		cancel_delayed_work(&bond->alb_work);
+		cancel_delayed_work_sync(&bond->alb_work);
 		break;
 	default:
 		break;
 	}
 
 	if (delayed_work_pending(&bond->mcast_work))
-		cancel_delayed_work(&bond->mcast_work);
+		cancel_delayed_work_sync(&bond->mcast_work);
 
 	if (bond_is_lb(bond)) {
 		/* Must be called only after all
@@ -3710,43 +3705,26 @@ static bool bond_addr_in_mc_list(unsigned char *addr,
 	return false;
 }
 
+static void bond_change_rx_flags(struct net_device *bond_dev, int change)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+
+	if (change & IFF_PROMISC)
+		bond_set_promiscuity(bond,
+				     bond_dev->flags & IFF_PROMISC ? 1 : -1);
+
+	if (change & IFF_ALLMULTI)
+		bond_set_allmulti(bond,
+				  bond_dev->flags & IFF_ALLMULTI ? 1 : -1);
+}
+
 static void bond_set_multicast_list(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct netdev_hw_addr *ha;
 	bool found;
 
-	/*
-	 * Do promisc before checking multicast_mode
-	 */
-	if ((bond_dev->flags & IFF_PROMISC) && !(bond->flags & IFF_PROMISC))
-		/*
-		 * FIXME: Need to handle the error when one of the multi-slaves
-		 * encounters error.
-		 */
-		bond_set_promiscuity(bond, 1);
-
-
-	if (!(bond_dev->flags & IFF_PROMISC) && (bond->flags & IFF_PROMISC))
-		bond_set_promiscuity(bond, -1);
-
-
-	/* set allmulti flag to slaves */
-	if ((bond_dev->flags & IFF_ALLMULTI) && !(bond->flags & IFF_ALLMULTI))
-		/*
-		 * FIXME: Need to handle the error when one of the multi-slaves
-		 * encounters error.
-		 */
-		bond_set_allmulti(bond, 1);
-
-
-	if (!(bond_dev->flags & IFF_ALLMULTI) && (bond->flags & IFF_ALLMULTI))
-		bond_set_allmulti(bond, -1);
-
-
 	read_lock(&bond->lock);
-
-	bond->flags = bond_dev->flags;
 
 	/* looking for addresses to add to slaves' mc list */
 	netdev_for_each_mc_addr(ha, bond_dev) {
@@ -4306,7 +4284,8 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_select_queue	= bond_select_queue,
 	.ndo_get_stats64	= bond_get_stats,
 	.ndo_do_ioctl		= bond_do_ioctl,
-	.ndo_set_multicast_list	= bond_set_multicast_list,
+	.ndo_change_rx_flags	= bond_change_rx_flags,
+	.ndo_set_rx_mode	= bond_set_multicast_list,
 	.ndo_change_mtu		= bond_change_mtu,
 	.ndo_set_mac_address	= bond_set_mac_address,
 	.ndo_neigh_setup	= bond_neigh_setup,
@@ -4387,26 +4366,22 @@ static void bond_setup(struct net_device *bond_dev)
 
 static void bond_work_cancel_all(struct bonding *bond)
 {
-	write_lock_bh(&bond->lock);
-	bond->kill_timers = 1;
-	write_unlock_bh(&bond->lock);
-
 	if (bond->params.miimon && delayed_work_pending(&bond->mii_work))
-		cancel_delayed_work(&bond->mii_work);
+		cancel_delayed_work_sync(&bond->mii_work);
 
 	if (bond->params.arp_interval && delayed_work_pending(&bond->arp_work))
-		cancel_delayed_work(&bond->arp_work);
+		cancel_delayed_work_sync(&bond->arp_work);
 
 	if (bond->params.mode == BOND_MODE_ALB &&
 	    delayed_work_pending(&bond->alb_work))
-		cancel_delayed_work(&bond->alb_work);
+		cancel_delayed_work_sync(&bond->alb_work);
 
 	if (bond->params.mode == BOND_MODE_8023AD &&
 	    delayed_work_pending(&bond->ad_work))
-		cancel_delayed_work(&bond->ad_work);
+		cancel_delayed_work_sync(&bond->ad_work);
 
 	if (delayed_work_pending(&bond->mcast_work))
-		cancel_delayed_work(&bond->mcast_work);
+		cancel_delayed_work_sync(&bond->mcast_work);
 }
 
 /*
@@ -4852,11 +4827,20 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
+static int bond_get_tx_queues(struct net *net, struct nlattr *tb[],
+			      unsigned int *num_queues,
+			      unsigned int *real_num_queues)
+{
+	*num_queues = tx_queues;
+	return 0;
+}
+
 static struct rtnl_link_ops bond_link_ops __read_mostly = {
 	.kind		= "bond",
 	.priv_size	= sizeof(struct bonding),
 	.setup		= bond_setup,
 	.validate	= bond_validate,
+	.get_tx_queues	= bond_get_tx_queues,
 };
 
 /* Create a new bond based on the specified name and bonding parameters.
@@ -4901,6 +4885,7 @@ static int __net_init bond_net_init(struct net *net)
 	INIT_LIST_HEAD(&bn->dev_list);
 
 	bond_create_proc_dir(bn);
+	bond_create_sysfs(bn);
 	
 	return 0;
 }
@@ -4909,6 +4894,7 @@ static void __net_exit bond_net_exit(struct net *net)
 {
 	struct bond_net *bn = net_generic(net, bond_net_id);
 
+	bond_destroy_sysfs(bn);
 	bond_destroy_proc_dir(bn);
 }
 
@@ -4946,10 +4932,6 @@ static int __init bonding_init(void)
 			goto err;
 	}
 
-	res = bond_create_sysfs();
-	if (res)
-		goto err;
-
 	register_netdevice_notifier(&bond_netdev_notifier);
 	register_inetaddr_notifier(&bond_inetaddr_notifier);
 out:
@@ -4967,7 +4949,6 @@ static void __exit bonding_exit(void)
 	unregister_netdevice_notifier(&bond_netdev_notifier);
 	unregister_inetaddr_notifier(&bond_inetaddr_notifier);
 
-	bond_destroy_sysfs();
 	bond_destroy_debugfs();
 
 	rtnl_link_unregister(&bond_link_ops);

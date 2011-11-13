@@ -68,6 +68,16 @@ struct ft1000_info {
 	char netdevname[IFNAMSIZ];
 };
 
+struct pcmcia_device;
+struct net_device;
+extern struct net_device *init_ft1000_card(struct pcmcia_device *link,
+						void *ft1000_reset);
+extern void stop_ft1000_card(struct net_device *dev);
+extern int card_download(struct net_device *dev, const u8 *pFileStart,
+			size_t FileLength);
+extern void ft1000InitProc(struct net_device *dev);
+extern void ft1000CleanupProc(struct net_device *dev);
+
 extern u16 ft1000_read_dpram(struct net_device *dev, int offset);
 extern void card_bootload(struct net_device *dev);
 extern u16 ft1000_read_dpram_mag_16(struct net_device *dev, int offset, int Index);

@@ -31,11 +31,10 @@
 
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
-#include <linux/wireless.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/skbuff.h>
@@ -61,7 +60,6 @@ MODULE_AUTHOR("Stefano Brivio");
 MODULE_AUTHOR("Michael Buesch");
 MODULE_LICENSE("GPL");
 
-MODULE_FIRMWARE(B43legacy_SUPPORTED_FIRMWARE_ID);
 MODULE_FIRMWARE("b43legacy/ucode2.fw");
 MODULE_FIRMWARE("b43legacy/ucode4.fw");
 
@@ -2468,7 +2466,8 @@ out:
 	}
 }
 
-static int b43legacy_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
+static int b43legacy_op_conf_tx(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif, u16 queue,
 				const struct ieee80211_tx_queue_params *params)
 {
 	return 0;
@@ -3785,7 +3784,8 @@ static int b43legacy_wireless_init(struct ssb_device *dev)
 	INIT_WORK(&wl->beacon_update_trigger, b43legacy_beacon_update_trigger_work);
 
 	ssb_set_devtypedata(dev, wl);
-	b43legacyinfo(wl, "Broadcom %04X WLAN found\n", dev->bus->chip_id);
+	b43legacyinfo(wl, "Broadcom %04X WLAN found (core revision %u)\n",
+		      dev->bus->chip_id, dev->id.revision);
 	err = 0;
 out:
 	return err;
@@ -3947,8 +3947,7 @@ static void b43legacy_print_driverinfo(void)
 	feat_dma = "D";
 #endif
 	printk(KERN_INFO "Broadcom 43xx-legacy driver loaded "
-	       "[ Features: %s%s%s%s, Firmware-ID: "
-	       B43legacy_SUPPORTED_FIRMWARE_ID " ]\n",
+	       "[ Features: %s%s%s%s ]\n",
 	       feat_pci, feat_leds, feat_pio, feat_dma);
 }
 

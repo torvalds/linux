@@ -2005,16 +2005,9 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 	 */
 	if (!timeout || timeout > 2 * info->timeout)
 		timeout = 2 * info->timeout;
-#ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
-	printk(KERN_DEBUG "In rs_wait_until_sent(%d) check=%lu...",
-		timeout, char_time);
-	printk("jiff=%lu...", jiffies);
-#endif
+
 	spin_lock_irqsave(&info->slock, flags);
 	while (!((lsr = inb(info->ioaddr + UART_LSR)) & UART_LSR_TEMT)) {
-#ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
-		printk("lsr = %d (jiff=%lu)...", lsr, jiffies);
-#endif
 		spin_unlock_irqrestore(&info->slock, flags);
 		schedule_timeout_interruptible(char_time);
 		spin_lock_irqsave(&info->slock, flags);
@@ -2025,10 +2018,6 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 	}
 	spin_unlock_irqrestore(&info->slock, flags);
 	set_current_state(TASK_RUNNING);
-
-#ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
-	printk("lsr = %d (jiff=%lu)...done\n", lsr, jiffies);
-#endif
 }
 
 /*

@@ -1554,7 +1554,7 @@ static int __devinit icom_probe(struct pci_dev *dev,
 
 	 /* save off irq and request irq line */
 	 if ( (retval = request_irq(dev->irq, icom_interrupt,
-				   IRQF_DISABLED | IRQF_SHARED, ICOM_DRIVER_NAME,
+				   IRQF_SHARED, ICOM_DRIVER_NAME,
 				   (void *) icom_adapter))) {
 		  goto probe_exit2;
 	 }

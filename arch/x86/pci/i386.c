@@ -26,6 +26,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ioport.h>

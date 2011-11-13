@@ -166,8 +166,8 @@ if (condition)
 else
 	do_that();
 
-This does not apply if one branch of a conditional statement is a single
-statement. Use braces in both branches.
+This does not apply if only one branch of a conditional statement is a single
+statement; in the latter case use braces in both branches:
 
 if (condition) {
 	do_this();

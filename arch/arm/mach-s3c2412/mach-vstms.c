@@ -155,7 +155,7 @@ static void __init vstms_init(void)
 }
 
 MACHINE_START(VSTMS, "VSTMS")
-	.boot_params	= S3C2410_SDRAM_PA + 0x100,
+	.atag_offset	= 0x100,
 
 	.fixup		= vstms_fixup,
 	.init_irq	= s3c24xx_init_irq,

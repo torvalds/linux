@@ -11,12 +11,6 @@
 
 #define XGIFAIL(x) do { printk(x "\n"); return -EINVAL; } while (0)
 
-#define VER_MAJOR                 0
-#define VER_MINOR                 8
-#define VER_LEVEL                 1
-
-#define DRIVER_DESC  "XGI Volari Frame Buffer Module Version 0.8.1"
-
 #ifndef PCI_VENDOR_ID_XG
 #define PCI_VENDOR_ID_XG          0x18CA
 #endif
@@ -37,12 +31,6 @@
 #define PCI_DEVICE_ID_XG_27      0x027
 #endif
 
-
-
-#define XGI_IOTYPE1 void __iomem
-#define XGI_IOTYPE2 __iomem
-#define XGIINITSTATIC static
-
 static DEFINE_PCI_DEVICE_TABLE(xgifb_pci_table) = {
 	{PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_20, PCI_ANY_ID, PCI_ANY_ID,
 	 0, 0, 0},
@@ -58,61 +46,29 @@ static DEFINE_PCI_DEVICE_TABLE(xgifb_pci_table) = {
 MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 
 /* To be included in fb.h */
-#ifndef FB_ACCEL_XGI_GLAMOUR_2
-#define FB_ACCEL_XGI_GLAMOUR_2  40	/* XGI 315, 650, 740		*/
-#endif
 #ifndef FB_ACCEL_XGI_XABRE
 #define FB_ACCEL_XGI_XABRE      41	/* XGI 330 ("Xabre")		*/
 #endif
 
-#define MAX_ROM_SCAN              0x10000
-
-#define SEQ_ADR                   0x14
 #define SEQ_DATA                  0x15
-#define DAC_ADR                   0x18
-#define DAC_DATA                  0x19
-#define CRTC_ADR                  0x24
-#define CRTC_DATA                 0x25
-#define DAC2_ADR                  (0x16-0x30)
-#define DAC2_DATA                 (0x17-0x30)
-#define VB_PART1_ADR              (0x04-0x30)
-#define VB_PART1_DATA             (0x05-0x30)
-#define VB_PART2_ADR              (0x10-0x30)
-#define VB_PART2_DATA             (0x11-0x30)
-#define VB_PART3_ADR              (0x12-0x30)
-#define VB_PART3_DATA             (0x13-0x30)
-#define VB_PART4_ADR              (0x14-0x30)
-#define VB_PART4_DATA             (0x15-0x30)
 
-#define XGISR			  XGI_Pr.P3c4
-#define XGICR                     XGI_Pr.P3d4
-#define XGIDACA                   XGI_Pr.P3c8
-#define XGIDACD                   XGI_Pr.P3c9
-#define XGIPART1                  XGI_Pr.Part1Port
-#define XGIPART2                  XGI_Pr.Part2Port
-#define XGIPART3                  XGI_Pr.Part3Port
-#define XGIPART4                  XGI_Pr.Part4Port
-#define XGIPART5                  XGI_Pr.Part5Port
+#define XGISR			  (xgifb_info->dev_info.P3c4)
+#define XGICR			  (xgifb_info->dev_info.P3d4)
+#define XGIDACA			  (xgifb_info->dev_info.P3c8)
+#define XGIDACD			  (xgifb_info->dev_info.P3c9)
+#define XGIPART1		  (xgifb_info->dev_info.Part1Port)
+#define XGIPART2		  (xgifb_info->dev_info.Part2Port)
+#define XGIPART3		  (xgifb_info->dev_info.Part3Port)
+#define XGIPART4		  (xgifb_info->dev_info.Part4Port)
+#define XGIPART5		  (xgifb_info->dev_info.Part5Port)
 #define XGIDAC2A                  XGIPART5
 #define XGIDAC2D                  (XGIPART5 + 1)
-#define XGIMISCR                  (XGI_Pr.RelIO + 0x1c)
-#define XGIINPSTAT		  (XGI_Pr.RelIO + 0x2a)
 
 #define IND_XGI_PASSWORD          0x05  /* SRs */
-#define IND_XGI_COLOR_MODE        0x06
 #define IND_XGI_RAMDAC_CONTROL    0x07
 #define IND_XGI_DRAM_SIZE         0x14
-#define IND_XGI_SCRATCH_REG_16    0x16
-#define IND_XGI_SCRATCH_REG_17    0x17
-#define IND_XGI_SCRATCH_REG_1A    0x1A
 #define IND_XGI_MODULE_ENABLE     0x1E
 #define IND_XGI_PCI_ADDRESS_SET   0x20
-#define IND_XGI_TURBOQUEUE_ADR    0x26
-#define IND_XGI_TURBOQUEUE_SET    0x27
-#define IND_XGI_POWER_ON_TRAP     0x38
-#define IND_XGI_POWER_ON_TRAP2    0x39
-#define IND_XGI_CMDQUEUE_SET      0x26
-#define IND_XGI_CMDQUEUE_THRESHOLD  0x27
 
 #define IND_XGI_SCRATCH_REG_CR30  0x30  /* CRs */
 #define IND_XGI_SCRATCH_REG_CR31  0x31
@@ -120,23 +76,10 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define IND_XGI_SCRATCH_REG_CR33  0x33
 #define IND_XGI_LCD_PANEL         0x36
 #define IND_XGI_SCRATCH_REG_CR37  0x37
-#define IND_XGI_AGP_IO_PAD        0x48
 
-#define IND_BRI_DRAM_STATUS       0x63 /* PCI config memory size offset */
-
-#define MMIO_QUEUE_PHYBASE        0x85C0
-#define MMIO_QUEUE_WRITEPORT      0x85C4
-#define MMIO_QUEUE_READPORT       0x85C8
-
-#define IND_XGI_CRT2_WRITE_ENABLE_300 0x24
 #define IND_XGI_CRT2_WRITE_ENABLE_315 0x2F
 
 #define XGI_PASSWORD              0x86  /* SR05 */
-#define XGI_INTERLACED_MODE       0x20  /* SR06 */
-#define XGI_8BPP_COLOR_MODE       0x0
-#define XGI_15BPP_COLOR_MODE      0x1
-#define XGI_16BPP_COLOR_MODE      0x2
-#define XGI_32BPP_COLOR_MODE      0x4
 
 #define XGI_DRAM_SIZE_MASK     0xF0  /*SR14 */
 #define XGI_DRAM_SIZE_1MB      0x00
@@ -148,27 +91,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define XGI_DRAM_SIZE_64MB     0x06
 #define XGI_DRAM_SIZE_128MB    0x07
 #define XGI_DRAM_SIZE_256MB    0x08
-#define XGI_DATA_BUS_MASK      0x02
-#define XGI_DATA_BUS_64        0x00
-#define XGI_DATA_BUS_128       0x01
-#define XGI_DUAL_CHANNEL_MASK  0x0C
-#define XGI_SINGLE_CHANNEL_1_RANK 0x0
-#define XGI_SINGLE_CHANNEL_2_RANK 0x1
-#define XGI_ASYM_DDR		  0x02
-#define XGI_DUAL_CHANNEL_1_RANK	  0x3
-
-#define XGI550_DRAM_SIZE_MASK     0x3F  /* 550/650/740 SR14 */
-#define XGI550_DRAM_SIZE_4MB      0x00
-#define XGI550_DRAM_SIZE_8MB      0x01
-#define XGI550_DRAM_SIZE_16MB     0x03
-#define XGI550_DRAM_SIZE_24MB     0x05
-#define XGI550_DRAM_SIZE_32MB     0x07
-#define XGI550_DRAM_SIZE_64MB     0x0F
-#define XGI550_DRAM_SIZE_96MB     0x17
-#define XGI550_DRAM_SIZE_128MB    0x1F
-#define XGI550_DRAM_SIZE_256MB    0x3F
-
-#define XGI_SCRATCH_REG_1A_MASK   0x10
 
 #define XGI_ENABLE_2D             0x40  /* SR1E */
 
@@ -176,7 +98,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define XGI_PCI_ADDR_ENABLE       0x80
 
 #define XGI_SIMULTANEOUS_VIEW_ENABLE  0x01  /* CR30 */
-#define XGI_MODE_SELECT_CRT2      0x02
 #define XGI_VB_OUTPUT_COMPOSITE   0x04
 #define XGI_VB_OUTPUT_SVIDEO      0x08
 #define XGI_VB_OUTPUT_SCART       0x10
@@ -199,118 +120,34 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 				   XGI_VB_SCART | XGI_VB_HIVISION|XGI_VB_YPBPR)
 
 #define XGI_EXTERNAL_CHIP_MASK		   0x0E  /* CR37 */
-#define XGI_EXTERNAL_CHIP_XGI301           0x01  /* in CR37 << 1 ! */
-#define XGI_EXTERNAL_CHIP_LVDS             0x02  /* in CR37 << 1 ! */
-#define XGI_EXTERNAL_CHIP_TRUMPION         0x03  /* in CR37 << 1 ! */
-#define XGI_EXTERNAL_CHIP_LVDS_CHRONTEL    0x04  /* in CR37 << 1 ! */
-#define XGI_EXTERNAL_CHIP_CHRONTEL         0x05  /* in CR37 << 1 ! */
 #define XGI310_EXTERNAL_CHIP_LVDS          0x02  /* in CR37 << 1 ! */
 #define XGI310_EXTERNAL_CHIP_LVDS_CHRONTEL 0x03  /* in CR37 << 1 ! */
 
-#define XGI_AGP_2X                0x20  /* CR48 */
-
-#define BRI_DRAM_SIZE_MASK        0x70  /* PCI bridge config data */
-#define BRI_DRAM_SIZE_2MB         0x00
-#define BRI_DRAM_SIZE_4MB         0x01
-#define BRI_DRAM_SIZE_8MB         0x02
-#define BRI_DRAM_SIZE_16MB        0x03
-#define BRI_DRAM_SIZE_32MB        0x04
-#define BRI_DRAM_SIZE_64MB        0x05
-
-#define SR_BUFFER_SIZE            5
-#define CR_BUFFER_SIZE            5
-
 /* ------------------- Global Variables ----------------------------- */
 
-/* Fbcon variables */
-static struct fb_info *fb_info;
-
-
-static int    video_type = FB_TYPE_PACKED_PIXELS;
-
-static struct fb_var_screeninfo default_var = {
-	.xres		= 0,
-	.yres		= 0,
-	.xres_virtual	= 0,
-	.yres_virtual	= 0,
-	.xoffset	= 0,
-	.yoffset	= 0,
-	.bits_per_pixel	= 0,
-	.grayscale	= 0,
-	.red		= {0, 8, 0},
-	.green		= {0, 8, 0},
-	.blue		= {0, 8, 0},
-	.transp		= {0, 0, 0},
-	.nonstd		= 0,
-	.activate	= FB_ACTIVATE_NOW,
-	.height		= -1,
-	.width		= -1,
-	.accel_flags	= 0,
-	.pixclock	= 0,
-	.left_margin	= 0,
-	.right_margin	= 0,
-	.upper_margin	= 0,
-	.lower_margin	= 0,
-	.hsync_len	= 0,
-	.vsync_len	= 0,
-	.sync		= 0,
-	.vmode		= FB_VMODE_NONINTERLACED,
-};
-
-static struct fb_fix_screeninfo XGIfb_fix = {
-	.id		= "XGI",
-	.type		= FB_TYPE_PACKED_PIXELS,
-	.xpanstep	= 1,
-	.ypanstep	= 1,
-};
-static char myid[20];
-static u32 pseudo_palette[17];
-
-
 /* display status */
-static int XGIfb_off = 0;
-static int XGIfb_crt1off = 0;
+static int XGIfb_crt1off;
 static int XGIfb_forcecrt1 = -1;
-static int XGIfb_userom = 0;
-/*static int XGIfb_useoem = -1; */
+static int XGIfb_userom ;
 
 /* global flags */
-static int XGIfb_registered;
-static int XGIfb_tvmode = 0;
-static int XGIfb_pdc = 0;
-static int enable_dstn = 0;
+static int XGIfb_tvmode;
+static int enable_dstn;
 static int XGIfb_ypan = -1;
-
-
-static int XGIfb_CRT2_write_enable = 0;
 
 /* TW: CRT2 type (for overriding autodetection) */
 static int XGIfb_crt2type = -1;
 /* PR: Tv plug type (for overriding autodetection) */
 static int XGIfb_tvplug = -1;
 
-static unsigned char XGIfb_detectedpdc = 0;
-
-static unsigned char XGIfb_detectedlcda = 0xff;
-
-
-
-
 /* TW: For ioctl XGIFB_GET_INFO */
 /* XGIfb_info XGIfbinfo; */
-
-/* TW: Hardware extension; contains data on hardware */
-static struct xgi_hw_device_info XGIhw_ext;
-
-/* TW: XGI private structure */
-static struct vb_device_info  XGI_Pr;
 
 #define MD_XGI300 1
 #define MD_XGI315 2
 
 /* mode table */
-/* NOT const - will be patched for 1280x960 mode number chaos reasons */
-static struct _XGIbios_mode {
+static const struct _XGIbios_mode {
 	char name[15];
 	u8 mode_no;
 	u16 vesa_mode_no_1;  /* "XGI defined" VESA mode number */
@@ -323,9 +160,6 @@ static struct _XGIbios_mode {
 	u16 rows;
 	u8  chipset;
 } XGIbios_mode[] = {
-#define MODE_INDEX_NONE           0  /* TW: index for mode=none */
-	{"none",         0xFF, 0x0000, 0x0000,    0,    0,  0, 0,   0,  0,
-	 MD_XGI300|MD_XGI315},  /* TW: for mode "none" */
 	{"320x240x16",   0x56, 0x0000, 0x0000,  320,  240, 16, 1,  40, 15,
 	 MD_XGI315},
 	{"320x480x8",    0x5A, 0x0000, 0x0000,  320,  480,  8, 1,  40, 30,
@@ -365,11 +199,9 @@ static struct _XGIbios_mode {
 	 MD_XGI300|MD_XGI315},
 	{"800x480x32",   0x76, 0x0000, 0x0000,  800,  480, 32, 1, 100, 30,
 	 MD_XGI300|MD_XGI315},
-#define DEFAULT_MODE              21 /* TW: index for 800x600x8 */
-#define DEFAULT_LCDMODE           21 /* TW: index for 800x600x8 */
-#define DEFAULT_TVMODE            21 /* TW: index for 800x600x8 */
 	{"800x600x8",    0x30, 0x0103, 0x0103,  800,  600,  8, 1, 100, 37,
 	 MD_XGI300|MD_XGI315},
+#define DEFAULT_MODE              20 /* index for 800x600x16 */
 	{"800x600x16",   0x47, 0x0114, 0x0114,  800,  600, 16, 1, 100, 37,
 	 MD_XGI300|MD_XGI315},
 	{"800x600x24",   0x63, 0x013b, 0x0115,  800,  600, 32, 1, 100, 37,
@@ -424,9 +256,8 @@ static struct _XGIbios_mode {
 	 MD_XGI315},
 	{"1280x768x32",  0x25, 0x0000, 0x0000, 1280,  768, 32, 1, 160, 48,
 	 MD_XGI315},
-#define MODEINDEX_1280x960 48
 	{"1280x960x8",   0x7C, 0x0000, 0x0000, 1280,  960,  8, 1, 160, 60,
-	 MD_XGI300|MD_XGI315},  /* TW: Modenumbers being patched */
+	 MD_XGI300|MD_XGI315},
 	{"1280x960x16",  0x7D, 0x0000, 0x0000, 1280,  960, 16, 1, 160, 60,
 	 MD_XGI300|MD_XGI315},
 	{"1280x960x24",  0x7E, 0x0000, 0x0000, 1280,  960, 32, 1, 160, 60,
@@ -476,16 +307,6 @@ static struct _XGIbios_mode {
 	{"\0", 0x00, 0, 0, 0, 0, 0, 0, 0}
 };
 
-/* mode-related variables */
-#ifdef MODULE
-static int xgifb_mode_idx = 1;
-#else
-static int xgifb_mode_idx = -1; /* Use a default mode if we are
-					inside the kernel */
-#endif
-static u8  XGIfb_mode_no  = 0;
-static u8  XGIfb_rate_idx = 0;
-
 /* TW: CR36 evaluation */
 static const unsigned short XGI300paneltype[] = {
 	 LCD_UNKNOWN,  LCD_800x600, LCD_1024x768, LCD_1280x1024,
@@ -505,19 +326,19 @@ static const struct _XGI_crt2type {
 	int tvplug_no;
 } XGI_crt2type[] = {
 	{"NONE",	0,		-1},
-	{"LCD",		DISPTYPE_LCD,	-1},
-	{"TV",		DISPTYPE_TV,	-1},
-	{"VGA",		DISPTYPE_CRT2,	-1},
-	{"SVIDEO",	DISPTYPE_TV,	TVPLUG_SVIDEO},
-	{"COMPOSITE",	DISPTYPE_TV,	TVPLUG_COMPOSITE},
-	{"SCART",	DISPTYPE_TV,	TVPLUG_SCART},
+	{"LCD",		XGIFB_DISP_LCD,	-1},
+	{"TV",		XGIFB_DISP_TV,	-1},
+	{"VGA",		XGIFB_DISP_CRT,	-1},
+	{"SVIDEO",	XGIFB_DISP_TV,	TVPLUG_SVIDEO},
+	{"COMPOSITE",	XGIFB_DISP_TV,	TVPLUG_COMPOSITE},
+	{"SCART",	XGIFB_DISP_TV,	TVPLUG_SCART},
 	{"none",	0,		-1},
-	{"lcd",		DISPTYPE_LCD,	-1},
-	{"tv",		DISPTYPE_TV,	-1},
-	{"vga",		DISPTYPE_CRT2,	-1},
-	{"svideo",	DISPTYPE_TV,	TVPLUG_SVIDEO},
-	{"composite",	DISPTYPE_TV,	TVPLUG_COMPOSITE},
-	{"scart",	DISPTYPE_TV,	TVPLUG_SCART},
+	{"lcd",		XGIFB_DISP_LCD,	-1},
+	{"tv",		XGIFB_DISP_TV,	-1},
+	{"vga",		XGIFB_DISP_CRT,	-1},
+	{"svideo",	XGIFB_DISP_TV,	TVPLUG_SVIDEO},
+	{"composite",	XGIFB_DISP_TV,	TVPLUG_COMPOSITE},
+	{"scart",	XGIFB_DISP_TV,	TVPLUG_SCART},
 	{"\0",		-1,		-1}
 };
 
@@ -740,6 +561,5 @@ static const struct _XGI_TV_filter {
 };
 
 static int           filter = -1;
-static unsigned char filter_tb;
 
 #endif

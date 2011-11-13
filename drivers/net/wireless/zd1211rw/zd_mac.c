@@ -1332,7 +1332,7 @@ static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 }
 
-static u64 zd_op_get_tsf(struct ieee80211_hw *hw)
+static u64 zd_op_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	return zd_chip_get_tsf(&mac->chip);

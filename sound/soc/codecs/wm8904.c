@@ -50,7 +50,6 @@ static const char *wm8904_supply_names[WM8904_NUM_SUPPLIES] = {
 struct wm8904_priv {
 
 	enum wm8904_type devtype;
-	void *control_data;
 
 	struct regulator_bulk_data supplies[WM8904_NUM_SUPPLIES];
 
@@ -868,7 +867,7 @@ SOC_ENUM("Right Capture Mode", rin_mode),
 SOC_DOUBLE_R("Capture Volume", WM8904_ANALOGUE_LEFT_INPUT_0,
 	     WM8904_ANALOGUE_RIGHT_INPUT_0, 0, 31, 0),
 SOC_DOUBLE_R("Capture Switch", WM8904_ANALOGUE_LEFT_INPUT_0,
-	     WM8904_ANALOGUE_RIGHT_INPUT_0, 7, 1, 0),
+	     WM8904_ANALOGUE_RIGHT_INPUT_0, 7, 1, 1),
 
 SOC_SINGLE("High Pass Filter Switch", WM8904_ADC_DIGITAL_0, 4, 1, 0),
 SOC_ENUM("High Pass Filter Mode", hpf_mode),
@@ -2540,7 +2539,6 @@ static __devinit int wm8904_i2c_probe(struct i2c_client *i2c,
 
 	wm8904->devtype = id->driver_data;
 	i2c_set_clientdata(i2c, wm8904);
-	wm8904->control_data = i2c;
 	wm8904->pdata = i2c->dev.platform_data;
 
 	ret = snd_soc_register_codec(&i2c->dev,

@@ -85,8 +85,7 @@ enum xen_irq_type {
  *    IPI - IPI vector
  *    EVTCHN -
  */
-struct irq_info
-{
+struct irq_info {
 	struct list_head list;
 	enum xen_irq_type type;	/* type */
 	unsigned irq;
@@ -282,9 +281,9 @@ static inline unsigned long active_evtchns(unsigned int cpu,
 					   struct shared_info *sh,
 					   unsigned int idx)
 {
-	return (sh->evtchn_pending[idx] &
+	return sh->evtchn_pending[idx] &
 		per_cpu(cpu_evtchn_mask, cpu)[idx] &
-		~sh->evtchn_mask[idx]);
+		~sh->evtchn_mask[idx];
 }
 
 static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
@@ -1049,7 +1048,7 @@ int bind_ipi_to_irqhandler(enum ipi_vector ipi,
 	if (irq < 0)
 		return irq;
 
-	irqflags |= IRQF_NO_SUSPEND | IRQF_FORCE_RESUME;
+	irqflags |= IRQF_NO_SUSPEND | IRQF_FORCE_RESUME | IRQF_EARLY_RESUME;
 	retval = request_irq(irq, handler, irqflags, devname, dev_id);
 	if (retval != 0) {
 		unbind_from_irq(irq);
@@ -1180,7 +1179,7 @@ static void __xen_evtchn_do_upcall(void)
 	int cpu = get_cpu();
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
- 	unsigned count;
+	unsigned count;
 
 	do {
 		unsigned long pending_words;

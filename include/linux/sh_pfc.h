@@ -61,6 +61,14 @@ struct pinmux_data_reg {
 	.reg = r, .reg_width = r_width,	\
 	.enum_ids = (pinmux_enum_t [r_width]) \
 
+struct pinmux_irq {
+	int irq;
+	pinmux_enum_t *enum_ids;
+};
+
+#define PINMUX_IRQ(irq_nr, ids...)			   \
+	{ .irq = irq_nr, .enum_ids = (pinmux_enum_t []) { ids, 0 } }	\
+
 struct pinmux_range {
 	pinmux_enum_t begin;
 	pinmux_enum_t end;
@@ -87,7 +95,9 @@ struct pinmux_info {
 	pinmux_enum_t *gpio_data;
 	unsigned int gpio_data_size;
 
-	unsigned long *gpio_in_use;
+	struct pinmux_irq *gpio_irq;
+	unsigned int gpio_irq_size;
+
 	struct gpio_chip chip;
 };
 

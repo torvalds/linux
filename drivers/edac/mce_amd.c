@@ -9,7 +9,7 @@ static u8 xec_mask	 = 0xf;
 static u8 nb_err_cpumask = 0xf;
 
 static bool report_gart_errors;
-static void (*nb_bus_decoder)(int node_id, struct mce *m, u32 nbcfg);
+static void (*nb_bus_decoder)(int node_id, struct mce *m);
 
 void amd_report_gart_errors(bool v)
 {
@@ -17,13 +17,13 @@ void amd_report_gart_errors(bool v)
 }
 EXPORT_SYMBOL_GPL(amd_report_gart_errors);
 
-void amd_register_ecc_decoder(void (*f)(int, struct mce *, u32))
+void amd_register_ecc_decoder(void (*f)(int, struct mce *))
 {
 	nb_bus_decoder = f;
 }
 EXPORT_SYMBOL_GPL(amd_register_ecc_decoder);
 
-void amd_unregister_ecc_decoder(void (*f)(int, struct mce *, u32))
+void amd_unregister_ecc_decoder(void (*f)(int, struct mce *))
 {
 	if (nb_bus_decoder) {
 		WARN_ON(nb_bus_decoder != f);
@@ -592,31 +592,14 @@ static bool nb_noop_mce(u16 ec, u8 xec)
 	return false;
 }
 
-void amd_decode_nb_mce(int node_id, struct mce *m, u32 nbcfg)
+void amd_decode_nb_mce(struct mce *m)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
-	u16 ec   = EC(m->status);
-	u8 xec   = XEC(m->status, 0x1f);
-	u32 nbsh = (u32)(m->status >> 32);
-	int core = -1;
+	int node_id = amd_get_nb_id(m->extcpu);
+	u16 ec = EC(m->status);
+	u8 xec = XEC(m->status, 0x1f);
 
-	pr_emerg(HW_ERR "Northbridge Error (node %d", node_id);
-
-	/* F10h, revD can disable ErrCpu[3:0] through ErrCpuVal */
-	if (c->x86 == 0x10 && c->x86_model > 7) {
-		if (nbsh & NBSH_ERR_CPU_VAL)
-			core = nbsh & nb_err_cpumask;
-	} else {
-		u8 assoc_cpus = nbsh & nb_err_cpumask;
-
-		if (assoc_cpus > 0)
-			core = fls(assoc_cpus) - 1;
-	}
-
-	if (core >= 0)
-		pr_cont(", core %d): ", core);
-	else
-		pr_cont("): ");
+	pr_emerg(HW_ERR "Northbridge Error (node %d): ", node_id);
 
 	switch (xec) {
 	case 0x2:
@@ -648,7 +631,7 @@ void amd_decode_nb_mce(int node_id, struct mce *m, u32 nbcfg)
 
 	if (c->x86 == 0xf || c->x86 == 0x10 || c->x86 == 0x15)
 		if ((xec == 0x8 || xec == 0x0) && nb_bus_decoder)
-			nb_bus_decoder(node_id, m, nbcfg);
+			nb_bus_decoder(node_id, m);
 
 	return;
 
@@ -764,13 +747,13 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 {
 	struct mce *m = (struct mce *)data;
 	struct cpuinfo_x86 *c = &boot_cpu_data;
-	int node, ecc;
+	int ecc;
 
 	if (amd_filter_mce(m))
 		return NOTIFY_STOP;
 
-	pr_emerg(HW_ERR "MC%d_STATUS[%s|%s|%s|%s|%s",
-		m->bank,
+	pr_emerg(HW_ERR "CPU:%d\tMC%d_STATUS[%s|%s|%s|%s|%s",
+		m->extcpu, m->bank,
 		((m->status & MCI_STATUS_OVER)	? "Over"  : "-"),
 		((m->status & MCI_STATUS_UC)	? "UE"	  : "CE"),
 		((m->status & MCI_STATUS_MISCV)	? "MiscV" : "-"),
@@ -789,6 +772,8 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 
 	pr_cont("]: 0x%016llx\n", m->status);
 
+	if (m->status & MCI_STATUS_ADDRV)
+		pr_emerg(HW_ERR "\tMC%d_ADDR: 0x%016llx\n", m->bank, m->addr);
 
 	switch (m->bank) {
 	case 0:
@@ -811,8 +796,7 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		break;
 
 	case 4:
-		node = amd_get_nb_id(m->extcpu);
-		amd_decode_nb_mce(node, m, 0);
+		amd_decode_nb_mce(m);
 		break;
 
 	case 5:

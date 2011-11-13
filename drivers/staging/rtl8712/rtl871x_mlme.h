@@ -1,3 +1,28 @@
+/******************************************************************************
+ *
+ * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ * Modifications for inclusion into the Linux staging tree are
+ * Copyright(c) 2010 Larry Finger. All rights reserved.
+ *
+ * Contact information:
+ * WLAN FAE <wlanfae@realtek.com>
+ * Larry Finger <Larry.Finger@lwfinger.net>
+ *
+ ******************************************************************************/
 #ifndef __RTL871X_MLME_H_
 #define __RTL871X_MLME_H_
 
@@ -70,6 +95,7 @@ struct mlme_priv {
 	struct  __queue scanned_queue;
 	u8 *free_bss_buf;
 	unsigned long num_of_scanned;
+	u8 passive_mode; /*add for Android's SCAN-ACTIVE/SCAN-PASSIVE */
 	struct ndis_802_11_ssid	assoc_ssid;
 	u8 assoc_bssid[6];
 	struct wlan_network cur_network;
@@ -201,8 +227,6 @@ void r8712_joinbss_reset(struct _adapter *padapter);
 unsigned int r8712_restructure_ht_ie(struct _adapter *padapter, u8 *in_ie,
 				     u8 *out_ie, uint in_len, uint *pout_len);
 void r8712_issue_addbareq_cmd(struct _adapter *padapter, int priority);
-unsigned int r8712_add_ht_addt_info(struct _adapter *padapter, u8 *in_ie,
-				    u8 *out_ie, uint in_len, uint *pout_len);
 int r8712_is_same_ibss(struct _adapter *adapter, struct wlan_network *pnetwork);
 
 #endif /*__RTL871X_MLME_H_*/

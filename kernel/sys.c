@@ -4,7 +4,7 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/utsname.h>
 #include <linux/mman.h>
@@ -12,6 +12,7 @@
 #include <linux/prctl.h>
 #include <linux/highuid.h>
 #include <linux/fs.h>
+#include <linux/kmod.h>
 #include <linux/perf_event.h>
 #include <linux/resource.h>
 #include <linux/kernel.h>
@@ -1286,6 +1287,7 @@ SYSCALL_DEFINE2(sethostname, char __user *, name, int, len)
 		memset(u->nodename + len, 0, sizeof(u->nodename) - len);
 		errno = 0;
 	}
+	uts_proc_notify(UTS_PROC_HOSTNAME);
 	up_write(&uts_sem);
 	return errno;
 }
@@ -1336,6 +1338,7 @@ SYSCALL_DEFINE2(setdomainname, char __user *, name, int, len)
 		memset(u->domainname + len, 0, sizeof(u->domainname) - len);
 		errno = 0;
 	}
+	uts_proc_notify(UTS_PROC_DOMAINNAME);
 	up_write(&uts_sem);
 	return errno;
 }
@@ -1759,6 +1762,7 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 					      sizeof(me->comm) - 1) < 0)
 				return -EFAULT;
 			set_task_comm(me, comm);
+			proc_comm_connector(me);
 			return 0;
 		case PR_GET_NAME:
 			get_task_comm(comm, me);

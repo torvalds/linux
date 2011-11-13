@@ -35,8 +35,8 @@ extern void sh7372_add_standard_devices(void);
 extern void sh7372_clock_init(void);
 extern void sh7372_pinmux_init(void);
 extern void sh7372_pm_init(void);
-extern void sh7372_cpu_suspend(void);
-extern void sh7372_cpu_resume(void);
+extern void sh7372_resume_core_standby_a3sm(void);
+extern int sh7372_do_idle_a3sm(unsigned long unused);
 extern struct clk sh7372_extal1_clk;
 extern struct clk sh7372_extal2_clk;
 

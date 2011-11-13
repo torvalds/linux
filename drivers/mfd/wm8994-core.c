@@ -16,9 +16,11 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/machine.h>
 
@@ -29,22 +31,7 @@
 static int wm8994_read(struct wm8994 *wm8994, unsigned short reg,
 		       int bytes, void *dest)
 {
-	int ret, i;
-	u16 *buf = dest;
-
-	BUG_ON(bytes % 2);
-	BUG_ON(bytes <= 0);
-
-	ret = wm8994->read_dev(wm8994, reg, bytes, dest);
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < bytes / 2; i++) {
-		dev_vdbg(wm8994->dev, "Read %04x from R%d(0x%x)\n",
-			 be16_to_cpu(buf[i]), reg + i, reg + i);
-	}
-
-	return 0;
+	return regmap_raw_read(wm8994->regmap, reg, dest, bytes);
 }
 
 /**
@@ -55,19 +42,15 @@ static int wm8994_read(struct wm8994 *wm8994, unsigned short reg,
  */
 int wm8994_reg_read(struct wm8994 *wm8994, unsigned short reg)
 {
-	unsigned short val;
+	unsigned int val;
 	int ret;
 
-	mutex_lock(&wm8994->io_lock);
-
-	ret = wm8994_read(wm8994, reg, 2, &val);
-
-	mutex_unlock(&wm8994->io_lock);
+	ret = regmap_read(wm8994->regmap, reg, &val);
 
 	if (ret < 0)
 		return ret;
 	else
-		return be16_to_cpu(val);
+		return val;
 }
 EXPORT_SYMBOL_GPL(wm8994_reg_read);
 
@@ -82,33 +65,13 @@ EXPORT_SYMBOL_GPL(wm8994_reg_read);
 int wm8994_bulk_read(struct wm8994 *wm8994, unsigned short reg,
 		     int count, u16 *buf)
 {
-	int ret;
-
-	mutex_lock(&wm8994->io_lock);
-
-	ret = wm8994_read(wm8994, reg, count * 2, buf);
-
-	mutex_unlock(&wm8994->io_lock);
-
-	return ret;
+	return regmap_bulk_read(wm8994->regmap, reg, buf, count);
 }
-EXPORT_SYMBOL_GPL(wm8994_bulk_read);
 
 static int wm8994_write(struct wm8994 *wm8994, unsigned short reg,
 			int bytes, const void *src)
 {
-	const u16 *buf = src;
-	int i;
-
-	BUG_ON(bytes % 2);
-	BUG_ON(bytes <= 0);
-
-	for (i = 0; i < bytes / 2; i++) {
-		dev_vdbg(wm8994->dev, "Write %04x to R%d(0x%x)\n",
-			 be16_to_cpu(buf[i]), reg + i, reg + i);
-	}
-
-	return wm8994->write_dev(wm8994, reg, bytes, src);
+	return regmap_raw_write(wm8994->regmap, reg, src, bytes);
 }
 
 /**
@@ -121,17 +84,7 @@ static int wm8994_write(struct wm8994 *wm8994, unsigned short reg,
 int wm8994_reg_write(struct wm8994 *wm8994, unsigned short reg,
 		     unsigned short val)
 {
-	int ret;
-
-	val = cpu_to_be16(val);
-
-	mutex_lock(&wm8994->io_lock);
-
-	ret = wm8994_write(wm8994, reg, 2, &val);
-
-	mutex_unlock(&wm8994->io_lock);
-
-	return ret;
+	return regmap_write(wm8994->regmap, reg, val);
 }
 EXPORT_SYMBOL_GPL(wm8994_reg_write);
 
@@ -146,15 +99,7 @@ EXPORT_SYMBOL_GPL(wm8994_reg_write);
 int wm8994_bulk_write(struct wm8994 *wm8994, unsigned short reg,
 		      int count, const u16 *buf)
 {
-	int ret;
-
-	mutex_lock(&wm8994->io_lock);
-
-	ret = wm8994_write(wm8994, reg, count * 2, buf);
-
-	mutex_unlock(&wm8994->io_lock);
-
-	return ret;
+	return regmap_raw_write(wm8994->regmap, reg, buf, count * sizeof(u16));
 }
 EXPORT_SYMBOL_GPL(wm8994_bulk_write);
 
@@ -169,28 +114,7 @@ EXPORT_SYMBOL_GPL(wm8994_bulk_write);
 int wm8994_set_bits(struct wm8994 *wm8994, unsigned short reg,
 		    unsigned short mask, unsigned short val)
 {
-	int ret;
-	u16 r;
-
-	mutex_lock(&wm8994->io_lock);
-
-	ret = wm8994_read(wm8994, reg, 2, &r);
-	if (ret < 0)
-		goto out;
-
-	r = be16_to_cpu(r);
-
-	r &= ~mask;
-	r |= val;
-
-	r = cpu_to_be16(r);
-
-	ret = wm8994_write(wm8994, reg, 2, &r);
-
-out:
-	mutex_unlock(&wm8994->io_lock);
-
-	return ret;
+	return regmap_update_bits(wm8994->regmap, reg, mask, val);
 }
 EXPORT_SYMBOL_GPL(wm8994_set_bits);
 
@@ -243,6 +167,18 @@ static struct mfd_cell wm8994_devs[] = {
  * and should be handled via the standard regulator API supply
  * management.
  */
+static const char *wm1811_main_supplies[] = {
+	"DBVDD1",
+	"DBVDD2",
+	"DBVDD3",
+	"DCVDD",
+	"AVDD1",
+	"AVDD2",
+	"CPVDD",
+	"SPKVDD1",
+	"SPKVDD2",
+};
+
 static const char *wm8994_main_supplies[] = {
 	"DBVDD",
 	"DCVDD",
@@ -280,6 +216,47 @@ static int wm8994_suspend(struct device *dev)
 		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
 		return 0;
 	}
+
+	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_4);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read power status: %d\n", ret);
+	} else if (ret & (WM8994_AIF2ADCL_ENA | WM8994_AIF2ADCR_ENA |
+			  WM8994_AIF1ADC2L_ENA | WM8994_AIF1ADC2R_ENA |
+			  WM8994_AIF1ADC1L_ENA | WM8994_AIF1ADC1R_ENA)) {
+		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+		return 0;
+	}
+
+	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_5);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read power status: %d\n", ret);
+	} else if (ret & (WM8994_AIF2DACL_ENA | WM8994_AIF2DACR_ENA |
+			  WM8994_AIF1DAC2L_ENA | WM8994_AIF1DAC2R_ENA |
+			  WM8994_AIF1DAC1L_ENA | WM8994_AIF1DAC1R_ENA)) {
+		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+		return 0;
+	}
+
+	switch (wm8994->type) {
+	case WM8958:
+		ret = wm8994_reg_read(wm8994, WM8958_MIC_DETECT_1);
+		if (ret < 0) {
+			dev_err(dev, "Failed to read power status: %d\n", ret);
+		} else if (ret & WM8958_MICD_ENA) {
+			dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+			return 0;
+		}
+		break;
+	default:
+		break;
+	}
+
+	/* Disable LDO pulldowns while the device is suspended if we
+	 * don't know that something will be driving them. */
+	if (!wm8994->ldo_ena_always_driven)
+		wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
+				WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
+				WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD);
 
 	/* GPIO configuration state is saved here since we may be configuring
 	 * the GPIO alternate functions even if we're not using the gpiolib
@@ -350,6 +327,11 @@ static int wm8994_resume(struct device *dev)
 	if (ret < 0)
 		dev_err(dev, "Failed to restore GPIO registers: %d\n", ret);
 
+	/* Disable LDO pulldowns while the device is active */
+	wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
+			WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
+			0);
+
 	wm8994->suspended = false;
 
 	return 0;
@@ -378,6 +360,11 @@ static int wm8994_ldo_in_use(struct wm8994_pdata *pdata, int ldo)
 }
 #endif
 
+static struct regmap_config wm8994_regmap_config = {
+	.reg_bits = 16,
+	.val_bits = 16,
+};
+
 /*
  * Instantiate the generic non-control parts of the device.
  */
@@ -387,7 +374,6 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	const char *devname;
 	int ret, i;
 
-	mutex_init(&wm8994->io_lock);
 	dev_set_drvdata(wm8994->dev, wm8994);
 
 	/* Add the on-chip regulators first for bootstrapping */
@@ -397,10 +383,13 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 			      NULL, 0);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to add children: %d\n", ret);
-		goto err;
+		goto err_regmap;
 	}
 
 	switch (wm8994->type) {
+	case WM1811:
+		wm8994->num_supplies = ARRAY_SIZE(wm1811_main_supplies);
+		break;
 	case WM8994:
 		wm8994->num_supplies = ARRAY_SIZE(wm8994_main_supplies);
 		break;
@@ -409,7 +398,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		break;
 	default:
 		BUG();
-		goto err;
+		goto err_regmap;
 	}
 
 	wm8994->supplies = kzalloc(sizeof(struct regulator_bulk_data) *
@@ -417,10 +406,14 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 				   GFP_KERNEL);
 	if (!wm8994->supplies) {
 		ret = -ENOMEM;
-		goto err;
+		goto err_regmap;
 	}
 
 	switch (wm8994->type) {
+	case WM1811:
+		for (i = 0; i < ARRAY_SIZE(wm1811_main_supplies); i++)
+			wm8994->supplies[i].supply = wm1811_main_supplies[i];
+		break;
 	case WM8994:
 		for (i = 0; i < ARRAY_SIZE(wm8994_main_supplies); i++)
 			wm8994->supplies[i].supply = wm8994_main_supplies[i];
@@ -431,7 +424,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		break;
 	default:
 		BUG();
-		goto err;
+		goto err_regmap;
 	}
 		
 	ret = regulator_bulk_get(wm8994->dev, wm8994->num_supplies,
@@ -454,6 +447,13 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		goto err_enable;
 	}
 	switch (ret) {
+	case 0x1811:
+		devname = "WM1811";
+		if (wm8994->type != WM1811)
+			dev_warn(wm8994->dev, "Device registered as type %d\n",
+				 wm8994->type);
+		wm8994->type = WM1811;
+		break;
 	case 0x8994:
 		devname = "WM8994";
 		if (wm8994->type != WM8994)
@@ -513,7 +513,14 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 						pdata->gpio_defaults[i]);
 			}
 		}
+
+		wm8994->ldo_ena_always_driven = pdata->ldo_ena_always_driven;
 	}
+
+	/* Disable LDO pulldowns while the device is active */
+	wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
+			WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
+			0);
 
 	/* In some system designs where the regulators are not in use,
 	 * we can achieve a small reduction in leakage currents by
@@ -554,7 +561,8 @@ err_get:
 	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
 err_supplies:
 	kfree(wm8994->supplies);
-err:
+err_regmap:
+	regmap_exit(wm8994->regmap);
 	mfd_remove_devices(wm8994->dev);
 	kfree(wm8994);
 	return ret;
@@ -569,62 +577,15 @@ static void wm8994_device_exit(struct wm8994 *wm8994)
 			       wm8994->supplies);
 	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
 	kfree(wm8994->supplies);
+	regmap_exit(wm8994->regmap);
 	kfree(wm8994);
-}
-
-static int wm8994_i2c_read_device(struct wm8994 *wm8994, unsigned short reg,
-				  int bytes, void *dest)
-{
-	struct i2c_client *i2c = wm8994->control_data;
-	int ret;
-	u16 r = cpu_to_be16(reg);
-
-	ret = i2c_master_send(i2c, (unsigned char *)&r, 2);
-	if (ret < 0)
-		return ret;
-	if (ret != 2)
-		return -EIO;
-
-	ret = i2c_master_recv(i2c, dest, bytes);
-	if (ret < 0)
-		return ret;
-	if (ret != bytes)
-		return -EIO;
-	return 0;
-}
-
-static int wm8994_i2c_write_device(struct wm8994 *wm8994, unsigned short reg,
-				   int bytes, const void *src)
-{
-	struct i2c_client *i2c = wm8994->control_data;
-	struct i2c_msg xfer[2];
-	int ret;
-
-	reg = cpu_to_be16(reg);
-
-	xfer[0].addr = i2c->addr;
-	xfer[0].flags = 0;
-	xfer[0].len = 2;
-	xfer[0].buf = (char *)&reg;
-
-	xfer[1].addr = i2c->addr;
-	xfer[1].flags = I2C_M_NOSTART;
-	xfer[1].len = bytes;
-	xfer[1].buf = (char *)src;
-
-	ret = i2c_transfer(i2c->adapter, xfer, 2);
-	if (ret < 0)
-		return ret;
-	if (ret != 2)
-		return -EIO;
-
-	return 0;
 }
 
 static int wm8994_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm8994 *wm8994;
+	int ret;
 
 	wm8994 = kzalloc(sizeof(struct wm8994), GFP_KERNEL);
 	if (wm8994 == NULL)
@@ -632,11 +593,17 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm8994);
 	wm8994->dev = &i2c->dev;
-	wm8994->control_data = i2c;
-	wm8994->read_dev = wm8994_i2c_read_device;
-	wm8994->write_dev = wm8994_i2c_write_device;
 	wm8994->irq = i2c->irq;
 	wm8994->type = id->driver_data;
+
+	wm8994->regmap = regmap_init_i2c(i2c, &wm8994_regmap_config);
+	if (IS_ERR(wm8994->regmap)) {
+		ret = PTR_ERR(wm8994->regmap);
+		dev_err(wm8994->dev, "Failed to allocate register map: %d\n",
+			ret);
+		kfree(wm8994);
+		return ret;
+	}
 
 	return wm8994_device_init(wm8994, i2c->irq);
 }
@@ -651,6 +618,7 @@ static int wm8994_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8994_i2c_id[] = {
+	{ "wm1811", WM1811 },
 	{ "wm8994", WM8994 },
 	{ "wm8958", WM8958 },
 	{ }

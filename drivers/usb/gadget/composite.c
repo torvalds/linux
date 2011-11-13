@@ -7,15 +7,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 /* #define VERBOSE_DEBUG */
@@ -23,6 +14,7 @@
 #include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/device.h>
 #include <linux/utsname.h>
 
@@ -164,7 +156,7 @@ int config_ep_by_speed(struct usb_gadget *g,
 
 ep_found:
 	/* commit results */
-	_ep->maxpacket = le16_to_cpu(chosen_desc->wMaxPacketSize);
+	_ep->maxpacket = usb_endpoint_maxp(chosen_desc);
 	_ep->desc = chosen_desc;
 	_ep->comp_desc = NULL;
 	_ep->maxburst = 0;
@@ -551,9 +543,9 @@ static int bos_desc(struct usb_composite_dev *cdev)
 	if (cdev->gadget->ops->get_config_params)
 		cdev->gadget->ops->get_config_params(&dcd_config_params);
 	else {
-		dcd_config_params.bU1devExitLat = USB_DEFULT_U1_DEV_EXIT_LAT;
+		dcd_config_params.bU1devExitLat = USB_DEFAULT_U1_DEV_EXIT_LAT;
 		dcd_config_params.bU2DevExitLat =
-			cpu_to_le16(USB_DEFULT_U2_DEV_EXIT_LAT);
+			cpu_to_le16(USB_DEFAULT_U2_DEV_EXIT_LAT);
 	}
 	ss_cap->bU1devExitLat = dcd_config_params.bU1devExitLat;
 	ss_cap->bU2DevExitLat = dcd_config_params.bU2DevExitLat;
@@ -626,25 +618,9 @@ static int set_config(struct usb_composite_dev *cdev,
 		result = 0;
 	}
 
-	INFO(cdev, "%s speed config #%d: %s\n",
-		({ char *speed;
-		switch (gadget->speed) {
-		case USB_SPEED_LOW:
-			speed = "low";
-			break;
-		case USB_SPEED_FULL:
-			speed = "full";
-			break;
-		case USB_SPEED_HIGH:
-			speed = "high";
-			break;
-		case USB_SPEED_SUPER:
-			speed = "super";
-			break;
-		default:
-			speed = "?";
-			break;
-		} ; speed; }), number, c ? c->label : "unconfigured");
+	INFO(cdev, "%s config #%d: %s\n",
+	     usb_speed_string(gadget->speed),
+	     number, c ? c->label : "unconfigured");
 
 	if (!c)
 		goto done;

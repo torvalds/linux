@@ -509,7 +509,7 @@ int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 	int is_udplite = IS_UDPLITE(sk);
 
 	if (!ipv6_addr_any(&inet6_sk(sk)->daddr))
-		sock_rps_save_rxhash(sk, skb->rxhash);
+		sock_rps_save_rxhash(sk, skb);
 
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto drop;
@@ -533,7 +533,7 @@ int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 		}
 	}
 
-	if (rcu_dereference_raw(sk->sk_filter)) {
+	if (rcu_access_pointer(sk->sk_filter)) {
 		if (udp_lib_checksum_complete(skb))
 			goto drop;
 	}
@@ -1424,13 +1424,19 @@ int udp6_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static const struct file_operations udp6_afinfo_seq_fops = {
+	.owner    = THIS_MODULE,
+	.open     = udp_seq_open,
+	.read     = seq_read,
+	.llseek   = seq_lseek,
+	.release  = seq_release_net
+};
+
 static struct udp_seq_afinfo udp6_seq_afinfo = {
 	.name		= "udp6",
 	.family		= AF_INET6,
 	.udp_table	= &udp_table,
-	.seq_fops	= {
-		.owner	=	THIS_MODULE,
-	},
+	.seq_fops	= &udp6_afinfo_seq_fops,
 	.seq_ops	= {
 		.show		= udp6_seq_show,
 	},

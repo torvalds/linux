@@ -42,6 +42,7 @@
 #include <linux/ieee80211.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/moduleparam.h>
 
 #include "iwm.h"
 #include "bus.h"

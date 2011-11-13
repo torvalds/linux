@@ -63,6 +63,8 @@
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
 #endif
+#include <linux/kthread.h>
+#include <scsi/scsi_host.h>
 
 #include "mptbase.h"
 #include "lsi/mpi_log_fc.h"
@@ -323,6 +325,32 @@ mpt_is_discovery_complete(MPT_ADAPTER *ioc)
 	return rc;
 }
 
+
+/**
+ *  mpt_remove_dead_ioc_func - kthread context to remove dead ioc
+ * @arg: input argument, used to derive ioc
+ *
+ * Return 0 if controller is removed from pci subsystem.
+ * Return -1 for other case.
+ */
+static int mpt_remove_dead_ioc_func(void *arg)
+{
+	MPT_ADAPTER *ioc = (MPT_ADAPTER *)arg;
+	struct pci_dev *pdev;
+
+	if ((ioc == NULL))
+		return -1;
+
+	pdev = ioc->pcidev;
+	if ((pdev == NULL))
+		return -1;
+
+	pci_remove_bus_device(pdev);
+	return 0;
+}
+
+
+
 /**
  *	mpt_fault_reset_work - work performed on workq after ioc fault
  *	@work: input argument, used to derive ioc
@@ -336,12 +364,45 @@ mpt_fault_reset_work(struct work_struct *work)
 	u32		 ioc_raw_state;
 	int		 rc;
 	unsigned long	 flags;
+	MPT_SCSI_HOST	*hd;
+	struct task_struct *p;
 
 	if (ioc->ioc_reset_in_progress || !ioc->active)
 		goto out;
 
+
 	ioc_raw_state = mpt_GetIocState(ioc, 0);
-	if ((ioc_raw_state & MPI_IOC_STATE_MASK) == MPI_IOC_STATE_FAULT) {
+	if ((ioc_raw_state & MPI_IOC_STATE_MASK) == MPI_IOC_STATE_MASK) {
+		printk(MYIOC_s_INFO_FMT "%s: IOC is non-operational !!!!\n",
+		    ioc->name, __func__);
+
+		/*
+		 * Call mptscsih_flush_pending_cmds callback so that we
+		 * flush all pending commands back to OS.
+		 * This call is required to aovid deadlock at block layer.
+		 * Dead IOC will fail to do diag reset,and this call is safe
+		 * since dead ioc will never return any command back from HW.
+		 */
+		hd = shost_priv(ioc->sh);
+		ioc->schedule_dead_ioc_flush_running_cmds(hd);
+
+		/*Remove the Dead Host */
+		p = kthread_run(mpt_remove_dead_ioc_func, ioc,
+				"mpt_dead_ioc_%d", ioc->id);
+		if (IS_ERR(p))	{
+			printk(MYIOC_s_ERR_FMT
+				"%s: Running mpt_dead_ioc thread failed !\n",
+				ioc->name, __func__);
+		} else {
+			printk(MYIOC_s_WARN_FMT
+				"%s: Running mpt_dead_ioc thread success !\n",
+				ioc->name, __func__);
+		}
+		return; /* don't rearm timer */
+	}
+
+	if ((ioc_raw_state & MPI_IOC_STATE_MASK)
+			== MPI_IOC_STATE_FAULT) {
 		printk(MYIOC_s_WARN_FMT "IOC is in FAULT state (%04xh)!!!\n",
 		       ioc->name, ioc_raw_state & MPI_DOORBELL_DATA_MASK);
 		printk(MYIOC_s_WARN_FMT "Issuing HardReset from %s!!\n",
@@ -6413,8 +6474,19 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 			pReq->Action, ioc->mptbase_cmds.status, timeleft));
 		if (ioc->mptbase_cmds.status & MPT_MGMT_STATUS_DID_IOCRESET)
 			goto out;
-		if (!timeleft)
+		if (!timeleft) {
+			spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
+			if (ioc->ioc_reset_in_progress) {
+				spin_unlock_irqrestore(&ioc->taskmgmt_lock,
+					flags);
+				printk(MYIOC_s_INFO_FMT "%s: host reset in"
+					" progress mpt_config timed out.!!\n",
+					__func__, ioc->name);
+				return -EFAULT;
+			}
+			spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
 			issue_hard_reset = 1;
+		}
 		goto out;
 	}
 
@@ -7128,7 +7200,18 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
 	if (ioc->ioc_reset_in_progress) {
 		spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
-		return 0;
+		ioc->wait_on_reset_completion = 1;
+		do {
+			ssleep(1);
+		} while (ioc->ioc_reset_in_progress == 1);
+		ioc->wait_on_reset_completion = 0;
+		return ioc->reset_status;
+	}
+	if (ioc->wait_on_reset_completion) {
+		spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
+		rc = 0;
+		time_count = jiffies;
+		goto exit;
 	}
 	ioc->ioc_reset_in_progress = 1;
 	if (ioc->alt_ioc)
@@ -7165,6 +7248,7 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 	ioc->ioc_reset_in_progress = 0;
 	ioc->taskmgmt_quiesce_io = 0;
 	ioc->taskmgmt_in_progress = 0;
+	ioc->reset_status = rc;
 	if (ioc->alt_ioc) {
 		ioc->alt_ioc->ioc_reset_in_progress = 0;
 		ioc->alt_ioc->taskmgmt_quiesce_io = 0;
@@ -7180,7 +7264,7 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 					ioc->alt_ioc, MPT_IOC_POST_RESET);
 		}
 	}
-
+exit:
 	dtmprintk(ioc,
 	    printk(MYIOC_s_DEBUG_FMT
 		"HardResetHandler: completed (%d seconds): %s\n", ioc->name,

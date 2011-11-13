@@ -91,7 +91,74 @@ cifs_idmap_shrinker(struct shrinker *shrink, struct shrink_control *sc)
 	shrink_idmap_tree(root, nr_to_scan, &nr_rem, &nr_del);
 	spin_unlock(&sidgidlock);
 
+	root = &siduidtree;
+	spin_lock(&uidsidlock);
+	shrink_idmap_tree(root, nr_to_scan, &nr_rem, &nr_del);
+	spin_unlock(&uidsidlock);
+
+	root = &sidgidtree;
+	spin_lock(&gidsidlock);
+	shrink_idmap_tree(root, nr_to_scan, &nr_rem, &nr_del);
+	spin_unlock(&gidsidlock);
+
 	return nr_rem;
+}
+
+static void
+sid_rb_insert(struct rb_root *root, unsigned long cid,
+		struct cifs_sid_id **psidid, char *typestr)
+{
+	char *strptr;
+	struct rb_node *node = root->rb_node;
+	struct rb_node *parent = NULL;
+	struct rb_node **linkto = &(root->rb_node);
+	struct cifs_sid_id *lsidid;
+
+	while (node) {
+		lsidid = rb_entry(node, struct cifs_sid_id, rbnode);
+		parent = node;
+		if (cid > lsidid->id) {
+			linkto = &(node->rb_left);
+			node = node->rb_left;
+		}
+		if (cid < lsidid->id) {
+			linkto = &(node->rb_right);
+			node = node->rb_right;
+		}
+	}
+
+	(*psidid)->id = cid;
+	(*psidid)->time = jiffies - (SID_MAP_RETRY + 1);
+	(*psidid)->refcount = 0;
+
+	sprintf((*psidid)->sidstr, "%s", typestr);
+	strptr = (*psidid)->sidstr + strlen((*psidid)->sidstr);
+	sprintf(strptr, "%ld", cid);
+
+	clear_bit(SID_ID_PENDING, &(*psidid)->state);
+	clear_bit(SID_ID_MAPPED, &(*psidid)->state);
+
+	rb_link_node(&(*psidid)->rbnode, parent, linkto);
+	rb_insert_color(&(*psidid)->rbnode, root);
+}
+
+static struct cifs_sid_id *
+sid_rb_search(struct rb_root *root, unsigned long cid)
+{
+	struct rb_node *node = root->rb_node;
+	struct cifs_sid_id *lsidid;
+
+	while (node) {
+		lsidid = rb_entry(node, struct cifs_sid_id, rbnode);
+		if (cid > lsidid->id)
+			node = node->rb_left;
+		else if (cid < lsidid->id)
+			node = node->rb_right;
+		else /* node found */
+			return lsidid;
+	}
+
+	return NULL;
 }
 
 static struct shrinker cifs_shrinker = {
@@ -110,6 +177,7 @@ cifs_idmap_key_instantiate(struct key *key, const void *data, size_t datalen)
 
 	memcpy(payload, data, datalen);
 	key->payload.data = payload;
+	key->datalen = datalen;
 	return 0;
 }
 
@@ -221,6 +289,120 @@ sidid_pending_wait(void *unused)
 {
 	schedule();
 	return signal_pending(current) ? -ERESTARTSYS : 0;
+}
+
+static int
+id_to_sid(unsigned long cid, uint sidtype, struct cifs_sid *ssid)
+{
+	int rc = 0;
+	struct key *sidkey;
+	const struct cred *saved_cred;
+	struct cifs_sid *lsid;
+	struct cifs_sid_id *psidid, *npsidid;
+	struct rb_root *cidtree;
+	spinlock_t *cidlock;
+
+	if (sidtype == SIDOWNER) {
+		cidlock = &siduidlock;
+		cidtree = &uidtree;
+	} else if (sidtype == SIDGROUP) {
+		cidlock = &sidgidlock;
+		cidtree = &gidtree;
+	} else
+		return -EINVAL;
+
+	spin_lock(cidlock);
+	psidid = sid_rb_search(cidtree, cid);
+
+	if (!psidid) { /* node does not exist, allocate one & attempt adding */
+		spin_unlock(cidlock);
+		npsidid = kzalloc(sizeof(struct cifs_sid_id), GFP_KERNEL);
+		if (!npsidid)
+			return -ENOMEM;
+
+		npsidid->sidstr = kmalloc(SIDLEN, GFP_KERNEL);
+		if (!npsidid->sidstr) {
+			kfree(npsidid);
+			return -ENOMEM;
+		}
+
+		spin_lock(cidlock);
+		psidid = sid_rb_search(cidtree, cid);
+		if (psidid) { /* node happened to get inserted meanwhile */
+			++psidid->refcount;
+			spin_unlock(cidlock);
+			kfree(npsidid->sidstr);
+			kfree(npsidid);
+		} else {
+			psidid = npsidid;
+			sid_rb_insert(cidtree, cid, &psidid,
+					sidtype == SIDOWNER ? "oi:" : "gi:");
+			++psidid->refcount;
+			spin_unlock(cidlock);
+		}
+	} else {
+		++psidid->refcount;
+		spin_unlock(cidlock);
+	}
+
+	/*
+	 * If we are here, it is safe to access psidid and its fields
+	 * since a reference was taken earlier while holding the spinlock.
+	 * A reference on the node is put without holding the spinlock
+	 * and it is OK to do so in this case, shrinker will not erase
+	 * this node until all references are put and we do not access
+	 * any fields of the node after a reference is put .
+	 */
+	if (test_bit(SID_ID_MAPPED, &psidid->state)) {
+		memcpy(ssid, &psidid->sid, sizeof(struct cifs_sid));
+		psidid->time = jiffies; /* update ts for accessing */
+		goto id_sid_out;
+	}
+
+	if (time_after(psidid->time + SID_MAP_RETRY, jiffies)) {
+		rc = -EINVAL;
+		goto id_sid_out;
+	}
+
+	if (!test_and_set_bit(SID_ID_PENDING, &psidid->state)) {
+		saved_cred = override_creds(root_cred);
+		sidkey = request_key(&cifs_idmap_key_type, psidid->sidstr, "");
+		if (IS_ERR(sidkey)) {
+			rc = -EINVAL;
+			cFYI(1, "%s: Can't map and id to a SID", __func__);
+		} else {
+			lsid = (struct cifs_sid *)sidkey->payload.data;
+			memcpy(&psidid->sid, lsid,
+				sidkey->datalen < sizeof(struct cifs_sid) ?
+				sidkey->datalen : sizeof(struct cifs_sid));
+			memcpy(ssid, &psidid->sid,
+				sidkey->datalen < sizeof(struct cifs_sid) ?
+				sidkey->datalen : sizeof(struct cifs_sid));
+			set_bit(SID_ID_MAPPED, &psidid->state);
+			key_put(sidkey);
+			kfree(psidid->sidstr);
+		}
+		psidid->time = jiffies; /* update ts for accessing */
+		revert_creds(saved_cred);
+		clear_bit(SID_ID_PENDING, &psidid->state);
+		wake_up_bit(&psidid->state, SID_ID_PENDING);
+	} else {
+		rc = wait_on_bit(&psidid->state, SID_ID_PENDING,
+				sidid_pending_wait, TASK_INTERRUPTIBLE);
+		if (rc) {
+			cFYI(1, "%s: sidid_pending_wait interrupted %d",
+					__func__, rc);
+			--psidid->refcount;
+			return rc;
+		}
+		if (test_bit(SID_ID_MAPPED, &psidid->state))
+			memcpy(ssid, &psidid->sid, sizeof(struct cifs_sid));
+		else
+			rc = -EINVAL;
+	}
+id_sid_out:
+	--psidid->refcount;
+	return rc;
 }
 
 static int
@@ -383,6 +565,10 @@ init_cifs_idmap(void)
 	spin_lock_init(&sidgidlock);
 	gidtree = RB_ROOT;
 
+	spin_lock_init(&uidsidlock);
+	siduidtree = RB_ROOT;
+	spin_lock_init(&gidsidlock);
+	sidgidtree = RB_ROOT;
 	register_shrinker(&cifs_shrinker);
 
 	cFYI(1, "cifs idmap keyring: %d\n", key_serial(keyring));
@@ -422,6 +608,18 @@ cifs_destroy_idmaptrees(void)
 	while ((node = rb_first(root)))
 		rb_erase(node, root);
 	spin_unlock(&sidgidlock);
+
+	root = &siduidtree;
+	spin_lock(&uidsidlock);
+	while ((node = rb_first(root)))
+		rb_erase(node, root);
+	spin_unlock(&uidsidlock);
+
+	root = &sidgidtree;
+	spin_lock(&gidsidlock);
+	while ((node = rb_first(root)))
+		rb_erase(node, root);
+	spin_unlock(&gidsidlock);
 }
 
 /* if the two SIDs (roughly equivalent to a UUID for a user or group) are
@@ -706,7 +904,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 	acl_size = sizeof(struct cifs_acl);
 
 	num_aces = le32_to_cpu(pdacl->num_aces);
-	if (num_aces  > 0) {
+	if (num_aces > 0) {
 		umode_t user_mask = S_IRWXU;
 		umode_t group_mask = S_IRWXG;
 		umode_t other_mask = S_IRWXU | S_IRWXG | S_IRWXO;
@@ -868,52 +1066,82 @@ static int parse_sec_desc(struct cifs_sb_info *cifs_sb,
 	else
 		cFYI(1, "no ACL"); /* BB grant all or default perms? */
 
-/*	cifscred->uid = owner_sid_ptr->rid;
-	cifscred->gid = group_sid_ptr->rid;
-	memcpy((void *)(&(cifscred->osid)), (void *)owner_sid_ptr,
-			sizeof(struct cifs_sid));
-	memcpy((void *)(&(cifscred->gsid)), (void *)group_sid_ptr,
-			sizeof(struct cifs_sid)); */
-
 	return rc;
 }
 
-
 /* Convert permission bits from mode to equivalent CIFS ACL */
 static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
-				struct inode *inode, __u64 nmode)
+	__u32 secdesclen, __u64 nmode, uid_t uid, gid_t gid, int *aclflag)
 {
 	int rc = 0;
 	__u32 dacloffset;
 	__u32 ndacloffset;
 	__u32 sidsoffset;
 	struct cifs_sid *owner_sid_ptr, *group_sid_ptr;
+	struct cifs_sid *nowner_sid_ptr, *ngroup_sid_ptr;
 	struct cifs_acl *dacl_ptr = NULL;  /* no need for SACL ptr */
 	struct cifs_acl *ndacl_ptr = NULL; /* no need for SACL ptr */
 
-	if ((inode == NULL) || (pntsd == NULL) || (pnntsd == NULL))
-		return -EIO;
-
-	owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
+	if (nmode != NO_CHANGE_64) { /* chmod */
+		owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
 				le32_to_cpu(pntsd->osidoffset));
-	group_sid_ptr = (struct cifs_sid *)((char *)pntsd +
+		group_sid_ptr = (struct cifs_sid *)((char *)pntsd +
 				le32_to_cpu(pntsd->gsidoffset));
+		dacloffset = le32_to_cpu(pntsd->dacloffset);
+		dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
+		ndacloffset = sizeof(struct cifs_ntsd);
+		ndacl_ptr = (struct cifs_acl *)((char *)pnntsd + ndacloffset);
+		ndacl_ptr->revision = dacl_ptr->revision;
+		ndacl_ptr->size = 0;
+		ndacl_ptr->num_aces = 0;
 
-	dacloffset = le32_to_cpu(pntsd->dacloffset);
-	dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
-
-	ndacloffset = sizeof(struct cifs_ntsd);
-	ndacl_ptr = (struct cifs_acl *)((char *)pnntsd + ndacloffset);
-	ndacl_ptr->revision = dacl_ptr->revision;
-	ndacl_ptr->size = 0;
-	ndacl_ptr->num_aces = 0;
-
-	rc = set_chmod_dacl(ndacl_ptr, owner_sid_ptr, group_sid_ptr, nmode);
-
-	sidsoffset = ndacloffset + le16_to_cpu(ndacl_ptr->size);
-
-	/* copy security descriptor control portion and owner and group sid */
-	copy_sec_desc(pntsd, pnntsd, sidsoffset);
+		rc = set_chmod_dacl(ndacl_ptr, owner_sid_ptr, group_sid_ptr,
+					nmode);
+		sidsoffset = ndacloffset + le16_to_cpu(ndacl_ptr->size);
+		/* copy sec desc control portion & owner and group sids */
+		copy_sec_desc(pntsd, pnntsd, sidsoffset);
+		*aclflag = CIFS_ACL_DACL;
+	} else {
+		memcpy(pnntsd, pntsd, secdesclen);
+		if (uid != NO_CHANGE_32) { /* chown */
+			owner_sid_ptr = (struct cifs_sid *)((char *)pnntsd +
+					le32_to_cpu(pnntsd->osidoffset));
+			nowner_sid_ptr = kmalloc(sizeof(struct cifs_sid),
+								GFP_KERNEL);
+			if (!nowner_sid_ptr)
+				return -ENOMEM;
+			rc = id_to_sid(uid, SIDOWNER, nowner_sid_ptr);
+			if (rc) {
+				cFYI(1, "%s: Mapping error %d for owner id %d",
+						__func__, rc, uid);
+				kfree(nowner_sid_ptr);
+				return rc;
+			}
+			memcpy(owner_sid_ptr, nowner_sid_ptr,
+					sizeof(struct cifs_sid));
+			kfree(nowner_sid_ptr);
+			*aclflag = CIFS_ACL_OWNER;
+		}
+		if (gid != NO_CHANGE_32) { /* chgrp */
+			group_sid_ptr = (struct cifs_sid *)((char *)pnntsd +
+					le32_to_cpu(pnntsd->gsidoffset));
+			ngroup_sid_ptr = kmalloc(sizeof(struct cifs_sid),
+								GFP_KERNEL);
+			if (!ngroup_sid_ptr)
+				return -ENOMEM;
+			rc = id_to_sid(gid, SIDGROUP, ngroup_sid_ptr);
+			if (rc) {
+				cFYI(1, "%s: Mapping error %d for group id %d",
+						__func__, rc, gid);
+				kfree(ngroup_sid_ptr);
+				return rc;
+			}
+			memcpy(group_sid_ptr, ngroup_sid_ptr,
+					sizeof(struct cifs_sid));
+			kfree(ngroup_sid_ptr);
+			*aclflag = CIFS_ACL_GROUP;
+		}
+	}
 
 	return rc;
 }
@@ -945,7 +1173,7 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 {
 	struct cifs_ntsd *pntsd = NULL;
 	int oplock = 0;
-	int xid, rc;
+	int xid, rc, create_options = 0;
 	__u16 fid;
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
@@ -956,9 +1184,12 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 	tcon = tlink_tcon(tlink);
 	xid = GetXid();
 
-	rc = CIFSSMBOpen(xid, tcon, path, FILE_OPEN, READ_CONTROL, 0,
-			 &fid, &oplock, NULL, cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (backup_cred(cifs_sb))
+		create_options |= CREATE_OPEN_BACKUP_INTENT;
+
+	rc = CIFSSMBOpen(xid, tcon, path, FILE_OPEN, READ_CONTROL,
+			create_options, &fid, &oplock, NULL, cifs_sb->local_nls,
+			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (!rc) {
 		rc = CIFSSMBGetCIFSACL(xid, tcon, fid, &pntsd, pacllen);
 		CIFSSMBClose(xid, tcon, fid);
@@ -991,13 +1222,15 @@ struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
 	return pntsd;
 }
 
-static int set_cifs_acl_by_path(struct cifs_sb_info *cifs_sb, const char *path,
-		struct cifs_ntsd *pnntsd, u32 acllen)
+ /* Set an ACL on the server */
+int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
+			struct inode *inode, const char *path, int aclflag)
 {
 	int oplock = 0;
-	int xid, rc;
+	int xid, rc, access_flags, create_options = 0;
 	__u16 fid;
 	struct cifs_tcon *tcon;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
 
 	if (IS_ERR(tlink))
@@ -1006,15 +1239,23 @@ static int set_cifs_acl_by_path(struct cifs_sb_info *cifs_sb, const char *path,
 	tcon = tlink_tcon(tlink);
 	xid = GetXid();
 
-	rc = CIFSSMBOpen(xid, tcon, path, FILE_OPEN, WRITE_DAC, 0,
-			 &fid, &oplock, NULL, cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (backup_cred(cifs_sb))
+		create_options |= CREATE_OPEN_BACKUP_INTENT;
+
+	if (aclflag == CIFS_ACL_OWNER || aclflag == CIFS_ACL_GROUP)
+		access_flags = WRITE_OWNER;
+	else
+		access_flags = WRITE_DAC;
+
+	rc = CIFSSMBOpen(xid, tcon, path, FILE_OPEN, access_flags,
+			create_options, &fid, &oplock, NULL, cifs_sb->local_nls,
+			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
 		cERROR(1, "Unable to open file to set ACL");
 		goto out;
 	}
 
-	rc = CIFSSMBSetCIFSACL(xid, tcon, fid, pnntsd, acllen);
+	rc = CIFSSMBSetCIFSACL(xid, tcon, fid, pnntsd, acllen, aclflag);
 	cFYI(DBG2, "SetCIFSACL rc = %d", rc);
 
 	CIFSSMBClose(xid, tcon, fid);
@@ -1022,17 +1263,6 @@ out:
 	FreeXid(xid);
 	cifs_put_tlink(tlink);
 	return rc;
-}
-
-/* Set an ACL on the server */
-int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
-				struct inode *inode, const char *path)
-{
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-
-	cFYI(DBG2, "set ACL for %s from mode 0x%x", path, inode->i_mode);
-
-	return set_cifs_acl_by_path(cifs_sb, path, pnntsd, acllen);
 }
 
 /* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
@@ -1066,9 +1296,12 @@ cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
 }
 
 /* Convert mode bits to an ACL so we can update the ACL on the server */
-int mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode)
+int
+id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
+			uid_t uid, gid_t gid)
 {
 	int rc = 0;
+	int aclflag = CIFS_ACL_DACL; /* default flag to set */
 	__u32 secdesclen = 0;
 	struct cifs_ntsd *pntsd = NULL; /* acl obtained from server */
 	struct cifs_ntsd *pnntsd = NULL; /* modified acl to be sent to server */
@@ -1098,13 +1331,15 @@ int mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode)
 			return -ENOMEM;
 		}
 
-		rc = build_sec_desc(pntsd, pnntsd, inode, nmode);
+		rc = build_sec_desc(pntsd, pnntsd, secdesclen, nmode, uid, gid,
+					&aclflag);
 
 		cFYI(DBG2, "build_sec_desc rc: %d", rc);
 
 		if (!rc) {
 			/* Set the security descriptor */
-			rc = set_cifs_acl(pnntsd, secdesclen, inode, path);
+			rc = set_cifs_acl(pnntsd, secdesclen, inode,
+						path, aclflag);
 			cFYI(DBG2, "set_cifs_acl rc: %d", rc);
 		}
 

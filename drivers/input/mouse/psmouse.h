@@ -150,4 +150,29 @@ static struct psmouse_attribute psmouse_attr_##_name = {			\
 	static ssize_t _set(struct psmouse *, void *, const char *, size_t);	\
 	__PSMOUSE_DEFINE_ATTR_VAR(_name, _mode, _data, NULL, _set, true)
 
+#ifndef psmouse_fmt
+#define psmouse_fmt(fmt)	KBUILD_BASENAME ": " fmt
+#endif
+
+#define psmouse_dbg(psmouse, format, ...)		\
+	dev_dbg(&(psmouse)->ps2dev.serio->dev,		\
+		psmouse_fmt(format), ##__VA_ARGS__)
+#define psmouse_info(psmouse, format, ...)		\
+	dev_info(&(psmouse)->ps2dev.serio->dev,		\
+		 psmouse_fmt(format), ##__VA_ARGS__)
+#define psmouse_warn(psmouse, format, ...)		\
+	dev_warn(&(psmouse)->ps2dev.serio->dev,		\
+		 psmouse_fmt(format), ##__VA_ARGS__)
+#define psmouse_err(psmouse, format, ...)		\
+	dev_err(&(psmouse)->ps2dev.serio->dev,		\
+		psmouse_fmt(format), ##__VA_ARGS__)
+#define psmouse_notice(psmouse, format, ...)		\
+	dev_notice(&(psmouse)->ps2dev.serio->dev,	\
+		   psmouse_fmt(format), ##__VA_ARGS__)
+#define psmouse_printk(level, psmouse, format, ...)	\
+	dev_printk(level,				\
+		   &(psmouse)->ps2dev.serio->dev,	\
+		   psmouse_fmt(format), ##__VA_ARGS__)
+
+
 #endif /* _PSMOUSE_H */

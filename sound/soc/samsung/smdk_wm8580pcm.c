@@ -8,6 +8,7 @@
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
  */
+#include <linux/module.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 #include <sound/pcm.h>
@@ -127,7 +128,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.cpu_dai_name = "samsung-pcm.0",
 		.codec_dai_name = "wm8580-hifi-playback",
 		.platform_name = "samsung-audio",
-		.codec_name = "wm8580-codec.0-001b",
+		.codec_name = "wm8580.0-001b",
 		.ops = &smdk_wm8580_pcm_ops,
 	}, {
 		.name = "WM8580 PAIF PCM TX",
@@ -135,7 +136,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.cpu_dai_name = "samsung-pcm.0",
 		.codec_dai_name = "wm8580-hifi-capture",
 		.platform_name = "samsung-audio",
-		.codec_name = "wm8580-codec.0-001b",
+		.codec_name = "wm8580.0-001b",
 		.ops = &smdk_wm8580_pcm_ops,
 	},
 };

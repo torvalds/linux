@@ -1,0 +1,40 @@
+Device tree binding vendor prefix registry.  Keep list in alphabetical order.
+
+This isn't an exhaustive list, but you should add new prefixes to it before
+using them to avoid name-space collisions.
+
+adi	Analog Devices, Inc.
+amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
+apm	Applied Micro Circuits Corporation (APM)
+arm	ARM Ltd.
+atmel	Atmel Corporation
+chrp	Common Hardware Reference Platform
+dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
+denx	Denx Software Engineering
+epson	Seiko Epson Corp.
+est	ESTeem Wireless Modems
+fsl	Freescale Semiconductor
+GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+hp	Hewlett Packard
+ibm	International Business Machines (IBM)
+idt	Integrated Device Technologies, Inc.
+intercontrol	Inter Control Group
+linux	Linux-specific binding
+marvell	Marvell Technology Group Ltd.
+maxim	Maxim Integrated Products
+mosaixtech	Mosaix Technologies, Inc.
+national	National Semiconductor
+nintendo	Nintendo
+nvidia	NVIDIA
+nxp	NXP Semiconductors
+powervr	Imagination Technologies
+qcom	Qualcomm, Inc.
+ramtron	Ramtron International
+samsung	Samsung Semiconductor
+schindler	Schindler
+simtek
+sirf	SiRF Technology, Inc.
+stericsson	ST-Ericsson
+ti	Texas Instruments
+xlnx	Xilinx

@@ -30,6 +30,7 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/host.h>
 #include <linux/gpio.h>
 #include <linux/wl12xx.h>
 #include <linux/kthread.h>
@@ -142,13 +143,22 @@ static int wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
 		ret = pm_runtime_get_sync(&func->dev);
 		if (ret < 0)
 			goto out;
+
+		/* Runtime PM might be disabled, power up the card manually */
+		ret = mmc_power_restore_host(func->card->host);
+		if (ret < 0)
+			goto out;
+
 		sdio_claim_host(func);
 		sdio_enable_func(func);
-		sdio_release_host(func);
 	} else {
-		sdio_claim_host(func);
 		sdio_disable_func(func);
 		sdio_release_host(func);
+
+		/* Runtime PM might be disabled, power off the card manually */
+		ret = mmc_power_save_host(func->card->host);
+		if (ret < 0)
+			goto out;
 
 		/* Power down the card */
 		ret = pm_runtime_put_sync(&func->dev);
@@ -193,7 +203,7 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 		ret = request_firmware(&fw, WL128X_FW_NAME,
 				       wl1271_wl_to_dev(wl));
 	else
-		ret = request_firmware(&fw, WL1271_FW_NAME,
+		ret = request_firmware(&fw, WL127X_FW_NAME,
 				       wl1271_wl_to_dev(wl));
 
 	if (ret < 0) {
@@ -432,7 +442,6 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	wl->tcxo_clock = wlan_data->board_tcxo_clock;
 
 	sdio_set_drvdata(func, wl_test);
-
 
 	/* power up the device */
 	ret = wl1271_chip_wakeup(wl);

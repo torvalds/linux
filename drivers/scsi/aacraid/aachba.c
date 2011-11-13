@@ -34,6 +34,7 @@
 #include <linux/blkdev.h>
 #include <asm/uaccess.h>
 #include <linux/highmem.h> /* For flush_kernel_dcache_page */
+#include <linux/module.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>

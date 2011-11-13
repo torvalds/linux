@@ -1006,9 +1006,9 @@ static int n2_do_ecb(struct ablkcipher_request *req, bool encrypt)
 
 	spin_unlock_irqrestore(&qp->lock, flags);
 
+out:
 	put_cpu();
 
-out:
 	n2_chunk_complete(req, NULL);
 	return err;
 }
@@ -1096,9 +1096,9 @@ static int n2_do_chaining(struct ablkcipher_request *req, bool encrypt)
 
 	spin_unlock_irqrestore(&qp->lock, flags);
 
+out:
 	put_cpu();
 
-out:
 	n2_chunk_complete(req, err ? NULL : final_iv_addr);
 	return err;
 }

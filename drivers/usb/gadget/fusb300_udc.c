@@ -8,21 +8,12 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -220,7 +211,7 @@ static int config_ep(struct fusb300_ep *ep,
 
 	info.type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 	info.dir_in = (desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK) ? 1 : 0;
-	info.maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	info.maxpacket = usb_endpoint_maxp(desc);
 	info.epnum = desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
 
 	if ((info.type == USB_ENDPOINT_XFER_INT) ||
@@ -1479,7 +1470,7 @@ static int __init fusb300_probe(struct platform_device *pdev)
 	fusb300->gadget.name = udc_name;
 	fusb300->reg = reg;
 
-	ret = request_irq(ires->start, fusb300_irq, IRQF_DISABLED | IRQF_SHARED,
+	ret = request_irq(ires->start, fusb300_irq, IRQF_SHARED,
 			  udc_name, fusb300);
 	if (ret < 0) {
 		pr_err("request_irq error (%d)\n", ret);
@@ -1487,7 +1478,7 @@ static int __init fusb300_probe(struct platform_device *pdev)
 	}
 
 	ret = request_irq(ires1->start, fusb300_irq,
-			IRQF_DISABLED | IRQF_SHARED, udc_name, fusb300);
+			IRQF_SHARED, udc_name, fusb300);
 	if (ret < 0) {
 		pr_err("request_irq1 error (%d)\n", ret);
 		goto clean_up;

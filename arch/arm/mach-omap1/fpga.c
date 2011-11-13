@@ -17,6 +17,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -28,7 +29,6 @@
 #include <asm/mach/irq.h>
 
 #include <plat/fpga.h>
-#include <mach/gpio.h>
 
 static void fpga_mask_irq(struct irq_data *d)
 {

@@ -37,7 +37,7 @@ int nf_register_afinfo(const struct nf_afinfo *afinfo)
 	err = mutex_lock_interruptible(&afinfo_mutex);
 	if (err < 0)
 		return err;
-	rcu_assign_pointer(nf_afinfo[afinfo->family], afinfo);
+	RCU_INIT_POINTER(nf_afinfo[afinfo->family], afinfo);
 	mutex_unlock(&afinfo_mutex);
 	return 0;
 }
@@ -46,7 +46,7 @@ EXPORT_SYMBOL_GPL(nf_register_afinfo);
 void nf_unregister_afinfo(const struct nf_afinfo *afinfo)
 {
 	mutex_lock(&afinfo_mutex);
-	rcu_assign_pointer(nf_afinfo[afinfo->family], NULL);
+	RCU_INIT_POINTER(nf_afinfo[afinfo->family], NULL);
 	mutex_unlock(&afinfo_mutex);
 	synchronize_rcu();
 }
@@ -180,17 +180,16 @@ next_hook:
 		if (ret == 0)
 			ret = -EPERM;
 	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
-		ret = nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
-			       verdict >> NF_VERDICT_QBITS);
-		if (ret < 0) {
-			if (ret == -ECANCELED)
+		int err = nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
+						verdict >> NF_VERDICT_QBITS);
+		if (err < 0) {
+			if (err == -ECANCELED)
 				goto next_hook;
-			if (ret == -ESRCH &&
+			if (err == -ESRCH &&
 			   (verdict & NF_VERDICT_FLAG_QUEUE_BYPASS))
 				goto next_hook;
 			kfree_skb(skb);
 		}
-		ret = 0;
 	}
 	rcu_read_unlock();
 	return ret;

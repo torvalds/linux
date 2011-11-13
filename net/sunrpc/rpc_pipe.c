@@ -77,6 +77,26 @@ rpc_timeout_upcall_queue(struct work_struct *work)
 	rpc_purge_list(rpci, &free_list, destroy_msg, -ETIMEDOUT);
 }
 
+ssize_t rpc_pipe_generic_upcall(struct file *filp, struct rpc_pipe_msg *msg,
+				char __user *dst, size_t buflen)
+{
+	char *data = (char *)msg->data + msg->copied;
+	size_t mlen = min(msg->len - msg->copied, buflen);
+	unsigned long left;
+
+	left = copy_to_user(dst, data, mlen);
+	if (left == mlen) {
+		msg->errno = -EFAULT;
+		return -EFAULT;
+	}
+
+	mlen -= left;
+	msg->copied += mlen;
+	msg->errno = 0;
+	return mlen;
+}
+EXPORT_SYMBOL_GPL(rpc_pipe_generic_upcall);
+
 /**
  * rpc_queue_upcall - queue an upcall message to userspace
  * @inode: inode of upcall pipe on which to queue given message
@@ -1084,3 +1104,6 @@ void unregister_rpc_pipefs(void)
 	kmem_cache_destroy(rpc_inode_cachep);
 	unregister_filesystem(&rpc_pipe_fs_type);
 }
+
+/* Make 'mount -t rpc_pipefs ...' autoload this module. */
+MODULE_ALIAS("rpc_pipefs");

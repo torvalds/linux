@@ -2,7 +2,6 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/etherdevice.h>
 #include <linux/of_address.h>

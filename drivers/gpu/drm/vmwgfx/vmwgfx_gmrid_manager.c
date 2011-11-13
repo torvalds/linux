@@ -40,6 +40,8 @@ struct vmwgfx_gmrid_man {
 	spinlock_t lock;
 	struct ida gmr_ida;
 	uint32_t max_gmr_ids;
+	uint32_t max_gmr_pages;
+	uint32_t used_gmr_pages;
 };
 
 static int vmw_gmrid_man_get_node(struct ttm_mem_type_manager *man,
@@ -49,33 +51,50 @@ static int vmw_gmrid_man_get_node(struct ttm_mem_type_manager *man,
 {
 	struct vmwgfx_gmrid_man *gman =
 		(struct vmwgfx_gmrid_man *)man->priv;
-	int ret;
+	int ret = 0;
 	int id;
 
 	mem->mm_node = NULL;
 
+	spin_lock(&gman->lock);
+
+	if (gman->max_gmr_pages > 0) {
+		gman->used_gmr_pages += bo->num_pages;
+		if (unlikely(gman->used_gmr_pages > gman->max_gmr_pages))
+			goto out_err_locked;
+	}
+
 	do {
-		if (unlikely(ida_pre_get(&gman->gmr_ida, GFP_KERNEL) == 0))
-			return -ENOMEM;
-
+		spin_unlock(&gman->lock);
+		if (unlikely(ida_pre_get(&gman->gmr_ida, GFP_KERNEL) == 0)) {
+			ret = -ENOMEM;
+			goto out_err;
+		}
 		spin_lock(&gman->lock);
-		ret = ida_get_new(&gman->gmr_ida, &id);
 
+		ret = ida_get_new(&gman->gmr_ida, &id);
 		if (unlikely(ret == 0 && id >= gman->max_gmr_ids)) {
 			ida_remove(&gman->gmr_ida, id);
-			spin_unlock(&gman->lock);
-			return 0;
+			ret = 0;
+			goto out_err_locked;
 		}
-
-		spin_unlock(&gman->lock);
-
 	} while (ret == -EAGAIN);
 
 	if (likely(ret == 0)) {
 		mem->mm_node = gman;
 		mem->start = id;
-	}
+		mem->num_pages = bo->num_pages;
+	} else
+		goto out_err_locked;
 
+	spin_unlock(&gman->lock);
+	return 0;
+
+out_err:
+	spin_lock(&gman->lock);
+out_err_locked:
+	gman->used_gmr_pages -= bo->num_pages;
+	spin_unlock(&gman->lock);
 	return ret;
 }
 
@@ -88,6 +107,7 @@ static void vmw_gmrid_man_put_node(struct ttm_mem_type_manager *man,
 	if (mem->mm_node) {
 		spin_lock(&gman->lock);
 		ida_remove(&gman->gmr_ida, mem->start);
+		gman->used_gmr_pages -= mem->num_pages;
 		spin_unlock(&gman->lock);
 		mem->mm_node = NULL;
 	}
@@ -96,6 +116,8 @@ static void vmw_gmrid_man_put_node(struct ttm_mem_type_manager *man,
 static int vmw_gmrid_man_init(struct ttm_mem_type_manager *man,
 			      unsigned long p_size)
 {
+	struct vmw_private *dev_priv =
+		container_of(man->bdev, struct vmw_private, bdev);
 	struct vmwgfx_gmrid_man *gman =
 		kzalloc(sizeof(*gman), GFP_KERNEL);
 
@@ -103,6 +125,8 @@ static int vmw_gmrid_man_init(struct ttm_mem_type_manager *man,
 		return -ENOMEM;
 
 	spin_lock_init(&gman->lock);
+	gman->max_gmr_pages = dev_priv->max_gmr_pages;
+	gman->used_gmr_pages = 0;
 	ida_init(&gman->gmr_ida);
 	gman->max_gmr_ids = p_size;
 	man->priv = (void *) gman;

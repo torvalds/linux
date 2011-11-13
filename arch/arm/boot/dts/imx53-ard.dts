@@ -1,0 +1,113 @@
+/*
+ * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "imx53.dtsi"
+
+/ {
+	model = "Freescale i.MX53 Automotive Reference Design Board";
+	compatible = "fsl,imx53-ard", "fsl,imx53";
+
+	chosen {
+		bootargs = "console=ttymxc0,115200 root=/dev/mmcblk0p3 rootwait";
+	};
+
+	memory {
+		reg = <0x70000000 0x40000000>;
+	};
+
+	soc {
+		aips@50000000 { /* AIPS1 */
+			spba@50000000 {
+				esdhc@50004000 { /* ESDHC1 */
+					cd-gpios = <&gpio0 1 0>; /* GPIO1_1 */
+					wp-gpios = <&gpio0 9 0>; /* GPIO1_9 */
+					status = "okay";
+				};
+			};
+
+			wdog@53f98000 { /* WDOG1 */
+				status = "okay";
+			};
+
+			iomuxc@53fa8000 {
+				compatible = "fsl,imx53-iomuxc-ard";
+				reg = <0x53fa8000 0x4000>;
+			};
+
+			uart0: uart@53fbc000 { /* UART1 */
+				status = "okay";
+			};
+		};
+
+		aips@60000000 {	/* AIPS2 */
+			sdma@63fb0000 {
+				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx53.bin";
+			};
+		};
+	};
+
+	eim-cs1@f4000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,eim-bus", "simple-bus";
+		reg = <0xf4000000 0x3ff0000>;
+		ranges;
+
+		lan9220@f4000000 {
+			compatible = "smsc,lan9220", "smsc,lan9115";
+			reg = <0xf4000000 0x2000000>;
+			phy-mode = "mii";
+			interrupt-parent = <&gpio1>;
+			interrupts = <31>;
+			reg-io-width = <4>;
+			smsc,irq-push-pull;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		home {
+			label = "Home";
+			gpios = <&gpio4 10 0>; /* GPIO5_10 */
+			linux,code = <102>; /* KEY_HOME */
+			gpio-key,wakeup;
+		};
+
+		back {
+			label = "Back";
+			gpios = <&gpio4 11 0>; /* GPIO5_11 */
+			linux,code = <158>; /* KEY_BACK */
+			gpio-key,wakeup;
+		};
+
+		program {
+			label = "Program";
+			gpios = <&gpio4 12 0>; /* GPIO5_12 */
+			linux,code = <362>; /* KEY_PROGRAM */
+			gpio-key,wakeup;
+		};
+
+		volume-up {
+			label = "Volume Up";
+			gpios = <&gpio4 13 0>; /* GPIO5_13 */
+			linux,code = <115>; /* KEY_VOLUMEUP */
+		};
+
+		volume-down {
+			label = "Volume Down";
+			gpios = <&gpio3 0 0>; /* GPIO4_0 */
+			linux,code = <114>; /* KEY_VOLUMEDOWN */
+		};
+	};
+};

@@ -28,6 +28,7 @@ pvr2_device_desc structures.
 
 #include "pvrusb2-devattr.h"
 #include <linux/usb.h>
+#include <linux/module.h>
 /* This is needed in order to pull in tuner type ids... */
 #include <linux/i2c.h>
 #include <media/tuner.h>

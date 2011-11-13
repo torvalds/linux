@@ -161,13 +161,41 @@ EXPORT_SYMBOL(ath9k_cmn_count_streams);
 void ath9k_cmn_update_txpow(struct ath_hw *ah, u16 cur_txpow,
 			    u16 new_txpow, u16 *txpower)
 {
-	if (cur_txpow != new_txpow) {
+	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
+
+	if (reg->power_limit != new_txpow) {
 		ath9k_hw_set_txpowerlimit(ah, new_txpow, false);
 		/* read back in case value is clamped */
-		*txpower = ath9k_hw_regulatory(ah)->power_limit;
+		*txpower = reg->max_power_level;
 	}
 }
 EXPORT_SYMBOL(ath9k_cmn_update_txpow);
+
+void ath9k_cmn_init_crypto(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	int i = 0;
+
+	/* Get the hardware key cache size. */
+	common->keymax = AR_KEYTABLE_SIZE;
+
+	/*
+	 * Check whether the separate key cache entries
+	 * are required to handle both tx+rx MIC keys.
+	 * With split mic keys the number of stations is limited
+	 * to 27 otherwise 59.
+	 */
+	if (ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
+		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
+
+	/*
+	 * Reset the key cache since some parts do not
+	 * reset the contents on initial power up.
+	 */
+	for (i = 0; i < common->keymax; i++)
+		ath_hw_keyreset(common, (u16) i);
+}
+EXPORT_SYMBOL(ath9k_cmn_init_crypto);
 
 static int __init ath9k_cmn_init(void)
 {

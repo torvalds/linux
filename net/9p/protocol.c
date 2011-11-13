@@ -37,39 +37,10 @@
 #include <net/9p/client.h>
 #include "protocol.h"
 
+#include <trace/events/9p.h>
+
 static int
 p9pdu_writef(struct p9_fcall *pdu, int proto_version, const char *fmt, ...);
-
-#ifdef CONFIG_NET_9P_DEBUG
-void
-p9pdu_dump(int way, struct p9_fcall *pdu)
-{
-	int len = pdu->size;
-
-	if ((p9_debug_level & P9_DEBUG_VPKT) != P9_DEBUG_VPKT) {
-		if ((p9_debug_level & P9_DEBUG_PKT) == P9_DEBUG_PKT) {
-			if (len > 32)
-				len = 32;
-		} else {
-			/* shouldn't happen */
-			return;
-		}
-	}
-
-	if (way)
-		print_hex_dump_bytes("[9P] ", DUMP_PREFIX_OFFSET, pdu->sdata,
-									len);
-	else
-		print_hex_dump_bytes("]9P[ ", DUMP_PREFIX_OFFSET, pdu->sdata,
-									len);
-}
-#else
-void
-p9pdu_dump(int way, struct p9_fcall *pdu)
-{
-}
-#endif
-EXPORT_SYMBOL(p9pdu_dump);
 
 void p9stat_free(struct p9_wstat *stbuf)
 {
@@ -81,7 +52,7 @@ void p9stat_free(struct p9_wstat *stbuf)
 }
 EXPORT_SYMBOL(p9stat_free);
 
-static size_t pdu_read(struct p9_fcall *pdu, void *data, size_t size)
+size_t pdu_read(struct p9_fcall *pdu, void *data, size_t size)
 {
 	size_t len = min(pdu->size - pdu->offset, size);
 	memcpy(data, &pdu->sdata[pdu->offset], len);
@@ -106,26 +77,6 @@ pdu_write_u(struct p9_fcall *pdu, const char __user *udata, size_t size)
 
 	pdu->size += len;
 	return size - len;
-}
-
-static size_t
-pdu_write_urw(struct p9_fcall *pdu, const char *kdata, const char __user *udata,
-		size_t size)
-{
-	BUG_ON(pdu->size > P9_IOHDRSZ);
-	pdu->pubuf = (char __user *)udata;
-	pdu->pkbuf = (char *)kdata;
-	pdu->pbuf_size = size;
-	return 0;
-}
-
-static size_t
-pdu_write_readdir(struct p9_fcall *pdu, const char *kdata, size_t size)
-{
-	BUG_ON(pdu->size > P9_READDIRHDRSZ);
-	pdu->pkbuf = (char *)kdata;
-	pdu->pbuf_size = size;
-	return 0;
 }
 
 /*
@@ -459,26 +410,6 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 					errcode = -EFAULT;
 			}
 			break;
-		case 'E':{
-				 int32_t cnt = va_arg(ap, int32_t);
-				 const char *k = va_arg(ap, const void *);
-				 const char __user *u = va_arg(ap,
-							const void __user *);
-				 errcode = p9pdu_writef(pdu, proto_version, "d",
-						 cnt);
-				 if (!errcode && pdu_write_urw(pdu, k, u, cnt))
-					errcode = -EFAULT;
-			 }
-			 break;
-		case 'F':{
-				 int32_t cnt = va_arg(ap, int32_t);
-				 const char *k = va_arg(ap, const void *);
-				 errcode = p9pdu_writef(pdu, proto_version, "d",
-						 cnt);
-				 if (!errcode && pdu_write_readdir(pdu, k, cnt))
-					errcode = -EFAULT;
-			 }
-			 break;
 		case 'U':{
 				int32_t count = va_arg(ap, int32_t);
 				const char __user *udata =
@@ -591,7 +522,7 @@ p9pdu_writef(struct p9_fcall *pdu, int proto_version, const char *fmt, ...)
 	return ret;
 }
 
-int p9stat_read(char *buf, int len, struct p9_wstat *st, int proto_version)
+int p9stat_read(struct p9_client *clnt, char *buf, int len, struct p9_wstat *st)
 {
 	struct p9_fcall fake_pdu;
 	int ret;
@@ -601,10 +532,10 @@ int p9stat_read(char *buf, int len, struct p9_wstat *st, int proto_version)
 	fake_pdu.sdata = buf;
 	fake_pdu.offset = 0;
 
-	ret = p9pdu_readf(&fake_pdu, proto_version, "S", st);
+	ret = p9pdu_readf(&fake_pdu, clnt->proto_version, "S", st);
 	if (ret) {
 		P9_DPRINTK(P9_DEBUG_9P, "<<< p9stat_read failed: %d\n", ret);
-		P9_DUMP_PKT(0, &fake_pdu);
+		trace_9p_protocol_dump(clnt, &fake_pdu);
 	}
 
 	return ret;
@@ -617,7 +548,7 @@ int p9pdu_prepare(struct p9_fcall *pdu, int16_t tag, int8_t type)
 	return p9pdu_writef(pdu, 0, "dbw", 0, type, tag);
 }
 
-int p9pdu_finalize(struct p9_fcall *pdu)
+int p9pdu_finalize(struct p9_client *clnt, struct p9_fcall *pdu)
 {
 	int size = pdu->size;
 	int err;
@@ -626,7 +557,7 @@ int p9pdu_finalize(struct p9_fcall *pdu)
 	err = p9pdu_writef(pdu, 0, "d", size);
 	pdu->size = size;
 
-	P9_DUMP_PKT(0, pdu);
+	trace_9p_protocol_dump(clnt, pdu);
 	P9_DPRINTK(P9_DEBUG_9P, ">>> size=%d type: %d tag: %d\n", pdu->size,
 							pdu->id, pdu->tag);
 
@@ -637,14 +568,10 @@ void p9pdu_reset(struct p9_fcall *pdu)
 {
 	pdu->offset = 0;
 	pdu->size = 0;
-	pdu->private = NULL;
-	pdu->pubuf = NULL;
-	pdu->pkbuf = NULL;
-	pdu->pbuf_size = 0;
 }
 
-int p9dirent_read(char *buf, int len, struct p9_dirent *dirent,
-						int proto_version)
+int p9dirent_read(struct p9_client *clnt, char *buf, int len,
+		  struct p9_dirent *dirent)
 {
 	struct p9_fcall fake_pdu;
 	int ret;
@@ -655,11 +582,11 @@ int p9dirent_read(char *buf, int len, struct p9_dirent *dirent,
 	fake_pdu.sdata = buf;
 	fake_pdu.offset = 0;
 
-	ret = p9pdu_readf(&fake_pdu, proto_version, "Qqbs", &dirent->qid,
-			&dirent->d_off, &dirent->d_type, &nameptr);
+	ret = p9pdu_readf(&fake_pdu, clnt->proto_version, "Qqbs", &dirent->qid,
+			  &dirent->d_off, &dirent->d_type, &nameptr);
 	if (ret) {
 		P9_DPRINTK(P9_DEBUG_9P, "<<< p9dirent_read failed: %d\n", ret);
-		P9_DUMP_PKT(1, &fake_pdu);
+		trace_9p_protocol_dump(clnt, &fake_pdu);
 		goto out;
 	}
 

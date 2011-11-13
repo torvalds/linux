@@ -63,7 +63,7 @@
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
 
-#include <mach/s3c6410.h>
+#include <plat/s3c6410.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
@@ -619,12 +619,6 @@ static struct i2c_board_info i2c_devs1[] __initdata = {
 	{ I2C_BOARD_INFO("24c128", 0x57), },	/* Samsung S524AD0XD1 */
 };
 
-static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
-	.delay			= 10000,
-	.presc			= 49,
-	.oversampling_shift	= 2,
-};
-
 /* LCD Backlight data */
 static struct samsung_bl_gpio_info smdk6410_bl_gpio_info = {
 	.no = S3C64XX_GPF(15),
@@ -666,7 +660,7 @@ static void __init smdk6410_machine_init(void)
 
 	samsung_keypad_set_platdata(&smdk6410_keypad_data);
 
-	s3c24xx_ts_set_platdata(&s3c_ts_platform);
+	s3c24xx_ts_set_platdata(NULL);
 
 	/* configure nCS1 width to 16 bits */
 
@@ -703,7 +697,7 @@ static void __init smdk6410_machine_init(void)
 
 MACHINE_START(SMDK6410, "SMDK6410")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
-	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= smdk6410_map_io,

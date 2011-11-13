@@ -18,12 +18,12 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 
 #include <mach/hardware.h>
 #include <mach/fb.h>
+#include <mach/gpio-ep93xx.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -53,6 +53,17 @@ static struct i2c_board_info __initdata simone_i2c_board_info[] = {
 	},
 };
 
+static struct platform_device simone_audio_device = {
+	.name		= "simone-audio",
+	.id		= -1,
+};
+
+static void __init simone_register_audio(void)
+{
+	ep93xx_register_ac97();
+	platform_device_register(&simone_audio_device);
+}
+
 static void __init simone_init_machine(void)
 {
 	ep93xx_init_devices();
@@ -61,12 +72,12 @@ static void __init simone_init_machine(void)
 	ep93xx_register_fb(&simone_fb_info);
 	ep93xx_register_i2c(&simone_i2c_gpio_data, simone_i2c_board_info,
 			    ARRAY_SIZE(simone_i2c_board_info));
-	ep93xx_register_ac97();
+	simone_register_audio();
 }
 
 MACHINE_START(SIM_ONE, "Simplemachines Sim.One Board")
-/* Maintainer: Ryan Mallon */
-	.boot_params	= EP93XX_SDCE0_PHYS_BASE + 0x100,
+	/* Maintainer: Ryan Mallon */
+	.atag_offset	= 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
 	.timer		= &ep93xx_timer,

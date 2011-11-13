@@ -26,6 +26,7 @@
 
 #include <linux/capability.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/times.h>
 #include <linux/socket.h>
@@ -1086,11 +1087,10 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	rt->dst.output  = ip6_output;
 	dst_set_neighbour(&rt->dst, neigh);
 	atomic_set(&rt->dst.__refcnt, 1);
-	dst_metric_set(&rt->dst, RTAX_HOPLIMIT, 255);
-
 	ipv6_addr_copy(&rt->rt6i_dst.addr, addr);
 	rt->rt6i_dst.plen = 128;
 	rt->rt6i_idev     = idev;
+	dst_metric_set(&rt->dst, RTAX_HOPLIMIT, 255);
 
 	spin_lock_bh(&icmp6_dst_lock);
 	rt->dst.next = icmp6_dst_gc_list;

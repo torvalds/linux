@@ -210,8 +210,8 @@ static int vt8500lcd_pan_display(struct fb_var_screeninfo *var,
 	struct vt8500lcd_info *fbi = to_vt8500lcd_info(info);
 
 	writel((1 << 31)
-		| (((var->xres_virtual - var->xres) * pixlen / 4) << 20)
-		| (off >> 2), fbi->regbase + 0x20);
+	     | (((info->var.xres_virtual - info->var.xres) * pixlen / 4) << 20)
+	     | (off >> 2), fbi->regbase + 0x20);
 	return 0;
 }
 
@@ -355,7 +355,7 @@ static int __devinit vt8500lcd_probe(struct platform_device *pdev)
 		goto failed_free_palette;
 	}
 
-	ret = request_irq(irq, vt8500lcd_handle_irq, IRQF_DISABLED, "LCD", fbi);
+	ret = request_irq(irq, vt8500lcd_handle_irq, 0, "LCD", fbi);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed: %d\n", ret);
 		ret = -EBUSY;

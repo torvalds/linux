@@ -28,7 +28,6 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/jump_label.h>
 

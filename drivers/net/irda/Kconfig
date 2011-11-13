@@ -314,7 +314,7 @@ config TOSHIBA_FIR
 
 config AU1000_FIR
 	tristate "Alchemy Au1000 SIR/FIR"
-	depends on SOC_AU1000 && IRDA
+	depends on IRDA && MIPS_ALCHEMY
 
 config SMC_IRCC_FIR
 	tristate "SMSC IrCC (EXPERIMENTAL)"

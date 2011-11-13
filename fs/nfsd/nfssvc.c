@@ -8,6 +8,7 @@
 
 #include <linux/sched.h>
 #include <linux/freezer.h>
+#include <linux/module.h>
 #include <linux/fs_struct.h>
 #include <linux/swap.h>
 
@@ -255,6 +256,8 @@ static void nfsd_last_thread(struct svc_serv *serv)
 	/* When last nfsd thread exits we need to do some clean-up */
 	nfsd_serv = NULL;
 	nfsd_shutdown();
+
+	svc_rpcb_cleanup(serv);
 
 	printk(KERN_WARNING "nfsd: last server has exited, flushing export "
 			    "cache\n");

@@ -33,6 +33,8 @@ static inline void get_cpu_id(struct cpuid *ptr)
 
 extern void s390_adjust_jiffies(void);
 extern int get_cpu_capability(unsigned int *);
+extern const struct seq_operations cpuinfo_op;
+extern int sysctl_ieee_emulation_warnings;
 
 /*
  * User space process size: 2GB for 31 bit, 4TB or 8PT for 64 bit.
@@ -118,17 +120,17 @@ struct stack_frame {
 /*
  * Do necessary setup to start up a new thread.
  */
-#define start_thread(regs, new_psw, new_stackp) do {		\
-	regs->psw.mask	= psw_user_bits;			\
-	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;		\
-	regs->gprs[15]	= new_stackp;				\
+#define start_thread(regs, new_psw, new_stackp) do {			\
+	regs->psw.mask	= psw_user_bits | PSW_MASK_EA | PSW_MASK_BA;	\
+	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
+	regs->gprs[15]	= new_stackp;					\
 } while (0)
 
-#define start_thread31(regs, new_psw, new_stackp) do {		\
-	regs->psw.mask	= psw_user32_bits;			\
-	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;		\
-	regs->gprs[15]	= new_stackp;				\
-	crst_table_downgrade(current->mm, 1UL << 31);		\
+#define start_thread31(regs, new_psw, new_stackp) do {			\
+	regs->psw.mask	= psw_user_bits | PSW_MASK_BA;			\
+	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
+	regs->gprs[15]	= new_stackp;					\
+	crst_table_downgrade(current->mm, 1UL << 31);			\
 } while (0)
 
 /* Forward declaration, a strange C thing */
@@ -187,7 +189,6 @@ static inline void __load_psw(psw_t psw)
  * Set PSW mask to specified value, while leaving the
  * PSW addr pointing to the next instruction.
  */
-
 static inline void __load_psw_mask (unsigned long mask)
 {
 	unsigned long addr;
@@ -212,26 +213,37 @@ static inline void __load_psw_mask (unsigned long mask)
 		: "=&d" (addr), "=Q" (psw) : "Q" (psw) : "memory", "cc");
 #endif /* __s390x__ */
 }
- 
-/*
- * Function to stop a processor until an interruption occurred
- */
-static inline void enabled_wait(void)
-{
-	__load_psw_mask(PSW_BASE_BITS | PSW_MASK_IO | PSW_MASK_EXT |
-			PSW_MASK_MCHECK | PSW_MASK_WAIT | PSW_DEFAULT_KEY);
-}
 
+/*
+ * Rewind PSW instruction address by specified number of bytes.
+ */
+static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
+{
+#ifndef __s390x__
+	if (psw.addr & PSW_ADDR_AMODE)
+		/* 31 bit mode */
+		return (psw.addr - ilc) | PSW_ADDR_AMODE;
+	/* 24 bit mode */
+	return (psw.addr - ilc) & ((1UL << 24) - 1);
+#else
+	unsigned long mask;
+
+	mask = (psw.mask & PSW_MASK_EA) ? -1UL :
+	       (psw.mask & PSW_MASK_BA) ? (1UL << 31) - 1 :
+					  (1UL << 24) - 1;
+	return (psw.addr - ilc) & mask;
+#endif
+}
+ 
 /*
  * Function to drop a processor into disabled wait state
  */
-
 static inline void ATTRIB_NORET disabled_wait(unsigned long code)
 {
         unsigned long ctl_buf;
         psw_t dw_psw;
 
-        dw_psw.mask = PSW_BASE_BITS | PSW_MASK_WAIT;
+	dw_psw.mask = PSW_MASK_BASE | PSW_MASK_WAIT | PSW_MASK_BA | PSW_MASK_EA;
         dw_psw.addr = code;
         /* 
          * Store status and then load disabled wait psw,
