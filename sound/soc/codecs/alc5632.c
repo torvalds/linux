@@ -68,8 +68,6 @@ static const u16 alc5632_reg_defaults[] = {
 /* codec private data */
 struct alc5632_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
-	struct mutex mutex;
 	u8 id;
 	unsigned int sysclk;
 };
@@ -1071,9 +1069,7 @@ static int alc5632_i2c_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, alc5632);
-	alc5632->control_data = client;
 	alc5632->control_type = SND_SOC_I2C;
-	mutex_init(&alc5632->mutex);
 
 	ret =  snd_soc_register_codec(&client->dev,
 		&soc_codec_device_alc5632, &alc5632_dai, 1);
