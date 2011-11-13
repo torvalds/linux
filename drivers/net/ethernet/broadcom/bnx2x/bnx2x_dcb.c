@@ -874,7 +874,7 @@ static void bnx2x_dcbx_admin_mib_updated_params(struct bnx2x *bp,
 		/*For IEEE admin_recommendation_bw_precentage
 		 *For IEEE admin_recommendation_ets_pg */
 		af->pfc.pri_en_bitmap = (u8)dp->admin_pfc_bitmap;
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < DCBX_CONFIG_MAX_APP_PROTOCOL; i++) {
 			if (dp->admin_priority_app_table[i].valid) {
 				struct bnx2x_admin_priority_app_table *table =
 					dp->admin_priority_app_table;
@@ -2249,7 +2249,7 @@ static int bnx2x_set_admin_app_up(struct bnx2x *bp, u8 idtype, u16 idval, u8 up)
 	int i, ff;
 
 	/* iterate over the app entries looking for idtype and idval */
-	for (i = 0, ff = -1; i < 4; i++) {
+	for (i = 0, ff = -1; i < DCBX_CONFIG_MAX_APP_PROTOCOL; i++) {
 		struct bnx2x_admin_priority_app_table *app_ent =
 			&bp->dcbx_config_params.admin_priority_app_table[i];
 		if (bnx2x_admin_app_is_equal(app_ent, idtype, idval))
@@ -2258,7 +2258,7 @@ static int bnx2x_set_admin_app_up(struct bnx2x *bp, u8 idtype, u16 idval, u8 up)
 		if (ff < 0 && !app_ent->valid)
 			ff = i;
 	}
-	if (i < 4)
+	if (i < DCBX_CONFIG_MAX_APP_PROTOCOL)
 		/* if found overwrite up */
 		bp->dcbx_config_params.
 			admin_priority_app_table[i].priority = up;
