@@ -423,6 +423,12 @@ static int qt1010_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
+static int qt1010_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	*frequency = 36125000;
+	return 0;
+}
+
 static const struct dvb_tuner_ops qt1010_tuner_ops = {
 	.info = {
 		.name           = "Quantek QT1010",
@@ -437,7 +443,8 @@ static const struct dvb_tuner_ops qt1010_tuner_ops = {
 
 	.set_params    = qt1010_set_params,
 	.get_frequency = qt1010_get_frequency,
-	.get_bandwidth = qt1010_get_bandwidth
+	.get_bandwidth = qt1010_get_bandwidth,
+	.get_if_frequency = qt1010_get_if_frequency,
 };
 
 struct dvb_frontend * qt1010_attach(struct dvb_frontend *fe,
