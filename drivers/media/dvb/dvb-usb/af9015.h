@@ -102,6 +102,13 @@ struct af9015_state {
 	u8 rc_repeat;
 	u32 rc_keycode;
 	u8 rc_last[4];
+
+	/* for demod callback override */
+	int (*set_frontend[2]) (struct dvb_frontend *fe,
+		struct dvb_frontend_parameters *params);
+	int (*read_status[2]) (struct dvb_frontend *fe, fe_status_t *status);
+	int (*init[2]) (struct dvb_frontend *fe);
+	int (*sleep[2]) (struct dvb_frontend *fe);
 };
 
 struct af9015_config {
