@@ -1093,9 +1093,80 @@ error:
 	return ret;
 }
 
+/* override demod callbacks for resource locking */
+static int af9015_af9013_set_frontend(struct dvb_frontend *fe,
+	struct dvb_frontend_parameters *params)
+{
+	int ret;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct af9015_state *priv = adap->dev->priv;
+
+	if (mutex_lock_interruptible(&adap->dev->usb_mutex))
+		return -EAGAIN;
+
+	ret = priv->set_frontend[adap->id](fe, params);
+
+	mutex_unlock(&adap->dev->usb_mutex);
+
+	return ret;
+}
+
+/* override demod callbacks for resource locking */
+static int af9015_af9013_read_status(struct dvb_frontend *fe,
+	fe_status_t *status)
+{
+	int ret;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct af9015_state *priv = adap->dev->priv;
+
+	if (mutex_lock_interruptible(&adap->dev->usb_mutex))
+		return -EAGAIN;
+
+	ret = priv->read_status[adap->id](fe, status);
+
+	mutex_unlock(&adap->dev->usb_mutex);
+
+	return ret;
+}
+
+/* override demod callbacks for resource locking */
+static int af9015_af9013_init(struct dvb_frontend *fe)
+{
+	int ret;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct af9015_state *priv = adap->dev->priv;
+
+	if (mutex_lock_interruptible(&adap->dev->usb_mutex))
+		return -EAGAIN;
+
+	ret = priv->init[adap->id](fe);
+
+	mutex_unlock(&adap->dev->usb_mutex);
+
+	return ret;
+}
+
+/* override demod callbacks for resource locking */
+static int af9015_af9013_sleep(struct dvb_frontend *fe)
+{
+	int ret;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct af9015_state *priv = adap->dev->priv;
+
+	if (mutex_lock_interruptible(&adap->dev->usb_mutex))
+		return -EAGAIN;
+
+	ret = priv->init[adap->id](fe);
+
+	mutex_unlock(&adap->dev->usb_mutex);
+
+	return ret;
+}
+
 static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
+	struct af9015_state *state = adap->dev->priv;
 
 	if (adap->id == 1) {
 		/* copy firmware to 2nd demodulator */
@@ -1115,6 +1186,32 @@ static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 	/* attach demodulator */
 	adap->fe_adap[0].fe = dvb_attach(af9013_attach, &af9015_af9013_config[adap->id],
 		&adap->dev->i2c_adap);
+
+	/*
+	 * AF9015 firmware does not like if it gets interrupted by I2C adapter
+	 * request on some critical phases. During normal operation I2C adapter
+	 * is used only 2nd demodulator and tuner on dual tuner devices.
+	 * Override demodulator callbacks and use mutex for limit access to
+	 * those "critical" paths to keep AF9015 happy.
+	 * Note: we abuse unused usb_mutex here.
+	 */
+	if (adap->fe_adap[0].fe) {
+		state->set_frontend[adap->id] =
+			adap->fe_adap[0].fe->ops.set_frontend;
+		adap->fe_adap[0].fe->ops.set_frontend =
+			af9015_af9013_set_frontend;
+
+		state->read_status[adap->id] =
+			adap->fe_adap[0].fe->ops.read_status;
+		adap->fe_adap[0].fe->ops.read_status =
+			af9015_af9013_read_status;
+
+		state->init[adap->id] = adap->fe_adap[0].fe->ops.init;
+		adap->fe_adap[0].fe->ops.init = af9015_af9013_init;
+
+		state->sleep[adap->id] = adap->fe_adap[0].fe->ops.sleep;
+		adap->fe_adap[0].fe->ops.sleep = af9015_af9013_sleep;
+	}
 
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
 }
