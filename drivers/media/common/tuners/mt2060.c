@@ -300,6 +300,12 @@ static int mt2060_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
+static int mt2060_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	*frequency = IF2 * 1000;
+	return 0;
+}
+
 static int mt2060_init(struct dvb_frontend *fe)
 {
 	struct mt2060_priv *priv = fe->tuner_priv;
@@ -356,7 +362,8 @@ static const struct dvb_tuner_ops mt2060_tuner_ops = {
 
 	.set_params    = mt2060_set_params,
 	.get_frequency = mt2060_get_frequency,
-	.get_bandwidth = mt2060_get_bandwidth
+	.get_bandwidth = mt2060_get_bandwidth,
+	.get_if_frequency = mt2060_get_if_frequency,
 };
 
 /* This functions tries to identify a MT2060 tuner by reading the PART/REV register. This is hasty. */
