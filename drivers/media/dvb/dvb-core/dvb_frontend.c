@@ -974,6 +974,8 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_GUARD_INTERVAL, 0, 0),
 	_DTV_CMD(DTV_TRANSMISSION_MODE, 0, 0),
 	_DTV_CMD(DTV_HIERARCHY, 0, 0),
+
+	_DTV_CMD(DTV_ENUM_DELSYS, 0, 0),
 };
 
 static void dtv_property_dump(struct dtv_property *tvp)
@@ -1209,6 +1211,37 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 static int dvb_frontend_ioctl_properties(struct file *file,
 			unsigned int cmd, void *parg);
 
+static void dtv_set_default_delivery_caps(const struct dvb_frontend *fe, struct dtv_property *p)
+{
+	const struct dvb_frontend_info *info = &fe->ops.info;
+	u32 ncaps = 0;
+
+	switch (info->type) {
+	case FE_QPSK:
+		p->u.buffer.data[ncaps++] = SYS_DVBS;
+		if (info->caps & FE_CAN_2G_MODULATION)
+			p->u.buffer.data[ncaps++] = SYS_DVBS2;
+		if (info->caps & FE_CAN_TURBO_FEC)
+			p->u.buffer.data[ncaps++] = SYS_TURBO;
+		break;
+	case FE_QAM:
+		p->u.buffer.data[ncaps++] = SYS_DVBC_ANNEX_AC;
+		break;
+	case FE_OFDM:
+		p->u.buffer.data[ncaps++] = SYS_DVBT;
+		if (info->caps & FE_CAN_2G_MODULATION)
+			p->u.buffer.data[ncaps++] = SYS_DVBT2;
+		break;
+	case FE_ATSC:
+		if (info->caps & (FE_CAN_8VSB | FE_CAN_16VSB))
+			p->u.buffer.data[ncaps++] = SYS_ATSC;
+		if (info->caps & (FE_CAN_QAM_16 | FE_CAN_QAM_64 | FE_CAN_QAM_128 | FE_CAN_QAM_256))
+			p->u.buffer.data[ncaps++] = SYS_DVBC_ANNEX_B;
+		break;
+	}
+	p->u.buffer.len = ncaps;
+}
+
 static int dtv_property_process_get(struct dvb_frontend *fe,
 				    struct dtv_property *tvp,
 				    struct file *file)
@@ -1229,6 +1262,9 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 	}
 
 	switch(tvp->cmd) {
+	case DTV_ENUM_DELSYS:
+		dtv_set_default_delivery_caps(fe, tvp);
+		break;
 	case DTV_FREQUENCY:
 		tvp->u.data = c->frequency;
 		break;
