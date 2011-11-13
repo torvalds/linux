@@ -25,6 +25,8 @@
 struct timekeeper {
 	/* Current clocksource used for timekeeping. */
 	struct clocksource *clock;
+	/* NTP adjusted clock multiplier */
+	u32	mult;
 	/* The shift value of the current clocksource. */
 	int	shift;
 
@@ -45,8 +47,6 @@ struct timekeeper {
 	/* Shift conversion between clock shifted nano seconds and
 	 * ntp shifted nano seconds. */
 	int	ntp_error_shift;
-	/* NTP adjusted clock multiplier */
-	u32	mult;
 
 	/* The current time */
 	struct timespec xtime;
