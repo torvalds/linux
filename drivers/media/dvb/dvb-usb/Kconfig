@@ -341,7 +341,7 @@ config DVB_USB_AF9015
 
 config DVB_USB_CE6230
 	tristate "Intel CE6230 DVB-T USB2.0 support"
-	depends on DVB_USB && EXPERIMENTAL
+	depends on DVB_USB
 	select DVB_ZL10353
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	help
