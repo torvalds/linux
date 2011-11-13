@@ -227,7 +227,7 @@ static int tda18212_set_params(struct dvb_frontend *fe,
 	buf[0] = 0x02;
 	buf[1] = bw_params[i][1];
 	buf[2] = 0x03; /* default value */
-	buf[3] = if_khz / 50;
+	buf[3] = DIV_ROUND_CLOSEST(if_khz, 50);
 	buf[4] = ((c->frequency / 1000) >> 16) & 0xff;
 	buf[5] = ((c->frequency / 1000) >>  8) & 0xff;
 	buf[6] = ((c->frequency / 1000) >>  0) & 0xff;
