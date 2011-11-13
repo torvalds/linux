@@ -226,10 +226,10 @@ static const DECLARE_TLV_DB_SCALE(vdac_tlv, -3525, 075, 0);
 static const struct snd_kcontrol_new alc5632_vol_snd_controls[] = {
 	/* left starts at bit 8, right at bit 0 */
 	/* 31 steps (5 bit), -46.5db scale */
-	SOC_DOUBLE_TLV("Line Playback Volume",
+	SOC_DOUBLE_TLV("Speaker Playback Volume",
 			ALC5632_SPK_OUT_VOL, 8, 0, 31, 1, hp_tlv),
 	/* bit 15 mutes left, bit 7 right */
-	SOC_DOUBLE("Line Playback Switch",
+	SOC_DOUBLE("Speaker Playback Switch",
 			ALC5632_SPK_OUT_VOL, 15, 7, 1, 1),
 	SOC_DOUBLE_TLV("Headphone Playback Volume",
 			ALC5632_HP_OUT_VOL, 8, 0, 31, 1, hp_tlv),
@@ -248,9 +248,9 @@ static const struct snd_kcontrol_new alc5632_snd_controls[] = {
 			ALC5632_PHONE_IN_VOL, 8, 31, 1, vol_tlv),
 	SOC_DOUBLE_TLV("LineIn Capture Volume",
 			ALC5632_LINE_IN_VOL, 8, 0, 31, 1, vol_tlv),
-	SOC_DOUBLE_TLV("Stereo DAC Playback Volume",
+	SOC_DOUBLE_TLV("Master Playback Volume",
 			ALC5632_STEREO_DAC_IN_VOL, 8, 0, 63, 1, vdac_tlv),
-	SOC_DOUBLE("Stereo DAC Playback Switch",
+	SOC_DOUBLE("Master Playback Switch",
 			ALC5632_STEREO_DAC_IN_VOL, 15, 7, 1, 1),
 	SOC_SINGLE_TLV("Mic1 Capture Volume",
 			ALC5632_MIC_VOL, 8, 31, 1, vol_tlv),
