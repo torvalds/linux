@@ -132,6 +132,15 @@ extern struct ctl_path net_ipv6_ctl_path[];
 	SNMP_INC_STATS##modifier((net)->mib.statname##_statistics, (field));\
 })
 
+/* per device and per net counters are atomic_long_t */
+#define _DEVINC_ATOMIC_ATOMIC(net, statname, idev, field)		\
+({									\
+	struct inet6_dev *_idev = (idev);				\
+	if (likely(_idev != NULL))					\
+		SNMP_INC_STATS_ATOMIC_LONG((_idev)->stats.statname##dev, (field)); \
+	SNMP_INC_STATS_ATOMIC_LONG((net)->mib.statname##_statistics, (field));\
+})
+
 #define _DEVADD(net, statname, modifier, idev, field, val)		\
 ({									\
 	struct inet6_dev *_idev = (idev);				\
@@ -168,11 +177,11 @@ extern struct ctl_path net_ipv6_ctl_path[];
 		_DEVINCATOMIC(net, icmpv6, _BH, idev, field)
 
 #define ICMP6MSGOUT_INC_STATS(net, idev, field)		\
-	_DEVINCATOMIC(net, icmpv6msg, , idev, field +256)
+	_DEVINC_ATOMIC_ATOMIC(net, icmpv6msg, idev, field +256)
 #define ICMP6MSGOUT_INC_STATS_BH(net, idev, field)	\
-	_DEVINCATOMIC(net, icmpv6msg, _BH, idev, field +256)
+	_DEVINC_ATOMIC_ATOMIC(net, icmpv6msg, idev, field +256)
 #define ICMP6MSGIN_INC_STATS_BH(net, idev, field)	\
-	_DEVINCATOMIC(net, icmpv6msg, _BH, idev, field)
+	_DEVINC_ATOMIC_ATOMIC(net, icmpv6msg, idev, field)
 
 struct ip6_ra_chain {
 	struct ip6_ra_chain	*next;

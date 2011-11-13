@@ -84,7 +84,7 @@ struct icmpv6_mib_device {
 #define ICMP6MSG_MIB_MAX  __ICMP6MSG_MIB_MAX
 /* per network ns counters */
 struct icmpv6msg_mib {
-	unsigned long	mibs[ICMP6MSG_MIB_MAX];
+	atomic_long_t	mibs[ICMP6MSG_MIB_MAX];
 };
 /* per device counters, (shared on all cpus) */
 struct icmpv6msg_mib_device {
