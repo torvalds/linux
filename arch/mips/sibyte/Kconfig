@@ -71,7 +71,6 @@ config SIBYTE_SB1xxx_SOC
 	bool
 	select DMA_COHERENT
 	select IRQ_CPU
-	select SIBYTE_CFE
 	select SWAP_IO_SPACE
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
