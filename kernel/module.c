@@ -2193,6 +2193,13 @@ static void layout_symtab(struct module *mod, struct load_info *info)
 
 	src = (void *)info->hdr + symsect->sh_offset;
 	nsrc = symsect->sh_size / sizeof(*src);
+
+	/*
+	 * info->strmap has a '1' bit for each byte of .strtab we want to
+	 * keep resident in mod->core_strtab.  Everything else in .strtab
+	 * is unreferenced by the symbols in mod->core_symtab, and will be
+	 * discarded when add_kallsyms() compacts the string table.
+	 */
 	for (ndst = i = 1; i < nsrc; ++i, ++src)
 		if (is_core_symbol(src, info->sechdrs, info->hdr->e_shnum)) {
 			unsigned int j = src->st_name;
@@ -2215,6 +2222,8 @@ static void layout_symtab(struct module *mod, struct load_info *info)
 
 	/* Append room for core symbols' strings at end of core part. */
 	info->stroffs = mod->core_size;
+
+	/* First strtab byte (and first symtab entry) are zeroes. */
 	__set_bit(0, info->strmap);
 	mod->core_size += bitmap_weight(info->strmap, strsect->sh_size);
 }
