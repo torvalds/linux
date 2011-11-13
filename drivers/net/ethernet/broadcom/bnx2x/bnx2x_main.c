@@ -5247,7 +5247,7 @@ static void bnx2x_init_eth_fp(struct bnx2x *bp, int fp_idx)
 	u8 cos;
 	unsigned long q_type = 0;
 	u32 cids[BNX2X_MULTI_TX_COS] = { 0 };
-
+	fp->rx_queue = fp_idx;
 	fp->cid = fp_idx;
 	fp->cl_id = bnx2x_fp_cl_id(fp);
 	fp->fw_sb_id = bnx2x_fp_fw_sb_id(fp);

@@ -755,7 +755,7 @@ reuse_rx:
 			}
 		}
 
-		skb_record_rx_queue(skb, fp->index);
+		skb_record_rx_queue(skb, fp->rx_queue);
 
 		if (le16_to_cpu(cqe_fp->pars_flags.flags) &
 		    PARSING_FLAGS_VLAN)
