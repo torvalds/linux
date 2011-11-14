@@ -177,6 +177,40 @@ static void fimd_commit(struct device *dev)
 	writel(val, ctx->regs + VIDCON0);
 }
 
+static void fimd_disable(struct device *dev)
+{
+	struct fimd_context *ctx = get_fimd_context(dev);
+	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
+	struct drm_device *drm_dev = subdrv->drm_dev;
+	struct exynos_drm_manager *manager = &subdrv->manager;
+	u32 val;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	/* fimd dma off */
+	val = readl(ctx->regs + VIDCON0);
+	val &= ~(VIDCON0_ENVID | VIDCON0_ENVID_F);
+	writel(val, ctx->regs + VIDCON0);
+
+	/*
+	 * if vblank is enabled status with dma off then
+	 * it disables vsync interrupt.
+	 */
+	if (drm_dev->vblank_enabled[manager->pipe] &&
+		atomic_read(&drm_dev->vblank_refcount[manager->pipe])) {
+		drm_vblank_put(drm_dev, manager->pipe);
+
+		/*
+		 * if vblank_disable_allowed is 0 then disable
+		 * vsync interrupt right now else the vsync interrupt
+		 * would be disabled by drm timer once a current process
+		 * gives up ownershop of vblank event.
+		 */
+		if (!drm_dev->vblank_disable_allowed)
+			drm_vblank_off(drm_dev, manager->pipe);
+	}
+}
+
 static int fimd_enable_vblank(struct device *dev)
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
@@ -220,6 +254,7 @@ static void fimd_disable_vblank(struct device *dev)
 
 static struct exynos_drm_manager_ops fimd_manager_ops = {
 	.commit = fimd_commit,
+	.disable = fimd_disable,
 	.enable_vblank = fimd_enable_vblank,
 	.disable_vblank = fimd_disable_vblank,
 };
@@ -447,9 +482,6 @@ static void fimd_win_commit(struct device *dev)
 static void fimd_win_disable(struct device *dev)
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
-	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
-	struct drm_device *drm_dev = subdrv->drm_dev;
-	struct exynos_drm_manager *manager = &subdrv->manager;
 	int win = ctx->default_win;
 	u32 val;
 
@@ -473,29 +505,6 @@ static void fimd_win_disable(struct device *dev)
 	val &= ~SHADOWCON_CHx_ENABLE(win);
 	val &= ~SHADOWCON_WINx_PROTECT(win);
 	writel(val, ctx->regs + SHADOWCON);
-
-	/* fimd dma off. */
-	val = readl(ctx->regs + VIDCON0);
-	val &= ~(VIDCON0_ENVID | VIDCON0_ENVID_F);
-	writel(val, ctx->regs + VIDCON0);
-
-	/*
-	 * if vblank is enabled status with dma off then
-	 * it disables vsync interrupt.
-	 */
-	if (drm_dev->vblank_enabled[manager->pipe] &&
-			atomic_read(&drm_dev->vblank_refcount[manager->pipe])) {
-		drm_vblank_put(drm_dev, manager->pipe);
-
-		/*
-		 * if vblank_disable_allowed is 0 then disable vsync interrupt
-		 * right now else the vsync interrupt would be disabled by drm
-		 * timer once a current process gives up ownershop of
-		 * vblank event.
-		 */
-		if (!drm_dev->vblank_disable_allowed)
-			drm_vblank_off(drm_dev, manager->pipe);
-	}
 }
 
 static struct exynos_drm_overlay_ops fimd_overlay_ops = {

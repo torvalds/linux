@@ -53,8 +53,26 @@ static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;
 	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
+	struct exynos_drm_manager_ops *manager_ops = manager->ops;
 
 	DRM_DEBUG_KMS("%s, encoder dpms: %d\n", __FILE__, mode);
+
+	switch (mode) {
+	case DRM_MODE_DPMS_ON:
+		if (manager_ops && manager_ops->commit)
+			manager_ops->commit(manager->dev);
+		break;
+	case DRM_MODE_DPMS_STANDBY:
+	case DRM_MODE_DPMS_SUSPEND:
+	case DRM_MODE_DPMS_OFF:
+		/* TODO */
+		if (manager_ops && manager_ops->disable)
+			manager_ops->disable(manager->dev);
+		break;
+	default:
+		DRM_ERROR("unspecified mode %d\n", mode);
+		break;
+	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder) {

@@ -147,12 +147,14 @@ struct exynos_drm_display_ops {
  * @mode_set: convert drm_display_mode to hw specific display mode and
  *	      would be called by encoder->mode_set().
  * @commit: set current hw specific display mode to hw.
+ * @disable: disable hardware specific display mode.
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
  */
 struct exynos_drm_manager_ops {
 	void (*mode_set)(struct device *subdrv_dev, void *mode);
 	void (*commit)(struct device *subdrv_dev);
+	void (*disable)(struct device *subdrv_dev);
 	int (*enable_vblank)(struct device *subdrv_dev);
 	void (*disable_vblank)(struct device *subdrv_dev);
 };
