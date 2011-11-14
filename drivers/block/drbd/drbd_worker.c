@@ -109,7 +109,7 @@ void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __releases(lo
 		__drbd_chk_io_error(mdev, false);
 	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
-	drbd_queue_work(&mdev->tconn->data.work, &peer_req->w);
+	drbd_queue_work(&mdev->tconn->sender_work, &peer_req->w);
 	put_ldev(mdev);
 }
 
@@ -401,7 +401,7 @@ void resync_timer_fn(unsigned long data)
 	struct drbd_conf *mdev = (struct drbd_conf *) data;
 
 	if (list_empty(&mdev->resync_work.list))
-		drbd_queue_work(&mdev->tconn->data.work, &mdev->resync_work);
+		drbd_queue_work(&mdev->tconn->sender_work, &mdev->resync_work);
 }
 
 static void fifo_set(struct fifo_buffer *fb, int value)
@@ -783,7 +783,7 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 		if (w) {
 			w->cb = w_resync_finished;
 			w->mdev = mdev;
-			drbd_queue_work(&mdev->tconn->data.work, w);
+			drbd_queue_work(&mdev->tconn->sender_work, w);
 			return 1;
 		}
 		dev_err(DEV, "Warn failed to drbd_rs_del_all() and to kmalloc(w).\n");
@@ -1484,7 +1484,7 @@ void start_resync_timer_fn(unsigned long data)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *) data;
 
-	drbd_queue_work(&mdev->tconn->data.work, &mdev->start_resync_work);
+	drbd_queue_work(&mdev->tconn->sender_work, &mdev->start_resync_work);
 }
 
 int w_start_resync(struct drbd_work *w, int cancel)
@@ -1706,7 +1706,7 @@ int drbd_worker(struct drbd_thread *thi)
 		/* as long as we use drbd_queue_work_front(),
 		 * we may only dequeue single work items here, not batches. */
 		if (list_empty(&work_list))
-			dequeue_work_item(&tconn->data.work, &work_list);
+			dequeue_work_item(&tconn->sender_work, &work_list);
 
 		/* Still nothing to do? Poke TCP, just in case,
 		 * then wait for new work (or signal). */
@@ -1721,8 +1721,8 @@ int drbd_worker(struct drbd_thread *thi)
 				drbd_tcp_uncork(tconn->data.socket);
 			mutex_unlock(&tconn->data.mutex);
 
-			wait_event_interruptible(tconn->data.work.q_wait,
-				dequeue_work_item(&tconn->data.work, &work_list));
+			wait_event_interruptible(tconn->sender_work.q_wait,
+				dequeue_work_item(&tconn->sender_work, &work_list));
 
 			mutex_lock(&tconn->data.mutex);
 			if (tconn->data.socket && cork)
@@ -1758,7 +1758,7 @@ int drbd_worker(struct drbd_thread *thi)
 			list_del_init(&w->list);
 			w->cb(w, 1);
 		}
-		dequeue_work_batch(&tconn->data.work, &work_list);
+		dequeue_work_batch(&tconn->sender_work, &work_list);
 	} while (!list_empty(&work_list));
 
 	rcu_read_lock();

@@ -170,7 +170,7 @@ static void queue_barrier(struct drbd_conf *mdev)
 	 * dec_ap_pending will be done in got_BarrierAck
 	 * or (on connection loss) in tl_clear.  */
 	inc_ap_pending(mdev);
-	drbd_queue_work(&tconn->data.work, &b->w);
+	drbd_queue_work(&tconn->sender_work, &b->w);
 	set_bit(CREATE_BARRIER, &tconn->flags);
 }
 
@@ -483,7 +483,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		D_ASSERT((req->rq_state & RQ_LOCAL_MASK) == 0);
 		req->rq_state |= RQ_NET_QUEUED;
 		req->w.cb = w_send_read_req;
-		drbd_queue_work(&mdev->tconn->data.work, &req->w);
+		drbd_queue_work(&mdev->tconn->sender_work, &req->w);
 		break;
 
 	case QUEUE_FOR_NET_WRITE:
@@ -527,7 +527,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
 		req->rq_state |= RQ_NET_QUEUED;
 		req->w.cb =  w_send_dblock;
-		drbd_queue_work(&mdev->tconn->data.work, &req->w);
+		drbd_queue_work(&mdev->tconn->sender_work, &req->w);
 
 		/* close the epoch, in case it outgrew the limit */
 		rcu_read_lock();
@@ -542,7 +542,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 	case QUEUE_FOR_SEND_OOS:
 		req->rq_state |= RQ_NET_QUEUED;
 		req->w.cb =  w_send_out_of_sync;
-		drbd_queue_work(&mdev->tconn->data.work, &req->w);
+		drbd_queue_work(&mdev->tconn->sender_work, &req->w);
 		break;
 
 	case READ_RETRY_REMOTE_CANCELED:
@@ -682,7 +682,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		get_ldev(mdev);
 		req->w.cb = w_restart_disk_io;
-		drbd_queue_work(&mdev->tconn->data.work, &req->w);
+		drbd_queue_work(&mdev->tconn->sender_work, &req->w);
 		break;
 
 	case RESEND:
@@ -692,7 +692,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		   During connection handshake, we ensure that the peer was not rebooted. */
 		if (!(req->rq_state & RQ_NET_OK)) {
 			if (req->w.cb) {
-				drbd_queue_work(&mdev->tconn->data.work, &req->w);
+				drbd_queue_work(&mdev->tconn->sender_work, &req->w);
 				rv = req->rq_state & RQ_WRITE ? MR_WRITE : MR_READ;
 			}
 			break;

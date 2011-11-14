@@ -740,7 +740,6 @@ struct drbd_work_queue {
 };
 
 struct drbd_socket {
-	struct drbd_work_queue work;
 	struct mutex mutex;
 	struct socket    *socket;
 	/* this way we get our
@@ -871,6 +870,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 	struct drbd_thread worker;
 	struct drbd_thread asender;
 	cpumask_var_t cpu_mask;
+	struct drbd_work_queue sender_work;
 };
 
 struct drbd_conf {
@@ -2228,7 +2228,7 @@ static inline void dec_ap_bio(struct drbd_conf *mdev)
 		wake_up(&mdev->misc_wait);
 	if (ap_bio == 0 && test_bit(BITMAP_IO, &mdev->flags)) {
 		if (!test_and_set_bit(BITMAP_IO_QUEUED, &mdev->flags))
-			drbd_queue_work(&mdev->tconn->data.work, &mdev->bm_io_work.w);
+			drbd_queue_work(&mdev->tconn->sender_work, &mdev->bm_io_work.w);
 	}
 }
 

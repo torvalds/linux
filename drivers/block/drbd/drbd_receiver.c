@@ -4413,7 +4413,7 @@ void conn_flush_workqueue(struct drbd_tconn *tconn)
 	barr.w.cb = w_prev_work_done;
 	barr.w.tconn = tconn;
 	init_completion(&barr.done);
-	drbd_queue_work(&tconn->data.work, &barr.w);
+	drbd_queue_work(&tconn->sender_work, &barr.w);
 	wait_for_completion(&barr.done);
 }
 
@@ -5147,7 +5147,7 @@ static int got_OVResult(struct drbd_tconn *tconn, struct packet_info *pi)
 		if (w) {
 			w->cb = w_ov_finished;
 			w->mdev = mdev;
-			drbd_queue_work_front(&mdev->tconn->data.work, w);
+			drbd_queue_work(&mdev->tconn->sender_work, w);
 		} else {
 			dev_err(DEV, "kmalloc(w) failed.");
 			ov_out_of_sync_print(mdev);
