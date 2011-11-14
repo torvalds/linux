@@ -225,6 +225,8 @@ int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 	if (snd_hda_ctl_add(codec, nid, kctl) < 0)
 		return -ENOMEM;
 	jack->kctl = kctl;
+	snd_kctl_jack_report(codec->bus->card, kctl,
+			     snd_hda_jack_detect(codec, nid));
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_jack_add_kctl);
