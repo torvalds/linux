@@ -1862,7 +1862,7 @@ static void unfreeze_partials(struct kmem_cache *s)
 {
 	struct kmem_cache_node *n = NULL;
 	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
-	struct page *page;
+	struct page *page, *discard_page = NULL;
 
 	while ((page = c->partial)) {
 		enum slab_modes { M_PARTIAL, M_FREE };
@@ -1916,14 +1916,22 @@ static void unfreeze_partials(struct kmem_cache *s)
 				"unfreezing slab"));
 
 		if (m == M_FREE) {
-			stat(s, DEACTIVATE_EMPTY);
-			discard_slab(s, page);
-			stat(s, FREE_SLAB);
+			page->next = discard_page;
+			discard_page = page;
 		}
 	}
 
 	if (n)
 		spin_unlock(&n->list_lock);
+
+	while (discard_page) {
+		page = discard_page;
+		discard_page = discard_page->next;
+
+		stat(s, DEACTIVATE_EMPTY);
+		discard_slab(s, page);
+		stat(s, FREE_SLAB);
+	}
 }
 
 /*
