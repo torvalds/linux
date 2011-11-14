@@ -581,7 +581,7 @@ static int mscan_open(struct net_device *dev)
 
 	priv->open_time = jiffies;
 
-	if (ctrlmode.flags & CAN_CTRLMODE_LISTENONLY)
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
 		setbits8(&regs->canctl1, MSCAN_LISTEN);
 	else
 		clrbits8(&regs->canctl1, MSCAN_LISTEN);
