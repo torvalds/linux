@@ -978,7 +978,7 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd, *begin = NULL;
 	struct gfs2_alloc *al = ip->i_alloc;
-	int error, rg_locked;
+	int error, rg_locked, flags = LM_FLAG_TRY;
 	int loops = 0;
 
 	if (ip->i_rgd && rgrp_contains_block(ip->i_rgd, ip->i_goal))
@@ -997,7 +997,7 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			error = 0;
 		} else {
 			error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE,
-						   LM_FLAG_TRY, &al->al_rgd_gh);
+						   flags, &al->al_rgd_gh);
 		}
 		switch (error) {
 		case 0:
@@ -1012,8 +1012,10 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			/* fall through */
 		case GLR_TRYFAILED:
 			rgd = gfs2_rgrpd_get_next(rgd);
-			if (rgd == begin)
+			if (rgd == begin) {
+				flags = 0;
 				loops++;
+			}
 			break;
 		default:
 			return error;
