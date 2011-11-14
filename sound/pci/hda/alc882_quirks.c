@@ -13,10 +13,6 @@ enum {
 	ALC885_MACMINI3,
 	ALC885_IMAC24,
 	ALC885_IMAC91,
-	ALC888_ACER_ASPIRE_4930G,
-	ALC888_ACER_ASPIRE_6530G,
-	ALC888_ACER_ASPIRE_8930G,
-	ALC888_ACER_ASPIRE_7730G,
 	ALC889A_MB31,
 	ALC882_MODEL_LAST,
 };
@@ -43,15 +39,9 @@ static const hda_nid_t alc882_dac_nids[4] = {
 #define alc882_adc_nids		alc880_adc_nids
 #define alc882_adc_nids_alt	alc880_adc_nids_alt
 #define alc883_adc_nids		alc882_adc_nids_alt
-static const hda_nid_t alc883_adc_nids_alt[1] = { 0x08 };
-static const hda_nid_t alc883_adc_nids_rev[2] = { 0x09, 0x08 };
-#define alc889_adc_nids		alc880_adc_nids
 
-static const hda_nid_t alc882_capsrc_nids[3] = { 0x24, 0x23, 0x22 };
 static const hda_nid_t alc882_capsrc_nids_alt[2] = { 0x23, 0x22 };
 #define alc883_capsrc_nids	alc882_capsrc_nids_alt
-static const hda_nid_t alc883_capsrc_nids_rev[2] = { 0x22, 0x23 };
-#define alc889_capsrc_nids	alc882_capsrc_nids
 
 /* input MUX */
 /* FIXME: should be a matrix-type input source selection */
@@ -67,15 +57,6 @@ static const struct hda_input_mux alc882_capture_source = {
 };
 
 #define alc883_capture_source	alc882_capture_source
-
-static const struct hda_input_mux alc889_capture_source = {
-	.num_items = 3,
-	.items = {
-		{ "Front Mic", 0x0 },
-		{ "Mic", 0x3 },
-		{ "Line", 0x2 },
-	},
-};
 
 static const struct hda_input_mux mb5_capture_source = {
 	.num_items = 3,
@@ -122,58 +103,6 @@ static const struct hda_input_mux alc889A_imac91_capture_source = {
 		{ "Line", 0x2 }, /* Not sure! */
 	},
 };
-
-/*
- * 2ch mode
- */
-static const struct hda_channel_mode alc883_3ST_2ch_modes[1] = {
-	{ 2, NULL }
-};
-
-/*
- * 2ch mode
- */
-static const struct hda_verb alc882_3ST_ch2_init[] = {
-	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
-	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
-	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
-	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
-	{ } /* end */
-};
-
-/*
- * 4ch mode
- */
-static const struct hda_verb alc882_3ST_ch4_init[] = {
-	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
-	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
-	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x01 },
-	{ } /* end */
-};
-
-/*
- * 6ch mode
- */
-static const struct hda_verb alc882_3ST_ch6_init[] = {
-	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x18, AC_VERB_SET_CONNECT_SEL, 0x02 },
-	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x01 },
-	{ } /* end */
-};
-
-static const struct hda_channel_mode alc882_3ST_6ch_modes[3] = {
-	{ 2, alc882_3ST_ch2_init },
-	{ 4, alc882_3ST_ch4_init },
-	{ 6, alc882_3ST_ch6_init },
-};
-
-#define alc883_3ST_6ch_modes	alc882_3ST_6ch_modes
-
 
 /* Macbook Air 2,1 */
 
@@ -377,24 +306,6 @@ static const struct hda_verb alc882_base_init_verbs[] = {
 	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
 
-	{ }
-};
-
-static const struct hda_verb alc882_adc1_init_verbs[] = {
-	/* Input mixer1: unmute Mic, F-Mic, Line, CD inputs */
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
-	/* ADC1: mute amp left and right */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{ }
-};
-
-static const struct hda_verb alc889_eapd_verbs[] = {
-	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
-	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 2},
 	{ }
 };
 
@@ -886,19 +797,6 @@ static const struct snd_kcontrol_new alc883_3ST_6ch_mixer[] = {
 	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
 	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x19, 0, HDA_INPUT),
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct snd_kcontrol_new alc888_acer_aspire_6530_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("LFE Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
 	{ } /* end */
 };
 
