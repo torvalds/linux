@@ -334,9 +334,6 @@ struct host_interest {
 	(((target_type) == TARGET_TYPE_AR6003) ? AR6003_VTOP(vaddr) : \
 	(((target_type) == TARGET_TYPE_AR6004) ? AR6004_VTOP(vaddr) : 0))
 
-#define AR6004_REV1_BOARD_DATA_ADDRESS          0x433900
-#define AR6004_REV2_BOARD_DATA_ADDRESS          0x43d400
-
 #define ATH6KL_FWLOG_PAYLOAD_SIZE		1500
 
 struct ath6kl_dbglog_buf {

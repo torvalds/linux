@@ -57,6 +57,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.app_load_addr			= 0x1234,
 		.board_ext_data_addr		= 0x437000,
 		.reserved_ram_size		= 19456,
+		.board_addr			= 0x433900,
 	},
 	{
 		.id				= AR6004_REV2_VERSION,
@@ -64,6 +65,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.app_load_addr			= 0x1234,
 		.board_ext_data_addr		= 0x437000,
 		.reserved_ram_size		= 11264,
+		.board_addr			= 0x43d400,
 	},
 };
 
@@ -1031,12 +1033,8 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 	 * For AR6004, host determine Target RAM address for
 	 * writing board data.
 	 */
-	if (ar->target_type == TARGET_TYPE_AR6004) {
-		if (ar->version.target_ver == AR6004_REV1_VERSION)
-			board_address = AR6004_REV1_BOARD_DATA_ADDRESS;
-		else
-			board_address = AR6004_REV2_BOARD_DATA_ADDRESS;
-
+	if (ar->hw.board_addr != 0) {
+		board_address = ar->hw.board_addr;
 		ath6kl_bmi_write(ar,
 				ath6kl_get_hi_item_addr(ar,
 				HI_ITEM(hi_board_data)),
