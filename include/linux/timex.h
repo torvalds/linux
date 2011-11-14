@@ -250,7 +250,7 @@ extern void ntp_clear(void);
 #define NTP_INTERVAL_LENGTH (NSEC_PER_SEC/NTP_INTERVAL_FREQ)
 
 /* Returns how long ticks are at present, in ns / 2^NTP_SCALE_SHIFT. */
-extern u64 tick_length;
+extern u64 ntp_tick_length(void);
 
 extern void second_overflow(void);
 extern int do_adjtimex(struct timex *);

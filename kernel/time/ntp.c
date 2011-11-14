@@ -28,7 +28,7 @@ unsigned long			tick_usec = TICK_USEC;
 /* ACTHZ period (nsecs): */
 unsigned long			tick_nsec;
 
-u64				tick_length;
+static u64			tick_length;
 static u64			tick_length_base;
 
 static struct hrtimer		leap_timer;
@@ -359,6 +359,13 @@ void ntp_clear(void)
 	/* Clear PPS state variables */
 	pps_clear();
 }
+
+
+u64 ntp_tick_length(void)
+{
+	return tick_length;
+}
+
 
 /*
  * Leap second processing. If in leap-insert state at the end of the
