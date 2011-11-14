@@ -47,6 +47,10 @@ struct timekeeper {
 	int	ntp_error_shift;
 	/* NTP adjusted clock multiplier */
 	u32	mult;
+
+	/* time spent in suspend */
+	struct timespec total_sleep_time;
+
 };
 
 static struct timekeeper timekeeper;
@@ -159,7 +163,6 @@ __cacheline_aligned_in_smp DEFINE_SEQLOCK(xtime_lock);
  */
 static struct timespec xtime __attribute__ ((aligned (16)));
 static struct timespec wall_to_monotonic __attribute__ ((aligned (16)));
-static struct timespec total_sleep_time;
 
 /*
  * The raw monotonic time for the CLOCK_MONOTONIC_RAW posix clock.
@@ -591,8 +594,8 @@ void __init timekeeping_init(void)
 	}
 	set_normalized_timespec(&wall_to_monotonic,
 				-boot.tv_sec, -boot.tv_nsec);
-	total_sleep_time.tv_sec = 0;
-	total_sleep_time.tv_nsec = 0;
+	timekeeper.total_sleep_time.tv_sec = 0;
+	timekeeper.total_sleep_time.tv_nsec = 0;
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 }
 
@@ -616,7 +619,8 @@ static void __timekeeping_inject_sleeptime(struct timespec *delta)
 
 	xtime = timespec_add(xtime, *delta);
 	wall_to_monotonic = timespec_sub(wall_to_monotonic, *delta);
-	total_sleep_time = timespec_add(total_sleep_time, *delta);
+	timekeeper.total_sleep_time = timespec_add(
+					timekeeper.total_sleep_time, *delta);
 }
 
 
@@ -1074,8 +1078,10 @@ static void update_wall_time(void)
 void getboottime(struct timespec *ts)
 {
 	struct timespec boottime = {
-		.tv_sec = wall_to_monotonic.tv_sec + total_sleep_time.tv_sec,
-		.tv_nsec = wall_to_monotonic.tv_nsec + total_sleep_time.tv_nsec
+		.tv_sec = wall_to_monotonic.tv_sec +
+				timekeeper.total_sleep_time.tv_sec,
+		.tv_nsec = wall_to_monotonic.tv_nsec +
+				timekeeper.total_sleep_time.tv_nsec
 	};
 
 	set_normalized_timespec(ts, -boottime.tv_sec, -boottime.tv_nsec);
@@ -1104,7 +1110,7 @@ void get_monotonic_boottime(struct timespec *ts)
 		seq = read_seqbegin(&xtime_lock);
 		*ts = xtime;
 		tomono = wall_to_monotonic;
-		sleep = total_sleep_time;
+		sleep = timekeeper.total_sleep_time;
 		nsecs = timekeeping_get_ns();
 
 	} while (read_seqretry(&xtime_lock, seq));
@@ -1137,7 +1143,7 @@ EXPORT_SYMBOL_GPL(ktime_get_boottime);
  */
 void monotonic_to_bootbased(struct timespec *ts)
 {
-	*ts = timespec_add(*ts, total_sleep_time);
+	*ts = timespec_add(*ts, timekeeper.total_sleep_time);
 }
 EXPORT_SYMBOL_GPL(monotonic_to_bootbased);
 
@@ -1212,7 +1218,7 @@ void get_xtime_and_monotonic_and_sleep_offset(struct timespec *xtim,
 		seq = read_seqbegin(&xtime_lock);
 		*xtim = xtime;
 		*wtom = wall_to_monotonic;
-		*sleep = total_sleep_time;
+		*sleep = timekeeper.total_sleep_time;
 	} while (read_seqretry(&xtime_lock, seq));
 }
 
