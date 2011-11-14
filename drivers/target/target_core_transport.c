@@ -2029,7 +2029,7 @@ static int transport_execute_tasks(struct se_cmd *cmd)
 {
 	int add_tasks;
 
-	if (se_dev_check_online(cmd->se_orig_obj_ptr) != 0) {
+	if (se_dev_check_online(cmd->se_dev) != 0) {
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		transport_generic_request_failure(cmd);
 		return 0;
