@@ -300,10 +300,10 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 static bool
 minstrel_ht_txstat_valid(struct ieee80211_tx_rate *rate)
 {
-	if (!rate->count)
+	if (rate->idx < 0)
 		return false;
 
-	if (rate->idx < 0)
+	if (!rate->count)
 		return false;
 
 	return !!(rate->flags & IEEE80211_TX_RC_MCS);
