@@ -173,11 +173,14 @@ asmlinkage long sys32_setfsgid16(u16 gid)
 
 static int groups16_to_user(u16 __user *grouplist, struct group_info *group_info)
 {
+	struct user_namespace *user_ns = current_user_ns();
 	int i;
 	u16 group;
+	kgid_t kgid;
 
 	for (i = 0; i < group_info->ngroups; i++) {
-		group = (u16)GROUP_AT(group_info, i);
+		kgid = GROUP_AT(group_info, i);
+		group = (u16)from_kgid_munged(user_ns, kgid);
 		if (put_user(group, grouplist+i))
 			return -EFAULT;
 	}
@@ -187,13 +190,20 @@ static int groups16_to_user(u16 __user *grouplist, struct group_info *group_info
 
 static int groups16_from_user(struct group_info *group_info, u16 __user *grouplist)
 {
+	struct user_namespace *user_ns = current_user_ns();
 	int i;
 	u16 group;
+	kgid_t kgid;
 
 	for (i = 0; i < group_info->ngroups; i++) {
 		if (get_user(group, grouplist+i))
 			return  -EFAULT;
-		GROUP_AT(group_info, i) = (gid_t)group;
+
+		kgid = make_kgid(user_ns, (gid_t)group);
+		if (!gid_valid(kgid))
+			return -EINVAL;
+
+		GROUP_AT(group_info, i) = kgid;
 	}
 
 	return 0;
