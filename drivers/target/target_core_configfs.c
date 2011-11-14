@@ -46,11 +46,10 @@
 #include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 
+#include "target_core_internal.h"
 #include "target_core_alua.h"
-#include "target_core_hba.h"
 #include "target_core_pr.h"
 #include "target_core_rd.h"
-#include "target_core_stat.h"
 
 extern struct t10_alua_lu_gp *default_lu_gp;
 

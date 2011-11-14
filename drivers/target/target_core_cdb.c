@@ -31,8 +31,9 @@
 #include <target/target_core_base.h>
 #include <target/target_core_transport.h>
 #include <target/target_core_fabric_ops.h>
+
+#include "target_core_internal.h"
 #include "target_core_ua.h"
-#include "target_core_cdb.h"
 
 static void
 target_fill_alua_data(struct se_port *port, unsigned char *buf)

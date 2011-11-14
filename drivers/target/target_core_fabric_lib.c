@@ -40,7 +40,7 @@
 #include <target/target_core_fabric_ops.h>
 #include <target/target_core_configfs.h>
 
-#include "target_core_hba.h"
+#include "target_core_internal.h"
 #include "target_core_pr.h"
 
 /*

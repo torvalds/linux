@@ -52,9 +52,8 @@
 #include <target/target_core_fabric_ops.h>
 #include <target/target_core_configfs.h>
 
+#include "target_core_internal.h"
 #include "target_core_alua.h"
-#include "target_core_cdb.h"
-#include "target_core_hba.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
@@ -212,14 +211,13 @@ u32 scsi_get_new_index(scsi_index_t type)
 	return new_index;
 }
 
-void transport_init_queue_obj(struct se_queue_obj *qobj)
+static void transport_init_queue_obj(struct se_queue_obj *qobj)
 {
 	atomic_set(&qobj->queue_cnt, 0);
 	INIT_LIST_HEAD(&qobj->qobj_list);
 	init_waitqueue_head(&qobj->thread_wq);
 	spin_lock_init(&qobj->cmd_queue_lock);
 }
-EXPORT_SYMBOL(transport_init_queue_obj);
 
 void transport_subsystem_check_init(void)
 {
@@ -896,7 +894,7 @@ void __transport_remove_task_from_execute_queue(struct se_task *task,
 	atomic_dec(&dev->execute_tasks);
 }
 
-void transport_remove_task_from_execute_queue(
+static void transport_remove_task_from_execute_queue(
 	struct se_task *task,
 	struct se_device *dev)
 {
@@ -3346,6 +3344,32 @@ static inline void transport_free_pages(struct se_cmd *cmd)
 }
 
 /**
+ * transport_release_cmd - free a command
+ * @cmd:       command to free
+ *
+ * This routine unconditionally frees a command, and reference counting
+ * or list removal must be done in the caller.
+ */
+static void transport_release_cmd(struct se_cmd *cmd)
+{
+	BUG_ON(!cmd->se_tfo);
+
+	if (cmd->se_tmr_req)
+		core_tmr_release_req(cmd->se_tmr_req);
+	if (cmd->t_task_cdb != cmd->__t_task_cdb)
+		kfree(cmd->t_task_cdb);
+	/*
+	 * Check if target_wait_for_sess_cmds() is expecting to
+	 * release se_cmd directly here..
+	 */
+	if (cmd->check_release != 0 && cmd->se_tfo->check_release_cmd)
+		if (cmd->se_tfo->check_release_cmd(cmd) != 0)
+			return;
+
+	cmd->se_tfo->release_cmd(cmd);
+}
+
+/**
  * transport_put_cmd - release a reference to a command
  * @cmd:       command to release
  *
@@ -3869,33 +3893,6 @@ queue_full:
 	transport_handle_queue_full(cmd, cmd->se_dev);
 	return 0;
 }
-
-/**
- * transport_release_cmd - free a command
- * @cmd:       command to free
- *
- * This routine unconditionally frees a command, and reference counting
- * or list removal must be done in the caller.
- */
-void transport_release_cmd(struct se_cmd *cmd)
-{
-	BUG_ON(!cmd->se_tfo);
-
-	if (cmd->se_tmr_req)
-		core_tmr_release_req(cmd->se_tmr_req);
-	if (cmd->t_task_cdb != cmd->__t_task_cdb)
-		kfree(cmd->t_task_cdb);
-	/*
-	 * Check if target_wait_for_sess_cmds() is expecting to
-	 * release se_cmd directly here..
-	 */
-	if (cmd->check_release != 0 && cmd->se_tfo->check_release_cmd)
-		if (cmd->se_tfo->check_release_cmd(cmd) != 0)
-			return;
-
-	cmd->se_tfo->release_cmd(cmd);
-}
-EXPORT_SYMBOL(transport_release_cmd);
 
 void transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 {
@@ -4545,11 +4542,7 @@ void transport_send_task_abort(struct se_cmd *cmd)
 	cmd->se_tfo->queue_status(cmd);
 }
 
-/*	transport_generic_do_tmr():
- *
- *
- */
-int transport_generic_do_tmr(struct se_cmd *cmd)
+static int transport_generic_do_tmr(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_tmr_req *tmr = cmd->se_tmr_req;
