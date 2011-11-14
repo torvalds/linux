@@ -120,11 +120,48 @@ struct drm_mode_crtc {
 	struct drm_mode_modeinfo mode;
 };
 
-#define DRM_MODE_ENCODER_NONE	 0
-#define DRM_MODE_ENCODER_DAC	 1
-#define DRM_MODE_ENCODER_TMDS	 2
-#define DRM_MODE_ENCODER_LVDS	 3
-#define DRM_MODE_ENCODER_TVDAC	 4
+#define DRM_MODE_PRESENT_TOP_FIELD	(1<<0)
+#define DRM_MODE_PRESENT_BOTTOM_FIELD	(1<<1)
+
+/* Planes blend with or override other bits on the CRTC */
+struct drm_mode_set_plane {
+	__u32 plane_id;
+	__u32 crtc_id;
+	__u32 fb_id; /* fb object contains surface format type */
+	__u32 flags; /* see above flags */
+
+	/* Signed dest location allows it to be partially off screen */
+	__s32 crtc_x, crtc_y;
+	__u32 crtc_w, crtc_h;
+
+	/* Source values are 16.16 fixed point */
+	__u32 src_x, src_y;
+	__u32 src_h, src_w;
+};
+
+struct drm_mode_get_plane {
+	__u32 plane_id;
+
+	__u32 crtc_id;
+	__u32 fb_id;
+
+	__u32 possible_crtcs;
+	__u32 gamma_size;
+
+	__u32 count_format_types;
+	__u64 format_type_ptr;
+};
+
+struct drm_mode_get_plane_res {
+	__u64 plane_id_ptr;
+	__u32 count_planes;
+};
+
+#define DRM_MODE_ENCODER_NONE	0
+#define DRM_MODE_ENCODER_DAC	1
+#define DRM_MODE_ENCODER_TMDS	2
+#define DRM_MODE_ENCODER_LVDS	3
+#define DRM_MODE_ENCODER_TVDAC	4
 #define DRM_MODE_ENCODER_VIRTUAL 5
 
 struct drm_mode_get_encoder {
