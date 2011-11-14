@@ -20,6 +20,7 @@
 #include <linux/bitops.h>
 #include <net/sock.h>		/* for sock_no_* */
 #include <linux/uaccess.h>
+#include <linux/export.h>
 
 #include "resources.h"
 #include "common.h"		/* common for PVCs and SVCs */

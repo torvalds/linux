@@ -23,6 +23,7 @@
 
 #include <linux/slab.h>
 #include <linux/kfifo.h>
+#include <linux/module.h>
 #include <media/cx25840.h>
 #include <media/rc-core.h>
 

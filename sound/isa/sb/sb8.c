@@ -23,7 +23,7 @@
 #include <linux/err.h>
 #include <linux/isa.h>
 #include <linux/ioport.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/sb.h>
 #include <sound/opl3.h>

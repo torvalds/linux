@@ -11,6 +11,7 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  */
+#include <linux/export.h>
 #include "udp_impl.h"
 
 static int udplitev6_rcv(struct sk_buff *skb)

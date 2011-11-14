@@ -42,6 +42,7 @@
 #include <linux/sched.h>
 #include <linux/ksm.h>
 #include <linux/rmap.h>
+#include <linux/export.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
 #include <linux/backing-dev.h>

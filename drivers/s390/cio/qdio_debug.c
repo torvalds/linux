@@ -7,6 +7,8 @@
  */
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/uaccess.h>
+#include <linux/export.h>
 #include <asm/debug.h>
 #include "qdio_debug.h"
 #include "qdio.h"

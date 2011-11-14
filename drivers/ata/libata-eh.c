@@ -34,6 +34,7 @@
 
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -2882,7 +2883,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	    sata_scr_read(link, SCR_STATUS, &sstatus))
 		rc = -ERESTART;
 
-	if (rc == -ERESTART || try >= max_tries) {
+	if (try >= max_tries) {
 		/*
 		 * Thaw host port even if reset failed, so that the port
 		 * can be retried on the next phy event.  This risks
@@ -2906,6 +2907,16 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		while (delta)
 			delta = schedule_timeout_uninterruptible(delta);
 		ata_eh_acquire(ap);
+	}
+
+	/*
+	 * While disks spinup behind PMP, some controllers fail sending SRST.
+	 * They need to be reset - as well as the PMP - before retrying.
+	 */
+	if (rc == -ERESTART) {
+		if (ata_is_host_link(link))
+			ata_eh_thaw_port(ap);
+		goto out;
 	}
 
 	if (try == max_tries - 1) {

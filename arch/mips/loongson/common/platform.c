@@ -9,6 +9,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/smp.h>
 #include <linux/platform_device.h>
 
 static struct platform_device loongson2_cpufreq_device = {

@@ -74,7 +74,6 @@ struct txx9ndfmc_drvdata {
 	unsigned char hold;	/* in gbusclock */
 	unsigned char spw;	/* in gbusclock */
 	struct nand_hw_control hw_control;
-	struct mtd_partition *parts[MAX_TXX9NDFMC_DEV];
 };
 
 static struct platform_device *mtd_to_platdev(struct mtd_info *mtd)
@@ -287,7 +286,6 @@ static int txx9ndfmc_nand_scan(struct mtd_info *mtd)
 static int __init txx9ndfmc_probe(struct platform_device *dev)
 {
 	struct txx9ndfmc_platform_data *plat = dev->dev.platform_data;
-	static const char *probes[] = { "cmdlinepart", NULL };
 	int hold, spw;
 	int i;
 	struct txx9ndfmc_drvdata *drvdata;
@@ -333,7 +331,6 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		struct txx9ndfmc_priv *txx9_priv;
 		struct nand_chip *chip;
 		struct mtd_info *mtd;
-		int nr_parts;
 
 		if (!(plat->ch_mask & (1 << i)))
 			continue;
@@ -393,9 +390,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		}
 		mtd->name = txx9_priv->mtdname;
 
-		nr_parts = parse_mtd_partitions(mtd, probes,
-						&drvdata->parts[i], 0);
-		mtd_device_register(mtd, drvdata->parts[i], nr_parts);
+		mtd_device_parse_register(mtd, NULL, 0, NULL, 0);
 		drvdata->mtds[i] = mtd;
 	}
 
@@ -421,7 +416,6 @@ static int __exit txx9ndfmc_remove(struct platform_device *dev)
 		txx9_priv = chip->priv;
 
 		nand_release(mtd);
-		kfree(drvdata->parts[i]);
 		kfree(txx9_priv->mtdname);
 		kfree(txx9_priv);
 	}

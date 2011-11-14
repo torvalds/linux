@@ -27,6 +27,7 @@
  */
 #include <asm/uaccess.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <sound/core.h>
 #include <sound/soundfont.h>
 #include <sound/seq_oss_legacy.h>

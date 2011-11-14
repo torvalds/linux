@@ -35,6 +35,7 @@
 #include "intel_drv.h"
 
 #include <linux/console.h>
+#include <linux/module.h>
 #include "drm_crtc_helper.h"
 
 static int i915_modeset __read_mostly = -1;
@@ -788,8 +789,8 @@ static struct vm_operations_struct i915_gem_vm_ops = {
 };
 
 static struct drm_driver driver = {
-	/* don't use mtrr's here, the Xserver or user space app should
-	 * deal with them for intel hardware.
+	/* Don't use MTRRs here; the Xserver or userspace app should
+	 * deal with them for Intel hardware.
 	 */
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | /* DRIVER_USE_MTRR |*/

@@ -19,6 +19,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 static struct rc_map_table digitalnow_tinytwin[] = {
 	{ 0x0000, KEY_MUTE },            /* [symbol speaker] */

@@ -28,7 +28,6 @@
 
 #include <linux/types.h>
 #ifdef __KERNEL__
-#include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/device.h>	/* for struct device */
 #include <linux/sched.h>	/* for completion */
@@ -48,6 +47,8 @@ struct i2c_client;
 struct i2c_driver;
 union i2c_smbus_data;
 struct i2c_board_info;
+
+struct module;
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 /*
@@ -451,10 +452,9 @@ extern int i2c_add_numbered_adapter(struct i2c_adapter *);
 extern int i2c_register_driver(struct module *, struct i2c_driver *);
 extern void i2c_del_driver(struct i2c_driver *);
 
-static inline int i2c_add_driver(struct i2c_driver *driver)
-{
-	return i2c_register_driver(THIS_MODULE, driver);
-}
+/* use a define to avoid include chaining to get THIS_MODULE */
+#define i2c_add_driver(driver) \
+	i2c_register_driver(THIS_MODULE, driver)
 
 extern struct i2c_client *i2c_use_client(struct i2c_client *client);
 extern void i2c_release_client(struct i2c_client *client);

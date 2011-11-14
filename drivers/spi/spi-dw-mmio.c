@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/scatterlist.h>
+#include <linux/module.h>
 
 #include "spi-dw.h"
 

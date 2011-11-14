@@ -23,6 +23,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <asm/div64.h>
 #include <linux/lcm.h>
 

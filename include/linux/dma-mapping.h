@@ -42,6 +42,9 @@ struct dma_map_ops {
 	int (*mapping_error)(struct device *dev, dma_addr_t dma_addr);
 	int (*dma_supported)(struct device *dev, u64 mask);
 	int (*set_dma_mask)(struct device *dev, u64 mask);
+#ifdef ARCH_HAS_DMA_GET_REQUIRED_MASK
+	u64 (*get_required_mask)(struct device *dev);
+#endif
 	int is_phys;
 };
 

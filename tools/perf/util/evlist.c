@@ -539,3 +539,33 @@ void perf_evlist__set_selected(struct perf_evlist *evlist,
 {
 	evlist->selected = evsel;
 }
+
+int perf_evlist__open(struct perf_evlist *evlist, bool group)
+{
+	struct perf_evsel *evsel, *first;
+	int err, ncpus, nthreads;
+
+	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		struct xyarray *group_fd = NULL;
+
+		if (group && evsel != first)
+			group_fd = first->fd;
+
+		err = perf_evsel__open(evsel, evlist->cpus, evlist->threads,
+				       group, group_fd);
+		if (err < 0)
+			goto out_err;
+	}
+
+	return 0;
+out_err:
+	ncpus = evlist->cpus ? evlist->cpus->nr : 1;
+	nthreads = evlist->threads ? evlist->threads->nr : 1;
+
+	list_for_each_entry_reverse(evsel, &evlist->entries, node)
+		perf_evsel__close(evsel, ncpus, nthreads);
+
+	return err;
+}

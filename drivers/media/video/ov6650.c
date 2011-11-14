@@ -29,6 +29,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/v4l2-mediabus.h>
+#include <linux/module.h>
 
 #include <media/soc_camera.h>
 #include <media/v4l2-chip-ident.h>

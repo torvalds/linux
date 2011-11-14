@@ -29,6 +29,7 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include "drmP.h"
 #include "drm.h"
 #include "intel_drv.h"
@@ -1505,7 +1506,10 @@ drm_add_fake_info_node(struct drm_minor *minor,
 	node->minor = minor;
 	node->dent = ent;
 	node->info_ent = (void *) key;
-	list_add(&node->list, &minor->debugfs_nodes.list);
+
+	mutex_lock(&minor->debugfs_lock);
+	list_add(&node->list, &minor->debugfs_list);
+	mutex_unlock(&minor->debugfs_lock);
 
 	return 0;
 }

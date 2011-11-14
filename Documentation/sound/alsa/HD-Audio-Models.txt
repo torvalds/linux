@@ -349,6 +349,7 @@ STAC92HD83*
   ref		Reference board
   mic-ref	Reference board with power management for ports
   dell-s14	Dell laptop
+  dell-vostro-3500	Dell Vostro 3500 laptop
   hp		HP laptops with (inverted) mute-LED
   hp-dv7-4000	HP dv-7 4000
   auto		BIOS setup (default)

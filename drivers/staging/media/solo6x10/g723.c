@@ -23,6 +23,7 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/freezer.h>
+#include <linux/export.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>

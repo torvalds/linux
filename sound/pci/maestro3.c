@@ -39,7 +39,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/input.h>
 #include <sound/core.h>

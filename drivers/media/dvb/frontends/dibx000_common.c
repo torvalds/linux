@@ -1,5 +1,6 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
+#include <linux/module.h>
 
 #include "dibx000_common.h"
 

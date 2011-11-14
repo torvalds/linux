@@ -104,7 +104,7 @@ struct dmtimer_platform_data {
 
 	bool loses_context;
 
-	u32 (*get_context_loss_count)(struct device *dev);
+	int (*get_context_loss_count)(struct device *dev);
 };
 
 struct omap_dm_timer *omap_dm_timer_request(void);
@@ -279,7 +279,7 @@ struct omap_dm_timer {
 	struct platform_device *pdev;
 	struct list_head node;
 
-	u32 (*get_context_loss_count)(struct device *dev);
+	int (*get_context_loss_count)(struct device *dev);
 };
 
 int omap_dm_timer_prepare(struct omap_dm_timer *timer);

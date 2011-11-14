@@ -18,6 +18,8 @@
  * this warranty disclaimer.
  **/
 
+#include <linux/module.h>
+
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 

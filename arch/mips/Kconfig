@@ -820,10 +820,6 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default n
 
-config ARCH_SUPPORTS_OPROFILE
-	bool
-	default y if !MIPS_MT_SMTC
-
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -2254,16 +2250,6 @@ config HZ
 	default 1024 if HZ_1024
 
 source "kernel/Kconfig.preempt"
-
-config MIPS_INSANE_LARGE
-	bool "Support for large 64-bit configurations"
-	depends on CPU_R10000 && 64BIT
-	help
-	  MIPS R10000 does support a 44 bit / 16TB address space as opposed to
-	  previous 64-bit processors which only supported 40 bit / 1TB. If you
-	  need processes of more than 1TB virtual address space, say Y here.
-	  This will result in additional memory usage, so it is not
-	  recommended for normal users.
 
 config KEXEC
 	bool "Kexec system call (EXPERIMENTAL)"
