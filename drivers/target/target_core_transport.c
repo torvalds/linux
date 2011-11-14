@@ -2598,7 +2598,7 @@ static int transport_generic_cmd_sequencer(
 		break;
 	case XDWRITEREAD_10:
 		if ((cmd->data_direction != DMA_TO_DEVICE) ||
-		    !(cmd->t_tasks_bidi))
+		    !(cmd->se_cmd_flags & SCF_BIDI))
 			goto out_invalid_cdb_field;
 		sectors = transport_get_sectors_10(cdb, cmd, &sector_ret);
 		if (sector_ret)
