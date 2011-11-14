@@ -75,7 +75,6 @@
 #define AT91_RSTC	(0xfffffd00 - AT91_BASE_SYS)
 #define AT91_SCKCR	(0xfffffd50 - AT91_BASE_SYS)
 #define AT91_GPBR	(0xfffffd60 - AT91_BASE_SYS)
-#define AT91_RTC	(0xfffffe00 - AT91_BASE_SYS)
 
 #define AT91SAM9RL_BASE_DMA	0xffffe600
 #define AT91SAM9RL_BASE_ECC	0xffffe800
@@ -89,6 +88,7 @@
 #define AT91SAM9RL_BASE_RTT	0xfffffd20
 #define AT91SAM9RL_BASE_PIT	0xfffffd30
 #define AT91SAM9RL_BASE_WDT	0xfffffd40
+#define AT91SAM9RL_BASE_RTC	0xfffffe00
 
 #define AT91_USART0	AT91SAM9RL_BASE_US0
 #define AT91_USART1	AT91SAM9RL_BASE_US1
