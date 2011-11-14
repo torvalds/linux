@@ -70,6 +70,7 @@ enum ath6kl_fw_ie_type {
 	ATH6KL_FW_IE_RESERVED_RAM_SIZE = 5,
 	ATH6KL_FW_IE_CAPABILITIES = 6,
 	ATH6KL_FW_IE_PATCH_ADDR = 7,
+	ATH6KL_FW_IE_BOARD_ADDR = 8,
 };
 
 enum ath6kl_fw_capability {

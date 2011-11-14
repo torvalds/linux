@@ -976,8 +976,19 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 			ar->hw.dataset_patch_addr = le32_to_cpup(val);
 
 			ath6kl_dbg(ATH6KL_DBG_BOOT,
-				   "found patch address ie 0x%d\n",
+				   "found patch address ie 0x%x\n",
 				   ar->hw.dataset_patch_addr);
+			break;
+		case ATH6KL_FW_IE_BOARD_ADDR:
+			if (ie_len != sizeof(*val))
+				break;
+
+			val = (__le32 *) data;
+			ar->hw.board_addr = le32_to_cpup(val);
+
+			ath6kl_dbg(ATH6KL_DBG_BOOT,
+				   "found board address ie 0x%x\n",
+				   ar->hw.board_addr);
 			break;
 		default:
 			ath6kl_dbg(ATH6KL_DBG_BOOT, "Unknown fw ie: %u\n",
