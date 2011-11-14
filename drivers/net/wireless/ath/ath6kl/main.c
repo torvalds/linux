@@ -525,20 +525,6 @@ void ath6kl_disconnect(struct ath6kl_vif *vif)
 
 /* WMI Event handlers */
 
-static const char *get_hw_id_string(u32 id)
-{
-	switch (id) {
-	case AR6003_REV1_VERSION:
-		return "1.0";
-	case AR6003_REV2_VERSION:
-		return "2.0";
-	case AR6003_REV3_VERSION:
-		return "2.1.1";
-	default:
-		return "unknown";
-	}
-}
-
 void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 {
 	struct ath6kl *ar = devt;
@@ -561,13 +547,6 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 	/* indicate to the waiting thread that the ready event was received */
 	set_bit(WMI_READY, &ar->flag);
 	wake_up(&ar->event_wq);
-
-	if (test_and_clear_bit(FIRST_BOOT, &ar->flag)) {
-		ath6kl_info("hw %s fw %s%s\n",
-			    get_hw_id_string(ar->wiphy->hw_version),
-			    ar->wiphy->fw_version,
-			    test_bit(TESTMODE, &ar->flag) ? " testmode" : "");
-	}
 }
 
 void ath6kl_scan_complete_evt(struct ath6kl_vif *vif, int status)

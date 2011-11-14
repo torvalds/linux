@@ -544,6 +544,7 @@ struct ath6kl {
 
 	struct ath6kl_hw {
 		u32 id;
+		const char *name;
 		u32 dataset_patch_addr;
 		u32 app_load_addr;
 		u32 app_start_override_addr;

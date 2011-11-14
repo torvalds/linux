@@ -36,6 +36,7 @@ module_param(suspend_cutpower, bool, 0444);
 static const struct ath6kl_hw hw_list[] = {
 	{
 		.id				= AR6003_REV2_VERSION,
+		.name				= "ar6003 hw 2.0",
 		.dataset_patch_addr		= 0x57e884,
 		.app_load_addr			= 0x543180,
 		.board_ext_data_addr		= 0x57e500,
@@ -46,6 +47,7 @@ static const struct ath6kl_hw hw_list[] = {
 	},
 	{
 		.id				= AR6003_REV3_VERSION,
+		.name				= "ar6003 hw 2.1.1",
 		.dataset_patch_addr		= 0x57ff74,
 		.app_load_addr			= 0x1234,
 		.board_ext_data_addr		= 0x542330,
@@ -53,6 +55,7 @@ static const struct ath6kl_hw hw_list[] = {
 	},
 	{
 		.id				= AR6004_REV1_VERSION,
+		.name				= "ar6004 hw 1.0",
 		.dataset_patch_addr		= 0x57e884,
 		.app_load_addr			= 0x1234,
 		.board_ext_data_addr		= 0x437000,
@@ -61,6 +64,7 @@ static const struct ath6kl_hw hw_list[] = {
 	},
 	{
 		.id				= AR6004_REV2_VERSION,
+		.name				= "ar6004 hw 1.1",
 		.dataset_patch_addr		= 0x57e884,
 		.app_load_addr			= 0x1234,
 		.board_ext_data_addr		= 0x437000,
@@ -1408,6 +1412,18 @@ static int ath6kl_init_hw_params(struct ath6kl *ar)
 	return 0;
 }
 
+static const char *ath6kl_init_get_hif_name(enum ath6kl_hif_type type)
+{
+	switch (type) {
+	case ATH6KL_HIF_TYPE_SDIO:
+		return "sdio";
+	case ATH6KL_HIF_TYPE_USB:
+		return "usb";
+	}
+
+	return NULL;
+}
+
 int ath6kl_init_hw_start(struct ath6kl *ar)
 {
 	long timeleft;
@@ -1467,6 +1483,15 @@ int ath6kl_init_hw_start(struct ath6kl *ar)
 						    WMI_TIMEOUT);
 
 	ath6kl_dbg(ATH6KL_DBG_BOOT, "firmware booted\n");
+
+
+	if (test_and_clear_bit(FIRST_BOOT, &ar->flag)) {
+		ath6kl_info("%s %s fw %s%s\n",
+			    ar->hw.name,
+			    ath6kl_init_get_hif_name(ar->hif_type),
+			    ar->wiphy->fw_version,
+			    test_bit(TESTMODE, &ar->flag) ? " testmode" : "");
+	}
 
 	if (ar->version.abi_ver != ATH6KL_ABI_VERSION) {
 		ath6kl_err("abi version mismatch: host(0x%x), target(0x%x)\n",
