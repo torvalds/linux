@@ -71,6 +71,7 @@ enum ath6kl_fw_ie_type {
 	ATH6KL_FW_IE_CAPABILITIES = 6,
 	ATH6KL_FW_IE_PATCH_ADDR = 7,
 	ATH6KL_FW_IE_BOARD_ADDR = 8,
+	ATH6KL_FW_IE_VIF_MAX = 9,
 };
 
 enum ath6kl_fw_capability {
@@ -502,7 +503,7 @@ struct ath6kl {
 	/* Lock to avoid race in vif_list entries among add/del/traverse */
 	spinlock_t list_lock;
 	u8 num_vif;
-	int vif_max;
+	unsigned int vif_max;
 	u8 max_norm_iface;
 	u8 avail_idx_map;
 	spinlock_t lock;

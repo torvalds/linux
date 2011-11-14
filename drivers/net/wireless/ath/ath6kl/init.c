@@ -963,6 +963,17 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 				   "found board address ie 0x%x\n",
 				   ar->hw.board_addr);
 			break;
+		case ATH6KL_FW_IE_VIF_MAX:
+			if (ie_len != sizeof(*val))
+				break;
+
+			val = (__le32 *) data;
+			ar->vif_max = min_t(unsigned int, le32_to_cpup(val),
+					    ATH6KL_VIF_MAX);
+
+			ath6kl_dbg(ATH6KL_DBG_BOOT,
+				   "found vif max ie %d\n", ar->vif_max);
+			break;
 		default:
 			ath6kl_dbg(ATH6KL_DBG_BOOT, "Unknown fw ie: %u\n",
 				   le32_to_cpup(&hdr->id));
