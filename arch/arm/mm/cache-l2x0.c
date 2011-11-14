@@ -61,7 +61,7 @@ static inline void cache_sync(void)
 {
 	void __iomem *base = l2x0_base;
 
-#ifdef CONFIG_ARM_ERRATA_753970
+#ifdef CONFIG_PL310_ERRATA_753970
 	/* write to an unmmapped register */
 	writel_relaxed(0, base + L2X0_DUMMY_REG);
 #else
