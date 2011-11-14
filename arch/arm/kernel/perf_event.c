@@ -59,8 +59,7 @@ armpmu_get_pmu_id(void)
 }
 EXPORT_SYMBOL_GPL(armpmu_get_pmu_id);
 
-int
-armpmu_get_max_events(void)
+int perf_num_counters(void)
 {
 	int max_events = 0;
 
@@ -68,12 +67,6 @@ armpmu_get_max_events(void)
 		max_events = cpu_pmu->num_events;
 
 	return max_events;
-}
-EXPORT_SYMBOL_GPL(armpmu_get_max_events);
-
-int perf_num_counters(void)
-{
-	return armpmu_get_max_events();
 }
 EXPORT_SYMBOL_GPL(perf_num_counters);
 
