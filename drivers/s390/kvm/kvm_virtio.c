@@ -263,6 +263,11 @@ error:
 	return PTR_ERR(vqs[i]);
 }
 
+static const char *kvm_bus_name(struct virtio_device *vdev)
+{
+	return "";
+}
+
 /*
  * The config ops structure as defined by virtio config
  */
@@ -276,6 +281,7 @@ static struct virtio_config_ops kvm_vq_configspace_ops = {
 	.reset = kvm_reset,
 	.find_vqs = kvm_find_vqs,
 	.del_vqs = kvm_del_vqs,
+	.bus_name = kvm_bus_name,
 };
 
 /*
