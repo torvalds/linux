@@ -958,21 +958,27 @@ static void pte_list_walk(unsigned long *pte_list, pte_list_walk_fn fn)
 	}
 }
 
+static unsigned long *__gfn_to_rmap(struct kvm *kvm, gfn_t gfn, int level,
+				    struct kvm_memory_slot *slot)
+{
+	struct kvm_lpage_info *linfo;
+
+	if (likely(level == PT_PAGE_TABLE_LEVEL))
+		return &slot->rmap[gfn - slot->base_gfn];
+
+	linfo = lpage_info_slot(gfn, slot, level);
+	return &linfo->rmap_pde;
+}
+
 /*
  * Take gfn and return the reverse mapping to it.
  */
 static unsigned long *gfn_to_rmap(struct kvm *kvm, gfn_t gfn, int level)
 {
 	struct kvm_memory_slot *slot;
-	struct kvm_lpage_info *linfo;
 
 	slot = gfn_to_memslot(kvm, gfn);
-	if (likely(level == PT_PAGE_TABLE_LEVEL))
-		return &slot->rmap[gfn - slot->base_gfn];
-
-	linfo = lpage_info_slot(gfn, slot, level);
-
-	return &linfo->rmap_pde;
+	return __gfn_to_rmap(kvm, gfn, level, slot);
 }
 
 static bool rmap_can_add(struct kvm_vcpu *vcpu)
@@ -1019,12 +1025,14 @@ static void drop_spte(struct kvm *kvm, u64 *sptep)
 
 static int rmap_write_protect(struct kvm *kvm, u64 gfn)
 {
+	struct kvm_memory_slot *slot;
 	unsigned long *rmapp;
 	u64 *spte;
 	int i, write_protected = 0;
 
-	rmapp = gfn_to_rmap(kvm, gfn, PT_PAGE_TABLE_LEVEL);
+	slot = gfn_to_memslot(kvm, gfn);
 
+	rmapp = __gfn_to_rmap(kvm, gfn, PT_PAGE_TABLE_LEVEL, slot);
 	spte = rmap_next(kvm, rmapp, NULL);
 	while (spte) {
 		BUG_ON(!(*spte & PT_PRESENT_MASK));
@@ -1039,7 +1047,7 @@ static int rmap_write_protect(struct kvm *kvm, u64 gfn)
 	/* check for huge page mappings */
 	for (i = PT_DIRECTORY_LEVEL;
 	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
-		rmapp = gfn_to_rmap(kvm, gfn, i);
+		rmapp = __gfn_to_rmap(kvm, gfn, i, slot);
 		spte = rmap_next(kvm, rmapp, NULL);
 		while (spte) {
 			BUG_ON(!(*spte & PT_PRESENT_MASK));
