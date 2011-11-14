@@ -553,6 +553,14 @@ struct ath6kl {
 		u32 board_ext_data_addr;
 		u32 reserved_ram_size;
 		u32 board_addr;
+
+		const char *fw_otp;
+		const char *fw;
+		const char *fw_tcmd;
+		const char *fw_patch;
+		const char *fw_api2;
+		const char *fw_board;
+		const char *fw_default_board;
 	} hw;
 
 	u16 conf_flags;
