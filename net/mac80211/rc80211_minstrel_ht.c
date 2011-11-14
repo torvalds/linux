@@ -36,8 +36,17 @@
 /* Transmit duration for the raw data part of an average sized packet */
 #define MCS_DURATION(streams, sgi, bps) MCS_SYMBOL_TIME(sgi, MCS_NSYMS((streams) * (bps)))
 
+/*
+ * Define group sort order: HT40 -> SGI -> #streams
+ */
+#define GROUP_IDX(_streams, _sgi, _ht40)	\
+	MINSTREL_MAX_STREAMS * 2 * _ht40 +	\
+	MINSTREL_MAX_STREAMS * _sgi +		\
+	_streams - 1
+
 /* MCS rate information for an MCS group */
-#define MCS_GROUP(_streams, _sgi, _ht40) {				\
+#define MCS_GROUP(_streams, _sgi, _ht40)				\
+	[GROUP_IDX(_streams, _sgi, _ht40)] = {				\
 	.streams = _streams,						\
 	.flags =							\
 		(_sgi ? IEEE80211_TX_RC_SHORT_GI : 0) |			\
@@ -58,6 +67,9 @@
  * To enable sufficiently targeted rate sampling, MCS rates are divided into
  * groups, based on the number of streams and flags (HT40, SGI) that they
  * use.
+ *
+ * Sortorder has to be fixed for GROUP_IDX macro to be applicable:
+ * HT40 -> SGI -> #streams
  */
 const struct mcs_group minstrel_mcs_groups[] = {
 	MCS_GROUP(1, 0, 0),
@@ -102,21 +114,9 @@ minstrel_ewma(int old, int new, int weight)
 static int
 minstrel_ht_get_group_idx(struct ieee80211_tx_rate *rate)
 {
-	int streams = (rate->idx / MCS_GROUP_RATES) + 1;
-	u32 flags = IEEE80211_TX_RC_SHORT_GI | IEEE80211_TX_RC_40_MHZ_WIDTH;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(minstrel_mcs_groups); i++) {
-		if (minstrel_mcs_groups[i].streams != streams)
-			continue;
-		if (minstrel_mcs_groups[i].flags != (rate->flags & flags))
-			continue;
-
-		return i;
-	}
-
-	WARN_ON(1);
-	return 0;
+	return GROUP_IDX((rate->idx / MCS_GROUP_RATES) + 1,
+			 !!(rate->flags & IEEE80211_TX_RC_SHORT_GI),
+			 !!(rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH));
 }
 
 static inline struct minstrel_rate_stats *
