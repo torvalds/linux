@@ -1337,32 +1337,32 @@ static int ath6kl_init_hw_params(struct ath6kl *ar)
 {
 	switch (ar->version.target_ver) {
 	case AR6003_REV2_VERSION:
-		ar->hw.dataset_patch_addr = AR6003_REV2_DATASET_PATCH_ADDRESS;
-		ar->hw.app_load_addr = AR6003_REV2_APP_LOAD_ADDRESS;
-		ar->hw.board_ext_data_addr = AR6003_REV2_BOARD_EXT_DATA_ADDRESS;
-		ar->hw.reserved_ram_size = AR6003_REV2_RAM_RESERVE_SIZE;
+		ar->hw.dataset_patch_addr = 0x57e884;
+		ar->hw.app_load_addr = 0x543180;
+		ar->hw.board_ext_data_addr = 0x57e500;
+		ar->hw.reserved_ram_size = 6912;
 
 		/* hw2.0 needs override address hardcoded */
 		ar->hw.app_start_override_addr = 0x944C00;
 
 		break;
 	case AR6003_REV3_VERSION:
-		ar->hw.dataset_patch_addr = AR6003_REV3_DATASET_PATCH_ADDRESS;
+		ar->hw.dataset_patch_addr = 0x57ff74;
 		ar->hw.app_load_addr = 0x1234;
-		ar->hw.board_ext_data_addr = AR6003_REV3_BOARD_EXT_DATA_ADDRESS;
-		ar->hw.reserved_ram_size = AR6003_REV3_RAM_RESERVE_SIZE;
+		ar->hw.board_ext_data_addr = 0x542330;
+		ar->hw.reserved_ram_size = 512;
 		break;
 	case AR6004_REV1_VERSION:
-		ar->hw.dataset_patch_addr = AR6003_REV2_DATASET_PATCH_ADDRESS;
+		ar->hw.dataset_patch_addr = 0x57e884;
 		ar->hw.app_load_addr = 0x1234;
-		ar->hw.board_ext_data_addr = AR6004_REV1_BOARD_EXT_DATA_ADDRESS;
-		ar->hw.reserved_ram_size = AR6004_REV1_RAM_RESERVE_SIZE;
+		ar->hw.board_ext_data_addr = 0x437000;
+		ar->hw.reserved_ram_size = 19456;
 		break;
 	case AR6004_REV2_VERSION:
-		ar->hw.dataset_patch_addr = AR6003_REV2_DATASET_PATCH_ADDRESS;
+		ar->hw.dataset_patch_addr = 0x57e884;
 		ar->hw.app_load_addr = 0x1234;
-		ar->hw.board_ext_data_addr = AR6004_REV1_BOARD_EXT_DATA_ADDRESS;
-		ar->hw.reserved_ram_size = AR6004_REV2_RAM_RESERVE_SIZE;
+		ar->hw.board_ext_data_addr = 0x437000;
+		ar->hw.reserved_ram_size = 11264;
 		break;
 	default:
 		ath6kl_err("Unsupported hardware version: 0x%x\n",
