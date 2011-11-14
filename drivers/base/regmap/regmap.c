@@ -139,7 +139,7 @@ struct regmap *regmap_init(struct device *dev,
 	int ret = -EINVAL;
 
 	if (!bus || !config)
-		return NULL;
+		goto err;
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (map == NULL) {
