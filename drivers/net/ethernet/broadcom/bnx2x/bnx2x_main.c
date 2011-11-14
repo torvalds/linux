@@ -2789,8 +2789,8 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 	/* This should be a maximum number of data bytes that may be
 	 * placed on the BD (not including paddings).
 	 */
-	rxq_init->buf_sz = fp->rx_buf_size - BNX2X_FW_RX_ALIGN -
-		IP_HEADER_ALIGNMENT_PADDING;
+	rxq_init->buf_sz = fp->rx_buf_size - BNX2X_FW_RX_ALIGN_START -
+		BNX2X_FW_RX_ALIGN_END -	IP_HEADER_ALIGNMENT_PADDING;
 
 	rxq_init->cl_qzone_id = fp->cl_qzone_id;
 	rxq_init->tpa_agg_sz = tpa_agg_size;

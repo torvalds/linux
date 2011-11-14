@@ -1740,6 +1740,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	struct sw_rx_bd *rx_buf;
 	u16 len;
 	int rc = -ENODEV;
+	u8 *data;
 
 	/* check the loopback mode */
 	switch (loopback_mode) {
@@ -1865,10 +1866,9 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	dma_sync_single_for_cpu(&bp->pdev->dev,
 				   dma_unmap_addr(rx_buf, mapping),
 				   fp_rx->rx_buf_size, DMA_FROM_DEVICE);
-	skb = rx_buf->skb;
-	skb_reserve(skb, cqe->fast_path_cqe.placement_offset);
+	data = rx_buf->data + NET_SKB_PAD + cqe->fast_path_cqe.placement_offset;
 	for (i = ETH_HLEN; i < pkt_size; i++)
-		if (*(skb->data + i) != (unsigned char) (i & 0xff))
+		if (*(data + i) != (unsigned char) (i & 0xff))
 			goto test_loopback_rx_exit;
 
 	rc = 0;

@@ -293,8 +293,13 @@ enum {
 #define FCOE_TXQ_IDX(bp)	(MAX_ETH_TXQ_IDX(bp))
 
 /* fast path */
+/*
+ * This driver uses new build_skb() API :
+ * RX ring buffer contains pointer to kmalloc() data only,
+ * skb are built only after Hardware filled the frame.
+ */
 struct sw_rx_bd {
-	struct sk_buff	*skb;
+	u8		*data;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
@@ -424,8 +429,8 @@ union host_hc_status_block {
 
 struct bnx2x_agg_info {
 	/*
-	 * First aggregation buffer is an skb, the following - are pages.
-	 * We will preallocate the skbs for each aggregation when
+	 * First aggregation buffer is a data buffer, the following - are pages.
+	 * We will preallocate the data buffer for each aggregation when
 	 * we open the interface and will replace the BD at the consumer
 	 * with this one when we receive the TPA_START CQE in order to
 	 * keep the Rx BD ring consistent.
@@ -439,6 +444,7 @@ struct bnx2x_agg_info {
 	u16			parsing_flags;
 	u16			vlan_tag;
 	u16			len_on_bd;
+	u32			rxhash;
 };
 
 #define Q_STATS_OFFSET32(stat_name) \
@@ -1187,10 +1193,20 @@ struct bnx2x {
 #define ETH_MAX_JUMBO_PACKET_SIZE	9600
 
 	/* Max supported alignment is 256 (8 shift) */
-#define BNX2X_RX_ALIGN_SHIFT		((L1_CACHE_SHIFT < 8) ? \
-					 L1_CACHE_SHIFT : 8)
-	/* FW use 2 Cache lines Alignment for start packet and size  */
-#define BNX2X_FW_RX_ALIGN		(2 << BNX2X_RX_ALIGN_SHIFT)
+#define BNX2X_RX_ALIGN_SHIFT		min(8, L1_CACHE_SHIFT)
+
+	/* FW uses 2 Cache lines Alignment for start packet and size
+	 *
+	 * We assume skb_build() uses sizeof(struct skb_shared_info) bytes
+	 * at the end of skb->data, to avoid wasting a full cache line.
+	 * This reduces memory use (skb->truesize).
+	 */
+#define BNX2X_FW_RX_ALIGN_START	(1UL << BNX2X_RX_ALIGN_SHIFT)
+
+#define BNX2X_FW_RX_ALIGN_END					\
+	max(1UL << BNX2X_RX_ALIGN_SHIFT, 			\
+	    SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+
 #define BNX2X_PXP_DRAM_ALIGN		(BNX2X_RX_ALIGN_SHIFT - 5)
 
 	struct host_sp_status_block *def_status_blk;
