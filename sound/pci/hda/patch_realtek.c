@@ -3144,8 +3144,15 @@ static int alc_auto_add_vol_ctl(struct hda_codec *codec,
 				 val);
 }
 
-#define alc_auto_add_stereo_vol(codec, pfx, cidx, nid)	\
-	alc_auto_add_vol_ctl(codec, pfx, cidx, nid, 3)
+static int alc_auto_add_stereo_vol(struct hda_codec *codec,
+				   const char *pfx, int cidx,
+				   hda_nid_t nid)
+{
+	int chs = 1;
+	if (get_wcaps(codec, nid) & AC_WCAP_STEREO)
+		chs = 3;
+	return alc_auto_add_vol_ctl(codec, pfx, cidx, nid, chs);
+}
 
 /* create a mute-switch for the given mixer widget;
  * if it has multiple sources (e.g. DAC and loopback), create a bind-mute
@@ -3177,8 +3184,14 @@ static int alc_auto_add_sw_ctl(struct hda_codec *codec,
 	return __add_pb_sw_ctrl(codec->spec, type, pfx, cidx, val);
 }
 
-#define alc_auto_add_stereo_sw(codec, pfx, cidx, nid)	\
-	alc_auto_add_sw_ctl(codec, pfx, cidx, nid, 3)
+static int alc_auto_add_stereo_sw(struct hda_codec *codec, const char *pfx,
+				  int cidx, hda_nid_t nid)
+{
+	int chs = 1;
+	if (get_wcaps(codec, nid) & AC_WCAP_STEREO)
+		chs = 3;
+	return alc_auto_add_sw_ctl(codec, pfx, cidx, nid, chs);
+}
 
 static hda_nid_t alc_look_for_out_mute_nid(struct hda_codec *codec,
 					   hda_nid_t pin, hda_nid_t dac)
