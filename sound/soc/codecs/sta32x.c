@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -80,6 +81,8 @@ struct sta32x_priv {
 	unsigned int format;
 
 	u32 coef_shadow[STA32X_COEF_COUNT];
+	struct delayed_work watchdog_work;
+	int shutdown;
 };
 
 static const DECLARE_TLV_DB_SCALE(mvol_tlv, -12700, 50, 1);
@@ -302,6 +305,46 @@ int sta32x_cache_sync(struct snd_soc_codec *codec)
 	rc = snd_soc_cache_sync(codec);
 	snd_soc_write(codec, STA32X_MMUTE, mute);
 	return rc;
+}
+
+/* work around ESD issue where sta32x resets and loses all configuration */
+static void sta32x_watchdog(struct work_struct *work)
+{
+	struct sta32x_priv *sta32x = container_of(work, struct sta32x_priv,
+						  watchdog_work.work);
+	struct snd_soc_codec *codec = sta32x->codec;
+	unsigned int confa, confa_cached;
+
+	/* check if sta32x has reset itself */
+	confa_cached = snd_soc_read(codec, STA32X_CONFA);
+	codec->cache_bypass = 1;
+	confa = snd_soc_read(codec, STA32X_CONFA);
+	codec->cache_bypass = 0;
+	if (confa != confa_cached) {
+		codec->cache_sync = 1;
+		sta32x_cache_sync(codec);
+	}
+
+	if (!sta32x->shutdown)
+		schedule_delayed_work(&sta32x->watchdog_work,
+				      round_jiffies_relative(HZ));
+}
+
+static void sta32x_watchdog_start(struct sta32x_priv *sta32x)
+{
+	if (sta32x->pdata->needs_esd_watchdog) {
+		sta32x->shutdown = 0;
+		schedule_delayed_work(&sta32x->watchdog_work,
+				      round_jiffies_relative(HZ));
+	}
+}
+
+static void sta32x_watchdog_stop(struct sta32x_priv *sta32x)
+{
+	if (sta32x->pdata->needs_esd_watchdog) {
+		sta32x->shutdown = 1;
+		cancel_delayed_work_sync(&sta32x->watchdog_work);
+	}
 }
 
 #define SINGLE_COEF(xname, index) \
@@ -714,6 +757,7 @@ static int sta32x_set_bias_level(struct snd_soc_codec *codec,
 			}
 
 			sta32x_cache_sync(codec);
+			sta32x_watchdog_start(sta32x);
 		}
 
 		/* Power up to mute */
@@ -730,7 +774,7 @@ static int sta32x_set_bias_level(struct snd_soc_codec *codec,
 				    STA32X_CONFF_PWDN | STA32X_CONFF_EAPD,
 				    STA32X_CONFF_PWDN);
 		msleep(300);
-
+		sta32x_watchdog_stop(sta32x);
 		regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies),
 				       sta32x->supplies);
 		break;
@@ -863,6 +907,9 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 	sta32x->coef_shadow[60] = 0x400000;
 	sta32x->coef_shadow[61] = 0x400000;
 
+	if (sta32x->pdata->needs_esd_watchdog)
+		INIT_DELAYED_WORK(&sta32x->watchdog_work, sta32x_watchdog);
+
 	sta32x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	/* Bias level configuration will have done an extra enable */
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
@@ -879,6 +926,7 @@ static int sta32x_remove(struct snd_soc_codec *codec)
 {
 	struct sta32x_priv *sta32x = snd_soc_codec_get_drvdata(codec);
 
+	sta32x_watchdog_stop(sta32x);
 	sta32x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 	regulator_bulk_free(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);

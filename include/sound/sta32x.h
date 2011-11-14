@@ -29,6 +29,7 @@ struct sta32x_platform_data {
 	int ch2_output_mapping;
 	int ch3_output_mapping;
 	int thermal_conf;
+	int needs_esd_watchdog;
 };
 
 #endif /* __LINUX_SND__STA32X_H */
