@@ -1027,7 +1027,6 @@ static int rmap_write_protect(struct kvm *kvm, u64 gfn)
 
 	spte = rmap_next(kvm, rmapp, NULL);
 	while (spte) {
-		BUG_ON(!spte);
 		BUG_ON(!(*spte & PT_PRESENT_MASK));
 		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
 		if (is_writable_pte(*spte)) {
@@ -1043,9 +1042,8 @@ static int rmap_write_protect(struct kvm *kvm, u64 gfn)
 		rmapp = gfn_to_rmap(kvm, gfn, i);
 		spte = rmap_next(kvm, rmapp, NULL);
 		while (spte) {
-			BUG_ON(!spte);
 			BUG_ON(!(*spte & PT_PRESENT_MASK));
-			BUG_ON((*spte & (PT_PAGE_SIZE_MASK|PT_PRESENT_MASK)) != (PT_PAGE_SIZE_MASK|PT_PRESENT_MASK));
+			BUG_ON(!is_large_pte(*spte));
 			pgprintk("rmap_write_protect(large): spte %p %llx %lld\n", spte, *spte, gfn);
 			if (is_writable_pte(*spte)) {
 				drop_spte(kvm, spte);
