@@ -8520,7 +8520,7 @@ sp_rtnl_not_reset:
 	 * damage
 	 */
 	if (test_and_clear_bit(BNX2X_SP_RTNL_FAN_FAILURE, &bp->sp_rtnl_state)) {
-		DP(BNX2X_MSG_SP, "fan failure detected. Unloading driver");
+		DP(BNX2X_MSG_SP, "fan failure detected. Unloading driver\n");
 		netif_device_detach(bp->dev);
 		bnx2x_close(bp->dev);
 	}
