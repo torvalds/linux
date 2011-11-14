@@ -24,6 +24,7 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  **************************************************************************/
+#include <linux/module.h>
 
 #include "drmP.h"
 #include "vmwgfx_drv.h"
@@ -103,6 +104,9 @@
 #define DRM_IOCTL_VMW_PRESENT_READBACK				\
 	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_PRESENT_READBACK,	\
 		 struct drm_vmw_present_readback_arg)
+#define DRM_IOCTL_VMW_UPDATE_LAYOUT				\
+	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_UPDATE_LAYOUT,	\
+		 struct drm_vmw_update_layout_arg)
 
 /**
  * The core DRM version of this macro doesn't account for
@@ -165,6 +169,9 @@ static struct drm_ioctl_desc vmw_ioctls[] = {
 	VMW_IOCTL_DEF(VMW_PRESENT_READBACK,
 		      vmw_present_readback_ioctl,
 		      DRM_MASTER | DRM_AUTH | DRM_UNLOCKED),
+	VMW_IOCTL_DEF(VMW_UPDATE_LAYOUT,
+		      vmw_kms_update_layout_ioctl,
+		      DRM_MASTER | DRM_UNLOCKED),
 };
 
 static struct pci_device_id vmw_pci_id_list[] = {

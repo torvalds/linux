@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include "drmP.h"
 #include "radeon.h"
 #include "radeon_asic.h"
@@ -261,8 +262,11 @@ int ni_mc_load_microcode(struct radeon_device *rdev)
 		WREG32(MC_SEQ_SUP_CNTL, 0x00000001);
 
 		/* wait for training to complete */
-		while (!(RREG32(MC_IO_PAD_CNTL_D0) & MEM_FALL_OUT_CMD))
-			udelay(10);
+		for (i = 0; i < rdev->usec_timeout; i++) {
+			if (RREG32(MC_IO_PAD_CNTL_D0) & MEM_FALL_OUT_CMD)
+				break;
+			udelay(1);
+		}
 
 		if (running)
 			WREG32(MC_SHARED_BLACKOUT_CNTL, blackout);
@@ -932,7 +936,7 @@ int cayman_pcie_gart_enable(struct radeon_device *rdev)
 {
 	int r;
 
-	if (rdev->gart.table.vram.robj == NULL) {
+	if (rdev->gart.robj == NULL) {
 		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
@@ -977,8 +981,6 @@ int cayman_pcie_gart_enable(struct radeon_device *rdev)
 
 void cayman_pcie_gart_disable(struct radeon_device *rdev)
 {
-	int r;
-
 	/* Disable all tables */
 	WREG32(VM_CONTEXT0_CNTL, 0);
 	WREG32(VM_CONTEXT1_CNTL, 0);
@@ -994,14 +996,7 @@ void cayman_pcie_gart_disable(struct radeon_device *rdev)
 	WREG32(VM_L2_CNTL2, 0);
 	WREG32(VM_L2_CNTL3, L2_CACHE_BIGK_ASSOCIATIVITY |
 	       L2_CACHE_BIGK_FRAGMENT_SIZE(6));
-	if (rdev->gart.table.vram.robj) {
-		r = radeon_bo_reserve(rdev->gart.table.vram.robj, false);
-		if (likely(r == 0)) {
-			radeon_bo_kunmap(rdev->gart.table.vram.robj);
-			radeon_bo_unpin(rdev->gart.table.vram.robj);
-			radeon_bo_unreserve(rdev->gart.table.vram.robj);
-		}
-	}
+	radeon_gart_table_vram_unpin(rdev);
 }
 
 void cayman_pcie_gart_fini(struct radeon_device *rdev)
@@ -1361,6 +1356,10 @@ static int cayman_startup(struct radeon_device *rdev)
 		return r;
 	}
 
+	r = r600_vram_scratch_init(rdev);
+	if (r)
+		return r;
+
 	evergreen_mc_program(rdev);
 	r = cayman_pcie_gart_enable(rdev);
 	if (r)
@@ -1556,6 +1555,7 @@ void cayman_fini(struct radeon_device *rdev)
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	cayman_pcie_gart_fini(rdev);
+	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_bo_fini(rdev);

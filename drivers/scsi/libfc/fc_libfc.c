@@ -21,6 +21,7 @@
 #include <linux/types.h>
 #include <linux/scatterlist.h>
 #include <linux/crc32.h>
+#include <linux/module.h>
 
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>

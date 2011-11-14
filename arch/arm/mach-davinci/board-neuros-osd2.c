@@ -87,7 +87,7 @@ static struct davinci_nand_pdata davinci_ntosd2_nandflash_data = {
 	.parts		= davinci_ntosd2_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_ntosd2_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
-	.options	= NAND_USE_FLASH_BBT,
+	.bbt_options	= NAND_BBT_USE_FLASH,
 };
 
 static struct resource davinci_ntosd2_nandflash_resource[] = {

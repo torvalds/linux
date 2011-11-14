@@ -16,7 +16,8 @@
 #include <asm/proc-fns.h>
 
 static int exynos4_enter_idle(struct cpuidle_device *dev,
-			      struct cpuidle_state *state);
+			struct cpuidle_driver *drv,
+			      int index);
 
 static struct cpuidle_state exynos4_cpuidle_set[] = {
 	[0] = {
@@ -37,7 +38,8 @@ static struct cpuidle_driver exynos4_idle_driver = {
 };
 
 static int exynos4_enter_idle(struct cpuidle_device *dev,
-			      struct cpuidle_state *state)
+				struct cpuidle_driver *drv,
+			      int index)
 {
 	struct timeval before, after;
 	int idle_time;
@@ -52,29 +54,31 @@ static int exynos4_enter_idle(struct cpuidle_device *dev,
 	idle_time = (after.tv_sec - before.tv_sec) * USEC_PER_SEC +
 		    (after.tv_usec - before.tv_usec);
 
-	return idle_time;
+	dev->last_residency = idle_time;
+	return index;
 }
 
 static int __init exynos4_init_cpuidle(void)
 {
 	int i, max_cpuidle_state, cpu_id;
 	struct cpuidle_device *device;
+	struct cpuidle_driver *drv = &exynos4_idle_driver;
 
+	/* Setup cpuidle driver */
+	drv->state_count = (sizeof(exynos4_cpuidle_set) /
+				       sizeof(struct cpuidle_state));
+	max_cpuidle_state = drv->state_count;
+	for (i = 0; i < max_cpuidle_state; i++) {
+		memcpy(&drv->states[i], &exynos4_cpuidle_set[i],
+				sizeof(struct cpuidle_state));
+	}
 	cpuidle_register_driver(&exynos4_idle_driver);
 
 	for_each_cpu(cpu_id, cpu_online_mask) {
 		device = &per_cpu(exynos4_cpuidle_device, cpu_id);
 		device->cpu = cpu_id;
 
-		device->state_count = (sizeof(exynos4_cpuidle_set) /
-					       sizeof(struct cpuidle_state));
-
-		max_cpuidle_state = device->state_count;
-
-		for (i = 0; i < max_cpuidle_state; i++) {
-			memcpy(&device->states[i], &exynos4_cpuidle_set[i],
-					sizeof(struct cpuidle_state));
-		}
+		device->state_count = drv->state_count;
 
 		if (cpuidle_register_device(device)) {
 			printk(KERN_ERR "CPUidle register device failed\n,");

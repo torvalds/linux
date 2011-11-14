@@ -12,7 +12,7 @@
  */
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/screen_info.h>
 #include <linux/bootmem.h>
 #include <linux/initrd.h>

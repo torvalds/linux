@@ -27,8 +27,6 @@ struct physmap_flash_info {
 	struct mtd_info		*mtd[MAX_RESOURCES];
 	struct mtd_info		*cmtd;
 	struct map_info		map[MAX_RESOURCES];
-	int			nr_parts;
-	struct mtd_partition	*parts;
 };
 
 static int physmap_flash_remove(struct platform_device *dev)
@@ -46,8 +44,6 @@ static int physmap_flash_remove(struct platform_device *dev)
 
 	if (info->cmtd) {
 		mtd_device_unregister(info->cmtd);
-		if (info->nr_parts)
-			kfree(info->parts);
 		if (info->cmtd != info->mtd[0])
 			mtd_concat_destroy(info->cmtd);
 	}
@@ -175,23 +171,8 @@ static int physmap_flash_probe(struct platform_device *dev)
 	if (err)
 		goto err_out;
 
-	err = parse_mtd_partitions(info->cmtd, part_probe_types,
-				   &info->parts, 0);
-	if (err > 0) {
-		mtd_device_register(info->cmtd, info->parts, err);
-		info->nr_parts = err;
-		return 0;
-	}
-
-	if (physmap_data->nr_parts) {
-		printk(KERN_NOTICE "Using physmap partition information\n");
-		mtd_device_register(info->cmtd, physmap_data->parts,
-				    physmap_data->nr_parts);
-		return 0;
-	}
-
-	mtd_device_register(info->cmtd, NULL, 0);
-
+	mtd_device_parse_register(info->cmtd, part_probe_types, 0,
+				  physmap_data->parts, physmap_data->nr_parts);
 	return 0;
 
 err_out:
@@ -245,21 +226,6 @@ static struct platform_device physmap_flash = {
 	.num_resources	= 1,
 	.resource	= &physmap_flash_resource,
 };
-
-void physmap_configure(unsigned long addr, unsigned long size,
-		int bankwidth, void (*set_vpp)(struct map_info *, int))
-{
-	physmap_flash_resource.start = addr;
-	physmap_flash_resource.end = addr + size - 1;
-	physmap_flash_data.width = bankwidth;
-	physmap_flash_data.set_vpp = set_vpp;
-}
-
-void physmap_set_partitions(struct mtd_partition *parts, int num_parts)
-{
-	physmap_flash_data.nr_parts = num_parts;
-	physmap_flash_data.parts = parts;
-}
 #endif
 
 static int __init physmap_init(void)

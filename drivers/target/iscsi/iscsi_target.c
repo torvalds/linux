@@ -22,6 +22,7 @@
 #include <linux/kthread.h>
 #include <linux/crypto.h>
 #include <linux/completion.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi_device.h>
 #include <scsi/iscsi_proto.h>
@@ -1079,7 +1080,9 @@ attach_cmd:
 	 */
 	if (!cmd->immediate_data) {
 		cmdsn_ret = iscsit_sequence_cmd(conn, cmd, hdr->cmdsn);
-		if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
+		if (cmdsn_ret == CMDSN_LOWER_THAN_EXP)
+			return 0;
+		else if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
 			return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_PROTOCOL_ERROR,
 				1, 0, buf, cmd);
@@ -1819,17 +1822,16 @@ attach:
 		int cmdsn_ret = iscsit_sequence_cmd(conn, cmd, hdr->cmdsn);
 		if (cmdsn_ret == CMDSN_HIGHER_THAN_EXP)
 			out_of_order_cmdsn = 1;
-		else if (cmdsn_ret == CMDSN_LOWER_THAN_EXP) {
+		else if (cmdsn_ret == CMDSN_LOWER_THAN_EXP)
 			return 0;
-		} else { /* (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER) */
+		else if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
 			return iscsit_add_reject_from_cmd(
 					ISCSI_REASON_PROTOCOL_ERROR,
 					1, 0, buf, cmd);
-		}
 	}
 	iscsit_ack_from_expstatsn(conn, hdr->exp_statsn);
 
-	if (out_of_order_cmdsn)
+	if (out_of_order_cmdsn || !(hdr->opcode & ISCSI_OP_IMMEDIATE))
 		return 0;
 	/*
 	 * Found the referenced task, send to transport for processing.

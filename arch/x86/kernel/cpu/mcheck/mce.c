@@ -37,6 +37,7 @@
 #include <linux/mm.h>
 #include <linux/debugfs.h>
 #include <linux/irq_work.h>
+#include <linux/export.h>
 
 #include <asm/processor.h>
 #include <asm/mce.h>

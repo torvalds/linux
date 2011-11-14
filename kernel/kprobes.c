@@ -36,7 +36,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/moduleloader.h>
 #include <linux/kallsyms.h>
 #include <linux/freezer.h>

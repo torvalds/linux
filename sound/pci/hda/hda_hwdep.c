@@ -26,6 +26,7 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/firmware.h>
+#include <linux/export.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"

@@ -28,7 +28,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
 #include <linux/pci.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 
 #include <asm/iommu.h>

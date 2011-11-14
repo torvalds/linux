@@ -82,7 +82,7 @@
 #include <linux/isa.h>
 #include <linux/pnp.h>
 #include <linux/isapnp.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/delay.h>
 
 #include <asm/io.h>

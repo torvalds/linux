@@ -105,7 +105,7 @@ static int ath3k_load_firmware(struct usb_device *udev,
 
 	pipe = usb_sndctrlpipe(udev, 0);
 
-	send_buf = kmalloc(BULK_SIZE, GFP_ATOMIC);
+	send_buf = kmalloc(BULK_SIZE, GFP_KERNEL);
 	if (!send_buf) {
 		BT_ERR("Can't allocate memory chunk for firmware");
 		return -ENOMEM;
@@ -176,7 +176,7 @@ static int ath3k_load_fwfile(struct usb_device *udev,
 
 	count = firmware->size;
 
-	send_buf = kmalloc(BULK_SIZE, GFP_ATOMIC);
+	send_buf = kmalloc(BULK_SIZE, GFP_KERNEL);
 	if (!send_buf) {
 		BT_ERR("Can't allocate memory chunk for firmware");
 		return -ENOMEM;

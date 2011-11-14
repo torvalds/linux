@@ -17,6 +17,7 @@
 #include "../browser.h"
 #include "../helpline.h"
 #include "../util.h"
+#include "../ui.h"
 #include "map.h"
 
 struct hist_browser {
@@ -294,6 +295,15 @@ static void hist_browser__set_folding(struct hist_browser *self, bool unfold)
 	ui_browser__reset_index(&self->b);
 }
 
+static void ui_browser__warn_lost_events(struct ui_browser *browser)
+{
+	ui_browser__warning(browser, 4,
+		"Events are being lost, check IO/CPU overload!\n\n"
+		"You may want to run 'perf' using a RT scheduler policy:\n\n"
+		" perf top -r 80\n\n"
+		"Or reduce the sampling frequency.");
+}
+
 static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 			     void(*timer)(void *arg), void *arg, int delay_secs)
 {
@@ -314,12 +324,18 @@ static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 		key = ui_browser__run(&self->b, delay_secs);
 
 		switch (key) {
-		case -1:
-			/* FIXME we need to check if it was es.reason == NEWT_EXIT_TIMER */
+		case K_TIMER:
 			timer(arg);
 			ui_browser__update_nr_entries(&self->b, self->hists->nr_entries);
-			hists__browser_title(self->hists, title, sizeof(title),
-					     ev_name);
+
+			if (self->hists->stats.nr_lost_warned !=
+			    self->hists->stats.nr_events[PERF_RECORD_LOST]) {
+				self->hists->stats.nr_lost_warned =
+					self->hists->stats.nr_events[PERF_RECORD_LOST];
+				ui_browser__warn_lost_events(&self->b);
+			}
+
+			hists__browser_title(self->hists, title, sizeof(title), ev_name);
 			ui_browser__show_title(&self->b, title);
 			continue;
 		case 'D': { /* Debug */
@@ -883,7 +899,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			goto out_free_stack;
 		case 'a':
 			if (!browser->has_symbols) {
-				ui__warning(
+				ui_browser__warning(&browser->b, delay_secs * 2,
 			"Annotation is only available for symbolic views, "
 			"include \"sym\" in --sort to use it.");
 				continue;
@@ -901,7 +917,8 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		case K_F1:
 		case 'h':
 		case '?':
-			ui__help_window("h/?/F1        Show this window\n"
+			ui_browser__help_window(&browser->b,
+					"h/?/F1        Show this window\n"
 					"UP/DOWN/PGUP\n"
 					"PGDN/SPACE    Navigate\n"
 					"q/ESC/CTRL+C  Exit browser\n\n"
@@ -914,7 +931,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 					"C             Collapse all callchains\n"
 					"E             Expand all callchains\n"
 					"d             Zoom into current DSO\n"
-					"t             Zoom into current Thread\n");
+					"t             Zoom into current Thread");
 			continue;
 		case K_ENTER:
 		case K_RIGHT:
@@ -940,7 +957,8 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		}
 		case K_ESC:
 			if (!left_exits &&
-			    !ui__dialog_yesno("Do you really want to exit?"))
+			    !ui_browser__dialog_yesno(&browser->b,
+					       "Do you really want to exit?"))
 				continue;
 			/* Fall thru */
 		case 'q':
@@ -993,6 +1011,7 @@ add_exit_option:
 
 		if (choice == annotate) {
 			struct hist_entry *he;
+			int err;
 do_annotate:
 			he = hist_browser__selected_entry(browser);
 			if (he == NULL)
@@ -1001,10 +1020,12 @@ do_annotate:
 			 * Don't let this be freed, say, by hists__decay_entry.
 			 */
 			he->used = true;
-			hist_entry__tui_annotate(he, evsel->idx, nr_events,
-						 timer, arg, delay_secs);
+			err = hist_entry__tui_annotate(he, evsel->idx, nr_events,
+						       timer, arg, delay_secs);
 			he->used = false;
 			ui_browser__update_nr_entries(&browser->b, browser->hists->nr_entries);
+			if (err)
+				ui_browser__handle_resize(&browser->b);
 		} else if (choice == browse_map)
 			map__browse(browser->selection->map);
 		else if (choice == zoom_dso) {
@@ -1056,6 +1077,7 @@ out:
 struct perf_evsel_menu {
 	struct ui_browser b;
 	struct perf_evsel *selection;
+	bool lost_events, lost_events_warned;
 };
 
 static void perf_evsel_menu__write(struct ui_browser *browser,
@@ -1068,14 +1090,29 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	unsigned long nr_events = evsel->hists.stats.nr_events[PERF_RECORD_SAMPLE];
 	const char *ev_name = event_name(evsel);
 	char bf[256], unit;
+	const char *warn = " ";
+	size_t printed;
 
 	ui_browser__set_color(browser, current_entry ? HE_COLORSET_SELECTED :
 						       HE_COLORSET_NORMAL);
 
 	nr_events = convert_unit(nr_events, &unit);
-	snprintf(bf, sizeof(bf), "%lu%c%s%s", nr_events,
-		 unit, unit == ' ' ? "" : " ", ev_name);
-	slsmg_write_nstring(bf, browser->width);
+	printed = snprintf(bf, sizeof(bf), "%lu%c%s%s", nr_events,
+			   unit, unit == ' ' ? "" : " ", ev_name);
+	slsmg_printf("%s", bf);
+
+	nr_events = evsel->hists.stats.nr_events[PERF_RECORD_LOST];
+	if (nr_events != 0) {
+		menu->lost_events = true;
+		if (!current_entry)
+			ui_browser__set_color(browser, HE_COLORSET_TOP);
+		nr_events = convert_unit(nr_events, &unit);
+		snprintf(bf, sizeof(bf), ": %ld%c%schunks LOST!", nr_events,
+			 unit, unit == ' ' ? "" : " ");
+		warn = bf;
+	}
+
+	slsmg_write_nstring(warn, browser->width - printed);
 
 	if (current_entry)
 		menu->selection = evsel;
@@ -1100,6 +1137,11 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 		switch (key) {
 		case K_TIMER:
 			timer(arg);
+
+			if (!menu->lost_events_warned && menu->lost_events) {
+				ui_browser__warn_lost_events(&menu->b);
+				menu->lost_events_warned = true;
+			}
 			continue;
 		case K_RIGHT:
 		case K_ENTER:
@@ -1133,7 +1175,8 @@ browse_hists:
 					pos = list_entry(pos->node.prev, struct perf_evsel, node);
 				goto browse_hists;
 			case K_ESC:
-				if (!ui__dialog_yesno("Do you really want to exit?"))
+				if (!ui_browser__dialog_yesno(&menu->b,
+						"Do you really want to exit?"))
 					continue;
 				/* Fall thru */
 			case 'q':
@@ -1145,7 +1188,8 @@ browse_hists:
 		case K_LEFT:
 			continue;
 		case K_ESC:
-			if (!ui__dialog_yesno("Do you really want to exit?"))
+			if (!ui_browser__dialog_yesno(&menu->b,
+					       "Do you really want to exit?"))
 				continue;
 			/* Fall thru */
 		case 'q':

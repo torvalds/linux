@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 /*
  * Remote control for Powercolor Real Angel 330

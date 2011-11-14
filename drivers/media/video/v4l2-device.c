@@ -20,6 +20,7 @@
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
+#include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #if defined(CONFIG_SPI)

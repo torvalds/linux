@@ -39,6 +39,7 @@
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/module.h>
 
 #include <asm/ropes.h>
 #include <asm/mckinley.h>	/* for proc_mckinley_root */

@@ -137,7 +137,7 @@ struct xfs_trans;
 void	xfs_log_item_init(struct xfs_mount	*mp,
 			struct xfs_log_item	*item,
 			int			type,
-			struct xfs_item_ops	*ops);
+			const struct xfs_item_ops *ops);
 
 xfs_lsn_t xfs_log_done(struct xfs_mount *mp,
 		       struct xlog_ticket *ticket,

@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/aer.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>

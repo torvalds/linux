@@ -24,6 +24,7 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
+#include <linux/module.h>
 
 #include <plat/regs-spi.h>
 #include <mach/spi.h>

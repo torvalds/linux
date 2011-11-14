@@ -138,19 +138,14 @@ static struct mtd_partition __initdata dk_nand_partition[] = {
 	},
 };
 
-static struct mtd_partition * __init nand_partitions(int size, int *num_partitions)
-{
-	*num_partitions = ARRAY_SIZE(dk_nand_partition);
-	return dk_nand_partition;
-}
-
 static struct atmel_nand_data __initdata dk_nand_data = {
 	.ale		= 22,
 	.cle		= 21,
 	.det_pin	= AT91_PIN_PB1,
 	.rdy_pin	= AT91_PIN_PC2,
 	// .enable_pin	= ... not there
-	.partition_info	= nand_partitions,
+	.parts		= dk_nand_partition,
+	.num_parts	= ARRAY_SIZE(dk_nand_partition),
 };
 
 #define DK_FLASH_BASE	AT91_CHIPSELECT_0

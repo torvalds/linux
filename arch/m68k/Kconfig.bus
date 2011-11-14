@@ -2,6 +2,15 @@ if MMU
 
 comment "Bus Support"
 
+config DIO
+	bool "DIO bus support"
+	depends on HP300
+	default y
+	help
+	  Say Y here to enable support for the "DIO" expansion bus used in
+	  HP300 machines. If you are using such a system you almost certainly
+	  want this.
+
 config NUBUS
 	bool
 	depends on MAC

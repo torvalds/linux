@@ -14,7 +14,6 @@
 #include <linux/wait.h>
 #include <linux/mempool.h>
 #include <linux/bio.h>
-#include <linux/module.h>
 #include <linux/stringify.h>
 #include <linux/gfp.h>
 #include <linux/bsg.h>
@@ -22,6 +21,7 @@
 
 #include <asm/scatterlist.h>
 
+struct module;
 struct scsi_ioctl_command;
 
 struct request_queue;

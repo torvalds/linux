@@ -23,6 +23,7 @@
 #include <linux/fs.h>
 #include <linux/root_dev.h>
 #include <linux/console.h>
+#include <linux/export.h>
 #include <linux/bootmem.h>
 
 #include <asm/machdep.h>

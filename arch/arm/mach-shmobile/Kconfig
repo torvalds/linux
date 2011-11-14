@@ -26,6 +26,7 @@ config ARCH_SH73A0
 	select SH_CLK_CPG
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
+	select I2C
 
 comment "SH-Mobile Board Type"
 
@@ -69,6 +70,11 @@ config MACH_MACKEREL
 	depends on ARCH_SH7372
 	select ARCH_REQUIRE_GPIOLIB
 
+config MACH_KOTA2
+	bool "KOTA2 board"
+	select ARCH_REQUIRE_GPIOLIB
+	depends on ARCH_SH73A0
+
 comment "SH-Mobile System Configuration"
 
 menu "Memory configuration"
@@ -78,6 +84,7 @@ config MEMORY_START
 	default "0x50000000" if MACH_G3EVM
 	default "0x40000000" if MACH_G4EVM || MACH_AP4EVB || MACH_AG5EVM || \
 				MACH_MACKEREL
+	default "0x41000000" if MACH_KOTA2
 	default "0x00000000"
 	---help---
 	  Tweak this only when porting to a new machine which does not
@@ -89,6 +96,7 @@ config MEMORY_SIZE
 	default "0x08000000" if MACH_G3EVM
 	default "0x08000000" if MACH_G4EVM
 	default "0x20000000" if MACH_AG5EVM
+	default "0x1e000000" if MACH_KOTA2
 	default "0x10000000" if MACH_AP4EVB || MACH_MACKEREL
 	default "0x04000000"
 	help

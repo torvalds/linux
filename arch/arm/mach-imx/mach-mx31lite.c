@@ -21,6 +21,7 @@
 #include <linux/memory.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/moduleparam.h>
 #include <linux/smsc911x.h>
 #include <linux/mfd/mc13783.h>
 #include <linux/spi/spi.h>

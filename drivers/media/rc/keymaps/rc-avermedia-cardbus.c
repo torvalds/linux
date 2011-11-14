@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 /* Oldrich Jedlicka <oldium.pro@seznam.cz> */
 
