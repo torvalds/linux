@@ -4534,7 +4534,10 @@ static int patch_alc882(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	board_config = alc_board_codec_sid_config(codec,
+	board_config = alc_board_config(codec, ALC882_MODEL_LAST,
+					alc882_models, NULL);
+	if (board_config < 0)
+		board_config = alc_board_codec_sid_config(codec,
 			ALC882_MODEL_LAST, alc882_models, alc882_ssid_cfg_tbl);
 
 	if (board_config < 0) {
