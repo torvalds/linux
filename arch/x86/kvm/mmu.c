@@ -1023,14 +1023,12 @@ static void drop_spte(struct kvm *kvm, u64 *sptep)
 		rmap_remove(kvm, sptep);
 }
 
-static int rmap_write_protect(struct kvm *kvm, u64 gfn)
+int kvm_mmu_rmap_write_protect(struct kvm *kvm, u64 gfn,
+			       struct kvm_memory_slot *slot)
 {
-	struct kvm_memory_slot *slot;
 	unsigned long *rmapp;
 	u64 *spte;
 	int i, write_protected = 0;
-
-	slot = gfn_to_memslot(kvm, gfn);
 
 	rmapp = __gfn_to_rmap(kvm, gfn, PT_PAGE_TABLE_LEVEL, slot);
 	spte = rmap_next(kvm, rmapp, NULL);
@@ -1064,6 +1062,14 @@ static int rmap_write_protect(struct kvm *kvm, u64 gfn)
 	}
 
 	return write_protected;
+}
+
+static int rmap_write_protect(struct kvm *kvm, u64 gfn)
+{
+	struct kvm_memory_slot *slot;
+
+	slot = gfn_to_memslot(kvm, gfn);
+	return kvm_mmu_rmap_write_protect(kvm, gfn, slot);
 }
 
 static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
