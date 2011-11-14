@@ -1136,14 +1136,11 @@ pause:
 		__set_current_state(TASK_KILLABLE);
 		io_schedule_timeout(pause);
 
-		dirty_thresh = hard_dirty_limit(dirty_thresh);
 		/*
-		 * max-pause area. If dirty exceeded but still within this
-		 * area, no need to sleep for more than 200ms: (a) 8 pages per
-		 * 200ms is typically more than enough to curb heavy dirtiers;
-		 * (b) the pause time limit makes the dirtiers more responsive.
+		 * This is typically equal to (nr_dirty < dirty_thresh) and can
+		 * also keep "1000+ dd on a slow USB stick" under control.
 		 */
-		if (nr_dirty < dirty_thresh)
+		if (task_ratelimit)
 			break;
 
 		if (fatal_signal_pending(current))
