@@ -625,6 +625,7 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 		return -ENOMEM;
 
 	memslot->dirty_bitmap_head = memslot->dirty_bitmap;
+	memslot->nr_dirty_pages = 0;
 	return 0;
 }
 #endif /* !CONFIG_S390 */
@@ -1491,7 +1492,8 @@ void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	if (memslot && memslot->dirty_bitmap) {
 		unsigned long rel_gfn = gfn - memslot->base_gfn;
 
-		__set_bit_le(rel_gfn, memslot->dirty_bitmap);
+		if (!__test_and_set_bit_le(rel_gfn, memslot->dirty_bitmap))
+			memslot->nr_dirty_pages++;
 	}
 }
 

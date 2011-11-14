@@ -181,6 +181,7 @@ struct kvm_memory_slot {
 	unsigned long *rmap;
 	unsigned long *dirty_bitmap;
 	unsigned long *dirty_bitmap_head;
+	unsigned long nr_dirty_pages;
 	struct kvm_lpage_info *lpage_info[KVM_NR_PAGE_SIZES - 1];
 	unsigned long userspace_addr;
 	int user_alloc;
