@@ -85,7 +85,7 @@ struct ath6kl_vif *ath6kl_get_vif_by_index(struct ath6kl *ar, u8 if_idx)
 {
 	struct ath6kl_vif *vif, *found = NULL;
 
-	if (WARN_ON(if_idx > (MAX_NUM_VIF - 1)))
+	if (WARN_ON(if_idx > (ar->vif_max - 1)))
 		return NULL;
 
 	/* FIXME: Locking */
@@ -187,7 +187,7 @@ int ath6kl_wmi_data_hdr_add(struct wmi *wmi, struct sk_buff *skb,
 	struct wmi_data_hdr *data_hdr;
 	int ret;
 
-	if (WARN_ON(skb == NULL || (if_idx > MAX_NUM_VIF - 1)))
+	if (WARN_ON(skb == NULL || (if_idx > wmi->parent_dev->vif_max - 1)))
 		return -EINVAL;
 
 	if (tx_meta_info) {
@@ -1620,7 +1620,7 @@ int ath6kl_wmi_cmd_send(struct wmi *wmi, u8 if_idx, struct sk_buff *skb,
 	int ret;
 	u16 info1;
 
-	if (WARN_ON(skb == NULL || (if_idx > (MAX_NUM_VIF - 1))))
+	if (WARN_ON(skb == NULL || (if_idx > (wmi->parent_dev->vif_max - 1))))
 		return -EINVAL;
 
 	ath6kl_dbg(ATH6KL_DBG_WMI, "wmi tx id %d len %d flag %d\n",

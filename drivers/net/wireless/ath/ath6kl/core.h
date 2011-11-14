@@ -399,7 +399,11 @@ enum ath6kl_hif_type {
 	ATH6KL_HIF_TYPE_USB,
 };
 
-#define MAX_NUM_VIF	1
+/*
+ * Driver's maximum limit, note that some firmwares support only one vif
+ * and the runtime (current) limit must be checked from ar->vif_max.
+ */
+#define ATH6KL_VIF_MAX	1
 
 /* vif flags info */
 enum ath6kl_vif_state {
@@ -498,6 +502,7 @@ struct ath6kl {
 	/* Lock to avoid race in vif_list entries among add/del/traverse */
 	spinlock_t list_lock;
 	u8 num_vif;
+	int vif_max;
 	u8 max_norm_iface;
 	u8 avail_idx_map;
 	spinlock_t lock;

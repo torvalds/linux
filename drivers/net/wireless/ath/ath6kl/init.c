@@ -463,7 +463,7 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	 */
 	fw_iftype = HI_OPTION_FW_MODE_BSS_STA;
 
-	for (i = 0; i < MAX_NUM_VIF; i++)
+	for (i = 0; i < ar->vif_max; i++)
 		fw_mode |= fw_iftype << (i * HI_OPTION_FW_MODE_BITS);
 
 	/*
@@ -477,7 +477,7 @@ int ath6kl_configure_target(struct ath6kl *ar)
 		fw_submode |= HI_OPTION_FW_SUBMODE_NONE <<
 			      (i * HI_OPTION_FW_SUBMODE_BITS);
 
-	for (i = ar->max_norm_iface; i < MAX_NUM_VIF; i++)
+	for (i = ar->max_norm_iface; i < ar->vif_max; i++)
 		fw_submode |= HI_OPTION_FW_SUBMODE_P2PDEV <<
 			      (i * HI_OPTION_FW_SUBMODE_BITS);
 
@@ -508,7 +508,7 @@ int ath6kl_configure_target(struct ath6kl *ar)
 		return -EIO;
 	}
 
-	param |= (MAX_NUM_VIF << HI_OPTION_NUM_DEV_SHIFT);
+	param |= (ar->vif_max << HI_OPTION_NUM_DEV_SHIFT);
 	param |= fw_mode << HI_OPTION_FW_MODE_SHIFT;
 	param |= fw_submode << HI_OPTION_FW_SUBMODE_SHIFT;
 
@@ -1482,7 +1482,7 @@ int ath6kl_init_hw_start(struct ath6kl *ar)
 	if ((ath6kl_set_host_app_area(ar)) != 0)
 		ath6kl_err("unable to set the host app area\n");
 
-	for (i = 0; i < MAX_NUM_VIF; i++) {
+	for (i = 0; i < ar->vif_max; i++) {
 		ret = ath6kl_target_config_wlan_params(ar, i);
 		if (ret)
 			goto err_htc_stop;
@@ -1592,7 +1592,7 @@ int ath6kl_core_init(struct ath6kl *ar)
 		goto err_node_cleanup;
 	}
 
-	for (i = 0; i < MAX_NUM_VIF; i++)
+	for (i = 0; i < ar->vif_max; i++)
 		ar->avail_idx_map |= BIT(i);
 
 	rtnl_lock();
