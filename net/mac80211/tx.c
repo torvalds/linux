@@ -571,8 +571,6 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		switch (tx->key->conf.cipher) {
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:
-			if (ieee80211_is_auth(hdr->frame_control))
-				break;
 		case WLAN_CIPHER_SUITE_TKIP:
 			if (!ieee80211_is_data_present(hdr->frame_control))
 				tx->key = NULL;
