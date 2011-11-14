@@ -516,13 +516,11 @@ static void prb_init_blk_timer(struct packet_sock *po,
 
 static void prb_setup_retire_blk_timer(struct packet_sock *po, int tx_ring)
 {
-	struct tpacket_kbdq_core *pkc;
-
 	if (tx_ring)
 		BUG();
 
-	pkc = tx_ring ? &po->tx_ring.prb_bdqc : &po->rx_ring.prb_bdqc;
-	prb_init_blk_timer(po, pkc, prb_retire_rx_blk_timer_expired);
+	prb_init_blk_timer(po, &po->rx_ring.prb_bdqc,
+			   prb_retire_rx_blk_timer_expired);
 }
 
 static int prb_calc_retire_blk_tmo(struct packet_sock *po,
