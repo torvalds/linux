@@ -35,7 +35,7 @@ module_param(suspend_cutpower, bool, 0444);
 
 static const struct ath6kl_hw hw_list[] = {
 	{
-		.id				= AR6003_REV2_VERSION,
+		.id				= AR6003_HW_2_0_VERSION,
 		.name				= "ar6003 hw 2.0",
 		.dataset_patch_addr		= 0x57e884,
 		.app_load_addr			= 0x543180,
@@ -46,7 +46,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.app_start_override_addr	= 0x944C00,
 	},
 	{
-		.id				= AR6003_REV3_VERSION,
+		.id				= AR6003_HW_2_1_1_VERSION,
 		.name				= "ar6003 hw 2.1.1",
 		.dataset_patch_addr		= 0x57ff74,
 		.app_load_addr			= 0x1234,
@@ -54,7 +54,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.reserved_ram_size		= 512,
 	},
 	{
-		.id				= AR6004_REV1_VERSION,
+		.id				= AR6004_HW_1_0_VERSION,
 		.name				= "ar6004 hw 1.0",
 		.dataset_patch_addr		= 0x57e884,
 		.app_load_addr			= 0x1234,
@@ -63,7 +63,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x433900,
 	},
 	{
-		.id				= AR6004_REV2_VERSION,
+		.id				= AR6004_HW_1_1_VERSION,
 		.name				= "ar6004 hw 1.1",
 		.dataset_patch_addr		= 0x57e884,
 		.app_load_addr			= 0x1234,
@@ -590,11 +590,11 @@ static int ath6kl_get_fw(struct ath6kl *ar, const char *filename,
 static const char *get_target_ver_dir(const struct ath6kl *ar)
 {
 	switch (ar->version.target_ver) {
-	case AR6003_REV1_VERSION:
+	case AR6003_HW_1_0_VERSION:
 		return "ath6k/AR6003/hw1.0";
-	case AR6003_REV2_VERSION:
+	case AR6003_HW_2_0_VERSION:
 		return "ath6k/AR6003/hw2.0";
-	case AR6003_REV3_VERSION:
+	case AR6003_HW_2_1_1_VERSION:
 		return "ath6k/AR6003/hw2.1.1";
 	}
 	ath6kl_warn("%s: unsupported target version 0x%x.\n", __func__,
@@ -653,14 +653,14 @@ static int ath6kl_fetch_board_file(struct ath6kl *ar)
 		return 0;
 
 	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		filename = AR6003_REV2_BOARD_DATA_FILE;
+	case AR6003_HW_2_0_VERSION:
+		filename = AR6003_HW_2_0_BOARD_DATA_FILE;
 		break;
-	case AR6004_REV1_VERSION:
-		filename = AR6004_REV1_BOARD_DATA_FILE;
+	case AR6004_HW_1_0_VERSION:
+		filename = AR6004_HW_1_0_BOARD_DATA_FILE;
 		break;
 	default:
-		filename = AR6003_REV3_BOARD_DATA_FILE;
+		filename = AR6003_HW_2_1_1_BOARD_DATA_FILE;
 		break;
 	}
 
@@ -681,14 +681,14 @@ static int ath6kl_fetch_board_file(struct ath6kl *ar)
 		    filename, ret);
 
 	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		filename = AR6003_REV2_DEFAULT_BOARD_DATA_FILE;
+	case AR6003_HW_2_0_VERSION:
+		filename = AR6003_HW_2_0_DEFAULT_BOARD_DATA_FILE;
 		break;
-	case AR6004_REV1_VERSION:
-		filename = AR6004_REV1_DEFAULT_BOARD_DATA_FILE;
+	case AR6004_HW_1_0_VERSION:
+		filename = AR6004_HW_1_0_DEFAULT_BOARD_DATA_FILE;
 		break;
 	default:
-		filename = AR6003_REV3_DEFAULT_BOARD_DATA_FILE;
+		filename = AR6003_HW_2_1_1_DEFAULT_BOARD_DATA_FILE;
 		break;
 	}
 
@@ -715,15 +715,15 @@ static int ath6kl_fetch_otp_file(struct ath6kl *ar)
 		return 0;
 
 	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		filename = AR6003_REV2_OTP_FILE;
+	case AR6003_HW_2_0_VERSION:
+		filename = AR6003_HW_2_0_OTP_FILE;
 		break;
-	case AR6004_REV1_VERSION:
+	case AR6004_HW_1_0_VERSION:
 		ath6kl_dbg(ATH6KL_DBG_TRC, "AR6004 doesn't need OTP file\n");
 		return 0;
 		break;
 	default:
-		filename = AR6003_REV3_OTP_FILE;
+		filename = AR6003_HW_2_1_1_OTP_FILE;
 		break;
 	}
 
@@ -748,13 +748,13 @@ static int ath6kl_fetch_fw_file(struct ath6kl *ar)
 
 	if (testmode) {
 		switch (ar->version.target_ver) {
-		case AR6003_REV2_VERSION:
-			filename = AR6003_REV2_TCMD_FIRMWARE_FILE;
+		case AR6003_HW_2_0_VERSION:
+			filename = AR6003_HW_2_0_TCMD_FIRMWARE_FILE;
 			break;
-		case AR6003_REV3_VERSION:
-			filename = AR6003_REV3_TCMD_FIRMWARE_FILE;
+		case AR6003_HW_2_1_1_VERSION:
+			filename = AR6003_HW_2_1_1_TCMD_FIRMWARE_FILE;
 			break;
-		case AR6004_REV1_VERSION:
+		case AR6004_HW_1_0_VERSION:
 			ath6kl_warn("testmode not supported with ar6004\n");
 			return -EOPNOTSUPP;
 		default:
@@ -769,14 +769,14 @@ static int ath6kl_fetch_fw_file(struct ath6kl *ar)
 	}
 
 	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		filename = AR6003_REV2_FIRMWARE_FILE;
+	case AR6003_HW_2_0_VERSION:
+		filename = AR6003_HW_2_0_FIRMWARE_FILE;
 		break;
-	case AR6004_REV1_VERSION:
-		filename = AR6004_REV1_FIRMWARE_FILE;
+	case AR6004_HW_1_0_VERSION:
+		filename = AR6004_HW_1_0_FIRMWARE_FILE;
 		break;
 	default:
-		filename = AR6003_REV3_FIRMWARE_FILE;
+		filename = AR6003_HW_2_1_1_FIRMWARE_FILE;
 		break;
 	}
 
@@ -797,15 +797,15 @@ static int ath6kl_fetch_patch_file(struct ath6kl *ar)
 	int ret;
 
 	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		filename = AR6003_REV2_PATCH_FILE;
+	case AR6003_HW_2_0_VERSION:
+		filename = AR6003_HW_2_0_PATCH_FILE;
 		break;
-	case AR6004_REV1_VERSION:
+	case AR6004_HW_1_0_VERSION:
 		/* FIXME: implement for AR6004 */
 		return 0;
 		break;
 	default:
-		filename = AR6003_REV3_PATCH_FILE;
+		filename = AR6003_HW_2_1_1_PATCH_FILE;
 		break;
 	}
 
@@ -852,17 +852,17 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 	__le32 *val;
 
 	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		filename = AR6003_REV2_FIRMWARE_2_FILE;
+	case AR6003_HW_2_0_VERSION:
+		filename = AR6003_HW_2_0_FIRMWARE_2_FILE;
 		break;
-	case AR6003_REV3_VERSION:
-		filename = AR6003_REV3_FIRMWARE_2_FILE;
+	case AR6003_HW_2_1_1_VERSION:
+		filename = AR6003_HW_2_1_1_FIRMWARE_2_FILE;
 		break;
-	case AR6004_REV1_VERSION:
-		filename = AR6004_REV1_FIRMWARE_2_FILE;
+	case AR6004_HW_1_0_VERSION:
+		filename = AR6004_HW_1_0_FIRMWARE_2_FILE;
 		break;
-	case AR6004_REV2_VERSION:
-		filename = AR6004_REV2_FIRMWARE_2_FILE;
+	case AR6004_HW_1_1_VERSION:
+		filename = AR6004_HW_1_1_FIRMWARE_2_FILE;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1313,7 +1313,7 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 		return status;
 
 	/* WAR to avoid SDIO CRC err */
-	if (ar->version.target_ver == AR6003_REV2_VERSION) {
+	if (ar->version.target_ver == AR6003_HW_2_0_VERSION) {
 		ath6kl_err("temporary war to avoid sdio crc error\n");
 
 		param = 0x20;
