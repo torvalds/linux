@@ -2008,14 +2008,14 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 		return state_index;
 	/* last mode is usually default, array is low to high */
 	for (i = 0; i < num_modes; i++) {
+		rdev->pm.power_state[state_index].clock_info =
+			kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
+		if (!rdev->pm.power_state[state_index].clock_info)
+			return state_index;
+		rdev->pm.power_state[state_index].num_clock_modes = 1;
 		rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
 		switch (frev) {
 		case 1:
-			rdev->pm.power_state[state_index].clock_info =
-				kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
-			if (!rdev->pm.power_state[state_index].clock_info)
-				return state_index;
-			rdev->pm.power_state[state_index].num_clock_modes = 1;
 			rdev->pm.power_state[state_index].clock_info[0].mclk =
 				le16_to_cpu(power_info->info.asPowerPlayInfo[i].usMemoryClock);
 			rdev->pm.power_state[state_index].clock_info[0].sclk =
@@ -2051,11 +2051,6 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 			state_index++;
 			break;
 		case 2:
-			rdev->pm.power_state[state_index].clock_info =
-				kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
-			if (!rdev->pm.power_state[state_index].clock_info)
-				return state_index;
-			rdev->pm.power_state[state_index].num_clock_modes = 1;
 			rdev->pm.power_state[state_index].clock_info[0].mclk =
 				le32_to_cpu(power_info->info_2.asPowerPlayInfo[i].ulMemoryClock);
 			rdev->pm.power_state[state_index].clock_info[0].sclk =
@@ -2092,11 +2087,6 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 			state_index++;
 			break;
 		case 3:
-			rdev->pm.power_state[state_index].clock_info =
-				kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
-			if (!rdev->pm.power_state[state_index].clock_info)
-				return state_index;
-			rdev->pm.power_state[state_index].num_clock_modes = 1;
 			rdev->pm.power_state[state_index].clock_info[0].mclk =
 				le32_to_cpu(power_info->info_3.asPowerPlayInfo[i].ulMemoryClock);
 			rdev->pm.power_state[state_index].clock_info[0].sclk =
