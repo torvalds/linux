@@ -645,6 +645,17 @@ All the above functions are mandatory to implement for a pinmux driver.
 Pinmux interaction with the GPIO subsystem
 ==========================================
 
+The public pinmux API contains two functions named pinmux_request_gpio()
+and pinmux_free_gpio(). These two functions shall *ONLY* be called from
+gpiolib-based drivers as part of their gpio_request() and
+gpio_free() semantics. Likewise the pinmux_gpio_direction_[input|output]
+shall only be called from within respective gpio_direction_[input|output]
+gpiolib implementation.
+
+NOTE that platforms and individual drivers shall *NOT* request GPIO pins to be
+muxed in. Instead, implement a proper gpiolib driver and have that driver
+request proper muxing for its pins.
+
 The function list could become long, especially if you can convert every
 individual pin into a GPIO pin independent of any other pins, and then try
 the approach to define every pin as a function.
@@ -652,19 +663,24 @@ the approach to define every pin as a function.
 In this case, the function array would become 64 entries for each GPIO
 setting and then the device functions.
 
-For this reason there is an additional function a pinmux driver can implement
-to enable only GPIO on an individual pin: .gpio_request_enable(). The same
-.free() function as for other functions is assumed to be usable also for
-GPIO pins.
+For this reason there are two functions a pinmux driver can implement
+to enable only GPIO on an individual pin: .gpio_request_enable() and
+.gpio_disable_free().
 
 This function will pass in the affected GPIO range identified by the pin
 controller core, so you know which GPIO pins are being affected by the request
 operation.
 
-Alternatively it is fully allowed to use named functions for each GPIO
-pin, the pinmux_request_gpio() will attempt to obtain the function "gpioN"
-where "N" is the global GPIO pin number if no special GPIO-handler is
-registered.
+If your driver needs to have an indication from the framework of whether the
+GPIO pin shall be used for input or output you can implement the
+.gpio_set_direction() function. As described this shall be called from the
+gpiolib driver and the affected GPIO range, pin offset and desired direction
+will be passed along to this function.
+
+Alternatively to using these special functions, it is fully allowed to use
+named functions for each GPIO pin, the pinmux_request_gpio() will attempt to
+obtain the function "gpioN" where "N" is the global GPIO pin number if no
+special GPIO-handler is registered.
 
 
 Pinmux board/machine configuration

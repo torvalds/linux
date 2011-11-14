@@ -214,6 +214,10 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 /**
  * pinmux_request_gpio() - request a single pin to be muxed in as GPIO
  * @gpio: the GPIO pin number from the GPIO subsystem number space
+ *
+ * This function should *ONLY* be used from gpiolib-based GPIO drivers,
+ * as part of their gpio_request() semantics, platforms and individual drivers
+ * shall *NOT* request GPIO pins to be muxed in.
  */
 int pinmux_request_gpio(unsigned gpio)
 {
@@ -249,6 +253,10 @@ EXPORT_SYMBOL_GPL(pinmux_request_gpio);
 /**
  * pinmux_free_gpio() - free a single pin, currently used as GPIO
  * @gpio: the GPIO pin number from the GPIO subsystem number space
+ *
+ * This function should *ONLY* be used from gpiolib-based GPIO drivers,
+ * as part of their gpio_free() semantics, platforms and individual drivers
+ * shall *NOT* request GPIO pins to be muxed out.
  */
 void pinmux_free_gpio(unsigned gpio)
 {
@@ -269,6 +277,59 @@ void pinmux_free_gpio(unsigned gpio)
 	kfree(func);
 }
 EXPORT_SYMBOL_GPL(pinmux_free_gpio);
+
+static int pinmux_gpio_direction(unsigned gpio, bool input)
+{
+	struct pinctrl_dev *pctldev;
+	struct pinctrl_gpio_range *range;
+	const struct pinmux_ops *ops;
+	int ret;
+	int pin;
+
+	ret = pinctrl_get_device_gpio_range(gpio, &pctldev, &range);
+	if (ret)
+		return ret;
+
+	ops = pctldev->desc->pmxops;
+
+	/* Convert to the pin controllers number space */
+	pin = gpio - range->base + range->pin_base;
+
+	if (ops->gpio_set_direction)
+		ret = ops->gpio_set_direction(pctldev, range, pin, input);
+	else
+		ret = 0;
+
+	return ret;
+}
+
+/**
+ * pinmux_gpio_direction_input() - request a GPIO pin to go into input mode
+ * @gpio: the GPIO pin number from the GPIO subsystem number space
+ *
+ * This function should *ONLY* be used from gpiolib-based GPIO drivers,
+ * as part of their gpio_direction_input() semantics, platforms and individual
+ * drivers shall *NOT* touch pinmux GPIO calls.
+ */
+int pinmux_gpio_direction_input(unsigned gpio)
+{
+	return pinmux_gpio_direction(gpio, true);
+}
+EXPORT_SYMBOL_GPL(pinmux_gpio_direction_input);
+
+/**
+ * pinmux_gpio_direction_output() - request a GPIO pin to go into output mode
+ * @gpio: the GPIO pin number from the GPIO subsystem number space
+ *
+ * This function should *ONLY* be used from gpiolib-based GPIO drivers,
+ * as part of their gpio_direction_output() semantics, platforms and individual
+ * drivers shall *NOT* touch pinmux GPIO calls.
+ */
+int pinmux_gpio_direction_output(unsigned gpio)
+{
+	return pinmux_gpio_direction(gpio, false);
+}
+EXPORT_SYMBOL_GPL(pinmux_gpio_direction_output);
 
 /**
  * pinmux_register_mappings() - register a set of pinmux mappings

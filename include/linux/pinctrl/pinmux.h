@@ -54,7 +54,13 @@ struct pinctrl_dev;
  *	Implement this only if you can mux every pin individually as GPIO. The
  *	affected GPIO range is passed along with an offset(pin number) into that
  *	specific GPIO range - function selectors and pin groups are orthogonal
- *	to this, the core will however make sure the pins do not collide
+ *	to this, the core will however make sure the pins do not collide.
+ * @gpio_disable_free: free up GPIO muxing on a certain pin, the reverse of
+ *	@gpio_request_enable
+ * @gpio_set_direction: Since controllers may need different configurations
+ *	depending on whether the GPIO is configured as input or output,
+ *	a direction selector function may be implemented as a backing
+ *	to the GPIO controllers that need pin muxing.
  */
 struct pinmux_ops {
 	int (*request) (struct pinctrl_dev *pctldev, unsigned offset);
@@ -76,11 +82,17 @@ struct pinmux_ops {
 	void (*gpio_disable_free) (struct pinctrl_dev *pctldev,
 				   struct pinctrl_gpio_range *range,
 				   unsigned offset);
+	int (*gpio_set_direction) (struct pinctrl_dev *pctldev,
+				   struct pinctrl_gpio_range *range,
+				   unsigned offset,
+				   bool input);
 };
 
 /* External interface to pinmux */
 extern int pinmux_request_gpio(unsigned gpio);
 extern void pinmux_free_gpio(unsigned gpio);
+extern int pinmux_gpio_direction_input(unsigned gpio);
+extern int pinmux_gpio_direction_output(unsigned gpio);
 extern struct pinmux * __must_check pinmux_get(struct device *dev, const char *name);
 extern void pinmux_put(struct pinmux *pmx);
 extern int pinmux_enable(struct pinmux *pmx);
@@ -95,6 +107,16 @@ static inline int pinmux_request_gpio(unsigned gpio)
 
 static inline void pinmux_free_gpio(unsigned gpio)
 {
+}
+
+static inline int pinmux_gpio_direction_input(unsigned gpio)
+{
+	return 0;
+}
+
+static inline int pinmux_gpio_direction_output(unsigned gpio)
+{
+	return 0;
 }
 
 static inline struct pinmux * __must_check pinmux_get(struct device *dev, const char *name)
