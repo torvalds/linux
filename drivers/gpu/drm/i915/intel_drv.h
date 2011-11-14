@@ -359,7 +359,7 @@ extern int intel_pin_and_fence_fb_obj(struct drm_device *dev,
 
 extern int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
-				  struct drm_mode_fb_cmd *mode_cmd,
+				  struct drm_mode_fb_cmd2 *mode_cmd,
 				  struct drm_i915_gem_object *obj);
 extern int intel_fbdev_init(struct drm_device *dev);
 extern void intel_fbdev_fini(struct drm_device *dev);

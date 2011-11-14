@@ -281,7 +281,7 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	struct nouveau_framebuffer *nouveau_fb;
 	struct nouveau_channel *chan;
 	struct nouveau_bo *nvbo;
-	struct drm_mode_fb_cmd mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd;
 	struct pci_dev *pdev = dev->pdev;
 	struct device *device = &pdev->dev;
 	int size, ret;
@@ -289,12 +289,13 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 
-	mode_cmd.bpp = sizes->surface_bpp;
-	mode_cmd.pitch = mode_cmd.width * (mode_cmd.bpp >> 3);
-	mode_cmd.pitch = roundup(mode_cmd.pitch, 256);
-	mode_cmd.depth = sizes->surface_depth;
+	mode_cmd.pitches[0] = mode_cmd.width * (sizes->surface_bpp >> 3);
+	mode_cmd.pitches[0] = roundup(mode_cmd.pitches[0], 256);
 
-	size = mode_cmd.pitch * mode_cmd.height;
+	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
+							  sizes->surface_depth);
+
+	size = mode_cmd.pitches[0] * mode_cmd.height;
 	size = roundup(size, PAGE_SIZE);
 
 	ret = nouveau_gem_new(dev, size, 0, NOUVEAU_GEM_DOMAIN_VRAM,

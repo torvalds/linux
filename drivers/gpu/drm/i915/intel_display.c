@@ -6279,7 +6279,7 @@ static struct drm_display_mode load_detect_mode = {
 
 static struct drm_framebuffer *
 intel_framebuffer_create(struct drm_device *dev,
-			 struct drm_mode_fb_cmd *mode_cmd,
+			 struct drm_mode_fb_cmd2 *mode_cmd,
 			 struct drm_i915_gem_object *obj)
 {
 	struct intel_framebuffer *intel_fb;
@@ -6321,7 +6321,7 @@ intel_framebuffer_create_for_mode(struct drm_device *dev,
 				  int depth, int bpp)
 {
 	struct drm_i915_gem_object *obj;
-	struct drm_mode_fb_cmd mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd;
 
 	obj = i915_gem_alloc_object(dev,
 				    intel_framebuffer_size_for_mode(mode, bpp));
@@ -6330,9 +6330,9 @@ intel_framebuffer_create_for_mode(struct drm_device *dev,
 
 	mode_cmd.width = mode->hdisplay;
 	mode_cmd.height = mode->vdisplay;
-	mode_cmd.depth = depth;
-	mode_cmd.bpp = bpp;
-	mode_cmd.pitch = intel_framebuffer_pitch_for_width(mode_cmd.width, bpp);
+	mode_cmd.pitches[0] = intel_framebuffer_pitch_for_width(mode_cmd.width,
+								bpp);
+	mode_cmd.pixel_format = 0;
 
 	return intel_framebuffer_create(dev, &mode_cmd, obj);
 }
@@ -7573,7 +7573,7 @@ static const struct drm_framebuffer_funcs intel_fb_funcs = {
 
 int intel_framebuffer_init(struct drm_device *dev,
 			   struct intel_framebuffer *intel_fb,
-			   struct drm_mode_fb_cmd *mode_cmd,
+			   struct drm_mode_fb_cmd2 *mode_cmd,
 			   struct drm_i915_gem_object *obj)
 {
 	int ret;
@@ -7581,21 +7581,23 @@ int intel_framebuffer_init(struct drm_device *dev,
 	if (obj->tiling_mode == I915_TILING_Y)
 		return -EINVAL;
 
-	if (mode_cmd->pitch & 63)
+	if (mode_cmd->pitches[0] & 63)
 		return -EINVAL;
 
-	switch (mode_cmd->bpp) {
-	case 8:
-	case 16:
-		/* Only pre-ILK can handle 5:5:5 */
-		if (mode_cmd->depth == 15 && !HAS_PCH_SPLIT(dev))
-			return -EINVAL;
+	switch (mode_cmd->pixel_format) {
+	case DRM_FOURCC_RGB332:
+	case DRM_FOURCC_RGB565:
+	case DRM_FOURCC_RGB24:
+	case DRM_INTEL_RGB30:
+		/* RGB formats are common across chipsets */
 		break;
-
-	case 24:
-	case 32:
+	case DRM_FOURCC_YUYV:
+	case DRM_FOURCC_UYVY:
+	case DRM_FOURCC_YVYU:
+	case DRM_FOURCC_VYUY:
 		break;
 	default:
+		DRM_ERROR("unsupported pixel format\n");
 		return -EINVAL;
 	}
 
@@ -7613,11 +7615,12 @@ int intel_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 intel_user_framebuffer_create(struct drm_device *dev,
 			      struct drm_file *filp,
-			      struct drm_mode_fb_cmd *mode_cmd)
+			      struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_i915_gem_object *obj;
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, filp, mode_cmd->handle));
+	obj = to_intel_bo(drm_gem_object_lookup(dev, filp,
+						mode_cmd->handles[0]));
 	if (&obj->base == NULL)
 		return ERR_PTR(-ENOENT);
 

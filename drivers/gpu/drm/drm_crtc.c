@@ -36,6 +36,7 @@
 #include "drmP.h"
 #include "drm_crtc.h"
 #include "drm_edid.h"
+#include "drm_fourcc.h"
 
 struct drm_prop_enum_list {
 	int type;
@@ -568,7 +569,7 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		return -ENOMEM;
 	}
 
-	memcpy(plane->format_types, formats, format_count);
+	memcpy(plane->format_types, formats, format_count * sizeof(uint32_t));
 	plane->format_count = format_count;
 	plane->possible_crtcs = possible_crtcs;
 
@@ -1915,6 +1916,42 @@ out:
 	return ret;
 }
 
+/* Original addfb only supported RGB formats, so figure out which one */
+uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth)
+{
+	uint32_t fmt;
+
+	switch (bpp) {
+	case 8:
+		fmt = DRM_FOURCC_RGB332;
+		break;
+	case 16:
+		if (depth == 15)
+			fmt = DRM_FOURCC_RGB555;
+		else
+			fmt = DRM_FOURCC_RGB565;
+		break;
+	case 24:
+		fmt = DRM_FOURCC_RGB24;
+		break;
+	case 32:
+		if (depth == 24)
+			fmt = DRM_FOURCC_RGB24;
+		else if (depth == 30)
+			fmt = DRM_INTEL_RGB30;
+		else
+			fmt = DRM_FOURCC_RGB32;
+		break;
+	default:
+		DRM_ERROR("bad bpp, assuming RGB24 pixel format\n");
+		fmt = DRM_FOURCC_RGB24;
+		break;
+	}
+
+	return fmt;
+}
+EXPORT_SYMBOL(drm_mode_legacy_fb_format);
+
 /**
  * drm_mode_addfb - add an FB to the graphics configuration
  * @inode: inode from the ioctl
@@ -1935,7 +1972,74 @@ out:
 int drm_mode_addfb(struct drm_device *dev,
 		   void *data, struct drm_file *file_priv)
 {
-	struct drm_mode_fb_cmd *r = data;
+	struct drm_mode_fb_cmd *or = data;
+	struct drm_mode_fb_cmd2 r = {};
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_framebuffer *fb;
+	int ret = 0;
+
+	/* Use new struct with format internally */
+	r.fb_id = or->fb_id;
+	r.width = or->width;
+	r.height = or->height;
+	r.pitches[0] = or->pitch;
+	r.pixel_format = drm_mode_legacy_fb_format(or->bpp, or->depth);
+	r.handles[0] = or->handle;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	if ((config->min_width > r.width) || (r.width > config->max_width)) {
+		DRM_ERROR("mode new framebuffer width not within limits\n");
+		return -EINVAL;
+	}
+	if ((config->min_height > r.height) || (r.height > config->max_height)) {
+		DRM_ERROR("mode new framebuffer height not within limits\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&dev->mode_config.mutex);
+
+	/* TODO check buffer is sufficiently large */
+	/* TODO setup destructor callback */
+
+	fb = dev->mode_config.funcs->fb_create(dev, file_priv, &r);
+	if (IS_ERR(fb)) {
+		DRM_ERROR("could not create framebuffer\n");
+		ret = PTR_ERR(fb);
+		goto out;
+	}
+
+	or->fb_id = fb->base.id;
+	list_add(&fb->filp_head, &file_priv->fbs);
+	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
+
+out:
+	mutex_unlock(&dev->mode_config.mutex);
+	return ret;
+}
+
+/**
+ * drm_mode_addfb2 - add an FB to the graphics configuration
+ * @inode: inode from the ioctl
+ * @filp: file * from the ioctl
+ * @cmd: cmd from ioctl
+ * @arg: arg from ioctl
+ *
+ * LOCKING:
+ * Takes mode config lock.
+ *
+ * Add a new FB to the specified CRTC, given a user request with format.
+ *
+ * Called by the user via ioctl.
+ *
+ * RETURNS:
+ * Zero on success, errno on failure.
+ */
+int drm_mode_addfb2(struct drm_device *dev,
+		    void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_fb_cmd2 *r = data;
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_framebuffer *fb;
 	int ret = 0;
@@ -1955,9 +2059,6 @@ int drm_mode_addfb(struct drm_device *dev,
 	}
 
 	mutex_lock(&dev->mode_config.mutex);
-
-	/* TODO check buffer is sufficiently large */
-	/* TODO setup destructor callback */
 
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
 	if (IS_ERR(fb)) {

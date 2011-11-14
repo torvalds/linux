@@ -29,8 +29,9 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/idr.h>
-
 #include <linux/fb.h>
+
+#include <drm/drm_fourcc.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -246,6 +247,7 @@ struct drm_framebuffer {
 	unsigned int depth;
 	int bits_per_pixel;
 	int flags;
+	uint32_t pixel_format; /* fourcc format */
 	struct list_head filp_head;
 	/* if you are using the helper */
 	void *helper_private;
@@ -619,7 +621,7 @@ struct drm_mode_set {
  * struct drm_mode_config_funcs - configure CRTCs for a given screen layout
  */
 struct drm_mode_config_funcs {
-	struct drm_framebuffer *(*fb_create)(struct drm_device *dev, struct drm_file *file_priv, struct drm_mode_fb_cmd *mode_cmd);
+	struct drm_framebuffer *(*fb_create)(struct drm_device *dev, struct drm_file *file_priv, struct drm_mode_fb_cmd2 *mode_cmd);
 	void (*output_poll_changed)(struct drm_device *dev);
 };
 
@@ -837,6 +839,9 @@ extern int drm_mode_cursor_ioctl(struct drm_device *dev,
 				void *data, struct drm_file *file_priv);
 extern int drm_mode_addfb(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
+extern int drm_mode_addfb2(struct drm_device *dev,
+			   void *data, struct drm_file *file_priv);
+extern uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth);
 extern int drm_mode_rmfb(struct drm_device *dev,
 			 void *data, struct drm_file *file_priv);
 extern int drm_mode_getfb(struct drm_device *dev,

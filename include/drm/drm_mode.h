@@ -268,6 +268,33 @@ struct drm_mode_fb_cmd {
 	__u32 handle;
 };
 
+#define DRM_MODE_FB_INTERLACED	(1<<0 /* for interlaced framebuffers */
+
+struct drm_mode_fb_cmd2 {
+	__u32 fb_id;
+	__u32 width, height;
+	__u32 pixel_format; /* fourcc code from drm_fourcc.h */
+	__u32 flags; /* see above flags */
+
+	/*
+	 * In case of planar formats, this ioctl allows up to 4
+	 * buffer objects with offets and pitches per plane.
+	 * The pitch and offset order is dictated by the fourcc,
+	 * e.g. NV12 (http://fourcc.org/yuv.php#NV12) is described as:
+	 *
+	 *   YUV 4:2:0 image with a plane of 8 bit Y samples
+	 *   followed by an interleaved U/V plane containing
+	 *   8 bit 2x2 subsampled colour difference samples.
+	 *
+	 * So it would consist of Y as offset[0] and UV as
+	 * offeset[1].  Note that offset[0] will generally
+	 * be 0.
+	 */
+	__u32 handles[4];
+	__u32 pitches[4]; /* pitch for each plane */
+	__u32 offsets[4]; /* offset of each plane */
+};
+
 #define DRM_MODE_FB_DIRTY_ANNOTATE_COPY 0x01
 #define DRM_MODE_FB_DIRTY_ANNOTATE_FILL 0x02
 #define DRM_MODE_FB_DIRTY_FLAGS         0x03

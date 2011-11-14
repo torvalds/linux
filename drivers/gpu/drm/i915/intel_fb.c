@@ -65,7 +65,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
-	struct drm_mode_fb_cmd mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_i915_gem_object *obj;
 	struct device *device = &dev->pdev->dev;
 	int size, ret;
@@ -77,11 +77,12 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 
-	mode_cmd.bpp = sizes->surface_bpp;
-	mode_cmd.pitch = ALIGN(mode_cmd.width * ((mode_cmd.bpp + 7) / 8), 64);
-	mode_cmd.depth = sizes->surface_depth;
+	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * ((sizes->surface_bpp + 7) /
+						      8), 64);
+	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
+							  sizes->surface_depth);
 
-	size = mode_cmd.pitch * mode_cmd.height;
+	size = mode_cmd.pitches[0] * mode_cmd.height;
 	size = ALIGN(size, PAGE_SIZE);
 	obj = i915_gem_alloc_object(dev, size);
 	if (!obj) {
