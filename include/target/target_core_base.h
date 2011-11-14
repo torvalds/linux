@@ -103,6 +103,7 @@ enum se_cmd_flags_table {
 	SCF_SCSI_NON_DATA_CDB		= 0x00000040,
 	SCF_SCSI_CDB_EXCEPTION		= 0x00000080,
 	SCF_SCSI_RESERVATION_CONFLICT	= 0x00000100,
+	SCF_FUA				= 0x00000200,
 	SCF_SE_LUN_CMD			= 0x00000800,
 	SCF_SE_ALLOW_EOO		= 0x00001000,
 	SCF_SENT_CHECK_CONDITION	= 0x00004000,
@@ -458,7 +459,6 @@ struct se_cmd {
 	unsigned char		__t_task_cdb[TCM_MAX_COMMAND_SIZE];
 	unsigned long long	t_task_lba;
 	int			t_tasks_failed;
-	int			t_tasks_fua;
 	bool			t_tasks_bidi;
 	u32			t_tasks_sg_chained_no;
 	atomic_t		t_fe_count;

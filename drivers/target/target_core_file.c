@@ -438,7 +438,7 @@ static int fd_do_task(struct se_task *task)
 		if (ret > 0 &&
 		    dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0 &&
 		    dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
-		    cmd->t_tasks_fua) {
+		    (cmd->se_cmd_flags & SCF_FUA)) {
 			/*
 			 * We might need to be a bit smarter here
 			 * and return some sense data to let the initiator
