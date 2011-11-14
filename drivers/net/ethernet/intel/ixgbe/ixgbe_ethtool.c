@@ -888,23 +888,19 @@ static void ixgbe_get_drvinfo(struct net_device *netdev,
                               struct ethtool_drvinfo *drvinfo)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	char firmware_version[32];
 	u32 nvm_track_id;
 
-	strncpy(drvinfo->driver, ixgbe_driver_name,
-	        sizeof(drvinfo->driver) - 1);
-	strncpy(drvinfo->version, ixgbe_driver_version,
-	        sizeof(drvinfo->version) - 1);
+	strlcpy(drvinfo->driver, ixgbe_driver_name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, ixgbe_driver_version,
+		sizeof(drvinfo->version));
 
 	nvm_track_id = (adapter->eeprom_verh << 16) |
 			adapter->eeprom_verl;
-	snprintf(firmware_version, sizeof(firmware_version), "0x%08x",
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version), "0x%08x",
 		 nvm_track_id);
 
-	strncpy(drvinfo->fw_version, firmware_version,
-		sizeof(drvinfo->fw_version) - 1);
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev),
-		sizeof(drvinfo->bus_info) - 1);
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = IXGBE_STATS_LEN;
 	drvinfo->testinfo_len = IXGBE_TEST_LEN;
 	drvinfo->regdump_len = ixgbe_get_regs_len(netdev);

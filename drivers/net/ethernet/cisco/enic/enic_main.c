@@ -217,11 +217,11 @@ static void enic_get_drvinfo(struct net_device *netdev,
 
 	enic_dev_fw_info(enic, &fw_info);
 
-	strncpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
-	strncpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
-	strncpy(drvinfo->fw_version, fw_info->fw_version,
+	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
+	strlcpy(drvinfo->fw_version, fw_info->fw_version,
 		sizeof(drvinfo->fw_version));
-	strncpy(drvinfo->bus_info, pci_name(enic->pdev),
+	strlcpy(drvinfo->bus_info, pci_name(enic->pdev),
 		sizeof(drvinfo->bus_info));
 }
 

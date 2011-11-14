@@ -4532,10 +4532,9 @@ static void cas_set_multicast(struct net_device *dev)
 static void cas_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct cas *cp = netdev_priv(dev);
-	strncpy(info->driver, DRV_MODULE_NAME, ETHTOOL_BUSINFO_LEN);
-	strncpy(info->version, DRV_MODULE_VERSION, ETHTOOL_BUSINFO_LEN);
-	info->fw_version[0] = '\0';
-	strncpy(info->bus_info, pci_name(cp->pdev), ETHTOOL_BUSINFO_LEN);
+	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(cp->pdev), sizeof(info->bus_info));
 	info->regdump_len = cp->casreg_len < CAS_MAX_REGS ?
 		cp->casreg_len : CAS_MAX_REGS;
 	info->n_stats = CAS_NUM_STAT_KEYS;
