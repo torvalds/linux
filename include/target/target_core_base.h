@@ -484,14 +484,6 @@ struct se_cmd {
 
 	struct work_struct	work;
 
-	/*
-	 * Used for pre-registered fabric SGL passthrough WRITE and READ
-	 * with the special SCF_PASSTHROUGH_CONTIG_TO_SG case for TCM_Loop
-	 * and other HW target mode fabric modules.
-	 */
-	struct scatterlist	*t_task_pt_sgl;
-	u32			t_task_pt_sgl_num;
-
 	struct scatterlist	*t_data_sg;
 	unsigned int		t_data_nents;
 	struct scatterlist	*t_bidi_data_sg;
