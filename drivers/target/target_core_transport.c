@@ -1332,12 +1332,10 @@ struct se_device *transport_add_device_to_core_hba(
 	INIT_LIST_HEAD(&dev->dev_tmr_list);
 	INIT_LIST_HEAD(&dev->execute_task_list);
 	INIT_LIST_HEAD(&dev->delayed_cmd_list);
-	INIT_LIST_HEAD(&dev->ordered_cmd_list);
 	INIT_LIST_HEAD(&dev->state_task_list);
 	INIT_LIST_HEAD(&dev->qf_cmd_list);
 	spin_lock_init(&dev->execute_task_lock);
 	spin_lock_init(&dev->delayed_cmd_lock);
-	spin_lock_init(&dev->ordered_cmd_lock);
 	spin_lock_init(&dev->state_task_lock);
 	spin_lock_init(&dev->dev_alua_lock);
 	spin_lock_init(&dev->dev_reservation_lock);
@@ -1498,7 +1496,6 @@ void transport_init_se_cmd(
 {
 	INIT_LIST_HEAD(&cmd->se_lun_node);
 	INIT_LIST_HEAD(&cmd->se_delayed_node);
-	INIT_LIST_HEAD(&cmd->se_ordered_node);
 	INIT_LIST_HEAD(&cmd->se_qf_node);
 	INIT_LIST_HEAD(&cmd->se_queue_node);
 	INIT_LIST_HEAD(&cmd->se_cmd_list);
@@ -1963,11 +1960,6 @@ static inline int transport_execute_task_attr(struct se_cmd *cmd)
 			cmd->se_ordered_id);
 		return 1;
 	} else if (cmd->sam_task_attr == MSG_ORDERED_TAG) {
-		spin_lock(&cmd->se_dev->ordered_cmd_lock);
-		list_add_tail(&cmd->se_ordered_node,
-				&cmd->se_dev->ordered_cmd_list);
-		spin_unlock(&cmd->se_dev->ordered_cmd_lock);
-
 		atomic_inc(&cmd->se_dev->dev_ordered_sync);
 		smp_mb__after_atomic_inc();
 
@@ -3100,11 +3092,8 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 			" HEAD_OF_QUEUE: %u\n", dev->dev_cur_ordered_id,
 			cmd->se_ordered_id);
 	} else if (cmd->sam_task_attr == MSG_ORDERED_TAG) {
-		spin_lock(&dev->ordered_cmd_lock);
-		list_del(&cmd->se_ordered_node);
 		atomic_dec(&dev->dev_ordered_sync);
 		smp_mb__after_atomic_dec();
-		spin_unlock(&dev->ordered_cmd_lock);
 
 		dev->dev_cur_ordered_id++;
 		pr_debug("Incremented dev_cur_ordered_id: %u for ORDERED:"

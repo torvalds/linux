@@ -439,7 +439,6 @@ struct se_cmd {
 	/* Used for sense data */
 	void			*sense_buffer;
 	struct list_head	se_delayed_node;
-	struct list_head	se_ordered_node;
 	struct list_head	se_lun_node;
 	struct list_head	se_qf_node;
 	struct se_device      *se_dev;
@@ -730,7 +729,6 @@ struct se_device {
 	struct se_obj		dev_export_obj;
 	struct se_queue_obj	dev_queue_obj;
 	spinlock_t		delayed_cmd_lock;
-	spinlock_t		ordered_cmd_lock;
 	spinlock_t		execute_task_lock;
 	spinlock_t		state_task_lock;
 	spinlock_t		dev_alua_lock;
@@ -756,7 +754,6 @@ struct se_device {
 	struct task_struct		*dev_mgmt_thread;
 	struct work_struct	qf_work_queue;
 	struct list_head	delayed_cmd_list;
-	struct list_head	ordered_cmd_list;
 	struct list_head	execute_task_list;
 	struct list_head	state_task_list;
 	struct list_head	qf_cmd_list;
