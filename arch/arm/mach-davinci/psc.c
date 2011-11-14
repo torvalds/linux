@@ -80,7 +80,7 @@ void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 	__raw_writel(mdctl, psc_base + MDCTL + 4 * id);
 
 	pdstat = __raw_readl(psc_base + PDSTAT);
-	if ((pdstat & 0x00000001) == 0) {
+	if ((pdstat & PDSTAT_STATE_MASK) == 0) {
 		pdctl1 = __raw_readl(psc_base + PDCTL1);
 		pdctl1 |= 0x1;
 		__raw_writel(pdctl1, psc_base + PDCTL1);
