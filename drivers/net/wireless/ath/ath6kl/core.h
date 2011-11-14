@@ -541,7 +541,8 @@ struct ath6kl {
 		size_t rx_report_len;
 	} tm;
 
-	struct {
+	struct ath6kl_hw {
+		u32 id;
 		u32 dataset_patch_addr;
 		u32 app_load_addr;
 		u32 app_start_override_addr;

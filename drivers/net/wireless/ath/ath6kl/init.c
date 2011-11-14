@@ -33,6 +33,40 @@ module_param(debug_mask, uint, 0644);
 module_param(testmode, uint, 0644);
 module_param(suspend_cutpower, bool, 0444);
 
+static const struct ath6kl_hw hw_list[] = {
+	{
+		.id				= AR6003_REV2_VERSION,
+		.dataset_patch_addr		= 0x57e884,
+		.app_load_addr			= 0x543180,
+		.board_ext_data_addr		= 0x57e500,
+		.reserved_ram_size		= 6912,
+
+		/* hw2.0 needs override address hardcoded */
+		.app_start_override_addr	= 0x944C00,
+	},
+	{
+		.id				= AR6003_REV3_VERSION,
+		.dataset_patch_addr		= 0x57ff74,
+		.app_load_addr			= 0x1234,
+		.board_ext_data_addr		= 0x542330,
+		.reserved_ram_size		= 512,
+	},
+	{
+		.id				= AR6004_REV1_VERSION,
+		.dataset_patch_addr		= 0x57e884,
+		.app_load_addr			= 0x1234,
+		.board_ext_data_addr		= 0x437000,
+		.reserved_ram_size		= 19456,
+	},
+	{
+		.id				= AR6004_REV2_VERSION,
+		.dataset_patch_addr		= 0x57e884,
+		.app_load_addr			= 0x1234,
+		.board_ext_data_addr		= 0x437000,
+		.reserved_ram_size		= 11264,
+	},
+};
+
 /*
  * Include definitions here that can be used to tune the WLAN module
  * behavior. Different customers can tune the behavior as per their needs,
@@ -1335,40 +1369,23 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 
 static int ath6kl_init_hw_params(struct ath6kl *ar)
 {
-	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		ar->hw.dataset_patch_addr = 0x57e884;
-		ar->hw.app_load_addr = 0x543180;
-		ar->hw.board_ext_data_addr = 0x57e500;
-		ar->hw.reserved_ram_size = 6912;
+	const struct ath6kl_hw *hw;
+	int i;
 
-		/* hw2.0 needs override address hardcoded */
-		ar->hw.app_start_override_addr = 0x944C00;
+	for (i = 0; i < ARRAY_SIZE(hw_list); i++) {
+		hw = &hw_list[i];
 
-		break;
-	case AR6003_REV3_VERSION:
-		ar->hw.dataset_patch_addr = 0x57ff74;
-		ar->hw.app_load_addr = 0x1234;
-		ar->hw.board_ext_data_addr = 0x542330;
-		ar->hw.reserved_ram_size = 512;
-		break;
-	case AR6004_REV1_VERSION:
-		ar->hw.dataset_patch_addr = 0x57e884;
-		ar->hw.app_load_addr = 0x1234;
-		ar->hw.board_ext_data_addr = 0x437000;
-		ar->hw.reserved_ram_size = 19456;
-		break;
-	case AR6004_REV2_VERSION:
-		ar->hw.dataset_patch_addr = 0x57e884;
-		ar->hw.app_load_addr = 0x1234;
-		ar->hw.board_ext_data_addr = 0x437000;
-		ar->hw.reserved_ram_size = 11264;
-		break;
-	default:
+		if (hw->id == ar->version.target_ver)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(hw_list)) {
 		ath6kl_err("Unsupported hardware version: 0x%x\n",
 			   ar->version.target_ver);
 		return -EINVAL;
 	}
+
+	ar->hw = *hw;
 
 	ath6kl_dbg(ATH6KL_DBG_BOOT,
 		   "target_ver 0x%x target_type 0x%x dataset_patch 0x%x app_load_addr 0x%x\n",
