@@ -35,6 +35,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
+#include <sound/sta32x.h>
 #include "sta32x.h"
 
 #define STA32X_RATES (SNDRV_PCM_RATE_32000 | \
@@ -73,6 +74,7 @@ static const char *sta32x_supply_names[] = {
 struct sta32x_priv {
 	struct regulator_bulk_data supplies[ARRAY_SIZE(sta32x_supply_names)];
 	struct snd_soc_codec *codec;
+	struct sta32x_platform_data *pdata;
 
 	unsigned int mclk;
 	unsigned int format;
@@ -775,9 +777,10 @@ static int sta32x_resume(struct snd_soc_codec *codec)
 static int sta32x_probe(struct snd_soc_codec *codec)
 {
 	struct sta32x_priv *sta32x = snd_soc_codec_get_drvdata(codec);
-	int i, ret = 0;
+	int i, ret = 0, thermal = 0;
 
 	sta32x->codec = codec;
+	sta32x->pdata = dev_get_platdata(codec->dev);
 
 	/* regulators */
 	for (i = 0; i < ARRAY_SIZE(sta32x->supplies); i++)
@@ -820,25 +823,34 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 	snd_soc_cache_write(codec, STA32X_AUTO3, 0x00);
 	snd_soc_cache_write(codec, STA32X_C3CFG, 0x40);
 
-	/* FIXME enable thermal warning adjustment and recovery  */
+	/* set thermal warning adjustment and recovery */
+	if (!(sta32x->pdata->thermal_conf & STA32X_THERMAL_ADJUSTMENT_ENABLE))
+		thermal |= STA32X_CONFA_TWAB;
+	if (!(sta32x->pdata->thermal_conf & STA32X_THERMAL_RECOVERY_ENABLE))
+		thermal |= STA32X_CONFA_TWRB;
 	snd_soc_update_bits(codec, STA32X_CONFA,
-			    STA32X_CONFA_TWAB | STA32X_CONFA_TWRB, 0);
+			    STA32X_CONFA_TWAB | STA32X_CONFA_TWRB,
+			    thermal);
 
-	/* FIXME select 2.1 mode  */
+	/* select output configuration  */
 	snd_soc_update_bits(codec, STA32X_CONFF,
 			    STA32X_CONFF_OCFG_MASK,
-			    1 << STA32X_CONFF_OCFG_SHIFT);
+			    sta32x->pdata->output_conf
+			    << STA32X_CONFF_OCFG_SHIFT);
 
-	/* FIXME channel to output mapping */
+	/* channel to output mapping */
 	snd_soc_update_bits(codec, STA32X_C1CFG,
 			    STA32X_CxCFG_OM_MASK,
-			    0 << STA32X_CxCFG_OM_SHIFT);
+			    sta32x->pdata->ch1_output_mapping
+			    << STA32X_CxCFG_OM_SHIFT);
 	snd_soc_update_bits(codec, STA32X_C2CFG,
 			    STA32X_CxCFG_OM_MASK,
-			    1 << STA32X_CxCFG_OM_SHIFT);
+			    sta32x->pdata->ch2_output_mapping
+			    << STA32X_CxCFG_OM_SHIFT);
 	snd_soc_update_bits(codec, STA32X_C3CFG,
 			    STA32X_CxCFG_OM_MASK,
-			    2 << STA32X_CxCFG_OM_SHIFT);
+			    sta32x->pdata->ch3_output_mapping
+			    << STA32X_CxCFG_OM_SHIFT);
 
 	/* initialize coefficient shadow RAM with reset values */
 	for (i = 4; i <= 49; i += 5)
