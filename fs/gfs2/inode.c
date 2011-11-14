@@ -402,7 +402,7 @@ static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation)
 	if (error)
 		goto out_ipreserv;
 
-	error = gfs2_alloc_di(dip, no_addr, generation);
+	error = gfs2_alloc_block(dip, no_addr, NULL, 1, generation);
 
 	gfs2_trans_end(sdp);
 

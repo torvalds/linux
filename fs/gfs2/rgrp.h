@@ -39,8 +39,8 @@ static inline void gfs2_alloc_put(struct gfs2_inode *ip)
 extern int gfs2_inplace_reserve(struct gfs2_inode *ip);
 extern void gfs2_inplace_release(struct gfs2_inode *ip);
 
-extern int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n);
-extern int gfs2_alloc_di(struct gfs2_inode *ip, u64 *bn, u64 *generation);
+extern int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n,
+			    int dinode, u64 *generation);
 
 extern void __gfs2_free_blocks(struct gfs2_inode *ip, u64 bstart, u32 blen, int meta);
 extern void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen);

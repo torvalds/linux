@@ -823,7 +823,7 @@ static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh,
 	struct gfs2_dirent *dent;
 	struct qstr name = { .name = "", .len = 0, .hash = 0 };
 
-	error = gfs2_alloc_block(ip, &bn, &n);
+	error = gfs2_alloc_block(ip, &bn, &n, 0, NULL);
 	if (error)
 		return NULL;
 	bh = gfs2_meta_new(ip->i_gl, bn);

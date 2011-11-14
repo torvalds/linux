@@ -1304,19 +1304,24 @@ static void gfs2_rgrp_error(struct gfs2_rgrpd *rgd)
  * @ip: the inode to allocate the block for
  * @bn: Used to return the starting block number
  * @n: requested number of blocks/extent length (value/result)
+ * dinode: 1 if we're allocating a dinode, 0 if it's a data block
+ * @generation: the generation number of the inode
  *
  * Returns: 0 or error
  */
 
-int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n)
+int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n,
+		     int dinode, u64 *generation)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
 	struct gfs2_alloc *al = ip->i_alloc;
 	struct gfs2_rgrpd *rgd;
-	u32 goal, blk;
-	u64 block;
+	u32 goal, blk; /* block, within the rgrp scope */
+	u64 block; /* block, within the file system scope */
+	unsigned int extn = 1;
 	int error;
+	unsigned char blk_type = dinode ? GFS2_BLKST_DINODE : GFS2_BLKST_USED;
 
 	/* Only happens if there is a bug in gfs2, return something distinctive
 	 * to ensure that it is noticed.
@@ -1324,14 +1329,16 @@ int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n)
 	if (al == NULL)
 		return -ECANCELED;
 
+	if (n == NULL)
+		n = &extn;
 	rgd = ip->i_rgd;
 
-	if (rgrp_contains_block(rgd, ip->i_goal))
+	if (!dinode && rgrp_contains_block(rgd, ip->i_goal))
 		goal = ip->i_goal - rgd->rd_data0;
 	else
 		goal = rgd->rd_last_alloc;
 
-	blk = rgblk_search(rgd, goal, GFS2_BLKST_FREE, GFS2_BLKST_USED, n);
+	blk = rgblk_search(rgd, goal, GFS2_BLKST_FREE, blk_type, n);
 
 	/* Since all blocks are reserved in advance, this shouldn't happen */
 	if (blk == BFITNOENT)
@@ -1339,82 +1346,43 @@ int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n)
 
 	rgd->rd_last_alloc = blk;
 	block = rgd->rd_data0 + blk;
-	ip->i_goal = block + *n - 1;
-	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (error == 0) {
-		struct gfs2_dinode *di = (struct gfs2_dinode *)dibh->b_data;
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		di->di_goal_meta = di->di_goal_data = cpu_to_be64(ip->i_goal);
-		brelse(dibh);
+	if (!dinode) {
+		ip->i_goal = block + *n - 1;
+		error = gfs2_meta_inode_buffer(ip, &dibh);
+		if (error == 0) {
+			struct gfs2_dinode *di =
+				(struct gfs2_dinode *)dibh->b_data;
+			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+			di->di_goal_meta = di->di_goal_data =
+				cpu_to_be64(ip->i_goal);
+			brelse(dibh);
+		}
 	}
 	if (rgd->rd_free < *n)
 		goto rgrp_error;
 
 	rgd->rd_free -= *n;
+	if (dinode) {
+		rgd->rd_dinodes++;
+		*generation = rgd->rd_igeneration++;
+		if (*generation == 0)
+			*generation = rgd->rd_igeneration++;
+	}
 
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
 	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 
 	al->al_alloced += *n;
 
-	gfs2_statfs_change(sdp, 0, -(s64)*n, 0);
-	gfs2_quota_change(ip, *n, ip->i_inode.i_uid, ip->i_inode.i_gid);
+	gfs2_statfs_change(sdp, 0, -(s64)*n, dinode ? 1 : 0);
+	if (dinode)
+		gfs2_trans_add_unrevoke(sdp, block, 1);
+	else
+		gfs2_quota_change(ip, *n, ip->i_inode.i_uid,
+				  ip->i_inode.i_gid);
 
 	rgd->rd_free_clone -= *n;
-	trace_gfs2_block_alloc(ip, block, *n, GFS2_BLKST_USED);
-	*bn = block;
-	return 0;
-
-rgrp_error:
-	gfs2_rgrp_error(rgd);
-	return -EIO;
-}
-
-/**
- * gfs2_alloc_di - Allocate a dinode
- * @dip: the directory that the inode is going in
- * @bn: the block number which is allocated
- * @generation: the generation number of the inode
- *
- * Returns: 0 on success or error
- */
-
-int gfs2_alloc_di(struct gfs2_inode *dip, u64 *bn, u64 *generation)
-{
-	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
-	struct gfs2_alloc *al = dip->i_alloc;
-	struct gfs2_rgrpd *rgd = dip->i_rgd;
-	u32 blk;
-	u64 block;
-	unsigned int n = 1;
-
-	blk = rgblk_search(rgd, rgd->rd_last_alloc,
-			   GFS2_BLKST_FREE, GFS2_BLKST_DINODE, &n);
-
-	/* Since all blocks are reserved in advance, this shouldn't happen */
-	if (blk == BFITNOENT)
-		goto rgrp_error;
-
-	rgd->rd_last_alloc = blk;
-	block = rgd->rd_data0 + blk;
-	if (rgd->rd_free == 0)
-		goto rgrp_error;
-
-	rgd->rd_free--;
-	rgd->rd_dinodes++;
-	*generation = rgd->rd_igeneration++;
-	if (*generation == 0)
-		*generation = rgd->rd_igeneration++;
-	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
-	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
-
-	al->al_alloced++;
-
-	gfs2_statfs_change(sdp, 0, -1, +1);
-	gfs2_trans_add_unrevoke(sdp, block, 1);
-
-	rgd->rd_free_clone--;
-	trace_gfs2_block_alloc(dip, block, 1, GFS2_BLKST_DINODE);
+	trace_gfs2_block_alloc(ip, block, *n, blk_type);
 	*bn = block;
 	return 0;
 
