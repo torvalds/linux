@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/wireless.h>
 #include <linux/uaccess.h>
+#include <linux/export.h>
 #include <net/cfg80211.h>
 #include <net/iw_handler.h>
 #include <net/netlink.h>

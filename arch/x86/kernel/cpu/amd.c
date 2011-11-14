@@ -1,3 +1,4 @@
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/elf.h>

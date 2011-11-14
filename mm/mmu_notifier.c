@@ -11,7 +11,7 @@
 
 #include <linux/rculist.h>
 #include <linux/mmu_notifier.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/rcupdate.h>

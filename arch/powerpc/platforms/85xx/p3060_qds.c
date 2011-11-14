@@ -1,5 +1,5 @@
 /*
- * P2040 RDB Setup
+ * P3060 QDS Setup
  *
  * Copyright 2011 Freescale Semiconductor Inc.
  *
@@ -10,43 +10,32 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/pci.h>
-#include <linux/kdev_t.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/phy.h>
-
-#include <asm/system.h>
-#include <asm/time.h>
 #include <asm/machdep.h>
-#include <asm/pci-bridge.h>
-#include <mm/mmu_decl.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
-
 #include <linux/of_platform.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 #include <asm/ehv_pic.h>
-
 #include "corenet_ds.h"
 
 /*
  * Called very early, device-tree isn't unflattened
  */
-static int __init p2040_rdb_probe(void)
+static int __init p3060_qds_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 #ifdef CONFIG_SMP
 	extern struct smp_ops_t smp_85xx_ops;
 #endif
 
-	if (of_flat_dt_is_compatible(root, "fsl,P2040RDB"))
+	if (of_flat_dt_is_compatible(root, "fsl,P3060QDS"))
 		return 1;
 
 	/* Check if we're running under the Freescale hypervisor */
-	if (of_flat_dt_is_compatible(root, "fsl,P2040RDB-hv")) {
+	if (of_flat_dt_is_compatible(root, "fsl,P3060QDS-hv")) {
 		ppc_md.init_IRQ = ehv_pic_init;
 		ppc_md.get_irq = ehv_pic_get_irq;
 		ppc_md.restart = fsl_hv_restart;
@@ -56,7 +45,7 @@ static int __init p2040_rdb_probe(void)
 		/*
 		 * Disable the timebase sync operations because we can't write
 		 * to the timebase registers under the hypervisor.
-		  */
+		 */
 		smp_85xx_ops.give_timebase = NULL;
 		smp_85xx_ops.take_timebase = NULL;
 #endif
@@ -66,9 +55,9 @@ static int __init p2040_rdb_probe(void)
 	return 0;
 }
 
-define_machine(p2040_rdb) {
-	.name			= "P2040 RDB",
-	.probe			= p2040_rdb_probe,
+define_machine(p3060_qds) {
+	.name			= "P3060 QDS",
+	.probe			= p3060_qds_probe,
 	.setup_arch		= corenet_ds_setup_arch,
 	.init_IRQ		= corenet_ds_pic_init,
 #ifdef CONFIG_PCI
@@ -81,8 +70,8 @@ define_machine(p2040_rdb) {
 	.power_save		= e500_idle,
 };
 
-machine_device_initcall(p2040_rdb, corenet_ds_publish_devices);
+machine_device_initcall(p3060_qds, declare_of_platform_devices);
 
 #ifdef CONFIG_SWIOTLB
-machine_arch_initcall(p2040_rdb, swiotlb_setup_bus_notifier);
+machine_arch_initcall(p3060_qds, swiotlb_setup_bus_notifier);
 #endif

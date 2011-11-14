@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/export.h>
 
 #include "../../wusbcore/wusbhc.h"
 

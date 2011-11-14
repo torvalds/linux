@@ -23,6 +23,8 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
+#include <linux/export.h>
+
 #include "drmP.h"
 #include "radeon_drm.h"
 #include "radeon.h"
@@ -32,7 +34,7 @@
  * radeon_ddc_probe
  *
  */
-bool radeon_ddc_probe(struct radeon_connector *radeon_connector, bool requires_extended_probe)
+bool radeon_ddc_probe(struct radeon_connector *radeon_connector)
 {
 	u8 out = 0x0;
 	u8 buf[8];
@@ -47,14 +49,10 @@ bool radeon_ddc_probe(struct radeon_connector *radeon_connector, bool requires_e
 		{
 			.addr = 0x50,
 			.flags = I2C_M_RD,
-			.len = 1,
+			.len = 8,
 			.buf = buf,
 		}
 	};
-
-	/* Read 8 bytes from i2c for extended probe of EDID header */
-	if (requires_extended_probe)
-		msgs[1].len = 8;
 
 	/* on hw with routers, select right port */
 	if (radeon_connector->router.ddc_valid)
@@ -64,17 +62,15 @@ bool radeon_ddc_probe(struct radeon_connector *radeon_connector, bool requires_e
 	if (ret != 2)
 		/* Couldn't find an accessible DDC on this connector */
 		return false;
-	if (requires_extended_probe) {
-		/* Probe also for valid EDID header
-		 * EDID header starts with:
-		 * 0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x00.
-		 * Only the first 6 bytes must be valid as
-		 * drm_edid_block_valid() can fix the last 2 bytes */
-		if (drm_edid_header_is_valid(buf) < 6) {
-			/* Couldn't find an accessible EDID on this
-			 * connector */
-			return false;
-		}
+	/* Probe also for valid EDID header
+	 * EDID header starts with:
+	 * 0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x00.
+	 * Only the first 6 bytes must be valid as
+	 * drm_edid_block_valid() can fix the last 2 bytes */
+	if (drm_edid_header_is_valid(buf) < 6) {
+		/* Couldn't find an accessible EDID on this
+		 * connector */
+		return false;
 	}
 	return true;
 }

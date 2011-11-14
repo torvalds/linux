@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/via-core.h>
 #include <linux/via-gpio.h>
+#include <linux/export.h>
 
 /*
  * The ports we know about.  Note that the port-25 gpios are not

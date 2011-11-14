@@ -18,6 +18,7 @@
 #include <linux/led-lm3530.h>
 #include <linux/types.h>
 #include <linux/regulator/consumer.h>
+#include <linux/module.h>
 
 #define LM3530_LED_DEV "lcd-backlight"
 #define LM3530_NAME "lm3530-led"

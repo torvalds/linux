@@ -36,7 +36,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/rawmidi.h>
 #include <sound/initval.h>

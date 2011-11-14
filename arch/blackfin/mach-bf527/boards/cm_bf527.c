@@ -801,6 +801,7 @@ static struct platform_device bfin_sport1_uart_device = {
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
+#include <linux/export.h>
 
 static struct gpio_keys_button bfin_gpio_keys_table[] = {
 	{BTN_0, GPIO_PF14, 1, "gpio-keys: BTN0"},

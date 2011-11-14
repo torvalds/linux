@@ -43,7 +43,6 @@
 #include <xen/interface/grant_table.h>
 
 #include <asm/xen/hypervisor.h>
-#include <asm/xen/grant_table.h>
 
 #include <xen/features.h>
 

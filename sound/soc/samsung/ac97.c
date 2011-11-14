@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 
 #include <sound/soc.h>
 

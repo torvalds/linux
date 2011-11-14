@@ -10,6 +10,7 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  */
+#include <linux/export.h>
 #include "udp_impl.h"
 
 struct udp_table 	udplite_table __read_mostly;

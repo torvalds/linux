@@ -14,6 +14,7 @@
 #include <linux/i2c.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/module.h>
 
 /* Registers */
 #define EM3027_REG_ON_OFF_CTRL	0x00

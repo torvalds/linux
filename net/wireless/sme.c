@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/wireless.h>
+#include <linux/export.h>
 #include <net/iw_handler.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>

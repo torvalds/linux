@@ -8,6 +8,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/if_arp.h>
+#include <linux/export.h>
 
 #include "decl.h"
 #include "cfg.h"

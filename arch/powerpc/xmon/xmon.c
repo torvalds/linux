@@ -18,7 +18,7 @@
 #include <linux/delay.h>
 #include <linux/kallsyms.h>
 #include <linux/cpumask.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sysrq.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -340,8 +340,8 @@ int cpus_are_in_xmon(void)
 
 static inline int unrecoverable_excp(struct pt_regs *regs)
 {
-#ifdef CONFIG_4xx
-	/* We have no MSR_RI bit on 4xx, so we simply return false */
+#if defined(CONFIG_4xx) || defined(CONFIG_BOOK3E)
+	/* We have no MSR_RI bit on 4xx or Book3e, so we simply return false */
 	return 0;
 #else
 	return ((regs->msr & MSR_RI) == 0);

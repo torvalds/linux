@@ -546,9 +546,11 @@ int d_invalidate(struct dentry * dentry)
 	 * would make it unreachable from the root,
 	 * we might still populate it if it was a
 	 * working directory or similar).
+	 * We also need to leave mountpoints alone,
+	 * directory or not.
 	 */
-	if (dentry->d_count > 1) {
-		if (dentry->d_inode && S_ISDIR(dentry->d_inode->i_mode)) {
+	if (dentry->d_count > 1 && dentry->d_inode) {
+		if (S_ISDIR(dentry->d_inode->i_mode) || d_mountpoint(dentry)) {
 			spin_unlock(&dentry->d_lock);
 			return -EBUSY;
 		}
