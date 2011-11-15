@@ -3512,9 +3512,11 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 			 * so emit a request to do so.
 			 */
 			request = kzalloc(sizeof(*request), GFP_KERNEL);
-			if (request)
+			if (request) {
 				ret = i915_add_request(obj->ring, NULL, request);
-			else
+				if (ret)
+					kfree(request);
+			} else
 				ret = -ENOMEM;
 		}
 
