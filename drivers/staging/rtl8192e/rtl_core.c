@@ -2839,7 +2839,6 @@ done:
 /****************************************************************************
 	---------------------------- PCI_STUFF---------------------------
 *****************************************************************************/
-#ifdef HAVE_NET_DEVICE_OPS
 static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_open = rtl8192_open,
 	.ndo_stop = rtl8192_close,
@@ -2851,7 +2850,6 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_change_mtu = eth_change_mtu,
 	.ndo_start_xmit = rtllib_xmit,
 };
-#endif
 
 static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *id)
@@ -2938,17 +2936,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	dev->irq = pdev->irq;
 	priv->irq = 0;
 
-#ifdef HAVE_NET_DEVICE_OPS
 	dev->netdev_ops = &rtl8192_netdev_ops;
-#else
-	dev->open = rtl8192_open;
-	dev->stop = rtl8192_close;
-	dev->tx_timeout = rtl8192_tx_timeout;
-	dev->do_ioctl = rtl8192_ioctl;
-	dev->set_multicast_list = r8192_set_multicast;
-	dev->set_mac_address = r8192_set_mac_adr;
-	dev->hard_start_xmit = rtllib_xmit;
-#endif
 
 	dev->wireless_handlers = (struct iw_handler_def *)
 				 &r8192_wx_handlers_def;

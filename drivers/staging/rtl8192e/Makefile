@@ -1,5 +1,4 @@
 ccflags-y += -DCONFIG_PM_RTL
-ccflags-y += -DHAVE_NET_DEVICE_OPS
 
 r8192e_pci-objs :=		\
 	rtl_core.o		\
