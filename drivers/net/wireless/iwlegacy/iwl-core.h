@@ -533,47 +533,47 @@ void il_free_geos(struct il_priv *il);
 
 /*************** DRIVER STATUS FUNCTIONS   *****/
 
-#define STATUS_HCMD_ACTIVE	0	/* host command in progress */
-/* 1 is unused (used to be STATUS_HCMD_SYNC_ACTIVE) */
-#define STATUS_INT_ENABLED	2
-#define STATUS_RF_KILL_HW	3
-#define STATUS_CT_KILL		4
-#define STATUS_INIT		5
-#define STATUS_ALIVE		6
-#define STATUS_READY		7
-#define STATUS_TEMPERATURE	8
-#define STATUS_GEO_CONFIGURED	9
-#define STATUS_EXIT_PENDING	10
-#define STATUS_STATISTICS	12
-#define STATUS_SCANNING		13
-#define STATUS_SCAN_ABORTING	14
-#define STATUS_SCAN_HW		15
-#define STATUS_POWER_PMI	16
-#define STATUS_FW_ERROR		17
-#define STATUS_CHANNEL_SWITCH_PENDING 18
+#define S_HCMD_ACTIVE	0	/* host command in progress */
+/* 1 is unused (used to be S_HCMD_SYNC_ACTIVE) */
+#define S_INT_ENABLED	2
+#define S_RF_KILL_HW	3
+#define S_CT_KILL		4
+#define S_INIT		5
+#define S_ALIVE		6
+#define S_READY		7
+#define S_TEMPERATURE	8
+#define S_GEO_CONFIGURED	9
+#define S_EXIT_PENDING	10
+#define S_STATISTICS	12
+#define S_SCANNING		13
+#define S_SCAN_ABORTING	14
+#define S_SCAN_HW		15
+#define S_POWER_PMI	16
+#define S_FW_ERROR		17
+#define S_CHANNEL_SWITCH_PENDING 18
 
 static inline int il_is_ready(struct il_priv *il)
 {
 	/* The adapter is 'ready' if READY and GEO_CONFIGURED bits are
 	 * set but EXIT_PENDING is not */
-	return test_bit(STATUS_READY, &il->status) &&
-	       test_bit(STATUS_GEO_CONFIGURED, &il->status) &&
-	       !test_bit(STATUS_EXIT_PENDING, &il->status);
+	return test_bit(S_READY, &il->status) &&
+	       test_bit(S_GEO_CONFIGURED, &il->status) &&
+	       !test_bit(S_EXIT_PENDING, &il->status);
 }
 
 static inline int il_is_alive(struct il_priv *il)
 {
-	return test_bit(STATUS_ALIVE, &il->status);
+	return test_bit(S_ALIVE, &il->status);
 }
 
 static inline int il_is_init(struct il_priv *il)
 {
-	return test_bit(STATUS_INIT, &il->status);
+	return test_bit(S_INIT, &il->status);
 }
 
 static inline int il_is_rfkill_hw(struct il_priv *il)
 {
-	return test_bit(STATUS_RF_KILL_HW, &il->status);
+	return test_bit(S_RF_KILL_HW, &il->status);
 }
 
 static inline int il_is_rfkill(struct il_priv *il)
@@ -583,7 +583,7 @@ static inline int il_is_rfkill(struct il_priv *il)
 
 static inline int il_is_ctkill(struct il_priv *il)
 {
-	return test_bit(STATUS_CT_KILL, &il->status);
+	return test_bit(S_CT_KILL, &il->status);
 }
 
 static inline int il_is_ready_rf(struct il_priv *il)

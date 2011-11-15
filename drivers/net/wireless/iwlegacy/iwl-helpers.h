@@ -146,7 +146,7 @@ static inline void il_stop_queue(struct il_priv *il,
 
 static inline void il_disable_interrupts(struct il_priv *il)
 {
-	clear_bit(STATUS_INT_ENABLED, &il->status);
+	clear_bit(S_INT_ENABLED, &il->status);
 
 	/* disable interrupts from uCode/NIC to host */
 	_il_wr(il, CSR_INT_MASK, 0x00000000);
@@ -167,7 +167,7 @@ static inline void il_enable_rfkill_int(struct il_priv *il)
 static inline void il_enable_interrupts(struct il_priv *il)
 {
 	D_ISR("Enabling interrupts\n");
-	set_bit(STATUS_INT_ENABLED, &il->status);
+	set_bit(S_INT_ENABLED, &il->status);
 	_il_wr(il, CSR_INT_MASK, il->inta_mask);
 }
 

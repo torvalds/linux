@@ -1349,7 +1349,7 @@ static int il4965_send_tx_power(struct il_priv *il)
 	u8 ctrl_chan_high = 0;
 	struct il_rxon_context *ctx = &il->ctx;
 
-	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &il->status),
+	if (WARN_ONCE(test_bit(S_SCAN_HW, &il->status),
 		      "TX Power requested while scanning!\n"))
 		return -EAGAIN;
 
@@ -1441,7 +1441,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	 * receive commit_rxon request
 	 * abort any previous channel switch if still in process
 	 */
-	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &il->status) &&
+	if (test_bit(S_CHANNEL_SWITCH_PENDING, &il->status) &&
 	    il->switch_channel != ctx->staging.channel) {
 		D_11H("abort channel switch on %d\n",
 		      le16_to_cpu(il->switch_channel));
@@ -1673,7 +1673,7 @@ static int il4965_hw_get_temperature(struct il_priv *il)
 	s32 R1, R2, R3;
 	u32 R4;
 
-	if (test_bit(STATUS_TEMPERATURE, &il->status) &&
+	if (test_bit(S_TEMPERATURE, &il->status) &&
 	    (il->_4965.stats.flag &
 			STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
 		D_TEMP("Running HT40 temperature calibration\n");
@@ -1696,7 +1696,7 @@ static int il4965_hw_get_temperature(struct il_priv *il)
 	 * with an updated temperature, use R4 provided to us in the
 	 * "initialize" ALIVE response.
 	 */
-	if (!test_bit(STATUS_TEMPERATURE, &il->status))
+	if (!test_bit(S_TEMPERATURE, &il->status))
 		vt = sign_extend32(R4, 23);
 	else
 		vt = sign_extend32(le32_to_cpu(il->_4965.stats.
@@ -1737,7 +1737,7 @@ static int il4965_is_temp_calib_needed(struct il_priv *il)
 {
 	int temp_diff;
 
-	if (!test_bit(STATUS_STATISTICS, &il->status)) {
+	if (!test_bit(S_STATISTICS, &il->status)) {
 		D_TEMP("Temperature not updated -- no stats.\n");
 		return 0;
 	}
@@ -1784,10 +1784,10 @@ static void il4965_temperature_calib(struct il_priv *il)
 	}
 
 	il->temperature = temp;
-	set_bit(STATUS_TEMPERATURE, &il->status);
+	set_bit(S_TEMPERATURE, &il->status);
 
 	if (!il->disable_tx_power_cal &&
-	     unlikely(!test_bit(STATUS_SCANNING, &il->status)) &&
+	     unlikely(!test_bit(S_SCANNING, &il->status)) &&
 	     il4965_is_temp_calib_needed(il))
 		queue_work(il->workqueue, &il->txpower_work);
 }
@@ -2179,7 +2179,7 @@ static void il4965_post_associate(struct il_priv *il)
 	if (!vif || !il->is_open)
 		return;
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
 	il_scan_cancel_timeout(il, 200);
@@ -2254,7 +2254,7 @@ static void il4965_config_ap(struct il_priv *il)
 
 	lockdep_assert_held(&il->mutex);
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
 	/* The following should be done only at AP bring up */

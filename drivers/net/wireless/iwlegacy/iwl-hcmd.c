@@ -128,7 +128,7 @@ il_send_cmd_async(struct il_priv *il, struct il_host_cmd *cmd)
 	if (!cmd->callback)
 		cmd->callback = il_generic_cmd_callback;
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return -EBUSY;
 
 	ret = il_enqueue_hcmd(il, cmd);
@@ -155,7 +155,7 @@ int il_send_cmd_sync(struct il_priv *il, struct il_host_cmd *cmd)
 	D_INFO("Attempting to send sync command %s\n",
 			il_get_cmd_string(cmd->id));
 
-	set_bit(STATUS_HCMD_ACTIVE, &il->status);
+	set_bit(S_HCMD_ACTIVE, &il->status);
 	D_INFO("Setting HCMD_ACTIVE for command %s\n",
 			il_get_cmd_string(cmd->id));
 
@@ -168,16 +168,16 @@ int il_send_cmd_sync(struct il_priv *il, struct il_host_cmd *cmd)
 	}
 
 	ret = wait_event_timeout(il->wait_command_queue,
-			!test_bit(STATUS_HCMD_ACTIVE, &il->status),
+			!test_bit(S_HCMD_ACTIVE, &il->status),
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
-		if (test_bit(STATUS_HCMD_ACTIVE, &il->status)) {
+		if (test_bit(S_HCMD_ACTIVE, &il->status)) {
 			IL_ERR(
 				"Error sending %s: time out after %dms.\n",
 				il_get_cmd_string(cmd->id),
 				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
-			clear_bit(STATUS_HCMD_ACTIVE, &il->status);
+			clear_bit(S_HCMD_ACTIVE, &il->status);
 			D_INFO(
 				"Clearing HCMD_ACTIVE for command %s\n",
 				       il_get_cmd_string(cmd->id));
@@ -186,13 +186,13 @@ int il_send_cmd_sync(struct il_priv *il, struct il_host_cmd *cmd)
 		}
 	}
 
-	if (test_bit(STATUS_RF_KILL_HW, &il->status)) {
+	if (test_bit(S_RF_KILL_HW, &il->status)) {
 		IL_ERR("Command %s aborted: RF KILL Switch\n",
 			       il_get_cmd_string(cmd->id));
 		ret = -ECANCELED;
 		goto fail;
 	}
-	if (test_bit(STATUS_FW_ERROR, &il->status)) {
+	if (test_bit(S_FW_ERROR, &il->status)) {
 		IL_ERR("Command %s failed: FW Error\n",
 			       il_get_cmd_string(cmd->id));
 		ret = -EIO;

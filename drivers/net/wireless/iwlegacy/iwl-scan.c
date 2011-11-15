@@ -66,11 +66,11 @@ static int il_send_scan_abort(struct il_priv *il)
 	/* Exit instantly with error when device is not ready
 	 * to receive scan abort command or it does not perform
 	 * hardware scan currently */
-	if (!test_bit(STATUS_READY, &il->status) ||
-	    !test_bit(STATUS_GEO_CONFIGURED, &il->status) ||
-	    !test_bit(STATUS_SCAN_HW, &il->status) ||
-	    test_bit(STATUS_FW_ERROR, &il->status) ||
-	    test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (!test_bit(S_READY, &il->status) ||
+	    !test_bit(S_GEO_CONFIGURED, &il->status) ||
+	    !test_bit(S_SCAN_HW, &il->status) ||
+	    test_bit(S_FW_ERROR, &il->status) ||
+	    test_bit(S_EXIT_PENDING, &il->status))
 		return -EIO;
 
 	ret = il_send_cmd_sync(il, &cmd);
@@ -109,15 +109,15 @@ void il_force_scan_end(struct il_priv *il)
 {
 	lockdep_assert_held(&il->mutex);
 
-	if (!test_bit(STATUS_SCANNING, &il->status)) {
+	if (!test_bit(S_SCANNING, &il->status)) {
 		D_SCAN("Forcing scan end while not scanning\n");
 		return;
 	}
 
 	D_SCAN("Forcing scan end\n");
-	clear_bit(STATUS_SCANNING, &il->status);
-	clear_bit(STATUS_SCAN_HW, &il->status);
-	clear_bit(STATUS_SCAN_ABORTING, &il->status);
+	clear_bit(S_SCANNING, &il->status);
+	clear_bit(S_SCAN_HW, &il->status);
+	clear_bit(S_SCAN_ABORTING, &il->status);
 	il_complete_scan(il, true);
 }
 
@@ -127,12 +127,12 @@ static void il_do_scan_abort(struct il_priv *il)
 
 	lockdep_assert_held(&il->mutex);
 
-	if (!test_bit(STATUS_SCANNING, &il->status)) {
+	if (!test_bit(S_SCANNING, &il->status)) {
 		D_SCAN("Not performing scan to abort\n");
 		return;
 	}
 
-	if (test_and_set_bit(STATUS_SCAN_ABORTING, &il->status)) {
+	if (test_and_set_bit(S_SCAN_ABORTING, &il->status)) {
 		D_SCAN("Scan abort in progress\n");
 		return;
 	}
@@ -172,12 +172,12 @@ int il_scan_cancel_timeout(struct il_priv *il, unsigned long ms)
 	il_do_scan_abort(il);
 
 	while (time_before_eq(jiffies, timeout)) {
-		if (!test_bit(STATUS_SCAN_HW, &il->status))
+		if (!test_bit(S_SCAN_HW, &il->status))
 			break;
 		msleep(20);
 	}
 
-	return test_bit(STATUS_SCAN_HW, &il->status);
+	return test_bit(S_SCAN_HW, &il->status);
 }
 EXPORT_SYMBOL(il_scan_cancel_timeout);
 
@@ -251,7 +251,7 @@ static void il_rx_scan_complete_notif(struct il_priv *il,
 		       scan_notif->tsf_high, scan_notif->status);
 
 	/* The HW is no longer scanning */
-	clear_bit(STATUS_SCAN_HW, &il->status);
+	clear_bit(S_SCAN_HW, &il->status);
 
 	D_SCAN("Scan on %sGHz took %dms\n",
 		       (il->scan_band == IEEE80211_BAND_2GHZ) ? "2.4" : "5.2",
@@ -341,25 +341,25 @@ static int il_scan_initiate(struct il_priv *il,
 		return -EIO;
 	}
 
-	if (test_bit(STATUS_SCAN_HW, &il->status)) {
+	if (test_bit(S_SCAN_HW, &il->status)) {
 		D_SCAN(
 			"Multiple concurrent scan requests in parallel.\n");
 		return -EBUSY;
 	}
 
-	if (test_bit(STATUS_SCAN_ABORTING, &il->status)) {
+	if (test_bit(S_SCAN_ABORTING, &il->status)) {
 		D_SCAN("Scan request while abort pending.\n");
 		return -EBUSY;
 	}
 
 	D_SCAN("Starting scan...\n");
 
-	set_bit(STATUS_SCANNING, &il->status);
+	set_bit(S_SCANNING, &il->status);
 	il->scan_start = jiffies;
 
 	ret = il->cfg->ops->utils->request_scan(il, vif);
 	if (ret) {
-		clear_bit(STATUS_SCANNING, &il->status);
+		clear_bit(S_SCANNING, &il->status);
 		return ret;
 	}
 
@@ -383,7 +383,7 @@ int il_mac_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_lock(&il->mutex);
 
-	if (test_bit(STATUS_SCANNING, &il->status)) {
+	if (test_bit(S_SCANNING, &il->status)) {
 		D_SCAN("Scan already in progress.\n");
 		ret = -EAGAIN;
 		goto out_unlock;
@@ -494,11 +494,11 @@ static void il_bg_scan_completed(struct work_struct *work)
 
 	mutex_lock(&il->mutex);
 
-	aborted = test_and_clear_bit(STATUS_SCAN_ABORTING, &il->status);
+	aborted = test_and_clear_bit(S_SCAN_ABORTING, &il->status);
 	if (aborted)
 		D_SCAN("Aborted scan completed.\n");
 
-	if (!test_and_clear_bit(STATUS_SCANNING, &il->status)) {
+	if (!test_and_clear_bit(S_SCANNING, &il->status)) {
 		D_SCAN("Scan already completed.\n");
 		goto out_settings;
 	}

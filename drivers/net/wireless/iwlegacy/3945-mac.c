@@ -827,17 +827,17 @@ static void il3945_rx_card_state_notif(struct il_priv *il,
 		    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
 	if (flags & HW_CARD_DISABLED)
-		set_bit(STATUS_RF_KILL_HW, &il->status);
+		set_bit(S_RF_KILL_HW, &il->status);
 	else
-		clear_bit(STATUS_RF_KILL_HW, &il->status);
+		clear_bit(S_RF_KILL_HW, &il->status);
 
 
 	il_scan_cancel(il);
 
-	if ((test_bit(STATUS_RF_KILL_HW, &status) !=
-	     test_bit(STATUS_RF_KILL_HW, &il->status)))
+	if ((test_bit(S_RF_KILL_HW, &status) !=
+	     test_bit(S_RF_KILL_HW, &il->status)))
 		wiphy_rfkill_set_hw_state(il->hw->wiphy,
-				test_bit(STATUS_RF_KILL_HW, &il->status));
+				test_bit(S_RF_KILL_HW, &il->status));
 	else
 		wake_up(&il->wait_command_queue);
 }
@@ -1537,7 +1537,7 @@ static void il3945_irq_tasklet(struct il_priv *il)
 
 	/* Re-enable all interrupts */
 	/* only Re-enable if disabled by irq */
-	if (test_bit(STATUS_INT_ENABLED, &il->status))
+	if (test_bit(S_INT_ENABLED, &il->status))
 		il_enable_interrupts(il);
 
 #ifdef CONFIG_IWLEGACY_DEBUG
@@ -2213,7 +2213,7 @@ static void il3945_alive_start(struct il_priv *il)
 	D_INFO("RFKILL status: 0x%x\n", rfkill);
 
 	if (rfkill & 0x1) {
-		clear_bit(STATUS_RF_KILL_HW, &il->status);
+		clear_bit(S_RF_KILL_HW, &il->status);
 		/* if RFKILL is not on, then wait for thermal
 		 * sensor in adapter to kick in */
 		while (il3945_hw_get_temperature(il) == 0) {
@@ -2225,10 +2225,10 @@ static void il3945_alive_start(struct il_priv *il)
 			D_INFO("Thermal calibration took %dus\n",
 				       thermal_spin * 10);
 	} else
-		set_bit(STATUS_RF_KILL_HW, &il->status);
+		set_bit(S_RF_KILL_HW, &il->status);
 
 	/* After the ALIVE response, we can send commands to 3945 uCode */
-	set_bit(STATUS_ALIVE, &il->status);
+	set_bit(S_ALIVE, &il->status);
 
 	/* Enable watchdog to monitor the driver tx queues */
 	il_setup_watchdog(il);
@@ -2256,7 +2256,7 @@ static void il3945_alive_start(struct il_priv *il)
 	/* Configure Bluetooth device coexistence support */
 	il_send_bt_config(il);
 
-	set_bit(STATUS_READY, &il->status);
+	set_bit(S_READY, &il->status);
 
 	/* Configure the adapter for unassociated operation */
 	il3945_commit_rxon(il, ctx);
@@ -2283,9 +2283,9 @@ static void __il3945_down(struct il_priv *il)
 
 	il_scan_cancel_timeout(il, 200);
 
-	exit_pending = test_and_set_bit(STATUS_EXIT_PENDING, &il->status);
+	exit_pending = test_and_set_bit(S_EXIT_PENDING, &il->status);
 
-	/* Stop TX queues watchdog. We need to have STATUS_EXIT_PENDING bit set
+	/* Stop TX queues watchdog. We need to have S_EXIT_PENDING bit set
 	 * to prevent rearm timer */
 	del_timer_sync(&il->watchdog);
 
@@ -2300,7 +2300,7 @@ static void __il3945_down(struct il_priv *il)
 	/* Wipe out the EXIT_PENDING status bit if we are not actually
 	 * exiting the module */
 	if (!exit_pending)
-		clear_bit(STATUS_EXIT_PENDING, &il->status);
+		clear_bit(S_EXIT_PENDING, &il->status);
 
 	/* stop and reset the on-board processor */
 	_il_wr(il, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
@@ -2317,25 +2317,25 @@ static void __il3945_down(struct il_priv *il)
 	/* If we have not previously called il3945_init() then
 	 * clear all bits but the RF Kill bits and return */
 	if (!il_is_init(il)) {
-		il->status = test_bit(STATUS_RF_KILL_HW, &il->status) <<
-					STATUS_RF_KILL_HW |
-			       test_bit(STATUS_GEO_CONFIGURED, &il->status) <<
-					STATUS_GEO_CONFIGURED |
-				test_bit(STATUS_EXIT_PENDING, &il->status) <<
-					STATUS_EXIT_PENDING;
+		il->status = test_bit(S_RF_KILL_HW, &il->status) <<
+					S_RF_KILL_HW |
+			       test_bit(S_GEO_CONFIGURED, &il->status) <<
+					S_GEO_CONFIGURED |
+				test_bit(S_EXIT_PENDING, &il->status) <<
+					S_EXIT_PENDING;
 		goto exit;
 	}
 
 	/* ...otherwise clear out all the status bits but the RF Kill
 	 * bit and continue taking the NIC down. */
-	il->status &= test_bit(STATUS_RF_KILL_HW, &il->status) <<
-				STATUS_RF_KILL_HW |
-			test_bit(STATUS_GEO_CONFIGURED, &il->status) <<
-				STATUS_GEO_CONFIGURED |
-			test_bit(STATUS_FW_ERROR, &il->status) <<
-				STATUS_FW_ERROR |
-			test_bit(STATUS_EXIT_PENDING, &il->status) <<
-				STATUS_EXIT_PENDING;
+	il->status &= test_bit(S_RF_KILL_HW, &il->status) <<
+				S_RF_KILL_HW |
+			test_bit(S_GEO_CONFIGURED, &il->status) <<
+				S_GEO_CONFIGURED |
+			test_bit(S_FW_ERROR, &il->status) <<
+				S_FW_ERROR |
+			test_bit(S_EXIT_PENDING, &il->status) <<
+				S_EXIT_PENDING;
 
 	il3945_hw_txq_ctx_stop(il);
 	il3945_hw_rxq_stop(il);
@@ -2400,7 +2400,7 @@ static int __il3945_up(struct il_priv *il)
 	if (rc)
 		return rc;
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status)) {
+	if (test_bit(S_EXIT_PENDING, &il->status)) {
 		IL_WARN("Exit pending; will not bring the NIC up\n");
 		return -EIO;
 	}
@@ -2413,9 +2413,9 @@ static int __il3945_up(struct il_priv *il)
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (_il_rd(il, CSR_GP_CNTRL) &
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(STATUS_RF_KILL_HW, &il->status);
+		clear_bit(S_RF_KILL_HW, &il->status);
 	else {
-		set_bit(STATUS_RF_KILL_HW, &il->status);
+		set_bit(S_RF_KILL_HW, &il->status);
 		IL_WARN("Radio disabled by HW RF Kill switch\n");
 		return -ENODEV;
 	}
@@ -2448,7 +2448,7 @@ static int __il3945_up(struct il_priv *il)
 	       il->ucode_data.len);
 
 	/* We return success when we resume from suspend and rf_kill is on. */
-	if (test_bit(STATUS_RF_KILL_HW, &il->status))
+	if (test_bit(S_RF_KILL_HW, &il->status))
 		return 0;
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
@@ -2472,9 +2472,9 @@ static int __il3945_up(struct il_priv *il)
 		return 0;
 	}
 
-	set_bit(STATUS_EXIT_PENDING, &il->status);
+	set_bit(S_EXIT_PENDING, &il->status);
 	__il3945_down(il);
-	clear_bit(STATUS_EXIT_PENDING, &il->status);
+	clear_bit(S_EXIT_PENDING, &il->status);
 
 	/* tried to restart and config the device for as long as our
 	 * patience could withstand */
@@ -2495,7 +2495,7 @@ static void il3945_bg_init_alive_start(struct work_struct *data)
 	    container_of(data, struct il_priv, init_alive_start.work);
 
 	mutex_lock(&il->mutex);
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		goto out;
 
 	il3945_init_alive_start(il);
@@ -2509,7 +2509,7 @@ static void il3945_bg_alive_start(struct work_struct *data)
 	    container_of(data, struct il_priv, alive_start.work);
 
 	mutex_lock(&il->mutex);
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		goto out;
 
 	il3945_alive_start(il);
@@ -2527,15 +2527,15 @@ static void il3945_rfkill_poll(struct work_struct *data)
 {
 	struct il_priv *il =
 	    container_of(data, struct il_priv, _3945.rfkill_poll.work);
-	bool old_rfkill = test_bit(STATUS_RF_KILL_HW, &il->status);
+	bool old_rfkill = test_bit(S_RF_KILL_HW, &il->status);
 	bool new_rfkill = !(_il_rd(il, CSR_GP_CNTRL)
 			& CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
 
 	if (new_rfkill != old_rfkill) {
 		if (new_rfkill)
-			set_bit(STATUS_RF_KILL_HW, &il->status);
+			set_bit(S_RF_KILL_HW, &il->status);
 		else
-			clear_bit(STATUS_RF_KILL_HW, &il->status);
+			clear_bit(S_RF_KILL_HW, &il->status);
 
 		wiphy_rfkill_set_hw_state(il->hw->wiphy, new_rfkill);
 
@@ -2682,10 +2682,10 @@ int il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	cmd.data = scan;
 	scan->len = cpu_to_le16(cmd.len);
 
-	set_bit(STATUS_SCAN_HW, &il->status);
+	set_bit(S_SCAN_HW, &il->status);
 	ret = il_send_cmd_sync(il, &cmd);
 	if (ret)
-		clear_bit(STATUS_SCAN_HW, &il->status);
+		clear_bit(S_SCAN_HW, &il->status);
 	return ret;
 }
 
@@ -2705,10 +2705,10 @@ static void il3945_bg_restart(struct work_struct *data)
 {
 	struct il_priv *il = container_of(data, struct il_priv, restart);
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
-	if (test_and_clear_bit(STATUS_FW_ERROR, &il->status)) {
+	if (test_and_clear_bit(S_FW_ERROR, &il->status)) {
 		mutex_lock(&il->mutex);
 		il->ctx.vif = NULL;
 		il->is_open = 0;
@@ -2719,7 +2719,7 @@ static void il3945_bg_restart(struct work_struct *data)
 		il3945_down(il);
 
 		mutex_lock(&il->mutex);
-		if (test_bit(STATUS_EXIT_PENDING, &il->status)) {
+		if (test_bit(S_EXIT_PENDING, &il->status)) {
 			mutex_unlock(&il->mutex);
 			return;
 		}
@@ -2735,7 +2735,7 @@ static void il3945_bg_rx_replenish(struct work_struct *data)
 	    container_of(data, struct il_priv, rx_replenish);
 
 	mutex_lock(&il->mutex);
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		goto out;
 
 	il3945_rx_replenish(il);
@@ -2755,7 +2755,7 @@ void il3945_post_associate(struct il_priv *il)
 	D_ASSOC("Associated as %d to: %pM\n",
 			ctx->vif->bss_conf.aid, ctx->active.bssid_addr);
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
 	il_scan_cancel_timeout(il, 200);
@@ -2847,10 +2847,10 @@ static int il3945_mac_start(struct ieee80211_hw *hw)
 	/* Wait for START_ALIVE from ucode. Otherwise callbacks from
 	 * mac80211 will not be run successfully. */
 	ret = wait_event_timeout(il->wait_command_queue,
-			test_bit(STATUS_READY, &il->status),
+			test_bit(S_READY, &il->status),
 			UCODE_READY_TIMEOUT);
 	if (!ret) {
-		if (!test_bit(STATUS_READY, &il->status)) {
+		if (!test_bit(S_READY, &il->status)) {
 			IL_ERR(
 				"Wait for START_ALIVE timeout after %dms.\n",
 				jiffies_to_msecs(UCODE_READY_TIMEOUT));
@@ -2918,7 +2918,7 @@ void il3945_config_ap(struct il_priv *il)
 	struct ieee80211_vif *vif = ctx->vif;
 	int rc = 0;
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
 	/* The following should be done only at AP bring up */
@@ -3870,7 +3870,7 @@ static void __devexit il3945_pci_remove(struct pci_dev *pdev)
 
 	il_dbgfs_unregister(il);
 
-	set_bit(STATUS_EXIT_PENDING, &il->status);
+	set_bit(S_EXIT_PENDING, &il->status);
 
 	il_leds_exit(il);
 

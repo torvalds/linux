@@ -107,7 +107,7 @@ static int il_led_cmd(struct il_priv *il,
 	};
 	int ret;
 
-	if (!test_bit(STATUS_READY, &il->status))
+	if (!test_bit(S_READY, &il->status))
 		return -EBUSY;
 
 	if (il->blink_on == on && il->blink_off == off)

@@ -402,7 +402,7 @@ il_dbgfs_channels_read(struct file *file, char __user *user_buf,
 	char *buf;
 	ssize_t ret;
 
-	if (!test_bit(STATUS_GEO_CONFIGURED, &il->status))
+	if (!test_bit(S_GEO_CONFIGURED, &il->status))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -471,38 +471,38 @@ static ssize_t il_dbgfs_status_read(struct file *file,
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
 
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_HCMD_ACTIVE:\t %d\n",
-		test_bit(STATUS_HCMD_ACTIVE, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_INT_ENABLED:\t %d\n",
-		test_bit(STATUS_INT_ENABLED, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_RF_KILL_HW:\t %d\n",
-		test_bit(STATUS_RF_KILL_HW, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_CT_KILL:\t\t %d\n",
-		test_bit(STATUS_CT_KILL, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_INIT:\t\t %d\n",
-		test_bit(STATUS_INIT, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_ALIVE:\t\t %d\n",
-		test_bit(STATUS_ALIVE, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_READY:\t\t %d\n",
-		test_bit(STATUS_READY, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_TEMPERATURE:\t %d\n",
-		test_bit(STATUS_TEMPERATURE, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_GEO_CONFIGURED:\t %d\n",
-		test_bit(STATUS_GEO_CONFIGURED, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_EXIT_PENDING:\t %d\n",
-		test_bit(STATUS_EXIT_PENDING, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_STATISTICS:\t %d\n",
-		test_bit(STATUS_STATISTICS, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_SCANNING:\t %d\n",
-		test_bit(STATUS_SCANNING, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_SCAN_ABORTING:\t %d\n",
-		test_bit(STATUS_SCAN_ABORTING, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_SCAN_HW:\t\t %d\n",
-		test_bit(STATUS_SCAN_HW, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_POWER_PMI:\t %d\n",
-		test_bit(STATUS_POWER_PMI, &il->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_FW_ERROR:\t %d\n",
-		test_bit(STATUS_FW_ERROR, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_HCMD_ACTIVE:\t %d\n",
+		test_bit(S_HCMD_ACTIVE, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_INT_ENABLED:\t %d\n",
+		test_bit(S_INT_ENABLED, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_RF_KILL_HW:\t %d\n",
+		test_bit(S_RF_KILL_HW, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_CT_KILL:\t\t %d\n",
+		test_bit(S_CT_KILL, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_INIT:\t\t %d\n",
+		test_bit(S_INIT, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_ALIVE:\t\t %d\n",
+		test_bit(S_ALIVE, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_READY:\t\t %d\n",
+		test_bit(S_READY, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_TEMPERATURE:\t %d\n",
+		test_bit(S_TEMPERATURE, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_GEO_CONFIGURED:\t %d\n",
+		test_bit(S_GEO_CONFIGURED, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_EXIT_PENDING:\t %d\n",
+		test_bit(S_EXIT_PENDING, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_STATISTICS:\t %d\n",
+		test_bit(S_STATISTICS, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_SCANNING:\t %d\n",
+		test_bit(S_SCANNING, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_SCAN_ABORTING:\t %d\n",
+		test_bit(S_SCAN_ABORTING, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_SCAN_HW:\t\t %d\n",
+		test_bit(S_SCAN_HW, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_POWER_PMI:\t %d\n",
+		test_bit(S_POWER_PMI, &il->status));
+	pos += scnprintf(buf + pos, bufsz - pos, "S_FW_ERROR:\t %d\n",
+		test_bit(S_FW_ERROR, &il->status));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 

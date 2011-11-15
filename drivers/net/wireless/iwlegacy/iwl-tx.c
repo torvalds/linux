@@ -51,7 +51,7 @@ il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq)
 		return;
 
 	/* if we're trying to save power */
-	if (test_bit(STATUS_POWER_PMI, &il->status)) {
+	if (test_bit(S_POWER_PMI, &il->status)) {
 		/* wake up nic if it's powered down ...
 		 * uCode will wake up, and interrupt us again, so next
 		 * time we'll skip this part. */
@@ -641,7 +641,7 @@ il_tx_cmd_complete(struct il_priv *il, struct il_rx_buf *rxb)
 	il_hcmd_queue_reclaim(il, txq_id, idx, cmd_idx);
 
 	if (!(meta->flags & CMD_ASYNC)) {
-		clear_bit(STATUS_HCMD_ACTIVE, &il->status);
+		clear_bit(S_HCMD_ACTIVE, &il->status);
 		D_INFO("Clearing HCMD_ACTIVE for command %s\n",
 			       il_get_cmd_string(cmd->hdr.cmd));
 		wake_up(&il->wait_command_queue);

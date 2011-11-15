@@ -90,7 +90,7 @@ void il4965_check_abort_status(struct il_priv *il,
 {
 	if (frame_count == 1 && status == TX_STATUS_FAIL_RFKILL_FLUSH) {
 		IL_ERR("Tx flush command to flush out all frames\n");
-		if (!test_bit(STATUS_EXIT_PENDING, &il->status))
+		if (!test_bit(S_EXIT_PENDING, &il->status))
 			queue_work(il->workqueue, &il->tx_flush);
 	}
 }
@@ -246,7 +246,7 @@ int il4965_hw_nic_init(struct il_priv *il)
 	} else
 		il4965_txq_ctx_reset(il);
 
-	set_bit(STATUS_INIT, &il->status);
+	set_bit(S_INIT, &il->status);
 
 	return 0;
 }
@@ -966,7 +966,7 @@ int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	scan->tx_cmd.rate_n_flags = il4965_hw_set_rate_n_flags(rate, rate_flags);
 
 	/* In power save mode use one chain, otherwise use all chains */
-	if (test_bit(STATUS_POWER_PMI, &il->status)) {
+	if (test_bit(S_POWER_PMI, &il->status)) {
 		/* rx_ant has been set to all valid chains previously */
 		active_chains = rx_ant &
 				((u8)(il->chain_noise_data.active_chains));
@@ -1010,11 +1010,11 @@ int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	cmd.data = scan;
 	scan->len = cpu_to_le16(cmd.len);
 
-	set_bit(STATUS_SCAN_HW, &il->status);
+	set_bit(S_SCAN_HW, &il->status);
 
 	ret = il_send_cmd_sync(il, &cmd);
 	if (ret)
-		clear_bit(STATUS_SCAN_HW, &il->status);
+		clear_bit(S_SCAN_HW, &il->status);
 
 	return ret;
 }
@@ -1120,7 +1120,7 @@ static u8 il4965_count_chain_bitmap(u32 chain_bitmap)
 void il4965_set_rxon_chain(struct il_priv *il, struct il_rxon_context *ctx)
 {
 	bool is_single = il4965_is_single_rx_stream(il);
-	bool is_cam = !test_bit(STATUS_POWER_PMI, &il->status);
+	bool is_cam = !test_bit(S_POWER_PMI, &il->status);
 	u8 idle_rx_cnt, active_rx_cnt, valid_rx_cnt;
 	u32 active_chains;
 	u16 rx_chain;
@@ -1258,7 +1258,7 @@ void il4965_rx_missed_beacon_notif(struct il_priv *il,
 		    le32_to_cpu(missed_beacon->total_missed_becons),
 		    le32_to_cpu(missed_beacon->num_recvd_beacons),
 		    le32_to_cpu(missed_beacon->num_expected_beacons));
-		if (!test_bit(STATUS_SCANNING, &il->status))
+		if (!test_bit(S_SCANNING, &il->status))
 			il4965_init_sensitivity(il);
 	}
 }
@@ -1378,7 +1378,7 @@ void il4965_rx_stats(struct il_priv *il,
 	memcpy(&il->_4965.stats, &pkt->u.stats,
 		sizeof(il->_4965.stats));
 
-	set_bit(STATUS_STATISTICS, &il->status);
+	set_bit(S_STATISTICS, &il->status);
 
 	/* Reschedule the stats timer to occur in
 	 * REG_RECALIB_PERIOD seconds to ensure we get a
@@ -1387,7 +1387,7 @@ void il4965_rx_stats(struct il_priv *il,
 	mod_timer(&il->stats_periodic, jiffies +
 		  msecs_to_jiffies(REG_RECALIB_PERIOD * 1000));
 
-	if (unlikely(!test_bit(STATUS_SCANNING, &il->status)) &&
+	if (unlikely(!test_bit(S_SCANNING, &il->status)) &&
 	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
 		il4965_rx_calc_noise(il);
 		queue_work(il->workqueue, &il->run_time_calib_work);
@@ -3809,7 +3809,7 @@ static void il4965_bg_stats_periodic(unsigned long data)
 {
 	struct il_priv *il = (struct il_priv *)data;
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
 	/* dont send host command if rf-kill is on */
@@ -3895,17 +3895,17 @@ static void il4965_rx_card_state_notif(struct il_priv *il,
 		il4965_perform_ct_kill_task(il);
 
 	if (flags & HW_CARD_DISABLED)
-		set_bit(STATUS_RF_KILL_HW, &il->status);
+		set_bit(S_RF_KILL_HW, &il->status);
 	else
-		clear_bit(STATUS_RF_KILL_HW, &il->status);
+		clear_bit(S_RF_KILL_HW, &il->status);
 
 	if (!(flags & RXON_CARD_DISABLED))
 		il_scan_cancel(il);
 
-	if ((test_bit(STATUS_RF_KILL_HW, &status) !=
-	     test_bit(STATUS_RF_KILL_HW, &il->status)))
+	if ((test_bit(S_RF_KILL_HW, &status) !=
+	     test_bit(S_RF_KILL_HW, &il->status)))
 		wiphy_rfkill_set_hw_state(il->hw->wiphy,
-			test_bit(STATUS_RF_KILL_HW, &il->status));
+			test_bit(S_RF_KILL_HW, &il->status));
 	else
 		wake_up(&il->wait_command_queue);
 }
@@ -4199,11 +4199,11 @@ static void il4965_irq_tasklet(struct il_priv *il)
 		 * is killed. Hence update the killswitch state here. The
 		 * rfkill handler will care about restarting if needed.
 		 */
-		if (!test_bit(STATUS_ALIVE, &il->status)) {
+		if (!test_bit(S_ALIVE, &il->status)) {
 			if (hw_rf_kill)
-				set_bit(STATUS_RF_KILL_HW, &il->status);
+				set_bit(S_RF_KILL_HW, &il->status);
 			else
-				clear_bit(STATUS_RF_KILL_HW, &il->status);
+				clear_bit(S_RF_KILL_HW, &il->status);
 			wiphy_rfkill_set_hw_state(il->hw->wiphy, hw_rf_kill);
 		}
 
@@ -4272,7 +4272,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 
 	/* Re-enable all interrupts */
 	/* only Re-enable if disabled by irq */
-	if (test_bit(STATUS_INT_ENABLED, &il->status))
+	if (test_bit(S_INT_ENABLED, &il->status))
 		il_enable_interrupts(il);
 	/* Re-enable RF_KILL if it occurred */
 	else if (handled & CSR_INT_BIT_RF_KILL)
@@ -5079,7 +5079,7 @@ static void il4965_alive_start(struct il_priv *il)
 
 
 	/* After the ALIVE response, we can send host commands to the uCode */
-	set_bit(STATUS_ALIVE, &il->status);
+	set_bit(S_ALIVE, &il->status);
 
 	/* Enable watchdog to monitor the driver tx queues */
 	il_setup_watchdog(il);
@@ -5110,7 +5110,7 @@ static void il4965_alive_start(struct il_priv *il)
 
 	il4965_reset_run_time_calib(il);
 
-	set_bit(STATUS_READY, &il->status);
+	set_bit(S_READY, &il->status);
 
 	/* Configure the adapter for unassociated operation */
 	il_commit_rxon(il, ctx);
@@ -5141,9 +5141,9 @@ static void __il4965_down(struct il_priv *il)
 
 	il_scan_cancel_timeout(il, 200);
 
-	exit_pending = test_and_set_bit(STATUS_EXIT_PENDING, &il->status);
+	exit_pending = test_and_set_bit(S_EXIT_PENDING, &il->status);
 
-	/* Stop TX queues watchdog. We need to have STATUS_EXIT_PENDING bit set
+	/* Stop TX queues watchdog. We need to have S_EXIT_PENDING bit set
 	 * to prevent rearm timer */
 	del_timer_sync(&il->watchdog);
 
@@ -5157,7 +5157,7 @@ static void __il4965_down(struct il_priv *il)
 	/* Wipe out the EXIT_PENDING status bit if we are not actually
 	 * exiting the module */
 	if (!exit_pending)
-		clear_bit(STATUS_EXIT_PENDING, &il->status);
+		clear_bit(S_EXIT_PENDING, &il->status);
 
 	/* stop and reset the on-board processor */
 	_il_wr(il, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
@@ -5174,25 +5174,25 @@ static void __il4965_down(struct il_priv *il)
 	/* If we have not previously called il_init() then
 	 * clear all bits but the RF Kill bit and return */
 	if (!il_is_init(il)) {
-		il->status = test_bit(STATUS_RF_KILL_HW, &il->status) <<
-					STATUS_RF_KILL_HW |
-			       test_bit(STATUS_GEO_CONFIGURED, &il->status) <<
-					STATUS_GEO_CONFIGURED |
-			       test_bit(STATUS_EXIT_PENDING, &il->status) <<
-					STATUS_EXIT_PENDING;
+		il->status = test_bit(S_RF_KILL_HW, &il->status) <<
+					S_RF_KILL_HW |
+			       test_bit(S_GEO_CONFIGURED, &il->status) <<
+					S_GEO_CONFIGURED |
+			       test_bit(S_EXIT_PENDING, &il->status) <<
+					S_EXIT_PENDING;
 		goto exit;
 	}
 
 	/* ...otherwise clear out all the status bits but the RF Kill
 	 * bit and continue taking the NIC down. */
-	il->status &= test_bit(STATUS_RF_KILL_HW, &il->status) <<
-				STATUS_RF_KILL_HW |
-			test_bit(STATUS_GEO_CONFIGURED, &il->status) <<
-				STATUS_GEO_CONFIGURED |
-			test_bit(STATUS_FW_ERROR, &il->status) <<
-				STATUS_FW_ERROR |
-		       test_bit(STATUS_EXIT_PENDING, &il->status) <<
-				STATUS_EXIT_PENDING;
+	il->status &= test_bit(S_RF_KILL_HW, &il->status) <<
+				S_RF_KILL_HW |
+			test_bit(S_GEO_CONFIGURED, &il->status) <<
+				S_GEO_CONFIGURED |
+			test_bit(S_FW_ERROR, &il->status) <<
+				S_FW_ERROR |
+		       test_bit(S_EXIT_PENDING, &il->status) <<
+				S_EXIT_PENDING;
 
 	il4965_txq_ctx_stop(il);
 	il4965_rxq_stop(il);
@@ -5283,7 +5283,7 @@ static int __il4965_up(struct il_priv *il)
 	int i;
 	int ret;
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status)) {
+	if (test_bit(S_EXIT_PENDING, &il->status)) {
 		IL_WARN("Exit pending; will not bring the NIC up\n");
 		return -EIO;
 	}
@@ -5309,9 +5309,9 @@ static int __il4965_up(struct il_priv *il)
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (_il_rd(il,
 		CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(STATUS_RF_KILL_HW, &il->status);
+		clear_bit(S_RF_KILL_HW, &il->status);
 	else
-		set_bit(STATUS_RF_KILL_HW, &il->status);
+		set_bit(S_RF_KILL_HW, &il->status);
 
 	if (il_is_rfkill(il)) {
 		wiphy_rfkill_set_hw_state(il->hw->wiphy, true);
@@ -5372,9 +5372,9 @@ static int __il4965_up(struct il_priv *il)
 		return 0;
 	}
 
-	set_bit(STATUS_EXIT_PENDING, &il->status);
+	set_bit(S_EXIT_PENDING, &il->status);
 	__il4965_down(il);
-	clear_bit(STATUS_EXIT_PENDING, &il->status);
+	clear_bit(S_EXIT_PENDING, &il->status);
 
 	/* tried to restart and config the device for as long as our
 	 * patience could withstand */
@@ -5395,7 +5395,7 @@ static void il4965_bg_init_alive_start(struct work_struct *data)
 	    container_of(data, struct il_priv, init_alive_start.work);
 
 	mutex_lock(&il->mutex);
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		goto out;
 
 	il->cfg->ops->lib->init_alive_start(il);
@@ -5409,7 +5409,7 @@ static void il4965_bg_alive_start(struct work_struct *data)
 	    container_of(data, struct il_priv, alive_start.work);
 
 	mutex_lock(&il->mutex);
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		goto out;
 
 	il4965_alive_start(il);
@@ -5424,8 +5424,8 @@ static void il4965_bg_run_time_calib_work(struct work_struct *work)
 
 	mutex_lock(&il->mutex);
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status) ||
-	    test_bit(STATUS_SCANNING, &il->status)) {
+	if (test_bit(S_EXIT_PENDING, &il->status) ||
+	    test_bit(S_SCANNING, &il->status)) {
 		mutex_unlock(&il->mutex);
 		return;
 	}
@@ -5444,10 +5444,10 @@ static void il4965_bg_restart(struct work_struct *data)
 {
 	struct il_priv *il = container_of(data, struct il_priv, restart);
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
-	if (test_and_clear_bit(STATUS_FW_ERROR, &il->status)) {
+	if (test_and_clear_bit(S_FW_ERROR, &il->status)) {
 		mutex_lock(&il->mutex);
 		il->ctx.vif = NULL;
 		il->is_open = 0;
@@ -5461,7 +5461,7 @@ static void il4965_bg_restart(struct work_struct *data)
 		il4965_down(il);
 
 		mutex_lock(&il->mutex);
-		if (test_bit(STATUS_EXIT_PENDING, &il->status)) {
+		if (test_bit(S_EXIT_PENDING, &il->status)) {
 			mutex_unlock(&il->mutex);
 			return;
 		}
@@ -5476,7 +5476,7 @@ static void il4965_bg_rx_replenish(struct work_struct *data)
 	struct il_priv *il =
 	    container_of(data, struct il_priv, rx_replenish);
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
 	mutex_lock(&il->mutex);
@@ -5582,10 +5582,10 @@ int il4965_mac_start(struct ieee80211_hw *hw)
 	/* Wait for START_ALIVE from Run Time ucode. Otherwise callbacks from
 	 * mac80211 will not be run successfully. */
 	ret = wait_event_timeout(il->wait_command_queue,
-			test_bit(STATUS_READY, &il->status),
+			test_bit(S_READY, &il->status),
 			UCODE_READY_TIMEOUT);
 	if (!ret) {
-		if (!test_bit(STATUS_READY, &il->status)) {
+		if (!test_bit(S_READY, &il->status)) {
 			IL_ERR("START_ALIVE timeout after %dms.\n",
 				jiffies_to_msecs(UCODE_READY_TIMEOUT));
 			return -ETIMEDOUT;
@@ -5751,7 +5751,7 @@ int il4965_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_RX_STOP:
 		D_HT("stop Rx\n");
 		ret = il4965_sta_rx_agg_stop(il, sta, tid);
-		if (test_bit(STATUS_EXIT_PENDING, &il->status))
+		if (test_bit(S_EXIT_PENDING, &il->status))
 			ret = 0;
 		break;
 	case IEEE80211_AMPDU_TX_START:
@@ -5761,7 +5761,7 @@ int il4965_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_STOP:
 		D_HT("stop Tx\n");
 		ret = il4965_tx_agg_stop(il, vif, sta, tid);
-		if (test_bit(STATUS_EXIT_PENDING, &il->status))
+		if (test_bit(S_EXIT_PENDING, &il->status))
 			ret = 0;
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
@@ -5833,9 +5833,9 @@ void il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	if (il_is_rfkill(il))
 		goto out;
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status) ||
-	    test_bit(STATUS_SCANNING, &il->status) ||
-	    test_bit(STATUS_CHANNEL_SWITCH_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status) ||
+	    test_bit(S_SCANNING, &il->status) ||
+	    test_bit(S_CHANNEL_SWITCH_PENDING, &il->status))
 		goto out;
 
 	if (!il_is_associated_ctx(ctx))
@@ -5891,10 +5891,10 @@ void il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	 * at this point, staging_rxon has the
 	 * configuration for channel switch
 	 */
-	set_bit(STATUS_CHANNEL_SWITCH_PENDING, &il->status);
+	set_bit(S_CHANNEL_SWITCH_PENDING, &il->status);
 	il->switch_channel = cpu_to_le16(ch);
 	if (il->cfg->ops->lib->set_channel_switch(il, ch_switch)) {
-		clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &il->status);
+		clear_bit(S_CHANNEL_SWITCH_PENDING, &il->status);
 		il->switch_channel = 0;
 		ieee80211_chswitch_done(ctx->vif, false);
 	}
@@ -5968,8 +5968,8 @@ static void il4965_bg_txpower_work(struct work_struct *work)
 	 * then just return; the stats notification will
 	 * kick off another scheduled work to compensate for
 	 * any temperature delta we missed here. */
-	if (test_bit(STATUS_EXIT_PENDING, &il->status) ||
-	    test_bit(STATUS_SCANNING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status) ||
+	    test_bit(S_SCANNING, &il->status))
 		goto out;
 
 	/* Regardless of if we are associated, we must reconfigure the
@@ -6376,12 +6376,12 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (_il_rd(il, CSR_GP_CNTRL) &
 		CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(STATUS_RF_KILL_HW, &il->status);
+		clear_bit(S_RF_KILL_HW, &il->status);
 	else
-		set_bit(STATUS_RF_KILL_HW, &il->status);
+		set_bit(S_RF_KILL_HW, &il->status);
 
 	wiphy_rfkill_set_hw_state(il->hw->wiphy,
-		test_bit(STATUS_RF_KILL_HW, &il->status));
+		test_bit(S_RF_KILL_HW, &il->status));
 
 	il_power_initialize(il);
 
@@ -6433,9 +6433,9 @@ static void __devexit il4965_pci_remove(struct pci_dev *pdev)
 
 	/* ieee80211_unregister_hw call wil cause il_mac_stop to
 	 * to be called and il4965_down since we are removing the device
-	 * we need to set STATUS_EXIT_PENDING bit.
+	 * we need to set S_EXIT_PENDING bit.
 	 */
-	set_bit(STATUS_EXIT_PENDING, &il->status);
+	set_bit(S_EXIT_PENDING, &il->status);
 
 	il_leds_exit(il);
 

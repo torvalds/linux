@@ -1008,7 +1008,7 @@ int il3945_hw_nic_init(struct il_priv *il)
 	if (rc)
 		return rc;
 
-	set_bit(STATUS_INIT, &il->status);
+	set_bit(S_INIT, &il->status);
 
 	return 0;
 }
@@ -1394,7 +1394,7 @@ static int il3945_send_tx_power(struct il_priv *il)
 	};
 	u16 chan;
 
-	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &il->status),
+	if (WARN_ONCE(test_bit(S_SCAN_HW, &il->status),
 		      "TX Power requested while scanning!\n"))
 		return -EAGAIN;
 
@@ -1571,7 +1571,7 @@ static int il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 	int temperature = il->temperature;
 
 	if (il->disable_tx_power_cal ||
-	    test_bit(STATUS_SCANNING, &il->status)) {
+	    test_bit(S_SCANNING, &il->status)) {
 		/* do not perform tx power calibration */
 		return 0;
 	}
@@ -1726,7 +1726,7 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	int rc = 0;
 	bool new_assoc = !!(staging_rxon->filter_flags & RXON_FILTER_ASSOC_MSK);
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return -EINVAL;
 
 	if (!il_is_alive(il))
@@ -1885,7 +1885,7 @@ static void il3945_bg_reg_txpower_periodic(struct work_struct *work)
 	struct il_priv *il = container_of(work, struct il_priv,
 					     _3945.thermal_periodic.work);
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
 	mutex_lock(&il->mutex);

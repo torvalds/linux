@@ -113,18 +113,18 @@ il_power_set_mode(struct il_priv *il, struct il_powertable_cmd *cmd,
 
 	/* scan complete use sleep_power_next, need to be updated */
 	memcpy(&il->power_data.sleep_cmd_next, cmd, sizeof(*cmd));
-	if (test_bit(STATUS_SCANNING, &il->status) && !force) {
+	if (test_bit(S_SCANNING, &il->status) && !force) {
 		D_INFO("Defer power set mode while scanning\n");
 		return 0;
 	}
 
 	if (cmd->flags & IL_POWER_DRIVER_ALLOW_SLEEP_MSK)
-		set_bit(STATUS_POWER_PMI, &il->status);
+		set_bit(S_POWER_PMI, &il->status);
 
 	ret = il_set_power(il, cmd);
 	if (!ret) {
 		if (!(cmd->flags & IL_POWER_DRIVER_ALLOW_SLEEP_MSK))
-			clear_bit(STATUS_POWER_PMI, &il->status);
+			clear_bit(S_POWER_PMI, &il->status);
 
 		if (il->cfg->ops->lib->update_chain_flags && update_chains)
 			il->cfg->ops->lib->update_chain_flags(il);

@@ -165,7 +165,7 @@ int il_init_geos(struct il_priv *il)
 	if (il->bands[IEEE80211_BAND_2GHZ].n_bitrates ||
 	    il->bands[IEEE80211_BAND_5GHZ].n_bitrates) {
 		D_INFO("Geography modes already initialized.\n");
-		set_bit(STATUS_GEO_CONFIGURED, &il->status);
+		set_bit(S_GEO_CONFIGURED, &il->status);
 		return 0;
 	}
 
@@ -264,7 +264,7 @@ int il_init_geos(struct il_priv *il)
 		   il->bands[IEEE80211_BAND_2GHZ].n_channels,
 		   il->bands[IEEE80211_BAND_5GHZ].n_channels);
 
-	set_bit(STATUS_GEO_CONFIGURED, &il->status);
+	set_bit(S_GEO_CONFIGURED, &il->status);
 
 	return 0;
 }
@@ -277,7 +277,7 @@ void il_free_geos(struct il_priv *il)
 {
 	kfree(il->ieee_channels);
 	kfree(il->ieee_rates);
-	clear_bit(STATUS_GEO_CONFIGURED, &il->status);
+	clear_bit(S_GEO_CONFIGURED, &il->status);
 }
 EXPORT_SYMBOL(il_free_geos);
 
@@ -839,10 +839,10 @@ void il_chswitch_done(struct il_priv *il, bool is_success)
 {
 	struct il_rxon_context *ctx = &il->ctx;
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
-	if (test_and_clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &il->status))
+	if (test_and_clear_bit(S_CHANNEL_SWITCH_PENDING, &il->status))
 		ieee80211_chswitch_done(ctx->vif, is_success);
 }
 EXPORT_SYMBOL(il_chswitch_done);
@@ -855,7 +855,7 @@ void il_rx_csa(struct il_priv *il, struct il_rx_buf *rxb)
 	struct il_rxon_context *ctx = &il->ctx;
 	struct il_rxon_cmd *rxon = (void *)&ctx->active;
 
-	if (!test_bit(STATUS_CHANNEL_SWITCH_PENDING, &il->status))
+	if (!test_bit(S_CHANNEL_SWITCH_PENDING, &il->status))
 		return;
 
 	if (!le32_to_cpu(csa->status) && csa->channel == il->switch_channel) {
@@ -903,10 +903,10 @@ EXPORT_SYMBOL(il_print_rx_config_cmd);
 void il_irq_handle_error(struct il_priv *il)
 {
 	/* Set the FW error flag -- cleared on il_down */
-	set_bit(STATUS_FW_ERROR, &il->status);
+	set_bit(S_FW_ERROR, &il->status);
 
 	/* Cancel currently queued command. */
-	clear_bit(STATUS_HCMD_ACTIVE, &il->status);
+	clear_bit(S_HCMD_ACTIVE, &il->status);
 
 	IL_ERR("Loaded firmware version: %s\n",
 		il->hw->wiphy->fw_version);
@@ -924,9 +924,9 @@ void il_irq_handle_error(struct il_priv *il)
 
 	/* Keep the restart process from trying to send host
 	 * commands by clearing the INIT status bit */
-	clear_bit(STATUS_READY, &il->status);
+	clear_bit(S_READY, &il->status);
 
-	if (!test_bit(STATUS_EXIT_PENDING, &il->status)) {
+	if (!test_bit(S_EXIT_PENDING, &il->status)) {
 		IL_DBG(IL_DL_FW_ERRORS,
 			  "Restarting adapter due to uCode error.\n");
 
@@ -1127,7 +1127,7 @@ int il_set_tx_power(struct il_priv *il, s8 tx_power, bool force)
 	il->tx_power_next = tx_power;
 
 	/* do not set tx power when scanning or channel changing */
-	defer = test_bit(STATUS_SCANNING, &il->status) ||
+	defer = test_bit(S_SCANNING, &il->status) ||
 		memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging));
 	if (defer && !force) {
 		D_INFO("Deferring tx power set\n");
@@ -1678,7 +1678,7 @@ int il_force_reset(struct il_priv *il, bool external)
 {
 	struct il_force_reset *force_reset;
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return -EINVAL;
 
 	force_reset = &il->force_reset;
@@ -1713,13 +1713,13 @@ int il_force_reset(struct il_priv *il, bool external)
 	IL_ERR("On demand firmware reload\n");
 
 	/* Set the FW error flag -- cleared on il_down */
-	set_bit(STATUS_FW_ERROR, &il->status);
+	set_bit(S_FW_ERROR, &il->status);
 	wake_up(&il->wait_command_queue);
 	/*
 	 * Keep the restart process from trying to send host
 	 * commands by clearing the INIT status bit
 	 */
-	clear_bit(STATUS_READY, &il->status);
+	clear_bit(S_READY, &il->status);
 	queue_work(il->workqueue, &il->restart);
 
 	return 0;
@@ -1826,7 +1826,7 @@ void il_bg_watchdog(unsigned long data)
 	int cnt;
 	unsigned long timeout;
 
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
 	timeout = il->cfg->base_params->wd_timeout;
@@ -1960,9 +1960,9 @@ int il_pci_resume(struct device *device)
 		hw_rfkill = true;
 
 	if (hw_rfkill)
-		set_bit(STATUS_RF_KILL_HW, &il->status);
+		set_bit(S_RF_KILL_HW, &il->status);
 	else
-		clear_bit(STATUS_RF_KILL_HW, &il->status);
+		clear_bit(S_RF_KILL_HW, &il->status);
 
 	wiphy_rfkill_set_hw_state(il->hw->wiphy, hw_rfkill);
 
@@ -1985,7 +1985,7 @@ EXPORT_SYMBOL(il_pm_ops);
 static void
 il_update_qos(struct il_priv *il, struct il_rxon_context *ctx)
 {
-	if (test_bit(STATUS_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
 	if (!ctx->is_active)
@@ -2034,7 +2034,7 @@ int il_mac_config(struct ieee80211_hw *hw, u32 changed)
 	D_MAC80211("enter to channel %d changed 0x%X\n",
 					channel->hw_value, changed);
 
-	if (unlikely(test_bit(STATUS_SCANNING, &il->status))) {
+	if (unlikely(test_bit(S_SCANNING, &il->status))) {
 		scan_active = 1;
 		D_MAC80211("scan active\n");
 	}
@@ -2566,7 +2566,7 @@ unplugged:
 none:
 	/* re-enable interrupts here since we don't have anything to service. */
 	/* only Re-enable if disabled by irq */
-	if (test_bit(STATUS_INT_ENABLED, &il->status))
+	if (test_bit(S_INT_ENABLED, &il->status))
 		il_enable_interrupts(il);
 	spin_unlock_irqrestore(&il->lock, flags);
 	return IRQ_NONE;
