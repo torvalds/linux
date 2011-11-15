@@ -467,12 +467,24 @@ void __init pnv_pci_init(void)
 		init_pci_config_tokens();
 		find_and_init_phbs();
 #endif /* CONFIG_PPC_POWERNV_RTAS */
-	} else {
-		/* OPAL is here, do our normal stuff */
+	}
+	/* OPAL is here, do our normal stuff */
+	else {
+		int found_ioda = 0;
+
+		/* Look for IODA IO-Hubs. We don't support mixing IODA
+		 * and p5ioc2 due to the need to change some global
+		 * probing flags
+		 */
+		for_each_compatible_node(np, NULL, "ibm,ioda-hub") {
+			pnv_pci_init_ioda_hub(np);
+			found_ioda = 1;
+		}
 
 		/* Look for p5ioc2 IO-Hubs */
-		for_each_compatible_node(np, NULL, "ibm,p5ioc2")
-			pnv_pci_init_p5ioc2_hub(np);
+		if (!found_ioda)
+			for_each_compatible_node(np, NULL, "ibm,p5ioc2")
+				pnv_pci_init_p5ioc2_hub(np);
 	}
 
 	/* Setup the linkage between OF nodes and PHBs */
