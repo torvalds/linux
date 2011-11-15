@@ -899,12 +899,6 @@ struct il_force_reset {
  */
 #define IL4965_EXT_BEACON_TIME_POS	22
 
-enum il_rxon_context_id {
-	IL_RXON_CTX_BSS,
-
-	NUM_IL_RXON_CTX
-};
-
 struct il_rxon_context {
 	struct ieee80211_vif *vif;
 
@@ -921,7 +915,7 @@ struct il_rxon_context {
 
 	bool ht_need_multiple_chains;
 
-	enum il_rxon_context_id ctxid;
+	int ctxid;
 
 	u32 interface_modes, exclusive_interface_modes;
 	u8 unused_devtype, ap_devtype, ibss_devtype, station_devtype;
@@ -1029,9 +1023,6 @@ struct il_priv {
 	u32  hw_wa_rev;
 	u8   rev_id;
 
-	/* microcode/device supports multiple contexts */
-	u8 valid_contexts;
-
 	/* command queue number */
 	u8 cmd_queue;
 
@@ -1055,7 +1046,7 @@ struct il_priv {
 	u8 ucode_write_complete;	/* the image write is complete */
 	char firmware_name[25];
 
-	struct il_rxon_context contexts[NUM_IL_RXON_CTX];
+	struct il_rxon_context ctx;
 
 	__le16 switch_channel;
 
@@ -1298,21 +1289,17 @@ il_rxon_ctx_from_vif(struct ieee80211_vif *vif)
 	return vif_priv->ctx;
 }
 
-#define for_each_context(il, ctx)				\
-	for (ctx = &il->contexts[IL_RXON_CTX_BSS];		\
-	     ctx < &il->contexts[NUM_IL_RXON_CTX]; ctx++)	\
-		if (il->valid_contexts & BIT(ctx->ctxid))
+#define for_each_context(il, _ctx) \
+	for (_ctx = &il->ctx; _ctx == &il->ctx; _ctx++)
 
-static inline int il_is_associated(struct il_priv *il,
-				    enum il_rxon_context_id ctxid)
+static inline int il_is_associated(struct il_priv *il)
 {
-	return (il->contexts[ctxid].active.filter_flags &
-			RXON_FILTER_ASSOC_MSK) ? 1 : 0;
+	return (il->ctx.active.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
 
 static inline int il_is_any_associated(struct il_priv *il)
 {
-	return il_is_associated(il, IL_RXON_CTX_BSS);
+	return il_is_associated(il);
 }
 
 static inline int il_is_associated_ctx(struct il_rxon_context *ctx)

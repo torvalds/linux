@@ -601,7 +601,7 @@ il_dbgfs_qos_read(struct file *file, char __user *user_buf,
 	struct il_priv *il = file->private_data;
 	struct il_rxon_context *ctx;
 	int pos = 0, i;
-	char buf[256 * NUM_IL_RXON_CTX];
+	char buf[256];
 	const size_t bufsz = sizeof(buf);
 
 	for_each_context(il, ctx) {
@@ -1064,7 +1064,7 @@ static ssize_t il_dbgfs_rxon_flags_read(struct file *file,
 	char buf[20];
 
 	len = sprintf(buf, "0x%04X\n",
-		le32_to_cpu(il->contexts[IL_RXON_CTX_BSS].active.flags));
+		le32_to_cpu(il->ctx.active.flags));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -1077,7 +1077,7 @@ static ssize_t il_dbgfs_rxon_filter_flags_read(struct file *file,
 	char buf[20];
 
 	len = sprintf(buf, "0x%04X\n",
-	le32_to_cpu(il->contexts[IL_RXON_CTX_BSS].active.filter_flags));
+	le32_to_cpu(il->ctx.active.filter_flags));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 

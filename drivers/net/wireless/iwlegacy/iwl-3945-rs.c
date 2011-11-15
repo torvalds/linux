@@ -342,7 +342,7 @@ void il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_i
 	int i;
 
 	D_INFO("enter\n");
-	if (sta_id == il->contexts[IL_RXON_CTX_BSS].bcast_sta_id)
+	if (sta_id == il->ctx.bcast_sta_id)
 		goto out;
 
 	psta = (struct il3945_sta_priv *) sta->drv_priv;
@@ -936,7 +936,7 @@ void il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 
 	rcu_read_lock();
 
-	sta = ieee80211_find_sta(il->contexts[IL_RXON_CTX_BSS].vif,
+	sta = ieee80211_find_sta(il->ctx.vif,
 				 il->stations[sta_id].sta.sta.addr);
 	if (!sta) {
 		D_RATE("Unable to find station to initialize rate scaling.\n");
@@ -953,7 +953,7 @@ void il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 	switch (il->band) {
 	case IEEE80211_BAND_2GHZ:
 		/* TODO: this always does G, not a regression */
-		if (il->contexts[IL_RXON_CTX_BSS].active.flags &
+		if (il->ctx.active.flags &
 						RXON_FLG_TGG_PROTECT_MSK) {
 			rs_sta->tgg = 1;
 			rs_sta->expected_tpt = il3945_expected_tpt_g_prot;

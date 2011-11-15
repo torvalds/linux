@@ -144,7 +144,7 @@ static int il3945_set_ccmp_dynamic_key_info(struct il_priv *il,
 	key_flags |= (STA_KEY_FLG_CCMP | STA_KEY_FLG_MAP_KEY_MSK);
 	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
 
-	if (sta_id == il->contexts[IL_RXON_CTX_BSS].bcast_sta_id)
+	if (sta_id == il->ctx.bcast_sta_id)
 		key_flags |= STA_KEY_MULTICAST_MSK;
 
 	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
@@ -318,7 +318,7 @@ unsigned int il3945_fill_beacon_frame(struct il_priv *il,
 				int left)
 {
 
-	if (!il_is_associated(il, IL_RXON_CTX_BSS) || !il->beacon_skb)
+	if (!il_is_associated(il) || !il->beacon_skb)
 		return 0;
 
 	if (il->beacon_skb->len > left)
@@ -345,7 +345,7 @@ static int il3945_send_beacon_cmd(struct il_priv *il)
 	}
 
 	rate = il_get_lowest_plcp(il,
-				&il->contexts[IL_RXON_CTX_BSS]);
+				&il->ctx);
 
 	frame_size = il3945_hw_get_beacon_cmd(il, frame, rate);
 
@@ -515,7 +515,7 @@ static int il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	/* Find index into station table for destination station */
 	sta_id = il_sta_id_or_broadcast(
-			il, &il->contexts[IL_RXON_CTX_BSS],
+			il, &il->ctx,
 			info->control.sta);
 	if (sta_id == IL_INVALID_STATION) {
 		D_DROP("Dropping - INVALID STATION: %pM\n",
@@ -546,7 +546,7 @@ static int il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	/* Set up driver data for this TFD */
 	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct il_tx_info));
 	txq->txb[q->write_ptr].skb = skb;
-	txq->txb[q->write_ptr].ctx = &il->contexts[IL_RXON_CTX_BSS];
+	txq->txb[q->write_ptr].ctx = &il->ctx;
 
 	/* Init first empty entry in queue's array of Tx/cmd buffers */
 	out_cmd = txq->cmd[idx];
@@ -681,9 +681,9 @@ static int il3945_get_measurement(struct il_priv *il,
 	int rc;
 	int spectrum_resp_status;
 	int duration = le16_to_cpu(params->duration);
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
-	if (il_is_associated(il, IL_RXON_CTX_BSS))
+	if (il_is_associated(il))
 		add_time = il_usecs_to_beacons(il,
 			le64_to_cpu(params->start_time) - il->_3945.last_tsf,
 			le16_to_cpu(ctx->timing.beacon_interval));
@@ -697,7 +697,7 @@ static int il3945_get_measurement(struct il_priv *il,
 	cmd.len = sizeof(spectrum);
 	spectrum.len = cpu_to_le16(cmd.len - sizeof(spectrum.len));
 
-	if (il_is_associated(il, IL_RXON_CTX_BSS))
+	if (il_is_associated(il))
 		spectrum.start_time =
 			il_add_beacon_time(il,
 				il->_3945.last_beacon_time, add_time,
@@ -2189,7 +2189,7 @@ static void il3945_alive_start(struct il_priv *il)
 {
 	int thermal_spin = 0;
 	u32 rfkill;
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	D_INFO("Runtime Alive received.\n");
 
@@ -2243,7 +2243,7 @@ static void il3945_alive_start(struct il_priv *il)
 
 	il_power_update_mode(il, true);
 
-	if (il_is_associated(il, IL_RXON_CTX_BSS)) {
+	if (il_is_associated(il)) {
 		struct il3945_rxon_cmd *active_rxon =
 				(struct il3945_rxon_cmd *)(&ctx->active);
 
@@ -2372,7 +2372,7 @@ static void il3945_down(struct il_priv *il)
 
 static int il3945_alloc_bcast_station(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 	unsigned long flags;
 	u8 sta_id;
 
@@ -2581,7 +2581,7 @@ int il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	scan->quiet_plcp_th = IL_PLCP_QUIET_THRESH;
 	scan->quiet_time = IL_ACTIVE_QUIET_TIME;
 
-	if (il_is_associated(il, IL_RXON_CTX_BSS)) {
+	if (il_is_associated(il)) {
 		u16 interval;
 		u32 extra;
 		u32 suspend_time = 100;
@@ -2634,7 +2634,7 @@ int il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	/* We don't build a direct scan probe request; the uCode will do
 	 * that based on the direct_mask added to each channel entry */
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
-	scan->tx_cmd.sta_id = il->contexts[IL_RXON_CTX_BSS].bcast_sta_id;
+	scan->tx_cmd.sta_id = il->ctx.bcast_sta_id;
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 	/* flags + rate selection */
@@ -2692,7 +2692,7 @@ int il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 
 void il3945_post_scan(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	/*
 	 * Since setting the RXON may have been deferred while
@@ -2750,7 +2750,7 @@ void il3945_post_associate(struct il_priv *il)
 {
 	int rc = 0;
 	struct ieee80211_conf *conf = NULL;
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	if (!ctx->vif || !il->is_open)
 		return;
@@ -2917,7 +2917,7 @@ static void il3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 void il3945_config_ap(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 	struct ieee80211_vif *vif = ctx->vif;
 	int rc = 0;
 
@@ -2925,7 +2925,7 @@ void il3945_config_ap(struct il_priv *il)
 		return;
 
 	/* The following should be done only at AP bring up */
-	if (!(il_is_associated(il, IL_RXON_CTX_BSS))) {
+	if (!(il_is_associated(il))) {
 
 		/* RXON - unassoc (to set timing command) */
 		ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
@@ -2986,11 +2986,11 @@ static int il3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
 		return -EOPNOTSUPP;
 
-	static_key = !il_is_associated(il, IL_RXON_CTX_BSS);
+	static_key = !il_is_associated(il);
 
 	if (!static_key) {
 		sta_id = il_sta_id_or_broadcast(
-				il, &il->contexts[IL_RXON_CTX_BSS], sta);
+				il, &il->ctx, sta);
 		if (sta_id == IL_INVALID_STATION)
 			return -EINVAL;
 	}
@@ -3042,7 +3042,7 @@ static int il3945_mac_sta_add(struct ieee80211_hw *hw,
 
 
 	ret = il_add_station_common(il,
-				&il->contexts[IL_RXON_CTX_BSS],
+				&il->ctx,
 				     sta->addr, is_ap, sta, &sta_id);
 	if (ret) {
 		IL_ERR("Unable to add station %pM (%d)\n",
@@ -3070,7 +3070,7 @@ static void il3945_configure_filter(struct ieee80211_hw *hw,
 {
 	struct il_priv *il = hw->priv;
 	__le32 filter_or = 0, filter_nand = 0;
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 #define CHK(test, flag)	do { \
 	if (*total_flags & (test))		\
@@ -3205,7 +3205,7 @@ static ssize_t il3945_show_flags(struct device *d,
 			  struct device_attribute *attr, char *buf)
 {
 	struct il_priv *il = dev_get_drvdata(d);
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	return sprintf(buf, "0x%04X\n", ctx->active.flags);
 }
@@ -3216,7 +3216,7 @@ static ssize_t il3945_store_flags(struct device *d,
 {
 	struct il_priv *il = dev_get_drvdata(d);
 	u32 flags = simple_strtoul(buf, NULL, 0);
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	mutex_lock(&il->mutex);
 	if (le32_to_cpu(ctx->staging.flags) != flags) {
@@ -3241,7 +3241,7 @@ static ssize_t il3945_show_filter_flags(struct device *d,
 				 struct device_attribute *attr, char *buf)
 {
 	struct il_priv *il = dev_get_drvdata(d);
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	return sprintf(buf, "0x%04X\n",
 		le32_to_cpu(ctx->active.filter_flags));
@@ -3252,7 +3252,7 @@ static ssize_t il3945_store_filter_flags(struct device *d,
 				  const char *buf, size_t count)
 {
 	struct il_priv *il = dev_get_drvdata(d);
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 	u32 filter_flags = simple_strtoul(buf, NULL, 0);
 
 	mutex_lock(&il->mutex);
@@ -3313,7 +3313,7 @@ static ssize_t il3945_store_measurement(struct device *d,
 				 const char *buf, size_t count)
 {
 	struct il_priv *il = dev_get_drvdata(d);
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 	struct ieee80211_measurement_params params = {
 		.channel = le16_to_cpu(ctx->active.channel),
 		.start_time = cpu_to_le64(il->_3945.last_tsf),
@@ -3599,7 +3599,7 @@ static int il3945_setup_mac(struct il_priv *il)
 		    IEEE80211_HW_SPECTRUM_MGMT;
 
 	hw->wiphy->interface_modes =
-		il->contexts[IL_RXON_CTX_BSS].interface_modes;
+		il->ctx.interface_modes;
 
 	hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY |
 			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
@@ -3634,7 +3634,7 @@ static int il3945_setup_mac(struct il_priv *il)
 
 static int il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	int err = 0, i;
+	int err = 0;
 	struct il_priv *il;
 	struct ieee80211_hw *hw;
 	struct il_cfg *cfg = (struct il_cfg *)(ent->driver_data);
@@ -3658,24 +3658,20 @@ static int il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 
 	il->cmd_queue = IL39_CMD_QUEUE_NUM;
 
-	/* 3945 has only one valid context */
-	il->valid_contexts = BIT(IL_RXON_CTX_BSS);
+	il->ctx.ctxid = 0;
 
-	for (i = 0; i < NUM_IL_RXON_CTX; i++)
-		il->contexts[i].ctxid = i;
-
-	il->contexts[IL_RXON_CTX_BSS].rxon_cmd = REPLY_RXON;
-	il->contexts[IL_RXON_CTX_BSS].rxon_timing_cmd = REPLY_RXON_TIMING;
-	il->contexts[IL_RXON_CTX_BSS].rxon_assoc_cmd = REPLY_RXON_ASSOC;
-	il->contexts[IL_RXON_CTX_BSS].qos_cmd = REPLY_QOS_PARAM;
-	il->contexts[IL_RXON_CTX_BSS].ap_sta_id = IL_AP_ID;
-	il->contexts[IL_RXON_CTX_BSS].wep_key_cmd = REPLY_WEPKEY;
-	il->contexts[IL_RXON_CTX_BSS].interface_modes =
+	il->ctx.rxon_cmd = REPLY_RXON;
+	il->ctx.rxon_timing_cmd = REPLY_RXON_TIMING;
+	il->ctx.rxon_assoc_cmd = REPLY_RXON_ASSOC;
+	il->ctx.qos_cmd = REPLY_QOS_PARAM;
+	il->ctx.ap_sta_id = IL_AP_ID;
+	il->ctx.wep_key_cmd = REPLY_WEPKEY;
+	il->ctx.interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);
-	il->contexts[IL_RXON_CTX_BSS].ibss_devtype = RXON_DEV_TYPE_IBSS;
-	il->contexts[IL_RXON_CTX_BSS].station_devtype = RXON_DEV_TYPE_ESS;
-	il->contexts[IL_RXON_CTX_BSS].unused_devtype = RXON_DEV_TYPE_ESS;
+	il->ctx.ibss_devtype = RXON_DEV_TYPE_IBSS;
+	il->ctx.station_devtype = RXON_DEV_TYPE_ESS;
+	il->ctx.unused_devtype = RXON_DEV_TYPE_ESS;
 
 	/*
 	 * Disabling hardware scan means that mac80211 will perform scans
@@ -3812,7 +3808,7 @@ static int il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 
 	il_set_rxon_channel(il,
 			     &il->bands[IEEE80211_BAND_2GHZ].channels[5],
-			     &il->contexts[IL_RXON_CTX_BSS]);
+			     &il->ctx);
 	il3945_setup_deferred_work(il);
 	il3945_setup_rx_handlers(il);
 	il_power_initialize(il);

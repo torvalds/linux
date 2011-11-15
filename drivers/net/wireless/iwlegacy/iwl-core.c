@@ -853,7 +853,7 @@ EXPORT_SYMBOL(il_set_rate);
 
 void il_chswitch_done(struct il_priv *il, bool is_success)
 {
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	if (test_bit(STATUS_EXIT_PENDING, &il->status))
 		return;
@@ -868,7 +868,7 @@ void il_rx_csa(struct il_priv *il, struct il_rx_mem_buffer *rxb)
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_csa_notification *csa = &(pkt->u.csa_notif);
 
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 	struct il_rxon_cmd *rxon = (void *)&ctx->active;
 
 	if (!test_bit(STATUS_CHANNEL_SWITCH_PENDING, &il->status))
@@ -933,7 +933,7 @@ void il_irq_handle_error(struct il_priv *il)
 #ifdef CONFIG_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & IL_DL_FW_ERRORS)
 		il_print_rx_config_cmd(il,
-					&il->contexts[IL_RXON_CTX_BSS]);
+					&il->ctx);
 #endif
 
 	wake_up(&il->wait_command_queue);
@@ -1110,7 +1110,7 @@ int il_set_tx_power(struct il_priv *il, s8 tx_power, bool force)
 	int ret;
 	s8 prev_tx_power;
 	bool defer;
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	lockdep_assert_held(&il->mutex);
 
@@ -2069,7 +2069,7 @@ int il_mac_config(struct ieee80211_hw *hw, u32 changed)
 	int ret = 0;
 	u16 ch;
 	int scan_active = 0;
-	bool ht_changed[NUM_IL_RXON_CTX] = {};
+	bool ht_changed = false;
 
 	if (WARN_ON(!il->cfg->ops->legacy))
 		return -EOPNOTSUPP;
@@ -2129,7 +2129,7 @@ int il_mac_config(struct ieee80211_hw *hw, u32 changed)
 			/* Configure HT40 channels */
 			if (ctx->ht.enabled != conf_is_ht(conf)) {
 				ctx->ht.enabled = conf_is_ht(conf);
-				ht_changed[ctx->ctxid] = true;
+				ht_changed = true;
 			}
 			if (ctx->ht.enabled) {
 				if (conf_is_ht40_minus(conf)) {
@@ -2209,7 +2209,7 @@ int il_mac_config(struct ieee80211_hw *hw, u32 changed)
 		else
 			D_INFO(
 				"Not re-sending same RXON configuration.\n");
-		if (ht_changed[ctx->ctxid])
+		if (ht_changed)
 			il_update_qos(il, ctx);
 	}
 
@@ -2225,8 +2225,7 @@ void il_mac_reset_tsf(struct ieee80211_hw *hw,
 {
 	struct il_priv *il = hw->priv;
 	unsigned long flags;
-	/* IBSS can only be the IL_RXON_CTX_BSS context */
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	if (WARN_ON(!il->cfg->ops->legacy))
 		return;

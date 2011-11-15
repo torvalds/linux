@@ -1717,7 +1717,7 @@ static int il4965_alive_notify(struct il_priv *il)
 static void il4965_alive_start(struct il_priv *il)
 {
 	int ret = 0;
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	D_INFO("Runtime Alive received.\n");
 
@@ -2502,7 +2502,7 @@ void il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	struct ieee80211_channel *channel = ch_switch->channel;
 	struct il_ht_config *ht_conf = &il->current_ht_config;
 
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 	u16 ch;
 
 	D_MAC80211("enter\n");
@@ -2786,7 +2786,7 @@ static int il4965_init_drv(struct il_priv *il)
 	/* Choose which receivers/antennas to use */
 	if (il->cfg->ops->hcmd->set_rxon_chain)
 		il->cfg->ops->hcmd->set_rxon_chain(il,
-					&il->contexts[IL_RXON_CTX_BSS]);
+					&il->ctx);
 
 	il_init_scan_params(il);
 
@@ -2859,7 +2859,7 @@ static const u8 il4965_bss_ac_to_queue[] = {
 static int
 il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	int err = 0, i;
+	int err = 0;
 	struct il_priv *il;
 	struct ieee80211_hw *hw;
 	struct il_cfg *cfg = (struct il_cfg *)(ent->driver_data);
@@ -2878,36 +2878,26 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il = hw->priv;
 	/* At this point both hw and il are allocated. */
 
-	/*
-	 * The default context is always valid,
-	 * more may be discovered when firmware
-	 * is loaded.
-	 */
-	il->valid_contexts = BIT(IL_RXON_CTX_BSS);
+	il->ctx.ctxid = 0;
 
-	for (i = 0; i < NUM_IL_RXON_CTX; i++)
-		il->contexts[i].ctxid = i;
-
-	il->contexts[IL_RXON_CTX_BSS].always_active = true;
-	il->contexts[IL_RXON_CTX_BSS].is_active = true;
-	il->contexts[IL_RXON_CTX_BSS].rxon_cmd = REPLY_RXON;
-	il->contexts[IL_RXON_CTX_BSS].rxon_timing_cmd = REPLY_RXON_TIMING;
-	il->contexts[IL_RXON_CTX_BSS].rxon_assoc_cmd = REPLY_RXON_ASSOC;
-	il->contexts[IL_RXON_CTX_BSS].qos_cmd = REPLY_QOS_PARAM;
-	il->contexts[IL_RXON_CTX_BSS].ap_sta_id = IL_AP_ID;
-	il->contexts[IL_RXON_CTX_BSS].wep_key_cmd = REPLY_WEPKEY;
-	il->contexts[IL_RXON_CTX_BSS].ac_to_fifo = il4965_bss_ac_to_fifo;
-	il->contexts[IL_RXON_CTX_BSS].ac_to_queue = il4965_bss_ac_to_queue;
-	il->contexts[IL_RXON_CTX_BSS].exclusive_interface_modes =
+	il->ctx.always_active = true;
+	il->ctx.is_active = true;
+	il->ctx.rxon_cmd = REPLY_RXON;
+	il->ctx.rxon_timing_cmd = REPLY_RXON_TIMING;
+	il->ctx.rxon_assoc_cmd = REPLY_RXON_ASSOC;
+	il->ctx.qos_cmd = REPLY_QOS_PARAM;
+	il->ctx.ap_sta_id = IL_AP_ID;
+	il->ctx.wep_key_cmd = REPLY_WEPKEY;
+	il->ctx.ac_to_fifo = il4965_bss_ac_to_fifo;
+	il->ctx.ac_to_queue = il4965_bss_ac_to_queue;
+	il->ctx.exclusive_interface_modes =
 		BIT(NL80211_IFTYPE_ADHOC);
-	il->contexts[IL_RXON_CTX_BSS].interface_modes =
+	il->ctx.interface_modes =
 		BIT(NL80211_IFTYPE_STATION);
-	il->contexts[IL_RXON_CTX_BSS].ap_devtype = RXON_DEV_TYPE_AP;
-	il->contexts[IL_RXON_CTX_BSS].ibss_devtype = RXON_DEV_TYPE_IBSS;
-	il->contexts[IL_RXON_CTX_BSS].station_devtype = RXON_DEV_TYPE_ESS;
-	il->contexts[IL_RXON_CTX_BSS].unused_devtype = RXON_DEV_TYPE_ESS;
-
-	BUILD_BUG_ON(NUM_IL_RXON_CTX != 1);
+	il->ctx.ap_devtype = RXON_DEV_TYPE_AP;
+	il->ctx.ibss_devtype = RXON_DEV_TYPE_IBSS;
+	il->ctx.station_devtype = RXON_DEV_TYPE_ESS;
+	il->ctx.unused_devtype = RXON_DEV_TYPE_ESS;
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 

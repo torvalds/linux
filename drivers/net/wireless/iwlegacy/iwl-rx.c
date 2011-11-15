@@ -241,7 +241,7 @@ int il_set_decrypted_flag(struct il_priv *il,
 	 * All contexts have the same setting here due to it being
 	 * a module parameter, so OK to check any context.
 	 */
-	if (il->contexts[IL_RXON_CTX_BSS].active.filter_flags &
+	if (il->ctx.active.filter_flags &
 						RXON_FILTER_DIS_DECRYPT_MSK)
 		return 0;
 

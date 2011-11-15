@@ -820,7 +820,7 @@ void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 	unsigned long flags;
 	struct statistics_rx_non_phy *rx_info;
 
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	if (il->disable_chain_noise_cal)
 		return;

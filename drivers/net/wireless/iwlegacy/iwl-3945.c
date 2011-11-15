@@ -253,7 +253,7 @@ int il3945_rs_next_rate(struct il_priv *il, int rate)
 		break;
 	case IEEE80211_BAND_2GHZ:
 		if (!(il->_3945.sta_supp_rates & IL_OFDM_RATES_MASK) &&
-		    il_is_associated(il, IL_RXON_CTX_BSS)) {
+		    il_is_associated(il)) {
 			if (rate == IL_RATE_11M_INDEX)
 				next_rate = IL_RATE_5M_INDEX;
 		}
@@ -1374,7 +1374,7 @@ static int il3945_send_tx_power(struct il_priv *il)
 	int rate_idx, i;
 	const struct il_channel_info *ch_info = NULL;
 	struct il3945_txpowertable_cmd txpower = {
-		.channel = il->contexts[IL_RXON_CTX_BSS].active.channel,
+		.channel = il->ctx.active.channel,
 	};
 	u16 chan;
 
@@ -1382,7 +1382,7 @@ static int il3945_send_tx_power(struct il_priv *il)
 		      "TX Power requested while scanning!\n"))
 		return -EAGAIN;
 
-	chan = le16_to_cpu(il->contexts[IL_RXON_CTX_BSS].active.channel);
+	chan = le16_to_cpu(il->ctx.active.channel);
 
 	txpower.band = (il->band == IEEE80211_BAND_5GHZ) ? 0 : 1;
 	ch_info = il_get_channel_info(il, il->band, chan);
@@ -1734,9 +1734,9 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	 * il3945_rxon_assoc_cmd which is used to reconfigure filter
 	 * and other flags for the current radio configuration. */
 	if (!il_full_rxon_required(il,
-			&il->contexts[IL_RXON_CTX_BSS])) {
+			&il->ctx)) {
 		rc = il_send_rxon_assoc(il,
-					 &il->contexts[IL_RXON_CTX_BSS]);
+					 &il->ctx);
 		if (rc) {
 			IL_ERR("Error setting RXON_ASSOC "
 				  "configuration (%d).\n", rc);
@@ -1756,7 +1756,7 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	 * an RXON_ASSOC and the new config wants the associated mask enabled,
 	 * we must clear the associated from the active configuration
 	 * before we apply the new config */
-	if (il_is_associated(il, IL_RXON_CTX_BSS) && new_assoc) {
+	if (il_is_associated(il) && new_assoc) {
 		D_INFO("Toggling associated bit on current RXON\n");
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
@@ -1768,7 +1768,7 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		active_rxon->reserved5 = 0;
 		rc = il_send_cmd_pdu(il, REPLY_RXON,
 				      sizeof(struct il3945_rxon_cmd),
-				      &il->contexts[IL_RXON_CTX_BSS].active);
+				      &il->ctx.active);
 
 		/* If the mask clearing failed then we set
 		 * active_rxon back to what it was previously */
@@ -1779,9 +1779,9 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 			return rc;
 		}
 		il_clear_ucode_stations(il,
-					 &il->contexts[IL_RXON_CTX_BSS]);
+					 &il->ctx);
 		il_restore_stations(il,
-					 &il->contexts[IL_RXON_CTX_BSS]);
+					 &il->ctx);
 	}
 
 	D_INFO("Sending RXON\n"
@@ -1814,9 +1814,9 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 
 	if (!new_assoc) {
 		il_clear_ucode_stations(il,
-					 &il->contexts[IL_RXON_CTX_BSS]);
+					 &il->ctx);
 		il_restore_stations(il,
-					&il->contexts[IL_RXON_CTX_BSS]);
+					&il->ctx);
 	}
 
 	/* If we issue a new RXON command which required a tune then we must
@@ -2252,7 +2252,7 @@ static u16 il3945_build_addsta_hcmd(const struct il_addsta_cmd *cmd,
 static int il3945_add_bssid_station(struct il_priv *il,
 				     const u8 *addr, u8 *sta_id_r)
 {
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 	int ret;
 	u8 sta_id;
 	unsigned long flags;
@@ -2346,7 +2346,7 @@ int il3945_init_hw_rate_table(struct il_priv *il)
 		 * 1M CCK rates */
 
 		if (!(il->_3945.sta_supp_rates & IL_OFDM_RATES_MASK) &&
-		    il_is_associated(il, IL_RXON_CTX_BSS)) {
+		    il_is_associated(il)) {
 
 			index = IL_FIRST_CCK_RATE;
 			for (i = IL_RATE_6M_INDEX_TABLE;
@@ -2401,7 +2401,7 @@ int il3945_hw_set_hw_params(struct il_priv *il)
 	il->hw_params.max_rxq_size = RX_QUEUE_SIZE;
 	il->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
 	il->hw_params.max_stations = IL3945_STATION_COUNT;
-	il->contexts[IL_RXON_CTX_BSS].bcast_sta_id = IL3945_BROADCAST_ID;
+	il->ctx.bcast_sta_id = IL3945_BROADCAST_ID;
 
 	il->sta_key_max_num = STA_KEY_MAX_NUM;
 
@@ -2422,7 +2422,7 @@ unsigned int il3945_hw_get_beacon_cmd(struct il_priv *il,
 	memset(tx_beacon_cmd, 0, sizeof(*tx_beacon_cmd));
 
 	tx_beacon_cmd->tx.sta_id =
-		il->contexts[IL_RXON_CTX_BSS].bcast_sta_id;
+		il->ctx.bcast_sta_id;
 	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 	frame_size = il3945_fill_beacon_frame(il,

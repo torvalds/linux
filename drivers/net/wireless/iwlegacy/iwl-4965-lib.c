@@ -782,7 +782,7 @@ int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 		.flags = CMD_SIZE_HUGE,
 	};
 	struct il_scan_cmd *scan;
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 	u32 rate_flags = 0;
 	u16 cmd_len;
 	u16 rx_chain = 0;
@@ -866,7 +866,7 @@ int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	case IEEE80211_BAND_2GHZ:
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
 		chan_mod = le32_to_cpu(
-			il->contexts[IL_RXON_CTX_BSS].active.flags &
+			il->ctx.active.flags &
 						RXON_FLG_CHANNEL_MODE_MSK)
 				       >> RXON_FLG_CHANNEL_MODE_POS;
 		if (chan_mod == CHANNEL_MODE_PURE_40) {

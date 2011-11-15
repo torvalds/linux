@@ -277,7 +277,7 @@ int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	struct il_device_cmd *out_cmd;
 	struct il_cmd_meta *out_meta;
 	struct il_tx_cmd *tx_cmd;
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 	int txq_id;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
@@ -1041,7 +1041,7 @@ int il4965_txq_check_empty(struct il_priv *il,
 	struct il_tid_data *tid_data = &il->stations[sta_id].tid[tid];
 	struct il_rxon_context *ctx;
 
-	ctx = &il->contexts[il->stations[sta_id].ctxid];
+	ctx = &il->ctx;
 
 	lockdep_assert_held(&il->sta_lock);
 

@@ -403,7 +403,7 @@ static int il4965_hw_set_hw_params(struct il_priv *il)
 			sizeof(struct il4965_scd_bc_tbl);
 	il->hw_params.tfd_size = sizeof(struct il_tfd);
 	il->hw_params.max_stations = IL4965_STATION_COUNT;
-	il->contexts[IL_RXON_CTX_BSS].bcast_sta_id = IL4965_BROADCAST_ID;
+	il->ctx.bcast_sta_id = IL4965_BROADCAST_ID;
 	il->hw_params.max_data_size = IL49_RTC_DATA_SIZE;
 	il->hw_params.max_inst_size = IL49_RTC_INST_SIZE;
 	il->hw_params.max_bsm_size = BSM_SRAM_SIZE;
@@ -1121,7 +1121,7 @@ static int il4965_send_tx_power(struct il_priv *il)
 	u8 band = 0;
 	bool is_ht40 = false;
 	u8 ctrl_chan_high = 0;
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &il->status),
 		      "TX Power requested while scanning!\n"))
@@ -1333,7 +1333,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 static int il4965_hw_channel_switch(struct il_priv *il,
 				     struct ieee80211_channel_switch *ch_switch)
 {
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 	int rc;
 	u8 band = 0;
 	bool is_ht40 = false;
@@ -1726,7 +1726,7 @@ static u8 il4965_find_station(struct il_priv *il, const u8 *addr)
 		start = IL_STA_ID;
 
 	if (is_broadcast_ether_addr(addr))
-		return il->contexts[IL_RXON_CTX_BSS].bcast_sta_id;
+		return il->ctx.bcast_sta_id;
 
 	spin_lock_irqsave(&il->sta_lock, flags);
 	for (i = start; i < il->hw_params.max_stations; i++)
@@ -1911,7 +1911,7 @@ static struct il_hcmd_ops il4965_hcmd = {
 
 static void il4965_post_scan(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 
 	/*
 	 * Since setting the RXON may have been deferred while
@@ -1923,7 +1923,7 @@ static void il4965_post_scan(struct il_priv *il)
 
 static void il4965_post_associate(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 	struct ieee80211_vif *vif = ctx->vif;
 	struct ieee80211_conf *conf = NULL;
 	int ret = 0;
@@ -2000,7 +2000,7 @@ static void il4965_post_associate(struct il_priv *il)
 
 static void il4965_config_ap(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->ctx;
 	struct ieee80211_vif *vif = ctx->vif;
 	int ret = 0;
 
