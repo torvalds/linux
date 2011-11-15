@@ -1,0 +1,4 @@
+config PA_CONFIG
+	tristate "pa mamage config"
+	default y
+	depends on PA_CONTROL
