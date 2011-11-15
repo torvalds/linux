@@ -155,18 +155,18 @@ static inline void il_disable_interrupts(struct il_priv *il)
 	 * from uCode or flow handler (Rx/Tx DMA) */
 	il_write32(il, CSR_INT, 0xffffffff);
 	il_write32(il, CSR_FH_INT_STATUS, 0xffffffff);
-	IL_DEBUG_ISR(il, "Disabled interrupts\n");
+	D_ISR("Disabled interrupts\n");
 }
 
 static inline void il_enable_rfkill_int(struct il_priv *il)
 {
-	IL_DEBUG_ISR(il, "Enabling rfkill interrupt\n");
+	D_ISR("Enabling rfkill interrupt\n");
 	il_write32(il, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
 }
 
 static inline void il_enable_interrupts(struct il_priv *il)
 {
-	IL_DEBUG_ISR(il, "Enabling interrupts\n");
+	D_ISR("Enabling interrupts\n");
 	set_bit(STATUS_INT_ENABLED, &il->status);
 	il_write32(il, CSR_INT_MASK, il->inta_mask);
 }

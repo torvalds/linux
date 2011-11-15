@@ -167,7 +167,7 @@ static int il3945_rate_scale_flush_windows(struct il3945_rs_sta *rs_sta)
 		spin_lock_irqsave(&rs_sta->lock, flags);
 		if (time_after(jiffies, rs_sta->win[i].stamp +
 			       IL_RATE_WIN_FLUSH)) {
-			IL_DEBUG_RATE(il, "flushing %d samples of rate "
+			D_RATE("flushing %d samples of rate "
 				       "index %d\n",
 				       rs_sta->win[i].counter, i);
 			il3945_clear_window(&rs_sta->win[i]);
@@ -191,7 +191,7 @@ static void il3945_bg_rate_scale_flush(unsigned long data)
 	unsigned long flags;
 	u32 packet_count, duration, pps;
 
-	IL_DEBUG_RATE(il, "enter\n");
+	D_RATE("enter\n");
 
 	unflushed = il3945_rate_scale_flush_windows(rs_sta);
 
@@ -206,7 +206,7 @@ static void il3945_bg_rate_scale_flush(unsigned long data)
 		duration =
 		    jiffies_to_msecs(jiffies - rs_sta->last_partial_flush);
 
-		IL_DEBUG_RATE(il, "Tx'd %d packets in %dms\n",
+		D_RATE("Tx'd %d packets in %dms\n",
 			       packet_count, duration);
 
 		/* Determine packets per second */
@@ -226,7 +226,7 @@ static void il3945_bg_rate_scale_flush(unsigned long data)
 
 		rs_sta->flush_time = msecs_to_jiffies(duration);
 
-		IL_DEBUG_RATE(il, "new flush period: %d msec ave %d\n",
+		D_RATE("new flush period: %d msec ave %d\n",
 			       duration, packet_count);
 
 		mod_timer(&rs_sta->rate_scale_flush, jiffies +
@@ -244,7 +244,7 @@ static void il3945_bg_rate_scale_flush(unsigned long data)
 
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
-	IL_DEBUG_RATE(il, "leave\n");
+	D_RATE("leave\n");
 }
 
 /**
@@ -263,7 +263,7 @@ static void il3945_collect_tx_data(struct il3945_rs_sta *rs_sta,
 	struct il_priv *il __maybe_unused = rs_sta->il;
 
 	if (!retries) {
-		IL_DEBUG_RATE(il, "leave: retries == 0 -- should be at least 1\n");
+		D_RATE("leave: retries == 0 -- should be at least 1\n");
 		return;
 	}
 
@@ -341,7 +341,7 @@ void il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_i
 	struct ieee80211_supported_band *sband;
 	int i;
 
-	IL_DEBUG_INFO(il, "enter\n");
+	D_INFO("enter\n");
 	if (sta_id == il->contexts[IL_RXON_CTX_BSS].bcast_sta_id)
 		goto out;
 
@@ -390,7 +390,7 @@ void il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_i
 out:
 	il->stations[sta_id].used &= ~IL_STA_UCODE_INPROGRESS;
 
-	IL_DEBUG_INFO(il, "leave\n");
+	D_INFO("leave\n");
 }
 
 static void *il3945_rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
@@ -410,14 +410,14 @@ static void *il3945_rs_alloc_sta(void *il_priv, struct ieee80211_sta *sta, gfp_t
 	struct il3945_sta_priv *psta = (void *) sta->drv_priv;
 	struct il_priv *il __maybe_unused = il_priv;
 
-	IL_DEBUG_RATE(il, "enter\n");
+	D_RATE("enter\n");
 
 	rs_sta = &psta->rs_sta;
 
 	spin_lock_init(&rs_sta->lock);
 	init_timer(&rs_sta->rate_scale_flush);
 
-	IL_DEBUG_RATE(il, "leave\n");
+	D_RATE("leave\n");
 
 	return rs_sta;
 }
@@ -453,7 +453,7 @@ static void il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *
 	struct il3945_rs_sta *rs_sta = il_sta;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	IL_DEBUG_RATE(il, "enter\n");
+	D_RATE("enter\n");
 
 	retries = info->status.rates[0].count;
 	/* Sanity Check for retries */
@@ -462,18 +462,18 @@ static void il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *
 
 	first_index = sband->bitrates[info->status.rates[0].idx].hw_value;
 	if ((first_index < 0) || (first_index >= IL_RATE_COUNT_3945)) {
-		IL_DEBUG_RATE(il, "leave: Rate out of bounds: %d\n", first_index);
+		D_RATE("leave: Rate out of bounds: %d\n", first_index);
 		return;
 	}
 
 	if (!il_sta) {
-		IL_DEBUG_RATE(il, "leave: No STA il data to update!\n");
+		D_RATE("leave: No STA il data to update!\n");
 		return;
 	}
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
 	if (!rs_sta->il) {
-		IL_DEBUG_RATE(il, "leave: STA il data uninitialized!\n");
+		D_RATE("leave: STA il data uninitialized!\n");
 		return;
 	}
 
@@ -508,7 +508,7 @@ static void il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *
 		il3945_collect_tx_data(rs_sta,
 				    &rs_sta->win[scale_rate_index],
 				    0, current_count, scale_rate_index);
-		IL_DEBUG_RATE(il, "Update rate %d for %d retries.\n",
+		D_RATE("Update rate %d for %d retries.\n",
 			       scale_rate_index, current_count);
 
 		retries -= current_count;
@@ -518,7 +518,7 @@ static void il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *
 
 
 	/* Update the last index window with success/failure based on ACK */
-	IL_DEBUG_RATE(il, "Update rate %d with %s.\n",
+	D_RATE("Update rate %d with %s.\n",
 		       last_index,
 		       (info->flags & IEEE80211_TX_STAT_ACK) ?
 		       "success" : "failure");
@@ -543,7 +543,7 @@ static void il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *
 
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
-	IL_DEBUG_RATE(il, "leave\n");
+	D_RATE("leave\n");
 }
 
 static u16 il3945_get_adjacent_rate(struct il3945_rs_sta *rs_sta,
@@ -591,7 +591,7 @@ static u16 il3945_get_adjacent_rate(struct il3945_rs_sta *rs_sta,
 			break;
 		if (rate_mask & (1 << low))
 			break;
-		IL_DEBUG_RATE(il, "Skipping masked lower rate: %d\n", low);
+		D_RATE("Skipping masked lower rate: %d\n", low);
 	}
 
 	high = index;
@@ -604,7 +604,7 @@ static u16 il3945_get_adjacent_rate(struct il3945_rs_sta *rs_sta,
 			break;
 		if (rate_mask & (1 << high))
 			break;
-		IL_DEBUG_RATE(il, "Skipping masked higher rate: %d\n", high);
+		D_RATE("Skipping masked higher rate: %d\n", high);
 	}
 
 	return (high << 8) | low;
@@ -648,11 +648,11 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	struct il_priv *il __maybe_unused = (struct il_priv *)il_r;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	IL_DEBUG_RATE(il, "enter\n");
+	D_RATE("enter\n");
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
 	if (rs_sta && !rs_sta->il) {
-		IL_DEBUG_RATE(il, "Rate scaling information not initialized yet.\n");
+		D_RATE("Rate scaling information not initialized yet.\n");
 		il_sta = NULL;
 	}
 
@@ -699,7 +699,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 	     (window->success_counter < IL_RATE_MIN_SUCCESS_TH))) {
 		spin_unlock_irqrestore(&rs_sta->lock, flags);
 
-		IL_DEBUG_RATE(il, "Invalid average_tpt on rate %d: "
+		D_RATE("Invalid average_tpt on rate %d: "
 			       "counter: %d, success_counter: %d, "
 			       "expected_tpt is %sNULL\n",
 			       index,
@@ -737,7 +737,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 
 	/* Low success ratio , need to drop the rate */
 	if ((window->success_ratio < IL_RATE_DECREASE_TH) || !current_tpt) {
-		IL_DEBUG_RATE(il, "decrease rate because of low success_ratio\n");
+		D_RATE("decrease rate because of low success_ratio\n");
 		scale_action = -1;
 	/* No throughput measured yet for adjacent rates,
 	 * try increase */
@@ -756,7 +756,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 		 (high_tpt != IL_INVALID_VALUE) &&
 		 (low_tpt < current_tpt) && (high_tpt < current_tpt)) {
 
-		IL_DEBUG_RATE(il, "No action -- low [%d] & high [%d] < "
+		D_RATE("No action -- low [%d] & high [%d] < "
 			       "current_tpt [%d]\n",
 			       low_tpt, high_tpt, current_tpt);
 		scale_action = 0;
@@ -771,13 +771,13 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 				window->success_ratio >= IL_RATE_INCREASE_TH)
 				scale_action = 1;
 			else {
-				IL_DEBUG_RATE(il,
+				D_RATE(
 				    "decrease rate because of high tpt\n");
 				scale_action = 0;
 			}
 		} else if (low_tpt != IL_INVALID_VALUE) {
 			if (low_tpt > current_tpt) {
-				IL_DEBUG_RATE(il,
+				D_RATE(
 				    "decrease rate because of low tpt\n");
 				scale_action = -1;
 			} else if (window->success_ratio >= IL_RATE_INCREASE_TH) {
@@ -816,7 +816,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 		break;
 	}
 
-	IL_DEBUG_RATE(il, "Selected %d (action %d) - low %d high %d\n",
+	D_RATE("Selected %d (action %d) - low %d high %d\n",
 		       index, scale_action, low, high);
 
  out:
@@ -831,7 +831,7 @@ static void il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta,
 		info->control.rates[0].idx = rs_sta->last_txrate_idx;
 	}
 
-	IL_DEBUG_RATE(il, "leave: %d\n", index);
+	D_RATE("leave: %d\n", index);
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -932,14 +932,14 @@ void il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 	struct ieee80211_sta *sta;
 	struct il3945_sta_priv *psta;
 
-	IL_DEBUG_RATE(il, "enter\n");
+	D_RATE("enter\n");
 
 	rcu_read_lock();
 
 	sta = ieee80211_find_sta(il->contexts[IL_RXON_CTX_BSS].vif,
 				 il->stations[sta_id].sta.sta.addr);
 	if (!sta) {
-		IL_DEBUG_RATE(il, "Unable to find station to initialize rate scaling.\n");
+		D_RATE("Unable to find station to initialize rate scaling.\n");
 		rcu_read_unlock();
 		return;
 	}
@@ -975,11 +975,11 @@ void il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 	if (rssi == 0)
 		rssi = IL_MIN_RSSI_VAL;
 
-	IL_DEBUG_RATE(il, "Network RSSI: %d\n", rssi);
+	D_RATE("Network RSSI: %d\n", rssi);
 
 	rs_sta->start_rate = il3945_get_rate_index_by_rssi(rssi, il->band);
 
-	IL_DEBUG_RATE(il, "leave: rssi %d assign rate index: "
+	D_RATE("leave: rssi %d assign rate index: "
 		       "%d (plcp 0x%x)\n", rssi, rs_sta->start_rate,
 		       il3945_rates[rs_sta->start_rate].plcp);
 	rcu_read_unlock();

@@ -68,19 +68,19 @@ static void il_power_sleep_cam_cmd(struct il_priv *il,
 	if (il->power_data.pci_pm)
 		cmd->flags |= IL_POWER_PCI_PM_MSK;
 
-	IL_DEBUG_POWER(il, "Sleep command for CAM\n");
+	D_POWER("Sleep command for CAM\n");
 }
 
 static int
 il_set_power(struct il_priv *il, struct il_powertable_cmd *cmd)
 {
-	IL_DEBUG_POWER(il, "Sending power/sleep command\n");
-	IL_DEBUG_POWER(il, "Flags value = 0x%08X\n", cmd->flags);
-	IL_DEBUG_POWER(il, "Tx timeout = %u\n",
+	D_POWER("Sending power/sleep command\n");
+	D_POWER("Flags value = 0x%08X\n", cmd->flags);
+	D_POWER("Tx timeout = %u\n",
 					le32_to_cpu(cmd->tx_data_timeout));
-	IL_DEBUG_POWER(il, "Rx timeout = %u\n",
+	D_POWER("Rx timeout = %u\n",
 					le32_to_cpu(cmd->rx_data_timeout));
-	IL_DEBUG_POWER(il,
+	D_POWER(
 			"Sleep interval vector = { %d , %d , %d , %d , %d }\n",
 			le32_to_cpu(cmd->sleep_interval[0]),
 			le32_to_cpu(cmd->sleep_interval[1]),
@@ -114,7 +114,7 @@ il_power_set_mode(struct il_priv *il, struct il_powertable_cmd *cmd,
 	/* scan complete use sleep_power_next, need to be updated */
 	memcpy(&il->power_data.sleep_cmd_next, cmd, sizeof(*cmd));
 	if (test_bit(STATUS_SCANNING, &il->status) && !force) {
-		IL_DEBUG_INFO(il, "Defer power set mode while scanning\n");
+		D_INFO("Defer power set mode while scanning\n");
 		return 0;
 	}
 
@@ -129,7 +129,7 @@ il_power_set_mode(struct il_priv *il, struct il_powertable_cmd *cmd,
 		if (il->cfg->ops->lib->update_chain_flags && update_chains)
 			il->cfg->ops->lib->update_chain_flags(il);
 		else if (il->cfg->ops->lib->update_chain_flags)
-			IL_DEBUG_POWER(il,
+			D_POWER(
 					"Cannot update the power, chain noise "
 					"calibration running: %d\n",
 					il->chain_noise_data.state);

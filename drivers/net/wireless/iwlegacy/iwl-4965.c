@@ -69,7 +69,7 @@ static int il4965_verify_bsm(struct il_priv *il)
 	u32 reg;
 	u32 val;
 
-	IL_DEBUG_INFO(il, "Begin verify bsm\n");
+	D_INFO("Begin verify bsm\n");
 
 	/* verify BSM SRAM contents */
 	val = il_read_prph(il, BSM_WR_DWCOUNT_REG);
@@ -87,7 +87,7 @@ static int il4965_verify_bsm(struct il_priv *il)
 		}
 	}
 
-	IL_DEBUG_INFO(il, "BSM bootstrap uCode image OK\n");
+	D_INFO("BSM bootstrap uCode image OK\n");
 
 	return 0;
 }
@@ -137,7 +137,7 @@ static int il4965_load_bsm(struct il_priv *il)
 	u32 reg_offset;
 	int ret;
 
-	IL_DEBUG_INFO(il, "Begin load bsm\n");
+	D_INFO("Begin load bsm\n");
 
 	il->ucode_type = UCODE_RT;
 
@@ -189,7 +189,7 @@ static int il4965_load_bsm(struct il_priv *il)
 		udelay(10);
 	}
 	if (i < 100)
-		IL_DEBUG_INFO(il, "BSM write complete, poll %d iterations\n", i);
+		D_INFO("BSM write complete, poll %d iterations\n", i);
 	else {
 		IL_ERR(il, "BSM write did not complete!\n");
 		return -EIO;
@@ -233,7 +233,7 @@ static int il4965_set_ucode_ptrs(struct il_priv *il)
 	 *   that all new ptr/size info is in place */
 	il_write_prph(il, BSM_DRAM_INST_BYTECOUNT_REG,
 				 il->ucode_code.len | BSM_DRAM_INST_LOAD);
-	IL_DEBUG_INFO(il, "Runtime uCode pointers are set.\n");
+	D_INFO("Runtime uCode pointers are set.\n");
 
 	return ret;
 }
@@ -257,7 +257,7 @@ static void il4965_init_alive_start(struct il_priv *il)
 	if (il4965_verify_ucode(il)) {
 		/* Runtime instruction load was bad;
 		 * take it all the way back down so we can try again */
-		IL_DEBUG_INFO(il, "Bad \"initialize\" uCode load.\n");
+		D_INFO("Bad \"initialize\" uCode load.\n");
 		goto restart;
 	}
 
@@ -267,11 +267,11 @@ static void il4965_init_alive_start(struct il_priv *il)
 	/* Send pointers to protocol/runtime uCode image ... init code will
 	 * load and launch runtime uCode, which will send us another "Alive"
 	 * notification. */
-	IL_DEBUG_INFO(il, "Initialization Alive received.\n");
+	D_INFO("Initialization Alive received.\n");
 	if (il4965_set_ucode_ptrs(il)) {
 		/* Runtime instruction load won't happen;
 		 * take it all the way back down so we can try again */
-		IL_DEBUG_INFO(il, "Couldn't set up uCode pointers.\n");
+		D_INFO("Couldn't set up uCode pointers.\n");
 		goto restart;
 	}
 	return;
@@ -346,7 +346,7 @@ static void il4965_chain_noise_reset(struct il_priv *il)
 			IL_ERR(il,
 				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
 		data->state = IL_CHAIN_NOISE_ACCUMULATE;
-		IL_DEBUG_CALIB(il, "Run chain_noise_calibrate\n");
+		D_CALIB("Run chain_noise_calibrate\n");
 	}
 }
 
@@ -556,7 +556,7 @@ static int il4965_interpolate_chan(struct il_priv *il, u32 channel,
 	ch_i2 = il->calib_info->band_info[s].ch2.ch_num;
 	chan_info->ch_num = (u8) channel;
 
-	IL_DEBUG_TXPOWER(il, "channel %d subband %d factory cal ch %d & %d\n",
+	D_TXPOWER("channel %d subband %d factory cal ch %d & %d\n",
 			  channel, s, ch_i1, ch_i2);
 
 	for (c = 0; c < EEPROM_TX_POWER_TX_CHAINS; c++) {
@@ -586,16 +586,16 @@ static int il4965_interpolate_chan(struct il_priv *il, u32 channel,
 							   m1->pa_det, ch_i2,
 							   m2->pa_det);
 
-			IL_DEBUG_TXPOWER(il,
+			D_TXPOWER(
 				"chain %d meas %d AP1=%d AP2=%d AP=%d\n", c, m,
 				m1->actual_pow, m2->actual_pow, omeas->actual_pow);
-			IL_DEBUG_TXPOWER(il,
+			D_TXPOWER(
 				"chain %d meas %d NI1=%d NI2=%d NI=%d\n", c, m,
 				m1->gain_idx, m2->gain_idx, omeas->gain_idx);
-			IL_DEBUG_TXPOWER(il,
+			D_TXPOWER(
 				"chain %d meas %d PA1=%d PA2=%d PA=%d\n", c, m,
 				m1->pa_det, m2->pa_det, omeas->pa_det);
-			IL_DEBUG_TXPOWER(il,
+			D_TXPOWER(
 				"chain %d meas %d  T1=%d  T2=%d  T=%d\n", c, m,
 				m1->temperature, m2->temperature,
 				omeas->temperature);
@@ -900,7 +900,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 	user_target_power = 2 * il->tx_power_user_lmt;
 
 	/* Get current (RXON) channel, band, width */
-	IL_DEBUG_TXPOWER(il, "chan %d band %d is_ht40 %d\n", channel, band,
+	D_TXPOWER("chan %d band %d is_ht40 %d\n", channel, band,
 			  is_ht40);
 
 	ch_info = il_get_channel_info(il, il->band, channel);
@@ -917,7 +917,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 		return txatten_grp;
 	}
 
-	IL_DEBUG_TXPOWER(il, "channel %d belongs to txatten group %d\n",
+	D_TXPOWER("channel %d belongs to txatten group %d\n",
 			  channel, txatten_grp);
 
 	if (is_ht40) {
@@ -967,7 +967,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 	voltage_compensation =
 	    il4965_get_voltage_compensation(voltage, init_voltage);
 
-	IL_DEBUG_TXPOWER(il, "curr volt %d eeprom volt %d volt comp %d\n",
+	D_TXPOWER("curr volt %d eeprom volt %d volt comp %d\n",
 			  init_voltage,
 			  voltage, voltage_compensation);
 
@@ -998,13 +998,13 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 		factory_gain_index[c] = measurement->gain_idx;
 		factory_actual_pwr[c] = measurement->actual_pow;
 
-		IL_DEBUG_TXPOWER(il, "chain = %d\n", c);
-		IL_DEBUG_TXPOWER(il, "fctry tmp %d, "
+		D_TXPOWER("chain = %d\n", c);
+		D_TXPOWER("fctry tmp %d, "
 				  "curr tmp %d, comp %d steps\n",
 				  factory_temp, current_temp,
 				  temperature_comp[c]);
 
-		IL_DEBUG_TXPOWER(il, "fctry idx %d, fctry pwr %d\n",
+		D_TXPOWER("fctry idx %d, fctry pwr %d\n",
 				  factory_gain_index[c],
 				  factory_actual_pwr[c]);
 	}
@@ -1037,7 +1037,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 		if (target_power > power_limit)
 			target_power = power_limit;
 
-		IL_DEBUG_TXPOWER(il, "rate %d sat %d reg %d usr %d tgt %d\n",
+		D_TXPOWER("rate %d sat %d reg %d usr %d tgt %d\n",
 				  i, saturation_power - back_off_table[i],
 				  current_regulatory, user_target_power,
 				  target_power);
@@ -1061,7 +1061,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 					    voltage_compensation +
 					    atten_value);
 
-/*			IL_DEBUG_TXPOWER(il, "calculated txpower index %d\n",
+/*			D_TXPOWER("calculated txpower index %d\n",
 						power_index); */
 
 			if (power_index < get_min_power_index(i, band))
@@ -1094,7 +1094,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 			tx_power.s.dsp_predis_atten[c] =
 				gain_table[band][power_index].dsp;
 
-			IL_DEBUG_TXPOWER(il, "chain %d mimo %d index %d "
+			D_TXPOWER("chain %d mimo %d index %d "
 					  "gain 0x%02x dsp %d\n",
 					  c, atten_value, power_index,
 					tx_power.s.radio_tx_gain[c],
@@ -1167,7 +1167,7 @@ static int il4965_send_rxon_assoc(struct il_priv *il,
 	     rxon2->ofdm_ht_dual_stream_basic_rates) &&
 	    (rxon1->rx_chain == rxon2->rx_chain) &&
 	    (rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates)) {
-		IL_DEBUG_INFO(il, "Using current RXON_ASSOC.  Not resending.\n");
+		D_INFO("Using current RXON_ASSOC.  Not resending.\n");
 		return 0;
 	}
 
@@ -1217,7 +1217,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	 */
 	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &il->status) &&
 	    (il->switch_channel != ctx->staging.channel)) {
-		IL_DEBUG_11H(il, "abort channel switch on %d\n",
+		D_11H("abort channel switch on %d\n",
 		      le16_to_cpu(il->switch_channel));
 		il_chswitch_done(il, false);
 	}
@@ -1247,7 +1247,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	 * we must clear the associated from the active configuration
 	 * before we apply the new config */
 	if (il_is_associated_ctx(ctx) && new_assoc) {
-		IL_DEBUG_INFO(il, "Toggling associated bit on current RXON\n");
+		D_INFO("Toggling associated bit on current RXON\n");
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
 		ret = il_send_cmd_pdu(il, ctx->rxon_cmd,
@@ -1270,7 +1270,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		}
 	}
 
-	IL_DEBUG_INFO(il, "Sending RXON\n"
+	D_INFO("Sending RXON\n"
 		       "* with%s RXON_FILTER_ASSOC_MSK\n"
 		       "* channel = %d\n"
 		       "* bssid = %pM\n",
@@ -1292,7 +1292,7 @@ static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 			IL_ERR(il, "Error setting new RXON (%d)\n", ret);
 			return ret;
 		}
-		IL_DEBUG_INFO(il, "Return from !new_assoc RXON.\n");
+		D_INFO("Return from !new_assoc RXON.\n");
 		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
 		il_clear_ucode_stations(il, ctx);
 		il_restore_stations(il, ctx);
@@ -1387,7 +1387,7 @@ static int il4965_hw_channel_switch(struct il_priv *il,
 						      ucode_switch_time,
 						      beacon_interval);
 	}
-	IL_DEBUG_11H(il, "uCode time for the switch is 0x%x\n",
+	D_11H("uCode time for the switch is 0x%x\n",
 		      cmd.switch_time);
 	ch_info = il_get_channel_info(il, il->band, ch);
 	if (ch_info)
@@ -1401,7 +1401,7 @@ static int il4965_hw_channel_switch(struct il_priv *il,
 	rc = il4965_fill_txpower_tbl(il, band, ch, is_ht40,
 				      ctrl_chan_high, &cmd.tx_power);
 	if (rc) {
-		IL_DEBUG_11H(il, "error:%d  fill txpower_tbl\n", rc);
+		D_11H("error:%d  fill txpower_tbl\n", rc);
 		return rc;
 	}
 
@@ -1450,13 +1450,13 @@ static int il4965_hw_get_temperature(struct il_priv *il)
 	if (test_bit(STATUS_TEMPERATURE, &il->status) &&
 	    (il->_4965.statistics.flag &
 			STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
-		IL_DEBUG_TEMP(il, "Running HT40 temperature calibration\n");
+		D_TEMP("Running HT40 temperature calibration\n");
 		R1 = (s32)le32_to_cpu(il->card_alive_init.therm_r1[1]);
 		R2 = (s32)le32_to_cpu(il->card_alive_init.therm_r2[1]);
 		R3 = (s32)le32_to_cpu(il->card_alive_init.therm_r3[1]);
 		R4 = le32_to_cpu(il->card_alive_init.therm_r4[1]);
 	} else {
-		IL_DEBUG_TEMP(il, "Running temperature calibration\n");
+		D_TEMP("Running temperature calibration\n");
 		R1 = (s32)le32_to_cpu(il->card_alive_init.therm_r1[0]);
 		R2 = (s32)le32_to_cpu(il->card_alive_init.therm_r2[0]);
 		R3 = (s32)le32_to_cpu(il->card_alive_init.therm_r3[0]);
@@ -1476,7 +1476,7 @@ static int il4965_hw_get_temperature(struct il_priv *il)
 		vt = sign_extend32(le32_to_cpu(il->_4965.statistics.
 				 general.common.temperature), 23);
 
-	IL_DEBUG_TEMP(il, "Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
+	D_TEMP("Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
 
 	if (R3 == R1) {
 		IL_ERR(il, "Calibration conflict R1 == R3\n");
@@ -1489,7 +1489,7 @@ static int il4965_hw_get_temperature(struct il_priv *il)
 	temperature /= (R3 - R1);
 	temperature = (temperature * 97) / 100 + TEMPERATURE_CALIB_KELVIN_OFFSET;
 
-	IL_DEBUG_TEMP(il, "Calibrated temperature: %dK, %dC\n",
+	D_TEMP("Calibrated temperature: %dK, %dC\n",
 			temperature, KELVIN_TO_CELSIUS(temperature));
 
 	return temperature;
@@ -1512,7 +1512,7 @@ static int il4965_is_temp_calib_needed(struct il_priv *il)
 	int temp_diff;
 
 	if (!test_bit(STATUS_STATISTICS, &il->status)) {
-		IL_DEBUG_TEMP(il, "Temperature not updated -- no statistics.\n");
+		D_TEMP("Temperature not updated -- no statistics.\n");
 		return 0;
 	}
 
@@ -1520,19 +1520,19 @@ static int il4965_is_temp_calib_needed(struct il_priv *il)
 
 	/* get absolute value */
 	if (temp_diff < 0) {
-		IL_DEBUG_POWER(il, "Getting cooler, delta %d\n", temp_diff);
+		D_POWER("Getting cooler, delta %d\n", temp_diff);
 		temp_diff = -temp_diff;
 	} else if (temp_diff == 0)
-		IL_DEBUG_POWER(il, "Temperature unchanged\n");
+		D_POWER("Temperature unchanged\n");
 	else
-		IL_DEBUG_POWER(il, "Getting warmer, delta %d\n", temp_diff);
+		D_POWER("Getting warmer, delta %d\n", temp_diff);
 
 	if (temp_diff < IL_TEMPERATURE_THRESHOLD) {
-		IL_DEBUG_POWER(il, " => thermal txpower calib not needed\n");
+		D_POWER(" => thermal txpower calib not needed\n");
 		return 0;
 	}
 
-	IL_DEBUG_POWER(il, " => thermal txpower calib needed\n");
+	D_POWER(" => thermal txpower calib needed\n");
 
 	return 1;
 }
@@ -1547,12 +1547,12 @@ static void il4965_temperature_calib(struct il_priv *il)
 
 	if (il->temperature != temp) {
 		if (il->temperature)
-			IL_DEBUG_TEMP(il, "Temperature changed "
+			D_TEMP("Temperature changed "
 				       "from %dC to %dC\n",
 				       KELVIN_TO_CELSIUS(il->temperature),
 				       KELVIN_TO_CELSIUS(temp));
 		else
-			IL_DEBUG_TEMP(il, "Temperature "
+			D_TEMP("Temperature "
 				       "initialized to %dC\n",
 				       KELVIN_TO_CELSIUS(temp));
 	}
@@ -1617,7 +1617,7 @@ static int il4965_tx_status_reply_tx(struct il_priv *il,
 	int i, sh, idx;
 	u16 seq;
 	if (agg->wait_for_ba)
-		IL_DEBUG_TX_REPLY(il, "got tx response w/o block-ack\n");
+		D_TX_REPLY("got tx response w/o block-ack\n");
 
 	agg->frame_count = tx_resp->frame_count;
 	agg->start_idx = start_idx;
@@ -1630,7 +1630,7 @@ static int il4965_tx_status_reply_tx(struct il_priv *il,
 		status = le16_to_cpu(frame_status[0].status);
 		idx = start_idx;
 
-		IL_DEBUG_TX_REPLY(il, "FrameCnt = %d, StartIdx=%d idx=%d\n",
+		D_TX_REPLY("FrameCnt = %d, StartIdx=%d idx=%d\n",
 				   agg->frame_count, agg->start_idx, idx);
 
 		info = IEEE80211_SKB_CB(il->txq[txq_id].txb[idx].skb);
@@ -1639,9 +1639,9 @@ static int il4965_tx_status_reply_tx(struct il_priv *il,
 		info->flags |= il4965_tx_status_to_mac80211(status);
 		il4965_hwrate_to_tx_control(il, rate_n_flags, info);
 
-		IL_DEBUG_TX_REPLY(il, "1 Frame 0x%x failure :%d\n",
+		D_TX_REPLY("1 Frame 0x%x failure :%d\n",
 				    status & 0xff, tx_resp->failure_frame);
-		IL_DEBUG_TX_REPLY(il, "Rate Info rate_n_flags=%x\n", rate_n_flags);
+		D_TX_REPLY("Rate Info rate_n_flags=%x\n", rate_n_flags);
 
 		agg->wait_for_ba = 0;
 	} else {
@@ -1661,7 +1661,7 @@ static int il4965_tx_status_reply_tx(struct il_priv *il,
 				      AGG_TX_STATE_ABORT_MSK))
 				continue;
 
-			IL_DEBUG_TX_REPLY(il, "FrameCnt = %d, txq_id=%d idx=%d\n",
+			D_TX_REPLY("FrameCnt = %d, txq_id=%d idx=%d\n",
 					   agg->frame_count, txq_id, idx);
 
 			hdr = il_tx_queue_get_hdr(il, txq_id, idx);
@@ -1681,7 +1681,7 @@ static int il4965_tx_status_reply_tx(struct il_priv *il,
 				return -1;
 			}
 
-			IL_DEBUG_TX_REPLY(il, "AGG Frame i=%d idx %d seq=%d\n",
+			D_TX_REPLY("AGG Frame i=%d idx %d seq=%d\n",
 					   i, idx, SEQ_TO_SN(sc));
 
 			sh = idx - start;
@@ -1699,13 +1699,13 @@ static int il4965_tx_status_reply_tx(struct il_priv *il,
 				sh = 0;
 			}
 			bitmap |= 1ULL << sh;
-			IL_DEBUG_TX_REPLY(il, "start=%d bitmap=0x%llx\n",
+			D_TX_REPLY("start=%d bitmap=0x%llx\n",
 					   start, (unsigned long long)bitmap);
 		}
 
 		agg->bitmap = bitmap;
 		agg->start_idx = start;
-		IL_DEBUG_TX_REPLY(il, "Frames %d start_idx=%d bitmap=0x%llx\n",
+		D_TX_REPLY("Frames %d start_idx=%d bitmap=0x%llx\n",
 				   agg->frame_count, agg->start_idx,
 				   (unsigned long long)agg->bitmap);
 
@@ -1737,7 +1737,7 @@ static u8 il4965_find_station(struct il_priv *il, const u8 *addr)
 			goto out;
 		}
 
-	IL_DEBUG_ASSOC(il, "can not find STA %pM total %d\n",
+	D_ASSOC("can not find STA %pM total %d\n",
 			      addr, il->num_stations);
 
  out:
@@ -1830,7 +1830,7 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 		if (txq->q.read_ptr != (scd_ssn & 0xff)) {
 			index = il_queue_dec_wrap(scd_ssn & 0xff,
 								txq->q.n_bd);
-			IL_DEBUG_TX_REPLY(il, "Retry scheduler reclaim scd_ssn "
+			D_TX_REPLY("Retry scheduler reclaim scd_ssn "
 					   "%d index %d\n", scd_ssn , index);
 			freed = il4965_tx_queue_reclaim(il, txq_id, index);
 			if (qc)
@@ -1849,7 +1849,7 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 					le32_to_cpu(tx_resp->rate_n_flags),
 					info);
 
-		IL_DEBUG_TX_REPLY(il, "TXQ %d status %s (0x%08x) "
+		D_TX_REPLY("TXQ %d status %s (0x%08x) "
 				   "rate_n_flags 0x%x retries %d\n",
 				   txq_id,
 				   il4965_get_tx_fail_reason(status), status,
@@ -1860,7 +1860,7 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 		if (qc && likely(sta_id != IL_INVALID_STATION))
 			il4965_free_tfds_in_queue(il, sta_id, tid, freed);
 		else if (sta_id == IL_INVALID_STATION)
-			IL_DEBUG_TX_REPLY(il, "Station not known\n");
+			D_TX_REPLY("Station not known\n");
 
 		if (il->mac80211_registered &&
 		    (il_queue_space(&txq->q) > txq->q.low_mark))
@@ -1882,7 +1882,7 @@ static void il4965_rx_beacon_notif(struct il_priv *il,
 	u8 rate __maybe_unused =
 		il4965_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
-	IL_DEBUG_RX(il, "beacon status %#x, retries:%d ibssmgr:%d "
+	D_RX("beacon status %#x, retries:%d ibssmgr:%d "
 		"tsf:0x%.8x%.8x rate:%d\n",
 		le32_to_cpu(beacon->beacon_notify_hdr.u.status) & TX_STATUS_MSK,
 		beacon->beacon_notify_hdr.failure_frame,
@@ -1955,7 +1955,7 @@ static void il4965_post_associate(struct il_priv *il)
 
 	ctx->staging.assoc_id = cpu_to_le16(vif->bss_conf.aid);
 
-	IL_DEBUG_ASSOC(il, "assoc id %d beacon interval %d\n",
+	D_ASSOC("assoc id %d beacon interval %d\n",
 			vif->bss_conf.aid, vif->bss_conf.beacon_int);
 
 	if (vif->bss_conf.use_short_preamble)
@@ -1972,7 +1972,7 @@ static void il4965_post_associate(struct il_priv *il)
 
 	il_commit_rxon(il, ctx);
 
-	IL_DEBUG_ASSOC(il, "Associated as %d to: %pM\n",
+	D_ASSOC("Associated as %d to: %pM\n",
 			vif->bss_conf.aid, ctx->active.bssid_addr);
 
 	switch (vif->type) {

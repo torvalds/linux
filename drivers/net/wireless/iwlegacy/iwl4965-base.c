@@ -104,7 +104,7 @@ static void il4965_clear_free_frames(struct il_priv *il)
 {
 	struct list_head *element;
 
-	IL_DEBUG_INFO(il, "%d frames on pre-allocated heap on clear.\n",
+	D_INFO("%d frames on pre-allocated heap on clear.\n",
 		       il->frames_count);
 
 	while (!list_empty(&il->free_frames)) {
@@ -436,19 +436,19 @@ static void il4965_rx_reply_alive(struct il_priv *il,
 
 	palive = &pkt->u.alive_frame;
 
-	IL_DEBUG_INFO(il, "Alive ucode status 0x%08X revision "
+	D_INFO("Alive ucode status 0x%08X revision "
 		       "0x%01X 0x%01X\n",
 		       palive->is_valid, palive->ver_type,
 		       palive->ver_subtype);
 
 	if (palive->ver_subtype == INITIALIZE_SUBTYPE) {
-		IL_DEBUG_INFO(il, "Initialization Alive received.\n");
+		D_INFO("Initialization Alive received.\n");
 		memcpy(&il->card_alive_init,
 		       &pkt->u.alive_frame,
 		       sizeof(struct il_init_alive_resp));
 		pwork = &il->init_alive_start;
 	} else {
-		IL_DEBUG_INFO(il, "Runtime Alive received.\n");
+		D_INFO("Runtime Alive received.\n");
 		memcpy(&il->card_alive, &pkt->u.alive_frame,
 		       sizeof(struct il_alive_resp));
 		pwork = &il->alive_start;
@@ -496,7 +496,7 @@ static void il4965_rx_beacon_notif(struct il_priv *il,
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 	u8 rate = il4965_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
-	IL_DEBUG_RX(il, "beacon status %x retries %d iss %d "
+	D_RX("beacon status %x retries %d iss %d "
 		"tsf %d %d rate %d\n",
 		le32_to_cpu(beacon->beacon_notify_hdr.u.status) & TX_STATUS_MSK,
 		beacon->beacon_notify_hdr.failure_frame,
@@ -512,7 +512,7 @@ static void il4965_perform_ct_kill_task(struct il_priv *il)
 {
 	unsigned long flags;
 
-	IL_DEBUG_POWER(il, "Stop all queues\n");
+	D_POWER("Stop all queues\n");
 
 	if (il->mac80211_registered)
 		ieee80211_stop_queues(il->hw);
@@ -536,7 +536,7 @@ static void il4965_rx_card_state_notif(struct il_priv *il,
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
 	unsigned long status = il->status;
 
-	IL_DEBUG_RF_KILL(il, "Card state received: HW:%s SW:%s CT:%s\n",
+	D_RF_KILL("Card state received: HW:%s SW:%s CT:%s\n",
 			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & SW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & CT_CARD_DISABLED) ?
@@ -650,7 +650,7 @@ void il4965_rx_handle(struct il_priv *il)
 
 	/* Rx interrupt, but nothing sent from uCode */
 	if (i == r)
-		IL_DEBUG_RX(il, "r = %d, i = %d\n", r, i);
+		D_RX("r = %d, i = %d\n", r, i);
 
 	/* calculate total frames need to be restock after handling RX */
 	total_empty = r - rxq->write_actual;
@@ -698,14 +698,14 @@ void il4965_rx_handle(struct il_priv *il)
 		 *   handle those that need handling via function in
 		 *   rx_handlers table.  See il4965_setup_rx_handlers() */
 		if (il->rx_handlers[pkt->hdr.cmd]) {
-			IL_DEBUG_RX(il, "r = %d, i = %d, %s, 0x%02x\n", r,
+			D_RX("r = %d, i = %d, %s, 0x%02x\n", r,
 				i, il_get_cmd_string(pkt->hdr.cmd),
 				pkt->hdr.cmd);
 			il->isr_stats.rx_handlers[pkt->hdr.cmd]++;
 			il->rx_handlers[pkt->hdr.cmd] (il, rxb);
 		} else {
 			/* No handling needed */
-			IL_DEBUG_RX(il,
+			D_RX(
 				"r %d i %d No handler needed for %s, 0x%02x\n",
 				r, i, il_get_cmd_string(pkt->hdr.cmd),
 				pkt->hdr.cmd);
@@ -800,7 +800,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 	if (il_get_debug_level(il) & IL_DL_ISR) {
 		/* just for debug */
 		inta_mask = il_read32(il, CSR_INT_MASK);
-		IL_DEBUG_ISR(il, "inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
+		D_ISR("inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
 			      inta, inta_mask, inta_fh);
 	}
 #endif
@@ -835,14 +835,14 @@ static void il4965_irq_tasklet(struct il_priv *il)
 	if (il_get_debug_level(il) & (IL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
-			IL_DEBUG_ISR(il, "Scheduler finished to transmit "
+			D_ISR("Scheduler finished to transmit "
 				      "the frame/frames.\n");
 			il->isr_stats.sch++;
 		}
 
 		/* Alive notification via Rx interrupt will do the real work */
 		if (inta & CSR_INT_BIT_ALIVE) {
-			IL_DEBUG_ISR(il, "Alive interrupt\n");
+			D_ISR("Alive interrupt\n");
 			il->isr_stats.alive++;
 		}
 	}
@@ -900,7 +900,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 	 * and about any Rx buffers made available while asleep.
 	 */
 	if (inta & CSR_INT_BIT_WAKEUP) {
-		IL_DEBUG_ISR(il, "Wakeup interrupt\n");
+		D_ISR("Wakeup interrupt\n");
 		il_rx_queue_update_write_ptr(il, &il->rxq);
 		for (i = 0; i < il->hw_params.max_txq_num; i++)
 			il_txq_update_write_ptr(il, &il->txq[i]);
@@ -919,7 +919,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 
 	/* This "Tx" DMA channel is used only for loading uCode */
 	if (inta & CSR_INT_BIT_FH_TX) {
-		IL_DEBUG_ISR(il, "uCode load interrupt\n");
+		D_ISR("uCode load interrupt\n");
 		il->isr_stats.tx++;
 		handled |= CSR_INT_BIT_FH_TX;
 		/* Wake up uCode load routine, now that load is complete */
@@ -951,7 +951,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 		inta = il_read32(il, CSR_INT);
 		inta_mask = il_read32(il, CSR_INT_MASK);
 		inta_fh = il_read32(il, CSR_FH_INT_STATUS);
-		IL_DEBUG_ISR(il,
+		D_ISR(
 			"End inta 0x%08x, enabled 0x%08x, fh 0x%08x, "
 			"flags 0x%08lx\n", inta, inta_mask, inta_fh, flags);
 	}
@@ -1120,7 +1120,7 @@ static int __must_check il4965_request_firmware(struct il_priv *il, bool first)
 
 	sprintf(il->firmware_name, "%s%s%s", name_pre, tag, ".ucode");
 
-	IL_DEBUG_INFO(il, "attempting to load firmware '%s'\n",
+	D_INFO("attempting to load firmware '%s'\n",
 		       il->firmware_name);
 
 	return request_firmware_nowait(THIS_MODULE, 1, il->firmware_name,
@@ -1220,7 +1220,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 		goto try_again;
 	}
 
-	IL_DEBUG_INFO(il, "Loaded firmware file '%s' (%zd bytes).\n",
+	D_INFO("Loaded firmware file '%s' (%zd bytes).\n",
 		       il->firmware_name, ucode_raw->size);
 
 	/* Make sure that we got at least the API version number */
@@ -1279,17 +1279,17 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 * user just got a corrupted version of the latest API.
 	 */
 
-	IL_DEBUG_INFO(il, "f/w package hdr ucode version raw = 0x%x\n",
+	D_INFO("f/w package hdr ucode version raw = 0x%x\n",
 		       il->ucode_ver);
-	IL_DEBUG_INFO(il, "f/w package hdr runtime inst size = %Zd\n",
+	D_INFO("f/w package hdr runtime inst size = %Zd\n",
 		       pieces.inst_size);
-	IL_DEBUG_INFO(il, "f/w package hdr runtime data size = %Zd\n",
+	D_INFO("f/w package hdr runtime data size = %Zd\n",
 		       pieces.data_size);
-	IL_DEBUG_INFO(il, "f/w package hdr init inst size = %Zd\n",
+	D_INFO("f/w package hdr init inst size = %Zd\n",
 		       pieces.init_size);
-	IL_DEBUG_INFO(il, "f/w package hdr init data size = %Zd\n",
+	D_INFO("f/w package hdr init data size = %Zd\n",
 		       pieces.init_data_size);
-	IL_DEBUG_INFO(il, "f/w package hdr boot inst size = %Zd\n",
+	D_INFO("f/w package hdr boot inst size = %Zd\n",
 		       pieces.boot_size);
 
 	/* Verify that uCode images will fit in card's SRAM */
@@ -1369,25 +1369,25 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	/* Copy images into buffers for card's bus-master reads ... */
 
 	/* Runtime instructions (first block of data in file) */
-	IL_DEBUG_INFO(il, "Copying (but not loading) uCode instr len %Zd\n",
+	D_INFO("Copying (but not loading) uCode instr len %Zd\n",
 			pieces.inst_size);
 	memcpy(il->ucode_code.v_addr, pieces.inst, pieces.inst_size);
 
-	IL_DEBUG_INFO(il, "uCode instr buf vaddr = 0x%p, paddr = 0x%08x\n",
+	D_INFO("uCode instr buf vaddr = 0x%p, paddr = 0x%08x\n",
 		il->ucode_code.v_addr, (u32)il->ucode_code.p_addr);
 
 	/*
 	 * Runtime data
 	 * NOTE:  Copy into backup buffer will be done in il_up()
 	 */
-	IL_DEBUG_INFO(il, "Copying (but not loading) uCode data len %Zd\n",
+	D_INFO("Copying (but not loading) uCode data len %Zd\n",
 			pieces.data_size);
 	memcpy(il->ucode_data.v_addr, pieces.data, pieces.data_size);
 	memcpy(il->ucode_data_backup.v_addr, pieces.data, pieces.data_size);
 
 	/* Initialization instructions */
 	if (pieces.init_size) {
-		IL_DEBUG_INFO(il,
+		D_INFO(
 				"Copying (but not loading) init instr len %Zd\n",
 				pieces.init_size);
 		memcpy(il->ucode_init.v_addr, pieces.init, pieces.init_size);
@@ -1395,7 +1395,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	/* Initialization data */
 	if (pieces.init_data_size) {
-		IL_DEBUG_INFO(il,
+		D_INFO(
 				"Copying (but not loading) init data len %Zd\n",
 			       pieces.init_data_size);
 		memcpy(il->ucode_init_data.v_addr, pieces.init_data,
@@ -1403,7 +1403,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	}
 
 	/* Bootstrap instructions */
-	IL_DEBUG_INFO(il, "Copying (but not loading) boot instr len %Zd\n",
+	D_INFO("Copying (but not loading) boot instr len %Zd\n",
 			pieces.boot_size);
 	memcpy(il->ucode_boot.v_addr, pieces.boot, pieces.boot_size);
 
@@ -1596,7 +1596,7 @@ static void il4965_rf_kill_ct_config(struct il_priv *il)
 	if (ret)
 		IL_ERR(il, "REPLY_CT_KILL_CONFIG_CMD failed\n");
 	else
-		IL_DEBUG_INFO(il, "REPLY_CT_KILL_CONFIG_CMD "
+		D_INFO("REPLY_CT_KILL_CONFIG_CMD "
 				"succeeded, "
 				"critical temperature is %d\n",
 				il->hw_params.ct_kill_threshold);
@@ -1719,12 +1719,12 @@ static void il4965_alive_start(struct il_priv *il)
 	int ret = 0;
 	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
 
-	IL_DEBUG_INFO(il, "Runtime Alive received.\n");
+	D_INFO("Runtime Alive received.\n");
 
 	if (il->card_alive.is_valid != UCODE_VALID_OK) {
 		/* We had an error bringing up the hardware, so take it
 		 * all the way back down so we can try again */
-		IL_DEBUG_INFO(il, "Alive failed.\n");
+		D_INFO("Alive failed.\n");
 		goto restart;
 	}
 
@@ -1734,7 +1734,7 @@ static void il4965_alive_start(struct il_priv *il)
 	if (il4965_verify_ucode(il)) {
 		/* Runtime instruction load was bad;
 		 * take it all the way back down so we can try again */
-		IL_DEBUG_INFO(il, "Bad runtime uCode load.\n");
+		D_INFO("Bad runtime uCode load.\n");
 		goto restart;
 	}
 
@@ -1788,11 +1788,11 @@ static void il4965_alive_start(struct il_priv *il)
 	/* At this point, the NIC is initialized and operational */
 	il4965_rf_kill_ct_config(il);
 
-	IL_DEBUG_INFO(il, "ALIVE processing complete.\n");
+	D_INFO("ALIVE processing complete.\n");
 	wake_up(&il->wait_command_queue);
 
 	il_power_update_mode(il, true);
-	IL_DEBUG_INFO(il, "Updated power mode\n");
+	D_INFO("Updated power mode\n");
 
 	return;
 
@@ -1807,7 +1807,7 @@ static void __il4965_down(struct il_priv *il)
 	unsigned long flags;
 	int exit_pending;
 
-	IL_DEBUG_INFO(il, DRV_NAME " is going down\n");
+	D_INFO(DRV_NAME " is going down\n");
 
 	il_scan_cancel_timeout(il, 200);
 
@@ -1916,7 +1916,7 @@ static int il4965_set_hw_ready(struct il_priv *il)
 	else
 		il->hw_ready = false;
 
-	IL_DEBUG_INFO(il, "hardware %s\n",
+	D_INFO("hardware %s\n",
 		      (il->hw_ready == 1) ? "ready" : "not ready");
 	return ret;
 }
@@ -1925,7 +1925,7 @@ static int il4965_prepare_card_hw(struct il_priv *il)
 {
 	int ret = 0;
 
-	IL_DEBUG_INFO(il, "il4965_prepare_card_hw enter\n");
+	D_INFO("il4965_prepare_card_hw enter\n");
 
 	ret = il4965_set_hw_ready(il);
 	if (il->hw_ready)
@@ -2040,7 +2040,7 @@ static int __il4965_up(struct il_priv *il)
 		/* start card; "initialize" will load runtime ucode */
 		il4965_nic_start(il);
 
-		IL_DEBUG_INFO(il, DRV_NAME " is coming up\n");
+		D_INFO(DRV_NAME " is coming up\n");
 
 		return 0;
 	}
@@ -2243,7 +2243,7 @@ int il4965_mac_start(struct ieee80211_hw *hw)
 	struct il_priv *il = hw->priv;
 	int ret;
 
-	IL_DEBUG_MAC80211(il, "enter\n");
+	D_MAC80211("enter\n");
 
 	/* we should be verifying the device is ready to be opened */
 	mutex_lock(&il->mutex);
@@ -2256,7 +2256,7 @@ int il4965_mac_start(struct ieee80211_hw *hw)
 	if (il_is_rfkill(il))
 		goto out;
 
-	IL_DEBUG_INFO(il, "Start UP work done.\n");
+	D_INFO("Start UP work done.\n");
 
 	/* Wait for START_ALIVE from Run Time ucode. Otherwise callbacks from
 	 * mac80211 will not be run successfully. */
@@ -2275,7 +2275,7 @@ int il4965_mac_start(struct ieee80211_hw *hw)
 
 out:
 	il->is_open = 1;
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 	return 0;
 }
 
@@ -2283,7 +2283,7 @@ void il4965_mac_stop(struct ieee80211_hw *hw)
 {
 	struct il_priv *il = hw->priv;
 
-	IL_DEBUG_MAC80211(il, "enter\n");
+	D_MAC80211("enter\n");
 
 	if (!il->is_open)
 		return;
@@ -2299,22 +2299,22 @@ void il4965_mac_stop(struct ieee80211_hw *hw)
 	il_write32(il, CSR_INT, 0xFFFFFFFF);
 	il_enable_rfkill_int(il);
 
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 }
 
 void il4965_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct il_priv *il = hw->priv;
 
-	IL_DEBUG_MACDUMP(il, "enter\n");
+	D_MACDUMP("enter\n");
 
-	IL_DEBUG_TX(il, "dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
+	D_TX("dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
 		     ieee80211_get_tx_rate(hw, IEEE80211_SKB_CB(skb))->bitrate);
 
 	if (il4965_tx_skb(il, skb))
 		dev_kfree_skb_any(skb);
 
-	IL_DEBUG_MACDUMP(il, "leave\n");
+	D_MACDUMP("leave\n");
 }
 
 void il4965_mac_update_tkip_key(struct ieee80211_hw *hw,
@@ -2326,12 +2326,12 @@ void il4965_mac_update_tkip_key(struct ieee80211_hw *hw,
 	struct il_priv *il = hw->priv;
 	struct il_vif_priv *vif_priv = (void *)vif->drv_priv;
 
-	IL_DEBUG_MAC80211(il, "enter\n");
+	D_MAC80211("enter\n");
 
 	il4965_update_tkip_key(il, vif_priv->ctx, keyconf, sta,
 			    iv32, phase1key);
 
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 }
 
 int il4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -2345,10 +2345,10 @@ int il4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	u8 sta_id;
 	bool is_default_wep_key = false;
 
-	IL_DEBUG_MAC80211(il, "enter\n");
+	D_MAC80211("enter\n");
 
 	if (il->cfg->mod_params->sw_crypto) {
-		IL_DEBUG_MAC80211(il, "leave - hwcrypto disabled\n");
+		D_MAC80211("leave - hwcrypto disabled\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -2384,7 +2384,7 @@ int il4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			ret = il4965_set_dynamic_key(il, vif_priv->ctx,
 						  key, sta_id);
 
-		IL_DEBUG_MAC80211(il, "enable hwcrypto key\n");
+		D_MAC80211("enable hwcrypto key\n");
 		break;
 	case DISABLE_KEY:
 		if (is_default_wep_key)
@@ -2393,14 +2393,14 @@ int il4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			ret = il4965_remove_dynamic_key(il, ctx,
 							key, sta_id);
 
-		IL_DEBUG_MAC80211(il, "disable hwcrypto key\n");
+		D_MAC80211("disable hwcrypto key\n");
 		break;
 	default:
 		ret = -EINVAL;
 	}
 
 	mutex_unlock(&il->mutex);
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 
 	return ret;
 }
@@ -2414,7 +2414,7 @@ int il4965_mac_ampdu_action(struct ieee80211_hw *hw,
 	struct il_priv *il = hw->priv;
 	int ret = -EINVAL;
 
-	IL_DEBUG_HT(il, "A-MPDU action on addr %pM tid %d\n",
+	D_HT("A-MPDU action on addr %pM tid %d\n",
 		     sta->addr, tid);
 
 	if (!(il->cfg->sku & IL_SKU_N))
@@ -2424,21 +2424,21 @@ int il4965_mac_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		IL_DEBUG_HT(il, "start Rx\n");
+		D_HT("start Rx\n");
 		ret = il4965_sta_rx_agg_start(il, sta, tid, *ssn);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
-		IL_DEBUG_HT(il, "stop Rx\n");
+		D_HT("stop Rx\n");
 		ret = il4965_sta_rx_agg_stop(il, sta, tid);
 		if (test_bit(STATUS_EXIT_PENDING, &il->status))
 			ret = 0;
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		IL_DEBUG_HT(il, "start Tx\n");
+		D_HT("start Tx\n");
 		ret = il4965_tx_agg_start(il, vif, sta, tid, ssn);
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
-		IL_DEBUG_HT(il, "stop Tx\n");
+		D_HT("stop Tx\n");
 		ret = il4965_tx_agg_stop(il, vif, sta, tid);
 		if (test_bit(STATUS_EXIT_PENDING, &il->status))
 			ret = 0;
@@ -2463,10 +2463,10 @@ int il4965_mac_sta_add(struct ieee80211_hw *hw,
 	int ret;
 	u8 sta_id;
 
-	IL_DEBUG_INFO(il, "received request to add station %pM\n",
+	D_INFO("received request to add station %pM\n",
 			sta->addr);
 	mutex_lock(&il->mutex);
-	IL_DEBUG_INFO(il, "proceeding to add station %pM\n",
+	D_INFO("proceeding to add station %pM\n",
 			sta->addr);
 	sta_priv->common.sta_id = IL_INVALID_STATION;
 
@@ -2485,7 +2485,7 @@ int il4965_mac_sta_add(struct ieee80211_hw *hw,
 	sta_priv->common.sta_id = sta_id;
 
 	/* Initialize rate scaling */
-	IL_DEBUG_INFO(il, "Initializing rate scaling for station %pM\n",
+	D_INFO("Initializing rate scaling for station %pM\n",
 		       sta->addr);
 	il4965_rs_rate_init(il, sta, sta_id);
 	mutex_unlock(&il->mutex);
@@ -2505,7 +2505,7 @@ void il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
 	u16 ch;
 
-	IL_DEBUG_MAC80211(il, "enter\n");
+	D_MAC80211("enter\n");
 
 	mutex_lock(&il->mutex);
 
@@ -2529,7 +2529,7 @@ void il4965_mac_channel_switch(struct ieee80211_hw *hw,
 
 	ch_info = il_get_channel_info(il, channel->band, ch);
 	if (!il_is_channel_valid(ch_info)) {
-		IL_DEBUG_MAC80211(il, "invalid channel\n");
+		D_MAC80211("invalid channel\n");
 		goto out;
 	}
 
@@ -2580,7 +2580,7 @@ void il4965_mac_channel_switch(struct ieee80211_hw *hw,
 
 out:
 	mutex_unlock(&il->mutex);
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 }
 
 void il4965_configure_filter(struct ieee80211_hw *hw,
@@ -2599,7 +2599,7 @@ void il4965_configure_filter(struct ieee80211_hw *hw,
 		filter_nand |= (flag);		\
 	} while (0)
 
-	IL_DEBUG_MAC80211(il, "Enter: changed: 0x%x, total: 0x%x\n",
+	D_MAC80211("Enter: changed: 0x%x, total: 0x%x\n",
 			changed_flags, *total_flags);
 
 	CHK(FIF_OTHER_BSS | FIF_PROMISC_IN_BSS, RXON_FILTER_PROMISC_MSK);
@@ -2755,7 +2755,7 @@ void il4965_tx_queue_set_status(struct il_priv *il,
 
 	txq->sched_retry = scd_retry;
 
-	IL_DEBUG_INFO(il, "%s %s Queue %d on AC %d\n",
+	D_INFO("%s %s Queue %d on AC %d\n",
 		       active ? "Activate" : "Deactivate",
 		       scd_retry ? "BA" : "AC", txq_id, tx_fifo_id);
 }
@@ -2824,7 +2824,7 @@ static void il4965_hw_detect(struct il_priv *il)
 	il->hw_rev = _il_read32(il, CSR_HW_REV);
 	il->hw_wa_rev = _il_read32(il, CSR_HW_REV_WA_REG);
 	il->rev_id = il->pci_dev->revision;
-	IL_DEBUG_INFO(il, "HW Revision ID = 0x%X\n", il->rev_id);
+	D_INFO("HW Revision ID = 0x%X\n", il->rev_id);
 }
 
 static int il4965_set_hw_params(struct il_priv *il)
@@ -2911,7 +2911,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
-	IL_DEBUG_INFO(il, "*** LOAD DRIVER ***\n");
+	D_INFO("*** LOAD DRIVER ***\n");
 	il->cfg = cfg;
 	il->pci_dev = pdev;
 	il->inta_mask = CSR_INI_SET_MASK;
@@ -2963,9 +2963,9 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_pci_release_regions;
 	}
 
-	IL_DEBUG_INFO(il, "pci_resource_len = 0x%08llx\n",
+	D_INFO("pci_resource_len = 0x%08llx\n",
 		(unsigned long long) pci_resource_len(pdev, 0));
-	IL_DEBUG_INFO(il, "pci_resource_base = %p\n", il->hw_base);
+	D_INFO("pci_resource_base = %p\n", il->hw_base);
 
 	/* these spin locks will be used in apm_ops.init and EEPROM access
 	 * we should init now
@@ -3012,7 +3012,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* extract MAC Address */
 	il4965_eeprom_get_mac(il, il->addresses[0].addr);
-	IL_DEBUG_INFO(il, "MAC address: %pM\n", il->addresses[0].addr);
+	D_INFO("MAC address: %pM\n", il->addresses[0].addr);
 	il->hw->wiphy->addresses = il->addresses;
 	il->hw->wiphy->n_addresses = 1;
 
@@ -3118,7 +3118,7 @@ static void __devexit il4965_pci_remove(struct pci_dev *pdev)
 
 	wait_for_completion(&il->_4965.firmware_loading_complete);
 
-	IL_DEBUG_INFO(il, "*** UNLOAD DRIVER ***\n");
+	D_INFO("*** UNLOAD DRIVER ***\n");
 
 	il_dbgfs_unregister(il);
 	sysfs_remove_group(&pdev->dev.kobj, &il_attribute_group);

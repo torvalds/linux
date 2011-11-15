@@ -51,7 +51,7 @@ void il4965_rx_missed_beacon_notif(struct il_priv *il,
 	missed_beacon = &pkt->u.missed_beacon;
 	if (le32_to_cpu(missed_beacon->consecutive_missed_beacons) >
 	    il->missed_beacon_threshold) {
-		IL_DEBUG_CALIB(il,
+		D_CALIB(
 		    "missed bcn cnsq %d totl %d rcd %d expctd %d\n",
 		    le32_to_cpu(missed_beacon->consecutive_missed_beacons),
 		    le32_to_cpu(missed_beacon->total_missed_becons),
@@ -100,7 +100,7 @@ static void il4965_rx_calc_noise(struct il_priv *il)
 	else
 		last_rx_noise = IL_NOISE_MEAS_NOT_AVAILABLE;
 
-	IL_DEBUG_CALIB(il, "inband silence a %u, b %u, c %u, dBm %d\n",
+	D_CALIB("inband silence a %u, b %u, c %u, dBm %d\n",
 			bcn_silence_a, bcn_silence_b, bcn_silence_c,
 			last_rx_noise);
 }
@@ -157,7 +157,7 @@ void il4965_rx_statistics(struct il_priv *il,
 	int change;
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 
-	IL_DEBUG_RX(il,
+	D_RX(
 		     "Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(struct il_notif_statistics),
 		     le32_to_cpu(pkt->len_n_flags) &
@@ -209,7 +209,7 @@ void il4965_reply_statistics(struct il_priv *il,
 		memset(&il->_4965.max_delta, 0,
 			sizeof(struct il_notif_statistics));
 #endif
-		IL_DEBUG_RX(il, "Statistics have been cleared\n");
+		D_RX("Statistics have been cleared\n");
 	}
 	il4965_rx_statistics(il, rxb);
 }

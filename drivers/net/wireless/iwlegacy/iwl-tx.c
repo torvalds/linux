@@ -58,7 +58,7 @@ il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq)
 		reg = il_read32(il, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			IL_DEBUG_INFO(il,
+			D_INFO(
 					"Tx queue %d requesting wakeup,"
 					" GP1 = 0x%x\n", txq_id, reg);
 			il_set_bit(il, CSR_GP_CNTRL,
@@ -511,7 +511,7 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	switch (out_cmd->hdr.cmd) {
 	case REPLY_TX_LINK_QUALITY_CMD:
 	case SENSITIVITY_CMD:
-		IL_DEBUG_HC_DUMP(il,
+		D_HC_DUMP(
 				"Sending command %s (#%x), seq: 0x%04X, "
 				"%d bytes at %d[%d]:%d\n",
 				il_get_cmd_string(out_cmd->hdr.cmd),
@@ -520,7 +520,7 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 				q->write_ptr, idx, il->cmd_queue);
 		break;
 	default:
-		IL_DEBUG_HC(il, "Sending command %s (#%x), seq: 0x%04X, "
+		D_HC("Sending command %s (#%x), seq: 0x%04X, "
 				"%d bytes at %d[%d]:%d\n",
 				il_get_cmd_string(out_cmd->hdr.cmd),
 				out_cmd->hdr.cmd,
@@ -642,7 +642,7 @@ il_tx_cmd_complete(struct il_priv *il, struct il_rx_mem_buffer *rxb)
 
 	if (!(meta->flags & CMD_ASYNC)) {
 		clear_bit(STATUS_HCMD_ACTIVE, &il->status);
-		IL_DEBUG_INFO(il, "Clearing HCMD_ACTIVE for command %s\n",
+		D_INFO("Clearing HCMD_ACTIVE for command %s\n",
 			       il_get_cmd_string(cmd->hdr.cmd));
 		wake_up(&il->wait_command_queue);
 	}

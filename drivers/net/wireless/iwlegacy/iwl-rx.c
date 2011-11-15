@@ -141,7 +141,7 @@ il_rx_queue_update_write_ptr(struct il_priv *il,
 		reg = il_read32(il, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			IL_DEBUG_INFO(il,
+			D_INFO(
 				"Rx queue requesting wakeup,"
 				" GP1 = 0x%x\n", reg);
 			il_set_bit(il, CSR_GP_CNTRL,
@@ -217,7 +217,7 @@ void il_rx_spectrum_measure_notif(struct il_priv *il,
 	struct il_spectrum_notification *report = &(pkt->u.spectrum_notif);
 
 	if (!report->state) {
-		IL_DEBUG_11H(il,
+		D_11H(
 			"Spectrum Measure Notification: Start\n");
 		return;
 	}
@@ -248,7 +248,7 @@ int il_set_decrypted_flag(struct il_priv *il,
 	if (!(fc & IEEE80211_FCTL_PROTECTED))
 		return 0;
 
-	IL_DEBUG_RX(il, "decrypt_res:0x%x\n", decrypt_res);
+	D_RX("decrypt_res:0x%x\n", decrypt_res);
 	switch (decrypt_res & RX_RES_STATUS_SEC_TYPE_MSK) {
 	case RX_RES_STATUS_SEC_TYPE_TKIP:
 		/* The uCode has got a bad phase 1 Key, pushes the packet.
@@ -262,13 +262,13 @@ int il_set_decrypted_flag(struct il_priv *il,
 		    RX_RES_STATUS_BAD_ICV_MIC) {
 			/* bad ICV, the packet is destroyed since the
 			 * decryption is inplace, drop it */
-			IL_DEBUG_RX(il, "Packet destroyed\n");
+			D_RX("Packet destroyed\n");
 			return -1;
 		}
 	case RX_RES_STATUS_SEC_TYPE_CCMP:
 		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
 		    RX_RES_STATUS_DECRYPT_OK) {
-			IL_DEBUG_RX(il, "hw decrypt successfully!!!\n");
+			D_RX("hw decrypt successfully!!!\n");
 			stats->flag |= RX_FLAG_DECRYPTED;
 		}
 		break;

@@ -303,7 +303,7 @@ static void il4965_rx_allocate(struct il_priv *il, gfp_t priority)
 		page = alloc_pages(gfp_mask, il->hw_params.rx_page_order);
 		if (!page) {
 			if (net_ratelimit())
-				IL_DEBUG_INFO(il, "alloc_pages failed, "
+				D_INFO("alloc_pages failed, "
 					       "order: %d\n",
 					       il->hw_params.rx_page_order);
 
@@ -456,7 +456,7 @@ static int il4965_calc_rssi(struct il_priv *il,
 		if (valid_antennae & (1 << i))
 			max_rssi = max(ncphy->rssi_info[i << 1], max_rssi);
 
-	IL_DEBUG_STATS(il, "Rssi In A %d B %d C %d Max %d AGC dB %d\n",
+	D_STATS("Rssi In A %d B %d C %d Max %d AGC dB %d\n",
 		ncphy->rssi_info[0], ncphy->rssi_info[2], ncphy->rssi_info[4],
 		max_rssi, agc);
 
@@ -519,7 +519,7 @@ static u32 il4965_translate_rx_status(struct il_priv *il, u32 decrypt_in)
 		break;
 	}
 
-	IL_DEBUG_RX(il, "decrypt_in:0x%x  decrypt_out = 0x%x\n",
+	D_RX("decrypt_in:0x%x  decrypt_out = 0x%x\n",
 					decrypt_in, decrypt_out);
 
 	return decrypt_out;
@@ -537,7 +537,7 @@ static void il4965_pass_packet_to_mac80211(struct il_priv *il,
 
 	/* We only process data packets if the interface is open */
 	if (unlikely(!il->is_open)) {
-		IL_DEBUG_DROP(il,
+		D_DROP(
 		    "Dropping packet while interface is not open.\n");
 		return;
 	}
@@ -611,14 +611,14 @@ void il4965_rx_reply_rx(struct il_priv *il,
 	}
 
 	if ((unlikely(phy_res->cfg_phy_cnt > 20))) {
-		IL_DEBUG_DROP(il, "dsp size out of range [0,20]: %d/n",
+		D_DROP("dsp size out of range [0,20]: %d/n",
 				phy_res->cfg_phy_cnt);
 		return;
 	}
 
 	if (!(rx_pkt_status & RX_RES_STATUS_NO_CRC32_ERROR) ||
 	    !(rx_pkt_status & RX_RES_STATUS_NO_RXE_OVERFLOW)) {
-		IL_DEBUG_RX(il, "Bad CRC or FIFO: 0x%08X.\n",
+		D_RX("Bad CRC or FIFO: 0x%08X.\n",
 				le32_to_cpu(rx_pkt_status));
 		return;
 	}
@@ -647,7 +647,7 @@ void il4965_rx_reply_rx(struct il_priv *il,
 	rx_status.signal = il4965_calc_rssi(il, phy_res);
 
 	il_dbg_log_rx_data_frame(il, len, header);
-	IL_DEBUG_STATS(il, "Rssi %d, TSF %llu\n",
+	D_STATS("Rssi %d, TSF %llu\n",
 		rx_status.signal, (unsigned long long)rx_status.mactime);
 
 	/*
@@ -729,7 +729,7 @@ static int il4965_get_channels_for_scan(struct il_priv *il,
 
 		ch_info = il_get_channel_info(il, band, channel);
 		if (!il_is_channel_valid(ch_info)) {
-			IL_DEBUG_SCAN(il,
+			D_SCAN(
 				 "Channel %d is INVALID for this band.\n",
 					channel);
 			continue;
@@ -759,7 +759,7 @@ static int il4965_get_channels_for_scan(struct il_priv *il,
 		else
 			scan_ch->tx_gain = ((1 << 5) | (5 << 3));
 
-		IL_DEBUG_SCAN(il, "Scanning ch=%d prob=0x%X [%s %d]\n",
+		D_SCAN("Scanning ch=%d prob=0x%X [%s %d]\n",
 			       channel, le32_to_cpu(scan_ch->type),
 			       (scan_ch->type & SCAN_CHANNEL_TYPE_ACTIVE) ?
 				"ACTIVE" : "PASSIVE",
@@ -770,7 +770,7 @@ static int il4965_get_channels_for_scan(struct il_priv *il,
 		added++;
 	}
 
-	IL_DEBUG_SCAN(il, "total channels to scan %d\n", added);
+	D_SCAN("total channels to scan %d\n", added);
 	return added;
 }
 
@@ -805,7 +805,7 @@ int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 		il->scan_cmd = kmalloc(sizeof(struct il_scan_cmd) +
 					 IL_MAX_SCAN_SIZE, GFP_KERNEL);
 		if (!il->scan_cmd) {
-			IL_DEBUG_SCAN(il,
+			D_SCAN(
 				       "fail to allocate memory for scan\n");
 			return -ENOMEM;
 		}
@@ -822,7 +822,7 @@ int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 		u32 suspend_time = 100;
 		u32 scan_suspend_time = 100;
 
-		IL_DEBUG_INFO(il, "Scanning while associated...\n");
+		D_INFO("Scanning while associated...\n");
 		interval = vif->bss_conf.beacon_int;
 
 		scan->suspend_time = 0;
@@ -834,13 +834,13 @@ int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 		scan_suspend_time = (extra |
 		    ((suspend_time % interval) * 1024));
 		scan->suspend_time = cpu_to_le32(scan_suspend_time);
-		IL_DEBUG_SCAN(il, "suspend_time 0x%X beacon interval %d\n",
+		D_SCAN("suspend_time 0x%X beacon interval %d\n",
 			       scan_suspend_time, interval);
 	}
 
 	if (il->scan_request->n_ssids) {
 		int i, p = 0;
-		IL_DEBUG_SCAN(il, "Kicking off active scan\n");
+		D_SCAN("Kicking off active scan\n");
 		for (i = 0; i < il->scan_request->n_ssids; i++) {
 			/* always does wildcard anyway */
 			if (!il->scan_request->ssids[i].ssid_len)
@@ -856,7 +856,7 @@ int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 		}
 		is_active = true;
 	} else
-		IL_DEBUG_SCAN(il, "Start passive scan.\n");
+		D_SCAN("Start passive scan.\n");
 
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
 	scan->tx_cmd.sta_id = ctx->bcast_sta_id;
@@ -923,7 +923,7 @@ int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 		if (!active_chains)
 			active_chains = rx_ant;
 
-		IL_DEBUG_SCAN(il, "chain_noise_data.active_chains: %u\n",
+		D_SCAN("chain_noise_data.active_chains: %u\n",
 				il->chain_noise_data.active_chains);
 
 		rx_ant = il4965_first_antenna(active_chains);
@@ -951,7 +951,7 @@ int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 						is_active, n_probes,
 						(void *)&scan->data[cmd_len]);
 	if (scan->channel_count == 0) {
-		IL_DEBUG_SCAN(il, "channel count %d\n", scan->channel_count);
+		D_SCAN("channel count %d\n", scan->channel_count);
 		return -EIO;
 	}
 
@@ -990,7 +990,7 @@ void il4965_free_tfds_in_queue(struct il_priv *il,
 	if (il->stations[sta_id].tid[tid].tfds_in_queue >= freed)
 		il->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 	else {
-		IL_DEBUG_TX(il, "free more than tfds_in_queue (%u:%d)\n",
+		D_TX("free more than tfds_in_queue (%u:%d)\n",
 			il->stations[sta_id].tid[tid].tfds_in_queue,
 			freed);
 		il->stations[sta_id].tid[tid].tfds_in_queue = 0;
@@ -1111,7 +1111,7 @@ void il4965_set_rxon_chain(struct il_priv *il, struct il_rxon_context *ctx)
 	else
 		ctx->staging.rx_chain &= ~RXON_RX_CHAIN_MIMO_FORCE_MSK;
 
-	IL_DEBUG_ASSOC(il, "rx_chain=0x%X active=%d idle=%d\n",
+	D_ASSOC("rx_chain=0x%X active=%d idle=%d\n",
 			ctx->staging.rx_chain,
 			active_rx_cnt, idle_rx_cnt);
 

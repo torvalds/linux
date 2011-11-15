@@ -199,18 +199,18 @@ int il4965_remove_default_wep_key(struct il_priv *il,
 
 	lockdep_assert_held(&il->mutex);
 
-	IL_DEBUG_WEP(il, "Removing default WEP key: idx=%d\n",
+	D_WEP("Removing default WEP key: idx=%d\n",
 		      keyconf->keyidx);
 
 	memset(&ctx->wep_keys[keyconf->keyidx], 0, sizeof(ctx->wep_keys[0]));
 	if (il_is_rfkill(il)) {
-		IL_DEBUG_WEP(il,
+		D_WEP(
 		"Not sending REPLY_WEPKEY command due to RFKILL.\n");
 		/* but keys in device are clear anyway so return success */
 		return 0;
 	}
 	ret = il4965_static_wepkey_cmd(il, ctx, 1);
-	IL_DEBUG_WEP(il, "Remove default WEP key: idx=%d ret=%d\n",
+	D_WEP("Remove default WEP key: idx=%d ret=%d\n",
 		      keyconf->keyidx, ret);
 
 	return ret;
@@ -226,7 +226,7 @@ int il4965_set_default_wep_key(struct il_priv *il,
 
 	if (keyconf->keylen != WEP_KEY_LEN_128 &&
 	    keyconf->keylen != WEP_KEY_LEN_64) {
-		IL_DEBUG_WEP(il, "Bad WEP key length %d\n", keyconf->keylen);
+		D_WEP("Bad WEP key length %d\n", keyconf->keylen);
 		return -EINVAL;
 	}
 
@@ -239,7 +239,7 @@ int il4965_set_default_wep_key(struct il_priv *il,
 							keyconf->keylen);
 
 	ret = il4965_static_wepkey_cmd(il, ctx, false);
-	IL_DEBUG_WEP(il, "Set default WEP key: len=%d idx=%d ret=%d\n",
+	D_WEP("Set default WEP key: len=%d idx=%d ret=%d\n",
 		keyconf->keylen, keyconf->keyidx, ret);
 
 	return ret;
@@ -453,7 +453,7 @@ int il4965_remove_dynamic_key(struct il_priv *il,
 	key_flags = le16_to_cpu(il->stations[sta_id].sta.key.key_flags);
 	keyidx = (key_flags >> STA_KEY_FLG_KEYID_POS) & 0x3;
 
-	IL_DEBUG_WEP(il, "Remove dynamic key: idx=%d sta=%d\n",
+	D_WEP("Remove dynamic key: idx=%d sta=%d\n",
 		      keyconf->keyidx, sta_id);
 
 	if (keyconf->keyidx != keyidx) {
@@ -488,7 +488,7 @@ int il4965_remove_dynamic_key(struct il_priv *il,
 	il->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
 	if (il_is_rfkill(il)) {
-		IL_DEBUG_WEP(il,
+		D_WEP(
 		 "Not sending REPLY_ADD_STA command because RFKILL enabled.\n");
 		spin_unlock_irqrestore(&il->sta_lock, flags);
 		return 0;
@@ -531,7 +531,7 @@ int il4965_set_dynamic_key(struct il_priv *il, struct il_rxon_context *ctx,
 		ret = -EINVAL;
 	}
 
-	IL_DEBUG_WEP(il,
+	D_WEP(
 		"Set dynamic key: cipher=%x len=%d idx=%d sta=%d ret=%d\n",
 		      keyconf->cipher, keyconf->keylen, keyconf->keyidx,
 		      sta_id, ret);
@@ -605,7 +605,7 @@ static int il4965_update_bcast_station(struct il_priv *il,
 	if (il->stations[sta_id].lq)
 		kfree(il->stations[sta_id].lq);
 	else
-		IL_DEBUG_INFO(il,
+		D_INFO(
 		"Bcast station rate scaling has not been initialized yet.\n");
 	il->stations[sta_id].lq = link_cmd;
 	spin_unlock_irqrestore(&il->sta_lock, flags);

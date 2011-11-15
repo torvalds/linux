@@ -118,7 +118,7 @@ static int il_led_cmd(struct il_priv *il,
 		on = IL_LED_SOLID;
 	}
 
-	IL_DEBUG_LED(il, "Led blink time compensation=%u\n",
+	D_LED("Led blink time compensation=%u\n",
 			il->cfg->base_params->led_compensation);
 	led_cmd.on = il_blink_compensation(il, on,
 				il->cfg->base_params->led_compensation);

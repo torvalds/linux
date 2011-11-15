@@ -147,7 +147,7 @@ static int il_eeprom_verify_signature(struct il_priv *il)
 	u32 gp = il_read32(il, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
 	int ret = 0;
 
-	IL_DEBUG_EEPROM(il, "EEPROM signature=0x%08x\n", gp);
+	D_EEPROM("EEPROM signature=0x%08x\n", gp);
 	switch (gp) {
 	case CSR_EEPROM_GP_GOOD_SIG_EEP_LESS_THAN_4K:
 	case CSR_EEPROM_GP_GOOD_SIG_EEP_MORE_THAN_4K:
@@ -194,7 +194,7 @@ int il_eeprom_init(struct il_priv *il)
 
 	/* allocate eeprom */
 	sz = il->cfg->base_params->eeprom_size;
-	IL_DEBUG_EEPROM(il, "NVM size = %d\n", sz);
+	D_EEPROM("NVM size = %d\n", sz);
 	il->eeprom = kzalloc(sz, GFP_KERNEL);
 	if (!il->eeprom) {
 		ret = -ENOMEM;
@@ -239,7 +239,7 @@ int il_eeprom_init(struct il_priv *il)
 		e[addr / 2] = cpu_to_le16(r >> 16);
 	}
 
-	IL_DEBUG_EEPROM(il, "NVM Type: %s, version: 0x%x\n",
+	D_EEPROM("NVM Type: %s, version: 0x%x\n",
 		       "EEPROM",
 		       il_eeprom_query16(il, EEPROM_VERSION));
 
@@ -339,7 +339,7 @@ static int il_mod_ht40_chan_info(struct il_priv *il,
 	if (!il_is_channel_valid(ch_info))
 		return -1;
 
-	IL_DEBUG_EEPROM(il, "HT40 Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
+	D_EEPROM("HT40 Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
 			" Ad-Hoc %ssupported\n",
 			ch_info->channel,
 			il_is_channel_a_band(ch_info) ?
@@ -380,11 +380,11 @@ int il_init_channel_map(struct il_priv *il)
 	struct il_channel_info *ch_info;
 
 	if (il->channel_count) {
-		IL_DEBUG_EEPROM(il, "Channel map already initialized.\n");
+		D_EEPROM("Channel map already initialized.\n");
 		return 0;
 	}
 
-	IL_DEBUG_EEPROM(il, "Initializing regulatory info from EEPROM\n");
+	D_EEPROM("Initializing regulatory info from EEPROM\n");
 
 	il->channel_count =
 	    ARRAY_SIZE(il_eeprom_band_1) +
@@ -393,7 +393,7 @@ int il_init_channel_map(struct il_priv *il)
 	    ARRAY_SIZE(il_eeprom_band_4) +
 	    ARRAY_SIZE(il_eeprom_band_5);
 
-	IL_DEBUG_EEPROM(il, "Parsing data for %d channels.\n",
+	D_EEPROM("Parsing data for %d channels.\n",
 			il->channel_count);
 
 	il->channel_info = kzalloc(sizeof(struct il_channel_info) *
@@ -433,7 +433,7 @@ int il_init_channel_map(struct il_priv *il)
 					IEEE80211_CHAN_NO_HT40;
 
 			if (!(il_is_channel_valid(ch_info))) {
-				IL_DEBUG_EEPROM(il,
+				D_EEPROM(
 					       "Ch. %d Flags %x [%sGHz] - "
 					       "No traffic\n",
 					       ch_info->channel,
@@ -450,7 +450,7 @@ int il_init_channel_map(struct il_priv *il)
 			ch_info->scan_power = eeprom_ch_info[ch].max_power_avg;
 			ch_info->min_power = 0;
 
-			IL_DEBUG_EEPROM(il, "Ch. %d [%sGHz] "
+			D_EEPROM("Ch. %d [%sGHz] "
 				       "%s%s%s%s%s%s(0x%02x %ddBm):"
 				       " Ad-Hoc %ssupported\n",
 				       ch_info->channel,

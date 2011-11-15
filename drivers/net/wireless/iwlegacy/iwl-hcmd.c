@@ -104,11 +104,11 @@ static void il_generic_cmd_callback(struct il_priv *il,
 	switch (cmd->hdr.cmd) {
 	case REPLY_TX_LINK_QUALITY_CMD:
 	case SENSITIVITY_CMD:
-		IL_DEBUG_HC_DUMP(il, "back from %s (0x%08X)\n",
+		D_HC_DUMP("back from %s (0x%08X)\n",
 		il_get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 		break;
 	default:
-		IL_DEBUG_HC(il, "back from %s (0x%08X)\n",
+		D_HC("back from %s (0x%08X)\n",
 		il_get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 	}
 #endif
@@ -152,11 +152,11 @@ int il_send_cmd_sync(struct il_priv *il, struct il_host_cmd *cmd)
 	 /* A synchronous command can not have a callback set. */
 	BUG_ON(cmd->callback);
 
-	IL_DEBUG_INFO(il, "Attempting to send sync command %s\n",
+	D_INFO("Attempting to send sync command %s\n",
 			il_get_cmd_string(cmd->id));
 
 	set_bit(STATUS_HCMD_ACTIVE, &il->status);
-	IL_DEBUG_INFO(il, "Setting HCMD_ACTIVE for command %s\n",
+	D_INFO("Setting HCMD_ACTIVE for command %s\n",
 			il_get_cmd_string(cmd->id));
 
 	cmd_idx = il_enqueue_hcmd(il, cmd);
@@ -178,7 +178,7 @@ int il_send_cmd_sync(struct il_priv *il, struct il_host_cmd *cmd)
 				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
 			clear_bit(STATUS_HCMD_ACTIVE, &il->status);
-			IL_DEBUG_INFO(il,
+			D_INFO(
 				"Clearing HCMD_ACTIVE for command %s\n",
 				       il_get_cmd_string(cmd->id));
 			ret = -ETIMEDOUT;

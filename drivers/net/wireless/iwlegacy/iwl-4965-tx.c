@@ -235,13 +235,13 @@ static void il4965_tx_cmd_build_hwcrypto(struct il_priv *il,
 		memcpy(tx_cmd->key, keyconf->key, keyconf->keylen);
 		if (info->flags & IEEE80211_TX_CTL_AMPDU)
 			tx_cmd->tx_flags |= TX_CMD_FLG_AGG_CCMP_MSK;
-		IL_DEBUG_TX(il, "tx_cmd with AES hwcrypto\n");
+		D_TX("tx_cmd with AES hwcrypto\n");
 		break;
 
 	case WLAN_CIPHER_SUITE_TKIP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_TKIP;
 		ieee80211_get_tkip_p2k(keyconf, skb_frag, tx_cmd->key);
-		IL_DEBUG_TX(il, "tx_cmd with tkip hwcrypto\n");
+		D_TX("tx_cmd with tkip hwcrypto\n");
 		break;
 
 	case WLAN_CIPHER_SUITE_WEP104:
@@ -253,7 +253,7 @@ static void il4965_tx_cmd_build_hwcrypto(struct il_priv *il,
 
 		memcpy(&tx_cmd->key[3], keyconf->key, keyconf->keylen);
 
-		IL_DEBUG_TX(il, "Configuring packet for WEP encryption "
+		D_TX("Configuring packet for WEP encryption "
 			     "with key %d\n", keyconf->keyidx);
 		break;
 
@@ -298,7 +298,7 @@ int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	spin_lock_irqsave(&il->lock, flags);
 	if (il_is_rfkill(il)) {
-		IL_DEBUG_DROP(il, "Dropping - RF KILL\n");
+		D_DROP("Dropping - RF KILL\n");
 		goto drop_unlock;
 	}
 
@@ -306,11 +306,11 @@ int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 	if (ieee80211_is_auth(fc))
-		IL_DEBUG_TX(il, "Sending AUTH frame\n");
+		D_TX("Sending AUTH frame\n");
 	else if (ieee80211_is_assoc_req(fc))
-		IL_DEBUG_TX(il, "Sending ASSOC frame\n");
+		D_TX("Sending ASSOC frame\n");
 	else if (ieee80211_is_reassoc_req(fc))
-		IL_DEBUG_TX(il, "Sending REASSOC frame\n");
+		D_TX("Sending REASSOC frame\n");
 #endif
 
 	hdr_len = ieee80211_hdrlen(fc);
@@ -323,13 +323,13 @@ int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 		sta_id = il_sta_id_or_broadcast(il, ctx, info->control.sta);
 
 		if (sta_id == IL_INVALID_STATION) {
-			IL_DEBUG_DROP(il, "Dropping - INVALID STATION: %pM\n",
+			D_DROP("Dropping - INVALID STATION: %pM\n",
 				       hdr->addr1);
 			goto drop_unlock;
 		}
 	}
 
-	IL_DEBUG_TX(il, "station Id %d\n", sta_id);
+	D_TX("station Id %d\n", sta_id);
 
 	if (sta)
 		sta_priv = (void *)sta->drv_priv;
@@ -499,9 +499,9 @@ int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
 	tx_cmd->dram_msb_ptr = il_get_dma_hi_addr(scratch_phys);
 
-	IL_DEBUG_TX(il, "sequence nr = 0X%x\n",
+	D_TX("sequence nr = 0X%x\n",
 		     le16_to_cpu(out_cmd->hdr.sequence));
-	IL_DEBUG_TX(il, "tx_flags = 0X%x\n", le32_to_cpu(tx_cmd->tx_flags));
+	D_TX("tx_flags = 0X%x\n", le32_to_cpu(tx_cmd->tx_flags));
 	il_print_hex_dump(il, IL_DL_TX, (u8 *)tx_cmd, sizeof(*tx_cmd));
 	il_print_hex_dump(il, IL_DL_TX, (u8 *)tx_cmd->hdr, hdr_len);
 
@@ -909,11 +909,11 @@ int il4965_tx_agg_start(struct il_priv *il, struct ieee80211_vif *vif,
 	spin_lock_irqsave(&il->sta_lock, flags);
 	tid_data = &il->stations[sta_id].tid[tid];
 	if (tid_data->tfds_in_queue == 0) {
-		IL_DEBUG_HT(il, "HW queue is empty\n");
+		D_HT("HW queue is empty\n");
 		tid_data->agg.state = IL_AGG_ON;
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 	} else {
-		IL_DEBUG_HT(il,
+		D_HT(
 			"HW queue is NOT empty: %d packets in HW queue\n",
 			     tid_data->tfds_in_queue);
 		tid_data->agg.state = IL_EMPTYING_HW_QUEUE_ADDBA;
@@ -991,7 +991,7 @@ int il4965_tx_agg_stop(struct il_priv *il, struct ieee80211_vif *vif,
 		 * queue we selected previously, i.e. before the
 		 * session was really started completely.
 		 */
-		IL_DEBUG_HT(il, "AGG stop before setup done\n");
+		D_HT("AGG stop before setup done\n");
 		goto turn_off;
 	case IL_AGG_ON:
 		break;
@@ -1004,14 +1004,14 @@ int il4965_tx_agg_stop(struct il_priv *il, struct ieee80211_vif *vif,
 
 	/* The queue is not empty */
 	if (write_ptr != read_ptr) {
-		IL_DEBUG_HT(il, "Stopping a non empty AGG HW QUEUE\n");
+		D_HT("Stopping a non empty AGG HW QUEUE\n");
 		il->stations[sta_id].tid[tid].agg.state =
 				IL_EMPTYING_HW_QUEUE_DELBA;
 		spin_unlock_irqrestore(&il->sta_lock, flags);
 		return 0;
 	}
 
-	IL_DEBUG_HT(il, "HW queue is empty\n");
+	D_HT("HW queue is empty\n");
  turn_off:
 	il->stations[sta_id].tid[tid].agg.state = IL_AGG_OFF;
 
@@ -1054,7 +1054,7 @@ int il4965_txq_check_empty(struct il_priv *il,
 		    (q->read_ptr == q->write_ptr)) {
 			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
 			int tx_fifo = il4965_get_fifo_from_tid(ctx, tid);
-			IL_DEBUG_HT(il,
+			D_HT(
 				"HW queue empty: continue DELBA flow\n");
 			il4965_txq_agg_disable(il, txq_id, ssn, tx_fifo);
 			tid_data->agg.state = IL_AGG_OFF;
@@ -1064,7 +1064,7 @@ int il4965_txq_check_empty(struct il_priv *il,
 	case IL_EMPTYING_HW_QUEUE_ADDBA:
 		/* We are reclaiming the last packet of the queue */
 		if (tid_data->tfds_in_queue == 0) {
-			IL_DEBUG_HT(il,
+			D_HT(
 				"HW queue empty: continue ADDBA flow\n");
 			tid_data->agg.state = IL_AGG_ON;
 			ieee80211_start_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
@@ -1169,7 +1169,7 @@ static int il4965_tx_status_reply_compressed_ba(struct il_priv *il,
 
 	/* Mark that the expected block-ack response arrived */
 	agg->wait_for_ba = 0;
-	IL_DEBUG_TX_REPLY(il, "BA %d %d\n", agg->start_idx,
+	D_TX_REPLY("BA %d %d\n", agg->start_idx,
 							ba_resp->seq_ctl);
 
 	/* Calculate shift to align block-ack bits with our Tx window bits */
@@ -1178,7 +1178,7 @@ static int il4965_tx_status_reply_compressed_ba(struct il_priv *il,
 		sh += 0x100;
 
 	if (agg->frame_count > (64 - sh)) {
-		IL_DEBUG_TX_REPLY(il, "more frames than bitmap size");
+		D_TX_REPLY("more frames than bitmap size");
 		return -1;
 	}
 
@@ -1195,7 +1195,7 @@ static int il4965_tx_status_reply_compressed_ba(struct il_priv *il,
 	while (sent_bitmap) {
 		ack = sent_bitmap & 1ULL;
 		successes += ack;
-		IL_DEBUG_TX_REPLY(il, "%s ON i=%d idx=%d raw=%d\n",
+		D_TX_REPLY("%s ON i=%d idx=%d raw=%d\n",
 			ack ? "ACK" : "NACK", i,
 			(agg->start_idx + i) & 0xff,
 			agg->start_idx + i);
@@ -1203,7 +1203,7 @@ static int il4965_tx_status_reply_compressed_ba(struct il_priv *il,
 		++i;
 	}
 
-	IL_DEBUG_TX_REPLY(il, "Bitmap %llx\n",
+	D_TX_REPLY("Bitmap %llx\n",
 				   (unsigned long long)bitmap);
 
 	info = IEEE80211_SKB_CB(il->txq[scd_flow].txb[agg->start_idx].skb);
@@ -1282,7 +1282,7 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 		 * since it is possible happen very often and in order
 		 * not to fill the syslog, don't enable the logging by default
 		 */
-		IL_DEBUG_TX_REPLY(il,
+		D_TX_REPLY(
 			"BA scd_flow %d does not match txq_id %d\n",
 			scd_flow, agg->txq_id);
 		return;
@@ -1293,12 +1293,12 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 
 	spin_lock_irqsave(&il->sta_lock, flags);
 
-	IL_DEBUG_TX_REPLY(il, "REPLY_COMPRESSED_BA [%d] Received from %pM, "
+	D_TX_REPLY("REPLY_COMPRESSED_BA [%d] Received from %pM, "
 			   "sta_id = %d\n",
 			   agg->wait_for_ba,
 			   (u8 *) &ba_resp->sta_addr_lo32,
 			   ba_resp->sta_id);
-	IL_DEBUG_TX_REPLY(il, "TID = %d, SeqCtl = %d, bitmap = 0x%llx,"
+	D_TX_REPLY("TID = %d, SeqCtl = %d, bitmap = 0x%llx,"
 			"scd_flow = "
 			   "%d, scd_ssn = %d\n",
 			   ba_resp->tid,
@@ -1306,7 +1306,7 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 			   (unsigned long long)le64_to_cpu(ba_resp->bitmap),
 			   ba_resp->scd_flow,
 			   ba_resp->scd_ssn);
-	IL_DEBUG_TX_REPLY(il, "DAT start_idx = %d, bitmap = 0x%llx\n",
+	D_TX_REPLY("DAT start_idx = %d, bitmap = 0x%llx\n",
 			   agg->start_idx,
 			   (unsigned long long)agg->bitmap);
 

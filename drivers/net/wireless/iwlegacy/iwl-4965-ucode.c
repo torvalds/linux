@@ -55,7 +55,7 @@ il4965_verify_inst_sparse(struct il_priv *il, __le32 *image, u32 len)
 	u32 errcnt = 0;
 	u32 i;
 
-	IL_DEBUG_INFO(il, "ucode inst image size is %u\n", len);
+	D_INFO("ucode inst image size is %u\n", len);
 
 	for (i = 0; i < len; i += 100, image += 100/sizeof(u32)) {
 		/* read data comes through single port, auto-incr addr */
@@ -87,7 +87,7 @@ static int il4965_verify_inst_full(struct il_priv *il, __le32 *image,
 	int ret = 0;
 	u32 errcnt;
 
-	IL_DEBUG_INFO(il, "ucode inst image size is %u\n", len);
+	D_INFO("ucode inst image size is %u\n", len);
 
 	il_write_direct32(il, HBUS_TARG_MEM_RADDR,
 			   IWL4965_RTC_INST_LOWER_BOUND);
@@ -110,7 +110,7 @@ static int il4965_verify_inst_full(struct il_priv *il, __le32 *image,
 	}
 
 	if (!errcnt)
-		IL_DEBUG_INFO(il,
+		D_INFO(
 		    "ucode image in INSTRUCTION memory is good\n");
 
 	return ret;
@@ -131,7 +131,7 @@ int il4965_verify_ucode(struct il_priv *il)
 	len = il->ucode_boot.len;
 	ret = il4965_verify_inst_sparse(il, image, len);
 	if (!ret) {
-		IL_DEBUG_INFO(il, "Bootstrap uCode is good in inst SRAM\n");
+		D_INFO("Bootstrap uCode is good in inst SRAM\n");
 		return 0;
 	}
 
@@ -140,7 +140,7 @@ int il4965_verify_ucode(struct il_priv *il)
 	len = il->ucode_init.len;
 	ret = il4965_verify_inst_sparse(il, image, len);
 	if (!ret) {
-		IL_DEBUG_INFO(il, "Initialize uCode is good in inst SRAM\n");
+		D_INFO("Initialize uCode is good in inst SRAM\n");
 		return 0;
 	}
 
@@ -149,7 +149,7 @@ int il4965_verify_ucode(struct il_priv *il)
 	len = il->ucode_code.len;
 	ret = il4965_verify_inst_sparse(il, image, len);
 	if (!ret) {
-		IL_DEBUG_INFO(il, "Runtime uCode is good in inst SRAM\n");
+		D_INFO("Runtime uCode is good in inst SRAM\n");
 		return 0;
 	}
 

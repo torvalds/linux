@@ -164,7 +164,7 @@ int il_init_geos(struct il_priv *il)
 
 	if (il->bands[IEEE80211_BAND_2GHZ].n_bitrates ||
 	    il->bands[IEEE80211_BAND_5GHZ].n_bitrates) {
-		IL_DEBUG_INFO(il, "Geography modes already initialized.\n");
+		D_INFO("Geography modes already initialized.\n");
 		set_bit(STATUS_GEO_CONFIGURED, &il->status);
 		return 0;
 	}
@@ -239,7 +239,7 @@ int il_init_geos(struct il_priv *il)
 			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
 		}
 
-		IL_DEBUG_INFO(il, "Channel %d Freq=%d[%sGHz] %s flag=0x%X\n",
+		D_INFO("Channel %d Freq=%d[%sGHz] %s flag=0x%X\n",
 				ch->channel, geo_ch->center_freq,
 				il_is_channel_a_band(ch) ?  "5.2" : "2.4",
 				geo_ch->flags & IEEE80211_CHAN_DISABLED ?
@@ -396,7 +396,7 @@ il_send_rxon_timing(struct il_priv *il, struct il_rxon_context *ctx)
 
 	ctx->timing.dtim_period = vif ? (vif->bss_conf.dtim_period ?: 1) : 1;
 
-	IL_DEBUG_ASSOC(il,
+	D_ASSOC(
 			"beacon interval %d beacon timer %d beacon tim %d\n",
 			le16_to_cpu(ctx->timing.beacon_interval),
 			le32_to_cpu(ctx->timing.beacon_init_val),
@@ -512,13 +512,13 @@ int il_full_rxon_required(struct il_priv *il,
 
 #define CHK(cond)							\
 	if ((cond)) {							\
-		IL_DEBUG_INFO(il, "need full RXON - " #cond "\n");	\
+		D_INFO("need full RXON - " #cond "\n");	\
 		return 1;						\
 	}
 
 #define CHK_NEQ(c1, c2)						\
 	if ((c1) != (c2)) {					\
-		IL_DEBUG_INFO(il, "need full RXON - "	\
+		D_INFO("need full RXON - "	\
 			       #c1 " != " #c2 " - %d != %d\n",	\
 			       (c1), (c2));			\
 		return 1;					\
@@ -638,7 +638,7 @@ static void _il_set_rxon_ht(struct il_priv *il,
 	if (il->cfg->ops->hcmd->set_rxon_chain)
 		il->cfg->ops->hcmd->set_rxon_chain(il, ctx);
 
-	IL_DEBUG_ASSOC(il, "rxon flags 0x%X operation mode :0x%X "
+	D_ASSOC("rxon flags 0x%X operation mode :0x%X "
 			"extension channel offset 0x%x\n",
 			le32_to_cpu(rxon->flags), ctx->ht.protection,
 			ctx->ht.extension_chan_offset);
@@ -720,7 +720,7 @@ il_set_rxon_channel(struct il_priv *il, struct ieee80211_channel *ch,
 
 	il->band = band;
 
-	IL_DEBUG_INFO(il, "Staging channel set to %d [%d]\n", channel, band);
+	D_INFO("Staging channel set to %d [%d]\n", channel, band);
 
 	return 0;
 }
@@ -840,7 +840,7 @@ void il_set_rate(struct il_priv *il)
 			il->active_rate |= (1 << rate->hw_value);
 	}
 
-	IL_DEBUG_RATE(il, "Set active_rate = %0x\n", il->active_rate);
+	D_RATE("Set active_rate = %0x\n", il->active_rate);
 
 	for_each_context(il, ctx) {
 		ctx->staging.cck_basic_rates =
@@ -878,7 +878,7 @@ void il_rx_csa(struct il_priv *il, struct il_rx_mem_buffer *rxb)
 	if (!le32_to_cpu(csa->status) && csa->channel == il->switch_channel) {
 		rxon->channel = csa->channel;
 		ctx->staging.channel = csa->channel;
-		IL_DEBUG_11H(il, "CSA notif: channel %d\n",
+		D_11H("CSA notif: channel %d\n",
 			      le16_to_cpu(csa->channel));
 		il_chswitch_done(il, true);
 	} else {
@@ -895,21 +895,21 @@ void il_print_rx_config_cmd(struct il_priv *il,
 {
 	struct il_rxon_cmd *rxon = &ctx->staging;
 
-	IL_DEBUG_RADIO(il, "RX CONFIG:\n");
+	D_RADIO("RX CONFIG:\n");
 	il_print_hex_dump(il, IL_DL_RADIO, (u8 *) rxon, sizeof(*rxon));
-	IL_DEBUG_RADIO(il, "u16 channel: 0x%x\n",
+	D_RADIO("u16 channel: 0x%x\n",
 				le16_to_cpu(rxon->channel));
-	IL_DEBUG_RADIO(il, "u32 flags: 0x%08X\n", le32_to_cpu(rxon->flags));
-	IL_DEBUG_RADIO(il, "u32 filter_flags: 0x%08x\n",
+	D_RADIO("u32 flags: 0x%08X\n", le32_to_cpu(rxon->flags));
+	D_RADIO("u32 filter_flags: 0x%08x\n",
 				le32_to_cpu(rxon->filter_flags));
-	IL_DEBUG_RADIO(il, "u8 dev_type: 0x%x\n", rxon->dev_type);
-	IL_DEBUG_RADIO(il, "u8 ofdm_basic_rates: 0x%02x\n",
+	D_RADIO("u8 dev_type: 0x%x\n", rxon->dev_type);
+	D_RADIO("u8 ofdm_basic_rates: 0x%02x\n",
 			rxon->ofdm_basic_rates);
-	IL_DEBUG_RADIO(il, "u8 cck_basic_rates: 0x%02x\n",
+	D_RADIO("u8 cck_basic_rates: 0x%02x\n",
 				rxon->cck_basic_rates);
-	IL_DEBUG_RADIO(il, "u8[6] node_addr: %pM\n", rxon->node_addr);
-	IL_DEBUG_RADIO(il, "u8[6] bssid_addr: %pM\n", rxon->bssid_addr);
-	IL_DEBUG_RADIO(il, "u16 assoc_id: 0x%x\n",
+	D_RADIO("u8[6] node_addr: %pM\n", rxon->node_addr);
+	D_RADIO("u8[6] bssid_addr: %pM\n", rxon->bssid_addr);
+	D_RADIO("u16 assoc_id: 0x%x\n",
 				le16_to_cpu(rxon->assoc_id));
 }
 EXPORT_SYMBOL(il_print_rx_config_cmd);
@@ -944,7 +944,7 @@ void il_irq_handle_error(struct il_priv *il)
 	clear_bit(STATUS_READY, &il->status);
 
 	if (!test_bit(STATUS_EXIT_PENDING, &il->status)) {
-		IL_DEBUG(il, IL_DL_FW_ERRORS,
+		IL_DBG(IL_DL_FW_ERRORS,
 			  "Restarting adapter due to uCode error.\n");
 
 		if (il->cfg->mod_params->restart_fw)
@@ -965,14 +965,14 @@ static int il_apm_stop_master(struct il_priv *il)
 	if (ret)
 		IL_WARN(il, "Master Disable Timed Out, 100 usec\n");
 
-	IL_DEBUG_INFO(il, "stop master\n");
+	D_INFO("stop master\n");
 
 	return ret;
 }
 
 void il_apm_stop(struct il_priv *il)
 {
-	IL_DEBUG_INFO(il, "Stop card, put in low power state\n");
+	D_INFO("Stop card, put in low power state\n");
 
 	/* Stop device's DMA activity */
 	il_apm_stop_master(il);
@@ -1002,7 +1002,7 @@ int il_apm_init(struct il_priv *il)
 	int ret = 0;
 	u16 lctl;
 
-	IL_DEBUG_INFO(il, "Init card's basic functions\n");
+	D_INFO("Init card's basic functions\n");
 
 	/*
 	 * Use "set_bit" below rather than "write", to preserve any hardware
@@ -1047,12 +1047,12 @@ int il_apm_init(struct il_priv *il)
 			/* L1-ASPM enabled; disable(!) L0S  */
 			il_set_bit(il, CSR_GIO_REG,
 					CSR_GIO_REG_VAL_L0S_ENABLED);
-			IL_DEBUG_POWER(il, "L1 Enabled; Disabling L0S\n");
+			D_POWER("L1 Enabled; Disabling L0S\n");
 		} else {
 			/* L1-ASPM disabled; enable(!) L0S */
 			il_clear_bit(il, CSR_GIO_REG,
 					CSR_GIO_REG_VAL_L0S_ENABLED);
-			IL_DEBUG_POWER(il, "L1 Disabled; Enabling L0S\n");
+			D_POWER("L1 Disabled; Enabling L0S\n");
 		}
 	}
 
@@ -1076,7 +1076,7 @@ int il_apm_init(struct il_priv *il)
 			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (ret < 0) {
-		IL_DEBUG_INFO(il, "Failed to init the card\n");
+		D_INFO("Failed to init the card\n");
 		goto out;
 	}
 
@@ -1147,7 +1147,7 @@ int il_set_tx_power(struct il_priv *il, s8 tx_power, bool force)
 	defer = test_bit(STATUS_SCANNING, &il->status) ||
 		memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging));
 	if (defer && !force) {
-		IL_DEBUG_INFO(il, "Deferring tx power set\n");
+		D_INFO("Deferring tx power set\n");
 		return 0;
 	}
 
@@ -1179,7 +1179,7 @@ void il_send_bt_config(struct il_priv *il)
 	else
 		bt_cmd.flags = BT_COEX_ENABLE;
 
-	IL_DEBUG_INFO(il, "BT coex %s\n",
+	D_INFO("BT coex %s\n",
 		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
 
 	if (il_send_cmd_pdu(il, REPLY_BT_CONFIG,
@@ -1212,7 +1212,7 @@ void il_rx_pm_sleep_notif(struct il_priv *il,
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 	struct il_sleep_notification *sleep = &(pkt->u.sleep_notif);
-	IL_DEBUG_RX(il, "sleep mode: %d, src: %d\n",
+	D_RX("sleep mode: %d, src: %d\n",
 		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
 #endif
 }
@@ -1223,7 +1223,7 @@ void il_rx_pm_debug_statistics_notif(struct il_priv *il,
 {
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 	u32 len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
-	IL_DEBUG_RADIO(il, "Dumping %d bytes of unhandled "
+	D_RADIO("Dumping %d bytes of unhandled "
 			"notification for %s:\n", len,
 			il_get_cmd_string(pkt->hdr.cmd));
 	il_print_hex_dump(il, IL_DL_RADIO, pkt->u.raw, len);
@@ -1259,15 +1259,15 @@ int il_mac_conf_tx(struct ieee80211_hw *hw,
 	unsigned long flags;
 	int q;
 
-	IL_DEBUG_MAC80211(il, "enter\n");
+	D_MAC80211("enter\n");
 
 	if (!il_is_ready_rf(il)) {
-		IL_DEBUG_MAC80211(il, "leave - RF not ready\n");
+		D_MAC80211("leave - RF not ready\n");
 		return -EIO;
 	}
 
 	if (queue >= AC_NUM) {
-		IL_DEBUG_MAC80211(il, "leave - queue >= AC_NUM %d\n", queue);
+		D_MAC80211("leave - queue >= AC_NUM %d\n", queue);
 		return 0;
 	}
 
@@ -1289,7 +1289,7 @@ int il_mac_conf_tx(struct ieee80211_hw *hw,
 
 	spin_unlock_irqrestore(&il->lock, flags);
 
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 	return 0;
 }
 EXPORT_SYMBOL(il_mac_conf_tx);
@@ -1348,7 +1348,7 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct il_rxon_context *tmp, *ctx = NULL;
 	int err;
 
-	IL_DEBUG_MAC80211(il, "enter: type %d, addr %pM\n",
+	D_MAC80211("enter: type %d, addr %pM\n",
 			   vif->type, vif->addr);
 
 	mutex_lock(&il->mutex);
@@ -1398,7 +1398,7 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
  out:
 	mutex_unlock(&il->mutex);
 
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 	return err;
 }
 EXPORT_SYMBOL(il_mac_add_interface);
@@ -1429,7 +1429,7 @@ void il_mac_remove_interface(struct ieee80211_hw *hw,
 	struct il_priv *il = hw->priv;
 	struct il_rxon_context *ctx = il_rxon_ctx_from_vif(vif);
 
-	IL_DEBUG_MAC80211(il, "enter\n");
+	D_MAC80211("enter\n");
 
 	mutex_lock(&il->mutex);
 
@@ -1441,7 +1441,7 @@ void il_mac_remove_interface(struct ieee80211_hw *hw,
 	memset(il->bssid, 0, ETH_ALEN);
 	mutex_unlock(&il->mutex);
 
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 
 }
 EXPORT_SYMBOL(il_mac_remove_interface);
@@ -1720,7 +1720,7 @@ int il_force_reset(struct il_priv *il, bool external)
 		if (force_reset->last_force_reset_jiffies &&
 		    time_after(force_reset->last_force_reset_jiffies +
 		    force_reset->reset_duration, jiffies)) {
-			IL_DEBUG_INFO(il, "force reset rejected\n");
+			D_INFO("force reset rejected\n");
 			force_reset->reset_reject_count++;
 			return -EAGAIN;
 		}
@@ -1738,7 +1738,7 @@ int il_force_reset(struct il_priv *il, bool external)
 	 */
 
 	if (!external && !il->cfg->mod_params->restart_fw) {
-		IL_DEBUG_INFO(il, "Cancel firmware reload based on "
+		D_INFO("Cancel firmware reload based on "
 			       "module parameter setting\n");
 		return 0;
 	}
@@ -2046,7 +2046,7 @@ il_update_qos(struct il_priv *il, struct il_rxon_context *ctx)
 	if (ctx->ht.enabled)
 		ctx->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
 
-	IL_DEBUG_QOS(il, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
+	D_QOS("send QoS cmd with Qos active=%d FLAGS=0x%X\n",
 		      ctx->qos_data.qos_active,
 		      ctx->qos_data.def_qos_parm.qos_flags);
 
@@ -2077,12 +2077,12 @@ int il_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&il->mutex);
 
-	IL_DEBUG_MAC80211(il, "enter to channel %d changed 0x%X\n",
+	D_MAC80211("enter to channel %d changed 0x%X\n",
 					channel->hw_value, changed);
 
 	if (unlikely(test_bit(STATUS_SCANNING, &il->status))) {
 		scan_active = 1;
-		IL_DEBUG_MAC80211(il, "scan active\n");
+		D_MAC80211("scan active\n");
 	}
 
 	if (changed & (IEEE80211_CONF_CHANGE_SMPS |
@@ -2112,14 +2112,14 @@ int il_mac_config(struct ieee80211_hw *hw, u32 changed)
 		ch = channel->hw_value;
 		ch_info = il_get_channel_info(il, channel->band, ch);
 		if (!il_is_channel_valid(ch_info)) {
-			IL_DEBUG_MAC80211(il, "leave - invalid channel\n");
+			D_MAC80211("leave - invalid channel\n");
 			ret = -EINVAL;
 			goto set_ch_out;
 		}
 
 		if (il->iw_mode == NL80211_IFTYPE_ADHOC &&
 		    !il_is_channel_ibss(ch_info)) {
-			IL_DEBUG_MAC80211(il, "leave - not IBSS channel\n");
+			D_MAC80211("leave - not IBSS channel\n");
 			ret = -EINVAL;
 			goto set_ch_out;
 		}
@@ -2186,18 +2186,18 @@ int il_mac_config(struct ieee80211_hw *hw, u32 changed)
 			IEEE80211_CONF_CHANGE_IDLE)) {
 		ret = il_power_update_mode(il, false);
 		if (ret)
-			IL_DEBUG_MAC80211(il, "Error setting sleep level\n");
+			D_MAC80211("Error setting sleep level\n");
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		IL_DEBUG_MAC80211(il, "TX Power old=%d new=%d\n",
+		D_MAC80211("TX Power old=%d new=%d\n",
 			il->tx_power_user_lmt, conf->power_level);
 
 		il_set_tx_power(il, conf->power_level, false);
 	}
 
 	if (!il_is_ready(il)) {
-		IL_DEBUG_MAC80211(il, "leave - not ready\n");
+		D_MAC80211("leave - not ready\n");
 		goto out;
 	}
 
@@ -2208,14 +2208,14 @@ int il_mac_config(struct ieee80211_hw *hw, u32 changed)
 		if (memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging)))
 			il_commit_rxon(il, ctx);
 		else
-			IL_DEBUG_INFO(il,
+			D_INFO(
 				"Not re-sending same RXON configuration.\n");
 		if (ht_changed[ctx->ctxid])
 			il_update_qos(il, ctx);
 	}
 
 out:
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 	mutex_unlock(&il->mutex);
 	return ret;
 }
@@ -2233,7 +2233,7 @@ void il_mac_reset_tsf(struct ieee80211_hw *hw,
 		return;
 
 	mutex_lock(&il->mutex);
-	IL_DEBUG_MAC80211(il, "enter\n");
+	D_MAC80211("enter\n");
 
 	spin_lock_irqsave(&il->lock, flags);
 	memset(&il->current_ht_config, 0, sizeof(struct il_ht_config));
@@ -2253,7 +2253,7 @@ void il_mac_reset_tsf(struct ieee80211_hw *hw,
 
 	il_scan_cancel_timeout(il, 100);
 	if (!il_is_ready_rf(il)) {
-		IL_DEBUG_MAC80211(il, "leave - not ready\n");
+		D_MAC80211("leave - not ready\n");
 		mutex_unlock(&il->mutex);
 		return;
 	}
@@ -2268,7 +2268,7 @@ void il_mac_reset_tsf(struct ieee80211_hw *hw,
 
 	mutex_unlock(&il->mutex);
 
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 }
 EXPORT_SYMBOL(il_mac_reset_tsf);
 
@@ -2280,7 +2280,7 @@ static void il_ht_conf(struct il_priv *il,
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	struct il_rxon_context *ctx = il_rxon_ctx_from_vif(vif);
 
-	IL_DEBUG_ASSOC(il, "enter:\n");
+	D_ASSOC("enter:\n");
 
 	if (!ctx->ht.enabled)
 		return;
@@ -2329,7 +2329,7 @@ static void il_ht_conf(struct il_priv *il,
 		break;
 	}
 
-	IL_DEBUG_ASSOC(il, "leave\n");
+	D_ASSOC("leave\n");
 }
 
 static inline void il_set_no_assoc(struct il_priv *il,
@@ -2358,7 +2358,7 @@ static void il_beacon_update(struct ieee80211_hw *hw,
 	if (!skb)
 		return;
 
-	IL_DEBUG_MAC80211(il, "enter\n");
+	D_MAC80211("enter\n");
 
 	lockdep_assert_held(&il->mutex);
 
@@ -2378,11 +2378,11 @@ static void il_beacon_update(struct ieee80211_hw *hw,
 	timestamp = ((struct ieee80211_mgmt *)skb->data)->u.beacon.timestamp;
 	il->timestamp = le64_to_cpu(timestamp);
 
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 	spin_unlock_irqrestore(&il->lock, flags);
 
 	if (!il_is_ready_rf(il)) {
-		IL_DEBUG_MAC80211(il, "leave - RF not ready\n");
+		D_MAC80211("leave - RF not ready\n");
 		return;
 	}
 
@@ -2401,7 +2401,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 	if (WARN_ON(!il->cfg->ops->legacy))
 		return;
 
-	IL_DEBUG_MAC80211(il, "changes = 0x%X\n", changes);
+	D_MAC80211("changes = 0x%X\n", changes);
 
 	mutex_lock(&il->mutex);
 
@@ -2432,7 +2432,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changes & BSS_CHANGED_BSSID) {
-		IL_DEBUG_MAC80211(il, "BSSID %pM\n", bss_conf->bssid);
+		D_MAC80211("BSSID %pM\n", bss_conf->bssid);
 
 		/*
 		 * If there is currently a HW scan going on in the
@@ -2442,7 +2442,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 		if (il_scan_cancel_timeout(il, 100)) {
 			IL_WARN(il,
 				"Aborted scan still in progress after 100ms\n");
-			IL_DEBUG_MAC80211(il,
+			D_MAC80211(
 				"leaving - scan abort failed.\n");
 			mutex_unlock(&il->mutex);
 			return;
@@ -2471,7 +2471,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 		il_beacon_update(hw, vif);
 
 	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
-		IL_DEBUG_MAC80211(il, "ERP_PREAMBLE %d\n",
+		D_MAC80211("ERP_PREAMBLE %d\n",
 				   bss_conf->use_short_preamble);
 		if (bss_conf->use_short_preamble)
 			ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
@@ -2480,7 +2480,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changes & BSS_CHANGED_ERP_CTS_PROT) {
-		IL_DEBUG_MAC80211(il,
+		D_MAC80211(
 			"ERP_CTS %d\n", bss_conf->use_cts_prot);
 		if (bss_conf->use_cts_prot &&
 			(il->band != IEEE80211_BAND_5GHZ))
@@ -2518,7 +2518,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changes & BSS_CHANGED_ASSOC) {
-		IL_DEBUG_MAC80211(il, "ASSOC %d\n", bss_conf->assoc);
+		D_MAC80211("ASSOC %d\n", bss_conf->assoc);
 		if (bss_conf->assoc) {
 			il->timestamp = bss_conf->timestamp;
 
@@ -2529,7 +2529,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changes && il_is_associated_ctx(ctx) && bss_conf->aid) {
-		IL_DEBUG_MAC80211(il, "Changes (%#x) while associated\n",
+		D_MAC80211("Changes (%#x) while associated\n",
 				   changes);
 		ret = il_send_rxon_assoc(il, ctx);
 		if (!ret) {
@@ -2561,7 +2561,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_unlock(&il->mutex);
 
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 }
 EXPORT_SYMBOL(il_mac_bss_info_changed);
 
@@ -2591,7 +2591,7 @@ irqreturn_t il_isr(int irq, void *data)
 	 * This may be due to IRQ shared with another device,
 	 * or due to sporadic interrupts thrown from our NIC. */
 	if (!inta && !inta_fh) {
-		IL_DEBUG_ISR(il,
+		D_ISR(
 			"Ignore interrupt, inta == 0, inta_fh == 0\n");
 		goto none;
 	}
@@ -2603,7 +2603,7 @@ irqreturn_t il_isr(int irq, void *data)
 		goto unplugged;
 	}
 
-	IL_DEBUG_ISR(il, "ISR inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
+	D_ISR("ISR inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
 		      inta, inta_mask, inta_fh);
 
 	inta &= ~CSR_INT_BIT_SCD;

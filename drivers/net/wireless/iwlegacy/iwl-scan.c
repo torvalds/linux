@@ -85,7 +85,7 @@ static int il_send_scan_abort(struct il_priv *il)
 		 * can occur if we send the scan abort before we
 		 * the microcode has notified us that a scan is
 		 * completed. */
-		IL_DEBUG_SCAN(il, "SCAN_ABORT ret %d.\n", pkt->u.status);
+		D_SCAN("SCAN_ABORT ret %d.\n", pkt->u.status);
 		ret = -EIO;
 	}
 
@@ -97,7 +97,7 @@ static void il_complete_scan(struct il_priv *il, bool aborted)
 {
 	/* check if scan was requested from mac80211 */
 	if (il->scan_request) {
-		IL_DEBUG_SCAN(il, "Complete scan in mac80211\n");
+		D_SCAN("Complete scan in mac80211\n");
 		ieee80211_scan_completed(il->hw, aborted);
 	}
 
@@ -110,11 +110,11 @@ void il_force_scan_end(struct il_priv *il)
 	lockdep_assert_held(&il->mutex);
 
 	if (!test_bit(STATUS_SCANNING, &il->status)) {
-		IL_DEBUG_SCAN(il, "Forcing scan end while not scanning\n");
+		D_SCAN("Forcing scan end while not scanning\n");
 		return;
 	}
 
-	IL_DEBUG_SCAN(il, "Forcing scan end\n");
+	D_SCAN("Forcing scan end\n");
 	clear_bit(STATUS_SCANNING, &il->status);
 	clear_bit(STATUS_SCAN_HW, &il->status);
 	clear_bit(STATUS_SCAN_ABORTING, &il->status);
@@ -128,21 +128,21 @@ static void il_do_scan_abort(struct il_priv *il)
 	lockdep_assert_held(&il->mutex);
 
 	if (!test_bit(STATUS_SCANNING, &il->status)) {
-		IL_DEBUG_SCAN(il, "Not performing scan to abort\n");
+		D_SCAN("Not performing scan to abort\n");
 		return;
 	}
 
 	if (test_and_set_bit(STATUS_SCAN_ABORTING, &il->status)) {
-		IL_DEBUG_SCAN(il, "Scan abort in progress\n");
+		D_SCAN("Scan abort in progress\n");
 		return;
 	}
 
 	ret = il_send_scan_abort(il);
 	if (ret) {
-		IL_DEBUG_SCAN(il, "Send scan abort failed %d\n", ret);
+		D_SCAN("Send scan abort failed %d\n", ret);
 		il_force_scan_end(il);
 	} else
-		IL_DEBUG_SCAN(il, "Successfully send scan abort\n");
+		D_SCAN("Successfully send scan abort\n");
 }
 
 /**
@@ -150,7 +150,7 @@ static void il_do_scan_abort(struct il_priv *il)
  */
 int il_scan_cancel(struct il_priv *il)
 {
-	IL_DEBUG_SCAN(il, "Queuing abort scan\n");
+	D_SCAN("Queuing abort scan\n");
 	queue_work(il->workqueue, &il->abort_scan);
 	return 0;
 }
@@ -167,7 +167,7 @@ int il_scan_cancel_timeout(struct il_priv *il, unsigned long ms)
 
 	lockdep_assert_held(&il->mutex);
 
-	IL_DEBUG_SCAN(il, "Scan cancel timeout\n");
+	D_SCAN("Scan cancel timeout\n");
 
 	il_do_scan_abort(il);
 
@@ -190,7 +190,7 @@ static void il_rx_reply_scan(struct il_priv *il,
 	struct il_scanreq_notification *notif =
 	    (struct il_scanreq_notification *)pkt->u.raw;
 
-	IL_DEBUG_SCAN(il, "Scan request status = 0x%x\n", notif->status);
+	D_SCAN("Scan request status = 0x%x\n", notif->status);
 #endif
 }
 
@@ -202,7 +202,7 @@ static void il_rx_scan_start_notif(struct il_priv *il,
 	struct il_scanstart_notification *notif =
 	    (struct il_scanstart_notification *)pkt->u.raw;
 	il->scan_start_tsf = le32_to_cpu(notif->tsf_low);
-	IL_DEBUG_SCAN(il, "Scan start: "
+	D_SCAN("Scan start: "
 		       "%d [802.11%s] "
 		       "(TSF: 0x%08X:%08X) - %d (beacon timer %u)\n",
 		       notif->channel,
@@ -221,7 +221,7 @@ static void il_rx_scan_results_notif(struct il_priv *il,
 	struct il_scanresults_notification *notif =
 	    (struct il_scanresults_notification *)pkt->u.raw;
 
-	IL_DEBUG_SCAN(il, "Scan ch.res: "
+	D_SCAN("Scan ch.res: "
 		       "%d [802.11%s] "
 		       "(TSF: 0x%08X:%08X) - %d "
 		       "elapsed=%lu usec\n",
@@ -244,7 +244,7 @@ static void il_rx_scan_complete_notif(struct il_priv *il,
 	struct il_scancomplete_notification *scan_notif = (void *)pkt->u.raw;
 #endif
 
-	IL_DEBUG_SCAN(il,
+	D_SCAN(
 			"Scan complete: %d channels (TSF 0x%08X:%08X) - %d\n",
 		       scan_notif->scanned_channels,
 		       scan_notif->tsf_low,
@@ -253,7 +253,7 @@ static void il_rx_scan_complete_notif(struct il_priv *il,
 	/* The HW is no longer scanning */
 	clear_bit(STATUS_SCAN_HW, &il->status);
 
-	IL_DEBUG_SCAN(il, "Scan on %sGHz took %dms\n",
+	D_SCAN("Scan on %sGHz took %dms\n",
 		       (il->scan_band == IEEE80211_BAND_2GHZ) ? "2.4" : "5.2",
 		       jiffies_to_msecs(jiffies - il->scan_start));
 
@@ -346,17 +346,17 @@ static int il_scan_initiate(struct il_priv *il,
 	}
 
 	if (test_bit(STATUS_SCAN_HW, &il->status)) {
-		IL_DEBUG_SCAN(il,
+		D_SCAN(
 			"Multiple concurrent scan requests in parallel.\n");
 		return -EBUSY;
 	}
 
 	if (test_bit(STATUS_SCAN_ABORTING, &il->status)) {
-		IL_DEBUG_SCAN(il, "Scan request while abort pending.\n");
+		D_SCAN("Scan request while abort pending.\n");
 		return -EBUSY;
 	}
 
-	IL_DEBUG_SCAN(il, "Starting scan...\n");
+	D_SCAN("Starting scan...\n");
 
 	set_bit(STATUS_SCANNING, &il->status);
 	il->scan_start = jiffies;
@@ -380,7 +380,7 @@ int il_mac_hw_scan(struct ieee80211_hw *hw,
 	struct il_priv *il = hw->priv;
 	int ret;
 
-	IL_DEBUG_MAC80211(il, "enter\n");
+	D_MAC80211("enter\n");
 
 	if (req->n_channels == 0)
 		return -EINVAL;
@@ -388,7 +388,7 @@ int il_mac_hw_scan(struct ieee80211_hw *hw,
 	mutex_lock(&il->mutex);
 
 	if (test_bit(STATUS_SCANNING, &il->status)) {
-		IL_DEBUG_SCAN(il, "Scan already in progress.\n");
+		D_SCAN("Scan already in progress.\n");
 		ret = -EAGAIN;
 		goto out_unlock;
 	}
@@ -400,7 +400,7 @@ int il_mac_hw_scan(struct ieee80211_hw *hw,
 
 	ret = il_scan_initiate(il, vif);
 
-	IL_DEBUG_MAC80211(il, "leave\n");
+	D_MAC80211("leave\n");
 
 out_unlock:
 	mutex_unlock(&il->mutex);
@@ -414,7 +414,7 @@ static void il_bg_scan_check(struct work_struct *data)
 	struct il_priv *il =
 	    container_of(data, struct il_priv, scan_check.work);
 
-	IL_DEBUG_SCAN(il, "Scan check work\n");
+	D_SCAN("Scan check work\n");
 
 	/* Since we are here firmware does not finish scan and
 	 * most likely is in bad shape, so we don't bother to
@@ -477,7 +477,7 @@ static void il_bg_abort_scan(struct work_struct *work)
 {
 	struct il_priv *il = container_of(work, struct il_priv, abort_scan);
 
-	IL_DEBUG_SCAN(il, "Abort scan work\n");
+	D_SCAN("Abort scan work\n");
 
 	/* We keep scan_check work queued in case when firmware will not
 	 * report back scan completed notification */
@@ -492,7 +492,7 @@ static void il_bg_scan_completed(struct work_struct *work)
 	    container_of(work, struct il_priv, scan_completed);
 	bool aborted;
 
-	IL_DEBUG_SCAN(il, "Completed scan.\n");
+	D_SCAN("Completed scan.\n");
 
 	cancel_delayed_work(&il->scan_check);
 
@@ -500,10 +500,10 @@ static void il_bg_scan_completed(struct work_struct *work)
 
 	aborted = test_and_clear_bit(STATUS_SCAN_ABORTING, &il->status);
 	if (aborted)
-		IL_DEBUG_SCAN(il, "Aborted scan completed.\n");
+		D_SCAN("Aborted scan completed.\n");
 
 	if (!test_and_clear_bit(STATUS_SCANNING, &il->status)) {
-		IL_DEBUG_SCAN(il, "Scan already completed.\n");
+		D_SCAN("Scan already completed.\n");
 		goto out_settings;
 	}
 

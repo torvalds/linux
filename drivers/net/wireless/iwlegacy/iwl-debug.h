@@ -37,17 +37,17 @@ extern u32 il_debug_level;
 #define IL_INFO(p, f, a...) dev_info(&((p)->pci_dev->dev), f, ## a)
 #define IL_CRIT(p, f, a...) dev_crit(&((p)->pci_dev->dev), f, ## a)
 
-#define il_print_hex_error(il, p, len)				 \
+#define il_print_hex_error(il, p, len)					\
 do {									\
 	print_hex_dump(KERN_ERR, "iwl data: ",				\
 		       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);		\
 } while (0)
 
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
-#define IL_DEBUG(__priv, level, fmt, args...)				\
+#define IL_DBG(level, fmt, args...)					\
 do {									\
-	if (il_get_debug_level(__priv) & (level))			\
-		dev_printk(KERN_ERR, &(__priv->hw->wiphy->dev),		\
+	if (il_get_debug_level(il) & level)				\
+		dev_printk(KERN_ERR, &il->hw->wiphy->dev,		\
 			 "%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
 			__func__ , ## args);				\
 } while (0)
@@ -60,7 +60,7 @@ do {									\
 } while (0)
 
 #else
-#define IL_DEBUG(__priv, level, fmt, args...)
+#define IL_DBG(level, fmt, args...)
 static inline void il_print_hex_dump(struct il_priv *il, int level,
 				      const void *p, u32 len)
 {}
@@ -91,12 +91,12 @@ static inline void il_dbgfs_unregister(struct il_priv *il)
  * where xxxx should be the name of the classification (for example, WEP).
  *
  * You then need to either add a IL_xxxx_DEBUG() macro definition for your
- * classification, or use IL_DEBUG(IL_DL_xxxx, ...) whenever you want
+ * classification, or use IL_DBG(IL_DL_xxxx, ...) whenever you want
  * to send output to that classification.
  *
  * The active debug levels can be accessed via files
  *
- * 	/sys/module/iwl4965/parameters/debug{50}
+ * 	/sys/module/iwl4965/parameters/debug
  *	/sys/module/iwl3945/parameters/debug
  * 	/sys/class/net/wlan0/device/debug_level
  *
@@ -110,7 +110,7 @@ static inline void il_dbgfs_unregister(struct il_priv *il)
 #define IL_DL_STATE		(1 << 3)
 /* 0x000000F0 - 0x00000010 */
 #define IL_DL_MACDUMP		(1 << 4)
-#define IL_DL_HCMD_DUMP	(1 << 5)
+#define IL_DL_HCMD_DUMP		(1 << 5)
 #define IL_DL_EEPROM		(1 << 6)
 #define IL_DL_RADIO		(1 << 7)
 /* 0x00000F00 - 0x00000100 */
@@ -126,7 +126,7 @@ static inline void il_dbgfs_unregister(struct il_priv *il)
 /* 0x000F0000 - 0x00010000 */
 #define IL_DL_FW		(1 << 16)
 #define IL_DL_RF_KILL		(1 << 17)
-#define IL_DL_FW_ERRORS	(1 << 18)
+#define IL_DL_FW_ERRORS		(1 << 18)
 #define IL_DL_LED		(1 << 19)
 /* 0x00F00000 - 0x00100000 */
 #define IL_DL_RATE		(1 << 20)
@@ -143,34 +143,34 @@ static inline void il_dbgfs_unregister(struct il_priv *il)
 #define IL_DL_TX_REPLY		(1 << 30)
 #define IL_DL_QOS		(1 << 31)
 
-#define IL_DEBUG_INFO(p, f, a...)	IL_DEBUG(p, IL_DL_INFO, f, ## a)
-#define IL_DEBUG_MAC80211(p, f, a...)	IL_DEBUG(p, IL_DL_MAC80211, f, ## a)
-#define IL_DEBUG_MACDUMP(p, f, a...)	IL_DEBUG(p, IL_DL_MACDUMP, f, ## a)
-#define IL_DEBUG_TEMP(p, f, a...)	IL_DEBUG(p, IL_DL_TEMP, f, ## a)
-#define IL_DEBUG_SCAN(p, f, a...)	IL_DEBUG(p, IL_DL_SCAN, f, ## a)
-#define IL_DEBUG_RX(p, f, a...)	IL_DEBUG(p, IL_DL_RX, f, ## a)
-#define IL_DEBUG_TX(p, f, a...)	IL_DEBUG(p, IL_DL_TX, f, ## a)
-#define IL_DEBUG_ISR(p, f, a...)	IL_DEBUG(p, IL_DL_ISR, f, ## a)
-#define IL_DEBUG_LED(p, f, a...)	IL_DEBUG(p, IL_DL_LED, f, ## a)
-#define IL_DEBUG_WEP(p, f, a...)	IL_DEBUG(p, IL_DL_WEP, f, ## a)
-#define IL_DEBUG_HC(p, f, a...)	IL_DEBUG(p, IL_DL_HCMD, f, ## a)
-#define IL_DEBUG_HC_DUMP(p, f, a...)	IL_DEBUG(p, IL_DL_HCMD_DUMP, f, ## a)
-#define IL_DEBUG_EEPROM(p, f, a...)	IL_DEBUG(p, IL_DL_EEPROM, f, ## a)
-#define IL_DEBUG_CALIB(p, f, a...)	IL_DEBUG(p, IL_DL_CALIB, f, ## a)
-#define IL_DEBUG_FW(p, f, a...)	IL_DEBUG(p, IL_DL_FW, f, ## a)
-#define IL_DEBUG_RF_KILL(p, f, a...)	IL_DEBUG(p, IL_DL_RF_KILL, f, ## a)
-#define IL_DEBUG_DROP(p, f, a...)	IL_DEBUG(p, IL_DL_DROP, f, ## a)
-#define IL_DEBUG_AP(p, f, a...)	IL_DEBUG(p, IL_DL_AP, f, ## a)
-#define IL_DEBUG_TXPOWER(p, f, a...)	IL_DEBUG(p, IL_DL_TXPOWER, f, ## a)
-#define IL_DEBUG_RATE(p, f, a...)	IL_DEBUG(p, IL_DL_RATE, f, ## a)
-#define IL_DEBUG_NOTIF(p, f, a...)	IL_DEBUG(p, IL_DL_NOTIF, f, ## a)
-#define IL_DEBUG_ASSOC(p, f, a...)	IL_DEBUG(p, IL_DL_ASSOC, f, ## a)
-#define IL_DEBUG_HT(p, f, a...)	IL_DEBUG(p, IL_DL_HT, f, ## a)
-#define IL_DEBUG_STATS(p, f, a...)	IL_DEBUG(p, IL_DL_STATS, f, ## a)
-#define IL_DEBUG_TX_REPLY(p, f, a...)	IL_DEBUG(p, IL_DL_TX_REPLY, f, ## a)
-#define IL_DEBUG_QOS(p, f, a...)	IL_DEBUG(p, IL_DL_QOS, f, ## a)
-#define IL_DEBUG_RADIO(p, f, a...)	IL_DEBUG(p, IL_DL_RADIO, f, ## a)
-#define IL_DEBUG_POWER(p, f, a...)	IL_DEBUG(p, IL_DL_POWER, f, ## a)
-#define IL_DEBUG_11H(p, f, a...)	IL_DEBUG(p, IL_DL_11H, f, ## a)
+#define D_INFO(f, a...)		IL_DBG(IL_DL_INFO, f, ## a)
+#define D_MAC80211(f, a...)	IL_DBG(IL_DL_MAC80211, f, ## a)
+#define D_MACDUMP(f, a...)	IL_DBG(IL_DL_MACDUMP, f, ## a)
+#define D_TEMP(f, a...)		IL_DBG(IL_DL_TEMP, f, ## a)
+#define D_SCAN(f, a...)		IL_DBG(IL_DL_SCAN, f, ## a)
+#define D_RX(f, a...)		IL_DBG(IL_DL_RX, f, ## a)
+#define D_TX(f, a...)		IL_DBG(IL_DL_TX, f, ## a)
+#define D_ISR(f, a...)		IL_DBG(IL_DL_ISR, f, ## a)
+#define D_LED(f, a...)		IL_DBG(IL_DL_LED, f, ## a)
+#define D_WEP(f, a...)		IL_DBG(IL_DL_WEP, f, ## a)
+#define D_HC(f, a...)		IL_DBG(IL_DL_HCMD, f, ## a)
+#define D_HC_DUMP(f, a...)	IL_DBG(IL_DL_HCMD_DUMP, f, ## a)
+#define D_EEPROM(f, a...)	IL_DBG(IL_DL_EEPROM, f, ## a)
+#define D_CALIB(f, a...)	IL_DBG(IL_DL_CALIB, f, ## a)
+#define D_FW(f, a...)		IL_DBG(IL_DL_FW, f, ## a)
+#define D_RF_KILL(f, a...)	IL_DBG(IL_DL_RF_KILL, f, ## a)
+#define D_DROP(f, a...)		IL_DBG(IL_DL_DROP, f, ## a)
+#define D_AP(f, a...)		IL_DBG(IL_DL_AP, f, ## a)
+#define D_TXPOWER(f, a...)	IL_DBG(IL_DL_TXPOWER, f, ## a)
+#define D_RATE(f, a...)		IL_DBG(IL_DL_RATE, f, ## a)
+#define D_NOTIF(f, a...)	IL_DBG(IL_DL_NOTIF, f, ## a)
+#define D_ASSOC(f, a...)	IL_DBG(IL_DL_ASSOC, f, ## a)
+#define D_HT(f, a...)		IL_DBG(IL_DL_HT, f, ## a)
+#define D_STATS(f, a...)	IL_DBG(IL_DL_STATS, f, ## a)
+#define D_TX_REPLY(f, a...)	IL_DBG(IL_DL_TX_REPLY, f, ## a)
+#define D_QOS(f, a...)		IL_DBG(IL_DL_QOS, f, ## a)
+#define D_RADIO(f, a...)	IL_DBG(IL_DL_RADIO, f, ## a)
+#define D_POWER(f, a...)	IL_DBG(IL_DL_POWER, f, ## a)
+#define D_11H(f, a...)		IL_DBG(IL_DL_11H, f, ## a)
 
 #endif
