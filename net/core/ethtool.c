@@ -240,32 +240,45 @@ static int ethtool_set_one_feature(struct net_device *dev,
 	return 0;
 }
 
-/* the following list of flags are the same as their associated
- * NETIF_F_xxx values in include/linux/netdevice.h
- */
-static const u32 flags_dup_features =
-	(ETH_FLAG_LRO | ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN | ETH_FLAG_NTUPLE |
-	 ETH_FLAG_RXHASH);
+#define ETH_ALL_FLAGS    (ETH_FLAG_LRO | ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN | \
+			  ETH_FLAG_NTUPLE | ETH_FLAG_RXHASH)
+#define ETH_ALL_FEATURES (NETIF_F_LRO | NETIF_F_HW_VLAN_RX | \
+			  NETIF_F_HW_VLAN_TX | NETIF_F_NTUPLE | NETIF_F_RXHASH)
 
 static u32 __ethtool_get_flags(struct net_device *dev)
 {
-	return dev->features & flags_dup_features;
+	u32 flags = 0;
+
+	if (dev->features & NETIF_F_LRO)	flags |= ETH_FLAG_LRO;
+	if (dev->features & NETIF_F_HW_VLAN_RX)	flags |= ETH_FLAG_RXVLAN;
+	if (dev->features & NETIF_F_HW_VLAN_TX)	flags |= ETH_FLAG_TXVLAN;
+	if (dev->features & NETIF_F_NTUPLE)	flags |= ETH_FLAG_NTUPLE;
+	if (dev->features & NETIF_F_RXHASH)	flags |= ETH_FLAG_RXHASH;
+
+	return flags;
 }
 
 static int __ethtool_set_flags(struct net_device *dev, u32 data)
 {
+	u32 features = 0;
 	u32 changed;
 
-	if (data & ~flags_dup_features)
+	if (data & ~ETH_ALL_FLAGS)
 		return -EINVAL;
 
+	if (data & ETH_FLAG_LRO)	features |= NETIF_F_LRO;
+	if (data & ETH_FLAG_RXVLAN)	features |= NETIF_F_HW_VLAN_RX;
+	if (data & ETH_FLAG_TXVLAN)	features |= NETIF_F_HW_VLAN_TX;
+	if (data & ETH_FLAG_NTUPLE)	features |= NETIF_F_NTUPLE;
+	if (data & ETH_FLAG_RXHASH)	features |= NETIF_F_RXHASH;
+
 	/* allow changing only bits set in hw_features */
-	changed = (data ^ dev->features) & flags_dup_features;
+	changed = (features ^ dev->features) & ETH_ALL_FEATURES;
 	if (changed & ~dev->hw_features)
 		return (changed & dev->hw_features) ? -EINVAL : -EOPNOTSUPP;
 
 	dev->wanted_features =
-		(dev->wanted_features & ~changed) | (data & dev->hw_features);
+		(dev->wanted_features & ~changed) | (features & changed);
 
 	__netdev_update_features(dev);
 
