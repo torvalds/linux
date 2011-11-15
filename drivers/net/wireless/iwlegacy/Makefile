@@ -1,6 +1,6 @@
 obj-$(CONFIG_IWLEGACY)	+= iwlegacy.o
 iwlegacy-objs 		:= common.o
-iwlegacy-$(CONFIG_IWLEGACY_DEBUGFS) += iwl-debugfs.o
+iwlegacy-$(CONFIG_IWLEGACY_DEBUGFS) += debug.o
 
 iwlegacy-objs += $(iwlegacy-m)
 
