@@ -38,7 +38,7 @@ EXPORT_SYMBOL(ethtool_op_get_link);
 
 /* Handlers for each ethtool command */
 
-#define ETHTOOL_DEV_FEATURE_WORDS	1
+#define ETHTOOL_DEV_FEATURE_WORDS	((NETDEV_FEATURE_COUNT + 31) / 32)
 
 static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN] = {
 	[NETIF_F_SG_BIT] =               "tx-scatter-gather",
@@ -82,16 +82,20 @@ static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 		.cmd = ETHTOOL_GFEATURES,
 		.size = ETHTOOL_DEV_FEATURE_WORDS,
 	};
-	struct ethtool_get_features_block features[ETHTOOL_DEV_FEATURE_WORDS] = {
-		{
-			.available = dev->hw_features,
-			.requested = dev->wanted_features,
-			.active = dev->features,
-			.never_changed = NETIF_F_NEVER_CHANGE,
-		},
-	};
+	struct ethtool_get_features_block features[ETHTOOL_DEV_FEATURE_WORDS];
 	u32 __user *sizeaddr;
 	u32 copy_size;
+	int i;
+
+	/* in case feature bits run out again */
+	BUILD_BUG_ON(ETHTOOL_DEV_FEATURE_WORDS*sizeof(u32) > sizeof(netdev_features_t));
+
+	for (i = 0; i < ETHTOOL_DEV_FEATURE_WORDS; ++i) {
+		features[i].available = (u32)(dev->hw_features >> (32*i));
+		features[i].requested = (u32)(dev->wanted_features >> (32*i));
+		features[i].active = (u32)(dev->features >> (32*i));
+		features[i].never_changed = (u32)(NETIF_F_NEVER_CHANGE >> (32*i));
+	}
 
 	sizeaddr = useraddr + offsetof(struct ethtool_gfeatures, size);
 	if (get_user(copy_size, sizeaddr))
@@ -113,7 +117,8 @@ static int ethtool_set_features(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_sfeatures cmd;
 	struct ethtool_set_features_block features[ETHTOOL_DEV_FEATURE_WORDS];
-	int ret = 0;
+	netdev_features_t wanted = 0, valid = 0;
+	int i, ret = 0;
 
 	if (copy_from_user(&cmd, useraddr, sizeof(cmd)))
 		return -EFAULT;
@@ -125,19 +130,24 @@ static int ethtool_set_features(struct net_device *dev, void __user *useraddr)
 	if (copy_from_user(features, useraddr, sizeof(features)))
 		return -EFAULT;
 
-	if (features[0].valid & ~NETIF_F_ETHTOOL_BITS)
+	for (i = 0; i < ETHTOOL_DEV_FEATURE_WORDS; ++i) {
+		valid |= (netdev_features_t)features[i].valid << (32*i);
+		wanted |= (netdev_features_t)features[i].requested << (32*i);
+	}
+
+	if (valid & ~NETIF_F_ETHTOOL_BITS)
 		return -EINVAL;
 
-	if (features[0].valid & ~dev->hw_features) {
-		features[0].valid &= dev->hw_features;
+	if (valid & ~dev->hw_features) {
+		valid &= dev->hw_features;
 		ret |= ETHTOOL_F_UNSUPPORTED;
 	}
 
-	dev->wanted_features &= ~features[0].valid;
-	dev->wanted_features |= features[0].valid & features[0].requested;
+	dev->wanted_features &= ~valid;
+	dev->wanted_features |= wanted & valid;
 	__netdev_update_features(dev);
 
-	if ((dev->wanted_features ^ dev->features) & features[0].valid)
+	if ((dev->wanted_features ^ dev->features) & valid)
 		ret |= ETHTOOL_F_WISH;
 
 	return ret;
