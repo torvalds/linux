@@ -91,9 +91,9 @@
 #define APMG_PS_CTRL_VAL_RESET_REQ		(0x04000000)
 #define APMG_PS_CTRL_MSK_PWR_SRC		(0x03000000)
 #define APMG_PS_CTRL_VAL_PWR_SRC_VMAIN		(0x00000000)
-#define APMG_PS_CTRL_VAL_PWR_SRC_MAX		(0x01000000) /* 3945 only */
+#define APMG_PS_CTRL_VAL_PWR_SRC_MAX		(0x01000000)	/* 3945 only */
 #define APMG_PS_CTRL_VAL_PWR_SRC_VAUX		(0x02000000)
-#define APMG_SVR_VOLTAGE_CONFIG_BIT_MSK	(0x000001E0) /* bit 8:5 */
+#define APMG_SVR_VOLTAGE_CONFIG_BIT_MSK	(0x000001E0)	/* bit 8:5 */
 #define APMG_SVR_DIGITAL_VOLTAGE_1_32		(0x00000060)
 
 #define APMG_PCIDEV_STT_VAL_L1_ACT_DIS		(0x00000800)
@@ -202,19 +202,19 @@
  */
 
 /* BSM bit fields */
-#define BSM_WR_CTRL_REG_BIT_START     (0x80000000) /* start boot load now */
-#define BSM_WR_CTRL_REG_BIT_START_EN  (0x40000000) /* enable boot after pwrup*/
-#define BSM_DRAM_INST_LOAD            (0x80000000) /* start program load now */
+#define BSM_WR_CTRL_REG_BIT_START     (0x80000000)	/* start boot load now */
+#define BSM_WR_CTRL_REG_BIT_START_EN  (0x40000000)	/* enable boot after pwrup */
+#define BSM_DRAM_INST_LOAD            (0x80000000)	/* start program load now */
 
 /* BSM addresses */
 #define BSM_BASE                     (PRPH_BASE + 0x3400)
 #define BSM_END                      (PRPH_BASE + 0x3800)
 
-#define BSM_WR_CTRL_REG              (BSM_BASE + 0x000) /* ctl and status */
-#define BSM_WR_MEM_SRC_REG           (BSM_BASE + 0x004) /* source in BSM mem */
-#define BSM_WR_MEM_DST_REG           (BSM_BASE + 0x008) /* dest in SRAM mem */
-#define BSM_WR_DWCOUNT_REG           (BSM_BASE + 0x00C) /* bytes */
-#define BSM_WR_STATUS_REG            (BSM_BASE + 0x010) /* bit 0:  1 == done */
+#define BSM_WR_CTRL_REG              (BSM_BASE + 0x000)	/* ctl and status */
+#define BSM_WR_MEM_SRC_REG           (BSM_BASE + 0x004)	/* source in BSM mem */
+#define BSM_WR_MEM_DST_REG           (BSM_BASE + 0x008)	/* dest in SRAM mem */
+#define BSM_WR_DWCOUNT_REG           (BSM_BASE + 0x00C)	/* bytes */
+#define BSM_WR_STATUS_REG            (BSM_BASE + 0x010)	/* bit 0:  1 == done */
 
 /*
  * Pointers and size regs for bootstrap load and data SRAM save/restore.
@@ -231,8 +231,7 @@
  * Read/write, address range from LOWER_BOUND to (LOWER_BOUND + SIZE -1)
  */
 #define BSM_SRAM_LOWER_BOUND         (PRPH_BASE + 0x3800)
-#define BSM_SRAM_SIZE			(1024) /* bytes */
-
+#define BSM_SRAM_SIZE			(1024)	/* bytes */
 
 /* 3945 Tx scheduler registers */
 #define ALM_SCD_BASE                        (PRPH_BASE + 0x2E00)
@@ -520,4 +519,4 @@
 
 /*********************** END TX SCHEDULER *************************************/
 
-#endif				/* __il_prph_h__ */
+#endif /* __il_prph_h__ */

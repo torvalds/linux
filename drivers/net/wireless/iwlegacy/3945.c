@@ -43,8 +43,8 @@
 #include "3945.h"
 
 /* Send led command */
-static int il3945_send_led_cmd(struct il_priv *il,
-				struct il_led_cmd *led_cmd)
+static int
+il3945_send_led_cmd(struct il_priv *il, struct il_led_cmd *led_cmd)
 {
 	struct il_host_cmd cmd = {
 		.id = C_LEDS,
@@ -82,21 +82,22 @@ const struct il_led_ops il3945_led_ops = {
  *
  */
 const struct il3945_rate_info il3945_rates[RATE_COUNT_3945] = {
-	IL_DECLARE_RATE_INFO(1, INV, 2, INV, 2, INV, 2),    /*  1mbps */
-	IL_DECLARE_RATE_INFO(2, 1, 5, 1, 5, 1, 5),          /*  2mbps */
-	IL_DECLARE_RATE_INFO(5, 2, 6, 2, 11, 2, 11),        /*5.5mbps */
-	IL_DECLARE_RATE_INFO(11, 9, 12, 5, 12, 5, 18),      /* 11mbps */
-	IL_DECLARE_RATE_INFO(6, 5, 9, 5, 11, 5, 11),        /*  6mbps */
-	IL_DECLARE_RATE_INFO(9, 6, 11, 5, 11, 5, 11),       /*  9mbps */
-	IL_DECLARE_RATE_INFO(12, 11, 18, 11, 18, 11, 18),   /* 12mbps */
-	IL_DECLARE_RATE_INFO(18, 12, 24, 12, 24, 11, 24),   /* 18mbps */
-	IL_DECLARE_RATE_INFO(24, 18, 36, 18, 36, 18, 36),   /* 24mbps */
-	IL_DECLARE_RATE_INFO(36, 24, 48, 24, 48, 24, 48),   /* 36mbps */
-	IL_DECLARE_RATE_INFO(48, 36, 54, 36, 54, 36, 54),   /* 48mbps */
-	IL_DECLARE_RATE_INFO(54, 48, INV, 48, INV, 48, INV),/* 54mbps */
+	IL_DECLARE_RATE_INFO(1, INV, 2, INV, 2, INV, 2),	/*  1mbps */
+	IL_DECLARE_RATE_INFO(2, 1, 5, 1, 5, 1, 5),	/*  2mbps */
+	IL_DECLARE_RATE_INFO(5, 2, 6, 2, 11, 2, 11),	/*5.5mbps */
+	IL_DECLARE_RATE_INFO(11, 9, 12, 5, 12, 5, 18),	/* 11mbps */
+	IL_DECLARE_RATE_INFO(6, 5, 9, 5, 11, 5, 11),	/*  6mbps */
+	IL_DECLARE_RATE_INFO(9, 6, 11, 5, 11, 5, 11),	/*  9mbps */
+	IL_DECLARE_RATE_INFO(12, 11, 18, 11, 18, 11, 18),	/* 12mbps */
+	IL_DECLARE_RATE_INFO(18, 12, 24, 12, 24, 11, 24),	/* 18mbps */
+	IL_DECLARE_RATE_INFO(24, 18, 36, 18, 36, 18, 36),	/* 24mbps */
+	IL_DECLARE_RATE_INFO(36, 24, 48, 24, 48, 24, 48),	/* 36mbps */
+	IL_DECLARE_RATE_INFO(48, 36, 54, 36, 54, 36, 54),	/* 48mbps */
+	IL_DECLARE_RATE_INFO(54, 48, INV, 48, INV, 48, INV),	/* 54mbps */
 };
 
-static inline u8 il3945_get_prev_ieee_rate(u8 rate_idx)
+static inline u8
+il3945_get_prev_ieee_rate(u8 rate_idx)
 {
 	u8 rate = il3945_rates[rate_idx].prev_ieee;
 
@@ -118,7 +119,8 @@ static inline u8 il3945_get_prev_ieee_rate(u8 rate_idx)
  * Use for only special debugging.  This function is just a placeholder as-is,
  *   you'll need to provide the special bits! ...
  *   ... and set IL_EVT_DISABLE to 1. */
-void il3945_disable_events(struct il_priv *il)
+void
+il3945_disable_events(struct il_priv *il)
 {
 	int i;
 	u32 base;		/* SRAM address of event log header */
@@ -185,22 +187,22 @@ void il3945_disable_events(struct il_priv *il)
 
 	if (IL_EVT_DISABLE && array_size == IL_EVT_DISABLE_SIZE) {
 		D_INFO("Disabling selected uCode log events at 0x%x\n",
-			       disable_ptr);
+		       disable_ptr);
 		for (i = 0; i < IL_EVT_DISABLE_SIZE; i++)
-			il_write_targ_mem(il,
-					   disable_ptr + (i * sizeof(u32)),
-					   evt_disable[i]);
+			il_write_targ_mem(il, disable_ptr + (i * sizeof(u32)),
+					  evt_disable[i]);
 
 	} else {
 		D_INFO("Selected uCode log events may be disabled\n");
 		D_INFO("  by writing \"1\"s into disable bitmap\n");
-		D_INFO("  in SRAM at 0x%x, size %d u32s\n",
-			       disable_ptr, array_size);
+		D_INFO("  in SRAM at 0x%x, size %d u32s\n", disable_ptr,
+		       array_size);
 	}
 
 }
 
-static int il3945_hwrate_to_plcp_idx(u8 plcp)
+static int
+il3945_hwrate_to_plcp_idx(u8 plcp)
 {
 	int idx;
 
@@ -213,7 +215,8 @@ static int il3945_hwrate_to_plcp_idx(u8 plcp)
 #ifdef CONFIG_IWLEGACY_DEBUG
 #define TX_STATUS_ENTRY(x) case TX_3945_STATUS_FAIL_ ## x: return #x
 
-static const char *il3945_get_tx_fail_reason(u32 status)
+static const char *
+il3945_get_tx_fail_reason(u32 status)
 {
 	switch (status & TX_STATUS_MSK) {
 	case TX_3945_STATUS_SUCCESS:
@@ -239,7 +242,8 @@ static const char *il3945_get_tx_fail_reason(u32 status)
 	return "UNKNOWN";
 }
 #else
-static inline const char *il3945_get_tx_fail_reason(u32 status)
+static inline const char *
+il3945_get_tx_fail_reason(u32 status)
 {
 	return "";
 }
@@ -250,7 +254,8 @@ static inline const char *il3945_get_tx_fail_reason(u32 status)
  * for A and B mode we need to overright prev
  * value
  */
-int il3945_rs_next_rate(struct il_priv *il, int rate)
+int
+il3945_rs_next_rate(struct il_priv *il, int rate)
 {
 	int next_rate = il3945_get_prev_ieee_rate(rate);
 
@@ -276,7 +281,6 @@ int il3945_rs_next_rate(struct il_priv *il, int rate)
 	return next_rate;
 }
 
-
 /**
  * il3945_tx_queue_reclaim - Reclaim Tx queue entries already Tx'd
  *
@@ -284,8 +288,8 @@ int il3945_rs_next_rate(struct il_priv *il, int rate)
  * need to be reclaimed. As result, some free space forms. If there is
  * enough free space (> low mark), wake the stack that feeds us.
  */
-static void il3945_tx_queue_reclaim(struct il_priv *il,
-				     int txq_id, int idx)
+static void
+il3945_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 {
 	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct il_queue *q = &txq->q;
@@ -293,9 +297,8 @@ static void il3945_tx_queue_reclaim(struct il_priv *il,
 
 	BUG_ON(txq_id == IL39_CMD_QUEUE_NUM);
 
-	for (idx = il_queue_inc_wrap(idx, q->n_bd);
-		q->read_ptr != idx;
-		q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+	for (idx = il_queue_inc_wrap(idx, q->n_bd); q->read_ptr != idx;
+	     q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		tx_info = &txq->txb[txq->q.read_ptr];
 		ieee80211_tx_status_irqsafe(il->hw, tx_info->skb);
@@ -311,8 +314,8 @@ static void il3945_tx_queue_reclaim(struct il_priv *il,
 /**
  * il3945_hdl_tx - Handle Tx response
  */
-static void il3945_hdl_tx(struct il_priv *il,
-				struct il_rx_buf *rxb)
+static void
+il3945_hdl_tx(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -321,15 +324,14 @@ static void il3945_hdl_tx(struct il_priv *il,
 	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct ieee80211_tx_info *info;
 	struct il3945_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
-	u32  status = le32_to_cpu(tx_resp->status);
+	u32 status = le32_to_cpu(tx_resp->status);
 	int rate_idx;
 	int fail;
 
 	if (idx >= txq->q.n_bd || il_queue_used(&txq->q, idx) == 0) {
 		IL_ERR("Read idx for DMA queue txq_id (%d) idx %d "
-			  "is out of range [0-%d] %d %d\n", txq_id,
-			  idx, txq->q.n_bd, txq->q.write_ptr,
-			  txq->q.read_ptr);
+		       "is out of range [0-%d] %d %d\n", txq_id, idx,
+		       txq->q.n_bd, txq->q.write_ptr, txq->q.read_ptr);
 		return;
 	}
 
@@ -345,15 +347,16 @@ static void il3945_hdl_tx(struct il_priv *il,
 	fail = tx_resp->failure_frame;
 
 	info->status.rates[0].idx = rate_idx;
-	info->status.rates[0].count = fail + 1; /* add final attempt */
+	info->status.rates[0].count = fail + 1;	/* add final attempt */
 
 	/* tx_status->rts_retry_count = tx_resp->failure_rts; */
-	info->flags |= ((status & TX_STATUS_MSK) == TX_STATUS_SUCCESS) ?
-				IEEE80211_TX_STAT_ACK : 0;
+	info->flags |=
+	    ((status & TX_STATUS_MSK) ==
+	     TX_STATUS_SUCCESS) ? IEEE80211_TX_STAT_ACK : 0;
 
-	D_TX("Tx queue %d Status %s (0x%08x) plcp rate %d retries %d\n",
-			txq_id, il3945_get_tx_fail_reason(status), status,
-			tx_resp->rate, tx_resp->failure_frame);
+	D_TX("Tx queue %d Status %s (0x%08x) plcp rate %d retries %d\n", txq_id,
+	     il3945_get_tx_fail_reason(status), status, tx_resp->rate,
+	     tx_resp->failure_frame);
 
 	D_TX_REPLY("Tx queue reclaim %d\n", idx);
 	il3945_tx_queue_reclaim(il, txq_id, idx);
@@ -361,8 +364,6 @@ static void il3945_hdl_tx(struct il_priv *il,
 	if (status & TX_ABORT_REQUIRED_MSK)
 		IL_ERR("TODO:  Implement Tx ABORT REQUIRED!!!\n");
 }
-
-
 
 /*****************************************************************************
  *
@@ -372,25 +373,26 @@ static void il3945_hdl_tx(struct il_priv *il,
  *
  *****************************************************************************/
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-static void il3945_accumulative_stats(struct il_priv *il,
-					    __le32 *stats)
+static void
+il3945_accumulative_stats(struct il_priv *il, __le32 * stats)
 {
 	int i;
 	__le32 *prev_stats;
 	u32 *accum_stats;
 	u32 *delta, *max_delta;
 
-	prev_stats = (__le32 *)&il->_3945.stats;
-	accum_stats = (u32 *)&il->_3945.accum_stats;
-	delta = (u32 *)&il->_3945.delta_stats;
-	max_delta = (u32 *)&il->_3945.max_delta;
+	prev_stats = (__le32 *) & il->_3945.stats;
+	accum_stats = (u32 *) & il->_3945.accum_stats;
+	delta = (u32 *) & il->_3945.delta_stats;
+	max_delta = (u32 *) & il->_3945.max_delta;
 
 	for (i = sizeof(__le32); i < sizeof(struct il3945_notif_stats);
-	     i += sizeof(__le32), stats++, prev_stats++, delta++,
-	     max_delta++, accum_stats++) {
+	     i +=
+	     sizeof(__le32), stats++, prev_stats++, delta++, max_delta++,
+	     accum_stats++) {
 		if (le32_to_cpu(*stats) > le32_to_cpu(*prev_stats)) {
-			*delta = (le32_to_cpu(*stats) -
-				le32_to_cpu(*prev_stats));
+			*delta =
+			    (le32_to_cpu(*stats) - le32_to_cpu(*prev_stats));
 			*accum_stats += *delta;
 			if (*delta > *max_delta)
 				*max_delta = *delta;
@@ -399,47 +401,46 @@ static void il3945_accumulative_stats(struct il_priv *il,
 
 	/* reset accumulative stats for "no-counter" type stats */
 	il->_3945.accum_stats.general.temperature =
-		il->_3945.stats.general.temperature;
+	    il->_3945.stats.general.temperature;
 	il->_3945.accum_stats.general.ttl_timestamp =
-		il->_3945.stats.general.ttl_timestamp;
+	    il->_3945.stats.general.ttl_timestamp;
 }
 #endif
 
-void il3945_hdl_stats(struct il_priv *il,
-		struct il_rx_buf *rxb)
+void
+il3945_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
 	D_RX("Statistics notification received (%d vs %d).\n",
-		     (int)sizeof(struct il3945_notif_stats),
-		     le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK);
+	     (int)sizeof(struct il3945_notif_stats),
+	     le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK);
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-	il3945_accumulative_stats(il, (__le32 *)&pkt->u.raw);
+	il3945_accumulative_stats(il, (__le32 *) & pkt->u.raw);
 #endif
 
 	memcpy(&il->_3945.stats, pkt->u.raw, sizeof(il->_3945.stats));
 }
 
-void il3945_hdl_c_stats(struct il_priv *il,
-			      struct il_rx_buf *rxb)
+void
+il3945_hdl_c_stats(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
-	__le32 *flag = (__le32 *)&pkt->u.raw;
+	__le32 *flag = (__le32 *) & pkt->u.raw;
 
 	if (le32_to_cpu(*flag) & UCODE_STATS_CLEAR_MSK) {
 #ifdef CONFIG_IWLEGACY_DEBUGFS
 		memset(&il->_3945.accum_stats, 0,
-			sizeof(struct il3945_notif_stats));
+		       sizeof(struct il3945_notif_stats));
 		memset(&il->_3945.delta_stats, 0,
-			sizeof(struct il3945_notif_stats));
+		       sizeof(struct il3945_notif_stats));
 		memset(&il->_3945.max_delta, 0,
-			sizeof(struct il3945_notif_stats));
+		       sizeof(struct il3945_notif_stats));
 #endif
 		D_RX("Statistics have been cleared\n");
 	}
 	il3945_hdl_stats(il, rxb);
 }
-
 
 /******************************************************************************
  *
@@ -448,16 +449,16 @@ void il3945_hdl_c_stats(struct il_priv *il,
  ******************************************************************************/
 
 /* This is necessary only for a number of stats, see the caller. */
-static int il3945_is_network_packet(struct il_priv *il,
-		struct ieee80211_hdr *header)
+static int
+il3945_is_network_packet(struct il_priv *il, struct ieee80211_hdr *header)
 {
 	/* Filter incoming packets to determine if they are targeted toward
 	 * this network, discarding packets coming from ourselves */
 	switch (il->iw_mode) {
-	case NL80211_IFTYPE_ADHOC: /* Header: Dest. | Source    | BSSID */
+	case NL80211_IFTYPE_ADHOC:	/* Header: Dest. | Source    | BSSID */
 		/* packets to our IBSS update information */
 		return !compare_ether_addr(header->addr3, il->bssid);
-	case NL80211_IFTYPE_STATION: /* Header: Dest. | AP{BSSID} | Source */
+	case NL80211_IFTYPE_STATION:	/* Header: Dest. | AP{BSSID} | Source */
 		/* packets to our IBSS update information */
 		return !compare_ether_addr(header->addr2, il->bssid);
 	default:
@@ -465,9 +466,9 @@ static int il3945_is_network_packet(struct il_priv *il,
 	}
 }
 
-static void il3945_pass_packet_to_mac80211(struct il_priv *il,
-				   struct il_rx_buf *rxb,
-				   struct ieee80211_rx_status *stats)
+static void
+il3945_pass_packet_to_mac80211(struct il_priv *il, struct il_rx_buf *rxb,
+			       struct ieee80211_rx_status *stats)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)IL_RX_DATA(pkt);
@@ -478,16 +479,16 @@ static void il3945_pass_packet_to_mac80211(struct il_priv *il,
 	__le16 fc = hdr->frame_control;
 
 	/* We received data from the HW, so stop the watchdog */
-	if (unlikely(len + IL39_RX_FRAME_SIZE >
-		     PAGE_SIZE << il->hw_params.rx_page_order)) {
+	if (unlikely
+	    (len + IL39_RX_FRAME_SIZE >
+	     PAGE_SIZE << il->hw_params.rx_page_order)) {
 		D_DROP("Corruption detected!\n");
 		return;
 	}
 
 	/* We only process data packets if the interface is open */
 	if (unlikely(!il->is_open)) {
-		D_DROP(
-			"Dropping packet while interface is not open.\n");
+		D_DROP("Dropping packet while interface is not open.\n");
 		return;
 	}
 
@@ -498,9 +499,8 @@ static void il3945_pass_packet_to_mac80211(struct il_priv *il,
 	}
 
 	if (!il3945_mod_params.sw_crypto)
-		il_set_decrypted_flag(il,
-				       (struct ieee80211_hdr *)rxb_addr(rxb),
-				       le32_to_cpu(rx_end->status), stats);
+		il_set_decrypted_flag(il, (struct ieee80211_hdr *)rxb_addr(rxb),
+				      le32_to_cpu(rx_end->status), stats);
 
 	skb_add_rx_frag(skb, 0, rxb->page,
 			(void *)rx_hdr->payload - (void *)pkt, len);
@@ -515,8 +515,8 @@ static void il3945_pass_packet_to_mac80211(struct il_priv *il,
 
 #define IL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
 
-static void il3945_hdl_rx(struct il_priv *il,
-				struct il_rx_buf *rxb)
+static void
+il3945_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct ieee80211_hdr *header;
 	struct ieee80211_rx_status rx_status;
@@ -525,23 +525,27 @@ static void il3945_hdl_rx(struct il_priv *il,
 	struct il3945_rx_frame_hdr *rx_hdr = IL_RX_HDR(pkt);
 	struct il3945_rx_frame_end *rx_end = IL_RX_END(pkt);
 	u16 rx_stats_sig_avg __maybe_unused = le16_to_cpu(rx_stats->sig_avg);
-	u16 rx_stats_noise_diff __maybe_unused = le16_to_cpu(rx_stats->noise_diff);
+	u16 rx_stats_noise_diff __maybe_unused =
+	    le16_to_cpu(rx_stats->noise_diff);
 	u8 network_packet;
 
 	rx_status.flag = 0;
 	rx_status.mactime = le64_to_cpu(rx_end->timestamp);
-	rx_status.band = (rx_hdr->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
-				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
+	rx_status.band =
+	    (rx_hdr->
+	     phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ? IEEE80211_BAND_2GHZ :
+	    IEEE80211_BAND_5GHZ;
 	rx_status.freq =
-		ieee80211_channel_to_frequency(le16_to_cpu(rx_hdr->channel),
-					       rx_status.band);
+	    ieee80211_channel_to_frequency(le16_to_cpu(rx_hdr->channel),
+					   rx_status.band);
 
 	rx_status.rate_idx = il3945_hwrate_to_plcp_idx(rx_hdr->rate);
 	if (rx_status.band == IEEE80211_BAND_5GHZ)
 		rx_status.rate_idx -= IL_FIRST_OFDM_RATE;
 
-	rx_status.antenna = (le16_to_cpu(rx_hdr->phy_flags) &
-					RX_RES_PHY_FLAGS_ANTENNA_MSK) >> 4;
+	rx_status.antenna =
+	    (le16_to_cpu(rx_hdr->phy_flags) & RX_RES_PHY_FLAGS_ANTENNA_MSK) >>
+	    4;
 
 	/* set the preamble flag if appropriate */
 	if (rx_hdr->phy_flags & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
@@ -549,7 +553,7 @@ static void il3945_hdl_rx(struct il_priv *il,
 
 	if ((unlikely(rx_stats->phy_count > 20))) {
 		D_DROP("dsp size out of range [0,20]: %d/n",
-				rx_stats->phy_count);
+		       rx_stats->phy_count);
 		return;
 	}
 
@@ -559,31 +563,25 @@ static void il3945_hdl_rx(struct il_priv *il,
 		return;
 	}
 
-
-
 	/* Convert 3945's rssi indicator to dBm */
 	rx_status.signal = rx_stats->rssi - IL39_RSSI_OFFSET;
 
-	D_STATS("Rssi %d sig_avg %d noise_diff %d\n",
-			rx_status.signal, rx_stats_sig_avg,
-			rx_stats_noise_diff);
+	D_STATS("Rssi %d sig_avg %d noise_diff %d\n", rx_status.signal,
+		rx_stats_sig_avg, rx_stats_noise_diff);
 
 	header = (struct ieee80211_hdr *)IL_RX_DATA(pkt);
 
 	network_packet = il3945_is_network_packet(il, header);
 
 	D_STATS("[%c] %d RSSI:%d Signal:%u, Rate:%u\n",
-			      network_packet ? '*' : ' ',
-			      le16_to_cpu(rx_hdr->channel),
-			      rx_status.signal, rx_status.signal,
-			      rx_status.rate_idx);
+		network_packet ? '*' : ' ', le16_to_cpu(rx_hdr->channel),
+		rx_status.signal, rx_status.signal, rx_status.rate_idx);
 
-	il_dbg_log_rx_data_frame(il, le16_to_cpu(rx_hdr->len),
-						header);
+	il_dbg_log_rx_data_frame(il, le16_to_cpu(rx_hdr->len), header);
 
 	if (network_packet) {
 		il->_3945.last_beacon_time =
-			le32_to_cpu(rx_end->beacon_timestamp);
+		    le32_to_cpu(rx_end->beacon_timestamp);
 		il->_3945.last_tsf = le64_to_cpu(rx_end->timestamp);
 		il->_3945.last_rx_rssi = rx_status.signal;
 	}
@@ -591,9 +589,9 @@ static void il3945_hdl_rx(struct il_priv *il,
 	il3945_pass_packet_to_mac80211(il, rxb, &rx_status);
 }
 
-int il3945_hw_txq_attach_buf_to_tfd(struct il_priv *il,
-				     struct il_tx_queue *txq,
-				     dma_addr_t addr, u16 len, u8 reset, u8 pad)
+int
+il3945_hw_txq_attach_buf_to_tfd(struct il_priv *il, struct il_tx_queue *txq,
+				dma_addr_t addr, u16 len, u8 reset, u8 pad)
 {
 	int count;
 	struct il_queue *q;
@@ -610,7 +608,7 @@ int il3945_hw_txq_attach_buf_to_tfd(struct il_priv *il,
 
 	if (count >= NUM_TFD_CHUNKS || count < 0) {
 		IL_ERR("Error can not send more than %d chunks\n",
-			  NUM_TFD_CHUNKS);
+		       NUM_TFD_CHUNKS);
 		return -EINVAL;
 	}
 
@@ -619,8 +617,8 @@ int il3945_hw_txq_attach_buf_to_tfd(struct il_priv *il,
 
 	count++;
 
-	tfd->control_flags = cpu_to_le32(TFD_CTL_COUNT_SET(count) |
-					 TFD_CTL_PAD_SET(pad));
+	tfd->control_flags =
+	    cpu_to_le32(TFD_CTL_COUNT_SET(count) | TFD_CTL_PAD_SET(pad));
 
 	return 0;
 }
@@ -630,7 +628,8 @@ int il3945_hw_txq_attach_buf_to_tfd(struct il_priv *il,
  *
  * Does NOT advance any idxes
  */
-void il3945_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
+void
+il3945_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
 {
 	struct il3945_tfd *tfd_tmp = (struct il3945_tfd *)txq->tfds;
 	int idx = txq->q.read_ptr;
@@ -649,16 +648,16 @@ void il3945_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
 
 	/* Unmap tx_cmd */
 	if (counter)
-		pci_unmap_single(dev,
-				dma_unmap_addr(&txq->meta[idx], mapping),
-				dma_unmap_len(&txq->meta[idx], len),
-				PCI_DMA_TODEVICE);
+		pci_unmap_single(dev, dma_unmap_addr(&txq->meta[idx], mapping),
+				 dma_unmap_len(&txq->meta[idx], len),
+				 PCI_DMA_TODEVICE);
 
 	/* unmap chunks if any */
 
 	for (i = 1; i < counter; i++)
 		pci_unmap_single(dev, le32_to_cpu(tfd->tbs[i].addr),
-			 le32_to_cpu(tfd->tbs[i].len), PCI_DMA_TODEVICE);
+				 le32_to_cpu(tfd->tbs[i].len),
+				 PCI_DMA_TODEVICE);
 
 	/* free SKB */
 	if (txq->txb) {
@@ -678,11 +677,10 @@ void il3945_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
  * il3945_hw_build_tx_cmd_rate - Add rate portion to TX_CMD:
  *
 */
-void il3945_hw_build_tx_cmd_rate(struct il_priv *il,
-				  struct il_device_cmd *cmd,
-				  struct ieee80211_tx_info *info,
-				  struct ieee80211_hdr *hdr,
-				  int sta_id, int tx_id)
+void
+il3945_hw_build_tx_cmd_rate(struct il_priv *il, struct il_device_cmd *cmd,
+			    struct ieee80211_tx_info *info,
+			    struct ieee80211_hdr *hdr, int sta_id, int tx_id)
 {
 	u16 hw_value = ieee80211_get_tx_rate(il->hw, info)->hw_value;
 	u16 rate_idx = min(hw_value & 0xffff, RATE_COUNT_3945);
@@ -701,7 +699,7 @@ void il3945_hw_build_tx_cmd_rate(struct il_priv *il,
 	 * in this running context */
 	rate_mask = RATES_MASK_3945;
 
-	/* Set retry limit on DATA packets and Probe Responses*/
+	/* Set retry limit on DATA packets and Probe Responses */
 	if (ieee80211_is_probe_resp(fc))
 		data_retry_limit = 3;
 	else
@@ -722,18 +720,19 @@ void il3945_hw_build_tx_cmd_rate(struct il_priv *il,
 
 	/* OFDM */
 	tx_cmd->supp_rates[0] =
-	   ((rate_mask & IL_OFDM_RATES_MASK) >> IL_FIRST_OFDM_RATE) & 0xFF;
+	    ((rate_mask & IL_OFDM_RATES_MASK) >> IL_FIRST_OFDM_RATE) & 0xFF;
 
 	/* CCK */
 	tx_cmd->supp_rates[1] = (rate_mask & 0xF);
 
 	D_RATE("Tx sta id: %d, rate: %d (plcp), flags: 0x%4X "
-		       "cck/ofdm mask: 0x%x/0x%x\n", sta_id,
-		       tx_cmd->rate, le32_to_cpu(tx_cmd->tx_flags),
-		       tx_cmd->supp_rates[1], tx_cmd->supp_rates[0]);
+	       "cck/ofdm mask: 0x%x/0x%x\n", sta_id, tx_cmd->rate,
+	       le32_to_cpu(tx_cmd->tx_flags), tx_cmd->supp_rates[1],
+	       tx_cmd->supp_rates[0]);
 }
 
-static u8 il3945_sync_sta(struct il_priv *il, int sta_id, u16 tx_rate)
+static u8
+il3945_sync_sta(struct il_priv *il, int sta_id, u16 tx_rate)
 {
 	unsigned long flags_spin;
 	struct il_station_entry *station;
@@ -750,12 +749,12 @@ static u8 il3945_sync_sta(struct il_priv *il, int sta_id, u16 tx_rate)
 	il_send_add_sta(il, &station->sta, CMD_ASYNC);
 	spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 
-	D_RATE("SCALE sync station %d to rate %d\n",
-			sta_id, tx_rate);
+	D_RATE("SCALE sync station %d to rate %d\n", sta_id, tx_rate);
 	return sta_id;
 }
 
-static void il3945_set_pwr_vmain(struct il_priv *il)
+static void
+il3945_set_pwr_vmain(struct il_priv *il)
 {
 /*
  * (for documentation purposes)
@@ -773,28 +772,28 @@ static void il3945_set_pwr_vmain(struct il_priv *il)
  */
 
 	il_set_bits_mask_prph(il, APMG_PS_CTRL_REG,
-			APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
-			~APMG_PS_CTRL_MSK_PWR_SRC);
+			      APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
+			      ~APMG_PS_CTRL_MSK_PWR_SRC);
 
-	_il_poll_bit(il, CSR_GPIO_IN, CSR_GPIO_IN_VAL_VMAIN_PWR_SRC,
-		     CSR_GPIO_IN_BIT_AUX_POWER, 5000);	/* uS */
+	_il_poll_bit(il, CSR_GPIO_IN, CSR_GPIO_IN_VAL_VMAIN_PWR_SRC, CSR_GPIO_IN_BIT_AUX_POWER, 5000);	/* uS */
 }
 
-static int il3945_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
+static int
+il3945_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
 {
 	il_wr(il, FH39_RCSR_RBD_BASE(0), rxq->bd_dma);
-	il_wr(il, FH39_RCSR_RPTR_ADDR(0),
-					rxq->rb_stts_dma);
+	il_wr(il, FH39_RCSR_RPTR_ADDR(0), rxq->rb_stts_dma);
 	il_wr(il, FH39_RCSR_WPTR(0), 0);
 	il_wr(il, FH39_RCSR_CONFIG(0),
-		FH39_RCSR_RX_CONFIG_REG_VAL_DMA_CHNL_EN_ENABLE |
-		FH39_RCSR_RX_CONFIG_REG_VAL_RDRBD_EN_ENABLE |
-		FH39_RCSR_RX_CONFIG_REG_BIT_WR_STTS_EN |
-		FH39_RCSR_RX_CONFIG_REG_VAL_MAX_FRAG_SIZE_128 |
-		(RX_QUEUE_SIZE_LOG << FH39_RCSR_RX_CONFIG_REG_POS_RBDC_SIZE) |
-		FH39_RCSR_RX_CONFIG_REG_VAL_IRQ_DEST_INT_HOST |
-		(1 << FH39_RCSR_RX_CONFIG_REG_POS_IRQ_RBTH) |
-		FH39_RCSR_RX_CONFIG_REG_VAL_MSG_MODE_FH);
+	      FH39_RCSR_RX_CONFIG_REG_VAL_DMA_CHNL_EN_ENABLE |
+	      FH39_RCSR_RX_CONFIG_REG_VAL_RDRBD_EN_ENABLE |
+	      FH39_RCSR_RX_CONFIG_REG_BIT_WR_STTS_EN |
+	      FH39_RCSR_RX_CONFIG_REG_VAL_MAX_FRAG_SIZE_128 | (RX_QUEUE_SIZE_LOG
+							       <<
+							       FH39_RCSR_RX_CONFIG_REG_POS_RBDC_SIZE)
+	      | FH39_RCSR_RX_CONFIG_REG_VAL_IRQ_DEST_INT_HOST | (1 <<
+								 FH39_RCSR_RX_CONFIG_REG_POS_IRQ_RBTH)
+	      | FH39_RCSR_RX_CONFIG_REG_VAL_MSG_MODE_FH);
 
 	/* fake read to flush all prev I/O */
 	il_rd(il, FH39_RSSR_CTRL);
@@ -802,7 +801,8 @@ static int il3945_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
 	return 0;
 }
 
-static int il3945_tx_reset(struct il_priv *il)
+static int
+il3945_tx_reset(struct il_priv *il)
 {
 
 	/* bypass mode */
@@ -819,18 +819,16 @@ static int il3945_tx_reset(struct il_priv *il)
 	il_wr_prph(il, ALM_SCD_TXF4MF_REG, 0x000004);
 	il_wr_prph(il, ALM_SCD_TXF5MF_REG, 0x000005);
 
-	il_wr(il, FH39_TSSR_CBB_BASE,
-			     il->_3945.shared_phys);
+	il_wr(il, FH39_TSSR_CBB_BASE, il->_3945.shared_phys);
 
 	il_wr(il, FH39_TSSR_MSG_CONFIG,
-		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_SNOOP_RD_TXPD_ON |
-		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_ORDER_RD_TXPD_ON |
-		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_MAX_FRAG_SIZE_128B |
-		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_SNOOP_RD_TFD_ON |
-		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_ORDER_RD_CBB_ON |
-		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_ORDER_RSP_WAIT_TH |
-		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_RSP_WAIT_TH);
-
+	      FH39_TSSR_TX_MSG_CONFIG_REG_VAL_SNOOP_RD_TXPD_ON |
+	      FH39_TSSR_TX_MSG_CONFIG_REG_VAL_ORDER_RD_TXPD_ON |
+	      FH39_TSSR_TX_MSG_CONFIG_REG_VAL_MAX_FRAG_SIZE_128B |
+	      FH39_TSSR_TX_MSG_CONFIG_REG_VAL_SNOOP_RD_TFD_ON |
+	      FH39_TSSR_TX_MSG_CONFIG_REG_VAL_ORDER_RD_CBB_ON |
+	      FH39_TSSR_TX_MSG_CONFIG_REG_VAL_ORDER_RSP_WAIT_TH |
+	      FH39_TSSR_TX_MSG_CONFIG_REG_VAL_RSP_WAIT_TH);
 
 	return 0;
 }
@@ -840,7 +838,8 @@ static int il3945_tx_reset(struct il_priv *il)
  *
  * Destroys all DMA structures and initialize them again
  */
-static int il3945_txq_ctx_reset(struct il_priv *il)
+static int
+il3945_txq_ctx_reset(struct il_priv *il)
 {
 	int rc;
 	int txq_id, slots_num;
@@ -859,10 +858,10 @@ static int il3945_txq_ctx_reset(struct il_priv *il)
 
 	/* Tx queue(s) */
 	for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++) {
-		slots_num = (txq_id == IL39_CMD_QUEUE_NUM) ?
-				TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
-		rc = il_tx_queue_init(il, &il->txq[txq_id],
-						slots_num, txq_id);
+		slots_num =
+		    (txq_id ==
+		     IL39_CMD_QUEUE_NUM) ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
+		rc = il_tx_queue_init(il, &il->txq[txq_id], slots_num, txq_id);
 		if (rc) {
 			IL_ERR("Tx %d queue init failed\n", txq_id);
 			goto error;
@@ -871,18 +870,18 @@ static int il3945_txq_ctx_reset(struct il_priv *il)
 
 	return rc;
 
- error:
+error:
 	il3945_hw_txq_ctx_free(il);
 	return rc;
 }
-
 
 /*
  * Start up 3945's basic functionality after it has been reset
  * (e.g. after platform boot, or shutdown via il_apm_stop())
  * NOTE:  This does not load uCode nor start the embedded processor
  */
-static int il3945_apm_init(struct il_priv *il)
+static int
+il3945_apm_init(struct il_priv *il)
 {
 	int ret = il_apm_init(il);
 
@@ -891,16 +890,15 @@ static int il3945_apm_init(struct il_priv *il)
 	il_wr_prph(il, APMG_RTC_INT_STT_REG, 0xFFFFFFFF);
 
 	/* Reset radio chip */
-	il_set_bits_prph(il, APMG_PS_CTRL_REG,
-				APMG_PS_CTRL_VAL_RESET_REQ);
+	il_set_bits_prph(il, APMG_PS_CTRL_REG, APMG_PS_CTRL_VAL_RESET_REQ);
 	udelay(5);
-	il_clear_bits_prph(il, APMG_PS_CTRL_REG,
-				APMG_PS_CTRL_VAL_RESET_REQ);
+	il_clear_bits_prph(il, APMG_PS_CTRL_REG, APMG_PS_CTRL_VAL_RESET_REQ);
 
 	return ret;
 }
 
-static void il3945_nic_config(struct il_priv *il)
+static void
+il3945_nic_config(struct il_priv *il)
 {
 	struct il3945_eeprom *eeprom = (struct il3945_eeprom *)il->eeprom;
 	unsigned long flags;
@@ -916,42 +914,40 @@ static void il3945_nic_config(struct il_priv *il)
 	else if (rev_id & PCI_CFG_REV_ID_BIT_BASIC_SKU) {
 		D_INFO("3945 RADIO-MB type\n");
 		il_set_bit(il, CSR_HW_IF_CONFIG_REG,
-			    CSR39_HW_IF_CONFIG_REG_BIT_3945_MB);
+			   CSR39_HW_IF_CONFIG_REG_BIT_3945_MB);
 	} else {
 		D_INFO("3945 RADIO-MM type\n");
 		il_set_bit(il, CSR_HW_IF_CONFIG_REG,
-			    CSR39_HW_IF_CONFIG_REG_BIT_3945_MM);
+			   CSR39_HW_IF_CONFIG_REG_BIT_3945_MM);
 	}
 
 	if (EEPROM_SKU_CAP_OP_MODE_MRC == eeprom->sku_cap) {
 		D_INFO("SKU OP mode is mrc\n");
 		il_set_bit(il, CSR_HW_IF_CONFIG_REG,
-			    CSR39_HW_IF_CONFIG_REG_BIT_SKU_MRC);
+			   CSR39_HW_IF_CONFIG_REG_BIT_SKU_MRC);
 	} else
 		D_INFO("SKU OP mode is basic\n");
 
 	if ((eeprom->board_revision & 0xF0) == 0xD0) {
-		D_INFO("3945ABG revision is 0x%X\n",
-			       eeprom->board_revision);
+		D_INFO("3945ABG revision is 0x%X\n", eeprom->board_revision);
 		il_set_bit(il, CSR_HW_IF_CONFIG_REG,
-			    CSR39_HW_IF_CONFIG_REG_BIT_BOARD_TYPE);
+			   CSR39_HW_IF_CONFIG_REG_BIT_BOARD_TYPE);
 	} else {
-		D_INFO("3945ABG revision is 0x%X\n",
-			       eeprom->board_revision);
+		D_INFO("3945ABG revision is 0x%X\n", eeprom->board_revision);
 		il_clear_bit(il, CSR_HW_IF_CONFIG_REG,
-			      CSR39_HW_IF_CONFIG_REG_BIT_BOARD_TYPE);
+			     CSR39_HW_IF_CONFIG_REG_BIT_BOARD_TYPE);
 	}
 
 	if (eeprom->almgor_m_version <= 1) {
 		il_set_bit(il, CSR_HW_IF_CONFIG_REG,
-			    CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_A);
+			   CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_A);
 		D_INFO("Card M type A version is 0x%X\n",
-			       eeprom->almgor_m_version);
+		       eeprom->almgor_m_version);
 	} else {
 		D_INFO("Card M type B version is 0x%X\n",
-			       eeprom->almgor_m_version);
+		       eeprom->almgor_m_version);
 		il_set_bit(il, CSR_HW_IF_CONFIG_REG,
-			    CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_B);
+			   CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_B);
 	}
 	spin_unlock_irqrestore(&il->lock, flags);
 
@@ -962,7 +958,8 @@ static void il3945_nic_config(struct il_priv *il)
 		D_RF_KILL("HW RF KILL supported in EEPROM.\n");
 }
 
-int il3945_hw_nic_init(struct il_priv *il)
+int
+il3945_hw_nic_init(struct il_priv *il)
 {
 	int rc;
 	unsigned long flags;
@@ -990,11 +987,10 @@ int il3945_hw_nic_init(struct il_priv *il)
 
 	il3945_rx_init(il, rxq);
 
-
 	/* Look at using this instead:
-	rxq->need_update = 1;
-	il_rx_queue_update_write_ptr(il, rxq);
-	*/
+	   rxq->need_update = 1;
+	   il_rx_queue_update_write_ptr(il, rxq);
+	 */
 
 	il_wr(il, FH39_RCSR_WPTR(0), rxq->write & ~7);
 
@@ -1012,14 +1008,14 @@ int il3945_hw_nic_init(struct il_priv *il)
  *
  * Destroy all TX DMA queues and structures
  */
-void il3945_hw_txq_ctx_free(struct il_priv *il)
+void
+il3945_hw_txq_ctx_free(struct il_priv *il)
 {
 	int txq_id;
 
 	/* Tx queues */
 	if (il->txq)
-		for (txq_id = 0; txq_id < il->hw_params.max_txq_num;
-		     txq_id++)
+		for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++)
 			if (txq_id == IL39_CMD_QUEUE_NUM)
 				il_cmd_queue_free(il);
 			else
@@ -1029,7 +1025,8 @@ void il3945_hw_txq_ctx_free(struct il_priv *il)
 	il_txq_mem(il);
 }
 
-void il3945_hw_txq_ctx_stop(struct il_priv *il)
+void
+il3945_hw_txq_ctx_stop(struct il_priv *il)
 {
 	int txq_id;
 
@@ -1041,8 +1038,8 @@ void il3945_hw_txq_ctx_stop(struct il_priv *il)
 	for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++) {
 		il_wr(il, FH39_TCSR_CONFIG(txq_id), 0x0);
 		il_poll_bit(il, FH39_TSSR_TX_STATUS,
-				FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
-				1000);
+			    FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
+			    1000);
 	}
 
 	il3945_hw_txq_ctx_free(il);
@@ -1052,7 +1049,8 @@ void il3945_hw_txq_ctx_stop(struct il_priv *il)
  * il3945_hw_reg_adjust_power_by_temp
  * return idx delta into power gain settings table
 */
-static int il3945_hw_reg_adjust_power_by_temp(int new_reading, int old_reading)
+static int
+il3945_hw_reg_adjust_power_by_temp(int new_reading, int old_reading)
 {
 	return (new_reading - old_reading) * (-11) / 100;
 }
@@ -1060,12 +1058,14 @@ static int il3945_hw_reg_adjust_power_by_temp(int new_reading, int old_reading)
 /**
  * il3945_hw_reg_temp_out_of_range - Keep temperature in sane range
  */
-static inline int il3945_hw_reg_temp_out_of_range(int temperature)
+static inline int
+il3945_hw_reg_temp_out_of_range(int temperature)
 {
 	return (temperature < -260 || temperature > 25) ? 1 : 0;
 }
 
-int il3945_hw_get_temperature(struct il_priv *il)
+int
+il3945_hw_get_temperature(struct il_priv *il)
 {
 	return _il_rd(il, CSR_UCODE_DRV_GP2);
 }
@@ -1074,7 +1074,8 @@ int il3945_hw_get_temperature(struct il_priv *il)
  * il3945_hw_reg_txpower_get_temperature
  * get the current temperature by reading from NIC
 */
-static int il3945_hw_reg_txpower_get_temperature(struct il_priv *il)
+static int
+il3945_hw_reg_txpower_get_temperature(struct il_priv *il)
 {
 	struct il3945_eeprom *eeprom = (struct il3945_eeprom *)il->eeprom;
 	int temperature;
@@ -1093,7 +1094,7 @@ static int il3945_hw_reg_txpower_get_temperature(struct il_priv *il)
 		 *   substitute the 3rd band/group's temp measured at factory */
 		if (il->last_temperature > 100)
 			temperature = eeprom->groups[2].temperature;
-		else /* else use most recent "sane" value from driver */
+		else		/* else use most recent "sane" value from driver */
 			temperature = il->last_temperature;
 	}
 
@@ -1111,7 +1112,8 @@ static int il3945_hw_reg_txpower_get_temperature(struct il_priv *il)
  * records new temperature in tx_mgr->temperature.
  * replaces tx_mgr->last_temperature *only* if calib needed
  *    (assumes caller will actually do the calibration!). */
-static int il3945_is_temp_calib_needed(struct il_priv *il)
+static int
+il3945_is_temp_calib_needed(struct il_priv *il)
 {
 	int temp_diff;
 
@@ -1226,7 +1228,7 @@ static struct il3945_tx_power power_gain_table[2][IL_MAX_GAIN_ENTRIES] = {
 	 {3, 113},
 	 {3, 106},
 	 {3, 102},
-	 {3, 95} },		/* 2.4 GHz, lowest power */
+	 {3, 95}},		/* 2.4 GHz, lowest power */
 	{
 	 {251, 127},		/* 5.x GHz, highest power */
 	 {251, 120},
@@ -1305,10 +1307,11 @@ static struct il3945_tx_power power_gain_table[2][IL_MAX_GAIN_ENTRIES] = {
 	 {35, 113},
 	 {35, 107},
 	 {35, 99},
-	 {3, 120} }		/* 5.x GHz, lowest power */
+	 {3, 120}}		/* 5.x GHz, lowest power */
 };
 
-static inline u8 il3945_hw_reg_fix_power_idx(int idx)
+static inline u8
+il3945_hw_reg_fix_power_idx(int idx)
 {
 	if (idx < 0)
 		return 0;
@@ -1326,10 +1329,10 @@ static inline u8 il3945_hw_reg_fix_power_idx(int idx)
  * Set (in our channel info database) the direct scan Tx power for 1 Mbit (CCK)
  * or 6 Mbit (OFDM) rates.
  */
-static void il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_idx,
-			       s32 rate_idx, const s8 *clip_pwrs,
-			       struct il_channel_info *ch_info,
-			       int band_idx)
+static void
+il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_idx, s32 rate_idx,
+			     const s8 * clip_pwrs,
+			     struct il_channel_info *ch_info, int band_idx)
 {
 	struct il3945_scan_power_info *scan_power_info;
 	s8 power;
@@ -1350,9 +1353,13 @@ static void il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_idx,
 	 *   current "normal" temperature-compensated Tx power *idx* for
 	 *   this rate (1Mb or 6Mb) to yield new temp-compensated scan power
 	 *   *idx*. */
-	power_idx = ch_info->power_info[rate_idx].power_table_idx
-	    - (power - ch_info->power_info
-	       [RATE_6M_IDX_TBL].requested_power) * 2;
+	power_idx =
+	    ch_info->power_info[rate_idx].power_table_idx - (power -
+							     ch_info->
+							     power_info
+							     [RATE_6M_IDX_TBL].
+							     requested_power) *
+	    2;
 
 	/* store reference idx that we use when adjusting *all* scan
 	 *   powers.  So we can accommodate user (all channel) or spectrum
@@ -1379,7 +1386,8 @@ static void il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_idx,
  * Configures power settings for all rates for the current channel,
  * using values from channel info struct, and send to NIC
  */
-static int il3945_send_tx_power(struct il_priv *il)
+static int
+il3945_send_tx_power(struct il_priv *il)
 {
 	int rate_idx, i;
 	const struct il_channel_info *ch_info = NULL;
@@ -1388,8 +1396,9 @@ static int il3945_send_tx_power(struct il_priv *il)
 	};
 	u16 chan;
 
-	if (WARN_ONCE(test_bit(S_SCAN_HW, &il->status),
-		      "TX Power requested while scanning!\n"))
+	if (WARN_ONCE
+	    (test_bit(S_SCAN_HW, &il->status),
+	     "TX Power requested while scanning!\n"))
 		return -EAGAIN;
 
 	chan = le16_to_cpu(il->ctx.active.channel);
@@ -1397,15 +1406,13 @@ static int il3945_send_tx_power(struct il_priv *il)
 	txpower.band = (il->band == IEEE80211_BAND_5GHZ) ? 0 : 1;
 	ch_info = il_get_channel_info(il, il->band, chan);
 	if (!ch_info) {
-		IL_ERR(
-			"Failed to get channel info for channel %d [%d]\n",
-			chan, il->band);
+		IL_ERR("Failed to get channel info for channel %d [%d]\n", chan,
+		       il->band);
 		return -EINVAL;
 	}
 
 	if (!il_is_channel_valid(ch_info)) {
-		D_POWER("Not calling TX_PWR_TBL_CMD on "
-				"non-Tx channel.\n");
+		D_POWER("Not calling TX_PWR_TBL_CMD on " "non-Tx channel.\n");
 		return 0;
 	}
 
@@ -1418,29 +1425,25 @@ static int il3945_send_tx_power(struct il_priv *il)
 		txpower.power[i].rate = il3945_rates[rate_idx].plcp;
 
 		D_POWER("ch %d:%d rf %d dsp %3d rate code 0x%02x\n",
-				le16_to_cpu(txpower.channel),
-				txpower.band,
-				txpower.power[i].tpc.tx_gain,
-				txpower.power[i].tpc.dsp_atten,
-				txpower.power[i].rate);
+			le16_to_cpu(txpower.channel), txpower.band,
+			txpower.power[i].tpc.tx_gain,
+			txpower.power[i].tpc.dsp_atten, txpower.power[i].rate);
 	}
 	/* Fill CCK rates */
-	for (rate_idx = IL_FIRST_CCK_RATE;
-	     rate_idx <= IL_LAST_CCK_RATE; rate_idx++, i++) {
+	for (rate_idx = IL_FIRST_CCK_RATE; rate_idx <= IL_LAST_CCK_RATE;
+	     rate_idx++, i++) {
 		txpower.power[i].tpc = ch_info->power_info[i].tpc;
 		txpower.power[i].rate = il3945_rates[rate_idx].plcp;
 
 		D_POWER("ch %d:%d rf %d dsp %3d rate code 0x%02x\n",
-				le16_to_cpu(txpower.channel),
-				txpower.band,
-				txpower.power[i].tpc.tx_gain,
-				txpower.power[i].tpc.dsp_atten,
-				txpower.power[i].rate);
+			le16_to_cpu(txpower.channel), txpower.band,
+			txpower.power[i].tpc.tx_gain,
+			txpower.power[i].tpc.dsp_atten, txpower.power[i].rate);
 	}
 
 	return il_send_cmd_pdu(il, C_TX_PWR_TBL,
-				sizeof(struct il3945_txpowertable_cmd),
-				&txpower);
+			       sizeof(struct il3945_txpowertable_cmd),
+			       &txpower);
 
 }
 
@@ -1460,8 +1463,8 @@ static int il3945_send_tx_power(struct il_priv *il)
  *	 properly fill out the scan powers, and actual h/w gain settings,
  *	 and send changes to NIC
  */
-static int il3945_hw_reg_set_new_power(struct il_priv *il,
-			     struct il_channel_info *ch_info)
+static int
+il3945_hw_reg_set_new_power(struct il_priv *il, struct il_channel_info *ch_info)
 {
 	struct il3945_channel_power_info *power_info;
 	int power_changed = 0;
@@ -1476,8 +1479,7 @@ static int il3945_hw_reg_set_new_power(struct il_priv *il,
 	power_info = ch_info->power_info;
 
 	/* update OFDM Txpower settings */
-	for (i = RATE_6M_IDX_TBL; i <= RATE_54M_IDX_TBL;
-	     i++, ++power_info) {
+	for (i = RATE_6M_IDX_TBL; i <= RATE_54M_IDX_TBL; i++, ++power_info) {
 		int delta_idx;
 
 		/* limit new power to be no more than h/w capability */
@@ -1500,8 +1502,8 @@ static int il3945_hw_reg_set_new_power(struct il_priv *il,
 	 *    ... all CCK power settings for a given channel are the *same*. */
 	if (power_changed) {
 		power =
-		    ch_info->power_info[RATE_12M_IDX_TBL].
-		    requested_power + IL_CCK_FROM_OFDM_POWER_DIFF;
+		    ch_info->power_info[RATE_12M_IDX_TBL].requested_power +
+		    IL_CCK_FROM_OFDM_POWER_DIFF;
 
 		/* do all CCK rates' il3945_channel_power_info structures */
 		for (i = RATE_1M_IDX_TBL; i <= RATE_11M_IDX_TBL; i++) {
@@ -1523,15 +1525,17 @@ static int il3945_hw_reg_set_new_power(struct il_priv *il,
  *	 based strictly on regulatory (eeprom and spectrum mgt) limitations
  *	 (no consideration for h/w clipping limitations).
  */
-static int il3945_hw_reg_get_ch_txpower_limit(struct il_channel_info *ch_info)
+static int
+il3945_hw_reg_get_ch_txpower_limit(struct il_channel_info *ch_info)
 {
 	s8 max_power;
 
 #if 0
 	/* if we're using TGd limits, use lower of TGd or EEPROM */
 	if (ch_info->tgd_data.max_power != 0)
-		max_power = min(ch_info->tgd_data.max_power,
-				ch_info->eeprom.max_power_avg);
+		max_power =
+		    min(ch_info->tgd_data.max_power,
+			ch_info->eeprom.max_power_avg);
 
 	/* else just use EEPROM limits */
 	else
@@ -1551,12 +1555,13 @@ static int il3945_hw_reg_get_ch_txpower_limit(struct il_channel_info *ch_info)
  *
  * If RxOn is "associated", this sends the new Txpower to NIC!
  */
-static int il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
+static int
+il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 {
 	struct il_channel_info *ch_info = NULL;
 	struct il3945_eeprom *eeprom = (struct il3945_eeprom *)il->eeprom;
 	int delta_idx;
-	const s8 *clip_pwrs; /* array of h/w max power levels for each rate */
+	const s8 *clip_pwrs;	/* array of h/w max power levels for each rate */
 	u8 a_band;
 	u8 rate_idx;
 	u8 scan_tbl_idx;
@@ -1564,8 +1569,7 @@ static int il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 	int ref_temp;
 	int temperature = il->temperature;
 
-	if (il->disable_tx_power_cal ||
-	    test_bit(S_SCANNING, &il->status)) {
+	if (il->disable_tx_power_cal || test_bit(S_SCANNING, &il->status)) {
 		/* do not perform tx power calibration */
 		return 0;
 	}
@@ -1575,17 +1579,15 @@ static int il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 		a_band = il_is_channel_a_band(ch_info);
 
 		/* Get this chnlgrp's factory calibration temperature */
-		ref_temp = (s16)eeprom->groups[ch_info->group_idx].
-		    temperature;
+		ref_temp = (s16) eeprom->groups[ch_info->group_idx].temperature;
 
 		/* get power idx adjustment based on current and factory
 		 * temps */
-		delta_idx = il3945_hw_reg_adjust_power_by_temp(temperature,
-							      ref_temp);
+		delta_idx =
+		    il3945_hw_reg_adjust_power_by_temp(temperature, ref_temp);
 
 		/* set tx power value for all rates, OFDM and CCK */
-		for (rate_idx = 0; rate_idx < RATE_COUNT_3945;
-		     rate_idx++) {
+		for (rate_idx = 0; rate_idx < RATE_COUNT_3945; rate_idx++) {
 			int power_idx =
 			    ch_info->power_info[rate_idx].base_power_idx;
 
@@ -1594,23 +1596,25 @@ static int il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 
 			/* stay within table range */
 			power_idx = il3945_hw_reg_fix_power_idx(power_idx);
-			ch_info->power_info[rate_idx].
-			    power_table_idx = (u8) power_idx;
+			ch_info->power_info[rate_idx].power_table_idx =
+			    (u8) power_idx;
 			ch_info->power_info[rate_idx].tpc =
 			    power_gain_table[a_band][power_idx];
 		}
 
 		/* Get this chnlgrp's rate-to-max/clip-powers table */
-		clip_pwrs = il->_3945.clip_groups[ch_info->group_idx].clip_powers;
+		clip_pwrs =
+		    il->_3945.clip_groups[ch_info->group_idx].clip_powers;
 
 		/* set scan tx power, 1Mbit for CCK, 6Mbit for OFDM */
-		for (scan_tbl_idx = 0;
-		     scan_tbl_idx < IL_NUM_SCAN_RATES; scan_tbl_idx++) {
-			s32 actual_idx = (scan_tbl_idx == 0) ?
-			    RATE_1M_IDX_TBL : RATE_6M_IDX_TBL;
+		for (scan_tbl_idx = 0; scan_tbl_idx < IL_NUM_SCAN_RATES;
+		     scan_tbl_idx++) {
+			s32 actual_idx =
+			    (scan_tbl_idx ==
+			     0) ? RATE_1M_IDX_TBL : RATE_6M_IDX_TBL;
 			il3945_hw_reg_set_scan_power(il, scan_tbl_idx,
-					   actual_idx, clip_pwrs,
-					   ch_info, a_band);
+						     actual_idx, clip_pwrs,
+						     ch_info, a_band);
 		}
 	}
 
@@ -1618,7 +1622,8 @@ static int il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 	return il->cfg->ops->lib->send_tx_power(il);
 }
 
-int il3945_hw_reg_set_txpower(struct il_priv *il, s8 power)
+int
+il3945_hw_reg_set_txpower(struct il_priv *il, s8 power)
 {
 	struct il_channel_info *ch_info;
 	s8 max_power;
@@ -1626,8 +1631,8 @@ int il3945_hw_reg_set_txpower(struct il_priv *il, s8 power)
 	u8 i;
 
 	if (il->tx_power_user_lmt == power) {
-		D_POWER("Requested Tx power same as current "
-				"limit: %ddBm.\n", power);
+		D_POWER("Requested Tx power same as current " "limit: %ddBm.\n",
+			power);
 		return 0;
 	}
 
@@ -1660,8 +1665,8 @@ int il3945_hw_reg_set_txpower(struct il_priv *il, s8 power)
 	return 0;
 }
 
-static int il3945_send_rxon_assoc(struct il_priv *il,
-				   struct il_rxon_context *ctx)
+static int
+il3945_send_rxon_assoc(struct il_priv *il, struct il_rxon_context *ctx)
 {
 	int rc = 0;
 	struct il_rx_pkt *pkt;
@@ -1712,7 +1717,8 @@ static int il3945_send_rxon_assoc(struct il_priv *il,
  * function correctly transitions out of the RXON_ASSOC_MSK state if
  * a HW tune is required based on the RXON structure changes.
  */
-int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
+int
+il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 {
 	/* cast away the const for active_rxon in this function */
 	struct il3945_rxon_cmd *active_rxon = (void *)&ctx->active;
@@ -1730,8 +1736,7 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	staging_rxon->flags |= RXON_FLG_TSF2HOST_MSK;
 
 	/* select antenna */
-	staging_rxon->flags &=
-	    ~(RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_SEL_MSK);
+	staging_rxon->flags &= ~(RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_SEL_MSK);
 	staging_rxon->flags |= il3945_get_antenna_flags(il);
 
 	rc = il_check_rxon_cmd(il, ctx);
@@ -1743,13 +1748,11 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	/* If we don't need to send a full RXON, we can use
 	 * il3945_rxon_assoc_cmd which is used to reconfigure filter
 	 * and other flags for the current radio configuration. */
-	if (!il_full_rxon_required(il,
-			&il->ctx)) {
-		rc = il_send_rxon_assoc(il,
-					 &il->ctx);
+	if (!il_full_rxon_required(il, &il->ctx)) {
+		rc = il_send_rxon_assoc(il, &il->ctx);
 		if (rc) {
 			IL_ERR("Error setting RXON_ASSOC "
-				  "configuration (%d).\n", rc);
+			       "configuration (%d).\n", rc);
 			return rc;
 		}
 
@@ -1776,31 +1779,24 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		 */
 		active_rxon->reserved4 = 0;
 		active_rxon->reserved5 = 0;
-		rc = il_send_cmd_pdu(il, C_RXON,
-				      sizeof(struct il3945_rxon_cmd),
-				      &il->ctx.active);
+		rc = il_send_cmd_pdu(il, C_RXON, sizeof(struct il3945_rxon_cmd),
+				     &il->ctx.active);
 
 		/* If the mask clearing failed then we set
 		 * active_rxon back to what it was previously */
 		if (rc) {
 			active_rxon->filter_flags |= RXON_FILTER_ASSOC_MSK;
 			IL_ERR("Error clearing ASSOC_MSK on current "
-				  "configuration (%d).\n", rc);
+			       "configuration (%d).\n", rc);
 			return rc;
 		}
-		il_clear_ucode_stations(il,
-					 &il->ctx);
-		il_restore_stations(il,
-					 &il->ctx);
+		il_clear_ucode_stations(il, &il->ctx);
+		il_restore_stations(il, &il->ctx);
 	}
 
-	D_INFO("Sending RXON\n"
-		       "* with%s RXON_FILTER_ASSOC_MSK\n"
-		       "* channel = %d\n"
-		       "* bssid = %pM\n",
-		       (new_assoc ? "" : "out"),
-		       le16_to_cpu(staging_rxon->channel),
-		       staging_rxon->bssid_addr);
+	D_INFO("Sending RXON\n" "* with%s RXON_FILTER_ASSOC_MSK\n"
+	       "* channel = %d\n" "* bssid = %pM\n", (new_assoc ? "" : "out"),
+	       le16_to_cpu(staging_rxon->channel), staging_rxon->bssid_addr);
 
 	/*
 	 * reserved4 and 5 could have been filled by the iwlcore code.
@@ -1812,9 +1808,8 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	il_set_rxon_hwcrypto(il, ctx, !il3945_mod_params.sw_crypto);
 
 	/* Apply the new configuration */
-	rc = il_send_cmd_pdu(il, C_RXON,
-			      sizeof(struct il3945_rxon_cmd),
-			      staging_rxon);
+	rc = il_send_cmd_pdu(il, C_RXON, sizeof(struct il3945_rxon_cmd),
+			     staging_rxon);
 	if (rc) {
 		IL_ERR("Error setting new configuration (%d).\n", rc);
 		return rc;
@@ -1823,10 +1818,8 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	memcpy(active_rxon, staging_rxon, sizeof(*active_rxon));
 
 	if (!new_assoc) {
-		il_clear_ucode_stations(il,
-					 &il->ctx);
-		il_restore_stations(il,
-					&il->ctx);
+		il_clear_ucode_stations(il, &il->ctx);
+		il_restore_stations(il, &il->ctx);
 	}
 
 	/* If we issue a new RXON command which required a tune then we must
@@ -1857,7 +1850,8 @@ int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
  *     -- send new set of gain settings to NIC
  * NOTE:  This should continue working, even when we're not associated,
  *   so we can keep our internal table of scan powers current. */
-void il3945_reg_txpower_periodic(struct il_priv *il)
+void
+il3945_reg_txpower_periodic(struct il_priv *il)
 {
 	/* This will kick in the "brute force"
 	 * il3945_hw_reg_comp_txpower_temp() below */
@@ -1869,15 +1863,16 @@ void il3945_reg_txpower_periodic(struct il_priv *il)
 	 * ignoring any previous power measurements */
 	il3945_hw_reg_comp_txpower_temp(il);
 
- reschedule:
-	queue_delayed_work(il->workqueue,
-			   &il->_3945.thermal_periodic, REG_RECALIB_PERIOD * HZ);
+reschedule:
+	queue_delayed_work(il->workqueue, &il->_3945.thermal_periodic,
+			   REG_RECALIB_PERIOD * HZ);
 }
 
-static void il3945_bg_reg_txpower_periodic(struct work_struct *work)
+static void
+il3945_bg_reg_txpower_periodic(struct work_struct *work)
 {
 	struct il_priv *il = container_of(work, struct il_priv,
-					     _3945.thermal_periodic.work);
+					  _3945.thermal_periodic.work);
 
 	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
@@ -1898,8 +1893,9 @@ static void il3945_bg_reg_txpower_periodic(struct work_struct *work)
  *	 on A-band, EEPROM's "group frequency" entries represent the top
  *	 channel in each group 1-4.  Group 5 All B/G channels are in group 0.
  */
-static u16 il3945_hw_reg_get_ch_grp_idx(struct il_priv *il,
-				       const struct il_channel_info *ch_info)
+static u16
+il3945_hw_reg_get_ch_grp_idx(struct il_priv *il,
+			     const struct il_channel_info *ch_info)
 {
 	struct il3945_eeprom *eeprom = (struct il3945_eeprom *)il->eeprom;
 	struct il3945_eeprom_txpower_group *ch_grp = &eeprom->groups[0];
@@ -1922,8 +1918,7 @@ static u16 il3945_hw_reg_get_ch_grp_idx(struct il_priv *il,
 	} else
 		group_idx = 0;	/* 2.4 GHz, group 0 */
 
-	D_POWER("Chnl %d mapped to grp %d\n", ch_info->channel,
-			group_idx);
+	D_POWER("Chnl %d mapped to grp %d\n", ch_info->channel, group_idx);
 	return group_idx;
 }
 
@@ -1933,9 +1928,9 @@ static u16 il3945_hw_reg_get_ch_grp_idx(struct il_priv *il,
  * Interpolate to get nominal (i.e. at factory calibration temperature) idx
  *   into radio/DSP gain settings table for requested power.
  */
-static int il3945_hw_reg_get_matched_power_idx(struct il_priv *il,
-				       s8 requested_power,
-				       s32 setting_idx, s32 *new_idx)
+static int
+il3945_hw_reg_get_matched_power_idx(struct il_priv *il, s8 requested_power,
+				    s32 setting_idx, s32 * new_idx)
 {
 	const struct il3945_eeprom_txpower_group *chnl_grp = NULL;
 	struct il3945_eeprom *eeprom = (struct il3945_eeprom *)il->eeprom;
@@ -1975,14 +1970,16 @@ static int il3945_hw_reg_get_matched_power_idx(struct il_priv *il,
 		return -EINVAL;
 	gains0 = (s32) samples[idx0].gain_idx * (1 << 19);
 	gains1 = (s32) samples[idx1].gain_idx * (1 << 19);
-	res = gains0 + (gains1 - gains0) *
-	    ((s32) power - (s32) samples[idx0].power) / denominator +
-	    (1 << 18);
+	res =
+	    gains0 + (gains1 - gains0) * ((s32) power -
+					  (s32) samples[idx0].power) /
+	    denominator + (1 << 18);
 	*new_idx = res >> 19;
 	return 0;
 }
 
-static void il3945_hw_reg_init_channel_groups(struct il_priv *il)
+static void
+il3945_hw_reg_init_channel_groups(struct il_priv *il)
 {
 	u32 i;
 	s32 rate_idx;
@@ -1999,8 +1996,8 @@ static void il3945_hw_reg_init_channel_groups(struct il_priv *il)
 		/* sanity check on factory saturation power value */
 		if (group->saturation_power < 40) {
 			IL_WARN("Error: saturation power is %d, "
-				    "less than minimum expected 40\n",
-				    group->saturation_power);
+				"less than minimum expected 40\n",
+				group->saturation_power);
 			return;
 		}
 
@@ -2019,8 +2016,8 @@ static void il3945_hw_reg_init_channel_groups(struct il_priv *il)
 		satur_pwr = (s8) (group->saturation_power >> 1);
 
 		/* fill in channel group's nominal powers for each rate */
-		for (rate_idx = 0;
-		     rate_idx < RATE_COUNT_3945; rate_idx++, clip_pwrs++) {
+		for (rate_idx = 0; rate_idx < RATE_COUNT_3945;
+		     rate_idx++, clip_pwrs++) {
 			switch (rate_idx) {
 			case RATE_36M_IDX_TBL:
 				if (i == 0)	/* B/G */
@@ -2063,7 +2060,8 @@ static void il3945_hw_reg_init_channel_groups(struct il_priv *il)
  *
  * This does *not* write values to NIC, just sets up our internal table.
  */
-int il3945_txpower_set_from_eeprom(struct il_priv *il)
+int
+il3945_txpower_set_from_eeprom(struct il_priv *il)
 {
 	struct il_channel_info *ch_info = NULL;
 	struct il3945_channel_power_info *pwr_info;
@@ -2093,25 +2091,25 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 			continue;
 
 		/* find this channel's channel group (*not* "band") idx */
-		ch_info->group_idx =
-			il3945_hw_reg_get_ch_grp_idx(il, ch_info);
+		ch_info->group_idx = il3945_hw_reg_get_ch_grp_idx(il, ch_info);
 
 		/* Get this chnlgrp's rate->max/clip-powers table */
-		clip_pwrs = il->_3945.clip_groups[ch_info->group_idx].clip_powers;
+		clip_pwrs =
+		    il->_3945.clip_groups[ch_info->group_idx].clip_powers;
 
 		/* calculate power idx *adjustment* value according to
 		 *  diff between current temperature and factory temperature */
-		delta_idx = il3945_hw_reg_adjust_power_by_temp(temperature,
-				eeprom->groups[ch_info->group_idx].
-				temperature);
+		delta_idx =
+		    il3945_hw_reg_adjust_power_by_temp(temperature,
+						       eeprom->groups[ch_info->
+								      group_idx].
+						       temperature);
 
-		D_POWER("Delta idx for channel %d: %d [%d]\n",
-				ch_info->channel, delta_idx, temperature +
-				IL_TEMP_CONVERT);
+		D_POWER("Delta idx for channel %d: %d [%d]\n", ch_info->channel,
+			delta_idx, temperature + IL_TEMP_CONVERT);
 
 		/* set tx power value for all OFDM rates */
-		for (rate_idx = 0; rate_idx < IL_OFDM_RATES;
-		     rate_idx++) {
+		for (rate_idx = 0; rate_idx < IL_OFDM_RATES; rate_idx++) {
 			s32 uninitialized_var(power_idx);
 			int rc;
 
@@ -2125,8 +2123,9 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 			/* get base (i.e. at factory-measured temperature)
 			 *    power table idx for this rate's power */
 			rc = il3945_hw_reg_get_matched_power_idx(il, pwr,
-							 ch_info->group_idx,
-							 &power_idx);
+								 ch_info->
+								 group_idx,
+								 &power_idx);
 			if (rc) {
 				IL_ERR("Invalid power idx\n");
 				return rc;
@@ -2148,14 +2147,12 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 			    power_gain_table[a_band][power_idx].dsp_atten;
 		}
 
-		/* set tx power for CCK rates, based on OFDM 12 Mbit settings*/
+		/* set tx power for CCK rates, based on OFDM 12 Mbit settings */
 		pwr_info = &ch_info->power_info[RATE_12M_IDX_TBL];
-		power = pwr_info->requested_power +
-			IL_CCK_FROM_OFDM_POWER_DIFF;
-		pwr_idx = pwr_info->power_table_idx +
-			IL_CCK_FROM_OFDM_IDX_DIFF;
-		base_pwr_idx = pwr_info->base_power_idx +
-			IL_CCK_FROM_OFDM_IDX_DIFF;
+		power = pwr_info->requested_power + IL_CCK_FROM_OFDM_POWER_DIFF;
+		pwr_idx = pwr_info->power_table_idx + IL_CCK_FROM_OFDM_IDX_DIFF;
+		base_pwr_idx =
+		    pwr_info->base_power_idx + IL_CCK_FROM_OFDM_IDX_DIFF;
 
 		/* stay within table range */
 		pwr_idx = il3945_hw_reg_fix_power_idx(pwr_idx);
@@ -2165,9 +2162,9 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 		/* fill each CCK rate's il3945_channel_power_info structure
 		 * NOTE:  All CCK-rate Txpwrs are the same for a given chnl!
 		 * NOTE:  CCK rates start at end of OFDM rates! */
-		for (rate_idx = 0;
-		     rate_idx < IL_CCK_RATES; rate_idx++) {
-			pwr_info = &ch_info->power_info[rate_idx+IL_OFDM_RATES];
+		for (rate_idx = 0; rate_idx < IL_CCK_RATES; rate_idx++) {
+			pwr_info =
+			    &ch_info->power_info[rate_idx + IL_OFDM_RATES];
 			pwr_info->requested_power = power;
 			pwr_info->power_table_idx = pwr_idx;
 			pwr_info->base_power_idx = base_pwr_idx;
@@ -2176,48 +2173,52 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 		}
 
 		/* set scan tx power, 1Mbit for CCK, 6Mbit for OFDM */
-		for (scan_tbl_idx = 0;
-		     scan_tbl_idx < IL_NUM_SCAN_RATES; scan_tbl_idx++) {
-			s32 actual_idx = (scan_tbl_idx == 0) ?
-				RATE_1M_IDX_TBL : RATE_6M_IDX_TBL;
+		for (scan_tbl_idx = 0; scan_tbl_idx < IL_NUM_SCAN_RATES;
+		     scan_tbl_idx++) {
+			s32 actual_idx =
+			    (scan_tbl_idx ==
+			     0) ? RATE_1M_IDX_TBL : RATE_6M_IDX_TBL;
 			il3945_hw_reg_set_scan_power(il, scan_tbl_idx,
-				actual_idx, clip_pwrs, ch_info, a_band);
+						     actual_idx, clip_pwrs,
+						     ch_info, a_band);
 		}
 	}
 
 	return 0;
 }
 
-int il3945_hw_rxq_stop(struct il_priv *il)
+int
+il3945_hw_rxq_stop(struct il_priv *il)
 {
 	int rc;
 
 	il_wr(il, FH39_RCSR_CONFIG(0), 0);
 	rc = il_poll_bit(il, FH39_RSSR_STATUS,
-			FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
+			 FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
 	if (rc < 0)
 		IL_ERR("Can't stop Rx DMA.\n");
 
 	return 0;
 }
 
-int il3945_hw_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq)
+int
+il3945_hw_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq)
 {
 	int txq_id = txq->q.id;
 
 	struct il3945_shared *shared_data = il->_3945.shared_virt;
 
-	shared_data->tx_base_ptr[txq_id] = cpu_to_le32((u32)txq->q.dma_addr);
+	shared_data->tx_base_ptr[txq_id] = cpu_to_le32((u32) txq->q.dma_addr);
 
 	il_wr(il, FH39_CBCC_CTRL(txq_id), 0);
 	il_wr(il, FH39_CBCC_BASE(txq_id), 0);
 
 	il_wr(il, FH39_TCSR_CONFIG(txq_id),
-		FH39_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_NOINT |
-		FH39_TCSR_TX_CONFIG_REG_VAL_MSG_MODE_TXF |
-		FH39_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_IFTFD |
-		FH39_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL |
-		FH39_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE);
+	      FH39_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_NOINT |
+	      FH39_TCSR_TX_CONFIG_REG_VAL_MSG_MODE_TXF |
+	      FH39_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_IFTFD |
+	      FH39_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL |
+	      FH39_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE);
 
 	/* fake read to flush all prev. writes */
 	_il_rd(il, FH39_TSSR_CBB_BASE);
@@ -2228,7 +2229,8 @@ int il3945_hw_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq)
 /*
  * HCMD utils
  */
-static u16 il3945_get_hcmd_size(u8 cmd_id, u16 len)
+static u16
+il3945_get_hcmd_size(u8 cmd_id, u16 len)
 {
 	switch (cmd_id) {
 	case C_RXON:
@@ -2240,9 +2242,8 @@ static u16 il3945_get_hcmd_size(u8 cmd_id, u16 len)
 	}
 }
 
-
-static u16 il3945_build_addsta_hcmd(const struct il_addsta_cmd *cmd,
-								u8 *data)
+static u16
+il3945_build_addsta_hcmd(const struct il_addsta_cmd *cmd, u8 * data)
 {
 	struct il3945_addsta_cmd *addsta = (struct il3945_addsta_cmd *)data;
 	addsta->mode = cmd->mode;
@@ -2256,11 +2257,11 @@ static u16 il3945_build_addsta_hcmd(const struct il_addsta_cmd *cmd,
 	addsta->remove_immediate_ba_tid = cmd->remove_immediate_ba_tid;
 	addsta->add_immediate_ba_ssn = cmd->add_immediate_ba_ssn;
 
-	return (u16)sizeof(struct il3945_addsta_cmd);
+	return (u16) sizeof(struct il3945_addsta_cmd);
 }
 
-static int il3945_add_bssid_station(struct il_priv *il,
-				     const u8 *addr, u8 *sta_id_r)
+static int
+il3945_add_bssid_station(struct il_priv *il, const u8 * addr, u8 * sta_id_r)
 {
 	struct il_rxon_context *ctx = &il->ctx;
 	int ret;
@@ -2285,34 +2286,39 @@ static int il3945_add_bssid_station(struct il_priv *il,
 
 	return 0;
 }
-static int il3945_manage_ibss_station(struct il_priv *il,
-				       struct ieee80211_vif *vif, bool add)
+
+static int
+il3945_manage_ibss_station(struct il_priv *il, struct ieee80211_vif *vif,
+			   bool add)
 {
 	struct il_vif_priv *vif_priv = (void *)vif->drv_priv;
 	int ret;
 
 	if (add) {
-		ret = il3945_add_bssid_station(il, vif->bss_conf.bssid,
-						&vif_priv->ibss_bssid_sta_id);
+		ret =
+		    il3945_add_bssid_station(il, vif->bss_conf.bssid,
+					     &vif_priv->ibss_bssid_sta_id);
 		if (ret)
 			return ret;
 
 		il3945_sync_sta(il, vif_priv->ibss_bssid_sta_id,
-				 (il->band == IEEE80211_BAND_5GHZ) ?
-				 RATE_6M_PLCP : RATE_1M_PLCP);
+				(il->band ==
+				 IEEE80211_BAND_5GHZ) ? RATE_6M_PLCP :
+				RATE_1M_PLCP);
 		il3945_rate_scale_init(il->hw, vif_priv->ibss_bssid_sta_id);
 
 		return 0;
 	}
 
 	return il_remove_station(il, vif_priv->ibss_bssid_sta_id,
-				  vif->bss_conf.bssid);
+				 vif->bss_conf.bssid);
 }
 
 /**
  * il3945_init_hw_rate_table - Initialize the hardware rate fallback table
  */
-int il3945_init_hw_rate_table(struct il_priv *il)
+int
+il3945_init_hw_rate_table(struct il_priv *il)
 {
 	int rc, i, idx, prev_idx;
 	struct il3945_rate_scaling_cmd rate_cmd = {
@@ -2324,11 +2330,10 @@ int il3945_init_hw_rate_table(struct il_priv *il)
 		idx = il3945_rates[i].table_rs_idx;
 
 		table[idx].rate_n_flags =
-			il3945_hw_set_rate_n_flags(il3945_rates[i].plcp, 0);
+		    il3945_hw_set_rate_n_flags(il3945_rates[i].plcp, 0);
 		table[idx].try_cnt = il->retry_rate;
 		prev_idx = il3945_get_prev_ieee_rate(i);
-		table[idx].next_rate_idx =
-				il3945_rates[prev_idx].table_rs_idx;
+		table[idx].next_rate_idx = il3945_rates[prev_idx].table_rs_idx;
 	}
 
 	switch (il->band) {
@@ -2336,14 +2341,12 @@ int il3945_init_hw_rate_table(struct il_priv *il)
 		D_RATE("Select A mode rate scale\n");
 		/* If one of the following CCK rates is used,
 		 * have it fall back to the 6M OFDM rate */
-		for (i = RATE_1M_IDX_TBL;
-			i <= RATE_11M_IDX_TBL; i++)
+		for (i = RATE_1M_IDX_TBL; i <= RATE_11M_IDX_TBL; i++)
 			table[i].next_rate_idx =
-			  il3945_rates[IL_FIRST_OFDM_RATE].table_rs_idx;
+			    il3945_rates[IL_FIRST_OFDM_RATE].table_rs_idx;
 
 		/* Don't fall back to CCK rates */
-		table[RATE_12M_IDX_TBL].next_rate_idx =
-						RATE_9M_IDX_TBL;
+		table[RATE_12M_IDX_TBL].next_rate_idx = RATE_9M_IDX_TBL;
 
 		/* Don't drop out of OFDM rates */
 		table[RATE_6M_IDX_TBL].next_rate_idx =
@@ -2359,10 +2362,9 @@ int il3945_init_hw_rate_table(struct il_priv *il)
 		    il_is_associated(il)) {
 
 			idx = IL_FIRST_CCK_RATE;
-			for (i = RATE_6M_IDX_TBL;
-			     i <= RATE_54M_IDX_TBL; i++)
+			for (i = RATE_6M_IDX_TBL; i <= RATE_54M_IDX_TBL; i++)
 				table[i].next_rate_idx =
-					il3945_rates[idx].table_rs_idx;
+				    il3945_rates[idx].table_rs_idx;
 
 			idx = RATE_11M_IDX_TBL;
 			/* CCK shouldn't fall back to OFDM... */
@@ -2377,27 +2379,24 @@ int il3945_init_hw_rate_table(struct il_priv *il)
 
 	/* Update the rate scaling for control frame Tx */
 	rate_cmd.table_id = 0;
-	rc = il_send_cmd_pdu(il, C_RATE_SCALE, sizeof(rate_cmd),
-			      &rate_cmd);
+	rc = il_send_cmd_pdu(il, C_RATE_SCALE, sizeof(rate_cmd), &rate_cmd);
 	if (rc)
 		return rc;
 
 	/* Update the rate scaling for data frame Tx */
 	rate_cmd.table_id = 1;
-	return il_send_cmd_pdu(il, C_RATE_SCALE, sizeof(rate_cmd),
-				&rate_cmd);
+	return il_send_cmd_pdu(il, C_RATE_SCALE, sizeof(rate_cmd), &rate_cmd);
 }
 
 /* Called when initializing driver */
-int il3945_hw_set_hw_params(struct il_priv *il)
+int
+il3945_hw_set_hw_params(struct il_priv *il)
 {
-	memset((void *)&il->hw_params, 0,
-	       sizeof(struct il_hw_params));
+	memset((void *)&il->hw_params, 0, sizeof(struct il_hw_params));
 
 	il->_3945.shared_virt =
-		dma_alloc_coherent(&il->pci_dev->dev,
-				   sizeof(struct il3945_shared),
-				   &il->_3945.shared_phys, GFP_KERNEL);
+	    dma_alloc_coherent(&il->pci_dev->dev, sizeof(struct il3945_shared),
+			       &il->_3945.shared_phys, GFP_KERNEL);
 	if (!il->_3945.shared_virt) {
 		IL_ERR("failed to allocate pci memory\n");
 		return -ENOMEM;
@@ -2422,8 +2421,9 @@ int il3945_hw_set_hw_params(struct il_priv *il)
 	return 0;
 }
 
-unsigned int il3945_hw_get_beacon_cmd(struct il_priv *il,
-			  struct il3945_frame *frame, u8 rate)
+unsigned int
+il3945_hw_get_beacon_cmd(struct il_priv *il, struct il3945_frame *frame,
+			 u8 rate)
 {
 	struct il3945_tx_beacon_cmd *tx_beacon_cmd;
 	unsigned int frame_size;
@@ -2431,51 +2431,53 @@ unsigned int il3945_hw_get_beacon_cmd(struct il_priv *il,
 	tx_beacon_cmd = (struct il3945_tx_beacon_cmd *)&frame->u;
 	memset(tx_beacon_cmd, 0, sizeof(*tx_beacon_cmd));
 
-	tx_beacon_cmd->tx.sta_id =
-		il->ctx.bcast_sta_id;
+	tx_beacon_cmd->tx.sta_id = il->ctx.bcast_sta_id;
 	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
-	frame_size = il3945_fill_beacon_frame(il,
-				tx_beacon_cmd->frame,
-				sizeof(frame->u) - sizeof(*tx_beacon_cmd));
+	frame_size =
+	    il3945_fill_beacon_frame(il, tx_beacon_cmd->frame,
+				     sizeof(frame->u) - sizeof(*tx_beacon_cmd));
 
 	BUG_ON(frame_size > MAX_MPDU_SIZE);
-	tx_beacon_cmd->tx.len = cpu_to_le16((u16)frame_size);
+	tx_beacon_cmd->tx.len = cpu_to_le16((u16) frame_size);
 
 	tx_beacon_cmd->tx.rate = rate;
-	tx_beacon_cmd->tx.tx_flags = (TX_CMD_FLG_SEQ_CTL_MSK |
-				      TX_CMD_FLG_TSF_MSK);
+	tx_beacon_cmd->tx.tx_flags =
+	    (TX_CMD_FLG_SEQ_CTL_MSK | TX_CMD_FLG_TSF_MSK);
 
-	/* supp_rates[0] == OFDM start at IL_FIRST_OFDM_RATE*/
+	/* supp_rates[0] == OFDM start at IL_FIRST_OFDM_RATE */
 	tx_beacon_cmd->tx.supp_rates[0] =
-		(IL_OFDM_BASIC_RATES_MASK >> IL_FIRST_OFDM_RATE) & 0xFF;
+	    (IL_OFDM_BASIC_RATES_MASK >> IL_FIRST_OFDM_RATE) & 0xFF;
 
-	tx_beacon_cmd->tx.supp_rates[1] =
-		(IL_CCK_BASIC_RATES_MASK & 0xF);
+	tx_beacon_cmd->tx.supp_rates[1] = (IL_CCK_BASIC_RATES_MASK & 0xF);
 
 	return sizeof(struct il3945_tx_beacon_cmd) + frame_size;
 }
 
-void il3945_hw_handler_setup(struct il_priv *il)
+void
+il3945_hw_handler_setup(struct il_priv *il)
 {
 	il->handlers[C_TX] = il3945_hdl_tx;
 	il->handlers[N_3945_RX] = il3945_hdl_rx;
 }
 
-void il3945_hw_setup_deferred_work(struct il_priv *il)
+void
+il3945_hw_setup_deferred_work(struct il_priv *il)
 {
 	INIT_DELAYED_WORK(&il->_3945.thermal_periodic,
 			  il3945_bg_reg_txpower_periodic);
 }
 
-void il3945_hw_cancel_deferred_work(struct il_priv *il)
+void
+il3945_hw_cancel_deferred_work(struct il_priv *il)
 {
 	cancel_delayed_work(&il->_3945.thermal_periodic);
 }
 
 /* check contents of special bootstrap uCode SRAM */
-static int il3945_verify_bsm(struct il_priv *il)
- {
+static int
+il3945_verify_bsm(struct il_priv *il)
+{
 	__le32 *image = il->ucode_boot.v_addr;
 	u32 len = il->ucode_boot.len;
 	u32 reg;
@@ -2485,16 +2487,14 @@ static int il3945_verify_bsm(struct il_priv *il)
 
 	/* verify BSM SRAM contents */
 	val = il_rd_prph(il, BSM_WR_DWCOUNT_REG);
-	for (reg = BSM_SRAM_LOWER_BOUND;
-	     reg < BSM_SRAM_LOWER_BOUND + len;
+	for (reg = BSM_SRAM_LOWER_BOUND; reg < BSM_SRAM_LOWER_BOUND + len;
 	     reg += sizeof(u32), image++) {
 		val = il_rd_prph(il, reg);
 		if (val != le32_to_cpu(*image)) {
 			IL_ERR("BSM uCode verification failed at "
-				  "addr 0x%08X+%u (of %u), is 0x%x, s/b 0x%x\n",
-				  BSM_SRAM_LOWER_BOUND,
-				  reg - BSM_SRAM_LOWER_BOUND, len,
-				  val, le32_to_cpu(*image));
+			       "addr 0x%08X+%u (of %u), is 0x%x, s/b 0x%x\n",
+			       BSM_SRAM_LOWER_BOUND, reg - BSM_SRAM_LOWER_BOUND,
+			       len, val, le32_to_cpu(*image));
 			return -EIO;
 		}
 	}
@@ -2503,7 +2503,6 @@ static int il3945_verify_bsm(struct il_priv *il)
 
 	return 0;
 }
-
 
 /******************************************************************************
  *
@@ -2519,14 +2518,15 @@ static int il3945_verify_bsm(struct il_priv *il)
  * simply claims ownership, which should be safe when this function is called
  * (i.e. before loading uCode!).
  */
-static int il3945_eeprom_acquire_semaphore(struct il_priv *il)
+static int
+il3945_eeprom_acquire_semaphore(struct il_priv *il)
 {
 	_il_clear_bit(il, CSR_EEPROM_GP, CSR_EEPROM_GP_IF_OWNER_MSK);
 	return 0;
 }
 
-
-static void il3945_eeprom_release_semaphore(struct il_priv *il)
+static void
+il3945_eeprom_release_semaphore(struct il_priv *il)
 {
 	return;
 }
@@ -2563,7 +2563,8 @@ static void il3945_eeprom_release_semaphore(struct il_priv *il)
   * the runtime uCode instructions and the backup data cache into SRAM,
   * and re-launches the runtime uCode from where it left off.
   */
-static int il3945_load_bsm(struct il_priv *il)
+static int
+il3945_load_bsm(struct il_priv *il)
 {
 	__le32 *image = il->ucode_boot.v_addr;
 	u32 len = il->ucode_boot.len;
@@ -2583,10 +2584,10 @@ static int il3945_load_bsm(struct il_priv *il)
 		return -EINVAL;
 
 	/* Tell bootstrap uCode where to find the "Initialize" uCode
-	*   in host DRAM ... host DRAM physical address bits 31:0 for 3945.
-	* NOTE:  il3945_initialize_alive_start() will replace these values,
-	*        after the "initialize" uCode has run, to point to
-	*        runtime/protocol instructions and backup data cache. */
+	 *   in host DRAM ... host DRAM physical address bits 31:0 for 3945.
+	 * NOTE:  il3945_initialize_alive_start() will replace these values,
+	 *        after the "initialize" uCode has run, to point to
+	 *        runtime/protocol instructions and backup data cache. */
 	pinst = il->ucode_init.p_addr;
 	pdata = il->ucode_init_data.p_addr;
 	inst_len = il->ucode_init.len;
@@ -2601,8 +2602,7 @@ static int il3945_load_bsm(struct il_priv *il)
 	for (reg_offset = BSM_SRAM_LOWER_BOUND;
 	     reg_offset < BSM_SRAM_LOWER_BOUND + len;
 	     reg_offset += sizeof(u32), image++)
-		_il_wr_prph(il, reg_offset,
-					  le32_to_cpu(*image));
+		_il_wr_prph(il, reg_offset, le32_to_cpu(*image));
 
 	rc = il3945_verify_bsm(il);
 	if (rc)
@@ -2610,14 +2610,12 @@ static int il3945_load_bsm(struct il_priv *il)
 
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
 	il_wr_prph(il, BSM_WR_MEM_SRC_REG, 0x0);
-	il_wr_prph(il, BSM_WR_MEM_DST_REG,
-				 IL39_RTC_INST_LOWER_BOUND);
+	il_wr_prph(il, BSM_WR_MEM_DST_REG, IL39_RTC_INST_LOWER_BOUND);
 	il_wr_prph(il, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
 
 	/* Load bootstrap code into instruction SRAM now,
 	 *   to prepare to load "initialize" uCode */
-	il_wr_prph(il, BSM_WR_CTRL_REG,
-		BSM_WR_CTRL_REG_BIT_START);
+	il_wr_prph(il, BSM_WR_CTRL_REG, BSM_WR_CTRL_REG_BIT_START);
 
 	/* Wait for load of bootstrap uCode to finish */
 	for (i = 0; i < 100; i++) {
@@ -2635,8 +2633,7 @@ static int il3945_load_bsm(struct il_priv *il)
 
 	/* Enable future boot loads whenever power management unit triggers it
 	 *   (e.g. when powering back up after power-save shutdown) */
-	il_wr_prph(il, BSM_WR_CTRL_REG,
-		BSM_WR_CTRL_REG_BIT_START_EN);
+	il_wr_prph(il, BSM_WR_CTRL_REG, BSM_WR_CTRL_REG_BIT_START_EN);
 
 	return 0;
 }
@@ -2653,30 +2650,30 @@ static struct il_lib_ops il3945_lib = {
 	.load_ucode = il3945_load_bsm,
 	.dump_nic_error_log = il3945_dump_nic_error_log,
 	.apm_ops = {
-		.init = il3945_apm_init,
-		.config = il3945_nic_config,
-	},
+		    .init = il3945_apm_init,
+		    .config = il3945_nic_config,
+		    },
 	.eeprom_ops = {
-		.regulatory_bands = {
-			EEPROM_REGULATORY_BAND_1_CHANNELS,
-			EEPROM_REGULATORY_BAND_2_CHANNELS,
-			EEPROM_REGULATORY_BAND_3_CHANNELS,
-			EEPROM_REGULATORY_BAND_4_CHANNELS,
-			EEPROM_REGULATORY_BAND_5_CHANNELS,
-			EEPROM_REGULATORY_BAND_NO_HT40,
-			EEPROM_REGULATORY_BAND_NO_HT40,
-		},
-		.acquire_semaphore = il3945_eeprom_acquire_semaphore,
-		.release_semaphore = il3945_eeprom_release_semaphore,
-	},
-	.send_tx_power	= il3945_send_tx_power,
+		       .regulatory_bands = {
+					    EEPROM_REGULATORY_BAND_1_CHANNELS,
+					    EEPROM_REGULATORY_BAND_2_CHANNELS,
+					    EEPROM_REGULATORY_BAND_3_CHANNELS,
+					    EEPROM_REGULATORY_BAND_4_CHANNELS,
+					    EEPROM_REGULATORY_BAND_5_CHANNELS,
+					    EEPROM_REGULATORY_BAND_NO_HT40,
+					    EEPROM_REGULATORY_BAND_NO_HT40,
+					    },
+		       .acquire_semaphore = il3945_eeprom_acquire_semaphore,
+		       .release_semaphore = il3945_eeprom_release_semaphore,
+		       },
+	.send_tx_power = il3945_send_tx_power,
 	.is_valid_rtc_data_addr = il3945_hw_valid_rtc_data_addr,
 
 	.debugfs_ops = {
-		.rx_stats_read = il3945_ucode_rx_stats_read,
-		.tx_stats_read = il3945_ucode_tx_stats_read,
-		.general_stats_read = il3945_ucode_general_stats_read,
-	},
+			.rx_stats_read = il3945_ucode_rx_stats_read,
+			.tx_stats_read = il3945_ucode_tx_stats_read,
+			.general_stats_read = il3945_ucode_general_stats_read,
+			},
 };
 
 static const struct il_legacy_ops il3945_legacy_ops = {
@@ -2729,7 +2726,7 @@ static struct il_cfg il3945_abg_cfg = {
 	.fw_name_pre = IL3945_FW_PRE,
 	.ucode_api_max = IL3945_UCODE_API_MAX,
 	.ucode_api_min = IL3945_UCODE_API_MIN,
-	.sku = IL_SKU_A|IL_SKU_G,
+	.sku = IL_SKU_A | IL_SKU_G,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &il3945_ops,
 	.mod_params = &il3945_mod_params,
@@ -2738,13 +2735,14 @@ static struct il_cfg il3945_abg_cfg = {
 };
 
 DEFINE_PCI_DEVICE_TABLE(il3945_hw_card_ids) = {
-	{IL_PCI_DEVICE(0x4222, 0x1005, il3945_bg_cfg)},
-	{IL_PCI_DEVICE(0x4222, 0x1034, il3945_bg_cfg)},
-	{IL_PCI_DEVICE(0x4222, 0x1044, il3945_bg_cfg)},
-	{IL_PCI_DEVICE(0x4227, 0x1014, il3945_bg_cfg)},
-	{IL_PCI_DEVICE(0x4222, PCI_ANY_ID, il3945_abg_cfg)},
-	{IL_PCI_DEVICE(0x4227, PCI_ANY_ID, il3945_abg_cfg)},
-	{0}
+	{
+	IL_PCI_DEVICE(0x4222, 0x1005, il3945_bg_cfg)}, {
+	IL_PCI_DEVICE(0x4222, 0x1034, il3945_bg_cfg)}, {
+	IL_PCI_DEVICE(0x4222, 0x1044, il3945_bg_cfg)}, {
+	IL_PCI_DEVICE(0x4227, 0x1014, il3945_bg_cfg)}, {
+	IL_PCI_DEVICE(0x4222, PCI_ANY_ID, il3945_abg_cfg)}, {
+	IL_PCI_DEVICE(0x4227, PCI_ANY_ID, il3945_abg_cfg)}, {
+	0}
 };
 
 MODULE_DEVICE_TABLE(pci, il3945_hw_card_ids);

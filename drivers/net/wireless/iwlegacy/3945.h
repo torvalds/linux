@@ -27,7 +27,7 @@
 #ifndef __il_3945_h__
 #define __il_3945_h__
 
-#include <linux/pci.h> /* for struct pci_device_id */
+#include <linux/pci.h>		/* for struct pci_device_id */
 #include <linux/kernel.h>
 #include <net/ieee80211_radiotap.h>
 
@@ -92,7 +92,6 @@ struct il3945_rs_sta {
 	/* used to be in sta_info */
 	int last_txrate_idx;
 };
-
 
 /*
  * The common struct MUST be first because it is shared between
@@ -186,7 +185,6 @@ struct il3945_ibss_seq {
 #define IL_RX_STATS(x) (&x->u.rx_frame.stats)
 #define IL_RX_DATA(x) (IL_RX_HDR(x)->payload)
 
-
 /******************************************************************************
  *
  * Functions implemented in iwl3945-base.c which are forward declared here
@@ -197,9 +195,10 @@ extern int il3945_calc_db_from_ratio(int sig_ratio);
 extern void il3945_rx_replenish(void *data);
 extern void il3945_rx_queue_reset(struct il_priv *il, struct il_rx_queue *rxq);
 extern unsigned int il3945_fill_beacon_frame(struct il_priv *il,
-					struct ieee80211_hdr *hdr, int left);
+					     struct ieee80211_hdr *hdr,
+					     int left);
 extern int il3945_dump_nic_event_log(struct il_priv *il, bool full_log,
-				       char **buf, bool display);
+				     char **buf, bool display);
 extern void il3945_dump_nic_error_log(struct il_priv *il);
 
 /******************************************************************************
@@ -229,34 +228,29 @@ extern void il3945_hw_txq_ctx_free(struct il_priv *il);
 extern void il3945_hw_txq_ctx_stop(struct il_priv *il);
 extern int il3945_hw_nic_reset(struct il_priv *il);
 extern int il3945_hw_txq_attach_buf_to_tfd(struct il_priv *il,
-					    struct il_tx_queue *txq,
-					    dma_addr_t addr, u16 len,
-					    u8 reset, u8 pad);
-extern void il3945_hw_txq_free_tfd(struct il_priv *il,
-				    struct il_tx_queue *txq);
+					   struct il_tx_queue *txq,
+					   dma_addr_t addr, u16 len, u8 reset,
+					   u8 pad);
+extern void il3945_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq);
 extern int il3945_hw_get_temperature(struct il_priv *il);
-extern int il3945_hw_tx_queue_init(struct il_priv *il,
-				struct il_tx_queue *txq);
+extern int il3945_hw_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq);
 extern unsigned int il3945_hw_get_beacon_cmd(struct il_priv *il,
-				 struct il3945_frame *frame, u8 rate);
-void il3945_hw_build_tx_cmd_rate(struct il_priv *il,
-				  struct il_device_cmd *cmd,
-				  struct ieee80211_tx_info *info,
-				  struct ieee80211_hdr *hdr,
-				  int sta_id, int tx_id);
+					     struct il3945_frame *frame,
+					     u8 rate);
+void il3945_hw_build_tx_cmd_rate(struct il_priv *il, struct il_device_cmd *cmd,
+				 struct ieee80211_tx_info *info,
+				 struct ieee80211_hdr *hdr, int sta_id,
+				 int tx_id);
 extern int il3945_hw_reg_send_txpower(struct il_priv *il);
 extern int il3945_hw_reg_set_txpower(struct il_priv *il, s8 power);
-extern void il3945_hdl_stats(struct il_priv *il,
-				 struct il_rx_buf *rxb);
-void il3945_hdl_c_stats(struct il_priv *il,
-			      struct il_rx_buf *rxb);
+extern void il3945_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb);
+void il3945_hdl_c_stats(struct il_priv *il, struct il_rx_buf *rxb);
 extern void il3945_disable_events(struct il_priv *il);
 extern int il4965_get_temperature(const struct il_priv *il);
 extern void il3945_post_associate(struct il_priv *il);
 extern void il3945_config_ap(struct il_priv *il);
 
-extern int il3945_commit_rxon(struct il_priv *il,
-			       struct il_rxon_context *ctx);
+extern int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx);
 
 /**
  * il3945_hw_find_station - Find station id for a given BSSID
@@ -266,7 +260,7 @@ extern int il3945_commit_rxon(struct il_priv *il,
  * not yet been merged into a single common layer for managing the
  * station tables.
  */
-extern u8 il3945_hw_find_station(struct il_priv *il, const u8 *bssid);
+extern u8 il3945_hw_find_station(struct il_priv *il, const u8 * bssid);
 
 extern struct ieee80211_ops il3945_hw_ops;
 
@@ -275,8 +269,10 @@ extern int il3945_init_hw_rate_table(struct il_priv *il);
 extern void il3945_reg_txpower_periodic(struct il_priv *il);
 extern int il3945_txpower_set_from_eeprom(struct il_priv *il);
 
-extern const struct il_channel_info *il3945_get_channel_info(
-	const struct il_priv *il, enum ieee80211_band band, u16 channel);
+extern const struct il_channel_info *il3945_get_channel_info(const struct
+							     il_priv *il,
+							     enum ieee80211_band
+							     band, u16 channel);
 
 extern int il3945_rs_next_rate(struct il_priv *il, int rate);
 
@@ -286,8 +282,6 @@ void il3945_post_scan(struct il_priv *il);
 
 /* rates */
 extern const struct il3945_rate_info il3945_rates[RATE_COUNT_3945];
-
-
 
 /* RSSI to dBm */
 #define IL39_RSSI_OFFSET	95
@@ -323,7 +317,7 @@ struct il3945_eeprom_txpower_sample {
  * DO NOT ALTER THIS STRUCTURE!!!
  */
 struct il3945_eeprom_txpower_group {
-	struct il3945_eeprom_txpower_sample samples[5];  /* 5 power levels */
+	struct il3945_eeprom_txpower_sample samples[5];	/* 5 power levels */
 	s32 a, b, c, d, e;	/* coefficients for voltage->power
 				 * formula (signed) */
 	s32 Fa, Fb, Fc, Fd, Fe;	/* these modify coeffs based on
@@ -354,7 +348,7 @@ struct il3945_eeprom_temperature_corr {
  */
 struct il3945_eeprom {
 	u8 reserved0[16];
-	u16 device_id;	/* abs.ofs: 16 */
+	u16 device_id;		/* abs.ofs: 16 */
 	u8 reserved1[2];
 	u16 pmc;		/* abs.ofs: 20 */
 	u8 reserved2[20];
@@ -389,7 +383,7 @@ struct il3945_eeprom {
  * 2.4 GHz channels 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
  */
 	u16 band_1_count;	/* abs.ofs: 196 */
-	struct il_eeprom_channel band_1_channels[14];  /* abs.ofs: 198 */
+	struct il_eeprom_channel band_1_channels[14];	/* abs.ofs: 198 */
 
 /*
  * 4.9 GHz channels 183, 184, 185, 187, 188, 189, 192, 196,
@@ -397,28 +391,28 @@ struct il3945_eeprom {
  * (4915-5080MHz) (none of these is ever supported)
  */
 	u16 band_2_count;	/* abs.ofs: 226 */
-	struct il_eeprom_channel band_2_channels[13];  /* abs.ofs: 228 */
+	struct il_eeprom_channel band_2_channels[13];	/* abs.ofs: 228 */
 
 /*
  * 5.2 GHz channels 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64
  * (5170-5320MHz)
  */
 	u16 band_3_count;	/* abs.ofs: 254 */
-	struct il_eeprom_channel band_3_channels[12];  /* abs.ofs: 256 */
+	struct il_eeprom_channel band_3_channels[12];	/* abs.ofs: 256 */
 
 /*
  * 5.5 GHz channels 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140
  * (5500-5700MHz)
  */
 	u16 band_4_count;	/* abs.ofs: 280 */
-	struct il_eeprom_channel band_4_channels[11];  /* abs.ofs: 282 */
+	struct il_eeprom_channel band_4_channels[11];	/* abs.ofs: 282 */
 
 /*
  * 5.7 GHz channels 145, 149, 153, 157, 161, 165
  * (5725-5825MHz)
  */
 	u16 band_5_count;	/* abs.ofs: 304 */
-	struct il_eeprom_channel band_5_channels[6];  /* abs.ofs: 306 */
+	struct il_eeprom_channel band_5_channels[6];	/* abs.ofs: 306 */
 
 	u8 reserved9[194];
 
@@ -428,7 +422,7 @@ struct il3945_eeprom {
 #define IL_NUM_TX_CALIB_GROUPS 5
 	struct il3945_eeprom_txpower_group groups[IL_NUM_TX_CALIB_GROUPS];
 /* abs.ofs: 512 */
-	struct il3945_eeprom_temperature_corr corrections;  /* abs.ofs: 832 */
+	struct il3945_eeprom_temperature_corr corrections;	/* abs.ofs: 832 */
 	u8 reserved16[172];	/* fill out to full 1024 byte block */
 } __packed;
 
@@ -474,7 +468,8 @@ struct il3945_eeprom {
 /* Size of uCode instruction memory in bootstrap state machine */
 #define IL39_MAX_BSM_SIZE IL39_RTC_INST_SIZE
 
-static inline int il3945_hw_valid_rtc_data_addr(u32 addr)
+static inline int
+il3945_hw_valid_rtc_data_addr(u32 addr)
 {
 	return (addr >= IL39_RTC_DATA_LOWER_BOUND &&
 		addr < IL39_RTC_DATA_UPPER_BOUND);
@@ -486,19 +481,22 @@ struct il3945_shared {
 	__le32 tx_base_ptr[8];
 } __packed;
 
-static inline u8 il3945_hw_get_rate(__le16 rate_n_flags)
+static inline u8
+il3945_hw_get_rate(__le16 rate_n_flags)
 {
 	return le16_to_cpu(rate_n_flags) & 0xFF;
 }
 
-static inline u16 il3945_hw_get_rate_n_flags(__le16 rate_n_flags)
+static inline u16
+il3945_hw_get_rate_n_flags(__le16 rate_n_flags)
 {
 	return le16_to_cpu(rate_n_flags);
 }
 
-static inline __le16 il3945_hw_set_rate_n_flags(u8 rate, u16 flags)
+static inline __le16
+il3945_hw_set_rate_n_flags(u8 rate, u16 flags)
 {
-	return cpu_to_le16((u16)rate|flags);
+	return cpu_to_le16((u16) rate | flags);
 }
 
 /************************************/
@@ -552,7 +550,6 @@ static inline __le16 il3945_hw_set_rate_n_flags(u8 rate, u16 flags)
 #define FH39_TSSR_CBB_BASE        (FH39_TSSR_TBL + 0x000)
 #define FH39_TSSR_MSG_CONFIG      (FH39_TSSR_TBL + 0x008)
 #define FH39_TSSR_TX_STATUS       (FH39_TSSR_TBL + 0x010)
-
 
 /* DBM */
 
@@ -622,29 +619,31 @@ struct il3945_tfd {
 } __packed;
 
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-ssize_t il3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
-				    size_t count, loff_t *ppos);
-ssize_t il3945_ucode_tx_stats_read(struct file *file, char __user *user_buf,
-				    size_t count, loff_t *ppos);
+ssize_t il3945_ucode_rx_stats_read(struct file *file, char __user * user_buf,
+				   size_t count, loff_t * ppos);
+ssize_t il3945_ucode_tx_stats_read(struct file *file, char __user * user_buf,
+				   size_t count, loff_t * ppos);
 ssize_t il3945_ucode_general_stats_read(struct file *file,
-					 char __user *user_buf, size_t count,
-					 loff_t *ppos);
+					char __user * user_buf, size_t count,
+					loff_t * ppos);
 #else
-static ssize_t il3945_ucode_rx_stats_read(struct file *file,
-					   char __user *user_buf, size_t count,
-					   loff_t *ppos)
+static ssize_t
+il3945_ucode_rx_stats_read(struct file *file, char __user * user_buf,
+			   size_t count, loff_t * ppos)
 {
 	return 0;
 }
-static ssize_t il3945_ucode_tx_stats_read(struct file *file,
-					   char __user *user_buf, size_t count,
-					   loff_t *ppos)
+
+static ssize_t
+il3945_ucode_tx_stats_read(struct file *file, char __user * user_buf,
+			   size_t count, loff_t * ppos)
 {
 	return 0;
 }
-static ssize_t il3945_ucode_general_stats_read(struct file *file,
-						char __user *user_buf,
-						size_t count, loff_t *ppos)
+
+static ssize_t
+il3945_ucode_general_stats_read(struct file *file, char __user * user_buf,
+				size_t count, loff_t * ppos)
 {
 	return 0;
 }

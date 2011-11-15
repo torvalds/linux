@@ -74,7 +74,6 @@ struct il_priv;
 #define IL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
 #define IL_UCODE_SERIAL(ver)	((ver) & 0x000000FF)
 
-
 /* Tx rates */
 #define IL_CCK_RATES	4
 #define IL_OFDM_RATES	8
@@ -98,11 +97,11 @@ enum {
 	C_WEPKEY = 0x20,
 
 	/* RX, TX, LEDs */
-	N_3945_RX = 0x1b,           /* 3945 only */
+	N_3945_RX = 0x1b,	/* 3945 only */
 	C_TX = 0x1c,
 	C_RATE_SCALE = 0x47,	/* 3945 only */
 	C_LEDS = 0x48,
-	C_TX_LINK_QUALITY_CMD = 0x4e, /* for 4965 */
+	C_TX_LINK_QUALITY_CMD = 0x4e,	/* for 4965 */
 
 	/* 802.11h related */
 	C_CHANNEL_SWITCH = 0x72,
@@ -124,7 +123,7 @@ enum {
 
 	/* IBSS/AP commands */
 	N_BEACON = 0x90,
-	C_TX_BEACON= 0x91,
+	C_TX_BEACON = 0x91,
 
 	/* Miscellaneous commands */
 	C_TX_PWR_TBL = 0x97,
@@ -177,8 +176,8 @@ enum {
  * driver, and each response/notification received from uCode.
  */
 struct il_cmd_header {
-	u8 cmd;		/* Command ID:  C_RXON, etc. */
-	u8 flags;	/* 0:5 reserved, 6 abort, 7 internal */
+	u8 cmd;			/* Command ID:  C_RXON, etc. */
+	u8 flags;		/* 0:5 reserved, 6 abort, 7 internal */
 	/*
 	 * The driver sets up the sequence number to values of its choosing.
 	 * uCode does not use this value, but passes it back to the driver
@@ -194,19 +193,18 @@ struct il_cmd_header {
 	 *
 	 * The Linux driver uses the following format:
 	 *
-	 *  0:7		tfd idx - position within TX queue
-	 *  8:12	TX queue id
-	 *  13		reserved
-	 *  14		huge - driver sets this to indicate command is in the
-	 *  		'huge' storage at the end of the command buffers
-	 *  15		unsolicited RX or uCode-originated notification
-	*/
+	 *  0:7         tfd idx - position within TX queue
+	 *  8:12        TX queue id
+	 *  13          reserved
+	 *  14          huge - driver sets this to indicate command is in the
+	 *              'huge' storage at the end of the command buffers
+	 *  15          unsolicited RX or uCode-originated notification
+	 */
 	__le16 sequence;
 
 	/* command or response/notification data follows immediately */
 	u8 data[0];
 } __packed;
-
 
 /**
  * struct il3945_tx_power
@@ -430,7 +428,6 @@ struct il_init_alive_resp {
 				 * 2 Tx chains */
 } __packed;
 
-
 /**
  * N_ALIVE = 0x1 (response only, not a command)
  *
@@ -514,7 +511,7 @@ struct il_alive_resp {
 	__le16 reserved1;
 	u8 sw_rev[8];
 	u8 ver_type;
-	u8 ver_subtype;			/* not "9" for runtime alive */
+	u8 ver_subtype;		/* not "9" for runtime alive */
 	__le16 reserved2;
 	__le32 log_event_table_ptr;	/* SRAM address for event log */
 	__le32 error_event_table_ptr;	/* SRAM address for error log */
@@ -550,7 +547,6 @@ enum {
 	RXON_DEV_TYPE_IBSS = 4,
 	RXON_DEV_TYPE_SNIFFER = 6,
 };
-
 
 #define RXON_RX_CHAIN_DRIVER_FORCE_MSK		cpu_to_le16(0x1 << 0)
 #define RXON_RX_CHAIN_DRIVER_FORCE_POS		(0)
@@ -589,7 +585,6 @@ enum {
 /* rx response to host with 8-byte TSF
 * (according to ON_AIR deassertion) */
 #define RXON_FLG_TSF2HOST_MSK           cpu_to_le32(1 << 15)
-
 
 /* HT flags */
 #define RXON_FLG_CTRL_CHANNEL_LOC_POS		(22)
@@ -718,7 +713,6 @@ struct il_rxon_cmd {
 	u8 reserved5;
 } __packed;
 
-
 /*
  * C_RXON_ASSOC = 0x11 (command, has simple generic response)
  */
@@ -742,8 +736,8 @@ struct il4965_rxon_assoc_cmd {
 } __packed;
 
 #define IL_CONN_MAX_LISTEN_INTERVAL	10
-#define IL_MAX_UCODE_BEACON_INTERVAL	4 /* 4096 */
-#define IL39_MAX_UCODE_BEACON_INTERVAL	1 /* 1024 */
+#define IL_MAX_UCODE_BEACON_INTERVAL	4	/* 4096 */
+#define IL39_MAX_UCODE_BEACON_INTERVAL	1	/* 1024 */
 
 /*
  * C_RXON_TIMING = 0x14 (command, has simple generic response)
@@ -856,7 +850,7 @@ struct il_qosparam_cmd {
 #define IL4965_BROADCAST_ID	31
 #define	IL4965_STATION_COUNT	32
 
-#define	IL_STATION_COUNT	32 	/* MAX(3945,4965)*/
+#define	IL_STATION_COUNT	32	/* MAX(3945,4965) */
 #define	IL_INVALID_STATION	255
 
 #define STA_FLG_TX_RATE_MSK		cpu_to_le32(1 << 2)
@@ -964,7 +958,7 @@ struct il3945_addsta_cmd {
 	u8 reserved[3];
 	struct sta_id_modify sta;
 	struct il4965_keyinfo key;
-	__le32 station_flags;		/* STA_FLG_* */
+	__le32 station_flags;	/* STA_FLG_* */
 	__le32 station_flags_msk;	/* STA_FLG_* */
 
 	/* bit field to disable (1) or enable (0) Tx for Traffic ID (TID)
@@ -992,7 +986,7 @@ struct il4965_addsta_cmd {
 	u8 reserved[3];
 	struct sta_id_modify sta;
 	struct il4965_keyinfo key;
-	__le32 station_flags;		/* STA_FLG_* */
+	__le32 station_flags;	/* STA_FLG_* */
 	__le32 station_flags_msk;	/* STA_FLG_* */
 
 	/* bit field to disable (1) or enable (0) Tx for Traffic ID (TID)
@@ -1000,7 +994,7 @@ struct il4965_addsta_cmd {
 	 * Set modify_mask bit STA_MODIFY_TID_DISABLE_TX to use this field. */
 	__le16 tid_disable_tx;
 
-	__le16	reserved1;
+	__le16 reserved1;
 
 	/* TID for which to add block-ack support.
 	 * Set modify_mask bit STA_MODIFY_ADDBA_TID_MSK to use this field. */
@@ -1030,7 +1024,7 @@ struct il_addsta_cmd {
 	u8 reserved[3];
 	struct sta_id_modify sta;
 	struct il4965_keyinfo key;
-	__le32 station_flags;		/* STA_FLG_* */
+	__le32 station_flags;	/* STA_FLG_* */
 	__le32 station_flags_msk;	/* STA_FLG_* */
 
 	/* bit field to disable (1) or enable (0) Tx for Traffic ID (TID)
@@ -1038,7 +1032,7 @@ struct il_addsta_cmd {
 	 * Set modify_mask bit STA_MODIFY_TID_DISABLE_TX to use this field. */
 	__le16 tid_disable_tx;
 
-	__le16	rate_n_flags;		/* 3945 only */
+	__le16 rate_n_flags;	/* 3945 only */
 
 	/* TID for which to add block-ack support.
 	 * Set modify_mask bit STA_MODIFY_ADDBA_TID_MSK to use this field. */
@@ -1062,7 +1056,6 @@ struct il_addsta_cmd {
 	__le16 reserved2;
 } __packed;
 
-
 #define ADD_STA_SUCCESS_MSK		0x1
 #define ADD_STA_NO_ROOM_IN_TBL	0x2
 #define ADD_STA_NO_BLOCK_ACK_RESOURCE	0x4
@@ -1071,7 +1064,7 @@ struct il_addsta_cmd {
  * C_ADD_STA = 0x18 (response)
  */
 struct il_add_sta_resp {
-	u8 status;	/* ADD_STA_* */
+	u8 status;		/* ADD_STA_* */
 } __packed;
 
 #define REM_STA_SUCCESS_MSK              0x1
@@ -1086,9 +1079,9 @@ struct il_rem_sta_resp {
  *  C_REM_STA = 0x19 (command)
  */
 struct il_rem_sta_cmd {
-	u8 num_sta;     /* number of removed stations */
+	u8 num_sta;		/* number of removed stations */
 	u8 reserved[3];
-	u8 addr[ETH_ALEN]; /* MAC addr of the first station */
+	u8 addr[ETH_ALEN];	/* MAC addr of the first station */
 	u8 reserved2[2];
 } __packed;
 
@@ -1165,7 +1158,6 @@ struct il_wep_cmd {
 #define RX_MPDU_RES_STATUS_TTAK_OK	(1 << 7)
 #define RX_MPDU_RES_STATUS_DEC_DONE_MSK	(0x800)
 
-
 struct il3945_rx_frame_stats {
 	u8 phy_count;
 	u8 id;
@@ -1221,21 +1213,20 @@ struct il4965_rx_non_cfg_phy {
 	u8 pad[0];
 } __packed;
 
-
 /*
  * N_RX = 0xc3 (response only, not a command)
  * Used only for legacy (non 11n) frames.
  */
 struct il_rx_phy_res {
-	u8 non_cfg_phy_cnt;     /* non configurable DSP phy data byte count */
+	u8 non_cfg_phy_cnt;	/* non configurable DSP phy data byte count */
 	u8 cfg_phy_cnt;		/* configurable DSP phy data byte count */
 	u8 stat_id;		/* configurable DSP phy data set ID */
 	u8 reserved1;
 	__le64 timestamp;	/* TSF at on air rise */
-	__le32 beacon_time_stamp; /* beacon at on-air rise */
+	__le32 beacon_time_stamp;	/* beacon at on-air rise */
 	__le16 phy_flags;	/* general phy flags: band, modulation, ... */
 	__le16 channel;		/* channel number */
-	u8 non_cfg_phy_buf[32]; /* for various implementations of non_cfg_phy */
+	u8 non_cfg_phy_buf[32];	/* for various implementations of non_cfg_phy */
 	__le32 rate_n_flags;	/* RATE_MCS_* */
 	__le16 byte_count;	/* frame's byte-count */
 	__le16 frame_time;	/* frame's time on the air */
@@ -1245,7 +1236,6 @@ struct il_rx_mpdu_res_start {
 	__le16 byte_count;
 	__le16 reserved;
 } __packed;
-
 
 /******************************************************************************
  * (5)
@@ -1346,7 +1336,6 @@ struct il_rx_mpdu_res_start {
 /* HCCA-AP - disable duration overwriting. */
 #define TX_CMD_FLG_DUR_MSK cpu_to_le32(1 << 25)
 
-
 /*
  * TX command security control
  */
@@ -1441,7 +1430,6 @@ struct il3945_tx_resp {
 	__le32 wireless_media_time;
 	__le32 status;		/* TX status */
 } __packed;
-
 
 /*
  * 4965 uCode updates these Tx attempt count values in host DRAM.
@@ -1625,12 +1613,12 @@ enum {
 };
 
 enum {
-	TX_STATUS_MSK = 0x000000ff,		/* bits 0:7 */
+	TX_STATUS_MSK = 0x000000ff,	/* bits 0:7 */
 	TX_STATUS_DELAY_MSK = 0x00000040,
 	TX_STATUS_ABORT_MSK = 0x00000080,
 	TX_PACKET_MODE_MSK = 0x0000ff00,	/* bits 8:15 */
 	TX_FIFO_NUMBER_MSK = 0x00070000,	/* bits 16:18 */
-	TX_RESERVED = 0x00780000,		/* bits 19:22 */
+	TX_RESERVED = 0x00780000,	/* bits 19:22 */
 	TX_POWER_PA_DETECT_MSK = 0x7f800000,	/* bits 23:30 */
 	TX_ABORT_REQUIRED_MSK = 0x80000000,	/* bits 31:31 */
 };
@@ -1727,7 +1715,7 @@ struct il4965_tx_resp {
 	 */
 	union {
 		__le32 status;
-		struct agg_tx_status agg_status[0]; /* for each agg frame */
+		struct agg_tx_status agg_status[0];	/* for each agg frame */
 	} u;
 } __packed;
 
@@ -1770,7 +1758,6 @@ struct il4965_txpowertable_cmd {
 	struct il4965_tx_power_db tx_power;
 } __packed;
 
-
 /**
  * struct il3945_rate_scaling_cmd - Rate Scaling Command & Response
  *
@@ -1798,7 +1785,6 @@ struct il3945_rate_scaling_cmd {
 	struct il3945_rate_scaling_info table[IL_MAX_RATES];
 } __packed;
 
-
 /*RS_NEW_API: only TLC_RTS remains and moved to bit 0 */
 #define  LINK_QUAL_FLAGS_SET_STA_TLC_RTS_MSK	(1 << 0)
 
@@ -1812,7 +1798,6 @@ struct il3945_rate_scaling_cmd {
 #define  LINK_QUAL_ANT_A_MSK (1 << 0)
 #define  LINK_QUAL_ANT_B_MSK (1 << 1)
 #define  LINK_QUAL_ANT_MSK   (LINK_QUAL_ANT_A_MSK|LINK_QUAL_ANT_B_MSK)
-
 
 /**
  * struct il_link_qual_general_params
@@ -1829,7 +1814,7 @@ struct il_link_qual_general_params {
 	u8 single_stream_ant_msk;	/* LINK_QUAL_ANT_* */
 
 	/* Best antennas to use for MIMO (unused for 4965, assumes both). */
-	u8 dual_stream_ant_msk;		/* LINK_QUAL_ANT_* */
+	u8 dual_stream_ant_msk;	/* LINK_QUAL_ANT_* */
 
 	/*
 	 * If driver needs to use different initial rates for different
@@ -1845,7 +1830,7 @@ struct il_link_qual_general_params {
 	u8 start_rate_idx[LINK_QUAL_AC_NUM];
 } __packed;
 
-#define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000) /* 4 milliseconds */
+#define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000)	/* 4 milliseconds */
 #define LINK_QUAL_AGG_TIME_LIMIT_MAX	(8000)
 #define LINK_QUAL_AGG_TIME_LIMIT_MIN	(100)
 
@@ -2129,7 +2114,6 @@ struct il_bt_cmd {
 	__le32 kill_cts_mask;
 } __packed;
 
-
 /******************************************************************************
  * (6)
  * Spectrum Management (802.11h) Commands, Responses, Notifications:
@@ -2230,7 +2214,7 @@ enum il_measure_type {
 struct il_spectrum_notification {
 	u8 id;			/* measurement id -- 0 or 1 */
 	u8 token;
-	u8 channel_idx;	/* idx in measurement channel list */
+	u8 channel_idx;		/* idx in measurement channel list */
 	u8 state;		/* 0 - start, 1 - stop */
 	__le32 start_time;	/* lower 32-bits of TSF */
 	u8 band;		/* 0 - 5.2GHz, 1 - 2.4GHz */
@@ -2306,8 +2290,8 @@ struct il3945_powertable_cmd {
 
 struct il_powertable_cmd {
 	__le16 flags;
-	u8 keep_alive_seconds;		/* 3945 reserved */
-	u8 debug_flags;			/* 3945 reserved */
+	u8 keep_alive_seconds;	/* 3945 reserved */
+	u8 debug_flags;		/* 3945 reserved */
 	__le32 rx_data_timeout;
 	__le32 tx_data_timeout;
 	__le32 sleep_interval[IL_POWER_VEC_SIZE];
@@ -2355,10 +2339,10 @@ struct il_card_state_notif {
 #define RXON_CARD_DISABLED 0x10
 
 struct il_ct_kill_config {
-	__le32   reserved;
-	__le32   critical_temperature_M;
-	__le32   critical_temperature_R;
-}  __packed;
+	__le32 reserved;
+	__le32 critical_temperature_M;
+	__le32 critical_temperature_R;
+} __packed;
 
 /******************************************************************************
  * (8)
@@ -2397,7 +2381,7 @@ struct il3945_scan_channel {
 	 * 5:7 reserved
 	 */
 	u8 type;
-	u8 channel;	/* band is selected by il3945_scan_cmd "flags" field */
+	u8 channel;		/* band is selected by il3945_scan_cmd "flags" field */
 	struct il3945_tx_power tpc;
 	__le16 active_dwell;	/* in 1024-uSec TU (time units), typ 5-50 */
 	__le16 passive_dwell;	/* in 1024-uSec TU (time units), typ 20-500 */
@@ -2415,7 +2399,7 @@ struct il_scan_channel {
 	 * 21:31 reserved
 	 */
 	__le32 type;
-	__le16 channel;	/* band is selected by il_scan_cmd "flags" field */
+	__le16 channel;		/* band is selected by il_scan_cmd "flags" field */
 	u8 tx_gain;		/* gain for analog radio */
 	u8 dsp_atten;		/* gain for DSP */
 	__le16 active_dwell;	/* in 1024-uSec TU (time units), typ 5-50 */
@@ -2631,7 +2615,7 @@ struct il_scanresults_notification {
 	u8 channel;
 	u8 band;
 	u8 probe_status;
-	u8 num_probe_not_sent; /* not enough time to send */
+	u8 num_probe_not_sent;	/* not enough time to send */
 	__le32 tsf_low;
 	__le32 tsf_high;
 	__le32 stats[NUMBER_OF_STATS];
@@ -2647,7 +2631,6 @@ struct il_scancomplete_notification {
 	__le32 tsf_low;
 	__le32 tsf_high;
 } __packed;
-
 
 /******************************************************************************
  * (9)
@@ -2849,15 +2832,15 @@ struct stats_rx_non_phy {
 	__le32 num_missed_bcon;	/* number of missed beacons */
 	__le32 adc_rx_saturation_time;	/* count in 0.8us units the time the
 					 * ADC was in saturation */
-	__le32 ina_detection_search_time;/* total time (in 0.8us) searched
-					  * for INA */
+	__le32 ina_detection_search_time;	/* total time (in 0.8us) searched
+						 * for INA */
 	__le32 beacon_silence_rssi_a;	/* RSSI silence after beacon frame */
 	__le32 beacon_silence_rssi_b;	/* RSSI silence after beacon frame */
 	__le32 beacon_silence_rssi_c;	/* RSSI silence after beacon frame */
 	__le32 interference_data_flag;	/* flag for interference data
 					 * availability. 1 when data is
 					 * available. */
-	__le32 channel_load;		/* counts RX Enable time in uSec */
+	__le32 channel_load;	/* counts RX Enable time in uSec */
 	__le32 dsp_false_alarms;	/* DSP false alarm (both OFDM
 					 * and CCK) counter */
 	__le32 beacon_rssi_a;
@@ -2922,7 +2905,6 @@ struct stats_tx {
 	__le32 reserved1;
 } __packed;
 
-
 struct stats_div {
 	__le32 tx_on_a;
 	__le32 tx_on_b;
@@ -2933,7 +2915,7 @@ struct stats_div {
 } __packed;
 
 struct stats_general_common {
-	__le32 temperature;   /* radio temperature */
+	__le32 temperature;	/* radio temperature */
 	struct stats_dbg dbg;
 	__le32 sleep_time;
 	__le32 slots_out;
@@ -2975,7 +2957,7 @@ struct stats_general {
  * does not affect the response to the C_STATS 0x9c itself.
  */
 #define IL_STATS_CONF_CLEAR_STATS cpu_to_le32(0x1)	/* see above */
-#define IL_STATS_CONF_DISABLE_NOTIF cpu_to_le32(0x2)/* see above */
+#define IL_STATS_CONF_DISABLE_NOTIF cpu_to_le32(0x2)	/* see above */
 struct il_stats_cmd {
 	__le32 configuration_flags;	/* IL_STATS_CONF_* */
 } __packed;
@@ -3042,7 +3024,6 @@ struct il_missed_beacon_notif {
 	__le32 num_expected_beacons;
 	__le32 num_recvd_beacons;
 } __packed;
-
 
 /******************************************************************************
  * (11)
@@ -3241,10 +3222,9 @@ struct il_missed_beacon_notif {
  * Always use "1" in "control" to update uCode's working table and DSP.
  */
 struct il_sensitivity_cmd {
-	__le16 control;			/* always use "1" */
+	__le16 control;		/* always use "1" */
 	__le16 table[HD_TBL_SIZE];	/* use HD_* as idx */
 } __packed;
-
 
 /**
  * C_PHY_CALIBRATION = 0xb0 (command, has simple generic response)
@@ -3305,8 +3285,8 @@ struct il_sensitivity_cmd {
 /* The default calibrate table size if not specified by firmware */
 #define IL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE	18
 enum {
-	IL_PHY_CALIBRATE_DIFF_GAIN_CMD		= 7,
-	IL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE	= 19,
+	IL_PHY_CALIBRATE_DIFF_GAIN_CMD = 7,
+	IL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE = 19,
 };
 
 #define IL_MAX_PHY_CALIBRATE_TBL_SIZE		(253)
@@ -3349,7 +3329,6 @@ struct il_led_cmd {
 				 * "0", regardless of "off", turns LED off */
 	u8 reserved;
 } __packed;
-
 
 /******************************************************************************
  * (13)
@@ -3394,4 +3373,4 @@ struct il_rx_pkt {
 	} u;
 } __packed;
 
-#endif				/* __il_commands_h__ */
+#endif /* __il_commands_h__ */
