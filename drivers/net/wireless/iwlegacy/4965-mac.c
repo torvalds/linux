@@ -1367,9 +1367,9 @@ void il4965_rx_stats(struct il_priv *il,
 	change = ((il->_4965.stats.general.common.temperature !=
 		   pkt->u.stats.general.common.temperature) ||
 		   ((il->_4965.stats.flag &
-		   STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
+		   STATS_REPLY_FLG_HT40_MODE_MSK) !=
 		   (pkt->u.stats.flag &
-		   STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
+		   STATS_REPLY_FLG_HT40_MODE_MSK)));
 #ifdef CONFIG_IWLEGACY_DEBUGFS
 	il4965_accumulative_stats(il, (__le32 *)&pkt->u.stats);
 #endif
@@ -1378,7 +1378,7 @@ void il4965_rx_stats(struct il_priv *il,
 	memcpy(&il->_4965.stats, &pkt->u.stats,
 		sizeof(il->_4965.stats));
 
-	set_bit(S_STATISTICS, &il->status);
+	set_bit(S_STATS, &il->status);
 
 	/* Reschedule the stats timer to occur in
 	 * REG_RECALIB_PERIOD seconds to ensure we get a
@@ -1388,7 +1388,7 @@ void il4965_rx_stats(struct il_priv *il,
 		  msecs_to_jiffies(REG_RECALIB_PERIOD * 1000));
 
 	if (unlikely(!test_bit(S_SCANNING, &il->status)) &&
-	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
+	    (pkt->hdr.cmd == STATS_NOTIFICATION)) {
 		il4965_rx_calc_noise(il);
 		queue_work(il->workqueue, &il->run_time_calib_work);
 	}
@@ -1401,7 +1401,7 @@ void il4965_reply_stats(struct il_priv *il,
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
-	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATISTICS_CLEAR_MSK) {
+	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATS_CLEAR_MSK) {
 #ifdef CONFIG_IWLEGACY_DEBUGFS
 		memset(&il->_4965.accum_stats, 0,
 			sizeof(struct il_notif_stats));
@@ -3801,7 +3801,7 @@ static void il4965_rx_reply_alive(struct il_priv *il,
  * This callback is provided in order to send a stats request.
  *
  * This timer function is continually reset to execute within
- * REG_RECALIB_PERIOD seconds since the last STATISTICS_NOTIFICATION
+ * REG_RECALIB_PERIOD seconds since the last STATS_NOTIFICATION
  * was received.  We need to ensure we receive the stats in order
  * to update the temperature used for calibrating the TXPOWER.
  */
@@ -3936,8 +3936,8 @@ static void il4965_setup_rx_handlers(struct il_priv *il)
 	 * stats request from the host as well as for the periodic
 	 * stats notifications (after received beacons) from the uCode.
 	 */
-	il->rx_handlers[REPLY_STATISTICS_CMD] = il4965_reply_stats;
-	il->rx_handlers[STATISTICS_NOTIFICATION] = il4965_rx_stats;
+	il->rx_handlers[REPLY_STATS_CMD] = il4965_reply_stats;
+	il->rx_handlers[STATS_NOTIFICATION] = il4965_rx_stats;
 
 	il_setup_rx_scan_handlers(il);
 
@@ -4023,7 +4023,7 @@ void il4965_rx_handle(struct il_priv *il)
 			(pkt->hdr.cmd != REPLY_RX) &&
 			(pkt->hdr.cmd != REPLY_RX_MPDU_CMD) &&
 			(pkt->hdr.cmd != REPLY_COMPRESSED_BA) &&
-			(pkt->hdr.cmd != STATISTICS_NOTIFICATION) &&
+			(pkt->hdr.cmd != STATS_NOTIFICATION) &&
 			(pkt->hdr.cmd != REPLY_TX);
 
 		/* Based on type of command response or notification,

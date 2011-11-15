@@ -42,14 +42,14 @@ static int il4965_stats_flag(struct il_priv *il, char *buf, int bufsz)
 	flag = le32_to_cpu(il->_4965.stats.flag);
 
 	p += scnprintf(buf + p, bufsz - p, "Statistics Flag(0x%X):\n", flag);
-	if (flag & UCODE_STATISTICS_CLEAR_MSK)
+	if (flag & UCODE_STATS_CLEAR_MSK)
 		p += scnprintf(buf + p, bufsz - p,
 		"\tStatistics have been cleared\n");
 	p += scnprintf(buf + p, bufsz - p, "\tOperational Frequency: %s\n",
-		(flag & UCODE_STATISTICS_FREQUENCY_MSK)
+		(flag & UCODE_STATS_FREQUENCY_MSK)
 		? "2.4 GHz" : "5.2 GHz");
 	p += scnprintf(buf + p, bufsz - p, "\tTGj Narrow Band: %s\n",
-		(flag & UCODE_STATISTICS_NARROW_BAND_MSK)
+		(flag & UCODE_STATS_NARROW_BAND_MSK)
 		 ? "enabled" : "disabled");
 
 	return p;

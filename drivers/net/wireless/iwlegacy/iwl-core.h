@@ -544,7 +544,7 @@ void il_free_geos(struct il_priv *il);
 #define S_TEMPERATURE	8
 #define S_GEO_CONFIGURED	9
 #define S_EXIT_PENDING	10
-#define S_STATISTICS	12
+#define S_STATS		12
 #define S_SCANNING		13
 #define S_SCAN_ABORTING	14
 #define S_SCAN_HW		15

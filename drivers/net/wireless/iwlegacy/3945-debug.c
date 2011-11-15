@@ -37,16 +37,16 @@ static int il3945_stats_flag(struct il_priv *il, char *buf, int bufsz)
 	p += scnprintf(buf + p, bufsz - p, "Statistics Flag(0x%X):\n",
 		       le32_to_cpu(il->_3945.stats.flag));
 	if (le32_to_cpu(il->_3945.stats.flag) &
-			UCODE_STATISTICS_CLEAR_MSK)
+			UCODE_STATS_CLEAR_MSK)
 		p += scnprintf(buf + p, bufsz - p,
 			       "\tStatistics have been cleared\n");
 	p += scnprintf(buf + p, bufsz - p, "\tOperational Frequency: %s\n",
 		       (le32_to_cpu(il->_3945.stats.flag) &
-			UCODE_STATISTICS_FREQUENCY_MSK)
+			UCODE_STATS_FREQUENCY_MSK)
 			? "2.4 GHz" : "5.2 GHz");
 	p += scnprintf(buf + p, bufsz - p, "\tTGj Narrow Band: %s\n",
 		       (le32_to_cpu(il->_3945.stats.flag) &
-			UCODE_STATISTICS_NARROW_BAND_MSK)
+			UCODE_STATS_NARROW_BAND_MSK)
 			? "enabled" : "disabled");
 	return p;
 }

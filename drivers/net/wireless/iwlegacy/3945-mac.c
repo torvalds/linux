@@ -869,8 +869,8 @@ static void il3945_setup_rx_handlers(struct il_priv *il)
 	 * stats request from the host as well as for the periodic
 	 * stats notifications (after received beacons) from the uCode.
 	 */
-	il->rx_handlers[REPLY_STATISTICS_CMD] = il3945_reply_stats;
-	il->rx_handlers[STATISTICS_NOTIFICATION] = il3945_hw_rx_stats;
+	il->rx_handlers[REPLY_STATS_CMD] = il3945_reply_stats;
+	il->rx_handlers[STATS_NOTIFICATION] = il3945_hw_rx_stats;
 
 	il_setup_rx_scan_handlers(il);
 	il->rx_handlers[CARD_STATE_NOTIFICATION] = il3945_rx_card_state_notif;
@@ -1253,7 +1253,7 @@ static void il3945_rx_handle(struct il_priv *il)
 		 * Ucode should set SEQ_RX_FRAME bit if ucode-originated,
 		 *   but apparently a few don't get set; catch them here. */
 		reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME) &&
-			pkt->hdr.cmd != STATISTICS_NOTIFICATION &&
+			pkt->hdr.cmd != STATS_NOTIFICATION &&
 			pkt->hdr.cmd != REPLY_TX;
 
 		/* Based on type of command response or notification,

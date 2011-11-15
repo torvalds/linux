@@ -853,7 +853,7 @@ void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 
 	stat_band24 = !!(((struct il_notif_stats *)
 			 stat_resp)->flag &
-			 STATISTICS_REPLY_FLG_BAND_24G_MSK);
+			 STATS_REPLY_FLG_BAND_24G_MSK);
 	stat_chnum = le32_to_cpu(((struct il_notif_stats *)
 				 stat_resp)->flag) >> 16;
 

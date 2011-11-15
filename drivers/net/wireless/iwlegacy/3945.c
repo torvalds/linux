@@ -432,7 +432,7 @@ void il3945_reply_stats(struct il_priv *il,
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	__le32 *flag = (__le32 *)&pkt->u.raw;
 
-	if (le32_to_cpu(*flag) & UCODE_STATISTICS_CLEAR_MSK) {
+	if (le32_to_cpu(*flag) & UCODE_STATS_CLEAR_MSK) {
 #ifdef CONFIG_IWLEGACY_DEBUGFS
 		memset(&il->_3945.accum_stats, 0,
 			sizeof(struct il3945_notif_stats));

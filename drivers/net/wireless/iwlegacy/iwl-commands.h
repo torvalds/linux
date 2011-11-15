@@ -136,8 +136,8 @@ enum {
 	REPLY_BT_CONFIG = 0x9b,
 
 	/* Statistics */
-	REPLY_STATISTICS_CMD = 0x9c,
-	STATISTICS_NOTIFICATION = 0x9d,
+	REPLY_STATS_CMD = 0x9c,
+	STATS_NOTIFICATION = 0x9d,
 
 	/* RF-KILL commands and notifications */
 	CARD_STATE_NOTIFICATION = 0xa1,
@@ -2626,7 +2626,7 @@ struct il_scanstart_notification {
 #define IL_PROBE_STATUS_FAIL_TTL	BIT(1)
 #define IL_PROBE_STATUS_FAIL_BT	BIT(2)
 
-#define NUMBER_OF_STATISTICS 1	/* first __le32 is good CRC */
+#define NUMBER_OF_STATS 1	/* first __le32 is good CRC */
 /*
  * SCAN_RESULTS_NOTIFICATION = 0x83 (notification only, not a command)
  */
@@ -2637,7 +2637,7 @@ struct il_scanresults_notification {
 	u8 num_probe_not_sent; /* not enough time to send */
 	__le32 tsf_low;
 	__le32 tsf_high;
-	__le32 stats[NUMBER_OF_STATISTICS];
+	__le32 stats[NUMBER_OF_STATS];
 } __packed;
 
 /*
@@ -2958,24 +2958,24 @@ struct stats_general {
 	__le32 reserved3;
 } __packed;
 
-#define UCODE_STATISTICS_CLEAR_MSK		(0x1 << 0)
-#define UCODE_STATISTICS_FREQUENCY_MSK		(0x1 << 1)
-#define UCODE_STATISTICS_NARROW_BAND_MSK	(0x1 << 2)
+#define UCODE_STATS_CLEAR_MSK		(0x1 << 0)
+#define UCODE_STATS_FREQUENCY_MSK		(0x1 << 1)
+#define UCODE_STATS_NARROW_BAND_MSK	(0x1 << 2)
 
 /*
- * REPLY_STATISTICS_CMD = 0x9c,
+ * REPLY_STATS_CMD = 0x9c,
  * all devices identical.
  *
  * This command triggers an immediate response containing uCode stats.
- * The response is in the same format as STATISTICS_NOTIFICATION 0x9d, below.
+ * The response is in the same format as STATS_NOTIFICATION 0x9d, below.
  *
  * If the CLEAR_STATS configuration flag is set, uCode will clear its
  * internal copy of the stats (counters) after issuing the response.
- * This flag does not affect STATISTICS_NOTIFICATIONs after beacons (see below).
+ * This flag does not affect STATS_NOTIFICATIONs after beacons (see below).
  *
  * If the DISABLE_NOTIF configuration flag is set, uCode will not issue
- * STATISTICS_NOTIFICATIONs after received beacons (see below).  This flag
- * does not affect the response to the REPLY_STATISTICS_CMD 0x9c itself.
+ * STATS_NOTIFICATIONs after received beacons (see below).  This flag
+ * does not affect the response to the REPLY_STATS_CMD 0x9c itself.
  */
 #define IL_STATS_CONF_CLEAR_STATS cpu_to_le32(0x1)	/* see above */
 #define IL_STATS_CONF_DISABLE_NOTIF cpu_to_le32(0x2)/* see above */
@@ -2984,22 +2984,22 @@ struct il_stats_cmd {
 } __packed;
 
 /*
- * STATISTICS_NOTIFICATION = 0x9d (notification only, not a command)
+ * STATS_NOTIFICATION = 0x9d (notification only, not a command)
  *
  * By default, uCode issues this notification after receiving a beacon
  * while associated.  To disable this behavior, set DISABLE_NOTIF flag in the
- * REPLY_STATISTICS_CMD 0x9c, above.
+ * REPLY_STATS_CMD 0x9c, above.
  *
  * Statistics counters continue to increment beacon after beacon, but are
- * cleared when changing channels or when driver issues REPLY_STATISTICS_CMD
+ * cleared when changing channels or when driver issues REPLY_STATS_CMD
  * 0x9c with CLEAR_STATS bit set (see above).
  *
  * uCode also issues this notification during scans.  uCode clears stats
  * appropriately so that each notification contains stats for only the
  * one channel that has just been scanned.
  */
-#define STATISTICS_REPLY_FLG_BAND_24G_MSK         cpu_to_le32(0x2)
-#define STATISTICS_REPLY_FLG_HT40_MODE_MSK        cpu_to_le32(0x8)
+#define STATS_REPLY_FLG_BAND_24G_MSK         cpu_to_le32(0x2)
+#define STATS_REPLY_FLG_HT40_MODE_MSK        cpu_to_le32(0x8)
 
 struct il3945_notif_stats {
 	__le32 flag;
@@ -3076,7 +3076,7 @@ struct il_missed_beacon_notif {
  * time listening, not transmitting).  Driver must adjust sensitivity so that
  * the ratio of actual false alarms to actual Rx time falls within this range.
  *
- * While associated, uCode delivers STATISTICS_NOTIFICATIONs after each
+ * While associated, uCode delivers STATS_NOTIFICATIONs after each
  * received beacon.  These provide information to the driver to analyze the
  * sensitivity.  Don't analyze stats that come in from scanning, or any
  * other non-associated-network source.  Pertinent stats include:
@@ -3255,7 +3255,7 @@ struct il_sensitivity_cmd {
  * This command sets the relative gains of 4965 device's 3 radio receiver chains.
  *
  * After the first association, driver should accumulate signal and noise
- * stats from the STATISTICS_NOTIFICATIONs that follow the first 20
+ * stats from the STATS_NOTIFICATIONs that follow the first 20
  * beacons from the associated network (don't collect stats that come
  * in from scanning, or any other non-network source).
  *

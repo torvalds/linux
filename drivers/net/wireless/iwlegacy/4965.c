@@ -1675,7 +1675,7 @@ static int il4965_hw_get_temperature(struct il_priv *il)
 
 	if (test_bit(S_TEMPERATURE, &il->status) &&
 	    (il->_4965.stats.flag &
-			STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
+			STATS_REPLY_FLG_HT40_MODE_MSK)) {
 		D_TEMP("Running HT40 temperature calibration\n");
 		R1 = (s32)le32_to_cpu(il->card_alive_init.therm_r1[1]);
 		R2 = (s32)le32_to_cpu(il->card_alive_init.therm_r2[1]);
@@ -1737,7 +1737,7 @@ static int il4965_is_temp_calib_needed(struct il_priv *il)
 {
 	int temp_diff;
 
-	if (!test_bit(S_STATISTICS, &il->status)) {
+	if (!test_bit(S_STATS, &il->status)) {
 		D_TEMP("Temperature not updated -- no stats.\n");
 		return 0;
 	}

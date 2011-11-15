@@ -1179,11 +1179,11 @@ int il_send_stats_request(struct il_priv *il, u8 flags, bool clear)
 	};
 
 	if (flags & CMD_ASYNC)
-		return il_send_cmd_pdu_async(il, REPLY_STATISTICS_CMD,
+		return il_send_cmd_pdu_async(il, REPLY_STATS_CMD,
 					sizeof(struct il_stats_cmd),
 					&stats_cmd, NULL);
 	else
-		return il_send_cmd_pdu(il, REPLY_STATISTICS_CMD,
+		return il_send_cmd_pdu(il, REPLY_STATS_CMD,
 					sizeof(struct il_stats_cmd),
 					&stats_cmd);
 }
