@@ -40,6 +40,42 @@ EXPORT_SYMBOL(ethtool_op_get_link);
 
 #define ETHTOOL_DEV_FEATURE_WORDS	1
 
+static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN] = {
+	[NETIF_F_SG_BIT] =               "tx-scatter-gather",
+	[NETIF_F_IP_CSUM_BIT] =          "tx-checksum-ipv4",
+	[NETIF_F_NO_CSUM_BIT] =          "tx-checksum-unneeded",
+	[NETIF_F_HW_CSUM_BIT] =          "tx-checksum-ip-generic",
+	[NETIF_F_IPV6_CSUM_BIT] =        "tx-checksum-ipv6",
+	[NETIF_F_HIGHDMA_BIT] =          "highdma",
+	[NETIF_F_FRAGLIST_BIT] =         "tx-scatter-gather-fraglist",
+	[NETIF_F_HW_VLAN_TX_BIT] =       "tx-vlan-hw-insert",
+
+	[NETIF_F_HW_VLAN_RX_BIT] =       "rx-vlan-hw-parse",
+	[NETIF_F_HW_VLAN_FILTER_BIT] =   "rx-vlan-filter",
+	[NETIF_F_VLAN_CHALLENGED_BIT] =  "vlan-challenged",
+	[NETIF_F_GSO_BIT] =              "tx-generic-segmentation",
+	[NETIF_F_LLTX_BIT] =             "tx-lockless",
+	[NETIF_F_NETNS_LOCAL_BIT] =      "netns-local",
+	[NETIF_F_GRO_BIT] =              "rx-gro",
+	[NETIF_F_LRO_BIT] =              "rx-lro",
+
+	[NETIF_F_TSO_BIT] =              "tx-tcp-segmentation",
+	[NETIF_F_UFO_BIT] =              "tx-udp-fragmentation",
+	[NETIF_F_GSO_ROBUST_BIT] =       "tx-gso-robust",
+	[NETIF_F_TSO_ECN_BIT] =          "tx-tcp-ecn-segmentation",
+	[NETIF_F_TSO6_BIT] =             "tx-tcp6-segmentation",
+	[NETIF_F_FSO_BIT] =              "tx-fcoe-segmentation",
+
+	[NETIF_F_FCOE_CRC_BIT] =         "tx-checksum-fcoe-crc",
+	[NETIF_F_SCTP_CSUM_BIT] =        "tx-checksum-sctp",
+	[NETIF_F_FCOE_MTU_BIT] =         "fcoe-mtu",
+	[NETIF_F_NTUPLE_BIT] =           "rx-ntuple-filter",
+	[NETIF_F_RXHASH_BIT] =           "rx-hashing",
+	[NETIF_F_RXCSUM_BIT] =           "rx-checksum",
+	[NETIF_F_NOCACHE_COPY_BIT] =     "tx-nocache-copy",
+	[NETIF_F_LOOPBACK_BIT] =         "loopback",
+};
+
 static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_gfeatures cmd = {
@@ -106,44 +142,6 @@ static int ethtool_set_features(struct net_device *dev, void __user *useraddr)
 
 	return ret;
 }
-
-static const char netdev_features_strings[ETHTOOL_DEV_FEATURE_WORDS * 32][ETH_GSTRING_LEN] = {
-	/* NETIF_F_SG */              "tx-scatter-gather",
-	/* NETIF_F_IP_CSUM */         "tx-checksum-ipv4",
-	/* NETIF_F_NO_CSUM */         "tx-checksum-unneeded",
-	/* NETIF_F_HW_CSUM */         "tx-checksum-ip-generic",
-	/* NETIF_F_IPV6_CSUM */       "tx-checksum-ipv6",
-	/* NETIF_F_HIGHDMA */         "highdma",
-	/* NETIF_F_FRAGLIST */        "tx-scatter-gather-fraglist",
-	/* NETIF_F_HW_VLAN_TX */      "tx-vlan-hw-insert",
-
-	/* NETIF_F_HW_VLAN_RX */      "rx-vlan-hw-parse",
-	/* NETIF_F_HW_VLAN_FILTER */  "rx-vlan-filter",
-	/* NETIF_F_VLAN_CHALLENGED */ "vlan-challenged",
-	/* NETIF_F_GSO */             "tx-generic-segmentation",
-	/* NETIF_F_LLTX */            "tx-lockless",
-	/* NETIF_F_NETNS_LOCAL */     "netns-local",
-	/* NETIF_F_GRO */             "rx-gro",
-	/* NETIF_F_LRO */             "rx-lro",
-
-	/* NETIF_F_TSO */             "tx-tcp-segmentation",
-	/* NETIF_F_UFO */             "tx-udp-fragmentation",
-	/* NETIF_F_GSO_ROBUST */      "tx-gso-robust",
-	/* NETIF_F_TSO_ECN */         "tx-tcp-ecn-segmentation",
-	/* NETIF_F_TSO6 */            "tx-tcp6-segmentation",
-	/* NETIF_F_FSO */             "tx-fcoe-segmentation",
-	"",
-	"",
-
-	/* NETIF_F_FCOE_CRC */        "tx-checksum-fcoe-crc",
-	/* NETIF_F_SCTP_CSUM */       "tx-checksum-sctp",
-	/* NETIF_F_FCOE_MTU */        "fcoe-mtu",
-	/* NETIF_F_NTUPLE */          "rx-ntuple-filter",
-	/* NETIF_F_RXHASH */          "rx-hashing",
-	/* NETIF_F_RXCSUM */          "rx-checksum",
-	/* NETIF_F_NOCACHE_COPY */    "tx-nocache-copy",
-	/* NETIF_F_LOOPBACK */        "loopback",
-};
 
 static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 {
