@@ -1,8 +1,5 @@
-ccflags-y += -DUSE_FW_SOURCE_IMG_FILE
 ccflags-y += -DCONFIG_PM_RTL
-ccflags-y += -DCONFIG_PM
 ccflags-y += -DHAVE_NET_DEVICE_OPS
-ccflags-y += -DENABLE_DOT11D
 
 r8192e_pci-objs :=		\
 	rtl_core.o		\
