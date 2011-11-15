@@ -1,0 +1,8 @@
+if ARCH_SUN4I
+
+comment "Allwinner A1x options"
+
+config TEGRA_FPGA
+	bool "FPGA Express support"
+
+endif

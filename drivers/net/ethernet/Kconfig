@@ -168,6 +168,16 @@ source "drivers/net/ethernet/sgi/Kconfig"
 source "drivers/net/ethernet/smsc/Kconfig"
 source "drivers/net/ethernet/stmicro/Kconfig"
 source "drivers/net/ethernet/sun/Kconfig"
+
+config WEMAC_SUN4I
+        tristate "wemac support(sun4i)"
+        depends on ARCH_SUN4I
+        ---help---
+          Support for Softwinner chipset.
+
+          To compile this driver as a module, choose M here.  The module
+          will be called wemac.
+
 source "drivers/net/ethernet/tehuti/Kconfig"
 source "drivers/net/ethernet/ti/Kconfig"
 source "drivers/net/ethernet/tile/Kconfig"

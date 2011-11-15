@@ -42,6 +42,11 @@ config ARM
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
 
+config CHIP_ID
+        int
+        default 1120 if ARCH_SUN3I
+        default 1123 if ARCH_SUN4I
+
 config ARM_HAS_SG_CHAIN
 	bool
 
@@ -697,6 +702,20 @@ config ARCH_PICOXCELL
 	  This enables support for systems based on the Picochip picoXcell
 	  family of Femtocell devices.  The picoxcell support requires device tree
 	  for all boards.
+
+config ARCH_SUN4I
+	bool "AllWinner SUN4I Platform"
+	select CPU_V7
+	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select GENERIC_CLOCKEVENTS
+	help
+	  This enables support for Allwinner Technology Co., Ltd A1x SoC based systems
+
+#if ARCH_SUN4I
+#source "arch/arm/mach-sun4i/Kconfig
+#endif
 
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
