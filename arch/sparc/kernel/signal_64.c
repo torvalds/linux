@@ -533,13 +533,23 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	 * register for GDB to save and restore in order to get
 	 * orig_i0 correct for syscall restarts when debugging.
 	 *
-	 * However, we luckily can use the fact that several registers
-	 * are volatile across system calls.  One such register is
-	 * %g2, so use that as a place to save away orig_i0.
+	 * Although it should be the case that most of the global
+	 * registers are volatile across a system call, glibc already
+	 * depends upon that fact that we preserve them.  So we can't
+	 * just use any global register to save away the orig_i0 value.
+	 *
+	 * In particular %g2, %g3, %g4, and %g5 are all assumed to be
+	 * preserved across a system call trap by various pieces of
+	 * code in glibc.
+	 *
+	 * %g7 is used as the "thread register".   %g6 is not used in
+	 * any fixed manner.  %g6 is used as a scratch register and
+	 * a compiler temporary, but it's value is never used across
+	 * a system call.  Therefore %g6 is usable for orig_i0 storage.
 	 */
 	if (pt_regs_is_syscall(regs) &&
 	    (regs->tstate & (TSTATE_XCARRY | TSTATE_ICARRY)))
-		regs->u_regs[UREG_G2] = orig_i0;
+		regs->u_regs[UREG_G6] = orig_i0;
 
 	if (current_thread_info()->status & TS_RESTORE_SIGMASK)
 		oldset = &current->saved_sigmask;
@@ -560,7 +570,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	if (pt_regs_is_syscall(regs) &&
 	    (regs->tstate & (TSTATE_XCARRY | TSTATE_ICARRY))) {
 		restart_syscall = 1;
-		orig_i0 = regs->u_regs[UREG_G2];
+		orig_i0 = regs->u_regs[UREG_G6];
 	}
 
 	if (signr > 0) {

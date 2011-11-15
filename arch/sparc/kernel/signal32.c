@@ -837,7 +837,7 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs)
 	if (pt_regs_is_syscall(regs) &&
 	    (regs->tstate & (TSTATE_XCARRY | TSTATE_ICARRY))) {
 		restart_syscall = 1;
-		orig_i0 = regs->u_regs[UREG_G2];
+		orig_i0 = regs->u_regs[UREG_G6];
 	}
 
 	if (signr > 0) {
