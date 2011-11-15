@@ -789,7 +789,7 @@ static void il3945_hdl_add_sta(struct il_priv *il,
 	D_RX("Received C_ADD_STA: 0x%02X\n", pkt->u.status);
 }
 
-static void il3945_rx_beacon_notif(struct il_priv *il,
+static void il3945_hdl_beacon(struct il_priv *il,
 				struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -812,7 +812,7 @@ static void il3945_rx_beacon_notif(struct il_priv *il,
 
 /* Handle notification from uCode that card's power state is changing
  * due to software, hardware, or critical temperature RFKILL */
-static void il3945_rx_card_state_notif(struct il_priv *il,
+static void il3945_hdl_card_state(struct il_priv *il,
 				    struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -856,24 +856,24 @@ static void il3945_setup_handlers(struct il_priv *il)
 	il->handlers[N_ALIVE] = il3945_hdl_alive;
 	il->handlers[C_ADD_STA] = il3945_hdl_add_sta;
 	il->handlers[N_ERROR] = il_hdl_error;
-	il->handlers[N_CHANNEL_SWITCH] = il_rx_csa;
+	il->handlers[N_CHANNEL_SWITCH] = il_hdl_csa;
 	il->handlers[N_SPECTRUM_MEASUREMENT] =
-			il_rx_spectrum_measure_notif;
-	il->handlers[N_PM_SLEEP] = il_rx_pm_sleep_notif;
+			il_hdl_spectrum_measurement;
+	il->handlers[N_PM_SLEEP] = il_hdl_pm_sleep;
 	il->handlers[N_PM_DEBUG_STATS] =
-	    il_rx_pm_debug_stats_notif;
-	il->handlers[N_BEACON] = il3945_rx_beacon_notif;
+	    il_hdl_pm_debug_stats;
+	il->handlers[N_BEACON] = il3945_hdl_beacon;
 
 	/*
 	 * The same handler is used for both the REPLY to a discrete
 	 * stats request from the host as well as for the periodic
 	 * stats notifications (after received beacons) from the uCode.
 	 */
-	il->handlers[C_STATS] = il3945_reply_stats;
-	il->handlers[N_STATS] = il3945_hw_rx_stats;
+	il->handlers[C_STATS] = il3945_hdl_c_stats;
+	il->handlers[N_STATS] = il3945_hdl_stats;
 
 	il_setup_rx_scan_handlers(il);
-	il->handlers[N_CARD_STATE] = il3945_rx_card_state_notif;
+	il->handlers[N_CARD_STATE] = il3945_hdl_card_state;
 
 	/* Set up hardware specific Rx handlers */
 	il3945_hw_handler_setup(il);

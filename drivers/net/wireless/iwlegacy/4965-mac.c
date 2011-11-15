@@ -1242,7 +1242,7 @@ int il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 	}
 	return 0;
 }
-void il4965_rx_missed_beacon_notif(struct il_priv *il,
+void il4965_hdl_missed_beacon(struct il_priv *il,
 				struct il_rx_buf *rxb)
 
 {
@@ -1352,7 +1352,7 @@ static void il4965_accumulative_stats(struct il_priv *il,
 
 #define REG_RECALIB_PERIOD (60)
 
-void il4965_rx_stats(struct il_priv *il,
+void il4965_hdl_stats(struct il_priv *il,
 			      struct il_rx_buf *rxb)
 {
 	int change;
@@ -1396,7 +1396,7 @@ void il4965_rx_stats(struct il_priv *il,
 		il->cfg->ops->lib->temp_ops.temperature(il);
 }
 
-void il4965_reply_stats(struct il_priv *il,
+void il4965_hdl_c_stats(struct il_priv *il,
 			      struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -1412,7 +1412,7 @@ void il4965_reply_stats(struct il_priv *il,
 #endif
 		D_RX("Statistics have been cleared\n");
 	}
-	il4965_rx_stats(il, rxb);
+	il4965_hdl_stats(il, rxb);
 }
 
 
@@ -3819,7 +3819,7 @@ static void il4965_bg_stats_periodic(unsigned long data)
 	il_send_stats_request(il, CMD_ASYNC, false);
 }
 
-static void il4965_rx_beacon_notif(struct il_priv *il,
+static void il4965_hdl_beacon(struct il_priv *il,
 				struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -3861,7 +3861,7 @@ static void il4965_perform_ct_kill_task(struct il_priv *il)
 
 /* Handle notification from uCode that card's power state is changing
  * due to software, hardware, or critical temperature RFKILL */
-static void il4965_rx_card_state_notif(struct il_priv *il,
+static void il4965_hdl_card_state(struct il_priv *il,
 				    struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -3923,30 +3923,30 @@ static void il4965_setup_handlers(struct il_priv *il)
 {
 	il->handlers[N_ALIVE] = il4965_hdl_alive;
 	il->handlers[N_ERROR] = il_hdl_error;
-	il->handlers[N_CHANNEL_SWITCH] = il_rx_csa;
+	il->handlers[N_CHANNEL_SWITCH] = il_hdl_csa;
 	il->handlers[N_SPECTRUM_MEASUREMENT] =
-			il_rx_spectrum_measure_notif;
-	il->handlers[N_PM_SLEEP] = il_rx_pm_sleep_notif;
+			il_hdl_spectrum_measurement;
+	il->handlers[N_PM_SLEEP] = il_hdl_pm_sleep;
 	il->handlers[N_PM_DEBUG_STATS] =
-	    il_rx_pm_debug_stats_notif;
-	il->handlers[N_BEACON] = il4965_rx_beacon_notif;
+	    il_hdl_pm_debug_stats;
+	il->handlers[N_BEACON] = il4965_hdl_beacon;
 
 	/*
 	 * The same handler is used for both the REPLY to a discrete
 	 * stats request from the host as well as for the periodic
 	 * stats notifications (after received beacons) from the uCode.
 	 */
-	il->handlers[C_STATS] = il4965_reply_stats;
-	il->handlers[N_STATS] = il4965_rx_stats;
+	il->handlers[C_STATS] = il4965_hdl_c_stats;
+	il->handlers[N_STATS] = il4965_hdl_stats;
 
 	il_setup_rx_scan_handlers(il);
 
 	/* status change handler */
 	il->handlers[N_CARD_STATE] =
-					il4965_rx_card_state_notif;
+					il4965_hdl_card_state;
 
 	il->handlers[N_MISSED_BEACONS] =
-	    il4965_rx_missed_beacon_notif;
+	    il4965_hdl_missed_beacon;
 	/* Rx handlers */
 	il->handlers[N_RX_PHY] = il4965_hdl_rx_phy;
 	il->handlers[N_RX_MPDU] = il4965_hdl_rx;

@@ -253,9 +253,9 @@ void il3945_hw_build_tx_cmd_rate(struct il_priv *il,
 				  int sta_id, int tx_id);
 extern int il3945_hw_reg_send_txpower(struct il_priv *il);
 extern int il3945_hw_reg_set_txpower(struct il_priv *il, s8 power);
-extern void il3945_hw_rx_stats(struct il_priv *il,
+extern void il3945_hdl_stats(struct il_priv *il,
 				 struct il_rx_buf *rxb);
-void il3945_reply_stats(struct il_priv *il,
+void il3945_hdl_c_stats(struct il_priv *il,
 			      struct il_rx_buf *rxb);
 extern void il3945_disable_events(struct il_priv *il);
 extern int il4965_get_temperature(const struct il_priv *il);

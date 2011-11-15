@@ -411,7 +411,7 @@ static void il3945_accumulative_stats(struct il_priv *il,
 }
 #endif
 
-void il3945_hw_rx_stats(struct il_priv *il,
+void il3945_hdl_stats(struct il_priv *il,
 		struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -426,7 +426,7 @@ void il3945_hw_rx_stats(struct il_priv *il,
 	memcpy(&il->_3945.stats, pkt->u.raw, sizeof(il->_3945.stats));
 }
 
-void il3945_reply_stats(struct il_priv *il,
+void il3945_hdl_c_stats(struct il_priv *il,
 			      struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -443,7 +443,7 @@ void il3945_reply_stats(struct il_priv *il,
 #endif
 		D_RX("Statistics have been cleared\n");
 	}
-	il3945_hw_rx_stats(il, rxb);
+	il3945_hdl_stats(il, rxb);
 }
 
 

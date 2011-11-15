@@ -2122,7 +2122,7 @@ static void il4965_hdl_tx(struct il_priv *il,
 	spin_unlock_irqrestore(&il->sta_lock, flags);
 }
 
-static void il4965_rx_beacon_notif(struct il_priv *il,
+static void il4965_hdl_beacon(struct il_priv *il,
 				    struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -2148,7 +2148,7 @@ static void il4965_handler_setup(struct il_priv *il)
 	il->handlers[N_RX] = il4965_hdl_rx;
 	/* Tx response */
 	il->handlers[C_TX] = il4965_hdl_tx;
-	il->handlers[N_BEACON] = il4965_rx_beacon_notif;
+	il->handlers[N_BEACON] = il4965_hdl_beacon;
 }
 
 static struct il_hcmd_ops il4965_hcmd = {

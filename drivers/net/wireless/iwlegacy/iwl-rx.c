@@ -210,7 +210,7 @@ err_bd:
 EXPORT_SYMBOL(il_rx_queue_alloc);
 
 
-void il_rx_spectrum_measure_notif(struct il_priv *il,
+void il_hdl_spectrum_measurement(struct il_priv *il,
 					  struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -225,7 +225,7 @@ void il_rx_spectrum_measure_notif(struct il_priv *il,
 	memcpy(&il->measure_report, report, sizeof(*report));
 	il->measurement_status |= MEASUREMENT_READY;
 }
-EXPORT_SYMBOL(il_rx_spectrum_measure_notif);
+EXPORT_SYMBOL(il_hdl_spectrum_measurement);
 
 /*
  * returns non-zero if packet should be dropped

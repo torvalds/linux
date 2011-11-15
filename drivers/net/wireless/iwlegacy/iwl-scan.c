@@ -195,7 +195,7 @@ static void il_hdl_scan(struct il_priv *il,
 }
 
 /* Service N_SCAN_START (0x82) */
-static void il_rx_scan_start_notif(struct il_priv *il,
+static void il_hdl_scan_start(struct il_priv *il,
 				    struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -213,7 +213,7 @@ static void il_rx_scan_start_notif(struct il_priv *il,
 }
 
 /* Service N_SCAN_RESULTS (0x83) */
-static void il_rx_scan_results_notif(struct il_priv *il,
+static void il_hdl_scan_results(struct il_priv *il,
 				      struct il_rx_buf *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
@@ -235,7 +235,7 @@ static void il_rx_scan_results_notif(struct il_priv *il,
 }
 
 /* Service N_SCAN_COMPLETE (0x84) */
-static void il_rx_scan_complete_notif(struct il_priv *il,
+static void il_hdl_scan_complete(struct il_priv *il,
 				       struct il_rx_buf *rxb)
 {
 
@@ -265,11 +265,11 @@ void il_setup_rx_scan_handlers(struct il_priv *il)
 	/* scan handlers */
 	il->handlers[C_SCAN] = il_hdl_scan;
 	il->handlers[N_SCAN_START] =
-					il_rx_scan_start_notif;
+					il_hdl_scan_start;
 	il->handlers[N_SCAN_RESULTS] =
-					il_rx_scan_results_notif;
+					il_hdl_scan_results;
 	il->handlers[N_SCAN_COMPLETE] =
-					il_rx_scan_complete_notif;
+					il_hdl_scan_complete;
 }
 EXPORT_SYMBOL(il_setup_rx_scan_handlers);
 

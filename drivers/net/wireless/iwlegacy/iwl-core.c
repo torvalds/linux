@@ -847,7 +847,7 @@ void il_chswitch_done(struct il_priv *il, bool is_success)
 }
 EXPORT_SYMBOL(il_chswitch_done);
 
-void il_rx_csa(struct il_priv *il, struct il_rx_buf *rxb)
+void il_hdl_csa(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_csa_notification *csa = &(pkt->u.csa_notif);
@@ -870,7 +870,7 @@ void il_rx_csa(struct il_priv *il, struct il_rx_buf *rxb)
 		il_chswitch_done(il, false);
 	}
 }
-EXPORT_SYMBOL(il_rx_csa);
+EXPORT_SYMBOL(il_hdl_csa);
 
 #ifdef CONFIG_IWLEGACY_DEBUG
 void il_print_rx_config_cmd(struct il_priv *il,
@@ -1189,7 +1189,7 @@ int il_send_stats_request(struct il_priv *il, u8 flags, bool clear)
 }
 EXPORT_SYMBOL(il_send_stats_request);
 
-void il_rx_pm_sleep_notif(struct il_priv *il,
+void il_hdl_pm_sleep(struct il_priv *il,
 			   struct il_rx_buf *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
@@ -1199,9 +1199,9 @@ void il_rx_pm_sleep_notif(struct il_priv *il,
 		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
 #endif
 }
-EXPORT_SYMBOL(il_rx_pm_sleep_notif);
+EXPORT_SYMBOL(il_hdl_pm_sleep);
 
-void il_rx_pm_debug_stats_notif(struct il_priv *il,
+void il_hdl_pm_debug_stats(struct il_priv *il,
 				      struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -1211,7 +1211,7 @@ void il_rx_pm_debug_stats_notif(struct il_priv *il,
 			il_get_cmd_string(pkt->hdr.cmd));
 	il_print_hex_dump(il, IL_DL_RADIO, pkt->u.raw, len);
 }
-EXPORT_SYMBOL(il_rx_pm_debug_stats_notif);
+EXPORT_SYMBOL(il_hdl_pm_debug_stats);
 
 void il_hdl_error(struct il_priv *il,
 			struct il_rx_buf *rxb)
