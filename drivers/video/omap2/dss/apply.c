@@ -86,6 +86,9 @@ struct mgr_priv_data {
 
 	bool manual_update;
 	bool do_manual_update;
+
+	/* If true, a display is enabled using this manager */
+	bool enabled;
 };
 
 static struct {
@@ -609,6 +612,7 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	int r;
 	unsigned long flags;
 	struct omap_overlay *ovl;
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 
 	DSSDBG("omap_dss_mgr_apply(%s)\n", mgr->name);
 
@@ -630,7 +634,7 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 		omap_dss_mgr_apply_ovl_fifos(ovl);
 
 	r = 0;
-	if (mgr->enabled && !mgr_manual_update(mgr)) {
+	if (mp->enabled && !mgr_manual_update(mgr)) {
 		if (!dss_data.irq_enabled)
 			dss_register_vsync_isr();
 
@@ -646,22 +650,38 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 void dss_mgr_enable(struct omap_overlay_manager *mgr)
 {
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
+	unsigned long flags;
+
 	mutex_lock(&apply_lock);
 
 	if (!mgr_manual_update(mgr))
 		dispc_mgr_enable(mgr->id, true);
-	mgr->enabled = true;
+
+	spin_lock_irqsave(&data_lock, flags);
+
+	mp->enabled = true;
+
+	spin_unlock_irqrestore(&data_lock, flags);
 
 	mutex_unlock(&apply_lock);
 }
 
 void dss_mgr_disable(struct omap_overlay_manager *mgr)
 {
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
+	unsigned long flags;
+
 	mutex_lock(&apply_lock);
 
 	if (!mgr_manual_update(mgr))
 		dispc_mgr_enable(mgr->id, false);
-	mgr->enabled = false;
+
+	spin_lock_irqsave(&data_lock, flags);
+
+	mp->enabled = false;
+
+	spin_unlock_irqrestore(&data_lock, flags);
 
 	mutex_unlock(&apply_lock);
 }
