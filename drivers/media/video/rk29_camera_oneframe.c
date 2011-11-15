@@ -475,7 +475,6 @@ static void rk29_videobuf_queue(struct videobuf_queue *vq,
 		else
 			BUG();    /* ddl@rock-chips.com : The same videobuffer queue again */
 	}
-
     if (!pcdev->active) {
         pcdev->active = vb;
         rk29_videobuf_capture(vb);
@@ -643,7 +642,7 @@ static irqreturn_t rk29_camera_irq(int irq, void *data)
 			wk->vb = vb;
 			wk->pcdev = pcdev;
 			queue_work(pcdev->camera_wq, &(wk->work));
-		} else {
+		} else {		    
 			wake_up(&vb->done);
 		}
     }
@@ -1994,7 +1993,7 @@ static int rk29_camera_probe(struct platform_device *pdev)
         goto exit_reqirq;
     }
 
-	pcdev->camera_wq = create_workqueue("camera wq");
+	pcdev->camera_wq = create_workqueue("rk_camera_workqueue");
 	if (pcdev->camera_wq == NULL)
 		goto exit_free_irq;
 	INIT_WORK(&pcdev->camera_reinit_work, rk29_camera_reinit_work);
