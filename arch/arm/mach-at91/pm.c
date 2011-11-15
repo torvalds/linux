@@ -315,7 +315,7 @@ static int __init at91_pm_init(void)
 
 #ifdef CONFIG_ARCH_AT91RM9200
 	/* AT91RM9200 SDRAM low-power mode cannot be used with self-refresh. */
-	at91_sys_write(AT91_SDRAMC_LPR, 0);
+	at91_sys_write(AT91RM9200_SDRAMC_LPR, 0);
 #endif
 
 	suspend_set_ops(&at91_pm_ops);

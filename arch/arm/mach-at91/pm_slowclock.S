@@ -18,6 +18,7 @@
 
 #if defined(CONFIG_ARCH_AT91RM9200)
 #include <mach/at91rm9200_mc.h>
+#include <mach/at91rm9200_sdramc.h>
 #elif defined(CONFIG_ARCH_AT91SAM9G45)
 #include <mach/at91sam9_ddrsdr.h>
 #else
@@ -131,7 +132,7 @@ ENTRY(at91_slow_clock)
 #ifdef CONFIG_ARCH_AT91RM9200
 	/* Put SDRAM in self-refresh mode */
 	mov	tmp1, #1
-	str	tmp1, [sdramc, #AT91_SDRAMC_SRR]
+	str	tmp1, [sdramc, #AT91RM9200_SDRAMC_SRR]
 #elif defined(CONFIG_ARCH_AT91SAM9G45)
 
 	/* prepare for DDRAM self-refresh mode */

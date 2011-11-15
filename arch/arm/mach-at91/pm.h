@@ -13,6 +13,7 @@
 
 #ifdef CONFIG_ARCH_AT91RM9200
 #include <mach/at91rm9200_mc.h>
+#include <mach/at91rm9200_sdramc.h>
 
 /*
  * The AT91RM9200 goes into self-refresh mode with this command, and will
@@ -26,7 +27,7 @@
 
 static inline void at91rm9200_standby(void)
 {
-	u32 lpr = at91_sys_read(AT91_SDRAMC_LPR);
+	u32 lpr = at91_sys_read(AT91RM9200_SDRAMC_LPR);
 
 	asm volatile(
 		"b    1f\n\t"
@@ -37,8 +38,8 @@ static inline void at91rm9200_standby(void)
 		"    mcr    p15, 0, %0, c7, c0, 4\n\t"
 		"    str    %5, [%1, %2]"
 		:
-		: "r" (0), "r" (AT91_BASE_SYS), "r" (AT91_SDRAMC_LPR),
-		  "r" (1), "r" (AT91_SDRAMC_SRR),
+		: "r" (0), "r" (AT91_BASE_SYS), "r" (AT91RM9200_SDRAMC_LPR),
+		  "r" (1), "r" (AT91RM9200_SDRAMC_SRR),
 		  "r" (lpr));
 }
 
