@@ -980,9 +980,6 @@ lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
 
 	ret = dev_queue_xmit(frag);
 
-	if (ret < 0)
-		dev_kfree_skb(frag);
-
 	return ret;
 }
 
