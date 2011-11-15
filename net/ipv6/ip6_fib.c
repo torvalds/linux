@@ -635,10 +635,9 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 {
 	struct rt6_info *iter = NULL;
 	struct rt6_info **ins;
-	int replace = (NULL != info &&
-	    NULL != info->nlh &&
+	int replace = (NULL != info->nlh &&
 	    (info->nlh->nlmsg_flags&NLM_F_REPLACE));
-	int add = ((NULL == info || NULL == info->nlh) ||
+	int add = (NULL == info->nlh ||
 	    (info->nlh->nlmsg_flags&NLM_F_CREATE));
 	int found = 0;
 
@@ -755,7 +754,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info)
 	int err = -ENOMEM;
 	int allow_create = 1;
 	int replace_required = 0;
-	if (NULL != info && NULL != info->nlh) {
+	if (NULL != info->nlh) {
 		if (!(info->nlh->nlmsg_flags&NLM_F_CREATE))
 			allow_create = 0;
 		if ((info->nlh->nlmsg_flags&NLM_F_REPLACE))
