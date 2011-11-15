@@ -1,0 +1,5 @@
+config SND_SUN4I_SOC_CODEC
+	tristate "APB On-Chip Codec"
+	default n
+
+
