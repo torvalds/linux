@@ -58,6 +58,7 @@ source "sound/soc/sh/Kconfig"
 source "sound/soc/tegra/Kconfig"
 source "sound/soc/txx9/Kconfig"
 source "sound/soc/sun4i/Kconfig"
+source "sound/soc/sun4i/hdmiaudio/Kconfig"
 
 
 # Supported codecs
