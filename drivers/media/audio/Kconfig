@@ -1,0 +1,4 @@
+config ACE_CONFIG
+	tristate "ace modlue manage clock"
+	default y
+	depends on AUDIO_ENGINE
