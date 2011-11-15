@@ -96,18 +96,18 @@ static const u8 ant_toggle_lookup[] = {
  */
 const struct il_rate_info il_rates[RATE_COUNT] = {
 	IL_DECLARE_RATE_INFO(1, INV, INV, 2, INV, 2, INV, 2),	/*  1mbps */
-	IL_DECLARE_RATE_INFO(2, INV, 1, 5, 1, 5, 1, 5),	/*  2mbps */
+	IL_DECLARE_RATE_INFO(2, INV, 1, 5, 1, 5, 1, 5),		/*  2mbps */
 	IL_DECLARE_RATE_INFO(5, INV, 2, 6, 2, 11, 2, 11),	/*5.5mbps */
 	IL_DECLARE_RATE_INFO(11, INV, 9, 12, 9, 12, 5, 18),	/* 11mbps */
-	IL_DECLARE_RATE_INFO(6, 6, 5, 9, 5, 11, 5, 11),	/*  6mbps */
+	IL_DECLARE_RATE_INFO(6, 6, 5, 9, 5, 11, 5, 11),		/*  6mbps */
 	IL_DECLARE_RATE_INFO(9, 6, 6, 11, 6, 11, 5, 11),	/*  9mbps */
 	IL_DECLARE_RATE_INFO(12, 12, 11, 18, 11, 18, 11, 18),	/* 12mbps */
 	IL_DECLARE_RATE_INFO(18, 18, 12, 24, 12, 24, 11, 24),	/* 18mbps */
 	IL_DECLARE_RATE_INFO(24, 24, 18, 36, 18, 36, 18, 36),	/* 24mbps */
 	IL_DECLARE_RATE_INFO(36, 36, 24, 48, 24, 48, 24, 48),	/* 36mbps */
 	IL_DECLARE_RATE_INFO(48, 48, 36, 54, 36, 54, 36, 54),	/* 48mbps */
-	IL_DECLARE_RATE_INFO(54, 54, 48, INV, 48, INV, 48, INV),	/* 54mbps */
-	IL_DECLARE_RATE_INFO(60, 60, 48, INV, 48, INV, 48, INV),	/* 60mbps */
+	IL_DECLARE_RATE_INFO(54, 54, 48, INV, 48, INV, 48, INV),/* 54mbps */
+	IL_DECLARE_RATE_INFO(60, 60, 48, INV, 48, INV, 48, INV),/* 60mbps */
 };
 
 static int
@@ -150,7 +150,7 @@ static void il4965_rs_stay_in_table(struct il_lq_sta *lq_sta,
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 static void il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta,
-				    u32 * rate_n_flags, int idx);
+				    u32 *rate_n_flags, int idx);
 #else
 static void
 il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta, u32 * rate_n_flags, int idx)
@@ -610,7 +610,7 @@ il4965_rs_get_tbl_info_from_mcs(const u32 rate_n_flags,
 /* switch to another antenna/antennas and return 1 */
 /* if no other valid antenna found, return 0 */
 static int
-il4965_rs_toggle_antenna(u32 valid_ant, u32 * rate_n_flags,
+il4965_rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 			 struct il_scale_tbl_info *tbl)
 {
 	u8 new_ant_type;
@@ -1082,7 +1082,8 @@ il4965_rs_set_expected_tpt_table(struct il_lq_sta *lq_sta,
  * bit rate will typically need to increase, but not if performance was bad.
  */
 static s32
-il4965_rs_get_best_rate(struct il_priv *il, struct il_lq_sta *lq_sta, struct il_scale_tbl_info *tbl,	/* "search" */
+il4965_rs_get_best_rate(struct il_priv *il, struct il_lq_sta *lq_sta,
+			struct il_scale_tbl_info *tbl,	/* "search" */
 			u16 rate_mask, s8 idx)
 {
 	/* "active" values */
@@ -2012,11 +2013,10 @@ il4965_rs_rate_scale_perform(struct il_priv *il, struct sk_buff *skb,
 		/* Higher adjacent rate's throughput is measured */
 		if (high_tpt != IL_INVALID_VALUE) {
 			/* Higher rate has better throughput */
-			if (high_tpt > current_tpt && sr >= RATE_INCREASE_TH) {
+			if (high_tpt > current_tpt && sr >= RATE_INCREASE_TH)
 				scale_action = 1;
-			} else {
+			else
 				scale_action = 0;
-			}
 
 			/* Lower adjacent rate's throughput is measured */
 		} else if (low_tpt != IL_INVALID_VALUE) {
@@ -2583,8 +2583,8 @@ il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta, u32 * rate_n_flags, int idx)
 
 static ssize_t
 il4965_rs_sta_dbgfs_scale_table_write(struct file *file,
-				      const char __user * user_buf,
-				      size_t count, loff_t * ppos)
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
 {
 	struct il_lq_sta *lq_sta = file->private_data;
 	struct il_priv *il;
@@ -2622,8 +2622,8 @@ il4965_rs_sta_dbgfs_scale_table_write(struct file *file,
 }
 
 static ssize_t
-il4965_rs_sta_dbgfs_scale_table_read(struct file *file, char __user * user_buf,
-				     size_t count, loff_t * ppos)
+il4965_rs_sta_dbgfs_scale_table_read(struct file *file, char __user *user_buf,
+				     size_t count, loff_t *ppos)
 {
 	char *buff;
 	int desc = 0;
@@ -2730,8 +2730,8 @@ static const struct file_operations rs_sta_dbgfs_scale_table_ops = {
 };
 
 static ssize_t
-il4965_rs_sta_dbgfs_stats_table_read(struct file *file, char __user * user_buf,
-				     size_t count, loff_t * ppos)
+il4965_rs_sta_dbgfs_stats_table_read(struct file *file, char __user *user_buf,
+				     size_t count, loff_t *ppos)
 {
 	char *buff;
 	int desc = 0;
@@ -2776,8 +2776,8 @@ static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
 
 static ssize_t
 il4965_rs_sta_dbgfs_rate_scale_data_read(struct file *file,
-					 char __user * user_buf, size_t count,
-					 loff_t * ppos)
+					 char __user *user_buf, size_t count,
+					 loff_t *ppos)
 {
 	char buff[120];
 	int desc = 0;

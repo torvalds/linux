@@ -837,8 +837,8 @@ il3945_open_file_generic(struct inode *inode, struct file *file)
 }
 
 static ssize_t
-il3945_sta_dbgfs_stats_table_read(struct file *file, char __user * user_buf,
-				  size_t count, loff_t * ppos)
+il3945_sta_dbgfs_stats_table_read(struct file *file, char __user *user_buf,
+				  size_t count, loff_t *ppos)
 {
 	char *buff;
 	int desc = 0;

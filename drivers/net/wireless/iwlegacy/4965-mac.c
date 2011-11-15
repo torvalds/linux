@@ -163,10 +163,10 @@ il4965_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
 	il_wr(il, FH49_MEM_RCSR_CHNL0_CONFIG_REG,
 	      FH49_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL |
 	      FH49_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL |
-	      FH49_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME_MSK | rb_size | (rb_timeout
-								      <<
-								      FH49_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS)
-	      | (rfdnlog << FH49_RCSR_RX_CONFIG_RBDCB_SIZE_POS));
+	      FH49_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME_MSK |
+	      rb_size |
+	      (rb_timeout << FH49_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS) |
+	      (rfdnlog << FH49_RCSR_RX_CONFIG_RBDCB_SIZE_POS));
 
 	/* Set interrupt coalescing timer to default (2048 usecs) */
 	il_write8(il, CSR_INT_COALESCING, IL_HOST_INT_TIMEOUT_DEF);
@@ -1235,9 +1235,8 @@ il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 			pos +=
 			    scnprintf(*buf + pos, bufsz - pos,
 				      "  %34s: 0X%08x\n",
-				      il4965_get_fh_string(fh_tbl[i]), il_rd(il,
-									     fh_tbl
-									     [i]));
+				      il4965_get_fh_string(fh_tbl[i]),
+				      il_rd(il, fh_tbl[i]));
 		}
 		return pos;
 	}
@@ -1328,15 +1327,15 @@ il4965_accumulative_stats(struct il_priv *il, __le32 * stats)
 	struct stats_general_common *general, *accum_general;
 	struct stats_tx *tx, *accum_tx;
 
-	prev_stats = (__le32 *) & il->_4965.stats;
-	accum_stats = (u32 *) & il->_4965.accum_stats;
+	prev_stats = (__le32 *) &il->_4965.stats;
+	accum_stats = (u32 *) &il->_4965.accum_stats;
 	size = sizeof(struct il_notif_stats);
 	general = &il->_4965.stats.general.common;
 	accum_general = &il->_4965.accum_stats.general.common;
 	tx = &il->_4965.stats.tx;
 	accum_tx = &il->_4965.accum_stats.tx;
-	delta = (u32 *) & il->_4965.delta_stats;
-	max_delta = (u32 *) & il->_4965.max_delta;
+	delta = (u32 *) &il->_4965.delta_stats;
+	max_delta = (u32 *) &il->_4965.max_delta;
 
 	for (i = sizeof(__le32); i < size;
 	     i +=
@@ -1375,7 +1374,7 @@ il4965_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 	     ((il->_4965.stats.flag & STATS_REPLY_FLG_HT40_MODE_MSK) !=
 	      (pkt->u.stats.flag & STATS_REPLY_FLG_HT40_MODE_MSK)));
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-	il4965_accumulative_stats(il, (__le32 *) & pkt->u.stats);
+	il4965_accumulative_stats(il, (__le32 *) &pkt->u.stats);
 #endif
 
 	/* TODO: reading some of stats is unneeded */
@@ -2093,8 +2092,8 @@ il4965_txq_ctx_stop(struct il_priv *il)
 		    (il, FH49_TSSR_TX_STATUS_REG,
 		     FH49_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch), 1000))
 			IL_ERR("Failing on timeout while stopping"
-			       " DMA channel %d [0x%08x]", ch, il_rd(il,
-								     FH49_TSSR_TX_STATUS_REG));
+			       " DMA channel %d [0x%08x]", ch,
+			       il_rd(il, FH49_TSSR_TX_STATUS_REG));
 	}
 	spin_unlock_irqrestore(&il->lock, flags);
 
@@ -2135,8 +2134,8 @@ il4965_tx_queue_stop_scheduler(struct il_priv *il, u16 txq_id)
 	/* Simply stop the queue, but don't change any configuration;
 	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
 	il_wr_prph(il, IL49_SCD_QUEUE_STATUS_BITS(txq_id),
-		   (0 << IL49_SCD_QUEUE_STTS_REG_POS_ACTIVE) | (1 <<
-								IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
+		   (0 << IL49_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
+		   (1 << IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 }
 
 /**
@@ -2451,7 +2450,7 @@ il4965_txq_check_empty(struct il_priv *il, int sta_id, u8 tid, int txq_id)
 
 static void
 il4965_non_agg_tx_status(struct il_priv *il, struct il_rxon_context *ctx,
-			 const u8 * addr1)
+			 const u8 *addr1)
 {
 	struct ieee80211_sta *sta;
 	struct il_station_priv *sta_priv;
@@ -2661,7 +2660,7 @@ il4965_hdl_compressed_ba(struct il_priv *il, struct il_rx_buf *rxb)
 	spin_lock_irqsave(&il->sta_lock, flags);
 
 	D_TX_REPLY("N_COMPRESSED_BA [%d] Received from %pM, " "sta_id = %d\n",
-		   agg->wait_for_ba, (u8 *) & ba_resp->sta_addr_lo32,
+		   agg->wait_for_ba, (u8 *) &ba_resp->sta_addr_lo32,
 		   ba_resp->sta_id);
 	D_TX_REPLY("TID = %d, SeqCtl = %d, bitmap = 0x%llx," "scd_flow = "
 		   "%d, scd_ssn = %d\n", ba_resp->tid, ba_resp->seq_ctl,
@@ -2791,7 +2790,7 @@ il4965_sta_alloc_lq(struct il_priv *il, u8 sta_id)
  */
 int
 il4965_add_bssid_station(struct il_priv *il, struct il_rxon_context *ctx,
-			 const u8 * addr, u8 * sta_id_r)
+			 const u8 *addr, u8 *sta_id_r)
 {
 	int ret;
 	u8 sta_id;
@@ -3277,8 +3276,7 @@ il4965_update_bcast_station(struct il_priv *il, struct il_rxon_context *ctx)
 
 	link_cmd = il4965_sta_alloc_lq(il, sta_id);
 	if (!link_cmd) {
-		IL_ERR
-		    ("Unable to initialize rate scaling for bcast station.\n");
+		IL_ERR("Unable to initialize rate scaling for bcast sta.\n");
 		return -ENOMEM;
 	}
 
@@ -3286,8 +3284,7 @@ il4965_update_bcast_station(struct il_priv *il, struct il_rxon_context *ctx)
 	if (il->stations[sta_id].lq)
 		kfree(il->stations[sta_id].lq);
 	else
-		D_INFO
-		    ("Bcast station rate scaling has not been initialized yet.\n");
+		D_INFO("Bcast sta rate scaling has not been initialized.\n");
 	il->stations[sta_id].lq = link_cmd;
 	spin_unlock_irqrestore(&il->sta_lock, flags);
 
@@ -4819,11 +4816,10 @@ il4965_dump_nic_error_log(struct il_priv *il)
 	u32 blink1, blink2, ilink1, ilink2;
 	u32 pc, hcmd;
 
-	if (il->ucode_type == UCODE_INIT) {
+	if (il->ucode_type == UCODE_INIT)
 		base = le32_to_cpu(il->card_alive_init.error_event_table_ptr);
-	} else {
+	else
 		base = le32_to_cpu(il->card_alive.error_event_table_ptr);
-	}
 
 	if (!il->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
 		IL_ERR("Not valid error log pointer 0x%08X for %s uCode\n",
@@ -6026,13 +6022,11 @@ il4965_tx_queue_set_status(struct il_priv *il, struct il_tx_queue *txq,
 
 	/* Set up and activate */
 	il_wr_prph(il, IL49_SCD_QUEUE_STATUS_BITS(txq_id),
-		   (active << IL49_SCD_QUEUE_STTS_REG_POS_ACTIVE) | (tx_fifo_id
-								     <<
-								     IL49_SCD_QUEUE_STTS_REG_POS_TXF)
-		   | (scd_retry << IL49_SCD_QUEUE_STTS_REG_POS_WSL) | (scd_retry
-								       <<
-								       IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACK)
-		   | IL49_SCD_QUEUE_STTS_REG_MSK);
+		   (active << IL49_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
+		   (tx_fifo_id << IL49_SCD_QUEUE_STTS_REG_POS_TXF) |
+		   (scd_retry << IL49_SCD_QUEUE_STTS_REG_POS_WSL) |
+		   (scd_retry << IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACK) |
+		   IL49_SCD_QUEUE_STTS_REG_MSK);
 
 	txq->sched_retry = scd_retry;
 

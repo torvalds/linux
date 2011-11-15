@@ -366,7 +366,7 @@ il4965_sens_auto_corr_ofdm(struct il_priv *il, u32 norm_fa, u32 rx_enable_time)
 static void
 il4965_prepare_legacy_sensitivity_tbl(struct il_priv *il,
 				      struct il_sensitivity_data *data,
-				      __le16 * tbl)
+				      __le16 *tbl)
 {
 	tbl[HD_AUTO_CORR32_X4_TH_ADD_MIN_IDX] =
 	    cpu_to_le16((u16) data->auto_corr_ofdm);
@@ -707,9 +707,8 @@ il4965_find_disconn_antenna(struct il_priv *il, u32 * average_sig,
 			    il4965_find_first_chain(il->cfg->valid_tx_ant);
 			data->disconn_array[first_chain] = 0;
 			active_chains |= BIT(first_chain);
-			D_CALIB
-			    ("All Tx chains are disconnected W/A - declare %d as connected\n",
-			     first_chain);
+			D_CALIB("All Tx chains are disconnected"
+				"- declare %d as connected\n", first_chain);
 			break;
 		}
 	}

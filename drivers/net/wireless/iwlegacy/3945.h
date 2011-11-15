@@ -269,11 +269,6 @@ extern int il3945_init_hw_rate_table(struct il_priv *il);
 extern void il3945_reg_txpower_periodic(struct il_priv *il);
 extern int il3945_txpower_set_from_eeprom(struct il_priv *il);
 
-extern const struct il_channel_info *il3945_get_channel_info(const struct
-							     il_priv *il,
-							     enum ieee80211_band
-							     band, u16 channel);
-
 extern int il3945_rs_next_rate(struct il_priv *il, int rate);
 
 /* scanning */
@@ -619,31 +614,31 @@ struct il3945_tfd {
 } __packed;
 
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-ssize_t il3945_ucode_rx_stats_read(struct file *file, char __user * user_buf,
-				   size_t count, loff_t * ppos);
-ssize_t il3945_ucode_tx_stats_read(struct file *file, char __user * user_buf,
-				   size_t count, loff_t * ppos);
+ssize_t il3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos);
+ssize_t il3945_ucode_tx_stats_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos);
 ssize_t il3945_ucode_general_stats_read(struct file *file,
-					char __user * user_buf, size_t count,
-					loff_t * ppos);
+					char __user *user_buf, size_t count,
+					loff_t *ppos);
 #else
 static ssize_t
-il3945_ucode_rx_stats_read(struct file *file, char __user * user_buf,
-			   size_t count, loff_t * ppos)
+il3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
+			   size_t count, loff_t *ppos)
 {
 	return 0;
 }
 
 static ssize_t
-il3945_ucode_tx_stats_read(struct file *file, char __user * user_buf,
-			   size_t count, loff_t * ppos)
+il3945_ucode_tx_stats_read(struct file *file, char __user *user_buf,
+			   size_t count, loff_t *ppos)
 {
 	return 0;
 }
 
 static ssize_t
-il3945_ucode_general_stats_read(struct file *file, char __user * user_buf,
-				size_t count, loff_t * ppos)
+il3945_ucode_general_stats_read(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos)
 {
 	return 0;
 }

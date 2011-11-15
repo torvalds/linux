@@ -138,7 +138,7 @@ il4965_get_tx_fail_reason(u32 status)
 /* station management */
 int il4965_alloc_bcast_station(struct il_priv *il, struct il_rxon_context *ctx);
 int il4965_add_bssid_station(struct il_priv *il, struct il_rxon_context *ctx,
-			     const u8 * addr, u8 * sta_id_r);
+			     const u8 *addr, u8 *sta_id_r);
 int il4965_remove_default_wep_key(struct il_priv *il,
 				  struct il_rxon_context *ctx,
 				  struct ieee80211_key_conf *key);
@@ -153,7 +153,7 @@ int il4965_remove_dynamic_key(struct il_priv *il, struct il_rxon_context *ctx,
 void il4965_update_tkip_key(struct il_priv *il, struct il_rxon_context *ctx,
 			    struct ieee80211_key_conf *keyconf,
 			    struct ieee80211_sta *sta, u32 iv32,
-			    u16 * phase1key);
+			    u16 *phase1key);
 int il4965_sta_tx_modify_enable_tid(struct il_priv *il, int sta_id, int tid);
 int il4965_sta_rx_agg_start(struct il_priv *il, struct ieee80211_sta *sta,
 			    int tid, u16 ssn);
@@ -195,7 +195,7 @@ void il4965_mac_update_tkip_key(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_key_conf *keyconf,
 				struct ieee80211_sta *sta, u32 iv32,
-				u16 * phase1key);
+				u16 *phase1key);
 int il4965_mac_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
 			    struct ieee80211_sta *sta, u16 tid, u16 * ssn,
@@ -949,31 +949,31 @@ void il4965_calib_free_results(struct il_priv *il);
 
 /* Debug */
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-ssize_t il4965_ucode_rx_stats_read(struct file *file, char __user * user_buf,
-				   size_t count, loff_t * ppos);
-ssize_t il4965_ucode_tx_stats_read(struct file *file, char __user * user_buf,
-				   size_t count, loff_t * ppos);
+ssize_t il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos);
+ssize_t il4965_ucode_tx_stats_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos);
 ssize_t il4965_ucode_general_stats_read(struct file *file,
-					char __user * user_buf, size_t count,
-					loff_t * ppos);
+					char __user *user_buf, size_t count,
+					loff_t *ppos);
 #else
 static ssize_t
-il4965_ucode_rx_stats_read(struct file *file, char __user * user_buf,
-			   size_t count, loff_t * ppos)
+il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
+			   size_t count, loff_t *ppos)
 {
 	return 0;
 }
 
 static ssize_t
-il4965_ucode_tx_stats_read(struct file *file, char __user * user_buf,
-			   size_t count, loff_t * ppos)
+il4965_ucode_tx_stats_read(struct file *file, char __user *user_buf,
+			   size_t count, loff_t *ppos)
 {
 	return 0;
 }
 
 static ssize_t
-il4965_ucode_general_stats_read(struct file *file, char __user * user_buf,
-				size_t count, loff_t * ppos)
+il4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos)
 {
 	return 0;
 }

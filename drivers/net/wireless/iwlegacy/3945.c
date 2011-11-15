@@ -381,10 +381,10 @@ il3945_accumulative_stats(struct il_priv *il, __le32 * stats)
 	u32 *accum_stats;
 	u32 *delta, *max_delta;
 
-	prev_stats = (__le32 *) & il->_3945.stats;
-	accum_stats = (u32 *) & il->_3945.accum_stats;
-	delta = (u32 *) & il->_3945.delta_stats;
-	max_delta = (u32 *) & il->_3945.max_delta;
+	prev_stats = (__le32 *) &il->_3945.stats;
+	accum_stats = (u32 *) &il->_3945.accum_stats;
+	delta = (u32 *) &il->_3945.delta_stats;
+	max_delta = (u32 *) &il->_3945.max_delta;
 
 	for (i = sizeof(__le32); i < sizeof(struct il3945_notif_stats);
 	     i +=
@@ -416,7 +416,7 @@ il3945_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 	     (int)sizeof(struct il3945_notif_stats),
 	     le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK);
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-	il3945_accumulative_stats(il, (__le32 *) & pkt->u.raw);
+	il3945_accumulative_stats(il, (__le32 *) &pkt->u.raw);
 #endif
 
 	memcpy(&il->_3945.stats, pkt->u.raw, sizeof(il->_3945.stats));
@@ -426,7 +426,7 @@ void
 il3945_hdl_c_stats(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
-	__le32 *flag = (__le32 *) & pkt->u.raw;
+	__le32 *flag = (__le32 *) &pkt->u.raw;
 
 	if (le32_to_cpu(*flag) & UCODE_STATS_CLEAR_MSK) {
 #ifdef CONFIG_IWLEGACY_DEBUGFS
@@ -775,7 +775,8 @@ il3945_set_pwr_vmain(struct il_priv *il)
 			      APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
 			      ~APMG_PS_CTRL_MSK_PWR_SRC);
 
-	_il_poll_bit(il, CSR_GPIO_IN, CSR_GPIO_IN_VAL_VMAIN_PWR_SRC, CSR_GPIO_IN_BIT_AUX_POWER, 5000);	/* uS */
+	_il_poll_bit(il, CSR_GPIO_IN, CSR_GPIO_IN_VAL_VMAIN_PWR_SRC,
+		     CSR_GPIO_IN_BIT_AUX_POWER, 5000);
 }
 
 static int
@@ -1228,7 +1229,8 @@ static struct il3945_tx_power power_gain_table[2][IL_MAX_GAIN_ENTRIES] = {
 	 {3, 113},
 	 {3, 106},
 	 {3, 102},
-	 {3, 95}},		/* 2.4 GHz, lowest power */
+	 {3, 95}		/* 2.4 GHz, lowest power */
+	},
 	{
 	 {251, 127},		/* 5.x GHz, highest power */
 	 {251, 120},
@@ -1307,7 +1309,8 @@ static struct il3945_tx_power power_gain_table[2][IL_MAX_GAIN_ENTRIES] = {
 	 {35, 113},
 	 {35, 107},
 	 {35, 99},
-	 {3, 120}}		/* 5.x GHz, lowest power */
+	 {3, 120}		/* 5.x GHz, lowest power */
+	}
 };
 
 static inline u8
@@ -1331,7 +1334,7 @@ il3945_hw_reg_fix_power_idx(int idx)
  */
 static void
 il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_idx, s32 rate_idx,
-			     const s8 * clip_pwrs,
+			     const s8 *clip_pwrs,
 			     struct il_channel_info *ch_info, int band_idx)
 {
 	struct il3945_scan_power_info *scan_power_info;
@@ -1883,8 +1886,7 @@ il3945_bg_reg_txpower_periodic(struct work_struct *work)
 }
 
 /**
- * il3945_hw_reg_get_ch_grp_idx - find the channel-group idx (0-4)
- * 				   for the channel.
+ * il3945_hw_reg_get_ch_grp_idx - find the channel-group idx (0-4) for channel.
  *
  * This function is used when initializing channel-info structs.
  *
@@ -1930,7 +1932,7 @@ il3945_hw_reg_get_ch_grp_idx(struct il_priv *il,
  */
 static int
 il3945_hw_reg_get_matched_power_idx(struct il_priv *il, s8 requested_power,
-				    s32 setting_idx, s32 * new_idx)
+				    s32 setting_idx, s32 *new_idx)
 {
 	const struct il3945_eeprom_txpower_group *chnl_grp = NULL;
 	struct il3945_eeprom *eeprom = (struct il3945_eeprom *)il->eeprom;
@@ -2735,14 +2737,13 @@ static struct il_cfg il3945_abg_cfg = {
 };
 
 DEFINE_PCI_DEVICE_TABLE(il3945_hw_card_ids) = {
-	{
-	IL_PCI_DEVICE(0x4222, 0x1005, il3945_bg_cfg)}, {
-	IL_PCI_DEVICE(0x4222, 0x1034, il3945_bg_cfg)}, {
-	IL_PCI_DEVICE(0x4222, 0x1044, il3945_bg_cfg)}, {
-	IL_PCI_DEVICE(0x4227, 0x1014, il3945_bg_cfg)}, {
-	IL_PCI_DEVICE(0x4222, PCI_ANY_ID, il3945_abg_cfg)}, {
-	IL_PCI_DEVICE(0x4227, PCI_ANY_ID, il3945_abg_cfg)}, {
-	0}
+	{IL_PCI_DEVICE(0x4222, 0x1005, il3945_bg_cfg)},
+	{IL_PCI_DEVICE(0x4222, 0x1034, il3945_bg_cfg)},
+	{IL_PCI_DEVICE(0x4222, 0x1044, il3945_bg_cfg)},
+	{IL_PCI_DEVICE(0x4227, 0x1014, il3945_bg_cfg)},
+	{IL_PCI_DEVICE(0x4222, PCI_ANY_ID, il3945_abg_cfg)},
+	{IL_PCI_DEVICE(0x4227, PCI_ANY_ID, il3945_abg_cfg)},
+	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, il3945_hw_card_ids);

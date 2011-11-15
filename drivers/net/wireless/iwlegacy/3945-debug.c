@@ -49,8 +49,8 @@ il3945_stats_flag(struct il_priv *il, char *buf, int bufsz)
 }
 
 ssize_t
-il3945_ucode_rx_stats_read(struct file * file, char __user * user_buf,
-			   size_t count, loff_t * ppos)
+il3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
+			   size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
 	int pos = 0;
@@ -314,8 +314,8 @@ il3945_ucode_rx_stats_read(struct file * file, char __user * user_buf,
 }
 
 ssize_t
-il3945_ucode_tx_stats_read(struct file * file, char __user * user_buf,
-			   size_t count, loff_t * ppos)
+il3945_ucode_tx_stats_read(struct file *file, char __user *user_buf,
+			   size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
 	int pos = 0;
@@ -404,8 +404,8 @@ il3945_ucode_tx_stats_read(struct file * file, char __user * user_buf,
 }
 
 ssize_t
-il3945_ucode_general_stats_read(struct file * file, char __user * user_buf,
-				size_t count, loff_t * ppos)
+il3945_ucode_general_stats_read(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
 	int pos = 0;

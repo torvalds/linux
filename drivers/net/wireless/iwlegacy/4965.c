@@ -533,8 +533,8 @@ il4965_nic_config(struct il_priv *il)
 		   CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 
 	il->calib_info =
-	    (struct il_eeprom_calib_info *)il_eeprom_query_addr(il,
-								EEPROM_4965_CALIB_TXPOWER_OFFSET);
+	    (struct il_eeprom_calib_info *)
+	    il_eeprom_query_addr(il, EEPROM_4965_CALIB_TXPOWER_OFFSET);
 
 	spin_unlock_irqrestore(&il->lock, flags);
 }

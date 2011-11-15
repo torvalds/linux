@@ -1033,11 +1033,9 @@ il3945_rx_allocate(struct il_priv *il, gfp_t priority)
 				D_INFO("Failed to allocate SKB buffer.\n");
 			if (rxq->free_count <= RX_LOW_WATERMARK &&
 			    net_ratelimit())
-				IL_ERR
-				    ("Failed to allocate SKB buffer with %s. Only %u free buffers remaining.\n",
-				     priority ==
-				     GFP_ATOMIC ? "GFP_ATOMIC" : "GFP_KERNEL",
-				     rxq->free_count);
+				IL_ERR("Failed to allocate SKB buffer with %0x."
+				       "Only %u free buffers remaining.\n",
+				       priority, rxq->free_count);
 			/* We don't reschedule replenish work here -- we will
 			 * call the restock method and if it still needs
 			 * more buffers it will schedule replenish */
@@ -3250,7 +3248,7 @@ il3945_show_measurement(struct device *d, struct device_attribute *attr,
 	struct il_priv *il = dev_get_drvdata(d);
 	struct il_spectrum_notification measure_report;
 	u32 size = sizeof(measure_report), len = 0, ofs = 0;
-	u8 *data = (u8 *) & measure_report;
+	u8 *data = (u8 *) &measure_report;
 	unsigned long flags;
 
 	spin_lock_irqsave(&il->lock, flags);

@@ -112,8 +112,8 @@ struct il_cmd_meta {
 	 * invoked for SYNC commands, if it were and its result passed
 	 * through it would be simpler...)
 	 */
-	void (*callback) (struct il_priv * il, struct il_device_cmd * cmd,
-			  struct il_rx_pkt * pkt);
+	void (*callback) (struct il_priv *il, struct il_device_cmd *cmd,
+			  struct il_rx_pkt *pkt);
 
 	/* The CMD_SIZE_HUGE flag bit indicates that the command
 	 * structure is stored at the end of the shared queue memory. */
@@ -432,8 +432,8 @@ struct il_eeprom_calib_info {
 
 struct il_eeprom_ops {
 	const u32 regulatory_bands[7];
-	int (*acquire_semaphore) (struct il_priv * il);
-	void (*release_semaphore) (struct il_priv * il);
+	int (*acquire_semaphore) (struct il_priv *il);
+	void (*release_semaphore) (struct il_priv *il);
 };
 
 int il_eeprom_init(struct il_priv *il);
@@ -592,8 +592,8 @@ struct il_device_cmd {
 struct il_host_cmd {
 	const void *data;
 	unsigned long reply_page;
-	void (*callback) (struct il_priv * il, struct il_device_cmd * cmd,
-			  struct il_rx_pkt * pkt);
+	void (*callback) (struct il_priv *il, struct il_device_cmd *cmd,
+			  struct il_rx_pkt *pkt);
 	u32 flags;
 	u16 len;
 	u8 id;
@@ -1224,8 +1224,8 @@ struct il_priv {
 	enum ieee80211_band band;
 	int alloc_rxb_page;
 
-	void (*handlers[IL_CN_MAX]) (struct il_priv * il,
-				     struct il_rx_buf * rxb);
+	void (*handlers[IL_CN_MAX]) (struct il_priv *il,
+				     struct il_rx_buf *rxb);
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
@@ -1613,69 +1613,69 @@ il_free_pages(struct il_priv *il, unsigned long page)
 #define IL_RX_BUF_SIZE_8K (8 * 1024)
 
 struct il_hcmd_ops {
-	int (*rxon_assoc) (struct il_priv * il, struct il_rxon_context * ctx);
-	int (*commit_rxon) (struct il_priv * il, struct il_rxon_context * ctx);
-	void (*set_rxon_chain) (struct il_priv * il,
-				struct il_rxon_context * ctx);
+	int (*rxon_assoc) (struct il_priv *il, struct il_rxon_context *ctx);
+	int (*commit_rxon) (struct il_priv *il, struct il_rxon_context *ctx);
+	void (*set_rxon_chain) (struct il_priv *il,
+				struct il_rxon_context *ctx);
 };
 
 struct il_hcmd_utils_ops {
 	u16(*get_hcmd_size) (u8 cmd_id, u16 len);
-	u16(*build_addsta_hcmd) (const struct il_addsta_cmd * cmd, u8 * data);
-	int (*request_scan) (struct il_priv * il, struct ieee80211_vif * vif);
-	void (*post_scan) (struct il_priv * il);
+	u16(*build_addsta_hcmd) (const struct il_addsta_cmd *cmd, u8 *data);
+	int (*request_scan) (struct il_priv *il, struct ieee80211_vif *vif);
+	void (*post_scan) (struct il_priv *il);
 };
 
 struct il_apm_ops {
-	int (*init) (struct il_priv * il);
-	void (*config) (struct il_priv * il);
+	int (*init) (struct il_priv *il);
+	void (*config) (struct il_priv *il);
 };
 
 struct il_debugfs_ops {
-	ssize_t(*rx_stats_read) (struct file * file, char __user * user_buf,
-				 size_t count, loff_t * ppos);
-	ssize_t(*tx_stats_read) (struct file * file, char __user * user_buf,
-				 size_t count, loff_t * ppos);
-	ssize_t(*general_stats_read) (struct file * file,
-				      char __user * user_buf, size_t count,
-				      loff_t * ppos);
+	ssize_t(*rx_stats_read) (struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos);
+	ssize_t(*tx_stats_read) (struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos);
+	ssize_t(*general_stats_read) (struct file *file,
+				      char __user *user_buf, size_t count,
+				      loff_t *ppos);
 };
 
 struct il_temp_ops {
-	void (*temperature) (struct il_priv * il);
+	void (*temperature) (struct il_priv *il);
 };
 
 struct il_lib_ops {
 	/* set hw dependent parameters */
-	int (*set_hw_params) (struct il_priv * il);
+	int (*set_hw_params) (struct il_priv *il);
 	/* Handling TX */
-	void (*txq_update_byte_cnt_tbl) (struct il_priv * il,
-					 struct il_tx_queue * txq,
+	void (*txq_update_byte_cnt_tbl) (struct il_priv *il,
+					 struct il_tx_queue *txq,
 					 u16 byte_cnt);
-	int (*txq_attach_buf_to_tfd) (struct il_priv * il,
-				      struct il_tx_queue * txq, dma_addr_t addr,
+	int (*txq_attach_buf_to_tfd) (struct il_priv *il,
+				      struct il_tx_queue *txq, dma_addr_t addr,
 				      u16 len, u8 reset, u8 pad);
-	void (*txq_free_tfd) (struct il_priv * il, struct il_tx_queue * txq);
-	int (*txq_init) (struct il_priv * il, struct il_tx_queue * txq);
+	void (*txq_free_tfd) (struct il_priv *il, struct il_tx_queue *txq);
+	int (*txq_init) (struct il_priv *il, struct il_tx_queue *txq);
 	/* setup Rx handler */
-	void (*handler_setup) (struct il_priv * il);
+	void (*handler_setup) (struct il_priv *il);
 	/* alive notification after init uCode load */
-	void (*init_alive_start) (struct il_priv * il);
+	void (*init_alive_start) (struct il_priv *il);
 	/* check validity of rtc data address */
 	int (*is_valid_rtc_data_addr) (u32 addr);
 	/* 1st ucode load */
-	int (*load_ucode) (struct il_priv * il);
+	int (*load_ucode) (struct il_priv *il);
 
-	void (*dump_nic_error_log) (struct il_priv * il);
-	int (*dump_fh) (struct il_priv * il, char **buf, bool display);
-	int (*set_channel_switch) (struct il_priv * il,
-				   struct ieee80211_channel_switch * ch_switch);
+	void (*dump_nic_error_log) (struct il_priv *il);
+	int (*dump_fh) (struct il_priv *il, char **buf, bool display);
+	int (*set_channel_switch) (struct il_priv *il,
+				   struct ieee80211_channel_switch *ch_switch);
 	/* power management */
 	struct il_apm_ops apm_ops;
 
 	/* power */
-	int (*send_tx_power) (struct il_priv * il);
-	void (*update_chain_flags) (struct il_priv * il);
+	int (*send_tx_power) (struct il_priv *il);
+	void (*update_chain_flags) (struct il_priv *il);
 
 	/* eeprom operations */
 	struct il_eeprom_ops eeprom_ops;
@@ -1688,16 +1688,16 @@ struct il_lib_ops {
 };
 
 struct il_led_ops {
-	int (*cmd) (struct il_priv * il, struct il_led_cmd * led_cmd);
+	int (*cmd) (struct il_priv *il, struct il_led_cmd *led_cmd);
 };
 
 struct il_legacy_ops {
-	void (*post_associate) (struct il_priv * il);
-	void (*config_ap) (struct il_priv * il);
+	void (*post_associate) (struct il_priv *il);
+	void (*config_ap) (struct il_priv *il);
 	/* station management */
-	int (*update_bcast_stations) (struct il_priv * il);
-	int (*manage_ibss_station) (struct il_priv * il,
-				    struct ieee80211_vif * vif, bool add);
+	int (*update_bcast_stations) (struct il_priv *il);
+	int (*manage_ibss_station) (struct il_priv *il,
+				    struct ieee80211_vif *vif, bool add);
 };
 
 struct il_ops {
@@ -1965,7 +1965,7 @@ int il_mac_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 void il_internal_short_hw_scan(struct il_priv *il);
 int il_force_reset(struct il_priv *il, bool external);
 u16 il_fill_probe_req(struct il_priv *il, struct ieee80211_mgmt *frame,
-		      const u8 * ta, const u8 * ie, int ie_len, int left);
+		      const u8 *ta, const u8 *ie, int ie_len, int left);
 void il_setup_rx_scan_handlers(struct il_priv *il);
 u16 il_get_active_dwell_time(struct il_priv *il, enum ieee80211_band band,
 			     u8 n_probes);
@@ -1995,9 +1995,9 @@ int il_send_cmd(struct il_priv *il, struct il_host_cmd *cmd);
 int __must_check il_send_cmd_pdu(struct il_priv *il, u8 id, u16 len,
 				 const void *data);
 int il_send_cmd_pdu_async(struct il_priv *il, u8 id, u16 len, const void *data,
-			  void (*callback) (struct il_priv * il,
-					    struct il_device_cmd * cmd,
-					    struct il_rx_pkt * pkt));
+			  void (*callback) (struct il_priv *il,
+					    struct il_device_cmd *cmd,
+					    struct il_rx_pkt *pkt));
 
 int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd);
 
@@ -2155,7 +2155,7 @@ void il_mac_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 void il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *bss_conf, u32 changes);
 void il_tx_cmd_protection(struct il_priv *il, struct ieee80211_tx_info *info,
-			  __le16 fc, __le32 * tx_flags);
+			  __le16 fc, __le32 *tx_flags);
 
 irqreturn_t il_isr(int irq, void *data);
 
@@ -2191,8 +2191,7 @@ _il_poll_bit(struct il_priv *il, u32 addr, u32 bits, u32 mask, int timeout)
 			return t;
 		udelay(IL_POLL_INTERVAL);
 		t += IL_POLL_INTERVAL;
-	}
-	while (t < timeout);
+	} while (t < timeout);
 
 	return -ETIMEDOUT;
 }
@@ -2324,8 +2323,7 @@ il_poll_bit(struct il_priv *il, u32 addr, u32 mask, int timeout)
 			return t;
 		udelay(IL_POLL_INTERVAL);
 		t += IL_POLL_INTERVAL;
-	}
-	while (t < timeout);
+	} while (t < timeout);
 
 	return -ETIMEDOUT;
 }
@@ -2485,14 +2483,14 @@ void il_dealloc_bcast_stations(struct il_priv *il);
 int il_get_free_ucode_key_idx(struct il_priv *il);
 int il_send_add_sta(struct il_priv *il, struct il_addsta_cmd *sta, u8 flags);
 int il_add_station_common(struct il_priv *il, struct il_rxon_context *ctx,
-			  const u8 * addr, bool is_ap,
-			  struct ieee80211_sta *sta, u8 * sta_id_r);
+			  const u8 *addr, bool is_ap,
+			  struct ieee80211_sta *sta, u8 *sta_id_r);
 int il_remove_station(struct il_priv *il, const u8 sta_id, const u8 * addr);
 int il_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta);
 
 u8 il_prep_station(struct il_priv *il, struct il_rxon_context *ctx,
-		   const u8 * addr, bool is_ap, struct ieee80211_sta *sta);
+		   const u8 *addr, bool is_ap, struct ieee80211_sta *sta);
 
 int il_send_lq_cmd(struct il_priv *il, struct il_rxon_context *ctx,
 		   struct il_link_quality_cmd *lq, u8 flags, bool init);
@@ -2758,10 +2756,10 @@ il_get_dma_hi_addr(dma_addr_t addr)
  *
  * This structure contains dma address and length of transmission address
  *
- * @lo: low [31:0] portion of the dma address of TX buffer
- * 	every even is unaligned on 16 bit boundary
- * @hi_n_len 0-3 [35:32] portion of dma
- *	     4-15 length of the tx buffer
+ * @lo: low [31:0] portion of the dma address of TX buffer every even is
+ *	unaligned on 16 bit boundary
+ * @hi_n_len: 0-3 [35:32] portion of dma
+ *	      4-15 length of the tx buffer
  */
 struct il_tfd_tb {
 	__le32 lo;
@@ -2778,7 +2776,7 @@ struct il_tfd_tb {
  *	     5   reserved
  * 	     6-7 padding (not used)
  * @ tbs[20]	transmit frame buffer descriptors
- * @ __pad 	padding
+ * @ __pad	padding
  *
  * Each Tx queue uses a circular buffer of 256 TFDs stored in host DRAM.
  * Both driver and device share these circular buffers, each of which must be
@@ -3295,7 +3293,7 @@ do {									\
 			__func__ , ## args);				\
 } while (0)
 
-#define il_print_hex_dump(il, level, p, len) 			\
+#define il_print_hex_dump(il, level, p, len)				\
 do {									\
 	if (il_get_debug_level(il) & level)				\
 		print_hex_dump(KERN_DEBUG, "iwl data: ",		\
@@ -3342,9 +3340,9 @@ il_dbgfs_unregister(struct il_priv *il)
  *
  * The active debug levels can be accessed via files
  *
- * 	/sys/module/iwl4965/parameters/debug
+ *	/sys/module/iwl4965/parameters/debug
  *	/sys/module/iwl3945/parameters/debug
- * 	/sys/class/net/wlan0/device/debug_level
+ *	/sys/class/net/wlan0/device/debug_level
  *
  * when CONFIG_IWLEGACY_DEBUG=y.
  */
