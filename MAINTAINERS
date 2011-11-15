@@ -1930,6 +1930,7 @@ CONTROL GROUPS (CGROUPS)
 M:	Paul Menage <paul@paulmenage.org>
 M:	Li Zefan <lizf@cn.fujitsu.com>
 L:	containers@lists.linux-foundation.org
+L:	cgroups@vger.kernel.org
 S:	Maintained
 F:	include/linux/cgroup*
 F:	kernel/cgroup*
@@ -4304,6 +4305,7 @@ MEMORY RESOURCE CONTROLLER
 M:	Balbir Singh <bsingharora@gmail.com>
 M:	Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 M:	KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+L:	cgroups@vger.kernel.org
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/memcontrol.c
