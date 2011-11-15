@@ -23,13 +23,13 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/spi/spi.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <mach/gpio.h>
@@ -165,11 +165,19 @@ static struct workqueue_struct *wm8900_workq;
 static DECLARE_DELAYED_WORK(delayed_work, wm8900_work);
 static int wm8900_current_status = WM8900_IS_SHUTDOWN, wm8900_work_type = WM8900_WORK_NULL;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static struct snd_soc_codec_driver soc_codec_dev_wm8900;
+#endif
 static struct snd_soc_codec *wm8900_codec;
 static bool isSPKon = true;
 
 struct wm8900_priv {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 	enum snd_soc_control_type control_type;
+#endif
+	struct snd_soc_codec codec;
+
+	u16 reg_cache[WM8900_MAXREG];
 
 	u32 fll_in; /* FLL input frequency */
 	u32 fll_out; /* FLL output frequency */
@@ -211,7 +219,11 @@ static const u16 wm8900_reg_defaults[WM8900_MAXREG] = {
 	/* Remaining registers all zero */
 };
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 static int wm8900_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
+#else
+static int wm8900_volatile_register(unsigned int reg)
+#endif
 {
 	switch (reg) {
 	case WM8900_REG_ID:
@@ -223,7 +235,7 @@ static int wm8900_volatile_register(struct snd_soc_codec *codec, unsigned int re
 
 static void wm8900_reset(struct snd_soc_codec *codec)
 {
-	WM8900_DBG("Enter:%s, %d, codec=0x%8X \n", __FUNCTION__, __LINE__,codec);
+	WM8900_DBG("Enter:%s, %d, codec=%p\n", __FUNCTION__, __LINE__,codec);
 
 	snd_soc_write(codec, WM8900_REG_RESET, 0);
 
@@ -342,15 +354,6 @@ static void wm8900_set_hw(struct snd_soc_codec *codec)
 
 static void wm8900_work(struct work_struct *work)
 {
-<<<<<<< HEAD
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8900_dapm_widgets,
-				  ARRAY_SIZE(wm8900_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-=======
         WM8900_DBG("Enter::wm8900_work : wm8900_work_type = %d\n", wm8900_work_type);
 
         switch (wm8900_work_type) {
@@ -370,7 +373,6 @@ static void wm8900_work(struct work_struct *work)
         }
 
         wm8900_work_type = WM8900_WORK_NULL;
->>>>>>> parent of 15f7fab... temp revert rk change
 }
 
 static int wm8900_hw_params(struct snd_pcm_substream *substream,
@@ -378,7 +380,12 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 	struct snd_soc_codec *codec = rtd->codec;
+#else
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_codec *codec = socdev->card->codec;
+#endif
 	u16 reg;
 
 	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
@@ -745,10 +752,15 @@ static int wm8900_startup(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+#else
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct snd_soc_dai_link *machine = rtd->dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
+#endif
 
 	WM8900_DBG("Enter::%s----%d substream->stream:%s \n",__FUNCTION__,__LINE__,
 		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
@@ -759,9 +771,17 @@ static int wm8900_startup(struct snd_pcm_substream *substream,
 	wm8900_set_hw(codec);
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE ||
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	     codec_dai->capture_active) {
+#else
 	     codec_dai->capture.active) {
+#endif
 		snd_soc_write(codec, WM8900_REG_POWER1, 0x211D);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	} else if (!codec_dai->capture_active) {
+#else
 	} else if (!codec_dai->capture.active) {
+#endif
 		snd_soc_write(codec, WM8900_REG_POWER1, 0x210D);
 	}
 
@@ -772,8 +792,12 @@ static void wm8900_shutdown(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+#else
 	struct snd_soc_dai_link *machine = rtd->dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
+#endif
 
 	WM8900_DBG("Enter::%s----%d substream->stream:%s \n",__FUNCTION__,__LINE__,
 		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
@@ -789,7 +813,11 @@ static void wm8900_shutdown(struct snd_pcm_substream *substream,
 	return; /* Let codec not going to power off for pop noise */
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	if (!codec_dai->capture_active && !codec_dai->playback_active) {
+#else
 	if (!codec_dai->capture.active && !codec_dai->playback.active) {
+#endif
 
 		cancel_delayed_work_sync(&delayed_work);
 		wm8900_work_type = WM8900_WORK_NULL;
@@ -818,17 +846,29 @@ static int wm8900_trigger(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {	
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+#else
 	struct snd_soc_dai_link *machine = rtd->dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
+#endif
 
 	WM8900_DBG("Enter::%s----%d status = %d substream->stream:%s \n",__FUNCTION__, __LINE__, status,
 		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");	
 
 	if(status == 1 || status == 0){
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+			codec_dai->playback_active = status;
+#else
 			codec_dai->playback.active = status;
+#endif
 		}else{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+			codec_dai->capture_active = status;
+#else
 			codec_dai->capture.active = status;
+#endif
 		}
 	}
 
@@ -852,8 +892,12 @@ static struct snd_soc_dai_ops wm8900_dai_ops = {
 	.trigger	= wm8900_trigger,
 };
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 static struct snd_soc_dai_driver wm8900_dai = {
-	.name = "wm8900-hifi",
+#else
+struct snd_soc_dai wm8900_dai = {
+#endif
+	.name = "WM8900 HiFi",
 	.playback = {
 		.stream_name = "HiFi Playback",
 		.channels_min = 1,
@@ -870,6 +914,7 @@ static struct snd_soc_dai_driver wm8900_dai = {
 	 },
 	.ops = &wm8900_dai_ops,
 };
+EXPORT_SYMBOL_GPL(wm8900_dai);
 
 static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
@@ -878,8 +923,13 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 
 	WM8900_DBG("Enter:%s, %d, level=0x%08X \n", __FUNCTION__, __LINE__, level);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	codec->dapm.bias_level = level;
+#else
 	codec->bias_level = level;
+#endif
 	return 0;
+#if 0
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -897,7 +947,7 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		/* Charge capacitors if initial power up */
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->bias_level == SND_SOC_BIAS_OFF) {
 			/* STARTUP_BIAS_ENA on */
 			snd_soc_write(codec, WM8900_REG_POWER1,
 				     WM8900_REG_POWER1_STARTUP_BIAS_ENA);
@@ -965,17 +1015,22 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 			     WM8900_REG_POWER2_SYSCLK_ENA);
 		break;
 	}
-<<<<<<< HEAD
-	codec->dapm.bias_level = level;
-=======
 
 	codec->bias_level = level;
->>>>>>> parent of 15f7fab... temp revert rk change
 	return 0;
+#endif
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 static int wm8900_suspend(struct snd_soc_codec *codec, pm_message_t state)
+#else
+static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
+#endif
 {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->card->codec;
+#endif
 	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
 	int fll_out = wm8900->fll_out;
 	int fll_in  = wm8900->fll_in;
@@ -993,7 +1048,11 @@ static int wm8900_suspend(struct snd_soc_codec *codec, pm_message_t state)
 	/* Stop the FLL in an orderly fashion */
 	ret = wm8900_set_fll(codec, 0, 0, 0);
 	if (ret != 0) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 		dev_err(codec->dev, "Failed to stop FLL\n");
+#else
+		dev_err(&pdev->dev, "Failed to stop FLL\n");
+#endif
 		return ret;
 	}
 
@@ -1005,8 +1064,16 @@ static int wm8900_suspend(struct snd_soc_codec *codec, pm_message_t state)
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 static int wm8900_resume(struct snd_soc_codec *codec)
+#else
+static int wm8900_resume(struct platform_device *pdev)
+#endif
 {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->card->codec;
+#endif
 	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
 
 	wm8900_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -1022,19 +1089,15 @@ static int wm8900_resume(struct snd_soc_codec *codec)
 
 		ret = wm8900_set_fll(codec, 0, fll_in, fll_out);
 		if (ret != 0) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 			dev_err(codec->dev, "Failed to restart FLL\n");
+#else
+			dev_err(&pdev->dev, "Failed to restart FLL\n");
+#endif
 			return ret;
 		}
 	}
 
-<<<<<<< HEAD
-	if (cache) {
-		for (i = 0; i < WM8900_MAXREG; i++)
-			snd_soc_write(codec, i, cache[i]);
-		kfree(cache);
-	} else
-		dev_err(codec->dev, "Unable to allocate register cache\n");
-=======
 #ifdef WM8900_NO_POWEROFF
 	if (wm8900_current_status == WM8900_IS_SHUTDOWN) {
 
@@ -1044,17 +1107,11 @@ static int wm8900_resume(struct snd_soc_codec *codec)
 		                   msecs_to_jiffies(1000));
 	}
 #endif
->>>>>>> parent of 15f7fab... temp revert rk change
 
 	return 0;
 }
 
-<<<<<<< HEAD
-static int wm8900_probe(struct snd_soc_codec *codec)
-{
-	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
-	int ret = 0, reg;
-=======
+#if 0
 static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
@@ -1068,18 +1125,44 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 	wm8900 = kzalloc(sizeof(struct wm8900_priv), GFP_KERNEL);
 	if (wm8900 == NULL)
 		return -ENOMEM;
->>>>>>> parent of 15f7fab... temp revert rk change
 
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, wm8900->control_type);
+	codec = &wm8900->codec;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
+	snd_soc_codec_set_drvdata(codec, wm8900);
+	codec->reg_cache = &wm8900->reg_cache[0];
+	codec->reg_cache_size = WM8900_MAXREG;
+#endif
+
+	mutex_init(&codec->mutex);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
+	INIT_LIST_HEAD(&codec->dapm_widgets);
+	INIT_LIST_HEAD(&codec->dapm_paths);
+#endif
+
+	codec->name = "WM8900";
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
+	codec->owner = THIS_MODULE;
+	codec->dai = &wm8900_dai;
+#endif
+	codec->num_dai = 1;
+	codec->control_data = i2c;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
+	codec->set_bias_level = wm8900_set_bias_level;
+	codec->volatile_register = wm8900_volatile_register;
+#endif
+	codec->dev = &i2c->dev;
+
+	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
+		dev_err(&i2c->dev, "Failed to set cache I/O: %d\n", ret);
+		goto err;
 	}
 
 	reg = snd_soc_read(codec, WM8900_REG_ID);
 	if (reg != 0x8900) {
-		dev_err(codec->dev, "Device is not a WM8900 - ID %x\n", reg);
-		return -ENODEV;
+		dev_err(&i2c->dev, "Device is not a WM8900 - ID %x\n", reg);
+		ret = -ENODEV;
+		goto err;
 	}
 
 	wm8900_reset(codec);
@@ -1087,111 +1170,50 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 	/* Turn the chip on */
 	wm8900_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-<<<<<<< HEAD
-	/* Latch the volume update bits */
-	snd_soc_write(codec, WM8900_REG_LINVOL,
-		      snd_soc_read(codec, WM8900_REG_LINVOL) | 0x100);
-	snd_soc_write(codec, WM8900_REG_RINVOL,
-		      snd_soc_read(codec, WM8900_REG_RINVOL) | 0x100);
-	snd_soc_write(codec, WM8900_REG_LOUT1CTL,
-		      snd_soc_read(codec, WM8900_REG_LOUT1CTL) | 0x100);
-	snd_soc_write(codec, WM8900_REG_ROUT1CTL,
-		      snd_soc_read(codec, WM8900_REG_ROUT1CTL) | 0x100);
-	snd_soc_write(codec, WM8900_REG_LOUT2CTL,
-		      snd_soc_read(codec, WM8900_REG_LOUT2CTL) | 0x100);
-	snd_soc_write(codec, WM8900_REG_ROUT2CTL,
-		      snd_soc_read(codec, WM8900_REG_ROUT2CTL) | 0x100);
-	snd_soc_write(codec, WM8900_REG_LDAC_DV,
-		      snd_soc_read(codec, WM8900_REG_LDAC_DV) | 0x100);
-	snd_soc_write(codec, WM8900_REG_RDAC_DV,
-		      snd_soc_read(codec, WM8900_REG_RDAC_DV) | 0x100);
-	snd_soc_write(codec, WM8900_REG_LADC_DV,
-		      snd_soc_read(codec, WM8900_REG_LADC_DV) | 0x100);
-	snd_soc_write(codec, WM8900_REG_RADC_DV,
-		      snd_soc_read(codec, WM8900_REG_RADC_DV) | 0x100);
-
-	/* Set the DAC and mixer output bias */
-	snd_soc_write(codec, WM8900_REG_OUTBIASCTL, 0x81);
-
-	snd_soc_add_controls(codec, wm8900_snd_controls,
-				ARRAY_SIZE(wm8900_snd_controls));
-	wm8900_add_widgets(codec);
-=======
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
 	wm8900_dai.dev = &i2c->dev;
->>>>>>> parent of 15f7fab... temp revert rk change
+#endif
 
-	return 0;
-}
+	wm8900_codec = codec;
 
-/* power down chip */
-static int wm8900_remove(struct snd_soc_codec *codec)
-{
-	wm8900_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static struct snd_soc_codec_driver soc_codec_dev_wm8900 = {
-	.probe =	wm8900_probe,
-	.remove =	wm8900_remove,
-	.suspend =	wm8900_suspend,
-	.resume =	wm8900_resume,
-	.set_bias_level = wm8900_set_bias_level,
-	.volatile_register = wm8900_volatile_register,
-	.reg_cache_size = ARRAY_SIZE(wm8900_reg_defaults),
-	.reg_word_size = sizeof(u16),
-	.reg_cache_default = wm8900_reg_defaults,
-};
-
-#if defined(CONFIG_SPI_MASTER)
-static int __devinit wm8900_spi_probe(struct spi_device *spi)
-{
-	struct wm8900_priv *wm8900;
-	int ret;
-
-	wm8900 = kzalloc(sizeof(struct wm8900_priv), GFP_KERNEL);
-	if (wm8900 == NULL)
-		return -ENOMEM;
-
-	wm8900->control_type = SND_SOC_SPI;
-	spi_set_drvdata(spi, wm8900);
-
-	ret = snd_soc_register_codec(&spi->dev,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8900, &wm8900_dai, 1);
-	if (ret < 0)
-		kfree(wm8900);
+#else
+	ret = snd_soc_register_codec(codec);
+#endif
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
+		goto err;
+	}
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
+	ret = snd_soc_register_dai(&wm8900_dai);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to register DAI: %d\n", ret);
+		goto err_codec;
+	}
+#endif
+
+	return ret;
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
+err_codec:
+	snd_soc_unregister_codec(codec);
+#endif
+err:
+	kfree(wm8900);
+	wm8900_codec = NULL;
 	return ret;
 }
-
-static int __devexit wm8900_spi_remove(struct spi_device *spi)
-{
-<<<<<<< HEAD
-	snd_soc_unregister_codec(&spi->dev);
-	kfree(spi_get_drvdata(spi));
-	return 0;
-}
-=======
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
-        
-	snd_soc_unregister_dai(&wm8900_dai);
-	snd_soc_unregister_codec(wm8900_codec);
->>>>>>> parent of 15f7fab... temp revert rk change
-
-static struct spi_driver wm8900_spi_driver = {
-	.driver = {
-		.name	= "wm8900-codec",
-		.owner	= THIS_MODULE,
-	},
-	.probe		= wm8900_spi_probe,
-	.remove		= __devexit_p(wm8900_spi_remove),
-};
-#endif /* CONFIG_SPI_MASTER */
-
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#else
 static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8900_priv *wm8900;
 	int ret;
+
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	wm8900 = kzalloc(sizeof(struct wm8900_priv), GFP_KERNEL);
 	if (wm8900 == NULL)
@@ -1202,15 +1224,32 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8900, &wm8900_dai, 1);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
 		kfree(wm8900);
+	}
 	return ret;
 }
+#endif
 
 static __devexit int wm8900_i2c_remove(struct i2c_client *client)
 {
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 	snd_soc_unregister_codec(&client->dev);
 	kfree(i2c_get_clientdata(client));
+#else
+	snd_soc_unregister_dai(&wm8900_dai);
+	snd_soc_unregister_codec(wm8900_codec);
+
+	wm8900_set_bias_level(wm8900_codec, SND_SOC_BIAS_OFF);
+
+	wm8900_dai.dev = NULL;
+	kfree(snd_soc_codec_get_drvdata(wm8900_codec));
+	wm8900_codec = NULL;
+#endif
+
 	return 0;
 }
 
@@ -1228,40 +1267,34 @@ MODULE_DEVICE_TABLE(i2c, wm8900_i2c_id);
 
 static struct i2c_driver wm8900_i2c_driver = {
 	.driver = {
-		.name = "wm8900-codec",
+		.name = "WM8900",
 		.owner = THIS_MODULE,
 	},
-<<<<<<< HEAD
-	.probe =    wm8900_i2c_probe,
-	.remove =   __devexit_p(wm8900_i2c_remove),
-=======
 	.probe = wm8900_i2c_probe,
 	.remove = __devexit_p(wm8900_i2c_remove),
 	.shutdown = wm8900_i2c_shutdown,
->>>>>>> parent of 15f7fab... temp revert rk change
 	.id_table = wm8900_i2c_id,
 };
-#endif
 
-static int __init wm8900_modinit(void)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static int wm8900_probe(struct snd_soc_codec *codec)
 {
+	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+	wm8900_codec = codec;
+
+	ret = snd_soc_codec_set_cache_io(codec, 8, 16, wm8900->control_type);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		return ret;
+	}
+#else
+static int wm8900_probe(struct platform_device *pdev)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec;
 	int ret = 0;
-<<<<<<< HEAD
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	ret = i2c_add_driver(&wm8900_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register wm8900 I2C driver: %d\n",
-		       ret);
-	}
 #endif
-#if defined(CONFIG_SPI_MASTER)
-	ret = spi_register_driver(&wm8900_spi_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register wm8900 SPI driver: %d\n",
-		       ret);
-	}
-#endif
-=======
 
 #ifndef WM8900_NO_POWEROFF
 	gpio_set_value(RK29_PIN1_PD6, GPIO_LOW);
@@ -1270,7 +1303,11 @@ static int __init wm8900_modinit(void)
 	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
         
 	if (!wm8900_codec) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+		dev_err(codec->dev, "I2C client not yet instantiated\n");
+#else
 		dev_err(&pdev->dev, "I2C client not yet instantiated\n");
+#endif
 		return -ENODEV;
 	}
 
@@ -1280,16 +1317,23 @@ static int __init wm8900_modinit(void)
 #endif
 
 	codec = wm8900_codec;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
 	socdev->card->codec = codec;
 
 	/* Register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
+		dev_err(codec->dev, "Failed to register new PCMs\n");
 		dev_err(&pdev->dev, "Failed to register new PCMs\n");
 		goto pcm_err;
 	}
+#endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38))
+	wm8900_workq = create_freezable_workqueue("wm8900");
+#else
 	wm8900_workq = create_freezeable_workqueue("wm8900");
+#endif
 	if (wm8900_workq == NULL) {
 		kfree(codec);
 		return -ENOMEM;
@@ -1301,20 +1345,62 @@ static int __init wm8900_modinit(void)
 
 	return ret;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
 pcm_err:
->>>>>>> parent of 15f7fab... temp revert rk change
 	return ret;
+#endif
+}
+
+/* power down chip */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static int wm8900_remove(struct snd_soc_codec *codec)
+{
+	wm8900_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	return 0;
+}
+#else
+static int wm8900_remove(struct platform_device *pdev)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+
+	snd_soc_free_pcms(socdev);
+	snd_soc_dapm_free(socdev);
+
+	return 0;
+}
+#endif
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static struct snd_soc_codec_driver soc_codec_dev_wm8900 = {
+	.probe =	wm8900_probe,
+	.remove =	wm8900_remove,
+	.suspend =	wm8900_suspend,
+	.resume =	wm8900_resume,
+	.set_bias_level = wm8900_set_bias_level,
+	.volatile_register = wm8900_volatile_register,
+	.reg_cache_size = ARRAY_SIZE(wm8900_reg_defaults),
+	.reg_word_size = sizeof(u16),
+	.reg_cache_default = wm8900_reg_defaults,
+};
+#else
+struct snd_soc_codec_device soc_codec_dev_wm8900 = {
+	.probe = 	wm8900_probe,
+	.remove = 	wm8900_remove,
+	.suspend = 	wm8900_suspend,
+	.resume =	wm8900_resume,
+};
+EXPORT_SYMBOL_GPL(soc_codec_dev_wm8900);
+#endif
+
+static int __init wm8900_modinit(void)
+{
+	return i2c_add_driver(&wm8900_i2c_driver);
 }
 module_init(wm8900_modinit);
 
 static void __exit wm8900_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8900_i2c_driver);
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&wm8900_spi_driver);
-#endif
 }
 module_exit(wm8900_exit);
 

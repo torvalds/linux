@@ -77,14 +77,22 @@ static struct rk29_dma_client rk29_dma_client_in = {
 
 static inline struct rk29_i2s_info *to_info(struct snd_soc_dai *cpu_dai)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	return snd_soc_dai_get_drvdata(cpu_dai);
+#else
 	return cpu_dai->private_data;
+#endif
 }
 
 static struct rockchip_pcm_dma_params rk29_i2s_pcm_stereo_out[MAX_I2S];
 static struct rockchip_pcm_dma_params rk29_i2s_pcm_stereo_in[MAX_I2S];
 static struct rk29_i2s_info rk29_i2s[MAX_I2S];
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+struct snd_soc_dai_driver rk29_i2s_dai[MAX_I2S];
+#else
 struct snd_soc_dai rk29_i2s_dai[MAX_I2S];
+#endif
 EXPORT_SYMBOL_GPL(rk29_i2s_dai);
 
 /*
@@ -120,7 +128,7 @@ static struct rockchip_pcm_dma_params rockchip_i2s_pcm_stereo_in[MAX_I2S] = {
 */
 
 #if 1
-static u32 i2s0_clk_enter()
+static u32 i2s0_clk_enter(void)
 {
   u32 clk = cru_readl(CRU_CLKSEL3_CON);
   cru_writel(0x1ffff, CRU_CLKSEL3_CON);
@@ -337,9 +345,13 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params, struct snd_soc_dai *socdai)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	struct rk29_i2s_info *i2s = to_info(socdai);
+#else
         struct snd_soc_pcm_runtime *rtd = substream->private_data;
         struct snd_soc_dai_link *dai = rtd->dai;
         struct rk29_i2s_info *i2s = to_info(dai->cpu_dai);
+#endif
 	u32 iismod;
 	u32 dmarc;
 	  
@@ -352,7 +364,12 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
     		return 0;
     	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		snd_soc_dai_set_dma_data(socdai, substream, i2s->dma_playback);
+	else
+		snd_soc_dai_set_dma_data(socdai, substream, i2s->dma_capture);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
                 dai->cpu_dai->playback.dma_data = i2s->dma_playback;
 	else
@@ -420,7 +437,11 @@ static int rockchip_i2s_trigger(struct snd_pcm_substream *substream, int cmd, st
 {    
         int ret = 0;
         struct snd_soc_pcm_runtime *rtd = substream->private_data;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	struct rk29_i2s_info *i2s = to_info(rtd->cpu_dai);
+#else
         struct rk29_i2s_info *i2s = to_info(rtd->dai->cpu_dai);
+#endif
         bool stopI2S = false;
 
         I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
@@ -504,13 +525,6 @@ static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
         return 0;
 }
 
-static int rockchip_set_sysclk(struct snd_soc_dai *cpu_dai,
-                                int clk_id, unsigned int freq, int dir)
-{
-        return 0;
-}
-
-
 /*
  * To avoid duplicating clock code, allow machine driver to
  * get the clockrate from here.
@@ -557,7 +571,11 @@ static struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
 	.set_sysclk = rockchip_i2s_set_sysclk,
 };
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
+#else
 static int rockchip_i2s_dai_probe(struct platform_device *pdev, struct snd_soc_dai *dai)
+#endif
 {	
 	I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
 
@@ -591,7 +609,11 @@ static int rockchip_i2s_dai_probe(struct platform_device *pdev, struct snd_soc_d
 }
 
 static int rk29_i2s_probe(struct platform_device *pdev,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+		    struct snd_soc_dai_driver *dai,
+#else
 		    struct snd_soc_dai *dai,
+#endif
 		    struct rk29_i2s_info *i2s,
 		    unsigned long base)
 {
@@ -603,7 +625,11 @@ static int rk29_i2s_probe(struct platform_device *pdev,
 	i2s->dev = dev;
 
 	/* record our i2s structure for later use in the callbacks */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	dev_set_drvdata(&pdev->dev, i2s);
+#else
 	dai->private_data = i2s;
+#endif
 
 	if (!base) {
 		res = platform_get_resource(pdev,
@@ -646,27 +672,14 @@ static int rk29_i2s_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static int rk29_i2s_register_dai(struct snd_soc_dai *dai)
-{
-	struct snd_soc_dai_ops *ops = dai->ops;
-
-	ops->trigger = rockchip_i2s_trigger;
-	if (!ops->hw_params)
-		ops->hw_params = rockchip_i2s_hw_params;
-	ops->set_fmt = rockchip_i2s_set_fmt;
-	ops->set_clkdiv = rockchip_i2s_set_clkdiv;
-	ops->set_sysclk = rockchip_i2s_set_sysclk;
-
-	dai->suspend = rockchip_i2s_suspend;
-	dai->resume = rockchip_i2s_resume;
-
-	return snd_soc_register_dai(dai);
-}
-
 static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 {
         struct rk29_i2s_info *i2s;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	struct snd_soc_dai_driver *dai;
+#else
         struct snd_soc_dai *dai;
+#endif
         int    ret;
 
         I2S_DBG("Enter %s, %d pdev->id = %d >>>>>>>>>>>\n", __func__, __LINE__, pdev->id);
@@ -678,14 +691,17 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 
         i2s = &rk29_i2s[pdev->id];
         dai = &rk29_i2s_dai[pdev->id];
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
 	dai->dev = &pdev->dev;
-	dai->name = "rk29_i2s";
+#endif
 	dai->id = pdev->id;
 	dai->symmetric_rates = 1;
 	if(pdev->id == 0) {
+		dai->name = "rk29_i2s.0";
         	dai->playback.channels_min = 2;
         	dai->playback.channels_max = 8;
 	}else{
+		dai->name = "rk29_i2s.1";
                 dai->playback.channels_min = 2;
         	dai->playback.channels_max = 2;
 	}
@@ -697,6 +713,8 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	dai->capture.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE;
 	dai->probe = rockchip_i2s_dai_probe; 
 	dai->ops = &rockchip_i2s_dai_ops;
+	dai->suspend = rockchip_i2s_suspend;
+	dai->resume = rockchip_i2s_resume;
 
 	//i2s->feature |= S3C_FEATURE_CDCLKCON;
 
@@ -726,7 +744,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	 WARN_ON(rk29_dma_request(i2s->dma_capture->channel, i2s->dma_capture->client, NULL));
 #endif
 	i2s->iis_clk = clk_get(&pdev->dev, "i2s");
-	I2S_DBG("Enter:%s, %d, iis_clk=%d\n", __FUNCTION__, __LINE__, i2s->iis_clk);
+	I2S_DBG("Enter:%s, %d, iis_clk=%p\n", __FUNCTION__, __LINE__, i2s->iis_clk);
 	if (IS_ERR(i2s->iis_clk)) {
 		dev_err(&pdev->dev, "failed to get i2s clk\n");
 		ret = PTR_ERR(i2s->iis_clk);
@@ -739,7 +757,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk;
 
-	ret = rk29_i2s_register_dai(dai);
+	ret = snd_soc_register_dai(&pdev->dev, dai);
 	if (ret != 0)
 		goto err_i2sv2;
 
@@ -756,7 +774,11 @@ err:
 
 static int __devexit rockchip_i2s_remove(struct platform_device *pdev)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	snd_soc_unregister_dai(&pdev->dev);
+#else
 	snd_soc_unregister_dai(&rk29_i2s_dai);
+#endif
 
 	return 0;
 }
@@ -795,9 +817,6 @@ MODULE_LICENSE("GPL");
 #include <linux/seq_file.h>
 static int proc_i2s_show(struct seq_file *s, void *v)
 {
-        unsigned int i;
-        unsigned int reg;
-
         struct rk29_i2s_info *i2s=&rk29_i2s[0];
         
         printk("========Show I2S reg========\n");

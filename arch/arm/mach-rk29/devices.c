@@ -582,6 +582,12 @@ struct platform_device rk29_device_iis_8ch = {
         .resource       = rk29_iis_8ch_resource,
 };
 #endif
+
+static struct platform_device rk29_device_pcm = {
+	.name = "rockchip-audio",
+	.id = -1,
+};
+
 #ifdef CONFIG_RK29_IPP
 /* rk29 ipp resource */
 static struct resource rk29_ipp_resource[] = {
@@ -864,6 +870,7 @@ EXPORT_SYMBOL(board_boot_mode);
 static int __init rk29_init_devices(void)
 {
 	platform_device_register(&rk29_device_pmu);
+	platform_device_register(&rk29_device_pcm);
         return 0;
 }
 arch_initcall(rk29_init_devices);

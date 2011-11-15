@@ -197,7 +197,11 @@ typedef volatile struct tagIIS_STRUCT
     unsigned int I2S_RXRST;
 }I2S_REG,*pI2S_REG;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+extern struct snd_soc_dai_driver rk29_i2s_dai[];
+#else
 extern struct snd_soc_dai rk29_i2s_dai[];
+#endif
 //extern void rockchip_add_device_i2s(void);
 #endif /* _ROCKCHIP_IIS_H */
 

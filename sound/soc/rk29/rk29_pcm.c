@@ -28,11 +28,6 @@
 
 #include "rk29_pcm.h"
 
-#ifdef CONFIG_ANDROID_POWER
-#include <linux/android_power.h>
-static android_suspend_lock_t audio_lock;
-#endif
-
 #if 0
 #define DBG(x...) printk(KERN_INFO x)
 #else
@@ -83,119 +78,6 @@ struct rockchip_runtime_data {
 };
 
 
-/* rockchip__dma_buf_enqueue
- *
- *queue an given buffer for dma transfer set.
- *data       the physical address of the buffer data
- *size       the size of the buffer in bytes
-*/
-static int rockchip_dma_buffer_set_enqueue(struct rockchip_runtime_data *prtd, dma_addr_t data, int size)
-{   
-	struct rockchip_dma_buf_set *sg_buf;
-	
-        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-	sg_buf = kzalloc(sizeof(struct rockchip_dma_buf_set), GFP_ATOMIC);/* ddl@rock-chips.com:GFP_KERNEL->GFP_ATOMIC */
-	
-	if (sg_buf == NULL) {
-		DBG("scatter sg buffer allocate failed,no memory!\n");
-		return -ENOMEM;
-	}
-	sg_buf->next = NULL;
-	sg_buf->sg.dma_address = data;
-	sg_buf->sg.length = size/4;  ////4;
-	if( prtd->curr == NULL) {
-		prtd->curr = sg_buf;
-		prtd->end  = sg_buf;
-		prtd->next = NULL;
-	} else {
-		if (prtd->end == NULL)
-			DBG("prtd->end is NULL\n");
-			prtd->end->next = sg_buf;
-			prtd->end = sg_buf;
-	}
-	/* if necessary, update the next buffer field */
-	if (prtd->next == NULL)
-		prtd->next = sg_buf;
-	return 0;
-}
-
-void rockchip_pcm_dma_irq(s32 ch, void *data);
-
-void audio_start_dma(struct snd_pcm_substream *substream, int mode)
-{
-	struct rockchip_runtime_data *prtd;
-	unsigned long flags;
-	struct rockchip_dma_buf_set *sg_buf;
-    
-        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
-	prtd = substream->runtime->private_data;
-
-	switch (mode) {
-	case DMA_MODE_WRITE:
-		if (prtd->transfer_first == 1) {
-			prtd->transfer_first = 0;
-		} else {
-			sg_buf = prtd->curr;
-			if (sg_buf != NULL) {
-				prtd->curr = sg_buf->next;
-				prtd->next = sg_buf->next;
-				sg_buf->next  = NULL;
-				kfree(sg_buf);
-				sg_buf = NULL;
-			}
-		}
-
-		sg_buf = prtd->next;
-		DBG("Enter::%s----%d---length=%x---dma_address=%x\n",__FUNCTION__,__LINE__,sg_buf->sg.length,sg_buf->sg.dma_address);		
-		if (sg_buf) {			
-			spin_lock_irqsave(&prtd->lock, flags);
-			disable_dma(prtd->params->channel);
-			//set_dma_sg(prtd->params->channel, &(sg_buf->sg), 1);
-			set_dma_mode(prtd->params->channel, DMA_MODE_WRITE);
-			set_dma_handler(prtd->params->channel, rockchip_pcm_dma_irq, substream, DMA_IRQ_RIGHTNOW_MODE);
-			__set_dma_addr(prtd->params->channel, (void *)(sg_buf->sg.dma_address));
-			set_dma_count(prtd->params->channel, sg_buf->sg.length);
-			enable_dma(prtd->params->channel);
-			spin_unlock_irqrestore(&prtd->lock, flags);
-		} else {
-			DBG("next buffer is NULL for playback\n");
-			return;
-		}
-		break;
-	case DMA_MODE_READ:
-		if (prtd->transfer_first == 1) {
-			prtd->transfer_first = 0;
-		} else {
-			sg_buf = prtd->curr;
-			if (sg_buf != NULL) {
-				prtd->curr = sg_buf->next;
-				prtd->next = sg_buf->next;
-				sg_buf->next  = NULL;
-				kfree(sg_buf);
-				sg_buf = NULL;
-			}
-		}
-
-		sg_buf = prtd->next;
-		if (sg_buf) {			
-			spin_lock_irqsave(&prtd->lock, flags);
-			disable_dma(prtd->params->channel);
-			//set_dma_sg(prtd->params->channel, &(sg_buf->sg), 1);
-			set_dma_mode(prtd->params->channel, DMA_MODE_READ);
-			set_dma_handler(prtd->params->channel, rockchip_pcm_dma_irq, substream, DMA_IRQ_RIGHTNOW_MODE);			
-			__set_dma_addr(prtd->params->channel, (void *)(sg_buf->sg.dma_address));
-			set_dma_count(prtd->params->channel, sg_buf->sg.length);
-			enable_dma(prtd->params->channel);
-			spin_unlock_irqrestore(&prtd->lock, flags);
-		} else {
-			DBG("next buffer is NULL for capture\n");
-			return;
-		}
-		break;
-	}
-}
-
 /* rockchip_pcm_enqueue
  *
  * place a dma buffer onto the queue for the dma system
@@ -206,10 +88,7 @@ static void rockchip_pcm_enqueue(struct snd_pcm_substream *substream)
 	struct rockchip_runtime_data *prtd = substream->runtime->private_data;	
 	dma_addr_t pos = prtd->dma_pos;
 	int ret;
-	char* vpos;
-	int i;
-        
-	
+
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
         
         while (prtd->dma_loaded < prtd->dma_limit) {
@@ -236,11 +115,10 @@ static void rockchip_pcm_enqueue(struct snd_pcm_substream *substream)
 		}
 
 
-		//ret = rockchip_dma_buffer_set_enqueue(prtd, pos, len);		
 		ret = rk29_dma_enqueue(prtd->params->channel, 
 		        substream, pos, len);
                 
-                DBG("Enter::%s, %d, ret=%d, Channel=%d, Addr=0x%X, Len=%d\n",
+                DBG("Enter::%s, %d, ret=%d, Channel=%d, Addr=0x%X, Len=%lu\n",
                         __FUNCTION__,__LINE__, ret, prtd->params->channel, pos, len);		        
 		if (ret == 0) {
 			prtd->dma_loaded++;
@@ -254,43 +132,12 @@ static void rockchip_pcm_enqueue(struct snd_pcm_substream *substream)
 	prtd->dma_pos = pos;
 }
 
-void rockchip_pcm_dma_irq(s32 ch, void *data)
-{    
-        struct snd_pcm_substream *substream = data;
-	struct rockchip_runtime_data *prtd;
-	unsigned long flags;
-	
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
-	prtd = substream->runtime->private_data;
-	if (substream)
-		snd_pcm_period_elapsed(substream);
-	spin_lock(&prtd->lock);
-	prtd->dma_loaded--;
-	if (prtd->state & ST_RUNNING) {
-		rockchip_pcm_enqueue(substream);
-	}
-        spin_unlock(&prtd->lock);
-        local_irq_save(flags);
-	if (prtd->state & ST_RUNNING) {
-		if (prtd->dma_loaded) {
-			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-				audio_start_dma(substream, DMA_MODE_WRITE);
-			else
-				audio_start_dma(substream, DMA_MODE_READ);
-		}
-	}
-	local_irq_restore(flags);   
-}
-
-
 void rk29_audio_buffdone(void *dev_id, int size,
 				   enum rk29_dma_buffresult result)
 {
         struct snd_pcm_substream *substream = dev_id;
 	struct rockchip_runtime_data *prtd;
-	unsigned long flags;
-	
+
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	
 	if (!substream)
@@ -299,7 +146,7 @@ void rk29_audio_buffdone(void *dev_id, int size,
 		return;
 
 	prtd = substream->runtime->private_data;
-	DBG("Enter::%s----%d, substream=0x%08X, prtd=0x%08X\n",__FUNCTION__,__LINE__, substream, prtd);
+	DBG("Enter::%s----%d, substream=%p, prtd=%p\n",__FUNCTION__,__LINE__, substream, prtd);
 	if (substream){
 		snd_pcm_period_elapsed(substream);
 	}
@@ -318,7 +165,9 @@ static int rockchip_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct rockchip_runtime_data *prtd = runtime->private_data;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	struct rockchip_pcm_dma_params *dma = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
 	struct rockchip_pcm_dma_params *dma = snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
 #else
 	struct rockchip_pcm_dma_params *dma = rtd->dai->cpu_dai->dma_data;
@@ -350,7 +199,6 @@ static int rockchip_pcm_hw_params(struct snd_pcm_substream *substream,
 		DBG("params %p, client %p, channel %d\n", prtd->params,
 			prtd->params->client, prtd->params->channel);
 
-		//ret = request_dma(prtd->params->channel, "i2s");  ///prtd->params->client->name);
                 ret = rk29_dma_request(prtd->params->channel, prtd->params->client, NULL);
                 DBG("Enter::%s, %d, ret=%d, Channel=%d\n", __FUNCTION__, __LINE__, ret, prtd->params->channel);
 /*
@@ -399,7 +247,6 @@ static int rockchip_pcm_hw_free(struct snd_pcm_substream *substream)
 
 	if (prtd->params) {
 #ifdef CONFIG_SND_I2S_DMA_EVENT_DYNAMIC		
-		//free_dma(prtd->params->channel);
 		rk29_dma_free(prtd->params->channel, prtd->params->client);
 		prtd->params = NULL;
 #endif		
@@ -455,7 +302,11 @@ static int rockchip_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	int ret = 0;
 	/**************add by qiuen for volume*****/
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	struct snd_soc_dai *pCodec_dai = rtd->codec_dai;
+#else
 	struct snd_soc_dai *pCodec_dai = rtd->dai->codec_dai;
+#endif
 	int vol = 0;
 	int streamType = 0;
 	
@@ -465,8 +316,13 @@ static int rockchip_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		vol = substream->number % 100;
 		streamType = (substream->number / 100) % 100;
 		DBG("enter:vol=%d,streamType=%d\n",vol,streamType);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+		if(pCodec_dai->driver->ops->set_volume)
+			pCodec_dai->driver->ops->set_volume(streamType, vol);
+#else
 		if(pCodec_dai->ops->set_volume)
 			pCodec_dai->ops->set_volume(streamType, vol);
+#endif
 	}
 	/****************************************************/
 	spin_lock(&prtd->lock);
@@ -476,17 +332,6 @@ static int rockchip_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	        DBG(" START \n");
 	    prtd->state |= ST_RUNNING;
 	    rk29_dma_ctrl(prtd->params->channel, RK29_DMAOP_START);
-	    /*
-	    if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		    audio_start_dma(substream, DMA_MODE_WRITE);
-		} else {
-		    audio_start_dma(substream, DMA_MODE_READ);
-		}
-		*/
-#ifdef CONFIG_ANDROID_POWER        
-        android_lock_suspend(&audio_lock);
-        DBG("%s::start audio , lock system suspend\n" , __func__ );
-#endif		
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
 	    DBG(" RESUME \n");
@@ -501,12 +346,6 @@ static int rockchip_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	    DBG(" STOPS \n");
 		prtd->state &= ~ST_RUNNING;
 		rk29_dma_ctrl(prtd->params->channel, RK29_DMAOP_STOP);
-		//disable_dma(prtd->params->channel);
-#ifdef CONFIG_ANDROID_POWER        
-        android_unlock_suspend(&audio_lock );
-        DBG("%s::stop audio , unlock system suspend\n" , __func__ );
-#endif
-		
 		break;
 	default:
 		ret = -EINVAL;
@@ -530,9 +369,7 @@ rockchip_pcm_pointer(struct snd_pcm_substream *substream)
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	spin_lock(&prtd->lock);
 
-        //get_dma_position(prtd->params->channel, &src, &dst);
         rk29_dma_getposition(prtd->params->channel, &src, &dst);
-	//dma_getposition(prtd->params->channel, &src, &dst);
 	
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		res = dst - prtd->dma_start;
@@ -635,6 +472,7 @@ static int rockchip_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	if (!buf->area)
 		return -ENOMEM;
 	buf->bytes = size;
+	DBG("%s: size %d\n",__FUNCTION__, size);
 	return 0;
 }
 
@@ -670,24 +508,27 @@ static int rockchip_pcm_new(struct snd_card *card,
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
-#ifdef CONFIG_ANDROID_POWER
-	audio_lock.name = "rk-audio";
-	android_init_suspend_lock(&audio_lock);
-#endif
-
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &rockchip_pcm_dmamask;
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = 0xffffffff;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	if (dai->driver->playback.channels_min) {
+#else
 	if (dai->playback.channels_min) {
+#endif
 		ret = rockchip_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			goto out;
 	}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	if (dai->driver->capture.channels_min) {
+#else
 	if (dai->capture.channels_min) {
+#endif
 		ret = rockchip_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -697,6 +538,47 @@ static int rockchip_pcm_new(struct snd_card *card,
 	return ret;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static struct snd_soc_platform_driver rockchip_pcm_platform = {
+	.ops		= &rockchip_pcm_ops,
+	.pcm_new	= rockchip_pcm_new,
+	.pcm_free	= rockchip_pcm_free_dma_buffers,
+};
+
+static int __devinit rockchip_pcm_platform_probe(struct platform_device *pdev)
+{
+        DBG("Enter::%s, %d\n", __FUNCTION__, __LINE__);
+	return snd_soc_register_platform(&pdev->dev, &rockchip_pcm_platform);
+}
+
+static int __devexit rockchip_pcm_platform_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_platform(&pdev->dev);
+	return 0;
+}
+
+static struct platform_driver rockchip_pcm_driver = {
+	.driver = {
+		.name = "rockchip-audio",
+		.owner = THIS_MODULE,
+	},
+	.probe = rockchip_pcm_platform_probe,
+	.remove = __devexit_p(rockchip_pcm_platform_remove),
+};
+
+static int __init snd_rockchip_pcm_init(void)
+{
+        DBG("Enter::%s, %d\n", __FUNCTION__, __LINE__);
+	return platform_driver_register(&rockchip_pcm_driver);
+}
+module_init(snd_rockchip_pcm_init);
+
+static void __exit snd_rockchip_pcm_exit(void)
+{
+	platform_driver_unregister(&rockchip_pcm_driver);
+}
+module_exit(snd_rockchip_pcm_exit);
+#else
 struct snd_soc_platform rk29_soc_platform = {
 	.name		= "rockchip-audio",
 	.pcm_ops 	= &rockchip_pcm_ops,
@@ -717,6 +599,7 @@ static void __exit rockchip_soc_platform_exit(void)
 	snd_soc_unregister_platform(&rk29_soc_platform);
 }
 module_exit(rockchip_soc_platform_exit);
+#endif
 
 /* Module information */
 MODULE_AUTHOR("rockchip");

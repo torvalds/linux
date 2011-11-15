@@ -17,13 +17,8 @@
 #define ST_RUNNING		(1<<0)
 #define ST_OPENED		(1<<1)
 
-/* dma buffer */
-struct rockchip_dma_client {
-	char                *name;
-};
-
 struct rockchip_pcm_dma_params {
-	struct rockchip_dma_client *client;	/* stream identifier */
+	struct rk29_dma_client *client;	/* stream identifier */
 	int channel;				/* Channel ID */
 	dma_addr_t dma_addr;
 	int dma_size;				/* Size of the DMA transfer */

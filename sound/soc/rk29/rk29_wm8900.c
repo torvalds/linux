@@ -35,10 +35,14 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
         struct snd_soc_pcm_runtime *rtd = substream->private_data;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+#else
         struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
         struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+#endif
         unsigned int pll_out = 0; 
-        unsigned int lrclk = 0;
 		int div_bclk,div_mclk;
         int ret;
 		struct clk	*general_pll;
@@ -49,7 +53,11 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         #define HW_PARAMS_FLAG_EQVOL_OFF 0x22
         if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
         {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+		ret = codec_dai->driver->ops->hw_params(substream, params, codec_dai); //by Vincent
+#else
         	ret = codec_dai->ops->hw_params(substream, params, codec_dai); //by Vincent
+#endif
         	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
         }
         else
@@ -130,7 +138,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 			div_bclk=(pll_out)/params_rate(params)-1;
 			div_mclk=0;
 		}
-		DBG("func is%s,gpll=%ld,pll_out=%ld,div_mclk=%ld\n",
+		DBG("func is%s,gpll=%ld,pll_out=%u,div_mclk=%d\n",
 			__FUNCTION__,clk_get_rate(general_pll),pll_out,div_mclk);
 		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
         snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,div_bclk);
@@ -161,11 +169,33 @@ static const struct snd_soc_dapm_route audio_map[]= {
 /*
  * Logic for a wm8900 as connected on a rockchip board.
  */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static int rk29_wm8900_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+
+        /* Add specific widgets */
+	snd_soc_dapm_new_controls(dapm, wm8900_dapm_widgets,
+				  ARRAY_SIZE(wm8900_dapm_widgets));
+	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        /* Set up specific audio path audio_mapnects */
+        snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        snd_soc_dapm_nc_pin(dapm, "HP_L");
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	snd_soc_dapm_nc_pin(dapm, "HP_R");
+	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        snd_soc_dapm_sync(dapm);
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+
+	return 0;
+}
+#else
 static int rk29_wm8900_init(struct snd_soc_codec *codec)
 {
-	struct snd_soc_dai *codec_dai = &codec->dai[0];
-	int ret;
-	  
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
         /* Add specific widgets */
@@ -183,11 +213,24 @@ static int rk29_wm8900_init(struct snd_soc_codec *codec)
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
         return 0;
 }
+#endif
 
 static struct snd_soc_ops rk29_ops = {
 	  .hw_params = rk29_hw_params,
 };
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static struct snd_soc_dai_link rk29_dai = {
+	.name = "WM8900",
+	.stream_name = "WM8900 PCM",
+	.codec_name = "WM8900.0-001a",
+	.platform_name = "rockchip-audio",
+	.cpu_dai_name = "rk29_i2s.0",
+	.codec_dai_name = "WM8900 HiFi",
+	.init = rk29_wm8900_init,
+	.ops = &rk29_ops,
+};
+#else
 static struct snd_soc_dai_link rk29_dai = {
 	  .name = "WM8900",
 	  .stream_name = "WM8900 PCM",
@@ -196,7 +239,15 @@ static struct snd_soc_dai_link rk29_dai = {
 	  .init = rk29_wm8900_init,
 	  .ops = &rk29_ops,
 };
+#endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static struct snd_soc_card snd_soc_card_rk29 = {
+	.name = "RK29_WM8900",
+	.dai_link = &rk29_dai,
+	.num_links = 1,
+};
+#else
 static struct snd_soc_card snd_soc_card_rk29 = {
 	  .name = "RK29_WM8900",
 	  .platform = &rk29_soc_platform,
@@ -205,10 +256,11 @@ static struct snd_soc_card snd_soc_card_rk29 = {
 };
 
 
-static struct snd_soc_device rk29_snd_devdata = {
+static struct snd_soc_card rk29_snd_devdata = {
 	  .card = &snd_soc_card_rk29,
 	  .codec_dev = &soc_codec_dev_wm8900,
 };
+#endif
 
 static struct platform_device *rk29_snd_device;
 
@@ -222,8 +274,12 @@ static int __init audio_card_init(void)
 		  ret = -ENOMEM;
 		  return ret;
 	}
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	platform_set_drvdata(rk29_snd_device, &snd_soc_card_rk29);
+#else
 	platform_set_drvdata(rk29_snd_device, &rk29_snd_devdata);
 	rk29_snd_devdata.dev = &rk29_snd_device->dev;
+#endif
 	ret = platform_device_add(rk29_snd_device);
 	if (ret) {
 	        DBG("platform device add failed\n");
