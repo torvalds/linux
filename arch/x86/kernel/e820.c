@@ -296,7 +296,7 @@ int __init sanitize_e820_map(struct e820entry *biosmap, int max_nr_map,
 	chg_nr = chgidx;
 
 	/* sort change-point list by memory addresses (low -> high) */
-	sort(change_point, chg_nr, sizeof *change_point, cpcompare, 0);
+	sort(change_point, chg_nr, sizeof *change_point, cpcompare, NULL);
 
 	/* create a new bios memory map, removing overlaps */
 	overlap_entries = 0;	 /* number of entries in the overlap table */
