@@ -1083,7 +1083,7 @@ static const struct net_device_ops ax88772_netdev_ops = {
 
 static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	int ret;
+	int ret, embd_phy;
 	struct asix_data *data = (struct asix_data *)&dev->data;
 	u8 buf[ETH_ALEN];
 	u32 phyid;
@@ -1108,15 +1108,35 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->mii.reg_num_mask = 0x1f;
 	dev->mii.phy_id = asix_get_phy_addr(dev);
 
-	phyid = asix_get_phyid(dev);
-	dbg("PHYID=0x%08x", phyid);
-
 	dev->net->netdev_ops = &ax88772_netdev_ops;
 	dev->net->ethtool_ops = &ax88772_ethtool_ops;
 
-	ret = ax88772_reset(dev);
+	embd_phy = ((dev->mii.phy_id & 0x1f) == 0x10 ? 1 : 0);
+
+	/* Reset the PHY to normal operation mode */
+	ret = asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT, embd_phy, 0, 0, NULL);
+	if (ret < 0) {
+		dbg("Select PHY #1 failed: %d", ret);
+		return ret;
+	}
+
+	ret = asix_sw_reset(dev, AX_SWRESET_IPPD | AX_SWRESET_PRL);
 	if (ret < 0)
 		return ret;
+
+	msleep(150);
+
+	ret = asix_sw_reset(dev, AX_SWRESET_CLEAR);
+	if (ret < 0)
+		return ret;
+
+	msleep(150);
+
+	ret = asix_sw_reset(dev, embd_phy ? AX_SWRESET_IPRL : AX_SWRESET_PRTE);
+
+	/* Read PHYID register *AFTER* the PHY was reset properly */
+	phyid = asix_get_phyid(dev);
+	dbg("PHYID=0x%08x", phyid);
 
 	/* Asix framing packs multiple eth frames into a 2K usb bulk transfer */
 	if (dev->driver_info->flags & FLAG_FRAMING_AX) {
