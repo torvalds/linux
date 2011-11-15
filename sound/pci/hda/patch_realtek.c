@@ -4035,6 +4035,37 @@ static const struct hda_amp_list alc880_loopbacks[] = {
 #endif
 
 /*
+ * ALC880 fix-ups
+ */
+enum {
+	ALC880_FIXUP_GPIO2,
+	ALC880_FIXUP_MEDION_RIM,
+};
+
+static const struct alc_fixup alc880_fixups[] = {
+	[ALC880_FIXUP_GPIO2] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = alc_gpio2_init_verbs,
+	},
+	[ALC880_FIXUP_MEDION_RIM] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x07 },
+			{ 0x20, AC_VERB_SET_PROC_COEF,  0x3060 },
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC880_FIXUP_GPIO2,
+	},
+};
+
+static const struct snd_pci_quirk alc880_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x161f, 0x205d, "Medion Rim 2150", ALC880_FIXUP_MEDION_RIM),
+	{}
+};
+
+
+/*
  * board setups
  */
 #ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
@@ -4080,6 +4111,11 @@ static int patch_alc880(struct hda_codec *codec)
 	}
 
 	if (board_config == ALC_MODEL_AUTO) {
+		alc_pick_fixup(codec, NULL, alc880_fixup_tbl, alc880_fixups);
+		alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
+	}
+
+	if (board_config == ALC_MODEL_AUTO) {
 		/* automatic parse from the BIOS config */
 		err = alc880_parse_auto_config(codec);
 		if (err < 0)
@@ -4112,6 +4148,8 @@ static int patch_alc880(struct hda_codec *codec)
 			goto error;
 		set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 	}
+
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
 	spec->vmaster_nid = 0x0c;
 
