@@ -503,10 +503,9 @@ end:
 	spin_unlock(&data_lock);
 }
 
-static int omap_dss_mgr_apply_ovl(struct omap_overlay *ovl)
+static void omap_dss_mgr_apply_ovl(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op;
-	struct omap_dss_device *dssdev;
 
 	op = get_ovl_priv(ovl);
 
@@ -520,21 +519,11 @@ static int omap_dss_mgr_apply_ovl(struct omap_overlay *ovl)
 			op->enabled = false;
 			op->dirty = true;
 		}
-		return 0;
+		return;
 	}
 
 	if (!ovl->info_dirty)
-		return 0;
-
-	dssdev = ovl->manager->device;
-
-	if (dss_check_overlay(ovl, dssdev)) {
-		if (op->enabled) {
-			op->enabled = false;
-			op->dirty = true;
-		}
-		return -EINVAL;
-	}
+		return;
 
 	ovl->info_dirty = false;
 	op->dirty = true;
@@ -543,8 +532,6 @@ static int omap_dss_mgr_apply_ovl(struct omap_overlay *ovl)
 	op->channel = ovl->manager->id;
 
 	op->enabled = true;
-
-	return 0;
 }
 
 static void omap_dss_mgr_apply_mgr(struct omap_overlay_manager *mgr)
@@ -665,18 +652,7 @@ void dss_mgr_disable(struct omap_overlay_manager *mgr)
 int dss_mgr_set_info(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info)
 {
-	int r;
-	struct omap_overlay_manager_info old_info;
-
-	old_info = mgr->info;
 	mgr->info = *info;
-
-	r = dss_check_manager(mgr);
-	if (r) {
-		mgr->info = old_info;
-		return r;
-	}
-
 	mgr->info_dirty = true;
 
 	return 0;
@@ -692,7 +668,6 @@ int dss_mgr_set_device(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dssdev)
 {
 	int r;
-	struct omap_overlay *ovl;
 
 	if (dssdev->manager) {
 		DSSERR("display '%s' already has a manager '%s'\n",
@@ -704,15 +679,6 @@ int dss_mgr_set_device(struct omap_overlay_manager *mgr,
 		DSSERR("display '%s' does not support manager '%s'\n",
 			       dssdev->name, mgr->name);
 		return -EINVAL;
-	}
-
-	list_for_each_entry(ovl, &mgr->overlays, list) {
-		if (!ovl->info.enabled)
-			continue;
-
-		r = dss_check_overlay(ovl, dssdev);
-		if (r)
-			return r;
 	}
 
 	dssdev->manager = mgr;
@@ -748,20 +714,7 @@ int dss_mgr_unset_device(struct omap_overlay_manager *mgr)
 int dss_ovl_set_info(struct omap_overlay *ovl,
 		struct omap_overlay_info *info)
 {
-	int r;
-	struct omap_overlay_info old_info;
-
-	old_info = ovl->info;
 	ovl->info = *info;
-
-	if (ovl->manager) {
-		r = dss_check_overlay(ovl, ovl->manager->device);
-		if (r) {
-			ovl->info = old_info;
-			return r;
-		}
-	}
-
 	ovl->info_dirty = true;
 
 	return 0;

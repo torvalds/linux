@@ -485,23 +485,6 @@ static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
 	return omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
 }
 
-int dss_check_manager(struct omap_overlay_manager *mgr)
-{
-	if (dss_has_feature(FEAT_ALPHA_FIXED_ZORDER)) {
-		/*
-		 * OMAP3 supports only graphics source transparency color key
-		 * and alpha blending simultaneously. See TRM 15.4.2.4.2.2
-		 * Alpha Mode
-		 */
-		if (mgr->info.partial_alpha_enabled && mgr->info.trans_enabled
-			&& mgr->info.trans_key_type !=
-				OMAP_DSS_COLOR_KEY_GFX_DST)
-			return -EINVAL;
-	}
-
-	return 0;
-}
-
 int dss_init_overlay_managers(struct platform_device *pdev)
 {
 	int i, r;
