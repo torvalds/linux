@@ -87,6 +87,10 @@ struct mgr_priv_data {
 	bool manual_update;
 	bool do_manual_update;
 
+	/* If true, GO bit is up and shadow registers cannot be written.
+	 * Never true for manual update displays */
+	bool busy;
+
 	/* If true, a display is enabled using this manager */
 	bool enabled;
 };
@@ -319,17 +323,11 @@ static int dss_write_regs(void)
 	const int num_mgrs = dss_feat_get_num_mgrs();
 	int i;
 	int r;
-	bool mgr_busy[MAX_DSS_MANAGERS];
-	bool mgr_go[MAX_DSS_MANAGERS];
+	bool mgr_go[MAX_DSS_MANAGERS] = { false };
 	bool busy;
 
 	r = 0;
 	busy = false;
-
-	for (i = 0; i < num_mgrs; i++) {
-		mgr_busy[i] = dispc_mgr_go_busy(i);
-		mgr_go[i] = false;
-	}
 
 	/* Commit overlay settings */
 	for (i = 0; i < num_ovls; ++i) {
@@ -344,7 +342,7 @@ static int dss_write_regs(void)
 		if (mp->manual_update && !mp->do_manual_update)
 			continue;
 
-		if (mgr_busy[op->channel]) {
+		if (mp->busy) {
 			busy = true;
 			continue;
 		}
@@ -369,7 +367,7 @@ static int dss_write_regs(void)
 		if (mp->manual_update && !mp->do_manual_update)
 			continue;
 
-		if (mgr_busy[i]) {
+		if (mp->busy) {
 			busy = true;
 			continue;
 		}
@@ -391,8 +389,10 @@ static int dss_write_regs(void)
 		/* We don't need GO with manual update display. LCD iface will
 		 * always be turned off after frame, and new settings will be
 		 * taken in to use at next update */
-		if (!mp->manual_update)
+		if (!mp->manual_update) {
+			mp->busy = true;
 			dispc_mgr_go(i);
+		}
 	}
 
 	if (busy)
@@ -471,24 +471,34 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 	const int num_ovls = dss_feat_get_num_ovls();
 	const int num_mgrs = dss_feat_get_num_mgrs();
 	int i, r;
-	bool mgr_busy[MAX_DSS_MANAGERS];
-
-	for (i = 0; i < num_mgrs; i++)
-		mgr_busy[i] = dispc_mgr_go_busy(i);
 
 	spin_lock(&data_lock);
+
+	for (i = 0; i < num_mgrs; i++) {
+		mgr = omap_dss_get_overlay_manager(i);
+		mp = get_mgr_priv(mgr);
+
+		mp->busy = dispc_mgr_go_busy(i);
+	}
 
 	for (i = 0; i < num_ovls; ++i) {
 		ovl = omap_dss_get_overlay(i);
 		op = get_ovl_priv(ovl);
-		if (!mgr_busy[op->channel])
+
+		if (!op->enabled)
+			continue;
+
+		mp = get_mgr_priv(ovl->manager);
+
+		if (!mp->busy)
 			op->shadow_dirty = false;
 	}
 
 	for (i = 0; i < num_mgrs; ++i) {
 		mgr = omap_dss_get_overlay_manager(i);
 		mp = get_mgr_priv(mgr);
-		if (!mgr_busy[i])
+
+		if (!mp->busy)
 			mp->shadow_dirty = false;
 	}
 
@@ -497,13 +507,20 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 		goto end;
 
 	/* re-read busy flags */
-	for (i = 0; i < num_mgrs; i++)
-		mgr_busy[i] = dispc_mgr_go_busy(i);
+	for (i = 0; i < num_mgrs; i++) {
+		mgr = omap_dss_get_overlay_manager(i);
+		mp = get_mgr_priv(mgr);
+
+		mp->busy = dispc_mgr_go_busy(i);
+	}
 
 	/* keep running as long as there are busy managers, so that
 	 * we can collect overlay-applied information */
 	for (i = 0; i < num_mgrs; ++i) {
-		if (mgr_busy[i])
+		mgr = omap_dss_get_overlay_manager(i);
+		mp = get_mgr_priv(mgr);
+
+		if (mp->busy)
 			goto end;
 	}
 
