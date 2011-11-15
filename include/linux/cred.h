@@ -357,11 +357,11 @@ static inline void put_cred(const struct cred *_cred)
 #define current_user()		(current_cred_xxx(user))
 #define current_security()	(current_cred_xxx(security))
 
+extern struct user_namespace init_user_ns;
 #ifdef CONFIG_USER_NS
 #define current_user_ns()	(current_cred_xxx(user_ns))
 #define task_user_ns(task)	(task_cred_xxx((task), user_ns))
 #else
-extern struct user_namespace init_user_ns;
 #define current_user_ns()	(&init_user_ns)
 #define task_user_ns(task)	(&init_user_ns)
 #endif
