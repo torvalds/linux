@@ -181,7 +181,7 @@ static inline void iommu_set_fault_handler(struct iommu_domain *domain,
 {
 }
 
-static inline int iommu_device_group(struct device *dev, unsigned int *groupid);
+static inline int iommu_device_group(struct device *dev, unsigned int *groupid)
 {
 	return -ENODEV;
 }
