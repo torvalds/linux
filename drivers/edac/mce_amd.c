@@ -255,10 +255,9 @@ static bool f15h_dc_mce(u16 ec, u8 xec)
 	} else if (BUS_ERROR(ec)) {
 
 		if (!xec)
-			pr_cont("during system linefill.\n");
+			pr_cont("System Read Data Error.\n");
 		else
-			pr_cont(" Internal %s condition.\n",
-				((xec == 1) ? "livelock" : "deadlock"));
+			pr_cont(" Internal error condition type %d.\n", xec);
 	} else
 		ret = false;
 
