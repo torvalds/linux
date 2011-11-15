@@ -662,6 +662,89 @@ void dss_mgr_disable(struct omap_overlay_manager *mgr)
 	mgr->enabled = false;
 }
 
+int dss_mgr_set_info(struct omap_overlay_manager *mgr,
+		struct omap_overlay_manager_info *info)
+{
+	int r;
+	struct omap_overlay_manager_info old_info;
+
+	old_info = mgr->info;
+	mgr->info = *info;
+
+	r = dss_check_manager(mgr);
+	if (r) {
+		mgr->info = old_info;
+		return r;
+	}
+
+	mgr->info_dirty = true;
+
+	return 0;
+}
+
+void dss_mgr_get_info(struct omap_overlay_manager *mgr,
+		struct omap_overlay_manager_info *info)
+{
+	*info = mgr->info;
+}
+
+int dss_mgr_set_device(struct omap_overlay_manager *mgr,
+		struct omap_dss_device *dssdev)
+{
+	int r;
+	struct omap_overlay *ovl;
+
+	if (dssdev->manager) {
+		DSSERR("display '%s' already has a manager '%s'\n",
+			       dssdev->name, dssdev->manager->name);
+		return -EINVAL;
+	}
+
+	if ((mgr->supported_displays & dssdev->type) == 0) {
+		DSSERR("display '%s' does not support manager '%s'\n",
+			       dssdev->name, mgr->name);
+		return -EINVAL;
+	}
+
+	list_for_each_entry(ovl, &mgr->overlays, list) {
+		if (!ovl->info.enabled)
+			continue;
+
+		r = dss_check_overlay(ovl, dssdev);
+		if (r)
+			return r;
+	}
+
+	dssdev->manager = mgr;
+	mgr->device = dssdev;
+	mgr->device_changed = true;
+
+	return 0;
+}
+
+int dss_mgr_unset_device(struct omap_overlay_manager *mgr)
+{
+	if (!mgr->device) {
+		DSSERR("failed to unset display, display not set.\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Don't allow currently enabled displays to have the overlay manager
+	 * pulled out from underneath them
+	 */
+	if (mgr->device->state != OMAP_DSS_DISPLAY_DISABLED)
+		return -EINVAL;
+
+	mgr->device->manager = NULL;
+	mgr->device = NULL;
+	mgr->device_changed = true;
+
+	return 0;
+}
+
+
+
 int dss_ovl_set_info(struct omap_overlay *ovl,
 		struct omap_overlay_info *info)
 {

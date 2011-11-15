@@ -169,8 +169,16 @@ int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr);
 int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl);
 void dss_mgr_start_update(struct omap_overlay_manager *mgr);
 int omap_dss_mgr_apply(struct omap_overlay_manager *mgr);
+
 void dss_mgr_enable(struct omap_overlay_manager *mgr);
 void dss_mgr_disable(struct omap_overlay_manager *mgr);
+int dss_mgr_set_info(struct omap_overlay_manager *mgr,
+		struct omap_overlay_manager_info *info);
+void dss_mgr_get_info(struct omap_overlay_manager *mgr,
+		struct omap_overlay_manager_info *info);
+int dss_mgr_set_device(struct omap_overlay_manager *mgr,
+		struct omap_dss_device *dssdev);
+int dss_mgr_unset_device(struct omap_overlay_manager *mgr);
 
 int dss_ovl_set_info(struct omap_overlay *ovl,
 		struct omap_overlay_info *info);
@@ -198,6 +206,7 @@ void default_get_overlay_fifo_thresholds(enum omap_plane plane,
 /* manager */
 int dss_init_overlay_managers(struct platform_device *pdev);
 void dss_uninit_overlay_managers(struct platform_device *pdev);
+int dss_check_manager(struct omap_overlay_manager *mgr);
 
 /* overlay */
 void dss_init_overlays(struct platform_device *pdev);

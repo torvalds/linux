@@ -467,61 +467,6 @@ static struct kobj_type manager_ktype = {
 	.default_attrs = manager_sysfs_attrs,
 };
 
-static int omap_dss_set_device(struct omap_overlay_manager *mgr,
-		struct omap_dss_device *dssdev)
-{
-	int r;
-	struct omap_overlay *ovl;
-
-	if (dssdev->manager) {
-		DSSERR("display '%s' already has a manager '%s'\n",
-			       dssdev->name, dssdev->manager->name);
-		return -EINVAL;
-	}
-
-	if ((mgr->supported_displays & dssdev->type) == 0) {
-		DSSERR("display '%s' does not support manager '%s'\n",
-			       dssdev->name, mgr->name);
-		return -EINVAL;
-	}
-
-	list_for_each_entry(ovl, &mgr->overlays, list) {
-		if (!ovl->info.enabled)
-			continue;
-
-		r = dss_check_overlay(ovl, dssdev);
-		if (r)
-			return r;
-	}
-
-	dssdev->manager = mgr;
-	mgr->device = dssdev;
-	mgr->device_changed = true;
-
-	return 0;
-}
-
-static int omap_dss_unset_device(struct omap_overlay_manager *mgr)
-{
-	if (!mgr->device) {
-		DSSERR("failed to unset display, display not set.\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * Don't allow currently enabled displays to have the overlay manager
-	 * pulled out from underneath them
-	 */
-	if (mgr->device->state != OMAP_DSS_DISPLAY_DISABLED)
-		return -EINVAL;
-
-	mgr->device->manager = NULL;
-	mgr->device = NULL;
-	mgr->device_changed = true;
-
-	return 0;
-}
-
 static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
@@ -540,7 +485,7 @@ static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
 	return omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
 }
 
-static int dss_check_manager(struct omap_overlay_manager *mgr)
+int dss_check_manager(struct omap_overlay_manager *mgr)
 {
 	if (dss_has_feature(FEAT_ALPHA_FIXED_ZORDER)) {
 		/*
@@ -555,32 +500,6 @@ static int dss_check_manager(struct omap_overlay_manager *mgr)
 	}
 
 	return 0;
-}
-
-static int omap_dss_mgr_set_info(struct omap_overlay_manager *mgr,
-		struct omap_overlay_manager_info *info)
-{
-	int r;
-	struct omap_overlay_manager_info old_info;
-
-	old_info = mgr->info;
-	mgr->info = *info;
-
-	r = dss_check_manager(mgr);
-	if (r) {
-		mgr->info = old_info;
-		return r;
-	}
-
-	mgr->info_dirty = true;
-
-	return 0;
-}
-
-static void omap_dss_mgr_get_info(struct omap_overlay_manager *mgr,
-		struct omap_overlay_manager_info *info)
-{
-	*info = mgr->info;
 }
 
 int dss_init_overlay_managers(struct platform_device *pdev)
@@ -612,11 +531,11 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 			break;
 		}
 
-		mgr->set_device = &omap_dss_set_device;
-		mgr->unset_device = &omap_dss_unset_device;
+		mgr->set_device = &dss_mgr_set_device;
+		mgr->unset_device = &dss_mgr_unset_device;
 		mgr->apply = &omap_dss_mgr_apply;
-		mgr->set_manager_info = &omap_dss_mgr_set_info;
-		mgr->get_manager_info = &omap_dss_mgr_get_info;
+		mgr->set_manager_info = &dss_mgr_set_info;
+		mgr->get_manager_info = &dss_mgr_get_info;
 		mgr->wait_for_go = &dss_mgr_wait_for_go;
 		mgr->wait_for_vsync = &dss_mgr_wait_for_vsync;
 
