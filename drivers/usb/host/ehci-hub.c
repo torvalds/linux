@@ -1085,6 +1085,8 @@ static void __maybe_unused ehci_relinquish_port(struct usb_hcd *hcd,
 	if (ehci_is_TDI(ehci))
 		return;
 	set_owner(ehci, --portnum, PORT_OWNER);
+
+	printk("The port change to OHCI now!\n");
 }
 
 static int __maybe_unused ehci_port_handed_over(struct usb_hcd *hcd,

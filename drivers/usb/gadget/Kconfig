@@ -494,6 +494,22 @@ config USB_CI13XXX_MSM
 	  dynamically linked module called "ci13xxx_msm" and force all
 	  gadget drivers to also be dynamically linked.
 
+config USB_SW_SUN3I_UDC0
+	tristate "SoftWinner SUN3I USB Peripheral Controller"
+	depends on USB_SW_SUN3I_USB_MANAGER && (USB_SW_SUN3I_USB0_DEVICE_ONLY || USB_SW_SUN3I_USB0_OTG)
+	select USB_GADGET_DUALSPEED
+	select USB_GADGET_SELECTED
+	help
+	   USB device only
+
+config USB_SW_SUN4I_UDC0
+	boolean "SoftWinner SUN4I USB Peripheral Controller"
+	depends on USB_SW_SUN4I_USB_MANAGER && (USB_SW_SUN4I_USB0_DEVICE_ONLY || USB_SW_SUN4I_USB0_OTG)
+	select USB_GADGET_DUALSPEED
+	select USB_GADGET_SELECTED
+	help
+	   USB device only
+
 #
 # LAST -- dummy/emulated controller
 #
