@@ -40,8 +40,6 @@
 #include "common.h"
 #include "4965.h"
 
-#define IL_AC_UNSET -1
-
 /**
  * il_verify_inst_sparse - verify runtime uCode image in card vs. host,
  *   using sample data 100 bytes apart.  If these sample points are good,
