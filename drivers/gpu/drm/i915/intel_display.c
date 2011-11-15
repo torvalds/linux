@@ -5984,10 +5984,12 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	ret = dev_priv->display.crtc_mode_set(crtc, mode, adjusted_mode,
 					      x, y, old_fb);
-
 	drm_vblank_post_modeset(dev, pipe);
 
-	intel_crtc->dpms_mode = DRM_MODE_DPMS_ON;
+	if (ret)
+		intel_crtc->dpms_mode = DRM_MODE_DPMS_OFF;
+	else
+		intel_crtc->dpms_mode = DRM_MODE_DPMS_ON;
 
 	return ret;
 }
