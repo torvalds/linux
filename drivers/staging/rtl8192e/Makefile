@@ -1,5 +1,3 @@
-ccflags-y += -DCONFIG_PM_RTL
-
 r8192e_pci-objs :=		\
 	rtl_core.o		\
 	rtl_eeprom.o		\

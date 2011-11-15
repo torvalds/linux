@@ -53,9 +53,7 @@
 #include "rtl_wx.h"
 #include "rtl_dm.h"
 
-#ifdef CONFIG_PM_RTL
 #include "rtl_pm.h"
-#endif
 
 int hwwep = 1;
 static int channels = 0x3fff;

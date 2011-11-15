@@ -17,7 +17,6 @@
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
 
-#ifdef CONFIG_PM_RTL
 #include "rtl_core.h"
 #include "r8192E_hw.h"
 #include "r8190P_rtl8256.h"
@@ -133,4 +132,3 @@ int rtl8192E_enable_wake(struct pci_dev *dev, pm_message_t state, int enable)
 	return -EAGAIN;
 }
 
-#endif
