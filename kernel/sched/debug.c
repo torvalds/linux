@@ -1,5 +1,5 @@
 /*
- * kernel/time/sched_debug.c
+ * kernel/sched/debug.c
  *
  * Print the CFS rbtree
  *

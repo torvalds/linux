@@ -4,7 +4,7 @@
 #include <linux/spinlock.h>
 #include <linux/stop_machine.h>
 
-#include "sched_cpupri.h"
+#include "cpupri.h"
 
 extern __read_mostly int scheduler_running;
 
@@ -507,8 +507,8 @@ DECLARE_PER_CPU(struct rq, runqueues);
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 #define raw_rq()		(&__raw_get_cpu_var(runqueues))
 
-#include "sched_stats.h"
-#include "sched_autogroup.h"
+#include "stats.h"
+#include "auto_group.h"
 
 #ifdef CONFIG_CGROUP_SCHED
 
@@ -590,7 +590,7 @@ extern const_debug unsigned int sysctl_sched_features;
 	__SCHED_FEAT_##name ,
 
 enum {
-#include "sched_features.h"
+#include "features.h"
 };
 
 #undef SCHED_FEAT
