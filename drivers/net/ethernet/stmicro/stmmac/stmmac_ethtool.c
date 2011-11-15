@@ -185,9 +185,10 @@ static void stmmac_ethtool_getdrvinfo(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	if (priv->plat->has_gmac)
-		strcpy(info->driver, GMAC_ETHTOOL_NAME);
+		strlcpy(info->driver, GMAC_ETHTOOL_NAME, sizeof(info->driver));
 	else
-		strcpy(info->driver, MAC100_ETHTOOL_NAME);
+		strlcpy(info->driver, MAC100_ETHTOOL_NAME,
+			sizeof(info->driver));
 
 	strcpy(info->version, DRV_MODULE_VERSION);
 	info->fw_version[0] = '\0';

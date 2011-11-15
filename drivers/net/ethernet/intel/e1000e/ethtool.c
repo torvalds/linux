@@ -582,7 +582,7 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 
 	strlcpy(drvinfo->driver,  e1000e_driver_name,
 		sizeof(drvinfo->driver));
-	strncpy(drvinfo->version, e1000e_driver_version,
+	strlcpy(drvinfo->version, e1000e_driver_version,
 		sizeof(drvinfo->version));
 
 	/*
