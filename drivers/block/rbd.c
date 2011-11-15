@@ -461,6 +461,10 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	u32 snap_count = le32_to_cpu(ondisk->snap_count);
 	int ret = -ENOMEM;
 
+	if (memcmp(ondisk, RBD_HEADER_TEXT, sizeof(RBD_HEADER_TEXT))) {
+		return -ENXIO;
+	}
+
 	init_rwsem(&header->snap_rwsem);
 	header->snap_names_len = le64_to_cpu(ondisk->snap_names_len);
 	header->snapc = kmalloc(sizeof(struct ceph_snap_context) +
@@ -1610,8 +1614,13 @@ static int rbd_read_header(struct rbd_device *rbd_dev,
 			goto out_dh;
 
 		rc = rbd_header_from_disk(header, dh, snap_count, GFP_KERNEL);
-		if (rc < 0)
+		if (rc < 0) {
+			if (rc == -ENXIO) {
+				pr_warning("unrecognized header format"
+					   " for image %s", rbd_dev->obj);
+			}
 			goto out_dh;
+		}
 
 		if (snap_count != header->total_snaps) {
 			snap_count = header->total_snaps;
