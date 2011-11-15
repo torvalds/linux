@@ -172,6 +172,14 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr);
 void dss_mgr_enable(struct omap_overlay_manager *mgr);
 void dss_mgr_disable(struct omap_overlay_manager *mgr);
 
+int dss_ovl_set_info(struct omap_overlay *ovl,
+		struct omap_overlay_info *info);
+void dss_ovl_get_info(struct omap_overlay *ovl,
+		struct omap_overlay_info *info);
+int dss_ovl_set_manager(struct omap_overlay *ovl,
+		struct omap_overlay_manager *mgr);
+int dss_ovl_unset_manager(struct omap_overlay *ovl);
+
 /* display */
 int dss_suspend_all_devices(void);
 int dss_resume_all_devices(void);

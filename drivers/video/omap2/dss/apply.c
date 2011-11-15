@@ -662,3 +662,87 @@ void dss_mgr_disable(struct omap_overlay_manager *mgr)
 	mgr->enabled = false;
 }
 
+int dss_ovl_set_info(struct omap_overlay *ovl,
+		struct omap_overlay_info *info)
+{
+	int r;
+	struct omap_overlay_info old_info;
+
+	old_info = ovl->info;
+	ovl->info = *info;
+
+	if (ovl->manager) {
+		r = dss_check_overlay(ovl, ovl->manager->device);
+		if (r) {
+			ovl->info = old_info;
+			return r;
+		}
+	}
+
+	ovl->info_dirty = true;
+
+	return 0;
+}
+
+void dss_ovl_get_info(struct omap_overlay *ovl,
+		struct omap_overlay_info *info)
+{
+	*info = ovl->info;
+}
+
+int dss_ovl_set_manager(struct omap_overlay *ovl,
+		struct omap_overlay_manager *mgr)
+{
+	if (!mgr)
+		return -EINVAL;
+
+	if (ovl->manager) {
+		DSSERR("overlay '%s' already has a manager '%s'\n",
+				ovl->name, ovl->manager->name);
+		return -EINVAL;
+	}
+
+	if (ovl->info.enabled) {
+		DSSERR("overlay has to be disabled to change the manager\n");
+		return -EINVAL;
+	}
+
+	ovl->manager = mgr;
+	list_add_tail(&ovl->list, &mgr->overlays);
+	ovl->manager_changed = true;
+
+	/* XXX: When there is an overlay on a DSI manual update display, and
+	 * the overlay is first disabled, then moved to tv, and enabled, we
+	 * seem to get SYNC_LOST_DIGIT error.
+	 *
+	 * Waiting doesn't seem to help, but updating the manual update display
+	 * after disabling the overlay seems to fix this. This hints that the
+	 * overlay is perhaps somehow tied to the LCD output until the output
+	 * is updated.
+	 *
+	 * Userspace workaround for this is to update the LCD after disabling
+	 * the overlay, but before moving the overlay to TV.
+	 */
+
+	return 0;
+}
+
+int dss_ovl_unset_manager(struct omap_overlay *ovl)
+{
+	if (!ovl->manager) {
+		DSSERR("failed to detach overlay: manager not set\n");
+		return -EINVAL;
+	}
+
+	if (ovl->info.enabled) {
+		DSSERR("overlay has to be disabled to unset the manager\n");
+		return -EINVAL;
+	}
+
+	ovl->manager = NULL;
+	list_del(&ovl->list);
+	ovl->manager_changed = true;
+
+	return 0;
+}
+

@@ -520,90 +520,6 @@ int dss_check_overlay(struct omap_overlay *ovl, struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static int dss_ovl_set_overlay_info(struct omap_overlay *ovl,
-		struct omap_overlay_info *info)
-{
-	int r;
-	struct omap_overlay_info old_info;
-
-	old_info = ovl->info;
-	ovl->info = *info;
-
-	if (ovl->manager) {
-		r = dss_check_overlay(ovl, ovl->manager->device);
-		if (r) {
-			ovl->info = old_info;
-			return r;
-		}
-	}
-
-	ovl->info_dirty = true;
-
-	return 0;
-}
-
-static void dss_ovl_get_overlay_info(struct omap_overlay *ovl,
-		struct omap_overlay_info *info)
-{
-	*info = ovl->info;
-}
-
-static int omap_dss_set_manager(struct omap_overlay *ovl,
-		struct omap_overlay_manager *mgr)
-{
-	if (!mgr)
-		return -EINVAL;
-
-	if (ovl->manager) {
-		DSSERR("overlay '%s' already has a manager '%s'\n",
-				ovl->name, ovl->manager->name);
-		return -EINVAL;
-	}
-
-	if (ovl->info.enabled) {
-		DSSERR("overlay has to be disabled to change the manager\n");
-		return -EINVAL;
-	}
-
-	ovl->manager = mgr;
-	list_add_tail(&ovl->list, &mgr->overlays);
-	ovl->manager_changed = true;
-
-	/* XXX: When there is an overlay on a DSI manual update display, and
-	 * the overlay is first disabled, then moved to tv, and enabled, we
-	 * seem to get SYNC_LOST_DIGIT error.
-	 *
-	 * Waiting doesn't seem to help, but updating the manual update display
-	 * after disabling the overlay seems to fix this. This hints that the
-	 * overlay is perhaps somehow tied to the LCD output until the output
-	 * is updated.
-	 *
-	 * Userspace workaround for this is to update the LCD after disabling
-	 * the overlay, but before moving the overlay to TV.
-	 */
-
-	return 0;
-}
-
-static int omap_dss_unset_manager(struct omap_overlay *ovl)
-{
-	if (!ovl->manager) {
-		DSSERR("failed to detach overlay: manager not set\n");
-		return -EINVAL;
-	}
-
-	if (ovl->info.enabled) {
-		DSSERR("overlay has to be disabled to unset the manager\n");
-		return -EINVAL;
-	}
-
-	ovl->manager = NULL;
-	list_del(&ovl->list);
-	ovl->manager_changed = true;
-
-	return 0;
-}
-
 int omap_dss_get_num_overlays(void)
 {
 	return num_overlays;
@@ -663,10 +579,10 @@ void dss_init_overlays(struct platform_device *pdev)
 			break;
 		}
 
-		ovl->set_manager = &omap_dss_set_manager;
-		ovl->unset_manager = &omap_dss_unset_manager;
-		ovl->set_overlay_info = &dss_ovl_set_overlay_info;
-		ovl->get_overlay_info = &dss_ovl_get_overlay_info;
+		ovl->set_manager = &dss_ovl_set_manager;
+		ovl->unset_manager = &dss_ovl_unset_manager;
+		ovl->set_overlay_info = &dss_ovl_set_info;
+		ovl->get_overlay_info = &dss_ovl_get_info;
 		ovl->wait_for_go = &dss_mgr_wait_for_go_ovl;
 
 		ovl->caps = dss_feat_get_overlay_caps(ovl->id);
@@ -731,8 +647,8 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 			ovl = omap_dss_get_overlay(i);
 			if (!ovl->manager || force) {
 				if (ovl->manager)
-					omap_dss_unset_manager(ovl);
-				omap_dss_set_manager(ovl, mgr);
+					ovl->unset_manager(ovl);
+				ovl->set_manager(ovl, mgr);
 			}
 		}
 
