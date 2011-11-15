@@ -12,7 +12,7 @@
 
 #include <linux/types.h>
 
-typedef u32 netdev_features_t;
+typedef u64 netdev_features_t;
 
 enum {
 	NETIF_F_SG_BIT,			/* Scatter/gather IO. */
