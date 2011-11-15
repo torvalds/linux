@@ -1575,6 +1575,15 @@ config SERIAL_PCH_UART
 	  ML7213/ML7223 is companion chip for Intel Atom E6xx series.
 	  ML7213/ML7223 is completely compatible for Intel EG20T PCH.
 
+config SERIAL_PCH_UART_CONSOLE
+	bool "Support for console on Intel EG20T PCH UART/OKI SEMICONDUCTOR ML7213 IOH"
+	depends on SERIAL_PCH_UART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use the PCH UART as the system console
+	  (the system  console is the device which receives all kernel messages and
+	  warnings and which allows logins in single user mode).
+
 config SERIAL_MSM_SMD
 	bool "Enable tty device interface for some SMD ports"
 	default n
