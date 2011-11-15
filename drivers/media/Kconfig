@@ -121,6 +121,16 @@ source "drivers/media/video/Kconfig"
 source "drivers/media/radio/Kconfig"
 
 #
+# Audio Engine
+#
+config AUDIO_ENGINE
+	tristate "AUDIO Engine"
+	---help---
+	  Support for audio engine/dsp
+
+source "drivers/media/audio/Kconfig"
+
+#
 # DVB adapters
 #
 
