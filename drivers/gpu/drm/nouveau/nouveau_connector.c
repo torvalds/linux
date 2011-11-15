@@ -78,23 +78,6 @@ nouveau_encoder_connector_get(struct nouveau_encoder *encoder)
 	return NULL;
 }
 
-/*TODO: This could use improvement, and learn to handle the fixed
- *      BIOS tables etc.  It's fine currently, for its only user.
- */
-int
-nouveau_connector_bpp(struct drm_connector *connector)
-{
-	struct nouveau_connector *nv_connector = nouveau_connector(connector);
-
-	if (nv_connector->edid && nv_connector->edid->revision >= 4) {
-		u8 bpc = ((nv_connector->edid->input & 0x70) >> 3) + 4;
-		if (bpc > 4)
-			return bpc;
-	}
-
-	return 18;
-}
-
 static void
 nouveau_connector_destroy(struct drm_connector *connector)
 {
@@ -714,6 +697,12 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 		nv_connector->native_mode = drm_mode_duplicate(dev, &mode);
 	}
 
+	/* Determine display colour depth for everything except LVDS now,
+	 * DP requires this before mode_valid() is called.
+	 */
+	if (connector->connector_type != DRM_MODE_CONNECTOR_LVDS)
+		nouveau_connector_detect_depth(connector);
+
 	/* Find the native mode if this is a digital panel, if we didn't
 	 * find any modes through DDC previously add the native mode to
 	 * the list of modes.
@@ -729,11 +718,12 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 		ret = 1;
 	}
 
-	/* Attempt to determine display colour depth, this has to happen after
-	 * we've determined the "native" mode for LVDS, as the VBIOS tables
-	 * require us to compare against a pixel clock in some cases..
+	/* Determine LVDS colour depth, must happen after determining
+	 * "native" mode as some VBIOS tables require us to use the
+	 * pixel clock as part of the lookup...
 	 */
-	nouveau_connector_detect_depth(connector);
+	if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)
+		nouveau_connector_detect_depth(connector);
 
 	if (nv_encoder->dcb->type == OUTPUT_TV)
 		ret = get_slave_funcs(encoder)->get_modes(encoder, connector);
@@ -799,7 +789,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 	case OUTPUT_DP:
 		max_clock  = nv_encoder->dp.link_nr;
 		max_clock *= nv_encoder->dp.link_bw;
-		clock = clock * nouveau_connector_bpp(connector) / 10;
+		clock = clock * (connector->display_info.bpc * 3) / 10;
 		break;
 	default:
 		BUG_ON(1);
