@@ -519,10 +519,16 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	siginfo_t info;
 	int signr;
 
+	/* It's a lot of work and synchronization to add a new ptrace
+	 * register for GDB to save and restore in order to get
+	 * orig_i0 correct for syscall restarts when debugging.
+	 *
+	 * However, we luckily can use the fact that several registers
+	 * are volatile across system calls.  One such register is
+	 * %g2, so use that as a place to save away orig_i0.
+	 */
 	if (pt_regs_is_syscall(regs) && (regs->psr & PSR_C))
-		restart_syscall = 1;
-	else
-		restart_syscall = 0;
+		regs->u_regs[UREG_G2] = orig_i0;
 
 	if (test_thread_flag(TIF_RESTORE_SIGMASK))
 		oldset = &current->saved_sigmask;
@@ -535,8 +541,12 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	 * the software "in syscall" bit, directing us to not perform
 	 * a syscall restart.
 	 */
-	if (restart_syscall && !pt_regs_is_syscall(regs))
-		restart_syscall = 0;
+	restart_syscall = 0;
+	if (pt_regs_is_syscall(regs) && (regs->psr & PSR_C)) {
+		restart_syscall = 1;
+		orig_i0 = regs->u_regs[UREG_G2];
+	}
+
 
 	if (signr > 0) {
 		if (restart_syscall)
