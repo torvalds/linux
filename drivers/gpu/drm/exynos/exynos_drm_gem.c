@@ -128,30 +128,25 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
 
 	struct exynos_drm_gem_obj *exynos_gem_obj = NULL;
 	struct exynos_drm_gem_buf *buffer;
-	int ret;
 
 	size = roundup(size, PAGE_SIZE);
 
 	DRM_DEBUG_KMS("%s: size = 0x%lx\n", __FILE__, size);
 
 	buffer = exynos_drm_buf_create(dev, size);
-	if (!buffer)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(buffer)) {
+		return ERR_CAST(buffer);
+	}
 
 	exynos_gem_obj = exynos_drm_gem_init(dev, file_priv, handle, size);
 	if (IS_ERR(exynos_gem_obj)) {
-		ret = PTR_ERR(exynos_gem_obj);
-		goto err_gem_init;
+		exynos_drm_buf_destroy(dev, buffer);
+		return exynos_gem_obj;
 	}
 
 	exynos_gem_obj->buffer = buffer;
 
 	return exynos_gem_obj;
-
-err_gem_init:
-	exynos_drm_buf_destroy(dev, exynos_gem_obj->buffer);
-
-	return ERR_PTR(ret);
 }
 
 int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
