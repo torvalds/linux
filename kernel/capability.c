@@ -419,3 +419,22 @@ bool nsown_capable(int cap)
 {
 	return ns_capable(current_user_ns(), cap);
 }
+
+/**
+ * inode_capable - Check superior capability over inode
+ * @inode: The inode in question
+ * @cap: The capability in question
+ *
+ * Return true if the current task has the given superior capability
+ * targeted at it's own user namespace and that the given inode is owned
+ * by the current user namespace or a child namespace.
+ *
+ * Currently inodes can only be owned by the initial user namespace.
+ *
+ */
+bool inode_capable(const struct inode *inode, int cap)
+{
+	struct user_namespace *ns = current_user_ns();
+
+	return ns_capable(ns, cap) && (ns == &init_user_ns);
+}
