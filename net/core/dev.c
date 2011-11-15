@@ -137,6 +137,7 @@
 #include <linux/if_pppox.h>
 #include <linux/ppp_defs.h>
 #include <linux/net_tstamp.h>
+#include <linux/jump_label.h>
 
 #include "net-sysfs.h"
 
@@ -1449,34 +1450,32 @@ int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 }
 EXPORT_SYMBOL(call_netdevice_notifiers);
 
-/* When > 0 there are consumers of rx skb time stamps */
-static atomic_t netstamp_needed = ATOMIC_INIT(0);
+static struct jump_label_key netstamp_needed __read_mostly;
 
 void net_enable_timestamp(void)
 {
-	atomic_inc(&netstamp_needed);
+	jump_label_inc(&netstamp_needed);
 }
 EXPORT_SYMBOL(net_enable_timestamp);
 
 void net_disable_timestamp(void)
 {
-	atomic_dec(&netstamp_needed);
+	jump_label_dec(&netstamp_needed);
 }
 EXPORT_SYMBOL(net_disable_timestamp);
 
 static inline void net_timestamp_set(struct sk_buff *skb)
 {
-	if (atomic_read(&netstamp_needed))
+	skb->tstamp.tv64 = 0;
+	if (static_branch(&netstamp_needed))
 		__net_timestamp(skb);
-	else
-		skb->tstamp.tv64 = 0;
 }
 
-static inline void net_timestamp_check(struct sk_buff *skb)
-{
-	if (!skb->tstamp.tv64 && atomic_read(&netstamp_needed))
-		__net_timestamp(skb);
-}
+#define net_timestamp_check(COND, SKB)			\
+	if (static_branch(&netstamp_needed)) {		\
+		if ((COND) && !(SKB)->tstamp.tv64)	\
+			__net_timestamp(SKB);		\
+	}						\
 
 static int net_hwtstamp_validate(struct ifreq *ifr)
 {
@@ -2997,8 +2996,7 @@ int netif_rx(struct sk_buff *skb)
 	if (netpoll_rx(skb))
 		return NET_RX_DROP;
 
-	if (netdev_tstamp_prequeue)
-		net_timestamp_check(skb);
+	net_timestamp_check(netdev_tstamp_prequeue, skb);
 
 	trace_netif_rx(skb);
 #ifdef CONFIG_RPS
@@ -3230,8 +3228,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	int ret = NET_RX_DROP;
 	__be16 type;
 
-	if (!netdev_tstamp_prequeue)
-		net_timestamp_check(skb);
+	net_timestamp_check(!netdev_tstamp_prequeue, skb);
 
 	trace_netif_receive_skb(skb);
 
@@ -3362,8 +3359,7 @@ out:
  */
 int netif_receive_skb(struct sk_buff *skb)
 {
-	if (netdev_tstamp_prequeue)
-		net_timestamp_check(skb);
+	net_timestamp_check(netdev_tstamp_prequeue, skb);
 
 	if (skb_defer_rx_timestamp(skb))
 		return NET_RX_SUCCESS;
