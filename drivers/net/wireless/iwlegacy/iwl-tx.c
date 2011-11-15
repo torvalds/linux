@@ -507,7 +507,7 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	if (idx == TFD_CMD_SLOTS)
 		len = IL_MAX_CMD_SIZE;
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	switch (out_cmd->hdr.cmd) {
 	case REPLY_TX_LINK_QUALITY_CMD:
 	case SENSITIVITY_CMD:

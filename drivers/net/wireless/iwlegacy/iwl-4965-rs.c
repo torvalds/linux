@@ -40,7 +40,7 @@
 #include "iwl-core.h"
 #include "iwl-4965.h"
 
-#define IWL4965_RS_NAME "iwl-4965-rs"
+#define IL4965_RS_NAME "iwl-4965-rs"
 
 #define NUM_TRY_BEFORE_ANT_TOGGLE 1
 #define IL_NUMBER_TRY      1
@@ -2837,7 +2837,7 @@ il4965_rs_rate_init_stub(void *il_r, struct ieee80211_supported_band *sband,
 }
 static struct rate_control_ops rs_4965_ops = {
 	.module = NULL,
-	.name = IWL4965_RS_NAME,
+	.name = IL4965_RS_NAME,
 	.tx_status = il4965_rs_tx_status,
 	.get_rate = il4965_rs_get_rate,
 	.rate_init = il4965_rs_rate_init_stub,

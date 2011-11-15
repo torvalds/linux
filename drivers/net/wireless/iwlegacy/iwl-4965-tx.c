@@ -171,7 +171,7 @@ static void il4965_tx_cmd_build_rate(struct il_priv *il,
 	if (ieee80211_is_probe_resp(fc))
 		data_retry_limit = 3;
 	else
-		data_retry_limit = IWL4965_DEFAULT_TX_RETRY;
+		data_retry_limit = IL4965_DEFAULT_TX_RETRY;
 	tx_cmd->data_retry_limit = data_retry_limit;
 
 	/* Set retry limit on RTS packets */
@@ -304,7 +304,7 @@ int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	fc = hdr->frame_control;
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	if (ieee80211_is_auth(fc))
 		D_TX("Sending AUTH frame\n");
 	else if (ieee80211_is_assoc_req(fc))
@@ -754,9 +754,9 @@ static void il4965_tx_queue_stop_scheduler(struct il_priv *il,
 	/* Simply stop the queue, but don't change any configuration;
 	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
 	il_wr_prph(il,
-		IWL49_SCD_QUEUE_STATUS_BITS(txq_id),
-		(0 << IWL49_SCD_QUEUE_STTS_REG_POS_ACTIVE)|
-		(1 << IWL49_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
+		IL49_SCD_QUEUE_STATUS_BITS(txq_id),
+		(0 << IL49_SCD_QUEUE_STTS_REG_POS_ACTIVE)|
+		(1 << IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 }
 
 /**
@@ -772,7 +772,7 @@ static int il4965_tx_queue_set_q2ratid(struct il_priv *il, u16 ra_tid,
 	scd_q2ratid = ra_tid & IL_SCD_QUEUE_RA_TID_MAP_RATID_MSK;
 
 	tbl_dw_addr = il->scd_base_addr +
-			IWL49_SCD_TRANSLATE_TBL_OFFSET_QUEUE(txq_id);
+			IL49_SCD_TRANSLATE_TBL_OFFSET_QUEUE(txq_id);
 
 	tbl_dw = il_read_targ_mem(il, tbl_dw_addr);
 
@@ -789,7 +789,7 @@ static int il4965_tx_queue_set_q2ratid(struct il_priv *il, u16 ra_tid,
 /**
  * il4965_tx_queue_agg_enable - Set up & enable aggregation for selected queue
  *
- * NOTE:  txq_id must be greater than IWL49_FIRST_AMPDU_QUEUE,
+ * NOTE:  txq_id must be greater than IL49_FIRST_AMPDU_QUEUE,
  *        i.e. it must be one of the higher queues used for aggregation
  */
 static int il4965_txq_agg_enable(struct il_priv *il, int txq_id,
@@ -799,13 +799,13 @@ static int il4965_txq_agg_enable(struct il_priv *il, int txq_id,
 	u16 ra_tid;
 	int ret;
 
-	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWL49_FIRST_AMPDU_QUEUE +
+	if ((IL49_FIRST_AMPDU_QUEUE > txq_id) ||
+	    (IL49_FIRST_AMPDU_QUEUE +
 		il->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
 		IL_WARN(
 			"queue number out of range: %d, must be %d to %d\n",
-			txq_id, IWL49_FIRST_AMPDU_QUEUE,
-			IWL49_FIRST_AMPDU_QUEUE +
+			txq_id, IL49_FIRST_AMPDU_QUEUE,
+			IL49_FIRST_AMPDU_QUEUE +
 			il->cfg->base_params->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
@@ -826,7 +826,7 @@ static int il4965_txq_agg_enable(struct il_priv *il, int txq_id,
 	il4965_tx_queue_set_q2ratid(il, ra_tid, txq_id);
 
 	/* Set this queue as a chain-building queue */
-	il_set_bits_prph(il, IWL49_SCD_QUEUECHAIN_SEL, (1 << txq_id));
+	il_set_bits_prph(il, IL49_SCD_QUEUECHAIN_SEL, (1 << txq_id));
 
 	/* Place first TFD at index corresponding to start sequence number.
 	 * Assumes that ssn_idx is valid (!= 0xFFF) */
@@ -836,16 +836,16 @@ static int il4965_txq_agg_enable(struct il_priv *il, int txq_id,
 
 	/* Set up Tx window size and frame limit for this queue */
 	il_write_targ_mem(il,
-		il->scd_base_addr + IWL49_SCD_CONTEXT_QUEUE_OFFSET(txq_id),
-		(SCD_WIN_SIZE << IWL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_POS) &
-		IWL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK);
+		il->scd_base_addr + IL49_SCD_CONTEXT_QUEUE_OFFSET(txq_id),
+		(SCD_WIN_SIZE << IL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_POS) &
+		IL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK);
 
 	il_write_targ_mem(il, il->scd_base_addr +
-		IWL49_SCD_CONTEXT_QUEUE_OFFSET(txq_id) + sizeof(u32),
-		(SCD_FRAME_LIMIT << IWL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS)
-		& IWL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
+		IL49_SCD_CONTEXT_QUEUE_OFFSET(txq_id) + sizeof(u32),
+		(SCD_FRAME_LIMIT << IL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS)
+		& IL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
 
-	il_set_bits_prph(il, IWL49_SCD_INTERRUPT_MASK, (1 << txq_id));
+	il_set_bits_prph(il, IL49_SCD_INTERRUPT_MASK, (1 << txq_id));
 
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	il4965_tx_queue_set_status(il, &il->txq[txq_id], tx_fifo, 1);
@@ -922,19 +922,19 @@ int il4965_tx_agg_start(struct il_priv *il, struct ieee80211_vif *vif,
 }
 
 /**
- * txq_id must be greater than IWL49_FIRST_AMPDU_QUEUE
+ * txq_id must be greater than IL49_FIRST_AMPDU_QUEUE
  * il->lock must be held by the caller
  */
 static int il4965_txq_agg_disable(struct il_priv *il, u16 txq_id,
 				   u16 ssn_idx, u8 tx_fifo)
 {
-	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWL49_FIRST_AMPDU_QUEUE +
+	if ((IL49_FIRST_AMPDU_QUEUE > txq_id) ||
+	    (IL49_FIRST_AMPDU_QUEUE +
 		il->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
 		IL_WARN(
 			"queue number out of range: %d, must be %d to %d\n",
-			txq_id, IWL49_FIRST_AMPDU_QUEUE,
-			IWL49_FIRST_AMPDU_QUEUE +
+			txq_id, IL49_FIRST_AMPDU_QUEUE,
+			IL49_FIRST_AMPDU_QUEUE +
 			il->cfg->base_params->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
@@ -942,7 +942,7 @@ static int il4965_txq_agg_disable(struct il_priv *il, u16 txq_id,
 	il4965_tx_queue_stop_scheduler(il, txq_id);
 
 	il_clear_bits_prph(il,
-			IWL49_SCD_QUEUECHAIN_SEL, (1 << txq_id));
+			IL49_SCD_QUEUECHAIN_SEL, (1 << txq_id));
 
 	il->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
 	il->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
@@ -950,7 +950,7 @@ static int il4965_txq_agg_disable(struct il_priv *il, u16 txq_id,
 	il4965_set_wr_ptrs(il, txq_id, ssn_idx);
 
 	il_clear_bits_prph(il,
-			 IWL49_SCD_INTERRUPT_MASK, (1 << txq_id));
+			 IL49_SCD_INTERRUPT_MASK, (1 << txq_id));
 	il_txq_ctx_deactivate(il, txq_id);
 	il4965_tx_queue_set_status(il, &il->txq[txq_id], tx_fifo, 0);
 
@@ -1134,7 +1134,7 @@ int il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int index)
 			nfreed++;
 
 		il4965_tx_status(il, tx_info,
-				 txq_id >= IWL4965_FIRST_AMPDU_QUEUE);
+				 txq_id >= IL4965_FIRST_AMPDU_QUEUE);
 		tx_info->skb = NULL;
 
 		il->cfg->ops->lib->txq_free_tfd(il, txq);
@@ -1331,7 +1331,7 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 	spin_unlock_irqrestore(&il->sta_lock, flags);
 }
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 const char *il4965_get_tx_fail_reason(u32 status)
 {
 #define TX_STATUS_FAIL(x) case TX_STATUS_FAIL_ ## x: return #x
@@ -1368,4 +1368,4 @@ const char *il4965_get_tx_fail_reason(u32 status)
 #undef TX_STATUS_FAIL
 #undef TX_STATUS_POSTPONE
 }
-#endif /* CONFIG_IWLWIFI_LEGACY_DEBUG */
+#endif /* CONFIG_IWLEGACY_DEBUG */

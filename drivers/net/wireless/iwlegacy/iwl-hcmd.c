@@ -100,7 +100,7 @@ static void il_generic_cmd_callback(struct il_priv *il,
 		return;
 	}
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	switch (cmd->hdr.cmd) {
 	case REPLY_TX_LINK_QUALITY_CMD:
 	case SENSITIVITY_CMD:

@@ -90,7 +90,7 @@ static struct il3945_tpt_entry il3945_tpt_table_g[] = {
 #define IL_RATE_MAX_WINDOW          62
 #define IL_RATE_FLUSH		(3*HZ)
 #define IL_RATE_WIN_FLUSH       (HZ/2)
-#define IWL39_RATE_HIGH_TH          11520
+#define IL39_RATE_HIGH_TH          11520
 #define IL_SUCCESS_UP_TH	   8960
 #define IL_SUCCESS_DOWN_TH	  10880
 #define IL_RATE_MIN_FAILURE_TH       6

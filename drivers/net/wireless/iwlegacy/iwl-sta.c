@@ -681,7 +681,7 @@ void il_dealloc_bcast_stations(struct il_priv *il)
 }
 EXPORT_SYMBOL_GPL(il_dealloc_bcast_stations);
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 static void il_dump_lq_cmd(struct il_priv *il,
 			   struct il_link_quality_cmd *lq)
 {

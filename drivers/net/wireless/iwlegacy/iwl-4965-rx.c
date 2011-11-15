@@ -105,7 +105,7 @@ static void il4965_rx_calc_noise(struct il_priv *il)
 			last_rx_noise);
 }
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 /*
  *  based on the assumption of all statistics counter are in DWORD
  *  FIXME: This function is for debugging, do not deal with
@@ -169,7 +169,7 @@ void il4965_rx_statistics(struct il_priv *il,
 		   STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
 		   (pkt->u.stats.flag &
 		   STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 	il4965_accumulative_statistics(il, (__le32 *)&pkt->u.stats);
 #endif
 
@@ -201,7 +201,7 @@ void il4965_reply_statistics(struct il_priv *il,
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 
 	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATISTICS_CLEAR_MSK) {
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 		memset(&il->_4965.accum_statistics, 0,
 			sizeof(struct il_notif_statistics));
 		memset(&il->_4965.delta_statistics, 0,

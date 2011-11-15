@@ -200,7 +200,7 @@ static int il3945_hwrate_to_plcp_idx(u8 plcp)
 	return -1;
 }
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 #define TX_STATUS_ENTRY(x) case TX_3945_STATUS_FAIL_ ## x: return #x
 
 static const char *il3945_get_tx_fail_reason(u32 status)
@@ -281,7 +281,7 @@ static void il3945_tx_queue_reclaim(struct il_priv *il,
 	struct il_queue *q = &txq->q;
 	struct il_tx_info *tx_info;
 
-	BUG_ON(txq_id == IWL39_CMD_QUEUE_NUM);
+	BUG_ON(txq_id == IL39_CMD_QUEUE_NUM);
 
 	for (index = il_queue_inc_wrap(index, q->n_bd);
 		q->read_ptr != index;
@@ -294,7 +294,7 @@ static void il3945_tx_queue_reclaim(struct il_priv *il,
 	}
 
 	if (il_queue_space(q) > q->low_mark && txq_id >= 0 &&
-	    txq_id != IWL39_CMD_QUEUE_NUM && il->mac80211_registered)
+	    txq_id != IL39_CMD_QUEUE_NUM && il->mac80211_registered)
 		il_wake_queue(il, txq);
 }
 
@@ -361,7 +361,7 @@ static void il3945_rx_reply_tx(struct il_priv *il,
  *  RX handler implementations
  *
  *****************************************************************************/
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 static void il3945_accumulative_statistics(struct il_priv *il,
 					    __le32 *stats)
 {
@@ -403,7 +403,7 @@ void il3945_hw_rx_statistics(struct il_priv *il,
 	D_RX("Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(struct il3945_notif_statistics),
 		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 	il3945_accumulative_statistics(il, (__le32 *)&pkt->u.raw);
 #endif
 
@@ -417,7 +417,7 @@ void il3945_reply_statistics(struct il_priv *il,
 	__le32 *flag = (__le32 *)&pkt->u.raw;
 
 	if (le32_to_cpu(*flag) & UCODE_STATISTICS_CLEAR_MSK) {
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 		memset(&il->_3945.accum_statistics, 0,
 			sizeof(struct il3945_notif_statistics));
 		memset(&il->_3945.delta_statistics, 0,
@@ -468,7 +468,7 @@ static void il3945_pass_packet_to_mac80211(struct il_priv *il,
 	__le16 fc = hdr->frame_control;
 
 	/* We received data from the HW, so stop the watchdog */
-	if (unlikely(len + IWL39_RX_FRAME_SIZE >
+	if (unlikely(len + IL39_RX_FRAME_SIZE >
 		     PAGE_SIZE << il->hw_params.rx_page_order)) {
 		D_DROP("Corruption detected!\n");
 		return;
@@ -552,7 +552,7 @@ static void il3945_rx_reply_rx(struct il_priv *il,
 
 
 	/* Convert 3945's rssi indicator to dBm */
-	rx_status.signal = rx_stats->rssi - IWL39_RSSI_OFFSET;
+	rx_status.signal = rx_stats->rssi - IL39_RSSI_OFFSET;
 
 	D_STATS("Rssi %d sig_avg %d noise_diff %d\n",
 			rx_status.signal, rx_stats_sig_avg,
@@ -698,7 +698,7 @@ void il3945_hw_build_tx_cmd_rate(struct il_priv *il,
 		data_retry_limit = IL_DEFAULT_TX_RETRY;
 	tx_cmd->data_retry_limit = data_retry_limit;
 
-	if (tx_id >= IWL39_CMD_QUEUE_NUM)
+	if (tx_id >= IL39_CMD_QUEUE_NUM)
 		rts_retry_limit = 3;
 	else
 		rts_retry_limit = 7;
@@ -849,7 +849,7 @@ static int il3945_txq_ctx_reset(struct il_priv *il)
 
 	/* Tx queue(s) */
 	for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++) {
-		slots_num = (txq_id == IWL39_CMD_QUEUE_NUM) ?
+		slots_num = (txq_id == IL39_CMD_QUEUE_NUM) ?
 				TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		rc = il_tx_queue_init(il, &il->txq[txq_id],
 						slots_num, txq_id);
@@ -1010,7 +1010,7 @@ void il3945_hw_txq_ctx_free(struct il_priv *il)
 	if (il->txq)
 		for (txq_id = 0; txq_id < il->hw_params.max_txq_num;
 		     txq_id++)
-			if (txq_id == IWL39_CMD_QUEUE_NUM)
+			if (txq_id == IL39_CMD_QUEUE_NUM)
 				il_cmd_queue_free(il);
 			else
 				il_tx_queue_free(il, txq_id);
@@ -1402,7 +1402,7 @@ static int il3945_send_tx_power(struct il_priv *il)
 	/* fill cmd with power settings for all rates for current channel */
 	/* Fill OFDM rate */
 	for (rate_idx = IL_FIRST_OFDM_RATE, i = 0;
-	     rate_idx <= IWL39_LAST_OFDM_RATE; rate_idx++, i++) {
+	     rate_idx <= IL39_LAST_OFDM_RATE; rate_idx++, i++) {
 
 		txpower.power[i].tpc = ch_info->power_info[i].tpc;
 		txpower.power[i].rate = il3945_rates[rate_idx].plcp;
@@ -2400,14 +2400,14 @@ int il3945_hw_set_hw_params(struct il_priv *il)
 	il->hw_params.rx_page_order = get_order(IL_RX_BUF_SIZE_3K);
 	il->hw_params.max_rxq_size = RX_QUEUE_SIZE;
 	il->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
-	il->hw_params.max_stations = IWL3945_STATION_COUNT;
-	il->contexts[IL_RXON_CTX_BSS].bcast_sta_id = IWL3945_BROADCAST_ID;
+	il->hw_params.max_stations = IL3945_STATION_COUNT;
+	il->contexts[IL_RXON_CTX_BSS].bcast_sta_id = IL3945_BROADCAST_ID;
 
 	il->sta_key_max_num = STA_KEY_MAX_NUM;
 
 	il->hw_params.rx_wrt_ptr_reg = FH39_RSCSR_CHNL0_WPTR;
-	il->hw_params.max_beacon_itrvl = IWL39_MAX_UCODE_BEACON_INTERVAL;
-	il->hw_params.beacon_time_tsf_bits = IWL3945_EXT_BEACON_TIME_POS;
+	il->hw_params.max_beacon_itrvl = IL39_MAX_UCODE_BEACON_INTERVAL;
+	il->hw_params.beacon_time_tsf_bits = IL3945_EXT_BEACON_TIME_POS;
 
 	return 0;
 }
@@ -2569,7 +2569,7 @@ static int il3945_load_bsm(struct il_priv *il)
 	D_INFO("Begin load bsm\n");
 
 	/* make sure bootstrap program is no larger than BSM's SRAM size */
-	if (len > IWL39_MAX_BSM_SIZE)
+	if (len > IL39_MAX_BSM_SIZE)
 		return -EINVAL;
 
 	/* Tell bootstrap uCode where to find the "Initialize" uCode
@@ -2601,7 +2601,7 @@ static int il3945_load_bsm(struct il_priv *il)
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
 	il_wr_prph(il, BSM_WR_MEM_SRC_REG, 0x0);
 	il_wr_prph(il, BSM_WR_MEM_DST_REG,
-				 IWL39_RTC_INST_LOWER_BOUND);
+				 IL39_RTC_INST_LOWER_BOUND);
 	il_wr_prph(il, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
 
 	/* Load bootstrap code into instruction SRAM now,
@@ -2692,8 +2692,8 @@ static const struct il_ops il3945_ops = {
 };
 
 static struct il_base_params il3945_base_params = {
-	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
-	.num_of_queues = IWL39_NUM_QUEUES,
+	.eeprom_size = IL3945_EEPROM_IMG_SIZE,
+	.num_of_queues = IL39_NUM_QUEUES,
 	.pll_cfg_val = CSR39_ANA_PLL_CFG_VAL,
 	.set_l0s = false,
 	.use_bsm = true,
@@ -2703,9 +2703,9 @@ static struct il_base_params il3945_base_params = {
 
 static struct il_cfg il3945_bg_cfg = {
 	.name = "3945BG",
-	.fw_name_pre = IWL3945_FW_PRE,
-	.ucode_api_max = IWL3945_UCODE_API_MAX,
-	.ucode_api_min = IWL3945_UCODE_API_MIN,
+	.fw_name_pre = IL3945_FW_PRE,
+	.ucode_api_max = IL3945_UCODE_API_MAX,
+	.ucode_api_min = IL3945_UCODE_API_MIN,
 	.sku = IL_SKU_G,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &il3945_ops,
@@ -2716,9 +2716,9 @@ static struct il_cfg il3945_bg_cfg = {
 
 static struct il_cfg il3945_abg_cfg = {
 	.name = "3945ABG",
-	.fw_name_pre = IWL3945_FW_PRE,
-	.ucode_api_max = IWL3945_UCODE_API_MAX,
-	.ucode_api_min = IWL3945_UCODE_API_MIN,
+	.fw_name_pre = IL3945_FW_PRE,
+	.ucode_api_max = IL3945_UCODE_API_MAX,
+	.ucode_api_min = IL3945_UCODE_API_MIN,
 	.sku = IL_SKU_A|IL_SKU_G,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &il3945_ops,

@@ -329,7 +329,7 @@ int il_mac_change_interface(struct ieee80211_hw *hw,
 int il_alloc_txq_mem(struct il_priv *il);
 void il_txq_mem(struct il_priv *il);
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 int il_alloc_traffic_mem(struct il_priv *il);
 void il_free_traffic_mem(struct il_priv *il);
 void il_reset_traffic_log(struct il_priv *il);
@@ -513,7 +513,7 @@ extern const struct dev_pm_ops il_pm_ops;
 *  Error Handling Debugging
 ******************************************************/
 void il4965_dump_nic_error_log(struct il_priv *il);
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 void il_print_rx_config_cmd(struct il_priv *il,
 			     struct il_rxon_context *ctx);
 #else

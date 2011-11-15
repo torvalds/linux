@@ -315,7 +315,7 @@ bool il_is_ht40_tx_allowed(struct il_priv *il,
 	if (ht_cap && !ht_cap->ht_supported)
 		return false;
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 	if (il->disable_ht40)
 		return false;
 #endif
@@ -888,7 +888,7 @@ void il_rx_csa(struct il_priv *il, struct il_rx_mem_buffer *rxb)
 }
 EXPORT_SYMBOL(il_rx_csa);
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 void il_print_rx_config_cmd(struct il_priv *il,
 			     struct il_rxon_context *ctx)
 {
@@ -930,7 +930,7 @@ void il_irq_handle_error(struct il_priv *il)
 	il->cfg->ops->lib->dump_nic_error_log(il);
 	if (il->cfg->ops->lib->dump_fh)
 		il->cfg->ops->lib->dump_fh(il, NULL, false);
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & IL_DL_FW_ERRORS)
 		il_print_rx_config_cmd(il,
 					&il->contexts[IL_RXON_CTX_BSS]);
@@ -1208,7 +1208,7 @@ EXPORT_SYMBOL(il_send_statistics_request);
 void il_rx_pm_sleep_notif(struct il_priv *il,
 			   struct il_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 	struct il_sleep_notification *sleep = &(pkt->u.sleep_notif);
 	D_RX("sleep mode: %d, src: %d\n",
@@ -1467,7 +1467,7 @@ void il_txq_mem(struct il_priv *il)
 }
 EXPORT_SYMBOL(il_txq_mem);
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 
 #define IL_TRAFFIC_DUMP_SIZE	(IL_TRAFFIC_ENTRY_SIZE * IL_TRAFFIC_ENTRIES)
 
@@ -1611,11 +1611,11 @@ void il_clear_traffic_stats(struct il_priv *il)
 }
 
 /*
- * if CONFIG_IWLWIFI_LEGACY_DEBUGFS defined,
+ * if CONFIG_IWLEGACY_DEBUGFS defined,
  * il_update_stats function will
  * record all the MGMT, CTRL and DATA pkt for both TX and Rx pass
  * Use debugFs to display the rx/rx_statistics
- * if CONFIG_IWLWIFI_LEGACY_DEBUGFS not being defined, then no MGMT and CTRL
+ * if CONFIG_IWLEGACY_DEBUGFS not being defined, then no MGMT and CTRL
  * information will be recorded, but DATA pkt still will be recorded
  * for the reason of il_led.c need to control the led blinking based on
  * number of tx and rx data.

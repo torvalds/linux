@@ -72,7 +72,7 @@
 #include "iwl-eeprom.h"
 
 /* RSSI to dBm */
-#define IWL39_RSSI_OFFSET	95
+#define IL39_RSSI_OFFSET	95
 
 /*
  * EEPROM related constants, enums, and structures.
@@ -214,7 +214,7 @@ struct il3945_eeprom {
 	u8 reserved16[172];	/* fill out to full 1024 byte block */
 } __packed;
 
-#define IWL3945_EEPROM_IMG_SIZE 1024
+#define IL3945_EEPROM_IMG_SIZE 1024
 
 /* End of EEPROM */
 
@@ -222,8 +222,8 @@ struct il3945_eeprom {
 #define PCI_CFG_REV_ID_BIT_RTP                      (0x80)	/* bit 7    */
 
 /* 4 DATA + 1 CMD. There are 2 HCCA queues that are not used. */
-#define IWL39_NUM_QUEUES        5
-#define IWL39_CMD_QUEUE_NUM	4
+#define IL39_NUM_QUEUES        5
+#define IL39_CMD_QUEUE_NUM	4
 
 #define IL_DEFAULT_TX_RETRY  15
 
@@ -245,27 +245,27 @@ struct il3945_eeprom {
 
 /* Sizes and addresses for instruction and data memory (SRAM) in
  * 3945's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
-#define IWL39_RTC_INST_LOWER_BOUND		(0x000000)
-#define IWL39_RTC_INST_UPPER_BOUND		(0x014000)
+#define IL39_RTC_INST_LOWER_BOUND		(0x000000)
+#define IL39_RTC_INST_UPPER_BOUND		(0x014000)
 
-#define IWL39_RTC_DATA_LOWER_BOUND		(0x800000)
-#define IWL39_RTC_DATA_UPPER_BOUND		(0x808000)
+#define IL39_RTC_DATA_LOWER_BOUND		(0x800000)
+#define IL39_RTC_DATA_UPPER_BOUND		(0x808000)
 
-#define IWL39_RTC_INST_SIZE (IWL39_RTC_INST_UPPER_BOUND - \
-				IWL39_RTC_INST_LOWER_BOUND)
-#define IWL39_RTC_DATA_SIZE (IWL39_RTC_DATA_UPPER_BOUND - \
-				IWL39_RTC_DATA_LOWER_BOUND)
+#define IL39_RTC_INST_SIZE (IL39_RTC_INST_UPPER_BOUND - \
+				IL39_RTC_INST_LOWER_BOUND)
+#define IL39_RTC_DATA_SIZE (IL39_RTC_DATA_UPPER_BOUND - \
+				IL39_RTC_DATA_LOWER_BOUND)
 
-#define IWL39_MAX_INST_SIZE IWL39_RTC_INST_SIZE
-#define IWL39_MAX_DATA_SIZE IWL39_RTC_DATA_SIZE
+#define IL39_MAX_INST_SIZE IL39_RTC_INST_SIZE
+#define IL39_MAX_DATA_SIZE IL39_RTC_DATA_SIZE
 
 /* Size of uCode instruction memory in bootstrap state machine */
-#define IWL39_MAX_BSM_SIZE IWL39_RTC_INST_SIZE
+#define IL39_MAX_BSM_SIZE IL39_RTC_INST_SIZE
 
 static inline int il3945_hw_valid_rtc_data_addr(u32 addr)
 {
-	return (addr >= IWL39_RTC_DATA_LOWER_BOUND &&
-		addr < IWL39_RTC_DATA_UPPER_BOUND);
+	return (addr >= IL39_RTC_DATA_LOWER_BOUND &&
+		addr < IL39_RTC_DATA_UPPER_BOUND);
 }
 
 /* Base physical address of il3945_shared is provided to FH_TSSR_CBB_BASE

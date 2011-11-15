@@ -68,7 +68,7 @@
 #define DRV_DESCRIPTION	\
 "Intel(R) PRO/Wireless 3945ABG/BG Network Connection driver for Linux"
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 #define VD "d"
 #else
 #define VD
@@ -500,7 +500,7 @@ static int il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	fc = hdr->frame_control;
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	if (ieee80211_is_auth(fc))
 		D_TX("Sending AUTH frame\n");
 	else if (ieee80211_is_assoc_req(fc))
@@ -783,7 +783,7 @@ static void il3945_rx_reply_alive(struct il_priv *il,
 static void il3945_rx_reply_add_sta(struct il_priv *il,
 				 struct il_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 #endif
 
@@ -795,7 +795,7 @@ static void il3945_rx_beacon_notif(struct il_priv *il,
 {
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 	struct il3945_beacon_notif *beacon = &(pkt->u.beacon_status);
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	u8 rate = beacon->beacon_notify_hdr.rate;
 
 	D_RX("beacon status %x retries %d iss %d "
@@ -1410,7 +1410,7 @@ static void il3945_irq_tasklet(struct il_priv *il)
 	u32 inta, handled = 0;
 	u32 inta_fh;
 	unsigned long flags;
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	u32 inta_mask;
 #endif
 
@@ -1428,7 +1428,7 @@ static void il3945_irq_tasklet(struct il_priv *il)
 	inta_fh = _il_rd(il, CSR_FH_INT_STATUS);
 	_il_wr(il, CSR_FH_INT_STATUS, inta_fh);
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & IL_DL_ISR) {
 		/* just for debug */
 		inta_mask = _il_rd(il, CSR_INT_MASK);
@@ -1463,7 +1463,7 @@ static void il3945_irq_tasklet(struct il_priv *il)
 		return;
 	}
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & (IL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
@@ -1541,7 +1541,7 @@ static void il3945_irq_tasklet(struct il_priv *il)
 	if (test_bit(STATUS_INT_ENABLED, &il->status))
 		il_enable_interrupts(il);
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & (IL_DL_ISR)) {
 		inta = _il_rd(il, CSR_INT);
 		inta_mask = _il_rd(il, CSR_INT_MASK);
@@ -1612,12 +1612,12 @@ static int il3945_get_channels_for_scan(struct il_priv *il,
 		 * hearing clear Rx packet).*/
 		if (IL_UCODE_API(il->ucode_ver) >= 2) {
 			if (n_probes)
-				scan_ch->type |= IWL39_SCAN_PROBE_MASK(n_probes);
+				scan_ch->type |= IL39_SCAN_PROBE_MASK(n_probes);
 		} else {
 			/* uCode v1 does not allow setting direct probe bits on
 			 * passive channel. */
 			if ((scan_ch->type & 1) && n_probes)
-				scan_ch->type |= IWL39_SCAN_PROBE_MASK(n_probes);
+				scan_ch->type |= IL39_SCAN_PROBE_MASK(n_probes);
 		}
 
 		/* Set txpower levels to defaults */
@@ -1659,7 +1659,7 @@ static void il3945_init_hw_rates(struct il_priv *il,
 		rates[i].hw_value = i; /* Rate scaling will work on indexes */
 		rates[i].hw_value_short = i;
 		rates[i].flags = 0;
-		if (i > IWL39_LAST_OFDM_RATE || i < IL_FIRST_OFDM_RATE) {
+		if (i > IL39_LAST_OFDM_RATE || i < IL_FIRST_OFDM_RATE) {
 			/*
 			 * If CCK != 1M then set short preamble rate flag.
 			 */
@@ -1699,7 +1699,7 @@ static int il3945_verify_inst_full(struct il_priv *il, __le32 *image, u32 len)
 	D_INFO("ucode inst image size is %u\n", len);
 
 	il_wr(il, HBUS_TARG_MEM_RADDR,
-			       IWL39_RTC_INST_LOWER_BOUND);
+			       IL39_RTC_INST_LOWER_BOUND);
 
 	errcnt = 0;
 	for (; len > 0; len -= sizeof(u32), image++) {
@@ -1746,7 +1746,7 @@ static int il3945_verify_inst_sparse(struct il_priv *il, __le32 *image, u32 len)
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IL_DL_IO is set */
 		il_wr(il, HBUS_TARG_MEM_RADDR,
-			i + IWL39_RTC_INST_LOWER_BOUND);
+			i + IL39_RTC_INST_LOWER_BOUND);
 		val = _il_rd(il, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 #if 0 /* Enable this if you want to see details */
@@ -1820,7 +1820,7 @@ static void il3945_nic_start(struct il_priv *il)
 	_il_wr(il, CSR_RESET, 0);
 }
 
-#define IWL3945_UCODE_GET(item)						\
+#define IL3945_UCODE_GET(item)						\
 static u32 il3945_ucode_get_##item(const struct il_ucode_header *ucode)\
 {									\
 	return le32_to_cpu(ucode->v1.item);				\
@@ -1836,11 +1836,11 @@ static u8 *il3945_ucode_get_data(const struct il_ucode_header *ucode)
 	return (u8 *) ucode->v1.data;
 }
 
-IWL3945_UCODE_GET(inst_size);
-IWL3945_UCODE_GET(data_size);
-IWL3945_UCODE_GET(init_size);
-IWL3945_UCODE_GET(init_data_size);
-IWL3945_UCODE_GET(boot_size);
+IL3945_UCODE_GET(inst_size);
+IL3945_UCODE_GET(data_size);
+IL3945_UCODE_GET(init_size);
+IL3945_UCODE_GET(init_data_size);
+IL3945_UCODE_GET(boot_size);
 
 /**
  * il3945_read_ucode - Read uCode images from disk file.
@@ -1967,34 +1967,34 @@ static int il3945_read_ucode(struct il_priv *il)
 	}
 
 	/* Verify that uCode images will fit in card's SRAM */
-	if (inst_size > IWL39_MAX_INST_SIZE) {
+	if (inst_size > IL39_MAX_INST_SIZE) {
 		D_INFO("uCode instr len %d too large to fit in\n",
 			       inst_size);
 		ret = -EINVAL;
 		goto err_release;
 	}
 
-	if (data_size > IWL39_MAX_DATA_SIZE) {
+	if (data_size > IL39_MAX_DATA_SIZE) {
 		D_INFO("uCode data len %d too large to fit in\n",
 			       data_size);
 		ret = -EINVAL;
 		goto err_release;
 	}
-	if (init_size > IWL39_MAX_INST_SIZE) {
+	if (init_size > IL39_MAX_INST_SIZE) {
 		D_INFO(
 				"uCode init instr len %d too large to fit in\n",
 				init_size);
 		ret = -EINVAL;
 		goto err_release;
 	}
-	if (init_data_size > IWL39_MAX_DATA_SIZE) {
+	if (init_data_size > IL39_MAX_DATA_SIZE) {
 		D_INFO(
 				"uCode init data len %d too large to fit in\n",
 				init_data_size);
 		ret = -EINVAL;
 		goto err_release;
 	}
-	if (boot_size > IWL39_MAX_BSM_SIZE) {
+	if (boot_size > IL39_MAX_BSM_SIZE) {
 		D_INFO(
 				"uCode boot instr len %d too large to fit in\n",
 				boot_size);
@@ -3118,7 +3118,7 @@ static void il3945_configure_filter(struct ieee80211_hw *hw,
  *
  *****************************************************************************/
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 
 /*
  * The following adds a new attribute to the sysfs representation
@@ -3160,7 +3160,7 @@ static ssize_t il3945_store_debug_level(struct device *d,
 static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO,
 			il3945_show_debug_level, il3945_store_debug_level);
 
-#endif /* CONFIG_IWLWIFI_LEGACY_DEBUG */
+#endif /* CONFIG_IWLEGACY_DEBUG */
 
 static ssize_t il3945_show_temperature(struct device *d,
 				struct device_attribute *attr, char *buf)
@@ -3495,7 +3495,7 @@ static struct attribute *il3945_sysfs_entries[] = {
 	&dev_attr_status.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	&dev_attr_debug_level.attr,
 #endif
 	NULL
@@ -3583,7 +3583,7 @@ err:
 	return ret;
 }
 
-#define IWL3945_MAX_PROBE_REQUEST	200
+#define IL3945_MAX_PROBE_REQUEST	200
 
 static int il3945_setup_mac(struct il_priv *il)
 {
@@ -3607,7 +3607,7 @@ static int il3945_setup_mac(struct il_priv *il)
 
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX_3945;
 	/* we create the 802.11 header and a zero-length SSID element */
-	hw->wiphy->max_scan_ie_len = IWL3945_MAX_PROBE_REQUEST - 24 - 2;
+	hw->wiphy->max_scan_ie_len = IL3945_MAX_PROBE_REQUEST - 24 - 2;
 
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
@@ -3656,7 +3656,7 @@ static int il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	il = hw->priv;
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
-	il->cmd_queue = IWL39_CMD_QUEUE_NUM;
+	il->cmd_queue = IL39_CMD_QUEUE_NUM;
 
 	/* 3945 has only one valid context */
 	il->valid_contexts = BIT(IL_RXON_CTX_BSS);
@@ -3992,7 +3992,7 @@ static void __exit il3945_exit(void)
 	il3945_rate_control_unregister();
 }
 
-MODULE_FIRMWARE(IWL3945_MODULE_FIRMWARE(IWL3945_UCODE_API_MAX));
+MODULE_FIRMWARE(IL3945_MODULE_FIRMWARE(IL3945_UCODE_API_MAX));
 
 module_param_named(antenna, il3945_mod_params.antenna, int, S_IRUGO);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
@@ -4002,7 +4002,7 @@ MODULE_PARM_DESC(swcrypto,
 module_param_named(disable_hw_scan, il3945_mod_params.disable_hw_scan,
 		int, S_IRUGO);
 MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 1)");
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 module_param_named(debug, il_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif

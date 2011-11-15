@@ -320,19 +320,19 @@
  * can keep track of at one time when creating block-ack chains of frames.
  * Note that "64" matches the number of ack bits in a block-ack packet.
  * Driver should use SCD_WIN_SIZE and SCD_FRAME_LIMIT values to initialize
- * IWL49_SCD_CONTEXT_QUEUE_OFFSET(x) values.
+ * IL49_SCD_CONTEXT_QUEUE_OFFSET(x) values.
  */
 #define SCD_WIN_SIZE				64
 #define SCD_FRAME_LIMIT				64
 
 /* SCD registers are internal, must be accessed via HBUS_TARG_PRPH regs */
-#define IWL49_SCD_START_OFFSET		0xa02c00
+#define IL49_SCD_START_OFFSET		0xa02c00
 
 /*
  * 4965 tells driver SRAM address for internal scheduler structs via this reg.
  * Value is valid only after "Alive" response from uCode.
  */
-#define IWL49_SCD_SRAM_BASE_ADDR           (IWL49_SCD_START_OFFSET + 0x0)
+#define IL49_SCD_SRAM_BASE_ADDR           (IL49_SCD_START_OFFSET + 0x0)
 
 /*
  * Driver may need to update queue-empty bits after changing queue's
@@ -343,7 +343,7 @@
  * 15-00:  Empty state, one for each queue -- 1: empty, 0: non-empty
  * NOTE:  This register is not used by Linux driver.
  */
-#define IWL49_SCD_EMPTY_BITS               (IWL49_SCD_START_OFFSET + 0x4)
+#define IL49_SCD_EMPTY_BITS               (IL49_SCD_START_OFFSET + 0x4)
 
 /*
  * Physical base address of array of byte count (BC) circular buffers (CBs).
@@ -355,7 +355,7 @@
  * Bit fields:
  * 25-00:  Byte Count CB physical address [35:10], must be 1024-byte aligned.
  */
-#define IWL49_SCD_DRAM_BASE_ADDR           (IWL49_SCD_START_OFFSET + 0x10)
+#define IL49_SCD_DRAM_BASE_ADDR           (IL49_SCD_START_OFFSET + 0x10)
 
 /*
  * Enables any/all Tx DMA/FIFO channels.
@@ -364,7 +364,7 @@
  * Bit fields:
  *  7- 0:  Enable (1), disable (0), one bit for each channel 0-7
  */
-#define IWL49_SCD_TXFACT                   (IWL49_SCD_START_OFFSET + 0x1c)
+#define IL49_SCD_TXFACT                   (IL49_SCD_START_OFFSET + 0x1c)
 /*
  * Queue (x) Write Pointers (indexes, really!), one for each Tx queue.
  * Initialized and updated by driver as new TFDs are added to queue.
@@ -372,7 +372,7 @@
  *        Start Sequence Number; index = (SSN & 0xff)
  * NOTE:  Alternative to HBUS_TARG_WRPTR, which is what Linux driver uses?
  */
-#define IWL49_SCD_QUEUE_WRPTR(x)  (IWL49_SCD_START_OFFSET + 0x24 + (x) * 4)
+#define IL49_SCD_QUEUE_WRPTR(x)  (IL49_SCD_START_OFFSET + 0x24 + (x) * 4)
 
 /*
  * Queue (x) Read Pointers (indexes, really!), one for each Tx queue.
@@ -380,7 +380,7 @@
  * For Scheduler-ACK mode, index indicates first frame in Tx window.
  * Initialized by driver, updated by scheduler.
  */
-#define IWL49_SCD_QUEUE_RDPTR(x)  (IWL49_SCD_START_OFFSET + 0x64 + (x) * 4)
+#define IL49_SCD_QUEUE_RDPTR(x)  (IL49_SCD_START_OFFSET + 0x64 + (x) * 4)
 
 /*
  * Select which queues work in chain mode (1) vs. not (0).
@@ -391,7 +391,7 @@
  * NOTE:  If driver sets up queue for chain mode, it should be also set up
  *        Scheduler-ACK mode as well, via SCD_QUEUE_STATUS_BITS(x).
  */
-#define IWL49_SCD_QUEUECHAIN_SEL  (IWL49_SCD_START_OFFSET + 0xd0)
+#define IL49_SCD_QUEUECHAIN_SEL  (IL49_SCD_START_OFFSET + 0xd0)
 
 /*
  * Select which queues interrupt driver when scheduler increments
@@ -402,7 +402,7 @@
  * NOTE:  This functionality is apparently a no-op; driver relies on interrupts
  *        from Rx queue to read Tx command responses and update Tx queues.
  */
-#define IWL49_SCD_INTERRUPT_MASK  (IWL49_SCD_START_OFFSET + 0xe4)
+#define IL49_SCD_INTERRUPT_MASK  (IL49_SCD_START_OFFSET + 0xe4)
 
 /*
  * Queue search status registers.  One for each queue.
@@ -423,18 +423,18 @@
  * NOTE:  If enabling Scheduler-ACK mode, chain mode should also be enabled
  *        via SCD_QUEUECHAIN_SEL.
  */
-#define IWL49_SCD_QUEUE_STATUS_BITS(x)\
-	(IWL49_SCD_START_OFFSET + 0x104 + (x) * 4)
+#define IL49_SCD_QUEUE_STATUS_BITS(x)\
+	(IL49_SCD_START_OFFSET + 0x104 + (x) * 4)
 
 /* Bit field positions */
-#define IWL49_SCD_QUEUE_STTS_REG_POS_ACTIVE	(0)
-#define IWL49_SCD_QUEUE_STTS_REG_POS_TXF	(1)
-#define IWL49_SCD_QUEUE_STTS_REG_POS_WSL	(5)
-#define IWL49_SCD_QUEUE_STTS_REG_POS_SCD_ACK	(8)
+#define IL49_SCD_QUEUE_STTS_REG_POS_ACTIVE	(0)
+#define IL49_SCD_QUEUE_STTS_REG_POS_TXF	(1)
+#define IL49_SCD_QUEUE_STTS_REG_POS_WSL	(5)
+#define IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACK	(8)
 
 /* Write masks */
-#define IWL49_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN	(10)
-#define IWL49_SCD_QUEUE_STTS_REG_MSK		(0x0007FC00)
+#define IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN	(10)
+#define IL49_SCD_QUEUE_STTS_REG_MSK		(0x0007FC00)
 
 /**
  * 4965 internal SRAM structures for scheduler, shared with driver ...
@@ -470,14 +470,14 @@
  * Init must be done after driver receives "Alive" response from 4965 uCode,
  * and when setting up queue for aggregation.
  */
-#define IWL49_SCD_CONTEXT_DATA_OFFSET			0x380
-#define IWL49_SCD_CONTEXT_QUEUE_OFFSET(x) \
-			(IWL49_SCD_CONTEXT_DATA_OFFSET + ((x) * 8))
+#define IL49_SCD_CONTEXT_DATA_OFFSET			0x380
+#define IL49_SCD_CONTEXT_QUEUE_OFFSET(x) \
+			(IL49_SCD_CONTEXT_DATA_OFFSET + ((x) * 8))
 
-#define IWL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_POS		(0)
-#define IWL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK		(0x0000007F)
-#define IWL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS	(16)
-#define IWL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK	(0x007F0000)
+#define IL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_POS		(0)
+#define IL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK		(0x0000007F)
+#define IL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS	(16)
+#define IL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK	(0x007F0000)
 
 /*
  * Tx Status Bitmap
@@ -486,7 +486,7 @@
  * "Alive" notification from uCode.  Area is used only by device itself;
  * no other support (besides clearing) is required from driver.
  */
-#define IWL49_SCD_TX_STTS_BITMAP_OFFSET		0x400
+#define IL49_SCD_TX_STTS_BITMAP_OFFSET		0x400
 
 /*
  * RAxTID to queue translation mapping.
@@ -508,11 +508,11 @@
  * must read a dword-aligned value from device SRAM, replace the 16-bit map
  * value of interest, and write the dword value back into device SRAM.
  */
-#define IWL49_SCD_TRANSLATE_TBL_OFFSET		0x500
+#define IL49_SCD_TRANSLATE_TBL_OFFSET		0x500
 
 /* Find translation table dword to read/write for given queue */
-#define IWL49_SCD_TRANSLATE_TBL_OFFSET_QUEUE(x) \
-	((IWL49_SCD_TRANSLATE_TBL_OFFSET + ((x) * 2)) & 0xfffffffc)
+#define IL49_SCD_TRANSLATE_TBL_OFFSET_QUEUE(x) \
+	((IL49_SCD_TRANSLATE_TBL_OFFSET + ((x) * 2)) & 0xfffffffc)
 
 #define IL_SCD_TXFIFO_POS_TID			(0)
 #define IL_SCD_TXFIFO_POS_RA			(4)

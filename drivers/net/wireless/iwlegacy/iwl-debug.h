@@ -42,7 +42,7 @@ do {									\
 		       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);		\
 } while (0)
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 #define IL_DBG(level, fmt, args...)					\
 do {									\
 	if (il_get_debug_level(il) & level)				\
@@ -63,9 +63,9 @@ do {									\
 static inline void il_print_hex_dump(struct il_priv *il, int level,
 				      const void *p, u32 len)
 {}
-#endif				/* CONFIG_IWLWIFI_LEGACY_DEBUG */
+#endif				/* CONFIG_IWLEGACY_DEBUG */
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 int il_dbgfs_register(struct il_priv *il, const char *name);
 void il_dbgfs_unregister(struct il_priv *il);
 #else
@@ -77,7 +77,7 @@ il_dbgfs_register(struct il_priv *il, const char *name)
 static inline void il_dbgfs_unregister(struct il_priv *il)
 {
 }
-#endif				/* CONFIG_IWLWIFI_LEGACY_DEBUGFS */
+#endif				/* CONFIG_IWLEGACY_DEBUGFS */
 
 /*
  * To use the debug system:
@@ -99,7 +99,7 @@ static inline void il_dbgfs_unregister(struct il_priv *il)
  *	/sys/module/iwl3945/parameters/debug
  * 	/sys/class/net/wlan0/device/debug_level
  *
- * when CONFIG_IWLWIFI_LEGACY_DEBUG=y.
+ * when CONFIG_IWLEGACY_DEBUG=y.
  */
 
 /* 0x0000000F - 0x00000001 */

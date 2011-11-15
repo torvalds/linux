@@ -746,7 +746,7 @@ struct il4965_rxon_assoc_cmd {
 
 #define IL_CONN_MAX_LISTEN_INTERVAL	10
 #define IL_MAX_UCODE_BEACON_INTERVAL	4 /* 4096 */
-#define IWL39_MAX_UCODE_BEACON_INTERVAL	1 /* 1024 */
+#define IL39_MAX_UCODE_BEACON_INTERVAL	1 /* 1024 */
 
 /*
  * REPLY_RXON_TIMING = 0x14 (command, has simple generic response)
@@ -854,10 +854,10 @@ struct il_qosparam_cmd {
 /* Special, dedicated locations within device's station table */
 #define	IL_AP_ID		0
 #define	IL_STA_ID		2
-#define	IWL3945_BROADCAST_ID	24
-#define IWL3945_STATION_COUNT	25
-#define IWL4965_BROADCAST_ID	31
-#define	IWL4965_STATION_COUNT	32
+#define	IL3945_BROADCAST_ID	24
+#define IL3945_STATION_COUNT	25
+#define IL4965_BROADCAST_ID	31
+#define	IL4965_STATION_COUNT	32
 
 #define	IL_STATION_COUNT	32 	/* MAX(3945,4965)*/
 #define	IL_INVALID_STATION	255
@@ -1208,15 +1208,15 @@ struct il3945_rx_frame {
 	struct il3945_rx_frame_end end;
 } __packed;
 
-#define IWL39_RX_FRAME_SIZE	(4 + sizeof(struct il3945_rx_frame))
+#define IL39_RX_FRAME_SIZE	(4 + sizeof(struct il3945_rx_frame))
 
 /* Fixed (non-configurable) rx data from phy */
 
-#define IWL49_RX_RES_PHY_CNT 14
-#define IWL49_RX_PHY_FLAGS_ANTENNAE_OFFSET	(4)
-#define IWL49_RX_PHY_FLAGS_ANTENNAE_MASK	(0x70)
-#define IWL49_AGC_DB_MASK			(0x3f80)	/* MASK(7,13) */
-#define IWL49_AGC_DB_POS			(7)
+#define IL49_RX_RES_PHY_CNT 14
+#define IL49_RX_PHY_FLAGS_ANTENNAE_OFFSET	(4)
+#define IL49_RX_PHY_FLAGS_ANTENNAE_MASK	(0x70)
+#define IL49_AGC_DB_MASK			(0x3f80)	/* MASK(7,13) */
+#define IL49_AGC_DB_POS			(7)
 struct il4965_rx_non_cfg_phy {
 	__le16 ant_selection;	/* ant A bit 4, ant B bit 5, ant C bit 6 */
 	__le16 agc_info;	/* agc code 0:6, agc dB 7:13, reserved 14:15 */
@@ -2407,7 +2407,7 @@ struct il3945_scan_channel {
 } __packed;
 
 /* set number of direct probes u8 type */
-#define IWL39_SCAN_PROBE_MASK(n) ((BIT(n) | (BIT(n) - BIT(1))))
+#define IL39_SCAN_PROBE_MASK(n) ((BIT(n) | (BIT(n) - BIT(1))))
 
 struct il_scan_channel {
 	/*

@@ -185,7 +185,7 @@ struct il4965_channel_tgh_info {
 	s64 last_radar_time;
 };
 
-#define IWL4965_MAX_RATE (33)
+#define IL4965_MAX_RATE (33)
 
 struct il3945_clip_group {
 	/* maximum power level to prevent clipping for each rate, derived by
@@ -246,7 +246,7 @@ struct il_channel_info {
 	/* Radio/DSP gain settings for each "normal" data Tx rate.
 	 * These include, in addition to RF and DSP gain, a few fields for
 	 *   remembering/modifying gain settings (indexes). */
-	struct il3945_channel_power_info power_info[IWL4965_MAX_RATE];
+	struct il3945_channel_power_info power_info[IL4965_MAX_RATE];
 
 	/* Radio/DSP gain settings for each scan rate, for directed scans. */
 	struct il3945_scan_power_info scan_pwr_info[IL_NUM_SCAN_RATES];
@@ -670,7 +670,7 @@ struct il_dma_ptr {
 
 /* Sensitivity and chain noise calibration */
 #define INITIALIZATION_VALUE		0xFFFF
-#define IWL4965_CAL_NUM_BEACONS		20
+#define IL4965_CAL_NUM_BEACONS		20
 #define IL_CAL_NUM_BEACONS		16
 #define MAXIMUM_ALLOWED_PATHLOSS	15
 
@@ -847,7 +847,7 @@ enum il_ctrl_stats {
 };
 
 struct traffic_stats {
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 	u32 mgmt[MANAGEMENT_MAX];
 	u32 ctrl[CONTROL_MAX];
 	u32 data_cnt;
@@ -891,13 +891,13 @@ struct il_force_reset {
  * bits 31:24 - extended
  * bits 23:0  - interval
  */
-#define IWL3945_EXT_BEACON_TIME_POS	24
+#define IL3945_EXT_BEACON_TIME_POS	24
 /*
  * for _4965 devices
  * bits 31:22 - extended
  * bits 21:0  - interval
  */
-#define IWL4965_EXT_BEACON_TIME_POS	22
+#define IL4965_EXT_BEACON_TIME_POS	22
 
 enum il_rxon_context_id {
 	IL_RXON_CTX_BSS,
@@ -1141,7 +1141,7 @@ struct il_priv {
 			struct delayed_work rfkill_poll;
 
 			struct il3945_notif_statistics statistics;
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 			struct il3945_notif_statistics accum_statistics;
 			struct il3945_notif_statistics delta_statistics;
 			struct il3945_notif_statistics max_delta;
@@ -1179,7 +1179,7 @@ struct il_priv {
 			u8 phy_calib_chain_noise_gain_cmd;
 
 			struct il_notif_statistics statistics;
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 			struct il_notif_statistics accum_statistics;
 			struct il_notif_statistics delta_statistics;
 			struct il_notif_statistics max_delta;
@@ -1217,12 +1217,12 @@ struct il_priv {
 	s8 tx_power_next;
 
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	/* debugging info */
 	u32 debug_level; /* per device debugging will override global
 			    il_debug_level if set */
-#endif /* CONFIG_IWLWIFI_LEGACY_DEBUG */
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+#endif /* CONFIG_IWLEGACY_DEBUG */
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 	/* debugfs */
 	u16 tx_traffic_idx;
 	u16 rx_traffic_idx;
@@ -1231,7 +1231,7 @@ struct il_priv {
 	struct dentry *debugfs_dir;
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
 	bool disable_ht40;
-#endif /* CONFIG_IWLWIFI_LEGACY_DEBUGFS */
+#endif /* CONFIG_IWLEGACY_DEBUGFS */
 
 	struct work_struct txpower_work;
 	u32 disable_sens_cal;
@@ -1257,7 +1257,7 @@ static inline void il_txq_ctx_deactivate(struct il_priv *il, int txq_id)
 	clear_bit(txq_id, &il->txq_ctx_active_msk);
 }
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 /*
  * il_get_debug_level: Return active debug level for device
  *

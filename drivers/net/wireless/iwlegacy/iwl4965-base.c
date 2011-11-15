@@ -72,7 +72,7 @@
  */
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi 4965 driver for Linux"
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 #define VD "d"
 #else
 #define VD
@@ -493,7 +493,7 @@ static void il4965_rx_beacon_notif(struct il_priv *il,
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 	struct il4965_beacon_notif *beacon =
 		(struct il4965_beacon_notif *)pkt->u.raw;
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	u8 rate = il4965_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
 	D_RX("beacon status %x retries %d iss %d "
@@ -778,7 +778,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 	u32 inta_fh;
 	unsigned long flags;
 	u32 i;
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	u32 inta_mask;
 #endif
 
@@ -796,7 +796,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 	inta_fh = _il_rd(il, CSR_FH_INT_STATUS);
 	_il_wr(il, CSR_FH_INT_STATUS, inta_fh);
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & IL_DL_ISR) {
 		/* just for debug */
 		inta_mask = _il_rd(il, CSR_INT_MASK);
@@ -831,7 +831,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 		return;
 	}
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & (IL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
@@ -946,7 +946,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
 	else if (handled & CSR_INT_BIT_RF_KILL)
 		il_enable_rfkill_int(il);
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & (IL_DL_ISR)) {
 		inta = _il_rd(il, CSR_INT);
 		inta_mask = _il_rd(il, CSR_INT_MASK);
@@ -964,7 +964,7 @@ static void il4965_irq_tasklet(struct il_priv *il)
  *
  *****************************************************************************/
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 
 /*
  * The following adds a new attribute to the sysfs representation
@@ -1007,7 +1007,7 @@ static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO,
 			il4965_show_debug_level, il4965_store_debug_level);
 
 
-#endif /* CONFIG_IWLWIFI_LEGACY_DEBUG */
+#endif /* CONFIG_IWLEGACY_DEBUG */
 
 
 static ssize_t il4965_show_temperature(struct device *d,
@@ -1062,7 +1062,7 @@ static DEVICE_ATTR(tx_power, S_IWUSR | S_IRUGO,
 static struct attribute *il_sysfs_entries[] = {
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	&dev_attr_debug_level.attr,
 #endif
 	NULL
@@ -1607,7 +1607,7 @@ static const s8 default_queue_to_tx_fifo[] = {
 	IL_TX_FIFO_VI,
 	IL_TX_FIFO_BE,
 	IL_TX_FIFO_BK,
-	IWL49_CMD_FIFO_NUM,
+	IL49_CMD_FIFO_NUM,
 	IL_TX_FIFO_UNUSED,
 	IL_TX_FIFO_UNUSED,
 };
@@ -1623,18 +1623,18 @@ static int il4965_alive_notify(struct il_priv *il)
 
 	/* Clear 4965's internal Tx Scheduler data base */
 	il->scd_base_addr = il_rd_prph(il,
-					IWL49_SCD_SRAM_BASE_ADDR);
-	a = il->scd_base_addr + IWL49_SCD_CONTEXT_DATA_OFFSET;
-	for (; a < il->scd_base_addr + IWL49_SCD_TX_STTS_BITMAP_OFFSET; a += 4)
+					IL49_SCD_SRAM_BASE_ADDR);
+	a = il->scd_base_addr + IL49_SCD_CONTEXT_DATA_OFFSET;
+	for (; a < il->scd_base_addr + IL49_SCD_TX_STTS_BITMAP_OFFSET; a += 4)
 		il_write_targ_mem(il, a, 0);
-	for (; a < il->scd_base_addr + IWL49_SCD_TRANSLATE_TBL_OFFSET; a += 4)
+	for (; a < il->scd_base_addr + IL49_SCD_TRANSLATE_TBL_OFFSET; a += 4)
 		il_write_targ_mem(il, a, 0);
 	for (; a < il->scd_base_addr +
-	       IWL49_SCD_TRANSLATE_TBL_OFFSET_QUEUE(il->hw_params.max_txq_num); a += 4)
+	       IL49_SCD_TRANSLATE_TBL_OFFSET_QUEUE(il->hw_params.max_txq_num); a += 4)
 		il_write_targ_mem(il, a, 0);
 
 	/* Tel 4965 where to find Tx byte count tables */
-	il_wr_prph(il, IWL49_SCD_DRAM_BASE_ADDR,
+	il_wr_prph(il, IL49_SCD_DRAM_BASE_ADDR,
 			il->scd_bc_tbls.dma >> 10);
 
 	/* Enable DMA channel */
@@ -1650,32 +1650,32 @@ static int il4965_alive_notify(struct il_priv *il)
 			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	/* Disable chain mode for all queues */
-	il_wr_prph(il, IWL49_SCD_QUEUECHAIN_SEL, 0);
+	il_wr_prph(il, IL49_SCD_QUEUECHAIN_SEL, 0);
 
 	/* Initialize each Tx queue (including the command queue) */
 	for (i = 0; i < il->hw_params.max_txq_num; i++) {
 
 		/* TFD circular buffer read/write indexes */
-		il_wr_prph(il, IWL49_SCD_QUEUE_RDPTR(i), 0);
+		il_wr_prph(il, IL49_SCD_QUEUE_RDPTR(i), 0);
 		il_wr(il, HBUS_TARG_WRPTR, 0 | (i << 8));
 
 		/* Max Tx Window size for Scheduler-ACK mode */
 		il_write_targ_mem(il, il->scd_base_addr +
-				IWL49_SCD_CONTEXT_QUEUE_OFFSET(i),
+				IL49_SCD_CONTEXT_QUEUE_OFFSET(i),
 				(SCD_WIN_SIZE <<
-				IWL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_POS) &
-				IWL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK);
+				IL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_POS) &
+				IL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK);
 
 		/* Frame limit */
 		il_write_targ_mem(il, il->scd_base_addr +
-				IWL49_SCD_CONTEXT_QUEUE_OFFSET(i) +
+				IL49_SCD_CONTEXT_QUEUE_OFFSET(i) +
 				sizeof(u32),
 				(SCD_FRAME_LIMIT <<
-				IWL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
-				IWL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
+				IL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
+				IL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
 
 	}
-	il_wr_prph(il, IWL49_SCD_INTERRUPT_MASK,
+	il_wr_prph(il, IL49_SCD_INTERRUPT_MASK,
 				 (1 << il->hw_params.max_txq_num) - 1);
 
 	/* Activate all Tx DMA/FIFO channels */
@@ -2733,7 +2733,7 @@ void il4965_set_wr_ptrs(struct il_priv *il, int txq_id, u32 index)
 {
 	il_wr(il, HBUS_TARG_WRPTR,
 			     (index & 0xff) | (txq_id << 8));
-	il_wr_prph(il, IWL49_SCD_QUEUE_RDPTR(txq_id), index);
+	il_wr_prph(il, IL49_SCD_QUEUE_RDPTR(txq_id), index);
 }
 
 void il4965_tx_queue_set_status(struct il_priv *il,
@@ -2746,12 +2746,12 @@ void il4965_tx_queue_set_status(struct il_priv *il,
 	int active = test_bit(txq_id, &il->txq_ctx_active_msk) ? 1 : 0;
 
 	/* Set up and activate */
-	il_wr_prph(il, IWL49_SCD_QUEUE_STATUS_BITS(txq_id),
-			 (active << IWL49_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
-			 (tx_fifo_id << IWL49_SCD_QUEUE_STTS_REG_POS_TXF) |
-			 (scd_retry << IWL49_SCD_QUEUE_STTS_REG_POS_WSL) |
-			 (scd_retry << IWL49_SCD_QUEUE_STTS_REG_POS_SCD_ACK) |
-			 IWL49_SCD_QUEUE_STTS_REG_MSK);
+	il_wr_prph(il, IL49_SCD_QUEUE_STATUS_BITS(txq_id),
+			 (active << IL49_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
+			 (tx_fifo_id << IL49_SCD_QUEUE_STTS_REG_POS_TXF) |
+			 (scd_retry << IL49_SCD_QUEUE_STTS_REG_POS_WSL) |
+			 (scd_retry << IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACK) |
+			 IL49_SCD_QUEUE_STTS_REG_MSK);
 
 	txq->sched_retry = scd_retry;
 
@@ -3195,7 +3195,7 @@ static void __devexit il4965_pci_remove(struct pci_dev *pdev)
  */
 void il4965_txq_set_sched(struct il_priv *il, u32 mask)
 {
-	il_wr_prph(il, IWL49_SCD_TXFACT, mask);
+	il_wr_prph(il, IL49_SCD_TXFACT, mask);
 }
 
 /*****************************************************************************
@@ -3206,11 +3206,8 @@ void il4965_txq_set_sched(struct il_priv *il, u32 mask)
 
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 static DEFINE_PCI_DEVICE_TABLE(il4965_hw_card_ids) = {
-#if defined(CONFIG_IWL4965_MODULE) || defined(CONFIG_IWL4965)
 	{IL_PCI_DEVICE(0x4229, PCI_ANY_ID, il4965_cfg)},
 	{IL_PCI_DEVICE(0x4230, PCI_ANY_ID, il4965_cfg)},
-#endif /* CONFIG_IWL4965 */
-
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, il4965_hw_card_ids);
@@ -3258,7 +3255,7 @@ static void __exit il4965_exit(void)
 module_exit(il4965_exit);
 module_init(il4965_init);
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 module_param_named(debug, il_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif

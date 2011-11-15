@@ -52,14 +52,14 @@ static int il4965_send_tx_power(struct il_priv *il);
 static int il4965_hw_get_temperature(struct il_priv *il);
 
 /* Highest firmware API version supported */
-#define IWL4965_UCODE_API_MAX 2
+#define IL4965_UCODE_API_MAX 2
 
 /* Lowest firmware API version supported */
-#define IWL4965_UCODE_API_MIN 2
+#define IL4965_UCODE_API_MIN 2
 
-#define IWL4965_FW_PRE "iwlwifi-4965-"
-#define _IWL4965_MODULE_FIRMWARE(api) IWL4965_FW_PRE #api ".ucode"
-#define IWL4965_MODULE_FIRMWARE(api) _IWL4965_MODULE_FIRMWARE(api)
+#define IL4965_FW_PRE "iwlwifi-4965-"
+#define _IL4965_MODULE_FIRMWARE(api) IL4965_FW_PRE #api ".ucode"
+#define IL4965_MODULE_FIRMWARE(api) _IL4965_MODULE_FIRMWARE(api)
 
 /* check contents of special bootstrap uCode SRAM */
 static int il4965_verify_bsm(struct il_priv *il)
@@ -142,7 +142,7 @@ static int il4965_load_bsm(struct il_priv *il)
 	il->ucode_type = UCODE_RT;
 
 	/* make sure bootstrap program is no larger than BSM's SRAM size */
-	if (len > IWL49_MAX_BSM_SIZE)
+	if (len > IL49_MAX_BSM_SIZE)
 		return -EINVAL;
 
 	/* Tell bootstrap uCode where to find the "Initialize" uCode
@@ -174,7 +174,7 @@ static int il4965_load_bsm(struct il_priv *il)
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
 	il_wr_prph(il, BSM_WR_MEM_SRC_REG, 0x0);
 	il_wr_prph(il,
-			BSM_WR_MEM_DST_REG, IWL49_RTC_INST_LOWER_BOUND);
+			BSM_WR_MEM_DST_REG, IL49_RTC_INST_LOWER_BOUND);
 	il_wr_prph(il, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
 
 	/* Load bootstrap code into instruction SRAM now,
@@ -392,7 +392,7 @@ static void il4965_set_ct_threshold(struct il_priv *il)
 static int il4965_hw_set_hw_params(struct il_priv *il)
 {
 	if (il->cfg->mod_params->num_of_queues >= IL_MIN_NUM_QUEUES &&
-	    il->cfg->mod_params->num_of_queues <= IWL49_NUM_QUEUES)
+	    il->cfg->mod_params->num_of_queues <= IL49_NUM_QUEUES)
 		il->cfg->base_params->num_of_queues =
 			il->cfg->mod_params->num_of_queues;
 
@@ -402,10 +402,10 @@ static int il4965_hw_set_hw_params(struct il_priv *il)
 			il->cfg->base_params->num_of_queues *
 			sizeof(struct il4965_scd_bc_tbl);
 	il->hw_params.tfd_size = sizeof(struct il_tfd);
-	il->hw_params.max_stations = IWL4965_STATION_COUNT;
-	il->contexts[IL_RXON_CTX_BSS].bcast_sta_id = IWL4965_BROADCAST_ID;
-	il->hw_params.max_data_size = IWL49_RTC_DATA_SIZE;
-	il->hw_params.max_inst_size = IWL49_RTC_INST_SIZE;
+	il->hw_params.max_stations = IL4965_STATION_COUNT;
+	il->contexts[IL_RXON_CTX_BSS].bcast_sta_id = IL4965_BROADCAST_ID;
+	il->hw_params.max_data_size = IL49_RTC_DATA_SIZE;
+	il->hw_params.max_inst_size = IL49_RTC_INST_SIZE;
 	il->hw_params.max_bsm_size = BSM_SRAM_SIZE;
 	il->hw_params.ht40_channel = BIT(IEEE80211_BAND_5GHZ);
 
@@ -419,7 +419,7 @@ static int il4965_hw_set_hw_params(struct il_priv *il)
 	il4965_set_ct_threshold(il);
 
 	il->hw_params.sens = &il4965_sensitivity;
-	il->hw_params.beacon_time_tsf_bits = IWL4965_EXT_BEACON_TIME_POS;
+	il->hw_params.beacon_time_tsf_bits = IL4965_EXT_BEACON_TIME_POS;
 
 	return 0;
 }
@@ -2143,14 +2143,14 @@ static const struct il_ops il4965_ops = {
 };
 
 static struct il_base_params il4965_base_params = {
-	.eeprom_size = IWL4965_EEPROM_IMG_SIZE,
-	.num_of_queues = IWL49_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL49_NUM_AMPDU_QUEUES,
+	.eeprom_size = IL4965_EEPROM_IMG_SIZE,
+	.num_of_queues = IL49_NUM_QUEUES,
+	.num_of_ampdu_queues = IL49_NUM_AMPDU_QUEUES,
 	.pll_cfg_val = 0,
 	.set_l0s = true,
 	.use_bsm = true,
 	.led_compensation = 61,
-	.chain_noise_num_beacons = IWL4965_CAL_NUM_BEACONS,
+	.chain_noise_num_beacons = IL4965_CAL_NUM_BEACONS,
 	.wd_timeout = IL_DEF_WD_TIMEOUT,
 	.temperature_kelvin = true,
 	.ucode_tracing = true,
@@ -2160,9 +2160,9 @@ static struct il_base_params il4965_base_params = {
 
 struct il_cfg il4965_cfg = {
 	.name = "Intel(R) Wireless WiFi Link 4965AGN",
-	.fw_name_pre = IWL4965_FW_PRE,
-	.ucode_api_max = IWL4965_UCODE_API_MAX,
-	.ucode_api_min = IWL4965_UCODE_API_MIN,
+	.fw_name_pre = IL4965_FW_PRE,
+	.ucode_api_max = IL4965_UCODE_API_MAX,
+	.ucode_api_min = IL4965_UCODE_API_MIN,
 	.sku = IL_SKU_A|IL_SKU_G|IL_SKU_N,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_ABC,
@@ -2180,4 +2180,4 @@ struct il_cfg il4965_cfg = {
 };
 
 /* Module firmware */
-MODULE_FIRMWARE(IWL4965_MODULE_FIRMWARE(IWL4965_UCODE_API_MAX));
+MODULE_FIRMWARE(IL4965_MODULE_FIRMWARE(IL4965_UCODE_API_MAX));

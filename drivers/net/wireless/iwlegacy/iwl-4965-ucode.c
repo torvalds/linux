@@ -62,7 +62,7 @@ il4965_verify_inst_sparse(struct il_priv *il, __le32 *image, u32 len)
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IL_DL_IO is set */
 		il_wr(il, HBUS_TARG_MEM_RADDR,
-			i + IWL4965_RTC_INST_LOWER_BOUND);
+			i + IL4965_RTC_INST_LOWER_BOUND);
 		val = _il_rd(il, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 			ret = -EIO;
@@ -90,7 +90,7 @@ static int il4965_verify_inst_full(struct il_priv *il, __le32 *image,
 	D_INFO("ucode inst image size is %u\n", len);
 
 	il_wr(il, HBUS_TARG_MEM_RADDR,
-			   IWL4965_RTC_INST_LOWER_BOUND);
+			   IL4965_RTC_INST_LOWER_BOUND);
 
 	errcnt = 0;
 	for (; len > 0; len -= sizeof(u32), image++) {

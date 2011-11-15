@@ -189,7 +189,7 @@ int il4965_manage_ibss_station(struct il_priv *il,
 /* hcmd */
 int il4965_send_beacon_cmd(struct il_priv *il);
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 const char *il4965_get_tx_fail_reason(u32 status);
 #else
 static inline const char *

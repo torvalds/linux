@@ -535,7 +535,7 @@ static ssize_t il_dbgfs_interrupt_read(struct file *file,
 			"\tLast Restarting Code:  0x%X\n",
 			il->isr_stats.err_code);
 	}
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	pos += scnprintf(buf + pos, bufsz - pos, "Frame transmitted:\t\t %u\n",
 		il->isr_stats.sch);
 	pos += scnprintf(buf + pos, bufsz - pos, "Alive interrupt:\t\t %u\n",

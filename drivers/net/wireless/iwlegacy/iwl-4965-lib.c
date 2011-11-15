@@ -438,12 +438,12 @@ static int il4965_calc_rssi(struct il_priv *il,
 	 *   contents are always there, not configurable by host.  */
 	struct il4965_rx_non_cfg_phy *ncphy =
 	    (struct il4965_rx_non_cfg_phy *)rx_resp->non_cfg_phy_buf;
-	u32 agc = (le16_to_cpu(ncphy->agc_info) & IWL49_AGC_DB_MASK)
-			>> IWL49_AGC_DB_POS;
+	u32 agc = (le16_to_cpu(ncphy->agc_info) & IL49_AGC_DB_MASK)
+			>> IL49_AGC_DB_POS;
 
 	u32 valid_antennae =
-	    (le16_to_cpu(rx_resp->phy_flags) & IWL49_RX_PHY_FLAGS_ANTENNAE_MASK)
-			>> IWL49_RX_PHY_FLAGS_ANTENNAE_OFFSET;
+	    (le16_to_cpu(rx_resp->phy_flags) & IL49_RX_PHY_FLAGS_ANTENNAE_MASK)
+			>> IL49_RX_PHY_FLAGS_ANTENNAE_OFFSET;
 	u8 max_rssi = 0;
 	u32 i;
 
@@ -462,7 +462,7 @@ static int il4965_calc_rssi(struct il_priv *il,
 
 	/* dBm = max_rssi dB - agc dB - constant.
 	 * Higher AGC (higher radio gain) means lower signal. */
-	return max_rssi - agc - IWL4965_RSSI_OFFSET;
+	return max_rssi - agc - IL4965_RSSI_OFFSET;
 }
 
 
@@ -1152,7 +1152,7 @@ static const char *il4965_get_fh_string(int cmd)
 int il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 {
 	int i;
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	int pos = 0;
 	size_t bufsz = 0;
 #endif
@@ -1167,7 +1167,7 @@ int il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 		FH_TSSR_TX_STATUS_REG,
 		FH_TSSR_TX_ERROR_REG
 	};
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	if (display) {
 		bufsz = ARRAY_SIZE(fh_tbl) * 48 + 40;
 		*buf = kmalloc(bufsz, GFP_KERNEL);

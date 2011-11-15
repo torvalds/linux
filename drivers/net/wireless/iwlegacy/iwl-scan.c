@@ -185,7 +185,7 @@ EXPORT_SYMBOL(il_scan_cancel_timeout);
 static void il_rx_reply_scan(struct il_priv *il,
 			      struct il_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 	struct il_scanreq_notification *notif =
 	    (struct il_scanreq_notification *)pkt->u.raw;
@@ -216,7 +216,7 @@ static void il_rx_scan_start_notif(struct il_priv *il,
 static void il_rx_scan_results_notif(struct il_priv *il,
 				      struct il_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 	struct il_scanresults_notification *notif =
 	    (struct il_scanresults_notification *)pkt->u.raw;
@@ -239,7 +239,7 @@ static void il_rx_scan_complete_notif(struct il_priv *il,
 				       struct il_rx_mem_buffer *rxb)
 {
 
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 	struct il_scancomplete_notification *scan_notif = (void *)pkt->u.raw;
 #endif

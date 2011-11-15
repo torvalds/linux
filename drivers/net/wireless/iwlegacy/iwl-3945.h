@@ -49,14 +49,14 @@ extern const struct pci_device_id il3945_hw_card_ids[];
 #include "iwl-led.h"
 
 /* Highest firmware API version supported */
-#define IWL3945_UCODE_API_MAX 2
+#define IL3945_UCODE_API_MAX 2
 
 /* Lowest firmware API version supported */
-#define IWL3945_UCODE_API_MIN 1
+#define IL3945_UCODE_API_MIN 1
 
-#define IWL3945_FW_PRE	"iwlwifi-3945-"
-#define _IWL3945_MODULE_FIRMWARE(api) IWL3945_FW_PRE #api ".ucode"
-#define IWL3945_MODULE_FIRMWARE(api) _IWL3945_MODULE_FIRMWARE(api)
+#define IL3945_FW_PRE	"iwlwifi-3945-"
+#define _IL3945_MODULE_FIRMWARE(api) IL3945_FW_PRE #api ".ucode"
+#define IL3945_MODULE_FIRMWARE(api) _IL3945_MODULE_FIRMWARE(api)
 
 /* Default noise level to report when noise measurement is not available.
  *   This may be because we're:

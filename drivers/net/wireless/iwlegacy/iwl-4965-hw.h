@@ -72,38 +72,38 @@
 #include "iwl-fh.h"
 
 /* EEPROM */
-#define IWL4965_EEPROM_IMG_SIZE			1024
+#define IL4965_EEPROM_IMG_SIZE			1024
 
 /*
  * uCode queue management definitions ...
  * The first queue used for block-ack aggregation is #7 (4965 only).
  * All block-ack aggregation queues should map to Tx DMA/FIFO channel 7.
  */
-#define IWL49_FIRST_AMPDU_QUEUE	7
+#define IL49_FIRST_AMPDU_QUEUE	7
 
 /* Sizes and addresses for instruction and data memory (SRAM) in
  * 4965's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
-#define IWL49_RTC_INST_LOWER_BOUND		(0x000000)
-#define IWL49_RTC_INST_UPPER_BOUND		(0x018000)
+#define IL49_RTC_INST_LOWER_BOUND		(0x000000)
+#define IL49_RTC_INST_UPPER_BOUND		(0x018000)
 
-#define IWL49_RTC_DATA_LOWER_BOUND		(0x800000)
-#define IWL49_RTC_DATA_UPPER_BOUND		(0x80A000)
+#define IL49_RTC_DATA_LOWER_BOUND		(0x800000)
+#define IL49_RTC_DATA_UPPER_BOUND		(0x80A000)
 
-#define IWL49_RTC_INST_SIZE  (IWL49_RTC_INST_UPPER_BOUND - \
-				IWL49_RTC_INST_LOWER_BOUND)
-#define IWL49_RTC_DATA_SIZE  (IWL49_RTC_DATA_UPPER_BOUND - \
-				IWL49_RTC_DATA_LOWER_BOUND)
+#define IL49_RTC_INST_SIZE  (IL49_RTC_INST_UPPER_BOUND - \
+				IL49_RTC_INST_LOWER_BOUND)
+#define IL49_RTC_DATA_SIZE  (IL49_RTC_DATA_UPPER_BOUND - \
+				IL49_RTC_DATA_LOWER_BOUND)
 
-#define IWL49_MAX_INST_SIZE IWL49_RTC_INST_SIZE
-#define IWL49_MAX_DATA_SIZE IWL49_RTC_DATA_SIZE
+#define IL49_MAX_INST_SIZE IL49_RTC_INST_SIZE
+#define IL49_MAX_DATA_SIZE IL49_RTC_DATA_SIZE
 
 /* Size of uCode instruction memory in bootstrap state machine */
-#define IWL49_MAX_BSM_SIZE BSM_SRAM_SIZE
+#define IL49_MAX_BSM_SIZE BSM_SRAM_SIZE
 
 static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
 {
-	return (addr >= IWL49_RTC_DATA_LOWER_BOUND &&
-		addr < IWL49_RTC_DATA_UPPER_BOUND);
+	return (addr >= IL49_RTC_DATA_LOWER_BOUND &&
+		addr < IL49_RTC_DATA_UPPER_BOUND);
 }
 
 /********************* START TEMPERATURE *************************************/
@@ -760,10 +760,10 @@ enum {
  * up to 7 DMA channels (FIFOs).  Each Tx queue is supported by a circular array
  * in DRAM containing 256 Transmit Frame Descriptors (TFDs).
  */
-#define IWL49_NUM_FIFOS 	7
-#define IWL49_CMD_FIFO_NUM	4
-#define IWL49_NUM_QUEUES	16
-#define IWL49_NUM_AMPDU_QUEUES	8
+#define IL49_NUM_FIFOS	7
+#define IL49_CMD_FIFO_NUM	4
+#define IL49_NUM_QUEUES	16
+#define IL49_NUM_AMPDU_QUEUES	8
 
 
 /**
@@ -790,10 +790,10 @@ struct il4965_scd_bc_tbl {
 } __packed;
 
 
-#define IWL4965_RTC_INST_LOWER_BOUND		(0x000000)
+#define IL4965_RTC_INST_LOWER_BOUND		(0x000000)
 
 /* RSSI to dBm */
-#define IWL4965_RSSI_OFFSET	44
+#define IL4965_RSSI_OFFSET	44
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
@@ -802,10 +802,10 @@ struct il4965_scd_bc_tbl {
 #define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
 #define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
 
-#define IWL4965_DEFAULT_TX_RETRY  15
+#define IL4965_DEFAULT_TX_RETRY  15
 
 /* EEPROM */
-#define IWL4965_FIRST_AMPDU_QUEUE	10
+#define IL4965_FIRST_AMPDU_QUEUE	10
 
 
 #endif /* !__il_4965_hw_h__ */
