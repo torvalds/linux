@@ -36,6 +36,7 @@
 #include "drmP.h"
 #include "drm_crtc.h"
 #include "drm_edid.h"
+#include "drm_fourcc.h"
 
 struct drm_prop_enum_list {
 	int type;
@@ -324,6 +325,7 @@ void drm_framebuffer_cleanup(struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_crtc *crtc;
+	struct drm_plane *plane;
 	struct drm_mode_set set;
 	int ret;
 
@@ -337,6 +339,15 @@ void drm_framebuffer_cleanup(struct drm_framebuffer *fb)
 			ret = crtc->funcs->set_config(&set);
 			if (ret)
 				DRM_ERROR("failed to reset crtc %p when fb was deleted\n", crtc);
+		}
+	}
+
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		if (plane->fb == fb) {
+			/* should turn off the crtc */
+			ret = plane->funcs->disable_plane(plane);
+			if (ret)
+				DRM_ERROR("failed to disable plane with busy fb\n");
 		}
 	}
 
@@ -539,6 +550,50 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 	mutex_unlock(&dev->mode_config.mutex);
 }
 EXPORT_SYMBOL(drm_encoder_cleanup);
+
+int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
+		   unsigned long possible_crtcs,
+		   const struct drm_plane_funcs *funcs,
+		   uint32_t *formats, uint32_t format_count)
+{
+	mutex_lock(&dev->mode_config.mutex);
+
+	plane->dev = dev;
+	drm_mode_object_get(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
+	plane->funcs = funcs;
+	plane->format_types = kmalloc(sizeof(uint32_t) * format_count,
+				      GFP_KERNEL);
+	if (!plane->format_types) {
+		DRM_DEBUG_KMS("out of memory when allocating plane\n");
+		drm_mode_object_put(dev, &plane->base);
+		return -ENOMEM;
+	}
+
+	memcpy(plane->format_types, formats, format_count * sizeof(uint32_t));
+	plane->format_count = format_count;
+	plane->possible_crtcs = possible_crtcs;
+
+	list_add_tail(&plane->head, &dev->mode_config.plane_list);
+	dev->mode_config.num_plane++;
+
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_plane_init);
+
+void drm_plane_cleanup(struct drm_plane *plane)
+{
+	struct drm_device *dev = plane->dev;
+
+	mutex_lock(&dev->mode_config.mutex);
+	kfree(plane->format_types);
+	drm_mode_object_put(dev, &plane->base);
+	list_del(&plane->head);
+	dev->mode_config.num_plane--;
+	mutex_unlock(&dev->mode_config.mutex);
+}
+EXPORT_SYMBOL(drm_plane_cleanup);
 
 /**
  * drm_mode_create - create a new display mode
@@ -871,6 +926,7 @@ void drm_mode_config_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev->mode_config.encoder_list);
 	INIT_LIST_HEAD(&dev->mode_config.property_list);
 	INIT_LIST_HEAD(&dev->mode_config.property_blob_list);
+	INIT_LIST_HEAD(&dev->mode_config.plane_list);
 	idr_init(&dev->mode_config.crtc_idr);
 
 	mutex_lock(&dev->mode_config.mutex);
@@ -947,6 +1003,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	struct drm_encoder *encoder, *enct;
 	struct drm_framebuffer *fb, *fbt;
 	struct drm_property *property, *pt;
+	struct drm_plane *plane, *plt;
 
 	list_for_each_entry_safe(encoder, enct, &dev->mode_config.encoder_list,
 				 head) {
@@ -971,6 +1028,10 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 		crtc->funcs->destroy(crtc);
 	}
 
+	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,
+				 head) {
+		plane->funcs->destroy(plane);
+	}
 }
 EXPORT_SYMBOL(drm_mode_config_cleanup);
 
@@ -1471,6 +1532,197 @@ out:
 }
 
 /**
+ * drm_mode_getplane_res - get plane info
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * Return an plane count and set of IDs.
+ */
+int drm_mode_getplane_res(struct drm_device *dev, void *data,
+			    struct drm_file *file_priv)
+{
+	struct drm_mode_get_plane_res *plane_resp = data;
+	struct drm_mode_config *config;
+	struct drm_plane *plane;
+	uint32_t __user *plane_ptr;
+	int copied = 0, ret = 0;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	mutex_lock(&dev->mode_config.mutex);
+	config = &dev->mode_config;
+
+	/*
+	 * This ioctl is called twice, once to determine how much space is
+	 * needed, and the 2nd time to fill it.
+	 */
+	if (config->num_plane &&
+	    (plane_resp->count_planes >= config->num_plane)) {
+		plane_ptr = (uint32_t *)(unsigned long)plane_resp->plane_id_ptr;
+
+		list_for_each_entry(plane, &config->plane_list, head) {
+			if (put_user(plane->base.id, plane_ptr + copied)) {
+				ret = -EFAULT;
+				goto out;
+			}
+			copied++;
+		}
+	}
+	plane_resp->count_planes = config->num_plane;
+
+out:
+	mutex_unlock(&dev->mode_config.mutex);
+	return ret;
+}
+
+/**
+ * drm_mode_getplane - get plane info
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * Return plane info, including formats supported, gamma size, any
+ * current fb, etc.
+ */
+int drm_mode_getplane(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
+{
+	struct drm_mode_get_plane *plane_resp = data;
+	struct drm_mode_object *obj;
+	struct drm_plane *plane;
+	uint32_t __user *format_ptr;
+	int ret = 0;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	mutex_lock(&dev->mode_config.mutex);
+	obj = drm_mode_object_find(dev, plane_resp->plane_id,
+				   DRM_MODE_OBJECT_PLANE);
+	if (!obj) {
+		ret = -ENOENT;
+		goto out;
+	}
+	plane = obj_to_plane(obj);
+
+	if (plane->crtc)
+		plane_resp->crtc_id = plane->crtc->base.id;
+	else
+		plane_resp->crtc_id = 0;
+
+	if (plane->fb)
+		plane_resp->fb_id = plane->fb->base.id;
+	else
+		plane_resp->fb_id = 0;
+
+	plane_resp->plane_id = plane->base.id;
+	plane_resp->possible_crtcs = plane->possible_crtcs;
+	plane_resp->gamma_size = plane->gamma_size;
+
+	/*
+	 * This ioctl is called twice, once to determine how much space is
+	 * needed, and the 2nd time to fill it.
+	 */
+	if (plane->format_count &&
+	    (plane_resp->count_format_types >= plane->format_count)) {
+		format_ptr = (uint32_t *)(unsigned long)plane_resp->format_type_ptr;
+		if (copy_to_user(format_ptr,
+				 plane->format_types,
+				 sizeof(uint32_t) * plane->format_count)) {
+			ret = -EFAULT;
+			goto out;
+		}
+	}
+	plane_resp->count_format_types = plane->format_count;
+
+out:
+	mutex_unlock(&dev->mode_config.mutex);
+	return ret;
+}
+
+/**
+ * drm_mode_setplane - set up or tear down an plane
+ * @dev: DRM device
+ * @data: ioctl data*
+ * @file_prive: DRM file info
+ *
+ * Set plane info, including placement, fb, scaling, and other factors.
+ * Or pass a NULL fb to disable.
+ */
+int drm_mode_setplane(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
+{
+	struct drm_mode_set_plane *plane_req = data;
+	struct drm_mode_object *obj;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_framebuffer *fb;
+	int ret = 0;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	mutex_lock(&dev->mode_config.mutex);
+
+	/*
+	 * First, find the plane, crtc, and fb objects.  If not available,
+	 * we don't bother to call the driver.
+	 */
+	obj = drm_mode_object_find(dev, plane_req->plane_id,
+				   DRM_MODE_OBJECT_PLANE);
+	if (!obj) {
+		DRM_DEBUG_KMS("Unknown plane ID %d\n",
+			      plane_req->plane_id);
+		ret = -ENOENT;
+		goto out;
+	}
+	plane = obj_to_plane(obj);
+
+	/* No fb means shut it down */
+	if (!plane_req->fb_id) {
+		plane->funcs->disable_plane(plane);
+		goto out;
+	}
+
+	obj = drm_mode_object_find(dev, plane_req->crtc_id,
+				   DRM_MODE_OBJECT_CRTC);
+	if (!obj) {
+		DRM_DEBUG_KMS("Unknown crtc ID %d\n",
+			      plane_req->crtc_id);
+		ret = -ENOENT;
+		goto out;
+	}
+	crtc = obj_to_crtc(obj);
+
+	obj = drm_mode_object_find(dev, plane_req->fb_id,
+				   DRM_MODE_OBJECT_FB);
+	if (!obj) {
+		DRM_DEBUG_KMS("Unknown framebuffer ID %d\n",
+			      plane_req->fb_id);
+		ret = -ENOENT;
+		goto out;
+	}
+	fb = obj_to_fb(obj);
+
+	ret = plane->funcs->update_plane(plane, crtc, fb,
+					 plane_req->crtc_x, plane_req->crtc_y,
+					 plane_req->crtc_w, plane_req->crtc_h,
+					 plane_req->src_x, plane_req->src_y,
+					 plane_req->src_w, plane_req->src_h);
+	if (!ret) {
+		plane->crtc = crtc;
+		plane->fb = fb;
+	}
+
+out:
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret;
+}
+
+/**
  * drm_mode_setcrtc - set CRTC configuration
  * @inode: inode from the ioctl
  * @filp: file * from the ioctl
@@ -1664,6 +1916,42 @@ out:
 	return ret;
 }
 
+/* Original addfb only supported RGB formats, so figure out which one */
+uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth)
+{
+	uint32_t fmt;
+
+	switch (bpp) {
+	case 8:
+		fmt = DRM_FOURCC_RGB332;
+		break;
+	case 16:
+		if (depth == 15)
+			fmt = DRM_FOURCC_RGB555;
+		else
+			fmt = DRM_FOURCC_RGB565;
+		break;
+	case 24:
+		fmt = DRM_FOURCC_RGB24;
+		break;
+	case 32:
+		if (depth == 24)
+			fmt = DRM_FOURCC_RGB24;
+		else if (depth == 30)
+			fmt = DRM_INTEL_RGB30;
+		else
+			fmt = DRM_FOURCC_RGB32;
+		break;
+	default:
+		DRM_ERROR("bad bpp, assuming RGB24 pixel format\n");
+		fmt = DRM_FOURCC_RGB24;
+		break;
+	}
+
+	return fmt;
+}
+EXPORT_SYMBOL(drm_mode_legacy_fb_format);
+
 /**
  * drm_mode_addfb - add an FB to the graphics configuration
  * @inode: inode from the ioctl
@@ -1684,19 +1972,28 @@ out:
 int drm_mode_addfb(struct drm_device *dev,
 		   void *data, struct drm_file *file_priv)
 {
-	struct drm_mode_fb_cmd *r = data;
+	struct drm_mode_fb_cmd *or = data;
+	struct drm_mode_fb_cmd2 r = {};
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_framebuffer *fb;
 	int ret = 0;
 
+	/* Use new struct with format internally */
+	r.fb_id = or->fb_id;
+	r.width = or->width;
+	r.height = or->height;
+	r.pitches[0] = or->pitch;
+	r.pixel_format = drm_mode_legacy_fb_format(or->bpp, or->depth);
+	r.handles[0] = or->handle;
+
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	if ((config->min_width > r->width) || (r->width > config->max_width)) {
+	if ((config->min_width > r.width) || (r.width > config->max_width)) {
 		DRM_ERROR("mode new framebuffer width not within limits\n");
 		return -EINVAL;
 	}
-	if ((config->min_height > r->height) || (r->height > config->max_height)) {
+	if ((config->min_height > r.height) || (r.height > config->max_height)) {
 		DRM_ERROR("mode new framebuffer height not within limits\n");
 		return -EINVAL;
 	}
@@ -1705,6 +2002,63 @@ int drm_mode_addfb(struct drm_device *dev,
 
 	/* TODO check buffer is sufficiently large */
 	/* TODO setup destructor callback */
+
+	fb = dev->mode_config.funcs->fb_create(dev, file_priv, &r);
+	if (IS_ERR(fb)) {
+		DRM_ERROR("could not create framebuffer\n");
+		ret = PTR_ERR(fb);
+		goto out;
+	}
+
+	or->fb_id = fb->base.id;
+	list_add(&fb->filp_head, &file_priv->fbs);
+	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
+
+out:
+	mutex_unlock(&dev->mode_config.mutex);
+	return ret;
+}
+
+/**
+ * drm_mode_addfb2 - add an FB to the graphics configuration
+ * @inode: inode from the ioctl
+ * @filp: file * from the ioctl
+ * @cmd: cmd from ioctl
+ * @arg: arg from ioctl
+ *
+ * LOCKING:
+ * Takes mode config lock.
+ *
+ * Add a new FB to the specified CRTC, given a user request with format.
+ *
+ * Called by the user via ioctl.
+ *
+ * RETURNS:
+ * Zero on success, errno on failure.
+ */
+int drm_mode_addfb2(struct drm_device *dev,
+		    void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_fb_cmd2 *r = data;
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_framebuffer *fb;
+	int ret = 0;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	if ((config->min_width > r->width) || (r->width > config->max_width)) {
+		DRM_ERROR("bad framebuffer width %d, should be >= %d && <= %d\n",
+			  r->width, config->min_width, config->max_width);
+		return -EINVAL;
+	}
+	if ((config->min_height > r->height) || (r->height > config->max_height)) {
+		DRM_ERROR("bad framebuffer height %d, should be >= %d && <= %d\n",
+			  r->height, config->min_height, config->max_height);
+		return -EINVAL;
+	}
+
+	mutex_lock(&dev->mode_config.mutex);
 
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
 	if (IS_ERR(fb)) {
