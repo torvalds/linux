@@ -1271,6 +1271,8 @@ struct btrfs_root {
 	 * for stat.  It may be used for more later
 	 */
 	dev_t anon_dev;
+
+	int force_cow;
 };
 
 struct btrfs_ioctl_defrag_range_args {
