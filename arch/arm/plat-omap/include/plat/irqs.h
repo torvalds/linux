@@ -437,7 +437,6 @@
 #define INTCPS_NR_IRQS		96
 
 #ifndef __ASSEMBLY__
-extern void __iomem *omap_irq_base;
 void omap1_init_irq(void);
 void omap2_init_irq(void);
 void omap3_init_irq(void);

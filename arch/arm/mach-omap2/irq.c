@@ -149,6 +149,7 @@ omap_alloc_gc(void __iomem *base, unsigned int irq_start, unsigned int num)
 
 static void __init omap_init_irq(u32 base, int nr_irqs)
 {
+	void __iomem *omap_irq_base;
 	unsigned long nr_of_irqs = 0;
 	unsigned int nr_banks = 0;
 	int i, j;

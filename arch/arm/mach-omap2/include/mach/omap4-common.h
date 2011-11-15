@@ -28,8 +28,6 @@
 extern void __iomem *l2cache_base;
 #endif
 
-extern void __iomem *gic_dist_base_addr;
-
 extern void __init gic_init_irq(void);
 extern void omap_smc1(u32 fn, u32 arg);
 
