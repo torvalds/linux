@@ -405,6 +405,9 @@ void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 	struct ovl_priv_data *op;
 	struct omap_overlay *ovl;
+	unsigned long flags;
+
+	spin_lock_irqsave(&data_lock, flags);
 
 	mp->do_manual_update = true;
 	dss_write_regs();
@@ -418,6 +421,8 @@ void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 	mp->shadow_dirty = false;
 
 	dispc_mgr_enable(mgr->id, true);
+
+	spin_unlock_irqrestore(&data_lock, flags);
 }
 
 static void dss_apply_irq_handler(void *data, u32 mask);
@@ -662,8 +667,14 @@ void dss_mgr_disable(struct omap_overlay_manager *mgr)
 int dss_mgr_set_info(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&data_lock, flags);
+
 	mgr->info = *info;
 	mgr->info_dirty = true;
+
+	spin_unlock_irqrestore(&data_lock, flags);
 
 	return 0;
 }
@@ -671,7 +682,13 @@ int dss_mgr_set_info(struct omap_overlay_manager *mgr,
 void dss_mgr_get_info(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&data_lock, flags);
+
 	*info = mgr->info;
+
+	spin_unlock_irqrestore(&data_lock, flags);
 }
 
 int dss_mgr_set_device(struct omap_overlay_manager *mgr,
@@ -745,8 +762,14 @@ err:
 int dss_ovl_set_info(struct omap_overlay *ovl,
 		struct omap_overlay_info *info)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&data_lock, flags);
+
 	ovl->info = *info;
 	ovl->info_dirty = true;
+
+	spin_unlock_irqrestore(&data_lock, flags);
 
 	return 0;
 }
@@ -754,7 +777,13 @@ int dss_ovl_set_info(struct omap_overlay *ovl,
 void dss_ovl_get_info(struct omap_overlay *ovl,
 		struct omap_overlay_info *info)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&data_lock, flags);
+
 	*info = ovl->info;
+
+	spin_unlock_irqrestore(&data_lock, flags);
 }
 
 int dss_ovl_set_manager(struct omap_overlay *ovl,
