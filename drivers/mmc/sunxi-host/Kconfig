@@ -1,0 +1,19 @@
+#
+# MMC/SD host controller drivers
+#
+
+comment "SUNXI MMC/SD/SDIO Host Controller Drivers"
+
+config MMC_SUNXI
+	tristate "SUNXI MMC Card Interface support"
+	depends on MMC
+	help
+	  This selects Allwinner SUNXI card support.  If you have an SUNXI
+	  platform with a Multimedia Card slot, say Y or M here.
+
+	  If unsure, say N.
+	  
+config MMC_SUNXI_DBG
+	bool "SUNXI MMC Card Host driver debug control"
+	depends on MMC_SUNXI
+	
