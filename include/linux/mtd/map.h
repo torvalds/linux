@@ -214,6 +214,7 @@ struct map_info {
 	void __iomem *virt;
 	void *cached;
 
+	int swap; /* this mapping's byte-swapping requirement */
 	int bankwidth; /* in octets. This isn't necessarily the width
 		       of actual bus cycles -- it's the repeat interval
 		      in bytes, before you are talking to the first chip again.

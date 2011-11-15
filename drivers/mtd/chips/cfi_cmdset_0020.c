@@ -139,8 +139,9 @@ struct mtd_info *cfi_cmdset_0020(struct map_info *map, int primary)
 		}
 
 		/* Do some byteswapping if necessary */
-		extp->FeatureSupport = cfi32_to_cpu(extp->FeatureSupport);
-		extp->BlkStatusRegMask = cfi32_to_cpu(extp->BlkStatusRegMask);
+		extp->FeatureSupport = cfi32_to_cpu(map, extp->FeatureSupport);
+		extp->BlkStatusRegMask = cfi32_to_cpu(map,
+						extp->BlkStatusRegMask);
 
 #ifdef DEBUG_CFI_FEATURES
 		/* Tell the user about it in lots of lovely detail */
