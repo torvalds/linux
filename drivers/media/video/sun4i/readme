@@ -1,0 +1,26 @@
+#------------------------------------------------------------
+# Cedar_dev : video engine driver
+#------------------------------------------------------------
+
+#------------------------------------------------------------
+#@version: cedar_vers0_08
+#@Author : Truby.Zong
+#@Date   : 2011-4-06
+#@Description:
+#	The second version of cedar video engine driver, which
+# add VD/DE SRAM prority and change file name.
+#-------------------------------------------------------------
+#
+#------------------------------------------------------------
+#@version: Vers0_01
+#@Author : Truby.Zong
+#@Date   : 2011-3-18
+#@Description:
+#	The first version of cedar video engine driver, which
+#handles the irq/clock/phy memory alloc of the cedar device,
+#and also the AV-SYNC counter (AVS_CNT1);
+#    Please pay attention to the method to request/remap IO
+#resource and request/free irq, which are just handle once in
+#module init and module exit.
+#-------------------------------------------------------------
+
