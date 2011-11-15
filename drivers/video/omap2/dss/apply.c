@@ -38,7 +38,7 @@
  *        apply()
  *          v
  * +--------------------+
- * |     dss_cache      |
+ * |       info         |
  * +--------------------+
  *          v
  *      write_regs()
@@ -93,19 +93,19 @@ static struct {
 	struct mgr_priv_data mgr_priv_data_array[MAX_DSS_MANAGERS];
 
 	bool irq_enabled;
-} dss_cache;
+} dss_data;
 
-/* protects dss_cache */
+/* protects dss_data */
 static spinlock_t data_lock;
 
 static struct ovl_priv_data *get_ovl_priv(struct omap_overlay *ovl)
 {
-	return &dss_cache.ovl_priv_data_array[ovl->id];
+	return &dss_data.ovl_priv_data_array[ovl->id];
 }
 
 static struct mgr_priv_data *get_mgr_priv(struct omap_overlay_manager *mgr)
 {
-	return &dss_cache.mgr_priv_data_array[mgr->id];
+	return &dss_data.mgr_priv_data_array[mgr->id];
 }
 
 void dss_apply_init(void)
@@ -433,7 +433,7 @@ static void dss_register_vsync_isr(void)
 	r = omap_dispc_register_isr(dss_apply_irq_handler, NULL, mask);
 	WARN_ON(r);
 
-	dss_cache.irq_enabled = true;
+	dss_data.irq_enabled = true;
 }
 
 static void dss_unregister_vsync_isr(void)
@@ -449,7 +449,7 @@ static void dss_unregister_vsync_isr(void)
 	r = omap_dispc_unregister_isr(dss_apply_irq_handler, NULL, mask);
 	WARN_ON(r);
 
-	dss_cache.irq_enabled = false;
+	dss_data.irq_enabled = false;
 }
 
 static void dss_apply_irq_handler(void *data, u32 mask)
@@ -637,7 +637,7 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 	r = 0;
 	if (mgr->enabled && !mgr_manual_update(mgr)) {
-		if (!dss_cache.irq_enabled)
+		if (!dss_data.irq_enabled)
 			dss_register_vsync_isr();
 
 		dss_write_regs();
