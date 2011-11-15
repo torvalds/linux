@@ -17,6 +17,7 @@
 
 static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 				 unsigned int value);
+static int regcache_rbtree_exit(struct regmap *map);
 
 struct regcache_rbtree_node {
 	/* the actual rbtree node holding this block */
@@ -149,7 +150,7 @@ static int regcache_rbtree_init(struct regmap *map)
 	return 0;
 
 err:
-	regcache_exit(map);
+	regcache_rbtree_exit(map);
 	return ret;
 }
 
