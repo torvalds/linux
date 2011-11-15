@@ -1414,11 +1414,18 @@ static int r300_startup(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed initializing CP (%d).\n", r);
 		return r;
 	}
-	r = r100_ib_init(rdev);
+
+	r = radeon_ib_pool_start(rdev);
+	if (r)
+		return r;
+
+	r = r100_ib_test(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failed initializing IB (%d).\n", r);
+		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
+		rdev->accel_working = false;
 		return r;
 	}
+
 	return 0;
 }
 
@@ -1443,11 +1450,14 @@ int r300_resume(struct radeon_device *rdev)
 	r300_clock_startup(rdev);
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
+
+	rdev->accel_working = true;
 	return r300_startup(rdev);
 }
 
 int r300_suspend(struct radeon_device *rdev)
 {
+	radeon_ib_pool_suspend(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
 	r100_irq_disable(rdev);
@@ -1548,7 +1558,14 @@ int r300_init(struct radeon_device *rdev)
 			return r;
 	}
 	r300_set_reg_safe(rdev);
+
+	r = radeon_ib_pool_init(rdev);
 	rdev->accel_working = true;
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
+		rdev->accel_working = false;
+	}
+
 	r = r300_startup(rdev);
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */

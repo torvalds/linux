@@ -316,6 +316,48 @@ struct radeon_bo_list {
 	u32			tiling_flags;
 };
 
+/* sub-allocation manager, it has to be protected by another lock.
+ * By conception this is an helper for other part of the driver
+ * like the indirect buffer or semaphore, which both have their
+ * locking.
+ *
+ * Principe is simple, we keep a list of sub allocation in offset
+ * order (first entry has offset == 0, last entry has the highest
+ * offset).
+ *
+ * When allocating new object we first check if there is room at
+ * the end total_size - (last_object_offset + last_object_size) >=
+ * alloc_size. If so we allocate new object there.
+ *
+ * When there is not enough room at the end, we start waiting for
+ * each sub object until we reach object_offset+object_size >=
+ * alloc_size, this object then become the sub object we return.
+ *
+ * Alignment can't be bigger than page size.
+ *
+ * Hole are not considered for allocation to keep things simple.
+ * Assumption is that there won't be hole (all object on same
+ * alignment).
+ */
+struct radeon_sa_manager {
+	struct radeon_bo	*bo;
+	struct list_head	sa_bo;
+	unsigned		size;
+	uint64_t		gpu_addr;
+	void			*cpu_ptr;
+	uint32_t		domain;
+};
+
+struct radeon_sa_bo;
+
+/* sub-allocation buffer */
+struct radeon_sa_bo {
+	struct list_head		list;
+	struct radeon_sa_manager	*manager;
+	unsigned			offset;
+	unsigned			size;
+};
+
 /*
  * GEM objects.
  */
@@ -503,13 +545,12 @@ void radeon_irq_kms_pflip_irq_put(struct radeon_device *rdev, int crtc);
  */
 
 struct radeon_ib {
-	struct list_head	list;
+	struct radeon_sa_bo	sa_bo;
 	unsigned		idx;
-	uint64_t		gpu_addr;
-	struct radeon_fence	*fence;
-	uint32_t		*ptr;
 	uint32_t		length_dw;
-	bool			free;
+	uint64_t		gpu_addr;
+	uint32_t		*ptr;
+	struct radeon_fence	*fence;
 };
 
 /*
@@ -517,12 +558,11 @@ struct radeon_ib {
  * mutex protects scheduled_ibs, ready, alloc_bm
  */
 struct radeon_ib_pool {
-	struct mutex		mutex;
-	struct radeon_bo	*robj;
-	struct list_head	bogus_ib;
-	struct radeon_ib	ibs[RADEON_IB_POOL_SIZE];
-	bool			ready;
-	unsigned		head_id;
+	struct mutex			mutex;
+	struct radeon_sa_manager	sa_manager;
+	struct radeon_ib		ibs[RADEON_IB_POOL_SIZE];
+	bool				ready;
+	unsigned			head_id;
 };
 
 struct radeon_ring {
@@ -603,8 +643,9 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib);
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_pool_init(struct radeon_device *rdev);
 void radeon_ib_pool_fini(struct radeon_device *rdev);
+int radeon_ib_pool_start(struct radeon_device *rdev);
+int radeon_ib_pool_suspend(struct radeon_device *rdev);
 int radeon_ib_test(struct radeon_device *rdev);
-extern void radeon_ib_bogus_add(struct radeon_device *rdev, struct radeon_ib *ib);
 /* Ring access between begin & end cannot sleep */
 int radeon_ring_index(struct radeon_device *rdev, struct radeon_ring *cp);
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *cp);

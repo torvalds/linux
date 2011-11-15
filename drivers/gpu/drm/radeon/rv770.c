@@ -1110,6 +1110,17 @@ static int rv770_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = radeon_ib_pool_start(rdev);
+	if (r)
+		return r;
+
+	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "IB test failed (%d).\n", r);
+		rdev->accel_working = false;
+		return r;
+	}
+
 	return 0;
 }
 
@@ -1124,15 +1135,10 @@ int rv770_resume(struct radeon_device *rdev)
 	/* post card */
 	atom_asic_init(rdev->mode_info.atom_context);
 
+	rdev->accel_working = true;
 	r = rv770_startup(rdev);
 	if (r) {
 		DRM_ERROR("r600 startup failed on resume\n");
-		return r;
-	}
-
-	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
-	if (r) {
-		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		return r;
 	}
 
@@ -1149,13 +1155,14 @@ int rv770_resume(struct radeon_device *rdev)
 int rv770_suspend(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
+	radeon_ib_pool_suspend(rdev);
+	r600_blit_suspend(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	r600_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	rv770_pcie_gart_disable(rdev);
-	r600_blit_suspend(rdev);
 
 	return 0;
 }
@@ -1234,29 +1241,23 @@ int rv770_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = radeon_ib_pool_init(rdev);
 	rdev->accel_working = true;
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
+		rdev->accel_working = false;
+	}
+
 	r = rv770_startup(rdev);
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");
 		r700_cp_fini(rdev);
 		r600_irq_fini(rdev);
 		radeon_wb_fini(rdev);
+		r100_ib_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		rv770_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
-	}
-	if (rdev->accel_working) {
-		r = radeon_ib_pool_init(rdev);
-		if (r) {
-			dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
-			rdev->accel_working = false;
-		} else {
-			r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
-			if (r) {
-				dev_err(rdev->dev, "IB test failed (%d).\n", r);
-				rdev->accel_working = false;
-			}
-		}
 	}
 
 	r = r600_audio_init(rdev);
@@ -1274,7 +1275,7 @@ void rv770_fini(struct radeon_device *rdev)
 	r700_cp_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_wb_fini(rdev);
-	radeon_ib_pool_fini(rdev);
+	r100_ib_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);

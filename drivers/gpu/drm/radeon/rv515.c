@@ -408,9 +408,15 @@ static int rv515_startup(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed initializing CP (%d).\n", r);
 		return r;
 	}
-	r = r100_ib_init(rdev);
+
+	r = radeon_ib_pool_start(rdev);
+	if (r)
+		return r;
+
+	r = r100_ib_test(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failed initializing IB (%d).\n", r);
+		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
+		rdev->accel_working = false;
 		return r;
 	}
 	return 0;
@@ -435,6 +441,8 @@ int rv515_resume(struct radeon_device *rdev)
 	rv515_clock_startup(rdev);
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
+
+	rdev->accel_working = true;
 	return rv515_startup(rdev);
 }
 
@@ -531,7 +539,14 @@ int rv515_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	rv515_set_safe_registers(rdev);
+
+	r = radeon_ib_pool_init(rdev);
 	rdev->accel_working = true;
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
+		rdev->accel_working = false;
+	}
+
 	r = rv515_startup(rdev);
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */

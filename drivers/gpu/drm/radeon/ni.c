@@ -1453,6 +1453,17 @@ static int cayman_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = radeon_ib_pool_start(rdev);
+	if (r)
+		return r;
+
+	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	if (r) {
+		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
+		rdev->accel_working = false;
+		return r;
+	}
+
 	return 0;
 }
 
@@ -1467,32 +1478,25 @@ int cayman_resume(struct radeon_device *rdev)
 	/* post card */
 	atom_asic_init(rdev->mode_info.atom_context);
 
+	rdev->accel_working = true;
 	r = cayman_startup(rdev);
 	if (r) {
 		DRM_ERROR("cayman startup failed on resume\n");
 		return r;
 	}
-
-	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
-	if (r) {
-		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
-		return r;
-	}
-
 	return r;
-
 }
 
 int cayman_suspend(struct radeon_device *rdev)
 {
 	/* FIXME: we should wait for ring to be empty */
+	radeon_ib_pool_suspend(rdev);
+	r600_blit_suspend(rdev);
 	cayman_cp_enable(rdev, false);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	evergreen_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	cayman_pcie_gart_disable(rdev);
-	r600_blit_suspend(rdev);
-
 	return 0;
 }
 
@@ -1567,28 +1571,23 @@ int cayman_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = radeon_ib_pool_init(rdev);
 	rdev->accel_working = true;
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
+		rdev->accel_working = false;
+	}
+
 	r = cayman_startup(rdev);
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");
 		cayman_cp_fini(rdev);
 		r600_irq_fini(rdev);
 		radeon_wb_fini(rdev);
+		r100_ib_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		cayman_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
-	}
-	if (rdev->accel_working) {
-		r = radeon_ib_pool_init(rdev);
-		if (r) {
-			DRM_ERROR("radeon: failed initializing IB pool (%d).\n", r);
-			rdev->accel_working = false;
-		}
-		r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
-		if (r) {
-			DRM_ERROR("radeon: failed testing IB (%d).\n", r);
-			rdev->accel_working = false;
-		}
 	}
 
 	/* Don't start up if the MC ucode is missing.
@@ -1609,7 +1608,7 @@ void cayman_fini(struct radeon_device *rdev)
 	cayman_cp_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_wb_fini(rdev);
-	radeon_ib_pool_fini(rdev);
+	r100_ib_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	cayman_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);

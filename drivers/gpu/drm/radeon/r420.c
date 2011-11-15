@@ -274,11 +274,18 @@ static int r420_startup(struct radeon_device *rdev)
 		return r;
 	}
 	r420_cp_errata_init(rdev);
-	r = r100_ib_init(rdev);
+
+	r = radeon_ib_pool_start(rdev);
+	if (r)
+		return r;
+
+	r = r100_ib_test(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failed initializing IB (%d).\n", r);
+		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
+		rdev->accel_working = false;
 		return r;
 	}
+
 	return 0;
 }
 
@@ -307,11 +314,14 @@ int r420_resume(struct radeon_device *rdev)
 	r420_clock_resume(rdev);
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
+
+	rdev->accel_working = true;
 	return r420_startup(rdev);
 }
 
 int r420_suspend(struct radeon_device *rdev)
 {
+	radeon_ib_pool_suspend(rdev);
 	r420_cp_errata_fini(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
@@ -424,7 +434,14 @@ int r420_init(struct radeon_device *rdev)
 			return r;
 	}
 	r420_set_reg_safe(rdev);
+
+	r = radeon_ib_pool_init(rdev);
 	rdev->accel_working = true;
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
+		rdev->accel_working = false;
+	}
+
 	r = r420_startup(rdev);
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */

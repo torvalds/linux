@@ -109,7 +109,7 @@ bool r100_gpu_cp_is_lockup(struct radeon_device *rdev,
 			   struct r100_gpu_lockup *lockup,
 			   struct radeon_ring *cp);
 void r100_ib_fini(struct radeon_device *rdev);
-int r100_ib_init(struct radeon_device *rdev);
+int r100_ib_test(struct radeon_device *rdev);
 void r100_irq_disable(struct radeon_device *rdev);
 void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save);
 void r100_mc_resume(struct radeon_device *rdev, struct r100_mc_save *save);

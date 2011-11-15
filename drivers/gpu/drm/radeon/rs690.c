@@ -636,15 +636,21 @@ static int rs690_startup(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed initializing CP (%d).\n", r);
 		return r;
 	}
-	r = r100_ib_init(rdev);
-	if (r) {
-		dev_err(rdev->dev, "failed initializing IB (%d).\n", r);
-		return r;
-	}
 
 	r = r600_audio_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "failed initializing audio\n");
+		return r;
+	}
+
+	r = radeon_ib_pool_start(rdev);
+	if (r)
+		return r;
+
+	r = r100_ib_test(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
+		rdev->accel_working = false;
 		return r;
 	}
 
@@ -669,11 +675,14 @@ int rs690_resume(struct radeon_device *rdev)
 	rv515_clock_startup(rdev);
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
+
+	rdev->accel_working = true;
 	return rs690_startup(rdev);
 }
 
 int rs690_suspend(struct radeon_device *rdev)
 {
+	radeon_ib_pool_suspend(rdev);
 	r600_audio_fini(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
@@ -755,7 +764,14 @@ int rs690_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	rs600_set_safe_registers(rdev);
+
+	r = radeon_ib_pool_init(rdev);
 	rdev->accel_working = true;
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
+		rdev->accel_working = false;
+	}
+
 	r = rs690_startup(rdev);
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
