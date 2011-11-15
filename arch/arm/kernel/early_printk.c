@@ -11,30 +11,28 @@
 #include <linux/kernel.h>
 #include <linux/console.h>
 #include <linux/init.h>
+#include <mach/platform.h>
 
-extern void printch(int);
 
-static void early_write(const char *s, unsigned n)
+void sw_put_char(u8 val)
 {
-	while (n-- > 0) {
-		if (*s == '\n')
-			printch('\r');
-		printch(*s);
-		s++;
+	while ((SW_UART0_USR & 0x2) == 0);
+		SW_UART0_THR = val;
+}
+
+void sw_put_string(char *buf, int n)
+{
+	int len = n;
+	int i;
+
+	for (i=0; i<len; i++) {
+		sw_put_char(buf[i]);
 	}
+	sw_put_char('\r');
+	sw_put_char('\n');
 }
 
-static void early_console_write(struct console *con, const char *s, unsigned n)
-{
-	early_write(s, n);
-}
 
-static struct console early_console = {
-	.name =		"earlycon",
-	.write =	early_console_write,
-	.flags =	CON_PRINTBUFFER | CON_BOOT,
-	.index =	-1,
-};
 
 asmlinkage void early_printk(const char *fmt, ...)
 {
@@ -44,14 +42,7 @@ asmlinkage void early_printk(const char *fmt, ...)
 
 	va_start(ap, fmt);
 	n = vscnprintf(buf, sizeof(buf), fmt, ap);
-	early_write(buf, n);
+	sw_put_string(buf, n);
 	va_end(ap);
 }
 
-static int __init setup_early_printk(char *buf)
-{
-	register_console(&early_console);
-	return 0;
-}
-
-early_param("earlyprintk", setup_early_printk);

@@ -74,7 +74,6 @@ config DEBUG_LL
 
 config EARLY_PRINTK
 	bool "Early printk"
-	depends on DEBUG_LL
 	help
 	  Say Y here if you want to have an early console using the
 	  kernel low-level debugging functions. Add earlyprintk to your

@@ -634,6 +634,17 @@ config I2C_STU300
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-stu300.
 
+config I2C_SUN4I
+        tristate "Allwinner Technology SUN4I I2C interface"
+        depends on ARCH_SUN4I
+        default y if MACH_SUN4I
+        help
+          If you say yes to this option, support will be included for the
+          I2C interface from Allwinner Technology sun4i platform.
+
+          This driver can also be built as a module. If so, the module
+          will be called i2c-sun4i.
+
 config I2C_TEGRA
 	tristate "NVIDIA Tegra internal I2C controller"
 	depends on ARCH_TEGRA

@@ -3467,4 +3467,13 @@ config VMXNET3
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmxnet3.
 
+config WEMAC_SUN4I
+        tristate "wemac support(sun4i)"
+        depends on ARCH_SUN4I
+        ---help---
+          Support for Softwinner chipset.
+
+          To compile this driver as a module, choose M here.  The module
+          will be called wemac.
+
 endif # NETDEVICES

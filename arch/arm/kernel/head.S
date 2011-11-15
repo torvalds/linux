@@ -22,6 +22,7 @@
 #include <asm/thread_info.h>
 #include <asm/system.h>
 
+#include <mach/entry-macro.S>
 #ifdef CONFIG_DEBUG_LL
 #include <mach/debug-macro.S>
 #endif
@@ -73,6 +74,16 @@
  */
 	__HEAD
 ENTRY(stext)
+	mov	r0, #0
+	b	_real_start
+
+1:	.long 0xda7
+	.long 0x40000000
+
+_real_start:
+	adr	r4, 1b
+	ldmia	r4, {r1, r2}
+
 	setmode	PSR_F_BIT | PSR_I_BIT | SVC_MODE, r9 @ ensure svc mode
 						@ and irqs disabled
 	mrc	p15, 0, r9, c0, c0		@ get processor id
@@ -179,6 +190,11 @@ __create_page_tables:
 	mov	r3, pc
 	mov	r3, r3, lsr #20
 	orr	r3, r7, r3, lsl #20
+
+	add     r0, r4,  #((0x3000000 + KERNEL_START) & 0xff000000) >> 18
+	add     r6, r3, #48 << 20
+	str     r6, [r0, #((0x3000000 + KERNEL_START) & 0x00f00000) >> 18]
+
 	add	r0, r4,  #(KERNEL_START & 0xff000000) >> 18
 	str	r3, [r0, #(KERNEL_START & 0x00f00000) >> 18]!
 	ldr	r6, =(KERNEL_END - 1)
@@ -219,6 +235,26 @@ __create_page_tables:
 	orr	r6, r7, r0
 	str	r6, [r3]
 
+	/*
+	 * map io space(3MB is enough on our platform)
+	 *
+	 */
+	getioaddr r7, r3
+
+	mov	r3, r3, lsr #20
+	mov	r3, r3, lsl #2
+
+	add	r0, r4, r3
+	add	r6, r0, #0xc
+
+	mov	r3, r7, lsr #20
+	ldr	r7, [r10, #PROCINFO_IO_MMUFLAGS] @ io_mmuflags
+	orr	r3, r7, r3, lsl #20
+1:	str	r3, [r0], #4
+	add	r3, r3, #1 << 20
+	teq	r0, r6
+	bne	1b
+	
 #ifdef CONFIG_DEBUG_LL
 #ifndef CONFIG_DEBUG_ICEDCC
 	/*
