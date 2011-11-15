@@ -1501,6 +1501,8 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 
 	__skb_pull(skb2, offset);
 	skb_reset_transport_header(skb2);
+	skb_postpull_rcsum(skb2, skb_network_header(skb2),
+			   skb_network_header_len(skb2));
 
 	icmp6_type = icmp6_hdr(skb2)->icmp6_type;
 
