@@ -966,6 +966,12 @@ config RTC_DRV_TX4939
 	  Driver for the internal RTC (Realtime Clock) module found on
 	  Toshiba TX4939 SoC.
 
+config RTC_DRV_SUN4I
+	tristate "sun4i rtc driver"
+	depends on ARCH_SUN4I
+	help
+	  sun4i rtc driver
+
 config RTC_DRV_MV
 	tristate "Marvell SoC RTC"
 	depends on ARCH_KIRKWOOD || ARCH_DOVE
