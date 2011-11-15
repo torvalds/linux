@@ -41,7 +41,7 @@
  * |     dss_cache      |
  * +--------------------+
  *          v
- *      configure()
+ *      write_regs()
  *          v
  * +--------------------+
  * |  shadow registers  |
@@ -237,65 +237,63 @@ int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 	return r;
 }
 
-static int configure_overlay(enum omap_plane plane)
+static int dss_ovl_write_regs(struct omap_overlay *ovl)
 {
-	struct omap_overlay *ovl;
 	struct overlay_cache_data *c;
 	struct omap_overlay_info *oi;
 	bool ilace, replication;
 	int r;
 
-	DSSDBGF("%d", plane);
+	DSSDBGF("%d", ovl->id);
 
-	c = &dss_cache.overlay_cache[plane];
+	c = &dss_cache.overlay_cache[ovl->id];
 	oi = &c->info;
 
 	if (!c->enabled) {
-		dispc_ovl_enable(plane, 0);
+		dispc_ovl_enable(ovl->id, 0);
 		return 0;
 	}
-
-	ovl = omap_dss_get_overlay(plane);
 
 	replication = dss_use_replication(ovl->manager->device, oi->color_mode);
 
 	ilace = ovl->manager->device->type == OMAP_DISPLAY_TYPE_VENC;
 
-	dispc_ovl_set_channel_out(plane, c->channel);
+	dispc_ovl_set_channel_out(ovl->id, c->channel);
 
-	r = dispc_ovl_setup(plane, oi, ilace, replication);
+	r = dispc_ovl_setup(ovl->id, oi, ilace, replication);
 	if (r) {
 		/* this shouldn't happen */
-		DSSERR("dispc_ovl_setup failed for ovl %d\n", plane);
-		dispc_ovl_enable(plane, 0);
+		DSSERR("dispc_ovl_setup failed for ovl %d\n", ovl->id);
+		dispc_ovl_enable(ovl->id, 0);
 		return r;
 	}
 
-	dispc_ovl_set_fifo_threshold(plane, c->fifo_low, c->fifo_high);
+	dispc_ovl_set_fifo_threshold(ovl->id, c->fifo_low, c->fifo_high);
 
-	dispc_ovl_enable(plane, 1);
+	dispc_ovl_enable(ovl->id, 1);
 
 	return 0;
 }
 
-static void configure_manager(enum omap_channel channel)
+static void dss_mgr_write_regs(struct omap_overlay_manager *mgr)
 {
 	struct omap_overlay_manager_info *mi;
 
-	DSSDBGF("%d", channel);
+	DSSDBGF("%d", mgr->id);
 
-	/* picking info from the cache */
-	mi = &dss_cache.manager_cache[channel].info;
+	mi = &dss_cache.manager_cache[mgr->id].info;
 
-	dispc_mgr_setup(channel, mi);
+	dispc_mgr_setup(mgr->id, mi);
 }
 
-/* configure_dispc() tries to write values from cache to shadow registers.
+/* dss_write_regs() tries to write values from cache to shadow registers.
  * It writes only to those managers/overlays that are not busy.
  * returns 0 if everything could be written to shadow registers.
  * returns 1 if not everything could be written to shadow registers. */
-static int configure_dispc(void)
+static int dss_write_regs(void)
 {
+	struct omap_overlay *ovl;
+	struct omap_overlay_manager *mgr;
 	struct overlay_cache_data *oc;
 	struct manager_cache_data *mc;
 	const int num_ovls = dss_feat_get_num_ovls();
@@ -316,6 +314,7 @@ static int configure_dispc(void)
 
 	/* Commit overlay settings */
 	for (i = 0; i < num_ovls; ++i) {
+		ovl = omap_dss_get_overlay(i);
 		oc = &dss_cache.overlay_cache[i];
 		mc = &dss_cache.manager_cache[oc->channel];
 
@@ -330,9 +329,9 @@ static int configure_dispc(void)
 			continue;
 		}
 
-		r = configure_overlay(i);
+		r = dss_ovl_write_regs(ovl);
 		if (r)
-			DSSERR("configure_overlay %d failed\n", i);
+			DSSERR("dss_ovl_write_regs %d failed\n", i);
 
 		oc->dirty = false;
 		oc->shadow_dirty = true;
@@ -341,6 +340,7 @@ static int configure_dispc(void)
 
 	/* Commit manager settings */
 	for (i = 0; i < num_mgrs; ++i) {
+		mgr = omap_dss_get_overlay_manager(i);
 		mc = &dss_cache.manager_cache[i];
 
 		if (!mc->dirty)
@@ -354,7 +354,7 @@ static int configure_dispc(void)
 			continue;
 		}
 
-		configure_manager(i);
+		dss_mgr_write_regs(mgr);
 		mc->dirty = false;
 		mc->shadow_dirty = true;
 		mgr_go[i] = true;
@@ -391,7 +391,7 @@ void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 	mc = &dss_cache.manager_cache[mgr->id];
 
 	mc->do_manual_update = true;
-	configure_dispc();
+	dss_write_regs();
 	mc->do_manual_update = false;
 
 	list_for_each_entry(ovl, &mgr->overlays, list) {
@@ -465,7 +465,7 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 			mc->shadow_dirty = false;
 	}
 
-	r = configure_dispc();
+	r = dss_write_regs();
 	if (r == 1)
 		goto end;
 
@@ -623,7 +623,7 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 		if (!dss_cache.irq_enabled)
 			dss_register_vsync_isr();
 
-		configure_dispc();
+		dss_write_regs();
 	}
 
 	spin_unlock_irqrestore(&dss_cache.lock, flags);
