@@ -352,8 +352,6 @@ struct omap_dss_cpr_coefs {
 };
 
 struct omap_overlay_info {
-	bool enabled;
-
 	u32 paddr;
 	u32 p_uv_addr;  /* for NV12 format */
 	u16 screen_width;
@@ -390,6 +388,10 @@ struct omap_overlay {
 	bool manager_changed;
 	/* if true, info has been changed, but not applied() yet */
 	bool info_dirty;
+
+	int (*enable)(struct omap_overlay *ovl);
+	int (*disable)(struct omap_overlay *ovl);
+	bool (*is_enabled)(struct omap_overlay *ovl);
 
 	int (*set_manager)(struct omap_overlay *ovl,
 		struct omap_overlay_manager *mgr);

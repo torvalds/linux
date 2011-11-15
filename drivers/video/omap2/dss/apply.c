@@ -63,14 +63,18 @@ struct ovl_priv_data {
 	 * VSYNC/EVSYNC */
 	bool shadow_dirty;
 
-	bool enabled;
-
 	struct omap_overlay_info info;
 
 	enum omap_channel channel;
 
 	u32 fifo_low;
 	u32 fifo_high;
+
+	bool extra_info_dirty;
+	bool shadow_extra_info_dirty;
+
+	bool enabled;
+
 };
 
 struct mgr_priv_data {
@@ -130,11 +134,6 @@ static bool ovl_manual_update(struct omap_overlay *ovl)
 static bool mgr_manual_update(struct omap_overlay_manager *mgr)
 {
 	return mgr->device->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
-}
-
-static int overlay_enabled(struct omap_overlay *ovl)
-{
-	return ovl->info.enabled && ovl->manager && ovl->manager->device;
 }
 
 int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
@@ -270,10 +269,8 @@ static int dss_ovl_write_regs(struct omap_overlay *ovl)
 	op = get_ovl_priv(ovl);
 	oi = &op->info;
 
-	if (!op->enabled) {
-		dispc_ovl_enable(ovl->id, 0);
+	if (!op->enabled)
 		return 0;
-	}
 
 	replication = dss_use_replication(ovl->manager->device, oi->color_mode);
 
@@ -291,9 +288,19 @@ static int dss_ovl_write_regs(struct omap_overlay *ovl)
 
 	dispc_ovl_set_fifo_threshold(ovl->id, op->fifo_low, op->fifo_high);
 
-	dispc_ovl_enable(ovl->id, 1);
-
 	return 0;
+}
+
+static void dss_ovl_write_regs_extra(struct omap_overlay *ovl)
+{
+	struct ovl_priv_data *op = get_ovl_priv(ovl);
+
+	DSSDBGF("%d", ovl->id);
+
+	/* note: write also when op->enabled == false, so that the ovl gets
+	 * disabled */
+
+	dispc_ovl_enable(ovl->id, op->enabled);
 }
 
 static void dss_mgr_write_regs(struct omap_overlay_manager *mgr)
@@ -353,6 +360,30 @@ static int dss_write_regs(void)
 
 		op->dirty = false;
 		op->shadow_dirty = true;
+		mgr_go[op->channel] = true;
+	}
+
+	for (i = 0; i < num_ovls; ++i) {
+		ovl = omap_dss_get_overlay(i);
+		op = get_ovl_priv(ovl);
+
+		if (!op->extra_info_dirty)
+			continue;
+
+		mp = get_mgr_priv(ovl->manager);
+
+		if (mp->manual_update && !mp->do_manual_update)
+			continue;
+
+		if (mp->busy) {
+			busy = true;
+			continue;
+		}
+
+		dss_ovl_write_regs_extra(ovl);
+
+		op->extra_info_dirty = false;
+		op->shadow_extra_info_dirty = true;
 		mgr_go[op->channel] = true;
 	}
 
@@ -419,6 +450,7 @@ void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 	list_for_each_entry(ovl, &mgr->overlays, list) {
 		op = get_ovl_priv(ovl);
 		op->shadow_dirty = false;
+		op->shadow_extra_info_dirty = false;
 	}
 
 	mp->shadow_dirty = false;
@@ -490,8 +522,10 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 
 		mp = get_mgr_priv(ovl->manager);
 
-		if (!mp->busy)
+		if (!mp->busy) {
 			op->shadow_dirty = false;
+			op->shadow_extra_info_dirty = false;
+		}
 	}
 
 	for (i = 0; i < num_mgrs; ++i) {
@@ -541,14 +575,6 @@ static void omap_dss_mgr_apply_ovl(struct omap_overlay *ovl)
 		ovl->info_dirty  = true;
 	}
 
-	if (!overlay_enabled(ovl)) {
-		if (op->enabled) {
-			op->enabled = false;
-			op->dirty = true;
-		}
-		return;
-	}
-
 	if (!ovl->info_dirty)
 		return;
 
@@ -557,8 +583,6 @@ static void omap_dss_mgr_apply_ovl(struct omap_overlay *ovl)
 	op->info = ovl->info;
 
 	op->channel = ovl->manager->id;
-
-	op->enabled = true;
 }
 
 static void omap_dss_mgr_apply_mgr(struct omap_overlay_manager *mgr)
@@ -592,9 +616,6 @@ static void omap_dss_mgr_apply_ovl_fifos(struct omap_overlay *ovl)
 	u32 size, burst_size;
 
 	op = get_ovl_priv(ovl);
-
-	if (!op->enabled)
-		return;
 
 	dssdev = ovl->manager->device;
 
@@ -828,6 +849,8 @@ void dss_ovl_get_info(struct omap_overlay *ovl,
 int dss_ovl_set_manager(struct omap_overlay *ovl,
 		struct omap_overlay_manager *mgr)
 {
+	struct ovl_priv_data *op = get_ovl_priv(ovl);
+	unsigned long flags;
 	int r;
 
 	if (!mgr)
@@ -842,7 +865,10 @@ int dss_ovl_set_manager(struct omap_overlay *ovl,
 		goto err;
 	}
 
-	if (ovl->info.enabled) {
+	spin_lock_irqsave(&data_lock, flags);
+
+	if (op->enabled) {
+		spin_unlock_irqrestore(&data_lock, flags);
 		DSSERR("overlay has to be disabled to change the manager\n");
 		r = -EINVAL;
 		goto err;
@@ -851,6 +877,8 @@ int dss_ovl_set_manager(struct omap_overlay *ovl,
 	ovl->manager = mgr;
 	list_add_tail(&ovl->list, &mgr->overlays);
 	ovl->manager_changed = true;
+
+	spin_unlock_irqrestore(&data_lock, flags);
 
 	/* XXX: When there is an overlay on a DSI manual update display, and
 	 * the overlay is first disabled, then moved to tv, and enabled, we
@@ -875,6 +903,8 @@ err:
 
 int dss_ovl_unset_manager(struct omap_overlay *ovl)
 {
+	struct ovl_priv_data *op = get_ovl_priv(ovl);
+	unsigned long flags;
 	int r;
 
 	mutex_lock(&apply_lock);
@@ -885,7 +915,10 @@ int dss_ovl_unset_manager(struct omap_overlay *ovl)
 		goto err;
 	}
 
-	if (ovl->info.enabled) {
+	spin_lock_irqsave(&data_lock, flags);
+
+	if (op->enabled) {
+		spin_unlock_irqrestore(&data_lock, flags);
 		DSSERR("overlay has to be disabled to unset the manager\n");
 		r = -EINVAL;
 		goto err;
@@ -895,9 +928,83 @@ int dss_ovl_unset_manager(struct omap_overlay *ovl)
 	list_del(&ovl->list);
 	ovl->manager_changed = true;
 
+	spin_unlock_irqrestore(&data_lock, flags);
+
 	mutex_unlock(&apply_lock);
 
 	return 0;
+err:
+	mutex_unlock(&apply_lock);
+	return r;
+}
+
+bool dss_ovl_is_enabled(struct omap_overlay *ovl)
+{
+	struct ovl_priv_data *op = get_ovl_priv(ovl);
+	unsigned long flags;
+	bool e;
+
+	spin_lock_irqsave(&data_lock, flags);
+
+	e = op->enabled;
+
+	spin_unlock_irqrestore(&data_lock, flags);
+
+	return e;
+}
+
+int dss_ovl_enable(struct omap_overlay *ovl)
+{
+	struct ovl_priv_data *op = get_ovl_priv(ovl);
+	unsigned long flags;
+	int r;
+
+	mutex_lock(&apply_lock);
+
+	if (ovl->manager == NULL || ovl->manager->device == NULL) {
+		r = -EINVAL;
+		goto err;
+	}
+
+	spin_lock_irqsave(&data_lock, flags);
+
+	op->enabled = true;
+	op->extra_info_dirty = true;
+
+	spin_unlock_irqrestore(&data_lock, flags);
+
+	mutex_unlock(&apply_lock);
+
+	return 0;
+err:
+	mutex_unlock(&apply_lock);
+	return r;
+}
+
+int dss_ovl_disable(struct omap_overlay *ovl)
+{
+	struct ovl_priv_data *op = get_ovl_priv(ovl);
+	unsigned long flags;
+	int r;
+
+	mutex_lock(&apply_lock);
+
+	if (ovl->manager == NULL || ovl->manager->device == NULL) {
+		r = -EINVAL;
+		goto err;
+	}
+
+	spin_lock_irqsave(&data_lock, flags);
+
+	op->enabled = false;
+	op->extra_info_dirty = true;
+
+	spin_unlock_irqrestore(&data_lock, flags);
+
+	mutex_unlock(&apply_lock);
+
+	return 0;
+
 err:
 	mutex_unlock(&apply_lock);
 	return r;

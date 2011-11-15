@@ -205,7 +205,7 @@ static ssize_t overlay_output_size_store(struct omap_overlay *ovl,
 
 static ssize_t overlay_enabled_show(struct omap_overlay *ovl, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ovl->info.enabled);
+	return snprintf(buf, PAGE_SIZE, "%d\n", ovl->is_enabled(ovl));
 }
 
 static ssize_t overlay_enabled_store(struct omap_overlay *ovl, const char *buf,
@@ -213,25 +213,18 @@ static ssize_t overlay_enabled_store(struct omap_overlay *ovl, const char *buf,
 {
 	int r;
 	bool enable;
-	struct omap_overlay_info info;
-
-	ovl->get_overlay_info(ovl, &info);
 
 	r = strtobool(buf, &enable);
 	if (r)
 		return r;
 
-	info.enabled = enable;
+	if (enable)
+		r = ovl->enable(ovl);
+	else
+		r = ovl->disable(ovl);
 
-	r = ovl->set_overlay_info(ovl, &info);
 	if (r)
 		return r;
-
-	if (ovl->manager) {
-		r = ovl->manager->apply(ovl->manager);
-		if (r)
-			return r;
-	}
 
 	return size;
 }
@@ -489,6 +482,9 @@ void dss_init_overlays(struct platform_device *pdev)
 			break;
 		}
 
+		ovl->is_enabled = &dss_ovl_is_enabled;
+		ovl->enable = &dss_ovl_enable;
+		ovl->disable = &dss_ovl_disable;
 		ovl->set_manager = &dss_ovl_set_manager;
 		ovl->unset_manager = &dss_ovl_unset_manager;
 		ovl->set_overlay_info = &dss_ovl_set_info;

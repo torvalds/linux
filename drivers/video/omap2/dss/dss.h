@@ -180,6 +180,9 @@ int dss_mgr_set_device(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dssdev);
 int dss_mgr_unset_device(struct omap_overlay_manager *mgr);
 
+bool dss_ovl_is_enabled(struct omap_overlay *ovl);
+int dss_ovl_enable(struct omap_overlay *ovl);
+int dss_ovl_disable(struct omap_overlay *ovl);
 int dss_ovl_set_info(struct omap_overlay *ovl,
 		struct omap_overlay_info *info);
 void dss_ovl_get_info(struct omap_overlay *ovl,

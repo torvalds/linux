@@ -2067,6 +2067,8 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 		if (ofbi->num_overlays > 0) {
 			struct omap_overlay *ovl = ofbi->overlays[0];
 
+			ovl->manager->apply(ovl->manager);
+
 			r = omapfb_overlay_enable(ovl, 1);
 
 			if (r) {
