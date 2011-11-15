@@ -2592,22 +2592,6 @@ static inline int netif_is_bond_slave(struct net_device *dev)
 
 extern struct pernet_operations __net_initdata loopback_net_ops;
 
-static inline u32 dev_ethtool_get_rx_csum(struct net_device *dev)
-{
-	if (dev->features & NETIF_F_RXCSUM)
-		return 1;
-	if (!dev->ethtool_ops || !dev->ethtool_ops->get_rx_csum)
-		return 0;
-	return dev->ethtool_ops->get_rx_csum(dev);
-}
-
-static inline u32 dev_ethtool_get_flags(struct net_device *dev)
-{
-	if (!dev->ethtool_ops || !dev->ethtool_ops->get_flags)
-		return 0;
-	return dev->ethtool_ops->get_flags(dev);
-}
-
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 
 /* netdev_printk helpers, similar to dev_printk */
