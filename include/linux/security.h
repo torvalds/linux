@@ -2044,7 +2044,7 @@ static inline void security_inode_free(struct inode *inode)
 static inline int security_inode_init_security(struct inode *inode,
 						struct inode *dir,
 						const struct qstr *qstr,
-						initxattrs initxattrs,
+						const initxattrs initxattrs,
 						void *fs_data)
 {
 	return 0;
