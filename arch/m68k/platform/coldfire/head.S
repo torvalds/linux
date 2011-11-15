@@ -143,6 +143,9 @@ __HEAD
 _start:
 	nop					/* filler */
 	movew	#0x2700, %sr			/* no interrupts */
+	movel	#CACHE_INIT,%d0			/* disable cache */
+	movec	%d0,%CACR
+	nop
 #if defined(CONFIG_UBOOT)
 	movel	%sp,_init_sp			/* save initial stack pointer */
 #endif
@@ -176,9 +179,6 @@ _start:
 	 *	it is very similar. Define the exact settings in the headers
 	 *	then the code here is the same for all.
 	 */
-	movel	#CACHE_INIT,%d0			/* invalidate whole cache */
-	movec	%d0,%CACR
-	nop
 	movel	#ACR0_MODE,%d0			/* set RAM region for caching */
 	movec	%d0,%ACR0
 	movel	#ACR1_MODE,%d0			/* anything else to cache? */
