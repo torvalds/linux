@@ -1241,18 +1241,20 @@ static void handle_device_notification(struct xhci_hcd *xhci,
 		union xhci_trb *event)
 {
 	u32 slot_id;
+	struct usb_device *udev;
 
 	slot_id = TRB_TO_SLOT_ID(event->generic.field[3]);
-	if (!xhci->devs[slot_id])
+	if (!xhci->devs[slot_id]) {
 		xhci_warn(xhci, "Device Notification event for "
 				"unused slot %u\n", slot_id);
-	else
-		xhci_dbg(xhci, "Device Notification event for slot ID %u\n",
-				slot_id);
-	/* XXX should we kick khubd for the parent hub?  It should have send an
-	 * interrupt transfer when the port started signaling resume, so there's
-	 * probably no need to do so.
-	 */
+		return;
+	}
+
+	xhci_dbg(xhci, "Device Wake Notification event for slot ID %u\n",
+			slot_id);
+	udev = xhci->devs[slot_id]->udev;
+	if (udev && udev->parent)
+		usb_wakeup_notification(udev->parent, udev->portnum);
 }
 
 static void handle_port_status(struct xhci_hcd *xhci,
@@ -1340,6 +1342,11 @@ static void handle_port_status(struct xhci_hcd *xhci,
 
 		if (DEV_SUPERSPEED(temp)) {
 			xhci_dbg(xhci, "remote wake SS port %d\n", port_id);
+			/* Set a flag to say the port signaled remote wakeup,
+			 * so we can tell the difference between the end of
+			 * device and host initiated resume.
+			 */
+			bus_state->port_remote_wakeup |= 1 << faked_port_index;
 			xhci_test_and_clear_bit(xhci, port_array,
 					faked_port_index, PORT_PLC);
 			xhci_set_link_state(xhci, port_array, faked_port_index,
@@ -1362,10 +1369,27 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	if ((temp & PORT_PLC) && (temp & PORT_PLS_MASK) == XDEV_U0 &&
 			DEV_SUPERSPEED(temp)) {
 		xhci_dbg(xhci, "resume SS port %d finished\n", port_id);
+		/* We've just brought the device into U0 through either the
+		 * Resume state after a device remote wakeup, or through the
+		 * U3Exit state after a host-initiated resume.  If it's a device
+		 * initiated remote wake, don't pass up the link state change,
+		 * so the roothub behavior is consistent with external
+		 * USB 3.0 hub behavior.
+		 */
 		slot_id = xhci_find_slot_id_by_port(hcd, xhci,
 				faked_port_index + 1);
 		if (slot_id && xhci->devs[slot_id])
 			xhci_ring_device(xhci, slot_id);
+		if (bus_state->port_remote_wakeup && (1 << faked_port_index)) {
+			bus_state->port_remote_wakeup &=
+				~(1 << faked_port_index);
+			xhci_test_and_clear_bit(xhci, port_array,
+					faked_port_index, PORT_PLC);
+			usb_wakeup_notification(hcd->self.root_hub,
+					faked_port_index + 1);
+			bogus_port_status = true;
+			goto cleanup;
+		}
 	}
 
 	if (hcd->speed != HCD_USB3)

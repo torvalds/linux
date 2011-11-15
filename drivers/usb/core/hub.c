@@ -62,6 +62,8 @@ struct usb_hub {
 							resumed */
 	unsigned long		removed_bits[1]; /* ports with a "removed"
 							device present */
+	unsigned long		wakeup_bits[1];	/* ports that have signaled
+							remote wakeup */
 #if USB_MAXCHILDREN > 31 /* 8*sizeof(unsigned long) - 1 */
 #error event_bits[] is too short!
 #endif
@@ -411,6 +413,29 @@ void usb_kick_khubd(struct usb_device *hdev)
 		kick_khubd(hub);
 }
 
+/*
+ * Let the USB core know that a USB 3.0 device has sent a Function Wake Device
+ * Notification, which indicates it had initiated remote wakeup.
+ *
+ * USB 3.0 hubs do not report the port link state change from U3 to U0 when the
+ * device initiates resume, so the USB core will not receive notice of the
+ * resume through the normal hub interrupt URB.
+ */
+void usb_wakeup_notification(struct usb_device *hdev,
+		unsigned int portnum)
+{
+	struct usb_hub *hub;
+
+	if (!hdev)
+		return;
+
+	hub = hdev_to_hub(hdev);
+	if (hub) {
+		set_bit(portnum, hub->wakeup_bits);
+		kick_khubd(hub);
+	}
+}
+EXPORT_SYMBOL_GPL(usb_wakeup_notification);
 
 /* completion function, fires on port status changes and various faults */
 static void hub_irq(struct urb *urb)
@@ -807,12 +832,6 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 			clear_port_feature(hub->hdev, port1,
 					USB_PORT_FEAT_C_ENABLE);
 		}
-		if (portchange & USB_PORT_STAT_C_LINK_STATE) {
-			need_debounce_delay = true;
-			clear_port_feature(hub->hdev, port1,
-					USB_PORT_FEAT_C_PORT_LINK_STATE);
-		}
-
 		if ((portchange & USB_PORT_STAT_C_BH_RESET) &&
 				hub_is_superspeed(hub->hdev)) {
 			need_debounce_delay = true;
@@ -3498,11 +3517,18 @@ static int hub_handle_remote_wakeup(struct usb_hub *hub, unsigned int port,
 	int ret;
 
 	hdev = hub->hdev;
-	if (!(portchange & USB_PORT_STAT_C_SUSPEND))
-		return 0;
-	clear_port_feature(hdev, port, USB_PORT_FEAT_C_SUSPEND);
-
 	udev = hdev->children[port-1];
+	if (!hub_is_superspeed(hdev)) {
+		if (!(portchange & USB_PORT_STAT_C_SUSPEND))
+			return 0;
+		clear_port_feature(hdev, port, USB_PORT_FEAT_C_SUSPEND);
+	} else {
+		if (!udev || udev->state != USB_STATE_SUSPENDED ||
+				!test_and_clear_bit(udev->portnum,
+					hub->wakeup_bits))
+			return 0;
+	}
+
 	if (udev) {
 		/* TRSMRCY = 10 msec */
 		msleep(10);
@@ -3533,7 +3559,7 @@ static void hub_events(void)
 	u16 portstatus;
 	u16 portchange;
 	int i, ret;
-	int connect_change;
+	int connect_change, wakeup_change;
 
 	/*
 	 *  We restart the list every time to avoid a deadlock with
@@ -3612,8 +3638,9 @@ static void hub_events(void)
 			if (test_bit(i, hub->busy_bits))
 				continue;
 			connect_change = test_bit(i, hub->change_bits);
+			wakeup_change = test_bit(i, hub->wakeup_bits);
 			if (!test_and_clear_bit(i, hub->event_bits) &&
-					!connect_change)
+					!connect_change && !wakeup_change)
 				continue;
 
 			ret = hub_port_status(hub, i,
