@@ -817,12 +817,13 @@ int qlcnic_change_mtu(struct net_device *netdev, int mtu)
 }
 
 
-u32 qlcnic_fix_features(struct net_device *netdev, u32 features)
+netdev_features_t qlcnic_fix_features(struct net_device *netdev,
+	netdev_features_t features)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 
 	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
-		u32 changed = features ^ netdev->features;
+		netdev_features_t changed = features ^ netdev->features;
 		features ^= changed & (NETIF_F_ALL_CSUM | NETIF_F_RXCSUM);
 	}
 
@@ -833,10 +834,10 @@ u32 qlcnic_fix_features(struct net_device *netdev, u32 features)
 }
 
 
-int qlcnic_set_features(struct net_device *netdev, u32 features)
+int qlcnic_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	u32 changed = netdev->features ^ features;
+	netdev_features_t changed = netdev->features ^ features;
 	int hw_lro = (features & NETIF_F_LRO) ? QLCNIC_LRO_ENABLED : 0;
 
 	if (!(changed & NETIF_F_LRO))

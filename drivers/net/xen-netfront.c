@@ -203,7 +203,7 @@ static void xennet_sysfs_delif(struct net_device *netdev);
 
 static int xennet_can_sg(struct net_device *dev)
 {
-	return dev->features & NETIF_F_SG;
+	return !!(dev->features & NETIF_F_SG);
 }
 
 
@@ -1190,7 +1190,8 @@ static void xennet_uninit(struct net_device *dev)
 	gnttab_free_grant_references(np->gref_rx_head);
 }
 
-static u32 xennet_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t xennet_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct netfront_info *np = netdev_priv(dev);
 	int val;
@@ -1216,7 +1217,8 @@ static u32 xennet_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int xennet_set_features(struct net_device *dev, u32 features)
+static int xennet_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	if (!(features & NETIF_F_SG) && dev->mtu > ETH_DATA_LEN) {
 		netdev_info(dev, "Reducing MTU because no SG offload");

@@ -2307,7 +2307,7 @@ static int ql_napi_poll_msix(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static void qlge_vlan_mode(struct net_device *ndev, u32 features)
+static void qlge_vlan_mode(struct net_device *ndev, netdev_features_t features)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 
@@ -2323,7 +2323,8 @@ static void qlge_vlan_mode(struct net_device *ndev, u32 features)
 	}
 }
 
-static u32 qlge_fix_features(struct net_device *ndev, u32 features)
+static netdev_features_t qlge_fix_features(struct net_device *ndev,
+	netdev_features_t features)
 {
 	/*
 	 * Since there is no support for separate rx/tx vlan accel
@@ -2337,9 +2338,10 @@ static u32 qlge_fix_features(struct net_device *ndev, u32 features)
 	return features;
 }
 
-static int qlge_set_features(struct net_device *ndev, u32 features)
+static int qlge_set_features(struct net_device *ndev,
+	netdev_features_t features)
 {
-	u32 changed = ndev->features ^ features;
+	netdev_features_t changed = ndev->features ^ features;
 
 	if (changed & NETIF_F_HW_VLAN_RX)
 		qlge_vlan_mode(ndev, features);

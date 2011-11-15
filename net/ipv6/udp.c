@@ -1300,7 +1300,8 @@ static int udp6_ufo_send_check(struct sk_buff *skb)
 	return 0;
 }
 
-static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb, u32 features)
+static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
+	netdev_features_t features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	unsigned int mss;

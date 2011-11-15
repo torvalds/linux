@@ -4536,7 +4536,7 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 	return 0;
 }
 
-static int nv_set_loopback(struct net_device *dev, u32 features)
+static int nv_set_loopback(struct net_device *dev, netdev_features_t features)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	unsigned long flags;
@@ -4591,7 +4591,8 @@ static int nv_set_loopback(struct net_device *dev, u32 features)
 	return retval;
 }
 
-static u32 nv_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t nv_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	/* vlan is dependent on rx checksum offload */
 	if (features & (NETIF_F_HW_VLAN_TX|NETIF_F_HW_VLAN_RX))
@@ -4600,7 +4601,7 @@ static u32 nv_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static void nv_vlan_mode(struct net_device *dev, u32 features)
+static void nv_vlan_mode(struct net_device *dev, netdev_features_t features)
 {
 	struct fe_priv *np = get_nvpriv(dev);
 
@@ -4621,11 +4622,11 @@ static void nv_vlan_mode(struct net_device *dev, u32 features)
 	spin_unlock_irq(&np->lock);
 }
 
-static int nv_set_features(struct net_device *dev, u32 features)
+static int nv_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 	int retval;
 
 	if ((changed & NETIF_F_LOOPBACK) && netif_running(dev)) {

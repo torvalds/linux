@@ -123,7 +123,7 @@ struct tun_struct {
 	gid_t			group;
 
 	struct net_device	*dev;
-	u32			set_features;
+	netdev_features_t	set_features;
 #define TUN_USER_FEATURES (NETIF_F_HW_CSUM|NETIF_F_TSO_ECN|NETIF_F_TSO| \
 			  NETIF_F_TSO6|NETIF_F_UFO)
 	struct fasync_struct	*fasync;
@@ -454,7 +454,8 @@ tun_net_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-static u32 tun_net_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t tun_net_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 
@@ -1196,7 +1197,7 @@ static int tun_get_iff(struct net *net, struct tun_struct *tun,
  * privs required. */
 static int set_offload(struct tun_struct *tun, unsigned long arg)
 {
-	u32 features = 0;
+	netdev_features_t features = 0;
 
 	if (arg & TUN_F_CSUM) {
 		features |= NETIF_F_HW_CSUM;

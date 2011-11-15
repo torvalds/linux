@@ -325,8 +325,8 @@ ixgb_reset(struct ixgb_adapter *adapter)
 	}
 }
 
-static u32
-ixgb_fix_features(struct net_device *netdev, u32 features)
+static netdev_features_t
+ixgb_fix_features(struct net_device *netdev, netdev_features_t features)
 {
 	/*
 	 * Tx VLAN insertion does not work per HW design when Rx stripping is
@@ -339,10 +339,10 @@ ixgb_fix_features(struct net_device *netdev, u32 features)
 }
 
 static int
-ixgb_set_features(struct net_device *netdev, u32 features)
+ixgb_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	u32 changed = features ^ netdev->features;
+	netdev_features_t changed = features ^ netdev->features;
 
 	if (!(changed & (NETIF_F_RXCSUM|NETIF_F_HW_VLAN_RX)))
 		return 0;

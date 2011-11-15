@@ -1392,7 +1392,7 @@ static void cp_set_msglevel(struct net_device *dev, u32 value)
 	cp->msg_enable = value;
 }
 
-static int cp_set_features(struct net_device *dev, u32 features)
+static int cp_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct cp_private *cp = netdev_priv(dev);
 	unsigned long flags;

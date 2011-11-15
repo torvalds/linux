@@ -296,10 +296,11 @@ int br_min_mtu(const struct net_bridge *br)
 /*
  * Recomputes features using slave's features
  */
-u32 br_features_recompute(struct net_bridge *br, u32 features)
+netdev_features_t br_features_recompute(struct net_bridge *br,
+	netdev_features_t features)
 {
 	struct net_bridge_port *p;
-	u32 mask;
+	netdev_features_t mask;
 
 	if (list_empty(&br->port_list))
 		return features;

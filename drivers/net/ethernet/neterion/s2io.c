@@ -6616,10 +6616,10 @@ static void s2io_ethtool_get_strings(struct net_device *dev,
 	}
 }
 
-static int s2io_set_features(struct net_device *dev, u32 features)
+static int s2io_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct s2io_nic *sp = netdev_priv(dev);
-	u32 changed = (features ^ dev->features) & NETIF_F_LRO;
+	netdev_features_t changed = (features ^ dev->features) & NETIF_F_LRO;
 
 	if (changed && netif_running(dev)) {
 		int rc;

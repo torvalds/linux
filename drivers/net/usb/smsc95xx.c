@@ -516,7 +516,8 @@ static void smsc95xx_status(struct usbnet *dev, struct urb *urb)
 }
 
 /* Enable or disable Tx & Rx checksum offload engines */
-static int smsc95xx_set_features(struct net_device *netdev, u32 features)
+static int smsc95xx_set_features(struct net_device *netdev,
+	netdev_features_t features)
 {
 	struct usbnet *dev = netdev_priv(netdev);
 	u32 read_buf;

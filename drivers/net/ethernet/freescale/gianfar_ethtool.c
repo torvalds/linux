@@ -519,12 +519,12 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 	return err;
 }
 
-int gfar_set_features(struct net_device *dev, u32 features)
+int gfar_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	unsigned long flags;
 	int err = 0, i = 0;
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 
 	if (changed & (NETIF_F_HW_VLAN_TX|NETIF_F_HW_VLAN_RX))
 		gfar_vlan_mode(dev, features);

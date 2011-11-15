@@ -6588,7 +6588,8 @@ static void netdev_get_ethtool_stats(struct net_device *dev,
  *
  * Return 0 if successful; otherwise an error code.
  */
-static int netdev_set_features(struct net_device *dev, u32 features)
+static int netdev_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;

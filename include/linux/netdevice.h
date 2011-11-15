@@ -847,12 +847,13 @@ struct netdev_tc_txq {
  *	Called to release previously enslaved netdev.
  *
  *      Feature/offload setting functions.
- * u32 (*ndo_fix_features)(struct net_device *dev, u32 features);
+ * netdev_features_t (*ndo_fix_features)(struct net_device *dev,
+ *		netdev_features_t features);
  *	Adjusts the requested feature flags according to device-specific
  *	constraints, and returns the resulting flags. Must not modify
  *	the device state.
  *
- * int (*ndo_set_features)(struct net_device *dev, u32 features);
+ * int (*ndo_set_features)(struct net_device *dev, netdev_features_t features);
  *	Called to update device configuration to new features. Passed
  *	feature set might be less than what was returned by ndo_fix_features()).
  *	Must return >0 or -errno if it changed dev->features itself.
@@ -946,10 +947,10 @@ struct net_device_ops {
 						 struct net_device *slave_dev);
 	int			(*ndo_del_slave)(struct net_device *dev,
 						 struct net_device *slave_dev);
-	u32			(*ndo_fix_features)(struct net_device *dev,
-						    u32 features);
+	netdev_features_t	(*ndo_fix_features)(struct net_device *dev,
+						    netdev_features_t features);
 	int			(*ndo_set_features)(struct net_device *dev,
-						    u32 features);
+						    netdev_features_t features);
 };
 
 /*
@@ -999,13 +1000,13 @@ struct net_device {
 	struct list_head	unreg_list;
 
 	/* currently active device features */
-	u32			features;
+	netdev_features_t	features;
 	/* user-changeable features */
-	u32			hw_features;
+	netdev_features_t	hw_features;
 	/* user-requested features */
-	u32			wanted_features;
+	netdev_features_t	wanted_features;
 	/* mask of features inheritable by VLAN devices */
-	u32			vlan_features;
+	netdev_features_t	vlan_features;
 
 	/* Interface index. Unique device identifier	*/
 	int			ifindex;
@@ -1439,7 +1440,7 @@ struct packet_type {
 					 struct packet_type *,
 					 struct net_device *);
 	struct sk_buff		*(*gso_segment)(struct sk_buff *skb,
-						u32 features);
+						netdev_features_t features);
 	int			(*gso_send_check)(struct sk_buff *skb);
 	struct sk_buff		**(*gro_receive)(struct sk_buff **head,
 					       struct sk_buff *skb);
@@ -2444,7 +2445,8 @@ extern int		netdev_set_master(struct net_device *dev, struct net_device *master)
 extern int netdev_set_bond_master(struct net_device *dev,
 				  struct net_device *master);
 extern int skb_checksum_help(struct sk_buff *skb);
-extern struct sk_buff *skb_gso_segment(struct sk_buff *skb, u32 features);
+extern struct sk_buff *skb_gso_segment(struct sk_buff *skb,
+	netdev_features_t features);
 #ifdef CONFIG_BUG
 extern void netdev_rx_csum_fault(struct net_device *dev);
 #else
@@ -2471,11 +2473,13 @@ extern const char *netdev_drivername(const struct net_device *dev);
 
 extern void linkwatch_run_queue(void);
 
-static inline u32 netdev_get_wanted_features(struct net_device *dev)
+static inline netdev_features_t netdev_get_wanted_features(
+	struct net_device *dev)
 {
 	return (dev->features & ~dev->hw_features) | dev->wanted_features;
 }
-u32 netdev_increment_features(u32 all, u32 one, u32 mask);
+netdev_features_t netdev_increment_features(netdev_features_t all,
+	netdev_features_t one, netdev_features_t mask);
 int __netdev_update_features(struct net_device *dev);
 void netdev_update_features(struct net_device *dev);
 void netdev_change_features(struct net_device *dev);
@@ -2483,21 +2487,22 @@ void netdev_change_features(struct net_device *dev);
 void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 					struct net_device *dev);
 
-u32 netif_skb_features(struct sk_buff *skb);
+netdev_features_t netif_skb_features(struct sk_buff *skb);
 
-static inline int net_gso_ok(u32 features, int gso_type)
+static inline int net_gso_ok(netdev_features_t features, int gso_type)
 {
-	int feature = gso_type << NETIF_F_GSO_SHIFT;
+	netdev_features_t feature = gso_type << NETIF_F_GSO_SHIFT;
 	return (features & feature) == feature;
 }
 
-static inline int skb_gso_ok(struct sk_buff *skb, u32 features)
+static inline int skb_gso_ok(struct sk_buff *skb, netdev_features_t features)
 {
 	return net_gso_ok(features, skb_shinfo(skb)->gso_type) &&
 	       (!skb_has_frag_list(skb) || (features & NETIF_F_FRAGLIST));
 }
 
-static inline int netif_needs_gso(struct sk_buff *skb, int features)
+static inline int netif_needs_gso(struct sk_buff *skb,
+	netdev_features_t features)
 {
 	return skb_is_gso(skb) && (!skb_gso_ok(skb, features) ||
 		unlikely(skb->ip_summed != CHECKSUM_PARTIAL));

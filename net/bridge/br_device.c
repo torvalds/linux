@@ -186,7 +186,8 @@ static void br_getinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strcpy(info->bus_info, "N/A");
 }
 
-static u32 br_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t br_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct net_bridge *br = netdev_priv(dev);
 

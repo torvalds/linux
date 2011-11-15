@@ -3249,7 +3249,8 @@ static struct rtnl_link_stats64 *ixgbevf_get_stats(struct net_device *netdev,
 	return stats;
 }
 
-static int ixgbevf_set_features(struct net_device *netdev, u32 features)
+static int ixgbevf_set_features(struct net_device *netdev,
+	netdev_features_t features)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 

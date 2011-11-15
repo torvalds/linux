@@ -7571,8 +7571,8 @@ bnx2_set_phys_id(struct net_device *dev, enum ethtool_phys_id_state state)
 	return 0;
 }
 
-static u32
-bnx2_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t
+bnx2_fix_features(struct net_device *dev, netdev_features_t features)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
@@ -7583,7 +7583,7 @@ bnx2_fix_features(struct net_device *dev, u32 features)
 }
 
 static int
-bnx2_set_features(struct net_device *dev, u32 features)
+bnx2_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 

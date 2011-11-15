@@ -3202,7 +3202,8 @@ static int qeth_l3_stop(struct net_device *dev)
 	return 0;
 }
 
-static u32 qeth_l3_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t qeth_l3_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct qeth_card *card = dev->ml_priv;
 
@@ -3216,7 +3217,8 @@ static u32 qeth_l3_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int qeth_l3_set_features(struct net_device *dev, u32 features)
+static int qeth_l3_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct qeth_card *card = dev->ml_priv;
 	u32 changed = dev->features ^ features;

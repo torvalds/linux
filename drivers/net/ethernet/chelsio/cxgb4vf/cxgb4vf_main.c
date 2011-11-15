@@ -1092,7 +1092,8 @@ static int cxgb4vf_change_mtu(struct net_device *dev, int new_mtu)
 	return ret;
 }
 
-static u32 cxgb4vf_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t cxgb4vf_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	/*
 	 * Since there is no support for separate rx/tx vlan accel
@@ -1106,10 +1107,11 @@ static u32 cxgb4vf_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int cxgb4vf_set_features(struct net_device *dev, u32 features)
+static int cxgb4vf_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct port_info *pi = netdev_priv(dev);
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 
 	if (changed & NETIF_F_HW_VLAN_RX)
 		t4vf_set_rxmode(pi->adapter, pi->viid, -1, -1, -1, -1,

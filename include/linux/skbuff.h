@@ -30,6 +30,7 @@
 #include <linux/dmaengine.h>
 #include <linux/hrtimer.h>
 #include <linux/dma-mapping.h>
+#include <linux/netdev_features.h>
 
 /* Don't change this without changing skb_csum_unnecessary! */
 #define CHECKSUM_NONE 0
@@ -2106,7 +2107,8 @@ extern void	       skb_split(struct sk_buff *skb,
 extern int	       skb_shift(struct sk_buff *tgt, struct sk_buff *skb,
 				 int shiftlen);
 
-extern struct sk_buff *skb_segment(struct sk_buff *skb, u32 features);
+extern struct sk_buff *skb_segment(struct sk_buff *skb,
+				   netdev_features_t features);
 
 static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 				       int len, void *buffer)

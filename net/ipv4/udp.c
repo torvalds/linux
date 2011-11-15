@@ -2247,7 +2247,8 @@ int udp4_ufo_send_check(struct sk_buff *skb)
 	return 0;
 }
 
-struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb, u32 features)
+struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
+	netdev_features_t features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	unsigned int mss;

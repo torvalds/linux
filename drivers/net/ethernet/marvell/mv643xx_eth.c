@@ -1579,10 +1579,10 @@ mv643xx_eth_set_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
 
 
 static int
-mv643xx_eth_set_features(struct net_device *dev, u32 features)
+mv643xx_eth_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	u32 rx_csum = features & NETIF_F_RXCSUM;
+	int rx_csum = !!(features & NETIF_F_RXCSUM);
 
 	wrlp(mp, PORT_CONFIG, rx_csum ? 0x02000000 : 0x00000000);
 

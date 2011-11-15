@@ -1250,7 +1250,8 @@ out:
 	return err;
 }
 
-static struct sk_buff *inet_gso_segment(struct sk_buff *skb, u32 features)
+static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
+	netdev_features_t features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	struct iphdr *iph;

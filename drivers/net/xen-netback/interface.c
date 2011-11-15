@@ -165,7 +165,8 @@ static int xenvif_change_mtu(struct net_device *dev, int mtu)
 	return 0;
 }
 
-static u32 xenvif_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t xenvif_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct xenvif *vif = netdev_priv(dev);
 

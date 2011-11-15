@@ -1275,7 +1275,7 @@ static void rx_set_checksum(struct sky2_port *sky2)
 }
 
 /* Enable/disable receive hash calculation (RSS) */
-static void rx_set_rss(struct net_device *dev, u32 features)
+static void rx_set_rss(struct net_device *dev, netdev_features_t features)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
@@ -1396,7 +1396,7 @@ static int sky2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 #define SKY2_VLAN_OFFLOADS (NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO)
 
-static void sky2_vlan_mode(struct net_device *dev, u32 features)
+static void sky2_vlan_mode(struct net_device *dev, netdev_features_t features)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
@@ -4282,7 +4282,8 @@ static int sky2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom
 	return sky2_vpd_write(sky2->hw, cap, data, eeprom->offset, eeprom->len);
 }
 
-static u32 sky2_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t sky2_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	const struct sky2_port *sky2 = netdev_priv(dev);
 	const struct sky2_hw *hw = sky2->hw;
@@ -4306,13 +4307,13 @@ static u32 sky2_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int sky2_set_features(struct net_device *dev, u32 features)
+static int sky2_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 
 	if (changed & NETIF_F_RXCSUM) {
-		u32 on = features & NETIF_F_RXCSUM;
+		int on = !!(features & NETIF_F_RXCSUM);
 		sky2_write32(sky2->hw, Q_ADDR(rxqaddr[sky2->port], Q_CSR),
 			     on ? BMU_ENA_RX_CHKSUM : BMU_DIS_RX_CHKSUM);
 	}

@@ -10,6 +10,10 @@
 #ifndef _LINUX_NETDEV_FEATURES_H
 #define _LINUX_NETDEV_FEATURES_H
 
+#include <linux/types.h>
+
+typedef u32 netdev_features_t;
+
 /* Net device feature bits; if you change something,
  * also update netdev_features_strings[] in ethtool.c */
 

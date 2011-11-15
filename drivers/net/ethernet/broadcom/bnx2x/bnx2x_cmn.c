@@ -3398,7 +3398,8 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu)
 	return bnx2x_reload_if_running(dev);
 }
 
-u32 bnx2x_fix_features(struct net_device *dev, u32 features)
+netdev_features_t bnx2x_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -3409,7 +3410,7 @@ u32 bnx2x_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-int bnx2x_set_features(struct net_device *dev, u32 features)
+int bnx2x_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 flags = bp->flags;

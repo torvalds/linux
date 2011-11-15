@@ -1466,8 +1466,9 @@ void qlcnic_advert_link_change(struct qlcnic_adapter *adapter, int linkup);
 
 int qlcnic_fw_cmd_set_mtu(struct qlcnic_adapter *adapter, int mtu);
 int qlcnic_change_mtu(struct net_device *netdev, int new_mtu);
-u32 qlcnic_fix_features(struct net_device *netdev, u32 features);
-int qlcnic_set_features(struct net_device *netdev, u32 features);
+netdev_features_t qlcnic_fix_features(struct net_device *netdev,
+	netdev_features_t features);
+int qlcnic_set_features(struct net_device *netdev, netdev_features_t features);
 int qlcnic_config_hw_lro(struct qlcnic_adapter *adapter, int enable);
 int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable);
 int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter);

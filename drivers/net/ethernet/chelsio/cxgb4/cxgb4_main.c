@@ -1856,10 +1856,10 @@ static int set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return err;
 }
 
-static int cxgb_set_features(struct net_device *dev, u32 features)
+static int cxgb_set_features(struct net_device *dev, netdev_features_t features)
 {
 	const struct port_info *pi = netdev_priv(dev);
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 	int err;
 
 	if (!(changed & NETIF_F_HW_VLAN_RX))
@@ -3538,7 +3538,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 {
 	int func, i, err;
 	struct port_info *pi;
-	unsigned int highdma = 0;
+	bool highdma = false;
 	struct adapter *adapter = NULL;
 
 	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
@@ -3564,7 +3564,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 	}
 
 	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		highdma = NETIF_F_HIGHDMA;
+		highdma = true;
 		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (err) {
 			dev_err(&pdev->dev, "unable to obtain 64-bit DMA for "
@@ -3638,7 +3638,9 @@ static int __devinit init_one(struct pci_dev *pdev,
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			NETIF_F_RXCSUM | NETIF_F_RXHASH |
 			NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-		netdev->features |= netdev->hw_features | highdma;
+		if (highdma)
+			netdev->hw_features |= NETIF_F_HIGHDMA;
+		netdev->features |= netdev->hw_features;
 		netdev->vlan_features = netdev->features & VLAN_FEAT;
 
 		netdev->priv_flags |= IFF_UNICAST_FLT;

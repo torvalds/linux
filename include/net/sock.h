@@ -306,8 +306,8 @@ struct sock {
 	kmemcheck_bitfield_end(flags);
 	int			sk_wmem_queued;
 	gfp_t			sk_allocation;
-	int			sk_route_caps;
-	int			sk_route_nocaps;
+	netdev_features_t	sk_route_caps;
+	netdev_features_t	sk_route_nocaps;
 	int			sk_gso_type;
 	unsigned int		sk_gso_max_size;
 	int			sk_rcvlowat;
@@ -1393,7 +1393,7 @@ static inline int sk_can_gso(const struct sock *sk)
 
 extern void sk_setup_caps(struct sock *sk, struct dst_entry *dst);
 
-static inline void sk_nocaps_add(struct sock *sk, int flags)
+static inline void sk_nocaps_add(struct sock *sk, netdev_features_t flags)
 {
 	sk->sk_route_nocaps |= flags;
 	sk->sk_route_caps &= ~flags;

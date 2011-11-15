@@ -258,5 +258,6 @@ extern void udp4_proc_exit(void);
 extern void udp_init(void);
 
 extern int udp4_ufo_send_check(struct sk_buff *skb);
-extern struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb, u32 features);
+extern struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
+	netdev_features_t features);
 #endif	/* _UDP_H */

@@ -1553,7 +1553,8 @@ static int rtl8169_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return ret;
 }
 
-static u32 rtl8169_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t rtl8169_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
@@ -1567,7 +1568,8 @@ static u32 rtl8169_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int rtl8169_set_features(struct net_device *dev, u32 features)
+static int rtl8169_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;

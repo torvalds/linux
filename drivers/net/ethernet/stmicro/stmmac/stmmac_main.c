@@ -1419,7 +1419,8 @@ static int stmmac_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-static u32 stmmac_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t stmmac_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 

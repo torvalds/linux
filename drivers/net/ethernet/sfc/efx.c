@@ -1900,7 +1900,7 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 	/* Otherwise efx_start_port() will do this */
 }
 
-static int efx_set_features(struct net_device *net_dev, u32 data)
+static int efx_set_features(struct net_device *net_dev, netdev_features_t data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 

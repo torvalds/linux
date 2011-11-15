@@ -2532,7 +2532,7 @@ static void t3_synchronize_rx(struct adapter *adap, const struct port_info *p)
 	}
 }
 
-static void cxgb_vlan_mode(struct net_device *dev, u32 features)
+static void cxgb_vlan_mode(struct net_device *dev, netdev_features_t features)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
@@ -2553,7 +2553,8 @@ static void cxgb_vlan_mode(struct net_device *dev, u32 features)
 	t3_synchronize_rx(adapter, pi);
 }
 
-static u32 cxgb_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t cxgb_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	/*
 	 * Since there is no support for separate rx/tx vlan accel
@@ -2567,9 +2568,9 @@ static u32 cxgb_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int cxgb_set_features(struct net_device *dev, u32 features)
+static int cxgb_set_features(struct net_device *dev, netdev_features_t features)
 {
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 
 	if (changed & NETIF_F_HW_VLAN_RX)
 		cxgb_vlan_mode(dev, features);

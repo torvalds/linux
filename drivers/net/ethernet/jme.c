@@ -1917,7 +1917,7 @@ jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 	struct jme_ring *txring = &(jme->txring[0]);
 	struct txdesc *txdesc = txring->desc, *ctxdesc;
 	struct jme_buffer_info *txbi = txring->bufinf, *ctxbi;
-	u8 hidma = jme->dev->features & NETIF_F_HIGHDMA;
+	u8 hidma = !!(jme->dev->features & NETIF_F_HIGHDMA);
 	int i, nr_frags = skb_shinfo(skb)->nr_frags;
 	int mask = jme->tx_ring_mask;
 	const struct skb_frag_struct *frag;
@@ -2620,8 +2620,8 @@ jme_set_msglevel(struct net_device *netdev, u32 value)
 	jme->msg_enable = value;
 }
 
-static u32
-jme_fix_features(struct net_device *netdev, u32 features)
+static netdev_features_t
+jme_fix_features(struct net_device *netdev, netdev_features_t features)
 {
 	if (netdev->mtu > 1900)
 		features &= ~(NETIF_F_ALL_TSO | NETIF_F_ALL_CSUM);
@@ -2629,7 +2629,7 @@ jme_fix_features(struct net_device *netdev, u32 features)
 }
 
 static int
-jme_set_features(struct net_device *netdev, u32 features)
+jme_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 

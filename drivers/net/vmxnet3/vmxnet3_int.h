@@ -401,7 +401,7 @@ void
 vmxnet3_rq_destroy_all(struct vmxnet3_adapter *adapter);
 
 int
-vmxnet3_set_features(struct net_device *netdev, u32 features);
+vmxnet3_set_features(struct net_device *netdev, netdev_features_t features);
 
 int
 vmxnet3_create_queues(struct vmxnet3_adapter *adapter,

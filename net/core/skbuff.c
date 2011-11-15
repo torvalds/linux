@@ -2670,7 +2670,7 @@ EXPORT_SYMBOL_GPL(skb_pull_rcsum);
  *	a pointer to the first in a list of new skbs for the segments.
  *	In case of error it returns ERR_PTR(err).
  */
-struct sk_buff *skb_segment(struct sk_buff *skb, u32 features)
+struct sk_buff *skb_segment(struct sk_buff *skb, netdev_features_t features)
 {
 	struct sk_buff *segs = NULL;
 	struct sk_buff *tail = NULL;

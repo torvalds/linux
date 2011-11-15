@@ -2532,7 +2532,8 @@ static void igbvf_print_device_info(struct igbvf_adapter *adapter)
 	dev_info(&pdev->dev, "Address: %pM\n", netdev->dev_addr);
 }
 
-static int igbvf_set_features(struct net_device *netdev, u32 features)
+static int igbvf_set_features(struct net_device *netdev,
+	netdev_features_t features)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 

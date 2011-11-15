@@ -5859,10 +5859,11 @@ static void e1000_eeprom_checks(struct e1000_adapter *adapter)
 	}
 }
 
-static int e1000_set_features(struct net_device *netdev, u32 features)
+static int e1000_set_features(struct net_device *netdev,
+	netdev_features_t features)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	u32 changed = features ^ netdev->features;
+	netdev_features_t changed = features ^ netdev->features;
 
 	if (changed & (NETIF_F_TSO | NETIF_F_TSO6))
 		adapter->flags |= FLAG_TSO_FORCE;

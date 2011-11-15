@@ -262,11 +262,11 @@ vmxnet3_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
 	}
 }
 
-int vmxnet3_set_features(struct net_device *netdev, u32 features)
+int vmxnet3_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	unsigned long flags;
-	u32 changed = features ^ netdev->features;
+	netdev_features_t changed = features ^ netdev->features;
 
 	if (changed & (NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_HW_VLAN_RX)) {
 		if (features & NETIF_F_RXCSUM)

@@ -591,7 +591,8 @@ static void vlan_dev_uninit(struct net_device *dev)
 	}
 }
 
-static u32 vlan_dev_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t vlan_dev_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 	u32 old_features = features;

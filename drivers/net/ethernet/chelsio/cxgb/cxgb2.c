@@ -850,7 +850,8 @@ static int t1_set_mac_addr(struct net_device *dev, void *p)
 	return 0;
 }
 
-static u32 t1_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t t1_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	/*
 	 * Since there is no support for separate rx/tx vlan accel
@@ -864,9 +865,9 @@ static u32 t1_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int t1_set_features(struct net_device *dev, u32 features)
+static int t1_set_features(struct net_device *dev, netdev_features_t features)
 {
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 	struct adapter *adapter = dev->ml_priv;
 
 	if (changed & NETIF_F_HW_VLAN_RX)

@@ -7174,7 +7174,8 @@ void ixgbe_do_reset(struct net_device *netdev)
 		ixgbe_reset(adapter);
 }
 
-static u32 ixgbe_fix_features(struct net_device *netdev, u32 data)
+static netdev_features_t ixgbe_fix_features(struct net_device *netdev,
+	netdev_features_t data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -7204,7 +7205,8 @@ static u32 ixgbe_fix_features(struct net_device *netdev, u32 data)
 	return data;
 }
 
-static int ixgbe_set_features(struct net_device *netdev, u32 data)
+static int ixgbe_set_features(struct net_device *netdev,
+	netdev_features_t data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	bool need_reset = false;
