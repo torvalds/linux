@@ -940,20 +940,23 @@ static void u300_pmx_endisable(struct u300_pmx *upmx, unsigned selector,
 {
 	u16 regval, val, mask;
 	int i;
+	const struct u300_pmx_mask *upmx_mask;
 
+	upmx_mask = u300_pmx_functions[selector].mask;
 	for (i = 0; i < ARRAY_SIZE(u300_pmx_registers); i++) {
 		if (enable)
-			val = u300_pmx_functions[selector].mask->bits;
+			val = upmx_mask->bits;
 		else
 			val = 0;
 
-		mask = u300_pmx_functions[selector].mask->mask;
+		mask = upmx_mask->mask;
 		if (mask != 0) {
 			regval = readw(upmx->virtbase + u300_pmx_registers[i]);
 			regval &= ~mask;
 			regval |= val;
 			writew(regval, upmx->virtbase + u300_pmx_registers[i]);
 		}
+		upmx_mask++;
 	}
 }
 
