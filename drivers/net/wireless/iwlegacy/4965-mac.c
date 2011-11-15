@@ -1411,6 +1411,33 @@ void il4965_reply_stats(struct il_priv *il,
 	il4965_rx_stats(il, rxb);
 }
 
+
+/*
+ * mac80211 queues, ACs, hardware queues, FIFOs.
+ *
+ * Cf. http://wireless.kernel.org/en/developers/Documentation/mac80211/queues
+ *
+ * Mac80211 uses the following numbers, which we get as from it
+ * by way of skb_get_queue_mapping(skb):
+ *
+ *     VO      0
+ *     VI      1
+ *     BE      2
+ *     BK      3
+ *
+ *
+ * Regular (not A-MPDU) frames are put into hardware queues corresponding
+ * to the FIFOs, see comments in iwl-prph.h. Aggregated frames get their
+ * own queue per aggregation session (RA/TID combination), such queues are
+ * set up to map into FIFOs too, for which we need an AC->FIFO mapping. In
+ * order to map frames to the right queue, we also need an AC->hw queue
+ * mapping. This is implemented here.
+ *
+ * Due to the way hw queues are set up (by the hw specific modules like
+ * iwl-4965.c), the AC->hw queue mapping is the identity
+ * mapping.
+ */
+
 static const u8 tid_to_ac[] = {
 	IEEE80211_AC_BE,
 	IEEE80211_AC_BK,
