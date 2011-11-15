@@ -32,6 +32,8 @@ struct work_struct;
 struct bfin_serial_port {
 	struct uart_port port;
 	unsigned int old_status;
+	int tx_irq;
+	int rx_irq;
 	int status_irq;
 #ifndef BFIN_UART_BF54X_STYLE
 	unsigned int lsr;
