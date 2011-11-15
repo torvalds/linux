@@ -633,5 +633,7 @@ config MSM_SMD_PKT
 	  Enables userspace clients to read and write to some packet SMD
 	  ports via device interface for MSM chipset.
 
+source "drivers/char/sun4i_g2d/Kconfig"
+
 endmenu
 
