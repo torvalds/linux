@@ -351,6 +351,11 @@ static int io_ctl_prepare_pages(struct io_ctl *io_ctl, struct inode *inode,
 		}
 	}
 
+	for (i = 0; i < io_ctl->num_pages; i++) {
+		clear_page_dirty_for_io(io_ctl->pages[i]);
+		set_page_extent_mapped(io_ctl->pages[i]);
+	}
+
 	return 0;
 }
 
