@@ -40,6 +40,7 @@ config USB_ARCH_HAS_OHCI
 	default y if MFD_TC6393XB
 	default y if ARCH_W90X900
 	default y if ARCH_DAVINCI_DA8XX
+	default y if ARCH_SUN4I
 	default y if ARCH_CNS3XXX
 	default y if PLAT_SPEAR
 	# PPC:
@@ -62,6 +63,7 @@ config USB_ARCH_HAS_EHCI
 	default y if ARCH_AT91SAM9G45
 	default y if ARCH_MXC
 	default y if ARCH_OMAP3
+	default y if ARCH_SUN4I
 	default y if ARCH_CNS3XXX
 	default y if ARCH_VT8500
 	default y if PLAT_SPEAR
@@ -82,7 +84,7 @@ config USB
 	  traditional PC serial port.  The bus supplies power to peripherals
 	  and allows for hot swapping.  Up to 127 USB peripherals can be
 	  connected to a single USB host in a tree structure.
-	  
+
 	  The USB host is the root of the tree, the peripherals are the
 	  leaves and the inner nodes are special USB devices called hubs.
 	  Most PCs now have USB host ports, used to connect peripherals
@@ -167,5 +169,9 @@ source "drivers/usb/atm/Kconfig"
 source "drivers/usb/gadget/Kconfig"
 
 source "drivers/usb/otg/Kconfig"
+
+source "drivers/usb/sun3i_usb/Kconfig"
+
+source "drivers/usb/sun4i_usb/Kconfig"
 
 endif # USB_SUPPORT

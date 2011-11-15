@@ -757,6 +757,24 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	 */
 	ints = ohci_readl(ohci, &regs->intrstatus);
 
+#ifdef  CONFIG_USB_SW_SUN4I_HCI
+    if(1){
+        __u32 HcRhPortStatus = ohci_readl(ohci, &regs->roothub.portstatus[0]);
+
+        if((HcRhPortStatus & RH_PS_CSC) && (ints & OHCI_INTR_RHSC)){
+            printk("ohci_irq: connect status change\n");
+        }
+
+        /* clear all irq */
+        ohci_writel(ohci, ints, &regs->intrstatus);
+
+        /* clear port status */
+        ohci_writel(ohci, HcRhPortStatus, &regs->roothub.portstatus[0]);
+
+        return IRQ_HANDLED;
+    }
+#endif
+
 	/* Check for an all 1's result which is a typical consequence
 	 * of dead, unclocked, or unplugged (CardBus...) devices
 	 */
@@ -1094,6 +1112,11 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_MACH_JZ4740
 #include "ohci-jz4740.c"
 #define PLATFORM_DRIVER	ohci_hcd_jz4740_driver
+#endif
+
+#ifdef CONFIG_USB_SW_SUN4I_HCI
+#include "ohci_sun4i.c"
+#define	PLATFORM_DRIVER		sw_ohci_hcd_driver
 #endif
 
 #ifdef CONFIG_USB_OCTEON_OHCI

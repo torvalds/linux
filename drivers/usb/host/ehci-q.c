@@ -998,7 +998,7 @@ static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	/*
 	 * flush qh descriptor into memory immediately,
 	 * see comments in qh_append_tds.
-	 * */
+	 */
 	ehci_sync_mem();
 
 	qh_get(qh);
@@ -1097,7 +1097,7 @@ static struct ehci_qh *qh_append_tds (
 			 * is added to flush 'token' immediatelly into
 			 * memory, so that ehci can execute the transaction
 			 * ASAP.
-			 * */
+			 */
 			ehci_sync_mem();
 
 			urb->hcpriv = qh_get (qh);

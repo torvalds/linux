@@ -477,7 +477,7 @@ config USB_SL811_HCD
 	help
 	  The SL811HS is a single-port USB controller that supports either
 	  host side or peripheral side roles.  Enable this option if your
-	  board has this chip, and you want to use it as a host controller. 
+	  board has this chip, and you want to use it as a host controller.
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
@@ -578,3 +578,87 @@ config USB_OCTEON_OHCI
 config USB_OCTEON2_COMMON
 	bool
 	default y if USB_OCTEON_EHCI || USB_OCTEON_OHCI
+
+
+#-----------------------------------------------------
+#
+# AW1620 USB Host Controller Drivers
+#
+#-----------------------------------------------------
+config USB_SW_SUN3I_HCD
+    tristate "SoftWinner SUN3I USB Host Controller support"
+	depends on USB && USB_SW_USB_MANAGER
+	help
+	    SoftWinner SUN3I USB2.0 Host Controller support.
+
+config USB_SW_SUN3I_HCD0
+	tristate "SoftWinner SUN3I USB Host Controller0"
+	depends on USB_SW_SUN3I_HCD && (USB_SW_SUN3I_USB0_HOST_ONLY || USB_SW_SUN3I_USB0_OTG)
+	help
+	    SoftWinner SUN3I USB2.0 Host Controller0.
+
+config USB_SW_SUN3I_HCD1
+	tristate "SoftWinner SUN3I USB Host Controller1"
+	depends on USB_SW_SUN3I_HCD
+	help
+	    SoftWinner SUN3I USB2.0 Host Controller1.
+
+config USB_SW_SUN3I_HCD2
+	tristate "SoftWinner SUN3I USB Host Controller2"
+	depends on USB_SW_SUN3I_HCD
+	help
+	    SoftWinner SUN3I USB2.0 Host Controller2.
+
+#-----------------------------------------------------
+#
+# AW1623 USB Host Controller Drivers
+#
+#-----------------------------------------------------
+config USB_SW_SUN4I_HCD
+    tristate "SoftWinner SUN4I USB Host Controller support"
+	depends on USB && USB_SW_SUN4I_USB_MANAGER
+	help
+	    SoftWinner SUN4I USB2.0 Host Controller support.
+
+config USB_SW_SUN4I_HCD0
+	tristate "SoftWinner SUN4I USB Host Controller0"
+	depends on USB_SW_SUN4I_HCD && (USB_SW_SUN4I_USB0_HOST_ONLY || USB_SW_SUN4I_USB0_OTG)
+	help
+	    SoftWinner SUN4I USB2.0 Host Controller0.
+
+config USB_SW_SUN4I_HCI
+    tristate "SoftWinner SUN4I USB HCI"
+	depends on USB_SW_SUN4I_HCD
+	help
+	    SoftWinner SUN4I USB HCI.
+
+config USB_SW_SUN4I_EHCI0
+    tristate "SoftWinner SUN4I USB EHCI0"
+	depends on USB_SW_SUN4I_HCI
+	help
+	    SoftWinner SUN4I USB EHCI0.
+
+config USB_SW_SUN4I_EHCI1
+    tristate "SoftWinner SUN4I USB EHCI1"
+	depends on USB_SW_SUN4I_HCI
+	help
+	    SoftWinner SUN4I USB EHCI1.
+
+config USB_SW_SUN4I_OHCI0
+    tristate "SoftWinner SUN4I USB OHCI0"
+	depends on USB_SW_SUN4I_HCI
+	help
+	    SoftWinner SUN4I USB OHCI0.
+
+config USB_SW_SUN4I_OHCI1
+    tristate "SoftWinner SUN4I USB OHCI1"
+	depends on USB_SW_SUN4I_HCI
+	help
+	    SoftWinner SUN4I USB OHCI1.
+
+
+
+
+
+
+

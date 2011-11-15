@@ -1160,6 +1160,8 @@ static void ehci_relinquish_port(struct usb_hcd *hcd, int portnum)
 	if (ehci_is_TDI(ehci))
 		return;
 	set_owner(ehci, --portnum, PORT_OWNER);
+
+	printk("The port change to OHCI now!\n");
 }
 
 static int ehci_port_handed_over(struct usb_hcd *hcd, int portnum)

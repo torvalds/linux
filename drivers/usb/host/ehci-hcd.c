@@ -861,6 +861,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		unsigned	i = HCS_N_PORTS (ehci->hcs_params);
 		u32		ppcd = 0;
 
+        printk("ehci_irq: port change detect\n");
+
 		/* kick root hub later */
 		pcd_status = status;
 
@@ -1225,6 +1227,11 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_SOC_AU1200
 #include "ehci-au1xxx.c"
 #define	PLATFORM_DRIVER		ehci_hcd_au1xxx_driver
+#endif
+
+#ifdef CONFIG_USB_SW_SUN4I_HCI
+#include "ehci_sun4i.c"
+#define	PLATFORM_DRIVER		sw_ehci_hcd_driver
 #endif
 
 #ifdef CONFIG_USB_EHCI_HCD_OMAP
