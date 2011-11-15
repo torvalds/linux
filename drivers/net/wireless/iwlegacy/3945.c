@@ -42,7 +42,7 @@
 #include "commands.h"
 #include "iwl-sta.h"
 #include "iwl-eeprom.h"
-#include "iwl-core.h"
+#include "common.h"
 #include "iwl-helpers.h"
 #include "iwl-led.h"
 #include "3945.h"

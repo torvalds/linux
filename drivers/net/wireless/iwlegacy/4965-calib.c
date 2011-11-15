@@ -64,7 +64,7 @@
 #include <net/mac80211.h>
 
 #include "iwl-dev.h"
-#include "iwl-core.h"
+#include "common.h"
 #include "4965.h"
 
 /*****************************************************************************

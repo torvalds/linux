@@ -37,7 +37,7 @@
 
 #include "iwl-dev.h"
 #include "iwl-sta.h"
-#include "iwl-core.h"
+#include "common.h"
 #include "4965.h"
 
 #define IL4965_RS_NAME "iwl-4965-rs"

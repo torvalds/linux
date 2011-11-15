@@ -26,7 +26,7 @@
 * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 *****************************************************************************/
 #include "iwl-dev.h"
-#include "iwl-core.h"
+#include "common.h"
 #include "4965.h"
 
 static const char *fmt_value = "  %-30s %10u\n";

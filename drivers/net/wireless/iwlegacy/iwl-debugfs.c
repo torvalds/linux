@@ -31,7 +31,7 @@
 
 #include "iwl-dev.h"
 #include "iwl-debug.h"
-#include "iwl-core.h"
+#include "common.h"
 #include "iwl-io.h"
 
 /* create and remove of files */
