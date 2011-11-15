@@ -97,6 +97,8 @@ static struct {
 
 /* protects dss_data */
 static spinlock_t data_lock;
+/* lock for blocking functions */
+static DEFINE_MUTEX(apply_lock);
 
 static struct ovl_priv_data *get_ovl_priv(struct omap_overlay *ovl)
 {
@@ -639,14 +641,22 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 void dss_mgr_enable(struct omap_overlay_manager *mgr)
 {
+	mutex_lock(&apply_lock);
+
 	dispc_mgr_enable(mgr->id, true);
 	mgr->enabled = true;
+
+	mutex_unlock(&apply_lock);
 }
 
 void dss_mgr_disable(struct omap_overlay_manager *mgr)
 {
+	mutex_lock(&apply_lock);
+
 	dispc_mgr_enable(mgr->id, false);
 	mgr->enabled = false;
+
+	mutex_unlock(&apply_lock);
 }
 
 int dss_mgr_set_info(struct omap_overlay_manager *mgr,
@@ -669,44 +679,65 @@ int dss_mgr_set_device(struct omap_overlay_manager *mgr,
 {
 	int r;
 
+	mutex_lock(&apply_lock);
+
 	if (dssdev->manager) {
 		DSSERR("display '%s' already has a manager '%s'\n",
 			       dssdev->name, dssdev->manager->name);
-		return -EINVAL;
+		r = -EINVAL;
+		goto err;
 	}
 
 	if ((mgr->supported_displays & dssdev->type) == 0) {
 		DSSERR("display '%s' does not support manager '%s'\n",
 			       dssdev->name, mgr->name);
-		return -EINVAL;
+		r = -EINVAL;
+		goto err;
 	}
 
 	dssdev->manager = mgr;
 	mgr->device = dssdev;
 	mgr->device_changed = true;
 
+	mutex_unlock(&apply_lock);
+
 	return 0;
+err:
+	mutex_unlock(&apply_lock);
+	return r;
 }
 
 int dss_mgr_unset_device(struct omap_overlay_manager *mgr)
 {
+	int r;
+
+	mutex_lock(&apply_lock);
+
 	if (!mgr->device) {
 		DSSERR("failed to unset display, display not set.\n");
-		return -EINVAL;
+		r = -EINVAL;
+		goto err;
 	}
 
 	/*
 	 * Don't allow currently enabled displays to have the overlay manager
 	 * pulled out from underneath them
 	 */
-	if (mgr->device->state != OMAP_DSS_DISPLAY_DISABLED)
-		return -EINVAL;
+	if (mgr->device->state != OMAP_DSS_DISPLAY_DISABLED) {
+		r = -EINVAL;
+		goto err;
+	}
 
 	mgr->device->manager = NULL;
 	mgr->device = NULL;
 	mgr->device_changed = true;
 
+	mutex_unlock(&apply_lock);
+
 	return 0;
+err:
+	mutex_unlock(&apply_lock);
+	return r;
 }
 
 
@@ -729,18 +760,24 @@ void dss_ovl_get_info(struct omap_overlay *ovl,
 int dss_ovl_set_manager(struct omap_overlay *ovl,
 		struct omap_overlay_manager *mgr)
 {
+	int r;
+
 	if (!mgr)
 		return -EINVAL;
+
+	mutex_lock(&apply_lock);
 
 	if (ovl->manager) {
 		DSSERR("overlay '%s' already has a manager '%s'\n",
 				ovl->name, ovl->manager->name);
-		return -EINVAL;
+		r = -EINVAL;
+		goto err;
 	}
 
 	if (ovl->info.enabled) {
 		DSSERR("overlay has to be disabled to change the manager\n");
-		return -EINVAL;
+		r = -EINVAL;
+		goto err;
 	}
 
 	ovl->manager = mgr;
@@ -760,25 +797,41 @@ int dss_ovl_set_manager(struct omap_overlay *ovl,
 	 * the overlay, but before moving the overlay to TV.
 	 */
 
+	mutex_unlock(&apply_lock);
+
 	return 0;
+err:
+	mutex_unlock(&apply_lock);
+	return r;
 }
 
 int dss_ovl_unset_manager(struct omap_overlay *ovl)
 {
+	int r;
+
+	mutex_lock(&apply_lock);
+
 	if (!ovl->manager) {
 		DSSERR("failed to detach overlay: manager not set\n");
-		return -EINVAL;
+		r = -EINVAL;
+		goto err;
 	}
 
 	if (ovl->info.enabled) {
 		DSSERR("overlay has to be disabled to unset the manager\n");
-		return -EINVAL;
+		r = -EINVAL;
+		goto err;
 	}
 
 	ovl->manager = NULL;
 	list_del(&ovl->list);
 	ovl->manager_changed = true;
 
+	mutex_unlock(&apply_lock);
+
 	return 0;
+err:
+	mutex_unlock(&apply_lock);
+	return r;
 }
 
