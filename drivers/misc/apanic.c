@@ -548,7 +548,9 @@ static int apanic(struct notifier_block *this, unsigned long event,
 	if (!threads_offset)
 		threads_offset = ctx->mtd->writesize;
 
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
 	ram_console_enable_console(0);
+#endif
 
 	log_buf_clear();
 	show_state_filter(0);
