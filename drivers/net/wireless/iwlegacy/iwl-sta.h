@@ -48,7 +48,7 @@ void il_restore_stations(struct il_priv *il,
 void il_clear_ucode_stations(struct il_priv *il,
 			      struct il_rxon_context *ctx);
 void il_dealloc_bcast_stations(struct il_priv *il);
-int il_get_free_ucode_key_index(struct il_priv *il);
+int il_get_free_ucode_key_idx(struct il_priv *il);
 int il_send_add_sta(struct il_priv *il,
 			struct il_addsta_cmd *sta, u8 flags);
 int il_add_station_common(struct il_priv *il,

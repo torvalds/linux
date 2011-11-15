@@ -49,13 +49,13 @@ struct il3945_rate_info {
 	u8 next_rs;		/* next rate used in rs algo */
 	u8 prev_rs_tgg;		/* previous rate used in TGG rs algo */
 	u8 next_rs_tgg;		/* next rate used in TGG rs algo */
-	u8 table_rs_index;	/* index in rate scale table cmd */
+	u8 table_rs_idx;	/* idx in rate scale table cmd */
 	u8 prev_table_rs;	/* prev in rate table cmd */
 };
 
 
 /*
- * These serve as indexes into
+ * These serve as idxes into
  * struct il_rate_info il_rates[RATE_COUNT];
  */
 enum {
@@ -351,7 +351,7 @@ struct il_traffic_load {
  * Pointer to this gets passed back and forth between driver and mac80211.
  */
 struct il_lq_sta {
-	u8 active_tbl;		/* index of active table, range 0-1 */
+	u8 active_tbl;		/* idx of active table, range 0-1 */
 	u8 enable_counter;	/* indicates HT mode */
 	u8 stay_in_tbl;		/* 1: disallow, 0: allow search for new mode */
 	u8 search_better_tbl;	/* 1: currently trying alternate mode */

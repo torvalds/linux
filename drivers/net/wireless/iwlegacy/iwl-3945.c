@@ -86,12 +86,12 @@ const struct il3945_rate_info il3945_rates[RATE_COUNT_3945] = {
 	IL_DECLARE_RATE_INFO(54, 48, INV, 48, INV, 48, INV),/* 54mbps */
 };
 
-static inline u8 il3945_get_prev_ieee_rate(u8 rate_index)
+static inline u8 il3945_get_prev_ieee_rate(u8 rate_idx)
 {
-	u8 rate = il3945_rates[rate_index].prev_ieee;
+	u8 rate = il3945_rates[rate_idx].prev_ieee;
 
 	if (rate == RATE_INVALID)
-		rate = rate_index;
+		rate = rate_idx;
 	return rate;
 }
 
@@ -270,12 +270,12 @@ int il3945_rs_next_rate(struct il_priv *il, int rate)
 /**
  * il3945_tx_queue_reclaim - Reclaim Tx queue entries already Tx'd
  *
- * When FW advances 'R' index, all entries between old and new 'R' index
+ * When FW advances 'R' idx, all entries between old and new 'R' idx
  * need to be reclaimed. As result, some free space forms. If there is
  * enough free space (> low mark), wake the stack that feeds us.
  */
 static void il3945_tx_queue_reclaim(struct il_priv *il,
-				     int txq_id, int index)
+				     int txq_id, int idx)
 {
 	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct il_queue *q = &txq->q;
@@ -283,8 +283,8 @@ static void il3945_tx_queue_reclaim(struct il_priv *il,
 
 	BUG_ON(txq_id == IL39_CMD_QUEUE_NUM);
 
-	for (index = il_queue_inc_wrap(index, q->n_bd);
-		q->read_ptr != index;
+	for (idx = il_queue_inc_wrap(idx, q->n_bd);
+		q->read_ptr != idx;
 		q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		tx_info = &txq->txb[txq->q.read_ptr];
@@ -307,7 +307,7 @@ static void il3945_rx_reply_tx(struct il_priv *il,
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
-	int index = SEQ_TO_IDX(sequence);
+	int idx = SEQ_TO_IDX(sequence);
 	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct ieee80211_tx_info *info;
 	struct il3945_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
@@ -315,10 +315,10 @@ static void il3945_rx_reply_tx(struct il_priv *il,
 	int rate_idx;
 	int fail;
 
-	if (index >= txq->q.n_bd || il_queue_used(&txq->q, index) == 0) {
-		IL_ERR("Read index for DMA queue txq_id (%d) index %d "
+	if (idx >= txq->q.n_bd || il_queue_used(&txq->q, idx) == 0) {
+		IL_ERR("Read idx for DMA queue txq_id (%d) idx %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
-			  index, txq->q.n_bd, txq->q.write_ptr,
+			  idx, txq->q.n_bd, txq->q.write_ptr,
 			  txq->q.read_ptr);
 		return;
 	}
@@ -345,8 +345,8 @@ static void il3945_rx_reply_tx(struct il_priv *il,
 			txq_id, il3945_get_tx_fail_reason(status), status,
 			tx_resp->rate, tx_resp->failure_frame);
 
-	D_TX_REPLY("Tx queue reclaim %d\n", index);
-	il3945_tx_queue_reclaim(il, txq_id, index);
+	D_TX_REPLY("Tx queue reclaim %d\n", idx);
+	il3945_tx_queue_reclaim(il, txq_id, idx);
 
 	if (status & TX_ABORT_REQUIRED_MSK)
 		IL_ERR("TODO:  Implement Tx ABORT REQUIRED!!!\n");
@@ -616,15 +616,15 @@ int il3945_hw_txq_attach_buf_to_tfd(struct il_priv *il,
 }
 
 /**
- * il3945_hw_txq_free_tfd - Free one TFD, those at index [txq->q.read_ptr]
+ * il3945_hw_txq_free_tfd - Free one TFD, those at idx [txq->q.read_ptr]
  *
- * Does NOT advance any indexes
+ * Does NOT advance any idxes
  */
 void il3945_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
 {
 	struct il3945_tfd *tfd_tmp = (struct il3945_tfd *)txq->tfds;
-	int index = txq->q.read_ptr;
-	struct il3945_tfd *tfd = &tfd_tmp[index];
+	int idx = txq->q.read_ptr;
+	struct il3945_tfd *tfd = &tfd_tmp[idx];
 	struct pci_dev *dev = il->pci_dev;
 	int i;
 	int counter;
@@ -640,8 +640,8 @@ void il3945_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
 	/* Unmap tx_cmd */
 	if (counter)
 		pci_unmap_single(dev,
-				dma_unmap_addr(&txq->meta[index], mapping),
-				dma_unmap_len(&txq->meta[index], len),
+				dma_unmap_addr(&txq->meta[idx], mapping),
+				dma_unmap_len(&txq->meta[idx], len),
 				PCI_DMA_TODEVICE);
 
 	/* unmap chunks if any */
@@ -675,7 +675,7 @@ void il3945_hw_build_tx_cmd_rate(struct il_priv *il,
 				  int sta_id, int tx_id)
 {
 	u16 hw_value = ieee80211_get_tx_rate(il->hw, info)->hw_value;
-	u16 rate_index = min(hw_value & 0xffff, RATE_COUNT_3945);
+	u16 rate_idx = min(hw_value & 0xffff, RATE_COUNT_3945);
 	u16 rate_mask;
 	int rate;
 	u8 rts_retry_limit;
@@ -684,7 +684,7 @@ void il3945_hw_build_tx_cmd_rate(struct il_priv *il,
 	__le16 fc = hdr->frame_control;
 	struct il3945_tx_cmd *tx_cmd = (struct il3945_tx_cmd *)cmd->cmd.payload;
 
-	rate = il3945_rates[rate_index].plcp;
+	rate = il3945_rates[rate_idx].plcp;
 	tx_flags = tx_cmd->tx_flags;
 
 	/* We need to figure out how to get the sta->supp_rates while
@@ -1040,7 +1040,7 @@ void il3945_hw_txq_ctx_stop(struct il_priv *il)
 
 /**
  * il3945_hw_reg_adjust_power_by_temp
- * return index delta into power gain settings table
+ * return idx delta into power gain settings table
 */
 static int il3945_hw_reg_adjust_power_by_temp(int new_reading, int old_reading)
 {
@@ -1298,13 +1298,13 @@ static struct il3945_tx_power power_gain_table[2][IL_MAX_GAIN_ENTRIES] = {
 	 {3, 120} }		/* 5.x GHz, lowest power */
 };
 
-static inline u8 il3945_hw_reg_fix_power_index(int index)
+static inline u8 il3945_hw_reg_fix_power_idx(int idx)
 {
-	if (index < 0)
+	if (idx < 0)
 		return 0;
-	if (index >= IL_MAX_GAIN_ENTRIES)
+	if (idx >= IL_MAX_GAIN_ENTRIES)
 		return IL_MAX_GAIN_ENTRIES - 1;
-	return (u8) index;
+	return (u8) idx;
 }
 
 /* Kick off thermal recalibration check every 60 seconds */
@@ -1316,16 +1316,16 @@ static inline u8 il3945_hw_reg_fix_power_index(int index)
  * Set (in our channel info database) the direct scan Tx power for 1 Mbit (CCK)
  * or 6 Mbit (OFDM) rates.
  */
-static void il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_index,
-			       s32 rate_index, const s8 *clip_pwrs,
+static void il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_idx,
+			       s32 rate_idx, const s8 *clip_pwrs,
 			       struct il_channel_info *ch_info,
-			       int band_index)
+			       int band_idx)
 {
 	struct il3945_scan_power_info *scan_power_info;
 	s8 power;
-	u8 power_index;
+	u8 power_idx;
 
-	scan_power_info = &ch_info->scan_pwr_info[scan_tbl_index];
+	scan_power_info = &ch_info->scan_pwr_info[scan_tbl_idx];
 
 	/* use this channel group's 6Mbit clipping/saturation pwr,
 	 *   but cap at regulatory scan power restriction (set during init
@@ -1337,30 +1337,30 @@ static void il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_index,
 
 	/* find difference between new scan *power* and current "normal"
 	 *   Tx *power* for 6Mb.  Use this difference (x2) to adjust the
-	 *   current "normal" temperature-compensated Tx power *index* for
+	 *   current "normal" temperature-compensated Tx power *idx* for
 	 *   this rate (1Mb or 6Mb) to yield new temp-compensated scan power
-	 *   *index*. */
-	power_index = ch_info->power_info[rate_index].power_table_index
+	 *   *idx*. */
+	power_idx = ch_info->power_info[rate_idx].power_table_idx
 	    - (power - ch_info->power_info
 	       [RATE_6M_IDX_TABLE].requested_power) * 2;
 
-	/* store reference index that we use when adjusting *all* scan
+	/* store reference idx that we use when adjusting *all* scan
 	 *   powers.  So we can accommodate user (all channel) or spectrum
 	 *   management (single channel) power changes "between" temperature
 	 *   feedback compensation procedures.
-	 * don't force fit this reference index into gain table; it may be a
+	 * don't force fit this reference idx into gain table; it may be a
 	 *   negative number.  This will help avoid errors when we're at
 	 *   the lower bounds (highest gains, for warmest temperatures)
 	 *   of the table. */
 
 	/* don't exceed table bounds for "real" setting */
-	power_index = il3945_hw_reg_fix_power_index(power_index);
+	power_idx = il3945_hw_reg_fix_power_idx(power_idx);
 
-	scan_power_info->power_table_index = power_index;
+	scan_power_info->power_table_idx = power_idx;
 	scan_power_info->tpc.tx_gain =
-	    power_gain_table[band_index][power_index].tx_gain;
+	    power_gain_table[band_idx][power_idx].tx_gain;
 	scan_power_info->tpc.dsp_atten =
-	    power_gain_table[band_index][power_index].dsp_atten;
+	    power_gain_table[band_idx][power_idx].dsp_atten;
 }
 
 /**
@@ -1438,7 +1438,7 @@ static int il3945_send_tx_power(struct il_priv *il)
  * il3945_hw_reg_set_new_power - Configures power tables at new levels
  * @ch_info: Channel to update.  Uses power_info.requested_power.
  *
- * Replace requested_power and base_power_index ch_info fields for
+ * Replace requested_power and base_power_idx ch_info fields for
  * one channel.
  *
  * Called if user or spectrum management changes power preferences.
@@ -1460,7 +1460,7 @@ static int il3945_hw_reg_set_new_power(struct il_priv *il,
 	int power;
 
 	/* Get this chnlgrp's rate-to-max/clip-powers table */
-	clip_pwrs = il->_3945.clip_groups[ch_info->group_index].clip_powers;
+	clip_pwrs = il->_3945.clip_groups[ch_info->group_idx].clip_powers;
 
 	/* Get this channel's rate-to-current-power settings table */
 	power_info = ch_info->power_info;
@@ -1476,9 +1476,9 @@ static int il3945_hw_reg_set_new_power(struct il_priv *il,
 			continue;
 
 		/* find difference between old and new requested powers,
-		 *    update base (non-temp-compensated) power index */
+		 *    update base (non-temp-compensated) power idx */
 		delta_idx = (power - power_info->requested_power) * 2;
-		power_info->base_power_index -= delta_idx;
+		power_info->base_power_idx -= delta_idx;
 
 		/* save new requested power value */
 		power_info->requested_power = power;
@@ -1496,9 +1496,9 @@ static int il3945_hw_reg_set_new_power(struct il_priv *il,
 		/* do all CCK rates' il3945_channel_power_info structures */
 		for (i = RATE_1M_IDX_TABLE; i <= RATE_11M_IDX_TABLE; i++) {
 			power_info->requested_power = power;
-			power_info->base_power_index =
+			power_info->base_power_idx =
 			    ch_info->power_info[RATE_12M_IDX_TABLE].
-			    base_power_index + IL_CCK_FROM_OFDM_IDX_DIFF;
+			    base_power_idx + IL_CCK_FROM_OFDM_IDX_DIFF;
 			++power_info;
 		}
 	}
@@ -1537,7 +1537,7 @@ static int il3945_hw_reg_get_ch_txpower_limit(struct il_channel_info *ch_info)
  * Compensate txpower settings of *all* channels for temperature.
  * This only accounts for the difference between current temperature
  *   and the factory calibration temperatures, and bases the new settings
- *   on the channel's base_power_index.
+ *   on the channel's base_power_idx.
  *
  * If RxOn is "associated", this sends the new Txpower to NIC!
  */
@@ -1545,11 +1545,11 @@ static int il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 {
 	struct il_channel_info *ch_info = NULL;
 	struct il3945_eeprom *eeprom = (struct il3945_eeprom *)il->eeprom;
-	int delta_index;
+	int delta_idx;
 	const s8 *clip_pwrs; /* array of h/w max power levels for each rate */
 	u8 a_band;
-	u8 rate_index;
-	u8 scan_tbl_index;
+	u8 rate_idx;
+	u8 scan_tbl_idx;
 	u8 i;
 	int ref_temp;
 	int temperature = il->temperature;
@@ -1565,41 +1565,41 @@ static int il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 		a_band = il_is_channel_a_band(ch_info);
 
 		/* Get this chnlgrp's factory calibration temperature */
-		ref_temp = (s16)eeprom->groups[ch_info->group_index].
+		ref_temp = (s16)eeprom->groups[ch_info->group_idx].
 		    temperature;
 
-		/* get power index adjustment based on current and factory
+		/* get power idx adjustment based on current and factory
 		 * temps */
-		delta_index = il3945_hw_reg_adjust_power_by_temp(temperature,
+		delta_idx = il3945_hw_reg_adjust_power_by_temp(temperature,
 							      ref_temp);
 
 		/* set tx power value for all rates, OFDM and CCK */
-		for (rate_index = 0; rate_index < RATE_COUNT_3945;
-		     rate_index++) {
+		for (rate_idx = 0; rate_idx < RATE_COUNT_3945;
+		     rate_idx++) {
 			int power_idx =
-			    ch_info->power_info[rate_index].base_power_index;
+			    ch_info->power_info[rate_idx].base_power_idx;
 
 			/* temperature compensate */
-			power_idx += delta_index;
+			power_idx += delta_idx;
 
 			/* stay within table range */
-			power_idx = il3945_hw_reg_fix_power_index(power_idx);
-			ch_info->power_info[rate_index].
-			    power_table_index = (u8) power_idx;
-			ch_info->power_info[rate_index].tpc =
+			power_idx = il3945_hw_reg_fix_power_idx(power_idx);
+			ch_info->power_info[rate_idx].
+			    power_table_idx = (u8) power_idx;
+			ch_info->power_info[rate_idx].tpc =
 			    power_gain_table[a_band][power_idx];
 		}
 
 		/* Get this chnlgrp's rate-to-max/clip-powers table */
-		clip_pwrs = il->_3945.clip_groups[ch_info->group_index].clip_powers;
+		clip_pwrs = il->_3945.clip_groups[ch_info->group_idx].clip_powers;
 
 		/* set scan tx power, 1Mbit for CCK, 6Mbit for OFDM */
-		for (scan_tbl_index = 0;
-		     scan_tbl_index < IL_NUM_SCAN_RATES; scan_tbl_index++) {
-			s32 actual_index = (scan_tbl_index == 0) ?
+		for (scan_tbl_idx = 0;
+		     scan_tbl_idx < IL_NUM_SCAN_RATES; scan_tbl_idx++) {
+			s32 actual_idx = (scan_tbl_idx == 0) ?
 			    RATE_1M_IDX_TABLE : RATE_6M_IDX_TABLE;
-			il3945_hw_reg_set_scan_power(il, scan_tbl_index,
-					   actual_index, clip_pwrs,
+			il3945_hw_reg_set_scan_power(il, scan_tbl_idx,
+					   actual_idx, clip_pwrs,
 					   ch_info, a_band);
 		}
 	}
@@ -1878,7 +1878,7 @@ static void il3945_bg_reg_txpower_periodic(struct work_struct *work)
 }
 
 /**
- * il3945_hw_reg_get_ch_grp_index - find the channel-group index (0-4)
+ * il3945_hw_reg_get_ch_grp_idx - find the channel-group idx (0-4)
  * 				   for the channel.
  *
  * This function is used when initializing channel-info structs.
@@ -1888,48 +1888,48 @@ static void il3945_bg_reg_txpower_periodic(struct work_struct *work)
  *	 on A-band, EEPROM's "group frequency" entries represent the top
  *	 channel in each group 1-4.  Group 5 All B/G channels are in group 0.
  */
-static u16 il3945_hw_reg_get_ch_grp_index(struct il_priv *il,
+static u16 il3945_hw_reg_get_ch_grp_idx(struct il_priv *il,
 				       const struct il_channel_info *ch_info)
 {
 	struct il3945_eeprom *eeprom = (struct il3945_eeprom *)il->eeprom;
 	struct il3945_eeprom_txpower_group *ch_grp = &eeprom->groups[0];
 	u8 group;
-	u16 group_index = 0;	/* based on factory calib frequencies */
+	u16 group_idx = 0;	/* based on factory calib frequencies */
 	u8 grp_channel;
 
-	/* Find the group index for the channel ... don't use index 1(?) */
+	/* Find the group idx for the channel ... don't use idx 1(?) */
 	if (il_is_channel_a_band(ch_info)) {
 		for (group = 1; group < 5; group++) {
 			grp_channel = ch_grp[group].group_channel;
 			if (ch_info->channel <= grp_channel) {
-				group_index = group;
+				group_idx = group;
 				break;
 			}
 		}
 		/* group 4 has a few channels *above* its factory cal freq */
 		if (group == 5)
-			group_index = 4;
+			group_idx = 4;
 	} else
-		group_index = 0;	/* 2.4 GHz, group 0 */
+		group_idx = 0;	/* 2.4 GHz, group 0 */
 
 	D_POWER("Chnl %d mapped to grp %d\n", ch_info->channel,
-			group_index);
-	return group_index;
+			group_idx);
+	return group_idx;
 }
 
 /**
- * il3945_hw_reg_get_matched_power_index - Interpolate to get nominal index
+ * il3945_hw_reg_get_matched_power_idx - Interpolate to get nominal idx
  *
- * Interpolate to get nominal (i.e. at factory calibration temperature) index
+ * Interpolate to get nominal (i.e. at factory calibration temperature) idx
  *   into radio/DSP gain settings table for requested power.
  */
-static int il3945_hw_reg_get_matched_power_index(struct il_priv *il,
+static int il3945_hw_reg_get_matched_power_idx(struct il_priv *il,
 				       s8 requested_power,
-				       s32 setting_index, s32 *new_index)
+				       s32 setting_idx, s32 *new_idx)
 {
 	const struct il3945_eeprom_txpower_group *chnl_grp = NULL;
 	struct il3945_eeprom *eeprom = (struct il3945_eeprom *)il->eeprom;
-	s32 index0, index1;
+	s32 idx0, idx1;
 	s32 power = 2 * requested_power;
 	s32 i;
 	const struct il3945_eeprom_txpower_sample *samples;
@@ -1937,45 +1937,45 @@ static int il3945_hw_reg_get_matched_power_index(struct il_priv *il,
 	s32 res;
 	s32 denominator;
 
-	chnl_grp = &eeprom->groups[setting_index];
+	chnl_grp = &eeprom->groups[setting_idx];
 	samples = chnl_grp->samples;
 	for (i = 0; i < 5; i++) {
 		if (power == samples[i].power) {
-			*new_index = samples[i].gain_index;
+			*new_idx = samples[i].gain_idx;
 			return 0;
 		}
 	}
 
 	if (power > samples[1].power) {
-		index0 = 0;
-		index1 = 1;
+		idx0 = 0;
+		idx1 = 1;
 	} else if (power > samples[2].power) {
-		index0 = 1;
-		index1 = 2;
+		idx0 = 1;
+		idx1 = 2;
 	} else if (power > samples[3].power) {
-		index0 = 2;
-		index1 = 3;
+		idx0 = 2;
+		idx1 = 3;
 	} else {
-		index0 = 3;
-		index1 = 4;
+		idx0 = 3;
+		idx1 = 4;
 	}
 
-	denominator = (s32) samples[index1].power - (s32) samples[index0].power;
+	denominator = (s32) samples[idx1].power - (s32) samples[idx0].power;
 	if (denominator == 0)
 		return -EINVAL;
-	gains0 = (s32) samples[index0].gain_index * (1 << 19);
-	gains1 = (s32) samples[index1].gain_index * (1 << 19);
+	gains0 = (s32) samples[idx0].gain_idx * (1 << 19);
+	gains1 = (s32) samples[idx1].gain_idx * (1 << 19);
 	res = gains0 + (gains1 - gains0) *
-	    ((s32) power - (s32) samples[index0].power) / denominator +
+	    ((s32) power - (s32) samples[idx0].power) / denominator +
 	    (1 << 18);
-	*new_index = res >> 19;
+	*new_idx = res >> 19;
 	return 0;
 }
 
 static void il3945_hw_reg_init_channel_groups(struct il_priv *il)
 {
 	u32 i;
-	s32 rate_index;
+	s32 rate_idx;
 	struct il3945_eeprom *eeprom = (struct il3945_eeprom *)il->eeprom;
 	const struct il3945_eeprom_txpower_group *group;
 
@@ -2009,9 +2009,9 @@ static void il3945_hw_reg_init_channel_groups(struct il_priv *il)
 		satur_pwr = (s8) (group->saturation_power >> 1);
 
 		/* fill in channel group's nominal powers for each rate */
-		for (rate_index = 0;
-		     rate_index < RATE_COUNT_3945; rate_index++, clip_pwrs++) {
-			switch (rate_index) {
+		for (rate_idx = 0;
+		     rate_idx < RATE_COUNT_3945; rate_idx++, clip_pwrs++) {
+			switch (rate_idx) {
 			case RATE_36M_IDX_TABLE:
 				if (i == 0)	/* B/G */
 					*clip_pwrs = satur_pwr;
@@ -2058,13 +2058,13 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 	struct il_channel_info *ch_info = NULL;
 	struct il3945_channel_power_info *pwr_info;
 	struct il3945_eeprom *eeprom = (struct il3945_eeprom *)il->eeprom;
-	int delta_index;
-	u8 rate_index;
-	u8 scan_tbl_index;
+	int delta_idx;
+	u8 rate_idx;
+	u8 scan_tbl_idx;
 	const s8 *clip_pwrs;	/* array of power levels for each rate */
 	u8 gain, dsp_atten;
 	s8 power;
-	u8 pwr_index, base_pwr_index, a_band;
+	u8 pwr_idx, base_pwr_idx, a_band;
 	u8 i;
 	int temperature;
 
@@ -2082,56 +2082,56 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 		if (!il_is_channel_valid(ch_info))
 			continue;
 
-		/* find this channel's channel group (*not* "band") index */
-		ch_info->group_index =
-			il3945_hw_reg_get_ch_grp_index(il, ch_info);
+		/* find this channel's channel group (*not* "band") idx */
+		ch_info->group_idx =
+			il3945_hw_reg_get_ch_grp_idx(il, ch_info);
 
 		/* Get this chnlgrp's rate->max/clip-powers table */
-		clip_pwrs = il->_3945.clip_groups[ch_info->group_index].clip_powers;
+		clip_pwrs = il->_3945.clip_groups[ch_info->group_idx].clip_powers;
 
-		/* calculate power index *adjustment* value according to
+		/* calculate power idx *adjustment* value according to
 		 *  diff between current temperature and factory temperature */
-		delta_index = il3945_hw_reg_adjust_power_by_temp(temperature,
-				eeprom->groups[ch_info->group_index].
+		delta_idx = il3945_hw_reg_adjust_power_by_temp(temperature,
+				eeprom->groups[ch_info->group_idx].
 				temperature);
 
-		D_POWER("Delta index for channel %d: %d [%d]\n",
-				ch_info->channel, delta_index, temperature +
+		D_POWER("Delta idx for channel %d: %d [%d]\n",
+				ch_info->channel, delta_idx, temperature +
 				IL_TEMP_CONVERT);
 
 		/* set tx power value for all OFDM rates */
-		for (rate_index = 0; rate_index < IL_OFDM_RATES;
-		     rate_index++) {
+		for (rate_idx = 0; rate_idx < IL_OFDM_RATES;
+		     rate_idx++) {
 			s32 uninitialized_var(power_idx);
 			int rc;
 
 			/* use channel group's clip-power table,
 			 *   but don't exceed channel's max power */
 			s8 pwr = min(ch_info->max_power_avg,
-				     clip_pwrs[rate_index]);
+				     clip_pwrs[rate_idx]);
 
-			pwr_info = &ch_info->power_info[rate_index];
+			pwr_info = &ch_info->power_info[rate_idx];
 
 			/* get base (i.e. at factory-measured temperature)
-			 *    power table index for this rate's power */
-			rc = il3945_hw_reg_get_matched_power_index(il, pwr,
-							 ch_info->group_index,
+			 *    power table idx for this rate's power */
+			rc = il3945_hw_reg_get_matched_power_idx(il, pwr,
+							 ch_info->group_idx,
 							 &power_idx);
 			if (rc) {
-				IL_ERR("Invalid power index\n");
+				IL_ERR("Invalid power idx\n");
 				return rc;
 			}
-			pwr_info->base_power_index = (u8) power_idx;
+			pwr_info->base_power_idx = (u8) power_idx;
 
 			/* temperature compensate */
-			power_idx += delta_index;
+			power_idx += delta_idx;
 
 			/* stay within range of gain table */
-			power_idx = il3945_hw_reg_fix_power_index(power_idx);
+			power_idx = il3945_hw_reg_fix_power_idx(power_idx);
 
 			/* fill 1 OFDM rate's il3945_channel_power_info struct */
 			pwr_info->requested_power = pwr;
-			pwr_info->power_table_index = (u8) power_idx;
+			pwr_info->power_table_idx = (u8) power_idx;
 			pwr_info->tpc.tx_gain =
 			    power_gain_table[a_band][power_idx].tx_gain;
 			pwr_info->tpc.dsp_atten =
@@ -2142,36 +2142,36 @@ int il3945_txpower_set_from_eeprom(struct il_priv *il)
 		pwr_info = &ch_info->power_info[RATE_12M_IDX_TABLE];
 		power = pwr_info->requested_power +
 			IL_CCK_FROM_OFDM_POWER_DIFF;
-		pwr_index = pwr_info->power_table_index +
+		pwr_idx = pwr_info->power_table_idx +
 			IL_CCK_FROM_OFDM_IDX_DIFF;
-		base_pwr_index = pwr_info->base_power_index +
+		base_pwr_idx = pwr_info->base_power_idx +
 			IL_CCK_FROM_OFDM_IDX_DIFF;
 
 		/* stay within table range */
-		pwr_index = il3945_hw_reg_fix_power_index(pwr_index);
-		gain = power_gain_table[a_band][pwr_index].tx_gain;
-		dsp_atten = power_gain_table[a_band][pwr_index].dsp_atten;
+		pwr_idx = il3945_hw_reg_fix_power_idx(pwr_idx);
+		gain = power_gain_table[a_band][pwr_idx].tx_gain;
+		dsp_atten = power_gain_table[a_band][pwr_idx].dsp_atten;
 
 		/* fill each CCK rate's il3945_channel_power_info structure
 		 * NOTE:  All CCK-rate Txpwrs are the same for a given chnl!
 		 * NOTE:  CCK rates start at end of OFDM rates! */
-		for (rate_index = 0;
-		     rate_index < IL_CCK_RATES; rate_index++) {
-			pwr_info = &ch_info->power_info[rate_index+IL_OFDM_RATES];
+		for (rate_idx = 0;
+		     rate_idx < IL_CCK_RATES; rate_idx++) {
+			pwr_info = &ch_info->power_info[rate_idx+IL_OFDM_RATES];
 			pwr_info->requested_power = power;
-			pwr_info->power_table_index = pwr_index;
-			pwr_info->base_power_index = base_pwr_index;
+			pwr_info->power_table_idx = pwr_idx;
+			pwr_info->base_power_idx = base_pwr_idx;
 			pwr_info->tpc.tx_gain = gain;
 			pwr_info->tpc.dsp_atten = dsp_atten;
 		}
 
 		/* set scan tx power, 1Mbit for CCK, 6Mbit for OFDM */
-		for (scan_tbl_index = 0;
-		     scan_tbl_index < IL_NUM_SCAN_RATES; scan_tbl_index++) {
-			s32 actual_index = (scan_tbl_index == 0) ?
+		for (scan_tbl_idx = 0;
+		     scan_tbl_idx < IL_NUM_SCAN_RATES; scan_tbl_idx++) {
+			s32 actual_idx = (scan_tbl_idx == 0) ?
 				RATE_1M_IDX_TABLE : RATE_6M_IDX_TABLE;
-			il3945_hw_reg_set_scan_power(il, scan_tbl_index,
-				actual_index, clip_pwrs, ch_info, a_band);
+			il3945_hw_reg_set_scan_power(il, scan_tbl_idx,
+				actual_idx, clip_pwrs, ch_info, a_band);
 		}
 	}
 
@@ -2304,21 +2304,21 @@ static int il3945_manage_ibss_station(struct il_priv *il,
  */
 int il3945_init_hw_rate_table(struct il_priv *il)
 {
-	int rc, i, index, prev_index;
+	int rc, i, idx, prev_idx;
 	struct il3945_rate_scaling_cmd rate_cmd = {
 		.reserved = {0, 0, 0},
 	};
 	struct il3945_rate_scaling_info *table = rate_cmd.table;
 
 	for (i = 0; i < ARRAY_SIZE(il3945_rates); i++) {
-		index = il3945_rates[i].table_rs_index;
+		idx = il3945_rates[i].table_rs_idx;
 
-		table[index].rate_n_flags =
+		table[idx].rate_n_flags =
 			il3945_hw_set_rate_n_flags(il3945_rates[i].plcp, 0);
-		table[index].try_cnt = il->retry_rate;
-		prev_index = il3945_get_prev_ieee_rate(i);
-		table[index].next_rate_index =
-				il3945_rates[prev_index].table_rs_index;
+		table[idx].try_cnt = il->retry_rate;
+		prev_idx = il3945_get_prev_ieee_rate(i);
+		table[idx].next_rate_idx =
+				il3945_rates[prev_idx].table_rs_idx;
 	}
 
 	switch (il->band) {
@@ -2328,16 +2328,16 @@ int il3945_init_hw_rate_table(struct il_priv *il)
 		 * have it fall back to the 6M OFDM rate */
 		for (i = RATE_1M_IDX_TABLE;
 			i <= RATE_11M_IDX_TABLE; i++)
-			table[i].next_rate_index =
-			  il3945_rates[IL_FIRST_OFDM_RATE].table_rs_index;
+			table[i].next_rate_idx =
+			  il3945_rates[IL_FIRST_OFDM_RATE].table_rs_idx;
 
 		/* Don't fall back to CCK rates */
-		table[RATE_12M_IDX_TABLE].next_rate_index =
+		table[RATE_12M_IDX_TABLE].next_rate_idx =
 						RATE_9M_IDX_TABLE;
 
 		/* Don't drop out of OFDM rates */
-		table[RATE_6M_IDX_TABLE].next_rate_index =
-		    il3945_rates[IL_FIRST_OFDM_RATE].table_rs_index;
+		table[RATE_6M_IDX_TABLE].next_rate_idx =
+		    il3945_rates[IL_FIRST_OFDM_RATE].table_rs_idx;
 		break;
 
 	case IEEE80211_BAND_2GHZ:
@@ -2348,15 +2348,15 @@ int il3945_init_hw_rate_table(struct il_priv *il)
 		if (!(il->_3945.sta_supp_rates & IL_OFDM_RATES_MASK) &&
 		    il_is_associated(il)) {
 
-			index = IL_FIRST_CCK_RATE;
+			idx = IL_FIRST_CCK_RATE;
 			for (i = RATE_6M_IDX_TABLE;
 			     i <= RATE_54M_IDX_TABLE; i++)
-				table[i].next_rate_index =
-					il3945_rates[index].table_rs_index;
+				table[i].next_rate_idx =
+					il3945_rates[idx].table_rs_idx;
 
-			index = RATE_11M_IDX_TABLE;
+			idx = RATE_11M_IDX_TABLE;
 			/* CCK shouldn't fall back to OFDM... */
-			table[index].next_rate_index = RATE_5M_IDX_TABLE;
+			table[idx].next_rate_idx = RATE_5M_IDX_TABLE;
 		}
 		break;
 

@@ -157,7 +157,7 @@ static int il4965_static_wepkey_cmd(struct il_priv *il,
 			(sizeof(struct il_wep_key) * WEP_KEYS_MAX));
 
 	for (i = 0; i < WEP_KEYS_MAX ; i++) {
-		wep_cmd->key[i].key_index = i;
+		wep_cmd->key[i].key_idx = i;
 		if (ctx->wep_keys[i].key_size) {
 			wep_cmd->key[i].key_offset = i;
 			not_empty = 1;
@@ -283,7 +283,7 @@ static int il4965_set_wep_dynamic_key_info(struct il_priv *il,
 	if ((il->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
 			== STA_KEY_FLG_NO_ENC)
 		il->stations[sta_id].sta.key.key_offset =
-				 il_get_free_ucode_key_index(il);
+				 il_get_free_ucode_key_idx(il);
 	/* else, we are overriding an existing key => no need to allocated room
 	 * in uCode. */
 
@@ -334,7 +334,7 @@ static int il4965_set_ccmp_dynamic_key_info(struct il_priv *il,
 	if ((il->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
 			== STA_KEY_FLG_NO_ENC)
 		il->stations[sta_id].sta.key.key_offset =
-				 il_get_free_ucode_key_index(il);
+				 il_get_free_ucode_key_idx(il);
 	/* else, we are overriding an existing key => no need to allocated room
 	 * in uCode. */
 
@@ -379,7 +379,7 @@ static int il4965_set_tkip_dynamic_key_info(struct il_priv *il,
 	if ((il->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
 			== STA_KEY_FLG_NO_ENC)
 		il->stations[sta_id].sta.key.key_offset =
-				 il_get_free_ucode_key_index(il);
+				 il_get_free_ucode_key_idx(il);
 	/* else, we are overriding an existing key => no need to allocated room
 	 * in uCode. */
 
@@ -457,9 +457,9 @@ int il4965_remove_dynamic_key(struct il_priv *il,
 		      keyconf->keyidx, sta_id);
 
 	if (keyconf->keyidx != keyidx) {
-		/* We need to remove a key with index different that the one
+		/* We need to remove a key with idx different that the one
 		 * in the uCode. This means that the key we need to remove has
-		 * been replaced by another one with different index.
+		 * been replaced by another one with different idx.
 		 * Don't do anything and return ok
 		 */
 		spin_unlock_irqrestore(&il->sta_lock, flags);
@@ -475,7 +475,7 @@ int il4965_remove_dynamic_key(struct il_priv *il,
 
 	if (!test_and_clear_bit(il->stations[sta_id].sta.key.key_offset,
 		&il->ucode_key_table))
-		IL_ERR("index %d not used in uCode key table.\n",
+		IL_ERR("idx %d not used in uCode key table.\n",
 			il->stations[sta_id].sta.key.key_offset);
 	memset(&il->stations[sta_id].keyinfo, 0,
 					sizeof(struct il_hw_key));

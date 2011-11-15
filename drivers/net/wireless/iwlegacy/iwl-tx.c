@@ -39,7 +39,7 @@
 #include "iwl-helpers.h"
 
 /**
- * il_txq_update_write_ptr - Send new write index to hardware
+ * il_txq_update_write_ptr - Send new write idx to hardware
  */
 void
 il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq)
@@ -152,7 +152,7 @@ void il_cmd_queue_unmap(struct il_priv *il)
 		return;
 
 	while (q->read_ptr != q->write_ptr) {
-		i = il_get_cmd_index(q, q->read_ptr, 0);
+		i = il_get_cmd_idx(q, q->read_ptr, 0);
 
 		if (txq->meta[i].flags & CMD_MAPPED) {
 			pci_unmap_single(il->pci_dev,
@@ -254,7 +254,7 @@ EXPORT_SYMBOL(il_queue_space);
 
 
 /**
- * il_queue_init - Initialize queue's high/low-water and read/write indexes
+ * il_queue_init - Initialize queue's high/low-water and read/write idxes
  */
 static int il_queue_init(struct il_priv *il, struct il_queue *q,
 			  int count, int slots_num, u32 id)
@@ -268,7 +268,7 @@ static int il_queue_init(struct il_priv *il, struct il_queue *q,
 	BUG_ON(!is_power_of_2(count));
 
 	/* slots_num must be power-of-two size, otherwise
-	 * il_get_cmd_index is broken. */
+	 * il_get_cmd_idx is broken. */
 	BUG_ON(!is_power_of_2(slots_num));
 
 	q->low_mark = q->n_win / 4;
@@ -385,7 +385,7 @@ int il_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq,
 	 * il_queue_inc_wrap and il_queue_dec_wrap are broken. */
 	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
 
-	/* Initialize queue's high/low-water marks, and head/tail indexes */
+	/* Initialize queue's high/low-water marks, and head/tail idxes */
 	il_queue_init(il, &txq->q,
 				TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
@@ -416,7 +416,7 @@ void il_tx_queue_reset(struct il_priv *il, struct il_tx_queue *txq,
 
 	txq->need_update = 0;
 
-	/* Initialize queue's high/low-water marks, and head/tail indexes */
+	/* Initialize queue's high/low-water marks, and head/tail idxes */
 	il_queue_init(il, &txq->q,
 				TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
@@ -433,7 +433,7 @@ EXPORT_SYMBOL(il_tx_queue_reset);
  * @cmd: a point to the ucode command structure
  *
  * The function returns < 0 values to indicate the operation is
- * failed. On success, it turns the index (> 0) of command in the
+ * failed. On success, it turns the idx (> 0) of command in the
  * command queue.
  */
 int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
@@ -476,7 +476,7 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 		return -ENOSPC;
 	}
 
-	idx = il_get_cmd_index(q, q->write_ptr, cmd->flags & CMD_SIZE_HUGE);
+	idx = il_get_cmd_idx(q, q->write_ptr, cmd->flags & CMD_SIZE_HUGE);
 	out_cmd = txq->cmd[idx];
 	out_meta = &txq->meta[idx];
 
@@ -543,7 +543,7 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 						   phys_addr, fix_size, 1,
 						   U32_PAD(cmd->len));
 
-	/* Increment and update queue's write index */
+	/* Increment and update queue's write idx */
 	q->write_ptr = il_queue_inc_wrap(q->write_ptr, q->n_bd);
 	il_txq_update_write_ptr(il, txq);
 
@@ -554,7 +554,7 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 /**
  * il_hcmd_queue_reclaim - Reclaim TX command queue entries already Tx'd
  *
- * When FW advances 'R' index, all entries between old and new 'R' index
+ * When FW advances 'R' idx, all entries between old and new 'R' idx
  * need to be reclaimed. As result, some free space forms.  If there is
  * enough free space (> low mark), wake the stack that feeds us.
  */
@@ -566,7 +566,7 @@ static void il_hcmd_queue_reclaim(struct il_priv *il, int txq_id,
 	int nfreed = 0;
 
 	if (idx >= q->n_bd || il_queue_used(q, idx) == 0) {
-		IL_ERR("Read index for DMA queue txq id (%d), index %d, "
+		IL_ERR("Read idx for DMA queue txq id (%d), idx %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  idx, q->n_bd, q->write_ptr, q->read_ptr);
 		return;
@@ -576,7 +576,7 @@ static void il_hcmd_queue_reclaim(struct il_priv *il, int txq_id,
 	     q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		if (nfreed++ > 0) {
-			IL_ERR("HCMD skipped: index (%d) %d %d\n", idx,
+			IL_ERR("HCMD skipped: idx (%d) %d %d\n", idx,
 					q->write_ptr, q->read_ptr);
 			queue_work(il->workqueue, &il->restart);
 		}
@@ -598,8 +598,8 @@ il_tx_cmd_complete(struct il_priv *il, struct il_rx_buf *rxb)
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
-	int index = SEQ_TO_IDX(sequence);
-	int cmd_index;
+	int idx = SEQ_TO_IDX(sequence);
+	int cmd_idx;
 	bool huge = !!(pkt->hdr.sequence & SEQ_HUGE_FRAME);
 	struct il_device_cmd *cmd;
 	struct il_cmd_meta *meta;
@@ -618,9 +618,9 @@ il_tx_cmd_complete(struct il_priv *il, struct il_rx_buf *rxb)
 		return;
 	}
 
-	cmd_index = il_get_cmd_index(&txq->q, index, huge);
-	cmd = txq->cmd[cmd_index];
-	meta = &txq->meta[cmd_index];
+	cmd_idx = il_get_cmd_idx(&txq->q, idx, huge);
+	cmd = txq->cmd[cmd_idx];
+	meta = &txq->meta[cmd_idx];
 
 	txq->time_stamp = jiffies;
 
@@ -638,7 +638,7 @@ il_tx_cmd_complete(struct il_priv *il, struct il_rx_buf *rxb)
 
 	spin_lock_irqsave(&il->hcmd_lock, flags);
 
-	il_hcmd_queue_reclaim(il, txq_id, index, cmd_index);
+	il_hcmd_queue_reclaim(il, txq_id, idx, cmd_idx);
 
 	if (!(meta->flags & CMD_ASYNC)) {
 		clear_bit(STATUS_HCMD_ACTIVE, &il->status);

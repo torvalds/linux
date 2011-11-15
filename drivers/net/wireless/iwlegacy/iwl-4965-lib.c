@@ -105,7 +105,7 @@ int il4965_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
 	/* Stop Rx DMA */
 	il_wr(il, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
 
-	/* Reset driver's Rx queue write index */
+	/* Reset driver's Rx queue write idx */
 	il_wr(il, FH_RSCSR_CHNL0_RBDCB_WPTR_REG, 0);
 
 	/* Tell device where to find RBD circular buffer in DRAM */
@@ -222,7 +222,7 @@ static inline __le32 il4965_dma_addr2rbd_ptr(struct il_priv *il,
  * and we have free pre-allocated buffers, fill the ranks as much
  * as we can, pulling from rx_free.
  *
- * This moves the 'write' index forward to catch up with 'processed', and
+ * This moves the 'write' idx forward to catch up with 'processed', and
  * also updates the memory address in the firmware to reference the new
  * target buffer.
  */

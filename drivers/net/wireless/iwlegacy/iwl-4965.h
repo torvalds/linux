@@ -123,7 +123,7 @@ int il4965_txq_check_empty(struct il_priv *il,
 			   int sta_id, u8 tid, int txq_id);
 void il4965_rx_reply_compressed_ba(struct il_priv *il,
 				struct il_rx_buf *rxb);
-int il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int index);
+int il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx);
 void il4965_hw_txq_ctx_free(struct il_priv *il);
 int il4965_txq_ctx_alloc(struct il_priv *il);
 void il4965_txq_ctx_reset(struct il_priv *il);
@@ -133,7 +133,7 @@ void il4965_txq_set_sched(struct il_priv *il, u32 mask);
 /*
  * Acquire il->lock before calling this function !
  */
-void il4965_set_wr_ptrs(struct il_priv *il, int txq_id, u32 index);
+void il4965_set_wr_ptrs(struct il_priv *il, int txq_id, u32 idx);
 /**
  * il4965_tx_queue_set_status - (optionally) start Tx/Cmd queue
  * @tx_fifo_id: Tx DMA/FIFO channel (range 0-7) that the queue will feed

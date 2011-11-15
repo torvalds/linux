@@ -411,10 +411,10 @@
 #define HBUS_TARG_PRPH_RDAT     (HBUS_BASE+0x050)
 
 /*
- * Per-Tx-queue write pointer (index, really!)
- * Indicates index to next TFD that driver will fill (1 past latest filled).
+ * Per-Tx-queue write pointer (idx, really!)
+ * Indicates idx to next TFD that driver will fill (1 past latest filled).
  * Bit usage:
- *  0-7:  queue write index
+ *  0-7:  queue write idx
  * 11-8:  queue selector
  */
 #define HBUS_TARG_WRPTR         (HBUS_BASE+0x060)

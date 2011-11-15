@@ -141,7 +141,7 @@
  *     into FH_RSCSR_CHNL0_RBDCB_BASE_REG [27:0].
  *
  * 2)  Rx status buffer, 8 bytes, in which 4965 indicates which Rx Buffers
- *     (RBs) have been filled, via a "write pointer", actually the index of
+ *     (RBs) have been filled, via a "write pointer", actually the idx of
  *     the RB's corresponding RBD within the circular buffer.  Driver sets
  *     physical address [35:4] into FH_RSCSR_CHNL0_STTS_WPTR_REG [31:0].
  *
@@ -153,33 +153,33 @@
  *
  * As the driver prepares Receive Buffers (RBs) for 4965 to fill, driver must
  * enter pointers to these RBs into contiguous RBD circular buffer entries,
- * and update the 4965's "write" index register,
+ * and update the 4965's "write" idx register,
  * FH_RSCSR_CHNL0_RBDCB_WPTR_REG.
  *
- * This "write" index corresponds to the *next* RBD that the driver will make
+ * This "write" idx corresponds to the *next* RBD that the driver will make
  * available, i.e. one RBD past the tail of the ready-to-fill RBDs within
  * the circular buffer.  This value should initially be 0 (before preparing any
  * RBs), should be 8 after preparing the first 8 RBs (for example), and must
  * wrap back to 0 at the end of the circular buffer (but don't wrap before
- * "read" index has advanced past 1!  See below).
+ * "read" idx has advanced past 1!  See below).
  * NOTE:  4965 EXPECTS THE WRITE IDX TO BE INCREMENTED IN MULTIPLES OF 8.
  *
  * As the 4965 fills RBs (referenced from contiguous RBDs within the circular
  * buffer), it updates the Rx status buffer in host DRAM, 2) described above,
- * to tell the driver the index of the latest filled RBD.  The driver must
- * read this "read" index from DRAM after receiving an Rx interrupt from 4965.
+ * to tell the driver the idx of the latest filled RBD.  The driver must
+ * read this "read" idx from DRAM after receiving an Rx interrupt from 4965.
  *
- * The driver must also internally keep track of a third index, which is the
+ * The driver must also internally keep track of a third idx, which is the
  * next RBD to process.  When receiving an Rx interrupt, driver should process
  * all filled but unprocessed RBs up to, but not including, the RB
- * corresponding to the "read" index.  For example, if "read" index becomes "1",
+ * corresponding to the "read" idx.  For example, if "read" idx becomes "1",
  * driver may process the RB pointed to by RBD 0.  Depending on volume of
  * traffic, there may be many RBs to process.
  *
- * If read index == write index, 4965 thinks there is no room to put new data.
+ * If read idx == write idx, 4965 thinks there is no room to put new data.
  * Due to this, the maximum number of filled RBs is 255, instead of 256.  To
  * be safe, make sure that there is a gap of at least 2 RBDs between "write"
- * and "read" indexes; that is, make sure that there are no more than 254
+ * and "read" idxes; that is, make sure that there are no more than 254
  * buffers waiting to be filled.
  */
 #define FH_MEM_RSCSR_LOWER_BOUND	(FH_MEM_LOWER_BOUND + 0xBC0)
@@ -201,7 +201,7 @@
 #define FH_RSCSR_CHNL0_RBDCB_BASE_REG	(FH_MEM_RSCSR_CHNL0 + 0x004)
 
 /**
- * Rx write pointer (index, really!).
+ * Rx write pointer (idx, really!).
  * Bit fields:
  *  11-0:  Index of driver's most recent prepared-to-be-filled RBD, + 1.
  *         NOTE:  For 256-entry circular buffer, use only bits [7:0].
@@ -431,11 +431,11 @@
 /**
  * struct il_rb_status - reseve buffer status
  * 	host memory mapped FH registers
- * @closed_rb_num [0:11] - Indicates the index of the RB which was closed
- * @closed_fr_num [0:11] - Indicates the index of the RX Frame which was closed
- * @finished_rb_num [0:11] - Indicates the index of the current RB
+ * @closed_rb_num [0:11] - Indicates the idx of the RB which was closed
+ * @closed_fr_num [0:11] - Indicates the idx of the RX Frame which was closed
+ * @finished_rb_num [0:11] - Indicates the idx of the current RB
  * 	in which the last frame was written to
- * @finished_fr_num [0:11] - Indicates the index of the RX Frame
+ * @finished_fr_num [0:11] - Indicates the idx of the RX Frame
  * 	which was transferred
  */
 struct il_rb_status {

@@ -203,7 +203,7 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  * 1)  Compare desired txpower vs. (EEPROM) regulatory limit for this channel.
  *     Do not exceed regulatory limit; reduce target txpower if necessary.
  *
- *     If setting up txpowers for MIMO rates (rate indexes 8-15, 24-31),
+ *     If setting up txpowers for MIMO rates (rate idxes 8-15, 24-31),
  *     2 transmitters will be used simultaneously; driver must reduce the
  *     regulatory limit by 3 dB (half-power) for each transmitter, so the
  *     combined total output of the 2 transmitters is within regulatory limits.
@@ -269,7 +269,7 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  *     be used (although only one at a time) even for non-MIMO transmissions.
  *
  *     Driver should interpolate factory values for temperature, gain table
- *     index, and actual power.  The power amplifier detector values are
+ *     idx, and actual power.  The power amplifier detector values are
  *     not used by the driver.
  *
  *     Sanity check:  If the target channel happens to be one of the sample
@@ -278,13 +278,13 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  *
  *
  * 5)  Find difference between desired txpower and (interpolated)
- *     factory-measured txpower.  Using (interpolated) factory gain table index
- *     (shown elsewhere) as a starting point, adjust this index lower to
+ *     factory-measured txpower.  Using (interpolated) factory gain table idx
+ *     (shown elsewhere) as a starting point, adjust this idx lower to
  *     increase txpower, or higher to decrease txpower, until the target
  *     txpower is reached.  Each step in the gain table is 1/2 dB.
  *
  *     For example, if factory measured txpower is 16 dBm, and target txpower
- *     is 13 dBm, add 6 steps to the factory gain index to reduce txpower
+ *     is 13 dBm, add 6 steps to the factory gain idx to reduce txpower
  *     by 3 dB.
  *
  *
@@ -294,7 +294,7 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  *     "4965 temperature calculation".
  *
  *     If current temperature is higher than factory temperature, driver must
- *     increase gain (lower gain table index), and vice verse.
+ *     increase gain (lower gain table idx), and vice verse.
  *
  *     Temperature affects gain differently for different channels:
  *
@@ -313,16 +313,16 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  *     indicator (EEPROM).
  *
  *     If the current voltage is higher (indicator is lower) than factory
- *     voltage, gain should be reduced (gain table index increased) by:
+ *     voltage, gain should be reduced (gain table idx increased) by:
  *
  *     (eeprom - current) / 7
  *
  *     If the current voltage is lower (indicator is higher) than factory
- *     voltage, gain should be increased (gain table index decreased) by:
+ *     voltage, gain should be increased (gain table idx decreased) by:
  *
  *     2 * (current - eeprom) / 7
  *
- *     If number of index steps in either direction turns out to be > 2,
+ *     If number of idx steps in either direction turns out to be > 2,
  *     something is wrong ... just use 0.
  *
  *     NOTE:  Voltage compensation is independent of band/channel.
@@ -333,7 +333,7 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  *            may be calculated once and used until the next uCode bootload.
  *
  *
- * 8)  If setting up txpowers for MIMO rates (rate indexes 8-15, 24-31),
+ * 8)  If setting up txpowers for MIMO rates (rate idxes 8-15, 24-31),
  *     adjust txpower for each transmitter chain, so txpower is balanced
  *     between the two chains.  There are 5 pairs of tx_atten[group][chain]
  *     values in "initialize alive", one pair for each of 5 channel ranges:
@@ -344,7 +344,7 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  *     Group 3:  5 GHz channel 125-200
  *     Group 4:  2.4 GHz all channels
  *
- *     Add the tx_atten[group][chain] value to the index for the target chain.
+ *     Add the tx_atten[group][chain] value to the idx for the target chain.
  *     The values are signed, but are in pairs of 0 and a non-negative number,
  *     so as to reduce gain (if necessary) of the "hotter" channel.  This
  *     avoids any need to double-check for regulatory compliance after
@@ -352,7 +352,7 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  *
  *
  * 9)  If setting up for a CCK rate, lower the gain by adding a CCK compensation
- *     value to the index:
+ *     value to the idx:
  *
  *     Hardware rev B:  9 steps (4.5 dB)
  *     Hardware rev C:  5 steps (2.5 dB)
@@ -366,7 +366,7 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  *
  * 10) Select the gain table, based on band (2.4 vs 5 GHz).
  *
- *     Limit the adjusted index to stay within the table!
+ *     Limit the adjusted idx to stay within the table!
  *
  *
  * 11) Read gain table entries for DSP and radio gain, place into appropriate
@@ -389,7 +389,7 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  *
  * When calculating txpowers for CCK, after making sure that the target power
  * is within regulatory and saturation limits, driver must additionally
- * back off gain by adding these values to the gain table index.
+ * back off gain by adding these values to the gain table idx.
  *
  * Hardware rev for 4965 can be determined by reading CSR_HW_REV_WA_REG,
  * bits [3:2], 1 = B, 2 = C.
@@ -428,9 +428,9 @@ static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
  * driver work with the same table).
  *
  * There are separate tables for 2.4 GHz and 5 GHz bands.  The 5 GHz table
- * has an extension (into negative indexes), in case the driver needs to
+ * has an extension (into negative idxes), in case the driver needs to
  * boost power setting for high device temperatures (higher than would be
- * present during factory calibration).  A 5 Ghz EEPROM index of "40"
+ * present during factory calibration).  A 5 Ghz EEPROM idx of "40"
  * corresponds to the 49th entry in the table used by the driver.
  */
 #define MIN_TX_GAIN_IDX		(0)  /* highest gain, lowest idx, 2.4 */
@@ -778,8 +778,8 @@ enum {
  *
  * When driver sets up a new TFD, it must also enter the total byte count
  * of the frame to be transmitted into the corresponding entry in the byte
- * count table for the chosen Tx queue.  If the TFD index is 0-63, the driver
- * must duplicate the byte count entry in corresponding index 256-319.
+ * count table for the chosen Tx queue.  If the TFD idx is 0-63, the driver
+ * must duplicate the byte count entry in corresponding idx 256-319.
  *
  * padding puts each byte count table on a 1024-byte boundary;
  * 4965 assumes tables are separated by 1024 bytes.

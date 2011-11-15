@@ -183,7 +183,7 @@ static void il4965_tx_cmd_build_rate(struct il_priv *il,
 	/* DATA packets will use the uCode station table for rate/antenna
 	 * selection */
 	if (ieee80211_is_data(fc)) {
-		tx_cmd->initial_rate_index = 0;
+		tx_cmd->initial_rate_idx = 0;
 		tx_cmd->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
 		return;
 	}
@@ -192,7 +192,7 @@ static void il4965_tx_cmd_build_rate(struct il_priv *il,
 	 * If the current TX rate stored in mac80211 has the MCS bit set, it's
 	 * not really a TX rate.  Thus, we use the lowest supported rate for
 	 * this band.  Also use the lowest supported rate if the stored rate
-	 * index is invalid.
+	 * idx is invalid.
 	 */
 	rate_idx = info->control.rates[0].idx;
 	if ((info->control.rates[0].flags & IEEE80211_TX_RC_MCS) ||
@@ -319,7 +319,7 @@ int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	if (!ieee80211_is_data(fc))
 		sta_id = ctx->bcast_sta_id;
 	else {
-		/* Find index into station table for destination station */
+		/* Find idx into station table for destination station */
 		sta_id = il_sta_id_or_broadcast(il, ctx, info->control.sta);
 
 		if (sta_id == IL_INVALID_STATION) {
@@ -417,7 +417,7 @@ int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	/*
 	 * Set up the Tx-command (not MAC!) header.
-	 * Store the chosen Tx queue and TFD index within the sequence field;
+	 * Store the chosen Tx queue and TFD idx within the sequence field;
 	 * after Tx, uCode's Tx response will return this value so driver can
 	 * locate the frame within the tx queue and do post-tx processing.
 	 */
@@ -513,7 +513,7 @@ int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	pci_dma_sync_single_for_device(il->pci_dev, txcmd_phys,
 				       firstlen, PCI_DMA_BIDIRECTIONAL);
 
-	/* Tell device the write index *just past* this latest filled TFD */
+	/* Tell device the write idx *just past* this latest filled TFD */
 	q->write_ptr = il_queue_inc_wrap(q->write_ptr, q->n_bd);
 	il_txq_update_write_ptr(il, txq);
 	spin_unlock_irqrestore(&il->lock, flags);
@@ -828,7 +828,7 @@ static int il4965_txq_agg_enable(struct il_priv *il, int txq_id,
 	/* Set this queue as a chain-building queue */
 	il_set_bits_prph(il, IL49_SCD_QUEUECHAIN_SEL, (1 << txq_id));
 
-	/* Place first TFD at index corresponding to start sequence number.
+	/* Place first TFD at idx corresponding to start sequence number.
 	 * Assumes that ssn_idx is valid (!= 0xFFF) */
 	il->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
 	il->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
@@ -1105,7 +1105,7 @@ il4965_tx_status(struct il_priv *il, struct il_tx_info *tx_info,
 	ieee80211_tx_status_irqsafe(il->hw, tx_info->skb);
 }
 
-int il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int index)
+int il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 {
 	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct il_queue *q = &txq->q;
@@ -1113,15 +1113,15 @@ int il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int index)
 	int nfreed = 0;
 	struct ieee80211_hdr *hdr;
 
-	if (index >= q->n_bd || il_queue_used(q, index) == 0) {
-		IL_ERR("Read index for DMA queue txq id (%d), index %d, "
+	if (idx >= q->n_bd || il_queue_used(q, idx) == 0) {
+		IL_ERR("Read idx for DMA queue txq id (%d), idx %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
-			  index, q->n_bd, q->write_ptr, q->read_ptr);
+			  idx, q->n_bd, q->write_ptr, q->read_ptr);
 		return 0;
 	}
 
-	for (index = il_queue_inc_wrap(index, q->n_bd);
-	     q->read_ptr != index;
+	for (idx = il_queue_inc_wrap(idx, q->n_bd);
+	     q->read_ptr != idx;
 	     q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		tx_info = &txq->txb[txq->q.read_ptr];
@@ -1252,7 +1252,7 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 	struct il_compressed_ba_resp *ba_resp = &pkt->u.compressed_ba;
 	struct il_tx_queue *txq = NULL;
 	struct il_ht_agg *agg;
-	int index;
+	int idx;
 	int sta_id;
 	int tid;
 	unsigned long flags;
@@ -1260,7 +1260,7 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 	/* "flow" corresponds to Tx queue */
 	u16 scd_flow = le16_to_cpu(ba_resp->scd_flow);
 
-	/* "ssn" is start of block-ack Tx win, corresponds to index
+	/* "ssn" is start of block-ack Tx win, corresponds to idx
 	 * (in Tx queue's circular buffer) of first TFD/frame in win */
 	u16 ba_resp_scd_ssn = le16_to_cpu(ba_resp->scd_ssn);
 
@@ -1287,8 +1287,8 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 		return;
 	}
 
-	/* Find index just before block-ack win */
-	index = il_queue_dec_wrap(ba_resp_scd_ssn & 0xff, txq->q.n_bd);
+	/* Find idx just before block-ack win */
+	idx = il_queue_dec_wrap(ba_resp_scd_ssn & 0xff, txq->q.n_bd);
 
 	spin_lock_irqsave(&il->sta_lock, flags);
 
@@ -1317,7 +1317,7 @@ void il4965_rx_reply_compressed_ba(struct il_priv *il,
 	 * transmitted ... if not, it's too late anyway). */
 	if (txq->q.read_ptr != (ba_resp_scd_ssn & 0xff)) {
 		/* calculate mac80211 ampdu sw queue to wake */
-		int freed = il4965_tx_queue_reclaim(il, scd_flow, index);
+		int freed = il4965_tx_queue_reclaim(il, scd_flow, idx);
 		il4965_free_tfds_in_queue(il, sta_id, tid, freed);
 
 		if (il_queue_space(&txq->q) > txq->q.low_mark &&

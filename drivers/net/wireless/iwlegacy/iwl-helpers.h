@@ -45,23 +45,23 @@ static inline struct ieee80211_conf *il_ieee80211_get_hw_conf(
 }
 
 /**
- * il_queue_inc_wrap - increment queue index, wrap back to beginning
- * @index -- current index
+ * il_queue_inc_wrap - increment queue idx, wrap back to beginning
+ * @idx -- current idx
  * @n_bd -- total number of entries in queue (must be power of 2)
  */
-static inline int il_queue_inc_wrap(int index, int n_bd)
+static inline int il_queue_inc_wrap(int idx, int n_bd)
 {
-	return ++index & (n_bd - 1);
+	return ++idx & (n_bd - 1);
 }
 
 /**
- * il_queue_dec_wrap - decrement queue index, wrap back to end
- * @index -- current index
+ * il_queue_dec_wrap - decrement queue idx, wrap back to end
+ * @idx -- current idx
  * @n_bd -- total number of entries in queue (must be power of 2)
  */
-static inline int il_queue_dec_wrap(int index, int n_bd)
+static inline int il_queue_dec_wrap(int idx, int n_bd)
 {
-	return --index & (n_bd - 1);
+	return --idx & (n_bd - 1);
 }
 
 /* TODO: Move fw_desc functions to iwl-pci.ko */

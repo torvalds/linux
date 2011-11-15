@@ -89,7 +89,7 @@
  * During init, we copy the eeprom information and channel map
  * information into il->channel_info_24/52 and il->channel_map_24/52
  *
- * channel_map_24/52 provides the index in the channel_info array for a
+ * channel_map_24/52 provides the idx in the channel_info array for a
  * given channel.  We have to have two separate maps as there is channel
  * overlap with the 2.4GHz and 5.2GHz spectrum as seen in band_1 and
  * band_2
@@ -267,7 +267,7 @@ EXPORT_SYMBOL(il_eeprom_free);
 static void il_init_band_reference(const struct il_priv *il,
 			int eep_band, int *eeprom_ch_count,
 			const struct il_eeprom_channel **eeprom_ch_info,
-			const u8 **eeprom_ch_index)
+			const u8 **eeprom_ch_idx)
 {
 	u32 offset = il->cfg->ops->lib->
 			eeprom_ops.regulatory_bands[eep_band - 1];
@@ -276,43 +276,43 @@ static void il_init_band_reference(const struct il_priv *il,
 		*eeprom_ch_count = ARRAY_SIZE(il_eeprom_band_1);
 		*eeprom_ch_info = (struct il_eeprom_channel *)
 				il_eeprom_query_addr(il, offset);
-		*eeprom_ch_index = il_eeprom_band_1;
+		*eeprom_ch_idx = il_eeprom_band_1;
 		break;
 	case 2:		/* 4.9GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(il_eeprom_band_2);
 		*eeprom_ch_info = (struct il_eeprom_channel *)
 				il_eeprom_query_addr(il, offset);
-		*eeprom_ch_index = il_eeprom_band_2;
+		*eeprom_ch_idx = il_eeprom_band_2;
 		break;
 	case 3:		/* 5.2GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(il_eeprom_band_3);
 		*eeprom_ch_info = (struct il_eeprom_channel *)
 				il_eeprom_query_addr(il, offset);
-		*eeprom_ch_index = il_eeprom_band_3;
+		*eeprom_ch_idx = il_eeprom_band_3;
 		break;
 	case 4:		/* 5.5GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(il_eeprom_band_4);
 		*eeprom_ch_info = (struct il_eeprom_channel *)
 				il_eeprom_query_addr(il, offset);
-		*eeprom_ch_index = il_eeprom_band_4;
+		*eeprom_ch_idx = il_eeprom_band_4;
 		break;
 	case 5:		/* 5.7GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(il_eeprom_band_5);
 		*eeprom_ch_info = (struct il_eeprom_channel *)
 				il_eeprom_query_addr(il, offset);
-		*eeprom_ch_index = il_eeprom_band_5;
+		*eeprom_ch_idx = il_eeprom_band_5;
 		break;
 	case 6:		/* 2.4GHz ht40 channels */
 		*eeprom_ch_count = ARRAY_SIZE(il_eeprom_band_6);
 		*eeprom_ch_info = (struct il_eeprom_channel *)
 				il_eeprom_query_addr(il, offset);
-		*eeprom_ch_index = il_eeprom_band_6;
+		*eeprom_ch_idx = il_eeprom_band_6;
 		break;
 	case 7:		/* 5 GHz ht40 channels */
 		*eeprom_ch_count = ARRAY_SIZE(il_eeprom_band_7);
 		*eeprom_ch_info = (struct il_eeprom_channel *)
 				il_eeprom_query_addr(il, offset);
-		*eeprom_ch_index = il_eeprom_band_7;
+		*eeprom_ch_idx = il_eeprom_band_7;
 		break;
 	default:
 		BUG();
@@ -374,7 +374,7 @@ static int il_mod_ht40_chan_info(struct il_priv *il,
 int il_init_channel_map(struct il_priv *il)
 {
 	int eeprom_ch_count = 0;
-	const u8 *eeprom_ch_index = NULL;
+	const u8 *eeprom_ch_idx = NULL;
 	const struct il_eeprom_channel *eeprom_ch_info = NULL;
 	int band, ch;
 	struct il_channel_info *ch_info;
@@ -412,11 +412,11 @@ int il_init_channel_map(struct il_priv *il)
 	for (band = 1; band <= 5; band++) {
 
 		il_init_band_reference(il, band, &eeprom_ch_count,
-					&eeprom_ch_info, &eeprom_ch_index);
+					&eeprom_ch_info, &eeprom_ch_idx);
 
 		/* Loop through each band adding each of the channels */
 		for (ch = 0; ch < eeprom_ch_count; ch++) {
-			ch_info->channel = eeprom_ch_index[ch];
+			ch_info->channel = eeprom_ch_idx[ch];
 			ch_info->band = (band == 1) ? IEEE80211_BAND_2GHZ :
 			    IEEE80211_BAND_5GHZ;
 
@@ -486,7 +486,7 @@ int il_init_channel_map(struct il_priv *il)
 		enum ieee80211_band ieeeband;
 
 		il_init_band_reference(il, band, &eeprom_ch_count,
-					&eeprom_ch_info, &eeprom_ch_index);
+					&eeprom_ch_info, &eeprom_ch_idx);
 
 		/* EEPROM band 6 is 2.4, band 7 is 5 GHz */
 		ieeeband =
@@ -496,13 +496,13 @@ int il_init_channel_map(struct il_priv *il)
 		for (ch = 0; ch < eeprom_ch_count; ch++) {
 			/* Set up driver's info for lower half */
 			il_mod_ht40_chan_info(il, ieeeband,
-						eeprom_ch_index[ch],
+						eeprom_ch_idx[ch],
 						&eeprom_ch_info[ch],
 						IEEE80211_CHAN_NO_HT40PLUS);
 
 			/* Set up driver's info for upper half */
 			il_mod_ht40_chan_info(il, ieeeband,
-						eeprom_ch_index[ch] + 4,
+						eeprom_ch_idx[ch] + 4,
 						&eeprom_ch_info[ch],
 						IEEE80211_CHAN_NO_HT40MINUS);
 		}

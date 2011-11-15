@@ -174,7 +174,7 @@ int il_send_add_sta(struct il_priv *il,
 }
 EXPORT_SYMBOL(il_send_add_sta);
 
-static void il_set_ht_add_station(struct il_priv *il, u8 index,
+static void il_set_ht_add_station(struct il_priv *il, u8 idx,
 				   struct ieee80211_sta *sta,
 				   struct il_rxon_context *ctx)
 {
@@ -192,7 +192,7 @@ static void il_set_ht_add_station(struct il_priv *il, u8 index,
 			(mimo_ps_mode == WLAN_HT_CAP_SM_PS_DYNAMIC) ?
 			"dynamic" : "disabled");
 
-	sta_flags = il->stations[index].sta.station_flags;
+	sta_flags = il->stations[idx].sta.station_flags;
 
 	sta_flags &= ~(STA_FLG_RTS_MIMO_PROT_MSK | STA_FLG_MIMO_DIS_MSK);
 
@@ -221,7 +221,7 @@ static void il_set_ht_add_station(struct il_priv *il, u8 index,
 	else
 		sta_flags &= ~STA_FLG_HT40_EN_MSK;
 
-	il->stations[index].sta.station_flags = sta_flags;
+	il->stations[idx].sta.station_flags = sta_flags;
  done:
 	return;
 }
@@ -649,7 +649,7 @@ il_restore_stations(struct il_priv *il, struct il_rxon_context *ctx)
 }
 EXPORT_SYMBOL(il_restore_stations);
 
-int il_get_free_ucode_key_index(struct il_priv *il)
+int il_get_free_ucode_key_idx(struct il_priv *il)
 {
 	int i;
 
@@ -659,7 +659,7 @@ int il_get_free_ucode_key_index(struct il_priv *il)
 
 	return WEP_INVALID_OFFSET;
 }
-EXPORT_SYMBOL(il_get_free_ucode_key_index);
+EXPORT_SYMBOL(il_get_free_ucode_key_idx);
 
 void il_dealloc_bcast_stations(struct il_priv *il)
 {
@@ -692,7 +692,7 @@ static void il_dump_lq_cmd(struct il_priv *il,
 		       lq->general_params.dual_stream_ant_msk);
 
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
-		D_RATE("lq index %d 0x%X\n",
+		D_RATE("lq idx %d 0x%X\n",
 			       i, lq->rs_table[i].rate_n_flags);
 }
 #else
@@ -728,7 +728,7 @@ static bool il_is_lq_table_valid(struct il_priv *il,
 		if (le32_to_cpu(lq->rs_table[i].rate_n_flags) &
 						RATE_MCS_HT_MSK) {
 			D_INFO(
-				       "index %d of LQ expects HT channel\n",
+				       "idx %d of LQ expects HT channel\n",
 				       i);
 			return false;
 		}

@@ -446,12 +446,12 @@ static s32 il4965_math_div_round(s32 num, s32 denom, s32 *res)
  * il4965_get_voltage_compensation - Power supply voltage comp for txpower
  *
  * Determines power supply voltage compensation for txpower calculations.
- * Returns number of 1/2-dB steps to subtract from gain table index,
+ * Returns number of 1/2-dB steps to subtract from gain table idx,
  * to compensate for difference between power supply voltage during
  * factory measurements, vs. current power supply voltage.
  *
  * Voltage indication is higher for lower voltage.
- * Lower voltage requires more gain (lower gain table index).
+ * Lower voltage requires more gain (lower gain table idx).
  */
 static s32 il4965_get_voltage_compensation(s32 eeprom_voltage,
 					    s32 current_voltage)
@@ -628,10 +628,10 @@ static struct il4965_txpower_comp_entry {
 	{3, 1}			/* group 4 2.4, ch   all */
 };
 
-static s32 get_min_power_index(s32 rate_power_index, u32 band)
+static s32 get_min_power_idx(s32 rate_power_idx, u32 band)
 {
 	if (!band) {
-		if ((rate_power_index & 7) <= 4)
+		if ((rate_power_idx & 7) <= 4)
 			return MIN_TX_GAIN_IDX_52GHZ_EXT;
 	}
 	return MIN_TX_GAIN_IDX;
@@ -643,7 +643,7 @@ struct gain_entry {
 };
 
 static const struct gain_entry gain_table[2][108] = {
-	/* 5.2GHz power gain index table */
+	/* 5.2GHz power gain idx table */
 	{
 	 {123, 0x3F},		/* highest txpower */
 	 {117, 0x3F},
@@ -754,7 +754,7 @@ static const struct gain_entry gain_table[2][108] = {
 	 {83, 0x00},
 	 {78, 0x00},
 	 },
-	/* 2.4GHz power gain index table */
+	/* 2.4GHz power gain idx table */
 	{
 	 {110, 0x3f},		/* highest txpower */
 	 {104, 0x3f},
@@ -891,12 +891,12 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 	s32 degrees_per_05db_denom;
 	s32 factory_temp;
 	s32 temperature_comp[2];
-	s32 factory_gain_index[2];
+	s32 factory_gain_idx[2];
 	s32 factory_actual_pwr[2];
-	s32 power_index;
+	s32 power_idx;
 
 	/* tx_power_user_lmt is in dBm, convert to half-dBm (half-dB units
-	 *   are used for indexing into txpower table) */
+	 *   are used for idxing into txpower table) */
 	user_target_power = 2 * il->tx_power_user_lmt;
 
 	/* Get current (RXON) channel, band, width */
@@ -995,7 +995,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 				       degrees_per_05db_num,
 				       &temperature_comp[c]);
 
-		factory_gain_index[c] = measurement->gain_idx;
+		factory_gain_idx[c] = measurement->gain_idx;
 		factory_actual_pwr[c] = measurement->actual_pow;
 
 		D_TXPOWER("chain = %d\n", c);
@@ -1005,7 +1005,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 				  temperature_comp[c]);
 
 		D_TXPOWER("fctry idx %d, fctry pwr %d\n",
-				  factory_gain_index[c],
+				  factory_gain_idx[c],
 				  factory_actual_pwr[c]);
 	}
 
@@ -1053,50 +1053,50 @@ static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 			else
 				atten_value = 0;
 
-			/* calculate index; higher index means lower txpower */
-			power_index = (u8) (factory_gain_index[c] -
+			/* calculate idx; higher idx means lower txpower */
+			power_idx = (u8) (factory_gain_idx[c] -
 					    (target_power -
 					     factory_actual_pwr[c]) -
 					    temperature_comp[c] -
 					    voltage_compensation +
 					    atten_value);
 
-/*			D_TXPOWER("calculated txpower index %d\n",
-						power_index); */
+/*			D_TXPOWER("calculated txpower idx %d\n",
+						power_idx); */
 
-			if (power_index < get_min_power_index(i, band))
-				power_index = get_min_power_index(i, band);
+			if (power_idx < get_min_power_idx(i, band))
+				power_idx = get_min_power_idx(i, band);
 
-			/* adjust 5 GHz index to support negative indexes */
+			/* adjust 5 GHz idx to support negative idxes */
 			if (!band)
-				power_index += 9;
+				power_idx += 9;
 
 			/* CCK, rate 32, reduce txpower for CCK */
 			if (i == POWER_TABLE_CCK_ENTRY)
-				power_index +=
+				power_idx +=
 				    IL_TX_POWER_CCK_COMPENSATION_C_STEP;
 
 			/* stay within the table! */
-			if (power_index > 107) {
-				IL_WARN("txpower index %d > 107\n",
-					    power_index);
-				power_index = 107;
+			if (power_idx > 107) {
+				IL_WARN("txpower idx %d > 107\n",
+					    power_idx);
+				power_idx = 107;
 			}
-			if (power_index < 0) {
-				IL_WARN("txpower index %d < 0\n",
-					    power_index);
-				power_index = 0;
+			if (power_idx < 0) {
+				IL_WARN("txpower idx %d < 0\n",
+					    power_idx);
+				power_idx = 0;
 			}
 
 			/* fill txpower command for this rate/chain */
 			tx_power.s.radio_tx_gain[c] =
-				gain_table[band][power_index].radio;
+				gain_table[band][power_idx].radio;
 			tx_power.s.dsp_predis_atten[c] =
-				gain_table[band][power_index].dsp;
+				gain_table[band][power_idx].dsp;
 
-			D_TXPOWER("chain %d mimo %d index %d "
+			D_TXPOWER("chain %d mimo %d idx %d "
 					  "gain 0x%02x dsp %d\n",
-					  c, atten_value, power_index,
+					  c, atten_value, power_idx,
 					tx_power.s.radio_tx_gain[c],
 					tx_power.s.dsp_predis_atten[c]);
 		} /* for each chain */
@@ -1777,7 +1777,7 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
-	int index = SEQ_TO_IDX(sequence);
+	int idx = SEQ_TO_IDX(sequence);
 	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info;
@@ -1789,10 +1789,10 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 	u8 *qc = NULL;
 	unsigned long flags;
 
-	if (index >= txq->q.n_bd || il_queue_used(&txq->q, index) == 0) {
-		IL_ERR("Read index for DMA queue txq_id (%d) index %d "
+	if (idx >= txq->q.n_bd || il_queue_used(&txq->q, idx) == 0) {
+		IL_ERR("Read idx for DMA queue txq_id (%d) idx %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
-			  index, txq->q.n_bd, txq->q.write_ptr,
+			  idx, txq->q.n_bd, txq->q.write_ptr,
 			  txq->q.read_ptr);
 		return;
 	}
@@ -1801,7 +1801,7 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb);
 	memset(&info->status, 0, sizeof(info->status));
 
-	hdr = il_tx_queue_get_hdr(il, txq_id, index);
+	hdr = il_tx_queue_get_hdr(il, txq_id, idx);
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;
@@ -1821,18 +1821,18 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 
 		agg = &il->stations[sta_id].tid[tid].agg;
 
-		il4965_tx_status_reply_tx(il, agg, tx_resp, txq_id, index);
+		il4965_tx_status_reply_tx(il, agg, tx_resp, txq_id, idx);
 
 		/* check if BAR is needed */
 		if ((tx_resp->frame_count == 1) && !il4965_is_tx_success(status))
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 
 		if (txq->q.read_ptr != (scd_ssn & 0xff)) {
-			index = il_queue_dec_wrap(scd_ssn & 0xff,
+			idx = il_queue_dec_wrap(scd_ssn & 0xff,
 								txq->q.n_bd);
 			D_TX_REPLY("Retry scheduler reclaim scd_ssn "
-					   "%d index %d\n", scd_ssn , index);
-			freed = il4965_tx_queue_reclaim(il, txq_id, index);
+					   "%d idx %d\n", scd_ssn , idx);
+			freed = il4965_tx_queue_reclaim(il, txq_id, idx);
 			if (qc)
 				il4965_free_tfds_in_queue(il, sta_id,
 						       tid, freed);
@@ -1856,7 +1856,7 @@ static void il4965_rx_reply_tx(struct il_priv *il,
 				   le32_to_cpu(tx_resp->rate_n_flags),
 				   tx_resp->failure_frame);
 
-		freed = il4965_tx_queue_reclaim(il, txq_id, index);
+		freed = il4965_tx_queue_reclaim(il, txq_id, idx);
 		if (qc && likely(sta_id != IL_INVALID_STATION))
 			il4965_free_tfds_in_queue(il, sta_id, tid, freed);
 		else if (sta_id == IL_INVALID_STATION)

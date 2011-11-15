@@ -163,7 +163,7 @@ static int il3945_set_ccmp_dynamic_key_info(struct il_priv *il,
 	if ((il->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
 			== STA_KEY_FLG_NO_ENC)
 		il->stations[sta_id].sta.key.key_offset =
-				 il_get_free_ucode_key_index(il);
+				 il_get_free_ucode_key_idx(il);
 	/* else, we are overriding an existing key => no need to allocated room
 	* in uCode. */
 
@@ -513,7 +513,7 @@ static int il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	hdr_len = ieee80211_hdrlen(fc);
 
-	/* Find index into station table for destination station */
+	/* Find idx into station table for destination station */
 	sta_id = il_sta_id_or_broadcast(
 			il, &il->ctx,
 			info->control.sta);
@@ -541,7 +541,7 @@ static int il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	spin_lock_irqsave(&il->lock, flags);
 
-	idx = il_get_cmd_index(q, q->write_ptr, 0);
+	idx = il_get_cmd_idx(q, q->write_ptr, 0);
 
 	/* Set up driver data for this TFD */
 	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct il_tx_info));
@@ -557,7 +557,7 @@ static int il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	/*
 	 * Set up the Tx-command (not MAC!) header.
-	 * Store the chosen Tx queue and TFD index within the sequence field;
+	 * Store the chosen Tx queue and TFD idx within the sequence field;
 	 * after Tx, uCode's Tx response will return this value so driver can
 	 * locate the frame within the tx queue and do post-tx processing.
 	 */
@@ -641,7 +641,7 @@ static int il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	}
 
 
-	/* Tell device the write index *just past* this latest filled TFD */
+	/* Tell device the write idx *just past* this latest filled TFD */
 	q->write_ptr = il_queue_inc_wrap(q->write_ptr, q->n_bd);
 	il_txq_update_write_ptr(il, txq);
 	spin_unlock_irqrestore(&il->lock, flags);
@@ -889,14 +889,14 @@ static void il3945_setup_rx_handlers(struct il_priv *il)
  * 0 to 31
  *
  * Rx Queue Indexes
- * The host/firmware share two index registers for managing the Rx buffers.
+ * The host/firmware share two idx registers for managing the Rx buffers.
  *
- * The READ index maps to the first position that the firmware may be writing
+ * The READ idx maps to the first position that the firmware may be writing
  * to -- the driver can read up to (but not including) this position and get
  * good data.
- * The READ index is managed by the firmware once the card is enabled.
+ * The READ idx is managed by the firmware once the card is enabled.
  *
- * The WRITE index maps to the last position the driver has read from -- the
+ * The WRITE idx maps to the last position the driver has read from -- the
  * position preceding WRITE is the last slot the firmware can place a packet.
  *
  * The queue is empty (no good data) if WRITE = READ - 1, and is full if
@@ -905,9 +905,9 @@ static void il3945_setup_rx_handlers(struct il_priv *il)
  * During initialization, the host sets up the READ queue position to the first
  * IDX position, and WRITE to the last (READ - 1 wrapped)
  *
- * When the firmware places a packet in a buffer, it will advance the READ index
- * and fire the RX interrupt.  The driver can then query the READ index and
- * process as many packets as possible, moving the WRITE index forward as it
+ * When the firmware places a packet in a buffer, it will advance the READ idx
+ * and fire the RX interrupt.  The driver can then query the READ idx and
+ * process as many packets as possible, moving the WRITE idx forward as it
  * resets the Rx queue buffers with new memory.
  *
  * The management in the driver is as follows:
@@ -916,9 +916,9 @@ static void il3945_setup_rx_handlers(struct il_priv *il)
  *   to replenish the iwl->rxq->rx_free.
  * + In il3945_rx_replenish (scheduled) if 'processed' != 'read' then the
  *   iwl->rxq is replenished and the READ IDX is updated (updating the
- *   'processed' and 'read' driver indexes as well)
+ *   'processed' and 'read' driver idxes as well)
  * + A received packet is processed and handed to the kernel network stack,
- *   detached from the iwl->rxq.  The driver 'processed' index is updated.
+ *   detached from the iwl->rxq.  The driver 'processed' idx is updated.
  * + The Host/Firmware iwl->rxq is replenished at tasklet time from the rx_free
  *   list. If there are no allocated buffers in iwl->rxq->rx_free, the READ
  *   IDX is not incremented and iwl->status(RX_STALLED) is set.  If there
@@ -931,7 +931,7 @@ static void il3945_setup_rx_handlers(struct il_priv *il)
  *                            il3945_rx_queue_restock
  * il3945_rx_queue_restock() Moves available buffers from rx_free into Rx
  *                            queue, updates firmware pointers, and updates
- *                            the WRITE index.  If insufficient rx_free buffers
+ *                            the WRITE idx.  If insufficient rx_free buffers
  *                            are available, schedules il3945_rx_replenish
  *
  * -- enable interrupts --
@@ -960,7 +960,7 @@ static inline __le32 il3945_dma_addr2rbd_ptr(struct il_priv *il,
  * and we have free pre-allocated buffers, fill the ranks as much
  * as we can, pulling from rx_free.
  *
- * This moves the 'write' index forward to catch up with 'processed', and
+ * This moves the 'write' idx forward to catch up with 'processed', and
  * also updates the memory address in the firmware to reference the new
  * target buffer.
  */
@@ -1211,7 +1211,7 @@ static void il3945_rx_handle(struct il_priv *il)
 	u32 count = 8;
 	int total_empty = 0;
 
-	/* uCode's read index (stored in shared DRAM) indicates the last Rx
+	/* uCode's read idx (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
 	r = le16_to_cpu(rxq->rb_stts->closed_rb_num) &  0x0FFF;
 	i = rxq->read;
@@ -1656,7 +1656,7 @@ static void il3945_init_hw_rates(struct il_priv *il,
 
 	for (i = 0; i < RATE_COUNT_LEGACY; i++) {
 		rates[i].bitrate = il3945_rates[i].ieee * 5;
-		rates[i].hw_value = i; /* Rate scaling will work on indexes */
+		rates[i].hw_value = i; /* Rate scaling will work on idxes */
 		rates[i].hw_value_short = i;
 		rates[i].flags = 0;
 		if (i > IL39_LAST_OFDM_RATE || i < IL_FIRST_OFDM_RATE) {
@@ -1850,7 +1850,7 @@ IL3945_UCODE_GET(boot_size);
 static int il3945_read_ucode(struct il_priv *il)
 {
 	const struct il_ucode_header *ucode;
-	int ret = -EINVAL, index;
+	int ret = -EINVAL, idx;
 	const struct firmware *ucode_raw;
 	/* firmware file name contains uCode/driver compatibility version */
 	const char *name_pre = il->cfg->fw_name_pre;
@@ -1863,8 +1863,8 @@ static int il3945_read_ucode(struct il_priv *il)
 
 	/* Ask kernel firmware_class module to get the boot firmware off disk.
 	 * request_firmware() is synchronous, file is in memory on return. */
-	for (index = api_max; index >= api_min; index--) {
-		sprintf(buf, "%s%u%s", name_pre, index, ".ucode");
+	for (idx = api_max; idx >= api_min; idx--) {
+		sprintf(buf, "%s%u%s", name_pre, idx, ".ucode");
 		ret = request_firmware(&ucode_raw, buf, &il->pci_dev->dev);
 		if (ret < 0) {
 			IL_ERR("%s firmware file req failed: %d\n",
@@ -1874,7 +1874,7 @@ static int il3945_read_ucode(struct il_priv *il)
 			else
 				goto error;
 		} else {
-			if (index < api_max)
+			if (idx < api_max)
 				IL_ERR("Loaded firmware %s, "
 					"which is deprecated. "
 					" Please use API v%u instead.\n",

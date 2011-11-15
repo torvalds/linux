@@ -336,7 +336,7 @@
 
 /*
  * Driver may need to update queue-empty bits after changing queue's
- * write and read pointers (indexes) during (re-)initialization (i.e. when
+ * write and read pointers (idxes) during (re-)initialization (i.e. when
  * scheduler is not tracking what's happening).
  * Bit fields:
  * 31-16:  Write mask -- 1: update empty bit, 0: don't change empty bit
@@ -351,7 +351,7 @@
  * This register points to BC CB for queue 0, must be on 1024-byte boundary.
  * Others are spaced by 1024 bytes.
  * Each BC CB is 2 bytes * (256 + 64) = 740 bytes, followed by 384 bytes pad.
- * (Index into a queue's BC CB) = (index into queue's TFD CB) = (SSN & 0xff).
+ * (Index into a queue's BC CB) = (idx into queue's TFD CB) = (SSN & 0xff).
  * Bit fields:
  * 25-00:  Byte Count CB physical address [35:10], must be 1024-byte aligned.
  */
@@ -366,18 +366,18 @@
  */
 #define IL49_SCD_TXFACT                   (IL49_SCD_START_OFFSET + 0x1c)
 /*
- * Queue (x) Write Pointers (indexes, really!), one for each Tx queue.
+ * Queue (x) Write Pointers (idxes, really!), one for each Tx queue.
  * Initialized and updated by driver as new TFDs are added to queue.
- * NOTE:  If using Block Ack, index must correspond to frame's
- *        Start Sequence Number; index = (SSN & 0xff)
+ * NOTE:  If using Block Ack, idx must correspond to frame's
+ *        Start Sequence Number; idx = (SSN & 0xff)
  * NOTE:  Alternative to HBUS_TARG_WRPTR, which is what Linux driver uses?
  */
 #define IL49_SCD_QUEUE_WRPTR(x)  (IL49_SCD_START_OFFSET + 0x24 + (x) * 4)
 
 /*
- * Queue (x) Read Pointers (indexes, really!), one for each Tx queue.
- * For FIFO mode, index indicates next frame to transmit.
- * For Scheduler-ACK mode, index indicates first frame in Tx win.
+ * Queue (x) Read Pointers (idxes, really!), one for each Tx queue.
+ * For FIFO mode, idx indicates next frame to transmit.
+ * For Scheduler-ACK mode, idx indicates first frame in Tx win.
  * Initialized by driver, updated by scheduler.
  */
 #define IL49_SCD_QUEUE_RDPTR(x)  (IL49_SCD_START_OFFSET + 0x64 + (x) * 4)
@@ -395,7 +395,7 @@
 
 /*
  * Select which queues interrupt driver when scheduler increments
- * a queue's read pointer (index).
+ * a queue's read pointer (idx).
  * Bit fields:
  * 31-16:  Reserved
  * 15-00:  Interrupt enable, one bit for each queue -- 1: enabled, 0: disabled

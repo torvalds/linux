@@ -153,7 +153,7 @@ extern const u8 il_eeprom_band_1[14];
  *
  * 1)  Temperature (degrees Celsius) of device when measurement was made.
  *
- * 2)  Gain table index used to achieve the target measurement power.
+ * 2)  Gain table idx used to achieve the target measurement power.
  *     This refers to the "well-known" gain tables (see iwl-4965-hw.h).
  *
  * 3)  Actual measured output power, in half-dBm ("34" = 17 dBm).

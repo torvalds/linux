@@ -197,7 +197,7 @@ struct il_cmd_header {
 	 *
 	 * The Linux driver uses the following format:
 	 *
-	 *  0:7		tfd index - position within TX queue
+	 *  0:7		tfd idx - position within TX queue
 	 *  8:12	TX queue id
 	 *  13		reserved
 	 *  14		huge - driver sets this to indicate command is in the
@@ -454,7 +454,7 @@ struct il_init_alive_resp {
  *	__le32 log_size;     log capacity (in number of entries)
  *	__le32 type;         (1) timestamp with each entry, (0) no timestamp
  *	__le32 wraps;        # times uCode has wrapped to top of circular buffer
- *      __le32 write_index;  next circular buffer entry that uCode would fill
+ *      __le32 write_idx;  next circular buffer entry that uCode would fill
  *
  *     The header is followed by the circular buffer of log entries.  Entries
  *     with timestamps have the following format:
@@ -901,7 +901,7 @@ struct il_qosparam_cmd {
 #define STA_MODIFY_DELBA_TID_MSK	0x10
 #define STA_MODIFY_SLEEP_TX_COUNT_MSK	0x20
 
-/* Receiver address (actually, Rx station's index into station table),
+/* Receiver address (actually, Rx station's idx into station table),
  * combined with Traffic ID (QOS priority), in format used by Tx Scheduler */
 #define BUILD_RAxTID(sta_id, tid)	(((sta_id) << 4) + (tid))
 
@@ -918,12 +918,12 @@ struct il4965_keyinfo {
 /**
  * struct sta_id_modify
  * @addr[ETH_ALEN]: station's MAC address
- * @sta_id: index of station in uCode's station table
+ * @sta_id: idx of station in uCode's station table
  * @modify_mask: STA_MODIFY_*, 1: modify, 0: don't change
  *
- * Driver selects unused table index when adding new station,
- * or the index to a pre-existing station entry when modifying that station.
- * Some indexes have special purposes (IL_AP_ID, index 0, is for AP).
+ * Driver selects unused table idx when adding new station,
+ * or the idx to a pre-existing station entry when modifying that station.
+ * Some idxes have special purposes (IL_AP_ID, idx 0, is for AP).
  *
  * modify_mask flags select which parameters to modify vs. leave alone.
  */
@@ -959,7 +959,7 @@ struct sta_id_modify {
  *        in the IL_AP_ID entry (1st entry in the table).  BROADCAST and AP
  *        are all that are needed for a BSS client station.  If the device is
  *        used as AP, or in an IBSS network, driver must set up station table
- *        entries for all STAs in network, starting with index IL_STA_ID.
+ *        entries for all STAs in network, starting with idx IL_STA_ID.
  */
 
 struct il3945_addsta_cmd {
@@ -1109,7 +1109,7 @@ struct il_rem_sta_cmd {
  * REPLY_WEP_KEY = 0x20
  */
 struct il_wep_key {
-	u8 key_index;
+	u8 key_idx;
 	u8 key_offset;
 	u8 reserved1[2];
 	u8 key_size;
@@ -1297,7 +1297,7 @@ struct il_rx_mpdu_res_start {
 
 /* For 4965 devices:
  * 1: Use rate scale table (see REPLY_TX_LINK_QUALITY_CMD).
- *    Tx command's initial_rate_index indicates first rate to try;
+ *    Tx command's initial_rate_idx indicates first rate to try;
  *    uCode walks through table for additional Tx attempts.
  * 0: Use Tx rate/MCS from Tx command's rate_n_flags field.
  *    This rate will be used for all Tx attempts; it will not be scaled. */
@@ -1499,7 +1499,7 @@ struct il_tx_cmd {
 	 * rate (via non-0 value) for special frames (e.g. management), while
 	 * still supporting rate scaling for all frames.
 	 */
-	u8 initial_rate_index;
+	u8 initial_rate_idx;
 	u8 reserved;
 	u8 key[16];
 	__le16 next_frame_flags;
@@ -1792,7 +1792,7 @@ struct il4965_txpowertable_cmd {
 struct il3945_rate_scaling_info {
 	__le16 rate_n_flags;
 	u8 try_cnt;
-	u8 next_rate_index;
+	u8 next_rate_idx;
 } __packed;
 
 struct il3945_rate_scaling_cmd {
@@ -1825,7 +1825,7 @@ struct il3945_rate_scaling_cmd {
 struct il_link_qual_general_params {
 	u8 flags;
 
-	/* No entries at or above this (driver chosen) index contain MIMO */
+	/* No entries at or above this (driver chosen) idx contain MIMO */
 	u8 mimo_delimiter;
 
 	/* Best single antenna to use for single stream (legacy, SISO). */
@@ -1837,7 +1837,7 @@ struct il_link_qual_general_params {
 	/*
 	 * If driver needs to use different initial rates for different
 	 * EDCA QOS access categories (as implemented by tx fifos 0-3),
-	 * this table will set that up, by indicating the indexes in the
+	 * this table will set that up, by indicating the idxes in the
 	 * rs_table[LINK_QUAL_MAX_RETRY_NUM] rate table at which to start.
 	 * Otherwise, driver should set all entries to 0.
 	 *
@@ -1845,7 +1845,7 @@ struct il_link_qual_general_params {
 	 * 0 = Background, 1 = Best Effort (normal), 2 = Video, 3 = Voice
 	 * TX FIFOs above 3 use same value (typically 0) as TX FIFO 3.
 	 */
-	u8 start_rate_index[LINK_QUAL_AC_NUM];
+	u8 start_rate_idx[LINK_QUAL_AC_NUM];
 } __packed;
 
 #define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000) /* 4 milliseconds */
@@ -2089,8 +2089,8 @@ struct il_link_quality_cmd {
 	struct il_link_qual_agg_params agg_params;
 
 	/*
-	 * Rate info; when using rate-scaling, Tx command's initial_rate_index
-	 * specifies 1st Tx rate attempted, via index into this table.
+	 * Rate info; when using rate-scaling, Tx command's initial_rate_idx
+	 * specifies 1st Tx rate attempted, via idx into this table.
 	 * 4965 devices works its way through table when retrying Tx.
 	 */
 	struct {
@@ -2233,7 +2233,7 @@ enum il_measure_type {
 struct il_spectrum_notification {
 	u8 id;			/* measurement id -- 0 or 1 */
 	u8 token;
-	u8 channel_index;	/* index in measurement channel list */
+	u8 channel_idx;	/* idx in measurement channel list */
 	u8 state;		/* 0 - start, 1 - stop */
 	__le32 start_time;	/* lower 32-bits of TSF */
 	u8 band;		/* 0 - 5.2GHz, 1 - 2.4GHz */
@@ -3220,7 +3220,7 @@ struct il_missed_beacon_notif {
  * Table entries in SENSITIVITY_CMD (struct il_sensitivity_cmd)
  */
 #define HD_TABLE_SIZE  (11)	/* number of entries */
-#define HD_MIN_ENERGY_CCK_DET_IDX                 (0)	/* table indexes */
+#define HD_MIN_ENERGY_CCK_DET_IDX                 (0)	/* table idxes */
 #define HD_MIN_ENERGY_OFDM_DET_IDX                (1)
 #define HD_AUTO_CORR32_X1_TH_ADD_MIN_IDX          (2)
 #define HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_IDX      (3)
@@ -3239,13 +3239,13 @@ struct il_missed_beacon_notif {
 /**
  * struct il_sensitivity_cmd
  * @control:  (1) updates working table, (0) updates default table
- * @table:  energy threshold values, use HD_* as index into table
+ * @table:  energy threshold values, use HD_* as idx into table
  *
  * Always use "1" in "control" to update uCode's working table and DSP.
  */
 struct il_sensitivity_cmd {
 	__le16 control;			/* always use "1" */
-	__le16 table[HD_TABLE_SIZE];	/* use HD_* as index */
+	__le16 table[HD_TABLE_SIZE];	/* use HD_* as idx */
 } __packed;
 
 

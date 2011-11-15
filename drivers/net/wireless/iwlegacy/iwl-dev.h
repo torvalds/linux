@@ -125,8 +125,8 @@ struct il_cmd_meta {
  */
 struct il_queue {
 	int n_bd;              /* number of BDs in this queue */
-	int write_ptr;       /* 1-st empty entry (index) host_w*/
-	int read_ptr;         /* last used entry (index) host_r*/
+	int write_ptr;       /* 1-st empty entry (idx) host_w*/
+	int read_ptr;         /* last used entry (idx) host_r*/
 	/* use for monitoring and recovering the stuck queue */
 	dma_addr_t dma_addr;   /* physical addr for BD's */
 	int n_win;	       /* safe queue win */
@@ -152,7 +152,7 @@ struct il_tx_info {
  * @dma_addr_cmd: physical address of cmd/tx buffer array
  * @txb: array of per-TFD driver data
  * @time_stamp: time (in jiffies) of last read_ptr change
- * @need_update: indicates need to update read/write index
+ * @need_update: indicates need to update read/write idx
  * @sched_retry: indicates queue is high-throughput aggregation (HT AGG) enabled
  *
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
@@ -199,11 +199,11 @@ struct il3945_clip_group {
  * -- hardware capabilities (clip-powers)
  * -- spectrum management
  * -- user preference (e.g. iwconfig)
- * when requested power is set, base power index must also be set. */
+ * when requested power is set, base power idx must also be set. */
 struct il3945_channel_power_info {
 	struct il3945_tx_power tpc;	/* actual radio and DSP gain settings */
-	s8 power_table_index;	/* actual (compenst'd) index into gain table */
-	s8 base_power_index;	/* gain index for power at factory temp. */
+	s8 power_table_idx;	/* actual (compenst'd) idx into gain table */
+	s8 base_power_idx;	/* gain idx for power at factory temp. */
 	s8 requested_power;	/* power (dBm) requested for this chnl/rate */
 };
 
@@ -211,7 +211,7 @@ struct il3945_channel_power_info {
  * channel. */
 struct il3945_scan_power_info {
 	struct il3945_tx_power tpc;	/* actual radio and DSP gain settings */
-	s8 power_table_index;	/* actual (compenst'd) index into gain table */
+	s8 power_table_idx;	/* actual (compenst'd) idx into gain table */
 	s8 requested_power;	/* scan pwr (dBm) requested for chnl/rate */
 };
 
@@ -234,8 +234,8 @@ struct il_channel_info {
 	s8 min_power;	  /* always 0 */
 	s8 scan_power;	  /* (dBm) regul. eeprom, direct scans, any rate */
 
-	u8 group_index;	  /* 0-4, maps channel to group1/2/3/4/5 */
-	u8 band_index;	  /* 0-4, maps channel to band1/2/3/4/5 */
+	u8 group_idx;	  /* 0-4, maps channel to group1/2/3/4/5 */
+	u8 band_idx;	  /* 0-4, maps channel to band1/2/3/4/5 */
 	enum ieee80211_band band;
 
 	/* HT40 channel info */
@@ -245,7 +245,7 @@ struct il_channel_info {
 
 	/* Radio/DSP gain settings for each "normal" data Tx rate.
 	 * These include, in addition to RF and DSP gain, a few fields for
-	 *   remembering/modifying gain settings (indexes). */
+	 *   remembering/modifying gain settings (idxes). */
 	struct il3945_channel_power_info power_info[IL4965_MAX_RATE];
 
 	/* Radio/DSP gain settings for each scan rate, for directed scans. */
@@ -337,12 +337,12 @@ struct il_host_cmd {
  * struct il_rx_queue - Rx queue
  * @bd: driver's pointer to buffer of receive buffer descriptors (rbd)
  * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
- * @read: Shared index to newest available Rx buffer
- * @write: Shared index to oldest written Rx packet
+ * @read: Shared idx to newest available Rx buffer
+ * @write: Shared idx to oldest written Rx packet
  * @free_count: Number of pre-allocated buffers in rx_free
  * @rx_free: list of free SKBs for use
  * @rx_used: List of Rx buffers with no SKB
- * @need_update: flag to indicate we need to update read/write index
+ * @need_update: flag to indicate we need to update read/write idx
  * @rb_stts: driver's pointer to receive buffer status
  * @rb_stts_dma: bus address of receive buffer status
  *
@@ -636,7 +636,7 @@ static inline int il_queue_used(const struct il_queue *q, int i)
 }
 
 
-static inline u8 il_get_cmd_index(struct il_queue *q, u32 index,
+static inline u8 il_get_cmd_idx(struct il_queue *q, u32 idx,
 								int is_huge)
 {
 	/*
@@ -648,7 +648,7 @@ static inline u8 il_get_cmd_index(struct il_queue *q, u32 index,
 		return q->n_win;	/* must be power of 2 */
 
 	/* Otherwise, use normal size buffers */
-	return index & (q->n_win - 1);
+	return idx & (q->n_win - 1);
 }
 
 
@@ -987,7 +987,7 @@ struct il_priv {
 	struct il_force_reset force_reset;
 
 	/* we allocate array of il_channel_info for NIC's valid channels.
-	 *    Access via channel # using indirect index array */
+	 *    Access via channel # using indirect idx array */
 	struct il_channel_info *channel_info;	/* channel info array */
 	u8 channel_count;	/* # of channels */
 
@@ -1033,7 +1033,7 @@ struct il_priv {
 	struct mac_address addresses[1];
 
 	/* uCode images, save to reload in case of failure */
-	int fw_index;			/* firmware we're trying to load */
+	int fw_idx;			/* firmware we're trying to load */
 	u32 ucode_ver;			/* version of ucode, copy of
 					   il_ucode.ver */
 	struct fw_desc ucode_code;	/* runtime inst */

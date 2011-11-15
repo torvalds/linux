@@ -41,7 +41,7 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 
-/* default: IL_LED_BLINK(0) using blinking index table */
+/* default: IL_LED_BLINK(0) using blinking idx table */
 static int led_mode;
 module_param(led_mode, int, S_IRUGO);
 MODULE_PARM_DESC(led_mode, "0=system default, "

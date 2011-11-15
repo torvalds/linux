@@ -173,7 +173,7 @@ static void il4965_set_beacon_tim(struct il_priv *il,
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)beacon;
 
 	/*
-	 * The index is relative to frame start but we start looking at the
+	 * The idx is relative to frame start but we start looking at the
 	 * variable-length part of the beacon.
 	 */
 	tim_idx = mgmt->u.beacon.variable - beacon;
@@ -318,7 +318,7 @@ static inline u8 il4965_tfd_get_num_tbs(struct il_tfd *tfd)
  * @il - driver ilate data
  * @txq - tx queue
  *
- * Does NOT advance any TFD circular buffer read/write indexes
+ * Does NOT advance any TFD circular buffer read/write idxes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
 void il4965_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
@@ -326,11 +326,11 @@ void il4965_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
 	struct il_tfd *tfd_tmp = (struct il_tfd *)txq->tfds;
 	struct il_tfd *tfd;
 	struct pci_dev *dev = il->pci_dev;
-	int index = txq->q.read_ptr;
+	int idx = txq->q.read_ptr;
 	int i;
 	int num_tbs;
 
-	tfd = &tfd_tmp[index];
+	tfd = &tfd_tmp[idx];
 
 	/* Sanity check on number of chunks */
 	num_tbs = il4965_tfd_get_num_tbs(tfd);
@@ -344,8 +344,8 @@ void il4965_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
 	/* Unmap tx_cmd */
 	if (num_tbs)
 		pci_unmap_single(dev,
-				dma_unmap_addr(&txq->meta[index], mapping),
-				dma_unmap_len(&txq->meta[index], len),
+				dma_unmap_addr(&txq->meta[idx], mapping),
+				dma_unmap_len(&txq->meta[idx], len),
 				PCI_DMA_BIDIRECTIONAL);
 
 	/* Unmap chunks, if any. */
@@ -643,7 +643,7 @@ void il4965_rx_handle(struct il_priv *il)
 	u32 count = 8;
 	int total_empty;
 
-	/* uCode's read index (stored in shared DRAM) indicates the last Rx
+	/* uCode's read idx (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
 	r = le16_to_cpu(rxq->rb_stts->closed_rb_num) &  0x0FFF;
 	i = rxq->read;
@@ -1106,14 +1106,14 @@ static int __must_check il4965_request_firmware(struct il_priv *il, bool first)
 	char tag[8];
 
 	if (first) {
-		il->fw_index = il->cfg->ucode_api_max;
-		sprintf(tag, "%d", il->fw_index);
+		il->fw_idx = il->cfg->ucode_api_max;
+		sprintf(tag, "%d", il->fw_idx);
 	} else {
-		il->fw_index--;
-		sprintf(tag, "%d", il->fw_index);
+		il->fw_idx--;
+		sprintf(tag, "%d", il->fw_idx);
 	}
 
-	if (il->fw_index < il->cfg->ucode_api_min) {
+	if (il->fw_idx < il->cfg->ucode_api_min) {
 		IL_ERR("no suitable firmware found!\n");
 		return -ENOENT;
 	}
@@ -1213,7 +1213,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	memset(&pieces, 0, sizeof(pieces));
 
 	if (!ucode_raw) {
-		if (il->fw_index <= il->cfg->ucode_api_max)
+		if (il->fw_idx <= il->cfg->ucode_api_max)
 			IL_ERR(
 				"request for firmware file '%s' failed.\n",
 				il->firmware_name);
@@ -1655,7 +1655,7 @@ static int il4965_alive_notify(struct il_priv *il)
 	/* Initialize each Tx queue (including the command queue) */
 	for (i = 0; i < il->hw_params.max_txq_num; i++) {
 
-		/* TFD circular buffer read/write indexes */
+		/* TFD circular buffer read/write idxes */
 		il_wr_prph(il, IL49_SCD_QUEUE_RDPTR(i), 0);
 		il_wr(il, HBUS_TARG_WRPTR, 0 | (i << 8));
 
@@ -2713,7 +2713,7 @@ static void il4965_init_hw_rates(struct il_priv *il,
 
 	for (i = 0; i < RATE_COUNT_LEGACY; i++) {
 		rates[i].bitrate = il_rates[i].ieee * 5;
-		rates[i].hw_value = i; /* Rate scaling will work on indexes */
+		rates[i].hw_value = i; /* Rate scaling will work on idxes */
 		rates[i].hw_value_short = i;
 		rates[i].flags = 0;
 		if ((i >= IL_FIRST_CCK_RATE) && (i <= IL_LAST_CCK_RATE)) {
@@ -2729,11 +2729,11 @@ static void il4965_init_hw_rates(struct il_priv *il,
 /*
  * Acquire il->lock before calling this function !
  */
-void il4965_set_wr_ptrs(struct il_priv *il, int txq_id, u32 index)
+void il4965_set_wr_ptrs(struct il_priv *il, int txq_id, u32 idx)
 {
 	il_wr(il, HBUS_TARG_WRPTR,
-			     (index & 0xff) | (txq_id << 8));
-	il_wr_prph(il, IL49_SCD_QUEUE_RDPTR(txq_id), index);
+			     (idx & 0xff) | (txq_id << 8));
+	il_wr_prph(il, IL49_SCD_QUEUE_RDPTR(txq_id), idx);
 }
 
 void il4965_tx_queue_set_status(struct il_priv *il,

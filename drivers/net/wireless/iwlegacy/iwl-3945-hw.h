@@ -81,7 +81,7 @@
 
 /*
  * Mapping of a Tx power level, at factory calibration temperature,
- *   to a radio/DSP gain table index.
+ *   to a radio/DSP gain table idx.
  * One for each of 5 "sample" power levels in each band.
  * v_det is measured at the factory, using the 3945's built-in power amplifier
  *   (PA) output voltage detector.  This same detector is used during Tx of
@@ -91,13 +91,13 @@
  * DO NOT ALTER THIS STRUCTURE!!!
  */
 struct il3945_eeprom_txpower_sample {
-	u8 gain_index;		/* index into power (gain) setup table ... */
+	u8 gain_idx;		/* idx into power (gain) setup table ... */
 	s8 power;		/* ... for this pwr level for this chnl group */
 	u16 v_det;		/* PA output voltage */
 } __packed;
 
 /*
- * Mappings of Tx power levels -> nominal radio/DSP gain table indexes.
+ * Mappings of Tx power levels -> nominal radio/DSP gain table idxes.
  * One for each channel group (a.k.a. "band") (1 for BG, 4 for A).
  * Tx power setup code interpolates between the 5 "sample" power levels
  *    to determine the nominal setup for a requested power level.

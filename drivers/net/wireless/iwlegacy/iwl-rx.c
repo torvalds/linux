@@ -45,17 +45,17 @@
  * each of which point to Receive Buffers to be filled by the NIC.  These get
  * used not only for Rx frames, but for any command response or notification
  * from the NIC.  The driver and NIC manage the Rx buffers by means
- * of indexes into the circular buffer.
+ * of idxes into the circular buffer.
  *
  * Rx Queue Indexes
- * The host/firmware share two index registers for managing the Rx buffers.
+ * The host/firmware share two idx registers for managing the Rx buffers.
  *
- * The READ index maps to the first position that the firmware may be writing
+ * The READ idx maps to the first position that the firmware may be writing
  * to -- the driver can read up to (but not including) this position and get
  * good data.
- * The READ index is managed by the firmware once the card is enabled.
+ * The READ idx is managed by the firmware once the card is enabled.
  *
- * The WRITE index maps to the last position the driver has read from -- the
+ * The WRITE idx maps to the last position the driver has read from -- the
  * position preceding WRITE is the last slot the firmware can place a packet.
  *
  * The queue is empty (no good data) if WRITE = READ - 1, and is full if
@@ -64,9 +64,9 @@
  * During initialization, the host sets up the READ queue position to the first
  * IDX position, and WRITE to the last (READ - 1 wrapped)
  *
- * When the firmware places a packet in a buffer, it will advance the READ index
- * and fire the RX interrupt.  The driver can then query the READ index and
- * process as many packets as possible, moving the WRITE index forward as it
+ * When the firmware places a packet in a buffer, it will advance the READ idx
+ * and fire the RX interrupt.  The driver can then query the READ idx and
+ * process as many packets as possible, moving the WRITE idx forward as it
  * resets the Rx queue buffers with new memory.
  *
  * The management in the driver is as follows:
@@ -75,9 +75,9 @@
  *   to replenish the iwl->rxq->rx_free.
  * + In il_rx_replenish (scheduled) if 'processed' != 'read' then the
  *   iwl->rxq is replenished and the READ IDX is updated (updating the
- *   'processed' and 'read' driver indexes as well)
+ *   'processed' and 'read' driver idxes as well)
  * + A received packet is processed and handed to the kernel network stack,
- *   detached from the iwl->rxq.  The driver 'processed' index is updated.
+ *   detached from the iwl->rxq.  The driver 'processed' idx is updated.
  * + The Host/Firmware iwl->rxq is replenished at tasklet time from the rx_free
  *   list. If there are no allocated buffers in iwl->rxq->rx_free, the READ
  *   IDX is not incremented and iwl->status(RX_STALLED) is set.  If there
@@ -91,7 +91,7 @@
  *                            il_rx_queue_restock
  * il_rx_queue_restock() Moves available buffers from rx_free into Rx
  *                            queue, updates firmware pointers, and updates
- *                            the WRITE index.  If insufficient rx_free buffers
+ *                            the WRITE idx.  If insufficient rx_free buffers
  *                            are available, schedules il_rx_replenish
  *
  * -- enable interrupts --
