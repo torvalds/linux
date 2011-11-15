@@ -864,13 +864,6 @@ static int m5mols_s_power(struct v4l2_subdev *sd, int on)
 		ret = m5mols_sensor_power(info, true);
 		if (!ret)
 			ret = m5mols_fw_start(sd);
-		if (ret)
-			return ret;
-
-		info->ffmt[M5MOLS_RESTYPE_MONITOR] =
-			m5mols_default_ffmt[M5MOLS_RESTYPE_MONITOR];
-		info->ffmt[M5MOLS_RESTYPE_CAPTURE] =
-			m5mols_default_ffmt[M5MOLS_RESTYPE_CAPTURE];
 		return ret;
 	}
 
@@ -1007,6 +1000,8 @@ static int __devinit m5mols_probe(struct i2c_client *client,
 		goto out_me;
 	}
 	info->res_type = M5MOLS_RESTYPE_MONITOR;
+	info->ffmt[0] = m5mols_default_ffmt[0];
+	info->ffmt[1] =	m5mols_default_ffmt[1];
 
 	ret = m5mols_sensor_power(info, true);
 	if (ret)
