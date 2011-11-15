@@ -131,6 +131,16 @@ config AUDIO_ENGINE
 source "drivers/media/audio/Kconfig"
 
 #
+# PA CONTROL
+#
+config PA_CONTROL
+	tristate "PA Control"
+	---help---
+	  Support for audio pa control
+
+source "drivers/media/pa/Kconfig"
+
+#
 # DVB adapters
 #
 
