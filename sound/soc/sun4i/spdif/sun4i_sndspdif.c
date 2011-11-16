@@ -1,22 +1,21 @@
 /*
-********************************************************************************************************
-*                          SUN4I----HDMI AUDIO
-*                   (c) Copyright 2002-2004, All winners Co,Ld.
-*                          All Right Reserved
-*
-* FileName: sun4i-sndspdif.c   author:chenpailin  date:2011-07-19
-* Description:
-* Others:
-* History:
-*   <author>      <time>      <version>   <desc>
-*   chenpailin   2011-07-19     1.0      modify this module
-********************************************************************************************************
-*/
+ * sound\soc\sun4i\spdif\sun4i_sndspdif.c
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * chenpailin <chenpailin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>
-//#include <linux/gpio.h>
 
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -29,7 +28,6 @@
 #include "sun4i_spdma.h"
 
 #include "sndspdif.h"
-
 
 static int spdif_used = 0;
 static struct clk *xtal;
@@ -50,15 +48,11 @@ static int sun4i_sndspdif_startup(struct snd_pcm_substream *substream)
 	#ifdef ENFORCE_RATES
 		struct snd_pcm_runtime *runtime = substream->runtime;;
 	#endif
-	mutex_lock(&clk_lock);
-	mutex_unlock(&clk_lock);
 	if (!ret) {
 	#ifdef ENFORCE_RATES
-		ret = snd_pcm_hw_constraint_list(runtime, 0,
-						 SNDRV_PCM_HW_PARAM_RATE,
-						 &hw_constraints_rates);
+		ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates);
 		if (ret < 0)
-
+			return ret;
 	#endif
 	}
 	return ret;
@@ -71,26 +65,26 @@ static void sun4i_sndspdif_shutdown(struct snd_pcm_substream *substream)
 	if (clk_users == 0) {
 		clk_put(xtal);
 		xtal = NULL;
-}
+	}
 	mutex_unlock(&clk_lock);
 }
 
 typedef struct __MCLK_SET_INF
 {
-    __u32       samp_rate;      // sample rate
-    __u16       mult_fs;        // multiply of smaple rate
+    __u32   samp_rate;      // sample rate
+	__u16 	mult_fs;        // multiply of smaple rate
 
-    __u8        clk_div;        // mpll division
-    __u8        mpll;           // select mpll, 0 - 24.576 Mhz, 1 - 22.5792 Mhz
+    __u8    clk_div;        // mpll division
+    __u8    mpll;           // select mpll, 0 - 24.576 Mhz, 1 - 22.5792 Mhz
 
 } __mclk_set_inf;
 
 
 typedef struct __BCLK_SET_INF
 {
-    __u8        bitpersamp;     // bits per sample
-    __u8        clk_div;        // clock division
-    __u16       mult_fs;        // multiplay of sample rate
+    __u8    bitpersamp;     // bits per sample
+    __u8    clk_div;        // clock division
+    __u16   mult_fs;        // multiplay of sample rate
 
 } __bclk_set_inf;
 
@@ -152,14 +146,12 @@ static s32 get_clock_divder(u32 sample_rate, u32 sample_width, u32 * mclk_div, u
 {
 	u32 i, j, ret = -EINVAL;
 
-	for(i=0; i< 100; i++)
-	{
-		 if((MCLK_INF[i].samp_rate == sample_rate) && ((MCLK_INF[i].mult_fs == 256) || (MCLK_INF[i].mult_fs == 128)))
-		 {
-			  for(j=0; j<ARRAY_SIZE(BCLK_INF); j++)
-			  {
-					if((BCLK_INF[j].bitpersamp == sample_width) && (BCLK_INF[j].mult_fs == MCLK_INF[i].mult_fs))
-					{
+	for(i=0; i< 100; i++) {
+		 if((MCLK_INF[i].samp_rate == sample_rate) &&
+		 	((MCLK_INF[i].mult_fs == 256) || (MCLK_INF[i].mult_fs == 128))) {
+			  for(j=0; j<ARRAY_SIZE(BCLK_INF); j++) {
+					if((BCLK_INF[j].bitpersamp == sample_width) &&
+						(BCLK_INF[j].mult_fs == MCLK_INF[i].mult_fs)) {
 						 *mclk_div = MCLK_INF[i].clk_div;
 						 *mpll = MCLK_INF[i].mpll;
 						 *bclk_div = BCLK_INF[j].clk_div;
@@ -221,25 +213,25 @@ static int sun4i_sndspdif_hw_params(struct snd_pcm_substream *substream,
 }
 
 static struct snd_soc_ops sun4i_sndspdif_ops = {
-	.startup = sun4i_sndspdif_startup,
-	.shutdown = sun4i_sndspdif_shutdown,
-	.hw_params = sun4i_sndspdif_hw_params,
+	.startup 	= sun4i_sndspdif_startup,
+	.shutdown 	= sun4i_sndspdif_shutdown,
+	.hw_params 	= sun4i_sndspdif_hw_params,
 };
 
 static struct snd_soc_dai_link sun4i_sndspdif_dai_link = {
-	.name = "SPDIF",
-	.stream_name = "SUN4I-SPDIF",
-	.cpu_dai_name = "sun4i-spdif.0",
+	.name 			= "SPDIF",
+	.stream_name 	= "SUN4I-SPDIF",
+	.cpu_dai_name 	= "sun4i-spdif.0",
 	.codec_dai_name = "sndspdif",
-	.platform_name = "sun4i-spdif-pcm-audio.0",
-	.codec_name = "sun4i-spdif-codec.0",
-	.ops = &sun4i_sndspdif_ops,
+	.platform_name 	= "sun4i-spdif-pcm-audio.0",
+	.codec_name 	= "sun4i-spdif-codec.0",
+	.ops 			= &sun4i_sndspdif_ops,
 };
 
 static struct snd_soc_card snd_soc_sun4i_sndspdif = {
-	.name = "sun4i-sndspdif",
-	.dai_link = &sun4i_sndspdif_dai_link,
-	.num_links = 1,
+	.name 		= "sun4i-sndspdif",
+	.dai_link 	= &sun4i_sndspdif_dai_link,
+	.num_links 	= 1,
 };
 
 static struct platform_device *sun4i_sndspdif_device;
@@ -250,13 +242,11 @@ static int __init sun4i_sndspdif_init(void)
 	int ret2;
 
 	ret2 = script_parser_fetch("spdif_para","spdif_used", &spdif_used, sizeof(int));
-	if (ret2)
-    {
+	if (ret2) {
         printk("[SPDIF]sun4i_sndspdif_init fetch spdif using configuration failed\n");
     }
 
-    if (spdif_used)
-    {
+    if (spdif_used) {
 		sun4i_sndspdif_device = platform_device_alloc("soc-audio", 1);
 
 		if(!sun4i_sndspdif_device)
@@ -265,27 +255,20 @@ static int __init sun4i_sndspdif_init(void)
 		platform_set_drvdata(sun4i_sndspdif_device, &snd_soc_sun4i_sndspdif);
 
 		ret = platform_device_add(sun4i_sndspdif_device);
-		printk("\n\n%s,%d\n", __func__, __LINE__);
-
-		if(ret){
-			printk("%s,%d\n", __func__, __LINE__);
+		if (ret) {
 			platform_device_put(sun4i_sndspdif_device);
 		}
-	}else
-	{
+	} else {
 		printk("[SPDIF]sun4i_sndspdif cannot find any using configuration for controllers, return directly!\n");
         return 0;
 	}
-
-
 
 	return ret;
 }
 
 static void __exit sun4i_sndspdif_exit(void)
 {
-	if(spdif_used)
-	{
+	if (spdif_used) {
 		spdif_used = 0;
 		platform_device_unregister(sun4i_sndspdif_device);
 	}

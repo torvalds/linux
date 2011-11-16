@@ -1,18 +1,17 @@
 /*
-********************************************************************************************************
-*                          SUN4I----HDMI AUDIO
-*                   (c) Copyright 2002-2004, All winners Co,Ld.
-*                          All Right Reserved
-*
-* FileName: sndspdif.c   author:chenpailin  date:2011-07-19
-* Description:
-* Others:
-* History:
-*   <author>      <time>      <version>   <desc>
-*   chenpailin   2011-07-19     1.0      modify this module
-********************************************************************************************************
-*/
-
+ * sound\soc\sun4i\spdif\sndspdif.c
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * chenpailin <chenpailin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -78,13 +77,13 @@ static int sndspdif_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 struct snd_soc_dai_ops sndspdif_dai_ops = {
-		.startup = sndspdif_startup,
-		.shutdown = sndspdif_shutdown,
-		.hw_params = sndspdif_hw_params,
-		.digital_mute = sndspdif_mute,
-		.set_sysclk = sndspdif_set_dai_sysclk,
-		.set_clkdiv = sndspdif_set_dai_clkdiv,
-		.set_fmt = sndspdif_set_dai_fmt,
+	.startup = sndspdif_startup,
+	.shutdown = sndspdif_shutdown,
+	.hw_params = sndspdif_hw_params,
+	.digital_mute = sndspdif_mute,
+	.set_sysclk = sndspdif_set_dai_sysclk,
+	.set_clkdiv = sndspdif_set_dai_clkdiv,
+	.set_fmt = sndspdif_set_dai_fmt,
 };
 struct snd_soc_dai_driver sndspdif_dai = {
 	.name = "sndspdif",
@@ -105,7 +104,6 @@ EXPORT_SYMBOL(sndspdif_dai);
 static int sndspdif_soc_probe(struct snd_soc_codec *codec)
 {
 	struct sndspdif_priv *sndspdif;
-	printk("%s,%d\n",__func__, __LINE__);
 
 	sndspdif = kzalloc(sizeof(struct sndspdif_priv), GFP_KERNEL);
 	if(sndspdif == NULL){
@@ -128,13 +126,12 @@ static int sndspdif_soc_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_sndspdif = {
-	.probe =        sndspdif_soc_probe,
-	.remove =       sndspdif_soc_remove,
+	.probe 	=	sndspdif_soc_probe,
+	.remove =   sndspdif_soc_remove,
 };
 
 static int __devinit sndspdif_codec_probe(struct platform_device *pdev)
 {
-	printk("\n\n%s,%d\n",__func__, __LINE__);
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sndspdif, &sndspdif_dai, 1);
 }
 
@@ -165,20 +162,18 @@ static int __init sndspdif_codec_init(void)
 	int ret = 0;
 
 	ret = script_parser_fetch("spdif_para","spdif_used", &spdif_used, sizeof(int));
-	if (ret)
-    {
+	if (ret) {
+		return -1;
         printk("[SPDIF]sndspdif_init fetch spdif using configuration failed\n");
     }
 
-	if (spdif_used)
-	{
-		if((platform_device_register(&sndspdif_codec_device))<0)
+	if (spdif_used) {
+		if((err = platform_device_register(&sndspdif_codec_device)) < 0)
 			return err;
 
 		if ((err = platform_driver_register(&sndspdif_codec_driver)) < 0)
 			return err;
-	}else
-    {
+	} else {
         printk("[SPDIF]sndspdif cannot find any using configuration for controllers, return directly!\n");
         return 0;
     }
@@ -189,8 +184,7 @@ module_init(sndspdif_codec_init);
 
 static void __exit sndspdif_codec_exit(void)
 {
-	if(spdif_used)
-	{
+	if (spdif_used) {
 		spdif_used = 0;
 		platform_driver_unregister(&sndspdif_codec_driver);
 	}

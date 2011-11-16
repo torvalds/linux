@@ -1,22 +1,19 @@
 /*
-********************************************************************************************************
-*                          SUN4I----HDMI AUDIO
-*                   (c) Copyright 2002-2004, All winners Co,Ld.
-*                          All Right Reserved
-*
-* FileName: sndspdif.h   author:chenpailin  date:2011-07-19
-* Description:
-* Others:
-* History:
-*   <author>      <time>      <version>   <desc>
-*   chenpailin   2011-07-19     1.0      modify this module
-********************************************************************************************************
-*/
+ * sound\soc\sun4i\spdif\sndspdif.h
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * chenpailin <chenpailin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 
 #ifndef _SNDSPDIF_H
 #define _SNDSPDIF_H
-
-//extern struct snd_soc_dai sndspdif_dai;
-//extern struct snd_soc_codec_device soc_codec_dev_sndspdif;
 
 #endif

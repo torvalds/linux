@@ -1,17 +1,18 @@
 /*
-********************************************************************************************************
-*                          SUN4I----HDMI AUDIO
-*                   (c) Copyright 2002-2004, All winners Co,Ld.
-*                          All Right Reserved
-*
-* FileName: sun4i-spdma.c   author:chenpailin  date:2011-07-19
-* Description:
-* Others:
-* History:
-*   <author>      <time>      <version>   <desc>
-*   chenpailin   2011-07-19     1.0      modify this module
-********************************************************************************************************
-*/
+ * sound\soc\sun4i\spdif\sun4i_spdma.c
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * chenpailin <chenpailin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
+
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -28,7 +29,6 @@
 #include <asm/dma.h>
 #include <mach/hardware.h>
 #include <mach/dma.h>
-
 
 #include "sun4i_spdif.h"
 #include "sun4i_spdma.h"
@@ -76,24 +76,20 @@ static void sun4i_pcm_enqueue(struct snd_pcm_substream *substream)
 	unsigned long len = prtd->dma_period;
 
   	limit = prtd->dma_limit;
-  	while(prtd->dma_loaded < limit)
-	{
+  	while(prtd->dma_loaded < limit){
 		if((pos + len) > prtd->dma_end){
 			len  = prtd->dma_end - pos;
-			//	printk("[SPDIF]%s: corrected dma len %ld\n", __func__, len);
 		}
 
-	ret = sw_dma_enqueue(prtd->params->channel, substream, __bus_to_virt(pos),  len);
-	if(ret == 0){
-		prtd->dma_loaded++;
-		pos += prtd->dma_period;
-		if(pos >= prtd->dma_end)
-			pos = prtd->dma_start;
-	}else
-	{
-		break;
-	  }
-
+		ret = sw_dma_enqueue(prtd->params->channel, substream, __bus_to_virt(pos),  len);
+		if (ret == 0) {
+			prtd->dma_loaded++;
+			pos += prtd->dma_period;
+			if(pos >= prtd->dma_end)
+				pos = prtd->dma_start;
+		} else {
+			break;
+		  }
 	}
 	prtd->dma_pos = pos;
 }
@@ -102,24 +98,23 @@ static void sun4i_audio_buffdone(struct sw_dma_chan *channel,
 		                                  void *dev_id, int size,
 		                                  enum sw_dma_buffresult result)
 {
-		struct sun4i_runtime_data *prtd;
-		struct snd_pcm_substream *substream = dev_id;
+	struct sun4i_runtime_data *prtd;
+	struct snd_pcm_substream *substream = dev_id;
 
-		if (result == SW_RES_ABORT || result == SW_RES_ERR)
-			return;
+	if (result == SW_RES_ABORT || result == SW_RES_ERR)
+		return;
 
-		prtd = substream->runtime->private_data;
-			if (substream)
-			{
-				snd_pcm_period_elapsed(substream);
-			}
-
-		spin_lock(&prtd->lock);
-		{
-			prtd->dma_loaded--;
-			sun4i_pcm_enqueue(substream);
+	prtd = substream->runtime->private_data;
+		if (substream) {
+			snd_pcm_period_elapsed(substream);
 		}
-		spin_unlock(&prtd->lock);
+
+	spin_lock(&prtd->lock);
+	{
+		prtd->dma_loaded--;
+		sun4i_pcm_enqueue(substream);
+	}
+	spin_unlock(&prtd->lock);
 }
 
 static int sun4i_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -187,37 +182,35 @@ static int sun4i_pcm_prepare(struct snd_pcm_substream *substream)
 	int ret = 0;
 
 	spdif_dma_conf = kmalloc(sizeof(struct dma_hw_conf), GFP_KERNEL);
-	if (!spdif_dma_conf)
-	{
+	if (!spdif_dma_conf) {
 	   ret =  - ENOMEM;
 	   return ret;
 	}
 	if (!prtd->params)
 		return 0;
 
-   if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
-			  	spdif_dma_conf->drqsrc_type  = DRQ_TYPE_SDRAM;
-				spdif_dma_conf->drqdst_type  = DRQ_TYPE_SPDIF;
-				spdif_dma_conf->xfer_type    = DMAXFER_D_BHALF_S_BHALF;
-				spdif_dma_conf->address_type = DMAADDRT_D_FIX_S_INC;
-				spdif_dma_conf->dir          = SW_DMA_WDEV;
-				spdif_dma_conf->reload       = 0;
-				spdif_dma_conf->hf_irq       = SW_DMA_IRQ_FULL;
-				spdif_dma_conf->from         = prtd->dma_start;
-				spdif_dma_conf->to           = prtd->params->dma_addr;
-			 	ret = sw_dma_config(prtd->params->channel,spdif_dma_conf);
-	}
-   else {
-			 	spdif_dma_conf->drqsrc_type  = DRQ_TYPE_SDRAM;
-				spdif_dma_conf->drqdst_type  = DRQ_TYPE_SPDIF;
-				spdif_dma_conf->xfer_type    = DMAXFER_D_BWORD_S_BWORD;
-				spdif_dma_conf->address_type = DMAADDRT_D_INC_S_FIX;
-				spdif_dma_conf->dir          = SW_DMA_RDEV;
-				spdif_dma_conf->reload       = 1;
-				spdif_dma_conf->hf_irq       = SW_DMA_IRQ_FULL|SW_DMA_IRQ_HALF;
-				spdif_dma_conf->from         = prtd->params->dma_addr;
-				spdif_dma_conf->to           = prtd->dma_start;
-			  	sw_dma_config(prtd->params->channel,spdif_dma_conf);
+   	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		spdif_dma_conf->drqsrc_type  = DRQ_TYPE_SDRAM;
+		spdif_dma_conf->drqdst_type  = DRQ_TYPE_SPDIF;
+		spdif_dma_conf->xfer_type    = DMAXFER_D_BHALF_S_BHALF;
+		spdif_dma_conf->address_type = DMAADDRT_D_FIX_S_INC;
+		spdif_dma_conf->dir          = SW_DMA_WDEV;
+		spdif_dma_conf->reload       = 0;
+		spdif_dma_conf->hf_irq       = SW_DMA_IRQ_FULL;
+		spdif_dma_conf->from         = prtd->dma_start;
+		spdif_dma_conf->to           = prtd->params->dma_addr;
+		ret = sw_dma_config(prtd->params->channel,spdif_dma_conf);
+	} else {
+		spdif_dma_conf->drqsrc_type  = DRQ_TYPE_SDRAM;
+		spdif_dma_conf->drqdst_type  = DRQ_TYPE_SPDIF;
+		spdif_dma_conf->xfer_type    = DMAXFER_D_BWORD_S_BWORD;
+		spdif_dma_conf->address_type = DMAADDRT_D_INC_S_FIX;
+		spdif_dma_conf->dir          = SW_DMA_RDEV;
+		spdif_dma_conf->reload       = 1;
+		spdif_dma_conf->hf_irq       = SW_DMA_IRQ_FULL|SW_DMA_IRQ_HALF;
+		spdif_dma_conf->from         = prtd->params->dma_addr;
+		spdif_dma_conf->to           = prtd->dma_start;
+		sw_dma_config(prtd->params->channel,spdif_dma_conf);
    	}
 	/* flush the DMA channel */
 	sw_dma_ctrl(prtd->params->channel, SW_DMAOP_FLUSH);
@@ -240,10 +233,6 @@ static int sun4i_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-	//	spin_lock(&prtd->lock);
-	//	prtd->dma_loaded--;
-	//	sun4i_pcm_enqueue(substream);
-	//	spin_unlock(&prtd->lock);
 		printk("[SPDIF] dma trigger start\n");
 		sw_dma_ctrl(prtd->params->channel, SW_DMAOP_START);
 		break;
@@ -251,7 +240,6 @@ static int sun4i_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-      //  printk("[SPDIF] dma trigger stop\n");
 		sw_dma_ctrl(prtd->params->channel, SW_DMAOP_STOP);
 		break;
 
@@ -274,10 +262,9 @@ static snd_pcm_uframes_t sun4i_pcm_pointer(struct snd_pcm_substream *substream)
 	spin_lock(&prtd->lock);
 	sw_dma_getcurposition(DMACH_NSPDIF, (dma_addr_t*)&dmasrc, (dma_addr_t*)&dmadst);
 
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE){
 		res = dmadst - prtd->dma_start;
-	else
-	{
+	} else {
 		offset = bytes_to_frames(runtime, dmasrc + prtd->dma_period - runtime->dma_addr);
 	}
 	spin_unlock(&prtd->lock);
@@ -326,15 +313,15 @@ static int sun4i_pcm_mmap(struct snd_pcm_substream *substream,
 }
 
 static struct snd_pcm_ops sun4i_pcm_ops = {
-	.open				= sun4i_pcm_open,
+	.open			= sun4i_pcm_open,
 	.close			= sun4i_pcm_close,
 	.ioctl			= snd_pcm_lib_ioctl,
-	.hw_params	= sun4i_pcm_hw_params,
+	.hw_params		= sun4i_pcm_hw_params,
 	.hw_free		= sun4i_pcm_hw_free,
 	.prepare		= sun4i_pcm_prepare,
 	.trigger		= sun4i_pcm_trigger,
 	.pointer		= sun4i_pcm_pointer,
-	.mmap				= sun4i_pcm_mmap,
+	.mmap			= sun4i_pcm_mmap,
 };
 
 static int sun4i_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
@@ -405,14 +392,13 @@ static int sun4i_pcm_new(struct snd_card *card,
 }
 
 static struct snd_soc_platform_driver sun4i_soc_platform = {
-		.ops  =    &sun4i_pcm_ops,
-		.pcm_new	=		 sun4i_pcm_new,
-		.pcm_free	=		 sun4i_pcm_free_dma_buffers,
+	.ops  		=   &sun4i_pcm_ops,
+	.pcm_new	=	sun4i_pcm_new,
+	.pcm_free	=	sun4i_pcm_free_dma_buffers,
 };
 
 static int __devinit sun4i_spdif_pcm_probe(struct platform_device *pdev)
 {
-	printk("\n\n%s,%d\n",__func__, __LINE__);
 	return snd_soc_register_platform(&pdev->dev, &sun4i_soc_platform);
 }
 
@@ -440,8 +426,7 @@ static struct platform_driver sun4i_spdif_pcm_driver = {
 static int __init sun4i_soc_platform_spdif_init(void)
 {
 	int err = 0;
-	printk("\n\n %s,%d\n", __func__, __LINE__);
-	if((platform_device_register(&sun4i_spdif_pcm_device))<0)
+	if((err = platform_device_register(&sun4i_spdif_pcm_device)) < 0)
 		return err;
 
 	if ((err = platform_driver_register(&sun4i_spdif_pcm_driver)) < 0)

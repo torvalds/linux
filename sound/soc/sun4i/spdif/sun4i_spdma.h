@@ -1,17 +1,17 @@
 /*
-********************************************************************************************************
-*                          SUN4I----HDMI AUDIO
-*                   (c) Copyright 2002-2004, All winners Co,Ld.
-*                          All Right Reserved
-*
-* FileName: sun4i-spdma.h   author:chenpailin  date:2011-07-19
-* Description:
-* Others:
-* History:
-*   <author>      <time>      <version>   <desc>
-*   chenpailin   2011-07-19     1.0      modify this module
-********************************************************************************************************
-*/
+ * sound\soc\sun4i\spdif\sun4i_spdma.h
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * chenpailin <chenpailin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 #ifndef SUN4I_SPDMA_H_
 #define SUN4I_SPDMA_H_
 
@@ -33,7 +33,6 @@ enum sun4idma_buffresult {
 	SUN4I_RES_ABORT
 };
 /* platform data */
-//extern struct snd_soc_platform sun4i_soc_platform;
 extern int sw_dma_enqueue(unsigned int channel, void *id,
 			dma_addr_t data, int size);
 
