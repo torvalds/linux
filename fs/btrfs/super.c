@@ -843,10 +843,8 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 		return ERR_CAST(mnt);
 
 	ns_private = create_mnt_ns(mnt);
-	if (IS_ERR(ns_private)) {
-		mntput(mnt);
+	if (IS_ERR(ns_private))
 		return ERR_CAST(ns_private);
-	}
 
 	/*
 	 * This will trigger the automount of the subvol so we can just
