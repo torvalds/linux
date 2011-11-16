@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/pm_runtime.h>
 #include <acpi/video.h>
+#include <linux/module.h>
 
 static int drm_psb_trap_pagefaults;
 

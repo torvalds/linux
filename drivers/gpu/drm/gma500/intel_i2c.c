@@ -17,7 +17,7 @@
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  */
-
+#include <linux/export.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
