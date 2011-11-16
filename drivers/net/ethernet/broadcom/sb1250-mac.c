@@ -163,7 +163,6 @@ enum sbmac_state {
 #define SBMAC_MAX_TXDESCR	256
 #define SBMAC_MAX_RXDESCR	256
 
-#define ETHER_ADDR_LEN		6
 #define ENET_PACKET_SIZE	1518
 /*#define ENET_PACKET_SIZE	9216 */
 
@@ -266,7 +265,7 @@ struct sbmac_softc {
 	int			sbm_pause;	/* current pause setting */
 	int			sbm_link;	/* current link state */
 
-	unsigned char		sbm_hwaddr[ETHER_ADDR_LEN];
+	unsigned char		sbm_hwaddr[ETH_ALEN];
 
 	struct sbmacdma		sbm_txdma;	/* only channel 0 for now */
 	struct sbmacdma		sbm_rxdma;

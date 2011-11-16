@@ -125,7 +125,7 @@ static int __init ne3210_eisa_probe (struct device *device)
 #endif
 
 	port_index = inb(ioaddr + NE3210_CFG2) >> 6;
-	for(i = 0; i < ETHER_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = inb(ioaddr + NE3210_SA_PROM + i);
 	printk("ne3210.c: NE3210 in EISA slot %d, media: %s, addr: %pM.\n",
 		edev->slot, ifmap[port_index], dev->dev_addr);

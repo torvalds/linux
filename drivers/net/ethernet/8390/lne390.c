@@ -191,14 +191,14 @@ static int __init lne390_probe1(struct net_device *dev, int ioaddr)
 		|| inb(ioaddr + LNE390_SA_PROM + 1) != LNE390_ADDR1
 		|| inb(ioaddr + LNE390_SA_PROM + 2) != LNE390_ADDR2 ) {
 		printk("lne390.c: card not found");
-		for(i = 0; i < ETHER_ADDR_LEN; i++)
+		for (i = 0; i < ETH_ALEN; i++)
 			printk(" %02x", inb(ioaddr + LNE390_SA_PROM + i));
 		printk(" (invalid prefix).\n");
 		return -ENODEV;
 	}
 #endif
 
-	for(i = 0; i < ETHER_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = inb(ioaddr + LNE390_SA_PROM + i);
 	printk("lne390.c: LNE390%X in EISA slot %d, address %pM.\n",
 	       0xa+revision, ioaddr/0x1000, dev->dev_addr);

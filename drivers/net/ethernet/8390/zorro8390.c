@@ -365,7 +365,7 @@ static int __devinit zorro8390_init(struct net_device *dev,
 	if (i)
 		return i;
 
-	for (i = 0; i < ETHER_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = SA_prom[i];
 
 	pr_debug("Found ethernet address: %pM\n", dev->dev_addr);
