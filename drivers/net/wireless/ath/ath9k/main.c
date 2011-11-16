@@ -2275,9 +2275,6 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 		return;
 	}
 
-	if (drop)
-		timeout = 1;
-
 	for (j = 0; j < timeout; j++) {
 		bool npend = false;
 
@@ -2295,21 +2292,22 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 		}
 
 		if (!npend)
-		    goto out;
+		    break;
 	}
 
-	ath9k_ps_wakeup(sc);
-	spin_lock_bh(&sc->sc_pcu_lock);
-	drain_txq = ath_drain_all_txq(sc, false);
-	spin_unlock_bh(&sc->sc_pcu_lock);
+	if (drop) {
+		ath9k_ps_wakeup(sc);
+		spin_lock_bh(&sc->sc_pcu_lock);
+		drain_txq = ath_drain_all_txq(sc, false);
+		spin_unlock_bh(&sc->sc_pcu_lock);
 
-	if (!drain_txq)
-		ath_reset(sc, false);
+		if (!drain_txq)
+			ath_reset(sc, false);
 
-	ath9k_ps_restore(sc);
-	ieee80211_wake_queues(hw);
+		ath9k_ps_restore(sc);
+		ieee80211_wake_queues(hw);
+	}
 
-out:
 	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);
 	mutex_unlock(&sc->mutex);
 }
