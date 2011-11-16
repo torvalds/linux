@@ -434,14 +434,14 @@ static int _regmap_read(struct regmap *map, unsigned int reg,
 {
 	int ret;
 
-	if (!map->format.parse_val)
-		return -EINVAL;
-
 	if (!map->cache_bypass) {
 		ret = regcache_read(map, reg, val);
 		if (ret == 0)
 			return 0;
 	}
+
+	if (!map->format.parse_val)
+		return -EINVAL;
 
 	if (map->cache_only)
 		return -EBUSY;
