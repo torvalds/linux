@@ -1,21 +1,17 @@
 /*
-*********************************************************************************************************
-*                                                    LINUX-KERNEL
-*                                        AllWinner Linux Platform Develop Kits
-*                                                   Kernel Module
-*
-*                                    (c) Copyright 2006-2011, kevin.z China
-*                                             All Rights Reserved
-*
-* File    : aw_clocksrc.h
-* By      : kevin.z
-* Version : v1.0
-* Date    : 2011-5-10 13:32
-* Descript: head file for clock source on aw chips;
-* Update  : date                auther      ver     notes
-*
-*********************************************************************************************************
-*/
+ * arch\arm\mach-sun4i\clock\aw_clocksrc.h
+ * (C) Copyright 2010-2015
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * kevin.z
+ *
+ * core header file for Lichee Linux BSP
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 #ifndef __AW_CLOCKSRC_H__
 #define __AW_CLOCKSRC_H__
 
