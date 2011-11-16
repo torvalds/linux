@@ -586,7 +586,6 @@ typedef enum {
 
 #define PKT_BUFF_SZ			1536
 #define MIN_PKT_LEN			60
-#define ETH_ADDR_LEN			6
 
 #define  AMD8111E_TX_TIMEOUT		(3 * HZ)/* 3 sec */
 #define SOFT_TIMER_FREQ 		0xBEBC  /* 0.5 sec */
