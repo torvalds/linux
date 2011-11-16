@@ -2,8 +2,10 @@
 #include "debugfs.h"
 #include "cache.h"
 
+#include <sys/mount.h>
+
 static int debugfs_premounted;
-static char debugfs_mountpoint[MAX_PATH+1];
+static char debugfs_mountpoint[PATH_MAX + 1];
 
 static const char *debugfs_known_mountpoints[] = {
 	"/sys/kernel/debug/",
@@ -64,9 +66,7 @@ const char *debugfs_find_mountpoint(void)
 	if (fp == NULL)
 		die("Can't open /proc/mounts for read");
 
-	while (fscanf(fp, "%*s %"
-		      STR(MAX_PATH)
-		      "s %99s %*s %*d %*d\n",
+	while (fscanf(fp, "%*s %" STR(PATH_MAX) "s %99s %*s %*d %*d\n",
 		      debugfs_mountpoint, type) == 2) {
 		if (strcmp(type, "debugfs") == 0)
 			break;
@@ -158,7 +158,7 @@ int debugfs_umount(void)
 
 int debugfs_write(const char *entry, const char *value)
 {
-	char path[MAX_PATH+1];
+	char path[PATH_MAX + 1];
 	int ret, count;
 	int fd;
 
@@ -203,7 +203,7 @@ int debugfs_write(const char *entry, const char *value)
  */
 int debugfs_read(const char *entry, char *buffer, size_t size)
 {
-	char path[MAX_PATH+1];
+	char path[PATH_MAX + 1];
 	int ret;
 	int fd;
 
