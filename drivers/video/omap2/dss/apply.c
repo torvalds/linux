@@ -608,11 +608,6 @@ static void omap_dss_mgr_apply_mgr(struct omap_overlay_manager *mgr)
 
 	mp = get_mgr_priv(mgr);
 
-	if (mgr->device_changed) {
-		mgr->device_changed = false;
-		mp->user_info_dirty  = true;
-	}
-
 	if (!mp->user_info_dirty)
 		return;
 
@@ -807,7 +802,6 @@ int dss_mgr_set_device(struct omap_overlay_manager *mgr,
 
 	dssdev->manager = mgr;
 	mgr->device = dssdev;
-	mgr->device_changed = true;
 
 	mutex_unlock(&apply_lock);
 
@@ -840,7 +834,6 @@ int dss_mgr_unset_device(struct omap_overlay_manager *mgr)
 
 	mgr->device->manager = NULL;
 	mgr->device = NULL;
-	mgr->device_changed = true;
 
 	mutex_unlock(&apply_lock);
 
