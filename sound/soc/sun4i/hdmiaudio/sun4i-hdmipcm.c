@@ -1,17 +1,17 @@
 /*
-********************************************************************************************************
-*                          SUN4I----HDMI AUDIO
-*                   (c) Copyright 2002-2004, All winners Co,Ld.
-*                          All Right Reserved
-*
-* FileName: sun4i-hdmipcm.c   author:chenpailin  date:2011-07-19
-* Description:
-* Others:
-* History:
-*   <author>      <time>      <version>   <desc>
-*   chenpailin   2011-07-19     1.0      modify this module
-********************************************************************************************************
-*/
+ * sound\soc\sun4i\hdmiaudio\sun4i-hdmipcm.c
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * chenpailin <chenpailin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -28,7 +28,6 @@
 #include <asm/dma.h>
 #include <mach/hardware.h>
 #include <mach/dma.h>
-
 
 #include "sun4i-hdmiaudio.h"
 #include "sun4i-hdmipcm.h"
@@ -81,16 +80,15 @@ static void sun4i_pcm_enqueue(struct snd_pcm_substream *substream)
 			len  = prtd->dma_end - pos;
 		}
 
-	ret = sw_dma_enqueue(prtd->params->channel, substream, __bus_to_virt(pos),  len);
-	if(ret == 0){
-		prtd->dma_loaded++;
-		pos += prtd->dma_period;
-		if(pos >= prtd->dma_end)
-			pos = prtd->dma_start;
-	}else
-	{
-		break;
-	  }
+		ret = sw_dma_enqueue(prtd->params->channel, substream, __bus_to_virt(pos),  len);
+		if (ret == 0) {
+			prtd->dma_loaded++;
+			pos += prtd->dma_period;
+			if(pos >= prtd->dma_end)
+				pos = prtd->dma_start;
+		}else {
+			break;
+		}
 
 	}
 	prtd->dma_pos = pos;
@@ -100,24 +98,23 @@ static void sun4i_audio_buffdone(struct sw_dma_chan *channel,
 		                                  void *dev_id, int size,
 		                                  enum sw_dma_buffresult result)
 {
-		struct sun4i_runtime_data *prtd;
-		struct snd_pcm_substream *substream = dev_id;
+	struct sun4i_runtime_data *prtd;
+	struct snd_pcm_substream *substream = dev_id;
 
-		if (result == SW_RES_ABORT || result == SW_RES_ERR)
-			return;
+	if (result == SW_RES_ABORT || result == SW_RES_ERR)
+		return;
 
-		prtd = substream->runtime->private_data;
-			if (substream)
-			{
-				snd_pcm_period_elapsed(substream);
-			}
-
-		spin_lock(&prtd->lock);
-		{
-			prtd->dma_loaded--;
-			sun4i_pcm_enqueue(substream);
+	prtd = substream->runtime->private_data;
+		if (substream) {
+			snd_pcm_period_elapsed(substream);
 		}
-		spin_unlock(&prtd->lock);
+
+	spin_lock(&prtd->lock);
+	{
+		prtd->dma_loaded--;
+		sun4i_pcm_enqueue(substream);
+	}
+	spin_unlock(&prtd->lock);
 }
 
 static int sun4i_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -186,26 +183,25 @@ static int sun4i_pcm_prepare(struct snd_pcm_substream *substream)
 	int ret = 0;
 
 	codec_dma_conf = kmalloc(sizeof(struct dma_hw_conf), GFP_KERNEL);
-	if (!codec_dma_conf)
-	{
+	if (!codec_dma_conf) {
 	   ret =  - ENOMEM;
 	   return ret;
 	}
 	if (!prtd->params)
 		return 0;
 
-   if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
-			    codec_dma_conf->drqsrc_type  = DRQ_TYPE_SDRAM;
-				codec_dma_conf->drqdst_type  = DRQ_TYPE_HDMIAUDIO;
-				codec_dma_conf->xfer_type    = DMAXFER_D_BWORD_S_BWORD;
-				codec_dma_conf->address_type = DMAADDRT_D_IO_S_LN;
-				codec_dma_conf->dir          = SW_DMA_WDEV;
-				codec_dma_conf->reload       = 0;
-				codec_dma_conf->hf_irq       = SW_DMA_IRQ_FULL;
-				codec_dma_conf->from         = prtd->dma_start;
-				codec_dma_conf->to           = prtd->params->dma_addr;
-				codec_dma_conf->cmbk		 = 0x1F071F07;
-			  ret = sw_dma_config(prtd->params->channel,codec_dma_conf);
+   	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+		codec_dma_conf->drqsrc_type  = DRQ_TYPE_SDRAM;
+		codec_dma_conf->drqdst_type  = DRQ_TYPE_HDMIAUDIO;
+		codec_dma_conf->xfer_type    = DMAXFER_D_BWORD_S_BWORD;
+		codec_dma_conf->address_type = DMAADDRT_D_IO_S_LN;
+		codec_dma_conf->dir          = SW_DMA_WDEV;
+		codec_dma_conf->reload       = 0;
+		codec_dma_conf->hf_irq       = SW_DMA_IRQ_FULL;
+		codec_dma_conf->from         = prtd->dma_start;
+		codec_dma_conf->to           = prtd->params->dma_addr;
+		codec_dma_conf->cmbk		 = 0x1F071F07;
+		ret = sw_dma_config(prtd->params->channel,codec_dma_conf);
 	}
 
 	/* flush the DMA channel */
@@ -229,10 +225,6 @@ static int sun4i_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-	//		spin_lock(&prtd->lock);
-	//		prtd->dma_loaded--;
-	//		sun4i_pcm_enqueue(substream);
-	//		spin_unlock(&prtd->lock);
 		printk("[HDMI-AUDIO] PCM trigger start...\n");
 		sw_dma_ctrl(prtd->params->channel, SW_DMAOP_START);
 		break;
@@ -403,7 +395,6 @@ static struct snd_soc_platform_driver sun4i_soc_platform_hdmiaudio = {
 
 static int __devinit sun4i_hdmiaudio_pcm_probe(struct platform_device *pdev)
 {
-	printk("\n\n%s,%d\n",__func__, __LINE__);
 	return snd_soc_register_platform(&pdev->dev, &sun4i_soc_platform_hdmiaudio);
 }
 
@@ -431,8 +422,7 @@ static struct platform_driver sun4i_hdmiaudio_pcm_driver = {
 static int __init sun4i_soc_platform_hdmiaudio_init(void)
 {
 	int err = 0;
-	printk("\n\n %s,%d\n", __func__, __LINE__);
-	if((platform_device_register(&sun4i_hdmiaudio_pcm_device))<0)
+	if((err = platform_device_register(&sun4i_hdmiaudio_pcm_device)) < 0)
 		return err;
 
 	if ((err = platform_driver_register(&sun4i_hdmiaudio_pcm_driver)) < 0)

@@ -1,17 +1,17 @@
 /*
-********************************************************************************************************
-*                          SUN4I----HDMI AUDIO
-*                   (c) Copyright 2002-2004, All winners Co,Ld.
-*                          All Right Reserved
-*
-* FileName: sndhdmi.c   author:chenpailin
-* Description:
-* Others:
-* History:
-*   <author>      <time>      <version>   <desc>
-*   chenpailin   2011-07-19     1.0      modify this module
-********************************************************************************************************
-*/
+ * sound\soc\sun4i\hdmiaudio\sndhdmi.c
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * chenpailin <chenpailin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -25,9 +25,7 @@
 
 #include "sndhdmi.h"
 
-
 #define HDMI
-
 
 struct sndhdmi_priv {
 	int sysclk;
@@ -36,7 +34,6 @@ struct sndhdmi_priv {
 	struct snd_pcm_substream *master_substream;
 	struct snd_pcm_substream *slave_substream;
 };
-
 
 #ifdef HDMI
 __audio_hdmi_func g_hdmi_func;
@@ -61,26 +58,22 @@ static int sndhdmi_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-
 static int sndhdmi_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
 	return 0;
 }
 
-
 static void sndhdmi_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
-}
 
+}
 
 static int sndhdmi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *dai)
 {
-	printk("Enter %s, line = %d\n", __func__, __LINE__);
-
 	hdmi_para.sample_rate = params_rate(params);
 
 	#ifdef HDMI
@@ -114,13 +107,13 @@ static int sndhdmi_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 //codec dai operation
 struct snd_soc_dai_ops sndhdmi_dai_ops = {
-		.startup = sndhdmi_startup,
-		.shutdown = sndhdmi_shutdown,
-		.hw_params = sndhdmi_hw_params,
-		.digital_mute = sndhdmi_mute,
-		.set_sysclk = sndhdmi_set_dai_sysclk,
-		.set_clkdiv = sndhdmi_set_dai_clkdiv,
-		.set_fmt = sndhdmi_set_dai_fmt,
+	.startup = sndhdmi_startup,
+	.shutdown = sndhdmi_shutdown,
+	.hw_params = sndhdmi_hw_params,
+	.digital_mute = sndhdmi_mute,
+	.set_sysclk = sndhdmi_set_dai_sysclk,
+	.set_clkdiv = sndhdmi_set_dai_clkdiv,
+	.set_fmt = sndhdmi_set_dai_fmt,
 };
 
 //codec dai
@@ -143,11 +136,10 @@ EXPORT_SYMBOL(sndhdmi_dai);
 static int sndhdmi_soc_probe(struct snd_soc_codec *codec)
 {
 	struct sndhdmi_priv *sndhdmi;
-	printk("Enter %s, line = %d\n", __func__, __LINE__);
 
 	sndhdmi = kzalloc(sizeof(struct sndhdmi_priv), GFP_KERNEL);
 	if(sndhdmi == NULL){
-		printk("%s,%d\n",__func__,__LINE__);
+		printk("error at:%s,%d\n",__func__,__LINE__);
 		return -ENOMEM;
 	}
 	snd_soc_codec_set_drvdata(codec, sndhdmi);
@@ -171,7 +163,6 @@ static struct snd_soc_codec_driver soc_codec_dev_sndhdmi = {
 
 static int __devinit sndhdmi_codec_probe(struct platform_device *pdev)
 {
-	printk("\n\n%s,%d\n",__func__, __LINE__);
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sndhdmi, &sndhdmi_dai, 1);
 }
 
@@ -197,13 +188,12 @@ static struct platform_driver sndhdmi_codec_driver = {
 static int __init sndhdmi_codec_init(void)
 {
 	int err = 0;
-	printk("Enter %s, line = %d\n", __func__, __LINE__);
 
-	if((err = platform_device_register(&sndhdmi_codec_device))<0)
-			return err;
+	if((err = platform_device_register(&sndhdmi_codec_device)) < 0)
+		return err;
 
 	if ((err = platform_driver_register(&sndhdmi_codec_driver)) < 0)
-			return err;
+		return err;
 
 	return 0;
 }

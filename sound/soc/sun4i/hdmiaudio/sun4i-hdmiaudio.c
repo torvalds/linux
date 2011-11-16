@@ -1,17 +1,17 @@
 /*
-********************************************************************************************************
-*                          SUN4I----HDMI AUDIO
-*                   (c) Copyright 2002-2004, All winners Co,Ld.
-*                          All Right Reserved
-*
-* FileName: sun4i-hdmiaudio.c   author:chenpailin  date:2011-07-19
-* Description:
-* Others:
-* History:
-*   <author>      <time>      <version>   <desc>
-*   chenpailin   2011-07-19     1.0      modify this module
-********************************************************************************************************
-*/
+ * sound\soc\sun4i\hdmiaudio\sun4i-hdmiaudio.c
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * chenpailin <chenpailin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -36,8 +36,6 @@
 
 #include "sun4i-hdmipcm.h"
 #include "sun4i-hdmiaudio.h"
-
-
 
 //save the register value
 static int regsave[8];
@@ -64,14 +62,13 @@ static struct sun4i_dma_params sun4i_hdmiaudio_pcm_stereo_in = {
 	.dma_size 	=   4,               /* dma transfer 32bits */
 };
 
+struct sun4i_hdmiaudio_info sun4i_hdmiaudio;
 
- struct sun4i_hdmiaudio_info sun4i_hdmiaudio;
-
- //clock handle
- static struct clk *hdmiaudio_apbclk;
- static struct clk *hdmiaudio_pll2clk;
- static struct clk *hdmiaudio_pllx8;
- static struct clk *hdmiaudio_moduleclk;
+//clock handle
+static struct clk *hdmiaudio_apbclk;
+static struct clk *hdmiaudio_pll2clk;
+static struct clk *hdmiaudio_pllx8;
+static struct clk *hdmiaudio_moduleclk;
 
 void sun4i_snd_txctrl_hdmiaudio(struct snd_pcm_substream *substream, int on)
 {
@@ -87,12 +84,9 @@ void sun4i_snd_txctrl_hdmiaudio(struct snd_pcm_substream *substream, int on)
 
 	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_TXCHMAP);
 	reg_val = 0;
-	if(substream->runtime->channels == 1)
-	{
+	if(substream->runtime->channels == 1) {
 		reg_val = 0x76543200;
-	}
-	else
-	{
+	} else {
 		reg_val = 0x76543210;
 	}
 	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_TXCHMAP);
@@ -102,8 +96,7 @@ void sun4i_snd_txctrl_hdmiaudio(struct snd_pcm_substream *substream, int on)
 	reg_val &= ~SUN4I_HDMIAUDIOCTL_SDO2EN;
 	reg_val &= ~SUN4I_HDMIAUDIOCTL_SDO1EN;
 	reg_val &= ~SUN4I_HDMIAUDIOCTL_SDO0EN;
-	switch(substream->runtime->channels)
-	{
+	switch(substream->runtime->channels) {
 		case 1:
 		case 2:
 			reg_val |= SUN4I_HDMIAUDIOCTL_SDO0EN; break;
@@ -121,9 +114,6 @@ void sun4i_snd_txctrl_hdmiaudio(struct snd_pcm_substream *substream, int on)
 	}
 	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
 
-//	printk(KERN_WARNING "[HDMIAUDIO] 0x01c22400 = %#x, line= %d\n", *(volatile int*)0xF1C22400, __LINE__);
-//	printk(KERN_WARNING "[HDMIAUDIO] 0x01c22430 = %#x, line= %d\n", *(volatile int*)0xF1C22430, __LINE__);
-//	printk(KERN_WARNING "[HDMIAUDIO] 0x01c22434 = %#x, line= %d\n", *(volatile int*)0xF1C22434, __LINE__);
 	//flush TX FIFO
 	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOFCTL);
 	reg_val |= SUN4I_HDMIAUDIOFCTL_FTX;
@@ -132,42 +122,37 @@ void sun4i_snd_txctrl_hdmiaudio(struct snd_pcm_substream *substream, int on)
 	//clear TX counter
 	writel(0, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOTXCNT);
 
-	if(on){
+	if (on) {
+		/* hdmiaudio TX ENABLE */
+		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+		reg_val |= SUN4I_HDMIAUDIOCTL_TXEN;
+		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
 
-	/* hdmiaudio TX ENABLE */
-	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-	reg_val |= SUN4I_HDMIAUDIOCTL_TXEN;
-	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+		/* enable DMA DRQ mode for play */
+		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
+		reg_val |= SUN4I_HDMIAUDIOINT_TXDRQEN;
+		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
 
-	/* enable DMA DRQ mode for play */
-	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
-	reg_val |= SUN4I_HDMIAUDIOINT_TXDRQEN;
-	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
-
-	//Global Enable Digital Audio Interface
-	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-	reg_val |= SUN4I_HDMIAUDIOCTL_GEN;
-	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-
+		//Global Enable Digital Audio Interface
+		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+		reg_val |= SUN4I_HDMIAUDIOCTL_GEN;
+		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
 	}else{
+		/* HDMIAUDIO TX DISABLE */
+		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+		reg_val &= ~SUN4I_HDMIAUDIOCTL_TXEN;
+		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
 
-	/* HDMIAUDIO TX DISABLE */
-	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-	reg_val &= ~SUN4I_HDMIAUDIOCTL_TXEN;
-	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+		/* DISBALE dma DRQ mode */
+		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
+		reg_val &= ~SUN4I_HDMIAUDIOINT_TXDRQEN;
+		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
 
-	/* DISBALE dma DRQ mode */
-	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
-	reg_val &= ~SUN4I_HDMIAUDIOINT_TXDRQEN;
-	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
-
-	//Global disable Digital Audio Interface
-	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-	reg_val &= ~SUN4I_HDMIAUDIOCTL_GEN;
-	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-
+		//Global disable Digital Audio Interface
+		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+		reg_val &= ~SUN4I_HDMIAUDIOCTL_GEN;
+		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
 	}
-
 }
 
 void sun4i_snd_rxctrl_hdmiaudio(struct snd_pcm_substream *substream, int on)
@@ -182,42 +167,37 @@ void sun4i_snd_rxctrl_hdmiaudio(struct snd_pcm_substream *substream, int on)
 	//clear RX counter
 	writel(0, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIORXCNT);
 
-	if(on){
+	if (on) {
+		/* HDMIAUDIO RX ENABLE */
+		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+		reg_val |= SUN4I_HDMIAUDIOCTL_RXEN;
+		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
 
-	/* HDMIAUDIO RX ENABLE */
-	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-	reg_val |= SUN4I_HDMIAUDIOCTL_RXEN;
-	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+		/* enable DMA DRQ mode for record */
+		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
+		reg_val |= SUN4I_HDMIAUDIOINT_RXDRQEN;
+		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
 
-	/* enable DMA DRQ mode for record */
-	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
-	reg_val |= SUN4I_HDMIAUDIOINT_RXDRQEN;
-	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
+		//Global Enable Digital Audio Interface
+		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+		reg_val |= SUN4I_HDMIAUDIOCTL_GEN;
+		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+	} else {
+		/* HDMIAUDIO RX DISABLE */
+		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+		reg_val &= ~SUN4I_HDMIAUDIOCTL_RXEN;
+		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
 
-	//Global Enable Digital Audio Interface
-	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-	reg_val |= SUN4I_HDMIAUDIOCTL_GEN;
-	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+		/* DISBALE dma DRQ mode */
+		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
+		reg_val &= ~SUN4I_HDMIAUDIOINT_RXDRQEN;
+		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
 
-	}else{
-
-	/* HDMIAUDIO RX DISABLE */
-	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-	reg_val &= ~SUN4I_HDMIAUDIOCTL_RXEN;
-	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-
-	/* DISBALE dma DRQ mode */
-	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
-	reg_val &= ~SUN4I_HDMIAUDIOINT_RXDRQEN;
-	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOINT);
-
-	//Global disable Digital Audio Interface
-	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-	reg_val &= ~SUN4I_HDMIAUDIOCTL_GEN;
-	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-
+		//Global disable Digital Audio Interface
+		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+		reg_val &= ~SUN4I_HDMIAUDIOCTL_GEN;
+		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
 	}
-
 }
 
 static inline int sun4i_snd_is_clkmaster(void)
@@ -237,7 +217,7 @@ static int sun4i_hdmiaudio_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt
 
 	/* master or slave selection */
 	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-	switch(fmt & SND_SOC_DAIFMT_MASTER_MASK){
+	switch(fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 		case SND_SOC_DAIFMT_CBM_CFM:   /* codec clk & frm master */
 			reg_val |= SUN4I_HDMIAUDIOCTL_MS;
 			break;
@@ -253,7 +233,7 @@ static int sun4i_hdmiaudio_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt
 	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
 	reg_val1 = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOFAT0);
 	reg_val1 &= ~SUN4I_HDMIAUDIOFAT0_FMT_RVD;
-	switch(fmt & SND_SOC_DAIFMT_FORMAT_MASK){
+	switch(fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 		case SND_SOC_DAIFMT_I2S:        /* I2S mode */
 			reg_val &= ~SUN4I_HDMIAUDIOCTL_PCM;
 			reg_val1 |= SUN4I_HDMIAUDIOFAT0_FMT_I2S;
@@ -282,7 +262,7 @@ static int sun4i_hdmiaudio_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt
 
 	/* DAI signal inversions */
 	reg_val1 = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOFAT0);
-	switch(fmt & SND_SOC_DAIFMT_INV_MASK){
+	switch(fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:     /* normal bit clock + frame */
 			reg_val1 &= ~SUN4I_HDMIAUDIOFAT0_LRCP;
 			reg_val1 &= ~SUN4I_HDMIAUDIOFAT0_BCP;
@@ -377,25 +357,19 @@ static int sun4i_hdmiaudio_trigger(struct snd_pcm_substream *substream,
 		case SNDRV_PCM_TRIGGER_START:
 		case SNDRV_PCM_TRIGGER_RESUME:
 		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-			if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-				{
-					sun4i_snd_rxctrl_hdmiaudio(substream, 1);
-				}
-			else
-				{
-					sun4i_snd_txctrl_hdmiaudio(substream, 1);
-				}
-			sw_dma_ctrl(dma_data->channel, SW_DMAOP_STARTED);
-			break;
+			if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+				sun4i_snd_rxctrl_hdmiaudio(substream, 1);
+			} else {
+				sun4i_snd_txctrl_hdmiaudio(substream, 1);
+			}
+		sw_dma_ctrl(dma_data->channel, SW_DMAOP_STARTED);
+		break;
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-			if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-			{
+			if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 				sun4i_snd_rxctrl_hdmiaudio(substream, 0);
-			}
-			else
-			{
+			} else {
 			  sun4i_snd_txctrl_hdmiaudio(substream, 0);
 			}
 			break;
@@ -403,20 +377,16 @@ static int sun4i_hdmiaudio_trigger(struct snd_pcm_substream *substream,
 			ret = -EINVAL;
 			break;
 	}
-
-		return ret;
+	return ret;
 }
 
 //freq:   1: 22.5792MHz   0: 24.576MHz
 static int sun4i_hdmiaudio_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
                                  unsigned int freq, int dir)
 {
-	if (!freq)
-	{
+	if (!freq) {
 		clk_set_rate(hdmiaudio_pll2clk, 24576000);
-	}
-	else
-	{
+	} else {
 		clk_set_rate(hdmiaudio_pll2clk, 22579200);
 	}
 
@@ -466,13 +436,10 @@ static int sun4i_hdmiaudio_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, i
 
 	//diable MCLK output when high samplerate
 	reg = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCLKD);
-	if(!(reg & 0xF))
-	{
+	if(!(reg & 0xF)) {
 		reg &= ~SUN4I_HDMIAUDIOCLKD_MCLKOEN;
 		writel(reg, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCLKD);
-	}
-	else
-	{
+	} else {
 		reg |= SUN4I_HDMIAUDIOCLKD_MCLKOEN;
 		writel(reg, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCLKD);
 	}
@@ -494,8 +461,6 @@ static int sun4i_hdmiaudio_dai_remove(struct snd_soc_dai *dai)
 {
 	return 0;
 }
-
-
 
 static void hdmiaudioregsave(void)
 {
@@ -521,61 +486,61 @@ static void hdmiaudioregrestore(void)
 	writel(regsave[7], sun4i_hdmiaudio.regs + SUN4I_TXCHMAP);
 }
 
+static int sun4i_hdmiaudio_suspend(struct snd_soc_dai *cpu_dai)
+{
+	u32 reg_val;
+ 	printk("[HDMIAUDIO]Entered %s\n", __func__);
 
-	static int sun4i_hdmiaudio_suspend(struct snd_soc_dai *cpu_dai)
-	{
-		u32 reg_val;
-     	printk("[HDMIAUDIO]Entered %s\n", __func__);
+	//Global Enable Digital Audio Interface
+	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+	reg_val &= ~SUN4I_HDMIAUDIOCTL_GEN;
+	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
 
-		//Global Enable Digital Audio Interface
-		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-		reg_val &= ~SUN4I_HDMIAUDIOCTL_GEN;
-		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+	hdmiaudioregsave();
+	//release the module clock
+	clk_disable(hdmiaudio_moduleclk);
 
-		hdmiaudioregsave();
-		//release the module clock
-		clk_disable(hdmiaudio_moduleclk);
+	clk_disable(hdmiaudio_apbclk);
 
-		clk_disable(hdmiaudio_apbclk);
+	//printk("[HDMIAUDIO]PLL2 0x01c20008 = %#x, line = %d\n", *(volatile int*)0xF1C20008, __LINE__);
+	printk("[HDMIAUDIO]SPECIAL CLK 0x01c20068 = %#x, line= %d\n", *(volatile int*)0xF1C20068, __LINE__);
+	printk("[HDMIAUDIO]SPECIAL CLK 0x01c200B8 = %#x, line = %d\n", *(volatile int*)0xF1C200B8, __LINE__);
 
-		//printk("[HDMIAUDIO]PLL2 0x01c20008 = %#x, line = %d\n", *(volatile int*)0xF1C20008, __LINE__);
-		printk("[HDMIAUDIO]SPECIAL CLK 0x01c20068 = %#x, line= %d\n", *(volatile int*)0xF1C20068, __LINE__);
-		printk("[HDMIAUDIO]SPECIAL CLK 0x01c200B8 = %#x, line = %d\n", *(volatile int*)0xF1C200B8, __LINE__);
+	return 0;
+}
 
-		return 0;
-	}
-	static int sun4i_hdmiaudio_resume(struct snd_soc_dai *cpu_dai)
-	{
-		u32 reg_val;
-		printk("[HDMIAUDIO]Entered %s\n", __func__);
+static int sun4i_hdmiaudio_resume(struct snd_soc_dai *cpu_dai)
+{
+	u32 reg_val;
+	printk("[HDMIAUDIO]Entered %s\n", __func__);
 
-		//release the module clock
-		clk_enable(hdmiaudio_apbclk);
+	//release the module clock
+	clk_enable(hdmiaudio_apbclk);
 
-		//release the module clock
-		clk_enable(hdmiaudio_moduleclk);
+	//release the module clock
+	clk_enable(hdmiaudio_moduleclk);
 
-		hdmiaudioregrestore();
+	hdmiaudioregrestore();
 
-		//Global Enable Digital Audio Interface
-		reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
-		reg_val |= SUN4I_HDMIAUDIOCTL_GEN;
-		writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+	//Global Enable Digital Audio Interface
+	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
+	reg_val |= SUN4I_HDMIAUDIOCTL_GEN;
+	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
 
-		//printk("[HDMIAUDIO]PLL2 0x01c20008 = %#x, line = %d\n", *(volatile int*)0xF1C20008, __LINE__);
-		printk("[HDMIAUDIO]SPECIAL CLK 0x01c20068 = %#x, line= %d\n", *(volatile int*)0xF1C20068, __LINE__);
-		printk("[HDMIAUDIO]SPECIAL CLK 0x01c200B8 = %#x, line = %d\n", *(volatile int*)0xF1C200B8, __LINE__);
+	//printk("[HDMIAUDIO]PLL2 0x01c20008 = %#x, line = %d\n", *(volatile int*)0xF1C20008, __LINE__);
+	printk("[HDMIAUDIO]SPECIAL CLK 0x01c20068 = %#x, line= %d\n", *(volatile int*)0xF1C20068, __LINE__);
+	printk("[HDMIAUDIO]SPECIAL CLK 0x01c200B8 = %#x, line = %d\n", *(volatile int*)0xF1C200B8, __LINE__);
 
-		return 0;
-	}
+	return 0;
+}
 
 #define SUN4I_I2S_RATES (SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT)
 static struct snd_soc_dai_ops sun4i_hdmiaudio_dai_ops = {
-		.trigger 		= sun4i_hdmiaudio_trigger,
-		.hw_params 	= sun4i_hdmiaudio_hw_params,
-		.set_fmt 		= sun4i_hdmiaudio_set_fmt,
-		.set_clkdiv = sun4i_hdmiaudio_set_clkdiv,
-		.set_sysclk = sun4i_hdmiaudio_set_sysclk,
+	.trigger 		= sun4i_hdmiaudio_trigger,
+	.hw_params 	= sun4i_hdmiaudio_hw_params,
+	.set_fmt 		= sun4i_hdmiaudio_set_fmt,
+	.set_clkdiv = sun4i_hdmiaudio_set_clkdiv,
+	.set_sysclk = sun4i_hdmiaudio_set_sysclk,
 };
 static struct snd_soc_dai_driver sun4i_hdmiaudio_dai = {
 	.probe 		= sun4i_hdmiaudio_dai_probe,
@@ -646,8 +611,6 @@ static int __devinit sun4i_hdmiaudio_dev_probe(struct platform_device *pdev)
 	writel(reg_val, sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
 
 	ret = snd_soc_register_dai(&pdev->dev, &sun4i_hdmiaudio_dai);
-	//sun4i_snd_txctrl_hdmiaudio(0);
-	//sun4i_snd_rxctrl_hdmiaudio(0);
 
 	iounmap(sun4i_hdmiaudio.ioregs);
 
@@ -690,11 +653,11 @@ static int __init sun4i_hdmiaudio_init(void)
 {
 	int err = 0;
 
-	if((platform_device_register(&sun4i_hdmiaudio_device))<0)
-			return err;
+	if((err = platform_device_register(&sun4i_hdmiaudio_device))<0)
+		return err;
 
 	if ((err = platform_driver_register(&sun4i_hdmiaudio_driver)) < 0)
-			return err;
+		return err;
 
 	return 0;
 }
