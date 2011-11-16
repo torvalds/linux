@@ -199,9 +199,6 @@ int regcache_read(struct regmap *map,
 
 	BUG_ON(!map->cache_ops);
 
-	if (!regmap_readable(map, reg))
-		return -EIO;
-
 	if (!regmap_volatile(map, reg))
 		return map->cache_ops->read(map, reg, value);
 
