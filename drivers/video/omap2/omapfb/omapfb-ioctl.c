@@ -189,19 +189,19 @@ static int omapfb_query_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 		memset(pi, 0, sizeof(*pi));
 	} else {
 		struct omap_overlay *ovl;
-		struct omap_overlay_info *ovli;
+		struct omap_overlay_info ovli;
 
 		ovl = ofbi->overlays[0];
-		ovli = &ovl->info;
+		ovl->get_overlay_info(ovl, &ovli);
 
-		pi->pos_x = ovli->pos_x;
-		pi->pos_y = ovli->pos_y;
+		pi->pos_x = ovli.pos_x;
+		pi->pos_y = ovli.pos_y;
 		pi->enabled = ovl->is_enabled(ovl);
 		pi->channel_out = 0; /* xxx */
 		pi->mirror = 0;
 		pi->mem_idx = get_mem_idx(ofbi);
-		pi->out_width = ovli->out_width;
-		pi->out_height = ovli->out_height;
+		pi->out_width = ovli.out_width;
+		pi->out_height = ovli.out_height;
 	}
 
 	return 0;

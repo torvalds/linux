@@ -55,6 +55,10 @@
  */
 
 struct ovl_priv_data {
+
+	bool user_info_dirty;
+	struct omap_overlay_info user_info;
+
 	/* If true, cache changed, but not written to shadow registers. Set
 	 * in apply(), cleared when registers written. */
 	bool dirty;
@@ -129,7 +133,38 @@ static struct mgr_priv_data *get_mgr_priv(struct omap_overlay_manager *mgr)
 
 void dss_apply_init(void)
 {
+	const int num_ovls = dss_feat_get_num_ovls();
+	int i;
+
 	spin_lock_init(&data_lock);
+
+	for (i = 0; i < num_ovls; ++i) {
+		struct ovl_priv_data *op;
+
+		op = &dss_data.ovl_priv_data_array[i];
+
+		op->info.global_alpha = 255;
+
+		switch (i) {
+		case 0:
+			op->info.zorder = 0;
+			break;
+		case 1:
+			op->info.zorder =
+				dss_has_feature(FEAT_ALPHA_FREE_ZORDER) ? 3 : 0;
+			break;
+		case 2:
+			op->info.zorder =
+				dss_has_feature(FEAT_ALPHA_FREE_ZORDER) ? 2 : 0;
+			break;
+		case 3:
+			op->info.zorder =
+				dss_has_feature(FEAT_ALPHA_FREE_ZORDER) ? 1 : 0;
+			break;
+		}
+
+		op->user_info = op->info;
+	}
 }
 
 static bool ovl_manual_update(struct omap_overlay *ovl)
@@ -575,15 +610,15 @@ static void omap_dss_mgr_apply_ovl(struct omap_overlay *ovl)
 
 	if (ovl->manager_changed) {
 		ovl->manager_changed = false;
-		ovl->info_dirty  = true;
+		op->user_info_dirty  = true;
 	}
 
-	if (!ovl->info_dirty)
+	if (!op->user_info_dirty)
 		return;
 
-	ovl->info_dirty = false;
+	op->user_info_dirty = false;
 	op->dirty = true;
-	op->info = ovl->info;
+	op->info = op->user_info;
 
 	op->channel = ovl->manager->id;
 }
@@ -821,12 +856,13 @@ err:
 int dss_ovl_set_info(struct omap_overlay *ovl,
 		struct omap_overlay_info *info)
 {
+	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	unsigned long flags;
 
 	spin_lock_irqsave(&data_lock, flags);
 
-	ovl->info = *info;
-	ovl->info_dirty = true;
+	op->user_info = *info;
+	op->user_info_dirty = true;
 
 	spin_unlock_irqrestore(&data_lock, flags);
 
@@ -836,11 +872,12 @@ int dss_ovl_set_info(struct omap_overlay *ovl,
 void dss_ovl_get_info(struct omap_overlay *ovl,
 		struct omap_overlay_info *info)
 {
+	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	unsigned long flags;
 
 	spin_lock_irqsave(&data_lock, flags);
 
-	*info = ovl->info;
+	*info = op->user_info;
 
 	spin_unlock_irqrestore(&data_lock, flags);
 }

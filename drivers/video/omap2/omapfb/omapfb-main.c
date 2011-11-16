@@ -970,16 +970,20 @@ int omapfb_apply_changes(struct fb_info *fbi, int init)
 				outh = var->yres;
 			}
 		} else {
-			outw = ovl->info.out_width;
-			outh = ovl->info.out_height;
+			struct omap_overlay_info info;
+			ovl->get_overlay_info(ovl, &info);
+			outw = info.out_width;
+			outh = info.out_height;
 		}
 
 		if (init) {
 			posx = 0;
 			posy = 0;
 		} else {
-			posx = ovl->info.pos_x;
-			posy = ovl->info.pos_y;
+			struct omap_overlay_info info;
+			ovl->get_overlay_info(ovl, &info);
+			posx = info.pos_x;
+			posy = info.pos_y;
 		}
 
 		r = omapfb_setup_overlay(fbi, ovl, posx, posy, outw, outh);

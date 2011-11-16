@@ -124,19 +124,31 @@ err:
 
 static ssize_t overlay_input_size_show(struct omap_overlay *ovl, char *buf)
 {
+	struct omap_overlay_info info;
+
+	ovl->get_overlay_info(ovl, &info);
+
 	return snprintf(buf, PAGE_SIZE, "%d,%d\n",
-			ovl->info.width, ovl->info.height);
+			info.width, info.height);
 }
 
 static ssize_t overlay_screen_width_show(struct omap_overlay *ovl, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ovl->info.screen_width);
+	struct omap_overlay_info info;
+
+	ovl->get_overlay_info(ovl, &info);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", info.screen_width);
 }
 
 static ssize_t overlay_position_show(struct omap_overlay *ovl, char *buf)
 {
+	struct omap_overlay_info info;
+
+	ovl->get_overlay_info(ovl, &info);
+
 	return snprintf(buf, PAGE_SIZE, "%d,%d\n",
-			ovl->info.pos_x, ovl->info.pos_y);
+			info.pos_x, info.pos_y);
 }
 
 static ssize_t overlay_position_store(struct omap_overlay *ovl,
@@ -170,8 +182,12 @@ static ssize_t overlay_position_store(struct omap_overlay *ovl,
 
 static ssize_t overlay_output_size_show(struct omap_overlay *ovl, char *buf)
 {
+	struct omap_overlay_info info;
+
+	ovl->get_overlay_info(ovl, &info);
+
 	return snprintf(buf, PAGE_SIZE, "%d,%d\n",
-			ovl->info.out_width, ovl->info.out_height);
+			info.out_width, info.out_height);
 }
 
 static ssize_t overlay_output_size_store(struct omap_overlay *ovl,
@@ -231,8 +247,12 @@ static ssize_t overlay_enabled_store(struct omap_overlay *ovl, const char *buf,
 
 static ssize_t overlay_global_alpha_show(struct omap_overlay *ovl, char *buf)
 {
+	struct omap_overlay_info info;
+
+	ovl->get_overlay_info(ovl, &info);
+
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-			ovl->info.global_alpha);
+			info.global_alpha);
 }
 
 static ssize_t overlay_global_alpha_store(struct omap_overlay *ovl,
@@ -269,8 +289,12 @@ static ssize_t overlay_global_alpha_store(struct omap_overlay *ovl,
 static ssize_t overlay_pre_mult_alpha_show(struct omap_overlay *ovl,
 		char *buf)
 {
+	struct omap_overlay_info info;
+
+	ovl->get_overlay_info(ovl, &info);
+
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-			ovl->info.pre_mult_alpha);
+			info.pre_mult_alpha);
 }
 
 static ssize_t overlay_pre_mult_alpha_store(struct omap_overlay *ovl,
@@ -306,7 +330,11 @@ static ssize_t overlay_pre_mult_alpha_store(struct omap_overlay *ovl,
 
 static ssize_t overlay_zorder_show(struct omap_overlay *ovl, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ovl->info.zorder);
+	struct omap_overlay_info info;
+
+	ovl->get_overlay_info(ovl, &info);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", info.zorder);
 }
 
 static ssize_t overlay_zorder_store(struct omap_overlay *ovl,
@@ -456,29 +484,18 @@ void dss_init_overlays(struct platform_device *pdev)
 		case 0:
 			ovl->name = "gfx";
 			ovl->id = OMAP_DSS_GFX;
-			ovl->info.global_alpha = 255;
-			ovl->info.zorder = 0;
 			break;
 		case 1:
 			ovl->name = "vid1";
 			ovl->id = OMAP_DSS_VIDEO1;
-			ovl->info.global_alpha = 255;
-			ovl->info.zorder =
-				dss_has_feature(FEAT_ALPHA_FREE_ZORDER) ? 3 : 0;
 			break;
 		case 2:
 			ovl->name = "vid2";
 			ovl->id = OMAP_DSS_VIDEO2;
-			ovl->info.global_alpha = 255;
-			ovl->info.zorder =
-				dss_has_feature(FEAT_ALPHA_FREE_ZORDER) ? 2 : 0;
 			break;
 		case 3:
 			ovl->name = "vid3";
 			ovl->id = OMAP_DSS_VIDEO3;
-			ovl->info.global_alpha = 255;
-			ovl->info.zorder =
-				dss_has_feature(FEAT_ALPHA_FREE_ZORDER) ? 1 : 0;
 			break;
 		}
 
