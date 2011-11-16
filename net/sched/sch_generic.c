@@ -246,6 +246,7 @@ static void dev_watchdog(unsigned long arg)
 				    time_after(jiffies, (trans_start +
 							 dev->watchdog_timeo))) {
 					some_queue_timedout = 1;
+					txq->trans_timeout++;
 					break;
 				}
 			}
