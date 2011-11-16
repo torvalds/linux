@@ -153,6 +153,8 @@ struct expander_device {
 
 	struct ex_phy *ex_phy;
 	struct sas_port *parent_port;
+
+	struct mutex cmd_mutex;
 };
 
 /* ---------- SATA device ---------- */

@@ -72,11 +72,13 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 	struct sas_internal *i =
 		to_sas_internal(dev->port->ha->core.shost->transportt);
 
+	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
 		task = sas_alloc_task(GFP_KERNEL);
-		if (!task)
-			return -ENOMEM;
-
+		if (!task) {
+			res = -ENOMEM;
+			break;
+		}
 		task->dev = dev;
 		task->task_proto = dev->tproto;
 		sg_init_one(&task->smp_task.smp_req, req, req_size);
@@ -94,7 +96,7 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 		if (res) {
 			del_timer(&task->timer);
 			SAS_DPRINTK("executing SMP task failed:%d\n", res);
-			goto ex_err;
+			break;
 		}
 
 		wait_for_completion(&task->completion);
@@ -104,21 +106,23 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 			i->dft->lldd_abort_task(task);
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 				SAS_DPRINTK("SMP task aborted and not done\n");
-				goto ex_err;
+				break;
 			}
 		}
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
 		    task->task_status.stat == SAM_STAT_GOOD) {
 			res = 0;
 			break;
-		} if (task->task_status.resp == SAS_TASK_COMPLETE &&
-		      task->task_status.stat == SAS_DATA_UNDERRUN) {
+		}
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		    task->task_status.stat == SAS_DATA_UNDERRUN) {
 			/* no error, but return the number of bytes of
 			 * underrun */
 			res = task->task_status.residual;
 			break;
-		} if (task->task_status.resp == SAS_TASK_COMPLETE &&
-		      task->task_status.stat == SAS_DATA_OVERRUN) {
+		}
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		    task->task_status.stat == SAS_DATA_OVERRUN) {
 			res = -EMSGSIZE;
 			break;
 		} else {
@@ -131,11 +135,10 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 			task = NULL;
 		}
 	}
-ex_err:
+	mutex_unlock(&dev->ex_dev.cmd_mutex);
+
 	BUG_ON(retry == 3 && task != NULL);
-	if (task != NULL) {
-		sas_free_task(task);
-	}
+	sas_free_task(task);
 	return res;
 }
 
