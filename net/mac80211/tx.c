@@ -1204,18 +1204,23 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
  * Returns false if the frame couldn't be transmitted but was queued instead.
  */
 static bool __ieee80211_tx(struct ieee80211_local *local,
-			   struct sk_buff_head *skbs,
+			   struct sk_buff_head *skbs, int led_len,
 			   struct sta_info *sta, bool txpending)
 {
 	struct sk_buff *skb, *tmp;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_sub_if_data *sdata;
 	unsigned long flags;
-	int len;
+	__le16 fc;
+
+	if (WARN_ON(skb_queue_empty(skbs)))
+		return true;
+
+	skb = skb_peek(skbs);
+	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
 
 	skb_queue_walk_safe(skbs, skb, tmp) {
 		int q = skb_get_queue_mapping(skb);
-		__le16 fc;
 
 		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 		if (local->queue_stop_reasons[q] ||
@@ -1238,8 +1243,6 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 
 		info = IEEE80211_SKB_CB(skb);
 
-		len = skb->len;
-
 		sdata = vif_to_sdata(info->control.vif);
 
 		switch (sdata->vif.type) {
@@ -1260,14 +1263,12 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 		else
 			info->control.sta = NULL;
 
-		fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
-
 		__skb_unlink(skb, skbs);
 		drv_tx(local, skb);
-
-		ieee80211_tpt_led_trig_tx(local, fc, len);
-		ieee80211_led_tx(local, 1);
 	}
+
+	ieee80211_tpt_led_trig_tx(local, fc, led_len);
+	ieee80211_led_tx(local, 1);
 
 	WARN_ON(!skb_queue_empty(skbs));
 
@@ -1338,6 +1339,7 @@ static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_result res_prepare;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	bool result = true;
+	int led_len;
 
 	if (unlikely(skb->len < 10)) {
 		dev_kfree_skb(skb);
@@ -1347,6 +1349,7 @@ static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 
 	/* initialises tx */
+	led_len = skb->len;
 	res_prepare = ieee80211_tx_prepare(sdata, &tx, skb);
 
 	if (unlikely(res_prepare == TX_DROP)) {
@@ -1360,7 +1363,8 @@ static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 	info->band = tx.channel->band;
 
 	if (!invoke_tx_handlers(&tx))
-		result = __ieee80211_tx(local, &tx.skbs, tx.sta, txpending);
+		result = __ieee80211_tx(local, &tx.skbs, led_len,
+					tx.sta, txpending);
  out:
 	rcu_read_unlock();
 	return result;
@@ -2116,7 +2120,7 @@ static bool ieee80211_tx_pending_skb(struct ieee80211_local *local,
 		hdr = (struct ieee80211_hdr *)skb->data;
 		sta = sta_info_get(sdata, hdr->addr1);
 
-		result = __ieee80211_tx(local, &skbs, sta, true);
+		result = __ieee80211_tx(local, &skbs, skb->len, sta, true);
 	}
 
 	return result;
