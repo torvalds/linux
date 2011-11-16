@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/pinctrl/pinmux.h>
 #include <mach/gpio-u300.h>
 
 /*
@@ -351,6 +352,24 @@ static inline struct u300_gpio *to_u300_gpio(struct gpio_chip *chip)
 	return container_of(chip, struct u300_gpio, chip);
 }
 
+static int u300_gpio_request(struct gpio_chip *chip, unsigned offset)
+{
+	/*
+	 * Map back to global GPIO space and request muxing, the direction
+	 * parameter does not matter for this controller.
+	 */
+	int gpio = chip->base + offset;
+
+	return pinmux_request_gpio(gpio);
+}
+
+static void u300_gpio_free(struct gpio_chip *chip, unsigned offset)
+{
+	int gpio = chip->base + offset;
+
+	pinmux_free_gpio(gpio);
+}
+
 static int u300_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct u300_gpio *gpio = to_u300_gpio(chip);
@@ -483,6 +502,8 @@ static int u300_gpio_config(struct gpio_chip *chip, unsigned offset,
 static struct gpio_chip u300_gpio_chip = {
 	.label			= "u300-gpio-chip",
 	.owner			= THIS_MODULE,
+	.request		= u300_gpio_request,
+	.free			= u300_gpio_free,
 	.get			= u300_gpio_get,
 	.set			= u300_gpio_set,
 	.direction_input	= u300_gpio_direction_input,
