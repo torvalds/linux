@@ -1567,28 +1567,13 @@ unlock:
 	return err;
 }
 
-static int user_confirm_reply(struct sock *sk, u16 index, unsigned char *data,
-							u16 len, int success)
+static int user_pairing_resp(struct sock *sk, u16 index, bdaddr_t *bdaddr,
+					u16 mgmt_op, u16 hci_op, __le32 passkey)
 {
-	struct mgmt_cp_user_confirm_reply *cp = (void *) data;
-	u16 mgmt_op, hci_op;
 	struct pending_cmd *cmd;
 	struct hci_dev *hdev;
+	struct hci_conn *conn;
 	int err;
-
-	BT_DBG("");
-
-	if (success) {
-		mgmt_op = MGMT_OP_USER_CONFIRM_REPLY;
-		hci_op = HCI_OP_USER_CONFIRM_REPLY;
-	} else {
-		mgmt_op = MGMT_OP_USER_CONFIRM_NEG_REPLY;
-		hci_op = HCI_OP_USER_CONFIRM_NEG_REPLY;
-	}
-
-	if (len != sizeof(*cp))
-		return cmd_status(sk, index, mgmt_op,
-						MGMT_STATUS_INVALID_PARAMS);
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
@@ -1598,25 +1583,57 @@ static int user_confirm_reply(struct sock *sk, u16 index, unsigned char *data,
 	hci_dev_lock_bh(hdev);
 
 	if (!test_bit(HCI_UP, &hdev->flags)) {
-		err = cmd_status(sk, index, mgmt_op, ENETDOWN);
-		goto failed;
+		err = cmd_status(sk, index, mgmt_op, MGMT_STATUS_NOT_POWERED);
+		goto done;
 	}
 
-	cmd = mgmt_pending_add(sk, mgmt_op, hdev, data, len);
+	cmd = mgmt_pending_add(sk, mgmt_op, hdev, bdaddr, sizeof(*bdaddr));
 	if (!cmd) {
 		err = -ENOMEM;
-		goto failed;
+		goto done;
 	}
 
-	err = hci_send_cmd(hdev, hci_op, sizeof(cp->bdaddr), &cp->bdaddr);
+	/* Continue with pairing via HCI */
+	err = hci_send_cmd(hdev, hci_op, sizeof(*bdaddr), bdaddr);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 
-failed:
+done:
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
 
 	return err;
+}
+
+static int user_confirm_reply(struct sock *sk, u16 index, void *data, u16 len)
+{
+	struct mgmt_cp_user_confirm_reply *cp = (void *) data;
+
+	BT_DBG("");
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_USER_CONFIRM_REPLY,
+						MGMT_STATUS_INVALID_PARAMS);
+
+	return user_pairing_resp(sk, index, &cp->bdaddr,
+			MGMT_OP_USER_CONFIRM_REPLY,
+			HCI_OP_USER_CONFIRM_REPLY, 0);
+}
+
+static int user_confirm_neg_reply(struct sock *sk, u16 index, void *data,
+									u16 len)
+{
+	struct mgmt_cp_user_confirm_reply *cp = (void *) data;
+
+	BT_DBG("");
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_USER_CONFIRM_NEG_REPLY,
+						MGMT_STATUS_INVALID_PARAMS);
+
+	return user_pairing_resp(sk, index, &cp->bdaddr,
+			MGMT_OP_USER_CONFIRM_NEG_REPLY,
+			HCI_OP_USER_CONFIRM_NEG_REPLY, 0);
 }
 
 static int set_local_name(struct sock *sk, u16 index, unsigned char *data,
@@ -2070,10 +2087,11 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		err = pair_device(sk, index, buf + sizeof(*hdr), len);
 		break;
 	case MGMT_OP_USER_CONFIRM_REPLY:
-		err = user_confirm_reply(sk, index, buf + sizeof(*hdr), len, 1);
+		err = user_confirm_reply(sk, index, buf + sizeof(*hdr), len);
 		break;
 	case MGMT_OP_USER_CONFIRM_NEG_REPLY:
-		err = user_confirm_reply(sk, index, buf + sizeof(*hdr), len, 0);
+		err = user_confirm_neg_reply(sk, index, buf + sizeof(*hdr),
+									len);
 		break;
 	case MGMT_OP_SET_LOCAL_NAME:
 		err = set_local_name(sk, index, buf + sizeof(*hdr), len);
@@ -2435,7 +2453,7 @@ int mgmt_user_confirm_request(struct hci_dev *hdev, bdaddr_t *bdaddr,
 									NULL);
 }
 
-static int confirm_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
+static int user_pairing_resp_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 							u8 status, u8 opcode)
 {
 	struct pending_cmd *cmd;
@@ -2458,14 +2476,14 @@ static int confirm_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 int mgmt_user_confirm_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 								u8 status)
 {
-	return confirm_reply_complete(hdev, bdaddr, mgmt_status(status),
+	return user_pairing_resp_complete(hdev, bdaddr, status,
 						MGMT_OP_USER_CONFIRM_REPLY);
 }
 
 int mgmt_user_confirm_neg_reply_complete(struct hci_dev *hdev,
 						bdaddr_t *bdaddr, u8 status)
 {
-	return confirm_reply_complete(hdev, bdaddr, mgmt_status(status),
+	return user_pairing_resp_complete(hdev, bdaddr, status,
 					MGMT_OP_USER_CONFIRM_NEG_REPLY);
 }
 
