@@ -1019,15 +1019,29 @@ static struct pinmux_ops u300_pmx_ops = {
 };
 
 /*
- * FIXME: this will be set to sane values as this driver engulfs
- * drivers/gpio/gpio-u300.c and we really know this stuff.
+ * GPIO ranges handled by the application-side COH901XXX GPIO controller
+ * Very many pins can be converted into GPIO pins, but we only list those
+ * that are useful in practice to cut down on tables.
  */
-static struct pinctrl_gpio_range u300_gpio_range = {
-	.name = "COH901*",
-	.id = 0,
-	.base = 0,
-	.pin_base = 0,
-	.npins = 64,
+#define U300_GPIO_RANGE(a, b, c) { .name = "COH901XXX", .id = a, .base= a, \
+			.pin_base = b, .npins = c }
+
+static struct pinctrl_gpio_range u300_gpio_ranges[] = {
+	U300_GPIO_RANGE(10, 426, 1),
+	U300_GPIO_RANGE(11, 180, 1),
+	U300_GPIO_RANGE(12, 165, 1), /* MS/MMC card insertion */
+	U300_GPIO_RANGE(13, 179, 1),
+	U300_GPIO_RANGE(14, 178, 1),
+	U300_GPIO_RANGE(16, 194, 1),
+	U300_GPIO_RANGE(17, 193, 1),
+	U300_GPIO_RANGE(18, 192, 1),
+	U300_GPIO_RANGE(19, 191, 1),
+	U300_GPIO_RANGE(20, 186, 1),
+	U300_GPIO_RANGE(21, 185, 1),
+	U300_GPIO_RANGE(22, 184, 1),
+	U300_GPIO_RANGE(23, 183, 1),
+	U300_GPIO_RANGE(24, 182, 1),
+	U300_GPIO_RANGE(25, 181, 1),
 };
 
 static struct pinctrl_desc u300_pmx_desc = {
@@ -1042,9 +1056,10 @@ static struct pinctrl_desc u300_pmx_desc = {
 
 static int __init u300_pmx_probe(struct platform_device *pdev)
 {
-	int ret;
 	struct u300_pmx *upmx;
 	struct resource *res;
+	int ret;
+	int i;
 
 	/* Create state holders etc for this driver */
 	upmx = devm_kzalloc(&pdev->dev, sizeof(*upmx), GFP_KERNEL);
@@ -1081,7 +1096,8 @@ static int __init u300_pmx_probe(struct platform_device *pdev)
 	}
 
 	/* We will handle a range of GPIO pins */
-	pinctrl_add_gpio_range(upmx->pctl, &u300_gpio_range);
+	for (i = 0; i < ARRAY_SIZE(u300_gpio_ranges); i++)
+		pinctrl_add_gpio_range(upmx->pctl, &u300_gpio_ranges[i]);
 
 	platform_set_drvdata(pdev, upmx);
 
@@ -1103,8 +1119,10 @@ out_no_resource:
 static int __exit u300_pmx_remove(struct platform_device *pdev)
 {
 	struct u300_pmx *upmx = platform_get_drvdata(pdev);
+	int i;
 
-	pinctrl_remove_gpio_range(upmx->pctl, &u300_gpio_range);
+	for (i = 0; i < ARRAY_SIZE(u300_gpio_ranges); i++)
+		pinctrl_remove_gpio_range(upmx->pctl, &u300_gpio_ranges[i]);
 	pinctrl_unregister(upmx->pctl);
 	iounmap(upmx->virtbase);
 	release_mem_region(upmx->phybase, upmx->physize);
