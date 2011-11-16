@@ -7,6 +7,7 @@
 
 #include "util/cache.h"
 #include "util/debug.h"
+#include "util/debugfs.h"
 #include "util/evlist.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
@@ -247,7 +248,7 @@ static int trace_event__id(const char *evname)
 
 	if (asprintf(&filename,
 		     "%s/syscalls/%s/id",
-		     debugfs_path, evname) < 0)
+		     tracing_events_path, evname) < 0)
 		return -1;
 
 	fd = open(filename, O_RDONLY);
