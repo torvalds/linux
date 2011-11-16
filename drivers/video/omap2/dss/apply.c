@@ -688,15 +688,10 @@ static void omap_dss_mgr_apply_mgr(struct omap_overlay_manager *mgr)
 
 int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 {
-	int r;
 	unsigned long flags;
 	struct omap_overlay *ovl;
 
 	DSSDBG("omap_dss_mgr_apply(%s)\n", mgr->name);
-
-	r = dispc_runtime_get();
-	if (r)
-		return r;
 
 	spin_lock_irqsave(&data_lock, flags);
 
@@ -711,9 +706,7 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 	spin_unlock_irqrestore(&data_lock, flags);
 
-	dispc_runtime_put();
-
-	return r;
+	return 0;
 }
 
 static void dss_apply_ovl_enable(struct omap_overlay *ovl, bool enable)
