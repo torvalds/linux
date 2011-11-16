@@ -1318,14 +1318,12 @@ static void l2cap_retransmit_one_frame(struct l2cap_chan *chan, u16 tx_seq)
 	if (!skb)
 		return;
 
-	do {
-		if (bt_cb(skb)->tx_seq == tx_seq)
-			break;
-
+	while (bt_cb(skb)->tx_seq != tx_seq) {
 		if (skb_queue_is_last(&chan->tx_q, skb))
 			return;
 
-	} while ((skb = skb_queue_next(&chan->tx_q, skb)));
+		skb = skb_queue_next(&chan->tx_q, skb);
+	}
 
 	if (chan->remote_max_tx &&
 			bt_cb(skb)->retries == chan->remote_max_tx) {
