@@ -63,8 +63,8 @@ IRC network.
 Userspace tools for creating and manipulating Btrfs file systems are
 available from the git repository at the following location:
 
- http://git.kernel.org/?p=linux/kernel/git/mason/btrfs-progs-unstable.git
- git://git.kernel.org/pub/scm/linux/kernel/git/mason/btrfs-progs-unstable.git
+ http://git.kernel.org/?p=linux/kernel/git/mason/btrfs-progs.git
+ git://git.kernel.org/pub/scm/linux/kernel/git/mason/btrfs-progs.git
 
 These include the following tools:
 
