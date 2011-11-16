@@ -106,6 +106,7 @@ static struct {
 static spinlock_t data_lock;
 /* lock for blocking functions */
 static DEFINE_MUTEX(apply_lock);
+static DECLARE_COMPLETION(extra_updated_completion);
 
 static void dss_register_vsync_isr(void);
 
@@ -230,6 +231,70 @@ static bool need_go(struct omap_overlay_manager *mgr)
 	}
 
 	return false;
+}
+
+/* returns true if an extra_info field is currently being updated */
+static bool extra_info_update_ongoing(void)
+{
+	const int num_ovls = omap_dss_get_num_overlays();
+	struct ovl_priv_data *op;
+	struct omap_overlay *ovl;
+	struct mgr_priv_data *mp;
+	int i;
+	bool eid;
+
+	for (i = 0; i < num_ovls; ++i) {
+		ovl = omap_dss_get_overlay(i);
+		op = get_ovl_priv(ovl);
+
+		if (!op->enabled)
+			continue;
+
+		mp = get_mgr_priv(ovl->manager);
+
+		if (!mp->enabled)
+			continue;
+
+		eid = op->extra_info_dirty || op->shadow_extra_info_dirty;
+
+		if (!eid)
+			continue;
+
+		if (ovl_manual_update(ovl) && !mp->updating)
+			continue;
+
+		return true;
+	}
+
+	return false;
+}
+
+/* wait until no extra_info updates are pending */
+static void wait_pending_extra_info_updates(void)
+{
+	bool updating;
+	unsigned long flags;
+	unsigned long t;
+
+	spin_lock_irqsave(&data_lock, flags);
+
+	updating = extra_info_update_ongoing();
+
+	if (!updating) {
+		spin_unlock_irqrestore(&data_lock, flags);
+		return;
+	}
+
+	init_completion(&extra_updated_completion);
+
+	spin_unlock_irqrestore(&data_lock, flags);
+
+	t = msecs_to_jiffies(500);
+	wait_for_completion_timeout(&extra_updated_completion, t);
+
+	updating = extra_info_update_ongoing();
+
+	WARN_ON(updating);
 }
 
 int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
@@ -553,6 +618,7 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 {
 	const int num_mgrs = dss_feat_get_num_mgrs();
 	int i;
+	bool extra_updating;
 
 	spin_lock(&data_lock);
 
@@ -581,6 +647,10 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 	}
 
 	dss_write_regs();
+
+	extra_updating = extra_info_update_ongoing();
+	if (!extra_updating)
+		complete_all(&extra_updated_completion);
 
 	if (!need_isr())
 		dss_unregister_vsync_isr();
