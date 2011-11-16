@@ -847,6 +847,7 @@ static int ieee80211_fragment(struct ieee80211_tx_data *tx,
 			      int frag_threshold)
 {
 	struct ieee80211_local *local = tx->local;
+	struct ieee80211_tx_info *info;
 	struct sk_buff *tmp;
 	int per_fragm = frag_threshold - hdrlen - FCS_LEN;
 	int pos = hdrlen + per_fragm;
@@ -876,6 +877,14 @@ static int ieee80211_fragment(struct ieee80211_tx_data *tx,
 				 IEEE80211_ENCRYPT_HEADROOM);
 		/* copy control information */
 		memcpy(tmp->cb, skb->cb, sizeof(tmp->cb));
+
+		info = IEEE80211_SKB_CB(tmp);
+		info->flags &= ~(IEEE80211_TX_CTL_CLEAR_PS_FILT |
+				 IEEE80211_TX_CTL_FIRST_FRAGMENT);
+
+		if (rem)
+			info->flags |= IEEE80211_TX_CTL_MORE_FRAMES;
+
 		skb_copy_queue_mapping(tmp, skb);
 		tmp->priority = skb->priority;
 		tmp->dev = skb->dev;
@@ -1203,7 +1212,6 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	struct ieee80211_sub_if_data *sdata;
 	unsigned long flags;
 	int len;
-	bool fragm = false;
 
 	skb_queue_walk_safe(skbs, skb, tmp) {
 		int q = skb_get_queue_mapping(skb);
@@ -1230,14 +1238,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 
 		info = IEEE80211_SKB_CB(skb);
 
-		if (fragm)
-			info->flags &= ~(IEEE80211_TX_CTL_CLEAR_PS_FILT |
-					 IEEE80211_TX_CTL_FIRST_FRAGMENT);
-
 		len = skb->len;
-
-		if (!skb_queue_is_last(skbs, skb))
-			info->flags |= IEEE80211_TX_CTL_MORE_FRAMES;
 
 		sdata = vif_to_sdata(info->control.vif);
 
@@ -1266,7 +1267,6 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 
 		ieee80211_tpt_led_trig_tx(local, fc, len);
 		ieee80211_led_tx(local, 1);
-		fragm = true;
 	}
 
 	WARN_ON(!skb_queue_empty(skbs));
