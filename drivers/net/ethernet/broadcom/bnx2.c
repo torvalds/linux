@@ -2064,20 +2064,11 @@ __acquires(&bp->phy_lock)
 		bnx2_read_phy(bp, MII_CTRL1000, &adv1000_reg);
 		adv1000_reg &= PHY_ALL_1000_SPEED;
 
-		if (bp->advertising & ADVERTISED_10baseT_Half)
-			new_adv_reg |= ADVERTISE_10HALF;
-		if (bp->advertising & ADVERTISED_10baseT_Full)
-			new_adv_reg |= ADVERTISE_10FULL;
-		if (bp->advertising & ADVERTISED_100baseT_Half)
-			new_adv_reg |= ADVERTISE_100HALF;
-		if (bp->advertising & ADVERTISED_100baseT_Full)
-			new_adv_reg |= ADVERTISE_100FULL;
-		if (bp->advertising & ADVERTISED_1000baseT_Full)
-			new_adv1000_reg |= ADVERTISE_1000FULL;
-
+		new_adv_reg = ethtool_adv_to_mii_100bt(bp->advertising);
 		new_adv_reg |= ADVERTISE_CSMA;
-
 		new_adv_reg |= bnx2_phy_get_pause_adv(bp);
+
+		new_adv1000_reg |= ethtool_adv_to_mii_1000T(bp->advertising);
 
 		if ((adv1000_reg != new_adv1000_reg) ||
 			(adv_reg != new_adv_reg) ||

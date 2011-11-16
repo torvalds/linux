@@ -1151,19 +1151,8 @@ static int link_status_mii(struct niu *np, int *link_up_p)
 		supported |= SUPPORTED_1000baseT_Full;
 	lp->supported = supported;
 
-	advertising = 0;
-	if (advert & ADVERTISE_10HALF)
-		advertising |= ADVERTISED_10baseT_Half;
-	if (advert & ADVERTISE_10FULL)
-		advertising |= ADVERTISED_10baseT_Full;
-	if (advert & ADVERTISE_100HALF)
-		advertising |= ADVERTISED_100baseT_Half;
-	if (advert & ADVERTISE_100FULL)
-		advertising |= ADVERTISED_100baseT_Full;
-	if (ctrl1000 & ADVERTISE_1000HALF)
-		advertising |= ADVERTISED_1000baseT_Half;
-	if (ctrl1000 & ADVERTISE_1000FULL)
-		advertising |= ADVERTISED_1000baseT_Full;
+	advertising = mii_adv_to_ethtool_100bt(advert);
+	advertising |= mii_adv_to_ethtool_1000T(ctrl1000);
 
 	if (bmcr & BMCR_ANENABLE) {
 		int neg, neg1000;

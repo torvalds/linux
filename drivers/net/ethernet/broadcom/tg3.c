@@ -3594,15 +3594,7 @@ static int tg3_phy_autoneg_cfg(struct tg3 *tp, u32 advertise, u32 flowctrl)
 	u32 val, new_adv;
 
 	new_adv = ADVERTISE_CSMA;
-	if (advertise & ADVERTISED_10baseT_Half)
-		new_adv |= ADVERTISE_10HALF;
-	if (advertise & ADVERTISED_10baseT_Full)
-		new_adv |= ADVERTISE_10FULL;
-	if (advertise & ADVERTISED_100baseT_Half)
-		new_adv |= ADVERTISE_100HALF;
-	if (advertise & ADVERTISED_100baseT_Full)
-		new_adv |= ADVERTISE_100FULL;
-
+	new_adv |= ethtool_adv_to_mii_100bt(advertise);
 	new_adv |= tg3_advert_flowctrl_1000T(flowctrl);
 
 	err = tg3_writephy(tp, MII_ADVERTISE, new_adv);
@@ -3612,11 +3604,7 @@ static int tg3_phy_autoneg_cfg(struct tg3 *tp, u32 advertise, u32 flowctrl)
 	if (tp->phy_flags & TG3_PHYFLG_10_100_ONLY)
 		goto done;
 
-	new_adv = 0;
-	if (advertise & ADVERTISED_1000baseT_Half)
-		new_adv |= ADVERTISE_1000HALF;
-	if (advertise & ADVERTISED_1000baseT_Full)
-		new_adv |= ADVERTISE_1000FULL;
+	new_adv = ethtool_adv_to_mii_1000T(advertise);
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5701_A0 ||
 	    tp->pci_chip_rev_id == CHIPREV_ID_5701_B0)
@@ -3790,14 +3778,7 @@ static int tg3_copper_is_advertising_all(struct tg3 *tp, u32 mask)
 {
 	u32 adv_reg, all_mask = 0;
 
-	if (mask & ADVERTISED_10baseT_Half)
-		all_mask |= ADVERTISE_10HALF;
-	if (mask & ADVERTISED_10baseT_Full)
-		all_mask |= ADVERTISE_10FULL;
-	if (mask & ADVERTISED_100baseT_Half)
-		all_mask |= ADVERTISE_100HALF;
-	if (mask & ADVERTISED_100baseT_Full)
-		all_mask |= ADVERTISE_100FULL;
+	all_mask = ethtool_adv_to_mii_100bt(mask);
 
 	if (tg3_readphy(tp, MII_ADVERTISE, &adv_reg))
 		return 0;
@@ -3808,11 +3789,7 @@ static int tg3_copper_is_advertising_all(struct tg3 *tp, u32 mask)
 	if (!(tp->phy_flags & TG3_PHYFLG_10_100_ONLY)) {
 		u32 tg3_ctrl;
 
-		all_mask = 0;
-		if (mask & ADVERTISED_1000baseT_Half)
-			all_mask |= ADVERTISE_1000HALF;
-		if (mask & ADVERTISED_1000baseT_Full)
-			all_mask |= ADVERTISE_1000FULL;
+		all_mask = ethtool_adv_to_mii_1000T(mask);
 
 		if (tg3_readphy(tp, MII_CTRL1000, &tg3_ctrl))
 			return 0;
@@ -4903,23 +4880,19 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 	    (tp->phy_flags & TG3_PHYFLG_PARALLEL_DETECT)) {
 		/* do nothing, just check for link up at the end */
 	} else if (tp->link_config.autoneg == AUTONEG_ENABLE) {
-		u32 adv, new_adv;
+		u32 adv, newadv;
 
 		err |= tg3_readphy(tp, MII_ADVERTISE, &adv);
-		new_adv = adv & ~(ADVERTISE_1000XFULL | ADVERTISE_1000XHALF |
-				  ADVERTISE_1000XPAUSE |
-				  ADVERTISE_1000XPSE_ASYM |
-				  ADVERTISE_SLCT);
+		newadv = adv & ~(ADVERTISE_1000XFULL | ADVERTISE_1000XHALF |
+				 ADVERTISE_1000XPAUSE |
+				 ADVERTISE_1000XPSE_ASYM |
+				 ADVERTISE_SLCT);
 
-		new_adv |= tg3_advert_flowctrl_1000X(tp->link_config.flowctrl);
+		newadv |= tg3_advert_flowctrl_1000X(tp->link_config.flowctrl);
+		newadv |= ethtool_adv_to_mii_1000X(tp->link_config.advertising);
 
-		if (tp->link_config.advertising & ADVERTISED_1000baseT_Half)
-			new_adv |= ADVERTISE_1000XHALF;
-		if (tp->link_config.advertising & ADVERTISED_1000baseT_Full)
-			new_adv |= ADVERTISE_1000XFULL;
-
-		if ((new_adv != adv) || !(bmcr & BMCR_ANENABLE)) {
-			tg3_writephy(tp, MII_ADVERTISE, new_adv);
+		if ((newadv != adv) || !(bmcr & BMCR_ANENABLE)) {
+			tg3_writephy(tp, MII_ADVERTISE, newadv);
 			bmcr |= BMCR_ANENABLE | BMCR_ANRESTART;
 			tg3_writephy(tp, MII_BMCR, bmcr);
 
