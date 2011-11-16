@@ -580,4 +580,29 @@ config KEYBOARD_W90P910
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_keypad.
 
+config KEYBOARD_SUN4IKEYPAD
+        tristate "Sun4i MATRIX Keypad support"
+        help
+          Say Y here to enable the matrix keypad on evaluation board
+          based on sun4i.
+
+          To compile this driver as a module, choose M here: the
+          module will be called sun4i.
+
+
+config KEYBOARD_SUN4I_KEYBOARD
+        tristate "SUN4I KEY BOARD support"
+        help
+          Say Y here to enable the keyboard, support 7 keys.
+          based on verify board.      
+
+config KEYBOARD_HV2605_KEYBOARD
+        tristate "SUN4I HV2605 KEY BOARD support"
+        depends on I2C
+        help
+          Say Y here to enable the keyboard, support 5 keys.
+
+config IR_SUN4I
+        tristate "sun4i IR  support"
+	depends on ARCH_SUN4I
 endif
