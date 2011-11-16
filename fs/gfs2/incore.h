@@ -251,7 +251,6 @@ struct gfs2_alloc {
 	unsigned int al_qd_num;
 
 	u32 al_requested; /* Filled in by caller of gfs2_inplace_reserve() */
-	u32 al_alloced; /* Filled in by gfs2_alloc_*() */
 
 	/* Filled in by gfs2_inplace_reserve() */
 	struct gfs2_holder al_rgd_gh;

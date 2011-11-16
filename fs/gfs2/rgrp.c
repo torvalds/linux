@@ -1372,8 +1372,6 @@ int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n,
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
 	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 
-	al->al_alloced += *n;
-
 	gfs2_statfs_change(sdp, 0, -(s64)*n, dinode ? 1 : 0);
 	if (dinode)
 		gfs2_trans_add_unrevoke(sdp, block, 1);
