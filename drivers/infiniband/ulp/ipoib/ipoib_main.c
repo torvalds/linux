@@ -171,7 +171,7 @@ static int ipoib_stop(struct net_device *dev)
 	return 0;
 }
 
-static u32 ipoib_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t ipoib_fix_features(struct net_device *dev, netdev_features_t features)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
