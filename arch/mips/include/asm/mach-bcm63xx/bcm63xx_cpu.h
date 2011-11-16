@@ -215,7 +215,7 @@ enum bcm63xx_regs_set {
 #define BCM_6345_ENETDMAS_BASE		(0xfffe2a00)
 #define BCM_6345_ENETSW_BASE		(0xdeadbeef)
 #define BCM_6345_PCMCIA_BASE		(0xfffe2028)
-#define BCM_6345_MPI_BASE		(0xdeadbeef)
+#define BCM_6345_MPI_BASE		(0xfffe2000)
 #define BCM_6345_OHCI0_BASE		(0xfffe2100)
 #define BCM_6345_OHCI_PRIV_BASE		(0xfffe2200)
 #define BCM_6345_USBH_PRIV_BASE		(0xdeadbeef)
