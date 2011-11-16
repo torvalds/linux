@@ -1828,6 +1828,53 @@ err_unlock:
 	return status;
 }
 
+int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
+		u32 data_size, u32 data_offset, const char *obj_name,
+		u32 *data_read, u32 *eof, u8 *addn_status)
+{
+	struct be_mcc_wrb *wrb;
+	struct lancer_cmd_req_read_object *req;
+	struct lancer_cmd_resp_read_object *resp;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err_unlock;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			OPCODE_COMMON_READ_OBJECT,
+			sizeof(struct lancer_cmd_req_read_object), wrb,
+			NULL);
+
+	req->desired_read_len = cpu_to_le32(data_size);
+	req->read_offset = cpu_to_le32(data_offset);
+	strcpy(req->object_name, obj_name);
+	req->descriptor_count = cpu_to_le32(1);
+	req->buf_len = cpu_to_le32(data_size);
+	req->addr_low = cpu_to_le32((cmd->dma & 0xFFFFFFFF));
+	req->addr_high = cpu_to_le32(upper_32_bits(cmd->dma));
+
+	status = be_mcc_notify_wait(adapter);
+
+	resp = embedded_payload(wrb);
+	if (!status) {
+		*data_read = le32_to_cpu(resp->actual_read_len);
+		*eof = le32_to_cpu(resp->eof);
+	} else {
+		*addn_status = resp->additional_status;
+	}
+
+err_unlock:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
 int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			u32 flash_type, u32 flash_opcode, u32 buf_size)
 {

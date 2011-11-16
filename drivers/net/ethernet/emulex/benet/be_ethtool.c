@@ -143,15 +143,77 @@ static void be_get_drvinfo(struct net_device *netdev,
 	drvinfo->eedump_len = 0;
 }
 
+static u32
+lancer_cmd_get_file_len(struct be_adapter *adapter, u8 *file_name)
+{
+	u32 data_read = 0, eof;
+	u8 addn_status;
+	struct be_dma_mem data_len_cmd;
+	int status;
+
+	memset(&data_len_cmd, 0, sizeof(data_len_cmd));
+	/* data_offset and data_size should be 0 to get reg len */
+	status = lancer_cmd_read_object(adapter, &data_len_cmd, 0, 0,
+				file_name, &data_read, &eof, &addn_status);
+
+	return data_read;
+}
+
+static int
+lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
+		u32 buf_len, void *buf)
+{
+	struct be_dma_mem read_cmd;
+	u32 read_len = 0, total_read_len = 0, chunk_size;
+	u32 eof = 0;
+	u8 addn_status;
+	int status = 0;
+
+	read_cmd.size = LANCER_READ_FILE_CHUNK;
+	read_cmd.va = pci_alloc_consistent(adapter->pdev, read_cmd.size,
+			&read_cmd.dma);
+
+	if (!read_cmd.va) {
+		dev_err(&adapter->pdev->dev,
+				"Memory allocation failure while reading dump\n");
+		return -ENOMEM;
+	}
+
+	while ((total_read_len < buf_len) && !eof) {
+		chunk_size = min_t(u32, (buf_len - total_read_len),
+				LANCER_READ_FILE_CHUNK);
+		chunk_size = ALIGN(chunk_size, 4);
+		status = lancer_cmd_read_object(adapter, &read_cmd, chunk_size,
+				total_read_len, file_name, &read_len,
+				&eof, &addn_status);
+		if (!status) {
+			memcpy(buf + total_read_len, read_cmd.va, read_len);
+			total_read_len += read_len;
+			eof &= LANCER_READ_FILE_EOF_MASK;
+		} else {
+			status = -EIO;
+			break;
+		}
+	}
+	pci_free_consistent(adapter->pdev, read_cmd.size, read_cmd.va,
+			read_cmd.dma);
+
+	return status;
+}
+
 static int
 be_get_reg_len(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	u32 log_size = 0;
 
-	if (be_physfn(adapter))
-		be_cmd_get_reg_len(adapter, &log_size);
-
+	if (be_physfn(adapter)) {
+		if (lancer_chip(adapter))
+			log_size = lancer_cmd_get_file_len(adapter,
+					LANCER_FW_DUMP_FILE);
+		else
+			be_cmd_get_reg_len(adapter, &log_size);
+	}
 	return log_size;
 }
 
@@ -162,7 +224,11 @@ be_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *buf)
 
 	if (be_physfn(adapter)) {
 		memset(buf, 0, regs->len);
-		be_cmd_get_regs(adapter, regs->len, buf);
+		if (lancer_chip(adapter))
+			lancer_cmd_read_file(adapter, LANCER_FW_DUMP_FILE,
+					regs->len, buf);
+		else
+			be_cmd_get_regs(adapter, regs->len, buf);
 	}
 }
 

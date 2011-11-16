@@ -189,6 +189,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 #define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
 #define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
+#define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
 
 #define OPCODE_ETH_RSS_CONFIG				1
@@ -1161,6 +1162,36 @@ struct lancer_cmd_resp_write_object {
 	u32 actual_write_len;
 };
 
+/************************ Lancer Read FW info **************/
+#define LANCER_READ_FILE_CHUNK			(32*1024)
+#define LANCER_READ_FILE_EOF_MASK		0x80000000
+
+#define LANCER_FW_DUMP_FILE			"/dbg/dump.bin"
+
+struct lancer_cmd_req_read_object {
+	struct be_cmd_req_hdr hdr;
+	u32 desired_read_len;
+	u32 read_offset;
+	u8 object_name[104];
+	u32 descriptor_count;
+	u32 buf_len;
+	u32 addr_low;
+	u32 addr_high;
+};
+
+struct lancer_cmd_resp_read_object {
+	u8 opcode;
+	u8 subsystem;
+	u8 rsvd1[2];
+	u8 status;
+	u8 additional_status;
+	u8 rsvd2[2];
+	u32 resp_len;
+	u32 actual_resp_len;
+	u32 actual_read_len;
+	u32 eof;
+};
+
 /************************ WOL *******************************/
 struct be_cmd_req_acpi_wol_magic_config{
 	struct be_cmd_req_hdr hdr;
@@ -1480,6 +1511,9 @@ extern int lancer_cmd_write_object(struct be_adapter *adapter,
 				u32 data_size, u32 data_offset,
 				const char *obj_name,
 				u32 *data_written, u8 *addn_status);
+int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
+		u32 data_size, u32 data_offset, const char *obj_name,
+		u32 *data_read, u32 *eof, u8 *addn_status);
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 				int offset);
 extern int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
