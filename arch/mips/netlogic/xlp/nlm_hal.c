@@ -86,20 +86,26 @@ int nlm_irt_to_irq(int irt)
 	}
 }
 
-unsigned int nlm_get_cpu_frequency(void)
+unsigned int nlm_get_core_frequency(int core)
 {
-	unsigned int pll_divf, pll_divr, dfs_div, denom;
-	unsigned int val;
+	unsigned int pll_divf, pll_divr, dfs_div, ext_div;
+	unsigned int rstval, dfsval, denom;
 	uint64_t num;
 
-	val = nlm_read_sys_reg(nlm_sys_base, SYS_POWER_ON_RESET_CFG);
-	pll_divf = (val >> 10) & 0x7f;
-	pll_divr = (val >> 8)  & 0x3;
-	dfs_div  = (val >> 17) & 0x3;
+	rstval = nlm_read_sys_reg(nlm_sys_base, SYS_POWER_ON_RESET_CFG);
+	dfsval = nlm_read_sys_reg(nlm_sys_base, SYS_CORE_DFS_DIV_VALUE);
+	pll_divf = ((rstval >> 10) & 0x7f) + 1;
+	pll_divr = ((rstval >> 8)  & 0x3) + 1;
+	ext_div  = ((rstval >> 30) & 0x3) + 1;
+	dfs_div  = ((dfsval >> (core * 4)) & 0xf) + 1;
 
-	num = pll_divf + 1;
-	denom = 3 * (pll_divr + 1) * (1 << (dfs_div + 1));
-	num = num * 800000000ULL;
+	num = 800000000ULL * pll_divf;
+	denom = 3 * pll_divr * ext_div * dfs_div;
 	do_div(num, denom);
 	return (unsigned int)num;
+}
+
+unsigned int nlm_get_cpu_frequency(void)
+{
+	return nlm_get_core_frequency(0);
 }
