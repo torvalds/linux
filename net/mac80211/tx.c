@@ -1200,24 +1200,15 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	return TX_CONTINUE;
 }
 
-/*
- * Returns false if the frame couldn't be transmitted but was queued instead.
- */
-static bool __ieee80211_tx(struct ieee80211_local *local,
-			   struct sk_buff_head *skbs, int led_len,
-			   struct sta_info *sta, bool txpending)
+static bool ieee80211_tx_frags(struct ieee80211_local *local,
+			       struct ieee80211_vif *vif,
+			       struct ieee80211_sta *sta,
+			       struct sk_buff_head *skbs,
+			       bool txpending)
 {
 	struct sk_buff *skb, *tmp;
 	struct ieee80211_tx_info *info;
-	struct ieee80211_sub_if_data *sdata;
 	unsigned long flags;
-	__le16 fc;
-
-	if (WARN_ON(skb_queue_empty(skbs)))
-		return true;
-
-	skb = skb_peek(skbs);
-	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
 
 	skb_queue_walk_safe(skbs, skb, tmp) {
 		int q = skb_get_queue_mapping(skb);
@@ -1242,37 +1233,72 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
 		info = IEEE80211_SKB_CB(skb);
-
-		sdata = vif_to_sdata(info->control.vif);
-
-		switch (sdata->vif.type) {
-		case NL80211_IFTYPE_MONITOR:
-			info->control.vif = NULL;
-			break;
-		case NL80211_IFTYPE_AP_VLAN:
-			info->control.vif = &container_of(sdata->bss,
-				struct ieee80211_sub_if_data, u.ap)->vif;
-			break;
-		default:
-			/* keep */
-			break;
-		}
-
-		if (sta && sta->uploaded)
-			info->control.sta = &sta->sta;
-		else
-			info->control.sta = NULL;
+		info->control.vif = vif;
+		info->control.sta = sta;
 
 		__skb_unlink(skb, skbs);
 		drv_tx(local, skb);
 	}
+
+	return true;
+}
+
+/*
+ * Returns false if the frame couldn't be transmitted but was queued instead.
+ */
+static bool __ieee80211_tx(struct ieee80211_local *local,
+			   struct sk_buff_head *skbs, int led_len,
+			   struct sta_info *sta, bool txpending)
+{
+	struct ieee80211_tx_info *info;
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_vif *vif;
+	struct ieee80211_sta *pubsta;
+	struct sk_buff *skb;
+	bool result = true;
+	__le16 fc;
+
+	if (WARN_ON(skb_queue_empty(skbs)))
+		return true;
+
+	skb = skb_peek(skbs);
+	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
+	info = IEEE80211_SKB_CB(skb);
+	sdata = vif_to_sdata(info->control.vif);
+	if (sta && !sta->uploaded)
+		sta = NULL;
+
+	if (sta)
+		pubsta = &sta->sta;
+	else
+		pubsta = NULL;
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_MONITOR:
+		sdata = NULL;
+		vif = NULL;
+		break;
+	case NL80211_IFTYPE_AP_VLAN:
+		sdata = container_of(sdata->bss,
+				     struct ieee80211_sub_if_data, u.ap);
+		/* fall through */
+	default:
+		vif = &sdata->vif;
+		break;
+	}
+
+	if (local->ops->tx_frags)
+		drv_tx_frags(local, vif, pubsta, skbs);
+	else
+		result = ieee80211_tx_frags(local, vif, pubsta, skbs,
+					    txpending);
 
 	ieee80211_tpt_led_trig_tx(local, fc, led_len);
 	ieee80211_led_tx(local, 1);
 
 	WARN_ON(!skb_queue_empty(skbs));
 
-	return true;
+	return result;
 }
 
 /*
