@@ -4442,7 +4442,7 @@ static void release_openowner_sop(struct nfs4_stateowner *sop)
 	release_openowner(openowner(sop));
 }
 
-static int nfsd_release_n_owners(u64 num, bool is_open_owner
+static int nfsd_release_n_owners(u64 num, bool is_open_owner,
 				void (*release_sop)(struct nfs4_stateowner *))
 {
 	int i, count = 0;
