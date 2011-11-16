@@ -869,6 +869,7 @@ static void sky2_wol_init(struct sky2_port *sky2)
 
 	/* block receiver */
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
+	sky2_read32(hw, B0_CTST);
 }
 
 static void sky2_set_tx_stfwd(struct sky2_hw *hw, unsigned port)
@@ -2045,6 +2046,8 @@ static void sky2_tx_reset(struct sky2_hw *hw, unsigned port)
 
 	sky2_write32(hw, RB_ADDR(txqaddr[port], RB_CTRL), RB_RST_SET);
 	sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_SET);
+
+	sky2_read32(hw, B0_CTST);
 }
 
 static void sky2_hw_down(struct sky2_port *sky2)
