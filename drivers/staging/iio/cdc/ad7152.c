@@ -540,20 +540,8 @@ static struct i2c_driver ad7152_driver = {
 	.remove = __devexit_p(ad7152_remove),
 	.id_table = ad7152_id,
 };
-
-static __init int ad7152_init(void)
-{
-	return i2c_add_driver(&ad7152_driver);
-}
-
-static __exit void ad7152_exit(void)
-{
-	i2c_del_driver(&ad7152_driver);
-}
+module_i2c_driver(ad7152_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices AD7152/3 capacitive sensor driver");
 MODULE_LICENSE("GPL v2");
-
-module_init(ad7152_init);
-module_exit(ad7152_exit);

@@ -280,20 +280,8 @@ static struct i2c_driver max517_driver = {
 	.resume		= max517_resume,
 	.id_table	= max517_id,
 };
-
-static int __init max517_init(void)
-{
-	return i2c_add_driver(&max517_driver);
-}
-
-static void __exit max517_exit(void)
-{
-	i2c_del_driver(&max517_driver);
-}
+module_i2c_driver(max517_driver);
 
 MODULE_AUTHOR("Roland Stigge <stigge@antcom.de>");
 MODULE_DESCRIPTION("MAX517/MAX518/MAX519 8-bit DAC");
 MODULE_LICENSE("GPL");
-
-module_init(max517_init);
-module_exit(max517_exit);
