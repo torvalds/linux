@@ -258,6 +258,8 @@ struct psb_intel_opregion {
 
 struct psb_ops;
 
+#define PSB_NUM_PIPE		3
+
 struct drm_psb_private {
 	struct drm_device *dev;
 	const struct psb_ops *ops;

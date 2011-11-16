@@ -22,9 +22,6 @@
 #ifndef _PSB_DRM_H_
 #define _PSB_DRM_H_
 
-#define PSB_NUM_PIPE 3
-
-
 /*
  *	Manage the LUT for an output
  */
