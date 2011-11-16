@@ -1986,6 +1986,9 @@ config CPU_HAS_SMARTMIPS
 config CPU_HAS_WB
 	bool
 
+config XKS01
+	bool
+
 #
 # Vectored interrupt mode is an R2 feature
 #
