@@ -307,6 +307,46 @@ acpi_set_current_resources(acpi_handle device_handle,
 
 ACPI_EXPORT_SYMBOL(acpi_set_current_resources)
 
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_get_event_resources
+ *
+ * PARAMETERS:  device_handle   - Handle to the device object for the
+ *                                device we are getting resources
+ *              in_buffer       - Pointer to a buffer containing the
+ *                                resources to be set for the device
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: This function is called to get the event resources for a
+ *              specific device. The caller must first acquire a handle for
+ *              the desired device. The resource data is passed to the routine
+ *              the buffer pointed to by the in_buffer variable. Uses the
+ *              _AEI method.
+ *
+ ******************************************************************************/
+acpi_status
+acpi_get_event_resources(acpi_handle device_handle,
+			 struct acpi_buffer *ret_buffer)
+{
+	acpi_status status;
+	struct acpi_namespace_node *node;
+
+	ACPI_FUNCTION_TRACE(acpi_get_event_resources);
+
+	/* Validate parameters then dispatch to internal routine */
+
+	status = acpi_rs_validate_parameters(device_handle, ret_buffer, &node);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	status = acpi_rs_get_aei_method_data(node, ret_buffer);
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_get_event_resources)
+
 /******************************************************************************
  *
  * FUNCTION:    acpi_resource_to_address64

@@ -594,6 +594,56 @@ acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_rs_get_aei_method_data
+ *
+ * PARAMETERS:  Node            - Device node
+ *              ret_buffer      - Pointer to a buffer structure for the
+ *                                results
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: This function is called to get the _AEI value of an object
+ *              contained in an object specified by the handle passed in
+ *
+ *              If the function fails an appropriate status will be returned
+ *              and the contents of the callers buffer is undefined.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_rs_get_aei_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer)
+{
+	union acpi_operand_object *obj_desc;
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(rs_get_aei_method_data);
+
+	/* Parameters guaranteed valid by caller */
+
+	/* Execute the method, no parameters */
+
+	status = acpi_ut_evaluate_object(node, METHOD_NAME__AEI,
+					 ACPI_BTYPE_BUFFER, &obj_desc);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/*
+	 * Make the call to create a resource linked list from the
+	 * byte stream buffer that comes back from the _CRS method
+	 * execution.
+	 */
+	status = acpi_rs_create_resource_list(obj_desc, ret_buffer);
+
+	/* On exit, we must delete the object returned by evaluate_object */
+
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_rs_get_method_data
  *
  * PARAMETERS:  Handle          - Handle to the containing object

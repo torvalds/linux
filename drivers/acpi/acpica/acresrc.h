@@ -215,6 +215,10 @@ acpi_status
 acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
 			    struct acpi_buffer *ret_buffer);
 
+acpi_status
+acpi_rs_get_aei_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer);
+
 /*
  * rscalc
  */
